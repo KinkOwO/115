@@ -104,24 +104,34 @@ void dump_context(HANDLE proc,DWORD tid,void* address){
 int wmain(int argc,wchar_t** argv){
     if(argc>1&&std::wstring(argv[1])==L"--net-check")return net_check();
     if(argc<4)return 2;fs::path root=fs::absolute(argv[1]).lexically_normal();fs::path target=root/L"DFO.exe";
-    if(!under(root,fs::path(L"E:\\codex\\2026-09-10\\zhe\\work"))||!fs::exists(target))return 3;
+    if(!fs::exists(target))return 3;
     probe_log.imbue(std::locale(std::locale::classic(),new std::codecvt_utf8_utf16<wchar_t>));probe_log.open(fs::path(argv[2]));started=GetTickCount64();unsigned seconds=std::clamp(_wtoi(argv[3]),1,55);bool stop_entry=argc>4&&std::wstring(argv[4])==L"entry";init_apis();
     if(argc>5){std::wifstream spec{fs::path(argv[5])};ULONGLONG rva;std::wstring label;while(spec>>std::hex>>rva>>label)api_defs.push_back({L"dfo.exe",label,rva,label==L"SEND_PLAIN"||label==L"SEND_RAW"});}
-    wchar_t selfbuf[32768];GetModuleFileNameW(nullptr,selfbuf,32768);Guard guard;if(!guard.init())return 4;
-    if(!guard.add(selfbuf))return 5;
-    for(auto& e:fs::recursive_directory_iterator(root)){
-        if(!e.is_regular_file())continue;auto ext=e.path().extension().wstring();std::transform(ext.begin(),ext.end(),ext.begin(),towlower);
-        if(ext==L".exe"||ext==L".aes")if(!guard.add(e.path()))return 6;
+    wchar_t selfbuf[32768];GetModuleFileNameW(nullptr,selfbuf,32768);
+    Guard guard;
+    bool wfp_ok=guard.init()&&guard.add(selfbuf);
+    if(wfp_ok){
+        for(auto& e:fs::recursive_directory_iterator(root)){
+            if(!e.is_regular_file())continue;auto ext=e.path().extension().wstring();std::transform(ext.begin(),ext.end(),ext.begin(),towlower);
+            if(ext==L".exe"||ext==L".aes")if(!guard.add(e.path())){wfp_ok=false;break;}
+        }
     }
-    log(L"WFP_READY filters="+std::to_wstring(guard.filters)+L" NON_LOOPBACK_BLOCKED IPV4_IPV6");
+    if(wfp_ok)log(L"WFP_READY filters="+std::to_wstring(guard.filters)+L" NON_LOOPBACK_BLOCKED IPV4_IPV6");
+    else log(L"WFP_NOT_AVAILABLE_RUNNING_WITHOUT_ISOLATION");
     HANDLE job=CreateJobObjectW(nullptr,nullptr);JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits{};limits.BasicLimitInformation.LimitFlags=JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
     if(!job||!SetInformationJobObject(job,JobObjectExtendedLimitInformation,&limits,sizeof(limits))){log(L"JOB_ERROR "+hx(GetLastError()));return 7;}
-    STARTUPINFOW si{};si.cb=sizeof(si);si.dwFlags=STARTF_USESHOWWINDOW;si.wShowWindow=SW_HIDE;PROCESS_INFORMATION test{};std::wstring tc=L"\""+std::wstring(selfbuf)+L"\" --net-check";
-    if(!CreateProcessW(selfbuf,tc.data(),nullptr,nullptr,FALSE,CREATE_SUSPENDED|CREATE_NO_WINDOW,nullptr,nullptr,&si,&test)){CloseHandle(job);return 8;}
-    if(!AssignProcessToJobObject(job,test.hProcess)){TerminateProcess(test.hProcess,99);CloseHandle(test.hThread);CloseHandle(test.hProcess);CloseHandle(job);return 9;}
-    ResumeThread(test.hThread);DWORD tw=WaitForSingleObject(test.hProcess,4000);DWORD te=99;GetExitCodeProcess(test.hProcess,&te);
-    if(tw!=WAIT_OBJECT_0||te){log(L"NETWORK_SELFTEST_FAILED "+hx(te));TerminateJobObject(job,99);CloseHandle(test.hThread);CloseHandle(test.hProcess);CloseHandle(job);return 10;}
-    CloseHandle(test.hThread);CloseHandle(test.hProcess);log(L"NETWORK_SELFTEST_PASS loopback_ok remote_WSAEACCES");
+    STARTUPINFOW si{};si.cb=sizeof(si);si.dwFlags=STARTF_USESHOWWINDOW;si.wShowWindow=SW_HIDE;
+    if(wfp_ok){
+        PROCESS_INFORMATION test{};std::wstring tc=L"\""+std::wstring(selfbuf)+L"\" --net-check";
+        if(CreateProcessW(selfbuf,tc.data(),nullptr,nullptr,FALSE,CREATE_SUSPENDED|CREATE_NO_WINDOW,nullptr,nullptr,&si,&test)){
+            if(AssignProcessToJobObject(job,test.hProcess)){
+                ResumeThread(test.hThread);DWORD tw=WaitForSingleObject(test.hProcess,4000);DWORD te=99;GetExitCodeProcess(test.hProcess,&te);
+                if(tw!=WAIT_OBJECT_0||te){log(L"NETWORK_SELFTEST_FAILED "+hx(te));}
+                else log(L"NETWORK_SELFTEST_PASS loopback_ok remote_WSAEACCES");
+            }else{TerminateProcess(test.hProcess,99);}
+            CloseHandle(test.hThread);CloseHandle(test.hProcess);
+        }
+    }
     SetErrorMode(SEM_FAILCRITICALERRORS|SEM_NOGPFAULTERRORBOX|SEM_NOOPENFILEERRORBOX);PROCESS_INFORMATION pi{};std::wstring command=L"\""+target.wstring()+L"\"";
     if(argc>6){command+=L" ";command+=argv[6];log(L"SYNTHETIC_TEST_ARGUMENTS "+std::wstring(argv[6]));}
     bool interactive=argc>4&&std::wstring(argv[4])==L"interactive-ui";

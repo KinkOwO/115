@@ -1,4 +1,14 @@
 # CHANGELOG
 
+## 2026-09-17
+- 恢复服务端启动修复与迁移支持：
+  - `server/work/dfo_probe_tools/probe.cpp`: 去除硬编码路径校验，实现 WFP 网络隔离优雅降级
+  - `server/work/dfo_probe_tools/channel_probe.py`: 支持 `server-only` 模式，修复级联误杀进程问题
+  - `server/work/dfo-lan/scripts/launch_local.py`: 新增 `--server-only` 命令行参数，调整状态轮询竞态
+  - `stop_environment.py`: 新增环境收敛脚本（优雅关闭 PostgreSQL、Redis 与残留进程）
+  - 新增一键运行入口：`启动服务端.cmd`、`启动游戏.cmd`、`停止游戏环境.cmd`
+  - `server/work/dfo-lan/runtime/storage/redis.conf`: 适配 Redis 5.0 参数配置
+
 ## 2026-09-16
 - 初始化项目
+
