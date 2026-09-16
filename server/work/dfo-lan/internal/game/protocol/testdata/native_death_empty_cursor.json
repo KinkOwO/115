@@ -1,0 +1,44 @@
+{
+  "payload_hex": "001000000000ff00",
+  "consumed": 8,
+  "reads": [
+    {
+      "site": "0x1452bb996",
+      "offset": 0,
+      "size": 2,
+      "hex": "0010"
+    },
+    {
+      "site": "0x1452bb99f",
+      "offset": 2,
+      "size": 2,
+      "hex": "0000"
+    },
+    {
+      "site": "0x1452bc5a3",
+      "offset": 4,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452bc5c4",
+      "offset": 5,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452bc604",
+      "offset": 6,
+      "size": 1,
+      "hex": "ff"
+    },
+    {
+      "site": "0x1452bc610",
+      "offset": 7,
+      "size": 1,
+      "hex": "00"
+    }
+  ],
+  "spawns": [],
+  "scope": "original native packet reader and spawn arguments; game, map and UI calls stubbed"
+}

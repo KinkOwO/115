@@ -1,0 +1,9 @@
+{
+  "input": "E:\\codex\\2026-09-10\\zhe\\work\\dfo-lan\\runtime\\archer-layout-patch38\\Script.inner.pvf",
+  "output": "E:\\codex\\2026-09-10\\zhe\\work\\dfo-lan\\runtime\\archer-layout-patch38\\Script.pvf",
+  "inner_sha256": "be95d64ee120248ae503194d2f61743ef74409a8ff999a4a986ca2e0bccf69b0",
+  "wrapped_sha256": "5dd03873edf2c1df7aea16db5ad146a776fb8461a947be73042cabd932e66f0a",
+  "native_wrapper_roundtrip": true,
+  "segments": 73,
+  "original_files_modified": false
+}

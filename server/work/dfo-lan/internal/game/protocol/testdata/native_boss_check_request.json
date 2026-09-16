@@ -1,0 +1,30 @@
+{
+  "payload_hex": "030034120000000078563412",
+  "writes": [
+    {
+      "site": "0x145c34f81",
+      "offset": 0,
+      "size": 2,
+      "value": 3
+    },
+    {
+      "site": "0x145c34f9c",
+      "offset": 2,
+      "size": 2,
+      "value": 4660
+    },
+    {
+      "site": "0x145c34fab",
+      "offset": 4,
+      "size": 4,
+      "value": 0
+    },
+    {
+      "site": "0x145c34fc1",
+      "offset": 8,
+      "size": 4,
+      "value": 305419896
+    }
+  ],
+  "scope": "native CMD117 writer; actor identity and check accessor mocked; no process or network"
+}

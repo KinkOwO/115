@@ -1,0 +1,38 @@
+[
+  {
+    "algorithm": "dfo_multi2",
+    "key": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f2021222324252627",
+    "plain": "00070e151c232a31383f464d545b6269",
+    "cipher": "0b4329859c382409efc8b0c4261fb1b6",
+    "setup": "0x146d96670",
+    "encrypt": "0x146d964c0",
+    "decrypt": "0x146d96330"
+  },
+  {
+    "algorithm": "dfo_multi2",
+    "key": "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728",
+    "plain": "01080f161d242b323940474e555c636a",
+    "cipher": "022af423a6d88de0bf3350778e5aaf83",
+    "setup": "0x146d96670",
+    "encrypt": "0x146d964c0",
+    "decrypt": "0x146d96330"
+  },
+  {
+    "algorithm": "dfo_multi2",
+    "key": "4748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e",
+    "plain": "474e555c636a71787f868d949ba2a9b0",
+    "cipher": "6a22b1266d2710f7afb118a27b2702db",
+    "setup": "0x146d96670",
+    "encrypt": "0x146d964c0",
+    "decrypt": "0x146d96330"
+  },
+  {
+    "algorithm": "dfo_multi2",
+    "key": "ff000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20212223242526",
+    "plain": "ff060d141b222930373e454c535a6168",
+    "cipher": "4d08285f0655b55a6bb29ab23c0bd9d9",
+    "setup": "0x146d96670",
+    "encrypt": "0x146d964c0",
+    "decrypt": "0x146d96330"
+  }
+]

@@ -1,0 +1,10 @@
+{
+  "python_syntax": "PASS",
+  "launch_command_dependencies": "PASS",
+  "archived_and_source_binary_flags": "PASS",
+  "private_storage_and_runtime_logs_excluded": true,
+  "known_current_credentials_scan": "PASS",
+  "scanned_files": 598,
+  "real_client_gameplay_retested": false,
+  "new_machine_storage_setup_executed": false
+}

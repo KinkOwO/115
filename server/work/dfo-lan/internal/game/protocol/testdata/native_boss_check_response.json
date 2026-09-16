@@ -1,0 +1,28 @@
+{
+  "payload_hex": "01013412",
+  "consumed": 4,
+  "reads": [
+    {
+      "site": "0x1452a5837",
+      "offset": 0,
+      "size": 1,
+      "hex": "01"
+    },
+    {
+      "site": "0x1452a5869",
+      "offset": 1,
+      "size": 1,
+      "hex": "01"
+    },
+    {
+      "site": "0x1452a5873",
+      "offset": 2,
+      "size": 2,
+      "hex": "3412"
+    }
+  ],
+  "spawns": [],
+  "coordinates": {},
+  "scope": "original native packet reader, coordinate setter and spawn arguments; game, map and UI calls stubbed",
+  "truncation_failure": "overrun 1452a5873: 2+2>3"
+}

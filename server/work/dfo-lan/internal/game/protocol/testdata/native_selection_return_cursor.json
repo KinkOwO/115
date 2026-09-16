@@ -1,0 +1,14 @@
+{
+  "payload_hex": "00",
+  "consumed": 1,
+  "reads": [
+    {
+      "site": "0x1452aee53",
+      "offset": 0,
+      "size": 1,
+      "hex": "00"
+    }
+  ],
+  "spawns": [],
+  "scope": "original native packet reader and spawn arguments; game, map and UI calls stubbed"
+}

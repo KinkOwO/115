@@ -1,0 +1,15 @@
+{
+  "payload_hex": "00",
+  "consumed": 1,
+  "reads": [
+    {
+      "site": "0x1452500af",
+      "offset": 0,
+      "size": 1,
+      "hex": "00"
+    }
+  ],
+  "spawns": [],
+  "coordinates": {},
+  "scope": "current native empty pending deletion reader; UI bodies stubbed"
+}

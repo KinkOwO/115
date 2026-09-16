@@ -1,0 +1,48 @@
+{
+  "payload_hex": "0100000066697273740000000000000000000000000000000100000023310000000000000000000000000000000000001e000000010000003132372e302e302e310000000000000039300000",
+  "consumed": 76,
+  "reads": [
+    {
+      "offset": 0,
+      "size": 4
+    },
+    {
+      "offset": 4,
+      "size": 20
+    },
+    {
+      "offset": 24,
+      "size": 4
+    },
+    {
+      "offset": 28,
+      "size": 20
+    },
+    {
+      "offset": 48,
+      "size": 4
+    },
+    {
+      "offset": 52,
+      "size": 4
+    },
+    {
+      "offset": 56,
+      "size": 16
+    },
+    {
+      "offset": 72,
+      "size": 4
+    }
+  ],
+  "spawns": [],
+  "coordinates": {},
+  "scope": "original native packet reader, coordinate setter and spawn arguments; game, map and UI calls stubbed",
+  "number_extraction": {
+    "name": "#1",
+    "digits": [
+      "1"
+    ],
+    "channel_id": 1
+  }
+}

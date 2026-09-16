@@ -1,0 +1,128 @@
+[
+  {
+    "algorithm": "noekeon",
+    "key": "000102030405060708090a0b0c0d0e0f",
+    "plain": "00070e151c232a31383f464d545b6269",
+    "cipher": "a701aa34a5c58045f6bf31c7d03cfe74",
+    "setup": "0x146d97090",
+    "encrypt": "0x146d96c40",
+    "decrypt": "0x146d969e0"
+  },
+  {
+    "algorithm": "noekeon",
+    "key": "0102030405060708090a0b0c0d0e0f10",
+    "plain": "01080f161d242b323940474e555c636a",
+    "cipher": "6d281eda0ea0c3c6a0e6d821192fda3e",
+    "setup": "0x146d97090",
+    "encrypt": "0x146d96c40",
+    "decrypt": "0x146d969e0"
+  },
+  {
+    "algorithm": "noekeon",
+    "key": "4748494a4b4c4d4e4f50515253545556",
+    "plain": "474e555c636a71787f868d949ba2a9b0",
+    "cipher": "ae449937db76a17dfa9597a07f6643ad",
+    "setup": "0x146d97090",
+    "encrypt": "0x146d96c40",
+    "decrypt": "0x146d969e0"
+  },
+  {
+    "algorithm": "skipjack",
+    "key": "00010203040506070809",
+    "plain": "00070e151c232a31",
+    "cipher": "23f15aa3f9a1bc03",
+    "setup": "0x146d98470",
+    "encrypt": "0x146d97a60",
+    "decrypt": "0x146d97560"
+  },
+  {
+    "algorithm": "skipjack",
+    "key": "0102030405060708090a",
+    "plain": "01080f161d242b32",
+    "cipher": "51b79f7e963a2dd5",
+    "setup": "0x146d98470",
+    "encrypt": "0x146d97a60",
+    "decrypt": "0x146d97560"
+  },
+  {
+    "algorithm": "skipjack",
+    "key": "4748494a4b4c4d4e4f50",
+    "plain": "474e555c636a7178",
+    "cipher": "7ac9cad77677bb3a",
+    "setup": "0x146d98470",
+    "encrypt": "0x146d97a60",
+    "decrypt": "0x146d97560"
+  },
+  {
+    "algorithm": "cast5",
+    "key": "000102030405060708090a0b0c0d0e0f",
+    "plain": "00070e151c232a31",
+    "cipher": "fc0a0cd42df019f1",
+    "setup": "0x146d93770",
+    "encrypt": "0x146d93750",
+    "decrypt": "0x146d93730"
+  },
+  {
+    "algorithm": "cast5",
+    "key": "0102030405060708090a0b0c0d0e0f10",
+    "plain": "01080f161d242b32",
+    "cipher": "20f57f73e423ea63",
+    "setup": "0x146d93770",
+    "encrypt": "0x146d93750",
+    "decrypt": "0x146d93730"
+  },
+  {
+    "algorithm": "cast5",
+    "key": "4748494a4b4c4d4e4f50515253545556",
+    "plain": "474e555c636a7178",
+    "cipher": "d5784214bbc5d046",
+    "setup": "0x146d93770",
+    "encrypt": "0x146d93750",
+    "decrypt": "0x146d93730"
+  },
+  {
+    "algorithm": "xtea_le",
+    "key": "000102030405060708090a0b0c0d0e0f",
+    "plain": "00070e151c232a31",
+    "cipher": "79b6a027ccfc458d",
+    "setup": "0x146d9a0d0",
+    "encrypt": "0x146d99f60",
+    "decrypt": "0x146d99bc0"
+  },
+  {
+    "algorithm": "xtea_le",
+    "key": "0102030405060708090a0b0c0d0e0f10",
+    "plain": "01080f161d242b32",
+    "cipher": "c6f60b1749f58250",
+    "setup": "0x146d9a0d0",
+    "encrypt": "0x146d99f60",
+    "decrypt": "0x146d99bc0"
+  },
+  {
+    "algorithm": "xtea_le",
+    "key": "4748494a4b4c4d4e4f50515253545556",
+    "plain": "474e555c636a7178",
+    "cipher": "535d994234ffebf3",
+    "setup": "0x146d9a0d0",
+    "encrypt": "0x146d99f60",
+    "decrypt": "0x146d99bc0"
+  },
+  {
+    "algorithm": "dfo_rc6",
+    "key": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b",
+    "plain": "00070e151c232a31383f464d545b6269",
+    "cipher": "f1db0f094699184e083acaf2a63e372c"
+  },
+  {
+    "algorithm": "dfo_rc6",
+    "key": "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c",
+    "plain": "01080f161d242b323940474e555c636a",
+    "cipher": "e850a19e090a3dcca490ffc3c3fc34d8"
+  },
+  {
+    "algorithm": "dfo_rc6",
+    "key": "4748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182",
+    "plain": "474e555c636a71787f868d949ba2a9b0",
+    "cipher": "a435201c2b87911e18c119a8f06a8d92"
+  }
+]

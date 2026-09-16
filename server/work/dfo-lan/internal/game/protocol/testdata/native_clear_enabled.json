@@ -1,0 +1,16 @@
+{
+  "payload_hex": "00000000",
+  "consumed": 4,
+  "reads": [
+    {
+      "site": "0x1452ae59a",
+      "offset": 0,
+      "size": 4,
+      "hex": "00000000"
+    }
+  ],
+  "spawns": [],
+  "coordinates": {},
+  "scope": "original native packet reader, coordinate setter and spawn arguments; game, map and UI calls stubbed",
+  "effects": []
+}

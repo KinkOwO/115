@@ -1,0 +1,8 @@
+{
+  "model": "reference90-free-gold-v1",
+  "reference_sha256": "9a96e6078a0d0451484a4dced19b17c383991a078083e8aa6ced8764c45c8126",
+  "gold_numerator": 175,
+  "gold_denominator": 1000,
+  "difficulty_bonus": [1.02, 1.38, 1.6, 1.9, 2.0],
+  "note": "Explicit compatibility formula. Current PVF gold table; free gold only until current equipment/card item pool is verified. Paid card and the reference +100 fallback are not enabled."
+}

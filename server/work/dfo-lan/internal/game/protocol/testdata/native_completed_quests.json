@@ -1,0 +1,32 @@
+{
+  "payload_hex": "02000000490c00003f9c0000",
+  "consumed": 12,
+  "reads": [
+    {
+      "site": "0x1452c9bd3",
+      "offset": 0,
+      "size": 4,
+      "hex": "02000000"
+    },
+    {
+      "site": "0x1452c9bea",
+      "offset": 4,
+      "size": 4,
+      "hex": "490c0000"
+    },
+    {
+      "site": "0x1452c9bea",
+      "offset": 8,
+      "size": 4,
+      "hex": "3f9c0000"
+    }
+  ],
+  "spawns": [],
+  "coordinates": {},
+  "scope": "original current NOTI342 list reader and bitmap writes; stopped after original bitmap setter call, later quest/UI traversal not emulated",
+  "completed_ids": [
+    3145,
+    39999
+  ],
+  "truncation_failure": "overrun 1452c9bea: 8+4>11"
+}

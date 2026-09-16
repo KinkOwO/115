@@ -1,0 +1,8 @@
+{
+  "payload_hex": "",
+  "consumed": 0,
+  "reads": [],
+  "spawns": [],
+  "coordinates": {},
+  "scope": "native CMD43 after dispatcher success/error fields, game/UI stubbed"
+}

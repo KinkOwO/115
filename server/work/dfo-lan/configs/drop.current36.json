@@ -1,0 +1,11 @@
+{
+ "model": "reference90-gold-stack-v1",
+ "reference_sha256": "9a96e6078a0d0451484a4dced19b17c383991a078083e8aa6ced8764c45c8126",
+ "denominator": 10000,
+ "difficulty_bonus": [1, 1.2, 1.4, 1.6, 1.8],
+ "supported_kinds": ["gold", "stackable", "equipment"],
+ "excluded_item_path_prefixes": ["stackable/extention/test_"],
+ "MaximumPickupX": 200,
+ "MaximumPickupY": 70,
+ "note": "Adds the equipment category to drop.compat90. Category probability, rarity roll and grade window all stay on the reference formula and the current source tables; the gear pool itself is the bag-usable projection of configs/equipment.current35.json. Selection inside the grade window is uniform because the item dictionary's own generation weights are still unrecovered, so this is not official-server drop parity."
+}

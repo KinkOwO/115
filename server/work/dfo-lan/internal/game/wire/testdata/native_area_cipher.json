@@ -1,0 +1,34 @@
+[
+  {
+    "key": "000102030405060708090a0b0c0d0e0f",
+    "plain": "00070e151c232a31383f464d545b626970777e858c939aa1a8afb6bdc4cbd2d9e0e7eef5fc030a11181f262d343b4249",
+    "cipher": "8cd96b8344fc13319f3ae348c93788894afb5ccb4bda0d4760baf81b5f915d1360658752db4b6011f8f739e79ebc62f0",
+    "setup": "146d90e10",
+    "encrypt": "146d90df0",
+    "decrypt": "146d90dd0"
+  },
+  {
+    "key": "0102030405060708090a0b0c0d0e0f10",
+    "plain": "01080f161d242b323940474e555c636a71787f868d949ba2a9b0b7bec5ccd3dae1e8eff6fd040b121920272e353c434a",
+    "cipher": "46e90e5b7115eda5a7e6fce418cb0dfcb0d84f25b4fb485bab0ab48f548f302daf85e35f891c40c7b6da5d3c7ad9619f",
+    "setup": "146d90e10",
+    "encrypt": "146d90df0",
+    "decrypt": "146d90dd0"
+  },
+  {
+    "key": "4748494a4b4c4d4e4f50515253545556",
+    "plain": "474e555c636a71787f868d949ba2a9b0b7bec5ccd3dae1e8eff6fd040b121920272e353c434a51585f666d747b828990",
+    "cipher": "e7a79f1962049825df93427a41ed50ad331c2b27d4613de5a4156c9ddadfd2e11bdf21a6a13d3982d0e9dbfedbf57c64",
+    "setup": "146d90e10",
+    "encrypt": "146d90df0",
+    "decrypt": "146d90dd0"
+  },
+  {
+    "key": "eeeff0f1f2f3f4f5f6f7f8f9fafbfcfd",
+    "plain": "eef5fc030a11181f262d343b424950575e656c737a81888f969da4abb2b9c0c7ced5dce3eaf1f8ff060d141b22293037",
+    "cipher": "309d784a6d5761db9a44d83b36d4f0ff17e736eb74760223883cbe373b7485a21267b62c58a1b5ae9d9aa6fd2e68a2e5",
+    "setup": "146d90e10",
+    "encrypt": "146d90df0",
+    "decrypt": "146d90dd0"
+  }
+]

@@ -1,0 +1,65 @@
+Usage of E:\codex\2026-09-10\zhe\outputs\DFO-server-handoff-20260912\work\dfo-lan\bin\wireprobe-handoff-source.exe:
+  -account-options string
+    	sparse current-client account option overrides; other defaults remain client-owned
+  -bag-rules string
+    	separate bag slot and missing stack limit policy (default "configs/inventory.compat90.json")
+  -card-rules string
+    	separate compatible free-card policy (default "configs/cards.compat90.json")
+  -channel-refresh-config string
+    	separate local channel directory service for native refresh
+  -character-catalog string
+    	PVF-derived profession catalog (default "configs/characters.generated.json")
+  -character-rules string
+    	explicit local bootstrap settings (default "configs/character-probe.json")
+  -character-storage string
+    	enable experimental persisted character handling with this local storage config
+  -dungeon-catalog string
+    	source dungeon layouts and first-room loading experiment
+  -entry-addition-probe
+    	send current-build source attributes; optional inventory and skills remain pending
+  -entry-basic-probe
+    	send experimental current-build minimum actor info after SELECT; does not initialize a town
+  -equipment-wear-rules string
+    	current-client equipment slots and persistent wear handling
+  -fatigue-rules string
+    	separate persisted fatigue and rollover policy
+  -fixture string
+    	verified-format server fixture to send after accept
+  -game-listen string
+    	loopback game endpoint (default "127.0.0.1:0")
+  -loot-catalog string
+    	current gold/ordinary stackable source projection; equipment pending
+  -loot-rules string
+    	explicit reference drop formula policy (default "configs/drop.compat90.json")
+  -output string
+    	capture directory (default "runtime/wireprobe")
+  -progression-catalog string
+    	current-source experience and growth catalog
+  -progression-rules string
+    	separate reference compatibility formula settings (default "configs/experience.compat90.json")
+  -quest-catalog string
+    	enable source quest accept/abandon persistence; objectives and rewards are separate
+  -quest-equipment-catalog string
+    	source basic-equipment metadata for atomic quest rewards
+  -responses string
+    	JSON mapping command IDs to response fixture paths
+  -select-probe-config string
+    	opt in to current-build SELECT parser experiment; does not initialize a town
+  -skill-catalog string
+    	current PVF learning metadata; enables manual learning and persisted skill slots
+  -solo-party-bootstrap
+    	initialize the owned actor in the current solo party roster
+  -town-catalog string
+    	PVF-derived town-area catalog for the entry experiment
+  -town-entry-probe string
+    	opt in to experimental town entry using this separate spawn policy
+  -tutorial-dungeons string
+    	source starting-route dungeon catalog
+  -tutorial-routes string
+    	source per-job starting route table
+  -vault-rules string
+    	source vault capacity and empty-state initialization
+  -world-catalog string
+    	enable source-backed town transitions and saved positions
+  -world-rules string
+    	separate world movement policy (default "configs/world-probe.json")

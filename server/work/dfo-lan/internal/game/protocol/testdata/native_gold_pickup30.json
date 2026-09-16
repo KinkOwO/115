@@ -1,0 +1,123 @@
+{
+  "payload_hex": "011f000000000000000000000000000000000000000000000000000000000000000000000000000000",
+  "consumed": 41,
+  "reads": [
+    {
+      "site": "0x1452d28af",
+      "offset": 0,
+      "size": 1,
+      "hex": "01"
+    },
+    {
+      "site": "0x1452d28be",
+      "offset": 1,
+      "size": 4,
+      "hex": "1f000000"
+    },
+    {
+      "site": "0x1452d2a93",
+      "offset": 5,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452d28af",
+      "offset": 6,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452d28be",
+      "offset": 7,
+      "size": 4,
+      "hex": "00000000"
+    },
+    {
+      "site": "0x1452d28af",
+      "offset": 11,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452d28be",
+      "offset": 12,
+      "size": 4,
+      "hex": "00000000"
+    },
+    {
+      "site": "0x1452d28af",
+      "offset": 16,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452d28be",
+      "offset": 17,
+      "size": 4,
+      "hex": "00000000"
+    },
+    {
+      "site": "0x1452d28af",
+      "offset": 21,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452d28be",
+      "offset": 22,
+      "size": 4,
+      "hex": "00000000"
+    },
+    {
+      "site": "0x1452d28af",
+      "offset": 26,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452d28be",
+      "offset": 27,
+      "size": 4,
+      "hex": "00000000"
+    },
+    {
+      "site": "0x1452d28af",
+      "offset": 31,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452d28be",
+      "offset": 32,
+      "size": 4,
+      "hex": "00000000"
+    },
+    {
+      "site": "0x1452d28af",
+      "offset": 36,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452d28be",
+      "offset": 37,
+      "size": 4,
+      "hex": "00000000"
+    }
+  ],
+  "spawns": [],
+  "coordinates": {},
+  "scope": "original gold pickup reader and delta/overhead dispatch arguments; local solo party0 and actor getters stubbed; rendering not executed",
+  "effects": [
+    {
+      "site": "0x1452d2912",
+      "kind": "gold_delta",
+      "amount": 31
+    },
+    {
+      "site": "0x1452d2c8c",
+      "kind": "overhead_gold",
+      "amount": 31
+    }
+  ]
+}

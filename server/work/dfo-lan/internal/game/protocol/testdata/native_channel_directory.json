@@ -1,0 +1,44 @@
+{
+  "payload_hex": "01000000666972737400000000000000000000000000000001000000234c414e204c6f63616c000000000000000000001e000000010000003132372e302e302e310000000000000039300000",
+  "consumed": 76,
+  "reads": [
+    {
+      "offset": 0,
+      "size": 4
+    },
+    {
+      "offset": 4,
+      "size": 20
+    },
+    {
+      "offset": 24,
+      "size": 4
+    },
+    {
+      "offset": 28,
+      "size": 20
+    },
+    {
+      "offset": 48,
+      "size": 4
+    },
+    {
+      "offset": 52,
+      "size": 4
+    },
+    {
+      "offset": 56,
+      "size": 16
+    },
+    {
+      "offset": 72,
+      "size": 4
+    }
+  ],
+  "spawns": [],
+  "coordinates": {},
+  "scope": "current channel directory native reader and record setter; string, address and UI operations stubbed",
+  "rows": [
+    "000000000000000000000000000000000000000000000000000000000000000007000000000000001e000000010000000000000039300000"
+  ]
+}

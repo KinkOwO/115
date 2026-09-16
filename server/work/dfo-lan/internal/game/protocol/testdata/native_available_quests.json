@@ -1,0 +1,14 @@
+{
+  "payload_hex": "0a0000001005180022048926ca18",
+  "fields": [
+    5,
+    0,
+    2
+  ],
+  "nested": [],
+  "ids": [
+    4873,
+    3146
+  ],
+  "scope": "current NOTI21 generated field parser, source IDs and required level; no UI calls"
+}

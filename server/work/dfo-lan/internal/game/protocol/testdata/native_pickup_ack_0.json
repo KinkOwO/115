@@ -1,0 +1,15 @@
+{
+  "payload_hex": "44332211",
+  "consumed": 4,
+  "reads": [
+    {
+      "site": "0x145244e5d",
+      "offset": 0,
+      "size": 4,
+      "hex": "44332211"
+    }
+  ],
+  "spawns": [],
+  "coordinates": {},
+  "scope": "native CMD43 after dispatcher success/error fields, game/UI stubbed"
+}

@@ -1,0 +1,7976 @@
+{
+  "count": 5650173,
+  "bytes": 6306255393,
+  "subdirs": {
+    "adventurerstory": {
+      "count": 3,
+      "bytes": 26387
+    },
+    "aicharacter": {
+      "count": 30095,
+      "bytes": 11448482,
+      "subdirs": {
+        "_bizarre": {
+          "count": 421,
+          "bytes": 77715
+        },
+        "_dizzygom": {
+          "count": 53,
+          "bytes": 6580
+        },
+        "_hikaru77": {
+          "count": 421,
+          "bytes": 109820
+        },
+        "_jojochan": {
+          "count": 1969,
+          "bytes": 538290
+        },
+        "_jun": {
+          "count": 16,
+          "bytes": 4705
+        },
+        "_nelios": {
+          "count": 457,
+          "bytes": 161580
+        },
+        "_realier19": {
+          "count": 129,
+          "bytes": 30800
+        },
+        "_scwrosa": {
+          "count": 239,
+          "bytes": 38455
+        },
+        "_ssoya0223": {
+          "count": 492,
+          "bytes": 108960
+        },
+        "_weresist": {
+          "count": 1017,
+          "bytes": 154090
+        },
+        "_yosihki": {
+          "count": 92,
+          "bytes": 18080
+        },
+        "arad_aic": {
+          "count": 2311,
+          "bytes": 519270
+        },
+        "aradroyalrumble": {
+          "count": 120,
+          "bytes": 299500
+        },
+        "archer": {
+          "count": 10,
+          "bytes": 2160
+        },
+        "assault_scenario": {
+          "count": 21,
+          "bytes": 4530
+        },
+        "atfighter": {
+          "count": 774,
+          "bytes": 187725
+        },
+        "atgunner": {
+          "count": 573,
+          "bytes": 186040
+        },
+        "atmagician": {
+          "count": 374,
+          "bytes": 145127
+        },
+        "atpriest": {
+          "count": 37,
+          "bytes": 8595
+        },
+        "atswordman": {
+          "count": 425,
+          "bytes": 86145
+        },
+        "autocharacter": {
+          "count": 2422,
+          "bytes": 310180
+        },
+        "cataclysm": {
+          "count": 2108,
+          "bytes": 629565
+        },
+        "cataclysm_tutorial": {
+          "count": 342,
+          "bytes": 119950
+        },
+        "chn_aic": {
+          "count": 1269,
+          "bytes": 276310
+        },
+        "contents": {
+          "count": 73,
+          "bytes": 20010
+        },
+        "debugchar": {
+          "count": 91,
+          "bytes": 82385
+        },
+        "demoniclancer": {
+          "count": 165,
+          "bytes": 32930
+        },
+        "dfo": {
+          "count": 273,
+          "bytes": 54265
+        },
+        "expc_sample": {
+          "count": 32,
+          "bytes": 6865
+        },
+        "fighter": {
+          "count": 1668,
+          "bytes": 402736
+        },
+        "gunblader": {
+          "count": 22,
+          "bytes": 3910
+        },
+        "gunner": {
+          "count": 1461,
+          "bytes": 373520
+        },
+        "kcontents1": {
+          "count": 206,
+          "bytes": 86600
+        },
+        "kcontents2": {
+          "count": 293,
+          "bytes": 58745
+        },
+        "kcontents3": {
+          "count": 105,
+          "bytes": 25410
+        },
+        "knight": {
+          "count": 144,
+          "bytes": 36735
+        },
+        "levelacc": {
+          "count": 197,
+          "bytes": 81820
+        },
+        "magician": {
+          "count": 1247,
+          "bytes": 283975
+        },
+        "missionquest": {
+          "count": 388,
+          "bytes": 126920
+        },
+        "mycharacters_apc": {
+          "count": 30,
+          "bytes": 4390
+        },
+        "mycharacters_apc_custom": {
+          "count": 442,
+          "bytes": 77135
+        },
+        "priest": {
+          "count": 1849,
+          "bytes": 483660
+        },
+        "pvp": {
+          "count": 2704,
+          "bytes": 4479128
+        },
+        "swordman": {
+          "count": 2011,
+          "bytes": 507276
+        },
+        "thief": {
+          "count": 599,
+          "bytes": 194790
+        }
+      }
+    },
+    "appendage": {
+      "count": 14467,
+      "bytes": 8255720,
+      "subdirs": {
+        "animation": {
+          "count": 3827,
+          "bytes": 5426640
+        },
+        "avatar": {
+          "count": 7,
+          "bytes": 900
+        },
+        "changeattackinfo": {
+          "count": 2,
+          "bytes": 250
+        },
+        "changestatus": {
+          "count": 3,
+          "bytes": 370
+        },
+        "creature": {
+          "count": 31,
+          "bytes": 8200
+        },
+        "critical_hit": {
+          "count": 2,
+          "bytes": 220
+        },
+        "darkelement": {
+          "count": 1,
+          "bytes": 100
+        },
+        "devil": {
+          "count": 8,
+          "bytes": 880
+        },
+        "dfo": {
+          "count": 39,
+          "bytes": 8440
+        },
+        "dummy": {
+          "count": 4,
+          "bytes": 340
+        },
+        "elementweapon": {
+          "count": 2,
+          "bytes": 225
+        },
+        "equipment": {
+          "count": 9806,
+          "bytes": 2464760
+        },
+        "event": {
+          "count": 276,
+          "bytes": 61470
+        },
+        "exceed": {
+          "count": 25,
+          "bytes": 24455
+        },
+        "gcontents": {
+          "count": 245,
+          "bytes": 209300
+        },
+        "green": {
+          "count": 4,
+          "bytes": 440
+        },
+        "lv70_glave": {
+          "count": 14,
+          "bytes": 1610
+        },
+        "monster": {
+          "count": 114,
+          "bytes": 33110
+        },
+        "mycharactersapc": {
+          "count": 3,
+          "bytes": 450
+        },
+        "skill_level": {
+          "count": 4,
+          "bytes": 460
+        },
+        "skilldataup": {
+          "count": 19,
+          "bytes": 8335
+        },
+        "stat": {
+          "count": 24,
+          "bytes": 3515
+        },
+        "title": {
+          "count": 7,
+          "bytes": 1250
+        }
+      }
+    },
+    "aradadventure": {
+      "count": 19320,
+      "bytes": 14220084,
+      "subdirs": {
+        "action": {
+          "count": 275,
+          "bytes": 230900
+        },
+        "activeobject": {
+          "count": 12559,
+          "bytes": 12401270
+        },
+        "conquer": {
+          "count": 5,
+          "bytes": 12735
+        },
+        "dungeon": {
+          "count": 1280,
+          "bytes": 574725
+        },
+        "equipment": {
+          "count": 1,
+          "bytes": 60
+        },
+        "etc": {
+          "count": 6,
+          "bytes": 72454
+        },
+        "map": {
+          "count": 5175,
+          "bytes": 910010
+        },
+        "region": {
+          "count": 9,
+          "bytes": 1120
+        },
+        "world": {
+          "count": 4,
+          "bytes": 330
+        }
+      }
+    },
+    "aura": {
+      "count": 20,
+      "bytes": 4090,
+      "subdirs": {
+        "avataraura": {
+          "count": 9,
+          "bytes": 1515
+        },
+        "equipmentaura": {
+          "count": 10,
+          "bytes": 2265
+        }
+      }
+    },
+    "character": {
+      "count": 132822,
+      "bytes": 162961845,
+      "subdirs": {
+        "archer": {
+          "count": 10361,
+          "bytes": 11507225
+        },
+        "cameradata": {
+          "count": 197,
+          "bytes": 45435
+        },
+        "characteretc": {
+          "count": 17,
+          "bytes": 19435
+        },
+        "common": {
+          "count": 10858,
+          "bytes": 44083930
+        },
+        "demoniclancer": {
+          "count": 7919,
+          "bytes": 8338060
+        },
+        "expertjob": {
+          "count": 5,
+          "bytes": 53210
+        },
+        "fighter": {
+          "count": 11636,
+          "bytes": 9368865
+        },
+        "gunblader": {
+          "count": 8112,
+          "bytes": 6462680
+        },
+        "gunner": {
+          "count": 15666,
+          "bytes": 17073995
+        },
+        "knight": {
+          "count": 8161,
+          "bytes": 6452445
+        },
+        "mage": {
+          "count": 17403,
+          "bytes": 17484055
+        },
+        "priest": {
+          "count": 16921,
+          "bytes": 16352510
+        },
+        "swordman": {
+          "count": 18516,
+          "bytes": 18188255
+        },
+        "thief": {
+          "count": 7043,
+          "bytes": 7515260
+        }
+      }
+    },
+    "chatemoticon": {
+      "count": 58,
+      "bytes": 10545,
+      "subdirs": {
+        "animation": {
+          "count": 22,
+          "bytes": 9285
+        }
+      }
+    },
+    "cinematic": {
+      "count": 2145,
+      "bytes": 6029425,
+      "subdirs": {
+        "dungeon": {
+          "count": 2145,
+          "bytes": 6029425
+        }
+      }
+    },
+    "clientonly": {
+      "count": 459,
+      "bytes": 116417658,
+      "subdirs": {
+        "animation": {
+          "count": 27,
+          "bytes": 11990
+        },
+        "characterplayguide": {
+          "count": 65,
+          "bytes": 18000
+        },
+        "commonsceneui": {
+          "count": 1,
+          "bytes": 410
+        },
+        "dropinfo": {
+          "count": 1,
+          "bytes": 114511877
+        },
+        "eventmaker": {
+          "count": 91,
+          "bytes": 28915
+        },
+        "gamepad": {
+          "count": 2,
+          "bytes": 2615
+        },
+        "hardcoreguide": {
+          "count": 7,
+          "bytes": 325
+        },
+        "lua": {
+          "count": 175,
+          "bytes": 148301
+        },
+        "pvpselectmodeui": {
+          "count": 1,
+          "bytes": 240
+        },
+        "replaylist": {
+          "count": 8,
+          "bytes": 67860
+        },
+        "satisfactionsurvey": {
+          "count": 3,
+          "bytes": 825
+        },
+        "skillreplay": {
+          "count": 17,
+          "bytes": 71760
+        },
+        "skilltree": {
+          "count": 34,
+          "bytes": 146030
+        }
+      }
+    },
+    "common": {
+      "count": 4361,
+      "bytes": 7110515,
+      "subdirs": {
+        "activestatus": {
+          "count": 117,
+          "bytes": 72030
+        },
+        "anicon": {
+          "count": 29,
+          "bytes": 25035
+        },
+        "commoneffect": {
+          "count": 2856,
+          "bytes": 6045975
+        },
+        "commonui": {
+          "count": 3,
+          "bytes": 1915
+        },
+        "cursorchat": {
+          "count": 2,
+          "bytes": 265
+        },
+        "emoticon": {
+          "count": 57,
+          "bytes": 20245
+        },
+        "emotionexpression": {
+          "count": 290,
+          "bytes": 485850
+        },
+        "etc": {
+          "count": 234,
+          "bytes": 83965
+        },
+        "hiteffect": {
+          "count": 599,
+          "bytes": 344325
+        },
+        "maxdamage": {
+          "count": 10,
+          "bytes": 5850
+        },
+        "minimapicon": {
+          "count": 158,
+          "bytes": 17470
+        },
+        "simpleshadow": {
+          "count": 1,
+          "bytes": 3435
+        },
+        "transports": {
+          "count": 2,
+          "bytes": 475
+        },
+        "watereffect": {
+          "count": 3,
+          "bytes": 3680
+        }
+      }
+    },
+    "commonmap": {
+      "count": 15867,
+      "bytes": 13233835,
+      "subdirs": {
+        "bookofgenesis": {
+          "count": 202,
+          "bytes": 97160
+        },
+        "town": {
+          "count": 15665,
+          "bytes": 13136675
+        }
+      }
+    },
+    "contents": {
+      "count": 2451854,
+      "bytes": 2947413547,
+      "subdirs": {
+        "2021": {
+          "count": 194789,
+          "bytes": 182910208
+        },
+        "2022": {
+          "count": 590425,
+          "bytes": 674858079
+        },
+        "2023": {
+          "count": 257529,
+          "bytes": 305130366
+        },
+        "2024": {
+          "count": 444395,
+          "bytes": 532257808
+        },
+        "2025": {
+          "count": 572871,
+          "bytes": 739134281
+        },
+        "2026": {
+          "count": 383883,
+          "bytes": 505720088
+        },
+        "arcadecenter": {
+          "count": 3415,
+          "bytes": 4393851
+        },
+        "system": {
+          "count": 4547,
+          "bytes": 3008866
+        }
+      }
+    },
+    "cos": {
+      "count": 1,
+      "bytes": 5704
+    },
+    "creature": {
+      "count": 39245,
+      "bytes": 38411230,
+      "subdirs": {
+        "13th_yookdedji": {
+          "count": 4,
+          "bytes": 3105
+        },
+        "15_longevitysymbol": {
+          "count": 91,
+          "bytes": 78395
+        },
+        "15_petitsandman": {
+          "count": 21,
+          "bytes": 10180
+        },
+        "16_11th_event": {
+          "count": 25,
+          "bytes": 11295
+        },
+        "16_arabia": {
+          "count": 19,
+          "bytes": 15505
+        },
+        "16_haetae": {
+          "count": 36,
+          "bytes": 16620
+        },
+        "16_olympus": {
+          "count": 72,
+          "bytes": 35865
+        },
+        "16_redmonkey": {
+          "count": 11,
+          "bytes": 3920
+        },
+        "16_sf": {
+          "count": 28,
+          "bytes": 16480
+        },
+        "17_hell": {
+          "count": 47,
+          "bytes": 89130
+        },
+        "17_navy": {
+          "count": 21,
+          "bytes": 27010
+        },
+        "17_seiren": {
+          "count": 67,
+          "bytes": 24670
+        },
+        "18_asia": {
+          "count": 10,
+          "bytes": 10975
+        },
+        "18_beast": {
+          "count": 21,
+          "bytes": 9825
+        },
+        "18_beastman": {
+          "count": 120,
+          "bytes": 203865
+        },
+        "18_h": {
+          "count": 377,
+          "bytes": 339095
+        },
+        "18_miku": {
+          "count": 20,
+          "bytes": 17905
+        },
+        "18_shootingdnf": {
+          "count": 334,
+          "bytes": 147985
+        },
+        "18_summer": {
+          "count": 15,
+          "bytes": 8610
+        },
+        "18_west": {
+          "count": 25,
+          "bytes": 11955
+        },
+        "19_desert": {
+          "count": 56,
+          "bytes": 31150
+        },
+        "19_elemental": {
+          "count": 128,
+          "bytes": 150055
+        },
+        "19_mileage": {
+          "count": 33,
+          "bytes": 15140
+        },
+        "19_romantic": {
+          "count": 44,
+          "bytes": 27105
+        },
+        "19_surfingarad": {
+          "count": 61,
+          "bytes": 79630
+        },
+        "19_towerofdepair": {
+          "count": 9,
+          "bytes": 9620
+        },
+        "2004_mileage": {
+          "count": 68,
+          "bytes": 33760
+        },
+        "2013kids": {
+          "count": 37,
+          "bytes": 20620
+        },
+        "2013kidssdavatar": {
+          "count": 52,
+          "bytes": 33475
+        },
+        "2013snake_blue": {
+          "count": 10,
+          "bytes": 4545
+        },
+        "2013snake_darkblue": {
+          "count": 10,
+          "bytes": 4270
+        },
+        "2013snake_green": {
+          "count": 13,
+          "bytes": 6425
+        },
+        "2013snake_orange": {
+          "count": 10,
+          "bytes": 3580
+        },
+        "2013snake_purple": {
+          "count": 16,
+          "bytes": 7080
+        },
+        "2013snake_rainbow": {
+          "count": 23,
+          "bytes": 11070
+        },
+        "2013snake_red": {
+          "count": 18,
+          "bytes": 7950
+        },
+        "2013snake_yellow": {
+          "count": 10,
+          "bytes": 3995
+        },
+        "2014foundation": {
+          "count": 46,
+          "bytes": 23750
+        },
+        "2015behemoth": {
+          "count": 81,
+          "bytes": 58460
+        },
+        "2015danjun": {
+          "count": 23,
+          "bytes": 12270
+        },
+        "2015newyear": {
+          "count": 31,
+          "bytes": 15810
+        },
+        "2015sd_atslayer": {
+          "count": 8,
+          "bytes": 3075
+        },
+        "2015sdavatar": {
+          "count": 141,
+          "bytes": 71230
+        },
+        "2016adventurermaker": {
+          "count": 41,
+          "bytes": 19050
+        },
+        "2016duntopia": {
+          "count": 39,
+          "bytes": 21225
+        },
+        "2017_dunrin": {
+          "count": 63,
+          "bytes": 33120
+        },
+        "2017_sdcharacter": {
+          "count": 232,
+          "bytes": 107995
+        },
+        "2017newyear": {
+          "count": 34,
+          "bytes": 47320
+        },
+        "2019_allinone": {
+          "count": 43,
+          "bytes": 61925
+        },
+        "2019_event_rezero": {
+          "count": 29,
+          "bytes": 19730
+        },
+        "2019_rezero": {
+          "count": 129,
+          "bytes": 116060
+        },
+        "2020_15thevent": {
+          "count": 42,
+          "bytes": 11870
+        },
+        "2020_bookofmemory": {
+          "count": 13,
+          "bytes": 11790
+        },
+        "2020_eventallinone": {
+          "count": 43,
+          "bytes": 61925
+        },
+        "2020_safari": {
+          "count": 67,
+          "bytes": 111655
+        },
+        "2021_arad_explorer_6": {
+          "count": 16,
+          "bytes": 15080
+        },
+        "2021_artbook": {
+          "count": 66,
+          "bytes": 123110
+        },
+        "2021_etherna": {
+          "count": 252,
+          "bytes": 547680
+        },
+        "2021_eventallinone": {
+          "count": 43,
+          "bytes": 61925
+        },
+        "2021_ilrustrea": {
+          "count": 102,
+          "bytes": 145780
+        },
+        "2022_dnfduel": {
+          "count": 50,
+          "bytes": 66825
+        },
+        "2022_littletiger": {
+          "count": 22,
+          "bytes": 7735
+        },
+        "2023_dnfduel": {
+          "count": 50,
+          "bytes": 66825
+        },
+        "2024_dragon": {
+          "count": 11,
+          "bytes": 7565
+        },
+        "2024_fatezero": {
+          "count": 400,
+          "bytes": 367515
+        },
+        "2026_arcana": {
+          "count": 216,
+          "bytes": 171435
+        },
+        "2026_pass_dummy": {
+          "count": 17,
+          "bytes": 18805
+        },
+        "20_2wu": {
+          "count": 1307,
+          "bytes": 1450455
+        },
+        "20_aradpass": {
+          "count": 44,
+          "bytes": 40880
+        },
+        "20_highschool": {
+          "count": 154,
+          "bytes": 74550
+        },
+        "20_nano": {
+          "count": 25,
+          "bytes": 26345
+        },
+        "20_newyear": {
+          "count": 6,
+          "bytes": 4765
+        },
+        "20_snack_marketing": {
+          "count": 8,
+          "bytes": 7610
+        },
+        "20_summer": {
+          "count": 305,
+          "bytes": 438560
+        },
+        "20_valhalla": {
+          "count": 14,
+          "bytes": 12205
+        },
+        "21_aradpass2": {
+          "count": 66,
+          "bytes": 24225
+        },
+        "21_aradpass3": {
+          "count": 120,
+          "bytes": 336150
+        },
+        "21_aradpass4": {
+          "count": 36,
+          "bytes": 29770
+        },
+        "21_aradpass5": {
+          "count": 64,
+          "bytes": 36990
+        },
+        "21_baby_danjin": {
+          "count": 11,
+          "bytes": 2270
+        },
+        "21_edge": {
+          "count": 32,
+          "bytes": 14605
+        },
+        "21_kittykingdom": {
+          "count": 24,
+          "bytes": 26240
+        },
+        "21_knight": {
+          "count": 328,
+          "bytes": 428760
+        },
+        "21_knight2": {
+          "count": 96,
+          "bytes": 145290
+        },
+        "21_legendofbits_man": {
+          "count": 4,
+          "bytes": 1630
+        },
+        "21_legendofbits_woman": {
+          "count": 4,
+          "bytes": 1640
+        },
+        "21_musicfestival": {
+          "count": 13,
+          "bytes": 29780
+        },
+        "21_newyear": {
+          "count": 26,
+          "bytes": 23350
+        },
+        "21_pvp": {
+          "count": 11,
+          "bytes": 3770
+        },
+        "21_saint": {
+          "count": 119,
+          "bytes": 98915
+        },
+        "21_samdasoo": {
+          "count": 8,
+          "bytes": 4280
+        },
+        "21_shootingdnf": {
+          "count": 14,
+          "bytes": 4970
+        },
+        "21_sudden_sale_event": {
+          "count": 16,
+          "bytes": 6265
+        },
+        "21_summer": {
+          "count": 111,
+          "bytes": 117580
+        },
+        "22_17thseria": {
+          "count": 7,
+          "bytes": 2985
+        },
+        "22_aradpass10": {
+          "count": 18,
+          "bytes": 8745
+        },
+        "22_aradpass11": {
+          "count": 28,
+          "bytes": 21450
+        },
+        "22_aradpass6": {
+          "count": 54,
+          "bytes": 22185
+        },
+        "22_aradpass7": {
+          "count": 21,
+          "bytes": 16080
+        },
+        "22_aradpass8": {
+          "count": 18,
+          "bytes": 11370
+        },
+        "22_aradpass9": {
+          "count": 39,
+          "bytes": 27675
+        },
+        "22_assault": {
+          "count": 18,
+          "bytes": 11880
+        },
+        "22_awards": {
+          "count": 46,
+          "bytes": 38225
+        },
+        "22_butterflydance": {
+          "count": 141,
+          "bytes": 128575
+        },
+        "22_doppelpakage": {
+          "count": 58,
+          "bytes": 40020
+        },
+        "22_dungeonandlife": {
+          "count": 6,
+          "bytes": 1530
+        },
+        "22_elfpakage": {
+          "count": 70,
+          "bytes": 41775
+        },
+        "22_indian": {
+          "count": 104,
+          "bytes": 76070
+        },
+        "22_ispinspackage": {
+          "count": 106,
+          "bytes": 54240
+        },
+        "22_lounge6": {
+          "count": 56,
+          "bytes": 55170
+        },
+        "22_nene": {
+          "count": 6,
+          "bytes": 5650
+        },
+        "22_newyear": {
+          "count": 243,
+          "bytes": 112585
+        },
+        "22_sdbakal": {
+          "count": 12,
+          "bytes": 7720
+        },
+        "22_snowmage": {
+          "count": 20,
+          "bytes": 10850
+        },
+        "22_snowmage_sale": {
+          "count": 56,
+          "bytes": 30380
+        },
+        "22_tsingtao": {
+          "count": 5,
+          "bytes": 2610
+        },
+        "23_18thhiman": {
+          "count": 5,
+          "bytes": 3890
+        },
+        "23_aradpass_1": {
+          "count": 21,
+          "bytes": 9825
+        },
+        "23_artbook": {
+          "count": 16,
+          "bytes": 10305
+        },
+        "23_blackrabbit": {
+          "count": 19,
+          "bytes": 9010
+        },
+        "23_danjinvacation": {
+          "count": 7,
+          "bytes": 10270
+        },
+        "23_dnfon": {
+          "count": 28,
+          "bytes": 38425
+        },
+        "23_dongsan": {
+          "count": 9,
+          "bytes": 3225
+        },
+        "23_elfdefence": {
+          "count": 27,
+          "bytes": 9985
+        },
+        "23_emart24": {
+          "count": 7,
+          "bytes": 5825
+        },
+        "23_festival": {
+          "count": 32,
+          "bytes": 18725
+        },
+        "23_flyingship_creature": {
+          "count": 37,
+          "bytes": 14420
+        },
+        "23_growthguide": {
+          "count": 11,
+          "bytes": 5450
+        },
+        "23_monsterfighters": {
+          "count": 3,
+          "bytes": 1340
+        },
+        "23_neoawakenpackage": {
+          "count": 55,
+          "bytes": 46625
+        },
+        "23_newyear": {
+          "count": 19,
+          "bytes": 9025
+        },
+        "23_newyear_event": {
+          "count": 18,
+          "bytes": 8865
+        },
+        "23_poppingcharacter": {
+          "count": 87,
+          "bytes": 50215
+        },
+        "23_royalpass": {
+          "count": 9,
+          "bytes": 7130
+        },
+        "23_royalpass_2": {
+          "count": 9,
+          "bytes": 7130
+        },
+        "23_royalpass_3": {
+          "count": 9,
+          "bytes": 7130
+        },
+        "23_royalpass_4": {
+          "count": 9,
+          "bytes": 7130
+        },
+        "23_royalpass_5": {
+          "count": 30,
+          "bytes": 22500
+        },
+        "23_royalpass_6": {
+          "count": 30,
+          "bytes": 22500
+        },
+        "23_seriapresent": {
+          "count": 28,
+          "bytes": 38425
+        },
+        "23_star": {
+          "count": 66,
+          "bytes": 102595
+        },
+        "23_summer": {
+          "count": 19,
+          "bytes": 17680
+        },
+        "23_supportdebut": {
+          "count": 13,
+          "bytes": 29780
+        },
+        "23_thanksgivingday": {
+          "count": 23,
+          "bytes": 25770
+        },
+        "23_travelwithhiman": {
+          "count": 16,
+          "bytes": 20680
+        },
+        "23_unknownforest": {
+          "count": 26,
+          "bytes": 23290
+        },
+        "23_wedding": {
+          "count": 24,
+          "bytes": 16805
+        },
+        "23_winterfestival": {
+          "count": 13,
+          "bytes": 8485
+        },
+        "23_winterfestival_2": {
+          "count": 28,
+          "bytes": 38425
+        },
+        "241219_joongcheondefence": {
+          "count": 1,
+          "bytes": 265
+        },
+        "24_19thpcroom": {
+          "count": 70,
+          "bytes": 111135
+        },
+        "24_asrahan": {
+          "count": 246,
+          "bytes": 456570
+        },
+        "24_dnffestival": {
+          "count": 11,
+          "bytes": 9380
+        },
+        "24_dnfmichelin": {
+          "count": 47,
+          "bytes": 27575
+        },
+        "24_herofight": {
+          "count": 5,
+          "bytes": 3805
+        },
+        "24_lounge6": {
+          "count": 39,
+          "bytes": 48705
+        },
+        "24_meringuemission": {
+          "count": 5,
+          "bytes": 1675
+        },
+        "24_miraclemarble": {
+          "count": 28,
+          "bytes": 38425
+        },
+        "24_newrandomoptionshop": {
+          "count": 239,
+          "bytes": 448280
+        },
+        "24_nexon30th": {
+          "count": 49,
+          "bytes": 28015
+        },
+        "24_nm": {
+          "count": 5,
+          "bytes": 4530
+        },
+        "24_playmarket6": {
+          "count": 16,
+          "bytes": 7455
+        },
+        "24_royalpass_1": {
+          "count": 146,
+          "bytes": 229320
+        },
+        "24_royalpass_2": {
+          "count": 149,
+          "bytes": 229400
+        },
+        "24_royalpass_3": {
+          "count": 149,
+          "bytes": 229400
+        },
+        "24_royalpass_4": {
+          "count": 149,
+          "bytes": 229400
+        },
+        "24_royalpass_5": {
+          "count": 149,
+          "bytes": 229400
+        },
+        "24_seon": {
+          "count": 181,
+          "bytes": 267285
+        },
+        "24_snk_event": {
+          "count": 7,
+          "bytes": 4315
+        },
+        "24_snk_package": {
+          "count": 51,
+          "bytes": 38435
+        },
+        "24_snowmage": {
+          "count": 30,
+          "bytes": 14730
+        },
+        "24_snowmage_sale": {
+          "count": 32,
+          "bytes": 17360
+        },
+        "24_summer": {
+          "count": 71,
+          "bytes": 65940
+        },
+        "24_thanksgiving": {
+          "count": 50,
+          "bytes": 46080
+        },
+        "24_trainingmage": {
+          "count": 20,
+          "bytes": 5310
+        },
+        "24_warmwinter": {
+          "count": 15,
+          "bytes": 9145
+        },
+        "250327_bunny": {
+          "count": 9,
+          "bytes": 6080
+        },
+        "251127_honeytime": {
+          "count": 8,
+          "bytes": 6250
+        },
+        "25_20th_honeytime": {
+          "count": 8,
+          "bytes": 6250
+        },
+        "25_20thhanrasan": {
+          "count": 5,
+          "bytes": 4300
+        },
+        "25_20thspecialmission": {
+          "count": 8,
+          "bytes": 6250
+        },
+        "25_airshipmage": {
+          "count": 6,
+          "bytes": 4465
+        },
+        "25_artificialgod": {
+          "count": 8,
+          "bytes": 6195
+        },
+        "25_bleedingmine": {
+          "count": 10,
+          "bytes": 10380
+        },
+        "25_bonoz": {
+          "count": 5,
+          "bytes": 1675
+        },
+        "25_bunnybunnyarad": {
+          "count": 24,
+          "bytes": 19190
+        },
+        "25_cherryblossom": {
+          "count": 6,
+          "bytes": 5220
+        },
+        "25_cpq5th": {
+          "count": 7,
+          "bytes": 3500
+        },
+        "25_festival": {
+          "count": 19,
+          "bytes": 26180
+        },
+        "25_frostkingdom": {
+          "count": 53,
+          "bytes": 56185
+        },
+        "25_highschool": {
+          "count": 105,
+          "bytes": 56590
+        },
+        "25_inuyasha": {
+          "count": 41,
+          "bytes": 31110
+        },
+        "25_inuyashaevent": {
+          "count": 13,
+          "bytes": 8175
+        },
+        "25_k20thannivcontest": {
+          "count": 8,
+          "bytes": 6250
+        },
+        "25_khazangift": {
+          "count": 7,
+          "bytes": 4845
+        },
+        "25_kingofbgm": {
+          "count": 35,
+          "bytes": 55540
+        },
+        "25_knightstemplar": {
+          "count": 35,
+          "bytes": 31075
+        },
+        "25_lottepopup": {
+          "count": 12,
+          "bytes": 17490
+        },
+        "25_miracle": {
+          "count": 10,
+          "bytes": 8310
+        },
+        "25_neo_poping": {
+          "count": 307,
+          "bytes": 205500
+        },
+        "25_newyear": {
+          "count": 5,
+          "bytes": 4080
+        },
+        "25_oriental_package": {
+          "count": 30,
+          "bytes": 28635
+        },
+        "25_royalpass_1": {
+          "count": 149,
+          "bytes": 229400
+        },
+        "25_royalpass_2": {
+          "count": 149,
+          "bytes": 229400
+        },
+        "25_royalpass_3": {
+          "count": 149,
+          "bytes": 229400
+        },
+        "25_royalpass_4": {
+          "count": 149,
+          "bytes": 229400
+        },
+        "25_royalpass_5": {
+          "count": 149,
+          "bytes": 229400
+        },
+        "25_sao": {
+          "count": 162,
+          "bytes": 110120
+        },
+        "25_sddiregie": {
+          "count": 5,
+          "bytes": 2180
+        },
+        "25_snowmagepopup": {
+          "count": 35,
+          "bytes": 22610
+        },
+        "25_snowmagetv": {
+          "count": 8,
+          "bytes": 4700
+        },
+        "25_summer": {
+          "count": 63,
+          "bytes": 53550
+        },
+        "25_unshacklednightmare": {
+          "count": 22,
+          "bytes": 23495
+        },
+        "25_venus": {
+          "count": 23,
+          "bytes": 14070
+        },
+        "25_worldboss_contagion": {
+          "count": 11,
+          "bytes": 7230
+        },
+        "26_aradodyssey": {
+          "count": 11,
+          "bytes": 5450
+        },
+        "26_diregiecoin": {
+          "count": 11,
+          "bytes": 11280
+        },
+        "26_galacticvoyager": {
+          "count": 176,
+          "bytes": 177245
+        },
+        "26_intothewind": {
+          "count": 24,
+          "bytes": 4180
+        },
+        "26_newyear": {
+          "count": 7,
+          "bytes": 6675
+        },
+        "26_poppingquiz": {
+          "count": 5,
+          "bytes": 4305
+        },
+        "26_royalpass_1": {
+          "count": 183,
+          "bytes": 267010
+        },
+        "26_royalpass_2": {
+          "count": 43,
+          "bytes": 44740
+        },
+        "26_sharecoupon": {
+          "count": 5,
+          "bytes": 3835
+        },
+        "26_test_diregiehard": {
+          "count": 630,
+          "bytes": 1000215
+        },
+        "26_valhalla": {
+          "count": 14,
+          "bytes": 12165
+        },
+        "26_welcome": {
+          "count": 11,
+          "bytes": 5450
+        },
+        "365jibang": {
+          "count": 25,
+          "bytes": 12025
+        },
+        "9thghost": {
+          "count": 27,
+          "bytes": 14520
+        },
+        "adventurecollection": {
+          "count": 9,
+          "bytes": 10135
+        },
+        "adventurermaker": {
+          "count": 225,
+          "bytes": 93770
+        },
+        "amy": {
+          "count": 10,
+          "bytes": 3555
+        },
+        "aquajello": {
+          "count": 17,
+          "bytes": 16105
+        },
+        "arad": {
+          "count": 107,
+          "bytes": 94490
+        },
+        "arcadecenter": {
+          "count": 182,
+          "bytes": 131330
+        },
+        "artbook_creature": {
+          "count": 35,
+          "bytes": 14005
+        },
+        "automationcreature": {
+          "count": 37,
+          "bytes": 25170
+        },
+        "awakeningcreature": {
+          "count": 147,
+          "bytes": 257290
+        },
+        "bakal": {
+          "count": 6,
+          "bytes": 2725
+        },
+        "bakalhard_tonnerre": {
+          "count": 34,
+          "bytes": 47840
+        },
+        "balam": {
+          "count": 11,
+          "bytes": 3055
+        },
+        "belz": {
+          "count": 31,
+          "bytes": 9295
+        },
+        "belzebe": {
+          "count": 23,
+          "bytes": 7295
+        },
+        "belzebuite": {
+          "count": 18,
+          "bytes": 7770
+        },
+        "berith": {
+          "count": 24,
+          "bytes": 9975
+        },
+        "big_sd": {
+          "count": 12,
+          "bytes": 3800
+        },
+        "bitbit8bit": {
+          "count": 7,
+          "bytes": 5475
+        },
+        "bluepanda": {
+          "count": 5,
+          "bytes": 5410
+        },
+        "bobo": {
+          "count": 9,
+          "bytes": 3135
+        },
+        "bonnybunny": {
+          "count": 14,
+          "bytes": 6965
+        },
+        "bookofgenesis": {
+          "count": 4,
+          "bytes": 2000
+        },
+        "botis": {
+          "count": 13,
+          "bytes": 5110
+        },
+        "bronzepig": {
+          "count": 15,
+          "bytes": 3535
+        },
+        "brown": {
+          "count": 12,
+          "bytes": 2490
+        },
+        "camelcricket": {
+          "count": 8,
+          "bytes": 6490
+        },
+        "charp": {
+          "count": 20,
+          "bytes": 7435
+        },
+        "chn_2016_raising_warriors": {
+          "count": 9,
+          "bytes": 8290
+        },
+        "chn_2018_april_day": {
+          "count": 14,
+          "bytes": 15035
+        },
+        "chn_2020_summer": {
+          "count": 60,
+          "bytes": 92900
+        },
+        "chn_2021_himan": {
+          "count": 13,
+          "bytes": 29790
+        },
+        "chn_2022_newyear_kr": {
+          "count": 156,
+          "bytes": 293050
+        },
+        "chn_2022_stamp_event": {
+          "count": 14,
+          "bytes": 7430
+        },
+        "chn_2023_igw_event": {
+          "count": 5,
+          "bytes": 2785
+        },
+        "chn_2023_nightmare": {
+          "count": 167,
+          "bytes": 119035
+        },
+        "chn_2024_mawang": {
+          "count": 34,
+          "bytes": 20895
+        },
+        "chn_2025_sao_event": {
+          "count": 130,
+          "bytes": 85165
+        },
+        "chn_241229_joongcheondefence": {
+          "count": 2,
+          "bytes": 2920
+        },
+        "chn_battleship_event": {
+          "count": 22,
+          "bytes": 27295
+        },
+        "chn_halloween_express": {
+          "count": 35,
+          "bytes": 10215
+        },
+        "chn_threekingdom": {
+          "count": 72,
+          "bytes": 46395
+        },
+        "common": {
+          "count": 23,
+          "bytes": 15590
+        },
+        "contentstest": {
+          "count": 1,
+          "bytes": 315
+        },
+        "coolphas": {
+          "count": 21,
+          "bytes": 9455
+        },
+        "costume": {
+          "count": 307,
+          "bytes": 277975
+        },
+        "creatureskin": {
+          "count": 5,
+          "bytes": 4525
+        },
+        "dfo": {
+          "count": 18732,
+          "bytes": 19069180
+        },
+        "dragon": {
+          "count": 24,
+          "bytes": 8485
+        },
+        "earth_goblin": {
+          "count": 7,
+          "bytes": 3790
+        },
+        "elbon": {
+          "count": 9,
+          "bytes": 3670
+        },
+        "event-amy": {
+          "count": 9,
+          "bytes": 3120
+        },
+        "event-petit_alex": {
+          "count": 7,
+          "bytes": 2110
+        },
+        "event-petit_assaulter": {
+          "count": 7,
+          "bytes": 2695
+        },
+        "event-petit_tiger": {
+          "count": 7,
+          "bytes": 2965
+        },
+        "event_19_newfriend_sd": {
+          "count": 243,
+          "bytes": 112585
+        },
+        "event_200326": {
+          "count": 16,
+          "bytes": 16880
+        },
+        "event_21_sdcharacter": {
+          "count": 243,
+          "bytes": 112585
+        },
+        "event_petit_ege": {
+          "count": 14,
+          "bytes": 12405
+        },
+        "event_petit_tog": {
+          "count": 13,
+          "bytes": 11805
+        },
+        "fairytale": {
+          "count": 104,
+          "bytes": 74380
+        },
+        "faras": {
+          "count": 12,
+          "bytes": 2915
+        },
+        "fatezero": {
+          "count": 392,
+          "bytes": 370995
+        },
+        "firedragon": {
+          "count": 11,
+          "bytes": 5855
+        },
+        "girlsday": {
+          "count": 7,
+          "bytes": 2995
+        },
+        "glasya": {
+          "count": 24,
+          "bytes": 12355
+        },
+        "goldpig": {
+          "count": 23,
+          "bytes": 5875
+        },
+        "gon": {
+          "count": 75,
+          "bytes": 41730
+        },
+        "haagenti": {
+          "count": 34,
+          "bytes": 12955
+        },
+        "halphas": {
+          "count": 22,
+          "bytes": 10635
+        },
+        "hellhound": {
+          "count": 19,
+          "bytes": 10520
+        },
+        "heromin": {
+          "count": 6,
+          "bytes": 2135
+        },
+        "hozo": {
+          "count": 23,
+          "bytes": 19665
+        },
+        "humanoid": {
+          "count": 96,
+          "bytes": 55450
+        },
+        "icedragon": {
+          "count": 11,
+          "bytes": 5855
+        },
+        "idolbebe": {
+          "count": 25,
+          "bytes": 11995
+        },
+        "idolbongseon": {
+          "count": 34,
+          "bytes": 12945
+        },
+        "idoliu": {
+          "count": 17,
+          "bytes": 9260
+        },
+        "ignis": {
+          "count": 22,
+          "bytes": 16115
+        },
+        "japan": {
+          "count": 639,
+          "bytes": 271390
+        },
+        "kdnf_2021_himan": {
+          "count": 13,
+          "bytes": 29780
+        },
+        "kndf_21himan": {
+          "count": 29,
+          "bytes": 24565
+        },
+        "launchergirl": {
+          "count": 42,
+          "bytes": 28430
+        },
+        "littletiger": {
+          "count": 42,
+          "bytes": 14680
+        },
+        "marbas": {
+          "count": 14,
+          "bytes": 5230
+        },
+        "miku_costume": {
+          "count": 12,
+          "bytes": 4390
+        },
+        "mini_viking": {
+          "count": 84,
+          "bytes": 33145
+        },
+        "nazarl": {
+          "count": 26,
+          "bytes": 11570
+        },
+        "ox": {
+          "count": 16,
+          "bytes": 6265
+        },
+        "pentabas": {
+          "count": 22,
+          "bytes": 7520
+        },
+        "petit_alex": {
+          "count": 7,
+          "bytes": 2110
+        },
+        "petit_ashcore": {
+          "count": 13,
+          "bytes": 5705
+        },
+        "petit_assaulter": {
+          "count": 7,
+          "bytes": 2695
+        },
+        "petit_bebe": {
+          "count": 26,
+          "bytes": 10590
+        },
+        "petit_correggio": {
+          "count": 12,
+          "bytes": 4790
+        },
+        "petit_itrenog": {
+          "count": 14,
+          "bytes": 7670
+        },
+        "petit_lotus": {
+          "count": 18,
+          "bytes": 8235
+        },
+        "petit_marpissa": {
+          "count": 7,
+          "bytes": 2605
+        },
+        "petit_nagor": {
+          "count": 16,
+          "bytes": 9370
+        },
+        "petit_nemaug": {
+          "count": 10,
+          "bytes": 4575
+        },
+        "petit_skeleton": {
+          "count": 7,
+          "bytes": 2755
+        },
+        "petit_skeleton_gold": {
+          "count": 18,
+          "bytes": 11700
+        },
+        "petit_tiger": {
+          "count": 7,
+          "bytes": 2965
+        },
+        "phantomseria": {
+          "count": 11,
+          "bytes": 5875
+        },
+        "phoenix": {
+          "count": 21,
+          "bytes": 9245
+        },
+        "pinkbobo": {
+          "count": 9,
+          "bytes": 3050
+        },
+        "pinocchia": {
+          "count": 23,
+          "bytes": 10390
+        },
+        "pinocchio": {
+          "count": 24,
+          "bytes": 9875
+        },
+        "popping_archer": {
+          "count": 10,
+          "bytes": 7110
+        },
+        "princess_petit": {
+          "count": 18,
+          "bytes": 9515
+        },
+        "psy": {
+          "count": 10,
+          "bytes": 7105
+        },
+        "pvp": {
+          "count": 11,
+          "bytes": 8380
+        },
+        "rat_female": {
+          "count": 13,
+          "bytes": 6325
+        },
+        "rat_male": {
+          "count": 14,
+          "bytes": 6920
+        },
+        "raum": {
+          "count": 21,
+          "bytes": 9820
+        },
+        "redpanda": {
+          "count": 5,
+          "bytes": 5005
+        },
+        "reva": {
+          "count": 116,
+          "bytes": 58200
+        },
+        "romantic": {
+          "count": 26,
+          "bytes": 12090
+        },
+        "rudolph": {
+          "count": 26,
+          "bytes": 40965
+        },
+        "rumenus": {
+          "count": 38,
+          "bytes": 37875
+        },
+        "sao": {
+          "count": 132,
+          "bytes": 82210
+        },
+        "script": {
+          "count": 223,
+          "bytes": 102895
+        },
+        "sd_2013summer": {
+          "count": 60,
+          "bytes": 22025
+        },
+        "sd_qlipha": {
+          "count": 25,
+          "bytes": 37080
+        },
+        "sdcharacter": {
+          "count": 326,
+          "bytes": 170765
+        },
+        "sdcharacterkr": {
+          "count": 162,
+          "bytes": 73235
+        },
+        "sdnovice": {
+          "count": 5,
+          "bytes": 1585
+        },
+        "sheep_farm": {
+          "count": 14,
+          "bytes": 8080
+        },
+        "silverpig": {
+          "count": 23,
+          "bytes": 5885
+        },
+        "sledgerudolph": {
+          "count": 25,
+          "bytes": 14485
+        },
+        "spirit_goblin": {
+          "count": 7,
+          "bytes": 3790
+        },
+        "tcghpfairy": {
+          "count": 9,
+          "bytes": 3485
+        },
+        "tcgmpfairy": {
+          "count": 9,
+          "bytes": 3485
+        },
+        "tenebris": {
+          "count": 42,
+          "bytes": 44350
+        },
+        "unicorn": {
+          "count": 48,
+          "bytes": 64455
+        },
+        "valefor": {
+          "count": 15,
+          "bytes": 4965
+        },
+        "wolflee": {
+          "count": 9,
+          "bytes": 2445
+        },
+        "woodendoll": {
+          "count": 26,
+          "bytes": 9470
+        },
+        "zagan": {
+          "count": 20,
+          "bytes": 7410
+        }
+      }
+    },
+    "data": {
+      "count": 15,
+      "bytes": 7520,
+      "subdirs": {
+        "skill": {
+          "count": 7,
+          "bytes": 4420
+        },
+        "ui": {
+          "count": 6,
+          "bytes": 3040
+        }
+      }
+    },
+    "dmarket": {
+      "count": 47,
+      "bytes": 1880977,
+      "subdirs": {
+        "ani": {
+          "count": 7,
+          "bytes": 815
+        },
+        "ui": {
+          "count": 18,
+          "bytes": 355362
+        }
+      }
+    },
+    "dungeon": {
+      "count": 4558,
+      "bytes": 31087923,
+      "subdirs": {
+        "2ndawakening": {
+          "count": 3,
+          "bytes": 85880
+        },
+        "abnoba_renewal_glasspay": {
+          "count": 9,
+          "bytes": 89820
+        },
+        "act1": {
+          "count": 22,
+          "bytes": 126070
+        },
+        "act2": {
+          "count": 29,
+          "bytes": 27450
+        },
+        "act3": {
+          "count": 19,
+          "bytes": 20265
+        },
+        "act4": {
+          "count": 15,
+          "bytes": 101740
+        },
+        "act5": {
+          "count": 16,
+          "bytes": 21510
+        },
+        "act6": {
+          "count": 8,
+          "bytes": 16170
+        },
+        "act7": {
+          "count": 27,
+          "bytes": 54120
+        },
+        "act8": {
+          "count": 10,
+          "bytes": 31245
+        },
+        "act9": {
+          "count": 8,
+          "bytes": 20920
+        },
+        "advancealtar": {
+          "count": 117,
+          "bytes": 45485
+        },
+        "agitwar": {
+          "count": 22,
+          "bytes": 9090
+        },
+        "ancient": {
+          "count": 61,
+          "bytes": 220445
+        },
+        "ancient_infinited": {
+          "count": 29,
+          "bytes": 188300
+        },
+        "anton": {
+          "count": 17,
+          "bytes": 264430
+        },
+        "anton_awakening": {
+          "count": 10,
+          "bytes": 343010
+        },
+        "anton_new": {
+          "count": 10,
+          "bytes": 6900
+        },
+        "anton_normal": {
+          "count": 8,
+          "bytes": 89500
+        },
+        "anton_ordinary": {
+          "count": 22,
+          "bytes": 351210
+        },
+        "anton_quest": {
+          "count": 8,
+          "bytes": 94905
+        },
+        "aradroyalrumble": {
+          "count": 1,
+          "bytes": 350
+        },
+        "beast_metrocenter": {
+          "count": 6,
+          "bytes": 87615
+        },
+        "boss_rush": {
+          "count": 4,
+          "bytes": 133085
+        },
+        "castleofthedead": {
+          "count": 21,
+          "bytes": 30275
+        },
+        "cataclysm": {
+          "count": 153,
+          "bytes": 460745
+        },
+        "circledungeon": {
+          "count": 19,
+          "bytes": 15170
+        },
+        "crackofdimension": {
+          "count": 1,
+          "bytes": 515
+        },
+        "daily": {
+          "count": 7,
+          "bytes": 5080
+        },
+        "darkelftemple": {
+          "count": 14,
+          "bytes": 106805
+        },
+        "dimensioncrack": {
+          "count": 23,
+          "bytes": 130425
+        },
+        "dpl": {
+          "count": 11,
+          "bytes": 345480
+        },
+        "dtt": {
+          "count": 5,
+          "bytes": 176020
+        },
+        "dungeon_renewal": {
+          "count": 4,
+          "bytes": 2150
+        },
+        "dungeonpvp": {
+          "count": 11,
+          "bytes": 183395
+        },
+        "event": {
+          "count": 461,
+          "bytes": 1375395
+        },
+        "fiendwar_kr": {
+          "count": 60,
+          "bytes": 346555
+        },
+        "fun_test": {
+          "count": 11,
+          "bytes": 21280
+        },
+        "gcontents": {
+          "count": 489,
+          "bytes": 5509610
+        },
+        "gent_alpha": {
+          "count": 1,
+          "bytes": 475
+        },
+        "gentrevolt2": {
+          "count": 2,
+          "bytes": 870
+        },
+        "guildagit": {
+          "count": 11,
+          "bytes": 7965
+        },
+        "guilddungeon": {
+          "count": 9,
+          "bytes": 5565
+        },
+        "harlem": {
+          "count": 20,
+          "bytes": 217490
+        },
+        "harlem_assault": {
+          "count": 38,
+          "bytes": 111165
+        },
+        "impossible": {
+          "count": 21,
+          "bytes": 105350
+        },
+        "infernomode": {
+          "count": 21,
+          "bytes": 108300
+        },
+        "jumping": {
+          "count": 85,
+          "bytes": 368155
+        },
+        "kcontents1": {
+          "count": 3,
+          "bytes": 1860
+        },
+        "kcontents2": {
+          "count": 380,
+          "bytes": 4644045
+        },
+        "kcontents3": {
+          "count": 514,
+          "bytes": 4408016
+        },
+        "larguslake": {
+          "count": 6,
+          "bytes": 4990
+        },
+        "legend": {
+          "count": 16,
+          "bytes": 516625
+        },
+        "levelacc": {
+          "count": 216,
+          "bytes": 3455120
+        },
+        "luke": {
+          "count": 30,
+          "bytes": 616850
+        },
+        "luke_dpl": {
+          "count": 5,
+          "bytes": 256150
+        },
+        "luke_hard": {
+          "count": 23,
+          "bytes": 696580
+        },
+        "luke_normal": {
+          "count": 15,
+          "bytes": 273320
+        },
+        "luke_single": {
+          "count": 17,
+          "bytes": 431225
+        },
+        "mercenarybroker": {
+          "count": 9,
+          "bytes": 352360
+        },
+        "metrocenter": {
+          "count": 10,
+          "bytes": 196240
+        },
+        "new_luke": {
+          "count": 28,
+          "bytes": 607460
+        },
+        "op_hope": {
+          "count": 35,
+          "bytes": 114975
+        },
+        "outergent_r_test": {
+          "count": 1,
+          "bytes": 510
+        },
+        "poongjintrainingroom": {
+          "count": 6,
+          "bytes": 4070
+        },
+        "prey": {
+          "count": 5,
+          "bytes": 92300
+        },
+        "quest": {
+          "count": 47,
+          "bytes": 39845
+        },
+        "returnee": {
+          "count": 1,
+          "bytes": 690
+        },
+        "riskdungeon": {
+          "count": 15,
+          "bytes": 94085
+        },
+        "sainthorn": {
+          "count": 12,
+          "bytes": 8985
+        },
+        "scenario": {
+          "count": 26,
+          "bytes": 137877
+        },
+        "sd_survival": {
+          "count": 6,
+          "bytes": 257950
+        },
+        "shonantournament": {
+          "count": 10,
+          "bytes": 286450
+        },
+        "southerndale": {
+          "count": 3,
+          "bytes": 15430
+        },
+        "spacetrain": {
+          "count": 2,
+          "bytes": 2040
+        },
+        "special": {
+          "count": 17,
+          "bytes": 15505
+        },
+        "stormofmetastasis": {
+          "count": 62,
+          "bytes": 217805
+        },
+        "tau_kingdom": {
+          "count": 3,
+          "bytes": 43155
+        },
+        "territorycombat": {
+          "count": 58,
+          "bytes": 214525
+        },
+        "timegate": {
+          "count": 28,
+          "bytes": 45195
+        },
+        "towers": {
+          "count": 601,
+          "bytes": 637185
+        },
+        "tutorial": {
+          "count": 10,
+          "bytes": 4455
+        },
+        "village": {
+          "count": 16,
+          "bytes": 15280
+        },
+        "villageattack": {
+          "count": 331,
+          "bytes": 95890
+        },
+        "warriors": {
+          "count": 3,
+          "bytes": 86780
+        },
+        "warroom": {
+          "count": 8,
+          "bytes": 131930
+        }
+      }
+    },
+    "equipment": {
+      "count": 567475,
+      "bytes": 309843596,
+      "subdirs": {
+        "character": {
+          "count": 559746,
+          "bytes": 266402536
+        },
+        "creature": {
+          "count": 4466,
+          "bytes": 1597085
+        },
+        "monster": {
+          "count": 3258,
+          "bytes": 948065
+        }
+      }
+    },
+    "etc": {
+      "count": 15044,
+      "bytes": 116693867,
+      "subdirs": {
+        "100lvfarming": {
+          "count": 2,
+          "bytes": 550
+        },
+        "105lvability": {
+          "count": 88,
+          "bytes": 35855
+        },
+        "110lvability": {
+          "count": 265,
+          "bytes": 374042
+        },
+        "115lvability": {
+          "count": 832,
+          "bytes": 474585
+        },
+        "115lvability2": {
+          "count": 447,
+          "bytes": 609140
+        },
+        "abaddonimprisoned": {
+          "count": 1,
+          "bytes": 2335
+        },
+        "achievements": {
+          "count": 7,
+          "bytes": 939868
+        },
+        "advancealtar": {
+          "count": 7,
+          "bytes": 13640
+        },
+        "adventurersystem": {
+          "count": 198,
+          "bytes": 121722
+        },
+        "avatardisjoint": {
+          "count": 6,
+          "bytes": 75415
+        },
+        "beastdungeon": {
+          "count": 1,
+          "bytes": 240
+        },
+        "challengeranking": {
+          "count": 1,
+          "bytes": 465
+        },
+        "changeability": {
+          "count": 5280,
+          "bytes": 777815
+        },
+        "character": {
+          "count": 8,
+          "bytes": 14016
+        },
+        "characterclasschange": {
+          "count": 18,
+          "bytes": 211068
+        },
+        "charactercreate": {
+          "count": 2,
+          "bytes": 9605
+        },
+        "characternamedrawbackimagesystem": {
+          "count": 2,
+          "bytes": 1538
+        },
+        "chn_ilrustrea": {
+          "count": 10,
+          "bytes": 115460
+        },
+        "churnuserreward": {
+          "count": 2,
+          "bytes": 125
+        },
+        "combatcapability": {
+          "count": 3,
+          "bytes": 99672
+        },
+        "contentsguide": {
+          "count": 1,
+          "bytes": 10775
+        },
+        "creature": {
+          "count": 8,
+          "bytes": 6710
+        },
+        "curseofbloodyfruit": {
+          "count": 1,
+          "bytes": 4955
+        },
+        "customability": {
+          "count": 1735,
+          "bytes": 791587
+        },
+        "dock": {
+          "count": 1,
+          "bytes": 3945
+        },
+        "dpl": {
+          "count": 4,
+          "bytes": 11855
+        },
+        "dpl_balance": {
+          "count": 6,
+          "bytes": 34640
+        },
+        "droplimititem": {
+          "count": 1,
+          "bytes": 115
+        },
+        "dungeonetc": {
+          "count": 26,
+          "bytes": 150333
+        },
+        "dungeonpvp": {
+          "count": 15,
+          "bytes": 26925
+        },
+        "emblem": {
+          "count": 7,
+          "bytes": 23300
+        },
+        "epicproduction": {
+          "count": 1,
+          "bytes": 5500
+        },
+        "equipmentspecificity": {
+          "count": 65,
+          "bytes": 268622
+        },
+        "exceptionequipmentoption": {
+          "count": 2,
+          "bytes": 44910
+        },
+        "fixability": {
+          "count": 63,
+          "bytes": 100800
+        },
+        "gameexit": {
+          "count": 2,
+          "bytes": 8350
+        },
+        "gamemode": {
+          "count": 2,
+          "bytes": 1080
+        },
+        "gmuidebugtool": {
+          "count": 2,
+          "bytes": 14020
+        },
+        "goguide": {
+          "count": 57,
+          "bytes": 14155
+        },
+        "growthguide": {
+          "count": 2,
+          "bytes": 708375
+        },
+        "guide": {
+          "count": 77,
+          "bytes": 15655
+        },
+        "guidefairy": {
+          "count": 5,
+          "bytes": 8425
+        },
+        "guidesystem": {
+          "count": 57,
+          "bytes": 14765
+        },
+        "guild": {
+          "count": 244,
+          "bytes": 293416
+        },
+        "independentdrop": {
+          "count": 161,
+          "bytes": 0
+        },
+        "infinitedifficulty": {
+          "count": 1,
+          "bytes": 1905
+        },
+        "interaction": {
+          "count": 3,
+          "bytes": 4288
+        },
+        "itemcontextmenu": {
+          "count": 5,
+          "bytes": 452360
+        },
+        "itemdictionary": {
+          "count": 41,
+          "bytes": 44083880
+        },
+        "itemshop": {
+          "count": 1,
+          "bytes": 7100
+        },
+        "jumpingserver": {
+          "count": 246,
+          "bytes": 508374
+        },
+        "legend": {
+          "count": 9,
+          "bytes": 16625
+        },
+        "levelacceleration": {
+          "count": 1,
+          "bytes": 12550
+        },
+        "linksystem": {
+          "count": 15,
+          "bytes": 22300
+        },
+        "lostland": {
+          "count": 2,
+          "bytes": 8870
+        },
+        "mercenarybroker": {
+          "count": 10,
+          "bytes": 360705
+        },
+        "mycharactersapc": {
+          "count": 27,
+          "bytes": 55890
+        },
+        "neutralizegaugesystem": {
+          "count": 59,
+          "bytes": 47535
+        },
+        "newfairpvp": {
+          "count": 8,
+          "bytes": 37145
+        },
+        "newrandomoption": {
+          "count": 2385,
+          "bytes": 2396507
+        },
+        "newstateeffectparam": {
+          "count": 1,
+          "bytes": 500
+        },
+        "newtypestateeffect": {
+          "count": 1,
+          "bytes": 920
+        },
+        "observersystem": {
+          "count": 1,
+          "bytes": 1746
+        },
+        "party": {
+          "count": 1,
+          "bytes": 735
+        },
+        "planetcontact": {
+          "count": 2,
+          "bytes": 1165
+        },
+        "preload": {
+          "count": 66,
+          "bytes": 12210665
+        },
+        "pvparcade": {
+          "count": 18,
+          "bytes": 15050
+        },
+        "pvphiddenapcmatching": {
+          "count": 1,
+          "bytes": 790
+        },
+        "pvppracticecombo": {
+          "count": 953,
+          "bytes": 2192145
+        },
+        "pvprevisiontable": {
+          "count": 13,
+          "bytes": 265175
+        },
+        "pvpskilltree": {
+          "count": 10,
+          "bytes": 29495
+        },
+        "raid": {
+          "count": 32,
+          "bytes": 137779
+        },
+        "randomoption": {
+          "count": 260,
+          "bytes": 1072325
+        },
+        "recommend": {
+          "count": 3,
+          "bytes": 17932
+        },
+        "replay": {
+          "count": 1,
+          "bytes": 1110
+        },
+        "returneecare": {
+          "count": 40,
+          "bytes": 7235
+        },
+        "revisionsystem": {
+          "count": 2,
+          "bytes": 37950
+        },
+        "rewardboostinfo": {
+          "count": 8,
+          "bytes": 53799
+        },
+        "routeguide": {
+          "count": 56,
+          "bytes": 19670
+        },
+        "sdsurvival": {
+          "count": 2,
+          "bytes": 1085
+        },
+        "sdvolleyball": {
+          "count": 2,
+          "bytes": 1100
+        },
+        "seasonserver": {
+          "count": 23,
+          "bytes": 16915
+        },
+        "selectcharacterver2": {
+          "count": 1,
+          "bytes": 5215
+        },
+        "semiraid": {
+          "count": 4,
+          "bytes": 19977
+        },
+        "seriaroom": {
+          "count": 1,
+          "bytes": 1510
+        },
+        "shonanhell": {
+          "count": 3,
+          "bytes": 39755
+        },
+        "storydigest": {
+          "count": 28,
+          "bytes": 9220
+        },
+        "superman": {
+          "count": 21,
+          "bytes": 657505
+        },
+        "tagsystem": {
+          "count": 1,
+          "bytes": 800
+        },
+        "tagtournament": {
+          "count": 59,
+          "bytes": 37485
+        },
+        "territorycombat": {
+          "count": 8,
+          "bytes": 26925
+        },
+        "textstyle": {
+          "count": 12,
+          "bytes": 11705
+        },
+        "theoculus": {
+          "count": 1,
+          "bytes": 3915
+        },
+        "tutorial": {
+          "count": 5,
+          "bytes": 4945
+        },
+        "ultimateskillani": {
+          "count": 275,
+          "bytes": 203345
+        },
+        "unifiedoption": {
+          "count": 1,
+          "bytes": 113684
+        },
+        "universal_event": {
+          "count": 4,
+          "bytes": 205565
+        },
+        "updatehistory": {
+          "count": 1,
+          "bytes": 520
+        },
+        "voiceavatar": {
+          "count": 1,
+          "bytes": 95
+        },
+        "vote": {
+          "count": 1,
+          "bytes": 25882
+        },
+        "warriors": {
+          "count": 1,
+          "bytes": 1565
+        },
+        "worldboss": {
+          "count": 12,
+          "bytes": 12650
+        }
+      }
+    },
+    "event": {
+      "count": 9401,
+      "bytes": 6023671,
+      "subdirs": {
+        "12th": {
+          "count": 68,
+          "bytes": 54615
+        },
+        "171102_dating_simulation": {
+          "count": 5,
+          "bytes": 400
+        },
+        "17_festival": {
+          "count": 2,
+          "bytes": 160
+        },
+        "17_ontime": {
+          "count": 1,
+          "bytes": 80
+        },
+        "180322_april_foolsday_cutin": {
+          "count": 59,
+          "bytes": 4720
+        },
+        "180322_bbangtoni_cutin": {
+          "count": 1,
+          "bytes": 80
+        },
+        "180918_bastetordeal": {
+          "count": 1,
+          "bytes": 80
+        },
+        "18_dnffestival": {
+          "count": 1,
+          "bytes": 80
+        },
+        "18_fishing": {
+          "count": 19,
+          "bytes": 9485
+        },
+        "18_halloween": {
+          "count": 1,
+          "bytes": 80
+        },
+        "18_kashipa": {
+          "count": 4,
+          "bytes": 320
+        },
+        "18_miku": {
+          "count": 4,
+          "bytes": 320
+        },
+        "18_puppy": {
+          "count": 1,
+          "bytes": 80
+        },
+        "18_snowman": {
+          "count": 1,
+          "bytes": 80
+        },
+        "190121_yggdrasil": {
+          "count": 4,
+          "bytes": 320
+        },
+        "190314_romantic": {
+          "count": 5,
+          "bytes": 400
+        },
+        "190924_minimini_kingdom": {
+          "count": 1,
+          "bytes": 4260
+        },
+        "191017_imperialknightstory": {
+          "count": 549,
+          "bytes": 174860
+        },
+        "19_babypig": {
+          "count": 2,
+          "bytes": 160
+        },
+        "19_rezero": {
+          "count": 4,
+          "bytes": 320
+        },
+        "19_snowman_black": {
+          "count": 1,
+          "bytes": 80
+        },
+        "19_summerpkg": {
+          "count": 364,
+          "bytes": 450150
+        },
+        "200319_cherryblossom": {
+          "count": 6,
+          "bytes": 0
+        },
+        "20170427_detectivedungeon": {
+          "count": 3,
+          "bytes": 345
+        },
+        "20200423_quizworld": {
+          "count": 11,
+          "bytes": 25875
+        },
+        "20200709_jumping": {
+          "count": 17,
+          "bytes": 33445
+        },
+        "20210107_aradranger_town": {
+          "count": 2,
+          "bytes": 180
+        },
+        "20_mouse": {
+          "count": 1,
+          "bytes": 90
+        },
+        "20_vr": {
+          "count": 36,
+          "bytes": 117040
+        },
+        "21_artbook": {
+          "count": 17,
+          "bytes": 1360
+        },
+        "21_whitecow": {
+          "count": 1,
+          "bytes": 90
+        },
+        "adventurermaker": {
+          "count": 43,
+          "bytes": 3720
+        },
+        "animation": {
+          "count": 6,
+          "bytes": 9605
+        },
+        "bitandfigther": {
+          "count": 3166,
+          "bytes": 1209980
+        },
+        "bluemarble": {
+          "count": 29,
+          "bytes": 3665
+        },
+        "challengedespairtowerevent": {
+          "count": 3765,
+          "bytes": 1790040
+        },
+        "chn_event": {
+          "count": 63,
+          "bytes": 194095
+        },
+        "compoundgacha": {
+          "count": 1,
+          "bytes": 2210
+        },
+        "damagefontskin": {
+          "count": 323,
+          "bytes": 183975
+        },
+        "dualraid": {
+          "count": 1,
+          "bytes": 510
+        },
+        "duntress": {
+          "count": 94,
+          "bytes": 26580
+        },
+        "escaperoomevent": {
+          "count": 30,
+          "bytes": 167005
+        },
+        "eventcharacter": {
+          "count": 1,
+          "bytes": 10155
+        },
+        "eventreward": {
+          "count": 14,
+          "bytes": 4785
+        },
+        "eventserver": {
+          "count": 3,
+          "bytes": 1200
+        },
+        "fatigue": {
+          "count": 1,
+          "bytes": 145
+        },
+        "festival": {
+          "count": 1,
+          "bytes": 80
+        },
+        "gcontents": {
+          "count": 1,
+          "bytes": 80225
+        },
+        "gunbladerevent": {
+          "count": 1,
+          "bytes": 820
+        },
+        "imported": {
+          "count": 11,
+          "bytes": 16135
+        },
+        "japan": {
+          "count": 50,
+          "bytes": 20835
+        },
+        "missioncaptureobject": {
+          "count": 10,
+          "bytes": 4185
+        },
+        "nanopainting": {
+          "count": 130,
+          "bytes": 69210
+        },
+        "phantomofupgrade": {
+          "count": 43,
+          "bytes": 50428
+        },
+        "racingdungeon": {
+          "count": 1,
+          "bytes": 100
+        },
+        "realestate": {
+          "count": 5,
+          "bytes": 5005
+        },
+        "universal": {
+          "count": 159,
+          "bytes": 308210
+        },
+        "upgraderoom": {
+          "count": 1,
+          "bytes": 170
+        }
+      }
+    },
+    "itemshop": {
+      "count": 1121,
+      "bytes": 777690
+    },
+    "list": {
+      "count": 53,
+      "bytes": 15695953
+    },
+    "live": {
+      "count": 282188,
+      "bytes": 384531283,
+      "subdirs": {
+        "common": {
+          "count": 134,
+          "bytes": 1450102
+        },
+        "else": {
+          "count": 2159,
+          "bytes": 7466081
+        },
+        "event": {
+          "count": 279895,
+          "bytes": 375615100
+        }
+      }
+    },
+    "localization": {
+      "count": 476,
+      "bytes": 851060,
+      "subdirs": {
+        "avatarseteffect": {
+          "count": 472,
+          "bytes": 844935
+        },
+        "collectbox": {
+          "count": 2,
+          "bytes": 1985
+        }
+      }
+    },
+    "map": {
+      "count": 252733,
+      "bytes": 197901370,
+      "subdirs": {
+        "144_redcrystal_forest": {
+          "count": 86,
+          "bytes": 128395
+        },
+        "145_icecrystal_forest": {
+          "count": 61,
+          "bytes": 102815
+        },
+        "146_lightcrystal_forest": {
+          "count": 73,
+          "bytes": 120565
+        },
+        "147_darkrex_darkforest": {
+          "count": 53,
+          "bytes": 79285
+        },
+        "148_prison1": {
+          "count": 148,
+          "bytes": 229515
+        },
+        "149_prison2": {
+          "count": 83,
+          "bytes": 139860
+        },
+        "150_spider_kingom": {
+          "count": 180,
+          "bytes": 253655
+        },
+        "151_tomb_of_the_heroes": {
+          "count": 245,
+          "bytes": 452760
+        },
+        "152_despot_king_altar": {
+          "count": 245,
+          "bytes": 275980
+        },
+        "153_gold_cave": {
+          "count": 247,
+          "bytes": 354220
+        },
+        "154_ancient_times_heart": {
+          "count": 276,
+          "bytes": 434050
+        },
+        "155_dragon_seal": {
+          "count": 304,
+          "bytes": 449130
+        },
+        "156_mushroomgarden": {
+          "count": 118,
+          "bytes": 213485
+        },
+        "157_salif": {
+          "count": 198,
+          "bytes": 373270
+        },
+        "158_decayarea": {
+          "count": 146,
+          "bytes": 183315
+        },
+        "159_old_town": {
+          "count": 211,
+          "bytes": 291970
+        },
+        "160_chessboard_despair": {
+          "count": 271,
+          "bytes": 295475
+        },
+        "161_durban": {
+          "count": 144,
+          "bytes": 168290
+        },
+        "162_humiliation_reef": {
+          "count": 205,
+          "bytes": 274910
+        },
+        "163_gbl_goddess_temple": {
+          "count": 195,
+          "bytes": 276025
+        },
+        "164_gbl_breeding": {
+          "count": 174,
+          "bytes": 211970
+        },
+        "165_roters_nest": {
+          "count": 118,
+          "bytes": 144745
+        },
+        "166_ice_wall": {
+          "count": 226,
+          "bytes": 405145
+        },
+        "167_nightmare_darksnake": {
+          "count": 162,
+          "bytes": 250045
+        },
+        "168_nightmare_burn": {
+          "count": 148,
+          "bytes": 280340
+        },
+        "169_nightmare_epidemic": {
+          "count": 446,
+          "bytes": 462785
+        },
+        "170_nightmare_ice": {
+          "count": 292,
+          "bytes": 379760
+        },
+        "171_nightmare_nightmare": {
+          "count": 190,
+          "bytes": 231600
+        },
+        "172_nightmare_fallen": {
+          "count": 152,
+          "bytes": 221215
+        },
+        "190_watchtower": {
+          "count": 176,
+          "bytes": 217335
+        },
+        "191_lukerinje": {
+          "count": 182,
+          "bytes": 179950
+        },
+        "192_metalsbrakium": {
+          "count": 102,
+          "bytes": 110355
+        },
+        "193_brazierofsalamander": {
+          "count": 139,
+          "bytes": 177470
+        },
+        "194_banquethalloflight": {
+          "count": 135,
+          "bytes": 208910
+        },
+        "195_kings_library": {
+          "count": 116,
+          "bytes": 102515
+        },
+        "1stbackbone": {
+          "count": 77,
+          "bytes": 78630
+        },
+        "2019_aprilfool": {
+          "count": 107,
+          "bytes": 125350
+        },
+        "210_close_blacksmoke": {
+          "count": 87,
+          "bytes": 92490
+        },
+        "211_close_blacksmoke2": {
+          "count": 86,
+          "bytes": 91590
+        },
+        "212_strongleg_high": {
+          "count": 128,
+          "bytes": 126425
+        },
+        "213_strongleg_lower": {
+          "count": 137,
+          "bytes": 132690
+        },
+        "214_strongleg_high2": {
+          "count": 148,
+          "bytes": 150125
+        },
+        "215_strongleg_lower2": {
+          "count": 147,
+          "bytes": 145565
+        },
+        "216_fleet_fire": {
+          "count": 95,
+          "bytes": 69070
+        },
+        "217_dalelidhole": {
+          "count": 55,
+          "bytes": 55645
+        },
+        "218_energycut": {
+          "count": 201,
+          "bytes": 199145
+        },
+        "219_blackvolcano": {
+          "count": 98,
+          "bytes": 77585
+        },
+        "220_227_hiddendalelidhole": {
+          "count": 92,
+          "bytes": 83705
+        },
+        "220_antonheart": {
+          "count": 54,
+          "bytes": 29340
+        },
+        "221_hatchery1": {
+          "count": 53,
+          "bytes": 43225
+        },
+        "222_hatchery2": {
+          "count": 60,
+          "bytes": 35940
+        },
+        "223_hatchery3": {
+          "count": 48,
+          "bytes": 36425
+        },
+        "224_hatchery4": {
+          "count": 48,
+          "bytes": 41775
+        },
+        "225_close_blacksmoke": {
+          "count": 86,
+          "bytes": 91530
+        },
+        "226_strongleg_high": {
+          "count": 128,
+          "bytes": 126275
+        },
+        "227_fleet_fire": {
+          "count": 95,
+          "bytes": 68360
+        },
+        "228_strongleg_lower": {
+          "count": 137,
+          "bytes": 132590
+        },
+        "229_energycut": {
+          "count": 186,
+          "bytes": 179660
+        },
+        "231_blackvolcano": {
+          "count": 132,
+          "bytes": 122960
+        },
+        "233_antonheart": {
+          "count": 54,
+          "bytes": 28315
+        },
+        "243_close_blacksmoke": {
+          "count": 86,
+          "bytes": 91590
+        },
+        "244_strongleg_high": {
+          "count": 128,
+          "bytes": 126330
+        },
+        "245_strongleg_lower": {
+          "count": 137,
+          "bytes": 132690
+        },
+        "246_energycut": {
+          "count": 189,
+          "bytes": 184580
+        },
+        "247_blackvolcano": {
+          "count": 132,
+          "bytes": 122915
+        },
+        "2ndawakening": {
+          "count": 74,
+          "bytes": 71620
+        },
+        "2ndbackbone": {
+          "count": 96,
+          "bytes": 98520
+        },
+        "abnoba_renewal_glasspay": {
+          "count": 14,
+          "bytes": 8235
+        },
+        "actionserver_tutorial": {
+          "count": 222,
+          "bytes": 166470
+        },
+        "advancealtar": {
+          "count": 156,
+          "bytes": 401595
+        },
+        "aganzo": {
+          "count": 66,
+          "bytes": 77745
+        },
+        "agitwar": {
+          "count": 116,
+          "bytes": 208150
+        },
+        "airship": {
+          "count": 40,
+          "bytes": 11470
+        },
+        "airship_public": {
+          "count": 5,
+          "bytes": 400
+        },
+        "alfhlyra": {
+          "count": 93,
+          "bytes": 43330
+        },
+        "amon": {
+          "count": 170,
+          "bytes": 144090
+        },
+        "ancient_infinited": {
+          "count": 542,
+          "bytes": 440625
+        },
+        "anton_new": {
+          "count": 1428,
+          "bytes": 1358595
+        },
+        "anton_ordinary": {
+          "count": 776,
+          "bytes": 791940
+        },
+        "anton_pve": {
+          "count": 474,
+          "bytes": 483585
+        },
+        "anton_quest": {
+          "count": 670,
+          "bytes": 658435
+        },
+        "arden": {
+          "count": 819,
+          "bytes": 689405
+        },
+        "astraythief": {
+          "count": 162,
+          "bytes": 183315
+        },
+        "avatarmarket": {
+          "count": 2,
+          "bytes": 160
+        },
+        "bakalcastle": {
+          "count": 25,
+          "bytes": 21830
+        },
+        "before_mage": {
+          "count": 516,
+          "bytes": 162400
+        },
+        "before_swordman": {
+          "count": 114,
+          "bytes": 54690
+        },
+        "beginning": {
+          "count": 174,
+          "bytes": 259415
+        },
+        "black_church": {
+          "count": 102,
+          "bytes": 110300
+        },
+        "black_church_r": {
+          "count": 210,
+          "bytes": 331575
+        },
+        "blackearth": {
+          "count": 32,
+          "bytes": 21050
+        },
+        "blackstone": {
+          "count": 34,
+          "bytes": 37525
+        },
+        "bloodbutterfly": {
+          "count": 105,
+          "bytes": 112370
+        },
+        "bloodhell": {
+          "count": 35,
+          "bytes": 41705
+        },
+        "bordertown": {
+          "count": 121,
+          "bytes": 185715
+        },
+        "boss_rush": {
+          "count": 201,
+          "bytes": 140845
+        },
+        "bwanga": {
+          "count": 87,
+          "bytes": 108065
+        },
+        "captainscabin": {
+          "count": 173,
+          "bytes": 149065
+        },
+        "carrier_dg": {
+          "count": 423,
+          "bytes": 258530
+        },
+        "cartelarad": {
+          "count": 237,
+          "bytes": 126250
+        },
+        "cartelcommand": {
+          "count": 119,
+          "bytes": 88505
+        },
+        "casinoroyale": {
+          "count": 290,
+          "bytes": 266415
+        },
+        "cataclysm": {
+          "count": 32423,
+          "bytes": 25645430
+        },
+        "chaostest": {
+          "count": 44,
+          "bytes": 43310
+        },
+        "charnakridge": {
+          "count": 192,
+          "bytes": 383985
+        },
+        "chn_3kingdoms": {
+          "count": 324,
+          "bytes": 238645
+        },
+        "chn_battleship": {
+          "count": 597,
+          "bytes": 556945
+        },
+        "chn_battleship_town": {
+          "count": 24,
+          "bytes": 19730
+        },
+        "chn_creature_battle": {
+          "count": 39,
+          "bytes": 38175
+        },
+        "chn_destroy_dungeon": {
+          "count": 70,
+          "bytes": 64870
+        },
+        "chn_detective": {
+          "count": 491,
+          "bytes": 541225
+        },
+        "chn_detective_town": {
+          "count": 41,
+          "bytes": 38660
+        },
+        "chn_knight_of_round": {
+          "count": 593,
+          "bytes": 568805
+        },
+        "chn_knight_of_round_vil": {
+          "count": 30,
+          "bytes": 26125
+        },
+        "chn_proga": {
+          "count": 732,
+          "bytes": 405355
+        },
+        "chn_pumpkin_express": {
+          "count": 91,
+          "bytes": 70325
+        },
+        "chn_pvp": {
+          "count": 45,
+          "bytes": 82955
+        },
+        "chn_towerofscream_down": {
+          "count": 121,
+          "bytes": 90590
+        },
+        "chn_towerofscream_up": {
+          "count": 84,
+          "bytes": 68740
+        },
+        "chn_zombie_dungeon": {
+          "count": 208,
+          "bytes": 189145
+        },
+        "church": {
+          "count": 16,
+          "bytes": 11315
+        },
+        "circle_frostcave": {
+          "count": 156,
+          "bytes": 101655
+        },
+        "circle_gentinfiltrate": {
+          "count": 117,
+          "bytes": 91660
+        },
+        "circle_kings_library": {
+          "count": 97,
+          "bytes": 57205
+        },
+        "circle_madnessadenvine": {
+          "count": 77,
+          "bytes": 51830
+        },
+        "circle_meltdownhelpus": {
+          "count": 68,
+          "bytes": 56915
+        },
+        "circle_seachase": {
+          "count": 102,
+          "bytes": 390470
+        },
+        "circle_sealforest": {
+          "count": 106,
+          "bytes": 46415
+        },
+        "circle_seizemoney": {
+          "count": 157,
+          "bytes": 150795
+        },
+        "circle_stationescape": {
+          "count": 399,
+          "bytes": 361445
+        },
+        "circle_timebreak": {
+          "count": 812,
+          "bytes": 556785
+        },
+        "circus": {
+          "count": 125,
+          "bytes": 188580
+        },
+        "circus_mini": {
+          "count": 104,
+          "bytes": 167605
+        },
+        "circus_new": {
+          "count": 142,
+          "bytes": 162890
+        },
+        "circus_tw": {
+          "count": 24,
+          "bytes": 13030
+        },
+        "coldboy": {
+          "count": 131,
+          "bytes": 111640
+        },
+        "common": {
+          "count": 881,
+          "bytes": 594410
+        },
+        "commonanimation": {
+          "count": 12,
+          "bytes": 3750
+        },
+        "conflagration": {
+          "count": 274,
+          "bytes": 431035
+        },
+        "consciousness": {
+          "count": 198,
+          "bytes": 497430
+        },
+        "cosmofiend": {
+          "count": 75,
+          "bytes": 80970
+        },
+        "counterattack": {
+          "count": 194,
+          "bytes": 279165
+        },
+        "counterattack_r": {
+          "count": 314,
+          "bytes": 531215
+        },
+        "crackofdimension": {
+          "count": 64,
+          "bytes": 54780
+        },
+        "daily": {
+          "count": 1006,
+          "bytes": 467215
+        },
+        "danjin_senki": {
+          "count": 172,
+          "bytes": 131960
+        },
+        "darkcity": {
+          "count": 248,
+          "bytes": 392435
+        },
+        "darkelfcemetary": {
+          "count": 173,
+          "bytes": 231765
+        },
+        "darkelftemple_troubled_areas": {
+          "count": 295,
+          "bytes": 130585
+        },
+        "darkentrance": {
+          "count": 96,
+          "bytes": 114015
+        },
+        "darkhell": {
+          "count": 82,
+          "bytes": 81160
+        },
+        "daybreak": {
+          "count": 95,
+          "bytes": 105510
+        },
+        "deadmoon": {
+          "count": 40,
+          "bytes": 15990
+        },
+        "deadmoon_avenger1": {
+          "count": 40,
+          "bytes": 15935
+        },
+        "deadmoon_avenger2": {
+          "count": 40,
+          "bytes": 15990
+        },
+        "deadmoon_elemental": {
+          "count": 41,
+          "bytes": 15045
+        },
+        "deadmoon_new": {
+          "count": 46,
+          "bytes": 30810
+        },
+        "deadmoon_summoner1": {
+          "count": 40,
+          "bytes": 14655
+        },
+        "deadmoon_summoner2": {
+          "count": 40,
+          "bytes": 14615
+        },
+        "deadmoon_witch": {
+          "count": 41,
+          "bytes": 15045
+        },
+        "deadtower": {
+          "count": 227,
+          "bytes": 112900
+        },
+        "devildom_beast": {
+          "count": 1329,
+          "bytes": 890945
+        },
+        "dfo": {
+          "count": 6405,
+          "bytes": 5686595
+        },
+        "dimension": {
+          "count": 86,
+          "bytes": 33835
+        },
+        "dimension_tutorial": {
+          "count": 92,
+          "bytes": 44350
+        },
+        "dimensioncrack": {
+          "count": 496,
+          "bytes": 405185
+        },
+        "dimensiongate_tutorial": {
+          "count": 422,
+          "bytes": 264625
+        },
+        "disaster": {
+          "count": 389,
+          "bytes": 348460
+        },
+        "disguiser": {
+          "count": 25,
+          "bytes": 16005
+        },
+        "district9": {
+          "count": 178,
+          "bytes": 296090
+        },
+        "dpl": {
+          "count": 912,
+          "bytes": 770185
+        },
+        "draconiantower": {
+          "count": 123,
+          "bytes": 160840
+        },
+        "dragon_kurun_kor": {
+          "count": 291,
+          "bytes": 195275
+        },
+        "dream_elvengard": {
+          "count": 129,
+          "bytes": 45590
+        },
+        "dream_hendonmyre": {
+          "count": 310,
+          "bytes": 156925
+        },
+        "dream_stormpass": {
+          "count": 136,
+          "bytes": 65745
+        },
+        "dtt": {
+          "count": 134,
+          "bytes": 69140
+        },
+        "dungeon_renewal": {
+          "count": 92,
+          "bytes": 48360
+        },
+        "dungeonpvp": {
+          "count": 1128,
+          "bytes": 343570
+        },
+        "elvengard": {
+          "count": 150,
+          "bytes": 49370
+        },
+        "elvengardsf": {
+          "count": 147,
+          "bytes": 80790
+        },
+        "empirerampart": {
+          "count": 10,
+          "bytes": 4300
+        },
+        "energyisolator": {
+          "count": 65,
+          "bytes": 53770
+        },
+        "epidemic": {
+          "count": 258,
+          "bytes": 419425
+        },
+        "epidemic_r": {
+          "count": 133,
+          "bytes": 130080
+        },
+        "event": {
+          "count": 16050,
+          "bytes": 13248680
+        },
+        "event_3kingdoms": {
+          "count": 42,
+          "bytes": 19430
+        },
+        "event_carrier": {
+          "count": 74,
+          "bytes": 64805
+        },
+        "event_heromin": {
+          "count": 13,
+          "bytes": 11735
+        },
+        "event_kronos": {
+          "count": 116,
+          "bytes": 55090
+        },
+        "event_proga_dungeon": {
+          "count": 43,
+          "bytes": 37275
+        },
+        "event_zombie_dungeon": {
+          "count": 31,
+          "bytes": 23565
+        },
+        "fair_pvp": {
+          "count": 373,
+          "bytes": 162305
+        },
+        "fairyforest": {
+          "count": 48,
+          "bytes": 29115
+        },
+        "fallenforest": {
+          "count": 143,
+          "bytes": 113775
+        },
+        "fiendwar_g": {
+          "count": 1775,
+          "bytes": 1107980
+        },
+        "fiendwar_kr": {
+          "count": 2145,
+          "bytes": 1969105
+        },
+        "fightclub": {
+          "count": 106,
+          "bytes": 139315
+        },
+        "floatingcastle": {
+          "count": 102,
+          "bytes": 138840
+        },
+        "forestedge": {
+          "count": 349,
+          "bytes": 132270
+        },
+        "forgotten_land": {
+          "count": 869,
+          "bytes": 465230
+        },
+        "forgotten_land_hiden": {
+          "count": 54,
+          "bytes": 33185
+        },
+        "forgotten_land_jungle": {
+          "count": 298,
+          "bytes": 231720
+        },
+        "forgotten_land_jungle_h": {
+          "count": 61,
+          "bytes": 33890
+        },
+        "formacartel": {
+          "count": 102,
+          "bytes": 152295
+        },
+        "formacartel_r": {
+          "count": 216,
+          "bytes": 376035
+        },
+        "frostcave": {
+          "count": 156,
+          "bytes": 101655
+        },
+        "fruz_station": {
+          "count": 189,
+          "bytes": 289800
+        },
+        "gbl1": {
+          "count": 23,
+          "bytes": 28450
+        },
+        "gbl2": {
+          "count": 18,
+          "bytes": 36455
+        },
+        "gbl3": {
+          "count": 19,
+          "bytes": 24300
+        },
+        "gbl_breeding": {
+          "count": 55,
+          "bytes": 34845
+        },
+        "gbl_goddess_temple": {
+          "count": 40,
+          "bytes": 61010
+        },
+        "gcontents": {
+          "count": 14803,
+          "bytes": 9977520
+        },
+        "gent": {
+          "count": 117,
+          "bytes": 65130
+        },
+        "gent_alpha": {
+          "count": 100,
+          "bytes": 26235
+        },
+        "gentdefence": {
+          "count": 143,
+          "bytes": 203770
+        },
+        "gentdefence_r": {
+          "count": 222,
+          "bytes": 360400
+        },
+        "genteastgate": {
+          "count": 76,
+          "bytes": 88390
+        },
+        "genteastgate_r": {
+          "count": 274,
+          "bytes": 249790
+        },
+        "gentinfiltrate": {
+          "count": 118,
+          "bytes": 98250
+        },
+        "gentnorthgate": {
+          "count": 97,
+          "bytes": 123560
+        },
+        "gentnorthgate_r": {
+          "count": 251,
+          "bytes": 274985
+        },
+        "gentsouthgate": {
+          "count": 81,
+          "bytes": 94605
+        },
+        "gentsouthgate_r": {
+          "count": 384,
+          "bytes": 381650
+        },
+        "ghosttrain": {
+          "count": 66,
+          "bytes": 91015
+        },
+        "goblinkingdom": {
+          "count": 86,
+          "bytes": 33320
+        },
+        "golemtower": {
+          "count": 99,
+          "bytes": 92480
+        },
+        "gothloli": {
+          "count": 90,
+          "bytes": 62755
+        },
+        "grakkarak": {
+          "count": 99,
+          "bytes": 118270
+        },
+        "grakkarakburning": {
+          "count": 115,
+          "bytes": 141680
+        },
+        "grandine": {
+          "count": 179,
+          "bytes": 273960
+        },
+        "grenselos": {
+          "count": 563,
+          "bytes": 275070
+        },
+        "grim": {
+          "count": 178,
+          "bytes": 111380
+        },
+        "grim1": {
+          "count": 35,
+          "bytes": 50645
+        },
+        "grim2": {
+          "count": 32,
+          "bytes": 46055
+        },
+        "grim3": {
+          "count": 36,
+          "bytes": 47500
+        },
+        "groznyinside": {
+          "count": 103,
+          "bytes": 56980
+        },
+        "groznyoutside": {
+          "count": 189,
+          "bytes": 85830
+        },
+        "guild_fight": {
+          "count": 25,
+          "bytes": 16525
+        },
+        "guildagit": {
+          "count": 2511,
+          "bytes": 1413435
+        },
+        "guilddungeon": {
+          "count": 1903,
+          "bytes": 1650595
+        },
+        "hallofdoll": {
+          "count": 117,
+          "bytes": 129705
+        },
+        "harlem_assault": {
+          "count": 641,
+          "bytes": 1190040
+        },
+        "haze": {
+          "count": 649,
+          "bytes": 564245
+        },
+        "hendonmyre": {
+          "count": 313,
+          "bytes": 155195
+        },
+        "hendonmyresf": {
+          "count": 381,
+          "bytes": 180190
+        },
+        "icepalace": {
+          "count": 130,
+          "bytes": 94410
+        },
+        "illusiontower": {
+          "count": 211,
+          "bytes": 88465
+        },
+        "infernomode": {
+          "count": 5986,
+          "bytes": 3722250
+        },
+        "investigage_the_blacksmoke": {
+          "count": 89,
+          "bytes": 102310
+        },
+        "irisconsciousness": {
+          "count": 72,
+          "bytes": 69810
+        },
+        "iristime": {
+          "count": 88,
+          "bytes": 89715
+        },
+        "jumping": {
+          "count": 12623,
+          "bytes": 8972045
+        },
+        "jungle": {
+          "count": 87,
+          "bytes": 93525
+        },
+        "kcontents1": {
+          "count": 526,
+          "bytes": 326040
+        },
+        "kcontents2": {
+          "count": 18503,
+          "bytes": 13966025
+        },
+        "kcontents3": {
+          "count": 21832,
+          "bytes": 14384185
+        },
+        "kingsruins": {
+          "count": 80,
+          "bytes": 66900
+        },
+        "kohlepowerstation": {
+          "count": 148,
+          "bytes": 200350
+        },
+        "kronos_dg": {
+          "count": 364,
+          "bytes": 369705
+        },
+        "labyrinth": {
+          "count": 48,
+          "bytes": 44490
+        },
+        "larguslake": {
+          "count": 109,
+          "bytes": 9635
+        },
+        "larguslake2": {
+          "count": 107,
+          "bytes": 9090
+        },
+        "larguslake3": {
+          "count": 107,
+          "bytes": 9090
+        },
+        "lawlessdistrict": {
+          "count": 81,
+          "bytes": 84380
+        },
+        "legend": {
+          "count": 321,
+          "bytes": 240170
+        },
+        "leshphon": {
+          "count": 37,
+          "bytes": 34665
+        },
+        "levelacc": {
+          "count": 14486,
+          "bytes": 8458780
+        },
+        "lorien": {
+          "count": 94,
+          "bytes": 105620
+        },
+        "lorieninside": {
+          "count": 87,
+          "bytes": 86080
+        },
+        "lost_land": {
+          "count": 1193,
+          "bytes": 698160
+        },
+        "lufthafen": {
+          "count": 117,
+          "bytes": 56530
+        },
+        "luke_dpl": {
+          "count": 830,
+          "bytes": 526130
+        },
+        "luke_hard": {
+          "count": 833,
+          "bytes": 705915
+        },
+        "luke_normal": {
+          "count": 1686,
+          "bytes": 1348750
+        },
+        "luke_raid": {
+          "count": 865,
+          "bytes": 740680
+        },
+        "luke_single": {
+          "count": 603,
+          "bytes": 487585
+        },
+        "madnessadenvine": {
+          "count": 77,
+          "bytes": 51830
+        },
+        "magmacave": {
+          "count": 130,
+          "bytes": 212890
+        },
+        "marpissalair": {
+          "count": 154,
+          "bytes": 224290
+        },
+        "meltdownhelpus": {
+          "count": 68,
+          "bytes": 56915
+        },
+        "mercenarybroker": {
+          "count": 722,
+          "bytes": 366925
+        },
+        "metrocenter": {
+          "count": 2977,
+          "bytes": 3320590
+        },
+        "middleocean": {
+          "count": 47,
+          "bytes": 24160
+        },
+        "mini_war": {
+          "count": 295,
+          "bytes": 105165
+        },
+        "mirkwood": {
+          "count": 162,
+          "bytes": 184250
+        },
+        "mirkwooddeep": {
+          "count": 167,
+          "bytes": 218430
+        },
+        "mirkwoodfrost": {
+          "count": 118,
+          "bytes": 72090
+        },
+        "mission": {
+          "count": 17,
+          "bytes": 12390
+        },
+        "moonlight": {
+          "count": 9,
+          "bytes": 14330
+        },
+        "new_eventmap1": {
+          "count": 136,
+          "bytes": 52575
+        },
+        "new_eventmap2": {
+          "count": 101,
+          "bytes": 45675
+        },
+        "new_eventmap3": {
+          "count": 270,
+          "bytes": 125565
+        },
+        "new_luke": {
+          "count": 853,
+          "bytes": 725500
+        },
+        "nightassault": {
+          "count": 55,
+          "bytes": 55540
+        },
+        "nightassault_r": {
+          "count": 172,
+          "bytes": 270635
+        },
+        "ninja": {
+          "count": 121,
+          "bytes": 133460
+        },
+        "noirpera": {
+          "count": 92,
+          "bytes": 92900
+        },
+        "ocean": {
+          "count": 132,
+          "bytes": 224195
+        },
+        "odesa2": {
+          "count": 101,
+          "bytes": 72660
+        },
+        "oldscreamingcave": {
+          "count": 142,
+          "bytes": 165760
+        },
+        "oldscreamingcave_r": {
+          "count": 271,
+          "bytes": 390880
+        },
+        "op_hope": {
+          "count": 1764,
+          "bytes": 1322275
+        },
+        "outergent": {
+          "count": 57,
+          "bytes": 59720
+        },
+        "outergent_r": {
+          "count": 316,
+          "bytes": 214890
+        },
+        "outergent_r_test": {
+          "count": 36,
+          "bytes": 14390
+        },
+        "outergent_r_variation": {
+          "count": 40,
+          "bytes": 16670
+        },
+        "outerscreamingcave": {
+          "count": 41,
+          "bytes": 16600
+        },
+        "outerwall": {
+          "count": 83,
+          "bytes": 73555
+        },
+        "palaceofload": {
+          "count": 83,
+          "bytes": 96800
+        },
+        "pirateonthetrain": {
+          "count": 49,
+          "bytes": 65605
+        },
+        "pirateonthetrain_r": {
+          "count": 182,
+          "bytes": 235930
+        },
+        "poongjintrainingroom": {
+          "count": 57,
+          "bytes": 97855
+        },
+        "prey": {
+          "count": 883,
+          "bytes": 511335
+        },
+        "pvp2_test": {
+          "count": 50,
+          "bytes": 90325
+        },
+        "pvp_area": {
+          "count": 707,
+          "bytes": 275745
+        },
+        "q_cartelcommand": {
+          "count": 119,
+          "bytes": 93880
+        },
+        "q_gentrevolt_out": {
+          "count": 1294,
+          "bytes": 523755
+        },
+        "q_leshphon": {
+          "count": 22,
+          "bytes": 12895
+        },
+        "q_noirpera": {
+          "count": 76,
+          "bytes": 72815
+        },
+        "q_vilmark": {
+          "count": 122,
+          "bytes": 71665
+        },
+        "r_cartelcommand": {
+          "count": 81,
+          "bytes": 47775
+        },
+        "r_d": {
+          "count": 148,
+          "bytes": 57555
+        },
+        "r_ghosttrain": {
+          "count": 39,
+          "bytes": 45845
+        },
+        "r_kingsruins": {
+          "count": 57,
+          "bytes": 44450
+        },
+        "r_leshphon": {
+          "count": 37,
+          "bytes": 27310
+        },
+        "r_noirpera": {
+          "count": 113,
+          "bytes": 95630
+        },
+        "r_screamingcave": {
+          "count": 131,
+          "bytes": 143660
+        },
+        "r_vilmark": {
+          "count": 100,
+          "bytes": 51685
+        },
+        "ranjerusdogs": {
+          "count": 68,
+          "bytes": 31265
+        },
+        "realskycastle": {
+          "count": 106,
+          "bytes": 29650
+        },
+        "redstone": {
+          "count": 36,
+          "bytes": 49500
+        },
+        "returnee": {
+          "count": 91,
+          "bytes": 43760
+        },
+        "revolt2": {
+          "count": 96,
+          "bytes": 67830
+        },
+        "ricuceiling": {
+          "count": 360,
+          "bytes": 293010
+        },
+        "rollingstone": {
+          "count": 28,
+          "bytes": 28105
+        },
+        "sainthorn": {
+          "count": 52,
+          "bytes": 31685
+        },
+        "sao_tower": {
+          "count": 342,
+          "bytes": 242480
+        },
+        "scasalair": {
+          "count": 204,
+          "bytes": 120330
+        },
+        "scenario": {
+          "count": 3293,
+          "bytes": 2971820
+        },
+        "screamingcave": {
+          "count": 119,
+          "bytes": 144390
+        },
+        "sd_survival": {
+          "count": 191,
+          "bytes": 207125
+        },
+        "seachase": {
+          "count": 102,
+          "bytes": 390620
+        },
+        "sealforest": {
+          "count": 106,
+          "bytes": 46415
+        },
+        "seatrainretaking": {
+          "count": 72,
+          "bytes": 78455
+        },
+        "seatrainretaking_r": {
+          "count": 178,
+          "bytes": 202115
+        },
+        "seizemoney": {
+          "count": 157,
+          "bytes": 150915
+        },
+        "semiraidbidding": {
+          "count": 28,
+          "bytes": 7955
+        },
+        "sepa": {
+          "count": 95,
+          "bytes": 133560
+        },
+        "shadowmaze": {
+          "count": 155,
+          "bytes": 197460
+        },
+        "shallowkeep": {
+          "count": 172,
+          "bytes": 238070
+        },
+        "shonan": {
+          "count": 48,
+          "bytes": 26340
+        },
+        "slough": {
+          "count": 50,
+          "bytes": 27770
+        },
+        "spacetrain": {
+          "count": 115,
+          "bytes": 85740
+        },
+        "stationescape": {
+          "count": 386,
+          "bytes": 338120
+        },
+        "steelscales": {
+          "count": 28,
+          "bytes": 35080
+        },
+        "stormpass": {
+          "count": 135,
+          "bytes": 63070
+        },
+        "sunderland": {
+          "count": 114,
+          "bytes": 141530
+        },
+        "sunderlanddark": {
+          "count": 88,
+          "bytes": 95135
+        },
+        "sunderlandpoison": {
+          "count": 147,
+          "bytes": 237945
+        },
+        "supplycut": {
+          "count": 123,
+          "bytes": 175745
+        },
+        "supplycut_r": {
+          "count": 231,
+          "bytes": 342700
+        },
+        "suspiciousvillage": {
+          "count": 184,
+          "bytes": 181495
+        },
+        "tangledtimegate": {
+          "count": 56,
+          "bytes": 41695
+        },
+        "tau_kingdom": {
+          "count": 84,
+          "bytes": 80760
+        },
+        "templecentral": {
+          "count": 147,
+          "bytes": 118345
+        },
+        "templeenterance": {
+          "count": 266,
+          "bytes": 205125
+        },
+        "templelabyrinth": {
+          "count": 135,
+          "bytes": 134560
+        },
+        "territorycombat": {
+          "count": 5378,
+          "bytes": 5002125
+        },
+        "test_lorien": {
+          "count": 75,
+          "bytes": 69465
+        },
+        "thewaytostrongleg": {
+          "count": 135,
+          "bytes": 129110
+        },
+        "timebreak": {
+          "count": 812,
+          "bytes": 556785
+        },
+        "timegate": {
+          "count": 77,
+          "bytes": 75095
+        },
+        "timegatearea": {
+          "count": 6,
+          "bytes": 9040
+        },
+        "timegaterequiem": {
+          "count": 6,
+          "bytes": 9065
+        },
+        "topsecretarea": {
+          "count": 98,
+          "bytes": 112955
+        },
+        "topsecretarea_r": {
+          "count": 218,
+          "bytes": 353210
+        },
+        "totaleclipse": {
+          "count": 216,
+          "bytes": 392765
+        },
+        "tournament": {
+          "count": 47,
+          "bytes": 54080
+        },
+        "towerofbloodyfight": {
+          "count": 48,
+          "bytes": 78135
+        },
+        "towerofdazzlement": {
+          "count": 124,
+          "bytes": 109565
+        },
+        "towerofdespair": {
+          "count": 41,
+          "bytes": 14355
+        },
+        "towerofdespair_down": {
+          "count": 98,
+          "bytes": 71885
+        },
+        "towerofdespair_up": {
+          "count": 82,
+          "bytes": 70640
+        },
+        "towerofgrief_down": {
+          "count": 93,
+          "bytes": 68965
+        },
+        "towerofgrief_up": {
+          "count": 81,
+          "bytes": 71355
+        },
+        "towerofultimate": {
+          "count": 11,
+          "bytes": 12640
+        },
+        "town": {
+          "count": 12821,
+          "bytes": 6998840
+        },
+        "trace_the_energy": {
+          "count": 180,
+          "bytes": 160415
+        },
+        "training": {
+          "count": 14,
+          "bytes": 17135
+        },
+        "training2": {
+          "count": 13,
+          "bytes": 14955
+        },
+        "training_asura": {
+          "count": 14,
+          "bytes": 16435
+        },
+        "training_striker": {
+          "count": 14,
+          "bytes": 17245
+        },
+        "training_weaponmaster": {
+          "count": 14,
+          "bytes": 16405
+        },
+        "traningroom": {
+          "count": 37,
+          "bytes": 16875
+        },
+        "trombe": {
+          "count": 193,
+          "bytes": 294685
+        },
+        "tutorial": {
+          "count": 71,
+          "bytes": 43885
+        },
+        "tutorial_atslayer": {
+          "count": 117,
+          "bytes": 90220
+        },
+        "tutorial_demonic": {
+          "count": 63,
+          "bytes": 32665
+        },
+        "tutorial_knight": {
+          "count": 48,
+          "bytes": 35310
+        },
+        "tutorial_timegate": {
+          "count": 147,
+          "bytes": 94215
+        },
+        "tutorial_timegate2": {
+          "count": 149,
+          "bytes": 96285
+        },
+        "twin_raid_boss": {
+          "count": 40,
+          "bytes": 8980
+        },
+        "twin_raid_ch": {
+          "count": 64,
+          "bytes": 22425
+        },
+        "twin_raid_normal": {
+          "count": 67,
+          "bytes": 24980
+        },
+        "underfoot": {
+          "count": 165,
+          "bytes": 180105
+        },
+        "villageattack": {
+          "count": 1044,
+          "bytes": 1304315
+        },
+        "villigeoftemptation": {
+          "count": 98,
+          "bytes": 123845
+        },
+        "vilmark": {
+          "count": 97,
+          "bytes": 65220
+        },
+        "warfare": {
+          "count": 114,
+          "bytes": 136730
+        },
+        "warriors": {
+          "count": 74,
+          "bytes": 58560
+        },
+        "wasteland": {
+          "count": 142,
+          "bytes": 76885
+        },
+        "whiteland": {
+          "count": 183,
+          "bytes": 223455
+        },
+        "whitenight": {
+          "count": 116,
+          "bytes": 129900
+        },
+        "zombi": {
+          "count": 257,
+          "bytes": 87385
+        }
+      }
+    },
+    "monster": {
+      "count": 700552,
+      "bytes": 627685169,
+      "subdirs": {
+        "200521_roadofdomination": {
+          "count": 167,
+          "bytes": 133340
+        },
+        "act8": {
+          "count": 2112,
+          "bytes": 877752
+        },
+        "actionobject": {
+          "count": 4,
+          "bytes": 250
+        },
+        "arad": {
+          "count": 1477,
+          "bytes": 519765
+        },
+        "aradroyalrumble": {
+          "count": 177,
+          "bytes": 44025
+        },
+        "babydragon": {
+          "count": 41,
+          "bytes": 29417
+        },
+        "bantu": {
+          "count": 176,
+          "bytes": 115705
+        },
+        "casillas": {
+          "count": 165,
+          "bytes": 61394
+        },
+        "chaosgate": {
+          "count": 48,
+          "bytes": 8730
+        },
+        "character": {
+          "count": 2759,
+          "bytes": 1549396
+        },
+        "characterstatue": {
+          "count": 118,
+          "bytes": 71100
+        },
+        "cityhallgate": {
+          "count": 24,
+          "bytes": 5170
+        },
+        "coldboy": {
+          "count": 38,
+          "bytes": 20095
+        },
+        "coldheart": {
+          "count": 19,
+          "bytes": 4170
+        },
+        "common": {
+          "count": 57,
+          "bytes": 17000
+        },
+        "cosmofiend": {
+          "count": 99,
+          "bytes": 46335
+        },
+        "crimebuffalo": {
+          "count": 70,
+          "bytes": 33895
+        },
+        "darkelf": {
+          "count": 28,
+          "bytes": 10655
+        },
+        "dendroid": {
+          "count": 63,
+          "bytes": 46460
+        },
+        "dfo": {
+          "count": 7097,
+          "bytes": 4452285
+        },
+        "dingo_humpri": {
+          "count": 53,
+          "bytes": 26655
+        },
+        "dog": {
+          "count": 37,
+          "bytes": 16710
+        },
+        "dollmaster": {
+          "count": 87,
+          "bytes": 55085
+        },
+        "draconian": {
+          "count": 71,
+          "bytes": 35185
+        },
+        "drake": {
+          "count": 74,
+          "bytes": 36340
+        },
+        "equipment": {
+          "count": 504,
+          "bytes": 269891
+        },
+        "event": {
+          "count": 7464,
+          "bytes": 2941890
+        },
+        "evileye": {
+          "count": 37,
+          "bytes": 21225
+        },
+        "fighter": {
+          "count": 100,
+          "bytes": 42815
+        },
+        "flydragon": {
+          "count": 72,
+          "bytes": 27565
+        },
+        "ghoul": {
+          "count": 103,
+          "bytes": 50070
+        },
+        "goblin": {
+          "count": 418,
+          "bytes": 179499
+        },
+        "golem": {
+          "count": 71,
+          "bytes": 25850
+        },
+        "gunner": {
+          "count": 806,
+          "bytes": 250365
+        },
+        "headlessknight": {
+          "count": 26,
+          "bytes": 20470
+        },
+        "heilrom": {
+          "count": 2,
+          "bytes": 560
+        },
+        "hunter": {
+          "count": 78,
+          "bytes": 48740
+        },
+        "icetiger": {
+          "count": 63,
+          "bytes": 37015
+        },
+        "kcontents1": {
+          "count": 191,
+          "bytes": 65010
+        },
+        "kcontents2": {
+          "count": 160996,
+          "bytes": 195195339
+        },
+        "kcontents3": {
+          "count": 52408,
+          "bytes": 51142343
+        },
+        "knight": {
+          "count": 28,
+          "bytes": 8125
+        },
+        "lordoflight": {
+          "count": 40,
+          "bytes": 18830
+        },
+        "lotus": {
+          "count": 407,
+          "bytes": 181347
+        },
+        "lugaru": {
+          "count": 166,
+          "bytes": 128805
+        },
+        "mage": {
+          "count": 17,
+          "bytes": 5645
+        },
+        "magma": {
+          "count": 155,
+          "bytes": 83980
+        },
+        "metrocenter": {
+          "count": 29,
+          "bytes": 16540
+        },
+        "mj": {
+          "count": 40,
+          "bytes": 12550
+        },
+        "monsterflower": {
+          "count": 40,
+          "bytes": 28371
+        },
+        "monsterlunaflower": {
+          "count": 40,
+          "bytes": 35773
+        },
+        "new_flydragon": {
+          "count": 28,
+          "bytes": 17410
+        },
+        "new_golem": {
+          "count": 103,
+          "bytes": 61205
+        },
+        "newmonsters": {
+          "count": 436002,
+          "bytes": 348829031
+        },
+        "nugol": {
+          "count": 104,
+          "bytes": 45955
+        },
+        "peterthepiper": {
+          "count": 93,
+          "bytes": 61485
+        },
+        "poongjintrainingroom": {
+          "count": 3750,
+          "bytes": 2096865
+        },
+        "scenario": {
+          "count": 12378,
+          "bytes": 13398756
+        },
+        "sealstone": {
+          "count": 18,
+          "bytes": 4390
+        },
+        "skeleton": {
+          "count": 216,
+          "bytes": 113380
+        },
+        "slotor": {
+          "count": 10,
+          "bytes": 5495
+        },
+        "snowman": {
+          "count": 12,
+          "bytes": 6695
+        },
+        "soceress": {
+          "count": 62,
+          "bytes": 60028
+        },
+        "soldier": {
+          "count": 453,
+          "bytes": 184964
+        },
+        "spacefish": {
+          "count": 22,
+          "bytes": 8495
+        },
+        "specialmonster": {
+          "count": 20,
+          "bytes": 6660
+        },
+        "spider": {
+          "count": 112,
+          "bytes": 49900
+        },
+        "spikeking": {
+          "count": 27,
+          "bytes": 17184
+        },
+        "spirit": {
+          "count": 520,
+          "bytes": 295419
+        },
+        "starfish": {
+          "count": 83,
+          "bytes": 42395
+        },
+        "statue": {
+          "count": 7,
+          "bytes": 3205
+        },
+        "succubus": {
+          "count": 21,
+          "bytes": 6635
+        },
+        "tau": {
+          "count": 218,
+          "bytes": 128320
+        },
+        "tau_kingdom": {
+          "count": 203,
+          "bytes": 55105
+        },
+        "thief": {
+          "count": 165,
+          "bytes": 102870
+        },
+        "towerofdazzlement": {
+          "count": 28,
+          "bytes": 8730
+        },
+        "toy": {
+          "count": 71,
+          "bytes": 28830
+        },
+        "vehicle": {
+          "count": 160,
+          "bytes": 52195
+        },
+        "villageattacked": {
+          "count": 338,
+          "bytes": 197405
+        },
+        "villageattacked2": {
+          "count": 5421,
+          "bytes": 2243950
+        },
+        "wraith": {
+          "count": 102,
+          "bytes": 56540
+        },
+        "zealot": {
+          "count": 136,
+          "bytes": 55715
+        },
+        "zealotrebirth": {
+          "count": 100,
+          "bytes": 47405
+        },
+        "zepplin": {
+          "count": 67,
+          "bytes": 15870
+        },
+        "zombie": {
+          "count": 128,
+          "bytes": 51960
+        }
+      }
+    },
+    "n_quest": {
+      "count": 11031,
+      "bytes": 4840851,
+      "subdirs": {
+        "account_achievement": {
+          "count": 110,
+          "bytes": 20285
+        },
+        "alphraira": {
+          "count": 124,
+          "bytes": 41290
+        },
+        "ancient": {
+          "count": 5,
+          "bytes": 3115
+        },
+        "anton": {
+          "count": 32,
+          "bytes": 11265
+        },
+        "arad_event": {
+          "count": 10,
+          "bytes": 2830
+        },
+        "atswordman": {
+          "count": 82,
+          "bytes": 20775
+        },
+        "behimos": {
+          "count": 136,
+          "bytes": 41415
+        },
+        "blackhall": {
+          "count": 80,
+          "bytes": 48380
+        },
+        "chronology": {
+          "count": 4,
+          "bytes": 196692
+        },
+        "circleofdungeon": {
+          "count": 480,
+          "bytes": 241115
+        },
+        "common": {
+          "count": 327,
+          "bytes": 110350
+        },
+        "crackofdimension": {
+          "count": 601,
+          "bytes": 140995
+        },
+        "daily_dungeon": {
+          "count": 2,
+          "bytes": 450
+        },
+        "dailychallenge": {
+          "count": 292,
+          "bytes": 50695
+        },
+        "dfo": {
+          "count": 255,
+          "bytes": 75430
+        },
+        "dragon_kurun_kor": {
+          "count": 16,
+          "bytes": 3805
+        },
+        "driftcave": {
+          "count": 82,
+          "bytes": 24720
+        },
+        "dungeonpvp": {
+          "count": 4,
+          "bytes": 1125
+        },
+        "elvengard": {
+          "count": 132,
+          "bytes": 53545
+        },
+        "epicjob": {
+          "count": 744,
+          "bytes": 318975
+        },
+        "event": {
+          "count": 300,
+          "bytes": 112430
+        },
+        "expertjob": {
+          "count": 33,
+          "bytes": 8815
+        },
+        "gbl": {
+          "count": 26,
+          "bytes": 7000
+        },
+        "gcontents": {
+          "count": 35,
+          "bytes": 10125
+        },
+        "gent": {
+          "count": 200,
+          "bytes": 52205
+        },
+        "growthguide": {
+          "count": 686,
+          "bytes": 221790
+        },
+        "handonmyre": {
+          "count": 144,
+          "bytes": 40340
+        },
+        "hell": {
+          "count": 39,
+          "bytes": 9860
+        },
+        "historic": {
+          "count": 6,
+          "bytes": 1815
+        },
+        "icewall": {
+          "count": 92,
+          "bytes": 33270
+        },
+        "job": {
+          "count": 201,
+          "bytes": 77705
+        },
+        "larguslake": {
+          "count": 6,
+          "bytes": 1565
+        },
+        "lostland": {
+          "count": 33,
+          "bytes": 9455
+        },
+        "lufthafen": {
+          "count": 138,
+          "bytes": 45010
+        },
+        "lukeraid": {
+          "count": 2,
+          "bytes": 490
+        },
+        "lvacc": {
+          "count": 18,
+          "bytes": 8065
+        },
+        "meltdown": {
+          "count": 49,
+          "bytes": 16365
+        },
+        "mission": {
+          "count": 154,
+          "bytes": 74735
+        },
+        "mobile": {
+          "count": 62,
+          "bytes": 14530
+        },
+        "new_quest": {
+          "count": 935,
+          "bytes": 420710
+        },
+        "northmyre": {
+          "count": 100,
+          "bytes": 33935
+        },
+        "power": {
+          "count": 4,
+          "bytes": 890
+        },
+        "pvp": {
+          "count": 43,
+          "bytes": 22020
+        },
+        "quest_renewal": {
+          "count": 1600,
+          "bytes": 633215
+        },
+        "requiem": {
+          "count": 20,
+          "bytes": 9480
+        },
+        "returnee": {
+          "count": 11,
+          "bytes": 2490
+        },
+        "room_for_memory": {
+          "count": 9,
+          "bytes": 4470
+        },
+        "shonan": {
+          "count": 176,
+          "bytes": 59245
+        },
+        "silvercrown": {
+          "count": 55,
+          "bytes": 19300
+        },
+        "slough": {
+          "count": 56,
+          "bytes": 14450
+        },
+        "special": {
+          "count": 25,
+          "bytes": 8310
+        },
+        "stormpass": {
+          "count": 76,
+          "bytes": 20690
+        },
+        "storybook": {
+          "count": 55,
+          "bytes": 9125
+        },
+        "time_piece": {
+          "count": 26,
+          "bytes": 27305
+        },
+        "title": {
+          "count": 370,
+          "bytes": 63155
+        },
+        "towers": {
+          "count": 57,
+          "bytes": 20200
+        },
+        "urgent": {
+          "count": 1469,
+          "bytes": 380825
+        },
+        "value": {
+          "count": 40,
+          "bytes": 13270
+        },
+        "westcost": {
+          "count": 80,
+          "bytes": 27770
+        },
+        "zelba": {
+          "count": 63,
+          "bytes": 19850
+        }
+      }
+    },
+    "npc": {
+      "count": 10261,
+      "bytes": 10057168,
+      "subdirs": {
+        "animation": {
+          "count": 6877,
+          "bytes": 8807260
+        },
+        "etc": {
+          "count": 1,
+          "bytes": 22888
+        }
+      }
+    },
+    "passiveobject": {
+      "count": 845752,
+      "bytes": 657333855,
+      "subdirs": {
+        "actionobject": {
+          "count": 201665,
+          "bytes": 103796690
+        },
+        "character": {
+          "count": 88548,
+          "bytes": 73110655
+        },
+        "cinematicobject": {
+          "count": 462,
+          "bytes": 158300
+        },
+        "common": {
+          "count": 688,
+          "bytes": 169655
+        },
+        "creature": {
+          "count": 2931,
+          "bytes": 3216315
+        },
+        "equipmentpassiveobject": {
+          "count": 25407,
+          "bytes": 25004670
+        },
+        "event": {
+          "count": 27915,
+          "bytes": 19484755
+        },
+        "gcontents": {
+          "count": 161074,
+          "bytes": 141561040
+        },
+        "kcontents1": {
+          "count": 205,
+          "bytes": 72080
+        },
+        "kcontents2": {
+          "count": 265409,
+          "bytes": 238329270
+        },
+        "kcontents3": {
+          "count": 44955,
+          "bytes": 36493060
+        },
+        "levelacc": {
+          "count": 70,
+          "bytes": 39765
+        },
+        "map": {
+          "count": 4,
+          "bytes": 0
+        },
+        "mapobject": {
+          "count": 9746,
+          "bytes": 2572160
+        },
+        "monster": {
+          "count": 4239,
+          "bytes": 1816000
+        },
+        "poongjintrainingroom": {
+          "count": 41,
+          "bytes": 46965
+        },
+        "scenario": {
+          "count": 12088,
+          "bytes": 11399200
+        },
+        "throwitem": {
+          "count": 303,
+          "bytes": 56715
+        }
+      }
+    },
+    "pet": {
+      "count": 5,
+      "bytes": 1600,
+      "subdirs": {
+        "common": {
+          "count": 1,
+          "bytes": 365
+        },
+        "falcon": {
+          "count": 4,
+          "bytes": 1235
+        }
+      }
+    },
+    "pvp_mission": {
+      "count": 317,
+      "bytes": 37770,
+      "subdirs": {
+        "daily": {
+          "count": 67,
+          "bytes": 6720
+        },
+        "hidden": {
+          "count": 164,
+          "bytes": 22700
+        },
+        "repeatable": {
+          "count": 36,
+          "bytes": 3210
+        },
+        "season": {
+          "count": 28,
+          "bytes": 2880
+        },
+        "weekly": {
+          "count": 22,
+          "bytes": 2260
+        }
+      }
+    },
+    "region": {
+      "count": 303,
+      "bytes": 243025,
+      "subdirs": {
+        "minimap": {
+          "count": 136,
+          "bytes": 196220
+        },
+        "seon": {
+          "count": 32,
+          "bytes": 26395
+        }
+      }
+    },
+    "skill": {
+      "count": 5281,
+      "bytes": 10432719,
+      "subdirs": {
+        "archer": {
+          "count": 312,
+          "bytes": 424708
+        },
+        "atfighter": {
+          "count": 310,
+          "bytes": 589490
+        },
+        "atgunner": {
+          "count": 347,
+          "bytes": 644950
+        },
+        "atmage": {
+          "count": 319,
+          "bytes": 562908
+        },
+        "atpriest": {
+          "count": 254,
+          "bytes": 417228
+        },
+        "atswordman": {
+          "count": 326,
+          "bytes": 606862
+        },
+        "autoskill": {
+          "count": 17,
+          "bytes": 58580
+        },
+        "basicattackdata": {
+          "count": 17,
+          "bytes": 2340
+        },
+        "channelbalanceskilldata": {
+          "count": 5,
+          "bytes": 2070
+        },
+        "common": {
+          "count": 11,
+          "bytes": 6515
+        },
+        "creatormage": {
+          "count": 99,
+          "bytes": 95082
+        },
+        "demoniclancer": {
+          "count": 241,
+          "bytes": 388061
+        },
+        "demonicswordman": {
+          "count": 232,
+          "bytes": 454844
+        },
+        "fighter": {
+          "count": 302,
+          "bytes": 629309
+        },
+        "gunblader": {
+          "count": 246,
+          "bytes": 348209
+        },
+        "gunner": {
+          "count": 362,
+          "bytes": 637944
+        },
+        "knight": {
+          "count": 338,
+          "bytes": 708008
+        },
+        "mage": {
+          "count": 441,
+          "bytes": 1272951
+        },
+        "newbieautoskill": {
+          "count": 16,
+          "bytes": 123590
+        },
+        "priest": {
+          "count": 352,
+          "bytes": 623419
+        },
+        "skillattackdata": {
+          "count": 17,
+          "bytes": 54735
+        },
+        "skillscaledata": {
+          "count": 17,
+          "bytes": 32560
+        },
+        "swordman": {
+          "count": 359,
+          "bytes": 963932
+        },
+        "thief": {
+          "count": 313,
+          "bytes": 692709
+        }
+      }
+    },
+    "skin": {
+      "count": 3620,
+      "bytes": 1673735,
+      "subdirs": {
+        "characterinfobg": {
+          "count": 15,
+          "bytes": 2635
+        },
+        "damagefont": {
+          "count": 1123,
+          "bytes": 639500
+        },
+        "dfo": {
+          "count": 661,
+          "bytes": 195750
+        },
+        "instantemoticon": {
+          "count": 416,
+          "bytes": 43640
+        },
+        "inventorybackground": {
+          "count": 2,
+          "bytes": 1245
+        },
+        "partyframe": {
+          "count": 172,
+          "bytes": 15695
+        },
+        "partylistframe": {
+          "count": 18,
+          "bytes": 21990
+        },
+        "partyrequestframe": {
+          "count": 304,
+          "bytes": 137205
+        },
+        "profilebackground": {
+          "count": 40,
+          "bytes": 5995
+        },
+        "secondawakeningcutscene": {
+          "count": 66,
+          "bytes": 12775
+        },
+        "skillcutscene": {
+          "count": 231,
+          "bytes": 21840
+        },
+        "spray": {
+          "count": 76,
+          "bytes": 51640
+        },
+        "teleport": {
+          "count": 492,
+          "bytes": 523505
+        },
+        "weaponeffect": {
+          "count": 2,
+          "bytes": 150
+        },
+        "weaponskin": {
+          "count": 1,
+          "bytes": 60
+        }
+      }
+    },
+    "stackable": {
+      "count": 193360,
+      "bytes": 115651833,
+      "subdirs": {
+        "10000001": {
+          "count": 614,
+          "bytes": 1848260
+        },
+        "10001001": {
+          "count": 584,
+          "bytes": 276460
+        },
+        "10002001": {
+          "count": 7,
+          "bytes": 3115
+        },
+        "10012001": {
+          "count": 755,
+          "bytes": 331785
+        },
+        "10013001": {
+          "count": 999,
+          "bytes": 278660
+        },
+        "10014001": {
+          "count": 892,
+          "bytes": 316590
+        },
+        "10015001": {
+          "count": 419,
+          "bytes": 174585
+        },
+        "10087001": {
+          "count": 866,
+          "bytes": 504745
+        },
+        "10088001": {
+          "count": 315,
+          "bytes": 184010
+        },
+        "10089001": {
+          "count": 732,
+          "bytes": 1356880
+        },
+        "10090001": {
+          "count": 455,
+          "bytes": 190780
+        },
+        "10091001": {
+          "count": 1000,
+          "bytes": 275670
+        },
+        "10092001": {
+          "count": 781,
+          "bytes": 380605
+        },
+        "10093001": {
+          "count": 655,
+          "bytes": 302635
+        },
+        "10094001": {
+          "count": 401,
+          "bytes": 155240
+        },
+        "10095001": {
+          "count": 612,
+          "bytes": 287910
+        },
+        "10096001": {
+          "count": 418,
+          "bytes": 237930
+        },
+        "10097001": {
+          "count": 254,
+          "bytes": 113795
+        },
+        "10098001": {
+          "count": 411,
+          "bytes": 196680
+        },
+        "10099001": {
+          "count": 552,
+          "bytes": 308985
+        },
+        "10100001": {
+          "count": 965,
+          "bytes": 306880
+        },
+        "10101001": {
+          "count": 856,
+          "bytes": 262630
+        },
+        "10142001": {
+          "count": 3,
+          "bytes": 725
+        },
+        "10146001": {
+          "count": 332,
+          "bytes": 97145
+        },
+        "10147001": {
+          "count": 197,
+          "bytes": 75345
+        },
+        "10148001": {
+          "count": 595,
+          "bytes": 219825
+        },
+        "10149001": {
+          "count": 355,
+          "bytes": 166060
+        },
+        "10150001": {
+          "count": 260,
+          "bytes": 93395
+        },
+        "10151001": {
+          "count": 543,
+          "bytes": 209185
+        },
+        "10152001": {
+          "count": 72,
+          "bytes": 44835
+        },
+        "10153001": {
+          "count": 178,
+          "bytes": 58625
+        },
+        "10154001": {
+          "count": 335,
+          "bytes": 143420
+        },
+        "10155001": {
+          "count": 441,
+          "bytes": 153110
+        },
+        "10156001": {
+          "count": 393,
+          "bytes": 197645
+        },
+        "10157001": {
+          "count": 595,
+          "bytes": 354465
+        },
+        "10158001": {
+          "count": 564,
+          "bytes": 336100
+        },
+        "10159001": {
+          "count": 643,
+          "bytes": 251275
+        },
+        "10160001": {
+          "count": 553,
+          "bytes": 255550
+        },
+        "10161001": {
+          "count": 508,
+          "bytes": 253960
+        },
+        "10162001": {
+          "count": 539,
+          "bytes": 311770
+        },
+        "10163001": {
+          "count": 287,
+          "bytes": 94485
+        },
+        "10164001": {
+          "count": 508,
+          "bytes": 193860
+        },
+        "10165001": {
+          "count": 42,
+          "bytes": 12310
+        },
+        "10300001": {
+          "count": 41,
+          "bytes": 9515
+        },
+        "10301001": {
+          "count": 264,
+          "bytes": 136345
+        },
+        "10302001": {
+          "count": 212,
+          "bytes": 186235
+        },
+        "10303001": {
+          "count": 777,
+          "bytes": 322955
+        },
+        "10304001": {
+          "count": 743,
+          "bytes": 795790
+        },
+        "10305001": {
+          "count": 797,
+          "bytes": 388585
+        },
+        "10306001": {
+          "count": 454,
+          "bytes": 204905
+        },
+        "10307001": {
+          "count": 917,
+          "bytes": 434575
+        },
+        "10308001": {
+          "count": 873,
+          "bytes": 457615
+        },
+        "10309001": {
+          "count": 761,
+          "bytes": 401050
+        },
+        "10310001": {
+          "count": 893,
+          "bytes": 438370
+        },
+        "10311001": {
+          "count": 923,
+          "bytes": 329365
+        },
+        "10312001": {
+          "count": 916,
+          "bytes": 969215
+        },
+        "10313001": {
+          "count": 676,
+          "bytes": 300220
+        },
+        "10314001": {
+          "count": 730,
+          "bytes": 946480
+        },
+        "10315001": {
+          "count": 856,
+          "bytes": 618490
+        },
+        "10316001": {
+          "count": 973,
+          "bytes": 902195
+        },
+        "10317001": {
+          "count": 995,
+          "bytes": 350730
+        },
+        "10318001": {
+          "count": 749,
+          "bytes": 410510
+        },
+        "10319001": {
+          "count": 956,
+          "bytes": 333935
+        },
+        "10320001": {
+          "count": 871,
+          "bytes": 453390
+        },
+        "10321001": {
+          "count": 855,
+          "bytes": 518850
+        },
+        "10322001": {
+          "count": 583,
+          "bytes": 262955
+        },
+        "10323001": {
+          "count": 920,
+          "bytes": 422395
+        },
+        "10324001": {
+          "count": 326,
+          "bytes": 104505
+        },
+        "10325001": {
+          "count": 912,
+          "bytes": 703030
+        },
+        "10326001": {
+          "count": 588,
+          "bytes": 252550
+        },
+        "10327001": {
+          "count": 985,
+          "bytes": 1094840
+        },
+        "10328001": {
+          "count": 999,
+          "bytes": 289440
+        },
+        "10329001": {
+          "count": 925,
+          "bytes": 314215
+        },
+        "10330001": {
+          "count": 1000,
+          "bytes": 210865
+        },
+        "10331001": {
+          "count": 964,
+          "bytes": 320915
+        },
+        "10332001": {
+          "count": 982,
+          "bytes": 973415
+        },
+        "10333001": {
+          "count": 907,
+          "bytes": 714355
+        },
+        "10334001": {
+          "count": 661,
+          "bytes": 369020
+        },
+        "10335001": {
+          "count": 900,
+          "bytes": 398690
+        },
+        "10336001": {
+          "count": 886,
+          "bytes": 561215
+        },
+        "10337001": {
+          "count": 731,
+          "bytes": 687980
+        },
+        "10338001": {
+          "count": 965,
+          "bytes": 597645
+        },
+        "10339001": {
+          "count": 981,
+          "bytes": 885710
+        },
+        "10340001": {
+          "count": 708,
+          "bytes": 393575
+        },
+        "10341001": {
+          "count": 756,
+          "bytes": 439110
+        },
+        "10342001": {
+          "count": 863,
+          "bytes": 397145
+        },
+        "10343001": {
+          "count": 976,
+          "bytes": 821645
+        },
+        "10344001": {
+          "count": 992,
+          "bytes": 384670
+        },
+        "10345001": {
+          "count": 691,
+          "bytes": 952175
+        },
+        "10346001": {
+          "count": 1000,
+          "bytes": 437080
+        },
+        "10347001": {
+          "count": 990,
+          "bytes": 367460
+        },
+        "10348001": {
+          "count": 852,
+          "bytes": 496660
+        },
+        "10349001": {
+          "count": 716,
+          "bytes": 546590
+        },
+        "10350001": {
+          "count": 989,
+          "bytes": 548080
+        },
+        "10351001": {
+          "count": 953,
+          "bytes": 435755
+        },
+        "10352001": {
+          "count": 991,
+          "bytes": 588170
+        },
+        "10353001": {
+          "count": 969,
+          "bytes": 686685
+        },
+        "10354001": {
+          "count": 1000,
+          "bytes": 482780
+        },
+        "10355001": {
+          "count": 436,
+          "bytes": 283835
+        },
+        "10356001": {
+          "count": 976,
+          "bytes": 641720
+        },
+        "10357001": {
+          "count": 991,
+          "bytes": 443205
+        },
+        "10358001": {
+          "count": 978,
+          "bytes": 443245
+        },
+        "10359001": {
+          "count": 926,
+          "bytes": 461740
+        },
+        "10360001": {
+          "count": 989,
+          "bytes": 369045
+        },
+        "10361001": {
+          "count": 973,
+          "bytes": 453915
+        },
+        "10362001": {
+          "count": 942,
+          "bytes": 610590
+        },
+        "10400001": {
+          "count": 998,
+          "bytes": 515375
+        },
+        "10401001": {
+          "count": 997,
+          "bytes": 265990
+        },
+        "10402001": {
+          "count": 721,
+          "bytes": 257295
+        },
+        "10403001": {
+          "count": 982,
+          "bytes": 505930
+        },
+        "10404001": {
+          "count": 1000,
+          "bytes": 432420
+        },
+        "10405001": {
+          "count": 937,
+          "bytes": 369275
+        },
+        "10406001": {
+          "count": 990,
+          "bytes": 462005
+        },
+        "10407001": {
+          "count": 977,
+          "bytes": 458055
+        },
+        "10408001": {
+          "count": 1000,
+          "bytes": 431160
+        },
+        "10409001": {
+          "count": 764,
+          "bytes": 581030
+        },
+        "10410001": {
+          "count": 603,
+          "bytes": 239235
+        },
+        "10411001": {
+          "count": 752,
+          "bytes": 391710
+        },
+        "10412001": {
+          "count": 598,
+          "bytes": 254900
+        },
+        "10413001": {
+          "count": 968,
+          "bytes": 376810
+        },
+        "10414001": {
+          "count": 988,
+          "bytes": 415220
+        },
+        "10415001": {
+          "count": 912,
+          "bytes": 316030
+        },
+        "10416001": {
+          "count": 975,
+          "bytes": 425485
+        },
+        "10417001": {
+          "count": 964,
+          "bytes": 420635
+        },
+        "10418001": {
+          "count": 296,
+          "bytes": 110930
+        },
+        "10419001": {
+          "count": 945,
+          "bytes": 403595
+        },
+        "10420001": {
+          "count": 968,
+          "bytes": 398755
+        },
+        "10420427": {
+          "count": 4,
+          "bytes": 920
+        },
+        "10421001": {
+          "count": 500,
+          "bytes": 181160
+        },
+        "10421934": {
+          "count": 1,
+          "bytes": 240
+        },
+        "10422001": {
+          "count": 39,
+          "bytes": 19440
+        },
+        "390002001": {
+          "count": 73,
+          "bytes": 19305
+        },
+        "390003001": {
+          "count": 5,
+          "bytes": 1625
+        },
+        "390006001": {
+          "count": 64,
+          "bytes": 16950
+        },
+        "390023001": {
+          "count": 8,
+          "bytes": 1440
+        },
+        "390028001": {
+          "count": 22,
+          "bytes": 18010
+        },
+        "490004001": {
+          "count": 57,
+          "bytes": 64885
+        },
+        "490007001": {
+          "count": 31,
+          "bytes": 10350
+        },
+        "490008001": {
+          "count": 40,
+          "bytes": 14565
+        },
+        "490009001": {
+          "count": 18,
+          "bytes": 17500
+        },
+        "490010001": {
+          "count": 65,
+          "bytes": 32540
+        },
+        "490011001": {
+          "count": 1,
+          "bytes": 265
+        },
+        "490012001": {
+          "count": 175,
+          "bytes": 54270
+        },
+        "490014001": {
+          "count": 5,
+          "bytes": 1535
+        },
+        "490016001": {
+          "count": 12,
+          "bytes": 6855
+        },
+        "490018001": {
+          "count": 29,
+          "bytes": 12595
+        },
+        "490019001": {
+          "count": 118,
+          "bytes": 41535
+        },
+        "490020001": {
+          "count": 143,
+          "bytes": 50425
+        },
+        "490021001": {
+          "count": 299,
+          "bytes": 111980
+        },
+        "490022001": {
+          "count": 814,
+          "bytes": 430855
+        },
+        "490023001": {
+          "count": 213,
+          "bytes": 205470
+        },
+        "490024001": {
+          "count": 209,
+          "bytes": 49040
+        },
+        "490025001": {
+          "count": 53,
+          "bytes": 27055
+        },
+        "490027001": {
+          "count": 141,
+          "bytes": 87465
+        },
+        "490028001": {
+          "count": 4,
+          "bytes": 3145
+        },
+        "490031001": {
+          "count": 1,
+          "bytes": 195
+        },
+        "490033001": {
+          "count": 55,
+          "bytes": 12100
+        },
+        "490034001": {
+          "count": 270,
+          "bytes": 72590
+        },
+        "490035001": {
+          "count": 44,
+          "bytes": 688345
+        },
+        "490036001": {
+          "count": 841,
+          "bytes": 587530
+        },
+        "490037001": {
+          "count": 52,
+          "bytes": 10140
+        },
+        "490039001": {
+          "count": 53,
+          "bytes": 40315
+        },
+        "490040001": {
+          "count": 1,
+          "bytes": 430
+        },
+        "50007001": {
+          "count": 771,
+          "bytes": 478700
+        },
+        "50008001": {
+          "count": 1,
+          "bytes": 440
+        },
+        "50009001": {
+          "count": 890,
+          "bytes": 600375
+        },
+        "50024001": {
+          "count": 475,
+          "bytes": 130845
+        },
+        "50025001": {
+          "count": 81,
+          "bytes": 18945
+        },
+        "50031001": {
+          "count": 638,
+          "bytes": 321580
+        },
+        "50032001": {
+          "count": 268,
+          "bytes": 59985
+        },
+        "50050001": {
+          "count": 112,
+          "bytes": 34405
+        },
+        "50051001": {
+          "count": 826,
+          "bytes": 346945
+        },
+        "50052001": {
+          "count": 846,
+          "bytes": 462090
+        },
+        "50060001": {
+          "count": 999,
+          "bytes": 558370
+        },
+        "50061001": {
+          "count": 1000,
+          "bytes": 549340
+        },
+        "50062001": {
+          "count": 84,
+          "bytes": 30285
+        },
+        "50069001": {
+          "count": 1,
+          "bytes": 185
+        },
+        "50070001": {
+          "count": 915,
+          "bytes": 303935
+        },
+        "50071001": {
+          "count": 564,
+          "bytes": 309875
+        },
+        "50080001": {
+          "count": 586,
+          "bytes": 372050
+        },
+        "50081001": {
+          "count": 1000,
+          "bytes": 626535
+        },
+        "50082001": {
+          "count": 107,
+          "bytes": 119040
+        },
+        "501600001": {
+          "count": 116,
+          "bytes": 67825
+        },
+        "59000001": {
+          "count": 1,
+          "bytes": 230
+        },
+        "590004001": {
+          "count": 748,
+          "bytes": 346895
+        },
+        "590005001": {
+          "count": 159,
+          "bytes": 46330
+        },
+        "590006001": {
+          "count": 924,
+          "bytes": 502635
+        },
+        "590007001": {
+          "count": 954,
+          "bytes": 617355
+        },
+        "590008001": {
+          "count": 997,
+          "bytes": 586105
+        },
+        "590009001": {
+          "count": 994,
+          "bytes": 382160
+        },
+        "590010001": {
+          "count": 990,
+          "bytes": 399445
+        },
+        "590011001": {
+          "count": 969,
+          "bytes": 401310
+        },
+        "590012001": {
+          "count": 990,
+          "bytes": 499775
+        },
+        "590013001": {
+          "count": 999,
+          "bytes": 395690
+        },
+        "590014001": {
+          "count": 1000,
+          "bytes": 639305
+        },
+        "590015001": {
+          "count": 999,
+          "bytes": 459820
+        },
+        "590016001": {
+          "count": 108,
+          "bytes": 39100
+        },
+        "590702001": {
+          "count": 183,
+          "bytes": 52155
+        },
+        "90001": {
+          "count": 237,
+          "bytes": 85610
+        },
+        "91001": {
+          "count": 451,
+          "bytes": 135820
+        },
+        "92001": {
+          "count": 1000,
+          "bytes": 302705
+        },
+        "93001": {
+          "count": 1000,
+          "bytes": 294010
+        },
+        "94001": {
+          "count": 209,
+          "bytes": 61095
+        },
+        "anicon": {
+          "count": 3,
+          "bytes": 685
+        },
+        "aradroyalrumble": {
+          "count": 30,
+          "bytes": 5410
+        },
+        "cash": {
+          "count": 18614,
+          "bytes": 12147150
+        },
+        "dfo": {
+          "count": 21736,
+          "bytes": 13292760
+        },
+        "ect": {
+          "count": 383,
+          "bytes": 361925
+        },
+        "emblem": {
+          "count": 626,
+          "bytes": 171180
+        },
+        "emoticon": {
+          "count": 6,
+          "bytes": 810
+        },
+        "epicpiece": {
+          "count": 1411,
+          "bytes": 193300
+        },
+        "event": {
+          "count": 1373,
+          "bytes": 850725
+        },
+        "extention": {
+          "count": 10,
+          "bytes": 2590
+        },
+        "flaggem": {
+          "count": 54,
+          "bytes": 10685
+        },
+        "fp": {
+          "count": 29,
+          "bytes": 5135
+        },
+        "indexnamed": {
+          "count": 7,
+          "bytes": 965
+        },
+        "material": {
+          "count": 328,
+          "bytes": 50120
+        },
+        "monstercard": {
+          "count": 295,
+          "bytes": 104465
+        },
+        "newmode": {
+          "count": 38,
+          "bytes": 52655
+        },
+        "professional": {
+          "count": 770,
+          "bytes": 186140
+        },
+        "pvpcard": {
+          "count": 183,
+          "bytes": 37325
+        },
+        "pvpmaterial": {
+          "count": 183,
+          "bytes": 40460
+        },
+        "pvpscroll": {
+          "count": 32,
+          "bytes": 46975
+        },
+        "quest": {
+          "count": 745,
+          "bytes": 90375
+        },
+        "recipe": {
+          "count": 7043,
+          "bytes": 1774105
+        },
+        "rune": {
+          "count": 18395,
+          "bytes": 4465040
+        },
+        "temp": {
+          "count": 51,
+          "bytes": 5705
+        },
+        "territorycombat": {
+          "count": 36,
+          "bytes": 10630
+        },
+        "throw": {
+          "count": 64,
+          "bytes": 14115
+        },
+        "tutorial": {
+          "count": 1,
+          "bytes": 220
+        }
+      }
+    },
+    "stagemap": {
+      "count": 9,
+      "bytes": 8262,
+      "subdirs": {
+        "animation": {
+          "count": 2,
+          "bytes": 1460
+        }
+      }
+    },
+    "string": {
+      "count": 80,
+      "bytes": 390296606
+    },
+    "town": {
+      "count": 342,
+      "bytes": 147672,
+      "subdirs": {
+        "animation": {
+          "count": 13,
+          "bytes": 18220
+        },
+        "selecttown": {
+          "count": 4,
+          "bytes": 7072
+        },
+        "title": {
+          "count": 95,
+          "bytes": 13160
+        }
+      }
+    },
+    "ui": {
+      "count": 34744,
+      "bytes": 93937649,
+      "subdirs": {
+        "100lvfarming": {
+          "count": 7,
+          "bytes": 13354
+        },
+        "10week_check": {
+          "count": 2,
+          "bytes": 19564
+        },
+        "115lvequipment": {
+          "count": 29,
+          "bytes": 1589868
+        },
+        "abaddonimprisoned": {
+          "count": 4,
+          "bytes": 37916
+        },
+        "accountclearrewardlist": {
+          "count": 3,
+          "bytes": 8392
+        },
+        "actionsample": {
+          "count": 6,
+          "bytes": 6279
+        },
+        "advancealtar": {
+          "count": 41,
+          "bytes": 41138
+        },
+        "adventurecollection": {
+          "count": 46,
+          "bytes": 252771
+        },
+        "adventurer": {
+          "count": 21,
+          "bytes": 335498
+        },
+        "adventurer2018": {
+          "count": 790,
+          "bytes": 2739512
+        },
+        "airship": {
+          "count": 97,
+          "bytes": 89933
+        },
+        "alram": {
+          "count": 2,
+          "bytes": 16120
+        },
+        "amalgamation": {
+          "count": 37,
+          "bytes": 28050
+        },
+        "amplify": {
+          "count": 11,
+          "bytes": 106574
+        },
+        "animationscene": {
+          "count": 1,
+          "bytes": 818
+        },
+        "antievilwarning": {
+          "count": 2,
+          "bytes": 165
+        },
+        "antonleague": {
+          "count": 2,
+          "bytes": 7530
+        },
+        "aradadventure": {
+          "count": 367,
+          "bytes": 131005
+        },
+        "aradpass": {
+          "count": 32,
+          "bytes": 329894
+        },
+        "assault": {
+          "count": 11,
+          "bytes": 2595
+        },
+        "assaultdungeon": {
+          "count": 5,
+          "bytes": 2210
+        },
+        "auction": {
+          "count": 38,
+          "bytes": 275219
+        },
+        "aura": {
+          "count": 9,
+          "bytes": 2965
+        },
+        "auraemblemmove": {
+          "count": 3,
+          "bytes": 15824
+        },
+        "autoenchantbead": {
+          "count": 6,
+          "bytes": 23475
+        },
+        "autoequipwindow": {
+          "count": 1,
+          "bytes": 74078
+        },
+        "avatarchangeoption": {
+          "count": 52,
+          "bytes": 35345
+        },
+        "avatarcloset": {
+          "count": 3,
+          "bytes": 18286
+        },
+        "avatarcollection": {
+          "count": 6,
+          "bytes": 39557
+        },
+        "avatardismantle": {
+          "count": 24,
+          "bytes": 82566
+        },
+        "avatarextraction": {
+          "count": 15,
+          "bytes": 10870
+        },
+        "avatarsocket": {
+          "count": 2,
+          "bytes": 16122
+        },
+        "avatrarchangeoption": {
+          "count": 3,
+          "bytes": 44946
+        },
+        "blooddungeon": {
+          "count": 3,
+          "bytes": 14101
+        },
+        "bluemarble": {
+          "count": 115,
+          "bytes": 36413
+        },
+        "boosterconfirmpopup": {
+          "count": 27,
+          "bytes": 203938
+        },
+        "boosterselect": {
+          "count": 139,
+          "bytes": 288709
+        },
+        "bufficon": {
+          "count": 1,
+          "bytes": 7920
+        },
+        "buffswitching": {
+          "count": 5,
+          "bytes": 38860
+        },
+        "cargo": {
+          "count": 13,
+          "bytes": 82000
+        },
+        "cargotransportstone": {
+          "count": 2,
+          "bytes": 7050
+        },
+        "cartelcommand": {
+          "count": 33,
+          "bytes": 7650
+        },
+        "cashshop": {
+          "count": 15,
+          "bytes": 115459
+        },
+        "cerashop": {
+          "count": 109,
+          "bytes": 605613
+        },
+        "cerashopinventory": {
+          "count": 1,
+          "bytes": 1090
+        },
+        "challengerankingwindow": {
+          "count": 3,
+          "bytes": 82428
+        },
+        "changecreature": {
+          "count": 1,
+          "bytes": 3188
+        },
+        "channel": {
+          "count": 67,
+          "bytes": 2235184
+        },
+        "character": {
+          "count": 73,
+          "bytes": 237571
+        },
+        "characterclasschange": {
+          "count": 18,
+          "bytes": 278219
+        },
+        "charactercreate": {
+          "count": 38,
+          "bytes": 22294
+        },
+        "charactercreatever2": {
+          "count": 109,
+          "bytes": 339878
+        },
+        "characterdeletenoti": {
+          "count": 3,
+          "bytes": 45528
+        },
+        "characterinfowindow": {
+          "count": 46,
+          "bytes": 419924
+        },
+        "characterslot": {
+          "count": 7,
+          "bytes": 1640
+        },
+        "charactertool": {
+          "count": 3,
+          "bytes": 31030
+        },
+        "chat": {
+          "count": 22,
+          "bytes": 357261
+        },
+        "checkmataconsumption": {
+          "count": 6,
+          "bytes": 58944
+        },
+        "chn_newyear_2015_box": {
+          "count": 3,
+          "bytes": 13972
+        },
+        "chn_tournament": {
+          "count": 3,
+          "bytes": 395
+        },
+        "chronicle": {
+          "count": 3,
+          "bytes": 9074
+        },
+        "closemapopenitem": {
+          "count": 1,
+          "bytes": 18700
+        },
+        "collectbox": {
+          "count": 1,
+          "bytes": 7434
+        },
+        "combatpreparation": {
+          "count": 15,
+          "bytes": 37095
+        },
+        "commandassist": {
+          "count": 23,
+          "bytes": 205586
+        },
+        "common": {
+          "count": 42,
+          "bytes": 47301
+        },
+        "commonaction": {
+          "count": 7,
+          "bytes": 790
+        },
+        "community": {
+          "count": 58,
+          "bytes": 614720
+        },
+        "compoundavatar": {
+          "count": 48,
+          "bytes": 207423
+        },
+        "compoundemblem": {
+          "count": 5,
+          "bytes": 21492
+        },
+        "compoundflag": {
+          "count": 3,
+          "bytes": 50308
+        },
+        "compoundgem": {
+          "count": 3,
+          "bytes": 51928
+        },
+        "controltower": {
+          "count": 2,
+          "bytes": 10660
+        },
+        "crackofdimension": {
+          "count": 10,
+          "bytes": 10700
+        },
+        "craneminigame": {
+          "count": 57,
+          "bytes": 24126
+        },
+        "cs_shop": {
+          "count": 12,
+          "bytes": 102102
+        },
+        "cubecontract": {
+          "count": 4,
+          "bytes": 20306
+        },
+        "curseofbloodyfruit": {
+          "count": 154,
+          "bytes": 176689
+        },
+        "customability": {
+          "count": 41,
+          "bytes": 251461
+        },
+        "dailychallenge": {
+          "count": 2,
+          "bytes": 2602
+        },
+        "damagefontskin": {
+          "count": 4,
+          "bytes": 12094
+        },
+        "damagereportmonsterwindowver2": {
+          "count": 3,
+          "bytes": 10460
+        },
+        "designitempreview": {
+          "count": 2,
+          "bytes": 17322
+        },
+        "dfo": {
+          "count": 9,
+          "bytes": 73022
+        },
+        "distanceview": {
+          "count": 14,
+          "bytes": 2900
+        },
+        "dnfchronology": {
+          "count": 9,
+          "bytes": 64278
+        },
+        "dnfonwallet": {
+          "count": 1,
+          "bytes": 20798
+        },
+        "dock": {
+          "count": 18,
+          "bytes": 9773
+        },
+        "dpl": {
+          "count": 60,
+          "bytes": 260232
+        },
+        "dtt": {
+          "count": 1,
+          "bytes": 2722
+        },
+        "dualraid": {
+          "count": 32,
+          "bytes": 19540
+        },
+        "dungeon": {
+          "count": 25,
+          "bytes": 20512
+        },
+        "dungeoninfo": {
+          "count": 1,
+          "bytes": 9546
+        },
+        "dungeonloading": {
+          "count": 1,
+          "bytes": 660
+        },
+        "dungeonminimap": {
+          "count": 6,
+          "bytes": 29405
+        },
+        "dungeonpvp": {
+          "count": 63,
+          "bytes": 169657
+        },
+        "dungeonrecordboard": {
+          "count": 2,
+          "bytes": 6332
+        },
+        "dunstool": {
+          "count": 16,
+          "bytes": 190297
+        },
+        "duntress": {
+          "count": 1161,
+          "bytes": 486230
+        },
+        "emacncipateenchantwindow": {
+          "count": 1,
+          "bytes": 726
+        },
+        "emergencyshop": {
+          "count": 1,
+          "bytes": 7478
+        },
+        "engineui": {
+          "count": 2,
+          "bytes": 5119
+        },
+        "epicproduction": {
+          "count": 67,
+          "bytes": 256065
+        },
+        "epicrouting": {
+          "count": 1,
+          "bytes": 385
+        },
+        "epicwindow": {
+          "count": 31,
+          "bytes": 140831
+        },
+        "equipment": {
+          "count": 14,
+          "bytes": 363204
+        },
+        "equipmentguide": {
+          "count": 1,
+          "bytes": 4428
+        },
+        "equipmentrefund": {
+          "count": 5,
+          "bytes": 28972
+        },
+        "equipmenttexturechange": {
+          "count": 4,
+          "bytes": 123780
+        },
+        "equipmentui": {
+          "count": 48,
+          "bytes": 34155
+        },
+        "errorimagewindow": {
+          "count": 1,
+          "bytes": 8164
+        },
+        "event": {
+          "count": 17411,
+          "bytes": 37209556
+        },
+        "eventcalendar": {
+          "count": 4,
+          "bytes": 19300
+        },
+        "eventdungeonranking": {
+          "count": 8,
+          "bytes": 51884
+        },
+        "exitwindow": {
+          "count": 14,
+          "bytes": 221270
+        },
+        "expertjob": {
+          "count": 30,
+          "bytes": 123961
+        },
+        "fevertime": {
+          "count": 1,
+          "bytes": 125
+        },
+        "fiendwar_kr": {
+          "count": 184,
+          "bytes": 822656
+        },
+        "flyingposmark": {
+          "count": 2,
+          "bytes": 1010
+        },
+        "gamblingwindow": {
+          "count": 26,
+          "bytes": 17415
+        },
+        "gamepad": {
+          "count": 4,
+          "bytes": 47854
+        },
+        "gamewindowresizeborder": {
+          "count": 1,
+          "bytes": 4734
+        },
+        "gbosstower": {
+          "count": 2,
+          "bytes": 5612
+        },
+        "gcontents": {
+          "count": 2088,
+          "bytes": 3186362
+        },
+        "genuinedamageupgrade": {
+          "count": 11,
+          "bytes": 7125
+        },
+        "globalani": {
+          "count": 8,
+          "bytes": 6605
+        },
+        "gmuidebugtool": {
+          "count": 11,
+          "bytes": 156784
+        },
+        "goguide": {
+          "count": 2,
+          "bytes": 13334
+        },
+        "goldencommerce": {
+          "count": 10,
+          "bytes": 9464
+        },
+        "growthguide": {
+          "count": 5,
+          "bytes": 69444
+        },
+        "growthguide100level": {
+          "count": 7,
+          "bytes": 173792
+        },
+        "guide": {
+          "count": 25,
+          "bytes": 59354
+        },
+        "guidefairy": {
+          "count": 1,
+          "bytes": 8752
+        },
+        "guidesystem": {
+          "count": 14,
+          "bytes": 325248
+        },
+        "guild": {
+          "count": 221,
+          "bytes": 877974
+        },
+        "guild2016": {
+          "count": 8,
+          "bytes": 187784
+        },
+        "guild2017": {
+          "count": 20,
+          "bytes": 518879
+        },
+        "guild2019": {
+          "count": 154,
+          "bytes": 1191541
+        },
+        "guildstriker": {
+          "count": 5,
+          "bytes": 32480
+        },
+        "hardcoremode": {
+          "count": 25,
+          "bytes": 27620
+        },
+        "hellparty": {
+          "count": 1,
+          "bytes": 7906
+        },
+        "honorlevel": {
+          "count": 6,
+          "bytes": 5176
+        },
+        "hotkey": {
+          "count": 6,
+          "bytes": 104766
+        },
+        "hpstategague": {
+          "count": 14,
+          "bytes": 2865
+        },
+        "hud": {
+          "count": 314,
+          "bytes": 595072
+        },
+        "imagecommunication": {
+          "count": 6,
+          "bytes": 2827
+        },
+        "imageshowwindow": {
+          "count": 1,
+          "bytes": 12312
+        },
+        "incubating": {
+          "count": 5,
+          "bytes": 4216
+        },
+        "infinitedifficult": {
+          "count": 5,
+          "bytes": 2050
+        },
+        "infinitedifficulty": {
+          "count": 1,
+          "bytes": 29406
+        },
+        "innertestgm": {
+          "count": 1,
+          "bytes": 6176
+        },
+        "instantemoticon": {
+          "count": 115,
+          "bytes": 58602
+        },
+        "inventory": {
+          "count": 373,
+          "bytes": 1088427
+        },
+        "inventorydesignitempreview": {
+          "count": 2,
+          "bytes": 21526
+        },
+        "itemblacksoulconversion": {
+          "count": 33,
+          "bytes": 145982
+        },
+        "itemcontextmenu": {
+          "count": 7,
+          "bytes": 133409
+        },
+        "itemconversion": {
+          "count": 22,
+          "bytes": 73274
+        },
+        "itemdictionary": {
+          "count": 48,
+          "bytes": 456015
+        },
+        "itemfusionwindow": {
+          "count": 13,
+          "bytes": 38701
+        },
+        "iteminfowindow": {
+          "count": 2,
+          "bytes": 5824
+        },
+        "itemmagiccasting": {
+          "count": 29,
+          "bytes": 125803
+        },
+        "itemrankingboard": {
+          "count": 25,
+          "bytes": 382316
+        },
+        "itemrecycle": {
+          "count": 8,
+          "bytes": 54272
+        },
+        "itemremodelwindow": {
+          "count": 6,
+          "bytes": 30458
+        },
+        "itemrevelation": {
+          "count": 48,
+          "bytes": 118364
+        },
+        "itemshop": {
+          "count": 26,
+          "bytes": 725128
+        },
+        "itemtool": {
+          "count": 28,
+          "bytes": 33928
+        },
+        "itemtoolwindow": {
+          "count": 3246,
+          "bytes": 9675529
+        },
+        "itemupgradewindow": {
+          "count": 42,
+          "bytes": 328548
+        },
+        "japan": {
+          "count": 13,
+          "bytes": 64622
+        },
+        "jumpingserver": {
+          "count": 3,
+          "bytes": 22456
+        },
+        "kaleidobox": {
+          "count": 15,
+          "bytes": 69062
+        },
+        "kiricargo": {
+          "count": 6,
+          "bytes": 9563
+        },
+        "legacyguntram": {
+          "count": 10,
+          "bytes": 14155
+        },
+        "levelacceleration": {
+          "count": 35,
+          "bytes": 100741
+        },
+        "levelupmessagepopupwindow": {
+          "count": 100,
+          "bytes": 98396
+        },
+        "licensedungeon": {
+          "count": 72,
+          "bytes": 15875
+        },
+        "limitcube": {
+          "count": 30,
+          "bytes": 192098
+        },
+        "lotterywindow": {
+          "count": 1,
+          "bytes": 7108
+        },
+        "lounge6system": {
+          "count": 5,
+          "bytes": 62108
+        },
+        "mail": {
+          "count": 4,
+          "bytes": 53472
+        },
+        "map": {
+          "count": 1,
+          "bytes": 1110
+        },
+        "mercenary": {
+          "count": 79,
+          "bytes": 112924
+        },
+        "mercenarybroker": {
+          "count": 27,
+          "bytes": 100393
+        },
+        "messenger": {
+          "count": 1,
+          "bytes": 7044
+        },
+        "moduleinterface": {
+          "count": 10,
+          "bytes": 31015
+        },
+        "monster_hp": {
+          "count": 26,
+          "bytes": 6870
+        },
+        "monsterlistwindow": {
+          "count": 4,
+          "bytes": 156042
+        },
+        "moonlighttavern": {
+          "count": 6,
+          "bytes": 25290
+        },
+        "mycharactersapc": {
+          "count": 5,
+          "bytes": 177074
+        },
+        "newitemtool": {
+          "count": 3,
+          "bytes": 49086
+        },
+        "noticetext": {
+          "count": 5,
+          "bytes": 35372
+        },
+        "nowloading": {
+          "count": 40,
+          "bytes": 39893
+        },
+        "npcclickwindow": {
+          "count": 1,
+          "bytes": 666
+        },
+        "npcdialogwindow": {
+          "count": 1,
+          "bytes": 2602
+        },
+        "npcface": {
+          "count": 9,
+          "bytes": 61422
+        },
+        "npcfavorsystem": {
+          "count": 2,
+          "bytes": 22572
+        },
+        "npcfavorwindow": {
+          "count": 4,
+          "bytes": 50940
+        },
+        "objectactionlogwindow": {
+          "count": 1,
+          "bytes": 28644
+        },
+        "objectactionperformancewindow": {
+          "count": 2,
+          "bytes": 12728
+        },
+        "objectview": {
+          "count": 1,
+          "bytes": 2730
+        },
+        "observersystem": {
+          "count": 12,
+          "bytes": 84043
+        },
+        "openrandombox": {
+          "count": 17,
+          "bytes": 68310
+        },
+        "openupgrade": {
+          "count": 16,
+          "bytes": 51113
+        },
+        "optionnotiwindow": {
+          "count": 1,
+          "bytes": 17330
+        },
+        "optionwindow": {
+          "count": 5,
+          "bytes": 96996
+        },
+        "optionwindowver2": {
+          "count": 7,
+          "bytes": 267266
+        },
+        "optionwindowver3": {
+          "count": 17,
+          "bytes": 539235
+        },
+        "optionwindowver4": {
+          "count": 19,
+          "bytes": 494546
+        },
+        "outrageofstorm": {
+          "count": 1,
+          "bytes": 13076
+        },
+        "packetmonitor": {
+          "count": 6,
+          "bytes": 71176
+        },
+        "party": {
+          "count": 28,
+          "bytes": 371064
+        },
+        "partyadvinfo": {
+          "count": 1,
+          "bytes": 31012
+        },
+        "partyteleport": {
+          "count": 3,
+          "bytes": 28810
+        },
+        "pcroomupgrade": {
+          "count": 2,
+          "bytes": 15212
+        },
+        "pk_intown": {
+          "count": 1,
+          "bytes": 180
+        },
+        "playaniwindow": {
+          "count": 1,
+          "bytes": 772
+        },
+        "player": {
+          "count": 2,
+          "bytes": 8550
+        },
+        "powerwar": {
+          "count": 4,
+          "bytes": 8144
+        },
+        "preloadmonitor": {
+          "count": 1,
+          "bytes": 13332
+        },
+        "premiumservice": {
+          "count": 11,
+          "bytes": 2155
+        },
+        "privateinformation": {
+          "count": 14,
+          "bytes": 18155
+        },
+        "profile": {
+          "count": 4,
+          "bytes": 142684
+        },
+        "pvp": {
+          "count": 127,
+          "bytes": 649177
+        },
+        "pvp02": {
+          "count": 242,
+          "bytes": 472723
+        },
+        "quest": {
+          "count": 127,
+          "bytes": 142558
+        },
+        "questbook": {
+          "count": 65,
+          "bytes": 175209
+        },
+        "questtitle": {
+          "count": 17,
+          "bytes": 5845
+        },
+        "quickparty": {
+          "count": 4,
+          "bytes": 14275
+        },
+        "raid": {
+          "count": 1409,
+          "bytes": 3396327
+        },
+        "raidwindow": {
+          "count": 39,
+          "bytes": 489394
+        },
+        "randombox": {
+          "count": 4,
+          "bytes": 14606
+        },
+        "randomboxbooster": {
+          "count": 6,
+          "bytes": 19668
+        },
+        "randomboxboosterwideani": {
+          "count": 25,
+          "bytes": 16635
+        },
+        "randomoption": {
+          "count": 19,
+          "bytes": 55898
+        },
+        "randomoptionregeneration": {
+          "count": 5,
+          "bytes": 19978
+        },
+        "ranking": {
+          "count": 1,
+          "bytes": 79370
+        },
+        "rapidparty": {
+          "count": 3,
+          "bytes": 21320
+        },
+        "realestate": {
+          "count": 13,
+          "bytes": 3690
+        },
+        "regendungeon": {
+          "count": 6,
+          "bytes": 3435
+        },
+        "replay": {
+          "count": 6,
+          "bytes": 61294
+        },
+        "result": {
+          "count": 103,
+          "bytes": 123264
+        },
+        "reward": {
+          "count": 106,
+          "bytes": 57950
+        },
+        "runebook": {
+          "count": 4,
+          "bytes": 71898
+        },
+        "sailingdungeonwindow": {
+          "count": 1,
+          "bytes": 15932
+        },
+        "satisfactionsurvey": {
+          "count": 1,
+          "bytes": 13780
+        },
+        "seal": {
+          "count": 8,
+          "bytes": 5220
+        },
+        "seasonserver": {
+          "count": 11,
+          "bytes": 92156
+        },
+        "security": {
+          "count": 30,
+          "bytes": 227473
+        },
+        "securitycard": {
+          "count": 13,
+          "bytes": 99732
+        },
+        "selectcharacter": {
+          "count": 56,
+          "bytes": 1066350
+        },
+        "selectcharactercover": {
+          "count": 1,
+          "bytes": 2198
+        },
+        "selectcharacterver2": {
+          "count": 37,
+          "bytes": 169875
+        },
+        "selectdungeon": {
+          "count": 53,
+          "bytes": 61471
+        },
+        "selectserver": {
+          "count": 4,
+          "bytes": 20296
+        },
+        "semiraidwindow": {
+          "count": 6,
+          "bytes": 103204
+        },
+        "shutdown": {
+          "count": 7,
+          "bytes": 1345
+        },
+        "simonawarranty": {
+          "count": 2,
+          "bytes": 5318
+        },
+        "simpleid": {
+          "count": 3,
+          "bytes": 5028
+        },
+        "skill": {
+          "count": 151,
+          "bytes": 875667
+        },
+        "skillcooltime": {
+          "count": 1,
+          "bytes": 74066
+        },
+        "skillshop": {
+          "count": 16,
+          "bytes": 20960
+        },
+        "skinstorage": {
+          "count": 41,
+          "bytes": 402112
+        },
+        "social": {
+          "count": 3,
+          "bytes": 8887
+        },
+        "soloteleport": {
+          "count": 3,
+          "bytes": 16070
+        },
+        "soulcompound": {
+          "count": 11,
+          "bytes": 42187
+        },
+        "soulstorage": {
+          "count": 2,
+          "bytes": 13466
+        },
+        "specialdungeon": {
+          "count": 825,
+          "bytes": 837096
+        },
+        "stillcut": {
+          "count": 1,
+          "bytes": 1468
+        },
+        "storydigest": {
+          "count": 1,
+          "bytes": 766
+        },
+        "strikerskillselect": {
+          "count": 2,
+          "bytes": 8988
+        },
+        "submaterial": {
+          "count": 1,
+          "bytes": 4924
+        },
+        "survival": {
+          "count": 14,
+          "bytes": 67358
+        },
+        "systemranking": {
+          "count": 29,
+          "bytes": 199414
+        },
+        "systemreward": {
+          "count": 90,
+          "bytes": 69755
+        },
+        "systemtray": {
+          "count": 1,
+          "bytes": 6418
+        },
+        "tag": {
+          "count": 73,
+          "bytes": 331235
+        },
+        "templatepopupwindow": {
+          "count": 18,
+          "bytes": 318700
+        },
+        "territorycombat": {
+          "count": 26,
+          "bytes": 815460
+        },
+        "testhelpwindow": {
+          "count": 1,
+          "bytes": 22194
+        },
+        "theoculus": {
+          "count": 17,
+          "bytes": 74823
+        },
+        "thestrongest": {
+          "count": 4,
+          "bytes": 38848
+        },
+        "timeattack": {
+          "count": 18,
+          "bytes": 9497
+        },
+        "timelimiteditemsinfowindow": {
+          "count": 3,
+          "bytes": 79680
+        },
+        "timetrainingroom": {
+          "count": 14,
+          "bytes": 290046
+        },
+        "titlebook": {
+          "count": 56,
+          "bytes": 69890
+        },
+        "tooltipequipment": {
+          "count": 1,
+          "bytes": 15646
+        },
+        "topsecretarea": {
+          "count": 82,
+          "bytes": 28585
+        },
+        "toptitlebar": {
+          "count": 2,
+          "bytes": 21308
+        },
+        "tournament": {
+          "count": 75,
+          "bytes": 137326
+        },
+        "tournamentsystem": {
+          "count": 67,
+          "bytes": 99711
+        },
+        "towerofdazzlement": {
+          "count": 12,
+          "bytes": 55784
+        },
+        "towerofdespair": {
+          "count": 1,
+          "bytes": 3538
+        },
+        "towerofgrave": {
+          "count": 8,
+          "bytes": 58082
+        },
+        "trade": {
+          "count": 9,
+          "bytes": 9008
+        },
+        "transformation": {
+          "count": 20,
+          "bytes": 5780
+        },
+        "triggeractiontoolwindow": {
+          "count": 3,
+          "bytes": 41206
+        },
+        "tutorial": {
+          "count": 239,
+          "bytes": 147782
+        },
+        "univ_coupon": {
+          "count": 1,
+          "bytes": 3256
+        },
+        "updatehistory": {
+          "count": 1,
+          "bytes": 2318
+        },
+        "usecoin": {
+          "count": 12,
+          "bytes": 56274
+        },
+        "useintegrateditemspacenotiwindow": {
+          "count": 2,
+          "bytes": 13462
+        },
+        "userinfolist": {
+          "count": 2,
+          "bytes": 4602
+        },
+        "villageattacked": {
+          "count": 7,
+          "bytes": 21712
+        },
+        "vote": {
+          "count": 1,
+          "bytes": 16962
+        },
+        "warpgate": {
+          "count": 38,
+          "bytes": 296165
+        },
+        "warroom": {
+          "count": 1,
+          "bytes": 646
+        },
+        "weaponskin": {
+          "count": 39,
+          "bytes": 66886
+        },
+        "webbrowser": {
+          "count": 4,
+          "bytes": 6660
+        },
+        "windowheadereffect": {
+          "count": 1,
+          "bytes": 2970
+        },
+        "worldfontclear": {
+          "count": 1,
+          "bytes": 17168
+        },
+        "worldminimap": {
+          "count": 8,
+          "bytes": 34020
+        }
+      }
+    },
+    "worldmap": {
+      "count": 660,
+      "bytes": 2102722,
+      "subdirs": {
+        "animation": {
+          "count": 38,
+          "bytes": 21820
+        },
+        "eventimage": {
+          "count": 1,
+          "bytes": 1455
+        },
+        "ui": {
+          "count": 292,
+          "bytes": 2004652
+        }
+      }
+    }
+  }
+}

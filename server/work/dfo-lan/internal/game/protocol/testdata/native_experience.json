@@ -1,0 +1,154 @@
+{
+  "payload_hex": "01480000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+  "consumed": 82,
+  "reads": [
+    {
+      "site": "0x1452ce54d",
+      "offset": 0,
+      "size": 1,
+      "hex": "01"
+    },
+    {
+      "site": "0x146d77f9e",
+      "offset": 1,
+      "size": 4,
+      "hex": "48000000"
+    },
+    {
+      "site": "0x146d77fa8",
+      "offset": 5,
+      "size": 4,
+      "hex": "00000000"
+    },
+    {
+      "site": "0x1452ce55f",
+      "offset": 9,
+      "size": 4,
+      "hex": "00000000"
+    },
+    {
+      "site": "0x1452ce569",
+      "offset": 13,
+      "size": 2,
+      "hex": "0000"
+    },
+    {
+      "site": "0x1452ce578",
+      "offset": 15,
+      "size": 2,
+      "hex": "0000"
+    },
+    {
+      "site": "0x1452ce58c",
+      "offset": 17,
+      "size": 2,
+      "hex": "0000"
+    },
+    {
+      "site": "0x1452ce596",
+      "offset": 19,
+      "size": 2,
+      "hex": "0000"
+    },
+    {
+      "site": "0x1452ce5a4",
+      "offset": 21,
+      "size": 4,
+      "hex": "00000000"
+    },
+    {
+      "site": "0x1452ce68a",
+      "offset": 25,
+      "size": 4,
+      "hex": "00000000"
+    },
+    {
+      "site": "0x1452ce696",
+      "offset": 29,
+      "size": 4,
+      "hex": "00000000"
+    },
+    {
+      "site": "0x1452ce6a4",
+      "offset": 33,
+      "size": 4,
+      "hex": "00000000"
+    },
+    {
+      "site": "0x1452ce6b2",
+      "offset": 37,
+      "size": 4,
+      "hex": "00000000"
+    },
+    {
+      "site": "0x1452ce6be",
+      "offset": 41,
+      "size": 4,
+      "hex": "00000000"
+    },
+    {
+      "site": "0x1452ce6c7",
+      "offset": 45,
+      "size": 4,
+      "hex": "00000000"
+    },
+    {
+      "site": "0x1452ce6d6",
+      "offset": 49,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452ce814",
+      "offset": 50,
+      "size": 4,
+      "hex": "00000000"
+    },
+    {
+      "site": "0x1452ce820",
+      "offset": 54,
+      "size": 4,
+      "hex": "00000000"
+    },
+    {
+      "site": "0x1452ce867",
+      "offset": 58,
+      "size": 4,
+      "hex": "00000000"
+    },
+    {
+      "site": "0x1452ce875",
+      "offset": 62,
+      "size": 8,
+      "hex": "0000000000000000"
+    },
+    {
+      "site": "0x1452ce9fd",
+      "offset": 70,
+      "size": 4,
+      "hex": "00000000"
+    },
+    {
+      "site": "0x1452cea09",
+      "offset": 74,
+      "size": 4,
+      "hex": "00000000"
+    },
+    {
+      "site": "0x1452cea15",
+      "offset": 78,
+      "size": 4,
+      "hex": "00000000"
+    }
+  ],
+  "spawns": [],
+  "coordinates": {},
+  "scope": "original native packet reader, coordinate setter and spawn arguments; game, map and UI calls stubbed",
+  "effects": [
+    {
+      "kind": "actor_exp_level",
+      "experience": 72,
+      "level": 1
+    }
+  ]
+}

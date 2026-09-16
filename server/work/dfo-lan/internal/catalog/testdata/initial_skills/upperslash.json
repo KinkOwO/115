@@ -1,0 +1,3292 @@
+[
+  {
+    "type": 3,
+    "value": 157673341,
+    "text": "[name]"
+  },
+  {
+    "type": 8,
+    "value": 441746845,
+    "reference": "\u003c12::name_18105\u003e"
+  },
+  {
+    "type": 3,
+    "value": 157680133,
+    "text": "[explain]"
+  },
+  {
+    "type": 8,
+    "value": 441746879,
+    "reference": "\u003c12::explain_18110\u003e"
+  },
+  {
+    "type": 3,
+    "value": 162565623,
+    "text": "[basic explain]"
+  },
+  {
+    "type": 8,
+    "value": 441746919,
+    "reference": "\u003c12::upper_slash_basic_explain\u003e"
+  },
+  {
+    "type": 3,
+    "value": 436829493,
+    "text": "[caption]"
+  },
+  {
+    "type": 8,
+    "value": 441746983,
+    "reference": "\u003c12::upper_slash_caption\u003e"
+  },
+  {
+    "type": 3,
+    "value": 436829549,
+    "text": "[special feature]"
+  },
+  {
+    "type": 6,
+    "value": 436829637,
+    "text": "feature"
+  },
+  {
+    "type": 8,
+    "value": 441747035,
+    "reference": "\u003c12::upper_slash_special_feature\u003e"
+  },
+  {
+    "type": 3,
+    "value": 436829815,
+    "text": "[/special feature]"
+  },
+  {
+    "type": 3,
+    "value": 436980085,
+    "text": "[warning box]"
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": -150
+  },
+  {
+    "type": 0,
+    "value": -13
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 300
+  },
+  {
+    "type": 0,
+    "value": 26
+  },
+  {
+    "type": 0,
+    "value": 138
+  },
+  {
+    "type": 3,
+    "value": 436980113,
+    "text": "[/warning box]"
+  },
+  {
+    "type": 3,
+    "value": 436827599,
+    "text": "[purchase cost]"
+  },
+  {
+    "type": 0,
+    "value": 20
+  },
+  {
+    "type": 3,
+    "value": 436827631,
+    "text": "[/purchase cost]"
+  },
+  {
+    "type": 3,
+    "value": 147066155,
+    "text": "[type]"
+  },
+  {
+    "type": 6,
+    "value": 162818917,
+    "text": "[active]"
+  },
+  {
+    "type": 3,
+    "value": 436904609,
+    "text": "[original attack type]"
+  },
+  {
+    "type": 6,
+    "value": 40161621,
+    "text": "[physic]"
+  },
+  {
+    "type": 3,
+    "value": 436827711,
+    "text": "[skill class]"
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 162887831,
+    "text": "[maximum level]"
+  },
+  {
+    "type": 0,
+    "value": 20
+  },
+  {
+    "type": 3,
+    "value": 436827739,
+    "text": "[growtype maximum level]"
+  },
+  {
+    "type": 0,
+    "value": 10
+  },
+  {
+    "type": 0,
+    "value": 10
+  },
+  {
+    "type": 0,
+    "value": 10
+  },
+  {
+    "type": 0,
+    "value": 10
+  },
+  {
+    "type": 0,
+    "value": 10
+  },
+  {
+    "type": 0,
+    "value": 10
+  },
+  {
+    "type": 3,
+    "value": 436827923,
+    "text": "[skill fitness growtype]"
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 2
+  },
+  {
+    "type": 0,
+    "value": 3
+  },
+  {
+    "type": 0,
+    "value": 4
+  },
+  {
+    "type": 0,
+    "value": 5
+  },
+  {
+    "type": 3,
+    "value": 436827973,
+    "text": "[/skill fitness growtype]"
+  },
+  {
+    "type": 3,
+    "value": 212496561,
+    "text": "[required level]"
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 436827665,
+    "text": "[required level range]"
+  },
+  {
+    "type": 0,
+    "value": 3
+  },
+  {
+    "type": 3,
+    "value": 211488059,
+    "text": "[durability decrease rate]"
+  },
+  {
+    "type": 0,
+    "value": 20
+  },
+  {
+    "type": 3,
+    "value": 436865553,
+    "text": "[auto cooltime apply]"
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 157673629,
+    "text": "[icon]"
+  },
+  {
+    "type": 6,
+    "value": 102685469,
+    "text": "Character/Swordman/Effect/SkillIcon.img"
+  },
+  {
+    "type": 0,
+    "value": 94
+  },
+  {
+    "type": 3,
+    "value": 78994977,
+    "text": "[command]"
+  },
+  {
+    "type": 5,
+    "value": 55
+  },
+  {
+    "type": 3,
+    "value": 162591931,
+    "text": "[/command]"
+  },
+  {
+    "type": 3,
+    "value": 87898005,
+    "text": "[dungeon]"
+  },
+  {
+    "type": 3,
+    "value": 278165517,
+    "text": "[damage info]"
+  },
+  {
+    "type": 3,
+    "value": 40161821,
+    "text": "[damage]"
+  },
+  {
+    "type": 0,
+    "value": 190
+  },
+  {
+    "type": 3,
+    "value": 436830695,
+    "text": "[attack list]"
+  },
+  {
+    "type": 6,
+    "value": 18360427,
+    "text": "attack1"
+  },
+  {
+    "type": 6,
+    "value": 18361291,
+    "text": "attack2"
+  },
+  {
+    "type": 3,
+    "value": 436830747,
+    "text": "[/attack list]"
+  },
+  {
+    "type": 3,
+    "value": 436858223,
+    "text": "[use basic attack all]"
+  },
+  {
+    "type": 3,
+    "value": 436830777,
+    "text": "[damage group]"
+  },
+  {
+    "type": 3,
+    "value": 147066155,
+    "text": "[type]"
+  },
+  {
+    "type": 6,
+    "value": 78602049,
+    "text": "default"
+  },
+  {
+    "type": 3,
+    "value": 436830865,
+    "text": "[sub attack]"
+  },
+  {
+    "type": 6,
+    "value": 18360427,
+    "text": "attack1"
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 436830891,
+    "text": "[/sub attack]"
+  },
+  {
+    "type": 3,
+    "value": 436831027,
+    "text": "[/damage group]"
+  },
+  {
+    "type": 3,
+    "value": 436830777,
+    "text": "[damage group]"
+  },
+  {
+    "type": 3,
+    "value": 147066155,
+    "text": "[type]"
+  },
+  {
+    "type": 6,
+    "value": 78602049,
+    "text": "default"
+  },
+  {
+    "type": 3,
+    "value": 88034821,
+    "text": "[condition]"
+  },
+  {
+    "type": 6,
+    "value": 169,
+    "text": "skill"
+  },
+  {
+    "type": 0,
+    "value": 12
+  },
+  {
+    "type": 3,
+    "value": 88034821,
+    "text": "[condition]"
+  },
+  {
+    "type": 6,
+    "value": 437174925,
+    "text": "weapontype"
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 3,
+    "value": 436830865,
+    "text": "[sub attack]"
+  },
+  {
+    "type": 6,
+    "value": 18360427,
+    "text": "attack1"
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 18361291,
+    "text": "attack2"
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 436830891,
+    "text": "[/sub attack]"
+  },
+  {
+    "type": 3,
+    "value": 436831027,
+    "text": "[/damage group]"
+  },
+  {
+    "type": 3,
+    "value": 436831059,
+    "text": "[check change old info]"
+  },
+  {
+    "type": 6,
+    "value": 18360427,
+    "text": "attack1"
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 3,
+    "value": 436831107,
+    "text": "[/check change old info]"
+  },
+  {
+    "type": 3,
+    "value": 278165545,
+    "text": "[/damage info]"
+  },
+  {
+    "type": 3,
+    "value": 436831185,
+    "text": "[consume MP]"
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 3,
+    "value": 436830449,
+    "text": "[weapon effect type]"
+  },
+  {
+    "type": 6,
+    "value": 149841213,
+    "text": "[physical]"
+  },
+  {
+    "type": 3,
+    "value": 162566029,
+    "text": "[cool time]"
+  },
+  {
+    "type": 0,
+    "value": 2000
+  },
+  {
+    "type": 0,
+    "value": 2000
+  },
+  {
+    "type": 3,
+    "value": 189479651,
+    "text": "[executable states]"
+  },
+  {
+    "type": 6,
+    "value": 86920683,
+    "text": "[stand]"
+  },
+  {
+    "type": 6,
+    "value": 88479457,
+    "text": "[attack]"
+  },
+  {
+    "type": 6,
+    "value": 86912631,
+    "text": "[dash]"
+  },
+  {
+    "type": 3,
+    "value": 189479691,
+    "text": "[/executable states]"
+  },
+  {
+    "type": 3,
+    "value": 54365645,
+    "text": "[static data]"
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": -250
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": -50
+  },
+  {
+    "type": 3,
+    "value": 54365673,
+    "text": "[/static data]"
+  },
+  {
+    "type": 3,
+    "value": 210315033,
+    "text": "[level info]"
+  },
+  {
+    "type": 0,
+    "value": 4
+  },
+  {
+    "type": 0,
+    "value": 129
+  },
+  {
+    "type": 0,
+    "value": 460
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 149
+  },
+  {
+    "type": 0,
+    "value": 465
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 170
+  },
+  {
+    "type": 0,
+    "value": 469
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 190
+  },
+  {
+    "type": 0,
+    "value": 474
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 211
+  },
+  {
+    "type": 0,
+    "value": 478
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 231
+  },
+  {
+    "type": 0,
+    "value": 483
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 252
+  },
+  {
+    "type": 0,
+    "value": 487
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 273
+  },
+  {
+    "type": 0,
+    "value": 492
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 293
+  },
+  {
+    "type": 0,
+    "value": 496
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 314
+  },
+  {
+    "type": 0,
+    "value": 501
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 334
+  },
+  {
+    "type": 0,
+    "value": 517
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 355
+  },
+  {
+    "type": 0,
+    "value": 533
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 375
+  },
+  {
+    "type": 0,
+    "value": 550
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 396
+  },
+  {
+    "type": 0,
+    "value": 567
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 416
+  },
+  {
+    "type": 0,
+    "value": 583
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 437
+  },
+  {
+    "type": 0,
+    "value": 600
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 457
+  },
+  {
+    "type": 0,
+    "value": 617
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 478
+  },
+  {
+    "type": 0,
+    "value": 633
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 498
+  },
+  {
+    "type": 0,
+    "value": 650
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 519
+  },
+  {
+    "type": 0,
+    "value": 667
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 539
+  },
+  {
+    "type": 0,
+    "value": 683
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 560
+  },
+  {
+    "type": 0,
+    "value": 700
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 581
+  },
+  {
+    "type": 0,
+    "value": 717
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 601
+  },
+  {
+    "type": 0,
+    "value": 733
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 622
+  },
+  {
+    "type": 0,
+    "value": 750
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 642
+  },
+  {
+    "type": 0,
+    "value": 767
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 663
+  },
+  {
+    "type": 0,
+    "value": 783
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 683
+  },
+  {
+    "type": 0,
+    "value": 800
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 704
+  },
+  {
+    "type": 0,
+    "value": 817
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 724
+  },
+  {
+    "type": 0,
+    "value": 833
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 745
+  },
+  {
+    "type": 0,
+    "value": 850
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 765
+  },
+  {
+    "type": 0,
+    "value": 867
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 786
+  },
+  {
+    "type": 0,
+    "value": 883
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 806
+  },
+  {
+    "type": 0,
+    "value": 900
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 827
+  },
+  {
+    "type": 0,
+    "value": 917
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 847
+  },
+  {
+    "type": 0,
+    "value": 933
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 868
+  },
+  {
+    "type": 0,
+    "value": 950
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 889
+  },
+  {
+    "type": 0,
+    "value": 967
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 909
+  },
+  {
+    "type": 0,
+    "value": 983
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 930
+  },
+  {
+    "type": 0,
+    "value": 1000
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 950
+  },
+  {
+    "type": 0,
+    "value": 1017
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 971
+  },
+  {
+    "type": 0,
+    "value": 1033
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 991
+  },
+  {
+    "type": 0,
+    "value": 1050
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 1012
+  },
+  {
+    "type": 0,
+    "value": 1067
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 1032
+  },
+  {
+    "type": 0,
+    "value": 1083
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 1053
+  },
+  {
+    "type": 0,
+    "value": 1100
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 1073
+  },
+  {
+    "type": 0,
+    "value": 1117
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 1094
+  },
+  {
+    "type": 0,
+    "value": 1133
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 1114
+  },
+  {
+    "type": 0,
+    "value": 1150
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 1135
+  },
+  {
+    "type": 0,
+    "value": 1167
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 1155
+  },
+  {
+    "type": 0,
+    "value": 1183
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 1176
+  },
+  {
+    "type": 0,
+    "value": 1200
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 1197
+  },
+  {
+    "type": 0,
+    "value": 1217
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 1217
+  },
+  {
+    "type": 0,
+    "value": 1233
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 1238
+  },
+  {
+    "type": 0,
+    "value": 1250
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 1258
+  },
+  {
+    "type": 0,
+    "value": 1267
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 1279
+  },
+  {
+    "type": 0,
+    "value": 1283
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 1299
+  },
+  {
+    "type": 0,
+    "value": 1300
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 1320
+  },
+  {
+    "type": 0,
+    "value": 1317
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 1340
+  },
+  {
+    "type": 0,
+    "value": 1333
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 1361
+  },
+  {
+    "type": 0,
+    "value": 1350
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 1381
+  },
+  {
+    "type": 0,
+    "value": 1367
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 1402
+  },
+  {
+    "type": 0,
+    "value": 1383
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 1422
+  },
+  {
+    "type": 0,
+    "value": 1400
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 1443
+  },
+  {
+    "type": 0,
+    "value": 1417
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 1463
+  },
+  {
+    "type": 0,
+    "value": 1433
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 1484
+  },
+  {
+    "type": 0,
+    "value": 1450
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 1505
+  },
+  {
+    "type": 0,
+    "value": 1467
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 1525
+  },
+  {
+    "type": 0,
+    "value": 1483
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 1546
+  },
+  {
+    "type": 0,
+    "value": 1500
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 3,
+    "value": 210315123,
+    "text": "[/level info]"
+  },
+  {
+    "type": 3,
+    "value": 210314289,
+    "text": "[/dungeon]"
+  },
+  {
+    "type": 3,
+    "value": 149533931,
+    "text": "[pvp]"
+  },
+  {
+    "type": 3,
+    "value": 278165517,
+    "text": "[damage info]"
+  },
+  {
+    "type": 3,
+    "value": 40161821,
+    "text": "[damage]"
+  },
+  {
+    "type": 0,
+    "value": 83
+  },
+  {
+    "type": 3,
+    "value": 436830695,
+    "text": "[attack list]"
+  },
+  {
+    "type": 6,
+    "value": 18360427,
+    "text": "attack1"
+  },
+  {
+    "type": 6,
+    "value": 18361291,
+    "text": "attack2"
+  },
+  {
+    "type": 3,
+    "value": 436830747,
+    "text": "[/attack list]"
+  },
+  {
+    "type": 3,
+    "value": 436858223,
+    "text": "[use basic attack all]"
+  },
+  {
+    "type": 3,
+    "value": 436830777,
+    "text": "[damage group]"
+  },
+  {
+    "type": 3,
+    "value": 147066155,
+    "text": "[type]"
+  },
+  {
+    "type": 6,
+    "value": 78602049,
+    "text": "default"
+  },
+  {
+    "type": 3,
+    "value": 436830807,
+    "text": "[base attack]"
+  },
+  {
+    "type": 6,
+    "value": 18360427,
+    "text": "attack1"
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 436830835,
+    "text": "[/base attack]"
+  },
+  {
+    "type": 3,
+    "value": 436831027,
+    "text": "[/damage group]"
+  },
+  {
+    "type": 3,
+    "value": 436830777,
+    "text": "[damage group]"
+  },
+  {
+    "type": 3,
+    "value": 147066155,
+    "text": "[type]"
+  },
+  {
+    "type": 6,
+    "value": 78602049,
+    "text": "default"
+  },
+  {
+    "type": 3,
+    "value": 88034821,
+    "text": "[condition]"
+  },
+  {
+    "type": 6,
+    "value": 169,
+    "text": "skill"
+  },
+  {
+    "type": 0,
+    "value": 12
+  },
+  {
+    "type": 3,
+    "value": 88034821,
+    "text": "[condition]"
+  },
+  {
+    "type": 6,
+    "value": 437174925,
+    "text": "weapontype"
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 3,
+    "value": 436830865,
+    "text": "[sub attack]"
+  },
+  {
+    "type": 6,
+    "value": 18360427,
+    "text": "attack1"
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 18361291,
+    "text": "attack2"
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 436830891,
+    "text": "[/sub attack]"
+  },
+  {
+    "type": 3,
+    "value": 436831027,
+    "text": "[/damage group]"
+  },
+  {
+    "type": 3,
+    "value": 436831059,
+    "text": "[check change old info]"
+  },
+  {
+    "type": 6,
+    "value": 18360427,
+    "text": "attack1"
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 3,
+    "value": 436831107,
+    "text": "[/check change old info]"
+  },
+  {
+    "type": 3,
+    "value": 278165545,
+    "text": "[/damage info]"
+  },
+  {
+    "type": 3,
+    "value": 210315033,
+    "text": "[level info]"
+  },
+  {
+    "type": 0,
+    "value": 4
+  },
+  {
+    "type": 0,
+    "value": 83
+  },
+  {
+    "type": 0,
+    "value": 367
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 96
+  },
+  {
+    "type": 0,
+    "value": 383
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 108
+  },
+  {
+    "type": 0,
+    "value": 400
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 121
+  },
+  {
+    "type": 0,
+    "value": 417
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 134
+  },
+  {
+    "type": 0,
+    "value": 433
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 146
+  },
+  {
+    "type": 0,
+    "value": 450
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 159
+  },
+  {
+    "type": 0,
+    "value": 467
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 172
+  },
+  {
+    "type": 0,
+    "value": 483
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 185
+  },
+  {
+    "type": 0,
+    "value": 500
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 198
+  },
+  {
+    "type": 0,
+    "value": 517
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 210
+  },
+  {
+    "type": 0,
+    "value": 533
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 224
+  },
+  {
+    "type": 0,
+    "value": 550
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 237
+  },
+  {
+    "type": 0,
+    "value": 567
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 249
+  },
+  {
+    "type": 0,
+    "value": 583
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 261
+  },
+  {
+    "type": 0,
+    "value": 600
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 275
+  },
+  {
+    "type": 0,
+    "value": 617
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 287
+  },
+  {
+    "type": 0,
+    "value": 633
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 300
+  },
+  {
+    "type": 0,
+    "value": 650
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 313
+  },
+  {
+    "type": 0,
+    "value": 667
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 326
+  },
+  {
+    "type": 0,
+    "value": 683
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 339
+  },
+  {
+    "type": 0,
+    "value": 700
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 351
+  },
+  {
+    "type": 0,
+    "value": 717
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 364
+  },
+  {
+    "type": 0,
+    "value": 733
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 377
+  },
+  {
+    "type": 0,
+    "value": 750
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 390
+  },
+  {
+    "type": 0,
+    "value": 767
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 403
+  },
+  {
+    "type": 0,
+    "value": 783
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 415
+  },
+  {
+    "type": 0,
+    "value": 800
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 429
+  },
+  {
+    "type": 0,
+    "value": 817
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 440
+  },
+  {
+    "type": 0,
+    "value": 833
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 454
+  },
+  {
+    "type": 0,
+    "value": 850
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 467
+  },
+  {
+    "type": 0,
+    "value": 867
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 479
+  },
+  {
+    "type": 0,
+    "value": 883
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 492
+  },
+  {
+    "type": 0,
+    "value": 900
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 505
+  },
+  {
+    "type": 0,
+    "value": 917
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 518
+  },
+  {
+    "type": 0,
+    "value": 933
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 530
+  },
+  {
+    "type": 0,
+    "value": 950
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 544
+  },
+  {
+    "type": 0,
+    "value": 967
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 557
+  },
+  {
+    "type": 0,
+    "value": 983
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 569
+  },
+  {
+    "type": 0,
+    "value": 1000
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 581
+  },
+  {
+    "type": 0,
+    "value": 1017
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 595
+  },
+  {
+    "type": 0,
+    "value": 1033
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 607
+  },
+  {
+    "type": 0,
+    "value": 1050
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 620
+  },
+  {
+    "type": 0,
+    "value": 1067
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 633
+  },
+  {
+    "type": 0,
+    "value": 1083
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 646
+  },
+  {
+    "type": 0,
+    "value": 1100
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 659
+  },
+  {
+    "type": 0,
+    "value": 1117
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 671
+  },
+  {
+    "type": 0,
+    "value": 1133
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 684
+  },
+  {
+    "type": 0,
+    "value": 1150
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 697
+  },
+  {
+    "type": 0,
+    "value": 1167
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 710
+  },
+  {
+    "type": 0,
+    "value": 1183
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 3,
+    "value": 210315123,
+    "text": "[/level info]"
+  },
+  {
+    "type": 3,
+    "value": 149533943,
+    "text": "[/pvp]"
+  },
+  {
+    "type": 3,
+    "value": 436828211,
+    "text": "[skill option tooltip]"
+  },
+  {
+    "type": 3,
+    "value": 261385657,
+    "text": "[option group]"
+  },
+  {
+    "type": 3,
+    "value": 147066155,
+    "text": "[type]"
+  },
+  {
+    "type": 6,
+    "value": 78602049,
+    "text": "default"
+  },
+  {
+    "type": 3,
+    "value": 436828257,
+    "text": "[tooltip data]"
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 99
+  },
+  {
+    "type": 8,
+    "value": 438796369,
+    "reference": "\u003c12::level_property_18115\u003e"
+  },
+  {
+    "type": 6,
+    "value": 9345853,
+    "text": "damage"
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 2,
+    "value": 1065353216,
+    "number": 1
+  },
+  {
+    "type": 6,
+    "value": 6382859,
+    "text": "level"
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 2,
+    "value": 1049774373,
+    "number": 0.2857143
+  },
+  {
+    "type": 3,
+    "value": 436828339,
+    "text": "[/tooltip data]"
+  },
+  {
+    "type": 3,
+    "value": 261385687,
+    "text": "[/option group]"
+  },
+  {
+    "type": 3,
+    "value": 436828371,
+    "text": "[/skill option tooltip]"
+  },
+  {
+    "type": 3,
+    "value": 297005199,
+    "text": "[preload]"
+  },
+  {
+    "type": 6,
+    "value": 436845517,
+    "text": "etc/preload/manual/PriortyAni.etc"
+  },
+  {
+    "type": 3,
+    "value": 297005219,
+    "text": "[/preload]"
+  },
+  {
+    "type": 3,
+    "value": 436828419,
+    "text": "[skill damage tool data]"
+  },
+  {
+    "type": 3,
+    "value": 436831865,
+    "text": "[tool Cool Time]"
+  },
+  {
+    "type": 0,
+    "value": 2000
+  },
+  {
+    "type": 3,
+    "value": 436831899,
+    "text": "[Tab]"
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 3,
+    "value": 436831911,
+    "text": "[tool PreDelay]"
+  },
+  {
+    "type": 0,
+    "value": 46
+  },
+  {
+    "type": 3,
+    "value": 436831943,
+    "text": "[tool AttackTime]"
+  },
+  {
+    "type": 0,
+    "value": 374
+  },
+  {
+    "type": 3,
+    "value": 436831979,
+    "text": "[tool SkillPlayTime]"
+  },
+  {
+    "type": 0,
+    "value": 464
+  },
+  {
+    "type": 3,
+    "value": 436832021,
+    "text": "[tool AttackRangeX]"
+  },
+  {
+    "type": 0,
+    "value": 179
+  },
+  {
+    "type": 3,
+    "value": 436832061,
+    "text": "[tool AttackRangeY]"
+  },
+  {
+    "type": 0,
+    "value": 20
+  },
+  {
+    "type": 3,
+    "value": 436832357,
+    "text": "[tool DummyVariable]"
+  },
+  {
+    "type": 2,
+    "value": -1031603561,
+    "number": -65.48943
+  },
+  {
+    "type": 3,
+    "value": 436832399,
+    "text": "[tool Final AttackRate]"
+  },
+  {
+    "type": 2,
+    "value": 1108975401,
+    "number": 38.40543
+  },
+  {
+    "type": 3,
+    "value": 436832447,
+    "text": "[/Tab]"
+  },
+  {
+    "type": 3,
+    "value": 436831899,
+    "text": "[Tab]"
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 436831911,
+    "text": "[tool PreDelay]"
+  },
+  {
+    "type": 0,
+    "value": 44
+  },
+  {
+    "type": 3,
+    "value": 436831943,
+    "text": "[tool AttackTime]"
+  },
+  {
+    "type": 0,
+    "value": 107
+  },
+  {
+    "type": 3,
+    "value": 436831979,
+    "text": "[tool SkillPlayTime]"
+  },
+  {
+    "type": 0,
+    "value": 301
+  },
+  {
+    "type": 3,
+    "value": 436832021,
+    "text": "[tool AttackRangeX]"
+  },
+  {
+    "type": 0,
+    "value": 179
+  },
+  {
+    "type": 3,
+    "value": 436832061,
+    "text": "[tool AttackRangeY]"
+  },
+  {
+    "type": 0,
+    "value": 20
+  },
+  {
+    "type": 3,
+    "value": 436832399,
+    "text": "[tool Final AttackRate]"
+  },
+  {
+    "type": 2,
+    "value": 1121726064,
+    "number": 110.0907
+  },
+  {
+    "type": 3,
+    "value": 436832447,
+    "text": "[/Tab]"
+  },
+  {
+    "type": 3,
+    "value": 436831899,
+    "text": "[Tab]"
+  },
+  {
+    "type": 0,
+    "value": 2
+  },
+  {
+    "type": 3,
+    "value": 436831911,
+    "text": "[tool PreDelay]"
+  },
+  {
+    "type": 0,
+    "value": 48
+  },
+  {
+    "type": 3,
+    "value": 436831943,
+    "text": "[tool AttackTime]"
+  },
+  {
+    "type": 0,
+    "value": 136
+  },
+  {
+    "type": 3,
+    "value": 436831979,
+    "text": "[tool SkillPlayTime]"
+  },
+  {
+    "type": 0,
+    "value": 340
+  },
+  {
+    "type": 3,
+    "value": 436832021,
+    "text": "[tool AttackRangeX]"
+  },
+  {
+    "type": 0,
+    "value": 179
+  },
+  {
+    "type": 3,
+    "value": 436832061,
+    "text": "[tool AttackRangeY]"
+  },
+  {
+    "type": 0,
+    "value": 20
+  },
+  {
+    "type": 3,
+    "value": 436832399,
+    "text": "[tool Final AttackRate]"
+  },
+  {
+    "type": 2,
+    "value": 1121763551,
+    "number": 110.3767
+  },
+  {
+    "type": 3,
+    "value": 436832447,
+    "text": "[/Tab]"
+  },
+  {
+    "type": 3,
+    "value": 436831899,
+    "text": "[Tab]"
+  },
+  {
+    "type": 0,
+    "value": 3
+  },
+  {
+    "type": 3,
+    "value": 436831911,
+    "text": "[tool PreDelay]"
+  },
+  {
+    "type": 0,
+    "value": 46
+  },
+  {
+    "type": 3,
+    "value": 436831943,
+    "text": "[tool AttackTime]"
+  },
+  {
+    "type": 0,
+    "value": 160
+  },
+  {
+    "type": 3,
+    "value": 436831979,
+    "text": "[tool SkillPlayTime]"
+  },
+  {
+    "type": 0,
+    "value": 369
+  },
+  {
+    "type": 3,
+    "value": 436832021,
+    "text": "[tool AttackRangeX]"
+  },
+  {
+    "type": 0,
+    "value": 179
+  },
+  {
+    "type": 3,
+    "value": 436832061,
+    "text": "[tool AttackRangeY]"
+  },
+  {
+    "type": 0,
+    "value": 20
+  },
+  {
+    "type": 3,
+    "value": 436832399,
+    "text": "[tool Final AttackRate]"
+  },
+  {
+    "type": 2,
+    "value": 1121791417,
+    "number": 110.5893
+  },
+  {
+    "type": 3,
+    "value": 436832447,
+    "text": "[/Tab]"
+  },
+  {
+    "type": 3,
+    "value": 436831899,
+    "text": "[Tab]"
+  },
+  {
+    "type": 0,
+    "value": 4
+  },
+  {
+    "type": 3,
+    "value": 436831911,
+    "text": "[tool PreDelay]"
+  },
+  {
+    "type": 0,
+    "value": 40
+  },
+  {
+    "type": 3,
+    "value": 436831943,
+    "text": "[tool AttackTime]"
+  },
+  {
+    "type": 0,
+    "value": 97
+  },
+  {
+    "type": 3,
+    "value": 436831979,
+    "text": "[tool SkillPlayTime]"
+  },
+  {
+    "type": 0,
+    "value": 280
+  },
+  {
+    "type": 3,
+    "value": 436832021,
+    "text": "[tool AttackRangeX]"
+  },
+  {
+    "type": 0,
+    "value": 179
+  },
+  {
+    "type": 3,
+    "value": 436832061,
+    "text": "[tool AttackRangeY]"
+  },
+  {
+    "type": 0,
+    "value": 20
+  },
+  {
+    "type": 3,
+    "value": 436832399,
+    "text": "[tool Final AttackRate]"
+  },
+  {
+    "type": 2,
+    "value": 1121705879,
+    "number": 109.9367
+  },
+  {
+    "type": 3,
+    "value": 436832447,
+    "text": "[/Tab]"
+  },
+  {
+    "type": 3,
+    "value": 436832461,
+    "text": "[tool AttackRate Level Data]"
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 3,
+    "value": 436832519,
+    "text": "[tool Skill AttackRate Mul Data]"
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 2,
+    "value": 0
+  },
+  {
+    "type": 3,
+    "value": 436832461,
+    "text": "[tool AttackRate Level Data]"
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 99
+  },
+  {
+    "type": 3,
+    "value": 436828569,
+    "text": "[current view tab]"
+  },
+  {
+    "type": 0,
+    "value": 99
+  },
+  {
+    "type": 3,
+    "value": 436832585,
+    "text": "[tool Etc Explain]"
+  },
+  {
+    "type": 3,
+    "value": 436832623,
+    "text": "[customize Explain]"
+  },
+  {
+    "type": 3,
+    "value": 436828607,
+    "text": "[is hide in tool]"
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 2
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 3
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 4
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 5
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 436828643,
+    "text": "[/is hide in tool]"
+  },
+  {
+    "type": 3,
+    "value": 436828681,
+    "text": "[/skill damage tool data]"
+  }
+]

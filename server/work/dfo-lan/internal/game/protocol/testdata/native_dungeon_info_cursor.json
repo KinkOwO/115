@@ -1,0 +1,213 @@
+{
+  "payload_hex": "03000000000000010300ffff00000000000000ffffffff000000000000000000000000000000000000",
+  "consumed": 41,
+  "reads": [
+    {
+      "site": "0x1452acbe8",
+      "offset": 0,
+      "size": 4,
+      "hex": "03000000"
+    },
+    {
+      "site": "0x1452acbf7",
+      "offset": 4,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452acc07",
+      "offset": 5,
+      "size": 2,
+      "hex": "0000"
+    },
+    {
+      "site": "0x1452acc16",
+      "offset": 7,
+      "size": 1,
+      "hex": "01"
+    },
+    {
+      "site": "0x1452acc25",
+      "offset": 8,
+      "size": 1,
+      "hex": "03"
+    },
+    {
+      "site": "0x1452acc34",
+      "offset": 9,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452acf01",
+      "offset": 10,
+      "size": 1,
+      "hex": "ff"
+    },
+    {
+      "site": "0x1452acf10",
+      "offset": 11,
+      "size": 1,
+      "hex": "ff"
+    },
+    {
+      "site": "0x1452acfc7",
+      "offset": 12,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452ad003",
+      "offset": 13,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452ad30d",
+      "offset": 14,
+      "size": 2,
+      "hex": "0000"
+    },
+    {
+      "site": "0x1452ad328",
+      "offset": 16,
+      "size": 2,
+      "hex": "0000"
+    },
+    {
+      "site": "0x1452ad34e",
+      "offset": 18,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452ad3ce",
+      "offset": 19,
+      "size": 4,
+      "hex": "ffffffff"
+    },
+    {
+      "site": "0x1452ad3dd",
+      "offset": 23,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452ad3ec",
+      "offset": 24,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452ad3fb",
+      "offset": 25,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452ad96d",
+      "offset": 26,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452ad998",
+      "offset": 27,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452ad9c3",
+      "offset": 28,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452ada0f",
+      "offset": 29,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452ada9e",
+      "offset": 30,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452adabe",
+      "offset": 31,
+      "size": 2,
+      "hex": "0000"
+    },
+    {
+      "site": "0x1452adae1",
+      "offset": 33,
+      "size": 2,
+      "hex": "0000"
+    },
+    {
+      "site": "0x1452adafb",
+      "offset": 35,
+      "size": 2,
+      "hex": "0000"
+    },
+    {
+      "site": "0x1452adb51",
+      "offset": 37,
+      "size": 4,
+      "hex": "00000000"
+    }
+  ],
+  "spawns": [],
+  "coordinates": {
+    "0x1934": 3,
+    "0x193c": 0,
+    "0x1944": 255,
+    "0x194c": 255
+  },
+  "scope": "original native packet reader, coordinate setter and spawn arguments; game, map and UI calls stubbed",
+  "native_room_predicates": [
+    {
+      "xy": [
+        0,
+        1
+      ],
+      "boss": false,
+      "random_hell": false
+    },
+    {
+      "xy": [
+        1,
+        1
+      ],
+      "boss": false,
+      "random_hell": false
+    },
+    {
+      "xy": [
+        1,
+        0
+      ],
+      "boss": false,
+      "random_hell": false
+    },
+    {
+      "xy": [
+        2,
+        0
+      ],
+      "boss": false,
+      "random_hell": false
+    },
+    {
+      "xy": [
+        3,
+        0
+      ],
+      "boss": true,
+      "random_hell": false
+    }
+  ],
+  "truncation_failure": "overrun 1452adb51: 37+4>40"
+}

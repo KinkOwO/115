@@ -1,0 +1,146 @@
+[
+  {
+    "algorithm": "dfo_xor32",
+    "key": "0001020304050607",
+    "plain": "00070e15",
+    "cipher": "04020812",
+    "setup": "0x146d8dd00",
+    "transform": "0x146d8dbb0",
+    "inverse": "0x146d8da70"
+  },
+  {
+    "algorithm": "dfo_xor32",
+    "key": "0001020304050607",
+    "plain": "00070e151c232a31383f464d545b626970777e85",
+    "cipher": "0402081218262c363c3a404a505e646e74727882",
+    "setup": "0x146d8dd00",
+    "transform": "0x146d8dbb0",
+    "inverse": "0x146d8da70"
+  },
+  {
+    "algorithm": "dfo_xor32",
+    "key": "0001020304050607",
+    "plain": "00070e151c232a31383f464d545b626970777e858c939aa1a8afb6bdc4cbd2d9e0e7eef5fc030a11181f262d343b424950575e656c737a81888f969da4abb2b9",
+    "cipher": "0402081218262c363c3a404a505e646e7472788288969ca6acaab0bac0ced4dee4e2e8f2f8060c161c1a202a303e444e5452586268767c868c8a909aa0aeb4be",
+    "setup": "0x146d8dd00",
+    "transform": "0x146d8dbb0",
+    "inverse": "0x146d8da70"
+  },
+  {
+    "algorithm": "dfo_xor32",
+    "key": "0001020304050607",
+    "plain": "00070e151c232a31383f464d545b626970777e858c939aa1a8afb6bdc4cbd2d9e0e7eef5fc030a11181f262d343b424950575e656c737a81888f969da4abb2b9c0c7ced5",
+    "cipher": "0402081218262c363c3a404a505e646e7472788288969ca6acaab0bac0ced4dee4e2e8f2f8060c161c1a202a303e444e5452586268767c868c8a909aa0aeb4bec4c2c8d2",
+    "setup": "0x146d8dd00",
+    "transform": "0x146d8dbb0",
+    "inverse": "0x146d8da70"
+  },
+  {
+    "algorithm": "dfo_xor32",
+    "key": "0102030405060708",
+    "plain": "01080f16",
+    "cipher": "040e081e",
+    "setup": "0x146d8dd00",
+    "transform": "0x146d8dbb0",
+    "inverse": "0x146d8da70"
+  },
+  {
+    "algorithm": "dfo_xor32",
+    "key": "0102030405060708",
+    "plain": "01080f161d242b323940474e555c636a71787f86",
+    "cipher": "040e081e18222c3a3c464046505a6462747e788e",
+    "setup": "0x146d8dd00",
+    "transform": "0x146d8dbb0",
+    "inverse": "0x146d8da70"
+  },
+  {
+    "algorithm": "dfo_xor32",
+    "key": "0102030405060708",
+    "plain": "01080f161d242b323940474e555c636a71787f868d949ba2a9b0b7bec5ccd3dae1e8eff6fd040b121920272e353c434a51585f666d747b828990979ea5acb3ba",
+    "cipher": "040e081e18222c3a3c464046505a6462747e788e88929caaacb6b0b6c0cad4d2e4eee8fef8020c1a1c262026303a4442545e586e68727c8a8c969096a0aab4b2",
+    "setup": "0x146d8dd00",
+    "transform": "0x146d8dbb0",
+    "inverse": "0x146d8da70"
+  },
+  {
+    "algorithm": "dfo_xor32",
+    "key": "0102030405060708",
+    "plain": "01080f161d242b323940474e555c636a71787f868d949ba2a9b0b7bec5ccd3dae1e8eff6fd040b121920272e353c434a51585f666d747b828990979ea5acb3bac1c8cfd6",
+    "cipher": "040e081e18222c3a3c464046505a6462747e788e88929caaacb6b0b6c0cad4d2e4eee8fef8020c1a1c262026303a4442545e586e68727c8a8c969096a0aab4b2c4cec8de",
+    "setup": "0x146d8dd00",
+    "transform": "0x146d8dbb0",
+    "inverse": "0x146d8da70"
+  },
+  {
+    "algorithm": "dfo_xor32",
+    "key": "4748494a4b4c4d4e",
+    "plain": "474e555c",
+    "cipher": "0c021812",
+    "setup": "0x146d8dd00",
+    "transform": "0x146d8dbb0",
+    "inverse": "0x146d8da70"
+  },
+  {
+    "algorithm": "dfo_xor32",
+    "key": "4748494a4b4c4d4e",
+    "plain": "474e555c636a71787f868d949ba2a9b0b7bec5cc",
+    "cipher": "0c02181228263c3634cac0dad0eee4fefcf28882",
+    "setup": "0x146d8dd00",
+    "transform": "0x146d8dbb0",
+    "inverse": "0x146d8da70"
+  },
+  {
+    "algorithm": "dfo_xor32",
+    "key": "4748494a4b4c4d4e",
+    "plain": "474e555c636a71787f868d949ba2a9b0b7bec5ccd3dae1e8eff6fd040b121920272e353c434a51585f666d747b828990979ea5acb3bac1c8cfd6dde4ebf2f900",
+    "cipher": "0c02181228263c3634cac0dad0eee4fefcf288829896aca6a4bab04a405e546e6c62787208061c16142a203a30cec4dedcd2e8e2f8f68c86849a90aaa0beb44e",
+    "setup": "0x146d8dd00",
+    "transform": "0x146d8dbb0",
+    "inverse": "0x146d8da70"
+  },
+  {
+    "algorithm": "dfo_xor32",
+    "key": "4748494a4b4c4d4e",
+    "plain": "474e555c636a71787f868d949ba2a9b0b7bec5ccd3dae1e8eff6fd040b121920272e353c434a51585f666d747b828990979ea5acb3bac1c8cfd6dde4ebf2f900070e151c",
+    "cipher": "0c02181228263c3634cac0dad0eee4fefcf288829896aca6a4bab04a405e546e6c62787208061c16142a203a30cec4dedcd2e8e2f8f68c86849a90aaa0beb44e4c425852",
+    "setup": "0x146d8dd00",
+    "transform": "0x146d8dbb0",
+    "inverse": "0x146d8da70"
+  },
+  {
+    "algorithm": "dfo_xor32",
+    "key": "ff00010203040506",
+    "plain": "ff060d14",
+    "cipher": "fc020812",
+    "setup": "0x146d8dd00",
+    "transform": "0x146d8dbb0",
+    "inverse": "0x146d8da70"
+  },
+  {
+    "algorithm": "dfo_xor32",
+    "key": "ff00010203040506",
+    "plain": "ff060d141b222930373e454c535a61686f767d84",
+    "cipher": "fc02081218262c36343a404a505e646e6c727882",
+    "setup": "0x146d8dd00",
+    "transform": "0x146d8dbb0",
+    "inverse": "0x146d8da70"
+  },
+  {
+    "algorithm": "dfo_xor32",
+    "key": "ff00010203040506",
+    "plain": "ff060d141b222930373e454c535a61686f767d848b9299a0a7aeb5bcc3cad1d8dfe6edf4fb020910171e252c333a41484f565d646b727980878e959ca3aab1b8",
+    "cipher": "fc02081218262c36343a404a505e646e6c72788288969ca6a4aab0bac0ced4dedce2e8f2f8060c16141a202a303e444e4c52586268767c86848a909aa0aeb4be",
+    "setup": "0x146d8dd00",
+    "transform": "0x146d8dbb0",
+    "inverse": "0x146d8da70"
+  },
+  {
+    "algorithm": "dfo_xor32",
+    "key": "ff00010203040506",
+    "plain": "ff060d141b222930373e454c535a61686f767d848b9299a0a7aeb5bcc3cad1d8dfe6edf4fb020910171e252c333a41484f565d646b727980878e959ca3aab1b8bfc6cdd4",
+    "cipher": "fc02081218262c36343a404a505e646e6c72788288969ca6a4aab0bac0ced4dedce2e8f2f8060c16141a202a303e444e4c52586268767c86848a909aa0aeb4bebcc2c8d2",
+    "setup": "0x146d8dd00",
+    "transform": "0x146d8dbb0",
+    "inverse": "0x146d8da70"
+  }
+]

@@ -1,0 +1,5 @@
+{
+  "max_characters": 8,
+  "initial_level": 1,
+  "note": "Local bootstrap settings. These two values are server policy, not values claimed to be recovered from the PVF. Character attributes and initial skills are imported from the supplied PVF."
+}

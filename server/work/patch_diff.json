@@ -1,0 +1,32 @@
+{
+ "changed": [
+  {
+   "path": "DFO.exe",
+   "zip_crc": "fddbc3bf",
+   "zip_size": 258972712,
+   "new_crc": "587e2ea3",
+   "new_size": 246480896
+  },
+  {
+   "path": "Script.pvf",
+   "zip_crc": "29e741dc",
+   "zip_size": 760530763,
+   "new_crc": "5fe40637",
+   "new_size": 760531281
+  }
+ ],
+ "added": [],
+ "missing_in_client": [
+  "ImagePacks2/NpkIndex.etc"
+ ],
+ "skipped": [
+  "BlackCipher/BlackCall64.log",
+  "BlackCipher/BlackCipher64.log",
+  "BlackCipher/NGClient64.log",
+  "DFO_original.exe",
+  "Patch.trc",
+  "Script.2429-backup.pvf",
+  "cef.log",
+  "debug.log"
+ ]
+}

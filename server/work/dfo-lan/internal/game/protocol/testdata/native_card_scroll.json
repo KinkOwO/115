@@ -1,0 +1,16 @@
+{
+  "payload_hex": "",
+  "consumed": 0,
+  "reads": [],
+  "spawns": [],
+  "coordinates": {},
+  "scope": "current native packet cursor and UI setter arguments; game/UI bodies stubbed, not live acceptance",
+  "effects": [
+    {
+      "setter": "0x146abbc90",
+      "d": 2,
+      "r8": 0,
+      "r9": 0
+    }
+  ]
+}

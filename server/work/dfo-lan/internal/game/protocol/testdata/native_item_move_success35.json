@@ -1,0 +1,45 @@
+{
+  "payload_hex": "0009000100000003130000",
+  "consumed": 11,
+  "reads": [
+    {
+      "site": "0x14528380d",
+      "offset": 0,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x145283817",
+      "offset": 1,
+      "size": 2,
+      "hex": "0900"
+    },
+    {
+      "site": "0x145283820",
+      "offset": 3,
+      "size": 4,
+      "hex": "01000000"
+    },
+    {
+      "site": "0x14528382d",
+      "offset": 7,
+      "size": 1,
+      "hex": "03"
+    },
+    {
+      "site": "0x145283837",
+      "offset": 8,
+      "size": 2,
+      "hex": "1300"
+    },
+    {
+      "site": "0x145283849",
+      "offset": 10,
+      "size": 1,
+      "hex": "00"
+    }
+  ],
+  "spawns": [],
+  "coordinates": {},
+  "scope": "current success/refusal packet cursor; stops before inventory mutation/UI methods"
+}

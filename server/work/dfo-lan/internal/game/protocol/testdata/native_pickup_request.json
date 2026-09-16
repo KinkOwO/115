@@ -1,0 +1,73 @@
+{
+  "payload_hex": "443322110000f401fa00d200f401fa00d200d20000",
+  "length": 21,
+  "writes": [
+    {
+      "site": "0x145af4b03",
+      "offset": 0,
+      "size": 4,
+      "value": 287454020
+    },
+    {
+      "site": "0x145af4b12",
+      "offset": 4,
+      "size": 1,
+      "value": 0
+    },
+    {
+      "site": "0x145af4b23",
+      "offset": 5,
+      "size": 1,
+      "value": 0
+    },
+    {
+      "site": "0x145af4d76",
+      "offset": 6,
+      "size": 2,
+      "value": 500
+    },
+    {
+      "site": "0x145af4dd5",
+      "offset": 8,
+      "size": 2,
+      "value": 250
+    },
+    {
+      "site": "0x145af4f29",
+      "offset": 10,
+      "size": 2,
+      "value": 210
+    },
+    {
+      "site": "0x145af4f44",
+      "offset": 12,
+      "size": 2,
+      "value": 500
+    },
+    {
+      "site": "0x145af4f5f",
+      "offset": 14,
+      "size": 2,
+      "value": 250
+    },
+    {
+      "site": "0x145af5012",
+      "offset": 16,
+      "size": 2,
+      "value": 210
+    },
+    {
+      "site": "0x145af5057",
+      "offset": 18,
+      "size": 2,
+      "value": 210
+    },
+    {
+      "site": "0x145af50e0",
+      "offset": 20,
+      "size": 1,
+      "value": 0
+    }
+  ],
+  "scope": "current CMD43 ordinary native writer, scene/getters mocked, no network send"
+}

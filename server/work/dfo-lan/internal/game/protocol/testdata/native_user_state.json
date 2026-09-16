@@ -1,0 +1,62 @@
+[
+  {
+    "payload_hex": "01f70100",
+    "consumed": 4,
+    "reads": [
+      {
+        "site": "0x1453129fb",
+        "offset": 0,
+        "size": 1,
+        "hex": "01"
+      },
+      {
+        "site": "0x145312a15",
+        "offset": 1,
+        "size": 2,
+        "hex": "f701"
+      },
+      {
+        "site": "0x145312a27",
+        "offset": 3,
+        "size": 1,
+        "hex": "00"
+      }
+    ],
+    "spawns": [],
+    "coordinates": {},
+    "scope": "original native packet reader, coordinate setter and spawn arguments; game, map and UI calls stubbed",
+    "state": 0,
+    "stored_state": 0,
+    "room_guard_next": "0x144d35912"
+  },
+  {
+    "payload_hex": "01f70101",
+    "consumed": 4,
+    "reads": [
+      {
+        "site": "0x1453129fb",
+        "offset": 0,
+        "size": 1,
+        "hex": "01"
+      },
+      {
+        "site": "0x145312a15",
+        "offset": 1,
+        "size": 2,
+        "hex": "f701"
+      },
+      {
+        "site": "0x145312a27",
+        "offset": 3,
+        "size": 1,
+        "hex": "01"
+      }
+    ],
+    "spawns": [],
+    "coordinates": {},
+    "scope": "original native packet reader, coordinate setter and spawn arguments; game, map and UI calls stubbed",
+    "state": 1,
+    "stored_state": 1,
+    "room_guard_next": "0x144d34bf3"
+  }
+]

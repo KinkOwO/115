@@ -1,0 +1,124 @@
+{
+  "Listen": "127.0.0.1:7001",
+  "ServerKey": "first",
+  "ServerID": 1,
+  "SourceSHA256": "aecc92480ccd469fa2b33bf9c189496a0c4e31c20eb2fef7e1623642c23a687f",
+  "MaxUsers": 30,
+  "Dungeons": {
+    "[elven_guard]": [
+      1,
+      2
+    ],
+    "[granfloris]": [
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      1000
+    ],
+    "[sky_catle]": [
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17
+    ],
+    "[behemoth]": [
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27
+    ],
+    "[stormpass]": [
+      40,
+      41
+    ],
+    "[Alfhlyra]": [
+      31,
+      32,
+      33,
+      34,
+      35,
+      1500,
+      50
+    ],
+    "[north_myre]": [
+      31,
+      32,
+      33,
+      34,
+      35,
+      1500,
+      50
+    ]
+  },
+  "Channels": [
+    {
+      "ID": 1,
+      "Name": "LAN 1",
+      "Type": 2,
+      "Area": "[elven_guard]",
+      "SourceValues": [
+        10,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "ID": 6,
+      "Name": "LAN 6",
+      "Type": 3,
+      "Area": "[none]",
+      "SourceValues": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "ID": 10,
+      "Name": "LAN Normal",
+      "Type": 22,
+      "Area": "[granfloris]",
+      "SourceValues": [
+        5,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "SourceType": 0
+    }
+  ],
+  "CompatibilityNote": "Current native144d998b0 type eligibility: legacy0/2/3 rejected; ordinary auto-entry22 accepted. Original source IDs/area/rule scalars retained."
+}

@@ -1,0 +1,115 @@
+package protocol
+
+import (
+	"fmt"
+	"math"
+)
+
+// PackedEntryStats stores the native wire units, not display units. Mapping
+// source attributes into these units is a separate character/rules concern.
+// Current native conversion: 147555f80, exactly 91 bytes -> 40 protected words.
+type PackedEntryStats struct {
+	HP, MP        uint32
+	Core          [4]uint16
+	Element       [4]int16
+	Status        [19]int16
+	Inventory     int32
+	Regeneration  [2]int16
+	Movement      uint32
+	AttackCasting [2]uint16
+	RecoveryJump  [2]int16
+	Weight        int32
+	BasePercent   byte
+	Extra         float32
+}
+
+func (s PackedEntryStats) Bytes() ([]byte, error) {
+	if s.HP == 0 || s.MP == 0 || s.BasePercent == 0 || math.IsNaN(float64(s.Extra)) || math.IsInf(float64(s.Extra), 0) {
+		return nil, fmt.Errorf("incomplete or non-finite entry stats")
+	}
+	p := add32(add32(nil, s.HP), s.MP)
+	for _, v := range s.Core {
+		p = add16(p, v)
+	}
+	for _, v := range s.Element {
+		p = add16(p, uint16(v))
+	}
+	for _, v := range s.Status {
+		p = add16(p, uint16(v))
+	}
+	p = add32(p, uint32(s.Inventory))
+	for _, v := range s.Regeneration {
+		p = add16(p, uint16(v))
+	}
+	p = add32(p, s.Movement)
+	for _, v := range s.AttackCasting {
+		p = add16(p, v)
+	}
+	for _, v := range s.RecoveryJump {
+		p = add16(p, uint16(v))
+	}
+	p = add32(p, uint32(s.Weight))
+	p = add32(append(p, s.BasePercent), math.Float32bits(s.Extra))
+	return p, nil
+}
+
+type EntrySkill struct {
+	ID    uint16
+	Level byte
+}
+
+// EntryAdditionProbe is the minimum current mode 1 layout with explicitly
+// absent optional equipment/collections. It must follow a matching mode 0.
+// Source base stats are connected to the detailed probe. Unknown fixed-prefix
+// fields are experimental zeros; optional skill/equipment data remains pending.
+type EntryAdditionProbe struct {
+	ActorServerID uint16
+	Context       [2]byte
+	Experience    uint64
+	Stats         PackedEntryStats
+	SkillTrees    [2][]EntrySkill
+}
+
+func UserInfoAdditionProbe(s EntryAdditionProbe) ([]byte, error) {
+	if s.ActorServerID == 0 || s.ActorServerID == 65535 {
+		return nil, fmt.Errorf("invalid addition actor identity")
+	}
+	stats, e := s.Stats.Bytes()
+	if e != nil {
+		return nil, e
+	}
+	p := append(add16([]byte{1}, 1), s.Context[:]...)
+	p = append(p, make([]byte, 250)...)
+	p = add16(p, s.ActorServerID)
+	p = add32(add32(p, uint32(s.Experience)), uint32(s.Experience>>32))
+	p = append(add32(p, uint32(len(stats))), stats...)
+	p = append(p, 0) // 14563d692
+	// 14563d6cb -> 1452c1540 always consumes an equipment block, even
+	// when empty: u8 rows, u32 scalar, u8 collection count, u64 flags.
+	// Omitting these 14 bytes shifts switching inventory and skill trees.
+	p = append(p, make([]byte, 14)...)
+	p = append(add16(p, 0), 0) // 14563c1f0: switching-inventory ID + count
+	p = add32(add32(p, 0), 0)  // 14563d6dd / 14563d717
+	p = append(p, 0xff)        // native unset selected skill-tree byte
+	// 14563d9aa increments the outer tree index; both self and other branches
+	// consume TWO sets of count + skills + three pairs + five triples.
+	for _, tree := range s.SkillTrees {
+		if len(tree) > 255 {
+			return nil, fmt.Errorf("skill tree exceeds native count")
+		}
+		p = append(p, byte(len(tree)))
+		seen := map[uint16]bool{}
+		for _, skill := range tree {
+			if skill.ID == 0 || skill.Level == 0 || seen[skill.ID] {
+				return nil, fmt.Errorf("invalid or duplicate skill")
+			}
+			seen[skill.ID] = true
+			p = append(add16(p, skill.ID), skill.Level)
+		}
+		p = append(p, make([]byte, 3*6+5*7)...)
+	}
+	p = append(p, 0, 0, 0, 0) // creature byte, extended skills count, two skill flags
+	p = add32(add32(p, 0), 0) // 14563dba0 count, 14563dbf8 scalar
+	p = append(p, 0, 0)       // 1456395a0 count, 14563dd04 byte
+	return p, nil
+}

@@ -1,0 +1,29 @@
+{
+  "payload_hex": "0200",
+  "consumed": 2,
+  "reads": [
+    {
+      "site": "0x1452445ad",
+      "offset": 0,
+      "size": 1,
+      "hex": "02"
+    },
+    {
+      "site": "0x1452445b9",
+      "offset": 1,
+      "size": 1,
+      "hex": "00"
+    }
+  ],
+  "spawns": [],
+  "coordinates": {},
+  "scope": "current native packet cursor and UI setter arguments; game/UI bodies stubbed, not live acceptance",
+  "effects": [
+    {
+      "setter": "0x146abaf50",
+      "d": 0,
+      "r8": 2,
+      "r9": 0
+    }
+  ]
+}

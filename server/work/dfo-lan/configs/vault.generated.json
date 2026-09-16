@@ -1,0 +1,10 @@
+{
+  "source_sha256": "fda6c33f2a155124a4262f3e7cd6f7a18d4e2191e5f147aec5754716afe5aa7c",
+  "source": "DFO.exe",
+  "native": "14008e7c0 -> 14ef57670 tier0 capacity; NOTI13 kind2",
+  "initial_slots": 8,
+  "verified_slots": [
+    8
+  ],
+  "policy": "Only the lowest native tier is imported. Upgrade and item transfer handlers are not enabled."
+}

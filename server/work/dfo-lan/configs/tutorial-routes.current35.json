@@ -1,0 +1,1658 @@
+{
+  "source": {
+    "format": "dfo_20260901_inner",
+    "path": "runtime/pvf_source/Script.inner.pvf",
+    "size": 760530763,
+    "checksum": "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80",
+    "loaded_at": "2026-09-11T14:04:14.3348894Z",
+    "file_count": 5650173,
+    "group_count": 82571,
+    "cached_chunks": 0,
+    "cached_texts": 0
+  },
+  "script": {
+    "path": "etc/tutorial/tutorialflow.etc",
+    "sha256": "3f84b1b3e91d04634070ef617e1533edec4f5bd61c43c53dca3b3b2cd94ce29c",
+    "cells": [
+      {
+        "type": 3,
+        "value": 278025155,
+        "text": "[tutorial flow]"
+      },
+      {
+        "type": 6,
+        "value": 87897983,
+        "text": "[swordman]"
+      },
+      {
+        "type": 3,
+        "value": 172243209,
+        "text": "[dungeon index]"
+      },
+      {
+        "type": 0,
+        "value": 7115
+      },
+      {
+        "type": 3,
+        "value": 278025255,
+        "text": "[intro]"
+      },
+      {
+        "type": 3,
+        "value": 278025271,
+        "text": "[after tutorial]"
+      },
+      {
+        "type": 0,
+        "value": 0
+      },
+      {
+        "type": 3,
+        "value": 278025305,
+        "text": "[intro path]"
+      },
+      {
+        "type": 6,
+        "value": 278025331,
+        "text": "Video/Movie/s_tutorial_intro_new.avi"
+      },
+      {
+        "type": 3,
+        "value": 278025405,
+        "text": "[/intro]"
+      },
+      {
+        "type": 3,
+        "value": 278025423,
+        "text": "[go town]"
+      },
+      {
+        "type": 3,
+        "value": 213317355,
+        "text": "[town]"
+      },
+      {
+        "type": 0,
+        "value": 38
+      },
+      {
+        "type": 0,
+        "value": 0
+      },
+      {
+        "type": 3,
+        "value": 278025443,
+        "text": "[startPos]"
+      },
+      {
+        "type": 0,
+        "value": 1677
+      },
+      {
+        "type": 0,
+        "value": 222
+      },
+      {
+        "type": 3,
+        "value": 278025465,
+        "text": "[/go town]"
+      },
+      {
+        "type": 3,
+        "value": 278025487,
+        "text": "[/tutorial flow]"
+      },
+      {
+        "type": 3,
+        "value": 278025155,
+        "text": "[tutorial flow]"
+      },
+      {
+        "type": 6,
+        "value": 147071217,
+        "text": "[fighter]"
+      },
+      {
+        "type": 3,
+        "value": 172243209,
+        "text": "[dungeon index]"
+      },
+      {
+        "type": 0,
+        "value": 7114
+      },
+      {
+        "type": 3,
+        "value": 278025255,
+        "text": "[intro]"
+      },
+      {
+        "type": 3,
+        "value": 278025271,
+        "text": "[after tutorial]"
+      },
+      {
+        "type": 0,
+        "value": 1
+      },
+      {
+        "type": 3,
+        "value": 278025305,
+        "text": "[intro path]"
+      },
+      {
+        "type": 6,
+        "value": 278025521,
+        "text": "Video/Movie/f_tutorial_intro.avi"
+      },
+      {
+        "type": 3,
+        "value": 278025405,
+        "text": "[/intro]"
+      },
+      {
+        "type": 3,
+        "value": 278025423,
+        "text": "[go town]"
+      },
+      {
+        "type": 3,
+        "value": 213317355,
+        "text": "[town]"
+      },
+      {
+        "type": 0,
+        "value": 38
+      },
+      {
+        "type": 0,
+        "value": 0
+      },
+      {
+        "type": 3,
+        "value": 278025443,
+        "text": "[startPos]"
+      },
+      {
+        "type": 0,
+        "value": 1677
+      },
+      {
+        "type": 0,
+        "value": 222
+      },
+      {
+        "type": 3,
+        "value": 278025465,
+        "text": "[/go town]"
+      },
+      {
+        "type": 3,
+        "value": 278025487,
+        "text": "[/tutorial flow]"
+      },
+      {
+        "type": 3,
+        "value": 278025155,
+        "text": "[tutorial flow]"
+      },
+      {
+        "type": 6,
+        "value": 149098309,
+        "text": "[gunner]"
+      },
+      {
+        "type": 3,
+        "value": 172243209,
+        "text": "[dungeon index]"
+      },
+      {
+        "type": 0,
+        "value": 7110
+      },
+      {
+        "type": 3,
+        "value": 278025255,
+        "text": "[intro]"
+      },
+      {
+        "type": 3,
+        "value": 278025271,
+        "text": "[after tutorial]"
+      },
+      {
+        "type": 0,
+        "value": 1
+      },
+      {
+        "type": 3,
+        "value": 278025305,
+        "text": "[intro path]"
+      },
+      {
+        "type": 6,
+        "value": 278025587,
+        "text": "Video/Movie/g_tutorial_intro.avi"
+      },
+      {
+        "type": 3,
+        "value": 278025405,
+        "text": "[/intro]"
+      },
+      {
+        "type": 3,
+        "value": 278025423,
+        "text": "[go town]"
+      },
+      {
+        "type": 3,
+        "value": 213317355,
+        "text": "[town]"
+      },
+      {
+        "type": 0,
+        "value": 38
+      },
+      {
+        "type": 0,
+        "value": 0
+      },
+      {
+        "type": 3,
+        "value": 278025443,
+        "text": "[startPos]"
+      },
+      {
+        "type": 0,
+        "value": 1677
+      },
+      {
+        "type": 0,
+        "value": 222
+      },
+      {
+        "type": 3,
+        "value": 278025465,
+        "text": "[/go town]"
+      },
+      {
+        "type": 3,
+        "value": 278025487,
+        "text": "[/tutorial flow]"
+      },
+      {
+        "type": 3,
+        "value": 278025155,
+        "text": "[tutorial flow]"
+      },
+      {
+        "type": 6,
+        "value": 147088817,
+        "text": "[mage]"
+      },
+      {
+        "type": 3,
+        "value": 172243209,
+        "text": "[dungeon index]"
+      },
+      {
+        "type": 0,
+        "value": 7111
+      },
+      {
+        "type": 3,
+        "value": 278025255,
+        "text": "[intro]"
+      },
+      {
+        "type": 3,
+        "value": 278025271,
+        "text": "[after tutorial]"
+      },
+      {
+        "type": 0,
+        "value": 1
+      },
+      {
+        "type": 3,
+        "value": 278025305,
+        "text": "[intro path]"
+      },
+      {
+        "type": 6,
+        "value": 278025653,
+        "text": "Video/Movie/m_tutorial_intro.avi"
+      },
+      {
+        "type": 3,
+        "value": 278025405,
+        "text": "[/intro]"
+      },
+      {
+        "type": 3,
+        "value": 278025423,
+        "text": "[go town]"
+      },
+      {
+        "type": 3,
+        "value": 213317355,
+        "text": "[town]"
+      },
+      {
+        "type": 0,
+        "value": 38
+      },
+      {
+        "type": 0,
+        "value": 0
+      },
+      {
+        "type": 3,
+        "value": 278025443,
+        "text": "[startPos]"
+      },
+      {
+        "type": 0,
+        "value": 1677
+      },
+      {
+        "type": 0,
+        "value": 222
+      },
+      {
+        "type": 3,
+        "value": 278025465,
+        "text": "[/go town]"
+      },
+      {
+        "type": 3,
+        "value": 278025487,
+        "text": "[/tutorial flow]"
+      },
+      {
+        "type": 3,
+        "value": 278025155,
+        "text": "[tutorial flow]"
+      },
+      {
+        "type": 6,
+        "value": 147071263,
+        "text": "[priest]"
+      },
+      {
+        "type": 3,
+        "value": 172243209,
+        "text": "[dungeon index]"
+      },
+      {
+        "type": 0,
+        "value": 7113
+      },
+      {
+        "type": 3,
+        "value": 278025255,
+        "text": "[intro]"
+      },
+      {
+        "type": 3,
+        "value": 278025271,
+        "text": "[after tutorial]"
+      },
+      {
+        "type": 0,
+        "value": 0
+      },
+      {
+        "type": 3,
+        "value": 278025305,
+        "text": "[intro path]"
+      },
+      {
+        "type": 6,
+        "value": 278025719,
+        "text": "Video/Movie/p_tutorial_intro.avi"
+      },
+      {
+        "type": 3,
+        "value": 278025405,
+        "text": "[/intro]"
+      },
+      {
+        "type": 3,
+        "value": 278025423,
+        "text": "[go town]"
+      },
+      {
+        "type": 3,
+        "value": 213317355,
+        "text": "[town]"
+      },
+      {
+        "type": 0,
+        "value": 38
+      },
+      {
+        "type": 0,
+        "value": 0
+      },
+      {
+        "type": 3,
+        "value": 278025443,
+        "text": "[startPos]"
+      },
+      {
+        "type": 0,
+        "value": 1677
+      },
+      {
+        "type": 0,
+        "value": 222
+      },
+      {
+        "type": 3,
+        "value": 278025465,
+        "text": "[/go town]"
+      },
+      {
+        "type": 3,
+        "value": 278025487,
+        "text": "[/tutorial flow]"
+      },
+      {
+        "type": 3,
+        "value": 278025155,
+        "text": "[tutorial flow]"
+      },
+      {
+        "type": 6,
+        "value": 147163885,
+        "text": "[at gunner]"
+      },
+      {
+        "type": 3,
+        "value": 172243209,
+        "text": "[dungeon index]"
+      },
+      {
+        "type": 0,
+        "value": 7116
+      },
+      {
+        "type": 3,
+        "value": 278025255,
+        "text": "[intro]"
+      },
+      {
+        "type": 3,
+        "value": 278025271,
+        "text": "[after tutorial]"
+      },
+      {
+        "type": 0,
+        "value": 1
+      },
+      {
+        "type": 3,
+        "value": 278025305,
+        "text": "[intro path]"
+      },
+      {
+        "type": 6,
+        "value": 278025785,
+        "text": "Video/Movie/atg_tutorial_intro.avi"
+      },
+      {
+        "type": 3,
+        "value": 278025405,
+        "text": "[/intro]"
+      },
+      {
+        "type": 3,
+        "value": 278025423,
+        "text": "[go town]"
+      },
+      {
+        "type": 3,
+        "value": 213317355,
+        "text": "[town]"
+      },
+      {
+        "type": 0,
+        "value": 38
+      },
+      {
+        "type": 0,
+        "value": 0
+      },
+      {
+        "type": 3,
+        "value": 278025443,
+        "text": "[startPos]"
+      },
+      {
+        "type": 0,
+        "value": 1677
+      },
+      {
+        "type": 0,
+        "value": 222
+      },
+      {
+        "type": 3,
+        "value": 278025465,
+        "text": "[/go town]"
+      },
+      {
+        "type": 3,
+        "value": 278025487,
+        "text": "[/tutorial flow]"
+      },
+      {
+        "type": 3,
+        "value": 278025155,
+        "text": "[tutorial flow]"
+      },
+      {
+        "type": 6,
+        "value": 147071237,
+        "text": "[at fighter]"
+      },
+      {
+        "type": 3,
+        "value": 172243209,
+        "text": "[dungeon index]"
+      },
+      {
+        "type": 0,
+        "value": 7112
+      },
+      {
+        "type": 3,
+        "value": 278025255,
+        "text": "[intro]"
+      },
+      {
+        "type": 3,
+        "value": 278025271,
+        "text": "[after tutorial]"
+      },
+      {
+        "type": 0,
+        "value": 0
+      },
+      {
+        "type": 3,
+        "value": 278025305,
+        "text": "[intro path]"
+      },
+      {
+        "type": 6,
+        "value": 278025855,
+        "text": "Video/Movie/atf_tutorial_intro.avi"
+      },
+      {
+        "type": 3,
+        "value": 278025405,
+        "text": "[/intro]"
+      },
+      {
+        "type": 3,
+        "value": 278025423,
+        "text": "[go town]"
+      },
+      {
+        "type": 3,
+        "value": 213317355,
+        "text": "[town]"
+      },
+      {
+        "type": 0,
+        "value": 38
+      },
+      {
+        "type": 0,
+        "value": 0
+      },
+      {
+        "type": 3,
+        "value": 278025443,
+        "text": "[startPos]"
+      },
+      {
+        "type": 0,
+        "value": 1677
+      },
+      {
+        "type": 0,
+        "value": 222
+      },
+      {
+        "type": 3,
+        "value": 278025465,
+        "text": "[/go town]"
+      },
+      {
+        "type": 3,
+        "value": 278025487,
+        "text": "[/tutorial flow]"
+      },
+      {
+        "type": 3,
+        "value": 278025155,
+        "text": "[tutorial flow]"
+      },
+      {
+        "type": 6,
+        "value": 149095457,
+        "text": "[at mage]"
+      },
+      {
+        "type": 3,
+        "value": 172243209,
+        "text": "[dungeon index]"
+      },
+      {
+        "type": 0,
+        "value": 7117
+      },
+      {
+        "type": 3,
+        "value": 278025255,
+        "text": "[intro]"
+      },
+      {
+        "type": 3,
+        "value": 278025271,
+        "text": "[after tutorial]"
+      },
+      {
+        "type": 0,
+        "value": 1
+      },
+      {
+        "type": 3,
+        "value": 278025305,
+        "text": "[intro path]"
+      },
+      {
+        "type": 6,
+        "value": 278025925,
+        "text": "Video/Movie/atm_tutorial_intro.avi"
+      },
+      {
+        "type": 3,
+        "value": 278025405,
+        "text": "[/intro]"
+      },
+      {
+        "type": 3,
+        "value": 278025423,
+        "text": "[go town]"
+      },
+      {
+        "type": 3,
+        "value": 213317355,
+        "text": "[town]"
+      },
+      {
+        "type": 0,
+        "value": 38
+      },
+      {
+        "type": 0,
+        "value": 0
+      },
+      {
+        "type": 3,
+        "value": 278025443,
+        "text": "[startPos]"
+      },
+      {
+        "type": 0,
+        "value": 1677
+      },
+      {
+        "type": 0,
+        "value": 222
+      },
+      {
+        "type": 3,
+        "value": 278025465,
+        "text": "[/go town]"
+      },
+      {
+        "type": 3,
+        "value": 278025487,
+        "text": "[/tutorial flow]"
+      },
+      {
+        "type": 3,
+        "value": 278025155,
+        "text": "[tutorial flow]"
+      },
+      {
+        "type": 6,
+        "value": 147358047,
+        "text": "[demonic lancer]"
+      },
+      {
+        "type": 3,
+        "value": 172243209,
+        "text": "[dungeon index]"
+      },
+      {
+        "type": 0,
+        "value": 10005
+      },
+      {
+        "type": 3,
+        "value": 278025255,
+        "text": "[intro]"
+      },
+      {
+        "type": 3,
+        "value": 278025271,
+        "text": "[after tutorial]"
+      },
+      {
+        "type": 0,
+        "value": 0
+      },
+      {
+        "type": 3,
+        "value": 278025305,
+        "text": "[intro path]"
+      },
+      {
+        "type": 6,
+        "value": 278026023,
+        "text": "Video/Movie/r_tutorial_intro.avi"
+      },
+      {
+        "type": 3,
+        "value": 278025405,
+        "text": "[/intro]"
+      },
+      {
+        "type": 3,
+        "value": 278025423,
+        "text": "[go town]"
+      },
+      {
+        "type": 3,
+        "value": 213317355,
+        "text": "[town]"
+      },
+      {
+        "type": 0,
+        "value": 38
+      },
+      {
+        "type": 0,
+        "value": 0
+      },
+      {
+        "type": 3,
+        "value": 278025443,
+        "text": "[startPos]"
+      },
+      {
+        "type": 0,
+        "value": 1677
+      },
+      {
+        "type": 0,
+        "value": 222
+      },
+      {
+        "type": 3,
+        "value": 278025465,
+        "text": "[/go town]"
+      },
+      {
+        "type": 3,
+        "value": 278025487,
+        "text": "[/tutorial flow]"
+      },
+      {
+        "type": 3,
+        "value": 278025155,
+        "text": "[tutorial flow]"
+      },
+      {
+        "type": 6,
+        "value": 147161099,
+        "text": "[at priest]"
+      },
+      {
+        "type": 3,
+        "value": 172243209,
+        "text": "[dungeon index]"
+      },
+      {
+        "type": 0,
+        "value": 7125
+      },
+      {
+        "type": 3,
+        "value": 278025255,
+        "text": "[intro]"
+      },
+      {
+        "type": 3,
+        "value": 278025271,
+        "text": "[after tutorial]"
+      },
+      {
+        "type": 0,
+        "value": 0
+      },
+      {
+        "type": 3,
+        "value": 278025305,
+        "text": "[intro path]"
+      },
+      {
+        "type": 6,
+        "value": 278026089,
+        "text": "Video/Movie/atp_tutorial_intro.avi"
+      },
+      {
+        "type": 3,
+        "value": 278025405,
+        "text": "[/intro]"
+      },
+      {
+        "type": 3,
+        "value": 278025423,
+        "text": "[go town]"
+      },
+      {
+        "type": 3,
+        "value": 213317355,
+        "text": "[town]"
+      },
+      {
+        "type": 0,
+        "value": 38
+      },
+      {
+        "type": 0,
+        "value": 0
+      },
+      {
+        "type": 3,
+        "value": 278025443,
+        "text": "[startPos]"
+      },
+      {
+        "type": 0,
+        "value": 1677
+      },
+      {
+        "type": 0,
+        "value": 222
+      },
+      {
+        "type": 3,
+        "value": 278025465,
+        "text": "[/go town]"
+      },
+      {
+        "type": 3,
+        "value": 278025487,
+        "text": "[/tutorial flow]"
+      },
+      {
+        "type": 3,
+        "value": 278025155,
+        "text": "[tutorial flow]"
+      },
+      {
+        "type": 6,
+        "value": 149085071,
+        "text": "[knight]"
+      },
+      {
+        "type": 3,
+        "value": 172243209,
+        "text": "[dungeon index]"
+      },
+      {
+        "type": 0,
+        "value": 7124
+      },
+      {
+        "type": 3,
+        "value": 278025255,
+        "text": "[intro]"
+      },
+      {
+        "type": 3,
+        "value": 278025271,
+        "text": "[after tutorial]"
+      },
+      {
+        "type": 0,
+        "value": 1
+      },
+      {
+        "type": 3,
+        "value": 278025305,
+        "text": "[intro path]"
+      },
+      {
+        "type": 6,
+        "value": 278026159,
+        "text": "Video/Movie/kn_tutorial_intro.avi"
+      },
+      {
+        "type": 3,
+        "value": 278025405,
+        "text": "[/intro]"
+      },
+      {
+        "type": 3,
+        "value": 278025423,
+        "text": "[go town]"
+      },
+      {
+        "type": 3,
+        "value": 213317355,
+        "text": "[town]"
+      },
+      {
+        "type": 0,
+        "value": 38
+      },
+      {
+        "type": 0,
+        "value": 0
+      },
+      {
+        "type": 3,
+        "value": 278025443,
+        "text": "[startPos]"
+      },
+      {
+        "type": 0,
+        "value": 1677
+      },
+      {
+        "type": 0,
+        "value": 222
+      },
+      {
+        "type": 3,
+        "value": 278025465,
+        "text": "[/go town]"
+      },
+      {
+        "type": 3,
+        "value": 278025487,
+        "text": "[/tutorial flow]"
+      },
+      {
+        "type": 3,
+        "value": 278025155,
+        "text": "[tutorial flow]"
+      },
+      {
+        "type": 6,
+        "value": 148554547,
+        "text": "[at swordman]"
+      },
+      {
+        "type": 3,
+        "value": 172243209,
+        "text": "[dungeon index]"
+      },
+      {
+        "type": 0,
+        "value": 7118
+      },
+      {
+        "type": 3,
+        "value": 278025255,
+        "text": "[intro]"
+      },
+      {
+        "type": 3,
+        "value": 278025271,
+        "text": "[after tutorial]"
+      },
+      {
+        "type": 0,
+        "value": 0
+      },
+      {
+        "type": 3,
+        "value": 278025305,
+        "text": "[intro path]"
+      },
+      {
+        "type": 6,
+        "value": 278026227,
+        "text": "Video/Movie/ats_tutorial_intro.avi"
+      },
+      {
+        "type": 3,
+        "value": 278025405,
+        "text": "[/intro]"
+      },
+      {
+        "type": 3,
+        "value": 278025423,
+        "text": "[go town]"
+      },
+      {
+        "type": 3,
+        "value": 213317355,
+        "text": "[town]"
+      },
+      {
+        "type": 0,
+        "value": 38
+      },
+      {
+        "type": 0,
+        "value": 0
+      },
+      {
+        "type": 3,
+        "value": 278025443,
+        "text": "[startPos]"
+      },
+      {
+        "type": 0,
+        "value": 1677
+      },
+      {
+        "type": 0,
+        "value": 222
+      },
+      {
+        "type": 3,
+        "value": 278025465,
+        "text": "[/go town]"
+      },
+      {
+        "type": 3,
+        "value": 278025487,
+        "text": "[/tutorial flow]"
+      },
+      {
+        "type": 3,
+        "value": 278025155,
+        "text": "[tutorial flow]"
+      },
+      {
+        "type": 6,
+        "value": 149098309,
+        "text": "[gunner]"
+      },
+      {
+        "type": 0,
+        "value": 5
+      },
+      {
+        "type": 3,
+        "value": 172243209,
+        "text": "[dungeon index]"
+      },
+      {
+        "type": 0,
+        "value": 100002493
+      },
+      {
+        "type": 3,
+        "value": 278025255,
+        "text": "[intro]"
+      },
+      {
+        "type": 3,
+        "value": 278025271,
+        "text": "[after tutorial]"
+      },
+      {
+        "type": 0,
+        "value": 0
+      },
+      {
+        "type": 3,
+        "value": 278025305,
+        "text": "[intro path]"
+      },
+      {
+        "type": 6,
+        "value": 278026297,
+        "text": "Video\\movie\\Assault/Assault_00.avi"
+      },
+      {
+        "type": 3,
+        "value": 278025405,
+        "text": "[/intro]"
+      },
+      {
+        "type": 3,
+        "value": 278025423,
+        "text": "[go town]"
+      },
+      {
+        "type": 3,
+        "value": 213317355,
+        "text": "[town]"
+      },
+      {
+        "type": 0,
+        "value": 142
+      },
+      {
+        "type": 0,
+        "value": 0
+      },
+      {
+        "type": 3,
+        "value": 278025443,
+        "text": "[startPos]"
+      },
+      {
+        "type": 0,
+        "value": 227
+      },
+      {
+        "type": 0,
+        "value": 364
+      },
+      {
+        "type": 3,
+        "value": 278025465,
+        "text": "[/go town]"
+      },
+      {
+        "type": 3,
+        "value": 210261227,
+        "text": "[first quest]"
+      },
+      {
+        "type": 0,
+        "value": 12486
+      },
+      {
+        "type": 3,
+        "value": 278026367,
+        "text": "[only for evnet]"
+      },
+      {
+        "type": 3,
+        "value": 278025487,
+        "text": "[/tutorial flow]"
+      },
+      {
+        "type": 3,
+        "value": 278025155,
+        "text": "[tutorial flow]"
+      },
+      {
+        "type": 6,
+        "value": 147195445,
+        "text": "[thief]"
+      },
+      {
+        "type": 3,
+        "value": 172243209,
+        "text": "[dungeon index]"
+      },
+      {
+        "type": 0,
+        "value": 7119
+      },
+      {
+        "type": 3,
+        "value": 278025255,
+        "text": "[intro]"
+      },
+      {
+        "type": 3,
+        "value": 278025271,
+        "text": "[after tutorial]"
+      },
+      {
+        "type": 0,
+        "value": 0
+      },
+      {
+        "type": 3,
+        "value": 278025305,
+        "text": "[intro path]"
+      },
+      {
+        "type": 6,
+        "value": 278026401,
+        "text": "Video/Movie/th_tutorial_intro.avi"
+      },
+      {
+        "type": 3,
+        "value": 278025405,
+        "text": "[/intro]"
+      },
+      {
+        "type": 3,
+        "value": 278025423,
+        "text": "[go town]"
+      },
+      {
+        "type": 3,
+        "value": 213317355,
+        "text": "[town]"
+      },
+      {
+        "type": 0,
+        "value": 38
+      },
+      {
+        "type": 0,
+        "value": 0
+      },
+      {
+        "type": 3,
+        "value": 278025443,
+        "text": "[startPos]"
+      },
+      {
+        "type": 0,
+        "value": 1677
+      },
+      {
+        "type": 0,
+        "value": 222
+      },
+      {
+        "type": 3,
+        "value": 278025465,
+        "text": "[/go town]"
+      },
+      {
+        "type": 3,
+        "value": 278025487,
+        "text": "[/tutorial flow]"
+      },
+      {
+        "type": 3,
+        "value": 278025155,
+        "text": "[tutorial flow]"
+      },
+      {
+        "type": 6,
+        "value": 147400005,
+        "text": "[gun blader]"
+      },
+      {
+        "type": 3,
+        "value": 172243209,
+        "text": "[dungeon index]"
+      },
+      {
+        "type": 0,
+        "value": 7145
+      },
+      {
+        "type": 3,
+        "value": 278025255,
+        "text": "[intro]"
+      },
+      {
+        "type": 3,
+        "value": 278025271,
+        "text": "[after tutorial]"
+      },
+      {
+        "type": 0,
+        "value": 0
+      },
+      {
+        "type": 3,
+        "value": 278025305,
+        "text": "[intro path]"
+      },
+      {
+        "type": 6,
+        "value": 278026469,
+        "text": "Video/Movie/gunblader_tutorial_intro.avi"
+      },
+      {
+        "type": 3,
+        "value": 278025405,
+        "text": "[/intro]"
+      },
+      {
+        "type": 3,
+        "value": 278025423,
+        "text": "[go town]"
+      },
+      {
+        "type": 3,
+        "value": 213317355,
+        "text": "[town]"
+      },
+      {
+        "type": 0,
+        "value": 38
+      },
+      {
+        "type": 0,
+        "value": 0
+      },
+      {
+        "type": 3,
+        "value": 278025443,
+        "text": "[startPos]"
+      },
+      {
+        "type": 0,
+        "value": 1677
+      },
+      {
+        "type": 0,
+        "value": 222
+      },
+      {
+        "type": 3,
+        "value": 278025465,
+        "text": "[/go town]"
+      },
+      {
+        "type": 3,
+        "value": 278025487,
+        "text": "[/tutorial flow]"
+      },
+      {
+        "type": 3,
+        "value": 278025155,
+        "text": "[tutorial flow]"
+      },
+      {
+        "type": 6,
+        "value": 147161123,
+        "text": "[archer]"
+      },
+      {
+        "type": 3,
+        "value": 172243209,
+        "text": "[dungeon index]"
+      },
+      {
+        "type": 0,
+        "value": 100003327
+      },
+      {
+        "type": 3,
+        "value": 278025255,
+        "text": "[intro]"
+      },
+      {
+        "type": 3,
+        "value": 278025271,
+        "text": "[after tutorial]"
+      },
+      {
+        "type": 0,
+        "value": 1
+      },
+      {
+        "type": 3,
+        "value": 278025305,
+        "text": "[intro path]"
+      },
+      {
+        "type": 6,
+        "value": 278026551,
+        "text": "Video/Movie/archer_tutorial_intro.avi"
+      },
+      {
+        "type": 3,
+        "value": 278025405,
+        "text": "[/intro]"
+      },
+      {
+        "type": 3,
+        "value": 278025423,
+        "text": "[go town]"
+      },
+      {
+        "type": 3,
+        "value": 213317355,
+        "text": "[town]"
+      },
+      {
+        "type": 0,
+        "value": 38
+      },
+      {
+        "type": 0,
+        "value": 0
+      },
+      {
+        "type": 3,
+        "value": 278025443,
+        "text": "[startPos]"
+      },
+      {
+        "type": 0,
+        "value": 1677
+      },
+      {
+        "type": 0,
+        "value": 222
+      },
+      {
+        "type": 3,
+        "value": 278025465,
+        "text": "[/go town]"
+      },
+      {
+        "type": 3,
+        "value": 278025487,
+        "text": "[/tutorial flow]"
+      }
+    ]
+  },
+  "flows": [
+    {
+      "job": "[swordman]",
+      "dungeon": 7115,
+      "intro": "Video/Movie/s_tutorial_intro_new.avi",
+      "intro_after_tutorial": false,
+      "Town": 38,
+      "Area": 0,
+      "position": [
+        1677,
+        222
+      ]
+    },
+    {
+      "job": "[fighter]",
+      "dungeon": 7114,
+      "intro": "Video/Movie/f_tutorial_intro.avi",
+      "intro_after_tutorial": true,
+      "Town": 38,
+      "Area": 0,
+      "position": [
+        1677,
+        222
+      ]
+    },
+    {
+      "job": "[gunner]",
+      "dungeon": 7110,
+      "intro": "Video/Movie/g_tutorial_intro.avi",
+      "intro_after_tutorial": true,
+      "Town": 38,
+      "Area": 0,
+      "position": [
+        1677,
+        222
+      ]
+    },
+    {
+      "job": "[mage]",
+      "dungeon": 7111,
+      "intro": "Video/Movie/m_tutorial_intro.avi",
+      "intro_after_tutorial": true,
+      "Town": 38,
+      "Area": 0,
+      "position": [
+        1677,
+        222
+      ]
+    },
+    {
+      "job": "[priest]",
+      "dungeon": 7113,
+      "intro": "Video/Movie/p_tutorial_intro.avi",
+      "intro_after_tutorial": false,
+      "Town": 38,
+      "Area": 0,
+      "position": [
+        1677,
+        222
+      ]
+    },
+    {
+      "job": "[at gunner]",
+      "dungeon": 7116,
+      "intro": "Video/Movie/atg_tutorial_intro.avi",
+      "intro_after_tutorial": true,
+      "Town": 38,
+      "Area": 0,
+      "position": [
+        1677,
+        222
+      ]
+    },
+    {
+      "job": "[at fighter]",
+      "dungeon": 7112,
+      "intro": "Video/Movie/atf_tutorial_intro.avi",
+      "intro_after_tutorial": false,
+      "Town": 38,
+      "Area": 0,
+      "position": [
+        1677,
+        222
+      ]
+    },
+    {
+      "job": "[at mage]",
+      "dungeon": 7117,
+      "intro": "Video/Movie/atm_tutorial_intro.avi",
+      "intro_after_tutorial": true,
+      "Town": 38,
+      "Area": 0,
+      "position": [
+        1677,
+        222
+      ]
+    },
+    {
+      "job": "[demonic lancer]",
+      "dungeon": 10005,
+      "intro": "Video/Movie/r_tutorial_intro.avi",
+      "intro_after_tutorial": false,
+      "Town": 38,
+      "Area": 0,
+      "position": [
+        1677,
+        222
+      ]
+    },
+    {
+      "job": "[at priest]",
+      "dungeon": 7125,
+      "intro": "Video/Movie/atp_tutorial_intro.avi",
+      "intro_after_tutorial": false,
+      "Town": 38,
+      "Area": 0,
+      "position": [
+        1677,
+        222
+      ]
+    },
+    {
+      "job": "[knight]",
+      "dungeon": 7124,
+      "intro": "Video/Movie/kn_tutorial_intro.avi",
+      "intro_after_tutorial": true,
+      "Town": 38,
+      "Area": 0,
+      "position": [
+        1677,
+        222
+      ]
+    },
+    {
+      "job": "[at swordman]",
+      "dungeon": 7118,
+      "intro": "Video/Movie/ats_tutorial_intro.avi",
+      "intro_after_tutorial": false,
+      "Town": 38,
+      "Area": 0,
+      "position": [
+        1677,
+        222
+      ]
+    },
+    {
+      "job": "[gunner]",
+      "advancement": 5,
+      "event_only": true,
+      "dungeon": 100002493,
+      "intro": "Video\\movie\\Assault/Assault_00.avi",
+      "intro_after_tutorial": false,
+      "Town": 142,
+      "Area": 0,
+      "position": [
+        227,
+        364
+      ],
+      "first_quest": 12486
+    },
+    {
+      "job": "[thief]",
+      "dungeon": 7119,
+      "intro": "Video/Movie/th_tutorial_intro.avi",
+      "intro_after_tutorial": false,
+      "Town": 38,
+      "Area": 0,
+      "position": [
+        1677,
+        222
+      ]
+    },
+    {
+      "job": "[gun blader]",
+      "dungeon": 7145,
+      "intro": "Video/Movie/gunblader_tutorial_intro.avi",
+      "intro_after_tutorial": false,
+      "Town": 38,
+      "Area": 0,
+      "position": [
+        1677,
+        222
+      ]
+    },
+    {
+      "job": "[archer]",
+      "dungeon": 100003327,
+      "intro": "Video/Movie/archer_tutorial_intro.avi",
+      "intro_after_tutorial": true,
+      "Town": 38,
+      "Area": 0,
+      "position": [
+        1677,
+        222
+      ]
+    }
+  ]
+}

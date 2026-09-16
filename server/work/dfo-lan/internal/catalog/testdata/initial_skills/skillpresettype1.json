@@ -1,0 +1,230 @@
+[
+  {
+    "type": 3,
+    "value": 157673341,
+    "text": "[name]"
+  },
+  {
+    "type": 8,
+    "value": 438795463,
+    "reference": "\u003c12::SkillChain1_name\u003e"
+  },
+  {
+    "type": 3,
+    "value": 157680133,
+    "text": "[explain]"
+  },
+  {
+    "type": 8,
+    "value": 438795509,
+    "reference": "\u003c12::SkillChain1_explain\u003e"
+  },
+  {
+    "type": 3,
+    "value": 162565623,
+    "text": "[basic explain]"
+  },
+  {
+    "type": 8,
+    "value": 438795561,
+    "reference": "\u003c12::SkillChain1_basic_explain\u003e"
+  },
+  {
+    "type": 3,
+    "value": 436827599,
+    "text": "[purchase cost]"
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 3,
+    "value": 436827631,
+    "text": "[/purchase cost]"
+  },
+  {
+    "type": 3,
+    "value": 212496561,
+    "text": "[required level]"
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 147066155,
+    "text": "[type]"
+  },
+  {
+    "type": 6,
+    "value": 162818917,
+    "text": "[active]"
+  },
+  {
+    "type": 3,
+    "value": 162887831,
+    "text": "[maximum level]"
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 436827739,
+    "text": "[growtype maximum level]"
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 436909121,
+    "text": "[command customizing]"
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 3,
+    "value": 54365645,
+    "text": "[static data]"
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 54365673,
+    "text": "[/static data]"
+  },
+  {
+    "type": 3,
+    "value": 157673629,
+    "text": "[icon]"
+  },
+  {
+    "type": 6,
+    "value": 34343567,
+    "text": "Character/Common/SkillIcon.img"
+  },
+  {
+    "type": 0,
+    "value": 128
+  },
+  {
+    "type": 3,
+    "value": 437201235,
+    "text": "[custom over icon]"
+  },
+  {
+    "type": 6,
+    "value": 438795625,
+    "text": "Interface2/hud/HudSkill.img"
+  },
+  {
+    "type": 0,
+    "value": 2
+  },
+  {
+    "type": 0,
+    "value": -1
+  },
+  {
+    "type": 3,
+    "value": 436828419,
+    "text": "[skill damage tool data]"
+  },
+  {
+    "type": 3,
+    "value": 436828607,
+    "text": "[is hide in tool]"
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 2
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 3
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 4
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 5
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 436828643,
+    "text": "[/is hide in tool]"
+  },
+  {
+    "type": 3,
+    "value": 436828681,
+    "text": "[/skill damage tool data]"
+  }
+]

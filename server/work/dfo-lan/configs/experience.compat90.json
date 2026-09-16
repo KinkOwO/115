@@ -1,0 +1,12 @@
+{
+  "model": "reference90-solo-v1",
+  "reference_sha256": "9a96e6078a0d0451484a4dced19b17c383991a078083e8aa6ced8764c45c8126",
+  "level_cap": 150,
+  "named_multiplier": 3,
+  "monster_minus_character_level_rates": {
+    "-6": 0.2, "-5": 0.5, "-4": 0.75, "-3": 1, "-2": 1, "-1": 1,
+    "0": 1, "1": 1.12, "2": 1.12, "3": 1.12, "4": 1, "5": 1,
+    "6": 0.75, "7": 0.7, "8": 0.6, "9": 0.5
+  },
+  "outside_level_range_rate": 0.05
+}

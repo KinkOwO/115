@@ -1,0 +1,101 @@
+{
+  "payload_hex": "000a000000010e2e000200000000",
+  "consumed": 14,
+  "reads": [
+    {
+      "site": "0x14526acb8",
+      "offset": 0,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x14526ad05",
+      "offset": 1,
+      "size": 2,
+      "hex": "0a00"
+    },
+    {
+      "site": "0x14526ad0e",
+      "offset": 3,
+      "size": 2,
+      "hex": "0000"
+    },
+    {
+      "site": "0x14526ae10",
+      "offset": 5,
+      "size": 1,
+      "hex": "01"
+    },
+    {
+      "site": "0x14526ae33",
+      "offset": 6,
+      "size": 1,
+      "hex": "0e"
+    },
+    {
+      "site": "0x14526ae3c",
+      "offset": 7,
+      "size": 2,
+      "hex": "2e00"
+    },
+    {
+      "site": "0x14526ae48",
+      "offset": 9,
+      "size": 1,
+      "hex": "02"
+    },
+    {
+      "site": "0x14526b1ae",
+      "offset": 10,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x14526b3ab",
+      "offset": 11,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x14526b4b1",
+      "offset": 12,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x14526b60f",
+      "offset": 13,
+      "size": 1,
+      "hex": "00"
+    }
+  ],
+  "spawns": [],
+  "coordinates": {},
+  "scope": "current native skill mutation cursor and setter arguments; UI/actor bodies stubbed",
+  "effects": [
+    {
+      "call": "0x145ef9c00",
+      "c": 10,
+      "d": 0,
+      "r8": 0
+    },
+    {
+      "call": "0x145ef9390",
+      "c": 0,
+      "d": 0,
+      "r8": 0
+    },
+    {
+      "call": "0x145ef9430",
+      "c": 2424832,
+      "d": 14,
+      "r8": 46
+    },
+    {
+      "call": "0x1421a9320",
+      "c": 0,
+      "d": 0,
+      "r8": 0
+    }
+  ]
+}

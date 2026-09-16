@@ -1,0 +1,75 @@
+{
+  "payload_hex": "00000000000000000300390000",
+  "consumed": 13,
+  "reads": [
+    {
+      "site": "0x1452d2319",
+      "offset": 0,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452d2319",
+      "offset": 1,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452d2319",
+      "offset": 2,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452d2319",
+      "offset": 3,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452d2319",
+      "offset": 4,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452d2319",
+      "offset": 5,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452d2319",
+      "offset": 6,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452d2319",
+      "offset": 7,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452d232c",
+      "offset": 8,
+      "size": 2,
+      "hex": "0300"
+    },
+    {
+      "site": "0x1452d2336",
+      "offset": 10,
+      "size": 2,
+      "hex": "3900"
+    },
+    {
+      "site": "0x1452d2344",
+      "offset": 12,
+      "size": 1,
+      "hex": "00"
+    }
+  ],
+  "spawns": [],
+  "coordinates": {},
+  "scope": "native current pickup tail after separately verified u32 object/u16 actor prefix; gold party flags neutral, money restored by NOTI14"
+}

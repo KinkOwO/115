@@ -1,0 +1,22 @@
+{
+  "exact_client": "DFO 2.38.2.34 Windows x64 isolated patched copy",
+  "files": [
+    {
+      "name": "DFO.exe",
+      "size": 246480896,
+      "sha256": "1d3948784e5e0f77ed744017bf82bf0c50de9421423f9e59f6f70aed609d8ffa"
+    },
+    {
+      "name": "Script.pvf",
+      "size": 760531281,
+      "sha256": "5dd03873edf2c1df7aea16db5ad146a776fb8461a947be73042cabd932e66f0a"
+    },
+    {
+      "name": "sk.dat",
+      "size": 2560,
+      "sha256": "59d78371335d22dae0eaeca2a827939576e85a5f5ede4ba286f0438d2fbc6eaf"
+    }
+  ],
+  "full_client_included": false,
+  "required": "copy the COMPLETE work/dfo_probe_client directory separately; these three files alone are insufficient"
+}

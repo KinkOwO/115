@@ -1,0 +1,89 @@
+# analysis/dumps/ — 逆向分析核心资产 Dump 库
+
+本目录汇总了从当前 115 级客户端（`client/DFO.exe`）、PVF 资源（`Script.inner.pvf`）与本地化数据（`client/dstr.dat`）中提取的核心数据资产，供逆向工程、IDB 分析及服务端协议实现快速查阅与索引。
+
+---
+
+## 1. 产物总览
+
+| 分类 | 文件名 | 格式 | 记录数 / 大小 | 说明 |
+| --- | --- | --- | --- | --- |
+| **Opcode** | `opcode_name_to_hex.json` | JSON | 5,330 条 (289 KB) | CMD 与 NOTI 数据包原生名称到 Hex 编号映射字典 |
+| **Opcode** | `opcode_table_detailed.json` | JSON | 5,330 条 (1.00 MB) | 含协议族别 (cmd/noti)、Dec/Hex ID、字符串 VA 及分发槽 VA 的完整明细 |
+| **Opcode** | `opcodes.tsv` | TSV | 5,330 行 (419 KB) | 适合命令行 `grep` / `awk` 快速过滤的表格 |
+| **XORSTR** | `xorstr_addr_to_text.json` | JSON | 114,614 条 (5.36 MB) | 客户端内存 VA（十六进制字符串）到解密后明文字符串映射 |
+| **XORSTR** | `xorstr_map.tsv` | TSV | 114,614 行 (4.48 MB) | 包含地址与单行转义明文的 TSV 快速检索表 |
+| **XORSTR** | `ida_annotate_xorstr.py` | Python | - | IDAPython 脚本：一键在 IDA 中为所有 xorstr 批量设置 Repeatable Comment |
+| **DSTR** | `dstr_id_to_text.json` | JSON | 34,894 条 (1.99 MB) | DSTR 翻译 ID 到本地化明文字符串字典 |
+| **DSTR** | `dstr_table_detailed.json` | JSON | 34,894 条 (6.14 MB) | 包含 ID、所属源码 C++ 文件名及翻译内容的明细数组 |
+| **DSTR** | `dstr_map.tsv` | TSV | 34,894 行 (3.91 MB) | `id \t source_file \t text` 表格 |
+| **DSTR** | `dstr_raw.txt` | TXT | 41,333 行 (1.89 MB) | 解密还原后的完整 Neople 原生 DSTR 本地化文本文件（带注释） |
+
+---
+
+## 2. 快速使用示例
+
+### A. 查询 CMD / NOTI Opcode
+
+- **通过名称查 Hex 编号**（Python / jq）：
+
+  ```python
+  import json
+  opcodes = json.load(open("analysis/dumps/opcode_name_to_hex.json", encoding="utf-8"))
+  print(opcodes["ENUM_CMDPACKET_SELECT_CHARACTER"]) # 输出: 0x0004
+  print(opcodes["ENUM_CMDPACKET_ITEM_USE"])          # 快速定位对应命令
+  ```
+
+- **命令行检索**：
+
+  ```bash
+  grep -i "MAIL" analysis/dumps/opcodes.tsv
+  grep -i "SHOP" analysis/dumps/opcodes.tsv
+  ```
+
+### B. 查阅与定位 xorstr 加密字符串
+
+- **在 IDA Pro 中快速定位函数**：
+  若在反汇编中看到 `lea rcx, [rip + disp]` 传入的常量地址为 `0x149486510`，直接查表：
+
+  ```python
+  import json
+  strings = json.load(open("analysis/dumps/xorstr_addr_to_text.json", encoding="utf-8"))
+  print(strings.get("0x149486510")) # 输出明文字符串
+  ```
+
+- **批量导入 IDA 注释**：
+  在 IDA Pro 中执行 `analysis/dumps/ida_annotate_xorstr.py`，即可为 IDB 中所有 114,614 处静态加密字符串打上可重复注释。
+
+### C. 查询 DSTR 本地化翻译
+
+- **查询 PVF 中引用的文本键**：
+  PVF 中的 Type 8 cell 常引用 DSTR ID，或当需要查看客户端内部报错、UI 文本时：
+
+  ```python
+  import json
+  dstr = json.load(open("analysis/dumps/dstr_id_to_text.json", encoding="utf-8"))
+  print(dstr.get("0"))     # "You have exceeded the maximum number of robots."
+  print(dstr.get("29154")) # "Vanguard"
+  ```
+
+- **按 Neople C++ 源码模块查找字符串**：
+
+  ```bash
+  grep "CNSelectCharacterModule.cpp" analysis/dumps/dstr_map.tsv
+  ```
+
+---
+
+## 3. 逆向技术背景与解密链条备忘
+
+1. **Opcode 注册机制**：
+   - 客户端在 `0x140069bb0`（Command 表初始化）和 `0x140075000`（Notification 表初始化）中，按顺序对每个数据包结构调用 `0x146e8c7d0` 解密名称，并存入全局表槽位（CMD 表基址 `0x14ef38f60`，NOTI 表基址 `0x14ef334b0`）。
+2. **xorstr 加密算法**：
+   - 数据头格式：`[x, x|..., len_low, len_high]`，通过 `key = (header[1] & 0xfe) | 0x9a714ca0` 派生初始密钥，循环内迭代 `key = (key * 0x1003f + v) & 0xffffffff`。
+3. **dstr.dat 加密算法**：
+   - 文件大小 `N`，有效密文长度为 `N - (N & 0xFF)`。
+   - 双层 AES-256-CBC 解密（IV 均为 16 字节 `0x00`）：
+     - Layer 1 Key: `9D6C4A333560167E8D276B81E32B537867E862341A1D3E6E9955E48819F4C899`
+     - Layer 2 Key: `C50796A39913B6D5156B6C651CE1F1F82542953F338D7BE87121E82CB45A810E`
+   - 解密后文件头为 `SC01` + 4 字节原大小。后续数据以 `0x5819af17` 为初始种子进行 CBC 式 4 字节连续 XOR 解扰，还原为原生 UTF-8 格式文本。

@@ -1,0 +1,66 @@
+--- a/internal/inventory/wear.go
++++ b/internal/inventory/wear.go
+@@ -181,14 +181,32 @@
+ 	return saved, applied, e
+ }
+ 
+-func WornPayload(state json.RawMessage) ([]byte, error) {
++// WornSpaceUpdate rebuilds the local actor's equipped visuals after entry.
++// Restored for this handoff from the documented39 NOTI14 path; not a claim
++// that the original39 source has been recovered byte for byte.
++func WornSpaceUpdate(state json.RawMessage) ([]byte, error) {
+ 	b, e := ReadBag(state)
+ 	if e != nil {
+ 		return nil, e
++	}
++	if len(b.Worn) == 0 {
++		return nil, nil
+ 	}
+ 	rows := make([][protocol.CurrentItemRecordSize]byte, 0, len(b.Worn))
+ 	for _, item := range b.Worn {
+ 		rows = append(rows, EquipmentRow(item))
+ 	}
++	return protocol.InventorySpaceUpdate(3, rows)
++}
++
++func WornPayload(state json.RawMessage) ([]byte, error) {
++	b, e := ReadBag(state)
++	if e != nil {
++		return nil, e
++	}
++	rows := make([][protocol.CurrentItemRecordSize]byte, 0, len(b.Worn))
++	for _, item := range b.Worn {
++		rows = append(rows, EquipmentRow(item))
++	}
+ 	return protocol.WornRestore(rows)
+ }
+--- a/cmd/wireprobe/entry_flow.go
++++ b/cmd/wireprobe/entry_flow.go
+@@ -24,6 +24,7 @@
+ 	AvailableQuests                                                           []byte
+ 	Worn                                                                      []byte
+ 	AccountOptions                                                            []byte
++	WornUpdate                                                                []byte
+ }
+ 
+ func (p entryPayloads) packets() []outboundPacket {
+@@ -43,6 +44,7 @@
+ 		{"entry_experience_restored", 0, 37, p.Experience},
+ 		{"completed_quests_restored", 0, 342, p.CompletedQuests},
+ 		{"available_quests_restored", 0, 21, p.AvailableQuests},
++		{"worn_equipment_visuals_restored", 0, 14, p.WornUpdate},
+ 	}
+ }
+ 
+--- a/cmd/wireprobe/main.go
++++ b/cmd/wireprobe/main.go
+@@ -1091,6 +1091,9 @@
+ 					plan := entryPayloads{Select: payload, Basic: basic, Addition: addition, Vault: vaultPayload, UserArea: userArea, Area: areaPayload, Fatigue: fatiguePayload, AccountOptions: accountOptionsPayload}
+ 					if wearService != nil {
+ 						plan.Worn, e = inventory.WornPayload(role.State)
++						if e == nil {
++							plan.WornUpdate, e = inventory.WornSpaceUpdate(role.State)
++						}
+ 						if e != nil {
+ 							event(map[string]any{"kind": "entry_worn_error", "error": e.Error()})
+ 							continue

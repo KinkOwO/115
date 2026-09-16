@@ -1,0 +1,175 @@
+{
+  "payload_hex": "000100393000000000ffffffff00000000ffffffffffffffff0000000000000159290100010000000000000100566f7f0603030000ff6400000000000000ff",
+  "consumed": 63,
+  "reads": [
+    {
+      "site": "0x1452b7356",
+      "offset": 0,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452b7367",
+      "offset": 1,
+      "size": 1,
+      "hex": "01"
+    },
+    {
+      "site": "0x1452b7376",
+      "offset": 2,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452b737f",
+      "offset": 3,
+      "size": 4,
+      "hex": "39300000"
+    },
+    {
+      "site": "0x1452b742b",
+      "offset": 7,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452b743c",
+      "offset": 8,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452b7445",
+      "offset": 9,
+      "size": 4,
+      "hex": "ffffffff"
+    },
+    {
+      "site": "0x1452b74b5",
+      "offset": 13,
+      "size": 18,
+      "hex": "00000000ffffffffffffffff000000000000"
+    },
+    {
+      "site": "0x1452b74e0",
+      "offset": 31,
+      "size": 1,
+      "hex": "01"
+    },
+    {
+      "site": "0x1452b790c",
+      "offset": 32,
+      "size": 4,
+      "hex": "59290100"
+    },
+    {
+      "site": "0x1452b791b",
+      "offset": 36,
+      "size": 1,
+      "hex": "01"
+    },
+    {
+      "site": "0x1452b7a6c",
+      "offset": 37,
+      "size": 2,
+      "hex": "0000"
+    },
+    {
+      "site": "0x1452b7a75",
+      "offset": 39,
+      "size": 4,
+      "hex": "00000000"
+    },
+    {
+      "site": "0x1452b7a7e",
+      "offset": 43,
+      "size": 2,
+      "hex": "0100"
+    },
+    {
+      "site": "0x1452b7a87",
+      "offset": 45,
+      "size": 4,
+      "hex": "566f7f06"
+    },
+    {
+      "site": "0x1452b7a96",
+      "offset": 49,
+      "size": 1,
+      "hex": "03"
+    },
+    {
+      "site": "0x1452b7aa5",
+      "offset": 50,
+      "size": 1,
+      "hex": "03"
+    },
+    {
+      "site": "0x1452b7ab3",
+      "offset": 51,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452b7ac2",
+      "offset": 52,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452b7ad1",
+      "offset": 53,
+      "size": 1,
+      "hex": "ff"
+    },
+    {
+      "site": "0x1452b7ada",
+      "offset": 54,
+      "size": 4,
+      "hex": "64000000"
+    },
+    {
+      "site": "0x1452b7aee",
+      "offset": 58,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452b7d3d",
+      "offset": 59,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452b7ea8",
+      "offset": 60,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452b7f10",
+      "offset": 61,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452b7fde",
+      "offset": 62,
+      "size": 1,
+      "hex": "ff"
+    }
+  ],
+  "spawns": [
+    {
+      "source_index": 0,
+      "entity": 1,
+      "template": 109014870,
+      "level": 3,
+      "rank": 3,
+      "team": 100
+    }
+  ],
+  "coordinates": {},
+  "scope": "original native packet reader, coordinate setter and spawn arguments; game, map and UI calls stubbed",
+  "truncation_failure": "overrun 1452b7fde: 62+1>62"
+}

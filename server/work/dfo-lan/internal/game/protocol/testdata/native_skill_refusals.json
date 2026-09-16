@@ -1,0 +1,28 @@
+[
+  {
+    "payload_hex": "",
+    "consumed": 0,
+    "reads": [],
+    "spawns": [],
+    "coordinates": {},
+    "scope": "original native packet reader, coordinate setter and spawn arguments; game, map and UI calls stubbed",
+    "kind": 28,
+    "effects": [],
+    "pending_counter": 1,
+    "rollbacks": []
+  },
+  {
+    "payload_hex": "",
+    "consumed": 0,
+    "reads": [],
+    "spawns": [],
+    "coordinates": {},
+    "scope": "original native packet reader, coordinate setter and spawn arguments; game, map and UI calls stubbed",
+    "kind": 29,
+    "effects": [],
+    "pending_counter": 2,
+    "rollbacks": [
+      "clear_pending_purchase"
+    ]
+  }
+]

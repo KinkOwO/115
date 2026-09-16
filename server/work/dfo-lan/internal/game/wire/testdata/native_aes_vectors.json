@@ -1,0 +1,29 @@
+[
+  {
+    "algorithm": "aes128",
+    "key": "000102030405060708090a0b0c0d0e0f",
+    "plain": "00070e151c232a31383f464d545b626970777e858c939aa1a8afb6bdc4cbd2d9",
+    "cipher": "dee1f2b1545b5cc3b88189b4d54ec0c9f777e0cf00827b8d789b76c3841b1d9e",
+    "setup": "0x146e66440",
+    "encrypt": "0x146e65f10",
+    "decrypt": "0x146e65190"
+  },
+  {
+    "algorithm": "aes128",
+    "key": "0102030405060708090a0b0c0d0e0f10",
+    "plain": "01080f161d242b323940474e555c636a71787f868d949ba2a9b0b7bec5ccd3da",
+    "cipher": "c63ab5506d34a83ca6069cff2ccd7421e925d09c849d6f0c0c3d9ca3f02e19dc",
+    "setup": "0x146e66440",
+    "encrypt": "0x146e65f10",
+    "decrypt": "0x146e65190"
+  },
+  {
+    "algorithm": "aes128",
+    "key": "4748494a4b4c4d4e4f50515253545556",
+    "plain": "474e555c636a71787f868d949ba2a9b0b7bec5ccd3dae1e8eff6fd040b121920",
+    "cipher": "2642af0945ae0d538ad3528d1ea271d9b0b4b3867747180bc7015950a603a267",
+    "setup": "0x146e66440",
+    "encrypt": "0x146e65f10",
+    "decrypt": "0x146e65190"
+  }
+]

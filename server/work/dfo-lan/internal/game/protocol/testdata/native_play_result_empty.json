@@ -1,0 +1,45 @@
+{
+  "payload_hex": "000000000000000000",
+  "consumed": 9,
+  "reads": [
+    {
+      "site": "0x1452b1a60",
+      "offset": 0,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452b1a69",
+      "offset": 1,
+      "size": 4,
+      "hex": "00000000"
+    },
+    {
+      "site": "0x1452b1a77",
+      "offset": 5,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452b1a85",
+      "offset": 6,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452b1a93",
+      "offset": 7,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452b1aa1",
+      "offset": 8,
+      "size": 1,
+      "hex": "00"
+    }
+  ],
+  "spawns": [],
+  "coordinates": {},
+  "scope": "native zero-dynamic-group cursor; gameplay/UI calls stubbed; research fixture only"
+}

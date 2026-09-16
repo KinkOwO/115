@@ -1,0 +1,10 @@
+{
+ "model": "reference90-gold-stack-v1",
+ "reference_sha256": "9a96e6078a0d0451484a4dced19b17c383991a078083e8aa6ced8764c45c8126",
+ "denominator": 10000,
+ "difficulty_bonus": [1, 1.2, 1.4, 1.6, 1.8],
+ "supported_kinds": ["gold", "stackable"],
+ "excluded_item_path_prefixes": ["stackable/extention/test_"],
+ "MaximumPickupX": 200,
+ "MaximumPickupY": 70
+}

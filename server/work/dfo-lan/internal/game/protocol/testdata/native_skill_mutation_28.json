@@ -1,0 +1,41 @@
+{
+  "payload_hex": "000103",
+  "consumed": 3,
+  "reads": [
+    {
+      "site": "0x14526d9b7",
+      "offset": 0,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x14526d9f6",
+      "offset": 1,
+      "size": 1,
+      "hex": "01"
+    },
+    {
+      "site": "0x14526da05",
+      "offset": 2,
+      "size": 1,
+      "hex": "03"
+    }
+  ],
+  "spawns": [],
+  "coordinates": {},
+  "scope": "current native skill mutation cursor and setter arguments; UI/actor bodies stubbed",
+  "effects": [
+    {
+      "call": "0x145ef1fd0",
+      "c": 2424832,
+      "d": 1,
+      "r8": 3
+    },
+    {
+      "call": "0x1421a9320",
+      "c": 0,
+      "d": 0,
+      "r8": 3
+    }
+  ]
+}

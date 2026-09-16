@@ -1,0 +1,824 @@
+[
+  {
+    "type": 3,
+    "value": 157673341,
+    "text": "[name]"
+  },
+  {
+    "type": 8,
+    "value": 294280309,
+    "reference": "\u003c12::quick_standing_name\u003e"
+  },
+  {
+    "type": 3,
+    "value": 157680133,
+    "text": "[explain]"
+  },
+  {
+    "type": 8,
+    "value": 437024467,
+    "reference": "\u003c12::quick_standing_explain\u003e"
+  },
+  {
+    "type": 3,
+    "value": 162565623,
+    "text": "[basic explain]"
+  },
+  {
+    "type": 8,
+    "value": 437024525,
+    "reference": "\u003c12::quick_standing_basic_explain\u003e"
+  },
+  {
+    "type": 3,
+    "value": 436909005,
+    "text": "[command key add explain]"
+  },
+  {
+    "type": 8,
+    "value": 437024595,
+    "reference": "\u003c12::command_key_explain_18635\u003e"
+  },
+  {
+    "type": 3,
+    "value": 436829493,
+    "text": "[caption]"
+  },
+  {
+    "type": 8,
+    "value": 437024659,
+    "reference": "\u003c12::quick_standing_caption\u003e"
+  },
+  {
+    "type": 3,
+    "value": 436829549,
+    "text": "[special feature]"
+  },
+  {
+    "type": 6,
+    "value": 211962117,
+    "text": "utility"
+  },
+  {
+    "type": 8,
+    "value": 437024717,
+    "reference": "\u003c12::quick_standing_special_feature\u003e"
+  },
+  {
+    "type": 3,
+    "value": 436829815,
+    "text": "[/special feature]"
+  },
+  {
+    "type": 3,
+    "value": 436827599,
+    "text": "[purchase cost]"
+  },
+  {
+    "type": 0,
+    "value": 10
+  },
+  {
+    "type": 3,
+    "value": 436827631,
+    "text": "[/purchase cost]"
+  },
+  {
+    "type": 3,
+    "value": 212496561,
+    "text": "[required level]"
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 147066155,
+    "text": "[type]"
+  },
+  {
+    "type": 6,
+    "value": 162818917,
+    "text": "[active]"
+  },
+  {
+    "type": 3,
+    "value": 436827711,
+    "text": "[skill class]"
+  },
+  {
+    "type": 0,
+    "value": 4
+  },
+  {
+    "type": 3,
+    "value": 162887831,
+    "text": "[maximum level]"
+  },
+  {
+    "type": 0,
+    "value": 20
+  },
+  {
+    "type": 3,
+    "value": 436827739,
+    "text": "[growtype maximum level]"
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 436827923,
+    "text": "[skill fitness growtype]"
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 2
+  },
+  {
+    "type": 0,
+    "value": 3
+  },
+  {
+    "type": 0,
+    "value": 4
+  },
+  {
+    "type": 0,
+    "value": 5
+  },
+  {
+    "type": 3,
+    "value": 436827973,
+    "text": "[/skill fitness growtype]"
+  },
+  {
+    "type": 3,
+    "value": 436831185,
+    "text": "[consume MP]"
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 162566029,
+    "text": "[cool time]"
+  },
+  {
+    "type": 0,
+    "value": 5000
+  },
+  {
+    "type": 0,
+    "value": 5000
+  },
+  {
+    "type": 3,
+    "value": 157673629,
+    "text": "[icon]"
+  },
+  {
+    "type": 6,
+    "value": 34343567,
+    "text": "Character/Common/SkillIcon.img"
+  },
+  {
+    "type": 0,
+    "value": 46
+  },
+  {
+    "type": 3,
+    "value": 436909121,
+    "text": "[command customizing]"
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 3,
+    "value": 78994977,
+    "text": "[command]"
+  },
+  {
+    "type": 5,
+    "value": 89
+  },
+  {
+    "type": 3,
+    "value": 162591931,
+    "text": "[/command]"
+  },
+  {
+    "type": 3,
+    "value": 436851299,
+    "text": "[disable preset]"
+  },
+  {
+    "type": 3,
+    "value": 54365645,
+    "text": "[static data]"
+  },
+  {
+    "type": 0,
+    "value": 300
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 3,
+    "value": 54365673,
+    "text": "[/static data]"
+  },
+  {
+    "type": 3,
+    "value": 210315033,
+    "text": "[level info]"
+  },
+  {
+    "type": 0,
+    "value": 2
+  },
+  {
+    "type": 0,
+    "value": 3000
+  },
+  {
+    "type": 0,
+    "value": 300
+  },
+  {
+    "type": 0,
+    "value": 4500
+  },
+  {
+    "type": 0,
+    "value": 333
+  },
+  {
+    "type": 0,
+    "value": 6000
+  },
+  {
+    "type": 0,
+    "value": 367
+  },
+  {
+    "type": 0,
+    "value": 7500
+  },
+  {
+    "type": 0,
+    "value": 400
+  },
+  {
+    "type": 0,
+    "value": 9000
+  },
+  {
+    "type": 0,
+    "value": 433
+  },
+  {
+    "type": 0,
+    "value": 10500
+  },
+  {
+    "type": 0,
+    "value": 467
+  },
+  {
+    "type": 0,
+    "value": 12000
+  },
+  {
+    "type": 0,
+    "value": 500
+  },
+  {
+    "type": 0,
+    "value": 13500
+  },
+  {
+    "type": 0,
+    "value": 533
+  },
+  {
+    "type": 0,
+    "value": 15000
+  },
+  {
+    "type": 0,
+    "value": 567
+  },
+  {
+    "type": 0,
+    "value": 16500
+  },
+  {
+    "type": 0,
+    "value": 600
+  },
+  {
+    "type": 0,
+    "value": 18000
+  },
+  {
+    "type": 0,
+    "value": 633
+  },
+  {
+    "type": 0,
+    "value": 19500
+  },
+  {
+    "type": 0,
+    "value": 667
+  },
+  {
+    "type": 0,
+    "value": 21000
+  },
+  {
+    "type": 0,
+    "value": 700
+  },
+  {
+    "type": 0,
+    "value": 22500
+  },
+  {
+    "type": 0,
+    "value": 733
+  },
+  {
+    "type": 0,
+    "value": 24000
+  },
+  {
+    "type": 0,
+    "value": 767
+  },
+  {
+    "type": 0,
+    "value": 25500
+  },
+  {
+    "type": 0,
+    "value": 800
+  },
+  {
+    "type": 0,
+    "value": 27000
+  },
+  {
+    "type": 0,
+    "value": 833
+  },
+  {
+    "type": 0,
+    "value": 28500
+  },
+  {
+    "type": 0,
+    "value": 867
+  },
+  {
+    "type": 0,
+    "value": 30000
+  },
+  {
+    "type": 0,
+    "value": 900
+  },
+  {
+    "type": 0,
+    "value": 31500
+  },
+  {
+    "type": 0,
+    "value": 933
+  },
+  {
+    "type": 3,
+    "value": 210315123,
+    "text": "[/level info]"
+  },
+  {
+    "type": 3,
+    "value": 149533931,
+    "text": "[pvp]"
+  },
+  {
+    "type": 3,
+    "value": 162566029,
+    "text": "[cool time]"
+  },
+  {
+    "type": 0,
+    "value": 20000
+  },
+  {
+    "type": 0,
+    "value": 20000
+  },
+  {
+    "type": 3,
+    "value": 54365645,
+    "text": "[static data]"
+  },
+  {
+    "type": 0,
+    "value": 500
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 3,
+    "value": 54365673,
+    "text": "[/static data]"
+  },
+  {
+    "type": 3,
+    "value": 210315033,
+    "text": "[level info]"
+  },
+  {
+    "type": 0,
+    "value": 2
+  },
+  {
+    "type": 0,
+    "value": 1500
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 1750
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 2000
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 2250
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 2500
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 2500
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 2500
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 2500
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 2500
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 2500
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 2500
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 2500
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 2500
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 2500
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 2500
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 2500
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 2500
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 2500
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 2500
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 2500
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 3,
+    "value": 210315123,
+    "text": "[/level info]"
+  },
+  {
+    "type": 3,
+    "value": 149533943,
+    "text": "[/pvp]"
+  },
+  {
+    "type": 3,
+    "value": 436828211,
+    "text": "[skill option tooltip]"
+  },
+  {
+    "type": 3,
+    "value": 261385657,
+    "text": "[option group]"
+  },
+  {
+    "type": 3,
+    "value": 147066155,
+    "text": "[type]"
+  },
+  {
+    "type": 6,
+    "value": 78602049,
+    "text": "default"
+  },
+  {
+    "type": 3,
+    "value": 436828257,
+    "text": "[tooltip data]"
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 99
+  },
+  {
+    "type": 8,
+    "value": 437024791,
+    "reference": "\u003c12::quick_standing_level_property\u003e"
+  },
+  {
+    "type": 6,
+    "value": 436831735,
+    "text": "static"
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 2,
+    "value": 981668463,
+    "number": 0.001
+  },
+  {
+    "type": 6,
+    "value": 6382859,
+    "text": "level"
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 2,
+    "value": 981668463,
+    "number": 0.001
+  },
+  {
+    "type": 6,
+    "value": 6382859,
+    "text": "level"
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 2,
+    "value": 981668463,
+    "number": 0.001
+  },
+  {
+    "type": 3,
+    "value": 436828339,
+    "text": "[/tooltip data]"
+  },
+  {
+    "type": 3,
+    "value": 261385687,
+    "text": "[/option group]"
+  },
+  {
+    "type": 3,
+    "value": 436828371,
+    "text": "[/skill option tooltip]"
+  },
+  {
+    "type": 3,
+    "value": 436828419,
+    "text": "[skill damage tool data]"
+  },
+  {
+    "type": 3,
+    "value": 436828607,
+    "text": "[is hide in tool]"
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 2
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 3
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 4
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 5
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 436828643,
+    "text": "[/is hide in tool]"
+  },
+  {
+    "type": 3,
+    "value": 436828681,
+    "text": "[/skill damage tool data]"
+  }
+]

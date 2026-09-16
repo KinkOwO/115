@@ -1,0 +1,10 @@
+[
+  {
+    "ip": "127.0.0.1",
+    "passes_ip_filter": false
+  },
+  {
+    "ip": "127.0.0.2",
+    "passes_ip_filter": true
+  }
+]

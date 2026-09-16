@@ -1,0 +1,65 @@
+{
+  "payload_hex": "0100ffffffffffffffffffffffffffff",
+  "consumed": 16,
+  "reads": [
+    {
+      "site": "0x14524faf5",
+      "offset": 0,
+      "size": 2,
+      "hex": "0100"
+    },
+    {
+      "site": "0x14524faf5",
+      "offset": 2,
+      "size": 2,
+      "hex": "ffff"
+    },
+    {
+      "site": "0x14524faf5",
+      "offset": 4,
+      "size": 2,
+      "hex": "ffff"
+    },
+    {
+      "site": "0x14524faf5",
+      "offset": 6,
+      "size": 2,
+      "hex": "ffff"
+    },
+    {
+      "site": "0x14524faf5",
+      "offset": 8,
+      "size": 2,
+      "hex": "ffff"
+    },
+    {
+      "site": "0x14524faf5",
+      "offset": 10,
+      "size": 2,
+      "hex": "ffff"
+    },
+    {
+      "site": "0x14524faf5",
+      "offset": 12,
+      "size": 2,
+      "hex": "ffff"
+    },
+    {
+      "site": "0x14524faf5",
+      "offset": 14,
+      "size": 2,
+      "hex": "ffff"
+    }
+  ],
+  "spawns": [],
+  "coordinates": {},
+  "scope": "current native packet cursor and UI setter arguments; game/UI bodies stubbed, not live acceptance",
+  "effects": [
+    {
+      "setter": "0x146abbc70",
+      "d": 9,
+      "r8": 0,
+      "r9": 0
+    }
+  ]
+}

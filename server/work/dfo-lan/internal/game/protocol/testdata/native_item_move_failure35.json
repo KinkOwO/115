@@ -1,0 +1,33 @@
+{
+  "payload_hex": "00030000000000",
+  "consumed": 7,
+  "reads": [
+    {
+      "site": "0x1452855b0",
+      "offset": 0,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452855bf",
+      "offset": 1,
+      "size": 1,
+      "hex": "03"
+    },
+    {
+      "site": "0x1452855cc",
+      "offset": 2,
+      "size": 4,
+      "hex": "00000000"
+    },
+    {
+      "site": "0x1452855e0",
+      "offset": 6,
+      "size": 1,
+      "hex": "00"
+    }
+  ],
+  "spawns": [],
+  "coordinates": {},
+  "scope": "current success/refusal packet cursor; stops before inventory mutation/UI methods"
+}

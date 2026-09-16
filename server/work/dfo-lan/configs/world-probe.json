@@ -1,0 +1,5 @@
+{
+  "require_portal_proximity": false,
+  "portal_margin": 32,
+  "policy": "Loopback bootstrap permits source-adjacent portal requests from quest UI. Shared LAN movement must enable proximity after movement synchronization is accepted. Map IDs, levels, rectangles and adjacency come from world.generated.json."
+}

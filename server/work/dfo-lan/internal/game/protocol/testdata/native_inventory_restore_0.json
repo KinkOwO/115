@@ -1,0 +1,27 @@
+{
+  "payload_hex": "0000000000",
+  "consumed": 5,
+  "reads": [
+    {
+      "site": "0x1452d5ae6",
+      "offset": 0,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452d5cf4",
+      "offset": 1,
+      "size": 2,
+      "hex": "0000"
+    },
+    {
+      "site": "0x1452d5e66",
+      "offset": 3,
+      "size": 2,
+      "hex": "0000"
+    }
+  ],
+  "spawns": [],
+  "coordinates": {},
+  "scope": "current native NOTI13 list0 cursor; ordinary item, game and UI lookups stubbed"
+}

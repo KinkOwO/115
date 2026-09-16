@@ -1,0 +1,29 @@
+[
+  {
+    "algorithm": "kasumi",
+    "key": "000102030405060708090a0b0c0d0e0f",
+    "plain": "00070e151c232a31383f464d545b626970777e858c939aa1",
+    "cipher": "bf26cdaa90b755effce3c50c8b5d334ccb6da100953b093a",
+    "setup": "146d93be0",
+    "encrypt": "146d93a80",
+    "decrypt": "146d93920"
+  },
+  {
+    "algorithm": "kasumi",
+    "key": "0102030405060708090a0b0c0d0e0f10",
+    "plain": "01080f161d242b323940474e555c636a71787f868d949ba2",
+    "cipher": "bf40d90b89f046485f033bfa6d882c013bbc47402e989209",
+    "setup": "146d93be0",
+    "encrypt": "146d93a80",
+    "decrypt": "146d93920"
+  },
+  {
+    "algorithm": "kasumi",
+    "key": "4748494a4b4c4d4e4f50515253545556",
+    "plain": "474e555c636a71787f868d949ba2a9b0b7bec5ccd3dae1e8",
+    "cipher": "65d6fd6fc71a13d0e2b3c3a50ce82d626580a4bad52c199e",
+    "setup": "146d93be0",
+    "encrypt": "146d93a80",
+    "decrypt": "146d93920"
+  }
+]

@@ -1,0 +1,39 @@
+{
+  "payload_hex": "000200",
+  "consumed": 3,
+  "reads": [
+    {
+      "site": "0x145251a31",
+      "offset": 0,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x145251a5a",
+      "offset": 1,
+      "size": 2,
+      "hex": "0200"
+    }
+  ],
+  "spawns": [],
+  "coordinates": {},
+  "scope": "current native delete reader and roster removal/unlock arguments; game/UI bodies stubbed",
+  "effects": [
+    {
+      "call": "0x140235650",
+      "value": 2
+    },
+    {
+      "call": "0x14023dfd0",
+      "value": 0
+    },
+    {
+      "call": "0x14023dfc0",
+      "value": 0
+    },
+    {
+      "call": "0x140228d00",
+      "value": 0
+    }
+  ]
+}

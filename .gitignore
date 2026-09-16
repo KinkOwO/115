@@ -1,0 +1,86 @@
+# ==============================================================================
+# DFO 115级项目 Git 忽略规则 (.gitignore)
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. 外部依赖与通用运行环境 (Third-party runtimes & Toolchains)
+# 说明：tools/ 包含 Go 编译器 (255MB)、PostgreSQL 16.4 与 pgAdmin (967MB)、
+# Python 3.11 及第三方库 (321MB)、Redis (47MB) 以及安装包压缩包 (407MB)，
+# 总计约 2.0GB。这些属于通用便携环境/外部依赖，由环境脚本或安装包解包还原，
+# 严禁纳入源码仓库。
+# ------------------------------------------------------------------------------
+/tools/
+
+# ------------------------------------------------------------------------------
+# 2. 数据库存储与运行时持久化状态 (Database storage & Runtime states)
+# 说明：pgdata 是正在运行的 PostgreSQL 数据集群目录，每次事务均有底层随机 IO；
+# roles_* 为单次启动的动态调试追踪会话记录；*.log 为运行日志。
+# 纳入版本控制会导致数据损坏和仓库无限膨胀。
+# ------------------------------------------------------------------------------
+/server/work/dfo-lan/runtime/*
+!/server/work/dfo-lan/runtime/characters_ok.bin
+!/server/work/dfo-lan/runtime/login_ok.bin
+!/server/work/dfo-lan/runtime/name_ok.bin
+!/server/work/dfo-lan/runtime/precheck_ok.bin
+/server/work/dfo-lan/runtime/storage/pgdata/
+/server/work/dfo-lan/runtime/storage/*.log
+/server/work/dfo-lan/runtime/roles_*/
+*.log
+
+# ------------------------------------------------------------------------------
+# 3. 本地机器/私有连接配置 (Local host specific configurations & credentials)
+# 说明：local.json 记录本机随机生成的数据库密码与绝对路径；launcher.local.json
+# 包含当前开发者的磁盘路径映射。应保留 example 模板，忽略 local 实体。
+# ------------------------------------------------------------------------------
+/server/work/dfo-lan/runtime/storage/local.json
+/server/work/dfo-lan/configs/server.local.json
+/server/work/dfo-lan/configs/launcher.local.json
+/server/launcher.local.json
+
+# ------------------------------------------------------------------------------
+# 4. 补丁构建过程中的中间临时产物与备份 (Build intermediate artifacts & Backups)
+# 说明：Script.inner.pvf 为中间打包解包产物 (726MB)，Script.required.pvf 与
+# 单机补丁/Script.pvf 完全一致，避免产生重复存储；*.orig-bak 为手工备份。
+# ------------------------------------------------------------------------------
+*.orig-bak
+*.bak
+
+# ------------------------------------------------------------------------------
+# 5. Python 编译缓存、系统文件与 IDE 配置
+# ------------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyd
+
+# 编辑器与 IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Windows 系统文件
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+
+# Agent 运行任务记录
+/.pi/
+
+# 本地私有运行脚本与临时调试工具
+_pi.bat
+_*.bat
+_*.cmd
+
+# 大文件
+*.exe
+*.i64
+*.dat
+*.aes
+*.dll
+*.pvf
+*.so
+*.idb
+*.zip
+*.tar.gz

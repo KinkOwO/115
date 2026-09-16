@@ -1,0 +1,105 @@
+{
+  "payload_hex": "00000000000000000000000000000000000000000000000000000000000000000000000000000000",
+  "consumed": 40,
+  "reads": [
+    {
+      "site": "0x1452d28af",
+      "offset": 0,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452d28be",
+      "offset": 1,
+      "size": 4,
+      "hex": "00000000"
+    },
+    {
+      "site": "0x1452d28af",
+      "offset": 5,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452d28be",
+      "offset": 6,
+      "size": 4,
+      "hex": "00000000"
+    },
+    {
+      "site": "0x1452d28af",
+      "offset": 10,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452d28be",
+      "offset": 11,
+      "size": 4,
+      "hex": "00000000"
+    },
+    {
+      "site": "0x1452d28af",
+      "offset": 15,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452d28be",
+      "offset": 16,
+      "size": 4,
+      "hex": "00000000"
+    },
+    {
+      "site": "0x1452d28af",
+      "offset": 20,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452d28be",
+      "offset": 21,
+      "size": 4,
+      "hex": "00000000"
+    },
+    {
+      "site": "0x1452d28af",
+      "offset": 25,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452d28be",
+      "offset": 26,
+      "size": 4,
+      "hex": "00000000"
+    },
+    {
+      "site": "0x1452d28af",
+      "offset": 30,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452d28be",
+      "offset": 31,
+      "size": 4,
+      "hex": "00000000"
+    },
+    {
+      "site": "0x1452d28af",
+      "offset": 35,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452d28be",
+      "offset": 36,
+      "size": 4,
+      "hex": "00000000"
+    }
+  ],
+  "spawns": [],
+  "coordinates": {},
+  "scope": "native current pickup tail after separately verified u32 object/u16 actor prefix; gold party flags neutral, money restored by NOTI14"
+}

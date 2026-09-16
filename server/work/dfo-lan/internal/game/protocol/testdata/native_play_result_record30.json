@@ -1,0 +1,92 @@
+{
+  "payload_hex": "3260ea000000320101030060ea0000000000000000000000000000ffffffff",
+  "consumed": 31,
+  "reads": [
+    {
+      "site": "0x1452b1a60",
+      "offset": 0,
+      "size": 1,
+      "hex": "32"
+    },
+    {
+      "site": "0x1452b1a69",
+      "offset": 1,
+      "size": 4,
+      "hex": "60ea0000"
+    },
+    {
+      "site": "0x1452b1a77",
+      "offset": 5,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x1452b1a85",
+      "offset": 6,
+      "size": 1,
+      "hex": "32"
+    },
+    {
+      "site": "0x1452b1a93",
+      "offset": 7,
+      "size": 1,
+      "hex": "01"
+    },
+    {
+      "site": "0x1452b1aa1",
+      "offset": 8,
+      "size": 1,
+      "hex": "01"
+    },
+    {
+      "site": "0x1452b1b2d",
+      "offset": 9,
+      "size": 2,
+      "hex": "0300"
+    },
+    {
+      "site": "0x1452b1b36",
+      "offset": 11,
+      "size": 4,
+      "hex": "60ea0000"
+    },
+    {
+      "site": "0x1452b1b3f",
+      "offset": 15,
+      "size": 4,
+      "hex": "00000000"
+    },
+    {
+      "site": "0x1452b1b48",
+      "offset": 19,
+      "size": 4,
+      "hex": "00000000"
+    },
+    {
+      "site": "0x1452b1b51",
+      "offset": 23,
+      "size": 4,
+      "hex": "00000000"
+    },
+    {
+      "site": "0x1452b1b5a",
+      "offset": 27,
+      "size": 4,
+      "hex": "ffffffff"
+    }
+  ],
+  "spawns": [],
+  "coordinates": {},
+  "scope": "original native packet reader, coordinate setter and spawn arguments; game, map and UI calls stubbed",
+  "effects": [
+    {
+      "setter": "0x145e29890",
+      "value": 1
+    },
+    {
+      "setter": "0x145e29570",
+      "value": 60000
+    }
+  ],
+  "truncation_failure": "overrun 1452b1b5a: 27+4>30"
+}

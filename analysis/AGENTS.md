@@ -1,0 +1,62 @@
+# AGENTS.md — analysis/
+
+> 本文件是逆向分析与协议取证规则的领域索引。先读根 `AGENTS.md`，再读本文件。
+> 逆向主目标为 115 级客户端 `client/DFO.exe` 及权威 IDB `client/DFO.exe.i64`。
+
+## 1. 证据优先级
+
+1. **当前客户端实际动态命中**：`client/DFO.exe` 运行时的原生输入/输出（通过 `probe.exe` 配合网络抓包与服务端会话日志）。
+2. **权威 IDB 静态逆向**：`client/DFO.exe.i64` 的控制流、数据结构、函数签名与调用约定。
+3. **已验证测试向量与日志**：`server/work/dfo-lan/internal/game/protocol/testdata/` 中的原生测试向量，以及 `runtime/roles_*/events.jsonl` 会话日志。
+4. **历史脚本与文档对照**：`server/reference/analysis-tools/` 与 `server/work/dfo-lan/docs/protocol/`，仅作线索参考，不是事实标准。
+
+### 硬规则
+
+- **协议闭环前不盲目实现**：实现新协议处理前，必须确认客户端 reader、字段宽度、字节序、flag 分支与消费时序；严禁仅凭“外形相似”直接编写代码。
+- **动态观测默认依靠服务端日志与抓包**：本地动态观测优先分析服务端产生的 `events.jsonl` 与协议数据；不随意挂接 x64dbg 或下硬断点打断客户端网络心跳。
+- **IDA 分析规范**：以 `client/DFO.exe.i64` 为准；分析完毕后务必正常保存并关闭 IDB，防止文件损坏或进程锁死。
+- **记录失败假设**：尝试失败时记录简要 checkpoint（日期、测试输入、未闭环点、下一步），避免重复试错。
+- **异常先查资源边界**：客户端闪退或表现异常时，先对比 `client/Script.pvf`、`client/sk.dat` 与配置文件，区分数据缺失与协议错误。
+
+## 2. 新加密与协议解析门禁（最高优先级硬规则）
+
+> **遇到新的协议封包或加密算法，未经完整 IDA 验证与客户端原生向量验证，严禁臆断其算法名称或格式。**
+
+### A. 完整 IDA 逆向链必须闭环
+
+| 检查点    | 必须确认的内容                                                 |
+| --------- | -------------------------------------------------------------- |
+| 选择路径  | opcode/cmd/flag 如何分发到特定 handler 或 codec；调用点与方向  |
+| wrapper   | 封包/解包包装层、输入输出缓冲区指针、数据长度与原地/异地变换    |
+| key 来源  | 密钥材料来源、长度、协商流程、会话密钥派生时机                 |
+| 核心变换  | 算法具体变体、block 大小、查表、轮常量、字节序                 |
+| transport | 对齐、padding、校验和（checksum）算法、包头长度与字段排布      |
+
+以下现象**不构成算法确认证据**：常量局部相似、函数名来自外部参考服文档、密文长度碰巧一致、自写实现能自回环解密。
+
+### B. 客户端原生向量必须逐字节验证通过
+
+- 从**实际客户端原生调用**中提取至少一组已知的 `(plain, cipher)` 原生测试向量。
+- **S2C 验证**：服务端构造的密文经客户端原生解析后，必须能逐字节还原为预期明文并被 reader 正常消费。
+- **C2S 验证**：客户端原生发送的密文能被服务端准确解密，且字段完全符合业务语义。
+- 将验证通过的原生测试向量固化为 Go 单元测试，纳入 `server/work/dfo-lan/internal/game/protocol/` 测试集。
+- 服务端 `encode -> decode` 自回环仅证明内部逻辑互逆，**不证明与客户端兼容**。
+
+## 3. IDA 与分析工具资产
+
+- **权威 IDB**：`client/DFO.exe.i64` 是本项目的静态分析真源。
+- **沉淀命名**：在确认未命名函数（`sub_xxxxx`）或数据结构的功能后，及时在 IDB 中规范重命名（如 `PacketReader_*`、`Handler_*`），节省后续逆向时间。
+- **字符串提取**：DFO 客户端存在大量加密或运行时动态解密字符串，优先利用 `server/reference/analysis-tools/` 下已有的分析脚本（如 `scan_literals.py`、`decode_literals.py` 等）辅助定位。
+- **专用探针脚本**：`server/reference/analysis-tools/` 积累了大量历史分析脚本（如 `channel_crypto_oracle.py`、`packed_stats_oracle.py`、`dungeon_map_oracle.py` 等），分析对应子系统前建议先检索相关脚本。
+- **现成分析 Dump 资产（优先查阅，避免重复逆向）**：`analysis/dumps/`
+  - `opcode_name_to_hex.json` / `opcodes.tsv`：全量 5,330 条 CMD/NOTI 数据包 opcode 原生名称与十六进制编号映射。
+  - `xorstr_addr_to_text.json` / `ida_annotate_xorstr.py`：全量 114,614 条静态加密字符串与 VA 地址映射，支持一键载入 IDB 注释。
+  - `dstr_id_to_text.json` / `dstr_raw.txt`：34,894 条 Neople 本地化翻译 ID 与明文表，解决 PVF Type 8 本地化引用及报错信息排查。
+  - `pvf_file_paths.txt` / `pvf_file_index.tsv`：全量 565 万 PVF 文件路径与元数据索引，支持秒级 `grep` 定位目标文件。
+  - 详见 `analysis/dumps/README.md`。
+
+## 4. 实机调试与网络安全隔离
+
+- 客户端测试必须通过 `启动游戏.cmd` 或 `launch_local.py` 启动。
+- 启动器通过 `probe.exe` 安装 WFP 动态防火墙规则，强制限制客户端仅能连接回环地址（127.0.0.1 / 127.0.0.2），防止连向外部网络。
+- 严禁无人值守代替用户操作客户端；环境准备完成后通知用户手动操作验证。

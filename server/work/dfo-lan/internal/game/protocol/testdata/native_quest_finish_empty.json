@@ -1,0 +1,45 @@
+{
+  "payload_hex": "490c00b0040000000000",
+  "consumed": 10,
+  "reads": [
+    {
+      "site": "0x14527aab5",
+      "offset": 0,
+      "size": 2,
+      "hex": "490c"
+    },
+    {
+      "site": "0x14527b223",
+      "offset": 2,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x14527b22c",
+      "offset": 3,
+      "size": 4,
+      "hex": "b0040000"
+    },
+    {
+      "site": "0x14527b25d",
+      "offset": 7,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x14527b87d",
+      "offset": 8,
+      "size": 1,
+      "hex": "00"
+    },
+    {
+      "site": "0x14527c194",
+      "offset": 9,
+      "size": 1,
+      "hex": "00"
+    }
+  ],
+  "spawns": [],
+  "coordinates": {},
+  "scope": "current success-body no-item path, quest/game/UI calls stubbed; dispatcher success byte excluded; no real quest completed"
+}
