@@ -659,6 +659,48 @@ func main() {
 					}
 					continue
 				}
+				if worldState != nil && bootstrapped && frame.ID == 21 && lootService != nil {
+					if !verified {
+						event(map[string]any{"kind": "shop_buy_rejected", "reason": "checksum failed"})
+						continue
+					}
+					plan, e := worldState.buyItem(plaintext)
+					if e != nil {
+						event(map[string]any{"kind": "shop_buy_refused", "character_id": worldState.role.ID, "reason": e.Error()})
+						if e = sendPayload(1, 21, protocol.Refusal(4)); e != nil {
+							return
+						}
+						continue
+					}
+					for _, packet := range plan {
+						if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
+							return
+						}
+						event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID, "id": packet.ID})
+					}
+					continue
+				}
+				if worldState != nil && bootstrapped && frame.ID == 22 && lootService != nil {
+					if !verified {
+						event(map[string]any{"kind": "shop_sell_rejected", "reason": "checksum failed"})
+						continue
+					}
+					plan, e := worldState.sellItem(plaintext)
+					if e != nil {
+						event(map[string]any{"kind": "shop_sell_refused", "character_id": worldState.role.ID, "reason": e.Error()})
+						if e = sendPayload(1, 22, protocol.Refusal(4)); e != nil {
+							return
+						}
+						continue
+					}
+					for _, packet := range plan {
+						if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
+							return
+						}
+						event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID, "id": packet.ID})
+					}
+					continue
+				}
 				if characters != nil && bootstrapped && frame.ID == 143 {
 					if !verified || selectedCharacterID == 0 {
 						event(map[string]any{"kind": "tutorial_rejected", "reason": "invalid checksum or no selected character"})

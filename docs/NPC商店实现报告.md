@@ -23,20 +23,20 @@
 
 ### 3.1 购买请求（CMD21，明文 24 字节 = 6×u32）
 
-```
-u32 template    // 物品模板 ID
-u32 npcId       // NPC 标识（实机固定 1）
-u32 actorId     // 角色标识（实机固定 2）
-u32 count       // 购买数量
-u32 category    // 分类/商店上下文（不同物品值不同）
-u32 reserved    // 保留，实机为 0
+```text
+u32 template    // 物品模板 ID (+00, esi)
+u32 count       // 购买数量 (+04, ebp，来自 UI 编辑框)
+u32 npcId       // NPC 标识 (+08)
+u32 actorId     // 角色/窗口上下文标识 (+12，实机观察值常为 2)
+u32 category    // 分类/商店上下文 (+16)
+u32 reserved    // 保留 (+20，实机为 0)
 ```
 
 **重要事实**：
 
-- 这是 **live capture 实机确认的 24 字节格式**，并非 IDA 函数 `0x1418BC500` 的 21 字节布局。
-- `0x1418BC500` 写死 `u32(0)+u8(0x11)`，与实机报文 `u32(1)+u8(7)` 不符。**该函数不是 NPC 商店购买发送者，而是修理商店发送者**（仅 vtable 调用，无代码 xref）。
-- 真正的购买发送者仅通过 vtable 调用，函数未定位（见 §9 遗留）。
+- 这是 **IDA 逆向发送函数 `0x1467e7b30` 与实机抓包双重确认的 24 字节格式**。
+- `0x1467e7b30` 由 UI 购买确认事件 `0x146a5b697` 调用，`esi` 传入 template，`ebp` 传入 UI 输入框数量 `count`。发送时首字段写入 template（+00），次字段写入 count（+04）。
+- **历史 Bug 修复记录**：此前文档误将 offset 4 标为 npcId，将 offset 12 标为 count。由于 offset 12 在实机运行时恒为客户端窗口上下文值 2，服务端从 offset 12 读取 count 导致无论输入多少均被强制买 2 个。现已修正从 offset 4 解码 count。
 
 ### 3.2 出售请求（CMD22，明文 24 字节 = 20B 内容 + 4B 对齐填充）
 
@@ -208,9 +208,9 @@ CMD21/22 不在 `observedGameRequest` 白名单，走 `BodySampleLimit=8` 采样
 
 `shopUnitPrice = 1` 金币/单位。PVF `initItemShopScript` / `etc/itemshop/*` 价格表未提取。等真实价格表后替换为 per-template 查找。
 
-### 9.2 真正的购买发送者未定位
+### 9.2 真正的购买发送者已定位
 
-`0x1418BC500` 是修理商店发送者，非 NPC 商店。NPC 商店购买发送者仅通过 vtable 调用。live 报文格式已确认，但 IDA 发送函数未定位。可搜索 vtable `0x14974d4e8` 的兄弟函数，或扫描 `BA 15 00 00 00`（mov edx, 21）匹配写 6×u32 的函数。
+已完整定位到 `client/DFO.exe` 中的 `0x1467e7b30`。该函数由 `0x146a5b697`（UI 购买确认对话框）调用，向 CMD 21 写入 `esi`（template）和 `ebp`（count），彻底解决了此前 offset 4 与 offset 12 字段错位的问题。
 
 ### 9.3 NPC 商店物品 stackable_type 未从 PVF 导入
 
@@ -224,13 +224,13 @@ CMD21/22 不在 `observedGameRequest` 白名单，走 `BodySampleLimit=8` 采样
 
 ## 10. 迁移核对清单
 
-- [ ] `internal/game/protocol/shop.go` + `shop_test.go`
-- [ ] `internal/inventory/shop.go` + `shop_test.go`（含 `stackableSlotRange`）
-- [ ] `internal/loot/shop.go`（含 `shopEventSeq` 原子计数器）
-- [ ] `cmd/wireprobe/shop_flow.go`（含 stackTotal 修复）
-- [ ] `cmd/wireprobe/main.go` CMD21/22 分支
-- [ ] `cmd/wireprobe/request_scope.go` 21/22 白名单
-- [ ] `docs/protocol/next39-npc-shop.md`
+- [x] `internal/game/protocol/shop.go` + `shop_test.go`
+- [x] `internal/inventory/shop.go` + `shop_test.go`（含 `stackableSlotRange`）
+- [x] `internal/loot/shop.go`（含 `shopEventSeq` 原子计数器）
+- [x] `cmd/wireprobe/shop_flow.go`（含 stackTotal 修复）
+- [x] `cmd/wireprobe/main.go` CMD21/22 分支
+- [x] `cmd/wireprobe/request_scope.go` 21/22 白名单
+- [x] `docs/protocol/next39-npc-shop.md`
 
 确认点：
 

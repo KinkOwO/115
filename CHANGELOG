@@ -1,6 +1,17 @@
 # CHANGELOG
 
 ## 2026-09-17
+- 修复 NPC 商店购买数量恒为 2 的协议字段错位缺陷：
+  - 经 IDA 逆向定位到实际发送函数 `0x1467e7b30`（由 `0x146a5b697` UI 结算调用），明确 C2S 报文第 1 个 u32（+00）为 `Template`，第 2 个 u32（+04）为 UI 编辑框真实填入的 `Count`，而 offset 12 为客户端内部上下文（测试期常为 2）。
+  - 修正 `internal/game/protocol/shop.go` 的 `DecodeBuyItem` 将 offset 4 解析为 `Count`（原误从 offset 12 取值导致数量恒定为 2）。
+  - 同步更新 `shop_test.go`、`docs/protocol/next39-npc-shop.md` 与 `docs/NPC商店实现报告.md`。
+- 恢复并闭环 NPC 商店买卖（CMD21 / CMD22）服务端全链路实现（依据 `docs/NPC商店实现报告.md`）：
+  - `internal/game/protocol/shop.go` & `shop_test.go`: 实现 CMD21（24B 购买，6×u32）与 CMD22（24B 出售，20B+4B pad）明文解码、209 字节购买成功 ACK、16 字节出售成功 ACK、多物品/非法填充/零值校验与单元测试
+  - `internal/inventory/shop.go` & `shop_test.go`: 实现 `Bag.Buy` 启发式分槽（消耗品默认投掷栏 65-120、材料栏 121-176）、`Bag.Sell`（区分装备栏与穿戴栏重叠处理）、金币扣减/累加及对应单元测试
+  - `internal/loot/shop.go`: 实现 `Service.Buy` 与 `Service.Sell`，通过原子单调递增计数器 `shopEventSeq` 生成唯一 key 保证连点购买幂等事务安全
+  - `cmd/wireprobe/shop_flow.go`: 实现 `buyItem` 与 `sellItem` 编排，修复批量购买 ACK amount 回显槽位实际总量，并在 ACK 后紧随 NOTI14 全量背包同步
+  - `cmd/wireprobe/main.go` & `request_scope.go`: 将 CMD21/22 接入 `observedGameRequest` 白名单，并在协议处理主循环中接入 buyItem/sellItem 与 Refusal(4) 错误分发
+  - `docs/protocol/next39-npc-shop.md`: 补充 NPC 商店实机取证、逆向分析与协议标定文档
 - 实现装备分解 CMD 26（`ENUM_CMDPACKET_DISJOINT_ITEM`）服务端完整闭环：
   - `internal/game/protocol/disjoint.go`: 完成 CMD 26 C2S 解码、S2C 成功 ACK（包含删除槽位、容器列表、产物明细）与拒绝包序列化，并附带实机抓包回放测试
   - `internal/inventory/disjoint.go`: 实现 `Bag.Disjoint` 装备移除与无色小晶块产出发放逻辑，支持材料栏优先堆叠/新建槽位与穿戴防拆拦截
