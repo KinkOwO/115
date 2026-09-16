@@ -1,6 +1,13 @@
 # CHANGELOG
 
 ## 2026-09-17
+- 实现装备分解 CMD 26（`ENUM_CMDPACKET_DISJOINT_ITEM`）服务端完整闭环：
+  - `internal/game/protocol/disjoint.go`: 完成 CMD 26 C2S 解码、S2C 成功 ACK（包含删除槽位、容器列表、产物明细）与拒绝包序列化，并附带实机抓包回放测试
+  - `internal/inventory/disjoint.go`: 实现 `Bag.Disjoint` 装备移除与无色小晶块产出发放逻辑，支持材料栏优先堆叠/新建槽位与穿戴防拆拦截
+  - `internal/loot/disjoint.go`: 实现 `Service.Disjoint` 幂等事务提交与收据持久化
+  - `cmd/wireprobe/disjoint_flow.go`: 编排网关流转，下发 ACK 并在成功后推送 NOTI 14 全量背包刷新
+  - `cmd/wireprobe/main.go` & `cmd/wireprobe/request_scope.go`: 注册 opcode 26 观察范围与请求分发分支
+  - `docs/protocol/next41-disjoint-item.md`: 补充协议逆向取证、包体布局与后续演进记录
 - 恢复服务端启动修复与迁移支持：
   - `server/work/dfo_probe_tools/probe.cpp`: 去除硬编码路径校验，实现 WFP 网络隔离优雅降级
   - `server/work/dfo_probe_tools/channel_probe.py`: 支持 `server-only` 模式，修复级联误杀进程问题
