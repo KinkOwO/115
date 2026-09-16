@@ -477,7 +477,7 @@ func main() {
 			var skillState skillSession
 			var equipmentState equipmentSession
 			if worldService != nil {
-				worldState = &worldSession{service: worldService, account: developmentAccount, flags: townPolicy.Flags, dungeons: dungeonCatalog, tutorials: tutorialRoutes, tutorialDungeons: tutorialDungeons, professions: characters.Catalog, fatigue: fatigueService, quests: questService, progression: progressionService, loot: lootService, soloPartyBootstrap: *soloPartyBootstrap}
+				worldState = &worldSession{service: worldService, account: developmentAccount, flags: townPolicy.Flags, dungeons: dungeonCatalog, tutorials: tutorialRoutes, tutorialDungeons: tutorialDungeons, professions: characters.Catalog, fatigue: fatigueService, quests: questService, progression: progressionService, loot: lootService, vault: vaultService, soloPartyBootstrap: *soloPartyBootstrap}
 			}
 			sendPayload := func(kind byte, id uint16, payload []byte) error {
 				prepared, e := preparePackets(keys, []outboundPacket{{"response", kind, id, payload}})

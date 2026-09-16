@@ -1,6 +1,18 @@
 # CHANGELOG
 
 ## 2026-09-17
+- 恢复并闭环个人金库（Safe I / Old Iron Safe）物品存取全链路实现（依据 `docs/金库功能实现迁移报告.md`）：
+  - 修复放入金库报「目标容器已满」问题：开放 CMD 19 金库容器类型 `2` 处理链路，避免被误判为非法容器返回拒绝码 `4`。
+  - 修复取出物品后金库原槽位残留「0 金币」问题：清空槽位下发 `EmptyOrdinaryItem`（`template = 0xFFFFFFFF`），触发客户端原生删除函数清理槽位。
+  - `internal/game/protocol/vault.go` & `vault_test.go`: 实现 `PersonalVaultRestore`，支持包含物品的 NOTI 13 编码及单测。
+  - `internal/game/protocol/inventory.go`: `InventorySpaceUpdate` 开放空间类型 `2`（金库空间增量更新）。
+  - `internal/game/protocol/empty_item.go` & `empty_item_test.go`: 新增 `EmptyOrdinaryItem` 生成 181 字节清空槽位记录及单测。
+  - `internal/storage/vault.go`: 实现 `CommitVaultMove` 原子事务，在角色与金库行级排他锁下执行状态持久化并清除缓存。
+  - `internal/inventory/vault.go` & `vault_test.go`: 重写金库数据模型与 `MoveVaultItem` 状态机（支持背包↔金库、金库内部互换/合并、堆叠拆分、越界拦截），附带完整单元测试。
+  - `cmd/wireprobe/vault_flow.go`: 新增 `moveVault` 网关编排，下发 CMD 19 ACK、NOTI 14 背包全量更新与 NOTI 14 金库受影响槽位增量更新。
+  - `cmd/wireprobe/world_flow.go` & `cmd/wireprobe/main.go`: 在 `worldSession` 中注入 `vaultService`。
+  - `cmd/wireprobe/equipment_flow.go`: 在 CMD 19 handle 入口优先分发 `moveVault`，并将装备清空槽位统一修复为 `EmptyOrdinaryItem`。
+  - `docs/protocol/next42-personal-vault.md`: 补充个人金库协议取证与设计记录。
 - 修复 NPC 商店购买数量恒为 2 的协议字段错位缺陷：
   - 经 IDA 逆向定位到实际发送函数 `0x1467e7b30`（由 `0x146a5b697` UI 结算调用），明确 C2S 报文第 1 个 u32（+00）为 `Template`，第 2 个 u32（+04）为 UI 编辑框真实填入的 `Count`，而 offset 12 为客户端内部上下文（测试期常为 2）。
   - 修正 `internal/game/protocol/shop.go` 的 `DecodeBuyItem` 将 offset 4 解析为 `Count`（原误从 offset 12 取值导致数量恒定为 2）。

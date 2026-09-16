@@ -6,6 +6,7 @@ import (
 	"dfolan/internal/character"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
+	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
 	"dfolan/internal/quest"
 	"dfolan/internal/storage"
@@ -31,6 +32,7 @@ type worldSession struct {
 	quests             *quest.Service
 	progression        *character.ProgressionService
 	loot               *loot.Service
+	vault              *inventory.VaultService
 	drops              *loot.Session
 	deathSent          map[uint16]bool
 	activeDungeon      *dungeon.Session
