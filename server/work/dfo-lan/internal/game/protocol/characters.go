@@ -100,7 +100,29 @@ type Equipment struct {
 	Slot byte
 	Item uint32
 }
+
+// 145639840 calls 1459a0220 with list46 for EVERY row, including weapons.
+// That helper consumes a length-prefixed blob before the 26 fixed tail bytes.
+func EquipmentAppearance(rows []Equipment) ([]byte, error) {
+	if len(rows) > 48 {
+		return nil, fmt.Errorf("too many appearance rows")
+	}
+	p := []byte{byte(len(rows))}
+	seen := map[byte]bool{}
+	for _, row := range rows {
+		if row.Slot >= 48 || row.Item == 0 || seen[row.Slot] {
+			return nil, fmt.Errorf("invalid appearance row")
+		}
+		seen[row.Slot] = true
+		p = add32(append(p, row.Slot), row.Item)
+		p = add32(p, 0)
+		p = append(p, make([]byte, 26)...)
+	}
+	return p, nil
+}
+
 type CharacterRow struct {
+	Odyssey          bool
 	Slot             uint16
 	Name             string
 	Profession       byte
@@ -126,7 +148,7 @@ func CharacterList(capacity uint16, roles []CharacterRow) ([]byte, error) {
 	for index, r := range roles {
 		// 0x1401f64d8 builds the native lookup from insertion positions. The
 		// row key and create receipt must use that same zero-based position.
-		if r.Slot != uint16(index) || r.Level == 0 || len(r.Equipment) > 24 {
+		if r.Slot != uint16(index) || r.Level == 0 {
 			return nil, fmt.Errorf("invalid character row")
 		}
 		if _, _, e := parseName(addName(nil, r.Name)); e != nil {
@@ -134,20 +156,11 @@ func CharacterList(capacity uint16, roles []CharacterRow) ([]byte, error) {
 		}
 		p = addName(add16(p, r.Slot), r.Name)
 		p = append(p, 0, r.Profession, r.Advancement, r.Level, 0, 0)
-		// Equipment helper 0x145639840: 31 bytes per populated slot.
-		p = append(p, byte(len(r.Equipment)))
-		for _, e := range r.Equipment {
-			if e.Slot >= 24 {
-				return nil, fmt.Errorf("equipment slot out of bounds")
-			}
-			p = append(p, e.Slot)
-			p = add32(p, e.Item)
-			p = append(p, make([]byte, 13)...)
-			p = add32(p, 0)
-			p = add32(p, 0)
-			p = add32(p, 0)
-			p = append(p, 0)
+		appearance, e := EquipmentAppearance(r.Equipment)
+		if e != nil {
+			return nil, e
 		}
+		p = append(p, appearance...)
 		p = add32(p, 0)
 		p = append(p, 0, 0, 0, 0)
 		p = append(p, 0) // cosmetic helper 0x145639b70: zero count
@@ -162,7 +175,12 @@ func CharacterList(capacity uint16, roles []CharacterRow) ([]byte, error) {
 		p = append(p, make([]byte, 8+28)...)
 		p = add32(p, 0)
 		p = add16(p, 0)
-		p = append(p, 0, 0, 0)
+		// Native 14563e9ee stores this third byte at row-info+672.
+		var mode byte
+		if r.Odyssey {
+			mode = 5
+		}
+		p = append(p, 0, 0, mode)
 		for i := 0; i < 4; i++ {
 			p = add32(p, 0)
 		}

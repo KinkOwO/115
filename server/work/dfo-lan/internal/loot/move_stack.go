@@ -2,6 +2,7 @@ package loot
 
 import (
 	"context"
+	"crypto/sha256"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/storage"
@@ -26,7 +27,7 @@ type MoveStackReceipt struct {
 // Like every other bag write it goes through the character event log, so a
 // drag the client retries moves the stack once.
 func (s *Service) MoveStack(ctx context.Context, role storage.Character, rules inventory.BagRules,
-	r protocol.ItemMoveRequest) (storage.Character, MoveStackReceipt, bool, error) {
+	r protocol.ItemMoveRequest, key string) (storage.Character, MoveStackReceipt, bool, error) {
 	var out MoveStackReceipt
 	fail := func(e error) (storage.Character, MoveStackReceipt, bool, error) {
 		return role, out, false, e
@@ -37,9 +38,13 @@ func (s *Service) MoveStack(ctx context.Context, role storage.Character, rules i
 	if r.SourceList != 0 || r.DestinationList != 0 {
 		return fail(fmt.Errorf("stack moves stay inside the ordinary bag"))
 	}
-	key := fmt.Sprintf("movestack:%d:%d:%d", r.SourceSlot, r.DestinationSlot, r.DestinationItem)
+	request, e := json.Marshal(r)
+	if e != nil {
+		return fail(e)
+	}
+	model := fmt.Sprintf("bag-move-v2:%x", sha256.Sum256(request))
 	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID,
-		s.Catalog.Source.Checksum, key, s.Rules.Model,
+		s.Catalog.Source.Checksum, key, model,
 		func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
 			b, e := inventory.ReadBag(current.State)
 			if e != nil {
@@ -49,12 +54,18 @@ func (s *Service) MoveStack(ctx context.Context, role storage.Character, rules i
 			// fields and leaves the source ones clear, so the destination
 			// slot is where the stack currently is.
 			from, to, template := r.DestinationSlot, r.SourceSlot, r.DestinationItem
-			b, e = b.MoveStackable(rules, from, to, template)
+			if r.Count != 0 {
+				from, to, template = r.SourceSlot, r.DestinationSlot, r.SourceItem
+			}
+			b, e = b.MoveStackRequest(s.Catalog, rules, r)
 			if e != nil {
 				return nil, nil, e
 			}
 			updated, e := inventory.SaveBag(current.State, b)
 			if e != nil {
+				return nil, nil, e
+			}
+			if _, e = protocol.InventoryRestore(b.Rows()); e != nil {
 				return nil, nil, e
 			}
 			out = MoveStackReceipt{from, to, template, s.Catalog.Source.Checksum}

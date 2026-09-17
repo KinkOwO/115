@@ -3,6 +3,7 @@ package loot
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/inventory"
+	"os"
 	"testing"
 )
 
@@ -16,6 +17,9 @@ import (
 //
 // 本测试不依赖游戏客户端，直接调用掉落计算，覆盖多个等级与种子。
 func TestLevel115MonstersDropEquipment(t *testing.T) {
+	if os.Getenv("DFO_EXTENDED_CATALOG_INTEGRATION") != "1" {
+		t.Skip("requires externally generated level115 catalog and custom drop profile; set DFO_EXTENDED_CATALOG_INTEGRATION=1")
+	}
 	c, e := catalog.LoadLoot("../../configs/loot.next25.json")
 	if e != nil {
 		t.Fatal(e)

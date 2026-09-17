@@ -1,0 +1,138 @@
+package main
+
+import (
+	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"dfolan/internal/cashshop"
+	"dfolan/internal/game/protocol"
+	"dfolan/internal/game/wire"
+	"dfolan/internal/inventory"
+	"dfolan/internal/storage"
+	"encoding/json"
+	"fmt"
+)
+
+type shopPilotSession struct {
+	prefix     string
+	keys       []byte
+	vaultRules *inventory.VaultRules
+}
+
+type preparedBagLedger struct {
+	ledger cashshop.BagLedger
+	keys   []byte
+}
+
+func (l preparedBagLedger) PurchaseCashToBag(ctx context.Context, o storage.CashOrder, deliver func(json.RawMessage) (json.RawMessage, error)) (storage.CashReceipt, bool, error) {
+	return l.ledger.PurchaseCashToBag(ctx, o, func(raw json.RawMessage) (json.RawMessage, error) {
+		state, e := deliver(raw)
+		if e != nil {
+			return nil, e
+		}
+		lines := []storage.CashDelivery{}
+		for _, line := range o.Lines {
+			lines = append(lines, storage.CashDelivery{Product: line.Product, Quantity: line.Quantity})
+		}
+		packets, e := shopPilotPackets(storage.CashReceipt{CharacterState: state, Deliveries: lines}, 0, true)
+		if e != nil {
+			return nil, e
+		}
+		if len(l.keys) != wire.SessionKeyBytes {
+			return nil, fmt.Errorf("purchase cipher not initialized")
+		}
+		if _, e = preparePackets(l.keys, packets); e != nil {
+			return nil, e
+		}
+		return state, nil
+	})
+}
+
+func newShopPilotSession() (*shopPilotSession, error) {
+	var b [16]byte
+	if _, e := rand.Read(b[:]); e != nil {
+		return nil, e
+	}
+	return &shopPilotSession{prefix: fmt.Sprintf("shop-pilot-%x-", b)}, nil
+}
+
+// A byte-identical retransmission in the same session uses the original key;
+// a new frame is a new purchase, including another copy of the same SKU.
+func (s *shopPilotSession) purchase(ctx context.Context, p *cashshop.Pilot, store cashshop.BagLedger, account, character int64, plain, frame []byte) (storage.CashReceipt, bool, error) {
+	var r storage.CashReceipt
+	if s == nil || len(frame) < 13 || character <= 0 {
+		return r, false, fmt.Errorf("missing selected purchase session")
+	}
+	key := fmt.Sprintf("%s%x", s.prefix, sha256.Sum256(frame))
+	cart, e := protocol.DecodeCeraCart(plain)
+	if e != nil {
+		return r, false, e
+	}
+	if s.vaultRules != nil {
+		upgrades, err := p.Config.VaultUpgrades()
+		if err != nil {
+			return r, false, err
+		}
+		for _, item := range cart {
+			if _, ok := upgrades[item.Product]; !ok {
+				continue
+			}
+			ledger, ok := store.(cashshop.VaultLedger)
+			if !ok {
+				return r, false, fmt.Errorf("vault purchase ledger missing")
+			}
+			return p.PurchaseVault(ctx, ledger, *s.vaultRules, account, character, key, cart, func(receipt storage.CashReceipt) error {
+				packets, err := shopPilotPackets(receipt, 0, true)
+				if err != nil {
+					return err
+				}
+				if len(s.keys) != wire.SessionKeyBytes {
+					return fmt.Errorf("purchase cipher not initialized")
+				}
+				_, err = preparePackets(s.keys, packets)
+				return err
+			})
+		}
+	}
+	r, applied, e := p.Purchase(ctx, preparedBagLedger{store, s.keys}, account, character, key, cart)
+	return r, applied, e
+}
+
+func shopPilotPackets(receipt storage.CashReceipt, balance uint64, applied bool) ([]outboundPacket, error) {
+	var update outboundPacket
+	if receipt.Vault != nil {
+		payload, err := inventory.VaultPayload(*receipt.Vault)
+		if err != nil {
+			return nil, err
+		}
+		update = outboundPacket{"cera_purchase_vault", 0, 13, payload}
+	} else {
+		b, e := inventory.ReadBag(receipt.CharacterState)
+		if e != nil {
+			return nil, e
+		}
+		items, e := protocol.InventoryUpdate(b.Rows())
+		if e != nil {
+			return nil, e
+		}
+		update = outboundPacket{"cera_purchase_inventory", 0, 14, items}
+	}
+	cera, e := protocol.CeraBalance(balance)
+	if e != nil {
+		return nil, e
+	}
+	packets := []outboundPacket{update, {"cera_purchase_balance", 0, 53, cera}}
+	if applied {
+		if len(receipt.Deliveries) == 0 || len(receipt.Deliveries) > 32 {
+			return nil, fmt.Errorf("purchase receipt needs1..32 deliveries")
+		}
+		for _, d := range receipt.Deliveries {
+			ack, e := protocol.CeraPurchaseOrdinarySuccess(d.Product, d.Quantity)
+			if e != nil {
+				return nil, e
+			}
+			packets = append(packets, outboundPacket{"cera_purchase_success", 1, 64, ack})
+		}
+	}
+	return packets, nil
+}

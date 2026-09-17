@@ -64,10 +64,10 @@ func section(c []pvf.Token, name string) []pvf.Token {
 }
 
 func MonsterGain(c catalog.Progression, r Rules, d catalog.DungeonDefinition, m protocol.DungeonMonster, level, difficulty byte) (uint64, error) {
-	if m.NonCombat {
+	if m.NonCombat || m.APC || m.Level == 0 {
 		return 0, nil
 	}
-	if level == 0 || m.Level == 0 || m.Rank > 3 || int(difficulty) >= len(c.DifficultyRates) || len(c.MonsterRates) == 0 {
+	if level == 0 || m.Rank > 3 || int(difficulty) >= len(c.DifficultyRates) || len(c.MonsterRates) == 0 {
 		return 0, fmt.Errorf("invalid monster experience source")
 	}
 	base, ok := c.MonsterExperience[uint16(m.Level)]
