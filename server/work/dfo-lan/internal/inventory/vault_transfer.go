@@ -2,6 +2,7 @@ package inventory
 
 import (
 	"context"
+	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/storage"
 	"encoding/json"
@@ -76,7 +77,12 @@ func (s *VaultService) TransferStacks(role storage.Character, v storage.VaultSta
 	}
 	item, ok := s.Catalog.Items[from.Template]
 	if !ok || item.Kind != "stackable" {
-		return fail("vault transfer requires a known stackable")
+		if from != nil {
+			item = catalog.LootItem{ID: from.Template, Kind: "stackable", StackableType: "[waste]", StackLimit: s.BagRules.MissingStackLimit}
+			ok = true
+		} else {
+			return fail("vault transfer requires a known stackable")
+		}
 	}
 	// These source fields require metadata the ordinary BagItem does not hold.
 	contents := false
@@ -97,7 +103,18 @@ func (s *VaultService) TransferStacks(role storage.Character, v storage.VaultSta
 		case "[etc]", "[waste]", "[hp]", "[mp]", "[hp mp]", "[expert town potion]":
 			home = [2]uint16{65, 120}
 		default:
-			return fail("unmapped vault item category")
+			switch item.StackableType {
+			case "[material]", "[upgrade limit cube]":
+				home = [2]uint16{121, 176}
+			case "[quest]", "[quest receive]":
+				home = [2]uint16{177, 232}
+			case "[material expert job]":
+				home = [2]uint16{233, 288}
+			case "[avatar emblem]", "[rune]":
+				home = [2]uint16{289, 344}
+			default:
+				home = [2]uint16{65, 120}
+			}
 		}
 	}
 	legal := func(space byte, slot uint16) bool {

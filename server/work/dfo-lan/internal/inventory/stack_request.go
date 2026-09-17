@@ -43,7 +43,16 @@ func (b Bag) MoveStackRequest(c catalog.LootCatalog, rules BagRules, r protocol.
 	limit := func(v BagItem, slot uint16) (uint32, error) {
 		item, ok := c.Items[v.Template]
 		if !ok || item.Kind != "stackable" {
-			return 0, fmt.Errorf("unknown stack definition")
+			// Fallback: If v is already in the bag or quickslot, we know it is a stackable.
+			if (v.Slot >= 65 && v.Slot <= 120) || rules.Quick(v.Slot) {
+				item = catalog.LootItem{ID: v.Template, Kind: "stackable", StackableType: "[waste]", StackLimit: rules.MissingStackLimit}
+				ok = true
+			} else if v.Slot >= 121 && v.Slot <= 176 {
+				item = catalog.LootItem{ID: v.Template, Kind: "stackable", StackableType: "[material]", StackLimit: rules.MissingStackLimit}
+				ok = true
+			} else {
+				return 0, fmt.Errorf("unknown stack definition")
+			}
 		}
 		home, ok := rules.Slots[item.StackableType]
 		if !ok {
@@ -51,10 +60,22 @@ func (b Bag) MoveStackRequest(c catalog.LootCatalog, rules BagRules, r protocol.
 			case "[etc]", "[waste]", "[hp]", "[mp]", "[hp mp]", "[expert town potion]":
 				home = [2]uint16{65, 120}
 			default:
-				return 0, fmt.Errorf("unknown stack category")
+				switch item.StackableType {
+				case "[material]", "[upgrade limit cube]":
+					home = [2]uint16{121, 176}
+				case "[quest]", "[quest receive]":
+					home = [2]uint16{177, 232}
+				case "[material expert job]":
+					home = [2]uint16{233, 288}
+				case "[avatar emblem]", "[rune]":
+					home = [2]uint16{289, 344}
+				default:
+					home = [2]uint16{65, 120}
+				}
 			}
 		}
-		if slot == 0 || !(slot >= home[0] && slot <= home[1] || item.StackableType != "[material]" && rules.Quick(slot)) {
+		canQuick := home[0] == 65 && home[1] == 120
+		if slot == 0 || !(slot >= home[0] && slot <= home[1] || canQuick && rules.Quick(slot)) {
 			return 0, fmt.Errorf("invalid stack destination")
 		}
 		for _, gear := range b.Equipment {

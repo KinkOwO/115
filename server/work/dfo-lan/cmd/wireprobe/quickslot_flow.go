@@ -80,7 +80,11 @@ func stackMovePackets(saved storage.Character, r protocol.ItemMoveRequest, appli
 	}
 	plan := []outboundPacket{}
 	if applied {
-		plan = append(plan, outboundPacket{"stack_move_committed", 1, 19, protocol.ItemMoveSuccess(r, r.Count)})
+		count := r.Count
+		if count == 0 {
+			count = 1
+		}
+		plan = append(plan, outboundPacket{"stack_move_committed", 1, 19, protocol.ItemMoveSuccess(r, count)})
 	}
 	// NOTI14 is an acquisition/update path: it leaves absent source rows and
 	// emits obtained-item effects. NOTI13 replaces the authoritative bag.

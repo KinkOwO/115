@@ -241,7 +241,11 @@ func (w *worldSession) monsterDeath(p []byte) ([]outboundPacket, error) {
 				// Drops span every job's gear at every level by design; that
 				// breadth is a feature, not a bug, so the pool is not narrowed
 				// to what this character can wear.
-				w.drops = loot.NewSession(w.loot.Catalog, w.loot.Tables, w.loot.Rules, w.loot.Equipment, w.activeDungeon.RunID, w.account, w.role.ID, w.role.WireID)
+				dropCatalog := w.loot.Catalog
+				if len(w.loot.DropCatalog.Items) > 0 {
+					dropCatalog = w.loot.DropCatalog
+				}
+				w.drops = loot.NewSession(dropCatalog, w.loot.Tables, w.loot.Rules, w.loot.Equipment, w.activeDungeon.RunID, w.account, w.role.ID, w.role.WireID)
 				if w.activeDungeon.Definition.Odyssey {
 					w.drops.Currency = w.loot.Currency
 				}

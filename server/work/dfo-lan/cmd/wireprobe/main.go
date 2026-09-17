@@ -60,6 +60,7 @@ func main() {
 	equipmentRewardFile := flag.String("quest-equipment-catalog", "", "source basic-equipment metadata for atomic quest rewards")
 	wearRulesFile := flag.String("equipment-wear-rules", "", "current-client equipment slots and persistent wear handling")
 	fullEquipmentFile := flag.String("equipment-full-catalog", os.Getenv("DFO_EQUIPMENT_FULL_CATALOG"), "separate indexed wear catalog prefix; does not widen drops")
+	itemIndexFile := flag.String("item-index", os.Getenv("DFO_ITEM_INDEX"), "full stackable item index JSON (e.g. configs/items.index.json)")
 	soloPartyBootstrap := flag.Bool("solo-party-bootstrap", false, "initialize the owned actor in the current solo party roster")
 	accountOptionsFile := flag.String("account-options", "", "sparse current-client account option overrides; other defaults remain client-owned")
 	tutorialRoutesFile := flag.String("tutorial-routes", "", "source per-job starting route table")
@@ -369,7 +370,24 @@ func main() {
 		if c.Source.Checksum != characters.Catalog.Source.Checksum || bag.Source != c.Source.Checksum {
 			log.Fatal("loot source mismatch")
 		}
-		lootService = &loot.Service{Store: characters.Store, Catalog: c, Rules: r, BagRules: bag, Tables: tables}
+		dropCatalog := c
+		itemIndexPath := *itemIndexFile
+		if itemIndexPath == "" {
+			cand := filepath.Join(filepath.Dir(lootPath), "items.index.json")
+			if _, err := os.Stat(cand); err == nil {
+				itemIndexPath = cand
+			} else if _, err := os.Stat("configs/items.index.json"); err == nil {
+				itemIndexPath = "configs/items.index.json"
+			}
+		}
+		if itemIndexPath != "" {
+			if err := c.SupplementStackables(itemIndexPath); err != nil {
+				log.Printf("warning: supplement stackables from %s: %v", itemIndexPath, err)
+			} else {
+				log.Printf("supplemented stackable catalog from %s (total items: %d)", itemIndexPath, len(c.Items))
+			}
+		}
+		lootService = &loot.Service{Store: characters.Store, Catalog: c, DropCatalog: dropCatalog, Rules: r, BagRules: bag, Tables: tables}
 		if path := os.Getenv("DFO_ODYSSEY_COIN_RULES"); path != "" {
 			lootService.Currency, e = loot.LoadOdysseyCurrency(path)
 			if e != nil {

@@ -150,3 +150,56 @@ func LoadLoot(path string) (LootCatalog, error) {
 	}
 	return c, nil
 }
+
+// SupplementStackables supplements the catalog with stackable definitions
+// from an items.index.json file for inventory/quickslot/consume operations,
+// without overriding any existing monster drop items.
+func (c *LootCatalog) SupplementStackables(path string) error {
+	if path == "" {
+		return nil
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	var doc struct {
+		Source struct {
+			Checksum string `json:"checksum"`
+		} `json:"source"`
+		Items map[string]struct {
+			ID            uint32 `json:"id"`
+			Kind          string `json:"kind"`
+			Path          string `json:"path"`
+			StackableType string `json:"stackable_type"`
+			StackLimit    uint32 `json:"stack_limit"`
+		} `json:"items"`
+	}
+	dec := json.NewDecoder(f)
+	if err := dec.Decode(&doc); err != nil {
+		return err
+	}
+	if doc.Source.Checksum != "" && c.Source.Checksum != "" && doc.Source.Checksum != c.Source.Checksum {
+		return fmt.Errorf("items index source mismatch: got %s want %s", doc.Source.Checksum, c.Source.Checksum)
+	}
+
+	if c.Items == nil {
+		c.Items = make(map[uint32]LootItem, len(doc.Items))
+	}
+	for _, it := range doc.Items {
+		if it.Kind != "stackable" || it.ID == 0 {
+			continue
+		}
+		if _, exists := c.Items[it.ID]; !exists {
+			c.Items[it.ID] = LootItem{
+				ID:            it.ID,
+				Kind:          "stackable",
+				StackableType: it.StackableType,
+				StackLimit:    it.StackLimit,
+				Script:        ScriptRecord{Path: it.Path},
+			}
+		}
+	}
+	return nil
+}

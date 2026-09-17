@@ -12,14 +12,15 @@ import (
 )
 
 type Service struct {
-	Currency   *OdysseyCurrency
-	Store      *storage.Store
-	Catalog    catalog.LootCatalog
-	Rules      Rules
-	BagRules   inventory.BagRules
-	Tables     Tables
-	Equipment  *inventory.EquipmentCatalog
-	CardPolicy *CardRules
+	Currency    *OdysseyCurrency
+	Store       *storage.Store
+	Catalog     catalog.LootCatalog
+	DropCatalog catalog.LootCatalog
+	Rules       Rules
+	BagRules    inventory.BagRules
+	Tables      Tables
+	Equipment   *inventory.EquipmentCatalog
+	CardPolicy  *CardRules
 }
 type PickupReceipt struct {
 	Run         string
