@@ -44,7 +44,7 @@ func skillOrder(state State, known map[uint16]byte) []int {
 	return append(ids, added...)
 }
 func (s *Service) skillRows(role storage.Character, state State, tree int) ([]protocol.LearnedSkill, error) {
-	known, e := knownSkills(state, tree)
+	known, e := s.knownSkills(role, state, tree)
 	if e != nil {
 		return nil, e
 	}
@@ -129,7 +129,7 @@ func (s *Service) Learn(ctx context.Context, role storage.Character, key string,
 		if e := json.Unmarshal(current.State, &state); e != nil {
 			return nil, nil, e
 		}
-		known, e := knownSkills(state, int(req.Tree))
+		known, e := s.knownSkills(current, state, int(req.Tree))
 		if e != nil {
 			return nil, nil, e
 		}
@@ -141,6 +141,24 @@ func (s *Service) Learn(ctx context.Context, role storage.Character, key string,
 		floor := map[uint16]byte{}
 		for _, v := range base {
 			floor[v.ID] = v.Level
+		}
+		free, e := s.automaticSkills(current, state)
+		if e != nil {
+			return nil, nil, e
+		}
+		for id, rank := range free {
+			if floor[id] < rank {
+				floor[id] = rank
+			}
+		}
+		for stage := byte(1); stage <= state.Awakening; stage++ {
+			grants := s.Catalog.Professions[current.Profession].AwakeningSkills[state.Advancement][stage]
+			for i := 0; i+1 < len(grants); i += 2 {
+				id, rank := uint16(grants[i]), byte(grants[i+1])
+				if known[id] >= rank && floor[id] < rank {
+					floor[id] = rank
+				}
+			}
 		}
 		points := int(state.SkillPoints[req.Tree])
 		changes := map[uint16]byte{}
@@ -158,7 +176,7 @@ func (s *Service) Learn(ctx context.Context, role storage.Character, key string,
 					return nil, nil, fmt.Errorf("cannot refund source initial ranks or absent skill")
 				}
 				for lv := int(known[v.ID]); lv > target; lv-- {
-					cost, err := d.Cost(int(state.Level), int(state.Advancement), lv, known)
+					cost, err := d.costForState(state, lv, known)
 					if err != nil {
 						return nil, nil, err
 					}
@@ -169,9 +187,9 @@ func (s *Service) Learn(ctx context.Context, role storage.Character, key string,
 				}
 			}
 			for lv := int(known[v.ID]) + 1; lv <= target; lv++ {
-				cost, e := d.Cost(int(state.Level), int(state.Advancement), lv, known)
+				cost, e := d.costForState(state, lv, known)
 				if e != nil {
-					return nil, nil, e
+					return nil, nil, fmt.Errorf("skill %d rank %d: %w", v.ID, lv, e)
 				}
 				points -= cost
 				if points < 0 {
@@ -198,8 +216,11 @@ func (s *Service) Learn(ctx context.Context, role storage.Character, key string,
 				}
 			}
 		}
-		if len(changes) == 0 {
+		if len(changes) == 0 && req.Intensions == nil && req.Options == nil {
 			return nil, nil, fmt.Errorf("empty learning request")
+		}
+		if e := s.applyVariations(current.Profession, &state, known, req); e != nil {
+			return nil, nil, e
 		}
 		if state.LearnedSkills[req.Tree] == nil {
 			state.LearnedSkills[req.Tree] = map[uint16]byte{}
@@ -330,5 +351,10 @@ func (s *Service) LearningResponse(role storage.Character, req protocol.SkillPur
 		}
 		changed = append(changed, row)
 	}
-	return protocol.SkillPurchaseSuccess(req.Tree, state.SkillPoints[req.Tree], state.TechniquePoints[req.Tree], changed)
+	p, e := protocol.SkillPurchaseSuccess(req.Tree, state.SkillPoints[req.Tree], state.TechniquePoints[req.Tree], changed)
+	if e != nil {
+		return nil, e
+	}
+	v := state.SkillVariations[req.Tree]
+	return protocol.SkillPurchaseVariations(p, req.Mode, v.Intensions, v.Options)
 }

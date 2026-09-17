@@ -160,7 +160,7 @@ func TestVaultSerialization(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SaveVault error: %v", err)
 	}
-	readBack, err := ReadVault(storage.VaultState{Slots: 8, Items: raw})
+	readBack, err := ReadExtendedVault(storage.VaultState{Slots: 8, Items: raw})
 	if err != nil {
 		t.Fatalf("ReadVault error: %v", err)
 	}

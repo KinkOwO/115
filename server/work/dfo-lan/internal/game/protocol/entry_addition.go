@@ -68,6 +68,7 @@ type EntryAdditionProbe struct {
 	Experience    uint64
 	Stats         PackedEntryStats
 	SkillTrees    [2][]EntrySkill
+	Worn          []DetailedWorn
 }
 
 func UserInfoAdditionProbe(s EntryAdditionProbe) ([]byte, error) {
@@ -87,7 +88,11 @@ func UserInfoAdditionProbe(s EntryAdditionProbe) ([]byte, error) {
 	// 14563d6cb -> 1452c1540 always consumes an equipment block, even
 	// when empty: u8 rows, u32 scalar, u8 collection count, u64 flags.
 	// Omitting these 14 bytes shifts switching inventory and skill trees.
-	p = append(p, make([]byte, 14)...)
+	equipment, e := DetailedEquipment(s.Worn)
+	if e != nil {
+		return nil, e
+	}
+	p = append(p, equipment...)
 	p = append(add16(p, 0), 0) // 14563c1f0: switching-inventory ID + count
 	p = add32(add32(p, 0), 0)  // 14563d6dd / 14563d717
 	p = append(p, 0xff)        // native unset selected skill-tree byte

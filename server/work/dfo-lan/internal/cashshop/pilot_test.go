@@ -1,0 +1,291 @@
+package cashshop
+
+import (
+	"context"
+	"dfolan/internal/game/protocol"
+	"dfolan/internal/inventory"
+	"dfolan/internal/storage"
+	"encoding/json"
+	"testing"
+)
+
+type packLedger struct {
+	state json.RawMessage
+	order storage.CashOrder
+}
+
+func (l *packLedger) PurchaseCashToBag(_ context.Context, o storage.CashOrder, fn func(json.RawMessage) (json.RawMessage, error)) (storage.CashReceipt, bool, error) {
+	state, e := fn(l.state)
+	if e != nil {
+		return storage.CashReceipt{}, false, e
+	}
+	l.state = state
+	l.order = o
+	return storage.CashReceipt{}, true, nil
+}
+func TestShopPilotPacksAndAtomicCapacity(t *testing.T) {
+	p, e := LoadPilot("../../configs/shop-purchase-pilot.json", "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80")
+	if e != nil {
+		t.Fatal(e)
+	}
+	products, e := p.products()
+	if e != nil {
+		t.Fatal(e)
+	}
+	for _, v := range []struct{ id, units, price uint32 }{{3000674, 5, 490}, {3000675, 10, 900}, {3000676, 30, 2550}, {3003001, 3, 210}, {3003002, 5, 350}, {3003003, 10, 700}, {3000394, 10, 850}, {3000395, 5, 450}} {
+		product := products[v.id]
+		if product.Units != v.units || product.Cera != v.price {
+			t.Fatalf("bundle source mismatch %+v", product)
+		}
+		l := &packLedger{state: json.RawMessage(`{}`)}
+		_, _, err := p.Purchase(context.Background(), l, 1, 1, "bundle-test-0001", []protocol.CeraCartItem{{Product: v.id, Quantity: 1}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		bag, err := inventory.ReadBag(l.state)
+		if err != nil || len(bag.Items) != 1 || bag.Items[0].Amount != v.units {
+			t.Fatal("bundle delivery", err)
+		}
+	}
+	// Reproduce the user's existing41 boxes spread over41 slots. Buying50
+	// must add to an existing stack, without deleting/reordering old rows.
+	legacy := inventory.Bag{Version: "ordinary-bag-v1"}
+	for slot := uint16(65); slot < 106; slot++ {
+		legacy.Items = append(legacy.Items, inventory.BagItem{Slot: slot, Template: 15, Amount: 1})
+	}
+	legacyRaw, err := inventory.SaveBag(json.RawMessage(`{}`), legacy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	legacyLedger := &packLedger{state: legacyRaw}
+	_, _, err = p.Purchase(context.Background(), legacyLedger, 1, 1, "legacy-fifty-0001", []protocol.CeraCartItem{{Product: 3000121, Quantity: 1}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	legacyAfter, err := inventory.ReadBag(legacyLedger.state)
+	if err != nil || len(legacyAfter.Items) != 41 || legacyAfter.Items[0].Amount != 51 {
+		t.Fatal("legacy fifty-pack failed", err)
+	}
+	for _, test := range []struct{ id, template, price uint32 }{{3000673, 14, 100}, {3000396, 21, 100}, {3003000, 590722509, 70}} {
+		v := products[test.id]
+		if v.Template != test.template || v.Cera != test.price {
+			t.Fatalf("ordinary source mismatch %+v", v)
+		}
+		l := &packLedger{state: json.RawMessage(`{}`)}
+		_, _, e = p.Purchase(context.Background(), l, 1, 1, "ordinary-test-0001", []protocol.CeraCartItem{{Product: test.id, Quantity: 2}})
+		if e != nil {
+			t.Fatal(e)
+		}
+		bag, e := inventory.ReadBag(l.state)
+		if e != nil || len(bag.Items) != 1 || bag.Items[0].Template != test.template || bag.Items[0].Amount != 2 {
+			t.Fatal("wrong ordinary delivery", e)
+		}
+		ack, e := protocol.CeraPurchaseOrdinarySuccess(test.id, 2)
+		if e != nil || len(ack) != 49 {
+			t.Fatal("ordinary response", e)
+		}
+	}
+	for _, test := range []struct{ id, amount, price uint32 }{{3000118, 1, 45}, {3000119, 10, 400}, {3000120, 30, 1100}, {3000121, 50, 1700}} {
+		v := products[test.id]
+		if v.Units != test.amount || v.Cera != test.price {
+			t.Fatalf("PVF product%v", v)
+		}
+		l := &packLedger{state: json.RawMessage(`{"level":1}`)}
+		_, _, e = p.Purchase(context.Background(), l, 1, 1, "pack-order-test-0001", []protocol.CeraCartItem{{Product: test.id, Quantity: 1}})
+		if e != nil {
+			t.Fatal(e)
+		}
+		bag, e := inventory.ReadBag(l.state)
+		if e != nil || len(bag.Items) != 1 || bag.Items[0].Amount != test.amount {
+			t.Fatal("wrong pack amount", e)
+		}
+	}
+	l := &packLedger{state: json.RawMessage(`{}`)}
+	_, _, e = p.Purchase(context.Background(), l, 1, 1, "pack-order-test-0002", []protocol.CeraCartItem{{Product: 3000121, Quantity: 1}})
+	if e != nil {
+		t.Fatal(e)
+	}
+	full := inventory.Bag{Version: "ordinary-bag-v1"}
+	for slot := uint16(65); slot <= 120; slot++ {
+		full.Items = append(full.Items, inventory.BagItem{Slot: slot, Template: 15, Amount: 1000})
+	}
+	l.state, e = inventory.SaveBag(l.state, full)
+	if e != nil {
+		t.Fatal(e)
+	}
+	before := string(l.state)
+	_, _, e = p.Purchase(context.Background(), l, 1, 1, "pack-order-test-0003", []protocol.CeraCartItem{{Product: 3000119, Quantity: 1}})
+	if e == nil || string(l.state) != before {
+		t.Fatal("partial ten-pack persisted")
+	}
+}
+
+func TestShopPilotSourceAndDelivery(t *testing.T) {
+	p, e := LoadPilot("../../configs/shop-purchase-pilot.json", "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80")
+	if e != nil {
+		t.Fatal(e)
+	}
+	products, e := p.products()
+	if e != nil || products[3000118].Cera != 45 || products[3000118].Template != 15 {
+		t.Fatalf("unexpected current PVF product %+v %v", products[3000118], e)
+	}
+	raw := json.RawMessage(`{"level":55,"unrelated":true}`)
+	for i := 0; i < 56; i++ {
+		raw, e = p.deliverAmount(raw, 15, 1)
+		if e != nil {
+			t.Fatal(i, e)
+		}
+	}
+	b, e := inventory.ReadBag(raw)
+	if e != nil || len(b.Items) != 1 || b.Items[0].Amount != 56 {
+		t.Fatal(e)
+	}
+	if _, e = p.deliverAmount(raw, 15, 1); e != nil {
+		t.Fatal("existing stack should accept more", e)
+	}
+	var fields map[string]json.RawMessage
+	if json.Unmarshal(raw, &fields) != nil || string(fields["level"]) != "55" || string(fields["unrelated"]) != "true" {
+		t.Fatal("noninventory fields changed")
+	}
+	for _, entry := range p.Config.Entries {
+		if entry.Row[0].Value != 3000118 {
+			continue
+		}
+		entry.Row = append(entry.Row[:0:0], entry.Row...)
+		entry.Row[3].Value = 1
+		if _, _, e = p.Config.classify(entry); e == nil {
+			t.Fatal("gold price accepted")
+		}
+	}
+}
+
+func TestShopPilotCartAndSplitStacks(t *testing.T) {
+	p, err := LoadPilot("../../configs/shop-purchase-pilot.json", "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80")
+	if err != nil {
+		t.Fatal(err)
+	}
+	l := &packLedger{state: json.RawMessage(`{"level":55}`)}
+	cart := []protocol.CeraCartItem{{Product: 3000121, Quantity: 21}, {Product: 3000674, Quantity: 2}, {Product: 3003001, Quantity: 1}}
+	_, applied, err := p.Purchase(context.Background(), l, 1, 1, "mixed-cart-test-0001", cart)
+	if err != nil || !applied || len(l.order.Lines) != 3 {
+		t.Fatal("mixed cart", err)
+	}
+	b, err := inventory.ReadBag(l.state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	amounts := map[uint32]uint32{}
+	for _, row := range b.Items {
+		amounts[row.Template] += row.Amount
+		if row.Amount > 1000 {
+			t.Fatal("stack overflow")
+		}
+	}
+	if len(b.Items) != 4 || amounts[15] != 1050 || amounts[14] != 10 || amounts[590722509] != 3 {
+		t.Fatal("wrong mixed delivery", b)
+	}
+	// First cart line fits an existing stack; second needs a new, unavailable slot.
+	full := inventory.Bag{Version: "ordinary-bag-v1"}
+	for slot := uint16(65); slot <= 120; slot++ {
+		full.Items = append(full.Items, inventory.BagItem{Slot: slot, Template: 15, Amount: 999})
+	}
+	l.state, err = inventory.SaveBag(json.RawMessage(`{}`), full)
+	if err != nil {
+		t.Fatal(err)
+	}
+	before := string(l.state)
+	_, _, err = p.Purchase(context.Background(), l, 1, 1, "mixed-cart-test-0002", []protocol.CeraCartItem{{Product: 3000118, Quantity: 1}, {Product: 3000673, Quantity: 1}})
+	if err == nil || string(l.state) != before {
+		t.Fatal("partial cart persisted", err)
+	}
+	for _, invalid := range [][]protocol.CeraCartItem{nil, make([]protocol.CeraCartItem, 33), {{Product: 3000118, Quantity: 57}}, {{Product: 3000118, Quantity: 1}, {Product: 3107337, Kind: 4, Quantity: 1}}} {
+		if _, _, err = p.Purchase(context.Background(), l, 1, 1, "mixed-cart-bad-0001", invalid); err == nil || string(l.state) != before {
+			t.Fatal("invalid cart changed state")
+		}
+	}
+	// Fill multiple partial stacks without requiring a free slot.
+	raw, err := p.deliverAmount(l.state, 15, 56)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err = inventory.ReadBag(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, row := range b.Items {
+		if row.Amount != 1000 {
+			t.Fatal("partial stack not filled", row)
+		}
+	}
+}
+
+func TestShopPilotMaterialProductsAndCategories(t *testing.T) {
+	p, err := LoadPilot("../../configs/shop-purchase-pilot.json", "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80")
+	if err != nil {
+		t.Fatal(err)
+	}
+	products, err := p.products()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, v := range []struct {
+		id, template, price uint32
+		material            bool
+	}{
+		{3001195, 50022396, 990, true}, {3001196, 50022395, 1290, true},
+		{3002398, 10308836, 190, true}, {3002399, 10308357, 690, true},
+		{3000393, 2660452, 50, false}, {3000669, 10000704, 190, false},
+	} {
+		product := products[v.id]
+		if product.Template != v.template || product.Cera != v.price || product.Units != 1 {
+			t.Fatal("source mismatch", v, product)
+		}
+		l := &packLedger{state: json.RawMessage(`{}`)}
+		_, _, err = p.Purchase(context.Background(), l, 1, 1, "category-fixture-0001", []protocol.CeraCartItem{{Product: v.id, Quantity: 2}})
+		if err != nil {
+			t.Fatal(v, err)
+		}
+		b, err := inventory.ReadBag(l.state)
+		if err != nil || len(b.Items) != 1 || b.Items[0].Template != v.template || b.Items[0].Amount != 2 {
+			t.Fatal("delivery", v, b, err)
+		}
+		want := uint16(65)
+		if v.material {
+			want = 121
+		}
+		if b.Items[0].Slot != want {
+			t.Fatal("wrong category", v, b)
+		}
+		if ack, err := protocol.CeraPurchaseOrdinarySuccess(v.id, 2); err != nil || len(ack) != 49 {
+			t.Fatal("ACK", v, err)
+		}
+	}
+	full := inventory.Bag{Version: "ordinary-bag-v1"}
+	for slot := uint16(65); slot <= 120; slot++ {
+		full.Items = append(full.Items, inventory.BagItem{Slot: slot, Template: 15, Amount: 1000})
+	}
+	raw, err := inventory.SaveBag(json.RawMessage(`{}`), full)
+	if err != nil {
+		t.Fatal(err)
+	}
+	l := &packLedger{state: raw}
+	if _, _, err = p.Purchase(context.Background(), l, 1, 1, "material-independent-001", []protocol.CeraCartItem{{Product: 3001195, Quantity: 1}}); err != nil {
+		t.Fatal("full consumables blocked material", err)
+	}
+	full.Items = nil
+	for slot := uint16(121); slot <= 176; slot++ {
+		full.Items = append(full.Items, inventory.BagItem{Slot: slot, Template: 50022396, Amount: 1000})
+	}
+	l.state, err = inventory.SaveBag(json.RawMessage(`{}`), full)
+	if err != nil {
+		t.Fatal(err)
+	}
+	before := string(l.state)
+	_, _, err = p.Purchase(context.Background(), l, 1, 1, "material-full-cart-001", []protocol.CeraCartItem{{Product: 3000118, Quantity: 1}, {Product: 3001196, Quantity: 1}})
+	if err == nil || string(l.state) != before {
+		t.Fatal("full material left partial consumable delivery")
+	}
+	if _, _, err = p.Purchase(context.Background(), l, 1, 1, "consumable-independent-001", []protocol.CeraCartItem{{Product: 3000118, Quantity: 1}}); err != nil {
+		t.Fatal("full material blocked consumable", err)
+	}
+}

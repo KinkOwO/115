@@ -11,17 +11,21 @@ import (
 )
 
 type Profession struct {
-	ID                byte                   `json:"id"`
-	Path              string                 `json:"path"`
-	RawSHA256         string                 `json:"raw_sha256"`
-	Job               string                 `json:"job"`
-	InitialAttributes map[string]float32     `json:"initial_attributes"`
-	BaseGrowth        map[string]float32     `json:"base_growth,omitempty"`
-	InitialSections   map[string][]pvf.Token `json:"initial_sections"`
-	InitialSkills     []int32                `json:"initial_skill_cells"`
-	InitialSkillSlots map[uint16]uint16      `json:"initial_skill_slots,omitempty"`
-	CreateEquipment   []pvf.Token            `json:"create_equipment_cells"`
-	DefaultAppearance []int32                `json:"default_appearance_indices,omitempty"`
+	AdvancementSkills map[byte][]int32            `json:"advancement_skills,omitempty"`
+	AwakeningSkills   map[byte]map[byte][]int32   `json:"awakening_skills,omitempty"`
+	AdvancementGrowth map[byte]map[string]float32 `json:"advancement_growth,omitempty"`
+	ID                byte                        `json:"id"`
+	Path              string                      `json:"path"`
+	RawSHA256         string                      `json:"raw_sha256"`
+	Job               string                      `json:"job"`
+	InitialAttributes map[string]float32          `json:"initial_attributes"`
+	BaseGrowth        map[string]float32          `json:"base_growth,omitempty"`
+	SwordmasterGrowth map[string]float32          `json:"swordmaster_growth,omitempty"`
+	InitialSections   map[string][]pvf.Token      `json:"initial_sections"`
+	InitialSkills     []int32                     `json:"initial_skill_cells"`
+	InitialSkillSlots map[uint16]uint16           `json:"initial_skill_slots,omitempty"`
+	CreateEquipment   []pvf.Token                 `json:"create_equipment_cells"`
+	DefaultAppearance []int32                     `json:"default_appearance_indices,omitempty"`
 }
 type Characters struct {
 	Source      pvf.ArchiveSnapshot `json:"source"`
@@ -127,6 +131,24 @@ func ImportCharacters(a *pvf.Archive) (Characters, error) {
 				p.BaseGrowth[section] = t.Number
 			default:
 				return result, fmt.Errorf("unsupported base growth cell in %s", path)
+			}
+		}
+		p.AdvancementGrowth = map[byte]map[string]float32{}
+		p.AwakeningSkills = AwakeningSkillGrants(ts)
+		p.AdvancementSkills, e = AdvancementSkillGrants(ts)
+		if e != nil {
+			return result, fmt.Errorf("profession %d: %w", id, e)
+		}
+		for advancement := byte(1); advancement < 16; advancement++ {
+			growth, err := ProfessionGrowth(ts, p.InitialAttributes, advancement)
+			if err == nil {
+				p.AdvancementGrowth[advancement] = growth
+			}
+		}
+		if id == 0 {
+			p.SwordmasterGrowth, e = SwordmasterGrowth(ts, p.InitialAttributes)
+			if e != nil {
+				return result, e
 			}
 		}
 		// Skill availability comes from .chr. A small local hotbar policy puts

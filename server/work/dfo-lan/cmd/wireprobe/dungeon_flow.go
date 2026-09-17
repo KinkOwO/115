@@ -7,6 +7,7 @@ import (
 	"dfolan/internal/character"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
+	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
 	"dfolan/internal/storage"
 	"encoding/binary"
@@ -63,6 +64,12 @@ func (w *worldSession) selectDungeon(p []byte) (*dungeon.Session, []outboundPack
 	r, e := protocol.DecodeDungeonSelection(p)
 	if e != nil {
 		return nil, nil, e
+	}
+	if d, ok := w.dungeons.Dungeons[r.ID]; ok && d.Odyssey {
+		creation, err := protocol.DecodeCreateRequest(w.role.Request)
+		if err != nil || len(creation.Options) != 12 || creation.Options[10] != 2 {
+			return nil, nil, fmt.Errorf("Odyssey dungeon requires an Odyssey character")
+		}
 	}
 	// A starting route names its own dungeon and has no town gate to stand
 	// at, so it is resolved before the ordinary gate check.
@@ -235,6 +242,9 @@ func (w *worldSession) monsterDeath(p []byte) ([]outboundPacket, error) {
 				// breadth is a feature, not a bug, so the pool is not narrowed
 				// to what this character can wear.
 				w.drops = loot.NewSession(w.loot.Catalog, w.loot.Tables, w.loot.Rules, w.loot.Equipment, w.activeDungeon.RunID, w.account, w.role.ID, w.role.WireID)
+				if w.activeDungeon.Definition.Odyssey {
+					w.drops.Currency = w.loot.Currency
+				}
 			}
 			rows, err := w.drops.Death(w.activeDungeon, uint16(r.Entity))
 			if err != nil {
@@ -265,6 +275,13 @@ func (w *worldSession) monsterDeath(p []byte) ([]outboundPacket, error) {
 		w.role = saved
 		w.level = p[0]
 		plan = append(plan, outboundPacket{"monster_experience_updated", 0, 37, p})
+		if w.level != previousLevel {
+			skills, err := w.automaticSkillRefresh()
+			if err != nil {
+				return nil, err
+			}
+			plan = append(plan, skills...)
+		}
 		if w.quests != nil && w.level != previousLevel {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			available, err := w.availableQuestPayload(ctx)
@@ -298,6 +315,46 @@ func (w *worldSession) completeDungeon() ([]outboundPacket, error) {
 		return nil, nil
 	}
 	var plan []outboundPacket
+	if w.progression != nil && w.progression.Odyssey != nil && w.activeDungeon.Definition.Odyssey {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		saved, _, e := w.progression.OdysseyClear(ctx, w.role, w.activeDungeon)
+		cancel()
+		if e != nil {
+			return nil, e
+		}
+		saved.WireID = w.role.WireID
+		body, e := character.ExperiencePayload(saved)
+		if e != nil {
+			return nil, e
+		}
+		w.role, w.level = saved, body[0]
+		plan = append(plan, outboundPacket{"odyssey_clear_target_level", 0, 37, body})
+		skills, e := w.automaticSkillRefresh()
+		if e != nil {
+			return nil, e
+		}
+		plan = append(plan, skills...)
+		progress, e := w.progression.OdysseyProgressPayload(saved)
+		if e != nil {
+			return nil, e
+		}
+		plan = append(plan, outboundPacket{"odyssey_journal_updated", 0, 2856, progress})
+		ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+		gifted, applied, _ := w.progression.OdysseyGifts(ctx, w.role)
+		cancel()
+		w.role = gifted
+		if applied {
+			bag, e := inventory.ReadBag(gifted.State)
+			if e != nil {
+				return nil, e
+			}
+			update, e := protocol.InventoryRestore(bag.Rows())
+			if e != nil {
+				return nil, e
+			}
+			plan = append(plan, outboundPacket{"odyssey_milestone_inventory", 0, 13, update})
+		}
+	}
 	if w.quests != nil && w.dungeons != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
@@ -322,11 +379,18 @@ func (w *worldSession) moveDungeonRoom(p []byte) (*dungeon.Session, []outboundPa
 	if w.activeDungeon == nil || w.dungeons == nil {
 		return nil, nil, fmt.Errorf("room transition without active run")
 	}
-	xy, e := protocol.DecodeMoveDungeonRoom(p)
+	r, e := protocol.DecodeDungeonRoomTransition(p)
 	if e != nil {
 		return nil, nil, e
 	}
-	next, e := w.activeDungeon.Move(*w.dungeons, xy)
+	var next *dungeon.Session
+	if r.LayerChange {
+		next, e = w.activeDungeon.MoveScene(*w.dungeons, r)
+	} else if r.Record[0] == 1 {
+		next, e = w.activeDungeon.MoveScript(*w.dungeons, r)
+	} else {
+		next, e = w.activeDungeon.Move(*w.dungeons, r.Position)
+	}
 	if e != nil {
 		return nil, nil, e
 	}
@@ -334,7 +398,15 @@ func (w *worldSession) moveDungeonRoom(p []byte) (*dungeon.Session, []outboundPa
 	if e = binary.Read(rand.Reader, binary.LittleEndian, &seed); e != nil {
 		return nil, nil, e
 	}
-	body, e := protocol.StartMap(protocol.StartMapState{Position: xy, Seed: seed, Map: next.Room.Map, Monsters: next.LivingMonsters()})
+	state := protocol.StartMapState{Position: r.Position, Seed: seed, Map: next.Room.Map, Monsters: next.LivingMonsters(), LayerChange: r.LayerChange}
+	if _, visited := w.activeDungeon.Visited[next.Room.Map]; visited && next.Definition.Odyssey && !r.LayerChange {
+		state.ReuseRoom = true
+		state.Monsters = nil
+	}
+	if r.LayerChange || r.Record[0] == 1 {
+		state.Transition = &r.Record
+	}
+	body, e := protocol.StartMap(state)
 	if e != nil {
 		return nil, nil, e
 	}
