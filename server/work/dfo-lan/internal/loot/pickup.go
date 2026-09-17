@@ -12,6 +12,7 @@ import (
 )
 
 type Service struct {
+	Currency   *OdysseyCurrency
 	Store      *storage.Store
 	Catalog    catalog.LootCatalog
 	Rules      Rules
@@ -48,6 +49,13 @@ func (s *Service) Pickup(ctx context.Context, role storage.Character, session *S
 	if e != nil {
 		return fail(e)
 	}
+	awardCatalog, bagRules := s.Catalog, s.BagRules
+	if d.Definition.Odyssey && session.Currency != nil {
+		if s.Currency == nil || session.Currency.Source != s.Catalog.Source.Checksum || session.Currency.Model != s.Currency.Model {
+			return fail(fmt.Errorf("currency pickup policy mismatch"))
+		}
+		awardCatalog, bagRules = session.Currency.StorageCatalog(s.Catalog), session.Currency.BagRules(s.BagRules)
+	}
 	distance := func(a, b uint16) int {
 		n := int(a) - int(b)
 		if n < 0 {
@@ -65,7 +73,7 @@ func (s *Service) Pickup(ctx context.Context, role storage.Character, session *S
 			return nil, nil, e
 		}
 		var slot uint16
-		if drop.Award.Template != 0 && s.Catalog.Items[drop.Award.Template].Kind != "stackable" {
+		if drop.Award.Template != 0 && awardCatalog.Items[drop.Award.Template].Kind != "stackable" {
 			// Gear goes to the bag's equipment range with its own durability,
 			// not into a stackable category slot.
 			var slots []uint16
@@ -74,7 +82,7 @@ func (s *Service) Pickup(ctx context.Context, role storage.Character, session *S
 				return nil, nil, e
 			}
 			slot = slots[0]
-		} else if b, slot, e = b.Add(s.Catalog, s.BagRules, drop.Award.Template, drop.Award.Amount); e != nil {
+		} else if b, slot, e = b.Add(awardCatalog, bagRules, drop.Award.Template, drop.Award.Amount); e != nil {
 			return nil, nil, e
 		}
 		updated, e := inventory.SaveBag(current.State, b)

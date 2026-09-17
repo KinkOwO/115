@@ -19,7 +19,7 @@ func TestBasicEquipmentNativeRow(t *testing.T) {
 	if e = json.Unmarshal(f, &r); e != nil {
 		t.Fatal(e)
 	}
-	body, e := protocol.InventoryRestore([][protocol.CurrentItemRecordSize]byte{EquipmentRow(BagEquipment{9, 20002, 25})})
+	body, e := protocol.InventoryRestore([][protocol.CurrentItemRecordSize]byte{EquipmentRow(BagEquipment{Slot: 9, Template: 20002, Durability: 25})})
 	if e != nil || hex.EncodeToString(body) != r.Payload {
 		t.Fatal("native equipment record mismatch", e)
 	}

@@ -56,7 +56,7 @@ func (s *Service) EntryAddition(role storage.Character) ([]byte, error) {
 	}
 	var trees [2][]protocol.EntrySkill
 	for i := range trees {
-		known, e := knownSkills(state, i)
+		known, e := s.knownSkills(role, state, i)
 		if e != nil {
 			return nil, e
 		}
@@ -65,7 +65,23 @@ func (s *Service) EntryAddition(role storage.Character) ([]byte, error) {
 			trees[i] = append(trees[i], protocol.EntrySkill{ID: uint16(id), Level: known[uint16(id)]})
 		}
 	}
-	return protocol.UserInfoAdditionProbe(protocol.EntryAdditionProbe{ActorServerID: role.WireID, Experience: state.Experience, Stats: stats, SkillTrees: trees})
+	var worn []protocol.DetailedWorn
+	if s.DetailedWornCandidate {
+		var projection struct {
+			Inventory struct {
+				Worn []protocol.DetailedWorn `json:"worn"`
+			} `json:"inventory"`
+		}
+		if e := json.Unmarshal(role.State, &projection); e != nil {
+			return nil, e
+		}
+		for _, item := range projection.Inventory.Worn {
+			if item.Slot <= 11 {
+				worn = append(worn, item)
+			}
+		}
+	}
+	return protocol.UserInfoAdditionProbe(protocol.EntryAdditionProbe{ActorServerID: role.WireID, Experience: state.Experience, Stats: stats, SkillTrees: trees, Worn: worn})
 }
 
 // The exact .chr loader at 147559d80 stores (ID, first value) in the
@@ -73,7 +89,7 @@ func (s *Service) EntryAddition(role storage.Character) ([]byte, error) {
 // imported professions use second value=1 in their initial section. Preserve
 // that supported shape; do not interpret arbitrary growth/PvP conditions.
 func initialSkills(s State) ([]protocol.EntrySkill, error) {
-	if s.Advancement != 0 || len(s.InitialSkills)%3 != 0 {
+	if (s.Advancement != 0 && !(s.SwordmasterPilot && s.Advancement == 1) && !(s.AllJobsPilot && s.Advancement < 16)) || len(s.InitialSkills)%3 != 0 {
 		return nil, fmt.Errorf("unsupported initial skill state")
 	}
 	var out []protocol.EntrySkill
@@ -109,7 +125,7 @@ func (s *Service) EntrySkills(role storage.Character) ([]byte, error) {
 			}
 			var missing []int
 			for id, d := range s.Learning.index[role.Profession] {
-				if !seen[id] && d.ForAdvancement(int(state.Advancement)) {
+				if !seen[id] && (d.ForAdvancement(int(state.Advancement)) || d.ForAwakening(int(state.Advancement), int(state.Awakening))) {
 					missing = append(missing, int(id))
 				}
 			}

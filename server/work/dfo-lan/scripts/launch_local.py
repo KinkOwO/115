@@ -10,6 +10,7 @@ import subprocess
 import sys
 import time
 from urllib.parse import urlparse
+from repair_profile import load_profile
 
 PROJECT = pathlib.Path(__file__).resolve().parent.parent
 ROOT = PROJECT.parent.parent
@@ -103,6 +104,7 @@ def main():
   "--check", action="store_true", help="Read-only dependency check; starts nothing"
  )
  parser.add_argument("--storage-only", action="store_true")
+ parser.add_argument("--repair-profile", help="Explicit repair JSON; paths relative to dfo-lan")
  parser.add_argument(
   "--server-only",
   action="store_true",
@@ -122,6 +124,9 @@ def main():
   else local["server_binary"]
  )
  helper = PROJECT.parent / "dfo_probe_tools/channel_probe.py"
+ profile_required, profile_env = [], {}
+ if args.repair_profile:
+  binary, profile_required, profile_env = load_profile(args.repair_profile, PROJECT)
  required = (
   [helper, binary]
   if args.server_only
@@ -137,6 +142,9 @@ def main():
  for path in required:
   if not path.is_file():
    raise RuntimeError("Missing dependency: " + str(path))
+ for path in profile_required:
+  if not path.is_file():
+   raise RuntimeError("Missing repair profile dependency: " + str(path))
  if args.check:
   print(
    "Paths OK. PostgreSQL:", listening(pg.hostname, pg.port), "Redis:", listening(rh, rp)
@@ -162,6 +170,10 @@ def main():
  out = PROJECT / "runtime" / tag
  out.mkdir(parents=True)
  env = os.environ.copy()
+ if args.repair_profile:
+  env.pop("DFO_SKILL_RELEASE", None)
+  env.pop("DFO_ODYSSEY_REWARDS_PILOT", None)
+  env.update(profile_env)
  env["DFO_CLIENT_DIR"] = str(client)
  env["DFO_SERVER_BINARY"] = str(binary)
  env["DFO_ENABLE_OBSERVER"] = "0"

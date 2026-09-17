@@ -11,8 +11,9 @@ import (
 )
 
 type WearRules struct {
-	Source string            `json:"source"`
-	Slots  map[string]uint16 `json:"slots"`
+	Source  string            `json:"source"`
+	Slots   map[string]uint16 `json:"slots"`
+	Special bool              `json:"special,omitempty"`
 }
 
 func LoadWearRules(path, source string) (WearRules, error) {
@@ -28,7 +29,7 @@ func LoadWearRules(path, source string) (WearRules, error) {
 		return r, fmt.Errorf("wear rules source mismatch")
 	}
 	for _, slot := range r.Slots {
-		if slot < 12 || slot > 25 {
+		if !EquipmentBodySlot(slot) || (!r.Special && (slot < 12 || slot > 25)) {
 			return r, fmt.Errorf("unsupported ordinary equipment slot")
 		}
 	}
@@ -44,26 +45,31 @@ type WearService struct {
 }
 
 func (s *WearService) wearable(role storage.Character, item BagEquipment, slot uint16) error {
-	d, ok := s.Catalog.index[item.Template]
-	if !ok {
-		return fmt.Errorf("equipment definition missing")
+	d, err := s.Catalog.Definition(item.Template)
+	if err != nil {
+		return err
 	}
-	// Wearing uses the structural reward check, NOT the drop-pool Basic rule.
-	// Basic additionally demands [free] attach and rarity <= 1, which are the
-	// rules that decide what a monster may DROP, not what a character may WEAR.
-	// Gating wear on them refused a piece the character already owns and
-	// legitimately qualifies for: a [trade delete] bound shoe (e.g. the
-	// Explorer-collection 100261068) and every rarity-2+ uncommon drop an
-	// archer meets the level/job/grow-type for. Live capture 20260911T2159
-	// shows exactly this "my own gear cannot be equipped" refusal. Structural
-	// validity + slot fit + WearableBy (level/job/grow) is the wear gate.
-	if _, e := s.Catalog.Reward(item.Template); e != nil {
+	// Wearing existing instances must not inherit quest/drop eligibility.
+	if e := item.ValidateRecord(); e != nil {
 		return e
 	}
 	kind := d.Fields["[equipment type]"]
+	if len(kind) == 0 || kind[0].Type != 6 {
+		return fmt.Errorf("missing equipment type")
+	}
 	expected, ok := s.Rules.Slots[kind[0].Text]
-	if !ok || expected != slot {
+	talismanSlot := s.Rules.Special && kind[0].Text == "[talisman]" && slot >= 33 && slot <= 35
+	primerSlot := s.Rules.Special && kind[0].Text == "[primer]" && slot >= 36 && slot <= 46
+	if !ok || (expected != slot && !talismanSlot && !primerSlot) {
 		return fmt.Errorf("equipment does not fit destination slot")
+	}
+	if kind[0].Text == "[creature]" && (len(kind) != 2 || kind[1].Type != 0 || kind[1].Value != 0) {
+		return fmt.Errorf("creature must be hatched before equipping")
+	}
+	if durability := d.Fields["[durability]"]; len(durability) > 0 {
+		if len(durability) != 1 || durability[0].Type != 0 || durability[0].Value < 0 || durability[0].Value > 65535 {
+			return fmt.Errorf("invalid equipment durability")
+		}
 	}
 	var state struct {
 		Level       byte `json:"level"`
@@ -85,7 +91,8 @@ func (s *WearService) MoveOrdinary(role storage.Character, r protocol.ItemMoveRe
 	if s == nil || s.Catalog == nil || s.Catalog.Source.Checksum != role.ConfigVersion || s.Rules.Source != role.ConfigVersion || s.Professions.Source.Checksum != role.ConfigVersion {
 		return nil, fmt.Errorf("wear service source mismatch")
 	}
-	if (r.SourceList != 0 && r.SourceList != 3) || (r.DestinationList != 0 && r.DestinationList != 3) || r.Count > 1 || r.Extra != 0 || r.Selection != 0xffffffff || r.Flags != [3]byte{} {
+	validSpace := func(v byte) bool { return v == 0 || v == 3 || (s.Rules.Special && (v == 1 || v == 7)) }
+	if !validSpace(r.SourceList) || !validSpace(r.DestinationList) || r.Count > 1 || r.Extra != 0 || r.Selection != 0xffffffff || r.Flags != [3]byte{} {
 		return nil, fmt.Errorf("unsupported ordinary equipment move")
 	}
 	if r.SourceList == r.DestinationList && r.SourceSlot == r.DestinationSlot {
@@ -107,7 +114,9 @@ func (s *WearService) MoveOrdinary(role storage.Character, r protocol.ItemMoveRe
 					return nil, fmt.Errorf("slot contains stackable item")
 				}
 			}
-		} else if slot < 12 || slot > 25 {
+		} else if list == 1 || list == 7 {
+			rows = b.Special[list]
+		} else if !EquipmentBodySlot(slot) || (!s.Rules.Special && (slot < 12 || slot > 25)) {
 			return nil, fmt.Errorf("slot outside body equipment")
 		}
 		for _, v := range rows {
@@ -142,10 +151,35 @@ func (s *WearService) MoveOrdinary(role storage.Character, r protocol.ItemMoveRe
 			return nil, e
 		}
 	}
+	for _, move := range []struct {
+		item *BagEquipment
+		list byte
+	}{{a, r.DestinationList}, {z, r.SourceList}} {
+		if move.item == nil || move.list == 3 {
+			continue
+		}
+		d, err := s.Catalog.Definition(move.item.Template)
+		if err != nil {
+			return nil, err
+		}
+		kind := d.Fields["[equipment type]"]
+		if len(kind) == 0 {
+			return nil, fmt.Errorf("missing equipment kind")
+		}
+		expected := EquipmentBagSpace(kind[0].Text)
+		if move.list != expected {
+			return nil, fmt.Errorf("equipment inventory family mismatch")
+		}
+	}
 	replace := func(list byte, slot uint16, item *BagEquipment) {
 		rows := &b.Worn
 		if list == 0 {
 			rows = &b.Equipment
+		}
+		var special []BagEquipment
+		if list == 1 || list == 7 {
+			special = b.Special[list]
+			rows = &special
 		}
 		kept := make([]BagEquipment, 0, len(*rows)+1)
 		for _, v := range *rows {
@@ -159,9 +193,18 @@ func (s *WearService) MoveOrdinary(role storage.Character, r protocol.ItemMoveRe
 			kept = append(kept, v)
 		}
 		*rows = kept
+		if list == 1 || list == 7 {
+			if b.Special == nil {
+				b.Special = map[byte][]BagEquipment{}
+			}
+			b.Special[list] = kept
+		}
 	}
 	replace(r.SourceList, r.SourceSlot, z)
 	replace(r.DestinationList, r.DestinationSlot, a)
+	if _, e = EquipmentPayload(3, b.Worn, false); e != nil {
+		return nil, e
+	}
 	return SaveBag(role.State, b)
 }
 
@@ -192,11 +235,7 @@ func WornSpaceUpdate(state json.RawMessage) ([]byte, error) {
 	if len(b.Worn) == 0 {
 		return nil, nil
 	}
-	rows := make([][protocol.CurrentItemRecordSize]byte, 0, len(b.Worn))
-	for _, item := range b.Worn {
-		rows = append(rows, EquipmentRow(item))
-	}
-	return protocol.InventorySpaceUpdate(3, rows)
+	return EquipmentPayload(3, b.Worn, false)
 }
 
 func WornPayload(state json.RawMessage) ([]byte, error) {
@@ -204,9 +243,5 @@ func WornPayload(state json.RawMessage) ([]byte, error) {
 	if e != nil {
 		return nil, e
 	}
-	rows := make([][protocol.CurrentItemRecordSize]byte, 0, len(b.Worn))
-	for _, item := range b.Worn {
-		rows = append(rows, EquipmentRow(item))
-	}
-	return protocol.WornRestore(rows)
+	return EquipmentPayload(3, b.Worn, true)
 }

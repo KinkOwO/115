@@ -14,31 +14,42 @@ import (
 )
 
 type Rules struct {
-	MaxCharacters int  `json:"max_characters"`
-	InitialLevel  byte `json:"initial_level"`
+	OdysseyPilot     bool `json:"odyssey_pilot,omitempty"`
+	AllJobsPilot     bool `json:"all_jobs_pilot,omitempty"`
+	MaxCharacters    int  `json:"max_characters"`
+	InitialLevel     byte `json:"initial_level"`
+	SwordmasterPilot bool `json:"swordmaster_pilot,omitempty"`
 }
 type State struct {
-	Level           byte                 `json:"level"`
-	Experience      uint64               `json:"experience,omitempty"`
-	SkillPoints     [2]uint16            `json:"skill_points,omitempty"`
-	TechniquePoints [2]uint16            `json:"technique_points,omitempty"`
-	CurrencySlot2   uint32               `json:"currency_slot2,omitempty"`
-	Advancement     byte                 `json:"advancement"`
-	Attributes      map[string]float32   `json:"attributes"`
-	InitialSkills   []int32              `json:"initial_skill_cells"`
-	LearnedSkills   [2]map[uint16]byte   `json:"learned_skills,omitempty"`
-	SkillSlots      [2]map[uint16]uint16 `json:"skill_slots,omitempty"`
-	SourcePath      string               `json:"source_path"`
-	SourceSHA256    string               `json:"source_sha256"`
+	AllJobsPilot    bool                   `json:"all_jobs_pilot,omitempty"`
+	Level           byte                   `json:"level"`
+	Experience      uint64                 `json:"experience,omitempty"`
+	SkillPoints     [2]uint16              `json:"skill_points,omitempty"`
+	TechniquePoints [2]uint16              `json:"technique_points,omitempty"`
+	CurrencySlot2   uint32                 `json:"currency_slot2,omitempty"`
+	Advancement     byte                   `json:"advancement"`
+	Awakening       byte                   `json:"awakening,omitempty"`
+	SkillVariations [2]SkillVariationState `json:"skill_variations,omitempty"`
+	Attributes      map[string]float32     `json:"attributes"`
+	InitialSkills   []int32                `json:"initial_skill_cells"`
+	LearnedSkills   [2]map[uint16]byte     `json:"learned_skills,omitempty"`
+	SkillSlots      [2]map[uint16]uint16   `json:"skill_slots,omitempty"`
+	SourcePath      string                 `json:"source_path"`
+	SourceSHA256    string                 `json:"source_sha256"`
 	// Create equipment cells are intentionally unresolved until the native
 	// grow-type/slot selection semantics are verified. Never substitute IDs.
-	EquipmentPending bool `json:"equipment_pending"`
+	EquipmentPending bool   `json:"equipment_pending"`
+	CreationOptions  []byte `json:"creation_options,omitempty"`
+	CreationMode     byte   `json:"creation_mode,omitempty"`
+	SwordmasterPilot bool   `json:"swordmaster_pilot,omitempty"`
 }
 type Service struct {
-	Store    *storage.Store
-	Catalog  catalog.Characters
-	Rules    Rules
-	Learning *LearningCatalog
+	DisableActorAppearance bool
+	DetailedWornCandidate  bool
+	Store                  *storage.Store
+	Catalog                catalog.Characters
+	Rules                  Rules
+	Learning               *LearningCatalog
 }
 
 func New(s *storage.Store, c catalog.Characters, r Rules) (*Service, error) {
@@ -85,12 +96,38 @@ func (s *Service) Create(ctx context.Context, account int64, p []byte) (storage.
 			return storage.Character{}, errors.New("character name already exists with another creation request")
 		}
 	}
-	state, e := json.Marshal(State{Level: s.Rules.InitialLevel, Attributes: prof.InitialAttributes, InitialSkills: prof.InitialSkills, SourcePath: prof.Path, SourceSHA256: prof.RawSHA256, EquipmentPending: true})
+	initial := State{Level: s.Rules.InitialLevel, Attributes: prof.InitialAttributes, InitialSkills: prof.InitialSkills, SourcePath: prof.Path, SourceSHA256: prof.RawSHA256, EquipmentPending: true}
+	initial.setCreationOptions(req.Options)
+	if s.Rules.AllJobsPilot && len(req.Options) == 12 && req.Options[8] != 0 {
+		adv := req.Options[8]
+		if len(prof.AdvancementGrowth[adv]) == 0 {
+			return storage.Character{}, fmt.Errorf("source growth missing for job %d advancement %d", req.Profession, adv)
+		}
+		initial.Advancement, initial.AllJobsPilot = adv, true
+	}
+	if s.Rules.SwordmasterPilot && req.Profession == 0 && len(req.Options) == 12 && req.Options[8] == 1 && (req.Options[10] == 0 || req.Options[10] == 2) {
+		if len(prof.SwordmasterGrowth) == 0 {
+			return storage.Character{}, fmt.Errorf("swordmaster pilot growth missing")
+		}
+		initial.Advancement, initial.SwordmasterPilot = 1, true
+	}
+	state, e := json.Marshal(initial)
 	if e != nil {
 		return storage.Character{}, e
 	}
 	return s.Store.CreateCharacter(ctx, storage.Character{AccountID: account, Name: req.Name, Profession: req.Profession, Request: append([]byte(nil), p...), ConfigVersion: s.Catalog.Source.Checksum, State: state}, s.Rules.MaxCharacters)
 }
+
+func (s *State) setCreationOptions(options []byte) {
+	s.CreationOptions = append([]byte(nil), options...)
+	s.CreationMode = 0
+	// Five checksum-verified 115US requests: ordinary=0, Odyssey=2 at
+	// option 10. Option 8 is 1 in both modes; it is not a mode selector.
+	if len(options) >= 12 {
+		s.CreationMode = options[10]
+	}
+}
+
 func (s *Service) List(ctx context.Context, account int64) ([]byte, error) {
 	return s.ListWithFatigue(ctx, account, nil, time.Time{})
 }
@@ -107,6 +144,18 @@ func (s *Service) ListWithFatigue(ctx context.Context, account int64, fatigue *F
 			return nil, e
 		}
 		row := protocol.CharacterRow{Slot: uint16(slot), Name: c.Name, Profession: c.Profession, Advancement: state.Advancement, Level: state.Level}
+		row.Advancement, e = state.WireAdvancement()
+		if e != nil {
+			return nil, e
+		}
+		row.Equipment, e = wornAppearance(c.State)
+		if e != nil {
+			return nil, e
+		}
+		row.Odyssey, e = s.IsOdyssey(c)
+		if e != nil {
+			return nil, e
+		}
 		if fatigue != nil {
 			fp, err := fatigue.State(ctx, account, c.ID, now)
 			if err != nil {
@@ -158,8 +207,34 @@ func (s *Service) EntryBasicProbe(role storage.Character, channelContext [2]byte
 	if err := json.Unmarshal(role.State, &state); err != nil {
 		return nil, err
 	}
+	odyssey, err := s.IsOdyssey(role)
+	if err != nil {
+		return nil, err
+	}
+	advancement, err := state.WireAdvancement()
+	if err != nil {
+		return nil, err
+	}
+	appearance, err := wornAppearance(role.State)
+	if err != nil {
+		return nil, err
+	}
+	if s.DisableActorAppearance {
+		appearance = nil
+	}
 	return protocol.UserInfoBasicProbe(protocol.EntryBasicProbe{
 		ActorServerID: role.WireID, Context: channelContext,
-		Character: protocol.CharacterRow{Name: role.Name, Profession: role.Profession, Advancement: state.Advancement, Level: state.Level},
+		Character: protocol.CharacterRow{Name: role.Name, Profession: role.Profession, Advancement: advancement, Level: state.Level, Odyssey: odyssey, Equipment: appearance},
 	})
+}
+
+func (s *Service) IsOdyssey(role storage.Character) (bool, error) {
+	if !s.Rules.OdysseyPilot {
+		return false, nil
+	}
+	req, err := protocol.DecodeCreateRequest(role.Request)
+	if err != nil {
+		return false, err
+	}
+	return len(req.Options) == 12 && req.Options[10] == 2, nil
 }

@@ -26,6 +26,7 @@ func Contains(r [4]int32, x, y uint16, margin uint16) bool {
 	px, py, m := int64(x), int64(y), int64(margin)
 	return r[2] >= 0 && r[3] >= 0 && px >= int64(r[0])-m && py >= int64(r[1])-m && px <= int64(r[0])+int64(r[2])+m && py <= int64(r[1])+int64(r[3])+m
 }
+
 // WalkableTolerance 是可行走判定允许的越界像素。
 // 客户端经传送门/地图传送落地的坐标会稳定偏出源矩形（实测 9/11/18/33 像素），
 // 用 0 边距会把合法的门全挡掉；取 64 覆盖这些偏差，
@@ -68,6 +69,16 @@ func (s *Service) ValidatePosition(level byte, p storage.WorldPosition) error {
 	return nil
 }
 func (s *Service) Transition(level byte, old storage.WorldPosition, r protocol.AreaChangeRequest) (storage.WorldPosition, error) {
+	return s.transition(level, old, r, false)
+}
+
+// TransitionStrict preserves source-edge authorization for progression-gated
+// Odyssey travel; ordinary travel keeps the upstream dynamic-portal behavior.
+func (s *Service) TransitionStrict(level byte, old storage.WorldPosition, r protocol.AreaChangeRequest) (storage.WorldPosition, error) {
+	return s.transition(level, old, r, true)
+}
+
+func (s *Service) transition(level byte, old storage.WorldPosition, r protocol.AreaChangeRequest, strict bool) (storage.WorldPosition, error) {
 	next := old
 	if r.PreviousTown != old.Town || uint32(r.PreviousArea) != old.Area {
 		return next, errors.New("stale source area")
@@ -123,7 +134,7 @@ func (s *Service) Transition(level byte, old storage.WorldPosition, r protocol.A
 				break
 			}
 		}
-		if !permissive {
+		if strict || !permissive {
 			return old, errors.New("no authorized source portal to destination")
 		}
 	}

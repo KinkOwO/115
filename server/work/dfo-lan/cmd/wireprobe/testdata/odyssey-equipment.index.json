@@ -1,0 +1,62 @@
+{
+  "Source": {
+    "format": "dfo_20260901_inner",
+    "path": "../client-build/Script.inner.pvf",
+    "size": 760530763,
+    "checksum": "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80",
+    "loaded_at": "2026-09-16T14:44:33.8896761Z",
+    "file_count": 5650173,
+    "group_count": 82571,
+    "cached_chunks": 1,
+    "cached_texts": 0
+  },
+  "IndexSHA256": "7ffc480eee357d1dbd507de2c75621e0fca3a209dac76e64254bc00bc0557b71",
+  "Records": {
+    "100051399": {
+      "Offset": 0,
+      "Size": 936,
+      "SHA256": "1d843107ef4f4154b2240d181184358dffc05fbfe4facfa0fc1b7e7b49e9f41f"
+    },
+    "100101277": {
+      "Offset": 936,
+      "Size": 938,
+      "SHA256": "cde89e9f7b2fd5f578a9e8ba78ab99f01a0bff83799f10bf326ad9a4add50d3f"
+    },
+    "100151218": {
+      "Offset": 1874,
+      "Size": 942,
+      "SHA256": "6f4c4f37871d695674afa97df7edbd1cf4b103c1d02e85d5ec8ce6e86eed9ed0"
+    },
+    "100201190": {
+      "Offset": 2816,
+      "Size": 960,
+      "SHA256": "0557fa9b13fb2db41f838be5285ab85ae29bf3b6c115c5779e8ace88cd683bf1"
+    },
+    "100251230": {
+      "Offset": 3776,
+      "Size": 965,
+      "SHA256": "4368fe583a6c1a0137378a2c2525c75ba6080832ac07b0ec1c21b6ecd6f7d7fd"
+    },
+    "100302054": {
+      "Offset": 4741,
+      "Size": 892,
+      "SHA256": "55cb83d69f635ae6309b06242f1a4c942a6d15d350ebc9ec47ed5ed15140f981"
+    },
+    "100313767": {
+      "Offset": 5633,
+      "Size": 896,
+      "SHA256": "33dc7f5e8d9ca0e8087b12836bfa423bc7c35c30fa799e194b92208bb3587dc8"
+    },
+    "100323647": {
+      "Offset": 6529,
+      "Size": 888,
+      "SHA256": "b3f3368921633fb7db75562599fd9043951602f538a25c674136600d21839390"
+    },
+    "101040856": {
+      "Offset": 7417,
+      "Size": 1185,
+      "SHA256": "52a6d8722eac384a448aaf00e7eb311d0a0815013175f1fe60515dadd3d37ee7"
+    }
+  },
+  "Errors": {}
+}
