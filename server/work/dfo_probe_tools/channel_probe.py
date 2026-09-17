@@ -328,7 +328,11 @@ with (
    project / "configs/inventory.current37.json"
   )
  command[0] = os.environ.get("DFO_SERVER_BINARY", command[0])
- for flag, key in (("-character-storage", "DFO_CHARACTER_STORAGE"), ("-character-catalog", "DFO_CHARACTER_CATALOG"), ("-character-rules", "DFO_CHARACTER_RULES")):
+ for flag, key in (
+  ("-character-storage", "DFO_CHARACTER_STORAGE"),
+  ("-character-catalog", "DFO_CHARACTER_CATALOG"),
+  ("-character-rules", "DFO_CHARACTER_RULES"),
+ ):
   if key in os.environ:
    command[command.index(flag) + 1] = os.environ[key]
  if os.environ.get("DFO_LOGIN_RESPONSE"):
@@ -337,12 +341,12 @@ with (
   responses.write_text(json.dumps(mapping))
  # 允许用环境变量覆盖副本目录（本机用 dungeons.full.json：3200 副本/16042 地图，
  # 而默认的 dungeons.generated.json 只有 11 个）。
- if os.environ.get('DFO_DUNGEON_CATALOG') and '-dungeon-catalog' in command:
-     command[command.index('-dungeon-catalog') + 1] = os.environ['DFO_DUNGEON_CATALOG']
+ if os.environ.get("DFO_DUNGEON_CATALOG") and "-dungeon-catalog" in command:
+  command[command.index("-dungeon-catalog") + 1] = os.environ["DFO_DUNGEON_CATALOG"]
  server = subprocess.Popen(command, stdout=stdout, stderr=stderr, creationflags=flags)
  try:
   ready = out / "ready.json"
-  for _ in range(100):
+  for _ in range(1000):
    if server.poll() is not None:
     raise RuntimeError(f"gateway exited on {command}")
    if ready.exists():
@@ -404,6 +408,8 @@ with (
      creationflags=flags,
     )
   probe.wait(timeout=None if (interactive or exception_trace) else 65)
+ except Exception as e:
+  raise RuntimeError(command) from e
  finally:
   if server.poll() is None:
    server.terminate()
