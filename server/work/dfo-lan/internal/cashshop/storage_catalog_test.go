@@ -42,7 +42,7 @@ func TestShopStorageCatalogDepositsPurchasedKaleido(t *testing.T) {
 		t.Fatal("real current PVF cash item deposit", e)
 	}
 	v.Items = items
-	rows, e := inventory.ReadVault(v)
+	rows, e := inventory.ReadVaultBagItems(v)
 	if e != nil || len(rows) != 1 || rows[0].Amount != 10 {
 		t.Fatal(rows, e)
 	}

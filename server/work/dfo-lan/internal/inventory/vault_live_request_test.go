@@ -32,7 +32,7 @@ func TestVaultLiveDeposit130209(t *testing.T) {
 		t.Fatal(e)
 	}
 	v.Items = items
-	rows, e := ReadVault(v)
+	rows, e := ReadVaultBagItems(v)
 	if e != nil || len(b.Items) != 1 || b.Items[0].Amount != 46 || len(rows) != 1 || rows[0].Slot != 0 || rows[0].Amount != 4 {
 		t.Fatal("deposit conservation", b, rows, e)
 	}
@@ -45,7 +45,7 @@ func TestVaultLiveDeposit130209(t *testing.T) {
 	}
 	b, _ = ReadBag(state)
 	v.Items = items
-	rows, e = ReadVault(v)
+	rows, e = ReadVaultBagItems(v)
 	if e != nil || len(rows) != 0 || b.Items[0].Amount != 50 {
 		t.Fatal("roundtrip conservation", b, rows, e)
 	}

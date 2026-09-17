@@ -24,7 +24,7 @@ func TestVaultLiveReposition131224(t *testing.T) {
 		t.Fatal("live empty-slot move rejected", e)
 	}
 	v.Items = items
-	rows, e := ReadVault(v)
+	rows, e := ReadVaultBagItems(v)
 	if e != nil || len(rows) != 1 || rows[0].Slot != 3 || rows[0].Amount != 16 || rows[0].Template != 21 {
 		t.Fatal(rows, e)
 	}
@@ -43,7 +43,7 @@ func TestVaultLiveReposition131224(t *testing.T) {
 		t.Fatal(e)
 	}
 	v.Items = items
-	rows, _ = ReadVault(v)
+	rows, _ = ReadVaultBagItems(v)
 	if len(rows) != 1 || rows[0].Slot != 4 || rows[0].Amount != 16 {
 		t.Fatal("roundtrip", rows)
 	}

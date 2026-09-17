@@ -20,7 +20,7 @@ func TestVaultLiveManualMerge130633(t *testing.T) {
 		t.Fatal("live manual merge rejected", e)
 	}
 	v.Items = items
-	rows, e := ReadVault(v)
+	rows, e := ReadVaultBagItems(v)
 	if e != nil || len(rows) != 1 || rows[0].Slot != 1 || rows[0].Amount != 10 {
 		t.Fatal("manual 4+6 merge", rows, e)
 	}
@@ -42,7 +42,7 @@ func TestVaultLiveDepositAutoMerge130632(t *testing.T) {
 	}
 	b, _ := ReadBag(state)
 	v.Items = items
-	rows, e := ReadVault(v)
+	rows, e := ReadVaultBagItems(v)
 	if e != nil || len(rows) != 1 || rows[0].Slot != 0 || rows[0].Amount != 10 || b.Items[0].Amount != 40 {
 		t.Fatal("deposit did not consolidate", b, rows, e)
 	}
@@ -68,7 +68,7 @@ func TestVaultMergeLimitsAndAtomicFailure(t *testing.T) {
 	}
 	b, _ := ReadBag(state)
 	v.Items = items
-	rows, _ := ReadVault(v)
+	rows, _ := ReadVaultBagItems(v)
 	if len(rows) != 2 || rows[0].Amount != 1000 || rows[1].Slot != 1 || rows[1].Amount != 4 || b.Items[0].Amount != 4 {
 		t.Fatal("partial fill remainder", b, rows)
 	}

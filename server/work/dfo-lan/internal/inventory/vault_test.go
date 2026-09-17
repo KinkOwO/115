@@ -160,7 +160,7 @@ func TestVaultSerialization(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SaveVault error: %v", err)
 	}
-	readBack, err := ReadExtendedVault(storage.VaultState{Slots: 8, Items: raw})
+	readBack, err := ReadVault(storage.VaultState{Slots: 8, Items: raw})
 	if err != nil {
 		t.Fatalf("ReadVault error: %v", err)
 	}
@@ -192,5 +192,92 @@ func TestVaultBootstrapPopulated(t *testing.T) {
 	}
 	if len(p) != 1+2+2+protocol.CurrentItemRecordSize {
 		t.Fatalf("unexpected length %d", len(p))
+	}
+}
+
+func TestVaultMoveBagToVaultAutoConsolidatesExistingStack(t *testing.T) {
+	rules := BagRules{
+		MissingStackLimit: 1000,
+	}
+	bag := Bag{
+		Version: "ordinary-bag-v1",
+		Items: []BagItem{
+			{Slot: 65, Template: 3037, Amount: 50},
+		},
+	}
+	vault := Vault{
+		Slots: 8,
+		Items: []VaultItem{
+			{Slot: 0, Template: 3037, Amount: 100},
+		},
+	}
+
+	// 客户端请求存入 50 个 3037，但目标槽位指定为空格子 slot 1
+	r := protocol.ItemMoveRequest{
+		SourceList:      0,
+		SourceSlot:      65,
+		SourceItem:      3037,
+		Count:           50,
+		DestinationList: 2,
+		DestinationSlot: 1,
+	}
+
+	newBag, newVault, count, err := MoveVaultItem(bag, vault, rules, r)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if count != 50 {
+		t.Fatalf("expected count 50, got %d", count)
+	}
+	if len(newBag.Items) != 0 {
+		t.Fatalf("expected bag to be empty, got %+v", newBag.Items)
+	}
+	// 验证：物品自动合并到了已有的 slot 0，数量变为 150，而 slot 1 依然为空！未被拆分为两个格子！
+	if len(newVault.Items) != 1 {
+		t.Fatalf("expected vault to still have only 1 item, but got %d: %+v", len(newVault.Items), newVault.Items)
+	}
+	if newVault.Items[0].Slot != 0 || newVault.Items[0].Amount != 150 {
+		t.Fatalf("expected vault slot 0 to have amount 150, got %+v", newVault.Items[0])
+	}
+	if newVault.ItemAt(1) != nil {
+		t.Fatalf("expected vault slot 1 to remain empty, but found %+v", newVault.ItemAt(1))
+	}
+}
+
+func TestVaultMoveWithinVaultReversedClientReposition(t *testing.T) {
+	rules := BagRules{MissingStackLimit: 1000}
+	bag := Bag{Version: "ordinary-bag-v1"}
+	vault := Vault{
+		Slots: 8,
+		Items: []VaultItem{
+			{Slot: 4, Template: 3037, Amount: 16},
+		},
+	}
+
+	// 客户端 131224 实机抓包反转请求：
+	// SourceSlot: 3 (空槽位), DestinationSlot: 4 (被拖拽的原槽位), Count: 0
+	rReversed := protocol.ItemMoveRequest{
+		SourceList:      2,
+		SourceSlot:      3,
+		SourceItem:      0,
+		Count:           0,
+		DestinationList: 2,
+		DestinationSlot: 4,
+		DestinationItem: 3037,
+	}
+
+	_, newVault, moved, err := MoveVaultItem(bag, vault, rules, rReversed)
+	if err != nil {
+		t.Fatalf("unexpected reversed move error: %v", err)
+	}
+	if moved != 16 {
+		t.Fatalf("expected moved 16, got %d", moved)
+	}
+	if newVault.ItemAt(4) != nil {
+		t.Fatalf("expected original slot 4 to be cleared, but found %+v", newVault.ItemAt(4))
+	}
+	destItem := newVault.ItemAt(3)
+	if destItem == nil || destItem.Amount != 16 || destItem.Template != 3037 {
+		t.Fatalf("expected item at slot 3 with amount 16, got %+v", destItem)
 	}
 }

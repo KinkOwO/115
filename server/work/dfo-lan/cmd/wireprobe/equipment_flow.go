@@ -23,6 +23,13 @@ func (s *equipmentSession) handle(service *inventory.WearService, w *worldSessio
 	if e != nil {
 		return nil, e
 	}
+	// CMD19 carries every bag move, not only equipment. A move involving
+	// the personal vault (list 2) belongs to the vault path. A stack going onto
+	// the quick-use belt belongs to the stackable path; anything neither
+	// recognises falls through to the equipment move unchanged.
+	if plan, handled, e := w.moveVault(service.BagRules, r); handled {
+		return plan, e
+	}
 	if !s.initialized {
 		if _, e = rand.Read(s.nonce[:]); e != nil {
 			return nil, e
@@ -30,11 +37,7 @@ func (s *equipmentSession) handle(service *inventory.WearService, w *worldSessio
 		s.initialized = true
 	}
 	hash := sha256.Sum256(raw)
-	if r.SourceList == 2 || r.DestinationList == 2 {
-		return w.moveVault(fmt.Sprintf("vault:%x:%x", s.nonce, hash), r)
-	}
-	// CMD19 carries every bag move, not only equipment. A stack going onto
-	// the quick-use belt belongs to the stackable path; anything it does not
+	// A stack going onto the quick-use belt belongs to the stackable path; anything it does not
 	// recognise falls through to the equipment move unchanged.
 	if plan, handled, e := w.moveStack(service.BagRules, r, fmt.Sprintf("bagmove:%x:%x", s.nonce, hash)); handled {
 		return plan, e

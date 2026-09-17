@@ -29,7 +29,7 @@ func (s *VaultService) TransferStacks(role storage.Character, v storage.VaultSta
 	if e != nil {
 		return nil, nil, e
 	}
-	vault, e := ReadVault(v)
+	vault, e := ReadVaultBagItems(v)
 	if e != nil {
 		return nil, nil, e
 	}

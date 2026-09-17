@@ -48,6 +48,9 @@
 - 恢复并闭环个人金库（Safe I / Old Iron Safe）物品存取全链路实现（依据 `docs/金库功能实现迁移报告.md`）：
   - 修复放入金库报「目标容器已满」问题：开放 CMD 19 金库容器类型 `2` 处理链路，避免被误判为非法容器返回拒绝码 `4`。
   - 修复取出物品后金库原槽位残留「0 金币」问题：清空槽位下发 `EmptyOrdinaryItem`（`template = 0xFFFFFFFF`），触发客户端原生删除函数清理槽位。
+  - 修复金库内部无法移动物品位置缺陷：识别客户端实机抓包反转请求（拖拽至空格子时空槽位在 `SourceSlot`、原槽位在 `DestinationSlot`、`Count=0`），自动规范化对调，支持空槽位位移、同类堆叠合并与不同物品互换（Swap）。
+  - 修复可堆叠物品存入金库被拆散缺陷：实现优先合并逻辑，存入时自动按槽位升序补齐金库已有未满同类堆叠（最高 1000），仅在所有同类堆叠全满后才占用新空格子。
+  - 优化网关变动槽位同步：`moveVault` 比对事务前后金库状态集，全量收集所有发生变动（清空/新增/数量增减）的槽位按序下发 NOTI 14，彻底杜绝增量刷新遗漏。
   - `internal/game/protocol/vault.go` & `vault_test.go`: 实现 `PersonalVaultRestore`，支持包含物品的 NOTI 13 编码及单测。
   - `internal/game/protocol/inventory.go`: `InventorySpaceUpdate` 开放空间类型 `2`（金库空间增量更新）。
   - `internal/game/protocol/empty_item.go` & `empty_item_test.go`: 新增 `EmptyOrdinaryItem` 生成 181 字节清空槽位记录及单测。

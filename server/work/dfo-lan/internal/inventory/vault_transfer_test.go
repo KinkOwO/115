@@ -34,7 +34,7 @@ func TestVaultSplitMergeWithdrawAndRestore(t *testing.T) {
 	role.State = state
 	v.Items = items
 	b, _ := ReadBag(state)
-	rows, _ := ReadVault(v)
+	rows, _ := ReadVaultBagItems(v)
 	if b.Gold != 100 || b.Items[0].Amount != 6 || rows[0].Slot != 0 || rows[0].Amount != 4 {
 		t.Fatal(b, rows)
 	}
@@ -58,7 +58,7 @@ func TestVaultSplitMergeWithdrawAndRestore(t *testing.T) {
 		t.Fatal(e)
 	}
 	b, _ = ReadBag(role.State)
-	rows, _ = ReadVault(v)
+	rows, _ = ReadVaultBagItems(v)
 	if len(rows) != 0 || len(b.Items) != 1 || b.Items[0].Amount != 10 || b.Items[0].Slot != 66 {
 		t.Fatal("withdraw conservation", b, rows)
 	}
