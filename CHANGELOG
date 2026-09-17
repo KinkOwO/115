@@ -1,6 +1,39 @@
 # CHANGELOG
 
 ## 2026-09-17
+- 新增本地环境路径一键配置工具（`configure_env.py` 与 `配置环境.cmd`）：
+  - 自动从当前工作目录（cwd）解析服务端根目录及 `tools/` 便携环境工具链（Redis `tools/redis`、PostgreSQL `tools/pg/pgsql/bin`、数据目录 `server/work/dfo-lan/runtime/storage/pgdata`）；
+  - 自动更新 `server/work/dfo-lan/runtime/storage/local.json`，保留已有数据库/Redis密码并规范化为正斜杠路径；
+  - 弹出系统置顶文件选择对话框（支持 Tkinter 与 PowerShell 备用方案），引导用户选择游戏客户端（`DFO.exe` 或任意客户端文件），自动解析目录并写入 `server/launcher.local.json` 的 `client_dir`；
+  - 增加客户端核心文件（`DFO.exe`、`Script.pvf`、`sk.dat`）与服务端依赖二进制存在性校验；
+  - 提供 CLI 自动化参数（`--client-dir`、`--non-interactive`）与 Windows 一键双击入口 `配置环境.cmd`。
+- 闭环时装/装扮（Avatar）分类与独立装扮栏（list 1）全链路实现：
+  - 根因消除：定位时装（如 501552949 鬼剑士帽子装扮）在 PVF 中属于 `.equ` 且带有 `[hat avatar]` 与 `/avatar/` 路径，原服务端将所有非 stackable 统一写入普通装备 `b.Equipment`（分配 `[9, 64]` 槽位）并在 `list 0`（主背包）下发，导致客户端将时装无条件渲染在「装备」页签；
+  - 数据模型支持：`internal/inventory/bag.go` 的 `Bag` 新增 `Avatars []BagEquipment json:"avatars,omitempty"`，新增 `AddAvatar(id uint32) (Bag, uint16, error)` 为装扮分配独立槽位区间（`0 ~ 209`），新增 `AvatarRows()` 提取时装条目；
+  - 物品索引全量区分：`internal/catalog/item_index.go` 扩展索引 `list/equipment.lst`（全量 424,216 项装备，精确划分 321,218 件时装为 `Kind: "avatar"`，102,998 件为 `Kind: "equipment"`），生成最新 `configs/items.index.json`；
+  - 发放与购买路由：`internal/inventory/awards.go` 与 `cmd/wireprobe/main.go`（商城购买交付）接入时装分发分支，获得时装时直接入库装扮栏并下发装扮增量更新（NOTI 14 `space 1`）；
+  - 入城时装同步：`internal/game/protocol/inventory.go` 新增 `AvatarRestore`（生成 NOTI 13 `list 1`），`cmd/wireprobe/entry_flow.go` 与 `main.go` 在进城时下发 `{"avatar_restored", 0, 13, plan.Avatar}`；
+  - 历史存档迁移修复：`internal/inventory/migrate.go` 增加对 `b.Equipment` 中被错放时装的自动识别与转移（移出普通装备栏，移入装扮栏 `slot 0..209`），执行 `inventorymigrate --apply` 成功将角色 2（doge）的 501552949 从普通装备栏（slot 9）移至装扮栏（slot 0）；
+  - 测试覆盖：新增 `TestMigrateBagSlotsAvatarMisplacedInEquipment`、`TestAvatarRestoreAndSpaceUpdate` 单测，全量回归测试通过。
+- 恢复并闭环背包物品分类与槽位分配实现（依据 `docs/背包物品分类迁移实现报告.md`）：
+  - 根因消除：查明客户端严格按槽位号（Slot Index）渲染页签的机制，解决药水/礼盒/任务品被错误归入材料栏（121~176）的问题；确立权威槽位映射（快捷栏 0~8、装备栏 9~64、消耗品栏 65~120、材料栏 121~176、任务栏 177~232、副职业栏 233~288、徽章栏 289~344、默认兜底 65~120）。
+  - `internal/inventory/bag.go`: 扩展 `BagRules`，新增 `DefaultStackableSlots`（默认 `[65, 120]`）；修复 `LoadBagRules` 别名检测（允许多个物品分类 key 映射到相同槽位区间而不误报 overlap）；新增统一槽位分配方法 `SlotRangeForType` 与抽象 `AddStackable` 核心分槽/堆叠逻辑，彻底统一 `Bag.Add`、`Bag.Buy`、`Awarder.Grant` 的分槽规则。
+  - `configs/inventory.current37.json`（及 next29/compat90）: 补齐 `[waste]`, `[throw]`, `[booster]`, `[booster selection]`, `[booster random]`, `[cera package]`, `[usable cera package]`, `[etc]`, `[contract]`, `[recipe]`, `[material]`, `[upgrade limit cube]`, `[quest]`, `[quest receive]`, `[material expert job]`, `[avatar emblem]` 完整分类及默认消耗品兜底区间。
+  - `internal/catalog/item_index.go` & `cmd/itemindeximport/main.go`: 重写并导出全量物品索引 `configs/items.index.json`（覆盖全部 175,555 个可堆叠物品的精确类型与堆叠上限），解决掉落表精简导致非掉落物品类型缺失的问题。
+  - `internal/catalog/loot.go`: 放宽 `ImportLoot` 针对 `quest/`, `recipe/`, `event/` 的粗暴排除，保留原始 `[stackable type]` 文本。
+  - `internal/inventory/shop.go` & `internal/loot/shop.go`: 商店 `Buy` 槽位判定统一委托给 `r.SlotRangeForType`，支持优先从 catalog / `ItemIndex` 识别物品真实分类并安全兜底至消耗品栏。
+  - `internal/inventory/awards.go` & `cmd/admin/main.go`: `Awarder.Grant` 与 GM 工具集成 `ItemIndex`，确保药水、礼包等通过通用奖励/GM 发放时自动落入消耗品栏。
+  - `internal/inventory/migrate.go` & `cmd/inventorymigrate/main.go`: 实现历史存档错放物品一次性修复与迁移状态机，支持扫描数据库角色并重分配槽位回写（附带 `--dry-run` 与 `--apply` 模式）。
+  - 单元测试与回归校验：新增 `TestShopBuyTabSlotAllocation`、`TestBagRulesSlotRangeForType`、`TestBagAddStackableDirect`、`TestMigrateBagSlotsMisplacedItems` 单测全部通过；全量测试 `go test -count=1 ./...` 与 `go vet ./...` 100% 通过。
+- 恢复并闭环商城购买（CMD64 `ENUM_CMDPACKET_BUY_CERASHOP_ITEM`）服务端全链路实现（依据 `docs/商城购买实现迁移报告.md`）：
+  - 物品入包闭环：实现 `PurchaseAndDeliverCeraGoods` 原子事务，在单一 PostgreSQL 事务中同时完成点券扣款、角色行锁、已购流水记录与角色背包物品入包（根据 `ItemIndex` 识别堆叠类型与上限分派至对应消耗品/材料槽位），防止点券已扣而背包满时透支；
+  - 背包即时刷新：网关在下发 CMD64 购买成功 ACK 之后，紧随推送 NOTI 14（`InventoryUpdate`）全量背包刷新报文，客户端即时展示入包物品；
+  - `internal/game/protocol/cerashop.go` & `cerashop_test.go`: 实现 CMD64 C2S 解码（单条目/优惠码分支/尾部对齐宽容容错）、S2C 成功应答（49 字节，回显 goodsId、设置 lo(v61)=settled、设置 v65==v58 解锁 UI 锁并清除待结算状态）与失败应答（20 字节错误码映射），并完成 4 项单元测试（涵盖 live capture 真实报文及 oracle 字节对比）
+  - `internal/game/cerashop/catalog.go` & `catalog_test.go`: 定义商城目录结构与检索，从 `configs/cerashop.json` 加载商品数据并验证商品 3000126 等全量 1362 项配置
+  - `internal/storage/cerashop.go`: 新增 `cerashop_owned` 与 `cerashop_purchases` 纯增量 DDL；实现 `PurchaseCeraGoods` 与 `PurchaseAndDeliverCeraGoods` 事务扣款与背包原子交付
+  - `scripts/export_cerashop_catalog.py`: 提取 PVF `etc/(r)cerashop.etc` 文本，全量导出 1362 项在售商城目录到 `configs/cerashop.json`
+  - `cmd/wireprobe/main.go` & `request_scope.go`: 注册 CMD64 白名单，增加 `-cerashop-catalog` 参数，启动初始化 DDL 与加载，分发主循环处理 CMD64 并完成物品入包与 NOTI 14 刷新
+  - `docs/protocol/next40-cerashop-purchase.md`: 完整记录 115 级客户端实机 live 抓包、IDA 逆向推导与协议标定
 - 恢复并闭环个人金库（Safe I / Old Iron Safe）物品存取全链路实现（依据 `docs/金库功能实现迁移报告.md`）：
   - 修复放入金库报「目标容器已满」问题：开放 CMD 19 金库容器类型 `2` 处理链路，避免被误判为非法容器返回拒绝码 `4`。
   - 修复取出物品后金库原槽位残留「0 金币」问题：清空槽位下发 `EmptyOrdinaryItem`（`template = 0xFFFFFFFF`），触发客户端原生删除函数清理槽位。
