@@ -1,6 +1,15 @@
 # CHANGELOG
 
 ## 2026-09-17
+- 修复副本「点了没反应 / 进不去」并重做 GM 工具（详见 `docs/进度-20260917-副本可进性与GM工具.md`）：
+  - **副本导入层三处根因**（`internal/catalog/dungeons.go`）：① `[map specification]` 允许一个房间节点挂多张地图（实测副本 86 boss 房 4 张），旧代码按固定 4 格分组导致 `len%4!=0`、整张 maze 判废；② `[start map]`/`[boss map]` 允许多组坐标（副本 92 是 (1,4)(3,4)），`[boss map]=-1 -1` 是"无 BOSS 房"哨兵；③ `[quest connection]` 第三格是任务链接标记（实测有 -1/2），旧代码只认 -1，把完整 maze 判废后反而再生成一张 `quest==0` 的重复 maze；另支持 `boss_selection_probability` 标签（`地图ID,权重` 交替）。多出的地图记入新增的 `DungeonRoom.Alternates` 并一并导入地图目录。
+  - **服务端选取策略**（`internal/dungeon/session.go`）：不再"匹配到第二张同 quest 的 maze 就报 `ambiguous source maze`"（实测 288 个副本受影响），改为跳过 `Pending` 非空的 maze 并按 index 最小确定性选取；起始房地图缺失时退到同节点备选地图。
+  - **新增 `cmd/dungeonmaps`**：只补缺地图（旧解析器判废的 maze 其房间地图从未导入），**不改 `source.checksum`**（服务端用 `q.ConfigVersion == Source.Checksum` 过滤可用任务，校验和一变所有任务副本会被拒）。
+  - **对照实测**（新增 `cmd/dungeonaudit`，真实 `dungeon.Select` 审计 3,200 个副本）：普通选图可进副本 **1,555 → 1,638**，maze pending 1,386 → 1,090，地图目录 16,042 → 17,270，**回归 0**；86/92/93/88 定向验证可进。新增单测 `internal/catalog/dungeons_test.go`（6 项）、`internal/dungeon/select_test.go`（4 项）。
+  - **GM 工具重做**（`cmd/gmtool/`）：接入 38 万件物品库（`items.index.json`）；中文名改从**客户端内层 PVF 的 `string/*.uv.str` 文本表**导出（`-build-data`，418,909 条，100% 覆盖 386,230 件物品）——原用的 `runtime/l10n/names.zh.json` 是汉化流水线中间产物，实测 78.5% 与游戏不一致；品级中文名同时纠正为客户端原文（`普通/高级/稀有/神器/史诗/勇者/传说/神话/太初`）。新增装备**部位**分类（枚举装备目录 19,955 行的 22 种 `[equipment type]`，映射 14 个现役装备位 + 时装 + 其它）与 `GET /api/filters`（部位/等级 7 档/品级 9 档，带数量），`GET /api/items` 新增 `slot`/`level_min`/`level_max`/`rarity` 且与 `q`/`type` 可叠加；界面加三组联动筛选与 URL 深链接。
+  - **修复装备发不出去（`equipment absent from source`）**：发布包内 `configs/equipment.current37.json` 原为 3,174 行精简版，与服务端现役 19,955 行不一致；掉落目录同样存在 `maximum_grade` 20 vs 130 的差异。已对齐（两者 `source.checksum` 相同）。
+  - **GM 工具改为可搬迁**：`items.index.json` / `names.client.json` / `equipment.slots.json` 的路径按「显式参数 → 物品库同目录 → exe 的 `../configs` → exe 同目录 → `-root` 的 configs」自动定位，整个文件夹可解压到任意路径（实测只给 `-storage` 即可运行）。
+  - 未实现（已在报告中说明原因）：角色转职/觉醒（服务端 `internal/character/detail.go`、`learning_catalog.go` 硬拒绝 `advancement != 0`）、装备强化/增幅/锻造/品级（服务端未建模，仅取证了 181 字节记录中 `ext_data1`@10 等字段偏移）。
 - 新增本地环境路径一键配置工具（`configure_env.py` 与 `配置环境.cmd`）：
   - 自动从当前工作目录（cwd）解析服务端根目录及 `tools/` 便携环境工具链（Redis `tools/redis`、PostgreSQL `tools/pg/pgsql/bin`、数据目录 `server/work/dfo-lan/runtime/storage/pgdata`）；
   - 自动更新 `server/work/dfo-lan/runtime/storage/local.json`，保留已有数据库/Redis密码并规范化为正斜杠路径；
