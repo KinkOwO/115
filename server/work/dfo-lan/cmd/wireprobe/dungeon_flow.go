@@ -87,7 +87,9 @@ func (w *worldSession) selectDungeon(p []byte) (*dungeon.Session, []outboundPack
 	}
 	accepted := map[uint16]bool{}
 	for _, q := range quests {
-		if q.Status == "accepted" && q.ConfigVersion == w.dungeons.Source.Checksum {
+		// 客户端自己的门槛文案就是 "accepted **or** completed prerequisite quests"，
+		// 只认 accepted 会让已完成的任务副本反而进不去。
+		if (q.Status == "accepted" || q.Status == "completed") && q.ConfigVersion == w.dungeons.Source.Checksum {
 			accepted[q.ID] = true
 		}
 	}

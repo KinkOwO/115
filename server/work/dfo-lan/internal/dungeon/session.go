@@ -36,7 +36,14 @@ func Select(c catalog.DungeonCatalog, r protocol.DungeonSelection, level byte, a
 	if uint32(level) < d.MinimumLevel {
 		return nil, fmt.Errorf("dungeon minimum level not met")
 	}
-	if d.Tutorial || r.Difficulty != 0 || r.Extra != 0 || r.Mode != 0 || r.Flag != 0 || r.Party != 65535 || r.Reserved != 0 || r.Tail != 0 || r.Options != [2]byte{} || r.Event != 0 {
+	// 客户端的难度是 1 起算的（1=普通 2=专家 3=达人 4=王者 5=英雄），
+	// 原来要求 Difficulty==0，导致正常选图全被拒
+	// （日志：dungeon_request_refused / unsupported dungeon option，
+	//   请求字节 Difficulty=1 而客户端界面显示的就是 Normal）。
+	if r.Difficulty > 5 {
+		return nil, fmt.Errorf("unsupported dungeon difficulty %d", r.Difficulty)
+	}
+	if d.Tutorial || r.Extra != 0 || r.Mode != 0 || r.Flag != 0 || r.Party != 65535 || r.Reserved != 0 || r.Tail != 0 || r.Options != [2]byte{} || r.Event != 0 {
 		return nil, fmt.Errorf("unsupported dungeon option")
 	}
 	if r.Quest > 65535 || r.Quest != 0 && !accepted[uint16(r.Quest)] {
