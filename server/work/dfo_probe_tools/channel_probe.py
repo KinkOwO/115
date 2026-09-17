@@ -327,10 +327,6 @@ with (
   command[command.index("-bag-rules") + 1] = str(
    project / "configs/inventory.current37.json"
   )
- if (project / "configs/items.index.json").exists():
-  command += ["-item-index", str(project / "configs/items.index.json")]
- if (project / "configs/cerashop.json").exists():
-  command += ["-cerashop-catalog", str(project / "configs/cerashop.json")]
  command[0] = os.environ.get("DFO_SERVER_BINARY", command[0])
  for flag, key in (("-character-storage", "DFO_CHARACTER_STORAGE"), ("-character-catalog", "DFO_CHARACTER_CATALOG"), ("-character-rules", "DFO_CHARACTER_RULES")):
   if key in os.environ:
