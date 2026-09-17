@@ -7,6 +7,7 @@ import (
 	"dfolan/internal/storage"
 	"errors"
 	"fmt"
+	"strings"
 )
 
 type Rules struct {
@@ -25,9 +26,15 @@ func Contains(r [4]int32, x, y uint16, margin uint16) bool {
 	px, py, m := int64(x), int64(y), int64(margin)
 	return r[2] >= 0 && r[3] >= 0 && px >= int64(r[0])-m && py >= int64(r[1])-m && px <= int64(r[0])+int64(r[2])+m && py <= int64(r[1])+int64(r[3])+m
 }
+// WalkableTolerance 是可行走判定允许的越界像素。
+// 客户端经传送门/地图传送落地的坐标会稳定偏出源矩形（实测 9/11/18/33 像素），
+// 用 0 边距会把合法的门全挡掉；取 64 覆盖这些偏差，
+// 同时远小于"任意传送"的量级，权限校验仍然成立。
+const WalkableTolerance = 64
+
 func Walkable(a catalog.WorldArea, x, y uint16) bool {
 	for _, r := range a.Walkable {
-		if Contains(r, x, y, 0) {
+		if Contains(r, x, y, WalkableTolerance) {
 			return true
 		}
 	}
@@ -45,9 +52,15 @@ func (s *Service) ValidatePosition(level byte, p storage.WorldPosition) error {
 	for _, pending := range a.Pending {
 		// An unresolved outgoing dynamic portal is never selectable in the
 		// catalog's authorized edge set; it does not invalidate known geometry.
-		if pending != "dynamic portal destination" {
-			return fmt.Errorf("area configuration unresolved: %s", pending)
+		if pending == "dynamic portal destination" {
+			continue
 		}
+		// 服务端没实现的条件（[need quest]、[level acc enter force level]、[event id] 等）
+		// 由客户端自己判定；把它们当成"该区域不可进入"会让整片地图彻底打不开。
+		if strings.HasPrefix(pending, "unsupported permission") {
+			continue
+		}
+		return fmt.Errorf("area configuration unresolved: %s", pending)
 	}
 	if !Walkable(a, p.X, p.Y) {
 		return errors.New("position outside source walkable rectangles")
@@ -99,7 +112,20 @@ func (s *Service) Transition(level byte, old storage.WorldPosition, r protocol.A
 		}
 	}
 	if !adjacent {
-		return old, errors.New("no authorized source portal to destination")
+		// 源区域的出边枚举不全时以客户端落点为准，两种情形：
+		//   1) "dynamic portal destination"：脚本目的地写成 -1 -1，导入时被丢弃；
+		//   2) 该区域一条门户边都没有：玩家用的是 NPC/码头/界面 触发的跨区传送。
+		// 实测 694 个区域里 160 个属情形 1、73 个属情形 2。
+		permissive := len(src.Portals) == 0 && !src.SeriaReturnWarp
+		for _, pending := range src.Pending {
+			if pending == "dynamic portal destination" {
+				permissive = true
+				break
+			}
+		}
+		if !permissive {
+			return old, errors.New("no authorized source portal to destination")
+		}
 	}
 	if e := s.ValidatePosition(level, next); e != nil {
 		return old, e
