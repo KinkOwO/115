@@ -25,25 +25,34 @@ type entryPayloads struct {
 	Worn                                                                      []byte
 	AccountOptions                                                            []byte
 	WornUpdate                                                                []byte
+	Avatars, Creatures                                                        []byte
+	CinematicSkips                                                            []byte
+	SkillVariations                                                           []byte
+	OdysseyProgress                                                           []byte
 }
 
 func (p entryPayloads) packets() []outboundPacket {
 	return []outboundPacket{
 		{"select_parser_response", 1, 4, p.Select},
 		{"account_options_restored", 0, 2826, p.AccountOptions},
+		{"cinematic_skips_restored", 0, 1352, p.CinematicSkips},
 		{"entry_basic_probe_sent", 0, 2, p.Basic},
 		{"entry_addition_sent", 0, 2, p.Addition},
 		{"entry_skills_sent", 0, 19, p.Skills},
 		{"vault_initialized", 0, 13, p.Vault},
 		{"inventory_restored", 0, 13, p.Inventory},
+		{"avatar_inventory_restored", 0, 13, p.Avatars},
+		{"creature_inventory_restored", 0, 13, p.Creatures},
 		{"worn_equipment_restored", 0, 13, p.Worn},
 		{"user_area_sent", 0, 23, p.UserArea},
 		{"town_entry_probe_sent", 0, 24, p.Area},
 		{"fatigue_sent", 0, 36, p.Fatigue},
 		{"enter_gameworld_complete_sent", 0, 124, p.Complete},
 		{"entry_experience_restored", 0, 37, p.Experience},
+		{"odyssey_journal_restored", 0, 2856, p.OdysseyProgress},
 		{"completed_quests_restored", 0, 342, p.CompletedQuests},
 		{"available_quests_restored", 0, 21, p.AvailableQuests},
+		{"skill_variations_restored", 1, 29, p.SkillVariations},
 		{"worn_equipment_visuals_restored", 0, 14, p.WornUpdate},
 	}
 }

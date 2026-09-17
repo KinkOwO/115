@@ -84,11 +84,12 @@ type BagItem struct {
 	Template, Amount uint32
 }
 type Bag struct {
-	Version   string         `json:"version"`
-	Gold      uint32         `json:"gold"`
-	Items     []BagItem      `json:"items"`
-	Equipment []BagEquipment `json:"equipment,omitempty"`
-	Worn      []BagEquipment `json:"worn,omitempty"`
+	Version   string                  `json:"version"`
+	Gold      uint32                  `json:"gold"`
+	Items     []BagItem               `json:"items"`
+	Equipment []BagEquipment          `json:"equipment,omitempty"`
+	Worn      []BagEquipment          `json:"worn,omitempty"`
+	Special   map[byte][]BagEquipment `json:"special_equipment,omitempty"`
 }
 
 func ReadBag(state json.RawMessage) (Bag, error) {
@@ -118,6 +119,9 @@ func ReadBag(state json.RawMessage) (Bag, error) {
 		seen[i.Slot] = true
 	}
 	for _, i := range b.Equipment {
+		if e := i.ValidateRecord(); e != nil {
+			return b, e
+		}
 		if i.Slot == 0 || i.Template == 0 || seen[i.Slot] {
 			return b, fmt.Errorf("invalid saved equipment")
 		}
@@ -125,10 +129,28 @@ func ReadBag(state json.RawMessage) (Bag, error) {
 	}
 	seen = map[uint16]bool{}
 	for _, i := range b.Worn {
-		if i.Slot < 12 || i.Slot > 25 || i.Template == 0 || seen[i.Slot] {
+		if e := i.ValidateRecord(); e != nil {
+			return b, e
+		}
+		if !EquipmentBodySlot(i.Slot) || i.Template == 0 || seen[i.Slot] {
 			return b, fmt.Errorf("invalid saved worn equipment")
 		}
 		seen[i.Slot] = true
+	}
+	for space, rows := range b.Special {
+		if space != 1 && space != 7 {
+			return b, fmt.Errorf("unsupported equipment inventory")
+		}
+		seen = map[uint16]bool{}
+		for _, i := range rows {
+			if e := i.ValidateRecord(); e != nil {
+				return b, e
+			}
+			if i.Template == 0 || seen[i.Slot] {
+				return b, fmt.Errorf("invalid special equipment")
+			}
+			seen[i.Slot] = true
+		}
 	}
 	return b, nil
 }

@@ -4,6 +4,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"dfolan/internal/cashshop"
 	"dfolan/internal/catalog"
 	"dfolan/internal/channelrefresh"
 	"dfolan/internal/character"
@@ -58,11 +59,20 @@ func main() {
 	channelRefreshFile := flag.String("channel-refresh-config", "", "separate local channel directory service for native refresh")
 	equipmentRewardFile := flag.String("quest-equipment-catalog", "", "source basic-equipment metadata for atomic quest rewards")
 	wearRulesFile := flag.String("equipment-wear-rules", "", "current-client equipment slots and persistent wear handling")
+	fullEquipmentFile := flag.String("equipment-full-catalog", os.Getenv("DFO_EQUIPMENT_FULL_CATALOG"), "separate indexed wear catalog prefix; does not widen drops")
 	soloPartyBootstrap := flag.Bool("solo-party-bootstrap", false, "initialize the owned actor in the current solo party roster")
 	accountOptionsFile := flag.String("account-options", "", "sparse current-client account option overrides; other defaults remain client-owned")
 	tutorialRoutesFile := flag.String("tutorial-routes", "", "source per-job starting route table")
 	tutorialDungeonsFile := flag.String("tutorial-dungeons", "", "source starting-route dungeon catalog")
+	shopPilotFile := flag.String("shop-purchase-pilot", os.Getenv("DFO_SHOP_PURCHASE_PILOT"), "isolated single-item cash purchase pilot catalog")
+	shopRelease := flag.Bool("shop-release", os.Getenv("DFO_SHOP_RELEASE") == "1", "enable accepted ordinary shop in release profile")
+	vaultPurchase := flag.Bool("vault-purchase-candidate", os.Getenv("DFO_VAULT_PURCHASE_CANDIDATE") == "1", "enable isolated vault purchase candidate")
+	vaultRelease := flag.Bool("vault-purchase-release", os.Getenv("DFO_VAULT_PURCHASE_RELEASE") == "1", "enable accepted personal vault purchases in release profile")
 	flag.Parse()
+	skillRelease := os.Getenv("DFO_SKILL_RELEASE") == "1"
+	if candidateSkills := os.Getenv("DFO_SKILL_CATALOG"); candidateSkills != "" {
+		*learningFile = candidateSkills
+	}
 	var accountOptionsPayload []byte
 	if *accountOptionsFile != "" {
 		data, err := os.ReadFile(*accountOptionsFile)
@@ -135,6 +145,7 @@ func main() {
 	var dungeonCatalog *catalog.DungeonCatalog
 	var progressionService *character.ProgressionService
 	var lootService *loot.Service
+	var shopPilot *cashshop.Pilot
 	if *characterStorage != "" {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
@@ -170,8 +181,29 @@ func main() {
 			log.Fatal(e)
 		}
 		characters, e = character.New(s, data, rules)
+		if characters != nil {
+			characters.DisableActorAppearance = skillRelease
+			characters.DetailedWornCandidate = !skillRelease && os.Getenv("DFO_DETAIL_WORN") == "1"
+		}
 		if e != nil {
 			log.Fatal(e)
+		}
+		if *shopPilotFile != "" {
+			var database string
+			if e = s.DB.QueryRow(ctx, "SELECT current_database()").Scan(&database); e != nil {
+				log.Fatal(e)
+			}
+			if database != "dfo_swordmaster_pilot_20260916" && !*shopRelease {
+				log.Fatal("shop purchase pilot requires isolated pilot database")
+			}
+			shopPilot, e = cashshop.LoadPilot(*shopPilotFile, data.Source.Checksum)
+			if e != nil {
+				log.Fatal(e)
+			}
+			if e = s.MigrateCashShop(ctx); e != nil {
+				log.Fatal(e)
+			}
+			log.Printf("PVF shop enabled: %d ordinary products", shopPilot.EnabledCount())
 		}
 		if *learningFile != "" {
 			characters.Learning, e = character.LoadLearningCatalog(*learningFile, data.Source.Checksum)
@@ -195,7 +227,11 @@ func main() {
 			log.Fatal("fatigue requires persisted characters and SELECT")
 		}
 		var e error
-		fatigueService, e = character.LoadFatigueService(characters.Store, *fatigueRulesFile)
+		fatiguePath := *fatigueRulesFile
+		if path := os.Getenv("DFO_FATIGUE_RULES"); path != "" {
+			fatiguePath = path
+		}
+		fatigueService, e = character.LoadFatigueService(characters.Store, fatiguePath)
 		if e != nil {
 			log.Fatal(e)
 		}
@@ -234,6 +270,9 @@ func main() {
 		}
 	}
 	if *dungeonCatalogFile != "" {
+		if candidate := os.Getenv("DFO_ODYSSEY_DUNGEON_CATALOG"); candidate != "" {
+			*dungeonCatalogFile = candidate
+		}
 		if worldService == nil {
 			log.Fatal("dungeons require world sessions")
 		}
@@ -262,6 +301,12 @@ func main() {
 			log.Fatal("progression source version mismatch")
 		}
 		progressionService = &character.ProgressionService{Store: characters.Store, Catalog: data, Professions: characters.Catalog, Rules: rules}
+		if path := os.Getenv("DFO_ODYSSEY_GROWTH"); path != "" {
+			progressionService.Odyssey, e = catalog.LoadOdysseyGrowth(path)
+			if e != nil {
+				log.Fatal(e)
+			}
+		}
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		e = characters.Store.MigrateCharacterEvents(ctx)
 		cancel()
@@ -301,7 +346,11 @@ func main() {
 		if progressionService == nil {
 			log.Fatal("loot requires progression and owned dungeon sessions")
 		}
-		c, e := catalog.LoadLoot(*lootCatalogFile)
+		lootPath := *lootCatalogFile
+		if path := os.Getenv("DFO_LOOT_CATALOG"); path != "" {
+			lootPath = path
+		}
+		c, e := catalog.LoadLoot(lootPath)
 		if e != nil {
 			log.Fatal(e)
 		}
@@ -321,6 +370,12 @@ func main() {
 			log.Fatal("loot source mismatch")
 		}
 		lootService = &loot.Service{Store: characters.Store, Catalog: c, Rules: r, BagRules: bag, Tables: tables}
+		if path := os.Getenv("DFO_ODYSSEY_COIN_RULES"); path != "" {
+			lootService.Currency, e = loot.LoadOdysseyCurrency(path)
+			if e != nil {
+				log.Fatal(e)
+			}
+		}
 		cards, e := loot.LoadCardRules(*cardRulesFile)
 		if e != nil {
 			log.Fatal(e)
@@ -350,11 +405,26 @@ func main() {
 			}
 			questService.Inventory = &inventory.Awarder{Catalog: lootService.Catalog, Rules: lootService.BagRules, Equipment: equipment}
 			if *wearRulesFile != "" {
-				rules, err := inventory.LoadWearRules(*wearRulesFile, data.Source.Checksum)
+				rulesPath := *wearRulesFile
+				if override := os.Getenv("DFO_EQUIPMENT_WEAR_RULES"); override != "" {
+					rulesPath = override
+				}
+				rules, err := inventory.LoadWearRules(rulesPath, data.Source.Checksum)
 				if err != nil {
 					log.Fatal(err)
 				}
 				wearService = &inventory.WearService{Store: characters.Store, Catalog: equipment, Professions: characters.Catalog, BagRules: lootService.BagRules, Rules: rules}
+				if *fullEquipmentFile != "" {
+					full, err := inventory.OpenFullEquipmentCatalog(*fullEquipmentFile, data.Source.Checksum)
+					if err != nil {
+						log.Fatal(err)
+					}
+					defer full.Close()
+					wearCatalog := *equipment
+					wearCatalog.Full = full
+					wearService.Catalog = &wearCatalog
+					log.Printf("separate wear catalog: %d records; original reward/drop catalog: %d", len(full.Records), len(equipment.Rows))
+				}
 			}
 			// The same source equipment catalog backs quest rewards and
 			// monster gear drops; a drop only offers what a bag accepts.
@@ -382,9 +452,64 @@ func main() {
 			log.Fatal(e)
 		}
 		vaultService = &inventory.VaultService{Store: characters.Store, Rules: rules}
+		if *vaultPurchase || *vaultRelease {
+			if (*vaultPurchase && *shopRelease) || (*vaultRelease && !*shopRelease) {
+				log.Fatal("vault purchase profile does not match shop profile")
+			}
+			for n := uint16(24); n <= 264; n += 16 {
+				vaultService.Rules.VerifiedSlots = append(vaultService.Rules.VerifiedSlots, n)
+			}
+		}
+		if lootService != nil {
+			vaultService.Catalog = lootService.Catalog
+			vaultService.BagRules = lootService.BagRules
+			if shopPilot != nil {
+				vaultService.Catalog, e = shopPilot.StorageCatalog(vaultService.Catalog)
+				if e != nil {
+					log.Fatal(e)
+				}
+			}
+		}
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		e = characters.Store.MigrateVault(ctx)
 		cancel()
+		if e != nil {
+			log.Fatal(e)
+		}
+	}
+	var odysseyChoices odysseyWeaponChoices
+	if lootService != nil && lootService.Currency != nil && vaultService != nil {
+		vaultService.Catalog = lootService.Currency.StorageCatalog(vaultService.Catalog)
+		vaultService.BagRules = lootService.Currency.BagRules(vaultService.BagRules)
+	}
+	if progressionService != nil && progressionService.Odyssey != nil && vaultService != nil {
+		items := make(map[uint32]catalog.LootItem, len(vaultService.Catalog.Items)+3)
+		for id, item := range vaultService.Catalog.Items {
+			items[id] = item
+		}
+		for id, item := range character.OdysseyGiftCatalog(progressionService.Odyssey).Items {
+			items[id] = item
+		}
+		vaultService.Catalog.Items = items
+	}
+	if odysseyRewardsEnabled() {
+		var e error
+		odysseyChoices, e = loadOdysseyWeaponChoices(os.Getenv("DFO_ODYSSEY_WEAPON_BOX"))
+		if e != nil {
+			log.Fatal(e)
+		}
+		if vaultService != nil {
+			items := make(map[uint32]catalog.LootItem, len(vaultService.Catalog.Items)+1)
+			for id, item := range vaultService.Catalog.Items {
+				items[id] = item
+			}
+			items[10417789] = catalog.LootItem{ID: 10417789, Kind: "stackable", Grade: 1, Rarity: 2, StackableType: "[booster selection]", StackLimit: 1, Script: odysseyChoices.Definition}
+			vaultService.Catalog.Items = items
+		}
+	}
+	if path := os.Getenv("DFO_CLEAR_CUBE_SOURCE"); path != "" && vaultService != nil {
+		var e error
+		vaultService.Catalog, e = inventory.WithClearCube(vaultService.Catalog, path)
 		if e != nil {
 			log.Fatal(e)
 		}
@@ -471,13 +596,22 @@ func main() {
 			// Per-command body sample counters for this connection.
 			bodySamples := map[uint16]int{}
 			var selectedCharacterID int64
+			purchaseSession, sessionErr := newShopPilotSession()
+			if sessionErr != nil {
+				event(map[string]any{"kind": "shop_session_error", "error": sessionErr.Error()})
+				return
+			}
+			purchaseSession.keys = keys
+			if (*vaultPurchase || *vaultRelease) && vaultService != nil {
+				purchaseSession.vaultRules = &vaultService.Rules
+			}
 			var selectedBasic []byte
 			var selectedAddition []byte
 			var worldState *worldSession
 			var skillState skillSession
 			var equipmentState equipmentSession
 			if worldService != nil {
-				worldState = &worldSession{service: worldService, account: developmentAccount, flags: townPolicy.Flags, dungeons: dungeonCatalog, tutorials: tutorialRoutes, tutorialDungeons: tutorialDungeons, professions: characters.Catalog, fatigue: fatigueService, quests: questService, progression: progressionService, loot: lootService, vault: vaultService, soloPartyBootstrap: *soloPartyBootstrap}
+				worldState = &worldSession{characters: characters, service: worldService, account: developmentAccount, flags: townPolicy.Flags, dungeons: dungeonCatalog, tutorials: tutorialRoutes, tutorialDungeons: tutorialDungeons, professions: characters.Catalog, fatigue: fatigueService, quests: questService, progression: progressionService, loot: lootService, vault: vaultService, soloPartyBootstrap: *soloPartyBootstrap}
 			}
 			sendPayload := func(kind byte, id uint16, payload []byte) error {
 				prepared, e := preparePackets(keys, []outboundPacket{{"response", kind, id, payload}})
@@ -499,8 +633,32 @@ func main() {
 				return
 			}
 			event(map[string]any{"kind": "server_frame", "peer": peer, "hex": hex.EncodeToString(raw)})
+			done := make(chan struct{})
+			defer close(done)
+			frames := clientFrames(c, done)
+			ticker := time.NewTicker(30 * time.Second)
+			defer ticker.Stop()
 			for {
-				frame, err := wire.ReadClient(c)
+				var incoming clientRead
+				select {
+				case incoming = <-frames:
+				case now := <-ticker.C:
+					if bootstrapped && selectedCharacterID != 0 && worldState != nil {
+						p, e := worldState.refreshDailyFatigue(now)
+						if e != nil {
+							event(map[string]any{"kind": "fatigue_daily_error", "error": e.Error()})
+							continue
+						}
+						if p != nil {
+							if e = sendPayload(0, 36, p); e != nil {
+								return
+							}
+							event(map[string]any{"kind": "fatigue_daily_refresh", "character_id": selectedCharacterID})
+						}
+					}
+					continue
+				}
+				frame, err := incoming.frame, incoming.err
 				if err != nil {
 					event(map[string]any{"kind": "close", "peer": peer, "error": err.Error()})
 					return
@@ -538,8 +696,147 @@ func main() {
 					}
 				}
 				event(entry)
+				if frame.Type == 1 && bootstrapped && verified && characters != nil && frame.ID == 63 {
+					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					payload, e := ceraQuery(ctx, characters.Store, developmentAccount, plaintext)
+					cancel()
+					if e != nil {
+						event(map[string]any{"kind": "cera_query_error", "error": e.Error()})
+						continue
+					}
+					if e = sendPayload(0, 53, payload); e != nil {
+						return
+					}
+					event(map[string]any{"kind": "cera_balance_response", "account_id": developmentAccount, "plain_hex": hex.EncodeToString(payload)})
+					continue
+				}
+				if frame.Type == 1 && bootstrapped && verified && frame.ID == 64 {
+					if shopPilot != nil && characters != nil && worldState != nil && selectedCharacterID != 0 && worldState.activeDungeon == nil {
+						ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+						receipt, applied, buyErr := purchaseSession.purchase(ctx, shopPilot, characters.Store, developmentAccount, selectedCharacterID, plaintext, frame.Raw)
+						cancel()
+						if buyErr == nil {
+							worldState.role.State = receipt.CharacterState
+							ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+							balance, readErr := characters.Store.AccountCera(ctx, developmentAccount)
+							cancel()
+							if readErr != nil {
+								event(map[string]any{"kind": "cera_committed_sync_error", "order": receipt.Order, "error": readErr.Error()})
+								return
+							}
+							packets, encodeErr := shopPilotPackets(receipt, balance, applied)
+							if encodeErr != nil {
+								event(map[string]any{"kind": "cera_committed_sync_error", "order": receipt.Order, "error": encodeErr.Error()})
+								return
+							}
+							event(map[string]any{"kind": "cera_purchase_committed", "order": receipt.Order, "character_id": selectedCharacterID, "applied": applied, "charged": receipt.Charged, "before": receipt.Before, "after": receipt.After, "deliveries": receipt.Deliveries})
+							for _, p := range packets {
+								if err := sendPayload(p.Kind, p.ID, p.Payload); err != nil {
+									return
+								}
+								event(map[string]any{"kind": p.Name, "id": p.ID, "plain_hex": hex.EncodeToString(p.Payload)})
+							}
+							continue
+						}
+						event(map[string]any{"kind": "cera_purchase_rejected", "error": buyErr.Error(), "charged": false})
+					}
+					items, e := protocol.DecodeCeraCart(plaintext)
+					reason := "delivery_protocol_pending"
+					if e != nil {
+						reason = e.Error()
+					}
+					// No ledger mutation occurs on this path. An unsupported buy
+					// must finish its native pending state instead of hanging.
+					payload := protocol.CeraPurchaseCancelled()
+					if e = sendPayload(1, 64, payload); e != nil {
+						return
+					}
+					event(map[string]any{"kind": "cera_purchase_cancelled", "reason": reason, "items": items, "character_id": selectedCharacterID, "charged": false, "plain_hex": hex.EncodeToString(payload)})
+					continue
+				}
+				if frame.Type == 1 && (frame.ID == 160 || (frame.ID == 41 && odysseyTemporaryCreditsEnabled())) && bootstrapped && verified && characters != nil && worldState != nil && odysseyRewardsEnabled() {
+					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					var plan []outboundPacket
+					var e error
+					if frame.ID == 41 {
+						plan, e = worldState.pilotRevive(ctx, characters.Store, plaintext, frame.Raw)
+					} else if worldState.activeDungeon != nil || worldState.role.ID == 0 {
+						e = fmt.Errorf("weapon box use requires selected character in town")
+					} else {
+						var request protocol.WeaponBoxSelection
+						request, e = protocol.DecodeWeaponBoxSelection(plaintext)
+						if e == nil {
+							var saved storage.Character
+							saved, plan, e = selectOdysseyWeapon(ctx, characters.Store, wearService, worldState.role, odysseyChoices, request)
+							if e == nil {
+								worldState.role = saved
+							}
+						}
+					}
+					cancel()
+					if e != nil {
+						event(map[string]any{"kind": "odyssey_action_refused", "id": frame.ID, "reason": e.Error()})
+						plan = []outboundPacket{{"odyssey_action_refused_ack", 1, frame.ID, protocol.Refusal(4)}}
+					}
+					for _, packet := range plan {
+						if sendPayload(packet.Kind, packet.ID, packet.Payload) != nil {
+							return
+						}
+						event(map[string]any{"kind": packet.Name, "id": packet.ID, "character_id": selectedCharacterID, "plain_hex": hex.EncodeToString(packet.Payload)})
+					}
+					continue
+				}
+				if frame.Type == 1 && frame.ID == 1417 && bootstrapped && verified && characters != nil {
+					if err := cinematicSkip(characters.Store, worldState, plaintext); err != nil {
+						event(map[string]any{"kind": "cinematic_skip_refused", "error": err.Error()})
+					} else {
+						event(map[string]any{"kind": "cinematic_skip_saved", "character_id": worldState.role.ID})
+					}
+					continue
+				}
+				if frame.Type == 1 && frame.ID == 2177 && bootstrapped && verified && characters != nil {
+					packets, err := awakenCharacter(characters, worldState, plaintext, keys)
+					if err != nil {
+						event(map[string]any{"kind": "awakening_refused", "error": err.Error()})
+						if err = sendPayload(1, 2177, protocol.Refusal(4)); err != nil {
+							return
+						}
+					} else if err = writePackets(c, packets, func(p preparedPacket) {
+						event(map[string]any{"kind": p.Name, "id": p.ID, "plain_hex": hex.EncodeToString(p.Payload)})
+					}); err != nil {
+						return
+					}
+					continue
+				}
+				if frame.Type == 1 && frame.ID == 451 && bootstrapped && verified && wearService != nil && wearService.Rules.Special {
+					packets, err := avatarOption(wearService, worldState, plaintext, keys)
+					if err != nil {
+						event(map[string]any{"kind": "avatar_option_refused", "error": err.Error()})
+						if err = sendPayload(1, 451, protocol.Refusal(4)); err != nil {
+							return
+						}
+					} else if err = writePackets(c, packets, func(p preparedPacket) {
+						event(map[string]any{"kind": p.Name, "id": p.ID, "plain_hex": hex.EncodeToString(p.Payload)})
+					}); err != nil {
+						return
+					}
+					continue
+				}
 				if frame.ID == 19 && bootstrapped && verified && wearService != nil {
 					plan, e := equipmentState.handle(wearService, worldState, plaintext, frame.Raw)
+					if e == nil && len(plan) > 0 && characters != nil && !skillRelease {
+						r, decodeErr := protocol.DecodeItemMove(plaintext)
+						if decodeErr == nil && (r.SourceList == 3 || r.DestinationList == 3) {
+							var visual []byte
+							visual, e = characters.EntryBasicProbe(worldState.role, [2]byte{})
+							if e == nil {
+								plan = append(plan, outboundPacket{"equipment_actor_appearance_updated", 0, 2, visual})
+								var restored []outboundPacket
+								restored, e = appearanceRestore(characters, worldState.role)
+								plan = append(plan, restored...)
+							}
+						}
+					}
 					if e != nil {
 						event(map[string]any{"kind": "equipment_move_refused", "reason": e.Error()})
 						r, _ := protocol.DecodeItemMove(plaintext)
@@ -563,6 +860,24 @@ func main() {
 				}
 				if frame.Type != 1 {
 					event(map[string]any{"kind": "unsupported_client_type", "type": frame.Type})
+					continue
+				}
+				if bootstrapped && frame.ID == 2261 {
+					if !verified {
+						event(map[string]any{"kind": "special_warp_rejected", "reason": "checksum failed"})
+						continue
+					}
+					plan, err := worldState.prepareSpecialWarp(plaintext)
+					if err != nil {
+						event(map[string]any{"kind": "special_warp_rejected", "reason": err.Error()})
+						continue
+					}
+					for _, packet := range plan {
+						if err := sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
+							return
+						}
+						event(map[string]any{"kind": packet.Name, "character_id": selectedCharacterID, "id": packet.ID, "plain_hex": hex.EncodeToString(packet.Payload)})
+					}
 					continue
 				}
 				if bootstrapped && (frame.ID == 3 || frame.ID == 7 || frame.ID == 1301) {
@@ -612,6 +927,43 @@ func main() {
 							return
 						}
 						event(map[string]any{"kind": packet.Name, "id": packet.ID, "character_id": selectedCharacterID, "plain_hex": hex.EncodeToString(packet.Payload)})
+					}
+					continue
+				}
+				if worldState != nil && bootstrapped && frame.ID == 18 {
+					if !verified {
+						continue
+					}
+					plan, e := worldState.deleteSkillMaterial(plaintext, frame.Raw)
+					if e != nil {
+						event(map[string]any{"kind": "skill_material_refused", "reason": e.Error(), "character_id": worldState.role.ID})
+						if e = sendPayload(1, 18, protocol.MaterialDeleteReply(nil, false)); e != nil {
+							return
+						}
+						continue
+					}
+					for _, packet := range plan {
+						if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
+							return
+						}
+						event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID})
+					}
+					continue
+				}
+				if worldState != nil && bootstrapped && frame.ID == 507 && fatigueService != nil {
+					if !verified {
+						continue
+					}
+					plan, e := worldState.recoverFatiguePotion(plaintext)
+					if e != nil {
+						event(map[string]any{"kind": "fatigue_potion_refused", "character_id": worldState.role.ID, "reason": e.Error()})
+						continue
+					}
+					for _, packet := range plan {
+						if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
+							return
+						}
+						event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID})
 					}
 					continue
 				}
@@ -752,7 +1104,7 @@ func main() {
 					worldState.selectingDungeon = true
 					continue
 				}
-				if worldState != nil && bootstrapped && (frame.ID == 16 || frame.ID == 37 || frame.ID == 39 || frame.ID == 42 || frame.ID == 43 || frame.ID == 45 || frame.ID == 46 || frame.ID == 69 || frame.ID == 70 || frame.ID == 71 || frame.ID == 72 || frame.ID == 117 || frame.ID == 132) {
+				if worldState != nil && bootstrapped && (frame.ID == 16 || frame.ID == 37 || frame.ID == 39 || (frame.ID == 40 && odysseyRewardsEnabled()) || frame.ID == 42 || frame.ID == 43 || frame.ID == 45 || frame.ID == 46 || frame.ID == 69 || frame.ID == 70 || frame.ID == 71 || frame.ID == 72 || frame.ID == 117 || frame.ID == 132) {
 					if !verified {
 						event(map[string]any{"kind": "dungeon_request_rejected", "id": frame.ID, "reason": "checksum failed"})
 						continue
@@ -767,12 +1119,18 @@ func main() {
 						plan, e = worldState.finishDungeonLoading(plaintext)
 					case 39:
 						plan, e = worldState.monsterDeath(plaintext)
+					case 40:
+						plan, e = worldState.playerDeath(plaintext, frame.Raw)
 					case 43:
 						plan, e = worldState.pickup(plaintext)
 					case 117:
 						plan, e = worldState.bossCheck(plaintext)
 					case 45:
-						pending, plan, e = worldState.moveDungeonRoom(plaintext)
+						if worldState.pilotDeath != nil && worldState.activeDungeon != nil && worldState.pilotDeath.Run == worldState.activeDungeon.RunID && worldState.pilotDeath.Dead {
+							e = fmt.Errorf("room movement requires living player")
+						} else {
+							pending, plan, e = worldState.moveDungeonRoom(plaintext)
+						}
 					case 46:
 						plan, e = worldState.dungeonResult(plaintext)
 					case 69, 70:
@@ -1033,6 +1391,66 @@ func main() {
 						event(map[string]any{"kind": "select_rejected", "error": e.Error()})
 						continue
 					}
+					if odysseyRewardsEnabled() {
+						ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+						updated, applied, rewardErr := grantOdysseyArmor(ctx, characters.Store, wearService, role)
+						cancel()
+						if rewardErr != nil {
+							event(map[string]any{"kind": "odyssey_armor_pending", "character_id": role.ID, "reason": rewardErr.Error()})
+						} else {
+							role = updated
+							if applied {
+								event(map[string]any{"kind": "odyssey_armor_granted", "character_id": role.ID, "templates": odysseyArmor})
+							}
+						}
+					}
+					if odysseyRewardsEnabled() {
+						ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+						updated, applied, rewardErr := grantOdysseyWeaponBox(ctx, characters.Store, role)
+						cancel()
+						if rewardErr != nil {
+							event(map[string]any{"kind": "odyssey_weapon_box_pending", "character_id": role.ID, "reason": rewardErr.Error()})
+						} else {
+							role = updated
+							if applied {
+								event(map[string]any{"kind": "odyssey_weapon_box_granted", "character_id": role.ID, "template": 10417789})
+							}
+						}
+					}
+					if odysseyTemporaryCreditsEnabled() {
+						ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+						updated, applied, creditErr := grantOdysseyCredits(ctx, characters.Store, role)
+						cancel()
+						if creditErr != nil {
+							event(map[string]any{"kind": "odyssey_test_credits_pending", "reason": creditErr.Error()})
+						} else {
+							role = updated
+							if applied {
+								event(map[string]any{"kind": "odyssey_test_credits_granted", "character_id": role.ID, "credits": 10})
+							}
+						}
+					}
+					if progressionService != nil && progressionService.Odyssey != nil {
+						ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+						caught, repaired, catchErr := progressionService.OdysseyCatchup(ctx, role)
+						if catchErr != nil {
+							event(map[string]any{"kind": "odyssey_growth_catchup_pending", "character_id": role.ID, "reason": catchErr.Error()})
+						} else {
+							role = caught
+						}
+						if repaired {
+							event(map[string]any{"kind": "odyssey_growth_catchup_committed", "character_id": role.ID})
+						}
+						updated, applied, pending := progressionService.OdysseyGifts(ctx, role)
+						cancel()
+						role = updated
+						if applied {
+							event(map[string]any{"kind": "odyssey_milestone_gifts_granted", "character_id": role.ID})
+						}
+						for _, err := range pending {
+							event(map[string]any{"kind": "odyssey_milestone_gift_pending", "character_id": role.ID, "reason": err.Error()})
+						}
+					}
 					profile := *selectProbe
 					ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
 					profile.TutorialCompleted, e = characters.Store.TutorialFlags(ctx, developmentAccount, role.ID)
@@ -1118,6 +1536,9 @@ func main() {
 							event(map[string]any{"kind": "entry_basic_error", "error": e.Error()})
 							continue
 						}
+						if len(basic) >= 13 {
+							event(map[string]any{"kind": "character_mode_projection", "character_id": role.ID, "name": role.Name, "odyssey_pilot": characters.Rules.OdysseyPilot, "entry_mode_byte": basic[len(basic)-13]})
+						}
 					}
 					if *entryAdditionProbe {
 						addition, e = characters.EntryAddition(role)
@@ -1152,10 +1573,24 @@ func main() {
 						}
 					}
 					plan := entryPayloads{Select: payload, Basic: basic, Addition: addition, Vault: vaultPayload, UserArea: userArea, Area: areaPayload, Fatigue: fatiguePayload, AccountOptions: accountOptionsPayload}
+					plan.CinematicSkips, e = cinematicRestore(role.State)
+					if e == nil && characters != nil {
+						plan.SkillVariations, e = characters.VariationRestore(role)
+					}
+					if e != nil {
+						event(map[string]any{"kind": "cinematic_restore_error", "error": e.Error()})
+						continue
+					}
 					if wearService != nil {
 						plan.Worn, e = inventory.WornPayload(role.State)
 						if e == nil {
 							plan.WornUpdate, e = inventory.WornSpaceUpdate(role.State)
+						}
+						if e == nil {
+							plan.Avatars, e = inventory.SpecialEquipmentPayload(role.State, 1)
+						}
+						if e == nil {
+							plan.Creatures, e = inventory.SpecialEquipmentPayload(role.State, 7)
 						}
 						if e != nil {
 							event(map[string]any{"kind": "entry_worn_error", "error": e.Error()})
@@ -1170,6 +1605,11 @@ func main() {
 						}
 					}
 					if progressionService != nil {
+						plan.OdysseyProgress, e = progressionService.OdysseyProgressPayload(role)
+						if e != nil {
+							event(map[string]any{"kind": "entry_odyssey_progress_error", "error": e.Error()})
+							continue
+						}
 						plan.Experience, e = character.ExperiencePayload(role)
 						if e != nil {
 							event(map[string]any{"kind": "entry_experience_error", "error": e.Error()})

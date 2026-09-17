@@ -86,8 +86,9 @@ func (d LearningDefinition) ForAdvancement(adv int) bool {
 	return adv >= 0 && adv < len(cap) && cap[adv] > 0
 }
 func (d LearningDefinition) Cost(level, advancement, target int, known map[uint16]byte) (int, error) {
-	// Only base-profession manual SP learning is enabled in the current stage.
-	if advancement != 0 || target < 1 || target > 255 || !d.ForAdvancement(advancement) {
+	// This argument is a growtype index, not the packed awakening wire byte.
+	// Source fitness/caps decide eligibility for both base and advanced jobs.
+	if advancement < 0 || advancement > 15 || target < 1 || target > 255 || !d.ForAdvancement(advancement) {
 		return 0, fmt.Errorf("unsupported skill advancement/level")
 	}
 	required, max, cost := d.Ints("[required level]"), d.Ints("[maximum level]"), d.Ints("[purchase cost]")

@@ -1,0 +1,6737 @@
+[
+  {
+    "type": 3,
+    "value": 166624513,
+    "text": "[job]"
+  },
+  {
+    "type": 6,
+    "value": 148554547,
+    "text": "[at swordman]"
+  },
+  {
+    "type": 3,
+    "value": 166624525,
+    "text": "[growtype name]"
+  },
+  {
+    "type": 8,
+    "value": 167204171,
+    "reference": "\u003c0::growtype_name_180\u003e"
+  },
+  {
+    "type": 8,
+    "value": 167204217,
+    "reference": "\u003c0::growtype_name_183\u003e"
+  },
+  {
+    "type": 8,
+    "value": 167204263,
+    "reference": "\u003c0::growtype_name_189\u003e"
+  },
+  {
+    "type": 8,
+    "value": 167204309,
+    "reference": "\u003c0::growtype_name_186\u003e"
+  },
+  {
+    "type": 8,
+    "value": 167204355,
+    "reference": "\u003c0::growtype_name_192\u003e"
+  },
+  {
+    "type": 8,
+    "value": 167204401,
+    "reference": "\u003c0::growtype_name_400\u003e"
+  },
+  {
+    "type": 3,
+    "value": 166624833,
+    "text": "[growtype name translation]"
+  },
+  {
+    "type": 8,
+    "value": 167204447,
+    "reference": "\u003c0::growtype_name_translation_180\u003e"
+  },
+  {
+    "type": 8,
+    "value": 167204517,
+    "reference": "\u003c0::growtype_name_translation_183\u003e"
+  },
+  {
+    "type": 8,
+    "value": 167204587,
+    "reference": "\u003c0::growtype_name_translation_189\u003e"
+  },
+  {
+    "type": 8,
+    "value": 167204657,
+    "reference": "\u003c0::growtype_name_translation_186\u003e"
+  },
+  {
+    "type": 8,
+    "value": 167204727,
+    "reference": "\u003c0::growtype_name_translation_192\u003e"
+  },
+  {
+    "type": 8,
+    "value": 167204797,
+    "reference": "\u003c0::growtype_name_translation_400\u003e"
+  },
+  {
+    "type": 3,
+    "value": 166625239,
+    "text": "[width]"
+  },
+  {
+    "type": 0,
+    "value": 40
+  },
+  {
+    "type": 0,
+    "value": 10
+  },
+  {
+    "type": 3,
+    "value": 166625255,
+    "text": "[initial value]"
+  },
+  {
+    "type": 3,
+    "value": 159996575,
+    "text": "[HP MAX]"
+  },
+  {
+    "type": 2,
+    "value": 1140785152,
+    "number": 510
+  },
+  {
+    "type": 3,
+    "value": 157888799,
+    "text": "[MP MAX]"
+  },
+  {
+    "type": 2,
+    "value": 1140129792,
+    "number": 490
+  },
+  {
+    "type": 3,
+    "value": 157884369,
+    "text": "[physical attack]"
+  },
+  {
+    "type": 2,
+    "value": 1120534528,
+    "number": 101
+  },
+  {
+    "type": 3,
+    "value": 159227401,
+    "text": "[physical defense]"
+  },
+  {
+    "type": 2,
+    "value": 1120534528,
+    "number": 101
+  },
+  {
+    "type": 3,
+    "value": 157928145,
+    "text": "[magical attack]"
+  },
+  {
+    "type": 2,
+    "value": 1120272384,
+    "number": 99
+  },
+  {
+    "type": 3,
+    "value": 159170171,
+    "text": "[magical defense]"
+  },
+  {
+    "type": 2,
+    "value": 1120272384,
+    "number": 99
+  },
+  {
+    "type": 3,
+    "value": 164402495,
+    "text": "[dark resistance]"
+  },
+  {
+    "type": 2,
+    "value": 1101004800,
+    "number": 20
+  },
+  {
+    "type": 3,
+    "value": 163162283,
+    "text": "[light resistance]"
+  },
+  {
+    "type": 2,
+    "value": -1046478848,
+    "number": -20
+  },
+  {
+    "type": 3,
+    "value": 159827747,
+    "text": "[inventory limit]"
+  },
+  {
+    "type": 2,
+    "value": 1194313728,
+    "number": 45000
+  },
+  {
+    "type": 3,
+    "value": 158491457,
+    "text": "[MP regen speed]"
+  },
+  {
+    "type": 2,
+    "value": 1112014848,
+    "number": 50
+  },
+  {
+    "type": 3,
+    "value": 159348129,
+    "text": "[move speed]"
+  },
+  {
+    "type": 2,
+    "value": 1147207680,
+    "number": 900
+  },
+  {
+    "type": 3,
+    "value": 158073801,
+    "text": "[attack speed]"
+  },
+  {
+    "type": 2,
+    "value": 1147207680,
+    "number": 900
+  },
+  {
+    "type": 3,
+    "value": 158497839,
+    "text": "[cast speed]"
+  },
+  {
+    "type": 2,
+    "value": 1145569280,
+    "number": 800
+  },
+  {
+    "type": 3,
+    "value": 162075971,
+    "text": "[hit recovery]"
+  },
+  {
+    "type": 2,
+    "value": 1142292480,
+    "number": 600
+  },
+  {
+    "type": 3,
+    "value": 161781561,
+    "text": "[jump power]"
+  },
+  {
+    "type": 2,
+    "value": 1138491392,
+    "number": 440
+  },
+  {
+    "type": 3,
+    "value": 162565975,
+    "text": "[weight]"
+  },
+  {
+    "type": 2,
+    "value": 1195593728,
+    "number": 50000
+  },
+  {
+    "type": 3,
+    "value": 166625287,
+    "text": "[jump speed]"
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 3,
+    "value": 86910065,
+    "text": "[skill]"
+  },
+  {
+    "type": 0,
+    "value": 179
+  },
+  {
+    "type": 0,
+    "value": 7
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 96
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 174
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 169
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 8
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 190
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 511
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 452
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 86910081,
+    "text": "[/skill]"
+  },
+  {
+    "type": 3,
+    "value": 166625313,
+    "text": "[growtype 1]"
+  },
+  {
+    "type": 3,
+    "value": 159996575,
+    "text": "[HP MAX]"
+  },
+  {
+    "type": 2,
+    "value": 1112014848,
+    "number": 50
+  },
+  {
+    "type": 3,
+    "value": 157888799,
+    "text": "[MP MAX]"
+  },
+  {
+    "type": 2,
+    "value": 1109393408,
+    "number": 40
+  },
+  {
+    "type": 3,
+    "value": 157884369,
+    "text": "[physical attack]"
+  },
+  {
+    "type": 2,
+    "value": 1085485875,
+    "number": 5.6
+  },
+  {
+    "type": 3,
+    "value": 159227401,
+    "text": "[physical defense]"
+  },
+  {
+    "type": 2,
+    "value": 1085485875,
+    "number": 5.6
+  },
+  {
+    "type": 3,
+    "value": 157928145,
+    "text": "[magical attack]"
+  },
+  {
+    "type": 2,
+    "value": 1085066445,
+    "number": 5.4
+  },
+  {
+    "type": 3,
+    "value": 159170171,
+    "text": "[magical defense]"
+  },
+  {
+    "type": 2,
+    "value": 1085066445,
+    "number": 5.4
+  },
+  {
+    "type": 3,
+    "value": 159827747,
+    "text": "[inventory limit]"
+  },
+  {
+    "type": 2,
+    "value": 1133576192,
+    "number": 290
+  },
+  {
+    "type": 3,
+    "value": 158491457,
+    "text": "[MP regen speed]"
+  },
+  {
+    "type": 2,
+    "value": 1075838976,
+    "number": 2.5
+  },
+  {
+    "type": 3,
+    "value": 162075971,
+    "text": "[hit recovery]"
+  },
+  {
+    "type": 2,
+    "value": 1069547520,
+    "number": 1.5
+  },
+  {
+    "type": 3,
+    "value": 166625393,
+    "text": "[module damage rate]"
+  },
+  {
+    "type": 2,
+    "value": 1064514355,
+    "number": 0.95
+  },
+  {
+    "type": 2,
+    "value": 1065353216,
+    "number": 1
+  },
+  {
+    "type": 2,
+    "value": 1065353216,
+    "number": 1
+  },
+  {
+    "type": 2,
+    "value": 1036831949,
+    "number": 0.1
+  },
+  {
+    "type": 3,
+    "value": 166625435,
+    "text": "[growtype 2]"
+  },
+  {
+    "type": 3,
+    "value": 166625487,
+    "text": "[selectable awakening skill index]"
+  },
+  {
+    "type": 0,
+    "value": 54
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 3,
+    "value": 166625557,
+    "text": "[CHARACTER ATTACK TYPE]"
+  },
+  {
+    "type": 3,
+    "value": 40161621,
+    "text": "[physic]"
+  },
+  {
+    "type": 3,
+    "value": 166625339,
+    "text": "[show skill]"
+  },
+  {
+    "type": 0,
+    "value": 17
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 33
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 21
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 13
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 5
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 26
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 15
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 9
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 18
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 27
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 54
+  },
+  {
+    "type": 0,
+    "value": 2
+  },
+  {
+    "type": 0,
+    "value": 14
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 3,
+    "value": 166625365,
+    "text": "[/show skill]"
+  },
+  {
+    "type": 3,
+    "value": 166625653,
+    "text": "[showskill level]"
+  },
+  {
+    "type": 0,
+    "value": 50
+  },
+  {
+    "type": 3,
+    "value": 166625689,
+    "text": "[preset skill]"
+  },
+  {
+    "type": 0,
+    "value": 14
+  },
+  {
+    "type": 0,
+    "value": 21
+  },
+  {
+    "type": 0,
+    "value": 99
+  },
+  {
+    "type": 0,
+    "value": 15
+  },
+  {
+    "type": 0,
+    "value": 27
+  },
+  {
+    "type": 0,
+    "value": 9
+  },
+  {
+    "type": 0,
+    "value": 12
+  },
+  {
+    "type": 0,
+    "value": 5
+  },
+  {
+    "type": 0,
+    "value": 54
+  },
+  {
+    "type": 0,
+    "value": 18
+  },
+  {
+    "type": 0,
+    "value": 13
+  },
+  {
+    "type": 0,
+    "value": 26
+  },
+  {
+    "type": 0,
+    "value": 2
+  },
+  {
+    "type": 0,
+    "value": 8
+  },
+  {
+    "type": 0,
+    "value": 52
+  },
+  {
+    "type": 0,
+    "value": 153
+  },
+  {
+    "type": 0,
+    "value": 33
+  },
+  {
+    "type": 0,
+    "value": 57
+  },
+  {
+    "type": 0,
+    "value": 17
+  },
+  {
+    "type": 0,
+    "value": 16
+  },
+  {
+    "type": 0,
+    "value": 96
+  },
+  {
+    "type": 3,
+    "value": 166625719,
+    "text": "[/preset skill]"
+  },
+  {
+    "type": 3,
+    "value": 159996575,
+    "text": "[HP MAX]"
+  },
+  {
+    "type": 2,
+    "value": 1114636288,
+    "number": 60
+  },
+  {
+    "type": 3,
+    "value": 157888799,
+    "text": "[MP MAX]"
+  },
+  {
+    "type": 2,
+    "value": 1106247680,
+    "number": 30
+  },
+  {
+    "type": 3,
+    "value": 157884369,
+    "text": "[physical attack]"
+  },
+  {
+    "type": 2,
+    "value": 1086324736,
+    "number": 6
+  },
+  {
+    "type": 3,
+    "value": 159227401,
+    "text": "[physical defense]"
+  },
+  {
+    "type": 2,
+    "value": 1086324736,
+    "number": 6
+  },
+  {
+    "type": 3,
+    "value": 157928145,
+    "text": "[magical attack]"
+  },
+  {
+    "type": 2,
+    "value": 1084227584,
+    "number": 5
+  },
+  {
+    "type": 3,
+    "value": 159170171,
+    "text": "[magical defense]"
+  },
+  {
+    "type": 2,
+    "value": 1084227584,
+    "number": 5
+  },
+  {
+    "type": 3,
+    "value": 159827747,
+    "text": "[inventory limit]"
+  },
+  {
+    "type": 2,
+    "value": 1133903872,
+    "number": 300
+  },
+  {
+    "type": 3,
+    "value": 158491457,
+    "text": "[MP regen speed]"
+  },
+  {
+    "type": 2,
+    "value": 1075838976,
+    "number": 2.5
+  },
+  {
+    "type": 3,
+    "value": 162075971,
+    "text": "[hit recovery]"
+  },
+  {
+    "type": 2,
+    "value": 1073741824,
+    "number": 2
+  },
+  {
+    "type": 3,
+    "value": 86910065,
+    "text": "[skill]"
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 16
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 55
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 56
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 57
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 58
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 21
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 46
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 10
+  },
+  {
+    "type": 0,
+    "value": 501
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 99
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 491
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 86910081,
+    "text": "[/skill]"
+  },
+  {
+    "type": 3,
+    "value": 166625393,
+    "text": "[module damage rate]"
+  },
+  {
+    "type": 2,
+    "value": 1060320051,
+    "number": 0.7
+  },
+  {
+    "type": 2,
+    "value": 1065353216,
+    "number": 1
+  },
+  {
+    "type": 2,
+    "value": 1066192077,
+    "number": 1.1
+  },
+  {
+    "type": 2,
+    "value": 1028443341,
+    "number": 0.05
+  },
+  {
+    "type": 3,
+    "value": 166625751,
+    "text": "[usable weapon sub type]"
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": -1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": -1
+  },
+  {
+    "type": 0,
+    "value": 2
+  },
+  {
+    "type": 0,
+    "value": -1
+  },
+  {
+    "type": 0,
+    "value": 3
+  },
+  {
+    "type": 0,
+    "value": -1
+  },
+  {
+    "type": 3,
+    "value": 166625801,
+    "text": "[/usable weapon sub type]"
+  },
+  {
+    "type": 3,
+    "value": 166625853,
+    "text": "[pvp private create equipment list]"
+  },
+  {
+    "type": 6,
+    "value": 166625925,
+    "text": "[coat]"
+  },
+  {
+    "type": 0,
+    "value": 100070544
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 166625939,
+    "text": "[shoulder]"
+  },
+  {
+    "type": 0,
+    "value": 100170512
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 166625961,
+    "text": "[shoes]"
+  },
+  {
+    "type": 0,
+    "value": 100270508
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 166625977,
+    "text": "[pants]"
+  },
+  {
+    "type": 0,
+    "value": 100120537
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 166625993,
+    "text": "[waist]"
+  },
+  {
+    "type": 0,
+    "value": 100220512
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 162564703,
+    "text": "[weapon]"
+  },
+  {
+    "type": 0,
+    "value": 101010838
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 162564703,
+    "text": "[weapon]"
+  },
+  {
+    "type": 0,
+    "value": 101000709
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 6,
+    "value": 162564703,
+    "text": "[weapon]"
+  },
+  {
+    "type": 0,
+    "value": 101020648
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 6,
+    "value": 166626009,
+    "text": "[support]"
+  },
+  {
+    "type": 0,
+    "value": 100344486
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 166626029,
+    "text": "[magic stone]"
+  },
+  {
+    "type": 0,
+    "value": 100352790
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 162564703,
+    "text": "[weapon]"
+  },
+  {
+    "type": 0,
+    "value": 101030722
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 6,
+    "value": 166626057,
+    "text": "[amulet]"
+  },
+  {
+    "type": 0,
+    "value": 100300673
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 166626075,
+    "text": "[wrist]"
+  },
+  {
+    "type": 0,
+    "value": 100312365
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 166626091,
+    "text": "[ring]"
+  },
+  {
+    "type": 0,
+    "value": 100322234
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 166626105,
+    "text": "[/pvp private create equipment list]"
+  },
+  {
+    "type": 3,
+    "value": 166626179,
+    "text": "[pvp private recreate penaly period]"
+  },
+  {
+    "type": 0,
+    "value": 30
+  },
+  {
+    "type": 3,
+    "value": 166626253,
+    "text": "[awakening name]"
+  },
+  {
+    "type": 8,
+    "value": 167204867,
+    "reference": "\u003c0::growtype_name_184\u003e"
+  },
+  {
+    "type": 8,
+    "value": 167204913,
+    "reference": "\u003c0::growtype_name_185\u003e"
+  },
+  {
+    "type": 8,
+    "value": 167204959,
+    "reference": "\u003c0::growtype_name_195\u003e"
+  },
+  {
+    "type": 3,
+    "value": 166626425,
+    "text": "[awakening name translation]"
+  },
+  {
+    "type": 8,
+    "value": 167205005,
+    "reference": "\u003c0::growtype_name_translation_184\u003e"
+  },
+  {
+    "type": 8,
+    "value": 167205075,
+    "reference": "\u003c0::growtype_name_translation_185\u003e"
+  },
+  {
+    "type": 8,
+    "value": 167205145,
+    "reference": "\u003c0::growtype_name_translation_195\u003e"
+  },
+  {
+    "type": 3,
+    "value": 166626733,
+    "text": "[awakening 1]"
+  },
+  {
+    "type": 3,
+    "value": 166626761,
+    "text": "[awakening skill]"
+  },
+  {
+    "type": 0,
+    "value": 52
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 54
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 166626843,
+    "text": "[/awakening skill]"
+  },
+  {
+    "type": 3,
+    "value": 166626881,
+    "text": "[pvp awakening skill]"
+  },
+  {
+    "type": 0,
+    "value": 52
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 54
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 166626925,
+    "text": "[/pvp awakening skill]"
+  },
+  {
+    "type": 3,
+    "value": 166626971,
+    "text": "[awakening 2]"
+  },
+  {
+    "type": 3,
+    "value": 166626761,
+    "text": "[awakening skill]"
+  },
+  {
+    "type": 0,
+    "value": 103
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 166626843,
+    "text": "[/awakening skill]"
+  },
+  {
+    "type": 3,
+    "value": 166626881,
+    "text": "[pvp awakening skill]"
+  },
+  {
+    "type": 3,
+    "value": 166626925,
+    "text": "[/pvp awakening skill]"
+  },
+  {
+    "type": 3,
+    "value": 166626999,
+    "text": "[awakening 3]"
+  },
+  {
+    "type": 3,
+    "value": 166626761,
+    "text": "[awakening skill]"
+  },
+  {
+    "type": 0,
+    "value": 53
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 166626843,
+    "text": "[/awakening skill]"
+  },
+  {
+    "type": 3,
+    "value": 166626881,
+    "text": "[pvp awakening skill]"
+  },
+  {
+    "type": 3,
+    "value": 166626925,
+    "text": "[/pvp awakening skill]"
+  },
+  {
+    "type": 3,
+    "value": 166627027,
+    "text": "[growtype 3]"
+  },
+  {
+    "type": 3,
+    "value": 166625487,
+    "text": "[selectable awakening skill index]"
+  },
+  {
+    "type": 0,
+    "value": 74
+  },
+  {
+    "type": 0,
+    "value": 104
+  },
+  {
+    "type": 3,
+    "value": 166625557,
+    "text": "[CHARACTER ATTACK TYPE]"
+  },
+  {
+    "type": 3,
+    "value": 149533071,
+    "text": "[magic]"
+  },
+  {
+    "type": 3,
+    "value": 166625339,
+    "text": "[show skill]"
+  },
+  {
+    "type": 0,
+    "value": 63
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 61
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 64
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 67
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 68
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 66
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 43
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 69
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 70
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 71
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 74
+  },
+  {
+    "type": 0,
+    "value": 2
+  },
+  {
+    "type": 0,
+    "value": 76
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 166625365,
+    "text": "[/show skill]"
+  },
+  {
+    "type": 3,
+    "value": 166625653,
+    "text": "[showskill level]"
+  },
+  {
+    "type": 0,
+    "value": 50
+  },
+  {
+    "type": 3,
+    "value": 166625689,
+    "text": "[preset skill]"
+  },
+  {
+    "type": 0,
+    "value": 76
+  },
+  {
+    "type": 0,
+    "value": 63
+  },
+  {
+    "type": 0,
+    "value": 60
+  },
+  {
+    "type": 0,
+    "value": 68
+  },
+  {
+    "type": 0,
+    "value": 61
+  },
+  {
+    "type": 0,
+    "value": 64
+  },
+  {
+    "type": 0,
+    "value": 67
+  },
+  {
+    "type": 0,
+    "value": 40
+  },
+  {
+    "type": 0,
+    "value": 66
+  },
+  {
+    "type": 0,
+    "value": 43
+  },
+  {
+    "type": 0,
+    "value": 69
+  },
+  {
+    "type": 0,
+    "value": 70
+  },
+  {
+    "type": 0,
+    "value": 71
+  },
+  {
+    "type": 0,
+    "value": 74
+  },
+  {
+    "type": 0,
+    "value": 62
+  },
+  {
+    "type": 0,
+    "value": 198
+  },
+  {
+    "type": 0,
+    "value": 65
+  },
+  {
+    "type": 0,
+    "value": 75
+  },
+  {
+    "type": 3,
+    "value": 166625719,
+    "text": "[/preset skill]"
+  },
+  {
+    "type": 3,
+    "value": 159996575,
+    "text": "[HP MAX]"
+  },
+  {
+    "type": 2,
+    "value": 1112014848,
+    "number": 50
+  },
+  {
+    "type": 3,
+    "value": 157888799,
+    "text": "[MP MAX]"
+  },
+  {
+    "type": 2,
+    "value": 1109393408,
+    "number": 40
+  },
+  {
+    "type": 3,
+    "value": 157884369,
+    "text": "[physical attack]"
+  },
+  {
+    "type": 2,
+    "value": 1083179008,
+    "number": 4.5
+  },
+  {
+    "type": 3,
+    "value": 159227401,
+    "text": "[physical defense]"
+  },
+  {
+    "type": 2,
+    "value": 1083179008,
+    "number": 4.5
+  },
+  {
+    "type": 3,
+    "value": 157928145,
+    "text": "[magical attack]"
+  },
+  {
+    "type": 2,
+    "value": 1087373312,
+    "number": 6.5
+  },
+  {
+    "type": 3,
+    "value": 159170171,
+    "text": "[magical defense]"
+  },
+  {
+    "type": 2,
+    "value": 1087373312,
+    "number": 6.5
+  },
+  {
+    "type": 3,
+    "value": 159827747,
+    "text": "[inventory limit]"
+  },
+  {
+    "type": 2,
+    "value": 1133903872,
+    "number": 300
+  },
+  {
+    "type": 3,
+    "value": 158491457,
+    "text": "[MP regen speed]"
+  },
+  {
+    "type": 2,
+    "value": 1084227584,
+    "number": 5
+  },
+  {
+    "type": 3,
+    "value": 162075971,
+    "text": "[hit recovery]"
+  },
+  {
+    "type": 2,
+    "value": 1065353216,
+    "number": 1
+  },
+  {
+    "type": 3,
+    "value": 86910065,
+    "text": "[skill]"
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 198
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 15
+  },
+  {
+    "type": 0,
+    "value": 62
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 46
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 10
+  },
+  {
+    "type": 0,
+    "value": 501
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 492
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 86910081,
+    "text": "[/skill]"
+  },
+  {
+    "type": 3,
+    "value": 166625393,
+    "text": "[module damage rate]"
+  },
+  {
+    "type": 2,
+    "value": 1060907254,
+    "number": 0.735
+  },
+  {
+    "type": 2,
+    "value": 1065353216,
+    "number": 1
+  },
+  {
+    "type": 2,
+    "value": 1067030938,
+    "number": 1.2
+  },
+  {
+    "type": 2,
+    "value": 1028443341,
+    "number": 0.05
+  },
+  {
+    "type": 3,
+    "value": 166625751,
+    "text": "[usable weapon sub type]"
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": -1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": -1
+  },
+  {
+    "type": 0,
+    "value": 2
+  },
+  {
+    "type": 0,
+    "value": -1
+  },
+  {
+    "type": 0,
+    "value": 3
+  },
+  {
+    "type": 0,
+    "value": -1
+  },
+  {
+    "type": 3,
+    "value": 166625801,
+    "text": "[/usable weapon sub type]"
+  },
+  {
+    "type": 3,
+    "value": 166625853,
+    "text": "[pvp private create equipment list]"
+  },
+  {
+    "type": 6,
+    "value": 162564703,
+    "text": "[weapon]"
+  },
+  {
+    "type": 0,
+    "value": 101010838
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 166625925,
+    "text": "[coat]"
+  },
+  {
+    "type": 0,
+    "value": 100090361
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 166625939,
+    "text": "[shoulder]"
+  },
+  {
+    "type": 0,
+    "value": 100190327
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 166625961,
+    "text": "[shoes]"
+  },
+  {
+    "type": 0,
+    "value": 100290347
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 166625977,
+    "text": "[pants]"
+  },
+  {
+    "type": 0,
+    "value": 100140356
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 166625993,
+    "text": "[waist]"
+  },
+  {
+    "type": 0,
+    "value": 100240334
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 162564703,
+    "text": "[weapon]"
+  },
+  {
+    "type": 0,
+    "value": 101000709
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 6,
+    "value": 162564703,
+    "text": "[weapon]"
+  },
+  {
+    "type": 0,
+    "value": 101020648
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 6,
+    "value": 166626009,
+    "text": "[support]"
+  },
+  {
+    "type": 0,
+    "value": 100344486
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 166626029,
+    "text": "[magic stone]"
+  },
+  {
+    "type": 0,
+    "value": 100352790
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 166626057,
+    "text": "[amulet]"
+  },
+  {
+    "type": 0,
+    "value": 100300673
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 166626075,
+    "text": "[wrist]"
+  },
+  {
+    "type": 0,
+    "value": 100312365
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 166626091,
+    "text": "[ring]"
+  },
+  {
+    "type": 0,
+    "value": 100322234
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 166626105,
+    "text": "[/pvp private create equipment list]"
+  },
+  {
+    "type": 3,
+    "value": 166626179,
+    "text": "[pvp private recreate penaly period]"
+  },
+  {
+    "type": 0,
+    "value": 30
+  },
+  {
+    "type": 3,
+    "value": 166626253,
+    "text": "[awakening name]"
+  },
+  {
+    "type": 8,
+    "value": 167205215,
+    "reference": "\u003c0::growtype_name_190\u003e"
+  },
+  {
+    "type": 8,
+    "value": 167205261,
+    "reference": "\u003c0::growtype_name_191\u003e"
+  },
+  {
+    "type": 8,
+    "value": 167205307,
+    "reference": "\u003c0::growtype_name_196\u003e"
+  },
+  {
+    "type": 3,
+    "value": 166626425,
+    "text": "[awakening name translation]"
+  },
+  {
+    "type": 8,
+    "value": 167205353,
+    "reference": "\u003c0::growtype_name_translation_190\u003e"
+  },
+  {
+    "type": 8,
+    "value": 167205423,
+    "reference": "\u003c0::growtype_name_translation_191\u003e"
+  },
+  {
+    "type": 8,
+    "value": 167205493,
+    "reference": "\u003c0::growtype_name_translation_196\u003e"
+  },
+  {
+    "type": 3,
+    "value": 166626733,
+    "text": "[awakening 1]"
+  },
+  {
+    "type": 3,
+    "value": 166626761,
+    "text": "[awakening skill]"
+  },
+  {
+    "type": 0,
+    "value": 75
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 74
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 166626843,
+    "text": "[/awakening skill]"
+  },
+  {
+    "type": 3,
+    "value": 166626881,
+    "text": "[pvp awakening skill]"
+  },
+  {
+    "type": 0,
+    "value": 75
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 74
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 166626925,
+    "text": "[/pvp awakening skill]"
+  },
+  {
+    "type": 3,
+    "value": 166626971,
+    "text": "[awakening 2]"
+  },
+  {
+    "type": 3,
+    "value": 166626761,
+    "text": "[awakening skill]"
+  },
+  {
+    "type": 0,
+    "value": 107
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 104
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 166626843,
+    "text": "[/awakening skill]"
+  },
+  {
+    "type": 3,
+    "value": 166626881,
+    "text": "[pvp awakening skill]"
+  },
+  {
+    "type": 3,
+    "value": 166626925,
+    "text": "[/pvp awakening skill]"
+  },
+  {
+    "type": 3,
+    "value": 166626999,
+    "text": "[awakening 3]"
+  },
+  {
+    "type": 3,
+    "value": 166626761,
+    "text": "[awakening skill]"
+  },
+  {
+    "type": 0,
+    "value": 49
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 166626843,
+    "text": "[/awakening skill]"
+  },
+  {
+    "type": 3,
+    "value": 166626881,
+    "text": "[pvp awakening skill]"
+  },
+  {
+    "type": 3,
+    "value": 166626925,
+    "text": "[/pvp awakening skill]"
+  },
+  {
+    "type": 3,
+    "value": 166627429,
+    "text": "[growtype 4]"
+  },
+  {
+    "type": 3,
+    "value": 166625487,
+    "text": "[selectable awakening skill index]"
+  },
+  {
+    "type": 0,
+    "value": 19
+  },
+  {
+    "type": 0,
+    "value": 108
+  },
+  {
+    "type": 3,
+    "value": 166625557,
+    "text": "[CHARACTER ATTACK TYPE]"
+  },
+  {
+    "type": 3,
+    "value": 40161621,
+    "text": "[physic]"
+  },
+  {
+    "type": 3,
+    "value": 166625339,
+    "text": "[show skill]"
+  },
+  {
+    "type": 0,
+    "value": 31
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 35
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 42
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 37
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 20
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 41
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 51
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 47
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 29
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 28
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 19
+  },
+  {
+    "type": 0,
+    "value": 2
+  },
+  {
+    "type": 0,
+    "value": 32
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 166625365,
+    "text": "[/show skill]"
+  },
+  {
+    "type": 3,
+    "value": 166625653,
+    "text": "[showskill level]"
+  },
+  {
+    "type": 0,
+    "value": 50
+  },
+  {
+    "type": 3,
+    "value": 166625689,
+    "text": "[preset skill]"
+  },
+  {
+    "type": 0,
+    "value": 32
+  },
+  {
+    "type": 0,
+    "value": 79
+  },
+  {
+    "type": 0,
+    "value": 46
+  },
+  {
+    "type": 0,
+    "value": 2
+  },
+  {
+    "type": 0,
+    "value": 37
+  },
+  {
+    "type": 0,
+    "value": 20
+  },
+  {
+    "type": 0,
+    "value": 36
+  },
+  {
+    "type": 0,
+    "value": 34
+  },
+  {
+    "type": 0,
+    "value": 41
+  },
+  {
+    "type": 0,
+    "value": 51
+  },
+  {
+    "type": 0,
+    "value": 47
+  },
+  {
+    "type": 0,
+    "value": 29
+  },
+  {
+    "type": 0,
+    "value": 28
+  },
+  {
+    "type": 0,
+    "value": 19
+  },
+  {
+    "type": 0,
+    "value": 31
+  },
+  {
+    "type": 0,
+    "value": 35
+  },
+  {
+    "type": 0,
+    "value": 42
+  },
+  {
+    "type": 3,
+    "value": 166625719,
+    "text": "[/preset skill]"
+  },
+  {
+    "type": 3,
+    "value": 159996575,
+    "text": "[HP MAX]"
+  },
+  {
+    "type": 2,
+    "value": 1115815936,
+    "number": 65
+  },
+  {
+    "type": 3,
+    "value": 157888799,
+    "text": "[MP MAX]"
+  },
+  {
+    "type": 2,
+    "value": 1103626240,
+    "number": 25
+  },
+  {
+    "type": 3,
+    "value": 157884369,
+    "text": "[physical attack]"
+  },
+  {
+    "type": 2,
+    "value": 1087373312,
+    "number": 6.5
+  },
+  {
+    "type": 3,
+    "value": 159227401,
+    "text": "[physical defense]"
+  },
+  {
+    "type": 2,
+    "value": 1087373312,
+    "number": 6.5
+  },
+  {
+    "type": 3,
+    "value": 157928145,
+    "text": "[magical attack]"
+  },
+  {
+    "type": 2,
+    "value": 1083179008,
+    "number": 4.5
+  },
+  {
+    "type": 3,
+    "value": 159170171,
+    "text": "[magical defense]"
+  },
+  {
+    "type": 2,
+    "value": 1083179008,
+    "number": 4.5
+  },
+  {
+    "type": 3,
+    "value": 159827747,
+    "text": "[inventory limit]"
+  },
+  {
+    "type": 2,
+    "value": 1133903872,
+    "number": 300
+  },
+  {
+    "type": 3,
+    "value": 158491457,
+    "text": "[MP regen speed]"
+  },
+  {
+    "type": 2,
+    "value": 1075838976,
+    "number": 2.5
+  },
+  {
+    "type": 3,
+    "value": 162075971,
+    "text": "[hit recovery]"
+  },
+  {
+    "type": 2,
+    "value": 1073741824,
+    "number": 2
+  },
+  {
+    "type": 3,
+    "value": 86910065,
+    "text": "[skill]"
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 501
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 7
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 5
+  },
+  {
+    "type": 0,
+    "value": 46
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 10
+  },
+  {
+    "type": 0,
+    "value": 31
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 493
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 86910081,
+    "text": "[/skill]"
+  },
+  {
+    "type": 3,
+    "value": 166625393,
+    "text": "[module damage rate]"
+  },
+  {
+    "type": 2,
+    "value": 1060320051,
+    "number": 0.7
+  },
+  {
+    "type": 2,
+    "value": 1065353216,
+    "number": 1
+  },
+  {
+    "type": 2,
+    "value": 1061997773,
+    "number": 0.8
+  },
+  {
+    "type": 2,
+    "value": 1028443341,
+    "number": 0.05
+  },
+  {
+    "type": 3,
+    "value": 166625751,
+    "text": "[usable weapon sub type]"
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": -1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": -1
+  },
+  {
+    "type": 0,
+    "value": 2
+  },
+  {
+    "type": 0,
+    "value": -1
+  },
+  {
+    "type": 0,
+    "value": 3
+  },
+  {
+    "type": 0,
+    "value": -1
+  },
+  {
+    "type": 3,
+    "value": 166625801,
+    "text": "[/usable weapon sub type]"
+  },
+  {
+    "type": 3,
+    "value": 166625853,
+    "text": "[pvp private create equipment list]"
+  },
+  {
+    "type": 6,
+    "value": 162564703,
+    "text": "[weapon]"
+  },
+  {
+    "type": 0,
+    "value": 101010838
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 166625925,
+    "text": "[coat]"
+  },
+  {
+    "type": 0,
+    "value": 100080519
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 166625939,
+    "text": "[shoulder]"
+  },
+  {
+    "type": 0,
+    "value": 100180473
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 166625961,
+    "text": "[shoes]"
+  },
+  {
+    "type": 0,
+    "value": 100280468
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 166625977,
+    "text": "[pants]"
+  },
+  {
+    "type": 0,
+    "value": 100130505
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 166625993,
+    "text": "[waist]"
+  },
+  {
+    "type": 0,
+    "value": 100230473
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 162564703,
+    "text": "[weapon]"
+  },
+  {
+    "type": 0,
+    "value": 101000709
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 6,
+    "value": 162564703,
+    "text": "[weapon]"
+  },
+  {
+    "type": 0,
+    "value": 101020648
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 6,
+    "value": 166626009,
+    "text": "[support]"
+  },
+  {
+    "type": 0,
+    "value": 100344486
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 166626029,
+    "text": "[magic stone]"
+  },
+  {
+    "type": 0,
+    "value": 100352790
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 162564703,
+    "text": "[weapon]"
+  },
+  {
+    "type": 0,
+    "value": 101030722
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 6,
+    "value": 166626057,
+    "text": "[amulet]"
+  },
+  {
+    "type": 0,
+    "value": 100300673
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 166626075,
+    "text": "[wrist]"
+  },
+  {
+    "type": 0,
+    "value": 100312365
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 166626091,
+    "text": "[ring]"
+  },
+  {
+    "type": 0,
+    "value": 100322234
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 166626105,
+    "text": "[/pvp private create equipment list]"
+  },
+  {
+    "type": 3,
+    "value": 166626179,
+    "text": "[pvp private recreate penaly period]"
+  },
+  {
+    "type": 0,
+    "value": 30
+  },
+  {
+    "type": 3,
+    "value": 166626253,
+    "text": "[awakening name]"
+  },
+  {
+    "type": 8,
+    "value": 167205563,
+    "reference": "\u003c0::growtype_name_187\u003e"
+  },
+  {
+    "type": 8,
+    "value": 167205609,
+    "reference": "\u003c0::growtype_name_188\u003e"
+  },
+  {
+    "type": 8,
+    "value": 167205655,
+    "reference": "\u003c0::growtype_name_197\u003e"
+  },
+  {
+    "type": 3,
+    "value": 166626425,
+    "text": "[awakening name translation]"
+  },
+  {
+    "type": 8,
+    "value": 167205701,
+    "reference": "\u003c0::growtype_name_translation_187\u003e"
+  },
+  {
+    "type": 8,
+    "value": 167205771,
+    "reference": "\u003c0::growtype_name_translation_188\u003e"
+  },
+  {
+    "type": 8,
+    "value": 167205841,
+    "reference": "\u003c0::growtype_name_translation_197\u003e"
+  },
+  {
+    "type": 3,
+    "value": 166626733,
+    "text": "[awakening 1]"
+  },
+  {
+    "type": 3,
+    "value": 166626761,
+    "text": "[awakening skill]"
+  },
+  {
+    "type": 0,
+    "value": 42
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 19
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 166626843,
+    "text": "[/awakening skill]"
+  },
+  {
+    "type": 3,
+    "value": 166626881,
+    "text": "[pvp awakening skill]"
+  },
+  {
+    "type": 0,
+    "value": 42
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 19
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 166626925,
+    "text": "[/pvp awakening skill]"
+  },
+  {
+    "type": 3,
+    "value": 166626971,
+    "text": "[awakening 2]"
+  },
+  {
+    "type": 3,
+    "value": 166626761,
+    "text": "[awakening skill]"
+  },
+  {
+    "type": 0,
+    "value": 111
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 108
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 166626843,
+    "text": "[/awakening skill]"
+  },
+  {
+    "type": 3,
+    "value": 166626881,
+    "text": "[pvp awakening skill]"
+  },
+  {
+    "type": 3,
+    "value": 166626925,
+    "text": "[/pvp awakening skill]"
+  },
+  {
+    "type": 3,
+    "value": 166626999,
+    "text": "[awakening 3]"
+  },
+  {
+    "type": 3,
+    "value": 166626761,
+    "text": "[awakening skill]"
+  },
+  {
+    "type": 0,
+    "value": 118
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 166626843,
+    "text": "[/awakening skill]"
+  },
+  {
+    "type": 3,
+    "value": 166626881,
+    "text": "[pvp awakening skill]"
+  },
+  {
+    "type": 3,
+    "value": 166626925,
+    "text": "[/pvp awakening skill]"
+  },
+  {
+    "type": 3,
+    "value": 166627803,
+    "text": "[growtype 5]"
+  },
+  {
+    "type": 3,
+    "value": 166625487,
+    "text": "[selectable awakening skill index]"
+  },
+  {
+    "type": 0,
+    "value": 73
+  },
+  {
+    "type": 0,
+    "value": 112
+  },
+  {
+    "type": 3,
+    "value": 166625557,
+    "text": "[CHARACTER ATTACK TYPE]"
+  },
+  {
+    "type": 3,
+    "value": 40161621,
+    "text": "[physic]"
+  },
+  {
+    "type": 3,
+    "value": 166625339,
+    "text": "[show skill]"
+  },
+  {
+    "type": 0,
+    "value": 81
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 83
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 86
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 87
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 89
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 91
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 94
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 92
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 93
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 73
+  },
+  {
+    "type": 0,
+    "value": 2
+  },
+  {
+    "type": 0,
+    "value": 80
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 84
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 3,
+    "value": 166625365,
+    "text": "[/show skill]"
+  },
+  {
+    "type": 3,
+    "value": 166625653,
+    "text": "[showskill level]"
+  },
+  {
+    "type": 0,
+    "value": 50
+  },
+  {
+    "type": 3,
+    "value": 166625689,
+    "text": "[preset skill]"
+  },
+  {
+    "type": 0,
+    "value": 84
+  },
+  {
+    "type": 0,
+    "value": 81
+  },
+  {
+    "type": 0,
+    "value": 83
+  },
+  {
+    "type": 0,
+    "value": 82
+  },
+  {
+    "type": 0,
+    "value": 85
+  },
+  {
+    "type": 0,
+    "value": 86
+  },
+  {
+    "type": 0,
+    "value": 88
+  },
+  {
+    "type": 0,
+    "value": 87
+  },
+  {
+    "type": 0,
+    "value": 91
+  },
+  {
+    "type": 0,
+    "value": 89
+  },
+  {
+    "type": 0,
+    "value": 94
+  },
+  {
+    "type": 0,
+    "value": 92
+  },
+  {
+    "type": 0,
+    "value": 93
+  },
+  {
+    "type": 0,
+    "value": 73
+  },
+  {
+    "type": 0,
+    "value": 80
+  },
+  {
+    "type": 0,
+    "value": 169
+  },
+  {
+    "type": 0,
+    "value": 190
+  },
+  {
+    "type": 0,
+    "value": 6
+  },
+  {
+    "type": 0,
+    "value": 8
+  },
+  {
+    "type": 0,
+    "value": 96
+  },
+  {
+    "type": 0,
+    "value": 116
+  },
+  {
+    "type": 0,
+    "value": 95
+  },
+  {
+    "type": 0,
+    "value": 251
+  },
+  {
+    "type": 0,
+    "value": 44
+  },
+  {
+    "type": 0,
+    "value": 72
+  },
+  {
+    "type": 3,
+    "value": 166625719,
+    "text": "[/preset skill]"
+  },
+  {
+    "type": 3,
+    "value": 159996575,
+    "text": "[HP MAX]"
+  },
+  {
+    "type": 2,
+    "value": 1114636288,
+    "number": 60
+  },
+  {
+    "type": 3,
+    "value": 157888799,
+    "text": "[MP MAX]"
+  },
+  {
+    "type": 2,
+    "value": 1106247680,
+    "number": 30
+  },
+  {
+    "type": 3,
+    "value": 157884369,
+    "text": "[physical attack]"
+  },
+  {
+    "type": 2,
+    "value": 1087373312,
+    "number": 6.5
+  },
+  {
+    "type": 3,
+    "value": 159227401,
+    "text": "[physical defense]"
+  },
+  {
+    "type": 2,
+    "value": 1087373312,
+    "number": 6.5
+  },
+  {
+    "type": 3,
+    "value": 157928145,
+    "text": "[magical attack]"
+  },
+  {
+    "type": 2,
+    "value": 1083179008,
+    "number": 4.5
+  },
+  {
+    "type": 3,
+    "value": 159170171,
+    "text": "[magical defense]"
+  },
+  {
+    "type": 2,
+    "value": 1083179008,
+    "number": 4.5
+  },
+  {
+    "type": 3,
+    "value": 159827747,
+    "text": "[inventory limit]"
+  },
+  {
+    "type": 2,
+    "value": 1133903872,
+    "number": 300
+  },
+  {
+    "type": 3,
+    "value": 158491457,
+    "text": "[MP regen speed]"
+  },
+  {
+    "type": 2,
+    "value": 1082130432,
+    "number": 4
+  },
+  {
+    "type": 3,
+    "value": 162075971,
+    "text": "[hit recovery]"
+  },
+  {
+    "type": 2,
+    "value": 1073741824,
+    "number": 2
+  },
+  {
+    "type": 3,
+    "value": 86910065,
+    "text": "[skill]"
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 95
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 251
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 80
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 81
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 83
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 116
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 46
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 10
+  },
+  {
+    "type": 0,
+    "value": 501
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 494
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 86910081,
+    "text": "[/skill]"
+  },
+  {
+    "type": 3,
+    "value": 166625393,
+    "text": "[module damage rate]"
+  },
+  {
+    "type": 2,
+    "value": 1061528011,
+    "number": 0.772
+  },
+  {
+    "type": 2,
+    "value": 1065353216,
+    "number": 1
+  },
+  {
+    "type": 2,
+    "value": 1066192077,
+    "number": 1.1
+  },
+  {
+    "type": 2,
+    "value": 1028443341,
+    "number": 0.05
+  },
+  {
+    "type": 3,
+    "value": 166625751,
+    "text": "[usable weapon sub type]"
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": -1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": -1
+  },
+  {
+    "type": 0,
+    "value": 2
+  },
+  {
+    "type": 0,
+    "value": -1
+  },
+  {
+    "type": 0,
+    "value": 3
+  },
+  {
+    "type": 0,
+    "value": -1
+  },
+  {
+    "type": 0,
+    "value": 5
+  },
+  {
+    "type": 0,
+    "value": 95
+  },
+  {
+    "type": 3,
+    "value": 166625801,
+    "text": "[/usable weapon sub type]"
+  },
+  {
+    "type": 3,
+    "value": 166625853,
+    "text": "[pvp private create equipment list]"
+  },
+  {
+    "type": 6,
+    "value": 162564703,
+    "text": "[weapon]"
+  },
+  {
+    "type": 0,
+    "value": 101040481
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 166625925,
+    "text": "[coat]"
+  },
+  {
+    "type": 0,
+    "value": 100060553
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 166625939,
+    "text": "[shoulder]"
+  },
+  {
+    "type": 0,
+    "value": 100160480
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 166625961,
+    "text": "[shoes]"
+  },
+  {
+    "type": 0,
+    "value": 100260520
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 166625977,
+    "text": "[pants]"
+  },
+  {
+    "type": 0,
+    "value": 100110539
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 166625993,
+    "text": "[waist]"
+  },
+  {
+    "type": 0,
+    "value": 100210504
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 162564703,
+    "text": "[weapon]"
+  },
+  {
+    "type": 0,
+    "value": 101000709
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 6,
+    "value": 162564703,
+    "text": "[weapon]"
+  },
+  {
+    "type": 0,
+    "value": 101010838
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 6,
+    "value": 162564703,
+    "text": "[weapon]"
+  },
+  {
+    "type": 0,
+    "value": 101020648
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 6,
+    "value": 166626009,
+    "text": "[support]"
+  },
+  {
+    "type": 0,
+    "value": 100344486
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 166626029,
+    "text": "[magic stone]"
+  },
+  {
+    "type": 0,
+    "value": 100352790
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 162564703,
+    "text": "[weapon]"
+  },
+  {
+    "type": 0,
+    "value": 101030722
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 6,
+    "value": 166626057,
+    "text": "[amulet]"
+  },
+  {
+    "type": 0,
+    "value": 100300673
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 166626075,
+    "text": "[wrist]"
+  },
+  {
+    "type": 0,
+    "value": 100312365
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 166626091,
+    "text": "[ring]"
+  },
+  {
+    "type": 0,
+    "value": 100322234
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 166626105,
+    "text": "[/pvp private create equipment list]"
+  },
+  {
+    "type": 3,
+    "value": 166626179,
+    "text": "[pvp private recreate penaly period]"
+  },
+  {
+    "type": 0,
+    "value": 30
+  },
+  {
+    "type": 3,
+    "value": 166958901,
+    "text": "[support weapon use]"
+  },
+  {
+    "type": 3,
+    "value": 166959995,
+    "text": "[support weapon not apply item option]"
+  },
+  {
+    "type": 3,
+    "value": 166959071,
+    "text": "[support weapon sub type]"
+  },
+  {
+    "type": 0,
+    "value": 5
+  },
+  {
+    "type": 3,
+    "value": 166959123,
+    "text": "[/support weapon sub type]"
+  },
+  {
+    "type": 3,
+    "value": 166959177,
+    "text": "[support weapon apply option]"
+  },
+  {
+    "type": 6,
+    "value": 147104485,
+    "text": "physical attack"
+  },
+  {
+    "type": 0,
+    "value": 10
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 6,
+    "value": 147104517,
+    "text": "magical attack"
+  },
+  {
+    "type": 0,
+    "value": 10
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 6,
+    "value": 147126977,
+    "text": "physical defense"
+  },
+  {
+    "type": 0,
+    "value": 10
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 6,
+    "value": 147126723,
+    "text": "magical defense"
+  },
+  {
+    "type": 0,
+    "value": 10
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 6,
+    "value": 147126555,
+    "text": "equipment physical attack"
+  },
+  {
+    "type": 0,
+    "value": 10
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 6,
+    "value": 147126607,
+    "text": "equipment magical attack"
+  },
+  {
+    "type": 0,
+    "value": 10
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 6,
+    "value": 147144515,
+    "text": "separate attack"
+  },
+  {
+    "type": 0,
+    "value": 10
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 6,
+    "value": 167205911,
+    "text": "physical absolute damage"
+  },
+  {
+    "type": 0,
+    "value": 10
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 6,
+    "value": 167205961,
+    "text": "magical absolute damage"
+  },
+  {
+    "type": 0,
+    "value": 10
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 6,
+    "value": 167206009,
+    "text": "antievil"
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 3,
+    "value": 166959237,
+    "text": "[/support weapon apply option]"
+  },
+  {
+    "type": 3,
+    "value": 166626253,
+    "text": "[awakening name]"
+  },
+  {
+    "type": 8,
+    "value": 167206027,
+    "reference": "\u003c0::growtype_name_193\u003e"
+  },
+  {
+    "type": 8,
+    "value": 167206073,
+    "reference": "\u003c0::growtype_name_194\u003e"
+  },
+  {
+    "type": 8,
+    "value": 167206119,
+    "reference": "\u003c0::growtype_name_198\u003e"
+  },
+  {
+    "type": 3,
+    "value": 166626425,
+    "text": "[awakening name translation]"
+  },
+  {
+    "type": 8,
+    "value": 167206165,
+    "reference": "\u003c0::growtype_name_translation_193\u003e"
+  },
+  {
+    "type": 8,
+    "value": 167206235,
+    "reference": "\u003c0::growtype_name_translation_194\u003e"
+  },
+  {
+    "type": 8,
+    "value": 167206305,
+    "reference": "\u003c0::growtype_name_translation_198\u003e"
+  },
+  {
+    "type": 3,
+    "value": 166626733,
+    "text": "[awakening 1]"
+  },
+  {
+    "type": 3,
+    "value": 166626761,
+    "text": "[awakening skill]"
+  },
+  {
+    "type": 0,
+    "value": 72
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 73
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 166626843,
+    "text": "[/awakening skill]"
+  },
+  {
+    "type": 3,
+    "value": 166626881,
+    "text": "[pvp awakening skill]"
+  },
+  {
+    "type": 0,
+    "value": 72
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 73
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 166626925,
+    "text": "[/pvp awakening skill]"
+  },
+  {
+    "type": 3,
+    "value": 166626971,
+    "text": "[awakening 2]"
+  },
+  {
+    "type": 3,
+    "value": 166626761,
+    "text": "[awakening skill]"
+  },
+  {
+    "type": 0,
+    "value": 115
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 112
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 166626843,
+    "text": "[/awakening skill]"
+  },
+  {
+    "type": 3,
+    "value": 166626881,
+    "text": "[pvp awakening skill]"
+  },
+  {
+    "type": 3,
+    "value": 166626925,
+    "text": "[/pvp awakening skill]"
+  },
+  {
+    "type": 3,
+    "value": 166626999,
+    "text": "[awakening 3]"
+  },
+  {
+    "type": 3,
+    "value": 166626761,
+    "text": "[awakening skill]"
+  },
+  {
+    "type": 0,
+    "value": 119
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 166626843,
+    "text": "[/awakening skill]"
+  },
+  {
+    "type": 3,
+    "value": 166626881,
+    "text": "[pvp awakening skill]"
+  },
+  {
+    "type": 3,
+    "value": 166626925,
+    "text": "[/pvp awakening skill]"
+  },
+  {
+    "type": 3,
+    "value": 166628177,
+    "text": "[growtype 6]"
+  },
+  {
+    "type": 3,
+    "value": 166625487,
+    "text": "[selectable awakening skill index]"
+  },
+  {
+    "type": 0,
+    "value": 291
+  },
+  {
+    "type": 0,
+    "value": 297
+  },
+  {
+    "type": 3,
+    "value": 166625557,
+    "text": "[CHARACTER ATTACK TYPE]"
+  },
+  {
+    "type": 3,
+    "value": 40161621,
+    "text": "[physic]"
+  },
+  {
+    "type": 3,
+    "value": 166625605,
+    "text": "[CHARACTER DAMAGE TYPE]"
+  },
+  {
+    "type": 6,
+    "value": 78903247,
+    "text": "power"
+  },
+  {
+    "type": 3,
+    "value": 166625339,
+    "text": "[show skill]"
+  },
+  {
+    "type": 0,
+    "value": 273
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 278
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 285
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 281
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 275
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 277
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 282
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 283
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 284
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 286
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 288
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 289
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 291
+  },
+  {
+    "type": 0,
+    "value": 2
+  },
+  {
+    "type": 3,
+    "value": 166625365,
+    "text": "[/show skill]"
+  },
+  {
+    "type": 3,
+    "value": 166625653,
+    "text": "[showskill level]"
+  },
+  {
+    "type": 0,
+    "value": 50
+  },
+  {
+    "type": 3,
+    "value": 166625689,
+    "text": "[preset skill]"
+  },
+  {
+    "type": 0,
+    "value": 281
+  },
+  {
+    "type": 0,
+    "value": 291
+  },
+  {
+    "type": 0,
+    "value": 275
+  },
+  {
+    "type": 0,
+    "value": 276
+  },
+  {
+    "type": 0,
+    "value": 277
+  },
+  {
+    "type": 0,
+    "value": 279
+  },
+  {
+    "type": 0,
+    "value": 280
+  },
+  {
+    "type": 0,
+    "value": 282
+  },
+  {
+    "type": 0,
+    "value": 283
+  },
+  {
+    "type": 0,
+    "value": 284
+  },
+  {
+    "type": 0,
+    "value": 286
+  },
+  {
+    "type": 0,
+    "value": 287
+  },
+  {
+    "type": 0,
+    "value": 288
+  },
+  {
+    "type": 0,
+    "value": 289
+  },
+  {
+    "type": 0,
+    "value": 96
+  },
+  {
+    "type": 0,
+    "value": 273
+  },
+  {
+    "type": 0,
+    "value": 278
+  },
+  {
+    "type": 0,
+    "value": 285
+  },
+  {
+    "type": 0,
+    "value": 290
+  },
+  {
+    "type": 3,
+    "value": 166625719,
+    "text": "[/preset skill]"
+  },
+  {
+    "type": 3,
+    "value": 159996575,
+    "text": "[HP MAX]"
+  },
+  {
+    "type": 2,
+    "value": 1114636288,
+    "number": 60
+  },
+  {
+    "type": 3,
+    "value": 157888799,
+    "text": "[MP MAX]"
+  },
+  {
+    "type": 2,
+    "value": 1106247680,
+    "number": 30
+  },
+  {
+    "type": 3,
+    "value": 157884369,
+    "text": "[physical attack]"
+  },
+  {
+    "type": 2,
+    "value": 1086324736,
+    "number": 6
+  },
+  {
+    "type": 3,
+    "value": 159227401,
+    "text": "[physical defense]"
+  },
+  {
+    "type": 2,
+    "value": 1086324736,
+    "number": 6
+  },
+  {
+    "type": 3,
+    "value": 157928145,
+    "text": "[magical attack]"
+  },
+  {
+    "type": 2,
+    "value": 1084227584,
+    "number": 5
+  },
+  {
+    "type": 3,
+    "value": 159170171,
+    "text": "[magical defense]"
+  },
+  {
+    "type": 2,
+    "value": 1084227584,
+    "number": 5
+  },
+  {
+    "type": 3,
+    "value": 159827747,
+    "text": "[inventory limit]"
+  },
+  {
+    "type": 2,
+    "value": 1133903872,
+    "number": 300
+  },
+  {
+    "type": 3,
+    "value": 158491457,
+    "text": "[MP regen speed]"
+  },
+  {
+    "type": 2,
+    "value": 1075838976,
+    "number": 2.5
+  },
+  {
+    "type": 3,
+    "value": 162075971,
+    "text": "[hit recovery]"
+  },
+  {
+    "type": 2,
+    "value": 1073741824,
+    "number": 2
+  },
+  {
+    "type": 3,
+    "value": 86910065,
+    "text": "[skill]"
+  },
+  {
+    "type": 0,
+    "value": 501
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 273
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 274
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 495
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 86910081,
+    "text": "[/skill]"
+  },
+  {
+    "type": 3,
+    "value": 166625393,
+    "text": "[module damage rate]"
+  },
+  {
+    "type": 2,
+    "value": 1062165545,
+    "number": 0.81
+  },
+  {
+    "type": 2,
+    "value": 1065353216,
+    "number": 1
+  },
+  {
+    "type": 2,
+    "value": 1065353216,
+    "number": 1
+  },
+  {
+    "type": 2,
+    "value": 1028443341,
+    "number": 0.05
+  },
+  {
+    "type": 3,
+    "value": 166625751,
+    "text": "[usable weapon sub type]"
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": -1
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": -1
+  },
+  {
+    "type": 0,
+    "value": 2
+  },
+  {
+    "type": 0,
+    "value": -1
+  },
+  {
+    "type": 0,
+    "value": 3
+  },
+  {
+    "type": 0,
+    "value": -1
+  },
+  {
+    "type": 3,
+    "value": 166625801,
+    "text": "[/usable weapon sub type]"
+  },
+  {
+    "type": 3,
+    "value": 166626253,
+    "text": "[awakening name]"
+  },
+  {
+    "type": 8,
+    "value": 167206375,
+    "reference": "\u003c0::growtype_name_401\u003e"
+  },
+  {
+    "type": 8,
+    "value": 167206421,
+    "reference": "\u003c0::growtype_name_402\u003e"
+  },
+  {
+    "type": 8,
+    "value": 167206467,
+    "reference": "\u003c0::growtype_name_403\u003e"
+  },
+  {
+    "type": 3,
+    "value": 166626425,
+    "text": "[awakening name translation]"
+  },
+  {
+    "type": 8,
+    "value": 167206513,
+    "reference": "\u003c0::growtype_name_translation_401\u003e"
+  },
+  {
+    "type": 8,
+    "value": 167206583,
+    "reference": "\u003c0::growtype_name_translation_402\u003e"
+  },
+  {
+    "type": 8,
+    "value": 167206653,
+    "reference": "\u003c0::growtype_name_translation_403\u003e"
+  },
+  {
+    "type": 3,
+    "value": 166626733,
+    "text": "[awakening 1]"
+  },
+  {
+    "type": 3,
+    "value": 166626761,
+    "text": "[awakening skill]"
+  },
+  {
+    "type": 0,
+    "value": 290
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 291
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 166626843,
+    "text": "[/awakening skill]"
+  },
+  {
+    "type": 3,
+    "value": 166626881,
+    "text": "[pvp awakening skill]"
+  },
+  {
+    "type": 0,
+    "value": 290
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 291
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 166626925,
+    "text": "[/pvp awakening skill]"
+  },
+  {
+    "type": 3,
+    "value": 166626971,
+    "text": "[awakening 2]"
+  },
+  {
+    "type": 3,
+    "value": 166626761,
+    "text": "[awakening skill]"
+  },
+  {
+    "type": 0,
+    "value": 294
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 297
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 166626843,
+    "text": "[/awakening skill]"
+  },
+  {
+    "type": 3,
+    "value": 166626881,
+    "text": "[pvp awakening skill]"
+  },
+  {
+    "type": 3,
+    "value": 166626925,
+    "text": "[/pvp awakening skill]"
+  },
+  {
+    "type": 3,
+    "value": 166626999,
+    "text": "[awakening 3]"
+  },
+  {
+    "type": 3,
+    "value": 166626761,
+    "text": "[awakening skill]"
+  },
+  {
+    "type": 0,
+    "value": 298
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 166626843,
+    "text": "[/awakening skill]"
+  },
+  {
+    "type": 3,
+    "value": 166626881,
+    "text": "[pvp awakening skill]"
+  },
+  {
+    "type": 3,
+    "value": 166626925,
+    "text": "[/pvp awakening skill]"
+  },
+  {
+    "type": 3,
+    "value": 166628551,
+    "text": "[victory motion]"
+  },
+  {
+    "type": 6,
+    "value": 166748919,
+    "text": "ATAnimation/Victory1.ani"
+  },
+  {
+    "type": 6,
+    "value": 166748969,
+    "text": "ATAnimation/Victory2.ani"
+  },
+  {
+    "type": 6,
+    "value": 166749019,
+    "text": "ATAnimation/Victory3.ani"
+  },
+  {
+    "type": 3,
+    "value": 166628723,
+    "text": "[/victory motion]"
+  },
+  {
+    "type": 3,
+    "value": 166628759,
+    "text": "[item victory motion]"
+  },
+  {
+    "type": 6,
+    "value": 166749069,
+    "text": "ATAnimation/Victory_Item1.ani"
+  },
+  {
+    "type": 3,
+    "value": 166628859,
+    "text": "[/item victory motion]"
+  },
+  {
+    "type": 3,
+    "value": 166628905,
+    "text": "[item use motion]"
+  },
+  {
+    "type": 6,
+    "value": 166752315,
+    "text": "ATAnimation/ARRUseItem1.ani"
+  },
+  {
+    "type": 3,
+    "value": 166628941,
+    "text": "[/item use motion]"
+  },
+  {
+    "type": 3,
+    "value": 162920353,
+    "text": "[waiting motion]"
+  },
+  {
+    "type": 6,
+    "value": 166750627,
+    "text": "ATAnimation/Stay.ani"
+  },
+  {
+    "type": 3,
+    "value": 162920415,
+    "text": "[move motion]"
+  },
+  {
+    "type": 6,
+    "value": 166750669,
+    "text": "ATAnimation/Move.ani"
+  },
+  {
+    "type": 3,
+    "value": 162920471,
+    "text": "[sit motion]"
+  },
+  {
+    "type": 6,
+    "value": 166750711,
+    "text": "ATAnimation/Sit.ani"
+  },
+  {
+    "type": 3,
+    "value": 162920523,
+    "text": "[damage motion 1]"
+  },
+  {
+    "type": 6,
+    "value": 166750751,
+    "text": "ATAnimation/Damage1.ani"
+  },
+  {
+    "type": 3,
+    "value": 162920593,
+    "text": "[damage motion 2]"
+  },
+  {
+    "type": 6,
+    "value": 166750799,
+    "text": "ATAnimation/Damage2.ani"
+  },
+  {
+    "type": 3,
+    "value": 162920663,
+    "text": "[down motion]"
+  },
+  {
+    "type": 6,
+    "value": 166750847,
+    "text": "ATAnimation/Down.ani"
+  },
+  {
+    "type": 3,
+    "value": 162920719,
+    "text": "[overturn motion]"
+  },
+  {
+    "type": 6,
+    "value": 166750889,
+    "text": "ATAnimation/Overturn.ani"
+  },
+  {
+    "type": 3,
+    "value": 162920791,
+    "text": "[jump motion]"
+  },
+  {
+    "type": 6,
+    "value": 166750939,
+    "text": "ATAnimation/Jump.ani"
+  },
+  {
+    "type": 3,
+    "value": 162920847,
+    "text": "[jumpattack motion]"
+  },
+  {
+    "type": 6,
+    "value": 166750981,
+    "text": "ATAnimation/JumpAttack.ani"
+  },
+  {
+    "type": 3,
+    "value": 162920927,
+    "text": "[rest motion]"
+  },
+  {
+    "type": 6,
+    "value": 166751035,
+    "text": "ATAnimation/Rest.ani"
+  },
+  {
+    "type": 3,
+    "value": 162920983,
+    "text": "[throw motion 1-1]"
+  },
+  {
+    "type": 6,
+    "value": 167206723,
+    "text": "ATAnimation/Cast1-1.ani"
+  },
+  {
+    "type": 3,
+    "value": 162921053,
+    "text": "[throw motion 1-2]"
+  },
+  {
+    "type": 6,
+    "value": 167206771,
+    "text": "ATAnimation/Cast1-2.ani"
+  },
+  {
+    "type": 3,
+    "value": 162921123,
+    "text": "[throw motion 2-1]"
+  },
+  {
+    "type": 6,
+    "value": 167206819,
+    "text": "ATAnimation/Cast2-1.ani"
+  },
+  {
+    "type": 3,
+    "value": 162921191,
+    "text": "[throw motion 2-2]"
+  },
+  {
+    "type": 6,
+    "value": 167206867,
+    "text": "ATAnimation/Cast2-2.ani"
+  },
+  {
+    "type": 3,
+    "value": 162921547,
+    "text": "[dash motion]"
+  },
+  {
+    "type": 6,
+    "value": 166751387,
+    "text": "ATAnimation/Dash.ani"
+  },
+  {
+    "type": 3,
+    "value": 162921603,
+    "text": "[dashattack motion]"
+  },
+  {
+    "type": 6,
+    "value": 166751429,
+    "text": "ATAnimation/DashAttack.ani"
+  },
+  {
+    "type": 3,
+    "value": 162921683,
+    "text": "[getitem motion]"
+  },
+  {
+    "type": 6,
+    "value": 166751483,
+    "text": "ATAnimation/GetItem.ani"
+  },
+  {
+    "type": 3,
+    "value": 162921751,
+    "text": "[buff motion]"
+  },
+  {
+    "type": 6,
+    "value": 166751531,
+    "text": "ATAnimation/Buff.ani"
+  },
+  {
+    "type": 3,
+    "value": 166630261,
+    "text": "[simple rest motion]"
+  },
+  {
+    "type": 6,
+    "value": 166751573,
+    "text": "ATAnimation/SIMPLE_Rest.ani"
+  },
+  {
+    "type": 3,
+    "value": 166630355,
+    "text": "[simple move motion]"
+  },
+  {
+    "type": 6,
+    "value": 166751629,
+    "text": "ATAnimation/SIMPLE_Move.ani"
+  },
+  {
+    "type": 3,
+    "value": 166630449,
+    "text": "[back motion]"
+  },
+  {
+    "type": 6,
+    "value": 166751785,
+    "text": "ATAnimation/Attack2.ani"
+  },
+  {
+    "type": 3,
+    "value": 162921807,
+    "text": "[attack motion]"
+  },
+  {
+    "type": 6,
+    "value": 166751737,
+    "text": "ATAnimation/Attack1.ani"
+  },
+  {
+    "type": 6,
+    "value": 166751785,
+    "text": "ATAnimation/Attack2.ani"
+  },
+  {
+    "type": 6,
+    "value": 166751833,
+    "text": "ATAnimation/Attack3.ani"
+  },
+  {
+    "type": 6,
+    "value": 166751881,
+    "text": "ATAnimation/Attack4.ani"
+  },
+  {
+    "type": 3,
+    "value": 162921975,
+    "text": "[/attack motion]"
+  },
+  {
+    "type": 3,
+    "value": 166630683,
+    "text": "[ghost motion]"
+  },
+  {
+    "type": 6,
+    "value": 166752103,
+    "text": "ATAnimation/Ghost.ani"
+  },
+  {
+    "type": 6,
+    "value": 166752147,
+    "text": "ATAnimation/Ghost_Dodge.ani"
+  },
+  {
+    "type": 3,
+    "value": 166630805,
+    "text": "[/ghost motion]"
+  },
+  {
+    "type": 3,
+    "value": 166628551,
+    "text": "[victory motion]"
+  },
+  {
+    "type": 6,
+    "value": 166748919,
+    "text": "ATAnimation/Victory1.ani"
+  },
+  {
+    "type": 6,
+    "value": 166748969,
+    "text": "ATAnimation/Victory2.ani"
+  },
+  {
+    "type": 6,
+    "value": 166749019,
+    "text": "ATAnimation/Victory3.ani"
+  },
+  {
+    "type": 3,
+    "value": 166628723,
+    "text": "[/victory motion]"
+  },
+  {
+    "type": 3,
+    "value": 166628979,
+    "text": "[dance motion]"
+  },
+  {
+    "type": 6,
+    "value": 166751929,
+    "text": "ATAnimation/event_dance1.ani"
+  },
+  {
+    "type": 6,
+    "value": 166751987,
+    "text": "ATAnimation/event_dance2.ani"
+  },
+  {
+    "type": 6,
+    "value": 166752045,
+    "text": "ATAnimation/event_dance3.ani"
+  },
+  {
+    "type": 3,
+    "value": 166629171,
+    "text": "[/dance motion]"
+  },
+  {
+    "type": 3,
+    "value": 166709429,
+    "text": "[jumpattack info]"
+  },
+  {
+    "type": 6,
+    "value": 166752203,
+    "text": "ATAttackInfo/JumpAttack.atk"
+  },
+  {
+    "type": 3,
+    "value": 166630837,
+    "text": "[dashattack info]"
+  },
+  {
+    "type": 6,
+    "value": 166752259,
+    "text": "ATAttackInfo/DashAttack.atk"
+  },
+  {
+    "type": 3,
+    "value": 149920613,
+    "text": "[attack info]"
+  },
+  {
+    "type": 6,
+    "value": 166752371,
+    "text": "ATAttackInfo/Attack1.atk"
+  },
+  {
+    "type": 6,
+    "value": 166752421,
+    "text": "ATAttackInfo/Attack2.atk"
+  },
+  {
+    "type": 6,
+    "value": 166752471,
+    "text": "ATAttackInfo/Attack3.atk"
+  },
+  {
+    "type": 3,
+    "value": 149920641,
+    "text": "[/attack info]"
+  },
+  {
+    "type": 3,
+    "value": 166753097,
+    "text": "[growtype jumpattack info]"
+  },
+  {
+    "type": 0,
+    "value": 4
+  },
+  {
+    "type": 6,
+    "value": 167206915,
+    "text": "ATAttackInfo/JumpAttack_Vegabond.atk"
+  },
+  {
+    "type": 3,
+    "value": 166753271,
+    "text": "[/growtype jumpattack info]"
+  },
+  {
+    "type": 3,
+    "value": 166631109,
+    "text": "[weapon wav]"
+  },
+  {
+    "type": 6,
+    "value": 99819915,
+    "text": "R_SWDB"
+  },
+  {
+    "type": 6,
+    "value": 12152367,
+    "text": "MINERALSWDB"
+  },
+  {
+    "type": 6,
+    "value": 11189673,
+    "text": "R_SWD_HIT"
+  },
+  {
+    "type": 6,
+    "value": 167206989,
+    "text": "MINERAL_SWDB_HIT"
+  },
+  {
+    "type": 3,
+    "value": 166631135,
+    "text": "[/weapon wav]"
+  },
+  {
+    "type": 3,
+    "value": 166631109,
+    "text": "[weapon wav]"
+  },
+  {
+    "type": 6,
+    "value": 27828743,
+    "text": "R_SWDA"
+  },
+  {
+    "type": 6,
+    "value": 167207023,
+    "text": "KATANAB"
+  },
+  {
+    "type": 6,
+    "value": 11189673,
+    "text": "R_SWD_HIT"
+  },
+  {
+    "type": 6,
+    "value": 157982089,
+    "text": "KATANAB_HIT"
+  },
+  {
+    "type": 3,
+    "value": 166631135,
+    "text": "[/weapon wav]"
+  },
+  {
+    "type": 3,
+    "value": 166631109,
+    "text": "[weapon wav]"
+  },
+  {
+    "type": 6,
+    "value": 142543415,
+    "text": "R_BLUNT"
+  },
+  {
+    "type": 6,
+    "value": 5080403,
+    "text": "STICKB_01"
+  },
+  {
+    "type": 6,
+    "value": 11189673,
+    "text": "R_SWD_HIT"
+  },
+  {
+    "type": 6,
+    "value": 149986097,
+    "text": "STICKB_HIT_01"
+  },
+  {
+    "type": 3,
+    "value": 166631135,
+    "text": "[/weapon wav]"
+  },
+  {
+    "type": 3,
+    "value": 166631109,
+    "text": "[weapon wav]"
+  },
+  {
+    "type": 6,
+    "value": 105382603,
+    "text": "R_SWDC"
+  },
+  {
+    "type": 6,
+    "value": 5086853,
+    "text": "SQUARESWDB"
+  },
+  {
+    "type": 6,
+    "value": 11189673,
+    "text": "R_SWD_HIT"
+  },
+  {
+    "type": 6,
+    "value": 158056949,
+    "text": "SQUARESWDB_HIT"
+  },
+  {
+    "type": 3,
+    "value": 166631135,
+    "text": "[/weapon wav]"
+  },
+  {
+    "type": 3,
+    "value": 166631109,
+    "text": "[weapon wav]"
+  },
+  {
+    "type": 3,
+    "value": 166631135,
+    "text": "[/weapon wav]"
+  },
+  {
+    "type": 3,
+    "value": 166631109,
+    "text": "[weapon wav]"
+  },
+  {
+    "type": 6,
+    "value": 75583111,
+    "text": "R_BEAMSWDA"
+  },
+  {
+    "type": 6,
+    "value": 167207039,
+    "text": "BEAMSWDB"
+  },
+  {
+    "type": 6,
+    "value": 151448143,
+    "text": "R_BEAMSWDA_HIT"
+  },
+  {
+    "type": 6,
+    "value": 167207057,
+    "text": "BEAMSWDB_HIT"
+  },
+  {
+    "type": 3,
+    "value": 166631135,
+    "text": "[/weapon wav]"
+  },
+  {
+    "type": 3,
+    "value": 166631163,
+    "text": "[weapon hit info]"
+  },
+  {
+    "type": 6,
+    "value": 149530871,
+    "text": "[cut]"
+  },
+  {
+    "type": 6,
+    "value": 149530883,
+    "text": "[blood]"
+  },
+  {
+    "type": 0,
+    "value": 90
+  },
+  {
+    "type": 2,
+    "value": 1065353216,
+    "number": 1
+  },
+  {
+    "type": 2,
+    "value": 0
+  },
+  {
+    "type": 2,
+    "value": 0
+  },
+  {
+    "type": 6,
+    "value": 149530871,
+    "text": "[cut]"
+  },
+  {
+    "type": 6,
+    "value": 149530883,
+    "text": "[blood]"
+  },
+  {
+    "type": 0,
+    "value": 70
+  },
+  {
+    "type": 2,
+    "value": 1063004406,
+    "number": 0.86
+  },
+  {
+    "type": 2,
+    "value": 0
+  },
+  {
+    "type": 2,
+    "value": 0
+  },
+  {
+    "type": 6,
+    "value": 40161933,
+    "text": "[blow]"
+  },
+  {
+    "type": 6,
+    "value": 40161947,
+    "text": "[no blood]"
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 2,
+    "value": 1067030938,
+    "number": 1.2
+  },
+  {
+    "type": 2,
+    "value": 0
+  },
+  {
+    "type": 2,
+    "value": 0
+  },
+  {
+    "type": 6,
+    "value": 149530871,
+    "text": "[cut]"
+  },
+  {
+    "type": 6,
+    "value": 149530883,
+    "text": "[blood]"
+  },
+  {
+    "type": 0,
+    "value": 120
+  },
+  {
+    "type": 2,
+    "value": 1068708659,
+    "number": 1.4
+  },
+  {
+    "type": 2,
+    "value": 0
+  },
+  {
+    "type": 2,
+    "value": 0
+  },
+  {
+    "type": 6,
+    "value": 149530871,
+    "text": "[cut]"
+  },
+  {
+    "type": 6,
+    "value": 149530883,
+    "text": "[blood]"
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 2,
+    "value": 1065353216,
+    "number": 1
+  },
+  {
+    "type": 2,
+    "value": 0
+  },
+  {
+    "type": 2,
+    "value": 0
+  },
+  {
+    "type": 6,
+    "value": 149530871,
+    "text": "[cut]"
+  },
+  {
+    "type": 6,
+    "value": 149530883,
+    "text": "[blood]"
+  },
+  {
+    "type": 0,
+    "value": 60
+  },
+  {
+    "type": 2,
+    "value": 1062836634,
+    "number": 0.85
+  },
+  {
+    "type": 2,
+    "value": 0
+  },
+  {
+    "type": 2,
+    "value": 0
+  },
+  {
+    "type": 3,
+    "value": 166631199,
+    "text": "[/weapon hit info]"
+  },
+  {
+    "type": 3,
+    "value": 166631237,
+    "text": "[weapon skill info]"
+  },
+  {
+    "type": 2,
+    "value": 1065353216,
+    "number": 1
+  },
+  {
+    "type": 2,
+    "value": 1065353216,
+    "number": 1
+  },
+  {
+    "type": 2,
+    "value": 1066611507,
+    "number": 1.15
+  },
+  {
+    "type": 2,
+    "value": 1065353216,
+    "number": 1
+  },
+  {
+    "type": 2,
+    "value": 1064514355,
+    "number": 0.95
+  },
+  {
+    "type": 2,
+    "value": 1064514355,
+    "number": 0.95
+  },
+  {
+    "type": 2,
+    "value": 1065772646,
+    "number": 1.05
+  },
+  {
+    "type": 2,
+    "value": 1064514355,
+    "number": 0.95
+  },
+  {
+    "type": 2,
+    "value": 1066192077,
+    "number": 1.1
+  },
+  {
+    "type": 2,
+    "value": 1065353216,
+    "number": 1
+  },
+  {
+    "type": 2,
+    "value": 1064514355,
+    "number": 0.95
+  },
+  {
+    "type": 2,
+    "value": 1065353216,
+    "number": 1
+  },
+  {
+    "type": 2,
+    "value": 1067030938,
+    "number": 1.2
+  },
+  {
+    "type": 2,
+    "value": 1065772646,
+    "number": 1.05
+  },
+  {
+    "type": 2,
+    "value": 1063675494,
+    "number": 0.9
+  },
+  {
+    "type": 2,
+    "value": 1065353216,
+    "number": 1
+  },
+  {
+    "type": 2,
+    "value": 1065353216,
+    "number": 1
+  },
+  {
+    "type": 2,
+    "value": 1065353216,
+    "number": 1
+  },
+  {
+    "type": 2,
+    "value": 1065353216,
+    "number": 1
+  },
+  {
+    "type": 2,
+    "value": 1065353216,
+    "number": 1
+  },
+  {
+    "type": 2,
+    "value": 1063675494,
+    "number": 0.9
+  },
+  {
+    "type": 2,
+    "value": 1063675494,
+    "number": 0.9
+  },
+  {
+    "type": 2,
+    "value": 1065353216,
+    "number": 1
+  },
+  {
+    "type": 2,
+    "value": 1065353216,
+    "number": 1
+  },
+  {
+    "type": 3,
+    "value": 166631277,
+    "text": "[/weapon skill info]"
+  },
+  {
+    "type": 3,
+    "value": 166631319,
+    "text": "[upgrade weapon attack power rate]"
+  },
+  {
+    "type": 2,
+    "value": 1066150134,
+    "number": 1.095
+  },
+  {
+    "type": 2,
+    "value": 1066317906,
+    "number": 1.115
+  },
+  {
+    "type": 2,
+    "value": 1066150134,
+    "number": 1.095
+  },
+  {
+    "type": 2,
+    "value": 1066234020,
+    "number": 1.105
+  },
+  {
+    "type": 2,
+    "value": 1066275963,
+    "number": 1.11
+  },
+  {
+    "type": 2,
+    "value": 1066150134,
+    "number": 1.095
+  },
+  {
+    "type": 2,
+    "value": 1066359849,
+    "number": 1.12
+  },
+  {
+    "type": 2,
+    "value": 1066108191,
+    "number": 1.09
+  },
+  {
+    "type": 2,
+    "value": 1066192077,
+    "number": 1.1
+  },
+  {
+    "type": 2,
+    "value": 1066192077,
+    "number": 1.1
+  },
+  {
+    "type": 2,
+    "value": 1066133357,
+    "number": 1.093
+  },
+  {
+    "type": 2,
+    "value": 1066108191,
+    "number": 1.09
+  },
+  {
+    "type": 3,
+    "value": 166631389,
+    "text": "[/upgrade weapon attack power rate]"
+  },
+  {
+    "type": 3,
+    "value": 166631461,
+    "text": "[body image path]"
+  },
+  {
+    "type": 6,
+    "value": 167207083,
+    "text": "Character/swordman/ATEquipment/Avatar/skin/sg_body%04d.img"
+  },
+  {
+    "type": 3,
+    "value": 166631497,
+    "text": "[weapon durability decrease rate]"
+  },
+  {
+    "type": 2,
+    "value": 1060320051,
+    "number": 0.7
+  },
+  {
+    "type": 2,
+    "value": 1056964608,
+    "number": 0.5
+  },
+  {
+    "type": 2,
+    "value": 1058642330,
+    "number": 0.6
+  },
+  {
+    "type": 2,
+    "value": 1056964608,
+    "number": 0.5
+  },
+  {
+    "type": 2,
+    "value": 1058642330,
+    "number": 0.6
+  },
+  {
+    "type": 2,
+    "value": 1060320051,
+    "number": 0.7
+  },
+  {
+    "type": 3,
+    "value": 166632057,
+    "text": "[down up frame]"
+  },
+  {
+    "type": 0,
+    "value": 2
+  },
+  {
+    "type": 3,
+    "value": 166632089,
+    "text": "[down down frame]"
+  },
+  {
+    "type": 0,
+    "value": 2
+  },
+  {
+    "type": 3,
+    "value": 166632125,
+    "text": "[down bounce up frame]"
+  },
+  {
+    "type": 0,
+    "value": 2
+  },
+  {
+    "type": 3,
+    "value": 166632171,
+    "text": "[down bounce down frame]"
+  },
+  {
+    "type": 0,
+    "value": 3
+  },
+  {
+    "type": 3,
+    "value": 166632221,
+    "text": "[down lie frame]"
+  },
+  {
+    "type": 0,
+    "value": 4
+  },
+  {
+    "type": 3,
+    "value": 166632255,
+    "text": "[jump up start frame]"
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 166632299,
+    "text": "[jump down start frame]"
+  },
+  {
+    "type": 0,
+    "value": 8
+  },
+  {
+    "type": 3,
+    "value": 166632347,
+    "text": "[jump land start frame]"
+  },
+  {
+    "type": 0,
+    "value": 16
+  },
+  {
+    "type": 3,
+    "value": 166632395,
+    "text": "[attack cancel start frame]"
+  },
+  {
+    "type": 0,
+    "value": 3
+  },
+  {
+    "type": 0,
+    "value": 3
+  },
+  {
+    "type": 3,
+    "value": 166632451,
+    "text": "[/attack cancel start frame]"
+  },
+  {
+    "type": 3,
+    "value": 166632509,
+    "text": "[attack x velocity]"
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 3,
+    "value": 166632549,
+    "text": "[attack x accel]"
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 3,
+    "value": 166632583,
+    "text": "[attack x velocity fast]"
+  },
+  {
+    "type": 0,
+    "value": 200
+  },
+  {
+    "type": 3,
+    "value": 166632633,
+    "text": "[attack x accel fast]"
+  },
+  {
+    "type": 0,
+    "value": -300
+  },
+  {
+    "type": 3,
+    "value": 166632793,
+    "text": "[dash attack slide stop frame]"
+  },
+  {
+    "type": 0,
+    "value": 5
+  },
+  {
+    "type": 3,
+    "value": 166633905,
+    "text": "[jump attack sound]"
+  },
+  {
+    "type": 6,
+    "value": 167207201,
+    "text": "R_SW_JUMPATK"
+  },
+  {
+    "type": 3,
+    "value": 166634227,
+    "text": "[attack sound]"
+  },
+  {
+    "type": 6,
+    "value": 52397
+  },
+  {
+    "type": 3,
+    "value": 166633945,
+    "text": "[damage sound]"
+  },
+  {
+    "type": 6,
+    "value": 120016859,
+    "text": "R_SW_DMG"
+  },
+  {
+    "type": 3,
+    "value": 166633993,
+    "text": "[die sound]"
+  },
+  {
+    "type": 6,
+    "value": 167207227,
+    "text": "R_SW_DIE"
+  },
+  {
+    "type": 3,
+    "value": 166633811,
+    "text": "[jump start sound]"
+  },
+  {
+    "type": 6,
+    "value": 137192517,
+    "text": "R_SW_JUMP"
+  },
+  {
+    "type": 3,
+    "value": 166633869,
+    "text": "[jump land sound]"
+  },
+  {
+    "type": 6,
+    "value": 52397
+  },
+  {
+    "type": 3,
+    "value": 166634035,
+    "text": "[back step sound]"
+  },
+  {
+    "type": 6,
+    "value": 167207245,
+    "text": "R_SW_BACK"
+  },
+  {
+    "type": 3,
+    "value": 166634099,
+    "text": "[dash attack sound]"
+  },
+  {
+    "type": 6,
+    "value": 52397
+  },
+  {
+    "type": 3,
+    "value": 166633693,
+    "text": "[lack mp sound]"
+  },
+  {
+    "type": 6,
+    "value": 167207265,
+    "text": "R_SW_NOMANA"
+  },
+  {
+    "type": 3,
+    "value": 166633749,
+    "text": "[cooltime sound]"
+  },
+  {
+    "type": 6,
+    "value": 167207289,
+    "text": "R_SW_COOLTIME"
+  },
+  {
+    "type": 3,
+    "value": 166633619,
+    "text": "[creature command sound]"
+  },
+  {
+    "type": 6,
+    "value": 167207317,
+    "text": "SW_CMDPET"
+  },
+  {
+    "type": 3,
+    "value": 166634167,
+    "text": "[throw item sound]"
+  },
+  {
+    "type": 6,
+    "value": 167207337,
+    "text": "SW_THROW"
+  },
+  {
+    "type": 3,
+    "value": 166631565,
+    "text": "[change equipment ani]"
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 6,
+    "value": 166631857,
+    "text": "skill weapon"
+  },
+  {
+    "type": 6,
+    "value": 167207355,
+    "text": "Character/swordman/at_custom/ElementalSwordFire.equ"
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 166631857,
+    "text": "skill weapon"
+  },
+  {
+    "type": 6,
+    "value": 167207459,
+    "text": "Character/swordman/at_custom/ElementalSwordWater.equ"
+  },
+  {
+    "type": 0,
+    "value": 2
+  },
+  {
+    "type": 6,
+    "value": 166631857,
+    "text": "skill weapon"
+  },
+  {
+    "type": 6,
+    "value": 167207565,
+    "text": "Character/swordman/at_custom/ElementalSwordDark.equ"
+  },
+  {
+    "type": 0,
+    "value": 3
+  },
+  {
+    "type": 6,
+    "value": 166631857,
+    "text": "skill weapon"
+  },
+  {
+    "type": 6,
+    "value": 167207669,
+    "text": "Character/swordman/at_custom/ElementalSwordLight.equ"
+  },
+  {
+    "type": 0,
+    "value": 4
+  },
+  {
+    "type": 6,
+    "value": 166631857,
+    "text": "skill weapon"
+  },
+  {
+    "type": 6,
+    "value": 167207775,
+    "text": "Character/swordman/at_custom/CallDaimus.equ"
+  },
+  {
+    "type": 3,
+    "value": 166632009,
+    "text": "[/change equipment ani]"
+  },
+  {
+    "type": 3,
+    "value": 166632855,
+    "text": "[create equipment list]"
+  },
+  {
+    "type": 6,
+    "value": 162564703,
+    "text": "[weapon]"
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 101030782
+  },
+  {
+    "type": 0,
+    "value": 401000102
+  },
+  {
+    "type": 0,
+    "value": 101030782
+  },
+  {
+    "type": 0,
+    "value": 401040091
+  },
+  {
+    "type": 0,
+    "value": 101010912
+  },
+  {
+    "type": 6,
+    "value": 166625939,
+    "text": "[shoulder]"
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 400170168
+  },
+  {
+    "type": 0,
+    "value": 400190158
+  },
+  {
+    "type": 0,
+    "value": 400180181
+  },
+  {
+    "type": 0,
+    "value": 14400
+  },
+  {
+    "type": 0,
+    "value": 14400
+  },
+  {
+    "type": 6,
+    "value": 166625925,
+    "text": "[coat]"
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 400070174
+  },
+  {
+    "type": 0,
+    "value": 400090160
+  },
+  {
+    "type": 0,
+    "value": 400080184
+  },
+  {
+    "type": 0,
+    "value": 10400
+  },
+  {
+    "type": 0,
+    "value": 10400
+  },
+  {
+    "type": 6,
+    "value": 166625977,
+    "text": "[pants]"
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 400120169
+  },
+  {
+    "type": 0,
+    "value": 400140158
+  },
+  {
+    "type": 0,
+    "value": 400130181
+  },
+  {
+    "type": 0,
+    "value": 12400
+  },
+  {
+    "type": 0,
+    "value": 12400
+  },
+  {
+    "type": 6,
+    "value": 166625993,
+    "text": "[waist]"
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 400220168
+  },
+  {
+    "type": 0,
+    "value": 400240158
+  },
+  {
+    "type": 0,
+    "value": 400230179
+  },
+  {
+    "type": 0,
+    "value": 16400
+  },
+  {
+    "type": 0,
+    "value": 16400
+  },
+  {
+    "type": 6,
+    "value": 166625961,
+    "text": "[shoes]"
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 400270172
+  },
+  {
+    "type": 0,
+    "value": 400290164
+  },
+  {
+    "type": 0,
+    "value": 400280186
+  },
+  {
+    "type": 0,
+    "value": 18400
+  },
+  {
+    "type": 0,
+    "value": 18400
+  },
+  {
+    "type": 3,
+    "value": 166632903,
+    "text": "[/create equipment list]"
+  },
+  {
+    "type": 3,
+    "value": 166632953,
+    "text": "[start town]"
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 166632979,
+    "text": "[max grow count]"
+  },
+  {
+    "type": 0,
+    "value": 5
+  },
+  {
+    "type": 3,
+    "value": 166633013,
+    "text": "[/max grow count]"
+  },
+  {
+    "type": 3,
+    "value": 166633049,
+    "text": "[class change quest reward]"
+  },
+  {
+    "type": 0,
+    "value": 71
+  },
+  {
+    "type": 0,
+    "value": 90
+  },
+  {
+    "type": 0,
+    "value": 72
+  },
+  {
+    "type": 0,
+    "value": 91
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 3,
+    "value": 166633105,
+    "text": "[/class change quest reward]"
+  },
+  {
+    "type": 3,
+    "value": 166633163,
+    "text": "[awakening quest reward]"
+  },
+  {
+    "type": 0,
+    "value": 73
+  },
+  {
+    "type": 0,
+    "value": 92
+  },
+  {
+    "type": 0,
+    "value": 74
+  },
+  {
+    "type": 0,
+    "value": 93
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 3,
+    "value": 166633213,
+    "text": "[/awakening quest reward]"
+  },
+  {
+    "type": 3,
+    "value": 166633265,
+    "text": "[second awakening quest reward]"
+  },
+  {
+    "type": 0,
+    "value": 124
+  },
+  {
+    "type": 0,
+    "value": 125
+  },
+  {
+    "type": 0,
+    "value": 126
+  },
+  {
+    "type": 0,
+    "value": 127
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 3,
+    "value": 166633329,
+    "text": "[/second awakening quest reward]"
+  },
+  {
+    "type": 3,
+    "value": 166633395,
+    "text": "[awakening skill Index]"
+  },
+  {
+    "type": 0,
+    "value": 54
+  },
+  {
+    "type": 0,
+    "value": 52
+  },
+  {
+    "type": 0,
+    "value": 74
+  },
+  {
+    "type": 0,
+    "value": 75
+  },
+  {
+    "type": 0,
+    "value": 19
+  },
+  {
+    "type": 0,
+    "value": 42
+  },
+  {
+    "type": 0,
+    "value": 73
+  },
+  {
+    "type": 0,
+    "value": 72
+  },
+  {
+    "type": 0,
+    "value": 291
+  },
+  {
+    "type": 0,
+    "value": 290
+  },
+  {
+    "type": 3,
+    "value": 166633443,
+    "text": "[/awakening skill Index]"
+  },
+  {
+    "type": 3,
+    "value": 166633493,
+    "text": "[second awakening skill Index]"
+  },
+  {
+    "type": 0,
+    "value": 103
+  },
+  {
+    "type": 0,
+    "value": 102
+  },
+  {
+    "type": 0,
+    "value": 101
+  },
+  {
+    "type": 0,
+    "value": 100
+  },
+  {
+    "type": 0,
+    "value": 107
+  },
+  {
+    "type": 0,
+    "value": 106
+  },
+  {
+    "type": 0,
+    "value": 105
+  },
+  {
+    "type": 0,
+    "value": 104
+  },
+  {
+    "type": 0,
+    "value": 111
+  },
+  {
+    "type": 0,
+    "value": 110
+  },
+  {
+    "type": 0,
+    "value": 109
+  },
+  {
+    "type": 0,
+    "value": 108
+  },
+  {
+    "type": 0,
+    "value": 115
+  },
+  {
+    "type": 0,
+    "value": 114
+  },
+  {
+    "type": 0,
+    "value": 113
+  },
+  {
+    "type": 0,
+    "value": 112
+  },
+  {
+    "type": 0,
+    "value": 294
+  },
+  {
+    "type": 0,
+    "value": 295
+  },
+  {
+    "type": 0,
+    "value": 296
+  },
+  {
+    "type": 0,
+    "value": 297
+  },
+  {
+    "type": 3,
+    "value": 166633555,
+    "text": "[/second awakening skill Index]"
+  },
+  {
+    "type": 3,
+    "value": 166889109,
+    "text": "[sync skill level list]"
+  },
+  {
+    "type": 0,
+    "value": 116
+  },
+  {
+    "type": 0,
+    "value": 81
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 116
+  },
+  {
+    "type": 0,
+    "value": 83
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 16
+  },
+  {
+    "type": 0,
+    "value": 55
+  },
+  {
+    "type": 0,
+    "value": 2
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 16
+  },
+  {
+    "type": 0,
+    "value": 56
+  },
+  {
+    "type": 0,
+    "value": 2
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 16
+  },
+  {
+    "type": 0,
+    "value": 57
+  },
+  {
+    "type": 0,
+    "value": 2
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 0,
+    "value": 16
+  },
+  {
+    "type": 0,
+    "value": 58
+  },
+  {
+    "type": 0,
+    "value": 2
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 3,
+    "value": 166889157,
+    "text": "[/sync skill level list]"
+  },
+  {
+    "type": 3,
+    "value": 166634415,
+    "text": "[limit slowdown attack speed]"
+  },
+  {
+    "type": 0,
+    "value": 10
+  },
+  {
+    "type": 3,
+    "value": 166634475,
+    "text": "[limit slowdown move speed]"
+  },
+  {
+    "type": 0,
+    "value": 10
+  },
+  {
+    "type": 3,
+    "value": 166634531,
+    "text": "[create character button img offset]"
+  },
+  {
+    "type": 0,
+    "value": 50
+  },
+  {
+    "type": 0,
+    "value": 7
+  },
+  {
+    "type": 0,
+    "value": 53
+  },
+  {
+    "type": 0,
+    "value": 15
+  },
+  {
+    "type": 0,
+    "value": 60
+  },
+  {
+    "type": 0,
+    "value": 7
+  },
+  {
+    "type": 0,
+    "value": 57
+  },
+  {
+    "type": 0,
+    "value": 7
+  },
+  {
+    "type": 0,
+    "value": 30
+  },
+  {
+    "type": 0,
+    "value": 7
+  },
+  {
+    "type": 3,
+    "value": 166634605,
+    "text": "[/create character button img offset]"
+  }
+]

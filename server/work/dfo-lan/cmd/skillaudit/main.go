@@ -15,12 +15,13 @@ import (
 func main() {
 	src := flag.String("source", "runtime/pvf_source/Script.inner.pvf", "read-only source")
 	out := flag.String("output", "runtime/skill_learning_audit.json", "metadata audit")
+	characterFile := flag.String("characters", "configs/characters.next25.json", "profession catalog")
 	flag.Parse()
 	a, e := pvf.LoadArchive(pvf.Options{Path: *src, MaxBytes: 1024 * 1024 * 1024})
 	if e != nil {
 		log.Fatal(e)
 	}
-	c, e := catalog.LoadCharacters("configs/characters.next25.json")
+	c, e := catalog.LoadCharacters(*characterFile)
 	if e != nil {
 		log.Fatal(e)
 	}
@@ -56,20 +57,52 @@ func main() {
 				continue
 			}
 			fields := map[string][]pvf.Token{}
+			var scopes []string
 			tag := ""
 			seen := map[string]bool{}
 			enabled := false
+			variation := false
 			for _, t := range s.Cells {
+				if t.Type == 3 && t.Text == "[variation point]" {
+					variation = true
+					enabled = false
+					continue
+				}
+				if variation {
+					if t.Type == 3 && t.Text == "[/variation point]" {
+						variation = false
+					} else {
+						fields["[variation point]"] = append(fields["[variation point]"], t)
+					}
+					continue
+				}
 				if t.Type == 3 {
+					// Description groups reuse learning tag names. Their optional
+					// leaf fields are not consistently paired, so track containers.
+					if strings.HasPrefix(t.Text, "[/") {
+						if len(scopes) > 0 && scopes[len(scopes)-1] == "["+t.Text[2:] {
+							scopes = scopes[:len(scopes)-1]
+						}
+						enabled = false
+						continue
+					}
 					tag = t.Text
-					enabled = !seen[tag]
-					seen[tag] = true
+					enabled = len(scopes) == 0 && !seen[tag]
+					if enabled {
+						seen[tag] = true
+					}
+					if tag == "[vp explain]" || tag == "[explain group]" || tag == "[preset info]" {
+						scopes = append(scopes, tag)
+						enabled = false
+					}
 					continue
 				}
 				if !enabled {
 					continue
 				}
 				switch tag {
+				case "[awakening maximum level]", "[awakening]", "[enable by third awakening quest]":
+					fields[tag] = append(fields[tag], t)
 				case "[name]", "[type]", "[required level]", "[required level range]", "[maximum level]", "[growtype maximum level]", "[skill fitness growtype]", "[skill fitness second growtype]", "[pre required skill]", "[purchase cost]", "[special purchase cost]", "[feature skill type]", "[fixed level skill]", "[interval level]", "[add level per interval]", "[skill class]":
 					fields[tag] = append(fields[tag], t)
 				}

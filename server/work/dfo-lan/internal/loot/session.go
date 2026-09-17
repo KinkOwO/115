@@ -20,6 +20,7 @@ type Drop struct {
 	Award  Award
 }
 type Session struct {
+	Currency           *OdysseyCurrency
 	mu                 sync.Mutex
 	Catalog            catalog.LootCatalog
 	Tables             Tables
@@ -58,7 +59,7 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 	if p, ok := s.deaths[entity]; ok {
 		return append([]protocol.SceneDrop(nil), p...), nil
 	}
-	if monster.NonCombat {
+	if monster.NonCombat || monster.APC || monster.Level == 0 || d.Unowned[entity] {
 		s.deaths[entity] = nil
 		return nil, nil
 	}
@@ -71,6 +72,18 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 	result, e := Roll(s.Catalog, s.Tables, s.Rules, s.Equipment.DropPool(), seed, monster.Level, monster.Rank, 0)
 	if e != nil {
 		return nil, e
+	}
+	result.Awards = filterDungeonAwards(d.Definition, result.Awards)
+	if d.Definition.Odyssey && s.Currency != nil {
+		if s.Currency.Source != s.Catalog.Source.Checksum {
+			return nil, fmt.Errorf("Odyssey currency source mismatch")
+		}
+		coins, next, err := s.Currency.Roll(result.NextSeed, monster.Rank)
+		if err != nil {
+			return nil, err
+		}
+		result.Awards = append(result.Awards, coins...)
+		result.NextSeed = next
 	}
 	if d.NextEntity == 0 || uint64(d.NextEntity)+uint64(len(result.Awards)) >= 65535 || uint64(s.next)+uint64(len(result.Awards)) >= 65535 {
 		return nil, fmt.Errorf("drop identity exhausted")
@@ -98,10 +111,14 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 	s.Skipped[entity] = result.SkippedKinds
 	return append([]protocol.SceneDrop(nil), rows...), nil
 }
+
 // stackable reports whether this identity belongs to the ordinary stackable
 // pool. The two source lists have independent identity spaces, so a stackable
 // always wins and gear is only assumed for identities it does not claim.
 func (s *Session) stackable(id uint32) bool {
+	if s.Currency != nil && s.Currency.Items[id].Kind == "stackable" {
+		return true
+	}
 	return id == 0 || s.Catalog.Items[id].Kind == "stackable"
 }
 

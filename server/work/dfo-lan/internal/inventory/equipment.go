@@ -16,6 +16,7 @@ type EquipmentDefinition struct {
 	Fields       map[string][]pvf.Token
 }
 type EquipmentCatalog struct {
+	Full   *FullEquipmentCatalog `json:"-"`
 	Source pvf.ArchiveSnapshot   `json:"source"`
 	Rows   []EquipmentDefinition `json:"rows"`
 	index  map[uint32]EquipmentDefinition
@@ -97,9 +98,13 @@ func LoadEquipmentCatalog(path, source string) (*EquipmentCatalog, error) {
 }
 
 type BagEquipment struct {
-	Slot       uint16 `json:"slot"`
-	Template   uint32 `json:"template"`
-	Durability uint16 `json:"durability"`
+	Slot          uint16 `json:"slot"`
+	Template      uint32 `json:"template"`
+	Durability    uint16 `json:"durability"`
+	Record        []byte `json:"record,omitempty"`
+	AvatarOptions []byte `json:"avatar_options,omitempty"`
+	AvatarSockets []byte `json:"avatar_sockets,omitempty"`
+	Period        uint32 `json:"period,omitempty"`
 }
 
 // Reward accepts the gear a quest or an operator hands out. It keeps every
@@ -111,9 +116,9 @@ type BagEquipment struct {
 // its template was imported, because 100261068 is bound gear; the reward is
 // ordinary, it simply is not pool gear.
 func (c *EquipmentCatalog) Reward(id uint32) (uint16, error) {
-	r, ok := c.index[id]
-	if !ok {
-		return 0, fmt.Errorf("equipment absent from source")
+	r, err := c.Definition(id)
+	if err != nil {
+		return 0, err
 	}
 	attach, rarity, kind := r.Fields["[attach type]"], r.Fields["[rarity]"], r.Fields["[equipment type]"]
 	if len(attach) != 1 || len(rarity) != 1 || rarity[0].Type != 0 || rarity[0].Value < 0 || len(kind) == 0 {
@@ -140,7 +145,10 @@ func (c *EquipmentCatalog) Basic(id uint32) (uint16, error) {
 	if e != nil {
 		return 0, e
 	}
-	r := c.index[id]
+	r, e := c.Definition(id)
+	if e != nil {
+		return 0, e
+	}
 	attach, rarity := r.Fields["[attach type]"], r.Fields["[rarity]"]
 	if attach[0].Text != "[free]" || rarity[0].Value > 1 {
 		return 0, fmt.Errorf("special equipment reward requires additional source state")
@@ -151,6 +159,11 @@ func EquipmentRow(i BagEquipment) [protocol.CurrentItemRecordSize]byte {
 	// Current NOTI13 logs name slot+0, template+2, Data+6, ext_data1+10,
 	// Durability+11, isSealed+13. Fresh free basic gear has zero extensions.
 	r := protocol.OrdinaryItem(i.Slot, i.Template, 0)
+	if len(i.Record) == protocol.CurrentItemRecordSize {
+		copy(r[:], i.Record)
+	}
+	binary.LittleEndian.PutUint16(r[:], i.Slot)
+	binary.LittleEndian.PutUint32(r[2:], i.Template)
 	binary.LittleEndian.PutUint16(r[11:], i.Durability)
 	return r
 }
@@ -183,7 +196,7 @@ func (b Bag) AddEquipment(c *EquipmentCatalog, slots [2]uint16, id, count uint32
 	}
 	b.Equipment = append([]BagEquipment(nil), b.Equipment...)
 	for _, n := range available {
-		b.Equipment = append(b.Equipment, BagEquipment{n, id, d})
+		b.Equipment = append(b.Equipment, BagEquipment{Slot: n, Template: id, Durability: d})
 	}
 	return b, available, nil
 }

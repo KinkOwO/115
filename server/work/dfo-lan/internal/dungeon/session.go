@@ -11,18 +11,19 @@ import (
 )
 
 type Session struct {
-	RunID            string
-	StartedAt        time.Time
-	Definition       catalog.DungeonDefinition
-	Maze             catalog.DungeonMaze
-	Room             catalog.DungeonRoom
-	Monsters         []protocol.DungeonMonster
-	Loaded           bool
-	Dead             map[uint16]bool
+	RunID      string
+	StartedAt  time.Time
+	Definition catalog.DungeonDefinition
+	Maze       catalog.DungeonMaze
+	Room       catalog.DungeonRoom
+	Monsters   []protocol.DungeonMonster
+	Loaded     bool
+	Dead       map[uint16]bool
 	// Unowned marks a monster this character did not kill. It dies and the
 	// room clears, but it pays no loot and no experience.
 	Unowned          map[uint16]bool
 	Visited          map[uint32][]protocol.DungeonMonster
+	ScriptWarps      map[uint32]bool
 	NextEntity       uint16
 	completionTarget uint16
 	completed        bool
@@ -36,7 +37,15 @@ func Select(c catalog.DungeonCatalog, r protocol.DungeonSelection, level byte, a
 	if uint32(level) < d.MinimumLevel {
 		return nil, fmt.Errorf("dungeon minimum level not met")
 	}
-	if d.Tutorial || r.Difficulty != 0 || r.Extra != 0 || r.Mode != 0 || r.Flag != 0 || r.Party != 65535 || r.Reserved != 0 || r.Tail != 0 || r.Options != [2]byte{} || r.Event != 0 {
+	// 客户端的难度是 1 起算的（1=普通 2=专家 3=达人 4=王者 5=英雄），
+	// 原来这里要求 Difficulty==0，结果正常选图全被拒
+	// （实测日志：dungeon_request_refused / unsupported dungeon option，
+	//   请求字节 Difficulty=1 而客户端界面显示的就是 Normal）。
+	// 现在放宽到 0..5，其余字段仍然严格校验。
+	if r.Difficulty > 5 || (d.Odyssey && r.Difficulty != d.DesignatedDifficulty) {
+		return nil, fmt.Errorf("unsupported dungeon difficulty %d", r.Difficulty)
+	}
+	if d.Tutorial || r.Extra != 0 || r.Mode != 0 || r.Flag != 0 || r.Party != 65535 || r.Reserved != 0 || r.Tail != 0 || r.Options != [2]byte{} || r.Event != 0 {
 		return nil, fmt.Errorf("unsupported dungeon option")
 	}
 	if r.Quest > 65535 || r.Quest != 0 && !accepted[uint16(r.Quest)] {
@@ -44,18 +53,41 @@ func Select(c catalog.DungeonCatalog, r protocol.DungeonSelection, level byte, a
 	}
 	var chosen *catalog.DungeonMaze
 	for _, m := range d.Mazes {
-		if uint32(m.Quest) == r.Quest {
-			if chosen != nil {
-				return nil, fmt.Errorf("ambiguous source maze")
-			}
+		if uint32(m.Quest) != r.Quest {
+			continue
+		}
+		// 源里同一个 quest 经常对应多张 maze（实测 3200 个副本里有 288 个副本的
+		// quest==0 有多张，通常是不同难度或随机版本）。原来只要匹配到第二张就
+		// 直接报 ambiguous source maze，玩家点图完全没反应。
+		// 现在按 index 最小者确定性选取，跳过解析不完整的 maze。
+		if len(m.Pending) > 0 {
+			continue
+		}
+		if chosen == nil || m.Index < chosen.Index {
 			copy := m
 			chosen = &copy
 		}
 	}
-	if chosen == nil || len(chosen.Pending) > 0 {
+	if chosen == nil {
 		return nil, fmt.Errorf("no resolved source maze for requested quest")
 	}
 	return newSession(c, d, *chosen)
+}
+
+// resolveRoomMap 取该房间可用的地图脚本：先用主地图，主地图不在目录里时
+// 按源里给出的顺序退到备选地图。源列出多张候选地图表示这张房可以是其中任意
+// 一张（零售端按权重随机），因此选到任意一张已导入的都是合法结果。
+func resolveRoomMap(c catalog.DungeonCatalog, r catalog.DungeonRoom) (catalog.DungeonRoom, catalog.ScriptRecord, bool) {
+	if s, ok := c.Maps[r.Map]; ok {
+		return r, s, true
+	}
+	for _, alt := range r.Alternates {
+		if s, ok := c.Maps[alt]; ok {
+			r.Map = alt
+			return r, s, true
+		}
+	}
+	return r, catalog.ScriptRecord{}, false
 }
 
 // newSession builds the owned run for an already-resolved maze. Both the
@@ -68,23 +100,35 @@ func newSession(c catalog.DungeonCatalog, d catalog.DungeonDefinition, chosen ca
 		return nil, e
 	}
 	s.RunID = hex.EncodeToString(run[:])
+	// 源里同一个节点可以列多张候选地图（boss_selection_probability 是带权重的
+	// 随机 BOSS 房），同一个起始坐标也可能出现多次。运行时的规则：
+	// 优先用地图已导入的那一张；都没有才报错。
+	// 原来只要坐标出现两次就报 ambiguous start room，只要首选地图没导入就报
+	// start map not imported —— 于是这些图在客户端表现为"点了没反应"。
+	var start catalog.DungeonRoom
+	var script catalog.ScriptRecord
 	found := false
 	for _, room := range chosen.Rooms {
-		if [2]byte{room.X, room.Y} == chosen.Start {
-			if found {
-				return nil, fmt.Errorf("ambiguous start room")
-			}
-			s.Room = room
-			found = true
+		if [2]byte{room.X, room.Y} != chosen.Start {
+			continue
 		}
+		resolved, sc, ok := resolveRoomMap(c, room)
+		if !ok {
+			if start.Map == 0 {
+				start = room
+			}
+			continue
+		}
+		start, script, found = resolved, sc, true
+		break
 	}
 	if !found {
-		return nil, fmt.Errorf("missing source start room")
-	}
-	script, ok := c.Maps[s.Room.Map]
-	if !ok {
+		if start.Map == 0 {
+			return nil, fmt.Errorf("missing source start room")
+		}
 		return nil, fmt.Errorf("start map not imported")
 	}
+	s.Room = start
 	monsters, e := fixedMonsters(script, d.BasisLevel)
 	if e != nil {
 		return nil, e
@@ -139,8 +183,9 @@ func (s *Session) RoomCleared() bool {
 	if s == nil || !s.Loaded {
 		return false
 	}
+	keyRoom := s.warpKeyRoom()
 	for _, m := range s.Monsters {
-		if !m.NonCombat && !s.Dead[m.Entity] {
+		if (!m.NonCombat || m.Rank == 3 && keyRoom) && !s.Dead[m.Entity] {
 			return false
 		}
 	}
@@ -168,8 +213,13 @@ func (s *Session) Move(c catalog.DungeonCatalog, target [2]byte) (*Session, erro
 	if room == nil {
 		return nil, fmt.Errorf("target absent from source maze")
 	}
+	// Return to the last entered scene, including rooms with zero monsters.
+	return s.enterRoom(c, s.latestLayer(*room))
+}
+
+func (s *Session) enterRoom(c catalog.DungeonCatalog, room catalog.DungeonRoom) (*Session, error) {
 	next := *s
-	next.Room = *room
+	next.Room = room
 	next.Loaded = false
 	next.Visited = map[uint32][]protocol.DungeonMonster{}
 	for id, m := range s.Visited {
@@ -309,7 +359,7 @@ func fixedMonsters(script catalog.ScriptRecord, basis uint32) ([]protocol.Dungeo
 		} else if v[1] != 0 {
 			return nil, fmt.Errorf("unsupported monster level expression")
 		}
-		if level < 1 || level > 255 {
+		if level < 0 || level > 255 {
 			return nil, fmt.Errorf("invalid monster level")
 		}
 		out = append(out, protocol.DungeonMonster{Entity: uint16(4096 + len(out)), SourceIndex: uint32(len(out)), Level: byte(level), Template: uint32(v[0]), Rank: rank, Team: 100, NonCombat: nonCombat, SourceTail: [2]int32{v[6], v[7]}})
@@ -327,7 +377,7 @@ func fixedMonsters(script catalog.ScriptRecord, basis uint32) ([]protocol.Dungeo
 		if !active {
 			continue
 		}
-		if cell.Type != 0 || cell.Value != 0 && cell.Value != 100 {
+		if cell.Type != 0 || cell.Value < 0 {
 			return nil, fmt.Errorf("unresolved monster team")
 		}
 		teams = append(teams, cell.Value)
@@ -340,6 +390,90 @@ func fixedMonsters(script catalog.ScriptRecord, basis uint32) ([]protocol.Dungeo
 			out[i].Team = uint32(team)
 			out[i].NonCombat = out[i].NonCombat || team == 0
 		}
+	}
+	return appendFixedAPCs(script, out)
+}
+
+// Fixed map APCs use the ordinary NOTI29 list with rank5..8, not the
+// separate random-APC list. Native1471d34ca parses their own source indices;
+// 145b25e79 dispatches them to145b20dc0, which loads level from the AIC.
+func appendFixedAPCs(script catalog.ScriptRecord, out []protocol.DungeonMonster) ([]protocol.DungeonMonster, error) {
+	c := script.Cells
+	active, index := false, uint32(0)
+	for i := 0; i < len(c); {
+		if c[i].Type == 3 {
+			active = c[i].Text == "[ai character]"
+			i++
+			continue
+		}
+		if !active {
+			i++
+			continue
+		}
+		if i+4 > len(c) {
+			return nil, fmt.Errorf("short fixed APC row")
+		}
+		for j := 0; j < 4; j++ {
+			if c[i+j].Type != 0 {
+				return nil, fmt.Errorf("invalid fixed APC coordinate")
+			}
+		}
+		id := c[i].Value
+		i += 4
+		if id <= 0 || index >= 64 || len(out) >= 255 || i >= len(c) || c[i].Type != 6 {
+			return nil, fmt.Errorf("invalid fixed APC identity/team")
+		}
+		var team uint32
+		switch c[i].Text {
+		case "[character]":
+			team = 0
+		case "[monster]":
+			team = 100
+		case "[neutral]":
+			team = 200
+		default:
+			return nil, fmt.Errorf("unresolved fixed APC team %q", c[i].Text)
+		}
+		i++
+		if i < len(c) && c[i].Type == 6 && c[i].Text == "[NPC]" {
+			i++
+			if i >= len(c) || c[i].Type != 0 {
+				return nil, fmt.Errorf("short APC NPC option")
+			}
+			i++
+		}
+		if i < len(c) && c[i].Type == 6 && c[i].Text == "[cinematic]" {
+			i++
+		}
+		if i >= len(c) || c[i].Type != 6 {
+			return nil, fmt.Errorf("missing APC rank")
+		}
+		var rank byte
+		switch c[i].Text {
+		case "[normal]":
+			rank = 5
+		case "[champion]":
+			rank = 6
+		case "[super champion]":
+			rank = 7
+		case "[boss]":
+			rank = 8
+		default:
+			return nil, fmt.Errorf("unresolved APC rank %q", c[i].Text)
+		}
+		i++
+		if rank == 6 || rank == 7 {
+			if i >= len(c) || c[i].Type != 0 || c[i].Value != 0 {
+				return nil, fmt.Errorf("unresolved APC champion abilities")
+			}
+			i++
+		}
+		if i+2 > len(c) || c[i].Type != 0 || c[i+1].Type != 0 || c[i].Value < 0 || c[i].Value > 255 || c[i+1].Value < 0 || c[i+1].Value > 255 {
+			return nil, fmt.Errorf("invalid APC tail")
+		}
+		out = append(out, protocol.DungeonMonster{Entity: uint16(4096 + len(out)), SourceIndex: index, Template: uint32(id), Rank: rank, Team: team, APC: true, NonCombat: team != 100, SourceTail: [2]int32{c[i].Value, c[i+1].Value}})
+		index++
+		i += 2
 	}
 	return out, nil
 }
