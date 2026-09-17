@@ -327,13 +327,17 @@ with (
   command[command.index("-bag-rules") + 1] = str(
    project / "configs/inventory.current37.json"
   )
+ if (project / "configs/items.index.json").exists():
+  command += ["-item-index", str(project / "configs/items.index.json")]
+ if (project / "configs/cerashop.json").exists():
+  command += ["-cerashop-catalog", str(project / "configs/cerashop.json")]
  command[0] = os.environ.get("DFO_SERVER_BINARY", command[0])
  server = subprocess.Popen(command, stdout=stdout, stderr=stderr, creationflags=flags)
  try:
   ready = out / "ready.json"
   for _ in range(100):
    if server.poll() is not None:
-    raise RuntimeError("gateway exited")
+    raise RuntimeError(f"gateway exited on {command}")
    if ready.exists():
     break
    time.sleep(0.05)
