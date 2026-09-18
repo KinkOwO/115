@@ -1,12 +1,15 @@
 package inventory
 
 import (
+	"bytes"
 	"context"
+	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/storage"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"sort"
 )
@@ -42,15 +45,21 @@ func (r VaultRules) allows(n uint16) bool {
 }
 
 type VaultItem struct {
-	Slot       uint16 `json:"slot"`
-	Template   uint32 `json:"template"`
-	Amount     uint32 `json:"amount,omitempty"`
-	Durability uint16 `json:"durability,omitempty"`
-	IsEquip    bool   `json:"is_equip,omitempty"`
+	Slot       uint16        `json:"slot"`
+	Template   uint32        `json:"template"`
+	Amount     uint32        `json:"amount,omitempty"`
+	Durability uint16        `json:"durability,omitempty"`
+	IsEquip    bool          `json:"is_equip,omitempty"`
+	Equipment  *BagEquipment `json:"equipment,omitempty"`
 }
 
 func (v VaultItem) Row() [protocol.CurrentItemRecordSize]byte {
 	if v.IsEquip {
+		if v.Equipment != nil {
+			item := *v.Equipment
+			item.Slot = v.Slot
+			return EquipmentRow(item)
+		}
 		r := protocol.OrdinaryItem(v.Slot, v.Template, 0)
 		binary.LittleEndian.PutUint16(r[11:], v.Durability)
 		return r
@@ -74,6 +83,55 @@ func ReadVault(v storage.VaultState) (Vault, error) {
 		return vault, err
 	}
 	return vault, nil
+}
+
+func ReadExtendedVault(v storage.VaultState) (Vault, error) {
+	var vault Vault
+	vault.Slots = v.Slots
+	d := json.NewDecoder(bytes.NewReader(v.Items))
+	d.DisallowUnknownFields()
+	if err := d.Decode(&vault.Items); err != nil {
+		return vault, err
+	}
+	var tail any
+	if err := d.Decode(&tail); err != io.EOF || vault.Items == nil || v.Slots == 0 {
+		return vault, fmt.Errorf("invalid vault array or trailing data")
+	}
+	seen := map[uint16]bool{}
+	for _, item := range vault.Items {
+		if item.Slot >= v.Slots || item.Template == 0 || seen[item.Slot] || (!item.IsEquip && (item.Amount == 0 || item.Equipment != nil || item.Durability != 0)) {
+			return vault, fmt.Errorf("invalid vault item")
+		}
+		if item.Equipment != nil && (item.Equipment.Template != item.Template || item.Equipment.ValidateRecord() != nil) {
+			return vault, fmt.Errorf("invalid vault equipment metadata")
+		}
+		seen[item.Slot] = true
+	}
+	return vault, nil
+}
+
+func ReadVaultBagItems(v storage.VaultState) ([]BagItem, error) {
+	var items []BagItem
+	d := json.NewDecoder(bytes.NewReader(v.Items))
+	d.DisallowUnknownFields()
+	if e := d.Decode(&items); e != nil {
+		return nil, e
+	}
+	var tail any
+	if e := d.Decode(&tail); e != io.EOF {
+		return nil, fmt.Errorf("trailing vault data")
+	}
+	if items == nil || v.Slots == 0 {
+		return nil, fmt.Errorf("invalid vault array/capacity")
+	}
+	seen := map[uint16]bool{}
+	for _, i := range items {
+		if i.Slot >= v.Slots || i.Template == 0 || i.Amount == 0 || seen[i.Slot] {
+			return nil, fmt.Errorf("invalid vault item")
+		}
+		seen[i.Slot] = true
+	}
+	return items, nil
 }
 
 func SaveVault(v Vault) (json.RawMessage, error) {
@@ -110,8 +168,10 @@ func (v Vault) ItemAt(slot uint16) *VaultItem {
 }
 
 type VaultService struct {
-	Store *storage.Store
-	Rules VaultRules
+	Store    *storage.Store
+	Rules    VaultRules
+	Catalog  catalog.LootCatalog
+	BagRules BagRules
 }
 
 func (s *VaultService) Bootstrap(ctx context.Context, role storage.Character) ([]byte, error) {
@@ -129,6 +189,14 @@ func (s *VaultService) Bootstrap(ctx context.Context, role storage.Character) ([
 	return protocol.PersonalVaultRestore(vault.Slots, vault.Rows())
 }
 
+func VaultPayload(v storage.VaultState) ([]byte, error) {
+	items, e := ReadExtendedVault(v)
+	if e != nil {
+		return nil, e
+	}
+	return protocol.PersonalVault(v.Slots, items.Rows())
+}
+
 // MoveVaultItem handles item transfer between Bag and Vault, or within Vault.
 func MoveVaultItem(b Bag, v Vault, rules BagRules, r protocol.ItemMoveRequest) (Bag, Vault, uint32, error) {
 	if r.SourceList != 2 && r.DestinationList != 2 {
@@ -141,6 +209,7 @@ func MoveVaultItem(b Bag, v Vault, rules BagRules, r protocol.ItemMoveRequest) (
 			return b, v, 0, fmt.Errorf("target vault slot %d exceeds capacity %d", r.DestinationSlot, v.Slots)
 		}
 
+		// 装备处理分支
 		var srcEquip *BagEquipment
 		srcEquipIdx := -1
 		for i := range b.Equipment {
@@ -151,19 +220,33 @@ func MoveVaultItem(b Bag, v Vault, rules BagRules, r protocol.ItemMoveRequest) (
 			}
 		}
 		if srcEquip != nil {
-			if v.ItemAt(r.DestinationSlot) != nil {
-				return b, v, 0, fmt.Errorf("target vault slot %d is already occupied", r.DestinationSlot)
+			instance := *srcEquip
+			targetSlot := r.DestinationSlot
+			if v.ItemAt(targetSlot) != nil {
+				found := false
+				for s := uint16(0); s < v.Slots; s++ {
+					if v.ItemAt(s) == nil {
+						targetSlot = s
+						found = true
+						break
+					}
+				}
+				if !found {
+					return b, v, 0, fmt.Errorf("target vault slot %d is already occupied", r.DestinationSlot)
+				}
 			}
 			v.Items = append(v.Items, VaultItem{
-				Slot:       r.DestinationSlot,
+				Slot:       targetSlot,
 				Template:   srcEquip.Template,
 				Durability: srcEquip.Durability,
 				IsEquip:    true,
+				Equipment:  &instance,
 			})
 			b.Equipment = append(b.Equipment[:srcEquipIdx], b.Equipment[srcEquipIdx+1:]...)
 			return b, v, 1, nil
 		}
 
+		// 可堆叠物品处理分支
 		var srcItem *BagItem
 		srcItemIdx := -1
 		for i := range b.Items {
@@ -177,46 +260,89 @@ func MoveVaultItem(b Bag, v Vault, rules BagRules, r protocol.ItemMoveRequest) (
 			return b, v, 0, fmt.Errorf("source item not found in bag at slot %d", r.SourceSlot)
 		}
 
-		count := r.Count
-		if count == 0 || count > srcItem.Amount {
-			count = srcItem.Amount
+		toMoveTotal := r.Count
+		if toMoveTotal == 0 || toMoveTotal > srcItem.Amount {
+			toMoveTotal = srcItem.Amount
+		}
+		limit := rules.MissingStackLimit
+		if limit == 0 {
+			limit = 1000
 		}
 
-		if destItem := v.ItemAt(r.DestinationSlot); destItem != nil {
-			if destItem.IsEquip || destItem.Template != srcItem.Template {
-				return b, v, 0, fmt.Errorf("target vault slot %d occupied by different item", r.DestinationSlot)
+		remainingToMove := toMoveTotal
+
+		// 步骤 A：优先合并到客户端指定的 DestinationSlot（如果是相同物品且未满）
+		if destItem := v.ItemAt(r.DestinationSlot); destItem != nil && !destItem.IsEquip && destItem.Template == srcItem.Template && destItem.Amount < limit {
+			space := limit - destItem.Amount
+			n := remainingToMove
+			if n > space {
+				n = space
 			}
-			limit := rules.MissingStackLimit
-			if limit == 0 {
-				limit = 1000
-			}
-			spaceLeft := limit - destItem.Amount
-			if spaceLeft == 0 {
-				return b, v, 0, fmt.Errorf("target vault stack is full")
-			}
-			toMove := count
-			if toMove > spaceLeft {
-				toMove = spaceLeft
-			}
-			destItem.Amount += toMove
-			srcItem.Amount -= toMove
-			if srcItem.Amount == 0 {
-				b.Items = append(b.Items[:srcItemIdx], b.Items[srcItemIdx+1:]...)
-			}
-			return b, v, toMove, nil
+			destItem.Amount += n
+			remainingToMove -= n
 		}
 
-		v.Items = append(v.Items, VaultItem{
-			Slot:     r.DestinationSlot,
-			Template: srcItem.Template,
-			Amount:   count,
-			IsEquip:  false,
-		})
-		srcItem.Amount -= count
+		// 步骤 B：自动合并到金库中其它已有相同物品的槽位（按 slot 升序）
+		if remainingToMove > 0 {
+			for i := range v.Items {
+				if v.Items[i].Slot == r.DestinationSlot {
+					continue
+				}
+				if !v.Items[i].IsEquip && v.Items[i].Template == srcItem.Template && v.Items[i].Amount < limit {
+					space := limit - v.Items[i].Amount
+					n := remainingToMove
+					if n > space {
+						n = space
+					}
+					v.Items[i].Amount += n
+					remainingToMove -= n
+					if remainingToMove == 0 {
+						break
+					}
+				}
+			}
+		}
+
+		// 步骤 C：所有已有同类堆叠都已填满（或原本没有同类物品），若仍有剩余数量，放入空格子
+		if remainingToMove > 0 {
+			targetSlot := r.DestinationSlot
+			if v.ItemAt(targetSlot) != nil {
+				found := false
+				for s := uint16(0); s < v.Slots; s++ {
+					if v.ItemAt(s) == nil {
+						targetSlot = s
+						found = true
+						break
+					}
+				}
+				if !found {
+					actualMoved := toMoveTotal - remainingToMove
+					if actualMoved == 0 {
+						return b, v, 0, fmt.Errorf("target vault is full")
+					}
+					srcItem.Amount -= actualMoved
+					if srcItem.Amount == 0 {
+						b.Items = append(b.Items[:srcItemIdx], b.Items[srcItemIdx+1:]...)
+					}
+					return b, v, actualMoved, nil
+				}
+			}
+
+			v.Items = append(v.Items, VaultItem{
+				Slot:     targetSlot,
+				Template: srcItem.Template,
+				Amount:   remainingToMove,
+				IsEquip:  false,
+			})
+			remainingToMove = 0
+		}
+
+		actualMoved := toMoveTotal - remainingToMove
+		srcItem.Amount -= actualMoved
 		if srcItem.Amount == 0 {
 			b.Items = append(b.Items[:srcItemIdx], b.Items[srcItemIdx+1:]...)
 		}
-		return b, v, count, nil
+		return b, v, actualMoved, nil
 	}
 
 	// Case 2: Vault -> Bag
@@ -250,11 +376,16 @@ func MoveVaultItem(b Bag, v Vault, rules BagRules, r protocol.ItemMoveRequest) (
 					return b, v, 0, fmt.Errorf("target bag slot %d occupied", r.DestinationSlot)
 				}
 			}
-			b.Equipment = append(b.Equipment, BagEquipment{
+			instance := BagEquipment{
 				Slot:       r.DestinationSlot,
 				Template:   srcItem.Template,
 				Durability: srcItem.Durability,
-			})
+			}
+			if srcItem.Equipment != nil {
+				instance = *srcItem.Equipment
+				instance.Slot = r.DestinationSlot
+			}
+			b.Equipment = append(b.Equipment, instance)
 			v.Items = append(v.Items[:srcIdx], v.Items[srcIdx+1:]...)
 			return b, v, 1, nil
 		}
@@ -322,51 +453,73 @@ func MoveVaultItem(b Bag, v Vault, rules BagRules, r protocol.ItemMoveRequest) (
 		if r.SourceSlot == r.DestinationSlot {
 			return b, v, 0, nil
 		}
-		srcIdx := -1
-		for i := range v.Items {
-			if v.Items[i].Slot == r.SourceSlot {
-				srcIdx = i
-				break
-			}
-		}
-		if srcIdx == -1 {
-			return b, v, 0, fmt.Errorf("source item not found in vault at slot %d", r.SourceSlot)
-		}
-		srcItem := &v.Items[srcIdx]
 
-		destItem := v.ItemAt(r.DestinationSlot)
-		if destItem == nil {
-			srcItem.Slot = r.DestinationSlot
-			moved := srcItem.Amount
-			if srcItem.IsEquip {
-				moved = 1
-			}
-			return b, v, moved, nil
+		itemAtSrc := v.ItemAt(r.SourceSlot)
+		itemAtDest := v.ItemAt(r.DestinationSlot)
+
+		// 识别客户端反转请求（实机抓包 131224：拖拽到空格子时，客户端将空目标作为 Source，被拖拽的原位作为 Destination）
+		fromSlot := r.SourceSlot
+		toSlot := r.DestinationSlot
+		if itemAtSrc == nil && itemAtDest != nil {
+			fromSlot, toSlot = r.DestinationSlot, r.SourceSlot
+			itemAtSrc, itemAtDest = itemAtDest, nil
 		}
 
-		if !srcItem.IsEquip && !destItem.IsEquip && srcItem.Template == destItem.Template {
+		if itemAtSrc == nil {
+			return b, v, 0, fmt.Errorf("source item not found in vault at slot %d", fromSlot)
+		}
+
+		// 移动到空槽位
+		if itemAtDest == nil {
+			count := r.Count
+			if count == 0 || count >= itemAtSrc.Amount || itemAtSrc.IsEquip {
+				itemAtSrc.Slot = toSlot
+				moved := itemAtSrc.Amount
+				if itemAtSrc.IsEquip {
+					moved = 1
+				}
+				return b, v, moved, nil
+			}
+			v.Items = append(v.Items, VaultItem{
+				Slot:     toSlot,
+				Template: itemAtSrc.Template,
+				Amount:   count,
+				IsEquip:  false,
+			})
+			itemAtSrc.Amount -= count
+			return b, v, count, nil
+		}
+
+		// 目标槽位已有物品：同类合并
+		if !itemAtSrc.IsEquip && !itemAtDest.IsEquip && itemAtSrc.Template == itemAtDest.Template {
 			limit := rules.MissingStackLimit
 			if limit == 0 {
 				limit = 1000
 			}
-			spaceLeft := limit - destItem.Amount
+			spaceLeft := limit - itemAtDest.Amount
 			count := r.Count
-			if count == 0 || count > srcItem.Amount {
-				count = srcItem.Amount
+			if count == 0 || count > itemAtSrc.Amount {
+				count = itemAtSrc.Amount
 			}
 			if count > spaceLeft {
 				count = spaceLeft
 			}
-			destItem.Amount += count
-			srcItem.Amount -= count
-			if srcItem.Amount == 0 {
-				v.Items = append(v.Items[:srcIdx], v.Items[srcIdx+1:]...)
+			itemAtDest.Amount += count
+			itemAtSrc.Amount -= count
+			if itemAtSrc.Amount == 0 {
+				for i := range v.Items {
+					if v.Items[i].Slot == fromSlot {
+						v.Items = append(v.Items[:i], v.Items[i+1:]...)
+						break
+					}
+				}
 			}
 			return b, v, count, nil
 		}
 
-		srcItem.Slot = r.DestinationSlot
-		destItem.Slot = r.SourceSlot
+		// 不同物品：互换位置 (Swap)
+		itemAtSrc.Slot = toSlot
+		itemAtDest.Slot = fromSlot
 		return b, v, 1, nil
 	}
 

@@ -7,6 +7,7 @@ import (
 	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"time"
 )
 
@@ -22,6 +23,7 @@ func (w *worldSession) moveVault(rules inventory.BagRules, r protocol.ItemMoveRe
 
 	var movedCount uint32
 	var newBag inventory.Bag
+	var oldVault inventory.Vault
 	var newVault inventory.Vault
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -37,6 +39,7 @@ func (w *worldSession) moveVault(rules inventory.BagRules, r protocol.ItemMoveRe
 			if e != nil {
 				return nil, nil, e
 			}
+			oldVault = v
 			var moveErr error
 			newBag, newVault, movedCount, moveErr = inventory.MoveVaultItem(b, v, rules, r)
 			if moveErr != nil {
@@ -71,13 +74,31 @@ func (w *worldSession) moveVault(rules inventory.BagRules, r protocol.ItemMoveRe
 	}
 
 	if r.SourceList == 2 || r.DestinationList == 2 {
-		var affectedSlots []uint16
+		affectedMap := make(map[uint16]bool)
 		if r.SourceList == 2 {
-			affectedSlots = append(affectedSlots, r.SourceSlot)
+			affectedMap[r.SourceSlot] = true
 		}
-		if r.DestinationList == 2 && r.DestinationSlot != r.SourceSlot {
-			affectedSlots = append(affectedSlots, r.DestinationSlot)
+		if r.DestinationList == 2 {
+			affectedMap[r.DestinationSlot] = true
 		}
+		for _, it := range oldVault.Items {
+			newIt := newVault.ItemAt(it.Slot)
+			if newIt == nil || newIt.Template != it.Template || newIt.Amount != it.Amount || newIt.Durability != it.Durability {
+				affectedMap[it.Slot] = true
+			}
+		}
+		for _, it := range newVault.Items {
+			oldIt := oldVault.ItemAt(it.Slot)
+			if oldIt == nil || oldIt.Template != it.Template || oldIt.Amount != it.Amount || oldIt.Durability != it.Durability {
+				affectedMap[it.Slot] = true
+			}
+		}
+
+		var affectedSlots []uint16
+		for slot := range affectedMap {
+			affectedSlots = append(affectedSlots, slot)
+		}
+		sort.Slice(affectedSlots, func(i, j int) bool { return affectedSlots[i] < affectedSlots[j] })
 
 		var vaultRows [][protocol.CurrentItemRecordSize]byte
 		for _, slot := range affectedSlots {

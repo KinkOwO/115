@@ -1,0 +1,293 @@
+{
+  "path": "stackable/10417001/10417790.stk",
+  "sha256": "6e0f799705fa32a35352aea5ab56c8c44078089a0ba3789203651593cd1cbd48",
+  "cells": [
+    {
+      "type": 3,
+      "value": 157673341,
+      "text": "[name]"
+    },
+    {
+      "type": 8,
+      "value": 480567111,
+      "reference": "\u003c13::name_10417790\u003e"
+    },
+    {
+      "type": 3,
+      "value": 157680133,
+      "text": "[explain]"
+    },
+    {
+      "type": 8,
+      "value": 480567151,
+      "reference": "\u003c13::explain_10417790\u003e"
+    },
+    {
+      "type": 3,
+      "value": 157673483,
+      "text": "[grade]"
+    },
+    {
+      "type": 0,
+      "value": 1
+    },
+    {
+      "type": 3,
+      "value": 86949813,
+      "text": "[rarity]"
+    },
+    {
+      "type": 0,
+      "value": 2
+    },
+    {
+      "type": 3,
+      "value": 157673543,
+      "text": "[usable job]"
+    },
+    {
+      "type": 6,
+      "value": 147067661,
+      "text": "[all]"
+    },
+    {
+      "type": 3,
+      "value": 157673569,
+      "text": "[/usable job]"
+    },
+    {
+      "type": 3,
+      "value": 157673499,
+      "text": "[attach type]"
+    },
+    {
+      "type": 6,
+      "value": 157673527,
+      "text": "[trade]"
+    },
+    {
+      "type": 3,
+      "value": 157673597,
+      "text": "[minimum level]"
+    },
+    {
+      "type": 0,
+      "value": 1
+    },
+    {
+      "type": 3,
+      "value": 162565975,
+      "text": "[weight]"
+    },
+    {
+      "type": 0,
+      "value": 1
+    },
+    {
+      "type": 3,
+      "value": 157673629,
+      "text": "[icon]"
+    },
+    {
+      "type": 6,
+      "value": 137129317,
+      "text": "Item/stackable/consumption.img"
+    },
+    {
+      "type": 0,
+      "value": 1728
+    },
+    {
+      "type": 3,
+      "value": 157694779,
+      "text": "[icon marks]"
+    },
+    {
+      "type": 6,
+      "value": 107651813,
+      "text": "Item/IconMark.img"
+    },
+    {
+      "type": 0,
+      "value": 129
+    },
+    {
+      "type": 3,
+      "value": 157694805,
+      "text": "[/icon marks]"
+    },
+    {
+      "type": 3,
+      "value": 209147603,
+      "text": "[stackable type]"
+    },
+    {
+      "type": 6,
+      "value": 442791407,
+      "text": "[booster selection]"
+    },
+    {
+      "type": 0,
+      "value": 0
+    },
+    {
+      "type": 3,
+      "value": 157673993,
+      "text": "[move wav]"
+    },
+    {
+      "type": 6,
+      "value": 157934313,
+      "text": "BONE_TOUCH"
+    },
+    {
+      "type": 3,
+      "value": 442791447,
+      "text": "[booster category num]"
+    },
+    {
+      "type": 0,
+      "value": 0
+    },
+    {
+      "type": 3,
+      "value": 442791493,
+      "text": "[booster selection num]"
+    },
+    {
+      "type": 0,
+      "value": 0
+    },
+    {
+      "type": 3,
+      "value": 442791541,
+      "text": "[booster select category]"
+    },
+    {
+      "type": 0,
+      "value": 0
+    },
+    {
+      "type": 0,
+      "value": 0
+    },
+    {
+      "type": 3,
+      "value": 444735961,
+      "text": "[booster equipment grade]"
+    },
+    {
+      "type": 0,
+      "value": 4
+    },
+    {
+      "type": 3,
+      "value": 86910153,
+      "text": "[equipment]"
+    },
+    {
+      "type": 0,
+      "value": 100051399
+    },
+    {
+      "type": 0,
+      "value": 1
+    },
+    {
+      "type": 0,
+      "value": 100101277
+    },
+    {
+      "type": 0,
+      "value": 1
+    },
+    {
+      "type": 0,
+      "value": 100151218
+    },
+    {
+      "type": 0,
+      "value": 1
+    },
+    {
+      "type": 0,
+      "value": 100201190
+    },
+    {
+      "type": 0,
+      "value": 1
+    },
+    {
+      "type": 0,
+      "value": 100251230
+    },
+    {
+      "type": 0,
+      "value": 1
+    },
+    {
+      "type": 0,
+      "value": 100302054
+    },
+    {
+      "type": 0,
+      "value": 1
+    },
+    {
+      "type": 0,
+      "value": 100313767
+    },
+    {
+      "type": 0,
+      "value": 1
+    },
+    {
+      "type": 0,
+      "value": 100323647
+    },
+    {
+      "type": 0,
+      "value": 1
+    },
+    {
+      "type": 3,
+      "value": 86910177,
+      "text": "[/equipment]"
+    },
+    {
+      "type": 3,
+      "value": 442791643,
+      "text": "[/booster select category]"
+    },
+    {
+      "type": 3,
+      "value": 442791737,
+      "text": "[booster category name]"
+    },
+    {
+      "type": 8,
+      "value": 443546301,
+      "reference": "\u003c13::booster_category_defaulttext_4\u003e"
+    },
+    {
+      "type": 3,
+      "value": 442791823,
+      "text": "[/booster category name]"
+    },
+    {
+      "type": 3,
+      "value": 442808807,
+      "text": "[action usable place]"
+    },
+    {
+      "type": 6,
+      "value": 442808851,
+      "text": "[village]"
+    },
+    {
+      "type": 3,
+      "value": 442808871,
+      "text": "[/action usable place]"
+    }
+  ]
+}

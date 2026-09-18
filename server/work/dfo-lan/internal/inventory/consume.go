@@ -18,6 +18,15 @@ func (b Bag) Consume(c catalog.LootCatalog, slot uint16, template uint32) (Bag, 
 	}
 	item, known := c.Items[template]
 	if !known {
+		for _, row := range b.Items {
+			if row.Slot == slot && row.Template == template {
+				known = true
+				item = catalog.LootItem{ID: template, Kind: "stackable"}
+				break
+			}
+		}
+	}
+	if !known {
 		return b, 0, fmt.Errorf("item is absent from the imported source")
 	}
 	if item.Kind != "stackable" {

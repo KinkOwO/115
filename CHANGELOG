@@ -1,16 +1,16 @@
 # CHANGELOG
 
+2026-09-17 本地修复整合候选，详见 REPAIRS-20260917.md。
+
+
+## 2026-09-18
+- 修复物品（消耗品/药水）无法放入快捷栏问题：
+  - **根因分析**：客户端将消耗品拖入快捷栏（槽位 `3 ~ 8`）时发送 CMD 19（`0x0013`）。原服务端 `-loot-catalog` 仅加载了怪物掉落精简表 `loot.next25.json`（仅 1,022 条掉落物，不含常规药水、消耗品等），导致 `MoveStackRequest` 在校验堆叠物品定义时返回 `unknown stack definition` 错误，下发拒绝码 `4`，触发客户端弹出「The target inventory is full or has the same item in the maximum quantity in it. Can't move the item.」；且原消费校验（CMD 44 `b.Consume`）与金库转移亦受限；
+  - **堆叠物索引扩充**（`internal/catalog/loot.go`）：新增 `SupplementStackables`，启动时从 `configs/items.index.json` 补充全量 17.5 万项堆叠物品定义与堆叠上限，同时隔离怪物掉落表 `DropCatalog` 保证掉落池不被污染；
+  - **快捷栏规则健全**（`internal/inventory/stack_request.go` & `consume.go`）：完善在包消耗品移入快捷栏、在快捷栏内互换、移回消耗品栏的合法性判定与兜底机制，支持快捷栏使用道具扣减；
+  - **测试与回归**：新增 `loot_supplement_test.go` 与 `quickslot_request_test.go` 覆盖药水放入快捷栏/互换/放回/消耗全场景测试，`go test ./...` 100% 通过。
+
 ## 2026-09-17
-- **修正一处错误结论 + 修掉一个会让人误判很久的坑：角色等级超过 115 会导致客户端无法穿戴任何装备**
-  （详见 `docs/进度-20260917-副本可进性与GM工具.md` §3.3）：
-  - 症状：角色 >115 级时，装备提示中"xx级以上可以使用"那一行**全部变红**、拖拽穿戴无效；
-    因为请求在**客户端本地就被拦掉**，服务端日志里**没有任何 `equipment_move_refused`**，极易误判为"服务端正常"。
-  - 根因：本 115 版客户端的等级表上限是 115；客户端**能读出**服务端下发的 116 级，但用它做装备需求判定时整体失效。
-    而服务端经验规则 `configs/experience.compat90.json` 的 `level_cap` 原为 **150**，允许涨到 116+。
-  - 修复：① 角色 `state.level` 与 `state.experience` **一起**改回 115 级门槛值
-    （`configs/progression.next25.json` 的 `cumulative_experience_thresholds[113]`）——只改 level 不改经验，
-    下一次击杀会被 `progression.ApplyGain` 自动升回 116；② `experience.compat90.json` 的 `level_cap` 150 → **115**。
-  - 排查提示：遇到"装备红字/穿不上但服务端零拒绝"，**先查等级是否 >115**，不要先去查物品数据。
 - 修复副本「点了没反应 / 进不去」并重做 GM 工具（详见 `docs/进度-20260917-副本可进性与GM工具.md`）：
   - **副本导入层三处根因**（`internal/catalog/dungeons.go`）：① `[map specification]` 允许一个房间节点挂多张地图（实测副本 86 boss 房 4 张），旧代码按固定 4 格分组导致 `len%4!=0`、整张 maze 判废；② `[start map]`/`[boss map]` 允许多组坐标（副本 92 是 (1,4)(3,4)），`[boss map]=-1 -1` 是"无 BOSS 房"哨兵；③ `[quest connection]` 第三格是任务链接标记（实测有 -1/2），旧代码只认 -1，把完整 maze 判废后反而再生成一张 `quest==0` 的重复 maze；另支持 `boss_selection_probability` 标签（`地图ID,权重` 交替）。多出的地图记入新增的 `DungeonRoom.Alternates` 并一并导入地图目录。
   - **服务端选取策略**（`internal/dungeon/session.go`）：不再"匹配到第二张同 quest 的 maze 就报 `ambiguous source maze`"（实测 288 个副本受影响），改为跳过 `Pending` 非空的 maze 并按 index 最小确定性选取；起始房地图缺失时退到同节点备选地图。
@@ -56,6 +56,9 @@
 - 恢复并闭环个人金库（Safe I / Old Iron Safe）物品存取全链路实现（依据 `docs/金库功能实现迁移报告.md`）：
   - 修复放入金库报「目标容器已满」问题：开放 CMD 19 金库容器类型 `2` 处理链路，避免被误判为非法容器返回拒绝码 `4`。
   - 修复取出物品后金库原槽位残留「0 金币」问题：清空槽位下发 `EmptyOrdinaryItem`（`template = 0xFFFFFFFF`），触发客户端原生删除函数清理槽位。
+  - 修复金库内部无法移动物品位置缺陷：识别客户端实机抓包反转请求（拖拽至空格子时空槽位在 `SourceSlot`、原槽位在 `DestinationSlot`、`Count=0`），自动规范化对调，支持空槽位位移、同类堆叠合并与不同物品互换（Swap）。
+  - 修复可堆叠物品存入金库被拆散缺陷：实现优先合并逻辑，存入时自动按槽位升序补齐金库已有未满同类堆叠（最高 1000），仅在所有同类堆叠全满后才占用新空格子。
+  - 优化网关变动槽位同步：`moveVault` 比对事务前后金库状态集，全量收集所有发生变动（清空/新增/数量增减）的槽位按序下发 NOTI 14，彻底杜绝增量刷新遗漏。
   - `internal/game/protocol/vault.go` & `vault_test.go`: 实现 `PersonalVaultRestore`，支持包含物品的 NOTI 13 编码及单测。
   - `internal/game/protocol/inventory.go`: `InventorySpaceUpdate` 开放空间类型 `2`（金库空间增量更新）。
   - `internal/game/protocol/empty_item.go` & `empty_item_test.go`: 新增 `EmptyOrdinaryItem` 生成 181 字节清空槽位记录及单测。
@@ -94,3 +97,15 @@
 ## 2026-09-16
 - 初始化项目
 
+## 2026-09-17 本侧补充（paranoiahua）
+
+- **修正一处错误结论 + 修掉一个会让人误判很久的坑：角色等级超过 115 会导致客户端无法穿戴任何装备**
+  （详见 `docs/进度-20260917-副本可进性与GM工具.md` §3.3）：
+  - 症状：角色 >115 级时，装备提示中"xx级以上可以使用"那一行**全部变红**、拖拽穿戴无效；
+    因为请求在**客户端本地就被拦掉**，服务端日志里**没有任何 `equipment_move_refused`**，极易误判为"服务端正常"。
+  - 根因：本 115 版客户端的等级表上限是 115；客户端**能读出**服务端下发的 116 级，但用它做装备需求判定时整体失效。
+    而服务端经验规则 `configs/experience.compat90.json` 的 `level_cap` 原为 **150**，允许涨到 116+。
+  - 修复：① 角色 `state.level` 与 `state.experience` **一起**改回 115 级门槛值
+    （`configs/progression.next25.json` 的 `cumulative_experience_thresholds[113]`）——只改 level 不改经验，
+    下一次击杀会被 `progression.ApplyGain` 自动升回 116；② `experience.compat90.json` 的 `level_cap` 150 → **115**。
+  - 排查提示：遇到"装备红字/穿不上但服务端零拒绝"，**先查等级是否 >115**，不要先去查物品数据。

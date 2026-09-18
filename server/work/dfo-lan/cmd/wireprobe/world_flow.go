@@ -17,6 +17,8 @@ import (
 )
 
 type worldSession struct {
+	characters         *character.Service
+	pilotDeath         *odysseyDeath
 	service            *world.Service
 	account            int64
 	role               storage.Character
@@ -29,6 +31,7 @@ type worldSession struct {
 	professions        catalog.Characters
 	inTutorial         bool
 	fatigue            *character.FatigueService
+	lastFatigueDay     string
 	quests             *quest.Service
 	progression        *character.ProgressionService
 	loot               *loot.Service
@@ -46,6 +49,7 @@ type worldSession struct {
 	answeredQuests     map[uint16]bool
 	soloPartyBootstrap bool
 	soloPartyReady     bool
+	specialWarpPending bool
 }
 
 func (w *worldSession) enter(role storage.Character, spawn storage.WorldPosition) error {
@@ -60,8 +64,11 @@ func (w *worldSession) enter(role storage.Character, spawn storage.WorldPosition
 		return e
 	}
 	w.role, w.level, w.state = role, state.Level, saved
+	w.lastFatigueDay = ""
 	w.activeDungeon = nil
+	w.pilotDeath = nil
 	w.soloPartyReady = false
+	w.specialWarpPending = false
 	w.selectingDungeon = false
 	w.completionSent = false
 	w.resultSent = false
@@ -96,11 +103,12 @@ func (w *worldSession) handle(id uint16, p []byte, send func(byte, uint16, []byt
 			return e
 		}
 	case 36:
+		w.specialWarpPending = false
 		r, e := protocol.DecodeAreaChangeRequest(p)
 		if e != nil {
 			return e
 		}
-		next, e = w.service.Transition(w.level, old.Position, r)
+		next, e = w.areaTransition(r)
 		if e != nil {
 			event(map[string]any{"kind": "area_refused", "town": r.Town, "area": r.Area, "reason": e.Error()})
 			// Code 8 is the native level refusal; code 4 reaches the generic refusal

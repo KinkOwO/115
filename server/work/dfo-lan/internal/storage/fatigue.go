@@ -25,7 +25,12 @@ func (s *Store) MigrateFatigue(ctx context.Context) error {
  map_id bigint NOT NULL CHECK(map_id > 0), day date NOT NULL,
  cost integer NOT NULL CHECK(cost BETWEEN 0 AND 65535),
  created_at timestamptz NOT NULL DEFAULT now(),
- PRIMARY KEY(character_id,run_id,map_id));`)
+ PRIMARY KEY(character_id,run_id,map_id));
+ CREATE TABLE IF NOT EXISTS character_fatigue_recovery (
+ character_id bigint NOT NULL REFERENCES characters(id), template bigint NOT NULL,
+ day date NOT NULL, ordinal integer NOT NULL, restored integer NOT NULL,
+ used_at timestamptz NOT NULL,
+ PRIMARY KEY(character_id,template,day,ordinal));`)
 	return e
 }
 
@@ -48,7 +53,7 @@ func (s *Store) ConsumeRoomFatigue(ctx context.Context, account, id int64, day s
  ON CONFLICT(character_id) DO UPDATE SET
  used=CASE WHEN EXCLUDED.day>character_fatigue.day THEN 0 ELSE character_fatigue.used END,
  used_max=CASE WHEN EXCLUDED.day>character_fatigue.day THEN 0 ELSE character_fatigue.used_max END,
- daily_limit=CASE WHEN EXCLUDED.day>character_fatigue.day THEN EXCLUDED.daily_limit ELSE character_fatigue.daily_limit END,
+ daily_limit=CASE WHEN EXCLUDED.day>=character_fatigue.day THEN EXCLUDED.daily_limit ELSE character_fatigue.daily_limit END,
  day=GREATEST(EXCLUDED.day,character_fatigue.day),updated_at=now()
  RETURNING day::text,used,daily_limit,used_max`, account, id, day, limit).Scan(&out.Day, &out.Used, &out.Limit, &out.UsedMax)
 	if e != nil {
@@ -63,7 +68,19 @@ func (s *Store) ConsumeRoomFatigue(ctx context.Context, account, id int64, day s
 		return out, false, tx.Commit(ctx)
 	}
 	if cost > 0 && out.Used >= out.Limit {
-		return out, false, ErrFatigueExhausted
+		// Once a run paid for entry, reaching zero must not strand its next
+		// room during the loading handshake. A free/exempt receipt does not
+		// authorize a new paid run. The locked character row serializes this
+		// check with concurrent charges; retries still use the room ledger.
+		var paidRun bool
+		e = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM character_fatigue_rooms WHERE character_id=$1 AND run_id=$2 AND cost>0)`, id, run).Scan(&paidRun)
+		if e != nil {
+			return out, false, e
+		}
+		if !paidRun {
+			return out, false, ErrFatigueExhausted
+		}
+		cost = 0
 	}
 	// A room is affordable whenever some fatigue remains. Clamp at zero;
 	// configurable costs never wrap the unsigned wire counters.
@@ -97,7 +114,7 @@ func (s *Store) LoadFatigue(ctx context.Context, account, id int64, day string, 
  ON CONFLICT(character_id) DO UPDATE SET
  used=CASE WHEN EXCLUDED.day>character_fatigue.day THEN 0 ELSE character_fatigue.used END,
  used_max=CASE WHEN EXCLUDED.day>character_fatigue.day THEN 0 ELSE character_fatigue.used_max END,
- daily_limit=CASE WHEN EXCLUDED.day>character_fatigue.day THEN EXCLUDED.daily_limit ELSE character_fatigue.daily_limit END,
+ daily_limit=CASE WHEN EXCLUDED.day>=character_fatigue.day THEN EXCLUDED.daily_limit ELSE character_fatigue.daily_limit END,
  day=GREATEST(EXCLUDED.day,character_fatigue.day),updated_at=now()
  RETURNING day::text,used,daily_limit,used_max`, account, id, day, limit).Scan(&out.Day, &out.Used, &out.Limit, &out.UsedMax)
 	return out, e

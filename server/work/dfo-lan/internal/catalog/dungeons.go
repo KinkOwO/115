@@ -23,23 +23,43 @@ type DungeonMaze struct {
 	// 与任务 ID 无关，规则引擎不建模它，按原样保留备查。
 	QuestFlag         int32 `json:"quest_flag,omitempty"`
 	Size, Start, Boss [2]byte
-	Rooms             []DungeonRoom `json:"rooms"`
-	Pending           []string      `json:"pending,omitempty"`
+	Rooms             []DungeonRoom  `json:"rooms"`
+	Layers            []DungeonLayer `json:"layers,omitempty"`
+	Pending           []string       `json:"pending,omitempty"`
+}
+type DungeonLayer struct {
+	Position [2]byte  `json:"position"`
+	Maps     []uint32 `json:"maps"`
 }
 type DungeonDefinition struct {
 	ID                       uint32       `json:"id"`
 	Script                   ScriptRecord `json:"script"`
 	MinimumLevel, BasisLevel uint32
 	Tutorial, NoFatigue      bool
+	Odyssey                  bool
+	DesignatedDifficulty     byte
+	HuntBoss                 uint32        // Source Odyssey [hunt boss] single-target completion.
 	Mazes                    []DungeonMaze `json:"mazes"`
 }
 type DungeonCatalog struct {
-	Source   pvf.ArchiveSnapshot          `json:"source"`
-	Dungeons map[uint32]DungeonDefinition `json:"dungeons"`
-	Maps     map[uint32]ScriptRecord      `json:"maps"`
-	// 批量导入时被跳过的条目（ID 已不在 list/*.lst 里，或脚本解析失败）。
-	// 只做记录，不影响目录本身。
-	Skipped []string `json:"skipped,omitempty"`
+	Source      pvf.ArchiveSnapshot          `json:"source"`
+	Dungeons    map[uint32]DungeonDefinition `json:"dungeons"`
+	Maps        map[uint32]ScriptRecord      `json:"maps"`
+	Skipped     []string                     `json:"skipped,omitempty"`
+	SceneRoutes []DungeonSceneRoute          `json:"scene_routes,omitempty"`
+}
+
+// DungeonSceneRoute is generated from the maze order and original CMT/ACT landing area.
+type DungeonSceneRoute struct {
+	Source        string   `json:"source"`
+	Dungeon       uint32   `json:"dungeon"`
+	Maze          byte     `json:"maze"`
+	Position      [2]byte  `json:"position"`
+	From          uint32   `json:"from_map"`
+	To            uint32   `json:"to_map"`
+	Record        [18]byte `json:"record"`
+	DungeonSHA256 string   `json:"dungeon_sha256"`
+	MapSHA256     string   `json:"map_sha256"`
 }
 
 func dungeonPair(c []pvf.Token) (r [2]byte, e error) {
@@ -78,6 +98,22 @@ func sourceFirstPair(c []pvf.Token, absentOK bool) ([2]byte, error) {
 }
 func ParseDungeon(id uint32, s ScriptRecord) (DungeonDefinition, error) {
 	d := DungeonDefinition{ID: id, Script: s}
+	mode := sectionCells(s.Cells, "[dungeon mode script]")
+	d.Odyssey = len(mode) == 1 && mode[0].Type == 6 && mode[0].Text == "arad odyssey"
+	if d.Odyssey {
+		hunt := sectionCells(s.Cells, "[hunt boss]")
+		if len(hunt) > 0 {
+			if len(hunt) != 2 || hunt[0].Type != 0 || hunt[0].Value <= 0 || hunt[1].Type != 0 || hunt[1].Value != 1 {
+				return d, fmt.Errorf("unsupported Odyssey hunt boss condition")
+			}
+			d.HuntBoss = uint32(hunt[0].Value)
+		}
+		v := sectionCells(s.Cells, "[designate dungeon difficulty]")
+		if len(v) != 1 || v[0].Type != 0 || v[0].Value < 0 || v[0].Value > 4 {
+			return d, fmt.Errorf("invalid Odyssey designated difficulty")
+		}
+		d.DesignatedDifficulty = byte(v[0].Value)
+	}
 	for _, pair := range []struct {
 		name string
 		dst  *uint32
@@ -141,10 +177,12 @@ func ParseDungeon(id uint32, s ScriptRecord) (DungeonDefinition, error) {
 			// 节点标签：map / boss 后面跟 1..N 个地图 ID；
 			// boss_selection_probability 后面跟交替的 (地图 ID, 权重)
 			// （实测 contents/2024/snk/.../farming_1.dgn 的随机 BOSS 房）。
+			seen := map[[2]byte]bool{}
+			layered := map[[2]byte]bool{}
 			for j := 0; j < len(nodes); {
 				label := nodes[j]
 				weighted := label.Type == 6 && label.Text == "boss_selection_probability"
-				if label.Type != 6 || (label.Text != "map" && label.Text != "boss" && !weighted) {
+				if label.Type != 6 || (label.Text != "map" && label.Text != "boss" && label.Text != "layered" && !weighted) {
 					m.Pending = append(m.Pending, "invalid room specification")
 					break
 				}
@@ -164,6 +202,34 @@ func ParseDungeon(id uint32, s ScriptRecord) (DungeonDefinition, error) {
 					m.Pending = append(m.Pending, "invalid room specification")
 					break
 				}
+				if label.Text == "layered" {
+					if layered[xy] {
+						m.Pending = append(m.Pending, "duplicate layered room")
+						break
+					}
+					layered[xy] = true
+					layer := DungeonLayer{Position: xy}
+					bad := false
+					for _, cell := range nodes[j+3 : end] {
+						if cell.Type != 0 || cell.Value <= 0 {
+							bad = true
+							break
+						}
+						layer.Maps = append(layer.Maps, uint32(cell.Value))
+					}
+					if bad {
+						m.Pending = append(m.Pending, "invalid layer map")
+						break
+					}
+					m.Layers = append(m.Layers, layer)
+					j = end
+					continue
+				}
+				if d.Odyssey && seen[xy] {
+					m.Pending = append(m.Pending, "duplicate base room")
+					break
+				}
+				seen[xy] = true
 				room := DungeonRoom{X: xy[0], Y: xy[1], Boss: label.Text != "map"}
 				bad := false
 				fields := nodes[j+3 : end]
@@ -196,6 +262,11 @@ func ParseDungeon(id uint32, s ScriptRecord) (DungeonDefinition, error) {
 				}
 				m.Rooms = append(m.Rooms, room)
 				j = end
+			}
+			for xy := range layered {
+				if !seen[xy] {
+					m.Pending = append(m.Pending, "layered room has no base map")
+				}
 			}
 		}
 		d.Mazes = append(d.Mazes, m)
@@ -267,6 +338,11 @@ func ImportDungeons(a *pvf.Archive, ids []uint32) (DungeonCatalog, error) {
 					importMap(alt)
 				}
 			}
+			for _, layer := range m.Layers {
+				for _, id := range layer.Maps {
+					importMap(id)
+				}
+			}
 		}
 	}
 	out.Skipped = skipped
@@ -292,7 +368,89 @@ func LoadDungeons(path string) (DungeonCatalog, error) {
 		if e != nil {
 			return c, e
 		}
+		for i := range parsed.Mazes {
+			for _, layer := range parsed.Mazes[i].Layers {
+				for _, mapID := range layer.Maps {
+					if _, ok := c.Maps[mapID]; !ok {
+						parsed.Mazes[i].Pending = append(parsed.Mazes[i].Pending, fmt.Sprintf("layer map %d not imported", mapID))
+					}
+				}
+			}
+		}
 		c.Dungeons[id] = parsed
 	}
+	seenRoutes := map[string]bool{}
+	for _, route := range c.SceneRoutes {
+		key := fmt.Sprintf("%d/%d/%d/%x", route.Dungeon, route.Maze, route.From, route.Record)
+		d, ok := c.Dungeons[route.Dungeon]
+		if !ok || !d.Odyssey || seenRoutes[key] || route.Source != c.Source.Checksum || route.DungeonSHA256 != d.Script.SHA256 || route.MapSHA256 == "" || route.MapSHA256 != c.Maps[route.From].SHA256 {
+			return c, fmt.Errorf("invalid or duplicate scene route %v", key)
+		}
+		seenRoutes[key] = true
+		if _, ok := c.Maps[route.To]; !ok {
+			return c, fmt.Errorf("scene target map missing %d", route.To)
+		}
+		if !SceneRouteInMaze(d, route) {
+			return c, fmt.Errorf("scene route differs from source maze %v", key)
+		}
+	}
+	// Catalogs without scene routes remain compatible with earlier releases.
+	// Once enabled, refuse partial exports at startup instead of mid-dungeon.
+	if len(c.SceneRoutes) > 0 {
+		for _, d := range c.Dungeons {
+			if !d.Odyssey {
+				continue
+			}
+			for _, m := range d.Mazes {
+				for _, layer := range m.Layers {
+					var previous uint32
+					for _, room := range m.Rooms {
+						if [2]byte{room.X, room.Y} == layer.Position {
+							previous = room.Map
+						}
+					}
+					for _, next := range layer.Maps {
+						found := false
+						for _, r := range c.SceneRoutes {
+							if r.Dungeon == d.ID && r.Maze == m.Index && r.Position == layer.Position && r.From == previous && r.To == next {
+								found = true
+								break
+							}
+						}
+						if !found {
+							return c, fmt.Errorf("missing scene route dungeon%d map%d->%d", d.ID, previous, next)
+						}
+						previous = next
+					}
+				}
+			}
+		}
+	}
 	return c, nil
+}
+
+func SceneRouteInMaze(d DungeonDefinition, r DungeonSceneRoute) bool {
+	for _, maze := range d.Mazes {
+		if maze.Index != r.Maze {
+			continue
+		}
+		for _, layer := range maze.Layers {
+			if layer.Position != r.Position {
+				continue
+			}
+			var previous uint32
+			for _, room := range maze.Rooms {
+				if [2]byte{room.X, room.Y} == r.Position {
+					previous = room.Map
+				}
+			}
+			for _, id := range layer.Maps {
+				if previous == r.From && id == r.To {
+					return true
+				}
+				previous = id
+			}
+		}
+	}
+	return false
 }

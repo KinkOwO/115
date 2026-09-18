@@ -48,6 +48,7 @@ func (s *FatigueService) day(now time.Time) string {
 	}
 	return local.Format("2006-01-02")
 }
+func (s *FatigueService) Day(now time.Time) string { return s.day(now) }
 func (s *FatigueService) State(ctx context.Context, account, id int64, now time.Time) (storage.FatigueState, error) {
 	return s.Store.LoadFatigue(ctx, account, id, s.day(now), s.Rules.DailyLimit)
 }

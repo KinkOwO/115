@@ -17,8 +17,9 @@ func UserInfoBasicProbe(s EntryBasicProbe) ([]byte, error) {
 	if s.ActorServerID == 0 || s.ActorServerID == 0xffff || r.Level == 0 {
 		return nil, fmt.Errorf("invalid entry actor identity or level")
 	}
-	if len(r.Equipment) != 0 {
-		return nil, fmt.Errorf("entry equipment bootstrap is not recovered")
+	appearance, err := EquipmentAppearance(r.Equipment)
+	if err != nil {
+		return nil, err
 	}
 	if _, _, err := parseName(addName(nil, r.Name)); err != nil {
 		return nil, err
@@ -29,8 +30,8 @@ func UserInfoBasicProbe(s EntryBasicProbe) ([]byte, error) {
 	p = append(p, make([]byte, 160)...)
 	p = addName(add16(p, s.ActorServerID), r.Name)
 	p = append(p, r.Profession, r.Advancement, r.Level, 0, 0)
-	p = append(p, 0) // 0x145639840: equipped appearance count
-	p = add32(p, 0)  // 0x14563f0f1
+	p = append(p, appearance...) // 145639840, including mandatory blob lengths
+	p = add32(p, 0)              // 0x14563f0f1
 	p = append(p, 0, 0, 0, 0)
 	p = append(p, 0) // 0x145639b70: cosmetic count
 	p = add32(add32(p, 0), 0)
@@ -58,7 +59,13 @@ func UserInfoBasicProbe(s EntryBasicProbe) ([]byte, error) {
 	p = append(p, 0, 0, 0)
 	p = add32(p, 0)
 	p = add32(p, 0) // 0x14563c140: count, no nested u32 pairs
-	p = append(p, 0, 0, 0, 0, 0, 0)
+	// Native 145640932 reads the sixth byte into info+672.
+	// 1402cd740 tests info+672 == 5 for [is arad odyssey user].
+	var mode byte
+	if r.Odyssey {
+		mode = 5
+	}
+	p = append(p, 0, 0, 0, 0, 0, mode)
 	p = add32(add32(add32(p, 0), 0), 0)
 	return p, nil
 }

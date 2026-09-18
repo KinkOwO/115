@@ -102,29 +102,51 @@ type DungeonMonster struct {
 	Team        uint32   // Current actor affiliation: source team0 friendly, default100 enemy.
 	NonCombat   bool     // Source team0/dummy; still spawned for native cinematic scripts.
 	SourceTail  [2]int32 // Map row fields6/7, retained separately from spawn count.
+	APC         bool     // Fixed map AIC; uses ranks5..8 and its own source row index.
 }
 type StartMapState struct {
-	Position  [2]byte
-	Seed, Map uint32
-	Monsters  []DungeonMonster
+	ReuseRoom   bool
+	LayerChange bool
+	Transition  *[18]byte
+	Position    [2]byte
+	Seed, Map   uint32
+	Monsters    []DungeonMonster
 }
 
 func StartMap(s StartMapState) ([]byte, error) {
 	if s.Map == 0 || len(s.Monsters) > 255 {
 		return nil, fmt.Errorf("invalid start map")
 	}
+	if s.ReuseRoom && (s.LayerChange || len(s.Monsters) != 0) {
+		return nil, fmt.Errorf("cached room cannot initialize layers or monsters")
+	}
 	p := append([]byte{}, s.Position[0], s.Position[1], 0)
+	if s.LayerChange {
+		if s.Transition == nil {
+			return nil, fmt.Errorf("layer transition record required")
+		}
+		p[2] = 1
+	}
 	p = add32(p, s.Seed)
 	p = append(p, 0, 0)
 	p = add32(p, 0xffffffff)
 	// Native transition record defaults at1452b7494..4a7, consumed18 bytes.
 	p = append(p, 0, 0, 0, 0, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 0, 0, 0)
+	if s.Transition != nil {
+		copy(p[13:31], s.Transition[:])
+	}
+	// Native1452b78f0 skips map/spawn rows for mode0. The constructor at
+	// 145b235b0 then retains the cached map and its one-shot ACT triggers.
+	if s.ReuseRoom {
+		return append(p, 0, 0, 255), nil // mode0, no groups, no other-party actor
+	}
 	p = append(p, 1)
 	p = add32(p, s.Map)
 	p = append(p, byte(len(s.Monsters)))
 	seen := map[uint16]bool{}
 	for _, m := range s.Monsters {
-		if m.Entity == 0 || m.Entity == 65535 || seen[m.Entity] || m.Level == 0 || m.Template == 0 || m.Rank > 3 || (m.Team != 0 && m.Team != 100) {
+		validRank := !m.APC && m.Rank <= 3 || m.APC && m.Rank >= 5 && m.Rank <= 8 && m.SourceIndex < 64
+		if m.Entity == 0 || m.Entity == 65535 || seen[m.Entity] || m.Template == 0 || !validRank || m.Team > 0x7fffffff {
 			return nil, fmt.Errorf("invalid monster identity")
 		}
 		seen[m.Entity] = true
@@ -183,4 +205,22 @@ func DecodeMoveDungeonRoom(p []byte) ([2]byte, error) {
 		return [2]byte{}, fmt.Errorf("invalid room transition flag")
 	}
 	return [2]byte{p[0], p[1]}, nil
+}
+
+type DungeonRoomTransition struct {
+	Position    [2]byte
+	LayerChange bool
+	Record      [18]byte
+	Dungeon     uint32
+}
+
+func DecodeDungeonRoomTransition(p []byte) (r DungeonRoomTransition, err error) {
+	r.Position, err = DecodeMoveDungeonRoom(p)
+	if err != nil {
+		return r, err
+	}
+	r.LayerChange = p[10] == 1
+	copy(r.Record[:], p[132:150])
+	r.Dungeon = binary.LittleEndian.Uint32(p[151:155])
+	return r, nil
 }

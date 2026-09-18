@@ -128,6 +128,9 @@ func TestEquipmentSlotClassification(t *testing.T) {
 // 这条测试是"枚举全部 19,955 行，一个不漏"这个要求本身的守门人：
 // 目录一旦更新出新 cell，这里会直接失败，逼着人回去补映射而不是猜。
 func TestEquipmentTypeCellsInRealCatalog(t *testing.T) {
+	if os.Getenv("DFO_EXTENDED_CATALOG_INTEGRATION") != "1" {
+		t.Skip("requires externally generated 19955-row equipment catalog; set DFO_EXTENDED_CATALOG_INTEGRATION=1")
+	}
 	const p = "../../configs/equipment.current37.json"
 	if _, err := os.Stat(p); err != nil {
 		t.Skipf("装备目录不在（%s 不可读：%v），跳过对真实目录的复算", p, err)

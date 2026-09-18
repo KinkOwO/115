@@ -1,23 +1,36 @@
 package protocol
 
-import "fmt"
+import (
+	"encoding/binary"
+	"fmt"
+)
 
 // NOTI13, native1452d5a80: inventory kind2, u16 slot capacity, u16 item
-// count followed by 181-byte item structures. Empty rows skip item structures.
-func PersonalVaultRestore(slots uint16, items [][CurrentItemRecordSize]byte) ([]byte, error) {
+// count. Empty rows skip 181-byte item structures and have no further reads.
+func EmptyPersonalVault(slots uint16) ([]byte, error) {
+	return PersonalVault(slots, nil)
+}
+
+// Kind 2 reads capacity, count and exactly 181 bytes per row. Native
+// 1452d61da and 1459a01e0/1459a0220 confirm there is no avatar/period tail.
+// 145ad8d10 bounds-checks zero-based slots against capacity.
+func PersonalVault(slots uint16, rows [][CurrentItemRecordSize]byte) ([]byte, error) {
 	if slots == 0 {
 		return nil, fmt.Errorf("vault capacity must select a valid client grade")
 	}
-	if len(items) > 65535 {
-		return nil, fmt.Errorf("too many vault items")
+	for _, row := range rows {
+		if binary.LittleEndian.Uint16(row[:]) >= slots {
+			return nil, fmt.Errorf("vault slot outside capacity")
+		}
 	}
-	p := add16(add16([]byte{2}, slots), uint16(len(items)))
-	for _, r := range items {
-		p = append(p, r[:]...)
+	p, e := itemRows(rows)
+	if e != nil {
+		return nil, e
 	}
-	return p, nil
+	return append(add16([]byte{2}, slots), p...), nil
 }
 
-func EmptyPersonalVault(slots uint16) ([]byte, error) {
-	return PersonalVaultRestore(slots, nil)
+// PersonalVaultRestore retains the upstream API with slot validation.
+func PersonalVaultRestore(slots uint16, rows [][CurrentItemRecordSize]byte) ([]byte, error) {
+	return PersonalVault(slots, rows)
 }
