@@ -70,6 +70,19 @@ func main() {
 	vaultPurchase := flag.Bool("vault-purchase-candidate", os.Getenv("DFO_VAULT_PURCHASE_CANDIDATE") == "1", "enable isolated vault purchase candidate")
 	vaultRelease := flag.Bool("vault-purchase-release", os.Getenv("DFO_VAULT_PURCHASE_RELEASE") == "1", "enable accepted personal vault purchases in release profile")
 	flag.Parse()
+	if *fullEquipmentFile == "" {
+		for _, cand := range []string{
+			"configs/equipment-full",
+			"cmd/wireprobe/testdata/odyssey-equipment",
+		} {
+			if _, err := os.Stat(cand + ".index.json"); err == nil {
+				if _, err := os.Stat(cand + ".data"); err == nil {
+					*fullEquipmentFile = cand
+					break
+				}
+			}
+		}
+	}
 	if *shopPilotFile == "" {
 		for _, cand := range []string{
 			"configs/shop-vault-release.json",

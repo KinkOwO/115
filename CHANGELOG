@@ -4,6 +4,11 @@
 
 
 ## 2026-09-18
+- 修复奥德赛（Arad Odyssey）初始防具发放与自选武器礼盒选择开箱：
+  - **根因消除**（`equipment definition missing`）：原精简版装备表（3,174 行）未包含奥德赛初始 8 件防具首饰（`100051399` ~ `100323647`）及自选武器盒内 42 把各职业武器定义，导致进游戏发放防具事务回滚为 pending、玩家使用武器盒（CMD 160）选择武器时因查不到武器定义被拒下发 `Refusal(4)`，客户端提示「背包已满或使用失败」；
+  - **全量装备索引构建**（`cmd/equipmentfullimport`）：解密解包内层 PVF（565 万文件），完整导出生成含 424,216 项装备定义的穿戴索引 `configs/equipment-full.index.json` 与压缩数据 `equipment-full.data`；
+  - **动态目录与规则自动挂载**（`channel_probe.py` & `main.go`）：探针在奥德赛模式下自动挂载完整装备穿戴目录 `equipment-full`、全穿戴规则 `equipment-wear.full-candidate.json`（支持 38 部位）、自选武器箱规则 `odyssey-weapon-box-release.json` 及硬币掉落规则 `odyssey-currency.json`，并将奖励角色判定对齐 `character.OdysseyRole`；
+  - **实机验证**：实机验证进游戏自动补发 8 件专属初始防具首饰到角色背包，右键打开自选武器箱可正常选择对应职业专属武器并成功入包消耗箱子。
 - 修复奥德赛（Arad Odyssey）模式角色创建与模式双向自适应投影：
   - **创建角色阻断修复**（`internal/character/service.go`）：修复在奥德赛规则启用 `AllJobsPilot` 时，创建未配置初始成长表的分支职业（如暗夜使者 Job 12、弓箭手 Job 16 等）被致命拒绝 `source growth missing for job %d advancement %d` 的问题，放宽强校验以基础职业兜底正常创建；
   - **模式双向自适应投影**（`internal/character/odyssey.go` & `service.go`）：彻底拆除 `service.IsOdyssey` 的单一静态规则拦截；根据当前启动模式 `DFO_ODYSSEY_MODE` 动态自适应——启动剧情模式（`DFO_ODYSSEY_MODE=0`）所有角色投影为剧情角色（mode=0），启动奥德赛模式（`DFO_ODYSSEY_MODE=1`）所有角色投影为奥德赛角色（mode=5），彻底消除客户端因频道与角色模式不匹配导致的「This channel is not available in Arad Odyssey mode」弹窗与黑屏闪退；

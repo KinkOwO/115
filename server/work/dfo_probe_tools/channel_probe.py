@@ -396,6 +396,47 @@ with (
     "  或设 DFO_DUNGEON_CATALOG 指向已有目录；确实要用 11 个副本的默认表请显式指过去。"
     % (dungeon_catalog, dungeon_catalog)
    )
+ if odyssey_mode:
+  coin_rules = project / "configs/odyssey-currency.json"
+  if os.environ.get("DFO_ODYSSEY_COIN_RULES"):
+   coin_override = pathlib.Path(os.environ["DFO_ODYSSEY_COIN_RULES"])
+   if not coin_override.is_absolute():
+    coin_override = (project / coin_override).resolve()
+   if coin_override.exists():
+    os.environ["DFO_ODYSSEY_COIN_RULES"] = str(coin_override)
+  elif coin_rules.exists():
+   os.environ["DFO_ODYSSEY_COIN_RULES"] = str(coin_rules.resolve())
+
+  weapon_box = project / "configs/odyssey-weapon-box-release.json"
+  if os.environ.get("DFO_ODYSSEY_WEAPON_BOX"):
+   box_override = pathlib.Path(os.environ["DFO_ODYSSEY_WEAPON_BOX"])
+   if not box_override.is_absolute():
+    box_override = (project / box_override).resolve()
+   if box_override.exists():
+    os.environ["DFO_ODYSSEY_WEAPON_BOX"] = str(box_override)
+    os.environ["DFO_ODYSSEY_REWARDS_RELEASE"] = "1"
+  elif weapon_box.exists():
+   os.environ["DFO_ODYSSEY_WEAPON_BOX"] = str(weapon_box.resolve())
+   os.environ["DFO_ODYSSEY_REWARDS_RELEASE"] = "1"
+
+  odyssey_growth = project / "configs/odyssey-growth-release.json"
+  if os.environ.get("DFO_ODYSSEY_GROWTH"):
+   growth_override = pathlib.Path(os.environ["DFO_ODYSSEY_GROWTH"])
+   if not growth_override.is_absolute():
+    growth_override = (project / growth_override).resolve()
+   if growth_override.exists():
+    os.environ["DFO_ODYSSEY_GROWTH"] = str(growth_override)
+  elif odyssey_growth.exists():
+   os.environ["DFO_ODYSSEY_GROWTH"] = str(odyssey_growth.resolve())
+
+  eq_full = project / "configs/equipment-full"
+  if (project / "configs/equipment-full.index.json").exists() and (
+   project / "configs/equipment-full.data"
+  ).exists():
+   os.environ["DFO_EQUIPMENT_FULL_CATALOG"] = str(eq_full.resolve())
+   eq_wear_full = project / "configs/equipment-wear.full-candidate.json"
+   if eq_wear_full.exists():
+    os.environ["DFO_EQUIPMENT_WEAR_RULES"] = str(eq_wear_full.resolve())
  server = subprocess.Popen(command, stdout=stdout, stderr=stderr, creationflags=flags)
  try:
   ready = out / "ready.json"
