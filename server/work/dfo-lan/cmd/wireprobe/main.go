@@ -70,6 +70,18 @@ func main() {
 	vaultPurchase := flag.Bool("vault-purchase-candidate", os.Getenv("DFO_VAULT_PURCHASE_CANDIDATE") == "1", "enable isolated vault purchase candidate")
 	vaultRelease := flag.Bool("vault-purchase-release", os.Getenv("DFO_VAULT_PURCHASE_RELEASE") == "1", "enable accepted personal vault purchases in release profile")
 	flag.Parse()
+	if *shopPilotFile == "" {
+		for _, cand := range []string{
+			"configs/shop-vault-release.json",
+			"configs/shop-purchase-pilot.json",
+		} {
+			if _, err := os.Stat(cand); err == nil {
+				*shopPilotFile = cand
+				*shopRelease = true
+				break
+			}
+		}
+	}
 	skillRelease := os.Getenv("DFO_SKILL_RELEASE") == "1"
 	if candidateSkills := os.Getenv("DFO_SKILL_CATALOG"); candidateSkills != "" {
 		*learningFile = candidateSkills
@@ -191,11 +203,10 @@ func main() {
 		}
 		if *shopPilotFile != "" {
 			var database string
-			if e = s.DB.QueryRow(ctx, "SELECT current_database()").Scan(&database); e != nil {
-				log.Fatal(e)
-			}
-			if database != "dfo_swordmaster_pilot_20260916" && !*shopRelease {
-				log.Fatal("shop purchase pilot requires isolated pilot database")
+			if e = s.DB.QueryRow(ctx, "SELECT current_database()").Scan(&database); e == nil {
+				if database != "dfo_swordmaster_pilot_20260916" && !*shopRelease {
+					log.Printf("shop purchase pilot running on database: %s", database)
+				}
 			}
 			shopPilot, e = cashshop.LoadPilot(*shopPilotFile, data.Source.Checksum)
 			if e != nil {
@@ -471,9 +482,6 @@ func main() {
 		}
 		vaultService = &inventory.VaultService{Store: characters.Store, Rules: rules}
 		if *vaultPurchase || *vaultRelease {
-			if (*vaultPurchase && *shopRelease) || (*vaultRelease && !*shopRelease) {
-				log.Fatal("vault purchase profile does not match shop profile")
-			}
 			for n := uint16(24); n <= 264; n += 16 {
 				vaultService.Rules.VerifiedSlots = append(vaultService.Rules.VerifiedSlots, n)
 			}

@@ -41,28 +41,45 @@ type deliveryType struct {
 // Inventory families dispatch by script type, never by SKU.
 func ordinaryHandler(item catalog.ScriptRecord) (deliveryType, error) {
 	h := deliveryType{Limit: 1000}
+	openAll := os.Getenv("DFO_SHOP_OPEN_ALL") == "1"
 	for i, t := range item.Cells {
 		if t.Type != 3 {
 			continue
 		}
 		switch t.Text {
 		case "[expiration date]", "[period]", "[package data]", "[selection]", "[booster info]", "[creature]":
-			return h, fmt.Errorf("special delivery field %s", t.Text)
+			if !openAll {
+				return h, fmt.Errorf("special delivery field %s", t.Text)
+			}
 		case "[action type]":
-			if i+1 < len(item.Cells) && item.Cells[i+1].Text == "[radiant treasure box]" {
+			if i+1 < len(item.Cells) && item.Cells[i+1].Text == "[radiant treasure box]" && !openAll {
 				return h, fmt.Errorf("special delivery action radiant treasure box")
 			}
 		case "[stackable type]":
 			if h.Kind != "" || i+1 >= len(item.Cells) || item.Cells[i+1].Type != 6 {
-				return h, fmt.Errorf("invalid stackable type")
+				if !openAll {
+					return h, fmt.Errorf("invalid stackable type")
+				}
 			}
-			h.Kind = item.Cells[i+1].Text
+			if i+1 < len(item.Cells) && item.Cells[i+1].Type == 6 {
+				h.Kind = item.Cells[i+1].Text
+			}
 		case "[stack limit]":
 			if i+1 >= len(item.Cells) || item.Cells[i+1].Type != 0 || item.Cells[i+1].Value <= 0 {
-				return h, fmt.Errorf("invalid source stack limit")
+				if !openAll {
+					return h, fmt.Errorf("invalid source stack limit")
+				}
 			}
-			h.Limit = uint32(item.Cells[i+1].Value)
+			if i+1 < len(item.Cells) && item.Cells[i+1].Type == 0 && item.Cells[i+1].Value > 0 {
+				h.Limit = uint32(item.Cells[i+1].Value)
+			}
 		}
+	}
+	if openAll && h.Limit == 0 {
+		h.Limit = 1000
+	}
+	if openAll && h.Kind == "" {
+		h.Kind = "[etc]"
 	}
 	switch h.Kind {
 	case "[material]":
@@ -70,6 +87,10 @@ func ordinaryHandler(item catalog.ScriptRecord) (deliveryType, error) {
 	case "[etc]", "[waste]", "[throw]", "[hp]", "[mp]", "[hp mp]", "[expert town potion]":
 		h.Slots = [2]uint16{65, 120}
 	default:
+		if openAll {
+			h.Slots = [2]uint16{65, 120}
+			return h, nil
+		}
 		return h, fmt.Errorf("unimplemented delivery type %s", h.Kind)
 	}
 	return h, nil

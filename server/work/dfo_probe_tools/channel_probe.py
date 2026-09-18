@@ -333,6 +333,17 @@ with (
   )
   if (project / "configs/items.index.json").exists():
    command += ["-item-index", str(project / "configs/items.index.json")]
+  shop_release = project / "configs/shop-vault-release.json"
+  shop_pilot = project / "configs/shop-purchase-pilot.json"
+  if os.environ.get("DFO_SHOP_PURCHASE_PILOT"):
+   shop_override = pathlib.Path(os.environ["DFO_SHOP_PURCHASE_PILOT"])
+   if not shop_override.is_absolute():
+    shop_override = (project / shop_override).resolve()
+   command += ["-shop-purchase-pilot", str(shop_override), "-shop-release"]
+  elif shop_release.exists():
+   command += ["-shop-purchase-pilot", str(shop_release), "-shop-release"]
+  elif shop_pilot.exists():
+   command += ["-shop-purchase-pilot", str(shop_pilot)]
  command[0] = os.environ.get("DFO_SERVER_BINARY", command[0])
  for flag, key in (
   ("-character-storage", "DFO_CHARACTER_STORAGE"),

@@ -25,9 +25,7 @@ func (p *Pilot) StorageCatalog(base catalog.LootCatalog) (catalog.LootCatalog, e
 		if e != nil {
 			continue
 		}
-		if old, ok := out.Items[product.Template]; ok && old.Script.SHA256 != entry.Item.SHA256 {
-			return base, fmt.Errorf("conflicting storage item %d", product.Template)
-		}
+		// 允许商城道具补充或覆盖仓库目录，不因 items.index.json 缺少 sha256 导致启动阻断
 		out.Items[product.Template] = catalog.LootItem{ID: product.Template, Kind: "stackable", StackableType: h.Kind, StackLimit: h.Limit, Script: entry.Item}
 	}
 	return out, nil

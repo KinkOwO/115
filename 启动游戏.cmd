@@ -10,6 +10,7 @@ if %errorlevel% neq 0 (
     exit /b
 )
 
+set DFO_SHOP_OPEN_ALL=1
 echo Starting DFO 115us Game Client and Server...
 if exist "tools\python\python.exe" (
     "tools\python\python.exe" "server\work\dfo-lan\scripts\launch_local.py" %*

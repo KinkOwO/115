@@ -168,3 +168,18 @@ func TestShopPilotPVFCurrentCatalog(t *testing.T) {
 	}
 	t.Logf("PVF catalog: %d ordinary SKUs verified end-to-end", len(products))
 }
+
+func TestShopPilotOpenAll(t *testing.T) {
+	t.Setenv("DFO_SHOP_OPEN_ALL", "1")
+	p, e := LoadPilot("../../configs/shop-vault-release.json", "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80")
+	if e != nil {
+		t.Fatal(e)
+	}
+	products, e := p.products()
+	if e != nil {
+		t.Fatal(e)
+	}
+	if len(products) != 1280 {
+		t.Fatalf("expected 1280 enabled products under DFO_SHOP_OPEN_ALL=1, got %d", len(products))
+	}
+}

@@ -219,8 +219,14 @@ func DecodeDungeonRoomTransition(p []byte) (r DungeonRoomTransition, err error) 
 	if err != nil {
 		return r, err
 	}
-	r.LayerChange = p[10] == 1
-	copy(r.Record[:], p[132:150])
-	r.Dungeon = binary.LittleEndian.Uint32(p[151:155])
+	if len(p) >= 11 {
+		r.LayerChange = p[10] == 1
+	}
+	if len(p) >= 150 {
+		copy(r.Record[:], p[132:150])
+	}
+	if len(p) >= 155 {
+		r.Dungeon = binary.LittleEndian.Uint32(p[151:155])
+	}
 	return r, nil
 }
