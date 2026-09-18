@@ -107,26 +107,63 @@ type BagEquipment struct {
 	Period        uint32 `json:"period,omitempty"`
 }
 
+// durabilityOptional 列出**源文件本来就不带 [durability] 段**的部位。
+//
+// 依据：对 `cmd/equipcatalog` 从客户端内层 PVF 全量生成的装备目录（67,874 行）逐部位统计，
+// 下列 17 个 cell 的条目 **100% 没有 [durability]**，括号内是实测条数：
+//
+//	[support]3354 [magic stone]2748 [ring]2512 [wrist]2445 [amulet]2387
+//	[title name]2134 [creature]1775 [talisman]1561 [earring]1387
+//	[amalgamation stone]750 [artifact red]129 [oath]113 [artifact blue]112
+//	[primer]76 [artifact green]46 [charm]41 [support weapon]26
+//
+// 而武器/防具是带耐久的，它们里少数缺耐久的条目（实测：weapon 31/24981、
+// coat 22/4508、waist 15/4083、pants 7/4355、shoulder 5/4091、shoes 5/4253，
+// 合计 85 行）属于源数据不规整，**仍然按缺失拒绝**。
+// [flag] 带耐久（7 行都有），因此不在本表里。
+//
+// 原来这里只硬编码了 [amulet]/[wrist]/[ring] 三个，导致上述 17 个部位里另外 14 个
+// 共 **14,337 条**（21,681 缺耐久行 - 三个首饰部位 7,344 行）装备发不出去，
+// 报 "missing source equipment durability"，玩家侧也穿不上 ——
+// 称号、宠物、护石、辅助装备、魔法石、耳环等整类受害。
+var durabilityOptional = map[string]bool{
+	"[amulet]": true, "[wrist]": true, "[ring]": true,
+	"[earring]": true, "[support]": true, "[magic stone]": true, "[support weapon]": true,
+	"[title name]": true, "[talisman]": true, "[creature]": true,
+	"[amalgamation stone]": true, "[oath]": true, "[primer]": true, "[charm]": true,
+	"[artifact red]": true, "[artifact blue]": true, "[artifact green]": true,
+}
+
+// poolJewelry 是"没有耐久但原本就能进掉落池"的三个首饰部位。
+// 2026-09-18 放宽耐久规则之前，Reward 只给这三个部位免了耐久，所以它们本来就在池子里。
+var poolJewelry = map[string]bool{"[amulet]": true, "[wrist]": true, "[ring]": true}
+
 // Reward accepts the gear a quest or an operator hands out. It keeps every
-// structural check Basic makes - exactly one attach-type cell, a readable
-// rarity, a known equipment kind, a usable durability - but not Basic's two
-// drop-pool rules: a reward may be account- or character-bound, and it may be
-// rarer than rare. Live capture 20260912T011904 shows quest 21650 refused four
-// times as "special equipment reward requires additional source state" after
-// its template was imported, because 100261068 is bound gear; the reward is
-// ordinary, it simply is not pool gear.
+// structural check Basic makes - a readable rarity, a known equipment kind, a
+// usable durability - but not Basic's two drop-pool rules: a reward may be
+// account- or character-bound, and it may be rarer than rare. Live capture
+// 20260912T011904 shows quest 21650 refused four times as "special equipment
+// reward requires additional source state" after its template was imported,
+// because 100261068 is bound gear; the reward is ordinary, it simply is not
+// pool gear.
+//
+// 2026-09-18 放宽两处（发放路径）：
+//  1. **不再要求恰好一个 [attach type]**：源里有 817 件装备（如 100051124 上衣）
+//     的 .equ 里根本没有 [attach type] 段；发放行（EquipmentRow）并不使用该字段，
+//     绑定与否只影响"能不能掉"，所以发放不再据此拒绝（掉落侧见 Basic）。
+//  2. **[durability] 缺失只对 durabilityOptional 里的部位放行**（见上表）。
 func (c *EquipmentCatalog) Reward(id uint32) (uint16, error) {
 	r, err := c.Definition(id)
 	if err != nil {
 		return 0, err
 	}
-	attach, rarity, kind := r.Fields["[attach type]"], r.Fields["[rarity]"], r.Fields["[equipment type]"]
-	if len(attach) != 1 || len(rarity) != 1 || rarity[0].Type != 0 || rarity[0].Value < 0 || len(kind) == 0 {
+	rarity, kind := r.Fields["[rarity]"], r.Fields["[equipment type]"]
+	if len(rarity) != 1 || rarity[0].Type != 0 || rarity[0].Value < 0 || len(kind) == 0 {
 		return 0, fmt.Errorf("special equipment reward requires additional source state")
 	}
 	d := r.Fields["[durability]"]
 	if len(d) == 0 {
-		if kind[0].Text == "[amulet]" || kind[0].Text == "[wrist]" || kind[0].Text == "[ring]" {
+		if durabilityOptional[kind[0].Text] {
 			return 0, nil
 		}
 		return 0, fmt.Errorf("missing source equipment durability")
@@ -140,6 +177,13 @@ func (c *EquipmentCatalog) Reward(id uint32) (uint16, error) {
 // Basic is Reward plus the two rules that decide what a monster may drop:
 // the piece has to be unbound, and no rarer than rare. The drop pool is built
 // from this, so anything a drop offers is also grantable.
+//
+// 注意：这里**比 Reward 更严**，两处：
+//  1. 必须恰好有一个 [attach type] 且为 [free]（没有绑定信息的条目不能确定可自由掉落）；
+//  2. 掉落池的**成员集合维持 2026-09-18 之前的原样**——只有"带耐久的部位"与
+//     戒指/手镯/项链（poolJewelry）参与掉落。本次放宽耐久规则后新变得可发放的
+//     称号/辅助装备/魔法石/耳环/护石/宠物/融合石/… **不进入掉落池**，
+//     以免改变既有掉落分布。它们仍然可以被 GM 与任务正常发放。
 func (c *EquipmentCatalog) Basic(id uint32) (uint16, error) {
 	d, e := c.Reward(id)
 	if e != nil {
@@ -149,8 +193,11 @@ func (c *EquipmentCatalog) Basic(id uint32) (uint16, error) {
 	if e != nil {
 		return 0, e
 	}
-	attach, rarity := r.Fields["[attach type]"], r.Fields["[rarity]"]
-	if attach[0].Text != "[free]" || rarity[0].Value > 1 {
+	attach, rarity, kind := r.Fields["[attach type]"], r.Fields["[rarity]"], r.Fields["[equipment type]"]
+	if len(attach) != 1 || attach[0].Text != "[free]" || rarity[0].Value > 1 {
+		return 0, fmt.Errorf("special equipment reward requires additional source state")
+	}
+	if len(r.Fields["[durability]"]) == 0 && !poolJewelry[kind[0].Text] {
 		return 0, fmt.Errorf("special equipment reward requires additional source state")
 	}
 	return d, nil

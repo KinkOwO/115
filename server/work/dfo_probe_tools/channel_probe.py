@@ -382,6 +382,20 @@ with (
  # 而默认的 dungeons.generated.json 只有 11 个）。
  if os.environ.get("DFO_DUNGEON_CATALOG") and "-dungeon-catalog" in command:
   command[command.index("-dungeon-catalog") + 1] = os.environ["DFO_DUNGEON_CATALOG"]
+ # ★ 显式校验：副本目录必须真实存在且非空。
+ # 2026-09-18 事故：这里曾被指向 configs/dungeons.full.json，而那个 294MB 文件从没进仓库，
+ # 于是服务端起不来、探针一直等不到 ready.json —— 正常玩家表现为"下载后启动不了游戏"。
+ # 不要再让"文件不存在"静默落回默认值（那条 tag 降级链最终是只有 11 个副本的 dungeons.generated.json）。
+ if "-dungeon-catalog" in command:
+  dungeon_catalog = pathlib.Path(command[command.index("-dungeon-catalog") + 1])
+  if not dungeon_catalog.is_file() or dungeon_catalog.stat().st_size == 0:
+   raise RuntimeError(
+    "副本目录不存在或为空：%s\n"
+    "  当前 -dungeon-catalog 指向它，服务端会启动失败/超时。\n"
+    "  生成：go run ./cmd/dungeonfull -output %s\n"
+    "  或设 DFO_DUNGEON_CATALOG 指向已有目录；确实要用 11 个副本的默认表请显式指过去。"
+    % (dungeon_catalog, dungeon_catalog)
+   )
  server = subprocess.Popen(command, stdout=stdout, stderr=stderr, creationflags=flags)
  try:
   ready = out / "ready.json"
