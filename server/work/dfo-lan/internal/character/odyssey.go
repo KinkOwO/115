@@ -8,9 +8,13 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"os"
 )
 
 func OdysseyRole(role storage.Character) bool {
+	if mode := os.Getenv("DFO_ODYSSEY_MODE"); mode != "" {
+		return mode == "1"
+	}
 	r, e := protocol.DecodeCreateRequest(role.Request)
 	return e == nil && len(r.Options) == 12 && r.Options[10] == 2
 }

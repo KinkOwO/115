@@ -1,7 +1,7 @@
 @echo off
 chcp 65001 >nul
 cd /d "%~dp0"
-title DFO 115us Game Launcher (Scenario Mode)
+title DFO 115us Game Launcher (Arad Odyssey Mode)
 
 net session >nul 2>&1
 if %errorlevel% neq 0 (
@@ -11,8 +11,8 @@ if %errorlevel% neq 0 (
 )
 
 set DFO_SHOP_OPEN_ALL=1
-set DFO_ODYSSEY_MODE=0
-echo Starting DFO 115us Game Client and Server (Scenario Mode)...
+set DFO_ODYSSEY_MODE=1
+echo Starting DFO 115us Game Client and Server (Arad Odyssey Mode)...
 if exist "tools\python\python.exe" (
     "tools\python\python.exe" "server\work\dfo-lan\scripts\launch_local.py" %*
 ) else (

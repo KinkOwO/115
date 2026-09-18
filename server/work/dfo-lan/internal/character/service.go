@@ -100,16 +100,14 @@ func (s *Service) Create(ctx context.Context, account int64, p []byte) (storage.
 	initial.setCreationOptions(req.Options)
 	if s.Rules.AllJobsPilot && len(req.Options) == 12 && req.Options[8] != 0 {
 		adv := req.Options[8]
-		if len(prof.AdvancementGrowth[adv]) == 0 {
-			return storage.Character{}, fmt.Errorf("source growth missing for job %d advancement %d", req.Profession, adv)
+		if len(prof.AdvancementGrowth[adv]) > 0 {
+			initial.Advancement, initial.AllJobsPilot = adv, true
 		}
-		initial.Advancement, initial.AllJobsPilot = adv, true
 	}
 	if s.Rules.SwordmasterPilot && req.Profession == 0 && len(req.Options) == 12 && req.Options[8] == 1 && (req.Options[10] == 0 || req.Options[10] == 2) {
-		if len(prof.SwordmasterGrowth) == 0 {
-			return storage.Character{}, fmt.Errorf("swordmaster pilot growth missing")
+		if len(prof.SwordmasterGrowth) > 0 {
+			initial.Advancement, initial.SwordmasterPilot = 1, true
 		}
-		initial.Advancement, initial.SwordmasterPilot = 1, true
 	}
 	state, e := json.Marshal(initial)
 	if e != nil {
@@ -229,12 +227,5 @@ func (s *Service) EntryBasicProbe(role storage.Character, channelContext [2]byte
 }
 
 func (s *Service) IsOdyssey(role storage.Character) (bool, error) {
-	if !s.Rules.OdysseyPilot {
-		return false, nil
-	}
-	req, err := protocol.DecodeCreateRequest(role.Request)
-	if err != nil {
-		return false, err
-	}
-	return len(req.Options) == 12 && req.Options[10] == 2, nil
+	return OdysseyRole(role), nil
 }

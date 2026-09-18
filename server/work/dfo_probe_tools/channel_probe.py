@@ -87,6 +87,13 @@ bps.write_text(
 )
 with bps.open("a") as f:
  f.write("5255c70 PRECHECK_RESULT\n52543d0 LOGIN_RESULT\n")
+odyssey_mode = os.environ.get("DFO_ODYSSEY_MODE") == "1"
+login_22 = project / "configs/login-normal22.bin"
+login_normal = project / "runtime/login_ok.bin"
+if odyssey_mode and login_22.exists():
+ default_login_bin = login_22.resolve()
+else:
+ default_login_bin = login_normal.resolve()
 responses = out / "responses.json"
 responses.write_text(
  json.dumps({"1554": str((project / "runtime/precheck_ok.bin").resolve())})
@@ -96,7 +103,7 @@ if tag.startswith("login_"):
   json.dumps(
    {
     "1554": str((project / "runtime/precheck_ok.bin").resolve()),
-    "1": str((project / "runtime/login_ok.bin").resolve()),
+    "1": str(default_login_bin),
    }
   )
  )
@@ -106,7 +113,11 @@ if tag.startswith("roles_"):
  responses.write_text(
   json.dumps(
    {
-    str(k): str((project / ("runtime/" + v + "_ok.bin")).resolve())
+    str(k): (
+     str(default_login_bin)
+     if v == "login"
+     else str((project / ("runtime/" + v + "_ok.bin")).resolve())
+    )
     for k, v in [(1554, "precheck"), (1, "login"), (8, "characters"), (684, "name")]
    }
   )
@@ -141,13 +152,16 @@ with (
   str(out.resolve()),
  ]
  if persisted:
+  cr_odyssey = project / "configs/character-rules.odyssey-release.json"
+  cr_probe = project / "configs/character-probe.json"
+  cr_default = cr_odyssey if (odyssey_mode and cr_odyssey.exists()) else cr_probe
   command += [
    "-character-storage",
    str(project / "runtime/storage/local.json"),
    "-character-catalog",
    str(project / "configs/characters.generated.json"),
    "-character-rules",
-   str(project / "configs/character-probe.json"),
+   str(cr_default),
   ]
  if tag.startswith("roles_persist_select"):
   command += ["-select-probe-config", str(project / "configs/select-parser-probe.json")]
@@ -355,9 +369,13 @@ with (
  if os.environ.get("DFO_LOGIN_RESPONSE"):
   if responses.exists():
    try:
-    mapping = json.loads(responses.read_text())
-    mapping["1"] = str(pathlib.Path(os.environ["DFO_LOGIN_RESPONSE"]).resolve())
-    responses.write_text(json.dumps(mapping))
+    override_path = pathlib.Path(os.environ["DFO_LOGIN_RESPONSE"])
+    if not override_path.is_absolute():
+     override_path = (project / override_path).resolve()
+    if override_path.exists():
+     mapping = json.loads(responses.read_text())
+     mapping["1"] = str(override_path)
+     responses.write_text(json.dumps(mapping))
    except Exception:
     pass
  # 允许用环境变量覆盖副本目录（本机用 dungeons.full.json：3200 副本/16042 地图，

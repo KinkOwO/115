@@ -66,8 +66,7 @@ func (w *worldSession) selectDungeon(p []byte) (*dungeon.Session, []outboundPack
 		return nil, nil, e
 	}
 	if d, ok := w.dungeons.Dungeons[r.ID]; ok && d.Odyssey {
-		creation, err := protocol.DecodeCreateRequest(w.role.Request)
-		if err != nil || len(creation.Options) != 12 || creation.Options[10] != 2 {
+		if !character.OdysseyRole(w.role) {
 			return nil, nil, fmt.Errorf("Odyssey dungeon requires an Odyssey character")
 		}
 	}

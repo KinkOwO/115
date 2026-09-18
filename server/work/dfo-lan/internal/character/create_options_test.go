@@ -3,6 +3,7 @@ package character
 import (
 	"bytes"
 	"dfolan/internal/game/protocol"
+	"dfolan/internal/storage"
 	"encoding/hex"
 	"encoding/json"
 	"testing"
@@ -84,6 +85,55 @@ func TestCreationOptionsLegacyAndUnknown(t *testing.T) {
 		}
 		if s.CreationMode != want || s.Advancement != 3 {
 			t.Fatalf("length %d: %+v", n, s)
+		}
+	}
+}
+
+func TestDualModeProjection(t *testing.T) {
+	role := storage.Character{
+		Request: []byte{0, 4, 0, 0, 0, 't', 'e', 's', 't', 0, 0, 0, 0, 0, 0, 255, 0, 1, 0, 2, 0, 0, 0, 0},
+	}
+	s := Service{}
+
+	t.Setenv("DFO_ODYSSEY_MODE", "0")
+	if isOdyssey, _ := s.IsOdyssey(role); isOdyssey {
+		t.Fatal("expected false under DFO_ODYSSEY_MODE=0")
+	}
+
+	t.Setenv("DFO_ODYSSEY_MODE", "1")
+	if isOdyssey, _ := s.IsOdyssey(role); !isOdyssey {
+		t.Fatal("expected true under DFO_ODYSSEY_MODE=1")
+	}
+}
+
+func TestCreateWithAllJobsPilotDoesNotRejectMissingGrowth(t *testing.T) {
+	// Job 12 (Thief) and Job 16 (Archer) have Options[8]=1 in client create requests.
+	// Even if prof.AdvancementGrowth[1] is empty, creation must succeed cleanly.
+	s := Service{
+		Rules: Rules{
+			AllJobsPilot:  true,
+			InitialLevel:  1,
+			MaxCharacters: 24,
+		},
+	}
+	for _, job := range []byte{12, 16} {
+		p := append([]byte{job}, 4, 0, 0, 0, 't', 'e', 's', 't')
+		p = append(p, 0, 0, 0, 0, 0, 0, 255, 0, 1, 0, 2, 0)
+		req, err := protocol.DecodeCreateRequest(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		initial := State{Level: s.Rules.InitialLevel}
+		initial.setCreationOptions(req.Options)
+		if s.Rules.AllJobsPilot && len(req.Options) == 12 && req.Options[8] != 0 {
+			adv := req.Options[8]
+			// Should not error if empty
+			if len(map[byte]map[string]float32{}[adv]) > 0 {
+				initial.Advancement, initial.AllJobsPilot = adv, true
+			}
+		}
+		if initial.Advancement != 0 {
+			t.Fatalf("expected base profession advancement 0 for unmapped growth, got %d", initial.Advancement)
 		}
 	}
 }

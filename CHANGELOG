@@ -3,6 +3,11 @@
 # CHANGELOG
 
 ## 2026-09-18
+- 修复奥德赛（Arad Odyssey）模式角色创建与模式双向自适应投影：
+  - **创建角色阻断修复**（`internal/character/service.go`）：修复在奥德赛规则启用 `AllJobsPilot` 时，创建未配置初始成长表的分支职业（如暗夜使者 Job 12、弓箭手 Job 16 等）被致命拒绝 `source growth missing for job %d advancement %d` 的问题，放宽强校验以基础职业兜底正常创建；
+  - **模式双向自适应投影**（`internal/character/odyssey.go` & `service.go`）：彻底拆除 `service.IsOdyssey` 的单一静态规则拦截；根据当前启动模式 `DFO_ODYSSEY_MODE` 动态自适应——启动剧情模式（`DFO_ODYSSEY_MODE=0`）所有角色投影为剧情角色（mode=0），启动奥德赛模式（`DFO_ODYSSEY_MODE=1`）所有角色投影为奥德赛角色（mode=5），彻底消除客户端因频道与角色模式不匹配导致的「This channel is not available in Arad Odyssey mode」弹窗与黑屏闪退；
+  - **地下城选图兼容**（`cmd/wireprobe/dungeon_flow.go`）：选图验证对齐 `character.OdysseyRole`，允许在奥德赛模式下任意角色均可进入奥德赛专属迷宫；
+  - **双模式入口分流**（`channel_probe.py` / `启动游戏.cmd` / `启动游戏-奥德赛.cmd`）：在 `channel_probe.py` 内部基于 `DFO_ODYSSEY_MODE` 自动分流频道类型与规则，并新增独立的 `启动游戏-奥德赛.cmd` 启动脚本。
 - 修复物品（消耗品/药水）无法放入快捷栏问题：
   - **根因分析**：客户端将消耗品拖入快捷栏（槽位 `3 ~ 8`）时发送 CMD 19（`0x0013`）。原服务端 `-loot-catalog` 仅加载了怪物掉落精简表 `loot.next25.json`（仅 1,022 条掉落物，不含常规药水、消耗品等），导致 `MoveStackRequest` 在校验堆叠物品定义时返回 `unknown stack definition` 错误，下发拒绝码 `4`，触发客户端弹出「The target inventory is full or has the same item in the maximum quantity in it. Can't move the item.」；且原消费校验（CMD 44 `b.Consume`）与金库转移亦受限；
   - **堆叠物索引扩充**（`internal/catalog/loot.go`）：新增 `SupplementStackables`，启动时从 `configs/items.index.json` 补充全量 17.5 万项堆叠物品定义与堆叠上限，同时隔离怪物掉落表 `DropCatalog` 保证掉落池不被污染；
