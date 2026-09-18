@@ -3,6 +3,13 @@
 2026-09-17 本地修复整合候选，详见 REPAIRS-20260917.md。
 
 
+## 2026-09-19
+- 修复商城购买组合销售礼包收到占位符道具问题：
+  - **根因分析**：商城点券礼包（如 Tropical Vacation Package 3400489）在 PVF 中属于 `[usable cera package]`（模板 ID `590722921`），其自身仅为商城展示用的占位符，实际售卖物品包含在 `[package data]` 中定义的一组可使用礼盒（共 6 个可使用礼盒：`590722922`、`590722923`、`590722926`、`590722927`、`590722928`、`590722929`）。原购买发货逻辑（`internal/cashshop/pilot.go`）直接将占位符模板 `590722921` 发放至背包，且发货分类器仅能处理商城直售条目，未支持子道具展开交付；
+  - **组合礼包展开交付**（`internal/cashshop/pilot.go` & `cmd/wireprobe/main.go`）：新增 `PackageItems` 解析 `[package data]` 结构，在商城购买事务中自动将礼包展开为对应的一组子礼盒并交付到背包消耗品栏；`shopPilot` 接入全量物品元数据 `SetItemCatalog` 识别各子礼盒属性与槽位映射；
+  - **存档平滑兼容与自动迁移**（`internal/storage/cash_purchase.go`）：在 `MigrateCashShop` 中增加 `migratePackagePlaceholders`，自动将已有角色背包中的礼包占位符无损迁移替换为 6 个真实可使用礼盒，保留其他道具与格位；
+  - **测试与回归**：新增 `TestShopPilotPackageDelivery`（`dfolan/internal/cashshop`）与 `TestMigratePackagePlaceholdersUnit`（`dfolan/internal/storage`），全量 `go test ./...` 与 `go vet ./...` 均通过。
+
 ## 2026-09-18
 - 修复奥德赛（Arad Odyssey）初始防具发放与自选武器礼盒选择开箱：
   - **根因消除**（`equipment definition missing`）：原精简版装备表（3,174 行）未包含奥德赛初始 8 件防具首饰（`100051399` ~ `100323647`）及自选武器盒内 42 把各职业武器定义，导致进游戏发放防具事务回滚为 pending、玩家使用武器盒（CMD 160）选择武器时因查不到武器定义被拒下发 `Refusal(4)`，客户端提示「背包已满或使用失败」；

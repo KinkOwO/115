@@ -503,6 +503,7 @@ func main() {
 			vaultService.Catalog = lootService.Catalog
 			vaultService.BagRules = lootService.BagRules
 			if shopPilot != nil {
+				shopPilot.SetItemCatalog(lootService.Catalog.Items)
 				vaultService.Catalog, e = shopPilot.StorageCatalog(vaultService.Catalog)
 				if e != nil {
 					log.Fatal(e)

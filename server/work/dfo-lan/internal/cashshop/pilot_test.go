@@ -289,3 +289,55 @@ func TestShopPilotMaterialProductsAndCategories(t *testing.T) {
 		t.Fatal("full material blocked consumable", err)
 	}
 }
+
+func TestShopPilotPackageDelivery(t *testing.T) {
+	t.Setenv("DFO_SHOP_OPEN_ALL", "1")
+	p, err := LoadPilot("../../configs/shop-vault-release.json", "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80")
+	if err != nil {
+		t.Skip("shop-vault-release.json not available or unparseable:", err)
+		return
+	}
+	// Verify package 3400489
+	l := &packLedger{state: json.RawMessage(`{}`)}
+	_, applied, err := p.Purchase(context.Background(), l, 1, 1, "pkg-test-order-0001", []protocol.CeraCartItem{{Product: 3400489, Quantity: 1}})
+	if err != nil {
+		t.Fatalf("purchase package failed: %v", err)
+	}
+	if !applied {
+		t.Fatal("purchase not applied")
+	}
+	b, err := inventory.ReadBag(l.state)
+	if err != nil {
+		t.Fatalf("read bag failed: %v", err)
+	}
+	// The placeholder 590722921 must NOT be in the bag
+	for _, it := range b.Items {
+		if it.Template == 590722921 {
+			t.Fatalf("placeholder template 590722921 found in bag, expected unpackaged boxes")
+		}
+	}
+	// Expected 6 boxes
+	expected := map[uint32]uint32{
+		590722922: 1,
+		590722923: 1,
+		590722926: 1,
+		590722927: 1,
+		590722928: 1,
+		590722929: 1,
+	}
+	if len(b.Items) != len(expected) {
+		t.Fatalf("expected %d items in bag, got %d: %+v", len(expected), len(b.Items), b.Items)
+	}
+	for _, it := range b.Items {
+		cnt, ok := expected[it.Template]
+		if !ok {
+			t.Fatalf("unexpected item in bag: %d", it.Template)
+		}
+		if it.Amount != cnt {
+			t.Fatalf("item %d amount = %d, want %d", it.Template, it.Amount, cnt)
+		}
+		if it.Slot < 65 || it.Slot > 120 {
+			t.Fatalf("item %d slot = %d out of consumable range [65, 120]", it.Template, it.Slot)
+		}
+	}
+}
