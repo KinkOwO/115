@@ -4,6 +4,13 @@
 
 
 ## 2026-09-19
+- 修复时效性物品（限时道具/到期时间）在客户端显示“已过期/Past Duration”且无法使用的问题：
+  - **根因分析**：逆向分析客户端 `client/DFO.exe`（`sub_1452D5A80`、`sub_14576D8B0`、`sub_14687A6B0`、`sub_14716DE70`）确认，181 字节物品数据行（`CurrentItemRecordSize = 181`）在偏移 56（`offset 56`，4 字节 uint32 小端）存储道具绝对 Unix 到期时间戳。当偏移 56 值为 0 时，客户端视其为 1970-01-01 到期，判定为“已过期 (Past Duration)”并拦截道具使用，提示错误码 `31730`（Expired and can't be used）；
+  - **协议与背包模型支持**（`internal/game/protocol/inventory.go`、`internal/inventory/bag.go`、`stack_request.go`）：`OrdinaryItem` 新增支持传入可选 `expireTime` 并填充 `p[56:]`；`BagItem` 新增 `ExpireTime uint32` 并在 `Bag.Rows()` 打包下发时对齐偏移 56；`Bag.Add` 与背包整理/移动请求（`MoveStackRequest`）持久化保持到期时间；
+  - **防时间不同步与最大时间戳设置**（`internal/cashshop/pilot.go`）：为彻底避免客户端与服务端时钟偏差导致的误过期，将商城时效道具（带 `[expiration date]` 等）到期时间设置为安全的最大 32 位时间戳 `math.MaxInt32`（`2147483647` / `0x7FFFFFFF`，到期时间 2038-01-19）；
+  - **现有角色存档平滑升级**（`internal/storage/cash_purchase.go`）：`migratePackagePlaceholders` 自动将背包内现有子礼盒的 `expire_time` 平滑更新为 `2147483647`，保留原有格位与数量；
+  - **测试覆盖**：更新 `pilot_test.go` 与 `cash_purchase_test.go` 断言 `ExpireTime == MaxExpireTime`，单测全部通过。
+
 - 修复商城购买组合销售礼包收到占位符道具问题：
   - **根因分析**：商城点券礼包（如 Tropical Vacation Package 3400489）在 PVF 中属于 `[usable cera package]`（模板 ID `590722921`），其自身仅为商城展示用的占位符，实际售卖物品包含在 `[package data]` 中定义的一组可使用礼盒（共 6 个可使用礼盒：`590722922`、`590722923`、`590722926`、`590722927`、`590722928`、`590722929`）。原购买发货逻辑（`internal/cashshop/pilot.go`）直接将占位符模板 `590722921` 发放至背包，且发货分类器仅能处理商城直售条目，未支持子道具展开交付；
   - **组合礼包展开交付**（`internal/cashshop/pilot.go` & `cmd/wireprobe/main.go`）：新增 `PackageItems` 解析 `[package data]` 结构，在商城购买事务中自动将礼包展开为对应的一组子礼盒并交付到背包消耗品栏；`shopPilot` 接入全量物品元数据 `SetItemCatalog` 识别各子礼盒属性与槽位映射；

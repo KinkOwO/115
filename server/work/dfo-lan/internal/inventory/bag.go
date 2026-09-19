@@ -82,6 +82,7 @@ func LoadBagRules(p string) (BagRules, error) {
 type BagItem struct {
 	Slot             uint16 `json:"slot"`
 	Template, Amount uint32
+	ExpireTime       uint32 `json:"expire_time,omitempty"`
 }
 type Bag struct {
 	Version   string                  `json:"version"`
@@ -174,7 +175,7 @@ func (b Bag) Rows() [][protocol.CurrentItemRecordSize]byte {
 	sort.Slice(items, func(i, j int) bool { return items[i].Slot < items[j].Slot })
 	rows := [][protocol.CurrentItemRecordSize]byte{protocol.OrdinaryItem(0, 0, b.Gold)}
 	for _, i := range items {
-		rows = append(rows, protocol.OrdinaryItem(i.Slot, i.Template, i.Amount))
+		rows = append(rows, protocol.OrdinaryItem(i.Slot, i.Template, i.Amount, i.ExpireTime))
 	}
 	for _, i := range b.Equipment {
 		rows = append(rows, EquipmentRow(i))
@@ -187,9 +188,13 @@ func (b Bag) Rows() [][protocol.CurrentItemRecordSize]byte {
 
 // Add updates the whole bag in the caller's character transaction. It does
 // not silently spill, drop or partially grant a stack when the bag is full.
-func (b Bag) Add(c catalog.LootCatalog, r BagRules, id, amount uint32) (Bag, uint16, error) {
+func (b Bag) Add(c catalog.LootCatalog, r BagRules, id, amount uint32, expireTime ...uint32) (Bag, uint16, error) {
 	if amount == 0 || r.Source != c.Source.Checksum {
 		return b, 0, fmt.Errorf("invalid inventory award/source")
+	}
+	var exp uint32
+	if len(expireTime) > 0 {
+		exp = expireTime[0]
 	}
 	b.Items = append([]BagItem(nil), b.Items...)
 	if id == 0 {
@@ -222,13 +227,16 @@ func (b Bag) Add(c catalog.LootCatalog, r BagRules, id, amount uint32) (Bag, uin
 		occupied[row.Slot] = true
 		if row.Template == id && row.Slot >= slots[0] && row.Slot <= slots[1] && uint64(row.Amount)+uint64(amount) <= uint64(limit) {
 			b.Items[i].Amount += amount
+			if exp != 0 && b.Items[i].ExpireTime == 0 {
+				b.Items[i].ExpireTime = exp
+			}
 			return b, row.Slot, nil
 		}
 	}
 	for n := uint32(slots[0]); n <= uint32(slots[1]); n++ {
 		slot := uint16(n)
 		if !occupied[slot] {
-			b.Items = append(b.Items, BagItem{slot, id, amount})
+			b.Items = append(b.Items, BagItem{Slot: slot, Template: id, Amount: amount, ExpireTime: exp})
 			return b, slot, nil
 		}
 	}

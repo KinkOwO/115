@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"strings"
 	"sync"
@@ -339,9 +340,10 @@ func TestMigratePackagePlaceholdersUnit(t *testing.T) {
 		t.Fatal(err)
 	}
 	type bagItem struct {
-		Slot     uint16 `json:"slot"`
-		Template uint32 `json:"Template"`
-		Amount   uint32 `json:"Amount"`
+		Slot       uint16 `json:"slot"`
+		Template   uint32 `json:"Template"`
+		Amount     uint32 `json:"Amount"`
+		ExpireTime uint32 `json:"expire_time,omitempty"`
 	}
 	type bagStruct struct {
 		Items []bagItem `json:"items"`
@@ -371,7 +373,12 @@ func TestMigratePackagePlaceholdersUnit(t *testing.T) {
 	// 6 boxes must be present
 	expected := map[uint32]bool{590722922: true, 590722923: true, 590722926: true, 590722927: true, 590722928: true, 590722929: true}
 	for _, it := range b.Items {
-		delete(expected, it.Template)
+		if expected[it.Template] {
+			if it.ExpireTime != math.MaxInt32 {
+				t.Fatalf("sub-item %d ExpireTime=%d, want MaxInt32", it.Template, it.ExpireTime)
+			}
+			delete(expected, it.Template)
+		}
 	}
 	if len(expected) > 0 {
 		t.Fatalf("missing expected sub-items: %+v", expected)

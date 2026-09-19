@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"strings"
 	"time"
@@ -41,6 +42,17 @@ type deliveryType struct {
 
 // Inventory families dispatch by script type, never by SKU.
 func ordinaryHandler(item catalog.ScriptRecord) (deliveryType, error) {
+	for i, t := range item.Cells {
+		if t.Type == 3 && t.Text == "[equipment type]" {
+			if i+1 < len(item.Cells) && item.Cells[i+1].Text == "[creature]" {
+				return deliveryType{
+					Kind:  "[creature]",
+					Slots: [2]uint16{0, 139},
+					Limit: 1,
+				}, nil
+			}
+		}
+	}
 	h := deliveryType{Limit: 1000}
 	openAll := os.Getenv("DFO_SHOP_OPEN_ALL") == "1"
 	for i, t := range item.Cells {
@@ -178,6 +190,21 @@ func PackageItems(item catalog.ScriptRecord) ([]PackageItem, bool) {
 		}
 	}
 	return nil, false
+}
+
+const MaxExpireTime = math.MaxInt32
+
+// HasExpiration checks if an item script defines an expiration or period constraint.
+func HasExpiration(item catalog.ScriptRecord) bool {
+	for _, c := range item.Cells {
+		if c.Type == 3 {
+			switch c.Text {
+			case "[expiration date]", "[usable period]", "[period]", "[usable datetime]":
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (p *Pilot) SetItemCatalog(items map[uint32]catalog.LootItem) {
@@ -334,9 +361,14 @@ func (p *Pilot) Purchase(ctx context.Context, ledger BagLedger, account, charact
 			entry, ok := p.findEntry(line.Product, line.Template)
 			if ok {
 				if pkgItems, isPkg := PackageItems(entry.Item); isPkg {
+					pkgHasExp := HasExpiration(entry.Item)
 					for _, sub := range pkgItems {
 						deliverCnt := sub.Count * line.Units * line.Quantity
-						raw, e = p.deliverAmount(raw, sub.Template, deliverCnt)
+						var subExp uint32
+						if pkgHasExp {
+							subExp = MaxExpireTime
+						}
+						raw, e = p.deliverAmount(raw, sub.Template, deliverCnt, subExp)
 						if e != nil {
 							return nil, e
 						}
@@ -344,7 +376,11 @@ func (p *Pilot) Purchase(ctx context.Context, ledger BagLedger, account, charact
 					continue
 				}
 			}
-			raw, e = p.deliverAmount(raw, line.Template, line.Units*line.Quantity)
+			var exp uint32
+			if ok && HasExpiration(entry.Item) {
+				exp = MaxExpireTime
+			}
+			raw, e = p.deliverAmount(raw, line.Template, line.Units*line.Quantity, exp)
 			if e != nil {
 				return nil, e
 			}
@@ -352,13 +388,50 @@ func (p *Pilot) Purchase(ctx context.Context, ledger BagLedger, account, charact
 		return raw, nil
 	})
 }
-func (p *Pilot) deliverAmount(raw json.RawMessage, template, amount uint32) (json.RawMessage, error) {
+func (p *Pilot) deliverAmount(raw json.RawMessage, template, amount uint32, expireTime ...uint32) (json.RawMessage, error) {
 	if amount == 0 || amount > 112000 {
 		return nil, fmt.Errorf("invalid delivery amount")
+	}
+	var exp uint32
+	if len(expireTime) > 0 {
+		exp = expireTime[0]
 	}
 	h, err := p.resolveDeliveryType(template)
 	if err != nil {
 		return nil, err
+	}
+	if h.Kind == "[creature]" {
+		b, e := inventory.ReadBag(raw)
+		if e != nil {
+			return nil, e
+		}
+		occupied := map[uint16]bool{}
+		if b.Special != nil {
+			for _, item := range b.Special[7] {
+				occupied[item.Slot] = true
+			}
+		}
+		for i := uint32(0); i < amount; i++ {
+			found := false
+			for s := uint16(0); s < 140; s++ {
+				if !occupied[s] {
+					occupied[s] = true
+					if b.Special == nil {
+						b.Special = map[byte][]inventory.BagEquipment{}
+					}
+					b.Special[7] = append(b.Special[7], inventory.BagEquipment{
+						Slot:     s,
+						Template: template,
+					})
+					found = true
+					break
+				}
+			}
+			if !found {
+				return nil, fmt.Errorf("creature inventory full")
+			}
+		}
+		return inventory.SaveBag(raw, b)
 	}
 	c := catalog.LootCatalog{Source: p.Config.Source, Items: map[uint32]catalog.LootItem{template: {ID: template, Kind: "stackable", StackableType: h.Kind, StackLimit: h.Limit}}}
 	r := inventory.BagRules{Source: p.Config.Source.Checksum, Slots: map[string][2]uint16{h.Kind: h.Slots}, MissingStackLimit: 1000}
@@ -374,7 +447,7 @@ func (p *Pilot) deliverAmount(raw json.RawMessage, template, amount uint32) (jso
 			continue
 		}
 		n := min(amount, h.Limit-row.Amount)
-		b, _, e = b.Add(c, r, template, n)
+		b, _, e = b.Add(c, r, template, n, exp)
 		if e != nil {
 			return nil, e
 		}
@@ -382,7 +455,7 @@ func (p *Pilot) deliverAmount(raw json.RawMessage, template, amount uint32) (jso
 	}
 	for amount > 0 {
 		n := min(amount, h.Limit)
-		b, _, e = b.Add(c, r, template, n)
+		b, _, e = b.Add(c, r, template, n, exp)
 		if e != nil {
 			return nil, e
 		}
