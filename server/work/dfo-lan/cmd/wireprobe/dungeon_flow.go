@@ -175,6 +175,23 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 		}
 		plan = append(plan, outboundPacket{"dungeon_fatigue_updated", 0, 36, p})
 	}
+	if w.characters != nil {
+		visual, err := w.characters.EntryBasicProbe(w.role, [2]byte{})
+		if err == nil {
+			plan = append(plan, outboundPacket{"dungeon_actor_appearance_restored", 0, 2, visual})
+		}
+		wornUpdate, err := inventory.WornSpaceUpdate(w.role.State)
+		if err == nil && len(wornUpdate) > 0 {
+			plan = append(plan, outboundPacket{"dungeon_worn_visuals_restored", 0, 14, wornUpdate})
+		}
+		if inventory.HasEquippedCreature(w.role.State) {
+			clPayload, err := inventory.CreatureListPayload(w.role.State)
+			if err == nil {
+				plan = append(plan, outboundPacket{"dungeon_creature_list_restored", 0, 105, clPayload})
+				plan = append(plan, outboundPacket{"dungeon_creature_growth_restored", 0, 102, []byte{1, 0, 0, 0, 0, 0}})
+			}
+		}
+	}
 	return plan, nil
 }
 
@@ -205,7 +222,25 @@ func (w *worldSession) leaveDungeon() ([]outboundPacket, error) {
 	if e != nil {
 		return nil, e
 	}
-	return []outboundPacket{{"dungeon_leave_ack", 1, 42, []byte{1}}, {"town_actor_state", 0, 3, state}, {"dungeon_return_area", 0, 23, ua}, {"dungeon_return_users", 0, 24, area}}, nil
+	plan := []outboundPacket{{"dungeon_leave_ack", 1, 42, []byte{1}}, {"town_actor_state", 0, 3, state}, {"dungeon_return_area", 0, 23, ua}, {"dungeon_return_users", 0, 24, area}}
+	if w.characters != nil {
+		visual, err := w.characters.EntryBasicProbe(w.role, [2]byte{})
+		if err == nil {
+			plan = append(plan, outboundPacket{"town_actor_appearance_restored", 0, 2, visual})
+		}
+		wornUpdate, err := inventory.WornSpaceUpdate(w.role.State)
+		if err == nil && len(wornUpdate) > 0 {
+			plan = append(plan, outboundPacket{"town_worn_visuals_restored", 0, 14, wornUpdate})
+		}
+		if inventory.HasEquippedCreature(w.role.State) {
+			clPayload, err := inventory.CreatureListPayload(w.role.State)
+			if err == nil {
+				plan = append(plan, outboundPacket{"town_creature_list_restored", 0, 105, clPayload})
+				plan = append(plan, outboundPacket{"town_creature_growth_restored", 0, 102, []byte{1, 0, 0, 0, 0, 0}})
+			}
+		}
+	}
+	return plan, nil
 }
 
 func (w *worldSession) returnFromDungeonSelection(p []byte) ([]outboundPacket, error) {

@@ -248,7 +248,7 @@ func main() {
 		characters, e = character.New(s, data, rules)
 		if characters != nil {
 			characters.DisableActorAppearance = skillRelease
-			characters.DetailedWornCandidate = !skillRelease && os.Getenv("DFO_DETAIL_WORN") == "1"
+			characters.DetailedWornCandidate = !skillRelease
 		}
 		if e != nil {
 			log.Fatal(e)
@@ -970,6 +970,18 @@ func main() {
 						return
 					}
 					continue
+				}
+				r, decodeErr := protocol.DecodeItemMove(plaintext)
+				if decodeErr == nil && characters != nil && (r.SourceSlot == 26 || r.DestinationSlot == 26 || r.SourceList == 3 || r.DestinationList == 3) {
+					var visual []byte
+					visual, e = characters.EntryBasicProbe(worldState.role, [2]byte{})
+					if e == nil {
+						plan = append(plan, outboundPacket{"creature_actor_appearance_updated", 0, 2, visual})
+					}
+					wornUpdate, e := inventory.WornSpaceUpdate(worldState.role.State)
+					if e == nil && len(wornUpdate) > 0 {
+						plan = append(plan, outboundPacket{"worn_equipment_visuals_updated", 0, 14, wornUpdate})
+					}
 				}
 				prepared, e := preparePackets(keys, plan)
 				if e != nil {

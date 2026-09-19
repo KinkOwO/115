@@ -38,8 +38,10 @@ func UserInfoBasicProbe(s EntryBasicProbe) ([]byte, error) {
 	p = append(p, 0)
 	p = add32(p, 0)
 	p = append(p, 0)
-	p = append(addName(add32(p, 0), ""), 0) // 0x1456394b0: guild fields
-	p = append(p, 0)                        // 0x14563be50: premium PC-room byte
+	creatureItemID := r.CreatureItemID
+	creatureName := r.CreatureName
+	p = append(addName(add32(p, creatureItemID), creatureName), 0) // 0x1456394b0: creature fields (item_id, dstr name, u8 isDead=0)
+	p = append(p, 0)                                               // 0x14563be50: premium PC-room byte
 	p = add32(add32(p, 0), 0)
 	p = add16(add32(addName(p, ""), 0), 0) // 0x14563a0b0
 	p = add32(p, 0)

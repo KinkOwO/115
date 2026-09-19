@@ -221,6 +221,7 @@ func (s *WearService) MoveOrdinary(role storage.Character, r protocol.ItemMoveRe
 				binary.LittleEndian.PutUint16(rec[0:], 26)
 				binary.LittleEndian.PutUint32(rec[2:], v.Template)
 				binary.LittleEndian.PutUint32(rec[6:], 1)
+				binary.LittleEndian.PutUint32(rec[24:], 1)
 				v.Record = rec[:]
 			}
 			if list == 7 {
@@ -240,6 +241,7 @@ func (s *WearService) MoveOrdinary(role storage.Character, r protocol.ItemMoveRe
 					}
 				}
 				binary.LittleEndian.PutUint32(rec[6:], key)
+				binary.LittleEndian.PutUint32(rec[24:], key)
 				v.Record = rec[:]
 			}
 			kept = append(kept, v)

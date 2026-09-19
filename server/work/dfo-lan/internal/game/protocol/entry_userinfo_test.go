@@ -38,3 +38,25 @@ func TestEntryBasicRejectsInvalidActor(t *testing.T) {
 		}
 	}
 }
+
+func TestEntryBasicWithCreature(t *testing.T) {
+	name := "LanTest01"
+	p, err := UserInfoBasicProbe(EntryBasicProbe{
+		ActorServerID: 503,
+		Context:       [2]byte{4, 7},
+		Character: CharacterRow{
+			Name:           name,
+			Profession:     3,
+			Level:          1,
+			CreatureItemID: 63000,
+			CreatureName:   "Faras",
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantLen := 307 + len(name) + len("Faras")
+	if len(p) != wantLen {
+		t.Fatalf("actor with creature size=%d, want=%d", len(p), wantLen)
+	}
+}

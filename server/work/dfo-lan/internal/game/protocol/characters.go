@@ -131,6 +131,8 @@ type CharacterRow struct {
 	Equipment        []Equipment
 	FatigueRemaining uint16
 	FatigueBonus     uint16
+	CreatureItemID   uint32
+	CreatureName     string
 }
 
 // Native list parser 0x145637a20, row parser 0x14563e280. Unknown scalar

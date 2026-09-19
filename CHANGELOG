@@ -1,6 +1,21 @@
 # CHANGELOG
 
 ## 2026-09-19
+- 修复已穿戴时装/宠物进入游戏槽位为空、进副本外观变默认裸体及世界中不显示跟随宠物的问题：
+  - **根因分析**：
+    1. **已穿戴时装槽位初始化缺失**：客户端原生逻辑 `sub_1452c1540`（USERINFO NOTI 2 mode 1）负责在场景初次加载时初始化并挂载角色身上穿戴的 12 个时装槽位对象（`DetailedEquipment`）；原服务端将其包裹在 `os.Getenv("DFO_DETAIL_WORN") == "1"` 条件下，导致默认登录时下发了 0 个已穿戴时装对象，后续 `WornSpaceUpdate`（NOTI 14）因找不到槽位对象直接跳过更新，使得人物装备面板上的时装格在进城后始终为空；
+    2. **进城报文重复与尾部时序倒挂**：原 `entry_flow.go` 在组合返回时将 NOTI 24、NOTI 36、NOTI 124 及其后续刷新重复拼接了两次，导致客户端第二次收到 NOTI 124 时重置了 UI 容器，将原本填充的宠物和时装格子冲刷为空；此外宠物背包（NOTI 13 space 7）、宠物列表（NOTI 105）和成长（NOTI 102）未在 NOTI 124 后同步刷新；
+    3. **进副本外观与装备刷新缺失**：进入副本加载完毕（`finishDungeonLoading`）及退出副本（`leaveDungeon`）时，服务端仅下发了基础坐标与加载完成 ACK，未下发副本场景角色的 `EntryBasicProbe`（NOTI 2）、`WornSpaceUpdate`（NOTI 14）和宠物列表（NOTI 105/102），导致副本场景的角色 Actor 回退为默认裸体模型且不带宠物；
+    4. **宠物 World Model 句柄绑定（Offset 24）**：原生客户端 `sub_20077D0` 读取 slot 26 装备记录偏移 24（`raw[24:28]`）处的 `serialOrHandle`，此前仅填充了偏移 6 的 key，导致 offset 24 为 0，被客户端判定为非法宠物句柄而放弃在世界中生成跟随模型。
+  - **修复实现**：
+    - `cmd/wireprobe/main.go`：默认开启 `characters.DetailedWornCandidate`，让进城 NOTI 2 mode 1 携带完整的已穿戴装扮对象数据；
+    - `internal/inventory/wear.go` & `equipment_record.go`：为宠物记录在 offset 6 与 offset 24 同时维护合法的宠物 key；
+    - `cmd/wireprobe/entry_flow.go`：消除重复报文发送，确保进城各阶段严格单次有序触发，并在 NOTI 124 之后完整刷新时装/宠物背包、宠物列表与外观；
+    - `cmd/wireprobe/dungeon_flow.go`：在副本加载完成（`finishDungeonLoading`）和离开副本（`leaveDungeon`）时，自动同步下发角色外观（NOTI 2）、装备与装扮槽位（NOTI 14）以及宠物状态（NOTI 105/102）；
+    - `internal/character/appearance.go` & `service.go` & `entry_userinfo.go`：在 `NOTI 2` 的 `0x1456394b0` 字段段中填入真实的宠物模板与名称，并支持在动态换装时联动推送更新。
+  - **测试覆盖**：
+    - 运行全量单元测试与静态检查，全部通过；重新构建 `bin/wireprobe-handoff-source.exe`。
+
 - 修复奥德赛模式下所有礼包开启报 `Your Inventory is full` 以及可选属性 Avatar 礼盒开启失败问题：
   - **根因分析**：
     1. **奥德赛模式下通用礼包被冲突分支拦截**：历史合并在 `main.go` 中遗留了旧的前置判断 `odysseyRewardsEnabled() && frame.ID == 160`，直接调用 16 字节专用武器礼盒解码函数 `DecodeWeaponBoxSelection`，在奥德赛模式下拦截了所有非武器礼包并返回通用拒绝码 `Refusal(4)`，客户端触发 `sub_1452A3D50` 显示 DSTR 2057（`Your Inventory is full.`）；
