@@ -4,6 +4,7 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
 	"fmt"
+	"math"
 	"os"
 	"path"
 	"strings"
@@ -190,13 +191,20 @@ func (c PilotConfig) classify(v OrdinaryProduct) (Product, deliveryType, error) 
 	if r[5].Value > 0 {
 		ceraPrice = uint32(r[5].Value)
 	}
-
 	if !openAll {
+		_, isContract, err := entryContract(v)
+		if err != nil {
+			return fail(err.Error())
+		}
+		if isContract {
+			return fail("premium contract requires account activation")
+		}
+
 		switch v.Section {
 		case "[item mod or ext]":
 			return fail("expansion requires capacity state, upgrade prerequisites and refresh handler")
 		case "[item period or contract]":
-			return fail("contract family requires effect, renewal and expiry handlers")
+			return fail("contract family requires account activation")
 		case "[creature]":
 			if !isCreatureEgg(v) {
 				return fail("creature requires dedicated index, inventory and hatch handlers")
@@ -230,6 +238,9 @@ func (c PilotConfig) classify(v OrdinaryProduct) (Product, deliveryType, error) 
 		for _, name := range []string{"[purchasing limit]", "[not stackable buy]", "[immediately adaptive product]", "[specific product mileage]", "[auto open booster item]"} {
 			for _, t := range c.Policies[name] {
 				if t.Type == 0 && t.Value == r[0].Value {
+					if r[1].Value == 1 && (name == "[not stackable buy]" || name == "[immediately adaptive product]") {
+						continue
+					}
 					return fail("unimplemented purchase policy " + name)
 				}
 			}
@@ -242,6 +253,9 @@ func (c PilotConfig) classify(v OrdinaryProduct) (Product, deliveryType, error) 
 			}
 			for _, other := range c.Entries {
 				if len(other.Row) == 14 && other.Row[0].Value == t.Value && other.Row[1].Value == r[1].Value {
+					if r[1].Value == 1 {
+						continue
+					}
 					return fail("template requires immediate-effect delivery")
 				}
 			}
@@ -251,6 +265,13 @@ func (c PilotConfig) classify(v OrdinaryProduct) (Product, deliveryType, error) 
 	h, e = ordinaryHandler(v.Item)
 	if e != nil {
 		return p, h, e
+	}
+	if r[1].Value == 1 {
+		h = deliveryType{
+			Kind:  "[coin]",
+			Slots: [2]uint16{1, 1},
+			Limit: math.MaxUint32,
+		}
 	}
 	p = Product{ID: uint32(r[0].Value), Template: uint32(r[1].Value), Units: uint32(r[2].Value), Cera: ceraPrice, Enabled: true}
 	return p, h, nil

@@ -37,6 +37,20 @@ func CeraPurchasePilotSuccess(product uint32) ([]byte, error) {
 	return CeraPurchaseOrdinarySuccess(product, 1)
 }
 
+// PremiumActivationNotice is the native S0/0042 mode-2 update: u16 mode,
+// u8 account premium type, i64 remaining seconds.
+func PremiumActivationNotice(premiumType uint8, endTime int64) ([]byte, error) {
+	if premiumType == 0 || endTime <= 0 {
+		return nil, fmt.Errorf("invalid premium activation")
+	}
+	p := add16([]byte{}, 2)
+	p = append(p, premiumType)
+	for i := 0; i < 8; i++ {
+		p = append(p, byte(uint64(endTime)>>uint(8*i)))
+	}
+	return p, nil
+}
+
 func CeraPurchaseOrdinarySuccess(product, quantity uint32) ([]byte, error) {
 	// Authorization belongs to the PVF catalog and delivery handler, not the
 	// byte encoder. A new ordinary SKU uses the same native packet layout.

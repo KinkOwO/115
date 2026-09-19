@@ -1,6 +1,18 @@
 # CHANGELOG
 
 ## 2026-09-19
+- 修复在商城购买契约（Neo Premium、Gabriel & Bannibou's、Tactician's、Conqueror's、Growth、Cube 等）发送占位符物品而非真实生效契约的问题：
+  - **根因分析**：
+    1. **商城契约分类与交付缺失**：CeraShop 购买流程原先将 `[item period or contract]` 视为未支持商品，或在开放全商品模式下直接作为普通堆叠物品/包裹分发到背包，导致玩家收到无效果的占位模板物品；
+    2. **契约时效与账号绑定机制**：官方契约机制（`premiumlist_new.etc`）由账号计时器管理（黑钻 Basic 117、黑钻 Plus 118、达人 27、霸王 22、加百利 73、成长 79、晶块 92），商城条目的 `package data` 内嵌真实契约别名，购买时应直接延长账号计时器而非生成背包道具；
+    3. **购买弹窗关闭时序与客户端崩溃规避**：商城购买弹窗由 CMD 64 ACK 驱动关闭；原先盲目推送 NOTI 66（`CERA_SPECIALITEM`）发奖通知，触发了客户端单人状态下空指针解引用崩溃（`sub_1452C6E00` / `0x1467CB274`），导致弹窗卡死并闪退；
+    4. **选角协议绝对时间戳对齐**：选角协议（`SELECT_CHARACTER` / `sub_14525A120`）解析契约为绝对 Unix 到期时间戳（`premiumEndTime`，u64），原先下发剩余秒数导致客户端将时间误判为 1970 年并视为已过期。
+  - **修复实现**：
+    - `internal/cashshop/contracts.go`：新增 PVF 原生契约别名与时长映射解析，并支持自动穿透契约礼盒解包；
+    - `internal/storage/cash_purchase.go` & `premium.go`：新增 `account_premiums` 持久化表与原子续期事务 `PurchaseCashPremium`，未过期从原到期时间顺延，已过期从当前时间重计；
+    - `internal/cashshop/pilot.go` & `cmd/wireprobe/shop_pilot.go`：新增 `TryPurchaseContract` 契约购买分流，独立结算契约订单，移除导致客户端崩溃的无效广播，确保 CMD 64 正常关闭“正在购买”弹窗；
+    - `internal/game/protocol/select_character.go` & `cmd/wireprobe/main.go`：将选角响应中的契约时效修正为下发绝对到期时间戳 `EndTime`，实现选角与进城无缝生效。
+
 - 修复装扮（Avatar）与宠物（Pet）背包/穿戴界面图标不显示及槽位状态异常：
   - **根因分析**：
     1. **装扮入场阻断时序缺陷**：进城初始化阶段直接下发完整装扮栏（NOTI 13 space 1），由于客户端此时尚未完成场景和角色 Actor 图挂载，导致装扮槽位数据被时序竞争覆盖；必须在进城初期下发空装扮容器，待入场世界确认（`ENTER_GAMEWORLD_COMPLETE`，NOTI 124）后再下发权威装扮快照；

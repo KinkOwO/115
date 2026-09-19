@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -35,12 +36,18 @@ type CashDelivery struct {
 	Amount   uint32 `json:"amount"`
 	Quantity uint32 `json:"quantity,omitempty"`
 }
+type CashPremium struct {
+	Type            uint8 `json:"type"`
+	EndTime         int64 `json:"end_time"`
+	RemainingSecond int64 `json:"remaining_seconds"`
+}
 type CashReceipt struct {
 	Order          string          `json:"order"`
 	Before         uint64          `json:"before"`
 	After          uint64          `json:"after"`
 	Charged        uint64          `json:"charged"`
 	Deliveries     []CashDelivery  `json:"deliveries"`
+	Premiums       []CashPremium   `json:"premiums,omitempty"`
 	CharacterState json.RawMessage `json:"character_state,omitempty"`
 	Vault          *VaultState     `json:"vault,omitempty"`
 }
@@ -80,11 +87,112 @@ func (s *Store) MigrateCashShop(ctx context.Context) error {
  amount bigint NOT NULL CHECK(amount>0 AND amount<=4294967295),
  claimed_at timestamptz, created_at timestamptz NOT NULL DEFAULT now(),
  UNIQUE(account_id,order_key,line_index),
- FOREIGN KEY(account_id,order_key) REFERENCES cash_orders(account_id,order_key));`)
+ FOREIGN KEY(account_id,order_key) REFERENCES cash_orders(account_id,order_key));
+ CREATE TABLE IF NOT EXISTS account_premiums(
+ account_id bigint NOT NULL REFERENCES accounts(id),
+ premium_type smallint NOT NULL CHECK(premium_type BETWEEN 1 AND 255),
+ end_time bigint NOT NULL CHECK(end_time>0),
+ updated_at timestamptz NOT NULL DEFAULT now(),
+ PRIMARY KEY(account_id,premium_type));
+ CREATE INDEX IF NOT EXISTS account_premiums_expiry ON account_premiums(account_id,end_time);`)
 	if e != nil {
 		return e
 	}
-	return s.migratePackagePlaceholders(ctx)
+	if err := s.migratePackagePlaceholders(ctx); err != nil {
+		return err
+	}
+	return s.migrateCoinItems(ctx)
+}
+
+func (s *Store) migrateCoinItems(ctx context.Context) error {
+	rows, err := s.DB.Query(ctx, `SELECT id, state FROM characters WHERE state->'inventory'->'items' @> '[{"Template": 1}]'`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	type charUpdate struct {
+		id    int64
+		state json.RawMessage
+	}
+	var updates []charUpdate
+
+	for rows.Next() {
+		var id int64
+		var stateRaw json.RawMessage
+		if err := rows.Scan(&id, &stateRaw); err != nil {
+			return err
+		}
+
+		var stateMap map[string]json.RawMessage
+		if err := json.Unmarshal(stateRaw, &stateMap); err != nil {
+			continue
+		}
+		invRaw, ok := stateMap["inventory"]
+		if !ok {
+			continue
+		}
+
+		type bagItem struct {
+			Slot       uint16 `json:"slot"`
+			Template   uint32 `json:"Template"`
+			Amount     uint32 `json:"Amount"`
+			ExpireTime uint32 `json:"expire_time,omitempty"`
+		}
+		type bagStruct struct {
+			Version   string          `json:"version"`
+			Gold      uint32          `json:"gold"`
+			Coin      uint32          `json:"coin,omitempty"`
+			Items     []bagItem       `json:"items"`
+			Equipment json.RawMessage `json:"equipment,omitempty"`
+			Worn      json.RawMessage `json:"worn,omitempty"`
+			Special   json.RawMessage `json:"special_equipment,omitempty"`
+		}
+
+		var b bagStruct
+		if err := json.Unmarshal(invRaw, &b); err != nil {
+			continue
+		}
+
+		var newItems []bagItem
+		coinCount := uint32(0)
+		for _, it := range b.Items {
+			if it.Template == 1 {
+				coinCount += it.Amount
+			} else {
+				newItems = append(newItems, it)
+			}
+		}
+
+		if coinCount == 0 {
+			continue
+		}
+
+		if uint64(b.Coin)+uint64(coinCount) > math.MaxUint32 {
+			b.Coin = math.MaxUint32
+		} else {
+			b.Coin += coinCount
+		}
+		b.Items = newItems
+
+		newInvRaw, err := json.Marshal(b)
+		if err != nil {
+			return err
+		}
+		stateMap["inventory"] = newInvRaw
+		newStateRaw, err := json.Marshal(stateMap)
+		if err != nil {
+			return err
+		}
+		updates = append(updates, charUpdate{id: id, state: newStateRaw})
+	}
+
+	for _, u := range updates {
+		if _, err := s.DB.Exec(ctx, `UPDATE characters SET state = $1 WHERE id = $2`, u.state, u.id); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *Store) migratePackagePlaceholders(ctx context.Context) error {
@@ -221,7 +329,16 @@ func (s *Store) PurchaseCash(ctx context.Context, o CashOrder) (CashReceipt, boo
 	if o.DeliveryMode != "" {
 		return CashReceipt{}, false, fmt.Errorf("unexpected cash delivery mode")
 	}
-	return s.purchaseCash(ctx, o, nil)
+	return s.purchaseCash(ctx, o, nil, nil)
+}
+
+// PurchaseCashPremium activates an account contract atomically with the CERA
+// debit. No contract wrapper or placeholder is inserted into cash_inventory.
+func (s *Store) PurchaseCashPremium(ctx context.Context, o CashOrder, premiumType uint8, durationSecond int64) (CashReceipt, bool, error) {
+	if o.DeliveryMode != "" || premiumType == 0 || durationSecond <= 0 {
+		return CashReceipt{}, false, fmt.Errorf("invalid premium purchase")
+	}
+	return s.purchaseCash(ctx, o, nil, &CashPremiumActivation{Type: premiumType, DurationSecond: durationSecond})
 }
 
 // PurchaseCashToBag executes a pure, source-backed inventory mutation under
@@ -232,7 +349,7 @@ func (s *Store) PurchaseCashToBag(ctx context.Context, o CashOrder, deliver func
 		return CashReceipt{}, false, fmt.Errorf("missing or invalid bag delivery")
 	}
 	o.DeliveryMode = "bag-v1"
-	return s.purchaseCash(ctx, o, deliver)
+	return s.purchaseCash(ctx, o, deliver, nil)
 }
 
 func (s *Store) PurchaseCashVault(ctx context.Context, o CashOrder, upgrade func(VaultState) (VaultState, error)) (CashReceipt, bool, error) {
@@ -240,10 +357,15 @@ func (s *Store) PurchaseCashVault(ctx context.Context, o CashOrder, upgrade func
 		return CashReceipt{}, false, fmt.Errorf("invalid vault purchase")
 	}
 	o.DeliveryMode = "vault-upgrade-v1"
-	return s.purchaseCash(ctx, o, nil, upgrade)
+	return s.purchaseCash(ctx, o, nil, nil, upgrade)
 }
 
-func (s *Store) purchaseCash(ctx context.Context, o CashOrder, deliver func(json.RawMessage) (json.RawMessage, error), upgrades ...func(VaultState) (VaultState, error)) (CashReceipt, bool, error) {
+type CashPremiumActivation struct {
+	Type           uint8
+	DurationSecond int64
+}
+
+func (s *Store) purchaseCash(ctx context.Context, o CashOrder, deliver func(json.RawMessage) (json.RawMessage, error), premium *CashPremiumActivation, upgrades ...func(VaultState) (VaultState, error)) (CashReceipt, bool, error) {
 	var receipt CashReceipt
 	cost, e := o.total()
 	if e != nil {
@@ -288,7 +410,7 @@ func (s *Store) purchaseCash(ctx context.Context, o CashOrder, deliver func(json
 		if e = json.Unmarshal(saved, &receipt); e != nil {
 			return receipt, false, e
 		}
-		if deliver != nil {
+		if deliver != nil || premium != nil {
 			receipt.CharacterState = state
 		}
 		if len(upgrades) > 0 {
@@ -310,6 +432,30 @@ func (s *Store) purchaseCash(ctx context.Context, o CashOrder, deliver func(json
 		return receipt, false, fmt.Errorf("CERA balance exceeds native range")
 	}
 	receipt = CashReceipt{Order: o.Key, Before: uint64(balance), After: uint64(balance) - cost, Charged: cost}
+	if premium != nil {
+		if premium.DurationSecond <= 0 || premium.DurationSecond > math.MaxInt64 {
+			return CashReceipt{}, false, fmt.Errorf("invalid premium duration")
+		}
+		now := time.Now().Unix()
+		var oldEnd int64
+		if e = tx.QueryRow(ctx, `SELECT end_time FROM account_premiums WHERE account_id=$1 AND premium_type=$2 FOR UPDATE`, o.Account, premium.Type).Scan(&oldEnd); e != nil && !errors.Is(e, pgx.ErrNoRows) {
+			return CashReceipt{}, false, e
+		}
+		base := now
+		if oldEnd > base {
+			base = oldEnd
+		}
+		end := base + premium.DurationSecond
+		if end <= base {
+			return CashReceipt{}, false, fmt.Errorf("premium expiry overflow")
+		}
+		_, e = tx.Exec(ctx, `INSERT INTO account_premiums(account_id,premium_type,end_time,updated_at) VALUES($1,$2,$3,now()) ON CONFLICT(account_id,premium_type) DO UPDATE SET end_time=EXCLUDED.end_time,updated_at=now()`, o.Account, premium.Type, end)
+		if e != nil {
+			return CashReceipt{}, false, e
+		}
+		receipt.CharacterState = state
+		receipt.Premiums = []CashPremium{{Type: premium.Type, EndTime: end, RemainingSecond: end - now}}
+	}
 	if deliver != nil {
 		receipt.CharacterState, e = deliver(state)
 		if e != nil {
@@ -351,6 +497,10 @@ func (s *Store) purchaseCash(ctx context.Context, o CashOrder, deliver func(json
 	}
 	for i, l := range o.Lines {
 		d := CashDelivery{Product: l.Product, Template: l.Template, Amount: l.Quantity * l.Units, Quantity: l.Quantity}
+		if premium != nil {
+			receipt.Deliveries = append(receipt.Deliveries, d)
+			continue
+		}
 		if e = tx.QueryRow(ctx, `INSERT INTO cash_inventory(account_id,character_id,order_key,line_index,product,template,amount) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id`, o.Account, o.Character, o.Key, i, l.Product, l.Template, d.Amount).Scan(&d.ID); e != nil {
 			return CashReceipt{}, false, e
 		}

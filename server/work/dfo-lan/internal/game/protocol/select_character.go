@@ -32,20 +32,26 @@ func DecodeUserInfoRequest(p []byte) (uint16, byte, error) {
 // SelectProbeState describes an explicit parser experiment. These fields do
 // not claim official initial world/tutorial rules or implement town entry.
 // Layout: 0x14525a120, nested 0x144f58e10 and 0x146cc6fd0.
+type PremiumEntry struct {
+	Type    uint8 `json:"type"`
+	EndTime int64 `json:"end_time"`
+}
+
 type SelectProbeState struct {
-	ActiveQuests      []ActiveQuest `json:"-"`
-	CreatedTime       uint32        `json:"created_time"`
-	UnknownPrefix     uint32        `json:"unknown_prefix"`
-	ActorServerID     uint16        `json:"actor_server_id"`
-	Fatigue           [3]uint16     `json:"fatigue_fields"`
-	Cash              uint32        `json:"cash"`
-	QuestFields       [4]uint32     `json:"quest_fields"`
-	WorldKind         uint32        `json:"world_kind"`
-	TutorialFlag      byte          `json:"tutorial_flag"`
-	TutorialCompleted []byte        `json:"tutorial_completed"`
-	Tail16            [2]uint16     `json:"tail_u16"`
-	ArenaBroadcast    byte          `json:"arena_broadcast"`
-	FatigueTail       uint16        `json:"fatigue_tail"`
+	ActiveQuests      []ActiveQuest  `json:"-"`
+	Premiums          []PremiumEntry `json:"premiums,omitempty"`
+	CreatedTime       uint32         `json:"created_time"`
+	UnknownPrefix     uint32         `json:"unknown_prefix"`
+	ActorServerID     uint16         `json:"actor_server_id"`
+	Fatigue           [3]uint16      `json:"fatigue_fields"`
+	Cash              uint32         `json:"cash"`
+	QuestFields       [4]uint32      `json:"quest_fields"`
+	WorldKind         uint32         `json:"world_kind"`
+	TutorialFlag      byte           `json:"tutorial_flag"`
+	TutorialCompleted []byte         `json:"tutorial_completed"`
+	Tail16            [2]uint16      `json:"tail_u16"`
+	ArenaBroadcast    byte           `json:"arena_broadcast"`
+	FatigueTail       uint16         `json:"fatigue_tail"`
 }
 
 func SelectProbeSuccess(s SelectProbeState) ([]byte, error) {
@@ -74,7 +80,21 @@ func SelectProbeSuccess(s SelectProbeState) ([]byte, error) {
 	for _, v := range s.Fatigue {
 		p = add16(p, v)
 	}
-	p = append(p, 0) // no premium entries; each entry would be u8 + u64
+	if len(s.Premiums) > 255 {
+		return nil, fmt.Errorf("too many premium entries")
+	}
+	p = append(p, byte(len(s.Premiums)))
+	seenPremium := map[uint8]bool{}
+	for _, premium := range s.Premiums {
+		if premium.Type == 0 || premium.EndTime <= 0 || seenPremium[premium.Type] {
+			return nil, fmt.Errorf("invalid premium entry")
+		}
+		seenPremium[premium.Type] = true
+		p = append(p, premium.Type)
+		for i := 0; i < 8; i++ {
+			p = append(p, byte(uint64(premium.EndTime)>>uint(8*i)))
+		}
+	}
 	p = add32(p, s.Cash)
 	for i := 0; i < 30; i++ {
 		q := ActiveQuest{ID: 0xffff}

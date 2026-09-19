@@ -24,6 +24,28 @@ type preparedBagLedger struct {
 	keys   []byte
 }
 
+func (l preparedBagLedger) PurchaseCashPremium(ctx context.Context, o storage.CashOrder, premiumType uint8, durationSecond int64) (storage.CashReceipt, bool, error) {
+	ledger, ok := l.ledger.(cashshop.PremiumLedger)
+	if !ok {
+		return storage.CashReceipt{}, false, fmt.Errorf("premium purchase ledger missing")
+	}
+	receipt, applied, err := ledger.PurchaseCashPremium(ctx, o, premiumType, durationSecond)
+	if err != nil || !applied {
+		return receipt, applied, err
+	}
+	packets, err := shopPilotPackets(receipt, 0, true)
+	if err != nil {
+		return storage.CashReceipt{}, false, err
+	}
+	if len(l.keys) != wire.SessionKeyBytes {
+		return storage.CashReceipt{}, false, fmt.Errorf("purchase cipher not initialized")
+	}
+	if _, err = preparePackets(l.keys, packets); err != nil {
+		return storage.CashReceipt{}, false, err
+	}
+	return receipt, applied, nil
+}
+
 func (l preparedBagLedger) PurchaseCashToBag(ctx context.Context, o storage.CashOrder, deliver func(json.RawMessage) (json.RawMessage, error)) (storage.CashReceipt, bool, error) {
 	return l.ledger.PurchaseCashToBag(ctx, o, func(raw json.RawMessage) (json.RawMessage, error) {
 		state, e := deliver(raw)
@@ -94,7 +116,11 @@ func (s *shopPilotSession) purchase(ctx context.Context, p *cashshop.Pilot, stor
 			})
 		}
 	}
-	r, applied, e := p.Purchase(ctx, preparedBagLedger{store, s.keys}, account, character, key, cart)
+	prepared := preparedBagLedger{store, s.keys}
+	if receipt, applied, handled, err := p.TryPurchaseContract(ctx, prepared, account, character, key, cart); handled || err != nil {
+		return receipt, applied, err
+	}
+	r, applied, e := p.Purchase(ctx, prepared, account, character, key, cart)
 	return r, applied, e
 }
 

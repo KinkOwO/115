@@ -241,6 +241,13 @@ func (p *Pilot) findEntry(product, template uint32) (OrdinaryProduct, bool) {
 }
 
 func (p *Pilot) resolveDeliveryType(template uint32) (deliveryType, error) {
+	if template == 1 {
+		return deliveryType{
+			Kind:  "[coin]",
+			Slots: [2]uint16{1, 1},
+			Limit: math.MaxUint32,
+		}, nil
+	}
 	for _, entry := range p.Config.Entries {
 		if len(entry.Row) == 14 && uint32(entry.Row[1].Value) == template {
 			_, handler, e := p.Config.classify(entry)
@@ -321,6 +328,72 @@ type BagLedger interface {
 	PurchaseCashToBag(context.Context, storage.CashOrder, func(json.RawMessage) (json.RawMessage, error)) (storage.CashReceipt, bool, error)
 }
 
+type PremiumLedger interface {
+	PurchaseCashPremium(context.Context, storage.CashOrder, uint8, int64) (storage.CashReceipt, bool, error)
+}
+
+func (p *Pilot) purchaseContract(ctx context.Context, ledger BagLedger, order storage.CashOrder, cart []protocol.CeraCartItem) (storage.CashReceipt, bool, bool, error) {
+	if len(cart) != 1 {
+		return storage.CashReceipt{}, false, false, nil
+	}
+	entry, found := p.findEntry(cart[0].Product, 0)
+	if !found {
+		return storage.CashReceipt{}, false, false, nil
+	}
+	premium, isPremium, err := entryContract(entry)
+	if err != nil || !isPremium {
+		return storage.CashReceipt{}, false, isPremium, err
+	}
+	pl, ok := ledger.(PremiumLedger)
+	if !ok {
+		return storage.CashReceipt{}, false, false, nil
+	}
+	duration := premium.DurationSecond * int64(cart[0].Quantity) * int64(order.Lines[0].Units)
+	if duration <= 0 {
+		return storage.CashReceipt{}, false, true, fmt.Errorf("premium duration overflow")
+	}
+	receipt, applied, err := pl.PurchaseCashPremium(ctx, order, premium.Type, duration)
+	return receipt, applied, true, err
+}
+
+func (p *Pilot) TryPurchaseContract(ctx context.Context, ledger BagLedger, account, character int64, key string, cart []protocol.CeraCartItem) (storage.CashReceipt, bool, bool, error) {
+	if len(cart) != 1 {
+		for _, line := range cart {
+			entry, found := p.findEntry(line.Product, 0)
+			if !found {
+				continue
+			}
+			_, premium, err := entryContract(entry)
+			if err != nil {
+				return storage.CashReceipt{}, false, true, err
+			}
+			if premium {
+				return storage.CashReceipt{}, false, true, fmt.Errorf("premium contracts require a separate order")
+			}
+		}
+		return storage.CashReceipt{}, false, false, nil
+	}
+	entry, found := p.findEntry(cart[0].Product, 0)
+	if !found || len(entry.Row) != 14 {
+		return storage.CashReceipt{}, false, false, nil
+	}
+	_, isPremium, err := entryContract(entry)
+	if err != nil || !isPremium {
+		return storage.CashReceipt{}, false, isPremium, err
+	}
+	r := entry.Row
+	if r[0].Value <= 0 || r[1].Value <= 0 || r[2].Value <= 0 || r[5].Value <= 0 {
+		return storage.CashReceipt{}, false, true, fmt.Errorf("invalid contract product")
+	}
+	product := Product{ID: uint32(r[0].Value), Template: uint32(r[1].Value), Units: uint32(r[2].Value), Cera: uint32(r[5].Value), Enabled: true}
+	service := Service{Catalog: Catalog{Source: p.Config.Source.Checksum, Products: map[uint32]Product{product.ID: product}}}
+	order, err := service.Quote(account, character, key, cart, time.Now())
+	if err != nil {
+		return storage.CashReceipt{}, false, true, err
+	}
+	return p.purchaseContract(ctx, ledger, order, cart)
+}
+
 func (p *Pilot) Purchase(ctx context.Context, ledger BagLedger, account, character int64, key string, cart []protocol.CeraCartItem) (storage.CashReceipt, bool, error) {
 	if p == nil || ledger == nil || len(cart) == 0 || len(cart) > 32 {
 		return storage.CashReceipt{}, false, fmt.Errorf("purchase requires1..32 supported products")
@@ -395,6 +468,17 @@ func (p *Pilot) deliverAmount(raw json.RawMessage, template, amount uint32, expi
 	var exp uint32
 	if len(expireTime) > 0 {
 		exp = expireTime[0]
+	}
+	if template == 1 {
+		b, e := inventory.ReadBag(raw)
+		if e != nil {
+			return nil, e
+		}
+		if uint64(b.Coin)+uint64(amount) > math.MaxUint32 {
+			return nil, fmt.Errorf("coin overflow")
+		}
+		b.Coin += amount
+		return inventory.SaveBag(raw, b)
 	}
 	h, err := p.resolveDeliveryType(template)
 	if err != nil {
