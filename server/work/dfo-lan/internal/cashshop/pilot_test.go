@@ -339,5 +339,8 @@ func TestShopPilotPackageDelivery(t *testing.T) {
 		if it.Slot < 65 || it.Slot > 120 {
 			t.Fatalf("item %d slot = %d out of consumable range [65, 120]", it.Template, it.Slot)
 		}
+		if it.ExpireTime != MaxExpireTime {
+			t.Fatalf("item %d ExpireTime = %d, want MaxExpireTime %d", it.Template, it.ExpireTime, MaxExpireTime)
+		}
 	}
 }

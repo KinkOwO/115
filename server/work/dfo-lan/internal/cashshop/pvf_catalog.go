@@ -149,6 +149,20 @@ func importShopScripts(source pvf.ArchiveSnapshot, shop, index catalog.ScriptRec
 	return c, c.validate()
 }
 
+func isCreatureEgg(v OrdinaryProduct) bool {
+	if v.Section != "[creature]" || !strings.HasPrefix(v.IndexPath, "equipment/creature/") {
+		return false
+	}
+	for i, t := range v.Item.Cells {
+		if t.Type == 3 && t.Text == "[equipment type]" {
+			if i+1 < len(v.Item.Cells) && v.Item.Cells[i+1].Text == "[creature]" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func (c PilotConfig) classify(v OrdinaryProduct) (Product, deliveryType, error) {
 	var p Product
 	var h deliveryType
@@ -184,12 +198,16 @@ func (c PilotConfig) classify(v OrdinaryProduct) (Product, deliveryType, error) 
 		case "[item period or contract]":
 			return fail("contract family requires effect, renewal and expiry handlers")
 		case "[creature]":
-			return fail("creature requires dedicated index, inventory and hatch handlers")
+			if !isCreatureEgg(v) {
+				return fail("creature requires dedicated index, inventory and hatch handlers")
+			}
 		case "[package related]":
 			return fail("package family requires sale policy and reward delivery handlers")
 		}
 		if v.Section != "[item]" && v.Section != "[item etc]" && v.Section != "[item second]" && v.Section != "[item event]" {
-			return fail("unimplemented shop family")
+			if v.Section != "[creature]" || !isCreatureEgg(v) {
+				return fail("unimplemented shop family")
+			}
 		}
 		for _, i := range []int{3, 4, 6, 7, 10} {
 			if r[i].Value != 0 {
@@ -202,12 +220,12 @@ func (c PilotConfig) classify(v OrdinaryProduct) (Product, deliveryType, error) 
 		if r[9].Value != 0 && r[9].Value != 4 {
 			return fail("hidden or unverified display policy")
 		}
-		if !digestValid(v.Item.SHA256) || !strings.HasPrefix(v.IndexPath, "stackable/") {
+		if !digestValid(v.Item.SHA256) || (!strings.HasPrefix(v.IndexPath, "stackable/") && !strings.HasPrefix(v.IndexPath, "equipment/creature/")) {
 			return fail("missing script/index provenance")
 		}
 		alternate := path.Join(path.Dir(v.IndexPath), "(r)"+path.Base(v.IndexPath))
 		if v.Item.Path != v.IndexPath && v.Item.Path != alternate {
-			return fail("script does not match stackable.lst path")
+			return fail("script does not match index path")
 		}
 		for _, name := range []string{"[purchasing limit]", "[not stackable buy]", "[immediately adaptive product]", "[specific product mileage]", "[auto open booster item]"} {
 			for _, t := range c.Policies[name] {

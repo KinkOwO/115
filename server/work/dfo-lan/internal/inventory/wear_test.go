@@ -3,9 +3,11 @@ package inventory
 import (
 	"bytes"
 	"dfolan/internal/catalog"
+	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/storage"
 	"encoding/json"
+	"strings"
 	"testing"
 )
 
@@ -99,3 +101,98 @@ func TestWornBootstrapMatchesNativeReader(t *testing.T) {
 		t.Fatal(e)
 	}
 }
+
+func TestWearCreatureEggHatchesOnEquip(t *testing.T) {
+	s, role := wearFixture(t)
+	s.Rules.Special = true
+	s.Rules.Slots["[creature]"] = 26
+
+	s.Catalog.index[63006] = EquipmentDefinition{
+		ID:     63006,
+		Path:   "equipment/creature/egg_faras.equ",
+		SHA256: strings.Repeat("1", 64),
+		Fields: map[string][]pvf.Token{
+			"[equipment type]": {{Type: 6, Text: "[creature]"}, {Type: 0, Value: 0}},
+			"[sub type]":        {{Type: 0, Value: 1}},
+			"[output index]":    {{Type: 0, Value: 63000}},
+			"[usable job]":      {{Type: 6, Text: "[all]"}},
+			"[minimum level]":   {{Type: 0, Value: 1}},
+		},
+	}
+	s.Catalog.index[63000] = EquipmentDefinition{
+		ID:     63000,
+		Path:   "equipment/creature/faras.equ",
+		SHA256: strings.Repeat("2", 64),
+		Fields: map[string][]pvf.Token{
+			"[equipment type]": {{Type: 6, Text: "[creature]"}, {Type: 0, Value: 0}},
+			"[sub type]":        {{Type: 0, Value: 0}},
+			"[usable job]":      {{Type: 6, Text: "[all]"}},
+			"[minimum level]":   {{Type: 0, Value: 1}},
+		},
+	}
+
+	// Place egg 63006 in space 7 slot 0
+	b := Bag{
+		Version: "ordinary-bag-v1",
+		Special: map[byte][]BagEquipment{
+			7: {{Slot: 0, Template: 63006}},
+		},
+	}
+	var err error
+	role.State, err = SaveBag(role.State, b)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Right-click equip: move from space 7 slot 0 to space 3 slot 26
+	r := protocol.ItemMoveRequest{
+		SourceList:      7,
+		SourceSlot:      0,
+		SourceItem:      63006,
+		DestinationList: 3,
+		DestinationSlot: 26,
+		Count:           1,
+		Selection:       0xffffffff,
+	}
+	raw, err := s.MoveOrdinary(role, r)
+	if err != nil {
+		t.Fatal("egg equip move failed:", err)
+	}
+	after, err := ReadBag(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(after.Worn) != 1 || after.Worn[0].Slot != 26 || after.Worn[0].Template != 63000 {
+		t.Fatalf("expected hatched creature 63000 in worn slot 26, got: %+v", after.Worn)
+	}
+	if len(after.Special[7]) != 0 {
+		t.Fatalf("expected space 7 to be empty, got: %+v", after.Special[7])
+	}
+
+	// Test un-equipping creature back to space 7
+	role.State = raw
+	unMove := protocol.ItemMoveRequest{
+		SourceList:      3,
+		SourceSlot:      26,
+		SourceItem:      63000,
+		DestinationList: 7,
+		DestinationSlot: 0,
+		Count:           1,
+		Selection:       0xffffffff,
+	}
+	raw2, err := s.MoveOrdinary(role, unMove)
+	if err != nil {
+		t.Fatal("creature un-equip failed:", err)
+	}
+	after2, err := ReadBag(raw2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(after2.Worn) != 0 {
+		t.Fatalf("expected worn to be empty, got: %+v", after2.Worn)
+	}
+	if len(after2.Special[7]) != 1 || after2.Special[7][0].Template != 63000 {
+		t.Fatalf("expected creature 63000 in space 7 slot 0, got: %+v", after2.Special[7])
+	}
+}
+

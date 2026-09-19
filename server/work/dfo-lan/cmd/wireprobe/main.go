@@ -66,6 +66,7 @@ func main() {
 	wearRulesFile := flag.String("equipment-wear-rules", "", "current-client equipment slots and persistent wear handling")
 	fullEquipmentFile := flag.String("equipment-full-catalog", os.Getenv("DFO_EQUIPMENT_FULL_CATALOG"), "separate indexed wear catalog prefix; does not widen drops")
 	itemIndexFile := flag.String("item-index", os.Getenv("DFO_ITEM_INDEX"), "full stackable item index JSON (e.g. configs/items.index.json)")
+	boosterCatalogFile := flag.String("booster-catalog", os.Getenv("DFO_BOOSTER_CATALOG"), "booster definitions JSON")
 	soloPartyBootstrap := flag.Bool("solo-party-bootstrap", false, "initialize the owned actor in the current solo party roster")
 	accountOptionsFile := flag.String("account-options", "", "sparse current-client account option overrides; other defaults remain client-owned")
 	tutorialRoutesFile := flag.String("tutorial-routes", "", "source per-job starting route table")
@@ -98,6 +99,34 @@ func main() {
 				*shopRelease = true
 				break
 			}
+		}
+	}
+	if *boosterCatalogFile == "" {
+		for _, cand := range []string{
+			"configs/booster-catalog.json",
+			"server/work/dfo-lan/configs/booster-catalog.json",
+		} {
+			if _, err := os.Stat(cand); err == nil {
+				*boosterCatalogFile = cand
+				break
+			}
+		}
+	}
+	if *itemIndexFile == "" {
+		for _, cand := range []string{
+			"configs/items.index.json",
+			"server/work/dfo-lan/configs/items.index.json",
+		} {
+			if _, err := os.Stat(cand); err == nil {
+				*itemIndexFile = cand
+				break
+			}
+		}
+	}
+	if *boosterCatalogFile == "" && *itemIndexFile != "" {
+		cand := filepath.Join(filepath.Dir(*itemIndexFile), "booster-catalog.json")
+		if _, err := os.Stat(cand); err == nil {
+			*boosterCatalogFile = cand
 		}
 	}
 	skillRelease := os.Getenv("DFO_SKILL_RELEASE") == "1"
@@ -561,6 +590,16 @@ func main() {
 			log.Fatal(e)
 		}
 	}
+	var boosterCatalog *BoosterCatalog
+	if *boosterCatalogFile != "" || *itemIndexFile != "" {
+		var err error
+		boosterCatalog, err = LoadBoosterCatalog(*boosterCatalogFile, *itemIndexFile)
+		if err != nil {
+			log.Printf("warning: load booster catalog: %v", err)
+		} else {
+			log.Printf("loaded booster catalog (%d definitions, %d item index entries)", len(boosterCatalog.Definitions), len(boosterCatalog.Items))
+		}
+	}
 	if *responseFile != "" {
 		b, err := os.ReadFile(*responseFile)
 		if err != nil {
@@ -841,6 +880,24 @@ func main() {
 				event(map[string]any{"kind": "cera_purchase_cancelled", "reason": reason, "items": items, "character_id": selectedCharacterID, "charged": false, "plain_hex": hex.EncodeToString(payload)})
 				continue
 			}
+			if frame.Type == 1 && bootstrapped && verified && characters != nil && worldState != nil && (frame.ID == 102 || frame.ID == 173) {
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				packets, e := worldState.hatchCreature(ctx, characters.Store, frame.ID, plaintext, frame.Raw)
+				cancel()
+				if e != nil {
+					event(map[string]any{"kind": "creature_hatch_error", "error": e.Error(), "character_id": selectedCharacterID})
+					_ = sendPayload(1, frame.ID, []byte{0})
+					continue
+				}
+				for _, p := range packets {
+					if err := sendPayload(p.Kind, p.ID, p.Payload); err != nil {
+						return
+					}
+					event(map[string]any{"kind": p.Name, "id": p.ID, "plain_hex": hex.EncodeToString(p.Payload)})
+				}
+				event(map[string]any{"kind": "creature_hatch_success", "character_id": selectedCharacterID})
+				continue
+			}
 			if frame.Type == 1 && (frame.ID == 160 || (frame.ID == 41 && odysseyTemporaryCreditsEnabled())) && bootstrapped && verified && characters != nil && worldState != nil && odysseyRewardsEnabled() {
 				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 				var plan []outboundPacket
@@ -864,6 +921,30 @@ func main() {
 				if e != nil {
 					event(map[string]any{"kind": "odyssey_action_refused", "id": frame.ID, "reason": e.Error()})
 					plan = []outboundPacket{{"odyssey_action_refused_ack", 1, frame.ID, protocol.Refusal(4)}}
+				}
+				for _, packet := range plan {
+					if sendPayload(packet.Kind, packet.ID, packet.Payload) != nil {
+						return
+					}
+					event(map[string]any{"kind": packet.Name, "id": packet.ID, "character_id": selectedCharacterID, "plain_hex": hex.EncodeToString(packet.Payload)})
+				}
+				continue
+			}
+			if frame.Type == 1 && (frame.ID == 160 || (frame.ID == 41 && odysseyTemporaryCreditsEnabled())) && bootstrapped && verified && characters != nil && worldState != nil {
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				var plan []outboundPacket
+				var e error
+				if frame.ID == 41 {
+					plan, e = worldState.pilotRevive(ctx, characters.Store, plaintext, frame.Raw)
+				} else if worldState.activeDungeon != nil || worldState.role.ID == 0 {
+					e = fmt.Errorf("booster box use requires selected character in town")
+				} else {
+					plan, e = worldState.openBoosterItem(ctx, characters.Store, wearService, lootService, boosterCatalog, odysseyChoices, plaintext, frame.Raw)
+				}
+				cancel()
+				if e != nil {
+					event(map[string]any{"kind": "booster_action_refused", "id": frame.ID, "reason": e.Error()})
+					plan = []outboundPacket{{"booster_action_refused_ack", 1, frame.ID, protocol.Refusal(4)}}
 				}
 				for _, packet := range plan {
 					if sendPayload(packet.Kind, packet.ID, packet.Payload) != nil {

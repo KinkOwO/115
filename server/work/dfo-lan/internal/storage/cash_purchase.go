@@ -90,8 +90,10 @@ func (s *Store) MigrateCashShop(ctx context.Context) error {
 func (s *Store) migratePackagePlaceholders(ctx context.Context) error {
 	pkgTemplate := uint32(590722921)
 	subTemplates := []uint32{590722922, 590722923, 590722926, 590722927, 590722928, 590722929}
+	const maxExpireTime = uint32(math.MaxInt32)
 
-	rows, err := s.DB.Query(ctx, `SELECT id, state FROM characters WHERE state->'inventory'->'items' @> '[{"Template": 590722921}]'`)
+	// Also find characters with sub-boxes whose expire_time is not set
+	rows, err := s.DB.Query(ctx, `SELECT id, state FROM characters WHERE state->'inventory'->'items' @> '[{"Template": 590722921}]' OR state->'inventory'->'items' @> '[{"Template": 590722922}]'`)
 	if err != nil {
 		return err
 	}
@@ -120,9 +122,10 @@ func (s *Store) migratePackagePlaceholders(ctx context.Context) error {
 		}
 
 		type bagItem struct {
-			Slot     uint16 `json:"slot"`
-			Template uint32 `json:"Template"`
-			Amount   uint32 `json:"Amount"`
+			Slot       uint16 `json:"slot"`
+			Template   uint32 `json:"Template"`
+			Amount     uint32 `json:"Amount"`
+			ExpireTime uint32 `json:"expire_time,omitempty"`
 		}
 		type bagStruct struct {
 			Version   string          `json:"version"`
@@ -141,34 +144,53 @@ func (s *Store) migratePackagePlaceholders(ctx context.Context) error {
 		occupied := map[uint16]bool{}
 		pkgCount := uint32(0)
 		var newItems []bagItem
+		needsUpdate := false
+
+		isSubBox := func(t uint32) bool {
+			for _, st := range subTemplates {
+				if st == t {
+					return true
+				}
+			}
+			return false
+		}
 
 		for _, it := range b.Items {
 			if it.Template == pkgTemplate {
 				pkgCount += it.Amount
+				needsUpdate = true
 			} else {
+				if isSubBox(it.Template) && it.ExpireTime != maxExpireTime {
+					it.ExpireTime = maxExpireTime
+					needsUpdate = true
+				}
 				occupied[it.Slot] = true
 				newItems = append(newItems, it)
 			}
 		}
-		if pkgCount == 0 {
-			continue
-		}
 
-		nextSlot := uint16(65)
-		for _, subTpl := range subTemplates {
-			for nextSlot <= 120 && occupied[nextSlot] {
+		if pkgCount > 0 {
+			nextSlot := uint16(65)
+			for _, subTpl := range subTemplates {
+				for nextSlot <= 120 && occupied[nextSlot] {
+					nextSlot++
+				}
+				if nextSlot > 120 {
+					return fmt.Errorf("character %d inventory full during package migration", id)
+				}
+				newItems = append(newItems, bagItem{
+					Slot:       nextSlot,
+					Template:   subTpl,
+					Amount:     pkgCount,
+					ExpireTime: maxExpireTime,
+				})
+				occupied[nextSlot] = true
 				nextSlot++
 			}
-			if nextSlot > 120 {
-				return fmt.Errorf("character %d inventory full during package migration", id)
-			}
-			newItems = append(newItems, bagItem{
-				Slot:     nextSlot,
-				Template: subTpl,
-				Amount:   pkgCount,
-			})
-			occupied[nextSlot] = true
-			nextSlot++
+		}
+
+		if !needsUpdate {
+			continue
 		}
 
 		b.Items = newItems
