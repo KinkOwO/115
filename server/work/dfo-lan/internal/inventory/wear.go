@@ -5,6 +5,7 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/storage"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -212,6 +213,35 @@ func (s *WearService) MoveOrdinary(role storage.Character, r protocol.ItemMoveRe
 		if item != nil {
 			v := *item
 			v.Slot = slot
+			if slot == 26 && list == 3 {
+				var rec [protocol.CurrentItemRecordSize]byte
+				if len(v.Record) == protocol.CurrentItemRecordSize {
+					copy(rec[:], v.Record)
+				}
+				binary.LittleEndian.PutUint16(rec[0:], 26)
+				binary.LittleEndian.PutUint32(rec[2:], v.Template)
+				binary.LittleEndian.PutUint32(rec[6:], 1)
+				v.Record = rec[:]
+			}
+			if list == 7 {
+				var rec [protocol.CurrentItemRecordSize]byte
+				if len(v.Record) == protocol.CurrentItemRecordSize {
+					copy(rec[:], v.Record)
+				}
+				binary.LittleEndian.PutUint16(rec[0:], slot)
+				binary.LittleEndian.PutUint32(rec[2:], v.Template)
+				var key uint32
+				if slot < 140 {
+					key = uint32(slot + 2)
+					if len(v.Record) == protocol.CurrentItemRecordSize {
+						if existingKey := binary.LittleEndian.Uint32(v.Record[6:10]); existingKey != 0 && existingKey != 1 {
+							key = existingKey
+						}
+					}
+				}
+				binary.LittleEndian.PutUint32(rec[6:], key)
+				v.Record = rec[:]
+			}
 			kept = append(kept, v)
 		}
 		*rows = kept

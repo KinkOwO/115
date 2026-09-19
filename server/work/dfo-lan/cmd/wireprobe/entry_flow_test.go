@@ -35,6 +35,40 @@ func TestQuestBatchAfterPreviousWriteDeadlineExpired(t *testing.T) {
 	}
 }
 
+func TestEntryPacketsDelayAvatarRowsUntilAfterWorldInitialization(t *testing.T) {
+	p := entryPayloads{
+		Avatars:      []byte{1, 0, 0, 0, 0},
+		AvatarReady:  []byte{1, 0, 0, 1, 0},
+		Creatures:    []byte{7, 0, 0},
+		CreatureList: []byte{0},
+		WornUpdate:   []byte{3, 0, 0},
+	}
+	packets := p.packets()
+	var initial, ready int
+	var list, inventory int
+	for i, packet := range packets {
+		switch packet.Name {
+		case "avatar_inventory_initialized":
+			initial = i
+		case "avatar_inventory_restored":
+			ready = i
+		case "creature_list_restored":
+			list = i
+		case "creature_inventory_restored":
+			inventory = i
+		}
+	}
+	if initial == 0 || ready <= initial {
+		t.Fatalf("avatar packet order is not delayed: initial=%d ready=%d", initial, ready)
+	}
+	if !bytes.Equal(packets[initial].Payload, p.Avatars) || !bytes.Equal(packets[ready].Payload, p.AvatarReady) {
+		t.Fatalf("avatar payloads were swapped: initial=%x ready=%x", packets[initial].Payload, packets[ready].Payload)
+	}
+	if list == 0 || inventory <= list {
+		t.Fatalf("pet list must precede pet inventory: list=%d inventory=%d", list, inventory)
+	}
+}
+
 func TestCompleteEntryPreflight(t *testing.T) {
 	must := func(p []byte, err error) []byte {
 		t.Helper()
@@ -63,16 +97,23 @@ func TestCompleteEntryPreflight(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ids := []uint16{4, 2, 2, 19, 13, 23, 24, 36, 124}
-	if len(prepared) != len(ids) {
-		t.Fatalf("entry frame count=%d", len(prepared))
+	// Packets with non-empty payloads are sent in sequence
+	var nonZeroPayloads []outboundPacket
+	for _, pkt := range p.packets() {
+		if len(pkt.Payload) > 0 {
+			nonZeroPayloads = append(nonZeroPayloads, pkt)
+		}
+	}
+	if len(prepared) != len(nonZeroPayloads) {
+		t.Fatalf("entry frame count=%d want=%d", len(prepared), len(nonZeroPayloads))
 	}
 	var sent bytes.Buffer
 	if err = writePackets(&sent, prepared, nil); err != nil {
 		t.Fatal(err)
 	}
 	raw := sent.Bytes()
-	for i, id := range ids {
+	for i, expectedPkt := range nonZeroPayloads {
+		id := expectedPkt.ID
 		if len(raw) < 16 {
 			t.Fatal("truncated entry")
 		}
@@ -80,12 +121,9 @@ func TestCompleteEntryPreflight(t *testing.T) {
 		if n > len(raw) || n < 16 {
 			t.Fatal("invalid frame length")
 		}
-		kind := byte(0)
-		if i == 0 {
-			kind = 1
-		}
+		kind := expectedPkt.Kind
 		if raw[0] != kind || binary.LittleEndian.Uint16(raw[1:]) != id {
-			t.Fatalf("wrong entry sequence at %d", i)
+			t.Fatalf("wrong entry sequence at %d: got id=%d kind=%d, want id=%d kind=%d", i, binary.LittleEndian.Uint16(raw[1:]), raw[0], id, kind)
 		}
 		cipher := raw[16:n]
 		if raw[11] != wire.Checksum(cipher) {

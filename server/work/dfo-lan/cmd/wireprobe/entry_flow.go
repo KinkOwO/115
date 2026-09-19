@@ -25,7 +25,7 @@ type entryPayloads struct {
 	Worn                                                                      []byte
 	AccountOptions                                                            []byte
 	WornUpdate                                                                []byte
-	Avatars, Creatures                                                        []byte
+	Avatars, AvatarReady, Creatures, CreatureList, CreatureGrowth             []byte
 	CinematicSkips                                                            []byte
 	SkillVariations                                                           []byte
 	OdysseyProgress                                                           []byte
@@ -45,10 +45,25 @@ func (p entryPayloads) packets() []outboundPacket {
 		{"entry_skills_sent", 0, 19, p.Skills},
 		{"vault_initialized", 0, 13, p.Vault},
 		{"inventory_restored", 0, 13, p.Inventory},
-		{"avatar_inventory_restored", 0, 13, p.Avatars},
+		// Initialize list 1 empty. The client accepts authoritative avatar rows
+		// only after the town actor/UserInfo graph has been installed.
+		{"avatar_inventory_initialized", 0, 13, p.Avatars},
+		{"creature_list_restored", 0, 105, p.CreatureList},
 		{"creature_inventory_restored", 0, 13, p.Creatures},
+		{"creature_growth_restored", 0, 102, p.CreatureGrowth},
 		{"worn_equipment_restored", 0, 13, p.Worn},
 		{"user_area_sent", 0, 23, p.UserArea},
+		{"town_entry_probe_sent", 0, 24, p.Area},
+		{"fatigue_sent", 0, 36, p.Fatigue},
+		{"enter_gameworld_complete_sent", 0, 124, p.Complete},
+		{"entry_experience_restored", 0, 37, p.Experience},
+		{"odyssey_journal_restored", 0, 2856, p.OdysseyProgress},
+		{"completed_quests_restored", 0, 342, p.CompletedQuests},
+		{"available_quests_restored", 0, 21, p.AvailableQuests},
+		{"skill_variations_restored", 1, 29, p.SkillVariations},
+		// Complete list-1 refresh after the entry/actor initialization barrier.
+		{"avatar_inventory_restored", 0, 13, p.AvatarReady},
+		{"worn_equipment_visuals_restored", 0, 14, p.WornUpdate},
 	}
 	// The players already in the scene have to be introduced before the area
 	// list that places them. The client creates an actor from USERINFO and only

@@ -1,6 +1,21 @@
 # CHANGELOG
 
 ## 2026-09-19
+- 修复装扮（Avatar）与宠物（Pet）背包/穿戴界面图标不显示及槽位状态异常：
+  - **根因分析**：
+    1. **装扮入场阻断时序缺陷**：进城初始化阶段直接下发完整装扮栏（NOTI 13 space 1），由于客户端此时尚未完成场景和角色 Actor 图挂载，导致装扮槽位数据被时序竞争覆盖；必须在进城初期下发空装扮容器，待入场世界确认（`ENTER_GAMEWORLD_COMPLETE`，NOTI 124）后再下发权威装扮快照；
+    2. **穿脱装备破坏性全量重置**：原 `CMD 19` 处理分支错误地追加了觉醒专用函数 `appearanceRestore`，在普通穿脱换装时向客户端连续广播全量 `NOTI 13 space 1/7/3`，冲毁打开中的背包 UI 容器状态，导致装扮/宠物格子变空白；
+    3. **槽位清空哨兵缺失**：物品在槽位间移动时，清空源槽位的增量更新（`NOTI 14`）原先下发了 `Template: 0`，未对齐原生客户端 `sub_1452E9810` / `sub_145AD4750` 所需的删除哨兵值 `0xFFFFFFFF`（-1）；
+    4. **宠物列表与装备数据对齐**：`CreatureListPayload` 原先下发空宠物名且 `Tail` 标志错设为 1，补充原生默认宠物名映射并将 `Tail` 修正为 0；修复装备移动时误给宠物装备槽位写入非零 key 的问题。
+  - **修复实现**：
+    - `cmd/wireprobe/entry_flow.go`：拆分装扮下发时序，进城初始化前置空装扮容器，NOTI 124 后同步 `AvatarReady`；
+    - `cmd/wireprobe/main.go`：移除普通 `CMD 19` 装备移动对 `appearanceRestore` 的错误调用，仅依靠精确变动槽位的增量 `NOTI 14` 刷新；
+    - `cmd/wireprobe/equipment_flow.go`：槽位清空统一填充 `Template: 0xFFFFFFFF` 删除哨兵；
+    - `internal/inventory/creature_list.go` & `wear.go`：补全 `CreatureDefaultNames`、校正 `Tail: 0`，且仅对宠物本体（slot < 140）维护 item handle key。
+  - **测试覆盖**：
+    - 新增 `cmd/wireprobe/avatar_move_test.go`，验证时装移动时清空源槽位正确携带 `0xFFFFFFFF` 哨兵；
+    - 更新 `cmd/wireprobe/entry_flow_test.go` 与 `creature_list_test.go`，通过全量单元测试与 `go vet`。
+
 - 修复剧情模式（`DFO_ODYSSEY_MODE=0`）下角色列表为空及无法创建角色问题：
   - **根因分析**：
     1. 探针模式分流缺陷（`channel_probe.py`）：双向模式自适应逻辑中，剧情模式（`DFO_ODYSSEY_MODE=0`）下的规则分支未选用全职业规则 `character-rules.jobs-release.json`，而是回退到了初始测试配置 `character-probe.json`；

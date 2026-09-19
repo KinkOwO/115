@@ -67,7 +67,7 @@ func (s *equipmentSession) handle(service *inventory.WearService, w *worldSessio
 			if loc.space != space {
 				continue
 			}
-			row := inventory.BagEquipment{Slot: loc.slot}
+			row := inventory.BagEquipment{Slot: loc.slot, Template: 0xFFFFFFFF}
 			items := b.Equipment
 			if space == 3 {
 				items = b.Worn
@@ -89,6 +89,17 @@ func (s *equipmentSession) handle(service *inventory.WearService, w *worldSessio
 				return nil, e
 			}
 			plan = append(plan, outboundPacket{"equipment_slots_updated", 0, 14, body})
+		}
+	}
+	if r.SourceList == 7 || r.DestinationList == 7 || r.SourceSlot == 26 || r.DestinationSlot == 26 {
+		clPayload, err := inventory.CreatureListPayload(saved.State)
+		if err == nil {
+			plan = append(plan, outboundPacket{"creature_list_updated", 0, 105, clPayload})
+		}
+		if (r.DestinationList == 3 && r.DestinationSlot == 26) || (r.SourceList == 3 && r.SourceSlot == 26) {
+			if inventory.HasEquippedCreature(saved.State) {
+				plan = append(plan, outboundPacket{"creature_growth_updated", 0, 102, []byte{1, 0, 0, 0, 0, 0}})
+			}
 		}
 	}
 	w.role = saved

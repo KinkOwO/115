@@ -48,6 +48,15 @@ func EquipmentPayload(space byte, items []BagEquipment, restore bool) ([]byte, e
 		}
 		seen[i.Slot] = true
 		row := EquipmentRow(i)
+		if (space == 3 && i.Slot == 26) || (space == 7 && i.Slot < 140) {
+			if binary.LittleEndian.Uint32(row[6:10]) == 0 {
+				key := uint32(1)
+				if space == 7 {
+					key = uint32(i.Slot + 2)
+				}
+				binary.LittleEndian.PutUint32(row[6:10], key)
+			}
+		}
 		p = append(p, row[:]...)
 		avatar := space == 1 || (space == 3 && i.Slot <= 11 && i.Template != 0)
 		if avatar {
@@ -69,6 +78,17 @@ func SpecialEquipmentPayload(state json.RawMessage, space byte) ([]byte, error) 
 	}
 	if len(b.Special[space]) == 0 {
 		return nil, nil
+	}
+	return EquipmentPayload(space, b.Special[space], false)
+}
+
+// SpecialEquipmentRestorePayload builds a complete NOTI13 container snapshot,
+// including an explicit zero-row container. The client needs the empty avatar
+// prefix during town bootstrap and the full avatar snapshot after initialization.
+func SpecialEquipmentRestorePayload(state json.RawMessage, space byte) ([]byte, error) {
+	b, e := ReadBag(state)
+	if e != nil {
+		return nil, e
 	}
 	return EquipmentPayload(space, b.Special[space], true)
 }

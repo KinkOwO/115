@@ -992,19 +992,6 @@ func main() {
 			}
 			if frame.ID == 19 && bootstrapped && verified && wearService != nil {
 				plan, e := equipmentState.handle(wearService, worldState, plaintext, frame.Raw)
-				if e == nil && len(plan) > 0 && characters != nil && !skillRelease {
-					r, decodeErr := protocol.DecodeItemMove(plaintext)
-					if decodeErr == nil && (r.SourceList == 3 || r.DestinationList == 3) {
-						var visual []byte
-						visual, e = characters.EntryBasicProbe(worldState.role, [2]byte{})
-						if e == nil {
-							plan = append(plan, outboundPacket{"equipment_actor_appearance_updated", 0, 2, visual})
-							var restored []outboundPacket
-							restored, e = appearanceRestore(characters, worldState.role)
-							plan = append(plan, restored...)
-						}
-					}
-				}
 				if e != nil {
 					event(map[string]any{"kind": "equipment_move_refused", "reason": e.Error()})
 					r, _ := protocol.DecodeItemMove(plaintext)
@@ -1783,10 +1770,19 @@ func main() {
 						plan.WornUpdate, e = inventory.WornSpaceUpdate(role.State)
 					}
 					if e == nil {
-						plan.Avatars, e = inventory.SpecialEquipmentPayload(role.State, 1)
+						plan.AvatarReady, e = inventory.SpecialEquipmentRestorePayload(role.State, 1)
 					}
 					if e == nil {
-						plan.Creatures, e = inventory.SpecialEquipmentPayload(role.State, 7)
+						plan.Avatars, e = inventory.EquipmentPayload(1, nil, true)
+					}
+					if e == nil {
+						plan.Creatures, e = inventory.SpecialEquipmentRestorePayload(role.State, 7)
+					}
+					if e == nil {
+						plan.CreatureList, _ = inventory.CreatureListPayload(role.State)
+						if inventory.HasEquippedCreature(role.State) {
+							plan.CreatureGrowth = []byte{1, 0, 0, 0, 0, 0}
+						}
 					}
 					if e != nil {
 						event(map[string]any{"kind": "entry_worn_error", "error": e.Error()})
