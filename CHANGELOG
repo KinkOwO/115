@@ -2,6 +2,24 @@
 
 # CHANGELOG
 
+## 2026-09-19
+- 新增启动器发布物与探针可执行文件纳入版本控制（`feat(launcher): 新增单机一键启动器`）：
+  - **启动器（v1.1.1）**：`DFO-115US单机一键启动器.exe` 放入仓库根目录，玩家可直接下载；启动器的
+    「检查更新」按仓库根 `version.json`（随启动器仓库发布）比对版本。
+  - **`probe.exe` 纳入版本控制**（`server/work/dfo_probe_tools/probe.exe`，584,704 字节）：
+    启动器侧 `internal/update/repair.go` 的 `ProbeRelPath` 正是这个路径，且注释已写明该设计意图 ——
+    入库后玩家端的「**一键修复**」（缺失时按需补取）与「**跟随更新**」（常规服务端更新）都能自动带上它，
+    不必再由整合包提供者手工分发。
+  - **探针可观测性**（`channel_probe.py`）：记录 `probe.exe` 的退出码并打印可读警告。
+    背景：玩家反馈"启动器显示启动成功、游戏窗口却不出现"且日志无任何错误；定位发现 `probe.exe`
+    有一条**在写自己日志之前就退出**的路径——它若判断 `<客户端目录>\DFO.exe` 不存在即返回 **3**，
+    而 `probe_log.open(client.log)` 位于该判断之后，因此这种失败**不产生 `client.log`**，
+    只表现为"秒退 + 零日志"；而原脚本调用 `probe.wait()` 时**完全不检查返回码**，该失败在日志里完全不可见。
+    改动：① 启动 probe 前把客户端目录提为 `client_dir` 变量并打印 Python 侧 `DFO.exe` 可见性；
+    ② `probe.wait()` 的返回码写入本次运行目录的 `probe.json`（含 `probe_pid`/`probe_returncode`/`client_dir`/`payload`），
+    非 0 时打印可读警告（说明返回码 3 的含义与"安全软件拦截 probe.exe"这一常见原因）。
+    验证：`ast.parse` 语法校验通过；返回码 0 的正常路径仅多写一个 `probe.json`，超时路径行为不变。
+
 ## 2026-09-18
 - 修复奥德赛（Arad Odyssey）模式角色创建与模式双向自适应投影：
   - **创建角色阻断修复**（`internal/character/service.go`）：修复在奥德赛规则启用 `AllJobsPilot` 时，创建未配置初始成长表的分支职业（如暗夜使者 Job 12、弓箭手 Job 16 等）被致命拒绝 `source growth missing for job %d advancement %d` 的问题，放宽强校验以基础职业兜底正常创建；

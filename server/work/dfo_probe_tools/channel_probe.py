@@ -406,10 +406,15 @@ with (
    ("_next30", "_next31", "_next32", "_next33", "_next34")
   ):
    payload = "3?127.0.0.1?7001?probe?00000000000000000000000000000000?0?0?30?0?0?0"
+  # probe.exe 依据这个目录判断"客户端是否存在"。先把 Python 侧的可见性打出来：
+  # 万一 probe 在写 client.log 之前就退出（见下面的返回码 3），也能立刻分清是目录问题还是被拦。
+  client_dir = os.environ.get("DFO_CLIENT_DIR", str(p.parent / "dfo_probe_client"))
+  if not (pathlib.Path(client_dir) / "DFO.exe").is_file():
+   print(f"WARNING: probe cannot see DFO.exe under client dir: {client_dir}")
   probe = subprocess.Popen(
    [
     str(p / "probe.exe"),
-    os.environ.get("DFO_CLIENT_DIR", str(p.parent / "dfo_probe_client")),
+    client_dir,
     str(out / "client.log"),
     "55",
     "normal-ui"
@@ -446,7 +451,28 @@ with (
      stderr=obserr,
      creationflags=flags,
     )
-  probe.wait(timeout=None if (interactive or exception_trace) else 65)
+  probe_code = probe.wait(timeout=None if (interactive or exception_trace) else 65)
+  # probe 的退出码是"客户端到底有没有被拉起"的第一手证据：
+  # 它若判断 <client_dir>\DFO.exe 不存在就直接返回 3，而这一步发生在打开 client.log 之前 ——
+  # 所以这种失败**不会留下 client.log**，只表现为"秒退 + 零日志"。
+  (out / "probe.json").write_text(
+   json.dumps(
+    {
+     "probe_pid": probe.pid,
+     "probe_returncode": probe_code,
+     "client_dir": client_dir,
+     "payload": payload,
+    }
+   )
+  )
+  print(f"probe.exe exited with code {probe_code}")
+  if probe_code:
+   print("WARNING: the game client was not launched correctly.")
+   print(
+    f"  client dir passed to probe: {client_dir}"
+    "  (return code 3 = probe could not see DFO.exe there and it exits before writing client.log;"
+    " on real machines this usually means security software blocked probe.exe)"
+   )
  except Exception as e:
   raise RuntimeError(command) from e
  finally:
