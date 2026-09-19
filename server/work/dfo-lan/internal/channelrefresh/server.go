@@ -44,7 +44,10 @@ func Load(path string) (Config, error) {
 		return c, e
 	}
 	h, _, e := net.SplitHostPort(c.Listen)
-	if e != nil || net.ParseIP(h) == nil || !net.ParseIP(h).IsLoopback() || len(c.SourceSHA256) != 64 || len(c.Channels) == 0 || len(c.Channels) > 128 || len(c.ServerKey) > 19 || c.MaxUsers == 0 {
+	// An empty host is the wildcard bind; a concrete host must still be a
+	// numeric address. Loopback is no longer required so the directory can be
+	// reached by clients on other machines.
+	if e != nil || (h != "" && net.ParseIP(h) == nil) || len(c.SourceSHA256) != 64 || len(c.Channels) == 0 || len(c.Channels) > 128 || len(c.ServerKey) > 19 || c.MaxUsers == 0 {
 		return c, fmt.Errorf("invalid local channel configuration")
 	}
 	for _, ch := range c.Channels {
@@ -82,27 +85,40 @@ func (c Config) Script() []byte {
 	return []byte(b.String())
 }
 
-func (c Config) Directory(gameAddress string) ([]byte, error) {
-	h, p, e := net.SplitHostPort(gameAddress)
-	if e != nil {
-		return nil, e
-	}
-	port, e := net.LookupPort("tcp", p)
-	if e != nil || net.ParseIP(h) == nil || !net.ParseIP(h).IsLoopback() || len(h) > 15 {
-		return nil, fmt.Errorf("invalid local game endpoint")
+// ChannelEndpoint is the game endpoint one channel is reachable on.
+//
+// Separate ports are the only way the gateway can tell channels apart: the
+// client picks a channel from this directory and dials the address listed for
+// it, but the game connection itself never carries a channel number.
+type ChannelEndpoint struct {
+	ID   uint32
+	Host string
+	Port uint16
+}
+
+func (c Config) Directory(endpoints map[uint32]ChannelEndpoint) ([]byte, error) {
+	for _, ch := range c.Channels {
+		ep, ok := endpoints[ch.ID]
+		ip := net.ParseIP(ep.Host)
+		// The client dials this host directly, so a wildcard or a non-IPv4
+		// value would hand it an address it cannot use.
+		if !ok || ep.Port == 0 || ip == nil || ip.To4() == nil || ip.IsUnspecified() {
+			return nil, fmt.Errorf("invalid advertised game endpoint for channel %d", ch.ID)
+		}
 	}
 	appendFixed := func(b []byte, s string, n int) []byte { out := make([]byte, n); copy(out, s); return append(b, out...) }
 	b := binary.LittleEndian.AppendUint32(nil, 1)
 	b = appendFixed(b, c.ServerKey, 20)
 	b = binary.LittleEndian.AppendUint32(b, uint32(len(c.Channels)))
 	for _, ch := range c.Channels {
+		ep := endpoints[ch.ID]
 		// Current1451fa5e0 extracts decimal digits from this field to obtain
 		// the channel ID; the friendly label lives in the script's channel row.
 		b = appendFixed(b, fmt.Sprintf("#%d", ch.ID), 20)
 		b = binary.LittleEndian.AppendUint32(b, c.MaxUsers)
 		b = binary.LittleEndian.AppendUint32(b, 1)
-		b = appendFixed(b, h, 16)
-		b = binary.LittleEndian.AppendUint32(b, uint32(port))
+		b = appendFixed(b, ep.Host, 16)
+		b = binary.LittleEndian.AppendUint32(b, uint32(ep.Port))
 	}
 	return b, nil
 }
@@ -136,8 +152,8 @@ func encrypted(data, key []byte) ([]byte, error) {
 	return b.Bytes(), nil
 }
 
-func Serve(c Config, gameAddress string, event func(map[string]any)) (net.Listener, error) {
-	directory, e := c.Directory(gameAddress)
+func Serve(c Config, endpoints map[uint32]ChannelEndpoint, event func(map[string]any)) (net.Listener, error) {
+	directory, e := c.Directory(endpoints)
 	if e != nil {
 		return nil, e
 	}
