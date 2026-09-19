@@ -87,6 +87,7 @@ type BagItem struct {
 type Bag struct {
 	Version   string                  `json:"version"`
 	Gold      uint32                  `json:"gold"`
+	Coin      uint32                  `json:"coin,omitempty"`
 	Items     []BagItem               `json:"items"`
 	Equipment []BagEquipment          `json:"equipment,omitempty"`
 	Worn      []BagEquipment          `json:"worn,omitempty"`
@@ -112,9 +113,20 @@ func ReadBag(state json.RawMessage) (Bag, error) {
 	} else {
 		b.Version = "ordinary-bag-v1"
 	}
+	filtered := make([]BagItem, 0, len(b.Items))
+	for _, i := range b.Items {
+		if i.Template == 1 {
+			if uint64(b.Coin)+uint64(i.Amount) <= math.MaxUint32 {
+				b.Coin += i.Amount
+			}
+			continue
+		}
+		filtered = append(filtered, i)
+	}
+	b.Items = filtered
 	seen := map[uint16]bool{}
 	for _, i := range b.Items {
-		if i.Slot == 0 || i.Template == 0 || i.Amount == 0 || seen[i.Slot] {
+		if i.Slot == 0 || i.Slot == 1 || i.Template == 0 || i.Amount == 0 || seen[i.Slot] {
 			return b, fmt.Errorf("invalid saved inventory row")
 		}
 		seen[i.Slot] = true
@@ -129,12 +141,17 @@ func ReadBag(state json.RawMessage) (Bag, error) {
 		seen[i.Slot] = true
 	}
 	seen = map[uint16]bool{}
-	for _, i := range b.Worn {
+	for idx, i := range b.Worn {
 		if e := i.ValidateRecord(); e != nil {
 			return b, e
 		}
 		if !EquipmentBodySlot(i.Slot) || i.Template == 0 || seen[i.Slot] {
 			return b, fmt.Errorf("invalid saved worn equipment")
+		}
+		if i.Slot == 26 {
+			if hatched, ok := EggHatchOutputs[i.Template]; ok {
+				b.Worn[idx].Template = hatched
+			}
 		}
 		seen[i.Slot] = true
 	}
@@ -174,6 +191,9 @@ func (b Bag) Rows() [][protocol.CurrentItemRecordSize]byte {
 	items := append([]BagItem(nil), b.Items...)
 	sort.Slice(items, func(i, j int) bool { return items[i].Slot < items[j].Slot })
 	rows := [][protocol.CurrentItemRecordSize]byte{protocol.OrdinaryItem(0, 0, b.Gold)}
+	if b.Coin > 0 {
+		rows = append(rows, protocol.OrdinaryItem(1, 1, b.Coin))
+	}
 	for _, i := range items {
 		rows = append(rows, protocol.OrdinaryItem(i.Slot, i.Template, i.Amount, i.ExpireTime))
 	}
@@ -203,6 +223,13 @@ func (b Bag) Add(c catalog.LootCatalog, r BagRules, id, amount uint32, expireTim
 		}
 		b.Gold += amount
 		return b, 0, nil
+	}
+	if id == 1 {
+		if uint64(b.Coin)+uint64(amount) > math.MaxUint32 {
+			return b, 0, fmt.Errorf("coin overflow")
+		}
+		b.Coin += amount
+		return b, 1, nil
 	}
 	item, ok := c.Items[id]
 	if !ok || item.Kind != "stackable" {

@@ -794,6 +794,24 @@ func main() {
 					event(map[string]any{"kind": "cera_purchase_cancelled", "reason": reason, "items": items, "character_id": selectedCharacterID, "charged": false, "plain_hex": hex.EncodeToString(payload)})
 					continue
 				}
+				if frame.Type == 1 && bootstrapped && verified && characters != nil && worldState != nil && (frame.ID == 102 || frame.ID == 173) {
+					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					packets, e := worldState.hatchCreature(ctx, characters.Store, frame.ID, plaintext, frame.Raw)
+					cancel()
+					if e != nil {
+						event(map[string]any{"kind": "creature_hatch_error", "error": e.Error(), "character_id": selectedCharacterID})
+						_ = sendPayload(1, frame.ID, []byte{0})
+						continue
+					}
+					for _, p := range packets {
+						if err := sendPayload(p.Kind, p.ID, p.Payload); err != nil {
+							return
+						}
+						event(map[string]any{"kind": p.Name, "id": p.ID, "plain_hex": hex.EncodeToString(p.Payload)})
+					}
+					event(map[string]any{"kind": "creature_hatch_success", "character_id": selectedCharacterID})
+					continue
+				}
 				if frame.Type == 1 && (frame.ID == 160 || (frame.ID == 41 && odysseyTemporaryCreditsEnabled())) && bootstrapped && verified && characters != nil && worldState != nil && odysseyRewardsEnabled() {
 					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 					var plan []outboundPacket

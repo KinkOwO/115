@@ -100,6 +100,7 @@ func (s *shopPilotSession) purchase(ctx context.Context, p *cashshop.Pilot, stor
 
 func shopPilotPackets(receipt storage.CashReceipt, balance uint64, applied bool) ([]outboundPacket, error) {
 	var update outboundPacket
+	var creatureUpdate *outboundPacket
 	if receipt.Vault != nil {
 		payload, err := inventory.VaultPayload(*receipt.Vault)
 		if err != nil {
@@ -116,12 +117,33 @@ func shopPilotPackets(receipt storage.CashReceipt, balance uint64, applied bool)
 			return nil, e
 		}
 		update = outboundPacket{"cera_purchase_inventory", 0, 14, items}
+
+		if len(b.Special[7]) > 0 {
+			hasCreature := false
+			for _, d := range receipt.Deliveries {
+				if d.Product >= 3300000 && d.Product <= 3300011 {
+					hasCreature = true
+					break
+				}
+			}
+			if hasCreature {
+				payload, err := inventory.EquipmentPayload(7, b.Special[7], false)
+				if err != nil {
+					return nil, err
+				}
+				creatureUpdate = &outboundPacket{"cera_purchase_creature_inventory", 0, 14, payload}
+			}
+		}
 	}
 	cera, e := protocol.CeraBalance(balance)
 	if e != nil {
 		return nil, e
 	}
-	packets := []outboundPacket{update, {"cera_purchase_balance", 0, 53, cera}}
+	packets := []outboundPacket{update}
+	if creatureUpdate != nil {
+		packets = append(packets, *creatureUpdate)
+	}
+	packets = append(packets, outboundPacket{"cera_purchase_balance", 0, 53, cera})
 	if applied {
 		if len(receipt.Deliveries) == 0 || len(receipt.Deliveries) > 32 {
 			return nil, fmt.Errorf("purchase receipt needs1..32 deliveries")

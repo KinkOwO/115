@@ -4,6 +4,23 @@
 
 
 ## 2026-09-19
+- 修复商城购买宠物蛋及右键装备自动孵化为对应宠物：
+  - **根因分析**：
+    1. 商城配置源文件 `shop-vault-release.json` 与 `shop-special-candidate.json` 中，12 款宠物蛋商品（SKU `3300000` ~ `3300011`）缺少 `equipment_index_hash`，导致未能解析 `list/equipment.lst`，条目残留 `import_error: "template missing from stackable.lst"`。商城启动分类时直接跳过，玩家购买时返回取消包；
+    2. 原商品分类 `classify` 对 `[creature]` 硬编码拒绝，且仅支持交付可堆叠物品到普通背包（空间 0），而宠物蛋在客户端属于装备类宠物对象（`[equipment type] [creature]`），归属于宠物栏（空间 7，槽位 0~139）；
+    3. 玩家在宠物背包右键点击宠物蛋时，客户端发出 CMD 19（物品移位请求）试图穿戴到宠物穿戴槽（空间 3 槽位 26）。原穿戴逻辑直接将未孵化的宠物蛋模板（`63006` 等）存入槽位 26，而客户端无法将宠物蛋对象渲染/召唤为宠物，且宠物栏原有蛋已移出，表现为“宠物蛋直接消失且未获得宠物”；
+  - **商城目录与交付修复**（`configs/shop-vault-release.json`、`internal/cashshop/pvf_catalog.go`、`pilot.go`、`cmd/wireprobe/shop_pilot.go`）：
+    - 补充 `equipment_index_hash` 并解析绑定 12 款宠物蛋 `.equ` 脚本；
+    - `pvf_catalog.go` 新增 `isCreatureEgg` 放行合法宠物蛋；
+    - `pilot.go` 识别 `[equipment type] [creature]` 并将宠物蛋存入宠物空间 7（槽位 0~139）；
+    - `shopPilotPackets` 补充下发空间 7 的 NOTI 14 增量更新包，购买后宠物栏立即可见宠物蛋；
+  - **右键装备自动孵化与存量修复**（`internal/inventory/equipment_family.go`、`wear.go`、`bag.go`、`cmd/wireprobe/creature_hatch_flow.go`）：
+    - 在 `internal/inventory/equipment_family.go` 与 `wear.go` 中建立 `EggHatchOutputs` 映射及 `EggHatchTarget` 自动解析机制（识别 `[sub type] 1` 与 `[output index]`，如 Pareas Egg `63006` -> Faras `63000`）；
+    - 在 `MoveOrdinary` 中，当玩家右键装备宠物蛋到槽位 26 时，自动将其转换为对应的孵化后宠物模板（`63000` 等），更新空间 3 槽位 26 并清理宠物背包，同时下发 NOTI 14 与外观更新，使宠物立即可见并正常召唤；
+    - `ReadBag` 增加存量未孵化蛋槽位 26 自动迁移，已有角色上线自动修复为对应宠物；
+    - 完善 CMD 102 (`HATCH_CREATURE`) 与 CMD 173 协议处理器；
+  - **测试与验证**：新增 `TestShopPilotCreatureEggPurchase`、`TestShopPilotCreatureEggPackets`、`TestWearCreatureEggHatchesOnEquip`、`TestCreatureHatchFlow`，全量单元测试与编译均通过。
+
 - 修复时效性物品（限时道具/到期时间）在客户端显示“已过期/Past Duration”且无法使用的问题：
   - **根因分析**：逆向分析客户端 `client/DFO.exe`（`sub_1452D5A80`、`sub_14576D8B0`、`sub_14687A6B0`、`sub_14716DE70`）确认，181 字节物品数据行（`CurrentItemRecordSize = 181`）在偏移 56（`offset 56`，4 字节 uint32 小端）存储道具绝对 Unix 到期时间戳。当偏移 56 值为 0 时，客户端视其为 1970-01-01 到期，判定为“已过期 (Past Duration)”并拦截道具使用，提示错误码 `31730`（Expired and can't be used）；
   - **协议与背包模型支持**（`internal/game/protocol/inventory.go`、`internal/inventory/bag.go`、`stack_request.go`）：`OrdinaryItem` 新增支持传入可选 `expireTime` 并填充 `p[56:]`；`BagItem` 新增 `ExpireTime uint32` 并在 `Bag.Rows()` 打包下发时对齐偏移 56；`Bag.Add` 与背包整理/移动请求（`MoveStackRequest`）持久化保持到期时间；

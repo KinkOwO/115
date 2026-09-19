@@ -1,8 +1,12 @@
 package cashshop
 
 import (
+	"context"
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
+	"dfolan/internal/game/protocol"
+	"dfolan/internal/inventory"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
@@ -86,9 +90,14 @@ func TestCreatureCurrentSourceCatalog(t *testing.T) {
 		if len(kind) != 2 || kind[0].Text != "[creature]" || len(subtype) != 1 || subtype[0].Value != 1 || len(output) != 1 || output[0].Value <= 0 {
 			t.Fatal("egg definition missing", e.Row[0].Value)
 		}
-		if _, _, err := next.Config.classify(e); err == nil {
-			t.Fatal("egg admitted without dedicated delivery")
+		prod, dt, err := next.Config.classify(e)
+		if err != nil {
+			t.Fatal("egg rejected despite dedicated delivery", err)
 		}
+		if dt.Kind != "[creature]" || dt.Slots != [2]uint16{0, 139} {
+			t.Fatal("egg delivery type mismatch", dt)
+		}
+		_ = prod
 	}
 	if eggs != 12 {
 		t.Fatal("expected twelve source eggs", eggs)
@@ -109,5 +118,47 @@ func TestCreatureCurrentSourceCatalog(t *testing.T) {
 			t.Fatal("ordinary product changed", id)
 		}
 	}
-	t.Log("12 eggs resolve with creature equipment type, egg subtype and hatch output; ordinary products unchanged; no incomplete delivery enabled")
+	t.Log("12 eggs resolve with creature equipment type, egg subtype and hatch output; dedicated delivery enabled")
+}
+
+func TestShopPilotCreatureEggPurchase(t *testing.T) {
+	source := "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80"
+	p, err := LoadPilot("../../configs/shop-vault-release.json", source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	l := &packLedger{state: json.RawMessage(`{}`)}
+	_, _, err = p.Purchase(context.Background(), l, 1, 1, "egg-purchase-test-0001", []protocol.CeraCartItem{{Product: 3300000, Quantity: 1}})
+	if err != nil {
+		t.Fatal("egg purchase failed:", err)
+	}
+	bag, err := inventory.ReadBag(l.state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(bag.Items) != 0 {
+		t.Fatalf("egg leaked to ordinary items: %+v", bag.Items)
+	}
+	if len(bag.Special[7]) != 1 {
+		t.Fatalf("expected 1 creature item in space 7, got %d", len(bag.Special[7]))
+	}
+	if bag.Special[7][0].Slot != 0 || bag.Special[7][0].Template != 63006 {
+		t.Fatalf("unexpected creature item: %+v", bag.Special[7][0])
+	}
+
+	// Purchase a second egg and verify it occupies next available slot
+	_, _, err = p.Purchase(context.Background(), l, 1, 1, "egg-purchase-test-0002", []protocol.CeraCartItem{{Product: 3300001, Quantity: 1}})
+	if err != nil {
+		t.Fatal("second egg purchase failed:", err)
+	}
+	bag, err = inventory.ReadBag(l.state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(bag.Special[7]) != 2 {
+		t.Fatalf("expected 2 creature items, got %d", len(bag.Special[7]))
+	}
+	if bag.Special[7][1].Slot != 1 || bag.Special[7][1].Template != 63007 {
+		t.Fatalf("unexpected second creature item: %+v", bag.Special[7][1])
+	}
 }

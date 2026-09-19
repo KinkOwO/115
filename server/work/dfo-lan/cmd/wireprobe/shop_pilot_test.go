@@ -133,6 +133,41 @@ func TestShopPilotRequestToPackets(t *testing.T) {
 	}
 }
 
+func TestShopPilotCreatureEggPackets(t *testing.T) {
+	p, e := cashshop.LoadPilot("../../configs/shop-vault-release.json", "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80")
+	if e != nil {
+		t.Fatal(e)
+	}
+	s, e := newShopPilotSession()
+	if e != nil {
+		t.Fatal(e)
+	}
+	s.keys = make([]byte, wire.SessionKeyBytes)
+	f := &pilotLedger{}
+	body := make([]byte, 16)
+	body[2] = 1
+	binary.LittleEndian.PutUint32(body[5:], 3300000)
+	binary.LittleEndian.PutUint32(body[9:], 1)
+	frame := append(make([]byte, 13), body...)
+	r, applied, e := s.purchase(context.Background(), p, f, 1, 1, body, frame)
+	if e != nil || !applied || f.calls != 1 || f.order.Lines[0].UnitPrice != 500 || f.order.Lines[0].Template != 63006 {
+		t.Fatalf("purchase error: %v applied: %v", e, applied)
+	}
+	packets, e := shopPilotPackets(r, r.After, applied)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if len(packets) != 4 {
+		t.Fatalf("expected 4 packets, got %d: %+v", len(packets), packets)
+	}
+	if packets[0].ID != 14 || packets[1].ID != 14 || packets[2].ID != 53 || packets[3].ID != 64 {
+		t.Fatalf("unexpected packet IDs: %+v", packets)
+	}
+	if packets[1].Payload[0] != 7 || packets[1].Name != "cera_purchase_creature_inventory" {
+		t.Fatalf("creature packet mismatch: %+v", packets[1])
+	}
+}
+
 func TestShopPilotDatabasePurchase(t *testing.T) {
 	if os.Getenv("CASH_INTEGRATION") != "1" {
 		t.Skip("isolated PostgreSQL integration")
