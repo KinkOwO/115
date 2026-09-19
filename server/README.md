@@ -63,3 +63,5 @@ powershell -NoProfile -ExecutionPolicy Bypass -File ./Build-Server.ps1
 - 默认关闭内存观察器。日常启动只需要Python标准库；`reference/analysis-tools` 的历史分析脚本可能需要pefile/capstone/unicorn/cryptography，且含原机路径，**不能直接批量执行**。
 - 原机启动脚本只作对照，位于 `reference/original-launcher`，不要用它代替本包根目录的新入口。
 - 功能和协议详细交接看 `开发对接文档.md`。文件校验看 `MANIFEST.sha256`、`package-manifest.json`。
+
+- 数据库配置 `server/work/dfo-lan/runtime/storage/local.json`
