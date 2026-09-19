@@ -56,6 +56,38 @@ func DecodeAreaChangeRequest(p []byte) (AreaChangeRequest, error) {
 	return r, nil
 }
 
+// UserPosition is NOTI 22, the movement update for an actor the client already
+// knows. Recovered from the current client's own handler at 0x145312610, which
+// reads +0 u16 actor, +2 u16 x, +4 u16 y, +6 u8 motion, +7 u16 speed: nine
+// bytes total, i.e. the actor id followed by exactly the seven-byte body of the
+// client's own CMD 35 position report (X u16, Y u16, Motion u8, Speed u16).
+//
+// This is the notification that drives smooth movement. NOTI 23 only places an
+// actor at a new coordinate and reads as a teleport, which is why forwarding
+// positions with it looked like one jump per second.
+func UserPosition(actor, x, y uint16, motion byte, speed uint16) ([]byte, error) {
+	if actor == 0 || actor == 65535 {
+		return nil, fmt.Errorf("invalid actor identity")
+	}
+	p := add16(add16(add16(nil, actor), x), y)
+	p = append(p, motion)
+	return add16(p, speed), nil
+}
+
+// UserLeave is NOTI 6, which removes an actor from the scene of everyone who
+// can see it. Recovered from handler 0x145312170: the entire body is one u16
+// actor id.
+//
+// This is the notification that actually deletes an actor. NOTI 24 only places
+// actors and never removes one, so a departure sent as a shorter area list
+// leaves the actor standing there forever.
+func UserLeave(actor uint16) ([]byte, error) {
+	if actor == 0 || actor == 65535 {
+		return nil, fmt.Errorf("invalid actor identity")
+	}
+	return add16(nil, actor), nil
+}
+
 // UserArea is NOTI23 (145311b76..145311bba). It updates a known actor's
 // placement; destination map loading for the local actor also uses NOTI24.
 func UserArea(town, area uint32, user AreaUser) ([]byte, error) {

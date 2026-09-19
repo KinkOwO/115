@@ -14,12 +14,22 @@ import (
 	"time"
 )
 
+// fixedEndpoints advertises the same address for every channel, which is how
+// the directory fixtures were captured.
+func fixedEndpoints(c Config, host string, port uint16) map[uint32]ChannelEndpoint {
+	out := map[uint32]ChannelEndpoint{}
+	for _, ch := range c.Channels {
+		out[ch.ID] = ChannelEndpoint{ID: ch.ID, Host: host, Port: port}
+	}
+	return out
+}
+
 func TestCurrentNativeDirectoryFixture(t *testing.T) {
 	c, e := Load("../../configs/channel.local31.json")
 	if e != nil {
 		t.Fatal(e)
 	}
-	p, e := c.Directory("127.0.0.1:12345")
+	p, e := c.Directory(fixedEndpoints(c, "127.0.0.1", 12345))
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -60,7 +70,7 @@ func TestDirectoryNumberMatchesSourceChannel(t *testing.T) {
 	}
 	for _, id := range []uint32{1, 23} {
 		c.Channels[0].ID = id
-		p, err := c.Directory("127.0.0.1:12345")
+		p, err := c.Directory(fixedEndpoints(c, "127.0.0.1", 12345))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -109,7 +119,7 @@ func TestCurrentClientHasEligibleAutoEntryChannel(t *testing.T) {
 	if count != 1 {
 		t.Fatal("missing unambiguous current auto-entry channel", count)
 	}
-	p, err := c.Directory("127.0.0.2:12345")
+	p, err := c.Directory(fixedEndpoints(c, "127.0.0.2", 12345))
 	if err != nil || !bytes.Contains(p, []byte("127.0.0.2")) {
 		t.Fatal("auto-entry endpoint missing", err)
 	}
@@ -119,7 +129,7 @@ func TestNativeChannelHandshakeAndDeadline(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	d, _ := c.Directory("127.0.0.1:12345")
+	d, _ := c.Directory(fixedEndpoints(c, "127.0.0.1", 12345))
 	server, client := net.Pipe()
 	defer client.Close()
 	done := make(chan error, 1)
@@ -184,5 +194,37 @@ func TestNativeChannelHandshakeAndDeadline(t *testing.T) {
 	}
 	if e = <-done; e != nil {
 		t.Fatal(e)
+	}
+}
+
+// Every channel has to advertise its own game port. A shared port is exactly
+// what made players on different channels see each other.
+func TestDirectorySeparatesChannelPorts(t *testing.T) {
+	c, err := Load("../../configs/channel.local34.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	endpoints := map[uint32]ChannelEndpoint{}
+	for i, ch := range c.Channels {
+		endpoints[ch.ID] = ChannelEndpoint{ID: ch.ID, Host: "192.168.1.10", Port: uint16(7002 + i)}
+	}
+	p, err := c.Directory(endpoints)
+	if err != nil {
+		t.Fatal(err)
+	}
+	seen := map[uint32]bool{}
+	for i := range c.Channels {
+		base := 28 + i*48
+		if host := string(bytes.TrimRight(p[base+28:base+44], "\x00")); host != "192.168.1.10" {
+			t.Fatalf("channel %d advertised host %q", c.Channels[i].ID, host)
+		}
+		port := binary.LittleEndian.Uint32(p[base+44:])
+		if seen[port] {
+			t.Fatalf("channel %d reuses game port %d", c.Channels[i].ID, port)
+		}
+		seen[port] = true
+		if port != uint32(7002+i) {
+			t.Fatalf("channel %d advertised the wrong port: %d", c.Channels[i].ID, port)
+		}
 	}
 }

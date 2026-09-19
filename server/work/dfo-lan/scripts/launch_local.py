@@ -115,6 +115,11 @@ def main():
   action="store_true",
   help="Use restored source build instead of archived39",
  )
+ parser.add_argument(
+  "--client-only",
+  action="store_true",
+  help="Run the client against a server on another machine (DFO_LAN_HOST); starts no local server or storage",
+ )
  args = parser.parse_args()
  local, cfg, pg, rh, rp = configuration()
  client = resolved(local["client_dir"])
@@ -128,16 +133,20 @@ def main():
  if args.repair_profile:
   binary, profile_required, profile_env = load_profile(args.repair_profile, PROJECT)
  required = (
-  [helper, binary]
-  if args.server_only
-  else [
-   helper,
-   helper.parent / "probe.exe",
-   binary,
-   client / "DFO.exe",
-   client / "Script.pvf",
-   client / "sk.dat",
-  ]
+  [helper, helper.parent / "probe.exe", client / "DFO.exe", client / "Script.pvf", client / "sk.dat"]
+  if args.client_only
+  else (
+   [helper, binary]
+   if args.server_only
+   else [
+    helper,
+    helper.parent / "probe.exe",
+    binary,
+    client / "DFO.exe",
+    client / "Script.pvf",
+    client / "sk.dat",
+   ]
+  )
  )
  for path in required:
   if not path.is_file():
@@ -156,9 +165,11 @@ def main():
   raise RuntimeError("The game launcher requires Windows x64.")
  # Admin check: probe.exe degrades gracefully without admin; keep note for reference.
  # if not ctypes.windll.shell32.IsUserAnAdmin():raise RuntimeError('Run Start-DFO.cmd as administrator.')
- if not args.storage_only and listening("127.0.0.1", 7001):
+ if not args.storage_only and not args.client_only and listening("127.0.0.1", 7001):
   raise RuntimeError("Port7001 in use; inspect existing session before retrying.")
- start_storage(cfg, pg, rh, rp)
+ # 客户端模式连接别的机器上的服务端，本机不启动存储。
+ if not args.client_only:
+  start_storage(cfg, pg, rh, rp)
  if args.storage_only:
   print("Existing storage ready.")
   return
@@ -177,7 +188,7 @@ def main():
  env["DFO_CLIENT_DIR"] = str(client)
  env["DFO_SERVER_BINARY"] = str(binary)
  env["DFO_ENABLE_OBSERVER"] = "0"
- mode = "server-only" if args.server_only else "interactive"
+ mode = "server-only" if args.server_only else ("client-only" if args.client_only else "interactive")
  with (
   (out / "helper.out").open("wb") as stdout,
   (out / "helper.err").open("wb") as stderr,

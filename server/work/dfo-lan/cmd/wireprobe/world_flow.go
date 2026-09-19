@@ -50,6 +50,27 @@ type worldSession struct {
 	soloPartyBootstrap bool
 	soloPartyReady     bool
 	specialWarpPending bool
+	// hub and peer publish this actor to the other connected players. Both stay
+	// nil when the gateway runs without a multiplayer hub.
+	hub  *lanHub
+	peer *lanPeer
+	// lastMotion and lastSpeed are the most recent values this client reported with
+	// CMD 35. NOTI 22 carries them so the other clients animate the movement.
+	lastMotion byte
+	lastSpeed  uint16
+	// joinedPeers caches the peers the last enterArea introduced, so their actor
+	// info can be sent after this connection own entry packets. peerPoses holds
+	// their NOTI 22 bodies in the same order, so index i always matches
+	// joinedPeers[i].
+	joinedPeers []*lanPeer
+
+	// poseRefreshAfter counts down the position reports still to come before the
+	// peers of a freshly entered scene are re-announced with the pose they are
+	// actually in. A CMD 35 only ever arrives once the client has finished
+	// loading the scene - it comes after the whole entry command burst, or after
+	// a CMD 36 area change - so the first one is already a safe moment. It is not
+	// sent during the entry sequence itself: doing that crashes the client.
+	poseRefreshAfter int
 }
 
 func (w *worldSession) enter(role storage.Character, spawn storage.WorldPosition) error {
@@ -78,9 +99,184 @@ func (w *worldSession) enter(role storage.Character, spawn storage.WorldPosition
 	w.deathSent = nil
 	return nil
 }
+
+// privateArea reports whether an area is a personal instance. The client shows
+// a single actor inside Seria's room no matter how crowded the town is, so the
+// same area never publishes other players. The flag comes from the imported
+// source map's own [is seria room warp] marker.
+func (w *worldSession) privateArea(pos storage.WorldPosition) bool {
+	if w.service == nil || w.service.Catalog.Areas == nil {
+		return false
+	}
+	area, ok := w.service.Catalog.Areas[catalog.AreaKey(pos.Town, pos.Area)]
+	return ok && area.SeriaReturnWarp
+}
+
+// enterArea publishes this actor into its current area and returns the peers
+// that share the scene. It must run before the area list is serialized.
+//
+// Moving also refreshes the area this actor came from: the client keeps drawing
+// an actor it was never told to drop, so leaving a scene without pushing an
+// updated list there leaves a ghost behind.
+func (w *worldSession) enterArea() {
+	if w.hub == nil || w.peer == nil || w.role.ID == 0 {
+		w.joinedPeers = nil
+		return
+	}
+	p := w.state.Position
+	w.joinedPeers = w.hub.publish(w.peer, w.peer.channel, p.Town, p.Area, p.X, p.Y, w.privateArea(p))
+	w.poseRefreshAfter = 1
+}
+
+// leaveScene unpublishes this actor while it is somewhere nobody else can see,
+// such as inside a dungeon, and removes it from the town it left.
+func (w *worldSession) leaveScene() {
+	if w.hub == nil || w.peer == nil {
+		return
+	}
+	w.hub.retire(w.peer)
+}
+
+// introducePeers introduces the players already standing in the scene to this
+// client. It has to run before the area list that places them.
+func (w *worldSession) introducePeers(send func(byte, uint16, []byte) error) error {
+	if w.hub == nil || w.peer == nil || w.role.ID == 0 {
+		return nil
+	}
+	for _, o := range w.joinedPeers {
+		if e := send(0, 2, o.info); e != nil {
+			return e
+		}
+		if len(o.addition) > 0 {
+			if e := send(0, 2, o.addition); e != nil {
+				return e
+			}
+		}
+	}
+	return nil
+}
+
+// announceSelf introduces this client to the players already in the scene and
+// places it there, so they see it without waiting for it to move.
+func (w *worldSession) announceSelf(event func(map[string]any)) error {
+	if w.hub == nil || w.peer == nil || w.role.ID == 0 {
+		return nil
+	}
+	p := w.state.Position
+	others := w.joinedPeers
+	// Introduce this client to them. The area list alone is not enough: the
+	// client queues an actor it has no user info for and never draws it, so
+	// skipping this step looks exactly like "only the newcomer is visible".
+	//
+	// The placement needs NOTI 23 as well. NOTI 24 only places actors while the
+	// client is loading the scene, and a player already standing there has it
+	// loaded, so a refreshed list does nothing for them: without the explicit
+	// placement the newcomer stays invisible until it moves once and its own
+	// position update arrives.
+	placement, placementErr := w.userAreaPayload()
+	for _, o := range others {
+		if o.send == nil {
+			continue
+		}
+		if e := o.send(0, 2, w.peer.info); e != nil {
+			continue
+		}
+		if len(w.peer.addition) > 0 {
+			o.send(0, 2, w.peer.addition)
+		}
+		if placementErr == nil {
+			o.send(0, 23, placement)
+		}
+	}
+	event(map[string]any{"kind": "area_presence_published", "character_id": w.role.ID, "actor": w.role.WireID, "town": p.Town, "area": p.Area, "private": w.peer.private, "other_players": len(others)})
+	return nil
+}
+
+// broadcastMove tells the other actors in this scene where this one stands. It
+// reuses NOTI 23, the placement notification the client already consumes for
+// area changes, so no unrecovered position layout is needed.
+func (w *worldSession) broadcastMove() {
+	if w.hub == nil || w.peer == nil || w.role.ID == 0 {
+		return
+	}
+	p := w.state.Position
+	others := w.hub.move(w.peer, p.X, p.Y, w.lastMotion, w.lastSpeed)
+	if len(others) == 0 {
+		return
+	}
+	payload, e := protocol.UserPosition(w.role.WireID, p.X, p.Y, w.lastMotion, w.lastSpeed)
+	if e != nil {
+		return
+	}
+	for _, o := range others {
+		if o.send == nil {
+			continue
+		}
+		o.send(0, 22, payload)
+	}
+}
+
+// departArea removes this actor for good - a disconnect, a return to the
+// character list or a channel switch - so it does not keep standing there.
+// notePositionReport counts a CMD 35 and, once enough have arrived after an
+// area change, re-announces where everyone in the scene stands and which pose
+// they are in. The area list only carries coordinates and the client rebuilds
+// every actor from it, so without this a player returning from an instance
+// sees the others standing in the default facing regardless of where they
+// actually face.
+func (w *worldSession) notePositionReport(event func(map[string]any)) {
+	if w.poseRefreshAfter <= 0 {
+		return
+	}
+	w.poseRefreshAfter--
+	if w.poseRefreshAfter > 0 {
+		return
+	}
+	count := w.refreshPeerPoses()
+	event(map[string]any{"kind": "peer_poses_refreshed", "peers": count})
+}
+
+func (w *worldSession) refreshPeerPoses() int {
+	if w.hub == nil || w.peer == nil || w.role.ID == 0 || w.peer.send == nil {
+		return 0
+	}
+	poses := w.hub.posesOf(w.hub.shared(w.peer))
+	sent := 0
+	for _, p := range poses {
+		// The client applies a facing as part of moving an actor, and a NOTI 22 that
+		// repeats the coordinate it already has reads as no movement at all - which is
+		// exactly why the actor kept the default facing after a scene rebuild. Nudging
+		// the actor a couple of pixels and putting it back makes the client walk it
+		// into place, so it ends up facing the recorded direction.
+		nudge := p
+		if nudge.x > 2 {
+			nudge.x -= 2
+		}
+		if step, e := protocol.UserPosition(nudge.actor, nudge.x, nudge.y, nudge.motion, nudge.speed); e == nil {
+			w.peer.send(0, 22, step)
+		}
+		if back, e := protocol.UserPosition(p.actor, p.x, p.y, p.motion, p.speed); e == nil {
+			if e := w.peer.send(0, 22, back); e == nil {
+				sent++
+			}
+		}
+	}
+	return sent
+}
+
+func (w *worldSession) departArea() {
+	if w.hub == nil || w.peer == nil {
+		return
+	}
+	w.hub.depart(w.peer)
+}
+
 func (w *worldSession) areaPayload() ([]byte, error) {
 	p := w.state.Position
-	return protocol.AreaUsers(p.Town, p.Area, []protocol.AreaUser{{ActorServerID: w.role.WireID, X: p.X, Y: p.Y, Flags: w.flags}})
+	if w.hub == nil || w.peer == nil {
+		return protocol.AreaUsers(p.Town, p.Area, []protocol.AreaUser{{ActorServerID: w.role.WireID, X: p.X, Y: p.Y, Flags: w.flags}})
+	}
+	return areaUsersPayload(p.Town, p.Area, w.hub.roster(w.peer))
 }
 func (w *worldSession) userAreaPayload() ([]byte, error) {
 	p := w.state.Position
@@ -98,6 +294,8 @@ func (w *worldSession) handle(id uint16, p []byte, send func(byte, uint16, []byt
 		if e != nil {
 			return e
 		}
+		w.lastMotion, w.lastSpeed = r.Motion, r.Speed
+		w.notePositionReport(event)
 		next.X, next.Y = r.X, r.Y
 		if e = w.service.ValidatePosition(w.level, next); e != nil {
 			return e
@@ -148,6 +346,14 @@ func (w *worldSession) handle(id uint16, p []byte, send func(byte, uint16, []byt
 		if e = send(0, 23, userArea); e != nil {
 			return e
 		}
+		// Republish before serializing the area list so it already carries this
+		// actor at its destination, together with everyone else standing there.
+		// The same call tells the area just left to drop this actor.
+		w.enterArea()
+		// Introduce the players already here before the list that places them.
+		if e = w.introducePeers(send); e != nil {
+			return e
+		}
 		payload, e := w.areaPayload()
 		if e != nil {
 			return e
@@ -155,8 +361,13 @@ func (w *worldSession) handle(id uint16, p []byte, send func(byte, uint16, []byt
 		if e = send(0, 24, payload); e != nil {
 			return e
 		}
+		if e = w.announceSelf(event); e != nil {
+			return e
+		}
 		a := w.service.Catalog.Areas[catalog.AreaKey(next.Town, next.Area)]
 		event(map[string]any{"kind": "area_change_sent", "town": next.Town, "area": next.Area, "map": a.Map.Path, "sha256": a.Map.SHA256, "client_acceptance": "pending"})
+	} else {
+		w.broadcastMove()
 	}
 	return w.settleProximityObjectives(ctx, send, event)
 }

@@ -189,6 +189,9 @@ func (w *worldSession) leaveDungeon() ([]outboundPacket, error) {
 			return nil, e
 		}
 	}
+	// Returning to town republishes this actor to the shared scene before the area
+	// list is serialized, so the client learns who is standing there.
+	w.enterArea()
 	// Town state remains the last owned, persisted origin throughout the run.
 	ua, e := w.userAreaPayload()
 	if e != nil {
