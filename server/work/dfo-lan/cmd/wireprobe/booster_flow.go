@@ -259,6 +259,12 @@ func (w *worldSession) openBoosterItem(
 		hasAvatars := false
 		hasCreatures := false
 
+		// Avatar option mapping if selections had options
+		optMap := make(map[uint32][]byte)
+		for _, ao := range req.AvatarOptions {
+			optMap[ao.Template] = append(optMap[ao.Template], ao.Option)
+		}
+
 		// Award items
 		for _, g := range toGrant {
 			var (
@@ -289,8 +295,17 @@ func (w *worldSession) openBoosterItem(
 				}
 			}
 
-			// Destination 1: Avatar (kind == "avatar" or path contains "/avatar/")
-			if kind == "avatar" || strings.Contains(itemPath, "/avatar/") {
+			// Destination 1: Avatar (kind == "avatar" or path contains "/avatar/" or option specified)
+			isAvatar := kind == "avatar" || strings.Contains(itemPath, "/avatar/")
+			if !isAvatar && len(req.AvatarOptions) > 0 {
+				for _, ao := range req.AvatarOptions {
+					if ao.Template == g.Template {
+						isAvatar = true
+						break
+					}
+				}
+			}
+			if isAvatar {
 				hasAvatars = true
 				occupied := map[uint16]bool{}
 				if b.Special != nil {
@@ -310,10 +325,15 @@ func (w *worldSession) openBoosterItem(
 							if boxHasExp {
 								per = MaxExpireTime
 							}
+							dur := uint16(0)
+							if opts, ok := optMap[g.Template]; ok && len(opts) > 0 {
+								dur = uint16(opts[0])
+								optMap[g.Template] = opts[1:]
+							}
 							b.Special[1] = append(b.Special[1], inventory.BagEquipment{
 								Slot:       s,
 								Template:   g.Template,
-								Durability: 0,
+								Durability: dur,
 								Period:     per,
 							})
 							foundSlot = true

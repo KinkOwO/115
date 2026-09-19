@@ -43,15 +43,21 @@ type BoosterGrantedItem struct {
 	Count    uint32
 }
 
-type BoosterUseRequest struct {
-	Slot       uint16
-	Amount     uint32
-	Category   uint16
-	Selections []uint32
+type AvatarOptionSelection struct {
+	Template uint32
+	Option   byte
 }
 
-// DecodeBoosterUseRequest decodes CMD160 payloads across both simple booster (8 bytes)
-// and selectable boosters (16, 48, or N bytes).
+type BoosterUseRequest struct {
+	Slot          uint16
+	Amount        uint32
+	Category      uint16
+	Selections    []uint32
+	AvatarOptions []AvatarOptionSelection
+}
+
+// DecodeBoosterUseRequest decodes CMD160 payloads across simple boosters, selectable boosters,
+// and avatar boxes with selectable abilities per client sub_14573DC60 / sub_14573E120.
 func DecodeBoosterUseRequest(p []byte) (BoosterUseRequest, error) {
 	if len(p) < 8 {
 		return BoosterUseRequest{}, fmt.Errorf("booster request requires at least 8 bytes, got %d", len(p))
@@ -64,15 +70,100 @@ func DecodeBoosterUseRequest(p []byte) (BoosterUseRequest, error) {
 	if r.Amount == 0 {
 		r.Amount = 1
 	}
-	for off := 8; off+4 <= len(p); off += 4 {
-		tpl := binary.LittleEndian.Uint32(p[off : off+4])
-		if tpl > 0 {
-			r.Selections = append(r.Selections, tpl)
-		}
-	}
 	if r.Slot == 0 {
 		return r, fmt.Errorf("empty booster slot")
 	}
+
+	data := p[8:]
+	if len(data) == 0 {
+		return r, nil
+	}
+
+	// Try to match native wire format from client sub_14573DC60 / sub_14573E120:
+	// data contains:
+	//   S * uint32 selection templates
+	//   1 byte avatarCount A
+	//   A * (uint32 template, uint8 option) [5 bytes per entry]
+	//   1 byte trailing 0
+	//   padding zeros to block size
+	found := false
+	for s := 0; s <= len(data)/4; s++ {
+		off := 4 * s
+		if off >= len(data) {
+			break
+		}
+		a := int(data[off])
+		if a == 0 {
+			if off+1 < len(data) && data[off+1] == 0 {
+				allZero := true
+				for _, b := range data[off+2:] {
+					if b != 0 {
+						allZero = false
+						break
+					}
+				}
+				if allZero {
+					for i := 0; i < s; i++ {
+						tpl := binary.LittleEndian.Uint32(data[i*4 : (i+1)*4])
+						if tpl > 0 {
+							r.Selections = append(r.Selections, tpl)
+						}
+					}
+					found = true
+					break
+				}
+			}
+		} else if a > 0 && a <= 50 {
+			endOff := off + 1 + a*5
+			if endOff < len(data) && data[endOff] == 0 {
+				allZero := true
+				for _, b := range data[endOff+1:] {
+					if b != 0 {
+						allZero = false
+						break
+					}
+				}
+				if allZero {
+					for i := 0; i < s; i++ {
+						tpl := binary.LittleEndian.Uint32(data[i*4 : (i+1)*4])
+						if tpl > 0 {
+							r.Selections = append(r.Selections, tpl)
+						}
+					}
+					for i := 0; i < a; i++ {
+						entryOff := off + 1 + i*5
+						tpl := binary.LittleEndian.Uint32(data[entryOff : entryOff+4])
+						opt := data[entryOff+4]
+						r.AvatarOptions = append(r.AvatarOptions, AvatarOptionSelection{
+							Template: tpl,
+							Option:   opt,
+						})
+					}
+					found = true
+					break
+				}
+			}
+		}
+	}
+
+	if !found {
+		// Fallback: decode as a flat list of uint32 templates
+		for off := 0; off+4 <= len(data); off += 4 {
+			tpl := binary.LittleEndian.Uint32(data[off : off+4])
+			if tpl > 0 {
+				r.Selections = append(r.Selections, tpl)
+			}
+		}
+	}
+
+	// Safety fallback: if no Selections but AvatarOptions were parsed,
+	// populate Selections from AvatarOptions so items are granted
+	if len(r.Selections) == 0 && len(r.AvatarOptions) > 0 {
+		for _, ao := range r.AvatarOptions {
+			r.Selections = append(r.Selections, ao.Template)
+		}
+	}
+
 	return r, nil
 }
 

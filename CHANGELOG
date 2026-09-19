@@ -1,6 +1,18 @@
 # CHANGELOG
 
 ## 2026-09-19
+- 修复奥德赛模式下所有礼包开启报 `Your Inventory is full` 以及可选属性 Avatar 礼盒开启失败问题：
+  - **根因分析**：
+    1. **奥德赛模式下通用礼包被冲突分支拦截**：历史合并在 `main.go` 中遗留了旧的前置判断 `odysseyRewardsEnabled() && frame.ID == 160`，直接调用 16 字节专用武器礼盒解码函数 `DecodeWeaponBoxSelection`，在奥德赛模式下拦截了所有非武器礼包并返回通用拒绝码 `Refusal(4)`，客户端触发 `sub_1452A3D50` 显示 DSTR 2057（`Your Inventory is full.`）；
+    2. **时装可选属性礼盒原生封包解码错位**：客户端在 `sub_14573DC60` 发送时装自选礼盒（`[booster selection]`）开启请求时，封包不仅包含常规选择列表，还包含 1 字节属性时装总数和每件时装 5 字节的 `(Template uint32, Option uint8)` 属性选择以及尾部零字节；原服务端 `DecodeBoosterUseRequest` 盲按 4 字节步长切割，导致字节流错位解析出无效物品 ID，发放失败返回 `Refusal(4)`；
+  - **修复实现**：
+    - `cmd/wireprobe/main.go`：移除多余的奥德赛武器前置拦截分支，将所有 CMD 160 统一由 `openBoosterItem` 驱动，并保持武器礼盒在内部的白名单守卫；
+    - `internal/game/protocol/booster.go`：重构 `DecodeBoosterUseRequest`，支持原生客户端选择性礼盒及带属性选择（`AvatarOptions`）的封包格式；
+    - `cmd/wireprobe/booster_flow.go`：在 `openBoosterItem` 中将玩家选取的时装属性（`req.AvatarOptions`）正确写入 `b.Special[1]` 中时装的 `Durability` 属性字段；
+  - **测试覆盖**：
+    - `internal/game/protocol/booster_test.go`：新增原生抓包格式、时装属性选择格式与常规 8 字节礼包解码测试；
+    - `cmd/wireprobe/booster_flow_test.go`：新增 `TestBoosterUseSkinAvatarBoxWithAbilityOption` 与 `TestBoosterOdysseyModeOpensRegularBooster`。
+
 - 修复在商城购买契约（Neo Premium、Gabriel & Bannibou's、Tactician's、Conqueror's、Growth、Cube 等）发送占位符物品而非真实生效契约的问题：
   - **根因分析**：
     1. **商城契约分类与交付缺失**：CeraShop 购买流程原先将 `[item period or contract]` 视为未支持商品，或在开放全商品模式下直接作为普通堆叠物品/包裹分发到背包，导致玩家收到无效果的占位模板物品；
