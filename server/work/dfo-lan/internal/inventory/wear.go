@@ -44,6 +44,20 @@ type WearService struct {
 	Rules       WearRules
 }
 
+func (s *WearService) EggHatchTarget(template uint32) uint32 {
+	if s != nil && s.Catalog != nil {
+		if d, err := s.Catalog.Definition(template); err == nil {
+			kind := d.Fields["[equipment type]"]
+			subType := d.Fields["[sub type]"]
+			output := d.Fields["[output index]"]
+			if len(kind) > 0 && kind[0].Text == "[creature]" && len(subType) > 0 && subType[0].Value == 1 && len(output) > 0 && output[0].Value > 0 {
+				return uint32(output[0].Value)
+			}
+		}
+	}
+	return EggHatchOutputs[template]
+}
+
 func (s *WearService) wearable(role storage.Character, item BagEquipment, slot uint16) error {
 	d, err := s.Catalog.Definition(item.Template)
 	if err != nil {
@@ -63,8 +77,11 @@ func (s *WearService) wearable(role storage.Character, item BagEquipment, slot u
 	if !ok || (expected != slot && !talismanSlot && !primerSlot) {
 		return fmt.Errorf("equipment does not fit destination slot")
 	}
-	if kind[0].Text == "[creature]" && (len(kind) != 2 || kind[1].Type != 0 || kind[1].Value != 0) {
-		return fmt.Errorf("creature must be hatched before equipping")
+	if kind[0].Text == "[creature]" {
+		subType := d.Fields["[sub type]"]
+		if len(subType) > 0 && subType[0].Value == 1 {
+			return fmt.Errorf("creature must be hatched before equipping")
+		}
 	}
 	if durability := d.Fields["[durability]"]; len(durability) > 0 {
 		if len(durability) != 1 || durability[0].Type != 0 || durability[0].Value < 0 || durability[0].Value > 65535 {
@@ -142,6 +159,11 @@ func (s *WearService) MoveOrdinary(role storage.Character, r protocol.ItemMoveRe
 		return nil, fmt.Errorf("stale equipment identity")
 	}
 	if a != nil && r.DestinationList == 3 {
+		if r.DestinationSlot == 26 {
+			if hatched := s.EggHatchTarget(a.Template); hatched != 0 {
+				a.Template = hatched
+			}
+		}
 		if e = s.wearable(role, *a, r.DestinationSlot); e != nil {
 			return nil, e
 		}

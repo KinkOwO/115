@@ -1,5 +1,3 @@
-2026-09-17 本地修复整合候选，详见 REPAIRS-20260917.md。
-
 # CHANGELOG
 
 ## 2026-09-19
@@ -19,8 +17,71 @@
     ② `probe.wait()` 的返回码写入本次运行目录的 `probe.json`（含 `probe_pid`/`probe_returncode`/`client_dir`/`payload`），
     非 0 时打印可读警告（说明返回码 3 的含义与"安全软件拦截 probe.exe"这一常见原因）。
     验证：`ast.parse` 语法校验通过；返回码 0 的正常路径仅多写一个 `probe.json`，超时路径行为不变。
+- 修复礼包/礼盒（Booster / Booster Selection）开箱提示“背包已满或使用失败”及开箱装扮分发：
+  - **根因分析**：
+    1. 客户端打开礼包时发送 CMD 160 (`ENUM_CMDPACKET_USE_BOOSTER_ITEM`)。原服务端仅支持奥德赛创角武器盒（ID `10417789`），对夏日礼包等其他任何礼盒直接返回拒绝码 `Refusal(4)`；
+    2. 逆向客户端 `sub_1452A3D50` 确认，错误码 4 对应本地化文本 `DSTR 2057: "Your Inventory is full."`（中文显示为“背包已满或使用失败”），属于服务端未支持通用开箱协议导致的误报；
+    3. 自选装扮礼盒开箱所得道具属于装扮（Avatar，如 8 件套装扮），若被错当作消耗品放入普通背包（space 0），客户端主背包管理器在解析装扮结构时会触发 `0xC0000005` 内存越界崩溃；
+  - **协议层与全量奖励池集成**（`internal/game/protocol/booster.go`、`cmd/wireprobe/booster_flow.go`）：
+    - 协议解码重构：`DecodeBoosterUseRequest` 统一兼容无选项的基础开箱（8 字节）与携带自选道具列表的自选开箱（16/48/N 字节）；
+    - 协议响应支持：实现符合原生客户端 `sub_14529CDA0` 布局的 `BoosterOpenSuccess` 响应报文；
+    - 奖励池全量导出（`configs/booster-catalog.json`）：从内层 PVF 导出全量 35,944 个礼盒的奖励池与抽取规则，支持固定与权重随机开箱；
+    - 智能分槽与入库隔离：严格通过全量装备库与物品索引鉴别物品类型，将时装（Avatar）安全存入独立装扮栏 `b.Special[1]`，称号与普通装备存入 `b.Equipment`，宠物存入 `b.Special[7]`，消耗品/材料存入 `b.Items`，杜绝跨栏错发；
+    - 报文时序与清格刷新：开箱时显式推送扣减槽位的清空报文，并先推送各页签 NOTI 14 增量刷新报文，最后推送 ACK 160，严格对齐客户端时序；开箱道具继承安全最大到期时间戳 `MaxExpireTime`；
+  - **测试覆盖**：新增 `booster_flow_test.go`，覆盖称号盒开箱、8 件套时装自选开箱、宠物自选开箱全场景单测，全部通过。
+
+- 修复商城购买复活币（Life Token）问题，将其存入特殊货币栏位（Slot 1 / Coin 钱包）而非普通背包：
+  - **根因分析**：
+    1. 逆向客户端 `client/DFO.exe` 确认：复活币（Life Token，模板 ID `1`，`stackable/coin.stk`）在客户端属于特殊虚拟货币栏位（Main Inventory Space 0, Slot 1），客户端进城初始化恢复背包（NOTI 13 `ENUM_NOTIPACKET_ITEM_LIST`）与背包刷新（NOTI 14 `ENUM_NOTIPACKET_UPDATE_ITEM_LIST`）中，Slot 0 为金币（Gold，Template 0），Slot 1 为复活币钱包（Coin，Template 1，数量存放于 `p[6:10]`）；地牢复活（CMD 41 `ENUM_CMDPACKET_USE_COIN`）通过 `sub_145AD7F80` 读取 Slot 1 绑定的复活币数量；
+    2. 商城分类配置（`internal/cashshop/pvf_catalog.go`）原先因 `[not stackable buy]` 与 `[immediately adaptive product]` 策略未识别复活币直售特性，导致 `3000109`（Life Token 1个）、`3000110`（10个）、`3000111`（50个）、`3000112`（100个）被判定为 `unimplemented purchase policy` 而未启用；
+    3. 原交付逻辑直接尝试将复活币当成普通堆叠消耗品放入背包格位（65~120），导致即使购买成功也进入普通背包消耗栏，客户端 UI 上的复活币余额无法刷新；
+  - **商城商品与交付修复**（`internal/cashshop/pvf_catalog.go`、`pilot.go`）：
+    - `pvf_catalog.go` 放行 Template 1 的 `[not stackable buy]` 与 `[immediately adaptive product]` 限制，正确启用商城复活币直售商品（3000109、3000110、3000111、3000112）；
+    - `pilot.go` 针对 Template 1 路由到特殊货币交付逻辑，累加至 `Bag.Coin`，不占用任何背包普通消耗品格位（即使普通背包满格也能正常购买并入账）；
+  - **背包模型与协议对齐**（`internal/inventory/bag.go`、`consume.go`）：
+    - `Bag` 结构体新增 `Coin uint32` 属性，`Bag.Rows()` 打包下发时自动在 Slot 1 写入 `protocol.OrdinaryItem(1, 1, b.Coin)`，随 NOTI 13 / NOTI 14 实时同步给客户端；
+    - `b.Add` 与 `b.Consume` 增加对 Slot 1 / Template 1 的增减支持；
+    - `ReadBag` 增加兼容迁移机制，若已有角色的普通背包中残留有旧的 Template 1 道具，自动提取累加至 `b.Coin` 并从普通列表中清除；
+  - **数据库存档向前兼容**（`internal/storage/cash_purchase.go`）：
+    - `MigrateCashShop` 增加 `migrateCoinItems`，启动时自动扫描数据库中已有角色存档，将普通背包内错置的 Template 1 转换为 `inventory.coin`，无损升级已有存档；
+  - **测试与验证**：新增 `TestBagCoinWalletAndConsolidation`（`dfolan/internal/inventory`）、`TestShopPilotLifeTokenPurchase`（`dfolan/internal/cashshop`）、`TestShopPilotLifeTokenPackets`（`dfolan/cmd/wireprobe`），全量 `go test ./...` 与 `go vet ./...` 均通过。
+
+- 修复商城购买宠物蛋及右键装备自动孵化为对应宠物：
+  - **根因分析**：
+    1. 商城配置源文件 `shop-vault-release.json` 与 `shop-special-candidate.json` 中，12 款宠物蛋商品（SKU `3300000` ~ `3300011`）缺少 `equipment_index_hash`，导致未能解析 `list/equipment.lst`，条目残留 `import_error: "template missing from stackable.lst"`。商城启动分类时直接跳过，玩家购买时返回取消包；
+    2. 原商品分类 `classify` 对 `[creature]` 硬编码拒绝，且仅支持交付可堆叠物品到普通背包（空间 0），而宠物蛋在客户端属于装备类宠物对象（`[equipment type] [creature]`），归属于宠物栏（空间 7，槽位 0~139）；
+    3. 玩家在宠物背包右键点击宠物蛋时，客户端发出 CMD 19（物品移位请求）试图穿戴到宠物穿戴槽（空间 3 槽位 26）。原穿戴逻辑直接将未孵化的宠物蛋模板（`63006` 等）存入槽位 26，而客户端无法将宠物蛋对象渲染/召唤为宠物，且宠物栏原有蛋已移出，表现为“宠物蛋直接消失且未获得宠物”；
+  - **商城目录与交付修复**（`configs/shop-vault-release.json`、`internal/cashshop/pvf_catalog.go`、`pilot.go`、`cmd/wireprobe/shop_pilot.go`）：
+    - 补充 `equipment_index_hash` 并解析绑定 12 款宠物蛋 `.equ` 脚本；
+    - `pvf_catalog.go` 新增 `isCreatureEgg` 放行合法宠物蛋；
+    - `pilot.go` 识别 `[equipment type] [creature]` 并将宠物蛋存入宠物空间 7（槽位 0~139）；
+    - `shopPilotPackets` 补充下发空间 7 的 NOTI 14 增量更新包，购买后宠物栏立即可见宠物蛋；
+  - **右键装备自动孵化与存量修复**（`internal/inventory/equipment_family.go`、`wear.go`、`bag.go`、`cmd/wireprobe/creature_hatch_flow.go`）：
+    - 在 `internal/inventory/equipment_family.go` 与 `wear.go` 中建立 `EggHatchOutputs` 映射及 `EggHatchTarget` 自动解析机制（识别 `[sub type] 1` 与 `[output index]`，如 Pareas Egg `63006` -> Faras `63000`）；
+    - 在 `MoveOrdinary` 中，当玩家右键装备宠物蛋到槽位 26 时，自动将其转换为对应的孵化后宠物模板（`63000` 等），更新空间 3 槽位 26 并清理宠物背包，同时下发 NOTI 14 与外观更新，使宠物立即可见并正常召唤；
+    - `ReadBag` 增加存量未孵化蛋槽位 26 自动迁移，已有角色上线自动修复为对应宠物；
+    - 完善 CMD 102 (`HATCH_CREATURE`) 与 CMD 173 协议处理器；
+  - **测试与验证**：新增 `TestShopPilotCreatureEggPurchase`、`TestShopPilotCreatureEggPackets`、`TestWearCreatureEggHatchesOnEquip`、`TestCreatureHatchFlow`，全量单元测试与编译均通过。
+
+- 修复时效性物品（限时道具/到期时间）在客户端显示“已过期/Past Duration”且无法使用的问题：
+  - **根因分析**：逆向分析客户端 `client/DFO.exe`（`sub_1452D5A80`、`sub_14576D8B0`、`sub_14687A6B0`、`sub_14716DE70`）确认，181 字节物品数据行（`CurrentItemRecordSize = 181`）在偏移 56（`offset 56`，4 字节 uint32 小端）存储道具绝对 Unix 到期时间戳。当偏移 56 值为 0 时，客户端视其为 1970-01-01 到期，判定为“已过期 (Past Duration)”并拦截道具使用，提示错误码 `31730`（Expired and can't be used）；
+  - **协议与背包模型支持**（`internal/game/protocol/inventory.go`、`internal/inventory/bag.go`、`stack_request.go`）：`OrdinaryItem` 新增支持传入可选 `expireTime` 并填充 `p[56:]`；`BagItem` 新增 `ExpireTime uint32` 并在 `Bag.Rows()` 打包下发时对齐偏移 56；`Bag.Add` 与背包整理/移动请求（`MoveStackRequest`）持久化保持到期时间；
+  - **防时间不同步与最大时间戳设置**（`internal/cashshop/pilot.go`）：为彻底避免客户端与服务端时钟偏差导致的误过期，将商城时效道具（带 `[expiration date]` 等）到期时间设置为安全的最大 32 位时间戳 `math.MaxInt32`（`2147483647` / `0x7FFFFFFF`，到期时间 2038-01-19）；
+  - **现有角色存档平滑升级**（`internal/storage/cash_purchase.go`）：`migratePackagePlaceholders` 自动将背包内现有子礼盒的 `expire_time` 平滑更新为 `2147483647`，保留原有格位与数量；
+  - **测试覆盖**：更新 `pilot_test.go` 与 `cash_purchase_test.go` 断言 `ExpireTime == MaxExpireTime`，单测全部通过。
+
+- 修复商城购买组合销售礼包收到占位符道具问题：
+  - **根因分析**：商城点券礼包（如 Tropical Vacation Package 3400489）在 PVF 中属于 `[usable cera package]`（模板 ID `590722921`），其自身仅为商城展示用的占位符，实际售卖物品包含在 `[package data]` 中定义的一组可使用礼盒（共 6 个可使用礼盒：`590722922`、`590722923`、`590722926`、`590722927`、`590722928`、`590722929`）。原购买发货逻辑（`internal/cashshop/pilot.go`）直接将占位符模板 `590722921` 发放至背包，且发货分类器仅能处理商城直售条目，未支持子道具展开交付；
+  - **组合礼包展开交付**（`internal/cashshop/pilot.go` & `cmd/wireprobe/main.go`）：新增 `PackageItems` 解析 `[package data]` 结构，在商城购买事务中自动将礼包展开为对应的一组子礼盒并交付到背包消耗品栏；`shopPilot` 接入全量物品元数据 `SetItemCatalog` 识别各子礼盒属性与槽位映射；
+  - **存档平滑兼容与自动迁移**（`internal/storage/cash_purchase.go`）：在 `MigrateCashShop` 中增加 `migratePackagePlaceholders`，自动将已有角色背包中的礼包占位符无损迁移替换为 6 个真实可使用礼盒，保留其他道具与格位；
+  - **测试与回归**：新增 `TestShopPilotPackageDelivery`（`dfolan/internal/cashshop`）与 `TestMigratePackagePlaceholdersUnit`（`dfolan/internal/storage`），全量 `go test ./...` 与 `go vet ./...` 均通过。
 
 ## 2026-09-18
+- 修复奥德赛（Arad Odyssey）初始防具发放与自选武器礼盒选择开箱：
+  - **根因消除**（`equipment definition missing`）：原精简版装备表（3,174 行）未包含奥德赛初始 8 件防具首饰（`100051399` ~ `100323647`）及自选武器盒内 42 把各职业武器定义，导致进游戏发放防具事务回滚为 pending、玩家使用武器盒（CMD 160）选择武器时因查不到武器定义被拒下发 `Refusal(4)`，客户端提示「背包已满或使用失败」；
+  - **全量装备索引构建**（`cmd/equipmentfullimport`）：解密解包内层 PVF（565 万文件），完整导出生成含 424,216 项装备定义的穿戴索引 `configs/equipment-full.index.json` 与压缩数据 `equipment-full.data`；
+  - **动态目录与规则自动挂载**（`channel_probe.py` & `main.go`）：探针在奥德赛模式下自动挂载完整装备穿戴目录 `equipment-full`、全穿戴规则 `equipment-wear.full-candidate.json`（支持 38 部位）、自选武器箱规则 `odyssey-weapon-box-release.json` 及硬币掉落规则 `odyssey-currency.json`，并将奖励角色判定对齐 `character.OdysseyRole`；
+  - **实机验证**：实机验证进游戏自动补发 8 件专属初始防具首饰到角色背包，右键打开自选武器箱可正常选择对应职业专属武器并成功入包消耗箱子。
 - 修复奥德赛（Arad Odyssey）模式角色创建与模式双向自适应投影：
   - **创建角色阻断修复**（`internal/character/service.go`）：修复在奥德赛规则启用 `AllJobsPilot` 时，创建未配置初始成长表的分支职业（如暗夜使者 Job 12、弓箭手 Job 16 等）被致命拒绝 `source growth missing for job %d advancement %d` 的问题，放宽强校验以基础职业兜底正常创建；
   - **模式双向自适应投影**（`internal/character/odyssey.go` & `service.go`）：彻底拆除 `service.IsOdyssey` 的单一静态规则拦截；根据当前启动模式 `DFO_ODYSSEY_MODE` 动态自适应——启动剧情模式（`DFO_ODYSSEY_MODE=0`）所有角色投影为剧情角色（mode=0），启动奥德赛模式（`DFO_ODYSSEY_MODE=1`）所有角色投影为奥德赛角色（mode=5），彻底消除客户端因频道与角色模式不匹配导致的「This channel is not available in Arad Odyssey mode」弹窗与黑屏闪退；
@@ -118,3 +179,16 @@
 
 ## 2026-09-16
 - 初始化项目
+
+## 2026-09-17 本侧补充（paranoiahua）
+
+- **修正一处错误结论 + 修掉一个会让人误判很久的坑：角色等级超过 115 会导致客户端无法穿戴任何装备**
+  （详见 `docs/进度-20260917-副本可进性与GM工具.md` §3.3）：
+  - 症状：角色 >115 级时，装备提示中"xx级以上可以使用"那一行**全部变红**、拖拽穿戴无效；
+    因为请求在**客户端本地就被拦掉**，服务端日志里**没有任何 `equipment_move_refused`**，极易误判为"服务端正常"。
+  - 根因：本 115 版客户端的等级表上限是 115；客户端**能读出**服务端下发的 116 级，但用它做装备需求判定时整体失效。
+    而服务端经验规则 `configs/experience.compat90.json` 的 `level_cap` 原为 **150**，允许涨到 116+。
+  - 修复：① 角色 `state.level` 与 `state.experience` **一起**改回 115 级门槛值
+    （`configs/progression.next25.json` 的 `cumulative_experience_thresholds[113]`）——只改 level 不改经验，
+    下一次击杀会被 `progression.ApplyGain` 自动升回 116；② `experience.compat90.json` 的 `level_cap` 150 → **115**。
+  - 排查提示：遇到"装备红字/穿不上但服务端零拒绝"，**先查等级是否 >115**，不要先去查物品数据。

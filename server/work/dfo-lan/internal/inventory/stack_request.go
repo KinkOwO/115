@@ -109,13 +109,21 @@ func (b Bag) MoveStackRequest(c catalog.LootCatalog, rules BagRules, r protocol.
 	b.Items = append([]BagItem{}, b.Items...)
 	put := func(slot uint16, id, n uint32) {
 		kept := make([]BagItem, 0, len(b.Items)+1)
+		var exp uint32
+		if a != nil && a.Template == id {
+			exp = a.ExpireTime
+		} else if z != nil && z.Template == id {
+			exp = z.ExpireTime
+		}
 		for _, x := range b.Items {
 			if x.Slot != slot {
 				kept = append(kept, x)
+			} else if x.ExpireTime != 0 {
+				exp = x.ExpireTime
 			}
 		}
 		if n > 0 {
-			kept = append(kept, BagItem{slot, id, n})
+			kept = append(kept, BagItem{Slot: slot, Template: id, Amount: n, ExpireTime: exp})
 		}
 		b.Items = kept
 	}

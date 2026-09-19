@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"dfolan/internal/game/protocol"
+	"dfolan/internal/character"
 	"dfolan/internal/inventory"
 	"dfolan/internal/storage"
 	"encoding/json"
@@ -19,8 +19,7 @@ const odysseyWeaponBoxEvent = "odyssey-create-10417791-weapon-box-10417789-v1"
 var odysseyArmor = [...]uint32{100051399, 100101277, 100151218, 100201190, 100251230, 100302054, 100313767, 100323647}
 
 func isOdysseyRewardRole(role storage.Character) bool {
-	r, e := protocol.DecodeCreateRequest(role.Request)
-	return e == nil && len(r.Options) == 12 && r.Options[10] == 2
+	return character.OdysseyRole(role)
 }
 
 func applyOdysseyArmor(role storage.Character, wear *inventory.WearService) (json.RawMessage, json.RawMessage, error) {

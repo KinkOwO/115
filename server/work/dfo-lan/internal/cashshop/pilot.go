@@ -10,7 +10,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -40,6 +42,17 @@ type deliveryType struct {
 
 // Inventory families dispatch by script type, never by SKU.
 func ordinaryHandler(item catalog.ScriptRecord) (deliveryType, error) {
+	for i, t := range item.Cells {
+		if t.Type == 3 && t.Text == "[equipment type]" {
+			if i+1 < len(item.Cells) && item.Cells[i+1].Text == "[creature]" {
+				return deliveryType{
+					Kind:  "[creature]",
+					Slots: [2]uint16{0, 139},
+					Limit: 1,
+				}, nil
+			}
+		}
+	}
 	h := deliveryType{Limit: 1000}
 	openAll := os.Getenv("DFO_SHOP_OPEN_ALL") == "1"
 	for i, t := range item.Cells {
@@ -132,7 +145,137 @@ func (c PilotConfig) validate() error {
 	return nil
 }
 
-type Pilot struct{ Config PilotConfig }
+type ItemInfo struct {
+	ID            uint32
+	Kind          string
+	StackableType string
+	StackLimit    uint32
+}
+
+type Pilot struct {
+	Config      PilotConfig
+	ItemCatalog map[uint32]ItemInfo
+}
+
+type PackageItem struct {
+	Template uint32
+	Count    uint32
+}
+
+// PackageItems extracts sub-items from [package data] if present in the item script.
+func PackageItems(item catalog.ScriptRecord) ([]PackageItem, bool) {
+	cells := item.Cells
+	for i, c := range cells {
+		if c.Type == 3 && c.Text == "[package data]" {
+			var items []PackageItem
+			j := i + 1
+			for j < len(cells) && !(cells[j].Type == 3 && cells[j].Text == "[/package data]") {
+				if cells[j].Type == 0 && cells[j].Value > 0 {
+					tpl := uint32(cells[j].Value)
+					cnt := uint32(1)
+					if j+1 < len(cells) && cells[j+1].Type == 0 && cells[j+1].Value > 0 {
+						cnt = uint32(cells[j+1].Value)
+						j += 2
+					} else {
+						j++
+					}
+					items = append(items, PackageItem{Template: tpl, Count: cnt})
+				} else {
+					j++
+				}
+			}
+			if len(items) > 0 {
+				return items, true
+			}
+		}
+	}
+	return nil, false
+}
+
+const MaxExpireTime = math.MaxInt32
+
+// HasExpiration checks if an item script defines an expiration or period constraint.
+func HasExpiration(item catalog.ScriptRecord) bool {
+	for _, c := range item.Cells {
+		if c.Type == 3 {
+			switch c.Text {
+			case "[expiration date]", "[usable period]", "[period]", "[usable datetime]":
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (p *Pilot) SetItemCatalog(items map[uint32]catalog.LootItem) {
+	if p == nil {
+		return
+	}
+	m := make(map[uint32]ItemInfo, len(items))
+	for id, it := range items {
+		m[id] = ItemInfo{
+			ID:            it.ID,
+			Kind:          it.Kind,
+			StackableType: it.StackableType,
+			StackLimit:    it.StackLimit,
+		}
+	}
+	p.ItemCatalog = m
+}
+
+func (p *Pilot) findEntry(product, template uint32) (OrdinaryProduct, bool) {
+	if p == nil {
+		return OrdinaryProduct{}, false
+	}
+	for _, entry := range p.Config.Entries {
+		if len(entry.Row) == 14 {
+			if product != 0 && uint32(entry.Row[0].Value) == product {
+				return entry, true
+			}
+			if template != 0 && uint32(entry.Row[1].Value) == template {
+				return entry, true
+			}
+		}
+	}
+	return OrdinaryProduct{}, false
+}
+
+func (p *Pilot) resolveDeliveryType(template uint32) (deliveryType, error) {
+	for _, entry := range p.Config.Entries {
+		if len(entry.Row) == 14 && uint32(entry.Row[1].Value) == template {
+			_, handler, e := p.Config.classify(entry)
+			if e == nil {
+				return handler, nil
+			}
+		}
+	}
+	if p != nil && p.ItemCatalog != nil {
+		if info, ok := p.ItemCatalog[template]; ok {
+			limit := info.StackLimit
+			if limit == 0 {
+				limit = 1000
+			}
+			kind := info.StackableType
+			if kind == "" {
+				kind = "[etc]"
+			}
+			slots := [2]uint16{65, 120}
+			if strings.Contains(strings.ToLower(kind), "material") {
+				slots = [2]uint16{121, 176}
+			}
+			return deliveryType{
+				Kind:  kind,
+				Slots: slots,
+				Limit: limit,
+			}, nil
+		}
+	}
+	return deliveryType{
+		Kind:  "[etc]",
+		Slots: [2]uint16{65, 120},
+		Limit: 1000,
+	}, nil
+}
 
 func LoadPilot(path, source string) (*Pilot, error) {
 	b, e := os.ReadFile(path)
@@ -215,7 +358,29 @@ func (p *Pilot) Purchase(ctx context.Context, ledger BagLedger, account, charact
 	}
 	return ledger.PurchaseCashToBag(ctx, o, func(raw json.RawMessage) (json.RawMessage, error) {
 		for _, line := range o.Lines {
-			raw, e = p.deliverAmount(raw, line.Template, line.Units*line.Quantity)
+			entry, ok := p.findEntry(line.Product, line.Template)
+			if ok {
+				if pkgItems, isPkg := PackageItems(entry.Item); isPkg {
+					pkgHasExp := HasExpiration(entry.Item)
+					for _, sub := range pkgItems {
+						deliverCnt := sub.Count * line.Units * line.Quantity
+						var subExp uint32
+						if pkgHasExp {
+							subExp = MaxExpireTime
+						}
+						raw, e = p.deliverAmount(raw, sub.Template, deliverCnt, subExp)
+						if e != nil {
+							return nil, e
+						}
+					}
+					continue
+				}
+			}
+			var exp uint32
+			if ok && HasExpiration(entry.Item) {
+				exp = MaxExpireTime
+			}
+			raw, e = p.deliverAmount(raw, line.Template, line.Units*line.Quantity, exp)
 			if e != nil {
 				return nil, e
 			}
@@ -223,25 +388,50 @@ func (p *Pilot) Purchase(ctx context.Context, ledger BagLedger, account, charact
 		return raw, nil
 	})
 }
-func (p *Pilot) deliverAmount(raw json.RawMessage, template, amount uint32) (json.RawMessage, error) {
+func (p *Pilot) deliverAmount(raw json.RawMessage, template, amount uint32, expireTime ...uint32) (json.RawMessage, error) {
 	if amount == 0 || amount > 112000 {
 		return nil, fmt.Errorf("invalid delivery amount")
 	}
-	var h deliveryType
-	found := false
-	for _, entry := range p.Config.Entries {
-		if len(entry.Row) != 14 || uint32(entry.Row[1].Value) != template {
-			continue
-		}
-		_, handler, e := p.Config.classify(entry)
-		if e == nil {
-			h = handler
-			found = true
-			break
-		}
+	var exp uint32
+	if len(expireTime) > 0 {
+		exp = expireTime[0]
 	}
-	if !found {
-		return nil, fmt.Errorf("template%d has no enabled delivery handler", template)
+	h, err := p.resolveDeliveryType(template)
+	if err != nil {
+		return nil, err
+	}
+	if h.Kind == "[creature]" {
+		b, e := inventory.ReadBag(raw)
+		if e != nil {
+			return nil, e
+		}
+		occupied := map[uint16]bool{}
+		if b.Special != nil {
+			for _, item := range b.Special[7] {
+				occupied[item.Slot] = true
+			}
+		}
+		for i := uint32(0); i < amount; i++ {
+			found := false
+			for s := uint16(0); s < 140; s++ {
+				if !occupied[s] {
+					occupied[s] = true
+					if b.Special == nil {
+						b.Special = map[byte][]inventory.BagEquipment{}
+					}
+					b.Special[7] = append(b.Special[7], inventory.BagEquipment{
+						Slot:     s,
+						Template: template,
+					})
+					found = true
+					break
+				}
+			}
+			if !found {
+				return nil, fmt.Errorf("creature inventory full")
+			}
+		}
+		return inventory.SaveBag(raw, b)
 	}
 	c := catalog.LootCatalog{Source: p.Config.Source, Items: map[uint32]catalog.LootItem{template: {ID: template, Kind: "stackable", StackableType: h.Kind, StackLimit: h.Limit}}}
 	r := inventory.BagRules{Source: p.Config.Source.Checksum, Slots: map[string][2]uint16{h.Kind: h.Slots}, MissingStackLimit: 1000}
@@ -257,7 +447,7 @@ func (p *Pilot) deliverAmount(raw json.RawMessage, template, amount uint32) (jso
 			continue
 		}
 		n := min(amount, h.Limit-row.Amount)
-		b, _, e = b.Add(c, r, template, n)
+		b, _, e = b.Add(c, r, template, n, exp)
 		if e != nil {
 			return nil, e
 		}
@@ -265,7 +455,7 @@ func (p *Pilot) deliverAmount(raw json.RawMessage, template, amount uint32) (jso
 	}
 	for amount > 0 {
 		n := min(amount, h.Limit)
-		b, _, e = b.Add(c, r, template, n)
+		b, _, e = b.Add(c, r, template, n, exp)
 		if e != nil {
 			return nil, e
 		}

@@ -347,6 +347,8 @@ with (
   )
   if (project / "configs/items.index.json").exists():
    command += ["-item-index", str(project / "configs/items.index.json")]
+  if (project / "configs/booster-catalog.json").exists():
+   command += ["-booster-catalog", str(project / "configs/booster-catalog.json")]
   shop_release = project / "configs/shop-vault-release.json"
   shop_pilot = project / "configs/shop-purchase-pilot.json"
   if os.environ.get("DFO_SHOP_PURCHASE_PILOT"):
@@ -382,6 +384,61 @@ with (
  # 而默认的 dungeons.generated.json 只有 11 个）。
  if os.environ.get("DFO_DUNGEON_CATALOG") and "-dungeon-catalog" in command:
   command[command.index("-dungeon-catalog") + 1] = os.environ["DFO_DUNGEON_CATALOG"]
+ # ★ 显式校验：副本目录必须真实存在且非空。
+ # 2026-09-18 事故：这里曾被指向 configs/dungeons.full.json，而那个 294MB 文件从没进仓库，
+ # 于是服务端起不来、探针一直等不到 ready.json —— 正常玩家表现为"下载后启动不了游戏"。
+ # 不要再让"文件不存在"静默落回默认值（那条 tag 降级链最终是只有 11 个副本的 dungeons.generated.json）。
+ if "-dungeon-catalog" in command:
+  dungeon_catalog = pathlib.Path(command[command.index("-dungeon-catalog") + 1])
+  if not dungeon_catalog.is_file() or dungeon_catalog.stat().st_size == 0:
+   raise RuntimeError(
+    "副本目录不存在或为空：%s\n"
+    "  当前 -dungeon-catalog 指向它，服务端会启动失败/超时。\n"
+    "  生成：go run ./cmd/dungeonfull -output %s\n"
+    "  或设 DFO_DUNGEON_CATALOG 指向已有目录；确实要用 11 个副本的默认表请显式指过去。"
+    % (dungeon_catalog, dungeon_catalog)
+   )
+ if odyssey_mode:
+  coin_rules = project / "configs/odyssey-currency.json"
+  if os.environ.get("DFO_ODYSSEY_COIN_RULES"):
+   coin_override = pathlib.Path(os.environ["DFO_ODYSSEY_COIN_RULES"])
+   if not coin_override.is_absolute():
+    coin_override = (project / coin_override).resolve()
+   if coin_override.exists():
+    os.environ["DFO_ODYSSEY_COIN_RULES"] = str(coin_override)
+  elif coin_rules.exists():
+   os.environ["DFO_ODYSSEY_COIN_RULES"] = str(coin_rules.resolve())
+
+  weapon_box = project / "configs/odyssey-weapon-box-release.json"
+  if os.environ.get("DFO_ODYSSEY_WEAPON_BOX"):
+   box_override = pathlib.Path(os.environ["DFO_ODYSSEY_WEAPON_BOX"])
+   if not box_override.is_absolute():
+    box_override = (project / box_override).resolve()
+   if box_override.exists():
+    os.environ["DFO_ODYSSEY_WEAPON_BOX"] = str(box_override)
+    os.environ["DFO_ODYSSEY_REWARDS_RELEASE"] = "1"
+  elif weapon_box.exists():
+   os.environ["DFO_ODYSSEY_WEAPON_BOX"] = str(weapon_box.resolve())
+   os.environ["DFO_ODYSSEY_REWARDS_RELEASE"] = "1"
+
+  odyssey_growth = project / "configs/odyssey-growth-release.json"
+  if os.environ.get("DFO_ODYSSEY_GROWTH"):
+   growth_override = pathlib.Path(os.environ["DFO_ODYSSEY_GROWTH"])
+   if not growth_override.is_absolute():
+    growth_override = (project / growth_override).resolve()
+   if growth_override.exists():
+    os.environ["DFO_ODYSSEY_GROWTH"] = str(growth_override)
+  elif odyssey_growth.exists():
+   os.environ["DFO_ODYSSEY_GROWTH"] = str(odyssey_growth.resolve())
+
+  eq_full = project / "configs/equipment-full"
+  if (project / "configs/equipment-full.index.json").exists() and (
+   project / "configs/equipment-full.data"
+  ).exists():
+   os.environ["DFO_EQUIPMENT_FULL_CATALOG"] = str(eq_full.resolve())
+   eq_wear_full = project / "configs/equipment-wear.full-candidate.json"
+   if eq_wear_full.exists():
+    os.environ["DFO_EQUIPMENT_WEAR_RULES"] = str(eq_wear_full.resolve())
  server = subprocess.Popen(command, stdout=stdout, stderr=stderr, creationflags=flags)
  try:
   ready = out / "ready.json"

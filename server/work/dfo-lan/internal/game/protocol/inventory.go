@@ -7,11 +7,14 @@ import (
 
 // OrdinaryItem is the current 181-byte base row. Special equipment branches
 // require extra source/type validation and are deliberately separate.
-func OrdinaryItem(slot uint16, template, amount uint32) [CurrentItemRecordSize]byte {
+func OrdinaryItem(slot uint16, template, amount uint32, expireTime ...uint32) [CurrentItemRecordSize]byte {
 	var p [CurrentItemRecordSize]byte
 	binary.LittleEndian.PutUint16(p[:], slot)
 	binary.LittleEndian.PutUint32(p[2:], template)
 	binary.LittleEndian.PutUint32(p[6:], amount)
+	if len(expireTime) > 0 && expireTime[0] != 0 {
+		binary.LittleEndian.PutUint32(p[56:], expireTime[0])
+	}
 	return p
 }
 

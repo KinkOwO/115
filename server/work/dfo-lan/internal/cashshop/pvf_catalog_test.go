@@ -179,7 +179,7 @@ func TestShopPilotOpenAll(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	if len(products) != 1280 {
-		t.Fatalf("expected 1280 enabled products under DFO_SHOP_OPEN_ALL=1, got %d", len(products))
+	if len(products) != 1292 {
+		t.Fatalf("expected 1292 enabled products under DFO_SHOP_OPEN_ALL=1, got %d", len(products))
 	}
 }

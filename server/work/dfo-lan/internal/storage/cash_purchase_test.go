@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"strings"
 	"sync"
@@ -280,4 +281,106 @@ func TestCashPurchaseIntegration(t *testing.T) {
 		t.Fatal("used coupon left claimable", e)
 	}
 	t.Log("PASS vault atomic debit+capacity+audit; contents retained; replay/wrong tier/insufficient funds/late failure; reconnect and no unclaimed coupon")
+}
+
+func TestMigratePackagePlaceholdersUnit(t *testing.T) {
+	if os.Getenv("CASH_INTEGRATION") != "1" {
+		t.Skip("CASH_INTEGRATION=1 runs isolated PostgreSQL schema")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	cfg, err := LoadConfig("../../runtime/storage/local.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	live, err := Open(ctx, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer live.Close()
+	schema := fmt.Sprintf("pkg_mig_%d", time.Now().UnixNano())
+	if _, err = live.DB.Exec(ctx, "CREATE SCHEMA "+schema); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		_, _ = live.DB.Exec(context.Background(), "DROP SCHEMA "+schema+" CASCADE")
+	}()
+	cfg.PostgresSchema = schema
+	s, err := Open(ctx, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	for _, fn := range []func(context.Context) error{s.Migrate, s.MigrateGrants, s.MigrateCashShop} {
+		if err = fn(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+	acc, err := s.DevelopmentAccount(ctx, "mig-fixture")
+	if err != nil {
+		t.Fatal(err)
+	}
+	initialState := `{"inventory":{"version":"ordinary-bag-v1","gold":0,"items":[{"slot":65,"Template":590722921,"Amount":1},{"slot":66,"Template":1,"Amount":10}]}}`
+	c, err := s.CreateCharacter(ctx, Character{AccountID: acc, Name: "MigChar", Request: []byte{0}, ConfigVersion: "test", State: []byte(initialState)}, 24)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Run migration
+	if err = s.MigrateCashShop(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	var savedState json.RawMessage
+	if err = s.DB.QueryRow(ctx, `SELECT state FROM characters WHERE id=$1`, c.ID).Scan(&savedState); err != nil {
+		t.Fatal(err)
+	}
+	var stateMap map[string]json.RawMessage
+	if err = json.Unmarshal(savedState, &stateMap); err != nil {
+		t.Fatal(err)
+	}
+	type bagItem struct {
+		Slot       uint16 `json:"slot"`
+		Template   uint32 `json:"Template"`
+		Amount     uint32 `json:"Amount"`
+		ExpireTime uint32 `json:"expire_time,omitempty"`
+	}
+	type bagStruct struct {
+		Items []bagItem `json:"items"`
+	}
+	var b bagStruct
+	if err = json.Unmarshal(stateMap["inventory"], &b); err != nil {
+		t.Fatal(err)
+	}
+
+	// 590722921 must be gone
+	for _, it := range b.Items {
+		if it.Template == 590722921 {
+			t.Fatalf("placeholder still in bag: %+v", it)
+		}
+	}
+	// Slot 66 with template 1 must be preserved
+	foundPreserved := false
+	for _, it := range b.Items {
+		if it.Slot == 66 && it.Template == 1 && it.Amount == 10 {
+			foundPreserved = true
+		}
+	}
+	if !foundPreserved {
+		t.Fatalf("preserved item missing: %+v", b.Items)
+	}
+
+	// 6 boxes must be present
+	expected := map[uint32]bool{590722922: true, 590722923: true, 590722926: true, 590722927: true, 590722928: true, 590722929: true}
+	for _, it := range b.Items {
+		if expected[it.Template] {
+			if it.ExpireTime != math.MaxInt32 {
+				t.Fatalf("sub-item %d ExpireTime=%d, want MaxInt32", it.Template, it.ExpireTime)
+			}
+			delete(expected, it.Template)
+		}
+	}
+	if len(expected) > 0 {
+		t.Fatalf("missing expected sub-items: %+v", expected)
+	}
 }

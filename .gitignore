@@ -85,3 +85,4 @@ _*.cmd
 *.zip
 *.tar.gz
 /runtime
+server/work/dfo-lan/configs/equipment-full.data
