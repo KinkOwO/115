@@ -347,6 +347,8 @@ with (
   )
   if (project / "configs/items.index.json").exists():
    command += ["-item-index", str(project / "configs/items.index.json")]
+  if (project / "configs/booster-catalog.json").exists():
+   command += ["-booster-catalog", str(project / "configs/booster-catalog.json")]
   shop_release = project / "configs/shop-vault-release.json"
   shop_pilot = project / "configs/shop-purchase-pilot.json"
   if os.environ.get("DFO_SHOP_PURCHASE_PILOT"):

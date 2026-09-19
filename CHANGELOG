@@ -4,6 +4,35 @@
 
 
 ## 2026-09-19
+- 修复礼包/礼盒（Booster / Booster Selection）开箱提示“背包已满或使用失败”及开箱装扮分发：
+  - **根因分析**：
+    1. 客户端打开礼包时发送 CMD 160 (`ENUM_CMDPACKET_USE_BOOSTER_ITEM`)。原服务端仅支持奥德赛创角武器盒（ID `10417789`），对夏日礼包等其他任何礼盒直接返回拒绝码 `Refusal(4)`；
+    2. 逆向客户端 `sub_1452A3D50` 确认，错误码 4 对应本地化文本 `DSTR 2057: "Your Inventory is full."`（中文显示为“背包已满或使用失败”），属于服务端未支持通用开箱协议导致的误报；
+    3. 自选装扮礼盒开箱所得道具属于装扮（Avatar，如 8 件套装扮），若被错当作消耗品放入普通背包（space 0），客户端主背包管理器在解析装扮结构时会触发 `0xC0000005` 内存越界崩溃；
+  - **协议层与全量奖励池集成**（`internal/game/protocol/booster.go`、`cmd/wireprobe/booster_flow.go`）：
+    - 协议解码重构：`DecodeBoosterUseRequest` 统一兼容无选项的基础开箱（8 字节）与携带自选道具列表的自选开箱（16/48/N 字节）；
+    - 协议响应支持：实现符合原生客户端 `sub_14529CDA0` 布局的 `BoosterOpenSuccess` 响应报文；
+    - 奖励池全量导出（`configs/booster-catalog.json`）：从内层 PVF 导出全量 35,944 个礼盒的奖励池与抽取规则，支持固定与权重随机开箱；
+    - 智能分槽与入库隔离：严格通过全量装备库与物品索引鉴别物品类型，将时装（Avatar）安全存入独立装扮栏 `b.Special[1]`，称号与普通装备存入 `b.Equipment`，宠物存入 `b.Special[7]`，消耗品/材料存入 `b.Items`，杜绝跨栏错发；
+    - 报文时序与清格刷新：开箱时显式推送扣减槽位的清空报文，并先推送各页签 NOTI 14 增量刷新报文，最后推送 ACK 160，严格对齐客户端时序；开箱道具继承安全最大到期时间戳 `MaxExpireTime`；
+  - **测试覆盖**：新增 `booster_flow_test.go`，覆盖称号盒开箱、8 件套时装自选开箱、宠物自选开箱全场景单测，全部通过。
+
+- 修复商城购买复活币（Life Token）问题，将其存入特殊货币栏位（Slot 1 / Coin 钱包）而非普通背包：
+  - **根因分析**：
+    1. 逆向客户端 `client/DFO.exe` 确认：复活币（Life Token，模板 ID `1`，`stackable/coin.stk`）在客户端属于特殊虚拟货币栏位（Main Inventory Space 0, Slot 1），客户端进城初始化恢复背包（NOTI 13 `ENUM_NOTIPACKET_ITEM_LIST`）与背包刷新（NOTI 14 `ENUM_NOTIPACKET_UPDATE_ITEM_LIST`）中，Slot 0 为金币（Gold，Template 0），Slot 1 为复活币钱包（Coin，Template 1，数量存放于 `p[6:10]`）；地牢复活（CMD 41 `ENUM_CMDPACKET_USE_COIN`）通过 `sub_145AD7F80` 读取 Slot 1 绑定的复活币数量；
+    2. 商城分类配置（`internal/cashshop/pvf_catalog.go`）原先因 `[not stackable buy]` 与 `[immediately adaptive product]` 策略未识别复活币直售特性，导致 `3000109`（Life Token 1个）、`3000110`（10个）、`3000111`（50个）、`3000112`（100个）被判定为 `unimplemented purchase policy` 而未启用；
+    3. 原交付逻辑直接尝试将复活币当成普通堆叠消耗品放入背包格位（65~120），导致即使购买成功也进入普通背包消耗栏，客户端 UI 上的复活币余额无法刷新；
+  - **商城商品与交付修复**（`internal/cashshop/pvf_catalog.go`、`pilot.go`）：
+    - `pvf_catalog.go` 放行 Template 1 的 `[not stackable buy]` 与 `[immediately adaptive product]` 限制，正确启用商城复活币直售商品（3000109、3000110、3000111、3000112）；
+    - `pilot.go` 针对 Template 1 路由到特殊货币交付逻辑，累加至 `Bag.Coin`，不占用任何背包普通消耗品格位（即使普通背包满格也能正常购买并入账）；
+  - **背包模型与协议对齐**（`internal/inventory/bag.go`、`consume.go`）：
+    - `Bag` 结构体新增 `Coin uint32` 属性，`Bag.Rows()` 打包下发时自动在 Slot 1 写入 `protocol.OrdinaryItem(1, 1, b.Coin)`，随 NOTI 13 / NOTI 14 实时同步给客户端；
+    - `b.Add` 与 `b.Consume` 增加对 Slot 1 / Template 1 的增减支持；
+    - `ReadBag` 增加兼容迁移机制，若已有角色的普通背包中残留有旧的 Template 1 道具，自动提取累加至 `b.Coin` 并从普通列表中清除；
+  - **数据库存档向前兼容**（`internal/storage/cash_purchase.go`）：
+    - `MigrateCashShop` 增加 `migrateCoinItems`，启动时自动扫描数据库中已有角色存档，将普通背包内错置的 Template 1 转换为 `inventory.coin`，无损升级已有存档；
+  - **测试与验证**：新增 `TestBagCoinWalletAndConsolidation`（`dfolan/internal/inventory`）、`TestShopPilotLifeTokenPurchase`（`dfolan/internal/cashshop`）、`TestShopPilotLifeTokenPackets`（`dfolan/cmd/wireprobe`），全量 `go test ./...` 与 `go vet ./...` 均通过。
+
 - 修复商城购买宠物蛋及右键装备自动孵化为对应宠物：
   - **根因分析**：
     1. 商城配置源文件 `shop-vault-release.json` 与 `shop-special-candidate.json` 中，12 款宠物蛋商品（SKU `3300000` ~ `3300011`）缺少 `equipment_index_hash`，导致未能解析 `list/equipment.lst`，条目残留 `import_error: "template missing from stackable.lst"`。商城启动分类时直接跳过，玩家购买时返回取消包；
