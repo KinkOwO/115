@@ -1,5 +1,7 @@
 {
-  "max_characters": 8,
+  "max_characters": 24,
   "initial_level": 1,
-  "note": "Local bootstrap settings. These two values are server policy, not values claimed to be recovered from the PVF. Character attributes and initial skills are imported from the supplied PVF."
+  "swordmaster_pilot": true,
+  "all_jobs_pilot": true,
+  "note": "Local bootstrap settings. Character capacity widened to 24 slots to match 115 client roster and avoid capacity rejection with >8 characters. Character attributes and initial skills are imported from the supplied PVF."
 }

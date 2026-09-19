@@ -137,3 +137,29 @@ func TestCreateWithAllJobsPilotDoesNotRejectMissingGrowth(t *testing.T) {
 		}
 	}
 }
+
+func TestCharacterListCapacityUnderScenarioMode(t *testing.T) {
+	t.Setenv("DFO_ODYSSEY_MODE", "0")
+	var roles []protocol.CharacterRow
+	for i := 0; i < 9; i++ {
+		roles = append(roles, protocol.CharacterRow{
+			Slot:             uint16(i),
+			Name:             "test_role",
+			Profession:       0,
+			Level:            1,
+			FatigueRemaining: 156,
+		})
+	}
+	// Under old 8-character capacity, 9 roles trigger "invalid character capacity"
+	if _, err := protocol.CharacterList(8, roles); err == nil {
+		t.Fatal("expected error under capacity 8 with 9 roles")
+	}
+	// Under 24-character capacity (jobs-release / updated probe), 9 roles must succeed cleanly
+	payload, err := protocol.CharacterList(24, roles)
+	if err != nil {
+		t.Fatalf("expected success under capacity 24, got: %v", err)
+	}
+	if len(payload) == 0 {
+		t.Fatal("expected non-empty payload")
+	}
+}

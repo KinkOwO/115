@@ -1,6 +1,19 @@
 # CHANGELOG
 
 ## 2026-09-19
+- 修复剧情模式（`DFO_ODYSSEY_MODE=0`）下角色列表为空及无法创建角色问题：
+  - **根因分析**：
+    1. 探针模式分流缺陷（`channel_probe.py`）：双向模式自适应逻辑中，剧情模式（`DFO_ODYSSEY_MODE=0`）下的规则分支未选用全职业规则 `character-rules.jobs-release.json`，而是回退到了初始测试配置 `character-probe.json`；
+    2. 规则容量限制（`character-probe.json`）：该测试配置写死了 `"max_characters": 8`，当数据库中活跃角色数量超过 8 个（当前数据库已有 9 个角色）时：
+       - 客户端获取角色列表（Frame 8）触发 `CharacterList` 内部校验 `len(roles) > capacity`（9 > 8），服务端报错 `invalid character capacity` 并拒绝返回角色列表，导致客户端角色选择界面显示为空；
+       - 客户端创建角色（Frame 5）触发 `Store.CreateCharacter` 检查 `count >= maxCharacters`（9 >= 8），服务端报错 `character slots full` 并拒绝创建，导致客户端创建角色失败；
+    3. 全量装备库挂载受限：全量装备库（`equipment-full`）与 38 部位穿戴规则（`equipment-wear.full-candidate.json`）原先被误包裹在 `if odyssey_mode:` 块内，导致剧情模式下缺少全量装备支持；
+  - **探针分流与规则修复**（`server/work/dfo_probe_tools/channel_probe.py` & `configs/character-probe.json`）：
+    - `channel_probe.py` 优先为剧情模式挂载支持 24 槽位及全职业的 `configs/character-rules.jobs-release.json`，并将 `-character-catalog` 自动对齐优先使用全职业转职成长的 `configs/characters.skycastle-release.json`；
+    - 将全量装备库及 38 部位穿戴规则解绑 `if odyssey_mode:`，使剧情模式与奥德赛模式均享有完整装备支持；
+    - 扩充 `character-probe.json` 基准容量至 24 槽位并开启全职业支持，避免任何路径回退时再次发生槽位溢出；
+  - **测试覆盖**（`internal/character/create_options_test.go`）：新增 `TestCharacterListCapacityUnderScenarioMode` 单测，验证 9 个以上角色在剧情模式下均能正常生成列表。
+
 - 新增启动器发布物与探针可执行文件纳入版本控制（`feat(launcher): 新增单机一键启动器`）：
   - **启动器（v1.1.1）**：`DFO-115US单机一键启动器.exe` 放入仓库根目录，玩家可直接下载；启动器的
     「检查更新」按仓库根 `version.json`（随启动器仓库发布）比对版本。

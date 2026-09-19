@@ -153,13 +153,24 @@ with (
  ]
  if persisted:
   cr_odyssey = project / "configs/character-rules.odyssey-release.json"
+  cr_jobs = project / "configs/character-rules.jobs-release.json"
   cr_probe = project / "configs/character-probe.json"
-  cr_default = cr_odyssey if (odyssey_mode and cr_odyssey.exists()) else cr_probe
+  if odyssey_mode and cr_odyssey.exists():
+   cr_default = cr_odyssey
+  elif cr_jobs.exists():
+   cr_default = cr_jobs
+  elif cr_odyssey.exists():
+   cr_default = cr_odyssey
+  else:
+   cr_default = cr_probe
+  cat_skycastle = project / "configs/characters.skycastle-release.json"
+  cat_generated = project / "configs/characters.generated.json"
+  cat_default = cat_skycastle if cat_skycastle.exists() else cat_generated
   command += [
    "-character-storage",
    str(project / "runtime/storage/local.json"),
    "-character-catalog",
-   str(project / "configs/characters.generated.json"),
+   str(cat_default),
    "-character-rules",
    str(cr_default),
   ]
@@ -431,14 +442,15 @@ with (
   elif odyssey_growth.exists():
    os.environ["DFO_ODYSSEY_GROWTH"] = str(odyssey_growth.resolve())
 
-  eq_full = project / "configs/equipment-full"
-  if (project / "configs/equipment-full.index.json").exists() and (
-   project / "configs/equipment-full.data"
-  ).exists():
-   os.environ["DFO_EQUIPMENT_FULL_CATALOG"] = str(eq_full.resolve())
-   eq_wear_full = project / "configs/equipment-wear.full-candidate.json"
-   if eq_wear_full.exists():
-    os.environ["DFO_EQUIPMENT_WEAR_RULES"] = str(eq_wear_full.resolve())
+ eq_full = project / "configs/equipment-full"
+ if (project / "configs/equipment-full.index.json").exists() and (
+  project / "configs/equipment-full.data"
+ ).exists():
+  os.environ["DFO_EQUIPMENT_FULL_CATALOG"] = str(eq_full.resolve())
+  eq_wear_full = project / "configs/equipment-wear.full-candidate.json"
+  if eq_wear_full.exists():
+   os.environ["DFO_EQUIPMENT_WEAR_RULES"] = str(eq_wear_full.resolve())
+ stdout.write(' '.join(command) + '\n')
  server = subprocess.Popen(command, stdout=stdout, stderr=stderr, creationflags=flags)
  try:
   ready = out / "ready.json"
@@ -468,6 +480,21 @@ with (
   client_dir = os.environ.get("DFO_CLIENT_DIR", str(p.parent / "dfo_probe_client"))
   if not (pathlib.Path(client_dir) / "DFO.exe").is_file():
    print(f"WARNING: probe cannot see DFO.exe under client dir: {client_dir}")
+  stdout.write(' '.join([
+    str(p / "probe.exe"),
+    client_dir,
+    str(out / "client.log"),
+    "55",
+    "normal-ui"
+    if channel_check
+    else (
+     "trace-owned-ui"
+     if exception_trace
+     else ("interactive-ui" if interactive else "trace-root-ui")
+    ),
+    str(bps),
+    payload,
+   ]) + '\n')
   probe = subprocess.Popen(
    [
     str(p / "probe.exe"),
