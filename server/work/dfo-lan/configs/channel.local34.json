@@ -1,5 +1,5 @@
 {
-  "Listen": "127.0.0.1:7001",
+  "Listen": "0.0.0.0:7001",
   "ServerKey": "first",
   "ServerID": 1,
   "SourceSHA256": "aecc92480ccd469fa2b33bf9c189496a0c4e31c20eb2fef7e1623642c23a687f",

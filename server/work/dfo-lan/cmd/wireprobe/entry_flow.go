@@ -29,10 +29,14 @@ type entryPayloads struct {
 	CinematicSkips                                                            []byte
 	SkillVariations                                                           []byte
 	OdysseyProgress                                                           []byte
+	// Peers carries the USERINFO of every actor already standing in the scene.
+	// It is emitted after this actor's own placement but before the area list,
+	// because the client only places actors it already knows.
+	Peers [][]byte
 }
 
 func (p entryPayloads) packets() []outboundPacket {
-	return []outboundPacket{
+	out := []outboundPacket{
 		{"select_parser_response", 1, 4, p.Select},
 		{"account_options_restored", 0, 2826, p.AccountOptions},
 		{"cinematic_skips_restored", 0, 1352, p.CinematicSkips},
@@ -45,16 +49,25 @@ func (p entryPayloads) packets() []outboundPacket {
 		{"creature_inventory_restored", 0, 13, p.Creatures},
 		{"worn_equipment_restored", 0, 13, p.Worn},
 		{"user_area_sent", 0, 23, p.UserArea},
-		{"town_entry_probe_sent", 0, 24, p.Area},
-		{"fatigue_sent", 0, 36, p.Fatigue},
-		{"enter_gameworld_complete_sent", 0, 124, p.Complete},
-		{"entry_experience_restored", 0, 37, p.Experience},
-		{"odyssey_journal_restored", 0, 2856, p.OdysseyProgress},
-		{"completed_quests_restored", 0, 342, p.CompletedQuests},
-		{"available_quests_restored", 0, 21, p.AvailableQuests},
-		{"skill_variations_restored", 1, 29, p.SkillVariations},
-		{"worn_equipment_visuals_restored", 0, 14, p.WornUpdate},
 	}
+	// The players already in the scene have to be introduced before the area
+	// list that places them. The client creates an actor from USERINFO and only
+	// places actors it already knows, so a list arriving first is dropped: the
+	// newcomer then sees nobody until the other player happens to move.
+	for _, info := range p.Peers {
+		out = append(out, outboundPacket{"entry_peer_info_sent", 0, 2, info})
+	}
+	return append(out,
+		outboundPacket{"town_entry_probe_sent", 0, 24, p.Area},
+		outboundPacket{"fatigue_sent", 0, 36, p.Fatigue},
+		outboundPacket{"enter_gameworld_complete_sent", 0, 124, p.Complete},
+		outboundPacket{"entry_experience_restored", 0, 37, p.Experience},
+		outboundPacket{"odyssey_journal_restored", 0, 2856, p.OdysseyProgress},
+		outboundPacket{"completed_quests_restored", 0, 342, p.CompletedQuests},
+		outboundPacket{"available_quests_restored", 0, 21, p.AvailableQuests},
+		outboundPacket{"skill_variations_restored", 1, 29, p.SkillVariations},
+		outboundPacket{"worn_equipment_visuals_restored", 0, 14, p.WornUpdate},
+	)
 }
 
 // Prepare every frame before the first write. In particular, a missing cipher
