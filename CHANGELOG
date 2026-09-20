@@ -10,8 +10,157 @@
 - 修复“更新服务端代码后启动必失败（`启动脚本异常退出：exit status 1`）”：`channel_probe.py` 下发命令前先按服务端程序自报的能力过滤参数。
   - **根因分析**：`b6d97c8` 给服务端源码新增了 `-booster-catalog` / `-item-index` 等参数，`channel_probe.py` 同步按“configs 里存在对应文件”就追加参数；但实际运行的归档基准 `bin/wireprobe-dungeon39.exe` 是更早的构建（`bin/` 不入库、不随代码更新），Go 的 `flag` 包遇到未定义参数会打印 usage 并以非零码退出，玩家/启动器侧表现为 `启动脚本异常退出：exit status 1`。
   - **修复实现**：`server/work/dfo_probe_tools/channel_probe.py` 新增 `exe_flags`（运行 `exe -h` 解析 usage）与 `prune_unsupported`，在下发前丢弃当前程序不认识的参数（连同它的值）并打印 WARNING；探测失败（文件缺失/超时）时保持原样，不改变既有行为。
+- 修复宠物穿戴记录的实例键回归：`EquipmentRow` 在槽位 26 且模板非零时保证
+  `Data`（offset 6）至少为 `1`，重新满足 NOTI13/14 与 NOTI105 对同一宠物实例键的约定；
+  `TestCreatureListPayloadAndEquipmentRow` 恢复通过。
+- 修复副本死亡后使用复活币（Life Token）无法复活的问题（包括剧情模式与普通地下城）：
+  - **根因分析**：
+    1. **CMD 40 死亡上报分发被限制在奥德赛奖励开关中**：原分发条件中 `frame.ID == 40` 被 `(frame.ID == 40 && odysseyRewardsEnabled())` 门控。在普通剧情模式和非奥德赛地下城中，客户端发送的玩家死亡上报（CMD 40）直接被忽略，服务端未能记录 `pilotDeath` 死亡状态与序号；
+    2. **CMD 41 复活币请求门控缺失通用路径**：原先 `frame.ID == 41` 只在 `odysseyTemporaryCreditsEnabled()` 开启时被接收，且只支持扣除测试 credits 的 `pilotRevive` 逻辑；普通地下城中客户端发送 CMD 41 直接被丢弃，即便接收也会因缺乏 `pilotDeath` 死亡状态被拒绝；
+  - **修复实现**：
+    - `cmd/wireprobe/request_scope.go`：新增 `dungeonRequest` 函数统筹地下城请求 opcode 判定，解除 CMD 40 的条件门控，确保所有地下城中的玩家死亡均能正常建立 `pilotDeath` 状态；
+    - `cmd/wireprobe/dungeon_revive.go`：新增 `lifeTokenRevive` 与 `lifeTokenReviveAllowed`，支持普通地下城通用复活币流程：
+      - 校验角色处于加载完的地下城中、已确认死亡、Actor ID 匹配；
+      - 校验当前副本地图脚本是否含有 `[cannot use coin map]` 标记；
+      - 通过 `CommitCharacterEvent` 以 `dungeon-life-token-revive:<run>:<seq>` 建立原子事务，调用 `bag.Consume(catalog, 1, 1)` 扣除普通背包中的虚拟复活币（Slot 1 / Template 1）；
+      - 成功后下发 `life_token_revive_ack` (ACK 41)、`life_token_revived` (NOTI 32, state=1 满血满魔复活) 与 `life_token_inventory_updated` (NOTI 14 刷新背包复活币数量)；
+      - 内存以帧哈希 `pilotDeath.Revives` 防重，防止客户端重复发送 CMD 41 造成多次扣币；
+    - `cmd/wireprobe/main.go`：在 CMD 41 分发处增加普通复活币路径分支，同时保持奥德赛临时 credits 独立隔离；
+  - **测试覆盖**：
+    - `cmd/wireprobe/dungeon_revive_test.go`：覆盖正常扣除 1 个复活币并下发 3 个通知包、防重放幂等不重复扣币、复活后状态拒绝再次复活、禁止复活地图拒绝；
+    - `cmd/wireprobe/request_scope_test.go`：验证 CMD 40 正常纳入 `dungeonRequest`；
+    - 全量 `go test ./...` 与 `go vet ./...` 通过；实机验证剧情副本死亡后点击复活币正常复活并扣除 1 个复活币（100 -> 99）。
+
+- 修复某些装备无法分解（提示快捷栏或材料栏不足）及实现权威多品质分解产物规则：
+  - **根因分析**：
+    1. **错误跨空间槽位冲突检测**：`internal/inventory/disjoint.go` 中存在错误的 `reqSlot == worn.Slot` 校验。因角色穿戴栏（List 3，槽位 12..25）与背包装备栏（List 0，槽位 9..64）数值区间重叠，当角色在身体槽 12 佩戴装备且尝试分解背包槽 12 的装备（如布护臂 Cotton Armguard）时，被误判为穿戴中装备而拒绝，服务端固定返回 `Refusal(4)`；
+    2. **客户端错误码映射**：客户端逆向 `client/DFO.exe.i64`（`sub_145273AC0` 分解结果接收器）确认，收到状态码 4 时命中 `case 4: v131 = 764`，弹出 DSTR 764 提示："Your inventory slots are not enough for the disassembled items. Please try again after emptying a quick slot or a material slot."，误导玩家以为背包已满；
+    3. **产物规则缺失**：原实现仅固定返还 20 个无色小晶块，缺失稀有度加权、等级系数、有色晶块、元素结晶及装备灵魂（Souls）产出。
+  - **修复实现**：
+    - `internal/inventory/disjoint.go`：移除错误的 `b.Worn` 槽位冲突比对，增加合规背包槽位合法性检查与重复检测；接入全量装备目录元数据提取（稀有度、需求等级、价值、防拆标记）；
+    - `internal/inventory/disjoint_calculator.go`：严格对齐 115 级客户端 PVF `etc/disjoint.etc` 与权威参考源（`dfo115`, `ServerS4A21`, `90dof`），实现 115 原版产物计算器：
+      - 基础售价按 `value * 200 / 1000` 计算；
+      - 分组 0（等级 0..114）与分组 1（等级 115..1000）区分计算；
+      - **无色小晶块**（3037）：依价值与各稀有度系数（1.12/1.35/0.07/1.48/1.80/0.70/1.53/1.80）换算；
+      - **附加产物**：蓝装产出随机彩色小晶块（3033..3036），紫装产出下级元素结晶（3166），粉装产出上级元素结晶（3167）；
+      - **灵魂产物**：白装产出普通灵魂（10100115），蓝装产出高级灵魂（10100116），紫装产出稀有灵魂（10099773），粉装产出神器灵魂（10099774），史诗产出史诗灵魂（10158124），传说产出传说灵魂（10099775）；115 级装备产出 115 级专属灵魂（10361512..10361516）；
+      - 账号共享材料（晶块与灵魂）与普通材料分层堆叠发放，与 List 35 灵魂仓库自动无损归集联动；
+    - `internal/loot/disjoint.go`：在事务中传递 `s.Equipment` 全量装备定义；
+    - `cmd/wireprobe/main.go`：为 `lootService.Equipment` 挂载 `Full` 装备全量索引（121,726 项）；精确映射拒绝错误码（仅材料栏满返回 4，其余返回 19 避免误报）。
+  - **测试覆盖**：
+    - `internal/inventory/disjoint_test.go`：测试穿戴槽 12 占用时分解背包槽 12 布护臂成功；验证白、蓝、紫、粉、史诗及 115 史诗全品质产物；覆盖非法槽位与未持有物品拒绝。
+    - 全量执行通过 `go test ./...` 与 `go vet ./...`；实机验证通过并成功收口。
+- 实现账号共享材料仓库（灵魂仓库 / Account Material Storage，list 35）服务端闭环：
+  - **协议取证**（client/DFO.exe.i64，详见 `docs/protocol/next43-account-material-storage.md`）：
+    1. 17 个固定材料模板由客户端静态表 `0x14A9288E0` 定义并钉死槽位：晶块 3033/3034/3035/3036/3037/3262 → 槽 363-368（`sub_145ACA5E0`），灵魂 10100115/10100116/10099773/10099774/10099775/10158124 → 槽 369-374（`sub_145AD74A0`），旧灵魂 10361512-10361516 → 槽 375-379（`sub_145AD6B70`）；`sub_14500CE40` 将这 17 个模板统一规范到容器号 35；
+    2. `ENUM_NOTIPACKET_ACCOUNT_MATERIAL_STORAGE_INFO`（0x226）名称存在但**无注册 handler**（邻居 0x225/0x227/0x229 均有），属死 opcode，不可用；
+    3. 真实同步时序：NOTI13 list=35 携带存储行使 reader 置标志（`sub_145ADC2A0` 分支一），随后的 NOTI13 list=0 背包快照触发收割（分支二 + `sub_145AF4360`），将 363-379 槽物品移入灵魂仓库管线并刷新面板；list 35 快照不带 list0 的额外 u16 锁定计数字段（`sub_1452D5A80` 证实）；
+  - **服务端实现**：
+    - `internal/storage/account_materials.go`：新增 `account_material_storage` 表（按账号存 counts jsonb，建表即迁、老档无损）；`CommitAccountMaterialSweep` 单事务内锁角色行+账号行原子搬迁，纯状态派生、天然幂等；
+    - `internal/inventory/account_materials.go`：17 模板↔固定槽映射（测试锁定与 IDB 一致）、`AccountMaterials`（account-materials-v1）、`SweepAccountMaterials`（背包提取/聚合同模板/溢出拒绝）、快照行（只发非零行）；
+    - `internal/game/protocol/inventory.go`：新增 `InventoryRestoreSpace` 支持非 0 列表快照；
+    - 入包自动转移接入：登录进城先 sweep（兼容旧档，背包已有晶块/灵魂无损迁入账号仓库）再发 list35+list0；分解（CMD 26）提交后 sweep，ACK 奖励槽改写为固定存储槽，随后 list35+list0 权威刷新；拾取与任务奖励命中 17 模板时同样 sweep+重快照（普通物品路径不变）；
+  - **测试与验证**：新增 `account_materials_test.go`（槽位映射/叠加/往返/迁移/溢出/报文布局）；全量 `go test ./...` 与 `go vet ./...` 通过；重新编译 `bin/wireprobe-handoff-source.exe`；实机验证通过（灵魂仓库面板显示计数、分解晶块直接入仓库、重登保持）。
+  - **已知边界**：CMD19 移动仍限 list 0/2/3（面板拖回背包待实机确认后补）；灵魂消耗路径（升级/制作扣减）待相关功能落地；金库（list 2）中已有的 17 模板物品不迁移。
+
+- 宠物列表与世界跟随问题调查（当前仍未完成）：
+  - **2026-09-20 实机校正**：曾尝试把已穿戴宠物 Slot 26 编入登录 `NOTI 2 mode 1 / DetailedEquipment`，导致装备宠物的角色卡在选角界面。现已撤回该未闭环编码，恢复 mode 1 仅发送时装槽 0..11；用户实机确认角色可正常进入游戏。回归测试固定“存档含 Slot 26 时不得泄漏进 mode 1”。宠物栏仍为空、世界模型仍不跟随，继续按客户端 reader 与场景时序取证，以下 NOTI 105/102/100 结论暂作为候选而非已验收修复。
+  - **前期候选根因分析**：
+    1. **宠物默认名称映射缺失**：`CreatureListPayload`（NOTI 105）仅内置了 12 个经典宠物名称，当穿戴现代宠物模板（如 `500991361` 夏日套萌宠 "Beach Lass Berry"）时，名称字符串长度为 0；原生客户端 `sub_1452CA7E0`（NOTI 105 解包器）调用 `sub_146D78070` 读取 DSTR 宠物名称，当长度为 0 时导致客户端宠物管理器丢弃或跳过该条目，宠物列表 UI 呈现为空；
+    2. **NOTI 102 宠物经验协议长度严重截断（6 字节 vs 10 字节）**：原生客户端 `0x1452ca640`（NOTI 102 `ENUM_NOTIPACKET_GAIN_EXP_CREATURE` 解析器）严格要求 10 字节报文：`u16 object_key`（角色 Actor WireID）+ `u32 exp1` + `u32 exp2`；此前服务端错误沿用了旧版 6 字节结构 `[]byte{1, 0, 0, 0, 0, 0}`，导致客户端在解包时发生数据缓冲区欠载（Underflow），解析失败并污染后续数据流；
+    3. **城镇与地下城世界场景宠物挂载/生成机制缺失（NOTI 100）**：深入逆向客户端角色与场景交互确认：
+       - `Player::ApplyUserInfo`（`0x145d35e70`，处理 NOTI 2 mode 0）调用 `0x145d2fb40` 构建角色身上的宠物伴侣对象（`actor + 0x114c8`），但进城初期（NOTI 24 之前）角色尚未加载世界场景（`actor + 0x190 == 0`），跳过了将宠物放入场景的逻辑 `0x145de4360`；
+       - 当世界场景加载完毕后，再次收到 NOTI 2 mode 0 时，`0x145d2fb40` 在 `0x145d2fc0e` 处判断已存在同 ID 和同名宠物，直接退出，不会再次尝试挂载到场景中；
+       - 原生客户端提供了权威的宠物世界场景激活与生成通知：NOTI 100（`0x1452a9db0`，`ENUM_NOTIPACKET_DIED_CREATURE` / 宠物复活生成包），仅需携带 2 字节 `u16 object_key`（角色 WireID），即可直接触发 `0x1452a9eb6` 调用虚方法 `+0x60`（`0x145e4a5e0`），通过 `0x145de4360` 将宠物伴侣直接放入角色当前活跃的世界场景中，并自动启动其跟随与渲染循环（`0x145a3e780` / `0x145a3e210`）。
+  - **修复实现**：
+    - `internal/inventory/creature_list.go`：在 `CreatureDefaultNames` 中补充 `500991361: "Beach Lass Berry"`，新增 `DefaultCreatureName` 保证任何未建档宠物均兜底返回 `"Creature"`，确保宠物名永不为空；新增 `CreatureGrowthPayload(actorWireID, exp)` 构建标准的 10 字节 NOTI 102 报文；新增 `CreatureSpawnPayload(actorWireID)` 构建 2 字节的 NOTI 100 宠物世界生成通知；
+    - `internal/character/appearance.go`：对齐使用 `inventory.DefaultCreatureName`，保持 NOTI 2 与 NOTI 105 的宠物名称一致；
+    - `cmd/wireprobe/entry_flow.go` & `entry_flow_test.go`：在进城 NOTI 124 之后追加下发 NOTI 100 宠物世界生成报文，并在单元测试中锁定时序约束；
+    - `cmd/wireprobe/main.go`：进城与换宠（CMD 19）时下发修正后的 10 字节 NOTI 102 及 NOTI 100 场景生成包；
+    - `cmd/wireprobe/dungeon_flow.go`：在地下城选择（CMD 16）、地下城加载完毕（CMD 37）、离开地下城（CMD 42）以及取消选图中，全链路将 NOTI 102 修正为 10 字节并推送 NOTI 100，确保宠物在地下城世界和返回城镇时即时生成并跟随玩家；
+    - `cmd/wireprobe/appearance_inventory.go`：修正 `appearanceInventory` 中的 NOTI 102 生成逻辑。
+  - **测试覆盖**：
+    - `internal/inventory/creature_list_test.go` 新增对 10 字节 NOTI 102、2 字节 NOTI 100 以及名称兜底机制的断言；
+    - `cmd/wireprobe/entry_flow_test.go` 验证包含 `creature_world_spawned` 的完整时序；
+    - 全量执行并通过 `go test ./...` 与 `go vet ./...`；重新编译输出 `bin/wireprobe-handoff-source.exe`。
+
+- 修复商城购买复活币卡在"正在购买，请稍候。"弹窗的问题：
+  - **根因分析**：
+    1. 逆向客户端 `client/DFO.exe` 确认：当商城购买请求（CMD 64）发出后，客户端弹出购买等待框（窗口 3708 "正在购买，请稍候。"）；
+    2. 当服务端响应购买时，若在背包增量包（NOTI 14 `ENUM_NOTIPACKET_UPDATE_ITEM_LIST`）中包含了虚拟货币栏位（Slot 0 金币与 Slot 1 复活币），客户端在 `sub_1452E9810` 中因复活币数量增加触发获得道具飘字/Toast 逻辑，由于 Slot 1 为纯数值虚拟栏位缺少实体道具背包组件（`[rbx + 0x10] == 0`），导致在 `0x1452EBC92` 处空指针解引用崩溃（`0xC0000005`），进而使后续的购买成功回执（ACK 64）无法被 `CeraShopManager` 处理；
+    3. 若直接用背包重置包（NOTI 13 `ENUM_NOTIPACKET_ITEM_LIST`）代替 NOTI 14，则会破坏商城购买状态机的期望时序，导致关闭等待框的逻辑 `sub_1408873C0` 未被触发，弹窗同样永久挂起；
+  - **修复实现**（`cmd/wireprobe/shop_pilot.go` & `cmd/wireprobe/shop_pilot_test.go`）：
+    - 购买成功时，NOTI 14 增量包正常下发，但严格过滤掉虚拟货币栏位（Slot <= 1），确保仅推送真正的背包实体道具（避免客户端 `0x1452EBC92` 空指针崩溃）；
+    - 服务端依次下发 NOTI 14（背包更新）、NOTI 53（点券余额更新）、ACK 64（购买成功回执，触发客户端关闭 3708 "正在购买，请稍候。" 弹窗）；
+    - 若购买内容包含复活币（Template 1），在 ACK 64 之后追加下发 NOTI 13（全量背包恢复），将最新的复活币数量无损同步至客户端底层复活币槽位（Slot 1），实现弹窗正常关闭且复活币数量平滑到账；
+  - **测试与验证**：更新 `TestShopPilotLifeTokenPackets` 验证 4 包时序（NOTI 14 -> NOTI 53 -> ACK 64 -> NOTI 13），全量 `go test ./...` 与 `go vet ./...` 检验通过。
+
+- 修复进入地下城（Dungeon）时角色模型回退为默认裸体的问题：
+  - **根因分析**：选图进入地下城（CMD 16 `SELECT_DUNGEON`）后，客户端立即根据选图 ACK 构建地牢房间管理器并生成地下城初始场景模型；原服务端仅在进入副本加载完成（CMD 37 `finishDungeonLoading`）阶段推送外观，由于该阶段只接收游戏加载状态与确认，外观包未在地下城场景构建前生效；
+  - **修复实现**：在 `cmd/wireprobe/dungeon_flow.go` 的 `selectDungeon`（CMD 16）阶段，于下发 `dungeon_info_sent` (NOTI 28) 和 `dungeon_start_map_sent` (NOTI 29) 的同时，同步下发地下城场景的 `dungeon_actor_appearance_sent` (NOTI 2)、`dungeon_actor_addition_sent` (NOTI 2) 与 `dungeon_worn_visuals_sent` (NOTI 14)，并在 `finishDungeonLoading` 中保持槽位与外观同步，使角色在地牢中完整继承时装与穿戴模型。
+
+- 实现达人契约、霸王契约与成长之契约的服务端效果联动闭环：
+  - **功能背景**：
+    1. **达人契约（Tactician's Contract，Type 27）**：允许玩家提前 5 级学习技能；
+    2. **霸王契约（Conqueror's Contract，Type 22）**：允许玩家提前 10 级穿戴高阶装备；
+    3. **成长之契约（Growth Contract，Type 79）**：打怪经验 +20%、任务完成经验 +20%、通关副本结算经验 +20%、副本房间疲劳消耗 -1、任务物品掉落率 +20%。
+  - **实现细节**：
+    - `internal/storage/premium.go`：补充契约权威类型常量（`PremiumConqueror`、`PremiumTactician`、`PremiumGrowth` 等），增加 `HasActivePremium` 与 `ActivePremiumSet` 安全查询函数；
+    - `internal/inventory/wear.go`：在装备穿戴门槛检查中查询账号霸王契约状态，若生效则将可穿戴等级上限放宽 10 级（`state.Level + 10`），配合客户端放行高阶装备穿戴；
+    - `internal/character/awakening.go` & `learning.go`：在技能学习与消耗校验中增加 `costForLevel`，实时检测达人契约状态并放宽 5 级技能学习等级判定（`effectiveLevel = state.Level + 5`）；
+    - `internal/character/progression.go`：怪物击杀结算时，成长契约生效则增加 20% 击杀经验（`gain = gain + gain*20/100`）；
+    - `internal/quest/finish.go`：任务完成结算时，成长契约生效则增加 20% 任务经验并在回包通知中体现；
+    - `internal/character/clear.go`：副本通关结算时，成长契约生效则基础经验与评分经验均增加 20%；
+    - `internal/character/fatigue.go`：进入副本房间扣除疲劳时，成长契约生效则扣除点数 -1（`cost--`）；
+    - `internal/loot/rules.go`、`session.go` & `cmd/wireprobe/dungeon_flow.go`：新增 `RollWithBonus`，掉落会话检测到成长契约时注入 20% 任务物品掉率加成。
+  - **测试覆盖**：
+    - 新增 `wear_contract_test.go`、`contract_skill_test.go`、`contract_loot_test.go`、`premium_test.go`，全量 `go test` 与 `go vet` 检验通过。
 
 ## 2026-09-19
+- 数据库直改角色属性注意事项（改等级/疲劳，不用重启服务端）：
+  - **改等级必须同时改累计经验**：否则服务端 `AddExperience` 校验报 `level exceeds cumulative experience`，击杀怪物后不开门。
+  - 经验阈值表：`configs/progression.next25.json` 的 `cumulative_experience_thresholds` 数组，索引 `level-2` = 所需累计经验。例：115 级需要 thresholds[113] = 17387361028。
+  - 改等级 SQL：`UPDATE characters SET state = jsonb_set(state, '{level}', '115') WHERE name='755'`
+  - 改经验 SQL：`UPDATE characters SET state = jsonb_set(state, '{experience}', '17387361028') WHERE name='755'`
+  - **疲劳值在独立表 `character_fatigue`**（不在 characters.state JSONB），加疲劳 = `UPDATE character_fatigue SET used = used - N WHERE character_id=3`（表结构：character_id, day, used, daily_limit, used_max）。
+- 修复奥德赛副本「清完怪不开门 / boss 房进不去」（角色 755 实测 100004961 通关结算通过）：
+  - **CMD38 门/交互请求路由与响应**（`cmd/wireprobe/main.go` 与 `dungeon_flow.go`）：客户端在房间里按门发送 CMD38，期望服务端回 door_ack 解锁门；在 C2S 白名单中补齐 `frame.ID == 38`，实现 `interactDoor` 响应 `door_ack`；
+  - **Sirocco 过场房 100016294 重访时 boss 门不解锁**（`internal/dungeon/session.go` + `cmd/wireprobe/dungeon_flow.go`）：该房为过场房，首次进入播完过场只解锁回退门；key boss（roxy）击杀后玩家绕一圈再次进入时，服务端发 ReuseRoom=true（mode=0），客户端保留缓存地图、不重放一次性 ACT 触发器，通往 boss 房 (4,1) 的门未解锁；
+  - **绕过方案闭环**：在 100016294 按门（CMD38）时，服务端不再只回空 ack，而是直接合成一个到 boss 房 (4,1) 的 160 字节 DungeonRoomTransition，走正常 `moveDungeonRoom` → `Move()` 流程（该房坐标相邻，放行入 boss 房）。其他房间按门行为回 `door_ack` 正常解锁。
+- 修复新奥德赛副本 100004962「卡在第一个房间、无法移动」：
+  - **根因**：客户端在起点 (0,1)→(1,1) 移动时发的 CMD45 带 Record[0]==1（script warp 剧情切换标记），服务端走 MoveScript 分支；当特定副本未配置显式 script warp 路由时直接返回 `no matching source script warp`，玩家被锁死在首房；
+  - **改动**（`cmd/wireprobe/dungeon_flow.go`）：MoveScript 路由未命中时不再直接拒绝，fallback 到普通相邻移动 `Move(r.Position)`。目标坐标本身就是迷宫里合法的相邻房间，提供通用移动兜底。
+- 修复新奥德赛副本 100004965「进入房间 100016332 客户端必崩」：
+  - **根因**：该房间怪物 template=109019135 在源 PVF 里固定等级=0（v[1]=0, v[2]=0），而房间内其他怪都是等级 92。服务端原样下发 level=0 的敌方怪（team=100），客户端加载 0 级敌人 Actor/AI 资源时找不到对应数据，直接抛 C++ 异常 0xE06D7363 崩溃；
+  - **改动**（`internal/dungeon/session.go` `fixedMonsters`）：源数据固定等级为 0 的怪物，兜底成副本基准等级 basis（与同房间其他怪一致），不再下发 level=0，消除客户端 C++ 异常崩溃。
+- 修复新奥德赛副本 100004965（Ozma/奥兹玛）boss 房击杀后无法转场结算：
+  - **根因**：boss 房 100016335 是多阶段 raid，源 PVF 里有 4 个 [boss] rank=3 的怪（109012974/107002267/109013171/109019137）。前几个阶段 boss 死后客户端自动清场、不发死亡包，服务端 Dead 集合缺它们，RoomCleared() 返回 false，客户端杀完最终 boss 自动发 CMD45 layer change 时被 MoveScene 拒绝；
+  - **改动**（`internal/dungeon/session.go` `RoomCleared`）：奥德赛团本（ID >= 100004960）房间放行转场，不要求前序多阶段 rank=3 怪的死亡包。
+- 修复新奥德赛副本 100004969（Gaebolg/Lv.89）boss 击杀后无法结算：
+  - **根因**：客户端杀完 boss 发 bossCheck（CMD117），但服务端 BossCheck 严格校验 `m.Entity == r.Target && m.Rank == 3` 没匹配到（多阶段 raid 的最终 boss 可能不在服务端 Monsters 列表里由客户端自动清场，或坐标不一致）。导致 bossCheck 被拒，dungeon_clear_enabled/resultSent 没发，客户端接着发 CMD72 翻牌被拒，副本不标记 complete；
+  - **改动**（`internal/dungeon/completion.go`）：Odyssey 副本 bossCheck 统一放行 found=true；tryComplete() 在 Odyssey 副本中 completionTarget!=0 时直接 completed=true（不等所有 rank=3 怪死亡包）。
+- 修复新奥德赛副本 100004972（Gaebolg 后续）普通房间转场被卡：
+  - **根因**：RoomCleared() 对普通房间若要求所有 rank=3 怪发死亡包才放行，Odyssey 多阶段 raid 客户端自动清场不发死亡包，layer-change CMD45 会被 MoveScene 拒绝；
+  - **改动**（`internal/dungeon/session.go` `RoomCleared`）：新奥德赛副本房间放行转场（客户端只在确实清场时才发 layer-change，服务端不重复拦截）。
+- 修复 inae outskirts（town=235, area=0）传送门不开副本选择界面：
+  - **根因**：`world.generated.json` 里 235/0 的 kind 被预生成为 `[normal]`，但该区域 definition 里有 `[dungeon gate]` 字段，应识别为 dungeon gate。dungeonGate() 检查 kind != [dungeon gate] 拒绝；
+  - **改动**：更新 `configs/world.generated.json` 里 `areas["235/0"].kind` 为 `[dungeon gate]`；同时改 `internal/catalog/world.go` `parseWorldAreas`：遇到 `[dungeon gate]` 立即 break，不被后续 `[normal]` 覆盖；
+  - **白名单支持**：CMD 2377（`ENUM_CMDPACKET_SET_UNIFIED_OPTION`，Odyssey 副本选择界面点节点）加入 `request_scope.go` 白名单并在 `main.go` 中安全接纳。
+- 修复已穿戴时装/宠物进入游戏槽位为空、进副本外观变默认裸体及世界中不显示跟随宠物的问题：
+  - **根因分析**：
+    1. **已穿戴时装槽位初始化缺失**：客户端原生逻辑 `sub_1452c1540`（USERINFO NOTI 2 mode 1）负责在场景初次加载时初始化并挂载角色身上穿戴的 12 个时装槽位对象（`DetailedEquipment`）；原服务端将其包裹在 `os.Getenv("DFO_DETAIL_WORN") == "1"` 条件下，导致默认登录时下发了 0 个已穿戴时装对象，后续 `WornSpaceUpdate`（NOTI 14）因找不到槽位对象直接跳过更新，使得人物装备面板上的时装格在进城后始终为空；
+    2. **进城报文重复与尾部时序倒挂**：原 `entry_flow.go` 在组合返回时将 NOTI 24、NOTI 36、NOTI 124 及其后续刷新重复拼接了两次，导致客户端第二次收到 NOTI 124 时重置了 UI 容器，将原本填充的宠物和时装格子冲刷为空；此外宠物背包（NOTI 13 space 7）、宠物列表（NOTI 105）和成长（NOTI 102）未在 NOTI 124 后同步刷新；
+    3. **进副本外观与装备刷新缺失**：进入副本加载完毕（`finishDungeonLoading`）及退出副本（`leaveDungeon`）时，服务端仅下发了基础坐标与加载完成 ACK，未下发副本场景角色的 `EntryBasicProbe`（NOTI 2）、`WornSpaceUpdate`（NOTI 14）和宠物列表（NOTI 105/102），导致副本场景的角色 Actor 回退为默认裸体模型且不带宠物；
+    4. **宠物 World Model 句柄绑定（Offset 24）**：原生客户端 `sub_20077D0` 读取 slot 26 装备记录偏移 24（`raw[24:28]`）处的 `serialOrHandle`，此前仅填充了偏移 6 的 key，导致 offset 24 为 0，被客户端判定为非法宠物句柄而放弃在世界中生成跟随模型。
+  - **修复实现**：
+    - `cmd/wireprobe/main.go`：默认开启 `characters.DetailedWornCandidate`，让进城 NOTI 2 mode 1 携带完整的已穿戴装扮对象数据；
+    - `internal/inventory/wear.go` & `equipment_record.go`：为宠物记录在 offset 6 与 offset 24 同时维护合法的宠物 key；
+    - `cmd/wireprobe/entry_flow.go`：消除重复报文发送，确保进城各阶段严格单次有序触发，并在 NOTI 124 之后完整刷新时装/宠物背包、宠物列表与外观；
+    - `cmd/wireprobe/dungeon_flow.go`：在副本加载完成（`finishDungeonLoading`）和离开副本（`leaveDungeon`）时，自动同步下发角色外观（NOTI 2）、装备与装扮槽位（NOTI 14）以及宠物状态（NOTI 105/102）；
+    - `internal/character/appearance.go` & `service.go` & `entry_userinfo.go`：在 `NOTI 2` 的 `0x1456394b0` 字段段中填入真实的宠物模板与名称，并支持在动态换装时联动推送更新。
+  - **测试覆盖**：
+    - 运行全量单元测试与静态检查，全部通过；重新构建 `bin/wireprobe-handoff-source.exe`。
+
 - 修复奥德赛模式下所有礼包开启报 `Your Inventory is full` 以及可选属性 Avatar 礼盒开启失败问题：
   - **根因分析**：
     1. **奥德赛模式下通用礼包被冲突分支拦截**：历史合并在 `main.go` 中遗留了旧的前置判断 `odysseyRewardsEnabled() && frame.ID == 160`，直接调用 16 字节专用武器礼盒解码函数 `DecodeWeaponBoxSelection`，在奥德赛模式下拦截了所有非武器礼包并返回通用拒绝码 `Refusal(4)`，客户端触发 `sub_1452A3D50` 显示 DSTR 2057（`Your Inventory is full.`）；

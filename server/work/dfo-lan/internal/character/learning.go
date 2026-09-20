@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"time"
 )
 
 func knownSkills(s State, tree int) (map[uint16]byte, error) {
@@ -163,6 +164,12 @@ func (s *Service) Learn(ctx context.Context, role storage.Character, key string,
 		points := int(state.SkillPoints[req.Tree])
 		changes := map[uint16]byte{}
 		var newlyLearned []uint16
+		effectiveLevel := int(state.Level)
+		if s.Store != nil {
+			if hasTactician, _ := s.Store.HasActivePremium(ctx, role.AccountID, storage.PremiumTactician, time.Now()); hasTactician {
+				effectiveLevel += 5
+			}
+		}
 		for _, v := range req.Entries {
 			d, ok := s.Learning.index[current.Profession][v.ID]
 			if !ok || seen[v.ID] || v.Delta == 0 || v.Refund > 1 {
@@ -176,7 +183,7 @@ func (s *Service) Learn(ctx context.Context, role storage.Character, key string,
 					return nil, nil, fmt.Errorf("cannot refund source initial ranks or absent skill")
 				}
 				for lv := int(known[v.ID]); lv > target; lv-- {
-					cost, err := d.costForState(state, lv, known)
+					cost, err := d.costForLevel(state, effectiveLevel, lv, known)
 					if err != nil {
 						return nil, nil, err
 					}
@@ -187,7 +194,7 @@ func (s *Service) Learn(ctx context.Context, role storage.Character, key string,
 				}
 			}
 			for lv := int(known[v.ID]) + 1; lv <= target; lv++ {
-				cost, e := d.costForState(state, lv, known)
+				cost, e := d.costForLevel(state, effectiveLevel, lv, known)
 				if e != nil {
 					return nil, nil, fmt.Errorf("skill %d rank %d: %w", v.ID, lv, e)
 				}

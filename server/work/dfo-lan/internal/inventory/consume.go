@@ -16,6 +16,13 @@ func (b Bag) Consume(c catalog.LootCatalog, slot uint16, template uint32) (Bag, 
 	if slot == 0 || template == 0 {
 		return b, 0, fmt.Errorf("invalid consume request")
 	}
+	if slot == 1 && template == 1 {
+		if b.Coin == 0 {
+			return b, 0, fmt.Errorf("coin stack is already empty")
+		}
+		b.Coin--
+		return b, b.Coin, nil
+	}
 	item, known := c.Items[template]
 	if !known {
 		for _, row := range b.Items {

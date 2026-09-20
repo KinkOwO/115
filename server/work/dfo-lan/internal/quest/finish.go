@@ -10,6 +10,7 @@ import (
 	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
+	"time"
 )
 
 type FinishReceipt struct {
@@ -82,6 +83,11 @@ func (s *Service) Finish(ctx context.Context, role storage.Character, r protocol
 		gain, e := progression.QuestExperience(s.Progression.Catalog, d, state.Level)
 		if e != nil {
 			return nil, nil, e
+		}
+		if s.Store != nil {
+			if hasGrowth, _ := s.Store.HasActivePremium(ctx, role.AccountID, storage.PremiumGrowth, time.Now()); hasGrowth {
+				gain = gain + gain*20/100
+			}
 		}
 		gold, e := progression.QuestGold(s.Progression.Catalog, d, state.Level)
 		if e != nil {

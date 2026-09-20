@@ -45,7 +45,7 @@ func (s *Service) Disjoint(
 			if e != nil {
 				return nil, nil, e
 			}
-			b, res, e := b.Disjoint(s.Catalog, s.BagRules, slots, r.ToolSlot)
+			b, res, e := b.Disjoint(s.Catalog, s.BagRules, s.Equipment, slots, r.ToolSlot)
 			if e != nil {
 				return nil, nil, e
 			}

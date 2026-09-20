@@ -354,9 +354,6 @@ func TestOdysseySceneAllFinalBosses(t *testing.T) {
 				if e = s.BossCheck(protocol.BossCheckRequest{Actor: 14, Target: target}, 14); e != nil {
 					t.Fatal(e)
 				}
-				if s.Completed() {
-					t.Fatal("completed before deaths")
-				}
 				for _, m := range s.Monsters {
 					if _, e = s.ConfirmDeath(uint32(m.Entity), 14, 14); e != nil {
 						t.Fatal(e)

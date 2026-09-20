@@ -9,7 +9,7 @@ import (
 )
 
 func TestAvatarDetailCandidateIsolation(t *testing.T) {
-	state := json.RawMessage(`{"source_sha256":"fixture","attributes":{"[hp max]":100,"[mp max]":100},"inventory":{"worn":[{"slot":3,"template":40601,"durability":9},{"slot":12,"template":101000013},{"slot":47,"template":100610096}]}}`)
+	state := json.RawMessage(`{"source_sha256":"fixture","attributes":{"[hp max]":100,"[mp max]":100},"inventory":{"worn":[{"slot":3,"template":40601,"durability":9},{"slot":12,"template":101000013},{"slot":26,"template":500991361},{"slot":47,"template":100610096}]}}`)
 	before := append([]byte(nil), state...)
 	role := storage.Character{WireID: 503, State: state}
 	service := Service{}
@@ -27,7 +27,7 @@ func TestAvatarDetailCandidateIsolation(t *testing.T) {
 		t.Fatal(e)
 	}
 	if len(modified)-len(baseline) != 135 || !bytes.Contains(modified, block) {
-		t.Fatal("avatar-only initialization missing")
+		t.Fatal("avatar-only initialization missing or non-avatar worn row leaked into mode1")
 	}
 	if !bytes.Equal(state, before) {
 		t.Fatal("read projection mutated stored items")

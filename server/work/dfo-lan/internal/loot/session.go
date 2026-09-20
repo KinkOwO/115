@@ -20,20 +20,21 @@ type Drop struct {
 	Award  Award
 }
 type Session struct {
-	Currency           *OdysseyCurrency
-	mu                 sync.Mutex
-	Catalog            catalog.LootCatalog
-	Tables             Tables
-	Rules              Rules
-	Equipment          *inventory.EquipmentCatalog
-	Run                string
-	Account, Character int64
-	Actor              uint16
-	next               uint32
-	seeds              map[uint32]uint32
-	deaths             map[uint16][]protocol.SceneDrop
-	Objects            map[uint32]Drop
-	Skipped            map[uint16][]string
+	Currency              *OdysseyCurrency
+	QuestDropBonusPercent int
+	mu                    sync.Mutex
+	Catalog               catalog.LootCatalog
+	Tables                Tables
+	Rules                 Rules
+	Equipment             *inventory.EquipmentCatalog
+	Run                   string
+	Account, Character    int64
+	Actor                 uint16
+	next                  uint32
+	seeds                 map[uint32]uint32
+	deaths                map[uint16][]protocol.SceneDrop
+	Objects               map[uint32]Drop
+	Skipped               map[uint16][]string
 }
 
 func NewSession(c catalog.LootCatalog, t Tables, r Rules, equipment *inventory.EquipmentCatalog, run string, account, character int64, actor uint16) *Session {
@@ -69,7 +70,7 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 			return nil, e
 		}
 	}
-	result, e := Roll(s.Catalog, s.Tables, s.Rules, s.Equipment.DropPool(), seed, monster.Level, monster.Rank, 0)
+	result, e := RollWithBonus(s.Catalog, s.Tables, s.Rules, s.Equipment.DropPool(), seed, monster.Level, monster.Rank, 0, s.QuestDropBonusPercent)
 	if e != nil {
 		return nil, e
 	}

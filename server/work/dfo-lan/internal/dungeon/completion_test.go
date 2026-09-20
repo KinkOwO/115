@@ -89,3 +89,23 @@ func TestSourceBossRequiresSeparateStoryDeathAndCheck(t *testing.T) {
 		}
 	}
 }
+
+func TestOdysseyBossCheckImmediateCompletion(t *testing.T) {
+	c, e := catalog.LoadDungeons("../../configs/dungeons.odyssey-scenes-release.json")
+	if e != nil {
+		t.Fatal(e)
+	}
+	s, e := Select(c, protocol.DungeonSelection{ID: 100004969, Difficulty: 2, Party: 65535}, 89, nil)
+	if e != nil {
+		t.Fatal(e)
+	}
+	s.Loaded = true
+	// BossCheck in Odyssey should be immediately admitted and complete the dungeon
+	check := protocol.BossCheckRequest{Actor: 10, Target: 9999}
+	if err := s.BossCheck(check, 10); err != nil {
+		t.Fatalf("expected Odyssey BossCheck to pass, got: %v", err)
+	}
+	if !s.Completed() || s.CompletionTarget() != 9999 {
+		t.Fatalf("expected dungeon to be completed with target 9999, got completed=%v target=%d", s.Completed(), s.CompletionTarget())
+	}
+}

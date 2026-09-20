@@ -84,6 +84,9 @@ func parseWorldAreas(town uint32, cells []pvf.Token) ([]WorldArea, error) {
 		for _, c := range def {
 			if c.Type == 6 && (c.Text == "[normal]" || c.Text == "[gate]" || c.Text == "[dungeon gate]") {
 				a.Kind = c.Text
+				if c.Text == "[dungeon gate]" {
+					break
+				}
 			}
 		}
 		rows = append(rows, a)

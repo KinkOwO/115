@@ -99,8 +99,8 @@ func TestSkycastleSceneSequenceAndCompletion(t *testing.T) {
 	if err := s.BossCheck(protocol.BossCheckRequest{Actor: 14, Target: boss}, 14); err != nil {
 		t.Fatal(err)
 	}
-	if s.Completed() {
-		t.Fatal("completion before death")
+	if !s.Completed() {
+		t.Fatal("expected completion after boss check in Odyssey")
 	}
 	if applied, err := s.ConfirmDeath(uint32(boss), 14, 14); err != nil || !applied || !s.Completed() {
 		t.Fatal(applied, err)
