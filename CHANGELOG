@@ -1,5 +1,27 @@
 # CHANGELOG
 
+## 2026-09-21
+- 修复城镇中无法进入特定区域（如从艾尔文防线进入 Elvenmere）提示“You cannot enter to the Opposing Faction's starting point.”的问题。
+  - **背景与根因**：玩家在城镇（如从艾尔文防线经风暴小路）尝试进入 Elvenmere（城镇 38 / 区域 7）时，被服务端拒绝（日志证据：`area_refused reason="no authorized source portal to destination" town=38 area=7`），客户端收到拒绝响应后映射弹出 DSTR 19188 提示。经核查地图源数据与导入逻辑：
+    - `elvengard_hendon_storm.map`（38/3）中的 `[town movable area]` 包含了内嵌条件子块：
+      ```
+      [town movable area]
+      207 134 120 40 38 0 938 323 100 80 39 0 
+      [quest condition]
+      3156 
+      [/quest condition]
+      24 218 100 120 38 7 
+      [/town movable area]
+      ```
+    - 旧的 `sectionCells` 辅助函数遇到任意 type-3 标签即判断 `active = (c.Text == name)`，在遇到 `[quest condition]` 时失活、且在 `[/quest condition]` 之后依然无法恢复激活，导致子块之后的门户矩形行（通向 38/7 的任务门）被彻底吞掉，38/3 的有效出边缺失；
+    - 同样，`new_hendon_main.map`（39/0）等地图的 `[virtual movable area]` 中含 `[quest condition]` 10100 子块，其后的可行走矩形也被截断丢失。
+  - **修复实现**：
+    1. `internal/catalog/script.go`：新增 `nestedSectionCells` 栈式段落解析器，按 `[` 与 `[/` 开闭标签维护深度，只收集处于目标段落顶层（`depth == 1`）的单元，跳过内嵌条件子块本身，同时确保子块闭合后继续收集后续父段矩形行；任务条件由客户端依据同一份地图数据自行判定，与既有“未实现条件由客户端把关”约定一致；
+    2. `internal/catalog/world.go`：将 `[virtual movable area]`（可行走区）与 `[town movable area]`（门户）切为 `nestedSectionCells`；
+    3. `configs/world.generated.json`：外科手术式合入嵌套感知解析产出的 10 个受影响区域数据（新增 8 条门户边，含 38/3→38/7；新增 7 块可行走矩形；无新增 pending），保留与 `characters.*.json` 一致的 source checksum（`7ef2db59...`），避免因本地未入库 PVF 变动触发 `world/character source versions differ` 门禁拒绝；
+    4. 单元与回归测试：`internal/catalog/town_test.go` 新增真实嵌套 token 流测试用例；`internal/world/service_test.go` 新增 `TestQuestGatedPortalToElvenmere` 验证 38/3→38/7 正常放行、远距离绕门拒绝、等级不足拒绝；
+  - **实机验收（2026-09-21）**：用户重启服务端并实机操作验证通过，角色可正常从艾尔文防线进入 Elvenmere，不再弹窗拦截。
+
 ## 2026-09-20
 - 补齐开局转职链路的配套工具：角色目录缺数据告警、老角色一次性修复命令、打包清单生成脚本。
   - **背景**：上一批把默认启动链的角色目录换成带 growtype 数据的 `characters.skycastle-release.json` 之后，暴露出三处配套缺口：① 该目录若缺失或换代，服务端会**静默**退回基础职业，全程没有报错；② 修复前创建的角色 `advancement` 仍是 0，需要按建号请求补账、再补初始穿戴；③ `server/package-manifest.json` 里记录的 exe 哈希已 STALE（`wireprobe-handoff-source.exe` 本地 17792512 / 清单 16649728，`probe.exe` 亦不符），且不含本批次的 `*.release.json`，仓库里也没有生成脚本。

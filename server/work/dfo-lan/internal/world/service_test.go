@@ -78,3 +78,28 @@ func TestSourceSeriaRoundTrip(t *testing.T) {
 		t.Fatal("invalid saved origin accepted")
 	}
 }
+
+func TestQuestGatedPortalToElvenmere(t *testing.T) {
+	// 实源：elvengard_hendon_storm.map（38/3）的 [town movable area] 内嵌
+	// [quest condition] 3156 [/quest condition]，其后是通往 Elvenmere（38/7）
+	// 的门户行。旧导入器在子块处失活吞掉该行，实机进入时报
+	// "no authorized source portal to destination"。任务条件由客户端
+	// 依据同一份地图数据自行判定，服务端只须授权这条边。
+	cat, e := catalog.LoadWorld("../../configs/world.generated.json")
+	if e != nil {
+		t.Fatal(e)
+	}
+	s := Service{Catalog: cat, Rules: Rules{RequirePortalProximity: true, PortalMargin: 10}}
+	at := storage.WorldPosition{Town: 38, Area: 3, X: 60, Y: 260}
+	req := protocol.AreaChangeRequest{Town: 38, Area: 7, X: 100, Y: 260, PreviousTown: 38, PreviousArea: 3}
+	next, e := s.Transition(20, at, req)
+	if e != nil || next.Town != 38 || next.Area != 7 {
+		t.Fatalf("quest-gated Elvenmere portal refused: %+v %v", next, e)
+	}
+	if _, e = s.Transition(20, storage.WorldPosition{Town: 38, Area: 3, X: 900, Y: 300}, req); e == nil {
+		t.Fatal("remote portal bypass")
+	}
+	if _, e = s.Transition(16, at, req); e == nil {
+		t.Fatal("minimum level 17 not enforced")
+	}
+}
