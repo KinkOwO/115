@@ -7,6 +7,7 @@
 
 - **归档基准服务**：`bin/wireprobe-dungeon39.exe` 为前一阶段验收通过的 39 版服务程序，已实机验证进城、装备显示、重登保留；日常测试默认以此为稳定基准。
 - **源码候选服务**：`bin/wireprobe-handoff-source.exe` 为当前源码编译版（已补齐入城 NOTI14 装备外观刷新逻辑，通过 `go test` 与 `go vet`）。2026-09-20 实机确认：默认启动链用 `configs/characters.skycastle-release.json` 这一代角色目录时，建号会按 `option[8]` 落账转职，并按源 `[create equipment list]` 投影初始穿戴（见 `work/dfo-lan/docs/protocol/next45-creation-equipment.md`）。
+- **交付工具**：`server/Build-Manifest.ps1` 重生成 `package-manifest.json` / `MANIFEST.sha256`（文本按 LF 归一化；`-WhatIfOnly` 只报差异）；`work/dfo-lan/cmd/initialrepair` 给修复前的角色一次性补 `option[8]` 转职落账与源初始穿戴（默认预览、`-apply` 落盘、幂等键 `creation-equipment-repair-v1`，仅限开发账号）。2026-09-20 实机确认：老角色修复后的穿戴与当天新建的同分支角色完全一致。
 - **当前核心目标**：跑通主干玩法闭环（接任务 → 进图 → 战斗 → 拾取 → 通关 → 结算 → 回城 → 提交任务 → 奖励/升级 → 下一任务）。
 - **未完成系统**：商城、邮件、装备分解、独立局域网账号登录器、多人共享战斗同步等属于后续独立子系统，严禁发送虚假通用成功包冒充实现。
 

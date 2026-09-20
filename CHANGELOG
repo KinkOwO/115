@@ -1,6 +1,17 @@
 # CHANGELOG
 
 ## 2026-09-20
+- 补齐开局转职链路的配套工具：角色目录缺数据告警、老角色一次性修复命令、打包清单生成脚本。
+  - **背景**：上一批把默认启动链的角色目录换成带 growtype 数据的 `characters.skycastle-release.json` 之后，暴露出三处配套缺口：① 该目录若缺失或换代，服务端会**静默**退回基础职业，全程没有报错；② 修复前创建的角色 `advancement` 仍是 0，需要按建号请求补账、再补初始穿戴；③ `server/package-manifest.json` 里记录的 exe 哈希已 STALE（`wireprobe-handoff-source.exe` 本地 17792512 / 清单 16649728，`probe.exe` 亦不符），且不含本批次的 `*.release.json`，仓库里也没有生成脚本。
+  - **实现**：
+    1. `server/work/dfo_probe_tools/channel_probe.py`：参数定稿后校验最终的 `-character-catalog`——文件缺失、或 17 个职业都没有 `advancement_growth` 时打显式 WARNING（实测 `characters.next25.json` / `characters.generated.json` 告警，`characters.skycastle-release.json` 不告警）。
+    2. `cmd/initialrepair`（新）：`-character <id>` 显式选择，默认只预览、`-apply` 才落盘。修复内容 = 建号请求 `option[8]` 的转职落账（**仅在当前 advancement 仍为 0 时**）+ 源 `[create equipment list]` 的初始穿戴（只补缺、不覆盖已有同槽）；只允许 `development_only` 账号的角色；幂等键 `creation-equipment-repair-v1`。技能不落库——转职段起始技能与退点下限由 `automaticSkills` 在运行时按 advancement 现算。
+    3. `internal/character`：把 `Create` 里的转职落账抽成 `applyCreationAdvancement`，创建与修复共用同一处判定（杜绝两套条件打架）；新增 `CreationPreview`（算变更、不落盘），预览与事务内重算都用它。
+    4. `server/Build-Manifest.ps1`（新）：一条命令重生成 `package-manifest.json` 与 `MANIFEST.sha256`。规则与历史清单一致（包根 = `server/`；**文本按 LF 归一化**后哈希、二进制按原始字节），排除任意层级的 `runtime/**`、清单自身、未入库的 `launcher.local.json` 与 7 个外部生成的派生大资源；超过 50MB 默认排除并告警；exe 只允许出现在 `work/dfo-lan/bin/` 与 `work/dfo_probe_tools/`（后者是探针 `probe.exe`），别处一律排除并告警。重生成 **601 → 874 项**。
+  - **实机验收（2026-09-20）**：对修复前创建的角色 `cezz`（id 6，建号时目录无 growtype 数据、`advancement=0`）执行 `initialrepair -character 6 -apply`，落库 `advancement=1`、`all_jobs_pilot=true`、`equipment_pending=false`，`inventory.worn` 六槽（`12/14/15/16/17/18` = `401040091/400070174/400170168/400120169/400270172/400220168`，耐久 `48/60/48/50/40/40`）与当天新建的同分支角色 `cesnew2` **完全一致**；进游戏显示为剑魂并已穿搭初始装备；再跑一次预览输出“没有需要补的内容”（幂等）。`character_events` 留有 `creation-equipment-repair-v1` 记录；预览阶段复查过 DB，确认只读不落盘。
+  - **顺带清理**：`bin/` 下两个无人引用的实验产物（`wireprobe-probe1.exe` / `-probe2.exe`）已删除，清单同步 876 → 874；`wireprobe-repairs.exe` 与 `wireprobe-dungeon37.exe` 保留（前者被 `configs/repair-profile.example.json`、`scripts/test_repair_profile.py` 与 `REPAIRS-20260917.md` 引用，后者是归档基准 39 的前身）。一次误跑 `go build`（不带 `-o`）在 `server/work/dfo-lan/` 留下的 `initialrepair.exe` 已清理——正是它促成了上面那条 exe 白名单规则。
+  - **测试与验证**：`internal/character/repair_creation_test.go` 覆盖老角色补账+补装、已有穿戴不被覆盖、目录版本不符拒绝、无建号请求时无变化；`go test -p 1 ./internal/... ./cmd/...`、`go vet`、`gofmt` 全通过；`Build-Manifest.ps1 -WhatIfOnly` 自洽检查（新增/丢失/变更）全 0，并用一个假 exe 验证了白名单规则会告警且不计入清单。
+  - **未闭环**：启动器侧 `server-configs` 包（`tools/manifest.json`）的端到端补齐验证，需在 push 之后做。
 - 打通“开局转职”链路：默认启动链改用带 growtype 数据的角色目录，并实现创建时按源 `[create equipment list]` 投影初始装备。
   - **背景与取证**：上游交接文档称“建号时选了转职分支，进场仍是基础职业，可能只是 exe 没重新编译”。核查结论是：转职落账（`service.go` 的 `option[8] → Advancement`）、转职段起始技能（`internal/catalog/advancement_skills.go` + `internal/character/automatic_skills.go`）早在 `46d3476`（2026-09-17）就已实现，服务端二进制也是 HEAD 编译（`go version -m bin/wireprobe-handoff-source.exe` 的 `vcs.revision=dd95f4c`，且没有任何源文件比它新）。未生效的真实原因是**启动链喂给服务端的角色目录**：`channel_probe.py` 的 tag 降级链（`_next37` → `_next34`）把它强制指成 `configs/characters.next25.json`，而该文件导出于 growtype 分段解析之前，没有 `advancement_growth` / `advancement_skills`，于是建号时 `len(prof.AdvancementGrowth[adv]) > 0` 判空跳过、`automaticSkills` 也取不到授予，角色停在 `advancement=0`。
   - **修复实现**：
