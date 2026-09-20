@@ -1,6 +1,10 @@
 # CHANGELOG
 
 ## 2026-09-20
+- 修复宠物穿戴记录的实例键回归：`EquipmentRow` 在槽位 26 且模板非零时保证
+  `Data`（offset 6）至少为 `1`，重新满足 NOTI13/14 与 NOTI105 对同一宠物实例键的约定；
+  `TestCreatureListPayloadAndEquipmentRow` 恢复通过。
+
 - 实现账号共享材料仓库（灵魂仓库 / Account Material Storage，list 35）服务端闭环：
   - **协议取证**（client/DFO.exe.i64，详见 `docs/protocol/next43-account-material-storage.md`）：
     1. 17 个固定材料模板由客户端静态表 `0x14A9288E0` 定义并钉死槽位：晶块 3033/3034/3035/3036/3037/3262 → 槽 363-368（`sub_145ACA5E0`），灵魂 10100115/10100116/10099773/10099774/10099775/10158124 → 槽 369-374（`sub_145AD74A0`），旧灵魂 10361512-10361516 → 槽 375-379（`sub_145AD6B70`）；`sub_14500CE40` 将这 17 个模板统一规范到容器号 35；

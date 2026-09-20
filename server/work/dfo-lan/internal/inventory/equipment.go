@@ -211,6 +211,11 @@ func EquipmentRow(i BagEquipment) [protocol.CurrentItemRecordSize]byte {
 	}
 	binary.LittleEndian.PutUint16(r[:], i.Slot)
 	binary.LittleEndian.PutUint32(r[2:], i.Template)
+	// Worn slot 26 is the equipped creature. Its Data field is the
+	// creature instance key consumed by both NOTI13/14 and NOTI105.
+	if i.Slot == 26 && i.Template != 0 && binary.LittleEndian.Uint32(r[6:10]) == 0 {
+		binary.LittleEndian.PutUint32(r[6:10], 1)
+	}
 	binary.LittleEndian.PutUint16(r[11:], i.Durability)
 	return r
 }
