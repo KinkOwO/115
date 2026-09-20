@@ -1,6 +1,15 @@
 # CHANGELOG
 
 ## 2026-09-20
+- 奥德赛/剧情模式改为**由角色存档决定**（不再由启动参数统一投影）：`channel_probe.py` 固定使用类型 22 的登录 fixture，并常驻挂载奥德赛组件。
+  - **背景**：上游用两个入口脚本（`启动游戏.cmd` / `启动游戏-奥德赛.cmd`）设 `DFO_ODYSSEY_MODE=0/1`，该变量会在服务端启动时一次性决定登录频道类型、角色规则、奥德赛组件是否挂载，并让 `character.OdysseyRole` 走短路——把所有角色统一投影成当前模式。**实测证据**：奥德赛模式启动下，一个创建时选“剧情模式”的角色（存档里 `state.creation_options[10]=0`）仍被客户端显示为 `Arad Odyssey CHARACTER`；反之亦然（角色本身的模式已经写进存档，只是投影不看它）。
+  - **修复实现**（`server/work/dfo_probe_tools/channel_probe.py`）：1) 登录 fixture 固定用 `configs/login-normal22.bin`（频道类型 22，原生客户端的“自动入口”类型，其创建界面同时提供“奥德赛模式/剧情模式”两种选择）；2) 角色规则统一用 `configs/character-rules.odyssey-release.json`（`odyssey_pilot:true`，允许双模式建号）；3) 奥德赛组件环境变量（`DFO_ODYSSEY_COIN_RULES` / `_WEAPON_BOX`+`_REWARDS_RELEASE` / `_GROWTH`）改为常驻注入。
+  - **兼容性**：`DFO_ODYSSEY_MODE` 仍被 Go 侧读取（`internal/character/odyssey.go`），保留作“强制统一投影”的调试开关；不设置时按角色存档判定（`options[10]==2`）。组件挂载对剧情角色无害——各奥德赛处理路径内部都有 `OdysseyRole` 判定。
+  - **行为变化**：`DFO_ODYSSEY_REWARDS_RELEASE=1` 常驻后，frame 40（玩家死亡）在剧情模式下也会进入 `worldState.playerDeath`（此前被该开关挡住）。
+
+- 修复“更新服务端代码后启动必失败（`启动脚本异常退出：exit status 1`）”：`channel_probe.py` 下发命令前先按服务端程序自报的能力过滤参数。
+  - **根因分析**：`b6d97c8` 给服务端源码新增了 `-booster-catalog` / `-item-index` 等参数，`channel_probe.py` 同步按“configs 里存在对应文件”就追加参数；但实际运行的归档基准 `bin/wireprobe-dungeon39.exe` 是更早的构建（`bin/` 不入库、不随代码更新），Go 的 `flag` 包遇到未定义参数会打印 usage 并以非零码退出，玩家/启动器侧表现为 `启动脚本异常退出：exit status 1`。
+  - **修复实现**：`server/work/dfo_probe_tools/channel_probe.py` 新增 `exe_flags`（运行 `exe -h` 解析 usage）与 `prune_unsupported`，在下发前丢弃当前程序不认识的参数（连同它的值）并打印 WARNING；探测失败（文件缺失/超时）时保持原样，不改变既有行为。
 - 修复宠物穿戴记录的实例键回归：`EquipmentRow` 在槽位 26 且模板非零时保证
   `Data`（offset 6）至少为 `1`，重新满足 NOTI13/14 与 NOTI105 对同一宠物实例键的约定；
   `TestCreatureListPayloadAndEquipmentRow` 恢复通过。
