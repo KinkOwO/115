@@ -56,6 +56,10 @@ func (s *FatigueService) EnterRoom(ctx context.Context, account, id int64, run s
 	cost := s.Rules.RoomCost
 	if exempt {
 		cost = 0
+	} else if s.Store != nil && cost > 0 {
+		if hasGrowth, _ := s.Store.HasActivePremium(ctx, account, storage.PremiumGrowth, now); hasGrowth {
+			cost--
+		}
 	}
 	return s.Store.ConsumeRoomFatigue(ctx, account, id, s.day(now), s.Rules.DailyLimit, run, room, cost)
 }

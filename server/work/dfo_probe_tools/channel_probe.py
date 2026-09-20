@@ -87,10 +87,13 @@ bps.write_text(
 )
 with bps.open("a") as f:
  f.write("5255c70 PRECHECK_RESULT\n52543d0 LOGIN_RESULT\n")
-odyssey_mode = os.environ.get("DFO_ODYSSEY_MODE") == "1"
+# 登录频道类型固定用 22（不再按 DFO_ODYSSEY_MODE 切换）：类型 22 是原生客户端的
+# "自动入口"类型（旧 0/2/3 被拒，见 docs/protocol/next34-channel-login.md），且在它
+# 底下客户端才会给出"奥德赛模式 / 剧情模式"双卡创建界面 —— 正是一个进程同时服务两种
+# 角色所需的形态。模式该由角色存档决定（internal/character/odyssey.go），而非启动参数。
 login_22 = project / "configs/login-normal22.bin"
 login_normal = project / "runtime/login_ok.bin"
-if odyssey_mode and login_22.exists():
+if login_22.exists():
  default_login_bin = login_22.resolve()
 else:
  default_login_bin = login_normal.resolve()
@@ -139,6 +142,70 @@ if tag.startswith("roles_"):
     "563e280 CHARACTER_ROW_BEGIN\n563ead2 CHARACTER_ROW_FIELDS_DONE\n563ec14 CHARACTER_ROW_TAIL\n"
    )
 flags = subprocess.CREATE_NO_WINDOW
+
+
+def exe_flags(exe):
+ """列出服务端程序认识的参数名（解析 `exe -h` 打印的 usage）。
+
+ Go 的 flag 包遇到 -h 就把 usage 打到 stderr 并以非零码退出，所有历史二进制都保留
+ 这个行为，所以能拿它判断"这个程序认不认某个参数"。探测失败（文件不在、超时、
+ 不是 Go 程序）返回 None，调用方据此保持原样，不改变既有行为。
+ """
+ try:
+  probe = subprocess.run(
+   [exe, "-h"],
+   stdout=subprocess.PIPE,
+   stderr=subprocess.STDOUT,
+   creationflags=flags,
+   timeout=15,
+  )
+ except (OSError, subprocess.SubprocessError):
+  return None
+ names = set()
+ for line in probe.stdout.decode("utf-8", "replace").splitlines():
+  match = re.match(r"^\s+-([A-Za-z0-9._-]+)", line)
+  if match:
+   names.add(match.group(1))
+ return names or None
+
+
+def prune_unsupported(command):
+ """丢弃当前服务端程序不认识的参数（连同它的值），避免 flag 解析直接退出。
+
+ 2026-09-20 事故：b6d97c8 给源码加了 -booster-catalog / -item-index，本文件按
+ "configs 里存在对应文件" 就追加参数，但归档基准的 exe 还是更早的构建；Go 的 flag
+ 包遇到未定义参数会打印 usage 并以非零码退出，玩家看到的是 "启动脚本异常退出:
+ exit status 1"。下发前按 exe 自报的能力过滤一遍，旧程序也能照常起来（功能按旧版）。
+
+ 只在自身构造的命令串上工作，形状固定为 [-flag value -flag -flag value]；不认识的
+ 参数如果带值，按"下一个 token 不是参数名"判定并一并丢弃（参数值都是路径，不会以
+ '-' 开头）。
+ """
+ supported = exe_flags(command[0])
+ if not supported:
+  return command
+ kept = [command[0]]
+ dropped = []
+ index = 1
+ while index < len(command):
+  token = command[index]
+  if not token.startswith("-") or token[1:] in supported:
+   kept.append(token)
+   index += 1
+   continue
+  dropped.append(token)
+  index += 1
+  if index < len(command) and not command[index].startswith("-"):
+   dropped.append(command[index])
+   index += 1
+ if dropped:
+  print(
+   "WARNING: %s does not define %s; dropped them so this build can still start."
+   % (command[0], ", ".join(x for x in dropped if x.startswith("-")))
+  )
+ return kept
+
+
 with (
  (out / "gateway.out").open("w") as stdout,
  (out / "gateway.err").open("w") as stderr,
@@ -155,12 +222,12 @@ with (
   cr_odyssey = project / "configs/character-rules.odyssey-release.json"
   cr_jobs = project / "configs/character-rules.jobs-release.json"
   cr_probe = project / "configs/character-probe.json"
-  if odyssey_mode and cr_odyssey.exists():
+  # 统一用带 odyssey_pilot 的那份：它允许创建界面同时提供两种模式（角色各自记下模式），
+  # 而 jobs-release 缺这个字段，奥德赛角色在建号这一步就做不出来。
+  if cr_odyssey.exists():
    cr_default = cr_odyssey
   elif cr_jobs.exists():
    cr_default = cr_jobs
-  elif cr_odyssey.exists():
-   cr_default = cr_odyssey
   else:
    cr_default = cr_probe
   cat_skycastle = project / "configs/characters.skycastle-release.json"
@@ -409,38 +476,41 @@ with (
     "  或设 DFO_DUNGEON_CATALOG 指向已有目录；确实要用 11 个副本的默认表请显式指过去。"
     % (dungeon_catalog, dungeon_catalog)
    )
- if odyssey_mode:
-  coin_rules = project / "configs/odyssey-currency.json"
-  if os.environ.get("DFO_ODYSSEY_COIN_RULES"):
-   coin_override = pathlib.Path(os.environ["DFO_ODYSSEY_COIN_RULES"])
-   if not coin_override.is_absolute():
-    coin_override = (project / coin_override).resolve()
-   if coin_override.exists():
-    os.environ["DFO_ODYSSEY_COIN_RULES"] = str(coin_override)
-  elif coin_rules.exists():
-   os.environ["DFO_ODYSSEY_COIN_RULES"] = str(coin_rules.resolve())
+ # 奥德赛组件常驻挂载（不再看 DFO_ODYSSEY_MODE）：服务端只在环境变量存在时才挂载
+ # 成长/货币/武器盒（cmd/wireprobe/main.go:369/455/579），而"按角色"要求同一进程同时
+ # 服务两种角色 —— 少了这些，奥德赛角色进城后没有成长/货币/武器盒。挂载本身对所有
+ # 角色无害：是否真的生效由服务端按角色判定（internal/character/odyssey.go 的 OdysseyRole）。
+ coin_rules = project / "configs/odyssey-currency.json"
+ if os.environ.get("DFO_ODYSSEY_COIN_RULES"):
+  coin_override = pathlib.Path(os.environ["DFO_ODYSSEY_COIN_RULES"])
+  if not coin_override.is_absolute():
+   coin_override = (project / coin_override).resolve()
+  if coin_override.exists():
+   os.environ["DFO_ODYSSEY_COIN_RULES"] = str(coin_override)
+ elif coin_rules.exists():
+  os.environ["DFO_ODYSSEY_COIN_RULES"] = str(coin_rules.resolve())
 
-  weapon_box = project / "configs/odyssey-weapon-box-release.json"
-  if os.environ.get("DFO_ODYSSEY_WEAPON_BOX"):
-   box_override = pathlib.Path(os.environ["DFO_ODYSSEY_WEAPON_BOX"])
-   if not box_override.is_absolute():
-    box_override = (project / box_override).resolve()
-   if box_override.exists():
-    os.environ["DFO_ODYSSEY_WEAPON_BOX"] = str(box_override)
-    os.environ["DFO_ODYSSEY_REWARDS_RELEASE"] = "1"
-  elif weapon_box.exists():
-   os.environ["DFO_ODYSSEY_WEAPON_BOX"] = str(weapon_box.resolve())
+ weapon_box = project / "configs/odyssey-weapon-box-release.json"
+ if os.environ.get("DFO_ODYSSEY_WEAPON_BOX"):
+  box_override = pathlib.Path(os.environ["DFO_ODYSSEY_WEAPON_BOX"])
+  if not box_override.is_absolute():
+   box_override = (project / box_override).resolve()
+  if box_override.exists():
+   os.environ["DFO_ODYSSEY_WEAPON_BOX"] = str(box_override)
    os.environ["DFO_ODYSSEY_REWARDS_RELEASE"] = "1"
+ elif weapon_box.exists():
+  os.environ["DFO_ODYSSEY_WEAPON_BOX"] = str(weapon_box.resolve())
+  os.environ["DFO_ODYSSEY_REWARDS_RELEASE"] = "1"
 
-  odyssey_growth = project / "configs/odyssey-growth-release.json"
-  if os.environ.get("DFO_ODYSSEY_GROWTH"):
-   growth_override = pathlib.Path(os.environ["DFO_ODYSSEY_GROWTH"])
-   if not growth_override.is_absolute():
-    growth_override = (project / growth_override).resolve()
-   if growth_override.exists():
-    os.environ["DFO_ODYSSEY_GROWTH"] = str(growth_override)
-  elif odyssey_growth.exists():
-   os.environ["DFO_ODYSSEY_GROWTH"] = str(odyssey_growth.resolve())
+ odyssey_growth = project / "configs/odyssey-growth-release.json"
+ if os.environ.get("DFO_ODYSSEY_GROWTH"):
+  growth_override = pathlib.Path(os.environ["DFO_ODYSSEY_GROWTH"])
+  if not growth_override.is_absolute():
+   growth_override = (project / growth_override).resolve()
+  if growth_override.exists():
+   os.environ["DFO_ODYSSEY_GROWTH"] = str(growth_override)
+ elif odyssey_growth.exists():
+  os.environ["DFO_ODYSSEY_GROWTH"] = str(odyssey_growth.resolve())
 
  eq_full = project / "configs/equipment-full"
  if (project / "configs/equipment-full.index.json").exists() and (
@@ -450,6 +520,8 @@ with (
   eq_wear_full = project / "configs/equipment-wear.full-candidate.json"
   if eq_wear_full.exists():
    os.environ["DFO_EQUIPMENT_WEAR_RULES"] = str(eq_wear_full.resolve())
+ # ★ 下发前按当前服务端程序自报的能力过滤参数（见 prune_unsupported）。
+ command = prune_unsupported(command)
  stdout.write(' '.join(command) + '\n')
  server = subprocess.Popen(command, stdout=stdout, stderr=stderr, creationflags=flags)
  try:

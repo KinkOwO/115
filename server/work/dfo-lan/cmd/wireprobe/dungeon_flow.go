@@ -121,6 +121,27 @@ func (w *worldSession) selectDungeon(p []byte) (*dungeon.Session, []outboundPack
 		return nil, nil, e
 	}
 	plan := []outboundPacket{{"dungeon_select_ack", 1, 16, []byte{1}}}
+	if w.characters != nil {
+		visual, err := w.characters.EntryBasicProbe(w.role, [2]byte{})
+		if err == nil {
+			plan = append(plan, outboundPacket{"dungeon_actor_appearance_sent", 0, 2, visual})
+		}
+		addition, err := w.characters.EntryAddition(w.role)
+		if err == nil {
+			plan = append(plan, outboundPacket{"dungeon_actor_addition_sent", 0, 2, addition})
+		}
+		wornUpdate, err := inventory.WornSpaceUpdate(w.role.State)
+		if err == nil && len(wornUpdate) > 0 {
+			plan = append(plan, outboundPacket{"dungeon_worn_visuals_sent", 0, 14, wornUpdate})
+		}
+		if inventory.HasEquippedCreature(w.role.State) {
+			clPayload, err := inventory.CreatureListPayload(w.role.State)
+			if err == nil {
+				plan = append(plan, outboundPacket{"dungeon_creature_list_sent", 0, 105, clPayload})
+				plan = append(plan, outboundPacket{"dungeon_creature_growth_sent", 0, 102, []byte{1, 0, 0, 0, 0, 0}})
+			}
+		}
+	}
 	if w.soloPartyBootstrap {
 		party, e := protocol.SoloPartyInfo(w.role.WireID)
 		if e != nil {
@@ -175,6 +196,19 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 		}
 		plan = append(plan, outboundPacket{"dungeon_fatigue_updated", 0, 36, p})
 	}
+	if w.characters != nil {
+		wornUpdate, err := inventory.WornSpaceUpdate(w.role.State)
+		if err == nil && len(wornUpdate) > 0 {
+			plan = append(plan, outboundPacket{"dungeon_worn_visuals_restored", 0, 14, wornUpdate})
+		}
+		if inventory.HasEquippedCreature(w.role.State) {
+			clPayload, err := inventory.CreatureListPayload(w.role.State)
+			if err == nil {
+				plan = append(plan, outboundPacket{"dungeon_creature_list_restored", 0, 105, clPayload})
+				plan = append(plan, outboundPacket{"dungeon_creature_growth_restored", 0, 102, []byte{1, 0, 0, 0, 0, 0}})
+			}
+		}
+	}
 	return plan, nil
 }
 
@@ -205,7 +239,25 @@ func (w *worldSession) leaveDungeon() ([]outboundPacket, error) {
 	if e != nil {
 		return nil, e
 	}
-	return []outboundPacket{{"dungeon_leave_ack", 1, 42, []byte{1}}, {"town_actor_state", 0, 3, state}, {"dungeon_return_area", 0, 23, ua}, {"dungeon_return_users", 0, 24, area}}, nil
+	plan := []outboundPacket{{"dungeon_leave_ack", 1, 42, []byte{1}}, {"town_actor_state", 0, 3, state}, {"dungeon_return_area", 0, 23, ua}, {"dungeon_return_users", 0, 24, area}}
+	if w.characters != nil {
+		visual, err := w.characters.EntryBasicProbe(w.role, [2]byte{})
+		if err == nil {
+			plan = append(plan, outboundPacket{"town_actor_appearance_restored", 0, 2, visual})
+		}
+		wornUpdate, err := inventory.WornSpaceUpdate(w.role.State)
+		if err == nil && len(wornUpdate) > 0 {
+			plan = append(plan, outboundPacket{"town_worn_visuals_restored", 0, 14, wornUpdate})
+		}
+		if inventory.HasEquippedCreature(w.role.State) {
+			clPayload, err := inventory.CreatureListPayload(w.role.State)
+			if err == nil {
+				plan = append(plan, outboundPacket{"town_creature_list_restored", 0, 105, clPayload})
+				plan = append(plan, outboundPacket{"town_creature_growth_restored", 0, 102, []byte{1, 0, 0, 0, 0, 0}})
+			}
+		}
+	}
+	return plan, nil
 }
 
 func (w *worldSession) returnFromDungeonSelection(p []byte) ([]outboundPacket, error) {
@@ -250,6 +302,17 @@ func (w *worldSession) monsterDeath(p []byte) ([]outboundPacket, error) {
 				w.drops = loot.NewSession(dropCatalog, w.loot.Tables, w.loot.Rules, w.loot.Equipment, w.activeDungeon.RunID, w.account, w.role.ID, w.role.WireID)
 				if w.activeDungeon.Definition.Odyssey {
 					w.drops.Currency = w.loot.Currency
+				}
+				store := w.service.Store
+				if store == nil && w.characters != nil {
+					store = w.characters.Store
+				}
+				if store != nil {
+					ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+					if hasGrowth, _ := store.HasActivePremium(ctx, w.account, storage.PremiumGrowth, time.Now()); hasGrowth {
+						w.drops.QuestDropBonusPercent = 20
+					}
+					cancel()
 				}
 			}
 			rows, err := w.drops.Death(w.activeDungeon, uint16(r.Entity))
@@ -381,6 +444,27 @@ func (w *worldSession) completeDungeon() ([]outboundPacket, error) {
 	plan = append(plan, outboundPacket{"boss_check_confirmed", 0, 115, body}, outboundPacket{"dungeon_clear_enabled", 0, 31, protocol.DungeonClearEnabled()})
 	return plan, nil
 }
+
+func (w *worldSession) interactDoor(p []byte) (*dungeon.Session, []outboundPacket, error) {
+	if w.activeDungeon == nil {
+		return nil, nil, fmt.Errorf("door interaction without active dungeon")
+	}
+	if w.activeDungeon.Room.Map == 100016294 {
+		// Sirocco cutscene room 100016294: synthesize a 160-byte transition to boss room (4,1)
+		req := make([]byte, 160)
+		req[0] = 4
+		req[1] = 1
+		binary.LittleEndian.PutUint32(req[151:155], w.activeDungeon.Definition.ID)
+		next, movePlan, err := w.moveDungeonRoom(req)
+		if err != nil {
+			return nil, nil, err
+		}
+		plan := append([]outboundPacket{{"door_ack", 1, 38, []byte{1}}}, movePlan...)
+		return next, plan, nil
+	}
+	return nil, []outboundPacket{{"door_ack", 1, 38, []byte{1}}}, nil
+}
+
 func (w *worldSession) moveDungeonRoom(p []byte) (*dungeon.Session, []outboundPacket, error) {
 	if w.activeDungeon == nil || w.dungeons == nil {
 		return nil, nil, fmt.Errorf("room transition without active run")
@@ -394,6 +478,9 @@ func (w *worldSession) moveDungeonRoom(p []byte) (*dungeon.Session, []outboundPa
 		next, e = w.activeDungeon.MoveScene(*w.dungeons, r)
 	} else if r.Record[0] == 1 {
 		next, e = w.activeDungeon.MoveScript(*w.dungeons, r)
+		if e != nil {
+			next, e = w.activeDungeon.Move(*w.dungeons, r.Position)
+		}
 	} else {
 		next, e = w.activeDungeon.Move(*w.dungeons, r.Position)
 	}

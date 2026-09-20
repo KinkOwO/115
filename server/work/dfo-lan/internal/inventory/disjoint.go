@@ -5,8 +5,7 @@ import (
 	"fmt"
 )
 
-const ClearCubeFragmentID uint32 = 3037    // 无色小晶块模板ID
-const DefaultDisjointCubeYield uint32 = 20 // 每件装备固定产出数量
+const ClearCubeFragmentID uint32 = 3037 // 无色小晶块模板ID
 
 type DisjointReward struct {
 	Slot     uint16
@@ -24,6 +23,7 @@ type DisjointResult struct {
 func (b Bag) Disjoint(
 	c catalog.LootCatalog,
 	r BagRules,
+	eq *EquipmentCatalog,
 	requestedSlots []uint16,
 	toolSlot uint16,
 ) (Bag, DisjointResult, error) {
@@ -42,26 +42,29 @@ func (b Bag) Disjoint(
 		return b, zeroResult, fmt.Errorf("unmapped material slot range")
 	}
 
-	// 穿戴防拆保护：若请求槽位命中 b.Worn 中的任一穿戴装备，返回错误
+	seenSlots := make(map[uint16]bool, len(requestedSlots))
 	for _, reqSlot := range requestedSlots {
-		for _, worn := range b.Worn {
-			if reqSlot == worn.Slot {
-				return b, zeroResult, fmt.Errorf("cannot disjoint worn equipment at slot %d", reqSlot)
-			}
+		if reqSlot < r.EquipmentSlots[0] || reqSlot > r.EquipmentSlots[1] {
+			return b, zeroResult, fmt.Errorf("slot %d outside equipment bag", reqSlot)
 		}
+		if seenSlots[reqSlot] {
+			return b, zeroResult, fmt.Errorf("duplicate disjoint slot %d", reqSlot)
+		}
+		seenSlots[reqSlot] = true
 	}
 
 	b.Equipment = append([]BagEquipment(nil), b.Equipment...)
 	b.Items = append([]BagItem(nil), b.Items...)
 
 	var deletedSlots []uint16
-	var totalCubes uint32
+	accumulatedRewards := make(map[uint32]uint32)
+	var rewardOrder []uint32
 
-	// 从 b.Equipment 中逐槽移除命中项
+	// 从 b.Equipment 中逐槽移除命中项并计算产物
 	for _, reqSlot := range requestedSlots {
 		foundIndex := -1
-		for i, eq := range b.Equipment {
-			if eq.Slot == reqSlot {
+		for i, eqItem := range b.Equipment {
+			if eqItem.Slot == reqSlot {
 				foundIndex = i
 				break
 			}
@@ -69,85 +72,155 @@ func (b Bag) Disjoint(
 		if foundIndex == -1 {
 			return b, zeroResult, fmt.Errorf("equipment not found at slot %d", reqSlot)
 		}
+
+		eqItem := b.Equipment[foundIndex]
+		var info DisjointEquipmentInfo
+		if eq != nil {
+			if def, err := eq.Definition(eqItem.Template); err == nil {
+				info = ExtractDisjointEquipmentInfo(def)
+				if info.Impossible {
+					return b, zeroResult, fmt.Errorf("item at slot %d cannot be disassembled", reqSlot)
+				}
+			} else {
+				info = DisjointEquipmentInfo{
+					Template:     eqItem.Template,
+					Rarity:       0,
+					MinimumLevel: 1,
+					Value:        1000,
+				}
+			}
+		} else {
+			info = DisjointEquipmentInfo{
+				Template:     eqItem.Template,
+				Rarity:       0,
+				MinimumLevel: 1,
+				Value:        1000,
+			}
+		}
+
+		itemRewards := CalculateDisjointRewards(info, nil)
+		for _, rw := range itemRewards {
+			if rw.Count == 0 {
+				continue
+			}
+			if accumulatedRewards[rw.Template] == 0 {
+				rewardOrder = append(rewardOrder, rw.Template)
+			}
+			accumulatedRewards[rw.Template] += rw.Count
+		}
+
 		deletedSlots = append(deletedSlots, reqSlot)
-		totalCubes += DefaultDisjointCubeYield
 		b.Equipment = append(b.Equipment[:foundIndex], b.Equipment[foundIndex+1:]...)
 	}
 
-	// 晶块堆叠上限
-	limit := r.MissingStackLimit
-	if item, ok := c.Items[ClearCubeFragmentID]; ok && item.StackLimit != 0 {
-		limit = item.StackLimit
-	}
-	if limit == 0 {
-		limit = 1000
-	}
-
 	occupied := map[uint16]bool{}
-	for _, eq := range b.Equipment {
-		occupied[eq.Slot] = true
+	for _, eqItem := range b.Equipment {
+		occupied[eqItem.Slot] = true
 	}
 	for _, it := range b.Items {
 		occupied[it.Slot] = true
 	}
 
-	remaining := totalCubes
 	var rewards []DisjointReward
 
-	// 优先堆叠到材料槽范围内已存在的 3037 堆
-	for i := range b.Items {
-		it := &b.Items[i]
-		if it.Template == ClearCubeFragmentID && it.Slot >= materialSlots[0] && it.Slot <= materialSlots[1] {
-			if it.Amount < limit {
-				space := limit - it.Amount
-				toAdd := remaining
-				if toAdd > space {
-					toAdd = space
-				}
-				it.Amount += toAdd
-				remaining -= toAdd
-				rewards = append(rewards, DisjointReward{
-					Slot:     it.Slot,
-					Template: ClearCubeFragmentID,
-					Count:    toAdd,
-				})
-				if remaining == 0 {
-					break
+	// 发放产物
+	for _, template := range rewardOrder {
+		remaining := accumulatedRewards[template]
+		fixedSlot, isAccount := AccountMaterialSlot(template)
+
+		limit := r.MissingStackLimit
+		if item, ok := c.Items[template]; ok && item.StackLimit != 0 {
+			limit = item.StackLimit
+		}
+		if limit == 0 {
+			limit = 1000
+		}
+
+		// 1. 优先堆叠到背包已有堆
+		for i := range b.Items {
+			it := &b.Items[i]
+			if it.Template == template {
+				if it.Amount < limit {
+					space := limit - it.Amount
+					toAdd := remaining
+					if toAdd > space {
+						toAdd = space
+					}
+					it.Amount += toAdd
+					remaining -= toAdd
+					rewards = append(rewards, DisjointReward{
+						Slot:     it.Slot,
+						Template: template,
+						Count:    toAdd,
+					})
+					if remaining == 0 {
+						break
+					}
 				}
 			}
 		}
-	}
 
-	// 剩余部分找材料槽范围内第一个空槽新建 3037 堆
-	if remaining > 0 {
-		for n := uint32(materialSlots[0]); n <= uint32(materialSlots[1]); n++ {
-			slot := uint16(n)
-			if !occupied[slot] {
-				toAdd := remaining
-				if toAdd > limit {
-					toAdd = limit
+		// 2. 剩余部分新建堆
+		if remaining > 0 {
+			if isAccount {
+				// 账号共享材料优先入材料栏槽位（后续 sweep 会迁入 list35）；若材料栏满则直接分配其固定存储槽
+				var chosenSlot uint16
+				for n := uint32(materialSlots[0]); n <= uint32(materialSlots[1]); n++ {
+					slot := uint16(n)
+					if !occupied[slot] {
+						chosenSlot = slot
+						occupied[slot] = true
+						break
+					}
 				}
+				if chosenSlot == 0 {
+					chosenSlot = fixedSlot
+					occupied[chosenSlot] = true
+				}
+				toAdd := remaining
 				b.Items = append(b.Items, BagItem{
-					Slot:     slot,
-					Template: ClearCubeFragmentID,
+					Slot:     chosenSlot,
+					Template: template,
 					Amount:   toAdd,
 				})
-				occupied[slot] = true
-				remaining -= toAdd
+				remaining = 0
 				rewards = append(rewards, DisjointReward{
-					Slot:     slot,
-					Template: ClearCubeFragmentID,
+					Slot:     chosenSlot,
+					Template: template,
 					Count:    toAdd,
 				})
-				if remaining == 0 {
-					break
+			} else {
+				// 普通材料（如元素结晶）必须占用材料栏空槽
+				for n := uint32(materialSlots[0]); n <= uint32(materialSlots[1]); n++ {
+					slot := uint16(n)
+					if !occupied[slot] {
+						toAdd := remaining
+						if toAdd > limit {
+							toAdd = limit
+						}
+						b.Items = append(b.Items, BagItem{
+							Slot:     slot,
+							Template: template,
+							Amount:   toAdd,
+						})
+						occupied[slot] = true
+						remaining -= toAdd
+						rewards = append(rewards, DisjointReward{
+							Slot:     slot,
+							Template: template,
+							Count:    toAdd,
+						})
+						if remaining == 0 {
+							break
+						}
+					}
 				}
 			}
 		}
-	}
 
-	if remaining > 0 {
-		return b, zeroResult, fmt.Errorf("material inventory is full")
+		if remaining > 0 {
+			return b, zeroResult, fmt.Errorf("material inventory is full")
+		}
 	}
 
 	res := DisjointResult{

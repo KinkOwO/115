@@ -132,12 +132,12 @@ func TestShopPilotPVFCurrentCatalog(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	for _, id := range []uint32{3000666, 3000667, 3000668, 3000116, 3000117, 3000113, 3000114, 3000115, 3000126, 3000127} {
+	for _, id := range []uint32{3000666, 3000667, 3000668, 3000116, 3000117, 3000113, 3000114, 3000115, 3000126, 3000127, 3000109, 3000110, 3000111, 3000112} {
 		if _, ok := products[id]; !ok {
 			t.Fatal("ordinary consumable not enabled", id)
 		}
 	}
-	for _, id := range []uint32{3400268, 3000109, 3000110, 3000111, 3000112, 3400235} {
+	for _, id := range []uint32{3400268, 3400235} {
 		if _, ok := products[id]; ok {
 			t.Fatal("special item incorrectly enabled", id)
 		}
@@ -153,11 +153,15 @@ func TestShopPilotPVFCurrentCatalog(t *testing.T) {
 			t.Fatal(id, e)
 		}
 		var total uint32
-		for _, row := range b.Items {
-			if row.Template != product.Template {
-				t.Fatal("wrong template", id)
+		if product.Template == 1 {
+			total = b.Coin
+		} else {
+			for _, row := range b.Items {
+				if row.Template != product.Template {
+					t.Fatal("wrong template", id)
+				}
+				total += row.Amount
 			}
-			total += row.Amount
 		}
 		if total != product.Units {
 			t.Fatal("wrong units", id, total)

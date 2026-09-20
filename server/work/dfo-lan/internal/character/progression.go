@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"time"
 )
 
 type ProgressionService struct {
@@ -52,6 +53,11 @@ func (s *ProgressionService) Monster(ctx context.Context, role storage.Character
 		gain, e := progression.MonsterGain(s.Catalog, s.Rules, run.Definition, monster, state.Level, 0)
 		if e != nil {
 			return nil, nil, e
+		}
+		if s.Store != nil {
+			if hasGrowth, _ := s.Store.HasActivePremium(ctx, role.AccountID, storage.PremiumGrowth, time.Now()); hasGrowth {
+				gain = gain + gain*20/100
+			}
 		}
 		updated, result, e := s.ApplyGain(current, gain)
 		if e != nil {

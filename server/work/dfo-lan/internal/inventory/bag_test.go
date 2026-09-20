@@ -72,3 +72,54 @@ func TestBagAtomicCapacityAndPreservesState(t *testing.T) {
 		t.Fatal("failed grant mutated bag")
 	}
 }
+
+func TestBagCoinWalletAndConsolidation(t *testing.T) {
+	c, e := catalog.LoadLoot("../../configs/loot.next25.json")
+	if e != nil {
+		t.Fatal(e)
+	}
+	rules, e := LoadBagRules("../../configs/inventory.compat90.json")
+	if e != nil {
+		t.Fatal(e)
+	}
+
+	// 1. Add Life Token (template 1)
+	b := Bag{Version: "ordinary-bag-v1", Gold: 1000}
+	b, slot, e := b.Add(c, rules, 1, 10)
+	if e != nil || slot != 1 || b.Coin != 10 {
+		t.Fatalf("expected slot 1, coin 10, got slot=%d coin=%d err=%v", slot, b.Coin, e)
+	}
+	if len(b.Items) != 0 {
+		t.Fatalf("coin must not be in b.Items, got %d items", len(b.Items))
+	}
+
+	// 2. Rows includes slot 0 (gold) and slot 1 (coin)
+	rows := b.Rows()
+	if len(rows) < 2 {
+		t.Fatalf("expected at least 2 rows (gold + coin), got %d", len(rows))
+	}
+	slot0 := uint16(rows[0][0]) | uint16(rows[0][1])<<8
+	slot1 := uint16(rows[1][0]) | uint16(rows[1][1])<<8
+	if slot0 != 0 || slot1 != 1 {
+		t.Fatalf("row slots mismatch: %d, %d", slot0, slot1)
+	}
+
+	// 3. ReadBag legacy consolidation
+	legacyRaw := json.RawMessage(`{"inventory":{"version":"ordinary-bag-v1","gold":500,"coin":5,"items":[{"slot":65,"Template":1,"Amount":20},{"slot":66,"Template":15,"Amount":1}]}}`)
+	restored, e := ReadBag(legacyRaw)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if restored.Coin != 25 { // 5 + 20
+		t.Fatalf("expected coin 25 after consolidation, got %d", restored.Coin)
+	}
+	if len(restored.Items) != 1 || restored.Items[0].Template != 15 {
+		t.Fatalf("expected 1 item (template 15), got %+v", restored.Items)
+	}
+
+	// 4. Consume coin
+	consumed, rem, e := restored.Consume(c, 1, 1)
+	if e != nil || rem != 24 || consumed.Coin != 24 {
+		t.Fatalf("consume coin failed: rem=%d coin=%d err=%v", rem, consumed.Coin, e)
+	}
+}

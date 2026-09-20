@@ -320,7 +320,7 @@ func TestMigratePackagePlaceholdersUnit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	initialState := `{"inventory":{"version":"ordinary-bag-v1","gold":0,"items":[{"slot":65,"Template":590722921,"Amount":1},{"slot":66,"Template":1,"Amount":10}]}}`
+	initialState := `{"inventory":{"version":"ordinary-bag-v1","gold":0,"items":[{"slot":65,"Template":590722921,"Amount":1},{"slot":66,"Template":15,"Amount":10}]}}`
 	c, err := s.CreateCharacter(ctx, Character{AccountID: acc, Name: "MigChar", Request: []byte{0}, ConfigVersion: "test", State: []byte(initialState)}, 24)
 	if err != nil {
 		t.Fatal(err)
@@ -359,10 +359,10 @@ func TestMigratePackagePlaceholdersUnit(t *testing.T) {
 			t.Fatalf("placeholder still in bag: %+v", it)
 		}
 	}
-	// Slot 66 with template 1 must be preserved
+	// Slot 66 with template 15 must be preserved
 	foundPreserved := false
 	for _, it := range b.Items {
-		if it.Slot == 66 && it.Template == 1 && it.Amount == 10 {
+		if it.Slot == 66 && it.Template == 15 && it.Amount == 10 {
 			foundPreserved = true
 		}
 	}

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"dfolan/internal/cashshop"
+	"dfolan/internal/game/protocol"
 	"dfolan/internal/game/wire"
 	"dfolan/internal/inventory"
 	"dfolan/internal/storage"
@@ -93,7 +94,7 @@ func (f *pilotLedger) PurchaseCashToBag(_ context.Context, o storage.CashOrder, 
 	f.calls++
 	f.order = o
 	f.state = state
-	return storage.CashReceipt{CharacterState: state, Before: 1000, After: 955, Charged: 45, Deliveries: []storage.CashDelivery{{Product: o.Lines[0].Product, Quantity: o.Lines[0].Quantity}}}, true, nil
+	return storage.CashReceipt{CharacterState: state, Before: 1000, After: 955, Charged: 45, Deliveries: []storage.CashDelivery{{Product: o.Lines[0].Product, Template: o.Lines[0].Template, Amount: o.Lines[0].Quantity * o.Lines[0].Units, Quantity: o.Lines[0].Quantity}}}, true, nil
 }
 func TestShopPilotRequestToPackets(t *testing.T) {
 	p, e := cashshop.LoadPilot("../../configs/shop-purchase-pilot.json", "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80")
@@ -165,6 +166,60 @@ func TestShopPilotCreatureEggPackets(t *testing.T) {
 	}
 	if packets[1].Payload[0] != 7 || packets[1].Name != "cera_purchase_creature_inventory" {
 		t.Fatalf("creature packet mismatch: %+v", packets[1])
+	}
+}
+
+func TestShopPilotLifeTokenPackets(t *testing.T) {
+	p, e := cashshop.LoadPilot("../../configs/shop-purchase-pilot.json", "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80")
+	if e != nil {
+		t.Fatal(e)
+	}
+	s, e := newShopPilotSession()
+	if e != nil {
+		t.Fatal(e)
+	}
+	s.keys = make([]byte, wire.SessionKeyBytes)
+	f := &pilotLedger{}
+	body := make([]byte, 16)
+	body[2] = 1
+	binary.LittleEndian.PutUint32(body[5:], 3000110) // Life Token 10 EA
+	binary.LittleEndian.PutUint32(body[9:], 1)
+	frame := append(make([]byte, 13), body...)
+	r, applied, e := s.purchase(context.Background(), p, f, 1, 1, body, frame)
+	if e != nil || !applied || f.calls != 1 || f.order.Lines[0].UnitPrice != 140 || f.order.Lines[0].Template != 1 {
+		t.Fatalf("purchase error: %v applied: %v", e, applied)
+	}
+	packets, e := shopPilotPackets(r, r.After, applied)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if len(packets) != 4 {
+		t.Fatalf("expected 4 packets, got %d: %+v", len(packets), packets)
+	}
+	if packets[0].ID != 14 || packets[1].ID != 53 || packets[2].ID != 64 || packets[3].ID != 13 {
+		t.Fatalf("unexpected packet IDs: %+v", packets)
+	}
+	// Packet 0 is NOTI 14 (filtered inventory update, slots <= 1 omitted so client never crashes on toast)
+	if packets[0].Payload[0] != 0 {
+		t.Fatalf("expected space 0, got %d", packets[0].Payload[0])
+	}
+	// Packet 3 is NOTI 13 (space 0) with slot 1 (Coin)
+	payload := packets[3].Payload
+	if len(payload) < 5 {
+		t.Fatalf("short payload: %d", len(payload))
+	}
+	space := payload[0]
+	count := binary.LittleEndian.Uint16(payload[3:5])
+	if space != 0 || count != 2 { // slot 0 (gold) + slot 1 (coin)
+		t.Fatalf("expected space 0, count 2, got space=%d count=%d", space, count)
+	}
+	// Check slot 1 in row 1 (row 0 starts at 5, row 1 starts at 5 + CurrentItemRecordSize)
+	row1 := payload[5+protocol.CurrentItemRecordSize:]
+	slot1 := binary.LittleEndian.Uint16(row1[0:2])
+	tpl1 := binary.LittleEndian.Uint32(row1[2:6])
+	cnt1 := binary.LittleEndian.Uint32(row1[6:10])
+	if slot1 != 1 || tpl1 != 1 || cnt1 != 10 {
+		t.Fatalf("slot 1 item mismatch: slot=%d tpl=%d cnt=%d", slot1, tpl1, cnt1)
 	}
 }
 

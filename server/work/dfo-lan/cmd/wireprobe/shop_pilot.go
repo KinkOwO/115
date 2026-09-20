@@ -9,6 +9,7 @@ import (
 	"dfolan/internal/game/wire"
 	"dfolan/internal/inventory"
 	"dfolan/internal/storage"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 )
@@ -54,7 +55,7 @@ func (l preparedBagLedger) PurchaseCashToBag(ctx context.Context, o storage.Cash
 		}
 		lines := []storage.CashDelivery{}
 		for _, line := range o.Lines {
-			lines = append(lines, storage.CashDelivery{Product: line.Product, Quantity: line.Quantity})
+			lines = append(lines, storage.CashDelivery{Product: line.Product, Template: line.Template, Amount: line.Quantity * line.Units, Quantity: line.Quantity})
 		}
 		packets, e := shopPilotPackets(storage.CashReceipt{CharacterState: state, Deliveries: lines}, 0, true)
 		if e != nil {
@@ -127,6 +128,7 @@ func (s *shopPilotSession) purchase(ctx context.Context, p *cashshop.Pilot, stor
 func shopPilotPackets(receipt storage.CashReceipt, balance uint64, applied bool) ([]outboundPacket, error) {
 	var update outboundPacket
 	var creatureUpdate *outboundPacket
+	var b inventory.Bag
 	if receipt.Vault != nil {
 		payload, err := inventory.VaultPayload(*receipt.Vault)
 		if err != nil {
@@ -134,11 +136,25 @@ func shopPilotPackets(receipt storage.CashReceipt, balance uint64, applied bool)
 		}
 		update = outboundPacket{"cera_purchase_vault", 0, 13, payload}
 	} else {
-		b, e := inventory.ReadBag(receipt.CharacterState)
+		var e error
+		b, e = inventory.ReadBag(receipt.CharacterState)
 		if e != nil {
 			return nil, e
 		}
-		items, e := protocol.InventoryUpdate(b.Rows())
+		// For ordinary item purchases in CeraShop, NOTI 14 must be sent to update inventory.
+		// However, virtual currency slots (slot <= 1, Gold & Coin) must be omitted from NOTI 14
+		// because slot 1 lacks an item UI/implementation object in client 115, which would
+		// trigger a null-dereference crash in sub_1452E9810 (acquired-item toast display).
+		rows := b.Rows()
+		filtered := make([][protocol.CurrentItemRecordSize]byte, 0, len(rows))
+		for _, r := range rows {
+			slot := binary.LittleEndian.Uint16(r[0:2])
+			if slot <= 1 {
+				continue
+			}
+			filtered = append(filtered, r)
+		}
+		items, e := protocol.InventoryUpdate(filtered)
 		if e != nil {
 			return nil, e
 		}
@@ -180,6 +196,19 @@ func shopPilotPackets(receipt storage.CashReceipt, balance uint64, applied bool)
 				return nil, e
 			}
 			packets = append(packets, outboundPacket{"cera_purchase_success", 1, 64, ack})
+		}
+		hasLifeToken := false
+		for _, d := range receipt.Deliveries {
+			if d.Template == 1 {
+				hasLifeToken = true
+				break
+			}
+		}
+		if hasLifeToken {
+			restorePayload, err := protocol.InventoryRestore(b.Rows())
+			if err == nil {
+				packets = append(packets, outboundPacket{"cera_purchase_inventory_restored", 0, 13, restorePayload})
+			}
 		}
 	}
 	return packets, nil

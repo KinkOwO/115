@@ -49,13 +49,15 @@ func EquipmentPayload(space byte, items []BagEquipment, restore bool) ([]byte, e
 		seen[i.Slot] = true
 		row := EquipmentRow(i)
 		if (space == 3 && i.Slot == 26) || (space == 7 && i.Slot < 140) {
-			if binary.LittleEndian.Uint32(row[6:10]) == 0 {
-				key := uint32(1)
-				if space == 7 {
-					key = uint32(i.Slot + 2)
-				}
-				binary.LittleEndian.PutUint32(row[6:10], key)
+			key := uint32(1)
+			if space == 7 {
+				key = uint32(i.Slot + 2)
 			}
+			if k := binary.LittleEndian.Uint32(row[6:10]); k != 0 {
+				key = k
+			}
+			binary.LittleEndian.PutUint32(row[6:10], key)
+			binary.LittleEndian.PutUint32(row[24:28], key)
 		}
 		p = append(p, row[:]...)
 		avatar := space == 1 || (space == 3 && i.Slot <= 11 && i.Template != 0)

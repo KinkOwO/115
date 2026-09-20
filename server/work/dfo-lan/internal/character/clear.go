@@ -46,6 +46,12 @@ func (s *ProgressionService) Clear(ctx context.Context, role storage.Character, 
 		if e != nil {
 			return nil, nil, e
 		}
+		if s.Store != nil {
+			if hasGrowth, _ := s.Store.HasActivePremium(ctx, role.AccountID, storage.PremiumGrowth, now); hasGrowth {
+				gain.Base = gain.Base + gain.Base*20/100
+				gain.Score = gain.Score + gain.Score*20/100
+			}
+		}
 		next, _, e := s.ApplyGain(current, uint64(gain.Base)+uint64(gain.Score))
 		if e != nil {
 			return nil, nil, e

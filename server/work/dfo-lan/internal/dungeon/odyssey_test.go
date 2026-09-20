@@ -74,3 +74,55 @@ func TestOrdinaryDungeonsUnchangedByOdysseyMerge(t *testing.T) {
 		t.Fatal("ordinary dungeon accepted unsupported difficulty")
 	}
 }
+
+func TestFixedMonstersZeroLevelFallback(t *testing.T) {
+	c, e := catalog.LoadDungeons("../../configs/dungeons.odyssey-release.json")
+	if e != nil {
+		t.Fatal(e)
+	}
+	m, ok := c.Maps[100016332]
+	if !ok {
+		t.Fatal("map 100016332 not found in odyssey-release")
+	}
+	monsters, err := fixedMonsters(m, 92)
+	if err != nil {
+		t.Fatalf("fixedMonsters failed: %v", err)
+	}
+	foundZeroSrc := false
+	for _, mon := range monsters {
+		if mon.Template == 109019135 {
+			foundZeroSrc = true
+			if mon.Level != 92 {
+				t.Fatalf("expected template 109019135 level to be fallback to basis 92, got %d", mon.Level)
+			}
+		}
+	}
+	if !foundZeroSrc {
+		t.Fatal("monster 109019135 not found in map 100016332")
+	}
+}
+
+func TestOdysseyRaidRoomCleared(t *testing.T) {
+	c, e := catalog.LoadDungeons("../../configs/dungeons.odyssey-scenes-release.json")
+	if e != nil {
+		t.Fatal(e)
+	}
+	s, e := Select(c, protocol.DungeonSelection{ID: 100004965, Difficulty: 2, Party: 65535}, 90, nil)
+	if e != nil {
+		t.Fatal(e)
+	}
+	s.Loaded = true
+	// New Odyssey dungeon >= 100004960 rooms should be cleared immediately without waiting for un-reported boss deaths
+	if !s.RoomCleared() {
+		t.Fatal("expected Odyssey raid 100004965 room to be cleared")
+	}
+
+	// Sirocco cutscene room 100016294
+	cutsceneSession := &Session{
+		Loaded: true,
+		Room:   catalog.DungeonRoom{Map: 100016294},
+	}
+	if !cutsceneSession.RoomCleared() {
+		t.Fatal("expected Sirocco cutscene room 100016294 to be cleared")
+	}
+}

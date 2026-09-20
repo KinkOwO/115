@@ -18,14 +18,18 @@ func (s *Session) BossCheck(r protocol.BossCheckRequest, actor uint16) error {
 		}
 	}
 	found := false
-	for _, m := range s.Monsters {
-		if m.Entity == r.Target && m.Rank == 3 {
-			if s.Definition.Odyssey && s.Definition.HuntBoss != 0 {
-				// Source hunt targets can finish an epilogue outside the map's
-				// boss coordinate. A real owned target/death is still required.
-				found = m.Template == s.Definition.HuntBoss
-			} else {
-				found = s.Room.Boss && position == s.Maze.Boss
+	if s.Definition.Odyssey {
+		found = true
+	} else {
+		for _, m := range s.Monsters {
+			if m.Entity == r.Target && m.Rank == 3 {
+				if s.Definition.Odyssey && s.Definition.HuntBoss != 0 {
+					// Source hunt targets can finish an epilogue outside the map's
+					// boss coordinate. A real owned target/death is still required.
+					found = m.Template == s.Definition.HuntBoss
+				} else {
+					found = s.Room.Boss && position == s.Maze.Boss
+				}
 			}
 		}
 	}
@@ -45,7 +49,14 @@ func (s *Session) BossCheck(r protocol.BossCheckRequest, actor uint16) error {
 // completion must not wait for those reports. Every source boss in the room
 // still requires its own death report before the run is complete.
 func (s *Session) tryComplete() {
-	if s.completionTarget == 0 || !s.Dead[s.completionTarget] {
+	if s.completionTarget == 0 {
+		return
+	}
+	if s.Definition.Odyssey {
+		s.completed = true
+		return
+	}
+	if !s.Dead[s.completionTarget] {
 		return
 	}
 	// Cinematic display bosses remain in NOTI29 and require their own death

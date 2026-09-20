@@ -62,6 +62,28 @@ func (w *worldSession) finishQuest(r protocol.QuestSubmitRequest) ([]outboundPac
 	// shows quest 3149 crediting 4300 gold with no items and no NOTI13, so the
 	// on-screen number stayed put until the next relog.
 	if len(result.Receipt.Items) > 0 || result.Receipt.Gold > 0 {
+		accountMaterial := false
+		for _, item := range result.Receipt.Items {
+			if _, ok := inventory.AccountMaterialSlot(item.Template); ok {
+				accountMaterial = true
+				break
+			}
+		}
+		if accountMaterial {
+			// Account-shared materials never stay in the bag: sweep them into
+			// the account storage and precede the list0 snapshot with the
+			// list35 storage snapshot so the client harvest adopts them.
+			var materials inventory.AccountMaterials
+			result.Role, materials, e = sweepAccountMaterials(ctx, w.quests.Store, result.Role)
+			if e != nil {
+				return nil, e
+			}
+			storageBody, e := accountMaterialSnapshot(materials)
+			if e != nil {
+				return nil, e
+			}
+			plan = append(plan, outboundPacket{"quest_account_materials_committed", 0, 13, storageBody})
+		}
 		bag, e := inventory.ReadBag(result.Role.State)
 		if e != nil {
 			return nil, e

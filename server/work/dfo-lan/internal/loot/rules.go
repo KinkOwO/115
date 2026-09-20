@@ -139,6 +139,10 @@ type Outcome struct {
 // generation weights are still unrecovered, so selection inside that window is
 // uniform rather than dictionary-weighted. This is not official-server parity.
 func Roll(c catalog.LootCatalog, t Tables, r Rules, pool []inventory.EquipmentDrop, seed uint32, level, rank, difficulty byte) (Outcome, error) {
+	return RollWithBonus(c, t, r, pool, seed, level, rank, difficulty, 0)
+}
+
+func RollWithBonus(c catalog.LootCatalog, t Tables, r Rules, pool []inventory.EquipmentDrop, seed uint32, level, rank, difficulty byte, questDropBonusPercent int) (Outcome, error) {
 	var out Outcome
 	if len(t.Rank) != 20 || len(t.Rarity) != 36 || len(t.Probability)%7 != 0 || len(t.Gold)%3 != 0 || len(t.Grade)%3 != 0 || r.Denominator == 0 {
 		return out, fmt.Errorf("invalid drop model tables")
@@ -179,7 +183,11 @@ func Roll(c catalog.LootCatalog, t Tables, r Rules, pool []inventory.EquipmentDr
 	rng := RNG{seed}
 	diff := r.DifficultyBonus[difficulty]
 	rate := func(category int) uint32 {
-		n := math.Floor(prob[category] * t.Rank[category*4+int(rank)] * diff)
+		bonus := 1.0
+		if category == 3 && questDropBonusPercent > 0 {
+			bonus += float64(questDropBonusPercent) / 100.0
+		}
+		n := math.Floor(prob[category] * t.Rank[category*4+int(rank)] * diff * bonus)
 		if n < 0 {
 			return 0
 		}

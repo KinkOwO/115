@@ -30,6 +30,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -248,7 +249,7 @@ func main() {
 		characters, e = character.New(s, data, rules)
 		if characters != nil {
 			characters.DisableActorAppearance = skillRelease
-			characters.DetailedWornCandidate = !skillRelease && os.Getenv("DFO_DETAIL_WORN") == "1"
+			characters.DetailedWornCandidate = !skillRelease
 		}
 		if e != nil {
 			log.Fatal(e)
@@ -504,6 +505,7 @@ func main() {
 					wearCatalog := *equipment
 					wearCatalog.Full = full
 					wearService.Catalog = &wearCatalog
+					equipment.Full = full
 					log.Printf("separate wear catalog: %d records; original reward/drop catalog: %d", len(full.Records), len(equipment.Rows))
 				}
 			}
@@ -551,6 +553,9 @@ func main() {
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		e = characters.Store.MigrateVault(ctx)
+		if e == nil {
+			e = characters.Store.MigrateAccountMaterials(ctx)
+		}
 		cancel()
 		if e != nil {
 			log.Fatal(e)
@@ -901,12 +906,18 @@ func main() {
 				event(map[string]any{"kind": "creature_hatch_success", "character_id": selectedCharacterID})
 				continue
 			}
-			if frame.Type == 1 && (frame.ID == 160 || (frame.ID == 41 && odysseyTemporaryCreditsEnabled())) && bootstrapped && verified && characters != nil && worldState != nil {
+			if frame.Type == 1 && (frame.ID == 160 || frame.ID == 41) && bootstrapped && verified && characters != nil && worldState != nil {
 				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 				var plan []outboundPacket
 				var e error
 				if frame.ID == 41 {
-					plan, e = worldState.pilotRevive(ctx, characters.Store, plaintext, frame.Raw)
+					// Keep the explicitly approved Odyssey pilot credits isolated from
+					// ordinary life-token consumption.
+					if odysseyTemporaryCreditsEnabled() && isOdysseyRewardRole(worldState.role) && worldState.activeDungeon != nil && worldState.activeDungeon.Definition.Odyssey {
+						plan, e = worldState.pilotRevive(ctx, characters.Store, plaintext, frame.Raw)
+					} else {
+						plan, e = worldState.lifeTokenRevive(ctx, characters.Store, plaintext, frame.Raw)
+					}
 				} else if worldState.activeDungeon != nil || worldState.role.ID == 0 {
 					e = fmt.Errorf("booster box use requires selected character in town")
 				} else {
@@ -971,6 +982,18 @@ func main() {
 					}
 					continue
 				}
+				r, decodeErr := protocol.DecodeItemMove(plaintext)
+				if decodeErr == nil && characters != nil && (r.SourceSlot == 26 || r.DestinationSlot == 26 || r.SourceList == 3 || r.DestinationList == 3) {
+					var visual []byte
+					visual, e = characters.EntryBasicProbe(worldState.role, [2]byte{})
+					if e == nil {
+						plan = append(plan, outboundPacket{"creature_actor_appearance_updated", 0, 2, visual})
+					}
+					wornUpdate, e := inventory.WornSpaceUpdate(worldState.role.State)
+					if e == nil && len(wornUpdate) > 0 {
+						plan = append(plan, outboundPacket{"worn_equipment_visuals_updated", 0, 14, wornUpdate})
+					}
+				}
 				prepared, e := preparePackets(keys, plan)
 				if e != nil {
 					event(map[string]any{"kind": "equipment_encode_error", "error": e.Error()})
@@ -1006,6 +1029,53 @@ func main() {
 				}
 				continue
 			}
+
+			if bootstrapped && frame.ID == 2285 {
+				if !verified {
+					event(map[string]any{"kind": "exit_dialog_rejected", "reason": "checksum failed"})
+					continue
+				}
+				if len(plaintext) != 0 {
+					event(map[string]any{"kind": "exit_dialog_rejected", "reason": "unexpected request body", "bytes": len(plaintext)})
+					continue
+				}
+				// CMD2285 is CONTENT_BRIEFING, issued by the in-game menu before
+				// its local Exit path. Its callback at 145250c80 consumes a
+				// mandatory 0x80-byte structure after the common success header.
+				// A header-only reply triggers CMD217 (CMDPACKET_OVERFLOW_INFO).
+				if err := sendPayload(1, frame.ID, protocol.ExitDialogReady()); err != nil {
+					return
+				}
+				event(map[string]any{"kind": "exit_dialog_ready", "id": frame.ID, "character_id": selectedCharacterID})
+				continue
+			}
+			if bootstrapped && frame.ID == 682 {
+				if !verified {
+					event(map[string]any{"kind": "exit_shutdown_rejected", "reason": "checksum failed"})
+					continue
+				}
+				fastExit, e := protocol.DecodeExitShutdownSignal(plaintext)
+				if e != nil {
+					event(map[string]any{"kind": "exit_shutdown_rejected", "reason": e.Error(), "bytes": len(plaintext)})
+					continue
+				}
+				event(map[string]any{"kind": "exit_shutdown_signal", "id": frame.ID, "character_id": selectedCharacterID, "fast": fastExit})
+				selectedCharacterID = 0
+				selectedBasic, selectedAddition = nil, nil
+				if worldState != nil {
+					worldState.departArea()
+				}
+				clearSelectedWorld(worldState)
+				bootstrapped = false
+				event(map[string]any{"kind": "exit_session_closed", "peer": peer})
+				return
+			}
+
+			if bootstrapped && frame.ID == 2377 {
+				event(map[string]any{"kind": "unified_option_accepted", "character_id": selectedCharacterID})
+				continue
+			}
+
 			if bootstrapped && (frame.ID == 3 || frame.ID == 7 || frame.ID == 1301) {
 				if !verified {
 					event(map[string]any{"kind": "menu_rejected", "id": frame.ID, "reason": "checksum failed"})
@@ -1038,6 +1108,8 @@ func main() {
 					clearSelectedWorld(worldState)
 					if frame.ID == 3 {
 						bootstrapped = false
+						event(map[string]any{"kind": "menu_exit_session_closed", "peer": peer, "option": option})
+						return
 					}
 				}
 				continue
@@ -1127,7 +1199,11 @@ func main() {
 				plan, e := worldState.disjointItem(plaintext)
 				if e != nil {
 					event(map[string]any{"kind": "disjoint_refused", "id": frame.ID, "character_id": worldState.role.ID, "reason": e.Error()})
-					if e = sendPayload(1, frame.ID, protocol.Refusal(4)); e != nil {
+					refusalCode := uint16(19)
+					if strings.Contains(e.Error(), "material inventory is full") {
+						refusalCode = 4
+					}
+					if e = sendPayload(1, frame.ID, protocol.Refusal(refusalCode)); e != nil {
 						return
 					}
 					continue
@@ -1233,7 +1309,7 @@ func main() {
 				worldState.selectingDungeon = true
 				continue
 			}
-			if worldState != nil && bootstrapped && (frame.ID == 16 || frame.ID == 37 || frame.ID == 39 || (frame.ID == 40 && odysseyRewardsEnabled()) || frame.ID == 42 || frame.ID == 43 || frame.ID == 45 || frame.ID == 46 || frame.ID == 69 || frame.ID == 70 || frame.ID == 71 || frame.ID == 72 || frame.ID == 117 || frame.ID == 132) {
+			if worldState != nil && bootstrapped && dungeonRequest(frame.ID) {
 				if !verified {
 					event(map[string]any{"kind": "dungeon_request_rejected", "id": frame.ID, "reason": "checksum failed"})
 					continue
@@ -1246,6 +1322,8 @@ func main() {
 					pending, plan, e = worldState.selectDungeon(plaintext)
 				case 37:
 					plan, e = worldState.finishDungeonLoading(plaintext)
+				case 38:
+					pending, plan, e = worldState.interactDoor(plaintext)
 				case 39:
 					plan, e = worldState.monsterDeath(plaintext)
 				case 40:
@@ -1772,7 +1850,22 @@ func main() {
 					}
 				}
 				if lootService != nil {
-					plan.Inventory, e = lootService.Bootstrap(role)
+					// Sweep the seventeen account-shared materials out of the bag
+					// into the account storage before the snapshots are built, then
+					// deliver the list35 storage snapshot ahead of list0 so the
+					// client harvest (sub_145ADC2A0) adopts the fixed slots.
+					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					var materials inventory.AccountMaterials
+					role, materials, e = sweepAccountMaterials(ctx, characters.Store, role)
+					cancel()
+					if e != nil {
+						event(map[string]any{"kind": "entry_account_materials_error", "error": e.Error()})
+						continue
+					}
+					plan.AccountMaterials, e = accountMaterialSnapshot(materials)
+					if e == nil {
+						plan.Inventory, e = lootService.Bootstrap(role)
+					}
 					if e != nil {
 						event(map[string]any{"kind": "entry_inventory_error", "error": e.Error()})
 						continue
