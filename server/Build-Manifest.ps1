@@ -25,6 +25,8 @@ $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 $excludedDirs = @('runtime')
+# exe 的合法位置：候选版/归档基准在 bin\，探针在 dfo_probe_tools\（详见 server\AGENTS.md）。
+$exeAllowedDirs = @('work/dfo-lan/bin/', 'work/dfo_probe_tools/')
 $excludedFiles = @('MANIFEST.sha256', 'package-manifest.json', 'launcher.local.json')
 $excludedConfigs = @(
     'booster-catalog.json', 'shop-vault-release.json', 'shop-special-candidate.json',
@@ -42,6 +44,13 @@ foreach ($f in (Get-ChildItem -Path $rootFull -Recurse -File | Sort-Object { & $
     $parts = $rel -split '/'
     if ($parts -contains 'runtime') { continue }
     if ($parts -contains '__pycache__' -or $rel -like '*.pyc') { continue }
+    # 构建产物只会出现在 bin\ 下（见 server\AGENTS.md 的候选版约定）；别处的 exe 一律
+    # 排除并告警 —— 误跑 go build ./cmd/xxx 会在当前目录留下 .exe，不该进交付清单。
+    if ($rel -like '*.exe' -and -not ($exeAllowedDirs | Where-Object { $rel.StartsWith($_) })) {
+        Write-Warning ("排除构建产物 {0}：exe 只应在 {1} 下" -f $rel, ($exeAllowedDirs -join ' 或 '))
+        $skipped.Add($rel) | Out-Null
+        continue
+    }
     if ($excludedFiles -contains $rel) { continue }
     if ($rel -like 'work/dfo-lan/configs/*' -and $excludedConfigs -contains (Split-Path $rel -Leaf)) { continue }
     if ($f.Length -gt $BigFileThresholdMB * 1MB) {

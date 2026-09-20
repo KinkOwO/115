@@ -1,5 +1,5 @@
 {
-  "created_at": "2026-09-20T15:50:50.775434+00:00",
+  "created_at": "2026-09-20T15:51:54.793828+00:00",
   "purpose": "server source and portable Windows launcher developer handoff",
   "default_runtime": "archived39",
   "source_build": "restored-source-candidate-not-real-client-accepted",
@@ -14,8 +14,8 @@
     },
     {
       "path": "Build-Manifest.ps1",
-      "bytes": 6943,
-      "sha256": "a49c31d0ca9e4a8d10b3a48c2de0104d971d09b87f2092fe0b6f1135f7d35972"
+      "bytes": 7620,
+      "sha256": "ab1892627804a3daa17335e9c31216c29fe5e8dc4010d95a546d951473aa5108"
     },
     {
       "path": "Build-Server.ps1",
@@ -914,8 +914,8 @@
     },
     {
       "path": "work/dfo-lan/bin/wireprobe-handoff-source.exe",
-      "bytes": 17792512,
-      "sha256": "080635993fb71b36481d73826baa6718346b3bb3a0aebdbd404c534f152febd9"
+      "bytes": 17762816,
+      "sha256": "cfa14097ca30d0e2ddd0aa5e86c9849fc846998bcf3c092ab6d4cfa87a8a862e"
     },
     {
       "path": "work/dfo-lan/bin/wireprobe-probe1.exe",
