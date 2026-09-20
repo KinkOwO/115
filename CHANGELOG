@@ -1,6 +1,24 @@
 # CHANGELOG
 
 ## 2026-09-20
+- 修复副本死亡后使用复活币（Life Token）无法复活的问题（包括剧情模式与普通地下城）：
+  - **根因分析**：
+    1. **CMD 40 死亡上报分发被限制在奥德赛奖励开关中**：原分发条件中 `frame.ID == 40` 被 `(frame.ID == 40 && odysseyRewardsEnabled())` 门控。在普通剧情模式和非奥德赛地下城中，客户端发送的玩家死亡上报（CMD 40）直接被忽略，服务端未能记录 `pilotDeath` 死亡状态与序号；
+    2. **CMD 41 复活币请求门控缺失通用路径**：原先 `frame.ID == 41` 只在 `odysseyTemporaryCreditsEnabled()` 开启时被接收，且只支持扣除测试 credits 的 `pilotRevive` 逻辑；普通地下城中客户端发送 CMD 41 直接被丢弃，即便接收也会因缺乏 `pilotDeath` 死亡状态被拒绝；
+  - **修复实现**：
+    - `cmd/wireprobe/request_scope.go`：新增 `dungeonRequest` 函数统筹地下城请求 opcode 判定，解除 CMD 40 的条件门控，确保所有地下城中的玩家死亡均能正常建立 `pilotDeath` 状态；
+    - `cmd/wireprobe/dungeon_revive.go`：新增 `lifeTokenRevive` 与 `lifeTokenReviveAllowed`，支持普通地下城通用复活币流程：
+      - 校验角色处于加载完的地下城中、已确认死亡、Actor ID 匹配；
+      - 校验当前副本地图脚本是否含有 `[cannot use coin map]` 标记；
+      - 通过 `CommitCharacterEvent` 以 `dungeon-life-token-revive:<run>:<seq>` 建立原子事务，调用 `bag.Consume(catalog, 1, 1)` 扣除普通背包中的虚拟复活币（Slot 1 / Template 1）；
+      - 成功后下发 `life_token_revive_ack` (ACK 41)、`life_token_revived` (NOTI 32, state=1 满血满魔复活) 与 `life_token_inventory_updated` (NOTI 14 刷新背包复活币数量)；
+      - 内存以帧哈希 `pilotDeath.Revives` 防重，防止客户端重复发送 CMD 41 造成多次扣币；
+    - `cmd/wireprobe/main.go`：在 CMD 41 分发处增加普通复活币路径分支，同时保持奥德赛临时 credits 独立隔离；
+  - **测试覆盖**：
+    - `cmd/wireprobe/dungeon_revive_test.go`：覆盖正常扣除 1 个复活币并下发 3 个通知包、防重放幂等不重复扣币、复活后状态拒绝再次复活、禁止复活地图拒绝；
+    - `cmd/wireprobe/request_scope_test.go`：验证 CMD 40 正常纳入 `dungeonRequest`；
+    - 全量 `go test ./...` 与 `go vet ./...` 通过；实机验证剧情副本死亡后点击复活币正常复活并扣除 1 个复活币（100 -> 99）。
+
 - 修复某些装备无法分解（提示快捷栏或材料栏不足）及实现权威多品质分解产物规则：
   - **根因分析**：
     1. **错误跨空间槽位冲突检测**：`internal/inventory/disjoint.go` 中存在错误的 `reqSlot == worn.Slot` 校验。因角色穿戴栏（List 3，槽位 12..25）与背包装备栏（List 0，槽位 9..64）数值区间重叠，当角色在身体槽 12 佩戴装备且尝试分解背包槽 12 的装备（如布护臂 Cotton Armguard）时，被误判为穿戴中装备而拒绝，服务端固定返回 `Refusal(4)`；

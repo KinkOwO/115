@@ -3,6 +3,14 @@ package main
 // Bounded game-command evidence. Every implemented command must pass this
 // gate before its handler, and its body is retained on every occurrence so
 // regressions stay diagnosable.
+func dungeonRequest(id uint16) bool {
+	switch id {
+	case 16, 37, 38, 39, 40, 42, 43, 45, 46, 69, 70, 71, 72, 117, 132:
+		return true
+	}
+	return false
+}
+
 func observedGameRequest(id uint16) bool {
 	switch id {
 	case 18, 21, 22, 26, 38, 40, 41, 63, 64, 102, 160, 173, 451, 507, 1417, 2177, 2261, 2377:
