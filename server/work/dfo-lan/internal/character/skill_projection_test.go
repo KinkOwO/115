@@ -127,9 +127,7 @@ func TestAllProfessionsKeepStarterRanksAndBookSlots(t *testing.T) {
 				}
 				slots[slot] = true
 				if rank == 0 {
-					if slot < 14 || known[uint16(id)] > 0 {
-						t.Fatal("unlearned shortcut or starter erased")
-					}
+					t.Fatalf("unlearned skill row should not be projected: id=%d slot=%d", id, slot)
 				} else {
 					granted[uint16(id)] = byte(rank)
 				}

@@ -30,7 +30,12 @@ func (s *Service) automaticSkills(role storage.Character, state State) (map[uint
 		if len(required) > 1 || len(required) == 1 && required[0] < 0 {
 			return nil, fmt.Errorf("automatic skill level missing")
 		}
-		if len(required) == 1 && int(state.Level) < required[0] || int32(state.Level) < threshold {
+		// A .chr condition of 1 is a source grant at this advancement, not the
+		// skill's own purchase level. Knight branch starters such as 126/128/127
+		// remain granted for legacy roles at levels 1, 2, 5, 14 and 15 even
+		// though their .skl required level is 15. Only a real source threshold
+		// greater than 1 is level-gated by the skill definition as well.
+		if int32(state.Level) < threshold || threshold != 1 && len(required) == 1 && int(state.Level) < required[0] {
 			continue
 		}
 		// The .chr grant is authoritative, including utility skills whose

@@ -42,13 +42,16 @@ func TestStagedSlayerInitialSkillsAgainstNativeReader(t *testing.T) {
 }
 
 func TestInitialSkillColumns(t *testing.T) {
-	skills, e := initialSkills(State{Level: 1, InitialSkills: []int32{179, 7, 1, 174, 1, 1}})
-	if e != nil || len(skills) != 2 || skills[0].ID != 179 || skills[0].Level != 7 {
-		t.Fatalf("source skill columns: %+v %v", skills, e)
+	skills := initialSkills(State{Level: 1, InitialSkills: []int32{179, 7, 1, 174, 1, 1}})
+	if len(skills) != 2 || skills[0].ID != 179 || skills[0].Level != 7 {
+		t.Fatalf("source skill columns: %+v", skills)
 	}
+	// Undecorable tuples are skipped (recorded as zero), never refused: an
+	// incomplete triple, a non-grant condition, an out-of-range level or id
+	// must not take down the whole entry append packet.
 	for _, cells := range [][]int32{{179, 7}, {179, 7, 5}, {179, 256, 1}, {70000, 1, 1}} {
-		if _, e = initialSkills(State{Level: 1, InitialSkills: cells}); e == nil {
-			t.Fatalf("accepted unresolved tuple %v", cells)
+		if got := initialSkills(State{Level: 1, InitialSkills: cells}); len(got) != 0 {
+			t.Fatalf("undecorable tuple %v should be skipped, got %+v", cells, got)
 		}
 	}
 }
