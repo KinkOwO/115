@@ -109,6 +109,16 @@ func (s *Service) Create(ctx context.Context, account int64, p []byte) (storage.
 			initial.Advancement, initial.SwordmasterPilot = 1, true
 		}
 	}
+	// The naming window always sends the advancement slot it had selected
+	// (protocol.CreateRequest.GrowthType). Without it the character stays on
+	// the unadvanced base profession, which is what the client renders as the
+	// base job name. Record it unconditionally: a slot the snapshot ships no
+	// [growtype N] block for simply leaves the per-level growth ledger empty
+	// and must never refuse the creation itself. Pilot channels set
+	// Advancement themselves and bypass this assignment.
+	if !initial.AllJobsPilot && !initial.SwordmasterPilot {
+		initial.Advancement = req.GrowthType
+	}
 	state, e := json.Marshal(initial)
 	if e != nil {
 		return storage.Character{}, e
