@@ -33,15 +33,15 @@ type Profession struct {
 	// SkillCommands is the current-client NOTI19 field-4 command vector keyed
 	// by the source skill id. Empty/missing vectors are intentional for
 	// book-only and passive rows.
-	SkillCommands     map[uint16][]uint32 `json:"skill_commands,omitempty"`
-	CreateEquipment   []pvf.Token         `json:"create_equipment_cells"`
+	SkillCommands   map[uint16][]uint32 `json:"skill_commands,omitempty"`
+	CreateEquipment []pvf.Token         `json:"create_equipment_cells"`
 	// CreateEquipmentBySlot 是 [create equipment list] 的按槽投影：外层键是源部位
 	// 标签（[weapon]、[coat]…），内层键是 0 基槽位，与角色的 Advancement 同域。
 	// 值 0 表示源在该槽显式给出空位。槽数不设上限：源每标签给几个就记几个，不做推测。
 	CreateEquipmentBySlot map[string]map[byte]uint32 `json:"create_equipment_by_slot,omitempty"`
 	// CreateEquipmentOrder 保留部位标签在源文件里的出现顺序，供投影时稳定分配穿戴槽。
 	CreateEquipmentOrder []string `json:"create_equipment_order,omitempty"`
-	DefaultAppearance []int32     `json:"default_appearance_indices,omitempty"`
+	DefaultAppearance    []int32  `json:"default_appearance_indices,omitempty"`
 	// Growth is indexed by the character's State.Advancement: slot 0 comes from
 	// [growtype 1] (the unadvanced base profession) and slot N from
 	// [growtype N+1]. Baseline projection kept for the creation path.
