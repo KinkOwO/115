@@ -303,6 +303,17 @@ func (w *worldSession) monsterDeath(p []byte) ([]outboundPacket, error) {
 				if w.activeDungeon.Definition.Odyssey {
 					w.drops.Currency = w.loot.Currency
 				}
+				store := w.service.Store
+				if store == nil && w.characters != nil {
+					store = w.characters.Store
+				}
+				if store != nil {
+					ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+					if hasGrowth, _ := store.HasActivePremium(ctx, w.account, storage.PremiumGrowth, time.Now()); hasGrowth {
+						w.drops.QuestDropBonusPercent = 20
+					}
+					cancel()
+				}
 			}
 			rows, err := w.drops.Death(w.activeDungeon, uint16(r.Entity))
 			if err != nil {

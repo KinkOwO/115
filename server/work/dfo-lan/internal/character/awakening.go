@@ -41,7 +41,7 @@ func (d LearningDefinition) forState(state State) LearningDefinition {
 	return d
 }
 
-func (d LearningDefinition) costForState(state State, target int, known map[uint16]byte) (int, error) {
+func (d LearningDefinition) costForLevel(state State, level int, target int, known map[uint16]byte) (int, error) {
 	awakened := d.ForAwakening(int(state.Advancement), int(state.Awakening))
 	d = d.forState(state)
 	if cost := d.Ints("[purchase cost]"); awakened && len(cost) == 2 {
@@ -51,7 +51,11 @@ func (d LearningDefinition) costForState(state State, target int, known map[uint
 		}
 		d.Fields["[purchase cost]"] = []pvf.Token{{Type: 0, Value: int32(cost[index])}}
 	}
-	return d.Cost(int(state.Level), int(state.Advancement), target, known)
+	return d.Cost(level, int(state.Advancement), target, known)
+}
+
+func (d LearningDefinition) costForState(state State, target int, known map[uint16]byte) (int, error) {
+	return d.costForLevel(state, int(state.Level), target, known)
 }
 
 func (s *Service) ApplyAwakening(role storage.Character, stage byte) (json.RawMessage, error) {

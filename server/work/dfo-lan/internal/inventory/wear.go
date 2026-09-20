@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"time"
 )
 
 type WearRules struct {
@@ -100,7 +101,20 @@ func (s *WearService) wearable(role storage.Character, item BagEquipment, slot u
 	if !ok {
 		return fmt.Errorf("equipment profession unavailable")
 	}
-	return WearableBy(d.Fields, job.Job, state.Advancement, state.Level)
+	level := state.Level
+	if s.Store != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		hasConqueror, _ := s.Store.HasActivePremium(ctx, role.AccountID, storage.PremiumConqueror, time.Now())
+		cancel()
+		if hasConqueror {
+			if int(level)+10 <= 255 {
+				level += 10
+			} else {
+				level = 255
+			}
+		}
+	}
+	return WearableBy(d.Fields, job.Job, state.Advancement, level)
 }
 
 // MoveOrdinary validates both directions before swapping one physical item.
