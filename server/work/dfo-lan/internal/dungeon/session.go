@@ -183,6 +183,12 @@ func (s *Session) RoomCleared() bool {
 	if s == nil || !s.Loaded {
 		return false
 	}
+	if s.Room.Map == 100016294 {
+		return true
+	}
+	if s.Definition.Odyssey && s.Definition.ID >= 100004960 {
+		return true
+	}
 	keyRoom := s.warpKeyRoom()
 	for _, m := range s.Monsters {
 		if (!m.NonCombat || m.Rank == 3 && keyRoom) && !s.Dead[m.Entity] {
@@ -358,6 +364,9 @@ func fixedMonsters(script catalog.ScriptRecord, basis uint32) ([]protocol.Dungeo
 			level += int64(basis)
 		} else if v[1] != 0 {
 			return nil, fmt.Errorf("unsupported monster level expression")
+		}
+		if level == 0 && basis > 0 {
+			level = int64(basis)
 		}
 		if level < 0 || level > 255 {
 			return nil, fmt.Errorf("invalid monster level")

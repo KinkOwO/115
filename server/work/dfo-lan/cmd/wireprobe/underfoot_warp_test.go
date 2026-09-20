@@ -5,6 +5,7 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
+	"encoding/binary"
 	"encoding/hex"
 	"testing"
 )
@@ -60,5 +61,77 @@ func TestUnderfootCinematicCipherPadding(t *testing.T) {
 	p[15] = 1
 	if _, e = protocol.DecodeCinematicSkip(p); e == nil {
 		t.Fatal("nonzero tail accepted")
+	}
+}
+
+func TestMoveScriptFallbackToAdjacentMove(t *testing.T) {
+	c, e := catalog.LoadDungeons("../../configs/dungeons.odyssey-release.json")
+	if e != nil {
+		t.Fatal(e)
+	}
+	s, e := dungeon.Select(c, protocol.DungeonSelection{ID: 100004962, Difficulty: 2, Party: 65535}, 87, nil)
+	if e != nil {
+		t.Fatal(e)
+	}
+	s.Loaded = true
+	for _, m := range s.Monsters {
+		s.Dead[m.Entity] = true
+	}
+	w := &worldSession{dungeons: &c, activeDungeon: s}
+
+	// Craft CMD45 room transition from (0,1) to adjacent room (1,1) with Record[0] == 1 (script warp flag)
+	req := make([]byte, 160)
+	req[0] = 1   // target X = 1
+	req[1] = 1   // target Y = 1
+	req[132] = 1 // Record[0] = 1
+	binary.LittleEndian.PutUint32(req[151:155], 100004962)
+
+	next, plan, err := w.moveDungeonRoom(req)
+	if err != nil {
+		t.Fatalf("expected MoveScript fallback to adjacent Move to succeed, got error: %v", err)
+	}
+	if next == nil || next.Room.X != 1 || next.Room.Y != 1 {
+		t.Fatalf("expected next room to be (1,1), got: %+v", next)
+	}
+	if len(plan) != 2 || plan[0].Name != "dungeon_move_ack" {
+		t.Fatalf("unexpected plan: %+v", plan)
+	}
+}
+
+func TestInteractDoorOrdinaryAndSirocco(t *testing.T) {
+	c, e := catalog.LoadDungeons("../../configs/dungeons.odyssey-scenes-release.json")
+	if e != nil {
+		t.Fatal(e)
+	}
+	s, e := dungeon.Select(c, protocol.DungeonSelection{ID: 100004961, Difficulty: 2, Party: 65535}, 80, nil)
+	if e != nil {
+		t.Fatal(e)
+	}
+	s.Loaded = true
+	w := &worldSession{dungeons: &c, activeDungeon: s}
+
+	// 1. Ordinary room: interactDoor returns door_ack
+	next, plan, err := w.interactDoor(nil)
+	if err != nil {
+		t.Fatalf("interactDoor failed on ordinary room: %v", err)
+	}
+	if next != nil {
+		t.Fatal("expected next to be nil for ordinary room")
+	}
+	if len(plan) != 1 || plan[0].Name != "door_ack" || plan[0].ID != 38 {
+		t.Fatalf("unexpected plan for ordinary door: %+v", plan)
+	}
+
+	// 2. Sirocco cutscene room 100016294 at (3,1): interactDoor synthesizes transition to boss room (4,1)
+	s.Room = catalog.DungeonRoom{X: 3, Y: 1, Map: 100016294}
+	next, plan, err = w.interactDoor(nil)
+	if err != nil {
+		t.Fatalf("interactDoor failed on Sirocco room 100016294: %v", err)
+	}
+	if next == nil || next.Room.X != 4 || next.Room.Y != 1 || next.Room.Map != 100016295 {
+		t.Fatalf("expected next room to be boss room (4,1,100016295), got: %+v", next)
+	}
+	if len(plan) < 2 || plan[0].Name != "door_ack" {
+		t.Fatalf("unexpected plan for Sirocco door: %+v", plan)
 	}
 }

@@ -30,6 +30,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -504,6 +505,7 @@ func main() {
 					wearCatalog := *equipment
 					wearCatalog.Full = full
 					wearService.Catalog = &wearCatalog
+					equipment.Full = full
 					log.Printf("separate wear catalog: %d records; original reward/drop catalog: %d", len(full.Records), len(equipment.Rows))
 				}
 			}
@@ -904,12 +906,18 @@ func main() {
 				event(map[string]any{"kind": "creature_hatch_success", "character_id": selectedCharacterID})
 				continue
 			}
-			if frame.Type == 1 && (frame.ID == 160 || (frame.ID == 41 && odysseyTemporaryCreditsEnabled())) && bootstrapped && verified && characters != nil && worldState != nil {
+			if frame.Type == 1 && (frame.ID == 160 || frame.ID == 41) && bootstrapped && verified && characters != nil && worldState != nil {
 				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 				var plan []outboundPacket
 				var e error
 				if frame.ID == 41 {
-					plan, e = worldState.pilotRevive(ctx, characters.Store, plaintext, frame.Raw)
+					// Keep the explicitly approved Odyssey pilot credits isolated from
+					// ordinary life-token consumption.
+					if odysseyTemporaryCreditsEnabled() && isOdysseyRewardRole(worldState.role) && worldState.activeDungeon != nil && worldState.activeDungeon.Definition.Odyssey {
+						plan, e = worldState.pilotRevive(ctx, characters.Store, plaintext, frame.Raw)
+					} else {
+						plan, e = worldState.lifeTokenRevive(ctx, characters.Store, plaintext, frame.Raw)
+					}
 				} else if worldState.activeDungeon != nil || worldState.role.ID == 0 {
 					e = fmt.Errorf("booster box use requires selected character in town")
 				} else {
@@ -1021,6 +1029,7 @@ func main() {
 				}
 				continue
 			}
+
 			if bootstrapped && frame.ID == 2285 {
 				if !verified {
 					event(map[string]any{"kind": "exit_dialog_rejected", "reason": "checksum failed"})
@@ -1061,6 +1070,12 @@ func main() {
 				event(map[string]any{"kind": "exit_session_closed", "peer": peer})
 				return
 			}
+
+			if bootstrapped && frame.ID == 2377 {
+				event(map[string]any{"kind": "unified_option_accepted", "character_id": selectedCharacterID})
+				continue
+			}
+
 			if bootstrapped && (frame.ID == 3 || frame.ID == 7 || frame.ID == 1301) {
 				if !verified {
 					event(map[string]any{"kind": "menu_rejected", "id": frame.ID, "reason": "checksum failed"})
@@ -1184,7 +1199,11 @@ func main() {
 				plan, e := worldState.disjointItem(plaintext)
 				if e != nil {
 					event(map[string]any{"kind": "disjoint_refused", "id": frame.ID, "character_id": worldState.role.ID, "reason": e.Error()})
-					if e = sendPayload(1, frame.ID, protocol.Refusal(4)); e != nil {
+					refusalCode := uint16(19)
+					if strings.Contains(e.Error(), "material inventory is full") {
+						refusalCode = 4
+					}
+					if e = sendPayload(1, frame.ID, protocol.Refusal(refusalCode)); e != nil {
 						return
 					}
 					continue
@@ -1290,7 +1309,7 @@ func main() {
 				worldState.selectingDungeon = true
 				continue
 			}
-			if worldState != nil && bootstrapped && (frame.ID == 16 || frame.ID == 37 || frame.ID == 39 || (frame.ID == 40 && odysseyRewardsEnabled()) || frame.ID == 42 || frame.ID == 43 || frame.ID == 45 || frame.ID == 46 || frame.ID == 69 || frame.ID == 70 || frame.ID == 71 || frame.ID == 72 || frame.ID == 117 || frame.ID == 132) {
+			if worldState != nil && bootstrapped && dungeonRequest(frame.ID) {
 				if !verified {
 					event(map[string]any{"kind": "dungeon_request_rejected", "id": frame.ID, "reason": "checksum failed"})
 					continue
@@ -1303,6 +1322,8 @@ func main() {
 					pending, plan, e = worldState.selectDungeon(plaintext)
 				case 37:
 					plan, e = worldState.finishDungeonLoading(plaintext)
+				case 38:
+					pending, plan, e = worldState.interactDoor(plaintext)
 				case 39:
 					plan, e = worldState.monsterDeath(plaintext)
 				case 40:
