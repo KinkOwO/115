@@ -43,6 +43,24 @@ func InventoryRestore(rows [][CurrentItemRecordSize]byte) ([]byte, error) {
 	}
 	return append([]byte{0, 0, 0}, p...), nil
 }
+
+// InventoryRestoreSpace snapshots a non-bag NOTI13 list. The 115 client
+// reader sub_1452D5A80 only consumes the extra u16 lock count for lists
+// 0/1 (and a u8+u16 pair for 38); every other list starts with the plain
+// u16 row count. List 35 is the account material storage: rows at fixed
+// slots 363..379 are re-harvested out of the bag manager when the list0
+// snapshot follows (sub_145ADC2A0).
+func InventoryRestoreSpace(space byte, rows [][CurrentItemRecordSize]byte) ([]byte, error) {
+	if space == 0 {
+		return InventoryRestore(rows)
+	}
+	p, e := itemRows(rows)
+	if e != nil {
+		return nil, e
+	}
+	return append([]byte{space}, p...), nil
+}
+
 func InventoryUpdate(rows [][CurrentItemRecordSize]byte) ([]byte, error) {
 	p, e := itemRows(rows)
 	if e != nil {

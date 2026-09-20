@@ -551,6 +551,9 @@ func main() {
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		e = characters.Store.MigrateVault(ctx)
+		if e == nil {
+			e = characters.Store.MigrateAccountMaterials(ctx)
+		}
 		cancel()
 		if e != nil {
 			log.Fatal(e)
@@ -1784,7 +1787,22 @@ func main() {
 					}
 				}
 				if lootService != nil {
-					plan.Inventory, e = lootService.Bootstrap(role)
+					// Sweep the seventeen account-shared materials out of the bag
+					// into the account storage before the snapshots are built, then
+					// deliver the list35 storage snapshot ahead of list0 so the
+					// client harvest (sub_145ADC2A0) adopts the fixed slots.
+					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					var materials inventory.AccountMaterials
+					role, materials, e = sweepAccountMaterials(ctx, characters.Store, role)
+					cancel()
+					if e != nil {
+						event(map[string]any{"kind": "entry_account_materials_error", "error": e.Error()})
+						continue
+					}
+					plan.AccountMaterials, e = accountMaterialSnapshot(materials)
+					if e == nil {
+						plan.Inventory, e = lootService.Bootstrap(role)
+					}
 					if e != nil {
 						event(map[string]any{"kind": "entry_inventory_error", "error": e.Error()})
 						continue

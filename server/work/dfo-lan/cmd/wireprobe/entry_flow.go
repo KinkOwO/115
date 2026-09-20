@@ -21,6 +21,11 @@ type preparedPacket struct {
 type entryPayloads struct {
 	Select, Basic, Addition, Skills, Vault, UserArea, Area, Fatigue, Complete []byte
 	Experience, CompletedQuests, Inventory                                    []byte
+	// AccountMaterials is the NOTI13 list35 account material storage
+	// snapshot. It must be delivered before the list0 inventory snapshot so
+	// the client harvest (sub_145ADC2A0) moves the fixed slots 363..379 into
+	// the soul-storage pipeline.
+	AccountMaterials                                                          []byte
 	AvailableQuests                                                           []byte
 	Worn                                                                      []byte
 	AccountOptions                                                            []byte
@@ -44,6 +49,7 @@ func (p entryPayloads) packets() []outboundPacket {
 		{"entry_addition_sent", 0, 2, p.Addition},
 		{"entry_skills_sent", 0, 19, p.Skills},
 		{"vault_initialized", 0, 13, p.Vault},
+		{"account_materials_restored", 0, 13, p.AccountMaterials},
 		{"inventory_restored", 0, 13, p.Inventory},
 		// Initialize list 1 empty. The client accepts authoritative avatar rows
 		// only after the town actor/UserInfo graph has been installed.
