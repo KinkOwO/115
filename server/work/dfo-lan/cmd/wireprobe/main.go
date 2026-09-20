@@ -1021,6 +1021,10 @@ func main() {
 				}
 				continue
 			}
+			if bootstrapped && frame.ID == 2377 {
+				event(map[string]any{"kind": "unified_option_accepted", "character_id": selectedCharacterID})
+				continue
+			}
 			if bootstrapped && (frame.ID == 3 || frame.ID == 7 || frame.ID == 1301) {
 				if !verified {
 					event(map[string]any{"kind": "menu_rejected", "id": frame.ID, "reason": "checksum failed"})
@@ -1248,7 +1252,7 @@ func main() {
 				worldState.selectingDungeon = true
 				continue
 			}
-			if worldState != nil && bootstrapped && (frame.ID == 16 || frame.ID == 37 || frame.ID == 39 || (frame.ID == 40 && odysseyRewardsEnabled()) || frame.ID == 42 || frame.ID == 43 || frame.ID == 45 || frame.ID == 46 || frame.ID == 69 || frame.ID == 70 || frame.ID == 71 || frame.ID == 72 || frame.ID == 117 || frame.ID == 132) {
+			if worldState != nil && bootstrapped && (frame.ID == 16 || frame.ID == 37 || frame.ID == 38 || frame.ID == 39 || (frame.ID == 40 && odysseyRewardsEnabled()) || frame.ID == 42 || frame.ID == 43 || frame.ID == 45 || frame.ID == 46 || frame.ID == 69 || frame.ID == 70 || frame.ID == 71 || frame.ID == 72 || frame.ID == 117 || frame.ID == 132) {
 				if !verified {
 					event(map[string]any{"kind": "dungeon_request_rejected", "id": frame.ID, "reason": "checksum failed"})
 					continue
@@ -1261,6 +1265,8 @@ func main() {
 					pending, plan, e = worldState.selectDungeon(plaintext)
 				case 37:
 					plan, e = worldState.finishDungeonLoading(plaintext)
+				case 38:
+					pending, plan, e = worldState.interactDoor(plaintext)
 				case 39:
 					plan, e = worldState.monsterDeath(plaintext)
 				case 40:

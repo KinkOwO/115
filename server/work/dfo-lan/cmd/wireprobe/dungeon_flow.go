@@ -444,6 +444,27 @@ func (w *worldSession) completeDungeon() ([]outboundPacket, error) {
 	plan = append(plan, outboundPacket{"boss_check_confirmed", 0, 115, body}, outboundPacket{"dungeon_clear_enabled", 0, 31, protocol.DungeonClearEnabled()})
 	return plan, nil
 }
+
+func (w *worldSession) interactDoor(p []byte) (*dungeon.Session, []outboundPacket, error) {
+	if w.activeDungeon == nil {
+		return nil, nil, fmt.Errorf("door interaction without active dungeon")
+	}
+	if w.activeDungeon.Room.Map == 100016294 {
+		// Sirocco cutscene room 100016294: synthesize a 160-byte transition to boss room (4,1)
+		req := make([]byte, 160)
+		req[0] = 4
+		req[1] = 1
+		binary.LittleEndian.PutUint32(req[151:155], w.activeDungeon.Definition.ID)
+		next, movePlan, err := w.moveDungeonRoom(req)
+		if err != nil {
+			return nil, nil, err
+		}
+		plan := append([]outboundPacket{{"door_ack", 1, 38, []byte{1}}}, movePlan...)
+		return next, plan, nil
+	}
+	return nil, []outboundPacket{{"door_ack", 1, 38, []byte{1}}}, nil
+}
+
 func (w *worldSession) moveDungeonRoom(p []byte) (*dungeon.Session, []outboundPacket, error) {
 	if w.activeDungeon == nil || w.dungeons == nil {
 		return nil, nil, fmt.Errorf("room transition without active run")
@@ -457,6 +478,9 @@ func (w *worldSession) moveDungeonRoom(p []byte) (*dungeon.Session, []outboundPa
 		next, e = w.activeDungeon.MoveScene(*w.dungeons, r)
 	} else if r.Record[0] == 1 {
 		next, e = w.activeDungeon.MoveScript(*w.dungeons, r)
+		if e != nil {
+			next, e = w.activeDungeon.Move(*w.dungeons, r.Position)
+		}
 	} else {
 		next, e = w.activeDungeon.Move(*w.dungeons, r.Position)
 	}

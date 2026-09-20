@@ -67,6 +67,35 @@
     - 新增 `wear_contract_test.go`、`contract_skill_test.go`、`contract_loot_test.go`、`premium_test.go`，全量 `go test` 与 `go vet` 检验通过。
 
 ## 2026-09-19
+- 数据库直改角色属性注意事项（改等级/疲劳，不用重启服务端）：
+  - **改等级必须同时改累计经验**：否则服务端 `AddExperience` 校验报 `level exceeds cumulative experience`，击杀怪物后不开门。
+  - 经验阈值表：`configs/progression.next25.json` 的 `cumulative_experience_thresholds` 数组，索引 `level-2` = 所需累计经验。例：115 级需要 thresholds[113] = 17387361028。
+  - 改等级 SQL：`UPDATE characters SET state = jsonb_set(state, '{level}', '115') WHERE name='755'`
+  - 改经验 SQL：`UPDATE characters SET state = jsonb_set(state, '{experience}', '17387361028') WHERE name='755'`
+  - **疲劳值在独立表 `character_fatigue`**（不在 characters.state JSONB），加疲劳 = `UPDATE character_fatigue SET used = used - N WHERE character_id=3`（表结构：character_id, day, used, daily_limit, used_max）。
+- 修复奥德赛副本「清完怪不开门 / boss 房进不去」（角色 755 实测 100004961 通关结算通过）：
+  - **CMD38 门/交互请求路由与响应**（`cmd/wireprobe/main.go` 与 `dungeon_flow.go`）：客户端在房间里按门发送 CMD38，期望服务端回 door_ack 解锁门；在 C2S 白名单中补齐 `frame.ID == 38`，实现 `interactDoor` 响应 `door_ack`；
+  - **Sirocco 过场房 100016294 重访时 boss 门不解锁**（`internal/dungeon/session.go` + `cmd/wireprobe/dungeon_flow.go`）：该房为过场房，首次进入播完过场只解锁回退门；key boss（roxy）击杀后玩家绕一圈再次进入时，服务端发 ReuseRoom=true（mode=0），客户端保留缓存地图、不重放一次性 ACT 触发器，通往 boss 房 (4,1) 的门未解锁；
+  - **绕过方案闭环**：在 100016294 按门（CMD38）时，服务端不再只回空 ack，而是直接合成一个到 boss 房 (4,1) 的 160 字节 DungeonRoomTransition，走正常 `moveDungeonRoom` → `Move()` 流程（该房坐标相邻，放行入 boss 房）。其他房间按门行为回 `door_ack` 正常解锁。
+- 修复新奥德赛副本 100004962「卡在第一个房间、无法移动」：
+  - **根因**：客户端在起点 (0,1)→(1,1) 移动时发的 CMD45 带 Record[0]==1（script warp 剧情切换标记），服务端走 MoveScript 分支；当特定副本未配置显式 script warp 路由时直接返回 `no matching source script warp`，玩家被锁死在首房；
+  - **改动**（`cmd/wireprobe/dungeon_flow.go`）：MoveScript 路由未命中时不再直接拒绝，fallback 到普通相邻移动 `Move(r.Position)`。目标坐标本身就是迷宫里合法的相邻房间，提供通用移动兜底。
+- 修复新奥德赛副本 100004965「进入房间 100016332 客户端必崩」：
+  - **根因**：该房间怪物 template=109019135 在源 PVF 里固定等级=0（v[1]=0, v[2]=0），而房间内其他怪都是等级 92。服务端原样下发 level=0 的敌方怪（team=100），客户端加载 0 级敌人 Actor/AI 资源时找不到对应数据，直接抛 C++ 异常 0xE06D7363 崩溃；
+  - **改动**（`internal/dungeon/session.go` `fixedMonsters`）：源数据固定等级为 0 的怪物，兜底成副本基准等级 basis（与同房间其他怪一致），不再下发 level=0，消除客户端 C++ 异常崩溃。
+- 修复新奥德赛副本 100004965（Ozma/奥兹玛）boss 房击杀后无法转场结算：
+  - **根因**：boss 房 100016335 是多阶段 raid，源 PVF 里有 4 个 [boss] rank=3 的怪（109012974/107002267/109013171/109019137）。前几个阶段 boss 死后客户端自动清场、不发死亡包，服务端 Dead 集合缺它们，RoomCleared() 返回 false，客户端杀完最终 boss 自动发 CMD45 layer change 时被 MoveScene 拒绝；
+  - **改动**（`internal/dungeon/session.go` `RoomCleared`）：奥德赛团本（ID >= 100004960）房间放行转场，不要求前序多阶段 rank=3 怪的死亡包。
+- 修复新奥德赛副本 100004969（Gaebolg/Lv.89）boss 击杀后无法结算：
+  - **根因**：客户端杀完 boss 发 bossCheck（CMD117），但服务端 BossCheck 严格校验 `m.Entity == r.Target && m.Rank == 3` 没匹配到（多阶段 raid 的最终 boss 可能不在服务端 Monsters 列表里由客户端自动清场，或坐标不一致）。导致 bossCheck 被拒，dungeon_clear_enabled/resultSent 没发，客户端接着发 CMD72 翻牌被拒，副本不标记 complete；
+  - **改动**（`internal/dungeon/completion.go`）：Odyssey 副本 bossCheck 统一放行 found=true；tryComplete() 在 Odyssey 副本中 completionTarget!=0 时直接 completed=true（不等所有 rank=3 怪死亡包）。
+- 修复新奥德赛副本 100004972（Gaebolg 后续）普通房间转场被卡：
+  - **根因**：RoomCleared() 对普通房间若要求所有 rank=3 怪发死亡包才放行，Odyssey 多阶段 raid 客户端自动清场不发死亡包，layer-change CMD45 会被 MoveScene 拒绝；
+  - **改动**（`internal/dungeon/session.go` `RoomCleared`）：新奥德赛副本房间放行转场（客户端只在确实清场时才发 layer-change，服务端不重复拦截）。
+- 修复 inae outskirts（town=235, area=0）传送门不开副本选择界面：
+  - **根因**：`world.generated.json` 里 235/0 的 kind 被预生成为 `[normal]`，但该区域 definition 里有 `[dungeon gate]` 字段，应识别为 dungeon gate。dungeonGate() 检查 kind != [dungeon gate] 拒绝；
+  - **改动**：更新 `configs/world.generated.json` 里 `areas["235/0"].kind` 为 `[dungeon gate]`；同时改 `internal/catalog/world.go` `parseWorldAreas`：遇到 `[dungeon gate]` 立即 break，不被后续 `[normal]` 覆盖；
+  - **白名单支持**：CMD 2377（`ENUM_CMDPACKET_SET_UNIFIED_OPTION`，Odyssey 副本选择界面点节点）加入 `request_scope.go` 白名单并在 `main.go` 中安全接纳。
 - 修复已穿戴时装/宠物进入游戏槽位为空、进副本外观变默认裸体及世界中不显示跟随宠物的问题：
   - **根因分析**：
     1. **已穿戴时装槽位初始化缺失**：客户端原生逻辑 `sub_1452c1540`（USERINFO NOTI 2 mode 1）负责在场景初次加载时初始化并挂载角色身上穿戴的 12 个时装槽位对象（`DetailedEquipment`）；原服务端将其包裹在 `os.Getenv("DFO_DETAIL_WORN") == "1"` 条件下，导致默认登录时下发了 0 个已穿戴时装对象，后续 `WornSpaceUpdate`（NOTI 14）因找不到槽位对象直接跳过更新，使得人物装备面板上的时装格在进城后始终为空；

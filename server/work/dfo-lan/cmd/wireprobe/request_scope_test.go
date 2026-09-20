@@ -11,7 +11,7 @@ func TestDungeonRequestsReachVerifiedHandlers(t *testing.T) {
 	for i := range keys {
 		keys[i] = byte(i%127 + 1)
 	}
-	for _, id := range []uint16{6, 15, 16, 28, 29, 37, 39, 42, 43, 45, 46, 69, 70, 71, 72, 117, 132, 191, 451, 637} {
+	for _, id := range []uint16{6, 15, 16, 28, 29, 37, 38, 39, 42, 43, 45, 46, 69, 70, 71, 72, 117, 132, 191, 451, 637, 2377} {
 		if !observedGameRequest(id) {
 			t.Fatalf("implemented command%d never decrypted", id)
 		}
