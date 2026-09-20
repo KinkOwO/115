@@ -1042,6 +1042,23 @@ func main() {
 				}
 				continue
 			}
+			// The exit button emits CMD1302 and CMD2285 in the same
+			// millisecond; 1302 is an upload with no receive handler, 2285
+			// is the content-briefing report whose own handler fills the
+			// exit window. Answering it is what gives the in-game exit
+			// button something to present; the client used to get silence.
+			if bootstrapped && frame.ID == 2285 {
+				if !verified {
+					event(map[string]any{"kind": "content_briefing_rejected", "reason": "checksum failed"})
+					continue
+				}
+				payload := protocol.ExitContentBriefingDefaults()
+				if err := sendPayload(1, 2285, payload); err != nil {
+					return
+				}
+				event(map[string]any{"kind": "content_briefing_response", "id": frame.ID, "character_id": selectedCharacterID, "bytes": len(payload), "plain_hex": hex.EncodeToString(payload)})
+				continue
+			}
 			if characters != nil && bootstrapped && (frame.ID == 28 || frame.ID == 29) {
 				if !verified {
 					continue
