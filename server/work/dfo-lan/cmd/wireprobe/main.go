@@ -30,6 +30,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -504,6 +505,7 @@ func main() {
 					wearCatalog := *equipment
 					wearCatalog.Full = full
 					wearService.Catalog = &wearCatalog
+					equipment.Full = full
 					log.Printf("separate wear catalog: %d records; original reward/drop catalog: %d", len(full.Records), len(equipment.Rows))
 				}
 			}
@@ -1146,7 +1148,11 @@ func main() {
 				plan, e := worldState.disjointItem(plaintext)
 				if e != nil {
 					event(map[string]any{"kind": "disjoint_refused", "id": frame.ID, "character_id": worldState.role.ID, "reason": e.Error()})
-					if e = sendPayload(1, frame.ID, protocol.Refusal(4)); e != nil {
+					refusalCode := uint16(19)
+					if strings.Contains(e.Error(), "material inventory is full") {
+						refusalCode = 4
+					}
+					if e = sendPayload(1, frame.ID, protocol.Refusal(refusalCode)); e != nil {
 						return
 					}
 					continue
