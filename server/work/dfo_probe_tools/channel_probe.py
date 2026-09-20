@@ -464,6 +464,26 @@ with (
      responses.write_text(json.dumps(mapping))
    except Exception:
     pass
+ # 角色目录必须带 growtype 分段数据（advancement_growth / advancement_skills）。
+ # next25 那代导出于 growtype 解析之前：用它时建号请求 option[8] 选定的转职槽位
+ # 无处落账，角色停在 advancement 0（全局按基础职业渲染、技能面板缺该分支起始技能），
+ # 而且全程没有报错 —— 2026-09-20 的"新角色不转职"就是这么来的。这里显式告警。
+ if "-character-catalog" in command:
+  _catalog = pathlib.Path(command[command.index("-character-catalog") + 1])
+  if not _catalog.is_file():
+   print("WARNING: 角色目录不存在：%s" % _catalog, file=sys.stderr)
+  else:
+   try:
+    _professions = json.loads(_catalog.read_text(encoding="utf-8-sig")).get("professions") or {}
+    if not any((p or {}).get("advancement_growth") for p in _professions.values()):
+     print(
+      "WARNING: 角色目录 %s 不含 growtype 分段数据（advancement_growth/advancement_skills）："
+      "建号选定的转职分支不会落账，角色会停在基础职业。"
+      "请改用带该数据的目录（例如 configs/characters.skycastle-release.json）。" % _catalog,
+      file=sys.stderr,
+     )
+   except Exception as exc:
+    print("WARNING: 无法解析角色目录 %s：%s" % (_catalog, exc), file=sys.stderr)
  # 允许用环境变量覆盖副本目录（本机用 dungeons.full.json：3200 副本/16042 地图，
  # 而默认的 dungeons.generated.json 只有 11 个）。
  if os.environ.get("DFO_DUNGEON_CATALOG") and "-dungeon-catalog" in command:

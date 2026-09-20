@@ -104,17 +104,7 @@ func (s *Service) Create(ctx context.Context, account int64, p []byte) (storage.
 	}
 	initial := State{Level: s.Rules.InitialLevel, Attributes: prof.InitialAttributes, InitialSkills: prof.InitialSkills, SourcePath: prof.Path, SourceSHA256: prof.RawSHA256, EquipmentPending: true}
 	initial.setCreationOptions(req.Options)
-	if s.Rules.AllJobsPilot && len(req.Options) == 12 && req.Options[8] != 0 {
-		adv := req.Options[8]
-		if len(prof.AdvancementGrowth[adv]) > 0 {
-			initial.Advancement, initial.AllJobsPilot = adv, true
-		}
-	}
-	if s.Rules.SwordmasterPilot && req.Profession == 0 && len(req.Options) == 12 && req.Options[8] == 1 && (req.Options[10] == 0 || req.Options[10] == 2) {
-		if len(prof.SwordmasterGrowth) > 0 {
-			initial.Advancement, initial.SwordmasterPilot = 1, true
-		}
-	}
+	s.applyCreationAdvancement(&initial, req, prof)
 	// 源 [create equipment list] 按转职槽给出初始装备。有数据就投影到穿戴栏；
 	// 没有数据或依赖缺失时保持原样，创建照样成功。
 	worn := s.creationWorn(prof, initial.Advancement, initial.Level)

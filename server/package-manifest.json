@@ -1,5 +1,5 @@
 {
-  "created_at": "2026-09-12T09:16:24.402586+00:00",
+  "created_at": "2026-09-20T15:50:50.775434+00:00",
   "purpose": "server source and portable Windows launcher developer handoff",
   "default_runtime": "archived39",
   "source_build": "restored-source-candidate-not-real-client-accepted",
@@ -8,14 +8,24 @@
   "private_credentials_included": false,
   "files": [
     {
+      "path": "AGENTS.md",
+      "bytes": 6372,
+      "sha256": "3f5626e427db3873be80029d862075dab64fe26ce942b4d2096216130f11635e"
+    },
+    {
+      "path": "Build-Manifest.ps1",
+      "bytes": 6943,
+      "sha256": "a49c31d0ca9e4a8d10b3a48c2de0104d971d09b87f2092fe0b6f1135f7d35972"
+    },
+    {
       "path": "Build-Server.ps1",
       "bytes": 539,
       "sha256": "71da6a30b69ba2eb2942675e3880c3f829a08961ad78de64a7f9f44e73c74ed4"
     },
     {
       "path": "client-requirements.json",
-      "bytes": 697,
-      "sha256": "d6a724868b2ffb840b816db4ce5e75f47b34eda37dcd6bb0a5c84d1411ce4526"
+      "bytes": 676,
+      "sha256": "02cc112cd3b8e12d8cbd8efd2946f5ade1d3c7bf3cfddbb9811b3f0ba003f737"
     },
     {
       "path": "launcher.example.json",
@@ -23,9 +33,9 @@
       "sha256": "f1874372ba072be02071e17a8f193ad0f83d4cf419397c411ec1cc527cbc6281"
     },
     {
-      "path": "README-先看这里.md",
-      "bytes": 5196,
-      "sha256": "370d216d795a0254f7afdd13492f870d2dde4646443af40b94cd100784e4841d"
+      "path": "README.md",
+      "bytes": 5263,
+      "sha256": "1a2bf231e04abb3789c5e35147c9a84c696c91dc3f4385fbc230a40de7525131"
     },
     {
       "path": "reference/analysis-tools/_eq.py",
@@ -139,8 +149,8 @@
     },
     {
       "path": "reference/analysis-tools/channel_probe.py",
-      "bytes": 12600,
-      "sha256": "7d69fc83344d42d64d8cd234a087b54c0b899990ec356c588c8624f1dc352e2a"
+      "bytes": 12441,
+      "sha256": "c633d4b5248fa4521a73ac02eca4675cff83ac24d2f14f38df4cdde38bc39051"
     },
     {
       "path": "reference/analysis-tools/character_delete_oracle.py",
@@ -189,8 +199,8 @@
     },
     {
       "path": "reference/analysis-tools/decode_literals.py",
-      "bytes": 2715,
-      "sha256": "48d2b29644f7438df9fb6bb437ce080bc0333bf2fc222f0864638a47b52c0711"
+      "bytes": 2714,
+      "sha256": "cb5c0f5d2bed60a21eb739b551f20be8e2741d946a0f22dcf99d0602dc81b815"
     },
     {
       "path": "reference/analysis-tools/decode_monster_stats36.py",
@@ -314,8 +324,8 @@
     },
     {
       "path": "reference/analysis-tools/find_guide_constant28.py",
-      "bytes": 1114,
-      "sha256": "1adfaaab917017ce8b2fc303e957a573d3d23f6bc7cdf2e8a066c98d53e73e35"
+      "bytes": 1113,
+      "sha256": "c3f3c85301fca7aae9aa00a5609831407ca08d7c9d7d805b9164e48ce245b538"
     },
     {
       "path": "reference/analysis-tools/find_registration.py",
@@ -338,14 +348,14 @@
       "sha256": "f570e83f7926ea58a5f75314c3a0a8a20bad43a14fe1022079046b2b0ae59720"
     },
     {
+      "path": "reference/analysis-tools/find_skill_group_all28.py",
+      "bytes": 807,
+      "sha256": "11a30e18a2f813ef7af970dac64c1b598e6e96986f9faecfb076044552b105e5"
+    },
+    {
       "path": "reference/analysis-tools/find_skill_group28.py",
       "bytes": 805,
       "sha256": "445196f093c1d4eebf9822935c343273b0f67dd5e9d8033eac59aa738bed03a0"
-    },
-    {
-      "path": "reference/analysis-tools/find_skill_group_all28.py",
-      "bytes": 808,
-      "sha256": "2cff2a67f04a3c3108263f8cd8026a577c35c5fa5c9d114b144b1554662cbbe8"
     },
     {
       "path": "reference/analysis-tools/find_spawn_consumer.py",
@@ -354,8 +364,8 @@
     },
     {
       "path": "reference/analysis-tools/find_story_request29.py",
-      "bytes": 1113,
-      "sha256": "3137285b4fb0f71b8815e3955bbae5dcbb1fb4f503e708af5edac898f63d73c4"
+      "bytes": 1112,
+      "sha256": "d1e044c1fa8ef670e148c8ddb065ebeddee7ef102980e6a91e8db43e4cf731ae"
     },
     {
       "path": "reference/analysis-tools/find_world_fields.py",
@@ -374,13 +384,13 @@
     },
     {
       "path": "reference/analysis-tools/inspect_channel_candidates34.py",
-      "bytes": 2602,
-      "sha256": "47974172a2a9269995743b7b5d858657424be48d79cd5f1cc671d56665d977f0"
+      "bytes": 2564,
+      "sha256": "8db3450c4e07f8126bb6b7643fb73a41cdf71fcb34ea43c735f1e57db7045b34"
     },
     {
       "path": "reference/analysis-tools/inspect_channel_table31.py",
-      "bytes": 2409,
-      "sha256": "175da3aebf5ca20c9e95aaa41f4df6df38c6c0b4801c9b805f84a2fd8d09d901"
+      "bytes": 2367,
+      "sha256": "21e99b03dc59f5c0c6d40347a22b5df75ed5ad413ff378f399fc0ee6fdc1b7c9"
     },
     {
       "path": "reference/analysis-tools/inspect_ciphers.py",
@@ -583,14 +593,14 @@
       "sha256": "fa137dbae0c6f3d3ab88258f64cd6209cedaf87ea2e546de16f428f974d0996e"
     },
     {
-      "path": "reference/analysis-tools/quest_kinds37.py",
-      "bytes": 1883,
-      "sha256": "a916e58c74e9c80de36fc01fafaa77ab00a73755e7be38c253e3f3ee4f322103"
-    },
-    {
       "path": "reference/analysis-tools/quest_kinds_lastcell37.py",
       "bytes": 1789,
       "sha256": "5b8e8f09ed3b62267d8f5aa3d2b35761fcd06ef7fdc0b44e8b221b7456479cf5"
+    },
+    {
+      "path": "reference/analysis-tools/quest_kinds37.py",
+      "bytes": 1883,
+      "sha256": "a916e58c74e9c80de36fc01fafaa77ab00a73755e7be38c253e3f3ee4f322103"
     },
     {
       "path": "reference/analysis-tools/quest_one37.py",
@@ -659,8 +669,8 @@
     },
     {
       "path": "reference/analysis-tools/scan_literals.py",
-      "bytes": 1682,
-      "sha256": "7e57c964fd3cf8a5cfa64019b131242e7d22d4b49b6ffa0724b05e7d0198bede"
+      "bytes": 1681,
+      "sha256": "9e0176a218de6dfec46c0a6fae786945d8f646c2c0a66579d7001bdc1d5654ca"
     },
     {
       "path": "reference/analysis-tools/select_read_helpers.py",
@@ -789,8 +799,8 @@
     },
     {
       "path": "reference/client-patch/wrapper-manifest.json",
-      "bytes": 481,
-      "sha256": "ff4614aee92d3ea9f14c7a3b7f2f1befa9e4b212de762535db1f90a86a330323"
+      "bytes": 473,
+      "sha256": "d14831343f668a1e2741079f5c2a87bf34c2c7e8ad06fe88fc8afc2c15fb393d"
     },
     {
       "path": "reference/client-patch/说明.md",
@@ -804,53 +814,88 @@
     },
     {
       "path": "reference/original-launcher/channel_probe.py",
-      "bytes": 12600,
-      "sha256": "7d69fc83344d42d64d8cd234a087b54c0b899990ec356c588c8624f1dc352e2a"
+      "bytes": 12441,
+      "sha256": "c633d4b5248fa4521a73ac02eca4675cff83ac24d2f14f38df4cdde38bc39051"
     },
     {
       "path": "reference/original-launcher/launch_local.py",
-      "bytes": 5766,
-      "sha256": "a6eb320feffba7a9610cafa9181bbb67cf2a3e599d313bf3259d033d85569806"
+      "bytes": 5671,
+      "sha256": "c756f139a6e272f5f3540edf5c9ddc260474181955293f924fe0592d8d0bed38"
     },
     {
       "path": "reference/original-launcher/Start-DFO.cmd",
-      "bytes": 325,
-      "sha256": "90ee4888fbe41eb7885cc50819ae0c9e9f0603e25b50f153e55d5bca4d0107a4"
+      "bytes": 314,
+      "sha256": "6608ba8d8d81d5305c199eab0cbd0d0fc190a21152fb1fd57fd76989233805e7"
     },
     {
       "path": "reference/source-restoration.patch",
-      "bytes": 2469,
-      "sha256": "da632c1ec4a0e314734fd4741e9e95c310c0960893e36ceeb2e320e3963cf1fc"
+      "bytes": 2403,
+      "sha256": "3119ff155c7b80031712172af02304fc09061bf40f66766ea19652fe9d549cdd"
     },
     {
       "path": "Start-DFO.cmd",
-      "bytes": 418,
-      "sha256": "b29f28454a9efee3696bbbdf05eb3470341d5bc9a13e1ca9bfbef3e3d9243aad"
+      "bytes": 399,
+      "sha256": "9813ab4ab055b627e7e1b5f6d5e95edd6b38b9d10c95e95b9949c6d318e8ff01"
     },
     {
       "path": "verification/launch-command.json",
-      "bytes": 3058,
-      "sha256": "ae7f65604fc6aee919528cae946ffa3fa11144df562a8782206253545a83edb0"
+      "bytes": 2991,
+      "sha256": "5927256b802639080c715c10ab0ef55cf4c52fcf94091a0b2669b8d813cc3a2a"
     },
     {
       "path": "verification/packaging-check.json",
-      "bytes": 335,
-      "sha256": "ff5f9bb7a792b70f2a8e17d0382c6d3eee4fbb36d36c363cb86f2a3a526a0ed2"
+      "bytes": 326,
+      "sha256": "5c307c04ca4179893022c9d64a7d4a53fe92ea64bf1d381224bae6c4abe9c13e"
     },
     {
       "path": "verification/wireprobe-dungeon39.exe.help.txt",
-      "bytes": 3234,
-      "sha256": "686940982dba5de8a568334d2cf1a387d1deb0523108db35a2c77338155ffb4b"
+      "bytes": 3169,
+      "sha256": "d5fca627398a3461a65821624a5564a3b37c3aff67513505d89855de5ce43b0d"
     },
     {
       "path": "verification/wireprobe-handoff-source.exe.help.txt",
-      "bytes": 3239,
-      "sha256": "0e7614d1c9d3e6cbed9b773dedcd53f52fee3d5cee3f67051bf982dc3147a9dd"
+      "bytes": 3174,
+      "sha256": "64a67f137b6de3c68cebee38b6ef4da48471c3aaa0e20e90ca13db2d8de29b03"
     },
     {
       "path": "verification/本次打包验证.md",
       "bytes": 1160,
       "sha256": "b37d87a486ca5f32a0e4ff958399662244c60260e75f0aa96ff30040f520d8b9"
+    },
+    {
+      "path": "work/build_required.py",
+      "bytes": 4527,
+      "sha256": "1239a27d2d570ddb2b3279235a9c18ac3335f39ef05239fe6b1fecf9b063b5ad"
+    },
+    {
+      "path": "work/dfo_probe_tools/Build-Probe.cmd",
+      "bytes": 255,
+      "sha256": "97f8ac1d89f467cea613b3d1c0e90f32d088b99421909e3758725082895fc24a"
+    },
+    {
+      "path": "work/dfo_probe_tools/channel_probe.py",
+      "bytes": 27019,
+      "sha256": "0b8bbebd9f16d97c82985b9096b01855722230d51224e9b3f04e8c0e05c932fe"
+    },
+    {
+      "path": "work/dfo_probe_tools/probe.cpp",
+      "bytes": 22334,
+      "sha256": "c5d5c343131db91448dd9917294f42458d83834647f5b8e4ba13e9f5039df87f"
+    },
+    {
+      "path": "work/dfo_probe_tools/probe.exe",
+      "bytes": 645632,
+      "sha256": "8ab6f52c87bb42f6f6408b389b789a704375900eac4ddefaf152795206d3f655"
+    },
+    {
+      "path": "work/dfo_probe_tools/watch_monster_stats30.py",
+      "bytes": 4362,
+      "sha256": "fd3dd1bf25ae780960269c277262e6fa0801a7599c903d7286c90dc693cb4b11"
+    },
+    {
+      "path": "work/dfo_probe_tools/watch_monster_stats36.py",
+      "bytes": 5335,
+      "sha256": "c56fd75343773d9a2a3edf2726a8e6f3c288e37441e27e946e3e2f64de188208"
     },
     {
       "path": "work/dfo-lan/.gitignore",
@@ -869,8 +914,23 @@
     },
     {
       "path": "work/dfo-lan/bin/wireprobe-handoff-source.exe",
-      "bytes": 16649728,
-      "sha256": "9d3ae1319516572044b735f65bf548a4abc97d186f64369c522438b0cce28cbd"
+      "bytes": 17792512,
+      "sha256": "080635993fb71b36481d73826baa6718346b3bb3a0aebdbd404c534f152febd9"
+    },
+    {
+      "path": "work/dfo-lan/bin/wireprobe-probe1.exe",
+      "bytes": 17480704,
+      "sha256": "da21e3f298fe0a6bd03fddcef86922d158a1e40f95fa974249f1afa96c4bcc0f"
+    },
+    {
+      "path": "work/dfo-lan/bin/wireprobe-probe2.exe",
+      "bytes": 17480192,
+      "sha256": "d49b82191f53146227f97d990d169518c7c729af802e297f182e63585f085145"
+    },
+    {
+      "path": "work/dfo-lan/bin/wireprobe-repairs.exe",
+      "bytes": 17480192,
+      "sha256": "c1c06b09cdf976628f2f830fb9dca195183546f5ba2b3ade9a35c518c39efa11"
     },
     {
       "path": "work/dfo-lan/cmd/admin/main.go",
@@ -911,6 +971,16 @@
       "path": "work/dfo-lan/cmd/audit36/verify.go",
       "bytes": 2777,
       "sha256": "645b183027e8324a31afb372aa161c2fb5fb7230c91722b0bae19ee73e8eebfa"
+    },
+    {
+      "path": "work/dfo-lan/cmd/avatarrestorecheck/main.go",
+      "bytes": 3138,
+      "sha256": "7788544004fc32d2aa449d72d12eba582178aa2071d7402a6e223f0c732b0f42"
+    },
+    {
+      "path": "work/dfo-lan/cmd/boosterexport/main.go",
+      "bytes": 4391,
+      "sha256": "0b3f30d9e9af25cdc5b3fa614190148316021cc7ca340785cf030aef5044858d"
     },
     {
       "path": "work/dfo-lan/cmd/catalogimport/main.go",
@@ -998,9 +1068,29 @@
       "sha256": "20ad8c7746fd4861049c54acc7e49a57320c398d8de9ddc670c5a66f27462f65"
     },
     {
+      "path": "work/dfo-lan/cmd/dungeonaudit/main.go",
+      "bytes": 2984,
+      "sha256": "22bb27f909da04acdb6b29b81a9f6b2607ba1c751d0912b9d69d853268651fde"
+    },
+    {
+      "path": "work/dfo-lan/cmd/dungeonfull/main.go",
+      "bytes": 8126,
+      "sha256": "e7ae8dfcaa32e46cfd0c0aa7df20cf9024e246d6198e84fe0a6bc808ad497529"
+    },
+    {
       "path": "work/dfo-lan/cmd/dungeonimport/main.go",
       "bytes": 987,
       "sha256": "be6805ab0bee85d5ceefb2503d76ef1266c9abeab47aa5957781f67415ae3d78"
+    },
+    {
+      "path": "work/dfo-lan/cmd/dungeonmaps/main.go",
+      "bytes": 3630,
+      "sha256": "68cda599bbe0d96b1d3a5679c7891834e1bc5ca1a5da112515f46411186c009c"
+    },
+    {
+      "path": "work/dfo-lan/cmd/dungeonscenesaudit/main.go",
+      "bytes": 3338,
+      "sha256": "d4a3cb67c8609024ed703f140168a2ceca83ed24b6f7872adfe031fda16bcc33"
     },
     {
       "path": "work/dfo-lan/cmd/equipfields/main.go",
@@ -1013,14 +1103,79 @@
       "sha256": "19c3cffa646a941760925a5fc72db7a5746a627156677b9b6f0f9601da8c6c0b"
     },
     {
+      "path": "work/dfo-lan/cmd/equipmentfull/main.go",
+      "bytes": 4909,
+      "sha256": "fdf9b10a5184fdd7c756190d88c8b6aa975d01cfb4f86d9a5db00486c89e9226"
+    },
+    {
+      "path": "work/dfo-lan/cmd/equipmentfullimport/main.go",
+      "bytes": 2519,
+      "sha256": "7611c851cf1a83cf5da4f707cde3a9f05daa1fe3dd3fb000ab43c7032c5d68e2"
+    },
+    {
       "path": "work/dfo-lan/cmd/equipmentwearimport/main.go",
       "bytes": 1713,
       "sha256": "71973e059fe792faa075ace1a4b716f80d3f4642f25c763f19c047f210d4dc68"
     },
     {
+      "path": "work/dfo-lan/cmd/gmtool/index.go",
+      "bytes": 38337,
+      "sha256": "f32d4ae523b3c314355529a12e4f5097d19473e758a7202bfdec0a46aa8ebbc2"
+    },
+    {
+      "path": "work/dfo-lan/cmd/gmtool/index_test.go",
+      "bytes": 29090,
+      "sha256": "82edc06b7f9174263480b2c906341d039def3424511fedec77f49bfa68b48017"
+    },
+    {
+      "path": "work/dfo-lan/cmd/gmtool/main.go",
+      "bytes": 28918,
+      "sha256": "0b71372e7c16e72517ac2e6197c0bccf39e1f8dc6af11628cd15c56e5ae372a7"
+    },
+    {
+      "path": "work/dfo-lan/cmd/gmtool/names.go",
+      "bytes": 10959,
+      "sha256": "344a9fc8f64014a027584526065759ff725d1638efbe69b01157bf47b9b40f60"
+    },
+    {
+      "path": "work/dfo-lan/cmd/gmtool/storage.go",
+      "bytes": 4119,
+      "sha256": "73183f6c0c7a12e9368aa72f1c39975993fdeeb0d702972771922c7b470d7512"
+    },
+    {
+      "path": "work/dfo-lan/cmd/gmtool/ui.go",
+      "bytes": 23187,
+      "sha256": "e5ea21001c34b2f24599166244441a6646a819eb50abd51b822c97a19b5dc696"
+    },
+    {
+      "path": "work/dfo-lan/cmd/initialrepair/main.go",
+      "bytes": 5412,
+      "sha256": "57b4c18e7ecfcb18bb4f730e01ff191a271305b8e5c57e89f572afdd339fca42"
+    },
+    {
+      "path": "work/dfo-lan/cmd/loginchannel/main.go",
+      "bytes": 1594,
+      "sha256": "3148fe2d16f5104c0e9dcd1414685b876f0df954f4620e15333333f1531e3f68"
+    },
+    {
+      "path": "work/dfo-lan/cmd/loginchannel/main_test.go",
+      "bytes": 1049,
+      "sha256": "b67a5faa237d1cb9788fbf7500125340e9761d7528620fd1e61a62404022a86b"
+    },
+    {
       "path": "work/dfo-lan/cmd/lootimport/main.go",
       "bytes": 1053,
       "sha256": "5640a23ce4b1c219a8a1324e65870dbe5c1af8620d90f41f891fe349dc9a3292"
+    },
+    {
+      "path": "work/dfo-lan/cmd/odysseyaudit/main.go",
+      "bytes": 2168,
+      "sha256": "11e1d795e3f4b248ca8fed98448a9e3930659341e98d946c04d740d21483b1d0"
+    },
+    {
+      "path": "work/dfo-lan/cmd/odysseygrowthaudit/main.go",
+      "bytes": 3802,
+      "sha256": "e54bed6d6a854741cafb0db7f9045d4a8b57a88b51a7a6ba71490f3d03292801"
     },
     {
       "path": "work/dfo-lan/cmd/progressionimport/main.go",
@@ -1078,9 +1233,19 @@
       "sha256": "c305347d7f4407ca1b0c642e9efc9b45e640445ae7a4f00a3f15c2cc1410f35b"
     },
     {
+      "path": "work/dfo-lan/cmd/shopimport/main.go",
+      "bytes": 1615,
+      "sha256": "05405e16a546562192bed7b423e682a1889fbd311ac3fb16743b2bdfbffe7433"
+    },
+    {
+      "path": "work/dfo-lan/cmd/shopimport/main_test.go",
+      "bytes": 637,
+      "sha256": "8738120e81c90a7a3afa0205bba5006ead832ca41b67d425711caf29e9e9d455"
+    },
+    {
       "path": "work/dfo-lan/cmd/skillaudit/main.go",
-      "bytes": 2456,
-      "sha256": "a1284c6a6c7f1f1595339c1e8c38a3832022f2ca7e2751c405195894f3526493"
+      "bytes": 3584,
+      "sha256": "372520cbdd255638ccb96f900615c5ab5d46a4d7211191a4237631eb61c5a206"
     },
     {
       "path": "work/dfo-lan/cmd/storagecheck/main.go",
@@ -1098,6 +1263,56 @@
       "sha256": "7cf86f473a504b0f8859c6fa7011da99b72f3426b7811e91a52108112536079c"
     },
     {
+      "path": "work/dfo-lan/cmd/wireprobe/account_materials_flow.go",
+      "bytes": 3688,
+      "sha256": "cdc4daca366596214dd49b4b8549d917d628304f0226d0f8f495bf22dcc994e7"
+    },
+    {
+      "path": "work/dfo-lan/cmd/wireprobe/appearance_inventory.go",
+      "bytes": 1581,
+      "sha256": "1a54bad1a42dfcf871d51dd20952c147d5350b0faac4d97572878e8a12d11048"
+    },
+    {
+      "path": "work/dfo-lan/cmd/wireprobe/appearance_inventory_test.go",
+      "bytes": 739,
+      "sha256": "b6a0f77aa74dd369b949f65557e750d53903e70618a222c38cff2a88f4e00e8c"
+    },
+    {
+      "path": "work/dfo-lan/cmd/wireprobe/automatic_skills.go",
+      "bytes": 405,
+      "sha256": "d27fb717d71e0e5d13189c74e74e43b28e537c5c59677af024433a63ff78ffa7"
+    },
+    {
+      "path": "work/dfo-lan/cmd/wireprobe/automatic_skills_test.go",
+      "bytes": 1066,
+      "sha256": "f4255ab51b1f7f5b34eed1053c275bca3b6cd279605fcc52f72f58169bc5750d"
+    },
+    {
+      "path": "work/dfo-lan/cmd/wireprobe/avatar_move_test.go",
+      "bytes": 1472,
+      "sha256": "8b964d45a9b2253e5eeee132fc14ec98d8f16839bc00c88c7f419bef2dbb6411"
+    },
+    {
+      "path": "work/dfo-lan/cmd/wireprobe/avatar_option_flow.go",
+      "bytes": 1298,
+      "sha256": "b7a2f45c20d5c178ff49a27ae462271bd1573ea499213f708207a14d96ee4c05"
+    },
+    {
+      "path": "work/dfo-lan/cmd/wireprobe/awakening_flow.go",
+      "bytes": 1854,
+      "sha256": "2acb9efcade996cefa87e1f69b4dcf35cb6fc4c86c707582872407e8edb89c4d"
+    },
+    {
+      "path": "work/dfo-lan/cmd/wireprobe/booster_flow.go",
+      "bytes": 13582,
+      "sha256": "09a8a2453c89b8f2e72f04f5bcfeebf725e0e198228999fe99793dc68a7a3d4a"
+    },
+    {
+      "path": "work/dfo-lan/cmd/wireprobe/booster_flow_test.go",
+      "bytes": 11559,
+      "sha256": "430fb3bdb82e2f8781a2f365451c69c016aed802f26c0d390cf77fedb96e08bf"
+    },
+    {
       "path": "work/dfo-lan/cmd/wireprobe/boss_flow_test.go",
       "bytes": 1465,
       "sha256": "5d4091c5bef5b56688b83d1e090f26c04c4648b7665b165478031c1bcf07b052"
@@ -1113,14 +1328,44 @@
       "sha256": "21bf7435caddb9dbf982baf10b16d97b72d309603ca6f071da7eb0065947a9f4"
     },
     {
+      "path": "work/dfo-lan/cmd/wireprobe/cera_flow.go",
+      "bytes": 454,
+      "sha256": "29529fec97ae3ab1961d1f585e44f67f2508ad9654d6b220a149fe12efbd4fd0"
+    },
+    {
+      "path": "work/dfo-lan/cmd/wireprobe/cera_flow_test.go",
+      "bytes": 1429,
+      "sha256": "6fc607dc99c737d208a420b59ef1df8a6e35092906b001f08d30755fb0f09635"
+    },
+    {
+      "path": "work/dfo-lan/cmd/wireprobe/cinematic_flow.go",
+      "bytes": 1678,
+      "sha256": "e5e4068ec638fb23cf323599e3a7df5a262696ee43d73588107f6d72f6c766d8"
+    },
+    {
       "path": "work/dfo-lan/cmd/wireprobe/consume_flow.go",
       "bytes": 1279,
       "sha256": "0dfb2741c47d5b8dfda8d43d6949d6dc466401842c6dbd2cb8e48168b2a38c8d"
     },
     {
+      "path": "work/dfo-lan/cmd/wireprobe/creature_hatch_flow.go",
+      "bytes": 2683,
+      "sha256": "97b386cf78e8a4b334185ccc748386c1cdd6d31adbe50d7c0ea98bfb69cf07f9"
+    },
+    {
+      "path": "work/dfo-lan/cmd/wireprobe/creature_hatch_test.go",
+      "bytes": 2984,
+      "sha256": "a6288a4036fc45f30e43dfac6f3645abc1c373a7b89ace8a77031247a0bb4136"
+    },
+    {
+      "path": "work/dfo-lan/cmd/wireprobe/disjoint_flow.go",
+      "bytes": 1923,
+      "sha256": "7dcface57c307073022f7ba69caf8a0a3a00b41d73beff14f268a49c033d903a"
+    },
+    {
       "path": "work/dfo-lan/cmd/wireprobe/dungeon_flow.go",
-      "bytes": 11431,
-      "sha256": "195188e5b8d8ef5dc6149cc27e6e691accae83653169ce5781ae5219c4f8743d"
+      "bytes": 17561,
+      "sha256": "cfd627bce5c46bb04875d4de9204cf7cd277dfa01f5bac85cfb1bd7eef1c14e9"
     },
     {
       "path": "work/dfo-lan/cmd/wireprobe/dungeon_flow_test.go",
@@ -1128,34 +1373,94 @@
       "sha256": "e1110f0378b2973ac102db4030d0b7b799e6aad1b7990fc90b88d7548a545b8c"
     },
     {
+      "path": "work/dfo-lan/cmd/wireprobe/dungeon_revive.go",
+      "bytes": 3712,
+      "sha256": "6311831dcb4536ff5b0de0567125c007ebf41198fc58daa805f049f130aa2d13"
+    },
+    {
+      "path": "work/dfo-lan/cmd/wireprobe/dungeon_revive_test.go",
+      "bytes": 4390,
+      "sha256": "d179d53bd8730924288dea66b4c31a4b928df98e71843c7e2ca7b9940dbd5906"
+    },
+    {
       "path": "work/dfo-lan/cmd/wireprobe/entry_flow.go",
-      "bytes": 3070,
-      "sha256": "6cc1b676a12890db5078852c97b9a3bdb546672df183e4cd189f00ac90bcf7db"
+      "bytes": 5369,
+      "sha256": "dda7ee9035c837ae156514721907b8f1007c5a60ca4dd8888132c6d5c89905d9"
     },
     {
       "path": "work/dfo-lan/cmd/wireprobe/entry_flow_test.go",
-      "bytes": 3689,
-      "sha256": "d4901a52b82f23bbf49f6588c7b5ee4153040ea738ea4cfadb414ff42933af49"
+      "bytes": 5117,
+      "sha256": "02da227fdf2c7916b6a448e0e6498961553d30f12e08512b305cc9cd8497b894"
     },
     {
       "path": "work/dfo-lan/cmd/wireprobe/equipment_flow.go",
-      "bytes": 2157,
-      "sha256": "1a6274730c9b7a1b6e272250af69fb6beefaff35990e8bd983f22c75c5fd5857"
+      "bytes": 3174,
+      "sha256": "5641c92726bb4d3e983c4c528799cf2f8e8fd86f16b5c9285a0aa3b2b6e56a84"
+    },
+    {
+      "path": "work/dfo-lan/cmd/wireprobe/fatigue_items_test.go",
+      "bytes": 4649,
+      "sha256": "fd3bc6b85e19e154871b9bd8067fbc579e5482b41d2e221e43a1a04584633462"
+    },
+    {
+      "path": "work/dfo-lan/cmd/wireprobe/fatigue_online.go",
+      "bytes": 1185,
+      "sha256": "f207e5e2f59694585af4f43eb57e2ebd17c48a7154e53080f1c11e9a2d61aada"
+    },
+    {
+      "path": "work/dfo-lan/cmd/wireprobe/fatigue_online_test.go",
+      "bytes": 944,
+      "sha256": "a2960dfe405bd34872ded59f4c879df1eb302b9573df2a8aea79d8601ad68542"
+    },
+    {
+      "path": "work/dfo-lan/cmd/wireprobe/fatigue_recovery_flow.go",
+      "bytes": 1409,
+      "sha256": "666ead1ad58704d5725ac360f9689789cc20fb276c4a8fb37b13d07264cb2666"
+    },
+    {
+      "path": "work/dfo-lan/cmd/wireprobe/fatigue_run_test.go",
+      "bytes": 5292,
+      "sha256": "2ebbef3960cb5568db939aee64230047c1d576d1f0e391146c2362f724f1f468"
+    },
+    {
+      "path": "work/dfo-lan/cmd/wireprobe/lan_address.go",
+      "bytes": 1740,
+      "sha256": "c45499690cba1899d31913439ece2adfa887081de830e528a44a8a92b5ae04d9"
+    },
+    {
+      "path": "work/dfo-lan/cmd/wireprobe/lan_address_test.go",
+      "bytes": 1961,
+      "sha256": "45d9e3013a57d5f77a98be138f7124de2ff9cfd5a40f7057b9a7710fa1bf0509"
+    },
+    {
+      "path": "work/dfo-lan/cmd/wireprobe/lan_hub.go",
+      "bytes": 9657,
+      "sha256": "b17437e70d90ae141a13fe365144021f85a9590caa3493a61ac6e376cd88c26d"
+    },
+    {
+      "path": "work/dfo-lan/cmd/wireprobe/lan_hub_test.go",
+      "bytes": 13762,
+      "sha256": "a061f850729bdc07102822f5657802e5d720007a1a02413623d26f2af1b63424"
     },
     {
       "path": "work/dfo-lan/cmd/wireprobe/loot_flow.go",
-      "bytes": 1572,
-      "sha256": "8489b7a5301d431d4abfd9a4cf515d666a6bfec9aafb132c78e40726ee802a28"
+      "bytes": 2370,
+      "sha256": "d1983522fb87f04e807aff441b2dab9d60644d0b72a93b588b03f0874bb2251f"
     },
     {
       "path": "work/dfo-lan/cmd/wireprobe/main.go",
-      "bytes": 51840,
-      "sha256": "34d70c4e99007c5b0cd49f14c4b2e1b3fffb3da89a810d51bbae09bb514cc055"
+      "bytes": 82808,
+      "sha256": "51b4f7f8c7dd4c43a9619ad3333a4d3fc177b0e978d9891c4885a8453ede5dc4"
+    },
+    {
+      "path": "work/dfo-lan/cmd/wireprobe/material_delete_flow.go",
+      "bytes": 2698,
+      "sha256": "7ebbef22678a6573c5b8534fd2ec82d2b7fc8a2520836576d7118d2f9cba46b5"
     },
     {
       "path": "work/dfo-lan/cmd/wireprobe/menu_flow.go",
-      "bytes": 1024,
-      "sha256": "392d37a990616b6b96ae5f6df084330c106d30389d654854bc18f17a7135e84a"
+      "bytes": 1055,
+      "sha256": "fea9edc485a9e02356d5241247c1b5035c21063d533f1764e79a7437763516f8"
     },
     {
       "path": "work/dfo-lan/cmd/wireprobe/menu_flow_test.go",
@@ -1163,19 +1468,79 @@
       "sha256": "1df759808e2d7a5264d6fb56f010c9d646c1fa7d5dfc16e8c0a035d8af2fe551"
     },
     {
+      "path": "work/dfo-lan/cmd/wireprobe/odyssey_feature.go",
+      "bytes": 354,
+      "sha256": "9a6487ce48ab74420e6f517226f12c2bb42f1c7cd1345f548ba8898a7d5df66e"
+    },
+    {
+      "path": "work/dfo-lan/cmd/wireprobe/odyssey_feature_test.go",
+      "bytes": 818,
+      "sha256": "11dfd5ce826bfd19be6cbb1d3eba4eccfb386334d30926670b25132a20c3978a"
+    },
+    {
+      "path": "work/dfo-lan/cmd/wireprobe/odyssey_gate_test.go",
+      "bytes": 836,
+      "sha256": "b42f058102f9ced184b8b7b0b93ae53724d3e5c5f3bc4dce1fb074baa49bb250"
+    },
+    {
+      "path": "work/dfo-lan/cmd/wireprobe/odyssey_revive.go",
+      "bytes": 4218,
+      "sha256": "3a8d2752b076d112002bc3fdcfe40fd84c44fb30cc670603d02e2251a29e57f6"
+    },
+    {
+      "path": "work/dfo-lan/cmd/wireprobe/odyssey_revive_test.go",
+      "bytes": 1692,
+      "sha256": "ef07b88da05cffa22101175657bd087081c5b0af9c440457856e371f24fa7a4f"
+    },
+    {
+      "path": "work/dfo-lan/cmd/wireprobe/odyssey_rewards.go",
+      "bytes": 3681,
+      "sha256": "76ced8c58ff80c1deb281e9d5c44ec5f4378eec071734fc441661b4ae0fb6ef1"
+    },
+    {
+      "path": "work/dfo-lan/cmd/wireprobe/odyssey_rewards_test.go",
+      "bytes": 9726,
+      "sha256": "3a88760f6638ff2482e7a520d852ab0a14bd35fd60744914210ed15a20c054a8"
+    },
+    {
+      "path": "work/dfo-lan/cmd/wireprobe/odyssey_teleport.go",
+      "bytes": 832,
+      "sha256": "6b117cfe7531de736e88104765c24aeb8932f4e7c6d3b41f0f9d881fe7b80e20"
+    },
+    {
+      "path": "work/dfo-lan/cmd/wireprobe/odyssey_teleport_test.go",
+      "bytes": 1905,
+      "sha256": "a30500a026ef6d72ee22072dcfd7670b9d0b983e8257003c04b9c09198a3ecaa"
+    },
+    {
+      "path": "work/dfo-lan/cmd/wireprobe/odyssey_weapon_box.go",
+      "bytes": 4162,
+      "sha256": "d4a449fd39f98182529b32ce79dd1388358f65c0fa710fb0cf295323ae38d139"
+    },
+    {
+      "path": "work/dfo-lan/cmd/wireprobe/odyssey_weapon_box_test.go",
+      "bytes": 1931,
+      "sha256": "3bfb42a895dd5d80eb445c8c43b95224e00a920cf90db09c3b99451222eda84b"
+    },
+    {
+      "path": "work/dfo-lan/cmd/wireprobe/player_death.go",
+      "bytes": 1368,
+      "sha256": "f414084d2c3ebfd56ee6396302a328dd6f81c901a3657b31b91a3a75a5e6fe01"
+    },
+    {
       "path": "work/dfo-lan/cmd/wireprobe/quest_flow.go",
-      "bytes": 4114,
-      "sha256": "e6d8c039664fd8104c0c4e8b532172ba6da3b05f20c67458c95105fbbcf60aac"
+      "bytes": 4890,
+      "sha256": "c3122281dc5c3a658f7f439645dc5e0a357690832d94c09567babf55c41dd888"
     },
     {
       "path": "work/dfo-lan/cmd/wireprobe/quickslot_flow.go",
-      "bytes": 1648,
-      "sha256": "0f79ecfe3bbd4fd500042422205087cde3b9863bb2ffb2d67f80840cc5aaba74"
+      "bytes": 2806,
+      "sha256": "8d87bc007d7ea74a53ea4b4026ac9560f85b582fcb1bd81f70dd0973396791f6"
     },
     {
       "path": "work/dfo-lan/cmd/wireprobe/request_scope.go",
-      "bytes": 1671,
-      "sha256": "ac71ed9856d1740dc9df9ba0e1b6a25c95578002a590bfd7dba64b59554dcf4f"
+      "bytes": 2939,
+      "sha256": "b56994a88c357a16f1b0fecea9c906b88fba666267293ba4850ff5b4af25839e"
     },
     {
       "path": "work/dfo-lan/cmd/wireprobe/request_scope_sample36_test.go",
@@ -1184,8 +1549,8 @@
     },
     {
       "path": "work/dfo-lan/cmd/wireprobe/request_scope_test.go",
-      "bytes": 866,
-      "sha256": "e874fb26b0284153e7fa58db2ea2f1b2d8d4d4962b1adee7af6aa4d992590432"
+      "bytes": 979,
+      "sha256": "509f9b28081f87338f5c30a9dad60e70ea04f44e47a907474ed5b2f788b32f32"
     },
     {
       "path": "work/dfo-lan/cmd/wireprobe/settlement_flow.go",
@@ -1193,9 +1558,49 @@
       "sha256": "554f2006a0a2bf7bbc4522b416ed6854168e108ec5dbabb456dfd1279d95737a"
     },
     {
+      "path": "work/dfo-lan/cmd/wireprobe/shop_flow.go",
+      "bytes": 2150,
+      "sha256": "e1d09780cac32410079878a9ed6041aa40f6a56dd6ee8b04862841d6f09c9bff"
+    },
+    {
+      "path": "work/dfo-lan/cmd/wireprobe/shop_pilot.go",
+      "bytes": 6814,
+      "sha256": "21702853d95444f6e05cddb4355df7d1e9c71336ea5d8901b8f253236a55714c"
+    },
+    {
+      "path": "work/dfo-lan/cmd/wireprobe/shop_pilot_test.go",
+      "bytes": 14977,
+      "sha256": "341e9e632df0758beb3331fee07c4564e88bc7e4450018e6e01f7ad3386f0b55"
+    },
+    {
       "path": "work/dfo-lan/cmd/wireprobe/skill_flow.go",
       "bytes": 1676,
       "sha256": "6a2698477f1111a305fdddad18c963866fd89d050e0c6ba9238e7cf6d68757db"
+    },
+    {
+      "path": "work/dfo-lan/cmd/wireprobe/special_warp.go",
+      "bytes": 784,
+      "sha256": "bfcd784ee9cd52af742fec940dd69380cd4243762b20de286e063c2f88c912e9"
+    },
+    {
+      "path": "work/dfo-lan/cmd/wireprobe/special_warp_test.go",
+      "bytes": 3484,
+      "sha256": "c7c84bbcbbd891b8e252ceb0780a796bf309013da259c542636d3f40e40f8e40"
+    },
+    {
+      "path": "work/dfo-lan/cmd/wireprobe/stack_restore_test.go",
+      "bytes": 924,
+      "sha256": "3fb802c6eed6cba88576d315abc8cccba42c72f7f4da7ffb7eaeef268dc5dea1"
+    },
+    {
+      "path": "work/dfo-lan/cmd/wireprobe/testdata/odyssey-equipment.data",
+      "bytes": 8602,
+      "sha256": "b4fa77ab6457bfefb35b41778c00c06d739297abd863c4818f3c1ff6df4912c9"
+    },
+    {
+      "path": "work/dfo-lan/cmd/wireprobe/testdata/odyssey-equipment.index.json",
+      "bytes": 1827,
+      "sha256": "a8f44ff2241f60f49353e754f52ebb21cca1d77645e90efcf59d6c0e0b6664e3"
     },
     {
       "path": "work/dfo-lan/cmd/wireprobe/tutorial_flow.go",
@@ -1203,9 +1608,29 @@
       "sha256": "b3b47d6f0a3853083a8c1de0d166ab5cc917f118d5b10c065d746c2062d4fea3"
     },
     {
+      "path": "work/dfo-lan/cmd/wireprobe/underfoot_stage_test.go",
+      "bytes": 1870,
+      "sha256": "5df3743e3f9a07ad9beef45331acc9695e72944fca8d245710a7d9a0e4ea368a"
+    },
+    {
+      "path": "work/dfo-lan/cmd/wireprobe/underfoot_warp_test.go",
+      "bytes": 4524,
+      "sha256": "b1448ae22cc8124bda0dce14ef4ce9d7a18cdbfe706bc6390b0dbce40a9067e6"
+    },
+    {
+      "path": "work/dfo-lan/cmd/wireprobe/vault_flow.go",
+      "bytes": 3516,
+      "sha256": "1c5a95f26594a631a8e8fbc59a5cda07a2bbb376bef4bf41455f75d76cb93244"
+    },
+    {
+      "path": "work/dfo-lan/cmd/wireprobe/vault_flow_test.go",
+      "bytes": 858,
+      "sha256": "f9f5631dac9ce50323e491a9c34aec87122d36bc3d1b02c5e05f55c213cb99e2"
+    },
+    {
       "path": "work/dfo-lan/cmd/wireprobe/world_flow.go",
-      "bytes": 5940,
-      "sha256": "e60c3dfd47f697ba411f19643a7e226f667948c9a8d4eb60240603c7ccbb465f"
+      "bytes": 13900,
+      "sha256": "f3c8dcf1070d821c514b5c51f28b1afe7cae99f8c7d2e85391003571773aec56"
     },
     {
       "path": "work/dfo-lan/cmd/wireprobe/worn_display_handoff_test.go",
@@ -1228,29 +1653,64 @@
       "sha256": "7308851e79d19133969d411ec94f08c6c2aa1c98e876a7fb4aa2e0e4b394134f"
     },
     {
+      "path": "work/dfo-lan/configs/cerashop.json",
+      "bytes": 219409,
+      "sha256": "9568e91049b471200c7701d9acee6d90d6d78758165f3de82a8bc422975df830"
+    },
+    {
       "path": "work/dfo-lan/configs/channel.local28.json",
-      "bytes": 1144,
-      "sha256": "bfce56713ad8f81ab970e61481b6393f2e4454dff901fec7dbf5da2487472d84"
+      "bytes": 1061,
+      "sha256": "5d620f57a68e40e018a92c8370493b4120122486c888004a4ed0ea9ddc0a14cc"
     },
     {
       "path": "work/dfo-lan/configs/channel.local31.json",
-      "bytes": 1144,
-      "sha256": "d4abdc22ff922bd3b33c874b2231bd9b5c75a58316c7edf7fc1d2f70b0db6110"
+      "bytes": 1061,
+      "sha256": "92b1021d90a1c34673ca77d4bf04e443cf080bbbd95c487d7c10e0fe2398eed9"
     },
     {
       "path": "work/dfo-lan/configs/channel.local32.json",
-      "bytes": 1674,
-      "sha256": "855f1f7dd518d500b7e0d3d1f985513b72eb5567419e458fff2744c689c714b5"
+      "bytes": 1553,
+      "sha256": "926b81e846bf0a24d70cd45bf5d4e409e64563d77a24b4da4d729ae8b473ec31"
     },
     {
       "path": "work/dfo-lan/configs/channel.local34.json",
-      "bytes": 1874,
-      "sha256": "5b1934ec0bc0c332171f55e638bc6048b7127ba96df93602f0569a54d4cdc846"
+      "bytes": 1749,
+      "sha256": "03ed9ef1d1a6c3eca46525815d805bbdcc4c3c73f219468210a9e76f8e64af11"
     },
     {
       "path": "work/dfo-lan/configs/character-probe.json",
-      "bytes": 248,
-      "sha256": "da093094a0aff71802ae6d48960ee102f3554710d080fecab8f5b93cfbfa7e22"
+      "bytes": 334,
+      "sha256": "6ab0ef5c962cc55bf856c9e6cda7d3dcb494f855315a0172e1e559457b98ab7f"
+    },
+    {
+      "path": "work/dfo-lan/configs/character-rules.jobs-release.json",
+      "bytes": 87,
+      "sha256": "926f93b9de1ebe33e071f8a8d9e111ec41f79f315bc207658852d31be745231a"
+    },
+    {
+      "path": "work/dfo-lan/configs/character-rules.odyssey-pilot.json",
+      "bytes": 108,
+      "sha256": "6e0d2dd83a326bd32253f50645f3a2827c35fce1cdde779fbca2e18db067a5fa"
+    },
+    {
+      "path": "work/dfo-lan/configs/character-rules.odyssey-release.json",
+      "bytes": 108,
+      "sha256": "6e0d2dd83a326bd32253f50645f3a2827c35fce1cdde779fbca2e18db067a5fa"
+    },
+    {
+      "path": "work/dfo-lan/configs/characters.alljobs-pilot.json",
+      "bytes": 69474,
+      "sha256": "7bffcc3dea220681cbe428abda586b8bbda8a517b5352a5fd36392ea1bc42fc6"
+    },
+    {
+      "path": "work/dfo-lan/configs/characters.auto-skills-candidate.json",
+      "bytes": 77579,
+      "sha256": "a1c42eeae27fd5d1fc4c04148624db9b81ab9325ea38f997e99e7ed4d1b7747b"
+    },
+    {
+      "path": "work/dfo-lan/configs/characters.awakening-candidate.json",
+      "bytes": 73334,
+      "sha256": "33171a9981ebb738951eac88d16d33ef624bebe9b012484f37c82179ea9c4111"
     },
     {
       "path": "work/dfo-lan/configs/characters.before23.json",
@@ -1268,14 +1728,39 @@
       "sha256": "56b8b6054dbded8280a73fa46ccde5d049acb167c41446a07d3cd9990c2b6a46"
     },
     {
+      "path": "work/dfo-lan/configs/characters.jobs-release.json",
+      "bytes": 69474,
+      "sha256": "7bffcc3dea220681cbe428abda586b8bbda8a517b5352a5fd36392ea1bc42fc6"
+    },
+    {
       "path": "work/dfo-lan/configs/characters.next25.json",
       "bytes": 124537,
       "sha256": "46e1016db57170be525fc0149035014f45b2f36c94c7cbd7eab8a212f10997d7"
     },
     {
+      "path": "work/dfo-lan/configs/characters.skills-release.json",
+      "bytes": 73380,
+      "sha256": "f03d7a2147ec52d24f869ae9d2344f293c53bf16d0f674e585f67d6f9d67b886"
+    },
+    {
+      "path": "work/dfo-lan/configs/characters.skycastle-release.json",
+      "bytes": 77625,
+      "sha256": "43aa7163211f2288615cfbeb85503d090a4f85648d263e41beacbad48a0bf21c"
+    },
+    {
+      "path": "work/dfo-lan/configs/characters.swordmaster-pilot.json",
+      "bytes": 55749,
+      "sha256": "45f5fb197683f5690dd0e593f990b591ce8161eb11c7fbef008be211c8875b52"
+    },
+    {
+      "path": "work/dfo-lan/configs/clear-cube-source.json",
+      "bytes": 1731,
+      "sha256": "716e06160b2b2c285ba43d67bdaa13610432faaf359b6f829ca2f8888c01eab8"
+    },
+    {
       "path": "work/dfo-lan/configs/drop.compat90.json",
-      "bytes": 353,
-      "sha256": "45557bb442a27dfd0c49c482a9bca7256904f4da6e0272e0d614c8def10a8fed"
+      "bytes": 366,
+      "sha256": "2de173b9d2136c84af424f55542c856f937c7b55028dc35657ef27e6cdaca8b0"
     },
     {
       "path": "work/dfo-lan/configs/drop.current36.json",
@@ -1293,9 +1778,39 @@
       "sha256": "8f74f15d7e48d9db6f1b86006f7d96e7d89a2f731e63a786d1461c2e3071ae5e"
     },
     {
-      "path": "work/dfo-lan/configs/equipment-wear.current35.json",
-      "bytes": 484,
-      "sha256": "2e4de2a7c6e2873a00012c6fc61d0d7763b07350868cb6c4b27f9900f67246b6"
+      "path": "work/dfo-lan/configs/dungeons.odyssey-candidate.json",
+      "bytes": 5935233,
+      "sha256": "f47d0485d9e39b136ffee77fb60d594e6cfb3d2acff235d1b052e921fb4e7040"
+    },
+    {
+      "path": "work/dfo-lan/configs/dungeons.odyssey-merged-candidate.json",
+      "bytes": 8030834,
+      "sha256": "5f88b749246b86fb4bcb64859be11c8840dc95fb1a9b1fe8592a71db00cfea8f"
+    },
+    {
+      "path": "work/dfo-lan/configs/dungeons.odyssey-release.json",
+      "bytes": 8030834,
+      "sha256": "5f88b749246b86fb4bcb64859be11c8840dc95fb1a9b1fe8592a71db00cfea8f"
+    },
+    {
+      "path": "work/dfo-lan/configs/dungeons.odyssey-scenes-candidate.json",
+      "bytes": 10716235,
+      "sha256": "8c2e92510dfb024b6547f66fab6187f2fd60f29e7def29a232bcab019cb9d8d2"
+    },
+    {
+      "path": "work/dfo-lan/configs/dungeons.odyssey-scenes-release.json",
+      "bytes": 10716235,
+      "sha256": "8c2e92510dfb024b6547f66fab6187f2fd60f29e7def29a232bcab019cb9d8d2"
+    },
+    {
+      "path": "work/dfo-lan/configs/dungeons.skycastle-candidate.json",
+      "bytes": 8174100,
+      "sha256": "820d79453591e15f44b51ca73d0ebf3b0994bcabb79ec89ab15d47c19fe28b33"
+    },
+    {
+      "path": "work/dfo-lan/configs/dungeons.skycastle-release.json",
+      "bytes": 8174100,
+      "sha256": "820d79453591e15f44b51ca73d0ebf3b0994bcabb79ec89ab15d47c19fe28b33"
     },
     {
       "path": "work/dfo-lan/configs/equipment.current35.json",
@@ -1308,9 +1823,24 @@
       "sha256": "9c89fc637d6043fc6bed2030f9e257f949099570f6835c2c3caf0d21fed79bd3"
     },
     {
+      "path": "work/dfo-lan/configs/equipment-wear.current35.json",
+      "bytes": 465,
+      "sha256": "46ddf3dfe68e83333163efd1f68f16f60eb363ca67e73aed8fb79fe5eec23abc"
+    },
+    {
+      "path": "work/dfo-lan/configs/equipment-wear.full-candidate.json",
+      "bytes": 757,
+      "sha256": "7a6b4a07bf446de2b33c319852d4775f1b2fabcc95eb46c7c5bd63a35b8f59e3"
+    },
+    {
       "path": "work/dfo-lan/configs/experience.compat90.json",
       "bytes": 426,
-      "sha256": "ae98bd2bfe7ec10e97cf39948446f7e34839511a660d31cb281825dff785acf4"
+      "sha256": "268c1a1e886698d30b4d42397b6bdae3008f191baaddcd1eede9caf349b461aa"
+    },
+    {
+      "path": "work/dfo-lan/configs/fatigue-items-candidate.json",
+      "bytes": 296,
+      "sha256": "838541137289210c2e847b8a31b1c92a0c9dfdab907e8b65dba4cf406311656c"
     },
     {
       "path": "work/dfo-lan/configs/fatigue-probe.json",
@@ -1329,13 +1859,48 @@
     },
     {
       "path": "work/dfo-lan/configs/inventory.next29.json",
-      "bytes": 315,
-      "sha256": "0315085b85fda583c52d49ab37bd33399a0d10de4027114b2c8eb435ea601710"
+      "bytes": 297,
+      "sha256": "690994951c7f545fbe94274202089a02325a32b74a19e4134951be8c71f3b175"
+    },
+    {
+      "path": "work/dfo-lan/configs/login-normal22.bin",
+      "bytes": 56,
+      "sha256": "ccdbcd9604fd7e00d953403d5ad929acb76d49a1d4e82b89ce4027319ed8efd5"
+    },
+    {
+      "path": "work/dfo-lan/configs/loot.level150.json",
+      "bytes": 1580861,
+      "sha256": "3e3a3ea16c7b0cb8194ff8a0a412f05211822d29cd5d0b237e7ee06b60c6943f"
     },
     {
       "path": "work/dfo-lan/configs/loot.next25.json",
-      "bytes": 3543093,
-      "sha256": "f71bc13de620bd325cc6d261939ae641046e9662f39e4c44eff016616d2b3864"
+      "bytes": 1578656,
+      "sha256": "6bc91bca0a1f3892e8e6df6c9cdfa506dd44ab62606ff4e9cd393546050f85be"
+    },
+    {
+      "path": "work/dfo-lan/configs/odyssey-currency.json",
+      "bytes": 3952,
+      "sha256": "f4cd74761a2e689900db516f7065274e9324629dce1c3112ae8e04c42b100600"
+    },
+    {
+      "path": "work/dfo-lan/configs/odyssey-growth-candidate.json",
+      "bytes": 35814,
+      "sha256": "b7b6f7aa7c23e619e115c8643df5dda1813123d5bad442677ea52b487bb18ece"
+    },
+    {
+      "path": "work/dfo-lan/configs/odyssey-growth-release.json",
+      "bytes": 35814,
+      "sha256": "b7b6f7aa7c23e619e115c8643df5dda1813123d5bad442677ea52b487bb18ece"
+    },
+    {
+      "path": "work/dfo-lan/configs/odyssey-weapon-box-candidate.json",
+      "bytes": 63788,
+      "sha256": "9ba588fc0c72f905a72ac84e94cb5685cacd5733ce62353baecc082bb12eb6ea"
+    },
+    {
+      "path": "work/dfo-lan/configs/odyssey-weapon-box-release.json",
+      "bytes": 63788,
+      "sha256": "9ba588fc0c72f905a72ac84e94cb5685cacd5733ce62353baecc082bb12eb6ea"
     },
     {
       "path": "work/dfo-lan/configs/progression.next25.json",
@@ -1349,13 +1914,28 @@
     },
     {
       "path": "work/dfo-lan/configs/quest-equipment.next29.json",
-      "bytes": 1868803,
-      "sha256": "f8b2c049e7f6e6a4f9f280203bcce8a98df20147cc40875c029e03e85cc4b0e0"
+      "bytes": 1783211,
+      "sha256": "24ba25bc66f3c4504cd21bf699ac7f4547cf1cdd9a4f15af3ff4d46fa53635be"
     },
     {
       "path": "work/dfo-lan/configs/quests.generated.json",
       "bytes": 26796000,
       "sha256": "1c540704ef5afc9f6dc152531a4f1fac815d79326f58705c7a0a2b932982bb3e"
+    },
+    {
+      "path": "work/dfo-lan/configs/repair-profile.example.json",
+      "bytes": 934,
+      "sha256": "2e5f40a3588299c4542256ad9aaf48fd5a707ef1188d9a3f2e42942b6b544161"
+    },
+    {
+      "path": "work/dfo-lan/configs/repair-profile.odyssey.full.json",
+      "bytes": 965,
+      "sha256": "ab4fb97b2fd059c9215bb716157b85b75e70c9ef04af5f79ed9041d5a0ffcae0"
+    },
+    {
+      "path": "work/dfo-lan/configs/repair-profile.odyssey.json",
+      "bytes": 911,
+      "sha256": "44b9d5dd0915f020fae3030c41c50ddcc4e797800257578d0d555b0d88ef099d"
     },
     {
       "path": "work/dfo-lan/configs/select-parser-probe.json",
@@ -1364,8 +1944,28 @@
     },
     {
       "path": "work/dfo-lan/configs/select-world-probe.json",
-      "bytes": 494,
-      "sha256": "258133949857437b334b92788dbb7c60989ed119fcbb8e9e6f96c81d66aa4c3e"
+      "bytes": 470,
+      "sha256": "0d1e4a3f30bff29d80d46f60d53deec5cc0d7f3734c567f4f3fa4d367c59f615"
+    },
+    {
+      "path": "work/dfo-lan/configs/shop-next-candidate.json",
+      "bytes": 14949814,
+      "sha256": "bcf58e925db45c53968bbf7605ebb1f6abea691628b50b482aef68b3a02a0f9c"
+    },
+    {
+      "path": "work/dfo-lan/configs/shop-purchase-pilot.json",
+      "bytes": 14235563,
+      "sha256": "3a48ea97b98357279adf718c206a35aac3581bbd9f9bb7240cc4a752d73a48c8"
+    },
+    {
+      "path": "work/dfo-lan/configs/shop-purchase-report.json",
+      "bytes": 216309,
+      "sha256": "63d7b8152a7482e84404924ff67a7e95799a965097757504b31f00e51bfe0e80"
+    },
+    {
+      "path": "work/dfo-lan/configs/skills.awakening-candidate.json",
+      "bytes": 4497221,
+      "sha256": "47cfbca40df08128d2e8899b550fec220af98bdc9a12cbe8fcf9047c3f900193"
     },
     {
       "path": "work/dfo-lan/configs/skills.next27.json",
@@ -1373,14 +1973,19 @@
       "sha256": "540513f3b7568d296e6ab96434d1a0a3640e9193d54c2c14bdee7fecf0b4f91e"
     },
     {
-      "path": "work/dfo-lan/configs/town-entry-probe.json",
-      "bytes": 169,
-      "sha256": "2fc2517f59ad3c5c05044bb6fe6ab2109d923f3a8ca9aff22bdced013a154b96"
+      "path": "work/dfo-lan/configs/skills.release.json",
+      "bytes": 4497221,
+      "sha256": "47cfbca40df08128d2e8899b550fec220af98bdc9a12cbe8fcf9047c3f900193"
     },
     {
       "path": "work/dfo-lan/configs/town.generated.json",
       "bytes": 1113,
       "sha256": "696e9335fffd24d191745f2021d77e002c22a264f97ffd2a7bcb312aaf588324"
+    },
+    {
+      "path": "work/dfo-lan/configs/town-entry-probe.json",
+      "bytes": 169,
+      "sha256": "2fc2517f59ad3c5c05044bb6fe6ab2109d923f3a8ca9aff22bdced013a154b96"
     },
     {
       "path": "work/dfo-lan/configs/tutorial-dungeons.current36.json",
@@ -1394,8 +1999,13 @@
     },
     {
       "path": "work/dfo-lan/configs/vault.generated.json",
-      "bytes": 351,
-      "sha256": "03ed05d97fd7911c8d677c8b0aba4428e1af3e239836cc0aca9a5e7a3e37ce48"
+      "bytes": 342,
+      "sha256": "aa39be87926fb3f877ef942a611e598b7e89857dfcbb724b90d96ff0d8714f19"
+    },
+    {
+      "path": "work/dfo-lan/configs/world.generated.json",
+      "bytes": 29593225,
+      "sha256": "ea190c698ce9f719afc7a6343e8c0b472d52f7ec9bc1e939f69237dc69a68392"
     },
     {
       "path": "work/dfo-lan/configs/world-probe.json",
@@ -1403,29 +2013,44 @@
       "sha256": "6024086ce4fc07739669eaa8f7a1ebb383cd767cd9b10f9720cf83ae58eeca36"
     },
     {
-      "path": "work/dfo-lan/configs/world.generated.json",
-      "bytes": 29593219,
-      "sha256": "a7fd3e4b12f67372ba95529c12e179c1b91d5dde1469eb1595629f22471cba57"
-    },
-    {
       "path": "work/dfo-lan/docs/architecture.md",
-      "bytes": 4244,
-      "sha256": "512d894d9a515749f23f2cd4fba0f239bacb3d1a7b874f08a4100b3e1274332a"
+      "bytes": 4193,
+      "sha256": "c9677c5f033a81deacaaa6680f57d06e0a456227947086e0b7a170b467f7f628"
     },
     {
       "path": "work/dfo-lan/docs/current-evidence.md",
-      "bytes": 13725,
-      "sha256": "75bac7782b42a332c2f2240e5c85b5b3c583398be464455b4e2c06f206df90e4"
+      "bytes": 13623,
+      "sha256": "adb6dae6a12e6f78fd6c2b5f7d9b71c54f79197ac9c4be7e9b0e51c581dd86b6"
     },
     {
       "path": "work/dfo-lan/docs/entry-next.md",
-      "bytes": 2622,
-      "sha256": "97a40a8b2a3cfbcb1351dd4e32ecf75a8724d895315ee99cd5c8249146d1e99f"
+      "bytes": 2605,
+      "sha256": "efafc9e748cab084b1a5b4912aa605c750d6f2065cb62f2ab17b1cb81a814b42"
+    },
+    {
+      "path": "work/dfo-lan/docs/evidence/odyssey-rewards-revive-20260917/item-10417790.json",
+      "bytes": 4682,
+      "sha256": "af5aacf7985af0801cfd4e2f48e04aa32358a8f03c0591695b98ac372b0789d6"
+    },
+    {
+      "path": "work/dfo-lan/docs/evidence/skycastle-auto-skills-20260917/details/00-atswordman.chr.tokens.json",
+      "bytes": 88476,
+      "sha256": "9857bb66eb7457c74ab7f345ea3cbdc782cf52223f233cdbd0d1ffdafeb28f1e"
+    },
+    {
+      "path": "work/dfo-lan/docs/evidence/skycastle-auto-skills-20260917/skycastle.json",
+      "bytes": 373499,
+      "sha256": "e5394fba887edc7f32684dfb3dea52d0013b7100683815b6f0a0f177d5405b1e"
+    },
+    {
+      "path": "work/dfo-lan/docs/evidence/skycastle-scenes-20260917/captured-cmd45.bin",
+      "bytes": 160,
+      "sha256": "6556d4ab2cfd062d87682f536b1c8369c358206317339b83a0e1a5d065fab34f"
     },
     {
       "path": "work/dfo-lan/docs/protocol/area-users.md",
-      "bytes": 2442,
-      "sha256": "f7740763eb6c2ed6e148e0c3cf7b66a336339ebac7e993778ede092d003e2744"
+      "bytes": 2416,
+      "sha256": "8ab83cdb02abaa8b2c667bdb034ba7fbe197ddf5f8d0f665ac2ebdf6d9f296f7"
     },
     {
       "path": "work/dfo-lan/docs/protocol/dungeons.md",
@@ -1434,8 +2059,8 @@
     },
     {
       "path": "work/dfo-lan/docs/protocol/entry-userinfo.md",
-      "bytes": 5550,
-      "sha256": "6afbf2e91a6b32e7589102f93f715cba09a9361018a3bf3b0457035ef87986cc"
+      "bytes": 5496,
+      "sha256": "141607fe4aa2f5834597f649f412a645c67f1174cb5f455fe7b871763d426bd0"
     },
     {
       "path": "work/dfo-lan/docs/protocol/next27-status.md",
@@ -1518,6 +2143,36 @@
       "sha256": "ff3062d3d89b9bf0cea666a6d8803bdf9ca2ea226a88913d8be14f9f9829012f"
     },
     {
+      "path": "work/dfo-lan/docs/protocol/next39-npc-shop.md",
+      "bytes": 5351,
+      "sha256": "9020abbf5dfe3b5b37e8fea2851ed4f031cdaea0edbf2a530a23e6c131924244"
+    },
+    {
+      "path": "work/dfo-lan/docs/protocol/next41-disjoint-item.md",
+      "bytes": 4993,
+      "sha256": "e53ae98875ce245337fb7e29563f303204474f033fe1a185324c16984fcd1197"
+    },
+    {
+      "path": "work/dfo-lan/docs/protocol/next42-personal-vault.md",
+      "bytes": 6153,
+      "sha256": "8a65ef877d533f49c5215370012112e39ee47a2153ea885aaa4cf13d2c47b6a0"
+    },
+    {
+      "path": "work/dfo-lan/docs/protocol/next43-account-material-storage.md",
+      "bytes": 7577,
+      "sha256": "901ce4f9f050a94a602b2f39230f58429aae19198d40cde840b1de1e0772d1ec"
+    },
+    {
+      "path": "work/dfo-lan/docs/protocol/next44-creature.md",
+      "bytes": 1152,
+      "sha256": "22c13a20496d7cbfeb8978dd72b3f3da167e95cffa22698fb0dfb2355c0ebe03"
+    },
+    {
+      "path": "work/dfo-lan/docs/protocol/next45-creation-equipment.md",
+      "bytes": 3118,
+      "sha256": "fd97d1f5718fe542a166b03b81115f42680efc0d37766c075ca56eb770bb5dd7"
+    },
+    {
       "path": "work/dfo-lan/docs/protocol/reference90-next25.md",
       "bytes": 6459,
       "sha256": "d3efa0e9083780a27b7653a09b81d3e1e78aed452c51ccf3c512e52319d39a0c"
@@ -1529,8 +2184,8 @@
     },
     {
       "path": "work/dfo-lan/go.mod",
-      "bytes": 593,
-      "sha256": "05c1bc3dc857d026e01e35d4529f1427f787075852ed22259a3bfb4c3ff35360"
+      "bytes": 558,
+      "sha256": "737e790251ca7c57cb74342a191eefa13bb66f3d3d98ffd3bf54e7f993f266ea"
     },
     {
       "path": "work/dfo-lan/go.sum",
@@ -1543,14 +2198,129 @@
       "sha256": "64a1ee95f5d524569abccf2596cf8267b52df603c011d289f71f2c30e1123986"
     },
     {
+      "path": "work/dfo-lan/internal/cashshop/contracts.go",
+      "bytes": 4999,
+      "sha256": "b26daec84fd1f2c2cc462001da0853f7190c1134363296b81ce8c8ec90f0e760"
+    },
+    {
+      "path": "work/dfo-lan/internal/cashshop/contracts_test.go",
+      "bytes": 1255,
+      "sha256": "0408c6d4d0871245e3d32eb7c5ba1c9b374f77270eccc75b3e12e56c2d2e1f38"
+    },
+    {
+      "path": "work/dfo-lan/internal/cashshop/creature_catalog_test.go",
+      "bytes": 5496,
+      "sha256": "456c0cb9e83e9bd8a35f9eb6cc12899f55e8548bbbd143e6726b851492107e09"
+    },
+    {
+      "path": "work/dfo-lan/internal/cashshop/pilot.go",
+      "bytes": 15937,
+      "sha256": "4712b91cb7a62cfac974d930d5e5df79f210be6c86349403482e0c45e04c9999"
+    },
+    {
+      "path": "work/dfo-lan/internal/cashshop/pilot_test.go",
+      "bytes": 15101,
+      "sha256": "e33f01db022809d28d8030a3932e65407fe364a81f39e7db0e6571502ef3ffba"
+    },
+    {
+      "path": "work/dfo-lan/internal/cashshop/purchase_integration_test.go",
+      "bytes": 3825,
+      "sha256": "ac1406c4d19fe3176d2a27cc5c1b59bb8a28fbbb45939feaba7757e3310b8fc9"
+    },
+    {
+      "path": "work/dfo-lan/internal/cashshop/pvf_catalog.go",
+      "bytes": 9780,
+      "sha256": "368e3ea3149aa4365e277ddf02d125d7a90e7374a032d3783b27d25563b5bffc"
+    },
+    {
+      "path": "work/dfo-lan/internal/cashshop/pvf_catalog_test.go",
+      "bytes": 6754,
+      "sha256": "62c2e701a44faadc8c46ef516f7069110f7d4f458c1f441860f13e2ff945843c"
+    },
+    {
+      "path": "work/dfo-lan/internal/cashshop/service.go",
+      "bytes": 2840,
+      "sha256": "4f73ab5510927da4046805e7714266158b5ecaac1e747f2e96079d00be2b1bfa"
+    },
+    {
+      "path": "work/dfo-lan/internal/cashshop/service_test.go",
+      "bytes": 3079,
+      "sha256": "e92c22a5f3a2b2e9c91799350c1ac8d0f0d3023a09abfcc557ec73c31a85277c"
+    },
+    {
+      "path": "work/dfo-lan/internal/cashshop/special_catalog_test.go",
+      "bytes": 1995,
+      "sha256": "e1c1652e0ddc5fe741920408c2c040053a90b48982139e2a4e66c28f96e47010"
+    },
+    {
+      "path": "work/dfo-lan/internal/cashshop/storage_catalog.go",
+      "bytes": 1111,
+      "sha256": "d2f108ac15d3ce0c8afde0ad90934221a8177afe0194bb8efe90098e86ab1e6f"
+    },
+    {
+      "path": "work/dfo-lan/internal/cashshop/storage_catalog_test.go",
+      "bytes": 1608,
+      "sha256": "c195986f8573e119426c7beb5c7a8029f578da4940f465adaa0f3806e62ee002"
+    },
+    {
+      "path": "work/dfo-lan/internal/cashshop/testdata/product3400489.json",
+      "bytes": 594,
+      "sha256": "3e16651b81e579e93188260fd965116a1dfb469c1b2680f98f61a791cbfd445b"
+    },
+    {
+      "path": "work/dfo-lan/internal/cashshop/vault_upgrade.go",
+      "bytes": 4436,
+      "sha256": "ffb0af5f9964daa751d14a6096339245c5c91b1773deaf5fcc2e9c0e0221acff"
+    },
+    {
+      "path": "work/dfo-lan/internal/cashshop/vault_upgrade_test.go",
+      "bytes": 2794,
+      "sha256": "5118c6d9bb5b3592414596443d980bcb54636aeae1576eb3427a1a8dbfe13c93"
+    },
+    {
+      "path": "work/dfo-lan/internal/catalog/advancement_skills.go",
+      "bytes": 1370,
+      "sha256": "0c9f00bbf720738867e6e622e6cee08c82d27c263671a0ef92d53026493d1376"
+    },
+    {
+      "path": "work/dfo-lan/internal/catalog/advancement_skills_test.go",
+      "bytes": 946,
+      "sha256": "3e84951c009fd3df4ef2a49c88a40e82f043e7440cd6fc4d12044e48d9049e0e"
+    },
+    {
+      "path": "work/dfo-lan/internal/catalog/awakening.go",
+      "bytes": 847,
+      "sha256": "c2f51a5cded48f45fa1bb95056bd689abf5734b6f5d08c2d48ae0397335a91e4"
+    },
+    {
+      "path": "work/dfo-lan/internal/catalog/awakening_test.go",
+      "bytes": 824,
+      "sha256": "684507b5f97245bf1ebec992d0628dba84ea90423009fd443a33444846f36cdc"
+    },
+    {
       "path": "work/dfo-lan/internal/catalog/characters.go",
-      "bytes": 7864,
-      "sha256": "e86133c6b3c46f55c2aa39613278e28900e90ead11ff5a65a60ae380cc4d72e0"
+      "bytes": 11062,
+      "sha256": "dd2207755599651463932936515016986904fa36ce5248221473ed5374ddec73"
+    },
+    {
+      "path": "work/dfo-lan/internal/catalog/create_equipment_test.go",
+      "bytes": 2054,
+      "sha256": "26dbb22c55c3db75b7dd9fd743bd6840d6032f4261c529d671ccd9cf1b32870a"
+    },
+    {
+      "path": "work/dfo-lan/internal/catalog/dungeon_layers_test.go",
+      "bytes": 1282,
+      "sha256": "ea9ba1da4e84d1b41c5a7c18db7b0e480ebac9156849b8a565af178102635fa0"
     },
     {
       "path": "work/dfo-lan/internal/catalog/dungeons.go",
-      "bytes": 5281,
-      "sha256": "ddc05baae85af89a89429a83bb27a1d27dd59dcee04f9ca4a67ffbec5e40c8de"
+      "bytes": 14669,
+      "sha256": "f119074db26ea065b5dc3c82cf9f8eae517d44e73ab92ce42286dfac2b09a1f2"
+    },
+    {
+      "path": "work/dfo-lan/internal/catalog/dungeons_test.go",
+      "bytes": 6150,
+      "sha256": "35bd5d3fdcdd34d5377e9b5ffb00cb34b18f71a76da893740fb049ffe37f5fb5"
     },
     {
       "path": "work/dfo-lan/internal/catalog/initial_skills_test.go",
@@ -1559,8 +2329,18 @@
     },
     {
       "path": "work/dfo-lan/internal/catalog/loot.go",
-      "bytes": 4827,
-      "sha256": "c1942d29dd94647ab167538f8bb9d625c2f2109f97e80510549266da04906cd2"
+      "bytes": 6302,
+      "sha256": "2d50d10c336ad9fa88b71909f3966ed7ab4b5b42594639dcbb0f81c8d6309cc4"
+    },
+    {
+      "path": "work/dfo-lan/internal/catalog/loot_supplement_test.go",
+      "bytes": 1210,
+      "sha256": "3e07d25db04ba9f14f201f622178a6cbeadb9f6f658c52853b86326f53745eb7"
+    },
+    {
+      "path": "work/dfo-lan/internal/catalog/odyssey.go",
+      "bytes": 2547,
+      "sha256": "036822396ea3738e340760d15650ced213e287e69b34de9e674bf1c504eb08e4"
     },
     {
       "path": "work/dfo-lan/internal/catalog/progression.go",
@@ -1586,6 +2366,11 @@
       "path": "work/dfo-lan/internal/catalog/pvf/decode.go",
       "bytes": 2601,
       "sha256": "8971d64050f0b04968bcf0d1e1928e93cf8e0e41ee8edea794495506d60b25ae"
+    },
+    {
+      "path": "work/dfo-lan/internal/catalog/pvf/l10n.go",
+      "bytes": 14363,
+      "sha256": "8de22344cde40f826dff9b7ece3748fcb37ec8703ed73e9b62e3293a8224bc03"
     },
     {
       "path": "work/dfo-lan/internal/catalog/pvf/parse.go",
@@ -1638,6 +2423,11 @@
       "sha256": "730eb2dc79171d012efa8490db0cf7e2ba8f6a1ef6d3cc3e007d7aa1a95c05b6"
     },
     {
+      "path": "work/dfo-lan/internal/catalog/swordmaster.go",
+      "bytes": 1547,
+      "sha256": "7d6a8432dfdfae17113ddb5e06b280713869c5035b6b45007dc169e6952ef23a"
+    },
+    {
       "path": "work/dfo-lan/internal/catalog/testdata/initial_skills/backstep.json",
       "bytes": 4598,
       "sha256": "262fdf279ede20b4a519b88571a16190ff645d209e0d071ff80cf872f7f33ac8"
@@ -1664,8 +2454,8 @@
     },
     {
       "path": "work/dfo-lan/internal/catalog/testdata/native_experience_thresholds.json",
-      "bytes": 2504,
-      "sha256": "0f8663c95ef1e41bbf7c892be4ee4488752584816ea9ab451b5cf4a8b3d50427"
+      "bytes": 2350,
+      "sha256": "d67350ea314c777972606672acf7d359fd0523c1b35af3491531131f9ab2aa3d"
     },
     {
       "path": "work/dfo-lan/internal/catalog/town.go",
@@ -1674,8 +2464,8 @@
     },
     {
       "path": "work/dfo-lan/internal/catalog/town_test.go",
-      "bytes": 509,
-      "sha256": "fb4ac4a3d27fd6a196feeb601689835a2ab4c870dd0ccb5687ce1b0e3440acfe"
+      "bytes": 1206,
+      "sha256": "6b6e8992352d98e1d5398150c3a5b2f6eda614477b3b7ed5024a17899d1fb22c"
     },
     {
       "path": "work/dfo-lan/internal/catalog/tutorial.go",
@@ -1689,23 +2479,63 @@
     },
     {
       "path": "work/dfo-lan/internal/catalog/world.go",
-      "bytes": 8290,
-      "sha256": "3b79ac78ead911c12610076461b084cb6eb23b14f1e9cfe479e4d6e26a2ebf78"
+      "bytes": 8343,
+      "sha256": "c97399372a5b9b2ea9926a6b2b3dee8089a7a8fc869f8723ef922945d4c8211a"
     },
     {
       "path": "work/dfo-lan/internal/channelrefresh/server.go",
-      "bytes": 6141,
-      "sha256": "9cc8c4cdea7933f51148ab4032f1f559ba410421ef7473aed67b11b2129cddd9"
+      "bytes": 6873,
+      "sha256": "c5e6dac4cf8623f977f7653745f4fec8e23975e2571c856b08832b67b758710f"
     },
     {
       "path": "work/dfo-lan/internal/channelrefresh/server_test.go",
-      "bytes": 4325,
-      "sha256": "d0170f16793f294ed8566a56708927b184c8cf0440a1b1870669fa008b6ce38b"
+      "bytes": 5809,
+      "sha256": "5c8d65ae05da00b82bdc7d5e64fb1451317388d903ab1d655eecbba575c4b85f"
+    },
+    {
+      "path": "work/dfo-lan/internal/character/advanced_learning_test.go",
+      "bytes": 2353,
+      "sha256": "8eba6da0137353ef33bcc018c997f8df5538bb873a2274992dbc44f19c4cf538"
+    },
+    {
+      "path": "work/dfo-lan/internal/character/alljobs_test.go",
+      "bytes": 1759,
+      "sha256": "1513fbb82706dceee520d5b011bfefe99d37e783756c60a5cd2d5cc6e3954ea3"
+    },
+    {
+      "path": "work/dfo-lan/internal/character/appearance.go",
+      "bytes": 1333,
+      "sha256": "65fadd91deec91228d0e506ef35dc68b7a313ac893b8a8cf5a3ab5a3b4104f0f"
+    },
+    {
+      "path": "work/dfo-lan/internal/character/appearance_test.go",
+      "bytes": 345,
+      "sha256": "4adb94be35d1d420b2cf417ce483399c66117fab3e7fa6fe7f31df8fe6a2b952"
+    },
+    {
+      "path": "work/dfo-lan/internal/character/automatic_skills.go",
+      "bytes": 1899,
+      "sha256": "32b9e58990219136fda57c777bdffe12eec2b73fc507d3c3638cbb5a806dc929"
+    },
+    {
+      "path": "work/dfo-lan/internal/character/automatic_skills_test.go",
+      "bytes": 5998,
+      "sha256": "acbe63f070f81611c7ea9c74ecc570963b1ec9e9c26f57524d6a5dfcad0d1832"
+    },
+    {
+      "path": "work/dfo-lan/internal/character/awakening.go",
+      "bytes": 4447,
+      "sha256": "e16531e21cbe865d009ff4a2ebbad059acb71a8c174419ea76a55c45c807f7c5"
+    },
+    {
+      "path": "work/dfo-lan/internal/character/awakening_test.go",
+      "bytes": 4498,
+      "sha256": "9daed1ffc5e13cfb017cd54188c55af8621ab759f41ae2f431654388f239d822"
     },
     {
       "path": "work/dfo-lan/internal/character/clear.go",
-      "bytes": 4171,
-      "sha256": "b8464ad063465c49bd750a261dc523b044cece329bb33ac4a0ca10c540642565"
+      "bytes": 4404,
+      "sha256": "9f4a60768559aea475831b45c5b6080112ff7dc9f5f988b8ce895ca479634f7a"
     },
     {
       "path": "work/dfo-lan/internal/character/clear_record_test.go",
@@ -1713,9 +2543,34 @@
       "sha256": "1a816f95b89125e5032b2ec34c26c239968808bde4128c01151b274fba1aaea7"
     },
     {
+      "path": "work/dfo-lan/internal/character/contract_skill_test.go",
+      "bytes": 1894,
+      "sha256": "13ec0d6001785c368f536aa6e2fc71f0c2b8c743c12427cec5c22e57fa9b86c0"
+    },
+    {
+      "path": "work/dfo-lan/internal/character/create_options_test.go",
+      "bytes": 4721,
+      "sha256": "ea6b3660f350b0af7d37dfe5919dd85105cbee12f4e77363e2e81e21f1ede0cd"
+    },
+    {
+      "path": "work/dfo-lan/internal/character/creation_equipment.go",
+      "bytes": 2524,
+      "sha256": "f808f1f40c8e69a50755a139542b5687794089ad32e4b2a0323fe6c97fc5f1f9"
+    },
+    {
+      "path": "work/dfo-lan/internal/character/creation_equipment_test.go",
+      "bytes": 7602,
+      "sha256": "86b8d3f7f565fd7ca2ff5a68816d638bfa5a0748997bb96063e0ea464db67c17"
+    },
+    {
       "path": "work/dfo-lan/internal/character/detail.go",
-      "bytes": 5166,
-      "sha256": "99ea646fc8046297e5dedd683705ab7c9fba54d2c1d92e8e3bf3fb1fbe339c7d"
+      "bytes": 5731,
+      "sha256": "99f3a73b293bdb727025dcedd055c7ffd50447da69628e3c51ef73fbbafea7c0"
+    },
+    {
+      "path": "work/dfo-lan/internal/character/detail_avatar_test.go",
+      "bytes": 1346,
+      "sha256": "78578b96b6e7710ca0733b8dab03c9422a3717b515cb39548c67fbb654543f12"
     },
     {
       "path": "work/dfo-lan/internal/character/detail_test.go",
@@ -1724,18 +2579,28 @@
     },
     {
       "path": "work/dfo-lan/internal/character/fatigue.go",
-      "bytes": 1655,
-      "sha256": "dbfc59c2693d2ecded6d424042249894ea7400e9afe4e15cbe95f38631336e88"
+      "bytes": 1883,
+      "sha256": "297ecc8f5f6e35da0aee2297f8c96ea63f18edb63ba5dccacba23f4093d3cae8"
+    },
+    {
+      "path": "work/dfo-lan/internal/character/fatigue_day_test.go",
+      "bytes": 602,
+      "sha256": "f190f1fa5b5ecd70edfabae1c5866ece1863d7cd7b8a188dd44600eac1e7b8a0"
+    },
+    {
+      "path": "work/dfo-lan/internal/character/fatigue_recovery.go",
+      "bytes": 1688,
+      "sha256": "b8cb0e85a4a097f8b2411455127d72e12ae0a12f1d89187bdcc1af539b2f12ca"
     },
     {
       "path": "work/dfo-lan/internal/character/learning.go",
-      "bytes": 9754,
-      "sha256": "18997076142faaf36d9c2508c6f19a4686fc99e0bfe617312965f72b4ea72975"
+      "bytes": 10839,
+      "sha256": "bf57ddf3cdb4f9d0da3318888b4f5da023fad5bb47e66ab72dabaae2d643bc1a"
     },
     {
       "path": "work/dfo-lan/internal/character/learning_catalog.go",
-      "bytes": 4522,
-      "sha256": "6365001b1e37de2c3fbf863963cc2573956ac085cb2845ed25cacd6e3a102894"
+      "bytes": 4615,
+      "sha256": "699825156d86465603663a6748782293183be7f14509571f8f17fef9e9e39d11"
     },
     {
       "path": "work/dfo-lan/internal/character/learning_eligibility35_test.go",
@@ -1743,19 +2608,84 @@
       "sha256": "ac1a6d46c8c0957e606eed3645208a59b6896ee61edfd610fc22fa13e0ef87be"
     },
     {
+      "path": "work/dfo-lan/internal/character/odyssey.go",
+      "bytes": 4374,
+      "sha256": "86350038da94df6c789575e9dde5ae5d8ef50ea5e252633f36d18787375140da"
+    },
+    {
+      "path": "work/dfo-lan/internal/character/odyssey_gifts.go",
+      "bytes": 2644,
+      "sha256": "9a9525dbfd1b682fdaae70ba42608e1174bae01ee8bfe711727e042d3b9116e1"
+    },
+    {
+      "path": "work/dfo-lan/internal/character/odyssey_integration_test.go",
+      "bytes": 3901,
+      "sha256": "0d1869c514acf49d7d66ef1bb081a45c7efad9dbddbe1d7a112215908793e0e3"
+    },
+    {
+      "path": "work/dfo-lan/internal/character/odyssey_journal_routes.json",
+      "bytes": 3765,
+      "sha256": "2fdc82355b9092cd1e33b3cf77cded9fd4cf3fd7367e9ac2f9a4d7fc5896463c"
+    },
+    {
+      "path": "work/dfo-lan/internal/character/odyssey_progress.go",
+      "bytes": 2140,
+      "sha256": "ffacfb4965469d98b077d59a0dfa4756c805c72e3ee4bd2c7f1fb312c86fc923"
+    },
+    {
+      "path": "work/dfo-lan/internal/character/odyssey_progress_test.go",
+      "bytes": 1623,
+      "sha256": "719bf7c01c6a47bd1506df11530f16a55d9badb0b20df8353da76df780986e0c"
+    },
+    {
+      "path": "work/dfo-lan/internal/character/odyssey_teleport.go",
+      "bytes": 1328,
+      "sha256": "eee08db1002507ecbf4c962571a8dbc2c9866682a22c54e4d4d4d71c493106b8"
+    },
+    {
+      "path": "work/dfo-lan/internal/character/odyssey_teleport_test.go",
+      "bytes": 1780,
+      "sha256": "b08cc4ba6d171abf3ce6538c051fa7af1b8e5dbcd1207e3a1b93655c5ba2a1ce"
+    },
+    {
+      "path": "work/dfo-lan/internal/character/odyssey_test.go",
+      "bytes": 4294,
+      "sha256": "bbd6df1764a36d69138581f2571e993551568baf641b82ba96f4e80358ffe77f"
+    },
+    {
       "path": "work/dfo-lan/internal/character/progression.go",
-      "bytes": 2483,
-      "sha256": "4db4d14e6ca15b15b8fce7890fbcb363cdf4a8e6604223c502ab059c2a5e6d01"
+      "bytes": 2704,
+      "sha256": "5b4ef1bac510cc8eb6b05c6b9f12fbb45111694fb2c2efd6276912f6df006168"
     },
     {
       "path": "work/dfo-lan/internal/character/progression_state.go",
-      "bytes": 2458,
-      "sha256": "b7b230e651cf8963daa34dc6c3fb2c7762b28ab1c14061cec9023350b01f1d08"
+      "bytes": 2842,
+      "sha256": "6b13ac16484d3b86b0309953d3e3631b192462f52194c9444ec83ec877f10959"
+    },
+    {
+      "path": "work/dfo-lan/internal/character/repair_creation.go",
+      "bytes": 3888,
+      "sha256": "5998743bbe6f71eb8a97bb8359312bd46446c92290e61e8f72870ccc9ea77221"
+    },
+    {
+      "path": "work/dfo-lan/internal/character/repair_creation_test.go",
+      "bytes": 4402,
+      "sha256": "591b68ed17b1acecf385a71b350deb4c150a12cc68fa875d0674f1d1ac3ea99a"
+    },
+    {
+      "path": "work/dfo-lan/internal/character/reported_skills_test.go",
+      "bytes": 1949,
+      "sha256": "9e1fcf209f4f446fb786aea223107f3b9c2c8f89bd8fc134c8c0d6eb78619848"
     },
     {
       "path": "work/dfo-lan/internal/character/service.go",
-      "bytes": 6129,
-      "sha256": "03790924c7b5266a35b0a8d95b841dd490e29a0e6de4db8db9c56a019d8a4fb4"
+      "bytes": 8938,
+      "sha256": "ab0b9ffd5f9009ea6514341cea954c0bb567e087d8c01a2dac06d9ffa3f4bda4"
+    },
+    {
+      "path": "work/dfo-lan/internal/character/skill_pipeline_test.go",
+      "bytes": 3816,
+      "sha256": "10353580bd95665292741cfc2ad76df1719415c3106ffdd4c731c3b5621929ab"
     },
     {
       "path": "work/dfo-lan/internal/character/skill_projection_test.go",
@@ -1763,14 +2693,29 @@
       "sha256": "52247f668961ce751e24fb5dc561763f37c3380da101eb9641b8df4a5a0bf640"
     },
     {
+      "path": "work/dfo-lan/internal/character/skill_variation.go",
+      "bytes": 2710,
+      "sha256": "ec2a2228f1cdd14bee878dd7ba5043ec5fa157656e17d24acd225bbc4ca60871"
+    },
+    {
       "path": "work/dfo-lan/internal/character/skills_test.go",
       "bytes": 1545,
       "sha256": "e48017159771fc2190b2846f60525c3d8dc9ea3ff297cd10cf6c13b8a67aa8d2"
     },
     {
+      "path": "work/dfo-lan/internal/character/swordmaster_pilot.go",
+      "bytes": 1762,
+      "sha256": "a7bf27a4a80ca7e53b686dfe4a7e3f8984c27b5d8d7ce4dafe3034f2ba0fe45a"
+    },
+    {
+      "path": "work/dfo-lan/internal/character/swordmaster_pilot_test.go",
+      "bytes": 3358,
+      "sha256": "10067baaa774efd5658f479f139c3306f4fbf3396c5eed2da96ab24ebabb7f2c"
+    },
+    {
       "path": "work/dfo-lan/internal/character/testdata/native_source_stats.json",
-      "bytes": 5535,
-      "sha256": "ade856bb22c875d37bf982823c3136860214e773c7711e347e344d20e5bd2607"
+      "bytes": 5449,
+      "sha256": "006433589c1fec7457f10037e546f917da1af059bef7c85917555a0dcad9658e"
     },
     {
       "path": "work/dfo-lan/internal/dungeon/allmaps37_test.go",
@@ -1779,13 +2724,13 @@
     },
     {
       "path": "work/dfo-lan/internal/dungeon/completion.go",
-      "bytes": 1726,
-      "sha256": "513c22cbe8ac18da8e0d101f7891e62a0eb4c82fb836db92bcf3f622b6365caf"
+      "bytes": 2366,
+      "sha256": "4eec74a5685378269e499ffb5cfdd1a28e4980b5751b610c0651ff7f10bc406c"
     },
     {
       "path": "work/dfo-lan/internal/dungeon/completion_test.go",
-      "bytes": 2196,
-      "sha256": "869ec689abb1db35cf7a7e0b644d82942c9daab570521d9c23d09f775a834ea3"
+      "bytes": 2963,
+      "sha256": "a37a332f02f3d4ba7a7156cddede42037cb5ac15ac7ec3a756ec2073a61bf33b"
     },
     {
       "path": "work/dfo-lan/internal/dungeon/next_route_test.go",
@@ -1793,14 +2738,64 @@
       "sha256": "d325197abbd9521183bf694bf8f62fad1737bf5159a98365af8af98dc4f7d3a3"
     },
     {
+      "path": "work/dfo-lan/internal/dungeon/odyssey_scenes_test.go",
+      "bytes": 9824,
+      "sha256": "d59ebb35ae08ce5c08b093a030bdf4ed023cfef2f7e5fafb43d8b266278717d8"
+    },
+    {
+      "path": "work/dfo-lan/internal/dungeon/odyssey_test.go",
+      "bytes": 3562,
+      "sha256": "873c54f021e9d40a2530d2660e5c38a93334f6afe83a3fbf039d23394490189d"
+    },
+    {
+      "path": "work/dfo-lan/internal/dungeon/scene_transition.go",
+      "bytes": 1415,
+      "sha256": "c87adb41a1eef2151fdb5d906650dfdd4687ff99f3eefc678136356e49555e6e"
+    },
+    {
+      "path": "work/dfo-lan/internal/dungeon/scene_transition_test.go",
+      "bytes": 4157,
+      "sha256": "588863211b9d86d4f30387f75786fdfb93e0670edc5df6b820615bf72c47a716"
+    },
+    {
+      "path": "work/dfo-lan/internal/dungeon/script_warp.go",
+      "bytes": 3702,
+      "sha256": "ded7c4f5d4b163bc0b17aa04cfd53311a5c2454053df22a182e7976b3e8568a7"
+    },
+    {
+      "path": "work/dfo-lan/internal/dungeon/script_warp_routes.json",
+      "bytes": 12497,
+      "sha256": "a405a46a3ff22517934f2618af79246e358a0a3e67ee9fc0048cfcb5a5425e9d"
+    },
+    {
+      "path": "work/dfo-lan/internal/dungeon/script_warp_test.go",
+      "bytes": 4464,
+      "sha256": "36485a090fe4bfea35e1372556532d94e162884bba1361087a23b3e9fed27823"
+    },
+    {
+      "path": "work/dfo-lan/internal/dungeon/select_test.go",
+      "bytes": 3503,
+      "sha256": "4a64642cf6a9553f11b58328de557535d17904da89a1f6e43d3134395450380d"
+    },
+    {
       "path": "work/dfo-lan/internal/dungeon/session.go",
-      "bytes": 10710,
-      "sha256": "552239b37c60f1574b0fcfe1397ee255f60c3382841a69d214d402647e64ee4e"
+      "bytes": 15602,
+      "sha256": "aab24eef5a1c5be88cea144df8611fbd048f9e72554a19c54f670a42392b0019"
     },
     {
       "path": "work/dfo-lan/internal/dungeon/session_test.go",
       "bytes": 5886,
       "sha256": "d9f3bd17c8b8aad0d1de9a1450de5077cb5bc42a19b1079f677957e94dc00bcd"
+    },
+    {
+      "path": "work/dfo-lan/internal/dungeon/skycastle_scene_routes.json",
+      "bytes": 1803,
+      "sha256": "b9436e5c9141ad38e679f99794e2a6a48ae134332bcfcd7015586ee8d902d043"
+    },
+    {
+      "path": "work/dfo-lan/internal/dungeon/skycastle_test.go",
+      "bytes": 1793,
+      "sha256": "babcc33599509fce3f6aeff7448cf9287b5d7d09c6ac5fe866bac66353e9b0ae"
     },
     {
       "path": "work/dfo-lan/internal/dungeon/tutorial.go",
@@ -1816,6 +2811,11 @@
       "path": "work/dfo-lan/internal/game/protocol/account_options_test.go",
       "bytes": 1034,
       "sha256": "81150a8d387929516848fd9a181393a0a5358714af1e781b5508157f0cda3455"
+    },
+    {
+      "path": "work/dfo-lan/internal/game/protocol/appearance_awakening_test.go",
+      "bytes": 1605,
+      "sha256": "8087cd99292e0c71776615d010f686b1ff6b6d51204f50d7b2a5b3cf94e7e4ce"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/area_users.go",
@@ -1838,6 +2838,31 @@
       "sha256": "b019e1187ac2a1588d4a6843f739af4393d99316a7f96d59b1f8ea9f4259720e"
     },
     {
+      "path": "work/dfo-lan/internal/game/protocol/avatar_option.go",
+      "bytes": 1347,
+      "sha256": "03eb448cbaf57de4979bc4142ef83529e4523f7cb6a5a3842d29e50fd94773a6"
+    },
+    {
+      "path": "work/dfo-lan/internal/game/protocol/avatar_option_test.go",
+      "bytes": 668,
+      "sha256": "9e9926458384bdbc518434bfb715053350ba2a499d291fe1d91e242271593b03"
+    },
+    {
+      "path": "work/dfo-lan/internal/game/protocol/awakening.go",
+      "bytes": 540,
+      "sha256": "786188b0305a7f460cc931cb7b011d394a99c68e8e622bcbdc0543be50203b85"
+    },
+    {
+      "path": "work/dfo-lan/internal/game/protocol/booster.go",
+      "bytes": 4916,
+      "sha256": "9aff1037d4f48e7eafd14d6c7c8a67446090d2fbb1661939358ab209301e6d3a"
+    },
+    {
+      "path": "work/dfo-lan/internal/game/protocol/booster_test.go",
+      "bytes": 2877,
+      "sha256": "ace36af6fb3c6952e98b8984054bc98f2368afdcbaf1fe665c06d8cfa31d4ca5"
+    },
+    {
       "path": "work/dfo-lan/internal/game/protocol/boss_check.go",
       "bytes": 1209,
       "sha256": "285a59ef234f66c020b1eaaa0db5cb780df0209c606344ca5c8d43e7fe592c4b"
@@ -1858,9 +2883,19 @@
       "sha256": "10e30dac572972feeba6d29a65ed2b4d750c34b1e1a4892ff39887312016eed4"
     },
     {
+      "path": "work/dfo-lan/internal/game/protocol/cera.go",
+      "bytes": 3844,
+      "sha256": "f4baab8b2fec428ec12a5380b40b52edbe2e7f778989823b4dc2ebc12e980da7"
+    },
+    {
+      "path": "work/dfo-lan/internal/game/protocol/cera_test.go",
+      "bytes": 2636,
+      "sha256": "2859d8a90ba3f9dec3716a020ff1acd29768fe2e4eee3446697e58e68ad24e6f"
+    },
+    {
       "path": "work/dfo-lan/internal/game/protocol/characters.go",
-      "bytes": 5332,
-      "sha256": "6dc19a1fb0bf96af88ab236317c487d339fbd3523c7ffc9708bfdf42a7b1e977"
+      "bytes": 5855,
+      "sha256": "5a57fbe39e0690863cfdc6d0b491cf42a14306375c0c1ad214d7e6ba3ebf0600"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/characters_test.go",
@@ -1868,9 +2903,49 @@
       "sha256": "d9537682d1024179bd418b869cf491b0687c381f077625e0a0a1bd760b4f58a7"
     },
     {
+      "path": "work/dfo-lan/internal/game/protocol/cinematic.go",
+      "bytes": 828,
+      "sha256": "bf262a1a2ed87fdbdc553e63ed2be261b984b540a718b25685fdbdd7646ab79b"
+    },
+    {
+      "path": "work/dfo-lan/internal/game/protocol/cinematic_test.go",
+      "bytes": 705,
+      "sha256": "d0a202f3e9a7ff663f7712ab2a9530af9ef2fcdb5450bcbf72d89f497094fd8f"
+    },
+    {
       "path": "work/dfo-lan/internal/game/protocol/delete_character.go",
       "bytes": 811,
       "sha256": "b1989468e68e9979b7c280bcd4b77fb1fc14f444e9c470bf72936df989efb64e"
+    },
+    {
+      "path": "work/dfo-lan/internal/game/protocol/delete_material.go",
+      "bytes": 2789,
+      "sha256": "6444f5fdd5c143bf7f72ff0588f5210b3cb17ac0556de6661982cf7f45933a43"
+    },
+    {
+      "path": "work/dfo-lan/internal/game/protocol/delete_material_test.go",
+      "bytes": 1020,
+      "sha256": "baf3835886238d2aafc73966ac538322508fd58df911b5ef96fc2c964c4831a2"
+    },
+    {
+      "path": "work/dfo-lan/internal/game/protocol/detail_equipment.go",
+      "bytes": 1719,
+      "sha256": "33d1191c29978700e2ef8c1a0f327e6852516bfb104980352ac59b7086e03925"
+    },
+    {
+      "path": "work/dfo-lan/internal/game/protocol/detail_equipment_test.go",
+      "bytes": 1598,
+      "sha256": "6c3480e41bba4780b97685988fbd6d55a32a885cf1bacd37db8ea9fc2b7b58a2"
+    },
+    {
+      "path": "work/dfo-lan/internal/game/protocol/disjoint.go",
+      "bytes": 1909,
+      "sha256": "b48a745e25e4d539cc9cb9edafb2bb341be34420cdd7ed16daf49aee7c047636"
+    },
+    {
+      "path": "work/dfo-lan/internal/game/protocol/disjoint_test.go",
+      "bytes": 1672,
+      "sha256": "7ffbf72d4dd6a4cd9bc64d28174022511985a7e4af65f12e00adceaa571c808f"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/drop_items.go",
@@ -1884,8 +2959,13 @@
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/dungeon.go",
-      "bytes": 6547,
-      "sha256": "1fd055c8dfedb3981a9ffcb1ba5890ee30ef83f3062d2475e7ac27cc0a98b7bd"
+      "bytes": 7823,
+      "sha256": "41bc9dc3d4c28acfa543b3647ae411dd1c959ae298b4676fb0ab6c6458b68e80"
+    },
+    {
+      "path": "work/dfo-lan/internal/game/protocol/dungeon_revisit_test.go",
+      "bytes": 548,
+      "sha256": "456baac73e2aa5f76a6fcedc4dbbdf6940300e92a8f118c28c9087bc570f1a64"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/dungeon_test.go",
@@ -1893,9 +2973,19 @@
       "sha256": "596db93f9e44b9c1d1f776970ee367c27dc256a93f080e328fff5639f21fcbd7"
     },
     {
+      "path": "work/dfo-lan/internal/game/protocol/empty_item.go",
+      "bytes": 474,
+      "sha256": "4b2dcff0111d7377f312614184ed990ef845ffee467622c14130b2da55f9099c"
+    },
+    {
+      "path": "work/dfo-lan/internal/game/protocol/empty_item_test.go",
+      "bytes": 393,
+      "sha256": "725740752f8123f2109032a863ce592e7685a5f30fac744ecb93d3ad217b71dd"
+    },
+    {
       "path": "work/dfo-lan/internal/game/protocol/entry_addition.go",
-      "bytes": 3717,
-      "sha256": "7e00511dcc40aafca566ed0166eefc71bc105127311ac3b515b172bd6b48ce52"
+      "bytes": 3817,
+      "sha256": "6513b3d1d26508bc935fa4d10d1ab788b4b39dc144e8484c7cf221440c41774d"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/entry_addition_test.go",
@@ -1909,13 +2999,13 @@
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/entry_userinfo.go",
-      "bytes": 2392,
-      "sha256": "a7628c8c13d0bcc843516f9b900f603acfb7ca91299a1f5612bb70de77b7682d"
+      "bytes": 2728,
+      "sha256": "885f15a2c37926f707063332d080390efbe250764a982a2646cc227f60ef0110"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/entry_userinfo_test.go",
-      "bytes": 1496,
-      "sha256": "c20ff1d22f6e6d612023e5f9ace485c844b65939fd2c82ba0b36a1db8d08043f"
+      "bytes": 2001,
+      "sha256": "1e24f4ac552f166dae0d49d90e16c9a3e9af0ee59ba54068c297431af39fd4ab"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/experience.go",
@@ -1934,8 +3024,8 @@
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/inventory.go",
-      "bytes": 4944,
-      "sha256": "8448e389adda132f82ddd365b0771afb12c062a9c336d16d1a68ebb39505762a"
+      "bytes": 5737,
+      "sha256": "4782276c7d59048161bd62022484d5628b958f55f7bab2c0fb70e0b3890759cf"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/inventory_test.go",
@@ -1953,14 +3043,29 @@
       "sha256": "69017c748b5ec6517dd4271c34985e34b13e4f15b1e0e0775080e4a5f527c8d1"
     },
     {
+      "path": "work/dfo-lan/internal/game/protocol/lan_multicast_test.go",
+      "bytes": 2185,
+      "sha256": "7693ecb90221f0deff4a43863f9fae6e1281f85fd148decaa5ad4ac09ed15146"
+    },
+    {
       "path": "work/dfo-lan/internal/game/protocol/menu.go",
-      "bytes": 1143,
-      "sha256": "929e77ff4ec7c8aaa4a8a4958a844a84b0e319b8b74506940463916426b0a0d5"
+      "bytes": 2375,
+      "sha256": "92a4b2a63f3499cbe8d0c5a47cf5bc315bc5335ed485968e1eccf8255cdc5ffb"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/menu_test.go",
-      "bytes": 770,
-      "sha256": "35f9b2e2ae24e211ed546de1c197f2164b7363f19ccdfbee5110e562f405b579"
+      "bytes": 1386,
+      "sha256": "1b2389e0d6410fcf4ab3b94a5f9ab479096fa53677ffc93cb53c8c747b03d51f"
+    },
+    {
+      "path": "work/dfo-lan/internal/game/protocol/odyssey.go",
+      "bytes": 596,
+      "sha256": "e71f4dfa18af9ea19e5bf14951bd7f03ae3262db1af2cf127c0f3d0bfc9a4511"
+    },
+    {
+      "path": "work/dfo-lan/internal/game/protocol/odyssey_test.go",
+      "bytes": 692,
+      "sha256": "ed154b79fe660ab707e8bdfce22ca41f1b64b70be08ac71f33be061e1484c2eb"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/party.go",
@@ -1971,6 +3076,11 @@
       "path": "work/dfo-lan/internal/game/protocol/party_test.go",
       "bytes": 417,
       "sha256": "1d973d9765b263c13a37733808b0d5781246f4ada8a543eafe17e93e9ce1d67f"
+    },
+    {
+      "path": "work/dfo-lan/internal/game/protocol/player_death.go",
+      "bytes": 1026,
+      "sha256": "a73059efe4f5c9ac817176341c3d43e58a5ba2521e4a9eb11198d1c98ee3fe5a"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/quest_finish.go",
@@ -2034,8 +3144,8 @@
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/select_character.go",
-      "bytes": 3572,
-      "sha256": "d2fac0a98d4e2177415269ba1e6f1d3b3a9d28c1ee03ad3afaaf71714b663cbd"
+      "bytes": 4153,
+      "sha256": "53547f0f91f1b5a736d4180d76748580e73606ba54ebf4888528a92695233e3c"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/select_character_test.go",
@@ -2053,14 +3163,29 @@
       "sha256": "3e90784c3e0426da68784d72700668c1cb48bedc5adf53343d2d412623596e01"
     },
     {
+      "path": "work/dfo-lan/internal/game/protocol/shop.go",
+      "bytes": 3791,
+      "sha256": "655153738553fa720a305eb67cf7da8b11b55b6e8a41353ad0fecb2ec0d1096f"
+    },
+    {
+      "path": "work/dfo-lan/internal/game/protocol/shop_test.go",
+      "bytes": 4336,
+      "sha256": "1f613b333b46d2a9d85fb9c38a2bdc43900ddf40baf1df32c223bc218abe7882"
+    },
+    {
       "path": "work/dfo-lan/internal/game/protocol/skill_mutation.go",
-      "bytes": 2339,
-      "sha256": "53d367c03cd709da7e36fbdac39275456700b6a673d244cd3c7531b1debe94ad"
+      "bytes": 4394,
+      "sha256": "ead548a06d5a55179911886f7817b5e93e2751723524d2ba4bd18f21632e198c"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/skill_mutation_test.go",
       "bytes": 1780,
       "sha256": "6341270211b3d40f9a81a817a5da99e52a3f2cf89411b7ebcee2a9bba60a574a"
+    },
+    {
+      "path": "work/dfo-lan/internal/game/protocol/skill_variation_test.go",
+      "bytes": 1287,
+      "sha256": "f7a4682b78cb88b526c7dd77d6e485fac0a396cbe9dfe526f97ab6adeaf420c7"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/skills.go",
@@ -2071,6 +3196,16 @@
       "path": "work/dfo-lan/internal/game/protocol/skills_test.go",
       "bytes": 1398,
       "sha256": "2b7f21e6d60540fcaa44d76a724e2f2bbcae314ac21abf713b050273b61333f8"
+    },
+    {
+      "path": "work/dfo-lan/internal/game/protocol/special_warp.go",
+      "bytes": 675,
+      "sha256": "2e0817803d4c108b671fbf13837a55702009a9a491099d45f79ef3fdb349fb90"
+    },
+    {
+      "path": "work/dfo-lan/internal/game/protocol/stackable_action.go",
+      "bytes": 659,
+      "sha256": "9f02d72554d859400633caadcfca569d234bf652e72c2fdd451e2accaa3a5e69"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/story_pause.go",
@@ -2089,368 +3224,368 @@
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/live27_play_result.json",
-      "bytes": 367,
-      "sha256": "65b081f6543b8e01d07b6b82e30e508372808e926c3ac40b4f2d92064c39bc56"
+      "bytes": 363,
+      "sha256": "e9107749f4c5defc5939f34b607c83303489900bb6d85decd19b3abd3a31a30f"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_account_options35.json",
-      "bytes": 15050,
-      "sha256": "d1370c1a6425dd43488349ae384fe6336f2a14171d639b72772bc7ee001d69f8"
+      "bytes": 15032,
+      "sha256": "a70859d96cd567d503ae27f46c02821282aac48bf2cfeae17dac24b07fdba0bb"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_addition_cursor.json",
-      "bytes": 9820,
-      "sha256": "4f19735181801e1da4c4fea13524c740ce8f136c99aaa4dde503f9dd4fe63d8a"
+      "bytes": 9369,
+      "sha256": "96648bf173f0f546f84f9e1000430bcd668a6e630f6b0db63a75972f4fcbd4c5"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_available_quests.json",
-      "bytes": 250,
-      "sha256": "6417ca88151b084e630947c445b00cdc934bd702f88c46484cade49619662e30"
+      "bytes": 237,
+      "sha256": "c00052ba7cdbaaa49e35154fb25e54b76c36b0fc86fcc96ee0eba22d164c0801"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_boss_check_request.json",
-      "bytes": 585,
-      "sha256": "6216c856f750c9624635309364ddcbc8f2aa9647830ebc79e361635487f02dfc"
+      "bytes": 556,
+      "sha256": "75b3eba1715a50864557ad6060feb1b4bfbb38313b8bf746f90e4e9fbf5afd5c"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_boss_check_response.json",
-      "bytes": 586,
-      "sha256": "7c1a1ecd5c4c7392efa9f05de2369a51cd66bb3d4508675fddd6a268c4536e0b"
+      "bytes": 559,
+      "sha256": "94b20c8a1b9e2d103bcf1fd66df20b086be5f8113848b37371fbc9381f08fcdb"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_card_exit_1_0.json",
-      "bytes": 536,
-      "sha256": "3384bafc65e716a8a7b5a27f6209e7461db9ee75c38e496fca23953e6c347391"
+      "bytes": 508,
+      "sha256": "3167d927cff6aa056e024929fc6694b0541b2d8532f1ff1593d322635ac1e74d"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_card_exit_1_1.json",
-      "bytes": 536,
-      "sha256": "2a970b2ca0bad2eb74fae1082397178fd7fbf5b1491c61bc003636298fd07b74"
+      "bytes": 508,
+      "sha256": "daca2d658ddb819a341cc08ad5dce9e0efc05e53e303785d2c7d0849025fe4f1"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_card_exit_1_2.json",
-      "bytes": 536,
-      "sha256": "cc786fa6660f591dc03cf8d94baf986fc9c82166dbf148d0860a2ff990ba35ef"
+      "bytes": 508,
+      "sha256": "2af8b99e4ff953e3d602c77202a1a50be9d50a7c7986a631451f43a01272fd10"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_card_exit_2_0.json",
-      "bytes": 536,
-      "sha256": "37bab8a50920d47efa877faf3f214362697e55aa605e5efe636a5d614da1e703"
+      "bytes": 508,
+      "sha256": "83ee1447409277c5cd204f07620df8c677383aef8f3b7ff6b343c216451fbfd4"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_card_exit_2_1.json",
-      "bytes": 536,
-      "sha256": "ffb5a914e835e8ce74bd49fd33a4f461b62ce66de610988de231f7f7391046bd"
+      "bytes": 508,
+      "sha256": "d9abd0a458192949030bfef78c099f02e2e873b7f301923e49aba9130c85bb90"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_card_exit_2_2.json",
-      "bytes": 536,
-      "sha256": "e22b01176fc0f05c91c9d7699bc4754a0093e8996fd69b6c26b75160f94740c1"
+      "bytes": 508,
+      "sha256": "d7fbff1cc40ecad2bd677536b5c79846bd5e9642b2d1e37040d5aa3e8da4bb38"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_card_free_0.json",
-      "bytes": 5848,
-      "sha256": "fe86422c39fd0b028e370f2aed16a3d3cbed1e4e960350f63027f7c3ed4b370c"
+      "bytes": 5502,
+      "sha256": "a229440b7da6975584d7d0bf3b1c2db679cd25f95cc0fcef9bb124194737e11f"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_card_free_1.json",
-      "bytes": 5848,
-      "sha256": "b4c9763d0fa26fe1bb97dd14c90482fdd5caf938315bd01946b3374a353a8829"
+      "bytes": 5502,
+      "sha256": "1676d7b60cf60cb0fe0ae36632406ec46762cc04825a0b86ea7d8bd3305cf0d8"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_card_free_2.json",
-      "bytes": 5848,
-      "sha256": "e9fe89bb843396e827ca48aa9c380dec38642091d6540bfde2f282a43cec88dd"
+      "bytes": 5502,
+      "sha256": "7b304dac220b18c978c4ed55685ffdf33535a8a98c06c656d5fcd5b3e355cf94"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_card_free_3.json",
-      "bytes": 5848,
-      "sha256": "498ea41a5496bdde94070b27eeb8314d5412ea940cf2ceff95114bcda2b86045"
+      "bytes": 5502,
+      "sha256": "353ed9cf42888edcebb429d55d7dda3f6cad6343545c6a595dc623c0d754c26b"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_card_layout.json",
-      "bytes": 1196,
-      "sha256": "a6496af7d25740e4da3d0bdf58505c4a3dc814f44ebf1a2d79593a3c3f7db76c"
+      "bytes": 1132,
+      "sha256": "84dd17a4ea8ac057871a02542530dcfba0de65d244d6ff84e66313eab2fa46d7"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_card_scroll.json",
-      "bytes": 325,
-      "sha256": "c2430cd041ddc67a875f75c9788172bdedf3ec3d18451e34669c69f57349da50"
+      "bytes": 310,
+      "sha256": "a415820569077966fd2942bb973161fce19f28fe3853d41c561915403115ab30"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_channel_aes.json",
-      "bytes": 284,
-      "sha256": "09b676e0cc0e7f8efe34b958842e3ba18e06a3f089ea7bbe193e84f27ad1e64c"
+      "bytes": 279,
+      "sha256": "09e9f805f6b779f742e1455526969de5921dc57ed4289147a3ecd9b3f48301d6"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_channel_directory.json",
-      "bytes": 934,
-      "sha256": "01621d2fd1726f01633b37beb52b710cb8e8cff9775c7136cd010188cd7d75b2"
+      "bytes": 891,
+      "sha256": "1d0091ba6dd0590857446b0a67b29451195cca09dbb44ffa0eaaa4fa1432a21b"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_channel_directory31.json",
-      "bytes": 903,
-      "sha256": "314fcf9b7a7073f7906d3a8a4cb668619d819122da872760eb535d6933c40c7d"
+      "bytes": 856,
+      "sha256": "f0f8d7d25505e7c8dd138bd7a79672f1777c60d0728a7cbc04b956e5b7127d92"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_channel_eligibility34.json",
-      "bytes": 344,
-      "sha256": "432063f6b1a40713024d200c491b3f3c29517ad4400fad0c106eb0c3e47d62e0"
+      "bytes": 323,
+      "sha256": "b50fafba16eb9dd04301d0ca7d7075f19d0818c588694ea6d29393ab19a7c674"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_channel_ip_filter33.json",
-      "bytes": 134,
-      "sha256": "c8ff9435366c9101643eb807d60b7ff130e9ab49fa848a69695a7501e806f555"
+      "bytes": 125,
+      "sha256": "f3526c2b7e2dc744b94dbf30050bb39a0c788b7b7aa2e280a69351f6c5596ec4"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_channel_numbers31.json",
-      "bytes": 274,
-      "sha256": "80fc0b68ed242a152fd2d3d65fd041cc026300ac44abdfa5cdfce3376ee3b0ee"
+      "bytes": 252,
+      "sha256": "bac08228fda9f4ea77a605ef65d9624a82d8f6e851d849de8568e46d131ff063"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_clear_enabled.json",
-      "bytes": 351,
-      "sha256": "314001a42931f34dcfe14f945bfad2fd22eedb5fa0ba16d9d07e34c711bea339"
+      "bytes": 336,
+      "sha256": "80e2f587e713ccafcd95a3cac09b9019d183571df51ac1bacfa0d20e2e1cbf22"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_clear_reward_cards.json",
-      "bytes": 17432,
-      "sha256": "01da0c5bcd72c041707bdc763790c893a68dd49807c564be07c188ec9c5f88b8"
+      "bytes": 16488,
+      "sha256": "4294e102149710e59c42be5f361d9e3ef11db54ba87cb9c6e15a699a242e9a01"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_clear_reward_current.json",
-      "bytes": 16429,
-      "sha256": "59faa327bbcb44e64bbc0fc155e621f14bdbffbf3abb3abf1cd8936bc9450f66"
+      "bytes": 15534,
+      "sha256": "639cfbfb4d689d8128cc2c925aa31c6f1dc95323937fb0084dc37c3a10f6dfd5"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_clear_reward_empty.json",
-      "bytes": 16188,
-      "sha256": "2f8b93b6130324d26f3795e2f5f0fae0f01099860b7900136cdff188440b8275"
+      "bytes": 15304,
+      "sha256": "6bffadcf2fb4862ab410ab2398a9ed7468e072a61584236865b7907390020a87"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_completed_quests.json",
-      "bytes": 706,
-      "sha256": "00d01f426113bb5f699caaf308a191afcd6c7dd35b8f72739209b43fba81d721"
+      "bytes": 675,
+      "sha256": "ea8464284de52d0fc5b0123771b8f9e216f913e8e154794247c749f7e16c98d7"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_death_empty_cursor.json",
-      "bytes": 808,
-      "sha256": "a8957b8ff372e664d22535f29614175d21ba25730a9f2c41ae6ee906e5256c9b"
+      "bytes": 765,
+      "sha256": "d12e05c68a78e965c97554b2ab98369f5339fd2a204e053d5a34559b3f2871b4"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_delete_0.json",
-      "bytes": 412,
-      "sha256": "09bfec267a6c7643a359e98cfe8891f63e0c70170fa0963f157982eab0cff130"
+      "bytes": 391,
+      "sha256": "ecca95f13374050e2c9c13263a29c029f8a38c817894f7818416eb4e2e89fb78"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_delete_1.json",
-      "bytes": 690,
-      "sha256": "645d8775255454a2933883cbe5304f7c5c60bcd932e0d0f404ea4853c7b5fd1b"
+      "bytes": 652,
+      "sha256": "543d22e1a4ce3d556cc0a647d00dffc715f9dfc6f11469515c4576348db4d7e8"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_delete_pending.json",
-      "bytes": 284,
-      "sha256": "ffae16cf0d23edfdeb99cfad1cebbdbf7fd107610dc30ea8625256da87b938b4"
+      "bytes": 270,
+      "sha256": "d98c5d44c6d36a03f561dafa1a51349c8aca33d2ac242a35cb9b420dc494371a"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_drop_items.json",
-      "bytes": 3588,
-      "sha256": "65c6cb438b8e5cd61b7a9f9bf564196d3e94123778cb5643dbee47b54fb23999"
+      "bytes": 3497,
+      "sha256": "fa17730d6d141c625404a1561bf18a0db53e19a20e93952638da347f4141229e"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_dungeon_gate_cursor.json",
-      "bytes": 2159,
-      "sha256": "409416cab586d472140b6b55b0374a687f518030706c075e07c8114226d51ecf"
+      "bytes": 2044,
+      "sha256": "29dcc4694a51c2a6e0fba1eb14bddbc0f99dfba2c0e95cc9265263e1c2fc578b"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_dungeon_info_cursor.json",
-      "bytes": 3736,
-      "sha256": "52bd48697f9dfa7b5dc31c294f2b3376a5eaeeb7b1969db3c2dd515481ee72ce"
+      "bytes": 3524,
+      "sha256": "b542f9ad8fb0119899b5c497193729df0dc5e6a0d518c9a0b1e768c81e6b5194"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_equipment_record.json",
-      "bytes": 1515,
-      "sha256": "18ab2d9c4f89cd269fd63a9ee7e68e1171db45ab863978da7e7012271f87869e"
+      "bytes": 1475,
+      "sha256": "84e4617b247d4ff59493f51e4a4d938add435b31f9ed2f89471a7eb84fb0c70c"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_experience.json",
-      "bytes": 2978,
-      "sha256": "cbc68d73f3ef5ad02f0b98be8043d369633c72daeec7ef15dd87e8a2beaf3c8e"
+      "bytes": 2825,
+      "sha256": "9d5906f150581cbeb2f71620628a569c39592fc889762021f76e9a9e7c815764"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_experience_extended.json",
-      "bytes": 2986,
-      "sha256": "de8ded0dd1e7771af6aecba089deb95e512a2079c4267daaeabc728b37116781"
+      "bytes": 2833,
+      "sha256": "c8d4f158e58149c5aeade91de8dc324cbfaee29f041e7021116f5a5211147707"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_gold_pickup30.json",
-      "bytes": 2340,
-      "sha256": "98c11e9ebe04811a140714fb0e169151b599f0ef5e960b3993e85baf7995b3c6"
+      "bytes": 2218,
+      "sha256": "af8ccae67a7afdee13c8b4d35172960624577f877518c9a24d36393ed897c372"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_inventory_restore_0.json",
-      "bytes": 515,
-      "sha256": "07770fcfdad6fae54ea22109bd4e9732b02115d8dfcf5c81f7110106429c57c8"
+      "bytes": 489,
+      "sha256": "b83e907af4051aa52509f2b78f398cad8a0eedaa6ee09b3677024f9aa62944c1"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_inventory_restore_1.json",
-      "bytes": 1343,
-      "sha256": "2f7a0a649b52c365ef8938f5513c1710a5f01fcebefaf8388d849809439f03b7"
+      "bytes": 1311,
+      "sha256": "ceac8ceeab1cc019faf3afb11f5633766cc4d48471b30a1e1092f1ecd4b6cca8"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_inventory_restore_2.json",
-      "bytes": 2171,
-      "sha256": "4d0d389593d484222104b8daf64a468bf67afb0c9c42842d5139e5c22bba103d"
+      "bytes": 2133,
+      "sha256": "b824b3bf0e8295ad8269ea7982a13c4c36705d7573c233cc62477587e15ae119"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_item_move_failure35.json",
-      "bytes": 626,
-      "sha256": "0b5805cb7e250765bbb19716fa88a7b3efa6f3ab0dcaa096647580060dfc73a8"
+      "bytes": 594,
+      "sha256": "74fa706a7f0e6cdb6e7e3866989e844cdd78bdce63c574ef1c62a33f3dbe92e4"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_item_move_success35.json",
-      "bytes": 844,
-      "sha256": "6451b0a9644bf32ad2c6ef4e56f7bf209dd404b5afe5f5395eea660277f62b72"
+      "bytes": 800,
+      "sha256": "a3dc1ff39993bf23db2205b1629b8748a5a780edcf1329a647c7586133c5b35d"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_item_update_0.json",
-      "bytes": 1236,
-      "sha256": "b93f1b6584764258ac105665bbdfeff62c4351395298e4766fbe288d6ab71da2"
+      "bytes": 1210,
+      "sha256": "e13f1b8bb69c42c01bdcf86bfb847efc251a274a40cb75e2480d38e9e74a0187"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_item_update_3327.json",
-      "bytes": 1236,
-      "sha256": "edb74af8971899f631201ed28f33b86daea493876cbc657988dfec6479cf62e1"
+      "bytes": 1210,
+      "sha256": "b1c85554ded62a46ce8fb4434d1d813fab4e37cfbdcf4cdba0f57cf87d1fe815"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_packed91.json",
-      "bytes": 4794,
-      "sha256": "65d7cbb871d71b92068b4df27a3f3b9842f7bfdd6eb0b2bc19e3cdaa1ff36b82"
+      "bytes": 4529,
+      "sha256": "fb8303ae5274c19f3c763084a5b32eac39eef202d3c6cd83d71b2a1473fd8c21"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_pickup_ack_0.json",
-      "bytes": 300,
-      "sha256": "b04f6175b98785b6ee32f01d0d53c1700db4c8368dad81f809468a7cc89d1fd4"
+      "bytes": 286,
+      "sha256": "4c70e2da4f98ba78b17c75810434123949da01a606231d061635b556de613df4"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_pickup_ack_1.json",
-      "bytes": 181,
-      "sha256": "c43368b0f06d8c3a0438e034f7254b673d28b685d2225b850d918e512ba3f8ba"
+      "bytes": 174,
+      "sha256": "56a3ee0eb6ad1db96c5498d10a9f82c0be8299faf72c22bca92473ecdf53be8c"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_pickup_request.json",
-      "bytes": 1334,
-      "sha256": "4e7308b245ee5b85df005117066238e696401f7f87d94cd8312ff97c4e0f8513"
+      "bytes": 1262,
+      "sha256": "6e69ce3c4622f74c24966ed8fbbe53a42ee470a5064ff9e9c3c9829b057df43e"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_pickup_tail_0.json",
-      "bytes": 1404,
-      "sha256": "34b720741c63b71aed9a834613522676e050dd4f9f5bec2682a6757ef0d0450b"
+      "bytes": 1330,
+      "sha256": "8dd1b7edab4a036ce7eb8a7245330da11418724210e7d794e0c37d1785213873"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_pickup_tail_1.json",
-      "bytes": 2022,
-      "sha256": "57af9b9bb34fbfafea348503d4931a428b325462f4da490e504f5a96e3b22936"
+      "bytes": 1918,
+      "sha256": "ad0d470b2ce01cb540841fff267458fe984129062b9fdc950d756da0b5c124fb"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_play_result_current.json",
-      "bytes": 1630,
-      "sha256": "69acb936926ddbcf269f6c276d884fa0755d5bad0a5e7b977ab2a405001b79b4"
+      "bytes": 1548,
+      "sha256": "b31e63a6b8cd012b6a76f2aee1872ebb05be728dd349ab8660a9dfe90a11c7f9"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_play_result_empty.json",
-      "bytes": 835,
-      "sha256": "fdfff1408a9231637a98448fe9ba66030960999f4813b5f8f526dea2c521f0e6"
+      "bytes": 791,
+      "sha256": "cbac884a9a04abbf481c44b169413b0f3a8288f6b497426da9d9a1b5fead19a9"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_play_result_no_record30.json",
-      "bytes": 1688,
-      "sha256": "935a356d894a1032a2fa750f273d86ac082766f533e0f6abe6bc15af14cf8211"
+      "bytes": 1601,
+      "sha256": "2f61ee8a1735edac060f7971749993fbae5c4bce9635fd49246427b81df87ad3"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_play_result_record30.json",
-      "bytes": 1757,
-      "sha256": "e31c3096925f5ef5dc4d94fe047f46b3a2a389b6d7bb30a7b96a402eaf0d1bdc"
+      "bytes": 1666,
+      "sha256": "f1a2cca3cefe66d694d6d59608725c6ef95910c97f0fabaaf50d8601c7af4320"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_play_result_request.json",
-      "bytes": 3759,
-      "sha256": "6f26f653d3e1b345dc7b8a8f2d66b624d3768432c930d2e9056052a15c21df1a"
+      "bytes": 3555,
+      "sha256": "e0390e31704383d420a87c4fbd3aa943de994f645bb35250cb02b8d2ee3545b1"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_quest_finish_empty.json",
-      "bytes": 879,
-      "sha256": "4ad000ea649ce50204d7b2fb0cc70684ce190bb796955922d99bde954f055568"
+      "bytes": 835,
+      "sha256": "1e64ea478bacf4e2f0d604ef88f5feae6ddfa5d5eafcbcf0683ace3f954b2f51"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_quest_triggers.json",
-      "bytes": 1913,
-      "sha256": "26f34ea4faf5f830384d5b75823cb0e49bb1d3a392bded7838b488bf36222f04"
+      "bytes": 1820,
+      "sha256": "e3fafdf7a267b34600addb3e437f6f560381a47d6322b02e4fa80e89b8be52f2"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_request_digests.json",
-      "bytes": 419,
-      "sha256": "a0c00ba3a953be65229eb72bfd9d673117f0f2d6d2e37d12300ecf54efb1a112"
+      "bytes": 406,
+      "sha256": "e3cad809414f56987c5d82b6738b52873ae5e8d2613bf53628a502d91104b841"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_selection_return_cursor.json",
-      "bytes": 280,
-      "sha256": "07944af0b69c92ec7338ee621d0063b13ac8d11b228a8541a80c118ea903fb8e"
+      "bytes": 267,
+      "sha256": "3ed90a8edb07555ef1bd7b22a9f6cbb52dc0fc4eabb66f8b771e09a38b38c0a1"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_self_skills.json",
-      "bytes": 3046,
-      "sha256": "cf0641d4e51b721809fa71cf92047896df6157f1a73803e2468f58d7aee790a1"
+      "bytes": 2938,
+      "sha256": "db643d7817c42def114b7b27443e1fc18682974b5bbcd11f0aebf4ea7ccb789c"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_skill_mutation_28.json",
-      "bytes": 718,
-      "sha256": "02a3246807df99b135e07d88f317b3cef4d7f7d75fc11c2113e75dd03fab130e"
+      "bytes": 678,
+      "sha256": "e4b3a5142901aed2037777ceb3044706643ce4658124a2f251a58983b629bae2"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_skill_mutation_29.json",
-      "bytes": 1750,
-      "sha256": "7399054a1058319c8f7d20bb971c93547932a1feabe1d528f5654ea56a52e06d"
+      "bytes": 1650,
+      "sha256": "b3f4ed104a33de725ab19a9e5303552277c913a77427e35d0e5782f18a34a4b6"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_skill_refusals.json",
-      "bytes": 679,
-      "sha256": "c63c8e0883fc4e3e9e50d4e967856016a58c51ac662d991b3d5e9c050ebab0b5"
+      "bytes": 652,
+      "sha256": "a5a85b6c7fd813b8ca255f7256f8facd10591551abc23281cd06580a6b9acde0"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_solo_party35.json",
-      "bytes": 10861,
-      "sha256": "0908f7097eb89b47ada0fd97c4a2e2eacdd86d03346176f6af743e1250404395"
+      "bytes": 10257,
+      "sha256": "cdb6bcff8a38fcc14b44072950b8553ff1a8e777362c7eab9ea5aac4f33cba05"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_start_map_cursor.json",
-      "bytes": 3295,
-      "sha256": "2f220ede5735911d4a9259f3e2e5b2b6190d4e36c3e776b2732b60de08e8cc92"
+      "bytes": 3121,
+      "sha256": "1e28f006ed7c7975843a8e18146f18f076ea1535e28c7404e02a0b25db8364f3"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_start_map_teams.json",
-      "bytes": 4584,
-      "sha256": "26ef628c31dc8e51828221e45c0fefe4408c68269fdc8fbb6fa5b557a2192103"
+      "bytes": 4337,
+      "sha256": "8f85ff6b98688f50cfac9a07f02005ad2a5d19f975906c28dacfd762e35122bc"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_story_pause.json",
-      "bytes": 5292,
-      "sha256": "a2141b9594692386222fe1d296019b39b2ad081fd7c1f72ab21f7bfcaf0aa99f"
+      "bytes": 5037,
+      "sha256": "3ebced36ec627ec664c284814a89457af786212188ce5f4f28f3f1036acf2403"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_user_state.json",
-      "bytes": 1343,
-      "sha256": "c76da8cf29f089a1e460552714990d1f42f38a0a7581f3ce04ceebea8c702944"
+      "bytes": 1282,
+      "sha256": "bc370c9c2f9944070d2970bd64970fef235bb320f4c4d74f428bddc1d32b6767"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_worn_restore35_0.json",
-      "bytes": 429,
-      "sha256": "68245cf3dacd496a8b7667e4a015cc829dc27f00195ac9a65a69d8a126cf2570"
+      "bytes": 409,
+      "sha256": "f40d66c80fbfbbed365b2c3fad1290971811da5ce1e29fe3e56c41929ad8edec"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/testdata/native_worn_restore35_1.json",
-      "bytes": 1375,
-      "sha256": "78e2f2ab0f597ecc4b4207c5ce2c2f3803f30e38eec9ac17e90c4b73f6dce4ad"
+      "bytes": 1343,
+      "sha256": "7ca5c492116ac24407ac5073c2d8d9b90889564974b6f4b7f3020a02e553da07"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/tutorial.go",
@@ -2484,13 +3619,18 @@
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/vault.go",
-      "bytes": 384,
-      "sha256": "eae58bbd95e88a67538a467da01ad17efd1a1df7bf3f3e47f2140db3a705b151"
+      "bytes": 1149,
+      "sha256": "cbb5c8738ae376104e3765057ae4d540def526948e7ddb4992e3a8ce371fe520"
+    },
+    {
+      "path": "work/dfo-lan/internal/game/protocol/vault_test.go",
+      "bytes": 1297,
+      "sha256": "ac069c310579bd556db3e810db247157178b9d6c74256dfcc2195a8a9d5570a4"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/world.go",
-      "bytes": 2273,
-      "sha256": "7a8aa39cf8d118cf937d811e52a879c6cce592d9686c7ac47f3021d9d6895ca5"
+      "bytes": 3695,
+      "sha256": "c35c8ed59ad3390786d9bbcbff2748a88545bb74d4aea7046392fb1e03555164"
     },
     {
       "path": "work/dfo-lan/internal/game/protocol/world_test.go",
@@ -2539,8 +3679,8 @@
     },
     {
       "path": "work/dfo-lan/internal/game/wire/combat_cipher_tables.go",
-      "bytes": 42321,
-      "sha256": "5b73df3a8ebc95bfc505c305caf57dc5176661cb01a77b43aedeaca87e757219"
+      "bytes": 41791,
+      "sha256": "74155f7ead37cc3495efc2ee2e3f02d7fc5b6cdaa9b0e087a0fe178b65676a09"
     },
     {
       "path": "work/dfo-lan/internal/game/wire/combat_cipher_test.go",
@@ -2569,8 +3709,8 @@
     },
     {
       "path": "work/dfo-lan/internal/game/wire/LICENSE.blowfish",
-      "bytes": 1480,
-      "sha256": "cfafa52502a751f278b6da9566fa8ec1f1dfaea516283ab56acbb7838f87384a"
+      "bytes": 1453,
+      "sha256": "911f8f5782931320f5b8d1160a76365b83aea6447ee6c04fa6d5591467db9dad"
     },
     {
       "path": "work/dfo-lan/internal/game/wire/multi2.go",
@@ -2599,48 +3739,48 @@
     },
     {
       "path": "work/dfo-lan/internal/game/wire/testdata/captured_combat.json",
-      "bytes": 600,
-      "sha256": "aaed743d7f566ed3c125e163247eae9c13817cdd8fcac371003ab8457859f9eb"
+      "bytes": 595,
+      "sha256": "9cac41973fb957e369210501c48a0178650ed957c6a3ed797107b15e013ce217"
     },
     {
       "path": "work/dfo-lan/internal/game/wire/testdata/native_aes_vectors.json",
-      "bytes": 1029,
-      "sha256": "875a9326ad1ea8a31ede4cadffbd3fd56790981a702065e068d73ff26cca5773"
+      "bytes": 1001,
+      "sha256": "17ba93f88a5b2396ebab72f3c1651aed935b8355d4c0cf3dc433b7be106cb1ed"
     },
     {
       "path": "work/dfo-lan/internal/game/wire/testdata/native_area_cipher.json",
-      "bytes": 1491,
-      "sha256": "19c683af76b1f8b2a26de1ac6c1496bd9b1d1f10a73fe9c099ca5278849b6438"
+      "bytes": 1458,
+      "sha256": "f0322520403607529da8fcc04dee1e2b06a3c613c70c1b8b4943b691346d3a2b"
     },
     {
       "path": "work/dfo-lan/internal/game/wire/testdata/native_cipher_vectors.json",
-      "bytes": 3852,
-      "sha256": "b4e4ad6376a68550124a8153a70cb58779a741aefe14a4290ebaf11031db998f"
+      "bytes": 3725,
+      "sha256": "12af8c93ce5d12e86b99ac300b7d08c8f5b414bd2134c16cd35fd9f735030851"
     },
     {
       "path": "work/dfo-lan/internal/game/wire/testdata/native_combat_cipher.json",
-      "bytes": 1107,
-      "sha256": "7c34c095b274e7201e04ec59b8ccf3697fec1e4aa8d72020f4a1539d665db3d8"
+      "bytes": 1074,
+      "sha256": "0b5099a8cf5ee1a80ace2d9f054f973b79e53040a8978564e8a5b80a50c6bb87"
     },
     {
       "path": "work/dfo-lan/internal/game/wire/testdata/native_multi2_vectors.json",
-      "bytes": 1323,
-      "sha256": "44deb79d167e60389ef9af92a892bef027a5676edfcb6261354bf02464ab4a82"
+      "bytes": 1286,
+      "sha256": "84ea992447de8c95461a2691ef5ba85d40ad2387b076532e464966793ea938be"
     },
     {
       "path": "work/dfo-lan/internal/game/wire/testdata/native_quest_cipher.json",
-      "bytes": 915,
-      "sha256": "e868886952ce7d0ffc2eef6c4b710d7d9e4286c016896b9b67d37521e50001ef"
+      "bytes": 887,
+      "sha256": "936432274e3c28bd448a2c2a0320929be7572bcc42c95255b3842419edb51021"
     },
     {
       "path": "work/dfo-lan/internal/game/wire/testdata/native_world_ciphers.json",
-      "bytes": 2106,
-      "sha256": "356e864bb0e02467e1615648a932d14b63a17c3d2a027cb80c59b2a7fc408954"
+      "bytes": 2057,
+      "sha256": "15cc348c2538b5a3287ab0d9cfc918822bc2e74ed0e4d4e9bf434e48db204d8b"
     },
     {
       "path": "work/dfo-lan/internal/game/wire/testdata/native_xor32_vectors.json",
-      "bytes": 5747,
-      "sha256": "69a8169ae6f38166d92c40874de45f06ffdc10fe30a0c76fa0f1a28d690be348"
+      "bytes": 5602,
+      "sha256": "11bc5e6f69626bec9ede9ab636a8cf70871515b8b19f6dc4a7da39dfd10cf244"
     },
     {
       "path": "work/dfo-lan/internal/game/wire/world_ciphers_test.go",
@@ -2658,24 +3798,49 @@
       "sha256": "1190068eb2e0cb2394409d336e681d6f5dc84fa1bfd66ddf06a091041bace0d3"
     },
     {
+      "path": "work/dfo-lan/internal/inventory/account_materials.go",
+      "bytes": 6734,
+      "sha256": "b17b4e818d04edc381064cc540f1b0534a6f2bcc366fc3e5103687189bf29a7f"
+    },
+    {
+      "path": "work/dfo-lan/internal/inventory/account_materials_test.go",
+      "bytes": 5108,
+      "sha256": "5ea8fe185af5f7e3c84a256d7b6b8bbe215f788cbeb367d191d046aa19d3738c"
+    },
+    {
+      "path": "work/dfo-lan/internal/inventory/avatar_option.go",
+      "bytes": 1370,
+      "sha256": "e293c805bd769edfcc0c3f9db2539131beaab54a5d4b4abe32ef74b10d0c3fac"
+    },
+    {
+      "path": "work/dfo-lan/internal/inventory/avatar_option_test.go",
+      "bytes": 1348,
+      "sha256": "56e475c66fe7b4703aa1c6f97aa2ac074d7079bf5519e9030186318e7ee441df"
+    },
+    {
       "path": "work/dfo-lan/internal/inventory/awards.go",
       "bytes": 1084,
       "sha256": "c9a1395097dbd11985bbf144a3e00f49c1c575b415a1195a24fe5577b6ec0db3"
     },
     {
       "path": "work/dfo-lan/internal/inventory/bag.go",
-      "bytes": 6427,
-      "sha256": "98c4a759fffe95f900a8561f058aa8361a8b63e35bbad4ec23006a34d5746612"
+      "bytes": 8080,
+      "sha256": "254409c22428181a6f8b5ad7b551c22dd8ca3f8283905a194da42a602fbeae8e"
     },
     {
       "path": "work/dfo-lan/internal/inventory/bag_test.go",
-      "bytes": 1802,
-      "sha256": "bb5023b51973c3eed4cbd99598194a5ea3d48a54e902fc1a8f65ba9c536bad19"
+      "bytes": 3525,
+      "sha256": "ce769b4acd29e97e6a32dc66bf6969f0d2a454a60e06133afdea180b417feb4f"
+    },
+    {
+      "path": "work/dfo-lan/internal/inventory/clear_cube.go",
+      "bytes": 849,
+      "sha256": "443270897cc8d39832712fbb7fb3e88ae827426c43b6bbe83df9897676904b71"
     },
     {
       "path": "work/dfo-lan/internal/inventory/consume.go",
-      "bytes": 1408,
-      "sha256": "d072d89d3ff69274b1ce529579c43d94090bacfd0bf2715ce93a579bc6d235fa"
+      "bytes": 1758,
+      "sha256": "b86bd904c3882123e4bbd17aa2f3e9f2f1fa7fc98c5084d01453a28437cf07c2"
     },
     {
       "path": "work/dfo-lan/internal/inventory/consume36_test.go",
@@ -2683,9 +3848,34 @@
       "sha256": "0dffdb5576c5582fa67e56872cb2b9aac86e133fa71a474420e53a28a933b867"
     },
     {
+      "path": "work/dfo-lan/internal/inventory/creature_list.go",
+      "bytes": 3023,
+      "sha256": "7df8522addcd63ec84db168b949dd302ee401f05b837426e606667525d98d11d"
+    },
+    {
+      "path": "work/dfo-lan/internal/inventory/creature_list_test.go",
+      "bytes": 2004,
+      "sha256": "ac4357ec12dce33b68d205c5189f6a4151ccd7912a1e9ba9be52292ca39b0e5d"
+    },
+    {
+      "path": "work/dfo-lan/internal/inventory/disjoint.go",
+      "bytes": 5771,
+      "sha256": "8ac8e68fbf373069d135252e8441df339ebbba6bb27523b06b9ef8772143a18c"
+    },
+    {
+      "path": "work/dfo-lan/internal/inventory/disjoint_calculator.go",
+      "bytes": 10272,
+      "sha256": "7a522aad346152a4717b3f9d79972c41a8e66eec70f34d5d93ed8f77cc1f3654"
+    },
+    {
+      "path": "work/dfo-lan/internal/inventory/disjoint_test.go",
+      "bytes": 9046,
+      "sha256": "0babd509a1f3778a7029443e5395322fd95d1d57ef92246727ffe6f9007521b1"
+    },
+    {
       "path": "work/dfo-lan/internal/inventory/equipment.go",
-      "bytes": 6140,
-      "sha256": "0ddf54a39398a99a574aef8b9c85a89b95fdeb147e2a8a10dd2417269b646039"
+      "bytes": 9944,
+      "sha256": "fa41096a1d20a175bed6c0a6531c755370a0bbd75ed9e7d83f8748cd451c9e12"
     },
     {
       "path": "work/dfo-lan/internal/inventory/equipment_catalog37_test.go",
@@ -2693,9 +3883,29 @@
       "sha256": "c0c17c78020070fa63eb6fe388e762f2fe97747e6058febace09186e9894be3a"
     },
     {
+      "path": "work/dfo-lan/internal/inventory/equipment_family.go",
+      "bytes": 920,
+      "sha256": "102f9ada3f8888fcc394e88751ee32dc0280032493fd47596b74e41a68584dd4"
+    },
+    {
+      "path": "work/dfo-lan/internal/inventory/equipment_full.go",
+      "bytes": 3245,
+      "sha256": "f88514fe74e739a9f510abac12f2a9578010f248e8c184813f5c7b450dc9ad96"
+    },
+    {
+      "path": "work/dfo-lan/internal/inventory/equipment_full_test.go",
+      "bytes": 8571,
+      "sha256": "c89f0531ed4c44392e7f21829ce630c4f4e5b6c922795c0cfe9aebd196744a89"
+    },
+    {
+      "path": "work/dfo-lan/internal/inventory/equipment_record.go",
+      "bytes": 3057,
+      "sha256": "206c916d26a5b171ddd822df74f67571545eb89d0a8a69aea9bd493fed231ba6"
+    },
+    {
       "path": "work/dfo-lan/internal/inventory/equipment_test.go",
-      "bytes": 618,
-      "sha256": "b79fef9ebfb43160ffe9279b424b51f14f18e94f5ced3f5655d13a3db8527f35"
+      "bytes": 646,
+      "sha256": "4e12082ab915b6422c176482f033e4bd1a9b13966711bb8dc064795720818a3a"
     },
     {
       "path": "work/dfo-lan/internal/inventory/quickslot.go",
@@ -2703,19 +3913,84 @@
       "sha256": "14d68695caa6e7fa10f71ff77702d5041a947d849439af82fedae7c32532da7d"
     },
     {
+      "path": "work/dfo-lan/internal/inventory/quickslot_request_test.go",
+      "bytes": 5544,
+      "sha256": "70887ae14eb4e95c949f726ff64500ca0ad04f794abd9e7bb56c098782c59561"
+    },
+    {
       "path": "work/dfo-lan/internal/inventory/quickslot37_test.go",
       "bytes": 2054,
       "sha256": "19a7432d238dd80824ef64af9f75214650625923cb4015da12a066d8252c0db2"
     },
     {
+      "path": "work/dfo-lan/internal/inventory/shop.go",
+      "bytes": 4904,
+      "sha256": "846fade9b8ad61624e7d95c57c1dbd02780f4c5d17293a3445dfb535084d1100"
+    },
+    {
+      "path": "work/dfo-lan/internal/inventory/shop_test.go",
+      "bytes": 5112,
+      "sha256": "bb770853434ed3911e19b75c3f1120e330670509be574a1fd9e882c580b63da1"
+    },
+    {
+      "path": "work/dfo-lan/internal/inventory/stack_request.go",
+      "bytes": 4304,
+      "sha256": "347bacad8c59f8954244b24ca378cd62ecf9772de3b19df75dd686b6dbff3d5c"
+    },
+    {
       "path": "work/dfo-lan/internal/inventory/vault.go",
-      "bytes": 1488,
-      "sha256": "621ab699da2e66e730925a693fa9e0a6e709a0b424dc62c2563a0e40742935c0"
+      "bytes": 14260,
+      "sha256": "754979c6b12745e6a83c43d44fae3ef843f594d64f5f1ad92ea46ee4a66034f8"
+    },
+    {
+      "path": "work/dfo-lan/internal/inventory/vault_combined.go",
+      "bytes": 3273,
+      "sha256": "0a54d16e7c783bbbaa4da6e023b6ead029875e51885281632153e669cf9cf4e9"
+    },
+    {
+      "path": "work/dfo-lan/internal/inventory/vault_combined_test.go",
+      "bytes": 2327,
+      "sha256": "abdadedb4ff3edfa5421d7241a210778065a650ef8a53227a9753557fd47a534"
+    },
+    {
+      "path": "work/dfo-lan/internal/inventory/vault_live_request_test.go",
+      "bytes": 1879,
+      "sha256": "aad0aba8e05c48fa121862b5c9503dcf5dad5c1664157da89e57df9173a71421"
+    },
+    {
+      "path": "work/dfo-lan/internal/inventory/vault_merge_live_test.go",
+      "bytes": 2972,
+      "sha256": "f72319332379f3465302219d5fd16a0efe03831763aaf97af8937dba8a54d5c5"
+    },
+    {
+      "path": "work/dfo-lan/internal/inventory/vault_reposition_live_test.go",
+      "bytes": 1490,
+      "sha256": "37d81c13d1c6e14dda55bc34bcd6126cfe04fb9ae11d57738e4a05ff154c1a85"
+    },
+    {
+      "path": "work/dfo-lan/internal/inventory/vault_test.go",
+      "bytes": 8928,
+      "sha256": "d8275ee91214a7b5b9e4f7d0d51cfe28b6cfae8262f9275141d7bc9b8980d037"
+    },
+    {
+      "path": "work/dfo-lan/internal/inventory/vault_transfer.go",
+      "bytes": 7516,
+      "sha256": "e8653b72de32bf75b8f6e7bd5549819f4b84355eec8fd8358756832c9cb649d5"
+    },
+    {
+      "path": "work/dfo-lan/internal/inventory/vault_transfer_test.go",
+      "bytes": 5589,
+      "sha256": "c1aa6be328ab61939b5c726d7ad38c8089f321896aa5e139df69e97214f034c6"
     },
     {
       "path": "work/dfo-lan/internal/inventory/wear.go",
-      "bytes": 6674,
-      "sha256": "ce6cf0121d3b9b2556100c472dc76c1f33b2f54439ff9f94aed81e2875dbbf8a"
+      "bytes": 9673,
+      "sha256": "dcca92230f7172b29de44d1abdfc5ef23708e17c92e984f894ac754f833734ce"
+    },
+    {
+      "path": "work/dfo-lan/internal/inventory/wear_contract_test.go",
+      "bytes": 1467,
+      "sha256": "a70629e7cc1e38dcb1c4067fcb5a2b7b0e01e7f0a7fffe71515ab8bed403bf77"
     },
     {
       "path": "work/dfo-lan/internal/inventory/wear_equip_fix_test.go",
@@ -2724,8 +3999,8 @@
     },
     {
       "path": "work/dfo-lan/internal/inventory/wear_test.go",
-      "bytes": 3497,
-      "sha256": "4219c359e3b91a2e597ae9121fcc910512caf78b2dfa8cceda4174ca49fb805e"
+      "bytes": 6223,
+      "sha256": "c2046c3f46e0fb6ed167739d9ca8c77015875c7a22aa76c367eaa9b7fb79e475"
     },
     {
       "path": "work/dfo-lan/internal/inventory/wearable.go",
@@ -2748,34 +4023,89 @@
       "sha256": "453a2b9ca5b3da51dabd931ba95d83dd3f567d4501d5350db20788dda360d372"
     },
     {
+      "path": "work/dfo-lan/internal/loot/contract_loot_test.go",
+      "bytes": 1205,
+      "sha256": "f346905ff8ed0d832d4df3ee4e7a046e4ad260e27d744b87ab833ba10f9c0f04"
+    },
+    {
+      "path": "work/dfo-lan/internal/loot/disjoint.go",
+      "bytes": 2557,
+      "sha256": "2f58bd49d4a483406ff81621a4538741f97a0f8e46a8b1cbf2f14395349b3823"
+    },
+    {
+      "path": "work/dfo-lan/internal/loot/dungeon_rules.go",
+      "bytes": 441,
+      "sha256": "dae6e5a73ef8b0119641af77a54e2e1cc7c4927fdaae9d4fbd7a7efd9405f959"
+    },
+    {
+      "path": "work/dfo-lan/internal/loot/dungeon_rules_test.go",
+      "bytes": 1491,
+      "sha256": "1c7d02cafdf7235da14561535bedd31e334c186ff4fb295387a2812be3cc0014"
+    },
+    {
       "path": "work/dfo-lan/internal/loot/equipment_drop36_test.go",
       "bytes": 1998,
       "sha256": "ca1c1c6621255374b03ee0c644979c3ec1818c8ec7dc53f3e6a8ad67d447e453"
     },
     {
       "path": "work/dfo-lan/internal/loot/move_stack.go",
-      "bytes": 2506,
-      "sha256": "18398d775ca6fb750334dc961e97288280efe83d04ae647143a97bd2894ee19f"
+      "bytes": 2746,
+      "sha256": "28082ddda2f07a62c2f8dc3c3698451f7e3a99bea8bcf192c59633d891ca7d8e"
+    },
+    {
+      "path": "work/dfo-lan/internal/loot/move_stack_test.go",
+      "bytes": 3540,
+      "sha256": "8b0924d86e9fcf628916f40ed4a43be5781241253dc7edbd952a8afaa68d6c74"
+    },
+    {
+      "path": "work/dfo-lan/internal/loot/odyssey_currency.go",
+      "bytes": 2335,
+      "sha256": "9926981ccedc0830efc2537d26bcba2d5d5eb0630821522d02e0eb8237f676a9"
+    },
+    {
+      "path": "work/dfo-lan/internal/loot/odyssey_currency_integration_test.go",
+      "bytes": 3696,
+      "sha256": "6c652037ea5c1eb9270e7ee1c31458dd9b95b7965bf17df9e11a4a7be2863fee"
+    },
+    {
+      "path": "work/dfo-lan/internal/loot/odyssey_currency_test.go",
+      "bytes": 4041,
+      "sha256": "8a5297fa3d4986cd4af3e44677f3e465abc169a62c200299c8c64e9acce1b979"
     },
     {
       "path": "work/dfo-lan/internal/loot/pickup.go",
-      "bytes": 3415,
-      "sha256": "293d5e89d32ccd709698bcf0e16669f5e4966c77671b5f404ce318ac00fdf1f7"
+      "bytes": 3897,
+      "sha256": "9f306cc951282b9f72d70dc98dcfb6f42437748ddfc727d269d8077d5d3e60b8"
     },
     {
       "path": "work/dfo-lan/internal/loot/rules.go",
-      "bytes": 8250,
-      "sha256": "d1d30a0a1f59920239e51c91fae1f0cb23a445b4ce9781eb4123e3f7f7afd105"
+      "bytes": 8634,
+      "sha256": "e00baae61ca280319883c04da8715bd21499810fe74190f1254d1e65efe16f0f"
+    },
+    {
+      "path": "work/dfo-lan/internal/loot/scene_actors_test.go",
+      "bytes": 777,
+      "sha256": "5f8a001f80a0eb998fad07d87b0017bd3997fcf231a2bb58e23f088e697ffa81"
     },
     {
       "path": "work/dfo-lan/internal/loot/session.go",
-      "bytes": 4171,
-      "sha256": "8134163373db6d507e49a3d1e005f2fb0111086bb3be13733235c2e81b943b10"
+      "bytes": 4877,
+      "sha256": "7615c861d461703a8af19c0b292bc9b868a8e9d37443a2610d4955a087d71117"
     },
     {
       "path": "work/dfo-lan/internal/loot/session_test.go",
       "bytes": 2411,
       "sha256": "f8f6f1670a39f2623523e533af0f0885af48f7381d4d08949bcce764f9637614"
+    },
+    {
+      "path": "work/dfo-lan/internal/loot/shop.go",
+      "bytes": 4576,
+      "sha256": "1ab75512cff847e3e113baab9d409f6fb1324eb1ca237fddf975ee92c0c53483"
+    },
+    {
+      "path": "work/dfo-lan/internal/loot/verify_equipment_drop_test.go",
+      "bytes": 3386,
+      "sha256": "79be3c711d676f0f9897a35c3e38abf11a5801dd02e554c16073e61ece6aaf9f"
     },
     {
       "path": "work/dfo-lan/internal/progression/clear.go",
@@ -2789,8 +4119,8 @@
     },
     {
       "path": "work/dfo-lan/internal/progression/experience.go",
-      "bytes": 4398,
-      "sha256": "9f71860c16cb7ce87b8ee25d31ae9bf6903be7312417b2b6e450aedcdb2380ec"
+      "bytes": 4407,
+      "sha256": "2eda927606a4eb51b1f40ff7401016975b94b57265e1dbeab668c2d778cdedc0"
     },
     {
       "path": "work/dfo-lan/internal/progression/experience_test.go",
@@ -2823,14 +4153,19 @@
       "sha256": "29c8c9eaef336dba276cd9936a0f831a6650e45e59c278c93410337bded87b7d"
     },
     {
+      "path": "work/dfo-lan/internal/progression/scene_actors_test.go",
+      "bytes": 500,
+      "sha256": "c5a78b52e373d6be695638d22d22e197b196453f6a155d359e6dd1a8aa322f90"
+    },
+    {
       "path": "work/dfo-lan/internal/quest/available.go",
       "bytes": 1670,
       "sha256": "64b051c1f44a2973ab5d6526ffa2e7a38b4f34d82e902c0315c2ecf62a16f5c3"
     },
     {
       "path": "work/dfo-lan/internal/quest/finish.go",
-      "bytes": 4615,
-      "sha256": "f19c69cb2738f1a8bb86bde6259a03c52692392db95a95f6f53bbf981b8bddd6"
+      "bytes": 4800,
+      "sha256": "e3a898897844e420d4102afc5ea6028799117394ede48bdfb2ede3e795ed0e7b"
     },
     {
       "path": "work/dfo-lan/internal/quest/index.go",
@@ -2868,9 +4203,24 @@
       "sha256": "1d7fea65b441afd28fc148385538d796bf3a40ed224cb2f847cc6c1b976ac686"
     },
     {
+      "path": "work/dfo-lan/internal/storage/account_materials.go",
+      "bytes": 3386,
+      "sha256": "b67cdc476bd1a71e4d237cac07a83e9a74518591c2bbdefdda63a538307c2ad3"
+    },
+    {
       "path": "work/dfo-lan/internal/storage/birth.go",
       "bytes": 3667,
       "sha256": "8596a321918c81830148f5c71f7dfa1fd4defdcb478677475a10e61bc2d516e7"
+    },
+    {
+      "path": "work/dfo-lan/internal/storage/cash_purchase.go",
+      "bytes": 18468,
+      "sha256": "20697ea35a81c8ef59862c65dffcc5507c7051268f110eacb8f9d742ab5edec4"
+    },
+    {
+      "path": "work/dfo-lan/internal/storage/cash_purchase_test.go",
+      "bytes": 13019,
+      "sha256": "66b4b6486a05af5484c751249a303a951d650daa1ebebb966d6c811713164f21"
     },
     {
       "path": "work/dfo-lan/internal/storage/character_delete.go",
@@ -2884,13 +4234,28 @@
     },
     {
       "path": "work/dfo-lan/internal/storage/fatigue.go",
-      "bytes": 4556,
-      "sha256": "17c7264ff3c0b0ad866826f496b1916b15d9a9cef665b4eff598a2ec17cb12a9"
+      "bytes": 5382,
+      "sha256": "b011e2b4ac2829adb937a2ddbdb84918b53e8094e39945cd7a5d072b5096ed67"
+    },
+    {
+      "path": "work/dfo-lan/internal/storage/fatigue_recovery.go",
+      "bytes": 3624,
+      "sha256": "0ebaeb8bceb32f5508333266d62a4076cc5cae5dc155288289d82ea29d325713"
     },
     {
       "path": "work/dfo-lan/internal/storage/grant.go",
       "bytes": 7279,
       "sha256": "88f541150b0d780bfbc515535b9c88c3f383bb1106331ca8ed44882e9b029c9b"
+    },
+    {
+      "path": "work/dfo-lan/internal/storage/premium.go",
+      "bytes": 2545,
+      "sha256": "3d3e87eb1921fd8e6139101bec0d5f18796c842a81276fe2fab17dfaacd37010"
+    },
+    {
+      "path": "work/dfo-lan/internal/storage/premium_test.go",
+      "bytes": 703,
+      "sha256": "b7103dacebb561d7974a1b7866302f5ce95f1a103c7d788fff6c859a3c9fbaaf"
     },
     {
       "path": "work/dfo-lan/internal/storage/quest.go",
@@ -2924,8 +4289,18 @@
     },
     {
       "path": "work/dfo-lan/internal/storage/vault.go",
-      "bytes": 1395,
-      "sha256": "3c33dba91ca3d9aba3fb508b9e14583a693921d89977de933cbcd9bd8e9545cc"
+      "bytes": 3334,
+      "sha256": "7ca0997c8cd3fcb6ed4e3dd8acf806f6799053a5df65173b5a3d4c4b5b5746f7"
+    },
+    {
+      "path": "work/dfo-lan/internal/storage/vault_transfer.go",
+      "bytes": 3245,
+      "sha256": "c1bae3429109f86c536ab10a656cb44d081af79913ae9b7ab209cbdfaf778e30"
+    },
+    {
+      "path": "work/dfo-lan/internal/storage/vault_transfer_test.go",
+      "bytes": 4514,
+      "sha256": "f70c8162df310f74460b5b2d5cd5644ea02a15d5292bffce949328df51eb86b0"
     },
     {
       "path": "work/dfo-lan/internal/storage/world.go",
@@ -2939,8 +4314,8 @@
     },
     {
       "path": "work/dfo-lan/internal/world/service.go",
-      "bytes": 4057,
-      "sha256": "e8ce8cecd8ec153824282b85897b7556ef4bd724193327b6ed0bb4351ab16a8d"
+      "bytes": 5833,
+      "sha256": "cebb94bd631611166305e2780f17ca5bf9552613c50df910d81d2e70a53b231f"
     },
     {
       "path": "work/dfo-lan/internal/world/service_test.go",
@@ -2948,69 +4323,69 @@
       "sha256": "73daaf25d4de2979e4d24796a5130ac5c88bac98a6718de60558aec5c8559da2"
     },
     {
-      "path": "work/dfo-lan/runtime/characters_ok.bin",
-      "bytes": 48,
-      "sha256": "05b5d4c782a570f24f1aed86ff9acdfaecbe9eb3c60934889559e974ef57bbf6"
-    },
-    {
-      "path": "work/dfo-lan/runtime/login_ok.bin",
-      "bytes": 56,
-      "sha256": "4e663d03d49e5ab1532ec89a2ba971102b978bcf3e93759a0d3cb80961a154fe"
-    },
-    {
-      "path": "work/dfo-lan/runtime/name_ok.bin",
-      "bytes": 32,
-      "sha256": "08f459bcd673dde485a537fe32c60417efe1f7ca66b8275dea31ca19648bfdde"
-    },
-    {
-      "path": "work/dfo-lan/runtime/precheck_ok.bin",
-      "bytes": 32,
-      "sha256": "99b9edf6b4bd909ed196e70396050e5cf621a7b475bdec35e21d9c758b878853"
-    },
-    {
       "path": "work/dfo-lan/scripts/bootstrap_local.py",
-      "bytes": 3409,
-      "sha256": "c46fa6cb55bac31d10423e8f65cae7e68e3591c3717d28d4e4b06998f654e466"
+      "bytes": 3362,
+      "sha256": "517d59ef9368dcfc18c5f183d3ecf8521653f3d7de5a2a802549b155682d01af"
+    },
+    {
+      "path": "work/dfo-lan/scripts/export_cerashop_catalog.py",
+      "bytes": 3404,
+      "sha256": "5d2c842d8394298730d39098cb94cdf0ab10c663b2fdbb9e80961774bd9c0ccd"
     },
     {
       "path": "work/dfo-lan/scripts/launch_local.py",
-      "bytes": 4997,
-      "sha256": "4fa9e80731c51163ae77985e3be95c721100960bc54c3ee761c2de8364d0dd0d"
+      "bytes": 7125,
+      "sha256": "7e82842fd33c4828f0e10abaeeace4c5346aa86d8feaef818595fd668955b5ce"
     },
     {
-      "path": "work/dfo_probe_tools/Build-Probe.cmd",
-      "bytes": 264,
-      "sha256": "f11f9986093725b90549ed6f6a8c2cb75575e5b22677d1f825aaf6c056b7c422"
+      "path": "work/dfo-lan/scripts/repair_profile.py",
+      "bytes": 1848,
+      "sha256": "049167dfec0332e15e2bb3ab94c3c32dbffcd0562669b23944ee941f4cc90f9e"
     },
     {
-      "path": "work/dfo_probe_tools/channel_probe.py",
-      "bytes": 12753,
-      "sha256": "101a0440daeeb5df8e24b045c68a98911d7f7c687dbf0b5a19e10e789eede8b4"
+      "path": "work/dfo-lan/scripts/test_repair_profile.py",
+      "bytes": 1174,
+      "sha256": "0d0320215eb9b20aa52a9a64eedbe02fb709d8774298552b7f91937a234a934d"
     },
     {
-      "path": "work/dfo_probe_tools/probe.cpp",
-      "bytes": 22369,
-      "sha256": "8857f43f56cf512c16d4378c59fa744dd49744cf4eb3253ed81b5355b9b73ca4"
+      "path": "work/make_patch_diff.py",
+      "bytes": 3046,
+      "sha256": "ca23c9ab4132ddabe928f80559c318b37532bc6e044281a0cfb0aa7b5034a18e"
     },
     {
-      "path": "work/dfo_probe_tools/probe.exe",
-      "bytes": 584704,
-      "sha256": "6abe394406c0306f3e2f4242894d21aca907318ef9f75e0f6b0486752235ab46"
+      "path": "work/patch_diff.json",
+      "bytes": 571,
+      "sha256": "a37b91f6b59c7ad4bae24d40e12130b91b5d235a86d50a7c257416f259f8df73"
     },
     {
-      "path": "work/dfo_probe_tools/watch_monster_stats30.py",
-      "bytes": 4362,
-      "sha256": "fd3dd1bf25ae780960269c277262e6fa0801a7599c903d7286c90dc693cb4b11"
+      "path": "work/rewrap_patched.py",
+      "bytes": 927,
+      "sha256": "9604c5bc8ba1220652e1a4ede46dd5bdb6c854c3463766b7f029f5eda7890c81"
     },
     {
-      "path": "work/dfo_probe_tools/watch_monster_stats36.py",
-      "bytes": 5335,
-      "sha256": "c56fd75343773d9a2a3edf2726a8e6f3c288e37441e27e946e3e2f64de188208"
+      "path": "work/write_patch_readme.py",
+      "bytes": 1307,
+      "sha256": "03692296d144447b7c236bfcbd36339dcedab1d7dc5b58ab930cee4e05fe2860"
+    },
+    {
+      "path": "work/zip_inspect.py",
+      "bytes": 438,
+      "sha256": "a5b94f00b9f10f7b6a12d329a63905b0ed67b1734712f4931bb82e78c375ce37"
+    },
+    {
+      "path": "work/zip_keyfiles.py",
+      "bytes": 364,
+      "sha256": "cff89b9b036f293777f6e20e157f552bfd2d4b1698392c3eeac3eb60df8a310c"
     },
     {
       "path": "开发对接文档.md",
       "bytes": 11650,
       "sha256": "48c310400ab260a2c9ad95193d43139dfc1a39bb03086a65e1e20cb1cd6f8f63"
+    },
+    {
+      "path": "退出按钮修复记录-20260920.md",
+      "bytes": 1576,
+      "sha256": "e1674d8314a84d3ab852492b17c662c6e53b3f6207c958419d296eded505fcaa"
     }
   ]
 }
