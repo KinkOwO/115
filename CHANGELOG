@@ -1,5 +1,16 @@
 # CHANGELOG
 
+## 2026-09-21
+- 修复“学习等级 35 级以上技能无法学习、加点后点击确定回滚”：真因是技能目录 `configs/skills.next27.json` 的 `[type]` 导出错误，不是服务端技能学习逻辑缺失。
+  - **取证**：当前 115 PVF（`server/work/client-build/Script.inner.pvf`，size 760,530,763 与目录记录一致）中 `vp1`/`vp2`/`default` 只出现在 `[vp explain]`、`[preset info]` 与伤害组的嵌套 `[type]`，用于标注 default/vp1/vp2 三种技能形态；技能自身类型一定是 `[active]`/`[passive]`，且紧跟 `[skill class]`。全量扫描 4890 个 `skill/*.skl`：“值 ∈ {`[active]`,`[passive]`}”与“后跟 `[skill class]`”两种判据零冲突。
+  - **影响面**：`configs/skills.next27.json` 有 532 行 `[type]` 与源不符（vp1→`[active]` 509、vp1→`[passive]` 11、default→`[active]` 9、vp2→`[active]` 3），正好覆盖学习等级 ≥35 的全部技能；服务端 `internal/character/learning_catalog.go` 只接受 `[active]`/`[passive]`，于是整批按“unsupported skill advancement/level”拒绝，客户端回滚。抓包证据：`runtime/roles_*_next37/events.jsonl` 的 `skill_refused`（角色 10 `test-jh`，35 级剑魂，SP 890）。
+  - **数据修复**：532 行 `[type]` 换成源真值（token 的 `value`+`text` 均取自 PVF），其余字段与 `source`/`checksum` 未动（`git diff --numstat` = 1064 行 = 532 处），存档兼容。
+  - **工具修复**：`cmd/skillaudit` 抽出 `skillType()`（技能自身类型 = “`[type]` 后跟 `[skill class]`”，无 `[skill class]` 的被动行用 `[active]`/`[passive]` 值兜底），并把容器配对由“栈按名 pop”改为“按名开合”，修掉 `[vp explain]` 开两次关一次（`skill/priest/pandemoniumex.skl` 等 4 行 priest 技能整行字段丢失）与伤害组 `default` 被当成技能类型。
+  - **测试**：新增 `cmd/skillaudit/main_test.go`（变异说明标签、未配对 `[vp explain]`、伤害组 default、源里无自身 type、被动行按值识别共 5 例）与 `internal/character/learning_skilltype_test.go`（技能 9 = `[active]` 且 35 级剑魂可学 cost 40；等级区间与成长类型门槛仍生效；配置数据不变量——除源里本就无自身 type 的 5 个技能外，再出现 vp1/vp2/default 即失败）。`go test ./internal/... ./cmd/...`、`go vet ./internal/... ./cmd/...` 全绿。
+  - **端到端复核**：用修好的 `cmd/skillaudit` 对同一 PVF 重新生成，`[type]` 分布 `[active]` 1761 / `[passive]` 1458 / 无类型 5，与已修正的 next27 仅在“源里确实没有自身 `[type]`”的 5 行上不同；`thunderrage`/`iceelementalattack`/`standbyready`/`cosmiccalamity` 已由 `default` 纠正为 `[active]`，4 行 priest 技能字段恢复。
+  - **实机验收（2026-09-21，用户操作）**：35 级剑魂在技能面板给“回旋斩”（学习等级 35）加点成功、不再回滚，且技能**自动装入快捷栏**（该行现为 `[active]`，`Active()` 判定随之正确）。服务端仍为源码版 `bin/wireprobe-handoff-source.exe`（按当前源码重建）。
+  - **回滚方式**：`configs/skills.next27.json` 与 `cmd/skillaudit/main.go` 均在 Git 内（非 LFS），`git revert` 即可；`bin/` 不入库。
+  - **未闭环**：`configs/skills.release.json` / `skills.awakening-candidate.json` 仍是修工具前生成的旧产物（3 行整行字段丢失、4 行 `default` 误取），本次未重新生成；启动链仍固定 `-skill-catalog configs/skills.next27.json`。
 ## 2026-09-20
 - 补齐开局转职链路的配套工具：角色目录缺数据告警、老角色一次性修复命令、打包清单生成脚本。
   - **背景**：上一批把默认启动链的角色目录换成带 growtype 数据的 `characters.skycastle-release.json` 之后，暴露出三处配套缺口：① 该目录若缺失或换代，服务端会**静默**退回基础职业，全程没有报错；② 修复前创建的角色 `advancement` 仍是 0，需要按建号请求补账、再补初始穿戴；③ `server/package-manifest.json` 里记录的 exe 哈希已 STALE（`wireprobe-handoff-source.exe` 本地 17792512 / 清单 16649728，`probe.exe` 亦不符），且不含本批次的 `*.release.json`，仓库里也没有生成脚本。
