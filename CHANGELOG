@@ -1,5 +1,27 @@
 # CHANGELOG
 
+## 2026-09-20
+- 修复进入地下城（Dungeon）时角色模型回退为默认裸体的问题：
+  - **根因分析**：选图进入地下城（CMD 16 `SELECT_DUNGEON`）后，客户端立即根据选图 ACK 构建地牢房间管理器并生成地下城初始场景模型；原服务端仅在进入副本加载完成（CMD 37 `finishDungeonLoading`）阶段推送外观，由于该阶段只接收游戏加载状态与确认，外观包未在地下城场景构建前生效；
+  - **修复实现**：在 `cmd/wireprobe/dungeon_flow.go` 的 `selectDungeon`（CMD 16）阶段，于下发 `dungeon_info_sent` (NOTI 28) 和 `dungeon_start_map_sent` (NOTI 29) 的同时，同步下发地下城场景的 `dungeon_actor_appearance_sent` (NOTI 2)、`dungeon_actor_addition_sent` (NOTI 2) 与 `dungeon_worn_visuals_sent` (NOTI 14)，并在 `finishDungeonLoading` 中保持槽位与外观同步，使角色在地牢中完整继承时装与穿戴模型。
+
+- 实现达人契约、霸王契约与成长之契约的服务端效果联动闭环：
+  - **功能背景**：
+    1. **达人契约（Tactician's Contract，Type 27）**：允许玩家提前 5 级学习技能；
+    2. **霸王契约（Conqueror's Contract，Type 22）**：允许玩家提前 10 级穿戴高阶装备；
+    3. **成长之契约（Growth Contract，Type 79）**：打怪经验 +20%、任务完成经验 +20%、通关副本结算经验 +20%、副本房间疲劳消耗 -1、任务物品掉落率 +20%。
+  - **实现细节**：
+    - `internal/storage/premium.go`：补充契约权威类型常量（`PremiumConqueror`、`PremiumTactician`、`PremiumGrowth` 等），增加 `HasActivePremium` 与 `ActivePremiumSet` 安全查询函数；
+    - `internal/inventory/wear.go`：在装备穿戴门槛检查中查询账号霸王契约状态，若生效则将可穿戴等级上限放宽 10 级（`state.Level + 10`），配合客户端放行高阶装备穿戴；
+    - `internal/character/awakening.go` & `learning.go`：在技能学习与消耗校验中增加 `costForLevel`，实时检测达人契约状态并放宽 5 级技能学习等级判定（`effectiveLevel = state.Level + 5`）；
+    - `internal/character/progression.go`：怪物击杀结算时，成长契约生效则增加 20% 击杀经验（`gain = gain + gain*20/100`）；
+    - `internal/quest/finish.go`：任务完成结算时，成长契约生效则增加 20% 任务经验并在回包通知中体现；
+    - `internal/character/clear.go`：副本通关结算时，成长契约生效则基础经验与评分经验均增加 20%；
+    - `internal/character/fatigue.go`：进入副本房间扣除疲劳时，成长契约生效则扣除点数 -1（`cost--`）；
+    - `internal/loot/rules.go`、`session.go` & `cmd/wireprobe/dungeon_flow.go`：新增 `RollWithBonus`，掉落会话检测到成长契约时注入 20% 任务物品掉率加成。
+  - **测试覆盖**：
+    - 新增 `wear_contract_test.go`、`contract_skill_test.go`、`contract_loot_test.go`、`premium_test.go`，全量 `go test` 与 `go vet` 检验通过。
+
 ## 2026-09-19
 - 修复已穿戴时装/宠物进入游戏槽位为空、进副本外观变默认裸体及世界中不显示跟随宠物的问题：
   - **根因分析**：

@@ -121,6 +121,27 @@ func (w *worldSession) selectDungeon(p []byte) (*dungeon.Session, []outboundPack
 		return nil, nil, e
 	}
 	plan := []outboundPacket{{"dungeon_select_ack", 1, 16, []byte{1}}}
+	if w.characters != nil {
+		visual, err := w.characters.EntryBasicProbe(w.role, [2]byte{})
+		if err == nil {
+			plan = append(plan, outboundPacket{"dungeon_actor_appearance_sent", 0, 2, visual})
+		}
+		addition, err := w.characters.EntryAddition(w.role)
+		if err == nil {
+			plan = append(plan, outboundPacket{"dungeon_actor_addition_sent", 0, 2, addition})
+		}
+		wornUpdate, err := inventory.WornSpaceUpdate(w.role.State)
+		if err == nil && len(wornUpdate) > 0 {
+			plan = append(plan, outboundPacket{"dungeon_worn_visuals_sent", 0, 14, wornUpdate})
+		}
+		if inventory.HasEquippedCreature(w.role.State) {
+			clPayload, err := inventory.CreatureListPayload(w.role.State)
+			if err == nil {
+				plan = append(plan, outboundPacket{"dungeon_creature_list_sent", 0, 105, clPayload})
+				plan = append(plan, outboundPacket{"dungeon_creature_growth_sent", 0, 102, []byte{1, 0, 0, 0, 0, 0}})
+			}
+		}
+	}
 	if w.soloPartyBootstrap {
 		party, e := protocol.SoloPartyInfo(w.role.WireID)
 		if e != nil {
@@ -176,10 +197,6 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 		plan = append(plan, outboundPacket{"dungeon_fatigue_updated", 0, 36, p})
 	}
 	if w.characters != nil {
-		visual, err := w.characters.EntryBasicProbe(w.role, [2]byte{})
-		if err == nil {
-			plan = append(plan, outboundPacket{"dungeon_actor_appearance_restored", 0, 2, visual})
-		}
 		wornUpdate, err := inventory.WornSpaceUpdate(w.role.State)
 		if err == nil && len(wornUpdate) > 0 {
 			plan = append(plan, outboundPacket{"dungeon_worn_visuals_restored", 0, 14, wornUpdate})
