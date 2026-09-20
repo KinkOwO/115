@@ -5,6 +5,7 @@ import (
 	"context"
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
+	"dfolan/internal/inventory"
 	"dfolan/internal/storage"
 	"encoding/json"
 	"errors"
@@ -50,6 +51,11 @@ type Service struct {
 	Catalog                catalog.Characters
 	Rules                  Rules
 	Learning               *LearningCatalog
+	// Equipment 与 WearRules 是创建期的可选依赖：两者都带上、且与 Catalog 同一份
+	// 源快照时，Create 会按源 [create equipment list] 给新角色穿上其转职槽的初始
+	// 装备。缺任一项或不匹配都只是不投影，不构成拒绝创建的理由。
+	Equipment *inventory.EquipmentCatalog
+	WearRules inventory.WearRules
 }
 
 func New(s *storage.Store, c catalog.Characters, r Rules) (*Service, error) {
@@ -109,9 +115,21 @@ func (s *Service) Create(ctx context.Context, account int64, p []byte) (storage.
 			initial.Advancement, initial.SwordmasterPilot = 1, true
 		}
 	}
+	// 源 [create equipment list] 按转职槽给出初始装备。有数据就投影到穿戴栏；
+	// 没有数据或依赖缺失时保持原样，创建照样成功。
+	worn := s.creationWorn(prof, initial.Advancement, initial.Level)
+	if len(worn) > 0 {
+		initial.EquipmentPending = false
+	}
 	state, e := json.Marshal(initial)
 	if e != nil {
 		return storage.Character{}, e
+	}
+	if len(worn) > 0 {
+		state, e = inventory.SaveBag(state, inventory.Bag{Version: "ordinary-bag-v1", Worn: worn})
+		if e != nil {
+			return storage.Character{}, e
+		}
 	}
 	return s.Store.CreateCharacter(ctx, storage.Character{AccountID: account, Name: req.Name, Profession: req.Profession, Request: append([]byte(nil), p...), ConfigVersion: s.Catalog.Source.Checksum, State: state}, s.Rules.MaxCharacters)
 }

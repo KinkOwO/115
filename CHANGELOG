@@ -1,6 +1,18 @@
 # CHANGELOG
 
 ## 2026-09-20
+- 打通“开局转职”链路：默认启动链改用带 growtype 数据的角色目录，并实现创建时按源 `[create equipment list]` 投影初始装备。
+  - **背景与取证**：上游交接文档称“建号时选了转职分支，进场仍是基础职业，可能只是 exe 没重新编译”。核查结论是：转职落账（`service.go` 的 `option[8] → Advancement`）、转职段起始技能（`internal/catalog/advancement_skills.go` + `internal/character/automatic_skills.go`）早在 `46d3476`（2026-09-17）就已实现，服务端二进制也是 HEAD 编译（`go version -m bin/wireprobe-handoff-source.exe` 的 `vcs.revision=dd95f4c`，且没有任何源文件比它新）。未生效的真实原因是**启动链喂给服务端的角色目录**：`channel_probe.py` 的 tag 降级链（`_next37` → `_next34`）把它强制指成 `configs/characters.next25.json`，而该文件导出于 growtype 分段解析之前，没有 `advancement_growth` / `advancement_skills`，于是建号时 `len(prof.AdvancementGrowth[adv]) > 0` 判空跳过、`automaticSkills` 也取不到授予，角色停在 `advancement=0`。
+  - **修复实现**：
+    1. `server/work/dfo_probe_tools/channel_probe.py`：next26..34 分支的 `-character-catalog` 改为 `configs/characters.skycastle-release.json`。两份目录是同一份 PVF 快照（`checksum` / `file_count` / `size` 相同），17 个职业除 `advancement_growth` / `advancement_skills` / `awakening_skills` / `swordmaster_growth` 这 4 个新增数据块外**逐字段一致**（含 `raw_sha256`），所以无需存档迁移。技能目录保持 next27：它已定义全部转职分支技能 ID 且 `[required level]` 同值。环境变量 `DFO_CHARACTER_CATALOG` 覆盖仍优先于该分支。
+    2. `internal/catalog/characters.go`：新增 `CreateEquipmentBySlot` / `CreateEquipmentOrder` 字段，抽出 `ParseCreateEquipment` 解析 `[create equipment list]`（源顺序为 标签, N 个 ID, …，第 N 个 ID 对应 0 基槽 N-1，与 `Advancement` 同域；PvP 的 `[pvp private create equipment list]` 由精确匹配排除）；`LoadCharacters` 对只带原始单元的老目录文件**按需回填**，不必为了一个新增数据块重新导出整个目录（本机已无 inner PVF 源）。
+    3. `internal/character/creation_equipment.go`（新）：`creationWorn` 按 `Advancement` 取该槽六个部位的装备，部位→穿戴槽映射取自 `WearRules`（native 依据 `1470cb2a0 current equipment type map initializer`），耐久取自装备目录 `Reward()`，逐件过 `inventory.WearableBy`（最低等级/可用职业/可用转职），并校验装备自身部位与槽标签一致。任何缺失只跳过该件，绝不报错或拒绝创建。
+    4. `internal/character/service.go`：`Create` 把投影结果写进 `Bag.Worn`，有投影时 `equipment_pending` 置 false；`cmd/wireprobe/main.go` 让创建投影复用同一份装备目录与 wear rules，不另立槽位编号。
+  - **实机验收（2026-09-20）**：新建“鬼剑士 + 分支”角色 `cesnew2`，落库 `advancement=1`、`all_jobs_pilot=true`、`equipment_pending=false`，`inventory.worn` 为 `12/14/15/16/17/18` 六槽，template 与源表该转职槽逐项一致（武器 `401040091`、上衣 `400070174`、下装 `400120169`、护肩 `400170168`、腰带 `400220168`、鞋 `400270172`），耐久取自源；画面侧装备栏已穿着、技能面板含该分支起始技能。对照组：同一份 exe 下 22:40 建的 `cezz`（next25 目录会话）仍是 `advancement=0`。
+  - **刻意不做的事**：不引入任何职业特例（曾试过给剑魂把源表的光剑换成通用短剑，已**回滚**——根因是技能侧“光剑掌握 自动学习等级 1 / 学习等级 15”的错配，应由技能数据修，不该由装备投影兜）；不裸改角色 `advancement` 字段。
+  - **测试覆盖**：`internal/character/creation_equipment_test.go`（六件投影/槽位/耐久、`advancement=0` 槽、职业·等级·部位不符跳过、耐久缺失跳过、依赖缺失与快照不匹配不投影）、`internal/catalog/create_equipment_test.go`（解析分组 + 真实目录文件回填回归）；`go test -p 1 ./internal/...`、`go test ./cmd/wireprobe/...`、`go vet` 与 `gofmt` 均通过。
+  - **未闭环**：交接文档第 5 步的“老角色一次性修复命令”未实现；`server/package-manifest.json` 是 2026-09-12 的历史清单，不含本批次的 `*.release.json`（含本次引用的 `characters.skycastle-release.json`），下次打包需同步重生成。
+  - **回滚方式**：`bin/` 与 `runtime/` 均不入库；改动前二进制备份在 `runtime/rollback/wireprobe-handoff-source-pre-creation-equip.exe`。
 - 奥德赛/剧情模式改为**由角色存档决定**（不再由启动参数统一投影）：`channel_probe.py` 固定使用类型 22 的登录 fixture，并常驻挂载奥德赛组件。
   - **背景**：上游用两个入口脚本（`启动游戏.cmd` / `启动游戏-奥德赛.cmd`）设 `DFO_ODYSSEY_MODE=0/1`，该变量会在服务端启动时一次性决定登录频道类型、角色规则、奥德赛组件是否挂载，并让 `character.OdysseyRole` 走短路——把所有角色统一投影成当前模式。**实测证据**：奥德赛模式启动下，一个创建时选“剧情模式”的角色（存档里 `state.creation_options[10]=0`）仍被客户端显示为 `Arad Odyssey CHARACTER`；反之亦然（角色本身的模式已经写进存档，只是投影不看它）。
   - **修复实现**（`server/work/dfo_probe_tools/channel_probe.py`）：1) 登录 fixture 固定用 `configs/login-normal22.bin`（频道类型 22，原生客户端的“自动入口”类型，其创建界面同时提供“奥德赛模式/剧情模式”两种选择）；2) 角色规则统一用 `configs/character-rules.odyssey-release.json`（`odyssey_pilot:true`，允许双模式建号）；3) 奥德赛组件环境变量（`DFO_ODYSSEY_COIN_RULES` / `_WEAPON_BOX`+`_REWARDS_RELEASE` / `_GROWTH`）改为常驻注入。

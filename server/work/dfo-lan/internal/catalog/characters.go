@@ -25,6 +25,12 @@ type Profession struct {
 	InitialSkills     []int32                     `json:"initial_skill_cells"`
 	InitialSkillSlots map[uint16]uint16           `json:"initial_skill_slots,omitempty"`
 	CreateEquipment   []pvf.Token                 `json:"create_equipment_cells"`
+	// CreateEquipmentBySlot 是 [create equipment list] 的按槽投影：外层键是源部位
+	// 标签（[weapon]、[coat]…），内层键是 0 基槽位，与角色的 Advancement 同域。
+	// 值 0 表示源在该槽显式给出空位。槽数不设上限：源每标签给几个就记几个，不做推测。
+	CreateEquipmentBySlot map[string]map[byte]uint32 `json:"create_equipment_by_slot,omitempty"`
+	// CreateEquipmentOrder 保留部位标签在源文件里的出现顺序，供投影时稳定分配穿戴槽。
+	CreateEquipmentOrder []string `json:"create_equipment_order,omitempty"`
 	DefaultAppearance []int32                     `json:"default_appearance_indices,omitempty"`
 }
 type Characters struct {
@@ -103,6 +109,7 @@ func ImportCharacters(a *pvf.Archive) (Characters, error) {
 				}
 			}
 		}
+		p.CreateEquipmentBySlot, p.CreateEquipmentOrder = ParseCreateEquipment(p.CreateEquipment)
 		if p.Job == "" || p.InitialAttributes["[hp max]"] <= 0 || p.InitialAttributes["[mp max]"] <= 0 || len(p.InitialSkills)%3 != 0 {
 			return result, fmt.Errorf("incomplete initial configuration for %d", id)
 		}
@@ -221,6 +228,42 @@ func ImportCharacters(a *pvf.Archive) (Characters, error) {
 	return result, nil
 }
 
+// ParseCreateEquipment 把 [create equipment list] 的原始单元解析成按槽投影。
+//
+// 该段的槽标签是字符串单元而不是节头，源顺序即 标签, N 个 ID, 标签, N 个 ID, …，
+// 第 N 个 ID 对应 0 基槽 N-1，与角色的 Advancement 同域。值为 0 表示源显式给出
+// 空槽。PvP 用的是另一个节头（[pvp private create equipment list]），不在本函数的
+// 输入里。槽数不设上限：源给几个就记几个，不做推测；没有该段时返回 nil。
+func ParseCreateEquipment(cells []pvf.Token) (map[string]map[byte]uint32, []string) {
+	bySlot := map[string]map[byte]uint32{}
+	var order []string
+	label := ""
+	index := 0
+	for _, t := range cells {
+		switch t.Type {
+		case 6:
+			label = strings.ToLower(t.Text)
+			if _, seen := bySlot[label]; !seen {
+				order = append(order, label)
+			}
+			index = 0
+		case 0:
+			if label == "" || t.Value < 0 {
+				continue
+			}
+			if bySlot[label] == nil {
+				bySlot[label] = map[byte]uint32{}
+			}
+			bySlot[label][byte(index)] = uint32(t.Value)
+			index++
+		}
+	}
+	if len(bySlot) == 0 {
+		return nil, nil
+	}
+	return bySlot, order
+}
+
 // Skill metadata precedes its nested dungeon/PvP damage sections. Repeated
 // [type] inside damage groups describes damage, not the skill's active type.
 // Initial shortcuts use command-capable skills; utility actions with an
@@ -261,6 +304,12 @@ func LoadCharacters(path string) (Characters, error) {
 	for id, p := range c.Professions {
 		if id != p.ID || p.InitialAttributes["[hp max]"] <= 0 || p.RawSHA256 == "" {
 			return c, fmt.Errorf("invalid profession %d", id)
+		}
+		// 已在 JSON 里存了按槽投影就用它；只有原始单元的老文件在这里补齐，
+		// 免得为了一个新增数据块重新导出整个目录（导入端走同一个解析函数）。
+		if len(p.CreateEquipmentBySlot) == 0 && len(p.CreateEquipment) > 0 {
+			p.CreateEquipmentBySlot, p.CreateEquipmentOrder = ParseCreateEquipment(p.CreateEquipment)
+			c.Professions[id] = p
 		}
 	}
 	return c, nil

@@ -302,8 +302,14 @@ with (
   if not persisted or "_dungeon_" not in tag:
    raise ValueError("next26 requires complete dungeon profile")
   command[0] = str(project / "bin/wireprobe-dungeon26.exe")
+  # next25 代目录导出于 growtype 分段解析之前，没有 advancement_growth /
+  # advancement_skills。用它时，建号请求 option[8] 选定的转职槽位无处落账，
+  # 角色停在 advancement 0：全局按基础职业渲染、技能面板没有该分支起始技能。
+  # skycastle-release 是同一份 PVF 快照的导出，17 个职业除这 4 个新增数据块
+  # 外逐字段一致（checksum 与 raw_sha256 相同，已有存档无需迁移），只是补上缺失块。
+  # 技能目录保持 next27：它已定义全部转职分支技能 ID，且 [required level] 同值。
   command[command.index("-character-catalog") + 1] = str(
-   project / "configs/characters.next25.json"
+   project / "configs/characters.skycastle-release.json"
   )
   command += [
    "-progression-catalog",

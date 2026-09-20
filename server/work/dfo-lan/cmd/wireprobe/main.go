@@ -496,6 +496,9 @@ func main() {
 					log.Fatal(err)
 				}
 				wearService = &inventory.WearService{Store: characters.Store, Catalog: equipment, Professions: characters.Catalog, BagRules: lootService.BagRules, Rules: rules}
+				// 创建期的初始装备投影共用同一份装备目录与部位槽映射，避免另立编号。
+				characters.Equipment = equipment
+				characters.WearRules = rules
 				if *fullEquipmentFile != "" {
 					full, err := inventory.OpenFullEquipmentCatalog(*fullEquipmentFile, data.Source.Checksum)
 					if err != nil {
