@@ -13,6 +13,10 @@ import (
 type CreateRequest struct {
 	Profession byte
 	Name       string
+	// GrowthType is the advancement slot the naming window had selected,
+	// carried in option byte 8. It indexes the character script's
+	// [growtype N] sections as slot N-1.
+	GrowthType byte
 	Options    []byte
 }
 
@@ -84,6 +88,9 @@ func DecodeCreateRequest(p []byte) (CreateRequest, error) {
 		if r.Options[i+3] != b {
 			return r, fmt.Errorf("unsupported creation option layout")
 		}
+	}
+	if optionCount >= 12 {
+		r.GrowthType = r.Options[8]
 	}
 	return r, padding(p[k+optionCount:], 8)
 }
