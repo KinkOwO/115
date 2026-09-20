@@ -1029,10 +1029,53 @@ func main() {
 				}
 				continue
 			}
+
+			if bootstrapped && frame.ID == 2285 {
+				if !verified {
+					event(map[string]any{"kind": "exit_dialog_rejected", "reason": "checksum failed"})
+					continue
+				}
+				if len(plaintext) != 0 {
+					event(map[string]any{"kind": "exit_dialog_rejected", "reason": "unexpected request body", "bytes": len(plaintext)})
+					continue
+				}
+				// CMD2285 is CONTENT_BRIEFING, issued by the in-game menu before
+				// its local Exit path. Its callback at 145250c80 consumes a
+				// mandatory 0x80-byte structure after the common success header.
+				// A header-only reply triggers CMD217 (CMDPACKET_OVERFLOW_INFO).
+				if err := sendPayload(1, frame.ID, protocol.ExitDialogReady()); err != nil {
+					return
+				}
+				event(map[string]any{"kind": "exit_dialog_ready", "id": frame.ID, "character_id": selectedCharacterID})
+				continue
+			}
+			if bootstrapped && frame.ID == 682 {
+				if !verified {
+					event(map[string]any{"kind": "exit_shutdown_rejected", "reason": "checksum failed"})
+					continue
+				}
+				fastExit, e := protocol.DecodeExitShutdownSignal(plaintext)
+				if e != nil {
+					event(map[string]any{"kind": "exit_shutdown_rejected", "reason": e.Error(), "bytes": len(plaintext)})
+					continue
+				}
+				event(map[string]any{"kind": "exit_shutdown_signal", "id": frame.ID, "character_id": selectedCharacterID, "fast": fastExit})
+				selectedCharacterID = 0
+				selectedBasic, selectedAddition = nil, nil
+				if worldState != nil {
+					worldState.departArea()
+				}
+				clearSelectedWorld(worldState)
+				bootstrapped = false
+				event(map[string]any{"kind": "exit_session_closed", "peer": peer})
+				return
+			}
+
 			if bootstrapped && frame.ID == 2377 {
 				event(map[string]any{"kind": "unified_option_accepted", "character_id": selectedCharacterID})
 				continue
 			}
+
 			if bootstrapped && (frame.ID == 3 || frame.ID == 7 || frame.ID == 1301) {
 				if !verified {
 					event(map[string]any{"kind": "menu_rejected", "id": frame.ID, "reason": "checksum failed"})
@@ -1065,6 +1108,8 @@ func main() {
 					clearSelectedWorld(worldState)
 					if frame.ID == 3 {
 						bootstrapped = false
+						event(map[string]any{"kind": "menu_exit_session_closed", "peer": peer, "option": option})
+						return
 					}
 				}
 				continue
