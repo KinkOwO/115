@@ -247,7 +247,6 @@ func (s *Service) EntryBasicProbe(role storage.Character, channelContext [2]byte
 	if s.DisableActorAppearance {
 		equipment = nil
 	}
-	creatureItemID, creatureName := wornCreature(role.State)
 	return protocol.UserInfoBasicProbe(protocol.EntryBasicProbe{
 		ActorServerID: role.WireID, Context: channelContext,
 		Character: protocol.CharacterRow{Name: role.Name, Profession: role.Profession, Advancement: advancement, Level: state.Level, Odyssey: odyssey, Equipment: equipment},
