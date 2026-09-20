@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 )
@@ -111,6 +112,16 @@ func (s *Service) Create(ctx context.Context, account int64, p []byte) (storage.
 	if len(worn) > 0 {
 		initial.EquipmentPending = false
 	}
+	// The naming window always sends the advancement slot it had selected
+	// (protocol.CreateRequest.GrowthType). Without it the character stays on
+	// the unadvanced base profession, which is what the client renders as the
+	// base job name. Record it unconditionally: a slot the snapshot ships no
+	// [growtype N] block for simply leaves the per-level growth ledger empty
+	// and must never refuse the creation itself. Pilot channels set
+	// Advancement themselves and bypass this assignment.
+	if !initial.AllJobsPilot && !initial.SwordmasterPilot {
+		initial.Advancement = req.GrowthType
+	}
 	state, e := json.Marshal(initial)
 	if e != nil {
 		return storage.Character{}, e
@@ -208,6 +219,14 @@ func (s *Service) Select(ctx context.Context, account int64, p []byte) (storage.
 
 // EntryBasicProbe uses the persisted character identity and state. This is a
 // packet experiment only; world placement and actor allocation are separate.
+//
+// The worn set is projected into the native 0x145639840 block. The block is
+// the only place the client learns an explicit per-slot model binding, and
+// AppearanceProbe below carries it. The entry-time packet keeps the explicit
+// block empty on purpose: with count=0 the client fills every slot's model
+// from the worn item objects (live-verified 2026-09-18: weapon, armour and
+// title all render correctly on first entry). The post-move refresh is the
+// path that does need explicit rows - see AppearanceProbe.
 func (s *Service) EntryBasicProbe(role storage.Character, channelContext [2]byte) ([]byte, error) {
 	var state State
 	if err := json.Unmarshal(role.State, &state); err != nil {
@@ -221,21 +240,97 @@ func (s *Service) EntryBasicProbe(role storage.Character, channelContext [2]byte
 	if err != nil {
 		return nil, err
 	}
-	appearance, err := wornAppearance(role.State)
+	// The entry-time block is built from the list-row equipment projection
+	// (protocol.UserInfoBasicProbe falls back to EquipmentAppearance(r.Equipment)).
+	// The roster channel proves the value shape live: the same rows render the
+	// select-screen model correctly. An empty block leaves every slot's
+	// 0x405 binding at zero and the client reports "no weapon equipped"
+	// (user report 20260918). Cosmetic only: an undecorable worn row must
+	// never refuse entry (user ruling 20260918).
+	equipment, err := wornAppearance(role.State)
+	if err != nil {
+		equipment = nil
+	}
+	if s.DisableActorAppearance {
+		equipment = nil
+	}
+	return protocol.UserInfoBasicProbe(protocol.EntryBasicProbe{
+		ActorServerID: role.WireID, Context: channelContext,
+		Character: protocol.CharacterRow{Name: role.Name, Profession: role.Profession, Advancement: advancement, Level: state.Level, Odyssey: odyssey, Equipment: equipment},
+		// The explicit per-slot block must stay empty on the entry path. A
+		// block holding a client-rejected slot is worse than an empty one:
+		// the reader replaces the projection wholesale, so a knight wearing
+		// a [support weapon] would ship a block whose only row is slot 24 -
+		// which the client's cosmetic-layer slot set rejects - and slot 12
+		// (the weapon/held-visual row the client does accept) would never
+		// reach it. Slots 14..25 are template-driven from the id13/id14 item
+		// rows and must not be sent as binding rows.
+		Appearance: nil,
+	})
+}
+
+// AppearanceProbe is the worn-appearance variant of the mode0 userinfo packet:
+// the same 0x145637a20 shape, but the 0x145639840 block carries one entry per
+// client-visible worn slot instead of an empty count. It is the payload the
+// equipment-move flow sends after its resync chain so the client can rebuild
+// the actor with the new per-slot model bindings - the "change the look and
+// the world model follows" channel (C9).
+//
+// Each row carries the piece's own template ID. Two independent sources pin
+// that value shape: (a) the sibling build's live-validated mode0 appearance
+// summary stores {appearance slot, item ID} per row, and (b) the earlier
+// live failure where the second cell of [equipment type] (a small class
+// number, 17..21) was sent instead made the client drop the weapon with
+// "no weapon equipped" - an item lookup that cannot resolve. A template ID is
+// valid by construction; a class number is not.
+//
+// state is the character's stored state object, which is the shape ReadBag
+// looks in. Handing it the inventory sub-object instead yields an empty bag
+// without an error, because the bag keys are looked up one level up.
+func (s *Service) AppearanceProbe(role storage.Character, channelContext [2]byte) ([]byte, error) {
+	var state State
+	if err := json.Unmarshal(role.State, &state); err != nil {
+		return nil, err
+	}
+	rows, err := s.wornAppearance(role.State)
 	if err != nil {
 		return nil, err
 	}
-	if s.DisableActorAppearance {
-		appearance = nil
-	}
-	creatureItemID, creatureName := wornCreature(role.State)
 	return protocol.UserInfoBasicProbe(protocol.EntryBasicProbe{
 		ActorServerID: role.WireID, Context: channelContext,
-		Character: protocol.CharacterRow{
-			Name: role.Name, Profession: role.Profession, Advancement: advancement, Level: state.Level, Odyssey: odyssey, Equipment: appearance,
-			CreatureItemID: creatureItemID, CreatureName: creatureName,
-		},
+		Character:  protocol.CharacterRow{Name: role.Name, Profession: role.Profession, Advancement: state.Advancement, Level: state.Level},
+		Appearance: rows,
 	})
+}
+
+// wornAppearance projects the character's worn equipment onto the native
+// equipped-appearance block, one entry per worn slot in ascending slot order.
+// Each row binds the piece's own template ID; see AppearanceProbe for the
+// value provenance. state must be the whole stored state object (ReadBag
+// looks up the bag keys one level above the inventory sub-object).
+//
+// No slot filter is applied here on purpose: the client's own entry trace
+// accepts body-equipment rows 14..25 verbatim ("equip : 24 - 骑士之盾"), and
+// the 0x145a8a780 key set is the cosmetic-layer table, a different coordinate
+// system from the [equipment type] slot space.
+func (s *Service) wornAppearance(state json.RawMessage) ([]protocol.EquippedAppearance, error) {
+	bag, err := inventory.ReadBag(state)
+	if err != nil {
+		return nil, err
+	}
+	if len(bag.Worn) == 0 {
+		return nil, nil
+	}
+
+	rows := make([]protocol.EquippedAppearance, 0, len(bag.Worn))
+	for _, w := range bag.Worn {
+		rows = append(rows, protocol.EquippedAppearance{Slot: byte(w.Slot), Model: w.Template})
+	}
+	if len(rows) == 0 {
+		return nil, nil
+	}
+	sort.Slice(rows, func(i, j int) bool { return rows[i].Slot < rows[j].Slot })
+	return rows, nil
 }
 
 func (s *Service) IsOdyssey(role storage.Character) (bool, error) {
