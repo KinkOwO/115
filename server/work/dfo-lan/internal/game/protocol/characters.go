@@ -91,6 +91,12 @@ func add16(p []byte, v uint16) []byte   { return binary.LittleEndian.AppendUint1
 func add32(p []byte, v uint32) []byte   { return binary.LittleEndian.AppendUint32(p, v) }
 func addName(p []byte, s string) []byte { return append(add32(p, uint32(len(s))), []byte(s)...) }
 
+// Native mode0/mode2 readers consume this as a bit field. Native execution
+// confirms bit 1 is the growth-appearance state in both modes; bit 0 preserves
+// the existing serializer value. Three CN mode0 captures carry 0x03, so both
+// serializers use the same generic value without profession-specific logic.
+const nativeGrowthStateFlags byte = 1<<0 | 1<<1
+
 // The native create callback feeds this value into the roster-position lookup
 // (0x1401f8a30 -> 0x14021adf0), not into a persistent character-ID lookup.
 func CreateSuccess(slot uint16, name string) []byte { return addName(add16([]byte{1}, slot), name) }
@@ -171,7 +177,7 @@ func CharacterList(capacity uint16, roles []CharacterRow) ([]byte, error) {
 		p = append(p, 0)
 		p = append(p, 0) // premium PC room helper 0x14563be50
 		p = add32(p, 0)
-		p = append(p, 1) // client default status bit field
+		p = append(p, nativeGrowthStateFlags) // native growth-state bit field
 		p = append(p, make([]byte, 8+28)...)
 		p = add32(p, 0)
 		p = add16(p, 0)

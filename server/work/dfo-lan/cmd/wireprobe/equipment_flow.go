@@ -42,6 +42,9 @@ func (s *equipmentSession) handle(service *inventory.WearService, w *worldSessio
 	if plan, handled, e := w.moveStack(service.BagRules, r, fmt.Sprintf("bagmove:%x:%x", s.nonce, hash)); handled {
 		return plan, e
 	}
+	// (20260918: the live-catalog warm block was removed together with the
+	// move-path PVF validation itself - the move no longer reads the gear
+	// catalog, so there is nothing to preheat.)
 	key := fmt.Sprintf("equipment:%x:%x", s.nonce, hash)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -57,7 +60,25 @@ func (s *equipmentSession) handle(service *inventory.WearService, w *worldSessio
 	if e != nil {
 		return nil, e
 	}
+	// Two channels, two jobs. The id-13 restores re-feed the bag grid and the
+	// worn model (same channel as entry and quest rewards). The id-14 frames
+	// re-feed the worn-slot WINDOW: the 20260918 live contrast showed the
+	// window emptying when only id-13 was sent, so both go out together. (The
+	// earlier note claiming id-14 parses no rows misread the dispatcher front
+	// half as the whole receiver; the row walk lives in its 0x1452a1210 body.)
 	plan := []outboundPacket{{"equipment_move_committed", 1, 19, protocol.ItemMoveSuccess(r, 1)}}
+	bagBody, e := protocol.InventoryRestore(b.Rows())
+	if e != nil {
+		return nil, e
+	}
+	plan = append(plan, outboundPacket{"equipment_bag_resynced", 0, 13, bagBody})
+	wornBody, e := inventory.WornPayload(saved.State)
+	if e != nil {
+		return nil, e
+	}
+	if len(wornBody) > 0 {
+		plan = append(plan, outboundPacket{"equipment_worn_resynced", 0, 13, wornBody})
+	}
 	for _, space := range []byte{0, 1, 3, 7} {
 		var rows []inventory.BagEquipment
 		for _, loc := range []struct {
@@ -101,6 +122,27 @@ func (s *equipmentSession) handle(service *inventory.WearService, w *worldSessio
 				plan = append(plan, outboundPacket{"creature_growth_updated", 0, 102, []byte{1, 0, 0, 0, 0, 0}})
 			}
 		}
+	}
+	wornUpdate, e := inventory.WornSpaceUpdate(saved.State)
+	if e != nil {
+		return nil, e
+	}
+	if len(wornUpdate) > 0 {
+		plan = append(plan, outboundPacket{"equipment_worn_window_refreshed", 0, 14, wornUpdate})
+	}
+	// Appearance refresh (C9): when the move touched the worn set, re-send the
+	// mode0 userinfo with the equipped-appearance block bound to the new state.
+	// The client's CMD19 apply routine updates its per-slot model table from
+	// this block (0x145639840 rows land at [actor+slot*4+0x405], the slot set
+	// 0x145a8a780 covers), which is what makes the world model follow the
+	// change. It goes LAST so the rebuild sees the id13/id14 rows above as
+	// fresh item objects. Bag-to-bag moves change no visible slot and skip it.
+	if (r.SourceList == 3 || r.DestinationList == 3) && w.characters != nil {
+		probe, e := w.characters.AppearanceProbe(saved, [2]byte{})
+		if e != nil {
+			return nil, e
+		}
+		plan = append(plan, outboundPacket{"equipment_appearance_refreshed", 0, 2, probe})
 	}
 	w.role = saved
 	return plan, nil

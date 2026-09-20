@@ -25,7 +25,7 @@ func TestEntryBasicNativeBoundaries(t *testing.T) {
 		if p[171+len(name)] != 3 || p[173+len(name)] != 1 {
 			t.Fatal("profession/level offset")
 		}
-		if p[232+len(name)] != 1 || p[263+len(name)] != 1 || p[277+len(name)] != 0xff {
+		if p[232+len(name)] != 1 || p[263+len(name)] != 0x03 || p[277+len(name)] != 0xff {
 			t.Fatal("optional fields shifted the native flag boundaries")
 		}
 	}
