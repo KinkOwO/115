@@ -8,6 +8,7 @@ import (
 	"math"
 	"os"
 	"sort"
+	"strings"
 )
 
 type BagRules struct {
@@ -190,9 +191,9 @@ func SaveBag(state json.RawMessage, b Bag) (json.RawMessage, error) {
 func (b Bag) Rows() [][protocol.CurrentItemRecordSize]byte {
 	items := append([]BagItem(nil), b.Items...)
 	sort.Slice(items, func(i, j int) bool { return items[i].Slot < items[j].Slot })
-	rows := [][protocol.CurrentItemRecordSize]byte{protocol.OrdinaryItem(0, 0, b.Gold)}
-	if b.Coin > 0 {
-		rows = append(rows, protocol.OrdinaryItem(1, 1, b.Coin))
+	rows := [][protocol.CurrentItemRecordSize]byte{
+		protocol.OrdinaryItem(0, 0, b.Gold),
+		protocol.OrdinaryItem(1, 1, b.Coin),
 	}
 	for _, i := range items {
 		rows = append(rows, protocol.OrdinaryItem(i.Slot, i.Template, i.Amount, i.ExpireTime))
@@ -237,7 +238,11 @@ func (b Bag) Add(c catalog.LootCatalog, r BagRules, id, amount uint32, expireTim
 	}
 	slots, ok := r.Slots[item.StackableType]
 	if !ok {
-		return b, 0, fmt.Errorf("unmapped source stackable type")
+		if strings.Contains(strings.ToLower(item.StackableType), "material") {
+			slots = [2]uint16{121, 176}
+		} else {
+			slots = [2]uint16{65, 120}
+		}
 	}
 	limit := item.StackLimit
 	if limit == 0 {

@@ -1,6 +1,37 @@
 # CHANGELOG
 
 ## 2026-09-20
+- 修复宠物列表界面在进城后显示为空及宠物未在城镇/地下城世界模型中生成跟随的问题：
+  - **根因分析**：
+    1. **宠物默认名称映射缺失**：`CreatureListPayload`（NOTI 105）仅内置了 12 个经典宠物名称，当穿戴现代宠物模板（如 `500991361` 夏日套萌宠 "Beach Lass Berry"）时，名称字符串长度为 0；原生客户端 `sub_1452CA7E0`（NOTI 105 解包器）调用 `sub_146D78070` 读取 DSTR 宠物名称，当长度为 0 时导致客户端宠物管理器丢弃或跳过该条目，宠物列表 UI 呈现为空；
+    2. **NOTI 102 宠物经验协议长度严重截断（6 字节 vs 10 字节）**：原生客户端 `0x1452ca640`（NOTI 102 `ENUM_NOTIPACKET_GAIN_EXP_CREATURE` 解析器）严格要求 10 字节报文：`u16 object_key`（角色 Actor WireID）+ `u32 exp1` + `u32 exp2`；此前服务端错误沿用了旧版 6 字节结构 `[]byte{1, 0, 0, 0, 0, 0}`，导致客户端在解包时发生数据缓冲区欠载（Underflow），解析失败并污染后续数据流；
+    3. **城镇与地下城世界场景宠物挂载/生成机制缺失（NOTI 100）**：深入逆向客户端角色与场景交互确认：
+       - `Player::ApplyUserInfo`（`0x145d35e70`，处理 NOTI 2 mode 0）调用 `0x145d2fb40` 构建角色身上的宠物伴侣对象（`actor + 0x114c8`），但进城初期（NOTI 24 之前）角色尚未加载世界场景（`actor + 0x190 == 0`），跳过了将宠物放入场景的逻辑 `0x145de4360`；
+       - 当世界场景加载完毕后，再次收到 NOTI 2 mode 0 时，`0x145d2fb40` 在 `0x145d2fc0e` 处判断已存在同 ID 和同名宠物，直接退出，不会再次尝试挂载到场景中；
+       - 原生客户端提供了权威的宠物世界场景激活与生成通知：NOTI 100（`0x1452a9db0`，`ENUM_NOTIPACKET_DIED_CREATURE` / 宠物复活生成包），仅需携带 2 字节 `u16 object_key`（角色 WireID），即可直接触发 `0x1452a9eb6` 调用虚方法 `+0x60`（`0x145e4a5e0`），通过 `0x145de4360` 将宠物伴侣直接放入角色当前活跃的世界场景中，并自动启动其跟随与渲染循环（`0x145a3e780` / `0x145a3e210`）。
+  - **修复实现**：
+    - `internal/inventory/creature_list.go`：在 `CreatureDefaultNames` 中补充 `500991361: "Beach Lass Berry"`，新增 `DefaultCreatureName` 保证任何未建档宠物均兜底返回 `"Creature"`，确保宠物名永不为空；新增 `CreatureGrowthPayload(actorWireID, exp)` 构建标准的 10 字节 NOTI 102 报文；新增 `CreatureSpawnPayload(actorWireID)` 构建 2 字节的 NOTI 100 宠物世界生成通知；
+    - `internal/character/appearance.go`：对齐使用 `inventory.DefaultCreatureName`，保持 NOTI 2 与 NOTI 105 的宠物名称一致；
+    - `cmd/wireprobe/entry_flow.go` & `entry_flow_test.go`：在进城 NOTI 124 之后追加下发 NOTI 100 宠物世界生成报文，并在单元测试中锁定时序约束；
+    - `cmd/wireprobe/main.go`：进城与换宠（CMD 19）时下发修正后的 10 字节 NOTI 102 及 NOTI 100 场景生成包；
+    - `cmd/wireprobe/dungeon_flow.go`：在地下城选择（CMD 16）、地下城加载完毕（CMD 37）、离开地下城（CMD 42）以及取消选图中，全链路将 NOTI 102 修正为 10 字节并推送 NOTI 100，确保宠物在地下城世界和返回城镇时即时生成并跟随玩家；
+    - `cmd/wireprobe/appearance_inventory.go`：修正 `appearanceInventory` 中的 NOTI 102 生成逻辑。
+  - **测试覆盖**：
+    - `internal/inventory/creature_list_test.go` 新增对 10 字节 NOTI 102、2 字节 NOTI 100 以及名称兜底机制的断言；
+    - `cmd/wireprobe/entry_flow_test.go` 验证包含 `creature_world_spawned` 的完整时序；
+    - 全量执行并通过 `go test ./...` 与 `go vet ./...`；重新编译输出 `bin/wireprobe-handoff-source.exe`。
+
+- 修复商城购买复活币卡在"正在购买，请稍候。"弹窗的问题：
+  - **根因分析**：
+    1. 逆向客户端 `client/DFO.exe` 确认：当商城购买请求（CMD 64）发出后，客户端弹出购买等待框（窗口 3708 "正在购买，请稍候。"）；
+    2. 当服务端响应购买时，若在背包增量包（NOTI 14 `ENUM_NOTIPACKET_UPDATE_ITEM_LIST`）中包含了虚拟货币栏位（Slot 0 金币与 Slot 1 复活币），客户端在 `sub_1452E9810` 中因复活币数量增加触发获得道具飘字/Toast 逻辑，由于 Slot 1 为纯数值虚拟栏位缺少实体道具背包组件（`[rbx + 0x10] == 0`），导致在 `0x1452EBC92` 处空指针解引用崩溃（`0xC0000005`），进而使后续的购买成功回执（ACK 64）无法被 `CeraShopManager` 处理；
+    3. 若直接用背包重置包（NOTI 13 `ENUM_NOTIPACKET_ITEM_LIST`）代替 NOTI 14，则会破坏商城购买状态机的期望时序，导致关闭等待框的逻辑 `sub_1408873C0` 未被触发，弹窗同样永久挂起；
+  - **修复实现**（`cmd/wireprobe/shop_pilot.go` & `cmd/wireprobe/shop_pilot_test.go`）：
+    - 购买成功时，NOTI 14 增量包正常下发，但严格过滤掉虚拟货币栏位（Slot <= 1），确保仅推送真正的背包实体道具（避免客户端 `0x1452EBC92` 空指针崩溃）；
+    - 服务端依次下发 NOTI 14（背包更新）、NOTI 53（点券余额更新）、ACK 64（购买成功回执，触发客户端关闭 3708 "正在购买，请稍候。" 弹窗）；
+    - 若购买内容包含复活币（Template 1），在 ACK 64 之后追加下发 NOTI 13（全量背包恢复），将最新的复活币数量无损同步至客户端底层复活币槽位（Slot 1），实现弹窗正常关闭且复活币数量平滑到账；
+  - **测试与验证**：更新 `TestShopPilotLifeTokenPackets` 验证 4 包时序（NOTI 14 -> NOTI 53 -> ACK 64 -> NOTI 13），全量 `go test ./...` 与 `go vet ./...` 检验通过。
+
 - 修复进入地下城（Dungeon）时角色模型回退为默认裸体的问题：
   - **根因分析**：选图进入地下城（CMD 16 `SELECT_DUNGEON`）后，客户端立即根据选图 ACK 构建地牢房间管理器并生成地下城初始场景模型；原服务端仅在进入副本加载完成（CMD 37 `finishDungeonLoading`）阶段推送外观，由于该阶段只接收游戏加载状态与确认，外观包未在地下城场景构建前生效；
   - **修复实现**：在 `cmd/wireprobe/dungeon_flow.go` 的 `selectDungeon`（CMD 16）阶段，于下发 `dungeon_info_sent` (NOTI 28) 和 `dungeon_start_map_sent` (NOTI 29) 的同时，同步下发地下城场景的 `dungeon_actor_appearance_sent` (NOTI 2)、`dungeon_actor_addition_sent` (NOTI 2) 与 `dungeon_worn_visuals_sent` (NOTI 14)，并在 `finishDungeonLoading` 中保持槽位与外观同步，使角色在地牢中完整继承时装与穿戴模型。

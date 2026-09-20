@@ -344,3 +344,80 @@ func TestShopPilotPackageDelivery(t *testing.T) {
 		}
 	}
 }
+
+func TestShopPilotLifeTokenPurchase(t *testing.T) {
+	p, err := LoadPilot("../../configs/shop-purchase-pilot.json", "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a full bag where all consumables and materials slots are occupied
+	full := inventory.Bag{Version: "ordinary-bag-v1", Gold: 1000, Coin: 5}
+	for slot := uint16(65); slot <= 120; slot++ {
+		full.Items = append(full.Items, inventory.BagItem{Slot: slot, Template: 15, Amount: 1000})
+	}
+	for slot := uint16(121); slot <= 176; slot++ {
+		full.Items = append(full.Items, inventory.BagItem{Slot: slot, Template: 50022396, Amount: 1000})
+	}
+	raw, err := inventory.SaveBag(json.RawMessage(`{}`), full)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	l := &packLedger{state: raw}
+
+	// Purchase Life Token 10 EA (product 3000110)
+	_, applied, err := p.Purchase(context.Background(), l, 1, 1, "life-token-order-0001", []protocol.CeraCartItem{
+		{Product: 3000110, Quantity: 2}, // 2 * 10 = 20 coins
+	})
+	if err != nil || !applied {
+		t.Fatalf("life token purchase failed: %v", err)
+	}
+
+	b, err := inventory.ReadBag(l.state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b.Coin != 25 { // 5 initial + 20
+		t.Fatalf("expected coin=25, got %d", b.Coin)
+	}
+	// The number of regular items must still be 112 (56 consumable + 56 material), no new bag item added!
+	if len(b.Items) != 112 {
+		t.Fatalf("expected 112 items in bag, got %d", len(b.Items))
+	}
+
+	// Purchase Life Token 1 EA (product 3000109)
+	_, applied, err = p.Purchase(context.Background(), l, 1, 1, "life-token-order-0002", []protocol.CeraCartItem{
+		{Product: 3000109, Quantity: 3}, // 3 * 1 = 3 coins
+	})
+	if err != nil || !applied {
+		t.Fatalf("life token purchase 1 EA failed: %v", err)
+	}
+
+	b, err = inventory.ReadBag(l.state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b.Coin != 28 { // 25 + 3
+		t.Fatalf("expected coin=28, got %d", b.Coin)
+	}
+
+	// Verify rows contains slot 1
+	rows := b.Rows()
+	hasSlot1 := false
+	for _, r := range rows {
+		slot := uint16(r[0]) | uint16(r[1])<<8
+		tpl := uint32(r[2]) | uint32(r[3])<<8 | uint32(r[4])<<16 | uint32(r[5])<<24
+		cnt := uint32(r[6]) | uint32(r[7])<<8 | uint32(r[8])<<16 | uint32(r[9])<<24
+		if slot == 1 {
+			if tpl != 1 || cnt != 28 {
+				t.Fatalf("slot 1 row mismatch: tpl=%d cnt=%d", tpl, cnt)
+			}
+			hasSlot1 = true
+			break
+		}
+	}
+	if !hasSlot1 {
+		t.Fatal("rows missing slot 1 coin entry")
+	}
+}
