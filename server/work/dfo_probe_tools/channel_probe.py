@@ -139,6 +139,70 @@ if tag.startswith("roles_"):
     "563e280 CHARACTER_ROW_BEGIN\n563ead2 CHARACTER_ROW_FIELDS_DONE\n563ec14 CHARACTER_ROW_TAIL\n"
    )
 flags = subprocess.CREATE_NO_WINDOW
+
+
+def exe_flags(exe):
+ """列出服务端程序认识的参数名（解析 `exe -h` 打印的 usage）。
+
+ Go 的 flag 包遇到 -h 就把 usage 打到 stderr 并以非零码退出，所有历史二进制都保留
+ 这个行为，所以能拿它判断"这个程序认不认某个参数"。探测失败（文件不在、超时、
+ 不是 Go 程序）返回 None，调用方据此保持原样，不改变既有行为。
+ """
+ try:
+  probe = subprocess.run(
+   [exe, "-h"],
+   stdout=subprocess.PIPE,
+   stderr=subprocess.STDOUT,
+   creationflags=flags,
+   timeout=15,
+  )
+ except (OSError, subprocess.SubprocessError):
+  return None
+ names = set()
+ for line in probe.stdout.decode("utf-8", "replace").splitlines():
+  match = re.match(r"^\s+-([A-Za-z0-9._-]+)", line)
+  if match:
+   names.add(match.group(1))
+ return names or None
+
+
+def prune_unsupported(command):
+ """丢弃当前服务端程序不认识的参数（连同它的值），避免 flag 解析直接退出。
+
+ 2026-09-20 事故：b6d97c8 给源码加了 -booster-catalog / -item-index，本文件按
+ "configs 里存在对应文件" 就追加参数，但归档基准的 exe 还是更早的构建；Go 的 flag
+ 包遇到未定义参数会打印 usage 并以非零码退出，玩家看到的是 "启动脚本异常退出:
+ exit status 1"。下发前按 exe 自报的能力过滤一遍，旧程序也能照常起来（功能按旧版）。
+
+ 只在自身构造的命令串上工作，形状固定为 [-flag value -flag -flag value]；不认识的
+ 参数如果带值，按"下一个 token 不是参数名"判定并一并丢弃（参数值都是路径，不会以
+ '-' 开头）。
+ """
+ supported = exe_flags(command[0])
+ if not supported:
+  return command
+ kept = [command[0]]
+ dropped = []
+ index = 1
+ while index < len(command):
+  token = command[index]
+  if not token.startswith("-") or token[1:] in supported:
+   kept.append(token)
+   index += 1
+   continue
+  dropped.append(token)
+  index += 1
+  if index < len(command) and not command[index].startswith("-"):
+   dropped.append(command[index])
+   index += 1
+ if dropped:
+  print(
+   "WARNING: %s does not define %s; dropped them so this build can still start."
+   % (command[0], ", ".join(x for x in dropped if x.startswith("-")))
+  )
+ return kept
+
+
 with (
  (out / "gateway.out").open("w") as stdout,
  (out / "gateway.err").open("w") as stderr,
@@ -450,6 +514,8 @@ with (
   eq_wear_full = project / "configs/equipment-wear.full-candidate.json"
   if eq_wear_full.exists():
    os.environ["DFO_EQUIPMENT_WEAR_RULES"] = str(eq_wear_full.resolve())
+ # ★ 下发前按当前服务端程序自报的能力过滤参数（见 prune_unsupported）。
+ command = prune_unsupported(command)
  stdout.write(' '.join(command) + '\n')
  server = subprocess.Popen(command, stdout=stdout, stderr=stderr, creationflags=flags)
  try:

@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 2026-09-20
+- 修复“更新服务端代码后启动必失败（`启动脚本异常退出：exit status 1`）”：`channel_probe.py` 下发命令前先按服务端程序自报的能力过滤参数。
+  - **根因分析**：`b6d97c8` 给服务端源码新增了 `-booster-catalog` / `-item-index` 等参数，`channel_probe.py` 同步按“configs 里存在对应文件”就追加参数；但实际运行的归档基准 `bin/wireprobe-dungeon39.exe` 是更早的构建（`bin/` 不入库、不随代码更新），Go 的 `flag` 包遇到未定义参数会打印 usage 并以非零码退出，玩家/启动器侧表现为 `启动脚本异常退出：exit status 1`。
+  - **修复实现**：`server/work/dfo_probe_tools/channel_probe.py` 新增 `exe_flags`（运行 `exe -h` 解析 usage）与 `prune_unsupported`，在下发前丢弃当前程序不认识的参数（连同它的值）并打印 WARNING；探测失败（文件缺失/超时）时保持原样，不改变既有行为。
+
 ## 2026-09-19
 - 修复奥德赛模式下所有礼包开启报 `Your Inventory is full` 以及可选属性 Avatar 礼盒开启失败问题：
   - **根因分析**：
