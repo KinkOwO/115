@@ -11,10 +11,7 @@ import (
 )
 
 func knownSkills(s State, tree int) (map[uint16]byte, error) {
-	base, e := initialSkills(s)
-	if e != nil {
-		return nil, e
-	}
+	base := initialSkills(s)
 	out := map[uint16]byte{}
 	for _, v := range base {
 		out[v.ID] = v.Level
@@ -30,8 +27,15 @@ func knownSkills(s State, tree int) (map[uint16]byte, error) {
 func skillOrder(state State, known map[uint16]byte) []int {
 	ids := make([]int, 0, len(known))
 	seen := map[uint16]bool{}
-	for i := 0; i < len(state.InitialSkills); i += 3 {
-		id := uint16(state.InitialSkills[i])
+	// Use the same normalized stream as knownSkills.  Persisted characters
+	// created before the initial-skill repair may retain conditional or broken
+	// triples; iterating the raw cells would reintroduce those IDs with a zero
+	// level (or twice), which makes the entry-addition packet invalid.
+	for _, skill := range initialSkills(state) {
+		id := skill.ID
+		if seen[id] {
+			continue
+		}
 		ids = append(ids, int(id))
 		seen[id] = true
 	}
@@ -56,18 +60,44 @@ func (s *Service) skillRows(role storage.Character, state State, tree int) ([]pr
 	ids := skillOrder(state, known)
 	slots := map[uint16]uint16{}
 	used := map[uint16]bool{}
+	// Persisted shortcut moves are authoritative, even when an older state
+	// records only the moved rows. Reserve every explicit row first so a
+	// source default cannot claim a slot that a later row already owns.
 	for _, raw := range ids {
 		id := uint16(raw)
-		slot := uint16(65535)
 		if v, ok := state.SkillSlots[tree][id]; ok {
-			slot = v
-		} else if v, ok := prof.InitialSkillSlots[id]; ok {
-			slot = v
+			if v >= 255 || used[v] {
+				return nil, fmt.Errorf("invalid/duplicate saved skill slot")
+			}
+			slots[id] = v
+			used[v] = true
+		}
+	}
+	for _, raw := range ids {
+		id := uint16(raw)
+		if _, ok := slots[id]; ok {
+			continue
+		}
+		slot := uint16(65535)
+		if byAdv := prof.AdvancementSkillSlots[state.Advancement]; byAdv != nil {
+			if v, ok := byAdv[id]; ok {
+				slot = v
+			}
+		}
+		if slot == 65535 {
+			if v, ok := prof.InitialSkillSlots[id]; ok {
+				slot = v
+			}
+		}
+		if slot != 65535 && slot >= 255 {
+			return nil, fmt.Errorf("invalid source skill slot")
+		}
+		if slot != 65535 && used[slot] {
+			// A saved custom row owns the slot. Put the source-default row into
+			// the ordinary palette below instead of rejecting or overwriting it.
+			slot = 65535
 		}
 		if slot != 65535 {
-			if slot >= 255 || used[slot] {
-				return nil, fmt.Errorf("invalid/duplicate source skill slot")
-			}
 			used[slot] = true
 		}
 		slots[id] = slot
@@ -100,7 +130,11 @@ func (s *Service) skillRows(role storage.Character, state State, tree int) ([]pr
 	out := make([]protocol.LearnedSkill, 0, len(ids))
 	for _, raw := range ids {
 		id := uint16(raw)
-		out = append(out, protocol.LearnedSkill{ID: id, Level: known[id], Slot: slots[id]})
+		row := protocol.LearnedSkill{ID: id, Level: known[id], Slot: slots[id]}
+		if source := prof.SkillCommands[id]; len(source) > 0 {
+			row.Commands = append([]uint32(nil), source...)
+		}
+		out = append(out, row)
 	}
 	return out, nil
 }
@@ -122,7 +156,7 @@ func mergeSkillState(raw json.RawMessage, state State) (json.RawMessage, error) 
 	return json.Marshal(old)
 }
 func (s *Service) Learn(ctx context.Context, role storage.Character, key string, req protocol.SkillPurchase) (storage.Character, bool, error) {
-	if s.Learning == nil || s.Learning.Source.Checksum != role.ConfigVersion || req.Tree != 0 {
+	if s.Learning == nil || req.Tree != 0 {
 		return role, false, fmt.Errorf("learning service/source unavailable")
 	}
 	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, "source-skill-learning-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
@@ -135,10 +169,7 @@ func (s *Service) Learn(ctx context.Context, role storage.Character, key string,
 			return nil, nil, e
 		}
 		seen := map[uint16]bool{}
-		base, e := initialSkills(state)
-		if e != nil {
-			return nil, nil, e
-		}
+		base := initialSkills(state)
 		floor := map[uint16]byte{}
 		for _, v := range base {
 			floor[v.ID] = v.Level
@@ -288,7 +319,7 @@ func (s *Service) placeNewShortcuts(job byte, rows []protocol.LearnedSkill, fres
 	}
 }
 func (s *Service) MoveSkill(ctx context.Context, role storage.Character, key string, req protocol.SkillMove) (storage.Character, bool, error) {
-	if s.Learning == nil || s.Learning.Source.Checksum != role.ConfigVersion || req.Tree != 0 || req.From == 255 || req.To == 255 || req.From == req.To {
+	if s.Learning == nil || req.Tree != 0 || req.From == 255 || req.To == 255 || req.From == req.To {
 		return role, false, fmt.Errorf("invalid ordinary skill move")
 	}
 	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, "source-skill-slots-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {

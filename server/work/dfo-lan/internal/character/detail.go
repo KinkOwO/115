@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
-	"sort"
 )
 
 // EntryAddition uses persisted source attributes and initial skills in native
@@ -88,19 +87,28 @@ func (s *Service) EntryAddition(role storage.Character) ([]byte, error) {
 // initial-skill vector and (ID, second value) in a separate vector. All 17
 // imported professions use second value=1 in their initial section. Preserve
 // that supported shape; do not interpret arbitrary growth/PvP conditions.
-func initialSkills(s State) ([]protocol.EntrySkill, error) {
-	if (s.Advancement != 0 && !(s.SwordmasterPilot && s.Advancement == 1) && !(s.AllJobsPilot && s.Advancement < 16)) || len(s.InitialSkills)%3 != 0 {
-		return nil, fmt.Errorf("unsupported initial skill state")
-	}
+//
+// The [skill] block this reads sits in the profession's top-level [initial
+// value] section and is shared by every advancement slot, so an advanced
+// character keeps it. The upstream 46d34763 advancement/pilot refusal was
+// removed (user ruling 20260918): advanced non-pilot characters are valid
+// and were served by the baseline loader.
+//
+// 单机裁定 20260919（无条件通过）：不可建模的源行——第三格≠1 的未达标授予
+// （骑士进阶槽 [4/1/5] [3/1/10] 曾让建号后的自动进场整包被拒）、越界 id/等级
+// ——一律跳过（记零），绝不拒绝入场追加包。行语义（等级门槛）未建模，不猜。
+func initialSkills(s State) []protocol.EntrySkill {
+	cells := s.InitialSkills
+	cells = cells[:len(cells)-len(cells)%3]
 	var out []protocol.EntrySkill
-	for i := 0; i < len(s.InitialSkills); i += 3 {
-		id, level, condition := s.InitialSkills[i], s.InitialSkills[i+1], s.InitialSkills[i+2]
+	for i := 0; i+2 < len(cells); i += 3 {
+		id, level, condition := cells[i], cells[i+1], cells[i+2]
 		if id <= 0 || id > 65535 || level <= 0 || level > 255 || condition != 1 {
-			return nil, fmt.Errorf("unsupported source initial skill tuple")
+			continue
 		}
 		out = append(out, protocol.EntrySkill{ID: uint16(id), Level: byte(level)})
 	}
-	return out, nil
+	return out
 }
 
 func (s *Service) EntrySkills(role storage.Character) ([]byte, error) {
@@ -108,39 +116,14 @@ func (s *Service) EntrySkills(role storage.Character) ([]byte, error) {
 	if e := json.Unmarshal(role.State, &state); e != nil {
 		return nil, e
 	}
+	// Current NOTI19 sends learned rows only. The client owns the catalog of
+	// future learnable skills from PVF; the server must not invent zero-rank
+	// rows that were absent from the captured initial packet.
 	var trees [2]protocol.SkillTree
 	for i := range trees {
 		rows, e := s.skillRows(role, state, i)
 		if e != nil {
 			return nil, e
-		}
-		if s.Learning != nil {
-			// Instantiate own-job skill definitions for the learning window.
-			// Zero ranks are unlearned and never occupy a shortcut or grant use.
-			seen := map[uint16]bool{}
-			occupied := map[uint16]bool{}
-			for _, r := range rows {
-				seen[r.ID] = true
-				occupied[r.Slot] = true
-			}
-			var missing []int
-			for id, d := range s.Learning.index[role.Profession] {
-				if !seen[id] && (d.ForAdvancement(int(state.Advancement)) || d.ForAwakening(int(state.Advancement), int(state.Awakening))) {
-					missing = append(missing, int(id))
-				}
-			}
-			sort.Ints(missing)
-			for _, id := range missing {
-				slot := uint16(14)
-				for slot < 255 && occupied[slot] {
-					slot++
-				}
-				if slot == 255 {
-					return nil, fmt.Errorf("unlearned base-profession palette exceeds current wire slots")
-				}
-				occupied[slot] = true
-				rows = append(rows, protocol.LearnedSkill{ID: uint16(id), Slot: slot})
-			}
 		}
 		trees[i] = protocol.SkillTree{SP: state.SkillPoints[i], TP: state.TechniquePoints[i], Skills: rows}
 	}

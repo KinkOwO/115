@@ -23,12 +23,24 @@ func TestSelfSkillNativeProtobuf(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	got, e := SkillInfo(1, []LearnedSkill{{179, 7, 65535}, {174, 1, 65535}, {169, 1, 0}, {46, 1, 1}, {190, 1, 65535}, {5, 1, 2}, {511, 1, 65535}, {452, 1, 65535}})
+	got, e := SkillInfo(1, []LearnedSkill{{ID: 179, Level: 7, Slot: 65535}, {ID: 174, Level: 1, Slot: 65535}, {ID: 169, Level: 1, Slot: 0}, {ID: 46, Level: 1, Slot: 1}, {ID: 190, Level: 1, Slot: 65535}, {ID: 5, Level: 1, Slot: 2}, {ID: 511, Level: 1, Slot: 65535}, {ID: 452, Level: 1, Slot: 65535}})
 	if e != nil || !bytes.Equal(got, expected) {
 		t.Fatalf("native skill protobuf mismatch: %x %v", got, e)
 	}
-	if _, e = SkillInfo(1, []LearnedSkill{{46, 1, 0}, {46, 2, 1}}); e == nil {
+	if _, e = SkillInfo(1, []LearnedSkill{{ID: 46, Level: 1, Slot: 0}, {ID: 46, Level: 2, Slot: 1}}); e == nil {
 		t.Fatal("duplicate learned skill accepted")
+	}
+}
+
+func TestSkillInfoSerializesCommandVectorField4(t *testing.T) {
+	got, err := SkillInfo(1, []LearnedSkill{{ID: 109, Level: 1, Slot: 2, Commands: []uint32{8}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Field 4 is tag 32 (0x20) inside each repeated skill row. Both trees
+	// carry the same row, matching the current native self-skill contract.
+	if !bytes.Contains(got, []byte{0x20, 0x08}) {
+		t.Fatalf("command vector field4 missing: %x", got)
 	}
 }
 func TestDungeonDeathAndReturnNativeReaders(t *testing.T) {

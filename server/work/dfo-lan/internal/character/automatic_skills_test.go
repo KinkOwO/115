@@ -69,15 +69,15 @@ func TestAutomaticSpathaNoctis(t *testing.T) {
 	}
 	st.Level = 14
 	known, err := s.knownSkills(role, st, 0)
-	if err != nil || known[62] != 0 {
-		t.Fatal("early grant", known, err)
+	if err != nil || known[62] != 1 {
+		t.Fatal("condition-one grant disappeared from legacy role", known, err)
 	}
 	st.Level, st.Advancement = 35, 1
 	known, err = s.knownSkills(role, st, 0)
 	if err != nil || known[62] != 0 {
 		t.Fatal("foreign advancement grant", known, err)
 	}
-	t.Log("MODIFIED: Spatha Noctis rank1; prerequisites available; level14 and foreign advancement not granted")
+	t.Log("MODIFIED: Spatha Noctis rank1; prerequisites available; condition-one grant persists at level14; foreign advancement not granted")
 }
 
 func TestAutomaticAllProfessionGrants(t *testing.T) {
