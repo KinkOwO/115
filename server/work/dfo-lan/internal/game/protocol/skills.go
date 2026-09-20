@@ -9,6 +9,9 @@ type LearnedSkill struct {
 	ID    uint16
 	Level byte
 	Slot  uint16
+	// Commands are NOTI19 row field 4. They are repeated uint32 values and
+	// intentionally absent for book-only/passive rows.
+	Commands []uint32
 }
 
 // NOTI19 (1452e6c50) is u32 byte length followed by protobuf, unlike the
@@ -45,6 +48,9 @@ func SkillInfoTrees(level byte, trees [2]SkillTree) ([]byte, error) {
 			item := pbint(nil, 8, uint64(s.Slot))
 			item = pbint(item, 16, uint64(s.ID))
 			item = pbint(item, 24, uint64(s.Level))
+			for _, command := range s.Commands {
+				item = pbint(item, 32, uint64(command))
+			}
 			tree = pbint(tree, 26, uint64(len(item)))
 			tree = append(tree, item...)
 		}
