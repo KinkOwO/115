@@ -74,16 +74,16 @@ func (d LearningDefinition) ForAdvancement(adv int) bool {
 	if len(t) != 1 || (t[0].Text != "[active]" && t[0].Text != "[passive]") {
 		return false
 	}
+	if len(cap) > 0 {
+		return true
+	}
 	grow := d.Ints("[skill fitness growtype]")
 	for _, g := range grow {
 		if g == adv {
 			return true
 		}
 	}
-	if len(grow) > 0 {
-		return false
-	}
-	return adv >= 0 && adv < len(cap) && cap[adv] > 0
+	return false
 }
 func (d LearningDefinition) Cost(level, advancement, target int, known map[uint16]byte) (int, error) {
 	// This argument is a growtype index, not the packed awakening wire byte.
@@ -97,16 +97,6 @@ func (d LearningDefinition) Cost(level, advancement, target int, known map[uint1
 	}
 	if len(d.Fields["[special purchase cost]"]) > 0 || len(d.Fields["[feature skill type]"]) > 0 {
 		return 0, fmt.Errorf("technique skill learning pending")
-	}
-	grow := d.Ints("[skill fitness growtype]")
-	if len(grow) > 0 {
-		allowed := false
-		for _, v := range grow {
-			allowed = allowed || v == advancement
-		}
-		if !allowed {
-			return 0, fmt.Errorf("skill belongs to another advancement")
-		}
 	}
 	limit := max[0]
 	if caps := d.Ints("[growtype maximum level]"); len(caps) > advancement {

@@ -1,6 +1,12 @@
 # CHANGELOG
 
 ## 2026-09-21
+- 修复未转职角色无法学习转职后专属体验技能的问题（如守护者混沌魔灵技能 61 `Tech Tree: Demon Soldier`）。
+  - **背景与根因**：115 级客户端中允许未转职角色学习部分转职专属技能以提前体验职业特色，转职后才清理非本职业技能。原服务端在 `ForAdvancement` 与 `Cost` 中强校验了 `[skill fitness growtype]`，当技能标注为特定转职（如 fitness=`[2]`）而角色未转职（advancement=`0`）时，服务端拒绝学习（`skill belongs to another advancement`）。
+  - **修复实现**：
+    1. `internal/character/learning_catalog.go`：调整 `ForAdvancement`，以技能声明的 `[growtype maximum level]`（`cap[adv] > 0`）作为权威学习准入标准；移除 `Cost` 中多余的 fitness 强匹配，按对应阶位上限严格约束可学等级（如技能 61 未转职阶段上限为 1 级）。
+    2. `internal/character/automatic_skills.go` 与 `learning.go`：在角色转职（`advancement > 0`）后，`knownSkills` 与 `Learn` 会自动过滤和移除未对应当前转职的非本职专属体验技能，对应当前转职的技能正常保留。
+  - **测试与验证**：新增 `internal/character/learning_preview_skills_test.go` 验证 0 阶学习 1 级、超学 2 级拒绝、前置技能等级依赖、以及转职后（转精灵骑士移除、转混沌魔灵保留）的状态流转；`go test ./...` 与 `go vet ./...` 全绿；用户实机测试确认未转职状态下 `Tech Tree: Demon Soldier` 学习成功。
 - 实现魔法封印装备解封 CMD 393（`ENUM_CMDPACKET_UNSEAL_RANDOM_OPTION`）服务端完整闭环，修复"右键解封无回包、装备无法解除封装"的问题。
   - **背景与根因**：115 客户端右键魔法封印装备（`.equ` 带 `[random option] 1` 的稀有/神器装备）时发送 CMD 393，服务端没有任何 393 处理器，客户端等不到回包一直卡在解封等待态。IDA 闭环取证：发送器 `sub_145AE9AE0` 写 `u16 目标槽位 + u16 卷轴槽位（0xFFFF=无卷轴）`；客户端通用应答读取器（`sub_1459A1BB0`）消费 `u8 状态`（失败时追加 `u16 错误码`）；两套注册器+UI 映射注册器全量扫描确认**没有 393 专用响应处理器**，成功包体即裸字节 `01`。实机抓包（2026-09-21T18:53）验证请求体 `0a00ffff00000000`。
   - **封存判定**：实机背包中的封印装备（100310840/100310581/100320649）记录 byte13=0、选项块（record[60..75]）全零；解封=**填充随机选项块并保持 byte13=0**（与参考实现的后置状态一致），随后推送 NOTI14 单行装备更新。
