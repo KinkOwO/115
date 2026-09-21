@@ -1959,6 +1959,16 @@ func main() {
 						plan.WornUpdate, e = inventory.WornSpaceUpdate(role.State)
 					}
 					if e == nil {
+						// Full worn set through the id-14 slot-update channel,
+						// mirroring the equipment-move heal frames (see the
+						// third-pass note in entry_flow.go packets()).
+						var bag inventory.Bag
+						bag, e = inventory.ReadBag(role.State)
+						if e == nil && len(bag.Worn) > 0 {
+							plan.WornSlots, e = inventory.EquipmentPayload(3, bag.Worn, false)
+						}
+					}
+					if e == nil {
 						plan.AvatarReady, e = inventory.SpecialEquipmentRestorePayload(role.State, 1)
 					}
 					if e == nil {

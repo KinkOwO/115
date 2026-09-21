@@ -1,6 +1,12 @@
 # CHANGELOG
 
 ## 2026-09-21
+- 重登装备升级箭头修复（next47 闭环，实机确认）：重登进城后可穿装备 8 格全亮"↑更好装备"，换装/切图一次才恢复正确。
+  - **根因**：登录序列从未下发 id-14 `equipment_slots_updated`（载荷携带 worn 槽位物品等级），客户端箭头"等级比较"分支缺数据而退化 → 全亮；换装自愈正因换装处理器补发该报文 ×2。前三轮报文镜像（NOTI23+24、list0+list3、CMD19、bag/worn/window/appearance 全镜像）均无效并保留在代码注释中。
+  - **定位方法**：客户端静态逆向（SetGridOverlay 0x14500A050 唯一调用方、Query 0x145CDCA30 语义解出）→ frida 安全探针（只挂函数入口；证明画箭头时查询表已非零，走等级比较分支而非 NULL 分支）→ 服务端 events.jsonl 换装 vs 登录报文集差集，唯一缺失帧一次锁定。
+  - **实现**：`entry_flow.go` 在 enter_gameworld_complete 屏障后插入 `equipment_slots_updated_entry`（id-14，space 3 全套 worn 行，`inventory.EquipmentPayload(3, bag.Worn, false)`，与换装路径同构建器同格式）；`main.go` 构建 `WornSlots`；`worn_display_handoff_test.go` 修复过时断言并新增 slot-update 顺序断言。
+  - **实机验收（2026-09-21 22:12）**：进城仅剩青铜护腿 1 个箭头——全身等级最低装备的真实"可换更好"提示（换下后消失佐证），7 格误亮消失。
+  - **文档与工具**：`docs/重登升级箭头修复-动态探针定位与登录序列补帧-20260921.md`（完整复盘 + frida 安全探针守则 + events.jsonl 差集对账方法论）；`analysis/tools/arrow_probe.py`（探针 v5：函数入口钩 + A/B 表 200ms 只读轮询 + 返回值去重）；过程留档 `analysis/tasks/next47-equip-arrow-*.md`；`work/dfo-lan/docs/protocol/next47-relog-upgrade-arrow-client-side.md` 收口。
 - 外部“技能锁保存丢失”修复说明书的审核与 CMD2377/NOTI2827 落地：说明书骨架成立、细节按证据分三级，接收侧先落地并测试，推送侧随后由补充答复补齐（见下一条）。
   - **审核结论**：✅ 已证实——opcode 编号与名称（0x949/0x94A/0xB0A/0xB0B/0xB0C/0x178）、CMD2377 帧头布局（`+8` 五字节 `FE FF FF FF FF`、`+13` scope、`+14` subtype、`+15` count、`+19` 起 4 字节条目、0~5 字节尾部）、subtype `0x13` 即技能锁且 `scope=0`、槽值 0 是删除信号、首条目落在页边界即整页重建、NOTI2826 为 3648 字节账号级块、“服务端只发 2826 从不发 2827 导致锁丢失”的现象描述；❌ 已证伪——说明书称 `+04` 恒为 `01 00 00 00`，22 条真实帧实测为 `0`/`1`/`0xFFFFFFFF`；⚠️ 与权威表冲突——说明书称 `CMD682 = 0x2AA` 且“客户端 1 秒后发出、服务端可不处理”，本仓库 `0x2AA` 是 NOTI 方向的领地战斗补给请求，且 682 已实现为退出关机信号，该条应剔除；❓ 无本地证据——386 字节锁块形状、2827 载荷 3539 字节、**锁块在 2827 中的偏移**、“2827 不在帧序列末尾即闪退”的时机要求。
   - **本地证据**：新增 22 条真实 CMD2377 明文原生向量（`internal/game/protocol/testdata/native_unified_option_frames36.json`），其中 2026-09-20T17:53:28Z 一条是 `scope=0 subtype=0x13` 的 page 0 重建帧（玩家锁上技能 58）；说明书给的锁块形状与客户端原生账号模板（`templates/account-options-current.bin`，3648 字节，实测 286/157 项组均为 `valid(1B)+1B+N×u16+N×exist`）**互相印证**，因此锁块编码可以放心实现、其位置不能。
