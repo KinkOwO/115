@@ -255,6 +255,12 @@ func main() {
 		if e = s.MigrateTutorial(ctx); e != nil {
 			log.Fatal(e)
 		}
+		// Account/character unified options (CMD2377 0x01/0x05) persist here;
+		// the account block restores through NOTI2826, character settings are
+		// stored until the NOTI2827 layout is reversed.
+		if e = s.MigrateUnifiedOptions(ctx); e != nil {
+			log.Fatal(e)
+		}
 		// The account cera ledger backs the balance sent in SELECT.
 		if e = s.MigrateGrants(ctx); e != nil {
 			log.Fatal(e)
@@ -1143,32 +1149,59 @@ func main() {
 				}
 				// CMD2377 SET_UNIFIED_OPTION carries one option block per frame:
 				// subtype 0x13 is the skill lock, 0x05 ordinary settings, and
-				// 0x01 the account level block already answered by NOTI2826.
-				// Only the skill lock is stored here; the other blocks stay
-				// client owned until their own layout is recovered.
+				// 0x01 the account level block restored by NOTI2826. Skill locks
+				// and both setting blocks are persisted here; the character
+				// settings block has no reversed NOTI2827 offset yet, so it is
+				// stored for a later restore path.
 				opt, e := protocol.DecodeUnifiedOption(plaintext)
 				if e != nil {
 					event(map[string]any{"kind": "unified_option_rejected", "reason": e.Error(), "bytes": len(plaintext)})
 					continue
 				}
 				event(map[string]any{"kind": "unified_option_accepted", "character_id": selectedCharacterID, "scope": opt.Scope, "subtype": opt.Subtype, "entries": len(opt.Entries)})
-				if opt.Subtype != protocol.UnifiedOptionSkillLock {
-					continue
+				switch opt.Subtype {
+				case protocol.UnifiedOptionSkillLock:
+					if characters == nil || worldState == nil || worldState.role.ID == 0 || worldState.role.ID != selectedCharacterID {
+						event(map[string]any{"kind": "skill_lock_rejected", "reason": "skill lock requires the owned selected character", "character_id": selectedCharacterID})
+						continue
+					}
+					sum := sha256.Sum256(plaintext)
+					key := fmt.Sprintf("skill-lock-v1:%x", sum)
+					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					locks, applied, e := characters.SaveSkillLocks(ctx, worldState.role, key, opt)
+					cancel()
+					if e != nil {
+						event(map[string]any{"kind": "skill_lock_rejected", "reason": e.Error(), "character_id": selectedCharacterID})
+						continue
+					}
+					event(map[string]any{"kind": "skill_lock_saved", "character_id": selectedCharacterID, "applied": applied, "count": len(locks), "locks": locks})
+				case protocol.UnifiedOptionSettings:
+					if characters == nil || worldState == nil || worldState.role.ID == 0 || worldState.role.ID != selectedCharacterID {
+						event(map[string]any{"kind": "character_settings_rejected", "reason": "requires the owned selected character", "character_id": selectedCharacterID})
+						continue
+					}
+					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					e = characters.Store.SaveCharacterUnifiedOptions(ctx, worldState.role.AccountID, worldState.role.ID, unifiedEntries(opt.Entries))
+					cancel()
+					if e != nil {
+						event(map[string]any{"kind": "character_settings_rejected", "reason": e.Error(), "character_id": selectedCharacterID})
+						continue
+					}
+					event(map[string]any{"kind": "character_settings_saved", "character_id": selectedCharacterID, "entries": len(opt.Entries)})
+				case protocol.UnifiedOptionAccount:
+					if characters == nil {
+						event(map[string]any{"kind": "account_settings_rejected", "reason": "storage unavailable"})
+						continue
+					}
+					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					e = characters.Store.SaveAccountUnifiedOptions(ctx, developmentAccount, unifiedEntries(opt.Entries))
+					cancel()
+					if e != nil {
+						event(map[string]any{"kind": "account_settings_rejected", "reason": e.Error()})
+						continue
+					}
+					event(map[string]any{"kind": "account_settings_saved", "entries": len(opt.Entries)})
 				}
-				if characters == nil || worldState == nil || worldState.role.ID == 0 || worldState.role.ID != selectedCharacterID {
-					event(map[string]any{"kind": "skill_lock_rejected", "reason": "skill lock requires the owned selected character", "character_id": selectedCharacterID})
-					continue
-				}
-				sum := sha256.Sum256(plaintext)
-				key := fmt.Sprintf("skill-lock-v1:%x", sum)
-				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-				locks, applied, e := characters.SaveSkillLocks(ctx, worldState.role, key, opt)
-				cancel()
-				if e != nil {
-					event(map[string]any{"kind": "skill_lock_rejected", "reason": e.Error(), "character_id": selectedCharacterID})
-					continue
-				}
-				event(map[string]any{"kind": "skill_lock_saved", "character_id": selectedCharacterID, "applied": applied, "count": len(locks), "locks": locks})
 				continue
 			}
 
@@ -1954,7 +1987,21 @@ func main() {
 						continue
 					}
 				}
-				plan := entryPayloads{Select: payload, Basic: basic, Addition: addition, Vault: vaultPayload, UserArea: userArea, Area: areaPayload, Fatigue: fatiguePayload, AccountOptions: accountOptionsPayload}
+				accountOptions := accountOptionsPayload
+				if characters != nil {
+					optCtx, optCancel := context.WithTimeout(context.Background(), 5*time.Second)
+					overrides, optErr := characters.Store.AccountUnifiedOptions(optCtx, developmentAccount)
+					optCancel()
+					if optErr != nil {
+						event(map[string]any{"kind": "account_options_restore_error", "error": optErr.Error()})
+					} else if len(overrides) > 0 {
+						if accountOptions, optErr = protocol.AccountOptions(overrides); optErr != nil {
+							event(map[string]any{"kind": "account_options_restore_error", "error": optErr.Error()})
+							accountOptions = accountOptionsPayload
+						}
+					}
+				}
+				plan := entryPayloads{Select: payload, Basic: basic, Addition: addition, Vault: vaultPayload, UserArea: userArea, Area: areaPayload, Fatigue: fatiguePayload, AccountOptions: accountOptions}
 				// Introduce the players already standing here before the area list that
 				// places them: the client only places actors it already knows.
 				if worldState != nil {
@@ -2310,4 +2357,15 @@ func main() {
 		}(set)
 	}
 	select {}
+}
+
+
+// unifiedEntries converts a decoded CMD2377 block into the storage shape so
+// account (0x01) and character (0x05) settings can be persisted durably.
+func unifiedEntries(entries []protocol.UnifiedOptionEntry) []storage.UnifiedOptionEntry {
+	out := make([]storage.UnifiedOptionEntry, 0, len(entries))
+	for _, e := range entries {
+		out = append(out, storage.UnifiedOptionEntry{Position: e.Position, Value: e.Value})
+	}
+	return out
 }
