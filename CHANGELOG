@@ -1,6 +1,17 @@
 # CHANGELOG
 
 ## 2026-09-21
+- 修复 45 级奥德赛角色无法传送到 Storm Pass（风云径，town 43）"点了没反应"的问题（next47）。
+  - **背景与根因**：源地图 `[permission]` 段对奥德赛模式角色（entry_mode 5）单列 `[odyssey enter level] 45`，与 `[need level] 50` 并存；客户端按 45 判定（未置灰、正常发 CMD2261/365/36），服务端目录解析只读 `[need level]`，按 50 级门禁回原生等级拒绝（code 8），客户端收到拒绝后无可见提示。实机日志两次 `area_refused town=43`；DB 排除等级缓存假设；全量 78 个双标签区含 16 个 odyssey>need，证明该标签是**按模式各自生效的门槛**而非放宽值。
+  - **修复实现**：
+    1. `internal/catalog/world.go`：`WorldArea.OdysseyEnterLevel` + `parseWorldAreas` 解析 `[odyssey enter level]`（单数值入账，条件式落 Pending）+ `RequiredLevel(odyssey)` 语义。
+    2. `internal/world/service.go`：`ValidatePosition`/`Transition`/`TransitionStrict`/`Enter` 增加 `odyssey bool` 首参，等级判定统一 `RequiredLevel(odyssey)`。
+    3. `cmd/wireprobe` 全部 6 个调用点改逐角色模式（`character.OdysseyRole(w.role)`，新增 `worldSession.odyssey()` 助手）：`world_flow.go`（入城 + CMD35 位置上报）、`odyssey_teleport.go`（journal/teleport/Transition）、`menu_flow.go`（赛丽亚房返回）、`special_warp.go`、`dungeon_flow.go`、`tutorial_flow.go`。
+    4. `configs/world.generated.json`：78 个双标签区插 `odyssey_enter_level` 扁平字段（逐行补丁、三重验证：取值一致/去掉插入行后逐字节还原/`source.checksum` 7ef2db59… 不变，area 总数 694 不变）；**严禁整体重序列化**（CRLF + HTML 转义 + Go MarshalIndent 布局）。
+  - **存档兼容（强制审计）**：DB 全部 7 角色核对新规则——仅奥德赛角色 7（qwes，45 级，存 38/1）受影响且满足门槛；无现存存档被软锁定。
+  - **测试**：新增 `TestTransitionOdysseyLevelGate`（双标签区四象限 + 无标签区对照）与 `internal/catalog/world_test.go`（解析单值/条件式 + 运行时目录金标准：78 区、43/* = 50/45、checksum 钉死）；既有 16 处测试调用补参；`go test ./...` 全绿（30 包）、`go vet ./...` 通过，`Build-Server.ps1` 重建源码候选 exe。
+  - **实机验收（2026-09-21，用户操作）**：45 级奥德赛角色传送 Storm Pass（43/1）进城成功（实机日志 `world_position_saved (43/1)` + `area_change_sent`，2026-09-21T15:26Z；该请求修复前两次以 code 8 原生等级拒绝），城内自由移动、位置上报全部通过（rev 146–153，**零 `area_refused`**）；用户确认"修好了"。返回/重登口径与双标签区四象限由 `TestTransitionOdysseyLevelGate` 与 catalog 金标准测试覆盖，本会话剧情侧操作未见异常。
+  - **回滚方式**：代码 `git revert`（world.go、service.go、6 个 cmd 文件、两测试文件）；目录数据用 `.workbench/travel-level-gate/world.generated.json.bak`（sha256 C94B4811…）恢复后重建 exe。
 - 修复未转职角色无法学习转职后专属体验技能的问题（如守护者混沌魔灵技能 61 `Tech Tree: Demon Soldier`）。
   - **背景与根因**：115 级客户端中允许未转职角色学习部分转职专属技能以提前体验职业特色，转职后才清理非本职业技能。原服务端在 `ForAdvancement` 与 `Cost` 中强校验了 `[skill fitness growtype]`，当技能标注为特定转职（如 fitness=`[2]`）而角色未转职（advancement=`0`）时，服务端拒绝学习（`skill belongs to another advancement`）。
   - **修复实现**：

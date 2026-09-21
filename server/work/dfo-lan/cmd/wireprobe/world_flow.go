@@ -73,6 +73,11 @@ type worldSession struct {
 	poseRefreshAfter int
 }
 
+// odyssey reports this character's travel mode for world-level gating:
+// entries carrying the Odyssey entry mode use [odyssey enter level] where the
+// source map annotates one, everyone else uses [need level].
+func (w *worldSession) odyssey() bool { return character.OdysseyRole(w.role) }
+
 func (w *worldSession) enter(role storage.Character, spawn storage.WorldPosition) error {
 	var state character.State
 	if e := json.Unmarshal(role.State, &state); e != nil {
@@ -80,7 +85,7 @@ func (w *worldSession) enter(role storage.Character, spawn storage.WorldPosition
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	saved, e := w.service.Enter(ctx, w.account, role.ID, state.Level, spawn)
+	saved, e := w.service.Enter(ctx, w.account, role.ID, character.OdysseyRole(role), state.Level, spawn)
 	if e != nil {
 		return e
 	}
@@ -297,7 +302,7 @@ func (w *worldSession) handle(id uint16, p []byte, send func(byte, uint16, []byt
 		w.lastMotion, w.lastSpeed = r.Motion, r.Speed
 		w.notePositionReport(event)
 		next.X, next.Y = r.X, r.Y
-		if e = w.service.ValidatePosition(w.level, next); e != nil {
+		if e = w.service.ValidatePosition(w.odyssey(), w.level, next); e != nil {
 			return e
 		}
 	case 36:

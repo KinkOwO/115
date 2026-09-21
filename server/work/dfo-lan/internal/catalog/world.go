@@ -19,7 +19,11 @@ type WorldArea struct {
 	Area             uint32         `json:"area"`
 	MapPath          string         `json:"map_path"`
 	MinimumLevel     uint32         `json:"minimum_level"`
-	Kind             string         `json:"kind"`
+	// 源 [odyssey enter level]：奥德赛模式角色（entry_mode 5）的入区门槛，
+	// 与 [need level] 并存于同一 [permission] 段。缺省时两种模式同用
+	// MinimumLevel。值只有 0 表示该区域未标注此标签。
+	OdysseyEnterLevel uint32       `json:"odyssey_enter_level,omitempty"`
+	Kind              string       `json:"kind"`
 	Definition       []pvf.Token    `json:"definition"`
 	Map              ScriptRecord   `json:"map"`
 	ImportedScripts  []ScriptRecord `json:"imported_scripts,omitempty"`
@@ -41,6 +45,19 @@ type WorldCatalog struct {
 }
 
 func AreaKey(town, area uint32) string { return fmt.Sprintf("%d/%d", town, area) }
+
+// RequiredLevel 返回入区所需等级。源地图的 [permission] 段对奥德赛模式角色
+// （客户端自报 entry_mode 5）单列 [odyssey enter level]（如风云径 43/*：
+// [need level] 50 + [odyssey enter level] 45），客户端区域传送界面按该值
+// 判定可传送性（115 客户端 XORSTR 表含此标签，45 级奥德赛角色未置灰即
+// 下发 CMD2261/CMD36 的实机日志可证）。未标注该标签的区域两种模式同用
+// [need level]。
+func (a WorldArea) RequiredLevel(odyssey bool) uint32 {
+	if odyssey && a.OdysseyEnterLevel > 0 {
+		return a.OdysseyEnterLevel
+	}
+	return a.MinimumLevel
+}
 
 func parseWorldAreas(town uint32, cells []pvf.Token) ([]WorldArea, error) {
 	var rows []WorldArea
@@ -79,6 +96,14 @@ func parseWorldAreas(town uint32, cells []pvf.Token) ([]WorldArea, error) {
 				a.Pending = append(a.Pending, "conditional level rule requires interpretation")
 			} else {
 				a.MinimumLevel = uint32(level[0].Value)
+			}
+		}
+		odysseyLevel := sectionCells(def, "[odyssey enter level]")
+		if len(odysseyLevel) > 0 {
+			if len(odysseyLevel) != 1 || odysseyLevel[0].Type != 0 || odysseyLevel[0].Value < 0 {
+				a.Pending = append(a.Pending, "conditional odyssey level rule requires interpretation")
+			} else {
+				a.OdysseyEnterLevel = uint32(odysseyLevel[0].Value)
 			}
 		}
 		for _, c := range def {

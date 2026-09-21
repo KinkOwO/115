@@ -52,12 +52,12 @@ func Walkable(a catalog.WorldArea, x, y uint16) bool {
 	return false
 }
 
-func (s *Service) ValidatePosition(level byte, p storage.WorldPosition) error {
+func (s *Service) ValidatePosition(odyssey bool, level byte, p storage.WorldPosition) error {
 	a, ok := s.Catalog.Areas[catalog.AreaKey(p.Town, p.Area)]
 	if !ok {
 		return errors.New("unknown area")
 	}
-	if uint32(level) < a.MinimumLevel {
+	if uint32(level) < a.RequiredLevel(odyssey) {
 		return ErrLevel
 	}
 	for _, pending := range a.Pending {
@@ -78,17 +78,17 @@ func (s *Service) ValidatePosition(level byte, p storage.WorldPosition) error {
 	}
 	return nil
 }
-func (s *Service) Transition(level byte, old storage.WorldPosition, r protocol.AreaChangeRequest) (storage.WorldPosition, error) {
-	return s.transition(level, old, r, false)
+func (s *Service) Transition(odyssey bool, level byte, old storage.WorldPosition, r protocol.AreaChangeRequest) (storage.WorldPosition, error) {
+	return s.transition(odyssey, level, old, r, false)
 }
 
 // TransitionStrict preserves source-edge authorization for progression-gated
 // Odyssey travel; ordinary travel keeps the upstream dynamic-portal behavior.
-func (s *Service) TransitionStrict(level byte, old storage.WorldPosition, r protocol.AreaChangeRequest) (storage.WorldPosition, error) {
-	return s.transition(level, old, r, true)
+func (s *Service) TransitionStrict(odyssey bool, level byte, old storage.WorldPosition, r protocol.AreaChangeRequest) (storage.WorldPosition, error) {
+	return s.transition(odyssey, level, old, r, true)
 }
 
-func (s *Service) transition(level byte, old storage.WorldPosition, r protocol.AreaChangeRequest, strict bool) (storage.WorldPosition, error) {
+func (s *Service) transition(odyssey bool, level byte, old storage.WorldPosition, r protocol.AreaChangeRequest, strict bool) (storage.WorldPosition, error) {
 	next := old
 	if r.PreviousTown != old.Town || uint32(r.PreviousArea) != old.Area {
 		return next, errors.New("stale source area")
@@ -98,7 +98,7 @@ func (s *Service) transition(level byte, old storage.WorldPosition, r protocol.A
 	if !exists {
 		return old, errors.New("unknown destination area")
 	}
-	if uint32(level) < dest.MinimumLevel {
+	if uint32(level) < dest.RequiredLevel(odyssey) {
 		return old, ErrLevel
 	}
 	src, ok := s.Catalog.Areas[catalog.AreaKey(old.Town, old.Area)]
@@ -148,7 +148,7 @@ func (s *Service) transition(level byte, old storage.WorldPosition, r protocol.A
 			return old, errors.New("no authorized source portal to destination")
 		}
 	}
-	if e := s.ValidatePosition(level, next); e != nil {
+	if e := s.ValidatePosition(odyssey, level, next); e != nil {
 		return old, e
 	}
 	if dest.SeriaReturnWarp {
@@ -156,8 +156,8 @@ func (s *Service) transition(level byte, old storage.WorldPosition, r protocol.A
 	}
 	return next, nil
 }
-func (s *Service) Enter(ctx context.Context, account, id int64, level byte, spawn storage.WorldPosition) (storage.WorldState, error) {
-	if e := s.ValidatePosition(level, spawn); e != nil {
+func (s *Service) Enter(ctx context.Context, account, id int64, odyssey bool, level byte, spawn storage.WorldPosition) (storage.WorldState, error) {
+	if e := s.ValidatePosition(odyssey, level, spawn); e != nil {
 		return storage.WorldState{}, e
 	}
 	state, e := s.Store.LoadWorld(ctx, account, id, spawn, s.Catalog.Source.Checksum)
@@ -167,5 +167,5 @@ func (s *Service) Enter(ctx context.Context, account, id int64, level byte, spaw
 	if state.ConfigVersion != s.Catalog.Source.Checksum {
 		return state, errors.New("saved position requires catalog migration")
 	}
-	return state, s.ValidatePosition(level, state.Position)
+	return state, s.ValidatePosition(odyssey, level, state.Position)
 }

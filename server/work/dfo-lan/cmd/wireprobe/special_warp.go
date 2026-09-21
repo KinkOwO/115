@@ -1,6 +1,7 @@
 package main
 
 import (
+	"dfolan/internal/character"
 	"dfolan/internal/game/protocol"
 	"fmt"
 )
@@ -12,7 +13,7 @@ func (w *worldSession) prepareSpecialWarp(p []byte) ([]outboundPacket, error) {
 	if w == nil || w.role.ID == 0 || w.role.AccountID != w.account || w.service == nil || w.activeDungeon != nil || w.selectingDungeon {
 		return nil, fmt.Errorf("special warp requires owned town character")
 	}
-	if err := w.service.ValidatePosition(w.level, w.state.Position); err != nil {
+	if err := w.service.ValidatePosition(character.OdysseyRole(w.role), w.level, w.state.Position); err != nil {
 		return nil, err
 	}
 	if w.specialWarpPending {
