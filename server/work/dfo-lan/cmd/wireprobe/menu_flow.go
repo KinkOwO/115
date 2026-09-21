@@ -10,6 +10,7 @@ func clearSelectedWorld(w *worldSession) {
 	if w != nil {
 		w.role = storage.Character{}
 		w.level = 0
+		w.odyssey = false
 		w.state = storage.WorldState{}
 		w.activeDungeon = nil
 		w.soloPartyReady = false
@@ -29,7 +30,7 @@ func (w *worldSession) returnDestination() ([]byte, error) {
 	// Reuse normal source geometry, level and ownership-backed position
 	// validation. The response never accepts a client-supplied destination.
 	req := protocol.AreaChangeRequest{Town: r.Town, Area: r.Area, X: r.X, Y: r.Y, PreviousTown: position.Town, PreviousArea: uint16(position.Area)}
-	if _, e := w.service.Transition(w.level, position, req); e != nil {
+	if _, e := w.service.Transition(w.level, w.odyssey, position, req); e != nil {
 		return nil, e
 	}
 	return protocol.VillageReturnSuccess(r.Town, r.Area), nil
