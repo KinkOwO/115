@@ -271,6 +271,16 @@ func (s *Service) Learn(ctx context.Context, role storage.Character, key string,
 				state.LearnedSkills[req.Tree][id] = lv
 			}
 		}
+		if state.Advancement > 0 {
+			for id := range state.LearnedSkills[req.Tree] {
+				if d, ok := s.Learning.index[current.Profession][id]; ok {
+					if !d.ForAdvancement(int(state.Advancement)) && !d.ForAwakening(int(state.Advancement), int(state.Awakening)) {
+						delete(state.LearnedSkills[req.Tree], id)
+						delete(state.SkillSlots[req.Tree], id)
+					}
+				}
+			}
+		}
 		state.SkillPoints[req.Tree] = uint16(points)
 		rows, e := s.skillRows(current, state, int(req.Tree))
 		if e != nil {

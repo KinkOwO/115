@@ -59,5 +59,20 @@ func (s *Service) knownSkills(role storage.Character, state State, tree int) (ma
 			known[id] = rank
 		}
 	}
+	if s.Learning != nil && state.Advancement > 0 {
+		initial := map[uint16]bool{}
+		for _, sk := range initialSkills(state) {
+			initial[sk.ID] = true
+		}
+		for id := range state.LearnedSkills[tree] {
+			if initial[id] || free[id] > 0 {
+				continue
+			}
+			d, ok := s.Learning.index[role.Profession][id]
+			if !ok || (!d.ForAdvancement(int(state.Advancement)) && !d.ForAwakening(int(state.Advancement), int(state.Awakening))) {
+				delete(known, id)
+			}
+		}
+	}
 	return known, nil
 }

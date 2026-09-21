@@ -11,6 +11,7 @@ import (
 	"dfolan/internal/loot"
 	"dfolan/internal/storage"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"time"
 )
@@ -209,6 +210,139 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 			}
 		}
 	}
+	if w.activeDungeon.Definition.ID == 100003126 {
+		// Elvenmere 初始化层数：根据进图选取的 Zone（Extra）设置当前层与最高已通关层。
+		floor := byte(w.activeDungeon.Extra)
+		if floor == 0 {
+			floor = 1
+		}
+		var maxCleared byte
+		if floor > 1 {
+			maxCleared = floor - 1
+		}
+		plan = append(plan, outboundPacket{"elvenmere_info_sent", 0, 2193, protocol.ElvenmereInfo(floor, maxCleared, w.activeDungeon.WeeklyRewards, w.activeDungeon.SeasonRewards)})
+	}
+	return plan, nil
+}
+
+func (w *worldSession) elvenmereTeleport(p []byte) ([]outboundPacket, error) {
+	if w == nil || w.activeDungeon == nil {
+		return nil, fmt.Errorf("teleport without active dungeon session")
+	}
+	if w.activeDungeon.Definition.ID != 100003126 {
+		return nil, fmt.Errorf("elvenmere teleport in non-elvenmere dungeon")
+	}
+	if len(p) < 25 {
+		return nil, fmt.Errorf("short elvenmere teleport payload")
+	}
+
+	// 刚刚通关的层数
+	clearedFloor := byte(w.activeDungeon.Extra)
+	if clearedFloor == 0 {
+		clearedFloor = 1
+	}
+
+	// 传送至下一层
+	nextFloor := clearedFloor + 1
+	if nextFloor > 100 {
+		nextFloor = 100
+	}
+	w.activeDungeon.Extra = uint16(nextFloor)
+	maxCleared := clearedFloor
+
+	plan := []outboundPacket{
+		{"elvenmere_teleport_ack", 1, 2015, []byte{1}},
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// 1. 发放通关道具奖励（Seed Coin / 叶之金币及赛季奖励）
+	// 周常奖励
+	if clearedFloor >= 1 && clearedFloor <= 100 && w.activeDungeon.WeeklyRewards[clearedFloor-1] == 0 {
+		w.activeDungeon.WeeklyRewards[clearedFloor-1] = 1
+		itemTemplate, itemCount := dungeon.ElvenmereFloorWeeklyReward(clearedFloor)
+		if itemTemplate != 0 && itemCount > 0 && w.loot != nil {
+			awarder := &inventory.Awarder{
+				Catalog:   w.loot.Catalog,
+				Rules:     w.loot.BagRules,
+				Equipment: w.loot.Equipment,
+			}
+			if updated, _, err := awarder.Grant(w.role.State, itemTemplate, itemCount); err == nil {
+				w.role.State = updated
+				if store := w.service.Store; store != nil {
+					key := fmt.Sprintf("elvenmere-weekly:%s:%d", w.activeDungeon.RunID, clearedFloor)
+					_, _, _ = store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, "elvenmere-reward-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+						proof, _ := json.Marshal(map[string]any{"template": itemTemplate, "amount": itemCount, "floor": clearedFloor})
+						return updated, proof, nil
+					})
+				}
+				if b, err := inventory.ReadBag(updated); err == nil {
+					if updatePayload, err := protocol.InventoryUpdate(b.Rows()); err == nil {
+						plan = append(plan, outboundPacket{"elvenmere_inventory_updated", 0, 14, updatePayload})
+					}
+				}
+			}
+		}
+	}
+
+	// 逢5层检查发放赛季首通奖励
+	if clearedFloor%5 == 0 && clearedFloor >= 5 && clearedFloor <= 100 && w.activeDungeon.SeasonRewards[clearedFloor-1] == 0 {
+		w.activeDungeon.SeasonRewards[clearedFloor-1] = 1
+		sTemplate, sCount := dungeon.ElvenmereFloorSeasonReward(clearedFloor)
+		if sTemplate != 0 && sCount > 0 && w.loot != nil {
+			awarder := &inventory.Awarder{
+				Catalog:   w.loot.Catalog,
+				Rules:     w.loot.BagRules,
+				Equipment: w.loot.Equipment,
+			}
+			if updated, _, err := awarder.Grant(w.role.State, sTemplate, sCount); err == nil {
+				w.role.State = updated
+				if store := w.service.Store; store != nil {
+					key := fmt.Sprintf("elvenmere-season:%s:%d", w.activeDungeon.RunID, clearedFloor)
+					_, _, _ = store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, "elvenmere-reward-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+						proof, _ := json.Marshal(map[string]any{"template": sTemplate, "amount": sCount, "floor": clearedFloor})
+						return updated, proof, nil
+					})
+				}
+				if b, err := inventory.ReadBag(updated); err == nil {
+					if updatePayload, err := protocol.InventoryUpdate(b.Rows()); err == nil {
+						plan = append(plan, outboundPacket{"elvenmere_inventory_updated", 0, 14, updatePayload})
+					}
+				}
+			}
+		}
+	}
+
+	// 2. 发放通关经验奖励（Floor Clear EXP）
+	expGain := dungeon.ElvenmereFloorClearExp(clearedFloor)
+	if expGain > 0 && w.progression != nil {
+		previousLevel := w.level
+		if updatedRole, _, err := w.progression.ApplyGain(w.role, expGain); err == nil {
+			updatedRole.WireID = w.role.WireID
+			w.role = updatedRole
+			if store := w.service.Store; store != nil {
+				key := fmt.Sprintf("elvenmere-exp:%s:%d", w.activeDungeon.RunID, clearedFloor)
+				_, _, _ = store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, "elvenmere-exp-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+					proof, _ := json.Marshal(map[string]any{"exp": expGain, "floor": clearedFloor})
+					return updatedRole.State, proof, nil
+				})
+			}
+			if expPayload, err := character.ExperiencePayload(updatedRole); err == nil {
+				w.level = expPayload[0]
+				plan = append(plan, outboundPacket{"elvenmere_experience_updated", 0, 37, expPayload})
+				if w.level != previousLevel {
+					if skills, err := w.automaticSkillRefresh(); err == nil {
+						plan = append(plan, skills...)
+					}
+				}
+			}
+		}
+	}
+
+	// 3. 下发 NOTI 2193 同步 Elvenmere 进度
+	plan = append(plan, outboundPacket{"elvenmere_info_sent", 0, 2193, protocol.ElvenmereInfo(nextFloor, maxCleared, w.activeDungeon.WeeklyRewards, w.activeDungeon.SeasonRewards)})
+
 	return plan, nil
 }
 
@@ -255,6 +389,13 @@ func (w *worldSession) leaveDungeon() ([]outboundPacket, error) {
 				plan = append(plan, outboundPacket{"town_creature_list_restored", 0, 105, clPayload})
 				plan = append(plan, outboundPacket{"town_creature_growth_restored", 0, 102, []byte{1, 0, 0, 0, 0, 0}})
 			}
+		}
+	}
+	if w.pilotDeath != nil && w.pilotDeath.Dead {
+		w.pilotDeath.Dead = false
+		if reviveState, err := protocol.PlayerDeathState(w.role.WireID); err == nil {
+			reviveState[2] = 1 // state 1: 恢复满血满蓝并解除死亡幽灵（Ghost）状态，使角色在城镇中正常恢复行动
+			plan = append(plan, outboundPacket{"town_actor_revived", 0, 32, reviveState})
 		}
 	}
 	return plan, nil

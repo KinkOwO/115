@@ -7,33 +7,52 @@ import (
 	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 )
 
-// This source-backed daily potion is the one observed in the shop capture.
-// Other action types and unlimited-use products need their own replay contract.
+// Client CMD507 is sent only for fatigue potions: the slot's stackable must be
+// an expert town potion (or a nostrum recovery) to be consumed as fatigue fuel.
 func (s *FatigueService) RecoverPotion(ctx context.Context, role storage.Character, c catalog.LootCatalog, slot uint16, now time.Time) (storage.Character, storage.FatigueState, error) {
 	var fp storage.FatigueState
-	item, ok := c.Items[10000541]
-	if !ok || item.Script.Path != "stackable/event/vendingmachine/nostrum_recovery_10000541.stk" || c.Source.Checksum != role.ConfigVersion {
+	b, e := inventory.ReadBag(role.State)
+	if e != nil {
+		return role, fp, e
+	}
+	var template uint32
+	for _, it := range b.Items {
+		if it.Slot == slot {
+			template = it.Template
+			break
+		}
+	}
+	if template == 0 {
+		return role, fp, fmt.Errorf("fatigue potion slot empty")
+	}
+	item, ok := c.Items[template]
+	if !ok || c.Source.Checksum != role.ConfigVersion {
 		return role, fp, fmt.Errorf("fatigue potion source missing")
 	}
+	if item.StackableType != "[expert town potion]" && !strings.Contains(item.Script.Path, "nostrum_recovery") {
+		return role, fp, fmt.Errorf("fatigue potion policy mismatch")
+	}
+	amount := uint16(30)
 	values := map[string]int32{}
 	for i, t := range item.Script.Cells {
 		if i+1 < len(item.Script.Cells) && item.Script.Cells[i+1].Type == 0 {
 			values[t.Text] = item.Script.Cells[i+1].Value
 		}
 	}
-	if values["[add fatigue]"] != 30 || values["[total usable count]"] != 1 || values["[cool time]"] != 10000 || values["[use action packet]"] != 1 {
-		return role, fp, fmt.Errorf("fatigue potion policy mismatch")
+	if v, ok := values["[add fatigue]"]; ok && v > 0 {
+		amount = uint16(v)
 	}
-	r := storage.FatigueRecovery{Day: s.day(now), Limit: s.Rules.DailyLimit, Amount: 30, Template: 10000541, DailyUses: 1, Cooldown: 10 * time.Second, Now: now}
+	r := storage.FatigueRecovery{Day: s.day(now), Limit: s.Rules.DailyLimit, Amount: amount, Template: template, DailyUses: 1, Cooldown: 10 * time.Second, Now: now}
 	return s.Store.RecoverFatigue(ctx, role.AccountID, role.ID, role.ConfigVersion, r, func(current storage.Character) (json.RawMessage, error) {
 		b, e := inventory.ReadBag(current.State)
 		if e != nil {
 			return nil, e
 		}
-		b, _, e = b.Consume(c, slot, r.Template)
+		b, _, e = b.Consume(c, slot, template)
 		if e != nil {
 			return nil, e
 		}

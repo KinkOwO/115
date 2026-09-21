@@ -35,6 +35,9 @@ const (
 	// UnifiedOptionSettings is the subtype of the ordinary settings block,
 	// which shares the opcode but has its own index/value semantics.
 	UnifiedOptionSettings = 0x05
+	// UnifiedOptionAccount is the subtype of the account-level option block,
+	// restored through NOTI2826.
+	UnifiedOptionAccount = 0x01
 )
 
 var unifiedOptionMarker = []byte{0xFE, 0xFF, 0xFF, 0xFF, 0xFF}

@@ -7,6 +7,70 @@
   - **实现**：`entry_flow.go` 在 enter_gameworld_complete 屏障后插入 `equipment_slots_updated_entry`（id-14，space 3 全套 worn 行，`inventory.EquipmentPayload(3, bag.Worn, false)`，与换装路径同构建器同格式）；`main.go` 构建 `WornSlots`；`worn_display_handoff_test.go` 修复过时断言并新增 slot-update 顺序断言。
   - **实机验收（2026-09-21 22:12）**：进城仅剩青铜护腿 1 个箭头——全身等级最低装备的真实"可换更好"提示（换下后消失佐证），7 格误亮消失。
   - **文档与工具**：`docs/重登升级箭头修复-动态探针定位与登录序列补帧-20260921.md`（完整复盘 + frida 安全探针守则 + events.jsonl 差集对账方法论）；`analysis/tools/arrow_probe.py`（探针 v5：函数入口钩 + A/B 表 200ms 只读轮询 + 返回值去重）；过程留档 `analysis/tasks/next47-equip-arrow-*.md`；`work/dfo-lan/docs/protocol/next47-relog-upgrade-arrow-client-side.md` 收口。
+- 实现特殊爬塔地下城“艾尔芬米尔”（Elvenmere / ID: `100003126`）完整服务端支持，闭环选区进图、切层推进、通关奖励（Seed Coin）、经验结算与死亡生还恢复。
+  - **背景与根因**：
+    1. **选区被拒**：客户端 `ElvenmereDungeonSelect.xui` 通过选图请求 CMD 16 的 `r.Extra` 字段传递所选区域（Zone 1~4）的起始层数（1、36、61、86）。原服务端严格要求 `r.Extra == 0`，导致 Elvenmere 选区请求被拒（`unsupported dungeon option`）。
+    2. **切层透明未推进且指示器显示 0**：艾尔芬米尔小怪由客户端本地生成（Local Monster），清空小怪后踩门发送 CMD 2015（`ENUM_CMDPACKET_ELVENMERE_TELEPORT_MAP`，25 字节）。此前服务端未实现 CMD 2015 且进图未下发 NOTI 2193（`ENUM_NOTIPACKET_ELVENMERE_INFO`，203 字节），导致右下角层数指示器显示 0 且传送门后角色透明卡死。
+    3. **打怪无经验与无 Seed Coin 掉落**：官方原版 PVF `00-elvenmere.dgn` 配置 `[disable exp]` 禁用了即时击杀经验，经验和奖励属于层通关奖励（Floor Clear EXP / Weekly Reward）。此前切层时未给玩家背包添加硬币道具并缺少 NOTI 14，且未下发经验 NOTI 37。
+    4. **死亡卡死在 Ghost 状态**：官方 PVF 配置 `[die countdown] 0` 和 `[result board] 0`（官方禁止复活币且无常规翻牌结算板）。角色死亡时客户端倒计时瞬间为 0 发送 CMD 42 退出。此前服务端回城时未下发复活包（NOTI 32 state=1），导致角色带着 `HP=0` 回城，卡在死人/幽灵惩罚状态动弹不得。
+  - **IDA 协议取证与服务端闭环**：
+    1. **选图准入**：放宽 `internal/dungeon/session.go` 对 ID `100003126` 的 `r.Extra <= 100` 约束，保存初始起始层数，跳区入场时自动将前置层数标记为已通关。
+    2. **进度同步（NOTI 2193）**：逆向 `sub_142223F70` -> `sub_14222B360` 还原 203 字节布局（byte 0: status; byte 1: maxCleared; byte 2: currentFloor; bytes 3..102: weekly clear flags; bytes 103..202: season clear flags）。进图时点亮初始层，每次切层传送时顺延层数并更新已通关标记。
+    3. **切层传送响应（CMD 2015）**：白名单接入 CMD 2015，实现 `elvenmereTeleport` 响应 ACK 2015（`[1]`）。
+    4. **周常硬币奖励与赛季奖励发放**：严格对照 `Elvenmere.cos` 奖励表（1~60 层每层发放 5~40 个 `10336354` 叶之金币/Seed Coin，61~100 层发放 15~150 个 `10332382` 金币，逢 5 层发放赛季奖励），踩门切层时通过 `Awarder.Grant` 安全注入材料背包，经 `CommitCharacterEvent` 持久化，并下发 NOTI 14（`InventoryUpdate`）实时到账。
+    5. **层通关经验发放**：每通关一层根据层数计算经验（`uint64(floor)*30000 + 60000`），通过 `ProgressionService.ApplyGain` 结算并下发 NOTI 37（`ExperiencePayload`），经验条实时上涨，升级时自动刷新技能树。
+    6. **死亡失败与回城生还恢复**：角色阵亡时下发 NOTI 33（`FAIL_CLEAR_DUNGEON`，单字节 `0`），驱动客户端状态置为 `DUNGEON_STATE_FAIL_CLEAR`（状态 3）并播放失败音乐；客户端发送 CMD 42 退出地下城时，在 `leaveDungeon()` 中追加下发 `town_actor_revived`（NOTI 32, state=1）恢复满血满蓝并解除 Ghost 状态，角色正常站立在城镇 NPC 旁自由活动，消除卡死。
+  - **实现文件**：
+    - `internal/dungeon/elvenmere.go` — 奖励道具阶梯、赛季奖励及经验计算函数。
+    - `internal/dungeon/session.go` — Elvenmere 选区准入与周常/赛季领奖状态维护。
+    - `internal/game/protocol/dungeon.go` — NOTI 2193 `ElvenmereInfo` 协议组装。
+    - `internal/game/protocol/player_death.go` — NOTI 33 `DungeonFailClear` 协议。
+    - `cmd/wireprobe/dungeon_flow.go` — 进图初始化、切层奖励与经验结算、回城满血复活。
+    - `cmd/wireprobe/player_death.go` — 死亡下发 NOTI 33 失败宣告。
+    - `cmd/wireprobe/main.go` & `request_scope.go` — CMD 2015 注册分流与退出状态机清理。
+  - **测试与验证**：
+    - `internal/dungeon/elvenmere_test.go` — 奖励与经验算法单测全覆盖。
+    - `internal/dungeon/select_test.go` — 选区与非法层数拒绝单测。
+    - `cmd/wireprobe/boss_flow_test.go` — CMD 2015 切层、NOTI 33 失败宣告与回城复活单测。
+    - 全量 `go test ./...` 与 `go vet ./...` 检验 100% 通过；编译输出 `bin/wireprobe-handoff-source.exe`。
+    - 用户实机验收确认：可正常进入战斗层、怪物正常刷新、切层时背包正确获得 Seed Coin 奖励物品、死亡回城后生还无卡死。
+
+  - **背景与根因**：115 客户端在城镇内通过转职 UI 首次转职时发送 CMD 1881，已转职角色在 UI 中随时自由更换进阶职业时发送 CMD 777。此前服务端未实现该 grow-type 变更协议家族（在日志中被记录为 `unimplemented_sample`），客户端在转职或更换后没有任何服务端同步，职业未发生实际改变。
+  - **IDA 协议取证与闭环**：
+    1. **请求体**：IDA 逆向发送器 `sub_143F2D110`，序列化 14 字节栈结构（对齐到 16 字节），前 13 字节为未初始化的栈残存数据，仅 `body[13]` 携带目标打包 grow-type 字节（`advancement | (awakening << 4)`）。实机抓包证实：龙骑士首次转职为 `2000000000000000c0f45f0000040000`（`body[13]=0x04`）；更换职业尝试为 `...010000`（`0x01`）与 `...030000`（`0x03`）。两者请求体结构完全一致。
+    2. **响应体与处理器**：通用 CMD 响应派发器（`sub_1459A2D70`）消费 `[result:u8][code:u16]` 标准包头，成功包体固定为 `[01 00 00]`。CMD 1881 注册于 `sub_14525ED50`，处理器 `sub_14524FD70` 成功时从本地角色对象读取 `grow_type`（`(*(*charObj+7656))(charObj)+12`）刷新外观模型与装备挂点；失败时按错误码映射 DSTR 提示（3 目标角色错误、7 限城镇、13 等级错误、107 转职信息错误、217 选择错误、235 无法转职等）。CMD 777 注册于 `sub_1452BAD10`，处理器 `sub_1452AFF30` 忽略参数直接触发转职管理器刷新（`sub_144F609D0` code 37）与 UI 刷新。
+    3. **状态同步序列**：在发送 `[01 00 00]` 成功响应前，服务端必须先推送：① `EntryBasicProbe`（kind 0, id 2）更新角色对象及其 `WireAdvancement()` 打包字节；② NOTI 718（`ENUM_NOTIPACKET_GROWTYPE_CHANGE_JOB_INFO`，1 字节目标 grow-type）更新转职管理器；③ `appearanceRestore`（属性、外观、装备、技能、变异）；④ `EntrySkills`（kind 0, id 19）更新技能。客户端收到成功应答时角色对象已完成内存更新，显示立即生效。
+  - **持久化与规则驱动**：
+    1. 经 `CommitCharacterEvent` 以 `change-grow-type-v1:<opcode>:<sha256(request)>` 作为幂等事件键原子落库，更新 `state.Advancement` 并将 `state.Awakening` 规范重置为 0。
+    2. 严格按 `catalog.Profession` 的 `AdvancementGrowth[advancement]` 校验转职目标分支是否有效；转职段技能由既有 `automaticSkills`/`knownSkills` 在运行时按新 advancement 动态推算并过滤，无需手动修改技能数据库存档，保证向前兼容。
+  - **实现文件**：
+    - `internal/game/protocol/advancement.go` — `DecodeChangeGrowType`（含 14/16 字节与 8 字节对齐填充校验）与 `ChangeGrowTypeSuccess`（`[1, 0, 0]`）。
+    - `internal/character/advancement.go` — `ApplyAdvancement` 服务方法。
+    - `cmd/wireprobe/advancement_flow.go` — `changeGrowType` 流程编排与 `advancementRefusalCode` 错误码映射。
+    - `cmd/wireprobe/main.go` — CMD 1881 与 CMD 777 派发接线。
+    - `cmd/wireprobe/request_scope.go` — 白名单接入 1881 与 777。
+    - `docs/protocol/next47-job-advancement.md` — 协议基线与实机验证文档。
+  - **测试与验证**：新增 `internal/character/advancement_test.go`（龙骑士转职、觉醒重置、同分支幂等、非法分支拒绝）与 `internal/game/protocol/advancement_test.go`（常规/填充/高位掩码/异常体长校验）；`go test ./...` 与 `go vet ./...` 全绿。
+  - **实机验收（2026-09-21，用户操作）**：用户在实机客户端操作首次转职为龙骑士成功，并在进城后使用自由更换职业功能在各进阶职业间无缝切换成功，外观模型、UI 与技能树均正常刷新生效。
+- 修复未转职角色无法学习转职后专属体验技能的问题（如守护者混沌魔灵技能 61 `Tech Tree: Demon Soldier`）。
+  - **背景与根因**：115 级客户端中允许未转职角色学习部分转职专属技能以提前体验职业特色，转职后才清理非本职业技能。原服务端在 `ForAdvancement` 与 `Cost` 中强校验了 `[skill fitness growtype]`，当技能标注为特定转职（如 fitness=`[2]`）而角色未转职（advancement=`0`）时，服务端拒绝学习（`skill belongs to another advancement`）。
+  - **修复实现**：
+    1. `internal/character/learning_catalog.go`：调整 `ForAdvancement`，以技能声明的 `[growtype maximum level]`（`cap[adv] > 0`）作为权威学习准入标准；移除 `Cost` 中多余的 fitness 强匹配，按对应阶位上限严格约束可学等级（如技能 61 未转职阶段上限为 1 级）。
+    2. `internal/character/automatic_skills.go` 与 `learning.go`：在角色转职（`advancement > 0`）后，`knownSkills` 与 `Learn` 会自动过滤和移除未对应当前转职的非本职专属体验技能，对应当前转职的技能正常保留。
+  - **测试与验证**：新增 `internal/character/learning_preview_skills_test.go` 验证 0 阶学习 1 级、超学 2 级拒绝、前置技能等级依赖、以及转职后（转精灵骑士移除、转混沌魔灵保留）的状态流转；`go test ./...` 与 `go vet ./...` 全绿；用户实机测试确认未转职状态下 `Tech Tree: Demon Soldier` 学习成功。
+- 实现魔法封印装备解封 CMD 393（`ENUM_CMDPACKET_UNSEAL_RANDOM_OPTION`）服务端完整闭环，修复"右键解封无回包、装备无法解除封装"的问题。
+  - **背景与根因**：115 客户端右键魔法封印装备（`.equ` 带 `[random option] 1` 的稀有/神器装备）时发送 CMD 393，服务端没有任何 393 处理器，客户端等不到回包一直卡在解封等待态。IDA 闭环取证：发送器 `sub_145AE9AE0` 写 `u16 目标槽位 + u16 卷轴槽位（0xFFFF=无卷轴）`；客户端通用应答读取器（`sub_1459A1BB0`）消费 `u8 状态`（失败时追加 `u16 错误码`）；两套注册器+UI 映射注册器全量扫描确认**没有 393 专用响应处理器**，成功包体即裸字节 `01`。实机抓包（2026-09-21T18:53）验证请求体 `0a00ffff00000000`。
+  - **封存判定**：实机背包中的封印装备（100310840/100310581/100320649）记录 byte13=0、选项块（record[60..75]）全零；解封=**填充随机选项块并保持 byte13=0**（与参考实现的后置状态一致），随后推送 NOTI14 单行装备更新。
+  - **随机选项规则**：新增 `cmd/randomoptionimport` 从当前客户端内层 PVF 导出 `etc/randomoption/` 七张权威表生成 `configs/randomoption.current37.json`（选项值比率 4、数量权重 2、数量表 246、选项组 17、组选择 438、类型权重 82、数值区间 6、解封费用 246）；与参考目录条目数完全一致。全量审计 3795 件 `[random option]==1` 装备，稀有度/等级/部位组 100% 命中表项，精确查找、缺失即拒绝。**当前版本解封费用全表为 0，不收金币**。
+  - **基线钉扎**：当前内层 PVF 容器哈希（be95d64e）与生产目录基线（7ef2db59）不同，但 3795 件 `.equ` 与七张表逐字节比对 0 漂移，配置钉扎生产基线并将真实归档哈希留存于 `exported_from_checksum`。
+  - **持久化与幂等**：解封后完整 181 字节记录存入 `BagEquipment.Record`（重登保留）；经 `CommitCharacterEvent` 以封印前镜像哈希作事件键提交，重复右键回放首次结果，失配拒绝。
+  - **实现文件**：`cmd/randomoptionimport/main.go`、`internal/inventory/randomoption.go`（目录+roll+背包操作）、`internal/inventory/unseal.go`（事务服务）、`internal/game/protocol/unseal.go`（解码+应答）、`cmd/wireprobe/unseal_flow.go`、`cmd/wireprobe/main.go`、`cmd/wireprobe/request_scope.go`、`server/work/dfo_probe_tools/channel_probe.py`（绝对路径传 `-random-option-catalog`，网关 cwd 为项目根，相对默认值不会生效）。
+  - **测试**：新增 `randomoption_test.go`（含实机锚点 100310840 的 200 次 roll 分布断言与解封/重复解封/空槽/未标记装备拒绝用例）与 `unseal_test.go`（实机向量解码）；`go test ./...` 与 `go vet ./...` 全部通过；启动冒烟确认 `magic-seal unsealing enabled: 17 option groups`。
+- **实机验收（2026-09-21）**：用户实机测试确认魔法封印装备右键解封成功，随机选项正常生成并持久化；解封后装备正常穿戴入槽，属性与外观生效，重登数据完整保留。
+  - **范围外**：掉落/奖励不产生封印装备（是否让合格装备带封印掉落是独立设计决策）；卷轴辅助解封（scroll≠0xFFFF）以码 13 拒绝；399/429/446/447 等其他随机选项 opcode 未实现。
+- 修复穿戴宠物（creature）的角色无法穿戴任何装备的问题（解封实机验收时暴露，2026-09-21 17:04 会话）。
+  - **背景与根因**：穿戴宠物后宠物占用 worn 槽位 26（模板 63019）。`internal/character/service.go` 的 `wornAppearance` 在 CMD19 装备移动后的外观刷新（`AppearanceProbe`）中无差别投影所有 worn 槽位，而客户端装备外观表上限为槽位 25（`maxEquippedAppearanceSlot`），编码器遇到槽 26 整体报错 `equipped appearance slot 26 exceeds the client table`，导致该角色**所有**穿戴请求被拒（客户端弹"目标背包已满"通用提示）。此前未暴露是因为该角色此前没有可穿戴的未封印装备。
+  - **修复实现**：`wornAppearance` 跳过槽位 >25 的行（宠物外观由宠物包独立承载，next44）；新增 `TestAppearanceProbeSkipsCreatureSlot` 回归；`go test ./...` 与 `go vet ./...` 通过。
 - 外部“技能锁保存丢失”修复说明书的审核与 CMD2377/NOTI2827 落地：说明书骨架成立、细节按证据分三级，接收侧先落地并测试，推送侧随后由补充答复补齐（见下一条）。
   - **审核结论**：✅ 已证实——opcode 编号与名称（0x949/0x94A/0xB0A/0xB0B/0xB0C/0x178）、CMD2377 帧头布局（`+8` 五字节 `FE FF FF FF FF`、`+13` scope、`+14` subtype、`+15` count、`+19` 起 4 字节条目、0~5 字节尾部）、subtype `0x13` 即技能锁且 `scope=0`、槽值 0 是删除信号、首条目落在页边界即整页重建、NOTI2826 为 3648 字节账号级块、“服务端只发 2826 从不发 2827 导致锁丢失”的现象描述；❌ 已证伪——说明书称 `+04` 恒为 `01 00 00 00`，22 条真实帧实测为 `0`/`1`/`0xFFFFFFFF`；⚠️ 与权威表冲突——说明书称 `CMD682 = 0x2AA` 且“客户端 1 秒后发出、服务端可不处理”，本仓库 `0x2AA` 是 NOTI 方向的领地战斗补给请求，且 682 已实现为退出关机信号，该条应剔除；❓ 无本地证据——386 字节锁块形状、2827 载荷 3539 字节、**锁块在 2827 中的偏移**、“2827 不在帧序列末尾即闪退”的时机要求。
   - **本地证据**：新增 22 条真实 CMD2377 明文原生向量（`internal/game/protocol/testdata/native_unified_option_frames36.json`），其中 2026-09-20T17:53:28Z 一条是 `scope=0 subtype=0x13` 的 page 0 重建帧（玩家锁上技能 58）；说明书给的锁块形状与客户端原生账号模板（`templates/account-options-current.bin`，3648 字节，实测 286/157 项组均为 `valid(1B)+1B+N×u16+N×exist`）**互相印证**，因此锁块编码可以放心实现、其位置不能。
