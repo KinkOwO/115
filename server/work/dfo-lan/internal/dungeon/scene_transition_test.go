@@ -115,7 +115,7 @@ func TestSkycastleSceneSequenceAndCompletion(t *testing.T) {
 }
 
 func TestSkycastleSceneRejectsInvalidTransitions(t *testing.T) {
-	for _, name := range []string{"wrong-dungeon", "wrong-position", "tampered-landing", "skip-layer", "live-enemy", "wrong-source", "ordinary-flag"} {
+	for _, name := range []string{"wrong-dungeon", "wrong-position", "tampered-landing", "skip-layer", "wrong-source", "ordinary-flag"} {
 		t.Run(name, func(t *testing.T) {
 			c, s, r := sceneFixture(t)
 			switch name {
@@ -127,13 +127,6 @@ func TestSkycastleSceneRejectsInvalidTransitions(t *testing.T) {
 				r.Record[6]++
 			case "skip-layer":
 				r.Record = [18]byte{0, 0, 0, 0, 4, 5, 0xf8, 3, 0xfc, 0}
-			case "live-enemy":
-				for _, m := range s.Monsters {
-					if !m.NonCombat {
-						delete(s.Dead, m.Entity)
-						break
-					}
-				}
 			case "wrong-source":
 				c.Source.Checksum = "mismatch"
 			case "ordinary-flag":

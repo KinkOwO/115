@@ -112,9 +112,19 @@ func TestOdysseyRaidRoomCleared(t *testing.T) {
 		t.Fatal(e)
 	}
 	s.Loaded = true
-	// New Odyssey dungeon >= 100004960 rooms should be cleared immediately without waiting for un-reported boss deaths
+	// All Odyssey dungeons (including < 100004960 and >= 100004960) should be cleared immediately
+	// without waiting for un-reported boss deaths
 	if !s.RoomCleared() {
 		t.Fatal("expected Odyssey raid 100004965 room to be cleared")
+	}
+
+	sEarly, e := Select(c, protocol.DungeonSelection{ID: 100004938, Difficulty: 2, Party: 65535}, 37, nil)
+	if e != nil {
+		t.Fatal(e)
+	}
+	sEarly.Loaded = true
+	if !sEarly.RoomCleared() {
+		t.Fatal("expected early Odyssey dungeon 100004938 room to be cleared")
 	}
 
 	// Sirocco cutscene room 100016294

@@ -234,7 +234,7 @@ func (s *Session) RoomCleared() bool {
 	if s.Room.Map == 100016294 {
 		return true
 	}
-	if s.Definition.Odyssey && s.Definition.ID >= 100004960 {
+	if s.Definition.Odyssey {
 		return true
 	}
 	keyRoom := s.warpKeyRoom()
