@@ -95,3 +95,122 @@ func TestSelectResolvesDuplicateStartRoom(t *testing.T) {
 		t.Fatalf("start map=%d want 100", s.Room.Map)
 	}
 }
+
+// Elvenmere 特殊副本（ID 100003126）支持选区（Zone 初始层数通过 Extra 传入，如 1、36、61、86）。
+// 普通副本依然要求 Extra == 0。
+func TestSelectElvenmereZone(t *testing.T) {
+	mapScript := func() catalog.ScriptRecord {
+		return catalog.ScriptRecord{Path: "elvenmere.map", Cells: []pvf.Token{{Type: 3, Text: "[dungeon start area]"}}}
+	}
+	c := catalog.DungeonCatalog{
+		Source: pvf.ArchiveSnapshot{Checksum: strings.Repeat("a", 64)},
+		Dungeons: map[uint32]catalog.DungeonDefinition{
+			100003126: {
+				ID:           100003126,
+				MinimumLevel: 17,
+				Mazes: []catalog.DungeonMaze{{
+					Index: 0, Quest: 0, Start: [2]byte{0, 0}, Boss: [2]byte{0, 0},
+					Rooms: []catalog.DungeonRoom{room(0, 0, 100007201)},
+				}},
+			},
+			7: {
+				ID:           7,
+				MinimumLevel: 1,
+				Mazes: []catalog.DungeonMaze{{
+					Index: 0, Quest: 0, Start: [2]byte{0, 0}, Boss: [2]byte{0, 0},
+					Rooms: []catalog.DungeonRoom{room(0, 0, 100)},
+				}},
+			},
+		},
+		Maps: map[uint32]catalog.ScriptRecord{
+			100007201: mapScript(),
+			100:       mapScript(),
+		},
+	}
+
+	// 1. 普通副本 Extra != 0 必须被拒绝
+	if _, err := Select(c, protocol.DungeonSelection{ID: 7, Difficulty: 1, Extra: 1, Party: 65535}, 20, nil); err == nil {
+		t.Fatal("ordinary dungeon accepted Extra != 0")
+	}
+
+	// 2. Elvenmere 等级不足必须被拒绝
+	if _, err := Select(c, protocol.DungeonSelection{ID: 100003126, Difficulty: 2, Extra: 1, Party: 65535}, 16, nil); err == nil {
+		t.Fatal("elvenmere accepted under-level character")
+	}
+
+	// 3. Elvenmere 各合规 Zone 层数必须成功进入，并记录 Extra
+	for _, zoneFloor := range []uint16{0, 1, 36, 61, 86, 100} {
+		s, err := Select(c, protocol.DungeonSelection{ID: 100003126, Difficulty: 2, Extra: zoneFloor, Party: 65535}, 50, nil)
+		if err != nil {
+			t.Fatalf("elvenmere zone floor %d failed: %v", zoneFloor, err)
+		}
+		if s.Extra != zoneFloor {
+			t.Fatalf("session Extra = %d, want %d", s.Extra, zoneFloor)
+		}
+		if s.Room.Map != 100007201 {
+			t.Fatalf("session start map = %d, want 100007201", s.Room.Map)
+		}
+	}
+
+	// 4. Elvenmere 超出 100 层非法 Extra 必须被拒绝
+	if _, err := Select(c, protocol.DungeonSelection{ID: 100003126, Difficulty: 2, Extra: 101, Party: 65535}, 50, nil); err == nil {
+		t.Fatal("elvenmere accepted Extra > 100")
+	}
+}
+
+// 测试实机日志中的十六进制请求包解码后能正常通过 Select
+func TestSelectElvenmereLivePacket(t *testing.T) {
+	// 用户实机日志: plain_hex "36edf5050201000000ffff000000000000000000000000000000000000000000"
+	p := []byte{
+		0x36, 0xed, 0xf5, 0x05, // ID = 100003126
+		0x02,       // Difficulty = 2
+		0x01, 0x00, // Extra = 1 (Zone 1-35)
+		0x00,       // Mode = 0
+		0x00,       // Flag = 0
+		0xff, 0xff, // Party = 65535
+		0x00, 0x00, 0x00, 0x00, // Reserved = 0
+		0x00,                   // Tail = 0
+		0x00, 0x00, 0x00, 0x00, // Quest = 0
+		0x00, 0x00, // Options = [0, 0]
+		0x00, 0x00, 0x00, 0x00, // Event = 0
+		// padding (6 bytes to 32)
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	}
+	req, err := protocol.DecodeDungeonSelection(p)
+	if err != nil {
+		t.Fatalf("DecodeDungeonSelection failed: %v", err)
+	}
+	if req.ID != 100003126 || req.Difficulty != 2 || req.Extra != 1 || req.Party != 65535 {
+		t.Fatalf("decoded request mismatch: %+v", req)
+	}
+
+	mapScript := func() catalog.ScriptRecord {
+		return catalog.ScriptRecord{Path: "elvenmere.map", Cells: []pvf.Token{{Type: 3, Text: "[dungeon start area]"}}}
+	}
+	c := catalog.DungeonCatalog{
+		Source: pvf.ArchiveSnapshot{Checksum: strings.Repeat("a", 64)},
+		Dungeons: map[uint32]catalog.DungeonDefinition{
+			100003126: {
+				ID:           100003126,
+				MinimumLevel: 17,
+				Mazes: []catalog.DungeonMaze{{
+					Index: 0, Quest: 0, Start: [2]byte{0, 0}, Boss: [2]byte{0, 0},
+					Rooms: []catalog.DungeonRoom{room(0, 0, 100007201)},
+				}},
+			},
+		},
+		Maps: map[uint32]catalog.ScriptRecord{
+			100007201: mapScript(),
+		},
+	}
+	s, err := Select(c, req, 50, nil)
+	if err != nil {
+		t.Fatalf("Select with live packet failed: %v", err)
+	}
+	if s.Extra != 1 {
+		t.Fatalf("session Extra = %d, want 1", s.Extra)
+	}
+	if s.Room.Map != 100007201 {
+		t.Fatalf("session Room.Map = %d, want 100007201", s.Room.Map)
+	}
+}

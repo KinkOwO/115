@@ -172,3 +172,41 @@ func TestEntryBasicProbeCarriesKnightShieldRow(t *testing.T) {
 		pos += 35
 	}
 }
+
+// A creature rides worn slot 26, which sits beyond the client's
+// equipped-appearance table (slot 25 top). The appearance refresh must skip
+// it rather than fail the whole block: live 2026-09-21 every CMD19 equip on a
+// creature-wearing character was refused with "equipped appearance slot 26
+// exceeds the client table".
+func TestAppearanceProbeSkipsCreatureSlot(t *testing.T) {
+	professions, e := catalog.LoadCharacters("../../configs/characters.generated.json")
+	if e != nil {
+		t.Fatal(e)
+	}
+	bag := inventory.Bag{
+		Version: "ordinary-bag-v1",
+		Worn: []inventory.BagEquipment{
+			{Slot: 12, Template: 101010438},
+			{Slot: 26, Template: 63019},
+		},
+	}
+	state, e := inventory.SaveBag(json.RawMessage(`{"level":1}`), bag)
+	if e != nil {
+		t.Fatal(e)
+	}
+	s := &Service{Catalog: professions}
+	got, e := s.AppearanceProbe(storage.Character{
+		WireID: 1, Name: "LanTest02", Profession: 0,
+		State: append(state[:len(state)-1], []byte(`,"advancement":0}`)...),
+	}, [2]byte{})
+	if e != nil {
+		t.Fatalf("creature-wearing role must still refresh appearance: %v", e)
+	}
+	const at = 176 + len("LanTest02")
+	if count := int(got[at]); count != 1 {
+		t.Fatalf("appearance count=%d, want 1 (creature slot 26 skipped)", count)
+	}
+	if slot := got[at+1]; slot != 12 {
+		t.Fatalf("row slot=%d, want 12", slot)
+	}
+}

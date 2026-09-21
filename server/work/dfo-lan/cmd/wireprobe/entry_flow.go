@@ -29,7 +29,13 @@ type entryPayloads struct {
 	AvailableQuests                                                           []byte
 	Worn                                                                      []byte
 	AccountOptions                                                            []byte
-	WornUpdate                                                                []byte
+	// WornSlots is the id-14 per-slot update frame for the full worn set
+	// (space 3), same builder the equipment-move path uses. The live
+	// 20260921 probe timeline showed the equip-change heal always carries
+	// equipment_slots_updated frames while entry never does, and the
+	// arrow-up overlay reads per-slot levels fed by exactly this channel.
+	WornSlots                           []byte
+	WornUpdate                          []byte
 	Avatars, AvatarReady, Creatures, CreatureList, CreatureGrowth             []byte
 	CinematicSkips                                                            []byte
 	SkillVariations                                                           []byte
@@ -83,8 +89,25 @@ func (p entryPayloads) packets() []outboundPacket {
 		outboundPacket{"creature_list_restored", 0, 105, p.CreatureList},
 		outboundPacket{"creature_inventory_restored", 0, 13, p.Creatures},
 		outboundPacket{"creature_growth_restored", 0, 102, p.CreatureGrowth},
+		// (20260921 second pass) The id13-worn-only re-feed did NOT fix the
+		// upgrade arrows (session 194434: after_barrier worn arrived, arrows
+		// still all shown). Mirror the equipment-move resync instead, same
+		// order and same builders: bag list0 (2358B, identical to
+		// inventory_restored) -> worn (1668B) -> worn window (1632B), and only
+		// then the appearance block. equipment_flow.go's C9 comment explains
+		// the ordering: the client's rebuild must see the id13/id14 rows above
+		// as fresh item objects, so the appearance refresh goes LAST. At entry
+		// the appearance block previously landed BEFORE the rows.
+		outboundPacket{"equipment_bag_resynced_entry", 0, 13, p.Inventory},
+		outboundPacket{"worn_equipment_restored_after_barrier", 0, 13, p.Worn},
+		// (20260921 third pass) The equip-change heal (probe timeline
+		// 21:56:14) always emits id-14 per-slot frames before the worn-window
+		// refresh; entry never did, and the level compare behind the upgrade
+		// arrows degenerates without them. Re-feed the whole worn set through
+		// the same slot-update channel before the window refresh.
+		outboundPacket{"equipment_slots_updated_entry", 0, 14, p.WornSlots},
+		outboundPacket{"worn_equipment_window_refreshed_entry", 0, 14, p.WornUpdate},
 		outboundPacket{"actor_appearance_ready", 0, 2, p.Basic},
-		outboundPacket{"worn_equipment_visuals_restored", 0, 14, p.WornUpdate},
 		// The character option block goes after every other entry frame: this
 		// client crashes on town entry when NOTI2827 arrives early.
 		outboundPacket{"skill_locks_restored", 0, 2827, p.SkillLocks},

@@ -63,3 +63,39 @@ func TestDungeonDeathAndReturnNativeReaders(t *testing.T) {
 		}
 	}
 }
+
+func TestElvenmereInfoProtocol(t *testing.T) {
+	var weekly, season [100]byte
+	weekly[0] = 1
+	season[34] = 1
+	p := ElvenmereInfo(36, 35, weekly, season)
+	if len(p) != 203 {
+		t.Fatalf("expected 203 bytes, got %d", len(p))
+	}
+	if p[0] != 0 {
+		t.Fatalf("expected status 0, got %d", p[0])
+	}
+	if p[1] != 35 {
+		t.Fatalf("expected maxCleared 35, got %d", p[1])
+	}
+	if p[2] != 36 {
+		t.Fatalf("expected currentFloor 36, got %d", p[2])
+	}
+	if p[3] != 1 {
+		t.Fatalf("expected weekly[0] = 1, got %d", p[3])
+	}
+	if p[103+34] != 1 {
+		t.Fatalf("expected season[34] = 1, got %d", p[103+34])
+	}
+}
+
+func TestDungeonFailClearProtocol(t *testing.T) {
+	p := DungeonFailClear(0)
+	if len(p) != 1 || p[0] != 0 {
+		t.Fatalf("expected 1-byte payload with 0, got %x", p)
+	}
+	pTimeout := DungeonFailClear(100)
+	if len(pTimeout) != 1 || pTimeout[0] != 100 {
+		t.Fatalf("expected 1-byte payload with 100, got %x", pTimeout)
+	}
+}

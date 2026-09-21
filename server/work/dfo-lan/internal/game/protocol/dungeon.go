@@ -168,6 +168,24 @@ func DungeonLoaded() []byte { return []byte{0, 0, 0, 0, 0} }
 // NOTI132, native1452aee40, normal solo return-to-town branch.
 func DungeonSelectionReturn() []byte { return []byte{0} }
 
+// NOTI 2193 (0x0891, ENUM_NOTIPACKET_ELVENMERE_INFO), native 142223F70 -> 14222B360.
+// Payload is exactly 203 bytes:
+//
+//	Byte 0: status/version (0 or 1)
+//	Byte 1: max cleared floor (1..100, 0 if none)
+//	Byte 2: current floor (1..100)
+//	Bytes 3..102 (100 bytes): weekly clear/reward status for floors 1..100
+//	Bytes 103..202 (100 bytes): season clear/reward status for floors 1..100
+func ElvenmereInfo(currentFloor, maxCleared byte, weeklyRewards, seasonRewards [100]byte) []byte {
+	p := make([]byte, 203)
+	p[0] = 0 // mode/status
+	p[1] = maxCleared
+	p[2] = currentFloor
+	copy(p[3:103], weeklyRewards[:])
+	copy(p[103:203], seasonRewards[:])
+	return p
+}
+
 type MonsterDeathReport struct {
 	Entity uint32
 	Killer uint16

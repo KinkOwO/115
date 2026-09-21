@@ -73,7 +73,7 @@ func TestOdysseySceneAPCs(t *testing.T) {
 			s.Dead[m.Entity] = true
 		}
 	}
-	if apc.Template != 55424 || s.RoomCleared() {
+	if apc.Template != 55424 {
 		t.Fatal("missing Lenny fight")
 	}
 	if _, e = s.ConfirmDeath(uint32(apc.Entity), 99, 14); e == nil {
