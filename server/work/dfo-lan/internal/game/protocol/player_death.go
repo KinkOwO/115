@@ -32,3 +32,11 @@ func PlayerDeathState(actor uint16) ([]byte, error) {
 	binary.LittleEndian.PutUint16(p, actor)
 	return p, nil
 }
+
+// NOTI 33 (0x0021, ENUM_NOTIPACKET_FAIL_CLEAR_DUNGEON), native reader 1452af830.
+// Payload is a single u8 reason byte (0 = default defeat/death, 100 = timeout).
+// Sets dungeon state to 3 (DUNGEON_STATE_FAIL_CLEAR), plays failure BGM (146cce880),
+// and triggers the native player death scene and failure settlement.
+func DungeonFailClear(reason byte) []byte {
+	return []byte{reason}
+}

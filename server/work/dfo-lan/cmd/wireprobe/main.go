@@ -1488,6 +1488,8 @@ func main() {
 					} else {
 						plan, e = worldState.leaveDungeon()
 					}
+				case 2015:
+					plan, e = worldState.elvenmereTeleport(plaintext)
 				}
 				if e != nil {
 					event(map[string]any{"kind": "dungeon_request_refused", "id": frame.ID, "reason": e.Error()})
@@ -1519,7 +1521,7 @@ func main() {
 					}
 					// CMD39 failure reads a monster u16; NOTI132 has no generic
 					// command refusal. Never send the generic error shape there.
-					if frame.ID == 39 || frame.ID == 46 || frame.ID == 117 || frame.ID == 132 {
+					if frame.ID == 39 || frame.ID == 46 || frame.ID == 117 || frame.ID == 132 || frame.ID == 2015 {
 						continue
 					}
 					if e = sendPayload(1, frame.ID, protocol.Refusal(4)); e != nil {
@@ -1582,14 +1584,18 @@ func main() {
 							event(map[string]any{"kind": "area_presence_error", "error": e.Error()})
 						}
 					}
-					if p.Name == "settlement_exit_ack" && pending == nil {
+					if (p.Name == "settlement_exit_ack" || p.Name == "dungeon_leave_ack") && pending == nil {
 						worldState.activeDungeon = nil
 						worldState.drops = nil
 						worldState.deathSent = nil
 						worldState.completionSent = false
 						worldState.resultSent = false
 						worldState.resetCards()
-						worldState.selectingDungeon = p.Payload[2] == 1
+						if p.Name == "settlement_exit_ack" {
+							worldState.selectingDungeon = p.Payload[2] == 1
+						} else {
+							worldState.selectingDungeon = false
+						}
 					}
 					if p.Name == "monster_death_confirmed" {
 						if worldState.deathSent == nil {

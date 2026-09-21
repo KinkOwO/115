@@ -41,5 +41,12 @@ func (w *worldSession) playerDeath(p []byte, frames ...[]byte) ([]outboundPacket
 	}
 	d.Dead = true
 	// Repeated reports project the same death state, never rewards or charges.
-	return []outboundPacket{{"player_death_ack", 1, 40, []byte{1}}, {"player_death_state", 0, 32, body}}, nil
+	plan := []outboundPacket{{"player_death_ack", 1, 40, []byte{1}}, {"player_death_state", 0, 32, body}}
+	if w.activeDungeon != nil && w.activeDungeon.Definition.ID == 100003126 {
+		// Elvenmere 爬塔地下城：原生禁止复活币（die countdown 0），单人角色死亡即代表挑战失败。
+		// 下发 NOTI 33 (ENUM_NOTIPACKET_FAIL_CLEAR_DUNGEON)，驱动客户端进入 DUNGEON_STATE_FAIL_CLEAR，
+		// 激活完整的 Death Scene 死亡镜头、死亡动作与挑战失败结算。
+		plan = append(plan, outboundPacket{"dungeon_fail_clear", 0, 33, protocol.DungeonFailClear(0)})
+	}
+	return plan, nil
 }

@@ -1,7 +1,34 @@
 # CHANGELOG
 
 ## 2026-09-21
-- 实现城镇内角色转职（CMD 1881 `ENUM_CMDPACKET_CHANGE_GROW_TYPE`）与随时更换职业（CMD 777 `ENUM_CMDPACKET_RE_GROWUP_CHANGE`）服务端完整闭环，修复"转职与更换职业无效果"的问题。
+- 实现特殊爬塔地下城“艾尔芬米尔”（Elvenmere / ID: `100003126`）完整服务端支持，闭环选区进图、切层推进、通关奖励（Seed Coin）、经验结算与死亡生还恢复。
+  - **背景与根因**：
+    1. **选区被拒**：客户端 `ElvenmereDungeonSelect.xui` 通过选图请求 CMD 16 的 `r.Extra` 字段传递所选区域（Zone 1~4）的起始层数（1、36、61、86）。原服务端严格要求 `r.Extra == 0`，导致 Elvenmere 选区请求被拒（`unsupported dungeon option`）。
+    2. **切层透明未推进且指示器显示 0**：艾尔芬米尔小怪由客户端本地生成（Local Monster），清空小怪后踩门发送 CMD 2015（`ENUM_CMDPACKET_ELVENMERE_TELEPORT_MAP`，25 字节）。此前服务端未实现 CMD 2015 且进图未下发 NOTI 2193（`ENUM_NOTIPACKET_ELVENMERE_INFO`，203 字节），导致右下角层数指示器显示 0 且传送门后角色透明卡死。
+    3. **打怪无经验与无 Seed Coin 掉落**：官方原版 PVF `00-elvenmere.dgn` 配置 `[disable exp]` 禁用了即时击杀经验，经验和奖励属于层通关奖励（Floor Clear EXP / Weekly Reward）。此前切层时未给玩家背包添加硬币道具并缺少 NOTI 14，且未下发经验 NOTI 37。
+    4. **死亡卡死在 Ghost 状态**：官方 PVF 配置 `[die countdown] 0` 和 `[result board] 0`（官方禁止复活币且无常规翻牌结算板）。角色死亡时客户端倒计时瞬间为 0 发送 CMD 42 退出。此前服务端回城时未下发复活包（NOTI 32 state=1），导致角色带着 `HP=0` 回城，卡在死人/幽灵惩罚状态动弹不得。
+  - **IDA 协议取证与服务端闭环**：
+    1. **选图准入**：放宽 `internal/dungeon/session.go` 对 ID `100003126` 的 `r.Extra <= 100` 约束，保存初始起始层数，跳区入场时自动将前置层数标记为已通关。
+    2. **进度同步（NOTI 2193）**：逆向 `sub_142223F70` -> `sub_14222B360` 还原 203 字节布局（byte 0: status; byte 1: maxCleared; byte 2: currentFloor; bytes 3..102: weekly clear flags; bytes 103..202: season clear flags）。进图时点亮初始层，每次切层传送时顺延层数并更新已通关标记。
+    3. **切层传送响应（CMD 2015）**：白名单接入 CMD 2015，实现 `elvenmereTeleport` 响应 ACK 2015（`[1]`）。
+    4. **周常硬币奖励与赛季奖励发放**：严格对照 `Elvenmere.cos` 奖励表（1~60 层每层发放 5~40 个 `10336354` 叶之金币/Seed Coin，61~100 层发放 15~150 个 `10332382` 金币，逢 5 层发放赛季奖励），踩门切层时通过 `Awarder.Grant` 安全注入材料背包，经 `CommitCharacterEvent` 持久化，并下发 NOTI 14（`InventoryUpdate`）实时到账。
+    5. **层通关经验发放**：每通关一层根据层数计算经验（`uint64(floor)*30000 + 60000`），通过 `ProgressionService.ApplyGain` 结算并下发 NOTI 37（`ExperiencePayload`），经验条实时上涨，升级时自动刷新技能树。
+    6. **死亡失败与回城生还恢复**：角色阵亡时下发 NOTI 33（`FAIL_CLEAR_DUNGEON`，单字节 `0`），驱动客户端状态置为 `DUNGEON_STATE_FAIL_CLEAR`（状态 3）并播放失败音乐；客户端发送 CMD 42 退出地下城时，在 `leaveDungeon()` 中追加下发 `town_actor_revived`（NOTI 32, state=1）恢复满血满蓝并解除 Ghost 状态，角色正常站立在城镇 NPC 旁自由活动，消除卡死。
+  - **实现文件**：
+    - `internal/dungeon/elvenmere.go` — 奖励道具阶梯、赛季奖励及经验计算函数。
+    - `internal/dungeon/session.go` — Elvenmere 选区准入与周常/赛季领奖状态维护。
+    - `internal/game/protocol/dungeon.go` — NOTI 2193 `ElvenmereInfo` 协议组装。
+    - `internal/game/protocol/player_death.go` — NOTI 33 `DungeonFailClear` 协议。
+    - `cmd/wireprobe/dungeon_flow.go` — 进图初始化、切层奖励与经验结算、回城满血复活。
+    - `cmd/wireprobe/player_death.go` — 死亡下发 NOTI 33 失败宣告。
+    - `cmd/wireprobe/main.go` & `request_scope.go` — CMD 2015 注册分流与退出状态机清理。
+  - **测试与验证**：
+    - `internal/dungeon/elvenmere_test.go` — 奖励与经验算法单测全覆盖。
+    - `internal/dungeon/select_test.go` — 选区与非法层数拒绝单测。
+    - `cmd/wireprobe/boss_flow_test.go` — CMD 2015 切层、NOTI 33 失败宣告与回城复活单测。
+    - 全量 `go test ./...` 与 `go vet ./...` 检验 100% 通过；编译输出 `bin/wireprobe-handoff-source.exe`。
+    - 用户实机验收确认：可正常进入战斗层、怪物正常刷新、切层时背包正确获得 Seed Coin 奖励物品、死亡回城后生还无卡死。
+
   - **背景与根因**：115 客户端在城镇内通过转职 UI 首次转职时发送 CMD 1881，已转职角色在 UI 中随时自由更换进阶职业时发送 CMD 777。此前服务端未实现该 grow-type 变更协议家族（在日志中被记录为 `unimplemented_sample`），客户端在转职或更换后没有任何服务端同步，职业未发生实际改变。
   - **IDA 协议取证与闭环**：
     1. **请求体**：IDA 逆向发送器 `sub_143F2D110`，序列化 14 字节栈结构（对齐到 16 字节），前 13 字节为未初始化的栈残存数据，仅 `body[13]` 携带目标打包 grow-type 字节（`advancement | (awakening << 4)`）。实机抓包证实：龙骑士首次转职为 `2000000000000000c0f45f0000040000`（`body[13]=0x04`）；更换职业尝试为 `...010000`（`0x01`）与 `...030000`（`0x03`）。两者请求体结构完全一致。
