@@ -18,6 +18,7 @@
 | **DSTR** | `dstr_table_detailed.json` | JSON | 34,894 条 (6.14 MB) | 包含 ID、所属源码 C++ 文件名及翻译内容的明细数组 |
 | **DSTR** | `dstr_map.tsv` | TSV | 34,894 行 (3.91 MB) | `id \t source_file \t text` 表格 |
 | **DSTR** | `dstr_raw.txt` | TXT | 41,333 行 (1.89 MB) | 解密还原后的完整 Neople 原生 DSTR 本地化文本文件（带注释） |
+| **统一选项** | `NOTI2827-角色选项默认模板-3539.bin` | BIN | 3,539 字节 | 客户端角色级统一选项默认块（NOTI2827 整包）。subtype 19 @2736 与 subtype 20 @3122 为 386 字节技能锁对象（初始为空：`valid=0`、128×`0xFFFF`、exist 全 0），其余字节为该客户端默认值 |
 
 ---
 
@@ -87,3 +88,8 @@
      - Layer 1 Key: `9D6C4A333560167E8D276B81E32B537867E862341A1D3E6E9955E48819F4C899`
      - Layer 2 Key: `C50796A39913B6D5156B6C651CE1F1F82542953F338D7BE87121E82CB45A810E`
    - 解密后文件头为 `SC01` + 4 字节原大小。后续数据以 `0x5819af17` 为初始种子进行 CBC 式 4 字节连续 XOR 解扰，还原为原生 UTF-8 格式文本。
+4. **统一选项块（UNIFIED_OPTION）布局**：
+   - CMD2377 `SET_UNIFIED_OPTION` 一帧携带一个选项块：`+8` 五字节 `FE FF FF FF FF` 标记、`+13` scope、`+14` subtype、`+15` count、`+19` 起 `(u16 position, u16 value)` 条目；`+00`/`+04` 在不同 subtype 下取值不同，**不可当常量校验**（当作常量会漏帧）。
+   - 账号块 NOTI2826 为 3648 字节（对应客户端 `sub_14757AE50`）、角色块 NOTI2827 为 3539 字节（`sub_14757B0C0`）；块内对象形状统一为 `valid(1B) + 1B + N×u16 + N×exist(1B)` = `2 + 3N` 字节。
+   - 角色块 subtype→偏移（取自客户端 switch 表）：`19→2736`、`20→3122`（各 386 字节，均为技能锁对象，需同时填充同数据，服务端推送时作为进城帧序列的最后一帧）。
+   - 服务端实现与验收记录见 `server/work/dfo-lan/docs/protocol/next46-unified-option.md`。
