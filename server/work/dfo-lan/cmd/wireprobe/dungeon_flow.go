@@ -229,11 +229,30 @@ func (w *worldSession) directMoveDungeon(p []byte) (*dungeon.Session, []outbound
 	if e != nil {
 		return nil, nil, e
 	}
-	plan, e := w.dungeonEntryPlan("dungeon_direct_move_ack", 2062, sel, s)
+	plan, e := w.directMoveEntryPlan(sel, s)
 	if e != nil {
 		return nil, nil, e
 	}
 	return s, plan, nil
+}
+
+// directMoveEntryPlan is the CMD 2062 form of dungeonEntryPlan: the client
+// started this run from its own direct-move request instead of the town
+// selection, and the live capture of 2026-09-21 shows it needs both
+// acknowledgements. The same room (100016138, "战争结束" first floor) cleared
+// its floor portal normally when the run was entered through CMD 15/16 and the
+// server answered dungeon_select_ack(16); entered through CMD 2062 it loaded
+// the map but the portal stayed inert, and the two entry sequences are
+// byte-identical apart from that acknowledgement id. The selection ack is
+// therefore replayed here too, immediately before the shared entry frames.
+func (w *worldSession) directMoveEntryPlan(sel protocol.DungeonSelection, s *dungeon.Session) ([]outboundPacket, error) {
+	entry, e := w.dungeonEntryPlan("dungeon_direct_move_ack", 2062, sel, s)
+	if e != nil {
+		return nil, e
+	}
+	plan := make([]outboundPacket, 0, len(entry)+1)
+	plan = append(plan, entry[0], outboundPacket{"dungeon_select_ack", 1, 16, []byte{1}})
+	return append(plan, entry[1:]...), nil
 }
 
 func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) {
