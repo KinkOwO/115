@@ -176,6 +176,10 @@ func (c PilotConfig) classify(v OrdinaryProduct) (Product, deliveryType, error) 
 		return fail("invalid price row width")
 	}
 	r := v.Row
+	// Inventory expansion passes (物品栏扩展券) are sold into the bag and
+	// consumed client-side; allow them past the [item mod or ext] gate.
+	invExtWhitelist := map[int32]bool{3000147: true, 3000148: true}
+	allowAny := openAll || invExtWhitelist[r[0].Value]
 	for _, i := range []int{0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 13} {
 		if r[i].Type != 0 {
 			return fail("invalid price cell type")
@@ -184,14 +188,14 @@ func (c PilotConfig) classify(v OrdinaryProduct) (Product, deliveryType, error) 
 	if r[0].Value <= 0 || r[1].Value <= 0 || r[2].Value <= 0 {
 		return fail("invalid product, units or template")
 	}
-	if !openAll && (r[2].Value > 112000 || r[5].Value <= 0) {
+	if !allowAny && (r[2].Value > 112000 || r[5].Value <= 0) {
 		return fail("invalid product, units or Cera price")
 	}
 	ceraPrice := uint32(0)
 	if r[5].Value > 0 {
 		ceraPrice = uint32(r[5].Value)
 	}
-	if !openAll {
+	if !allowAny {
 		_, isContract, err := entryContract(v)
 		if err != nil {
 			return fail(err.Error())

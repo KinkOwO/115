@@ -126,3 +126,25 @@ func (s *Store) AccountUnifiedOptions(ctx context.Context, account int64) (map[u
 	}
 	return out, rows.Err()
 }
+
+// CharacterUnifiedOptions returns the stored per-character setting overrides
+// (CMD2377 subtype 0x05) for the NOTI2827 restore payload.
+func (s *Store) CharacterUnifiedOptions(ctx context.Context, characterID int64) (map[uint16]uint16, error) {
+	out := map[uint16]uint16{}
+	if characterID == 0 {
+		return out, nil
+	}
+	rows, e := s.DB.Query(ctx, `SELECT opt_index,value FROM character_unified_options WHERE character_id=$1`, characterID)
+	if e != nil {
+		return nil, e
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var idx, value int
+		if e = rows.Scan(&idx, &value); e != nil {
+			return nil, e
+		}
+		out[uint16(idx)] = uint16(value)
+	}
+	return out, rows.Err()
+}
