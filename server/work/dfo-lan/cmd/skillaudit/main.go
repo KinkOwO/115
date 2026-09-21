@@ -12,6 +12,103 @@ import (
 	"strings"
 )
 
+// skillType returns the token that declares the skill's own type.
+//
+// The current PVF repeats [type] inside [vp explain], [preset info] and the
+// damage groups to label the default/vp1/vp2 variant a block belongs to, so a
+// file's first [type] is regularly a variant label rather than a skill type.
+// The skill's own type is the [type] followed by [skill class]; source files
+// that omit [skill class] (every passive row) are recognised by the
+// [active]/[passive] value itself. Both rules agree on every current file:
+// scanning all 4890 skill/*.skl rows finds no disagreement.
+func skillType(cells []pvf.Token) (pvf.Token, bool) {
+	var byValue pvf.Token
+	found := false
+	for i := range cells {
+		if cells[i].Type != 3 || cells[i].Text != "[type]" {
+			continue
+		}
+		value := pvf.Token{}
+		j := i + 1
+		for ; j < len(cells) && cells[j].Type != 3; j++ {
+			if value.Text == "" {
+				value = cells[j]
+			}
+		}
+		next := ""
+		if j < len(cells) {
+			next = cells[j].Text
+		}
+		if next == "[skill class]" {
+			return value, true
+		}
+		if !found && (value.Text == "[active]" || value.Text == "[passive]") {
+			byValue, found = value, true
+		}
+	}
+	return byValue, found
+}
+
+// learnableSkillFields keeps the skill's own learning metadata.
+//
+// Description containers reuse learning tag names, so they are skipped by
+// name rather than by stack order: the current source opens [vp explain] twice
+// and closes it once in skill/priest/pandemoniumex.skl, which a strict stack
+// would leave unclosed and would then drop every following field.
+func learnableSkillFields(cells []pvf.Token) map[string][]pvf.Token {
+	fields := map[string][]pvf.Token{}
+	if t, ok := skillType(cells); ok {
+		fields["[type]"] = []pvf.Token{t}
+	}
+	open := map[string]bool{}
+	tag := ""
+	seen := map[string]bool{}
+	enabled := false
+	variation := false
+	for _, t := range cells {
+		if t.Type == 3 && t.Text == "[variation point]" {
+			variation = true
+			enabled = false
+			continue
+		}
+		if variation {
+			if t.Type == 3 && t.Text == "[/variation point]" {
+				variation = false
+			} else {
+				fields["[variation point]"] = append(fields["[variation point]"], t)
+			}
+			continue
+		}
+		if t.Type == 3 {
+			if strings.HasPrefix(t.Text, "[/") {
+				delete(open, "["+t.Text[2:])
+				enabled = false
+				continue
+			}
+			tag = t.Text
+			enabled = len(open) == 0 && !seen[tag] && tag != "[type]"
+			if enabled {
+				seen[tag] = true
+			}
+			if tag == "[vp explain]" || tag == "[explain group]" || tag == "[preset info]" {
+				open[tag] = true
+				enabled = false
+			}
+			continue
+		}
+		if !enabled {
+			continue
+		}
+		switch tag {
+		case "[awakening maximum level]", "[awakening]", "[enable by third awakening quest]":
+			fields[tag] = append(fields[tag], t)
+		case "[name]", "[required level]", "[required level range]", "[maximum level]", "[growtype maximum level]", "[skill fitness growtype]", "[skill fitness second growtype]", "[pre required skill]", "[purchase cost]", "[special purchase cost]", "[feature skill type]", "[fixed level skill]", "[interval level]", "[add level per interval]", "[skill class]":
+			fields[tag] = append(fields[tag], t)
+		}
+	}
+	return fields
+}
+
 func main() {
 	src := flag.String("source", "runtime/pvf_source/Script.inner.pvf", "read-only source")
 	out := flag.String("output", "runtime/skill_learning_audit.json", "metadata audit")
@@ -56,57 +153,7 @@ func main() {
 				counts["unreadable"]++
 				continue
 			}
-			fields := map[string][]pvf.Token{}
-			var scopes []string
-			tag := ""
-			seen := map[string]bool{}
-			enabled := false
-			variation := false
-			for _, t := range s.Cells {
-				if t.Type == 3 && t.Text == "[variation point]" {
-					variation = true
-					enabled = false
-					continue
-				}
-				if variation {
-					if t.Type == 3 && t.Text == "[/variation point]" {
-						variation = false
-					} else {
-						fields["[variation point]"] = append(fields["[variation point]"], t)
-					}
-					continue
-				}
-				if t.Type == 3 {
-					// Description groups reuse learning tag names. Their optional
-					// leaf fields are not consistently paired, so track containers.
-					if strings.HasPrefix(t.Text, "[/") {
-						if len(scopes) > 0 && scopes[len(scopes)-1] == "["+t.Text[2:] {
-							scopes = scopes[:len(scopes)-1]
-						}
-						enabled = false
-						continue
-					}
-					tag = t.Text
-					enabled = len(scopes) == 0 && !seen[tag]
-					if enabled {
-						seen[tag] = true
-					}
-					if tag == "[vp explain]" || tag == "[explain group]" || tag == "[preset info]" {
-						scopes = append(scopes, tag)
-						enabled = false
-					}
-					continue
-				}
-				if !enabled {
-					continue
-				}
-				switch tag {
-				case "[awakening maximum level]", "[awakening]", "[enable by third awakening quest]":
-					fields[tag] = append(fields[tag], t)
-				case "[name]", "[type]", "[required level]", "[required level range]", "[maximum level]", "[growtype maximum level]", "[skill fitness growtype]", "[skill fitness second growtype]", "[pre required skill]", "[purchase cost]", "[special purchase cost]", "[feature skill type]", "[fixed level skill]", "[interval level]", "[add level per interval]", "[skill class]":
-					fields[tag] = append(fields[tag], t)
-				}
-			}
+			fields := learnableSkillFields(s.Cells)
 			result = append(result, row{job, ref.ID, s.Path, s.SHA256, fields})
 		}
 	}

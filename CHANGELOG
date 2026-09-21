@@ -19,6 +19,61 @@
   - **文档**：`work/dfo-lan/docs/protocol/next46-unified-option.md` 更新为接收侧 + 推送侧闭环，并记录勘误与 subtype→偏移表。
   - **实机验收（2026-09-21，用户操作）**：锁定技能后回角色选择重进，**锁正常回显、完整保留，客户端不闪退** —— 技能锁从“能保存”到“重进可恢复”闭环（先前 DB 中已有的 `{1,20,58,109}` 在进城时被正确回显，随后增删亦正确）。
   - **本地保留**：本轮（含技能锁接收侧）按用户要求**只留在本地、不推送远端**（远端仓库当前 404）。
+- 修复“学习等级 35 级以上技能无法学习、加点后点击确定回滚”：真因是技能目录 `configs/skills.next27.json` 的 `[type]` 导出错误，不是服务端技能学习逻辑缺失。
+  - **取证**：当前 115 PVF（`server/work/client-build/Script.inner.pvf`，size 760,530,763 与目录记录一致）中 `vp1`/`vp2`/`default` 只出现在 `[vp explain]`、`[preset info]` 与伤害组的嵌套 `[type]`，用于标注 default/vp1/vp2 三种技能形态；技能自身类型一定是 `[active]`/`[passive]`，且紧跟 `[skill class]`。全量扫描 4890 个 `skill/*.skl`：“值 ∈ {`[active]`,`[passive]`}”与“后跟 `[skill class]`”两种判据零冲突。
+  - **影响面**：`configs/skills.next27.json` 有 532 行 `[type]` 与源不符（vp1→`[active]` 509、vp1→`[passive]` 11、default→`[active]` 9、vp2→`[active]` 3），正好覆盖学习等级 ≥35 的全部技能；服务端 `internal/character/learning_catalog.go` 只接受 `[active]`/`[passive]`，于是整批按“unsupported skill advancement/level”拒绝，客户端回滚。抓包证据：`runtime/roles_*_next37/events.jsonl` 的 `skill_refused`（角色 10 `test-jh`，35 级剑魂，SP 890）。
+  - **数据修复**：532 行 `[type]` 换成源真值（token 的 `value`+`text` 均取自 PVF），其余字段与 `source`/`checksum` 未动（`git diff --numstat` = 1064 行 = 532 处），存档兼容。
+  - **工具修复**：`cmd/skillaudit` 抽出 `skillType()`（技能自身类型 = “`[type]` 后跟 `[skill class]`”，无 `[skill class]` 的被动行用 `[active]`/`[passive]` 值兜底），并把容器配对由“栈按名 pop”改为“按名开合”，修掉 `[vp explain]` 开两次关一次（`skill/priest/pandemoniumex.skl` 等 4 行 priest 技能整行字段丢失）与伤害组 `default` 被当成技能类型。
+  - **测试**：新增 `cmd/skillaudit/main_test.go`（变异说明标签、未配对 `[vp explain]`、伤害组 default、源里无自身 type、被动行按值识别共 5 例）与 `internal/character/learning_skilltype_test.go`（技能 9 = `[active]` 且 35 级剑魂可学 cost 40；等级区间与成长类型门槛仍生效；配置数据不变量——除源里本就无自身 type 的 5 个技能外，再出现 vp1/vp2/default 即失败）。`go test ./internal/... ./cmd/...`、`go vet ./internal/... ./cmd/...` 全绿。
+  - **端到端复核**：用修好的 `cmd/skillaudit` 对同一 PVF 重新生成，`[type]` 分布 `[active]` 1761 / `[passive]` 1458 / 无类型 5，与已修正的 next27 仅在“源里确实没有自身 `[type]`”的 5 行上不同；`thunderrage`/`iceelementalattack`/`standbyready`/`cosmiccalamity` 已由 `default` 纠正为 `[active]`，4 行 priest 技能字段恢复。
+  - **实机验收（2026-09-21，用户操作）**：35 级剑魂在技能面板给“回旋斩”（学习等级 35）加点成功、不再回滚，且技能**自动装入快捷栏**（该行现为 `[active]`，`Active()` 判定随之正确）。服务端仍为源码版 `bin/wireprobe-handoff-source.exe`（按当前源码重建）。
+  - **回滚方式**：`configs/skills.next27.json` 与 `cmd/skillaudit/main.go` 均在 Git 内（非 LFS），`git revert` 即可；`bin/` 不入库。
+  - **未闭环**：`configs/skills.release.json` / `skills.awakening-candidate.json` 仍是修工具前生成的旧产物（3 行整行字段丢失、4 行 `default` 误取），本次未重新生成；启动链仍固定 `-skill-catalog configs/skills.next27.json`。
+- 修复城主宫殿（天空之城 18 号任务，Quest 3185）过场动画切层、Boss 刷新及阳台地图翻牌结算阻断问题。
+  - **背景与根因**：
+    1. **多层房间切层门禁**：城主宫殿迷宫 4 的 Boss 房 `(1, 0)` 配置为基础房 `100008324` 并带 `layered 1 0 57962 100008595`。进入 Boss 房后开场动画 `14646.cmt` 在基础地图播放完毕后发出 CMD 45 请求切层到光之城主 Boss 房 `57962`。服务端原先在 `MoveScene` 中硬编码阻断非奥德赛副本，回执 ErrCode 4，导致未能切入地图 `57962` 刷新 Boss；
+    2. **BossCheck 拦截与剧情后置结算**：在 `57962` 中击败光之城主时，客户端 combat 逻辑立即发送 CMD 117（`ENUM_CMDPACKET_BOSS_CHECK`）。服务端此前在 `BossCheck` 中硬编码校验 `s.Room.Map != layer.Maps[len-1]` 拒包，导致 `s.completionTarget` 目标丢失；
+    3. **阳台过场地图翻牌金币等级计算兜底**：切入层 2 地图 `100008595`（剧情阳台）后，赛丽亚与艾丽丝救援过场 `14897.cmt` 销毁 dummy boss，客户端请求 CMD 46 结算。`FreezeCards` 原先仅从当前房间怪物提取等级，因纯剧情房怪物全为 `NonCombat` 计算出等级为 0，查表找不到 0 级报错 `source card gold level absent` 拒包，导致客户端卡死在阳台无法弹出翻牌与结算面板。
+  - **修复实现**：
+    1. `internal/dungeon/scene_transition.go`：支持非奥德赛常规副本依据迷宫 `m.Layers` 映射顺序平滑切入下一层地图，解除奥德赛专有阻断；
+    2. `internal/dungeon/completion.go`：常规副本允许接收并记录 BossCheck 结算目标，在 `tryComplete` 中保证在剧情最终层才收口通关；
+    3. `internal/loot/cards.go`：`FreezeCards` 增加怪物等级兜底回溯，当前房间全为剧情怪时回溯本次副本已访问的前置房间提取有效怪物等级，并以副本基准等级 `BasisLevel` 兜底；
+    4. `cmd/wireprobe/main.go`：在房间加载完毕与怪物销毁时安全调用 `TryComplete` 与 `completeDungeon`；
+    5. 测试：新增 `standard_layer_test.go` 与 `cards_test.go` 单元测试，全库通过 `go test ./...` 与 `go vet ./...`；
+  - **实机验收（2026-09-21）**：用户实机测试确认光之城主正常刷新，击杀后阳台过场动画播放完毕正常弹出通关翻牌界面，任务 3185 顺利完成。
+
+- 修复城镇地图传送点（Teleport Point）、赛丽亚房间传送及负坐标区域（如雷米迪亚大圣堂右侧）进图被拦截的问题。
+  - **背景与根因**：
+    1. **城镇传送点与赛丽亚房间直达传送**：玩家在大地图/小地图上点击城镇传送点（如西海岸、月光酒馆等）或点击“Teleport to Seria's Room”时，客户端发送带有传送标志的 CMD 36（`Flag=5, TailFlags[1]=5`，或赛丽亚房间传送 `TailFlags=[0,0]`）。原逻辑未建立通用传送放行通道，且在请求前提前抹除了 `specialWarpPending` 状态，导致请求坠入物理行走门校验；因跨区无直连门而报 `no authorized source portal to destination`，弹窗阻断；此外月光酒馆传送点落点偏差 68 像素超出了原 64 像素容差；
+    2. **负坐标区域行走越界判定缺陷**：玩家从雷米迪亚大圣堂主殿（89/0）走右侧门进入右殿（89/2）时，客户端发送的合法入口坐标 X 为 -2（16 位补码传输为 `0xFFFE` / `uint16(65534)`）。`internal/world/service.go` 的 `Contains` 判定函数原先将无符号 `uint16` 零扩展为 `int64`（变成 `+65534`），在与负坐标矩形 `[-13, 256, 800, 140]` 比较时误判越界（`position outside source walkable rectangles`），客户端收到拒绝后同样弹窗报错；全量审计发现游戏内共有 135 个区域包含负数坐标矩形定义。
+  - **修复实现**：
+    1. `cmd/wireprobe/world_flow.go`：保留 `specialWarpPending` 状态至 `areaTransition` 单次安全消费；
+    2. `cmd/wireprobe/odyssey_teleport.go`：新增 `teleportTransition` 通用传送通道，对合法的地图传送点传送和赛丽亚房间传送进行等级与可行走区验证后放行，并自动保留原所在城镇的 Return 坐标以供出房时权威原路恢复；
+    3. `internal/world/service.go`：将 `WalkableTolerance` 调整为 128 覆盖月光酒馆等传送点落点偏差；`Contains` 函数支持负坐标自适应解码（当矩形为负且坐标 `>= 0x8000` 时按符号扩展计算）；
+    4. `internal/catalog/town.go` & `internal/quest/progress.go`：同步增强负坐标自适应解码，确保城镇准入与任务范围检测一致；
+    5. 测试：`special_warp_test.go` 新增 `TestTownMapTeleportTransition`（覆盖地图传送、预备态传送、赛丽亚房间往返原路恢复等 10 项断言）；`service_test.go` 新增 `TestNegativeCoordinateAreaTransition` 覆盖负数坐标准入与越界阻断；
+  - **实机验收（2026-09-21）**：用户实机测试确认大地图传送点、赛丽亚房间往返、雷米迪亚大圣堂右侧区域均可正常进入。
+
+- 修复城镇中无法进入特定区域（如从艾尔文防线进入 Elvenmere）提示“You cannot enter to the Opposing Faction's starting point.”的问题。
+  - **背景与根因**：玩家在城镇（如从艾尔文防线经风暴小路）尝试进入 Elvenmere（城镇 38 / 区域 7）时，被服务端拒绝（日志证据：`area_refused reason="no authorized source portal to destination" town=38 area=7`），客户端收到拒绝响应后映射弹出 DSTR 19188 提示。经核查地图源数据与导入逻辑：
+    - `elvengard_hendon_storm.map`（38/3）中的 `[town movable area]` 包含了内嵌条件子块：
+      ```
+      [town movable area]
+      207 134 120 40 38 0 938 323 100 80 39 0 
+      [quest condition]
+      3156 
+      [/quest condition]
+      24 218 100 120 38 7 
+      [/town movable area]
+      ```
+    - 旧的 `sectionCells` 辅助函数遇到任意 type-3 标签即判断 `active = (c.Text == name)`，在遇到 `[quest condition]` 时失活、且在 `[/quest condition]` 之后依然无法恢复激活，导致子块之后的门户矩形行（通向 38/7 的任务门）被彻底吞掉，38/3 的有效出边缺失；
+    - 同样，`new_hendon_main.map`（39/0）等地图的 `[virtual movable area]` 中含 `[quest condition]` 10100 子块，其后的可行走矩形也被截断丢失。
+  - **修复实现**：
+    1. `internal/catalog/script.go`：新增 `nestedSectionCells` 栈式段落解析器，按 `[` 与 `[/` 开闭标签维护深度，只收集处于目标段落顶层（`depth == 1`）的单元，跳过内嵌条件子块本身，同时确保子块闭合后继续收集后续父段矩形行；任务条件由客户端依据同一份地图数据自行判定，与既有“未实现条件由客户端把关”约定一致；
+    2. `internal/catalog/world.go`：将 `[virtual movable area]`（可行走区）与 `[town movable area]`（门户）切为 `nestedSectionCells`；
+    3. `configs/world.generated.json`：外科手术式合入嵌套感知解析产出的 10 个受影响区域数据（新增 8 条门户边，含 38/3→38/7；新增 7 块可行走矩形；无新增 pending），保留与 `characters.*.json` 一致的 source checksum（`7ef2db59...`），避免因本地未入库 PVF 变动触发 `world/character source versions differ` 门禁拒绝；
+    4. 单元与回归测试：`internal/catalog/town_test.go` 新增真实嵌套 token 流测试用例；`internal/world/service_test.go` 新增 `TestQuestGatedPortalToElvenmere` 验证 38/3→38/7 正常放行、远距离绕门拒绝、等级不足拒绝；
+  - **实机验收（2026-09-21）**：用户重启服务端并实机操作验证通过，角色可正常从艾尔文防线进入 Elvenmere，不再弹窗拦截。
 
 ## 2026-09-20
 - 补齐开局转职链路的配套工具：角色目录缺数据告警、老角色一次性修复命令、打包清单生成脚本。

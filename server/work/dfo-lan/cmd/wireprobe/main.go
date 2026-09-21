@@ -1498,8 +1498,17 @@ func main() {
 					worldState.selectingDungeon = false
 					event(map[string]any{"kind": "dungeon_session_started", "dungeon": pending.Definition.ID, "maze": pending.Maze.Index, "map": pending.Room.Map, "monsters": len(pending.Monsters), "quests_changed": false})
 				}
-				if frame.ID == 37 {
+				if frame.ID == 37 && worldState.activeDungeon != nil {
 					worldState.activeDungeon.Loaded = true
+					worldState.activeDungeon.TryComplete()
+					if completed, err := worldState.completeDungeon(); err == nil && len(completed) > 0 {
+						for _, packet := range completed {
+							if err = sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
+								return
+							}
+							event(map[string]any{"kind": packet.Name, "id": packet.ID, "plain_hex": hex.EncodeToString(packet.Payload), "character_id": selectedCharacterID})
+						}
+					}
 				}
 				for _, p := range plan {
 					if p.Name == "solo_party_initialized" {

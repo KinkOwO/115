@@ -82,3 +82,42 @@ func sectionCells(cells []pvf.Token, name string) []pvf.Token {
 	}
 	return out
 }
+
+// nestedSectionCells 收集目标段落顶层的单元，跳过内嵌子块。
+//
+// 与 sectionCells 的差别：源地图的 [town movable area] /
+// [virtual movable area] 里会内嵌 [quest condition]、[check condition]、
+// [in progress]、[move dungeon info] 等条件子块，子块闭合标签之后
+// 还有属于父段的矩形行。sectionCells 遇到任意 type-3 标签就失活且
+// 只有同名标签才复活，会把子块后面的行整个吞掉——实测
+// elvengard_hendon_storm.map（38/3）通 Elvenmere（38/7）的任务门、
+// new_hendon_main.map（39/0）[quest condition]10100 之后的可行走矩形
+// 都是这样丢的。这里按开/闭标签维护深度：深度 1 表示正处于目标段
+// 顶层，只收集该层的单元；条件子块的内容整体跳过。
+//
+// 条件本身（如 38/3→38/7 需要任务 3156）不在此求值：客户端读同一份
+// 地图数据自行判定，与"未实现条件由客户端把关"的既有约定一致。
+func nestedSectionCells(cells []pvf.Token, name string) []pvf.Token {
+	var out []pvf.Token
+	depth := 0
+	for _, c := range cells {
+		if c.Type != 3 {
+			if depth == 1 {
+				out = append(out, c)
+			}
+			continue
+		}
+		if depth == 0 {
+			if c.Text == name {
+				depth = 1
+			}
+			continue
+		}
+		if strings.HasPrefix(c.Text, "[/") {
+			depth--
+		} else {
+			depth++
+		}
+	}
+	return out
+}

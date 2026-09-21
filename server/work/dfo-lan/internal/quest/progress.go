@@ -44,9 +44,16 @@ func ReachRange(d catalog.QuestDefinition) (RangeObjective, bool) {
 }
 
 func (r RangeObjective) Contains(p storage.WorldPosition) bool {
+	px, py := int32(p.X), int32(p.Y)
+	if r.X < 0 && p.X >= 0x8000 {
+		px = int32(int16(p.X))
+	}
+	if r.Y < 0 && p.Y >= 0x8000 {
+		py = int32(int16(p.Y))
+	}
 	return p.Town == r.Town && p.Area == r.Area &&
-		int32(p.X) >= r.X && int32(p.X) <= r.X+r.W &&
-		int32(p.Y) >= r.Y && int32(p.Y) <= r.Y+r.H
+		px >= r.X && px <= r.X+r.W &&
+		py >= r.Y && py <= r.Y+r.H
 }
 
 type ItemNeed struct{ Template, Amount uint32 }

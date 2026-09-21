@@ -301,9 +301,9 @@ func (w *worldSession) handle(id uint16, p []byte, send func(byte, uint16, []byt
 			return e
 		}
 	case 36:
-		w.specialWarpPending = false
 		r, e := protocol.DecodeAreaChangeRequest(p)
 		if e != nil {
+			w.specialWarpPending = false
 			return e
 		}
 		next, e = w.areaTransition(r)
