@@ -15,13 +15,40 @@ func (s State) WireAdvancement() (byte, error) {
 	return s.Advancement | s.Awakening<<4, nil
 }
 
+// awakeningColumns is the number of growtype columns the awakening matrix is
+// laid out with (matrix length = 3 stages × columns).
+//
+// Some current-source skills carry no [growtype maximum level] at all and only
+// an awakening matrix — skill/swordman/nachal.skl is that shape:
+//
+//	[skill class] 4
+//	[maximum level] 50
+//	[awakening maximum level] 0 0 0 0 0 40  0 0 0 0 0 40  0 0 0 0 0 40
+//
+// Requiring len(caps) == 3*len(base) made every one of them impossible to learn
+// (live, 2026-09-21: they surface as "unsupported skill advancement/level").
+// The column count is therefore derived from the matrix itself when the base row
+// is absent; a base row that is present but inconsistent still refuses, so a
+// malformed block never becomes learnable by accident.
+func (d LearningDefinition) awakeningColumns() int {
+	base, caps := d.Ints("[growtype maximum level]"), d.Ints("[awakening maximum level]")
+	switch {
+	case len(base) > 0 && len(caps) == 3*len(base):
+		return len(base)
+	case len(base) == 0 && len(caps) > 0 && len(caps)%3 == 0:
+		return len(caps) / 3
+	}
+	return 0
+}
+
 // Awakening caps are stage-major matrices, including the unadvanced column.
 func (d LearningDefinition) ForAwakening(adv, stage int) bool {
-	base, caps := d.Ints("[growtype maximum level]"), d.Ints("[awakening maximum level]")
-	if stage < 1 || stage > 3 || adv < 1 || adv >= len(base) || len(caps) != 3*len(base) {
+	caps := d.Ints("[awakening maximum level]")
+	cols := d.awakeningColumns()
+	if cols == 0 || stage < 1 || stage > 3 || adv < 1 || adv >= cols {
 		return false
 	}
-	return caps[(stage-1)*len(base)+adv] > 0
+	return caps[(stage-1)*cols+adv] > 0
 }
 
 // Preserve the shared definition while selecting this character's source cap.
@@ -29,12 +56,19 @@ func (d LearningDefinition) forState(state State) LearningDefinition {
 	if !d.ForAwakening(int(state.Advancement), int(state.Awakening)) {
 		return d
 	}
+	cols := d.awakeningColumns()
 	copyFields := map[string][]pvf.Token{}
 	for k, v := range d.Fields {
 		copyFields[k] = v
 	}
 	base := append([]pvf.Token(nil), d.Fields["[growtype maximum level]"]...)
-	base[state.Advancement].Value = int32(d.Ints("[awakening maximum level]")[(int(state.Awakening)-1)*len(base)+int(state.Advancement)])
+	// A skill that only carries an awakening matrix has no base row to write
+	// into: build the missing columns as zeros, so every other growtype stays
+	// refused and only this character's (stage, growtype) cap is selected.
+	for len(base) < cols {
+		base = append(base, pvf.Token{})
+	}
+	base[state.Advancement].Value = int32(d.Ints("[awakening maximum level]")[(int(state.Awakening)-1)*cols+int(state.Advancement)])
 	copyFields["[growtype maximum level]"] = base
 	copyFields["[skill fitness growtype]"] = []pvf.Token{{Type: 0, Value: int32(state.Advancement)}}
 	d.Fields = copyFields
