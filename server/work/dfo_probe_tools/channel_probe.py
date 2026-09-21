@@ -433,6 +433,14 @@ with (
    command += ["-item-index", str(project / "configs/items.index.json")]
   if (project / "configs/booster-catalog.json").exists():
    command += ["-booster-catalog", str(project / "configs/booster-catalog.json")]
+  # Magic-seal unsealing (CMD393) rolls from the current random option rules;
+  # the default relative path never resolves because the gateway's cwd is the
+  # project root, so pass the absolute catalog like every other config.
+  if (project / "configs/randomoption.current37.json").exists():
+   command += [
+    "-random-option-catalog",
+    str(project / "configs/randomoption.current37.json"),
+   ]
   shop_release = project / "configs/shop-vault-release.json"
   shop_pilot = project / "configs/shop-purchase-pilot.json"
   if os.environ.get("DFO_SHOP_PURCHASE_PILOT"):

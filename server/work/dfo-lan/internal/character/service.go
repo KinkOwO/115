@@ -309,10 +309,19 @@ func (s *Service) AppearanceProbe(role storage.Character, channelContext [2]byte
 // value provenance. state must be the whole stored state object (ReadBag
 // looks up the bag keys one level above the inventory sub-object).
 //
-// No slot filter is applied here on purpose: the client's own entry trace
+// No body-slot filter is applied here on purpose: the client's own entry trace
 // accepts body-equipment rows 14..25 verbatim ("equip : 24 - 骑士之盾"), and
 // the 0x145a8a780 key set is the cosmetic-layer table, a different coordinate
 // system from the [equipment type] slot space.
+//
+// Slots above the client's equipped-appearance table (protocol tops out at 25)
+// are skipped, not emitted: the creature rides worn slot 26 and its visuals
+// travel the creature packets, while a slot-26 row here makes the native
+// encoder reject the whole block - live 2026-09-21, every CMD19 equip on a
+// creature-wearing character failed with "equipped appearance slot 26 exceeds
+// the client table" and the client showed its generic move-refusal notice.
+const maxWornAppearanceSlot = 25
+
 func (s *Service) wornAppearance(state json.RawMessage) ([]protocol.EquippedAppearance, error) {
 	bag, err := inventory.ReadBag(state)
 	if err != nil {
@@ -324,6 +333,9 @@ func (s *Service) wornAppearance(state json.RawMessage) ([]protocol.EquippedAppe
 
 	rows := make([]protocol.EquippedAppearance, 0, len(bag.Worn))
 	for _, w := range bag.Worn {
+		if w.Slot > maxWornAppearanceSlot {
+			continue
+		}
 		rows = append(rows, protocol.EquippedAppearance{Slot: byte(w.Slot), Model: w.Template})
 	}
 	if len(rows) == 0 {

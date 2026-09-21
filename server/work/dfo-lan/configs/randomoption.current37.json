@@ -1,0 +1,9545 @@
+{
+  "model": "current115-randomoption-v1",
+  "source": {
+    "format": "dfo_20260901_inner",
+    "path": "runtime/pvf_source/Script.inner.pvf",
+    "size": 760531281,
+    "checksum": "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80",
+    "loaded_at": "2026-09-21T08:36:59.2953889Z",
+    "file_count": 5650173,
+    "group_count": 82571,
+    "cached_chunks": 2,
+    "cached_texts": 0
+  },
+  "exported_from_checksum": "be95d64ee120248ae503194d2f61743ef74409a8ff999a4a986ca2e0bccf69b0",
+  "table_sha256": {
+    "etc/randomoption/optiongrouping.etc": "108521551022c6e42e1a312d4e62de2f422c930acb703723a79277705fa4ebf9",
+    "etc/randomoption/optiongroupselection.etc": "d6e05270676cb83424b750666c0003722e54264c5ff5a57e1a36a6458be31683",
+    "etc/randomoption/optionnumbering.etc": "34b078686b684843bf017dce72c3fe4a007b416d0c72b71e680db682bfaad1af",
+    "etc/randomoption/optionquantity.etc": "d38161df840564aecf391b5cba66bfcfe475696dfe8dddac7b0eae47105d1e07",
+    "etc/randomoption/randomizedoptionoverall1.etc": "b323447a66746c0fe194e53e24b8ebe3ada31576eee519c36aa221855046ee9f",
+    "etc/randomoption/randomizedoptionoverall2.etc": "8a41e3833206cb048b0a50edc0423aeed957edd59378e821027d918e3597cb35"
+  },
+  "value_ratios": [
+    {
+      "Low": 0.1,
+      "High": 0.3,
+      "Weight": 25
+    },
+    {
+      "Low": 0.4,
+      "High": 0.5,
+      "Weight": 140
+    },
+    {
+      "Low": 0.6,
+      "High": 0.7,
+      "Weight": 25000
+    },
+    {
+      "Low": 0.8,
+      "High": 1,
+      "Weight": 50000
+    }
+  ],
+  "quantity_weights": {
+    "2": [
+      [
+        1,
+        10000
+      ],
+      [
+        2,
+        600
+      ],
+      [
+        3,
+        0
+      ]
+    ],
+    "3": [
+      [
+        1,
+        10000
+      ],
+      [
+        2,
+        3000
+      ],
+      [
+        3,
+        200
+      ]
+    ]
+  },
+  "option_quantities": [
+    {
+      "Rarity": 2,
+      "OptionType": 1,
+      "Level": 1,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 1,
+      "Level": 5,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 1,
+      "Level": 10,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 1,
+      "Level": 15,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 1,
+      "Level": 20,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 1,
+      "Level": 25,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 1,
+      "Level": 30,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 1,
+      "Level": 35,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 1,
+      "Level": 40,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 1,
+      "Level": 45,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 1,
+      "Level": 50,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 1,
+      "Level": 55,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 1,
+      "Level": 60,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 1,
+      "Level": 65,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 1,
+      "Level": 70,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 1,
+      "Level": 75,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 1,
+      "Level": 80,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 1,
+      "Level": 85,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 1,
+      "Level": 90,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 1,
+      "Level": 95,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 1,
+      "Level": 100,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 1,
+      "Level": 105,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 1,
+      "Level": 110,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 1,
+      "Level": 115,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 1,
+      "Level": 120,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 1,
+      "Level": 125,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 1,
+      "Level": 130,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 1,
+      "Level": 135,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 1,
+      "Level": 140,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 1,
+      "Level": 145,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 1,
+      "Level": 150,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 1,
+      "Level": 155,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 1,
+      "Level": 160,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 1,
+      "Level": 165,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 1,
+      "Level": 170,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 1,
+      "Level": 175,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 1,
+      "Level": 180,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 1,
+      "Level": 185,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 1,
+      "Level": 190,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 1,
+      "Level": 195,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 1,
+      "Level": 200,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 2,
+      "Level": 1,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 2,
+      "Level": 5,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 2,
+      "Level": 10,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 2,
+      "Level": 15,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 2,
+      "Level": 20,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 2,
+      "Level": 25,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 2,
+      "Level": 30,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 2,
+      "Level": 35,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 2,
+      "Level": 40,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 2,
+      "Level": 45,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 2,
+      "Level": 50,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 2,
+      "Level": 55,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 2,
+      "Level": 60,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 2,
+      "Level": 65,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 2,
+      "Level": 70,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 2,
+      "Level": 75,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 2,
+      "Level": 80,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 2,
+      "Level": 85,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 2,
+      "Level": 90,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 2,
+      "Level": 95,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 2,
+      "Level": 100,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 2,
+      "Level": 105,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 2,
+      "Level": 110,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 2,
+      "Level": 115,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 2,
+      "Level": 120,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 2,
+      "Level": 125,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 2,
+      "Level": 130,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 2,
+      "Level": 135,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 2,
+      "Level": 140,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 2,
+      "Level": 145,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 2,
+      "Level": 150,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 2,
+      "Level": 155,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 2,
+      "Level": 160,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 2,
+      "Level": 165,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 2,
+      "Level": 170,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 2,
+      "Level": 175,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 2,
+      "Level": 180,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 2,
+      "Level": 185,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 2,
+      "Level": 190,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 2,
+      "Level": 195,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 2,
+      "Level": 200,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 3,
+      "Level": 1,
+      "Min": 1,
+      "Max": 1
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 3,
+      "Level": 5,
+      "Min": 1,
+      "Max": 1
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 3,
+      "Level": 10,
+      "Min": 1,
+      "Max": 1
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 3,
+      "Level": 15,
+      "Min": 1,
+      "Max": 1
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 3,
+      "Level": 20,
+      "Min": 1,
+      "Max": 1
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 3,
+      "Level": 25,
+      "Min": 1,
+      "Max": 1
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 3,
+      "Level": 30,
+      "Min": 1,
+      "Max": 1
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 3,
+      "Level": 35,
+      "Min": 1,
+      "Max": 1
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 3,
+      "Level": 40,
+      "Min": 1,
+      "Max": 1
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 3,
+      "Level": 45,
+      "Min": 1,
+      "Max": 1
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 3,
+      "Level": 50,
+      "Min": 1,
+      "Max": 1
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 3,
+      "Level": 55,
+      "Min": 1,
+      "Max": 1
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 3,
+      "Level": 60,
+      "Min": 1,
+      "Max": 1
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 3,
+      "Level": 65,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 3,
+      "Level": 70,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 3,
+      "Level": 75,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 3,
+      "Level": 80,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 3,
+      "Level": 85,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 3,
+      "Level": 90,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 3,
+      "Level": 95,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 3,
+      "Level": 100,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 3,
+      "Level": 105,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 3,
+      "Level": 110,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 3,
+      "Level": 115,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 3,
+      "Level": 120,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 3,
+      "Level": 125,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 3,
+      "Level": 130,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 3,
+      "Level": 135,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 3,
+      "Level": 140,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 3,
+      "Level": 145,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 3,
+      "Level": 150,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 3,
+      "Level": 155,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 3,
+      "Level": 160,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 3,
+      "Level": 165,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 3,
+      "Level": 170,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 3,
+      "Level": 175,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 3,
+      "Level": 180,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 3,
+      "Level": 185,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 3,
+      "Level": 190,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 3,
+      "Level": 195,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 3,
+      "Level": 200,
+      "Min": 1,
+      "Max": 2
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 1,
+      "Level": 1,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 1,
+      "Level": 5,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 1,
+      "Level": 10,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 1,
+      "Level": 15,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 1,
+      "Level": 20,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 1,
+      "Level": 25,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 1,
+      "Level": 30,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 1,
+      "Level": 35,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 1,
+      "Level": 40,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 1,
+      "Level": 45,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 1,
+      "Level": 50,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 1,
+      "Level": 55,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 1,
+      "Level": 60,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 1,
+      "Level": 65,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 1,
+      "Level": 70,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 1,
+      "Level": 75,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 1,
+      "Level": 80,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 1,
+      "Level": 85,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 1,
+      "Level": 90,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 1,
+      "Level": 95,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 1,
+      "Level": 100,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 1,
+      "Level": 105,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 1,
+      "Level": 110,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 1,
+      "Level": 115,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 1,
+      "Level": 120,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 1,
+      "Level": 125,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 1,
+      "Level": 130,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 1,
+      "Level": 135,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 1,
+      "Level": 140,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 1,
+      "Level": 145,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 1,
+      "Level": 150,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 1,
+      "Level": 155,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 1,
+      "Level": 160,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 1,
+      "Level": 165,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 1,
+      "Level": 170,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 1,
+      "Level": 175,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 1,
+      "Level": 180,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 1,
+      "Level": 185,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 1,
+      "Level": 190,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 1,
+      "Level": 195,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 1,
+      "Level": 200,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 2,
+      "Level": 1,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 2,
+      "Level": 5,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 2,
+      "Level": 10,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 2,
+      "Level": 15,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 2,
+      "Level": 20,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 2,
+      "Level": 25,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 2,
+      "Level": 30,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 2,
+      "Level": 35,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 2,
+      "Level": 40,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 2,
+      "Level": 45,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 2,
+      "Level": 50,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 2,
+      "Level": 55,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 2,
+      "Level": 60,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 2,
+      "Level": 65,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 2,
+      "Level": 70,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 2,
+      "Level": 75,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 2,
+      "Level": 80,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 2,
+      "Level": 85,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 2,
+      "Level": 90,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 2,
+      "Level": 95,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 2,
+      "Level": 100,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 2,
+      "Level": 105,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 2,
+      "Level": 110,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 2,
+      "Level": 115,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 2,
+      "Level": 120,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 2,
+      "Level": 125,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 2,
+      "Level": 130,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 2,
+      "Level": 135,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 2,
+      "Level": 140,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 2,
+      "Level": 145,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 2,
+      "Level": 150,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 2,
+      "Level": 155,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 2,
+      "Level": 160,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 2,
+      "Level": 165,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 2,
+      "Level": 170,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 2,
+      "Level": 175,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 2,
+      "Level": 180,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 2,
+      "Level": 185,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 2,
+      "Level": 190,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 2,
+      "Level": 195,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 2,
+      "Level": 200,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 3,
+      "Level": 1,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 3,
+      "Level": 5,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 3,
+      "Level": 10,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 3,
+      "Level": 15,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 3,
+      "Level": 20,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 3,
+      "Level": 25,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 3,
+      "Level": 30,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 3,
+      "Level": 35,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 3,
+      "Level": 40,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 3,
+      "Level": 45,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 3,
+      "Level": 50,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 3,
+      "Level": 55,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 3,
+      "Level": 60,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 3,
+      "Level": 65,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 3,
+      "Level": 70,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 3,
+      "Level": 75,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 3,
+      "Level": 80,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 3,
+      "Level": 85,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 3,
+      "Level": 90,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 3,
+      "Level": 95,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 3,
+      "Level": 100,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 3,
+      "Level": 105,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 3,
+      "Level": 110,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 3,
+      "Level": 115,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 3,
+      "Level": 120,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 3,
+      "Level": 125,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 3,
+      "Level": 130,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 3,
+      "Level": 135,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 3,
+      "Level": 140,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 3,
+      "Level": 145,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 3,
+      "Level": 150,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 3,
+      "Level": 155,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 3,
+      "Level": 160,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 3,
+      "Level": 165,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 3,
+      "Level": 170,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 3,
+      "Level": 175,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 3,
+      "Level": 180,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 3,
+      "Level": 185,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 3,
+      "Level": 190,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 3,
+      "Level": 195,
+      "Min": 1,
+      "Max": 3
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 3,
+      "Level": 200,
+      "Min": 1,
+      "Max": 3
+    }
+  ],
+  "option_groups": {
+    "1000": [
+      [
+        15,
+        908
+      ],
+      [
+        16,
+        908
+      ],
+      [
+        25,
+        908
+      ],
+      [
+        27,
+        908
+      ],
+      [
+        41,
+        908
+      ],
+      [
+        42,
+        908
+      ],
+      [
+        240,
+        908
+      ],
+      [
+        241,
+        908
+      ],
+      [
+        242,
+        908
+      ],
+      [
+        243,
+        908
+      ],
+      [
+        244,
+        3
+      ],
+      [
+        245,
+        3
+      ],
+      [
+        246,
+        3
+      ],
+      [
+        247,
+        3
+      ],
+      [
+        64,
+        1
+      ],
+      [
+        21,
+        908
+      ]
+    ],
+    "1001": [
+      [
+        15,
+        908
+      ],
+      [
+        16,
+        908
+      ],
+      [
+        26,
+        908
+      ],
+      [
+        27,
+        908
+      ],
+      [
+        41,
+        908
+      ],
+      [
+        42,
+        908
+      ],
+      [
+        240,
+        908
+      ],
+      [
+        241,
+        908
+      ],
+      [
+        242,
+        908
+      ],
+      [
+        243,
+        908
+      ],
+      [
+        244,
+        3
+      ],
+      [
+        245,
+        3
+      ],
+      [
+        246,
+        3
+      ],
+      [
+        247,
+        3
+      ],
+      [
+        64,
+        1
+      ],
+      [
+        21,
+        908
+      ]
+    ],
+    "1002": [
+      [
+        70,
+        1250
+      ],
+      [
+        71,
+        1250
+      ],
+      [
+        72,
+        1250
+      ],
+      [
+        73,
+        1250
+      ],
+      [
+        74,
+        1250
+      ],
+      [
+        75,
+        1250
+      ],
+      [
+        77,
+        1250
+      ],
+      [
+        80,
+        625
+      ],
+      [
+        81,
+        625
+      ]
+    ],
+    "1003": [
+      [
+        96,
+        385
+      ],
+      [
+        100,
+        769
+      ],
+      [
+        101,
+        769
+      ],
+      [
+        102,
+        769
+      ],
+      [
+        103,
+        769
+      ],
+      [
+        104,
+        769
+      ],
+      [
+        105,
+        769
+      ],
+      [
+        117,
+        769
+      ],
+      [
+        118,
+        769
+      ],
+      [
+        119,
+        769
+      ],
+      [
+        120,
+        769
+      ],
+      [
+        130,
+        385
+      ],
+      [
+        131,
+        385
+      ],
+      [
+        132,
+        385
+      ],
+      [
+        133,
+        385
+      ],
+      [
+        134,
+        385
+      ]
+    ],
+    "1004": [
+      [
+        140,
+        1000
+      ],
+      [
+        141,
+        1000
+      ],
+      [
+        142,
+        1000
+      ],
+      [
+        143,
+        1000
+      ],
+      [
+        144,
+        1000
+      ],
+      [
+        145,
+        1000
+      ],
+      [
+        150,
+        1000
+      ],
+      [
+        151,
+        1000
+      ],
+      [
+        152,
+        1000
+      ],
+      [
+        153,
+        1000
+      ]
+    ],
+    "1005": [
+      [
+        15,
+        1000
+      ],
+      [
+        16,
+        1000
+      ],
+      [
+        25,
+        1000
+      ],
+      [
+        27,
+        1000
+      ],
+      [
+        41,
+        1000
+      ],
+      [
+        42,
+        1000
+      ],
+      [
+        240,
+        1000
+      ],
+      [
+        241,
+        1000
+      ],
+      [
+        242,
+        1000
+      ],
+      [
+        243,
+        1000
+      ],
+      [
+        21,
+        1000
+      ],
+      [
+        244,
+        45
+      ],
+      [
+        245,
+        45
+      ],
+      [
+        246,
+        45
+      ],
+      [
+        247,
+        45
+      ],
+      [
+        64,
+        30
+      ],
+      [
+        200,
+        30
+      ],
+      [
+        201,
+        30
+      ],
+      [
+        202,
+        30
+      ],
+      [
+        203,
+        30
+      ],
+      [
+        204,
+        30
+      ],
+      [
+        205,
+        30
+      ],
+      [
+        206,
+        30
+      ]
+    ],
+    "1006": [
+      [
+        15,
+        1000
+      ],
+      [
+        16,
+        1000
+      ],
+      [
+        26,
+        1000
+      ],
+      [
+        27,
+        1000
+      ],
+      [
+        41,
+        1000
+      ],
+      [
+        42,
+        1000
+      ],
+      [
+        240,
+        1000
+      ],
+      [
+        241,
+        1000
+      ],
+      [
+        242,
+        1000
+      ],
+      [
+        243,
+        1000
+      ],
+      [
+        21,
+        1000
+      ],
+      [
+        244,
+        45
+      ],
+      [
+        245,
+        45
+      ],
+      [
+        246,
+        45
+      ],
+      [
+        247,
+        45
+      ],
+      [
+        64,
+        30
+      ],
+      [
+        200,
+        30
+      ],
+      [
+        201,
+        30
+      ],
+      [
+        202,
+        30
+      ],
+      [
+        203,
+        30
+      ],
+      [
+        204,
+        30
+      ],
+      [
+        205,
+        30
+      ],
+      [
+        206,
+        30
+      ]
+    ],
+    "1007": [
+      [
+        70,
+        1250
+      ],
+      [
+        71,
+        1250
+      ],
+      [
+        72,
+        1250
+      ],
+      [
+        73,
+        1250
+      ],
+      [
+        74,
+        1250
+      ],
+      [
+        75,
+        1250
+      ],
+      [
+        77,
+        1250
+      ],
+      [
+        80,
+        625
+      ],
+      [
+        81,
+        625
+      ],
+      [
+        154,
+        56
+      ],
+      [
+        155,
+        56
+      ],
+      [
+        156,
+        56
+      ],
+      [
+        157,
+        56
+      ],
+      [
+        158,
+        56
+      ]
+    ],
+    "1008": [
+      [
+        70,
+        1250
+      ],
+      [
+        71,
+        1250
+      ],
+      [
+        72,
+        1250
+      ],
+      [
+        73,
+        1250
+      ],
+      [
+        74,
+        1250
+      ],
+      [
+        75,
+        1250
+      ],
+      [
+        77,
+        1250
+      ],
+      [
+        80,
+        625
+      ],
+      [
+        81,
+        625
+      ],
+      [
+        159,
+        56
+      ],
+      [
+        160,
+        56
+      ],
+      [
+        161,
+        56
+      ],
+      [
+        162,
+        56
+      ],
+      [
+        163,
+        56
+      ]
+    ],
+    "1009": [
+      [
+        70,
+        1250
+      ],
+      [
+        71,
+        1250
+      ],
+      [
+        72,
+        1250
+      ],
+      [
+        73,
+        1250
+      ],
+      [
+        74,
+        1250
+      ],
+      [
+        75,
+        1250
+      ],
+      [
+        77,
+        1250
+      ],
+      [
+        80,
+        625
+      ],
+      [
+        81,
+        625
+      ],
+      [
+        169,
+        56
+      ],
+      [
+        170,
+        56
+      ],
+      [
+        171,
+        56
+      ],
+      [
+        172,
+        56
+      ]
+    ],
+    "1010": [
+      [
+        70,
+        1250
+      ],
+      [
+        71,
+        1250
+      ],
+      [
+        72,
+        1250
+      ],
+      [
+        73,
+        1250
+      ],
+      [
+        74,
+        1250
+      ],
+      [
+        75,
+        1250
+      ],
+      [
+        77,
+        1250
+      ],
+      [
+        80,
+        625
+      ],
+      [
+        81,
+        625
+      ],
+      [
+        164,
+        56
+      ],
+      [
+        165,
+        56
+      ],
+      [
+        166,
+        56
+      ],
+      [
+        167,
+        56
+      ],
+      [
+        168,
+        56
+      ]
+    ],
+    "1011": [
+      [
+        70,
+        1250
+      ],
+      [
+        71,
+        1250
+      ],
+      [
+        72,
+        1250
+      ],
+      [
+        73,
+        1250
+      ],
+      [
+        74,
+        1250
+      ],
+      [
+        75,
+        1250
+      ],
+      [
+        77,
+        1250
+      ],
+      [
+        80,
+        625
+      ],
+      [
+        81,
+        625
+      ],
+      [
+        173,
+        56
+      ],
+      [
+        174,
+        56
+      ],
+      [
+        175,
+        56
+      ],
+      [
+        176,
+        56
+      ],
+      [
+        177,
+        56
+      ]
+    ],
+    "1012": [
+      [
+        96,
+        385
+      ],
+      [
+        100,
+        769
+      ],
+      [
+        101,
+        769
+      ],
+      [
+        102,
+        769
+      ],
+      [
+        103,
+        769
+      ],
+      [
+        104,
+        769
+      ],
+      [
+        105,
+        769
+      ],
+      [
+        117,
+        769
+      ],
+      [
+        118,
+        769
+      ],
+      [
+        119,
+        769
+      ],
+      [
+        120,
+        769
+      ],
+      [
+        130,
+        385
+      ],
+      [
+        131,
+        385
+      ],
+      [
+        132,
+        385
+      ],
+      [
+        133,
+        385
+      ],
+      [
+        134,
+        385
+      ],
+      [
+        228,
+        28
+      ],
+      [
+        229,
+        28
+      ],
+      [
+        230,
+        28
+      ],
+      [
+        231,
+        28
+      ],
+      [
+        232,
+        28
+      ]
+    ],
+    "1013": [
+      [
+        96,
+        385
+      ],
+      [
+        100,
+        769
+      ],
+      [
+        101,
+        769
+      ],
+      [
+        102,
+        769
+      ],
+      [
+        103,
+        769
+      ],
+      [
+        104,
+        769
+      ],
+      [
+        105,
+        769
+      ],
+      [
+        117,
+        769
+      ],
+      [
+        118,
+        769
+      ],
+      [
+        119,
+        769
+      ],
+      [
+        120,
+        769
+      ],
+      [
+        130,
+        385
+      ],
+      [
+        131,
+        385
+      ],
+      [
+        132,
+        385
+      ],
+      [
+        133,
+        385
+      ],
+      [
+        134,
+        385
+      ],
+      [
+        121,
+        36
+      ],
+      [
+        122,
+        36
+      ],
+      [
+        123,
+        36
+      ]
+    ],
+    "1014": [
+      [
+        96,
+        385
+      ],
+      [
+        100,
+        769
+      ],
+      [
+        101,
+        769
+      ],
+      [
+        102,
+        769
+      ],
+      [
+        103,
+        769
+      ],
+      [
+        104,
+        769
+      ],
+      [
+        105,
+        769
+      ],
+      [
+        117,
+        769
+      ],
+      [
+        118,
+        769
+      ],
+      [
+        119,
+        769
+      ],
+      [
+        120,
+        769
+      ],
+      [
+        130,
+        385
+      ],
+      [
+        131,
+        385
+      ],
+      [
+        132,
+        385
+      ],
+      [
+        133,
+        385
+      ],
+      [
+        134,
+        385
+      ],
+      [
+        238,
+        40
+      ],
+      [
+        239,
+        40
+      ]
+    ],
+    "1015": [
+      [
+        140,
+        1000
+      ],
+      [
+        141,
+        1000
+      ],
+      [
+        142,
+        1000
+      ],
+      [
+        143,
+        1000
+      ],
+      [
+        144,
+        1000
+      ],
+      [
+        145,
+        1000
+      ],
+      [
+        150,
+        1000
+      ],
+      [
+        151,
+        1000
+      ],
+      [
+        152,
+        1000
+      ],
+      [
+        153,
+        1000
+      ],
+      [
+        124,
+        55
+      ],
+      [
+        125,
+        55
+      ],
+      [
+        126,
+        55
+      ]
+    ],
+    "1016": [
+      [
+        140,
+        1000
+      ],
+      [
+        141,
+        1000
+      ],
+      [
+        142,
+        1000
+      ],
+      [
+        143,
+        1000
+      ],
+      [
+        144,
+        1000
+      ],
+      [
+        145,
+        1000
+      ],
+      [
+        150,
+        1000
+      ],
+      [
+        151,
+        1000
+      ],
+      [
+        152,
+        1000
+      ],
+      [
+        153,
+        1000
+      ],
+      [
+        233,
+        55
+      ],
+      [
+        234,
+        55
+      ],
+      [
+        235,
+        55
+      ],
+      [
+        236,
+        55
+      ],
+      [
+        237,
+        55
+      ]
+    ]
+  },
+  "group_choices": [
+    {
+      "Rarity": 2,
+      "Group": "cl coat",
+      "Quantity": 1,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "lt coat",
+      "Quantity": 1,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "la coat",
+      "Quantity": 1,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "ha coat",
+      "Quantity": 1,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "mt coat",
+      "Quantity": 1,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "cl pants",
+      "Quantity": 1,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "lt pants",
+      "Quantity": 1,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "la pants",
+      "Quantity": 1,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "ha pants",
+      "Quantity": 1,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "mt pants",
+      "Quantity": 1,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "cl shoulder",
+      "Quantity": 1,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "lt shoulder",
+      "Quantity": 1,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "la shoulder",
+      "Quantity": 1,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "ha shoulder",
+      "Quantity": 1,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "mt shoulder",
+      "Quantity": 1,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "cl waist",
+      "Quantity": 1,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "lt waist",
+      "Quantity": 1,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "la waist",
+      "Quantity": 1,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "ha waist",
+      "Quantity": 1,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "mt waist",
+      "Quantity": 1,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "cl shoes",
+      "Quantity": 1,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "lt shoes",
+      "Quantity": 1,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "la shoes",
+      "Quantity": 1,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "ha shoes",
+      "Quantity": 1,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "mt shoes",
+      "Quantity": 1,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "amulet",
+      "Quantity": 1,
+      "Groups": [
+        1003,
+        1003,
+        1003
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "wrist",
+      "Quantity": 1,
+      "Groups": [
+        1003,
+        1003,
+        1003
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "ring",
+      "Quantity": 1,
+      "Groups": [
+        1003,
+        1003,
+        1003
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "support",
+      "Quantity": 1,
+      "Groups": [
+        1004,
+        1004,
+        1004
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "magic stone",
+      "Quantity": 1,
+      "Groups": [
+        1004,
+        1004,
+        1004
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "earring",
+      "Quantity": 1,
+      "Groups": [
+        1004,
+        1004,
+        1004
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "bglove",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "claw",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "gauntlet",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "knuckle",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "tonfa",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "automatic",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "bowgun",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "musket",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "revolver",
+      "Quantity": 1,
+      "Groups": [
+        1001,
+        1001,
+        1001
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "hcannon",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "pole",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "rod",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "spear",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "staff",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "broom",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "axe",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "cross",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "rosary",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "scythe",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "totem",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "club",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "lswd",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "katana",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "ssword",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "beamswd",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "dagger",
+      "Quantity": 1,
+      "Groups": [
+        1001,
+        1001,
+        1001
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "twinswd",
+      "Quantity": 1,
+      "Groups": [
+        1001,
+        1001,
+        1001
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "wand",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "chakraweapon",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "pike",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "halberd",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "beamspear",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "javelin",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "lblade",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "sblade",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "mswd",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "coreswd",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "sbow",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "lbow",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "cbow",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "ebow",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "pbow",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "cl coat",
+      "Quantity": 2,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "lt coat",
+      "Quantity": 2,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "la coat",
+      "Quantity": 2,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "ha coat",
+      "Quantity": 2,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "mt coat",
+      "Quantity": 2,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "cl pants",
+      "Quantity": 2,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "lt pants",
+      "Quantity": 2,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "la pants",
+      "Quantity": 2,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "ha pants",
+      "Quantity": 2,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "mt pants",
+      "Quantity": 2,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "cl shoulder",
+      "Quantity": 2,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "lt shoulder",
+      "Quantity": 2,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "la shoulder",
+      "Quantity": 2,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "ha shoulder",
+      "Quantity": 2,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "mt shoulder",
+      "Quantity": 2,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "cl waist",
+      "Quantity": 2,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "lt waist",
+      "Quantity": 2,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "la waist",
+      "Quantity": 2,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "ha waist",
+      "Quantity": 2,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "mt waist",
+      "Quantity": 2,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "cl shoes",
+      "Quantity": 2,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "lt shoes",
+      "Quantity": 2,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "la shoes",
+      "Quantity": 2,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "ha shoes",
+      "Quantity": 2,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "mt shoes",
+      "Quantity": 2,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "amulet",
+      "Quantity": 2,
+      "Groups": [
+        1003,
+        1003,
+        1003
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "wrist",
+      "Quantity": 2,
+      "Groups": [
+        1003,
+        1003,
+        1003
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "ring",
+      "Quantity": 2,
+      "Groups": [
+        1003,
+        1003,
+        1003
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "support",
+      "Quantity": 2,
+      "Groups": [
+        1004,
+        1004,
+        1004
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "magic stone",
+      "Quantity": 2,
+      "Groups": [
+        1004,
+        1004,
+        1004
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "earring",
+      "Quantity": 2,
+      "Groups": [
+        1004,
+        1004,
+        1004
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "bglove",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "claw",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "gauntlet",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "knuckle",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "tonfa",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "automatic",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "bowgun",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "musket",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "revolver",
+      "Quantity": 2,
+      "Groups": [
+        1001,
+        1001,
+        1001
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "hcannon",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "pole",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "rod",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "spear",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "staff",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "broom",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "axe",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "cross",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "rosary",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "scythe",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "totem",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "club",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "lswd",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "katana",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "ssword",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "beamswd",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "dagger",
+      "Quantity": 2,
+      "Groups": [
+        1001,
+        1001,
+        1001
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "twinswd",
+      "Quantity": 2,
+      "Groups": [
+        1001,
+        1001,
+        1001
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "wand",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "chakraweapon",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "pike",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "halberd",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "beamspear",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "javelin",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "lblade",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "sblade",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "mswd",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "coreswd",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "sbow",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "lbow",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "cbow",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "ebow",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "pbow",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "cl coat",
+      "Quantity": 3,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "lt coat",
+      "Quantity": 3,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "la coat",
+      "Quantity": 3,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "ha coat",
+      "Quantity": 3,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "mt coat",
+      "Quantity": 3,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "cl pants",
+      "Quantity": 3,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "lt pants",
+      "Quantity": 3,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "la pants",
+      "Quantity": 3,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "ha pants",
+      "Quantity": 3,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "mt pants",
+      "Quantity": 3,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "cl shoulder",
+      "Quantity": 3,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "lt shoulder",
+      "Quantity": 3,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "la shoulder",
+      "Quantity": 3,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "ha shoulder",
+      "Quantity": 3,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "mt shoulder",
+      "Quantity": 3,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "cl waist",
+      "Quantity": 3,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "lt waist",
+      "Quantity": 3,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "la waist",
+      "Quantity": 3,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "ha waist",
+      "Quantity": 3,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "mt waist",
+      "Quantity": 3,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "cl shoes",
+      "Quantity": 3,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "lt shoes",
+      "Quantity": 3,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "la shoes",
+      "Quantity": 3,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "ha shoes",
+      "Quantity": 3,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "mt shoes",
+      "Quantity": 3,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "amulet",
+      "Quantity": 3,
+      "Groups": [
+        1003,
+        1003,
+        1003
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "wrist",
+      "Quantity": 3,
+      "Groups": [
+        1003,
+        1003,
+        1003
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "ring",
+      "Quantity": 3,
+      "Groups": [
+        1003,
+        1003,
+        1003
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "support",
+      "Quantity": 3,
+      "Groups": [
+        1004,
+        1004,
+        1004
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "magic stone",
+      "Quantity": 3,
+      "Groups": [
+        1004,
+        1004,
+        1004
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "earring",
+      "Quantity": 3,
+      "Groups": [
+        1004,
+        1004,
+        1004
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "bglove",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "claw",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "gauntlet",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "knuckle",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "tonfa",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "automatic",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "bowgun",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "musket",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "revolver",
+      "Quantity": 3,
+      "Groups": [
+        1001,
+        1001,
+        1001
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "hcannon",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "pole",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "rod",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "spear",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "staff",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "broom",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "axe",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "cross",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "rosary",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "scythe",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "totem",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "club",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "lswd",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "katana",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "ssword",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "beamswd",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "dagger",
+      "Quantity": 3,
+      "Groups": [
+        1001,
+        1001,
+        1001
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "twinswd",
+      "Quantity": 3,
+      "Groups": [
+        1001,
+        1001,
+        1001
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "wand",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "chakraweapon",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "pike",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "halberd",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "beamspear",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "javelin",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "lblade",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "sblade",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "mswd",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "coreswd",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "sbow",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "lbow",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "cbow",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "ebow",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Group": "pbow",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "cl coat",
+      "Quantity": 1,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "lt coat",
+      "Quantity": 1,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "la coat",
+      "Quantity": 1,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "ha coat",
+      "Quantity": 1,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "mt coat",
+      "Quantity": 1,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "cl pants",
+      "Quantity": 1,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "lt pants",
+      "Quantity": 1,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "la pants",
+      "Quantity": 1,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "ha pants",
+      "Quantity": 1,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "mt pants",
+      "Quantity": 1,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "cl shoulder",
+      "Quantity": 1,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "lt shoulder",
+      "Quantity": 1,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "la shoulder",
+      "Quantity": 1,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "ha shoulder",
+      "Quantity": 1,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "mt shoulder",
+      "Quantity": 1,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "cl waist",
+      "Quantity": 1,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "lt waist",
+      "Quantity": 1,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "la waist",
+      "Quantity": 1,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "ha waist",
+      "Quantity": 1,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "mt waist",
+      "Quantity": 1,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "cl shoes",
+      "Quantity": 1,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "lt shoes",
+      "Quantity": 1,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "la shoes",
+      "Quantity": 1,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "ha shoes",
+      "Quantity": 1,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "mt shoes",
+      "Quantity": 1,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "amulet",
+      "Quantity": 1,
+      "Groups": [
+        1003,
+        1003,
+        1003
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "wrist",
+      "Quantity": 1,
+      "Groups": [
+        1003,
+        1003,
+        1003
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "ring",
+      "Quantity": 1,
+      "Groups": [
+        1003,
+        1003,
+        1003
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "support",
+      "Quantity": 1,
+      "Groups": [
+        1004,
+        1004,
+        1004
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "magic stone",
+      "Quantity": 1,
+      "Groups": [
+        1004,
+        1004,
+        1004
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "earring",
+      "Quantity": 1,
+      "Groups": [
+        1004,
+        1004,
+        1004
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "bglove",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1001
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "claw",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "gauntlet",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "knuckle",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "tonfa",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "automatic",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "bowgun",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "musket",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "revolver",
+      "Quantity": 1,
+      "Groups": [
+        1001,
+        1001,
+        1001
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "hcannon",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "pole",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "rod",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "spear",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "staff",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "broom",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "axe",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "cross",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "rosary",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "scythe",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "totem",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "club",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "lswd",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "katana",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "ssword",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "beamswd",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "dagger",
+      "Quantity": 1,
+      "Groups": [
+        1001,
+        1001,
+        1001
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "twinswd",
+      "Quantity": 1,
+      "Groups": [
+        1001,
+        1001,
+        1001
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "wand",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "chakraweapon",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "pike",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "halberd",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "beamspear",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "javelin",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "lblade",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "sblade",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "mswd",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "coreswd",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "sbow",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "lbow",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "cbow",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "ebow",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "pbow",
+      "Quantity": 1,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "cl coat",
+      "Quantity": 2,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "lt coat",
+      "Quantity": 2,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "la coat",
+      "Quantity": 2,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "ha coat",
+      "Quantity": 2,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "mt coat",
+      "Quantity": 2,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "cl pants",
+      "Quantity": 2,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "lt pants",
+      "Quantity": 2,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "la pants",
+      "Quantity": 2,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "ha pants",
+      "Quantity": 2,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "mt pants",
+      "Quantity": 2,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "cl shoulder",
+      "Quantity": 2,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "lt shoulder",
+      "Quantity": 2,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "la shoulder",
+      "Quantity": 2,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "ha shoulder",
+      "Quantity": 2,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "mt shoulder",
+      "Quantity": 2,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "cl waist",
+      "Quantity": 2,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "lt waist",
+      "Quantity": 2,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "la waist",
+      "Quantity": 2,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "ha waist",
+      "Quantity": 2,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "mt waist",
+      "Quantity": 2,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "cl shoes",
+      "Quantity": 2,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "lt shoes",
+      "Quantity": 2,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "la shoes",
+      "Quantity": 2,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "ha shoes",
+      "Quantity": 2,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "mt shoes",
+      "Quantity": 2,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "amulet",
+      "Quantity": 2,
+      "Groups": [
+        1003,
+        1003,
+        1003
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "wrist",
+      "Quantity": 2,
+      "Groups": [
+        1003,
+        1003,
+        1003
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "ring",
+      "Quantity": 2,
+      "Groups": [
+        1003,
+        1003,
+        1003
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "support",
+      "Quantity": 2,
+      "Groups": [
+        1004,
+        1004,
+        1004
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "magic stone",
+      "Quantity": 2,
+      "Groups": [
+        1004,
+        1004,
+        1004
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "earring",
+      "Quantity": 2,
+      "Groups": [
+        1004,
+        1004,
+        1004
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "bglove",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1001
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "claw",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "gauntlet",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "knuckle",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "tonfa",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "automatic",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "bowgun",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "musket",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "revolver",
+      "Quantity": 2,
+      "Groups": [
+        1001,
+        1001,
+        1001
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "hcannon",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "pole",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "rod",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "spear",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "staff",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "broom",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "axe",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "cross",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "rosary",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "scythe",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "totem",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "club",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "lswd",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "katana",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "ssword",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "beamswd",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "dagger",
+      "Quantity": 2,
+      "Groups": [
+        1001,
+        1001,
+        1001
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "twinswd",
+      "Quantity": 2,
+      "Groups": [
+        1001,
+        1001,
+        1001
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "wand",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "chakraweapon",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "pike",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "halberd",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "beamspear",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "javelin",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "lblade",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "sblade",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "mswd",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "coreswd",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "sbow",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "lbow",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "cbow",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "ebow",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "pbow",
+      "Quantity": 2,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "cl coat",
+      "Quantity": 3,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "lt coat",
+      "Quantity": 3,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "la coat",
+      "Quantity": 3,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "ha coat",
+      "Quantity": 3,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "mt coat",
+      "Quantity": 3,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "cl pants",
+      "Quantity": 3,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "lt pants",
+      "Quantity": 3,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "la pants",
+      "Quantity": 3,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "ha pants",
+      "Quantity": 3,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "mt pants",
+      "Quantity": 3,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "cl shoulder",
+      "Quantity": 3,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "lt shoulder",
+      "Quantity": 3,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "la shoulder",
+      "Quantity": 3,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "ha shoulder",
+      "Quantity": 3,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "mt shoulder",
+      "Quantity": 3,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "cl waist",
+      "Quantity": 3,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "lt waist",
+      "Quantity": 3,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "la waist",
+      "Quantity": 3,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "ha waist",
+      "Quantity": 3,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "mt waist",
+      "Quantity": 3,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "cl shoes",
+      "Quantity": 3,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "lt shoes",
+      "Quantity": 3,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "la shoes",
+      "Quantity": 3,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "ha shoes",
+      "Quantity": 3,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "mt shoes",
+      "Quantity": 3,
+      "Groups": [
+        1002,
+        1002,
+        1002
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "amulet",
+      "Quantity": 3,
+      "Groups": [
+        1003,
+        1003,
+        1003
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "wrist",
+      "Quantity": 3,
+      "Groups": [
+        1003,
+        1003,
+        1003
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "ring",
+      "Quantity": 3,
+      "Groups": [
+        1003,
+        1003,
+        1003
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "support",
+      "Quantity": 3,
+      "Groups": [
+        1004,
+        1004,
+        1004
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "magic stone",
+      "Quantity": 3,
+      "Groups": [
+        1004,
+        1004,
+        1004
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "earring",
+      "Quantity": 3,
+      "Groups": [
+        1004,
+        1004,
+        1004
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "bglove",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1001
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "claw",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "gauntlet",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "knuckle",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "tonfa",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "automatic",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "bowgun",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "musket",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "revolver",
+      "Quantity": 3,
+      "Groups": [
+        1001,
+        1001,
+        1001
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "hcannon",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "pole",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "rod",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "spear",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "staff",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "broom",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "axe",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "cross",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "rosary",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "scythe",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "totem",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "club",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "lswd",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "katana",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "ssword",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "beamswd",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "dagger",
+      "Quantity": 3,
+      "Groups": [
+        1001,
+        1001,
+        1001
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "twinswd",
+      "Quantity": 3,
+      "Groups": [
+        1001,
+        1001,
+        1001
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "wand",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "chakraweapon",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "pike",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "halberd",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "beamspear",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "javelin",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "lblade",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "sblade",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "mswd",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "coreswd",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "sbow",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "lbow",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "cbow",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "ebow",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Group": "pbow",
+      "Quantity": 3,
+      "Groups": [
+        1000,
+        1000,
+        1000
+      ]
+    }
+  ],
+  "option_type_weights": [
+    {
+      "Rarity": 2,
+      "Level": 1,
+      "Weights": [
+        7000,
+        7000,
+        3000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Level": 5,
+      "Weights": [
+        7000,
+        7000,
+        3000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Level": 10,
+      "Weights": [
+        7000,
+        7000,
+        3000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Level": 15,
+      "Weights": [
+        7000,
+        7000,
+        3000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Level": 20,
+      "Weights": [
+        7000,
+        7000,
+        3000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Level": 25,
+      "Weights": [
+        7000,
+        7000,
+        3000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Level": 30,
+      "Weights": [
+        7000,
+        7000,
+        3000
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Level": 35,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Level": 40,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Level": 45,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Level": 50,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Level": 55,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Level": 60,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Level": 65,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Level": 70,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Level": 75,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Level": 80,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Level": 85,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Level": 90,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Level": 95,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Level": 100,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Level": 105,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Level": 110,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Level": 115,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Level": 120,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Level": 125,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Level": 130,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Level": 135,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Level": 140,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Level": 145,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Level": 150,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Level": 155,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Level": 160,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Level": 165,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Level": 170,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Level": 175,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Level": 180,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Level": 185,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Level": 190,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Level": 195,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 2,
+      "Level": 200,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Level": 1,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Level": 5,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Level": 10,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Level": 15,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Level": 20,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Level": 25,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Level": 30,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Level": 35,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Level": 40,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Level": 45,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Level": 50,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Level": 55,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Level": 60,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Level": 65,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Level": 70,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Level": 75,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Level": 80,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Level": 85,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Level": 90,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Level": 95,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Level": 100,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Level": 105,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Level": 110,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Level": 115,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Level": 120,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Level": 125,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Level": 130,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Level": 135,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Level": 140,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Level": 145,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Level": 150,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Level": 155,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Level": 160,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Level": 165,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Level": 170,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Level": 175,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Level": 180,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Level": 185,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Level": 190,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Level": 195,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    },
+    {
+      "Rarity": 3,
+      "Level": 200,
+      "Weights": [
+        7000,
+        7000,
+        2500
+      ]
+    }
+  ],
+  "different_weights": [
+    {
+      "Rarity": 2,
+      "OptionType": 1,
+      "Min": 0,
+      "Max": 25
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 2,
+      "Min": 10,
+      "Max": 30
+    },
+    {
+      "Rarity": 2,
+      "OptionType": 3,
+      "Min": 30,
+      "Max": 55
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 1,
+      "Min": 10,
+      "Max": 35
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 2,
+      "Min": 20,
+      "Max": 40
+    },
+    {
+      "Rarity": 3,
+      "OptionType": 3,
+      "Min": 40,
+      "Max": 65
+    }
+  ],
+  "break_seal_costs": [
+    {
+      "Rarity": 2,
+      "Level": 1,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 1,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 1,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 5,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 5,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 5,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 10,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 10,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 10,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 15,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 15,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 15,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 20,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 20,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 20,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 25,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 25,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 25,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 30,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 30,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 30,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 35,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 35,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 35,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 40,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 40,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 40,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 45,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 45,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 45,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 50,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 50,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 50,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 55,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 55,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 55,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 60,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 60,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 60,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 65,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 65,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 65,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 70,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 70,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 70,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 75,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 75,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 75,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 80,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 80,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 80,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 85,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 85,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 85,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 90,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 90,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 90,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 95,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 95,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 95,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 100,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 100,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 100,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 105,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 105,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 105,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 110,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 110,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 110,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 115,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 115,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 115,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 120,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 120,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 120,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 125,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 125,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 125,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 130,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 130,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 130,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 135,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 135,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 135,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 140,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 140,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 140,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 145,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 145,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 145,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 150,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 150,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 150,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 155,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 155,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 155,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 160,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 160,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 160,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 165,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 165,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 165,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 170,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 170,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 170,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 175,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 175,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 175,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 180,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 180,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 180,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 185,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 185,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 185,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 190,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 190,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 190,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 195,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 195,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 195,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 200,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 200,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 2,
+      "Level": 200,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 1,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 1,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 1,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 5,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 5,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 5,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 10,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 10,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 10,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 15,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 15,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 15,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 20,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 20,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 20,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 25,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 25,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 25,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 30,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 30,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 30,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 35,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 35,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 35,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 40,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 40,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 40,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 45,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 45,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 45,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 50,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 50,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 50,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 55,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 55,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 55,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 60,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 60,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 60,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 65,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 65,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 65,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 70,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 70,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 70,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 75,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 75,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 75,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 80,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 80,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 80,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 85,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 85,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 85,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 90,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 90,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 90,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 95,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 95,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 95,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 100,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 100,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 100,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 105,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 105,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 105,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 110,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 110,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 110,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 115,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 115,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 115,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 120,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 120,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 120,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 125,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 125,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 125,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 130,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 130,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 130,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 135,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 135,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 135,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 140,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 140,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 140,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 145,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 145,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 145,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 150,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 150,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 150,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 155,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 155,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 155,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 160,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 160,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 160,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 165,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 165,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 165,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 170,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 170,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 170,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 175,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 175,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 175,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 180,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 180,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 180,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 185,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 185,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 185,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 190,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 190,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 190,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 195,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 195,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 195,
+      "Part": 3,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 200,
+      "Part": 1,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 200,
+      "Part": 2,
+      "Cost": 0
+    },
+    {
+      "Rarity": 3,
+      "Level": 200,
+      "Part": 3,
+      "Cost": 0
+    }
+  ]
+}

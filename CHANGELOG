@@ -1,6 +1,21 @@
 # CHANGELOG
 
 ## 2026-09-21
+- 实现魔法封印装备解封 CMD 393（`ENUM_CMDPACKET_UNSEAL_RANDOM_OPTION`）服务端完整闭环，修复"右键解封无回包、装备无法解除封装"的问题。
+  - **背景与根因**：115 客户端右键魔法封印装备（`.equ` 带 `[random option] 1` 的稀有/神器装备）时发送 CMD 393，服务端没有任何 393 处理器，客户端等不到回包一直卡在解封等待态。IDA 闭环取证：发送器 `sub_145AE9AE0` 写 `u16 目标槽位 + u16 卷轴槽位（0xFFFF=无卷轴）`；客户端通用应答读取器（`sub_1459A1BB0`）消费 `u8 状态`（失败时追加 `u16 错误码`）；两套注册器+UI 映射注册器全量扫描确认**没有 393 专用响应处理器**，成功包体即裸字节 `01`。实机抓包（2026-09-21T18:53）验证请求体 `0a00ffff00000000`。
+  - **封存判定**：实机背包中的封印装备（100310840/100310581/100320649）记录 byte13=0、选项块（record[60..75]）全零；解封=**填充随机选项块并保持 byte13=0**（与参考实现的后置状态一致），随后推送 NOTI14 单行装备更新。
+  - **随机选项规则**：新增 `cmd/randomoptionimport` 从当前客户端内层 PVF 导出 `etc/randomoption/` 七张权威表生成 `configs/randomoption.current37.json`（选项值比率 4、数量权重 2、数量表 246、选项组 17、组选择 438、类型权重 82、数值区间 6、解封费用 246）；与参考目录条目数完全一致。全量审计 3795 件 `[random option]==1` 装备，稀有度/等级/部位组 100% 命中表项，精确查找、缺失即拒绝。**当前版本解封费用全表为 0，不收金币**。
+  - **基线钉扎**：当前内层 PVF 容器哈希（be95d64e）与生产目录基线（7ef2db59）不同，但 3795 件 `.equ` 与七张表逐字节比对 0 漂移，配置钉扎生产基线并将真实归档哈希留存于 `exported_from_checksum`。
+  - **持久化与幂等**：解封后完整 181 字节记录存入 `BagEquipment.Record`（重登保留）；经 `CommitCharacterEvent` 以封印前镜像哈希作事件键提交，重复右键回放首次结果，失配拒绝。
+  - **实现文件**：`cmd/randomoptionimport/main.go`、`internal/inventory/randomoption.go`（目录+roll+背包操作）、`internal/inventory/unseal.go`（事务服务）、`internal/game/protocol/unseal.go`（解码+应答）、`cmd/wireprobe/unseal_flow.go`、`cmd/wireprobe/main.go`、`cmd/wireprobe/request_scope.go`、`server/work/dfo_probe_tools/channel_probe.py`（绝对路径传 `-random-option-catalog`，网关 cwd 为项目根，相对默认值不会生效）。
+  - **测试**：新增 `randomoption_test.go`（含实机锚点 100310840 的 200 次 roll 分布断言与解封/重复解封/空槽/未标记装备拒绝用例）与 `unseal_test.go`（实机向量解码）；`go test ./...` 与 `go vet ./...` 全部通过；启动冒烟确认 `magic-seal unsealing enabled: 17 option groups`。
+- **实机验收（2026-09-21）**：用户实机测试确认魔法封印装备右键解封成功，随机选项正常生成并持久化；解封后装备正常穿戴入槽，属性与外观生效，重登数据完整保留。
+  - **范围外**：掉落/奖励不产生封印装备（是否让合格装备带封印掉落是独立设计决策）；卷轴辅助解封（scroll≠0xFFFF）以码 13 拒绝；399/429/446/447 等其他随机选项 opcode 未实现。
+- 修复穿戴宠物（creature）的角色无法穿戴任何装备的问题（解封实机验收时暴露，2026-09-21 17:04 会话）。
+  - **背景与根因**：穿戴宠物后宠物占用 worn 槽位 26（模板 63019）。`internal/character/service.go` 的 `wornAppearance` 在 CMD19 装备移动后的外观刷新（`AppearanceProbe`）中无差别投影所有 worn 槽位，而客户端装备外观表上限为槽位 25（`maxEquippedAppearanceSlot`），编码器遇到槽 26 整体报错 `equipped appearance slot 26 exceeds the client table`，导致该角色**所有**穿戴请求被拒（客户端弹"目标背包已满"通用提示）。此前未暴露是因为该角色此前没有可穿戴的未封印装备。
+  - **修复实现**：`wornAppearance` 跳过槽位 >25 的行（宠物外观由宠物包独立承载，next44）；新增 `TestAppearanceProbeSkipsCreatureSlot` 回归；`go test ./...` 与 `go vet ./...` 通过。
+
+## 2026-09-21（早前）
 - 修复城主宫殿（天空之城 18 号任务，Quest 3185）过场动画切层、Boss 刷新及阳台地图翻牌结算阻断问题。
   - **背景与根因**：
     1. **多层房间切层门禁**：城主宫殿迷宫 4 的 Boss 房 `(1, 0)` 配置为基础房 `100008324` 并带 `layered 1 0 57962 100008595`。进入 Boss 房后开场动画 `14646.cmt` 在基础地图播放完毕后发出 CMD 45 请求切层到光之城主 Boss 房 `57962`。服务端原先在 `MoveScene` 中硬编码阻断非奥德赛副本，回执 ErrCode 4，导致未能切入地图 `57962` 刷新 Boss；

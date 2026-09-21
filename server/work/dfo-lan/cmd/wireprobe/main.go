@@ -76,6 +76,7 @@ func main() {
 	shopRelease := flag.Bool("shop-release", os.Getenv("DFO_SHOP_RELEASE") == "1", "enable accepted ordinary shop in release profile")
 	vaultPurchase := flag.Bool("vault-purchase-candidate", os.Getenv("DFO_VAULT_PURCHASE_CANDIDATE") == "1", "enable isolated vault purchase candidate")
 	vaultRelease := flag.Bool("vault-purchase-release", os.Getenv("DFO_VAULT_PURCHASE_RELEASE") == "1", "enable accepted personal vault purchases in release profile")
+	randomOptionFile := flag.String("random-option-catalog", os.Getenv("DFO_RANDOM_OPTION_CATALOG"), "current-client magic-seal random option rules; enables CMD393 unsealing")
 	flag.Parse()
 	if *fullEquipmentFile == "" {
 		for _, cand := range []string{
@@ -88,6 +89,11 @@ func main() {
 					break
 				}
 			}
+		}
+	}
+	if *randomOptionFile == "" {
+		if _, err := os.Stat("configs/randomoption.current37.json"); err == nil {
+			*randomOptionFile = "configs/randomoption.current37.json"
 		}
 	}
 	if *shopPilotFile == "" {
@@ -209,6 +215,7 @@ func main() {
 	var progressionService *character.ProgressionService
 	var lootService *loot.Service
 	var shopPilot *cashshop.Pilot
+	var unsealService *inventory.UnsealService
 	if *characterStorage != "" {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
@@ -515,6 +522,18 @@ func main() {
 			// The same source equipment catalog backs quest rewards and
 			// monster gear drops; a drop only offers what a bag accepts.
 			lootService.Equipment = equipment
+			// Magic-seal unsealing (CMD393) rolls from the current random
+			// option tables and reads each item's [random option] flag from
+			// the full equipment catalog; without the full definitions the
+			// sealed state cannot be proven, so the command stays unanswered.
+			if equipment.Full != nil && *randomOptionFile != "" {
+				options, err := inventory.LoadRandomOptionCatalog(*randomOptionFile, data.Source.Checksum)
+				if err != nil {
+					log.Fatal(err)
+				}
+				unsealService = &inventory.UnsealService{Store: characters.Store, Equipment: equipment, RandomOptions: options, Model: "current115-randomoption-v1"}
+				log.Printf("magic-seal unsealing enabled: %d option groups", options.GroupCount())
+			}
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		e = characters.Store.MigrateQuests(ctx)
@@ -1233,6 +1252,27 @@ func main() {
 						return
 					}
 					event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID, "id": packet.ID})
+				}
+				continue
+			}
+			if worldState != nil && bootstrapped && frame.ID == 393 && unsealService != nil && lootService != nil {
+				if !verified {
+					event(map[string]any{"kind": "unseal_rejected", "reason": "checksum failed"})
+					continue
+				}
+				plan, request, e := worldState.unsealRandomOption(unsealService, lootService.Catalog.Source.Checksum, plaintext)
+				if e != nil {
+					event(map[string]any{"kind": "unseal_refused", "id": frame.ID, "character_id": worldState.role.ID, "reason": e.Error()})
+					if e = sendPayload(1, frame.ID, protocol.UnsealRefused(unsealRefusalCode(e))); e != nil {
+						return
+					}
+					continue
+				}
+				for _, packet := range plan {
+					if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
+						return
+					}
+					event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID, "id": packet.ID, "slot": request.TargetSlot})
 				}
 				continue
 			}
