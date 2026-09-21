@@ -23,6 +23,10 @@ type worldSession struct {
 	account            int64
 	role               storage.Character
 	level              byte
+	// odyssey mirrors character.OdysseyRole for this session. It selects which
+	// source level gate the world service applies: an Arad Odyssey character
+	// follows the client's [odyssey enter level] instead of [need level].
+	odyssey            bool
 	state              storage.WorldState
 	flags              [3]byte
 	dungeons           *catalog.DungeonCatalog
@@ -80,11 +84,14 @@ func (w *worldSession) enter(role storage.Character, spawn storage.WorldPosition
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	saved, e := w.service.Enter(ctx, w.account, role.ID, state.Level, spawn)
+	// The gate mode is the character's own creation marker, not the launcher's
+	// DFO_ODYSSEY_MODE override: the client applies its per-character flag too.
+	odyssey := character.CreatedAsOdyssey(role)
+	saved, e := w.service.Enter(ctx, w.account, role.ID, state.Level, odyssey, spawn)
 	if e != nil {
 		return e
 	}
-	w.role, w.level, w.state = role, state.Level, saved
+	w.role, w.level, w.state, w.odyssey = role, state.Level, saved, odyssey
 	w.lastFatigueDay = ""
 	w.activeDungeon = nil
 	w.pilotDeath = nil
@@ -297,7 +304,9 @@ func (w *worldSession) handle(id uint16, p []byte, send func(byte, uint16, []byt
 		w.lastMotion, w.lastSpeed = r.Motion, r.Speed
 		w.notePositionReport(event)
 		next.X, next.Y = r.X, r.Y
-		if e = w.service.ValidatePosition(w.level, next); e != nil {
+		// A movement report only stays inside the area the character is already
+		// in, so it uses the restoration gate rather than the entry gate.
+		if e = w.service.ValidateRestoredPosition(w.level, w.odyssey, next); e != nil {
 			return e
 		}
 	case 36:
