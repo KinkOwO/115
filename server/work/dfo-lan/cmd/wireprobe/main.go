@@ -1007,6 +1007,22 @@ func main() {
 				}
 				continue
 			}
+			if frame.Type == 1 && (frame.ID == 1881 || frame.ID == 777) && bootstrapped && verified && characters != nil {
+				// 1881 = CHANGE_GROW_TYPE (首次转职), 777 = RE_GROWUP_CHANGE (随时更换职业).
+				// 同一 grow-type 家族，请求体与响应格式一致，仅响应 opcode 不同。
+				packets, err := changeGrowType(characters, worldState, plaintext, keys, frame.ID)
+				if err != nil {
+					event(map[string]any{"kind": "advancement_refused", "id": frame.ID, "error": err.Error()})
+					if err = sendPayload(1, frame.ID, protocol.Refusal(advancementRefusalCode(err))); err != nil {
+						return
+					}
+				} else if err = writePackets(c, packets, func(p preparedPacket) {
+					event(map[string]any{"kind": p.Name, "id": p.ID, "plain_hex": hex.EncodeToString(p.Payload)})
+				}); err != nil {
+					return
+				}
+				continue
+			}
 			if frame.Type == 1 && frame.ID == 451 && bootstrapped && verified && wearService != nil && wearService.Rules.Special {
 				packets, err := avatarOption(wearService, worldState, plaintext, keys)
 				if err != nil {
