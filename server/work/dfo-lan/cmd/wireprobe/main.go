@@ -7,6 +7,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"dfolan/internal/cashshop"
 	"dfolan/internal/catalog"
 	"dfolan/internal/channelrefresh"
@@ -70,6 +71,8 @@ func main() {
 	boosterCatalogFile := flag.String("booster-catalog", os.Getenv("DFO_BOOSTER_CATALOG"), "booster definitions JSON")
 	soloPartyBootstrap := flag.Bool("solo-party-bootstrap", false, "initialize the owned actor in the current solo party roster")
 	accountOptionsFile := flag.String("account-options", "", "sparse current-client account option overrides; other defaults remain client-owned")
+	unifiedCharacFile := flag.String("unified-charac-template", "", "override the built-in 3539 byte character option block sent as NOTI2827 (different client build only)")
+	skillLockOffset := flag.Int("skill-lock-offset", -1, "override the subtype 19 skill lock offset inside the character option block (default 2736)")
 	tutorialRoutesFile := flag.String("tutorial-routes", "", "source per-job starting route table")
 	tutorialDungeonsFile := flag.String("tutorial-dungeons", "", "source starting-route dungeon catalog")
 	shopPilotFile := flag.String("shop-purchase-pilot", os.Getenv("DFO_SHOP_PURCHASE_PILOT"), "isolated single-item cash purchase pilot catalog")
@@ -133,6 +136,24 @@ func main() {
 	skillRelease := os.Getenv("DFO_SKILL_RELEASE") == "1"
 	if candidateSkills := os.Getenv("DFO_SKILL_CATALOG"); candidateSkills != "" {
 		*learningFile = candidateSkills
+	}
+	// NOTI2827 restores locked skills from the client's own character option
+	// block. The built-in block is the same version as this client, so the
+	// template file and the offset override are escapes for a different build.
+	var unifiedCharacTemplate []byte
+	if *unifiedCharacFile != "" {
+		data, err := os.ReadFile(*unifiedCharacFile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if len(data) == 0 {
+			log.Fatal("empty character option template")
+		}
+		unifiedCharacTemplate = data
+		log.Printf("NOTI2827 character option block overridden by %s (%d bytes)", *unifiedCharacFile, len(data))
+	}
+	if *skillLockOffset >= 0 {
+		log.Printf("NOTI2827 skill lock offset overridden to %d", *skillLockOffset)
 	}
 	var accountOptionsPayload []byte
 	if *accountOptionsFile != "" {
@@ -278,6 +299,9 @@ func main() {
 			if e = s.MigrateCharacterEvents(ctx); e != nil {
 				log.Fatal(e)
 			}
+			if e = s.MigrateSkillLocks(ctx); e != nil {
+				log.Fatal(e)
+			}
 		}
 		developmentAccount, e = s.DevelopmentAccount(ctx, "probe")
 		if e != nil {
@@ -374,6 +398,9 @@ func main() {
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		e = characters.Store.MigrateCharacterEvents(ctx)
+		if e == nil {
+			e = characters.Store.MigrateSkillLocks(ctx)
+		}
 		cancel()
 		if e != nil {
 			log.Fatal(e)
@@ -1075,7 +1102,38 @@ func main() {
 			}
 
 			if bootstrapped && frame.ID == 2377 {
-				event(map[string]any{"kind": "unified_option_accepted", "character_id": selectedCharacterID})
+				if !verified {
+					event(map[string]any{"kind": "unified_option_rejected", "reason": "checksum failed"})
+					continue
+				}
+				// CMD2377 SET_UNIFIED_OPTION carries one option block per frame:
+				// subtype 0x13 is the skill lock, 0x05 ordinary settings, and
+				// 0x01 the account level block already answered by NOTI2826.
+				// Only the skill lock is stored here; the other blocks stay
+				// client owned until their own layout is recovered.
+				opt, e := protocol.DecodeUnifiedOption(plaintext)
+				if e != nil {
+					event(map[string]any{"kind": "unified_option_rejected", "reason": e.Error(), "bytes": len(plaintext)})
+					continue
+				}
+				event(map[string]any{"kind": "unified_option_accepted", "character_id": selectedCharacterID, "scope": opt.Scope, "subtype": opt.Subtype, "entries": len(opt.Entries)})
+				if opt.Subtype != protocol.UnifiedOptionSkillLock {
+					continue
+				}
+				if characters == nil || worldState == nil || worldState.role.ID == 0 || worldState.role.ID != selectedCharacterID {
+					event(map[string]any{"kind": "skill_lock_rejected", "reason": "skill lock requires the owned selected character", "character_id": selectedCharacterID})
+					continue
+				}
+				sum := sha256.Sum256(plaintext)
+				key := fmt.Sprintf("skill-lock-v1:%x", sum)
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				locks, applied, e := characters.SaveSkillLocks(ctx, worldState.role, key, opt)
+				cancel()
+				if e != nil {
+					event(map[string]any{"kind": "skill_lock_rejected", "reason": e.Error(), "character_id": selectedCharacterID})
+					continue
+				}
+				event(map[string]any{"kind": "skill_lock_saved", "character_id": selectedCharacterID, "applied": applied, "count": len(locks), "locks": locks})
 				continue
 			}
 
@@ -1844,6 +1902,22 @@ func main() {
 					event(map[string]any{"kind": "cinematic_restore_error", "error": e.Error()})
 					continue
 				}
+				// Locked skills ride in the character option block (NOTI2827),
+				// which entryPayloads.packets() puts last: this client crashes
+				// about 0.3~1s after town entry when 2827 arrives early.
+				lockCtx, lockCancel := context.WithTimeout(context.Background(), 5*time.Second)
+				locks, lockErr := characters.Store.SkillLocks(lockCtx, role.ID)
+				lockCancel()
+				if lockErr != nil {
+					event(map[string]any{"kind": "entry_skill_lock_error", "error": lockErr.Error()})
+					continue
+				}
+				plan.SkillLocks, e = unifiedCharacPayload(unifiedCharacTemplate, locks, *skillLockOffset)
+				if e != nil {
+					event(map[string]any{"kind": "entry_skill_lock_error", "error": e.Error()})
+					continue
+				}
+				event(map[string]any{"kind": "entry_skill_lock_prepared", "character_id": role.ID, "count": len(locks), "bytes": len(plan.SkillLocks)})
 				if wearService != nil {
 					plan.Worn, e = inventory.WornPayload(role.State)
 					if e == nil {

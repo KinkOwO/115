@@ -34,6 +34,11 @@ type entryPayloads struct {
 	CinematicSkips                                                            []byte
 	SkillVariations                                                           []byte
 	OdysseyProgress                                                           []byte
+	// SkillLocks is the NOTI2827 character option block that restores the
+	// player's locked skills. It is sent last: the forwarded evidence for this
+	// client reports a crash on town entry when 2827 arrives early in the frame
+	// sequence, whichever block it contains.
+	SkillLocks []byte
 	// Peers carries the USERINFO of every actor already standing in the scene.
 	// It is emitted after this actor's own placement but before the area list,
 	// because the client only places actors it already knows.
@@ -80,6 +85,9 @@ func (p entryPayloads) packets() []outboundPacket {
 		outboundPacket{"creature_growth_restored", 0, 102, p.CreatureGrowth},
 		outboundPacket{"actor_appearance_ready", 0, 2, p.Basic},
 		outboundPacket{"worn_equipment_visuals_restored", 0, 14, p.WornUpdate},
+		// The character option block goes after every other entry frame: this
+		// client crashes on town entry when NOTI2827 arrives early.
+		outboundPacket{"skill_locks_restored", 0, 2827, p.SkillLocks},
 	)
 }
 
