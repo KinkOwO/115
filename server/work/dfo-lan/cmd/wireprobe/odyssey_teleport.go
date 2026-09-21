@@ -14,11 +14,15 @@ func (w *worldSession) areaTransition(r protocol.AreaChangeRequest) (storage.Wor
 	w.specialWarpPending = false
 	old := w.state.Position
 	if w.activeDungeon == nil && w.progression != nil && r.PreviousTown == old.Town && uint32(r.PreviousArea) == old.Area && w.progression.OdysseyJournalTeleport(w.role, r) {
-		if err := w.service.ValidatePosition(w.level, old); err != nil {
+		// The journal route is the source's own progression ladder, but the
+		// destination still has to pass the gate the client applies: Storm Pass
+		// is [odyssey enter level] 45 for an Odyssey character, not the
+		// [need level] 50 that an ordinary character needs.
+		if err := w.service.ValidatePosition(w.level, w.odyssey, old); err != nil {
 			return old, err
 		}
 		next := storage.WorldPosition{Town: r.Town, Area: r.Area, X: r.X, Y: r.Y}
-		if err := w.service.ValidatePosition(w.level, next); err != nil {
+		if err := w.service.ValidatePosition(w.level, w.odyssey, next); err != nil {
 			return old, err
 		}
 		return next, nil
@@ -32,9 +36,9 @@ func (w *worldSession) areaTransition(r protocol.AreaChangeRequest) (storage.Wor
 		return w.teleportTransition(old, r)
 	}
 	if character.OdysseyRole(w.role) {
-		return w.service.TransitionStrict(w.level, old, r)
+		return w.service.TransitionStrict(w.level, w.odyssey, old, r)
 	}
-	return w.service.Transition(w.level, old, r)
+	return w.service.Transition(w.level, w.odyssey, old, r)
 }
 
 func (w *worldSession) teleportTransition(old storage.WorldPosition, r protocol.AreaChangeRequest) (storage.WorldPosition, error) {
@@ -48,11 +52,11 @@ func (w *worldSession) teleportTransition(old storage.WorldPosition, r protocol.
 	if !exists {
 		return old, errors.New("unknown destination area")
 	}
-	if uint32(w.level) < dest.MinimumLevel {
+	if uint32(w.level) < world.RequiredLevel(dest, w.odyssey) {
 		return old, world.ErrLevel
 	}
 	next := storage.WorldPosition{Town: r.Town, Area: r.Area, X: r.X, Y: r.Y}
-	if err := w.service.ValidatePosition(w.level, next); err != nil {
+	if err := w.service.ValidatePosition(w.level, w.odyssey, next); err != nil {
 		return old, err
 	}
 	if dest.SeriaReturnWarp {
