@@ -1,6 +1,18 @@
 # CHANGELOG
 
 ## 2026-09-21
+- 修复城镇地图传送点（Teleport Point）、赛丽亚房间传送及负坐标区域（如雷米迪亚大圣堂右侧）进图被拦截的问题。
+  - **背景与根因**：
+    1. **城镇传送点与赛丽亚房间直达传送**：玩家在大地图/小地图上点击城镇传送点（如西海岸、月光酒馆等）或点击“Teleport to Seria's Room”时，客户端发送带有传送标志的 CMD 36（`Flag=5, TailFlags[1]=5`，或赛丽亚房间传送 `TailFlags=[0,0]`）。原逻辑未建立通用传送放行通道，且在请求前提前抹除了 `specialWarpPending` 状态，导致请求坠入物理行走门校验；因跨区无直连门而报 `no authorized source portal to destination`，弹窗阻断；此外月光酒馆传送点落点偏差 68 像素超出了原 64 像素容差；
+    2. **负坐标区域行走越界判定缺陷**：玩家从雷米迪亚大圣堂主殿（89/0）走右侧门进入右殿（89/2）时，客户端发送的合法入口坐标 X 为 -2（16 位补码传输为 `0xFFFE` / `uint16(65534)`）。`internal/world/service.go` 的 `Contains` 判定函数原先将无符号 `uint16` 零扩展为 `int64`（变成 `+65534`），在与负坐标矩形 `[-13, 256, 800, 140]` 比较时误判越界（`position outside source walkable rectangles`），客户端收到拒绝后同样弹窗报错；全量审计发现游戏内共有 135 个区域包含负数坐标矩形定义。
+  - **修复实现**：
+    1. `cmd/wireprobe/world_flow.go`：保留 `specialWarpPending` 状态至 `areaTransition` 单次安全消费；
+    2. `cmd/wireprobe/odyssey_teleport.go`：新增 `teleportTransition` 通用传送通道，对合法的地图传送点传送和赛丽亚房间传送进行等级与可行走区验证后放行，并自动保留原所在城镇的 Return 坐标以供出房时权威原路恢复；
+    3. `internal/world/service.go`：将 `WalkableTolerance` 调整为 128 覆盖月光酒馆等传送点落点偏差；`Contains` 函数支持负坐标自适应解码（当矩形为负且坐标 `>= 0x8000` 时按符号扩展计算）；
+    4. `internal/catalog/town.go` & `internal/quest/progress.go`：同步增强负坐标自适应解码，确保城镇准入与任务范围检测一致；
+    5. 测试：`special_warp_test.go` 新增 `TestTownMapTeleportTransition`（覆盖地图传送、预备态传送、赛丽亚房间往返原路恢复等 10 项断言）；`service_test.go` 新增 `TestNegativeCoordinateAreaTransition` 覆盖负数坐标准入与越界阻断；
+  - **实机验收（2026-09-21）**：用户实机测试确认大地图传送点、赛丽亚房间往返、雷米迪亚大圣堂右侧区域均可正常进入。
+
 - 修复城镇中无法进入特定区域（如从艾尔文防线进入 Elvenmere）提示“You cannot enter to the Opposing Faction's starting point.”的问题。
   - **背景与根因**：玩家在城镇（如从艾尔文防线经风暴小路）尝试进入 Elvenmere（城镇 38 / 区域 7）时，被服务端拒绝（日志证据：`area_refused reason="no authorized source portal to destination" town=38 area=7`），客户端收到拒绝响应后映射弹出 DSTR 19188 提示。经核查地图源数据与导入逻辑：
     - `elvengard_hendon_storm.map`（38/3）中的 `[town movable area]` 包含了内嵌条件子块：

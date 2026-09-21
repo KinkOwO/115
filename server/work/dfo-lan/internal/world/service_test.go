@@ -103,3 +103,47 @@ func TestQuestGatedPortalToElvenmere(t *testing.T) {
 		t.Fatal("minimum level 17 not enforced")
 	}
 }
+
+func TestNegativeCoordinateAreaTransition(t *testing.T) {
+	// 实源：lemidia_right.map（89/2，雷米迪亚大圣堂右侧区域）：
+	// 可行走矩形为 [-13, 256, 800, 140]，客户端生成的落点 X=-2（补码 uint16 为 65534）。
+	// 旧的 Contains 将 x/y 无符号提升为 int64(x)，把 65534 当作正大数，
+	// 导致判定在矩形外（"position outside source walkable rectangles"）。
+	// 改为 int64(int16(x)) 后应正常放行负坐标。
+	cat, e := catalog.LoadWorld("../../configs/world.generated.json")
+	if e != nil {
+		t.Fatal(e)
+	}
+	s := Service{Catalog: cat, Rules: Rules{RequirePortalProximity: false, PortalMargin: 32}}
+	at := storage.WorldPosition{Town: 89, Area: 0, X: 985, Y: 416}
+	req := protocol.AreaChangeRequest{
+		Town: 89, Area: 2, X: 65534, Y: 309, // X = -2
+		PreviousTown: 89, PreviousArea: 0,
+	}
+	next, e := s.Transition(20, at, req)
+	if e != nil || next.Town != 89 || next.Area != 2 || next.X != 65534 || next.Y != 309 {
+		t.Fatalf("transition to 89/2 with negative X failed: %+v %v", next, e)
+	}
+
+	// 验证从 89/2 返回 89/0：89/2 的门户矩形为 [-22, 249, 40, 120]（负 X 边界）
+	at2 := storage.WorldPosition{Town: 89, Area: 2, X: 65534, Y: 300} // X = -2
+	reqReturn := protocol.AreaChangeRequest{
+		Town: 89, Area: 0, X: 950, Y: 400,
+		PreviousTown: 89, PreviousArea: 2,
+	}
+	sProximity := Service{Catalog: cat, Rules: Rules{RequirePortalProximity: true, PortalMargin: 32}}
+	next0, e := sProximity.Transition(20, at2, reqReturn)
+	if e != nil || next0.Town != 89 || next0.Area != 0 {
+		t.Fatalf("return to 89/0 from negative portal bounds failed: %+v %v", next0, e)
+	}
+
+	// 超出负边界的坐标必须被拒绝
+	oobX := int16(-500)
+	reqOOB := protocol.AreaChangeRequest{
+		Town: 89, Area: 2, X: uint16(oobX), Y: 309,
+		PreviousTown: 89, PreviousArea: 0,
+	}
+	if _, e = s.Transition(20, at, reqOOB); e == nil {
+		t.Fatal("out-of-bounds negative X accepted")
+	}
+}
