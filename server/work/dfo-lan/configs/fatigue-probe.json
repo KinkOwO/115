@@ -1,6 +1,6 @@
 {
   "daily_limit": 156,
-  "room_cost": 1,
+  "room_cost":0,
   "timezone": "UTC",
   "reset_hour": 0,
   "source": "Explicit local development policy: each first loaded map in a dungeon run costs one point; repeated loading of that map costs nothing. PVF no-fatigue dungeons are exempt. Daily limit, room cost and rollover are configurable; these are not verified official-server rules. Town movement does not consume fatigue."
