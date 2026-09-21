@@ -1,6 +1,18 @@
 # CHANGELOG
 
 ## 2026-09-21
+- 修复背包内复活币礼包（Life Token Box）、物品礼包（Remy's Sparkling Touch Box）以及大师契约礼包（Master Contract Package）无法打开问题，并支持契约开箱直接激活生效与 NOTI 66 广播。
+  - **根因分析**：
+    1. **礼包定义在 `booster-catalog.json` 中缺失**：客户端右键开启礼包时发送 CMD 160（`ENUM_CMDPACKET_USE_BOOSTER_ITEM`）。原导出工具 `cmd/boosterexport` 仅扫描了 `[etc]`, `[equipment]`, `[avatar]`, `[stackable]`, `[creature]` 5 种标签，完全忽略了 `[cera]` 标签以及 `[package data]` 格式。官方 PVF 中包括上述三个礼包在内的 6,357 个点券/活动礼包均采用 `[cera]` 或 `[package data]` 描述（例如 10333027 复活币盒、10333726 大师契约包、10333023 雷米之手盒），导致服务端在奖励池中查无定义并拒绝开箱（下发 0x0004 拒绝帧）。
+    2. **契约开箱直接激活机制与广播通知（NOTI 66）缺失**：原逻辑未对开出的契约道具做特殊分流，导致契约道具作为普通 stackable 物品发入背包占位。官方原版逻辑中契约礼盒开箱后应直接累加有效时长到账号，并由服务端下发 NOTI 66（`ENUM_NOTIPACKET_CERA_SPECIALITEM`）广播通知客户端刷新到期时间与点亮契约特权。
+  - **修复实现**：
+    1. **升级 `cmd/boosterexport`**：扩展支持 `[cera]`, `[grow type]`, `[dungeon and life items]`, `[special avatar]`, `[equipment random option]`, `[emblem]`, `[card upgrade]`, `[enchant card]` 等全部标签，并支持 `[package data]` 成对格式。全量重导生成 `configs/booster-catalog.json`（奖励条目从 35,944 扩展至 42,301 项）。
+    2. **复活币开箱逻辑闭环**：开箱抽到 template 42 时直接转为 template 1 并累加至 `b.Coin`，背包 slot 1 复活币实时刷新。
+    3. **契约开箱直接激活与广播通知**：在 `internal/game/protocol/premium.go` 中实现 115 级原生 `CeraSpecialItemNotification`（NOTI 66：11 字节，mode 2 + premium_type + end_time 时间戳）；在 `internal/storage/premium.go` 中实现 `ActivatePremium`，原子更新 PostgreSQL `account_premiums` 表；在 `booster_flow.go` 中，开箱若包含契约道具（达人、霸王、晶块、成长等），**跳过背包入库（`b.Add`）**，直接计算并累加到账号契约时长，下发对应的 NOTI 66 协议包，开箱弹窗（ACK 160）保留获得提示。
+    4. **兼容残留契约右键使用**：在 `booster_flow.go`（CMD 160）与 `consume_flow.go`（CMD 44）中支持背包内旧契约道具直接右键使用并转化为有效时长。
+  - **测试与验证**：
+    - 新增 `TestBoosterOpenLifeTokenBox`（复活币盒开箱，复活币数量 +3）、`TestBoosterOpenMasterContractPackage`（大师契约包开箱，4 种契约全部直接激活生效且背包不留占位符）、`TestBoosterOpenRemySparklingTouchBox`（雷米之手盒开箱，获得 30 个雷米的闪耀之手）、`TestBoosterDirectContractActivation`（契约道具右键使用激活）；全量单测全绿。
+    - 服务端二进制 `server/work/dfo-lan/bin/wireprobe-handoff-source.exe` 已编译就绪。
 - 修复宠物已穿戴但城镇不跟随与装备栏宠物槽 UI 空白（两阶段均实机确认修复闭环）：
   - **跟随显示根因（官方 570 帧解析 G0198 定位）**：显示路径是 USERINFO0（opcode 2 mode 0）宠物段 `{u32 槽26模板 + DSTR 名字 + u8 present}`（装备段结束 +23），非 NOTI 105（官方发 count=0）。原代码 present 硬编码 0（=隐藏）且未填入槽 26 数据 → 客户端 `Failed Create Creature 0`。
   - **装备栏宠物槽空白根因（IDA sub_1452C1540 指令级取证）**：mode-1 穿戴表 reader 行布局：时装行（type<=11）40头+2blob+87尾=135+；宠物行（type==26 @0x1452c186d）40头+5扩展(u32+u8)+87尾=132（无 avatar blob）；宠物装备行（槽 27..29）40+87=127。原 `detail.go` 的 `if item.Slot <= 11` 过滤把槽 26 宠物行整条丢弃，客户端装备栏拿不到 mode-1 穿戴行。

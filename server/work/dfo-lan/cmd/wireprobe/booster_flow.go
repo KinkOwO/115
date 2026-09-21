@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/sha256"
+	"dfolan/internal/cashshop"
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
@@ -187,13 +188,92 @@ func (w *worldSession) openBoosterItem(
 		}
 	}
 
-	// 2. Transactional execution of booster opening
+	// 2. Direct contract item activation (e.g. Tactician, Conqueror, Growth, Cube, NeoPremium)
+	if contract, isContract := cashshop.ResolveContract(boxItem.Template); isContract {
+		eventKey := fmt.Sprintf("contract-use:%d:%x", w.role.ID, sha256.Sum256(raw))
+		saved, _, err := store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, eventKey, "contract-use-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+			b, err := inventory.ReadBag(current.State)
+			if err != nil {
+				return nil, nil, err
+			}
+			boxIdx := -1
+			for i, it := range b.Items {
+				if it.Slot == req.Slot {
+					boxIdx = i
+					break
+				}
+			}
+			if boxIdx < 0 {
+				return nil, nil, fmt.Errorf("contract item at slot %d not found", req.Slot)
+			}
+			if b.Items[boxIdx].Amount > 1 {
+				b.Items[boxIdx].Amount--
+			} else {
+				b.Items = append(b.Items[:boxIdx], b.Items[boxIdx+1:]...)
+			}
+			rawBag, err := inventory.SaveBag(current.State, b)
+			if err != nil {
+				return nil, nil, err
+			}
+			return rawBag, []byte("{}"), nil
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		var endTime int64
+		if premStore, ok := store.(interface {
+			ActivatePremium(context.Context, int64, uint8, int64) (int64, error)
+		}); ok {
+			var pe error
+			endTime, pe = premStore.ActivatePremium(ctx, w.role.AccountID, contract.Type, contract.DurationSecond)
+			if pe != nil {
+				return nil, pe
+			}
+		}
+
+		w.role = saved
+		finalBag, err := inventory.ReadBag(saved.State)
+		if err != nil {
+			return nil, err
+		}
+
+		var plan []outboundPacket
+		mainRows := finalBag.Rows()
+		slotStillOccupied := false
+		for _, it := range finalBag.Items {
+			if it.Slot == req.Slot {
+				slotStillOccupied = true
+				break
+			}
+		}
+		if !slotStillOccupied {
+			mainRows = append([][protocol.CurrentItemRecordSize]byte{protocol.OrdinaryItem(req.Slot, 0, 0)}, mainRows...)
+		}
+		mainUpdate, err := protocol.InventoryUpdate(mainRows)
+		if err != nil {
+			return nil, err
+		}
+		plan = append(plan, outboundPacket{"contract_inventory_updated", 0, 14, mainUpdate})
+		if endTime > 0 {
+			plan = append(plan, outboundPacket{"contract_special_item_noti", 0, 66, protocol.CeraSpecialItemNotification(contract.Type, endTime)})
+		}
+		plan = append(plan, outboundPacket{"contract_use_ack", 1, 160, protocol.BoosterOpenSuccess(boxItem.Template, req.Slot, nil)})
+		return plan, nil
+	}
+
+	// 3. Transactional execution of booster opening
 	eventKey := fmt.Sprintf("booster-open:%d:%x", w.role.ID, sha256.Sum256(raw))
+	type activatedPremium struct {
+		Type     uint8 `json:"type"`
+		Duration int64 `json:"duration"`
+	}
 	type outcome struct {
-		BoxTemplate  uint32
-		Granted      []protocol.BoosterGrantedItem
-		HasAvatars   bool
-		HasCreatures bool
+		BoxTemplate       uint32                        `json:"box_template"`
+		Granted           []protocol.BoosterGrantedItem `json:"granted"`
+		HasAvatars        bool                          `json:"has_avatars"`
+		HasCreatures      bool                          `json:"has_creatures"`
+		ActivatedPremiums []activatedPremium            `json:"activated_premiums,omitempty"`
 	}
 	var res outcome
 
@@ -224,8 +304,12 @@ func (w *worldSession) openBoosterItem(
 		var toGrant []protocol.BoosterGrantedItem
 		if len(req.Selections) > 0 {
 			for _, selTpl := range req.Selections {
+				tpl := selTpl
+				if tpl == 42 {
+					tpl = 1
+				}
 				toGrant = append(toGrant, protocol.BoosterGrantedItem{
-					Template: selTpl,
+					Template: tpl,
 					Count:    req.Amount,
 				})
 			}
@@ -238,8 +322,12 @@ func (w *worldSession) openBoosterItem(
 			for _, pool := range def.Pools {
 				picks := pool.Pick(r)
 				for _, p := range picks {
+					tpl := p.Template
+					if tpl == 42 {
+						tpl = 1
+					}
 					toGrant = append(toGrant, protocol.BoosterGrantedItem{
-						Template: p.Template,
+						Template: tpl,
 						Count:    p.Count * req.Amount,
 					})
 				}
@@ -258,6 +346,7 @@ func (w *worldSession) openBoosterItem(
 
 		hasAvatars := false
 		hasCreatures := false
+		var activatedPremiums []activatedPremium
 
 		// Avatar option mapping if selections had options
 		optMap := make(map[uint32][]byte)
@@ -267,6 +356,15 @@ func (w *worldSession) openBoosterItem(
 
 		// Award items
 		for _, g := range toGrant {
+			// Destination 0: Contract Item (Direct activation without adding placeholder item to bag)
+			if contract, isContract := cashshop.ResolveContract(g.Template); isContract {
+				activatedPremiums = append(activatedPremiums, activatedPremium{
+					Type:     contract.Type,
+					Duration: contract.DurationSecond * int64(g.Count),
+				})
+				continue
+			}
+
 			var (
 				kind     string
 				itemPath string
@@ -442,10 +540,11 @@ func (w *worldSession) openBoosterItem(
 		}
 
 		receiptData := outcome{
-			BoxTemplate:  boxTemplate,
-			Granted:      toGrant,
-			HasAvatars:   hasAvatars,
-			HasCreatures: hasCreatures,
+			BoxTemplate:       boxTemplate,
+			Granted:           toGrant,
+			HasAvatars:        hasAvatars,
+			HasCreatures:      hasCreatures,
+			ActivatedPremiums: activatedPremiums,
 		}
 		receiptBytes, err := json.Marshal(receiptData)
 		if err != nil {
@@ -512,6 +611,18 @@ func (w *worldSession) openBoosterItem(
 			return nil, err
 		}
 		plan = append(plan, outboundPacket{"booster_creature_inventory_updated", 0, 14, creaturePayload})
+	}
+
+	// Activate any granted contracts and emit NOTI 66
+	for _, p := range res.ActivatedPremiums {
+		if premStore, ok := store.(interface {
+			ActivatePremium(context.Context, int64, uint8, int64) (int64, error)
+		}); ok {
+			endTime, err := premStore.ActivatePremium(ctx, w.role.AccountID, p.Type, p.Duration)
+			if err == nil && endTime > 0 {
+				plan = append(plan, outboundPacket{"booster_special_item_noti", 0, 66, protocol.CeraSpecialItemNotification(p.Type, endTime)})
+			}
+		}
 	}
 
 	plan = append(plan, outboundPacket{"booster_open_ack", 1, 160, ack})

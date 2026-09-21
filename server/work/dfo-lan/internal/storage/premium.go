@@ -2,7 +2,11 @@ package storage
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"time"
+
+	"github.com/jackc/pgx/v5"
 )
 
 const (
@@ -73,4 +77,42 @@ func (s *Store) ActivePremiumSet(ctx context.Context, account int64, now time.Ti
 		set[p.Type] = true
 	}
 	return set, nil
+}
+
+// ActivatePremium updates the account contract timer atomically and returns the new end_time.
+func (s *Store) ActivatePremium(ctx context.Context, account int64, premiumType uint8, durationSecond int64) (int64, error) {
+	if s == nil || s.DB == nil {
+		return 0, fmt.Errorf("storage unavailable")
+	}
+	if durationSecond <= 0 {
+		return 0, fmt.Errorf("invalid premium duration")
+	}
+	tx, err := s.DB.Begin(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback(ctx)
+
+	now := time.Now().Unix()
+	var oldEnd int64
+	err = tx.QueryRow(ctx, `SELECT end_time FROM account_premiums WHERE account_id=$1 AND premium_type=$2 FOR UPDATE`, account, premiumType).Scan(&oldEnd)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return 0, err
+	}
+	base := now
+	if oldEnd > base {
+		base = oldEnd
+	}
+	end := base + durationSecond
+	if end <= base {
+		return 0, fmt.Errorf("premium expiry overflow")
+	}
+	_, err = tx.Exec(ctx, `INSERT INTO account_premiums(account_id,premium_type,end_time,updated_at) VALUES($1,$2,$3,now()) ON CONFLICT(account_id,premium_type) DO UPDATE SET end_time=EXCLUDED.end_time,updated_at=now()`, account, premiumType, end)
+	if err != nil {
+		return 0, err
+	}
+	if err = tx.Commit(ctx); err != nil {
+		return 0, err
+	}
+	return end, nil
 }

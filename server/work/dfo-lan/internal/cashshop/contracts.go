@@ -28,11 +28,23 @@ var contractDurations = map[uint32]Contract{
 	10000391: {PremiumCube, 1 * 86400}, 10000388: {PremiumCube, 3 * 86400}, 10000389: {PremiumCube, 7 * 86400}, 10000390: {PremiumCube, 15 * 86400}, 10327726: {PremiumCube, 30 * 86400}, 10096113: {PremiumCube, 3600},
 	50002526: {PremiumNeoBasic, 1 * 86400}, 50002527: {PremiumNeoBasic, 3 * 86400}, 50002528: {PremiumNeoBasic, 5 * 86400}, 50002529: {PremiumNeoBasic, 11 * 86400}, 50002917: {PremiumNeoBasic, 23 * 86400}, 50002530: {PremiumNeoBasic, 3 * 60},
 	50002532: {PremiumNeoPlus, 1 * 86400}, 50002533: {PremiumNeoPlus, 3 * 86400}, 50002534: {PremiumNeoPlus, 5 * 86400}, 590005745: {PremiumNeoPlus, 3 * 86400}, 590005746: {PremiumNeoPlus, 5 * 86400}, 590005747: {PremiumNeoPlus, 10 * 86400}, 590705236: {PremiumNeoPlus, 10 * 86400}, 50002535: {PremiumNeoPlus, 11 * 86400}, 50002918: {PremiumNeoPlus, 23 * 86400}, 590005748: {PremiumNeoPlus, 23 * 86400}, 590005782: {PremiumNeoPlus, 23 * 86400}, 590008445: {PremiumNeoPlus, 23 * 86400}, 590009297: {PremiumNeoPlus, 23 * 86400}, 50002536: {PremiumNeoPlus, 3 * 60}, 590005749: {PremiumNeoPlus, 3 * 86400}, 50042664: {PremiumNeoPlus, 5 * 86400}, 590005750: {PremiumNeoPlus, 5 * 86400}, 50042665: {PremiumNeoPlus, 10 * 86400}, 590005751: {PremiumNeoPlus, 10 * 86400}, 590705237: {PremiumNeoPlus, 10 * 86400}, 590005752: {PremiumNeoPlus, 23 * 86400}, 50051259: {PremiumNeoPlus, 1 * 86400}, 50051260: {PremiumNeoPlus, 3 * 86400}, 590714871: {PremiumNeoPlus, 7 * 86400}, 590714872: {PremiumNeoPlus, 3 * 86400}, 590714873: {PremiumNeoPlus, 11 * 86400}, 590714876: {PremiumNeoPlus, 3 * 86400}, 590714877: {PremiumNeoPlus, 7 * 86400}, 590714297: {PremiumNeoPlus, 3 * 86400}, 590714298: {PremiumNeoPlus, 7 * 86400}, 590714301: {PremiumNeoPlus, 14 * 86400}, 590714299: {PremiumNeoPlus, 15 * 86400}, 590714300: {PremiumNeoPlus, 30 * 86400}, 590717455: {PremiumNeoPlus, 3 * 86400},
+	// Additional contracts from Cera Shop & in-game packages:
+	590714880: {PremiumConqueror, 15 * 86400}, 590709319: {PremiumConqueror, 15 * 86400}, 590005436: {PremiumConqueror, 15 * 86400}, 590005211: {PremiumConqueror, 15 * 86400},
+	590714881: {PremiumTactician, 15 * 86400}, 590709321: {PremiumTactician, 15 * 86400}, 590005437: {PremiumTactician, 15 * 86400}, 590005213: {PremiumTactician, 15 * 86400},
+	590714882: {PremiumGabriel, 15 * 86400}, 590004900: {PremiumGabriel, 7 * 86400}, 590004901: {PremiumGabriel, 15 * 86400}, 590004902: {PremiumGabriel, 30 * 86400}, 590709311: {PremiumGabriel, 15 * 86400}, 590005422: {PremiumGabriel, 15 * 86400}, 590005426: {PremiumGabriel, 30 * 86400}, 590005203: {PremiumGabriel, 15 * 86400},
+	590714879: {PremiumGrowth, 15 * 86400}, 590709317: {PremiumGrowth, 15 * 86400}, 590005209: {PremiumGrowth, 15 * 86400},
+	590714878: {PremiumCube, 15 * 86400}, 590709315: {PremiumCube, 15 * 86400}, 590005207: {PremiumCube, 15 * 86400},
+	590720003: {PremiumNeoPlus, 30 * 86400}, 590720004: {PremiumNeoPlus, 15 * 86400}, 590714885: {PremiumNeoPlus, 30 * 86400}, 590714886: {PremiumNeoPlus, 14 * 86400}, 590709307: {PremiumNeoPlus, 14 * 86400}, 590709309: {PremiumNeoPlus, 30 * 86400}, 590005420: {PremiumNeoPlus, 14 * 86400}, 590005199: {PremiumNeoPlus, 14 * 86400}, 590005201: {PremiumNeoPlus, 30 * 86400}, 590701428: {PremiumNeoPlus, 10 * 86400}, 50002921: {PremiumNeoPlus, 3 * 86400}, 50002922: {PremiumNeoPlus, 7 * 86400},
 }
 
-func resolveContract(template uint32) (Contract, bool) {
+func ResolveContract(template uint32) (Contract, bool) {
 	c, ok := contractDurations[template]
 	return c, ok
+}
+
+// resolveContract is an internal alias kept for package compatibility.
+func resolveContract(template uint32) (Contract, bool) {
+	return ResolveContract(template)
 }
 
 // entryContract resolves both direct premium aliases and the package-data
