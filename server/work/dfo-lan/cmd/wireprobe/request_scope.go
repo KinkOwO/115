@@ -5,7 +5,7 @@ package main
 // regressions stay diagnosable.
 func dungeonRequest(id uint16) bool {
 	switch id {
-	case 16, 37, 38, 39, 40, 42, 43, 45, 46, 69, 70, 71, 72, 117, 132, 2015:
+	case 16, 37, 38, 39, 40, 42, 43, 45, 46, 69, 70, 71, 72, 117, 132, 2015, 2062:
 		return true
 	}
 	return false
