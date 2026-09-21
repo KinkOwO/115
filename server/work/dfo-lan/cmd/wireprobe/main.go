@@ -793,6 +793,7 @@ func main() {
 		var worldState *worldSession
 		var skillState skillSession
 		var equipmentState equipmentSession
+		var sortState sortSession
 		if worldService != nil {
 			worldState = &worldSession{characters: characters, service: worldService, account: developmentAccount, flags: townPolicy.Flags, dungeons: dungeonCatalog, tutorials: tutorialRoutes, tutorialDungeons: tutorialDungeons, professions: characters.Catalog, fatigue: fatigueService, quests: questService, progression: progressionService, loot: lootService, vault: vaultService, soloPartyBootstrap: *soloPartyBootstrap, hub: hub}
 		}
@@ -1013,6 +1014,22 @@ func main() {
 				}
 				continue
 			}
+			if frame.Type == 1 && (frame.ID == 1881 || frame.ID == 777) && bootstrapped && verified && characters != nil {
+				// 1881 = CHANGE_GROW_TYPE (首次转职), 777 = RE_GROWUP_CHANGE (随时更换职业).
+				// 同一 grow-type 家族，请求体与响应格式一致，仅响应 opcode 不同。
+				packets, err := changeGrowType(characters, worldState, plaintext, keys, frame.ID)
+				if err != nil {
+					event(map[string]any{"kind": "advancement_refused", "id": frame.ID, "error": err.Error()})
+					if err = sendPayload(1, frame.ID, protocol.Refusal(advancementRefusalCode(err))); err != nil {
+						return
+					}
+				} else if err = writePackets(c, packets, func(p preparedPacket) {
+					event(map[string]any{"kind": p.Name, "id": p.ID, "plain_hex": hex.EncodeToString(p.Payload)})
+				}); err != nil {
+					return
+				}
+				continue
+			}
 			if frame.Type == 1 && frame.ID == 451 && bootstrapped && verified && wearService != nil && wearService.Rules.Special {
 				packets, err := avatarOption(wearService, worldState, plaintext, keys)
 				if err != nil {
@@ -1058,6 +1075,31 @@ func main() {
 					event(map[string]any{"kind": p.Name, "character_id": worldState.role.ID, "id": p.ID, "plain_hex": hex.EncodeToString(p.Payload)})
 				}); e != nil {
 					event(map[string]any{"kind": "equipment_write_error", "error": e.Error()})
+					return
+				}
+				continue
+			}
+			if frame.ID == 20 && bootstrapped && verified && wearService != nil {
+				// CMD20 SORT_ITEM: the client has already arranged the bag and
+				// asks the server to adopt it. Answering is also what clears the
+				// client's "inventory in use" latch.
+				plan, e := sortState.handle(wearService, worldState, plaintext, frame.Raw)
+				if e != nil {
+					event(map[string]any{"kind": "item_sort_refused", "reason": e.Error()})
+					if e = sendPayload(1, 20, protocol.Refusal(4)); e != nil {
+						return
+					}
+					continue
+				}
+				prepared, e := preparePackets(keys, plan)
+				if e != nil {
+					event(map[string]any{"kind": "item_sort_encode_error", "error": e.Error()})
+					return
+				}
+				if e = writePackets(c, prepared, func(p preparedPacket) {
+					event(map[string]any{"kind": p.Name, "character_id": worldState.role.ID, "id": p.ID, "plain_hex": hex.EncodeToString(p.Payload)})
+				}); e != nil {
+					event(map[string]any{"kind": "item_sort_write_error", "error": e.Error()})
 					return
 				}
 				continue
@@ -1505,6 +1547,8 @@ func main() {
 					} else {
 						plan, e = worldState.leaveDungeon()
 					}
+				case 2015:
+					plan, e = worldState.elvenmereTeleport(plaintext)
 				}
 				if e != nil {
 					event(map[string]any{"kind": "dungeon_request_refused", "id": frame.ID, "reason": e.Error()})
@@ -1536,7 +1580,7 @@ func main() {
 					}
 					// CMD39 failure reads a monster u16; NOTI132 has no generic
 					// command refusal. Never send the generic error shape there.
-					if frame.ID == 39 || frame.ID == 46 || frame.ID == 117 || frame.ID == 132 {
+					if frame.ID == 39 || frame.ID == 46 || frame.ID == 117 || frame.ID == 132 || frame.ID == 2015 {
 						continue
 					}
 					if e = sendPayload(1, frame.ID, protocol.Refusal(4)); e != nil {
@@ -1599,14 +1643,18 @@ func main() {
 							event(map[string]any{"kind": "area_presence_error", "error": e.Error()})
 						}
 					}
-					if p.Name == "settlement_exit_ack" && pending == nil {
+					if (p.Name == "settlement_exit_ack" || p.Name == "dungeon_leave_ack") && pending == nil {
 						worldState.activeDungeon = nil
 						worldState.drops = nil
 						worldState.deathSent = nil
 						worldState.completionSent = false
 						worldState.resultSent = false
 						worldState.resetCards()
-						worldState.selectingDungeon = p.Payload[2] == 1
+						if p.Name == "settlement_exit_ack" {
+							worldState.selectingDungeon = p.Payload[2] == 1
+						} else {
+							worldState.selectingDungeon = false
+						}
 					}
 					if p.Name == "monster_death_confirmed" {
 						if worldState.deathSent == nil {
@@ -2020,6 +2068,16 @@ func main() {
 						plan.WornUpdate, e = inventory.WornSpaceUpdate(role.State)
 					}
 					if e == nil {
+						// Full worn set through the id-14 slot-update channel,
+						// mirroring the equipment-move heal frames (see the
+						// third-pass note in entry_flow.go packets()).
+						var bag inventory.Bag
+						bag, e = inventory.ReadBag(role.State)
+						if e == nil && len(bag.Worn) > 0 {
+							plan.WornSlots, e = inventory.EquipmentPayload(3, bag.Worn, false)
+						}
+					}
+					if e == nil {
 						plan.AvatarReady, e = inventory.SpecialEquipmentRestorePayload(role.State, 1)
 					}
 					if e == nil {
@@ -2336,7 +2394,6 @@ func main() {
 	}
 	select {}
 }
-
 
 // unifiedEntries converts a decoded CMD2377 block into the storage shape so
 // account (0x01) and character (0x05) settings can be persisted durably.

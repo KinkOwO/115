@@ -2,89 +2,143 @@ package catalog
 
 import (
 	"dfolan/internal/catalog/pvf"
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
 
-func areaCells(middle ...pvf.Token) []pvf.Token {
-	out := []pvf.Token{{Type: 3, Text: "[area]"}, {Type: 0, Value: 43}, {Type: 6, Text: "stormpass.map"}}
-	return append(out, append(middle, pvf.Token{Type: 3, Text: "[normal]"}, pvf.Token{Type: 3, Text: "[/area]"})...)
-}
-
-func TestParseWorldAreasOdysseyEnterLevel(t *testing.T) {
-	// 单数值 cell：[need level] 与 [odyssey enter level] 并存（风云径 43/* 实源形态）。
-	rows, e := parseWorldAreas(43, areaCells(
-		pvf.Token{Type: 3, Text: "[permission]"},
-		pvf.Token{Type: 3, Text: "[need level]"}, pvf.Token{Type: 0, Value: 50},
-		pvf.Token{Type: 3, Text: "[odyssey enter level]"}, pvf.Token{Type: 0, Value: 45},
-		pvf.Token{Type: 3, Text: "[/permission]"},
-	))
-	if e != nil || len(rows) != 1 {
-		t.Fatalf("single-value parse: %v %v", rows, e)
+func TestWorldAreaLevelGatesFromPermissionBlock(t *testing.T) {
+	// 实源 stormpass.map（43/0）的 [permission] 块同时给出 [need level] 50 与
+	// [odyssey enter level] 45。客户端在奥德赛模式下用后者判定（拒绝提示
+	// DSTR 535 填的是 45），解析必须同时保留两个值，而不是只留 [need level]。
+	tokens := []pvf.Token{
+		{Type: 3, Text: "[area]"},
+		{Type: 0, Value: 0},
+		{Type: 6, Text: "map/cataclysm/town/stormpass/stormpass.map"},
+		{Type: 3, Text: "[permission]"},
+		{Type: 3, Text: "[need level]"},
+		{Type: 0, Value: 50},
+		{Type: 3, Text: "[odyssey enter level]"},
+		{Type: 0, Value: 45},
+		{Type: 3, Text: "[/permission]"},
+		{Type: 6, Text: "[normal]"},
+		{Type: 3, Text: "[/area]"},
 	}
-	a := rows[0]
-	if a.MinimumLevel != 50 || a.OdysseyEnterLevel != 45 {
-		t.Fatalf("parsed need=%d odyssey=%d", a.MinimumLevel, a.OdysseyEnterLevel)
+	areas, err := parseWorldAreas(43, tokens)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if a.RequiredLevel(true) != 45 || a.RequiredLevel(false) != 50 {
-		t.Fatalf("required levels: odyssey=%d normal=%d", a.RequiredLevel(true), a.RequiredLevel(false))
+	if len(areas) != 1 {
+		t.Fatalf("expected 1 area, got %d", len(areas))
 	}
-	if len(a.Pending) != 0 {
-		t.Fatalf("unexpected pending: %v", a.Pending)
+	if areas[0].MinimumLevel != 50 || areas[0].OdysseyMinimumLevel != 45 {
+		t.Fatalf("gates: need %d odyssey %d", areas[0].MinimumLevel, areas[0].OdysseyMinimumLevel)
 	}
-
-	// 条件式（多 cell）：不能解释，落 Pending 且不产生 odyssey 门槛。
-	rows, e = parseWorldAreas(43, areaCells(
-		pvf.Token{Type: 3, Text: "[permission]"},
-		pvf.Token{Type: 3, Text: "[odyssey enter level]"}, pvf.Token{Type: 0, Value: 45}, pvf.Token{Type: 0, Value: 114},
-		pvf.Token{Type: 3, Text: "[/permission]"},
-	))
-	if e != nil || len(rows) != 1 {
-		t.Fatalf("conditional parse: %v %v", rows, e)
-	}
-	a = rows[0]
-	if a.OdysseyEnterLevel != 0 || !strings.Contains(a.Pending[0], "conditional odyssey level rule") {
-		t.Fatalf("conditional expected pending, got odyssey=%d pending=%v", a.OdysseyEnterLevel, a.Pending)
+	if len(areas[0].Pending) != 0 {
+		t.Fatalf("unexpected pending: %v", areas[0].Pending)
 	}
 }
 
-// TestWorldCatalogOdysseyEnterLevel 锁住修补后的运行时目录事实：
-// 78 个双标签区、风云径 43/* need 50 / odyssey 45、area 总数与
-// source.checksum 保持不变（checksum 变更会触发 world/character 版本门禁）。
-func TestWorldCatalogOdysseyEnterLevel(t *testing.T) {
-	cat, e := LoadWorld("../../configs/world.generated.json")
-	if e != nil {
-		t.Fatal(e)
+func TestWorldAreaOdysseyGateMustBeNumeric(t *testing.T) {
+	// 条件式或非数值的 [odyssey enter level] 不得被当成一个猜出来的数字门槛：
+	// 紧跟进条件子块（type 3 标签）时按"源里没有该门槛"处理，段落里出现
+	// 非数值单元（type 6）时记为未解析。
+	conditional := []pvf.Token{
+		{Type: 3, Text: "[area]"},
+		{Type: 0, Value: 0},
+		{Type: 6, Text: "map/x.map"},
+		{Type: 3, Text: "[permission]"},
+		{Type: 3, Text: "[need level]"},
+		{Type: 0, Value: 50},
+		{Type: 3, Text: "[odyssey enter level]"},
+		{Type: 3, Text: "[check condition]"},
+		{Type: 0, Value: 12},
+		{Type: 3, Text: "[/check condition]"},
+		{Type: 0, Value: 45},
+		{Type: 3, Text: "[/permission]"},
+		{Type: 3, Text: "[/area]"},
 	}
-	if cat.Source.Checksum != "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80" {
-		t.Fatal("source checksum changed:", cat.Source.Checksum)
+	areas, err := parseWorldAreas(43, conditional)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if len(cat.Areas) != 694 {
-		t.Fatalf("area count = %d, want 694", len(cat.Areas))
+	if len(areas) != 1 || areas[0].MinimumLevel != 50 || areas[0].OdysseyMinimumLevel != 0 {
+		t.Fatalf("conditional odyssey gate accepted: %+v", areas)
 	}
-	dual := 0
-	for key, a := range cat.Areas {
-		if a.OdysseyEnterLevel == 0 {
-			continue
-		}
-		dual++
-		if a.MinimumLevel == 0 {
-			t.Fatalf("%s has odyssey tag without need level", key)
+
+	nonNumeric := []pvf.Token{
+		{Type: 3, Text: "[area]"},
+		{Type: 0, Value: 0},
+		{Type: 6, Text: "map/x.map"},
+		{Type: 3, Text: "[permission]"},
+		{Type: 3, Text: "[need level]"},
+		{Type: 0, Value: 50},
+		{Type: 3, Text: "[odyssey enter level]"},
+		{Type: 6, Text: "[normal]"},
+		{Type: 3, Text: "[/permission]"},
+		{Type: 3, Text: "[/area]"},
+	}
+	areas, err = parseWorldAreas(43, nonNumeric)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(areas) != 1 || areas[0].OdysseyMinimumLevel != 0 {
+		t.Fatalf("non-numeric odyssey gate accepted: %+v", areas)
+	}
+	found := false
+	for _, pending := range areas[0].Pending {
+		if pending == "conditional odyssey level rule requires interpretation" {
+			found = true
 		}
 	}
-	if dual != 78 {
-		t.Fatalf("odyssey-tagged areas = %d, want 78", dual)
+	if !found {
+		t.Fatalf("pending: %v", areas[0].Pending)
 	}
-	for _, key := range []string{"43/0", "43/1", "43/2"} {
-		a, ok := cat.Areas[key]
-		if !ok {
-			t.Fatal("missing area", key)
-		}
-		if a.MinimumLevel != 50 || a.OdysseyEnterLevel != 45 {
-			t.Fatalf("%s need=%d odyssey=%d, want 50/45", key, a.MinimumLevel, a.OdysseyEnterLevel)
-		}
-		if a.RequiredLevel(true) != 45 || a.RequiredLevel(false) != 50 {
-			t.Fatalf("%s required levels wrong", key)
-		}
+}
+
+func TestLoadWorldBackfillsOdysseyGate(t *testing.T) {
+	// 升级前导出的 world 目录没有 odyssey_minimum_level 字段，但保留了完整
+	// area definition；加载时按需回填，避免为了一个新增数据块重导 31 MB 配置。
+	catalog := map[string]any{
+		"source": map[string]any{"checksum": strings.Repeat("a", 64)},
+		"areas": map[string]any{
+			"43/1": map[string]any{
+				"town": 43, "area": 1, "map_path": "map/x.map", "minimum_level": 50,
+				"definition": []pvf.Token{
+					{Type: 3, Text: "[permission]"},
+					{Type: 3, Text: "[need level]"}, {Type: 0, Value: 50},
+					{Type: 3, Text: "[odyssey enter level]"}, {Type: 0, Value: 45},
+					{Type: 3, Text: "[/permission]"},
+				},
+			},
+			"43/2": map[string]any{
+				"town": 43, "area": 2, "map_path": "map/y.map", "minimum_level": 50,
+				"definition": []pvf.Token{
+					{Type: 3, Text: "[permission]"},
+					{Type: 3, Text: "[need level]"}, {Type: 0, Value: 50},
+					{Type: 3, Text: "[/permission]"},
+				},
+			},
+		},
+	}
+	raw, err := json.Marshal(catalog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	file := filepath.Join(t.TempDir(), "world.json")
+	if err = os.WriteFile(file, raw, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	w, err := LoadWorld(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := w.Areas["43/1"].OdysseyMinimumLevel; got != 45 {
+		t.Fatalf("backfilled gate %d", got)
+	}
+	if got := w.Areas["43/2"].OdysseyMinimumLevel; got != 0 {
+		t.Fatalf("area without source gate gained %d", got)
 	}
 }

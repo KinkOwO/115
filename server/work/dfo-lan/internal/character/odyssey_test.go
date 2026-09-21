@@ -126,3 +126,25 @@ func TestOdysseyCatchupOnlyFromPersistedClear(t *testing.T) {
 		t.Fatal("ordinary catchup", target, e)
 	}
 }
+
+func TestCreatedAsOdysseyIgnoresLauncherMode(t *testing.T) {
+	_, role := odysseyGrowthFixture(t)
+	if !CreatedAsOdyssey(role) || !OdysseyRole(role) {
+		t.Fatal("creation marker lost")
+	}
+	// 启动器的全局开关只应影响 OdysseyRole 这类内容开关，不得改变角色自身的
+	// 创建标记：城镇准入必须与客户端一致（客户端按角色标记判定）。
+	t.Setenv("DFO_ODYSSEY_MODE", "0")
+	if OdysseyRole(role) {
+		t.Fatal("debug override ignored")
+	}
+	if !CreatedAsOdyssey(role) {
+		t.Fatal("override changed the per-character marker")
+	}
+	t.Setenv("DFO_ODYSSEY_MODE", "1")
+	normal := role
+	normal.Request = nil
+	if !OdysseyRole(normal) || CreatedAsOdyssey(normal) {
+		t.Fatal("override must stay global and leave the marker alone")
+	}
+}

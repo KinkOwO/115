@@ -25,6 +25,9 @@ type Session struct {
 	Visited          map[uint32][]protocol.DungeonMonster
 	ScriptWarps      map[uint32]bool
 	NextEntity       uint16
+	Extra            uint16
+	WeeklyRewards    [100]byte
+	SeasonRewards    [100]byte
 	completionTarget uint16
 	completed        bool
 }
@@ -45,7 +48,13 @@ func Select(c catalog.DungeonCatalog, r protocol.DungeonSelection, level byte, a
 	if r.Difficulty > 5 || (d.Odyssey && r.Difficulty != d.DesignatedDifficulty) {
 		return nil, fmt.Errorf("unsupported dungeon difficulty %d", r.Difficulty)
 	}
-	if d.Tutorial || r.Extra != 0 || r.Mode != 0 || r.Flag != 0 || r.Party != 65535 || r.Reserved != 0 || r.Tail != 0 || r.Options != [2]byte{} || r.Event != 0 {
+	// Elvenmere 特殊副本（ID 100003126）支持在选图界面选择 Zone（Extra 为选中的初始层数 1..100，如 1、36、61、86），
+	// 其余普通副本严格要求 r.Extra == 0。
+	extraValid := r.Extra == 0
+	if d.ID == 100003126 && r.Extra <= 100 {
+		extraValid = true
+	}
+	if d.Tutorial || !extraValid || r.Mode != 0 || r.Flag != 0 || r.Party != 65535 || r.Reserved != 0 || r.Tail != 0 || r.Options != [2]byte{} || r.Event != 0 {
 		return nil, fmt.Errorf("unsupported dungeon option")
 	}
 	if r.Quest > 65535 || r.Quest != 0 && !accepted[uint16(r.Quest)] {
@@ -71,7 +80,25 @@ func Select(c catalog.DungeonCatalog, r protocol.DungeonSelection, level byte, a
 	if chosen == nil {
 		return nil, fmt.Errorf("no resolved source maze for requested quest")
 	}
-	return newSession(c, d, *chosen)
+	s, err := newSession(c, d, *chosen)
+	if err != nil {
+		return nil, err
+	}
+	s.Extra = r.Extra
+	if d.ID == 100003126 && s.Extra > 1 {
+		// 跳区入场（如从第 36、61、86 层开始），前面的层数标记为已通关/已领奖
+		start := int(s.Extra)
+		if start > 100 {
+			start = 100
+		}
+		for i := 0; i < start-1; i++ {
+			s.WeeklyRewards[i] = 1
+			if (i+1)%5 == 0 {
+				s.SeasonRewards[i] = 1
+			}
+		}
+	}
+	return s, nil
 }
 
 // resolveRoomMap 取该房间可用的地图脚本：先用主地图，主地图不在目录里时
@@ -177,6 +204,27 @@ func (s *Session) ConfirmDeath(entity uint32, killer, actor uint16) (bool, error
 			return true, nil
 		}
 	}
+	if s.Definition.ID == 100003126 {
+		unowned := killer == 65535
+		if killer != actor && !unowned {
+			return false, fmt.Errorf("foreign combat killer")
+		}
+		if s.Dead == nil {
+			s.Dead = map[uint16]bool{}
+		}
+		if s.Dead[uint16(entity)] {
+			return false, nil
+		}
+		if unowned {
+			if s.Unowned == nil {
+				s.Unowned = map[uint16]bool{}
+			}
+			s.Unowned[uint16(entity)] = true
+		}
+		s.Dead[uint16(entity)] = true
+		s.tryComplete()
+		return true, nil
+	}
 	return false, fmt.Errorf("monster absent from current source room")
 }
 func (s *Session) RoomCleared() bool {
@@ -186,7 +234,7 @@ func (s *Session) RoomCleared() bool {
 	if s.Room.Map == 100016294 {
 		return true
 	}
-	if s.Definition.Odyssey && s.Definition.ID >= 100004960 {
+	if s.Definition.Odyssey {
 		return true
 	}
 	keyRoom := s.warpKeyRoom()

@@ -177,8 +177,18 @@ func UserInfoBasicProbe(s EntryBasicProbe) ([]byte, error) {
 	p = append(p, 0)
 	creatureItemID := r.CreatureItemID
 	creatureName := r.CreatureName
-	p = append(addName(add32(p, creatureItemID), creatureName), 0) // 0x1456394b0: creature fields (item_id, dstr name, u8 isDead=0)
-	p = append(p, 0)                                               // 0x14563be50: premium PC-room byte
+	// 0x1456394b0: creature fields (item_id, dstr name, u8 present).
+	// The trailing byte is the actor's creature visibility gate, not a dead
+	// flag: the client reader stores its inverse as the companion's hidden
+	// state, so 0 keeps a fully created creature invisible (GF115 history
+	// "object created but hidden"; docs/宠物显示实现-G0198 §2.1 pins the
+	// official value shape: item_id=slot-26 template, name, present=1).
+	var creaturePresent byte
+	if creatureItemID != 0 {
+		creaturePresent = 1
+	}
+	p = append(addName(add32(p, creatureItemID), creatureName), creaturePresent)
+	p = append(p, 0) // 0x14563be50: premium PC-room byte
 	p = add32(add32(p, 0), 0)
 	p = add16(add32(addName(p, ""), 0), 0) // 0x14563a0b0
 	p = add32(p, 0)
