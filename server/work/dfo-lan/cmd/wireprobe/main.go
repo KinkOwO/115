@@ -793,6 +793,7 @@ func main() {
 		var worldState *worldSession
 		var skillState skillSession
 		var equipmentState equipmentSession
+		var sortState sortSession
 		if worldService != nil {
 			worldState = &worldSession{characters: characters, service: worldService, account: developmentAccount, flags: townPolicy.Flags, dungeons: dungeonCatalog, tutorials: tutorialRoutes, tutorialDungeons: tutorialDungeons, professions: characters.Catalog, fatigue: fatigueService, quests: questService, progression: progressionService, loot: lootService, vault: vaultService, soloPartyBootstrap: *soloPartyBootstrap, hub: hub}
 		}
@@ -1074,6 +1075,31 @@ func main() {
 					event(map[string]any{"kind": p.Name, "character_id": worldState.role.ID, "id": p.ID, "plain_hex": hex.EncodeToString(p.Payload)})
 				}); e != nil {
 					event(map[string]any{"kind": "equipment_write_error", "error": e.Error()})
+					return
+				}
+				continue
+			}
+			if frame.ID == 20 && bootstrapped && verified && wearService != nil {
+				// CMD20 SORT_ITEM: the client has already arranged the bag and
+				// asks the server to adopt it. Answering is also what clears the
+				// client's "inventory in use" latch.
+				plan, e := sortState.handle(wearService, worldState, plaintext, frame.Raw)
+				if e != nil {
+					event(map[string]any{"kind": "item_sort_refused", "reason": e.Error()})
+					if e = sendPayload(1, 20, protocol.Refusal(4)); e != nil {
+						return
+					}
+					continue
+				}
+				prepared, e := preparePackets(keys, plan)
+				if e != nil {
+					event(map[string]any{"kind": "item_sort_encode_error", "error": e.Error()})
+					return
+				}
+				if e = writePackets(c, prepared, func(p preparedPacket) {
+					event(map[string]any{"kind": p.Name, "character_id": worldState.role.ID, "id": p.ID, "plain_hex": hex.EncodeToString(p.Payload)})
+				}); e != nil {
+					event(map[string]any{"kind": "item_sort_write_error", "error": e.Error()})
 					return
 				}
 				continue
@@ -2040,6 +2066,16 @@ func main() {
 					plan.Worn, e = inventory.WornPayload(role.State)
 					if e == nil {
 						plan.WornUpdate, e = inventory.WornSpaceUpdate(role.State)
+					}
+					if e == nil {
+						// Full worn set through the id-14 slot-update channel,
+						// mirroring the equipment-move heal frames (see the
+						// third-pass note in entry_flow.go packets()).
+						var bag inventory.Bag
+						bag, e = inventory.ReadBag(role.State)
+						if e == nil && len(bag.Worn) > 0 {
+							plan.WornSlots, e = inventory.EquipmentPayload(3, bag.Worn, false)
+						}
 					}
 					if e == nil {
 						plan.AvatarReady, e = inventory.SpecialEquipmentRestorePayload(role.State, 1)
