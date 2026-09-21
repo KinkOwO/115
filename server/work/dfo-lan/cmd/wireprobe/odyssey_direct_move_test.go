@@ -50,29 +50,31 @@ func TestDirectMoveDungeonRejectsMalformedBody(t *testing.T) {
 	}
 }
 
-// 直达下一关复用城镇选图的整套进图序列，ack 2062 之后还要补一条 select ack(16)：
-// 同一房间从 CMD 15/16 进入时首领房的传送阵正常，从 CMD 2062 进入时它不生效，
-// 而两条进图序列除 ack id 外逐字节相同（2026-09-21 实机对照）。
-func TestDirectMoveEntryPlanRepeatsSelectionAck(t *testing.T) {
+// 直达下一关的进图序列与城镇选图完全一致（只回 select ack(16)，不再回 2062 的 ack）：
+// 实机对照（同一次会话、同一关卡、同一张切层图）显示多回那条 2062 ack 会让客户端在
+// 切层后不再请求房间，而只回 select ack(16) 时首图/切层图/直到 Boss 房全部正常。
+func TestDirectMoveEntryPlanMatchesTownSelection(t *testing.T) {
 	w := &worldSession{role: storage.Character{ID: 7, WireID: 10}}
 	s := &dungeon.Session{
-		Definition: catalog.DungeonDefinition{ID: 100004948},
-		Maze:       catalog.DungeonMaze{Index: 0, Start: [2]byte{0, 0}, Boss: [2]byte{1, 1}},
-		Room:       catalog.DungeonRoom{Map: 100016138},
+		Definition: catalog.DungeonDefinition{ID: 100004950},
+		Maze:       catalog.DungeonMaze{Index: 0, Start: [2]byte{0, 5}, Boss: [2]byte{4, 1}},
+		Room:       catalog.DungeonRoom{Map: 100016164},
 	}
-	sel := protocol.DungeonSelection{ID: 100004948, Difficulty: 2, Party: 65535}
+	sel := protocol.DungeonSelection{ID: 100004950, Difficulty: 2, Party: 65535}
 	plan, e := w.directMoveEntryPlan(sel, s)
 	if e != nil {
 		t.Fatal(e)
 	}
-	if len(plan) < 3 {
+	if len(plan) < 2 {
 		t.Fatalf("plan too short: %d packets", len(plan))
 	}
-	if plan[0].Name != "dungeon_direct_move_ack" || plan[0].ID != 2062 {
-		t.Fatalf("first packet is not the CMD 2062 acknowledgement: %+v", plan[0])
+	if plan[0].Name != "dungeon_select_ack" || plan[0].ID != 16 || plan[0].Kind != 1 {
+		t.Fatalf("first packet is not the town selection acknowledgement: %+v", plan[0])
 	}
-	if plan[1].Name != "dungeon_select_ack" || plan[1].ID != 16 || plan[1].Kind != 1 {
-		t.Fatalf("missing selection acknowledgement: %+v", plan[1])
+	for _, p := range plan {
+		if p.ID == 2062 {
+			t.Fatalf("direct move acknowledgement must not be sent: %+v", p)
+		}
 	}
 	last := plan[len(plan)-1]
 	if last.Name != "dungeon_start_map_sent" || last.ID != 29 {

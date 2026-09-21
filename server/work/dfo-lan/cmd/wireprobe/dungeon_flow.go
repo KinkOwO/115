@@ -237,22 +237,24 @@ func (w *worldSession) directMoveDungeon(p []byte) (*dungeon.Session, []outbound
 }
 
 // directMoveEntryPlan is the CMD 2062 form of dungeonEntryPlan: the client
-// started this run from its own direct-move request instead of the town
-// selection, and the live capture of 2026-09-21 shows it needs both
-// acknowledgements. The same room (100016138, "战争结束" first floor) cleared
-// its floor portal normally when the run was entered through CMD 15/16 and the
-// server answered dungeon_select_ack(16); entered through CMD 2062 it loaded
-// the map but the portal stayed inert, and the two entry sequences are
-// byte-identical apart from that acknowledgement id. The selection ack is
-// therefore replayed here too, immediately before the shared entry frames.
+// starts this run from its own direct-move request, and the town selection
+// sequence is what its dungeon context expects.
+//
+// Live A/B in one session (2026-09-21, dungeon 100004950 "安徒恩讨伐战"):
+//
+//	15:38:03 entered via CMD 2062 and the server answered
+//	         dungeon_direct_move_ack(2062) + dungeon_select_ack(16):
+//	         the first room advanced, but after the layer change to 100016165
+//	         the client stopped sending room requests altogether and the run
+//	         stalled there.
+//	15:41:09 entered via the town gate (CMD 15/16), server answered
+//	         dungeon_select_ack(16) only: first room, the same layer map and
+//	         all ten rooms up to the boss room 100016175 advanced normally.
+//
+// The two entry sequences differ by nothing but that 2062 acknowledgement, so
+// it is dropped here: the direct move replays the town selection entry exactly.
 func (w *worldSession) directMoveEntryPlan(sel protocol.DungeonSelection, s *dungeon.Session) ([]outboundPacket, error) {
-	entry, e := w.dungeonEntryPlan("dungeon_direct_move_ack", 2062, sel, s)
-	if e != nil {
-		return nil, e
-	}
-	plan := make([]outboundPacket, 0, len(entry)+1)
-	plan = append(plan, entry[0], outboundPacket{"dungeon_select_ack", 1, 16, []byte{1}})
-	return append(plan, entry[1:]...), nil
+	return w.dungeonEntryPlan("dungeon_select_ack", 16, sel, s)
 }
 
 func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) {
