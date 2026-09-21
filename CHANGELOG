@@ -1,6 +1,12 @@
 # CHANGELOG
 
 ## 2026-09-21
+- 重登装备升级箭头修复（next47 闭环，实机确认）：重登进城后可穿装备 8 格全亮"↑更好装备"，换装/切图一次才恢复正确。
+  - **根因**：登录序列从未下发 id-14 `equipment_slots_updated`（载荷携带 worn 槽位物品等级），客户端箭头"等级比较"分支缺数据而退化 → 全亮；换装自愈正因换装处理器补发该报文 ×2。前三轮报文镜像（NOTI23+24、list0+list3、CMD19、bag/worn/window/appearance 全镜像）均无效并保留在代码注释中。
+  - **定位方法**：客户端静态逆向（SetGridOverlay 0x14500A050 唯一调用方、Query 0x145CDCA30 语义解出）→ frida 安全探针（只挂函数入口；证明画箭头时查询表已非零，走等级比较分支而非 NULL 分支）→ 服务端 events.jsonl 换装 vs 登录报文集差集，唯一缺失帧一次锁定。
+  - **实现**：`entry_flow.go` 在 enter_gameworld_complete 屏障后插入 `equipment_slots_updated_entry`（id-14，space 3 全套 worn 行，`inventory.EquipmentPayload(3, bag.Worn, false)`，与换装路径同构建器同格式）；`main.go` 构建 `WornSlots`；`worn_display_handoff_test.go` 修复过时断言并新增 slot-update 顺序断言。
+  - **实机验收（2026-09-21 22:12）**：进城仅剩青铜护腿 1 个箭头——全身等级最低装备的真实"可换更好"提示（换下后消失佐证），7 格误亮消失。
+  - **文档与工具**：`docs/重登升级箭头修复-动态探针定位与登录序列补帧-20260921.md`（完整复盘 + frida 安全探针守则 + events.jsonl 差集对账方法论）；`analysis/tools/arrow_probe.py`（探针 v5：函数入口钩 + A/B 表 200ms 只读轮询 + 返回值去重）；过程留档 `analysis/tasks/next47-equip-arrow-*.md`；`work/dfo-lan/docs/protocol/next47-relog-upgrade-arrow-client-side.md` 收口。
 - 实现特殊爬塔地下城“艾尔芬米尔”（Elvenmere / ID: `100003126`）完整服务端支持，闭环选区进图、切层推进、通关奖励（Seed Coin）、经验结算与死亡生还恢复。
   - **背景与根因**：
     1. **选区被拒**：客户端 `ElvenmereDungeonSelect.xui` 通过选图请求 CMD 16 的 `r.Extra` 字段传递所选区域（Zone 1~4）的起始层数（1、36、61、86）。原服务端严格要求 `r.Extra == 0`，导致 Elvenmere 选区请求被拒（`unsupported dungeon option`）。
@@ -139,6 +145,19 @@
     4. 单元与回归测试：`internal/catalog/town_test.go` 新增真实嵌套 token 流测试用例；`internal/world/service_test.go` 新增 `TestQuestGatedPortalToElvenmere` 验证 38/3→38/7 正常放行、远距离绕门拒绝、等级不足拒绝；
   - **实机验收（2026-09-21）**：用户重启服务端并实机操作验证通过，角色可正常从艾尔文防线进入 Elvenmere，不再弹窗拦截。
 
+- 修复“背包整理按钮不生效、且分解报‘库存目前正在使用中’”：CMD20 的置换表方向与重排范围都错了。
+  - **现象**：装备栏/物品栏里点“整理”无反应；随后分解任何物品都报“库存目前正在使用中”，但**不点整理直接分解正常** —— 说明“使用中”是整理未被应答导致客户端库存互斥没释放的**连锁现象**，不是分解缺陷。
+  - **取证（原生向量）**：CMD20 请求明文布局 `+0 u8 list(0)`、`+1 u8`、`+2 u16 count`、`+4 count×u16 置换表`、尾 4 字节 0（`testdata/native_sort_item20.json`，768 字节）；三条真实请求的置换表分别是 11 元循环（`11→19,12→11,…,22→18`）、`65↔74`、以及 `12→29,13→12,…,29→18`。
+  - **根因（两次）**：① 置换表**方向读反**——用“结果是否紧凑无空洞”判定，正确方向是“物品 `s` 移到新槽 `perm[s]`”（原实现按 `new[i]=old[perm[i]]`）；② 只重排了 `Bag.Items`，而装备在 `Bag.Equipment`，导致编辑后装备不动、个别格子跳位。
+  - **实现**：`protocol.SortItemRequest`（解析 list + 置换表）与 `protocol.SortItemSuccess`；`inventory.SortItems`（**同时重排 `Items` 与 `Equipment`**）与 `WearService.SortBag`（幂等模型 `ordinary-item-sort-v1`）；`cmd/wireprobe/sort_flow.go` 在 CMD20 后回 `{1,20,SortItemSuccess}` + `{0,13,InventoryRestore(b.Rows())}`；`request_scope.go` 的已实现请求清单加入 `20`。
+  - **测试**：`internal/game/protocol/sort_item_test.go`（含原生向量回归）、`internal/inventory/sort_test.go`（置换方向、非装备区不越界、装备与物品同时重排）；`go test ./internal/... ./cmd/...`、`go vet` 全绿。
+  - **实机验收（2026-09-21，用户操作）**：整理生效，装备栏与物品栏各自整理且互不干扰。
+  - **未闭环**：`SortItemSuccess` 的 ACK 形状（`{1}`）仍为按既有成功帧形态推定，仅由实机“客户端接受、不报错”佐证；`item_sort_replayed` 幂等重放分支未被实机覆盖。
+- 重登后装备栏“更好的装备 ↑ 箭头”误显示（**未闭环，已定性为客户端行为**）。
+  - **现象**：重登进城后，凡是本角色**能穿**的背包装备都亮 ↑，与是否真的比身上那件好无关。
+  - **实机判定（2026-09-21，用户操作，三层对照）**：① 重登后 8 件可穿装备全亮，唯一不亮的是 `37302`（盗贼双剑，`[usable job]=[thief]`，本角色穿不了）；② 一次**真实换装**后箭头立刻变成正确比较（只剩真正更强的那件）；③ 关闭装备栏无效、切一次地图有效。→ 重登后客户端只做“**可穿戴标记**”，不进入“**强弱比较**”。
+  - **服务端三次补帧全部无效并已回退**：入口帧末尾补发 NOTI23+NOTI24（复刻切图收尾，且使某一行箭头消失）、补发 list0+list3 快照、补发 CMD19 确认（`ItemMoveSuccess`，源=目标、不改服务端状态）。两次“有效”路径（真实换装、切地图）下发的都是**客户端自己请求的应答**，单纯补通知或确认都不构成触发。
+  - **结论与下一步**：触发条件在客户端内部（疑似 `spec_slot_arrow` / `up_arrow` / `down_arrow`，地址见 `analysis/dumps/xorstr_addr_to_text.json`）。已留档 `work/dfo-lan/docs/protocol/next47-relog-upgrade-arrow-client-side.md`；本机无 `client/DFO.exe.i64`，决定自行用 Ghidra 建库分析（不再向入口流程叠帧，三次上限已到）。
 ## 2026-09-20
 - 补齐开局转职链路的配套工具：角色目录缺数据告警、老角色一次性修复命令、打包清单生成脚本。
   - **背景**：上一批把默认启动链的角色目录换成带 growtype 数据的 `characters.skycastle-release.json` 之后，暴露出三处配套缺口：① 该目录若缺失或换代，服务端会**静默**退回基础职业，全程没有报错；② 修复前创建的角色 `advancement` 仍是 0，需要按建号请求补账、再补初始穿戴；③ `server/package-manifest.json` 里记录的 exe 哈希已 STALE（`wireprobe-handoff-source.exe` 本地 17792512 / 清单 16649728，`probe.exe` 亦不符），且不含本批次的 `*.release.json`，仓库里也没有生成脚本。
