@@ -1,11 +1,16 @@
 # CHANGELOG
 
 ## 2026-09-21
-- 修复宠物已穿戴但城镇不跟随（实机确认跟随显示恢复）：
-  - **根因（按官方 570 帧解析文档 G0198 定位）**：宠物显示路径是 USERINFO0（opcode 2, mode 0）的宠物段 `{u32 槽26模板 + DSTR 名字 + u8 present}`（装备段结束 +23），不是 NOTI 105（官方只发 count=0）。当前代码两处断裂：① `entry_userinfo.go` 宠物段 present 字节硬编码 0 → 客户端将已创建宠物置为隐藏态；② `service.go` 的 `EntryBasicProbe`/`AppearanceProbe` 从未填充 `CreatureItemID/CreatureName` → 宠物段恒全 0，客户端按 item_id=0 创建失败（`Failed Create Creature 0`）。
-  - **改动**：`entry_userinfo.go` present 字节改为 `itemID != 0 → 1`；`service.go` 两条 mode-0 出口均经 `wornCreature(role.State)` 从穿戴槽 26 取模板与名字填入宠物段（外观刷新包不再把宠物刷没）。
-  - **遗留**：进入游戏时装备栏宠物槽 UI 空白待修——方向为 opcode 2 mode 1 穿戴表槽 26 宠物行（190+5 扩展字节），需先核对当前客户端 reader `sub_1452C1540` 的行布局，不猜包。
-  - **测试**：`entry_userinfo_test.go` 钉死宠物段偏移（200+len(name)）与 present 取值；`appearance_test.go` 覆盖 entry/appearance 两条 mode-0 路径宠物段投影；`go test ./...`、`go vet ./...` 全绿；`internal/inventory/creature_list.go`（CreatureDefaultNames + NOTI 105 构建器，HEAD 多个调用方依赖）补齐入库。
+- 修复宠物已穿戴但城镇不跟随与装备栏宠物槽 UI 空白（两阶段均实机确认修复闭环）：
+  - **跟随显示根因（官方 570 帧解析 G0198 定位）**：显示路径是 USERINFO0（opcode 2 mode 0）宠物段 `{u32 槽26模板 + DSTR 名字 + u8 present}`（装备段结束 +23），非 NOTI 105（官方发 count=0）。原代码 present 硬编码 0（=隐藏）且未填入槽 26 数据 → 客户端 `Failed Create Creature 0`。
+  - **装备栏宠物槽空白根因（IDA sub_1452C1540 指令级取证）**：mode-1 穿戴表 reader 行布局：时装行（type<=11）40头+2blob+87尾=135+；宠物行（type==26 @0x1452c186d）40头+5扩展(u32+u8)+87尾=132（无 avatar blob）；宠物装备行（槽 27..29）40+87=127。原 `detail.go` 的 `if item.Slot <= 11` 过滤把槽 26 宠物行整条丢弃，客户端装备栏拿不到 mode-1 穿戴行。
+  - **改动**：
+    1. `internal/game/protocol/entry_userinfo.go`：present 字节由硬编码 0 改为 `itemID != 0 → 1`；
+    2. `internal/character/service.go`：`EntryBasicProbe` 与 `AppearanceProbe` 均经 `wornCreature` 填入宠物段数据；
+    3. `internal/game/protocol/detail_equipment.go`：重写 `DetailedEquipment` 接入宠物行（+5 字节扩展、无 avatar blob）与宠物装备行（127 字节纯行）；容量上限 12→48；非时装行安全守卫；
+    4. `internal/character/detail.go`：投影过滤从 `Slot <= 11` 扩为 `Slot <= 11 || (Slot >= 26 && Slot <= 29)`，槽 12..25 保持排除（遵守单一假设）；
+  - **实机验收**：角色 9 进游戏后，身旁宠物正常跟随；装备栏（F6）宠物槽显示宠物图标与预览，槽位正常闭环。
+  - **测试**：`entry_userinfo_test.go` 钉死宠物段偏移与 present 取值；`appearance_test.go` 覆盖两条 mode-0 出口；`detail_equipment_test.go` 覆盖宠物行与宠物装备行布局；`detail_avatar_test.go` 覆盖槽 26 进入 mode-1 且槽 12/47 不泄漏。`go test ./...`、`go vet ./...` 全绿。
 - 重登装备升级箭头修复（next47 闭环，实机确认）：重登进城后可穿装备 8 格全亮"↑更好装备"，换装/切图一次才恢复正确。
   - **根因**：登录序列从未下发 id-14 `equipment_slots_updated`（载荷携带 worn 槽位物品等级），客户端箭头"等级比较"分支缺数据而退化 → 全亮；换装自愈正因换装处理器补发该报文 ×2。前三轮报文镜像（NOTI23+24、list0+list3、CMD19、bag/worn/window/appearance 全镜像）均无效并保留在代码注释中。
   - **定位方法**：客户端静态逆向（SetGridOverlay 0x14500A050 唯一调用方、Query 0x145CDCA30 语义解出）→ frida 安全探针（只挂函数入口；证明画箭头时查询表已非零，走等级比较分支而非 NULL 分支）→ 服务端 events.jsonl 换装 vs 登录报文集差集，唯一缺失帧一次锁定。
