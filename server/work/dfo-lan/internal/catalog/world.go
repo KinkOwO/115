@@ -15,12 +15,21 @@ type Portal struct {
 }
 
 type WorldArea struct {
-	Town             uint32         `json:"town"`
-	Area             uint32         `json:"area"`
-	MapPath          string         `json:"map_path"`
-	MinimumLevel     uint32         `json:"minimum_level"`
-	Kind             string         `json:"kind"`
-	Definition       []pvf.Token    `json:"definition"`
+	Town         uint32 `json:"town"`
+	Area         uint32 `json:"area"`
+	MapPath      string `json:"map_path"`
+	MinimumLevel uint32 `json:"minimum_level"`
+	// OdysseyMinimumLevel is the source [odyssey enter level] gate of the
+	// [permission] block. The client replaces [need level] with it while the
+	// character is an Arad Odyssey user (XORSTR "[is arad odyssey user]"), so
+	// the server has to read the same field or it refuses source-legal
+	// progression travel: Storm Pass (43/*) is [need level] 50 but
+	// [odyssey enter level] 45, which is exactly the level the client's own
+	// "you must be level 45 to enter Storm Pass" refusal (DSTR 535) names.
+	// Zero means the source defines no Odyssey gate for this area.
+	OdysseyMinimumLevel uint32         `json:"odyssey_minimum_level,omitempty"`
+	Kind                string         `json:"kind"`
+	Definition          []pvf.Token    `json:"definition"`
 	Map              ScriptRecord   `json:"map"`
 	ImportedScripts  []ScriptRecord `json:"imported_scripts,omitempty"`
 	SeriaReturnWarp  bool           `json:"seria_return_warp,omitempty"`
@@ -41,6 +50,21 @@ type WorldCatalog struct {
 }
 
 func AreaKey(town, area uint32) string { return fmt.Sprintf("%d/%d", town, area) }
+
+// areaLevelGate reads one "[tag] <level>" pair out of an area definition.
+// It reports whether the tag exists at all; a conditional or non-numeric value
+// is an error so the area is reported as unresolved instead of silently
+// gaining a guessed gate. Callers keep the source value, never a default.
+func areaLevelGate(def []pvf.Token, tag string) (uint32, bool, error) {
+	cells := sectionCells(def, tag)
+	if len(cells) == 0 {
+		return 0, false, nil
+	}
+	if len(cells) != 1 || cells[0].Type != 0 || cells[0].Value < 0 {
+		return 0, false, fmt.Errorf("unsupported %s rule", tag)
+	}
+	return uint32(cells[0].Value), true, nil
+}
 
 func parseWorldAreas(town uint32, cells []pvf.Token) ([]WorldArea, error) {
 	var rows []WorldArea
@@ -73,13 +97,17 @@ func parseWorldAreas(town uint32, cells []pvf.Token) ([]WorldArea, error) {
 				a.Pending = append(a.Pending, "unsupported permission "+c.Text)
 			}
 		}
-		level := sectionCells(def, "[need level]")
-		if len(level) > 0 {
-			if len(level) != 1 || level[0].Type != 0 || level[0].Value < 0 {
-				a.Pending = append(a.Pending, "conditional level rule requires interpretation")
-			} else {
-				a.MinimumLevel = uint32(level[0].Value)
-			}
+		level, hasLevel, levelErr := areaLevelGate(def, "[need level]")
+		if levelErr != nil {
+			a.Pending = append(a.Pending, "conditional level rule requires interpretation")
+		} else if hasLevel {
+			a.MinimumLevel = level
+		}
+		odyssey, hasOdyssey, odysseyErr := areaLevelGate(def, "[odyssey enter level]")
+		if odysseyErr != nil {
+			a.Pending = append(a.Pending, "conditional odyssey level rule requires interpretation")
+		} else if hasOdyssey {
+			a.OdysseyMinimumLevel = odyssey
 		}
 		for _, c := range def {
 			if c.Type == 6 && (c.Text == "[normal]" || c.Text == "[gate]" || c.Text == "[dungeon gate]") {
@@ -265,6 +293,16 @@ func LoadWorld(file string) (WorldCatalog, error) {
 	for key, area := range w.Areas {
 		if key != AreaKey(area.Town, area.Area) {
 			return w, fmt.Errorf("world area key mismatch")
+		}
+		// Catalogs exported before the Odyssey gate existed still carry the
+		// whole area definition, so the field is recovered from it instead of
+		// forcing a re-export of the 31 MB world catalog (same compatibility
+		// rule as the character catalog's backfill).
+		if area.OdysseyMinimumLevel == 0 {
+			if level, ok, e := areaLevelGate(area.Definition, "[odyssey enter level]"); e == nil && ok {
+				area.OdysseyMinimumLevel = level
+				w.Areas[key] = area
+			}
 		}
 	}
 	return w, nil
