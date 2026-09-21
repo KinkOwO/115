@@ -74,7 +74,7 @@ func stackMovePackets(saved storage.Character, r protocol.ItemMoveRequest, appli
 	if e != nil {
 		return nil, e
 	}
-	update, e := protocol.InventoryRestore(updated.Rows())
+	update, e := protocol.InventoryRestore(updated.Rows(), updated.Expansion)
 	if e != nil {
 		return nil, e
 	}

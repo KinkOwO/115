@@ -559,7 +559,7 @@ func (w *worldSession) completeDungeon() ([]outboundPacket, error) {
 			if e != nil {
 				return nil, e
 			}
-			update, e := protocol.InventoryRestore(bag.Rows())
+			update, e := protocol.InventoryRestore(bag.Rows(), bag.Expansion)
 			if e != nil {
 				return nil, e
 			}

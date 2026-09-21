@@ -67,7 +67,7 @@ func (s *equipmentSession) handle(service *inventory.WearService, w *worldSessio
 	// earlier note claiming id-14 parses no rows misread the dispatcher front
 	// half as the whole receiver; the row walk lives in its 0x1452a1210 body.)
 	plan := []outboundPacket{{"equipment_move_committed", 1, 19, protocol.ItemMoveSuccess(r, 1)}}
-	bagBody, e := protocol.InventoryRestore(b.Rows())
+	bagBody, e := protocol.InventoryRestore(b.Rows(), b.Expansion)
 	if e != nil {
 		return nil, e
 	}

@@ -88,7 +88,7 @@ func (w *worldSession) finishQuest(r protocol.QuestSubmitRequest) ([]outboundPac
 		if e != nil {
 			return nil, e
 		}
-		body, e := protocol.InventoryRestore(bag.Rows())
+		body, e := protocol.InventoryRestore(bag.Rows(), bag.Expansion)
 		if e != nil {
 			return nil, e
 		}

@@ -1,6 +1,7 @@
 # CHANGELOG
 
 ## 2026-09-22
+- 修复商城物品栏扩展券和角色金库升级购买无效：扩展券按档位事务扣款并保存扩容状态，通过原生 NOTI66 同步，所有背包恢复路径保留档位；商城发布模式同时接通金库升级。保留旧物品及存储槽位规则，实机效果待验证。
 - 技能学习（觉醒技能 / 加点）：修复三类"觉醒后学不了技能"的缺陷，并区分 `[growtype maximum level]` 的两种零。
   - **1. 觉醒专属技能无法学习（配置缺字段）**：剑魂觉醒成剑圣后 60 级加点「流星剑」（`skill/swordman/meteorsword.skl`）被拒（`unsupported skill advancement/level`）。根因是 `configs/skills.next27.json` 由"还不支持 `[awakening maximum level]`"的工具生成：3224 行里该字段出现 0 次，1141 个觉醒专属技能因此一律不可学（对照 `skills.release.json` 有 1020 次）。用当前 `cmd/skillaudit` 对同一 PVF 重新生成：逐字段比对行数与 key 完全一致，只有新增（`[awakening maximum level]` 1024、`[variation point]` 960、`[enable by third awakening quest]` 419、`[awakening]` 219）与 5 行"源里本就没有自身 `[type]`"的修正。测试：`internal/character/learning_awakening50_test.go`。
   - **2. "只有觉醒矩阵"的 36 个技能不可学**：源里有一批技能完全没有 `[growtype maximum level]`、只带 `[awakening maximum level]`（`skill/swordman/nachal.skl` 是 `0 0 0 0 0 40` ×3 的形状），而 `ForAwakening` 原先要求 `len(caps) == 3*len(base)`，基础行缺失时 `len(base) == 0`，判定恒为 false。改为**列数可由矩阵本身推出**（基础行缺失时用 `len(caps)/3`；基础行存在但与矩阵不一致时仍拒绝，畸形块不会变成可学），`forState` 在缺列时补零后写入本角色的 `(stage, growtype)` 上限。测试：`internal/character/learning_awakening_matrix_test.go`。

@@ -38,7 +38,7 @@ func (s *Service) Bootstrap(role storage.Character) ([]byte, error) {
 	if e != nil {
 		return nil, e
 	}
-	return protocol.InventoryRestore(b.Rows())
+	return protocol.InventoryRestore(b.Rows(), b.Expansion)
 }
 func (s *Service) Pickup(ctx context.Context, role storage.Character, session *Session, d *dungeon.Session, r protocol.PickupRequest) (storage.Character, PickupReceipt, bool, error) {
 	var result PickupReceipt
