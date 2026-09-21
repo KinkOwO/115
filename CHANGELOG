@@ -1,6 +1,19 @@
 # CHANGELOG
 
 ## 2026-09-21
+- 修复城主宫殿（天空之城 18 号任务，Quest 3185）过场动画切层、Boss 刷新及阳台地图翻牌结算阻断问题。
+  - **背景与根因**：
+    1. **多层房间切层门禁**：城主宫殿迷宫 4 的 Boss 房 `(1, 0)` 配置为基础房 `100008324` 并带 `layered 1 0 57962 100008595`。进入 Boss 房后开场动画 `14646.cmt` 在基础地图播放完毕后发出 CMD 45 请求切层到光之城主 Boss 房 `57962`。服务端原先在 `MoveScene` 中硬编码阻断非奥德赛副本，回执 ErrCode 4，导致未能切入地图 `57962` 刷新 Boss；
+    2. **BossCheck 拦截与剧情后置结算**：在 `57962` 中击败光之城主时，客户端 combat 逻辑立即发送 CMD 117（`ENUM_CMDPACKET_BOSS_CHECK`）。服务端此前在 `BossCheck` 中硬编码校验 `s.Room.Map != layer.Maps[len-1]` 拒包，导致 `s.completionTarget` 目标丢失；
+    3. **阳台过场地图翻牌金币等级计算兜底**：切入层 2 地图 `100008595`（剧情阳台）后，赛丽亚与艾丽丝救援过场 `14897.cmt` 销毁 dummy boss，客户端请求 CMD 46 结算。`FreezeCards` 原先仅从当前房间怪物提取等级，因纯剧情房怪物全为 `NonCombat` 计算出等级为 0，查表找不到 0 级报错 `source card gold level absent` 拒包，导致客户端卡死在阳台无法弹出翻牌与结算面板。
+  - **修复实现**：
+    1. `internal/dungeon/scene_transition.go`：支持非奥德赛常规副本依据迷宫 `m.Layers` 映射顺序平滑切入下一层地图，解除奥德赛专有阻断；
+    2. `internal/dungeon/completion.go`：常规副本允许接收并记录 BossCheck 结算目标，在 `tryComplete` 中保证在剧情最终层才收口通关；
+    3. `internal/loot/cards.go`：`FreezeCards` 增加怪物等级兜底回溯，当前房间全为剧情怪时回溯本次副本已访问的前置房间提取有效怪物等级，并以副本基准等级 `BasisLevel` 兜底；
+    4. `cmd/wireprobe/main.go`：在房间加载完毕与怪物销毁时安全调用 `TryComplete` 与 `completeDungeon`；
+    5. 测试：新增 `standard_layer_test.go` 与 `cards_test.go` 单元测试，全库通过 `go test ./...` 与 `go vet ./...`；
+  - **实机验收（2026-09-21）**：用户实机测试确认光之城主正常刷新，击杀后阳台过场动画播放完毕正常弹出通关翻牌界面，任务 3185 顺利完成。
+
 - 修复城镇地图传送点（Teleport Point）、赛丽亚房间传送及负坐标区域（如雷米迪亚大圣堂右侧）进图被拦截的问题。
   - **背景与根因**：
     1. **城镇传送点与赛丽亚房间直达传送**：玩家在大地图/小地图上点击城镇传送点（如西海岸、月光酒馆等）或点击“Teleport to Seria's Room”时，客户端发送带有传送标志的 CMD 36（`Flag=5, TailFlags[1]=5`，或赛丽亚房间传送 `TailFlags=[0,0]`）。原逻辑未建立通用传送放行通道，且在请求前提前抹除了 `specialWarpPending` 状态，导致请求坠入物理行走门校验；因跨区无直连门而报 `no authorized source portal to destination`，弹窗阻断；此外月光酒馆传送点落点偏差 68 像素超出了原 64 像素容差；
