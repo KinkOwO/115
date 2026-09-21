@@ -2395,7 +2395,6 @@ func main() {
 	select {}
 }
 
-
 // unifiedEntries converts a decoded CMD2377 block into the storage shape so
 // account (0x01) and character (0x05) settings can be persisted durably.
 func unifiedEntries(entries []protocol.UnifiedOptionEntry) []storage.UnifiedOptionEntry {

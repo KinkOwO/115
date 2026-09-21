@@ -9,6 +9,16 @@
   - **测试**：`internal/catalog/world_test.go`（双门槛解析/非数值不猜值/旧目录回填）、`internal/world/service_test.go`（43/0..2 门槛、45 级奥德赛可进 43/1、44 级与普通 45 级被拒）、`internal/character/odyssey_test.go`（`CreatedAsOdyssey` 不受 `DFO_ODYSSEY_MODE` 影响）、`cmd/wireprobe/odyssey_enter_level_test.go`（复刻实机 39/5→43/1，覆盖 `DFO_ODYSSEY_MODE=1` 的日志传送与 `=0` 的 special warp→CMD 36 两条路径）；`go test ./internal/... ./cmd/...`、`go vet ./internal/... ./cmd/...` 全绿（`go test ./...` 会踩到 `runtime/update-backup/**` 的历史源码副本，属既有情况）。文档 `work/dfo-lan/docs/protocol/next48-odyssey-enter-level-gate.md`。
   - **实机验收（2026-09-21，用户操作）**：用 `DFO-115US单机一键启动器.exe`（默认「按角色」档）启动后，45 级奥德赛角色 `test-jh` 在赫顿玛尔后街（39/5）点第 1 章「冒险的开始」→「雪山的主人」的「移动」按钮，**直接过图到斯顿雪域（43/1）**，不再出现「您必须是45级别才能进入斯顿雪域」，剧情继续推进。客户端 `[odyssey enter level]` 的分支实现尚未做 IDB 静态验证（本机无 IDA/Ghidra），结论由上述三路证据支撑。
   - **回滚方式**：改动都在 Git 内（`internal/catalog/world.go`、`internal/world/service.go`、`cmd/wireprobe/*`、两个新测试文件与文档），`configs/` 未改，`git revert` 即可。
+- 修复宠物已穿戴但城镇不跟随与装备栏宠物槽 UI 空白（两阶段均实机确认修复闭环）：
+  - **跟随显示根因（官方 570 帧解析 G0198 定位）**：显示路径是 USERINFO0（opcode 2 mode 0）宠物段 `{u32 槽26模板 + DSTR 名字 + u8 present}`（装备段结束 +23），非 NOTI 105（官方发 count=0）。原代码 present 硬编码 0（=隐藏）且未填入槽 26 数据 → 客户端 `Failed Create Creature 0`。
+  - **装备栏宠物槽空白根因（IDA sub_1452C1540 指令级取证）**：mode-1 穿戴表 reader 行布局：时装行（type<=11）40头+2blob+87尾=135+；宠物行（type==26 @0x1452c186d）40头+5扩展(u32+u8)+87尾=132（无 avatar blob）；宠物装备行（槽 27..29）40+87=127。原 `detail.go` 的 `if item.Slot <= 11` 过滤把槽 26 宠物行整条丢弃，客户端装备栏拿不到 mode-1 穿戴行。
+  - **改动**：
+    1. `internal/game/protocol/entry_userinfo.go`：present 字节由硬编码 0 改为 `itemID != 0 → 1`；
+    2. `internal/character/service.go`：`EntryBasicProbe` 与 `AppearanceProbe` 均经 `wornCreature` 填入宠物段数据；
+    3. `internal/game/protocol/detail_equipment.go`：重写 `DetailedEquipment` 接入宠物行（+5 字节扩展、无 avatar blob）与宠物装备行（127 字节纯行）；容量上限 12→48；非时装行安全守卫；
+    4. `internal/character/detail.go`：投影过滤从 `Slot <= 11` 扩为 `Slot <= 11 || (Slot >= 26 && Slot <= 29)`，槽 12..25 保持排除（遵守单一假设）；
+  - **实机验收**：角色 9 进游戏后，身旁宠物正常跟随；装备栏（F6）宠物槽显示宠物图标与预览，槽位正常闭环。
+  - **测试**：`entry_userinfo_test.go` 钉死宠物段偏移与 present 取值；`appearance_test.go` 覆盖两条 mode-0 出口；`detail_equipment_test.go` 覆盖宠物行与宠物装备行布局；`detail_avatar_test.go` 覆盖槽 26 进入 mode-1 且槽 12/47 不泄漏。`go test ./...`、`go vet ./...` 全绿。
 - 重登装备升级箭头修复（next47 闭环，实机确认）：重登进城后可穿装备 8 格全亮"↑更好装备"，换装/切图一次才恢复正确。
   - **根因**：登录序列从未下发 id-14 `equipment_slots_updated`（载荷携带 worn 槽位物品等级），客户端箭头"等级比较"分支缺数据而退化 → 全亮；换装自愈正因换装处理器补发该报文 ×2。前三轮报文镜像（NOTI23+24、list0+list3、CMD19、bag/worn/window/appearance 全镜像）均无效并保留在代码注释中。
   - **定位方法**：客户端静态逆向（SetGridOverlay 0x14500A050 唯一调用方、Query 0x145CDCA30 语义解出）→ frida 安全探针（只挂函数入口；证明画箭头时查询表已非零，走等级比较分支而非 NULL 分支）→ 服务端 events.jsonl 换装 vs 登录报文集差集，唯一缺失帧一次锁定。

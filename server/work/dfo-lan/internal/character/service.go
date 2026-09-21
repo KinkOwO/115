@@ -254,9 +254,14 @@ func (s *Service) EntryBasicProbe(role storage.Character, channelContext [2]byte
 	if s.DisableActorAppearance {
 		equipment = nil
 	}
+	// The mode-0 creature segment is the town-follower display path
+	// (docs/宠物显示实现-G0198 §2.1): u32 slot-26 template + dstr name + u8
+	// present. It is read before any appearance clearing, so a creature
+	// survives DisableActorAppearance exactly like the native client.
+	creatureItemID, creatureName := wornCreature(role.State)
 	return protocol.UserInfoBasicProbe(protocol.EntryBasicProbe{
 		ActorServerID: role.WireID, Context: channelContext,
-		Character: protocol.CharacterRow{Name: role.Name, Profession: role.Profession, Advancement: advancement, Level: state.Level, Odyssey: odyssey, Equipment: equipment},
+		Character: protocol.CharacterRow{Name: role.Name, Profession: role.Profession, Advancement: advancement, Level: state.Level, Odyssey: odyssey, Equipment: equipment, CreatureItemID: creatureItemID, CreatureName: creatureName},
 		// The explicit per-slot block must stay empty on the entry path. A
 		// block holding a client-rejected slot is worse than an empty one:
 		// the reader replaces the projection wholesale, so a knight wearing
@@ -296,9 +301,13 @@ func (s *Service) AppearanceProbe(role storage.Character, channelContext [2]byte
 	if err != nil {
 		return nil, err
 	}
+	// The post-move mode-0 refresh rebuilds the actor wholesale, so it must
+	// re-project the creature segment too; omitting it here hides the town
+	// follower right after a CMD19 equip/unequip touches the worn set.
+	creatureItemID, creatureName := wornCreature(role.State)
 	return protocol.UserInfoBasicProbe(protocol.EntryBasicProbe{
 		ActorServerID: role.WireID, Context: channelContext,
-		Character:  protocol.CharacterRow{Name: role.Name, Profession: role.Profession, Advancement: state.Advancement, Level: state.Level},
+		Character:  protocol.CharacterRow{Name: role.Name, Profession: role.Profession, Advancement: state.Advancement, Level: state.Level, CreatureItemID: creatureItemID, CreatureName: creatureName},
 		Appearance: rows,
 	})
 }
