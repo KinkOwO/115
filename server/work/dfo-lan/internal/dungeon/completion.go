@@ -12,13 +12,15 @@ func (s *Session) BossCheck(r protocol.BossCheckRequest, actor uint16) error {
 		return fmt.Errorf("boss check requires the owned loaded boss room")
 	}
 	position := [2]byte{s.Room.X, s.Room.Y}
-	for _, layer := range s.Maze.Layers {
-		if layer.Position == position && len(layer.Maps) > 0 && s.Room.Map != layer.Maps[len(layer.Maps)-1] {
-			return fmt.Errorf("boss scene sequence has not reached its final map")
+	if s.Definition.Odyssey {
+		for _, layer := range s.Maze.Layers {
+			if layer.Position == position && len(layer.Maps) > 0 && s.Room.Map != layer.Maps[len(layer.Maps)-1] {
+				return fmt.Errorf("boss scene sequence has not reached its final map")
+			}
 		}
 	}
 	found := false
-	if s.Definition.Odyssey {
+	if s.Definition.Odyssey || s.Definition.ID == 100003126 {
 		found = true
 	} else {
 		for _, m := range s.Monsters {
@@ -52,7 +54,7 @@ func (s *Session) tryComplete() {
 	if s.completionTarget == 0 {
 		return
 	}
-	if s.Definition.Odyssey {
+	if s.Definition.Odyssey || s.Definition.ID == 100003126 {
 		s.completed = true
 		return
 	}
@@ -66,8 +68,16 @@ func (s *Session) tryComplete() {
 			return
 		}
 	}
+	position := [2]byte{s.Room.X, s.Room.Y}
+	for _, layer := range s.Maze.Layers {
+		if layer.Position == position && len(layer.Maps) > 0 && s.Room.Map != layer.Maps[len(layer.Maps)-1] {
+			return
+		}
+	}
 	s.completed = true
 }
+
+func (s *Session) TryComplete() { s.tryComplete() }
 
 func (s *Session) Completed() bool { return s != nil && s.completed }
 func (s *Session) CompletionTarget() uint16 {

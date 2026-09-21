@@ -114,7 +114,14 @@ func (c TownArea) Allows(level byte, x, y uint16) bool {
 		return false
 	}
 	for _, r := range c.Walkable {
-		if int64(x) >= int64(r[0]) && int64(x) < int64(r[0])+int64(r[2]) && int64(y) >= int64(r[1]) && int64(y) < int64(r[1])+int64(r[3]) {
+		px, py := int64(x), int64(y)
+		if r[0] < 0 && x >= 0x8000 {
+			px = int64(int16(x))
+		}
+		if r[1] < 0 && y >= 0x8000 {
+			py = int64(int16(y))
+		}
+		if px >= int64(r[0]) && px < int64(r[0])+int64(r[2]) && py >= int64(r[1]) && py < int64(r[1])+int64(r[3]) {
 			return true
 		}
 	}

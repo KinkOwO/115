@@ -180,7 +180,7 @@ func ImportWorld(a *pvf.Archive) (WorldCatalog, error) {
 					cells = append(append([]pvf.Token(nil), cells...), imported.Cells...)
 				}
 			}
-			walk, e := sourceRectangles(sectionCells(cells, "[virtual movable area]"), 4)
+			walk, e := sourceRectangles(nestedSectionCells(cells, "[virtual movable area]"), 4)
 			if e != nil {
 				area.Pending = append(area.Pending, e.Error())
 			} else {
@@ -188,7 +188,7 @@ func ImportWorld(a *pvf.Archive) (WorldCatalog, error) {
 					area.Walkable = append(area.Walkable, [4]int32{r[0], r[1], r[2], r[3]})
 				}
 			}
-			portals, e := sourceRectangles(sectionCells(cells, "[town movable area]"), 6)
+			portals, e := sourceRectangles(nestedSectionCells(cells, "[town movable area]"), 6)
 			if e != nil {
 				area.Pending = append(area.Pending, e.Error())
 			} else {

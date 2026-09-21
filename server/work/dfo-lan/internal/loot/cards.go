@@ -100,6 +100,21 @@ func (s *Service) FreezeCards(ctx context.Context, role storage.Character, d *du
 			level = m.Level
 		}
 	}
+	if level == 0 {
+		for _, monsters := range d.Visited {
+			for _, m := range monsters {
+				if !m.NonCombat && m.Level > level {
+					level = m.Level
+				}
+			}
+		}
+	}
+	if level == 0 && d.Definition.BasisLevel > 0 {
+		level = byte(d.Definition.BasisLevel)
+	}
+	if level == 0 {
+		level = 1
+	}
 	gold, e := CardGold(s.Tables, r, seed, level, 0)
 	if e != nil {
 		return p, e

@@ -24,14 +24,24 @@ var ErrLevel = errors.New("destination level requirement not met")
 
 func Contains(r [4]int32, x, y uint16, margin uint16) bool {
 	px, py, m := int64(x), int64(y), int64(margin)
+	// 源地图（如 lemiedia_right.map 89/2 及其他 135 个区域）在 PVF 中定义了负数坐标矩形（r[0] < 0 或 r[1] < 0）。
+	// 客户端在这些地图中落点与移动时，通过 16 位补码传输负坐标（如 X=-2 表现为 0xFFFE / uint16(65534)）。
+	// 仅当矩形覆盖负坐标区域且输入值处于补码负数范围（>= 0x8000）时，按有符号解释；
+	// 正数矩形中保持无符号比较，确保 65535 等越界大数坐标仍被严格拦截。
+	if r[0] < 0 && x >= 0x8000 {
+		px = int64(int16(x))
+	}
+	if r[1] < 0 && y >= 0x8000 {
+		py = int64(int16(y))
+	}
 	return r[2] >= 0 && r[3] >= 0 && px >= int64(r[0])-m && py >= int64(r[1])-m && px <= int64(r[0])+int64(r[2])+m && py <= int64(r[1])+int64(r[3])+m
 }
 
 // WalkableTolerance 是可行走判定允许的越界像素。
-// 客户端经传送门/地图传送落地的坐标会稳定偏出源矩形（实测 9/11/18/33 像素），
-// 用 0 边距会把合法的门全挡掉；取 64 覆盖这些偏差，
+// 客户端经传送门/地图传送落地的坐标会稳定偏出源矩形（实测 9/11/18/33/68 像素），
+// 用 0 边距会把合法的门全挡掉；取 128 覆盖这些偏差（如 39/4 月光酒馆地图传送落点偏差 68 像素），
 // 同时远小于"任意传送"的量级，权限校验仍然成立。
-const WalkableTolerance = 64
+const WalkableTolerance = 128
 
 func Walkable(a catalog.WorldArea, x, y uint16) bool {
 	for _, r := range a.Walkable {

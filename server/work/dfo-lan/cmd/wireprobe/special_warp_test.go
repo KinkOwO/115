@@ -9,6 +9,7 @@ import (
 	"dfolan/internal/world"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"testing"
 )
 
@@ -108,5 +109,122 @@ func TestSpecialWarpRejectsInvalidContext(t *testing.T) {
 				t.Fatal(plan, e)
 			}
 		})
+	}
+}
+
+func TestTownMapTeleportTransition(t *testing.T) {
+	c, e := catalog.LoadWorld("../../configs/world.generated.json")
+	if e != nil {
+		t.Fatal(e)
+	}
+	w := &worldSession{
+		account: 1,
+		level:   50,
+		service: &world.Service{Catalog: c},
+		role:    storage.Character{ID: 11, AccountID: 1, WireID: 11},
+		state:   storage.WorldState{Position: storage.WorldPosition{Town: 39, Area: 2, X: 320, Y: 306}},
+	}
+
+	// 1. 普通走门：39/2 (后街) 到 40/0 (西海岸) 无门户边，TailFlags 为 0 时必须拒绝
+	rWalk := protocol.AreaChangeRequest{
+		Town: 40, Area: 0, X: 388, Y: 180, Flag: 5,
+		PreviousTown: 39, PreviousArea: 2, TailFlags: [2]byte{0, 0},
+	}
+	if _, err := w.areaTransition(rWalk); err == nil {
+		t.Fatal("walk transition without portal should be rejected")
+	}
+
+	// 2. 地图传送点传送：TailFlags[1] == 5，无直通门户边也放行
+	rTeleport := protocol.AreaChangeRequest{
+		Town: 40, Area: 0, X: 388, Y: 180, Flag: 5,
+		PreviousTown: 39, PreviousArea: 2, TailFlags: [2]byte{0, 5},
+	}
+	next, err := w.areaTransition(rTeleport)
+	if err != nil || next.Town != 40 || next.Area != 0 || next.X != 388 || next.Y != 180 {
+		t.Fatalf("map teleport failed: %+v, err: %v", next, err)
+	}
+
+	// 3. 特殊传送预备态 (CMD 2261 触发的 specialWarpPending) 也放行
+	w.state.Position = storage.WorldPosition{Town: 39, Area: 2, X: 320, Y: 306}
+	if _, err := w.prepareSpecialWarp(nil); err != nil {
+		t.Fatal(err)
+	}
+	next, err = w.areaTransition(rWalk)
+	if err != nil || next.Town != 40 || next.Area != 0 {
+		t.Fatalf("specialWarpPending teleport failed: %+v, err: %v", next, err)
+	}
+	// 验证 pending 状态已被单次消费
+	if _, err := w.areaTransition(rWalk); err == nil {
+		t.Fatal("specialWarpPending should be consumed after single transition")
+	}
+
+	// 4. 月光酒馆传送点 (39/4) 落点偏差容差测试 (落点 y=198，距行走区 68 像素)
+	w.state.Position = storage.WorldPosition{Town: 40, Area: 3, X: 152, Y: 153}
+	rBar := protocol.AreaChangeRequest{
+		Town: 39, Area: 4, X: 355, Y: 198, Flag: 5,
+		PreviousTown: 40, PreviousArea: 3, TailFlags: [2]byte{0, 5},
+	}
+	next, err = w.areaTransition(rBar)
+	if err != nil || next.Town != 39 || next.Area != 4 || next.X != 355 || next.Y != 198 {
+		t.Fatalf("moonlight bar teleport failed: %+v, err: %v", next, err)
+	}
+
+	// 5. 过期来源区域拒绝
+	rStale := protocol.AreaChangeRequest{
+		Town: 40, Area: 0, X: 388, Y: 180, Flag: 5,
+		PreviousTown: 39, PreviousArea: 99, TailFlags: [2]byte{0, 5},
+	}
+	if _, err := w.areaTransition(rStale); err == nil {
+		t.Fatal("stale previous area should be rejected")
+	}
+
+	// 6. 等级不足拒绝
+	w.state.Position = storage.WorldPosition{Town: 39, Area: 2, X: 320, Y: 306}
+	w.level = 1
+	if _, err := w.areaTransition(rTeleport); !errors.Is(err, world.ErrLevel) {
+		t.Fatalf("under-level teleport should return ErrLevel, got %v", err)
+	}
+	w.level = 50
+
+	// 7. 越界坐标拒绝
+	rOOB := protocol.AreaChangeRequest{
+		Town: 40, Area: 0, X: 60000, Y: 60000, Flag: 5,
+		PreviousTown: 40, PreviousArea: 3, TailFlags: [2]byte{0, 5},
+	}
+	if _, err := w.areaTransition(rOOB); err == nil {
+		t.Fatal("out-of-bounds teleport coordinate should be rejected")
+	}
+
+	// 8. 副本中拒绝城镇传送
+	w.activeDungeon = &dungeon.Session{}
+	if _, err := w.areaTransition(rTeleport); err == nil {
+		t.Fatal("teleport inside dungeon should be rejected")
+	}
+	w.activeDungeon = nil
+
+	// 9. 点击 "Teleport to Seria's Room" (TailFlags == [0, 0], Flag == 5)
+	// 从西海岸 (40/0) 传送进入赛丽亚房间 (38/1)
+	w.state.Position = storage.WorldPosition{Town: 40, Area: 0, X: 403, Y: 181}
+	rSeria := protocol.AreaChangeRequest{
+		Town: 38, Area: 1, X: 557, Y: 210, Flag: 5,
+		PreviousTown: 40, PreviousArea: 0, TailFlags: [2]byte{0, 0},
+	}
+	next, err = w.areaTransition(rSeria)
+	if err != nil || next.Town != 38 || next.Area != 1 || next.X != 557 || next.Y != 210 {
+		t.Fatalf("teleport to seria room failed: %+v, err: %v", next, err)
+	}
+	if next.Return == nil || next.Return.Town != 40 || next.Return.Area != 0 || next.Return.X != 403 || next.Return.Y != 181 {
+		t.Fatalf("teleport to seria room did not save return origin: %+v", next.Return)
+	}
+
+	// 10. 从赛丽亚房间走到底部光圈返回西海岸，验证 Return 坐标被权威恢复
+	w.state.Position = next
+	rReturn := protocol.AreaChangeRequest{
+		Town: 40, Area: 0, X: 746, Y: 157, Flag: 5,
+		PreviousTown: 38, PreviousArea: 1, TailFlags: [2]byte{0, 0},
+	}
+	returned, err := w.areaTransition(rReturn)
+	if err != nil || returned.Town != 40 || returned.Area != 0 || returned.X != 403 || returned.Y != 181 || returned.Return != nil {
+		t.Fatalf("return from seria room failed: %+v, err: %v", returned, err)
 	}
 }
