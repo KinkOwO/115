@@ -444,8 +444,10 @@ func (w *worldSession) openBoosterItem(
 				}
 			}
 
-			// Destination 1: Avatar (kind == "avatar" or path contains "/avatar/" or option specified)
-			isAvatar := kind == "avatar" || strings.Contains(itemPath, "/avatar/")
+			// Destination 1: Avatar (kind == "avatar" or path contains "avatar" or option specified)
+			// 装扮目录有两种命名：avatar/ 与 at_avatar/；只认 "/avatar/" 会漏掉后者
+			// （实机诊断 selection_box_audit_test.go 时发现），让它落进装备分支。
+			isAvatar := kind == "avatar" || strings.Contains(itemPath, "avatar")
 			if !isAvatar && len(req.AvatarOptions) > 0 {
 				for _, ao := range req.AvatarOptions {
 					if ao.Template == g.Template {
