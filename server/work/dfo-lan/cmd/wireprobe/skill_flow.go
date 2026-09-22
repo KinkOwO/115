@@ -16,6 +16,22 @@ type skillSession struct {
 	initialized bool
 }
 
+// skillTreeRefreshRequired reports whether the id19 full skill-tree restore has
+// to follow this mutation.
+//
+// A VP apply (CMD29 carrying variation slots) must not: its own response
+// already carries the VP block, while id19 has none — the client overwrites the
+// panel it just rendered with an empty variation state, which reads as "Apply
+// silently reset my VP choices". Every other applied mutation keeps the restore
+// (it is what refreshes the palette), and a refused or idempotent request needs
+// it so the client returns to the stored state.
+func skillTreeRefreshRequired(id uint16, applied, varied bool) bool {
+	if !applied {
+		return true
+	}
+	return !(id == 29 && varied)
+}
+
 func (s *skillSession) handle(cs *character.Service, w *worldSession, id uint16, p, raw []byte) ([]outboundPacket, error) {
 	if cs == nil || w == nil || w.role.ID == 0 {
 		return nil, fmt.Errorf("skill request requires owned selected character")
@@ -32,6 +48,7 @@ func (s *skillSession) handle(cs *character.Service, w *worldSession, id uint16,
 	defer cancel()
 	var saved storage.Character
 	var applied bool
+	var varied bool
 	var body []byte
 	var e error
 	switch id {
@@ -47,12 +64,41 @@ func (s *skillSession) handle(cs *character.Service, w *worldSession, id uint16,
 	case 29:
 		var r protocol.SkillPurchase
 		r, e = protocol.DecodeSkillPurchase(p)
-		if e == nil {
-			saved, applied, e = cs.Learn(ctx, w.role, key, r)
+		if e != nil {
+			break
 		}
+		varied = r.Intensions != nil || r.Options != nil
+		saved, applied, e = cs.Learn(ctx, w.role, key, r)
 		if e == nil {
 			body, e = cs.LearningResponse(saved, r)
 		}
+	case 483:
+		// Reset / Auto Set. The captured body does not decode as a plain
+		// (tree, mask) pair — reading it as one produced tree 111 / mask 40, a
+		// mask without bit 0, so the branch that clears the learned ranks never
+		// ran. Clear all three groups of the main tree instead and let the
+		// client lay out its own recommended shortcuts, as it does natively.
+		if len(p) < 3 {
+			return nil, fmt.Errorf("short reset request")
+		}
+		saved, e = cs.ResetAutoSet(ctx, w.role, key, 0, 7)
+		if e != nil {
+			return nil, e
+		}
+		w.role = saved
+		restore, e := cs.EntrySkills(saved)
+		if e != nil {
+			return nil, e
+		}
+		plan := []outboundPacket{{"skill_state_restored", 0, 19, restore}}
+		variation, e := cs.VariationRestore(saved)
+		if e != nil {
+			return nil, e
+		}
+		if len(variation) > 0 {
+			plan = append(plan, outboundPacket{"skill_variation_response", 1, 29, variation})
+		}
+		return plan, nil
 	default:
 		return nil, fmt.Errorf("unsupported skill mutation")
 	}
@@ -61,7 +107,7 @@ func (s *skillSession) handle(cs *character.Service, w *worldSession, id uint16,
 	}
 	w.role = saved
 	plan := []outboundPacket{{"skill_committed_response", 1, id, body}}
-	if id == 29 || !applied {
+	if skillTreeRefreshRequired(id, applied, varied) {
 		restore, e := cs.EntrySkills(saved)
 		if e != nil {
 			return nil, e
