@@ -674,6 +674,14 @@ func (w *worldSession) completeDungeon() ([]outboundPacket, error) {
 			}
 			plan = append(plan, outboundPacket{"odyssey_milestone_inventory", 0, 13, update})
 		}
+		// 本关可能刚解锁了扩展装备槽（安徒恩→support / 卢克→魔法石 / 盖波加→耳环）。
+		// 把新的槽位字节随 USERINFO1 再发一次：客户端的槽位状态在装备栏行对象
+		// 构造期决定、运行期只读（取证见 next50），所以这里只保证它手上是最新值。
+		if _, unlocks := character.OdysseyExpandEquipMask(w.activeDungeon.Definition.ID); unlocks && w.characters != nil {
+			if addition, e := w.characters.EntryAddition(w.role); e == nil {
+				plan = append(plan, outboundPacket{"dungeon_actor_addition_sent", 0, 2, addition})
+			}
+		}
 	}
 	if w.quests != nil && w.dungeons != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

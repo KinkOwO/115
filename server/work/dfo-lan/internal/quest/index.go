@@ -2,6 +2,7 @@ package quest
 
 import (
 	"dfolan/internal/catalog"
+	"dfolan/internal/inventory"
 	"sort"
 )
 
@@ -65,10 +66,13 @@ func slotExpansion(d catalog.QuestDefinition) (byte, bool) {
 // expand_equip_flags. These are NOT the reward scalars: the scalar is a slot
 // index and the earring's index 2 corresponds to bit 4, so OR-ing the scalar
 // directly would set bit 2 and leave the earring locked.
+//
+// The bits themselves live with the bag they are OR-ed into
+// (internal/inventory); the names here keep the quest-reward vocabulary.
 const (
-	ExpandSupport    byte = 1 << 0 // reward scalar 0, equipment slot 22
-	ExpandMagicStone byte = 1 << 1 // reward scalar 1, equipment slot 23
-	ExpandEarring    byte = 1 << 4 // reward scalar 2, equipment slot 25
+	ExpandSupport    = inventory.ExpandSupport    // reward scalar 0, equipment slot 22
+	ExpandMagicStone = inventory.ExpandMagicStone // reward scalar 1, equipment slot 23
+	ExpandEarring    = inventory.ExpandEarring    // reward scalar 2, equipment slot 25
 )
 
 // slotUnlockMask maps a [slot expansion] reward scalar to its unlock bit.
