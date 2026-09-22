@@ -91,3 +91,47 @@ func TestOdysseyStormPassJournalTeleportGate(t *testing.T) {
 		t.Fatalf("普通 45 级角色绕过了 [need level] 50: %v", err)
 	}
 }
+
+// 实机缺陷（2026-09-22，角色 gugugaga，20 级奥德赛，角色 11）：在赫顿玛尔（39/0）
+// 点日志「移动」去西海岸（40/0），客户端走完 CMD2261 → NOTI365 → CMD36，服务端回
+// code 8（日志 `area_refused town=40 area=0 reason="destination level requirement
+// not met"` ×3），界面提示 DSTR 30069「You must be Level 15 to go to West Coast」。
+// 40/0 的 [permission] 是 [need level] 15 / [odyssey enter level] 35：客户端在 20 级
+// 就发出请求且提示数字是 15，说明 odyssey 值只能下调、不能上抬入门门槛（高出的值
+// 约束的是该区域 [phase] 变体）；服务端按 replace 语义误用 35 拦截。日志传送白名单
+// 不含 40/0，所以实机走的是 special warp 分支。
+func TestOdysseyWestCoastTeleportGate(t *testing.T) {
+	cat, err := catalog.LoadWorld("../../configs/world.generated.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := append([]byte{0, 8, 0, 0, 0}, []byte("gugugaga")...)
+	req = append(req, 0, 0, 0, 0, 0, 0, 255, 0, 1, 0, 2, 0)
+	for len(req)%8 != 0 {
+		req = append(req, 0)
+	}
+	role := storage.Character{ID: 11, AccountID: 7, WireID: 11, Request: req, State: json.RawMessage(`{"level":20}`)}
+	w := &worldSession{
+		service: &world.Service{Catalog: cat},
+		role:    role,
+		level:   20,
+		odyssey: character.CreatedAsOdyssey(role),
+		state:   storage.WorldState{Position: storage.WorldPosition{Town: 39, Area: 0, X: 3284, Y: 259}},
+	}
+	if !w.odyssey {
+		t.Fatal("fixture is not an odyssey character")
+	}
+	// 实机包形态：special warp 预备后 CMD 36 Flag=5、尾标志全 0、目的地 40/0。
+	w.specialWarpPending = true
+	r := protocol.AreaChangeRequest{Town: 40, Area: 0, X: 388, Y: 180, Flag: 5, PreviousTown: 39, PreviousArea: 0}
+	next, err := w.areaTransition(r)
+	if err != nil || next.Town != 40 || next.Area != 0 {
+		t.Fatalf("20 级奥德赛角色传送西海岸被拒: %+v %v", next, err)
+	}
+	// 14 级仍按 [need level] 15 拦截。
+	w.level = 14
+	w.specialWarpPending = true
+	if _, err = w.areaTransition(r); !errors.Is(err, world.ErrLevel) {
+		t.Fatalf("14 级奥德赛角色越级进入西海岸: %v", err)
+	}
+}

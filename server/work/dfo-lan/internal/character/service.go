@@ -31,7 +31,10 @@ type State struct {
 	CurrencySlot2   uint32                 `json:"currency_slot2,omitempty"`
 	Advancement     byte                   `json:"advancement"`
 	Awakening       byte                   `json:"awakening,omitempty"`
-	SkillVariations [2]SkillVariationState `json:"skill_variations,omitempty"`
+	// No omitempty: an unallocated VP block still has to serialize, otherwise
+	// the client decodes an empty variation section and the panel reads blank
+	// until the next character switch.
+	SkillVariations [2]SkillVariationState `json:"skill_variations"`
 	Attributes      map[string]float32     `json:"attributes"`
 	InitialSkills   []int32                `json:"initial_skill_cells"`
 	LearnedSkills   [2]map[uint16]byte     `json:"learned_skills,omitempty"`

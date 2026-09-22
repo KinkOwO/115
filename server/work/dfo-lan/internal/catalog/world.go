@@ -19,14 +19,15 @@ type WorldArea struct {
 	Area         uint32 `json:"area"`
 	MapPath      string `json:"map_path"`
 	MinimumLevel uint32 `json:"minimum_level"`
-	// OdysseyMinimumLevel is the source [odyssey enter level] gate of the
-	// [permission] block. The client replaces [need level] with it while the
-	// character is an Arad Odyssey user (XORSTR "[is arad odyssey user]"), so
-	// the server has to read the same field or it refuses source-legal
-	// progression travel: Storm Pass (43/*) is [need level] 50 but
-	// [odyssey enter level] 45, which is exactly the level the client's own
-	// "you must be level 45 to enter Storm Pass" refusal (DSTR 535) names.
-	// Zero means the source defines no Odyssey gate for this area.
+	// OdysseyMinimumLevel is the source [odyssey enter level] value of the
+	// [permission] block. For an Arad Odyssey user (XORSTR "[is arad odyssey
+	// user]") the client admits entry at the LOWER of the two source values:
+	// Storm Pass (43/*, need 50 / odyssey 45) lets a 45 in and its own refusal
+	// (DSTR 535) names 45, while West Coast (40/0, need 15 / odyssey 35) lets
+	// a 20 in and names 15 (DSTR 30069) — a higher Odyssey value never raises
+	// the entry gate, so the server has to mirror the min rule or it refuses
+	// source-legal progression travel. Zero means the source defines no
+	// Odyssey value for this area.
 	OdysseyMinimumLevel uint32         `json:"odyssey_minimum_level,omitempty"`
 	Kind                string         `json:"kind"`
 	Definition          []pvf.Token    `json:"definition"`

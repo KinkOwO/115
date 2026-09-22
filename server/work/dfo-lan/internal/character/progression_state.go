@@ -20,19 +20,22 @@ func (s *ProgressionService) ApplyGain(current storage.Character, gain uint64) (
 	if e := json.Unmarshal(current.State, &state); e != nil {
 		return fail(e)
 	}
-	if state.Advancement != 0 && !state.AllJobsPilot && !(current.Profession == 0 && state.Advancement == 1 && state.SwordmasterPilot) {
-		return fail(fmt.Errorf("advanced profession growth is not yet supported"))
-	}
 	prof, ok := s.Professions.Professions[current.Profession]
 	if !ok || prof.RawSHA256 != state.SourceSHA256 || state.Attributes == nil {
 		return fail(fmt.Errorf("missing source character attributes"))
 	}
 	growth := prof.BaseGrowth
-	if state.Advancement == 1 {
-		growth = prof.SwordmasterGrowth
-	}
-	if state.AllJobsPilot && state.Advancement != 0 {
+	if state.Advancement != 0 {
+		// Normal creation/job changes already persist source-backed branches
+		// without pilot flags. Use the same profession/branch as advancement
+		// validation, or its first kill cannot finish the death response plan.
 		growth = prof.AdvancementGrowth[state.Advancement]
+		// Older swordmaster-only catalogs predate AdvancementGrowth. Preserve
+		// that saved pilot without letting another job borrow its growth or
+		// silently falling back to the unadvanced profession.
+		if len(growth) == 0 && current.Profession == 0 && state.Advancement == 1 && state.SwordmasterPilot {
+			growth = prof.SwordmasterGrowth
+		}
 	}
 	if len(growth) == 0 {
 		return fail(fmt.Errorf("missing source profession growth"))
