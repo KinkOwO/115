@@ -175,7 +175,7 @@
 | `internal/inventory/expand_slots.go` | 导出解锁位常量 `ExpandSupport/ExpandMagicStone/ExpandEarring`（位值的家） |
 | `internal/quest/index.go` | 常量改为引用 `inventory.*`（消除重复定义，值不变） |
 | `internal/character/odyssey.go` | 新增 `OdysseyExpandEquipMask(副本ID)`；在 `OdysseyClear` 的**同一个事务**里调用 `inventory.UnlockEquipSlots`（失败一起回滚；重复通关只是 OR 位，幂等） |
-| `cmd/wireprobe/dungeon_flow.go` | 通关后若本关解锁了槽位，把新字节随 USERINFO1（`entry_addition`）重发一次 |
+| `cmd/wireprobe/dungeon_flow.go` | ~~通关后把新字节随 USERINFO1（`entry_addition`）重发一次~~ —— **已移除**，原因见下「重发的坑」 |
 
 映射：`100004950`→mask `1`(support/槽 22)、`100004953`→mask `2`(魔法石/槽 23)、`100004969`→mask `16`(耳环/槽 25)。
 
@@ -191,3 +191,41 @@
 
 **新增测试**：`internal/character/odyssey_expand_slot_test.go`（映射 + 位值，并断言三槽全开 = 19）。
 验证：`go build ./cmd/... ./internal/...`、`go vet`、`go test -count=1 ./internal/... ./cmd/...` 全绿。
+
+### 重发的坑（2026-09-22 实机发现，已回退）
+
+曾在通关时把新的槽位字节随 USERINFO1（`entry_addition`）**重发一次**，想让解锁当场生效。实测后果：
+
+- 清关瞬间客户端**装备栏显示被清空**（角色身上/格子里的装备全空）；
+- **存档毫发无损**：PostgreSQL `characters.state.inventory` 里 `equipment=10 / worn=10 / items=3 / gold=3587`
+  一直完好，客户端全程**没有回拨任何装备变更**；
+- **离开副本地图后显示即恢复** → 纯客户端显示层问题。
+
+原因判断：`entry_addition` 是**进图/登录**时的帧，在**副本内**重发会让客户端重建装备栏显示。由于客户端的
+槽位状态本就由"装备栏行对象构造期"决定（§2/§4），**解锁位落库后重登/进新副本自然带上新值**，
+重发这一帧既不必要又有副作用，故移除：解锁只做"写进同一个角色事务"这一步。
+
+**教训**：涉及装备栏/角色外观的帧不要在其常规时机（进图/登录）之外补发；服务端只负责落库，
+让客户端在它自己的重建时机去读。
+
+### 就地重同步（id-13 + id-14）实测：显示正常，但喂不进客户端（2026-09-22，待修复）
+
+回退 `entry_addition` 后，改为补发与 **entry / 装备变更（`equipment_flow.go`）完全同款、同顺序**的两套通道帧：
+`equipment_bag_resynced`(13) → `equipment_worn_resynced`(13) → `equipment_slots_updated`(14) →
+`equipment_worn_window_refreshed`(14)，期望等价于"就地重登"。
+
+实测（卢克 `100004953` 清关）：
+
+| 观察点 | 结果 |
+| --- | --- |
+| 装备栏显示 | ✅ **正常**（不再像 `entry_addition` 那样被清空） |
+| 魔法石槽当场点亮 | ❌ 否 —— 仍需**重登/重选角色** |
+| 存档 `expand_equip_flags` | ✅ **19**（耳环 16 + 魔法石 2 + support 1 全部写入） |
+
+**结论**：客户端**只在登录/选角那种时机构造槽行对象**，副本内补发 id-13/id-14 **无法触发重建**
+（与 §2/§4「构造期决定 + 运行期只读」一致）。这两个帧暂时保留（无害，且可能在玩家主动重开装备栏时被采用 —— 未验证）。
+
+**待修复（未闭环）**：解锁后的"**当场可见**"。当前玩家路径 = 通关后**重登或重选角色**。
+想真正解决有两条路：
+1. 解开 §5 未解项 —— 反向出"装备行记录（181B）里哪个字段映射到槽对象 `+0x358`、解锁值是多少"，然后确认客户端是否有"重建槽行数组"的入口；
+2. 换锚点：看客户端是否有别的命令会让它重新构造装备栏（例如某种窗口刷新），用 frida 在"重登""重开背包"两条路径上对比 `0x140584ed0`（槽行数组遍历）的调用差异。
