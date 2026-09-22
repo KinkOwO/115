@@ -47,7 +47,28 @@ func (w *worldSession) deleteItems(p, raw []byte) ([]outboundPacket, error) {
 				found = true
 				break
 			}
-			if !found {
+			if found {
+				continue
+			}
+			// The equipment bag shares the list0 slot space with stackables
+			// (Bag.Rows merges both), so a discard in the equipment page
+			// arrives as the same listType-0 CMD18 — live frame: slot 18,
+			// pants, count 1. Remove the whole instance row instead of a
+			// stack decrement; equipment has no amount to subtract.
+			removed := false
+			for i := range bag.Equipment {
+				v := &bag.Equipment[i]
+				if v.Slot != r.Slot {
+					continue
+				}
+				if v.Template != r.Template || r.Count != 1 {
+					return nil, nil, fmt.Errorf("insufficient owned item")
+				}
+				bag.Equipment = append(bag.Equipment[:i], bag.Equipment[i+1:]...)
+				removed = true
+				break
+			}
+			if !removed {
 				return nil, nil, fmt.Errorf("item slot missing")
 			}
 		}
