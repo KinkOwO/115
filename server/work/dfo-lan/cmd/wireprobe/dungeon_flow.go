@@ -674,6 +674,30 @@ func (w *worldSession) completeDungeon() ([]outboundPacket, error) {
 			}
 			plan = append(plan, outboundPacket{"odyssey_milestone_inventory", 0, 13, update})
 		}
+		// 本关解锁了扩展装备槽时，就地重喂一次装备栏，让客户端**当场**重建装备栏 ——
+		// 否则玩家必须重登或重选角色才看得到解锁（槽位状态由装备栏行对象在构造期
+		// 决定、运行期只读，取证见 analysis/tasks/next50-odyssey-expanded-equip-slot.md）。
+		//
+		// 帧组合与顺序完全复用 entry / 装备变更（equipment_flow.go）那两套通道：
+		// id-13 重喂背包网格与 worn 模型，id-14 重喂 worn 槽窗口；**两者必须成对**，
+		// 实测只发 id-13 会让槽位窗口变空。注意不要发 entry_addition（NOTI 2）——
+		// 那是进图/登录帧，在副本内发会让客户端把装备栏显示清空（见该文档「重发的坑」）。
+		if _, unlocks := character.OdysseyExpandEquipMask(w.activeDungeon.Definition.ID); unlocks {
+			if bag, e := inventory.ReadBag(w.role.State); e == nil {
+				if bagBody, e := protocol.InventoryRestore(bag.Rows()); e == nil {
+					plan = append(plan, outboundPacket{"equipment_bag_resynced", 0, 13, bagBody})
+				}
+				if wornBody, e := inventory.WornPayload(w.role.State); e == nil && len(wornBody) > 0 {
+					plan = append(plan, outboundPacket{"equipment_worn_resynced", 0, 13, wornBody})
+				}
+				if slots, e := inventory.EquipmentPayload(3, bag.Worn, false); e == nil {
+					plan = append(plan, outboundPacket{"equipment_slots_updated", 0, 14, slots})
+				}
+			}
+			if upd, e := inventory.WornSpaceUpdate(w.role.State); e == nil && len(upd) > 0 {
+				plan = append(plan, outboundPacket{"equipment_worn_window_refreshed", 0, 14, upd})
+			}
+		}
 	}
 	if w.quests != nil && w.dungeons != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
