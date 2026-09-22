@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"dfolan/internal/catalog"
 	"dfolan/internal/character"
 	"dfolan/internal/inventory"
 	"dfolan/internal/storage"
@@ -12,10 +13,12 @@ import (
 const odysseySource = "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80"
 const odysseyArmorEvent = "odyssey-create-10417791-armor-10417790-v1"
 const odysseyWeaponBoxEvent = "odyssey-create-10417791-weapon-box-10417789-v1"
+const odysseyCreatePotionEvent = "odyssey-create-10417791-potion-10418028-v1"
 
 // Source create reward10417791 contains armor box10417790. Its single
 // selection-num0 category awards these eight pieces, not one random item.
-// Keep weapon10417789 and potion10418028 settlement separate until supported.
+// The third line of the same [stackable] block (potion10418028 x30) is settled
+// by grantOdysseyCreatePotion below.
 var odysseyArmor = [...]uint32{100051399, 100101277, 100151218, 100201190, 100251230, 100302054, 100313767, 100323647}
 
 func isOdysseyRewardRole(role storage.Character) bool {
@@ -92,4 +95,61 @@ func grantOdysseyWeaponBox(ctx context.Context, store *storage.Store, role stora
 		return role, false, nil
 	}
 	return store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, odysseyWeaponBoxEvent, "odyssey-source-weapon-box-v1", applyOdysseyWeaponBox)
+}
+
+// Source create reward 10417791 has three lines in its [stackable] block:
+//
+//	10417789 1   10417790 1   10418028 30
+//
+// The first two are settled by applyOdysseyWeaponBox / applyOdysseyArmor; the
+// 30 odyssey-only recovery potions were never awarded (手册 P3 子项 1).
+const (
+	odysseyCreatePotion      = uint32(10418028)
+	odysseyCreatePotionCount = uint32(30)
+)
+
+// applyOdysseyCreatePotion 发放创建补给里的 30 瓶专属恢复药水。
+//
+// 走 Bag.Add 而不是照 applyOdysseyWeaponBox 手写槽位：药水是 [waste] 可叠加物，
+// 角色包里往往已经有几十瓶（初始补给一路发到 73 个），必须并进同一叠；手写
+// "找一个空格"会在每次重试时多占一格，30 个也只落一格。
+func applyOdysseyCreatePotion(role storage.Character, cat catalog.LootCatalog, rules inventory.BagRules) (json.RawMessage, json.RawMessage, error) {
+	if !isOdysseyRewardRole(role) || role.ConfigVersion != odysseySource {
+		return nil, nil, fmt.Errorf("Odyssey create potion requires source mode")
+	}
+	if cat.Source.Checksum != odysseySource || rules.Source != odysseySource {
+		return nil, nil, fmt.Errorf("Odyssey create potion requires matching source catalogs")
+	}
+	b, e := inventory.ReadBag(role.State)
+	if e != nil {
+		return nil, nil, e
+	}
+	b, slot, e := b.Add(cat, rules, odysseyCreatePotion, odysseyCreatePotionCount)
+	if e != nil {
+		return nil, nil, e
+	}
+	raw, e := inventory.SaveBag(role.State, b)
+	if e != nil {
+		return nil, nil, e
+	}
+	receipt, e := json.Marshal(map[string]any{
+		"create_reward": 10417791,
+		"template":      odysseyCreatePotion,
+		"quantity":      odysseyCreatePotionCount,
+		"slot":          slot,
+		"before":        role.State,
+		"after":         raw,
+	})
+	return raw, receipt, e
+}
+
+// grantOdysseyCreatePotion 用独立事件键结算药水，与武器盒/防具盒互不干扰。
+// 满包时 Bag.Add 会报错，事件不落库 ⇒ 下次登录重试（与另外两项同策略）。
+func grantOdysseyCreatePotion(ctx context.Context, store *storage.Store, cat catalog.LootCatalog, rules inventory.BagRules, role storage.Character) (storage.Character, bool, error) {
+	if !isOdysseyRewardRole(role) {
+		return role, false, nil
+	}
+	return store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, odysseyCreatePotionEvent, "odyssey-source-create-potion-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+		return applyOdysseyCreatePotion(current, cat, rules)
+	})
 }

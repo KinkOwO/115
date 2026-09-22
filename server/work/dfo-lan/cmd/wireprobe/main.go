@@ -1941,6 +1941,26 @@ func main() {
 						}
 					}
 				}
+				// 创建奖励 10417791 的 [stackable] 块第三行（10418028 x30）。
+				// 独立事件键，与上面两项互不干扰；满包/目录未就绪时记 pending，
+				// 下次登录自动重试。
+				if odysseyRewardsEnabled() {
+					if lootService == nil {
+						event(map[string]any{"kind": "odyssey_create_potion_pending", "character_id": role.ID, "reason": "loot catalog unavailable"})
+					} else {
+						ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+						updated, applied, rewardErr := grantOdysseyCreatePotion(ctx, characters.Store, lootService.Catalog, lootService.BagRules, role)
+						cancel()
+						if rewardErr != nil {
+							event(map[string]any{"kind": "odyssey_create_potion_pending", "character_id": role.ID, "reason": rewardErr.Error()})
+						} else {
+							role = updated
+							if applied {
+								event(map[string]any{"kind": "odyssey_create_potion_granted", "character_id": role.ID, "template": 10418028, "quantity": 30})
+							}
+						}
+					}
+				}
 				if odysseyTemporaryCreditsEnabled() {
 					ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
 					updated, applied, creditErr := grantOdysseyCredits(ctx, characters.Store, role)
