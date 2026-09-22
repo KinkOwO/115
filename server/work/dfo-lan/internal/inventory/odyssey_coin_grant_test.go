@@ -60,8 +60,11 @@ func TestOdysseyCoinGrantReachesConsumableSlots(t *testing.T) {
 			raw = out
 		}
 	}
-	if slots[0] == slots[1] || slots[2] == slots[3] {
-		t.Fatalf("the second 1000 went into the already full stack: %v", slots)
+	// `[unlimited waste]` 是无限堆叠（源里不写 [stackable limit]），两次 1000 都并进
+	// 同一叠，合计 2000。改动前它被 missing_stack_limit=1000 兜成上限 1000，于是会分成
+	// 两叠（实机 2026-09-23 玩家观察到银币分叠）。
+	if slots[0] != slots[1] || slots[2] != slots[3] {
+		t.Fatalf("无限堆叠的货币被分成了多叠: %v", slots)
 	}
 
 	b, err := ReadBag(raw)
