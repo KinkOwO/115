@@ -15,6 +15,16 @@ func OdysseyRole(role storage.Character) bool {
 	if mode := os.Getenv("DFO_ODYSSEY_MODE"); mode != "" {
 		return mode == "1"
 	}
+	return CreatedAsOdyssey(role)
+}
+
+// CreatedAsOdyssey reports whether the character itself was created as an Arad
+// Odyssey user (creation option[10] = 2), ignoring the DFO_ODYSSEY_MODE debug
+// override. Town entry gating uses this: the client decides with the same
+// per-character flag (XORSTR "[is arad odyssey user]"), so a launcher-forced
+// mode must not make the server apply a different level gate than the one the
+// client names in its own refusal message (DSTR 535).
+func CreatedAsOdyssey(role storage.Character) bool {
 	r, e := protocol.DecodeCreateRequest(role.Request)
 	return e == nil && len(r.Options) == 12 && r.Options[10] == 2
 }

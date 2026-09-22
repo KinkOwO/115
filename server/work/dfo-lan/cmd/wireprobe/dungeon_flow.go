@@ -46,7 +46,8 @@ func (w *worldSession) dungeonGate(p []byte) ([]outboundPacket, error) {
 	if !ok || a.Kind != "[dungeon gate]" {
 		return nil, fmt.Errorf("source area is not a PVF dungeon gate")
 	}
-	if e = w.service.ValidatePosition(w.level, w.state.Position); e != nil {
+	// The gate belongs to the area the character already stands in.
+	if e = w.service.ValidateRestoredPosition(w.level, w.odyssey, w.state.Position); e != nil {
 		return nil, e
 	}
 	return []outboundPacket{

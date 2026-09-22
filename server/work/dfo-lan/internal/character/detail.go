@@ -75,7 +75,14 @@ func (s *Service) EntryAddition(role storage.Character) ([]byte, error) {
 			return nil, e
 		}
 		for _, item := range projection.Inventory.Worn {
-			if item.Slot <= 11 {
+			// Avatar slots (<= 11) ride the avatar row layout; the creature
+			// body slot 26 and creature gear slots 27..29 ride the plain /
+			// creature-extension layouts (protocol.DetailedEquipment pins all
+			// three against native reader sub_1452C1540). Slots 12..25 stay
+			// excluded exactly as before: their window data already arrives
+			// via NOTI 13/14 and their mode-1 projection is a separate,
+			// unverified change.
+			if item.Slot <= 11 || (item.Slot >= 26 && item.Slot <= 29) {
 				worn = append(worn, item)
 			}
 		}

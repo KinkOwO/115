@@ -15,13 +15,26 @@ import (
 type mockBoosterStore struct {
 	character storage.Character
 	receipts  map[string]json.RawMessage
+	premiums  map[uint8]int64
 }
 
 func newMockBoosterStore(char storage.Character) *mockBoosterStore {
 	return &mockBoosterStore{
 		character: char,
 		receipts:  make(map[string]json.RawMessage),
+		premiums:  make(map[uint8]int64),
 	}
+}
+
+func (m *mockBoosterStore) ActivatePremium(ctx context.Context, account int64, premiumType uint8, durationSecond int64) (int64, error) {
+	oldEnd := m.premiums[premiumType]
+	now := int64(1750000000)
+	if oldEnd > now {
+		now = oldEnd
+	}
+	newEnd := now + durationSecond
+	m.premiums[premiumType] = newEnd
+	return newEnd, nil
 }
 
 func (m *mockBoosterStore) CommitCharacterEvent(ctx context.Context, account, id int64, version, key, model string, apply func(storage.Character) (json.RawMessage, json.RawMessage, error)) (storage.Character, bool, error) {
@@ -386,5 +399,285 @@ func TestBoosterOdysseyModeOpensRegularBooster(t *testing.T) {
 
 	if len(packets) < 2 {
 		t.Fatalf("expected at least 2 packets, got %d", len(packets))
+	}
+}
+
+func TestBoosterOpenLifeTokenBox(t *testing.T) {
+	cat, err := LoadBoosterCatalog("../../configs/booster-catalog.json", "../../configs/items.index.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// 10333027: Life Token Box (3)
+	bag := inventory.Bag{
+		Version: "ordinary-bag-v1",
+		Coin:    10,
+		Items: []inventory.BagItem{
+			{Slot: 76, Template: 10333027, Amount: 1},
+		},
+	}
+	state, _ := inventory.SaveBag(json.RawMessage(`{}`), bag)
+	char := storage.Character{
+		ID:        10,
+		AccountID: 1,
+		State:     state,
+	}
+	store := newMockBoosterStore(char)
+
+	lootSvc := &loot.Service{
+		Catalog: catalog.LootCatalog{
+			Source: pvf.ArchiveSnapshot{Checksum: "test"},
+			Items:  map[uint32]catalog.LootItem{},
+		},
+		BagRules: inventory.BagRules{
+			Source: "test",
+			Slots: map[string][2]uint16{
+				"[booster]": {65, 120},
+				"[etc]":     {65, 120},
+			},
+			MissingStackLimit: 1000,
+		},
+	}
+
+	w := &worldSession{
+		role: char,
+		loot: lootSvc,
+	}
+
+	reqBytes := make([]byte, 8)
+	binary.LittleEndian.PutUint16(reqBytes[0:2], 76)
+	binary.LittleEndian.PutUint32(reqBytes[2:6], 1)
+	binary.LittleEndian.PutUint16(reqBytes[6:8], 0)
+
+	packets, err := w.openBoosterItem(context.Background(), store, nil, lootSvc, cat, odysseyWeaponChoices{}, reqBytes, reqBytes)
+	if err != nil {
+		t.Fatal("open life token box failed:", err)
+	}
+
+	resBag, err := inventory.ReadBag(w.role.State)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resBag.Coin != 13 {
+		t.Fatalf("expected coin to be 13, got %d", resBag.Coin)
+	}
+	for _, it := range resBag.Items {
+		if it.Slot == 76 {
+			t.Fatalf("box at slot 76 was not consumed")
+		}
+	}
+	if len(packets) < 2 {
+		t.Fatalf("expected at least 2 packets, got %d", len(packets))
+	}
+}
+
+func TestBoosterOpenMasterContractPackage(t *testing.T) {
+	cat, err := LoadBoosterCatalog("../../configs/booster-catalog.json", "../../configs/items.index.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// 10333726: Master Contract Package 3 Days
+	bag := inventory.Bag{
+		Version: "ordinary-bag-v1",
+		Items: []inventory.BagItem{
+			{Slot: 77, Template: 10333726, Amount: 1},
+		},
+	}
+	state, _ := inventory.SaveBag(json.RawMessage(`{}`), bag)
+	char := storage.Character{
+		ID:        10,
+		AccountID: 1,
+		State:     state,
+	}
+	store := newMockBoosterStore(char)
+
+	lootSvc := &loot.Service{
+		Catalog: catalog.LootCatalog{
+			Source: pvf.ArchiveSnapshot{Checksum: "test"},
+			Items:  map[uint32]catalog.LootItem{},
+		},
+		BagRules: inventory.BagRules{
+			Source: "test",
+			Slots: map[string][2]uint16{
+				"[booster]":  {65, 120},
+				"[etc]":      {65, 120},
+				"[contract]": {65, 120},
+			},
+			MissingStackLimit: 1000,
+		},
+	}
+
+	w := &worldSession{
+		role: char,
+		loot: lootSvc,
+	}
+
+	reqBytes := make([]byte, 8)
+	binary.LittleEndian.PutUint16(reqBytes[0:2], 77)
+	binary.LittleEndian.PutUint32(reqBytes[2:6], 1)
+	binary.LittleEndian.PutUint16(reqBytes[6:8], 0)
+
+	packets, err := w.openBoosterItem(context.Background(), store, nil, lootSvc, cat, odysseyWeaponChoices{}, reqBytes, reqBytes)
+	if err != nil {
+		t.Fatal("open master contract package failed:", err)
+	}
+
+	resBag, err := inventory.ReadBag(w.role.State)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(resBag.Items) != 0 {
+		t.Fatalf("expected 0 items in bag (contracts directly activated), got %d: %+v", len(resBag.Items), resBag.Items)
+	}
+	for _, it := range resBag.Items {
+		if it.Slot == 77 {
+			t.Fatalf("box at slot 77 was not consumed")
+		}
+	}
+	// Check that 4 premiums (22: Conqueror, 27: Tactician, 92: Cube, 79: Growth) were activated for 3 days (259200s)
+	expectedEnd := int64(1750000000) + 3*86400
+	for _, pt := range []uint8{22, 27, 92, 79} {
+		if store.premiums[pt] != expectedEnd {
+			t.Fatalf("expected premium %d end time %d, got %d", pt, expectedEnd, store.premiums[pt])
+		}
+	}
+
+	// Packets: inventory update, 4x NOTI 66, ACK 160 -> total 6 packets
+	if len(packets) != 6 {
+		t.Fatalf("expected 6 packets (update + 4x noti66 + ack), got %d", len(packets))
+	}
+	noti66Count := 0
+	for _, p := range packets {
+		if p.ID == 66 && p.Name == "booster_special_item_noti" {
+			noti66Count++
+		}
+	}
+	if noti66Count != 4 {
+		t.Fatalf("expected 4 NOTI 66 packets, got %d", noti66Count)
+	}
+}
+
+func TestBoosterOpenRemySparklingTouchBox(t *testing.T) {
+	cat, err := LoadBoosterCatalog("../../configs/booster-catalog.json", "../../configs/items.index.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// 10333023: Remy's Sparkling Touch 30 Box
+	bag := inventory.Bag{
+		Version: "ordinary-bag-v1",
+		Items: []inventory.BagItem{
+			{Slot: 82, Template: 10333023, Amount: 1},
+		},
+	}
+	state, _ := inventory.SaveBag(json.RawMessage(`{}`), bag)
+	char := storage.Character{
+		ID:        10,
+		AccountID: 1,
+		State:     state,
+	}
+	store := newMockBoosterStore(char)
+
+	lootSvc := &loot.Service{
+		Catalog: catalog.LootCatalog{
+			Source: pvf.ArchiveSnapshot{Checksum: "test"},
+			Items:  map[uint32]catalog.LootItem{},
+		},
+		BagRules: inventory.BagRules{
+			Source: "test",
+			Slots: map[string][2]uint16{
+				"[booster]": {65, 120},
+				"[waste]":   {65, 120},
+			},
+			MissingStackLimit: 1000,
+		},
+	}
+
+	w := &worldSession{
+		role: char,
+		loot: lootSvc,
+	}
+
+	reqBytes := make([]byte, 8)
+	binary.LittleEndian.PutUint16(reqBytes[0:2], 82)
+	binary.LittleEndian.PutUint32(reqBytes[2:6], 1)
+	binary.LittleEndian.PutUint16(reqBytes[6:8], 0)
+
+	packets, err := w.openBoosterItem(context.Background(), store, nil, lootSvc, cat, odysseyWeaponChoices{}, reqBytes, reqBytes)
+	if err != nil {
+		t.Fatal("open remy box failed:", err)
+	}
+
+	resBag, err := inventory.ReadBag(w.role.State)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(resBag.Items) != 1 || resBag.Items[0].Template != 2660671 || resBag.Items[0].Amount != 30 {
+		t.Fatalf("expected 30 Remy's Touch (2660671), got %+v", resBag.Items)
+	}
+	if len(packets) < 2 {
+		t.Fatalf("expected at least 2 packets, got %d", len(packets))
+	}
+}
+
+func TestBoosterDirectContractActivation(t *testing.T) {
+	cat, err := LoadBoosterCatalog("../../configs/booster-catalog.json", "../../configs/items.index.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// 44: Tactician's Contract 3D
+	bag := inventory.Bag{
+		Version: "ordinary-bag-v1",
+		Items: []inventory.BagItem{
+			{Slot: 65, Template: 44, Amount: 1},
+		},
+	}
+	state, _ := inventory.SaveBag(json.RawMessage(`{}`), bag)
+	char := storage.Character{
+		ID:        10,
+		AccountID: 1,
+		State:     state,
+	}
+	store := newMockBoosterStore(char)
+
+	w := &worldSession{
+		role: char,
+	}
+
+	reqBytes := make([]byte, 8)
+	binary.LittleEndian.PutUint16(reqBytes[0:2], 65)
+	binary.LittleEndian.PutUint32(reqBytes[2:6], 1)
+	binary.LittleEndian.PutUint16(reqBytes[6:8], 0)
+
+	packets, err := w.openBoosterItem(context.Background(), store, nil, nil, cat, odysseyWeaponChoices{}, reqBytes, reqBytes)
+	if err != nil {
+		t.Fatal("direct contract activation failed:", err)
+	}
+
+	resBag, err := inventory.ReadBag(w.role.State)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(resBag.Items) != 0 {
+		t.Fatalf("contract item at slot 65 was not consumed")
+	}
+
+	// Packets: inventory update, NOTI 66, ACK 160
+	if len(packets) != 3 {
+		t.Fatalf("expected 3 packets, got %d", len(packets))
+	}
+	if packets[0].Name != "contract_inventory_updated" || packets[0].ID != 14 {
+		t.Fatalf("expected packet 0 to be inventory updated, got %+v", packets[0])
+	}
+	if packets[1].Name != "contract_special_item_noti" || packets[1].ID != 66 {
+		t.Fatalf("expected packet 1 to be NOTI 66, got %+v", packets[1])
+	}
+	if packets[2].Name != "contract_use_ack" || packets[2].ID != 160 {
+		t.Fatalf("expected packet 2 to be ACK 160, got %+v", packets[2])
+	}
+	if store.premiums[27] <= 1750000000 {
+		t.Fatalf("expected tactician contract (27) to be activated, got %d", store.premiums[27])
 	}
 }

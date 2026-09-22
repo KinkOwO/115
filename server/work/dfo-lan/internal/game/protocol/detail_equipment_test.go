@@ -35,15 +35,58 @@ func TestDetailedEquipmentPreservesAvatarBlobs(t *testing.T) {
 
 func TestDetailedEquipmentRejectsUnsupportedInstances(t *testing.T) {
 	cases := [][]DetailedWorn{
-		{{Slot: 12, Template: 1}}, {{Slot: 26, Template: 1}},
+		{{Slot: 12, Template: 1}}, {{Slot: 25, Template: 1}},
 		{{Slot: 48, Template: 1}}, {{Slot: 1}},
 		{{Slot: 1, Template: 1}, {Slot: 1, Template: 2}},
 		{{Slot: 1, Template: 1, Record: []byte{1}}},
 		{{Slot: 1, Template: 1, AvatarOptions: make([]byte, 4097)}},
+		{{Slot: 26, Template: 1, AvatarOptions: []byte{1}}},
+		{{Slot: 27, Template: 1, AvatarSockets: []byte{1}}},
 	}
 	for _, rows := range cases {
 		if _, e := DetailedEquipment(rows); e == nil {
 			t.Fatalf("accepted unsupported rows: %+v", rows)
 		}
+	}
+}
+
+// Creature row layout, pinned against native reader sub_1452C1540: 40-byte
+// header, then the 5-byte creature extension @0x1452c186f (u32 + u8, gated on
+// itemdef+2120 == 26), then the shared 87-byte tail; NO avatar blobs (the
+// avatar dispatcher sub_145A83FA0 only fires for itemdef type <= 11).
+func TestDetailedEquipmentCreatureRow(t *testing.T) {
+	p, e := DetailedEquipment([]DetailedWorn{{Slot: 26, Template: 500991361, Durability: 7, Period: 99, Record: []byte{1, 2, 3}}})
+	if e != nil {
+		t.Fatal(e)
+	}
+	// 1 count + 132 row (40 header + 5 ext + 87 tail) + 13 trailer.
+	if len(p) != 146 || p[0] != 1 {
+		t.Fatalf("creature block size=%d, want 146", len(p))
+	}
+	if p[1] != 26 || binary.LittleEndian.Uint32(p[2:]) != 500991361 || binary.LittleEndian.Uint16(p[11:]) != 7 {
+		t.Fatalf("creature header: %x", p)
+	}
+	// Extension all zero, then tail: aux count, period, nested count.
+	if !bytes.Equal(p[41:46], make([]byte, 5)) {
+		t.Fatalf("creature extension must be five zero bytes: %x", p[41:46])
+	}
+	if p[46] != 0 || binary.LittleEndian.Uint32(p[47:]) != 99 || p[51] != 0 {
+		t.Fatalf("creature tail offsets: %x", p)
+	}
+}
+
+// Creature gear slots 27..29 ride the plain row layout: no avatar blobs, no
+// creature extension.
+func TestDetailedEquipmentCreatureGearRow(t *testing.T) {
+	p, e := DetailedEquipment([]DetailedWorn{{Slot: 27, Template: 100950255}})
+	if e != nil {
+		t.Fatal(e)
+	}
+	// 1 count + 127 row (40 header + 87 tail) + 13 trailer.
+	if len(p) != 141 || p[0] != 1 || p[1] != 27 || binary.LittleEndian.Uint32(p[2:]) != 100950255 {
+		t.Fatalf("creature gear block: %x", p)
+	}
+	if binary.LittleEndian.Uint32(p[42:]) != 0 {
+		t.Fatalf("plain row tail starts with the auxiliary pair count: %x", p)
 	}
 }

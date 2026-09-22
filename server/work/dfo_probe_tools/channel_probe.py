@@ -1,4 +1,4 @@
-"""One bounded real-client run against a loopback Go wire experiment."""
+﻿"""One bounded real-client run against a loopback Go wire experiment."""
 
 import json
 import os
@@ -277,6 +277,7 @@ with (
    str(project / "configs/quests.generated.json"),
    "-vault-rules",
    str(project / "configs/vault.generated.json"),
+   "-vault-purchase-release",
   ]
   if "_detail_" in tag:
    command += [

@@ -1882,6 +1882,11 @@ func main() {
 					event(map[string]any{"kind": "tutorial_restore_error", "error": e.Error()})
 					continue
 				}
+				// Experiment: native tutorial-progress global dword_14F5AF24 is
+				// clamped to >= 0x1E (30) by sub_146CCE300. The leading selectProbe
+				// byte (TutorialFlag) initializes it. Sending 1 left it < 30 and the
+				// opening recap replayed; sending 30 should clear the gate.
+				profile.TutorialFlag = 30
 				event(map[string]any{"kind": "tutorial_flags_restored", "character_id": role.ID, "completed": profile.TutorialCompleted})
 				profile.CreatedTime = uint32(role.CreatedAt.Unix())
 				// Cera is an account balance the client reads from this
@@ -2060,6 +2065,22 @@ func main() {
 				if e != nil {
 					event(map[string]any{"kind": "entry_skill_lock_error", "error": e.Error()})
 					continue
+				}
+				// Restore per-character system settings (CMD2377 subtype 0x05)
+				// onto the fresh NOTI2827 block so toggles survive relog/char switch.
+				{
+					restoreCtx, restoreCancel := context.WithTimeout(context.Background(), 3*time.Second)
+					settings, sErr := characters.Store.CharacterUnifiedOptions(restoreCtx, role.ID)
+					restoreCancel()
+					if sErr != nil {
+						event(map[string]any{"kind": "charac_settings_restore_error", "error": sErr.Error()})
+					} else if len(settings) > 0 {
+						if fe := protocol.FillCharacSettings(plan.SkillLocks, settings); fe != nil {
+							event(map[string]any{"kind": "charac_settings_restore_error", "error": fe.Error()})
+						} else {
+							event(map[string]any{"kind": "charac_settings_restored", "character_id": role.ID, "count": len(settings)})
+						}
+					}
 				}
 				event(map[string]any{"kind": "entry_skill_lock_prepared", "character_id": role.ID, "count": len(locks), "bytes": len(plan.SkillLocks)})
 				if wearService != nil {
@@ -2394,7 +2415,6 @@ func main() {
 	}
 	select {}
 }
-
 
 // unifiedEntries converts a decoded CMD2377 block into the storage shape so
 // account (0x01) and character (0x05) settings can be persisted durably.
