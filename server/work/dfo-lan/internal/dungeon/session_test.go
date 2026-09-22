@@ -2,6 +2,7 @@ package dungeon
 
 import (
 	"dfolan/internal/catalog"
+	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/game/protocol"
 	"testing"
 )
@@ -40,6 +41,44 @@ func TestMirkwoodSourceQuestRoute(t *testing.T) {
 	r.Mode = 1
 	if _, e = Select(c, r, 1, map[uint16]bool{3145: true}); e == nil {
 		t.Fatal("accepted unsupported mode")
+	}
+}
+
+func TestFriendlyAPCCarriesWithDynamicNativeSource(t *testing.T) {
+	apcMap := catalog.ScriptRecord{Cells: []pvf.Token{
+		{Type: 3, Text: "[ai character]"},
+		{Type: 0, Value: 6517}, {Type: 0, Value: 100}, {Type: 0, Value: 200}, {Type: 0, Value: 0},
+		{Type: 6, Text: "[character]"}, {Type: 6, Text: "[normal]"},
+		{Type: 0, Value: 0}, {Type: 0, Value: 0},
+		{Type: 3, Text: "[/ai character]"},
+	}}
+	emptyMap := catalog.ScriptRecord{}
+	maze := catalog.DungeonMaze{Index: 0, Start: [2]byte{0, 0}, Rooms: []catalog.DungeonRoom{
+		{X: 0, Y: 0, Map: 1}, {X: 1, Y: 0, Map: 2},
+	}}
+	d := catalog.DungeonDefinition{ID: 99, BasisLevel: 10, Mazes: []catalog.DungeonMaze{maze}}
+	c := catalog.DungeonCatalog{Dungeons: map[uint32]catalog.DungeonDefinition{99: d}, Maps: map[uint32]catalog.ScriptRecord{1: apcMap, 2: emptyMap}}
+	s, err := newSession(c, d, maze)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(s.Monsters) != 1 || len(s.companions) != 1 || s.Monsters[0].SourceIndex != 0 {
+		t.Fatalf("native companion was not harvested: %+v", s.Monsters)
+	}
+	s.Loaded = true
+	next, err := s.Move(c, [2]byte{1, 0})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(next.Monsters) != 1 {
+		t.Fatalf("carried companions=%d", len(next.Monsters))
+	}
+	got := next.Monsters[0]
+	if !got.APC || !got.NonCombat || got.Team != 0 || got.Template != 6517 || got.SourceIndex != dynamicAPCSourceIndex || got.Entity == s.Monsters[0].Entity {
+		t.Fatalf("bad carried companion: %+v", got)
+	}
+	if _, err = protocol.StartMap(protocol.StartMapState{Map: next.Room.Map, Monsters: next.Monsters}); err != nil {
+		t.Fatalf("dynamic APC row rejected: %v", err)
 	}
 }
 

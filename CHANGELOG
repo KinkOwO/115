@@ -1,6 +1,7 @@
 # CHANGELOG
 
 ## 2026-09-22
+- APC 队友跨房动态注入修复（**待实机验证**）：根据当前 115 客户端 IDA 会话确认，NOTI29 的 `SourceIndex=10000` 是客户端原生“无当前地图 APC 表记录”分支；服务端现在登记已出现的友方地图 APC，并在后续缺失的房间用该哨兵行补入，避免复用上一房普通 APC 索引导致客户端崩溃或队友只在剧情房出现。普通怪、敌对/中立 APC 不会被携带。新增协议/会话回归测试；`go test ./...`、`go vet ./...` 全绿，源码候选版已重建。**尚未进行用户实机测试，不能视为已确认基线。**
 - 修复 20 级奥德赛角色进不去西海岸（town 40/area 0）、客户端误提示「You must be Level 15 to go to West Coast」：`[odyssey enter level]` 语义由「替换 `[need level]`」更正为「只降不升（min）」。
   - **现象与证据**：20 级奥德赛角色 `gugugaga`（角色 11，DB `state.level=20`）在赫顿玛尔（39/0）点日志「移动」去西海岸，客户端走完 CMD2261 → NOTI365 → CMD36，服务端三次回 code 8（`runtime/roles_..._20260922_191044_617535_next37`：`special_warp_prepared` 后同序 `area_refused town=40 area=0 reason="destination level requirement not met"` ×3）。客户端在 20 级就发出请求，且拒绝提示填的是 15（need 值而非 odyssey 35）⇒ 客户端有效门槛 = min(15,35) = 15。
   - **根因**：next47 把 `[odyssey enter level]` 定为 replace 语义；40/0 是 16 个 odyssey>need 区之一（need 15 / odyssey 35，且该区带 `[phase]` 变体段，高值约束的是阶段变体而非入门），replace 把 20 级奥德赛角色按 35 级误拦（实机路径：`specialWarpPending → teleportTransition` → `RequiredLevel` 取 35）。min 语义与全部既有实机证据一致（43/* need50/odyssey45 → 45，提示填 45；40/0 → 15，提示填 15），也符合奥德赛加速剧情的设计（replace 下赫顿玛尔后街 39/2~4 会要求 44 级，显然不合理）。
