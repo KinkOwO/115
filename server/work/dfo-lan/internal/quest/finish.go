@@ -20,6 +20,12 @@ type FinishReceipt struct {
 	Source     string                   `json:"source"`
 	Model      string                   `json:"model"`
 	Items      []inventory.AwardReceipt `json:"items,omitempty"`
+	// UnlockedEquipment carries the extended-slot bits this settlement just
+	// added. The gateway resends USERINFO0/USERINFO1 when it is non-zero,
+	// because the client only rebuilds its armoury from that unlock byte and
+	// shows the padlock until it arrives. Duplicate submissions replay the
+	// stored receipt, so a repeated value here only re-asserts the refresh.
+	UnlockedEquipment byte `json:"unlocked_equipment,omitempty"`
 }
 type FinishResult struct {
 	Role    storage.Character
@@ -71,9 +77,21 @@ func (s *Service) Finish(ctx context.Context, role storage.Character, r protocol
 		if e := json.Unmarshal(current.State, &state); e != nil {
 			return nil, nil, e
 		}
-		awards, e := progression.ItemRewards(d.RewardCells, current.Profession, state.Advancement)
-		if e != nil {
-			return nil, nil, e
+		// [slot expansion] 的 [reward int data] 是装备槽索引，不是物品元组；
+		// 送进 ItemRewards 会被读成"物品 0 缺数量"而报错，因此跳过物品结算，
+		// 改为累加对应的解锁位。索引与位不是同一个值，必须走 slotUnlockMask。
+		var awards []progression.QuestItemAward
+		var unlock byte
+		if slot, isSlotExpansion := slotExpansion(d); isSlotExpansion {
+			var known bool
+			if unlock, known = slotUnlockMask(slot); !known {
+				return nil, nil, fmt.Errorf("quest %d slot expansion index %d is out of range", r.ID, slot)
+			}
+		} else {
+			awards, e = progression.ItemRewards(d.RewardCells, current.Profession, state.Advancement)
+			if e != nil {
+				return nil, nil, e
+			}
 		}
 		if len(awards) > 0 && s.Inventory == nil {
 			return nil, nil, ErrRewardPending
@@ -96,6 +114,14 @@ func (s *Service) Finish(ctx context.Context, role storage.Character, r protocol
 		saved, _, e := s.Progression.ApplyGain(current, uint64(gain))
 		if e != nil {
 			return nil, nil, e
+		}
+		// The unlock bits accumulate inside the same transaction as the rest
+		// of the reward, so a later failure rolls the opened slot back with
+		// everything else instead of leaving a half-settled quest.
+		if unlock != 0 {
+			if saved.State, e = inventory.UnlockEquipSlots(saved.State, unlock); e != nil {
+				return nil, nil, e
+			}
 		}
 		// Completion gold comes from the [gold reward table], not from the
 		// quest's own cells; it is credited to the wallet (award id 0) in the
@@ -120,7 +146,7 @@ func (s *Service) Finish(ctx context.Context, role storage.Character, r protocol
 			}
 			items = append(items, item)
 		}
-		receipt, e := json.Marshal(FinishReceipt{Quest: r.ID, Experience: gain, Gold: gold, Source: s.Catalog.Source.Checksum, Model: s.Progression.Rules.Model, Items: items})
+		receipt, e := json.Marshal(FinishReceipt{Quest: r.ID, Experience: gain, Gold: gold, Source: s.Catalog.Source.Checksum, Model: s.Progression.Rules.Model, Items: items, UnlockedEquipment: unlock})
 		return saved.State, receipt, e
 	})
 	if e != nil {

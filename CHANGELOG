@@ -2,6 +2,42 @@
 
 ## 2026-09-22
 - 修复商城物品栏扩展券和角色金库升级购买无效：扩展券按档位事务扣款并保存扩容状态，通过原生 NOTI66 同步，所有背包恢复路径保留档位；商城发布模式同时接通金库升级。保留旧物品及存储槽位规则，实机效果待验证。
+- 扩展装备槽（辅助装备 / 魔法石 / 耳环）解锁：接上"任务奖励 → 存档 → USERINFO1"这条链，槽位不再只锁不开（**待实机验证**）。
+  - **来源**：用户提供的外部《开槽任务修复说明-20260922》（其工程 `F:\115-main`，与本仓库同源）。对照结论与冲突清单见 `analysis/tasks/next54-slot-expansion-fix-port.md`。**该说明修的是剧情角色的任务解锁链路**；奥德赛角色不走任务，其解锁值本仓库只作参考。
+  - **已有部分（不重复实现）**：`[slot expansion]` 奖励识别早已在 `2bbdb43` 落地（`internal/quest/index.go` 的 `slotExpansion` + `rewardUsable`，`finish.go` 跳过 `ItemRewards`）。本轮**没有**照搬外部说明的 `internal/quest/slot_reward.go`，避免两份并行实现。
+  - **本轮新增（解锁位真正落库）**：`internal/inventory/bag.go` 的 `Bag` 增加 `expand_equip_flags`（**按位或**累加，不是赋值）；`internal/inventory/expand_slots.go` 的 `UnlockEquipSlots` 在 `CommitQuestReward` 事务内改写状态；`internal/quest/index.go` 增加 `ExpandSupport/ExpandMagicStone/ExpandEarring = 1/2/16` 与 `slotUnlockMask`；`finish.go` 把解锁位写进收据 `unlocked_equipment`。
+  - **易踩的坑（已用测试钉住）**：`[reward int data]` 是**槽索引** 0/1/2，存档要写的是**解锁位** 1/2/16 —— 耳环索引 2 对应位 4，直接 `|= slot` 会写成 1/2/4，耳环那格永远不开且不报错。
+  - **本轮新增（下发给客户端）**：`internal/game/protocol/entry_addition.go` 原先在偏移 360 处**写死 0**（原生 `14563d692`，即扩展槽解锁字节），改为写 `EntryAdditionProbe.ExpandEquipFlags`；`internal/character/detail.go` 从存档投影该字节（直接读原始 state，不走 `inventory.ReadBag`，避免坏背包把登录变成拒绝）；`cmd/wireprobe/quest_flow.go` 在收据带解锁位时补发 USERINFO0 + USERINFO1 + 穿戴行（`unlockRefresh`，与 `dungeonEntryPlan` 同一套帧序）。进城时该字节由既有的 `entry_addition_sent` 带出，所以重登也能恢复。
+  - **本轮新增（对话不再被误拒）**：`internal/quest/meet_npc.go` 增加 `AllowsRemoteNPCInteraction`；`questInteraction` 对 `[sub type] 1` 的显式对话任务不再要求目标 NPC 站在当前地图。理由：649/650/2636 的 `[alternative npc index]` 目标 `100001447` 只在 town139，原始目标 NPC 28 在 town40/area2（本地 world 目录实测），而客户端对 subtype1 只按"任务自己解析出的目标"判身份后即发 CMD33，不看地图。普通对话任务与被动走近的 `ProximityProgress` **不受影响**；目标 NPC 为 -1 的 13 条 subtype1 任务**不放行**。
+  - **不适用**：外部说明的 `SaveBag` 已知字段白名单。本仓库 `SaveBag` 整体替换 `state["inventory"]`，不存在"合并旧值覆盖新值"的前提，只需加 JSON 字段（`omitempty`，旧存档读作 0，无需迁移）。
+  - **测试**：新增 `internal/inventory/expand_slots_test.go`（累加 1→3→19、乱序、重复领取、零掩码不改写、老存档、超宽值显式失败）、`internal/quest/slot_unlock_mask_test.go`（索引≠位）、`internal/quest/meet_npc_test.go`（53 条 subtype1 / 13 条 NPC=-1 / 40 条放行的全目录量化）、`internal/game/protocol/entry_addition_unlock_test.go`（偏移 360 与相邻字段不动）、`internal/character/detail_unlock_test.go`（存档 → 载荷）、`cmd/wireprobe/quest_npc_exemption_test.go`（普通对话仍拒错图 + 豁免是必需的）。`go test -count=1 ./internal/... ./cmd/...` 全绿，`go vet ./internal/... ./cmd/...` 零输出。
+  - **顺带修复**：`internal/character/detail.go` 三行中文注释在编辑过程中被写坏成非法 UTF-8（`go vet` 报 `invalid UTF-8 encoding`），已按 HEAD 原文还原；`analysis/tools` 全量扫描确认全仓 528 个 `.go` 文件编码正常。
+  - **未闭环**：奥德赛角色的解锁值是否有效**未验证**——奥德赛角色存档里没有这些解锁位，仅登录不会改变任何东西；要验证需先让存档带上位（属测试数据，非迁移）。外部说明本身也**尚未收到实机成功确认**，本次验收同样只到"离线测试 + 编译"。
+  - **产物**：`bin/wireprobe-handoff-source.exe` 已重编（现役版本备份为 `bin/wireprobe-handoff-source.exe.bak-20260922-1533`）。
+- 奥德赛模式扩展装备槽（辅助装备 / 魔法石 / 耳环）不自动解锁：补上"通关指定副本解锁"这条**此前根本不存在的服务端逻辑**（**已实机确认**）。
+  - **根因（实时监听实锤）**：清关时该发的帧一样不少（`boss_check_confirmed` / `dungeon_clear_enabled` / `dungeon_play_result` / `dungeon_clear_reward` / `clear_available_quests`），但**没有任何解锁动作**；生产代码里 `100004950` / `100004953` / `100004969` 从未出现（只在测试与注释里）。全仓唯一的解锁入口是任务奖励 `quest/finish.go → inventory.UnlockEquipSlots`，而奥德赛角色不走任务链路（见 `analysis/tasks/next50-odyssey-expanded-equip-slot.md` §3b）。
+  - **实现**：`internal/character/odyssey.go` 新增 `OdysseyExpandEquipMask`（安徒恩讨伐战→support/mask `1`、使徒卢克→魔法石/mask `2`、盖波加→耳环/mask `16`），并在 `OdysseyClear` 的**同一事务**里调用 `inventory.UnlockEquipSlots`（失败一起回滚，重复通关幂等）；`cmd/wireprobe/dungeon_flow.go` 通关后把新的槽位字节随 USERINFO1（`entry_addition`）重发一次。解锁位常量移入 `internal/inventory`，`internal/quest/index.go` 改为引用（值不变）。
+  - **实机验证（2026-09-22，用户操作）**：重登后打盖波加 `100004969`，存档 `characters.state.inventory.expand_equip_flags = 16`（bit 4 = 耳环），装备栏耳环槽点亮 ✓
+  - **注意**：客户端槽位状态在装备栏行对象**构造期**决定、运行期只读（探针结论见 next50 §2/§4），因此解锁位落库后**需要重登或进新副本**重建装备栏才可见 —— 本次实测即重登后点亮。
+  - **测试**：新增 `internal/character/odyssey_expand_slot_test.go`（映射 + 位值）；`go build ./cmd/... ./internal/...`、`go vet`、`go test -count=1 ./internal/... ./cmd/...` 全绿。
+  - **实现**：`internal/character/odyssey.go` 新增 `OdysseyExpandEquipMask`（安徒恩讨伐战→support/mask `1`、使徒卢克→魔法石/mask `2`、盖波加→耳环/mask `16`），并在 `OdysseyClear` 的**同一事务**里调用 `inventory.UnlockEquipSlots`（失败一起回滚，重复通关幂等）。解锁位常量移入 `internal/inventory`，`internal/quest/index.go` 改为引用（值不变）。解锁只做"写进同一个角色事务"这一步。
+  - **已回退的尝试（留档）**：曾额外在通关时把新字节随 USERINFO1（`entry_addition`）重发一次，实测会让客户端**在副本内把装备栏显示清空**（存档毫发无损 —— `equipment=10 / worn=10 / gold=3587` 全程未变，且离开地图即恢复；该帧正常只在进图/登录时发）。因槽位状态本就由装备栏行对象构造期决定，落库后重登/进新副本自然生效，故移除该帧。
+  - ⚠️ **待修复（已确认，未闭环）**：解锁落库后**客户端当场不显示**，玩家必须**重登/重选角色**才看到解锁。根因在客户端：槽位状态由装备栏"槽行对象"在**构造期**决定、运行期只读（`analysis/tasks/next50-odyssey-expanded-equip-slot.md` §2/§4 —— 一个会话内 `[obj+0x358]` 被读 53 万次、写 0 次），因此**副本内补发任何帧都无法让客户端重建槽位**。当前已在通关时补发与 entry/装备变更同款的 id-13 + id-14 重同步帧（`equipment_bag_resynced` / `equipment_worn_resynced` / `equipment_slots_updated` / `equipment_worn_window_refreshed`），实测结果为**显示正常但不生效**（仍要重登）；保留它是因为无害，且可能在客户端重开装备栏时被采用（未验证）。要根除需反向出"装备行记录哪个字段映射到槽对象 `+0x358`"（next50 §5 未解项），属客户端侧问题。
+- 奥德赛清关后走「下一个剧情关卡」门（CMD 2062 直达）进入的副本里客户端整个下一关都不过门：直达响应改为先下发「选择地下城」入口帧（`gate_ack(15)` + `selection_sent(27)`）再下发进图序列（**已实机确认**）。
+  - **现象与取证**：直达进入的新副本地图正常加载、怪物可杀，但客户端不发任何 CMD 45（`MOVE_MAP`），站上首图传送阵无反应；同一次会话内清关前 6 次过门全部正常、清关后（发 2062）为 **0 次**。客户端侧 frida 发包探针（钩 `ws2_32!send`/`WSASend`）与服务端日志双侧确认，且客户端收到的进图帧与城镇选图**逐字节一致**（差异仅在副本 ID 与随机 seed），排除"服务端下发内容不同"。完整取证链见 `server/work/dfo-lan/docs/protocol/next49-odyssey-direct-move.md`。
+  - **实现**：`cmd/wireprobe/dungeon_flow.go` 的 `directMoveDungeon` 在进图序列前插入 `dungeon_gate_ack(15)` + `dungeon_selection_sent(27)`（即清关后客户端「选择其他地下城」的同一条 UI 入口），客户端随后走正常的选区进图流程。
+  - **被否掉的尝试（留档，勿重试）**：① 只回 `select_ack(16)`（与城镇选图逐字节一致）→ 首图无门请求；② 重放回城帧（`leave_ack(42)` + `town_actor_state(3)` + `return_area(23)` + `return_users(24)`）再跟进图帧 → 客户端黑屏退出（两次场景切换在 1 ms 内撞车，且 `leave_ack` 应答的是客户端从未发出的 `GIVEUP_GAME`）。
+  - **实机验证（2026-09-22，用户操作）**：清关后走「下一个剧情关卡」→ 正常进入下一关，**首图起连续 7 次过门全部正常**；frida 探针同时捕获到首图的 `head=01 2d`（CMD 45）。
+  - **测试**：`go build ./cmd/... ./internal/...`、`go vet ./cmd/...`、`go test -count=1 ./cmd/wireprobe/` 全绿。
+  - **探针结论（可复用）**：`analysis/dumps/opcodes.tsv` 的 `table_slot_va` 存的是**包描述结构的 RVA**（`0x140000000 + 值`），不是函数指针（实测挂上去零触发）；可靠的发包锚点是 `ws2_32!send`/`WSASend`，C2S 包头第 2 字节即 opcode。
+- 修复主线 3191「What Falls from the Sky」播完坠机过场后卡死（**已实机确认**）：剧情场景房没有 rank-3 boss，客户端不发 boss 检查（CMD117），改在最终层过场后直发 CMD33（SET_QUEST_TRIGGER）；服务端原实现在副本内一律拒绝（`quest_interaction_refused`），客户端等不到触发同步而停摆。
+  - **证据**：`runtime/roles_..._20260922_204626_569689_next37/events.jsonl` 12:55:27 进入 dungeon 15 maze 6 boss 房最终层（层叠 57981→100008695→100008694→100008684→100008683），12:55:29 两只脚本怪死亡 + cinematic 0x3a32 跳过后客户端发 CMD33 `21 00 77 0c`（quest 3191），被拒后仅剩心跳。对照同日志 quest 3190 正常通关路径（CMD117→boss 死→NOTI291/115/31→CMD46 play_result）。CMD33 定性来自 `analysis/dumps/opcodes.tsv`（SET_QUEST_TRIGGER）与 90dof 参考布局（echo+u16 quest+u8 type+u8 inc）。
+  - **改动**：`internal/quest/scene_trigger.go`（新增 `SceneClearObjective` 纯校验 + `Service.SceneTrigger`：任务须为单目标 `[clear map]` 且 run 已 Loaded、当前房地图等于任务目标图；落账复用 runID 键控幂等的 `RecordQuestMapClear`，回 NOTI291，与城镇 `[meet npc]` 路径同形）；`cmd/wireprobe/quest_flow.go` 的 `questInteraction` 前置校验不变，`activeDungeon != nil` 时走场景路径，城镇路径逐字保留。不信任客户端触发值。
+  - **测试**：新增 `internal/quest/scene_trigger_test.go`（最终层命中、四种非场景任务静默、无 run/未 Loaded/错误层图三拒绝）；`go test ./...`、`go vet ./...` 全绿；`bin/wireprobe-handoff-source.exe` 已重建（sha256 `30392313c9ab40343b3469e65f1517583ffbf835db2358eb4948f9cb61dbaf5e`，未覆盖 39 版归档）。
+  - **存档兼容**：不改数据库结构；复用既有 `character_map_clears` 证据表与 `character_quests` 进度列，幂等键不变，旧存档无需迁移。
+  - **实机验证（已通过，用户操作）**：用户实机测试确认源码候选版重打该剧情副本，坠机过场播完后任务 3191 正常变为可提交并顺利完成，后续剧情正常推进。
+  - **文档**：`server/work/dfo-lan/docs/protocol/next50-scene-quest-trigger.md`。
+  - **回滚方式**：`git checkout -- server/work/dfo-lan/cmd/wireprobe/quest_flow.go` 并删除本轮新增的 `internal/quest/scene_trigger.go`、`scene_trigger_test.go` 与文档，重编候选版即可。
 - VP（Skill Evolve/Enhance）保存链 + Reset/Auto Set（CMD483）：三觉后可改 VP、Apply 不再被 id19 覆盖显示、Reset 会清技能并返还 SP（**待实机验证**）。
   - **来源**：用户提供的第三方接续修复包《技能系统修复_20260922》（`README.md` + 8 个 `.go`，其基线停在本仓库 `29c8046` 那一支）。逐文件对照、采纳/拒绝理由与真源取证见 `analysis/tasks/next55-skill-vp-reset-fix-port.md`。
   - **未整包覆盖（重要）**：该包基线比当前 `main` 少 `1ddb6ad`（网关端口撞车重试）、`dfa47bb`（CMD2062 清关直达）与 growtype 0 觉醒修复，整包覆盖会连带回退，因此只取缺口、不取其基线。

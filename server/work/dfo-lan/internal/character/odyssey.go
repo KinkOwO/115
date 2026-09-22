@@ -4,6 +4,7 @@ import (
 	"context"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
+	"dfolan/internal/inventory"
 	"dfolan/internal/storage"
 	"encoding/hex"
 	"encoding/json"
@@ -54,6 +55,28 @@ func (s *ProgressionService) ApplyOdysseyTarget(role storage.Character, target b
 	return next, nil
 }
 
+// OdysseyExpandEquipMask maps an Odyssey dungeon clear to the extended equipment
+// slot it unlocks, using the same bits as the quest [slot expansion] rewards.
+//
+// Odyssey characters have no quest/season system, so clearing these runs is how
+// they earn the slots (rules from the user, recorded in
+// analysis/tasks/next50-odyssey-expanded-equip-slot.md §1):
+//
+//	安徒恩讨伐战 anton.dgn   100004950 -> support,     equipment slot 22
+//	使徒卢克     luke.dgn    100004953 -> magic stone, equipment slot 23
+//	盖波加       gaebolg.dgn 100004969 -> earring,     equipment slot 25
+func OdysseyExpandEquipMask(dungeonID uint32) (byte, bool) {
+	switch dungeonID {
+	case 100004950:
+		return inventory.ExpandSupport, true
+	case 100004953:
+		return inventory.ExpandMagicStone, true
+	case 100004969:
+		return inventory.ExpandEarring, true
+	}
+	return 0, false
+}
+
 // Completion owns this transaction, before notifying the client that the exit
 // portal is available. Ordinary card-result XP remains a separate receipt.
 func (s *ProgressionService) OdysseyClear(ctx context.Context, role storage.Character, run *dungeon.Session) (storage.Character, bool, error) {
@@ -76,6 +99,15 @@ func (s *ProgressionService) OdysseyClear(ctx context.Context, role storage.Char
 		next.State, e = s.saveOdysseyCompletion(next, run.Definition.ID)
 		if e != nil {
 			return nil, nil, e
+		}
+		// The clear may also unlock an extended equipment slot. It lands in the
+		// same character transaction, so a failed commit rolls both back and a
+		// repeated clear stays idempotent (the mask is only OR-ed in).
+		if mask, ok := OdysseyExpandEquipMask(run.Definition.ID); ok {
+			next.State, e = inventory.UnlockEquipSlots(next.State, mask)
+			if e != nil {
+				return nil, nil, e
+			}
 		}
 		proof, e := json.Marshal(map[string]any{"dungeon": run.Definition.ID, "target_level": target, "source": s.Odyssey.Source})
 		return next.State, proof, e

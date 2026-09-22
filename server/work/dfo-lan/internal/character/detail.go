@@ -64,16 +64,21 @@ func (s *Service) EntryAddition(role storage.Character) ([]byte, error) {
 			trees[i] = append(trees[i], protocol.EntrySkill{ID: uint16(id), Level: known[uint16(id)]})
 		}
 	}
+	// The extended-slot unlock byte rides the same saved bag the armoury is
+	// rebuilt from, so it is read straight off the raw state here rather than
+	// through inventory.ReadBag: a rejected bag must not turn a login into a
+	// refusal, and an absent field simply reads as "nothing unlocked".
+	var projection struct {
+		Inventory struct {
+			ExpandEquipFlags byte                     `json:"expand_equip_flags"`
+			Worn             []protocol.DetailedWorn `json:"worn"`
+		} `json:"inventory"`
+	}
+	if e := json.Unmarshal(role.State, &projection); e != nil {
+		return nil, e
+	}
 	var worn []protocol.DetailedWorn
 	if s.DetailedWornCandidate {
-		var projection struct {
-			Inventory struct {
-				Worn []protocol.DetailedWorn `json:"worn"`
-			} `json:"inventory"`
-		}
-		if e := json.Unmarshal(role.State, &projection); e != nil {
-			return nil, e
-		}
 		for _, item := range projection.Inventory.Worn {
 			// Avatar slots (<= 11) ride the avatar row layout; the creature
 			// body slot 26 and creature gear slots 27..29 ride the plain /
@@ -87,7 +92,7 @@ func (s *Service) EntryAddition(role storage.Character) ([]byte, error) {
 			}
 		}
 	}
-	return protocol.UserInfoAdditionProbe(protocol.EntryAdditionProbe{ActorServerID: role.WireID, Experience: state.Experience, Stats: stats, SkillTrees: trees, Worn: worn})
+	return protocol.UserInfoAdditionProbe(protocol.EntryAdditionProbe{ActorServerID: role.WireID, Experience: state.Experience, Stats: stats, SkillTrees: trees, Worn: worn, ExpandEquipFlags: projection.Inventory.ExpandEquipFlags})
 }
 
 // The exact .chr loader at 147559d80 stores (ID, first value) in the

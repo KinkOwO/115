@@ -94,6 +94,15 @@ type Bag struct {
 	Equipment []BagEquipment          `json:"equipment,omitempty"`
 	Worn      []BagEquipment          `json:"worn,omitempty"`
 	Special   map[byte][]BagEquipment `json:"special_equipment,omitempty"`
+	// ExpandEquipFlags carries the extended equipment-slot unlock bits the
+	// armoury draws its padlocks from: support 1<<0, magic stone 1<<1 and
+	// earring 1<<4. Quests 649/650/2636 award one bit each and every award
+	// must accumulate, so this field is only ever OR-ed - assigning it would
+	// relock whatever an earlier quest opened. The client reads the byte from
+	// the USERINFO1 unlock slot (protocol entry_addition, native 14563d692)
+	// and gates equipment slots 22/23/25 on bits 1/2/16. Absent in saves
+	// written before 2026-09-22, which reads back as 0 (nothing unlocked).
+	ExpandEquipFlags byte `json:"expand_equip_flags,omitempty"`
 }
 
 func ReadBag(state json.RawMessage) (Bag, error) {

@@ -69,6 +69,14 @@ type EntryAdditionProbe struct {
 	Stats         PackedEntryStats
 	SkillTrees    [2][]EntrySkill
 	Worn          []DetailedWorn
+	// ExpandEquipFlags is the saved extended-slot unlock byte (support 1,
+	// magic stone 2, earring 16). Native 14563d692 reads it straight into the
+	// character's +0x198 and 145cf28f0 gates equipment slots 22/23/25 on those
+	// bits, so the armoury cannot be opened through any other packet - the
+	// NOTI328 refresh only re-reads a state it already has. The type is the
+	// width guard: the native field is one byte and a wider saved value is
+	// rejected while projecting rather than truncated here.
+	ExpandEquipFlags byte
 }
 
 func UserInfoAdditionProbe(s EntryAdditionProbe) ([]byte, error) {
@@ -84,7 +92,10 @@ func UserInfoAdditionProbe(s EntryAdditionProbe) ([]byte, error) {
 	p = add16(p, s.ActorServerID)
 	p = add32(add32(p, uint32(s.Experience)), uint32(s.Experience>>32))
 	p = append(add32(p, uint32(len(stats))), stats...)
-	p = append(p, 0) // 14563d692
+	// 14563d692: the character's extended-slot unlock byte. This slot used to
+	// be written as a fixed zero, which is why a quest could settle without
+	// the armoury ever opening. Tests pin it at payload offset 360.
+	p = append(p, s.ExpandEquipFlags)
 	// 14563d6cb -> 1452c1540 always consumes an equipment block, even
 	// when empty: u8 rows, u32 scalar, u8 collection count, u64 flags.
 	// Omitting these 14 bytes shifts switching inventory and skill trees.
