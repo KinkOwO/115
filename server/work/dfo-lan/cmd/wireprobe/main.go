@@ -1307,9 +1307,24 @@ func main() {
 				if !verified {
 					continue
 				}
+				// The skill-material branch owns the exact reason-2 semantics
+				// inside a loaded dungeon. Every other case (town discard,
+				// non-material item, missing dungeon) falls through to the
+				// general deletion path so the client's discard works anywhere.
 				plan, e := worldState.deleteSkillMaterial(plaintext, frame.Raw)
+				if e == nil {
+					for _, packet := range plan {
+						if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
+							return
+						}
+						event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID})
+					}
+					continue
+				}
+				event(map[string]any{"kind": "skill_material_refused", "reason": e.Error(), "character_id": worldState.role.ID})
+				plan, e = worldState.deleteItems(plaintext, frame.Raw)
 				if e != nil {
-					event(map[string]any{"kind": "skill_material_refused", "reason": e.Error(), "character_id": worldState.role.ID})
+					event(map[string]any{"kind": "item_delete_refused", "reason": e.Error(), "character_id": worldState.role.ID})
 					if e = sendPayload(1, 18, protocol.MaterialDeleteReply(nil, false)); e != nil {
 						return
 					}
@@ -1319,7 +1334,7 @@ func main() {
 					if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
 						return
 					}
-					event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID})
+					event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID, "plain_hex": hex.EncodeToString(packet.Payload)})
 				}
 				continue
 			}
