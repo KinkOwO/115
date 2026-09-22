@@ -5,10 +5,44 @@ import (
 	"dfolan/internal/character"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
+	"dfolan/internal/quest"
+	"dfolan/internal/storage"
 	"encoding/binary"
 	"fmt"
 	"time"
 )
+
+// unlockRefresh re-publishes the actor's detail packets after a reward that
+// changed the extended-slot unlock byte.
+//
+// The armoury draws its padlocks from the byte the native USERINFO1 reader
+// stores at character +0x198 (14563d692), so the new value has to arrive in a
+// fresh mode 1 addition - no other packet carries it, and the NOTI328 refresh
+// only re-reads a state the client already holds. A mode 0 must precede that
+// addition, and it resets the client's worn containers, so the worn rows
+// follow immediately. This is the same trio dungeonEntryPlan sends on every
+// mid-session actor rebuild.
+func (w *worldSession) unlockRefresh(role storage.Character) ([]outboundPacket, error) {
+	if w.characters == nil {
+		return nil, nil
+	}
+	visual, e := w.characters.EntryBasicProbe(role, [2]byte{})
+	if e != nil {
+		return nil, e
+	}
+	addition, e := w.characters.EntryAddition(role)
+	if e != nil {
+		return nil, e
+	}
+	plan := []outboundPacket{
+		{"reward_actor_appearance_sent", 0, 2, visual},
+		{"reward_actor_addition_sent", 0, 2, addition},
+	}
+	if worn, e := inventory.WornSpaceUpdate(role.State); e == nil && len(worn) > 0 {
+		plan = append(plan, outboundPacket{"reward_worn_visuals_sent", 0, 14, worn})
+	}
+	return plan, nil
+}
 
 func (w *worldSession) finishQuest(r protocol.QuestSubmitRequest) ([]outboundPacket, error) {
 	if w == nil || w.quests == nil || w.role.ID == 0 {
@@ -94,6 +128,16 @@ func (w *worldSession) finishQuest(r protocol.QuestSubmitRequest) ([]outboundPac
 		}
 		plan = append(plan, outboundPacket{"quest_inventory_committed", 0, 13, body})
 	}
+	// A reward that opened an extended equipment slot has to be republished:
+	// the client keeps showing the padlock until the new unlock byte arrives
+	// in a USERINFO1 addition, even though the slot is already saved.
+	if result.Receipt.UnlockedEquipment != 0 {
+		refresh, e := w.unlockRefresh(result.Role)
+		if e != nil {
+			return nil, e
+		}
+		plan = append(plan, refresh...)
+	}
 	plan = append(plan, outboundPacket{"quest_experience", 0, 37, experience}, outboundPacket{"quest_triggers_updated", 0, 291, triggers}, outboundPacket{"completed_quests_updated", 0, 342, completed})
 	w.role, w.level = result.Role, experience[0]
 	available, e := w.availableQuestPayload(ctx)
@@ -146,8 +190,16 @@ func (w *worldSession) questInteraction(p []byte) ([]outboundPacket, error) {
 		return nil, nil
 	}
 	npc := uint32(d.ObjectiveCells[0].Value)
-	if !w.service.HasNPC(w.state.Position, npc) {
-		return nil, fmt.Errorf("quest NPC is absent from current source area")
+	// A [sub type] 1 quest is settled by the conversation the client already
+	// validated against its own resolved target, which for the three
+	// extended-slot quests (649/650/2636) is an NPC that stands in a different
+	// town than the raw objective. The positional test stays for the ordinary
+	// form, so a request naming a quest whose NPC is genuinely elsewhere is
+	// still refused, and the passive ProximityProgress walk keeps its own
+	// in-area requirement (it never consults this path).
+	if !quest.AllowsRemoteNPCInteraction(d) &&
+		(w.service == nil || !w.service.HasNPC(w.state.Position, npc)) {
+		return nil, fmt.Errorf("quest %d NPC %d is absent from current source area %d/%d", id, npc, w.state.Position.Town, w.state.Position.Area)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

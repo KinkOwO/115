@@ -37,13 +37,76 @@ type Index struct {
 	Positional []uint32
 }
 
+// slotExpansion returns the equipment-slot index a quest unlocks.
+//
+// Source quests 649 / 650 / 2636 unlock the extended equipment slots and carry
+// [reward type] = [slot expansion] with a single [reward int data] number that
+// is the slot index, not an item tuple:
+//
+//	649  (level 60)  epic_60_nightassault_second_2.qst        0  support
+//	650  (level 65)  epic_65_pirateonthetrain_magic_stone_2   1  magic stone
+//	2636 (level 90)  system_90_earring_02.qst                 2  earring
+//
+// The integer therefore must never reach ItemRewards, which reads a bare [0] as
+// "item id 0 with no count" and reports an invalid reward row.
+func slotExpansion(d catalog.QuestDefinition) (byte, bool) {
+	t := cells(d.Script.Cells, "[reward type]")
+	if len(t) != 1 || t[0].Type != 6 || t[0].Text != "[slot expansion]" {
+		return 0, false
+	}
+	ids := cells(d.Script.Cells, "[reward int data]")
+	if len(ids) != 1 || ids[0].Type != 0 || ids[0].Value < 0 || ids[0].Value > 3 {
+		return 0, false
+	}
+	return byte(ids[0].Value), true
+}
+
+// The unlock bits the armoury rebuilds its padlocks from, saved in the bag as
+// expand_equip_flags. These are NOT the reward scalars: the scalar is a slot
+// index and the earring's index 2 corresponds to bit 4, so OR-ing the scalar
+// directly would set bit 2 and leave the earring locked.
+const (
+	ExpandSupport    byte = 1 << 0 // reward scalar 0, equipment slot 22
+	ExpandMagicStone byte = 1 << 1 // reward scalar 1, equipment slot 23
+	ExpandEarring    byte = 1 << 4 // reward scalar 2, equipment slot 25
+)
+
+// slotUnlockMask maps a [slot expansion] reward scalar to its unlock bit.
+func slotUnlockMask(slot byte) (byte, bool) {
+	switch slot {
+	case 0:
+		return ExpandSupport, true
+	case 1:
+		return ExpandMagicStone, true
+	case 2:
+		return ExpandEarring, true
+	}
+	return 0, false
+}
+
 // rewardUsable reports whether Finish can settle this quest's reward today.
 // Quests it rejects must also stay out of the available list: a character who
 // accepts one can never submit it, which reads in game as a quest that will
 // not complete no matter how often it is handed in.
+//
+// [slot expansion] was added 2026-09-22. Until then only [item] and [none] were
+// accepted, so the three extended-slot quests above were filtered out of the
+// available list: the character could never accept them, the armoury stayed
+// locked (live: the support and magic-stone cells of a level-84 Odyssey
+// character still showed padlocks), and the client reported CMD 390
+// EXPAND_EQUIPSLOT_FLAG_UPDATE with an all-zero flag body.
 func rewardUsable(d catalog.QuestDefinition) bool {
 	if t := cells(d.Script.Cells, "[reward type]"); len(t) > 0 {
-		if len(t) != 1 || t[0].Type != 6 || (t[0].Text != "[item]" && t[0].Text != "[none]") {
+		if len(t) != 1 || t[0].Type != 6 {
+			return false
+		}
+		switch t[0].Text {
+		case "[item]", "[none]":
+		case "[slot expansion]":
+			if _, ok := slotExpansion(d); !ok {
+				return false
+			}
+		default:
 			return false
 		}
 	}
