@@ -434,6 +434,17 @@ with (
    command += ["-item-index", str(project / "configs/items.index.json")]
   if (project / "configs/booster-catalog.json").exists():
    command += ["-booster-catalog", str(project / "configs/booster-catalog.json")]
+  # Pick-a-item boxes ([booster select category]) come from their own table. The
+  # gateway starts with the project root as cwd, so the built-in relative paths
+  # never resolve — pass the absolute catalog like every other config.
+  selection_boxes = project / "configs/selection-boxes-candidate.json"
+  if selection_boxes.exists():
+   command += ["-selection-boxes", str(selection_boxes)]
+  # Source item shops ([need material] prices — the Odyssey shop charges silver
+  # coins). Without it the gateway charges a flat 1 gold for everything.
+  item_shop = project / "configs/itemshop-candidate.json"
+  if item_shop.exists():
+   command += ["-item-shop", str(item_shop)]
   # Magic-seal unsealing (CMD393) rolls from the current random option rules;
   # the default relative path never resolves because the gateway's cwd is the
   # project root, so pass the absolute catalog like every other config.

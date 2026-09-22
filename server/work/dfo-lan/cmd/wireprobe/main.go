@@ -69,6 +69,8 @@ func main() {
 	fullEquipmentFile := flag.String("equipment-full-catalog", os.Getenv("DFO_EQUIPMENT_FULL_CATALOG"), "separate indexed wear catalog prefix; does not widen drops")
 	itemIndexFile := flag.String("item-index", os.Getenv("DFO_ITEM_INDEX"), "full stackable item index JSON (e.g. configs/items.index.json)")
 	boosterCatalogFile := flag.String("booster-catalog", os.Getenv("DFO_BOOSTER_CATALOG"), "booster definitions JSON")
+	selectionBoxFile := flag.String("selection-boxes", os.Getenv("DFO_SELECTION_BOXES"), "source selection box JSON ([booster select category] boxes)")
+	itemShopFile := flag.String("item-shop", os.Getenv("DFO_ITEM_SHOP"), "source item shop JSON (itemshop/**.shp; prices goods with [need material], e.g. the Odyssey shop's silver coins)")
 	soloPartyBootstrap := flag.Bool("solo-party-bootstrap", false, "initialize the owned actor in the current solo party roster")
 	accountOptionsFile := flag.String("account-options", "", "sparse current-client account option overrides; other defaults remain client-owned")
 	unifiedCharacFile := flag.String("unified-charac-template", "", "override the built-in 3539 byte character option block sent as NOTI2827 (different client build only)")
@@ -118,6 +120,52 @@ func main() {
 		} {
 			if _, err := os.Stat(cand); err == nil {
 				*boosterCatalogFile = cand
+				break
+			}
+		}
+	}
+	if *selectionBoxFile == "" {
+		candidates := []string{
+			"configs/selection-boxes-release.json",
+			"configs/selection-boxes-candidate.json",
+			"server/work/dfo-lan/configs/selection-boxes-candidate.json",
+		}
+		// 网关通常不是从模块根启动的（启动器的工作目录是 server/），所以再按
+		// "与已经显式给出的目录同目录"推导一次——那些路径是绝对路径。
+		for _, base := range []string{*boosterCatalogFile, *itemIndexFile} {
+			if base == "" {
+				continue
+			}
+			dir := filepath.Dir(base)
+			candidates = append(candidates,
+				filepath.Join(dir, "selection-boxes-release.json"),
+				filepath.Join(dir, "selection-boxes-candidate.json"))
+		}
+		for _, cand := range candidates {
+			if _, err := os.Stat(cand); err == nil {
+				*selectionBoxFile = cand
+				break
+			}
+		}
+	}
+	if *itemShopFile == "" {
+		candidates := []string{
+			"configs/itemshop-release.json",
+			"configs/itemshop-candidate.json",
+			"server/work/dfo-lan/configs/itemshop-candidate.json",
+		}
+		for _, base := range []string{*boosterCatalogFile, *itemIndexFile} {
+			if base == "" {
+				continue
+			}
+			dir := filepath.Dir(base)
+			candidates = append(candidates,
+				filepath.Join(dir, "itemshop-release.json"),
+				filepath.Join(dir, "itemshop-candidate.json"))
+		}
+		for _, cand := range candidates {
+			if _, err := os.Stat(cand); err == nil {
+				*itemShopFile = cand
 				break
 			}
 		}
@@ -663,6 +711,40 @@ func main() {
 			log.Printf("loaded booster catalog (%d definitions, %d item index entries)", len(boosterCatalog.Definitions), len(boosterCatalog.Items))
 		}
 	}
+	// Source selection boxes ([booster select category]) are deliberately absent
+	// from the fixed-content booster catalog, so without this table every pick-a-
+	// item box falls through to the random-pool branch and the client only ever
+	// sees its generic "target inventory is full" notice.
+	var selectionBoxes *catalog.SelectionBoxes
+	if *selectionBoxFile != "" {
+		var err error
+		selectionBoxes, err = catalog.LoadSelectionBoxes(*selectionBoxFile)
+		if err != nil {
+			log.Printf("warning: load selection boxes (%s): %v", *selectionBoxFile, err)
+		} else {
+			log.Printf("loaded selection boxes (%d boxes, %d mislabeled fixed) from %s", len(selectionBoxes.Boxes), len(selectionBoxes.Fixed), *selectionBoxFile)
+		}
+	}
+	if selectionBoxes == nil {
+		log.Printf("warning: no selection box catalog; pick-a-item boxes go down the generic booster path")
+	}
+	// 物品商店表：源用 [need material] 定价的商品（奥德赛商店的盒子要 100 个银币）
+	// 必须按材料扣，否则一律按写死的金币单价白送。
+	var itemShops *catalog.ItemShops
+	if *itemShopFile != "" {
+		var err error
+		itemShops, err = catalog.LoadItemShops(*itemShopFile)
+		if err != nil {
+			log.Printf("warning: load item shops (%s): %v", *itemShopFile, err)
+		} else {
+			log.Printf("loaded item shops (%d shops) from %s", len(itemShops.Shops), *itemShopFile)
+		}
+	}
+	if itemShops == nil {
+		log.Printf("warning: no item shop catalog; every purchase is charged the flat gold price")
+	} else if lootService != nil {
+		lootService.ItemShops = itemShops
+	}
 	if *responseFile != "" {
 		b, err := os.ReadFile(*responseFile)
 		if err != nil {
@@ -795,7 +877,7 @@ func main() {
 		var equipmentState equipmentSession
 		var sortState sortSession
 		if worldService != nil {
-			worldState = &worldSession{characters: characters, service: worldService, account: developmentAccount, flags: townPolicy.Flags, dungeons: dungeonCatalog, tutorials: tutorialRoutes, tutorialDungeons: tutorialDungeons, professions: characters.Catalog, fatigue: fatigueService, quests: questService, progression: progressionService, loot: lootService, vault: vaultService, soloPartyBootstrap: *soloPartyBootstrap, hub: hub}
+			worldState = &worldSession{characters: characters, service: worldService, account: developmentAccount, flags: townPolicy.Flags, dungeons: dungeonCatalog, tutorials: tutorialRoutes, tutorialDungeons: tutorialDungeons, professions: characters.Catalog, fatigue: fatigueService, quests: questService, progression: progressionService, loot: lootService, selectionBoxes: selectionBoxes, vault: vaultService, soloPartyBootstrap: *soloPartyBootstrap, hub: hub}
 		}
 		if worldState != nil {
 			defer worldState.departArea()
@@ -1429,9 +1511,10 @@ func main() {
 					event(map[string]any{"kind": "shop_buy_rejected", "reason": "checksum failed"})
 					continue
 				}
+				event(map[string]any{"kind": "shop_buy_request", "character_id": worldState.role.ID, "id": 21, "plain_hex": hex.EncodeToString(plaintext)})
 				plan, e := worldState.buyItem(plaintext)
 				if e != nil {
-					event(map[string]any{"kind": "shop_buy_refused", "character_id": worldState.role.ID, "reason": e.Error()})
+					event(map[string]any{"kind": "shop_buy_refused", "character_id": worldState.role.ID, "reason": e.Error(), "plain_hex": hex.EncodeToString(plaintext)})
 					if e = sendPayload(1, 21, protocol.Refusal(4)); e != nil {
 						return
 					}
@@ -1441,7 +1524,7 @@ func main() {
 					if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
 						return
 					}
-					event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID, "id": packet.ID})
+					event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID, "id": packet.ID, "plain_hex": hex.EncodeToString(packet.Payload)})
 				}
 				continue
 			}
@@ -1450,9 +1533,10 @@ func main() {
 					event(map[string]any{"kind": "shop_sell_rejected", "reason": "checksum failed"})
 					continue
 				}
+				event(map[string]any{"kind": "shop_sell_request", "character_id": worldState.role.ID, "id": 22, "plain_hex": hex.EncodeToString(plaintext)})
 				plan, e := worldState.sellItem(plaintext)
 				if e != nil {
-					event(map[string]any{"kind": "shop_sell_refused", "character_id": worldState.role.ID, "reason": e.Error()})
+					event(map[string]any{"kind": "shop_sell_refused", "character_id": worldState.role.ID, "reason": e.Error(), "plain_hex": hex.EncodeToString(plaintext)})
 					if e = sendPayload(1, 22, protocol.Refusal(4)); e != nil {
 						return
 					}
@@ -1462,7 +1546,7 @@ func main() {
 					if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
 						return
 					}
-					event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID, "id": packet.ID})
+					event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID, "id": packet.ID, "plain_hex": hex.EncodeToString(packet.Payload)})
 				}
 				continue
 			}
