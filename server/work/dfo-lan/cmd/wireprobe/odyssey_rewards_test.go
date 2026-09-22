@@ -158,7 +158,14 @@ func TestOdysseyArmorDatabaseReplay(t *testing.T) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()
-	cfg, e := storage.LoadConfig("../../runtime/swordmaster-pilot-20260916/storage.json")
+	// 配置路径可覆盖：默认指向的历史目录（swordmaster-pilot-20260916）已不在仓库里，
+	// 所以这个集成测试一直是 skip 状态。设 ODYSSEY_INTEGRATION_CONFIG 就能用任意本地
+	// PG 配置跑（测试自建独立 schema 并 DROP，不碰真实存档）。
+	cfgPath := os.Getenv("ODYSSEY_INTEGRATION_CONFIG")
+	if cfgPath == "" {
+		cfgPath = "../../runtime/swordmaster-pilot-20260916/storage.json"
+	}
+	cfg, e := storage.LoadConfig(cfgPath)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -235,6 +242,34 @@ func TestOdysseyArmorDatabaseReplay(t *testing.T) {
 		t.Fatal(e, bag)
 	}
 	t.Log("weapon box persisted exactly once; selection deliberately unsettled")
+	// 创建奖励第三行：药水 x30，独立事件键，重放必须被幂等拦下。
+	potLoot := odysseyCreatePotionCatalog()
+	updated, applied, e = grantOdysseyCreatePotion(ctx, store, potLoot, wear.BagRules, replay)
+	if e != nil || !applied {
+		t.Fatal(e, applied)
+	}
+	replay, applied, e = grantOdysseyCreatePotion(ctx, store, potLoot, wear.BagRules, updated)
+	if e != nil || applied {
+		t.Fatal("药水事件重放没有被幂等拦下", e)
+	}
+	potBag, e := inventory.ReadBag(replay.State)
+	if e != nil {
+		t.Fatal(e)
+	}
+	var potTotal uint32
+	for _, it := range potBag.Items {
+		if it.Template == odysseyCreatePotion {
+			potTotal += it.Amount
+		}
+	}
+	if potTotal != odysseyCreatePotionCount {
+		t.Fatalf("药水合计 %d，期望 %d（重放不应再加）", potTotal, odysseyCreatePotionCount)
+	}
+	potReceipt, e := store.CharacterEventReceipt(ctx, account, role.ID, odysseyCreatePotionEvent)
+	if e != nil || !bytes.Contains(potReceipt, []byte("10418028")) {
+		t.Fatal("药水收据缺失", e)
+	}
+	t.Log("create potion x30 settled exactly once with its own event key")
 	choices, e := loadOdysseyWeaponChoices("../../configs/odyssey-weapon-box-candidate.json")
 	if e != nil {
 		t.Fatal(e)

@@ -20,6 +20,14 @@
   - **实机确认**：再发 1000 → **并入原叠**（23 → 1023），不再新开一叠。
 - **`at_avatar` 判据**：`booster_flow.go` 判装扮用的是 `strings.Contains(itemPath, "/avatar/")`，漏了 `at_avatar/` 目录下的装扮（写审计用例时发现），会让这类装扮落进装备分支。改为宽松匹配 `avatar`。
 
+- **奥德赛创建补给药水（手册 P3 子项 1，已实机确认）**：源里 `10417791`（奥德赛创建礼盒）的 `[stackable]` 块有三行 —— `10417789 1` / `10417790 1` / `10418028 30`。前两行（武器自选盒、初始防具盒）早已结算并各留了 `"selection_settled": false` / `"potion_settled": false` 标记，**第三行的 30 瓶专属恢复药水从未发放**。
+  - 实现：`cmd/wireprobe/odyssey_rewards.go` 新增 `applyOdysseyCreatePotion` / `grantOdysseyCreatePotion`，事件键 `odyssey-create-10417791-potion-10418028-v1`（与另两项完全独立、各自幂等）。发放走 `Bag.Add` 而不是照武器盒手写"找空格"：药水是 `[waste]` 可叠加物，包里往往已有几十瓶，必须并进同一叠。满包时报错 ⇒ 事件不落库 ⇒ 下次登录自动重试（与另两项同策略）。
+  - 接线：`cmd/wireprobe/main.go` 选角链（`frame.ID == 4`）在武器盒之后调用，失败记 `odyssey_create_potion_pending`。
+  - 幂等：`storage.CommitCharacterEvent` 在单个事务里先 `SELECT ... FOR UPDATE` 锁角色行、再查 `character_events` 同键记录，已存在则**不执行 apply** 直接返回 `applied=false`；model 不符时报错，避免策略升级后重复补发。
+  - **实机确认（2026-09-23）**：重选 `test-jh` 后药水 +30（落在 slot 67 —— 65/66 被银币占，走 `[waste]` 的默认消耗品栏）；`character_events` 里该事件**恰好 1 行**，全表 500+ 个 event_key 统计均为 `x1`；药水合计 73+30=103。
+  - 测试：新增 `cmd/wireprobe/odyssey_create_potion_test.go`（并进原叠、非奥德赛角色与外来目录拒绝）；集成测试追加药水段（发放一次、重放被幂等拦下、收据持久化）。
+  - 顺带修复：`TestOdysseyArmorDatabaseReplay` 写死引用 `runtime/swordmaster-pilot-20260916/storage.json`（该目录已不在仓库，导致测试长期静默 skip），改为支持 `ODYSSEY_INTEGRATION_CONFIG` 覆盖。另有 4 个文件引用同一路径，属既有问题，本批未扩大范围。
+
 ## 2026-09-22
 - 复刻第三方《补丁复刻手册（2026-09-22）》的 P1 / P2 与 P3 子项 6（来源：用户提供的手册；其工程与本仓库同源但无 Git，故给的是 diff 与锚点）。完整盘点、真源取证与待办见 `analysis/tasks/next58-selection-box-import.md`。
   - **P1 开箱常规装备耐久恒为 0**（`cmd/wireprobe/booster_flow.go`，**已实机确认** —— 2026-09-23 开出的上衣耐久 = 源值 60、重进后仍在）：Destination 3 曾把 `Durability` 写死 0，客户端把刚开出的装备当"已损坏"（面板 `0/60`、穿上不生效）。改为 `boosterEquipmentDurability` → `EquipmentCatalog.Reward(id)`，与任务/GM 发放、掉落同一条源规则（读 `.equ` 的 `[durability]`）；解析不出只记日志按 0 发放，**不拒绝开箱**。测试 `TestBoosterEquipmentGrantUsesSourceDurability` 同时断言存档耐久与**下发 NOTI13 行偏移 11**。存量只读核对：11 个角色存档里四个报告模板（`100051398/100101272/100101273/100101275`）**一条都没有 ⇒ 无需改档**；现存 4 行 0 耐久都是 `durabilityOptional` 部位（首饰），源里本就无 `[durability]`，是正确值。
