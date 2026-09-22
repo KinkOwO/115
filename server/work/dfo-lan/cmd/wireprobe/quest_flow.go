@@ -113,8 +113,8 @@ func (w *worldSession) availableQuestPayload(ctx context.Context) ([]byte, error
 }
 
 func (w *worldSession) questInteraction(p []byte) ([]outboundPacket, error) {
-	if w == nil || w.role.ID == 0 || w.quests == nil || w.activeDungeon != nil {
-		return nil, fmt.Errorf("NPC interaction requires an owned town character")
+	if w == nil || w.role.ID == 0 || w.quests == nil {
+		return nil, fmt.Errorf("quest check requires an owned character")
 	}
 	if len(p) != 16 || binary.LittleEndian.Uint16(p) != 33 {
 		return nil, fmt.Errorf("unsupported quest check request")
@@ -125,6 +125,22 @@ func (w *worldSession) questInteraction(p []byte) ([]outboundPacket, error) {
 		}
 	}
 	id := binary.LittleEndian.Uint16(p[2:])
+	if w.activeDungeon != nil {
+		// A story scene ends with SET_QUEST_TRIGGER from its final layer map
+		// instead of a boss check (quest 3191, live 2026-09-22): settle the
+		// [clear map] objective against the owned run and sync triggers.
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		active, e := w.quests.SceneTrigger(ctx, w.role, w.activeDungeon, id)
+		if e != nil || active == nil {
+			return nil, e
+		}
+		body, e := protocol.QuestTriggers(active)
+		if e != nil {
+			return nil, e
+		}
+		return []outboundPacket{{"quest_scene_trigger", 0, 291, body}}, nil
+	}
 	d, ok := w.quests.Catalog.Quests[uint32(id)]
 	if !ok || d.Kind != "[meet npc]" || len(d.ObjectiveCells) != 1 {
 		return nil, nil

@@ -1,6 +1,14 @@
 # CHANGELOG
 
 ## 2026-09-22
+- 修复主线 3191「What Falls from the Sky」播完坠机过场后卡死（**已实机确认**）：剧情场景房没有 rank-3 boss，客户端不发 boss 检查（CMD117），改在最终层过场后直发 CMD33（SET_QUEST_TRIGGER）；服务端原实现在副本内一律拒绝（`quest_interaction_refused`），客户端等不到触发同步而停摆。
+  - **证据**：`runtime/roles_..._20260922_204626_569689_next37/events.jsonl` 12:55:27 进入 dungeon 15 maze 6 boss 房最终层（层叠 57981→100008695→100008694→100008684→100008683），12:55:29 两只脚本怪死亡 + cinematic 0x3a32 跳过后客户端发 CMD33 `21 00 77 0c`（quest 3191），被拒后仅剩心跳。对照同日志 quest 3190 正常通关路径（CMD117→boss 死→NOTI291/115/31→CMD46 play_result）。CMD33 定性来自 `analysis/dumps/opcodes.tsv`（SET_QUEST_TRIGGER）与 90dof 参考布局（echo+u16 quest+u8 type+u8 inc）。
+  - **改动**：`internal/quest/scene_trigger.go`（新增 `SceneClearObjective` 纯校验 + `Service.SceneTrigger`：任务须为单目标 `[clear map]` 且 run 已 Loaded、当前房地图等于任务目标图；落账复用 runID 键控幂等的 `RecordQuestMapClear`，回 NOTI291，与城镇 `[meet npc]` 路径同形）；`cmd/wireprobe/quest_flow.go` 的 `questInteraction` 前置校验不变，`activeDungeon != nil` 时走场景路径，城镇路径逐字保留。不信任客户端触发值。
+  - **测试**：新增 `internal/quest/scene_trigger_test.go`（最终层命中、四种非场景任务静默、无 run/未 Loaded/错误层图三拒绝）；`go test ./...`、`go vet ./...` 全绿；`bin/wireprobe-handoff-source.exe` 已重建（sha256 `30392313c9ab40343b3469e65f1517583ffbf835db2358eb4948f9cb61dbaf5e`，未覆盖 39 版归档）。
+  - **存档兼容**：不改数据库结构；复用既有 `character_map_clears` 证据表与 `character_quests` 进度列，幂等键不变，旧存档无需迁移。
+  - **实机验证（已通过，用户操作）**：用户实机测试确认源码候选版重打该剧情副本，坠机过场播完后任务 3191 正常变为可提交并顺利完成，后续剧情正常推进。
+  - **文档**：`server/work/dfo-lan/docs/protocol/next50-scene-quest-trigger.md`。
+  - **回滚方式**：`git checkout -- server/work/dfo-lan/cmd/wireprobe/quest_flow.go` 并删除本轮新增的 `internal/quest/scene_trigger.go`、`scene_trigger_test.go` 与文档，重编候选版即可。
 - 修复「打死怪之后尸体卡住、怪物死亡没有响应、副本卡住无法进行」（**已实机确认**）：真因是**转职后的经验结算被旧试点门禁拒绝**，连带使整份怪物死亡回包没有发出，不是死亡协议或清房逻辑的问题。
   - **现象与证据**：`runtime/roles_..._20260922_194901_505941_next37/events.jsonl` 中，角色在 CMD1881 转职成功（第 963 行 NOTI718 正文 `01`、第 971 行 `advancement_completed` `010000`）后进入 dungeon 11 / map 58597（第 1052 行，4 个源怪物）；客户端 checksum-verified CMD39 正常上报（第 1069/1071/1073/1085 行，实体 4098/4096/4099/4097，killer 均为本角色场景 ID 10），但服务端自第 1070 行起持续回 `dungeon_request_refused id=39 reason="advanced profession growth is not yet supported"`，全程**没有** `monster_death_ack` / `monster_death_confirmed`（该会话累计 514 次同一拒绝）。客户端因此不断重报同一批实体，尸体不消失、门不开。换到 advancement 2（第 1235/1243 行）以及另一角色的 dungeon 17 / map 57964 同样被拒，排除单张地图/单个分支的偶发问题。
   - **根因**：调用链为 `CMD39 → monsterDeath → DecodeMonsterDeath（通过）→ ConfirmDeath（通过）→ ProgressionService.Monster → CommitCharacterEvent → ApplyGain`。`ApplyAdvancement` 早已按本职业 `AdvancementGrowth[advancement]` 校验并保存普通转职，但 `ApplyGain` 仍停留在试点阶段：`advancement != 0` 时只接受 `all_jobs_pilot`，或剑士 job 0 的 `swordmaster_pilot`，其余一律报错。`monsterDeath` 对该错误返回 `nil, error`，于是 ACK39 + NOTI38 + NOTI37 整份计划都不发送——**经验事务的失败吞掉了死亡确认**。同源的第二个缺陷：旧代码对所有 `advancement == 1` 先取 `SwordmasterGrowth`，只有带 `all_jobs_pilot` 才改用本职业分支，只删报错不改成长选择会让其它职业的一转选错属性表。
