@@ -21,6 +21,7 @@ type Drop struct {
 }
 type Session struct {
 	Currency              *OdysseyCurrency
+	ChapterDrop           *OdysseyChapterDrop
 	QuestDropBonusPercent int
 	mu                    sync.Mutex
 	Catalog               catalog.LootCatalog
@@ -84,6 +85,16 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 			return nil, err
 		}
 		result.Awards = append(result.Awards, coins...)
+		result.NextSeed = next
+	}
+	// 章节最终领主的章节盒（手册 P3 子项 3）。条件是"确认死亡的怪 Rank==3 且该副本
+	// 是某章 final"；整表默认关闭，禁用时 Roll 原样返回种子 ⇒ 不扰动其它掉落。
+	if d.Definition.Odyssey && s.ChapterDrop != nil && monster.Rank == 3 {
+		box, next, err := s.ChapterDrop.Roll(result.NextSeed, d.Definition.ID)
+		if err != nil {
+			return nil, err
+		}
+		result.Awards = append(result.Awards, box...)
 		result.NextSeed = next
 	}
 	if d.NextEntity == 0 || uint64(d.NextEntity)+uint64(len(result.Awards)) >= 65535 || uint64(s.next)+uint64(len(result.Awards)) >= 65535 {
