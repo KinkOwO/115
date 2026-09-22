@@ -11,6 +11,7 @@ import (
 	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
+	"log"
 	"math"
 	"math/rand"
 	"os"
@@ -20,6 +21,20 @@ import (
 )
 
 const MaxExpireTime = math.MaxInt32
+
+// boosterEquipmentDurability 解析一件刚发放的装备应带的耐久。
+//
+// 走的是 EquipmentCatalog.Reward，也就是 AddEquipment（任务奖励 / GM 发放）
+// 与掉落共用的那条规则：读源 .equ 的 [durability]。缺该段且部位属于
+// durabilityOptional（首饰、称号、辅助装备、魔法石、耳环……）时返回 0 且无错，
+// 那本来就是 0；其余情况解析不出来时返回错误，由调用方记日志后按 0 发放——
+// 不能因此拒绝开箱，否则"拿不到东西"比"拿到 0 耐久"更糟。
+func boosterEquipmentDurability(wear *inventory.WearService, id uint32) (uint16, error) {
+	if wear == nil || wear.Catalog == nil {
+		return 0, fmt.Errorf("no equipment catalog loaded")
+	}
+	return wear.Catalog.Reward(id)
+}
 
 type BoosterRewardCandidate struct {
 	Template uint32 `json:"template"`
@@ -184,6 +199,42 @@ func (w *worldSession) openBoosterItem(
 					w.role = saved
 				}
 				return plan, e
+			}		}
+	}
+
+	// 1b. Source selection boxes ([booster select category]). Their contents are
+	// picked by the player, and by design they are absent from the fixed-content
+	// booster catalog. Without this branch a pick-a-item box falls through to the
+	// random-pool path, which answers "booster %d has no reward pool defined" and
+	// leaves the client showing its generic failure notice ("The target inventory
+	// is full") — the pick list never appears.
+	//
+	// Validation happens here; the actual hand-out stays on the verified
+	// destination logic below (avatar / creature / equipment / stackable), because
+	// a box may mix them (10335328 carries gear plus 1000/10000-strong stacks).
+	// The Odyssey creation weapon box keeps its own handler above.
+	if w.selectionBoxes != nil && boxItem.Template != 10417789 {
+		if _, ok := w.selectionBoxes.ByTemplate(boxItem.Template); ok {
+			if len(req.Selections) == 0 {
+				// The client asks once before it can show the pick list. Answering
+				// with a failure keeps that list from ever appearing, so answer with
+				// an empty success and grant nothing: the pick arrives in a second
+				// request, which is what the validation below guards.
+				log.Printf("selection box %d at slot %d asked without a pick (category=%d): awaiting client selection", boxItem.Template, req.Slot, req.Category)
+				return []outboundPacket{{"selection_box_awaiting_pick", 1, 160, protocol.BoosterOpenSuccess(boxItem.Template, req.Slot, nil)}}, nil
+			}
+			category := [2]byte{byte(req.Category), byte(req.Category >> 8)}
+			items, missing, checked := w.selectionBoxes.Resolve(boxItem.Template, category, req.Selections)
+			switch {
+			case !checked:
+				log.Printf("selection box %d: category %v has no exported item set (unmodelled content block or unknown category); the pick goes down the generic path", boxItem.Template, category)
+			case len(missing) > 0:
+				// 导出源来自 client-build/Script.inner.pvf，而客户端加载自己的 Script.pvf
+				// （两份不是同一个构建），客户端 UI 给出的选择可能不在导出列表里。只记录，
+				// 不拒绝——严格校验会拒掉客户端合法给出的选择。
+				log.Printf("selection box %d: pick(s) %v outside the exported source range for category %v (client PVF may differ); granting anyway", boxItem.Template, missing, category)
+			default:
+				log.Printf("selection box %d: %d pick(s) matched the exported source range in category %v", boxItem.Template, len(items), category)
 			}
 		}
 	}
@@ -479,6 +530,16 @@ func (w *worldSession) openBoosterItem(
 
 			// Destination 3: Regular Equipment (kind == "equipment")
 			if kind == "equipment" {
+				// 耐久必须取源 .equ 的 [durability]，与 AddEquipment（任务/GM 发放）
+				// 和掉落完全同一条规则。这里曾经写死 0，客户端会把刚开出来的
+				// 装备当成"耐久 0 / 已损坏"：面板显示 0/60，穿上也不生效
+				// （2026-09-22 玩家报告：开箱出的上衣 100051398、下装
+				// 100101272/273/275 耐久全为 0）。源文件里这四件的
+				// [durability] 分别是 60/50/50/50。
+				dur, durErr := boosterEquipmentDurability(wear, g.Template)
+				if durErr != nil {
+					log.Printf("booster grant %d: durability unresolved (%v); granted at 0", g.Template, durErr)
+				}
 				occupied := map[uint16]bool{}
 				for _, eq := range b.Equipment {
 					occupied[eq.Slot] = true
@@ -494,7 +555,7 @@ func (w *worldSession) openBoosterItem(
 							b.Equipment = append(b.Equipment, inventory.BagEquipment{
 								Slot:       s,
 								Template:   g.Template,
-								Durability: 0,
+								Durability: dur,
 							})
 							foundSlot = true
 							break

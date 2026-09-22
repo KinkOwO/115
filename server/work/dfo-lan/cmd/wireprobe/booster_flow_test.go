@@ -4,11 +4,14 @@ import (
 	"context"
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
+	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
 	"dfolan/internal/storage"
 	"encoding/binary"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -679,5 +682,126 @@ func TestBoosterDirectContractActivation(t *testing.T) {
 	}
 	if store.premiums[27] <= 1750000000 {
 		t.Fatalf("expected tactician contract (27) to be activated, got %d", store.premiums[27])
+	}
+}
+
+// TestBoosterEquipmentGrantUsesSourceDurability 覆盖 2026-09-22 的玩家报告：
+// 开箱拿到的上衣/下装耐久全是 0，穿上不生效。根因是开箱发放常规装备那一路把
+// Durability 写死成 0，而任务/GM 发放走 AddEquipment 读的是源 [durability]。
+// 两条路必须给出同一个数，否则客户端把新装备当成"耐久 0 / 已损坏"。
+// 实机确认（2026-09-23）：开出的上衣耐久 = 源值 60。
+func TestBoosterEquipmentGrantUsesSourceDurability(t *testing.T) {
+	const (
+		boxTpl  uint32 = 70000001
+		gearTpl uint32 = 100051398 // 客户端内层 PVF: equipment/character/common/jacket/cloth/100051398.equ, [durability] = 60
+	)
+
+	dir := t.TempDir()
+	catPath := filepath.Join(dir, "equipment.json")
+	body := `{
+	  "source": {"format":"test","path":"test","size":1,"checksum":"test","file_count":1,"group_count":1},
+	  "rows": [
+	    {"ID":100051398,"Path":"equipment/character/common/jacket/cloth/100051398.equ",
+	     "SHA256":"0000000000000000000000000000000000000000000000000000000000000000",
+	     "Fields":{
+	       "[rarity]":[{"type":0,"value":3}],
+	       "[equipment type]":[{"type":6,"value":166625925,"text":"[coat]"}],
+	       "[durability]":[{"type":0,"value":60}]
+	     }}
+	  ]
+	}`
+	if err := os.WriteFile(catPath, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	gear, err := inventory.LoadEquipmentCatalog(catPath, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, err := gear.Reward(gearTpl)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want != 60 {
+		t.Fatalf("fixture equipment catalog reports durability %d, want 60", want)
+	}
+
+	bag := inventory.Bag{
+		Version: "ordinary-bag-v1",
+		Items:   []inventory.BagItem{{Slot: 65, Template: boxTpl, Amount: 1}},
+	}
+	state, _ := inventory.SaveBag(json.RawMessage(`{}`), bag)
+	store := newMockBoosterStore(storage.Character{ID: 11, AccountID: 1, State: state})
+
+	lootSvc := &loot.Service{
+		Catalog: catalog.LootCatalog{
+			Source: pvf.ArchiveSnapshot{Checksum: "test"},
+			Items: map[uint32]catalog.LootItem{
+				boxTpl:  {ID: boxTpl, Kind: "stackable", StackableType: "[booster]", StackLimit: 1000},
+				gearTpl: {ID: gearTpl, Kind: "equipment"},
+			},
+		},
+		BagRules: inventory.BagRules{
+			Source:            "test",
+			Slots:             map[string][2]uint16{"[booster]": {65, 120}},
+			MissingStackLimit: 1000,
+			EquipmentSlots:    [2]uint16{9, 64},
+		},
+	}
+	boosterCat := &BoosterCatalog{
+		Definitions: map[uint32]BoosterDefinition{
+			boxTpl: {Template: boxTpl, Type: "[booster]", Pools: []BoosterRewardPool{
+				{DrawCount: 1, Candidates: []BoosterRewardCandidate{{Template: gearTpl, Weight: 1000, Count: 1}}},
+			}},
+		},
+	}
+	wear := &inventory.WearService{Catalog: gear}
+	w := &worldSession{role: store.character, loot: lootSvc}
+
+	reqBytes := make([]byte, 8)
+	binary.LittleEndian.PutUint16(reqBytes[0:2], 65)
+	binary.LittleEndian.PutUint32(reqBytes[2:6], 1)
+	binary.LittleEndian.PutUint16(reqBytes[6:8], 0)
+
+	packets, err := w.openBoosterItem(context.Background(), store, wear, lootSvc, boosterCat, odysseyWeaponChoices{}, reqBytes, reqBytes)
+	if err != nil {
+		t.Fatal("open booster failed:", err)
+	}
+
+	resBag, err := inventory.ReadBag(w.role.State)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(resBag.Equipment) != 1 || resBag.Equipment[0].Template != gearTpl {
+		t.Fatalf("expected one granted %d, got %+v", gearTpl, resBag.Equipment)
+	}
+	if resBag.Equipment[0].Durability != want {
+		t.Fatalf("granted equipment durability = %d, want %d (source [durability])", resBag.Equipment[0].Durability, want)
+	}
+
+	// 线上表现由 NOTI13 行决定：耐久写在行内偏移 11。
+	var update []byte
+	for _, p := range packets {
+		if p.Name == "booster_main_inventory_updated" && p.ID == 14 {
+			update = p.Payload
+		}
+	}
+	if len(update) < 3 {
+		t.Fatalf("missing inventory update packet, got %d packets", len(packets))
+	}
+	rows := int(binary.LittleEndian.Uint16(update[1:3]))
+	got := -1
+	for i := 0; i < rows; i++ {
+		off := 3 + i*protocol.CurrentItemRecordSize
+		if off+protocol.CurrentItemRecordSize > len(update) {
+			break
+		}
+		row := update[off:]
+		if binary.LittleEndian.Uint16(row[0:2]) != resBag.Equipment[0].Slot {
+			continue
+		}
+		got = int(binary.LittleEndian.Uint16(row[11:13]))
+	}
+	if got != int(want) {
+		t.Fatalf("inventory row durability = %d, want %d", got, want)
 	}
 }

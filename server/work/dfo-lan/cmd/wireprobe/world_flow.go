@@ -39,6 +39,7 @@ type worldSession struct {
 	quests             *quest.Service
 	progression        *character.ProgressionService
 	loot               *loot.Service
+	selectionBoxes     *catalog.SelectionBoxes
 	vault              *inventory.VaultService
 	drops              *loot.Session
 	deathSent          map[uint16]bool
