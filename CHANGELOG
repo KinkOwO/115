@@ -1,6 +1,18 @@
 # CHANGELOG
 
 ## 2026-09-22
+- 二觉技能不随等级自动加点：觉醒段授予改为按等级**读时推导**，升级时随技能帧补发（**已实机确认**）。
+  - **现象**：二觉（stage 2，75 级解锁）的技能没有按等级自动加出来；一觉（50 级解锁）正常。
+  - **根因**：觉醒授予只在 `ApplyAwakening` 那一刻写进存档，而 `.chr` 觉醒段里的技能带自己的 `[required level]` —— 二觉段 140 条授予里有 **67 条高于二觉门槛 75**（剑魂 adv1 有 15 条是 85 级），三觉段同理（100 级解锁、段内是 95 级行）。75~84 级二觉的角色被 `ApplyAwakening` 的等级门控 `continue` 跳过，而且**之后没有任何补发路径**：`automaticSkills` 只推导转职段 `advancement_skills`，`cmd/wireprobe` 的升级刷新还额外要求该职业带 `advancement_skills`。量化与取证见 `analysis/tasks/next57-second-awakening-late-grant.md`。
+  - **实现**（与历史"转职段起始技能"修复同一套路：从存档等级/阶段现算，不改存档）：
+    - `internal/character/automatic_skills.go` 新增 `awakeningSkills`：逐 `stage = 1..state.Awakening` 取 `.chr` 的 `[awakening N]` 授予，技能须在本职业目录、`[required level]` 须单值，**等级达标才计入**（低于门槛的授予挂起）。
+    - `knownSkills` 把觉醒授予与转职段授予合并后并入读取集合，并作为"分支清理"的豁免（本分支源授予的行不因 growtype 判定被删）；技能树、进城技能帧、加点响应、Reset 共用这一条路径，一处修复全链路生效。
+    - `learning.go`（`Learn` 退点 floor）与 `skill_variation.go`（`skillFloor`）删除各自手写的觉醒段循环，统一调用 `awakeningSkills`，退点口径不变（源授予不可退成 SP）。
+    - `cmd/wireprobe/automatic_skills.go` 的升级刷新条件由"有 `advancement_skills`"放宽为"转职段或觉醒段任一有授予"，84→85 级升级时即随 `id-19` 技能帧下发新授予。
+    - **无需存档迁移**：75 级就二觉的老角色下次登录/升级即自动修复。
+  - **测试**：新增 `internal/character/awakening_grant_test.go`（二觉段 67 个延迟授予样本逐条断言"75 级不授予 / 达标授予 / 二觉前不授予"、`knownSkills` 端到端、115 级三觉对全部 348 条授予全量覆盖 + `skillRows` 下发、Reset 保留授予且不产 SP）；`cmd/wireprobe/automatic_skills_test.go` 新增"只带 `awakening_skills` 也刷新"用例。`go build ./internal/... ./cmd/...`、`go vet ./internal/... ./cmd/...`、`go test -count=1 ./internal/... ./cmd/...`（19 包）全绿。
+  - **实机确认（2026-09-22，用户操作）**：二觉角色的二觉段技能按等级自动加点生效，判定通过（未二觉/等级不足时不授予，达标后自动出现）。
+  - **背景**：本轮开始时 `fix/second-awakening-late-grant` 的 worktree（`%TEMP%\...\awk2`）已被删除且改动从未提交，仅留下 `bin/wireprobe-handoff-source.exe.bak-20260922-2300-preawk2grant` 的编译痕迹；本条目为按该缺口重新落地的实现，二进制已重编（上一版备份 `.bak-20260922-2308-preawaken2grant`）。
 - 修复商城物品栏扩展券和角色金库升级购买无效：扩展券按档位事务扣款并保存扩容状态，通过原生 NOTI66 同步，所有背包恢复路径保留档位；商城发布模式同时接通金库升级。保留旧物品及存储槽位规则，实机效果待验证。
 - 扩展装备槽（辅助装备 / 魔法石 / 耳环）解锁：接上"任务奖励 → 存档 → USERINFO1"这条链，槽位不再只锁不开（**待实机验证**）。
   - **来源**：用户提供的外部《开槽任务修复说明-20260922》（其工程 `F:\115-main`，与本仓库同源）。对照结论与冲突清单见 `analysis/tasks/next54-slot-expansion-fix-port.md`。**该说明修的是剧情角色的任务解锁链路**；奥德赛角色不走任务，其解锁值本仓库只作参考。

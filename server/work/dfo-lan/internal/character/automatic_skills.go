@@ -45,6 +45,54 @@ func (s *Service) automaticSkills(role storage.Character, state State) (map[uint
 	return out, nil
 }
 
+// Awakening grants come from the [awakening N] blocks of the same .chr profile
+// as the advancement grants, but unlike them they carry real [required level]
+// gates: the second awakening unlocks at 75 while part of its branch skills are
+// 85-level, and the third unlocks at 100 with 95-level rows. ApplyAwakening can
+// therefore only write the grants whose gate is already satisfied, and a role
+// that awakened at 75 never receives the 85-level ones. Deriving them from the
+// persisted level/awakening (exactly like automaticSkills) repairs those roles
+// without a DB edit - the client sees the grant as soon as the level is met.
+func (s *Service) awakeningSkills(role storage.Character, state State) (map[uint16]byte, error) {
+	out := map[uint16]byte{}
+	if s.Learning == nil || state.Awakening == 0 {
+		return out, nil
+	}
+	p, ok := s.Catalog.Professions[role.Profession]
+	if !ok || p.RawSHA256 != state.SourceSHA256 || s.Learning.Source.Checksum != role.ConfigVersion {
+		return nil, fmt.Errorf("awakening skill source mismatch")
+	}
+	for stage := byte(1); stage <= state.Awakening; stage++ {
+		grants := p.AwakeningSkills[state.Advancement][stage]
+		if len(grants)%2 != 0 {
+			return nil, fmt.Errorf("invalid awakening skill triples")
+		}
+		for i := 0; i < len(grants); i += 2 {
+			id, rank := grants[i], grants[i+1]
+			d, exists := s.Learning.index[role.Profession][uint16(id)]
+			// Membership in the profession's .chr awakening block authorizes
+			// this grant; awakened skills deliberately have zero base-growtype
+			// caps, so the source definition is only read for its level gate.
+			if id < 1 || id > 65535 || rank < 1 || rank > 255 || !exists {
+				return nil, fmt.Errorf("invalid awakening skill grant")
+			}
+			levels := d.Ints("[required level]")
+			if len(levels) != 1 {
+				return nil, fmt.Errorf("awakening skill level missing")
+			}
+			// Below its own [required level] the grant stays pending rather
+			// than being granted and then refunded.
+			if int(state.Level) < levels[0] {
+				continue
+			}
+			if out[uint16(id)] < byte(rank) {
+				out[uint16(id)] = byte(rank)
+			}
+		}
+	}
+	return out, nil
+}
+
 func (s *Service) knownSkills(role storage.Character, state State, tree int) (map[uint16]byte, error) {
 	known, err := knownSkills(state, tree)
 	if err != nil {
@@ -54,7 +102,19 @@ func (s *Service) knownSkills(role storage.Character, state State, tree int) (ma
 	if err != nil {
 		return nil, err
 	}
-	for id, rank := range free {
+	awakened, err := s.awakeningSkills(role, state)
+	if err != nil {
+		return nil, err
+	}
+	grants := map[uint16]byte{}
+	for _, group := range []map[uint16]byte{free, awakened} {
+		for id, rank := range group {
+			if grants[id] < rank {
+				grants[id] = rank
+			}
+		}
+	}
+	for id, rank := range grants {
 		if known[id] < rank {
 			known[id] = rank
 		}
@@ -65,7 +125,7 @@ func (s *Service) knownSkills(role storage.Character, state State, tree int) (ma
 			initial[sk.ID] = true
 		}
 		for id := range state.LearnedSkills[tree] {
-			if initial[id] || free[id] > 0 {
+			if initial[id] || grants[id] > 0 {
 				continue
 			}
 			d, ok := s.Learning.index[role.Profession][id]
