@@ -1887,7 +1887,7 @@ func main() {
 				// byte (TutorialFlag) initializes it. Sending 1 left it < 30 and the
 				// opening recap replayed; sending 30 should clear the gate.
 				profile.TutorialFlag = 30
-				event(map[string]any{"kind": "tutorial_flags_restored", "character_id": role.ID, "completed": profile.TutorialCompleted})
+				event(map[string]any{"kind": "tutorial_flags_restored", "character_id": role.ID, "tutorial_flag": profile.TutorialFlag, "completed": profile.TutorialCompleted})
 				profile.CreatedTime = uint32(role.CreatedAt.Unix())
 				// Cera is an account balance the client reads from this
 				// response. Without this it stayed at the configured zero,
