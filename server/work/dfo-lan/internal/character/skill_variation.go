@@ -159,7 +159,7 @@ func (s *Service) resetAutoState(ctx context.Context, cur storage.Character, st 
 		if e != nil {
 			return e
 		}
-		floor, e := s.skillFloor(cur, *st, int(tree), known)
+		floor, e := s.skillFloor(cur, *st, int(tree))
 		if e != nil {
 			return e
 		}
@@ -225,11 +225,11 @@ func (s *Service) resetAutoState(ctx context.Context, cur storage.Character, st 
 }
 
 // skillFloor is the rank a skill holds without SP: the source initial grants,
-// the advancement's automatic grants, and the awakening grants this character
-// has already consumed. It mirrors the floor Learn enforces, so a reset refunds
-// only what the player actually paid. Reading the awakening grants alone would
-// refund the rank-1 (and automatic) portion of every starter skill.
-func (s *Service) skillFloor(role storage.Character, st State, tree int, known map[uint16]byte) (map[uint16]byte, error) {
+// the advancement's automatic grants, and the level-satisfied awakening grants.
+// It mirrors the floor Learn enforces, so a reset refunds only what the player
+// actually paid. Reading the awakening grants alone would refund the rank-1
+// (and automatic) portion of every starter skill.
+func (s *Service) skillFloor(role storage.Character, st State, tree int) (map[uint16]byte, error) {
 	floor := map[uint16]byte{}
 	for _, v := range initialSkills(st) {
 		floor[v.ID] = v.Level
@@ -238,20 +238,13 @@ func (s *Service) skillFloor(role storage.Character, st State, tree int, known m
 	if e != nil {
 		return nil, e
 	}
-	for id, rank := range free {
-		if floor[id] < rank {
-			floor[id] = rank
-		}
+	awakened, e := s.awakeningSkills(role, st)
+	if e != nil {
+		return nil, e
 	}
-	prof, ok := s.Catalog.Professions[role.Profession]
-	if !ok {
-		return floor, nil
-	}
-	for stage := byte(1); stage <= st.Awakening; stage++ {
-		grants := prof.AwakeningSkills[st.Advancement][stage]
-		for i := 0; i+1 < len(grants); i += 2 {
-			id, rank := uint16(grants[i]), byte(grants[i+1])
-			if known[id] >= rank && floor[id] < rank {
+	for _, group := range []map[uint16]byte{free, awakened} {
+		for id, rank := range group {
+			if floor[id] < rank {
 				floor[id] = rank
 			}
 		}
