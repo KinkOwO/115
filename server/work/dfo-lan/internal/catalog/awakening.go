@@ -21,7 +21,13 @@ func AwakeningSkillGrants(tokens []pvf.Token) map[byte]map[byte][]int32 {
 			}
 			continue
 		}
-		if section != "[awakening skill]" || grow < 2 || grow > 16 || stage < 1 || stage > 3 || t.Type != 0 {
+		// [growtype 1] is growtype 0, the unadvanced base. A profession with no
+		// change-of-job branch (demonic swordman, creator mage: [max grow count]
+		// 1, the only [growtype N] section present) carries its [awakening 1..3]
+		// blocks inside that same section, so growtype 1 must be kept. Ordinary
+		// professions keep their awakening blocks under [growtype 2..N] only,
+		// and the pre-section grow value 0 stays refused either way.
+		if section != "[awakening skill]" || grow < 1 || grow > 16 || stage < 1 || stage > 3 || t.Type != 0 {
 			continue
 		}
 		adv := byte(grow - 1)
