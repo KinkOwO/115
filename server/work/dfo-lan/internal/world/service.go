@@ -53,12 +53,17 @@ func Walkable(a catalog.WorldArea, x, y uint16) bool {
 }
 
 // RequiredLevel is the source level gate of an area. An Arad Odyssey character
-// follows the same permission data the client uses: when the source defines
-// [odyssey enter level] it replaces [need level] (Storm Pass is need 50 /
-// odyssey 45). Ordinary characters keep [need level] only, so no existing
-// behaviour changes for them.
+// follows the same permission data the client uses: [odyssey enter level] can
+// only LOWER the gate, never raise it — the effective Odyssey gate is the
+// smaller of the two source values. Live evidence covers both directions:
+// Storm Pass (43/*, need 50 / odyssey 45) admits an Odyssey character at 45
+// (the client's own DSTR 535 refusal names 45), while West Coast (40/0,
+// need 15 / odyssey 35) admits one at 20 — the client sends the move request
+// and its refusal text (DSTR 30069) names 15, so a higher Odyssey value is not
+// an entry gate (it scopes the area's [phase] variants instead). Ordinary
+// characters keep [need level] only, so no existing behaviour changes for them.
 func RequiredLevel(a catalog.WorldArea, odyssey bool) uint32 {
-	if odyssey && a.OdysseyMinimumLevel > 0 {
+	if odyssey && a.OdysseyMinimumLevel > 0 && a.OdysseyMinimumLevel < a.MinimumLevel {
 		return a.OdysseyMinimumLevel
 	}
 	return a.MinimumLevel
@@ -73,7 +78,7 @@ func (s *Service) ValidatePosition(level byte, odyssey bool, p storage.WorldPosi
 // tightens what the server already accepted: for an Odyssey character the
 // smaller of the two source gates wins, so an upgrade that teaches the server
 // about [odyssey enter level] cannot strand a saved character behind a gate it
-// passed under the old rule.
+// passed under the old rule. This matches RequiredLevel's min semantics.
 func RestorationLevel(a catalog.WorldArea, odyssey bool) uint32 {
 	need := a.MinimumLevel
 	if !odyssey || a.OdysseyMinimumLevel == 0 || a.OdysseyMinimumLevel >= need {

@@ -1,6 +1,14 @@
 # CHANGELOG
 
 ## 2026-09-22
+- 修复 20 级奥德赛角色进不去西海岸（town 40/area 0）、客户端误提示「You must be Level 15 to go to West Coast」：`[odyssey enter level]` 语义由「替换 `[need level]`」更正为「只降不升（min）」。
+  - **现象与证据**：20 级奥德赛角色 `gugugaga`（角色 11，DB `state.level=20`）在赫顿玛尔（39/0）点日志「移动」去西海岸，客户端走完 CMD2261 → NOTI365 → CMD36，服务端三次回 code 8（`runtime/roles_..._20260922_191044_617535_next37`：`special_warp_prepared` 后同序 `area_refused town=40 area=0 reason="destination level requirement not met"` ×3）。客户端在 20 级就发出请求，且拒绝提示填的是 15（need 值而非 odyssey 35）⇒ 客户端有效门槛 = min(15,35) = 15。
+  - **根因**：next47 把 `[odyssey enter level]` 定为 replace 语义；40/0 是 16 个 odyssey>need 区之一（need 15 / odyssey 35，且该区带 `[phase]` 变体段，高值约束的是阶段变体而非入门），replace 把 20 级奥德赛角色按 35 级误拦（实机路径：`specialWarpPending → teleportTransition` → `RequiredLevel` 取 35）。min 语义与全部既有实机证据一致（43/* need50/odyssey45 → 45，提示填 45；40/0 → 15，提示填 15），也符合奥德赛加速剧情的设计（replace 下赫顿玛尔后街 39/2~4 会要求 44 级，显然不合理）。
+  - **改动**：`internal/world/service.go` `RequiredLevel` 改 min（仅当 `odyssey && 0 < odyssey < need` 时用 odyssey 值）；`RestorationLevel` 本就是 min，两者现一致；`internal/catalog/world.go` 字段注释同步。解析、78 区目录补丁、`source.checksum` 未动；普通角色与 60 个 odyssey<need 区行为不变。
+  - **测试**：`internal/world/service_test.go` 新增 `TestOdysseyGateNeverRaisesEntry`（40/0 门槛钉死 15/35、20 级放行、14 级两模式仍拒）；`cmd/wireprobe/odyssey_enter_level_test.go` 新增 `TestOdysseyWestCoastTeleportGate`（复刻实机包形态 39/0→40/0，20 级放行、14 级 code 8）；既有 Storm Pass 45 级放行用例与全部 30 包 `go test ./...`、`go vet ./...` 全绿；`bin/wireprobe-handoff-source.exe` 已重建。
+  - **文档**：`server/work/dfo-lan/docs/protocol/next49-odyssey-gate-min-semantics.md`。
+  - **待实机验证（用户操作）**：重启服务端后 20 级奥德赛角色 `gugugaga` 点「移动」应直接进西海岸（服务端事件 `area_change_sent town=40`，不再有 `area_refused`）；对照 14 级以下角色仍应被 15 级门槛拦下。
+  - **回滚方式**：改动均在 Git 内（`internal/world/service.go`、`internal/catalog/world.go`、两个测试文件与文档），`git revert` 即可。
 - 技能学习（觉醒技能 / 加点）：修复三类"觉醒后学不了技能"的缺陷，并区分 `[growtype maximum level]` 的两种零。
   - **1. 觉醒专属技能无法学习（配置缺字段）**：剑魂觉醒成剑圣后 60 级加点「流星剑」（`skill/swordman/meteorsword.skl`）被拒（`unsupported skill advancement/level`）。根因是 `configs/skills.next27.json` 由"还不支持 `[awakening maximum level]`"的工具生成：3224 行里该字段出现 0 次，1141 个觉醒专属技能因此一律不可学（对照 `skills.release.json` 有 1020 次）。用当前 `cmd/skillaudit` 对同一 PVF 重新生成：逐字段比对行数与 key 完全一致，只有新增（`[awakening maximum level]` 1024、`[variation point]` 960、`[enable by third awakening quest]` 419、`[awakening]` 219）与 5 行"源里本就没有自身 `[type]`"的修正。测试：`internal/character/learning_awakening50_test.go`。
   - **2. "只有觉醒矩阵"的 36 个技能不可学**：源里有一批技能完全没有 `[growtype maximum level]`、只带 `[awakening maximum level]`（`skill/swordman/nachal.skl` 是 `0 0 0 0 0 40` ×3 的形状），而 `ForAwakening` 原先要求 `len(caps) == 3*len(base)`，基础行缺失时 `len(base) == 0`，判定恒为 false。改为**列数可由矩阵本身推出**（基础行缺失时用 `len(caps)/3`；基础行存在但与矩阵不一致时仍拒绝，畸形块不会变成可学），`forState` 在缺列时补零后写入本角色的 `(stage, growtype)` 上限。测试：`internal/character/learning_awakening_matrix_test.go`。
