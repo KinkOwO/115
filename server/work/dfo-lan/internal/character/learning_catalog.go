@@ -63,27 +63,72 @@ func (d LearningDefinition) Active() bool {
 	return len(ts) == 1 && ts[0].Text == "[active]"
 }
 
+// allZeroCaps reports whether the source row is present but gives every
+// growtype a zero cap. A row like [0 1 1 1 1 1] (archer latentability) is NOT
+// all-zero: its zero is a real "this growtype cannot learn it" statement.
+func allZeroCaps(v []int) bool {
+	if len(v) == 0 {
+		return false
+	}
+	for _, x := range v {
+		if x != 0 {
+			return false
+		}
+	}
+	return true
+}
+
+// fitnessAllows answers "is this row owned by growtype adv?" from the two
+// fitness rows. An empty [skill fitness growtype] with an empty
+// [skill fitness second growtype] declares no ownership, which is how the
+// current source writes job-wide rows; eligibility then falls to the level,
+// prerequisite and cost checks.
+func (d LearningDefinition) fitnessAllows(adv int) bool {
+	fit := d.Ints("[skill fitness growtype]")
+	for _, g := range fit {
+		if g == adv {
+			return true
+		}
+	}
+	if sec := d.Ints("[skill fitness second growtype]"); len(sec) > 0 {
+		for _, g := range sec {
+			if g == adv {
+				return true
+			}
+		}
+		return false
+	}
+	return len(fit) == 0
+}
+
 // Explicit source profession eligibility for unlearned skill definitions.
 // Existing .chr free grants do not depend on manual learning eligibility.
 func (d LearningDefinition) ForAdvancement(adv int) bool {
 	cap := d.Ints("[growtype maximum level]")
-	if adv < 0 || len(cap) > 0 && (adv >= len(cap) || cap[adv] <= 0) {
+	if adv < 0 || len(cap) > 0 && adv >= len(cap) {
 		return false
 	}
 	t := d.Fields["[type]"]
 	if len(t) != 1 || (t[0].Text != "[active]" && t[0].Text != "[passive]") {
 		return false
 	}
-	if len(cap) > 0 {
-		return true
+	if len(cap) > 0 && !allZeroCaps(cap) {
+		// The source gave a per-growtype cap row, so a zero in it means that
+		// growtype cannot learn the skill at all.
+		return cap[adv] > 0
 	}
-	grow := d.Ints("[skill fitness growtype]")
-	for _, g := range grow {
-		if g == adv {
-			return true
-		}
+	if matrix := d.Ints("[awakening maximum level]"); len(matrix) > 0 && !allZeroCaps(matrix) {
+		// An all-zero base row plus a live awakening matrix is an
+		// awakening-only row: it stays refused here and is selected through
+		// forState once the character actually awakened into this growtype.
+		return false
 	}
-	return false
+	// All-zero (or absent) base row with no live matrix: the row does not use
+	// the base cap table at all, so ownership comes from the fitness rows.
+	// atgunner/quartermaster ([0 0 0 0 0 0], matrix zero, second growtype 2)
+	// and atfighter/lightenchantweapon (caps missing, fitness 1) are that
+	// shape, and refusing them surfaced live as "觉醒后学不了觉醒技能".
+	return d.fitnessAllows(adv)
 }
 func (d LearningDefinition) Cost(level, advancement, target int, known map[uint16]byte) (int, error) {
 	// This argument is a growtype index, not the packed awakening wire byte.
@@ -111,7 +156,10 @@ func (d LearningDefinition) Cost(level, advancement, target int, known map[uint1
 		return 0, fmt.Errorf("technique skill learning pending")
 	}
 	limit := max[0]
-	if caps := d.Ints("[growtype maximum level]"); len(caps) > advancement {
+	// An all-zero cap row means the source does not cap this skill per
+	// growtype at all ([maximum level] is then the only bound) - see the
+	// all-zero branch in ForAdvancement.
+	if caps := d.Ints("[growtype maximum level]"); len(caps) > advancement && !allZeroCaps(caps) {
 		if caps[advancement] < limit {
 			limit = caps[advancement]
 		}
