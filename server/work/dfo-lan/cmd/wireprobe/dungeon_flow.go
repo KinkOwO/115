@@ -553,6 +553,7 @@ func (w *worldSession) monsterDeath(p []byte) ([]outboundPacket, error) {
 				w.drops = loot.NewSession(dropCatalog, w.loot.Tables, w.loot.Rules, w.loot.Equipment, w.activeDungeon.RunID, w.account, w.role.ID, w.role.WireID)
 				if w.activeDungeon.Definition.Odyssey {
 					w.drops.Currency = w.loot.Currency
+					w.drops.ChapterDrop = w.loot.ChapterDrop
 				}
 				store := w.service.Store
 				if store == nil && w.characters != nil {
@@ -661,6 +662,10 @@ func (w *worldSession) completeDungeon() ([]outboundPacket, error) {
 		plan = append(plan, outboundPacket{"odyssey_journal_updated", 0, 2856, progress})
 		ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
 		gifted, applied, _ := w.progression.OdysseyGifts(ctx, w.role)
+		if w.progression != nil && w.progression.Chapters != nil {
+			chaptered, chapterApplied, _ := w.progression.OdysseyChapterRewards(ctx, gifted)
+			gifted, applied = chaptered, applied || chapterApplied
+		}
 		cancel()
 		w.role = gifted
 		if applied {
