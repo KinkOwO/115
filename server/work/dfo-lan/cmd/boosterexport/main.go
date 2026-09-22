@@ -79,7 +79,7 @@ func (p RewardPool) Pick(r *rand.Rand) []RewardCandidate {
 
 type BoosterDefinition struct {
 	Template uint32       `json:"template"`
-	Type     string       `json:"type"` // "[booster]" or "[booster selection]"
+	Type     string       `json:"type"` // "[booster]" or "[booster selection]" or package type
 	Pools    []RewardPool `json:"pools,omitempty"`
 }
 
@@ -91,7 +91,11 @@ func parseBoosterInfo(cells []pvf.Token) []RewardPool {
 			j := i + 1
 			for j < len(cells) && !(cells[j].Type == 3 && cells[j].Text == "[/booster info]") {
 				tag := cells[j]
-				if tag.Type == 3 && (tag.Text == "[etc]" || tag.Text == "[equipment]" || tag.Text == "[avatar]" || tag.Text == "[stackable]" || tag.Text == "[creature]") {
+				if tag.Type == 3 && (tag.Text == "[etc]" || tag.Text == "[equipment]" || tag.Text == "[avatar]" ||
+					tag.Text == "[stackable]" || tag.Text == "[creature]" || tag.Text == "[cera]" ||
+					tag.Text == "[grow type]" || tag.Text == "[dungeon and life items]" || tag.Text == "[special avatar]" ||
+					tag.Text == "[equipment random option]" || tag.Text == "[emblem]" || tag.Text == "[card upgrade]" ||
+					tag.Text == "[enchant card]") {
 					endTag := "[/" + tag.Text[1:]
 					k := j + 1
 					var nums []uint32
@@ -109,12 +113,22 @@ func parseBoosterInfo(cells []pvf.Token) []RewardPool {
 							start = 1
 						}
 						var cands []RewardCandidate
-						for idx := start; idx+2 < len(nums); idx += 3 {
-							cands = append(cands, RewardCandidate{
-								Template: nums[idx],
-								Weight:   nums[idx+1],
-								Count:    nums[idx+2],
-							})
+						if (len(nums)-start)%3 == 0 {
+							for idx := start; idx+2 < len(nums); idx += 3 {
+								cands = append(cands, RewardCandidate{
+									Template: nums[idx],
+									Weight:   nums[idx+1],
+									Count:    nums[idx+2],
+								})
+							}
+						} else if len(nums)%2 == 0 {
+							for idx := 0; idx+1 < len(nums); idx += 2 {
+								cands = append(cands, RewardCandidate{
+									Template: nums[idx],
+									Weight:   1000,
+									Count:    nums[idx+1],
+								})
+							}
 						}
 						if len(cands) > 0 {
 							pools = append(pools, RewardPool{
@@ -126,6 +140,39 @@ func parseBoosterInfo(cells []pvf.Token) []RewardPool {
 					j = k
 				} else {
 					j++
+				}
+			}
+			break
+		}
+	}
+	return pools
+}
+
+func parsePackageData(cells []pvf.Token) []RewardPool {
+	var pools []RewardPool
+	for i := 0; i < len(cells); i++ {
+		c := cells[i]
+		if c.Type == 3 && c.Text == "[package data]" {
+			j := i + 1
+			var nums []uint32
+			for j < len(cells) && !(cells[j].Type == 3 && cells[j].Text == "[/package data]") {
+				if cells[j].Type == 0 && cells[j].Value > 0 {
+					nums = append(nums, uint32(cells[j].Value))
+				}
+				j++
+			}
+			if len(nums) >= 2 && len(nums)%2 == 0 {
+				for idx := 0; idx+1 < len(nums); idx += 2 {
+					pools = append(pools, RewardPool{
+						DrawCount: 1,
+						Candidates: []RewardCandidate{
+							{
+								Template: nums[idx],
+								Weight:   1000,
+								Count:    nums[idx+1],
+							},
+						},
+					})
 				}
 			}
 			break
@@ -150,7 +197,10 @@ func main() {
 
 	a, err := pvf.LoadArchive(pvf.Options{Path: pvfPath, MaxBytes: 1024 * 1024 * 1024})
 	if err != nil {
-		log.Fatalf("load pvf: %v", err)
+		a, err = pvf.LoadArchive(pvf.Options{Path: "../client-build/Script.inner.pvf", MaxBytes: 1024 * 1024 * 1024})
+		if err != nil {
+			log.Fatalf("load pvf: %v", err)
+		}
 	}
 
 	result := make(map[string]BoosterDefinition)
@@ -158,7 +208,9 @@ func main() {
 	t0 := time.Now()
 
 	for idStr, item := range idx.Items {
-		if !strings.Contains(item.StackableType, "booster") {
+		isBooster := strings.Contains(item.StackableType, "booster")
+		isPkg := strings.Contains(item.StackableType, "package")
+		if !isBooster && !isPkg {
 			continue
 		}
 		cells, err := a.Tokens(item.Path)
@@ -166,6 +218,9 @@ func main() {
 			continue
 		}
 		pools := parseBoosterInfo(cells)
+		if len(pools) == 0 && isPkg {
+			pools = parsePackageData(cells)
+		}
 		if len(pools) > 0 {
 			result[idStr] = BoosterDefinition{
 				Template: item.ID,

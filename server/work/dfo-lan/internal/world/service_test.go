@@ -194,6 +194,43 @@ func TestOdysseyEnterLevelGateAtStormPass(t *testing.T) {
 	}
 }
 
+func TestOdysseyGateNeverRaisesEntry(t *testing.T) {
+	// 实机缺陷（2026-09-22，角色 gugugaga，20 级奥德赛）：从赫顿玛尔（39/0）
+	// 传送西海岸（40/0）被拒 code 8，客户端提示 DSTR 30069「You must be Level 15
+	//  to go to West Coast」。40/0 的 [permission] 是 [need level] 15 /
+	// [odyssey enter level] 35（16 个 odyssey>need 区之一）。客户端在 20 级就放行
+	// 请求且提示数字是 15，说明高出的 odyssey 值不是入门门槛（它约束 [phase]
+	// 变体）；服务端取 min 与客户端一致。
+	cat, e := catalog.LoadWorld("../../configs/world.generated.json")
+	if e != nil {
+		t.Fatal(e)
+	}
+	a, ok := cat.Areas["40/0"]
+	if !ok {
+		t.Fatal("missing source area 40/0")
+	}
+	if a.MinimumLevel != 15 || a.OdysseyMinimumLevel != 35 {
+		t.Fatalf("40/0 gates: need %d odyssey %d", a.MinimumLevel, a.OdysseyMinimumLevel)
+	}
+	if got := RequiredLevel(a, true); got != 15 {
+		t.Fatalf("odyssey gate raised the entry bar: %d", got)
+	}
+	if got := RequiredLevel(a, false); got != 15 {
+		t.Fatalf("ordinary gate %d", got)
+	}
+	s := Service{Catalog: cat}
+	p := storage.WorldPosition{Town: 40, Area: 0, X: 388, Y: 180}
+	if e := s.ValidatePosition(20, true, p); e != nil {
+		t.Fatalf("odyssey level 20 refused West Coast: %v", e)
+	}
+	if e := s.ValidatePosition(14, true, p); !errors.Is(e, ErrLevel) {
+		t.Fatalf("odyssey level 14 admitted: %v", e)
+	}
+	if e := s.ValidatePosition(14, false, p); !errors.Is(e, ErrLevel) {
+		t.Fatalf("ordinary level 14 admitted: %v", e)
+	}
+}
+
 func TestRequiredLevelKeepsOrdinaryGateWithoutSourceOdysseyLevel(t *testing.T) {
 	// 源里没有 [odyssey enter level] 的区域，奥德赛角色仍按 [need level] 判定。
 	a := catalog.WorldArea{Town: 39, Area: 5, MinimumLevel: 41}

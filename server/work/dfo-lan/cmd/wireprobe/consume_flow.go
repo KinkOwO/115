@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"dfolan/internal/cashshop"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"fmt"
@@ -40,8 +41,14 @@ func (w *worldSession) useStackable(p []byte) ([]outboundPacket, error) {
 	w.role = saved
 	// The absolute committed bag follows the acknowledgement, so a retried
 	// hotkey press cannot leave the client's own count drifting.
-	return []outboundPacket{
+	plan := []outboundPacket{
 		{"item_use_ack", 1, 44, ack},
 		{"item_use_inventory_updated", 0, 14, update},
-	}, nil
+	}
+	if contract, isContract := cashshop.ResolveContract(r.Template); isContract && w.loot.Store != nil {
+		if endTime, err := w.loot.Store.ActivatePremium(ctx, w.role.AccountID, contract.Type, contract.DurationSecond); err == nil && endTime > 0 {
+			plan = append(plan, outboundPacket{"item_use_cera_special_item", 0, 66, protocol.CeraSpecialItemNotification(contract.Type, endTime)})
+		}
+	}
+	return plan, nil
 }
