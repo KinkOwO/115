@@ -39,6 +39,8 @@
   - **验证**：`go test -count=1 ./internal/... ./cmd/...` 与 `go vet ./internal/... ./cmd/...` 全绿；"第三方补丁能学、本仓库不能学"的技能数 **138 → 0**，同时保留本仓库独有的 29 个觉醒矩阵精确能力（`quartermaster` 仅 adv=2、`pistolcarbine` 仅 adv=1 可学）。
   - **待实机验证（用户操作）**：① 剑魂觉醒后在 60 级加点「流星剑」成功；② 弹药（女枪手）觉醒后可加点 `quartermaster` / `g96thermobaricgranade` / `pistolcarbine`，且其它分支不显示这些技能。
   - **未闭环**：`configs/characters.*.json` 尚未重新导出（job 9/10 的运行时觉醒授权表仍为空）；`WireAdvancement` / `ApplyAwakening` 的 `adv = 0` 组合待实机证据；`configs/skills.release.json` / `skills.awakening-candidate.json` 仍是修工具前的旧产物（当前启动链只用 `skills.next27.json`）。
+- 城镇丢弃物品不消失（CMD18 通用删除闭环）：材料路径优先（副本内已实机验收），失败落通用主背包删除——权威背包事务扣减、同款 0x0012 ACK（reason=2）+ NOTI14 行更新（**待实机验证**）。
+  - **来源**：用户提供的第三方《丢弃修复.zip》（MERGE_REQUEST.md + 3 个 `.go`）。本轮无基线漂移：包内「替换前」代码块与本地 CMD18 分支逐行一致，依赖签名全部吻合。分析见 `analysis/tasks/next56-item-discard-town.md`。
 
 ## 2026-09-21
 - 修复觉醒专属技能（50 级觉醒后）无法学习：`configs/skills.next27.json` 缺 `[awakening maximum level]`。
