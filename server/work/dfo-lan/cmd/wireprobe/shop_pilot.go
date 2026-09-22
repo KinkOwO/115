@@ -129,7 +129,24 @@ func shopPilotPackets(receipt storage.CashReceipt, balance uint64, applied bool)
 	var update outboundPacket
 	var creatureUpdate *outboundPacket
 	var b inventory.Bag
-	if receipt.Vault != nil {
+	expansion := false
+	for _, delivery := range receipt.Deliveries {
+		if cashshop.InventoryExpansionTier(delivery.Template) != 0 {
+			expansion = true
+		}
+	}
+	if expansion {
+		var err error
+		b, err = inventory.ReadBag(receipt.CharacterState)
+		if err != nil {
+			return nil, err
+		}
+		payload, err := protocol.InventoryExpansionNotice(b.Expansion)
+		if err != nil {
+			return nil, err
+		}
+		update = outboundPacket{"cera_purchase_inventory_expansion", 0, 66, payload}
+	} else if receipt.Vault != nil {
 		payload, err := inventory.VaultPayload(*receipt.Vault)
 		if err != nil {
 			return nil, err
@@ -205,7 +222,7 @@ func shopPilotPackets(receipt storage.CashReceipt, balance uint64, applied bool)
 			}
 		}
 		if hasLifeToken {
-			restorePayload, err := protocol.InventoryRestore(b.Rows())
+			restorePayload, err := protocol.InventoryRestore(b.Rows(), b.Expansion)
 			if err == nil {
 				packets = append(packets, outboundPacket{"cera_purchase_inventory_restored", 0, 13, restorePayload})
 			}

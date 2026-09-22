@@ -398,6 +398,9 @@ func (p *Pilot) Purchase(ctx context.Context, ledger BagLedger, account, charact
 	if p == nil || ledger == nil || len(cart) == 0 || len(cart) > 32 {
 		return storage.CashReceipt{}, false, fmt.Errorf("purchase requires1..32 supported products")
 	}
+	if receipt, applied, handled, err := p.TryPurchaseInventoryExpansion(ctx, ledger, account, character, key, cart); handled || err != nil {
+		return receipt, applied, err
+	}
 	for _, item := range cart {
 		if item.Quantity == 0 || item.Quantity > 56 {
 			return storage.CashReceipt{}, false, fmt.Errorf("purchase quantity must be1..56 per line")

@@ -590,7 +590,7 @@ func main() {
 			log.Fatal(e)
 		}
 		vaultService = &inventory.VaultService{Store: characters.Store, Rules: rules}
-		if *vaultPurchase || *vaultRelease {
+		if *vaultPurchase || *vaultRelease || *shopRelease {
 			for n := uint16(24); n <= 264; n += 16 {
 				vaultService.Rules.VerifiedSlots = append(vaultService.Rules.VerifiedSlots, n)
 			}
@@ -785,7 +785,7 @@ func main() {
 			return
 		}
 		purchaseSession.keys = keys
-		if (*vaultPurchase || *vaultRelease) && vaultService != nil {
+		if (*vaultPurchase || *vaultRelease || *shopRelease) && vaultService != nil {
 			purchaseSession.vaultRules = &vaultService.Rules
 		}
 		var selectedBasic []byte
