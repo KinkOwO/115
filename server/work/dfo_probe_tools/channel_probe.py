@@ -1,4 +1,4 @@
-﻿"""One bounded real-client run against a loopback Go wire experiment."""
+"""One bounded real-client run against a loopback Go wire experiment."""
 
 import json
 import os
@@ -277,7 +277,6 @@ with (
    str(project / "configs/quests.generated.json"),
    "-vault-rules",
    str(project / "configs/vault.generated.json"),
-   "-vault-purchase-release",
   ]
   if "_detail_" in tag:
    command += [
@@ -557,6 +556,18 @@ with (
    os.environ["DFO_ODYSSEY_GROWTH"] = str(growth_override)
  elif odyssey_growth.exists():
   os.environ["DFO_ODYSSEY_GROWTH"] = str(odyssey_growth.resolve())
+
+ # 七章目录（章节奖励按进度补发）。章节盒掉落表**不**在这里注入：那一项出厂
+ # enabled=false，按手册要求由 profile 显式开启。
+ odyssey_chapters = project / "configs/odyssey-chapters-release.json"
+ if os.environ.get("DFO_ODYSSEY_CHAPTERS"):
+  chapters_override = pathlib.Path(os.environ["DFO_ODYSSEY_CHAPTERS"])
+  if not chapters_override.is_absolute():
+   chapters_override = (project / chapters_override).resolve()
+  if chapters_override.exists():
+   os.environ["DFO_ODYSSEY_CHAPTERS"] = str(chapters_override)
+ elif odyssey_chapters.exists():
+  os.environ["DFO_ODYSSEY_CHAPTERS"] = str(odyssey_chapters.resolve())
 
  eq_full = project / "configs/equipment-full"
  if (project / "configs/equipment-full.index.json").exists() and (
