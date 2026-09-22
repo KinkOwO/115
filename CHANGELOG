@@ -1,6 +1,13 @@
 # CHANGELOG
 
 ## 2026-09-22
+- 奥德赛清关后走「下一个剧情关卡」门（CMD 2062 直达）进入的副本里客户端整个下一关都不过门：直达响应改为先下发「选择地下城」入口帧（`gate_ack(15)` + `selection_sent(27)`）再下发进图序列（**已实机确认**）。
+  - **现象与取证**：直达进入的新副本地图正常加载、怪物可杀，但客户端不发任何 CMD 45（`MOVE_MAP`），站上首图传送阵无反应；同一次会话内清关前 6 次过门全部正常、清关后（发 2062）为 **0 次**。客户端侧 frida 发包探针（钩 `ws2_32!send`/`WSASend`）与服务端日志双侧确认，且客户端收到的进图帧与城镇选图**逐字节一致**（差异仅在副本 ID 与随机 seed），排除"服务端下发内容不同"。完整取证链见 `server/work/dfo-lan/docs/protocol/next49-odyssey-direct-move.md`。
+  - **实现**：`cmd/wireprobe/dungeon_flow.go` 的 `directMoveDungeon` 在进图序列前插入 `dungeon_gate_ack(15)` + `dungeon_selection_sent(27)`（即清关后客户端「选择其他地下城」的同一条 UI 入口），客户端随后走正常的选区进图流程。
+  - **被否掉的尝试（留档，勿重试）**：① 只回 `select_ack(16)`（与城镇选图逐字节一致）→ 首图无门请求；② 重放回城帧（`leave_ack(42)` + `town_actor_state(3)` + `return_area(23)` + `return_users(24)`）再跟进图帧 → 客户端黑屏退出（两次场景切换在 1 ms 内撞车，且 `leave_ack` 应答的是客户端从未发出的 `GIVEUP_GAME`）。
+  - **实机验证（2026-09-22，用户操作）**：清关后走「下一个剧情关卡」→ 正常进入下一关，**首图起连续 7 次过门全部正常**；frida 探针同时捕获到首图的 `head=01 2d`（CMD 45）。
+  - **测试**：`go build ./cmd/... ./internal/...`、`go vet ./cmd/...`、`go test -count=1 ./cmd/wireprobe/` 全绿。
+  - **探针结论（可复用）**：`analysis/dumps/opcodes.tsv` 的 `table_slot_va` 存的是**包描述结构的 RVA**（`0x140000000 + 值`），不是函数指针（实测挂上去零触发）；可靠的发包锚点是 `ws2_32!send`/`WSASend`，C2S 包头第 2 字节即 opcode。
 - 修复主线 3191「What Falls from the Sky」播完坠机过场后卡死（**已实机确认**）：剧情场景房没有 rank-3 boss，客户端不发 boss 检查（CMD117），改在最终层过场后直发 CMD33（SET_QUEST_TRIGGER）；服务端原实现在副本内一律拒绝（`quest_interaction_refused`），客户端等不到触发同步而停摆。
   - **证据**：`runtime/roles_..._20260922_204626_569689_next37/events.jsonl` 12:55:27 进入 dungeon 15 maze 6 boss 房最终层（层叠 57981→100008695→100008694→100008684→100008683），12:55:29 两只脚本怪死亡 + cinematic 0x3a32 跳过后客户端发 CMD33 `21 00 77 0c`（quest 3191），被拒后仅剩心跳。对照同日志 quest 3190 正常通关路径（CMD117→boss 死→NOTI291/115/31→CMD46 play_result）。CMD33 定性来自 `analysis/dumps/opcodes.tsv`（SET_QUEST_TRIGGER）与 90dof 参考布局（echo+u16 quest+u8 type+u8 inc）。
   - **改动**：`internal/quest/scene_trigger.go`（新增 `SceneClearObjective` 纯校验 + `Service.SceneTrigger`：任务须为单目标 `[clear map]` 且 run 已 Loaded、当前房地图等于任务目标图；落账复用 runID 键控幂等的 `RecordQuestMapClear`，回 NOTI291，与城镇 `[meet npc]` 路径同形）；`cmd/wireprobe/quest_flow.go` 的 `questInteraction` 前置校验不变，`activeDungeon != nil` 时走场景路径，城镇路径逐字保留。不信任客户端触发值。

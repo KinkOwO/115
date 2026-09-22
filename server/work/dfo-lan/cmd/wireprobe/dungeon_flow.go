@@ -89,17 +89,9 @@ func (w *worldSession) selectDungeon(p []byte) (*dungeon.Session, []outboundPack
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	quests, e := w.service.Store.Quests(ctx, w.account, w.role.ID)
+	accepted, e := w.acceptedQuestIDs(ctx)
 	if e != nil {
 		return nil, nil, e
-	}
-	accepted := map[uint16]bool{}
-	for _, q := range quests {
-		// 客户端自己的门槛文案就是 "accepted **or** completed prerequisite quests"，
-		// 只认 accepted 会让已完成的任务副本反而进不去。
-		if (q.Status == "accepted" || q.Status == "completed") && q.ConfigVersion == w.dungeons.Source.Checksum {
-			accepted[q.ID] = true
-		}
 	}
 	s, e := dungeon.Select(*w.dungeons, r, w.level, accepted)
 	if e != nil {
@@ -114,15 +106,29 @@ func (w *worldSession) selectDungeon(p []byte) (*dungeon.Session, []outboundPack
 			return nil, nil, storage.ErrFatigueExhausted
 		}
 	}
-	var seed uint32
-	if e = binary.Read(rand.Reader, binary.LittleEndian, &seed); e != nil {
-		return nil, nil, e
-	}
-	start, e := protocol.StartMap(protocol.StartMapState{Position: s.Maze.Start, Seed: seed, Map: s.Room.Map, Monsters: s.Monsters})
+	plan, e := w.dungeonEntryPlan("dungeon_select_ack", 16, r, s)
 	if e != nil {
 		return nil, nil, e
 	}
-	plan := []outboundPacket{{"dungeon_select_ack", 1, 16, []byte{1}}}
+	return s, plan, nil
+}
+
+// dungeonEntryPlan is the frame sequence the client needs to load a dungeon it
+// has just asked for: the acknowledgement for that request, the actor display
+// state, the solo party bootstrap, NOTI 28 (dungeon info) and NOTI 29 (start
+// map). Both the town selection (CMD 16) and the post-clear "next story
+// dungeon" gate (CMD 2062) replay it unchanged - only the ack id differs,
+// because the client loads a whole new dungeon either way.
+func (w *worldSession) dungeonEntryPlan(ackName string, ackID uint16, sel protocol.DungeonSelection, s *dungeon.Session) ([]outboundPacket, error) {
+	var seed uint32
+	if e := binary.Read(rand.Reader, binary.LittleEndian, &seed); e != nil {
+		return nil, e
+	}
+	start, e := protocol.StartMap(protocol.StartMapState{Position: s.Maze.Start, Seed: seed, Map: s.Room.Map, Monsters: s.Monsters})
+	if e != nil {
+		return nil, e
+	}
+	plan := []outboundPacket{{ackName, 1, ackID, []byte{1}}}
 	if w.characters != nil {
 		visual, err := w.characters.EntryBasicProbe(w.role, [2]byte{})
 		if err == nil {
@@ -147,15 +153,118 @@ func (w *worldSession) selectDungeon(p []byte) (*dungeon.Session, []outboundPack
 	if w.soloPartyBootstrap {
 		party, e := protocol.SoloPartyInfo(w.role.WireID)
 		if e != nil {
-			return nil, nil, e
+			return nil, e
 		}
 		plan = append(plan, outboundPacket{"solo_party_initialized", 0, 9, party})
 	}
 	plan = append(plan, []outboundPacket{
-		{"dungeon_info_sent", 0, 28, protocol.DungeonInfo(protocol.DungeonInfoState{ID: r.ID, Difficulty: r.Difficulty, Maze: s.Maze.Index, Boss: s.Maze.Boss})},
+		{"dungeon_info_sent", 0, 28, protocol.DungeonInfo(protocol.DungeonInfoState{ID: sel.ID, Difficulty: sel.Difficulty, Maze: s.Maze.Index, Boss: s.Maze.Boss})},
 		{"dungeon_start_map_sent", 0, 29, start},
 	}...)
-	return s, plan, nil
+	return plan, nil
+}
+
+// directMoveDungeon handles CMD 2062 (ENUM_CMDPACKET_DUNGEON_DIRECT_MOVE): the
+// "next story dungeon" gate the client offers beside "return to town" after a
+// clear. The finished run is replaced by the requested one, with the same
+// source gate keeping as the town selection (level, difficulty, maze quest)
+// and the same entry sequence, because the client loads a whole new dungeon
+// from this request. The town-only checks of CMD 16 (standing on a PVF
+// [dungeon gate] area) do not apply inside a run.
+// acceptedQuestIDs is the prerequisite set the dungeon gate check consumes.
+// The client's own wording is "accepted **or** completed prerequisite quests",
+// so completed ones count too; only accepted would lock out a dungeon whose
+// quest the character already finished.
+func (w *worldSession) acceptedQuestIDs(ctx context.Context) (map[uint16]bool, error) {
+	quests, e := w.service.Store.Quests(ctx, w.account, w.role.ID)
+	if e != nil {
+		return nil, e
+	}
+	accepted := map[uint16]bool{}
+	for _, q := range quests {
+		if (q.Status == "accepted" || q.Status == "completed") && q.ConfigVersion == w.dungeons.Source.Checksum {
+			accepted[q.ID] = true
+		}
+	}
+	return accepted, nil
+}
+
+func (w *worldSession) directMoveDungeon(p []byte) (*dungeon.Session, []outboundPacket, error) {
+	if w == nil || w.dungeons == nil || w.role.ID == 0 {
+		return nil, nil, fmt.Errorf("dungeon catalog or character unavailable")
+	}
+	if w.activeDungeon == nil {
+		return nil, nil, fmt.Errorf("direct move without an active dungeon")
+	}
+	r, e := protocol.DecodeDungeonDirectMove(p)
+	if e != nil {
+		return nil, nil, e
+	}
+	d, ok := w.dungeons.Dungeons[r.ID]
+	if !ok {
+		return nil, nil, fmt.Errorf("direct move target absent from imported source")
+	}
+	if d.Odyssey && !character.OdysseyRole(w.role) {
+		return nil, nil, fmt.Errorf("Odyssey dungeon requires an Odyssey character")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if w.fatigue != nil && !d.NoFatigue && w.fatigue.Rules.RoomCost > 0 {
+		fp, err := w.fatigue.State(ctx, w.account, w.role.ID, time.Now())
+		if err != nil {
+			return nil, nil, err
+		}
+		if fp.Used >= fp.Limit {
+			return nil, nil, storage.ErrFatigueExhausted
+		}
+	}
+	accepted, e := w.acceptedQuestIDs(ctx)
+	if e != nil {
+		return nil, nil, e
+	}
+	// The direct-move body carries the dungeon id and difficulty only, so the
+	// remaining selection fields take the values CMD 16 uses for a solo run.
+	sel := protocol.DungeonSelection{ID: r.ID, Difficulty: r.Difficulty, Party: 65535}
+	s, e := dungeon.Select(*w.dungeons, sel, w.level, accepted)
+	if e != nil {
+		return nil, nil, e
+	}
+	plan, e := w.directMoveEntryPlan(sel, s)
+	if e != nil {
+		return nil, nil, e
+	}
+	// 客户端在「清关 → 点下一个剧情关卡门」后不再接受普通房间门（实机 A/B：它收到的
+	// 进图帧与城镇选图逐字节一致，却整个下一关都不发 MOVE_MAP，取证见
+	// docs/protocol/next49-odyssey-direct-move.md）。清关后客户端另有一个「选择其他
+	// 地下城」入口，走的是 gate_ack(15) + selection_sent(27) 这条 UI 层帧；先进这个
+	// 界面再下发进图帧，避免用"回城帧"造成的场景切换与进图撞车（实测那会让客户端
+	// 黑屏退出）。
+	head := []outboundPacket{
+		{"dungeon_gate_ack", 1, 15, []byte{1}},
+		{"dungeon_selection_sent", 0, 27, protocol.EnterDungeonSelection()},
+	}
+	return s, append(head, plan...), nil
+}
+
+// directMoveEntryPlan is the CMD 2062 form of dungeonEntryPlan: the client
+// starts this run from its own direct-move request, and the town selection
+// sequence is what its dungeon context expects.
+//
+// Live A/B in one session (2026-09-21, dungeon 100004950 "安徒恩讨伐战"):
+//
+//	15:38:03 entered via CMD 2062 and the server answered
+//	         dungeon_direct_move_ack(2062) + dungeon_select_ack(16):
+//	         the first room advanced, but after the layer change to 100016165
+//	         the client stopped sending room requests altogether and the run
+//	         stalled there.
+//	15:41:09 entered via the town gate (CMD 15/16), server answered
+//	         dungeon_select_ack(16) only: first room, the same layer map and
+//	         all ten rooms up to the boss room 100016175 advanced normally.
+//
+// The two entry sequences differ by nothing but that 2062 acknowledgement, so
+// it is dropped here: the direct move replays the town selection entry exactly.
+func (w *worldSession) directMoveEntryPlan(sel protocol.DungeonSelection, s *dungeon.Session) ([]outboundPacket, error) {
+	return w.dungeonEntryPlan("dungeon_select_ack", 16, sel, s)
 }
 
 func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) {
