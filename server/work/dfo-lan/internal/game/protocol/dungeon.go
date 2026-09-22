@@ -48,6 +48,46 @@ type DungeonSelection struct {
 	Event      uint32
 }
 
+// DungeonDirectMove is CMD 2062 (ENUM_CMDPACKET_DUNGEON_DIRECT_MOVE): the
+// "next story dungeon" gate the client offers next to "return to town" after a
+// clear. Two 48-byte bodies were captured on 2026-09-21 (role test-jh, session
+// roles_..._20260921_225338_199523_next37) when the player walked into that
+// gate. Byte offsets, from the two captures:
+//
+//	+0  u32   207 / 334          (not named yet)
+//	+4  u32   0
+//	+8  u32   0xffffffff
+//	+12 u8    0xff
+//	+13 u32   dungeon id         100004984 / 100004947
+//	+17 u8    difficulty         2, the same code the CMD 16 record carries at +4
+//	+25 u8    1                  (not named yet, 1 in both captures)
+//	+29 u32x4 gate rectangle     103,205,20,10 / 160,200,20,10
+//	+45 3 zero bytes
+//
+// The dungeon id is written unaligned at +13, which the CMD 16 selection record
+// also writes as a bare u32. The rectangle shares its 20x10 size in both
+// captures and differs only in position, so it is the gate the client walked
+// into; the remaining fields stay unnamed and the whole body is retained.
+type DungeonDirectMove struct {
+	ID         uint32
+	Difficulty byte
+	Gate       [4]uint32
+	Record     [48]byte
+}
+
+func DecodeDungeonDirectMove(p []byte) (r DungeonDirectMove, e error) {
+	if len(p) != 48 {
+		return r, fmt.Errorf("direct move must contain 48 bytes")
+	}
+	copy(r.Record[:], p)
+	r.ID = binary.LittleEndian.Uint32(p[13:])
+	r.Difficulty = p[17]
+	for i := range r.Gate {
+		r.Gate[i] = binary.LittleEndian.Uint32(p[29+4*i:])
+	}
+	return r, nil
+}
+
 // 146d4a148..4d2: u32,u8,u16,u8,u8,u16,u32,u8,u32,u8,u8,u32.
 func DecodeDungeonSelection(p []byte) (r DungeonSelection, e error) {
 	if len(p) != 32 {

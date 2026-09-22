@@ -1564,6 +1564,8 @@ func main() {
 					}
 				case 2015:
 					plan, e = worldState.elvenmereTeleport(plaintext)
+				case 2062:
+					pending, plan, e = worldState.directMoveDungeon(plaintext)
 				}
 				if e != nil {
 					event(map[string]any{"kind": "dungeon_request_refused", "id": frame.ID, "reason": e.Error()})
@@ -1595,7 +1597,7 @@ func main() {
 					}
 					// CMD39 failure reads a monster u16; NOTI132 has no generic
 					// command refusal. Never send the generic error shape there.
-					if frame.ID == 39 || frame.ID == 46 || frame.ID == 117 || frame.ID == 132 || frame.ID == 2015 {
+					if frame.ID == 39 || frame.ID == 46 || frame.ID == 117 || frame.ID == 132 || frame.ID == 2015 || frame.ID == 2062 {
 						continue
 					}
 					if e = sendPayload(1, frame.ID, protocol.Refusal(4)); e != nil {
@@ -1617,7 +1619,7 @@ func main() {
 					return
 				}
 				if pending != nil {
-					if frame.ID == 16 || frame.ID == 72 {
+					if frame.ID == 16 || frame.ID == 72 || frame.ID == 2062 {
 						worldState.deathSent = map[uint16]bool{}
 						worldState.drops = nil
 						worldState.resetCards()
