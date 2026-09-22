@@ -86,6 +86,7 @@ type BagItem struct {
 	ExpireTime       uint32 `json:"expire_time,omitempty"`
 }
 type Bag struct {
+	Expansion byte                    `json:"expansion,omitempty"`
 	Version   string                  `json:"version"`
 	Gold      uint32                  `json:"gold"`
 	Coin      uint32                  `json:"coin,omitempty"`
@@ -124,6 +125,9 @@ func ReadBag(state json.RawMessage) (Bag, error) {
 		b.Version = "ordinary-bag-v1"
 	}
 	filtered := make([]BagItem, 0, len(b.Items))
+	if b.Expansion > 2 {
+		return b, fmt.Errorf("背包扩展档位超出客户端范围")
+	}
 	for _, i := range b.Items {
 		if i.Template == 1 {
 			if uint64(b.Coin)+uint64(i.Amount) <= math.MaxUint32 {
@@ -183,6 +187,9 @@ func ReadBag(state json.RawMessage) (Bag, error) {
 	return b, nil
 }
 func SaveBag(state json.RawMessage, b Bag) (json.RawMessage, error) {
+	if b.Expansion > 2 {
+		return nil, fmt.Errorf("背包扩展档位超出客户端范围")
+	}
 	var fields map[string]json.RawMessage
 	if e := json.Unmarshal(state, &fields); e != nil {
 		return nil, e

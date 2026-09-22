@@ -197,7 +197,7 @@ func (s *VaultService) TransferStacks(role storage.Character, v storage.VaultSta
 	if _, e = VaultPayload(v); e != nil {
 		return nil, nil, e
 	}
-	if _, e = protocol.InventoryRestore(b.Rows()); e != nil {
+	if _, e = protocol.InventoryRestore(b.Rows(), b.Expansion); e != nil {
 		return nil, nil, e
 	}
 	return state, items, nil

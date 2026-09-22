@@ -82,7 +82,7 @@ func (s *VaultService) TransferCombined(role storage.Character, state storage.Va
 		if _, err = VaultPayload(state); err != nil {
 			return nil, nil, err
 		}
-		if _, err = protocol.InventoryRestore(b.Rows()); err != nil {
+		if _, err = protocol.InventoryRestore(b.Rows(), b.Expansion); err != nil {
 			return nil, nil, err
 		}
 		return bag, items, nil
