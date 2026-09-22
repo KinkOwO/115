@@ -10,6 +10,8 @@
     - 实机确认：买 `10417798` 后**银币 123 → 23、金币不变**。
   - **取证增强**：`shop_buy_*` / `shop_sell_*` 事件补记 `plain_hex`（请求与出站包）—— 手册 7.1 节点名的那条尾巴已补上，正是它这次给出了购买请求的完整字段。
 - **首轮手册复刻的结论修正**：手册把「库存已满」归因于"自选盒落进随机池 → 查无定义"，但实机证明该路径从未被走到（客户端两次请求都带了选择，且选择就在源范围内）。真因是上面 bug 1。自选盒的导出/加载/范围校验仍然保留（避免落空、提供观测），见 2026-09-22 段的说明。
+- **换装必弹「N次觉醒」对话框（已实机确认修复）**：`AppearanceProbe`（换装后重发的 mode0 userinfo）里 advancement 字段只写了 `state.Advancement`，而 wire 字节是 `advancement | awakening<<4`（`internal/game/protocol/advancement.go` 的注释与 `DecodeChangeGrowType` 都这么读：低 4 位转职分支、bit4..6 觉醒阶段）—— 于是每次穿脱都把觉醒阶段抹成 0，客户端以为"刚从无觉醒变成二觉"，弹一次「2次觉醒」对话框（"你的角色属性已提升 / 你已学会以下技能"）。角色列表（`service.go:167`）与进城 entry（`service.go:242`）都用 `WireAdvancement`，只有这个换装刷新漏了。修复后加防回归用例 `TestAppearanceProbeKeepsAwakeningStage`（断言 payload 里是 `0x21 = adv 1 | awakening 2<<4`，而不是 `0x01`）。取证：换装序列里只有 `equipment_appearance_refreshed`(id 2) 这一份非装备帧，没有任何觉醒帧（无 2177、无技能帧）。
+
 ## 2026-09-22
 - 复刻第三方《补丁复刻手册（2026-09-22）》的 P1 / P2 与 P3 子项 6（来源：用户提供的手册；其工程与本仓库同源但无 Git，故给的是 diff 与锚点）。完整盘点、真源取证与待办见 `analysis/tasks/next58-selection-box-import.md`。
   - **P1 开箱常规装备耐久恒为 0**（`cmd/wireprobe/booster_flow.go`，**已实机确认** —— 2026-09-23 开出的上衣耐久 = 源值 60、重进后仍在）：Destination 3 曾把 `Durability` 写死 0，客户端把刚开出的装备当"已损坏"（面板 `0/60`、穿上不生效）。改为 `boosterEquipmentDurability` → `EquipmentCatalog.Reward(id)`，与任务/GM 发放、掉落同一条源规则（读 `.equ` 的 `[durability]`）；解析不出只记日志按 0 发放，**不拒绝开箱**。测试 `TestBoosterEquipmentGrantUsesSourceDurability` 同时断言存档耐久与**下发 NOTI13 行偏移 11**。存量只读核对：11 个角色存档里四个报告模板（`100051398/100101272/100101273/100101275`）**一条都没有 ⇒ 无需改档**；现存 4 行 0 耐久都是 `durabilityOptional` 部位（首饰），源里本就无 `[durability]`，是正确值。

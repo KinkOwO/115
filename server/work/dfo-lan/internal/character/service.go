@@ -308,9 +308,19 @@ func (s *Service) AppearanceProbe(role storage.Character, channelContext [2]byte
 	// re-project the creature segment too; omitting it here hides the town
 	// follower right after a CMD19 equip/unequip touches the worn set.
 	creatureItemID, creatureName := wornCreature(role.State)
+	// wire 字节是 advancement | awakening<<4（见 protocol/advancement.go：低 4 位转职
+	// 分支、bit4..6 觉醒阶段）。这里曾只写 state.Advancement，于是每次换装重发的
+	// mode0 userinfo 都把觉醒阶段抹成 0；客户端收到后以为"刚从无觉醒变成 N 觉"，每次
+	// 穿脱都弹一次「N次觉醒」对话框（实机 2026-09-23：开箱换上奥德赛装备必弹，弹窗
+	// 写着"你的角色属性已提升 / 你已学会以下技能"）。列表与进城路径都用
+	// WireAdvancement，只有这个换装刷新漏了。
+	advancement, err := state.WireAdvancement()
+	if err != nil {
+		return nil, err
+	}
 	return protocol.UserInfoBasicProbe(protocol.EntryBasicProbe{
 		ActorServerID: role.WireID, Context: channelContext,
-		Character:  protocol.CharacterRow{Name: role.Name, Profession: role.Profession, Advancement: state.Advancement, Level: state.Level, CreatureItemID: creatureItemID, CreatureName: creatureName},
+		Character:  protocol.CharacterRow{Name: role.Name, Profession: role.Profession, Advancement: advancement, Level: state.Level, CreatureItemID: creatureItemID, CreatureName: creatureName},
 		Appearance: rows,
 	})
 }
