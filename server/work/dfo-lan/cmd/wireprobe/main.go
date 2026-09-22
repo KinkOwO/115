@@ -316,6 +316,12 @@ func main() {
 		if e = s.MigratePremiums(ctx); e != nil {
 			log.Fatal(e)
 		}
+		if e = s.MigrateCharacterEvents(ctx); e != nil {
+			log.Fatal(e)
+		}
+		if e = s.MigrateMailbox(ctx); e != nil {
+			log.Fatal(e)
+		}
 		data, e := catalog.LoadCharacters(*characterCatalog)
 		if e != nil {
 			log.Fatal(e)
@@ -903,6 +909,7 @@ func main() {
 		var sortState sortSession
 		if worldService != nil {
 			worldState = &worldSession{characters: characters, service: worldService, account: developmentAccount, flags: townPolicy.Flags, dungeons: dungeonCatalog, tutorials: tutorialRoutes, tutorialDungeons: tutorialDungeons, professions: characters.Catalog, fatigue: fatigueService, quests: questService, progression: progressionService, loot: lootService, selectionBoxes: selectionBoxes, vault: vaultService, soloPartyBootstrap: *soloPartyBootstrap, hub: hub}
+			worldState.serverID = channelCfg.ServerID
 		}
 		if worldState != nil {
 			defer worldState.departArea()
@@ -933,12 +940,25 @@ func main() {
 		done := make(chan struct{})
 		defer close(done)
 		frames := clientFrames(c, done)
+		mailChanges := make(chan struct{}, 1)
 		ticker := time.NewTicker(30 * time.Second)
 		defer ticker.Stop()
 		for {
 			var incoming clientRead
 			select {
 			case incoming = <-frames:
+			case <-mailChanges:
+				if bootstrapped && selectedCharacterID != 0 && worldState != nil && worldState.characters != nil {
+					mailCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					alarm, err := worldState.mailboxAlarm(mailCtx)
+					cancel()
+					if err != nil {
+						event(map[string]any{"kind": "mailbox_alarm_error", "character_id": selectedCharacterID, "reason": err.Error()})
+					} else if err = sendPayload(0, 99, alarm); err != nil {
+						return
+					}
+				}
+				continue
 			case now := <-ticker.C:
 				if bootstrapped && selectedCharacterID != 0 && worldState != nil {
 					p, e := worldState.refreshDailyFatigue(now)
@@ -1213,6 +1233,41 @@ func main() {
 			}
 			if frame.Type != 1 {
 				event(map[string]any{"kind": "unsupported_client_type", "type": frame.Type})
+				continue
+			}
+			if bootstrapped && mailboxRequest(frame.ID) {
+				if !verified {
+					event(map[string]any{"kind": "mailbox_request_rejected", "id": frame.ID, "reason": "邮箱请求校验失败"})
+					continue
+				}
+				mailCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				packets, recipient, err := worldState.handleMailbox(mailCtx, selectedCharacterID, frame.ID, plaintext, frame.Raw, keys, purchaseSession.prefix)
+				cancel()
+				if err != nil {
+					event(map[string]any{"kind": "mailbox_request_rejected", "id": frame.ID, "character_id": selectedCharacterID, "reason": err.Error()})
+					// CMD781 的原生完成路径是 NOTI705；失败只记录，不猜测命令应答。
+					if frame.ID == 781 {
+						continue
+					}
+					if err := sendPayload(1, frame.ID, mailboxFailure(frame.ID, err)); err != nil {
+						return
+					}
+					continue
+				}
+				// 投递已提交，即使发件人连接随后断开，收件人仍应收到通知。
+				if recipient != 0 && hub != nil {
+					hub.notifyMailbox(recipient)
+				}
+				for _, packet := range packets {
+					if err := sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
+						return
+					}
+					event(map[string]any{"kind": packet.Name, "character_id": selectedCharacterID, "id": packet.ID, "plain_hex": hex.EncodeToString(packet.Payload)})
+				}
+				// CMD95/134 原生回调会更新附件与已读/删除状态，不再发送 NOTI99。
+				// NOTI99 会重新请求 CMD96；NOTI97 全量恢复经 0x145FCF970 销毁旧
+				// 邮件对象，而详情领取路径 0x145FD6A50 仍会访问已选对象。
+				// 保留登录和真正新投递的提醒，避免读信后刷新造成悬空引用。
 				continue
 			}
 			if bootstrapped && frame.ID == 2261 {
@@ -2153,7 +2208,7 @@ func main() {
 					// Publish this actor before the area list is serialized, so the list already
 					// carries the other players standing in the same place.
 					if hub != nil && len(basic) > 0 {
-						worldState.peer = &lanPeer{roleID: role.ID, actorID: role.WireID, channel: channel, info: basic, addition: addition, send: sendPayload}
+						worldState.peer = &lanPeer{roleID: role.ID, actorID: role.WireID, channel: channel, info: basic, addition: addition, send: sendPayload, mailChanged: mailChanges}
 						hub.add(worldState.peer)
 						worldState.enterArea()
 					}
@@ -2370,6 +2425,10 @@ func main() {
 				}
 				selectedCharacterID = role.ID
 				selectedBasic, selectedAddition = basic, addition
+				select {
+				case mailChanges <- struct{}{}:
+				default:
+				}
 				if worldState != nil {
 					if e = worldState.announceSelf(event); e != nil {
 						event(map[string]any{"kind": "area_presence_error", "error": e.Error()})

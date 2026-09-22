@@ -12,6 +12,9 @@ func dungeonRequest(id uint16) bool {
 }
 
 func observedGameRequest(id uint16) bool {
+	if mailboxRequest(id) {
+		return true
+	}
 	switch id {
 	case 18, 21, 22, 26, 38, 40, 41, 63, 64, 102, 160, 173, 393, 451, 483, 507, 777, 1417, 1881, 2015, 2177, 2261, 2377:
 		return true
