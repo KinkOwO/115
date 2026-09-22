@@ -39,6 +39,12 @@ func stackableSlotRange(r BagRules, stackableType string) [2]uint16 {
 // Buy adds an item purchased from an NPC shop into the bag.
 // NPC shop items (templates 1-3175) are catalog-independent: if stackableType is
 // unspecified or not in catalog, they default to the throw range [65, 120] (consumables).
+// Buy adds an item purchased from an NPC shop into the bag and charges gold.
+// NPC shop items (templates 1-3175) are catalog-independent: if stackableType is
+// unspecified or not in catalog, they default to the throw range [65, 120] (consumables).
+//
+// Shops whose source prices a good with [need material] do not come through
+// here — see PayMaterials.
 func (b Bag) Buy(r BagRules, template, count, cost uint32, stackableType ...string) (Bag, uint16, error) {
 	if template == 0 || count == 0 {
 		return b, 0, fmt.Errorf("invalid buy parameters")
@@ -46,12 +52,23 @@ func (b Bag) Buy(r BagRules, template, count, cost uint32, stackableType ...stri
 	if b.Gold < cost {
 		return b, 0, fmt.Errorf("insufficient gold: need %d, have %d", cost, b.Gold)
 	}
-
 	st := ""
 	if len(stackableType) > 0 {
 		st = stackableType[0]
 	}
-	slots := stackableSlotRange(r, st)
+	next, slot, err := b.addStackable(r, template, count, st)
+	if err != nil {
+		return b, 0, err
+	}
+	next.Gold -= cost
+	return next, slot, nil
+}
+
+// addStackable places count of template into the bag's category range without
+// charging anything: stack onto a same-template row first, else take the first
+// free slot in the range.
+func (b Bag) addStackable(r BagRules, template, count uint32, stackableType string) (Bag, uint16, error) {
+	slots := stackableSlotRange(r, stackableType)
 	limit := r.MissingStackLimit
 	if limit == 0 {
 		limit = 1000
@@ -72,7 +89,6 @@ func (b Bag) Buy(r BagRules, template, count, cost uint32, stackableType ...stri
 		if it.Template == template && it.Slot >= slots[0] && it.Slot <= slots[1] {
 			if uint64(it.Amount)+uint64(count) <= uint64(limit) {
 				b.Items[i].Amount += count
-				b.Gold -= cost
 				return b, it.Slot, nil
 			}
 		}
@@ -83,12 +99,86 @@ func (b Bag) Buy(r BagRules, template, count, cost uint32, stackableType ...stri
 		slot := uint16(n)
 		if !occupied[slot] {
 			b.Items = append(b.Items, BagItem{Slot: slot, Template: template, Amount: count})
-			b.Gold -= cost
 			return b, slot, nil
 		}
 	}
 
 	return b, 0, fmt.Errorf("bag category is full")
+}
+
+// MaterialCost is one unit of "pay with items": Count of Template per purchase.
+type MaterialCost struct {
+	Template uint32
+	Count    uint32
+}
+
+// PayMaterials charges a purchase whose source prices it with [need material]
+// (the Odyssey shop asks for silver/gold coins, templates 10418036/10418035).
+//
+// The whole bill is checked before anything is deducted, so a purchase either
+// pays in full or is refused — no half-paid state. Rows that reach zero are
+// dropped, exactly like any other consumption.
+func (b Bag) PayMaterials(materials []MaterialCost, multiplier uint32) (Bag, error) {
+	if len(materials) == 0 {
+		return b, nil
+	}
+	if multiplier == 0 {
+		multiplier = 1
+	}
+	for _, m := range materials {
+		need := uint64(m.Count) * uint64(multiplier)
+		var have uint64
+		for _, it := range b.Items {
+			if it.Template == m.Template {
+				have += uint64(it.Amount)
+			}
+		}
+		if have < need {
+			return b, fmt.Errorf("need %d of item %d to pay, have %d", need, m.Template, have)
+		}
+	}
+	b.Items = append([]BagItem(nil), b.Items...)
+	for _, m := range materials {
+		need := uint64(m.Count) * uint64(multiplier)
+		for i := range b.Items {
+			if need == 0 {
+				break
+			}
+			if b.Items[i].Template != m.Template {
+				continue
+			}
+			take := uint64(b.Items[i].Amount)
+			if take > need {
+				take = need
+			}
+			b.Items[i].Amount -= uint32(take)
+			need -= take
+		}
+	}
+	kept := make([]BagItem, 0, len(b.Items))
+	for _, it := range b.Items {
+		if it.Amount > 0 {
+			kept = append(kept, it)
+		}
+	}
+	b.Items = kept
+	return b, nil
+}
+
+// BuyWithMaterials places a purchase paid for with materials instead of gold.
+func (b Bag) BuyWithMaterials(r BagRules, template, count uint32, materials []MaterialCost, stackableType ...string) (Bag, uint16, error) {
+	if template == 0 || count == 0 {
+		return b, 0, fmt.Errorf("invalid buy parameters")
+	}
+	paid, err := b.PayMaterials(materials, count)
+	if err != nil {
+		return b, 0, err
+	}
+	st := ""
+	if len(stackableType) > 0 {
+		st = stackableType[0]
+	}
+	return paid.addStackable(r, template, count, st)
 }
 
 // Sell sells an item from the bag by its slot and inventory list type.
