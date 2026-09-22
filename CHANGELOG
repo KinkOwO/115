@@ -9,6 +9,18 @@
   - **实机验证（已通过，用户操作）**：用户实机测试确认源码候选版重打该剧情副本，坠机过场播完后任务 3191 正常变为可提交并顺利完成，后续剧情正常推进。
   - **文档**：`server/work/dfo-lan/docs/protocol/next50-scene-quest-trigger.md`。
   - **回滚方式**：`git checkout -- server/work/dfo-lan/cmd/wireprobe/quest_flow.go` 并删除本轮新增的 `internal/quest/scene_trigger.go`、`scene_trigger_test.go` 与文档，重编候选版即可。
+- VP（Skill Evolve/Enhance）保存链 + Reset/Auto Set（CMD483）：三觉后可改 VP、Apply 不再被 id19 覆盖显示、Reset 会清技能并返还 SP（**待实机验证**）。
+  - **来源**：用户提供的第三方接续修复包《技能系统修复_20260922》（`README.md` + 8 个 `.go`，其基线停在本仓库 `29c8046` 那一支）。逐文件对照、采纳/拒绝理由与真源取证见 `analysis/tasks/next55-skill-vp-reset-fix-port.md`。
+  - **未整包覆盖（重要）**：该包基线比当前 `main` 少 `1ddb6ad`（网关端口撞车重试）、`dfa47bb`（CMD2062 清关直达）与 growtype 0 觉醒修复，整包覆盖会连带回退，因此只取缺口、不取其基线。
+  - **VP 解锁条件修正**：`internal/character/skill_variation.go` 的 `applyVariations` 原为 `Level < 115 || Awakening != 3`，与 `ApplyAwakening` 的三觉门槛（100 级）矛盾——100~114 级的三觉角色改 VP 会被 `variation unlock progression not satisfied` 拒掉。改为只看 `Awakening == 3`。
+  - **VP 补块**：新增 `fillVariationSlots`（3 个 Enhance + 5 个 Evolve 固定宽度）；`VariationRestore` 三觉补满后下发、未三觉返回 nil（客户端没有 VP 面板，不该收到空块）；技能**完全没有** `[variation point]` 块时放行（当前源确有此类技能，测试选中 `skill/creatormage/armormasteryleather.skl`），**声明了但缺该 tag 时仍拒**。
+  - **`SkillVariations` 去掉 `omitempty`**：`mergeSkillState` 按字段合并，带 `omitempty` 时清空后的 `[{},{}]` 会被整键省略、旧值合并回去，Reset 的 VP 清除**不落库**。这条是 Reset 生效的前提。
+  - **`ResetAutoSet`（CMD483）**：`cmd/wireprobe/main.go` 路由加 `frame.ID == 483`（原走 default 被拒），`skill_flow.go` 新增 `case 483`；状态变换拆成可脱库单测的 `resetAutoState` + `skillFloor`。**退款口径按 `Learn` 的 floor 对齐**（`initialSkills ∪ automaticSkills ∪ 觉醒授予`，且要求 `known >= rank`），只退 `floor+1..rank`——对方只把觉醒授予当下限，会把初始/自动授予的等级也退成 SP（凭空发点）。`LearnedSkills` 只保留原本就在且 `floor > 0` 的技能，`SkillSlots` 清空（不清会被 `skillRows` 优先读取，新推荐技能被挤到 14+），`mask&2` 清 Enhance、`mask&4` 清 Evolve。
+  - **id19 抑制收窄（与对方不同）**：对方改成"所有生效的 CMD29 都不补 id19"，会把**已实机验收的普通加点**补包一起去掉。我们收窄为仅抑制"带 variation 槽的 CMD29"（`skillTreeRefreshRequired`），被拒/幂等请求与 CMD28 仍补 id19。
+  - **未采纳**：① `awakening.go` 把 `adv < 0` 改回 `adv < 1`（回退 growtype 0 觉醒修复）；② `main.go` 的端口监听 / CMD2062（基线漂移回退）；③ `characters.go` 的 `SlotSkills→PresetSkills` 并**删掉 `InitialSkillSlots` 填充**、`learning.go` 的"有命令技能优先占 0..13"——后者属对方 README 自认的"搁置"项，且现有测试钉不住，故先取证：`docs/evidence/skycastle-auto-skills-20260917/details/00-atswordman.chr.tokens.json` 证明 `[preset skill]` 确是一维有序列表、`[skill]` 是三元组（对方格式判断正确），但现行 `configs/characters.generated.json` 的 `initial_skill_slots`（job0 = `{169:0,452:1}`）正是被删那段代码生成并落库的，删掉会在下次重生成目录时丢掉初始技能槽位。`[preset skill]` 目前完全未被使用，记为独立后续任务。
+  - **README 与包不一致**：README 称"三觉完成 id2177 后追加 id29"，但包内 `awakening_flow.go` 与我们**逐字节相同**且无 id29；即三觉当次不推 VP，要等进城/换角色。已列入实机确认项。
+  - **测试**：新增 `internal/character/skill_reset_test.go`（源授予段不退款、只退 floor 之上、Reset 幂等、mask 清 VP 并补齐宽度、解锁跟随三觉而非等级、缺 `[variation point]` 放行、`VariationRestore` 补块字节一致）与 `cmd/wireprobe/skill_flow_test.go`（id19 抑制边界）。`go test -count=1 ./internal/... ./cmd/...` 全绿，`go vet` 零输出。
+  - **产物**：`bin/wireprobe-handoff-source.exe` 已重编。
 - 修复「打死怪之后尸体卡住、怪物死亡没有响应、副本卡住无法进行」（**已实机确认**）：真因是**转职后的经验结算被旧试点门禁拒绝**，连带使整份怪物死亡回包没有发出，不是死亡协议或清房逻辑的问题。
   - **现象与证据**：`runtime/roles_..._20260922_194901_505941_next37/events.jsonl` 中，角色在 CMD1881 转职成功（第 963 行 NOTI718 正文 `01`、第 971 行 `advancement_completed` `010000`）后进入 dungeon 11 / map 58597（第 1052 行，4 个源怪物）；客户端 checksum-verified CMD39 正常上报（第 1069/1071/1073/1085 行，实体 4098/4096/4099/4097，killer 均为本角色场景 ID 10），但服务端自第 1070 行起持续回 `dungeon_request_refused id=39 reason="advanced profession growth is not yet supported"`，全程**没有** `monster_death_ack` / `monster_death_confirmed`（该会话累计 514 次同一拒绝）。客户端因此不断重报同一批实体，尸体不消失、门不开。换到 advancement 2（第 1235/1243 行）以及另一角色的 dungeon 17 / map 57964 同样被拒，排除单张地图/单个分支的偶发问题。
   - **根因**：调用链为 `CMD39 → monsterDeath → DecodeMonsterDeath（通过）→ ConfirmDeath（通过）→ ProgressionService.Monster → CommitCharacterEvent → ApplyGain`。`ApplyAdvancement` 早已按本职业 `AdvancementGrowth[advancement]` 校验并保存普通转职，但 `ApplyGain` 仍停留在试点阶段：`advancement != 0` 时只接受 `all_jobs_pilot`，或剑士 job 0 的 `swordmaster_pilot`，其余一律报错。`monsterDeath` 对该错误返回 `nil, error`，于是 ACK39 + NOTI38 + NOTI37 整份计划都不发送——**经验事务的失败吞掉了死亡确认**。同源的第二个缺陷：旧代码对所有 `advancement == 1` 先取 `SwordmasterGrowth`，只有带 `all_jobs_pilot` 才改用本职业分支，只删报错不改成长选择会让其它职业的一转选错属性表。
@@ -35,6 +47,8 @@
   - **验证**：`go test -count=1 ./internal/... ./cmd/...` 与 `go vet ./internal/... ./cmd/...` 全绿；"第三方补丁能学、本仓库不能学"的技能数 **138 → 0**，同时保留本仓库独有的 29 个觉醒矩阵精确能力（`quartermaster` 仅 adv=2、`pistolcarbine` 仅 adv=1 可学）。
   - **待实机验证（用户操作）**：① 剑魂觉醒后在 60 级加点「流星剑」成功；② 弹药（女枪手）觉醒后可加点 `quartermaster` / `g96thermobaricgranade` / `pistolcarbine`，且其它分支不显示这些技能。
   - **未闭环**：`configs/characters.*.json` 尚未重新导出（job 9/10 的运行时觉醒授权表仍为空）；`WireAdvancement` / `ApplyAwakening` 的 `adv = 0` 组合待实机证据；`configs/skills.release.json` / `skills.awakening-candidate.json` 仍是修工具前的旧产物（当前启动链只用 `skills.next27.json`）。
+- 城镇丢弃物品不消失（CMD18 通用删除闭环）：材料路径优先（副本内已实机验收），失败落通用主背包删除——权威背包事务扣减、同款 0x0012 ACK（reason=2）+ NOTI14 行更新（**待实机验证**）。
+  - **来源**：用户提供的第三方《丢弃修复.zip》（MERGE_REQUEST.md + 3 个 `.go`）。本轮无基线漂移：包内「替换前」代码块与本地 CMD18 分支逐行一致，依赖签名全部吻合。分析见 `analysis/tasks/next56-item-discard-town.md`。
 
 ## 2026-09-21
 - 修复觉醒专属技能（50 级觉醒后）无法学习：`configs/skills.next27.json` 缺 `[awakening maximum level]`。
