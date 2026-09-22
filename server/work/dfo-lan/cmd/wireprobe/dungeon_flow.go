@@ -233,7 +233,17 @@ func (w *worldSession) directMoveDungeon(p []byte) (*dungeon.Session, []outbound
 	if e != nil {
 		return nil, nil, e
 	}
-	return s, plan, nil
+	// 客户端在「清关 → 点下一个剧情关卡门」后不再接受普通房间门（实机 A/B：它收到的
+	// 进图帧与城镇选图逐字节一致，却整个下一关都不发 MOVE_MAP，取证见
+	// docs/protocol/next49-odyssey-direct-move.md）。清关后客户端另有一个「选择其他
+	// 地下城」入口，走的是 gate_ack(15) + selection_sent(27) 这条 UI 层帧；先进这个
+	// 界面再下发进图帧，避免用"回城帧"造成的场景切换与进图撞车（实测那会让客户端
+	// 黑屏退出）。
+	head := []outboundPacket{
+		{"dungeon_gate_ack", 1, 15, []byte{1}},
+		{"dungeon_selection_sent", 0, 27, protocol.EnterDungeonSelection()},
+	}
+	return s, append(head, plan...), nil
 }
 
 // directMoveEntryPlan is the CMD 2062 form of dungeonEntryPlan: the client

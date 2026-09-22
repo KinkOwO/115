@@ -131,3 +131,33 @@ dungeon_loading_ack (1,37,[01]) → actor_state (0,3) → loading_complete (0,30
 2. 先 hook CMD 45 的发送函数：在"城镇进入的副本"里过门应能观察到调用（验证锚点正确），再在"直达进入的副本"里点门；
    **若根本没有调用**，说明门判定在更早处被拦住，沿调用栈向上追"谁读了 2062 留下的状态"。
 3. 探针沿用 `analysis/tools/arrow_probe.py` 的"只挂函数入口、不打断心跳"安全模式（frida 17.18.0 在本机可用）。
+
+## 闭环（2026-09-22 实机验证通过）
+
+**解法**：CMD 2062 的响应不再直接下发进图序列，而是**先下发「进入选择地下城」的 UI 入口帧，再下发进图帧**：
+
+```
+dungeon_gate_ack(15) + dungeon_selection_sent(27)   ← 清关后客户端「选择其他地下城」的同一条路
+dungeon_select_ack(16) + 进图序列（appearance / info(28) / start_map(29) …）
+```
+
+**实测证据**（会话 `roles_..._20260922_214116_945237_next37`）：
+
+| 时间 | 事件 |
+| --- | --- |
+| 13:42:38.487 | CMD 2062（清关后点「下一个剧情关卡」） |
+| 13:42:38.488 | 服务端下发 `gate_ack(15)` + `selection_sent(27)` + `select_ack(16)` + 进图序列 |
+| 13:42:38.753 | 客户端发 CMD 37 `FINISH_LOADING` → `loading_complete` ✓ |
+| 13:42:45.127 起 | 客户端连续 **7 次** CMD 45 `MOVE_MAP` 过门，全部正常 ✓ |
+
+客户端侧 frida 发包探针（`analysis/tools/dungeon_door_probe.py`，钩 `ws2_32` 的 `send`/`WSASend`）同样在首图捕获到 `head=01 2d …`（CMD 45），与之前"整个下一关 0 次"形成对照。
+
+**被否掉的两条路（留档，勿重试）**：
+
+1. 只回 `dungeon_select_ack(16)`（与城镇选图逐字节一致）→ 首图无任何门请求 ✗；
+2. 重放**回城帧**（`dungeon_leave_ack(42)` + `town_actor_state(3)` + `return_area(23)` + `return_users(24)`）**再**跟进图帧 → 客户端黑屏退出 ✗（两次场景切换在 1 ms 内撞车；且 `leave_ack` 应答的是客户端从未发出的 `GIVEUP_GAME`）。
+
+**机制理解**：客户端在「清关 → 点下一个剧情关卡门」后处于一种不再接受普通房间门的状态；把它先带回「选择地下城」这个 **UI 层**入口（不切场景），再下发进图帧，客户端就会重新走正常的选区进图流程。
+
+**探针记录（供复用）**：`opcodes.tsv` 的 `table_slot_va` 存的**不是函数指针**，而是"包描述结构"的 **RVA**（`0x140000000 + 值` 落在 `r-x` 段，实测挂上去零触发）；可靠的发包锚点是 `ws2_32!send`/`WSASend`，C2S 包头第 2 字节即 opcode（CMD 45 = `2d`）。
+
