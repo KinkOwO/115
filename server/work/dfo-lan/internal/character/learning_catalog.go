@@ -92,7 +92,19 @@ func (d LearningDefinition) Cost(level, advancement, target int, known map[uint1
 		return 0, fmt.Errorf("unsupported skill advancement/level")
 	}
 	required, max, cost := d.Ints("[required level]"), d.Ints("[maximum level]"), d.Ints("[purchase cost]")
-	if len(required) != 1 || len(max) != 1 || len(cost) != 1 || cost[0] < 0 {
+	if len(required) != 1 || len(max) != 1 || len(cost) == 0 {
+		return 0, fmt.Errorf("skill learning fields unavailable")
+	}
+	// [purchase cost] carries one value per rank band: the first purchase and
+	// every later rank. Awakening skills use that shape (costForLevel selects
+	// the band for them), but plain source skills do too - knight/perfectguard
+	// and atgunner/twingunblade are [30 15] / [0 15] - and demanding a single
+	// value refused them with "skill learning fields unavailable".
+	costIdx := 0
+	if target > 1 && len(cost) > 1 {
+		costIdx = 1
+	}
+	if cost[costIdx] < 0 {
 		return 0, fmt.Errorf("skill learning fields unavailable")
 	}
 	if len(d.Fields["[special purchase cost]"]) > 0 || len(d.Fields["[feature skill type]"]) > 0 {
@@ -129,5 +141,5 @@ func (d LearningDefinition) Cost(level, advancement, target int, known map[uint1
 			return 0, fmt.Errorf("skill prerequisite not learned")
 		}
 	}
-	return cost[0], nil
+	return cost[costIdx], nil
 }
