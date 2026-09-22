@@ -15,6 +15,7 @@ import (
 
 type ProgressionService struct {
 	Odyssey     *catalog.OdysseyGrowth
+	Chapters    *catalog.OdysseyChapters
 	Store       *storage.Store
 	Catalog     catalog.Progression
 	Professions catalog.Characters

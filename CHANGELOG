@@ -28,6 +28,15 @@
   - 测试：新增 `cmd/wireprobe/odyssey_create_potion_test.go`（并进原叠、非奥德赛角色与外来目录拒绝）；集成测试追加药水段（发放一次、重放被幂等拦下、收据持久化）。
   - 顺带修复：`TestOdysseyArmorDatabaseReplay` 写死引用 `runtime/swordmaster-pilot-20260916/storage.json`（该目录已不在仓库，导致测试长期静默 skip），改为支持 `ODYSSEY_INTEGRATION_CONFIG` 覆盖。另有 4 个文件引用同一路径，属既有问题，本批未扩大范围。
 
+- **章节盒掉落 + 七章奖励补发（手册 P3 子项 3/4）**：真源是 `contents/2026/aradodyssey/etc/aradodysseyjournal.cos`（`data_type=3` UTF-16，`sha256 d4654fa9…`），用新增的只读导出工具 `cmd/odysseychapterimport` 解析。
+  - **真源形状**（导出工具逐条硬断言）：**7 章 / 50 副本 / 跨章无重复 / `Final` = 该章源码顺序里最后一个副本 / 15 个去重奖励模板 / 25 行**。第 1..6 章的 `[reward]` 首个模板是章节盒 `10417792 / 10419742 / 10417793 / 10417794 / 10419744 / 10417795`（`[booster selection]`）；**第 7 章两个都是普通 `[booster]`（`10419538`/`10419539`），没有章节盒**，导出为 `template=0`。数量 >1 的只有 Ch4 `10419743 ×2` 与 Ch5 `10419744 ×2`。
+    - 踩坑记录：`.cos` 的副本有 `[type] `apostle`` 前缀（9 个使徒副本），只匹配 `[dungeon]` 紧邻 `[index]` 会数出 41 个而不是 50 个；另外第 5 章源码顺序是 `…968,967,969…`（不是 id 升序），所以 `Final` 必须按出现顺序取。
+  - **产物**：`configs/odyssey-chapters-{candidate,release}.json`（7 章目录）与 `configs/odyssey-chapter-drop-{candidate,release}.json`（章节盒掉落，出厂 `enabled=false`）。
+  - **子项 4 实现**：`internal/catalog/odyssey_chapters.go`（`LoadOdysseyChapters`，校验 model/source/journal sha + 7 章 + 50 副本 + `Final` 一致 + 奖励行合法）+ `internal/character/odyssey_chapter.go`（`ApplyOdysseyChapterReward` / `OdysseyChapterRewards`）。判定**只用服务端自有成绩**（角色 state 的 `odyssey_completed_dungeons` 与 `dungeon_best_times`，复用已有的 `odysseyCompleted`），**不采信客户端声明**；某章 `Final` 已通关即视为该章完成。逐行独立事件键 `odyssey-chapter-reward:<章>:<行>:<模板>`，满包留欠、下次登录/通关重试。装载 `DFO_ODYSSEY_CHAPTERS`，调用点与 `OdysseyGifts` 相同（选角链 `main.go` + 通关 `dungeon_flow.go`）。
+  - **子项 3 实现**：`internal/loot/odyssey_chapter_drop.go`（`LoadOdysseyChapterDrop` / `Enabled` / `DropFor` / `Roll` / `StorageCatalog` / `BagRules` / `ValidateBoxes`）。**整表默认关闭**：禁用行 `Roll` 原样返回种子，**连掷骰种子都不消耗**，所以将来开启不会挪动任何其它掉落。命中点在 `internal/loot/session.go` 的死亡结算：条件是 `monster.Rank == 3` 且该副本是某章 `Final`。装载 `DFO_ODYSSEY_CHAPTER_DROP`，启用行必须真的是装备自选盒（用 `catalog.SelectionBoxes` 校验）。
+  - 测试：`internal/character/odyssey_chapter_test.go`（目录形状含第 5 章源码顺序、Ch5 首行按数量发 2 个、非奥德赛角色/越界行号/错配内容被拒）、`internal/loot/odyssey_chapter_drop_test.go`（出厂关闭、禁用惰性且不消耗种子、启用后必掉且非 final 仍惰性、四种坏表被拒）。
+  - **实机预期**：`test-jh` 已有第 1..4 章的通关成绩（`Final` 命中 `100004945/100004953/100004957/100004966`），重选角色应补发这 4 章共 **15 行**奖励（含 Ch4 的 ×2）。
+
 ## 2026-09-22
 - 复刻第三方《补丁复刻手册（2026-09-22）》的 P1 / P2 与 P3 子项 6（来源：用户提供的手册；其工程与本仓库同源但无 Git，故给的是 diff 与锚点）。完整盘点、真源取证与待办见 `analysis/tasks/next58-selection-box-import.md`。
   - **P1 开箱常规装备耐久恒为 0**（`cmd/wireprobe/booster_flow.go`，**已实机确认** —— 2026-09-23 开出的上衣耐久 = 源值 60、重进后仍在）：Destination 3 曾把 `Durability` 写死 0，客户端把刚开出的装备当"已损坏"（面板 `0/60`、穿上不生效）。改为 `boosterEquipmentDurability` → `EquipmentCatalog.Reward(id)`，与任务/GM 发放、掉落同一条源规则（读 `.equ` 的 `[durability]`）；解析不出只记日志按 0 发放，**不拒绝开箱**。测试 `TestBoosterEquipmentGrantUsesSourceDurability` 同时断言存档耐久与**下发 NOTI13 行偏移 11**。存量只读核对：11 个角色存档里四个报告模板（`100051398/100101272/100101273/100101275`）**一条都没有 ⇒ 无需改档**；现存 4 行 0 耐久都是 `durabilityOptional` 部位（首饰），源里本就无 `[durability]`，是正确值。

@@ -457,6 +457,12 @@ func main() {
 				log.Fatal(e)
 			}
 		}
+		if path := os.Getenv("DFO_ODYSSEY_CHAPTERS"); path != "" {
+			progressionService.Chapters, e = catalog.LoadOdysseyChapters(path)
+			if e != nil {
+				log.Fatal(e)
+			}
+		}
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		e = characters.Store.MigrateCharacterEvents(ctx)
 		if e == nil {
@@ -744,6 +750,25 @@ func main() {
 		log.Printf("warning: no item shop catalog; every purchase is charged the flat gold price")
 	} else if lootService != nil {
 		lootService.ItemShops = itemShops
+	}
+	// 章节盒掉落（手册 P3 子项 3）。整表默认 enabled=false；只有 profile 显式开启
+	// 才会叠加目录与槽位，未开启时连掷骰种子都不消耗。
+	if path := os.Getenv("DFO_ODYSSEY_CHAPTER_DROP"); path != "" {
+		chapterDrop, e := loot.LoadOdysseyChapterDrop(path)
+		if e != nil {
+			log.Fatal(e)
+		}
+		if e = chapterDrop.ValidateBoxes(selectionBoxes); e != nil {
+			log.Fatal(e)
+		}
+		if lootService != nil {
+			lootService.ChapterDrop = chapterDrop
+			if chapterDrop.Enabled() {
+				lootService.Catalog = chapterDrop.StorageCatalog(lootService.Catalog)
+				lootService.BagRules = chapterDrop.BagRules(lootService.BagRules)
+				log.Printf("Odyssey chapter drop enabled")
+			}
+		}
 	}
 	if *responseFile != "" {
 		b, err := os.ReadFile(*responseFile)
@@ -1993,6 +2018,18 @@ func main() {
 					}
 					for _, err := range pending {
 						event(map[string]any{"kind": "odyssey_milestone_gift_pending", "character_id": role.ID, "reason": err.Error()})
+					}
+					// 七章奖励：按服务端自有通关成绩补发，逐行独立收据；满包留欠，
+					// 下次登录/通关重试。
+					ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+					rewarded, chapterApplied, chapterPending := progressionService.OdysseyChapterRewards(ctx, role)
+					cancel()
+					role = rewarded
+					if chapterApplied {
+						event(map[string]any{"kind": "odyssey_chapter_rewards_granted", "character_id": role.ID})
+					}
+					for _, err := range chapterPending {
+						event(map[string]any{"kind": "odyssey_chapter_reward_pending", "character_id": role.ID, "reason": err.Error()})
 					}
 				}
 				profile := *selectProbe
