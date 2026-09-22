@@ -42,15 +42,10 @@ func (d LearningDefinition) awakeningColumns() int {
 }
 
 // Awakening caps are stage-major matrices, including the unadvanced column.
-// Growtype 0 is a real column, not a placeholder: a profession without a
-// change-of-job branch (demonic swordman, creator mage) keeps growtype 0 and
-// carries its awakening stages there, and the source matrices put their caps in
-// that column. Every other profession's growtype 0 column is all zero, so
-// opening adv 0 adds nothing for them.
 func (d LearningDefinition) ForAwakening(adv, stage int) bool {
 	caps := d.Ints("[awakening maximum level]")
 	cols := d.awakeningColumns()
-	if cols == 0 || stage < 1 || stage > 3 || adv < 0 || adv >= cols {
+	if cols == 0 || stage < 1 || stage > 3 || adv < 1 || adv >= cols {
 		return false
 	}
 	return caps[(stage-1)*cols+adv] > 0
