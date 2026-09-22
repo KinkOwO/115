@@ -21,6 +21,7 @@ type worldSession struct {
 	pilotDeath         *odysseyDeath
 	service            *world.Service
 	account            int64
+	serverID           uint32
 	role               storage.Character
 	level              byte
 	// odyssey mirrors character.OdysseyRole for this session. It selects which
