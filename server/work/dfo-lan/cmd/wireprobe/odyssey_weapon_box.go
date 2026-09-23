@@ -113,7 +113,7 @@ func selectOdysseyWeapon(ctx context.Context, store *storage.Store, wear *invent
 	}
 	var plan []outboundPacket
 	if applied {
-		rows := [][protocol.CurrentItemRecordSize]byte{protocol.OrdinaryItem(r.Slot, 0, 0), inventory.EquipmentRow(outcome.Granted)}
+		rows := [][protocol.CurrentItemRecordSize]byte{protocol.EmptyOrdinaryItem(r.Slot), inventory.EquipmentRow(outcome.Granted)}
 		update, e := protocol.InventoryUpdate(rows)
 		if e != nil {
 			return saved, nil, e

@@ -84,6 +84,7 @@ func main() {
 	vaultRelease := flag.Bool("vault-purchase-release", os.Getenv("DFO_VAULT_PURCHASE_RELEASE") == "1", "enable accepted personal vault purchases in release profile")
 	randomOptionFile := flag.String("random-option-catalog", os.Getenv("DFO_RANDOM_OPTION_CATALOG"), "current-client magic-seal random option rules; enables CMD393 unsealing")
 	apocalypseCatalogFile := flag.String("apocalypse-catalog", "configs/apocalypse.generated.json", "compiled apocalypse.ctp table (phase clock, operations, gates, rewards, duty skills)")
+	boosterGageHide := flag.Bool("booster-gage-hide", os.Getenv("DFO_BOOSTER_GAGE") != "0", "send NOTI398 booster-gage with displayValue=0 on town entry to hide the top-left Liberation Trace panel; disable with -booster-gage-hide=false or DFO_BOOSTER_GAGE=0")
 	flag.Parse()
 	if *fullEquipmentFile == "" {
 		for _, cand := range []string{
@@ -1181,10 +1182,14 @@ func main() {
 				continue
 			}
 			if frame.Type == 1 && frame.ID == 1438 && bootstrapped && verified && characters != nil {
-				advanced, err := saveStoryDigest(characters.Store, worldState)
-				if err != nil {
-					event(map[string]any{"kind": "story_digest_refused", "error": err.Error()})
-				} else if advanced {
+				// CMD1438 STORY_DIGEST_UPDATE: the client reports the opening
+				// recap movie finished (empty payload). Must be matched before
+				// the 1417 branch: it shares the same request family, and a
+				// later placement would let 1417 swallow the report so the
+				// digest level never advances.
+				if err := saveStoryDigest(characters.Store, worldState, plaintext); err != nil {
+					event(map[string]any{"kind": "story_digest_save_error", "error": err.Error()})
+				} else {
 					event(map[string]any{"kind": "story_digest_saved", "character_id": worldState.role.ID, "level": worldState.level})
 				}
 				continue
@@ -2317,7 +2322,7 @@ func main() {
 				// byte (TutorialFlag) initializes it. Sending 1 left it < 30 and the
 				// opening recap replayed; sending 30 should clear the gate.
 				profile.TutorialFlag = 30
-				event(map[string]any{"kind": "tutorial_flags_restored", "character_id": role.ID, "completed": profile.TutorialCompleted})
+				event(map[string]any{"kind": "tutorial_flags_restored", "character_id": role.ID, "tutorial_flag": profile.TutorialFlag, "completed": profile.TutorialCompleted})
 				profile.CreatedTime = uint32(role.CreatedAt.Unix())
 				// Cera is an account balance the client reads from this
 				// response. Without this it stayed at the configured zero,
@@ -2489,6 +2494,9 @@ func main() {
 				}
 				plan.CinematicSkips, e = cinematicRestore(role.State)
 				if e == nil {
+					// Same success guard as cinematicRestore: an unparseable
+					// state must drop both frames together, never emit the
+					// digest without the skip bitmap.
 					plan.StoryDigest, e = storyDigestRestore(role.State)
 				}
 				if e == nil {
@@ -2633,6 +2641,12 @@ func main() {
 				}
 				if len(addition) > 0 && len(areaPayload) > 0 {
 					plan.Complete = protocol.EnterGameworldComplete()
+				}
+				if *boosterGageHide {
+					// NOTI398 displayValue=0 collapses the top-left Liberation Trace
+					// panel; preparePackets skips empty payloads, so the flag-off path
+					// equals the pre-fix behavior.
+					plan.BoosterGage = protocol.BoosterGage(0)
 				}
 				prepared, e := preparePackets(keys, plan.packets())
 				if e != nil {

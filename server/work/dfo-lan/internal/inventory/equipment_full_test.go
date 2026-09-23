@@ -10,6 +10,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -101,6 +102,40 @@ func TestEquipmentPayloadEmptyAvatarAndMetadata(t *testing.T) {
 	item.Template = 456
 	if _, e := EquipmentPayload(3, []BagEquipment{item}, false); e == nil {
 		t.Fatal("identity mismatch accepted")
+	}
+}
+
+// TestPetRowsNeverExpire locks the single-player ruling: creature rows (space 7)
+// and the equipped creature body slot (space 3 / slot 26) are always sent with a
+// permanent expire timestamp at row offset 56, so the client never shows
+// "剩余期限已过 / 无法交易或使用" for [usable period] templates.
+func TestPetRowsNeverExpire(t *testing.T) {
+	for _, tc := range []struct {
+		space byte
+		slot  uint16
+	}{
+		{7, 0}, {7, 139}, {3, 26},
+	} {
+		p, e := EquipmentPayload(tc.space, []BagEquipment{{Slot: tc.slot, Template: 123}}, true)
+		if e != nil {
+			t.Fatal(tc, e)
+		}
+		// payload = [space][u16 count] rows...; first row starts at offset 3
+		got := binary.LittleEndian.Uint32(p[3+56 : 3+60])
+		if got != math.MaxInt32 {
+			t.Fatalf("space %d slot %d expire=%d, want MaxInt32", tc.space, tc.slot, got)
+		}
+	}
+	// Non-creature worn rows keep the raw instance expire byte untouched.
+	rec := bytes.Repeat([]byte{0}, protocol.CurrentItemRecordSize)
+	binary.LittleEndian.PutUint32(rec[2:], 123)
+	binary.LittleEndian.PutUint32(rec[56:], 123)
+	p, e := EquipmentPayload(3, []BagEquipment{{Slot: 9, Template: 123, Record: rec}}, true)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if got := binary.LittleEndian.Uint32(p[3+56 : 3+60]); got != 123 {
+		t.Fatalf("worn slot 9 expire=%d, want 123 preserved", got)
 	}
 }
 

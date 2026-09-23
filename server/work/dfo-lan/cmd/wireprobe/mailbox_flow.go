@@ -230,7 +230,7 @@ func (w *worldSession) sendMail(ctx context.Context, id uint16, p, keys []byte, 
 			}
 			for _, row := range r.Items {
 				var item inventory.MailItem
-				bag, item, err = bag.TakeMailItem(w.loot.Catalog, w.loot.Equipment, row, uint32(time.Now().Unix()))
+				bag, item, err = bag.TakeMailItem(w.loot.Catalog, w.loot.Equipment, row)
 				if err != nil {
 					return nil, nil, err
 				}

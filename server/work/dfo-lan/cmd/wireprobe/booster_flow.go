@@ -290,17 +290,7 @@ func (w *worldSession) openBoosterItem(
 		}
 
 		var plan []outboundPacket
-		mainRows := finalBag.Rows()
-		slotStillOccupied := false
-		for _, it := range finalBag.Items {
-			if it.Slot == req.Slot {
-				slotStillOccupied = true
-				break
-			}
-		}
-		if !slotStillOccupied {
-			mainRows = append([][protocol.CurrentItemRecordSize]byte{protocol.OrdinaryItem(req.Slot, 0, 0)}, mainRows...)
-		}
+		mainRows := inventory.ChangedItemRows(curBag, finalBag)
 		mainUpdate, err := protocol.InventoryUpdate(mainRows)
 		if err != nil {
 			return nil, err
@@ -643,17 +633,7 @@ func (w *worldSession) openBoosterItem(
 
 	var plan []outboundPacket
 
-	mainRows := finalBag.Rows()
-	slotStillOccupied := false
-	for _, it := range finalBag.Items {
-		if it.Slot == req.Slot {
-			slotStillOccupied = true
-			break
-		}
-	}
-	if !slotStillOccupied {
-		mainRows = append([][protocol.CurrentItemRecordSize]byte{protocol.OrdinaryItem(req.Slot, 0, 0)}, mainRows...)
-	}
+	mainRows := inventory.ChangedItemRows(curBag, finalBag)
 
 	mainUpdate, err := protocol.InventoryUpdate(mainRows)
 	if err != nil {
