@@ -46,10 +46,8 @@ func (s *Service) Available(ctx context.Context, role storage.Character) ([]uint
 			continue
 		}
 		allowed := jobAllowed(en.Jobs, job)
-		for _, p := range en.Prerequisites {
-			if status[p] != "completed" {
-				allowed = false
-			}
+		if !prerequisitesMet(en.PrerequisiteGroups, status) {
+			allowed = false
 		}
 		for _, g := range en.GrowTypes {
 			if g >= 0 && g != int32(state.Advancement) {

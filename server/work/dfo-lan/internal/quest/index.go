@@ -9,21 +9,22 @@ import (
 // Entry holds one quest's static, source-derived properties. Everything here
 // is decided by the imported catalog alone; nothing depends on a character.
 type Entry struct {
-	ID            uint32
-	Kind          string
-	Model         string
-	Initial       uint32
-	Implemented   bool
-	RewardUsable  bool
-	GrowUsable    bool
-	MinimumLevel  uint32
-	MaximumLevel  uint32
-	Jobs          []string
-	Prerequisites []uint32
-	GrowTypes     []int32
-	NPC           uint32
-	Range         RangeObjective
-	Seek          SeekObjective
+	ID                 uint32
+	Kind               string
+	Model              string
+	Initial            uint32
+	Implemented        bool
+	RewardUsable       bool
+	GrowUsable         bool
+	MinimumLevel       uint32
+	MaximumLevel       uint32
+	Jobs               []string
+	Prerequisites      []uint32
+	PrerequisiteGroups [][]uint32
+	GrowTypes          []int32
+	NPC                uint32
+	Range              RangeObjective
+	Seek               SeekObjective
 }
 
 // Index precomputes those properties once per catalog load. The hot paths —
@@ -122,11 +123,15 @@ func BuildIndex(c catalog.QuestCatalog) *Index {
 	x := &Index{Source: c.Source.Checksum, Entries: map[uint32]*Entry{}, ByClearMap: map[uint32][]uint16{}}
 	for id, d := range c.Quests {
 		initial, model, err := InitialProgress(d)
+		groups := d.PrerequisiteGroups
+		if len(groups) == 0 && len(d.Prerequisites) > 0 {
+			groups = [][]uint32{d.Prerequisites}
+		}
 		e := &Entry{
 			ID: id, Kind: d.Kind, Model: model, Initial: initial, Implemented: err == nil,
 			RewardUsable: rewardUsable(d), GrowUsable: true,
 			MinimumLevel: d.MinimumLevel, MaximumLevel: d.MaximumLevel,
-			Jobs: d.Jobs, Prerequisites: d.Prerequisites,
+			Jobs: d.Jobs, Prerequisites: d.Prerequisites, PrerequisiteGroups: groups,
 		}
 		for _, g := range cells(d.Script.Cells, "[grow type]") {
 			if g.Type != 0 {
