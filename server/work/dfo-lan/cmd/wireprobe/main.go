@@ -675,6 +675,9 @@ func main() {
 		if e == nil {
 			e = characters.Store.MigrateAccountMaterials(ctx)
 		}
+		if e == nil && rules.Account != nil {
+			e = characters.Store.MigrateAccountVault(ctx)
+		}
 		cancel()
 		if e != nil {
 			log.Fatal(e)
@@ -1170,6 +1173,29 @@ func main() {
 					}
 				} else if err = writePackets(c, packets, func(p preparedPacket) {
 					event(map[string]any{"kind": p.Name, "id": p.ID, "plain_hex": hex.EncodeToString(p.Payload)})
+				}); err != nil {
+					return
+				}
+				continue
+			}
+			if frame.Type == 1 && bootstrapped && verified && (frame.ID == 305 || frame.ID == 306) && worldState != nil {
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				plan, err := worldState.upgradeAccountVault(ctx, frame.ID, plaintext, frame.Raw, keys, purchaseSession.prefix)
+				cancel()
+				if err != nil {
+					event(map[string]any{"kind": "账号金库操作被拒绝", "id": frame.ID, "character_id": selectedCharacterID, "reason": err.Error()})
+					if err = sendPayload(1, frame.ID, accountVaultRefusal(err)); err != nil {
+						return
+					}
+					continue
+				}
+				prepared, err := preparePackets(keys, plan)
+				if err != nil {
+					event(map[string]any{"kind": "账号金库回包编码失败", "reason": err.Error()})
+					return
+				}
+				if err = writePackets(c, prepared, func(p preparedPacket) {
+					event(map[string]any{"kind": p.Name, "id": p.ID, "character_id": selectedCharacterID, "plain_hex": hex.EncodeToString(p.Payload)})
 				}); err != nil {
 					return
 				}
@@ -2199,9 +2225,21 @@ func main() {
 				var basic []byte
 				var addition []byte
 				var vaultPayload []byte
+				var secondaryVaultPayload []byte
+				var accountVaultPayload []byte
 				if vaultService != nil {
 					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 					vaultPayload, e = vaultService.Bootstrap(ctx, role)
+					if e == nil {
+						secondaryVaultPayload, e = vaultService.BootstrapSpace(ctx, role, 45)
+					}
+					if e == nil && vaultService.Rules.Account != nil {
+						var accountVault storage.AccountVaultState
+						accountVault, e = vaultService.Store.LoadAccountVault(ctx, role.AccountID, role.ID)
+						if e == nil {
+							accountVaultPayload, e = inventory.AccountVaultPayload(accountVault, *vaultService.Rules.Account)
+						}
+					}
 					cancel()
 					if e != nil {
 						event(map[string]any{"kind": "vault_entry_rejected", "error": e.Error()})
@@ -2296,6 +2334,8 @@ func main() {
 					}
 				}
 				plan := entryPayloads{Select: payload, Basic: basic, Addition: addition, Vault: vaultPayload, UserArea: userArea, Area: areaPayload, Fatigue: fatiguePayload, AccountOptions: accountOptions}
+				plan.SecondaryVault = secondaryVaultPayload
+				plan.AccountVault = accountVaultPayload
 				// Introduce the players already standing here before the area list that
 				// places them: the client only places actors it already knows.
 				if worldState != nil {
