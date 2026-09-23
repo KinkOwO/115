@@ -55,23 +55,17 @@ func prerequisiteClosure(t *testing.T, c catalog.QuestCatalog, roots []uint32) [
 	return order
 }
 
-// knownBlockedQuests are the links that are understood and deliberately not
-// offered yet, with the reason. They all use the `[monster kill checkpoint]`
-// objective model, which initialProgress does not implement — and those four are
-// the only quests in the whole catalog that use it, so implementing that one
-// model unblocks the entire 2026 chain.
+// knownBlockedQuests used to hold 23053/23054/23055/23099, which were dropped
+// from the acceptable list because `[monster kill checkpoint]` had no objective
+// model. That model is implemented now (internal/quest/progress.go,
+// MonsterKillCheckpointShape), so the map is empty and the chain must be fully
+// offered.
 //
-// Keeping them here (rather than loosening the assertion) is what lets the test
-// still FAIL on a break nobody has seen before: a new entry in the break list
-// means the chain moved or something else regressed.
-//
-// Removing an entry from this map is the last step of implementing the model.
-var knownBlockedQuests = map[uint32]string{
-	23053: "[monster kill checkpoint] not implemented",
-	23054: "[monster kill checkpoint] not implemented",
-	23055: "[monster kill checkpoint] not implemented",
-	23099: "[monster kill checkpoint] not implemented",
-}
+// Keep the mechanism: an entry added back here is a claim that a link is
+// understood and deliberately blocked, and the test still FAILS on a break that
+// is not listed. Anything listed without that justification would just be a
+// loosened assertion.
+var knownBlockedQuests = map[uint32]string{}
 
 // TestApocalypsePrerequisiteChainIsOffered reports whether the server can offer
 // every quest upstream of the apocalypse entry. Unknown breaks fail; the known

@@ -134,6 +134,8 @@ random-option-catalog 都有这条注释，**只有我新加的 `-apocalypse-cat
 
 ## 7. 结论与下一步
 
+> **2026-09-23 晚更新**：第 1 项已落地，见 §9。前置链现在 **20/20 全部提供**。
+
 | 优先级 | 事项 | 性质 |
 | --- | --- | --- |
 | 1 | 解出 `109019626..109019630` 这 5 个键的语义，再实现 `[monster kill checkpoint]` | **服务端功能**，解锁整条链 |
@@ -150,4 +152,58 @@ random-option-catalog 都有这条注释，**只有我新加的 `-apocalypse-cat
 cd server/work/dfo-lan
 # 前置树 + 服务端是否提供（失败时会打印每个卡点的目标结构）
 go test -count=1 -run TestApocalypsePrerequisiteChainIsOffered -v ./internal/quest/
+# 全量目标模型覆盖普查（哪些 kind 整个内容块都不可达）
+go test -count=1 -run TestAuditObjectiveKinds -v ./internal/quest/
 ```
+
+## 9. 实施：两种"客户端把关"的目标模型（2026-09-23 晚）
+
+### 9.1 决定与理由
+
+键语义仍未解出，但**不等于要干等**。`progress.go` 里已经有一条被明确记录的先例
+（`[look cinematic]`，`progress.go:107`）：
+
+> 该目标**没有服务端可校验的条件**，客户端在本地放完过场才让玩家提交；
+> progress 0 = 服务端接受这次提交，且**只发任务自带奖励、不额外铸任何东西**。
+
+`[monster kill checkpoint]` 与 `[legion content clear*]` 属于同一情形：
+**检查点/通关是客户端侧的条件**（客户端在一次副本运行里记录检查点，达标后才允许提交），
+而服务端目前既没有解码参数、也没有把军团运行追到"通关"这一步。
+
+两条路的取舍：
+
+| 做法 | 结果 |
+| --- | --- |
+| 不提供（现状） | 5 个任务静默不进可接列表 ⇒ 整条 2026 千海之空 + 末世录 **永久不可达，且日志无任何报错** |
+| **按客户端把关（采纳）** | 任务可接可交，服务端只发任务自带奖励；**与 `[look cinematic]` 同一条已记录的降级口径** |
+| 按语义实现 | 键未解 ⇒ 只能猜 ⇒ 可能造出"能接但永远交不掉"的任务，比上面两条都差 |
+
+⇒ 采纳中间那条，并**按用户既定纪律把降级写进台账**（`next64` §6.2 **T8 / T9**）。
+
+### 9.2 实现要点
+
+| 位置 | 内容 |
+| --- | --- |
+| `internal/quest/progress.go` | `MonsterKillCheckpointShape` / `LegionContentClearShape`：**只校验形状**（cell 类型、三元组长度、`(-1,-1)` 终止符、键递增、内容号非负）。形状不符 ⇒ 保持"未实现"，不猜 |
+| 同上 | 两个新模型常量 `monster-kill-checkpoint-client-gated-v1` / `legion-content-clear-client-gated-v1`，命名里带 `client-gated` 让降级一眼可见 |
+| `internal/quest/apocalypse_chain_test.go` | `knownBlockedQuests` **清空**：链必须全提供；保留"未知断链直接 Fail"的机制 |
+| `internal/quest/legion_objectives_test.go` | 形状接受/拒绝用例 + **23128（内容 6）必须被提供** + 全 catalog 该 kind 逐个校验 |
+| `internal/quest/kind_audit_test.go` | 全量目标模型普查：按 `[type]` 分组打印 settleable / unsettleable，用来一眼看出"哪些内容块整体不可达" |
+
+### 9.3 验证结果
+
+| 项 | 结果 |
+| --- | --- |
+| 前置链 | **20 可达 / 20 offered / 0 blocked** |
+| `[monster kill checkpoint]` | 4/4 quests 提供 |
+| `[legion content clear]` | 5/5 提供（含内容 0） |
+| `[legion content clear with difficulty]` | 1/1 提供（23128 = 末世录指南） |
+| `[legion operation clear]` | **仍不提供**（仅 22544，2023 达斯岛证明任务，obj `[103,17,1]`，首数不在内容号体系内）—— 有意不做 |
+| `go vet` / `go test` | 0 项 / 20 包含绿（`internal/character` 那条上游既有红测试除外） |
+
+### 9.4 仍未闭环的部分（诚实清单）
+
+- 键 `109019626..109019630` 与 `[legion content clear*]` 尾部数字**语义未解** ⇒ T8/T9 仍是降级。
+- 名声 73,993 的门槛是**客户端在接取时把关**，服务端未校验（与既有其他任务一致）。
+- 军团运行本身仍未闭环（X7 阶段推进、X9 军团信息、X11 奖励），
+  所以"进本打一轮"这件事还没通；本轮解决的是**解锁链路**。
