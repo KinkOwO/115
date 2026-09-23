@@ -86,7 +86,7 @@ func InventoryUpdate(rows [][CurrentItemRecordSize]byte) ([]byte, error) {
 }
 
 func InventorySpaceUpdate(space byte, rows [][CurrentItemRecordSize]byte) ([]byte, error) {
-	if space != 0 && space != 2 && space != 3 {
+	if space != 0 && space != 2 && space != 3 && space != 12 && space != 45 {
 		return nil, fmt.Errorf("unsupported equipment update space")
 	}
 	p, e := itemRows(rows)

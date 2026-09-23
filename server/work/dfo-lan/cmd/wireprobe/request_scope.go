@@ -12,6 +12,9 @@ func dungeonRequest(id uint16) bool {
 }
 
 func observedGameRequest(id uint16) bool {
+	if id == 305 || id == 306 {
+		return true
+	}
 	if mailboxRequest(id) {
 		return true
 	}
