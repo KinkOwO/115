@@ -12,6 +12,7 @@ import (
 const SingleClearMap = "single-clear-map-remaining-v1"
 const SingleMeetNPC = "single-meet-npc-remaining-v1"
 const SingleReachRange = "single-reach-range-remaining-v1"
+const AlflyraReachNPC = "alflyra-3252-reach-npc-remaining-v1"
 const SeekAndMeetNPC = "seek-items-and-meet-npc-remaining-v1"
 const LookCinematic = "look-cinematic-client-gated-v1"
 const MonsterKillCheckpoint = "monster-kill-checkpoint-client-gated-v1"
@@ -43,6 +44,26 @@ func ReachRange(d catalog.QuestDefinition) (RangeObjective, bool) {
 		return RangeObjective{}, false
 	}
 	return RangeObjective{uint32(c[0].Value), uint32(c[1].Value), c[2].Value, c[3].Value, c[4].Value, c[5].Value}, true
+}
+
+// Quest 3252 uses the three-cell reach form, [303, 1000, 1000]. Its target
+// NPC is also the source's completion NPC. The native interpretation of the
+// two distance cells is not established, so this narrow form advances only
+// when the character reaches NPC 303 under the existing local NPC proximity
+// policy. Do not apply this rule to other three-cell reach quests.
+func AlflyraReachTarget(d catalog.QuestDefinition) (uint32, bool) {
+	if d.ID != 3252 || len(d.Pending) != 0 || d.Kind != "[reach the range]" || len(d.ObjectiveCells) != 3 {
+		return 0, false
+	}
+	c := d.ObjectiveCells
+	if c[0].Type != 0 || c[0].Value != 303 || c[1].Type != 0 || c[1].Value != 1000 || c[2].Type != 0 || c[2].Value != 1000 {
+		return 0, false
+	}
+	complete := cells(d.Script.Cells, "[complete npc index]")
+	if len(complete) != 1 || complete[0].Type != 0 || complete[0].Value != c[0].Value {
+		return 0, false
+	}
+	return uint32(c[0].Value), true
 }
 
 func (r RangeObjective) Contains(p storage.WorldPosition) bool {
@@ -102,6 +123,9 @@ func InitialProgress(d catalog.QuestDefinition) (uint32, string, error) {
 	}
 	if _, ok := ReachRange(d); ok {
 		return 1, SingleReachRange, nil
+	}
+	if _, ok := AlflyraReachTarget(d); ok {
+		return 1, AlflyraReachNPC, nil
 	}
 	if _, ok := SeekMeet(d); ok {
 		return 1, SeekAndMeetNPC, nil

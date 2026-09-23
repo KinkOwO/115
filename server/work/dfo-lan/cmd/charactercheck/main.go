@@ -221,6 +221,16 @@ func run() error {
 	if _, e = s.AcceptQuest(ctx, account, rows[0].ID, 3146, c.Source.Checksum, 1, 10000, []uint32{3145}, 1, "single-clear-map-remaining-v1"); e == nil {
 		return fmt.Errorf("unfinished prerequisite accepted")
 	}
+	act2Groups := [][]uint32{{3232}, {3237}}
+	if _, e = s.AcceptQuestGroups(ctx, account, rows[0].ID, 3240, c.Source.Checksum, 1, 10000, act2Groups, 1, "single-clear-map-remaining-v1"); e == nil {
+		return fmt.Errorf("alternative prerequisite accepted before either branch completed")
+	}
+	if _, e = s.DB.Exec(ctx, `INSERT INTO character_quests(character_id,quest_id,status,progress,config_version,progress_model) VALUES($1,3232,'completed',0,$2,$3)`, rows[0].ID, c.Source.Checksum, "single-clear-map-remaining-v1"); e != nil {
+		return e
+	}
+	if _, e = s.AcceptQuestGroups(ctx, account, rows[0].ID, 3240, c.Source.Checksum, 1, 10000, act2Groups, 1, "single-clear-map-remaining-v1"); e != nil {
+		return fmt.Errorf("completed Act 2 alternative did not unlock successor: %w", e)
+	}
 	if _, e = s.AcceptQuest(ctx, second, rows[0].ID, 3145, c.Source.Checksum, 1, 10000, nil, 1, "single-clear-map-remaining-v1"); e == nil {
 		return fmt.Errorf("quest crossed account boundary")
 	}

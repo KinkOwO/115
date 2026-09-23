@@ -67,7 +67,8 @@ type entryPayloads struct {
 	// player's locked skills. It is sent last: the forwarded evidence for this
 	// client reports a crash on town entry when 2827 arrives early in the frame
 	// sequence, whichever block it contains.
-	SkillLocks []byte
+	SkillLocks   []byte
+	SynopsisRead []byte
 	// Peers carries the USERINFO of every actor already standing in the scene.
 	// It is emitted after this actor's own placement but before the area list,
 	// because the client only places actors it already knows.
@@ -137,6 +138,8 @@ func (p entryPayloads) packets() []outboundPacket {
 		outboundPacket{"odyssey_journal_restored", 0, 2856, p.OdysseyProgress},
 		outboundPacket{"completed_quests_restored", 0, 342, p.CompletedQuests},
 		outboundPacket{"available_quests_restored", 0, 21, p.AvailableQuests},
+		// Rebuild unread synopsis IDs after the client has its quest lists.
+		outboundPacket{"synopsis_read_restored", 0, 2310, p.SynopsisRead},
 		outboundPacket{"skill_variations_restored", 1, 29, p.SkillVariations},
 		// Complete lists and visual refresh after the entry/actor initialization barrier.
 		outboundPacket{"avatar_inventory_restored", 0, 13, p.AvatarReady},

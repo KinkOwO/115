@@ -146,7 +146,7 @@ func (s *equipmentSession) handle(service *inventory.WearService, w *worldSessio
 	// 0x145a8a780 covers), which is what makes the world model follow the
 	// change. It follows this handler's id13/id14 rows so the rebuild sees
 	// fresh item objects. Bag-to-bag moves change no visible slot and skip it.
-	if (r.SourceList == 3 || r.DestinationList == 3) && w.characters != nil {
+	if shouldSendEquipmentAppearanceRebuild(w.activeDungeon != nil, r) && w.characters != nil {
 		probe, e := w.characters.AppearanceProbe(saved, [2]byte{})
 		if e != nil {
 			return nil, e
@@ -155,6 +155,16 @@ func (s *equipmentSession) handle(service *inventory.WearService, w *worldSessio
 	}
 	w.role = saved
 	return plan, nil
+}
+
+// A mode-0 appearance probe reconstructs the live actor. Keep the CMD19 bag
+// and worn-slot updates in a dungeon, but defer this actor rebuild until the
+// next town/entry refresh. In the 2026-09-23 live trace, a worn move emitted
+// NOTI2 during map 58591; afterward the client acknowledged door interaction
+// (CMD38) but stopped issuing the room transition (CMD45). Before that move,
+// the same run had advanced rooms normally.
+func shouldSendEquipmentAppearanceRebuild(inDungeon bool, r protocol.ItemMoveRequest) bool {
+	return !inDungeon && (r.SourceList == 3 || r.DestinationList == 3)
 }
 
 func cloneAvatarRemoval(r protocol.ItemMoveRequest, catalog *inventory.EquipmentCatalog) bool {

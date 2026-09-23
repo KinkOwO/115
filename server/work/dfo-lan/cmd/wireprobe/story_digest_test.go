@@ -112,3 +112,45 @@ func TestAdvanceStoryDigestMonotonic(t *testing.T) {
 		}
 	})
 }
+
+func TestStoryDigestRestoreAndEntryOrder(t *testing.T) {
+	for _, tc := range []struct {
+		state string
+		want  []byte
+	}{
+		{`{"cinematic_skipped":[]}`, []byte{0, 0, 0, 0}},
+		{`{"story_digest_level":115}`, []byte{115, 0, 0, 0}},
+		{`{"story_digest_level":16777216}`, []byte{0, 0, 0, 1}},
+	} {
+		body, err := storyDigestRestore([]byte(tc.state))
+		if err != nil || !bytes.Equal(body, tc.want) {
+			t.Fatalf("restore %s: body=%x err=%v", tc.state, body, err)
+		}
+	}
+	// 断言相对顺序而不是绝对下标：进场帧组会在 1352 之前插入 NOTI402 /
+	// NOTI426（通知已读集），硬编码下标一旦帧组增减就失效——这里要保证的
+	// 是 1352 → 1370 → 2 的先后关系，与中间插了多少帧无关。
+	packets := (entryPayloads{CinematicSkips: []byte{0}, StoryDigest: []byte{115, 0, 0, 0}, Basic: []byte{1}}).packets()
+	at := map[uint16]int{}
+	kinds := map[uint16]byte{}
+	for i, p := range packets {
+		if _, seen := at[p.ID]; !seen {
+			at[p.ID] = i
+			kinds[p.ID] = p.Kind
+		}
+	}
+	for _, id := range []uint16{1352, 1370, 2} {
+		if _, ok := at[id]; !ok {
+			t.Fatalf("entry payloads missing frame %d: %+v", id, packets)
+		}
+		if kinds[id] != 0 {
+			t.Fatalf("frame %d kind = %d, want 0", id, kinds[id])
+		}
+	}
+	if !(at[1352] < at[1370] && at[1370] < at[2]) {
+		t.Fatalf("wrong entry sequence: 1352@%d 1370@%d 2@%d", at[1352], at[1370], at[2])
+	}
+	if !observedGameRequest(1438) {
+		t.Fatal("story digest update is not retained")
+	}
+}

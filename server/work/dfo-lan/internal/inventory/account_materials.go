@@ -121,11 +121,39 @@ func (m AccountMaterials) Add(template, amount uint32) (AccountMaterials, uint16
 	return out, slot, nil
 }
 
+// Spend removes amount from the fixed slot of a storage template, the exact
+// counterpart of Add. The 115 client consumes these materials straight out of
+// the account-shared store when a skill costs one (a BOSS_CHECK-adjacent CMD 18
+// carries the storage slot, e.g. 367 for 无色小晶块), so a stored count has to be
+// able to go down as well as up.
+func (m AccountMaterials) Spend(template, amount uint32) (AccountMaterials, uint16, error) {
+	slot, ok := accountMaterialSlotByTemplate[template]
+	if !ok {
+		return m, 0, fmt.Errorf("not an account material template")
+	}
+	if amount == 0 {
+		return m, slot, fmt.Errorf("invalid account material amount")
+	}
+	if m.Counts[slot] < amount {
+		return m, slot, fmt.Errorf("insufficient account material")
+	}
+	out := AccountMaterials{Version: m.Version, Counts: map[uint16]uint32{}}
+	for s, n := range m.Counts {
+		out.Counts[s] = n
+	}
+	remaining := out.Counts[slot] - amount
+	if remaining == 0 {
+		// Rows() omits zero-count slots, so dropping it keeps the panel clean.
+		delete(out.Counts, slot)
+	} else {
+		out.Counts[slot] = remaining
+	}
+	return out, slot, nil
+}
+
 // Rows renders the authoritative snapshot rows. Zero-count slots are
-// omitted, matching the live-verified 90 behavior where the storage panel
-// displays every omitted fixed cell as zero; v1 has no consumption path, so
-// a stored count can only grow within a session and stale-slot residue
-// cannot occur.
+// omitted, matching the storage panel's empty-cell representation. A spend
+// removes a slot when its count reaches zero.
 func (m AccountMaterials) Rows() [][protocol.CurrentItemRecordSize]byte {
 	slots := make([]uint16, 0, len(m.Counts))
 	for slot, n := range m.Counts {

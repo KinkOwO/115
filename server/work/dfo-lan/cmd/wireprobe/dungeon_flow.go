@@ -617,7 +617,10 @@ func (w *worldSession) monsterDeath(p []byte) ([]outboundPacket, error) {
 	}
 	completed, err := w.completeDungeon()
 	if err != nil {
-		return nil, err
+		// The death acknowledgement and confirmation are already in plan.
+		// Completion failure must not discard the client's death evidence.
+		w.completionErr = err
+		return plan, nil
 	}
 	return append(plan, completed...), nil
 }

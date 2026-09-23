@@ -3,7 +3,22 @@ package protocol
 import (
 	"encoding/binary"
 	"fmt"
+	"math"
 )
+
+// MaxItemPeriod is the fallback written to the 181-byte row's offset-56 cell
+// (u32 LE) when nothing better is known. It is NOT a timestamp: the client
+// renders that cell as `Expires in : %d Day(s)` (dstr 1057,
+// PopupWindow\CNRDItemInfoWindow.cpp) by dividing it by 86400, with no
+// reference to the current time.
+//
+// 实机 2026-09-23 取证：宠物 100991331（脚本 `[usable period] 7`）的行填了 2147483647，
+// 客户端面板显示「过期时间:24856天」—— 2147483647 / 86400 = 24855.6 四舍五入即 24856，
+// 逐位吻合，证明该格是「剩余秒数」而非时间戳（若减当前时间则应为 4138 天）。
+//
+// 因此声明了期限的物品，这格必须填「真实剩余秒数」；本常量只适合做
+// 「没有更好值」的兼容兜底（脚本不声明期限的物品不会渲染这行文案）。
+const MaxItemPeriod = math.MaxInt32
 
 // OrdinaryItem is the current 181-byte base row. Special equipment branches
 // require extra source/type validation and are deliberately separate.

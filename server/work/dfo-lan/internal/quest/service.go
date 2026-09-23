@@ -23,6 +23,41 @@ type Service struct {
 	index   *Index
 }
 
+func jobAllowed(jobs []string, job string) bool {
+	// An omitted [job] condition in the source applies to every profession.
+	if len(jobs) == 0 {
+		return true
+	}
+	for _, j := range jobs {
+		if j == "[all]" || j == job {
+			return true
+		}
+	}
+	return false
+}
+
+func prerequisitesMet(groups [][]uint32, status map[uint32]string) bool {
+	if len(groups) == 0 {
+		return true
+	}
+	for _, group := range groups {
+		if len(group) == 0 {
+			continue
+		}
+		complete := true
+		for _, id := range group {
+			if status[id] != "completed" {
+				complete = false
+				break
+			}
+		}
+		if complete {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *Service) Accept(ctx context.Context, role storage.Character, id uint16) (storage.QuestState, error) {
 	d, ok := s.Catalog.Quests[uint32(id)]
 	if !ok {
@@ -32,13 +67,7 @@ func (s *Service) Accept(ctx context.Context, role storage.Character, id uint16)
 		return storage.QuestState{}, fmt.Errorf("quest data unresolved: %s", d.Pending[0])
 	}
 	job := s.Professions.Professions[role.Profession].Job
-	allowed := false
-	for _, j := range d.Jobs {
-		if j == "[all]" || j == job {
-			allowed = true
-		}
-	}
-	if !allowed {
+	if !jobAllowed(d.Jobs, job) {
 		return storage.QuestState{}, errors.New("quest profession requirement not met")
 	}
 	var charState character.State
@@ -54,5 +83,9 @@ func (s *Service) Accept(ctx context.Context, role storage.Character, id uint16)
 	if e != nil {
 		return storage.QuestState{}, e
 	}
-	return s.Store.AcceptQuest(ctx, role.AccountID, role.ID, id, s.Catalog.Source.Checksum, d.MinimumLevel, d.MaximumLevel, d.Prerequisites, initial, model)
+	groups := d.PrerequisiteGroups
+	if len(groups) == 0 && len(d.Prerequisites) > 0 {
+		groups = [][]uint32{d.Prerequisites}
+	}
+	return s.Store.AcceptQuestGroups(ctx, role.AccountID, role.ID, id, s.Catalog.Source.Checksum, d.MinimumLevel, d.MaximumLevel, groups, initial, model)
 }
