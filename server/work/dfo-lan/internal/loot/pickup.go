@@ -21,6 +21,13 @@ type Service struct {
 	Tables      Tables
 	Equipment   *inventory.EquipmentCatalog
 	CardPolicy  *CardRules
+	// ItemShops 是源物品商店表（itemshop/**.shp）。它给出"用物品支付"的商品价格：
+	// 奥德赛商店的盒子要 100 个银币（10418036）。缺这张表时所有购买都会拿写死的
+	// 金币单价去扣，等于白送（实机 2026-09-23 玩家报告"银币没有扣减"）。
+	ItemShops *catalog.ItemShops
+	// ChapterDrop 是章节最终领主的章节盒掉落（手册 P3 子项 3）。默认整表
+	// enabled=false，禁用行连掷骰种子都不消耗；由 profile 显式开启。
+	ChapterDrop *OdysseyChapterDrop
 }
 type PickupReceipt struct {
 	Run         string

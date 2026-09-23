@@ -1,0 +1,67 @@
+{
+ "model": "source-odyssey-chapter-drop-v1",
+ "source": {
+  "format": "dfo_20260901_inner",
+  "path": "../client-build/Script.inner.pvf",
+  "size": 760530763,
+  "checksum": "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80",
+  "loaded_at": "2026-09-22T17:29:18.3822601Z",
+  "file_count": 5650173,
+  "group_count": 82571,
+  "cached_chunks": 1,
+  "cached_texts": 1
+ },
+ "journal_path": "contents/2026/aradodyssey/etc/aradodysseyjournal.cos",
+ "definition_sha256": "d4654fa9a50ddd582077f5f7a0a19835ec4fb6b777f032d1a66be7f288eff67e",
+ "drops": [
+  {
+   "chapter": 1,
+   "final": 100004945,
+   "template": 10417792,
+   "rate": 10000,
+   "enabled": false
+  },
+  {
+   "chapter": 2,
+   "final": 100004953,
+   "template": 10419742,
+   "rate": 10000,
+   "enabled": false
+  },
+  {
+   "chapter": 3,
+   "final": 100004957,
+   "template": 10417793,
+   "rate": 10000,
+   "enabled": false
+  },
+  {
+   "chapter": 4,
+   "final": 100004966,
+   "template": 10417794,
+   "rate": 10000,
+   "enabled": false
+  },
+  {
+   "chapter": 5,
+   "final": 100004972,
+   "template": 10419744,
+   "rate": 10000,
+   "enabled": false
+  },
+  {
+   "chapter": 6,
+   "final": 100004977,
+   "template": 10417795,
+   "rate": 10000,
+   "enabled": false
+  },
+  {
+   "chapter": 7,
+   "final": 100004990,
+   "template": 0,
+   "rate": 10000,
+   "enabled": false
+  }
+ ]
+}

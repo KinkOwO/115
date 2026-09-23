@@ -183,13 +183,13 @@ func (s *Service) Learn(ctx context.Context, role storage.Character, key string,
 				floor[id] = rank
 			}
 		}
-		for stage := byte(1); stage <= state.Awakening; stage++ {
-			grants := s.Catalog.Professions[current.Profession].AwakeningSkills[state.Advancement][stage]
-			for i := 0; i+1 < len(grants); i += 2 {
-				id, rank := uint16(grants[i]), byte(grants[i+1])
-				if known[id] >= rank && floor[id] < rank {
-					floor[id] = rank
-				}
+		awakened, e := s.awakeningSkills(current, state)
+		if e != nil {
+			return nil, nil, e
+		}
+		for id, rank := range awakened {
+			if floor[id] < rank {
+				floor[id] = rank
 			}
 		}
 		points := int(state.SkillPoints[req.Tree])

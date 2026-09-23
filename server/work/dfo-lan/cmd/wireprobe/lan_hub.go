@@ -56,6 +56,8 @@ type lanPeer struct {
 	// send writes one notification to this peer's own connection. It must be
 	// safe to call from another player's goroutine.
 	send func(kind byte, id uint16, payload []byte) error
+	// 邮件提醒由收件连接自身读取存储并发送，避免跨协程操作角色状态。
+	mailChanged chan struct{}
 }
 
 // visible reports whether two actors share a scene. Both directions have to
@@ -83,6 +85,22 @@ type lanHub struct {
 
 func newLanHub() *lanHub {
 	return &lanHub{peers: map[*lanPeer]struct{}{}}
+}
+
+func (h *lanHub) notifyMailbox(roleID int64) {
+	if h == nil {
+		return
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	for p := range h.peers {
+		if p.roleID == roleID && p.mailChanged != nil {
+			select {
+			case p.mailChanged <- struct{}{}:
+			default:
+			}
+		}
+	}
 }
 
 func (h *lanHub) add(p *lanPeer) {

@@ -69,6 +69,8 @@ func main() {
 	fullEquipmentFile := flag.String("equipment-full-catalog", os.Getenv("DFO_EQUIPMENT_FULL_CATALOG"), "separate indexed wear catalog prefix; does not widen drops")
 	itemIndexFile := flag.String("item-index", os.Getenv("DFO_ITEM_INDEX"), "full stackable item index JSON (e.g. configs/items.index.json)")
 	boosterCatalogFile := flag.String("booster-catalog", os.Getenv("DFO_BOOSTER_CATALOG"), "booster definitions JSON")
+	selectionBoxFile := flag.String("selection-boxes", os.Getenv("DFO_SELECTION_BOXES"), "source selection box JSON ([booster select category] boxes)")
+	itemShopFile := flag.String("item-shop", os.Getenv("DFO_ITEM_SHOP"), "source item shop JSON (itemshop/**.shp; prices goods with [need material], e.g. the Odyssey shop's silver coins)")
 	soloPartyBootstrap := flag.Bool("solo-party-bootstrap", false, "initialize the owned actor in the current solo party roster")
 	accountOptionsFile := flag.String("account-options", "", "sparse current-client account option overrides; other defaults remain client-owned")
 	unifiedCharacFile := flag.String("unified-charac-template", "", "override the built-in 3539 byte character option block sent as NOTI2827 (different client build only)")
@@ -118,6 +120,52 @@ func main() {
 		} {
 			if _, err := os.Stat(cand); err == nil {
 				*boosterCatalogFile = cand
+				break
+			}
+		}
+	}
+	if *selectionBoxFile == "" {
+		candidates := []string{
+			"configs/selection-boxes-release.json",
+			"configs/selection-boxes-candidate.json",
+			"server/work/dfo-lan/configs/selection-boxes-candidate.json",
+		}
+		// 网关通常不是从模块根启动的（启动器的工作目录是 server/），所以再按
+		// "与已经显式给出的目录同目录"推导一次——那些路径是绝对路径。
+		for _, base := range []string{*boosterCatalogFile, *itemIndexFile} {
+			if base == "" {
+				continue
+			}
+			dir := filepath.Dir(base)
+			candidates = append(candidates,
+				filepath.Join(dir, "selection-boxes-release.json"),
+				filepath.Join(dir, "selection-boxes-candidate.json"))
+		}
+		for _, cand := range candidates {
+			if _, err := os.Stat(cand); err == nil {
+				*selectionBoxFile = cand
+				break
+			}
+		}
+	}
+	if *itemShopFile == "" {
+		candidates := []string{
+			"configs/itemshop-release.json",
+			"configs/itemshop-candidate.json",
+			"server/work/dfo-lan/configs/itemshop-candidate.json",
+		}
+		for _, base := range []string{*boosterCatalogFile, *itemIndexFile} {
+			if base == "" {
+				continue
+			}
+			dir := filepath.Dir(base)
+			candidates = append(candidates,
+				filepath.Join(dir, "itemshop-release.json"),
+				filepath.Join(dir, "itemshop-candidate.json"))
+		}
+		for _, cand := range candidates {
+			if _, err := os.Stat(cand); err == nil {
+				*itemShopFile = cand
 				break
 			}
 		}
@@ -268,6 +316,12 @@ func main() {
 		if e = s.MigratePremiums(ctx); e != nil {
 			log.Fatal(e)
 		}
+		if e = s.MigrateCharacterEvents(ctx); e != nil {
+			log.Fatal(e)
+		}
+		if e = s.MigrateMailbox(ctx); e != nil {
+			log.Fatal(e)
+		}
 		data, e := catalog.LoadCharacters(*characterCatalog)
 		if e != nil {
 			log.Fatal(e)
@@ -409,6 +463,12 @@ func main() {
 				log.Fatal(e)
 			}
 		}
+		if path := os.Getenv("DFO_ODYSSEY_CHAPTERS"); path != "" {
+			progressionService.Chapters, e = catalog.LoadOdysseyChapters(path)
+			if e != nil {
+				log.Fatal(e)
+			}
+		}
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		e = characters.Store.MigrateCharacterEvents(ctx)
 		if e == nil {
@@ -516,7 +576,11 @@ func main() {
 		if data.Source.Checksum != characters.Catalog.Source.Checksum {
 			log.Fatal("quest/character source versions differ")
 		}
-		questService = &quest.Service{Store: characters.Store, Catalog: data, Professions: characters.Catalog, Progression: progressionService}
+		var odysseyGrowth *catalog.OdysseyGrowth
+		if progressionService != nil {
+			odysseyGrowth = progressionService.Odyssey
+		}
+		questService = &quest.Service{Store: characters.Store, Catalog: data, Professions: characters.Catalog, Progression: progressionService, Odyssey: odysseyGrowth}
 		if *equipmentRewardFile != "" {
 			if lootService == nil {
 				log.Fatal("quest inventory requires the shared bag catalog")
@@ -663,6 +727,59 @@ func main() {
 			log.Printf("loaded booster catalog (%d definitions, %d item index entries)", len(boosterCatalog.Definitions), len(boosterCatalog.Items))
 		}
 	}
+	// Source selection boxes ([booster select category]) are deliberately absent
+	// from the fixed-content booster catalog, so without this table every pick-a-
+	// item box falls through to the random-pool branch and the client only ever
+	// sees its generic "target inventory is full" notice.
+	var selectionBoxes *catalog.SelectionBoxes
+	if *selectionBoxFile != "" {
+		var err error
+		selectionBoxes, err = catalog.LoadSelectionBoxes(*selectionBoxFile)
+		if err != nil {
+			log.Printf("warning: load selection boxes (%s): %v", *selectionBoxFile, err)
+		} else {
+			log.Printf("loaded selection boxes (%d boxes, %d mislabeled fixed) from %s", len(selectionBoxes.Boxes), len(selectionBoxes.Fixed), *selectionBoxFile)
+		}
+	}
+	if selectionBoxes == nil {
+		log.Printf("warning: no selection box catalog; pick-a-item boxes go down the generic booster path")
+	}
+	// 物品商店表：源用 [need material] 定价的商品（奥德赛商店的盒子要 100 个银币）
+	// 必须按材料扣，否则一律按写死的金币单价白送。
+	var itemShops *catalog.ItemShops
+	if *itemShopFile != "" {
+		var err error
+		itemShops, err = catalog.LoadItemShops(*itemShopFile)
+		if err != nil {
+			log.Printf("warning: load item shops (%s): %v", *itemShopFile, err)
+		} else {
+			log.Printf("loaded item shops (%d shops) from %s", len(itemShops.Shops), *itemShopFile)
+		}
+	}
+	if itemShops == nil {
+		log.Printf("warning: no item shop catalog; every purchase is charged the flat gold price")
+	} else if lootService != nil {
+		lootService.ItemShops = itemShops
+	}
+	// 章节盒掉落（手册 P3 子项 3）。整表默认 enabled=false；只有 profile 显式开启
+	// 才会叠加目录与槽位，未开启时连掷骰种子都不消耗。
+	if path := os.Getenv("DFO_ODYSSEY_CHAPTER_DROP"); path != "" {
+		chapterDrop, e := loot.LoadOdysseyChapterDrop(path)
+		if e != nil {
+			log.Fatal(e)
+		}
+		if e = chapterDrop.ValidateBoxes(selectionBoxes); e != nil {
+			log.Fatal(e)
+		}
+		if lootService != nil {
+			lootService.ChapterDrop = chapterDrop
+			if chapterDrop.Enabled() {
+				lootService.Catalog = chapterDrop.StorageCatalog(lootService.Catalog)
+				lootService.BagRules = chapterDrop.BagRules(lootService.BagRules)
+				log.Printf("Odyssey chapter drop enabled")
+			}
+		}
+	}
 	if *responseFile != "" {
 		b, err := os.ReadFile(*responseFile)
 		if err != nil {
@@ -795,7 +912,8 @@ func main() {
 		var equipmentState equipmentSession
 		var sortState sortSession
 		if worldService != nil {
-			worldState = &worldSession{characters: characters, service: worldService, account: developmentAccount, flags: townPolicy.Flags, dungeons: dungeonCatalog, tutorials: tutorialRoutes, tutorialDungeons: tutorialDungeons, professions: characters.Catalog, fatigue: fatigueService, quests: questService, progression: progressionService, loot: lootService, vault: vaultService, soloPartyBootstrap: *soloPartyBootstrap, hub: hub}
+			worldState = &worldSession{characters: characters, service: worldService, account: developmentAccount, flags: townPolicy.Flags, dungeons: dungeonCatalog, tutorials: tutorialRoutes, tutorialDungeons: tutorialDungeons, professions: characters.Catalog, fatigue: fatigueService, quests: questService, progression: progressionService, loot: lootService, selectionBoxes: selectionBoxes, vault: vaultService, soloPartyBootstrap: *soloPartyBootstrap, hub: hub}
+			worldState.serverID = channelCfg.ServerID
 		}
 		if worldState != nil {
 			defer worldState.departArea()
@@ -826,12 +944,25 @@ func main() {
 		done := make(chan struct{})
 		defer close(done)
 		frames := clientFrames(c, done)
+		mailChanges := make(chan struct{}, 1)
 		ticker := time.NewTicker(30 * time.Second)
 		defer ticker.Stop()
 		for {
 			var incoming clientRead
 			select {
 			case incoming = <-frames:
+			case <-mailChanges:
+				if bootstrapped && selectedCharacterID != 0 && worldState != nil && worldState.characters != nil {
+					mailCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					alarm, err := worldState.mailboxAlarm(mailCtx)
+					cancel()
+					if err != nil {
+						event(map[string]any{"kind": "mailbox_alarm_error", "character_id": selectedCharacterID, "reason": err.Error()})
+					} else if err = sendPayload(0, 99, alarm); err != nil {
+						return
+					}
+				}
+				continue
 			case now := <-ticker.C:
 				if bootstrapped && selectedCharacterID != 0 && worldState != nil {
 					p, e := worldState.refreshDailyFatigue(now)
@@ -1118,6 +1249,41 @@ func main() {
 			}
 			if frame.Type != 1 {
 				event(map[string]any{"kind": "unsupported_client_type", "type": frame.Type})
+				continue
+			}
+			if bootstrapped && mailboxRequest(frame.ID) {
+				if !verified {
+					event(map[string]any{"kind": "mailbox_request_rejected", "id": frame.ID, "reason": "邮箱请求校验失败"})
+					continue
+				}
+				mailCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				packets, recipient, err := worldState.handleMailbox(mailCtx, selectedCharacterID, frame.ID, plaintext, frame.Raw, keys, purchaseSession.prefix)
+				cancel()
+				if err != nil {
+					event(map[string]any{"kind": "mailbox_request_rejected", "id": frame.ID, "character_id": selectedCharacterID, "reason": err.Error()})
+					// CMD781 的原生完成路径是 NOTI705；失败只记录，不猜测命令应答。
+					if frame.ID == 781 {
+						continue
+					}
+					if err := sendPayload(1, frame.ID, mailboxFailure(frame.ID, err)); err != nil {
+						return
+					}
+					continue
+				}
+				// 投递已提交，即使发件人连接随后断开，收件人仍应收到通知。
+				if recipient != 0 && hub != nil {
+					hub.notifyMailbox(recipient)
+				}
+				for _, packet := range packets {
+					if err := sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
+						return
+					}
+					event(map[string]any{"kind": packet.Name, "character_id": selectedCharacterID, "id": packet.ID, "plain_hex": hex.EncodeToString(packet.Payload)})
+				}
+				// CMD95/134 原生回调会更新附件与已读/删除状态，不再发送 NOTI99。
+				// NOTI99 会重新请求 CMD96；NOTI97 全量恢复经 0x145FCF970 销毁旧
+				// 邮件对象，而详情领取路径 0x145FD6A50 仍会访问已选对象。
+				// 保留登录和真正新投递的提醒，避免读信后刷新造成悬空引用。
 				continue
 			}
 			if bootstrapped && frame.ID == 2261 {
@@ -1441,9 +1607,10 @@ func main() {
 					event(map[string]any{"kind": "shop_buy_rejected", "reason": "checksum failed"})
 					continue
 				}
+				event(map[string]any{"kind": "shop_buy_request", "character_id": worldState.role.ID, "id": 21, "plain_hex": hex.EncodeToString(plaintext)})
 				plan, e := worldState.buyItem(plaintext)
 				if e != nil {
-					event(map[string]any{"kind": "shop_buy_refused", "character_id": worldState.role.ID, "reason": e.Error()})
+					event(map[string]any{"kind": "shop_buy_refused", "character_id": worldState.role.ID, "reason": e.Error(), "plain_hex": hex.EncodeToString(plaintext)})
 					if e = sendPayload(1, 21, protocol.Refusal(4)); e != nil {
 						return
 					}
@@ -1453,7 +1620,7 @@ func main() {
 					if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
 						return
 					}
-					event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID, "id": packet.ID})
+					event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID, "id": packet.ID, "plain_hex": hex.EncodeToString(packet.Payload)})
 				}
 				continue
 			}
@@ -1462,9 +1629,10 @@ func main() {
 					event(map[string]any{"kind": "shop_sell_rejected", "reason": "checksum failed"})
 					continue
 				}
+				event(map[string]any{"kind": "shop_sell_request", "character_id": worldState.role.ID, "id": 22, "plain_hex": hex.EncodeToString(plaintext)})
 				plan, e := worldState.sellItem(plaintext)
 				if e != nil {
-					event(map[string]any{"kind": "shop_sell_refused", "character_id": worldState.role.ID, "reason": e.Error()})
+					event(map[string]any{"kind": "shop_sell_refused", "character_id": worldState.role.ID, "reason": e.Error(), "plain_hex": hex.EncodeToString(plaintext)})
 					if e = sendPayload(1, 22, protocol.Refusal(4)); e != nil {
 						return
 					}
@@ -1474,7 +1642,7 @@ func main() {
 					if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
 						return
 					}
-					event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID, "id": packet.ID})
+					event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID, "id": packet.ID, "plain_hex": hex.EncodeToString(packet.Payload)})
 				}
 				continue
 			}
@@ -1869,6 +2037,26 @@ func main() {
 						}
 					}
 				}
+				// 创建奖励 10417791 的 [stackable] 块第三行（10418028 x30）。
+				// 独立事件键，与上面两项互不干扰；满包/目录未就绪时记 pending，
+				// 下次登录自动重试。
+				if odysseyRewardsEnabled() {
+					if lootService == nil {
+						event(map[string]any{"kind": "odyssey_create_potion_pending", "character_id": role.ID, "reason": "loot catalog unavailable"})
+					} else {
+						ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+						updated, applied, rewardErr := grantOdysseyCreatePotion(ctx, characters.Store, lootService.Catalog, lootService.BagRules, role)
+						cancel()
+						if rewardErr != nil {
+							event(map[string]any{"kind": "odyssey_create_potion_pending", "character_id": role.ID, "reason": rewardErr.Error()})
+						} else {
+							role = updated
+							if applied {
+								event(map[string]any{"kind": "odyssey_create_potion_granted", "character_id": role.ID, "template": 10418028, "quantity": 30})
+							}
+						}
+					}
+				}
 				if odysseyTemporaryCreditsEnabled() {
 					ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
 					updated, applied, creditErr := grantOdysseyCredits(ctx, characters.Store, role)
@@ -1901,6 +2089,52 @@ func main() {
 					}
 					for _, err := range pending {
 						event(map[string]any{"kind": "odyssey_milestone_gift_pending", "character_id": role.ID, "reason": err.Error()})
+					}
+					// 七章奖励：按服务端自有通关成绩补发，逐行独立收据；满包留欠，
+					// 下次登录/通关重试。
+					ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+					rewarded, chapterApplied, chapterPending := progressionService.OdysseyChapterRewards(ctx, role)
+					cancel()
+					role = rewarded
+					if chapterApplied {
+						event(map[string]any{"kind": "odyssey_chapter_rewards_granted", "character_id": role.ID})
+					}
+					for _, err := range chapterPending {
+						event(map[string]any{"kind": "odyssey_chapter_reward_pending", "character_id": role.ID, "reason": err.Error()})
+					}
+					// 毕业转换（P3 子项 8/10）：满级奥德赛角色只在选角时转普通角色，
+					// 副本结算不做（会改变等级门槛、拒掉客户端通关后的移动）。
+					ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+					graduated, gradApplied, gradErr := progressionService.OdysseyGraduate(ctx, role)
+					if gradErr != nil {
+						event(map[string]any{"kind": "odyssey_graduation_pending", "character_id": role.ID, "reason": gradErr.Error()})
+					} else {
+						role = graduated
+						if gradApplied {
+							event(map[string]any{"kind": "odyssey_graduated", "character_id": role.ID})
+						}
+					}
+					// 毕业奖励盒：独立收据，满包只欠盒子、不阻碍毕业本身。
+					boxed, boxApplied, boxErr := progressionService.OdysseyGraduationReward(ctx, role)
+					cancel()
+					role = boxed
+					if boxApplied {
+						event(map[string]any{"kind": "odyssey_graduate_reward_granted", "character_id": role.ID})
+					}
+					if boxErr != nil {
+						event(map[string]any{"kind": "odyssey_graduate_reward_pending", "character_id": role.ID, "reason": boxErr.Error()})
+					}
+					// 主线整理（P3 子项 9）：按当前等级清除剧情任务行（幂等、
+					// 不改已有行），分支任务保持可达；仅登录分支执行。
+					if questService != nil && questService.Odyssey != nil {
+						ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+						cleared, branches, mainErr := questService.OdysseyMainline(ctx, role)
+						cancel()
+						if mainErr != nil {
+							event(map[string]any{"kind": "odyssey_mainline_pending", "character_id": role.ID, "reason": mainErr.Error()})
+						} else if cleared > 0 {
+							event(map[string]any{"kind": "odyssey_mainline_applied", "character_id": role.ID, "cleared": cleared, "branches": branches})
+						}
 					}
 				}
 				profile := *selectProbe
@@ -2024,7 +2258,7 @@ func main() {
 					// Publish this actor before the area list is serialized, so the list already
 					// carries the other players standing in the same place.
 					if hub != nil && len(basic) > 0 {
-						worldState.peer = &lanPeer{roleID: role.ID, actorID: role.WireID, channel: channel, info: basic, addition: addition, send: sendPayload}
+						worldState.peer = &lanPeer{roleID: role.ID, actorID: role.WireID, channel: channel, info: basic, addition: addition, send: sendPayload, mailChanged: mailChanges}
 						hub.add(worldState.peer)
 						worldState.enterArea()
 					}
@@ -2243,6 +2477,10 @@ func main() {
 				}
 				selectedCharacterID = role.ID
 				selectedBasic, selectedAddition = basic, addition
+				select {
+				case mailChanges <- struct{}{}:
+				default:
+				}
 				if worldState != nil {
 					if e = worldState.announceSelf(event); e != nil {
 						event(map[string]any{"kind": "area_presence_error", "error": e.Error()})

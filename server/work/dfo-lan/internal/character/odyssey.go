@@ -13,6 +13,11 @@ import (
 )
 
 func OdysseyRole(role storage.Character) bool {
+	// Graduation wins over every launcher tier: a graduated character is a
+	// regular character no matter what DFO_ODYSSEY_MODE says.
+	if OdysseyGraduated(role) {
+		return false
+	}
 	if mode := os.Getenv("DFO_ODYSSEY_MODE"); mode != "" {
 		return mode == "1"
 	}

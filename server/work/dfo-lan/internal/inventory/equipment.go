@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -171,7 +172,7 @@ var poolJewelry = map[string]bool{"[amulet]": true, "[wrist]": true, "[ring]": t
 //     绑定与否只影响"能不能掉"，所以发放不再据此拒绝（掉落侧见 Basic）。
 //  2. **[durability] 缺失只对 durabilityOptional 里的部位放行**（见上表）。
 func (c *EquipmentCatalog) Reward(id uint32) (uint16, error) {
-	r, err := c.Definition(id)
+	r, err := c.definitionResolved(id, 0)
 	if err != nil {
 		return 0, err
 	}
@@ -190,6 +191,64 @@ func (c *EquipmentCatalog) Reward(id uint32) (uint16, error) {
 		return 0, fmt.Errorf("invalid equipment durability")
 	}
 	return uint16(d[0].Value), nil
+}
+
+// definitionResolved 跟随 [import script] 链补全"薄壳"装备。
+//
+// 真源里大量装备只是引用另一件的基础定义 —— equipment/character/common/jacket/cloth/
+// 100050791.equ 的内容只有 [name]/[attach type]/[usable period]/[value]/[move wav]/
+// [import script] `character/common/jacket/cloth/100050666.equ`，自身不带
+// [rarity]/[equipment type]/[durability]。不跟随这条链，发放就会以
+// "special equipment reward requires additional source state" 或
+// "missing source equipment durability" 失败；实机诊断
+// （cmd/wireprobe/selection_box_audit_test.go）显示 78 个自选盒 / 543 件装备因此发不出去。
+//
+// 自身显式给出的字段优先；基础取不到（目标不在目录里、或链太深）时退化为自身，
+// 保持原有报错行为而不是悄悄放行。
+func (c *EquipmentCatalog) definitionResolved(id uint32, depth int) (EquipmentDefinition, error) {
+	d, err := c.Definition(id)
+	if err != nil {
+		return d, err
+	}
+	if depth >= 8 {
+		return d, fmt.Errorf("equipment import chain too deep at %d", id)
+	}
+	target := importTarget(d.Fields["[import script]"])
+	if target == 0 || target == id {
+		return d, nil
+	}
+	base, err := c.definitionResolved(target, depth+1)
+	if err != nil {
+		return d, nil
+	}
+	for _, key := range []string{"[rarity]", "[equipment type]", "[durability]"} {
+		if len(d.Fields[key]) > 0 || len(base.Fields[key]) == 0 {
+			continue
+		}
+		if d.Fields == nil {
+			d.Fields = map[string][]pvf.Token{}
+		}
+		d.Fields[key] = base.Fields[key]
+	}
+	return d, nil
+}
+
+// importTarget 从 [import script] 的路径里取出目标模板号（文件名就是模板 id）。
+func importTarget(cells []pvf.Token) uint32 {
+	for _, t := range cells {
+		if t.Type != 6 {
+			continue
+		}
+		name := t.Text
+		if i := strings.LastIndex(name, "/"); i >= 0 {
+			name = name[i+1:]
+		}
+		name = strings.TrimSuffix(name, ".equ")
+		if n, err := strconv.ParseUint(name, 10, 32); err == nil {
+			return uint32(n)
+		}
+	}
+	return 0
 }
 
 // Basic is Reward plus the two rules that decide what a monster may drop:

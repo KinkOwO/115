@@ -267,10 +267,7 @@ func (b Bag) Add(c catalog.LootCatalog, r BagRules, id, amount uint32, expireTim
 			slots = [2]uint16{65, 120}
 		}
 	}
-	limit := item.StackLimit
-	if limit == 0 {
-		limit = r.MissingStackLimit
-	}
+	limit := stackLimitFor(r, item.StackableType, item.StackLimit)
 	if amount > limit {
 		return b, 0, fmt.Errorf("award exceeds stack limit")
 	}

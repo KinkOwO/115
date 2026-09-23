@@ -18,9 +18,14 @@ func (w *worldSession) buyItem(p []byte) ([]outboundPacket, error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	saved, receipt, _, e := w.loot.Buy(ctx, w.role, r)
+	saved, receipt, applied, e := w.loot.Buy(ctx, w.role, r)
 	if e != nil {
 		return nil, e
+	}
+	if !applied {
+		// 幂等命中 = 服务端没有发货。绝不能拿旧 receipt 回"成功 + 那个 slot"，那会
+		// 让客户端画出一个存档里并不存在的物品（实机复现的"幽灵盒子/库存已满"）。
+		return nil, fmt.Errorf("duplicate shop purchase request")
 	}
 	b, e := inventory.ReadBag(saved.State)
 	if e != nil {
@@ -61,9 +66,12 @@ func (w *worldSession) sellItem(p []byte) ([]outboundPacket, error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	saved, receipt, _, e := w.loot.Sell(ctx, w.role, r)
+	saved, receipt, applied, e := w.loot.Sell(ctx, w.role, r)
 	if e != nil {
 		return nil, e
+	}
+	if !applied {
+		return nil, fmt.Errorf("duplicate shop sale request")
 	}
 	ack, e := protocol.SellItemSuccess(receipt.GoldGained, []protocol.SoldItem{{
 		List:     r.List,
