@@ -16,7 +16,7 @@ func TestStoryLayerCompletesWithoutBossCheck(t *testing.T) {
 	s := storyLayerSession(t, true)
 	// The dummy boss carries NonCombat, so the client never reports its rank-3
 	// identity and completionTarget must stay zero for this whole test.
-	if s.hasKillableBoss() {
+	if s.hasFightableBoss() {
 		t.Fatal("display dummy counted as a killable boss")
 	}
 	if !s.atLayerFinalMap() {
@@ -24,7 +24,7 @@ func TestStoryLayerCompletesWithoutBossCheck(t *testing.T) {
 	}
 	// Clearing the room is what completes it; no BossCheck is involved.
 	killKillable(s)
-	if !s.roomSettled() {
+	if !s.roomEnemiesDead() {
 		t.Fatal("room not settled after every killable enemy died")
 	}
 	s.TryComplete()
@@ -47,7 +47,7 @@ func TestStoryLayerCompletesWithoutBossCheck(t *testing.T) {
 // every ordinary boss room the moment its small monsters died.
 func TestStoryLayerFallbackRefusesRealBossRoom(t *testing.T) {
 	s := storyLayerSession(t, false)
-	if !s.hasKillableBoss() {
+	if !s.hasFightableBoss() {
 		t.Fatal("real boss not recognised as killable")
 	}
 	killKillable(s)
@@ -144,11 +144,11 @@ func TestStoryLayerFallbackSkipsLotusTerminalLayer(t *testing.T) {
 		Visited: map[uint32][]protocol.DungeonMonster{},
 	}
 	// Preconditions: the fallback would fire here if the map were not exempt.
-	if s.hasKillableBoss() || !s.atLayerFinalMap() {
+	if s.hasFightableBoss() || !s.atLayerFinalMap() {
 		t.Fatal("precondition: the fallback would not have fired anyway")
 	}
 	s.Dead[0x102d] = true
-	if !s.roomSettled() {
+	if !s.roomEnemiesDead() {
 		t.Fatal("room not settled")
 	}
 	s.TryComplete()

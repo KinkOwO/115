@@ -75,7 +75,7 @@ func TestStoryLayerCompletionOnRealCastellanChamber(t *testing.T) {
 		}
 		// The crux: the boss the client would check for is a non-combat dummy,
 		// so no requested identity can ever exist for this run.
-		if run.hasKillableBoss() {
+		if run.hasFightableBoss() {
 			t.Fatal("final map now carries a killable boss; the fallback is obsolete")
 		}
 		dummy := false

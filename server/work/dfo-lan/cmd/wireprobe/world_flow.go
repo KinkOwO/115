@@ -17,13 +17,13 @@ import (
 )
 
 type worldSession struct {
-	characters         *character.Service
-	pilotDeath         *odysseyDeath
-	service            *world.Service
-	account            int64
-	serverID           uint32
-	role               storage.Character
-	level              byte
+	characters *character.Service
+	pilotDeath *odysseyDeath
+	service    *world.Service
+	account    int64
+	serverID   uint32
+	role       storage.Character
+	level      byte
 	// odyssey mirrors character.OdysseyRole for this session. It selects which
 	// source level gate the world service applies: an Arad Odyssey character
 	// follows the client's [odyssey enter level] instead of [need level].
@@ -47,6 +47,7 @@ type worldSession struct {
 	activeDungeon      *dungeon.Session
 	selectingDungeon   bool
 	completionSent     bool
+	completionErr      error
 	resultSent         bool
 	cardPlan           *loot.CardPlan
 	cardScrolled       bool
@@ -103,6 +104,7 @@ func (w *worldSession) enter(role storage.Character, spawn storage.WorldPosition
 	w.specialWarpPending = false
 	w.selectingDungeon = false
 	w.completionSent = false
+	w.completionErr = nil
 	w.resultSent = false
 	w.resetCards()
 	w.answeredQuests = nil

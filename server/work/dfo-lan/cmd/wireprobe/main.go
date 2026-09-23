@@ -1164,6 +1164,22 @@ func main() {
 				}
 				continue
 			}
+			if frame.Type == 1 && frame.ID == 2079 && bootstrapped && verified && characters != nil {
+				id, err := protocol.DecodeSynopsisRead(plaintext)
+				var payload []byte
+				if err == nil {
+					payload, err = saveSynopsisRead(characters.Store, worldState, id)
+				}
+				if err != nil {
+					event(map[string]any{"kind": "synopsis_read_refused", "error": err.Error()})
+					continue
+				}
+				if err = sendPayload(0, 2310, payload); err != nil {
+					return
+				}
+				event(map[string]any{"kind": "synopsis_table_info_sent", "character_id": worldState.role.ID, "synopsis_id": id, "attempt": "2/3", "plain_hex": hex.EncodeToString(payload)})
+				continue
+			}
 			if frame.Type == 1 && frame.ID == 1438 && bootstrapped && verified && characters != nil {
 				advanced, err := saveStoryDigest(characters.Store, worldState)
 				if err != nil {
@@ -1632,7 +1648,8 @@ func main() {
 				plan, e = worldState.deleteItems(plaintext, frame.Raw)
 				if e != nil {
 					event(map[string]any{"kind": "item_delete_refused", "reason": e.Error(), "character_id": worldState.role.ID})
-					if e = sendPayload(1, 18, protocol.MaterialDeleteReply(nil, false)); e != nil {
+					rows, _ := protocol.DecodeMaterialDelete(plaintext)
+					if e = sendPayload(1, 18, protocol.MaterialDeleteReply(rows, false)); e != nil {
 						return
 					}
 					continue
@@ -1842,6 +1859,7 @@ func main() {
 				case 38:
 					pending, plan, e = worldState.interactDoor(plaintext)
 				case 39:
+					worldState.completionErr = nil
 					plan, e = worldState.monsterDeath(plaintext)
 				case 40:
 					plan, e = worldState.playerDeath(plaintext, frame.Raw)
@@ -1927,6 +1945,10 @@ func main() {
 				}); e != nil {
 					return
 				}
+				if frame.ID == 39 && worldState.completionErr != nil {
+					event(map[string]any{"kind": "dungeon_completion_error", "map": worldState.activeDungeon.Room.Map, "error": worldState.completionErr.Error()})
+					worldState.completionErr = nil
+				}
 				if pending != nil {
 					if frame.ID == 16 || frame.ID == 72 || frame.ID == 2062 {
 						worldState.deathSent = map[uint16]bool{}
@@ -1937,6 +1959,7 @@ func main() {
 					// A dungeon is a private instance: this actor leaves the shared town.
 					worldState.leaveScene()
 					worldState.completionSent = false
+					worldState.completionErr = nil
 					worldState.resultSent = false
 					worldState.selectingDungeon = false
 					event(map[string]any{"kind": "dungeon_session_started", "dungeon": pending.Definition.ID, "maze": pending.Maze.Index, "map": pending.Room.Map, "monsters": len(pending.Monsters), "quests_changed": false})
@@ -2465,6 +2488,9 @@ func main() {
 				plan.CinematicSkips, e = cinematicRestore(role.State)
 				if e == nil {
 					plan.StoryDigest, e = storyDigestRestore(role.State)
+				}
+				if e == nil {
+					plan.SynopsisRead, e = synopsisRestore(role.State)
 				}
 				if e == nil && characters != nil {
 					plan.SkillVariations, e = characters.VariationRestore(role)
