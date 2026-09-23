@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"dfolan/internal/cashshop"
 	"dfolan/internal/game/protocol"
@@ -24,11 +25,19 @@ type pilotLedger struct {
 type vaultPilotLedger struct {
 	pilotLedger
 	vault storage.VaultState
+	space byte
+}
+
+func (l *vaultPilotLedger) VaultPurchaseSpace(context.Context, int64, int64, string) (byte, error) {
+	return l.space, nil
 }
 
 func (l *vaultPilotLedger) PurchaseCashVault(_ context.Context, o storage.CashOrder, fn func(storage.VaultState) (storage.VaultState, error)) (storage.CashReceipt, bool, error) {
+	if o.VaultSpace != l.space {
+		return storage.CashReceipt{}, false, fmt.Errorf("扩容目标金库不一致")
+	}
 	if l.calls > 0 && l.order.Key == o.Key {
-		return storage.CashReceipt{Vault: &l.vault}, false, nil
+		return storage.CashReceipt{Vault: &l.vault, VaultSpace: o.VaultSpace}, false, nil
 	}
 	next, e := fn(l.vault)
 	if e != nil {
@@ -37,7 +46,7 @@ func (l *vaultPilotLedger) PurchaseCashVault(_ context.Context, o storage.CashOr
 	l.vault = next
 	l.order = o
 	l.calls++
-	return storage.CashReceipt{Vault: &l.vault, After: 70, Deliveries: []storage.CashDelivery{{Product: o.Lines[0].Product, Quantity: 1}}}, true, nil
+	return storage.CashReceipt{Vault: &l.vault, VaultSpace: o.VaultSpace, After: 70, Deliveries: []storage.CashDelivery{{Product: o.Lines[0].Product, Quantity: 1}}}, true, nil
 }
 func TestVaultPurchasePackets(t *testing.T) {
 	p, e := cashshop.LoadPilot("../../configs/shop-special-candidate.json", "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80")
@@ -48,7 +57,9 @@ func TestVaultPurchasePackets(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	rules.VerifiedSlots = append(rules.VerifiedSlots, 24)
+	for slots := uint16(24); slots <= 264; slots += 16 {
+		rules.VerifiedSlots = append(rules.VerifiedSlots, slots)
+	}
 	s, e := newShopPilotSession()
 	if e != nil {
 		t.Fatal(e)
@@ -66,21 +77,75 @@ func TestVaultPurchasePackets(t *testing.T) {
 		t.Fatal(e)
 	}
 	packets, e := shopPilotPackets(r, 70, true)
-	if e != nil || len(packets) != 3 || packets[0].ID != 13 || packets[0].Payload[0] != 2 || binary.LittleEndian.Uint16(packets[0].Payload[1:]) != 24 || packets[1].ID != 53 || packets[2].ID != 64 {
-		t.Fatal("vault purchase packets", e)
+	if e != nil {
+		t.Fatal("金库购买回包失败", e)
+	}
+	if len(packets) != 4 {
+		t.Fatalf("金库购买应返回解锁通知、快照、余额和成功应答，实际 %d 包", len(packets))
+	}
+	// 原生刷新仅在容量增大时执行，NOTI66 必须先于改写容量的 NOTI13。
+	if packets[0].Kind != 0 || packets[0].ID != 66 || !bytes.Equal(packets[0].Payload, []byte{1, 0, 24, 0}) {
+		t.Fatalf("首包应为个人金库 24 格即时解锁通知：%+v", packets[0])
+	}
+	if packets[1].Kind != 0 || packets[1].ID != 13 || !bytes.Equal(packets[1].Payload, []byte{2, 24, 0, 0, 0}) {
+		t.Fatalf("解锁后应同步个人金库容量和物品快照：%+v", packets[1])
+	}
+	if packets[2].Kind != 0 || packets[2].ID != 53 || packets[3].Kind != 1 || packets[3].ID != 64 {
+		t.Fatal("金库快照后应同步余额并返回购买成功")
 	}
 	if _, e = preparePackets(s.keys, packets); e != nil {
 		t.Fatal(e)
 	}
+	firstPackets := packets
 	r, applied, e = s.purchase(context.Background(), p, l, 1, 1, body, frame)
 	if e != nil || applied || l.calls != 1 {
 		t.Fatal("duplicate request applied", e)
 	}
 	packets, e = shopPilotPackets(r, 70, false)
-	if e != nil || len(packets) != 2 {
-		t.Fatal("replay repeated success", e)
+	if e != nil {
+		t.Fatal("金库购买重放回包失败", e)
 	}
-	t.Log("PASS vault NOTI13 kind2 / balance53 / ACK64; encrypted encoding; replay no extra ACK; no bag NOTI14")
+	if len(packets) != 3 {
+		t.Fatalf("重放只能同步解锁、快照和余额，不应重复购买成功应答，实际 %d 包", len(packets))
+	}
+	for i, packet := range packets {
+		if packet.Kind != firstPackets[i].Kind || packet.ID != firstPackets[i].ID || !bytes.Equal(packet.Payload, firstPackets[i].Payload) {
+			t.Fatalf("重放第 %d 包未保持金库同步内容和顺序：%+v", i, packet)
+		}
+	}
+	t.Log("通过：NOTI66 即时解锁先于 NOTI13 金库快照、余额和购买成功应答；重复请求仅处理一次且不重复成功应答")
+	secondary, err := p.Config.VaultUpgrades(45)
+	if err != nil || len(secondary) != 16 || secondary[3000129].Before != 8 || secondary[3000129].Price != 30 || secondary[3001202].Before != 24 || secondary[3001216].After != 264 {
+		t.Fatalf("第二金库的源商品、首档或末档无效：%v", err)
+	}
+	for id, upgrade := range secondary {
+		second := &vaultPilotLedger{space: 45, vault: storage.VaultState{Slots: upgrade.Before, Items: []byte(`[]`), ConfigVersion: rules.SourceSHA256}}
+		binary.LittleEndian.PutUint32(body[5:], id)
+		request := append(make([]byte, 13), body...)
+		r, applied, err := s.purchase(context.Background(), p, second, 1, 1, body, request)
+		if err != nil || !applied || second.vault.Slots != upgrade.After || second.order.VaultSpace != 45 || second.order.Lines[0].UnitPrice != upgrade.Price || l.vault.Slots != 24 {
+			t.Fatalf("第二金库商品 %d 未独立升级或价格不符：%v", id, err)
+		}
+		packets, err := shopPilotPackets(r, 70, applied)
+		if err != nil || len(packets) != 4 {
+			t.Fatalf("第二金库商品 %d 回包无效：%v", id, err)
+		}
+		wantNotice := []byte{22, 0, byte(upgrade.After), byte(upgrade.After >> 8)}
+		wantVault := []byte{45, byte(upgrade.After), byte(upgrade.After >> 8), 0, 0}
+		if packets[0].ID != 66 || !bytes.Equal(packets[0].Payload, wantNotice) || packets[1].ID != 13 || !bytes.Equal(packets[1].Payload, wantVault) {
+			t.Fatalf("第二金库商品 %d 的通知类型、容量或容器编号不符", id)
+		}
+		if _, err = preparePackets(s.keys, packets); err != nil {
+			t.Fatal(err)
+		}
+		r, applied, err = s.purchase(context.Background(), p, second, 1, 1, body, request)
+		if err != nil || applied || second.calls != 1 || r.VaultSpace != 45 {
+			t.Fatalf("第二金库商品 %d 重放丢失金库目标或重复升级：%v", id, err)
+		}
+		if _, _, err = s.purchase(context.Background(), p, second, 1, 1, body, append(request, 1)); err == nil {
+			t.Fatalf("第二金库商品 %d 重复购买旧档位未被拒绝", id)
+		}
+	}
 }
 
 func (f *pilotLedger) PurchaseCashToBag(_ context.Context, o storage.CashOrder, deliver func(json.RawMessage) (json.RawMessage, error)) (storage.CashReceipt, bool, error) {
