@@ -23,14 +23,14 @@ type Rules struct {
 	SwordmasterPilot bool `json:"swordmaster_pilot,omitempty"`
 }
 type State struct {
-	AllJobsPilot    bool                   `json:"all_jobs_pilot,omitempty"`
-	Level           byte                   `json:"level"`
-	Experience      uint64                 `json:"experience,omitempty"`
-	SkillPoints     [2]uint16              `json:"skill_points,omitempty"`
-	TechniquePoints [2]uint16              `json:"technique_points,omitempty"`
-	CurrencySlot2   uint32                 `json:"currency_slot2,omitempty"`
-	Advancement     byte                   `json:"advancement"`
-	Awakening       byte                   `json:"awakening,omitempty"`
+	AllJobsPilot    bool      `json:"all_jobs_pilot,omitempty"`
+	Level           byte      `json:"level"`
+	Experience      uint64    `json:"experience,omitempty"`
+	SkillPoints     [2]uint16 `json:"skill_points,omitempty"`
+	TechniquePoints [2]uint16 `json:"technique_points,omitempty"`
+	CurrencySlot2   uint32    `json:"currency_slot2,omitempty"`
+	Advancement     byte      `json:"advancement"`
+	Awakening       byte      `json:"awakening,omitempty"`
 	// No omitempty: an unallocated VP block still has to serialize, otherwise
 	// the client decodes an empty variation section and the panel reads blank
 	// until the next character switch.
@@ -39,6 +39,7 @@ type State struct {
 	InitialSkills   []int32                `json:"initial_skill_cells"`
 	LearnedSkills   [2]map[uint16]byte     `json:"learned_skills,omitempty"`
 	SkillSlots      [2]map[uint16]uint16   `json:"skill_slots,omitempty"`
+	SkillCommands   []byte                 `json:"skill_commands,omitempty"`
 	SourcePath      string                 `json:"source_path"`
 	SourceSHA256    string                 `json:"source_sha256"`
 	// Create equipment cells are intentionally unresolved until the native

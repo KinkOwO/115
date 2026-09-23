@@ -1464,6 +1464,32 @@ func main() {
 				event(map[string]any{"kind": "content_briefing_response", "id": frame.ID, "character_id": selectedCharacterID, "bytes": len(payload), "plain_hex": hex.EncodeToString(payload)})
 				continue
 			}
+			if characters != nil && bootstrapped && frame.ID == 331 {
+				if !verified {
+					event(map[string]any{"kind": "skill_commands_rejected", "reason": "checksum failed", "character_id": selectedCharacterID})
+					continue
+				}
+				if worldState == nil || worldState.role.ID != selectedCharacterID {
+					event(map[string]any{"kind": "skill_commands_rejected", "reason": "character selection mismatch", "character_id": selectedCharacterID})
+					continue
+				}
+				count, e := skillState.saveCommands(characters, worldState, plaintext)
+				if e != nil {
+					event(map[string]any{"kind": "skill_commands_rejected", "reason": e.Error(), "character_id": selectedCharacterID})
+				} else {
+					event(map[string]any{"kind": "skill_commands_saved", "character_id": selectedCharacterID, "count": count})
+					restore, restoreErr := characters.EntrySkills(worldState.role)
+					if restoreErr != nil {
+						event(map[string]any{"kind": "skill_commands_refresh_failed", "reason": restoreErr.Error(), "character_id": selectedCharacterID})
+					} else {
+						if e = sendPayload(0, 19, restore); e != nil {
+							return
+						}
+						event(map[string]any{"kind": "skill_commands_refreshed", "character_id": selectedCharacterID, "id": 19})
+					}
+				}
+				continue
+			}
 			if characters != nil && bootstrapped && (frame.ID == 28 || frame.ID == 29 || frame.ID == 483) {
 				if !verified {
 					continue

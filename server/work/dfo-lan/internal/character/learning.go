@@ -128,11 +128,22 @@ func (s *Service) skillRows(role storage.Character, state State, tree int) ([]pr
 		}
 	}
 	out := make([]protocol.LearnedSkill, 0, len(ids))
+	var custom map[uint16][]uint32
+	if len(state.SkillCommands) > 0 {
+		parsed, err := protocol.DecodeSkillCommands(state.SkillCommands)
+		if err != nil {
+			return nil, fmt.Errorf("invalid saved skill commands: %w", err)
+		}
+		custom = parsed.Entries
+	}
 	for _, raw := range ids {
 		id := uint16(raw)
 		row := protocol.LearnedSkill{ID: id, Level: known[id], Slot: slots[id]}
 		if source := prof.SkillCommands[id]; len(source) > 0 {
 			row.Commands = append([]uint32(nil), source...)
+		}
+		if override, ok := custom[id]; ok {
+			row.Commands = append([]uint32(nil), override...)
 		}
 		out = append(out, row)
 	}

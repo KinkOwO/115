@@ -1,6 +1,7 @@
 # CHANGELOG
 
 ## 2026-09-23
+- **技能指令改键保存（CMD331，实机确认）**：新增 CMD331 快照解析与校验，将技能自定义指令按角色持久化，并在 NOTI19 技能行中覆盖源指令；保存后立即发送 NOTI19 刷新当前技能窗口。用户确认改键后当前窗口即时更新，关闭重开及重选角色后仍回显新指令。未改数据库结构。证据与协议边界见 `server/work/dfo-lan/docs/protocol/next51-skill-command-customizing.md`。
 - 修复普通 Avatar 与 Clone 同槽共存时的登录显示及实时脱下刷新：mode1 装备详情行在偏移 24 提供普通外观模板；脱下已穿戴 Clone 后，在原有装备刷新帧之后追加完整 mode1 `EntryAddition`，恢复客户端普通 Avatar 格子关联。未改存档格式或数据库结构。
   - **实机确认**：用户验证重登后普通 Avatar 与 Clone 分页分别显示正确；脱下 Clone 后普通 Avatar 同槽格子保留，Clone 页可正常穿脱。用户确认正常。
   - **验证**：`go test ./...`、`go vet ./...` 通过。实现与完整证据链见 `server/work/dfo-lan/docs/protocol/avatar-clone-coexistence-candidate.md`。

@@ -6,6 +6,7 @@
 ## 0. 当前基线与交付边界
 
 - **2026-09-23 邮箱移植基线**：普通邮箱功能及后续刷新、领取崩溃、收件角色和金币显示修复已完整移植；原分支用户确认本轮修复完成，上游移植分支实机待验证。特殊付费、时装和宠物邮件仍未开放。
+- **2026-09-23 技能指令改键基线**：CMD331 自定义指令快照按角色 JSON 状态持久化，NOTI19 重建技能列表时覆盖对应技能的源指令；保存成功后立即刷新 NOTI19。实机确认保存后技能窗口即时更新，关闭重开及重选角色仍回显新键位。CMD332 全部重置语义仍待单独取证。详见 `work/dfo-lan/docs/protocol/next51-skill-command-customizing.md`。
 
 - **归档基准服务**：`bin/wireprobe-dungeon39.exe` 为前一阶段验收通过的 39 版服务程序，已实机验证进城、装备显示、重登保留；日常测试默认以此为稳定基准。
 - **源码候选服务**：`bin/wireprobe-handoff-source.exe` 为当前源码编译版（已补齐入城 NOTI14 装备外观刷新逻辑，通过 `go test` 与 `go vet`）。2026-09-20 实机确认：默认启动链用 `configs/characters.skycastle-release.json` 这一代角色目录时，建号会按 `option[8]` 落账转职，并按源 `[create equipment list]` 投影初始穿戴（见 `work/dfo-lan/docs/protocol/next45-creation-equipment.md`）。

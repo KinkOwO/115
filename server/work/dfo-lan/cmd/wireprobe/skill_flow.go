@@ -12,8 +12,35 @@ import (
 )
 
 type skillSession struct {
-	nonce       [16]byte
-	initialized bool
+	nonce           [16]byte
+	initialized     bool
+	commandSequence uint64
+}
+
+func (s *skillSession) saveCommands(cs *character.Service, w *worldSession, p []byte) (int, error) {
+	if cs == nil || w == nil || w.role.ID == 0 {
+		return 0, fmt.Errorf("skill commands require owned selected character")
+	}
+	req, err := protocol.DecodeSkillCommands(p)
+	if err != nil {
+		return 0, err
+	}
+	if !s.initialized {
+		if _, err = rand.Read(s.nonce[:]); err != nil {
+			return 0, err
+		}
+		s.initialized = true
+	}
+	s.commandSequence++
+	key := fmt.Sprintf("skill-commands-v1:%x:%d", s.nonce, s.commandSequence)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	saved, _, err := cs.SaveSkillCommands(ctx, w.role, key, req)
+	if err != nil {
+		return 0, err
+	}
+	w.role = saved
+	return len(req.Entries), nil
 }
 
 // skillTreeRefreshRequired reports whether the id19 full skill-tree restore has
