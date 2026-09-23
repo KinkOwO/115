@@ -16,6 +16,7 @@ import (
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/game/wire"
 	"dfolan/internal/inventory"
+	"dfolan/internal/legion"
 	"dfolan/internal/loot"
 	"dfolan/internal/progression"
 	"dfolan/internal/quest"
@@ -82,6 +83,7 @@ func main() {
 	vaultPurchase := flag.Bool("vault-purchase-candidate", os.Getenv("DFO_VAULT_PURCHASE_CANDIDATE") == "1", "enable isolated vault purchase candidate")
 	vaultRelease := flag.Bool("vault-purchase-release", os.Getenv("DFO_VAULT_PURCHASE_RELEASE") == "1", "enable accepted personal vault purchases in release profile")
 	randomOptionFile := flag.String("random-option-catalog", os.Getenv("DFO_RANDOM_OPTION_CATALOG"), "current-client magic-seal random option rules; enables CMD393 unsealing")
+	apocalypseCatalogFile := flag.String("apocalypse-catalog", "configs/apocalypse.generated.json", "compiled apocalypse.ctp table (phase clock, operations, gates, rewards, duty skills)")
 	flag.Parse()
 	if *fullEquipmentFile == "" {
 		for _, cand := range []string{
@@ -747,6 +749,26 @@ func main() {
 	if selectionBoxes == nil {
 		log.Printf("warning: no selection box catalog; pick-a-item boxes go down the generic booster path")
 	}
+	// 末世录/军团编译表（apocalypse.ctp）。阶段时钟、四个作战、门禁时刻、投币开关、
+	// 奖励与职责参数全部出自这张表；缺表时军团确认会记一条
+	// `legion_catalog_missing` 事件，而不是假装校验通过。
+	var apocalypseCatalog *catalog.ApocalypseCatalog
+	var apocalypseClock *legion.ApocalypseClock
+	if *apocalypseCatalogFile != "" {
+		loaded, err := catalog.LoadApocalypseCatalog(*apocalypseCatalogFile)
+		if err != nil {
+			log.Printf("warning: load apocalypse catalog (%s): %v", *apocalypseCatalogFile, err)
+		} else if clock, err := legion.NewApocalypseClock(loaded); err != nil {
+			log.Printf("warning: apocalypse clock (%s): %v", *apocalypseCatalogFile, err)
+		} else {
+			apocalypseCatalog, apocalypseClock = loaded, clock
+			log.Printf("loaded apocalypse table (%d records, %d operations, %d phases, %gs total) from %s",
+				loaded.RecordCount, len(loaded.Operations), clock.Len(), clock.TotalSeconds(), *apocalypseCatalogFile)
+		}
+	}
+	if apocalypseCatalog == nil {
+		log.Printf("warning: no apocalypse catalog; legion operation confirmations are not validated")
+	}
 	// 物品商店表：源用 [need material] 定价的商品（奥德赛商店的盒子要 100 个银币）
 	// 必须按材料扣，否则一律按写死的金币单价白送。
 	var itemShops *catalog.ItemShops
@@ -914,6 +936,9 @@ func main() {
 		var skillState skillSession
 		var equipmentState equipmentSession
 		var sortState sortSession
+		var legionState legionSession
+		legionState.catalog = apocalypseCatalog
+		legionState.clock = apocalypseClock
 		if worldService != nil {
 			worldState = &worldSession{characters: characters, service: worldService, account: developmentAccount, flags: townPolicy.Flags, dungeons: dungeonCatalog, tutorials: tutorialRoutes, tutorialDungeons: tutorialDungeons, professions: characters.Catalog, fatigue: fatigueService, quests: questService, progression: progressionService, loot: lootService, selectionBoxes: selectionBoxes, vault: vaultService, soloPartyBootstrap: *soloPartyBootstrap, hub: hub}
 			worldState.serverID = channelCfg.ServerID
@@ -1175,6 +1200,36 @@ func main() {
 					event(map[string]any{"kind": p.Name, "id": p.ID, "plain_hex": hex.EncodeToString(p.Payload)})
 				}); err != nil {
 					return
+				}
+				continue
+			}
+			if frame.Type == 1 && legion.Requests(frame.ID) && bootstrapped && verified && worldState != nil {
+				// Legion / apocalypse family. CMD2043/2354/2045 are handled in
+				// town and CMD2355 inside the dungeon; the rest of the family is
+				// routed here so an unimplemented packet is logged as an
+				// explicit refusal instead of vanishing.
+				legionPlan, legionErr := legionState.handle(worldState, plaintext, frame.ID)
+				// The request body is logged whether or not the opcode is
+				// answered. Settling X1 (next64 §6.2) — whether the caller's
+				// appended length already contains the 13-byte envelope — is
+				// the point of P1's observability, so both the byte count and
+				// the raw bytes are kept.
+				legionBytes, legionHex := legionRequestBody(plaintext)
+				if legionErr != nil {
+					event(map[string]any{"kind": "legion_refused", "id": frame.ID, "reason": legionErr.Error(), "request_bytes": legionBytes, "request_hex": legionHex})
+					continue
+				}
+				for _, note := range legionPlan.Events {
+					note["id"] = frame.ID
+					note["request_bytes"] = legionBytes
+					note["request_hex"] = legionHex
+					event(note)
+				}
+				for _, packet := range legionPlan.Packets {
+					if err := sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
+						return
+					}
+					event(map[string]any{"kind": packet.Name, "id": packet.ID, "character_id": worldState.role.ID, "request_bytes": legionBytes, "request_hex": legionHex, "plain_hex": hex.EncodeToString(packet.Payload)})
 				}
 				continue
 			}
@@ -1904,6 +1959,13 @@ func main() {
 						} else {
 							worldState.selectingDungeon = false
 						}
+						// A legion run lives inside a dungeon, so leaving it ends
+						// the run. The client normally says so itself; this is
+						// the backstop for a player who just walks out (P6).
+						if note, closed := legionState.abandonOnLeave(p.Name, worldState.role.ID); closed {
+							note["id"] = frame.ID
+							event(note)
+						}
 					}
 					if p.Name == "monster_death_confirmed" {
 						if worldState.deathSent == nil {
@@ -1924,6 +1986,10 @@ func main() {
 				}
 				if frame.ID == 42 {
 					worldState.activeDungeon = nil
+					if note, closed := legionState.abandonOnLeave("CMD42 dungeon leave", worldState.role.ID); closed {
+						note["id"] = frame.ID
+						event(note)
+					}
 				}
 				if frame.ID == 42 || frame.ID == 132 {
 					worldState.selectingDungeon = false

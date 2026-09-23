@@ -1,0 +1,3010 @@
+{
+  "source": "contents/2026/apocalypse/etc/apocalypse.ctp",
+  "sha256": "d560876f683d921ba8bab42ac268c51e2a704ba1dabaf1236ad7eeca78a8dba7",
+  "bytes": 9280,
+  "version": 1,
+  "recordCount": 65,
+  "poolTags": [
+    "[party waiting area]",
+    "[role per member limit]",
+    "[member]",
+    "[keldon xavi final damage rate]",
+    "[collaborate attack groggy duration increase per keldon xavi stack]",
+    "[guardian hp increase per keldon xavi stack]",
+    "[skirmisher monster hp reduction per keldon xavi stack]",
+    "[operation data set]",
+    "[allow coin]",
+    "[card Symbol Index]",
+    "[gate schedule]",
+    "[gateflow]",
+    "[index]",
+    "[member limit]",
+    "[phase info]",
+    "[recommend fame]",
+    "[reward data]",
+    "[string data]",
+    "[ting reward data]",
+    "[type fixed value]",
+    "[type]",
+    "[gate close warning]"
+  ],
+  "phaseClock": [
+    {
+      "phase": 0,
+      "seconds": 90
+    },
+    {
+      "phase": 1,
+      "seconds": 300
+    },
+    {
+      "phase": 2,
+      "seconds": 300
+    },
+    {
+      "phase": 3,
+      "seconds": 300
+    },
+    {
+      "phase": 4,
+      "seconds": 600
+    },
+    {
+      "phase": 5,
+      "seconds": 600
+    }
+  ],
+  "operations": [
+    {
+      "row": 10,
+      "index": 1,
+      "type": 1,
+      "cardSymbolIndex": 7,
+      "memberLimit": "party",
+      "recommendFame": 98171,
+      "typeFixedValue": 5,
+      "allowCoin": [
+        -1,
+        8
+      ],
+      "gateSchedule": [
+        900,
+        1,
+        0,
+        0,
+        0
+      ],
+      "gateFlow": [
+        1,
+        2,
+        3,
+        -1,
+        -1
+      ],
+      "reward": {
+        "label": "normal",
+        "values": [
+          10421367,
+          1,
+          1000000,
+          1,
+          1
+        ]
+      },
+      "tingReward": {
+        "label": "normal",
+        "values": [
+          10421367,
+          1,
+          1000000,
+          1,
+          0
+        ]
+      },
+      "stringData": [
+        "Apocalypse_Difficulty_Name_01",
+        "Apocalypse_Difficulty_Info_01",
+        "Apocalypse_Difficulty_Explain_01"
+      ]
+    },
+    {
+      "row": 24,
+      "index": 2,
+      "type": 2,
+      "cardSymbolIndex": 0,
+      "memberLimit": "party",
+      "recommendFame": 105881,
+      "typeFixedValue": 5,
+      "gateSchedule": [
+        300,
+        3,
+        1,
+        2,
+        0,
+        240,
+        3,
+        1,
+        0,
+        0,
+        180,
+        3,
+        0,
+        0,
+        0
+      ],
+      "gateFlow": [
+        1,
+        3,
+        4,
+        5,
+        -1,
+        2,
+        4,
+        5,
+        -1,
+        -1,
+        3,
+        2,
+        3,
+        4,
+        5,
+        4,
+        5,
+        -1,
+        -1,
+        -1
+      ],
+      "gateCloseWarning": [
+        {
+          "float": 270
+        },
+        {
+          "text": "Contents\\2026\\Apocalypse\\Xui\\Animation\\ShortcutWarning\\Warning_02_01.ani"
+        },
+        {
+          "float": 210
+        },
+        {
+          "text": "Contents\\2026\\Apocalypse\\Xui\\Animation\\ShortcutWarning\\Warning_02_02.ani"
+        }
+      ],
+      "reward": {
+        "label": "expert",
+        "values": [
+          10421369,
+          1,
+          1000000,
+          2,
+          1
+        ]
+      },
+      "tingReward": {
+        "label": "expert",
+        "values": [
+          10421369,
+          1,
+          1000000,
+          2,
+          0
+        ]
+      },
+      "stringData": [
+        "Apocalypse_Difficulty_Name_02",
+        "Apocalypse_Difficulty_Info_02",
+        "Apocalypse_Difficulty_Explain_02"
+      ]
+    },
+    {
+      "row": 38,
+      "index": 3,
+      "type": 3,
+      "cardSymbolIndex": 0,
+      "memberLimit": "party",
+      "recommendFame": 105881,
+      "typeFixedValue": 5,
+      "gateSchedule": [
+        300,
+        3,
+        1,
+        2,
+        4,
+        255,
+        3,
+        1,
+        2,
+        0,
+        240,
+        3,
+        1,
+        0,
+        0,
+        180,
+        3,
+        0,
+        0,
+        0
+      ],
+      "gateFlow": [
+        1,
+        3,
+        4,
+        5,
+        -1,
+        2,
+        4,
+        5,
+        -1,
+        -1,
+        3,
+        2,
+        3,
+        4,
+        5,
+        4,
+        5,
+        -1,
+        -1,
+        -1
+      ],
+      "gateCloseWarning": [
+        {
+          "float": 285
+        },
+        {
+          "text": "Contents\\2026\\Apocalypse\\Xui\\Animation\\ShortcutWarning\\Warning_02_01.ani"
+        },
+        {
+          "float": 270
+        },
+        {
+          "text": "Contents\\2026\\Apocalypse\\Xui\\Animation\\ShortcutWarning\\Warning_02_02.ani"
+        },
+        {
+          "float": 210
+        },
+        {
+          "text": "Contents\\2026\\Apocalypse\\Xui\\Animation\\ShortcutWarning\\Warning_02_03.ani"
+        }
+      ],
+      "reward": {
+        "label": "master",
+        "values": [
+          10421369,
+          1,
+          1000000,
+          1,
+          1
+        ]
+      },
+      "tingReward": {
+        "label": "master",
+        "values": [
+          10421369,
+          1,
+          1000000,
+          3,
+          0
+        ]
+      },
+      "stringData": [
+        "Apocalypse_Difficulty_Name_03",
+        "Apocalypse_Difficulty_Info_03",
+        "Apocalypse_Difficulty_Explain_03"
+      ]
+    },
+    {
+      "row": 52,
+      "index": 5,
+      "type": 5,
+      "cardSymbolIndex": 0,
+      "memberLimit": "party",
+      "recommendFame": 73993,
+      "typeFixedValue": 5,
+      "gateSchedule": [
+        900,
+        1,
+        0,
+        0,
+        0
+      ],
+      "gateFlow": [
+        1,
+        2,
+        3,
+        -1,
+        -1
+      ],
+      "reward": {
+        "label": "match",
+        "values": [
+          10421365,
+          1,
+          1000000,
+          1,
+          1
+        ]
+      },
+      "tingReward": {
+        "label": "match",
+        "values": [
+          10421365,
+          1,
+          1000000,
+          3,
+          0
+        ]
+      },
+      "stringData": [
+        "Apocalypse_Difficulty_Name_01"
+      ]
+    }
+  ],
+  "records": [
+    {
+      "index": 0,
+      "offset": 36,
+      "name": "[party waiting area]",
+      "flags": 1,
+      "parent": -1,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 239
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 1
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 600
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 200
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 1,
+      "offset": 128,
+      "name": "[role per member limit]",
+      "flags": 2,
+      "parent": -1,
+      "cells": null,
+      "refs": [
+        {
+          "name": "[member]",
+          "values": [
+            2,
+            3,
+            4,
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "index": 2,
+      "offset": 228,
+      "name": "[member]",
+      "flags": 2,
+      "parent": 1,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 1
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 1
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 1
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 3,
+      "offset": 308,
+      "name": "[member]",
+      "flags": 2,
+      "parent": 1,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 2
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 2
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 1
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 1
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 1
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 4,
+      "offset": 412,
+      "name": "[member]",
+      "flags": 2,
+      "parent": 1,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 3
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 2
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 2
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 1
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 2
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 5,
+      "offset": 516,
+      "name": "[member]",
+      "flags": 2,
+      "parent": 1,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 4
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 2
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 2
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 1
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 2
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 6,
+      "offset": 620,
+      "name": "[keldon xavi final damage rate]",
+      "flags": 1,
+      "parent": -1,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float"
+        },
+        {
+          "tag": 4,
+          "kind": "float"
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 10
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 10
+        },
+        {
+          "tag": 4,
+          "kind": "float"
+        },
+        {
+          "tag": 4,
+          "kind": "float"
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 7,
+      "offset": 736,
+      "name": "[collaborate attack groggy duration increase per keldon xavi stack]",
+      "flags": 1,
+      "parent": -1,
+      "cells": [
+        {
+          "tag": 5,
+          "kind": "float",
+          "float": 0.5
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 8,
+      "offset": 792,
+      "name": "[guardian hp increase per keldon xavi stack]",
+      "flags": 1,
+      "parent": -1,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 10
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 9,
+      "offset": 848,
+      "name": "[skirmisher monster hp reduction per keldon xavi stack]",
+      "flags": 1,
+      "parent": -1,
+      "cells": [
+        {
+          "tag": 5,
+          "kind": "float",
+          "float": 0.5
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 10,
+      "offset": 904,
+      "name": "[operation data set]",
+      "flags": 2,
+      "parent": -1,
+      "cells": null,
+      "refs": [
+        {
+          "name": "[allow coin]",
+          "values": [
+            17
+          ]
+        },
+        {
+          "name": "[card Symbol Index]",
+          "values": [
+            13
+          ]
+        },
+        {
+          "name": "[gate schedule]",
+          "values": [
+            21
+          ]
+        },
+        {
+          "name": "[gateflow]",
+          "values": [
+            22
+          ]
+        },
+        {
+          "name": "[index]",
+          "values": [
+            11
+          ]
+        },
+        {
+          "name": "[member limit]",
+          "values": [
+            14
+          ]
+        },
+        {
+          "name": "[phase info]",
+          "values": [
+            23
+          ]
+        },
+        {
+          "name": "[recommend fame]",
+          "values": [
+            16
+          ]
+        },
+        {
+          "name": "[reward data]",
+          "values": [
+            19
+          ]
+        },
+        {
+          "name": "[string data]",
+          "values": [
+            15
+          ]
+        },
+        {
+          "name": "[ting reward data]",
+          "values": [
+            20
+          ]
+        },
+        {
+          "name": "[type fixed value]",
+          "values": [
+            18
+          ]
+        },
+        {
+          "name": "[type]",
+          "values": [
+            12
+          ]
+        }
+      ]
+    },
+    {
+      "index": 11,
+      "offset": 1364,
+      "name": "[index]",
+      "flags": 1,
+      "parent": 10,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 1
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 12,
+      "offset": 1420,
+      "name": "[type]",
+      "flags": 1,
+      "parent": 10,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 1
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 13,
+      "offset": 1476,
+      "name": "[card Symbol Index]",
+      "flags": 1,
+      "parent": 10,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 7
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 14,
+      "offset": 1532,
+      "name": "[member limit]",
+      "flags": 1,
+      "parent": 10,
+      "cells": [
+        {
+          "tag": 1,
+          "kind": "name",
+          "name": "party"
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 15,
+      "offset": 1596,
+      "name": "[string data]",
+      "flags": 2,
+      "parent": 10,
+      "cells": [
+        {
+          "tag": 2,
+          "kind": "name_indexed",
+          "name": "Apocalypse_Difficulty_Name_01",
+          "index": 20
+        },
+        {
+          "tag": 2,
+          "kind": "name_indexed",
+          "name": "Apocalypse_Difficulty_Info_01",
+          "index": 20
+        },
+        {
+          "tag": 2,
+          "kind": "name_indexed",
+          "name": "Apocalypse_Difficulty_Explain_01",
+          "index": 20
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 16,
+      "offset": 1712,
+      "name": "[recommend fame]",
+      "flags": 1,
+      "parent": 10,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 98171
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 17,
+      "offset": 1768,
+      "name": "[allow coin]",
+      "flags": 2,
+      "parent": 10,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": -1
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 8
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 18,
+      "offset": 1836,
+      "name": "[type fixed value]",
+      "flags": 1,
+      "parent": 10,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 5
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 19,
+      "offset": 1892,
+      "name": "[reward data]",
+      "flags": 2,
+      "parent": 10,
+      "cells": [
+        {
+          "tag": 1,
+          "kind": "name",
+          "name": "normal"
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 10421367
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 1
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 1000000
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 1
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 1
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 20,
+      "offset": 2016,
+      "name": "[ting reward data]",
+      "flags": 2,
+      "parent": 10,
+      "cells": [
+        {
+          "tag": 1,
+          "kind": "name",
+          "name": "normal"
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 10421367
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 1
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 1000000
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 1
+        },
+        {
+          "tag": 4,
+          "kind": "float"
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 21,
+      "offset": 2140,
+      "name": "[gate schedule]",
+      "flags": 2,
+      "parent": 10,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 900
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 1
+        },
+        {
+          "tag": 4,
+          "kind": "float"
+        },
+        {
+          "tag": 4,
+          "kind": "float"
+        },
+        {
+          "tag": 4,
+          "kind": "float"
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 22,
+      "offset": 2244,
+      "name": "[gateflow]",
+      "flags": 2,
+      "parent": 10,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 1
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 2
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 3
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": -1
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": -1
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 23,
+      "offset": 2348,
+      "name": "[phase info]",
+      "flags": 2,
+      "parent": 10,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float"
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 90
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 1
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 300
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 2
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 300
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 3
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 300
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 4
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 600
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 5
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 600
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 24,
+      "offset": 2536,
+      "name": "[operation data set]",
+      "flags": 2,
+      "parent": -1,
+      "cells": null,
+      "refs": [
+        {
+          "name": "[card Symbol Index]",
+          "values": [
+            27
+          ]
+        },
+        {
+          "name": "[gate close warning]",
+          "values": [
+            35
+          ]
+        },
+        {
+          "name": "[gate schedule]",
+          "values": [
+            34
+          ]
+        },
+        {
+          "name": "[gateflow]",
+          "values": [
+            36
+          ]
+        },
+        {
+          "name": "[index]",
+          "values": [
+            25
+          ]
+        },
+        {
+          "name": "[member limit]",
+          "values": [
+            28
+          ]
+        },
+        {
+          "name": "[phase info]",
+          "values": [
+            37
+          ]
+        },
+        {
+          "name": "[recommend fame]",
+          "values": [
+            30
+          ]
+        },
+        {
+          "name": "[reward data]",
+          "values": [
+            32
+          ]
+        },
+        {
+          "name": "[string data]",
+          "values": [
+            29
+          ]
+        },
+        {
+          "name": "[ting reward data]",
+          "values": [
+            33
+          ]
+        },
+        {
+          "name": "[type fixed value]",
+          "values": [
+            31
+          ]
+        },
+        {
+          "name": "[type]",
+          "values": [
+            26
+          ]
+        }
+      ]
+    },
+    {
+      "index": 25,
+      "offset": 2996,
+      "name": "[index]",
+      "flags": 1,
+      "parent": 24,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 2
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 26,
+      "offset": 3052,
+      "name": "[type]",
+      "flags": 1,
+      "parent": 24,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 2
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 27,
+      "offset": 3108,
+      "name": "[card Symbol Index]",
+      "flags": 1,
+      "parent": 24,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float"
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 28,
+      "offset": 3164,
+      "name": "[member limit]",
+      "flags": 1,
+      "parent": 24,
+      "cells": [
+        {
+          "tag": 1,
+          "kind": "name",
+          "name": "party"
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 29,
+      "offset": 3228,
+      "name": "[string data]",
+      "flags": 2,
+      "parent": 24,
+      "cells": [
+        {
+          "tag": 2,
+          "kind": "name_indexed",
+          "name": "Apocalypse_Difficulty_Name_02",
+          "index": 20
+        },
+        {
+          "tag": 2,
+          "kind": "name_indexed",
+          "name": "Apocalypse_Difficulty_Info_02",
+          "index": 20
+        },
+        {
+          "tag": 2,
+          "kind": "name_indexed",
+          "name": "Apocalypse_Difficulty_Explain_02",
+          "index": 20
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 30,
+      "offset": 3344,
+      "name": "[recommend fame]",
+      "flags": 1,
+      "parent": 24,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 105881
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 31,
+      "offset": 3400,
+      "name": "[type fixed value]",
+      "flags": 1,
+      "parent": 24,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 5
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 32,
+      "offset": 3456,
+      "name": "[reward data]",
+      "flags": 2,
+      "parent": 24,
+      "cells": [
+        {
+          "tag": 1,
+          "kind": "name",
+          "name": "expert"
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 10421369
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 1
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 1000000
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 2
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 1
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 33,
+      "offset": 3580,
+      "name": "[ting reward data]",
+      "flags": 2,
+      "parent": 24,
+      "cells": [
+        {
+          "tag": 1,
+          "kind": "name",
+          "name": "expert"
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 10421369
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 1
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 1000000
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 2
+        },
+        {
+          "tag": 4,
+          "kind": "float"
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 34,
+      "offset": 3704,
+      "name": "[gate schedule]",
+      "flags": 2,
+      "parent": 24,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 300
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 3
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 1
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 2
+        },
+        {
+          "tag": 4,
+          "kind": "float"
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 240
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 3
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 1
+        },
+        {
+          "tag": 4,
+          "kind": "float"
+        },
+        {
+          "tag": 4,
+          "kind": "float"
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 180
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 3
+        },
+        {
+          "tag": 4,
+          "kind": "float"
+        },
+        {
+          "tag": 4,
+          "kind": "float"
+        },
+        {
+          "tag": 4,
+          "kind": "float"
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 35,
+      "offset": 3928,
+      "name": "[gate close warning]",
+      "flags": 2,
+      "parent": 24,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 270
+        },
+        {
+          "tag": 1,
+          "kind": "name",
+          "name": "Contents\\2026\\Apocalypse\\Xui\\Animation\\ShortcutWarning\\Warning_02_01.ani"
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 210
+        },
+        {
+          "tag": 1,
+          "kind": "name",
+          "name": "Contents\\2026\\Apocalypse\\Xui\\Animation\\ShortcutWarning\\Warning_02_02.ani"
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 36,
+      "offset": 4036,
+      "name": "[gateflow]",
+      "flags": 2,
+      "parent": 24,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 1
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 3
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 4
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 5
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": -1
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 2
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 4
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 5
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": -1
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": -1
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 3
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 2
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 3
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 4
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 5
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 4
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 5
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": -1
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": -1
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": -1
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 37,
+      "offset": 4320,
+      "name": "[phase info]",
+      "flags": 2,
+      "parent": 24,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float"
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 90
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 1
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 300
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 2
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 300
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 3
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 300
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 4
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 600
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 5
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 600
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 38,
+      "offset": 4508,
+      "name": "[operation data set]",
+      "flags": 2,
+      "parent": -1,
+      "cells": null,
+      "refs": [
+        {
+          "name": "[card Symbol Index]",
+          "values": [
+            41
+          ]
+        },
+        {
+          "name": "[gate close warning]",
+          "values": [
+            49
+          ]
+        },
+        {
+          "name": "[gate schedule]",
+          "values": [
+            48
+          ]
+        },
+        {
+          "name": "[gateflow]",
+          "values": [
+            50
+          ]
+        },
+        {
+          "name": "[index]",
+          "values": [
+            39
+          ]
+        },
+        {
+          "name": "[member limit]",
+          "values": [
+            42
+          ]
+        },
+        {
+          "name": "[phase info]",
+          "values": [
+            51
+          ]
+        },
+        {
+          "name": "[recommend fame]",
+          "values": [
+            44
+          ]
+        },
+        {
+          "name": "[reward data]",
+          "values": [
+            46
+          ]
+        },
+        {
+          "name": "[string data]",
+          "values": [
+            43
+          ]
+        },
+        {
+          "name": "[ting reward data]",
+          "values": [
+            47
+          ]
+        },
+        {
+          "name": "[type fixed value]",
+          "values": [
+            45
+          ]
+        },
+        {
+          "name": "[type]",
+          "values": [
+            40
+          ]
+        }
+      ]
+    },
+    {
+      "index": 39,
+      "offset": 4968,
+      "name": "[index]",
+      "flags": 1,
+      "parent": 38,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 3
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 40,
+      "offset": 5024,
+      "name": "[type]",
+      "flags": 1,
+      "parent": 38,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 3
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 41,
+      "offset": 5080,
+      "name": "[card Symbol Index]",
+      "flags": 1,
+      "parent": 38,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float"
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 42,
+      "offset": 5136,
+      "name": "[member limit]",
+      "flags": 1,
+      "parent": 38,
+      "cells": [
+        {
+          "tag": 1,
+          "kind": "name",
+          "name": "party"
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 43,
+      "offset": 5200,
+      "name": "[string data]",
+      "flags": 2,
+      "parent": 38,
+      "cells": [
+        {
+          "tag": 2,
+          "kind": "name_indexed",
+          "name": "Apocalypse_Difficulty_Name_03",
+          "index": 20
+        },
+        {
+          "tag": 2,
+          "kind": "name_indexed",
+          "name": "Apocalypse_Difficulty_Info_03",
+          "index": 20
+        },
+        {
+          "tag": 2,
+          "kind": "name_indexed",
+          "name": "Apocalypse_Difficulty_Explain_03",
+          "index": 20
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 44,
+      "offset": 5316,
+      "name": "[recommend fame]",
+      "flags": 1,
+      "parent": 38,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 105881
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 45,
+      "offset": 5372,
+      "name": "[type fixed value]",
+      "flags": 1,
+      "parent": 38,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 5
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 46,
+      "offset": 5428,
+      "name": "[reward data]",
+      "flags": 2,
+      "parent": 38,
+      "cells": [
+        {
+          "tag": 1,
+          "kind": "name",
+          "name": "master"
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 10421369
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 1
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 1000000
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 1
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 1
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 47,
+      "offset": 5552,
+      "name": "[ting reward data]",
+      "flags": 2,
+      "parent": 38,
+      "cells": [
+        {
+          "tag": 1,
+          "kind": "name",
+          "name": "master"
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 10421369
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 1
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 1000000
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 3
+        },
+        {
+          "tag": 4,
+          "kind": "float"
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 48,
+      "offset": 5676,
+      "name": "[gate schedule]",
+      "flags": 2,
+      "parent": 38,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 300
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 3
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 1
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 2
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 4
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 255
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 3
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 1
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 2
+        },
+        {
+          "tag": 4,
+          "kind": "float"
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 240
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 3
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 1
+        },
+        {
+          "tag": 4,
+          "kind": "float"
+        },
+        {
+          "tag": 4,
+          "kind": "float"
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 180
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 3
+        },
+        {
+          "tag": 4,
+          "kind": "float"
+        },
+        {
+          "tag": 4,
+          "kind": "float"
+        },
+        {
+          "tag": 4,
+          "kind": "float"
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 49,
+      "offset": 5960,
+      "name": "[gate close warning]",
+      "flags": 2,
+      "parent": 38,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 285
+        },
+        {
+          "tag": 1,
+          "kind": "name",
+          "name": "Contents\\2026\\Apocalypse\\Xui\\Animation\\ShortcutWarning\\Warning_02_01.ani"
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 270
+        },
+        {
+          "tag": 1,
+          "kind": "name",
+          "name": "Contents\\2026\\Apocalypse\\Xui\\Animation\\ShortcutWarning\\Warning_02_02.ani"
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 210
+        },
+        {
+          "tag": 1,
+          "kind": "name",
+          "name": "Contents\\2026\\Apocalypse\\Xui\\Animation\\ShortcutWarning\\Warning_02_03.ani"
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 50,
+      "offset": 6100,
+      "name": "[gateflow]",
+      "flags": 2,
+      "parent": 38,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 1
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 3
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 4
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 5
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": -1
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 2
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 4
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 5
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": -1
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": -1
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 3
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 2
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 3
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 4
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 5
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 4
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 5
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": -1
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": -1
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": -1
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 51,
+      "offset": 6384,
+      "name": "[phase info]",
+      "flags": 2,
+      "parent": 38,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float"
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 90
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 1
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 300
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 2
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 300
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 3
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 300
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 4
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 600
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 5
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 600
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 52,
+      "offset": 6572,
+      "name": "[operation data set]",
+      "flags": 2,
+      "parent": -1,
+      "cells": null,
+      "refs": [
+        {
+          "name": "[card Symbol Index]",
+          "values": [
+            55
+          ]
+        },
+        {
+          "name": "[gate schedule]",
+          "values": [
+            62
+          ]
+        },
+        {
+          "name": "[gateflow]",
+          "values": [
+            63
+          ]
+        },
+        {
+          "name": "[index]",
+          "values": [
+            53
+          ]
+        },
+        {
+          "name": "[member limit]",
+          "values": [
+            56
+          ]
+        },
+        {
+          "name": "[phase info]",
+          "values": [
+            64
+          ]
+        },
+        {
+          "name": "[recommend fame]",
+          "values": [
+            58
+          ]
+        },
+        {
+          "name": "[reward data]",
+          "values": [
+            60
+          ]
+        },
+        {
+          "name": "[string data]",
+          "values": [
+            57
+          ]
+        },
+        {
+          "name": "[ting reward data]",
+          "values": [
+            61
+          ]
+        },
+        {
+          "name": "[type fixed value]",
+          "values": [
+            59
+          ]
+        },
+        {
+          "name": "[type]",
+          "values": [
+            54
+          ]
+        }
+      ]
+    },
+    {
+      "index": 53,
+      "offset": 7000,
+      "name": "[index]",
+      "flags": 1,
+      "parent": 52,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 5
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 54,
+      "offset": 7056,
+      "name": "[type]",
+      "flags": 1,
+      "parent": 52,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 5
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 55,
+      "offset": 7112,
+      "name": "[card Symbol Index]",
+      "flags": 1,
+      "parent": 52,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float"
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 56,
+      "offset": 7168,
+      "name": "[member limit]",
+      "flags": 1,
+      "parent": 52,
+      "cells": [
+        {
+          "tag": 1,
+          "kind": "name",
+          "name": "party"
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 57,
+      "offset": 7232,
+      "name": "[string data]",
+      "flags": 2,
+      "parent": 52,
+      "cells": [
+        {
+          "tag": 2,
+          "kind": "name_indexed",
+          "name": "Apocalypse_Difficulty_Name_01",
+          "index": 20
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 58,
+      "offset": 7300,
+      "name": "[recommend fame]",
+      "flags": 1,
+      "parent": 52,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 73993
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 59,
+      "offset": 7356,
+      "name": "[type fixed value]",
+      "flags": 1,
+      "parent": 52,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 5
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 60,
+      "offset": 7412,
+      "name": "[reward data]",
+      "flags": 2,
+      "parent": 52,
+      "cells": [
+        {
+          "tag": 1,
+          "kind": "name",
+          "name": "match"
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 10421365
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 1
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 1000000
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 1
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 1
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 61,
+      "offset": 7536,
+      "name": "[ting reward data]",
+      "flags": 2,
+      "parent": 52,
+      "cells": [
+        {
+          "tag": 1,
+          "kind": "name",
+          "name": "match"
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 10421365
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 1
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 1000000
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 3
+        },
+        {
+          "tag": 4,
+          "kind": "float"
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 62,
+      "offset": 7660,
+      "name": "[gate schedule]",
+      "flags": 2,
+      "parent": 52,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 900
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 1
+        },
+        {
+          "tag": 4,
+          "kind": "float"
+        },
+        {
+          "tag": 4,
+          "kind": "float"
+        },
+        {
+          "tag": 4,
+          "kind": "float"
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 63,
+      "offset": 7764,
+      "name": "[gateflow]",
+      "flags": 2,
+      "parent": 52,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 1
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 2
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 3
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": -1
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": -1
+        }
+      ],
+      "refs": null
+    },
+    {
+      "index": 64,
+      "offset": 7868,
+      "name": "[phase info]",
+      "flags": 2,
+      "parent": 52,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float"
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 90
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 1
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 300
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 2
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 300
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 3
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 300
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 4
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 600
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 5
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "float": 600
+        }
+      ],
+      "refs": null
+    }
+  ],
+  "trailer": [
+    {
+      "name": "[collaborate attack groggy duration increase per keldon xavi stack]",
+      "records": [
+        7
+      ]
+    },
+    {
+      "name": "[guardian hp increase per keldon xavi stack]",
+      "records": [
+        8
+      ]
+    },
+    {
+      "name": "[keldon xavi final damage rate]",
+      "records": [
+        6
+      ]
+    },
+    {
+      "name": "[operation data set]",
+      "records": [
+        10,
+        24,
+        38,
+        52
+      ]
+    },
+    {
+      "name": "[party waiting area]",
+      "records": [
+        0
+      ]
+    },
+    {
+      "name": "[role per member limit]",
+      "records": [
+        1
+      ]
+    },
+    {
+      "name": "[skirmisher monster hp reduction per keldon xavi stack]",
+      "records": [
+        9
+      ]
+    }
+  ],
+  "duties": {
+    "source": "contents/2026/apocalypse/etc/dungeonskillinfo.ctp",
+    "sha256": "4353c3fbf682aab24ac99652e0d9fbfb615f6faa8a75d1bba287674b7bf47251",
+    "bytes": 1636,
+    "records": [
+      {
+        "index": 0,
+        "offset": 36,
+        "name": "[skirmisher info]",
+        "flags": 2,
+        "parent": -1,
+        "cells": null,
+        "refs": [
+          {
+            "name": "[effect]",
+            "values": [
+              8
+            ]
+          },
+          {
+            "name": "[jump attack]",
+            "values": [
+              5
+            ]
+          },
+          {
+            "name": "[jump z threshold]",
+            "values": [
+              1
+            ]
+          },
+          {
+            "name": "[nomal attack]",
+            "values": [
+              2
+            ]
+          }
+        ]
+      },
+      {
+        "index": 1,
+        "offset": 208,
+        "name": "[jump z threshold]",
+        "flags": 1,
+        "parent": 0,
+        "cells": [
+          {
+            "tag": 4,
+            "kind": "float",
+            "float": 1
+          }
+        ],
+        "refs": null
+      },
+      {
+        "index": 2,
+        "offset": 264,
+        "name": "[nomal attack]",
+        "flags": 2,
+        "parent": 0,
+        "cells": null,
+        "refs": [
+          {
+            "name": "[delay ani time]",
+            "values": [
+              3
+            ]
+          },
+          {
+            "name": "[relative offset]",
+            "values": [
+              4
+            ]
+          }
+        ]
+      },
+      {
+        "index": 3,
+        "offset": 372,
+        "name": "[delay ani time]",
+        "flags": 1,
+        "parent": 2,
+        "cells": [
+          {
+            "tag": 4,
+            "kind": "float",
+            "float": 300
+          }
+        ],
+        "refs": null
+      },
+      {
+        "index": 4,
+        "offset": 428,
+        "name": "[relative offset]",
+        "flags": 1,
+        "parent": 2,
+        "cells": [
+          {
+            "tag": 4,
+            "kind": "float",
+            "float": -150
+          },
+          {
+            "tag": 4,
+            "kind": "float"
+          },
+          {
+            "tag": 4,
+            "kind": "float"
+          }
+        ],
+        "refs": null
+      },
+      {
+        "index": 5,
+        "offset": 508,
+        "name": "[jump attack]",
+        "flags": 2,
+        "parent": 0,
+        "cells": null,
+        "refs": [
+          {
+            "name": "[delay ani time]",
+            "values": [
+              6
+            ]
+          },
+          {
+            "name": "[relative offset]",
+            "values": [
+              7
+            ]
+          }
+        ]
+      },
+      {
+        "index": 6,
+        "offset": 616,
+        "name": "[delay ani time]",
+        "flags": 1,
+        "parent": 5,
+        "cells": [
+          {
+            "tag": 4,
+            "kind": "float",
+            "float": 50
+          }
+        ],
+        "refs": null
+      },
+      {
+        "index": 7,
+        "offset": 672,
+        "name": "[relative offset]",
+        "flags": 1,
+        "parent": 5,
+        "cells": [
+          {
+            "tag": 4,
+            "kind": "float",
+            "float": -100
+          },
+          {
+            "tag": 4,
+            "kind": "float"
+          },
+          {
+            "tag": 4,
+            "kind": "float",
+            "float": -35
+          }
+        ],
+        "refs": null
+      },
+      {
+        "index": 8,
+        "offset": 752,
+        "name": "[effect]",
+        "flags": 2,
+        "parent": 0,
+        "cells": [
+          {
+            "tag": 1,
+            "kind": "name"
+          },
+          {
+            "tag": 1,
+            "kind": "name"
+          },
+          {
+            "tag": 1,
+            "kind": "name"
+          },
+          {
+            "tag": 1,
+            "kind": "name"
+          },
+          {
+            "tag": 1,
+            "kind": "name"
+          },
+          {
+            "tag": 1,
+            "kind": "name"
+          },
+          {
+            "tag": 1,
+            "kind": "name"
+          },
+          {
+            "tag": 1,
+            "kind": "name"
+          }
+        ],
+        "refs": null
+      },
+      {
+        "index": 9,
+        "offset": 956,
+        "name": "[passive object index]",
+        "flags": 2,
+        "parent": -1,
+        "cells": null,
+        "refs": [
+          {
+            "name": "[gaurdian]",
+            "values": [
+              10
+            ]
+          },
+          {
+            "name": "[role enable effect]",
+            "values": [
+              12
+            ]
+          },
+          {
+            "name": "[role get effect]",
+            "values": [
+              11
+            ]
+          },
+          {
+            "name": "[skir chainline effect]",
+            "values": [
+              13
+            ]
+          }
+        ]
+      },
+      {
+        "index": 10,
+        "offset": 1128,
+        "name": "[gaurdian]",
+        "flags": 1,
+        "parent": 9,
+        "cells": [
+          {
+            "tag": 4,
+            "kind": "float",
+            "float": 109133363
+          }
+        ],
+        "refs": null
+      },
+      {
+        "index": 11,
+        "offset": 1184,
+        "name": "[role get effect]",
+        "flags": 1,
+        "parent": 9,
+        "cells": [
+          {
+            "tag": 4,
+            "kind": "float",
+            "float": 109133366
+          },
+          {
+            "tag": 4,
+            "kind": "float",
+            "float": 109133361
+          }
+        ],
+        "refs": null
+      },
+      {
+        "index": 12,
+        "offset": 1252,
+        "name": "[role enable effect]",
+        "flags": 1,
+        "parent": 9,
+        "cells": [
+          {
+            "tag": 4,
+            "kind": "float",
+            "float": 109133367
+          },
+          {
+            "tag": 4,
+            "kind": "float",
+            "float": 109133368
+          }
+        ],
+        "refs": null
+      },
+      {
+        "index": 13,
+        "offset": 1320,
+        "name": "[skir chainline effect]",
+        "flags": 1,
+        "parent": 9,
+        "cells": [
+          {
+            "tag": 4,
+            "kind": "float",
+            "float": 109133397
+          }
+        ],
+        "refs": null
+      }
+    ],
+    "trailer": [
+      {
+        "name": "[passive object index]",
+        "records": [
+          9
+        ]
+      },
+      {
+        "name": "[skirmisher info]",
+        "records": [
+          0
+        ]
+      }
+    ]
+  }
+}
