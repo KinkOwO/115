@@ -123,7 +123,46 @@ func (s *Service) EntryAddition(role storage.Character) ([]byte, error) {
 			}
 		}
 	}
-	return protocol.UserInfoAdditionProbe(protocol.EntryAdditionProbe{ActorServerID: role.WireID, Experience: state.Experience, Stats: stats, SkillTrees: trees, Worn: worn, ExpandEquipFlags: projection.Inventory.ExpandEquipFlags})
+	fame, err := s.EquipmentFame(role.State)
+	if err != nil {
+		return nil, err
+	}
+	return protocol.UserInfoAdditionProbe(protocol.EntryAdditionProbe{ActorServerID: role.WireID, Experience: state.Experience, Stats: stats, SkillTrees: trees, Worn: worn, Fame: fame, ExpandEquipFlags: projection.Inventory.ExpandEquipFlags})
+}
+
+// EquipmentFame 汇总实际穿戴物品的原版基础名望，不计背包、仓库或未穿戴宠物。
+// 强化、附魔等额外名望尚无已验证公式，不能据此虚构附加值。
+func (s *Service) EquipmentFame(raw json.RawMessage) (uint32, error) {
+	if s.Equipment == nil {
+		return 0, nil
+	}
+	bag, err := inventory.ReadBag(raw)
+	if err != nil {
+		return 0, err
+	}
+	var total uint64
+	// 与装备属性投影一致，同槽克隆和普通外观仅取基础物品，避免重复计入名望。
+	for _, item := range bag.WornBaseItems() {
+		if item.Template == 0 || item.Template == math.MaxUint32 {
+			continue
+		}
+		definition, err := s.Equipment.Definition(item.Template)
+		if err != nil {
+			return 0, err
+		}
+		values := definition.Fields["[fame value]"]
+		if len(values) == 0 {
+			continue
+		}
+		if len(values) != 1 || values[0].Type != 0 || values[0].Value < 0 {
+			return 0, fmt.Errorf("装备基础名望格式无效：%d", item.Template)
+		}
+		total += uint64(values[0].Value)
+		if total > math.MaxInt32 {
+			return 0, fmt.Errorf("装备基础名望超出客户端范围")
+		}
+	}
+	return uint32(total), nil
 }
 
 // The exact .chr loader at 147559d80 stores (ID, first value) in the

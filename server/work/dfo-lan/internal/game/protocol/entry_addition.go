@@ -1,6 +1,7 @@
 package protocol
 
 import (
+	"encoding/binary"
 	"fmt"
 	"math"
 )
@@ -63,6 +64,7 @@ type EntrySkill struct {
 // Source base stats are connected to the detailed probe. Unknown fixed-prefix
 // fields are experimental zeros; optional skill/equipment data remains pending.
 type EntryAdditionProbe struct {
+	Fame          uint32
 	ActorServerID uint16
 	Context       [2]byte
 	Experience    uint64
@@ -89,6 +91,8 @@ func UserInfoAdditionProbe(s EntryAdditionProbe) ([]byte, error) {
 	}
 	p := append(add16([]byte{1}, 1), s.Context[:]...)
 	p = append(p, make([]byte, 250)...)
+	// 14563d472 读取到 14e66f260；14563e1e8 从 +0x13 取名望并调用相同的 setter。
+	binary.LittleEndian.PutUint32(p[5+0x13:], s.Fame)
 	p = add16(p, s.ActorServerID)
 	p = add32(add32(p, uint32(s.Experience)), uint32(s.Experience>>32))
 	p = append(add32(p, uint32(len(stats))), stats...)
