@@ -1,84 +1,3020 @@
 {
   "file": "D:/115us/.workbuddy/archive/20260923/真源取证/apocalypse.ctp.bin",
   "size": 9280,
-  "pool_start": "0x2071",
-  "pool_bytes": 975,
-  "cell_region": [
-    "0x40",
-    "0x1f78"
-  ],
-  "trailer_region": [
-    "0x1f78",
-    "0x2070"
-  ],
-  "cells": 1647,
-  "tag_histogram": {
-    "0": 1461,
-    "3": 12,
-    "4": 174
+  "header": {
+    "version": 1,
+    "record_count": 65,
+    "v08": 0,
+    "v0c": 32,
+    "v10": 0,
+    "cell_end": 8052,
+    "v18": 0,
+    "trailer_end": 8300,
+    "v20": 0
   },
-  "pool_tags": [
-    "[party waiting area]",
-    "[role per member limit]",
-    "[member]",
-    "[keldon xavi final damage rate]",
-    "[collaborate attack groggy duration increase per keldon xavi stack]",
-    "[guardian hp increase per keldon xavi stack]",
-    "[skirmisher monster hp reduction per keldon xavi stack]",
-    "[operation data set]",
-    "[allow coin]",
-    "[card Symbol Index]",
-    "[gate schedule]",
-    "[gateflow]",
-    "[index]",
-    "[member limit]",
-    "[phase info]",
-    "[recommend fame]",
-    "[reward data]",
-    "[string data]",
-    "[ting reward data]",
-    "[type fixed value]",
-    "[type]",
-    "[gate close warning]"
+  "pool": {
+    "char_base": 8305,
+    "bytes": 975,
+    "text": "[party waiting area][role per member limit][member][keldon xavi final damage rate][collaborate attack groggy duration increase per keldon xavi stack][guardian hp increase per keldon xavi stack][skirmisher monster hp reduction per keldon xavi stack][operation data set][allow coin][card Symbol Index][gate schedule][gateflow][index][member limit][phase info][recommend fame][reward data][string data][ting reward data][type fixed value][type]partyApocalypse_Difficulty_Name_01Apocalypse_Difficulty_Info_01Apocalypse_Difficulty_Explain_01normal[gate close warning]Apocalypse_Difficulty_Name_02Apocalypse_Difficulty_Info_02Apocalypse_Difficulty_Explain_02expertContents\\2026\\Apocalypse\\Xui\\Animation\\ShortcutWarning\\Warning_02_01.aniContents\\2026\\Apocalypse\\Xui\\Animation\\ShortcutWarning\\Warning_02_02.aniApocalypse_Difficulty_Name_03Apocalypse_Difficulty_Info_03Apocalypse_Difficulty_Explain_03masterContents\\2026\\Apocalypse\\Xui\\Animation\\ShortcutWarning\\Warning_02_03.animatch"
+  },
+  "records": [
+    {
+      "index": 0,
+      "off": 36,
+      "size": 92,
+      "name": "[party waiting area]",
+      "raw_name": [
+        0,
+        20
+      ],
+      "flags": 1,
+      "parent": null,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 239.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 1.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 600.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 200.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 1,
+      "off": 128,
+      "size": 100,
+      "name": "[role per member limit]",
+      "raw_name": [
+        20,
+        43
+      ],
+      "flags": 2,
+      "parent": null,
+      "cells": [],
+      "refs": [
+        {
+          "raw": [
+            43,
+            51
+          ],
+          "name": "[member]",
+          "values": [
+            2,
+            3,
+            4,
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "index": 2,
+      "off": 228,
+      "size": 80,
+      "name": "[member]",
+      "raw_name": [
+        43,
+        51
+      ],
+      "flags": 2,
+      "parent": 1,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 1.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 1.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 1.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 3,
+      "off": 308,
+      "size": 104,
+      "name": "[member]",
+      "raw_name": [
+        43,
+        51
+      ],
+      "flags": 2,
+      "parent": 1,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 2.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 2.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 1.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 1.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 1.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 4,
+      "off": 412,
+      "size": 104,
+      "name": "[member]",
+      "raw_name": [
+        43,
+        51
+      ],
+      "flags": 2,
+      "parent": 1,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 3.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 2.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 2.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 1.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 2.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 5,
+      "off": 516,
+      "size": 104,
+      "name": "[member]",
+      "raw_name": [
+        43,
+        51
+      ],
+      "flags": 2,
+      "parent": 1,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 4.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 2.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 2.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 1.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 2.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 6,
+      "off": 620,
+      "size": 116,
+      "name": "[keldon xavi final damage rate]",
+      "raw_name": [
+        51,
+        82
+      ],
+      "flags": 1,
+      "parent": null,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 0.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 0.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 10.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 10.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 0.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 0.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 7,
+      "off": 736,
+      "size": 56,
+      "name": "[collaborate attack groggy duration increase per keldon xavi stack]",
+      "raw_name": [
+        82,
+        149
+      ],
+      "flags": 1,
+      "parent": null,
+      "cells": [
+        {
+          "tag": 5,
+          "kind": "float_alt",
+          "value": 0.5,
+          "bits": 4602678819172646912
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 8,
+      "off": 792,
+      "size": 56,
+      "name": "[guardian hp increase per keldon xavi stack]",
+      "raw_name": [
+        149,
+        193
+      ],
+      "flags": 1,
+      "parent": null,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 10.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 9,
+      "off": 848,
+      "size": 56,
+      "name": "[skirmisher monster hp reduction per keldon xavi stack]",
+      "raw_name": [
+        193,
+        248
+      ],
+      "flags": 1,
+      "parent": null,
+      "cells": [
+        {
+          "tag": 5,
+          "kind": "float_alt",
+          "value": 0.5,
+          "bits": 4602678819172646912
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 10,
+      "off": 904,
+      "size": 460,
+      "name": "[operation data set]",
+      "raw_name": [
+        248,
+        268
+      ],
+      "flags": 2,
+      "parent": null,
+      "cells": [],
+      "refs": [
+        {
+          "raw": [
+            268,
+            280
+          ],
+          "name": "[allow coin]",
+          "values": [
+            17
+          ]
+        },
+        {
+          "raw": [
+            280,
+            299
+          ],
+          "name": "[card Symbol Index]",
+          "values": [
+            13
+          ]
+        },
+        {
+          "raw": [
+            299,
+            314
+          ],
+          "name": "[gate schedule]",
+          "values": [
+            21
+          ]
+        },
+        {
+          "raw": [
+            314,
+            324
+          ],
+          "name": "[gateflow]",
+          "values": [
+            22
+          ]
+        },
+        {
+          "raw": [
+            324,
+            331
+          ],
+          "name": "[index]",
+          "values": [
+            11
+          ]
+        },
+        {
+          "raw": [
+            331,
+            345
+          ],
+          "name": "[member limit]",
+          "values": [
+            14
+          ]
+        },
+        {
+          "raw": [
+            345,
+            357
+          ],
+          "name": "[phase info]",
+          "values": [
+            23
+          ]
+        },
+        {
+          "raw": [
+            357,
+            373
+          ],
+          "name": "[recommend fame]",
+          "values": [
+            16
+          ]
+        },
+        {
+          "raw": [
+            373,
+            386
+          ],
+          "name": "[reward data]",
+          "values": [
+            19
+          ]
+        },
+        {
+          "raw": [
+            386,
+            399
+          ],
+          "name": "[string data]",
+          "values": [
+            15
+          ]
+        },
+        {
+          "raw": [
+            399,
+            417
+          ],
+          "name": "[ting reward data]",
+          "values": [
+            20
+          ]
+        },
+        {
+          "raw": [
+            417,
+            435
+          ],
+          "name": "[type fixed value]",
+          "values": [
+            18
+          ]
+        },
+        {
+          "raw": [
+            435,
+            441
+          ],
+          "name": "[type]",
+          "values": [
+            12
+          ]
+        }
+      ]
+    },
+    {
+      "index": 11,
+      "off": 1364,
+      "size": 56,
+      "name": "[index]",
+      "raw_name": [
+        324,
+        331
+      ],
+      "flags": 1,
+      "parent": 10,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 1.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 12,
+      "off": 1420,
+      "size": 56,
+      "name": "[type]",
+      "raw_name": [
+        435,
+        441
+      ],
+      "flags": 1,
+      "parent": 10,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 1.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 13,
+      "off": 1476,
+      "size": 56,
+      "name": "[card Symbol Index]",
+      "raw_name": [
+        280,
+        299
+      ],
+      "flags": 1,
+      "parent": 10,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 7.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 14,
+      "off": 1532,
+      "size": 64,
+      "name": "[member limit]",
+      "raw_name": [
+        331,
+        345
+      ],
+      "flags": 1,
+      "parent": 10,
+      "cells": [
+        {
+          "tag": 1,
+          "kind": "name",
+          "raw": [
+            441,
+            446
+          ],
+          "value": "party"
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 15,
+      "off": 1596,
+      "size": 116,
+      "name": "[string data]",
+      "raw_name": [
+        386,
+        399
+      ],
+      "flags": 2,
+      "parent": 10,
+      "cells": [
+        {
+          "tag": 2,
+          "kind": "name_indexed",
+          "index": 20,
+          "raw": [
+            446,
+            475
+          ],
+          "value": "Apocalypse_Difficulty_Name_01"
+        },
+        {
+          "tag": 2,
+          "kind": "name_indexed",
+          "index": 20,
+          "raw": [
+            475,
+            504
+          ],
+          "value": "Apocalypse_Difficulty_Info_01"
+        },
+        {
+          "tag": 2,
+          "kind": "name_indexed",
+          "index": 20,
+          "raw": [
+            504,
+            536
+          ],
+          "value": "Apocalypse_Difficulty_Explain_01"
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 16,
+      "off": 1712,
+      "size": 56,
+      "name": "[recommend fame]",
+      "raw_name": [
+        357,
+        373
+      ],
+      "flags": 1,
+      "parent": 10,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 98171.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 17,
+      "off": 1768,
+      "size": 68,
+      "name": "[allow coin]",
+      "raw_name": [
+        268,
+        280
+      ],
+      "flags": 2,
+      "parent": 10,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": -1.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 8.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 18,
+      "off": 1836,
+      "size": 56,
+      "name": "[type fixed value]",
+      "raw_name": [
+        417,
+        435
+      ],
+      "flags": 1,
+      "parent": 10,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 5.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 19,
+      "off": 1892,
+      "size": 124,
+      "name": "[reward data]",
+      "raw_name": [
+        373,
+        386
+      ],
+      "flags": 2,
+      "parent": 10,
+      "cells": [
+        {
+          "tag": 1,
+          "kind": "name",
+          "raw": [
+            536,
+            542
+          ],
+          "value": "normal"
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 10421367.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 1.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 1000000.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 1.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 1.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 20,
+      "off": 2016,
+      "size": 124,
+      "name": "[ting reward data]",
+      "raw_name": [
+        399,
+        417
+      ],
+      "flags": 2,
+      "parent": 10,
+      "cells": [
+        {
+          "tag": 1,
+          "kind": "name",
+          "raw": [
+            536,
+            542
+          ],
+          "value": "normal"
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 10421367.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 1.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 1000000.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 1.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 0.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 21,
+      "off": 2140,
+      "size": 104,
+      "name": "[gate schedule]",
+      "raw_name": [
+        299,
+        314
+      ],
+      "flags": 2,
+      "parent": 10,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 900.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 1.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 0.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 0.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 0.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 22,
+      "off": 2244,
+      "size": 104,
+      "name": "[gateflow]",
+      "raw_name": [
+        314,
+        324
+      ],
+      "flags": 2,
+      "parent": 10,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 1.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 2.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 3.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": -1.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": -1.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 23,
+      "off": 2348,
+      "size": 188,
+      "name": "[phase info]",
+      "raw_name": [
+        345,
+        357
+      ],
+      "flags": 2,
+      "parent": 10,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 0.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 90.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 1.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 300.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 2.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 300.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 3.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 300.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 4.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 600.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 5.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 600.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 24,
+      "off": 2536,
+      "size": 460,
+      "name": "[operation data set]",
+      "raw_name": [
+        248,
+        268
+      ],
+      "flags": 2,
+      "parent": null,
+      "cells": [],
+      "refs": [
+        {
+          "raw": [
+            280,
+            299
+          ],
+          "name": "[card Symbol Index]",
+          "values": [
+            27
+          ]
+        },
+        {
+          "raw": [
+            542,
+            562
+          ],
+          "name": "[gate close warning]",
+          "values": [
+            35
+          ]
+        },
+        {
+          "raw": [
+            299,
+            314
+          ],
+          "name": "[gate schedule]",
+          "values": [
+            34
+          ]
+        },
+        {
+          "raw": [
+            314,
+            324
+          ],
+          "name": "[gateflow]",
+          "values": [
+            36
+          ]
+        },
+        {
+          "raw": [
+            324,
+            331
+          ],
+          "name": "[index]",
+          "values": [
+            25
+          ]
+        },
+        {
+          "raw": [
+            331,
+            345
+          ],
+          "name": "[member limit]",
+          "values": [
+            28
+          ]
+        },
+        {
+          "raw": [
+            345,
+            357
+          ],
+          "name": "[phase info]",
+          "values": [
+            37
+          ]
+        },
+        {
+          "raw": [
+            357,
+            373
+          ],
+          "name": "[recommend fame]",
+          "values": [
+            30
+          ]
+        },
+        {
+          "raw": [
+            373,
+            386
+          ],
+          "name": "[reward data]",
+          "values": [
+            32
+          ]
+        },
+        {
+          "raw": [
+            386,
+            399
+          ],
+          "name": "[string data]",
+          "values": [
+            29
+          ]
+        },
+        {
+          "raw": [
+            399,
+            417
+          ],
+          "name": "[ting reward data]",
+          "values": [
+            33
+          ]
+        },
+        {
+          "raw": [
+            417,
+            435
+          ],
+          "name": "[type fixed value]",
+          "values": [
+            31
+          ]
+        },
+        {
+          "raw": [
+            435,
+            441
+          ],
+          "name": "[type]",
+          "values": [
+            26
+          ]
+        }
+      ]
+    },
+    {
+      "index": 25,
+      "off": 2996,
+      "size": 56,
+      "name": "[index]",
+      "raw_name": [
+        324,
+        331
+      ],
+      "flags": 1,
+      "parent": 24,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 2.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 26,
+      "off": 3052,
+      "size": 56,
+      "name": "[type]",
+      "raw_name": [
+        435,
+        441
+      ],
+      "flags": 1,
+      "parent": 24,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 2.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 27,
+      "off": 3108,
+      "size": 56,
+      "name": "[card Symbol Index]",
+      "raw_name": [
+        280,
+        299
+      ],
+      "flags": 1,
+      "parent": 24,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 0.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 28,
+      "off": 3164,
+      "size": 64,
+      "name": "[member limit]",
+      "raw_name": [
+        331,
+        345
+      ],
+      "flags": 1,
+      "parent": 24,
+      "cells": [
+        {
+          "tag": 1,
+          "kind": "name",
+          "raw": [
+            441,
+            446
+          ],
+          "value": "party"
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 29,
+      "off": 3228,
+      "size": 116,
+      "name": "[string data]",
+      "raw_name": [
+        386,
+        399
+      ],
+      "flags": 2,
+      "parent": 24,
+      "cells": [
+        {
+          "tag": 2,
+          "kind": "name_indexed",
+          "index": 20,
+          "raw": [
+            562,
+            591
+          ],
+          "value": "Apocalypse_Difficulty_Name_02"
+        },
+        {
+          "tag": 2,
+          "kind": "name_indexed",
+          "index": 20,
+          "raw": [
+            591,
+            620
+          ],
+          "value": "Apocalypse_Difficulty_Info_02"
+        },
+        {
+          "tag": 2,
+          "kind": "name_indexed",
+          "index": 20,
+          "raw": [
+            620,
+            652
+          ],
+          "value": "Apocalypse_Difficulty_Explain_02"
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 30,
+      "off": 3344,
+      "size": 56,
+      "name": "[recommend fame]",
+      "raw_name": [
+        357,
+        373
+      ],
+      "flags": 1,
+      "parent": 24,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 105881.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 31,
+      "off": 3400,
+      "size": 56,
+      "name": "[type fixed value]",
+      "raw_name": [
+        417,
+        435
+      ],
+      "flags": 1,
+      "parent": 24,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 5.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 32,
+      "off": 3456,
+      "size": 124,
+      "name": "[reward data]",
+      "raw_name": [
+        373,
+        386
+      ],
+      "flags": 2,
+      "parent": 24,
+      "cells": [
+        {
+          "tag": 1,
+          "kind": "name",
+          "raw": [
+            652,
+            658
+          ],
+          "value": "expert"
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 10421369.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 1.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 1000000.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 2.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 1.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 33,
+      "off": 3580,
+      "size": 124,
+      "name": "[ting reward data]",
+      "raw_name": [
+        399,
+        417
+      ],
+      "flags": 2,
+      "parent": 24,
+      "cells": [
+        {
+          "tag": 1,
+          "kind": "name",
+          "raw": [
+            652,
+            658
+          ],
+          "value": "expert"
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 10421369.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 1.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 1000000.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 2.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 0.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 34,
+      "off": 3704,
+      "size": 224,
+      "name": "[gate schedule]",
+      "raw_name": [
+        299,
+        314
+      ],
+      "flags": 2,
+      "parent": 24,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 300.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 3.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 1.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 2.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 0.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 240.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 3.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 1.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 0.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 0.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 180.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 3.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 0.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 0.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 0.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 35,
+      "off": 3928,
+      "size": 108,
+      "name": "[gate close warning]",
+      "raw_name": [
+        542,
+        562
+      ],
+      "flags": 2,
+      "parent": 24,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 270.0
+        },
+        {
+          "tag": 1,
+          "kind": "name",
+          "raw": [
+            658,
+            730
+          ],
+          "value": "Contents\\2026\\Apocalypse\\Xui\\Animation\\ShortcutWarning\\Warning_02_01.ani"
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 210.0
+        },
+        {
+          "tag": 1,
+          "kind": "name",
+          "raw": [
+            730,
+            802
+          ],
+          "value": "Contents\\2026\\Apocalypse\\Xui\\Animation\\ShortcutWarning\\Warning_02_02.ani"
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 36,
+      "off": 4036,
+      "size": 284,
+      "name": "[gateflow]",
+      "raw_name": [
+        314,
+        324
+      ],
+      "flags": 2,
+      "parent": 24,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 1.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 3.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 4.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 5.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": -1.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 2.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 4.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 5.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": -1.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": -1.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 3.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 2.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 3.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 4.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 5.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 4.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 5.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": -1.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": -1.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": -1.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 37,
+      "off": 4320,
+      "size": 188,
+      "name": "[phase info]",
+      "raw_name": [
+        345,
+        357
+      ],
+      "flags": 2,
+      "parent": 24,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 0.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 90.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 1.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 300.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 2.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 300.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 3.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 300.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 4.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 600.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 5.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 600.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 38,
+      "off": 4508,
+      "size": 460,
+      "name": "[operation data set]",
+      "raw_name": [
+        248,
+        268
+      ],
+      "flags": 2,
+      "parent": null,
+      "cells": [],
+      "refs": [
+        {
+          "raw": [
+            280,
+            299
+          ],
+          "name": "[card Symbol Index]",
+          "values": [
+            41
+          ]
+        },
+        {
+          "raw": [
+            542,
+            562
+          ],
+          "name": "[gate close warning]",
+          "values": [
+            49
+          ]
+        },
+        {
+          "raw": [
+            299,
+            314
+          ],
+          "name": "[gate schedule]",
+          "values": [
+            48
+          ]
+        },
+        {
+          "raw": [
+            314,
+            324
+          ],
+          "name": "[gateflow]",
+          "values": [
+            50
+          ]
+        },
+        {
+          "raw": [
+            324,
+            331
+          ],
+          "name": "[index]",
+          "values": [
+            39
+          ]
+        },
+        {
+          "raw": [
+            331,
+            345
+          ],
+          "name": "[member limit]",
+          "values": [
+            42
+          ]
+        },
+        {
+          "raw": [
+            345,
+            357
+          ],
+          "name": "[phase info]",
+          "values": [
+            51
+          ]
+        },
+        {
+          "raw": [
+            357,
+            373
+          ],
+          "name": "[recommend fame]",
+          "values": [
+            44
+          ]
+        },
+        {
+          "raw": [
+            373,
+            386
+          ],
+          "name": "[reward data]",
+          "values": [
+            46
+          ]
+        },
+        {
+          "raw": [
+            386,
+            399
+          ],
+          "name": "[string data]",
+          "values": [
+            43
+          ]
+        },
+        {
+          "raw": [
+            399,
+            417
+          ],
+          "name": "[ting reward data]",
+          "values": [
+            47
+          ]
+        },
+        {
+          "raw": [
+            417,
+            435
+          ],
+          "name": "[type fixed value]",
+          "values": [
+            45
+          ]
+        },
+        {
+          "raw": [
+            435,
+            441
+          ],
+          "name": "[type]",
+          "values": [
+            40
+          ]
+        }
+      ]
+    },
+    {
+      "index": 39,
+      "off": 4968,
+      "size": 56,
+      "name": "[index]",
+      "raw_name": [
+        324,
+        331
+      ],
+      "flags": 1,
+      "parent": 38,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 3.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 40,
+      "off": 5024,
+      "size": 56,
+      "name": "[type]",
+      "raw_name": [
+        435,
+        441
+      ],
+      "flags": 1,
+      "parent": 38,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 3.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 41,
+      "off": 5080,
+      "size": 56,
+      "name": "[card Symbol Index]",
+      "raw_name": [
+        280,
+        299
+      ],
+      "flags": 1,
+      "parent": 38,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 0.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 42,
+      "off": 5136,
+      "size": 64,
+      "name": "[member limit]",
+      "raw_name": [
+        331,
+        345
+      ],
+      "flags": 1,
+      "parent": 38,
+      "cells": [
+        {
+          "tag": 1,
+          "kind": "name",
+          "raw": [
+            441,
+            446
+          ],
+          "value": "party"
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 43,
+      "off": 5200,
+      "size": 116,
+      "name": "[string data]",
+      "raw_name": [
+        386,
+        399
+      ],
+      "flags": 2,
+      "parent": 38,
+      "cells": [
+        {
+          "tag": 2,
+          "kind": "name_indexed",
+          "index": 20,
+          "raw": [
+            802,
+            831
+          ],
+          "value": "Apocalypse_Difficulty_Name_03"
+        },
+        {
+          "tag": 2,
+          "kind": "name_indexed",
+          "index": 20,
+          "raw": [
+            831,
+            860
+          ],
+          "value": "Apocalypse_Difficulty_Info_03"
+        },
+        {
+          "tag": 2,
+          "kind": "name_indexed",
+          "index": 20,
+          "raw": [
+            860,
+            892
+          ],
+          "value": "Apocalypse_Difficulty_Explain_03"
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 44,
+      "off": 5316,
+      "size": 56,
+      "name": "[recommend fame]",
+      "raw_name": [
+        357,
+        373
+      ],
+      "flags": 1,
+      "parent": 38,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 105881.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 45,
+      "off": 5372,
+      "size": 56,
+      "name": "[type fixed value]",
+      "raw_name": [
+        417,
+        435
+      ],
+      "flags": 1,
+      "parent": 38,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 5.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 46,
+      "off": 5428,
+      "size": 124,
+      "name": "[reward data]",
+      "raw_name": [
+        373,
+        386
+      ],
+      "flags": 2,
+      "parent": 38,
+      "cells": [
+        {
+          "tag": 1,
+          "kind": "name",
+          "raw": [
+            892,
+            898
+          ],
+          "value": "master"
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 10421369.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 1.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 1000000.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 1.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 1.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 47,
+      "off": 5552,
+      "size": 124,
+      "name": "[ting reward data]",
+      "raw_name": [
+        399,
+        417
+      ],
+      "flags": 2,
+      "parent": 38,
+      "cells": [
+        {
+          "tag": 1,
+          "kind": "name",
+          "raw": [
+            892,
+            898
+          ],
+          "value": "master"
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 10421369.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 1.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 1000000.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 3.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 0.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 48,
+      "off": 5676,
+      "size": 284,
+      "name": "[gate schedule]",
+      "raw_name": [
+        299,
+        314
+      ],
+      "flags": 2,
+      "parent": 38,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 300.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 3.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 1.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 2.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 4.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 255.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 3.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 1.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 2.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 0.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 240.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 3.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 1.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 0.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 0.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 180.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 3.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 0.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 0.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 0.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 49,
+      "off": 5960,
+      "size": 140,
+      "name": "[gate close warning]",
+      "raw_name": [
+        542,
+        562
+      ],
+      "flags": 2,
+      "parent": 38,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 285.0
+        },
+        {
+          "tag": 1,
+          "kind": "name",
+          "raw": [
+            658,
+            730
+          ],
+          "value": "Contents\\2026\\Apocalypse\\Xui\\Animation\\ShortcutWarning\\Warning_02_01.ani"
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 270.0
+        },
+        {
+          "tag": 1,
+          "kind": "name",
+          "raw": [
+            730,
+            802
+          ],
+          "value": "Contents\\2026\\Apocalypse\\Xui\\Animation\\ShortcutWarning\\Warning_02_02.ani"
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 210.0
+        },
+        {
+          "tag": 1,
+          "kind": "name",
+          "raw": [
+            898,
+            970
+          ],
+          "value": "Contents\\2026\\Apocalypse\\Xui\\Animation\\ShortcutWarning\\Warning_02_03.ani"
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 50,
+      "off": 6100,
+      "size": 284,
+      "name": "[gateflow]",
+      "raw_name": [
+        314,
+        324
+      ],
+      "flags": 2,
+      "parent": 38,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 1.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 3.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 4.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 5.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": -1.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 2.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 4.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 5.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": -1.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": -1.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 3.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 2.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 3.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 4.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 5.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 4.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 5.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": -1.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": -1.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": -1.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 51,
+      "off": 6384,
+      "size": 188,
+      "name": "[phase info]",
+      "raw_name": [
+        345,
+        357
+      ],
+      "flags": 2,
+      "parent": 38,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 0.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 90.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 1.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 300.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 2.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 300.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 3.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 300.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 4.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 600.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 5.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 600.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 52,
+      "off": 6572,
+      "size": 428,
+      "name": "[operation data set]",
+      "raw_name": [
+        248,
+        268
+      ],
+      "flags": 2,
+      "parent": null,
+      "cells": [],
+      "refs": [
+        {
+          "raw": [
+            280,
+            299
+          ],
+          "name": "[card Symbol Index]",
+          "values": [
+            55
+          ]
+        },
+        {
+          "raw": [
+            299,
+            314
+          ],
+          "name": "[gate schedule]",
+          "values": [
+            62
+          ]
+        },
+        {
+          "raw": [
+            314,
+            324
+          ],
+          "name": "[gateflow]",
+          "values": [
+            63
+          ]
+        },
+        {
+          "raw": [
+            324,
+            331
+          ],
+          "name": "[index]",
+          "values": [
+            53
+          ]
+        },
+        {
+          "raw": [
+            331,
+            345
+          ],
+          "name": "[member limit]",
+          "values": [
+            56
+          ]
+        },
+        {
+          "raw": [
+            345,
+            357
+          ],
+          "name": "[phase info]",
+          "values": [
+            64
+          ]
+        },
+        {
+          "raw": [
+            357,
+            373
+          ],
+          "name": "[recommend fame]",
+          "values": [
+            58
+          ]
+        },
+        {
+          "raw": [
+            373,
+            386
+          ],
+          "name": "[reward data]",
+          "values": [
+            60
+          ]
+        },
+        {
+          "raw": [
+            386,
+            399
+          ],
+          "name": "[string data]",
+          "values": [
+            57
+          ]
+        },
+        {
+          "raw": [
+            399,
+            417
+          ],
+          "name": "[ting reward data]",
+          "values": [
+            61
+          ]
+        },
+        {
+          "raw": [
+            417,
+            435
+          ],
+          "name": "[type fixed value]",
+          "values": [
+            59
+          ]
+        },
+        {
+          "raw": [
+            435,
+            441
+          ],
+          "name": "[type]",
+          "values": [
+            54
+          ]
+        }
+      ]
+    },
+    {
+      "index": 53,
+      "off": 7000,
+      "size": 56,
+      "name": "[index]",
+      "raw_name": [
+        324,
+        331
+      ],
+      "flags": 1,
+      "parent": 52,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 5.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 54,
+      "off": 7056,
+      "size": 56,
+      "name": "[type]",
+      "raw_name": [
+        435,
+        441
+      ],
+      "flags": 1,
+      "parent": 52,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 5.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 55,
+      "off": 7112,
+      "size": 56,
+      "name": "[card Symbol Index]",
+      "raw_name": [
+        280,
+        299
+      ],
+      "flags": 1,
+      "parent": 52,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 0.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 56,
+      "off": 7168,
+      "size": 64,
+      "name": "[member limit]",
+      "raw_name": [
+        331,
+        345
+      ],
+      "flags": 1,
+      "parent": 52,
+      "cells": [
+        {
+          "tag": 1,
+          "kind": "name",
+          "raw": [
+            441,
+            446
+          ],
+          "value": "party"
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 57,
+      "off": 7232,
+      "size": 68,
+      "name": "[string data]",
+      "raw_name": [
+        386,
+        399
+      ],
+      "flags": 2,
+      "parent": 52,
+      "cells": [
+        {
+          "tag": 2,
+          "kind": "name_indexed",
+          "index": 20,
+          "raw": [
+            446,
+            475
+          ],
+          "value": "Apocalypse_Difficulty_Name_01"
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 58,
+      "off": 7300,
+      "size": 56,
+      "name": "[recommend fame]",
+      "raw_name": [
+        357,
+        373
+      ],
+      "flags": 1,
+      "parent": 52,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 73993.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 59,
+      "off": 7356,
+      "size": 56,
+      "name": "[type fixed value]",
+      "raw_name": [
+        417,
+        435
+      ],
+      "flags": 1,
+      "parent": 52,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 5.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 60,
+      "off": 7412,
+      "size": 124,
+      "name": "[reward data]",
+      "raw_name": [
+        373,
+        386
+      ],
+      "flags": 2,
+      "parent": 52,
+      "cells": [
+        {
+          "tag": 1,
+          "kind": "name",
+          "raw": [
+            970,
+            975
+          ],
+          "value": "match"
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 10421365.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 1.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 1000000.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 1.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 1.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 61,
+      "off": 7536,
+      "size": 124,
+      "name": "[ting reward data]",
+      "raw_name": [
+        399,
+        417
+      ],
+      "flags": 2,
+      "parent": 52,
+      "cells": [
+        {
+          "tag": 1,
+          "kind": "name",
+          "raw": [
+            970,
+            975
+          ],
+          "value": "match"
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 10421365.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 1.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 1000000.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 3.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 0.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 62,
+      "off": 7660,
+      "size": 104,
+      "name": "[gate schedule]",
+      "raw_name": [
+        299,
+        314
+      ],
+      "flags": 2,
+      "parent": 52,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 900.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 1.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 0.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 0.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 0.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 63,
+      "off": 7764,
+      "size": 104,
+      "name": "[gateflow]",
+      "raw_name": [
+        314,
+        324
+      ],
+      "flags": 2,
+      "parent": 52,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 1.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 2.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 3.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": -1.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": -1.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 64,
+      "off": 7868,
+      "size": 188,
+      "name": "[phase info]",
+      "raw_name": [
+        345,
+        357
+      ],
+      "flags": 2,
+      "parent": 52,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 0.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 90.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 1.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 300.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 2.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 300.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 3.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 300.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 4.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 600.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 5.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 600.0
+        }
+      ],
+      "refs": []
+    }
   ],
   "trailer": [
     {
-      "off": "0x1f78",
-      "lo": 82,
-      "hi": 149,
+      "raw": [
+        82,
+        149
+      ],
       "name": "[collaborate attack groggy duration increase per keldon xavi stack]",
-      "span_matches_name": true,
-      "values": [
+      "records": [
         7
       ]
     },
     {
-      "off": "0x1f98",
-      "lo": 149,
-      "hi": 193,
+      "raw": [
+        149,
+        193
+      ],
       "name": "[guardian hp increase per keldon xavi stack]",
-      "span_matches_name": true,
-      "values": [
+      "records": [
         8
       ]
     },
     {
-      "off": "0x1fb8",
-      "lo": 51,
-      "hi": 82,
+      "raw": [
+        51,
+        82
+      ],
       "name": "[keldon xavi final damage rate]",
-      "span_matches_name": true,
-      "values": [
+      "records": [
         6
       ]
     },
     {
-      "off": "0x1fd8",
-      "lo": 248,
-      "hi": 268,
+      "raw": [
+        248,
+        268
+      ],
       "name": "[operation data set]",
-      "span_matches_name": true,
-      "values": [
+      "records": [
         10,
         24,
         38,
@@ -86,1767 +3022,42 @@
       ]
     },
     {
-      "off": "0x2010",
-      "lo": 0,
-      "hi": 20,
+      "raw": [
+        0,
+        20
+      ],
       "name": "[party waiting area]",
-      "span_matches_name": true,
-      "values": [
+      "records": [
         0
       ]
     },
     {
-      "off": "0x2030",
-      "lo": 20,
-      "hi": 43,
+      "raw": [
+        20,
+        43
+      ],
       "name": "[role per member limit]",
-      "span_matches_name": true,
-      "values": [
+      "records": [
         1
       ]
     },
     {
-      "off": "0x2050",
-      "lo": 193,
-      "hi": 248,
+      "raw": [
+        193,
+        248
+      ],
       "name": "[skirmisher monster hp reduction per keldon xavi stack]",
-      "span_matches_name": true,
-      "values": [
+      "records": [
         9
       ]
     }
   ],
-  "name_refs": [],
-  "inline_name_refs": [
-    {
-      "off": 128,
-      "lo": 20,
-      "hi": 43,
-      "name": "[role per member limit]"
-    },
-    {
-      "off": 172,
-      "lo": 43,
-      "hi": 51,
-      "name": "[member]"
-    },
-    {
-      "off": 228,
-      "lo": 43,
-      "hi": 51,
-      "name": "[member]"
-    },
-    {
-      "off": 308,
-      "lo": 43,
-      "hi": 51,
-      "name": "[member]"
-    },
-    {
-      "off": 412,
-      "lo": 43,
-      "hi": 51,
-      "name": "[member]"
-    },
-    {
-      "off": 516,
-      "lo": 43,
-      "hi": 51,
-      "name": "[member]"
-    },
-    {
-      "off": 620,
-      "lo": 51,
-      "hi": 82,
-      "name": "[keldon xavi final damage rate]"
-    },
-    {
-      "off": 736,
-      "lo": 82,
-      "hi": 149,
-      "name": "[collaborate attack groggy duration increase per keldon xavi stack]"
-    },
-    {
-      "off": 792,
-      "lo": 149,
-      "hi": 193,
-      "name": "[guardian hp increase per keldon xavi stack]"
-    },
-    {
-      "off": 848,
-      "lo": 193,
-      "hi": 248,
-      "name": "[skirmisher monster hp reduction per keldon xavi stack]"
-    },
-    {
-      "off": 904,
-      "lo": 248,
-      "hi": 268,
-      "name": "[operation data set]"
-    },
-    {
-      "off": 948,
-      "lo": 268,
-      "hi": 280,
-      "name": "[allow coin]"
-    },
-    {
-      "off": 980,
-      "lo": 280,
-      "hi": 299,
-      "name": "[card Symbol Index]"
-    },
-    {
-      "off": 1012,
-      "lo": 299,
-      "hi": 314,
-      "name": "[gate schedule]"
-    },
-    {
-      "off": 1044,
-      "lo": 314,
-      "hi": 324,
-      "name": "[gateflow]"
-    },
-    {
-      "off": 1076,
-      "lo": 324,
-      "hi": 331,
-      "name": "[index]"
-    },
-    {
-      "off": 1108,
-      "lo": 331,
-      "hi": 345,
-      "name": "[member limit]"
-    },
-    {
-      "off": 1140,
-      "lo": 345,
-      "hi": 357,
-      "name": "[phase info]"
-    },
-    {
-      "off": 1172,
-      "lo": 357,
-      "hi": 373,
-      "name": "[recommend fame]"
-    },
-    {
-      "off": 1204,
-      "lo": 373,
-      "hi": 386,
-      "name": "[reward data]"
-    },
-    {
-      "off": 1236,
-      "lo": 386,
-      "hi": 399,
-      "name": "[string data]"
-    },
-    {
-      "off": 1268,
-      "lo": 399,
-      "hi": 417,
-      "name": "[ting reward data]"
-    },
-    {
-      "off": 1300,
-      "lo": 417,
-      "hi": 435,
-      "name": "[type fixed value]"
-    },
-    {
-      "off": 1332,
-      "lo": 435,
-      "hi": 441,
-      "name": "[type]"
-    },
-    {
-      "off": 1364,
-      "lo": 324,
-      "hi": 331,
-      "name": "[index]"
-    },
-    {
-      "off": 1420,
-      "lo": 435,
-      "hi": 441,
-      "name": "[type]"
-    },
-    {
-      "off": 1476,
-      "lo": 280,
-      "hi": 299,
-      "name": "[card Symbol Index]"
-    },
-    {
-      "off": 1532,
-      "lo": 331,
-      "hi": 345,
-      "name": "[member limit]"
-    },
-    {
-      "off": 1596,
-      "lo": 386,
-      "hi": 399,
-      "name": "[string data]"
-    },
-    {
-      "off": 1712,
-      "lo": 357,
-      "hi": 373,
-      "name": "[recommend fame]"
-    },
-    {
-      "off": 1768,
-      "lo": 268,
-      "hi": 280,
-      "name": "[allow coin]"
-    },
-    {
-      "off": 1836,
-      "lo": 417,
-      "hi": 435,
-      "name": "[type fixed value]"
-    },
-    {
-      "off": 1892,
-      "lo": 373,
-      "hi": 386,
-      "name": "[reward data]"
-    },
-    {
-      "off": 2016,
-      "lo": 399,
-      "hi": 417,
-      "name": "[ting reward data]"
-    },
-    {
-      "off": 2140,
-      "lo": 299,
-      "hi": 314,
-      "name": "[gate schedule]"
-    },
-    {
-      "off": 2244,
-      "lo": 314,
-      "hi": 324,
-      "name": "[gateflow]"
-    },
-    {
-      "off": 2348,
-      "lo": 345,
-      "hi": 357,
-      "name": "[phase info]"
-    },
-    {
-      "off": 2536,
-      "lo": 248,
-      "hi": 268,
-      "name": "[operation data set]"
-    },
-    {
-      "off": 2580,
-      "lo": 280,
-      "hi": 299,
-      "name": "[card Symbol Index]"
-    },
-    {
-      "off": 2612,
-      "lo": 542,
-      "hi": 562,
-      "name": "[gate close warning]"
-    },
-    {
-      "off": 2644,
-      "lo": 299,
-      "hi": 314,
-      "name": "[gate schedule]"
-    },
-    {
-      "off": 2676,
-      "lo": 314,
-      "hi": 324,
-      "name": "[gateflow]"
-    },
-    {
-      "off": 2708,
-      "lo": 324,
-      "hi": 331,
-      "name": "[index]"
-    },
-    {
-      "off": 2740,
-      "lo": 331,
-      "hi": 345,
-      "name": "[member limit]"
-    },
-    {
-      "off": 2772,
-      "lo": 345,
-      "hi": 357,
-      "name": "[phase info]"
-    },
-    {
-      "off": 2804,
-      "lo": 357,
-      "hi": 373,
-      "name": "[recommend fame]"
-    },
-    {
-      "off": 2836,
-      "lo": 373,
-      "hi": 386,
-      "name": "[reward data]"
-    },
-    {
-      "off": 2868,
-      "lo": 386,
-      "hi": 399,
-      "name": "[string data]"
-    },
-    {
-      "off": 2900,
-      "lo": 399,
-      "hi": 417,
-      "name": "[ting reward data]"
-    },
-    {
-      "off": 2932,
-      "lo": 417,
-      "hi": 435,
-      "name": "[type fixed value]"
-    },
-    {
-      "off": 2964,
-      "lo": 435,
-      "hi": 441,
-      "name": "[type]"
-    },
-    {
-      "off": 2996,
-      "lo": 324,
-      "hi": 331,
-      "name": "[index]"
-    },
-    {
-      "off": 3052,
-      "lo": 435,
-      "hi": 441,
-      "name": "[type]"
-    },
-    {
-      "off": 3108,
-      "lo": 280,
-      "hi": 299,
-      "name": "[card Symbol Index]"
-    },
-    {
-      "off": 3164,
-      "lo": 331,
-      "hi": 345,
-      "name": "[member limit]"
-    },
-    {
-      "off": 3228,
-      "lo": 386,
-      "hi": 399,
-      "name": "[string data]"
-    },
-    {
-      "off": 3344,
-      "lo": 357,
-      "hi": 373,
-      "name": "[recommend fame]"
-    },
-    {
-      "off": 3400,
-      "lo": 417,
-      "hi": 435,
-      "name": "[type fixed value]"
-    },
-    {
-      "off": 3456,
-      "lo": 373,
-      "hi": 386,
-      "name": "[reward data]"
-    },
-    {
-      "off": 3580,
-      "lo": 399,
-      "hi": 417,
-      "name": "[ting reward data]"
-    },
-    {
-      "off": 3704,
-      "lo": 299,
-      "hi": 314,
-      "name": "[gate schedule]"
-    },
-    {
-      "off": 3928,
-      "lo": 542,
-      "hi": 562,
-      "name": "[gate close warning]"
-    },
-    {
-      "off": 4036,
-      "lo": 314,
-      "hi": 324,
-      "name": "[gateflow]"
-    },
-    {
-      "off": 4320,
-      "lo": 345,
-      "hi": 357,
-      "name": "[phase info]"
-    },
-    {
-      "off": 4508,
-      "lo": 248,
-      "hi": 268,
-      "name": "[operation data set]"
-    },
-    {
-      "off": 4552,
-      "lo": 280,
-      "hi": 299,
-      "name": "[card Symbol Index]"
-    },
-    {
-      "off": 4584,
-      "lo": 542,
-      "hi": 562,
-      "name": "[gate close warning]"
-    },
-    {
-      "off": 4616,
-      "lo": 299,
-      "hi": 314,
-      "name": "[gate schedule]"
-    },
-    {
-      "off": 4648,
-      "lo": 314,
-      "hi": 324,
-      "name": "[gateflow]"
-    },
-    {
-      "off": 4680,
-      "lo": 324,
-      "hi": 331,
-      "name": "[index]"
-    },
-    {
-      "off": 4712,
-      "lo": 331,
-      "hi": 345,
-      "name": "[member limit]"
-    },
-    {
-      "off": 4744,
-      "lo": 345,
-      "hi": 357,
-      "name": "[phase info]"
-    },
-    {
-      "off": 4776,
-      "lo": 357,
-      "hi": 373,
-      "name": "[recommend fame]"
-    },
-    {
-      "off": 4808,
-      "lo": 373,
-      "hi": 386,
-      "name": "[reward data]"
-    },
-    {
-      "off": 4840,
-      "lo": 386,
-      "hi": 399,
-      "name": "[string data]"
-    },
-    {
-      "off": 4872,
-      "lo": 399,
-      "hi": 417,
-      "name": "[ting reward data]"
-    },
-    {
-      "off": 4904,
-      "lo": 417,
-      "hi": 435,
-      "name": "[type fixed value]"
-    },
-    {
-      "off": 4936,
-      "lo": 435,
-      "hi": 441,
-      "name": "[type]"
-    },
-    {
-      "off": 4968,
-      "lo": 324,
-      "hi": 331,
-      "name": "[index]"
-    },
-    {
-      "off": 5024,
-      "lo": 435,
-      "hi": 441,
-      "name": "[type]"
-    },
-    {
-      "off": 5080,
-      "lo": 280,
-      "hi": 299,
-      "name": "[card Symbol Index]"
-    },
-    {
-      "off": 5136,
-      "lo": 331,
-      "hi": 345,
-      "name": "[member limit]"
-    },
-    {
-      "off": 5200,
-      "lo": 386,
-      "hi": 399,
-      "name": "[string data]"
-    },
-    {
-      "off": 5316,
-      "lo": 357,
-      "hi": 373,
-      "name": "[recommend fame]"
-    },
-    {
-      "off": 5372,
-      "lo": 417,
-      "hi": 435,
-      "name": "[type fixed value]"
-    },
-    {
-      "off": 5428,
-      "lo": 373,
-      "hi": 386,
-      "name": "[reward data]"
-    },
-    {
-      "off": 5552,
-      "lo": 399,
-      "hi": 417,
-      "name": "[ting reward data]"
-    },
-    {
-      "off": 5676,
-      "lo": 299,
-      "hi": 314,
-      "name": "[gate schedule]"
-    },
-    {
-      "off": 5960,
-      "lo": 542,
-      "hi": 562,
-      "name": "[gate close warning]"
-    },
-    {
-      "off": 6100,
-      "lo": 314,
-      "hi": 324,
-      "name": "[gateflow]"
-    },
-    {
-      "off": 6384,
-      "lo": 345,
-      "hi": 357,
-      "name": "[phase info]"
-    },
-    {
-      "off": 6572,
-      "lo": 248,
-      "hi": 268,
-      "name": "[operation data set]"
-    },
-    {
-      "off": 6616,
-      "lo": 280,
-      "hi": 299,
-      "name": "[card Symbol Index]"
-    },
-    {
-      "off": 6648,
-      "lo": 299,
-      "hi": 314,
-      "name": "[gate schedule]"
-    },
-    {
-      "off": 6680,
-      "lo": 314,
-      "hi": 324,
-      "name": "[gateflow]"
-    },
-    {
-      "off": 6712,
-      "lo": 324,
-      "hi": 331,
-      "name": "[index]"
-    },
-    {
-      "off": 6744,
-      "lo": 331,
-      "hi": 345,
-      "name": "[member limit]"
-    },
-    {
-      "off": 6776,
-      "lo": 345,
-      "hi": 357,
-      "name": "[phase info]"
-    },
-    {
-      "off": 6808,
-      "lo": 357,
-      "hi": 373,
-      "name": "[recommend fame]"
-    },
-    {
-      "off": 6840,
-      "lo": 373,
-      "hi": 386,
-      "name": "[reward data]"
-    },
-    {
-      "off": 6872,
-      "lo": 386,
-      "hi": 399,
-      "name": "[string data]"
-    },
-    {
-      "off": 6904,
-      "lo": 399,
-      "hi": 417,
-      "name": "[ting reward data]"
-    },
-    {
-      "off": 6936,
-      "lo": 417,
-      "hi": 435,
-      "name": "[type fixed value]"
-    },
-    {
-      "off": 6968,
-      "lo": 435,
-      "hi": 441,
-      "name": "[type]"
-    },
-    {
-      "off": 7000,
-      "lo": 324,
-      "hi": 331,
-      "name": "[index]"
-    },
-    {
-      "off": 7056,
-      "lo": 435,
-      "hi": 441,
-      "name": "[type]"
-    },
-    {
-      "off": 7112,
-      "lo": 280,
-      "hi": 299,
-      "name": "[card Symbol Index]"
-    },
-    {
-      "off": 7168,
-      "lo": 331,
-      "hi": 345,
-      "name": "[member limit]"
-    },
-    {
-      "off": 7232,
-      "lo": 386,
-      "hi": 399,
-      "name": "[string data]"
-    },
-    {
-      "off": 7300,
-      "lo": 357,
-      "hi": 373,
-      "name": "[recommend fame]"
-    },
-    {
-      "off": 7356,
-      "lo": 417,
-      "hi": 435,
-      "name": "[type fixed value]"
-    },
-    {
-      "off": 7412,
-      "lo": 373,
-      "hi": 386,
-      "name": "[reward data]"
-    },
-    {
-      "off": 7536,
-      "lo": 399,
-      "hi": 417,
-      "name": "[ting reward data]"
-    },
-    {
-      "off": 7660,
-      "lo": 299,
-      "hi": 314,
-      "name": "[gate schedule]"
-    },
-    {
-      "off": 7764,
-      "lo": 314,
-      "hi": 324,
-      "name": "[gateflow]"
-    },
-    {
-      "off": 7868,
-      "lo": 345,
-      "hi": 357,
-      "name": "[phase info]"
-    }
-  ],
-  "records": [
-    {
-      "name": "[role per member limit]",
-      "ref_off": "0x80",
-      "span": 24,
-      "sequence": []
-    },
-    {
-      "name": "[member]",
-      "ref_off": "0xac",
-      "span": 36,
-      "sequence": []
-    },
-    {
-      "name": "[member]",
-      "ref_off": "0xe4",
-      "span": 60,
-      "sequence": [
-        1.0,
-        1.0,
-        1.0
-      ]
-    },
-    {
-      "name": "[member]",
-      "ref_off": "0x134",
-      "span": 84,
-      "sequence": [
-        2.0,
-        2.0,
-        1.0,
-        1.0,
-        1.0
-      ]
-    },
-    {
-      "name": "[member]",
-      "ref_off": "0x19c",
-      "span": 84,
-      "sequence": [
-        3.0,
-        2.0,
-        2.0,
-        1.0,
-        2.0
-      ]
-    },
-    {
-      "name": "[member]",
-      "ref_off": "0x204",
-      "span": 84,
-      "sequence": [
-        4.0,
-        2.0,
-        2.0,
-        1.0,
-        2.0
-      ]
-    },
-    {
-      "name": "[keldon xavi final damage rate]",
-      "ref_off": "0x26c",
-      "span": 96,
-      "sequence": [
-        0.0,
-        0.0,
-        10.0,
-        10.0,
-        0.0,
-        0.0
-      ]
-    },
-    {
-      "name": "[collaborate attack groggy duration increase per keldon xavi stack]",
-      "ref_off": "0x2e0",
-      "span": 36,
-      "sequence": []
-    },
-    {
-      "name": "[guardian hp increase per keldon xavi stack]",
-      "ref_off": "0x318",
-      "span": 36,
-      "sequence": [
-        10.0
-      ]
-    },
-    {
-      "name": "[skirmisher monster hp reduction per keldon xavi stack]",
-      "ref_off": "0x350",
-      "span": 36,
-      "sequence": []
-    },
-    {
-      "name": "[operation data set]",
-      "ref_off": "0x388",
-      "span": 24,
-      "sequence": []
-    },
-    {
-      "name": "[allow coin]",
-      "ref_off": "0x3b4",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[card Symbol Index]",
-      "ref_off": "0x3d4",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[gate schedule]",
-      "ref_off": "0x3f4",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[gateflow]",
-      "ref_off": "0x414",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[index]",
-      "ref_off": "0x434",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[member limit]",
-      "ref_off": "0x454",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[phase info]",
-      "ref_off": "0x474",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[recommend fame]",
-      "ref_off": "0x494",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[reward data]",
-      "ref_off": "0x4b4",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[string data]",
-      "ref_off": "0x4d4",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[ting reward data]",
-      "ref_off": "0x4f4",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[type fixed value]",
-      "ref_off": "0x514",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[type]",
-      "ref_off": "0x534",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[index]",
-      "ref_off": "0x554",
-      "span": 36,
-      "sequence": [
-        1.0
-      ]
-    },
-    {
-      "name": "[type]",
-      "ref_off": "0x58c",
-      "span": 36,
-      "sequence": [
-        1.0
-      ]
-    },
-    {
-      "name": "[card Symbol Index]",
-      "ref_off": "0x5c4",
-      "span": 36,
-      "sequence": [
-        7.0
-      ]
-    },
-    {
-      "name": "[member limit]",
-      "ref_off": "0x5fc",
-      "span": 44,
-      "sequence": []
-    },
-    {
-      "name": "[string data]",
-      "ref_off": "0x63c",
-      "span": 96,
-      "sequence": []
-    },
-    {
-      "name": "[recommend fame]",
-      "ref_off": "0x6b0",
-      "span": 36,
-      "sequence": [
-        98171.0
-      ]
-    },
-    {
-      "name": "[allow coin]",
-      "ref_off": "0x6e8",
-      "span": 48,
-      "sequence": [
-        -1.0,
-        8.0
-      ]
-    },
-    {
-      "name": "[type fixed value]",
-      "ref_off": "0x72c",
-      "span": 36,
-      "sequence": [
-        5.0
-      ]
-    },
-    {
-      "name": "[reward data]",
-      "ref_off": "0x764",
-      "span": 104,
-      "sequence": [
-        1.0,
-        1000000.0,
-        1.0,
-        1.0
-      ]
-    },
-    {
-      "name": "[ting reward data]",
-      "ref_off": "0x7e0",
-      "span": 104,
-      "sequence": [
-        1.0,
-        1000000.0,
-        1.0,
-        0.0
-      ]
-    },
-    {
-      "name": "[gate schedule]",
-      "ref_off": "0x85c",
-      "span": 84,
-      "sequence": [
-        900.0,
-        1.0,
-        0.0,
-        0.0,
-        0.0
-      ]
-    },
-    {
-      "name": "[gateflow]",
-      "ref_off": "0x8c4",
-      "span": 84,
-      "sequence": [
-        1.0,
-        2.0,
-        3.0,
-        -1.0,
-        -1.0
-      ]
-    },
-    {
-      "name": "[phase info]",
-      "ref_off": "0x92c",
-      "span": 168,
-      "sequence": [
-        0.0,
-        90.0,
-        1.0,
-        300.0,
-        2.0,
-        300.0,
-        3.0,
-        300.0,
-        4.0,
-        600.0,
-        5.0,
-        600.0
-      ]
-    },
-    {
-      "name": "[operation data set]",
-      "ref_off": "0x9e8",
-      "span": 24,
-      "sequence": []
-    },
-    {
-      "name": "[card Symbol Index]",
-      "ref_off": "0xa14",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[gate close warning]",
-      "ref_off": "0xa34",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[gate schedule]",
-      "ref_off": "0xa54",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[gateflow]",
-      "ref_off": "0xa74",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[index]",
-      "ref_off": "0xa94",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[member limit]",
-      "ref_off": "0xab4",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[phase info]",
-      "ref_off": "0xad4",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[recommend fame]",
-      "ref_off": "0xaf4",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[reward data]",
-      "ref_off": "0xb14",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[string data]",
-      "ref_off": "0xb34",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[ting reward data]",
-      "ref_off": "0xb54",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[type fixed value]",
-      "ref_off": "0xb74",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[type]",
-      "ref_off": "0xb94",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[index]",
-      "ref_off": "0xbb4",
-      "span": 36,
-      "sequence": [
-        2.0
-      ]
-    },
-    {
-      "name": "[type]",
-      "ref_off": "0xbec",
-      "span": 36,
-      "sequence": [
-        2.0
-      ]
-    },
-    {
-      "name": "[card Symbol Index]",
-      "ref_off": "0xc24",
-      "span": 36,
-      "sequence": [
-        0.0
-      ]
-    },
-    {
-      "name": "[member limit]",
-      "ref_off": "0xc5c",
-      "span": 44,
-      "sequence": []
-    },
-    {
-      "name": "[string data]",
-      "ref_off": "0xc9c",
-      "span": 96,
-      "sequence": []
-    },
-    {
-      "name": "[recommend fame]",
-      "ref_off": "0xd10",
-      "span": 36,
-      "sequence": [
-        105881.0
-      ]
-    },
-    {
-      "name": "[type fixed value]",
-      "ref_off": "0xd48",
-      "span": 36,
-      "sequence": [
-        5.0
-      ]
-    },
-    {
-      "name": "[reward data]",
-      "ref_off": "0xd80",
-      "span": 104,
-      "sequence": [
-        1.0,
-        1000000.0,
-        2.0,
-        1.0
-      ]
-    },
-    {
-      "name": "[ting reward data]",
-      "ref_off": "0xdfc",
-      "span": 104,
-      "sequence": [
-        1.0,
-        1000000.0,
-        2.0,
-        0.0
-      ]
-    },
-    {
-      "name": "[gate schedule]",
-      "ref_off": "0xe78",
-      "span": 204,
-      "sequence": [
-        300.0,
-        3.0,
-        1.0,
-        2.0,
-        0.0,
-        240.0,
-        3.0,
-        1.0,
-        0.0,
-        0.0,
-        180.0,
-        3.0,
-        0.0,
-        0.0,
-        0.0
-      ]
-    },
-    {
-      "name": "[gate close warning]",
-      "ref_off": "0xf58",
-      "span": 88,
-      "sequence": [
-        0.0
-      ]
-    },
-    {
-      "name": "[gateflow]",
-      "ref_off": "0xfc4",
-      "span": 264,
-      "sequence": [
-        1.0,
-        3.0,
-        4.0,
-        5.0,
-        -1.0,
-        2.0,
-        4.0,
-        5.0,
-        -1.0,
-        -1.0,
-        3.0,
-        2.0,
-        3.0,
-        4.0,
-        5.0,
-        4.0,
-        5.0,
-        -1.0,
-        -1.0,
-        -1.0
-      ]
-    },
-    {
-      "name": "[phase info]",
-      "ref_off": "0x10e0",
-      "span": 168,
-      "sequence": [
-        0.0,
-        90.0,
-        1.0,
-        300.0,
-        2.0,
-        300.0,
-        3.0,
-        300.0,
-        4.0,
-        600.0,
-        5.0,
-        600.0
-      ]
-    },
-    {
-      "name": "[operation data set]",
-      "ref_off": "0x119c",
-      "span": 24,
-      "sequence": []
-    },
-    {
-      "name": "[card Symbol Index]",
-      "ref_off": "0x11c8",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[gate close warning]",
-      "ref_off": "0x11e8",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[gate schedule]",
-      "ref_off": "0x1208",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[gateflow]",
-      "ref_off": "0x1228",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[index]",
-      "ref_off": "0x1248",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[member limit]",
-      "ref_off": "0x1268",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[phase info]",
-      "ref_off": "0x1288",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[recommend fame]",
-      "ref_off": "0x12a8",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[reward data]",
-      "ref_off": "0x12c8",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[string data]",
-      "ref_off": "0x12e8",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[ting reward data]",
-      "ref_off": "0x1308",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[type fixed value]",
-      "ref_off": "0x1328",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[type]",
-      "ref_off": "0x1348",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[index]",
-      "ref_off": "0x1368",
-      "span": 36,
-      "sequence": [
-        3.0
-      ]
-    },
-    {
-      "name": "[type]",
-      "ref_off": "0x13a0",
-      "span": 36,
-      "sequence": [
-        3.0
-      ]
-    },
-    {
-      "name": "[card Symbol Index]",
-      "ref_off": "0x13d8",
-      "span": 36,
-      "sequence": [
-        0.0
-      ]
-    },
-    {
-      "name": "[member limit]",
-      "ref_off": "0x1410",
-      "span": 44,
-      "sequence": []
-    },
-    {
-      "name": "[string data]",
-      "ref_off": "0x1450",
-      "span": 96,
-      "sequence": []
-    },
-    {
-      "name": "[recommend fame]",
-      "ref_off": "0x14c4",
-      "span": 36,
-      "sequence": [
-        105881.0
-      ]
-    },
-    {
-      "name": "[type fixed value]",
-      "ref_off": "0x14fc",
-      "span": 36,
-      "sequence": [
-        5.0
-      ]
-    },
-    {
-      "name": "[reward data]",
-      "ref_off": "0x1534",
-      "span": 104,
-      "sequence": [
-        1.0,
-        1000000.0,
-        1.0,
-        1.0
-      ]
-    },
-    {
-      "name": "[ting reward data]",
-      "ref_off": "0x15b0",
-      "span": 104,
-      "sequence": [
-        1.0,
-        1000000.0,
-        3.0,
-        0.0
-      ]
-    },
-    {
-      "name": "[gate schedule]",
-      "ref_off": "0x162c",
-      "span": 264,
-      "sequence": [
-        300.0,
-        3.0,
-        1.0,
-        2.0,
-        4.0,
-        255.0,
-        3.0,
-        1.0,
-        2.0,
-        0.0,
-        240.0,
-        3.0,
-        1.0,
-        0.0,
-        0.0,
-        180.0,
-        3.0,
-        0.0,
-        0.0,
-        0.0
-      ]
-    },
-    {
-      "name": "[gate close warning]",
-      "ref_off": "0x1748",
-      "span": 120,
-      "sequence": [
-        285.0
-      ]
-    },
-    {
-      "name": "[gateflow]",
-      "ref_off": "0x17d4",
-      "span": 264,
-      "sequence": [
-        1.0,
-        3.0,
-        4.0,
-        5.0,
-        -1.0,
-        2.0,
-        4.0,
-        5.0,
-        -1.0,
-        -1.0,
-        3.0,
-        2.0,
-        3.0,
-        4.0,
-        5.0,
-        4.0,
-        5.0,
-        -1.0,
-        -1.0,
-        -1.0
-      ]
-    },
-    {
-      "name": "[phase info]",
-      "ref_off": "0x18f0",
-      "span": 168,
-      "sequence": [
-        0.0,
-        90.0,
-        1.0,
-        300.0,
-        2.0,
-        300.0,
-        3.0,
-        300.0,
-        4.0,
-        600.0,
-        5.0,
-        600.0
-      ]
-    },
-    {
-      "name": "[operation data set]",
-      "ref_off": "0x19ac",
-      "span": 24,
-      "sequence": []
-    },
-    {
-      "name": "[card Symbol Index]",
-      "ref_off": "0x19d8",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[gate schedule]",
-      "ref_off": "0x19f8",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[gateflow]",
-      "ref_off": "0x1a18",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[index]",
-      "ref_off": "0x1a38",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[member limit]",
-      "ref_off": "0x1a58",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[phase info]",
-      "ref_off": "0x1a78",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[recommend fame]",
-      "ref_off": "0x1a98",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[reward data]",
-      "ref_off": "0x1ab8",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[string data]",
-      "ref_off": "0x1ad8",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[ting reward data]",
-      "ref_off": "0x1af8",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[type fixed value]",
-      "ref_off": "0x1b18",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[type]",
-      "ref_off": "0x1b38",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[index]",
-      "ref_off": "0x1b58",
-      "span": 36,
-      "sequence": [
-        5.0
-      ]
-    },
-    {
-      "name": "[type]",
-      "ref_off": "0x1b90",
-      "span": 36,
-      "sequence": [
-        5.0
-      ]
-    },
-    {
-      "name": "[card Symbol Index]",
-      "ref_off": "0x1bc8",
-      "span": 36,
-      "sequence": [
-        0.0
-      ]
-    },
-    {
-      "name": "[member limit]",
-      "ref_off": "0x1c00",
-      "span": 44,
-      "sequence": []
-    },
-    {
-      "name": "[string data]",
-      "ref_off": "0x1c40",
-      "span": 48,
-      "sequence": []
-    },
-    {
-      "name": "[recommend fame]",
-      "ref_off": "0x1c84",
-      "span": 36,
-      "sequence": [
-        73993.0
-      ]
-    },
-    {
-      "name": "[type fixed value]",
-      "ref_off": "0x1cbc",
-      "span": 36,
-      "sequence": [
-        5.0
-      ]
-    },
-    {
-      "name": "[reward data]",
-      "ref_off": "0x1cf4",
-      "span": 104,
-      "sequence": [
-        1.0,
-        1000000.0,
-        1.0,
-        1.0
-      ]
-    },
-    {
-      "name": "[ting reward data]",
-      "ref_off": "0x1d70",
-      "span": 104,
-      "sequence": [
-        1.0,
-        1000000.0,
-        3.0,
-        0.0
-      ]
-    },
-    {
-      "name": "[gate schedule]",
-      "ref_off": "0x1dec",
-      "span": 84,
-      "sequence": [
-        900.0,
-        1.0,
-        0.0,
-        0.0,
-        0.0
-      ]
-    },
-    {
-      "name": "[gateflow]",
-      "ref_off": "0x1e54",
-      "span": 84,
-      "sequence": [
-        1.0,
-        2.0,
-        3.0,
-        -1.0,
-        -1.0
-      ]
-    },
-    {
-      "name": "[phase info]",
-      "ref_off": "0x1ebc",
-      "span": 168,
-      "sequence": [
-        0.0,
-        90.0,
-        1.0,
-        300.0,
-        2.0,
-        300.0,
-        3.0,
-        300.0,
-        4.0,
-        600.0,
-        5.0,
-        600.0
-      ]
-    }
-  ],
-  "phase_groups": [
-    {
-      "first_duration": 90.0,
-      "sequence": [
-        90.0,
-        1.0,
-        300.0,
-        2.0,
-        300.0,
-        3.0,
-        300.0,
-        4.0,
-        600.0,
-        5.0
-      ]
-    },
-    {
-      "first_duration": 90.0,
-      "sequence": [
-        90.0,
-        1.0,
-        300.0,
-        2.0,
-        300.0,
-        3.0,
-        300.0,
-        4.0,
-        600.0,
-        5.0
-      ]
-    },
-    {
-      "first_duration": 90.0,
-      "sequence": [
-        90.0,
-        1.0,
-        300.0,
-        2.0,
-        300.0,
-        3.0,
-        300.0,
-        4.0,
-        600.0,
-        5.0
-      ]
-    },
-    {
-      "first_duration": 90.0,
-      "sequence": [
-        90.0,
-        1.0,
-        300.0,
-        2.0,
-        300.0,
-        3.0,
-        300.0,
-        4.0,
-        600.0,
-        5.0
-      ]
-    }
-  ],
-  "float_count": 174
+  "checks": {
+    "record_count": 65,
+    "records_walked": 65,
+    "records_end": 8056,
+    "trailer_start": 8056,
+    "trailer_end": 8305,
+    "unnamed_records": 0
+  }
 }

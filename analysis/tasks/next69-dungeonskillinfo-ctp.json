@@ -1,386 +1,529 @@
 {
   "file": "D:/115us/server/work/dfo-lan/runtime/ctp-census/01-dungeonskillinfo.ctp.bin",
   "size": 1636,
-  "pool_start": "0x5a1",
-  "pool_bytes": 195,
-  "cell_region": [
-    "0x40",
-    "0x560"
-  ],
-  "trailer_region": [
-    "0x560",
-    "0x5a0"
-  ],
-  "cells": 322,
-  "tag_histogram": {
-    "0": 319,
-    "4": 3
+  "header": {
+    "version": 1,
+    "record_count": 14,
+    "v08": 0,
+    "v0c": 32,
+    "v10": 0,
+    "cell_end": 1372,
+    "v18": 0,
+    "trailer_end": 1436,
+    "v20": 0
   },
-  "pool_tags": [
-    "[skirmisher info]",
-    "[effect]",
-    "[jump attack]",
-    "[jump z threshold]",
-    "[nomal attack]",
-    "[delay ani time]",
-    "[relative offset]",
-    "[passive object index]",
-    "[gaurdian]",
-    "[role enable effect]",
-    "[role get effect]",
-    "[skir chainline effect]"
+  "pool": {
+    "char_base": 1441,
+    "bytes": 195,
+    "text": "[skirmisher info][effect][jump attack][jump z threshold][nomal attack][delay ani time][relative offset][passive object index][gaurdian][role enable effect][role get effect][skir chainline effect]"
+  },
+  "records": [
+    {
+      "index": 0,
+      "off": 36,
+      "size": 172,
+      "name": "[skirmisher info]",
+      "raw_name": [
+        0,
+        17
+      ],
+      "flags": 2,
+      "parent": null,
+      "cells": [],
+      "refs": [
+        {
+          "raw": [
+            17,
+            25
+          ],
+          "name": "[effect]",
+          "values": [
+            8
+          ]
+        },
+        {
+          "raw": [
+            25,
+            38
+          ],
+          "name": "[jump attack]",
+          "values": [
+            5
+          ]
+        },
+        {
+          "raw": [
+            38,
+            56
+          ],
+          "name": "[jump z threshold]",
+          "values": [
+            1
+          ]
+        },
+        {
+          "raw": [
+            56,
+            70
+          ],
+          "name": "[nomal attack]",
+          "values": [
+            2
+          ]
+        }
+      ]
+    },
+    {
+      "index": 1,
+      "off": 208,
+      "size": 56,
+      "name": "[jump z threshold]",
+      "raw_name": [
+        38,
+        56
+      ],
+      "flags": 1,
+      "parent": 0,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 1.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 2,
+      "off": 264,
+      "size": 108,
+      "name": "[nomal attack]",
+      "raw_name": [
+        56,
+        70
+      ],
+      "flags": 2,
+      "parent": 0,
+      "cells": [],
+      "refs": [
+        {
+          "raw": [
+            70,
+            86
+          ],
+          "name": "[delay ani time]",
+          "values": [
+            3
+          ]
+        },
+        {
+          "raw": [
+            86,
+            103
+          ],
+          "name": "[relative offset]",
+          "values": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "index": 3,
+      "off": 372,
+      "size": 56,
+      "name": "[delay ani time]",
+      "raw_name": [
+        70,
+        86
+      ],
+      "flags": 1,
+      "parent": 2,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 300.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 4,
+      "off": 428,
+      "size": 80,
+      "name": "[relative offset]",
+      "raw_name": [
+        86,
+        103
+      ],
+      "flags": 1,
+      "parent": 2,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": -150.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 0.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 0.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 5,
+      "off": 508,
+      "size": 108,
+      "name": "[jump attack]",
+      "raw_name": [
+        25,
+        38
+      ],
+      "flags": 2,
+      "parent": 0,
+      "cells": [],
+      "refs": [
+        {
+          "raw": [
+            70,
+            86
+          ],
+          "name": "[delay ani time]",
+          "values": [
+            6
+          ]
+        },
+        {
+          "raw": [
+            86,
+            103
+          ],
+          "name": "[relative offset]",
+          "values": [
+            7
+          ]
+        }
+      ]
+    },
+    {
+      "index": 6,
+      "off": 616,
+      "size": 56,
+      "name": "[delay ani time]",
+      "raw_name": [
+        70,
+        86
+      ],
+      "flags": 1,
+      "parent": 5,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 50.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 7,
+      "off": 672,
+      "size": 80,
+      "name": "[relative offset]",
+      "raw_name": [
+        86,
+        103
+      ],
+      "flags": 1,
+      "parent": 5,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": -100.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 0.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": -35.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 8,
+      "off": 752,
+      "size": 204,
+      "name": "[effect]",
+      "raw_name": [
+        17,
+        25
+      ],
+      "flags": 2,
+      "parent": 0,
+      "cells": [
+        {
+          "tag": 1,
+          "kind": "name",
+          "raw": [
+            103,
+            103
+          ],
+          "value": ""
+        },
+        {
+          "tag": 1,
+          "kind": "name",
+          "raw": [
+            103,
+            103
+          ],
+          "value": ""
+        },
+        {
+          "tag": 1,
+          "kind": "name",
+          "raw": [
+            103,
+            103
+          ],
+          "value": ""
+        },
+        {
+          "tag": 1,
+          "kind": "name",
+          "raw": [
+            103,
+            103
+          ],
+          "value": ""
+        },
+        {
+          "tag": 1,
+          "kind": "name",
+          "raw": [
+            103,
+            103
+          ],
+          "value": ""
+        },
+        {
+          "tag": 1,
+          "kind": "name",
+          "raw": [
+            103,
+            103
+          ],
+          "value": ""
+        },
+        {
+          "tag": 1,
+          "kind": "name",
+          "raw": [
+            103,
+            103
+          ],
+          "value": ""
+        },
+        {
+          "tag": 1,
+          "kind": "name",
+          "raw": [
+            103,
+            103
+          ],
+          "value": ""
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 9,
+      "off": 956,
+      "size": 172,
+      "name": "[passive object index]",
+      "raw_name": [
+        103,
+        125
+      ],
+      "flags": 2,
+      "parent": null,
+      "cells": [],
+      "refs": [
+        {
+          "raw": [
+            125,
+            135
+          ],
+          "name": "[gaurdian]",
+          "values": [
+            10
+          ]
+        },
+        {
+          "raw": [
+            135,
+            155
+          ],
+          "name": "[role enable effect]",
+          "values": [
+            12
+          ]
+        },
+        {
+          "raw": [
+            155,
+            172
+          ],
+          "name": "[role get effect]",
+          "values": [
+            11
+          ]
+        },
+        {
+          "raw": [
+            172,
+            195
+          ],
+          "name": "[skir chainline effect]",
+          "values": [
+            13
+          ]
+        }
+      ]
+    },
+    {
+      "index": 10,
+      "off": 1128,
+      "size": 56,
+      "name": "[gaurdian]",
+      "raw_name": [
+        125,
+        135
+      ],
+      "flags": 1,
+      "parent": 9,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 109133363.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 11,
+      "off": 1184,
+      "size": 68,
+      "name": "[role get effect]",
+      "raw_name": [
+        155,
+        172
+      ],
+      "flags": 1,
+      "parent": 9,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 109133366.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 109133361.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 12,
+      "off": 1252,
+      "size": 68,
+      "name": "[role enable effect]",
+      "raw_name": [
+        135,
+        155
+      ],
+      "flags": 1,
+      "parent": 9,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 109133367.0
+        },
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 109133368.0
+        }
+      ],
+      "refs": []
+    },
+    {
+      "index": 13,
+      "off": 1320,
+      "size": 56,
+      "name": "[skir chainline effect]",
+      "raw_name": [
+        172,
+        195
+      ],
+      "flags": 1,
+      "parent": 9,
+      "cells": [
+        {
+          "tag": 4,
+          "kind": "float",
+          "value": 109133397.0
+        }
+      ],
+      "refs": []
+    }
   ],
   "trailer": [
     {
-      "off": "0x560",
-      "lo": 103,
-      "hi": 125,
+      "raw": [
+        103,
+        125
+      ],
       "name": "[passive object index]",
-      "span_matches_name": true,
-      "values": [
+      "records": [
         9
       ]
     },
     {
-      "off": "0x580",
-      "lo": 0,
-      "hi": 17,
+      "raw": [
+        0,
+        17
+      ],
       "name": "[skirmisher info]",
-      "span_matches_name": true,
-      "values": [
+      "records": [
         0
       ]
     }
   ],
-  "name_refs": [],
-  "inline_name_refs": [
-    {
-      "off": 80,
-      "lo": 17,
-      "hi": 25,
-      "name": "[effect]"
-    },
-    {
-      "off": 112,
-      "lo": 25,
-      "hi": 38,
-      "name": "[jump attack]"
-    },
-    {
-      "off": 144,
-      "lo": 38,
-      "hi": 56,
-      "name": "[jump z threshold]"
-    },
-    {
-      "off": 176,
-      "lo": 56,
-      "hi": 70,
-      "name": "[nomal attack]"
-    },
-    {
-      "off": 208,
-      "lo": 38,
-      "hi": 56,
-      "name": "[jump z threshold]"
-    },
-    {
-      "off": 264,
-      "lo": 56,
-      "hi": 70,
-      "name": "[nomal attack]"
-    },
-    {
-      "off": 308,
-      "lo": 70,
-      "hi": 86,
-      "name": "[delay ani time]"
-    },
-    {
-      "off": 340,
-      "lo": 86,
-      "hi": 103,
-      "name": "[relative offset]"
-    },
-    {
-      "off": 372,
-      "lo": 70,
-      "hi": 86,
-      "name": "[delay ani time]"
-    },
-    {
-      "off": 428,
-      "lo": 86,
-      "hi": 103,
-      "name": "[relative offset]"
-    },
-    {
-      "off": 508,
-      "lo": 25,
-      "hi": 38,
-      "name": "[jump attack]"
-    },
-    {
-      "off": 552,
-      "lo": 70,
-      "hi": 86,
-      "name": "[delay ani time]"
-    },
-    {
-      "off": 584,
-      "lo": 86,
-      "hi": 103,
-      "name": "[relative offset]"
-    },
-    {
-      "off": 616,
-      "lo": 70,
-      "hi": 86,
-      "name": "[delay ani time]"
-    },
-    {
-      "off": 672,
-      "lo": 86,
-      "hi": 103,
-      "name": "[relative offset]"
-    },
-    {
-      "off": 752,
-      "lo": 17,
-      "hi": 25,
-      "name": "[effect]"
-    },
-    {
-      "off": 956,
-      "lo": 103,
-      "hi": 125,
-      "name": "[passive object index]"
-    },
-    {
-      "off": 1000,
-      "lo": 125,
-      "hi": 135,
-      "name": "[gaurdian]"
-    },
-    {
-      "off": 1032,
-      "lo": 135,
-      "hi": 155,
-      "name": "[role enable effect]"
-    },
-    {
-      "off": 1064,
-      "lo": 155,
-      "hi": 172,
-      "name": "[role get effect]"
-    },
-    {
-      "off": 1096,
-      "lo": 172,
-      "hi": 195,
-      "name": "[skir chainline effect]"
-    },
-    {
-      "off": 1128,
-      "lo": 125,
-      "hi": 135,
-      "name": "[gaurdian]"
-    },
-    {
-      "off": 1184,
-      "lo": 155,
-      "hi": 172,
-      "name": "[role get effect]"
-    },
-    {
-      "off": 1252,
-      "lo": 135,
-      "hi": 155,
-      "name": "[role enable effect]"
-    },
-    {
-      "off": 1320,
-      "lo": 172,
-      "hi": 195,
-      "name": "[skir chainline effect]"
-    }
-  ],
-  "records": [
-    {
-      "name": "[effect]",
-      "ref_off": "0x50",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[jump attack]",
-      "ref_off": "0x70",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[jump z threshold]",
-      "ref_off": "0x90",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[nomal attack]",
-      "ref_off": "0xb0",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[jump z threshold]",
-      "ref_off": "0xd0",
-      "span": 36,
-      "sequence": [
-        1.0
-      ]
-    },
-    {
-      "name": "[nomal attack]",
-      "ref_off": "0x108",
-      "span": 24,
-      "sequence": []
-    },
-    {
-      "name": "[delay ani time]",
-      "ref_off": "0x134",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[relative offset]",
-      "ref_off": "0x154",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[delay ani time]",
-      "ref_off": "0x174",
-      "span": 36,
-      "sequence": [
-        300.0
-      ]
-    },
-    {
-      "name": "[relative offset]",
-      "ref_off": "0x1ac",
-      "span": 60,
-      "sequence": [
-        -150.0,
-        0.0,
-        0.0
-      ]
-    },
-    {
-      "name": "[jump attack]",
-      "ref_off": "0x1fc",
-      "span": 24,
-      "sequence": []
-    },
-    {
-      "name": "[delay ani time]",
-      "ref_off": "0x228",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[relative offset]",
-      "ref_off": "0x248",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[delay ani time]",
-      "ref_off": "0x268",
-      "span": 36,
-      "sequence": [
-        50.0
-      ]
-    },
-    {
-      "name": "[relative offset]",
-      "ref_off": "0x2a0",
-      "span": 60,
-      "sequence": [
-        -100.0,
-        0.0,
-        -35.0
-      ]
-    },
-    {
-      "name": "[effect]",
-      "ref_off": "0x2f0",
-      "span": 184,
-      "sequence": []
-    },
-    {
-      "name": "[passive object index]",
-      "ref_off": "0x3bc",
-      "span": 24,
-      "sequence": []
-    },
-    {
-      "name": "[gaurdian]",
-      "ref_off": "0x3e8",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[role enable effect]",
-      "ref_off": "0x408",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[role get effect]",
-      "ref_off": "0x428",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[skir chainline effect]",
-      "ref_off": "0x448",
-      "span": 12,
-      "sequence": []
-    },
-    {
-      "name": "[gaurdian]",
-      "ref_off": "0x468",
-      "span": 36,
-      "sequence": [
-        109133363.0
-      ]
-    },
-    {
-      "name": "[role get effect]",
-      "ref_off": "0x4a0",
-      "span": 48,
-      "sequence": [
-        109133366.0,
-        109133361.0
-      ]
-    },
-    {
-      "name": "[role enable effect]",
-      "ref_off": "0x4e4",
-      "span": 48,
-      "sequence": [
-        109133367.0,
-        109133368.0
-      ]
-    },
-    {
-      "name": "[skir chainline effect]",
-      "ref_off": "0x528",
-      "span": 36,
-      "sequence": [
-        109133397.0
-      ]
-    }
-  ],
-  "phase_groups": [],
-  "float_count": 3
+  "checks": {
+    "record_count": 14,
+    "records_walked": 14,
+    "records_end": 1376,
+    "trailer_start": 1376,
+    "trailer_end": 1441,
+    "unnamed_records": 0
+  }
 }
