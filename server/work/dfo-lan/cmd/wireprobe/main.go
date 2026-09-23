@@ -1619,7 +1619,8 @@ func main() {
 				plan, e = worldState.deleteItems(plaintext, frame.Raw)
 				if e != nil {
 					event(map[string]any{"kind": "item_delete_refused", "reason": e.Error(), "character_id": worldState.role.ID})
-					if e = sendPayload(1, 18, protocol.MaterialDeleteReply(nil, false)); e != nil {
+					rows, _ := protocol.DecodeMaterialDelete(plaintext)
+					if e = sendPayload(1, 18, protocol.MaterialDeleteReply(rows, false)); e != nil {
 						return
 					}
 					continue

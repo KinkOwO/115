@@ -13,6 +13,19 @@ type MaterialDelete struct {
 // Current CMD18 is length-prefixed PB_ENUM_CMDPACKET_DELETE_ITEM.
 // Only the observed ordinary-bag skill-cost branch (reason2, material3037)
 // is admitted, not general deletion, equipment, or other protobuf actions.
+//
+// The slot may name either storage the client keeps that material in:
+//
+//	121..176  the ordinary bag's material cells
+//	363..379  the account-shared material store. The client's list0 reader
+//	          harvests these cells into a separate panel (sub_145ADC2A0), so a
+//	          skill whose cost is paid from the shared store sends its storage
+//	          slot here - 367 for 无色小晶块. A frame like that used to be
+//	          rejected outright, which left the cost undeducted and the client
+//	          holding a pending reservation.
+//
+// Which template belongs to which storage cell is checked by the caller:
+// that mapping lives in the inventory package, and protocol must stay below it.
 func DecodeMaterialDelete(p []byte) ([]MaterialDelete, error) {
 	fail := func() ([]MaterialDelete, error) { return nil, fmt.Errorf("invalid skill material deletion") }
 	if len(p) < 4 {
@@ -76,10 +89,16 @@ func DecodeMaterialDelete(p []byte) ([]MaterialDelete, error) {
 				}
 				fields[t] = x
 			}
-			if len(fields) != 4 || fields[8] != 2 || fields[16] < 121 || fields[16] > 176 || fields[24] != 3037 || fields[32] == 0 || fields[32] > 1000 {
+			if len(fields) != 4 || fields[8] != 2 || fields[24] != 3037 || fields[32] == 0 || fields[32] > 1000 {
 				return fail()
 			}
-			r := MaterialDelete{uint16(fields[16]), 3037, uint32(fields[32])}
+			slot := fields[16]
+			inBag := slot >= 121 && slot <= 176
+			inStorage := slot >= 363 && slot <= 379
+			if !inBag && !inStorage {
+				return fail()
+			}
+			r := MaterialDelete{uint16(slot), 3037, uint32(fields[32])}
 			if seen[r.Slot] {
 				return fail()
 			}
