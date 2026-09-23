@@ -46,12 +46,18 @@ def payload_len(tag):
 
 
 def find_pool_base(buf):
-    """The pool is the trailing printable-ASCII blob; char offset 0 is a NUL."""
+    """Return the offset of the pool blob and the trailer end.
+
+    The pool is the trailing printable-ASCII blob. The byte just before it is a
+    NUL, and the blob's own offset 0 is the first character (measured: the
+    `[party waiting area]` reference is (0, 20), so refs are 0-based, `hi`
+    exclusive, exactly the string length).
+    """
     best = None
     start = None
-    for i in range(max(0o0, len(buf) - 4096), len(buf)):
+    for i in range(max(0, len(buf) - 4096), len(buf)):
         c = buf[i]
-        if 32 <= c < 127 or c == 0x5B or c == 0x5D:
+        if 32 <= c < 127:
             if start is None:
                 start = i
         else:
@@ -63,10 +69,52 @@ def find_pool_base(buf):
     if best is None:
         raise SystemExit("no printable pool found")
     start, end = best
-    # char offset 0 of the pool is the NUL that precedes the first '['.
     if buf[start - 1] != 0:
         raise SystemExit("pool start is not preceded by a NUL")
-    return start - 1, end
+    return start, end
+
+
+def parse_trailer(buf, start, end, pool):
+    """Trailer records: (u64 lo, u64 hi, u64 count, count x u64).
+
+    Verified on apocalypse.ctp: 7 records consume the 248 bytes exactly, and
+    every (lo, hi) resolves to a pool string whose length is exactly hi - lo
+    (e.g. (51, 82) -> "[keldon xavi final damage rate]", 31 chars).
+    """
+    records = []
+    p = start
+    while p + 24 <= end:
+        lo = struct.unpack_from("<Q", buf, p)[0]
+        hi = struct.unpack_from("<Q", buf, p + 8)[0]
+        count = struct.unpack_from("<Q", buf, p + 16)[0]
+        if count > 4096 or p + 24 + 8 * count > end:
+            raise SystemExit("trailer record at %#x does not fit (count=%d)" % (p, count))
+        name = resolve(pool, lo, hi)
+        values = [struct.unpack_from("<Q", buf, p + 24 + 8 * i)[0] for i in range(count)]
+        records.append({
+            "off": hex(p),
+            "lo": lo,
+            "hi": hi,
+            "name": name,
+            "span_matches_name": name is not None and len(name) == hi - lo,
+            "values": values,
+        })
+        p += 24 + 8 * count
+    if p != end:
+        raise SystemExit("trailer not consumed exactly: %#x != %#x" % (p, end))
+    return records
+
+
+def resolve(pool, lo, hi):
+    """Name ref -> string. In the file the range is exact, so no NUL scan needed."""
+    a = min(lo, hi)
+    z = max(lo, hi)
+    if z > len(pool) or a < 0:
+        return None
+    try:
+        return pool[a:z].decode("ascii")
+    except UnicodeDecodeError:
+        return None
 
 
 def float_anchors(buf, end):
@@ -137,20 +185,67 @@ def tile(buf, start, end, anchors, max_solutions=400, node_budget=4_000_000):
     return max(solutions, key=score)
 
 
-def resolve(pool, lo, hi):
-    """Name ref -> string. The client only uses min(lo,hi) and reads to a NUL."""
-    a = min(lo, hi)
-    z = max(lo, hi)
-    if z > len(pool):
-        return None
-    seg = pool[a:]
-    nul = seg.find(b"\x00")
-    if nul >= 0:
-        seg = seg[:nul]
-    try:
-        return seg.decode("ascii")
-    except UnicodeDecodeError:
-        return None
+def scan_name_refs(buf, start, end, pool, tags):
+    """Find every `(u64 lo, u64 hi)` that resolves to a known pool tag.
+
+    Tiling-independent (the byte layout between records is still not pinned), and
+    the span check is exact: hi - lo == len(tag). Verified on apocalypse.ctp:
+    116 hits forming the repeated column order of every row.
+    """
+    refs = []
+    for o in range(start, end - 16, 4):
+        lo = struct.unpack_from("<Q", buf, o)[0]
+        hi = struct.unpack_from("<Q", buf, o + 8)[0]
+        if lo >= hi or hi > len(pool):
+            continue
+        name = resolve(pool, lo, hi)
+        if name in tags:
+            refs.append({"off": o, "lo": lo, "hi": hi, "name": name})
+    return refs
+
+
+def read_records(buf, refs, cell_end, pool):
+    """Each record is a 20-byte name ref followed by `u64` payload words.
+
+    The next ref starts the next record, so the payload length is implied. For
+    scalar columns the payload is `0, value`; for table columns it is an index
+    prefix followed by 12-byte float64 cells `(u32 tag=4, f64)`.
+    """
+    records = []
+    for i, ref in enumerate(refs):
+        start = ref["off"] + 20
+        end = refs[i + 1]["off"] if i + 1 < len(refs) else cell_end
+        span = end - start
+        if span < 0:
+            continue
+        words = []
+        p = start
+        while p + 4 <= end:
+            tag = struct.unpack_from("<I", buf, p)[0]
+            if tag == 4 and p + 12 <= end:
+                words.append({
+                    "off": hex(p), "tag": 4,
+                    "f64": struct.unpack_from("<d", buf, p + 4)[0],
+                })
+                p += 12
+            elif p + 8 <= end:
+                words.append({"off": hex(p), "word": struct.unpack_from("<Q", buf, p)[0]})
+                p += 8
+            else:
+                words.append({"off": hex(p), "u32": tag})
+                p += 4
+        records.append({
+            "name": ref["name"],
+            "ref_off": hex(ref["off"]),
+            "span": span,
+            "words": words,
+        })
+    return records
+
+
+def sequence_of(words):
+    """The float sequence of a record (table columns only)."""
+    return [w["f64"] for w in words if w.get("tag") == 4]
 
 
 def phase_groups(numbers, min_values=10):
@@ -181,19 +276,21 @@ def main():
     args = ap.parse_args()
 
     buf = open(args.file, "rb").read()
-    pool_base, pool_end = find_pool_base(buf)
-    pool = buf[pool_base:pool_end]
+    pool_start, pool_end = find_pool_base(buf)
+    pool = buf[pool_start:pool_end]
+    trailer_end = pool_start - 1  # the NUL that separates the trailer from the pool
 
-    # Between the cells and the pool sits an array of small u64 values (stride 8,
-    # right-aligned to the pool). Walk it backwards: its start is the cell end.
-    cell_end = pool_base
+    # The trailer is a record array; walk it backwards while the u64s are small
+    # to find where the cell region stops.
+    cell_end = trailer_end
     while cell_end - 8 >= 0 and struct.unpack_from("<Q", buf, cell_end - 8)[0] < 1 << 20:
         cell_end -= 8
-    if (pool_base - cell_end) % 8 != 0 or cell_end == pool_base:
-        raise SystemExit("trailing metadata array not found")
+    if (trailer_end - cell_end) % 8 != 0 or cell_end == trailer_end:
+        raise SystemExit("trailer not found")
 
     anchors = float_anchors(buf, cell_end)
     tags = tile(buf, 0x40, cell_end, anchors)
+    trailer = parse_trailer(buf, cell_end, trailer_end, pool)
 
     off = 0x40
     numbers = []
@@ -229,41 +326,45 @@ def main():
         pool_tags.append(pool[a:b + 1].decode("ascii"))
         pos = b + 1
 
-    # Inline name refs: a u64 pair that resolves to a known pool tag. Scanned
-    # independently of the tiling so a different (still valid) tiling cannot
-    # hide them.
+    # Inline name refs + the record stream. This is the load-bearing parse: it
+    # does not depend on the (still ambiguous) padding-aware tiling.
     known = set(pool_tags)
-    inline_refs = []
-    for o in range(0, len(buf) - 16, 4):
-        lo = struct.unpack_from("<Q", buf, o)[0]
-        hi = struct.unpack_from("<Q", buf, o + 8)[0]
-        if lo >= hi or hi - lo > 200 or lo < 1 or hi > len(pool):
-            continue
-        name = resolve(pool, lo, hi)
-        if name in known:
-            inline_refs.append({"off": hex(o), "lo": lo, "hi": hi, "name": name})
+    inline_refs = scan_name_refs(buf, 0x40, cell_end, pool, known)
+    records = read_records(buf, inline_refs, cell_end, pool)
 
     summary = {
         "file": args.file,
         "size": len(buf),
-        "pool_base": hex(pool_base),
+        "pool_start": hex(pool_start),
         "pool_bytes": len(pool),
         "cell_region": [hex(0x40), hex(cell_end)],
+        "trailer_region": [hex(cell_end), hex(trailer_end)],
         "cells": len(tags),
         "tag_histogram": {str(k): tags.count(k) for k in sorted(set(tags))},
         "pool_tags": pool_tags,
+        "trailer": trailer,
         "name_refs": name_refs,
         "inline_name_refs": inline_refs,
+        "records": [{"name": r["name"], "ref_off": r["ref_off"], "span": r["span"],
+                     "sequence": sequence_of(r["words"])} for r in records],
         "phase_groups": [{"first_duration": g[0], "sequence": g[1]} for g in groups],
         "float_count": len(numbers),
     }
     if args.out:
         with open(args.out, "w", encoding="utf-8") as fh:
             json.dump(summary, fh, indent=2, ensure_ascii=False)
-    print("pool base %#x (%d bytes)" % (pool_base, len(pool)))
+    print("pool start %#x (%d bytes), trailer %#x..%#x" % (pool_start, len(pool), cell_end, trailer_end))
     print("cells %d, tags %s" % (len(tags), summary["tag_histogram"]))
     print("pool tags (%d): %s" % (len(pool_tags), ", ".join(pool_tags)))
-    print("name refs: %s" % (name_refs,))
+    print("trailer records (%d):" % len(trailer))
+    for r in trailer:
+        flag = "ok" if r["span_matches_name"] else "SPAN-MISMATCH"
+        print("   %-11s %-7s values=%d %s" % (r["off"], flag, len(r["values"]), r["name"]))
+    print("cell records: %d (nameRef-anchored, tiling-independent)" % len(records))
+    for r in records:
+        seq = sequence_of(r["words"])
+        if len(seq) >= 6:
+            print("   %-11s span=%-4d %-24s seq=%s" % (r["ref_off"], r["span"], r["name"], seq[:14]))
     for g in groups:
         print("phase clock: %s" % (g[1],))
     return 0

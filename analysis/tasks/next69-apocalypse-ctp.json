@@ -1,11 +1,15 @@
 {
   "file": "D:/115us/.workbuddy/archive/20260923/真源取证/apocalypse.ctp.bin",
   "size": 9280,
-  "pool_base": "0x2070",
-  "pool_bytes": 976,
+  "pool_start": "0x2071",
+  "pool_bytes": 975,
   "cell_region": [
     "0x40",
     "0x1f78"
+  ],
+  "trailer_region": [
+    "0x1f78",
+    "0x2070"
   ],
   "cells": 1647,
   "tag_histogram": {
@@ -37,8 +41,1751 @@
     "[type]",
     "[gate close warning]"
   ],
+  "trailer": [
+    {
+      "off": "0x1f78",
+      "lo": 82,
+      "hi": 149,
+      "name": "[collaborate attack groggy duration increase per keldon xavi stack]",
+      "span_matches_name": true,
+      "values": [
+        7
+      ]
+    },
+    {
+      "off": "0x1f98",
+      "lo": 149,
+      "hi": 193,
+      "name": "[guardian hp increase per keldon xavi stack]",
+      "span_matches_name": true,
+      "values": [
+        8
+      ]
+    },
+    {
+      "off": "0x1fb8",
+      "lo": 51,
+      "hi": 82,
+      "name": "[keldon xavi final damage rate]",
+      "span_matches_name": true,
+      "values": [
+        6
+      ]
+    },
+    {
+      "off": "0x1fd8",
+      "lo": 248,
+      "hi": 268,
+      "name": "[operation data set]",
+      "span_matches_name": true,
+      "values": [
+        10,
+        24,
+        38,
+        52
+      ]
+    },
+    {
+      "off": "0x2010",
+      "lo": 0,
+      "hi": 20,
+      "name": "[party waiting area]",
+      "span_matches_name": true,
+      "values": [
+        0
+      ]
+    },
+    {
+      "off": "0x2030",
+      "lo": 20,
+      "hi": 43,
+      "name": "[role per member limit]",
+      "span_matches_name": true,
+      "values": [
+        1
+      ]
+    },
+    {
+      "off": "0x2050",
+      "lo": 193,
+      "hi": 248,
+      "name": "[skirmisher monster hp reduction per keldon xavi stack]",
+      "span_matches_name": true,
+      "values": [
+        9
+      ]
+    }
+  ],
   "name_refs": [],
-  "inline_name_refs": [],
+  "inline_name_refs": [
+    {
+      "off": 128,
+      "lo": 20,
+      "hi": 43,
+      "name": "[role per member limit]"
+    },
+    {
+      "off": 172,
+      "lo": 43,
+      "hi": 51,
+      "name": "[member]"
+    },
+    {
+      "off": 228,
+      "lo": 43,
+      "hi": 51,
+      "name": "[member]"
+    },
+    {
+      "off": 308,
+      "lo": 43,
+      "hi": 51,
+      "name": "[member]"
+    },
+    {
+      "off": 412,
+      "lo": 43,
+      "hi": 51,
+      "name": "[member]"
+    },
+    {
+      "off": 516,
+      "lo": 43,
+      "hi": 51,
+      "name": "[member]"
+    },
+    {
+      "off": 620,
+      "lo": 51,
+      "hi": 82,
+      "name": "[keldon xavi final damage rate]"
+    },
+    {
+      "off": 736,
+      "lo": 82,
+      "hi": 149,
+      "name": "[collaborate attack groggy duration increase per keldon xavi stack]"
+    },
+    {
+      "off": 792,
+      "lo": 149,
+      "hi": 193,
+      "name": "[guardian hp increase per keldon xavi stack]"
+    },
+    {
+      "off": 848,
+      "lo": 193,
+      "hi": 248,
+      "name": "[skirmisher monster hp reduction per keldon xavi stack]"
+    },
+    {
+      "off": 904,
+      "lo": 248,
+      "hi": 268,
+      "name": "[operation data set]"
+    },
+    {
+      "off": 948,
+      "lo": 268,
+      "hi": 280,
+      "name": "[allow coin]"
+    },
+    {
+      "off": 980,
+      "lo": 280,
+      "hi": 299,
+      "name": "[card Symbol Index]"
+    },
+    {
+      "off": 1012,
+      "lo": 299,
+      "hi": 314,
+      "name": "[gate schedule]"
+    },
+    {
+      "off": 1044,
+      "lo": 314,
+      "hi": 324,
+      "name": "[gateflow]"
+    },
+    {
+      "off": 1076,
+      "lo": 324,
+      "hi": 331,
+      "name": "[index]"
+    },
+    {
+      "off": 1108,
+      "lo": 331,
+      "hi": 345,
+      "name": "[member limit]"
+    },
+    {
+      "off": 1140,
+      "lo": 345,
+      "hi": 357,
+      "name": "[phase info]"
+    },
+    {
+      "off": 1172,
+      "lo": 357,
+      "hi": 373,
+      "name": "[recommend fame]"
+    },
+    {
+      "off": 1204,
+      "lo": 373,
+      "hi": 386,
+      "name": "[reward data]"
+    },
+    {
+      "off": 1236,
+      "lo": 386,
+      "hi": 399,
+      "name": "[string data]"
+    },
+    {
+      "off": 1268,
+      "lo": 399,
+      "hi": 417,
+      "name": "[ting reward data]"
+    },
+    {
+      "off": 1300,
+      "lo": 417,
+      "hi": 435,
+      "name": "[type fixed value]"
+    },
+    {
+      "off": 1332,
+      "lo": 435,
+      "hi": 441,
+      "name": "[type]"
+    },
+    {
+      "off": 1364,
+      "lo": 324,
+      "hi": 331,
+      "name": "[index]"
+    },
+    {
+      "off": 1420,
+      "lo": 435,
+      "hi": 441,
+      "name": "[type]"
+    },
+    {
+      "off": 1476,
+      "lo": 280,
+      "hi": 299,
+      "name": "[card Symbol Index]"
+    },
+    {
+      "off": 1532,
+      "lo": 331,
+      "hi": 345,
+      "name": "[member limit]"
+    },
+    {
+      "off": 1596,
+      "lo": 386,
+      "hi": 399,
+      "name": "[string data]"
+    },
+    {
+      "off": 1712,
+      "lo": 357,
+      "hi": 373,
+      "name": "[recommend fame]"
+    },
+    {
+      "off": 1768,
+      "lo": 268,
+      "hi": 280,
+      "name": "[allow coin]"
+    },
+    {
+      "off": 1836,
+      "lo": 417,
+      "hi": 435,
+      "name": "[type fixed value]"
+    },
+    {
+      "off": 1892,
+      "lo": 373,
+      "hi": 386,
+      "name": "[reward data]"
+    },
+    {
+      "off": 2016,
+      "lo": 399,
+      "hi": 417,
+      "name": "[ting reward data]"
+    },
+    {
+      "off": 2140,
+      "lo": 299,
+      "hi": 314,
+      "name": "[gate schedule]"
+    },
+    {
+      "off": 2244,
+      "lo": 314,
+      "hi": 324,
+      "name": "[gateflow]"
+    },
+    {
+      "off": 2348,
+      "lo": 345,
+      "hi": 357,
+      "name": "[phase info]"
+    },
+    {
+      "off": 2536,
+      "lo": 248,
+      "hi": 268,
+      "name": "[operation data set]"
+    },
+    {
+      "off": 2580,
+      "lo": 280,
+      "hi": 299,
+      "name": "[card Symbol Index]"
+    },
+    {
+      "off": 2612,
+      "lo": 542,
+      "hi": 562,
+      "name": "[gate close warning]"
+    },
+    {
+      "off": 2644,
+      "lo": 299,
+      "hi": 314,
+      "name": "[gate schedule]"
+    },
+    {
+      "off": 2676,
+      "lo": 314,
+      "hi": 324,
+      "name": "[gateflow]"
+    },
+    {
+      "off": 2708,
+      "lo": 324,
+      "hi": 331,
+      "name": "[index]"
+    },
+    {
+      "off": 2740,
+      "lo": 331,
+      "hi": 345,
+      "name": "[member limit]"
+    },
+    {
+      "off": 2772,
+      "lo": 345,
+      "hi": 357,
+      "name": "[phase info]"
+    },
+    {
+      "off": 2804,
+      "lo": 357,
+      "hi": 373,
+      "name": "[recommend fame]"
+    },
+    {
+      "off": 2836,
+      "lo": 373,
+      "hi": 386,
+      "name": "[reward data]"
+    },
+    {
+      "off": 2868,
+      "lo": 386,
+      "hi": 399,
+      "name": "[string data]"
+    },
+    {
+      "off": 2900,
+      "lo": 399,
+      "hi": 417,
+      "name": "[ting reward data]"
+    },
+    {
+      "off": 2932,
+      "lo": 417,
+      "hi": 435,
+      "name": "[type fixed value]"
+    },
+    {
+      "off": 2964,
+      "lo": 435,
+      "hi": 441,
+      "name": "[type]"
+    },
+    {
+      "off": 2996,
+      "lo": 324,
+      "hi": 331,
+      "name": "[index]"
+    },
+    {
+      "off": 3052,
+      "lo": 435,
+      "hi": 441,
+      "name": "[type]"
+    },
+    {
+      "off": 3108,
+      "lo": 280,
+      "hi": 299,
+      "name": "[card Symbol Index]"
+    },
+    {
+      "off": 3164,
+      "lo": 331,
+      "hi": 345,
+      "name": "[member limit]"
+    },
+    {
+      "off": 3228,
+      "lo": 386,
+      "hi": 399,
+      "name": "[string data]"
+    },
+    {
+      "off": 3344,
+      "lo": 357,
+      "hi": 373,
+      "name": "[recommend fame]"
+    },
+    {
+      "off": 3400,
+      "lo": 417,
+      "hi": 435,
+      "name": "[type fixed value]"
+    },
+    {
+      "off": 3456,
+      "lo": 373,
+      "hi": 386,
+      "name": "[reward data]"
+    },
+    {
+      "off": 3580,
+      "lo": 399,
+      "hi": 417,
+      "name": "[ting reward data]"
+    },
+    {
+      "off": 3704,
+      "lo": 299,
+      "hi": 314,
+      "name": "[gate schedule]"
+    },
+    {
+      "off": 3928,
+      "lo": 542,
+      "hi": 562,
+      "name": "[gate close warning]"
+    },
+    {
+      "off": 4036,
+      "lo": 314,
+      "hi": 324,
+      "name": "[gateflow]"
+    },
+    {
+      "off": 4320,
+      "lo": 345,
+      "hi": 357,
+      "name": "[phase info]"
+    },
+    {
+      "off": 4508,
+      "lo": 248,
+      "hi": 268,
+      "name": "[operation data set]"
+    },
+    {
+      "off": 4552,
+      "lo": 280,
+      "hi": 299,
+      "name": "[card Symbol Index]"
+    },
+    {
+      "off": 4584,
+      "lo": 542,
+      "hi": 562,
+      "name": "[gate close warning]"
+    },
+    {
+      "off": 4616,
+      "lo": 299,
+      "hi": 314,
+      "name": "[gate schedule]"
+    },
+    {
+      "off": 4648,
+      "lo": 314,
+      "hi": 324,
+      "name": "[gateflow]"
+    },
+    {
+      "off": 4680,
+      "lo": 324,
+      "hi": 331,
+      "name": "[index]"
+    },
+    {
+      "off": 4712,
+      "lo": 331,
+      "hi": 345,
+      "name": "[member limit]"
+    },
+    {
+      "off": 4744,
+      "lo": 345,
+      "hi": 357,
+      "name": "[phase info]"
+    },
+    {
+      "off": 4776,
+      "lo": 357,
+      "hi": 373,
+      "name": "[recommend fame]"
+    },
+    {
+      "off": 4808,
+      "lo": 373,
+      "hi": 386,
+      "name": "[reward data]"
+    },
+    {
+      "off": 4840,
+      "lo": 386,
+      "hi": 399,
+      "name": "[string data]"
+    },
+    {
+      "off": 4872,
+      "lo": 399,
+      "hi": 417,
+      "name": "[ting reward data]"
+    },
+    {
+      "off": 4904,
+      "lo": 417,
+      "hi": 435,
+      "name": "[type fixed value]"
+    },
+    {
+      "off": 4936,
+      "lo": 435,
+      "hi": 441,
+      "name": "[type]"
+    },
+    {
+      "off": 4968,
+      "lo": 324,
+      "hi": 331,
+      "name": "[index]"
+    },
+    {
+      "off": 5024,
+      "lo": 435,
+      "hi": 441,
+      "name": "[type]"
+    },
+    {
+      "off": 5080,
+      "lo": 280,
+      "hi": 299,
+      "name": "[card Symbol Index]"
+    },
+    {
+      "off": 5136,
+      "lo": 331,
+      "hi": 345,
+      "name": "[member limit]"
+    },
+    {
+      "off": 5200,
+      "lo": 386,
+      "hi": 399,
+      "name": "[string data]"
+    },
+    {
+      "off": 5316,
+      "lo": 357,
+      "hi": 373,
+      "name": "[recommend fame]"
+    },
+    {
+      "off": 5372,
+      "lo": 417,
+      "hi": 435,
+      "name": "[type fixed value]"
+    },
+    {
+      "off": 5428,
+      "lo": 373,
+      "hi": 386,
+      "name": "[reward data]"
+    },
+    {
+      "off": 5552,
+      "lo": 399,
+      "hi": 417,
+      "name": "[ting reward data]"
+    },
+    {
+      "off": 5676,
+      "lo": 299,
+      "hi": 314,
+      "name": "[gate schedule]"
+    },
+    {
+      "off": 5960,
+      "lo": 542,
+      "hi": 562,
+      "name": "[gate close warning]"
+    },
+    {
+      "off": 6100,
+      "lo": 314,
+      "hi": 324,
+      "name": "[gateflow]"
+    },
+    {
+      "off": 6384,
+      "lo": 345,
+      "hi": 357,
+      "name": "[phase info]"
+    },
+    {
+      "off": 6572,
+      "lo": 248,
+      "hi": 268,
+      "name": "[operation data set]"
+    },
+    {
+      "off": 6616,
+      "lo": 280,
+      "hi": 299,
+      "name": "[card Symbol Index]"
+    },
+    {
+      "off": 6648,
+      "lo": 299,
+      "hi": 314,
+      "name": "[gate schedule]"
+    },
+    {
+      "off": 6680,
+      "lo": 314,
+      "hi": 324,
+      "name": "[gateflow]"
+    },
+    {
+      "off": 6712,
+      "lo": 324,
+      "hi": 331,
+      "name": "[index]"
+    },
+    {
+      "off": 6744,
+      "lo": 331,
+      "hi": 345,
+      "name": "[member limit]"
+    },
+    {
+      "off": 6776,
+      "lo": 345,
+      "hi": 357,
+      "name": "[phase info]"
+    },
+    {
+      "off": 6808,
+      "lo": 357,
+      "hi": 373,
+      "name": "[recommend fame]"
+    },
+    {
+      "off": 6840,
+      "lo": 373,
+      "hi": 386,
+      "name": "[reward data]"
+    },
+    {
+      "off": 6872,
+      "lo": 386,
+      "hi": 399,
+      "name": "[string data]"
+    },
+    {
+      "off": 6904,
+      "lo": 399,
+      "hi": 417,
+      "name": "[ting reward data]"
+    },
+    {
+      "off": 6936,
+      "lo": 417,
+      "hi": 435,
+      "name": "[type fixed value]"
+    },
+    {
+      "off": 6968,
+      "lo": 435,
+      "hi": 441,
+      "name": "[type]"
+    },
+    {
+      "off": 7000,
+      "lo": 324,
+      "hi": 331,
+      "name": "[index]"
+    },
+    {
+      "off": 7056,
+      "lo": 435,
+      "hi": 441,
+      "name": "[type]"
+    },
+    {
+      "off": 7112,
+      "lo": 280,
+      "hi": 299,
+      "name": "[card Symbol Index]"
+    },
+    {
+      "off": 7168,
+      "lo": 331,
+      "hi": 345,
+      "name": "[member limit]"
+    },
+    {
+      "off": 7232,
+      "lo": 386,
+      "hi": 399,
+      "name": "[string data]"
+    },
+    {
+      "off": 7300,
+      "lo": 357,
+      "hi": 373,
+      "name": "[recommend fame]"
+    },
+    {
+      "off": 7356,
+      "lo": 417,
+      "hi": 435,
+      "name": "[type fixed value]"
+    },
+    {
+      "off": 7412,
+      "lo": 373,
+      "hi": 386,
+      "name": "[reward data]"
+    },
+    {
+      "off": 7536,
+      "lo": 399,
+      "hi": 417,
+      "name": "[ting reward data]"
+    },
+    {
+      "off": 7660,
+      "lo": 299,
+      "hi": 314,
+      "name": "[gate schedule]"
+    },
+    {
+      "off": 7764,
+      "lo": 314,
+      "hi": 324,
+      "name": "[gateflow]"
+    },
+    {
+      "off": 7868,
+      "lo": 345,
+      "hi": 357,
+      "name": "[phase info]"
+    }
+  ],
+  "records": [
+    {
+      "name": "[role per member limit]",
+      "ref_off": "0x80",
+      "span": 24,
+      "sequence": []
+    },
+    {
+      "name": "[member]",
+      "ref_off": "0xac",
+      "span": 36,
+      "sequence": []
+    },
+    {
+      "name": "[member]",
+      "ref_off": "0xe4",
+      "span": 60,
+      "sequence": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "[member]",
+      "ref_off": "0x134",
+      "span": 84,
+      "sequence": [
+        2.0,
+        2.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "[member]",
+      "ref_off": "0x19c",
+      "span": 84,
+      "sequence": [
+        3.0,
+        2.0,
+        2.0,
+        1.0,
+        2.0
+      ]
+    },
+    {
+      "name": "[member]",
+      "ref_off": "0x204",
+      "span": 84,
+      "sequence": [
+        4.0,
+        2.0,
+        2.0,
+        1.0,
+        2.0
+      ]
+    },
+    {
+      "name": "[keldon xavi final damage rate]",
+      "ref_off": "0x26c",
+      "span": 96,
+      "sequence": [
+        0.0,
+        0.0,
+        10.0,
+        10.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "[collaborate attack groggy duration increase per keldon xavi stack]",
+      "ref_off": "0x2e0",
+      "span": 36,
+      "sequence": []
+    },
+    {
+      "name": "[guardian hp increase per keldon xavi stack]",
+      "ref_off": "0x318",
+      "span": 36,
+      "sequence": [
+        10.0
+      ]
+    },
+    {
+      "name": "[skirmisher monster hp reduction per keldon xavi stack]",
+      "ref_off": "0x350",
+      "span": 36,
+      "sequence": []
+    },
+    {
+      "name": "[operation data set]",
+      "ref_off": "0x388",
+      "span": 24,
+      "sequence": []
+    },
+    {
+      "name": "[allow coin]",
+      "ref_off": "0x3b4",
+      "span": 12,
+      "sequence": []
+    },
+    {
+      "name": "[card Symbol Index]",
+      "ref_off": "0x3d4",
+      "span": 12,
+      "sequence": []
+    },
+    {
+      "name": "[gate schedule]",
+      "ref_off": "0x3f4",
+      "span": 12,
+      "sequence": []
+    },
+    {
+      "name": "[gateflow]",
+      "ref_off": "0x414",
+      "span": 12,
+      "sequence": []
+    },
+    {
+      "name": "[index]",
+      "ref_off": "0x434",
+      "span": 12,
+      "sequence": []
+    },
+    {
+      "name": "[member limit]",
+      "ref_off": "0x454",
+      "span": 12,
+      "sequence": []
+    },
+    {
+      "name": "[phase info]",
+      "ref_off": "0x474",
+      "span": 12,
+      "sequence": []
+    },
+    {
+      "name": "[recommend fame]",
+      "ref_off": "0x494",
+      "span": 12,
+      "sequence": []
+    },
+    {
+      "name": "[reward data]",
+      "ref_off": "0x4b4",
+      "span": 12,
+      "sequence": []
+    },
+    {
+      "name": "[string data]",
+      "ref_off": "0x4d4",
+      "span": 12,
+      "sequence": []
+    },
+    {
+      "name": "[ting reward data]",
+      "ref_off": "0x4f4",
+      "span": 12,
+      "sequence": []
+    },
+    {
+      "name": "[type fixed value]",
+      "ref_off": "0x514",
+      "span": 12,
+      "sequence": []
+    },
+    {
+      "name": "[type]",
+      "ref_off": "0x534",
+      "span": 12,
+      "sequence": []
+    },
+    {
+      "name": "[index]",
+      "ref_off": "0x554",
+      "span": 36,
+      "sequence": [
+        1.0
+      ]
+    },
+    {
+      "name": "[type]",
+      "ref_off": "0x58c",
+      "span": 36,
+      "sequence": [
+        1.0
+      ]
+    },
+    {
+      "name": "[card Symbol Index]",
+      "ref_off": "0x5c4",
+      "span": 36,
+      "sequence": [
+        7.0
+      ]
+    },
+    {
+      "name": "[member limit]",
+      "ref_off": "0x5fc",
+      "span": 44,
+      "sequence": []
+    },
+    {
+      "name": "[string data]",
+      "ref_off": "0x63c",
+      "span": 96,
+      "sequence": []
+    },
+    {
+      "name": "[recommend fame]",
+      "ref_off": "0x6b0",
+      "span": 36,
+      "sequence": [
+        98171.0
+      ]
+    },
+    {
+      "name": "[allow coin]",
+      "ref_off": "0x6e8",
+      "span": 48,
+      "sequence": [
+        -1.0,
+        8.0
+      ]
+    },
+    {
+      "name": "[type fixed value]",
+      "ref_off": "0x72c",
+      "span": 36,
+      "sequence": [
+        5.0
+      ]
+    },
+    {
+      "name": "[reward data]",
+      "ref_off": "0x764",
+      "span": 104,
+      "sequence": [
+        1.0,
+        1000000.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "[ting reward data]",
+      "ref_off": "0x7e0",
+      "span": 104,
+      "sequence": [
+        1.0,
+        1000000.0,
+        1.0,
+        0.0
+      ]
+    },
+    {
+      "name": "[gate schedule]",
+      "ref_off": "0x85c",
+      "span": 84,
+      "sequence": [
+        900.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "[gateflow]",
+      "ref_off": "0x8c4",
+      "span": 84,
+      "sequence": [
+        1.0,
+        2.0,
+        3.0,
+        -1.0,
+        -1.0
+      ]
+    },
+    {
+      "name": "[phase info]",
+      "ref_off": "0x92c",
+      "span": 168,
+      "sequence": [
+        0.0,
+        90.0,
+        1.0,
+        300.0,
+        2.0,
+        300.0,
+        3.0,
+        300.0,
+        4.0,
+        600.0,
+        5.0,
+        600.0
+      ]
+    },
+    {
+      "name": "[operation data set]",
+      "ref_off": "0x9e8",
+      "span": 24,
+      "sequence": []
+    },
+    {
+      "name": "[card Symbol Index]",
+      "ref_off": "0xa14",
+      "span": 12,
+      "sequence": []
+    },
+    {
+      "name": "[gate close warning]",
+      "ref_off": "0xa34",
+      "span": 12,
+      "sequence": []
+    },
+    {
+      "name": "[gate schedule]",
+      "ref_off": "0xa54",
+      "span": 12,
+      "sequence": []
+    },
+    {
+      "name": "[gateflow]",
+      "ref_off": "0xa74",
+      "span": 12,
+      "sequence": []
+    },
+    {
+      "name": "[index]",
+      "ref_off": "0xa94",
+      "span": 12,
+      "sequence": []
+    },
+    {
+      "name": "[member limit]",
+      "ref_off": "0xab4",
+      "span": 12,
+      "sequence": []
+    },
+    {
+      "name": "[phase info]",
+      "ref_off": "0xad4",
+      "span": 12,
+      "sequence": []
+    },
+    {
+      "name": "[recommend fame]",
+      "ref_off": "0xaf4",
+      "span": 12,
+      "sequence": []
+    },
+    {
+      "name": "[reward data]",
+      "ref_off": "0xb14",
+      "span": 12,
+      "sequence": []
+    },
+    {
+      "name": "[string data]",
+      "ref_off": "0xb34",
+      "span": 12,
+      "sequence": []
+    },
+    {
+      "name": "[ting reward data]",
+      "ref_off": "0xb54",
+      "span": 12,
+      "sequence": []
+    },
+    {
+      "name": "[type fixed value]",
+      "ref_off": "0xb74",
+      "span": 12,
+      "sequence": []
+    },
+    {
+      "name": "[type]",
+      "ref_off": "0xb94",
+      "span": 12,
+      "sequence": []
+    },
+    {
+      "name": "[index]",
+      "ref_off": "0xbb4",
+      "span": 36,
+      "sequence": [
+        2.0
+      ]
+    },
+    {
+      "name": "[type]",
+      "ref_off": "0xbec",
+      "span": 36,
+      "sequence": [
+        2.0
+      ]
+    },
+    {
+      "name": "[card Symbol Index]",
+      "ref_off": "0xc24",
+      "span": 36,
+      "sequence": [
+        0.0
+      ]
+    },
+    {
+      "name": "[member limit]",
+      "ref_off": "0xc5c",
+      "span": 44,
+      "sequence": []
+    },
+    {
+      "name": "[string data]",
+      "ref_off": "0xc9c",
+      "span": 96,
+      "sequence": []
+    },
+    {
+      "name": "[recommend fame]",
+      "ref_off": "0xd10",
+      "span": 36,
+      "sequence": [
+        105881.0
+      ]
+    },
+    {
+      "name": "[type fixed value]",
+      "ref_off": "0xd48",
+      "span": 36,
+      "sequence": [
+        5.0
+      ]
+    },
+    {
+      "name": "[reward data]",
+      "ref_off": "0xd80",
+      "span": 104,
+      "sequence": [
+        1.0,
+        1000000.0,
+        2.0,
+        1.0
+      ]
+    },
+    {
+      "name": "[ting reward data]",
+      "ref_off": "0xdfc",
+      "span": 104,
+      "sequence": [
+        1.0,
+        1000000.0,
+        2.0,
+        0.0
+      ]
+    },
+    {
+      "name": "[gate schedule]",
+      "ref_off": "0xe78",
+      "span": 204,
+      "sequence": [
+        300.0,
+        3.0,
+        1.0,
+        2.0,
+        0.0,
+        240.0,
+        3.0,
+        1.0,
+        0.0,
+        0.0,
+        180.0,
+        3.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "[gate close warning]",
+      "ref_off": "0xf58",
+      "span": 88,
+      "sequence": [
+        0.0
+      ]
+    },
+    {
+      "name": "[gateflow]",
+      "ref_off": "0xfc4",
+      "span": 264,
+      "sequence": [
+        1.0,
+        3.0,
+        4.0,
+        5.0,
+        -1.0,
+        2.0,
+        4.0,
+        5.0,
+        -1.0,
+        -1.0,
+        3.0,
+        2.0,
+        3.0,
+        4.0,
+        5.0,
+        4.0,
+        5.0,
+        -1.0,
+        -1.0,
+        -1.0
+      ]
+    },
+    {
+      "name": "[phase info]",
+      "ref_off": "0x10e0",
+      "span": 168,
+      "sequence": [
+        0.0,
+        90.0,
+        1.0,
+        300.0,
+        2.0,
+        300.0,
+        3.0,
+        300.0,
+        4.0,
+        600.0,
+        5.0,
+        600.0
+      ]
+    },
+    {
+      "name": "[operation data set]",
+      "ref_off": "0x119c",
+      "span": 24,
+      "sequence": []
+    },
+    {
+      "name": "[card Symbol Index]",
+      "ref_off": "0x11c8",
+      "span": 12,
+      "sequence": []
+    },
+    {
+      "name": "[gate close warning]",
+      "ref_off": "0x11e8",
+      "span": 12,
+      "sequence": []
+    },
+    {
+      "name": "[gate schedule]",
+      "ref_off": "0x1208",
+      "span": 12,
+      "sequence": []
+    },
+    {
+      "name": "[gateflow]",
+      "ref_off": "0x1228",
+      "span": 12,
+      "sequence": []
+    },
+    {
+      "name": "[index]",
+      "ref_off": "0x1248",
+      "span": 12,
+      "sequence": []
+    },
+    {
+      "name": "[member limit]",
+      "ref_off": "0x1268",
+      "span": 12,
+      "sequence": []
+    },
+    {
+      "name": "[phase info]",
+      "ref_off": "0x1288",
+      "span": 12,
+      "sequence": []
+    },
+    {
+      "name": "[recommend fame]",
+      "ref_off": "0x12a8",
+      "span": 12,
+      "sequence": []
+    },
+    {
+      "name": "[reward data]",
+      "ref_off": "0x12c8",
+      "span": 12,
+      "sequence": []
+    },
+    {
+      "name": "[string data]",
+      "ref_off": "0x12e8",
+      "span": 12,
+      "sequence": []
+    },
+    {
+      "name": "[ting reward data]",
+      "ref_off": "0x1308",
+      "span": 12,
+      "sequence": []
+    },
+    {
+      "name": "[type fixed value]",
+      "ref_off": "0x1328",
+      "span": 12,
+      "sequence": []
+    },
+    {
+      "name": "[type]",
+      "ref_off": "0x1348",
+      "span": 12,
+      "sequence": []
+    },
+    {
+      "name": "[index]",
+      "ref_off": "0x1368",
+      "span": 36,
+      "sequence": [
+        3.0
+      ]
+    },
+    {
+      "name": "[type]",
+      "ref_off": "0x13a0",
+      "span": 36,
+      "sequence": [
+        3.0
+      ]
+    },
+    {
+      "name": "[card Symbol Index]",
+      "ref_off": "0x13d8",
+      "span": 36,
+      "sequence": [
+        0.0
+      ]
+    },
+    {
+      "name": "[member limit]",
+      "ref_off": "0x1410",
+      "span": 44,
+      "sequence": []
+    },
+    {
+      "name": "[string data]",
+      "ref_off": "0x1450",
+      "span": 96,
+      "sequence": []
+    },
+    {
+      "name": "[recommend fame]",
+      "ref_off": "0x14c4",
+      "span": 36,
+      "sequence": [
+        105881.0
+      ]
+    },
+    {
+      "name": "[type fixed value]",
+      "ref_off": "0x14fc",
+      "span": 36,
+      "sequence": [
+        5.0
+      ]
+    },
+    {
+      "name": "[reward data]",
+      "ref_off": "0x1534",
+      "span": 104,
+      "sequence": [
+        1.0,
+        1000000.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "[ting reward data]",
+      "ref_off": "0x15b0",
+      "span": 104,
+      "sequence": [
+        1.0,
+        1000000.0,
+        3.0,
+        0.0
+      ]
+    },
+    {
+      "name": "[gate schedule]",
+      "ref_off": "0x162c",
+      "span": 264,
+      "sequence": [
+        300.0,
+        3.0,
+        1.0,
+        2.0,
+        4.0,
+        255.0,
+        3.0,
+        1.0,
+        2.0,
+        0.0,
+        240.0,
+        3.0,
+        1.0,
+        0.0,
+        0.0,
+        180.0,
+        3.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "[gate close warning]",
+      "ref_off": "0x1748",
+      "span": 120,
+      "sequence": [
+        285.0
+      ]
+    },
+    {
+      "name": "[gateflow]",
+      "ref_off": "0x17d4",
+      "span": 264,
+      "sequence": [
+        1.0,
+        3.0,
+        4.0,
+        5.0,
+        -1.0,
+        2.0,
+        4.0,
+        5.0,
+        -1.0,
+        -1.0,
+        3.0,
+        2.0,
+        3.0,
+        4.0,
+        5.0,
+        4.0,
+        5.0,
+        -1.0,
+        -1.0,
+        -1.0
+      ]
+    },
+    {
+      "name": "[phase info]",
+      "ref_off": "0x18f0",
+      "span": 168,
+      "sequence": [
+        0.0,
+        90.0,
+        1.0,
+        300.0,
+        2.0,
+        300.0,
+        3.0,
+        300.0,
+        4.0,
+        600.0,
+        5.0,
+        600.0
+      ]
+    },
+    {
+      "name": "[operation data set]",
+      "ref_off": "0x19ac",
+      "span": 24,
+      "sequence": []
+    },
+    {
+      "name": "[card Symbol Index]",
+      "ref_off": "0x19d8",
+      "span": 12,
+      "sequence": []
+    },
+    {
+      "name": "[gate schedule]",
+      "ref_off": "0x19f8",
+      "span": 12,
+      "sequence": []
+    },
+    {
+      "name": "[gateflow]",
+      "ref_off": "0x1a18",
+      "span": 12,
+      "sequence": []
+    },
+    {
+      "name": "[index]",
+      "ref_off": "0x1a38",
+      "span": 12,
+      "sequence": []
+    },
+    {
+      "name": "[member limit]",
+      "ref_off": "0x1a58",
+      "span": 12,
+      "sequence": []
+    },
+    {
+      "name": "[phase info]",
+      "ref_off": "0x1a78",
+      "span": 12,
+      "sequence": []
+    },
+    {
+      "name": "[recommend fame]",
+      "ref_off": "0x1a98",
+      "span": 12,
+      "sequence": []
+    },
+    {
+      "name": "[reward data]",
+      "ref_off": "0x1ab8",
+      "span": 12,
+      "sequence": []
+    },
+    {
+      "name": "[string data]",
+      "ref_off": "0x1ad8",
+      "span": 12,
+      "sequence": []
+    },
+    {
+      "name": "[ting reward data]",
+      "ref_off": "0x1af8",
+      "span": 12,
+      "sequence": []
+    },
+    {
+      "name": "[type fixed value]",
+      "ref_off": "0x1b18",
+      "span": 12,
+      "sequence": []
+    },
+    {
+      "name": "[type]",
+      "ref_off": "0x1b38",
+      "span": 12,
+      "sequence": []
+    },
+    {
+      "name": "[index]",
+      "ref_off": "0x1b58",
+      "span": 36,
+      "sequence": [
+        5.0
+      ]
+    },
+    {
+      "name": "[type]",
+      "ref_off": "0x1b90",
+      "span": 36,
+      "sequence": [
+        5.0
+      ]
+    },
+    {
+      "name": "[card Symbol Index]",
+      "ref_off": "0x1bc8",
+      "span": 36,
+      "sequence": [
+        0.0
+      ]
+    },
+    {
+      "name": "[member limit]",
+      "ref_off": "0x1c00",
+      "span": 44,
+      "sequence": []
+    },
+    {
+      "name": "[string data]",
+      "ref_off": "0x1c40",
+      "span": 48,
+      "sequence": []
+    },
+    {
+      "name": "[recommend fame]",
+      "ref_off": "0x1c84",
+      "span": 36,
+      "sequence": [
+        73993.0
+      ]
+    },
+    {
+      "name": "[type fixed value]",
+      "ref_off": "0x1cbc",
+      "span": 36,
+      "sequence": [
+        5.0
+      ]
+    },
+    {
+      "name": "[reward data]",
+      "ref_off": "0x1cf4",
+      "span": 104,
+      "sequence": [
+        1.0,
+        1000000.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "[ting reward data]",
+      "ref_off": "0x1d70",
+      "span": 104,
+      "sequence": [
+        1.0,
+        1000000.0,
+        3.0,
+        0.0
+      ]
+    },
+    {
+      "name": "[gate schedule]",
+      "ref_off": "0x1dec",
+      "span": 84,
+      "sequence": [
+        900.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "[gateflow]",
+      "ref_off": "0x1e54",
+      "span": 84,
+      "sequence": [
+        1.0,
+        2.0,
+        3.0,
+        -1.0,
+        -1.0
+      ]
+    },
+    {
+      "name": "[phase info]",
+      "ref_off": "0x1ebc",
+      "span": 168,
+      "sequence": [
+        0.0,
+        90.0,
+        1.0,
+        300.0,
+        2.0,
+        300.0,
+        3.0,
+        300.0,
+        4.0,
+        600.0,
+        5.0,
+        600.0
+      ]
+    }
+  ],
   "phase_groups": [
     {
       "first_duration": 90.0,
