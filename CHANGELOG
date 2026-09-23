@@ -13,6 +13,9 @@
 - 修复普通 Avatar 与 Clone 同槽共存时的登录显示及实时脱下刷新：mode1 装备详情行在偏移 24 提供普通外观模板；脱下已穿戴 Clone 后，在原有装备刷新帧之后追加完整 mode1 `EntryAddition`，恢复客户端普通 Avatar 格子关联。未改存档格式或数据库结构。
   - **实机确认**：用户验证重登后普通 Avatar 与 Clone 分页分别显示正确；脱下 Clone 后普通 Avatar 同槽格子保留，Clone 页可正常穿脱。用户确认正常。
   - **验证**：`go test ./...`、`go vet ./...` 通过。实现与完整证据链见 `server/work/dfo-lan/docs/protocol/avatar-clone-coexistence-candidate.md`。
+- 修复 Clone 与普通 Avatar 同槽时实时脱装刷新被服务端拒绝：`AppearanceProbe` 改为每槽只输出一条模型记录，并优先使用 Group 1 普通外观，避免同槽重复导致编码失败；不改存档格式或数据库结构。
+  - **实机确认**：Clone 已可正常脱下；同槽普通 Avatar 显示保留。副本内 Clone-only 与 Clone+普通外观仍显示裸体，问题未解决，暂停后续发包尝试，等待新的取证线索。
+  - **验证**：`go test ./...`、`go vet ./...` 已通过。证据与暂停点见 `server/work/dfo-lan/docs/protocol/avatar-clone-coexistence-candidate.md`。
 - **毕业转普通角色 + 等级主线整理（手册 P3 子项 8/9/10，代码完成待实机）**：真源是 `aradodyssey.etc` 的四张任务表（已随 `odyssey-growth-release.json` 带出），用 `analysis/tasks/next63-verify-quest-tables.py` 逐表核对：`[quest clear]` 11 级（10/17/72/100/102/103/104/105/109/110/115）共 354 条、`[remove clear quest]` 10 条、`[show quest]` 2 条（26516/26518）、`[branch quest]` 80/102/115 三级 `(job, quest, flag)` 三元组（`-1`=全职业）。关键语义：`12911` 在 102 清除表内被移除表救回、`12884` 是分支任务不在清除表、`22987` 深渊引导只在分支表 → 必须存活；满级清除集真值 **333** 条（并集 334 − 移除表命中 1）。
   - **子项 8（毕业）**：`internal/character/odyssey_graduate.go` —— 登录时 `Level >= 115` 且以奥德赛创建且未毕业 → 落 `odyssey_graduated` 持久标记（`omitempty`，旧二进制回读不坏档）、`creation_options[10]`/`creation_mode` 清零（原始请求包不动，保留历史）；奖励盒 `10420561`（`[complete reward info]` 的 `[reward]`，必须是 `[booster info]` 且不与任何等级礼包重复）走独立收据 `odyssey-graduate-reward-v1`，满包只欠盒子、不阻碍毕业。事件键 `odyssey-graduate-v1` 幂等，只转一次。
   - **子项 9（主线整理）**：`internal/catalog/odyssey_quests.go` 解析四张表为 `OdysseyQuests`，形状漂移即拒绝装载（硬断言）；`ClearedAt(level)` = 并集 − 移除表；`BranchQuestsUpTo(level, profession)` 按 `-1` 全职业行过滤。`internal/storage/quest.go` 新增 `ClearQuests`：幂等 `ON CONFLICT (character_id, quest_id) DO NOTHING`，**绝不改已有行**，`progress_model='odyssey-skip-v1'` 可精确撤销；`internal/quest/odyssey_mainline.go` 纯策略（IO 分离）+ 执行层，分支任务可达性再过滤双保险。

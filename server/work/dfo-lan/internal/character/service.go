@@ -372,12 +372,23 @@ func (s *Service) wornAppearance(state json.RawMessage) ([]protocol.EquippedAppe
 		return nil, nil
 	}
 
-	rows := make([]protocol.EquippedAppearance, 0, len(bag.Worn))
+	// The wire block has one model per slot. A saved avatar slot can hold both
+	// a Clone (Group 0) and an ordinary look (Group 1); use the look for the
+	// actor model, matching the entry-time wornAppearance projection.
+	bySlot := make(map[uint16]uint32, len(bag.Worn))
 	for _, w := range bag.Worn {
-		if w.Slot > maxWornAppearanceSlot {
-			continue
+		if w.Slot <= maxWornAppearanceSlot && w.Group == 0 {
+			bySlot[w.Slot] = w.Template
 		}
-		rows = append(rows, protocol.EquippedAppearance{Slot: byte(w.Slot), Model: w.Template})
+	}
+	for _, w := range bag.Worn {
+		if w.Slot <= maxWornAppearanceSlot && w.Group == 1 {
+			bySlot[w.Slot] = w.Template
+		}
+	}
+	rows := make([]protocol.EquippedAppearance, 0, len(bySlot))
+	for slot, model := range bySlot {
+		rows = append(rows, protocol.EquippedAppearance{Slot: byte(slot), Model: model})
 	}
 	if len(rows) == 0 {
 		return nil, nil

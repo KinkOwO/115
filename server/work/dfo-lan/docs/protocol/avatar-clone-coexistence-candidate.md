@@ -74,3 +74,39 @@ IDA 对 `sub_1452C1540` 的调用点有 `sub_14563D400` 的 existing-actor 分�
 用户确认修复正常：登录后普通 Avatar 页显示普通外观、Clone 页显示克隆装扮；脱下 Clone 部位后，普通 Avatar 对应格不再被清空，Clone 装扮仍可正常穿脱。实时脱下路径只对已识别的 Clone 装备移除请求，在既有 NOTI13/14 与 mode0 刷新之后补发当前角色完整 mode1 `EntryAddition`；其余 CMD19 操作不触发该补发。未改变存档数据、分组规则或数据库结构。该行为作为当前已确认基线。
 
 构建及静态验证：`go test ./...`、`go vet ./...` 均通过。实机运行的隔离候选 SHA-256 为 `95275A922FBB656C857C0C860B39257437C003B64D98822C4363DB9C0A09EB3F`；候选二进制与本地启动配置不纳入版本控制。
+
+### 2026-09-23 后续回归：副本裸体与 Clone 脱装拒绝
+
+用户报告穿着 Clone 进入副本后，对应部位显示为裸体，无论该部位是否同时穿普通外观；另有 Clone 装备无法脱下。15:08 实机运行日志中，角色 17 的 CMD19 `01 08 ... 03 00 ...` 后记录 `equipment_move_refused: duplicate equipped appearance slot 0`，随后相同会话又出现 `stale equipment identity`。源码中 `WearService.Move` 先提交存档，`equipmentSession.handle` 后构建 `AppearanceProbe`；其旧投影遍历全部 `bag.Worn`，同槽 Group0 Clone 与 Group1 普通外观各生成一行，导致编码器拒绝。已改为每槽一行，普通外观优先，沿用登录时的模型选择规则。首次编码失败发生在存档提交之后，故这次人工验证需先重登同步客户端状态。
+
+副本加载日志的可见时序为 mode0 `dungeon_actor_appearance_sent`、mode1 `dungeon_actor_addition_sent`、NOTI14 `dungeon_worn_visuals_sent`，随后 CMD37 还有 `dungeon_worn_visuals_restored`；与已确认的城镇入场在穿戴 NOTI14 后再发送 mode0 不同。该差异与 Clone 对应部位丢失模型一致，但客户端最终消费结果尚未经动态命中证明。本轮副本候选 **attempt 1/3** 仅在存档实际穿有 PVF `[item category] clear avatar` 的 Group0 槽时，在 CMD37 的已有 NOTI14 后复用已在 CMD19 实机验证过的 `AppearanceProbe`。没有引入新 opcode、字段或数据库迁移；若实机仍裸体或有新的场景问题，撤回该单点候选，继续取证，不叠加新包。
+
+`go test ./...`、`go vet ./...` 已通过。隔离构建为 `bin/wireprobe-clone-dungeon-candidate.exe`（SHA-256 `9A6A41DAB7767CA09B4EAC795AD7A86E977AB953DFA061AAAC61B4848DA64550`）。用户实机反馈：Clone 脱装已恢复正常；只穿 Clone 或同时穿 Clone 与普通外观时，城镇外观正常，副本内仍裸体。15:35 日志实际出现 `dungeon_clone_appearance_refreshed`，后者解出的模型在两种穿法下分别为 Clone / 普通外观模板，故 **attempt 1/3 已被实机否定并从源码撤回**。
+
+IDA 进一步核查 `sub_145639840`：mode0 写 actor 的 `+0x405` 一组模型字段，并不调用装扮对象的 `+0x5C0` setter。mode1 装备 reader `sub_1452C1540` 在 `0x1452c2620` / `0x1452c2705` 调用该 setter，clear avatar 的普通外观覆盖值取 row+24；`sub_14563D400 @0x14563d6cb` 已存在对现有 actor 的 mode1 消费路径。NOTI14 `sub_1452E9810` 在 `0x1452ead00` 比较同槽模板，不同才经 `sub_145AD4750` 删除旧对象；“加载时一定删除”尚未证实，不能作为结论。基于“mode0 发送但无效、mode1 明确设置对象外观”的差别，**attempt 2/3** 仅将 CMD37 加载末尾 Clone 穿戴者的补发改成同一角色既有的 mode1 `EntryAddition`，不同时补发 mode0，不改字段或存档。待用户手动测试 Clone-only 与 Clone+普通外观进副本；若仍裸体则撤回并停下叠包，先取证。
+
+attempt 2/3 静态门禁：`go test ./...` 与 `go vet ./...` 均通过。独立候选 `bin/wireprobe-clone-dungeon-candidate2.exe` SHA-256 `1F85B8289C188CE1EF9A86132F64A7743B24AD02DB6011E3B8B07C671F997725`；仅本地忽略的 `server/launcher.local.json` 指向该文件，未启动客户端，未改数据库。
+
+### 2026-09-23 attempt 2/3 失败，转只读对象取证
+
+用户反馈两种穿法均仍裸体。`roles_persist_select_actor_town_world_live_detail_dungeon_manual_20260923_161003_792907_next37/events.jsonl` 在 UTC 08:10:50、08:11:23 的 NOTI30 后均记录 `dungeon_clone_addition_refreshed`，因此补发已实际发送，但显示问题未解决。已撤回 `dungeon_flow.go` 的候选补发及其测试，保留用户确认有效的 `AppearanceProbe` 同槽去重修复。停止改变副本发包路径，当前仍为 attempt 2/3，未开启第三次假设。
+
+本轮权威 IDB 静态链新增证据：
+
+- mode1 `sub_14563D400` 经 `sub_145637370 -> sub_145EFFAC0` 读取角色容器 `+2080/+2088` 引用，并经 `sub_145F04E30` 绑定主本地引用 `qword_14EF2CA70/78`。`sub_145F01800` 另读容器 `+2056/+2064`。`sub_145EFAFB0` 优先使用 `qword_14EF2CA88/90`，没有有效对象才回退到 `CA70/78`。这证明存在不同角色引用；当前副本实际使用哪份及两份外观值是否相同，仍待运行时快照，不能直接断言根因。
+- `sub_14564D850` 对类别 bit21 分派 `sub_14564CF20`，RTTI 名为 `CNClearAvatar`，构造器 `sub_14603B750` 写 vtable `0x14A9B31B0`，初始化对象 `+7440 = -1`。该 vtable 的 `+0x5C0` 指向 `sub_14603CAA0`：写 `+7440` 外观模板，更新 `+7448` 资源引用；`+0x528 -> sub_14603C850` 清回 `-1`。`+0x440 -> sub_14603C110` 优先按 `+7440` 查外观，无结果再走 `sub_145A8B7B0` 回退。`+7484` 是第二模板，由 `sub_14603CDA0` 写入。
+- 已核对角色虚函数 `+0x1F08 -> sub_145CDCA30 -> sub_145CDC8E0`，原始装备指针位于 `actor + 23448 + 24*slot`，默认指针位于 `actor + 69472 + 24*slot`。读取函数还带 UI/默认装备过滤，故快照只能标为 raw slots，不把原始数组直接宣称为最终渲染结果。
+
+计划中的动态对象快照未能采集：当前机器的 NGS 环境无法挂接调试器，且进程只读检查也未取得现场数据。临时快照脚本因未完成实机验证已撤回，不纳入版本。静态分析只能说明客户端对象与槽位引用结构，不能判定副本实际使用哪份对象。
+
+资源边界：运行目录 `F:/wip/dof/115US/Script.pvf` 与工作区 `client/Script.pvf` SHA-256 相同（`5DD03873EDF2C1DF7AEA16DB5AD146A776FB8461A947BE73042CABD932E66F0A`）。两份 DFO.exe 完整二进制比较只有文件偏移 `0x07220F48/49/4A/4D` 四字节不同：工作区 SHA `1D3948784E5E0F77ED744017BF82BF0C50DE9421423F9E59F6F70AED609D8FFA` 在 VA `0x147220F48` 为 JMP+NOP；运行目录 SHA `5543C382287BFD5354C3D8C32FD0CE2F1BAC572ADCC57563C29E6091E332E1CB` 为 JBE，与权威 IDB 此处的 `0F 86 B2 00 00 00` 一致。未修改任一客户端文件；只读脚本仅接受这两个已核对的完整哈希。
+
+后续等待用户找到新的取证线索；在此之前不再增加副本发包尝试。若恢复调查，优先解决如何在 NGS 环境取得城镇/副本同进程对象对照，重点比较主/备用角色对象及同槽 Clear Avatar `+7440` 外观模板。
+
+撤回后 `go test ./...`、`go vet ./...` 均通过；启动指向隔离取证基线 `bin/wireprobe-clone-evidence.exe`，SHA-256 `3D1FA974BDB940C0F220786B8E59C35DDF14849AE004311B5ECEC141E285D031`。此程序仅保留脱装去重修复，不含上述两次无效副本补发。
+
+### 2026-09-23 暂停基线
+
+用户确认 Clone 脱装恢复正常；服务端 `AppearanceProbe` 每个外观槽只输出一行，Group 1 普通外观优先，避免 Clone 与普通 Avatar 同槽造成实时装备刷新拒绝。该修复纳入本次提交。
+
+未解决项：城镇显示正常，但 Clone-only 和 Clone+普通外观两种情况下进入副本仍裸体。前两次副本刷新候选均被实机否定并已撤回；未进行第三次尝试。当前没有足够证据闭环副本对象消费路径，等待用户提供新线索后再继续。
