@@ -16,20 +16,24 @@ type NPCLocator func(npc uint32) ([2]uint16, bool)
 // server-side distance is an explicit local policy, not an official value.
 const ProximityRadius = 180
 
-func near(a, b uint16) bool {
+func nearRadius(a, b uint16, radius int) bool {
 	d := int(a) - int(b)
 	if d < 0 {
 		d = -d
 	}
-	return d <= ProximityRadius
+	return d <= radius
 }
 
-func nearNPC(npc uint32, at storage.WorldPosition, locate NPCLocator) bool {
+func nearNPCWithin(npc uint32, at storage.WorldPosition, locate NPCLocator, radius int) bool {
 	if npc == 0 || locate == nil {
 		return false
 	}
 	p, ok := locate(npc)
-	return ok && near(at.X, p[0]) && near(at.Y, p[1])
+	return ok && nearRadius(at.X, p[0], radius) && nearRadius(at.Y, p[1], radius)
+}
+
+func nearNPC(npc uint32, at storage.WorldPosition, locate NPCLocator) bool {
+	return nearNPCWithin(npc, at, locate, ProximityRadius)
 }
 
 // holds reports whether the bag already carries every required item. Quest
@@ -88,6 +92,11 @@ func (s *Service) ProximityProgress(ctx context.Context, role storage.Character,
 		switch en.Model {
 		case SingleMeetNPC:
 			satisfied = nearNPC(en.NPC, at, locate)
+		case AlflyraReachNPC:
+			// In 42/2 the giver NPC 304 stands only 175 map units from
+			// target 303. The general 180-unit conversation radius would
+			// mark this reach objective complete while still at the giver.
+			satisfied = nearNPCWithin(en.NPC, at, locate, 80)
 		case SingleReachRange:
 			satisfied = en.Range.Contains(at)
 		case SeekAndMeetNPC:
