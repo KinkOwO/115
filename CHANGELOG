@@ -1,6 +1,10 @@
 # CHANGELOG
 
 ## 2026-09-23
+- **觉醒/VP 技能注册不上快捷键（CMD28，实机取证）**：玩家把 Job8 atmage 的 138/139（槽位 39/40）拖进快捷栏，客户端照常发 CMD28，服务端却回 `skill_refused`（reason `passive skill cannot occupy a shortcut`，会话`roles_..._20260923_234846_674894_next37` 里 5 次，玩家侧表现就是「技能学得会、快捷键注册不了」）。根因：`MoveSkill` 用 `Active()` 判定，而`Active()` 要求 `[type] == [active]`；`configs/skills.release.json` 3224 行里有12 行不是 `[active]`/`[passive]` —— 8 行的 `[type]` 是导出器解析不出的常量（`default`，含 job8 atmage 138 spiralpress / 139 violentstorm、job3 mage390/391、job4 priest 298/299、job5 atgunner 354、job8 atmage 35），4 行根本没有`[type]`（job4 priest 133/134/250/253），且全是觉醒 / variation-point 行—— 与 `ForAdvancement` 早已豁免它们的口径不一致。新增`LearningDefinition.ShortcutCapable()`（= 非显式 `[passive]` 即可进快捷栏）并用于 CMD28；`Active()` 刻意保持窄语义，因为它还驱动新技能的自动占位。
+  - **验证**：新增 `internal/character/learning_shortcut_test.go`（4 类形状 +`Active()` 语义未漂移的回归）；`go vet ./cmd/... ./internal/...` 0 项、`go test ./cmd/... ./internal/...` 全绿。候选版 `bin/wireprobe-handoff-source.exe`已重编。
+- **副本结算后 VP 面板被清空（补发 NOTI19+NOTI29，实机查库取证）**：玩家反馈「刷完副本出来，VP 点和学过的 VP 技能都没了」。查库确认**存档是完好的**——FenF（characters.id=9）的 `skill_variations.options` 仍带着 5 个已选项（ID 47/79/80/81/85，Status=1），`technique_points=[0,0]` 只是因为 5 点已全部分配出去（`ReconcileTechniquePoints` 的 5 − 已选）。所以是下发问题：`dungeonResult` 只发了 34/37/35，而 case 2347 的注释早就记过「缺 id29 会让客户端把 Enhance/Evolve/VP 渲染成已清空，直到下次登录」。现按 ResetSkills /链重置同样的口径，结算后补发 `skill_state_restored`(19) 与`skill_variation_response`(29)。
+  - **实机边界**：本轮未实机验证（补发是否会与客户端自身的结算刷新打架待测）；若出本后 VP 面板仍空 ⇒ 说明清空发生在别的刷新点，需要抓该时刻的帧再定位。
 - **汉化包字体过宽撑爆 UI：只压缩字宽（合成窄体），字形来源不动（实机待确认）**：用户接入汉化包后中文过宽导致 UI 显示不完整。先后试过缩放字号（K=1.1→1.0→0.9→0.8）、换微软雅黑重建字形、嵌入点阵位图，结论是「换字体」与「缩字号」都要牺牲观感或清晰度；最终回到**汉化包原字体（宋体基）**，只用 `client-patchs/fontsize/condense_width.py` 把字形轮廓与 advance 一起横向压 0.9（CJK advance 256→230，实测文本宽 -9~12%），点阵按压窄后的字形重新光栅化 12~17px。
   - **两个硬约束（实测，勿省）**：① 只压 advance 不行——CJK 墨迹已占满字身框，压了必然相邻字相交；② **不重渲点阵则压缩完全失效**——12~17px 引擎直接用字体里的旧位图，实测宽度 159px→159px 纹丝不动。所以 apply 的流程是：压窄 → 删 EBDT/EBLC → 存临时源 → 从压窄字形重渲点阵 → 写回。
   - **hinting 保留不动**：实测压 0.9 后开/关 hinting 渲染宽度一致（差 ≤1px），故 fpgm/prep/cvt 一律不碰，避免动 hinting 的副作用；同时删除 VDMX/hdmx/LTSH（旧像素级度量会与压缩后的字形打架）。
