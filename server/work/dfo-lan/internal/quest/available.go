@@ -45,10 +45,7 @@ func (s *Service) Available(ctx context.Context, role storage.Character) ([]uint
 		if uint32(state.Level) < en.MinimumLevel || uint32(state.Level) > en.MaximumLevel {
 			continue
 		}
-		allowed := false
-		for _, j := range en.Jobs {
-			allowed = allowed || j == "[all]" || j == job
-		}
+		allowed := jobAllowed(en.Jobs, job)
 		for _, p := range en.Prerequisites {
 			if status[p] != "completed" {
 				allowed = false

@@ -23,6 +23,19 @@ type Service struct {
 	index   *Index
 }
 
+func jobAllowed(jobs []string, job string) bool {
+	// An omitted [job] condition in the source applies to every profession.
+	if len(jobs) == 0 {
+		return true
+	}
+	for _, j := range jobs {
+		if j == "[all]" || j == job {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *Service) Accept(ctx context.Context, role storage.Character, id uint16) (storage.QuestState, error) {
 	d, ok := s.Catalog.Quests[uint32(id)]
 	if !ok {
@@ -32,13 +45,7 @@ func (s *Service) Accept(ctx context.Context, role storage.Character, id uint16)
 		return storage.QuestState{}, fmt.Errorf("quest data unresolved: %s", d.Pending[0])
 	}
 	job := s.Professions.Professions[role.Profession].Job
-	allowed := false
-	for _, j := range d.Jobs {
-		if j == "[all]" || j == job {
-			allowed = true
-		}
-	}
-	if !allowed {
+	if !jobAllowed(d.Jobs, job) {
 		return storage.QuestState{}, errors.New("quest profession requirement not met")
 	}
 	var charState character.State
