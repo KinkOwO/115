@@ -97,7 +97,7 @@ func (w *worldSession) moveVault(rules inventory.BagRules, r protocol.ItemMoveRe
 			if _, e = protocol.PersonalVaultSpace(space, newVault.Slots, newVault.Rows()); e != nil {
 				return nil, nil, e
 			}
-			if _, e = protocol.InventoryUpdate(newBag.Rows()); e != nil {
+			if _, e = protocol.InventoryUpdate(inventory.ChangedItemRows(b, newBag)); e != nil {
 				return nil, nil, e
 			}
 			return savedBagRaw, savedVaultRaw, nil
@@ -113,7 +113,11 @@ func (w *worldSession) moveVault(rules inventory.BagRules, r protocol.ItemMoveRe
 	}
 
 	if r.SourceList == 0 || r.DestinationList == 0 {
-		bagUpdate, e := protocol.InventoryUpdate(newBag.Rows())
+		beforeBag, e := inventory.ReadBag(w.role.State)
+		if e != nil {
+			return nil, true, e
+		}
+		bagUpdate, e := protocol.InventoryUpdate(inventory.ChangedItemRows(beforeBag, newBag))
 		if e != nil {
 			return nil, true, e
 		}

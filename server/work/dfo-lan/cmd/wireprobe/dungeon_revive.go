@@ -81,11 +81,15 @@ func (w *worldSession) lifeTokenRevive(ctx context.Context, store dungeonReviveS
 		return nil, e
 	}
 
+	beforeBag, e := inventory.ReadBag(w.role.State)
+	if e != nil {
+		return nil, e
+	}
 	bag, e := inventory.ReadBag(saved.State)
 	if e != nil {
 		return nil, e
 	}
-	update, e := protocol.InventoryUpdate(bag.Rows())
+	update, e := protocol.InventoryUpdate(inventory.ChangedItemRows(beforeBag, bag))
 	if e != nil {
 		return nil, e
 	}

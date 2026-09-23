@@ -34,7 +34,7 @@ func (w *worldSession) recoverFatiguePotion(p []byte) ([]outboundPacket, error) 
 	if e != nil {
 		return nil, e
 	}
-	row := protocol.OrdinaryItem(slot, 0, 0)
+	row := protocol.EmptyOrdinaryItem(slot)
 	for _, item := range bag.Items {
 		if item.Slot == slot {
 			row = protocol.OrdinaryItem(slot, item.Template, item.Amount)
