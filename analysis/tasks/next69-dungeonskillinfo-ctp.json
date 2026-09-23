@@ -1,0 +1,33 @@
+{
+  "file": "D:/115us/server/work/dfo-lan/runtime/ctp-census/01-dungeonskillinfo.ctp.bin",
+  "size": 1636,
+  "pool_base": "0x5a0",
+  "pool_bytes": 196,
+  "cell_region": [
+    "0x40",
+    "0x560"
+  ],
+  "cells": 322,
+  "tag_histogram": {
+    "0": 319,
+    "4": 3
+  },
+  "pool_tags": [
+    "[skirmisher info]",
+    "[effect]",
+    "[jump attack]",
+    "[jump z threshold]",
+    "[nomal attack]",
+    "[delay ani time]",
+    "[relative offset]",
+    "[passive object index]",
+    "[gaurdian]",
+    "[role enable effect]",
+    "[role get effect]",
+    "[skir chainline effect]"
+  ],
+  "name_refs": [],
+  "inline_name_refs": [],
+  "phase_groups": [],
+  "float_count": 3
+}

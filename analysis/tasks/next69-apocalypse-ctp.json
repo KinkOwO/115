@@ -1,0 +1,105 @@
+{
+  "file": "D:/115us/.workbuddy/archive/20260923/真源取证/apocalypse.ctp.bin",
+  "size": 9280,
+  "pool_base": "0x2070",
+  "pool_bytes": 976,
+  "cell_region": [
+    "0x40",
+    "0x1f78"
+  ],
+  "cells": 1647,
+  "tag_histogram": {
+    "0": 1461,
+    "3": 12,
+    "4": 174
+  },
+  "pool_tags": [
+    "[party waiting area]",
+    "[role per member limit]",
+    "[member]",
+    "[keldon xavi final damage rate]",
+    "[collaborate attack groggy duration increase per keldon xavi stack]",
+    "[guardian hp increase per keldon xavi stack]",
+    "[skirmisher monster hp reduction per keldon xavi stack]",
+    "[operation data set]",
+    "[allow coin]",
+    "[card Symbol Index]",
+    "[gate schedule]",
+    "[gateflow]",
+    "[index]",
+    "[member limit]",
+    "[phase info]",
+    "[recommend fame]",
+    "[reward data]",
+    "[string data]",
+    "[ting reward data]",
+    "[type fixed value]",
+    "[type]",
+    "[gate close warning]"
+  ],
+  "name_refs": [],
+  "inline_name_refs": [],
+  "phase_groups": [
+    {
+      "first_duration": 90.0,
+      "sequence": [
+        90.0,
+        1.0,
+        300.0,
+        2.0,
+        300.0,
+        3.0,
+        300.0,
+        4.0,
+        600.0,
+        5.0
+      ]
+    },
+    {
+      "first_duration": 90.0,
+      "sequence": [
+        90.0,
+        1.0,
+        300.0,
+        2.0,
+        300.0,
+        3.0,
+        300.0,
+        4.0,
+        600.0,
+        5.0
+      ]
+    },
+    {
+      "first_duration": 90.0,
+      "sequence": [
+        90.0,
+        1.0,
+        300.0,
+        2.0,
+        300.0,
+        3.0,
+        300.0,
+        4.0,
+        600.0,
+        5.0
+      ]
+    },
+    {
+      "first_duration": 90.0,
+      "sequence": [
+        90.0,
+        1.0,
+        300.0,
+        2.0,
+        300.0,
+        3.0,
+        300.0,
+        4.0,
+        600.0,
+        5.0
+      ]
+    }
+  ],
+  "float_count": 174
+}

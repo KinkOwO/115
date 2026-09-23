@@ -16,6 +16,7 @@ import (
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/game/wire"
 	"dfolan/internal/inventory"
+	"dfolan/internal/legion"
 	"dfolan/internal/loot"
 	"dfolan/internal/progression"
 	"dfolan/internal/quest"
@@ -911,6 +912,7 @@ func main() {
 		var skillState skillSession
 		var equipmentState equipmentSession
 		var sortState sortSession
+		var legionState legionSession
 		if worldService != nil {
 			worldState = &worldSession{characters: characters, service: worldService, account: developmentAccount, flags: townPolicy.Flags, dungeons: dungeonCatalog, tutorials: tutorialRoutes, tutorialDungeons: tutorialDungeons, professions: characters.Catalog, fatigue: fatigueService, quests: questService, progression: progressionService, loot: lootService, selectionBoxes: selectionBoxes, vault: vaultService, soloPartyBootstrap: *soloPartyBootstrap, hub: hub}
 			worldState.serverID = channelCfg.ServerID
@@ -1172,6 +1174,29 @@ func main() {
 					event(map[string]any{"kind": p.Name, "id": p.ID, "plain_hex": hex.EncodeToString(p.Payload)})
 				}); err != nil {
 					return
+				}
+				continue
+			}
+			if frame.Type == 1 && legion.Requests(frame.ID) && bootstrapped && verified && worldState != nil {
+				// Legion / apocalypse family. P1 implements CMD2043 only; the
+				// rest of the family is routed here so an unimplemented packet
+				// is logged as an explicit refusal instead of vanishing.
+				legionPlan, legionErr := legionState.handle(worldState, plaintext, frame.ID)
+				// The request body is logged whether or not the opcode is
+				// answered. Settling X1 (next64 §6.2) — whether the caller's
+				// appended length already contains the 13-byte envelope — is
+				// the point of P1's observability, so both the byte count and
+				// the raw bytes are kept.
+				legionBytes, legionHex := legionRequestBody(plaintext)
+				if legionErr != nil {
+					event(map[string]any{"kind": "legion_refused", "id": frame.ID, "reason": legionErr.Error(), "request_bytes": legionBytes, "request_hex": legionHex})
+					continue
+				}
+				for _, packet := range legionPlan {
+					if err := sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
+						return
+					}
+					event(map[string]any{"kind": packet.Name, "id": packet.ID, "character_id": worldState.role.ID, "request_bytes": legionBytes, "request_hex": legionHex, "plain_hex": hex.EncodeToString(packet.Payload)})
 				}
 				continue
 			}

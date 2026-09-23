@@ -1,5 +1,7 @@
 package main
 
+import "dfolan/internal/legion"
+
 // Bounded game-command evidence. Every implemented command must pass this
 // gate before its handler, and its body is retained on every occurrence so
 // regressions stay diagnosable.
@@ -57,13 +59,18 @@ const BodySampleLimit = 8
 // kept. Implemented commands are always retained; everything else is sampled
 // up to the cap and then counted as metadata only.
 //
+// The legion family is retained wholesale rather than sampled: P1 implements
+// only CMD2043, but CMD2044/2045/2046/2354/2355 are the evidence source for
+// P2-P5, and every body in the family is short (17-22 bytes) so keeping each
+// occurrence costs nothing.
+//
 // Command 2127 is the telemetry stream the comment above describes: it arrives
 // several times a second for as long as a character is in a scene, and its cap
 // is deliberately left at BodySampleLimit so it cannot flood the log. Measured
 // over one run it sent 257 bodies in 33 seconds while command 35 - the only
 // position report this client sends - arrived once per second.
 func retainRequestBody(id uint16, seen map[uint16]int) bool {
-	if observedGameRequest(id) || partyEvidenceRequest(id) {
+	if observedGameRequest(id) || partyEvidenceRequest(id) || legion.Requests(id) {
 		return true
 	}
 	if seen == nil || seen[id] >= BodySampleLimit {
