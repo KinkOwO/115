@@ -772,6 +772,10 @@ func (w *worldSession) moveDungeonRoom(p []byte) (*dungeon.Session, []outboundPa
 		return nil, nil, e
 	}
 	state := protocol.StartMapState{Position: r.Position, Seed: seed, Map: next.Room.Map, Monsters: next.LivingMonsters(), LayerChange: r.LayerChange}
+	if r.LayerChange && next.Room.Map == w.activeDungeon.Room.Map {
+		state.ReuseRoom = true
+		state.Monsters = nil
+	}
 	if _, visited := w.activeDungeon.Visited[next.Room.Map]; visited && next.Definition.Odyssey && !r.LayerChange {
 		state.ReuseRoom = true
 		state.Monsters = nil

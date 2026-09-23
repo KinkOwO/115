@@ -52,6 +52,12 @@ func (s *Session) BossCheck(r protocol.BossCheckRequest, actor uint16) error {
 // still requires its own death report before the run is complete.
 func (s *Session) tryComplete() {
 	if s.completionTarget == 0 {
+		// q3215's final room reports no BOSS_CHECK. The validated closing
+		// cinematic returns to its cached final map after the fighting ends;
+		// only that transition may finish this story run.
+		if s.lotusClosingReached && s.Definition.ID == 26 && s.Maze.Index == 3 && s.Room.Map == 100008697 && s.RoomCleared() && s.reportableLotusTarget() != 0 {
+			s.completed = true
+		}
 		return
 	}
 	if s.Definition.Odyssey || s.Definition.ID == 100003126 {
@@ -84,5 +90,22 @@ func (s *Session) CompletionTarget() uint16 {
 	if !s.Completed() {
 		return 0
 	}
+	if s.completionTarget == 0 {
+		return s.reportableLotusTarget()
+	}
 	return s.completionTarget
+}
+
+// A story display boss is present in the final map's NOTI29 rows. Use its
+// actual entity as the confirmation identity when no CMD117 was sent.
+func (s *Session) reportableLotusTarget() uint16 {
+	if s == nil || !s.lotusClosingReached || s.Definition.ID != 26 || s.Maze.Index != 3 || s.Room.Map != 100008697 {
+		return 0
+	}
+	for _, m := range s.Monsters {
+		if m.Rank == 3 && m.Team == 100 && m.Entity != 0 && m.Entity != 65535 {
+			return m.Entity
+		}
+	}
+	return 0
 }

@@ -1922,7 +1922,9 @@ func main() {
 				if frame.ID == 37 && worldState.activeDungeon != nil {
 					worldState.activeDungeon.Loaded = true
 					worldState.activeDungeon.TryComplete()
-					if completed, err := worldState.completeDungeon(); err == nil && len(completed) > 0 {
+					if completed, err := worldState.completeDungeon(); err != nil {
+						event(map[string]any{"kind": "dungeon_completion_error", "map": worldState.activeDungeon.Room.Map, "error": err.Error()})
+					} else if len(completed) > 0 {
 						for _, packet := range completed {
 							if err = sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
 								return
