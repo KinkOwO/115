@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"math"
 )
 
 // Preserve server-owned instance bytes (quality, reinforcement, enchantments,
@@ -48,6 +49,14 @@ func EquipmentPayload(space byte, items []BagEquipment, restore bool) ([]byte, e
 		}
 		seen[i.Slot] = true
 		row := EquipmentRow(i)
+		// 单机裁定（2026-09-23）：宠物/特殊装备不设期限语义。客户端对带
+		// [usable period] 的限时宠物模板用行内 offset 56（过期时间戳）计算
+		// 剩余期限；服务端不发限时，统一按永久（MaxInt32）下发，避免客户端
+		// 判"剩余期限已过 / 无法交易或使用"。（堆叠物同字段 MaxInt32=永久
+		// 已在商城路径实机验证；宠物面板能正常渲染说明 space7 行无行尾 period。）
+		if space == 7 || (space == 3 && i.Slot == 26) {
+			binary.LittleEndian.PutUint32(row[56:], math.MaxInt32)
+		}
 		if (space == 3 && i.Slot == 26) || (space == 7 && i.Slot < 140) {
 			key := uint32(1)
 			if space == 7 {

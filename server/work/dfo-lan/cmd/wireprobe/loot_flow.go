@@ -38,7 +38,15 @@ func (w *worldSession) pickup(p []byte) ([]outboundPacket, error) {
 	if e != nil {
 		return nil, e
 	}
-	update, e := protocol.InventoryUpdate(b.Rows())
+	// NOTI14 is an incremental slot update: publish only the pickup
+	// destination row so the client marks just that slot as newly obtained.
+	// A full-bag update makes every slot flash the new-item highlight on every
+	// pickup, which the client shows as a highlight on all items.
+	row, ok := b.RowAt(receipt.Destination)
+	if !ok {
+		return nil, fmt.Errorf("pickup destination slot %d missing", receipt.Destination)
+	}
+	update, e := protocol.InventoryUpdate([][protocol.CurrentItemRecordSize]byte{row})
 	if e != nil {
 		return nil, e
 	}

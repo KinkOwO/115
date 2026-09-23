@@ -230,6 +230,30 @@ func (b Bag) Rows() [][protocol.CurrentItemRecordSize]byte {
 	return rows
 }
 
+// RowAt returns the protocol row for one slot, matching the Rows() layout for
+// that slot. It lets callers publish an incremental NOTI14 update so the
+// client only marks the changed slot as newly obtained instead of flashing
+// the whole bag's new-item highlight on every pickup.
+func (b Bag) RowAt(slot uint16) ([protocol.CurrentItemRecordSize]byte, bool) {
+	switch slot {
+	case 0:
+		return protocol.OrdinaryItem(0, 0, b.Gold), true
+	case 1:
+		return protocol.OrdinaryItem(1, 1, b.Coin), true
+	}
+	for _, i := range b.Items {
+		if i.Slot == slot {
+			return protocol.OrdinaryItem(i.Slot, i.Template, i.Amount, i.ExpireTime), true
+		}
+	}
+	for _, e := range b.Equipment {
+		if e.Slot == slot {
+			return EquipmentRow(e), true
+		}
+	}
+	return [protocol.CurrentItemRecordSize]byte{}, false
+}
+
 // Add updates the whole bag in the caller's character transaction. It does
 // not silently spill, drop or partially grant a stack when the bag is full.
 func (b Bag) Add(c catalog.LootCatalog, r BagRules, id, amount uint32, expireTime ...uint32) (Bag, uint16, error) {
