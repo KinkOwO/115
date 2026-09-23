@@ -52,6 +52,14 @@ func (s *Session) BossCheck(r protocol.BossCheckRequest, actor uint16) error {
 // still requires its own death report before the run is complete.
 func (s *Session) tryComplete() {
 	if s.completionTarget == 0 {
+		// A plain source boss room can end without BOSS_CHECK when its only
+		// boss is a non-combat display actor. The source map and boss position
+		// must both match; layer scenes reuse the boss position while changing
+		// maps. An actual fightable boss must still wait for its check.
+		if s.Loaded && s.atSourceBossMap() && !s.hasFightableBoss() && s.roomEnemiesDead() && s.reportableDisplayBoss() != 0 {
+			s.completed = true
+			return
+		}
 		// q3215's final room reports no BOSS_CHECK. The validated closing
 		// cinematic returns to its cached final map after the fighting ends;
 		// only that transition may finish this story run.
@@ -91,9 +99,57 @@ func (s *Session) CompletionTarget() uint16 {
 		return 0
 	}
 	if s.completionTarget == 0 {
+		if target := s.reportableDisplayBoss(); target != 0 && !s.lotusClosingReached {
+			return target
+		}
 		return s.reportableLotusTarget()
 	}
 	return s.completionTarget
+}
+
+func (s *Session) atSourceBossMap() bool {
+	position := [2]byte{s.Room.X, s.Room.Y}
+	if !s.Room.Boss || position != s.Maze.Boss {
+		return false
+	}
+	for _, layer := range s.Maze.Layers {
+		if layer.Position == position && len(layer.Maps) > 0 {
+			return false
+		}
+	}
+	for _, room := range s.Maze.Rooms {
+		if room.Boss && [2]byte{room.X, room.Y} == position && room.Map == s.Room.Map {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *Session) hasFightableBoss() bool {
+	for _, m := range s.Monsters {
+		if !m.NonCombat && m.Team != 0 && (m.Rank == 3 || m.APC && m.Rank >= 5 && m.Rank <= 8) {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *Session) roomEnemiesDead() bool {
+	for _, m := range s.Monsters {
+		if m.Team != 0 && !m.NonCombat && !s.Dead[m.Entity] {
+			return false
+		}
+	}
+	return true
+}
+
+func (s *Session) reportableDisplayBoss() uint16 {
+	for _, m := range s.Monsters {
+		if m.Rank == 3 && m.Team != 0 && m.Entity != 0 && m.Entity != 65535 {
+			return m.Entity
+		}
+	}
+	return 0
 }
 
 // A story display boss is present in the final map's NOTI29 rows. Use its
