@@ -1,6 +1,12 @@
 # CHANGELOG
 
 ## 2026-09-23
+- **毕业转普通角色 + 等级主线整理（手册 P3 子项 8/9/10，代码完成待实机）**：真源是 `aradodyssey.etc` 的四张任务表（已随 `odyssey-growth-release.json` 带出），用 `analysis/tasks/next63-verify-quest-tables.py` 逐表核对：`[quest clear]` 11 级（10/17/72/100/102/103/104/105/109/110/115）共 354 条、`[remove clear quest]` 10 条、`[show quest]` 2 条（26516/26518）、`[branch quest]` 80/102/115 三级 `(job, quest, flag)` 三元组（`-1`=全职业）。关键语义：`12911` 在 102 清除表内被移除表救回、`12884` 是分支任务不在清除表、`22987` 深渊引导只在分支表 → 必须存活；满级清除集真值 **333** 条（并集 334 − 移除表命中 1）。
+  - **子项 8（毕业）**：`internal/character/odyssey_graduate.go` —— 登录时 `Level >= 115` 且以奥德赛创建且未毕业 → 落 `odyssey_graduated` 持久标记（`omitempty`，旧二进制回读不坏档）、`creation_options[10]`/`creation_mode` 清零（原始请求包不动，保留历史）；奖励盒 `10420561`（`[complete reward info]` 的 `[reward]`，必须是 `[booster info]` 且不与任何等级礼包重复）走独立收据 `odyssey-graduate-reward-v1`，满包只欠盒子、不阻碍毕业。事件键 `odyssey-graduate-v1` 幂等，只转一次。
+  - **子项 9（主线整理）**：`internal/catalog/odyssey_quests.go` 解析四张表为 `OdysseyQuests`，形状漂移即拒绝装载（硬断言）；`ClearedAt(level)` = 并集 − 移除表；`BranchQuestsUpTo(level, profession)` 按 `-1` 全职业行过滤。`internal/storage/quest.go` 新增 `ClearQuests`：幂等 `ON CONFLICT (character_id, quest_id) DO NOTHING`，**绝不改已有行**，`progress_model='odyssey-skip-v1'` 可精确撤销；`internal/quest/odyssey_mainline.go` 纯策略（IO 分离）+ 执行层，分支任务可达性再过滤双保险。
+  - **子项 10（接线）**：只在选角登录分支执行（Catchup→Gifts→ChapterRewards 之后 Graduate→Reward→Mainline），副本结算不调用毕业；`world_flow.go` 准入改用 `OdysseyMember`（= 创建标记 − 毕业标记），毕业角色走普通等级门槛；无新环境变量。
+  - 踩坑：`[branch quest]` 的 `[level]` 块**没有** `[/level]` 闭合标签（下一个 `[level]` 隐式闭合上一块），解析器不能按 `[quest clear]` 的写法要求闭合。
+  - 测试：`odyssey_quests_test.go`（表形状/关键 id/333 真值）、`odyssey_mainline_test.go`（策略纯度、分支过滤、幂等计划）、`odyssey_graduate_test.go`（标记/清零/奖励幂等/拒绝路径）；`go vet` 0、20 包全绿；二进制五串部署确认（`odyssey-graduate-v1` / `odyssey-graduate-reward-v1` / `odyssey_mainline_applied` / `odyssey_graduation_pending` / `odyssey-skip-v1`）。
 - 修复邮箱打开后持续加载、已读后领取崩溃和金币图标数量为 0；补齐同账号收件角色列表。普通邮箱完整移植自 c1b62ec 与 4a512bf，保留上游其他更新；原分支用户已确认本轮修复，移植分支的实机效果仍需上游验证。
 - 补齐普通邮箱打开、收件人查询、文字与金币及普通可交易物品收发、单件/多件附件领取、已读、保存、删除和未读提醒；按当前客户端原生读写顺序编码，离线邮件持久化并在登录时恢复提醒。
 - 新增兼容旧角色的邮件存储表；发送扣款和投递、领取入包和附件状态分别原子提交，保留装备实例与原期限，支持重试去重、满包回滚及领取后重复删除。普通邮费按客户端计算：基础 100、每件附件 1000、金币另收 5% 且最高 10000；未保存邮件保留 15 天。
