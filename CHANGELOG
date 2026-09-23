@@ -1,6 +1,11 @@
 # CHANGELOG
 
 ## 2026-09-23
+- **选角进场重播开场回顾影片（STORY_DIGEST 剧情摘要，代码完成待实机）**：客户端每进场都问"这个号看到哪段剧情了"，服务端必须用 NOTI1370 回答（裸小端 u32 = 剧情摘要等级；缺键也恒发 4 个 0 字节——`preparePackets` 会丢弃零长载荷帧，空 body 会让帧静默消失、日志无痕）。此前未下发 ⇒ 客户端认为"没看过任何剧情"⇒ 每次选角进场都把开场回顾影片从头重播。修复规格与协议事实见用户提供的 STORY_DIGEST 说明书（NOTI1370/CMD1438 成对）。
+  - **下行 NOTI1370**（`ENUM_NOTIPACKET_STORY_DIGEST_INFO`）：入场帧组里紧跟 NOTI1352（场景跳过位图）之后、原有入场帧之前；载荷由角色存档 `story_digest_level` 恢复（新增 `storyDigestRestore`），与 `cinematicRestore` 共用同一成功守卫——状态 JSON 不可解析时两帧同时放弃，不制造半状态。`entryPayloads` 新增 `StoryDigest` 字段与 `story_digest_restored` 帧。
+  - **上行 CMD1438**（`ENUM_CMDPACKET_STORY_DIGEST_UPDATE`）：客户端播完上报（空载荷），服务端取**收到帧时的人物当前等级**写回 `story_digest_level`（新增 `saveStoryDigest` + 纯函数 `advanceStoryDigest`），**仅当更大才写**（单调向前，防读旧档/回档把进度往回拉、已看影片重新上膛）；幂等键按等级区分，升级后再播继续推进。处理器排在 CMD1417 之前（否则被 1417 抢先匹配吃掉上报），并加入 `observedGameRequest` 白名单（否则上报在分发前被丢——只有 restored、永远没有 saved）。
+  - **实机边界**：本轮未实机验证，待按说明书第十节逐条验收：① 没看过的角色进场影片照常播一次；② 播完退回再进不再播；③ 换角色各自独立；④ 重启服务端仍不重播；⑤ 无 `story_digest_level` 键的老角色下发 4 字节 0 不崩；⑥ 日志出现成对 `story_digest_restored` + `story_digest_saved`。
+  - **验证**：新增 `cmd/wireprobe/story_digest_test.go`（恒 4 字节、小端边界 0/1/115/256/16777216、单调推进、非法状态报错）与 `analysis/tools/verify_story_digest.py`（frames.txt/events.jsonl 载荷与配对校验，`--selftest` 通过）；`go test ./...`、`go vet ./...` 通过；候选版 `bin/wireprobe-handoff-source.exe` 已编译。
 - **副本 26 罗特斯剧情流程（部分实机确认，黑屏待查）**：末层结尾过场请求复用缓存末图；末图加载完成后，针对无 CMD117 的剧情 Boss 行触发完成判定并发送通关通知。CMD37 的完成签发错误现在记录为 `dungeon_completion_error`。用户实机确认任务可完成，但黑屏仍存在，故不标记为黑屏修复完成。`go test ./...`、`go vet ./...` 通过；候选程序 SHA256 `0A938DCF0950404FB402212C87BC08253EAFFEABF6CA489283E135AB9797363F`。证据与待查点见 `analysis/tasks/lotus-terminal-layer-20260923.md`。
 - **军团/末世录 入口可解锁（前置任务树 + 目标模型，代码完成待实机）**：诊断包 `diag-20260923-163532` 定位到「看不到末世录军团本」的两个独立原因，均已修。真源为客户端编译表与任务脚本体（`client/DFO.exe.i64` + `Script.inner.pvf`），取证链见 `analysis/tasks/next73-legion-entry-gate.md` / `next74-legion-entry-prereq-chain.md`。
   - **前置链 4 环不被提供（本轮主因）**：末世录入场任务 `23099` 的真前置写在脚本体 `[pre required quest]` 里（= `23055`，**不是** JSON 的 `prerequisites` 字段，后者恒为 null），往上是 20 个任务的前置树（22988 狄瑞吉剧情 → 千海之空 23053/23054/23055 → 23099 末世录）。客户端要求整链完成才解锁入口，而其中 4 环用的 `[monster kill checkpoint]` 目标模型未实现 ⇒ 不进可接列表 ⇒ 整条 2026 主线**永久不可达且服务端无任何报错**。现按仓库既有的 `[look cinematic]` 口径实现为「客户端把关」（初始进度 0：客户端掌握检查点条件、达标才允许提交，服务端只发任务自带奖励、不额外铸任何东西），形状校验不过则保持未实现。结果：前置链 **16/20 → 20/20 全部提供**。

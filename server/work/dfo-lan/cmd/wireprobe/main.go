@@ -1151,6 +1151,19 @@ func main() {
 				}
 				continue
 			}
+			if frame.Type == 1 && frame.ID == 1438 && bootstrapped && verified && characters != nil {
+				// CMD1438 STORY_DIGEST_UPDATE: the client reports the opening
+				// recap movie finished (empty payload). Must be matched before
+				// the 1417 branch: it shares the same request family, and a
+				// later placement would let 1417 swallow the report so the
+				// digest level never advances.
+				if err := saveStoryDigest(characters.Store, worldState, plaintext); err != nil {
+					event(map[string]any{"kind": "story_digest_save_error", "error": err.Error()})
+				} else {
+					event(map[string]any{"kind": "story_digest_saved", "character_id": worldState.role.ID, "level": worldState.level})
+				}
+				continue
+			}
 			if frame.Type == 1 && frame.ID == 1417 && bootstrapped && verified && characters != nil {
 				if err := cinematicSkip(characters.Store, worldState, plaintext); err != nil {
 					event(map[string]any{"kind": "cinematic_skip_refused", "error": err.Error()})
@@ -2270,7 +2283,7 @@ func main() {
 				// byte (TutorialFlag) initializes it. Sending 1 left it < 30 and the
 				// opening recap replayed; sending 30 should clear the gate.
 				profile.TutorialFlag = 30
-				event(map[string]any{"kind": "tutorial_flags_restored", "character_id": role.ID, "completed": profile.TutorialCompleted})
+				event(map[string]any{"kind": "tutorial_flags_restored", "character_id": role.ID, "tutorial_flag": profile.TutorialFlag, "completed": profile.TutorialCompleted})
 				profile.CreatedTime = uint32(role.CreatedAt.Unix())
 				// Cera is an account balance the client reads from this
 				// response. Without this it stayed at the configured zero,
@@ -2441,6 +2454,12 @@ func main() {
 					}
 				}
 				plan.CinematicSkips, e = cinematicRestore(role.State)
+				if e == nil {
+					// Same success guard as cinematicRestore: an unparseable
+					// state must drop both frames together, never emit the
+					// digest without the skip bitmap.
+					plan.StoryDigest, e = storyDigestRestore(role.State)
+				}
 				if e == nil && characters != nil {
 					plan.SkillVariations, e = characters.VariationRestore(role)
 				}
