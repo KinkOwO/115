@@ -1829,6 +1829,7 @@ func main() {
 				case 38:
 					pending, plan, e = worldState.interactDoor(plaintext)
 				case 39:
+					worldState.completionErr = nil
 					plan, e = worldState.monsterDeath(plaintext)
 				case 40:
 					plan, e = worldState.playerDeath(plaintext, frame.Raw)
@@ -1914,6 +1915,10 @@ func main() {
 				}); e != nil {
 					return
 				}
+				if frame.ID == 39 && worldState.completionErr != nil {
+					event(map[string]any{"kind": "dungeon_completion_error", "map": worldState.activeDungeon.Room.Map, "error": worldState.completionErr.Error()})
+					worldState.completionErr = nil
+				}
 				if pending != nil {
 					if frame.ID == 16 || frame.ID == 72 || frame.ID == 2062 {
 						worldState.deathSent = map[uint16]bool{}
@@ -1924,6 +1929,7 @@ func main() {
 					// A dungeon is a private instance: this actor leaves the shared town.
 					worldState.leaveScene()
 					worldState.completionSent = false
+					worldState.completionErr = nil
 					worldState.resultSent = false
 					worldState.selectingDungeon = false
 					event(map[string]any{"kind": "dungeon_session_started", "dungeon": pending.Definition.ID, "maze": pending.Maze.Index, "map": pending.Room.Map, "monsters": len(pending.Monsters), "quests_changed": false})

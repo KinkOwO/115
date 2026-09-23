@@ -8,7 +8,7 @@ import (
 // BossCheck may precede the target death. Retain its identity and wait for
 // the actual room reports; do not manufacture story-dummy or actor deaths.
 func (s *Session) BossCheck(r protocol.BossCheckRequest, actor uint16) error {
-	if s == nil || !s.Loaded || r.Actor != actor {
+	if s == nil || !s.Loaded || r.Actor != actor || r.Target == 0 || r.Target == 65535 {
 		return fmt.Errorf("boss check requires the owned loaded boss room")
 	}
 	position := [2]byte{s.Room.X, s.Room.Y}
@@ -24,7 +24,7 @@ func (s *Session) BossCheck(r protocol.BossCheckRequest, actor uint16) error {
 		found = true
 	} else {
 		for _, m := range s.Monsters {
-			if m.Entity == r.Target && m.Rank == 3 {
+			if m.Entity == r.Target && (m.Rank == 3 || m.APC && m.Rank >= 5 && m.Rank <= 8) {
 				if s.Definition.Odyssey && s.Definition.HuntBoss != 0 {
 					// Source hunt targets can finish an epilogue outside the map's
 					// boss coordinate. A real owned target/death is still required.
