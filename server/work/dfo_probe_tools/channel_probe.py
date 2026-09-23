@@ -581,6 +581,21 @@ with (
  elif odyssey_chapters.exists():
   os.environ["DFO_ODYSSEY_CHAPTERS"] = str(odyssey_chapters.resolve())
 
+ # 章节装备盒掉落（手册 P3 子项 3）。整表出厂 enabled=false，服务端只在环境变量存在
+ # 时才挂载；此前没有任何入口注入它（probe 不注入、repair profile 也不认这个键），
+ # 于是「章节最终领主掉装备盒」这条链永远是死的。现在 1/3/4/5/6 章已在 release 表
+ # 开启，这里按与金币表相同的规则常驻挂载（2 章盒子 10419742 不在选择盒目录里、
+ # 7 章手册没给装备盒，这两行保持关闭，开启会让网关启动即退出）。
+ chapter_drop = project / "configs/odyssey-chapter-drop-release.json"
+ if os.environ.get("DFO_ODYSSEY_CHAPTER_DROP"):
+  drop_override = pathlib.Path(os.environ["DFO_ODYSSEY_CHAPTER_DROP"])
+  if not drop_override.is_absolute():
+   drop_override = (project / drop_override).resolve()
+  if drop_override.exists():
+   os.environ["DFO_ODYSSEY_CHAPTER_DROP"] = str(drop_override)
+ elif chapter_drop.exists():
+  os.environ["DFO_ODYSSEY_CHAPTER_DROP"] = str(chapter_drop.resolve())
+
  eq_full = project / "configs/equipment-full"
  if (project / "configs/equipment-full.index.json").exists() and (
   project / "configs/equipment-full.data"

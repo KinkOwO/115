@@ -16,19 +16,18 @@ func chapterDropFixture(t *testing.T) *OdysseyChapterDrop {
 	return d
 }
 
-// 出厂整表关闭：每章一条，第 1..6 章是自选盒，第 7 章 template=0（源里两盒都是普通 booster）。
-func TestOdysseyChapterDropShipsDisabled(t *testing.T) {
+// 出厂表：每章一条，第 1..6 章是自选盒，第 7 章 template=0（源里两盒都是普通 booster）。
+// 只有「选择盒目录能证明」的章节才出厂开启：第 2 章盒子 10419742 不在目录里，
+// 开着会让网关在启动时 ValidateBoxes 失败直接退出；第 7 章源里就没给装备盒。
+// 2026-09-23 之前整表 enabled=false 且没有任何入口注入 DFO_ODYSSEY_CHAPTER_DROP，
+// 于是「章节最终领主掉装备盒」这条链永远是死的。
+func TestOdysseyChapterDropShippedLines(t *testing.T) {
 	d := chapterDropFixture(t)
 	if len(d.Drops) != 7 {
 		t.Fatalf("drop 行数 %d，期望 7", len(d.Drops))
 	}
-	if d.Enabled() {
-		t.Fatal("出厂就不该是启用状态")
-	}
-	for _, line := range d.Drops {
-		if line.Enabled {
-			t.Fatalf("第%d章出厂就是启用状态: %+v", line.Chapter, line)
-		}
+	if !d.Enabled() {
+		t.Fatal("没有任何一章开启：章节最终领主不会掉装备盒")
 	}
 	// 第 1..6 章各有自选盒，第 7 章没有
 	for n := uint8(1); n <= 6; n++ {
@@ -41,7 +40,28 @@ func TestOdysseyChapterDropShipsDisabled(t *testing.T) {
 	if !ok || line.Template != 0 {
 		t.Fatalf("第7章不该有章节盒: %+v", line)
 	}
-	t.Logf("7 章中 6 章有章节盒；第 7 章 template=0；出厂 enabled=false")
+	if line.Enabled {
+		t.Fatal("第7章没有装备盒却开着：装载会被拒")
+	}
+	for _, row := range d.Drops {
+		if !row.Enabled {
+			continue
+		}
+		if row.Template == 0 || row.Rate == 0 || row.Rate > 10000 {
+			t.Fatalf("第%d章开启却没有可用掉率: %+v", row.Chapter, row)
+		}
+	}
+	t.Logf("7 章中 6 章有章节盒；第 7 章 template=0；开启 %d 章", len(enabledChapters(d)))
+}
+
+func enabledChapters(d *OdysseyChapterDrop) []uint8 {
+	var out []uint8
+	for _, line := range d.Drops {
+		if line.Enabled {
+			out = append(out, line.Chapter)
+		}
+	}
+	return out
 }
 
 func finalOf(t *testing.T, d *OdysseyChapterDrop, number uint8) uint32 {
@@ -60,6 +80,9 @@ func TestOdysseyChapterDropDisabledIsInert(t *testing.T) {
 	d := chapterDropFixture(t)
 	for _, seed := range []uint32{0, 1, 12345, 0xffffffff} {
 		for _, line := range d.Drops {
+			if line.Enabled {
+				continue
+			}
 			got, next, e := d.Roll(seed, line.Final)
 			if e != nil || len(got) != 0 || next != seed {
 				t.Fatalf("禁用行不惰性: seed=%d 章=%d got=%v next=%d err=%v", seed, line.Chapter, got, next, e)

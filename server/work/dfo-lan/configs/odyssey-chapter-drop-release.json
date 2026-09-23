@@ -19,7 +19,7 @@
    "final": 100004945,
    "template": 10417792,
    "rate": 10000,
-   "enabled": false
+   "enabled": true
   },
   {
    "chapter": 2,
@@ -33,28 +33,28 @@
    "final": 100004957,
    "template": 10417793,
    "rate": 10000,
-   "enabled": false
+   "enabled": true
   },
   {
    "chapter": 4,
    "final": 100004966,
    "template": 10417794,
    "rate": 10000,
-   "enabled": false
+   "enabled": true
   },
   {
    "chapter": 5,
    "final": 100004972,
    "template": 10419744,
    "rate": 10000,
-   "enabled": false
+   "enabled": true
   },
   {
    "chapter": 6,
    "final": 100004977,
    "template": 10417795,
    "rate": 10000,
-   "enabled": false
+   "enabled": true
   },
   {
    "chapter": 7,
