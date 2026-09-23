@@ -87,3 +87,34 @@ func (s *Store) AbandonQuest(ctx context.Context, account, characterID int64, qi
 	}
 	return nil
 }
+
+// ClearQuests marks the given story quests as already completed for the
+// character, without ever touching rows that exist (a quest the player truly
+// has in progress or finished keeps its state). Rows are auditable and
+// precisely reversible through progress_model='odyssey-skip-v1'; the call is
+// idempotent, so repeated logins only fill the gaps.
+func (s *Store) ClearQuests(ctx context.Context, account, characterID int64, version string, ids []uint16) (int, error) {
+	if len(ids) == 0 {
+		return 0, nil
+	}
+	if len(version) != 64 {
+		return 0, errors.New("invalid quest config version")
+	}
+	tag, e := s.DB.Exec(ctx, `INSERT INTO character_quests(character_id,quest_id,status,config_version,progress,progress_model)
+SELECT c.id, q.id, 'completed', $3, 0, 'odyssey-skip-v1'
+FROM unnest($2::int[]) AS q(id)
+JOIN characters c ON c.id=$1 AND c.account_id=$4 AND c.deleted_at IS NULL
+ON CONFLICT (character_id, quest_id) DO NOTHING`, characterID, idsToInt64(ids), version, account)
+	if e != nil {
+		return 0, e
+	}
+	return int(tag.RowsAffected()), nil
+}
+
+func idsToInt64(ids []uint16) []int64 {
+	out := make([]int64, len(ids))
+	for i, id := range ids {
+		out[i] = int64(id)
+	}
+	return out
+}

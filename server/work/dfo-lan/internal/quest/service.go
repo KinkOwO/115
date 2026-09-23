@@ -17,7 +17,10 @@ type Service struct {
 	Professions catalog.Characters
 	Progression *character.ProgressionService
 	Inventory   *inventory.Awarder
-	index       *Index
+	// Odyssey carries the quest tables of aradodyssey.etc; nil simply
+	// disables the graduation mainline pass.
+	Odyssey *catalog.OdysseyGrowth
+	index   *Index
 }
 
 func (s *Service) Accept(ctx context.Context, role storage.Character, id uint16) (storage.QuestState, error) {

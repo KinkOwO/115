@@ -47,6 +47,10 @@ type State struct {
 	CreationOptions  []byte `json:"creation_options,omitempty"`
 	CreationMode     byte   `json:"creation_mode,omitempty"`
 	SwordmasterPilot bool   `json:"swordmaster_pilot,omitempty"`
+	// OdysseyGraduated marks a max-level Arad Odyssey character that became a
+	// regular character. omitempty keeps old binaries reading the state as a
+	// plain unknown field, so a rollback never invalidates the save.
+	OdysseyGraduated bool `json:"odyssey_graduated,omitempty"`
 }
 type Service struct {
 	DisableActorAppearance bool
