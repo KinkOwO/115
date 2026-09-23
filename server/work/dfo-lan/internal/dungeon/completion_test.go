@@ -109,3 +109,55 @@ func TestOdysseyBossCheckImmediateCompletion(t *testing.T) {
 		t.Fatalf("expected dungeon to be completed with target 9999, got completed=%v target=%d", s.Completed(), s.CompletionTarget())
 	}
 }
+
+func TestDungeon22CinematicActorDoesNotBlockBossCompletion(t *testing.T) {
+	c, err := catalog.LoadDungeons("../../configs/dungeons.full.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	d := c.Dungeons[22]
+	var maze catalog.DungeonMaze
+	for _, m := range d.Mazes {
+		if m.Index == 1 {
+			maze = m
+			break
+		}
+	}
+	var room catalog.DungeonRoom
+	for _, r := range maze.Rooms {
+		if r.Map == 53371 {
+			room = r
+			break
+		}
+	}
+	monsters, err := fixedMonsters(c.Maps[53371], d.BasisLevel)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := &Session{Definition: d, Maze: maze, Room: room, Monsters: monsters, Loaded: true, Dead: map[uint16]bool{}}
+	var boss, display, cinematic uint16
+	for _, m := range monsters {
+		switch {
+		case m.Template == 61103 && m.Rank == 3 && m.Team == 100:
+			boss = m.Entity
+		case m.Template == 63821 && m.Rank == 3 && m.Team == 100 && m.NonCombat:
+			display = m.Entity
+		case m.Template == 109015630 && m.Rank == 3 && m.Team == 0:
+			cinematic = m.Entity
+		}
+	}
+	if boss == 0 || display == 0 || cinematic == 0 {
+		t.Fatalf("unexpected dungeon 22 boss actors: boss=%d display=%d cinematic=%d", boss, display, cinematic)
+	}
+	s.completionTarget = boss
+	s.Dead[boss] = true
+	s.tryComplete()
+	if s.Completed() {
+		t.Fatal("completed before the team-100 display boss died")
+	}
+	s.Dead[display] = true
+	s.tryComplete()
+	if !s.Completed() || s.CompletionTarget() != boss {
+		t.Fatalf("team-0 actor blocked completion: completed=%v target=%d", s.Completed(), s.CompletionTarget())
+	}
+}

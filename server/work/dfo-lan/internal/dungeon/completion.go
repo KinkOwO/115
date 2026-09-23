@@ -67,10 +67,10 @@ func (s *Session) tryComplete() {
 	if !s.Dead[s.completionTarget] {
 		return
 	}
-	// Cinematic display bosses remain in NOTI29 and require their own death
-	// report for final completion, even though they do not block ordinary doors.
+	// Team-0 cinematic actors do not fight or report a death. A team-100
+	// display dummy can report one and must still be confirmed before clear.
 	for _, m := range s.Monsters {
-		if m.Rank == 3 && !s.Dead[m.Entity] {
+		if m.Rank == 3 && m.Team != 0 && !s.Dead[m.Entity] {
 			return
 		}
 	}
