@@ -1,9 +1,10 @@
-# Synopsis read state — attempt 2/3
+# Synopsis read state — confirmed baseline (attempt 2/3, 2026-09-23)
 
 2026-09-23, current authoritative `client/DFO.exe.i64`, read-only session
-`a7cc79e4`. Client acceptance is pending. No client patch is required by this
-candidate. Attempt 1/3 sent an empty CMD2079 response and failed live acceptance;
-it remains reverted.
+`a7cc79e4`. The user confirmed live behavior succeeds: opening the synopsis
+shows it once, and paging or closing no longer causes it to reopen. No client
+patch is required. Attempt 1/3 sent an empty CMD2079 response and failed live
+acceptance; it remains reverted.
 
 ## Corrected registration and state chain
 
@@ -52,11 +53,10 @@ There is no speculative CMD2079 success body or extra UI packet.
 
 Tests cover player-supplied request bytes, signed count/ID limits, exact native
 reader layout, corrupt input rejection, save-field preservation, accumulating
-read IDs, duplicate reports, and login packet order. Live test: open Declaration
-of War, confirm `synopsis_table_info_sent` with ID 2, close the panel, then
-reselect the quest and relog. The task should become usable without repeatedly
-reopening the synopsis. On failure retain this attempt's logs and stop changing
-packet contents until new evidence explains the failure.
+read IDs, duplicate reports, and login packet order. The user confirmed that
+opening Declaration of War shows the synopsis once and paging/closing no longer
+reopens it. This behavior is the confirmed baseline. The user deferred testing
+the other dungeon TODO items until a later live test window.
 
 Rollback: revert the attempt's server files and rebuild the source candidate.
 The additional JSON key/receipt rows are inert under the previous code and do
