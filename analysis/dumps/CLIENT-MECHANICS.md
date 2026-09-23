@@ -300,6 +300,32 @@ sub_142AB29C0(a1):
 
 细节与证据函数见 `analysis/tasks/next65-legion-packet-table.md`。
 
+### 8.1 军团入口判定链（**实机看不到入口时先看这里**）
+
+入口是否出现/可点，由 **`sub_142510A50` / `sub_142511D10`** 决定（两者尾部都调用
+`sub_1424FE550` = CMD2043 的发送函数）。判定顺序与各自的拒绝文案：
+
+| # | 判定 | 不过时 |
+| --- | --- | --- |
+| ① | `sub_1476E0090(*(a1+128), 解码(word_14982AC40))`：具名条目存在 | 静默 return |
+| ② | `sub_145F0B890() != 0` | 静默 return |
+| ③ | `sub_145F152A0() != 0`（用 CMD 注册表 `qword_14E66C090`） | 静默 return |
+| ④ | `sub_145F147D0()`：**8 个队伍槽全非零** | 串 **532** / **725** 队友未到齐 |
+| ⑤ | `(*(modeObj.vt+624))(modeObj, 8) > 0` | 串 **100088500** 本周入场次数已用完 |
+| ⑥ | `(*(modeObj.vt+640))(modeObj, 0) > 0` | 串 **100088497** 本周奖励已领完 |
+| ⑦ | `sub_145695000(...) == 0` | 串 **100088632** 今天不开放 |
+
+`modeObj = sub_142AB28D0(qword_14E683C40)`（与 §6.4 的 2657 派发共用同一全局）。
+
+**怎么把串 id 变成人话**：`analysis/dumps/dstr_id_to_text.json`（客户端 dstr 表，英文原版）。
+例：`t["100088500"]` → `Cannot proceed as all weekly entries have been used.`
+**排查时先要弹窗原文** —— 「没反应/进不去」对应到具体哪一道，全靠这张表。
+
+数据侧对照（`configs/*.json`）：入口副本 `100005220` 绑 quest `23099`（该任务
+`prerequisites=null`、`jobs=[all]`、`minimum_level=115`）；`apocalypse.ctp` 四个作战
+`[recommend fame]` = 98,171 / 105,881 / 105,881 / 73,993 且 `[member limit]=party`。
+详见 `analysis/tasks/next73-legion-entry-gate.md`。
+
 ---
 
 ## 9. 易踩的坑（每条都真的踩过）
