@@ -8,16 +8,17 @@ import (
 )
 
 type QuestDefinition struct {
-	ID             uint32       `json:"id"`
-	Script         ScriptRecord `json:"script"`
-	MinimumLevel   uint32       `json:"minimum_level"`
-	MaximumLevel   uint32       `json:"maximum_level"`
-	Jobs           []string     `json:"jobs"`
-	Prerequisites  []uint32     `json:"prerequisites"`
-	Kind           string       `json:"kind"`
-	ObjectiveCells []pvf.Token  `json:"objective_cells"`
-	RewardCells    []pvf.Token  `json:"reward_cells"`
-	Pending        []string     `json:"pending,omitempty"`
+	ID                 uint32       `json:"id"`
+	Script             ScriptRecord `json:"script"`
+	MinimumLevel       uint32       `json:"minimum_level"`
+	MaximumLevel       uint32       `json:"maximum_level"`
+	Jobs               []string     `json:"jobs"`
+	Prerequisites      []uint32     `json:"prerequisites"`
+	PrerequisiteGroups [][]uint32   `json:"prerequisite_groups,omitempty"`
+	Kind               string       `json:"kind"`
+	ObjectiveCells     []pvf.Token  `json:"objective_cells"`
+	RewardCells        []pvf.Token  `json:"reward_cells"`
+	Pending            []string     `json:"pending,omitempty"`
 }
 type QuestCatalog struct {
 	Source pvf.ArchiveSnapshot        `json:"source"`
@@ -58,12 +59,9 @@ func ImportQuests(a *pvf.Archive) (QuestCatalog, error) {
 				d.Pending = append(d.Pending, "unsupported job condition")
 			}
 		}
-		for _, c := range sectionCells(d.Script.Cells, "[pre required quest]") {
-			if c.Type == 0 && c.Value > 0 {
-				d.Prerequisites = append(d.Prerequisites, uint32(c.Value))
-			} else {
-				d.Pending = append(d.Pending, "unsupported prerequisite condition")
-			}
+		d.PrerequisiteGroups, d.Prerequisites, e = parsePrerequisiteGroups(d.Script.Cells)
+		if e != nil {
+			d.Pending = append(d.Pending, e.Error())
 		}
 		// The primary objective is the first [type] token; later tokens are
 		// sub-conditions. LoadQuests re-derives this for older catalogs.
@@ -97,13 +95,9 @@ func LoadQuests(path string) (QuestCatalog, error) {
 		}
 		// Reproject the current source tag for catalogs generated before this
 		// parser correction. Never treat an omitted stale projection as no gate.
-		d.Prerequisites = nil
-		for _, cell := range sectionCells(d.Script.Cells, "[pre required quest]") {
-			if cell.Type != 0 || cell.Value <= 0 {
-				d.Pending = append(d.Pending, "unsupported prerequisite condition")
-				continue
-			}
-			d.Prerequisites = append(d.Prerequisites, uint32(cell.Value))
+		d.PrerequisiteGroups, d.Prerequisites, e = parsePrerequisiteGroups(d.Script.Cells)
+		if e != nil {
+			d.Pending = append(d.Pending, e.Error())
 		}
 		// A compound [type] lists the primary objective first and appends
 		// sub-conditions ("arrive in town", "accept"). Catalogs generated
@@ -122,4 +116,47 @@ func LoadQuests(path string) (QuestCatalog, error) {
 		q.Quests[id] = d
 	}
 	return q, nil
+}
+
+// Each repeated [pre required quest] section is an alternative. IDs within a
+// section must all be completed. Keep the flat projection for graph audits.
+func parsePrerequisiteGroups(cells []pvf.Token) ([][]uint32, []uint32, error) {
+	var groups [][]uint32
+	var flat []uint32
+	var group []uint32
+	active := false
+	flush := func() error {
+		if !active {
+			return nil
+		}
+		if len(group) == 0 {
+			// Source files also use an empty section for no prerequisite.
+			return nil
+		}
+		groups = append(groups, group)
+		group = nil
+		return nil
+	}
+	for _, cell := range cells {
+		if cell.Type == 3 {
+			if err := flush(); err != nil {
+				return nil, nil, err
+			}
+			active = cell.Text == "[pre required quest]"
+			continue
+		}
+		if !active {
+			continue
+		}
+		if cell.Type != 0 || cell.Value <= 0 {
+			return nil, nil, fmt.Errorf("unsupported prerequisite condition")
+		}
+		id := uint32(cell.Value)
+		group = append(group, id)
+		flat = append(flat, id)
+	}
+	if err := flush(); err != nil {
+		return nil, nil, err
+	}
+	return groups, flat, nil
 }

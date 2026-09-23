@@ -30,6 +30,16 @@ func (s *Store) MigrateQuests(ctx context.Context) error {
 	return e
 }
 func (s *Store) AcceptQuest(ctx context.Context, account, characterID int64, qid uint16, version string, minLevel, maxLevel uint32, prerequisites []uint32, initial uint32, model string) (QuestState, error) {
+	var groups [][]uint32
+	if len(prerequisites) > 0 {
+		groups = [][]uint32{prerequisites}
+	}
+	return s.AcceptQuestGroups(ctx, account, characterID, qid, version, minLevel, maxLevel, groups, initial, model)
+}
+
+// AcceptQuestGroups checks alternative prerequisite sections while holding the
+// character row lock. Each group requires every quest in that group.
+func (s *Store) AcceptQuestGroups(ctx context.Context, account, characterID int64, qid uint16, version string, minLevel, maxLevel uint32, groups [][]uint32, initial uint32, model string) (QuestState, error) {
 	out := QuestState{ID: qid, Status: "accepted", ConfigVersion: version, Progress: initial, ProgressModel: model}
 	if qid == 0 || qid == 65535 || len(version) != 64 || model == "" || model == "legacy-zero" {
 		return out, errors.New("invalid quest")
@@ -62,13 +72,30 @@ func (s *Store) AcceptQuest(ctx context.Context, account, characterID int64, qid
 	if !errors.Is(e, pgx.ErrNoRows) {
 		return out, e
 	}
-	for _, pre := range prerequisites {
-		var done bool
-		if e = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM character_quests WHERE character_id=$1 AND quest_id=$2 AND status='completed')`, characterID, pre).Scan(&done); e != nil {
-			return out, e
+	if len(groups) > 0 {
+		matched := false
+		for _, group := range groups {
+			if len(group) == 0 {
+				return out, errors.New("empty prerequisite group")
+			}
+			complete := true
+			for _, pre := range group {
+				var done bool
+				if e = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM character_quests WHERE character_id=$1 AND quest_id=$2 AND status='completed')`, characterID, pre).Scan(&done); e != nil {
+					return out, e
+				}
+				if !done {
+					complete = false
+					break
+				}
+			}
+			if complete {
+				matched = true
+				break
+			}
 		}
-		if !done {
-			return out, fmt.Errorf("prerequisite %d incomplete", pre)
+		if !matched {
+			return out, fmt.Errorf("quest prerequisite alternatives incomplete")
 		}
 	}
 	_, e = tx.Exec(ctx, `INSERT INTO character_quests(character_id,quest_id,status,config_version,progress,progress_model) VALUES($1,$2,'accepted',$3,$4,$5)`, characterID, qid, version, initial, model)

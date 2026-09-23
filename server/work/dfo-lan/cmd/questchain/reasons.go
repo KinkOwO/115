@@ -18,12 +18,25 @@ func jobAllowed(e *quest.Entry, job string) bool {
 }
 
 func prereqMet(e *quest.Entry, completed map[uint32]bool) bool {
-	for _, p := range e.Prerequisites {
-		if !completed[p] {
-			return false
+	if len(e.PrerequisiteGroups) == 0 {
+		return true
+	}
+	for _, group := range e.PrerequisiteGroups {
+		if len(group) == 0 {
+			continue
+		}
+		all := true
+		for _, p := range group {
+			if !completed[p] {
+				all = false
+				break
+			}
+		}
+		if all {
+			return true
 		}
 	}
-	return true
+	return false
 }
 
 // whyBlocked lists every reason this quest is not offered, ignoring job and
