@@ -86,3 +86,29 @@ _*.cmd
 *.tar.gz
 /runtime
 server/work/dfo-lan/configs/equipment-full.data
+
+# ------------------------------------------------------------------------------
+# 6. 逆向取证中间产物 (Reverse-engineering evidence dumps)
+# 说明：analysis/dumps/ 下的这些目录是 IDA 伪代码/反汇编导出与扫描结果，
+# 单次取证可达数十 MB。它们由同目录的 ida_*.py / analysis/tools/pe_*.py
+# 脚本可复现，只提交脚本与本目录的说明文档，产物不入库。
+# 《客户端机制与真值索引》见 analysis/dumps/CLIENT-MECHANICS.md。
+# ------------------------------------------------------------------------------
+analysis/dumps/va-decompile/
+analysis/dumps/va-listings/
+analysis/dumps/ctp-readers/
+analysis/dumps/cursor-binding/
+analysis/dumps/cursor-bind-sites/
+analysis/dumps/dispatch-survey/
+analysis/dumps/handler-survey/
+analysis/dumps/legion-survey/
+analysis/dumps/noti-callsites/
+analysis/dumps/noti-registry/
+analysis/dumps/noti-targeted/
+analysis/dumps/p3-survey/
+analysis/dumps/registry-expand/
+analysis/dumps/registry-survey/
+analysis/dumps/sender-callers/
+analysis/dumps/rip-scan*.json
+analysis/dumps/decoded-names-*.json
+analysis/dumps/matches.json
