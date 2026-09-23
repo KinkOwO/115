@@ -45,8 +45,14 @@ type entryPayloads struct {
 	// every town entry "how far has this character seen", and without an answer
 	// it replays the opening recap movie from the start.
 	StoryDigest []byte
-	SkillVariations                                               []byte
-	OdysseyProgress                                               []byte
+	// BoosterGage is the NOTI398 14-byte frame with displayValue=0 that hides
+	// the town top-left "Liberation Trace" mileage panel. It must be emitted
+	// after NOTI124: before enter_gameworld_complete the panel object has not
+	// finished initialization. Empty payload is skipped by preparePackets, so
+	// the feature-off path equals the pre-fix behavior.
+	BoosterGage     []byte
+	SkillVariations []byte
+	OdysseyProgress []byte
 	// SkillLocks is the NOTI2827 character option block that restores the
 	// player's locked skills. It is sent last: the forwarded evidence for this
 	// client reports a crash on town entry when 2827 arrives early in the frame
@@ -95,6 +101,12 @@ func (p entryPayloads) packets() []outboundPacket {
 		outboundPacket{"town_entry_probe_sent", 0, 24, p.Area},
 		outboundPacket{"fatigue_sent", 0, 36, p.Fatigue},
 		outboundPacket{"enter_gameworld_complete_sent", 0, 124, p.Complete},
+		// NOTI398 displayValue=0 collapses the top-left Liberation Trace panel
+		// (see docs/protocol/next52-liberation-trace-booster-gage-398.md). It
+		// must follow 124: the panel object is not initialized before it. The
+		// body is 14 bytes, not 18 — a longer frame overruns and the writer
+		// swallows later CMDs (wire-overflow-report-217).
+		outboundPacket{"booster_gage_hidden", 0, 398, p.BoosterGage},
 		outboundPacket{"entry_experience_restored", 0, 37, p.Experience},
 		outboundPacket{"odyssey_journal_restored", 0, 2856, p.OdysseyProgress},
 		outboundPacket{"completed_quests_restored", 0, 342, p.CompletedQuests},

@@ -84,6 +84,7 @@ func main() {
 	vaultRelease := flag.Bool("vault-purchase-release", os.Getenv("DFO_VAULT_PURCHASE_RELEASE") == "1", "enable accepted personal vault purchases in release profile")
 	randomOptionFile := flag.String("random-option-catalog", os.Getenv("DFO_RANDOM_OPTION_CATALOG"), "current-client magic-seal random option rules; enables CMD393 unsealing")
 	apocalypseCatalogFile := flag.String("apocalypse-catalog", "configs/apocalypse.generated.json", "compiled apocalypse.ctp table (phase clock, operations, gates, rewards, duty skills)")
+	boosterGageHide := flag.Bool("booster-gage-hide", os.Getenv("DFO_BOOSTER_GAGE") != "0", "send NOTI398 booster-gage with displayValue=0 on town entry to hide the top-left Liberation Trace panel; disable with -booster-gage-hide=false or DFO_BOOSTER_GAGE=0")
 	flag.Parse()
 	if *fullEquipmentFile == "" {
 		for _, cand := range []string{
@@ -2599,6 +2600,12 @@ func main() {
 				}
 				if len(addition) > 0 && len(areaPayload) > 0 {
 					plan.Complete = protocol.EnterGameworldComplete()
+				}
+				if *boosterGageHide {
+					// NOTI398 displayValue=0 collapses the top-left Liberation Trace
+					// panel; preparePackets skips empty payloads, so the flag-off path
+					// equals the pre-fix behavior.
+					plan.BoosterGage = protocol.BoosterGage(0)
 				}
 				prepared, e := preparePackets(keys, plan.packets())
 				if e != nil {
