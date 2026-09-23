@@ -31,11 +31,21 @@ type entryPayloads struct {
 	AvailableQuests  []byte
 	Worn             []byte
 	AccountOptions   []byte
+	// InformNotice / InformNotice2nd are the per-character read-notice sets
+	// (NOTI402 / NOTI426). They ride right after account options: the client
+	// clears its read set from them, and a third-awakened character whose
+	// notice ledger is missing would otherwise re-pop the teaching frame on
+	// every login. Empty payloads are skipped by preparePackets.
+	InformNotice    []byte
+	InformNotice2nd []byte
 	// WornSlots is the id-14 per-slot update frame for the full worn set
 	// (space 3), same builder the equipment-move path uses. The live
 	// 20260921 probe timeline showed the equip-change heal always carries
 	// equipment_slots_updated frames while entry never does, and the
 	// arrow-up overlay reads per-slot levels fed by exactly this channel.
+	// Since 20260923 the frame is emitted TWICE per entry: once before
+	// NOTI24 (weapon-toast 38250 fix, see packets()) and once after the
+	// entry barrier (upgrade-arrow fix, after-barrier block below).
 	WornSlots                                                     []byte
 	WornUpdate                                                    []byte
 	Avatars, AvatarReady, Creatures, CreatureList, CreatureGrowth []byte
@@ -69,6 +79,8 @@ func (p entryPayloads) packets() []outboundPacket {
 	out := []outboundPacket{
 		{"select_parser_response", 1, 4, p.Select},
 		{"account_options_restored", 0, 2826, p.AccountOptions},
+		{"inform_notice_restored", 0, 402, p.InformNotice},
+		{"inform_notice_2nd_restored", 0, 426, p.InformNotice2nd},
 		{"cinematic_skips_restored", 0, 1352, p.CinematicSkips},
 		{"story_digest_restored", 0, 1370, p.StoryDigest},
 		{"entry_basic_probe_sent", 0, 2, p.Basic},
@@ -89,6 +101,20 @@ func (p entryPayloads) packets() []outboundPacket {
 		// only after the town actor/UserInfo graph has been installed.
 		{"avatar_inventory_initialized", 0, 13, p.Avatars},
 		{"worn_equipment_restored", 0, 13, p.Worn},
+		// (20260923 weapon-toast fix, attempt 1/3) The id-14 worn-slot rows
+		// and worn-window refresh must ALSO land BEFORE NOTI24 AREA_USERS:
+		// the 38250 "Weapon not equipped." toast is evaluated by the NOTI24
+		// refresh chain reading the actor's +0x1F08 slot-12 getter, and when
+		// id-14 arrives after NOTI24 (previous order, after-barrier block
+		// below) slot 12 is still empty at evaluation time and the toast pops
+		// on every town entry. Upstream submission bbb3228 verified the
+		// pre-NOTI24 id-14 order stops the pop; the client NOTI14 handler
+		// 0x1452E9810 installs slot 12 through the second +0x1570 site
+		// (0x1452EA7A1, (slot-12)<=13). The after-barrier copies below are
+		// kept for the upgrade-arrow fix; the client reader is per-row
+		// upsert, so the repeat is idempotent.
+		{"equipment_slots_updated_entry_prelude", 0, 14, p.WornSlots},
+		{"worn_equipment_window_refreshed_entry_prelude", 0, 14, p.WornUpdate},
 		{"user_area_sent", 0, 23, p.UserArea},
 	}...)
 	// The players already in the scene have to be introduced before the area

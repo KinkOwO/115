@@ -65,6 +65,20 @@ func (w *worldSession) dungeonResult(p []byte) ([]outboundPacket, error) {
 	}
 	w.role, w.level = role, experience[0]
 	plan := []outboundPacket{{"dungeon_play_result", 0, 34, notice}, {"dungeon_clear_experience", 0, 37, experience}, {"dungeon_clear_reward", 0, 35, reward}}
+	// 结算会重刷整个技能窗口，所以 id29（VP 帧）必须跟着 id19 一起补发。
+	// 少发 id29 时客户端把 Enhance/Evolve/VP 渲染成已清空（case 2347 的注释
+	// 里已经踩过一次），玩家看到的就是「VP 点和学过的 VP 技能全没了」——
+	// 存档其实是完好的：2026-09-23 实机查库确认 FenF（id 9）的
+	// skill_variations.options 仍带着 5 个已选项，technique_points 为 0 只是
+	// 因为 5 点已经全部分配出去（ReconcileTechniquePoints 的 5 − 已选）。
+	if w.characters != nil {
+		if restore, e := w.characters.EntrySkills(role); e == nil {
+			plan = append(plan, outboundPacket{"skill_state_restored", 0, 19, restore})
+		}
+		if variation, e := w.characters.VariationRestore(role); e == nil && len(variation) > 0 {
+			plan = append(plan, outboundPacket{"skill_variation_response", 1, 29, variation})
+		}
+	}
 	if w.quests != nil {
 		available, e := w.availableQuestPayload(ctx)
 		if e != nil {

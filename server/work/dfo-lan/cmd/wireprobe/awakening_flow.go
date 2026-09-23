@@ -10,6 +10,32 @@ import (
 	"time"
 )
 
+// orderAwakeningPackets fixes the VP-system opening order: the awakening
+// completion frame (id 2177) is the client's switch point for enabling the
+// Skill Evolve/Enhance panel, so every VP frame — in practice the id 29
+// variation restore — must arrive after it. Any id29 riding inside `restored`
+// is pulled out and re-appended last; stage 1/2 builds carry an empty id29
+// payload which preparePackets skips.
+func orderAwakeningPackets(basic []byte, restored []outboundPacket, skills []byte) []outboundPacket {
+	var variation outboundPacket
+	var base []outboundPacket
+	for _, pkt := range restored {
+		if pkt.ID == 29 {
+			variation = pkt
+		} else {
+			base = append(base, pkt)
+		}
+	}
+	plan := []outboundPacket{{"awakening_character_updated", 0, 2, basic}}
+	plan = append(plan, base...)
+	plan = append(plan,
+		outboundPacket{"awakening_skills_updated", 0, 19, skills},
+		outboundPacket{"awakening_completed", 1, 2177, []byte{1}},
+		variation,
+	)
+	return plan
+}
+
 func awakenCharacter(service *character.Service, w *worldSession, p, keys []byte) ([]preparedPacket, error) {
 	if w == nil || w.role.ID == 0 || w.activeDungeon != nil {
 		return nil, fmt.Errorf("awakening requires town character")
@@ -32,14 +58,7 @@ func awakenCharacter(service *character.Service, w *worldSession, p, keys []byte
 		if e != nil {
 			return nil, e
 		}
-		plan := []outboundPacket{
-			{"awakening_character_updated", 0, 2, basic},
-		}
-		plan = append(plan, restored...)
-		plan = append(plan, []outboundPacket{
-			{"awakening_skills_updated", 0, 19, skills},
-			{"awakening_completed", 1, 2177, []byte{1}},
-		}...)
+		plan := orderAwakeningPackets(basic, restored, skills)
 		return preparePackets(keys, plan)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

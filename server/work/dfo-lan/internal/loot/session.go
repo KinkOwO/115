@@ -71,7 +71,7 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 			return nil, e
 		}
 	}
-	result, e := RollWithBonus(s.Catalog, s.Tables, s.Rules, s.Equipment.DropPool(), seed, monster.Level, monster.Rank, 0, s.QuestDropBonusPercent)
+	result, e := RollWithBonus(s.Catalog, s.Tables, s.Rules, s.Equipment.DropPool(), seed, monster.Level, monster.Rank, difficultyIndex(s.Rules, d.Difficulty), s.QuestDropBonusPercent)
 	if e != nil {
 		return nil, e
 	}
@@ -122,6 +122,28 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 	s.deaths[entity] = rows
 	s.Skipped[entity] = result.SkippedKinds
 	return append([]protocol.SceneDrop(nil), rows...), nil
+}
+
+// difficultyIndex maps a run's client difficulty onto the bonus table. The
+// client numbers difficulties from 1 (1=Normal .. 5=Hero) while the reference
+// bonus table is 0-based, so a run is one column lower than its label.
+//
+// 2026-09-23 实测：掉落一直按难度 0 计算（加成恒 1.0），副本自己声明的难度
+// 从未生效 —— 奥德赛 56 个副本的 [designated difficulty] 全部是 2，客户端
+// 选图上报的也是 2，对应的加成是 1.2。难度列比加成表长时夹到最后一列，
+// 避免英雄难度把掉落推到 "drop source range is not imported"。
+func difficultyIndex(r Rules, difficulty byte) byte {
+	if difficulty == 0 {
+		return 0
+	}
+	i := int(difficulty) - 1
+	if i >= len(r.DifficultyBonus) {
+		i = len(r.DifficultyBonus) - 1
+	}
+	if i < 0 {
+		return 0
+	}
+	return byte(i)
 }
 
 // stackable reports whether this identity belongs to the ordinary stackable

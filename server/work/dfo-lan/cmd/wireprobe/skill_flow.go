@@ -100,11 +100,36 @@ func (s *skillSession) handle(cs *character.Service, w *worldSession, id uint16,
 			body, e = cs.LearningResponse(saved, r)
 		}
 	case 483:
-		// Reset / Auto Set. The captured body does not decode as a plain
-		// (tree, mask) pair — reading it as one produced tree 111 / mask 40, a
-		// mask without bit 0, so the branch that clears the learned ranks never
-		// ran. Clear all three groups of the main tree instead and let the
-		// client lay out its own recommended shortcuts, as it does natively.
+		// Two request shapes share this command. The Skill Reset window's
+		// Confirm frame is at least 8 bytes with a (style, mask) layout:
+		// p[0]=style (0/1), p[1]==0, p[2]=mask restricted to the defined bits.
+		// Everything else is the Reset/Auto Set button's opaque body (reading
+		// it as a (tree,mask) pair yielded tree 111 / mask 40) and clears all
+		// three groups of the main tree, letting the client lay out its own
+		// recommended shortcuts as it does natively.
+		if len(p) >= 8 && p[1] == 0 && p[0] <= 1 && p[2]&^(character.ResetOrdinarySkills|character.ResetEnhance|character.ResetEvolve) == 0 {
+			style, mask := p[0], p[2]
+			saved, _, e = cs.ResetSkills(ctx, w.role, key, style, mask)
+			if e != nil {
+				break
+			}
+			w.role = saved
+			restore, e := cs.EntrySkills(saved)
+			if e != nil {
+				return nil, e
+			}
+			body, e = cs.ResetResponse(saved, style)
+			if e != nil {
+				return nil, e
+			}
+			// Reset window responses always lead with the full skill tree and
+			// close with the variation frame; the open Evolve/Enhance panel
+			// renders the last variation frame it receives.
+			return []outboundPacket{
+				{"skill_state_restored", 0, 19, restore},
+				{"skill_variation_reset_response", 1, 29, body},
+			}, nil
+		}
 		if len(p) < 3 {
 			return nil, fmt.Errorf("short reset request")
 		}
@@ -124,6 +149,25 @@ func (s *skillSession) handle(cs *character.Service, w *worldSession, id uint16,
 		}
 		if len(variation) > 0 {
 			plan = append(plan, outboundPacket{"skill_variation_response", 1, 29, variation})
+		}
+		return plan, nil
+	case 2347:
+		// Chain / skill preset reset. The server stores no extra preset data:
+		// echo the current full skill tree (id19) and variation frame (id29)
+		// with zero state mutation. Omitting id29 would make the client render
+		// Enhance/Evolve/VP as cleared until the next login.
+		saved = w.role
+		restore, e := cs.EntrySkills(saved)
+		if e != nil {
+			return nil, e
+		}
+		plan := []outboundPacket{{"skill_state_restored", 0, 19, restore}}
+		variation, e := cs.VariationRestore(saved)
+		if e != nil {
+			return nil, e
+		}
+		if len(variation) > 0 {
+			plan = append(plan, outboundPacket{"skill_variation_chain_response", 1, 29, variation})
 		}
 		return plan, nil
 	default:

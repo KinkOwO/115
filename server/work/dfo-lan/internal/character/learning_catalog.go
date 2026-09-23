@@ -63,6 +63,35 @@ func (d LearningDefinition) Active() bool {
 	return len(ts) == 1 && ts[0].Text == "[active]"
 }
 
+// Passive reports whether the source row states outright that the skill is
+// passive. Only [passive] says so; everything else - [active] and the rows
+// whose [type] the export cannot resolve - is treated as a skill the player
+// may put on the belt.
+func (d LearningDefinition) Passive() bool {
+	ts := d.Fields["[type]"]
+	return len(ts) == 1 && ts[0].Text == "[passive]"
+}
+
+// ShortcutCapable reports whether the skill may occupy a shortcut slot.
+//
+// It deliberately does not reuse Active(): Active() demands [type] == [active],
+// which the awakening rows do not carry. In skills.release.json only 12 of
+// 3224 rows fall outside [active]/[passive] - 8 whose [type] is the unresolved
+// constant "default" (job8 atmage 138 spiralpress / 139 violentstorm, job3 mage
+// 390/391, job4 priest 298/299, job5 atgunner 354, job8 atmage 35) and 4 with
+// no [type] at all (job4 priest 133/134/250/253). Every one of them is an
+// awakening or variation-point row, and the client offers them from the
+// awakening block - which is why ForAdvancement already refuses to let the
+// [type] shape veto them.
+//
+// 2026-09-23 实机：会话 roles_..._20260923_234846_674894_next37 里玩家把
+// atmage 的 138/139（槽位 39/40）拖进快捷栏，客户端照常发 CMD28，服务端却按
+// Active() 判成被动、回 skill_refused（reason "passive skill cannot occupy a
+// shortcut"，5 次）——玩家侧就是「技能学得会、快捷键注册不了」。
+func (d LearningDefinition) ShortcutCapable() bool {
+	return !d.Passive()
+}
+
 // allZeroCaps reports whether the source row is present but gives every
 // growtype a zero cap. A row like [0 1 1 1 1 1] (archer latentability) is NOT
 // all-zero: its zero is a real "this growtype cannot learn it" statement.
@@ -108,14 +137,21 @@ func (d LearningDefinition) ForAdvancement(adv int) bool {
 	if adv < 0 || len(cap) > 0 && adv >= len(cap) {
 		return false
 	}
+	if len(cap) > 0 && !allZeroCaps(cap) {
+		// The source gave a per-growtype cap row, so a zero in it means that
+		// growtype cannot learn the skill at all. A non-zero cell is the
+		// authorization itself, and it must not be vetoed by the [type] shape
+		// check: forState writes the awakening cap into this row for skills
+		// whose base row is all zero and whose source matrix authorizes the
+		// (stage, growtype) — some of those carry no [type] at all (priest
+		// 253, at mage 138/139), yet the client offers them from the awakening
+		// block and the source matrix is the ownership evidence. The [type]
+		// check below then only guards the fitness fallback paths.
+		return cap[adv] > 0
+	}
 	t := d.Fields["[type]"]
 	if len(t) != 1 || (t[0].Text != "[active]" && t[0].Text != "[passive]") {
 		return false
-	}
-	if len(cap) > 0 && !allZeroCaps(cap) {
-		// The source gave a per-growtype cap row, so a zero in it means that
-		// growtype cannot learn the skill at all.
-		return cap[adv] > 0
 	}
 	if matrix := d.Ints("[awakening maximum level]"); len(matrix) > 0 && !allZeroCaps(matrix) {
 		// An all-zero base row plus a live awakening matrix is an

@@ -366,8 +366,11 @@ func (s *Service) MoveSkill(ctx context.Context, role storage.Character, key str
 		if from == 0 {
 			return nil, nil, fmt.Errorf("source slot is empty")
 		}
+		// 只有源表明确写着 [passive] 的才拒绝。觉醒/VP 行的 [type] 常常解析不出
+		// 来（atmage 138/139 是 "default"、priest 133/134/250/253 整行没有），
+		// 用 Active() 会把它们误判成被动，玩家就再也注册不上快捷键。
 		for _, id := range []uint16{from, to} {
-			if id != 0 && !s.Learning.index[current.Profession][id].Active() {
+			if id != 0 && !s.Learning.index[current.Profession][id].ShortcutCapable() {
 				return nil, nil, fmt.Errorf("passive skill cannot occupy a shortcut")
 			}
 		}
@@ -415,5 +418,12 @@ func (s *Service) LearningResponse(role storage.Character, req protocol.SkillPur
 		return nil, e
 	}
 	v := state.SkillVariations[req.Tree]
+	// A third-awakened character's Learn response must always carry the full
+	// g1/g2 blocks (empty slots included). A persisted block that is empty on
+	// disk decodes as a nil variation section, and the client clears the VP
+	// panel on every such response — the "Learn Skill spent my VP" bug.
+	if variationUnlocked(&state) {
+		fillVariationSlots(&v)
+	}
 	return protocol.SkillPurchaseVariations(p, req.Mode, v.Intensions, v.Options)
 }

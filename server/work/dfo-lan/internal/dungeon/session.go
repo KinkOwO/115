@@ -13,6 +13,10 @@ import (
 type Session struct {
 	RunID      string
 	StartedAt  time.Time
+	// Difficulty 是这次进图实际用的难度，沿用客户端 1 起算的编号
+	// （1=普通 2=专家 3=达人 4=王者 5=英雄；奥德赛恒等于副本的
+	// [designated difficulty]）。掉落按它取难度加成，见 loot.Session.Death。
+	Difficulty byte
 	Definition catalog.DungeonDefinition
 	Maze       catalog.DungeonMaze
 	Room       catalog.DungeonRoom
@@ -90,6 +94,7 @@ func Select(c catalog.DungeonCatalog, r protocol.DungeonSelection, level byte, a
 		return nil, err
 	}
 	s.Extra = r.Extra
+	s.Difficulty = r.Difficulty
 	if d.ID == 100003126 && s.Extra > 1 {
 		// 跳区入场（如从第 36、61、86 层开始），前面的层数标记为已通关/已领奖
 		start := int(s.Extra)
@@ -193,7 +198,16 @@ func (s *Session) ConfirmDeath(entity uint32, killer, actor uint16) (bool, error
 			// room, but it stays unowned: no loot, no experience. A foreign
 			// killer that names some other actor is still refused.
 			unowned := killer == 65535
-			if killer != actor && !unowned {
+			// 奥德赛章节目标（[hunt boss]）是玩家亲手击杀的，但客户端在过场/清场
+			// 阶段会把这次死亡归给「无人」（killer FFFF）—— 2026-09-23 实机三场里
+			// 有两场的最终领主就是这样。它是本章金币与章节装备盒的唯一来源，判成
+			// 无主就等于本章一件不掉。只对「奥德赛 + Rank3 + 与 [hunt boss] 同模板」
+			// 这一只怪生效；被 BOSS 连带清场的杂兵仍是 FFFF、按原规则不给掉落。
+			if unowned && s.Definition.Odyssey && s.Definition.HuntBoss != 0 && m.Rank == 3 && m.Template == s.Definition.HuntBoss {
+				unowned = false
+			}
+			// 只有「点名了别人的击杀者」才算外来击杀；FFFF 是客户端自己放弃归属。
+			if killer != actor && killer != 65535 {
 				return false, fmt.Errorf("foreign combat killer")
 			}
 			if s.Dead[m.Entity] {
