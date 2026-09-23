@@ -86,6 +86,7 @@ type BagItem struct {
 	ExpireTime       uint32 `json:"expire_time,omitempty"`
 }
 type Bag struct {
+	Expansion byte                    `json:"expansion,omitempty"`
 	Version   string                  `json:"version"`
 	Gold      uint32                  `json:"gold"`
 	Coin      uint32                  `json:"coin,omitempty"`
@@ -93,6 +94,15 @@ type Bag struct {
 	Equipment []BagEquipment          `json:"equipment,omitempty"`
 	Worn      []BagEquipment          `json:"worn,omitempty"`
 	Special   map[byte][]BagEquipment `json:"special_equipment,omitempty"`
+	// ExpandEquipFlags carries the extended equipment-slot unlock bits the
+	// armoury draws its padlocks from: support 1<<0, magic stone 1<<1 and
+	// earring 1<<4. Quests 649/650/2636 award one bit each and every award
+	// must accumulate, so this field is only ever OR-ed - assigning it would
+	// relock whatever an earlier quest opened. The client reads the byte from
+	// the USERINFO1 unlock slot (protocol entry_addition, native 14563d692)
+	// and gates equipment slots 22/23/25 on bits 1/2/16. Absent in saves
+	// written before 2026-09-22, which reads back as 0 (nothing unlocked).
+	ExpandEquipFlags byte `json:"expand_equip_flags,omitempty"`
 }
 
 func ReadBag(state json.RawMessage) (Bag, error) {
@@ -115,6 +125,9 @@ func ReadBag(state json.RawMessage) (Bag, error) {
 		b.Version = "ordinary-bag-v1"
 	}
 	filtered := make([]BagItem, 0, len(b.Items))
+	if b.Expansion > 2 {
+		return b, fmt.Errorf("背包扩展档位超出客户端范围")
+	}
 	for _, i := range b.Items {
 		if i.Template == 1 {
 			if uint64(b.Coin)+uint64(i.Amount) <= math.MaxUint32 {
@@ -174,6 +187,9 @@ func ReadBag(state json.RawMessage) (Bag, error) {
 	return b, nil
 }
 func SaveBag(state json.RawMessage, b Bag) (json.RawMessage, error) {
+	if b.Expansion > 2 {
+		return nil, fmt.Errorf("背包扩展档位超出客户端范围")
+	}
 	var fields map[string]json.RawMessage
 	if e := json.Unmarshal(state, &fields); e != nil {
 		return nil, e
@@ -244,10 +260,7 @@ func (b Bag) Add(c catalog.LootCatalog, r BagRules, id, amount uint32, expireTim
 			slots = [2]uint16{65, 120}
 		}
 	}
-	limit := item.StackLimit
-	if limit == 0 {
-		limit = r.MissingStackLimit
-	}
+	limit := stackLimitFor(r, item.StackableType, item.StackLimit)
 	if amount > limit {
 		return b, 0, fmt.Errorf("award exceeds stack limit")
 	}

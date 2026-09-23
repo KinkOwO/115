@@ -1,0 +1,227 @@
+{
+ "model": "source-odyssey-chapters-v1",
+ "source": {
+  "format": "dfo_20260901_inner",
+  "path": "../client-build/Script.inner.pvf",
+  "size": 760530763,
+  "checksum": "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80",
+  "loaded_at": "2026-09-22T17:29:18.3822601Z",
+  "file_count": 5650173,
+  "group_count": 82571,
+  "cached_chunks": 1,
+  "cached_texts": 1
+ },
+ "journal_path": "contents/2026/aradodyssey/etc/aradodysseyjournal.cos",
+ "definition_sha256": "d4654fa9a50ddd582077f5f7a0a19835ec4fb6b777f032d1a66be7f288eff67e",
+ "chapter_count": 7,
+ "dungeon_count": 50,
+ "reward_templates": 15,
+ "chapters": [
+  {
+   "number": 1,
+   "dungeons": [
+    100004934,
+    100004935,
+    100004936,
+    100004937,
+    100004938,
+    100004939,
+    100004940,
+    100004941,
+    100004942,
+    100004943,
+    100004944,
+    100004945
+   ],
+   "final": 100004945,
+   "rewards": [
+    {
+     "template": 10417792,
+     "count": 1
+    },
+    {
+     "template": 10419741,
+     "count": 1
+    },
+    {
+     "template": 10419342,
+     "count": 1
+    },
+    {
+     "template": 10419346,
+     "count": 1
+    }
+   ]
+  },
+  {
+   "number": 2,
+   "dungeons": [
+    100004946,
+    100004947,
+    100004948,
+    100004949,
+    100004950,
+    100004951,
+    100004952,
+    100004953
+   ],
+   "final": 100004953,
+   "rewards": [
+    {
+     "template": 10419742,
+     "count": 1
+    },
+    {
+     "template": 10419745,
+     "count": 1
+    },
+    {
+     "template": 10419346,
+     "count": 1
+    }
+   ]
+  },
+  {
+   "number": 3,
+   "dungeons": [
+    100004954,
+    100004955,
+    100004956,
+    100004957
+   ],
+   "final": 100004957,
+   "rewards": [
+    {
+     "template": 10417793,
+     "count": 1
+    },
+    {
+     "template": 10417796,
+     "count": 1
+    },
+    {
+     "template": 10419745,
+     "count": 1
+    },
+    {
+     "template": 10419346,
+     "count": 1
+    }
+   ]
+  },
+  {
+   "number": 4,
+   "dungeons": [
+    100004959,
+    100004960,
+    100004961,
+    100004962,
+    100004963,
+    100004964,
+    100004965,
+    100004966
+   ],
+   "final": 100004966,
+   "rewards": [
+    {
+     "template": 10417794,
+     "count": 1
+    },
+    {
+     "template": 10419743,
+     "count": 2
+    },
+    {
+     "template": 10419745,
+     "count": 1
+    },
+    {
+     "template": 10419347,
+     "count": 1
+    }
+   ]
+  },
+  {
+   "number": 5,
+   "dungeons": [
+    100004968,
+    100004967,
+    100004969,
+    100004970,
+    100004971,
+    100004972
+   ],
+   "final": 100004972,
+   "rewards": [
+    {
+     "template": 10419744,
+     "count": 2
+    },
+    {
+     "template": 10419745,
+     "count": 1
+    },
+    {
+     "template": 10419347,
+     "count": 1
+    }
+   ]
+  },
+  {
+   "number": 6,
+   "dungeons": [
+    100004973,
+    100004974,
+    100004975,
+    100004976,
+    100004977
+   ],
+   "final": 100004977,
+   "rewards": [
+    {
+     "template": 10417795,
+     "count": 1
+    },
+    {
+     "template": 10419744,
+     "count": 1
+    },
+    {
+     "template": 10419745,
+     "count": 1
+    },
+    {
+     "template": 10419347,
+     "count": 1
+    }
+   ]
+  },
+  {
+   "number": 7,
+   "dungeons": [
+    100004978,
+    100004979,
+    100004980,
+    100004981,
+    100004982,
+    100004983,
+    100004990
+   ],
+   "final": 100004990,
+   "rewards": [
+    {
+     "template": 10419538,
+     "count": 1
+    },
+    {
+     "template": 10419539,
+     "count": 1
+    },
+    {
+     "template": 10419745,
+     "count": 1
+    }
+   ]
+  }
+ ]
+}

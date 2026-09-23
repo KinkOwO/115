@@ -5,6 +5,8 @@
 
 ## 0. 当前基线与交付边界
 
+- **2026-09-23 邮箱移植基线**：普通邮箱功能及后续刷新、领取崩溃、收件角色和金币显示修复已完整移植；原分支用户确认本轮修复完成，上游移植分支实机待验证。特殊付费、时装和宠物邮件仍未开放。
+
 - **归档基准服务**：`bin/wireprobe-dungeon39.exe` 为前一阶段验收通过的 39 版服务程序，已实机验证进城、装备显示、重登保留；日常测试默认以此为稳定基准。
 - **源码候选服务**：`bin/wireprobe-handoff-source.exe` 为当前源码编译版（已补齐入城 NOTI14 装备外观刷新逻辑，通过 `go test` 与 `go vet`）。2026-09-20 实机确认：默认启动链用 `configs/characters.skycastle-release.json` 这一代角色目录时，建号会按 `option[8]` 落账转职，并按源 `[create equipment list]` 投影初始穿戴（见 `work/dfo-lan/docs/protocol/next45-creation-equipment.md`）。
 - **技能锁（统一选项）基线**：CMD2377 接收侧（解析 + `character_skill_locks` 持久化 + 幂等整体替换）与 NOTI2827 推送侧（内置客户端 3539 字节角色选项块，两个 386 字节锁对象在偏移 2736/3122，作为入口帧序列**最后一帧**发送）均已落地；2026-09-21 实机确认：锁定后回角色选择重进**锁正常回显且不闪退**。`-unified-charac-template` / `-skill-lock-offset` 仅用于不同客户端版本。详见 `work/dfo-lan/docs/protocol/next46-unified-option.md`。

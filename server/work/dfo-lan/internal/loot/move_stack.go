@@ -65,7 +65,7 @@ func (s *Service) MoveStack(ctx context.Context, role storage.Character, rules i
 			if e != nil {
 				return nil, nil, e
 			}
-			if _, e = protocol.InventoryRestore(b.Rows()); e != nil {
+			if _, e = protocol.InventoryRestore(b.Rows(), b.Expansion); e != nil {
 				return nil, nil, e
 			}
 			out = MoveStackReceipt{from, to, template, s.Catalog.Source.Checksum}

@@ -21,6 +21,7 @@ type worldSession struct {
 	pilotDeath         *odysseyDeath
 	service            *world.Service
 	account            int64
+	serverID           uint32
 	role               storage.Character
 	level              byte
 	// odyssey mirrors character.OdysseyRole for this session. It selects which
@@ -39,6 +40,7 @@ type worldSession struct {
 	quests             *quest.Service
 	progression        *character.ProgressionService
 	loot               *loot.Service
+	selectionBoxes     *catalog.SelectionBoxes
 	vault              *inventory.VaultService
 	drops              *loot.Session
 	deathSent          map[uint16]bool
@@ -84,9 +86,11 @@ func (w *worldSession) enter(role storage.Character, spawn storage.WorldPosition
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	// The gate mode is the character's own creation marker, not the launcher's
-	// DFO_ODYSSEY_MODE override: the client applies its per-character flag too.
-	odyssey := character.CreatedAsOdyssey(role)
+	// The gate mode is the character's own creation marker minus the
+	// graduation mark, not the launcher's DFO_ODYSSEY_MODE override: the
+	// client applies its per-character flag too, and a graduated character
+	// must pass the regular level gates.
+	odyssey := character.OdysseyMember(role)
 	saved, e := w.service.Enter(ctx, w.account, role.ID, state.Level, odyssey, spawn)
 	if e != nil {
 		return e

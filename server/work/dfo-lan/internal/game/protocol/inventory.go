@@ -35,17 +35,33 @@ func itemRows(rows [][CurrentItemRecordSize]byte) ([]byte, error) {
 	return p, nil
 }
 
-// NOTI13 list0 first reads a u16 count of locked slots, then item count.
-func InventoryRestore(rows [][CurrentItemRecordSize]byte) ([]byte, error) {
+// NOTI13 list0：0x1452d5cf4 读取扩展格数，右移三位恢复档位；随后读取物品数。
+func InventoryRestore(rows [][CurrentItemRecordSize]byte, expansion ...byte) ([]byte, error) {
+	var tier byte
+	if len(expansion) > 1 || (len(expansion) == 1 && expansion[0] > 2) {
+		return nil, fmt.Errorf("背包扩展档位无效")
+	}
+	if len(expansion) == 1 {
+		tier = expansion[0]
+	}
 	p, e := itemRows(rows)
 	if e != nil {
 		return nil, e
 	}
-	return append([]byte{0, 0, 0}, p...), nil
+	return append([]byte{0, tier * 8, 0}, p...), nil
+}
+
+// InventoryExpansionNotice：NOTI66 的 u16 类型 12 + u16 扩展格数。
+// 0x1452c7624 读取后右移三位，0x1458db133 的类型 2 刷新档位并显示成功提示。
+func InventoryExpansionNotice(tier byte) ([]byte, error) {
+	if tier == 0 || tier > 2 {
+		return nil, fmt.Errorf("背包扩展档位无效")
+	}
+	return add16(add16(nil, 12), uint16(tier)*8), nil
 }
 
 // InventoryRestoreSpace snapshots a non-bag NOTI13 list. The 115 client
-// reader sub_1452D5A80 only consumes the extra u16 lock count for lists
+// reader sub_1452D5A80 only consumes the extra u16 expansion count for lists
 // 0/1 (and a u8+u16 pair for 38); every other list starts with the plain
 // u16 row count. List 35 is the account material storage: rows at fixed
 // slots 363..379 are re-harvested out of the bag manager when the list0

@@ -1,6 +1,92 @@
 # CHANGELOG
 
+## 2026-09-23
+- **毕业转普通角色 + 等级主线整理（手册 P3 子项 8/9/10，代码完成待实机）**：真源是 `aradodyssey.etc` 的四张任务表（已随 `odyssey-growth-release.json` 带出），用 `analysis/tasks/next63-verify-quest-tables.py` 逐表核对：`[quest clear]` 11 级（10/17/72/100/102/103/104/105/109/110/115）共 354 条、`[remove clear quest]` 10 条、`[show quest]` 2 条（26516/26518）、`[branch quest]` 80/102/115 三级 `(job, quest, flag)` 三元组（`-1`=全职业）。关键语义：`12911` 在 102 清除表内被移除表救回、`12884` 是分支任务不在清除表、`22987` 深渊引导只在分支表 → 必须存活；满级清除集真值 **333** 条（并集 334 − 移除表命中 1）。
+  - **子项 8（毕业）**：`internal/character/odyssey_graduate.go` —— 登录时 `Level >= 115` 且以奥德赛创建且未毕业 → 落 `odyssey_graduated` 持久标记（`omitempty`，旧二进制回读不坏档）、`creation_options[10]`/`creation_mode` 清零（原始请求包不动，保留历史）；奖励盒 `10420561`（`[complete reward info]` 的 `[reward]`，必须是 `[booster info]` 且不与任何等级礼包重复）走独立收据 `odyssey-graduate-reward-v1`，满包只欠盒子、不阻碍毕业。事件键 `odyssey-graduate-v1` 幂等，只转一次。
+  - **子项 9（主线整理）**：`internal/catalog/odyssey_quests.go` 解析四张表为 `OdysseyQuests`，形状漂移即拒绝装载（硬断言）；`ClearedAt(level)` = 并集 − 移除表；`BranchQuestsUpTo(level, profession)` 按 `-1` 全职业行过滤。`internal/storage/quest.go` 新增 `ClearQuests`：幂等 `ON CONFLICT (character_id, quest_id) DO NOTHING`，**绝不改已有行**，`progress_model='odyssey-skip-v1'` 可精确撤销；`internal/quest/odyssey_mainline.go` 纯策略（IO 分离）+ 执行层，分支任务可达性再过滤双保险。
+  - **子项 10（接线）**：只在选角登录分支执行（Catchup→Gifts→ChapterRewards 之后 Graduate→Reward→Mainline），副本结算不调用毕业；`world_flow.go` 准入改用 `OdysseyMember`（= 创建标记 − 毕业标记），毕业角色走普通等级门槛；无新环境变量。
+  - 踩坑：`[branch quest]` 的 `[level]` 块**没有** `[/level]` 闭合标签（下一个 `[level]` 隐式闭合上一块），解析器不能按 `[quest clear]` 的写法要求闭合。
+  - 测试：`odyssey_quests_test.go`（表形状/关键 id/333 真值）、`odyssey_mainline_test.go`（策略纯度、分支过滤、幂等计划）、`odyssey_graduate_test.go`（标记/清零/奖励幂等/拒绝路径）；`go vet` 0、20 包全绿；二进制五串部署确认（`odyssey-graduate-v1` / `odyssey-graduate-reward-v1` / `odyssey_mainline_applied` / `odyssey_graduation_pending` / `odyssey-skip-v1`）。
+- 修复邮箱打开后持续加载、已读后领取崩溃和金币图标数量为 0；补齐同账号收件角色列表。普通邮箱完整移植自 c1b62ec 与 4a512bf，保留上游其他更新；原分支用户已确认本轮修复，移植分支的实机效果仍需上游验证。
+- 补齐普通邮箱打开、收件人查询、文字与金币及普通可交易物品收发、单件/多件附件领取、已读、保存、删除和未读提醒；按当前客户端原生读写顺序编码，离线邮件持久化并在登录时恢复提醒。
+- 新增兼容旧角色的邮件存储表；发送扣款和投递、领取入包和附件状态分别原子提交，保留装备实例与原期限，支持重试去重、满包回滚及领取后重复删除。普通邮费按客户端计算：基础 100、每件附件 1000、金币另收 5% 且最高 10000；未保存邮件保留 15 天。
+- 邮箱移植验证：现有全量 Go 测试及 vet 通过，未编译发布或操作客户端；时装、宠物及特殊付费邮件仍未开放。
+- **奥德赛商店的两个真 bug（实机复现并确认）**：买盒子报「库存已满」/ 买到的盒子重选角色后消失，以及「银币不扣、盒子白送（经济漏洞）」。完整取证链与判定过程见 `analysis/tasks/next59-shop-idempotency-and-payment.md`。
+  - **bug 1：商店购买的幂等键跨重启撞车 → 不发货却回成功 ack（已实机确认）**。`loot.Service.Buy`/`Sell` 的幂等键是 `buy:<模板>:<数量>:<进程内自增seq>`；服务端重启后该计数归零，于是重启后买同一个商品会生成与重启前**完全相同**的键 → `CommitCharacterEvent` 判定"这条请求已处理过"，**不扣款、不发货、不改存档**，但 `buyItem` 仍照旧回了 `shop_buy_ack`，而且用的是**旧 receipt** 里的 `slot`（66）→ 客户端凭这份"成功"画出一个服务端根本不存在的盒子；玩家右键时服务端如实拒绝（`booster box not found at slot 66` → `Refusal(4)`），客户端把任何 `0x0004` 统一显示成「The target inventory is full」。重选角色（重拉快照）后影子消失 —— 手册第 7.1 节把它记作纯客户端"幽灵槽"，实机证明**服务端也有一半责任**（说了成功却没发货）。
+    - 实机证据（test-jh）：`character_events` 里 23:57 有 `buy:10417798:1:1`，00:09 服务端重启，00:11 再买 → **事件表没有新记录**，但会话日志有 `shop_buy_ack` + `shop_buy_inventory_updated`；00:12 右键 slot 66 → `booster box not found at slot 66`。
+    - 修复：幂等键改为「内容 + **本次进程启动标记** + 进程内计数」（`shopEventKey`）。**特意没用纳秒时间戳**——用例第一版当场把它证伪：Windows 的 `time.Now()` 只有毫秒精度，同一毫秒内两次调用拿到完全相同的值。幂等命中时**直接拒绝**（`duplicate shop purchase request`），不再拿旧 receipt 谎报成功；`sell` 路径同样处理。
+  - **bug 2：服务端从未读源商店价格表 → 一律按写死的 1 金币扣款（已实机确认）**。奥德赛商店的价格写在 `itemshop/100001019_aradodyssey.shp` 的 `[need material]` 段（`10417798` = 银币 `10418036 ×100`，与商店界面显示的 100 一致），而 `loot.Service.Buy` 只用常量 `shopUnitPrice = 1` 扣 `Bag.Gold`，于是银币纹丝不动、盒子等于白送。
+    - 修复：新增只读导出工具 `cmd/itemshopimport`（`itemshop/**.shp` → `configs/itemshop-candidate.json`：**527 个商店 / 7547 个商品 / 829 KB**，其中 155 个是材料支付）；新增 `internal/catalog/item_shop.go`（`Materials`/`Listed`/`PurchaseAmount`）；`internal/inventory/shop.go` 抽出 `addStackable` 并新增 `PayMaterials` 与 `BuyWithMaterials`（**整笔校验**不足即拒、按叠扣减、扣空删行、**不碰金币**）；`loot.Service.Buy` 对源里带 `[need material]` 的商品改走材料支付，其余保持金币；`cmd/wireprobe` 新增 `-item-shop`/`DFO_ITEM_SHOP`，`channel_probe.py` 显式传入。
+    - 实机确认：买 `10417798` 后**银币 123 → 23、金币不变**。
+  - **取证增强**：`shop_buy_*` / `shop_sell_*` 事件补记 `plain_hex`（请求与出站包）—— 手册 7.1 节点名的那条尾巴已补上，正是它这次给出了购买请求的完整字段。
+- **首轮手册复刻的结论修正**：手册把「库存已满」归因于"自选盒落进随机池 → 查无定义"，但实机证明该路径从未被走到（客户端两次请求都带了选择，且选择就在源范围内）。真因是上面 bug 1。自选盒的导出/加载/范围校验仍然保留（避免落空、提供观测），见 2026-09-22 段的说明。
+
+- **`[import script]` 装备继承（根因修复，已实机确认）**：源里大量装备是"薄壳" —— 只写 `[name]`/`[attach type]`/`[usable period]`/`[value]`/`[import script]`，靠引用另一件拿基础字段。例如 `equipment/character/common/jacket/cloth/100050791.equ` 的内容只有 `[import script] `character/common/jacket/cloth/100050666.equ``，自身**不带** `[rarity]`/`[equipment type]`/`[durability]`。装备目录从没实现过这条链（只有 `world.go` 对地图 `[import script]` 做了），于是 `EquipmentCatalog.Reward` 拿到空壳后报 `special equipment reward requires additional source state` / `missing source equipment durability`，凡是走 `AddEquipment` 的路径（GM 发放、任务奖励、自选盒里的装备）一律发不出去；诊断用例 `cmd/wireprobe/selection_box_audit_test.go` 量出 **78 个自选盒 / 543 件装备**受影响（修正判据后；第一版把装扮与宠物一起算进来，误报 1438 件）。
+  - **修复**：`EquipmentCatalog.Reward` 改走新的 `definitionResolved`，沿 `[import script]` 链补缺字段（自身显式字段优先、链深上限 8、取不到基础件则保持原报错而不是悄悄放行）；`importTarget` 从路径文件名取模板号。
+  - **实机确认**：GM 发 `100050791` → 落地槽 19、**耐久 60**（继承自基础件 `100050666`）；审计断言现在是"装备路径 126008 件全部可发放"。
+- **`cmd/admin` 装载补齐（同类缺陷，一并修）**：admin 的装备目录没挂 `equipment-full`（基础目录只有几千行，源里 42 万件都在 full 索引里），连发一件普通上衣都报 `equipment definition missing`。现与网关一致：新增 `-equipment-full-catalog`（默认 `configs/equipment-full`，日志打印 `attached full wear catalog: N records`），基础目录默认换成 `equipment.current37.json`。
+- **堆叠上限按源语义（已实机确认）**：源里"无限"类物品通常**不写** `[stackable limit]` —— 银币/金币（`10418036`/`10418035`）只有 `[stackable type] `[unlimited waste]``。服务端过去把"没写上限"一律兜成 bag 规则的 `missing_stack_limit = 1000`，于是手里的 23 个银币与 GM 发的 1000 个**分成两叠**。新增 `stackLimitFor`：显式上限优先 → 类型名含 `unlimited` 的取 `MaxInt32`（wire 里 amount 是 u32，但客户端按有符号 int 消费，超过 2^31-1 有显示成负数的风险）→ 其余才用 `missing_stack_limit`；`Bag.Add` 与商店购买 `addStackable` 共用。（`[unlimited waste]` 里 314 条中 219 条写了显式上限，仍然按各自源值，不受影响。）
+  - **实机确认**：再发 1000 → **并入原叠**（23 → 1023），不再新开一叠。
+- **`at_avatar` 判据**：`booster_flow.go` 判装扮用的是 `strings.Contains(itemPath, "/avatar/")`，漏了 `at_avatar/` 目录下的装扮（写审计用例时发现），会让这类装扮落进装备分支。改为宽松匹配 `avatar`。
+
+- **奥德赛创建补给药水（手册 P3 子项 1，已实机确认）**：源里 `10417791`（奥德赛创建礼盒）的 `[stackable]` 块有三行 —— `10417789 1` / `10417790 1` / `10418028 30`。前两行（武器自选盒、初始防具盒）早已结算并各留了 `"selection_settled": false` / `"potion_settled": false` 标记，**第三行的 30 瓶专属恢复药水从未发放**。
+  - 实现：`cmd/wireprobe/odyssey_rewards.go` 新增 `applyOdysseyCreatePotion` / `grantOdysseyCreatePotion`，事件键 `odyssey-create-10417791-potion-10418028-v1`（与另两项完全独立、各自幂等）。发放走 `Bag.Add` 而不是照武器盒手写"找空格"：药水是 `[waste]` 可叠加物，包里往往已有几十瓶，必须并进同一叠。满包时报错 ⇒ 事件不落库 ⇒ 下次登录自动重试（与另两项同策略）。
+  - 接线：`cmd/wireprobe/main.go` 选角链（`frame.ID == 4`）在武器盒之后调用，失败记 `odyssey_create_potion_pending`。
+  - 幂等：`storage.CommitCharacterEvent` 在单个事务里先 `SELECT ... FOR UPDATE` 锁角色行、再查 `character_events` 同键记录，已存在则**不执行 apply** 直接返回 `applied=false`；model 不符时报错，避免策略升级后重复补发。
+  - **实机确认（2026-09-23）**：重选 `test-jh` 后药水 +30（落在 slot 67 —— 65/66 被银币占，走 `[waste]` 的默认消耗品栏）；`character_events` 里该事件**恰好 1 行**，全表 500+ 个 event_key 统计均为 `x1`；药水合计 73+30=103。
+  - 测试：新增 `cmd/wireprobe/odyssey_create_potion_test.go`（并进原叠、非奥德赛角色与外来目录拒绝）；集成测试追加药水段（发放一次、重放被幂等拦下、收据持久化）。
+  - 顺带修复：`TestOdysseyArmorDatabaseReplay` 写死引用 `runtime/swordmaster-pilot-20260916/storage.json`（该目录已不在仓库，导致测试长期静默 skip），改为支持 `ODYSSEY_INTEGRATION_CONFIG` 覆盖。另有 4 个文件引用同一路径，属既有问题，本批未扩大范围。
+
+- **章节盒掉落 + 七章奖励补发（手册 P3 子项 3/4）**：真源是 `contents/2026/aradodyssey/etc/aradodysseyjournal.cos`（`data_type=3` UTF-16，`sha256 d4654fa9…`），用新增的只读导出工具 `cmd/odysseychapterimport` 解析。
+  - **真源形状**（导出工具逐条硬断言）：**7 章 / 50 副本 / 跨章无重复 / `Final` = 该章源码顺序里最后一个副本 / 15 个去重奖励模板 / 25 行**。第 1..6 章的 `[reward]` 首个模板是章节盒 `10417792 / 10419742 / 10417793 / 10417794 / 10419744 / 10417795`（`[booster selection]`）；**第 7 章两个都是普通 `[booster]`（`10419538`/`10419539`），没有章节盒**，导出为 `template=0`。数量 >1 的只有 Ch4 `10419743 ×2` 与 Ch5 `10419744 ×2`。
+    - 踩坑记录：`.cos` 的副本有 `[type] `apostle`` 前缀（9 个使徒副本），只匹配 `[dungeon]` 紧邻 `[index]` 会数出 41 个而不是 50 个；另外第 5 章源码顺序是 `…968,967,969…`（不是 id 升序），所以 `Final` 必须按出现顺序取。
+  - **产物**：`configs/odyssey-chapters-{candidate,release}.json`（7 章目录）与 `configs/odyssey-chapter-drop-{candidate,release}.json`（章节盒掉落，出厂 `enabled=false`）。
+  - **子项 4 实现**：`internal/catalog/odyssey_chapters.go`（`LoadOdysseyChapters`，校验 model/source/journal sha + 7 章 + 50 副本 + `Final` 一致 + 奖励行合法）+ `internal/character/odyssey_chapter.go`（`ApplyOdysseyChapterReward` / `OdysseyChapterRewards`）。判定**只用服务端自有成绩**（角色 state 的 `odyssey_completed_dungeons` 与 `dungeon_best_times`，复用已有的 `odysseyCompleted`），**不采信客户端声明**；某章 `Final` 已通关即视为该章完成。逐行独立事件键 `odyssey-chapter-reward:<章>:<行>:<模板>`，满包留欠、下次登录/通关重试。装载 `DFO_ODYSSEY_CHAPTERS`，调用点与 `OdysseyGifts` 相同（选角链 `main.go` + 通关 `dungeon_flow.go`）。
+  - **子项 3 实现**：`internal/loot/odyssey_chapter_drop.go`（`LoadOdysseyChapterDrop` / `Enabled` / `DropFor` / `Roll` / `StorageCatalog` / `BagRules` / `ValidateBoxes`）。**整表默认关闭**：禁用行 `Roll` 原样返回种子，**连掷骰种子都不消耗**，所以将来开启不会挪动任何其它掉落。命中点在 `internal/loot/session.go` 的死亡结算：条件是 `monster.Rank == 3` 且该副本是某章 `Final`。装载 `DFO_ODYSSEY_CHAPTER_DROP`，启用行必须真的是装备自选盒（用 `catalog.SelectionBoxes` 校验）。
+  - 测试：`internal/character/odyssey_chapter_test.go`（目录形状含第 5 章源码顺序、Ch5 首行按数量发 2 个、非奥德赛角色/越界行号/错配内容被拒）、`internal/loot/odyssey_chapter_drop_test.go`（出厂关闭、禁用惰性且不消耗种子、启用后必掉且非 final 仍惰性、四种坏表被拒）。
+  - **实机确认（2026-09-23）**：重启服务端后重选 `test-jh`，补发**恰好 15 条**事件（`character_events` 里 `odyssey-chapter-reward:*`，覆盖第 **1-4** 章；第 5-7 章 0 条，因为它们的 `Final` 未通关）。背包里 11 格、共 16 个盒子，其中 Ch4 的 `10419743 ×2` 落成**一格 2 个**（`slot 76`），跨章共用的 `10419346`/`10419745` 正确叠成 3 个。**子项 3 的章节盒按设计未掉落**（出厂 `enabled=false`）。
+
 ## 2026-09-22
+- 复刻第三方《补丁复刻手册（2026-09-22）》的 P1 / P2 与 P3 子项 6（来源：用户提供的手册；其工程与本仓库同源但无 Git，故给的是 diff 与锚点）。完整盘点、真源取证与待办见 `analysis/tasks/next58-selection-box-import.md`。
+  - **P1 开箱常规装备耐久恒为 0**（`cmd/wireprobe/booster_flow.go`，**已实机确认** —— 2026-09-23 开出的上衣耐久 = 源值 60、重进后仍在）：Destination 3 曾把 `Durability` 写死 0，客户端把刚开出的装备当"已损坏"（面板 `0/60`、穿上不生效）。改为 `boosterEquipmentDurability` → `EquipmentCatalog.Reward(id)`，与任务/GM 发放、掉落同一条源规则（读 `.equ` 的 `[durability]`）；解析不出只记日志按 0 发放，**不拒绝开箱**。测试 `TestBoosterEquipmentGrantUsesSourceDurability` 同时断言存档耐久与**下发 NOTI13 行偏移 11**。存量只读核对：11 个角色存档里四个报告模板（`100051398/100101272/100101273/100101275`）**一条都没有 ⇒ 无需改档**；现存 4 行 0 耐久都是 `durabilityOptional` 部位（首饰），源里本就无 `[durability]`，是正确值。
+  - **P2 `cmd/admin` 发不出非怪物掉落物品**（`cmd/admin/main.go`，**待实机验证**）：`Awarder.Grant` 用 `Catalog.Items[id].Kind` 选分支，而奥德赛银币/金币不在 `loot.next25.json`（怪物掉落目录）、只在 `items.index.json`；网关用 `SupplementStackables` 补挂、admin 漏了这步 → 零值 `Kind` 落进装备分支，报 `invalid equipment award`。新增 `-item-index` 与 `buildAwarder`（默认在 loot 目录旁与 `configs/` 自动发现；显式路径缺失或补挂失败一律 fatal）。测试：`cmd/admin/main_test.go` + `internal/inventory/odyssey_coin_grant_test.go`（真实 `Awarder` 发 1000 → 消耗品槽 65..120，再发 1000 另起一叠）。
+  - **P3 子项 6 自选礼盒报「库存已满」——根因修复**（**待实机验证**）：`[booster selection]` 自选盒走 `[booster select category]`，与固定内容盒的 `[booster info]` 在源里互斥，因此**天然不在** `booster-catalog.json`；`openBoosterItem` 落进通用随机池分支后回 `booster %d has no reward pool defined`，上层统一 `Refusal(4)`，客户端把任何 `0x0004` 显示成「The target inventory is full」。
+    - 新增只读导出工具 `cmd/selectionboximport`（解析 `[booster select category]`：段首两个数字是 `category`，其下 `[equipment]` 是 `(id,count)` 对）；默认**有界**导出（booster 目录候选 ∪ loot 目录 ∪ `configs/*.json` 引用）→ `configs/selection-boxes-candidate.json`（**2878 盒 / 13 MB**；`-bounded=false` 全量 16750 盒 / 78 MB）；索引误标为自选盒、脚本里只有 `[booster info]` 的模板记入 `fixed`。**与既有 `odyssey-weapon-box-release.json` 逐项比对：85 个 category 全等、items 0 处不符、脚本 sha256 同为 `d67f5042…`**。
+    - 新增 `internal/catalog/selection_boxes.go`（`LoadSelectionBoxes`/`ByTemplate`/`IsFixed`/`Resolve`）：加载即校验模型、来源、盒键、脚本哈希与每个类别；`Resolve` 把玩家的选择限制在该盒该类别的源集合内（越界/错类别/重复/空选择都给精确错误，**服务端校验，不采信客户端**）。
+    - `cmd/wireprobe/booster_flow.go`：自选盒（奥德赛武器盒仍走既有 `selectOdysseyWeapon`）先过源范围校验，通过后**交给既有目的地分发**（装备/装扮/宠物/堆叠物混装，盒 `10335328` 就带 1000/10000 数量的材料）；**没有选择的打开请求**回空成功 `selection_box_awaiting_pick` 让客户端弹出选择列表，不再回通用失败码；越界选择直接拒绝。`cmd/wireprobe/main.go` 增加 `-selection-boxes`/`DFO_SELECTION_BOXES`。
+    - 测试：`internal/catalog/selection_boxes_test.go`（真源目录 + 五类畸形产物）、`cmd/wireprobe/selection_box_test.go`（真实自选盒发放 / 越界拒绝 / 无选择不发放不改包）。
+    - **实机结论（2026-09-23）**：客户端**从未**发过"不带选择"的打开请求（两次请求都带 selection，且 selection 就在源范围内），所以 `selection_box_awaiting_pick` 这条路未被触发；「库存已满」的真因是商店购买的幂等键 bug（见 2026-09-23 段第一条）。同时还发现并修掉一个**加载 bug**：`cmd/wireprobe/main.go` 只用相对路径找 `configs/selection-boxes-candidate.json`，而网关的 cwd 是项目根 → `selectionBoxes == nil`、拦截块整段没跑（所以第一轮实测"什么都没发生"）；现改为「相对路径 + 与 `-booster-catalog`/`-item-index` 同目录推导」，并由 `channel_probe.py` 显式传 `-selection-boxes`。
+    - **范围校验的取舍**：导出源来自 `server/work/client-build/Script.inner.pvf`（760,530,763 B），而客户端加载自己的 `client/Script.pvf`（761,337,702 B、加密、本项目的 pvfinspect 读不了），两者不是同一构建；因此 `Resolve` 只**报告**越界选择（写日志）而**不拒绝**——严格校验会拒掉客户端 UI 合法给出的选择。
+    - **后续任务（诊断发现）**：`cmd/wireprobe/selection_box_audit_test.go` 全量扫描发现，**161 个自选盒里的 1438 件物品在当前服务端目录下无法发放**（1038 件缺 `[durability]` 且部位不在耐久可选表、731 件 `[rarity]`/`[equipment type]` 不满足、若干件目录里无定义）。这影响的是 `AddEquipment` 那条路径（GM 发放 / 任务奖励 / 武器盒），开箱的 Destination 3 是手写 append 所以不受影响。值得单开一条任务。
+- 二觉技能不随等级自动加点：觉醒段授予改为按等级**读时推导**，升级时随技能帧补发（**已实机确认**）。
+  - **现象**：二觉（stage 2，75 级解锁）的技能没有按等级自动加出来；一觉（50 级解锁）正常。
+  - **根因**：觉醒授予只在 `ApplyAwakening` 那一刻写进存档，而 `.chr` 觉醒段里的技能带自己的 `[required level]` —— 二觉段 140 条授予里有 **67 条高于二觉门槛 75**（剑魂 adv1 有 15 条是 85 级），三觉段同理（100 级解锁、段内是 95 级行）。75~84 级二觉的角色被 `ApplyAwakening` 的等级门控 `continue` 跳过，而且**之后没有任何补发路径**：`automaticSkills` 只推导转职段 `advancement_skills`，`cmd/wireprobe` 的升级刷新还额外要求该职业带 `advancement_skills`。量化与取证见 `analysis/tasks/next57-second-awakening-late-grant.md`。
+  - **实现**（与历史"转职段起始技能"修复同一套路：从存档等级/阶段现算，不改存档）：
+    - `internal/character/automatic_skills.go` 新增 `awakeningSkills`：逐 `stage = 1..state.Awakening` 取 `.chr` 的 `[awakening N]` 授予，技能须在本职业目录、`[required level]` 须单值，**等级达标才计入**（低于门槛的授予挂起）。
+    - `knownSkills` 把觉醒授予与转职段授予合并后并入读取集合，并作为"分支清理"的豁免（本分支源授予的行不因 growtype 判定被删）；技能树、进城技能帧、加点响应、Reset 共用这一条路径，一处修复全链路生效。
+    - `learning.go`（`Learn` 退点 floor）与 `skill_variation.go`（`skillFloor`）删除各自手写的觉醒段循环，统一调用 `awakeningSkills`，退点口径不变（源授予不可退成 SP）。
+    - `cmd/wireprobe/automatic_skills.go` 的升级刷新条件由"有 `advancement_skills`"放宽为"转职段或觉醒段任一有授予"，84→85 级升级时即随 `id-19` 技能帧下发新授予。
+    - **无需存档迁移**：75 级就二觉的老角色下次登录/升级即自动修复。
+  - **测试**：新增 `internal/character/awakening_grant_test.go`（二觉段 67 个延迟授予样本逐条断言"75 级不授予 / 达标授予 / 二觉前不授予"、`knownSkills` 端到端、115 级三觉对全部 348 条授予全量覆盖 + `skillRows` 下发、Reset 保留授予且不产 SP）；`cmd/wireprobe/automatic_skills_test.go` 新增"只带 `awakening_skills` 也刷新"用例。`go build ./internal/... ./cmd/...`、`go vet ./internal/... ./cmd/...`、`go test -count=1 ./internal/... ./cmd/...`（19 包）全绿。
+  - **实机确认（2026-09-22，用户操作）**：二觉角色的二觉段技能按等级自动加点生效，判定通过（未二觉/等级不足时不授予，达标后自动出现）。
+  - **背景**：本轮开始时 `fix/second-awakening-late-grant` 的 worktree（`%TEMP%\...\awk2`）已被删除且改动从未提交，仅留下 `bin/wireprobe-handoff-source.exe.bak-20260922-2300-preawk2grant` 的编译痕迹；本条目为按该缺口重新落地的实现，二进制已重编（上一版备份 `.bak-20260922-2308-preawaken2grant`）。
+- 奥德赛模式扩展装备槽（辅助装备 / 魔法石 / 耳环）不自动解锁：补上"通关指定副本解锁"这条**此前根本不存在的服务端逻辑**（**已实机确认**）。
+  - **根因（实时监听实锤）**：清关时该发的帧一样不少（`boss_check_confirmed` / `dungeon_clear_enabled` / `dungeon_play_result` / `dungeon_clear_reward` / `clear_available_quests`），但**没有任何解锁动作**；生产代码里 `100004950` / `100004953` / `100004969` 从未出现（只在测试与注释里）。全仓唯一的解锁入口是任务奖励 `quest/finish.go → inventory.UnlockEquipSlots`，而奥德赛角色不走任务链路（见 `analysis/tasks/next50-odyssey-expanded-equip-slot.md` §3b）。
+  - **实现**：`internal/character/odyssey.go` 新增 `OdysseyExpandEquipMask`（安徒恩讨伐战→support/mask `1`、使徒卢克→魔法石/mask `2`、盖波加→耳环/mask `16`），并在 `OdysseyClear` 的**同一事务**里调用 `inventory.UnlockEquipSlots`（失败一起回滚，重复通关幂等）。解锁位常量移入 `internal/inventory`，`internal/quest/index.go` 改为引用（值不变）。解锁只做"写进同一个角色事务"这一步。
+  - **已回退的尝试（留档）**：曾额外在通关时把新字节随 USERINFO1（`entry_addition`）重发一次，实测会让客户端**在副本内把装备栏显示清空**（存档毫发无损 —— `equipment=10 / worn=10 / gold=3587` 全程未变，且离开地图即恢复；该帧正常只在进图/登录时发）。因槽位状态本就由装备栏行对象构造期决定，落库后重登/进新副本自然生效，故移除该帧。
+  - ⚠️ **待修复（已确认，未闭环）**：解锁落库后**客户端当场不显示**，玩家必须**重登/重选角色**才看到解锁。根因在客户端：槽位状态由装备栏"槽行对象"在**构造期**决定、运行期只读（`analysis/tasks/next50-odyssey-expanded-equip-slot.md` §2/§4 —— 一个会话内 `[obj+0x358]` 被读 53 万次、写 0 次），因此**副本内补发任何帧都无法让客户端重建槽位**。当前已在通关时补发与 entry/装备变更同款的 id-13 + id-14 重同步帧（`equipment_bag_resynced` / `equipment_worn_resynced` / `equipment_slots_updated` / `equipment_worn_window_refreshed`），实测结果为**显示正常但不生效**（仍要重登）；保留它是因为无害，且可能在客户端重开装备栏时被采用（未验证）。要根除需反向出"装备行记录哪个字段映射到槽对象 `+0x358`"（next50 §5 未解项），属客户端侧问题。
+  - **实机验证（2026-09-22，用户操作）**：重登后打盖波加 `100004969`，存档 `characters.state.inventory.expand_equip_flags = 16`（bit 4 = 耳环），装备栏耳环槽点亮 ✓
+  - **注意**：客户端槽位状态在装备栏行对象**构造期**决定、运行期只读（探针结论见 next50 §2/§4），因此解锁位落库后**需要重登或进新副本**重建装备栏才可见 —— 本次实测即重登后点亮。
+  - **测试**：新增 `internal/character/odyssey_expand_slot_test.go`（映射 + 位值）；`go build ./cmd/... ./internal/...`、`go vet`、`go test -count=1 ./internal/... ./cmd/...` 全绿。
+- 奥德赛清关后走「下一个剧情关卡」门（CMD 2062 直达）进入的副本里客户端整个下一关都不过门：直达响应改为先下发「选择地下城」入口帧（`gate_ack(15)` + `selection_sent(27)`）再下发进图序列（**已实机确认**）。
+  - **现象与取证**：直达进入的新副本地图正常加载、怪物可杀，但客户端不发任何 CMD 45（`MOVE_MAP`），站上首图传送阵无反应；同一次会话内清关前 6 次过门全部正常、清关后（发 2062）为 **0 次**。客户端侧 frida 发包探针（钩 `ws2_32!send`/`WSASend`）与服务端日志双侧确认，且客户端收到的进图帧与城镇选图**逐字节一致**（差异仅在副本 ID 与随机 seed），排除"服务端下发内容不同"。完整取证链见 `server/work/dfo-lan/docs/protocol/next49-odyssey-direct-move.md`。
+  - **实现**：`cmd/wireprobe/dungeon_flow.go` 的 `directMoveDungeon` 在进图序列前插入 `dungeon_gate_ack(15)` + `dungeon_selection_sent(27)`（即清关后客户端「选择其他地下城」的同一条 UI 入口），客户端随后走正常的选区进图流程。
+  - **被否掉的尝试（留档，勿重试）**：① 只回 `select_ack(16)`（与城镇选图逐字节一致）→ 首图无门请求；② 重放回城帧（`leave_ack(42)` + `town_actor_state(3)` + `return_area(23)` + `return_users(24)`）再跟进图帧 → 客户端黑屏退出（两次场景切换在 1 ms 内撞车，且 `leave_ack` 应答的是客户端从未发出的 `GIVEUP_GAME`）。
+  - **实机验证（2026-09-22，用户操作）**：清关后走「下一个剧情关卡」→ 正常进入下一关，**首图起连续 7 次过门全部正常**；frida 探针同时捕获到首图的 `head=01 2d`（CMD 45）。
+  - **测试**：`go build ./cmd/... ./internal/...`、`go vet ./cmd/...`、`go test -count=1 ./cmd/wireprobe/` 全绿。
+  - **探针结论（可复用）**：`analysis/dumps/opcodes.tsv` 的 `table_slot_va` 存的是**包描述结构的 RVA**（`0x140000000 + 值`），不是函数指针（实测挂上去零触发）；可靠的发包锚点是 `ws2_32!send`/`WSASend`，C2S 包头第 2 字节即 opcode。
+- 城镇丢弃物品不消失（CMD18 通用删除闭环）：材料路径优先（副本内已实机验收），失败落通用主背包删除——权威背包事务扣减、同款 0x0012 ACK（reason=2）+ NOTI14 行更新（**待实机验证**）。
+  - **来源**：用户提供的第三方《丢弃修复.zip》（MERGE_REQUEST.md + 3 个 `.go`）。本轮无基线漂移：包内「替换前」代码块与本地 CMD18 分支逐行一致，依赖签名全部吻合。分析见 `analysis/tasks/next56-item-discard-town.md`。
 - VP（Skill Evolve/Enhance）保存链 + Reset/Auto Set（CMD483）：三觉后可改 VP、Apply 不再被 id19 覆盖显示、Reset 会清技能并返还 SP（**待实机验证**）。
   - **来源**：用户提供的第三方接续修复包《技能系统修复_20260922》（`README.md` + 8 个 `.go`，其基线停在本仓库 `29c8046` 那一支）。逐文件对照、采纳/拒绝理由与真源取证见 `analysis/tasks/next55-skill-vp-reset-fix-port.md`。
   - **未整包覆盖（重要）**：该包基线比当前 `main` 少 `1ddb6ad`（网关端口撞车重试）、`dfa47bb`（CMD2062 清关直达）与 growtype 0 觉醒修复，整包覆盖会连带回退，因此只取缺口、不取其基线。
@@ -13,36 +99,107 @@
   - **README 与包不一致**：README 称"三觉完成 id2177 后追加 id29"，但包内 `awakening_flow.go` 与我们**逐字节相同**且无 id29；即三觉当次不推 VP，要等进城/换角色。已列入实机确认项。
   - **测试**：新增 `internal/character/skill_reset_test.go`（源授予段不退款、只退 floor 之上、Reset 幂等、mask 清 VP 并补齐宽度、解锁跟随三觉而非等级、缺 `[variation point]` 放行、`VariationRestore` 补块字节一致）与 `cmd/wireprobe/skill_flow_test.go`（id19 抑制边界）。`go test -count=1 ./internal/... ./cmd/...` 全绿，`go vet` 零输出。
   - **产物**：`bin/wireprobe-handoff-source.exe` 已重编。
-- 修复「打死怪之后尸体卡住、怪物死亡没有响应、副本卡住无法进行」（**已实机确认**）：真因是**转职后的经验结算被旧试点门禁拒绝**，连带使整份怪物死亡回包没有发出，不是死亡协议或清房逻辑的问题。
-  - **现象与证据**：`runtime/roles_..._20260922_194901_505941_next37/events.jsonl` 中，角色在 CMD1881 转职成功（第 963 行 NOTI718 正文 `01`、第 971 行 `advancement_completed` `010000`）后进入 dungeon 11 / map 58597（第 1052 行，4 个源怪物）；客户端 checksum-verified CMD39 正常上报（第 1069/1071/1073/1085 行，实体 4098/4096/4099/4097，killer 均为本角色场景 ID 10），但服务端自第 1070 行起持续回 `dungeon_request_refused id=39 reason="advanced profession growth is not yet supported"`，全程**没有** `monster_death_ack` / `monster_death_confirmed`（该会话累计 514 次同一拒绝）。客户端因此不断重报同一批实体，尸体不消失、门不开。换到 advancement 2（第 1235/1243 行）以及另一角色的 dungeon 17 / map 57964 同样被拒，排除单张地图/单个分支的偶发问题。
-  - **根因**：调用链为 `CMD39 → monsterDeath → DecodeMonsterDeath（通过）→ ConfirmDeath（通过）→ ProgressionService.Monster → CommitCharacterEvent → ApplyGain`。`ApplyAdvancement` 早已按本职业 `AdvancementGrowth[advancement]` 校验并保存普通转职，但 `ApplyGain` 仍停留在试点阶段：`advancement != 0` 时只接受 `all_jobs_pilot`，或剑士 job 0 的 `swordmaster_pilot`，其余一律报错。`monsterDeath` 对该错误返回 `nil, error`，于是 ACK39 + NOTI38 + NOTI37 整份计划都不发送——**经验事务的失败吞掉了死亡确认**。同源的第二个缺陷：旧代码对所有 `advancement == 1` 先取 `SwordmasterGrowth`，只有带 `all_jobs_pilot` 才改用本职业分支，只删报错不改成长选择会让其它职业的一转选错属性表。
-  - **改动**：仅 `internal/character/progression_state.go`。未转职仍用 `BaseGrowth`；非零转职改用本职业 `AdvancementGrowth[advancement]`（与转职校验同一数据源，当前启动链目录 `characters.skycastle-release.json` 已含全职业有源分支，无需重导配置或猜数值）；旧剑魂试点目录保留窄兼容（仅 job 0 / advancement 1 / `swordmaster_pilot` 且该分支在目录中缺失时才回落 `SwordmasterGrowth`）；分支无源或版本不匹配**仍然拒绝**，不回落未转职成长、不伪造成功回包。CMD39 与 NOTI38/37 的布局与顺序、清房/归属规则、掉落算法、幂等键、数据库结构、`configs/` 均未改动。
-  - **测试**：新增 `internal/character/progression_advancement_test.go`（当前源目录 **86 个基础/转职分支** × 零经验/同级经验/跨级经验，逐属性核对增量、SP 结算、`advancement`/`awakening` 不被经验改写、普通存档不得出现 pilot 标记、入参不被修改、`inventory` 与未知字段保留；并覆盖未知分支/缺源分支/缺源时的 pilot 与跨职业回落/版本不匹配五种拒绝路径）；新增 `cmd/wireprobe/monster_death_advancement_test.go` + `testdata/monster_death_after_advancement_20260922.json`（4 条实机原生 CMD39 正文，已与日志逐字节核对），在**一次性临时 schema 与独立 Redis prefix**中启用真实 PostgreSQL 经验事务回放：ACK39 + NOTI38 + NOTI37 齐全、NOTI38 实体正确、回包可通过 `wire.ValidateServer`、NOTI37 与落库经验一致、12 次重报只产生 **4** 份 `character_events` 收据（不重复给经验）、清房后可进入下一房间、重读角色确认经验落盘且 `inventory` 与未知字段无损。修复前定向复现：job12/adv1 的 `gain=0/1/192739` 全部在该门禁失败，与实机原因一致。`go test ./...`、`go vet ./...` 全绿，`bin/wireprobe-handoff-source.exe` 已重建（sha256 `3cee1d2dc2aa13e8bf29cee61a5a2f1589b009d4ee0620973d2917791acf48e7`，未覆盖归档 39 版）。
-  - **存档兼容**：不改数据库结构，不回写 pilot 标志，不重置角色/经验/装备；旧试点存档与普通存档都走已验证分支。无需迁移脚本。
-  - **实机验证（已通过）**：用户实机测试确认已转职角色进图击杀怪物后尸体正常消失、经验上涨、房间门开启、副本可正常继续推进。服务端事件为正常 `monster_death_ack` / `monster_death_confirmed` / `monster_experience_updated`。
-  - **文档**：`docs/MONSTER-DEATH-PROGRESSION-20260922.md`。
-  - **回滚方式**：`git checkout -- server/work/dfo-lan/internal/character/progression_state.go` 并删除本轮新增的两个测试与 fixture、文档即可；本轮未触碰工作区中其它 agent 的未提交改动。
-- APC 队友跨房动态注入修复（**待实机验证**）：根据当前 115 客户端 IDA 会话确认，NOTI29 的 `SourceIndex=10000` 是客户端原生“无当前地图 APC 表记录”分支；服务端现在登记已出现的友方地图 APC，并在后续缺失的房间用该哨兵行补入，避免复用上一房普通 APC 索引导致客户端崩溃或队友只在剧情房出现。普通怪、敌对/中立 APC 不会被携带。新增协议/会话回归测试；`go test ./...`、`go vet ./...` 全绿，源码候选版已重建。**尚未进行用户实机测试，不能视为已确认基线。**
-- 修复 20 级奥德赛角色进不去西海岸（town 40/area 0）、客户端误提示「You must be Level 15 to go to West Coast」：`[odyssey enter level]` 语义由「替换 `[need level]`」更正为「只降不升（min）」。
-  - **现象与证据**：20 级奥德赛角色 `gugugaga`（角色 11，DB `state.level=20`）在赫顿玛尔（39/0）点日志「移动」去西海岸，客户端走完 CMD2261 → NOTI365 → CMD36，服务端三次回 code 8（`runtime/roles_..._20260922_191044_617535_next37`：`special_warp_prepared` 后同序 `area_refused town=40 area=0 reason="destination level requirement not met"` ×3）。客户端在 20 级就发出请求，且拒绝提示填的是 15（need 值而非 odyssey 35）⇒ 客户端有效门槛 = min(15,35) = 15。
-  - **根因**：next47 把 `[odyssey enter level]` 定为 replace 语义；40/0 是 16 个 odyssey>need 区之一（need 15 / odyssey 35，且该区带 `[phase]` 变体段，高值约束的是阶段变体而非入门），replace 把 20 级奥德赛角色按 35 级误拦（实机路径：`specialWarpPending → teleportTransition` → `RequiredLevel` 取 35）。min 语义与全部既有实机证据一致（43/* need50/odyssey45 → 45，提示填 45；40/0 → 15，提示填 15），也符合奥德赛加速剧情的设计（replace 下赫顿玛尔后街 39/2~4 会要求 44 级，显然不合理）。
-  - **改动**：`internal/world/service.go` `RequiredLevel` 改 min（仅当 `odyssey && 0 < odyssey < need` 时用 odyssey 值）；`RestorationLevel` 本就是 min，两者现一致；`internal/catalog/world.go` 字段注释同步。解析、78 区目录补丁、`source.checksum` 未动；普通角色与 60 个 odyssey<need 区行为不变。
-  - **测试**：`internal/world/service_test.go` 新增 `TestOdysseyGateNeverRaisesEntry`（40/0 门槛钉死 15/35、20 级放行、14 级两模式仍拒）；`cmd/wireprobe/odyssey_enter_level_test.go` 新增 `TestOdysseyWestCoastTeleportGate`（复刻实机包形态 39/0→40/0，20 级放行、14 级 code 8）；既有 Storm Pass 45 级放行用例与全部 30 包 `go test ./...`、`go vet ./...` 全绿；`bin/wireprobe-handoff-source.exe` 已重建。
-  - **文档**：`server/work/dfo-lan/docs/protocol/next49-odyssey-gate-min-semantics.md`。
-  - **待实机验证（用户操作）**：重启服务端后 20 级奥德赛角色 `gugugaga` 点「移动」应直接进西海岸（服务端事件 `area_change_sent town=40`，不再有 `area_refused`）；对照 14 级以下角色仍应被 15 级门槛拦下。
-  - **回滚方式**：改动均在 Git 内（`internal/world/service.go`、`internal/catalog/world.go`、两个测试文件与文档），`git revert` 即可。
-- 技能学习（觉醒技能 / 加点）：修复三类"觉醒后学不了技能"的缺陷，并区分 `[growtype maximum level]` 的两种零。
-  - **1. 觉醒专属技能无法学习（配置缺字段）**：剑魂觉醒成剑圣后 60 级加点「流星剑」（`skill/swordman/meteorsword.skl`）被拒（`unsupported skill advancement/level`）。根因是 `configs/skills.next27.json` 由"还不支持 `[awakening maximum level]`"的工具生成：3224 行里该字段出现 0 次，1141 个觉醒专属技能因此一律不可学（对照 `skills.release.json` 有 1020 次）。用当前 `cmd/skillaudit` 对同一 PVF 重新生成：逐字段比对行数与 key 完全一致，只有新增（`[awakening maximum level]` 1024、`[variation point]` 960、`[enable by third awakening quest]` 419、`[awakening]` 219）与 5 行"源里本就没有自身 `[type]`"的修正。测试：`internal/character/learning_awakening50_test.go`。
-  - **2. "只有觉醒矩阵"的 36 个技能不可学**：源里有一批技能完全没有 `[growtype maximum level]`、只带 `[awakening maximum level]`（`skill/swordman/nachal.skl` 是 `0 0 0 0 0 40` ×3 的形状），而 `ForAwakening` 原先要求 `len(caps) == 3*len(base)`，基础行缺失时 `len(base) == 0`，判定恒为 false。改为**列数可由矩阵本身推出**（基础行缺失时用 `len(caps)/3`；基础行存在但与矩阵不一致时仍拒绝，畸形块不会变成可学），`forState` 在缺列时补零后写入本角色的 `(stage, growtype)` 上限。测试：`internal/character/learning_awakening_matrix_test.go`。
-  - **3. 多值 `[purchase cost]` 与无转职分支职业的 growtype 0 觉醒**：`Cost` 接受按 rank 分段的单价（`rank1 = cost[0]`、`rank2+ = cost[1]`），修复 `atgunner/twingunblade`(100)、`atfighter/crazymount`(74)、`knight/perfectguard`(8)、`knight/rosearmor`(40) 报 `skill learning fields unavailable`；`AwakeningSkillGrants` 保留 `[growtype 1]`（growtype 0）的觉醒授权、`ForAwakening` 接受 `adv = 0`，修复 `demonic swordman`(job 9) 与 `creator mage`(job 10) 这两个**无转职分支**职业（`.chr` 为 `[max grow count] 1`、觉醒段就写在 `[growtype 1]` 内）的 36 个觉醒技能。取证见 `analysis/tasks/next52-adv0-awakening-jobs.md`。测试：`learning_cost_bands_test.go`、`learning_adv0_awakening_test.go`、`internal/catalog/awakening_test.go`。
-  - **4. `[growtype maximum level]` 的整行 0 与部分 0 被混读（玩家反馈：弹药觉醒后学不了觉醒技能，换第三方补丁包就能学）**：`atgunner/quartermaster` 在 `.skl` 原文里是 `0 0 0 0 0 0`、`[awakening maximum level]` 18 个 0，归属只写在 `[skill fitness second growtype] 2`；对照 `archer/latentability` 的 `0 1 1 1 1 1`（部分 0 ＝ 那个 growtype 真的学不了）。**整行 0 ＝ 该行不使用基础 growtype 上限表**：归属看 `fitness` / `second growtype`，上限取 `[maximum level]`。旧逻辑把两种零都读成"上限 0"，导致 138 个技能无法加点（覆盖全部 17 个职业）；第三方补丁把两种零都读成"不限"，因此它多放开的正是这 138 个，同时把"部分 0"的行也放开（未觉醒学觉醒技能 / 跨 growtype / 未转职泄漏）。实现：`learning_catalog.go` 新增 `allZeroCaps` / `fitnessAllows`，`ForAdvancement` 按"行非全 0 → `cap[adv] > 0`；行全 0 且带有效觉醒矩阵 → 一律拒（只能由 `forState` 写回后通过）；其余 → `fitnessAllows(adv)`"分派，`Cost` 的 `limit` 在整行 0 时不压 `[maximum level]`。取证与量化见 `analysis/tasks/next53-zero-growtype-row.md`。测试：`learning_zero_cap_row_test.go`。
-  - **验证**：`go test -count=1 ./internal/... ./cmd/...` 与 `go vet ./internal/... ./cmd/...` 全绿；"第三方补丁能学、本仓库不能学"的技能数 **138 → 0**，同时保留本仓库独有的 29 个觉醒矩阵精确能力（`quartermaster` 仅 adv=2、`pistolcarbine` 仅 adv=1 可学）。
-  - **待实机验证（用户操作）**：① 剑魂觉醒后在 60 级加点「流星剑」成功；② 弹药（女枪手）觉醒后可加点 `quartermaster` / `g96thermobaricgranade` / `pistolcarbine`，且其它分支不显示这些技能。
-  - **未闭环**：`configs/characters.*.json` 尚未重新导出（job 9/10 的运行时觉醒授权表仍为空）；`WireAdvancement` / `ApplyAwakening` 的 `adv = 0` 组合待实机证据；`configs/skills.release.json` / `skills.awakening-candidate.json` 仍是修工具前的旧产物（当前启动链只用 `skills.next27.json`）。
-- 城镇丢弃物品不消失（CMD18 通用删除闭环）：材料路径优先（副本内已实机验收），失败落通用主背包删除——权威背包事务扣减、同款 0x0012 ACK（reason=2）+ NOTI14 行更新（**待实机验证**）。
-  - **来源**：用户提供的第三方《丢弃修复.zip》（MERGE_REQUEST.md + 3 个 `.go`）。本轮无基线漂移：包内「替换前」代码块与本地 CMD18 分支逐行一致，依赖签名全部吻合。分析见 `analysis/tasks/next56-item-discard-town.md`。
+- 扩展装备槽（辅助装备 / 魔法石 / 耳环）解锁：接上"任务奖励 → 存档 → USERINFO1"这条链，槽位不再只锁不开（**待实机验证**）。
+  - **来源**：用户提供的外部《开槽任务修复说明-20260922》（其工程 `F:\115-main`，与本仓库同源）。对照结论与冲突清单见 `analysis/tasks/next54-slot-expansion-fix-port.md`。**该说明修的是剧情角色的任务解锁链路**；奥德赛角色不走任务，其解锁值本仓库只作参考。
+  - **已有部分（不重复实现）**：`[slot expansion]` 奖励识别早已在 `2bbdb43` 落地（`internal/quest/index.go` 的 `slotExpansion` + `rewardUsable`，`finish.go` 跳过 `ItemRewards`）。本轮**没有**照搬外部说明的 `internal/quest/slot_reward.go`，避免两份并行实现。
+  - **本轮新增（解锁位真正落库）**：`internal/inventory/bag.go` 的 `Bag` 增加 `expand_equip_flags`（**按位或**累加，不是赋值）；`internal/inventory/expand_slots.go` 的 `UnlockEquipSlots` 在 `CommitQuestReward` 事务内改写状态；`internal/quest/index.go` 增加 `ExpandSupport/ExpandMagicStone/ExpandEarring = 1/2/16` 与 `slotUnlockMask`；`finish.go` 把解锁位写进收据 `unlocked_equipment`。
+  - **易踩的坑（已用测试钉住）**：`[reward int data]` 是**槽索引** 0/1/2，存档要写的是**解锁位** 1/2/16 —— 耳环索引 2 对应位 4，直接 `|= slot` 会写成 1/2/4，耳环那格永远不开且不报错。
+  - **本轮新增（下发给客户端）**：`internal/game/protocol/entry_addition.go` 原先在偏移 360 处**写死 0**（原生 `14563d692`，即扩展槽解锁字节），改为写 `EntryAdditionProbe.ExpandEquipFlags`；`internal/character/detail.go` 从存档投影该字节（直接读原始 state，不走 `inventory.ReadBag`，避免坏背包把登录变成拒绝）；`cmd/wireprobe/quest_flow.go` 在收据带解锁位时补发 USERINFO0 + USERINFO1 + 穿戴行（`unlockRefresh`，与 `dungeonEntryPlan` 同一套帧序）。进城时该字节由既有的 `entry_addition_sent` 带出，所以重登也能恢复。
+  - **本轮新增（对话不再被误拒）**：`internal/quest/meet_npc.go` 增加 `AllowsRemoteNPCInteraction`；`questInteraction` 对 `[sub type] 1` 的显式对话任务不再要求目标 NPC 站在当前地图。理由：649/650/2636 的 `[alternative npc index]` 目标 `100001447` 只在 town139，原始目标 NPC 28 在 town40/area2（本地 world 目录实测），而客户端对 subtype1 只按"任务自己解析出的目标"判身份后即发 CMD33，不看地图。普通对话任务与被动走近的 `ProximityProgress` **不受影响**；目标 NPC 为 -1 的 13 条 subtype1 任务**不放行**。
+  - **不适用**：外部说明的 `SaveBag` 已知字段白名单。本仓库 `SaveBag` 整体替换 `state["inventory"]`，不存在"合并旧值覆盖新值"的前提，只需加 JSON 字段（`omitempty`，旧存档读作 0，无需迁移）。
+  - **测试**：新增 `internal/inventory/expand_slots_test.go`（累加 1→3→19、乱序、重复领取、零掩码不改写、老存档、超宽值显式失败）、`internal/quest/slot_unlock_mask_test.go`（索引≠位）、`internal/quest/meet_npc_test.go`（53 条 subtype1 / 13 条 NPC=-1 / 40 条放行的全目录量化）、`internal/game/protocol/entry_addition_unlock_test.go`（偏移 360 与相邻字段不动）、`internal/character/detail_unlock_test.go`（存档 → 载荷）、`cmd/wireprobe/quest_npc_exemption_test.go`（普通对话仍拒错图 + 豁免是必需的）。`go test -count=1 ./internal/... ./cmd/...` 全绿，`go vet ./internal/... ./cmd/...` 零输出。
+  - **顺带修复**：`internal/character/detail.go` 三行中文注释在编辑过程中被写坏成非法 UTF-8（`go vet` 报 `invalid UTF-8 encoding`），已按 HEAD 原文还原；`analysis/tools` 全量扫描确认全仓 528 个 `.go` 文件编码正常。
+  - **未闭环**：奥德赛角色的解锁值是否有效**未验证**——奥德赛角色存档里没有这些解锁位，仅登录不会改变任何东西；要验证需先让存档带上位（属测试数据，非迁移）。外部说明本身也**尚未收到实机成功确认**，本次验收同样只到"离线测试 + 编译"。
+  - **产物**：`bin/wireprobe-handoff-source.exe` 已重编（现役版本备份为 `bin/wireprobe-handoff-source.exe.bak-20260922-1533`）。
+- 技能学习：`[purchase cost]` 支持按 rank 分段的单价，修复 4 个普通技能无法加点（报 `skill learning fields unavailable`）。
+  - **来源与取舍**：用户提供的第三方补丁包 `50级以上技能修复以及源码`（`internal/character/learning_catalog.go` 全文 + README）。其三项修复里的前两项（去掉 `ForAdvancement` 的 `cap[adv] <= 0` 拒绝、把 `caps[growIdx] == 0` 当作"不限制"）在本仓库基线照搬实测 **8 个测试失败**（跨职业 / 跨 growtype / 未觉醒泄漏，清单见 `analysis/tasks/next52-adv0-awakening-jobs.md` §4），**不予采纳**：补丁丢掉了"部分 0 ＝ 该 growtype 不可学"这条判据；本仓库保留它，并在第 3 轮进一步把"整行 0 ＝ 该行不使用基础 growtype 上限表"单独识别出来（见下）。
+  - **实现**：`internal/character/learning_catalog.go` 的 `Cost` 去掉 `len(cost) != 1` 硬拒，改为 `rank1 → cost[0]`、`rank2+ → cost[1]`（觉醒路径 `costForLevel` 已是同一语义，此处下沉为通用兜底），并只校验所选档位非负。
+  - **修复对象**：`atgunner/twingunblade`(100)、`atfighter/crazymount`(74)、`knight/perfectguard`(8)、`knight/rosearmor`(40) —— 全目录扫描中"带双价 `[purchase cost]` 且当前不可达"的仅此 4 个。
+  - **测试**：新增 `internal/character/learning_cost_bands_test.go`（6 个加点用例 + 3 条边界：growtype cap、无 cap 的 growtype、`[required level]` 仍拒绝）；`go test ./internal/... ./cmd/...` 与 `go vet ./...` 全绿。
+  - **同时完成的取证（未改代码）**：`creator mage`(job 10) 与 `demonic swordman`(job 9) 无转职分支（`.chr` 为 `[max grow count] 1`、仅 `[growtype 1]`，觉醒段就写在该段内），角色 `Advancement` 恒为 0，共同导致 **36 个觉醒技能**不可学；根因是服务端 4 处 `adv>=1` 假设。完整证据链、影响面（放宽后新增可达恰好只含这两个职业）与建议修复顺序见 `analysis/tasks/next52-adv0-awakening-jobs.md`。
+  - **next52 第 1、2 层落地（同批次）**：`internal/catalog/awakening.go` 的 `AwakeningSkillGrants` 去掉 `grow < 2`（改为 `grow < 1`），`internal/character/awakening.go` 的 `ForAwakening` 允许 `adv = 0`。临时重导配置验证（`go run ./cmd/catalogimport -source ..\client-build\Script.inner.pvf -output <临时文件>`，未覆盖仓库配置）：job 10 `creator mage` 得到 `awakening_skills[0] = {1:[273,1,268,1], 2:[274,1,261,1,262,1], 3:[407,1]}`、job 9 `demonic swordman` 得到 `[0] = {1:[263,1], 2:[256,1,255,1], 3:[269,1]}`，与 `.chr` 原文逐值一致；其余 15 个职业无 `0` 键（零影响）。测试：`internal/catalog/awakening_test.go` 新增 `[growtype 1]` 授权用例，`internal/character/learning_adv0_awakening_test.go` 锁定 growtype 0 列可学、stage 0/负 advancement 仍拒、影响面收敛在 job 6/9/10。**注意：仓库内 `configs/characters.*.json` 尚未重新导出，运行时授权表仍为空；第 3 层（`WireAdvancement` / `ApplyAwakening` 的 adv=0 组合）未放开前，实机行为不变。**
+  - **未闭环**：这 36 个技能的修复要动协议层（`WireAdvancement` / `ApplyAwakening` 的 adv=0 组合），需实机确认客户端觉醒流程的 growtype 字段后再落地。
+- 技能学习（第 3 轮，玩家反馈弹药觉醒技能学不了）：`[growtype maximum level]` 的两种零被混读 —— 整行 0 被当成"上限 0"导致 138 个技能无法加点。
+  - **现象**：玩家反馈弹药职业觉醒后无法学习觉醒技能，换第三方补丁包就能学。
+  - **真源证据（`pvfinspect` 读 `.skl` 原文）**：`atgunner/quartermaster` 的 `[growtype maximum level]` 为 `0 0 0 0 0 0`、`[awakening maximum level]` 为 18 个 0，归属只写在 `[skill fitness second growtype] 2`；`atgunner/g96thermobaricgranade` 同理但无任何 fitness 声明。对照 `archer/latentability` 的 `0 1 1 1 1 1`：**整行 0 ＝ 该行不使用基础 growtype 上限表（归属看 fitness/second growtype，上限取 `[maximum level]`）**，**部分 0 ＝ 那个 growtype 真的学不了**。
+  - **补丁为什么"可以"**：第三方补丁把两种零都读成"不限"，因此它不只为弹药开洞 —— 全目录量化下它比本仓库多放开 **138 个技能、覆盖全部 17 个职业**（每个 3~12 个）；而它同时放开"部分 0"的行，正是 8 个既有测试失败（未觉醒学觉醒技能、跨 growtype、未转职泄漏）的来源。
+  - **实现**：`internal/character/learning_catalog.go` 新增 `allZeroCaps` / `fitnessAllows`；`ForAdvancement` 按"行非全 0 → `cap[adv] > 0`；行全 0 且带有效觉醒矩阵 → 一律拒（只能由 `forState` 写回后通过）；其余 → `fitnessAllows(adv)`"分派；`Cost` 的 `limit` 在整行 0 时不压 `[maximum level]`。
+  - **验证**：落地后"补丁能学、我们不能学"的技能数 **138 → 0**，同时保留本仓库独有的 29 个觉醒矩阵精确能力；`quartermaster` 仅 adv=2、`pistolcarbine` 仅 adv=1 可学；`archer/latentability`、`knight 61`、`lightswordmastery`、`crazymount` 的零列仍被拒（8 个既有泄漏测试全绿）。唯一变宽：19 个源里无归属声明的技能（多为各职业通用 `conversion`，其余 `[maximum level] = 0` 本不可学）。
+  - **测试**：新增 `internal/character/learning_zero_cap_row_test.go`；`go test -count=1 ./internal/... ./cmd/...` 与 `go vet ./internal/... ./cmd/...` 全绿。
+  - **待实机验证（用户操作）**：弹药（女枪手）觉醒后能加点 `quartermaster` / `g96thermobaricgranade` / `pistolcarbine`，且其它分支不显示这些技能。取证与量化见 `analysis/tasks/next53-zero-growtype-row.md`。
+- 奥德赛模式扩展装备槽（辅助装备 / 魔法石 / 耳环）不自动解锁：服务端从未下发 `NOTI 328 EXPAND_EQUIPSLOT_INFO`（**attempt 1/3，待实机验证**）。
+  - **现象与证据**：奥德赛角色 `test-jh`（84 级）装备栏里 support / magic stone 一直带锁。用户实测确认奥德赛模式**不走任务链路**，而是"通关特定副本自动解锁"：**安徒恩讨伐战 `100004950`(anton.dgn) → 辅助装备**、**使徒卢克 `100004953`(luke.dgn) → 魔法石**、**盖波加 `100004969`(gaebolg.dgn) → 耳环**；且奥德赛模式下客户端**不显示**普通槽位任务（quest 649/650/2636）。客户端 19 次发出 `CMD 390` 的 payload 全 0，服务端从未发过 `NOTI 328`；重登后仍锁。
+  - **逆向结论（capstone + `.pdata` 纯静态，未开 IDA；工具取自 `server/reference/analysis-tools/`，把 `decode_literals.py` 里硬编码的 `F:\dnfop\DFO` 改为 `D:\115us\client`）**：
+    - `find_registration.py` 解出 **NOTI 328 handler = `0x1452cffa0`**（240B）。读取序列：`ReadU16`（actor，随后比对是否本角色）→ **循环 3 次 `ReadU8`**（`cmp byte, 4; jae` 丢弃 >= 4 的值）→ 每次经 **`0x145c4de40`** 写入。
+    - **`0x145c4de40` 只有一条指令**：`mov dword ptr [rcx + 0x697C], edx` → 客户端把扩展槽状态放在**角色对象 `+0x697C`**（u32，按字节对应 3 个槽）；`0x145c49190` 是对应读取。谓词 `test dword [x+0x697C], 0xfffffffd`（`0x145c49c36` / `0x145c49c4c`）把 `{0,2}` 与 `{1,3}` 分类，说明是**按位编码的小枚举**。
+    - 结论：**线格式 = `u16 actorID + u8 ×3`（support / magic stone / earring），值域 0..3，共 5 字节。** 客户端**不会**从存档、任务或通关记录自行推导该标志，必须由服务端明确告知。
+    - 顺带纠正此前误判：**`CMD 390` 不是"解锁上报"**，而是 UI 交互上报——payload 只有 **1 字节**，handler `0x145253c30` 只接受值 `1` / `2`（`sub ecx,1; je` / `cmp ecx,1`），值 `0` 直接丢弃，这正是日志里"16 字节全 0"被判无效的原因。
+  - **实现（最小改动，只做下发通道验证）**：新增 `internal/game/protocol/expanded_slot.go` 的 `ExpandedEquipSlotInfo(actor, support, magicStone, earring)`；`entryPayloads` 增加 `ExpandedSlots` 字段，`packets()` 在 `worn_equipment_window_refreshed_entry` 之后、`actor_appearance_ready` **之前**插入 `expanded_equip_slots_restored`（外观帧必须仍是最后一个数据帧，2827 仍最后）；`main.go` 进城构建时赋值 `protocol.ExpandedEquipSlotInfo(role.WireID, 1, 1, 1)`。测试：`internal/game/protocol/expanded_slot_test.go` 钉死 5 字节布局与越界拒绝；`go test -count=1 ./internal/... ./cmd/...` 与 `go vet` 全绿。
+  - **实机结果（attempt 1/3）：客户端闪退，已回退。** 帧确实发出了（`events.jsonl` 可见 `expanded_equip_slots_restored id=328`，其后 `actor_appearance_ready` / `skill_locks_restored` 正常），客户端 `CMD 390` 仍上报全 0，约 2 秒后发送 `id=682` 并退出。**崩溃栈（`client-direct.out`）直接指向本包 handler**：
+    ```
+    <Exception code='0xc0000005' violationAddr='0x0'/>          # 空指针解引用
+    CallStack: 0x146ea0c30 <- 0x1452c2cc8 <- 0x1452d0060 <- 0x1459a3c7c ...
+    ```
+    `0x1452d0060` 落在 NOTI328 handler（`0x1452cffa0..0x1452d0090`）内部，正是那个 3 次循环的 `sub rbx, 1`。**说明此前解出的格式不完整**：循环体在读完 1 字节状态后会调用 `0x1452c1540`，而该函数**继续消费同一个包**（`0x146ea09f0` ReadU8 / `0x146ea0ba0` ReadU32 / `0x146ea1920` ReadU16 连续读取，并以一个 `ReadU8` 计数开头），即每个槽的状态字节后面还跟着一个"块"。只给 3 个裸字节时，第 2 个字节被当成 count，随后读越界取到空指针。
+  - **已回退**：`packets()` 恢复为不再发送该帧（`entryPayloads.ExpandedSlots` 字段与 `protocol.ExpandedEquipSlotInfo` 保留备查，不参与运行）。`internal/game/protocol/expanded_slot_test.go` 的布局断言仍成立——它钉的是"给定 3 个状态字节时"的线格式。
+  - **attempt 2/3（静态剖解完成，已重编待实机）**：`0x1452c1540` 的真实范围是 `0x1452c1540..0x1452c30f4`——**7092 字节、1604 条指令、61 次 reader 调用、7 处循环**。它**不是**"槽的小结构"，而是"该槽的完整装备内容"。崩溃点精确定位：
+    ```
+    0x1452c2cb6  mov qword ptr [rbp-0x28], 0     ; 清零
+    0x1452c2cba  mov edx, 8                      ; 固定读 8 字节
+    0x1452c2cc3  call 0x146ea0be0                ; ReadRaw(8)
+    0x1452c2cc8  test rdi, rdi                   ; ← 崩溃栈的返回地址，完全吻合
+    ```
+    解出的每槽结构（`state` 之后的部分由 `0x1452c1540` 消费同一个包）：
+    ```
+    u16 actorID
+    ×3（support / magic stone / earring）:
+      u8  state           → 角色 +0x697C（解锁标志；客户端丢弃 >= 4 的值）
+      u8  entryCount      (0x1452c15f3；0 则跳过主体)
+      [entryCount × 主体块]
+      u32                 (0x1452c2c26 固定)
+      u8  entryCount2     (0x1452c2c57；0 则无行)
+      [entryCount2 × u32]
+      u8[8] raw           (0x1452c2cba 固定 8 字节)
+    ```
+    两个 count 取 0 时每槽 15 字节，整帧 **47 字节**。实现已按此改造：`protocol.ExpandedEquipSlotInfo` 补出每槽尾部 14 字节；`entryPayloads.packets()` 恢复发送该帧（位置仍是 `worn_equipment_window_refreshed_entry` 之后、`actor_appearance_ready` 之前）。测试钉死 47 字节长度、逐字节布局与三个状态字节的 15 字节槽边界；`go test` 通过，exe 已重编。
+  - **attempt 2 实机结果：不闪退，但三个槽仍锁着。** `client-direct.out` 为 0 字节（无崩溃），说明 47 字节结构被完整消费；客户端上报的 `CMD 390` 仍是全 0（该包本就与解锁状态无关）。同时确认了 handler 尾部的真实语义：它把 `state` 临时写进 `+0x697C`、调用 `0x1452c1540` 刷新一次，然后**把 `+0x697C` 恢复成进入时的原值**（`0x1452d006b mov edx, esi` → `0x1452d0070 call 0x145c4de40`），即该帧是"按给定状态刷新一次"而非持久设置。另一个写点 `0x145c0a0ff` 位于 manager 重置函数 `0x145c08fb0` 内（`r13d=0`，初始化 `+0x5B98` 注册表 50 项），同样与"解锁"无关。`role.WireID` 在 USERINFO / AreaUsers / 328 三处取值一致，基本排除 actor 不匹配。
+  - **attempt 3 实机结果：三格全不亮，且不闪退** → 排除了"值语义"，也说明问题不在载荷结构。
+  - **动态探针（frida 只读，`analysis/tools/slot_state_probe.py`）**：只挂函数入口（写/读 `+0x697C` 的单指令函数、328 handler、328 的刷新函数），不碰网络心跳。结论：
+    - 一个会话里 `+0x697C` 被写 **115 次**：其中 **110 次来自 `0x1458d09f5`**（客户端自己的装备栏刷新链），值恒为 **0**；我们的 328 写了 `1`/`2`/`3`（`0x1452d0048`）随后被恢复为 0（`0x1452d0075`）；登录时另有 1 次（`0x145641a85`）写 0。
+    - **→ `+0x697C` 不是数据源，只是"每次刷新的落点"**（`READ` 也只来自 328 handler 与刷新函数）。
+  - **静态追溯到真正的判据链**：
+    - 装备栏刷新处（`0x1458d09e6`）：`call 0x1421b2820` → 返回 `0` 则状态 `0`；返回 `1` 则状态 `1`；其它则状态 `4`（4 会被 328 handler 丢弃）。
+    - `0x1421b2820` 只有一条指令：`mov eax, dword ptr [rcx + 0x358]` → 状态来自 **`[[装备栏窗口 + 0x498] + 0x358]`**。
+    - 登录路径完全同构：`0x145641a4d` 调 `0x14018e630`，同样的 0/1/其它 → 0/1/4 映射。
+    - **`0x14018e630` 的函数体是 `xor eax, eax; ret`——一个恒返回 0 的空实现**（零个直接 call，属虚函数默认实现；周围是正常 STL 代码，非成片桩）。
+  - **结论与证据缺口**：**这份客户端里"该槽是否解锁"的最终来源就是一个恒为 0 的实现**，所以它每次刷新都写 0、装备栏始终上锁。服务端已知的任何包（含 `NOTI328`）都改不动这一层——328 只是"临时改 `+0x697C` 再恢复"，属于显示刷新通道，不是解锁通道。此前把 328 的 INFO 字段当作解锁标志的判断**已被推翻**。
+  - **下一步（需要用户侧输入，不适合继续静态猜测）**：要么拿到一份**官方/其它服的登录抓包**（hex 即可）对照我们缺哪个包；要么接受"奥德赛扩展槽在当前客户端组合下不可解锁"并停在这里。`NOTI328` 那笔（不闪退但无实际效果）的去留由用户决定。
+  - **新方向（探针+静态驱动，非盲试）：给扩展槽补发 NOTI14 占位行**（用户批准的新范围）：
+    - 探针 v2（`analysis/tools/slot_state_probe2.py`）实测：装备栏刷新函数 `0x1458d0890` 一个会话被调用 **199 次**，状态 getter `0x1421b2820` 被调用 **223 次**（每次针对不同槽对象），而 `[model+0x358]` **恒为 0、无任何变化**。
+    - 静态反汇编 getter 的调用者 `0x140584eb2` 揭示机制：客户端按**槽行数组**绘制装备栏（`imul rbx, r9, 0x1A0`，每行 416 字节），行的 `+0x20` 挂着槽对象，**`[行+0x20] == NULL` 时整行被跳过**（`0x140584ee4`）；只有有对象的行才会去查 `[obj+0x358]`。
+    - 推论：**我们从没给扩展槽下发过槽行** → 客户端手里根本没有这几个槽的对象可查 → 恒判未解锁。这与 next47"补发 NOTI14 槽位行修好箭头"是同一机制。
+    - 槽位号取自项目既有依据（`cmd/gmtool/index.go`）：`[support]=22`、`[magic stone]=23`、`[earring]=25`（24 是辅助武器，不在本次范围）。
+    - 实现：`internal/inventory/equipment.go` 新增 `ExpandedEquipSlotRows()`（返回 slot 22/23/25 的空占位行，`Template=0`）；`main.go` 构建进城 `WornSlots`（NOTI14）时把这三行追加在 worn 行之后。存档校验不拦空行（`ValidateRecord` 只校验记录一致性；"worn 的 template 必须非 0"仅施加于存档加载路径）。
+    - 测试：`go test -count=1 ./internal/inventory/ ./internal/game/protocol/ ./cmd/wireprobe/` 通过；exe 已重编（1:23:44）。
+  - **待实机验证**：进城看 support / magic stone / earring 是否解锁。若仍锁，说明空占位行不足以让客户端建立槽对象（可能还需填 `+6` 的 Data 字段），届时用探针 v2 复查 `[obj+0x358]` 是否已随行出现。
+  - **收尾（挂起）**：以上改动**已全部回退**——进城不再发 `NOTI328`，也不再给扩展槽补 `NOTI14` 占位行；`protocol.ExpandedEquipSlotInfo` / `entryPayloads.ExpandedSlots` / `inventory.ExpandedEquipSlotRows` 作为备查资产保留、不参与运行。
+    - **终极证据**：`[槽对象 + 0x358]` 是构造期决定的**只读**字段——对槽对象所在页开 `MemoryAccessMonitor` 实测 **535,096 次访问、0 次写入**；槽行数组只有 12 行，slot 12~23 的该字段恒为 `0xFFFFFFFF`，24/25 不在数组内；登录路径上的同类判据 `0x14018e630` 是 `xor eax, eax; ret` 的空实现。
+    - **结论**：解锁信息必须由"构造槽对象的那份数据"带进来（服务端行记录里的某个字段映射成 `+0x358`），**并非服务端漏发某个已知包**。未确证的是"哪个字段、什么值"。
+    - **完整证据链、已排除路径与后续方向**：`analysis/tasks/next50-odyssey-expanded-equip-slot.md`（含 6 个只读探针脚本的说明与风险提示）。
+    - **风险记录**：动态探针两次损害客户端（`NOTI328` attempt 1 使客户端闪退；`MemoryAccessMonitor` 使客户端卡死）。日后重启动态排查须只挂函数入口，并对每处读取做 `Process.findRangeByAddress` 边界检查。
+  - **补充（2026-09-22 实机确认；表述经用户指正后已修正）：任务路线对奥德赛角色不可达。** **篇章（Season）是剧情角色的主线任务系统，奥德赛角色根本没有这套系统**——奥德赛角色的任务手册直接显示"阿拉德奥德赛模式不提供任务篇章。请在模式结束后查看篇章。"（用户实机截图）。因此两个模式是**两套独立机制**：剧情角色走任务（`[slot expansion]` 奖励，quest 649/650/2636），奥德赛角色**不走任务**、靠通关副本（anton/luke/gaebolg）。结论：任务路线对奥德赛不可达，理由是"**奥德赛没有任务/篇章系统**"；早前"奥德赛模式不显示我加的任务"由此正式解释。同时可知：**不能靠"剧情角色的任务实验"来侧面推断奥德赛的解锁机制**（缺少可比的任务系统）。服务端侧 `Available()` 实测在 65 级时确实把 649/650 判为可接（237 个可用，`649`/`650` 排最前），过滤无问题。
+    - ⚠️ 本条最初写成"任务手册的 Season 就是奥德赛的章节系统"——**该表述是错的**（`AradOdysseyChapterRewardWindow.xui` 等字符串只能说明奥德赛有自己的章节奖励 UI，不能推断任务手册的篇章归属）。
+  - **未闭环**：扩展槽解锁（挂起，见上）；通关触发与落盘未实现。解锁最终仍指向"奥德赛通关时服务端应下发的某个包"——静态分析已到收益尽头，需要官方/其它服的抓包样本才能继续。
 
 ## 2026-09-21
+- 修复扩展装备槽（辅助装备 / 魔法石 / 耳环）不自动解锁：任务奖励类型 `[slot expansion]` 未被服务端接受。
+  - **现象与证据**：奥德赛角色 `test-jh`（84 级）装备栏里 support（辅助装备）与 magic stone（魔法石）两格一直带锁。会话日志里客户端多次发出 `CMD 390 ENUM_CMDPACKET_EXPAND_EQUIPSLOT_FLAG_UPDATE`（共 19 次，全部落进"未实现采样"），payload 是 16 字节全 0；服务端从未发过 `NOTI 328 ENUM_NOTIPACKET_EXPAND_EQUIPSLOT_INFO`。客户端字符串里有 `support equip slot` / `magic stone equip slot` / `earring equip slot` / `flag equip slot`。
+  - **根因（任务目录的奖励类型被过滤）**：这三个槽由任务解锁——quest 649（60 级，`epic_60_nightassault_second_2.qst`，`[reward int data] 0` = support）、quest 650（65 级，`epic_65_pirateonthetrain_magic_stone_2.qst`，`1` = magic stone）、quest 2636（90 级，`system_90_earring_02.qst`，`2` = earring），三者均全职业、`[meet npc]`。它们的 `[reward type]` 是 `[slot expansion]`，而 `internal/quest/index.go` 的 `rewardUsable` 只接受 `[item]` / `[none]` → 被判"奖励不可结算"，`available.go` 随之把任务剔出可用列表 → 玩家永远接不到 → 槽位一直锁着。即便强行接取也无法结算：`ItemRewards` 会把裸的 `[0]` 读成"物品 0 缺数量"并报 `invalid quest reward count`。
+  - **实现**：`internal/quest/index.go` 新增 `slotExpansion(d)`（识别 `[reward type] [slot expansion]` 并取出槽索引，值域 0..3，非法即不认）；`rewardUsable` 增加该分支，其余奖励类型仍一律拒绝。`internal/quest/finish.go` 结算时**跳过** `ItemRewards`（槽索引不是物品元组），只做经验/金币与完成落账。
+  - **测试**：新增 `internal/quest/slot_expansion_test.go`——quest 649/650/2636 的槽索引为 0/1/2、`rewardUsable` 为真、索引条目 `Implemented`/`RewardUsable`/`GrowUsable` 全为真，且其 `RewardCells` 送进 `ItemRewards` 必定报错（证明结算必须跳过）；另断言 `[item]`/`[none]`/`[slot expansion]` 之外的奖励类型仍被拒。`go test -count=1 ./internal/... ./cmd/...` 与 `go vet` 全绿。
+  - **待实机验证**：60/65 级任务（见 NPC 28）出现并可接取，完成后 support / magic stone 解锁；耳环（90 级任务 2636）同法。
+  - **未闭环**：服务端目前只结算 `[item]`/`[none]`/`[slot expansion]` 三类奖励，其余 9 类（`[percent exp]` 168、`[evolve step up]` 11、`[hell challenge]` 6、`[creature evolution]` 6、`[inferno challenge]` 5、`[expert job]` 4、`[cosmo challenge]`、`[beast dungeon challenge]`、`[hell legend]`）的任务同样会被剔出可用列表，需各自按证据补齐；另外 `CMD 390` 仍是"未实现采样"，若实机出现"任务完成但槽位仍锁"，说明客户端还依赖 `NOTI 328 EXPAND_EQUIPSLOT_INFO`，得按 `analysis/AGENTS.md` 的门禁先取证其载荷布局。
+  - **回滚方式**：改动在 `internal/quest/index.go`、`internal/quest/finish.go` 与新测试文件，`git revert` 即可。
 - 修复觉醒专属技能（50 级觉醒后）无法学习：`configs/skills.next27.json` 缺 `[awakening maximum level]`。
   - **现象与证据**：剑魂觉醒成剑圣后，加点「流星剑」（`skill/swordman/meteorsword.skl`，`[required level] 60`）时服务端回 `unsupported skill advancement/level`（`runtime/roles_..._20260921_234524_876899_next37`：`skill_refused: skill 236 rank 1`；更早一次是 `skill 91`）。35 级技能曾报同一条原因，但那次真因是 `[type]` 导出错，本次不是。
   - **根因（配置缺字段，不是学习逻辑）**：这类技能在源里 `[growtype maximum level]` 全 0（任何基础 growtype 都学不了），只在 `[awakening maximum level]` 的觉醒矩阵里给值——`meteorsword.skl` 是 `0 40 0 0 0 0` ×3（stage 1..3 × 6 个 growtype，即 adv1 在各阶段的觉醒上限都是 40）。服务端 `ForAwakening` 要求 `len([awakening maximum level]) == 3*len([growtype maximum level])` 才把觉醒上限写回基础上限，而 `configs/skills.next27.json` 是**工具还不支持该字段时**生成的：3224 行里 `[awakening maximum level]` 出现 **0 次**，1141 个觉醒专属技能因此一律被判"不可学"（对照 `skills.release.json` / `skills.awakening-candidate.json` 里有 1020 次）。
@@ -54,18 +211,25 @@
   - **检查结论（85+ 技能本身）**：`85-99` 与 `100+` 档的觉醒矩阵覆盖完整（`s2`/`s3`/`s2+s3`/`s1+s2+s3` 都有），**没有"只到第一次觉醒"的技能**；本档此前唯一学不了的就是上面那 36 个缺基础行的技能（已修）。
   - **已核未修**：419 个技能带 `[enable by third awakening quest]`（例如 `instantrealization1`，其觉醒矩阵只在 `s2` 有值），服务端尚未实现该字段语义——三次觉醒（stage 3）后这些二觉技能的续学路径要按 `analysis/AGENTS.md` 的门禁另行取证。当前二觉阶段（stage 2）可正常学习，不影响 50~84 级的推进。
   - **回滚方式**：`configs/skills.next27.json`、`internal/character/awakening.go` 和三个测试文件都在 Git 内，`git revert` 即可。
-- 修复背包内复活币礼包（Life Token Box）、物品礼包（Remy's Sparkling Touch Box）以及大师契约礼包（Master Contract Package）无法打开问题，并支持契约开箱直接激活生效与 NOTI 66 广播。
-  - **根因分析**：
-    1. **礼包定义在 `booster-catalog.json` 中缺失**：客户端右键开启礼包时发送 CMD 160（`ENUM_CMDPACKET_USE_BOOSTER_ITEM`）。原导出工具 `cmd/boosterexport` 仅扫描了 `[etc]`, `[equipment]`, `[avatar]`, `[stackable]`, `[creature]` 5 种标签，完全忽略了 `[cera]` 标签以及 `[package data]` 格式。官方 PVF 中包括上述三个礼包在内的 6,357 个点券/活动礼包均采用 `[cera]` 或 `[package data]` 描述（例如 10333027 复活币盒、10333726 大师契约包、10333023 雷米之手盒），导致服务端在奖励池中查无定义并拒绝开箱（下发 0x0004 拒绝帧）。
-    2. **契约开箱直接激活机制与广播通知（NOTI 66）缺失**：原逻辑未对开出的契约道具做特殊分流，导致契约道具作为普通 stackable 物品发入背包占位。官方原版逻辑中契约礼盒开箱后应直接累加有效时长到账号，并由服务端下发 NOTI 66（`ENUM_NOTIPACKET_CERA_SPECIALITEM`）广播通知客户端刷新到期时间与点亮契约特权。
-  - **修复实现**：
-    1. **升级 `cmd/boosterexport`**：扩展支持 `[cera]`, `[grow type]`, `[dungeon and life items]`, `[special avatar]`, `[equipment random option]`, `[emblem]`, `[card upgrade]`, `[enchant card]` 等全部标签，并支持 `[package data]` 成对格式。全量重导生成 `configs/booster-catalog.json`（奖励条目从 35,944 扩展至 42,301 项）。
-    2. **复活币开箱逻辑闭环**：开箱抽到 template 42 时直接转为 template 1 并累加至 `b.Coin`，背包 slot 1 复活币实时刷新。
-    3. **契约开箱直接激活与广播通知**：在 `internal/game/protocol/premium.go` 中实现 115 级原生 `CeraSpecialItemNotification`（NOTI 66：11 字节，mode 2 + premium_type + end_time 时间戳）；在 `internal/storage/premium.go` 中实现 `ActivatePremium`，原子更新 PostgreSQL `account_premiums` 表；在 `booster_flow.go` 中，开箱若包含契约道具（达人、霸王、晶块、成长等），**跳过背包入库（`b.Add`）**，直接计算并累加到账号契约时长，下发对应的 NOTI 66 协议包，开箱弹窗（ACK 160）保留获得提示。
-    4. **兼容残留契约右键使用**：在 `booster_flow.go`（CMD 160）与 `consume_flow.go`（CMD 44）中支持背包内旧契约道具直接右键使用并转化为有效时长。
-  - **测试与验证**：
-    - 新增 `TestBoosterOpenLifeTokenBox`（复活币盒开箱，复活币数量 +3）、`TestBoosterOpenMasterContractPackage`（大师契约包开箱，4 种契约全部直接激活生效且背包不留占位符）、`TestBoosterOpenRemySparklingTouchBox`（雷米之手盒开箱，获得 30 个雷米的闪耀之手）、`TestBoosterDirectContractActivation`（契约道具右键使用激活）；全量单测全绿。
-    - 服务端二进制 `server/work/dfo-lan/bin/wireprobe-handoff-source.exe` 已编译就绪。
+- 修复「清关直达」进入的新副本首房出口（地上传送阵）不生效：CMD 2062 的进图序列缺少 `dungeon_select_ack(16)`。
+  - **对照证据（同一次会话、同一关卡、同一房间）**：`runtime/roles_..._20260921_232213_735128_next37` 里 `100004948`（战争结束，首房 `100016138`）两次进入——15:25:19 经 CMD 2062（清关后「下一个剧情关卡」门）进入，服务端回 `dungeon_direct_move_ack(2062)`：地图照常加载（客户端正常发 CMD 37、怪物死亡也确认了），但此后 14 秒只发过一次技能键，**没有任何 CMD 45 门请求**，传送阵不生效；15:30:36 经 CMD 15 → CMD 16 从城镇进入，服务端回 `dungeon_select_ack(16)`：15:30:40 客户端就发了 CMD 45 正常过门。两次服务端下发的帧序列逐字节对比**只差那条 ack 的 id**（`dungeon_info_sent`、`dungeon_start_map_sent`、appearance/worn/party 全同，startmap 仅随机 seed 不同）。玩家侧对照同样成立：回城重进（走 CMD 15/16）就能过这道门。
+  - **实现**：`cmd/wireprobe/dungeon_flow.go` 新增 `directMoveEntryPlan`——在 `dungeon_direct_move_ack(2062)` 之后补发 `dungeon_select_ack(16)`，其余仍复用与城镇选图共享的进图序列；`directMoveDungeon` 改用它。
+  - **测试**：`cmd/wireprobe/odyssey_direct_move_test.go` 新增断言（首包 select ack 16、序列中不得出现 2062 的 ack、末包 NOTI 29 start map）。
+  - **实机迭代（2026-09-21，三次单变量验证）**：① 先在 `ack 2062` 之后补发 `dungeon_select_ack(16)` ——首图出口恢复可用，但同一关卡（`100004950` 安徒恩讨伐战）切层到 `100016165` 后客户端**再次**停止请求房间并卡住；② 同一会话内随即做了对照：15:41:09 回城重进（经 CMD 15/16，服务端只回 `select ack(16)`）时，首图、同一张切层图 `100016165`、以及其后 10 个房间直到 Boss 房 `100016175` **全部正常**；③ 于是再去掉 2062 的 ack（`41fbc1c`，响应与城镇选图逐字节一致）——仍无效：同一次后续会话里城镇进入的两关（`100004951`/`100004952`）过门全正常，而 **CMD 2062 直达**进入的 `100004953` **首图即没有任何门请求**。
+  - **结论与处置（2026-09-21，用户决定搁置）**：第 3 次之后直达路径的进图帧序列已与城镇选图逐字节一致仍无效 → 差异只能来自**客户端对 `CMD 2062` 自身的处理**，服务端日志到此看不到更多。按项目规则停止试包；**绕过方式：清关后回城 → 从剧情界面点「移动」重进**（实机验证可正常打通）。取证的 frida 锚点与步骤见 `work/dfo-lan/docs/protocol/next49-odyssey-direct-move.md` 的"未闭环"节。
+  - **回滚方式**：仅 `directMoveEntryPlan` 一处改动，`git revert` 即可。
+- 服务端网关监听端口抗撞：本机动态端口范围被改成 1024 起，内核给 `-game-listen 127.0.0.2:0` 分配的端口可能正好落在别的服务占用的端口上（实机撞到 mysqld 的 3306），bind 报 WSAEACCES，网关 exit 1，启动器显示"启动脚本异常退出：exit status 1"。
+  - **现象与证据**：`runtime/roles_..._20260921_231500_232505_next37/gateway.err` 末尾 `listen tcp4 127.0.0.2:3306: bind: An attempt was made to access a socket in a way forbidden by its access permissions.`；`netsh int ipv4 show dynamicport tcp` = **1024–15000**（默认 49152–65535），`netstat` 显示 `mysqld`(PID 5852) 监听 `0.0.0.0:3306`。同一命令行（`helper.err` 里可见 `-game-listen 127.0.0.2:0`）此前多次启动成功（端口 3213/3415），属偶发碰撞。
+  - **实现**：`cmd/wireprobe/game_listen.go` 新增 `openGameListeners`，把主监听器与各频道端口作为**一组**打开；当监听地址是内核分配端口（`:0`）时最多重试 16 次，避免撞上别人占用的端口后整个网关退出；**固定端口仍立即失败**（不静默换端口，避免掩盖配置错误）。`cmd/wireprobe/main.go` 的监听段改用该函数，频道端口取自同一组返回值。
+  - **测试**：`cmd/wireprobe/game_listen_test.go`（固定端口被占用时立即返回错误；`:0` 时频道端口为紧邻 primary 的连续端口）；实机启动验证：网关正常监听 `127.0.0.2:3415`。
+  - **说明**：与本轮功能改动无关的环境问题；重试只作用于"内核分配端口"这条路径，固定端口行为不变。
+- 实现 CMD 2062 `ENUM_CMDPACKET_DUNGEON_DIRECT_MOVE`：修复奥德赛清关后「下一个剧情关卡」门只黑屏、不进下一关。
+  - **现象与证据**：清关后场上两道门，「返回城镇」正常，「下一个剧情关卡」（截图里是「卡勒特歼灭战」）点下去只黑屏。会话日志（`runtime/roles_..._20260921_225338_199523_next37`）在清关结算全序列之后，只剩一条 `client_frame id=2062 unimplemented_sample=true`——客户端发了 CMD 2062 而服务端只做未实现采样，没有响应。`analysis/dumps/opcodes.tsv` 里 `cmd 2062 = 0x080E = ENUM_CMDPACKET_DUNGEON_DIRECT_MOVE`。
+  - **请求布局（两条真实 48 字节样本）**：+13 为目标副本 ID（`78f4f505`=100004984、`53f4f505`=100004947，即当前副本 100004946 的下一关），+17 为难度 2，+29 起四个 u32 是门矩形（两次都是 20×10、只有位置不同：103,205 / 160,200）；其余字段留档不臆断。目标副本在源数据里是 `contents/2026/aradodyssey/dungeon/13_cartel/cartel.dgn`（卡勒特，与截图门名一致），`MinimumLevel 52 / Odyssey true / DesignatedDifficulty 2`，而清关日志 `odyssey_clear_target_level` 首字节 `0x34`=52，门槛正好满足。
+  - **实现**：`protocol.DungeonDirectMove` + `DecodeDungeonDirectMove`（48 字节，非该长度拒绝）；`cmd/wireprobe/dungeon_flow.go` 把"进副本帧序列"抽成 `dungeonEntryPlan`，CMD 16 与 CMD 2062 共用（ack id 不同），新增 `directMoveDungeon` 复用 `dungeon.Select` 的等级/难度/maze 门禁与疲劳规则后替换 `activeDungeon`；`main.go` 接入 `case 2062` 并走 `pending` 分支（清 `drops`/翻牌状态、离开共享城镇），失败不回通用 Refusal；`request_scope.go` 把 2062 列入已实现白名单。顺带抽出 `acceptedQuestIDs` 供两处共用。
+  - **测试**：`internal/game/protocol/dungeon_direct_move_test.go`（两条真实样本逐字段解码 + 长度拒绝）、`cmd/wireprobe/odyssey_direct_move_test.go`（三条拒绝路径 + `dungeonEntryPlan` 的 ack 2062 与 NOTI 28/29 断言）；`go test -count=1 ./internal/... ./cmd/...`、`go vet ./internal/... ./cmd/...` 全绿。
+  - **待实机验证**：重启启动器后清关走「下一个剧情关卡」门应直接加载下一关。响应侧未做 IDB 静态验证——依据是本客户端已验证的"同 id ack + 进副本序列"惯例（CMD 15/16/37/45/2015 皆如此）；若不生效，下一步按 `analysis/AGENTS.md` 用 frida 探针取客户端 2062 的消费路径。文档 `work/dfo-lan/docs/protocol/next49-odyssey-direct-move.md`。
+  - **回滚方式**：改动都在 Git 内（`internal/game/protocol/dungeon.go`、`cmd/wireprobe/{dungeon_flow,main,request_scope}.go` 与两个新测试文件、文档），`configs/` 未改。
 - 修复奥德赛（Arad Odyssey）角色 45 级无法传送到斯顿雪域、第 1 章剧情断链：服务端漏读城镇 `[permission]` 里的 `[odyssey enter level]`。
   - **现象与证据**：45 级奥德赛角色 `test-jh`（角色 10，DB `state.level=45`）在赫顿玛尔后街（39/5）点第 1 章「冒险的开始」→「雪山的主人」的「移动」按钮，客户端提示 DSTR 535「您必须是45级别才能进入斯顿雪域」（同一条出现两次）；会话日志同序出现 `special_warp_prepared` 与 `area_refused area=1 reason="destination level requirement not met" town=43`——客户端本地已放行并发请求（否则不会有 special warp 预备），是服务端按 `world.ErrLevel` 回 code 8 拒绝。
   - **根因**：源数据 `map/cataclysm/town/stormpass/stormpass*.map`（43/0、43/1、43/2）的 `[permission]` 块同时给出 `[need level] 50` 与 `[odyssey enter level] 45`，客户端在奥德赛模式下用后者（提示里的 45 就是它），`internal/catalog/world.go` 只解析 `[need level]`，把 `[odyssey enter level]` 当作「已知但忽略」的 permission 标签跳过，45 级奥德赛角色因此被 50 级门槛挡下。旁证：`odyssey_journal_routes.json` 的 29 个日志节点目标与该城镇的 `[odyssey enter level]` 严格递增对应（38/2=1、40/4=35、41/2=38、42/3=42、39/5=44、**43/1=45**、12/0=47 … 233/1=113），斯顿雪域正是第 6 节点、等级 45；客户端侧也存在 `[odyssey enter level]` / `[is arad odyssey user]` 字符串。
@@ -74,16 +238,6 @@
   - **测试**：`internal/catalog/world_test.go`（双门槛解析/非数值不猜值/旧目录回填）、`internal/world/service_test.go`（43/0..2 门槛、45 级奥德赛可进 43/1、44 级与普通 45 级被拒）、`internal/character/odyssey_test.go`（`CreatedAsOdyssey` 不受 `DFO_ODYSSEY_MODE` 影响）、`cmd/wireprobe/odyssey_enter_level_test.go`（复刻实机 39/5→43/1，覆盖 `DFO_ODYSSEY_MODE=1` 的日志传送与 `=0` 的 special warp→CMD 36 两条路径）；`go test ./internal/... ./cmd/...`、`go vet ./internal/... ./cmd/...` 全绿（`go test ./...` 会踩到 `runtime/update-backup/**` 的历史源码副本，属既有情况）。文档 `work/dfo-lan/docs/protocol/next48-odyssey-enter-level-gate.md`。
   - **实机验收（2026-09-21，用户操作）**：用 `DFO-115US单机一键启动器.exe`（默认「按角色」档）启动后，45 级奥德赛角色 `test-jh` 在赫顿玛尔后街（39/5）点第 1 章「冒险的开始」→「雪山的主人」的「移动」按钮，**直接过图到斯顿雪域（43/1）**，不再出现「您必须是45级别才能进入斯顿雪域」，剧情继续推进。客户端 `[odyssey enter level]` 的分支实现尚未做 IDB 静态验证（本机无 IDA/Ghidra），结论由上述三路证据支撑。
   - **回滚方式**：改动都在 Git 内（`internal/catalog/world.go`、`internal/world/service.go`、`cmd/wireprobe/*`、两个新测试文件与文档），`configs/` 未改，`git revert` 即可。
-- 修复宠物已穿戴但城镇不跟随与装备栏宠物槽 UI 空白（两阶段均实机确认修复闭环）：
-  - **跟随显示根因（官方 570 帧解析 G0198 定位）**：显示路径是 USERINFO0（opcode 2 mode 0）宠物段 `{u32 槽26模板 + DSTR 名字 + u8 present}`（装备段结束 +23），非 NOTI 105（官方发 count=0）。原代码 present 硬编码 0（=隐藏）且未填入槽 26 数据 → 客户端 `Failed Create Creature 0`。
-  - **装备栏宠物槽空白根因（IDA sub_1452C1540 指令级取证）**：mode-1 穿戴表 reader 行布局：时装行（type<=11）40头+2blob+87尾=135+；宠物行（type==26 @0x1452c186d）40头+5扩展(u32+u8)+87尾=132（无 avatar blob）；宠物装备行（槽 27..29）40+87=127。原 `detail.go` 的 `if item.Slot <= 11` 过滤把槽 26 宠物行整条丢弃，客户端装备栏拿不到 mode-1 穿戴行。
-  - **改动**：
-    1. `internal/game/protocol/entry_userinfo.go`：present 字节由硬编码 0 改为 `itemID != 0 → 1`；
-    2. `internal/character/service.go`：`EntryBasicProbe` 与 `AppearanceProbe` 均经 `wornCreature` 填入宠物段数据；
-    3. `internal/game/protocol/detail_equipment.go`：重写 `DetailedEquipment` 接入宠物行（+5 字节扩展、无 avatar blob）与宠物装备行（127 字节纯行）；容量上限 12→48；非时装行安全守卫；
-    4. `internal/character/detail.go`：投影过滤从 `Slot <= 11` 扩为 `Slot <= 11 || (Slot >= 26 && Slot <= 29)`，槽 12..25 保持排除（遵守单一假设）；
-  - **实机验收**：角色 9 进游戏后，身旁宠物正常跟随；装备栏（F6）宠物槽显示宠物图标与预览，槽位正常闭环。
-  - **测试**：`entry_userinfo_test.go` 钉死宠物段偏移与 present 取值；`appearance_test.go` 覆盖两条 mode-0 出口；`detail_equipment_test.go` 覆盖宠物行与宠物装备行布局；`detail_avatar_test.go` 覆盖槽 26 进入 mode-1 且槽 12/47 不泄漏。`go test ./...`、`go vet ./...` 全绿。
 - 重登装备升级箭头修复（next47 闭环，实机确认）：重登进城后可穿装备 8 格全亮"↑更好装备"，换装/切图一次才恢复正确。
   - **根因**：登录序列从未下发 id-14 `equipment_slots_updated`（载荷携带 worn 槽位物品等级），客户端箭头"等级比较"分支缺数据而退化 → 全亮；换装自愈正因换装处理器补发该报文 ×2。前三轮报文镜像（NOTI23+24、list0+list3、CMD19、bag/worn/window/appearance 全镜像）均无效并保留在代码注释中。
   - **定位方法**：客户端静态逆向（SetGridOverlay 0x14500A050 唯一调用方、Query 0x145CDCA30 语义解出）→ frida 安全探针（只挂函数入口；证明画箭头时查询表已非零，走等级比较分支而非 NULL 分支）→ 服务端 events.jsonl 换装 vs 登录报文集差集，唯一缺失帧一次锁定。

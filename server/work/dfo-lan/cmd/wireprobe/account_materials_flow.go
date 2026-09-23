@@ -86,7 +86,7 @@ func accountMaterialRefreshPackets(m inventory.AccountMaterials, role storage.Ch
 	if e != nil {
 		return nil, e
 	}
-	bagBody, e := protocol.InventoryRestore(b.Rows())
+	bagBody, e := protocol.InventoryRestore(b.Rows(), b.Expansion)
 	if e != nil {
 		return nil, e
 	}

@@ -23,6 +23,8 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -65,8 +67,10 @@ func main() {
 	cera := flag.Int64("cera", 0, "cera adjustment; negative deducts and refuses to go below zero")
 	gold := flag.Uint64("gold", 0, "gold to add")
 	lootCatalog := flag.String("loot-catalog", "configs/loot.next25.json", "source stackable catalog")
+	itemIndex := flag.String("item-index", "", "stackable index supplementing the loot catalog (defaults to the items.index.json beside the loot catalog); the gateway loads the same file so hand-outs can reach items that are not monster drops, e.g. the Odyssey coins 10418036/10418035")
 	bagRules := flag.String("bag-rules", "configs/inventory.next29.json", "bag slot policy")
-	equipCatalog := flag.String("equipment-catalog", "configs/equipment.current35.json", "source equipment catalog")
+	equipCatalog := flag.String("equipment-catalog", "configs/equipment.current37.json", "source equipment catalog")
+	fullEquipment := flag.String("equipment-full-catalog", "configs/equipment-full", "indexed full wear catalog prefix (equipment-full.index.json/.data); the base catalog only carries a few thousand rows")
 	history := flag.Bool("history", false, "print this account's recorded grants and exit")
 	balance := flag.Bool("balance", false, "print this account's cera balance and exit")
 	var items itemList
@@ -128,19 +132,11 @@ func main() {
 		if *character == 0 {
 			log.Fatal("gold and items need -character")
 		}
-		c, e := catalog.LoadLoot(*lootCatalog)
+		awarder, e := buildAwarder(*lootCatalog, *itemIndex, *bagRules, *equipCatalog, *fullEquipment)
 		if e != nil {
 			log.Fatal(e)
 		}
-		rules, e := inventory.LoadBagRules(*bagRules)
-		if e != nil {
-			log.Fatal(e)
-		}
-		gear, e := inventory.LoadEquipmentCatalog(*equipCatalog, c.Source.Checksum)
-		if e != nil {
-			log.Fatal(e)
-		}
-		service.Awarder = &inventory.Awarder{Catalog: c, Rules: rules, Equipment: gear}
+		service.Awarder = awarder
 	}
 
 	receipt, applied, e := service.Apply(ctx, storage.Grant{
@@ -160,4 +156,68 @@ func main() {
 		fmt.Println("\nA character that is logged in right now keeps its in-memory bag and")
 		fmt.Println("balance until it re-enters, so re-select the character to see this.")
 	}
+}
+
+// buildAwarder loads every catalog a hand-out is validated against.
+//
+// It mirrors the gateway (cmd/wireprobe/main.go): the loot catalog only models
+// monster drops, so anything obtainable another way — Odyssey coins, quest and
+// shop stackables — has to be supplemented from the same items index the gateway
+// loads. Awarder.Grant picks the stackable or the equipment path by asking
+// whether the template's Kind is "stackable", and a template missing from the
+// catalog answers "" — so without this step such a hand-out falls into the
+// equipment branch and dies with "invalid equipment award".
+//
+// itemIndex may be empty, in which case the index is looked for next to the loot
+// catalog and then in configs/. Passing an explicit path that does not exist, or
+// an index that fails to load, is fatal: silently handing out from a half-loaded
+// catalog is worse than refusing.
+func buildAwarder(lootCatalog, itemIndex, bagRules, equipCatalog, fullEquipment string) (*inventory.Awarder, error) {
+	c, err := catalog.LoadLoot(lootCatalog)
+	if err != nil {
+		return nil, err
+	}
+
+	indexPath := itemIndex
+	if indexPath == "" {
+		if cand := filepath.Join(filepath.Dir(lootCatalog), "items.index.json"); fileExists(cand) {
+			indexPath = cand
+		} else if cand := filepath.Join("configs", "items.index.json"); fileExists(cand) {
+			indexPath = cand
+		}
+	}
+	if indexPath != "" {
+		if err := c.SupplementStackables(indexPath); err != nil {
+			return nil, fmt.Errorf("supplement stackables from %s: %w", indexPath, err)
+		}
+		log.Printf("supplemented stackable catalog from %s (total items: %d)", indexPath, len(c.Items))
+	} else {
+		log.Printf("warning: no items index found; only monster drop templates can be handed out")
+	}
+
+	rules, err := inventory.LoadBagRules(bagRules)
+	if err != nil {
+		return nil, err
+	}
+	gear, err := inventory.LoadEquipmentCatalog(equipCatalog, c.Source.Checksum)
+	if err != nil {
+		return nil, err
+	}
+	// 基础装备目录只有几千行（configs/equipment.current37.json），源里绝大多数装备
+	// 在 full 索引里。和网关一样挂上它，否则 GM 连一件普通上衣都发不出去：实机
+	// 2026-09-23 发 100050791 得到 "equipment definition missing"。
+	if fullEquipment != "" {
+		full, err := inventory.OpenFullEquipmentCatalog(fullEquipment, c.Source.Checksum)
+		if err != nil {
+			return nil, err
+		}
+		gear.Full = full
+		log.Printf("attached full wear catalog: %d records", len(full.Records))
+	}
+	return &inventory.Awarder{Catalog: c, Rules: rules, Equipment: gear}, nil
+}
+
+func fileExists(p string) bool {
+	info, err := os.Stat(p)
+	return err == nil && !info.IsDir()
 }

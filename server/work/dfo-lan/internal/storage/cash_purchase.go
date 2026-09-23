@@ -140,6 +140,7 @@ func (s *Store) migrateCoinItems(ctx context.Context) error {
 			ExpireTime uint32 `json:"expire_time,omitempty"`
 		}
 		type bagStruct struct {
+			Expansion byte            `json:"expansion,omitempty"`
 			Version   string          `json:"version"`
 			Gold      uint32          `json:"gold"`
 			Coin      uint32          `json:"coin,omitempty"`
@@ -236,6 +237,7 @@ func (s *Store) migratePackagePlaceholders(ctx context.Context) error {
 			ExpireTime uint32 `json:"expire_time,omitempty"`
 		}
 		type bagStruct struct {
+			Expansion byte            `json:"expansion,omitempty"`
 			Version   string          `json:"version"`
 			Gold      uint32          `json:"gold"`
 			Items     []bagItem       `json:"items"`
