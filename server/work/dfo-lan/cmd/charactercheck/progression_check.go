@@ -17,6 +17,9 @@ func progressionCheck(ctx context.Context, s, reopened *storage.Store, role stor
 	if e := s.MigrateCharacterEvents(ctx); e != nil {
 		return e
 	}
+	if e := s.MigrateCharacterNotices(ctx); e != nil {
+		return e
+	}
 	c, e := catalog.LoadProgression("configs/progression.next25.json")
 	if e != nil {
 		return e

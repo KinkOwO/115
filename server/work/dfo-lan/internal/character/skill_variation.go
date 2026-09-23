@@ -15,6 +15,26 @@ type SkillVariationState struct {
 	Options    []protocol.SkillVariation `json:"options,omitempty"`
 }
 
+// variationUnlocked is the single VP-panel gate: the third awakening alone
+// unlocks Skill Evolve/Enhance. Level never participates — a character that
+// awakened at 100 and has not reached the cap yet must still own the panel.
+func variationUnlocked(state *State) bool {
+	return state.Awakening == 3
+}
+
+// activeEvolutions counts the Evolve rows that actually consume a VP point,
+// mirroring the remaining-credit arithmetic in
+// protocol.SkillPurchaseVariations.
+func activeEvolutions(options []protocol.SkillVariation) int {
+	n := 0
+	for _, v := range options {
+		if v.ID != 0 && v.Choice >= 1 && v.Choice <= 2 {
+			n++
+		}
+	}
+	return n
+}
+
 // fillVariationSlots pads a VP block to the fixed wire width: three Enhance
 // (intension) rows and five Evolve (option) rows. The client renders whatever
 // it decodes, so a third-awakened character must always receive the whole
@@ -35,7 +55,7 @@ func (s *Service) applyVariations(job byte, state *State, known map[uint16]byte,
 		// The VP panel is unlocked by the third awakening alone. It used to
 		// require level 115 as well, which refused every character that
 		// awakened at 100 and had not reached the cap yet.
-		if state.Awakening != 3 {
+		if !variationUnlocked(state) {
 			return fmt.Errorf("variation unlock progression not satisfied")
 		}
 		v.Preset = req.Preset
@@ -104,7 +124,7 @@ func (s *Service) VariationRestore(role storage.Character) ([]byte, error) {
 	}
 	// Below the third awakening the client has no VP panel, so it must not
 	// receive a variation block at all.
-	if st.Awakening != 3 {
+	if !variationUnlocked(&st) {
 		return nil, nil
 	}
 	v := st.SkillVariations[0]
@@ -208,7 +228,7 @@ func (s *Service) resetAutoState(ctx context.Context, cur storage.Character, st 
 		st.LearnedSkills[tree] = next
 		st.SkillSlots[tree] = map[uint16]uint16{}
 	}
-	if st.Awakening == 3 {
+	if variationUnlocked(st) {
 		v := st.SkillVariations[tree]
 		if mask&2 != 0 || mask&4 != 0 {
 			if mask&2 != 0 {
@@ -250,4 +270,59 @@ func (s *Service) skillFloor(role storage.Character, st State, tree int) (map[ui
 		}
 	}
 	return floor, nil
+}
+
+// ReconcileTechniquePoints repairs the VP ledger of characters that reached
+// the third awakening before the grant/backfill existed. The grant only fires
+// at the awakening instant, so an already-awakened save that shows 5 points in
+// the panel still carries a zero on disk — one ordinary Learn response then
+// clears the panel. This is the login-time repair: balance = 5 − Evolve
+// selections, and it is a no-op (never touches any other field) when the
+// ledger already matches.
+func (s *Service) ReconcileTechniquePoints(ctx context.Context, role storage.Character) (storage.Character, bool, error) {
+	var state State
+	if e := json.Unmarshal(role.State, &state); e != nil {
+		return role, false, e
+	}
+	if !variationUnlocked(&state) {
+		return role, false, nil
+	}
+	want := uint16(5)
+	if n := activeEvolutions(state.SkillVariations[0].Options); n <= 5 {
+		want = uint16(5 - n)
+	}
+	if state.TechniquePoints[0] == want {
+		return role, false, nil
+	}
+	// The event key carries the target balance so a pre-awakening login can
+	// never poison the key that a later awakening still needs.
+	key := fmt.Sprintf("technique-points-reconcile-v1:%d:want-%d", role.ID, want)
+	saved, backfilled, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, "technique-points-reconcile-v1", func(cur storage.Character) (json.RawMessage, json.RawMessage, error) {
+		var st State
+		if e := json.Unmarshal(cur.State, &st); e != nil {
+			return nil, nil, e
+		}
+		if !variationUnlocked(&st) {
+			return cur.State, nil, nil
+		}
+		want := uint16(5)
+		if n := activeEvolutions(st.SkillVariations[0].Options); n <= 5 {
+			want = uint16(5 - n)
+		}
+		if st.TechniquePoints[0] == want {
+			return cur.State, nil, nil
+		}
+		st.TechniquePoints[0] = want
+		p, e := mergeSkillState(cur.State, st)
+		if e != nil {
+			return nil, nil, e
+		}
+		receipt, _ := json.Marshal(map[string]any{"technique_points": want, "source": "reconcile"})
+		return p, receipt, nil
+	})
+	if e != nil {
+		return role, false, e
+	}
+	saved.WireID = role.WireID
+	return saved, backfilled, nil
 }

@@ -149,11 +149,25 @@ func (s *Service) ApplyAwakening(role storage.Character, stage byte) (json.RawMe
 		}
 	}
 	state.Awakening = stage
+	// The third awakening materializes the Skill Evolve/Enhance pool: a fixed
+	// 5-point Evolve ledger and the fixed slot layout (3 Enhance rows + 5
+	// Evolve rows). Without this the panel reads 0 and a later ordinary Learn
+	// response (id29 with an empty persisted block) clears it again.
+	if stage == 3 {
+		state.TechniquePoints[0] = 5
+		for i := range state.SkillVariations {
+			fillVariationSlots(&state.SkillVariations[i])
+		}
+	}
 	var fields map[string]json.RawMessage
 	if err := json.Unmarshal(role.State, &fields); err != nil {
 		return nil, err
 	}
 	fields["awakening"], _ = json.Marshal(state.Awakening)
 	fields["learned_skills"], _ = json.Marshal(state.LearnedSkills)
+	if stage == 3 {
+		fields["technique_points"], _ = json.Marshal(state.TechniquePoints)
+		fields["skill_variations"], _ = json.Marshal(state.SkillVariations)
+	}
 	return json.Marshal(fields)
 }

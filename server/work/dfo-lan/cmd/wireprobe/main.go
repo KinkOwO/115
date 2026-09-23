@@ -22,6 +22,7 @@ import (
 	"dfolan/internal/quest"
 	"dfolan/internal/storage"
 	"dfolan/internal/world"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"flag"
@@ -322,6 +323,11 @@ func main() {
 		if e = s.MigrateCharacterEvents(ctx); e != nil {
 			log.Fatal(e)
 		}
+		// Per-character read-notice ledger (NOTI402/426) backs the teaching
+		// frame suppression for third-awakened characters.
+		if e = s.MigrateCharacterNotices(ctx); e != nil {
+			log.Fatal(e)
+		}
 		if e = s.MigrateMailbox(ctx); e != nil {
 			log.Fatal(e)
 		}
@@ -367,6 +373,9 @@ func main() {
 				log.Fatal(e)
 			}
 			if e = s.MigrateCharacterEvents(ctx); e != nil {
+				log.Fatal(e)
+			}
+			if e = s.MigrateCharacterNotices(ctx); e != nil {
 				log.Fatal(e)
 			}
 			if e = s.MigrateSkillLocks(ctx); e != nil {
@@ -474,6 +483,9 @@ func main() {
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		e = characters.Store.MigrateCharacterEvents(ctx)
+		if e == nil {
+			e = characters.Store.MigrateCharacterNotices(ctx)
+		}
 		if e == nil {
 			e = characters.Store.MigrateSkillLocks(ctx)
 		}
@@ -1585,7 +1597,7 @@ func main() {
 				}
 				continue
 			}
-			if characters != nil && bootstrapped && (frame.ID == 28 || frame.ID == 29 || frame.ID == 483) {
+			if characters != nil && bootstrapped && (frame.ID == 28 || frame.ID == 29 || frame.ID == 483 || frame.ID == 2347) {
 				if !verified {
 					continue
 				}
@@ -1600,6 +1612,80 @@ func main() {
 					}
 					event(map[string]any{"kind": packet.Name, "id": packet.ID, "character_id": selectedCharacterID, "plain_hex": hex.EncodeToString(packet.Payload)})
 				}
+				continue
+			}
+			// Teaching/notice read reports. CMD469 is tree 1 (INFORM_NOTICE,
+			// payload = u32 notice id); CMD495 is tree 2 (INFORM_NOTICE_2ND)
+			// with two shapes: the bulletin-board opcode 0x3e (62) and the
+			// teaching frame's (u32 id, u8 value). 62 doubles as the
+			// "player chose Manual Setup" mark, so persisting it here is what
+			// stops the third-awakening teaching frame from re-popping once the
+			// guide has been answered. Both are acknowledged with {1,0}.
+			if characters != nil && bootstrapped && selectedCharacterID != 0 && (frame.ID == 469 || frame.ID == 495) {
+				if !verified {
+					continue
+				}
+				if worldState == nil || worldState.role.ID != selectedCharacterID {
+					event(map[string]any{"kind": "notice_seen_rejected", "reason": "character selection mismatch", "character_id": selectedCharacterID})
+					continue
+				}
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				var persistErr error
+				switch frame.ID {
+				case 469:
+					if len(plaintext) < 4 {
+						persistErr = fmt.Errorf("short notice-seen report")
+						break
+					}
+					nid := binary.LittleEndian.Uint32(plaintext[:4])
+					if nid > 255 {
+						persistErr = fmt.Errorf("notice id out of wire range")
+						break
+					}
+					persistErr = characters.Store.MarkCharacterNotice(ctx, developmentAccount, selectedCharacterID, 1, uint16(nid), true)
+					if persistErr == nil {
+						event(map[string]any{"kind": "notice_seen_persisted", "character_id": selectedCharacterID, "tree": 1, "notice_id": nid})
+					}
+				case 495:
+					if len(plaintext) >= 4 && binary.LittleEndian.Uint32(plaintext[:4]) == 0x3e {
+						// Bulletin-board opcode 62. Persisting 62 into tree 2
+						// also covers the Manual Setup teaching mark; the
+						// season-5 Anton quest chain (pre-req 3223 -> NPC15
+						// 3226) is a separate flow and is not implemented here.
+						persistErr = characters.Store.MarkCharacterNotice(ctx, developmentAccount, selectedCharacterID, 2, 62, true)
+						if persistErr == nil {
+							event(map[string]any{"kind": "notice_2nd_persisted", "character_id": selectedCharacterID, "notice_id": 62})
+						}
+						break
+					}
+					if len(plaintext) < 5 {
+						persistErr = fmt.Errorf("short notice-seen report")
+						break
+					}
+					nid := binary.LittleEndian.Uint32(plaintext[:4])
+					value := plaintext[4]
+					if nid > 255 {
+						persistErr = fmt.Errorf("notice id out of wire range")
+						break
+					}
+					persistErr = characters.Store.MarkCharacterNotice(ctx, developmentAccount, selectedCharacterID, 2, uint16(nid), value != 0)
+					if persistErr == nil {
+						if value != 0 {
+							event(map[string]any{"kind": "notice_2nd_seen_persisted", "character_id": selectedCharacterID, "notice_id": nid})
+						} else {
+							event(map[string]any{"kind": "notice_2nd_seen_removed", "character_id": selectedCharacterID, "notice_id": nid})
+						}
+					}
+				}
+				cancel()
+				if persistErr != nil {
+					event(map[string]any{"kind": "notice_seen_rejected", "character_id": selectedCharacterID, "reason": persistErr.Error()})
+					continue
+				}
+				if e := sendPayload(1, frame.ID, []byte{1, 0}); e != nil {
+					return
+				}
+				event(map[string]any{"kind": "notice_seen_ack", "character_id": selectedCharacterID, "id": frame.ID})
 				continue
 			}
 			if worldState != nil && bootstrapped && frame.ID == 18 {
@@ -2141,6 +2227,23 @@ func main() {
 				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 				role, e := characters.Select(ctx, developmentAccount, plaintext)
 				cancel()
+				// Legacy third-awakened saves predate the 5-point VP grant: the
+				// panel may show 5 points while the ledger still reads zero, and
+				// one ordinary Learn response then clears it. Reconcile on
+				// selection; the repair is a no-op once the ledger matches.
+				if characters != nil {
+					ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+					reconciled, backfilled, reconcileErr := characters.ReconcileTechniquePoints(ctx, role)
+					cancel()
+					if reconcileErr != nil {
+						event(map[string]any{"kind": "technique_points_reconcile_pending", "character_id": role.ID, "reason": reconcileErr.Error()})
+					} else {
+						role = reconciled
+						if backfilled {
+							event(map[string]any{"kind": "technique_points_reconciled", "character_id": role.ID})
+						}
+					}
+				}
 				if e != nil {
 					event(map[string]any{"kind": "select_rejected", "error": e.Error()})
 					continue
@@ -2444,6 +2547,26 @@ func main() {
 				plan := entryPayloads{Select: payload, Basic: basic, Addition: addition, Vault: vaultPayload, UserArea: userArea, Area: areaPayload, Fatigue: fatiguePayload, AccountOptions: accountOptions}
 				plan.SecondaryVault = secondaryVaultPayload
 				plan.AccountVault = accountVaultPayload
+				// Read-notice ledger for NOTI402 (tree 1) and NOTI426 (tree 2).
+				// Without it the client re-pops the third-awakening teaching
+				// frame on every login; a read failure leaves the frames unset,
+				// matching the pre-fix behavior.
+				if characters != nil {
+					noticeCtx, noticeCancel := context.WithTimeout(context.Background(), 5*time.Second)
+					noticeTree1, t1Err := characters.Store.CharacterNoticeSeen(noticeCtx, developmentAccount, role.ID, 1)
+					noticeTree2, t2Err := characters.Store.CharacterNoticeSeen(noticeCtx, developmentAccount, role.ID, 2)
+					noticeCancel()
+					if t1Err == nil {
+						plan.InformNotice = protocol.InformNoticeSeen(noticeTree1)
+					} else {
+						event(map[string]any{"kind": "notice_seen_restore_error", "character_id": role.ID, "tree": 1, "reason": t1Err.Error()})
+					}
+					if t2Err == nil {
+						plan.InformNotice2nd = protocol.InformNoticeSeen(noticeTree2)
+					} else {
+						event(map[string]any{"kind": "notice_seen_restore_error", "character_id": role.ID, "tree": 2, "reason": t2Err.Error()})
+					}
+				}
 				// Introduce the players already standing here before the area list that
 				// places them: the client only places actors it already knows.
 				if worldState != nil {

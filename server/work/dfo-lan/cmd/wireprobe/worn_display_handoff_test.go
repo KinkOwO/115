@@ -47,4 +47,25 @@ func TestHandoffWornVisualsAfterEntry(t *testing.T) {
 	if last := locked[len(locked)-1]; last.Kind != 0 || last.ID != 2827 {
 		t.Fatal("the character option block must be the final entry frame")
 	}
+	// Weapon-toast fix (20260923, attempt 1/3): the id-14 worn rows and the
+	// worn-window refresh must also be emitted before the NOTI24 AREA_USERS
+	// frame, so the 38250 "Weapon not equipped." refresh chain sees slot 12
+	// installed. The after-barrier copies remain for the upgrade arrows.
+	pre := entryPayloads{WornSlots: []byte{3, 0}, WornUpdate: []byte{3, 1, 0}}.packets()
+	preWorn, preSlot, preWin, area := -1, -1, -1, -1
+	for i, q := range pre {
+		switch q.Name {
+		case "worn_equipment_restored":
+			preWorn = i
+		case "equipment_slots_updated_entry_prelude":
+			preSlot = i
+		case "worn_equipment_window_refreshed_entry_prelude":
+			preWin = i
+		case "town_entry_probe_sent":
+			area = i
+		}
+	}
+	if preWorn < 0 || preSlot < 0 || preWin < 0 || area < 0 || !(preWorn < preSlot && preSlot < preWin && preWin < area) {
+		t.Fatal("id-14 prelude frames must sit after the worn restore and before NOTI24 area-users")
+	}
 }
