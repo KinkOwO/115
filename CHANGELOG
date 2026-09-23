@@ -1,6 +1,10 @@
 # CHANGELOG
 
 ## 2026-09-23
+- 补全 !22 的金库升级链路：角色金库先发送扩容通知再恢复快照，即时刷新锁格；金库 2 使用独立存档并接通 16 档点券升级，保留原物品期限及完整装备实例。
+- 接通账号金库材料开通、普通物品存取、金币与 39 档点券扩容；按账号保存容量及物品，扣费、扩容、回执同事务提交。金币升级至 56 格，点券升级至 320 格，费用逐项对照 PVF 和商城源表；重放不重复扣费，不覆盖旧金库存档。
+- 本次为 16efdfa 的金库专题移植；源分支日志确认账号金库开通与跨角色容量恢复，其他档位及存取边界未声明全部实机验收，移植分支待验证。
+- 移植验证：金库涉及的 wireprobe、cashshop、inventory、storage、protocol 包测试及 go vet 通过。全量测试仅 TestAppearanceProbeCarriesCloneAndLookAvatars 失败（重复外观槽位 1）；在未修改的上游 bbfb316 已复现同样失败，本专题未修改装扮实现。
 - 修复普通 Avatar 与 Clone 同槽共存时的登录显示及实时脱下刷新：mode1 装备详情行在偏移 24 提供普通外观模板；脱下已穿戴 Clone 后，在原有装备刷新帧之后追加完整 mode1 `EntryAddition`，恢复客户端普通 Avatar 格子关联。未改存档格式或数据库结构。
   - **实机确认**：用户验证重登后普通 Avatar 与 Clone 分页分别显示正确；脱下 Clone 后普通 Avatar 同槽格子保留，Clone 页可正常穿脱。用户确认正常。
   - **验证**：`go test ./...`、`go vet ./...` 通过。实现与完整证据链见 `server/work/dfo-lan/docs/protocol/avatar-clone-coexistence-candidate.md`。

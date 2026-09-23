@@ -23,6 +23,15 @@ func (s *equipmentSession) handle(service *inventory.WearService, w *worldSessio
 	if e != nil {
 		return nil, e
 	}
+	if r.SourceList == 12 || r.DestinationList == 12 {
+		if !s.initialized {
+			if _, e = rand.Read(s.nonce[:]); e != nil {
+				return nil, e
+			}
+			s.initialized = true
+		}
+		return w.moveAccountVault(service, r, fmt.Sprintf("account-vault-move:%x:%x", s.nonce, sha256.Sum256(raw)))
+	}
 	// CMD19 carries every bag move, not only equipment. A move involving
 	// the personal vault (list 2) belongs to the vault path. A stack going onto
 	// the quick-use belt belongs to the stackable path; anything neither
