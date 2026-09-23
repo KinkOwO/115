@@ -41,10 +41,16 @@
 
 ## 3. 「奥德赛角色」这个猜测在数据侧站不住
 
+> **⚠️ 本节已被 `next74` 更正。** 下面第 2 行原来写"任务 23099 没有前置任务"是**错的** ——
+> 我只读了 JSON 里的结构化字段 `prerequisites`（它是 null），**漏了脚本体里的
+> `[pre required quest]` cell**（那才是真源，`internal/catalog/quests.go:61` 就是读它的）。
+> 23099 的真实前置是 **23055**，往上还有一整棵树，见 `next74-legion-entry-prereq-chain.md`。
+> 保留下表是因为其余各行仍然成立（尤其是"没有 Odyssey 规则"这一条）。
+
 | 事实 | 证据 |
 | --- | --- |
 | 入口副本 `100005220` 绑任务是 `quests=[23099]` | `configs/dungeons.full.json` → `dungeons.100005220.mazes[0].quest = 23099` |
-| 任务 23099 **没有前置任务** | `configs/quests.generated.json` → `quests.23099.prerequisites = null` |
+| ~~任务 23099 没有前置任务~~ | ❌ **错**：结构化字段 `prerequisites=null` 不等于没有前置。真实前置见 `next74` |
 | 任务 23099 只要 **115 级 + 任意职业** | 同上：`minimum_level=115`、`maximum_level=10000`、`jobs=["[all]"]`；脚本体里 `[level] 115`、`[job] [all]`、`[grade] [epic]`、`[difficulty] G`、`[cant giveup] 1` |
 | 四个**阶段副本没有任务门禁** | `100004994/100004995/100005057/100005111/100005112` 全部 `quests=[0]` |
 | 所有末世录副本 `Odyssey=false` / `Tutorial=false` | 同上，`MinimumLevel=115`、`BasisLevel=145` |

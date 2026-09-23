@@ -444,6 +444,18 @@ with (
   item_shop = project / "configs/itemshop-candidate.json"
   if item_shop.exists():
    command += ["-item-shop", str(item_shop)]
+  # The compiled apocalypse.ctp table (legion / apocalypse): the phase clock,
+  # the four operation blocks, gate schedule, coin flag, rewards and duty
+  # skills. Same cwd rule as the catalogs above - the gateway runs with the
+  # project root as cwd, so the built-in relative default never resolves.
+  # Deliberately NOT behind .exists(): when the file is missing the server
+  # then logs the absolute path it tried, which separates a cwd problem from
+  # a missing-file problem. Live run 20260923_163225 hit exactly this - the
+  # relative default failed and every legion confirmation went unvalidated.
+  command += [
+   "-apocalypse-catalog",
+   str(project / "configs/apocalypse.generated.json"),
+  ]
   # Magic-seal unsealing (CMD393) rolls from the current random option rules;
   # the default relative path never resolves because the gateway's cwd is the
   # project root, so pass the absolute catalog like every other config.
