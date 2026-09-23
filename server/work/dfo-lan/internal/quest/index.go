@@ -153,6 +153,9 @@ func BuildIndex(c catalog.QuestCatalog) *Index {
 		case model == SingleReachRange:
 			e.Range, _ = ReachRange(d)
 			x.Positional = append(x.Positional, id)
+		case model == AlflyraReachNPC:
+			e.NPC, _ = AlflyraReachTarget(d)
+			x.Positional = append(x.Positional, id)
 		case model == SeekAndMeetNPC:
 			e.Seek, _ = SeekMeet(d)
 			e.NPC = e.Seek.NPC
