@@ -615,6 +615,19 @@ func main() {
 					wearCatalog.Full = full
 					wearService.Catalog = &wearCatalog
 					equipment.Full = full
+					// 宠物行的期限（181 字节行的偏移 56）要按脚本真值给「剩余秒数」：
+					// 客户端把它 ÷86400 渲染成「过期时间:N天」，填哨兵值会显示 24856 天。
+					inventory.SetCreaturePeriodSource(func(template uint32) (int32, bool) {
+						d, err := equipment.Definition(template)
+						if err != nil {
+							return 0, false
+						}
+						v, ok := d.Fields["[usable period]"]
+						if !ok || len(v) == 0 || v[0].Type != 0 {
+							return 0, false
+						}
+						return v[0].Value, true
+					})
 					log.Printf("separate wear catalog: %d records; original reward/drop catalog: %d", len(full.Records), len(equipment.Rows))
 				}
 			}
