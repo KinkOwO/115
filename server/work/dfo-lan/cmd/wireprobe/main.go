@@ -576,7 +576,11 @@ func main() {
 		if data.Source.Checksum != characters.Catalog.Source.Checksum {
 			log.Fatal("quest/character source versions differ")
 		}
-		questService = &quest.Service{Store: characters.Store, Catalog: data, Professions: characters.Catalog, Progression: progressionService}
+		var odysseyGrowth *catalog.OdysseyGrowth
+		if progressionService != nil {
+			odysseyGrowth = progressionService.Odyssey
+		}
+		questService = &quest.Service{Store: characters.Store, Catalog: data, Professions: characters.Catalog, Progression: progressionService, Odyssey: odysseyGrowth}
 		if *equipmentRewardFile != "" {
 			if lootService == nil {
 				log.Fatal("quest inventory requires the shared bag catalog")
@@ -2085,6 +2089,40 @@ func main() {
 					}
 					for _, err := range chapterPending {
 						event(map[string]any{"kind": "odyssey_chapter_reward_pending", "character_id": role.ID, "reason": err.Error()})
+					}
+					// 毕业转换（P3 子项 8/10）：满级奥德赛角色只在选角时转普通角色，
+					// 副本结算不做（会改变等级门槛、拒掉客户端通关后的移动）。
+					ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+					graduated, gradApplied, gradErr := progressionService.OdysseyGraduate(ctx, role)
+					if gradErr != nil {
+						event(map[string]any{"kind": "odyssey_graduation_pending", "character_id": role.ID, "reason": gradErr.Error()})
+					} else {
+						role = graduated
+						if gradApplied {
+							event(map[string]any{"kind": "odyssey_graduated", "character_id": role.ID})
+						}
+					}
+					// 毕业奖励盒：独立收据，满包只欠盒子、不阻碍毕业本身。
+					boxed, boxApplied, boxErr := progressionService.OdysseyGraduationReward(ctx, role)
+					cancel()
+					role = boxed
+					if boxApplied {
+						event(map[string]any{"kind": "odyssey_graduate_reward_granted", "character_id": role.ID})
+					}
+					if boxErr != nil {
+						event(map[string]any{"kind": "odyssey_graduate_reward_pending", "character_id": role.ID, "reason": boxErr.Error()})
+					}
+					// 主线整理（P3 子项 9）：按当前等级清除剧情任务行（幂等、
+					// 不改已有行），分支任务保持可达；仅登录分支执行。
+					if questService != nil && questService.Odyssey != nil {
+						ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+						cleared, branches, mainErr := questService.OdysseyMainline(ctx, role)
+						cancel()
+						if mainErr != nil {
+							event(map[string]any{"kind": "odyssey_mainline_pending", "character_id": role.ID, "reason": mainErr.Error()})
+						} else if cleared > 0 {
+							event(map[string]any{"kind": "odyssey_mainline_applied", "character_id": role.ID, "cleared": cleared, "branches": branches})
+						}
 					}
 				}
 				profile := *selectProbe

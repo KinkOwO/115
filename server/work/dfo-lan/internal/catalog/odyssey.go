@@ -1,12 +1,17 @@
 package catalog
 
 import (
+	"dfolan/internal/catalog/pvf"
 	"encoding/json"
 	"fmt"
 	"os"
 )
 
 const OdysseySource = "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80"
+
+// OdysseyGraduateRewardTemplate pins the [complete reward info] [reward]
+// template: the booster box a graduated character receives once.
+const OdysseyGraduateRewardTemplate uint32 = 10420561
 
 type OdysseyGrowth struct {
 	Source      string                  `json:"source"`
@@ -15,6 +20,12 @@ type OdysseyGrowth struct {
 	ClearLevels map[uint32]byte         `json:"-"`
 	EntryLevels map[uint32]byte         `json:"-"`
 	Gifts       map[byte]uint32         `json:"-"`
+	// Quests mirrors the [quest clear]/[remove clear quest]/[show quest]/
+	// [branch quest] tables of the same .etc file (graduation mainline plan).
+	Quests *OdysseyQuests `json:"-"`
+	// GraduateReward is the [complete reward info] [reward] template: the
+	// booster box granted once a character graduates (P3 subitem 8).
+	GraduateReward uint32 `json:"-"`
 }
 
 func LoadOdysseyGrowth(path string) (*OdysseyGrowth, error) {
@@ -78,5 +89,57 @@ func LoadOdysseyGrowth(path string) (*OdysseyGrowth, error) {
 			return nil, fmt.Errorf("missing Odyssey gift script")
 		}
 	}
+	// Graduation reward: the [complete reward info] [reward] template must be
+	// a real [booster info] box script, distinct from every level gift.
+	graduate, e := sectionRewardTemplate(r.Definition.Cells, "[complete reward info]")
+	if e != nil {
+		return nil, e
+	}
+	r.GraduateReward = graduate
+	script, ok := r.Items[graduate]
+	if !ok || script.SHA256 == "" {
+		return nil, fmt.Errorf("missing Odyssey graduation reward script %d", graduate)
+	}
+	if !hasToken(script.Cells, "[booster info]") {
+		return nil, fmt.Errorf("Odyssey graduation reward %d is not a [booster info] box", graduate)
+	}
+	for _, gift := range r.Gifts {
+		if gift == graduate {
+			return nil, fmt.Errorf("Odyssey graduation reward duplicates level gift %d", gift)
+		}
+	}
+	// Quest tables: parsed and pinned against the source shape; see
+	// odyssey_quests.go for the exact assertions.
+	r.Quests, e = loadOdysseyQuests(r.Definition.Cells)
+	if e != nil {
+		return nil, e
+	}
 	return &r, nil
+}
+
+// sectionRewardTemplate extracts the template id that follows the [reward]
+// tag inside the named section.
+func sectionRewardTemplate(cells []pvf.Token, name string) (uint32, error) {
+	start, end, ok := findSectionBounds(cells, name)
+	if !ok {
+		return 0, fmt.Errorf("missing Odyssey section %s", name)
+	}
+	for i := start + 1; i < end; i++ {
+		if cells[i].Type == 3 && cells[i].Text == "[reward]" {
+			if i+1 >= end || cells[i+1].Type != 0 || cells[i+1].Value <= 0 {
+				return 0, fmt.Errorf("invalid [reward] inside %s", name)
+			}
+			return uint32(cells[i+1].Value), nil
+		}
+	}
+	return 0, fmt.Errorf("missing [reward] inside %s", name)
+}
+
+func hasToken(cells []pvf.Token, text string) bool {
+	for _, c := range cells {
+		if c.Type == 3 && c.Text == text {
+			return true
+		}
+	}
+	return false
 }
