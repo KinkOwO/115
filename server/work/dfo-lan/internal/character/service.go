@@ -181,6 +181,10 @@ func (s *Service) ListWithFatigue(ctx context.Context, account int64, fatigue *F
 		if e != nil {
 			return nil, e
 		}
+		row.Fame, e = s.EquipmentFame(c.State)
+		if e != nil {
+			return nil, e
+		}
 		if fatigue != nil {
 			fp, err := fatigue.State(ctx, account, c.ID, now)
 			if err != nil {
@@ -267,7 +271,12 @@ func (s *Service) EntryBasicProbe(role storage.Character, channelContext [2]byte
 	// present. It is read before any appearance clearing, so a creature
 	// survives DisableActorAppearance exactly like the native client.
 	creatureItemID, creatureName := wornCreature(role.State)
+	fame, err := s.EquipmentFame(role.State)
+	if err != nil {
+		return nil, err
+	}
 	return protocol.UserInfoBasicProbe(protocol.EntryBasicProbe{
+		Fame:          fame,
 		ActorServerID: role.WireID, Context: channelContext,
 		Character: protocol.CharacterRow{Name: role.Name, Profession: role.Profession, Advancement: advancement, Level: state.Level, Odyssey: odyssey, Equipment: equipment, CreatureItemID: creatureItemID, CreatureName: creatureName},
 		// The explicit per-slot block must stay empty on the entry path. A
@@ -323,7 +332,12 @@ func (s *Service) AppearanceProbe(role storage.Character, channelContext [2]byte
 	if err != nil {
 		return nil, err
 	}
+	fame, err := s.EquipmentFame(role.State)
+	if err != nil {
+		return nil, err
+	}
 	return protocol.UserInfoBasicProbe(protocol.EntryBasicProbe{
+		Fame:          fame,
 		ActorServerID: role.WireID, Context: channelContext,
 		Character:  protocol.CharacterRow{Name: role.Name, Profession: role.Profession, Advancement: advancement, Level: state.Level, CreatureItemID: creatureItemID, CreatureName: creatureName},
 		Appearance: rows,

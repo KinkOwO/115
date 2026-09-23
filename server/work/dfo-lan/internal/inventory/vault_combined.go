@@ -93,7 +93,7 @@ func (s *VaultService) TransferCombined(role storage.Character, state storage.Va
 		if item.IsEquip {
 			gear = append(gear, item)
 		} else {
-			stacks = append(stacks, BagItem{Slot: item.Slot, Template: item.Template, Amount: item.Amount})
+			stacks = append(stacks, BagItem{Slot: item.Slot, Template: item.Template, Amount: item.Amount, ExpireTime: item.ExpireTime})
 		}
 	}
 	state.Items, err = json.Marshal(stacks)
