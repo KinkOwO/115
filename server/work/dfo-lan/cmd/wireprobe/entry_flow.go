@@ -25,21 +25,23 @@ type entryPayloads struct {
 	// snapshot. It must be delivered before the list0 inventory snapshot so
 	// the client harvest (sub_145ADC2A0) moves the fixed slots 363..379 into
 	// the soul-storage pipeline.
-	AccountMaterials                                                          []byte
-	AvailableQuests                                                           []byte
-	Worn                                                                      []byte
-	AccountOptions                                                            []byte
+	AccountMaterials []byte
+	SecondaryVault   []byte
+	AccountVault     []byte
+	AvailableQuests  []byte
+	Worn             []byte
+	AccountOptions   []byte
 	// WornSlots is the id-14 per-slot update frame for the full worn set
 	// (space 3), same builder the equipment-move path uses. The live
 	// 20260921 probe timeline showed the equip-change heal always carries
 	// equipment_slots_updated frames while entry never does, and the
 	// arrow-up overlay reads per-slot levels fed by exactly this channel.
-	WornSlots                           []byte
-	WornUpdate                          []byte
-	Avatars, AvatarReady, Creatures, CreatureList, CreatureGrowth             []byte
-	CinematicSkips                                                            []byte
-	SkillVariations                                                           []byte
-	OdysseyProgress                                                           []byte
+	WornSlots                                                     []byte
+	WornUpdate                                                    []byte
+	Avatars, AvatarReady, Creatures, CreatureList, CreatureGrowth []byte
+	CinematicSkips                                                []byte
+	SkillVariations                                               []byte
+	OdysseyProgress                                               []byte
 	// SkillLocks is the NOTI2827 character option block that restores the
 	// player's locked skills. It is sent last: the forwarded evidence for this
 	// client reports a crash on town entry when 2827 arrives early in the frame
@@ -60,6 +62,14 @@ func (p entryPayloads) packets() []outboundPacket {
 		{"entry_addition_sent", 0, 2, p.Addition},
 		{"entry_skills_sent", 0, 19, p.Skills},
 		{"vault_initialized", 0, 13, p.Vault},
+	}
+	if len(p.SecondaryVault) > 0 {
+		out = append(out, outboundPacket{"secondary_vault_initialized", 0, 13, p.SecondaryVault})
+	}
+	if len(p.AccountVault) > 0 {
+		out = append(out, outboundPacket{"账号金库登录恢复", 0, 13, p.AccountVault})
+	}
+	out = append(out, []outboundPacket{
 		{"account_materials_restored", 0, 13, p.AccountMaterials},
 		{"inventory_restored", 0, 13, p.Inventory},
 		// Initialize list 1 empty. The client accepts authoritative avatar rows
@@ -67,7 +77,7 @@ func (p entryPayloads) packets() []outboundPacket {
 		{"avatar_inventory_initialized", 0, 13, p.Avatars},
 		{"worn_equipment_restored", 0, 13, p.Worn},
 		{"user_area_sent", 0, 23, p.UserArea},
-	}
+	}...)
 	// The players already in the scene have to be introduced before the area
 	// list that places them. The client creates an actor from USERINFO and only
 	// places actors it already knows, so a list arriving first is dropped: the

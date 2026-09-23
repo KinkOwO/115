@@ -21,6 +21,8 @@ type CashOrder struct {
 	Source       string          `json:"source"`
 	Lines        []CashOrderLine `json:"lines"`
 	DeliveryMode string          `json:"delivery_mode,omitempty"`
+	// 零值沿用已发布的金库 1 订单摘要；45 为第二金库，12 为账号金库。
+	VaultSpace byte `json:"vault_space,omitempty"`
 }
 type CashOrderLine struct {
 	Product   uint32 `json:"product"`
@@ -50,6 +52,8 @@ type CashReceipt struct {
 	Premiums       []CashPremium   `json:"premiums,omitempty"`
 	CharacterState json.RawMessage `json:"character_state,omitempty"`
 	Vault          *VaultState     `json:"vault,omitempty"`
+	VaultSpace     byte            `json:"vault_space,omitempty"`
+	VaultGold      uint32          `json:"vault_gold,omitempty"`
 }
 
 func (o CashOrder) total() (uint64, error) {
@@ -355,11 +359,34 @@ func (s *Store) PurchaseCashToBag(ctx context.Context, o CashOrder, deliver func
 }
 
 func (s *Store) PurchaseCashVault(ctx context.Context, o CashOrder, upgrade func(VaultState) (VaultState, error)) (CashReceipt, bool, error) {
-	if upgrade == nil || o.DeliveryMode != "" {
+	if upgrade == nil || o.DeliveryMode != "" || (o.VaultSpace != 0 && o.VaultSpace != 45 && o.VaultSpace != 12) {
 		return CashReceipt{}, false, fmt.Errorf("invalid vault purchase")
 	}
 	o.DeliveryMode = "vault-upgrade-v1"
 	return s.purchaseCash(ctx, o, nil, nil, upgrade)
+}
+
+// 共用首档商品不携带金库编号。重放先沿用原订单目标；新请求依据
+// 金库 1 的服务器存档区分：8 格可升金库 1，达到 200 格才可升金库 2。
+// 真正扣款时仍在锁内重新校验档位，不能借此跳档或重复领取。
+func (s *Store) VaultPurchaseSpace(ctx context.Context, account, character int64, key string) (byte, error) {
+	var space byte
+	err := s.DB.QueryRow(ctx, `SELECT coalesce((request->>'vault_space')::integer,0) FROM cash_orders WHERE account_id=$1 AND character_id=$2 AND order_key=$3`, account, character, key).Scan(&space)
+	if err == nil {
+		return space, nil
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return 0, err
+	}
+	var slots uint16
+	err = s.DB.QueryRow(ctx, `SELECT v.slots FROM character_vaults v JOIN characters c ON c.id=v.character_id WHERE c.account_id=$1 AND c.id=$2 AND c.deleted_at IS NULL`, account, character).Scan(&slots)
+	if err != nil {
+		return 0, err
+	}
+	if slots >= 200 {
+		return 45, nil
+	}
+	return 0, nil
 }
 
 type CashPremiumActivation struct {
@@ -397,8 +424,29 @@ func (s *Store) purchaseCash(ctx context.Context, o CashOrder, deliver func(json
 		return receipt, false, e
 	}
 	var vault VaultState
+	var vaultGold uint32
+	vaultTable := "character_vaults"
 	if len(upgrades) > 0 {
-		if e = tx.QueryRow(ctx, `SELECT slots,items,config_version FROM character_vaults WHERE character_id=$1 FOR UPDATE`, o.Character).Scan(&vault.Slots, &vault.Items, &vault.ConfigVersion); e != nil {
+		if o.VaultSpace == 45 {
+			// 0x1469DC950：金库 1 的零基档位必须大于 11，即至少 200 格。
+			var primarySlots uint16
+			if e = tx.QueryRow(ctx, `SELECT slots FROM character_vaults WHERE character_id=$1 FOR UPDATE`, o.Character).Scan(&primarySlots); e != nil {
+				return receipt, false, e
+			}
+			if primarySlots < 200 {
+				return receipt, false, fmt.Errorf("金库 1 须达到 200 格才能升级金库 2")
+			}
+			vaultTable = "character_secondary_vaults"
+		}
+		if o.VaultSpace == 12 {
+			// 按账号锁定，与材料/金币升级及物品存取共用 account_vaults。
+			// 未开通时不创建免费容量，读不到存档即拒绝且不扣点券。
+			e = tx.QueryRow(ctx, `SELECT slots,items,gold FROM account_vaults WHERE account_id=$1 FOR UPDATE`, o.Account).Scan(&vault.Slots, &vault.Items, &vaultGold)
+			vault.ConfigVersion = version
+		} else {
+			e = tx.QueryRow(ctx, `SELECT slots,items,config_version FROM `+vaultTable+` WHERE character_id=$1 FOR UPDATE`, o.Character).Scan(&vault.Slots, &vault.Items, &vault.ConfigVersion)
+		}
+		if e != nil {
 			return receipt, false, e
 		}
 	}
@@ -418,6 +466,8 @@ func (s *Store) purchaseCash(ctx context.Context, o CashOrder, deliver func(json
 		if len(upgrades) > 0 {
 			receipt.CharacterState = state
 			receipt.Vault = &vault
+			receipt.VaultSpace = o.VaultSpace
+			receipt.VaultGold = vaultGold
 		}
 		return receipt, false, tx.Commit(ctx)
 	}
@@ -480,6 +530,8 @@ func (s *Store) purchaseCash(ctx context.Context, o CashOrder, deliver func(json
 		}
 		receipt.CharacterState = state
 		receipt.Vault = &next
+		receipt.VaultSpace = o.VaultSpace
+		receipt.VaultGold = vaultGold
 	}
 	if _, e = tx.Exec(ctx, `INSERT INTO cash_orders(account_id,order_key,character_id,digest,request,receipt) VALUES($1,$2,$3,$4,$5,'{}')`, o.Account, o.Key, o.Character, digest, raw); e != nil {
 		return receipt, false, e
@@ -493,7 +545,12 @@ func (s *Store) purchaseCash(ctx context.Context, o CashOrder, deliver func(json
 		}
 	}
 	if receipt.Vault != nil {
-		if _, e = tx.Exec(ctx, `UPDATE character_vaults SET slots=$2,updated_at=now() WHERE character_id=$1`, o.Character, receipt.Vault.Slots); e != nil {
+		if o.VaultSpace == 12 {
+			_, e = tx.Exec(ctx, `UPDATE account_vaults SET slots=$2,updated_at=now() WHERE account_id=$1`, o.Account, receipt.Vault.Slots)
+		} else {
+			_, e = tx.Exec(ctx, `UPDATE `+vaultTable+` SET slots=$2,updated_at=now() WHERE character_id=$1`, o.Character, receipt.Vault.Slots)
+		}
+		if e != nil {
 			return CashReceipt{}, false, e
 		}
 	}
