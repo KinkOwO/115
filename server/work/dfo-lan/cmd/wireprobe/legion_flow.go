@@ -29,6 +29,12 @@ type legionSession struct {
 	// operation was validated.
 	catalog *catalog.ApocalypseCatalog
 	clock   *legion.ApocalypseClock
+
+	// plan is the compiled description of the confirmed operation, kept so the
+	// end-of-run packets (P5) can report the reward tuple the table declares
+	// next to what the client announced. It is nil when no operation was
+	// confirmed or the catalog is not loaded.
+	plan *legion.RunPlan
 }
 
 // legionResult is one handled command: the packets to send plus the events that
@@ -47,6 +53,10 @@ type legionResult struct {
 //   - CMD2355 is dungeon-side. Its only caller (sub_14069B4E0) returns early
 //     unless world state == 3, and the packet is how a role change is announced
 //     while the run is in progress.
+//   - CMD2044 / CMD2046 are end-of-run signals and their call sites have not
+//     been read yet, so their side stays unestablished. They are accepted on
+//     either side and the arriving side is logged, which turns the first live
+//     run into the evidence instead of encoding a guess as a guard.
 //
 // Refusing a packet on the wrong side keeps a mid-run request from silently
 // interleaving with the town screens, and — because the reason is logged — makes
@@ -55,6 +65,8 @@ func sideOf(id uint16) string {
 	switch id {
 	case legion.CmdRoleSelect:
 		return "dungeon"
+	case legion.CmdFail, legion.CmdRewardEnd:
+		return "either"
 	default:
 		return "town"
 	}
@@ -67,15 +79,23 @@ func (s *legionSession) handle(w *worldSession, p []byte, id uint16) (legionResu
 		return legionResult{}, fmt.Errorf("legion requires a selected character")
 	}
 	inDungeon := w.activeDungeon != nil
-	switch sideOf(id) {
+	side := sideOf(id)
+	switch side {
 	case "dungeon":
 		if !inDungeon {
 			return legionResult{}, fmt.Errorf("legion opcode %d is sent inside the dungeon (world state 3), not in town", id)
 		}
-	default:
+	case "town":
 		if inDungeon {
 			return legionResult{}, fmt.Errorf("legion opcode %d is town-side and unavailable inside a dungeon", id)
 		}
+	}
+
+	// arrivingSide is reported by the end-of-run packets, whose side is not
+	// established yet: the first live run's log is what pins it down.
+	arrivingSide := "town"
+	if inDungeon {
+		arrivingSide = "dungeon"
 	}
 
 	switch id {
@@ -140,6 +160,7 @@ func (s *legionSession) handle(w *worldSession, p []byte, id uint16) (legionResu
 			return legionResult{}, err
 		}
 		s.session.EnterDungeon(request.Operation)
+		s.plan = plan
 		result := legionResult{Packets: []outboundPacket{{
 			Name: "legion_enter_ack",
 			// A zero result code is the client's "accepted": its handler only
@@ -203,9 +224,104 @@ func (s *legionSession) handle(w *worldSession, p []byte, id uint16) (legionResu
 				"role":         request.Role,
 			}},
 		}, nil
+	case legion.CmdFail:
+		request, err := legion.DecodeFail(p)
+		if err != nil {
+			return legionResult{}, err
+		}
+		if s.session == nil {
+			return legionResult{}, fmt.Errorf("legion fail before entering the channel (no CMD2043 yet)")
+		}
+		s.session.Fail(request.Argument)
+		// 8 bytes is what the client reads; its handler discards them.
+		return resultWithEvents(legionResult{Packets: []outboundPacket{{
+			Name:    "legion_fail_ack",
+			Kind:    1,
+			ID:      legion.CmdFail,
+			Payload: legion.FailAck(),
+		}}}, map[string]any{
+			"kind":          "legion_run_failed",
+			"character_id":  w.role.ID,
+			"argument":      request.Argument,
+			"arriving_side": arrivingSide,
+			"operation":     s.session.Operation,
+		}), nil
+	case legion.CmdRewardEnd:
+		request, err := legion.DecodeRewardEnd(p)
+		if err != nil {
+			return legionResult{}, err
+		}
+		if s.session == nil {
+			return legionResult{}, fmt.Errorf("legion reward end before entering the channel (no CMD2043 yet)")
+		}
+		note := map[string]any{
+			"kind":          "legion_run_reward_end",
+			"character_id":  w.role.ID,
+			"first":         request.First,
+			"second":        request.Second,
+			"flag":          request.Flag,
+			"arriving_side": arrivingSide,
+			"operation":     s.session.Operation,
+			"failed":        s.session.Failed,
+		}
+		// The table's own reward tuple is reported next to the client's signal
+		// so a live run shows both sides at once. It is not turned into granted
+		// items yet: the reward notification's payload layout (40x40 + 140x44
+		// bytes) is unresolved, which is registered as T5 in next64 §6.2.
+		if s.plan != nil {
+			note["table_reward_label"] = s.plan.RewardLabel
+			note["table_reward_values"] = s.plan.RewardValues
+			note["table_phase_seconds"] = s.plan.PhaseSeconds
+			note["table_total_seconds"] = s.plan.TotalSeconds
+		} else {
+			note["table_reward_label"] = nil
+			note["table_reward_values"] = nil
+		}
+		s.session.EndReward()
+		s.plan = nil
+		return resultWithEvents(legionResult{Packets: []outboundPacket{{
+			Name:    "legion_reward_end_ack",
+			Kind:    1,
+			ID:      legion.CmdRewardEnd,
+			Payload: legion.RewardEndAck(),
+		}}}, note), nil
 	default:
 		return legionResult{}, fmt.Errorf("legion opcode %d is not implemented yet", id)
 	}
+}
+
+// resultWithEvents attaches one event to a result. It exists so the packet
+// cases above read as "ack plus one note" instead of repeating the slice
+// literal.
+func resultWithEvents(result legionResult, note map[string]any) legionResult {
+	result.Events = append(result.Events, note)
+	return result
+}
+
+// abandonOnLeave closes a legion run when the player leaves the dungeon it was
+// running in (P6).
+//
+// It is a backstop, not the main path: the client normally announces the end of
+// a run itself through CMD2044 (fail) or CMD2046 (reward end). But a player who
+// simply walks out of the dungeon sends neither, and a session left marked as
+// entered would make the *next* CMD2354 look like it arrived before CMD2043 —
+// a confusing log line rather than a wrong answer, but exactly the kind of
+// thing that wastes a live session. Returns false when there is nothing to
+// close, so the caller does not emit an event about a run that never started.
+func (s *legionSession) abandonOnLeave(reason string, characterID int64) (map[string]any, bool) {
+	if s.session == nil || !s.session.Entered {
+		return nil, false
+	}
+	note := map[string]any{
+		"kind":         "legion_run_abandoned",
+		"character_id": characterID,
+		"reason":       reason,
+		"operation":    s.session.Operation,
+		"failed":       s.session.Failed,
+	}
+	s.session.Reset()
+	s.plan = nil
+	return note, true
 }
 
 // runPlan describes the confirmed operation from the compiled table. A nil plan

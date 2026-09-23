@@ -219,6 +219,40 @@ assign_wstr(out, v9);                      // 客户端读到 NUL
 
 ---
 
+### 6.4 NOTI2657 的分发链（**未闭环，但链条已画出**）
+
+`NOTI2657 LEGION_PHASE_CLEAR_TICK` 的 144 B 块走一条三级链，读它的人要注意
+**第二级不是"阶段子系统"本身**：
+
+```c
+// ① handler：从游标读 144 B（长度不够会崩，见 §3）
+sub_1424FDF70:
+    memset(buf, 0, 144);
+    sub_146EA0BE0(buf, 144);
+    return sub_142ABF650(qword_14E683C40, buf);
+
+// ② 派发：红黑树查找 + 虚调用（+312 是树根字段，node[5] 是对象）
+sub_142ABF650(a1, a2):
+    key  = sub_142AB29C0(a1);
+    node = rbtree_lower_bound(*(a1 + 312), key);
+    obj  = node[5];
+    if (obj) return (*(vtable_of(obj) + 1136))(obj, a2);   // slot 142
+
+// ③ 键的算法：返回 7/10/17/20/21/27/28 这类**小整数**，取自一个 locale/language 访问器
+sub_142AB29C0(a1):
+    switch (WORD1(GetLocaleT(...)[7].mbcinfo)) { case 8: 7; case 9: 10; ... }
+```
+
+**关键推断**：键不像玩家 id 或阶段号，像**语言/地区码** ⇒ `+312` 的 map 可能是
+「按语言分的处理器表」，`qword_14E683C40` 也可能是本地化消息分发器而不是阶段状态机。
+在解出 `vtable+1136` 那一端之前，**不要把 144 B 当阶段状态块使用**（服务端下发会喂错语义）。
+
+**已证否的探针思路**：全盘扫立即数 `0x470`（1136）或 `312` 定位类 —— 这两个值太常见，
+一次扫描命中数百个函数、解出几十个无关函数体，**信噪比极低**（本仓库踩过，见 §9）。
+正解是「查派发器的调用者」+「查全局的读者」，用结构关系缩小范围。
+
+---
+
 ## 7. MSVC 容器判别（读伪代码时很有用）
 
 | 特征 | 含义 |
@@ -277,8 +311,17 @@ assign_wstr(out, v9);                      // 客户端读到 NUL
 9. **别用「DFS tiling」判记录边界**：浮点 cell 稀疏的文件（如 `dungeonskillinfo.ctp`）
    会退化。正解是按 `record_count` 驱动遍历 + 断言终点 == 尾表起点。
 10. **IDA 批处理前先恢复工作副本**：一次运行会在 IDB 旁留下 `.id0/.id1/.id2/.nam/.til`，
-   下一次打开可能报 `Database is empty` + `internal error 1228` 而失败。
-   做法：`rm -rf /d/115us-backup/ida-work && cp <原始备份> ida-work/DFO.exe.i64` 再跑。
+    下一次打开会警告 `IDA did not close properly... safer to restart from the packed
+    database`，且可能直接失败（`Database is empty` + `internal error 1228`）。
+    做法：`rm -rf /d/115us-backup/ida-work && cp <原始备份> ida-work/DFO.exe.i64` 再跑；
+    脚本版见 `run-phase-x7b.cmd`（跑前跑后各清一次 `.id0/.id1/.id2/.nam/.til`）。
+11. **`ida_search.find_imm` 在 IDA 9.4 返回的是 `(ea, operand)` 元组**，不是裸 ea；
+    按 int 比较会抛 `'>=' not supported between instances of 'tuple' and 'int'`。
+12. **`ida_ua.generate_disasm_line` 不存在**（`ida_ua` 模块里没有这个名字）。
+    要一行反汇编用 `idc.GetDisasm(ea)`；写探针时对两三种拼写都做 fallback 更省事。
+13. **拿"函数里出现过某个立即数"当证据是陷阱**：`0x470`、`312` 这类偏移在一个
+    259 MB 的 exe 里到处都是。用它筛目标函数会解出几十个无关函数，反而淹掉真信号。
+    优先用**结构关系**（谁调用 X、谁读全局 Y、从注册点反查）而不是常量扫描。
 
 ---
 
@@ -293,6 +336,9 @@ assign_wstr(out, v9);                      // 客户端读到 NUL
 | `analysis/dumps/ida_ctp_readers.py` | 按解码串反查"谁在用这个列名"（定位读取器/消费者） |
 | `analysis/dumps/ida_bind_sites.py` / `ida_cursor_binding.py` | 查全局变量的读写者（定位游标绑定、注册点） |
 | `analysis/dumps/ida_sender_callers.py` | 查发包函数的调用者（定位触发时机） |
+| `analysis/dumps/ida_phase_x7.py` | NOTI2657 派发链探针（第一版）；常量扫描那半段**信噪比低，已被 x7b 取代** |
+| `analysis/dumps/ida_phase_x7b.py` | **结构探针模板**：给定锚点地址，列出 xrefs（含调用者函数）+ 解出这些函数 |
+| `analysis/dumps/run-phase-x7b.cmd` | 上者的批处理入口（跑前跑后清 IDB 解包残留） |
 | `cmd/pvfinspect`（Go） | 枚举/导出 PVF 内容（`-find` 会写 `matches.json`，大文件扫完记得删） |
 | `cmd/apocalypseimport`（Go） | 导出 `.ctp` 与 schema（早期临时定宽解码，**已被下方 Python 读器取代**） |
 | `analysis/tasks/next69-ctp-extract.py` | **`.ctp` 权威读器**：头部 + 记录流 + 尾表 + 池，带 4 条硬断言，可导出 JSON |

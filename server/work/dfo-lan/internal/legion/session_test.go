@@ -295,3 +295,97 @@ func TestSessionEnterAndRoleAreIdempotent(t *testing.T) {
 		t.Fatalf("role %d, want 3", s.RoleValue)
 	}
 }
+
+// failBody mirrors the client's CMD2044 sender: envelope + int32 @13.
+func failBody(argument uint32) []byte {
+	p := make([]byte, EnvelopeSize+4)
+	binary.LittleEndian.PutUint32(p[EnvelopeSize:], argument)
+	return p
+}
+
+func TestDecodeFailFields(t *testing.T) {
+	got, err := DecodeFail(failBody(0x0000000C))
+	if err != nil {
+		t.Fatalf("DecodeFail: %v", err)
+	}
+	if got.Argument != 0x0C {
+		t.Fatalf("argument %#x, want 0xc", got.Argument)
+	}
+	if got.BodyLength != EnvelopeSize+4 {
+		t.Fatalf("body length %d, want %d", got.BodyLength, EnvelopeSize+4)
+	}
+}
+
+func TestDecodeFailRejectsShortBody(t *testing.T) {
+	if _, err := DecodeFail(make([]byte, EnvelopeSize+3)); err == nil {
+		t.Fatal("a body shorter than the field was accepted")
+	}
+}
+
+// The eight bytes are read off the cursor and discarded, so only the length can
+// be wrong — and a short one makes the client write through a null pointer.
+func TestFailAckMeetsClientReadSize(t *testing.T) {
+	if got := len(FailAck()); got != FailAckSize {
+		t.Fatalf("FailAck %d bytes, want %d", got, FailAckSize)
+	}
+	if FailAckSize < 8 {
+		t.Fatalf("FailAckSize %d, below the client's 8-byte read (sub_1424FD290)", FailAckSize)
+	}
+}
+
+// rewardEndBody mirrors the client's CMD2046 sender: int32 @13, int32 @17,
+// char @21.
+func rewardEndBody(first, second uint32, flag byte) []byte {
+	p := make([]byte, EnvelopeSize+9)
+	binary.LittleEndian.PutUint32(p[EnvelopeSize:], first)
+	binary.LittleEndian.PutUint32(p[EnvelopeSize+4:], second)
+	p[EnvelopeSize+8] = flag
+	return p
+}
+
+func TestDecodeRewardEndFields(t *testing.T) {
+	got, err := DecodeRewardEnd(rewardEndBody(0x11, 0x22, 0x05))
+	if err != nil {
+		t.Fatalf("DecodeRewardEnd: %v", err)
+	}
+	if got.First != 0x11 || got.Second != 0x22 || got.Flag != 0x05 {
+		t.Fatalf("fields %#x/%#x/%#x, want 0x11/0x22/0x5", got.First, got.Second, got.Flag)
+	}
+	if got.BodyLength != EnvelopeSize+9 {
+		t.Fatalf("body length %d, want %d", got.BodyLength, EnvelopeSize+9)
+	}
+}
+
+func TestDecodeRewardEndRejectsShortBody(t *testing.T) {
+	if _, err := DecodeRewardEnd(make([]byte, EnvelopeSize+8)); err == nil {
+		t.Fatal("a body shorter than the fields was accepted")
+	}
+}
+
+func TestRewardEndAckMeetsClientReadSize(t *testing.T) {
+	if got := len(RewardEndAck()); got != RewardEndAckSize {
+		t.Fatalf("RewardEndAck %d bytes, want %d", got, RewardEndAckSize)
+	}
+	if RewardEndAckSize < 13 {
+		t.Fatalf("RewardEndAckSize %d, below the client's 13-byte read (sub_1424FD3A0)", RewardEndAckSize)
+	}
+}
+
+// CMD2044 only records what the client announced; the run is still open so the
+// log keeps both signals apart. CMD2046 is the teardown.
+func TestSessionFailKeepsRunThenRewardEndClosesIt(t *testing.T) {
+	s := NewSession(42)
+	s.Begin(42, 1)
+	s.EnterDungeon(5)
+	s.Fail(9)
+	if !s.Failed {
+		t.Fatal("fail not recorded")
+	}
+	if s.Operation != 5 || !s.Entered {
+		t.Fatalf("fail tore the run down: operation=%d entered=%v", s.Operation, s.Entered)
+	}
+	s.EndReward()
+	if s.Entered || s.Failed || s.Operation != 0 {
+		t.Fatalf("reward end left state behind: entered=%v failed=%v operation=%d", s.Entered, s.Failed, s.Operation)
+	}
+}

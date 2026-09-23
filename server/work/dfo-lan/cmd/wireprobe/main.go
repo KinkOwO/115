@@ -1907,6 +1907,13 @@ func main() {
 						} else {
 							worldState.selectingDungeon = false
 						}
+						// A legion run lives inside a dungeon, so leaving it ends
+						// the run. The client normally says so itself; this is
+						// the backstop for a player who just walks out (P6).
+						if note, closed := legionState.abandonOnLeave(p.Name, worldState.role.ID); closed {
+							note["id"] = frame.ID
+							event(note)
+						}
 					}
 					if p.Name == "monster_death_confirmed" {
 						if worldState.deathSent == nil {
@@ -1927,6 +1934,10 @@ func main() {
 				}
 				if frame.ID == 42 {
 					worldState.activeDungeon = nil
+					if note, closed := legionState.abandonOnLeave("CMD42 dungeon leave", worldState.role.ID); closed {
+						note["id"] = frame.ID
+						event(note)
+					}
 				}
 				if frame.ID == 42 || frame.ID == 132 {
 					worldState.selectingDungeon = false

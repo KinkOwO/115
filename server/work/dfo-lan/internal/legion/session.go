@@ -39,6 +39,23 @@ const (
 	CmdVenusEndAtPhase4     uint16 = 2293 // ENUM_CMDPACKET_VENUS_END_AT_PHASE4
 )
 
+// S2C notifications of the same family. They are declared here so the packet
+// ids in the flow code read as names, but none of them is sent yet: each one is
+// either a placeholder whose payload layout the client has not given up
+// (2252/2253/2895/2896) or a packet we decided not to send (2568/2254/2657).
+// The reasons are registered in analysis/tasks/next64-legion-apocalypse-plan.md
+// §6.2 as T5/X5/X6/X7 — read them before wiring any of these up.
+const (
+	NotiClearRewardBasic      uint16 = 2252 // ENUM_NOTIPACKET_LEGION_BASIC_CLEAR_REWARD
+	NotiClearRewardAdditional uint16 = 2253 // ENUM_NOTIPACKET_LEGION_ADDITIONAL_CLEAR_REWARD
+	NotiEntryCharacterInfo    uint16 = 2254 // ENUM_NOTIPACKET_LEGION_ENTRY_CHARAC_INFO
+	NotiPrepareEnterDungeon   uint16 = 2568 // ENUM_NOTIPACKET_PREPARE_LEGION_ENTER_DUNGEON
+	NotiPhaseClearTick        uint16 = 2657 // ENUM_NOTIPACKET_LEGION_PHASE_CLEAR_TICK
+	NotiLegionInfo            uint16 = 2895 // ENUM_NOTIPACKET_LEGION_INFO
+	NotiLegionOperation       uint16 = 2896 // ENUM_NOTIPACKET_LEGION_OPERATION
+	NotiDungeonTimeoutTime    uint16 = 1474 // ENUM_NOTIPACKET_DUNGEON_TIMEOUT_TIME
+)
+
 // EnvelopeSize is the fixed 13-byte prefix carried by every packet of this
 // family. Measured in the client: sub_146D746E0 writes
 // "01 | opcode(u16 LE) | 0x0000000000000000 | 0x0000" before the caller
@@ -229,6 +246,71 @@ func DecodeRoleSelect(p []byte) (RoleSelectRequest, error) {
 // empty and only the opcode matters.
 func RoleSelectAck() []byte { return nil }
 
+// FailRequest is the decoded CMD2044 LEGION_FAIL body.
+//
+// Layout (next65 §1, evidence sub_1424FE340): int32 @13, 17 bytes total.
+// The client sends it from the run-abandon path. @13 is passed straight through
+// by the caller and no consuming branch has been pinned down, so it is recorded
+// rather than interpreted — do not read a reason code out of it.
+type FailRequest struct {
+	Argument   uint32
+	BodyLength int
+}
+
+// DecodeFail reads the CMD2044 request.
+func DecodeFail(p []byte) (FailRequest, error) {
+	if len(p) < EnvelopeSize+4 {
+		return FailRequest{}, fmt.Errorf("legion fail payload %d bytes, want at least %d", len(p), EnvelopeSize+4)
+	}
+	return FailRequest{
+		Argument:   binary.LittleEndian.Uint32(p[EnvelopeSize:]),
+		BodyLength: len(p),
+	}, nil
+}
+
+// FailAckSize is the body size the client reads for CMD2044: its handler
+// sub_1424FD290 calls sub_146EA0BE0(v5, 8). The eight bytes are discarded
+// afterwards, so only the length is contract.
+const FailAckSize = 8
+
+// FailAck builds the CMD2044 response body.
+func FailAck() []byte { return make([]byte, FailAckSize) }
+
+// RewardEndRequest is the decoded CMD2046 LEGION_REWARD_END body.
+//
+// Layout (next65 §1, evidence sub_1424FE4A0): int32 @13 = a1, int32 @17 = a3,
+// char @21 = a2, 22 bytes total. The register names in the client are the only
+// names we have, so the fields keep their positions instead of being renamed
+// into gameplay meanings.
+type RewardEndRequest struct {
+	First      uint32
+	Second     uint32
+	Flag       byte
+	BodyLength int
+}
+
+// DecodeRewardEnd reads the CMD2046 request.
+func DecodeRewardEnd(p []byte) (RewardEndRequest, error) {
+	const want = EnvelopeSize + 9 // 4 + 4 + 1
+	if len(p) < want {
+		return RewardEndRequest{}, fmt.Errorf("legion reward-end payload %d bytes, want at least %d", len(p), want)
+	}
+	return RewardEndRequest{
+		First:      binary.LittleEndian.Uint32(p[EnvelopeSize:]),
+		Second:     binary.LittleEndian.Uint32(p[EnvelopeSize+4:]),
+		Flag:       p[EnvelopeSize+8],
+		BodyLength: len(p),
+	}, nil
+}
+
+// RewardEndAckSize is the body size the client reads for CMD2046: its handler
+// sub_1424FD3A0 calls sub_146EA0BE0(v50, 13). Again only the length is
+// contract; the handler discards the content.
+const RewardEndAckSize = 13
+
+// RewardEndAck builds the CMD2046 response body.
+func RewardEndAck() []byte { return make([]byte, RewardEndAckSize) }
+
 // Session is the per-character legion progress. It is deliberately not
 // persisted (D3): the operation is session state, not save data, and keeping
 // it out of the database avoids touching archive compatibility at all.
@@ -247,6 +329,12 @@ type Session struct {
 	Operation uint32
 	RoleValue uint32
 	Phase     byte
+
+	// Failed records a CMD2044 LEGION_FAIL from the client (P5). It is a
+	// record of what the client announced, not a server-side verdict: the
+	// server has no way to judge a run while the phase drive is unimplemented
+	// (X7), so it must not claim to have failed the player.
+	Failed bool
 
 	// Action is the last CMD2354 action the player requested (1 or 2).
 	// Auxiliary is the accompanying byte the UI passed through.
@@ -296,6 +384,20 @@ func (s *Session) EnterDungeon(operation uint32) {
 // when the value actually changed, so re-recording the same value is harmless.
 func (s *Session) SelectRole(role uint32) { s.RoleValue = role }
 
+// Fail records a CMD2044 LEGION_FAIL. The client sends this from its abandon
+// path, so the session is marked failed and left otherwise intact: the run
+// teardown is CMD2046's job, and keeping the two apart means a live log shows
+// which of the two the client actually chose.
+func (s *Session) Fail(argument uint32) {
+	s.Argument = argument
+	s.Failed = true
+}
+
+// EndReward records a CMD2046 LEGION_REWARD_END, the client's "the reward
+// screen is done" signal. That is the end of the run, so the session returns to
+// its pre-entry state; nothing is persisted either way (D3).
+func (s *Session) EndReward() { s.Reset() }
+
 // Reset drops the session back to its pre-entry state. It exists for the
 // retreat path (P6) and for tests; with D3 there is nothing to persist.
 func (s *Session) Reset() {
@@ -303,6 +405,7 @@ func (s *Session) Reset() {
 	s.Operation = 0
 	s.RoleValue = 0
 	s.Phase = 0
+	s.Failed = false
 	s.Action = 0
 	s.Auxiliary = 0
 }
