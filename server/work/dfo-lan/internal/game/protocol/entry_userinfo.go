@@ -1,6 +1,9 @@
 package protocol
 
-import "fmt"
+import (
+	"encoding/binary"
+	"fmt"
+)
 
 // EquippedAppearance is one entry of the native 0x145639840 block.
 //
@@ -91,6 +94,7 @@ type EntryBasicProbe struct {
 	ActorServerID uint16
 	Context       [2]byte
 	Character     CharacterRow
+	Fame          uint32
 
 	// Appearance is the per-slot state the native 0x145639840 block carries,
 	// one entry per slot the packet speaks about. Slots the packet does not
@@ -165,6 +169,8 @@ func UserInfoBasicProbe(s EntryBasicProbe) ([]byte, error) {
 	// 0x14563ecd2 consumes all 160 bytes before the actor ID. Two inline
 	// zero-terminated strings start at +0x1b and +0x5f; these remain empty.
 	p = append(p, make([]byte, 160)...)
+	// 14563ecd2 读取到 14dc67340；145640f2c 从 +0x80 取名望并调用 145f05f60。
+	binary.LittleEndian.PutUint32(p[5+0x80:], s.Fame)
 	p = addName(add16(p, s.ActorServerID), r.Name)
 	p = append(p, r.Profession, r.Advancement, r.Level, 0, 0)
 	p = append(p, appearance...) // 0x145639840: equipped appearance block (incl. mandatory blob lengths)

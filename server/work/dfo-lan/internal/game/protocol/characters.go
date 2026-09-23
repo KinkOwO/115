@@ -144,6 +144,7 @@ type CharacterRow struct {
 	Equipment        []Equipment
 	FatigueRemaining uint16
 	FatigueBonus     uint16
+	Fame             uint32
 	CreatureItemID   uint32
 	CreatureName     string
 }
@@ -196,7 +197,9 @@ func CharacterList(capacity uint16, roles []CharacterRow) ([]byte, error) {
 			mode = 5
 		}
 		p = append(p, 0, 0, mode)
-		for i := 0; i < 4; i++ {
+		// 14563ea07 读取的首个 u32 写入 row-info+0x6b4，与进城名望使用同一字段。
+		p = add32(p, r.Fame)
+		for i := 0; i < 3; i++ {
 			p = add32(p, 0)
 		}
 		// 14563ea6c/76 -> info+6d8/+6dc -> 140209be2 ->
