@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## 2026-09-24
+- **本地 / 远端全量差异收口（并入上游 30 个提交）**：分支此前 `ahead 3 / behind 30`，本次把工作区所有改动（含非本会话的觉醒 / VP / 通知迁移线）全部入账后再并入 `origin/main`，使本地与远端重新同步。上游 30 个提交（21 个非 merge）覆盖副本完成与剧情层收口、Act2 任务链、Synopsis / STORY_DIGEST 读写、账号材料消耗、奥德赛装备等级与分解硬币、宠物期限、启动器 v1.4.6。
+  - **冲突只有 2 处**，且都不是真的逻辑冲突：① `CHANGELOG` ② `cmd/wireprobe/story_digest_test.go`（add/add）。`entry_flow.go` / `main.go` 由 git 自动合并成功。
+  - **`CHANGELOG` 的「整文件冲突」是行尾假象**：此前用脚本插入条目时把整个文件从 LF 改成了 CRLF（879 行全 CRLF），而 base / theirs 都是 LF，于是 diff 判定「每一行都变了」。三份全部归一到 LF 后重新三路合并，两边其实都是**纯插入**且位置不重叠（本地插在 base 第 3、8 行后，上游插在第 13 行后），合并零冲突，结果 908 = 857 + 22 + 29 行完全吻合。**教训：编辑 CHANGELOG 必须保持仓库原有的 LF，不要整文件重写行尾。**
+  - **`story_digest_test.go`（add/add）**：两边测的是同一个 `storyDigestRestore`，但函数名不同（本地 `...AlwaysFourBytes` / `...InvalidState` / `AdvanceStoryDigest...Monotonic`，上游 `...RestoreAndEntryOrder`），已合并为四个测试共存。上游那个用例用**硬编码帧下标**（`packets[2].ID == 1352` / `[3] == 1370` / `[4] == 2`）断言进场顺序，而本地这条线在 `entryPayloads` 里插入了 `inform_notice_restored`(402) 与 `inform_notice_2nd_restored`(426) 两帧，下标整体后移 2 位导致误报。现改为**按 ID 查下标再断言相对顺序**（1352 < 1370 < 2），语义不变且对后续帧组增减免疫。
+- **处置决策（用户确认）**：① `server/work/dfo-lan-pvf/`（**1.1G** 的 dfolan 源码树副本，860 文件，`configs/` 独占 1.1G，全仓无任何引用）**直接删除**，未入库——`.gitignore` 里的 `*.pvf` 拦不住它（它不含 .pvf 文件）。② `DFO-115US单机一键启动器.exe` 三边都不同（本地 8911360 / 远端 8980992 / HEAD 8871936），按上游 `e76ac0b` 的发布产物**取远端 v1.4.6**。③ 4 个根目录 `.cmd`（启动服务端 / 启动游戏 / 启动游戏-奥德赛 / 配置环境）此前显示为删除但来源不明，**先恢复、本次不提交删除**（远端仍保留）。
+  - **未入库**：`.workbuddy/`（本地会话数据）、`analysis/tmp-va-listings/`（IDA 反汇编临时 listings，398K）、`launcher.settings.json`（运行时窗口尺寸）、根目录 `0`（6 字节误产物）。
+  - **踩坑**：`go fmt ./cmd/... ./internal/...` 会把全仓库 572 个 Go 文件从 CRLF 重写成 LF。验证时只需 `go vet` + `go test`，**不要跑 `go fmt`**，否则污染提交范围（本次用「以索引版本覆盖工作区」的方式精确撤销了 621 个文件）。
+- **验证**：`go vet ./cmd/... ./internal/...` 0 项、`go test ./cmd/... ./internal/...` 全绿、`go build ./...` 通过；`bin/wireprobe-handoff-source.exe` 已重编。
+
 ## 2026-09-23
 - **觉醒/VP 技能注册不上快捷键（CMD28，实机取证）**：玩家把 Job8 atmage 的 138/139（槽位 39/40）拖进快捷栏，客户端照常发 CMD28，服务端却回 `skill_refused`（reason `passive skill cannot occupy a shortcut`，会话`roles_..._20260923_234846_674894_next37` 里 5 次，玩家侧表现就是「技能学得会、快捷键注册不了」）。根因：`MoveSkill` 用 `Active()` 判定，而`Active()` 要求 `[type] == [active]`；`configs/skills.release.json` 3224 行里有12 行不是 `[active]`/`[passive]` —— 8 行的 `[type]` 是导出器解析不出的常量（`default`，含 job8 atmage 138 spiralpress / 139 violentstorm、job3 mage390/391、job4 priest 298/299、job5 atgunner 354、job8 atmage 35），4 行根本没有`[type]`（job4 priest 133/134/250/253），且全是觉醒 / variation-point 行—— 与 `ForAdvancement` 早已豁免它们的口径不一致。新增`LearningDefinition.ShortcutCapable()`（= 非显式 `[passive]` 即可进快捷栏）并用于 CMD28；`Active()` 刻意保持窄语义，因为它还驱动新技能的自动占位。
   - **验证**：新增 `internal/character/learning_shortcut_test.go`（4 类形状 +`Active()` 语义未漂移的回归）；`go vet ./cmd/... ./internal/...` 0 项、`go test ./cmd/... ./internal/...` 全绿。候选版 `bin/wireprobe-handoff-source.exe`已重编。
