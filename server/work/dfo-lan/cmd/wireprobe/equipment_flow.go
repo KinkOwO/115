@@ -23,6 +23,15 @@ func (s *equipmentSession) handle(service *inventory.WearService, w *worldSessio
 	if e != nil {
 		return nil, e
 	}
+	if r.SourceList == 12 || r.DestinationList == 12 {
+		if !s.initialized {
+			if _, e = rand.Read(s.nonce[:]); e != nil {
+				return nil, e
+			}
+			s.initialized = true
+		}
+		return w.moveAccountVault(service, r, fmt.Sprintf("account-vault-move:%x:%x", s.nonce, sha256.Sum256(raw)))
+	}
 	// CMD19 carries every bag move, not only equipment. A move involving
 	// the personal vault (list 2) belongs to the vault path. A stack going onto
 	// the quick-use belt belongs to the stackable path; anything neither
@@ -91,7 +100,7 @@ func (s *equipmentSession) handle(service *inventory.WearService, w *worldSessio
 			row := inventory.BagEquipment{Slot: loc.slot, Template: 0xFFFFFFFF}
 			items := b.Equipment
 			if space == 3 {
-				items = b.Worn
+				items = b.WornBaseItems()
 			}
 			if space == 1 || space == 7 {
 				items = b.Special[space]
@@ -135,7 +144,7 @@ func (s *equipmentSession) handle(service *inventory.WearService, w *worldSessio
 	// The client's CMD19 apply routine updates its per-slot model table from
 	// this block (0x145639840 rows land at [actor+slot*4+0x405], the slot set
 	// 0x145a8a780 covers), which is what makes the world model follow the
-	// change. It goes LAST so the rebuild sees the id13/id14 rows above as
+	// change. It follows this handler's id13/id14 rows so the rebuild sees
 	// fresh item objects. Bag-to-bag moves change no visible slot and skip it.
 	if (r.SourceList == 3 || r.DestinationList == 3) && w.characters != nil {
 		probe, e := w.characters.AppearanceProbe(saved, [2]byte{})
@@ -146,4 +155,17 @@ func (s *equipmentSession) handle(service *inventory.WearService, w *worldSessio
 	}
 	w.role = saved
 	return plan, nil
+}
+
+func cloneAvatarRemoval(r protocol.ItemMoveRequest, catalog *inventory.EquipmentCatalog) bool {
+	// The observed unequip request swaps an empty bag source with the Clone
+	// currently in the worn destination. Restrict this experiment to that path.
+	if r.SourceList != 1 || r.SourceItem != 0 || r.DestinationList != 3 || r.DestinationSlot > 11 || catalog == nil {
+		return false
+	}
+	if r.DestinationItem == 0 || r.DestinationItem == 0xFFFFFFFF {
+		return false
+	}
+	definition, err := catalog.Definition(r.DestinationItem)
+	return err == nil && definition.IsCloneAvatar()
 }

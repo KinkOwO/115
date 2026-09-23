@@ -5,6 +5,7 @@ import (
 	"dfolan/internal/inventory"
 	"encoding/json"
 	"fmt"
+	"sort"
 )
 
 // wornAppearance projects the worn set onto the list-row block the client
@@ -28,22 +29,32 @@ import (
 func wornAppearance(raw json.RawMessage) ([]protocol.Equipment, error) {
 	var state struct {
 		Inventory struct {
-			Worn []struct {
-				Slot     uint16 `json:"slot"`
-				Template uint32 `json:"template"`
-			} `json:"worn"`
+			Worn []inventory.BagEquipment `json:"worn"`
 		} `json:"inventory"`
 	}
 	if err := json.Unmarshal(raw, &state); err != nil {
 		return nil, err
 	}
-	var rows []protocol.Equipment
+	bySlot := make(map[byte]uint32)
 	for _, item := range state.Inventory.Worn {
 		if item.Slot >= 48 {
 			return nil, fmt.Errorf("invalid worn appearance slot")
 		}
-		rows = append(rows, protocol.Equipment{Slot: byte(item.Slot), Item: item.Template})
+		slot := byte(item.Slot)
+		if item.Group == 0 {
+			if _, exists := bySlot[slot]; !exists {
+				bySlot[slot] = item.Template
+			}
+		} else if item.Group == 1 {
+			// Look avatar overrides clone avatar for visual paper doll
+			bySlot[slot] = item.Template
+		}
 	}
+	var rows []protocol.Equipment
+	for slot, itemID := range bySlot {
+		rows = append(rows, protocol.Equipment{Slot: slot, Item: itemID})
+	}
+	sort.Slice(rows, func(i, j int) bool { return rows[i].Slot < rows[j].Slot })
 	return rows, nil
 }
 

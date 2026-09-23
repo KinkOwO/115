@@ -96,6 +96,25 @@ func (s *shopPilotSession) purchase(ctx context.Context, p *cashshop.Pilot, stor
 		if err != nil {
 			return r, false, err
 		}
+		secondary, err := p.Config.VaultUpgrades(45)
+		if err != nil {
+			return r, false, err
+		}
+		for id, upgrade := range secondary {
+			if _, exists := upgrades[id]; !exists {
+				upgrades[id] = upgrade
+			}
+		}
+		accountUpgrades, err := p.Config.AccountVaultUpgrades(s.vaultRules.Account)
+		if err != nil {
+			return r, false, err
+		}
+		for id, upgrade := range accountUpgrades {
+			if _, exists := upgrades[id]; exists {
+				return r, false, fmt.Errorf("账号金库商品与角色金库商品冲突")
+			}
+			upgrades[id] = upgrade
+		}
 		for _, item := range cart {
 			if _, ok := upgrades[item.Product]; !ok {
 				continue
@@ -127,6 +146,7 @@ func (s *shopPilotSession) purchase(ctx context.Context, p *cashshop.Pilot, stor
 
 func shopPilotPackets(receipt storage.CashReceipt, balance uint64, applied bool) ([]outboundPacket, error) {
 	var update outboundPacket
+	var vaultUpgrade *outboundPacket
 	var creatureUpdate *outboundPacket
 	var b inventory.Bag
 	expansion := false
@@ -146,12 +166,36 @@ func shopPilotPackets(receipt storage.CashReceipt, balance uint64, applied bool)
 			return nil, err
 		}
 		update = outboundPacket{"cera_purchase_inventory_expansion", 0, 66, payload}
+	} else if receipt.Vault != nil && receipt.VaultSpace == 12 {
+		vault, err := inventory.ReadExtendedVault(*receipt.Vault)
+		if err != nil {
+			return nil, err
+		}
+		payload, err := protocol.AccountVaultRestore(vault.Slots, receipt.VaultGold, vault.Rows())
+		if err != nil {
+			return nil, err
+		}
+		update = outboundPacket{"点券账号金库快照", 0, 13, payload}
+		if applied {
+			// 0x14529A4A0 成功分支从当前容量取下一档并刷新金库页签，
+			// 必须先于 NOTI13；重放只同步权威容量，不能再次执行升级。
+			vaultUpgrade = &outboundPacket{"点券账号金库即时解锁", 1, 306, []byte{1}}
+		}
 	} else if receipt.Vault != nil {
-		payload, err := inventory.VaultPayload(*receipt.Vault)
+		space := byte(2)
+		if receipt.VaultSpace != 0 {
+			space = receipt.VaultSpace
+		}
+		payload, err := inventory.VaultPayload(*receipt.Vault, space)
 		if err != nil {
 			return nil, err
 		}
 		update = outboundPacket{"cera_purchase_vault", 0, 13, payload}
+		notice, err := protocol.PersonalVaultUpgradeNotice(receipt.Vault.Slots, space)
+		if err != nil {
+			return nil, err
+		}
+		vaultUpgrade = &outboundPacket{"cera_purchase_vault_expansion", 0, 66, notice}
 	} else {
 		var e error
 		b, e = inventory.ReadBag(receipt.CharacterState)
@@ -199,6 +243,10 @@ func shopPilotPackets(receipt storage.CashReceipt, balance uint64, applied bool)
 		return nil, e
 	}
 	packets := []outboundPacket{update}
+	if vaultUpgrade != nil {
+		// 扩容处理先于快照；角色金库使用 NOTI66，账号金库使用 CMD306 应答。
+		packets = append([]outboundPacket{*vaultUpgrade}, packets...)
+	}
 	if creatureUpdate != nil {
 		packets = append(packets, *creatureUpdate)
 	}

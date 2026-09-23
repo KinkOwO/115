@@ -157,8 +157,8 @@ func StartMap(s StartMapState) ([]byte, error) {
 	if s.Map == 0 || len(s.Monsters) > 255 {
 		return nil, fmt.Errorf("invalid start map")
 	}
-	if s.ReuseRoom && (s.LayerChange || len(s.Monsters) != 0) {
-		return nil, fmt.Errorf("cached room cannot initialize layers or monsters")
+	if s.ReuseRoom && len(s.Monsters) != 0 {
+		return nil, fmt.Errorf("cached room cannot initialize monsters")
 	}
 	p := append([]byte{}, s.Position[0], s.Position[1], 0)
 	if s.LayerChange {

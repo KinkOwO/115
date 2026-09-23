@@ -1,6 +1,29 @@
 # CHANGELOG
 
 ## 2026-09-23
+- **副本 26 罗特斯剧情流程（部分实机确认，黑屏待查）**：末层结尾过场请求复用缓存末图；末图加载完成后，针对无 CMD117 的剧情 Boss 行触发完成判定并发送通关通知。CMD37 的完成签发错误现在记录为 `dungeon_completion_error`。用户实机确认任务可完成，但黑屏仍存在，故不标记为黑屏修复完成。`go test ./...`、`go vet ./...` 通过；候选程序 SHA256 `0A938DCF0950404FB402212C87BC08253EAFFEABF6CA489283E135AB9797363F`。证据与待查点见 `analysis/tasks/lotus-terminal-layer-20260923.md`。
+- **军团/末世录 入口可解锁（前置任务树 + 目标模型，代码完成待实机）**：诊断包 `diag-20260923-163532` 定位到「看不到末世录军团本」的两个独立原因，均已修。真源为客户端编译表与任务脚本体（`client/DFO.exe.i64` + `Script.inner.pvf`），取证链见 `analysis/tasks/next73-legion-entry-gate.md` / `next74-legion-entry-prereq-chain.md`。
+  - **前置链 4 环不被提供（本轮主因）**：末世录入场任务 `23099` 的真前置写在脚本体 `[pre required quest]` 里（= `23055`，**不是** JSON 的 `prerequisites` 字段，后者恒为 null），往上是 20 个任务的前置树（22988 狄瑞吉剧情 → 千海之空 23053/23054/23055 → 23099 末世录）。客户端要求整链完成才解锁入口，而其中 4 环用的 `[monster kill checkpoint]` 目标模型未实现 ⇒ 不进可接列表 ⇒ 整条 2026 主线**永久不可达且服务端无任何报错**。现按仓库既有的 `[look cinematic]` 口径实现为「客户端把关」（初始进度 0：客户端掌握检查点条件、达标才允许提交，服务端只发任务自带奖励、不额外铸任何东西），形状校验不过则保持未实现。结果：前置链 **16/20 → 20/20 全部提供**。
+  - **冒险指南条目（同批）**：`[legion content clear]` / `[legion content clear with difficulty]` 一并实现（同为客户端把关）。后者全目录只有 `23128`（末世录指南任务，`[go guide] 239`），不被提供时**冒险指南里根本不会出现末世录条目**。内容号体系（obj 首数）：`0/1/2/3` = 2022–2024 各内容，`5` = venus_scenario（美神维纳斯），`6` = apocalypse（末世录）。
+  - **启动器 bug（已修）**：`-apocalypse-catalog` 此前用相对默认路径，而网关工作目录是项目根 ⇒ `gateway.err` 报 `load apocalypse catalog (configs/apocalypse.generated.json): The system cannot find the path specified`，末世录真源表**从未装载**、所有作战确认都未校验。已在 `server/work/dfo_probe_tools/channel_probe.py` 补绝对路径（与 selection-boxes / item-shop / random-option-catalog 同规则），且**不放在 `.exists()` 后面** —— 文件缺失时让服务端打出它尝试的绝对路径，以区分 cwd 问题与文件缺失。
+  - **仍未解、因此不下发**：`[monster kill checkpoint]` 的 `[int data]` 键（`109019626..109019630`）在源里是裸整数、语义未解，按纪律不猜（猜错会造出「能接但永远交不掉」的任务）。军团 S2C 的 7 个主动下发包同样只做了结构取证、未发送，见 `next75-legion-s2c-structures.md`。
+  - **验证**：`go build` 通过、`go vet ./internal/... ./cmd/...` 0 项、`go test ./internal/... ./cmd/...` **21 包全绿**（上游 e20ebb4 修掉了此前的红测试）。新增回归测试 `apocalypse_chain_test.go`（走 23099 前置**传递闭包**，未知断链直接 Fail、已知缺口显式 Skip）、`legion_objectives_test.go`、`kind_audit_test.go`（按 `[type]` 分组普查可结算/不可结算，用于定位「整体不可达」的内容块）。
+  - **实机边界**：本轮未实机验证（入口能否显示、能否进本待测）；难度/名声（`[recommend fame]` 73993–105881）、队伍（`[member limit]` 全为 party）、周计数（入口门禁⑤⑥）三项为客户端侧条件，服务端无对应改动。
+- **技能指令改键保存（CMD331，实机确认）**：新增 CMD331 快照解析与校验，将技能自定义指令按角色持久化，并在 NOTI19 技能行中覆盖源指令；保存后立即发送 NOTI19 刷新当前技能窗口。用户确认改键后当前窗口即时更新，关闭重开及重选角色后仍回显新指令。未改数据库结构。证据与协议边界见 `server/work/dfo-lan/docs/protocol/next51-skill-command-customizing.md`。
+- 修复角色列表、进城及换装后装备基础名望始终为零：按实际穿戴物品的 `[fame value]` 汇总，同步列表与 mode0/mode1 的原生名望字段，不改变包长、存档格式或数据库结构。
+  - 移植本地提交 `3d8b052`，保留上游宠物显示、觉醒编码及特殊装备槽解锁；同槽克隆与普通装扮复用 `WornBaseItems` 的基础物品投影，避免重复计数或误报重复槽位。
+  - 边界：仅装备基础名望，不虚构强化、附魔等额外加成；上游移植分支实机待验证。
+  - 验证：`go vet ./...` 通过；`go test -p 1 ./...` 仅上游已有的 `TestAppearanceProbeCarriesCloneAndLookAvatars` 失败（重复外观槽位 1），其余包通过，本提交不修改该外观投影逻辑。
+- 补全 !22 的金库升级链路：角色金库先发送扩容通知再恢复快照，即时刷新锁格；金库 2 使用独立存档并接通 16 档点券升级，保留原物品期限及完整装备实例。
+- 接通账号金库材料开通、普通物品存取、金币与 39 档点券扩容；按账号保存容量及物品，扣费、扩容、回执同事务提交。金币升级至 56 格，点券升级至 320 格，费用逐项对照 PVF 和商城源表；重放不重复扣费，不覆盖旧金库存档。
+- 本次为 16efdfa 的金库专题移植；源分支日志确认账号金库开通与跨角色容量恢复，其他档位及存取边界未声明全部实机验收，移植分支待验证。
+- 移植验证：金库涉及的 wireprobe、cashshop、inventory、storage、protocol 包测试及 go vet 通过。全量测试仅 TestAppearanceProbeCarriesCloneAndLookAvatars 失败（重复外观槽位 1）；在未修改的上游 bbfb316 已复现同样失败，本专题未修改装扮实现。
+- 修复普通 Avatar 与 Clone 同槽共存时的登录显示及实时脱下刷新：mode1 装备详情行在偏移 24 提供普通外观模板；脱下已穿戴 Clone 后，在原有装备刷新帧之后追加完整 mode1 `EntryAddition`，恢复客户端普通 Avatar 格子关联。未改存档格式或数据库结构。
+  - **实机确认**：用户验证重登后普通 Avatar 与 Clone 分页分别显示正确；脱下 Clone 后普通 Avatar 同槽格子保留，Clone 页可正常穿脱。用户确认正常。
+  - **验证**：`go test ./...`、`go vet ./...` 通过。实现与完整证据链见 `server/work/dfo-lan/docs/protocol/avatar-clone-coexistence-candidate.md`。
+- 修复 Clone 与普通 Avatar 同槽时实时脱装刷新被服务端拒绝：`AppearanceProbe` 改为每槽只输出一条模型记录，并优先使用 Group 1 普通外观，避免同槽重复导致编码失败；不改存档格式或数据库结构。
+  - **实机确认**：Clone 已可正常脱下；同槽普通 Avatar 显示保留。副本内 Clone-only 与 Clone+普通外观仍显示裸体，问题未解决，暂停后续发包尝试，等待新的取证线索。
+  - **验证**：`go test ./...`、`go vet ./...` 已通过。证据与暂停点见 `server/work/dfo-lan/docs/protocol/avatar-clone-coexistence-candidate.md`。
 - **毕业转普通角色 + 等级主线整理（手册 P3 子项 8/9/10，代码完成待实机）**：真源是 `aradodyssey.etc` 的四张任务表（已随 `odyssey-growth-release.json` 带出），用 `analysis/tasks/next63-verify-quest-tables.py` 逐表核对：`[quest clear]` 11 级（10/17/72/100/102/103/104/105/109/110/115）共 354 条、`[remove clear quest]` 10 条、`[show quest]` 2 条（26516/26518）、`[branch quest]` 80/102/115 三级 `(job, quest, flag)` 三元组（`-1`=全职业）。关键语义：`12911` 在 102 清除表内被移除表救回、`12884` 是分支任务不在清除表、`22987` 深渊引导只在分支表 → 必须存活；满级清除集真值 **333** 条（并集 334 − 移除表命中 1）。
   - **子项 8（毕业）**：`internal/character/odyssey_graduate.go` —— 登录时 `Level >= 115` 且以奥德赛创建且未毕业 → 落 `odyssey_graduated` 持久标记（`omitempty`，旧二进制回读不坏档）、`creation_options[10]`/`creation_mode` 清零（原始请求包不动，保留历史）；奖励盒 `10420561`（`[complete reward info]` 的 `[reward]`，必须是 `[booster info]` 且不与任何等级礼包重复）走独立收据 `odyssey-graduate-reward-v1`，满包只欠盒子、不阻碍毕业。事件键 `odyssey-graduate-v1` 幂等，只转一次。
   - **子项 9（主线整理）**：`internal/catalog/odyssey_quests.go` 解析四张表为 `OdysseyQuests`，形状漂移即拒绝装载（硬断言）；`ClearedAt(level)` = 并集 − 移除表；`BranchQuestsUpTo(level, profession)` 按 `-1` 全职业行过滤。`internal/storage/quest.go` 新增 `ClearQuests`：幂等 `ON CONFLICT (character_id, quest_id) DO NOTHING`，**绝不改已有行**，`progress_model='odyssey-skip-v1'` 可精确撤销；`internal/quest/odyssey_mainline.go` 纯策略（IO 分离）+ 执行层，分支任务可达性再过滤双保险。

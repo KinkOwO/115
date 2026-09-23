@@ -23,14 +23,14 @@ type Rules struct {
 	SwordmasterPilot bool `json:"swordmaster_pilot,omitempty"`
 }
 type State struct {
-	AllJobsPilot    bool                   `json:"all_jobs_pilot,omitempty"`
-	Level           byte                   `json:"level"`
-	Experience      uint64                 `json:"experience,omitempty"`
-	SkillPoints     [2]uint16              `json:"skill_points,omitempty"`
-	TechniquePoints [2]uint16              `json:"technique_points,omitempty"`
-	CurrencySlot2   uint32                 `json:"currency_slot2,omitempty"`
-	Advancement     byte                   `json:"advancement"`
-	Awakening       byte                   `json:"awakening,omitempty"`
+	AllJobsPilot    bool      `json:"all_jobs_pilot,omitempty"`
+	Level           byte      `json:"level"`
+	Experience      uint64    `json:"experience,omitempty"`
+	SkillPoints     [2]uint16 `json:"skill_points,omitempty"`
+	TechniquePoints [2]uint16 `json:"technique_points,omitempty"`
+	CurrencySlot2   uint32    `json:"currency_slot2,omitempty"`
+	Advancement     byte      `json:"advancement"`
+	Awakening       byte      `json:"awakening,omitempty"`
 	// No omitempty: an unallocated VP block still has to serialize, otherwise
 	// the client decodes an empty variation section and the panel reads blank
 	// until the next character switch.
@@ -39,6 +39,7 @@ type State struct {
 	InitialSkills   []int32                `json:"initial_skill_cells"`
 	LearnedSkills   [2]map[uint16]byte     `json:"learned_skills,omitempty"`
 	SkillSlots      [2]map[uint16]uint16   `json:"skill_slots,omitempty"`
+	SkillCommands   []byte                 `json:"skill_commands,omitempty"`
 	SourcePath      string                 `json:"source_path"`
 	SourceSHA256    string                 `json:"source_sha256"`
 	// Create equipment cells are intentionally unresolved until the native
@@ -180,6 +181,10 @@ func (s *Service) ListWithFatigue(ctx context.Context, account int64, fatigue *F
 		if e != nil {
 			return nil, e
 		}
+		row.Fame, e = s.EquipmentFame(c.State)
+		if e != nil {
+			return nil, e
+		}
 		if fatigue != nil {
 			fp, err := fatigue.State(ctx, account, c.ID, now)
 			if err != nil {
@@ -266,7 +271,12 @@ func (s *Service) EntryBasicProbe(role storage.Character, channelContext [2]byte
 	// present. It is read before any appearance clearing, so a creature
 	// survives DisableActorAppearance exactly like the native client.
 	creatureItemID, creatureName := wornCreature(role.State)
+	fame, err := s.EquipmentFame(role.State)
+	if err != nil {
+		return nil, err
+	}
 	return protocol.UserInfoBasicProbe(protocol.EntryBasicProbe{
+		Fame:          fame,
 		ActorServerID: role.WireID, Context: channelContext,
 		Character: protocol.CharacterRow{Name: role.Name, Profession: role.Profession, Advancement: advancement, Level: state.Level, Odyssey: odyssey, Equipment: equipment, CreatureItemID: creatureItemID, CreatureName: creatureName},
 		// The explicit per-slot block must stay empty on the entry path. A
@@ -322,7 +332,12 @@ func (s *Service) AppearanceProbe(role storage.Character, channelContext [2]byte
 	if err != nil {
 		return nil, err
 	}
+	fame, err := s.EquipmentFame(role.State)
+	if err != nil {
+		return nil, err
+	}
 	return protocol.UserInfoBasicProbe(protocol.EntryBasicProbe{
+		Fame:          fame,
 		ActorServerID: role.WireID, Context: channelContext,
 		Character:  protocol.CharacterRow{Name: role.Name, Profession: role.Profession, Advancement: advancement, Level: state.Level, CreatureItemID: creatureItemID, CreatureName: creatureName},
 		Appearance: rows,
@@ -357,12 +372,23 @@ func (s *Service) wornAppearance(state json.RawMessage) ([]protocol.EquippedAppe
 		return nil, nil
 	}
 
-	rows := make([]protocol.EquippedAppearance, 0, len(bag.Worn))
+	// The wire block has one model per slot. A saved avatar slot can hold both
+	// a Clone (Group 0) and an ordinary look (Group 1); use the look for the
+	// actor model, matching the entry-time wornAppearance projection.
+	bySlot := make(map[uint16]uint32, len(bag.Worn))
 	for _, w := range bag.Worn {
-		if w.Slot > maxWornAppearanceSlot {
-			continue
+		if w.Slot <= maxWornAppearanceSlot && w.Group == 0 {
+			bySlot[w.Slot] = w.Template
 		}
-		rows = append(rows, protocol.EquippedAppearance{Slot: byte(w.Slot), Model: w.Template})
+	}
+	for _, w := range bag.Worn {
+		if w.Slot <= maxWornAppearanceSlot && w.Group == 1 {
+			bySlot[w.Slot] = w.Template
+		}
+	}
+	rows := make([]protocol.EquippedAppearance, 0, len(bySlot))
+	for slot, model := range bySlot {
+		rows = append(rows, protocol.EquippedAppearance{Slot: byte(slot), Model: model})
 	}
 	if len(rows) == 0 {
 		return nil, nil

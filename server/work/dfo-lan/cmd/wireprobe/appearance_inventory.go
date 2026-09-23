@@ -18,7 +18,9 @@ func appearanceInventory(state json.RawMessage) ([]outboundPacket, error) {
 	for _, space := range []byte{1, 7, 3} {
 		rows := bag.Special[space]
 		if space == 3 {
-			rows = bag.Worn
+			// Coexisting clone/look avatars share a body slot; the wire
+			// payload carries one row per slot.
+			rows = bag.WornBaseItems()
 		}
 		p, e := inventory.EquipmentPayload(space, rows, true)
 		if e != nil {

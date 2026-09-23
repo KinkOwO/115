@@ -16,6 +16,7 @@ import (
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/game/wire"
 	"dfolan/internal/inventory"
+	"dfolan/internal/legion"
 	"dfolan/internal/loot"
 	"dfolan/internal/progression"
 	"dfolan/internal/quest"
@@ -82,6 +83,7 @@ func main() {
 	vaultPurchase := flag.Bool("vault-purchase-candidate", os.Getenv("DFO_VAULT_PURCHASE_CANDIDATE") == "1", "enable isolated vault purchase candidate")
 	vaultRelease := flag.Bool("vault-purchase-release", os.Getenv("DFO_VAULT_PURCHASE_RELEASE") == "1", "enable accepted personal vault purchases in release profile")
 	randomOptionFile := flag.String("random-option-catalog", os.Getenv("DFO_RANDOM_OPTION_CATALOG"), "current-client magic-seal random option rules; enables CMD393 unsealing")
+	apocalypseCatalogFile := flag.String("apocalypse-catalog", "configs/apocalypse.generated.json", "compiled apocalypse.ctp table (phase clock, operations, gates, rewards, duty skills)")
 	flag.Parse()
 	if *fullEquipmentFile == "" {
 		for _, cand := range []string{
@@ -675,6 +677,9 @@ func main() {
 		if e == nil {
 			e = characters.Store.MigrateAccountMaterials(ctx)
 		}
+		if e == nil && rules.Account != nil {
+			e = characters.Store.MigrateAccountVault(ctx)
+		}
 		cancel()
 		if e != nil {
 			log.Fatal(e)
@@ -743,6 +748,26 @@ func main() {
 	}
 	if selectionBoxes == nil {
 		log.Printf("warning: no selection box catalog; pick-a-item boxes go down the generic booster path")
+	}
+	// 末世录/军团编译表（apocalypse.ctp）。阶段时钟、四个作战、门禁时刻、投币开关、
+	// 奖励与职责参数全部出自这张表；缺表时军团确认会记一条
+	// `legion_catalog_missing` 事件，而不是假装校验通过。
+	var apocalypseCatalog *catalog.ApocalypseCatalog
+	var apocalypseClock *legion.ApocalypseClock
+	if *apocalypseCatalogFile != "" {
+		loaded, err := catalog.LoadApocalypseCatalog(*apocalypseCatalogFile)
+		if err != nil {
+			log.Printf("warning: load apocalypse catalog (%s): %v", *apocalypseCatalogFile, err)
+		} else if clock, err := legion.NewApocalypseClock(loaded); err != nil {
+			log.Printf("warning: apocalypse clock (%s): %v", *apocalypseCatalogFile, err)
+		} else {
+			apocalypseCatalog, apocalypseClock = loaded, clock
+			log.Printf("loaded apocalypse table (%d records, %d operations, %d phases, %gs total) from %s",
+				loaded.RecordCount, len(loaded.Operations), clock.Len(), clock.TotalSeconds(), *apocalypseCatalogFile)
+		}
+	}
+	if apocalypseCatalog == nil {
+		log.Printf("warning: no apocalypse catalog; legion operation confirmations are not validated")
 	}
 	// 物品商店表：源用 [need material] 定价的商品（奥德赛商店的盒子要 100 个银币）
 	// 必须按材料扣，否则一律按写死的金币单价白送。
@@ -911,6 +936,9 @@ func main() {
 		var skillState skillSession
 		var equipmentState equipmentSession
 		var sortState sortSession
+		var legionState legionSession
+		legionState.catalog = apocalypseCatalog
+		legionState.clock = apocalypseClock
 		if worldService != nil {
 			worldState = &worldSession{characters: characters, service: worldService, account: developmentAccount, flags: townPolicy.Flags, dungeons: dungeonCatalog, tutorials: tutorialRoutes, tutorialDungeons: tutorialDungeons, professions: characters.Catalog, fatigue: fatigueService, quests: questService, progression: progressionService, loot: lootService, selectionBoxes: selectionBoxes, vault: vaultService, soloPartyBootstrap: *soloPartyBootstrap, hub: hub}
 			worldState.serverID = channelCfg.ServerID
@@ -1175,6 +1203,59 @@ func main() {
 				}
 				continue
 			}
+			if frame.Type == 1 && legion.Requests(frame.ID) && bootstrapped && verified && worldState != nil {
+				// Legion / apocalypse family. CMD2043/2354/2045 are handled in
+				// town and CMD2355 inside the dungeon; the rest of the family is
+				// routed here so an unimplemented packet is logged as an
+				// explicit refusal instead of vanishing.
+				legionPlan, legionErr := legionState.handle(worldState, plaintext, frame.ID)
+				// The request body is logged whether or not the opcode is
+				// answered. Settling X1 (next64 §6.2) — whether the caller's
+				// appended length already contains the 13-byte envelope — is
+				// the point of P1's observability, so both the byte count and
+				// the raw bytes are kept.
+				legionBytes, legionHex := legionRequestBody(plaintext)
+				if legionErr != nil {
+					event(map[string]any{"kind": "legion_refused", "id": frame.ID, "reason": legionErr.Error(), "request_bytes": legionBytes, "request_hex": legionHex})
+					continue
+				}
+				for _, note := range legionPlan.Events {
+					note["id"] = frame.ID
+					note["request_bytes"] = legionBytes
+					note["request_hex"] = legionHex
+					event(note)
+				}
+				for _, packet := range legionPlan.Packets {
+					if err := sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
+						return
+					}
+					event(map[string]any{"kind": packet.Name, "id": packet.ID, "character_id": worldState.role.ID, "request_bytes": legionBytes, "request_hex": legionHex, "plain_hex": hex.EncodeToString(packet.Payload)})
+				}
+				continue
+			}
+			if frame.Type == 1 && bootstrapped && verified && (frame.ID == 305 || frame.ID == 306) && worldState != nil {
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				plan, err := worldState.upgradeAccountVault(ctx, frame.ID, plaintext, frame.Raw, keys, purchaseSession.prefix)
+				cancel()
+				if err != nil {
+					event(map[string]any{"kind": "账号金库操作被拒绝", "id": frame.ID, "character_id": selectedCharacterID, "reason": err.Error()})
+					if err = sendPayload(1, frame.ID, accountVaultRefusal(err)); err != nil {
+						return
+					}
+					continue
+				}
+				prepared, err := preparePackets(keys, plan)
+				if err != nil {
+					event(map[string]any{"kind": "账号金库回包编码失败", "reason": err.Error()})
+					return
+				}
+				if err = writePackets(c, prepared, func(p preparedPacket) {
+					event(map[string]any{"kind": p.Name, "id": p.ID, "character_id": selectedCharacterID, "plain_hex": hex.EncodeToString(p.Payload)})
+				}); err != nil {
+					return
+				}
+				continue
+			}
 			if frame.ID == 19 && bootstrapped && verified && wearService != nil {
 				plan, e := equipmentState.handle(wearService, worldState, plaintext, frame.Raw)
 				if e != nil {
@@ -1195,6 +1276,18 @@ func main() {
 					wornUpdate, e := inventory.WornSpaceUpdate(worldState.role.State)
 					if e == nil && len(wornUpdate) > 0 {
 						plan = append(plan, outboundPacket{"worn_equipment_visuals_updated", 0, 14, wornUpdate})
+					}
+				}
+				if decodeErr == nil && characters != nil && cloneAvatarRemoval(r, wearService.Catalog) {
+					// attempt 3/3: entry's known mode-1 reader restores the ordinary
+					// Avatar association on relog. Send it only after every CMD19
+					// NOTI13/14 and mode-0 refresh, so later slot reconstruction
+					// cannot immediately discard the restored association.
+					addition, additionErr := characters.EntryAddition(worldState.role)
+					if additionErr != nil {
+						event(map[string]any{"kind": "equipment_avatar_addition_error", "error": additionErr.Error()})
+					} else {
+						plan = append(plan, outboundPacket{"equipment_avatar_addition_refreshed", 0, 2, addition})
 					}
 				}
 				prepared, e := preparePackets(keys, plan)
@@ -1450,6 +1543,32 @@ func main() {
 					return
 				}
 				event(map[string]any{"kind": "content_briefing_response", "id": frame.ID, "character_id": selectedCharacterID, "bytes": len(payload), "plain_hex": hex.EncodeToString(payload)})
+				continue
+			}
+			if characters != nil && bootstrapped && frame.ID == 331 {
+				if !verified {
+					event(map[string]any{"kind": "skill_commands_rejected", "reason": "checksum failed", "character_id": selectedCharacterID})
+					continue
+				}
+				if worldState == nil || worldState.role.ID != selectedCharacterID {
+					event(map[string]any{"kind": "skill_commands_rejected", "reason": "character selection mismatch", "character_id": selectedCharacterID})
+					continue
+				}
+				count, e := skillState.saveCommands(characters, worldState, plaintext)
+				if e != nil {
+					event(map[string]any{"kind": "skill_commands_rejected", "reason": e.Error(), "character_id": selectedCharacterID})
+				} else {
+					event(map[string]any{"kind": "skill_commands_saved", "character_id": selectedCharacterID, "count": count})
+					restore, restoreErr := characters.EntrySkills(worldState.role)
+					if restoreErr != nil {
+						event(map[string]any{"kind": "skill_commands_refresh_failed", "reason": restoreErr.Error(), "character_id": selectedCharacterID})
+					} else {
+						if e = sendPayload(0, 19, restore); e != nil {
+							return
+						}
+						event(map[string]any{"kind": "skill_commands_refreshed", "character_id": selectedCharacterID, "id": 19})
+					}
+				}
 				continue
 			}
 			if characters != nil && bootstrapped && (frame.ID == 28 || frame.ID == 29 || frame.ID == 483) {
@@ -1803,7 +1922,9 @@ func main() {
 				if frame.ID == 37 && worldState.activeDungeon != nil {
 					worldState.activeDungeon.Loaded = true
 					worldState.activeDungeon.TryComplete()
-					if completed, err := worldState.completeDungeon(); err == nil && len(completed) > 0 {
+					if completed, err := worldState.completeDungeon(); err != nil {
+						event(map[string]any{"kind": "dungeon_completion_error", "map": worldState.activeDungeon.Room.Map, "error": err.Error()})
+					} else if len(completed) > 0 {
 						for _, packet := range completed {
 							if err = sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
 								return
@@ -1840,6 +1961,13 @@ func main() {
 						} else {
 							worldState.selectingDungeon = false
 						}
+						// A legion run lives inside a dungeon, so leaving it ends
+						// the run. The client normally says so itself; this is
+						// the backstop for a player who just walks out (P6).
+						if note, closed := legionState.abandonOnLeave(p.Name, worldState.role.ID); closed {
+							note["id"] = frame.ID
+							event(note)
+						}
 					}
 					if p.Name == "monster_death_confirmed" {
 						if worldState.deathSent == nil {
@@ -1860,6 +1988,10 @@ func main() {
 				}
 				if frame.ID == 42 {
 					worldState.activeDungeon = nil
+					if note, closed := legionState.abandonOnLeave("CMD42 dungeon leave", worldState.role.ID); closed {
+						note["id"] = frame.ID
+						event(note)
+					}
 				}
 				if frame.ID == 42 || frame.ID == 132 {
 					worldState.selectingDungeon = false
@@ -2187,9 +2319,21 @@ func main() {
 				var basic []byte
 				var addition []byte
 				var vaultPayload []byte
+				var secondaryVaultPayload []byte
+				var accountVaultPayload []byte
 				if vaultService != nil {
 					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 					vaultPayload, e = vaultService.Bootstrap(ctx, role)
+					if e == nil {
+						secondaryVaultPayload, e = vaultService.BootstrapSpace(ctx, role, 45)
+					}
+					if e == nil && vaultService.Rules.Account != nil {
+						var accountVault storage.AccountVaultState
+						accountVault, e = vaultService.Store.LoadAccountVault(ctx, role.AccountID, role.ID)
+						if e == nil {
+							accountVaultPayload, e = inventory.AccountVaultPayload(accountVault, *vaultService.Rules.Account)
+						}
+					}
 					cancel()
 					if e != nil {
 						event(map[string]any{"kind": "vault_entry_rejected", "error": e.Error()})
@@ -2284,6 +2428,8 @@ func main() {
 					}
 				}
 				plan := entryPayloads{Select: payload, Basic: basic, Addition: addition, Vault: vaultPayload, UserArea: userArea, Area: areaPayload, Fatigue: fatiguePayload, AccountOptions: accountOptions}
+				plan.SecondaryVault = secondaryVaultPayload
+				plan.AccountVault = accountVaultPayload
 				// Introduce the players already standing here before the area list that
 				// places them: the client only places actors it already knows.
 				if worldState != nil {
@@ -2346,7 +2492,9 @@ func main() {
 						var bag inventory.Bag
 						bag, e = inventory.ReadBag(role.State)
 						if e == nil && len(bag.Worn) > 0 {
-							plan.WornSlots, e = inventory.EquipmentPayload(3, bag.Worn, false)
+							// Coexisting clone/look avatars share a body slot; the
+							// id-14 slot channel carries one row per slot.
+							plan.WornSlots, e = inventory.EquipmentPayload(3, bag.WornBaseItems(), false)
 						}
 					}
 					if e == nil {

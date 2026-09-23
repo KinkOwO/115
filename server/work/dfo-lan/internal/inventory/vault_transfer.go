@@ -67,6 +67,9 @@ func (s *VaultService) TransferStacks(role storage.Character, v storage.VaultSta
 	if (to == nil && r.DestinationItem != 0) || (to != nil && (r.DestinationItem != to.Template || to.Template != from.Template)) {
 		return fail("stale or incompatible vault target")
 	}
+	if to != nil && to.ExpireTime != from.ExpireTime {
+		return fail("不同期限的金库物品不能合并")
+	}
 	// Live 130633/130704 uses count zero for a whole-stack warehouse merge.
 	// Do not generalize that sentinel to unobserved cross-container requests.
 	if r.Count == 0 {
@@ -155,7 +158,7 @@ func (s *VaultService) TransferStacks(role storage.Character, v storage.VaultSta
 			}
 		}
 		if amount > 0 {
-			kept = append(kept, BagItem{Slot: slot, Template: template, Amount: amount})
+			kept = append(kept, BagItem{Slot: slot, Template: template, Amount: amount, ExpireTime: from.ExpireTime})
 		}
 		*p = kept
 	}
@@ -166,7 +169,7 @@ func (s *VaultService) TransferStacks(role storage.Character, v storage.VaultSta
 		sort.Slice(vault, func(i, j int) bool { return vault[i].Slot < vault[j].Slot })
 		left := r.Count
 		for i := range vault {
-			if vault[i].Template != from.Template || vault[i].Amount >= limit {
+			if vault[i].Template != from.Template || vault[i].ExpireTime != from.ExpireTime || vault[i].Amount >= limit {
 				continue
 			}
 			n := limit - vault[i].Amount

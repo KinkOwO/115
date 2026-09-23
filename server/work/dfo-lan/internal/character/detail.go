@@ -2,6 +2,7 @@ package character
 
 import (
 	"dfolan/internal/game/protocol"
+	"dfolan/internal/inventory"
 	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
@@ -70,7 +71,7 @@ func (s *Service) EntryAddition(role storage.Character) ([]byte, error) {
 	// refusal, and an absent field simply reads as "nothing unlocked".
 	var projection struct {
 		Inventory struct {
-			ExpandEquipFlags byte                     `json:"expand_equip_flags"`
+			ExpandEquipFlags byte                    `json:"expand_equip_flags"`
 			Worn             []protocol.DetailedWorn `json:"worn"`
 		} `json:"inventory"`
 	}
@@ -79,20 +80,89 @@ func (s *Service) EntryAddition(role storage.Character) ([]byte, error) {
 	}
 	var worn []protocol.DetailedWorn
 	if s.DetailedWornCandidate {
-		for _, item := range projection.Inventory.Worn {
-			// Avatar slots (<= 11) ride the avatar row layout; the creature
-			// body slot 26 and creature gear slots 27..29 ride the plain /
-			// creature-extension layouts (protocol.DetailedEquipment pins all
-			// three against native reader sub_1452C1540). Slots 12..25 stay
-			// excluded exactly as before: their window data already arrives
-			// via NOTI 13/14 and their mode-1 projection is a separate,
-			// unverified change.
-			if item.Slot <= 11 || (item.Slot >= 26 && item.Slot <= 29) {
-				worn = append(worn, item)
+		var wornProjection struct {
+			Inventory struct {
+				Worn []inventory.BagEquipment `json:"worn"`
+			} `json:"inventory"`
+		}
+		if e := json.Unmarshal(role.State, &wornProjection); e == nil {
+			b := inventory.Bag{Worn: wornProjection.Inventory.Worn}
+			for _, item := range b.WornBaseItems() {
+				// Avatar slots (<= 11) ride the avatar row layout; the creature
+				// body slot 26 and creature gear slots 27..29 ride the plain /
+				// creature-extension layouts (protocol.DetailedEquipment pins all
+				// three against native reader sub_1452C1540). Slots 12..25 stay
+				// excluded exactly as before: their window data already arrives
+				// via NOTI 13/14 and their mode-1 projection is a separate,
+				// unverified change.
+				if !(item.Slot <= 11 || (item.Slot >= 26 && item.Slot <= 29)) {
+					continue
+				}
+				var dw protocol.DetailedWorn
+				dw.Slot = item.Slot
+				dw.Template = item.Template
+				dw.Durability = item.Durability
+				dw.Record = item.Record
+				dw.AvatarOptions = item.AvatarOptions
+				dw.AvatarSockets = item.AvatarSockets
+				dw.Period = item.Period
+				if item.Slot <= 11 && item.Group == 0 {
+					// Coexisting ordinary look: the row's primary template remains
+					// the clear avatar. Native sub_1452C1540 treats row+24 as the
+					// appearance override for this item category (bit 21). row+28
+					// is consumed only when row+24 has bit 25, the random-clear-
+					// avatar category, so keep it zero for a normal look.
+					for _, other := range b.Worn {
+						if other.Slot == item.Slot && other.Group == 1 {
+							dw.HeaderTemplateA = other.Template
+							break
+						}
+					}
+				}
+				worn = append(worn, dw)
 			}
 		}
 	}
-	return protocol.UserInfoAdditionProbe(protocol.EntryAdditionProbe{ActorServerID: role.WireID, Experience: state.Experience, Stats: stats, SkillTrees: trees, Worn: worn, ExpandEquipFlags: projection.Inventory.ExpandEquipFlags})
+	fame, err := s.EquipmentFame(role.State)
+	if err != nil {
+		return nil, err
+	}
+	return protocol.UserInfoAdditionProbe(protocol.EntryAdditionProbe{ActorServerID: role.WireID, Experience: state.Experience, Stats: stats, SkillTrees: trees, Worn: worn, Fame: fame, ExpandEquipFlags: projection.Inventory.ExpandEquipFlags})
+}
+
+// EquipmentFame 汇总实际穿戴物品的原版基础名望，不计背包、仓库或未穿戴宠物。
+// 强化、附魔等额外名望尚无已验证公式，不能据此虚构附加值。
+func (s *Service) EquipmentFame(raw json.RawMessage) (uint32, error) {
+	if s.Equipment == nil {
+		return 0, nil
+	}
+	bag, err := inventory.ReadBag(raw)
+	if err != nil {
+		return 0, err
+	}
+	var total uint64
+	// 与装备属性投影一致，同槽克隆和普通外观仅取基础物品，避免重复计入名望。
+	for _, item := range bag.WornBaseItems() {
+		if item.Template == 0 || item.Template == math.MaxUint32 {
+			continue
+		}
+		definition, err := s.Equipment.Definition(item.Template)
+		if err != nil {
+			return 0, err
+		}
+		values := definition.Fields["[fame value]"]
+		if len(values) == 0 {
+			continue
+		}
+		if len(values) != 1 || values[0].Type != 0 || values[0].Value < 0 {
+			return 0, fmt.Errorf("装备基础名望格式无效：%d", item.Template)
+		}
+		total += uint64(values[0].Value)
+		if total > math.MaxInt32 {
+			return 0, fmt.Errorf("装备基础名望超出客户端范围")
+		}
+	}
+	return uint32(total), nil
 }
 
 // The exact .chr loader at 147559d80 stores (ID, first value) in the

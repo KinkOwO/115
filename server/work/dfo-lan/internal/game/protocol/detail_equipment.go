@@ -9,13 +9,19 @@ import (
 // Only avatar slots are initialized here; other item types have different
 // template-dependent extensions. Rich records require a separate projection.
 type DetailedWorn struct {
-	Slot          uint16 `json:"slot"`
-	Template      uint32 `json:"template"`
-	Durability    uint16 `json:"durability"`
-	Period        uint32 `json:"period,omitempty"`
-	AvatarOptions []byte `json:"avatar_options,omitempty"`
-	AvatarSockets []byte `json:"avatar_sockets,omitempty"`
-	Record        []byte `json:"record,omitempty"`
+	Slot       uint16 `json:"slot"`
+	Template   uint32 `json:"template"`
+	Durability uint16 `json:"durability"`
+	// HeaderTemplateA is the row+24 visual override. For ordinary avatars
+	// (including clear avatars) the native reader writes it to the appearance
+	// field. Only random clear avatars (item-category bit 25) use it as a
+	// random-avatar template and then consume HeaderTemplateB at row+28.
+	HeaderTemplateA uint32 `json:"header_template_a,omitempty"`
+	HeaderTemplateB uint32 `json:"header_template_b,omitempty"`
+	Period          uint32 `json:"period,omitempty"`
+	AvatarOptions   []byte `json:"avatar_options,omitempty"`
+	AvatarSockets   []byte `json:"avatar_sockets,omitempty"`
+	Record          []byte `json:"record,omitempty"`
 }
 
 // Row layouts pinned instruction by instruction against the native mode-1
@@ -64,6 +70,9 @@ func DetailedEquipment(rows []DetailedWorn) ([]byte, error) {
 		if !avatar && (len(v.AvatarOptions) != 0 || len(v.AvatarSockets) != 0) {
 			return nil, fmt.Errorf("avatar blob on non-avatar detailed row")
 		}
+		if !avatar && (v.HeaderTemplateA != 0 || v.HeaderTemplateB != 0) {
+			return nil, fmt.Errorf("avatar attachment on non-avatar detailed row")
+		}
 		if len(v.AvatarOptions) > 4096 || len(v.AvatarSockets) > 4096 {
 			return nil, fmt.Errorf("oversized avatar data")
 		}
@@ -72,6 +81,8 @@ func DetailedEquipment(rows []DetailedWorn) ([]byte, error) {
 		row[0] = byte(v.Slot)
 		binary.LittleEndian.PutUint32(row[1:], v.Template)
 		binary.LittleEndian.PutUint16(row[10:], v.Durability)
+		binary.LittleEndian.PutUint32(row[24:], v.HeaderTemplateA)
+		binary.LittleEndian.PutUint32(row[28:], v.HeaderTemplateB)
 		p = append(p, row...)
 		if avatar {
 			p = append(add32(p, uint32(len(v.AvatarOptions))), v.AvatarOptions...)

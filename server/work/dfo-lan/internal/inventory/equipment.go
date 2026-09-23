@@ -102,11 +102,28 @@ func LoadEquipmentCatalog(path, source string) (*EquipmentCatalog, error) {
 type BagEquipment struct {
 	Slot          uint16 `json:"slot"`
 	Template      uint32 `json:"template"`
+	Group         byte   `json:"group,omitempty"`
 	Durability    uint16 `json:"durability"`
 	Record        []byte `json:"record,omitempty"`
 	AvatarOptions []byte `json:"avatar_options,omitempty"`
 	AvatarSockets []byte `json:"avatar_sockets,omitempty"`
 	Period        uint32 `json:"period,omitempty"`
+}
+
+// IsCloneAvatar reports whether this equipment has PVF category "clear avatar".
+func (d EquipmentDefinition) IsCloneAvatar() bool {
+	for _, t := range d.Fields["[item category]"] {
+		if t.Text == "clear avatar" {
+			return true
+		}
+	}
+	return false
+}
+
+// IsAvatar reports whether this equipment is an avatar piece (slot 0..11).
+func (d EquipmentDefinition) IsAvatar() bool {
+	kind := d.Fields["[equipment type]"]
+	return len(kind) > 0 && kind[0].Type == 6 && strings.HasSuffix(kind[0].Text, " avatar]")
 }
 
 // durabilityOptional 列出**源文件本来就不带 [durability] 段**的部位。
