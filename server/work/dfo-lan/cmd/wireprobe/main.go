@@ -616,6 +616,19 @@ func main() {
 					wearCatalog.Full = full
 					wearService.Catalog = &wearCatalog
 					equipment.Full = full
+					// 宠物行的期限（181 字节行的偏移 56）要按脚本真值给「剩余秒数」：
+					// 客户端把它 ÷86400 渲染成「过期时间:N天」，填哨兵值会显示 24856 天。
+					inventory.SetCreaturePeriodSource(func(template uint32) (int32, bool) {
+						d, err := equipment.Definition(template)
+						if err != nil {
+							return 0, false
+						}
+						v, ok := d.Fields["[usable period]"]
+						if !ok || len(v) == 0 || v[0].Type != 0 {
+							return 0, false
+						}
+						return v[0].Value, true
+					})
 					log.Printf("separate wear catalog: %d records; original reward/drop catalog: %d", len(full.Records), len(equipment.Rows))
 				}
 			}
@@ -1152,6 +1165,22 @@ func main() {
 				}
 				continue
 			}
+			if frame.Type == 1 && frame.ID == 2079 && bootstrapped && verified && characters != nil {
+				id, err := protocol.DecodeSynopsisRead(plaintext)
+				var payload []byte
+				if err == nil {
+					payload, err = saveSynopsisRead(characters.Store, worldState, id)
+				}
+				if err != nil {
+					event(map[string]any{"kind": "synopsis_read_refused", "error": err.Error()})
+					continue
+				}
+				if err = sendPayload(0, 2310, payload); err != nil {
+					return
+				}
+				event(map[string]any{"kind": "synopsis_table_info_sent", "character_id": worldState.role.ID, "synopsis_id": id, "attempt": "2/3", "plain_hex": hex.EncodeToString(payload)})
+				continue
+			}
 			if frame.Type == 1 && frame.ID == 1438 && bootstrapped && verified && characters != nil {
 				// CMD1438 STORY_DIGEST_UPDATE: the client reports the opening
 				// recap movie finished (empty payload). Must be matched before
@@ -1624,7 +1653,8 @@ func main() {
 				plan, e = worldState.deleteItems(plaintext, frame.Raw)
 				if e != nil {
 					event(map[string]any{"kind": "item_delete_refused", "reason": e.Error(), "character_id": worldState.role.ID})
-					if e = sendPayload(1, 18, protocol.MaterialDeleteReply(nil, false)); e != nil {
+					rows, _ := protocol.DecodeMaterialDelete(plaintext)
+					if e = sendPayload(1, 18, protocol.MaterialDeleteReply(rows, false)); e != nil {
 						return
 					}
 					continue
@@ -1834,6 +1864,7 @@ func main() {
 				case 38:
 					pending, plan, e = worldState.interactDoor(plaintext)
 				case 39:
+					worldState.completionErr = nil
 					plan, e = worldState.monsterDeath(plaintext)
 				case 40:
 					plan, e = worldState.playerDeath(plaintext, frame.Raw)
@@ -1919,6 +1950,10 @@ func main() {
 				}); e != nil {
 					return
 				}
+				if frame.ID == 39 && worldState.completionErr != nil {
+					event(map[string]any{"kind": "dungeon_completion_error", "map": worldState.activeDungeon.Room.Map, "error": worldState.completionErr.Error()})
+					worldState.completionErr = nil
+				}
 				if pending != nil {
 					if frame.ID == 16 || frame.ID == 72 || frame.ID == 2062 {
 						worldState.deathSent = map[uint16]bool{}
@@ -1929,6 +1964,7 @@ func main() {
 					// A dungeon is a private instance: this actor leaves the shared town.
 					worldState.leaveScene()
 					worldState.completionSent = false
+					worldState.completionErr = nil
 					worldState.resultSent = false
 					worldState.selectingDungeon = false
 					event(map[string]any{"kind": "dungeon_session_started", "dungeon": pending.Definition.ID, "maze": pending.Maze.Index, "map": pending.Room.Map, "monsters": len(pending.Monsters), "quests_changed": false})
@@ -2460,6 +2496,9 @@ func main() {
 					// state must drop both frames together, never emit the
 					// digest without the skip bitmap.
 					plan.StoryDigest, e = storyDigestRestore(role.State)
+				}
+				if e == nil {
+					plan.SynopsisRead, e = synopsisRestore(role.State)
 				}
 				if e == nil && characters != nil {
 					plan.SkillVariations, e = characters.VariationRestore(role)

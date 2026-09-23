@@ -313,6 +313,13 @@ func CalculateDisjointRewards(info DisjointEquipmentInfo, rng *rand.Rand) []Disj
 		}
 	}
 
+	// 4. [event result]：客户端按**装备模板 id** 直接查的额外产出（与上面的等级组 /
+	//    稀有度 / 概率三条规则无关）。本工程只实现了奥德赛货币那 273 条，见
+	//    disjoint_odyssey_coins.go；命中就给，不命中一分不给，不参与随机。
+	if coin, ok := disjointOdysseyCoins[info.Template]; ok && coin.Count > 0 {
+		rewards = append(rewards, coin)
+	}
+
 	return rewards
 }
 
