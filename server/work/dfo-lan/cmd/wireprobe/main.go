@@ -1305,15 +1305,17 @@ func main() {
 					continue
 				}
 				r, decodeErr := protocol.DecodeItemMove(plaintext)
-				if decodeErr == nil && characters != nil && (r.SourceSlot == 26 || r.DestinationSlot == 26 || r.SourceList == 3 || r.DestinationList == 3) {
+				// Ordinary worn-set moves already append AppearanceProbe and
+				// WornSpaceUpdate in equipmentSession.handle. Re-sending an entry
+				// user-info and the same worn-window refresh here rebuilds the actor
+				// twice mid-dungeon and can strand the client before its next room
+				// request. Keep the separate actor refresh only for slot-26 moves
+				// that did not pass through the worn list.
+				if decodeErr == nil && characters != nil && (r.SourceSlot == 26 || r.DestinationSlot == 26) && r.SourceList != 3 && r.DestinationList != 3 {
 					var visual []byte
 					visual, e = characters.EntryBasicProbe(worldState.role, [2]byte{})
 					if e == nil {
 						plan = append(plan, outboundPacket{"creature_actor_appearance_updated", 0, 2, visual})
-					}
-					wornUpdate, e := inventory.WornSpaceUpdate(worldState.role.State)
-					if e == nil && len(wornUpdate) > 0 {
-						plan = append(plan, outboundPacket{"worn_equipment_visuals_updated", 0, 14, wornUpdate})
 					}
 				}
 				if decodeErr == nil && characters != nil && cloneAvatarRemoval(r, wearService.Catalog) {
