@@ -22,6 +22,10 @@ func (w *worldSession) useStackable(p []byte) ([]outboundPacket, error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+	before, e := inventory.ReadBag(w.role.State)
+	if e != nil {
+		return nil, e
+	}
 	saved, _, _, e := w.loot.Consume(ctx, w.role, r)
 	if e != nil {
 		return nil, e
@@ -34,7 +38,7 @@ func (w *worldSession) useStackable(p []byte) ([]outboundPacket, error) {
 	if e != nil {
 		return nil, e
 	}
-	update, e := protocol.InventoryUpdate(b.Rows())
+	update, e := protocol.InventoryUpdate(inventory.ChangedItemRows(before, b))
 	if e != nil {
 		return nil, e
 	}

@@ -4,17 +4,13 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/storage"
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"strings"
 )
 
 // 账号金库只接受可交易或账号绑定实例；不会借共享存储把角色绑定变成可转移。
-func accountVaultItemAllowed(item VaultItem, items catalog.LootCatalog, equipment *EquipmentCatalog, now uint32) error {
-	if item.ExpireTime != 0 && item.ExpireTime <= now {
-		return fmt.Errorf("该物品已过期")
-	}
+func accountVaultItemAllowed(item VaultItem, items catalog.LootCatalog, equipment *EquipmentCatalog) error {
 	if !item.IsEquip {
 		def, ok := items.Items[item.Template]
 		if !ok || def.Kind != "stackable" || strings.Contains(def.StackableType, "quest") {
@@ -59,14 +55,10 @@ func accountVaultItemAllowed(item VaultItem, items catalog.LootCatalog, equipmen
 	case "[avatar]", "[creature]", "[aura]":
 		return fmt.Errorf("账号金库不支持此类装备")
 	}
-	row := EquipmentRow(*instance)
-	if expiry := binary.LittleEndian.Uint32(row[56:60]); expiry != 0 && expiry <= now {
-		return fmt.Errorf("账号金库装备已过期")
-	}
 	return nil
 }
 
-func MoveAccountVault(role storage.Character, saved storage.AccountVaultState, rules BagRules, items catalog.LootCatalog, equipment *EquipmentCatalog, request protocol.ItemMoveRequest, now uint32) (json.RawMessage, storage.AccountVaultState, uint32, error) {
+func MoveAccountVault(role storage.Character, saved storage.AccountVaultState, rules BagRules, items catalog.LootCatalog, equipment *EquipmentCatalog, request protocol.ItemMoveRequest) (json.RawMessage, storage.AccountVaultState, uint32, error) {
 	fail := func(reason string) (json.RawMessage, storage.AccountVaultState, uint32, error) {
 		return nil, saved, 0, fmt.Errorf("%s", reason)
 	}
@@ -114,7 +106,7 @@ func MoveAccountVault(role storage.Character, saved storage.AccountVaultState, r
 		return fail("账号金库源物品或数量无效")
 	}
 	if request.SourceList == 0 {
-		if err = accountVaultItemAllowed(*from, items, equipment, now); err != nil {
+		if err = accountVaultItemAllowed(*from, items, equipment); err != nil {
 			return fail(err.Error())
 		}
 	}

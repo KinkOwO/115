@@ -97,7 +97,7 @@ func (w *worldSession) deleteItems(p, raw []byte) ([]outboundPacket, error) {
 	}
 	var delta [][protocol.CurrentItemRecordSize]byte
 	for _, r := range rows {
-		item := protocol.OrdinaryItem(r.Slot, 0, 0)
+		item := protocol.EmptyOrdinaryItem(r.Slot)
 		for _, v := range bag.Items {
 			if v.Slot == r.Slot {
 				item = protocol.OrdinaryItem(v.Slot, v.Template, v.Amount)

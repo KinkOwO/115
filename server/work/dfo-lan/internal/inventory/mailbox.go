@@ -3,7 +3,6 @@ package inventory
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"strings"
@@ -46,7 +45,7 @@ func (m MailItem) Row() ([protocol.CurrentItemRecordSize]byte, error) {
 
 // TakeMailItem 只接受背包中的真实实例；不会读取客户端提供的装备属性。
 // 绑定、任务物品和特殊容器不因邮件路径绕过原有规则。
-func (b Bag) TakeMailItem(c catalog.LootCatalog, equipment *EquipmentCatalog, r protocol.MailSendItem, now uint32) (Bag, MailItem, error) {
+func (b Bag) TakeMailItem(c catalog.LootCatalog, equipment *EquipmentCatalog, r protocol.MailSendItem) (Bag, MailItem, error) {
 	fail := func(err error) (Bag, MailItem, error) { return b, MailItem{}, err }
 	if r.List != 0 || r.Slot < 2 || r.Template < 2 || r.Amount == 0 {
 		return fail(ErrMailUntradeable)
@@ -55,8 +54,8 @@ func (b Bag) TakeMailItem(c catalog.LootCatalog, equipment *EquipmentCatalog, r 
 		if row.Slot != r.Slot {
 			continue
 		}
-		if row.Template != r.Template || r.Amount > row.Amount || (row.ExpireTime != 0 && row.ExpireTime <= now) {
-			return fail(fmt.Errorf("邮件附件槽位、数量或期限已改变"))
+		if row.Template != r.Template || r.Amount > row.Amount {
+			return fail(fmt.Errorf("邮件附件槽位或数量已改变"))
 		}
 		definition, ok := c.Items[row.Template]
 		if !ok || definition.Kind != "stackable" {
@@ -108,11 +107,6 @@ func (b Bag) TakeMailItem(c catalog.LootCatalog, equipment *EquipmentCatalog, r 
 		}
 		if err = row.ValidateRecord(); err != nil {
 			return fail(err)
-		}
-		record := EquipmentRow(row)
-		expiry := binary.LittleEndian.Uint32(record[56:60])
-		if expiry != 0 && expiry <= now {
-			return fail(fmt.Errorf("邮件装备已过期"))
 		}
 		b.Equipment = append([]BagEquipment(nil), b.Equipment...)
 		b.Equipment = append(b.Equipment[:i], b.Equipment[i+1:]...)

@@ -378,6 +378,7 @@ func (w *worldSession) elvenmereTeleport(p []byte) ([]outboundPacket, error) {
 				Rules:     w.loot.BagRules,
 				Equipment: w.loot.Equipment,
 			}
+			before, _ := inventory.ReadBag(w.role.State)
 			if updated, _, err := awarder.Grant(w.role.State, itemTemplate, itemCount); err == nil {
 				w.role.State = updated
 				if store := w.service.Store; store != nil {
@@ -388,7 +389,7 @@ func (w *worldSession) elvenmereTeleport(p []byte) ([]outboundPacket, error) {
 					})
 				}
 				if b, err := inventory.ReadBag(updated); err == nil {
-					if updatePayload, err := protocol.InventoryUpdate(b.Rows()); err == nil {
+					if updatePayload, err := protocol.InventoryUpdate(inventory.ChangedItemRows(before, b)); err == nil {
 						plan = append(plan, outboundPacket{"elvenmere_inventory_updated", 0, 14, updatePayload})
 					}
 				}
@@ -406,6 +407,7 @@ func (w *worldSession) elvenmereTeleport(p []byte) ([]outboundPacket, error) {
 				Rules:     w.loot.BagRules,
 				Equipment: w.loot.Equipment,
 			}
+			before, _ := inventory.ReadBag(w.role.State)
 			if updated, _, err := awarder.Grant(w.role.State, sTemplate, sCount); err == nil {
 				w.role.State = updated
 				if store := w.service.Store; store != nil {
@@ -416,7 +418,7 @@ func (w *worldSession) elvenmereTeleport(p []byte) ([]outboundPacket, error) {
 					})
 				}
 				if b, err := inventory.ReadBag(updated); err == nil {
-					if updatePayload, err := protocol.InventoryUpdate(b.Rows()); err == nil {
+					if updatePayload, err := protocol.InventoryUpdate(inventory.ChangedItemRows(before, b)); err == nil {
 						plan = append(plan, outboundPacket{"elvenmere_inventory_updated", 0, 14, updatePayload})
 					}
 				}

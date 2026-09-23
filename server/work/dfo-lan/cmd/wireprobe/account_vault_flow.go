@@ -120,7 +120,7 @@ func (w *worldSession) moveAccountVault(service *inventory.WearService, r protoc
 			if err != nil {
 				return nil, nil, vault, err
 			}
-			state, next, moved, err := inventory.MoveAccountVault(role, vault, service.BagRules, w.vault.Catalog, service.Catalog, r, uint32(time.Now().Unix()))
+			state, next, moved, err := inventory.MoveAccountVault(role, vault, service.BagRules, w.vault.Catalog, service.Catalog, r)
 			if err != nil {
 				return nil, nil, vault, err
 			}
