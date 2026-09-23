@@ -150,11 +150,15 @@ n_entries × ( u64 name_lo, u64 name_hi, u64 n, n × u64 )
 | 列 | 值 |
 | --- | --- |
 | `[party waiting area]` | `239, 1, 600, 200` |
-| `[role per member limit]` | `2`（+ 子引用 `[member] = [2,3,4,5]`） |
+| `[role per member limit]` | **无 cell**（只有 `flags = 2` 与子引用 `[member] = [2,3,4,5]`） |
 | `[keldon xavi final damage rate]` | `0, 0, 10, 10, 0, 0` |
 | `[collaborate attack groggy duration increase per keldon xavi stack]` | `0.5` |
 | `[guardian hp increase per keldon xavi stack]` | `10` |
 | `[skirmisher monster hp reduction per keldon xavi stack]` | `0.5` |
+
+> **更正（2026-09-23 第四轮）**：`[role per member limit]` 早前被读成「值 = 2」，
+> 那是把 **`flags` 字段**误当成了值。该记录 `cells` 为空，只带 `flags = 2` 与子引用；
+> `flags` 的精确语义仍未从客户端代码确认（见 §7），不得当作角色数使用。
 
 `[member]` 四行（parent = 1，即 `[role per member limit]`）：
 
@@ -165,8 +169,9 @@ n_entries × ( u64 name_lo, u64 name_hi, u64 n, n × u64 )
 | 4 | 4 | `3, 2, 2, 1, 2` |
 | 5 | 5 | `4, 2, 2, 1, 2` |
 
-⇒ **4 档队伍规模**（首列 1..4 = 人数），`[role per member limit]` = 2 与
-`dungeonskillinfo` 的**两个职责（散兵/守卫）** 吻合。
+⇒ **4 档队伍规模**（首列 1..4 = 人数）。`dungeonskillinfo.ctp` 定义的两个职责
+（散兵 / 守卫）与「每成员职责上限」在数量上吻合（2），但**这一数量关系尚未从客户端
+代码确认**，因此代码里只按列读取，不做推导。
 
 ### 5.2 `apocalypse.ctp` — 四个「作战」（`[operation data set]`）
 
@@ -187,14 +192,18 @@ n_entries × ( u64 name_lo, u64 name_hi, u64 n, n × u64 )
 | **`[gate schedule]`** | `900, 1, 0, 0, 0` | `300,3,1,2,0, 240,3,1,0,0, 180,3,0,0,0` | `300,3,1,2,4, 255,3,1,2,0, 240,3,1,0,0, 180,3,0,0,0` | `900, 1, 0, 0, 0` |
 | `[gate close warning]` | — | `270`/`Warning_02_01.ani`, `210`/`Warning_02_02.ani` | `285`/`_01`, `270`/`_02`, `210`/`_03` | — |
 | `[gateflow]` | `1,2,3,-1,-1` | `1,3,4,5,-1, 2,4,5,-1,-1, 3,2,3,4,5, 4,5,-1,-1,-1` | 同作战② | `1,2,3,-1,-1` |
-| **`[phase info]`** | `0, 90,1, 300,2, 300,3, 300,4, 600,5, 600` | 同左 | 同左 | 同左 |
+| **`[phase info]`** | `(0,90) (1,300) (2,300) (3,300) (4,600) (5,600)` | 同左 | 同左 | 同左 |
 
 **要点（对实现的直接影响）**
 
-1. **阶段时钟与作战、难度都无关**：四组 `[phase info]` 取值完全一致
-   ⇒ 阶段 1..6 = `90 / 300 / 300 / 300 / 600 / 600`（首项 `0` 是阶段 0 的占位）。
-   **P4 可直接按此实现**，不再是转述值。
-2. **作战只有 4 个**，`index/type` = `1, 2, 3, 5`（**没有 4**）；难度名来自
+1. **阶段时钟与作战、难度都无关**：四组 `[phase info]` 取值完全一致。
+2. **`[phase info]` 是 6 组 `(阶段号, 秒)` 对**，阶段号 `0..5` 单调递增 ⇒
+   **阶段 0..5 的时长 = `90 / 300 / 300 / 300 / 600 / 600`（合计 2190 s）**。
+   > **更正（第四轮）**：早前写成「首项 0 是阶段 0 的占位、阶段 1..6 = …」，
+   > 那是把 12 个值按「1 + 11」切开。按对读（第二元递增 `<phase>`）更自洽，
+   > 两种读法的**时长集合相同**，故 P4 的实现值不受影响；但代码与文档统一采用
+   > 「6 组 `(阶段, 秒)`」这一读法（见 `configs/apocalypse.generated.json` 的 `phaseClock`）。
+3. **作战只有 4 个**，`index/type` = `1, 2, 3, 5`（**没有 4**）；难度名来自
    `[string data]`（`_01 normal` / `_02 expert` / `_03 master`）与 `[reward data]` 首列
    （`normal/expert/master/match`）—— 即**难度是另一维度**，作战① = normal、② = expert、
    ③ = master、④ = `match`（可能是「匹配/挑战」模式）。
