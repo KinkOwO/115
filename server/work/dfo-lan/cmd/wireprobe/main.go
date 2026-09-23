@@ -1164,6 +1164,15 @@ func main() {
 				}
 				continue
 			}
+			if frame.Type == 1 && frame.ID == 1438 && bootstrapped && verified && characters != nil {
+				advanced, err := saveStoryDigest(characters.Store, worldState)
+				if err != nil {
+					event(map[string]any{"kind": "story_digest_refused", "error": err.Error()})
+				} else if advanced {
+					event(map[string]any{"kind": "story_digest_saved", "character_id": worldState.role.ID, "level": worldState.level})
+				}
+				continue
+			}
 			if frame.Type == 1 && frame.ID == 1417 && bootstrapped && verified && characters != nil {
 				if err := cinematicSkip(characters.Store, worldState, plaintext); err != nil {
 					event(map[string]any{"kind": "cinematic_skip_refused", "error": err.Error()})
@@ -2454,6 +2463,9 @@ func main() {
 					}
 				}
 				plan.CinematicSkips, e = cinematicRestore(role.State)
+				if e == nil {
+					plan.StoryDigest, e = storyDigestRestore(role.State)
+				}
 				if e == nil && characters != nil {
 					plan.SkillVariations, e = characters.VariationRestore(role)
 				}

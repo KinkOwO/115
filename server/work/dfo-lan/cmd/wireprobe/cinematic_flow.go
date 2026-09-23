@@ -4,6 +4,7 @@ import (
 	"context"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/storage"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -17,6 +18,30 @@ func cinematicRestore(raw json.RawMessage) ([]byte, error) {
 		return nil, err
 	}
 	return protocol.CinematicSkippedScenes(state.Scenes)
+}
+
+func storyDigestRestore(raw json.RawMessage) ([]byte, error) {
+	var state struct {
+		Level uint32 `json:"story_digest_level"`
+	}
+	if err := json.Unmarshal(raw, &state); err != nil {
+		return nil, err
+	}
+	return binary.LittleEndian.AppendUint32(nil, state.Level), nil
+}
+
+func saveStoryDigest(store *storage.Store, w *worldSession) (bool, error) {
+	if w == nil || w.role.ID == 0 {
+		return false, fmt.Errorf("story digest requires character")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	saved, advanced, err := store.AdvanceStoryDigest(ctx, w.role.AccountID, w.role.ID, uint32(w.level))
+	if err == nil {
+		saved.WireID = w.role.WireID
+		w.role = saved
+	}
+	return advanced, err
 }
 
 func cinematicSkip(store *storage.Store, w *worldSession, p []byte) error {
