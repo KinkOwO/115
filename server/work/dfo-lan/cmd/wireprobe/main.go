@@ -1151,6 +1151,22 @@ func main() {
 				}
 				continue
 			}
+			if frame.Type == 1 && frame.ID == 2079 && bootstrapped && verified && characters != nil {
+				id, err := protocol.DecodeSynopsisRead(plaintext)
+				var payload []byte
+				if err == nil {
+					payload, err = saveSynopsisRead(characters.Store, worldState, id)
+				}
+				if err != nil {
+					event(map[string]any{"kind": "synopsis_read_refused", "error": err.Error()})
+					continue
+				}
+				if err = sendPayload(0, 2310, payload); err != nil {
+					return
+				}
+				event(map[string]any{"kind": "synopsis_table_info_sent", "character_id": worldState.role.ID, "synopsis_id": id, "attempt": "2/3", "plain_hex": hex.EncodeToString(payload)})
+				continue
+			}
 			if frame.Type == 1 && frame.ID == 1438 && bootstrapped && verified && characters != nil {
 				advanced, err := saveStoryDigest(characters.Store, worldState)
 				if err != nil {
@@ -2459,6 +2475,9 @@ func main() {
 				plan.CinematicSkips, e = cinematicRestore(role.State)
 				if e == nil {
 					plan.StoryDigest, e = storyDigestRestore(role.State)
+				}
+				if e == nil {
+					plan.SynopsisRead, e = synopsisRestore(role.State)
 				}
 				if e == nil && characters != nil {
 					plan.SkillVariations, e = characters.VariationRestore(role)
