@@ -39,7 +39,7 @@ type entryPayloads struct {
 	WornSlots                                                     []byte
 	WornUpdate                                                    []byte
 	Avatars, AvatarReady, Creatures, CreatureList, CreatureGrowth []byte
-	CinematicSkips                                                []byte
+	CinematicSkips, StoryDigest                                   []byte
 	SkillVariations                                               []byte
 	OdysseyProgress                                               []byte
 	// SkillLocks is the NOTI2827 character option block that restores the
@@ -58,6 +58,7 @@ func (p entryPayloads) packets() []outboundPacket {
 		{"select_parser_response", 1, 4, p.Select},
 		{"account_options_restored", 0, 2826, p.AccountOptions},
 		{"cinematic_skips_restored", 0, 1352, p.CinematicSkips},
+		{"story_digest_restored", 0, 1370, p.StoryDigest},
 		{"entry_basic_probe_sent", 0, 2, p.Basic},
 		{"entry_addition_sent", 0, 2, p.Addition},
 		{"entry_skills_sent", 0, 19, p.Skills},
