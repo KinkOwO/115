@@ -418,3 +418,32 @@ env -u PYTHONPATH -u PYTHONHOME ./idat.exe -A -L<log> \
 - **必须先清空 `PYTHONPATH`/`PYTHONHOME`**，否则报 `Failed to import encodings module`；
 - 只打开**工作副本** IDB（权威 `client/DFO.exe.i64` 不开、不升级）；
 - vtable 方法可直接用 PE 读：`off_<VA>` + 8×n。
+
+---
+
+## 11. 物品行「剩余期限」单元格（偏移 56）—— 面板值的校准公式
+
+> 2026-09-23 宠物期限修复的沉淀；行记录本体见 §3 与 `internal/game/protocol/inventory.go`。
+
+| 项 | 值 |
+| --- | --- |
+| 单元格 | 181 字节物品行 **偏移 56**（u32 LE） |
+| 语义 | **剩余秒数**（既不是 Unix 时间戳，也不是天数） |
+| 客户端渲染 | `Expires in : %d Day(s)`（dstr **1057**，源文件 `PopupWindow\CNRDItemInfoWindow.cpp`）；不足 1 天走 `Expires in : %d H`（dstr **1058**） |
+| 换算 | **面板天数 = round(值 / 86400)**，且**不减当前时间** |
+| 值为 0 | 判过期：宠物显示「剩余期限已过。」（历史注释里的 `Past Duration` 是另一条退款文案 dstr 22042，别混用） |
+| 声明来源 | 脚本 `[usable period] N`（天）⇒ 下发 `N*86400`；`[expiration date]` 的值是**绝对日期文本**（如 `2020-12-31 06:00:00`，cell `Type=6`），与天数不是一回事 |
+
+**实机校准（单位是怎么定下来的）**：宠物 `100991331`（脚本 `[usable period] 7`）的行填
+`math.MaxInt32 = 2147483647`，面板显示「过期时间:24856天」。
+`2147483647 / 86400 = 24855.597…` 四舍五入 = **24856**，与面板逐位吻合；
+若按「时间戳减当前时间」口径应为 `2038-01-19 − 今天` ≈ **4138 天**，与实测不符 ⇒ 客户端只做整数除法。
+
+**可复用形式**：面对「客户端把某个 u32 渲染成人可读量」的场景，**先用实机读数反解公式**
+（拿当前写入值与面板显示值做算术）——一次就能给单位定性，比先猜语义再反复实测快得多，
+而且反解出的公式可以直接当验收判据（例如本条的判据是「面板显示 7 天」= `604800`）。
+
+**服务端现状**：`internal/inventory.EquipmentPayload` 只给宠物行（`space 7`；`space 3` 槽 26~29）
+填这一格，值来自 `inventory.SetCreaturePeriodSource` 注入的 `[usable period]` 查表换算（启动期由
+`cmd/wireprobe` 用全量装备目录安装）；其余写入者是可叠加物（`Bag.Rows`）与商城时效道具。
+**装扮的期限走行尾那个 u32**（同一个 `BagEquipment.Period`），不在本次范围内。
