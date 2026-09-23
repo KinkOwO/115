@@ -23,6 +23,24 @@ func TestDetailedEquipmentAvatarNativeOffsets(t *testing.T) {
 	}
 }
 
+func TestDetailedEquipmentVisualOverrideCells(t *testing.T) {
+	p, e := DetailedEquipment([]DetailedWorn{{
+		Slot: 1, Template: 517560000,
+		HeaderTemplateA: 517562678,
+	}})
+	if e != nil {
+		t.Fatal(e)
+	}
+	// The native mode-1 reader consumes two u32 cells at row offsets 24/28.
+	// The block begins with a one-byte row count.
+	if got := binary.LittleEndian.Uint32(p[25:]); got != 517562678 {
+		t.Fatalf("appearance override cell=%d", got)
+	}
+	if got := binary.LittleEndian.Uint32(p[29:]); got != 0 {
+		t.Fatalf("random-avatar secondary cell=%d", got)
+	}
+}
+
 func TestDetailedEquipmentPreservesAvatarBlobs(t *testing.T) {
 	p, e := DetailedEquipment([]DetailedWorn{{Slot: 3, Template: 40601, AvatarOptions: []byte{1, 2}, AvatarSockets: []byte{3}}})
 	if e != nil {
@@ -42,6 +60,7 @@ func TestDetailedEquipmentRejectsUnsupportedInstances(t *testing.T) {
 		{{Slot: 1, Template: 1, AvatarOptions: make([]byte, 4097)}},
 		{{Slot: 26, Template: 1, AvatarOptions: []byte{1}}},
 		{{Slot: 27, Template: 1, AvatarSockets: []byte{1}}},
+		{{Slot: 26, Template: 1, HeaderTemplateA: 2}},
 	}
 	for _, rows := range cases {
 		if _, e := DetailedEquipment(rows); e == nil {

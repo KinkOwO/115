@@ -210,3 +210,48 @@ func TestAppearanceProbeSkipsCreatureSlot(t *testing.T) {
 		t.Fatalf("row slot=%d, want 12", slot)
 	}
 }
+
+func TestAppearanceProbeCarriesCloneAndLookAvatars(t *testing.T) {
+	professions, e := catalog.LoadCharacters("../../configs/characters.generated.json")
+	if e != nil {
+		t.Fatal(e)
+	}
+	// Slot 1 has both a clone avatar (Group 0) and an appearance avatar (Group 1)
+	bag := inventory.Bag{
+		Version: "ordinary-bag-v1",
+		Worn: []inventory.BagEquipment{
+			{Slot: 1, Template: 517560000, Group: 0}, // clone hair
+			{Slot: 1, Template: 517562678, Group: 1}, // appearance hair
+		},
+	}
+	state, e := inventory.SaveBag(json.RawMessage(`{"level":1}`), bag)
+	if e != nil {
+		t.Fatal(e)
+	}
+	s := &Service{Catalog: professions}
+	got, e := s.AppearanceProbe(storage.Character{
+		WireID: 1, Name: "LanTest03", Profession: 0,
+		State: append(state[:len(state)-1], []byte(`,"advancement":0}`)...),
+	}, [2]byte{})
+	if e != nil {
+		t.Fatalf("AppearanceProbe failed: %v", e)
+	}
+	const at = 176 + len("LanTest03")
+	if count := int(got[at]); count != 1 {
+		t.Fatalf("appearance count=%d, want 1 (merged slot 1)", count)
+	}
+	pos := at + 1
+	if slot := got[pos]; slot != 1 {
+		t.Fatalf("slot=%d, want 1", slot)
+	}
+	if model := binary.LittleEndian.Uint32(got[pos+9:]); model != 517562678 {
+		t.Fatalf("model=%d, want look avatar 517562678", model)
+	}
+	// Live 2026-09-22: nonzero attach cells killed the client (0xC0000005).
+	if attachA := binary.LittleEndian.Uint32(got[pos+26:]); attachA != 0 {
+		t.Fatalf("attachA=%d, want 0 (baseline encoding)", attachA)
+	}
+	if attachB := binary.LittleEndian.Uint32(got[pos+30:]); attachB != 0 {
+		t.Fatalf("attachB=%d, want 0 (baseline encoding)", attachB)
+	}
+}

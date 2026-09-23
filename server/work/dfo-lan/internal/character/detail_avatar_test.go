@@ -53,3 +53,22 @@ func TestAvatarDetailCandidateIsolation(t *testing.T) {
 		t.Fatal("disabled candidate changed original packet")
 	}
 }
+
+func TestAvatarDetailProjectsCoexistingCloneAndAppearance(t *testing.T) {
+	state := json.RawMessage(`{"source_sha256":"fixture","attributes":{"[hp max]":100,"[mp max]":100},"inventory":{"worn":[{"slot":1,"template":517560000},{"slot":1,"template":517562678,"group":1}]}}`)
+	s := Service{DetailedWornCandidate: true}
+	packet, err := s.EntryAddition(storage.Character{WireID: 503, State: state})
+	if err != nil {
+		t.Fatal(err)
+	}
+	block, err := protocol.DetailedEquipment([]protocol.DetailedWorn{{
+		Slot: 1, Template: 517560000,
+		HeaderTemplateA: 517562678,
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(packet, block) {
+		t.Fatal("entry detail did not carry clear-avatar base and ordinary-look override")
+	}
+}

@@ -117,6 +117,23 @@ func (s *WearService) wearable(role storage.Character, item BagEquipment, slot u
 	return WearableBy(d.Fields, job.Job, state.Advancement, level)
 }
 
+func (s *WearService) itemGroup(item *BagEquipment, flagGroup byte) byte {
+	if item == nil {
+		return flagGroup
+	}
+	d, err := s.Catalog.Definition(item.Template)
+	if err != nil {
+		return flagGroup
+	}
+	if !d.IsAvatar() {
+		return 0
+	}
+	if d.IsCloneAvatar() {
+		return 0
+	}
+	return 1
+}
+
 // MoveOrdinary validates both directions before swapping one physical item.
 // Equipped items retain identity and durability; no reward or copy is created.
 func (s *WearService) MoveOrdinary(role storage.Character, r protocol.ItemMoveRequest) (json.RawMessage, error) {
@@ -124,7 +141,7 @@ func (s *WearService) MoveOrdinary(role storage.Character, r protocol.ItemMoveRe
 		return nil, fmt.Errorf("wear service source mismatch")
 	}
 	validSpace := func(v byte) bool { return v == 0 || v == 3 || (s.Rules.Special && (v == 1 || v == 7)) }
-	if !validSpace(r.SourceList) || !validSpace(r.DestinationList) || r.Count > 1 || r.Extra != 0 || r.Selection != 0xffffffff || r.Flags != [3]byte{} {
+	if !validSpace(r.SourceList) || !validSpace(r.DestinationList) || r.Count > 1 || r.Extra != 0 || r.Selection != 0xffffffff || r.Flags[0] != 0 || r.Flags[1] != 0 || r.Flags[2] > 1 {
 		return nil, fmt.Errorf("unsupported ordinary equipment move")
 	}
 	if r.SourceList == r.DestinationList && r.SourceSlot == r.DestinationSlot {
@@ -134,7 +151,15 @@ func (s *WearService) MoveOrdinary(role storage.Character, r protocol.ItemMoveRe
 	if e != nil {
 		return nil, e
 	}
-	find := func(list byte, slot uint16) (*BagEquipment, error) {
+	// Migrate legacy worn appearance avatars that were saved with Group 0
+	for idx := range b.Worn {
+		if b.Worn[idx].Slot <= 11 && b.Worn[idx].Group == 0 {
+			if d, err := s.Catalog.Definition(b.Worn[idx].Template); err == nil && d.IsAvatar() && !d.IsCloneAvatar() {
+				b.Worn[idx].Group = 1
+			}
+		}
+	}
+	find := func(list byte, slot uint16, group byte) (*BagEquipment, error) {
 		rows := b.Worn
 		if list == 0 {
 			if slot < s.BagRules.EquipmentSlots[0] || slot > s.BagRules.EquipmentSlots[1] {
@@ -152,25 +177,64 @@ func (s *WearService) MoveOrdinary(role storage.Character, r protocol.ItemMoveRe
 			return nil, fmt.Errorf("slot outside body equipment")
 		}
 		for _, v := range rows {
-			if v.Slot == slot {
+			if v.Slot == slot && (list != 3 || v.Group == group) {
 				copy := v
 				return &copy, nil
 			}
 		}
 		return nil, nil
 	}
-	a, e := find(r.SourceList, r.SourceSlot)
+	var srcGroup, dstGroup byte
+	if r.SourceList == 3 {
+		srcGroup = r.Flags[2]
+		if r.SourceItem != 0 {
+			for _, w := range b.Worn {
+				if w.Slot == r.SourceSlot && w.Template == r.SourceItem {
+					srcGroup = w.Group
+					break
+				}
+			}
+		}
+	}
+	a, e := find(r.SourceList, r.SourceSlot, srcGroup)
 	if e != nil {
 		return nil, e
 	}
-	z, e := find(r.DestinationList, r.DestinationSlot)
+	if r.DestinationList == 3 {
+		dstGroup = s.itemGroup(a, r.Flags[2])
+		// Unequip direction (live 2026-09-22): the bag side is empty
+		// (a == nil) and flags carry no group signal, so the worn item must
+		// be located by identity - DestinationItem names it exactly.
+		if a == nil && r.DestinationItem != 0 && r.DestinationSlot <= 11 {
+			for _, w := range b.Worn {
+				if w.Slot == r.DestinationSlot && w.Template == r.DestinationItem {
+					dstGroup = w.Group
+					break
+				}
+			}
+		}
+	}
+	z, e := find(r.DestinationList, r.DestinationSlot, dstGroup)
 	if e != nil {
 		return nil, e
 	}
 	if a == nil && z == nil {
 		return nil, fmt.Errorf("both equipment locations are empty")
 	}
-	if (a == nil && r.SourceItem != 0) || (a != nil && r.SourceItem != 0 && r.SourceItem != a.Template) || (r.DestinationItem != 0 && (z == nil || r.DestinationItem != z.Template)) {
+	// Avatar coexistence (live 2026-09-22): when the client equips one avatar
+	// group over a slot whose OTHER group is occupied, DestinationItem names
+	// the displayed item (the other group's piece), not a same-group replace
+	// target. Treat that as a group-local insert instead of stale identity.
+	staleDestination := r.DestinationItem != 0 && (z == nil || r.DestinationItem != z.Template)
+	if staleDestination && r.DestinationList == 3 && r.DestinationSlot <= 11 && a != nil {
+		for _, w := range b.Worn {
+			if w.Slot == r.DestinationSlot && w.Group != dstGroup && w.Template == r.DestinationItem {
+				staleDestination = false
+				break
+			}
+		}
+	}
+	if (a == nil && r.SourceItem != 0) || (a != nil && r.SourceItem != 0 && r.SourceItem != a.Template) || staleDestination {
 		return nil, fmt.Errorf("stale equipment identity")
 	}
 	if a != nil && r.DestinationList == 3 {
@@ -208,7 +272,7 @@ func (s *WearService) MoveOrdinary(role storage.Character, r protocol.ItemMoveRe
 			return nil, fmt.Errorf("equipment inventory family mismatch")
 		}
 	}
-	replace := func(list byte, slot uint16, item *BagEquipment) {
+	replace := func(list byte, slot uint16, group byte, item *BagEquipment) {
 		rows := &b.Worn
 		if list == 0 {
 			rows = &b.Equipment
@@ -220,13 +284,24 @@ func (s *WearService) MoveOrdinary(role storage.Character, r protocol.ItemMoveRe
 		}
 		kept := make([]BagEquipment, 0, len(*rows)+1)
 		for _, v := range *rows {
-			if v.Slot != slot {
-				kept = append(kept, v)
+			if list == 3 {
+				if !(v.Slot == slot && v.Group == group) {
+					kept = append(kept, v)
+				}
+			} else {
+				if v.Slot != slot {
+					kept = append(kept, v)
+				}
 			}
 		}
 		if item != nil {
 			v := *item
 			v.Slot = slot
+			if list == 3 {
+				v.Group = group
+			} else {
+				v.Group = 0
+			}
 			if slot == 26 && list == 3 {
 				var rec [protocol.CurrentItemRecordSize]byte
 				if len(v.Record) == protocol.CurrentItemRecordSize {
@@ -268,9 +343,9 @@ func (s *WearService) MoveOrdinary(role storage.Character, r protocol.ItemMoveRe
 			b.Special[list] = kept
 		}
 	}
-	replace(r.SourceList, r.SourceSlot, z)
-	replace(r.DestinationList, r.DestinationSlot, a)
-	if _, e = EquipmentPayload(3, b.Worn, false); e != nil {
+	replace(r.SourceList, r.SourceSlot, srcGroup, z)
+	replace(r.DestinationList, r.DestinationSlot, dstGroup, a)
+	if _, e = EquipmentPayload(3, b.WornBaseItems(), false); e != nil {
 		return nil, e
 	}
 	return SaveBag(role.State, b)
@@ -300,10 +375,11 @@ func WornSpaceUpdate(state json.RawMessage) ([]byte, error) {
 	if e != nil {
 		return nil, e
 	}
-	if len(b.Worn) == 0 {
+	base := b.WornBaseItems()
+	if len(base) == 0 {
 		return nil, nil
 	}
-	return EquipmentPayload(3, b.Worn, false)
+	return EquipmentPayload(3, base, false)
 }
 
 func WornPayload(state json.RawMessage) ([]byte, error) {
@@ -311,5 +387,5 @@ func WornPayload(state json.RawMessage) ([]byte, error) {
 	if e != nil {
 		return nil, e
 	}
-	return EquipmentPayload(3, b.Worn, true)
+	return EquipmentPayload(3, b.WornBaseItems(), true)
 }

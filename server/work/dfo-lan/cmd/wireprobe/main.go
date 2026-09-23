@@ -1066,6 +1066,18 @@ func main() {
 						plan = append(plan, outboundPacket{"worn_equipment_visuals_updated", 0, 14, wornUpdate})
 					}
 				}
+				if decodeErr == nil && characters != nil && cloneAvatarRemoval(r, wearService.Catalog) {
+					// attempt 3/3: entry's known mode-1 reader restores the ordinary
+					// Avatar association on relog. Send it only after every CMD19
+					// NOTI13/14 and mode-0 refresh, so later slot reconstruction
+					// cannot immediately discard the restored association.
+					addition, additionErr := characters.EntryAddition(worldState.role)
+					if additionErr != nil {
+						event(map[string]any{"kind": "equipment_avatar_addition_error", "error": additionErr.Error()})
+					} else {
+						plan = append(plan, outboundPacket{"equipment_avatar_addition_refreshed", 0, 2, addition})
+					}
+				}
 				prepared, e := preparePackets(keys, plan)
 				if e != nil {
 					event(map[string]any{"kind": "equipment_encode_error", "error": e.Error()})
@@ -2112,7 +2124,9 @@ func main() {
 						var bag inventory.Bag
 						bag, e = inventory.ReadBag(role.State)
 						if e == nil && len(bag.Worn) > 0 {
-							plan.WornSlots, e = inventory.EquipmentPayload(3, bag.Worn, false)
+							// Coexisting clone/look avatars share a body slot; the
+							// id-14 slot channel carries one row per slot.
+							plan.WornSlots, e = inventory.EquipmentPayload(3, bag.WornBaseItems(), false)
 						}
 					}
 					if e == nil {

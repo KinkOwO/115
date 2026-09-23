@@ -2,6 +2,7 @@ package character
 
 import (
 	"dfolan/internal/game/protocol"
+	"dfolan/internal/inventory"
 	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
@@ -70,7 +71,7 @@ func (s *Service) EntryAddition(role storage.Character) ([]byte, error) {
 	// refusal, and an absent field simply reads as "nothing unlocked".
 	var projection struct {
 		Inventory struct {
-			ExpandEquipFlags byte                     `json:"expand_equip_flags"`
+			ExpandEquipFlags byte                    `json:"expand_equip_flags"`
 			Worn             []protocol.DetailedWorn `json:"worn"`
 		} `json:"inventory"`
 	}
@@ -79,16 +80,46 @@ func (s *Service) EntryAddition(role storage.Character) ([]byte, error) {
 	}
 	var worn []protocol.DetailedWorn
 	if s.DetailedWornCandidate {
-		for _, item := range projection.Inventory.Worn {
-			// Avatar slots (<= 11) ride the avatar row layout; the creature
-			// body slot 26 and creature gear slots 27..29 ride the plain /
-			// creature-extension layouts (protocol.DetailedEquipment pins all
-			// three against native reader sub_1452C1540). Slots 12..25 stay
-			// excluded exactly as before: their window data already arrives
-			// via NOTI 13/14 and their mode-1 projection is a separate,
-			// unverified change.
-			if item.Slot <= 11 || (item.Slot >= 26 && item.Slot <= 29) {
-				worn = append(worn, item)
+		var wornProjection struct {
+			Inventory struct {
+				Worn []inventory.BagEquipment `json:"worn"`
+			} `json:"inventory"`
+		}
+		if e := json.Unmarshal(role.State, &wornProjection); e == nil {
+			b := inventory.Bag{Worn: wornProjection.Inventory.Worn}
+			for _, item := range b.WornBaseItems() {
+				// Avatar slots (<= 11) ride the avatar row layout; the creature
+				// body slot 26 and creature gear slots 27..29 ride the plain /
+				// creature-extension layouts (protocol.DetailedEquipment pins all
+				// three against native reader sub_1452C1540). Slots 12..25 stay
+				// excluded exactly as before: their window data already arrives
+				// via NOTI 13/14 and their mode-1 projection is a separate,
+				// unverified change.
+				if !(item.Slot <= 11 || (item.Slot >= 26 && item.Slot <= 29)) {
+					continue
+				}
+				var dw protocol.DetailedWorn
+				dw.Slot = item.Slot
+				dw.Template = item.Template
+				dw.Durability = item.Durability
+				dw.Record = item.Record
+				dw.AvatarOptions = item.AvatarOptions
+				dw.AvatarSockets = item.AvatarSockets
+				dw.Period = item.Period
+				if item.Slot <= 11 && item.Group == 0 {
+					// Coexisting ordinary look: the row's primary template remains
+					// the clear avatar. Native sub_1452C1540 treats row+24 as the
+					// appearance override for this item category (bit 21). row+28
+					// is consumed only when row+24 has bit 25, the random-clear-
+					// avatar category, so keep it zero for a normal look.
+					for _, other := range b.Worn {
+						if other.Slot == item.Slot && other.Group == 1 {
+							dw.HeaderTemplateA = other.Template
+							break
+						}
+					}
+				}
+				worn = append(worn, dw)
 			}
 		}
 	}

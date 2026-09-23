@@ -154,20 +154,27 @@ func ReadBag(state json.RawMessage) (Bag, error) {
 		}
 		seen[i.Slot] = true
 	}
-	seen = map[uint16]bool{}
+	wornSeen := map[uint32]bool{}
 	for idx, i := range b.Worn {
 		if e := i.ValidateRecord(); e != nil {
 			return b, e
 		}
-		if !EquipmentBodySlot(i.Slot) || i.Template == 0 || seen[i.Slot] {
+		if !EquipmentBodySlot(i.Slot) || i.Template == 0 {
 			return b, fmt.Errorf("invalid saved worn equipment")
 		}
+		if i.Group > 1 || (i.Group == 1 && i.Slot > 11) {
+			return b, fmt.Errorf("invalid worn equipment group")
+		}
+		key := (uint32(i.Group) << 16) | uint32(i.Slot)
+		if wornSeen[key] {
+			return b, fmt.Errorf("invalid saved worn equipment")
+		}
+		wornSeen[key] = true
 		if i.Slot == 26 {
 			if hatched, ok := EggHatchOutputs[i.Template]; ok {
 				b.Worn[idx].Template = hatched
 			}
 		}
-		seen[i.Slot] = true
 	}
 	for space, rows := range b.Special {
 		if space != 1 && space != 7 {
@@ -289,4 +296,27 @@ func (b Bag) Add(c catalog.LootCatalog, r BagRules, id, amount uint32, expireTim
 		}
 	}
 	return b, 0, fmt.Errorf("bag category is full")
+}
+
+// WornBaseItems filters b.Worn down to at most one item per slot (0..47),
+// preferring Group 0 (Clone or base equipment) over Group 1 (Appearance).
+// This is used for NOTI 13/14 packets which require unique slot entries.
+func (b Bag) WornBaseItems() []BagEquipment {
+	bySlot := make(map[uint16]BagEquipment)
+	for _, item := range b.Worn {
+		if item.Group == 1 {
+			bySlot[item.Slot] = item
+		}
+	}
+	for _, item := range b.Worn {
+		if item.Group == 0 {
+			bySlot[item.Slot] = item
+		}
+	}
+	res := make([]BagEquipment, 0, len(bySlot))
+	for _, item := range bySlot {
+		res = append(res, item)
+	}
+	sort.Slice(res, func(i, j int) bool { return res[i].Slot < res[j].Slot })
+	return res
 }
