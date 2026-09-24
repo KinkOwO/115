@@ -277,13 +277,14 @@ func TestFullCatalogWearFamiliesIntegration(t *testing.T) {
 		if _, e = original.Definition(id); e == nil {
 			t.Fatalf("weapon %d unexpectedly in baseline", id)
 		}
-		if e = WearableBy(d.Fields, job, 0, 115); e != nil {
+		kind := d.Fields["[equipment type]"][0].Text
+		if e = WearableBy(d.Fields, kind, job, 0, 115); e != nil {
 			t.Fatal(job, id, e)
 		}
-		if e = WearableBy(d.Fields, job, 0, 1); e == nil {
+		if e = WearableBy(d.Fields, kind, job, 0, 1); e == nil {
 			t.Fatal("low level accepted", id)
 		}
-		if e = WearableBy(d.Fields, "[invalid job]", 0, 115); e == nil {
+		if e = WearableBy(d.Fields, kind, "[invalid job]", 0, 115); e == nil {
 			t.Fatal("wrong job accepted", id)
 		}
 	}

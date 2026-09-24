@@ -54,7 +54,7 @@ func (s *Service) creationWorn(prof catalog.Profession, advancement, level byte)
 		if err != nil {
 			continue
 		}
-		if err := inventory.WearableBy(definition.Fields, prof.Job, advancement, level); err != nil {
+		if err := inventory.WearableBy(definition.Fields, kind[0].Text, prof.Job, advancement, level); err != nil {
 			continue
 		}
 		worn = append(worn, inventory.BagEquipment{Slot: slot, Template: template, Durability: durability})

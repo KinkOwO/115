@@ -1099,7 +1099,7 @@ func main() {
 							event(map[string]any{"kind": "cera_committed_sync_error", "order": receipt.Order, "error": readErr.Error()})
 							return
 						}
-						packets, encodeErr := shopPilotPackets(receipt, balance, applied)
+						packets, encodeErr := shopPilotSpaces(shopPilot, receipt, balance, applied)
 						if encodeErr != nil {
 							event(map[string]any{"kind": "cera_committed_sync_error", "order": receipt.Order, "error": encodeErr.Error()})
 							return
