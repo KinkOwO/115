@@ -1,6 +1,8 @@
 # CHANGELOG
 
 ## 2026-09-24
+- **赛丽亚房间出口无响应（CMD 1418 + Return 戳，用户实机确认）**：为 CMD 1418 增加空请求处理，并复用 CMD 36 的切图帧序；赛丽亚房间离开请求改用进房时保存的 Return 四元组，保留出口范围校验，同区移动保留戳。西海岸进房、靠近出口后成功返回，由用户手动实机确认。新增 CMD 1418、通用落点强制回源、多来源镇与同区移动回归测试。
+  - **验证**：`go test ./...`（21 个测试包）、`go vet ./...`、`go build ./...` 通过；候选版 `server/work/dfo-lan/bin/wireprobe-handoff-source.exe` SHA-256 `D16CF21ACF5658EAA75C03BA6007477A10FF286894E4098E439B6E21E577F201`。基线：`server/work/dfo-lan/docs/protocol/seria-return-20260924.md`。
 - **CMD41 无复活币时扣 15 CERA 复活（用户确认验证通过）**：复活链按奥德赛测试额度 → 背包复活币 → 账号 CERA 执行，只在明确耗尽 / 无币时回落。账号扣款事务检查余额非负及客户端可编码上限；成功发送 ACK 41、NOTI 32、NOTI 53，失败回 Refusal(22)。`go test ./...`（21 个测试包）、`go vet ./...`、`go build ./...` 通过；候选程序 SHA-256 `DE6F4E8E8FA69D59FA8E191670AAB9A478F9ED83C463D8818135138D1C3932C6`。基线：`server/work/dfo-lan/docs/protocol/cera-revive-20260924.md`。
 - **本地 / 远端全量差异收口（并入上游 30 个提交）**：分支此前 `ahead 3 / behind 30`，本次把工作区所有改动（含非本会话的觉醒 / VP / 通知迁移线）全部入账后再并入 `origin/main`，使本地与远端重新同步。上游 30 个提交（21 个非 merge）覆盖副本完成与剧情层收口、Act2 任务链、Synopsis / STORY_DIGEST 读写、账号材料消耗、奥德赛装备等级与分解硬币、宠物期限、启动器 v1.4.6。
   - **冲突只有 2 处**，且都不是真的逻辑冲突：① `CHANGELOG` ② `cmd/wireprobe/story_digest_test.go`（add/add）。`entry_flow.go` / `main.go` 由 git 自动合并成功。

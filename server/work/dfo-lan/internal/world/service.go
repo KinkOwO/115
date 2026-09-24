@@ -133,27 +133,38 @@ func (s *Service) transition(level byte, odyssey bool, old storage.WorldPosition
 	if r.PreviousTown != old.Town || uint32(r.PreviousArea) != old.Area {
 		return next, errors.New("stale source area")
 	}
+	src, ok := s.Catalog.Areas[catalog.AreaKey(old.Town, old.Area)]
+	if !ok {
+		return old, errors.New("unknown source area")
+	}
 	next.Town, next.Area, next.X, next.Y = r.Town, r.Area, r.X, r.Y
-	dest, exists := s.Catalog.Areas[catalog.AreaKey(r.Town, r.Area)]
+	// The client's animated exit may name a generic map. The stamped origin
+	// is the destination to authorize and validate when leaving Seria's room.
+	seriaLeave := old.Return != nil && src.SeriaReturnWarp && !(r.Town == old.Town && r.Area == old.Area)
+	if seriaLeave {
+		next.Town, next.Area = old.Return.Town, old.Return.Area
+		next.X, next.Y = old.Return.X, old.Return.Y
+	}
+	dest, exists := s.Catalog.Areas[catalog.AreaKey(next.Town, next.Area)]
 	if !exists {
 		return old, errors.New("unknown destination area")
 	}
 	if uint32(level) < RequiredLevel(dest, odyssey) {
 		return old, ErrLevel
 	}
-	src, ok := s.Catalog.Areas[catalog.AreaKey(old.Town, old.Area)]
-	if !ok {
-		return old, errors.New("unknown source area")
-	}
 	adjacent := false
 	for _, p := range src.Portals {
-		if p.Town == r.Town && p.Area == r.Area && (!s.Rules.RequirePortalProximity || Contains(p.Bounds, old.X, old.Y, s.Rules.PortalMargin)) {
+		if p.Town == next.Town && p.Area == next.Area && (!s.Rules.RequirePortalProximity || Contains(p.Bounds, old.X, old.Y, s.Rules.PortalMargin)) {
 			adjacent = true
 		}
 	}
-	// A source Seria return warp targets the saved origin, never an arbitrary
-	// client-selected map. Its animated portal condition remains explicit.
-	if old.Return != nil && src.SeriaReturnWarp && old.Return.Town == r.Town && old.Return.Area == r.Area {
+	if old.Return != nil && src.SeriaReturnWarp && r.Town == old.Town && r.Area == old.Area {
+		// An in-room reposition is not a departure and keeps the return stamp.
+		adjacent = true
+	}
+	// A source Seria return warp targets the saved origin. Its animated
+	// portal condition remains explicit, regardless of the requested map.
+	if seriaLeave {
 		if !s.Rules.RequirePortalProximity {
 			adjacent = true
 		} else {
@@ -164,11 +175,6 @@ func (s *Service) transition(level byte, odyssey bool, old storage.WorldPosition
 			}
 		}
 		if adjacent {
-			// The Seria map selector may supply its generic animation landing
-			// point (live17: 746,157), which is outside this source town's
-			// walkable geometry. Restore this character's validated saved
-			// origin instead. Destination/portal ownership is still checked.
-			next.X, next.Y = old.Return.X, old.Return.Y
 			next.Return = nil
 		}
 	}
@@ -191,7 +197,7 @@ func (s *Service) transition(level byte, odyssey bool, old storage.WorldPosition
 	if e := s.ValidatePosition(level, odyssey, next); e != nil {
 		return old, e
 	}
-	if dest.SeriaReturnWarp {
+	if dest.SeriaReturnWarp && !(dest.Town == old.Town && dest.Area == old.Area) {
 		next.Return = &storage.WorldReturn{Town: old.Town, Area: old.Area, X: old.X, Y: old.Y}
 	}
 	return next, nil

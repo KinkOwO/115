@@ -295,6 +295,22 @@ func (w *worldSession) userAreaPayload() ([]byte, error) {
 	p := w.state.Position
 	return protocol.UserArea(p.Town, p.Area, protocol.AreaUser{ActorServerID: w.role.WireID, X: p.X, Y: p.Y, Flags: w.flags})
 }
+
+func previousVillageRequest(old storage.WorldPosition, body []byte, inDungeon, selectingDungeon bool) (protocol.AreaChangeRequest, error) {
+	if len(body) != 0 {
+		return protocol.AreaChangeRequest{}, errors.New("prev village needs empty body")
+	}
+	if inDungeon || selectingDungeon {
+		return protocol.AreaChangeRequest{}, errors.New("prev village requires town character")
+	}
+	if old.Return == nil {
+		return protocol.AreaChangeRequest{}, errors.New("no previous village")
+	}
+	ret := old.Return
+	return protocol.AreaChangeRequest{Town: ret.Town, Area: ret.Area, X: ret.X, Y: ret.Y,
+		PreviousTown: old.Town, PreviousArea: uint16(old.Area)}, nil
+}
+
 func (w *worldSession) handle(id uint16, p []byte, send func(byte, uint16, []byte) error, event func(map[string]any)) error {
 	if w.role.ID == 0 {
 		return errors.New("world request before character selection")
@@ -336,6 +352,19 @@ func (w *worldSession) handle(id uint16, p []byte, send func(byte, uint16, []byt
 			}
 			return send(1, 36, refusal)
 		}
+	case 1418:
+		r, e := previousVillageRequest(old.Position, p, w.activeDungeon != nil, w.selectingDungeon)
+		if e != nil {
+			if old.Position.Return == nil && len(p) == 0 && w.activeDungeon == nil && !w.selectingDungeon {
+				event(map[string]any{"kind": "prev_village_refused", "reason": "no return area stamped"})
+			}
+			return e
+		}
+		next, e = w.areaTransition(r)
+		if e != nil {
+			event(map[string]any{"kind": "prev_village_refused", "reason": e.Error()})
+			return e
+		}
 	default:
 		return errors.New("unknown world request")
 	}
@@ -347,8 +376,8 @@ func (w *worldSession) handle(id uint16, p []byte, send func(byte, uint16, []byt
 	}
 	w.state = saved
 	event(map[string]any{"kind": "world_position_saved", "character_id": w.role.ID, "position": next, "revision": saved.Revision, "request": id})
-	if id == 36 {
-		if e = send(1, 36, protocol.AreaChangeSuccess()); e != nil {
+	if id == 36 || id == 1418 {
+		if e = send(1, id, protocol.AreaChangeSuccess()); e != nil {
 			return e
 		}
 		// NOTI23 is a distinct transition stage: its self branch invokes

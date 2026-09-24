@@ -29,7 +29,7 @@ func (w *worldSession) areaTransition(r protocol.AreaChangeRequest) (storage.Wor
 	}
 	src, _ := w.service.Catalog.Areas[catalog.AreaKey(old.Town, old.Area)]
 	dest, _ := w.service.Catalog.Areas[catalog.AreaKey(r.Town, r.Area)]
-	isSeriaReturn := old.Return != nil && src.SeriaReturnWarp && old.Return.Town == r.Town && old.Return.Area == r.Area
+	isSeriaReturn := old.Return != nil && src.SeriaReturnWarp && !(r.Town == old.Town && r.Area == old.Area)
 	isMapTeleport := r.Flag == 5 && (r.TailFlags[0] == 5 || r.TailFlags[1] == 5)
 	isSeriaRoomTeleport := dest.SeriaReturnWarp && !src.SeriaReturnWarp
 	if !isSeriaReturn && (specialWarp || isMapTeleport || isSeriaRoomTeleport) {

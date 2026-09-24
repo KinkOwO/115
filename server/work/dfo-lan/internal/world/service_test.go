@@ -47,8 +47,68 @@ func TestTransitionAuthority(t *testing.T) {
 		t.Fatalf("return warp: %+v %v", returned, e)
 	}
 	back.Area = 3
-	if _, e = s.Transition(20, false, next, back); e == nil {
-		t.Fatal("return warp arbitrary destination")
+	redirected, e := s.Transition(20, false, next, back)
+	if e != nil || redirected.Town != 38 || redirected.Area != 0 || redirected.Return != nil {
+		t.Fatalf("return warp did not ignore client destination: %+v %v", redirected, e)
+	}
+}
+
+func TestSeriaLeaveIgnoresClientDestination(t *testing.T) {
+	s := Service{Catalog: catalog.WorldCatalog{Areas: map[string]catalog.WorldArea{
+		"38/1": {Town: 38, Area: 1, MinimumLevel: 1, Walkable: [][4]int32{{400, 100, 250, 300}}, SeriaReturnWarp: true, ReturnWarpBounds: [][4]int32{{470, 320, 150, 40}}},
+		"41/1": {Town: 41, Area: 1, MinimumLevel: 1, Walkable: [][4]int32{{350, 150, 100, 100}}},
+	}}, Rules: Rules{RequirePortalProximity: true, PortalMargin: 10}}
+	stamp := &storage.WorldReturn{Town: 41, Area: 1, X: 404, Y: 197}
+	inside := storage.WorldPosition{Town: 38, Area: 1, X: 550, Y: 340, Return: stamp}
+	for _, requested := range []protocol.AreaChangeRequest{
+		{Town: 38, Area: 0, X: 746, Y: 157, PreviousTown: 38, PreviousArea: 1},
+		{Town: 999, Area: 999, X: 1, Y: 1, PreviousTown: 38, PreviousArea: 1},
+	} {
+		out, err := s.Transition(1, false, inside, requested)
+		if err != nil || out.Town != stamp.Town || out.Area != stamp.Area || out.X != stamp.X || out.Y != stamp.Y || out.Return != nil {
+			t.Fatalf("requested %+v returned %+v: %v", requested, out, err)
+		}
+	}
+	inside.X, inside.Y = 410, 200
+	if _, err := s.Transition(1, false, inside, protocol.AreaChangeRequest{Town: 38, Area: 0, PreviousTown: 38, PreviousArea: 1}); err == nil {
+		t.Fatal("return outside exit bounds accepted")
+	}
+	inside.X, inside.Y = 550, 340
+	inside.Return.X = 65535
+	if _, err := s.Transition(1, false, inside, protocol.AreaChangeRequest{Town: 38, Area: 0, PreviousTown: 38, PreviousArea: 1}); err == nil {
+		t.Fatal("invalid stamped destination accepted")
+	}
+}
+
+func TestSameAreaRepositionKeepsReturnStamp(t *testing.T) {
+	s := Service{Catalog: catalog.WorldCatalog{Areas: map[string]catalog.WorldArea{
+		"38/1": {Town: 38, Area: 1, MinimumLevel: 1, Walkable: [][4]int32{{400, 100, 250, 300}}, SeriaReturnWarp: true, ReturnWarpBounds: [][4]int32{{470, 320, 150, 40}}},
+	}}, Rules: Rules{RequirePortalProximity: true}}
+	stamp := &storage.WorldReturn{Town: 41, Area: 1, X: 404, Y: 197}
+	inside := storage.WorldPosition{Town: 38, Area: 1, X: 520, Y: 200, Return: stamp}
+	out, err := s.Transition(1, false, inside, protocol.AreaChangeRequest{Town: 38, Area: 1, X: 540, Y: 210, PreviousTown: 38, PreviousArea: 1})
+	if err != nil || out.Town != 38 || out.Area != 1 || out.X != 540 || out.Y != 210 || out.Return != stamp {
+		t.Fatalf("in-room reposition changed return stamp: %+v %v", out, err)
+	}
+}
+
+func TestSeriaReturnIsSourceAgnostic(t *testing.T) {
+	s := Service{Catalog: catalog.WorldCatalog{Areas: map[string]catalog.WorldArea{
+		"38/1": {Town: 38, Area: 1, MinimumLevel: 1, Walkable: [][4]int32{{400, 100, 250, 300}}, SeriaReturnWarp: true, ReturnWarpBounds: [][4]int32{{470, 320, 150, 40}}},
+		"38/0": {Town: 38, Area: 0, MinimumLevel: 1, Walkable: [][4]int32{{0, 0, 1000, 500}}},
+		"39/0": {Town: 39, Area: 0, MinimumLevel: 1, Walkable: [][4]int32{{0, 0, 1000, 500}}},
+		"40/0": {Town: 40, Area: 0, MinimumLevel: 1, Walkable: [][4]int32{{0, 0, 1000, 500}}},
+	}}, Rules: Rules{RequirePortalProximity: true, PortalMargin: 10}}
+	for _, stamp := range []storage.WorldReturn{
+		{Town: 40, Area: 0, X: 403, Y: 181},
+		{Town: 39, Area: 0, X: 320, Y: 306},
+		{Town: 38, Area: 0, X: 622, Y: 196},
+	} {
+		inside := storage.WorldPosition{Town: 38, Area: 1, X: 550, Y: 340, Return: &stamp}
+		out, err := s.Transition(1, false, inside, protocol.AreaChangeRequest{Town: 38, Area: 0, X: 746, Y: 157, PreviousTown: 38, PreviousArea: 1})
+		if err != nil || out.Town != stamp.Town || out.Area != stamp.Area || out.X != stamp.X || out.Y != stamp.Y || out.Return != nil {
+			t.Fatalf("source %+v returned %+v: %v", stamp, out, err)
+		}
 	}
 }
 

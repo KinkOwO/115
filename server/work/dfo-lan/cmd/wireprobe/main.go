@@ -2147,7 +2147,7 @@ func main() {
 				event(map[string]any{"kind": "story_pause_restored", "character_id": worldState.role.ID, "state": r.State, "story_kind": r.Kind})
 				continue
 			}
-			if worldState != nil && bootstrapped && (frame.ID == 35 || frame.ID == 36) {
+			if worldState != nil && bootstrapped && (frame.ID == 35 || frame.ID == 36 || frame.ID == 1418) {
 				if worldState.activeDungeon != nil {
 					event(map[string]any{"kind": "dungeon_world_request_pending", "id": frame.ID, "origin_preserved": true})
 					continue
