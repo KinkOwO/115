@@ -99,6 +99,22 @@ func (s *skillSession) handle(cs *character.Service, w *worldSession, id uint16,
 		if e == nil {
 			body, e = cs.LearningResponse(saved, r)
 		}
+	case 2179:
+		// CHANGE_SKILLSLOT_TOTAL: the 自动加点 shortcut-bar layout. The client
+		// sends this swap list right after the auto-set learn burst and waits
+		// for the acknowledgement; with no handler it stayed an unimplemented
+		// sample (zero response), so the bar kept the server's own order and the
+		// preview the player confirmed was never applied. skillTreeRefreshRequired
+		// is true for this id, so the acknowledgement is followed by the full
+		// NOTI 19 redraw.
+		var r protocol.SkillSlotTotal
+		r, e = protocol.DecodeSkillSlotTotal(p)
+		if e == nil {
+			saved, applied, e = cs.MoveSkillTotal(ctx, w.role, key, r)
+		}
+		if e == nil {
+			body = protocol.SkillSlotTotalSuccess(r)
+		}
 	case 483:
 		// Two request shapes share this command. The Skill Reset window's
 		// Confirm frame is at least 8 bytes with a (style, mask) layout:
