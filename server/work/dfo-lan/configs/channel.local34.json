@@ -118,7 +118,27 @@
         0
       ],
       "SourceType": 0
+    },
+    {
+      "ID": 119,
+      "Name": "Legion",
+      "Type": 119,
+      "Area": "[none]",
+      "SourceValues": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "Note": "Apocalypse content channel. Type is the clientChannelInfo channelType: 119 carries isLegion=1 and seriaRoomTown=239. No counterpart in the source channel_info.etc, whose largest Type is 6 - special channels are supplied by the server. Area [none] on purpose: the entry runs through CMD2043, not the town gate list, so there is no [dungeon] block."
     }
   ],
-  "CompatibilityNote": "Current native144d998b0 type eligibility: legacy0/2/3 rejected; ordinary auto-entry22 accepted. Original source IDs/area/rule scalars retained."
+  "CompatibilityNote": "Current native144d998b0 type eligibility: legacy0/2/3 rejected; ordinary auto-entry22 accepted. Original source IDs/area/rule scalars retained. Channel 119 was added for the apocalypse/legion content: native144d998b0 only grants AUTO-SELECT to 22/28/33, and 119 is deliberately outside that set because a content channel is reached through its own screen - next31 already showed an ineligible type:2 channel still being listed, so auto-select and listing are separate gates. If 119 turns out to be filtered from the list as well, the two other accepted kinds (28, 33) are the next values to try; 22 is not an option because that is the ordinary auto-entry channel."
 }
