@@ -137,10 +137,11 @@ func DeleteItemsReply(rows []ItemDelete, success bool) []byte {
 		body = binary.AppendUvarint(append(body, 18), uint64(len(row)))
 		body = append(body, row...)
 	}
-	status := byte(0)
-	if success {
-		status = 1
+	header := []byte{1}
+	if !success {
+		// 失败分发仍会读取通用 u16 错误码，之后才进入 CMD18 protobuf reader。
+		header = Refusal(0)
 	}
-	p := add32([]byte{status}, uint32(len(body)))
+	p := add32(header, uint32(len(body)))
 	return append(p, body...)
 }

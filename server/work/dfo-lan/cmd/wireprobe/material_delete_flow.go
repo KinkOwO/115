@@ -16,8 +16,29 @@ func (w *worldSession) deleteSkillMaterial(p, raw []byte) ([]outboundPacket, err
 		return nil, fmt.Errorf("material use outside owned loaded dungeon")
 	}
 	rows, e := protocol.DecodeMaterialDelete(p)
+	reply := protocol.MaterialDeleteReply
+	contract := false
 	if e != nil {
-		return nil, e
+		rows, e = protocol.DecodeCubeContractDelete(p)
+		if e != nil {
+			return nil, e
+		}
+		contract = true
+		reply = protocol.CubeContractDeleteReply
+	}
+	if contract {
+		if w.vault.Store == nil {
+			return nil, fmt.Errorf("晶体契约存储不可用")
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		active, err := w.vault.Store.HasActivePremium(ctx, w.role.AccountID, storage.PremiumCube, time.Now())
+		cancel()
+		if err != nil {
+			return nil, err
+		}
+		if !active {
+			return nil, fmt.Errorf("晶体契约未生效或已到期")
+		}
 	}
 	if w.vault.Catalog.Items[3037].StackableType != "[material]" {
 		return nil, fmt.Errorf("missing clear cube definition")
@@ -27,7 +48,7 @@ func (w *worldSession) deleteSkillMaterial(p, raw []byte) ([]outboundPacket, err
 		return nil, e
 	}
 	if fromStorage {
-		return w.spendSkillMaterialFromStorage(p, raw, rows)
+		return w.spendSkillMaterialFromStorage(p, raw, rows, reply)
 	}
 	key := fmt.Sprintf("skill-material:%s:%x", w.activeDungeon.RunID, sha256.Sum256(raw))
 	model := fmt.Sprintf("skill-material-v1:%x", sha256.Sum256(p))
@@ -95,7 +116,7 @@ func (w *worldSession) deleteSkillMaterial(p, raw []byte) ([]outboundPacket, err
 	}
 	// Re-acknowledge uncertain commits to release the client's reservation.
 	// The following absolute slot values correct any repeated client decrement.
-	return []outboundPacket{{"skill_material_ack", 1, 18, protocol.MaterialDeleteReply(rows, true)}, {"skill_material_inventory", 0, 14, update}}, nil
+	return []outboundPacket{{"skill_material_ack", 1, 18, reply(rows, true)}, {"skill_material_inventory", 0, 14, update}}, nil
 }
 
 // skillMaterialStorageRows reports whether a skill cost is paid out of the
@@ -132,7 +153,7 @@ func skillMaterialStorageRows(rows []protocol.MaterialDelete) (bool, error) {
 // receipt that makes a client retry harmless. The reply mirrors the bag path -
 // rows echoed so the client can release its pending reservation, then the
 // authoritative storage and bag panels.
-func (w *worldSession) spendSkillMaterialFromStorage(p, raw []byte, rows []protocol.MaterialDelete) ([]outboundPacket, error) {
+func (w *worldSession) spendSkillMaterialFromStorage(p, raw []byte, rows []protocol.MaterialDelete, reply func([]protocol.MaterialDelete, bool) []byte) ([]outboundPacket, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	key := fmt.Sprintf("skill-material-account:%s:%x", w.activeDungeon.RunID, sha256.Sum256(raw))
@@ -169,5 +190,5 @@ func (w *worldSession) spendSkillMaterialFromStorage(p, raw []byte, rows []proto
 	if e != nil {
 		return nil, e
 	}
-	return append([]outboundPacket{{"skill_material_ack", 1, 18, protocol.MaterialDeleteReply(rows, true)}}, refresh...), nil
+	return append([]outboundPacket{{"skill_material_ack", 1, 18, reply(rows, true)}}, refresh...), nil
 }
