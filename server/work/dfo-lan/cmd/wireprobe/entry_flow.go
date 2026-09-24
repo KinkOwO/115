@@ -71,6 +71,7 @@ type entryPayloads struct {
 	// sequence, whichever block it contains.
 	SkillLocks   []byte
 	SynopsisRead []byte
+	CubeContract []byte
 	// Peers carries the USERINFO of every actor already standing in the scene.
 	// It is emitted after this actor's own placement but before the area list,
 	// because the client only places actors it already knows.
@@ -162,6 +163,8 @@ func (p entryPayloads) packets() []outboundPacket {
 		// the same slot-update channel before the window refresh.
 		outboundPacket{"equipment_slots_updated_entry", 0, 14, p.WornSlots},
 		outboundPacket{"worn_equipment_window_refreshed_entry", 0, 14, p.WornUpdate},
+		// 原生 NOTI889 会查询晶块库存，须在库存和角色初始化后恢复。
+		outboundPacket{"cube_contract_selection_restored", 0, 889, p.CubeContract},
 		outboundPacket{"actor_appearance_ready", 0, 2, p.Basic},
 		// The character option block goes after every other entry frame: this
 		// client crashes on town entry when NOTI2827 arrives early.

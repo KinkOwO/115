@@ -1007,6 +1007,7 @@ func main() {
 		var selectedAddition []byte
 		var worldState *worldSession
 		var skillState skillSession
+		var cubeContractState cubeContractSession
 		var equipmentState equipmentSession
 		var sortState sortSession
 		var legionState legionSession
@@ -1723,6 +1724,23 @@ func main() {
 				}
 				continue
 			}
+			if characters != nil && bootstrapped && frame.ID == 527 {
+				if !verified || worldState == nil || worldState.role.ID != selectedCharacterID {
+					continue
+				}
+				ack, saveErr := cubeContractState.save(worldState, plaintext)
+				if saveErr != nil {
+					event(map[string]any{"kind": "cube_contract_selection_rejected", "character_id": selectedCharacterID, "reason": saveErr.Error()})
+					ack = protocol.Refusal(0)
+				}
+				if e := sendPayload(1, 527, ack); e != nil {
+					return
+				}
+				if saveErr == nil {
+					event(map[string]any{"kind": "cube_contract_selection_saved", "character_id": selectedCharacterID, "selection": ack[2]})
+				}
+				continue
+			}
 			if characters != nil && bootstrapped && (frame.ID == 28 || frame.ID == 29 || frame.ID == 483 || frame.ID == 2179 || frame.ID == 2347) {
 				if !verified {
 					continue
@@ -1818,17 +1836,15 @@ func main() {
 				if !verified {
 					continue
 				}
-				// The skill-material branch owns the exact reason-2 semantics
-				// inside a loaded dungeon. Every other case (town discard,
-				// non-material item, missing dungeon) falls through to the
-				// general deletion path so the client's discard works anywhere.
+				// 技能材料原因 2 和晶体契约原因 5 共用真实扣除与幂等事务。
+				// 城镇丢弃、非材料物品等请求继续由通用删除路径处理。
 				plan, e := worldState.deleteSkillMaterial(plaintext, frame.Raw)
 				if e == nil {
 					for _, packet := range plan {
 						if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
 							return
 						}
-						event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID})
+						event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID, "plain_hex": hex.EncodeToString(packet.Payload)})
 					}
 					continue
 				}
@@ -1837,9 +1853,14 @@ func main() {
 				if e != nil {
 					event(map[string]any{"kind": "item_delete_refused", "reason": e.Error(), "character_id": worldState.role.ID})
 					rows, _ := protocol.DecodeMaterialDelete(plaintext)
-					if e = sendPayload(1, 18, protocol.MaterialDeleteReply(rows, false)); e != nil {
+					reply := protocol.MaterialDeleteReply(rows, false)
+					if contractRows, decodeErr := protocol.DecodeCubeContractDelete(plaintext); decodeErr == nil {
+						reply = protocol.CubeContractDeleteReply(contractRows, false)
+					}
+					if e = sendPayload(1, 18, reply); e != nil {
 						return
 					}
+					event(map[string]any{"kind": "item_delete_refusal_sent", "character_id": worldState.role.ID, "plain_hex": hex.EncodeToString(reply)})
 					continue
 				}
 				for _, packet := range plan {
@@ -2735,6 +2756,11 @@ func main() {
 				plan := entryPayloads{Select: payload, Basic: basic, Addition: addition, Vault: vaultPayload, UserArea: userArea, Area: areaPayload, Fatigue: fatiguePayload, AccountOptions: accountOptions}
 				plan.SecondaryVault = secondaryVaultPayload
 				plan.AccountVault = accountVaultPayload
+				plan.CubeContract, e = cubeContractRestore(role.State)
+				if e != nil {
+					event(map[string]any{"kind": "cube_contract_restore_error", "character_id": role.ID, "reason": e.Error()})
+					continue
+				}
 				// Read-notice ledger for NOTI402 (tree 1) and NOTI426 (tree 2).
 				// Without it the client re-pops the third-awakening teaching
 				// frame on every login; a read failure leaves the frames unset,
