@@ -139,7 +139,7 @@ func (s *Service) entryAddition(role storage.Character, visualOverrides map[uint
 	if err != nil {
 		return nil, err
 	}
-	return protocol.UserInfoAdditionProbe(protocol.EntryAdditionProbe{ActorServerID: role.WireID, Experience: state.Experience, Stats: stats, SkillTrees: trees, Worn: worn, Fame: fame, ExpandEquipFlags: projection.Inventory.ExpandEquipFlags})
+	return protocol.UserInfoAdditionProbe(protocol.EntryAdditionProbe{Context: s.ChannelContext, ActorServerID: role.WireID, Experience: state.Experience, Stats: stats, SkillTrees: trees, Worn: worn, Fame: fame, ExpandEquipFlags: projection.Inventory.ExpandEquipFlags})
 }
 
 // EquipmentFame 汇总实际穿戴物品的原版基础名望，不计背包、仓库或未穿戴宠物。

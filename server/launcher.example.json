@@ -1,4 +1,5 @@
 {
+  "channel_identity": false,
   "client_dir": "work/dfo_probe_client",
   "server_binary": "work/dfo-lan/bin/wireprobe-dungeon39.exe"
 }

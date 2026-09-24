@@ -476,6 +476,8 @@ with (
   elif shop_pilot.exists():
    command += ["-shop-purchase-pilot", str(shop_pilot)]
  command[0] = os.environ.get("DFO_SERVER_BINARY", command[0])
+ if os.environ.get("DFO_CHANNEL_IDENTITY") == "1":
+  command += ["-channel-identity"]
  for flag, key in (
   ("-character-storage", "DFO_CHARACTER_STORAGE"),
   ("-character-catalog", "DFO_CHARACTER_CATALOG"),
