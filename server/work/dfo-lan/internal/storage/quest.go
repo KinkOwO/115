@@ -39,7 +39,7 @@ func (s *Store) MigrateQuests(ctx context.Context) error {
  ON CONFLICT (character_id,quest_id,reason) DO NOTHING;
 
  DELETE FROM character_quests
- WHERE progress_model='act-clear-v1' AND status='completed' AND accepted_at=completed_at;`)
+ WHERE progress_model='act-clear-v1' AND status='completed' AND accepted_at=completed_at;`+migrateReachNPCProgressSQL)
 	return e
 }
 func (s *Store) AcceptQuest(ctx context.Context, account, characterID int64, qid uint16, version string, minLevel, maxLevel uint32, prerequisites []uint32, initial uint32, model string) (QuestState, error) {

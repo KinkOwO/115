@@ -23,6 +23,7 @@ type Entry struct {
 	PrerequisiteGroups [][]uint32
 	GrowTypes          []int32
 	NPC                uint32
+	NPCReach           NPCReachObjective
 	Range              RangeObjective
 	Seek               SeekObjective
 }
@@ -153,8 +154,9 @@ func BuildIndex(c catalog.QuestCatalog) *Index {
 		case model == SingleReachRange:
 			e.Range, _ = ReachRange(d)
 			x.Positional = append(x.Positional, id)
-		case model == AlflyraReachNPC:
-			e.NPC, _ = AlflyraReachTarget(d)
+		case model == ReachNPC:
+			e.NPCReach, _ = ReachNPCObjective(d)
+			e.NPC = e.NPCReach.NPC
 			x.Positional = append(x.Positional, id)
 		case model == SeekAndMeetNPC:
 			e.Seek, _ = SeekMeet(d)

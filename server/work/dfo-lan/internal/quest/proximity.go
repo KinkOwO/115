@@ -36,6 +36,23 @@ func nearNPC(npc uint32, at storage.WorldPosition, locate NPCLocator) bool {
 	return nearNPCWithin(npc, at, locate, ProximityRadius)
 }
 
+// Local interpretation of the three-cell reach form: full width and height
+// centered on the source NPC. The native client's boundary predicate has not
+// yet been recovered; keep both source dimensions instead of a fixed radius.
+func nearNPCReach(r NPCReachObjective, at storage.WorldPosition, locate NPCLocator) bool {
+	if r.NPC == 0 || locate == nil || r.W <= 0 || r.H <= 0 {
+		return false
+	}
+	p, ok := locate(r.NPC)
+	if !ok {
+		return false
+	}
+	dx := int64(at.X) - int64(p[0])
+	dy := int64(at.Y) - int64(p[1])
+	return 2*dx >= -int64(r.W) && 2*dx <= int64(r.W) &&
+		2*dy >= -int64(r.H) && 2*dy <= int64(r.H)
+}
+
 // holds reports whether the bag already carries every required item. Quest
 // items are counted where they actually sit; nothing is consumed here.
 func holds(b inventory.Bag, need []ItemNeed) bool {
@@ -92,11 +109,8 @@ func (s *Service) ProximityProgress(ctx context.Context, role storage.Character,
 		switch en.Model {
 		case SingleMeetNPC:
 			satisfied = nearNPC(en.NPC, at, locate)
-		case AlflyraReachNPC:
-			// In 42/2 the giver NPC 304 stands only 175 map units from
-			// target 303. The general 180-unit conversation radius would
-			// mark this reach objective complete while still at the giver.
-			satisfied = nearNPCWithin(en.NPC, at, locate, 80)
+		case ReachNPC:
+			satisfied = nearNPCReach(en.NPCReach, at, locate)
 		case SingleReachRange:
 			satisfied = en.Range.Contains(at)
 		case SeekAndMeetNPC:

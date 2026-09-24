@@ -12,19 +12,19 @@ import (
 const SingleClearMap = "single-clear-map-remaining-v1"
 const SingleMeetNPC = "single-meet-npc-remaining-v1"
 const SingleReachRange = "single-reach-range-remaining-v1"
-const AlflyraReachNPC = "alflyra-3252-reach-npc-remaining-v1"
+
+// Keep the persisted model identifier used by accepted quest 3252. Its
+// decoder and completion rule now cover every three-cell NPC reach objective.
+const ReachNPC = "alflyra-3252-reach-npc-remaining-v1"
 const SeekAndMeetNPC = "seek-items-and-meet-npc-remaining-v1"
 const LookCinematic = "look-cinematic-client-gated-v1"
 const MonsterKillCheckpoint = "monster-kill-checkpoint-client-gated-v1"
 const LegionContentClear = "legion-content-clear-client-gated-v1"
 
-// RangeObjective is a six-integer [reach the range] objective: a town, an
-// area and an axis-aligned rectangle. Origin plus extent is the only reading
-// consistent with every current low-level source row (3156 "38 3 445 115 400
-// 300", 3160 "40 3 1034 180 100 100", 21094 "40 3 132 160 900 200"); a
-// centre-and-half-extent reading puts 3156 at a negative Y. This has not been
-// confirmed against the native handler, so the decode stays strict and any
-// other shape remains unimplemented rather than guessed.
+// RangeObjective is the six-integer, subtype-1 reach form: town, area,
+// rectangle origin, width and height. Quest 13748's Y origin is -240; the
+// resulting rectangle intersects walkable map 139/0, whereas a centered
+// reading would end at Y=80, below that map's walkable Y>=183.
 type RangeObjective struct {
 	Town, Area uint32
 	X, Y, W, H int32
@@ -32,38 +32,47 @@ type RangeObjective struct {
 
 func ReachRange(d catalog.QuestDefinition) (RangeObjective, bool) {
 	c := d.ObjectiveCells
-	if len(d.Pending) != 0 || d.Kind != "[reach the range]" || len(c) != 6 {
+	if len(d.Pending) != 0 || d.Kind != "[reach the range]" || len(c) != 6 || reachSubtype(d) != 1 {
 		return RangeObjective{}, false
 	}
 	for _, t := range c {
-		if t.Type != 0 || t.Value < 0 {
+		if t.Type != 0 {
 			return RangeObjective{}, false
 		}
 	}
-	if c[0].Value == 0 || c[4].Value <= 0 || c[5].Value <= 0 {
+	if c[0].Value <= 0 || c[1].Value < 0 || c[4].Value <= 0 || c[5].Value <= 0 {
 		return RangeObjective{}, false
 	}
 	return RangeObjective{uint32(c[0].Value), uint32(c[1].Value), c[2].Value, c[3].Value, c[4].Value, c[5].Value}, true
 }
 
-// Quest 3252 uses the three-cell reach form, [303, 1000, 1000]. Its target
-// NPC is also the source's completion NPC. The native interpretation of the
-// two distance cells is not established, so this narrow form advances only
-// when the character reaches NPC 303 under the existing local NPC proximity
-// policy. Do not apply this rule to other three-cell reach quests.
-func AlflyraReachTarget(d catalog.QuestDefinition) (uint32, bool) {
-	if d.ID != 3252 || len(d.Pending) != 0 || d.Kind != "[reach the range]" || len(d.ObjectiveCells) != 3 {
-		return 0, false
+type NPCReachObjective struct {
+	NPC  uint32
+	W, H int32
+}
+
+func reachSubtype(d catalog.QuestDefinition) int32 {
+	c := cells(d.Script.Cells, "[sub type]")
+	if len(c) != 1 || c[0].Type != 0 {
+		return -1
+	}
+	return c[0].Value
+}
+
+// ReachNPCObjective decodes the subtype-0 form: NPC identity and two
+// dimensions of an NPC-centered local rectangle. The current catalog has 20
+// such rows, including targets distinct from their completion NPCs.
+func ReachNPCObjective(d catalog.QuestDefinition) (NPCReachObjective, bool) {
+	if len(d.Pending) != 0 || d.Kind != "[reach the range]" || len(d.ObjectiveCells) != 3 || reachSubtype(d) != 0 {
+		return NPCReachObjective{}, false
 	}
 	c := d.ObjectiveCells
-	if c[0].Type != 0 || c[0].Value != 303 || c[1].Type != 0 || c[1].Value != 1000 || c[2].Type != 0 || c[2].Value != 1000 {
-		return 0, false
+	for _, t := range c {
+		if t.Type != 0 || t.Value <= 0 {
+			return NPCReachObjective{}, false
+		}
 	}
-	complete := cells(d.Script.Cells, "[complete npc index]")
-	if len(complete) != 1 || complete[0].Type != 0 || complete[0].Value != c[0].Value {
-		return 0, false
-	}
-	return uint32(c[0].Value), true
+	return NPCReachObjective{uint32(c[0].Value), c[1].Value, c[2].Value}, true
 }
 
 func (r RangeObjective) Contains(p storage.WorldPosition) bool {
@@ -75,8 +84,8 @@ func (r RangeObjective) Contains(p storage.WorldPosition) bool {
 		py = int32(int16(p.Y))
 	}
 	return p.Town == r.Town && p.Area == r.Area &&
-		px >= r.X && px <= r.X+r.W &&
-		py >= r.Y && py <= r.Y+r.H
+		int64(px) >= int64(r.X) && int64(px) <= int64(r.X)+int64(r.W) &&
+		int64(py) >= int64(r.Y) && int64(py) <= int64(r.Y)+int64(r.H)
 }
 
 type ItemNeed struct{ Template, Amount uint32 }
@@ -124,8 +133,8 @@ func InitialProgress(d catalog.QuestDefinition) (uint32, string, error) {
 	if _, ok := ReachRange(d); ok {
 		return 1, SingleReachRange, nil
 	}
-	if _, ok := AlflyraReachTarget(d); ok {
-		return 1, AlflyraReachNPC, nil
+	if _, ok := ReachNPCObjective(d); ok {
+		return 1, ReachNPC, nil
 	}
 	if _, ok := SeekMeet(d); ok {
 		return 1, SeekAndMeetNPC, nil
