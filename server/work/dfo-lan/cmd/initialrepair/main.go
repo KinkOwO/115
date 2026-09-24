@@ -52,6 +52,9 @@ func main() {
 	if e = s.MigrateCharacterEvents(ctx); e != nil {
 		log.Fatal(e)
 	}
+	if e = s.MigrateCharacterNotices(ctx); e != nil {
+		log.Fatal(e)
+	}
 	chars, e := catalog.LoadCharacters(*characterCatalog)
 	if e != nil {
 		log.Fatal(e)

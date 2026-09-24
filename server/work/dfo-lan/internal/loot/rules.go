@@ -225,8 +225,8 @@ func RollWithBonus(c catalog.LootCatalog, t Tables, r Rules, pool []inventory.Eq
 				continue
 			}
 			gear := equipmentCandidates(pool, rarity, level, grade)
-			if len(gear) == 0 && rarity > 0 {
-				gear = equipmentCandidates(pool, 0, level, grade)
+			if len(gear) == 0 {
+				gear = equipmentCandidatesNearest(pool, rarity, level, grade)
 			}
 			if len(gear) == 0 {
 				out.SkippedKinds = append(out.SkippedKinds, "equipment_grade_window_empty")
@@ -270,6 +270,32 @@ func RollWithBonus(c catalog.LootCatalog, t Tables, r Rules, pool []inventory.Eq
 	}
 	out.NextSeed = rng.Seed
 	return out, nil
+}
+
+// equipmentCandidatesNearest retries the grade window on the neighbouring
+// rarities when the rolled one has no gear at that level.
+//
+// 2026-09-23 实机：奥德赛 100004940（basis level 55）击杀记录里出现
+// `drop_rules_pending / equipment_grade_window_empty` —— 装备概率已经命中，
+// 却一件都没掉。原因是稀有度 roll 与掉落池的等级覆盖错开：装备目录里
+// rarity=0 的 744 件全在 grade<=20，grade>=22 的 2430 件全是 rarity>=1；
+// 而 [basis of rarity dicision] 首行给 rarity=0 的概率是 700000/1000000。
+// 于是 50 级以上的怪有 70% 的装备命中落在一个必然为空的候选集上。
+// 这里按"先向上、再向下"的顺序找最近的可用稀有度，把已经命中的那次
+// 掉落真正发出来；概率结构本身不变。
+func equipmentCandidatesNearest(pool []inventory.EquipmentDrop, rarity int32, level byte, grade []float64) []inventory.EquipmentDrop {
+	const maxRarity = 8 // [basis of rarity dicision] 的 9 列 ⇒ 稀有度 0..8
+	for r := rarity + 1; r <= maxRarity; r++ {
+		if gear := equipmentCandidates(pool, r, level, grade); len(gear) > 0 {
+			return gear
+		}
+	}
+	for r := rarity - 1; r >= 0; r-- {
+		if gear := equipmentCandidates(pool, r, level, grade); len(gear) > 0 {
+			return gear
+		}
+	}
+	return nil
 }
 
 // equipmentCandidates applies the same grade window the stackable branch uses,

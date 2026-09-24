@@ -12,8 +12,8 @@ import (
 )
 
 // A character must be able to wear any structurally valid piece it meets the
-// level/job/grow requirement for, regardless of the two drop-pool rules
-// ([free] attach and rarity <= 1). Those rules decide what a monster may DROP,
+// level/job/grow requirement for, regardless of the drop-pool rules ([free]
+// attach and a rarity ceiling). Those rules decide what a monster may DROP,
 // not what a character may WEAR. Before the fix the equip path called Basic and
 // refused a [trade delete] bound shoe (e.g. the Explorer-collection 100261068)
 // and every rarity-2 uncommon the archer otherwise qualified for - the user's
@@ -50,11 +50,23 @@ func TestWearAcceptsBoundAndUncommonGear(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	// The drop pool must still exclude the bound and uncommon pieces.
+	// Bound gear stays out of the drop pool. An uncommon (rarity 2) piece is
+	// droppable: the source rarity roll names rarity 0/1/2 and everything the
+	// catalog carries above grade 20 is rarity>=1, so excluding 2 left every
+	// dungeon above level 21 with no gear to drop at all.
 	for _, d := range eq.DropPool() {
-		if d.ID == 5002 || d.ID == 5003 {
-			t.Fatalf("drop pool leaked non-basic gear %d", d.ID)
+		if d.ID == 5002 {
+			t.Fatalf("drop pool leaked bound gear %d", d.ID)
 		}
+	}
+	uncommonDroppable := false
+	for _, d := range eq.DropPool() {
+		if d.ID == 5003 {
+			uncommonDroppable = true
+		}
+	}
+	if !uncommonDroppable {
+		t.Fatal("rarity 2 gear is no longer droppable; high-level dungeons lose their whole gear pool")
 	}
 	svc := &WearService{
 		Catalog:     eq,

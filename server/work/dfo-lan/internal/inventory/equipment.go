@@ -251,16 +251,26 @@ func importTarget(cells []pvf.Token) uint32 {
 	return 0
 }
 
-// Basic is Reward plus the two rules that decide what a monster may drop:
-// the piece has to be unbound, and no rarer than rare. The drop pool is built
-// from this, so anything a drop offers is also grantable.
+// Basic is Reward plus the rules that decide what a monster may drop: the
+// piece has to be unbound, and no rarer than the source rarity roll can name.
+// The drop pool is built from this, so anything a drop offers is also
+// grantable.
 //
 // 注意：这里**比 Reward 更严**，两处：
 //  1. 必须恰好有一个 [attach type] 且为 [free]（没有绑定信息的条目不能确定可自由掉落）；
-//  2. 掉落池的**成员集合维持 2026-09-18 之前的原样**——只有"带耐久的部位"与
-//     戒指/手镯/项链（poolJewelry）参与掉落。本次放宽耐久规则后新变得可发放的
-//     称号/辅助装备/魔法石/耳环/护石/宠物/融合石/… **不进入掉落池**，
+//  2. 掉落池只收"带耐久的部位"与戒指/手镯/项链（poolJewelry）。放宽耐久规则后
+//     新变得可发放的称号/辅助装备/魔法石/耳环/护石/宠物/融合石/… **不进入掉落池**，
 //     以免改变既有掉落分布。它们仍然可以被 GM 与任务正常发放。
+//
+// 稀有度上限 2026-09-23 从 1 放宽到 2，理由（实测，不是推测）：
+//   - [basis of rarity dicision] 首行给 rarity 0/1/2 的概率是 70%/26.5%/2.5%，
+//     第 3 档及以上恒为 0 ⇒ 源表本来就预期掉到 rarity 2；
+//   - 装备目录里 rarity=0 的 744 件**全在 grade<=20**，grade>=22 的 2430 件
+//     rarity 全 >=1，而 rarity=2 占其中绝大多数。原来的 `> 1` 把这些整批挡在
+//     池外，掉落池只剩 grade<=20 的 1534 件；
+//   - 后果：等级 >=22 的副本**一件装备都掉不出来** —— 实机日志里
+//     `drop_rules_pending / equipment_grade_window_empty` 就是这条路径。
+// 发放走的仍是 Reward（见 Bag.AddEquipment），放宽此处不影响任务/GM 发放。
 func (c *EquipmentCatalog) Basic(id uint32) (uint16, error) {
 	d, e := c.Reward(id)
 	if e != nil {
@@ -271,7 +281,7 @@ func (c *EquipmentCatalog) Basic(id uint32) (uint16, error) {
 		return 0, e
 	}
 	attach, rarity, kind := r.Fields["[attach type]"], r.Fields["[rarity]"], r.Fields["[equipment type]"]
-	if len(attach) != 1 || attach[0].Text != "[free]" || rarity[0].Value > 1 {
+	if len(attach) != 1 || attach[0].Text != "[free]" || rarity[0].Value > 2 {
 		return 0, fmt.Errorf("special equipment reward requires additional source state")
 	}
 	if len(r.Fields["[durability]"]) == 0 && !poolJewelry[kind[0].Text] {
