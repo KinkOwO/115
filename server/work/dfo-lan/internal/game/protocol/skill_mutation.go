@@ -24,6 +24,67 @@ func DecodeSkillMove(p []byte) (SkillMove, error) {
 }
 func SkillMoveSuccess(r SkillMove) []byte { return []byte{1, r.Tree, r.From, r.To} }
 
+// SkillSlotSwap is one sequential slot exchange inside CMD 2179: whatever the
+// previous pair left at Source moves to Target and vice versa. A pair is
+// resolved against the state the pair before it produced, so the list cannot
+// be sorted or deduplicated. Target may be empty, which is an ordinary move;
+// both bytes use the same slot numbering as CMD 28 (0-13 quick bar, 14+
+// palette, and this client's second bar row lands around 26-40).
+type SkillSlotSwap struct{ Source, Target byte }
+
+// SkillSlotTotal is the body of CMD 2179 ENUM_CMDPACKET_CHANGE_SKILLSLOT_TOTAL,
+// the shortcut-bar layout the client applies after 自动加点: a tree byte, a
+// count, that many (source, target) pairs, and a u32 -1 tail. The send side is
+// 0x145ef7d70; four frames captured on 2026-09-23 (08:35:04 / 08:35:17 /
+// 08:39:36 / 08:42:51) all match this shape, and replaying the 08:35:04 and
+// 08:35:17 lists as sequential swaps converges on the same final bar, which is
+// what pins the semantics rather than the byte layout alone.
+type SkillSlotTotal struct {
+	Tree  byte
+	Pairs []SkillSlotSwap
+}
+
+func DecodeSkillSlotTotal(p []byte) (SkillSlotTotal, error) {
+	var r SkillSlotTotal
+	if len(p) < 7 {
+		return r, fmt.Errorf("short skill slot total")
+	}
+	r.Tree = p[0]
+	if r.Tree == 255 {
+		// 0xff is the client's "no tree selected" sentinel and means tree 0.
+		r.Tree = 0
+	}
+	if r.Tree != 0 {
+		return r, fmt.Errorf("unsupported skill slot total tree")
+	}
+	n := int(p[1])
+	end := 2 + n*2
+	if n == 0 || n > 128 || len(p) < end+4 {
+		return r, fmt.Errorf("invalid skill slot total size")
+	}
+	for i := 2; i < end; i += 2 {
+		v := SkillSlotSwap{Source: p[i], Target: p[i+1]}
+		if v.Source == 255 || v.Target == 255 || v.Source == v.Target {
+			return r, fmt.Errorf("invalid skill slot swap")
+		}
+		r.Pairs = append(r.Pairs, v)
+	}
+	if binary.LittleEndian.Uint32(p[end:]) != 0xffffffff {
+		return r, fmt.Errorf("invalid skill slot total tail")
+	}
+	return r, nil
+}
+
+// SkillSlotTotalSuccess echoes the applied swap list. The native receiver
+// 0x14526db60 reads tree, count and the pairs back; it does not read the tail.
+func SkillSlotTotalSuccess(r SkillSlotTotal) []byte {
+	p := []byte{r.Tree, byte(len(r.Pairs))}
+	for _, v := range r.Pairs {
+		p = append(p, v.Source, v.Target)
+	}
+	return p
+}
+
 type SkillPurchaseEntry struct {
 	ID            uint16
 	Refund, Delta byte
