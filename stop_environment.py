@@ -43,6 +43,7 @@ def stop_wireprobe():
     targets = [
         "wireprobe-dungeon39.exe",
         "wireprobe-handoff-source.exe",
+        "wireprobe-channel-identity-candidate.exe",
         "wireprobe.exe",
         "wireprobe-character.exe",
         "probe.exe",

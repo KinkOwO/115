@@ -56,6 +56,8 @@ type State struct {
 	OdysseyGraduationRewardOwed uint32 `json:"odyssey_graduation_reward_owed,omitempty"`
 }
 type Service struct {
+	// Connection-local identity; never modify the shared service after startup.
+	ChannelContext         [2]byte
 	DisableActorAppearance bool
 	DetailedWornCandidate  bool
 	Store                  *storage.Store
@@ -242,6 +244,9 @@ func (s *Service) Select(ctx context.Context, account int64, p []byte) (storage.
 // title all render correctly on first entry). The post-move refresh is the
 // path that does need explicit rows - see AppearanceProbe.
 func (s *Service) EntryBasicProbe(role storage.Character, channelContext [2]byte) ([]byte, error) {
+	if s.ChannelContext != [2]byte{} {
+		channelContext = s.ChannelContext
+	}
 	var state State
 	if err := json.Unmarshal(role.State, &state); err != nil {
 		return nil, err
@@ -312,6 +317,9 @@ func (s *Service) EntryBasicProbe(role storage.Character, channelContext [2]byte
 // looks in. Handing it the inventory sub-object instead yields an empty bag
 // without an error, because the bag keys are looked up one level up.
 func (s *Service) AppearanceProbe(role storage.Character, channelContext [2]byte) ([]byte, error) {
+	if s.ChannelContext != [2]byte{} {
+		channelContext = s.ChannelContext
+	}
 	var state State
 	if err := json.Unmarshal(role.State, &state); err != nil {
 		return nil, err
