@@ -41,7 +41,7 @@ func (s *Store) MigrateMailbox(ctx context.Context) error {
 	_, err := s.DB.Exec(ctx, `CREATE SEQUENCE IF NOT EXISTS mailbox_id_seq;
 CREATE TABLE IF NOT EXISTS character_mail (
  id bigint PRIMARY KEY DEFAULT nextval('mailbox_id_seq'),
- sender_id bigint NOT NULL REFERENCES characters(id),
+ sender_id bigint REFERENCES characters(id),
  recipient_id bigint NOT NULL REFERENCES characters(id),
  sender_name text NOT NULL, body text NOT NULL,
  status smallint NOT NULL DEFAULT 1 CHECK(status IN (1,2,3)),
@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS character_mail (
  created_at timestamptz NOT NULL DEFAULT now(), expires_at timestamptz NOT NULL,
  deleted_at timestamptz,
  CHECK(octet_length(sender_name)<=29), CHECK(octet_length(body)<=512));
+ALTER TABLE character_mail ALTER COLUMN sender_id DROP NOT NULL;
 CREATE INDEX IF NOT EXISTS character_mail_inbox ON character_mail(recipient_id,id) WHERE deleted_at IS NULL;`)
 	return err
 }
@@ -85,12 +86,21 @@ func readMailRows(rows pgx.Rows) ([]MailMessage, error) {
 	return out, rows.Err()
 }
 
-const mailColumns = `m.id,m.sender_id,m.recipient_id,m.sender_name,m.body,m.status,m.assets,m.expires_at,m.deleted_at IS NOT NULL`
+const mailColumns = `m.id,coalesce(m.sender_id,0),m.recipient_id,m.sender_name,m.body,m.status,m.assets,m.expires_at,m.deleted_at IS NOT NULL`
 
 func (s *Store) MailboxUnread(ctx context.Context, account, id int64) (uint16, error) {
 	var n uint16
 	err := s.DB.QueryRow(ctx, `SELECT count(*) FROM character_mail m JOIN characters c ON c.id=m.recipient_id WHERE c.account_id=$1 AND c.id=$2 AND c.deleted_at IS NULL AND m.deleted_at IS NULL AND m.status=1 AND m.expires_at>now()`, account, id).Scan(&n)
 	return n, err
+}
+
+// MailboxDeliveryState 在同一快照中读取最新投递编号和未读数。
+// 已读、领取不会产生新编号；调用方保留编号高水位，删除或过期也不会重复提醒。
+func (s *Store) MailboxDeliveryState(ctx context.Context, account, id int64) (int64, uint16, error) {
+	var latest int64
+	var unread uint16
+	err := s.DB.QueryRow(ctx, `SELECT coalesce(max(m.id),0),count(*) FILTER (WHERE m.status=1) FROM character_mail m JOIN characters c ON c.id=m.recipient_id WHERE c.account_id=$1 AND c.id=$2 AND c.deleted_at IS NULL AND m.deleted_at IS NULL AND m.expires_at>now()`, account, id).Scan(&latest, &unread)
+	return latest, unread, err
 }
 
 func (s *Store) Mailbox(ctx context.Context, account, id int64) ([]MailMessage, error) {

@@ -95,6 +95,10 @@ func mailboxSnapshot(messages []storage.MailMessage) ([]outboundPacket, error) {
 				if err != nil {
 					return nil, err
 				}
+				if item.Space == 1 {
+					v.Avatar = true
+					v.AvatarOptions, v.AvatarSockets, v.AvatarPeriod = item.Equipment.AvatarOptions, item.Equipment.AvatarSockets, item.Equipment.Period
+				}
 			}
 			attachments = append(attachments, v)
 		}
@@ -119,9 +123,26 @@ func mailBagPacket(state json.RawMessage) (outboundPacket, error) {
 	return outboundPacket{"mailbox_inventory_restored", 0, 13, body}, err
 }
 
-func (w *worldSession) mailboxAlarm(ctx context.Context) ([]byte, error) {
-	n, err := w.characters.Store.MailboxUnread(ctx, w.account, w.role.ID)
-	return protocol.MailboxAlarm(n), err
+// 领取成功先同步普通背包及时装栏，再通知客户端移除已领附件。
+func mailClaimBagPackets(state json.RawMessage) ([]outboundPacket, error) {
+	main, err := mailBagPacket(state)
+	if err != nil {
+		return nil, err
+	}
+	packets := []outboundPacket{main}
+	avatar, err := inventory.SpecialEquipmentPayload(state, 1)
+	if err != nil {
+		return nil, err
+	}
+	if len(avatar) > 0 {
+		packets = append(packets, outboundPacket{"mailbox_avatar_inventory_updated", 0, 14, avatar})
+	}
+	return packets, nil
+}
+
+func (w *worldSession) mailboxAlarm(ctx context.Context) ([]byte, int64, error) {
+	latest, n, err := w.characters.Store.MailboxDeliveryState(ctx, w.account, w.role.ID)
+	return protocol.MailboxAlarm(n), latest, err
 }
 
 func (w *worldSession) handleMailbox(ctx context.Context, selected int64, id uint16, p, raw, keys []byte, prefix string) ([]outboundPacket, int64, error) {
@@ -341,9 +362,9 @@ func (w *worldSession) claimMail(ctx context.Context, p, keys []byte, key string
 			if err != nil {
 				return nil, nil, nil, err
 			}
-			update, err := mailBagPacket(state)
+			updates, err := mailClaimBagPackets(state)
 			if err == nil {
-				_, err = preparePackets(keys, []outboundPacket{update, {"mailbox_claimed", 1, 95, protocol.MailClaimReply(r.Kind, results)}})
+				_, err = preparePackets(keys, append(updates, outboundPacket{"mailbox_claimed", 1, 95, protocol.MailClaimReply(r.Kind, results)}))
 			}
 			if err != nil {
 				return nil, nil, nil, err
@@ -360,9 +381,9 @@ func (w *worldSession) claimMail(ctx context.Context, p, keys []byte, key string
 	if err = json.Unmarshal(receipt, &results); err != nil {
 		return nil, 0, err
 	}
-	update, err := mailBagPacket(saved.State)
+	updates, err := mailClaimBagPackets(saved.State)
 	// 原生领取回调要查旧邮件对象，必须先更新背包，再应答，不提前清空列表。
-	return []outboundPacket{update, {"mailbox_claimed", 1, 95, protocol.MailClaimReply(r.Kind, results)}}, 0, err
+	return append(updates, outboundPacket{"mailbox_claimed", 1, 95, protocol.MailClaimReply(r.Kind, results)}), 0, err
 }
 
 func (w *worldSession) changeMailStatus(ctx context.Context, p, keys []byte, key string) ([]outboundPacket, int64, error) {

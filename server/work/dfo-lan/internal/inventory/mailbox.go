@@ -22,13 +22,20 @@ func MailPostage(gold uint32, itemCount int) uint64 {
 type MailItem struct {
 	Stack     *BagItem      `json:"stack,omitempty"`
 	Equipment *BagEquipment `json:"equipment,omitempty"`
+	Space     byte          `json:"space,omitempty"` // 旧邮件缺省为普通背包；1 为时装栏。
 }
 
 func (m MailItem) Row() ([protocol.CurrentItemRecordSize]byte, error) {
+	if m.Space != 0 && (m.Space != 1 || m.Equipment == nil || m.Stack != nil) {
+		return [protocol.CurrentItemRecordSize]byte{}, fmt.Errorf("邮件附件容器无效")
+	}
 	if (m.Stack == nil) == (m.Equipment == nil) {
 		return [protocol.CurrentItemRecordSize]byte{}, fmt.Errorf("邮件物品实例无效")
 	}
 	if m.Equipment != nil {
+		if m.Space == 1 && (len(m.Equipment.AvatarOptions) > 30 || len(m.Equipment.AvatarSockets) > 4) {
+			return [protocol.CurrentItemRecordSize]byte{}, fmt.Errorf("时装邮件扩展超出客户端容量")
+		}
 		if m.Equipment.Template < 2 {
 			return [protocol.CurrentItemRecordSize]byte{}, fmt.Errorf("邮件装备模板无效")
 		}
@@ -121,6 +128,38 @@ func (b Bag) AddMailItem(c catalog.LootCatalog, r BagRules, equipment *Equipment
 	}
 	if m.Equipment != nil {
 		item := *m.Equipment
+		if m.Space == 1 {
+			if equipment == nil || equipment.Source.Checksum != r.Source {
+				return b, fmt.Errorf("时装邮件目录版本无效")
+			}
+			definition, err := equipment.definitionResolved(item.Template, 0)
+			if err != nil {
+				return b, err
+			}
+			kind := definition.Fields["[equipment type]"]
+			if len(kind) == 0 || EquipmentBagSpace(kind[0].Text) != 1 {
+				return b, fmt.Errorf("时装邮件模板类型不匹配")
+			}
+			// 沿用商城与礼包的时装栏范围 0..209，保留附件实例全部属性。
+			occupied := make(map[uint16]bool, len(b.Special[1]))
+			for _, row := range b.Special[1] {
+				occupied[row.Slot] = true
+			}
+			for slot := uint16(0); slot < 210; slot++ {
+				if occupied[slot] {
+					continue
+				}
+				next := b
+				next.Special = make(map[byte][]BagEquipment, len(b.Special)+1)
+				for space, rows := range b.Special {
+					next.Special[space] = rows
+				}
+				item.Slot = slot
+				next.Special[1] = append(append([]BagEquipment(nil), b.Special[1]...), item)
+				return next, nil
+			}
+			return b, ErrMailBagFull
+		}
 		if equipment == nil || r.EquipmentSlots[0] == 0 || r.EquipmentSlots[0] > r.EquipmentSlots[1] {
 			return b, fmt.Errorf("邮件装备背包规则无效")
 		}

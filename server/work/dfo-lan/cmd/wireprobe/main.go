@@ -302,6 +302,11 @@ func main() {
 			log.Fatal(e)
 		}
 		defer s.Close()
+		releaseAdminGuard, e := s.HoldAdminGuard(ctx)
+		if e != nil {
+			log.Fatal(e)
+		}
+		defer releaseAdminGuard()
 		if e = s.Migrate(ctx); e != nil {
 			log.Fatal(e)
 		}
@@ -1042,21 +1047,36 @@ func main() {
 		defer close(done)
 		frames := clientFrames(c, done)
 		mailChanges := make(chan struct{}, 1)
+		// GM 为独立进程，无法调用本进程的 lanHub；定期从已提交邮件补齐提醒。
+		mailTicker := time.NewTicker(2 * time.Second)
+		defer mailTicker.Stop()
+		var mailAlarmRole, mailDeliveryID int64
 		ticker := time.NewTicker(30 * time.Second)
 		defer ticker.Stop()
 		for {
 			var incoming clientRead
 			select {
 			case incoming = <-frames:
+			case <-mailTicker.C:
+				select {
+				case mailChanges <- struct{}{}:
+				default:
+				}
+				continue
 			case <-mailChanges:
 				if bootstrapped && selectedCharacterID != 0 && worldState != nil && worldState.characters != nil {
 					mailCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-					alarm, err := worldState.mailboxAlarm(mailCtx)
+					alarm, latest, err := worldState.mailboxAlarm(mailCtx)
 					cancel()
 					if err != nil {
 						event(map[string]any{"kind": "mailbox_alarm_error", "character_id": selectedCharacterID, "reason": err.Error()})
-					} else if err = sendPayload(0, 99, alarm); err != nil {
-						return
+					} else if mailAlarmRole != selectedCharacterID || latest > mailDeliveryID {
+						// 仅登录和真正的新投递发送 NOTI99，避免读信/领取后销毁详情对象。
+						if err = sendPayload(0, 99, alarm); err != nil {
+							return
+						}
+						mailAlarmRole, mailDeliveryID = selectedCharacterID, latest
+						event(map[string]any{"kind": "mailbox_delivery_notified", "character_id": selectedCharacterID, "latest_mail_id": latest})
 					}
 				}
 				continue
@@ -2935,6 +2955,7 @@ func main() {
 				}
 				selectedCharacterID = role.ID
 				selectedBasic, selectedAddition = basic, addition
+				mailAlarmRole, mailDeliveryID = 0, 0
 				select {
 				case mailChanges <- struct{}{}:
 				default:
