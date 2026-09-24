@@ -110,3 +110,15 @@ attempt 2/3 静态门禁：`go test ./...` 与 `go vet ./...` 均通过。独立
 用户确认 Clone 脱装恢复正常；服务端 `AppearanceProbe` 每个外观槽只输出一行，Group 1 普通外观优先，避免 Clone 与普通 Avatar 同槽造成实时装备刷新拒绝。该修复纳入本次提交。
 
 未解决项：城镇显示正常，但 Clone-only 和 Clone+普通外观两种情况下进入副本仍裸体。前两次副本刷新候选均被实机否定并已撤回；未进行第三次尝试。当前没有足够证据闭环副本对象消费路径，等待用户提供新线索后再继续。
+
+### 2026-09-24 新线索与副本修复 attempt 3/3（用户实机确认）
+
+用户提供 `docs/todo/clone avatar/` 下四份 2026-09-20 的调查记录。它们记载了另一轮同版客户端实测：单纯补继承值后仍可能裸体，因为已有克隆实例先挂载图层、后设置继承值；两包 mode1 先移除、再重建实例可恢复服装，但 mode1 还会清理包里缺失的普通装备，需在末尾以 NOTI14 恢复。原记录引用的 `D:/115us/115us` 证据产物当前工作区不存在，因此这些文档只作取证线索，不把其中的 V4 验收当作本分支验收。
+
+已在当前 `client/DFO.exe.i64` 复核关键静态分支：`sub_1452C1540 @0x1452c2d42..0x1452c2ef7` 遍历 48 槽，清理 mode1 未标记的实例（31 号槽例外）；已有实例分支在 `0x1452c24bc` 处理挂载后才在 `0x1452c2620` 设置外观，新实例分支在 `0x1452c2705` 设置外观后才于 `0x1452c2784` 处理挂载。客户端默认外观解析 `sub_145A8BEF0 -> sub_145CDBD00 -> sub_145CDB1D0` 的职业/槽位返回值可与当前 `characterinfo.etc` 的 `default_appearance_indices` 对照；职业 11 上衣槽 3 的原生值为 `112500000`。职业 11..16 在当前导出角色表中缺这组默认值，候选直接使用已核对的 IDB 返回常量，并在装备目录中验证该模板存在。
+
+第三次候选原先仅在 `DFO_CLONE_REATTACH_CANDIDATE=1` 且穿戴表中存在已解析继承外观的 PVF `clear avatar` 时执行。CMD37 原有流程之后先发送省略这些 Clone 行的 mode1，再发送带普通外观或职业默认继承值的完整 mode1；最后以 NOTI14 只恢复非 Avatar 且非宠物主体的原始穿戴行（含 181 字节实例记录）。不移动物品、不改存档和数据库，也不变更城镇路径。此为同一副本功能的 **attempt 3/3**。
+
+候选阶段的静态门禁：`go test ./...`、`go vet ./...`、`scripts/test_repair_profile.py` 均通过；隔离构建 `bin/wireprobe-clone-reattach-attempt3.exe` 的 SHA-256 为 `667E0FCED2E881D6FB20A22D35A90147DA873F2468C5E5D5FF48BAE0C30B0E01`。本地忽略的测试 profile 位于 `runtime/clone-reattach-attempt3.json`，已用启动器 `--check` 验证所需路径；正常启动配置未更改。未自动启动客户端或运行副本。
+
+用户现已确认副本裸体问题修复。将经测试的逻辑纳入服务端默认路径：只要角色穿戴了可解析覆盖外观的 Clone，就在 CMD37 加载后执行上述重建序列，不再依赖临时环境开关或测试 profile。临时 `clone-reattach-attempt3.json` 已移除，正常启动器继续使用 `bin/wireprobe-handoff-source.exe`。此确认仅覆盖用户反馈的副本外观修复；更广泛的职业、普通装备组合仍保留回归测试。主线 `go test ./...`、`go vet ./...` 全部通过；重建的正常启动程序 SHA-256 为 `8EB6786366EDA5BFB4C86249638A973BDF3EC37F496DCA4660BFA4D6223D0F0D`。

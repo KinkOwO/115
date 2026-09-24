@@ -12,6 +12,12 @@ import (
 // EntryAddition uses persisted source attributes and initial skills in native
 // wire units. Equipment and advancement-specific skill learning are separate.
 func (s *Service) EntryAddition(role storage.Character) ([]byte, error) {
+	return s.entryAddition(role, nil, false)
+}
+
+// visualOverrides is used by the Clone reattach sequence. The ordinary entry
+// packet keeps its confirmed projection unchanged.
+func (s *Service) entryAddition(role storage.Character, visualOverrides map[uint16]uint32, omitResolvedClones bool) ([]byte, error) {
 	var state State
 	if e := json.Unmarshal(role.State, &state); e != nil {
 		return nil, e
@@ -88,6 +94,9 @@ func (s *Service) EntryAddition(role storage.Character) ([]byte, error) {
 		if e := json.Unmarshal(role.State, &wornProjection); e == nil {
 			b := inventory.Bag{Worn: wornProjection.Inventory.Worn}
 			for _, item := range b.WornBaseItems() {
+				if omitResolvedClones && item.Group == 0 && visualOverrides[item.Slot] != 0 {
+					continue
+				}
 				// Avatar slots (<= 11) ride the avatar row layout; the creature
 				// body slot 26 and creature gear slots 27..29 ride the plain /
 				// creature-extension layouts (protocol.DetailedEquipment pins all
@@ -117,6 +126,9 @@ func (s *Service) EntryAddition(role storage.Character) ([]byte, error) {
 							dw.HeaderTemplateA = other.Template
 							break
 						}
+					}
+					if dw.HeaderTemplateA == 0 {
+						dw.HeaderTemplateA = visualOverrides[item.Slot]
 					}
 				}
 				worn = append(worn, dw)

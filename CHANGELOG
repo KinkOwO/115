@@ -1,6 +1,7 @@
 # CHANGELOG
 
 ## 2026-09-24
+- **Clone Avatar 副本裸体修复（用户实机确认）**：副本加载后对穿戴且可解析外观的 Clone 依次发送移除旧实例、重建带普通外观或职业默认覆盖值的 mode1，再用 NOTI14 恢复普通装备穿戴行。修复现为 Go 服务端默认行为，不需临时 JSON 或环境开关；未改数据库、存档与客户端。确认基线：`server/work/dfo-lan/docs/protocol/avatar-clone-coexistence-candidate.md`。
 - **商城单件 / 多件购买、装扮皮肤穿戴修复（用户实机确认）**：接入 `[dont trade avatar]` 与 `[package]` 商品目录，支持时装进入装扮栏、礼盒交付、混合购物车一次扣款及多契约激活；装扮分页即时刷新，缺少 `[minimum level]` 的时装按无等级要求校验，同时保留装备等级修正规则。用户实机确认验证通过。
   - **验证与基线**：`go test -p 1 ./...`、`go vet -p 1 ./...` 通过；PVF SHA-256 `7EF2DB59331F7E5B18B2F250B8B907526BF2C94B17A7312036CF599644D88E80`；候选程序 SHA-256 `925F2BE6702EAA447839B3B81B9DF438E3EA3F2AC77D0929F095BA5D996AE44B`。确认基线：`server/work/dfo-lan/docs/protocol/next76-shop-avatar-package.md`。
 - **赛丽亚房间出口无响应（CMD 1418 + Return 戳，用户实机确认）**：为 CMD 1418 增加空请求处理，并复用 CMD 36 的切图帧序；赛丽亚房间离开请求改用进房时保存的 Return 四元组，保留出口范围校验，同区移动保留戳。西海岸进房、靠近出口后成功返回，由用户手动实机确认。新增 CMD 1418、通用落点强制回源、多来源镇与同区移动回归测试。

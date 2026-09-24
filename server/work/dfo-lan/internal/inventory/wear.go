@@ -382,6 +382,27 @@ func WornSpaceUpdate(state json.RawMessage) ([]byte, error) {
 	return EquipmentPayload(3, base, false)
 }
 
+// NonAvatarWornSpaceUpdate restores the equipment rows that a mode-1 Clone
+// reattach cannot represent. The native mode-1 reader clears absent slots,
+// including weapons, armour and oath items. The Clone slots and creature body
+// are rebuilt by the detailed packet and must not be touched here.
+func NonAvatarWornSpaceUpdate(state json.RawMessage) ([]byte, error) {
+	b, err := ReadBag(state)
+	if err != nil {
+		return nil, err
+	}
+	var rows []BagEquipment
+	for _, item := range b.WornBaseItems() {
+		if item.Slot > 11 && item.Slot != 26 {
+			rows = append(rows, item)
+		}
+	}
+	if len(rows) == 0 {
+		return nil, nil
+	}
+	return EquipmentPayload(3, rows, false)
+}
+
 func WornPayload(state json.RawMessage) ([]byte, error) {
 	b, e := ReadBag(state)
 	if e != nil {

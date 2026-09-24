@@ -321,6 +321,23 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 		if err == nil && len(wornUpdate) > 0 {
 			plan = append(plan, outboundPacket{"dungeon_worn_visuals_restored", 0, 14, wornUpdate})
 		}
+		reset, full, enabled, err := w.characters.CloneReattachPackets(w.role)
+		if err != nil {
+			return nil, err
+		}
+		if enabled {
+			restore, restoreErr := inventory.NonAvatarWornSpaceUpdate(w.role.State)
+			if restoreErr != nil {
+				return nil, restoreErr
+			}
+			plan = append(plan,
+				outboundPacket{"dungeon_clone_detached", 0, 2, reset},
+				outboundPacket{"dungeon_clone_reattached", 0, 2, full},
+			)
+			if len(restore) > 0 {
+				plan = append(plan, outboundPacket{"dungeon_nonavatar_worn_restored", 0, 14, restore})
+			}
+		}
 		if inventory.HasEquippedCreature(w.role.State) {
 			clPayload, err := inventory.CreatureListPayload(w.role.State)
 			if err == nil {
