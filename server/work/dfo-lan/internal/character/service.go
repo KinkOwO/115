@@ -51,7 +51,9 @@ type State struct {
 	// OdysseyGraduated marks a max-level Arad Odyssey character that became a
 	// regular character. omitempty keeps old binaries reading the state as a
 	// plain unknown field, so a rollback never invalidates the save.
-	OdysseyGraduated bool `json:"odyssey_graduated,omitempty"`
+	OdysseyGraduated            bool   `json:"odyssey_graduated,omitempty"`
+	OdysseyGraduationVersion    uint8  `json:"odyssey_graduation_version,omitempty"`
+	OdysseyGraduationRewardOwed uint32 `json:"odyssey_graduation_reward_owed,omitempty"`
 }
 type Service struct {
 	DisableActorAppearance bool

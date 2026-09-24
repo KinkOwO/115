@@ -68,7 +68,17 @@ func (s *ProgressionService) ApplyOdysseyGraduation(role storage.Character) (jso
 	if len(state.CreationOptions) == 12 {
 		state.CreationOptions[10] = 0
 	}
-	raw, e := json.Marshal(state)
+	// Other domains own fields not represented by State, including inventory.
+	var document map[string]json.RawMessage
+	if e := json.Unmarshal(role.State, &document); e != nil {
+		return nil, nil, e
+	}
+	document["odyssey_graduated"] = json.RawMessage(`true`)
+	document["creation_mode"] = json.RawMessage(`0`)
+	if len(state.CreationOptions) == 12 {
+		document["creation_options"], _ = json.Marshal(state.CreationOptions)
+	}
+	raw, e := json.Marshal(document)
 	if e != nil {
 		return nil, nil, e
 	}

@@ -2207,6 +2207,24 @@ func main() {
 				if frame.ID == 42 || frame.ID == 132 {
 					worldState.selectingDungeon = false
 				}
+				if returnedToTown(plan) {
+					refresh, err := worldState.graduateOdysseyAtTown()
+					if err != nil {
+						event(map[string]any{"kind": "odyssey_graduation_error", "character_id": selectedCharacterID, "reason": err.Error()})
+						return
+					}
+					for _, packet := range refresh {
+						if err = sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
+							return
+						}
+						event(map[string]any{"kind": packet.Name, "character_id": selectedCharacterID, "id": packet.ID})
+					}
+					if len(refresh) > 0 {
+						if err = worldState.announceSelf(event); err != nil {
+							return
+						}
+					}
+				}
 				continue
 			}
 			if worldState != nil && bootstrapped && frame.ID == 191 && verified {
@@ -2450,38 +2468,19 @@ func main() {
 					for _, err := range chapterPending {
 						event(map[string]any{"kind": "odyssey_chapter_reward_pending", "character_id": role.ID, "reason": err.Error()})
 					}
-					// 毕业转换（P3 子项 8/10）：满级奥德赛角色只在选角时转普通角色，
-					// 副本结算不做（会改变等级门槛、拒掉客户端通关后的移动）。
-					ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
-					graduated, gradApplied, gradErr := progressionService.OdysseyGraduate(ctx, role)
-					if gradErr != nil {
-						event(map[string]any{"kind": "odyssey_graduation_pending", "character_id": role.ID, "reason": gradErr.Error()})
-					} else {
-						role = graduated
-						if gradApplied {
-							event(map[string]any{"kind": "odyssey_graduated", "character_id": role.ID})
-						}
-					}
-					// 毕业奖励盒：独立收据，满包只欠盒子、不阻碍毕业本身。
-					boxed, boxApplied, boxErr := progressionService.OdysseyGraduationReward(ctx, role)
-					cancel()
-					role = boxed
-					if boxApplied {
-						event(map[string]any{"kind": "odyssey_graduate_reward_granted", "character_id": role.ID})
-					}
-					if boxErr != nil {
-						event(map[string]any{"kind": "odyssey_graduate_reward_pending", "character_id": role.ID, "reason": boxErr.Error()})
-					}
-					// 主线整理（P3 子项 9）：按当前等级清除剧情任务行（幂等、
-					// 不改已有行），分支任务保持可达；仅登录分支执行。
-					if questService != nil && questService.Odyssey != nil {
+					// Graduation and earlier-level quests share one durable receipt.
+					// Honour rewards remain pending mail delivery, never bag grants.
+					if questService != nil {
 						ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
-						cleared, branches, mainErr := questService.OdysseyMainline(ctx, role)
+						graduated, applied, gradErr := questService.GraduateOdyssey(ctx, role)
 						cancel()
-						if mainErr != nil {
-							event(map[string]any{"kind": "odyssey_mainline_pending", "character_id": role.ID, "reason": mainErr.Error()})
-						} else if cleared > 0 {
-							event(map[string]any{"kind": "odyssey_mainline_applied", "character_id": role.ID, "cleared": cleared, "branches": branches})
+						if gradErr != nil {
+							event(map[string]any{"kind": "odyssey_graduation_error", "character_id": role.ID, "reason": gradErr.Error()})
+							continue
+						}
+						role = graduated
+						if applied {
+							event(map[string]any{"kind": "odyssey_graduated", "character_id": role.ID, "model": storage.OdysseyGraduationEvent})
 						}
 					}
 				}
