@@ -23,28 +23,54 @@ type shopPilotSession struct {
 type preparedBagLedger struct {
 	ledger cashshop.BagLedger
 	keys   []byte
+	pilot  *cashshop.Pilot
 }
 
-func (l preparedBagLedger) PurchaseCashPremium(ctx context.Context, o storage.CashOrder, premiumType uint8, durationSecond int64) (storage.CashReceipt, bool, error) {
-	ledger, ok := l.ledger.(cashshop.PremiumLedger)
+// PurchaseCashMixed activates the cart's contract lines and delivers the rest
+// inside the same order; the packets mirror the ordinary purchase response.
+func (l preparedBagLedger) PurchaseCashMixed(ctx context.Context, o storage.CashOrder, deliver func(json.RawMessage) (json.RawMessage, error), premiums map[int]storage.CashPremiumActivation) (storage.CashReceipt, bool, error) {
+	ledger, ok := l.ledger.(cashshop.ContractCartLedger)
 	if !ok {
-		return storage.CashReceipt{}, false, fmt.Errorf("premium purchase ledger missing")
+		return storage.CashReceipt{}, false, fmt.Errorf("contract cart ledger missing")
 	}
-	receipt, applied, err := ledger.PurchaseCashPremium(ctx, o, premiumType, durationSecond)
-	if err != nil || !applied {
-		return receipt, applied, err
+	receipt, applied, err := ledger.PurchaseCashMixed(ctx, o, func(raw json.RawMessage) (json.RawMessage, error) {
+		state, e := deliver(raw)
+		if e != nil {
+			return nil, e
+		}
+		// The stored receipt projects every order line (contract lines carry
+		// no inventory row but still receive their per-line ACK), so the
+		// encode check mirrors that without filtering.
+		lines := make([]storage.CashDelivery, 0, len(o.Lines))
+		for _, line := range o.Lines {
+			lines = append(lines, storage.CashDelivery{Product: line.Product, Template: line.Template, Amount: line.Quantity * line.Units, Quantity: line.Quantity})
+		}
+		packets, e := shopPilotSpaces(l.pilot, storage.CashReceipt{CharacterState: state, Deliveries: lines, Premiums: receiptPremiumsFor(premiums)}, 0, true)
+		if e != nil {
+			return nil, e
+		}
+		if len(l.keys) != wire.SessionKeyBytes {
+			return nil, fmt.Errorf("purchase cipher not initialized")
+		}
+		if _, e = preparePackets(l.keys, packets); e != nil {
+			return nil, e
+		}
+		return state, nil
+	}, premiums)
+	return receipt, applied, err
+}
+
+// receiptPremiumsFor projects the activations for the encode-time packet
+// check; the authoritative times come from the stored receipt.
+func receiptPremiumsFor(premiums map[int]storage.CashPremiumActivation) []storage.CashPremium {
+	if len(premiums) == 0 {
+		return nil
 	}
-	packets, err := shopPilotPackets(receipt, 0, true)
-	if err != nil {
-		return storage.CashReceipt{}, false, err
+	out := make([]storage.CashPremium, 0, len(premiums))
+	for _, act := range premiums {
+		out = append(out, storage.CashPremium{Type: act.Type})
 	}
-	if len(l.keys) != wire.SessionKeyBytes {
-		return storage.CashReceipt{}, false, fmt.Errorf("purchase cipher not initialized")
-	}
-	if _, err = preparePackets(l.keys, packets); err != nil {
-		return storage.CashReceipt{}, false, err
-	}
-	return receipt, applied, nil
+	return out
 }
 
 func (l preparedBagLedger) PurchaseCashToBag(ctx context.Context, o storage.CashOrder, deliver func(json.RawMessage) (json.RawMessage, error)) (storage.CashReceipt, bool, error) {
@@ -57,7 +83,7 @@ func (l preparedBagLedger) PurchaseCashToBag(ctx context.Context, o storage.Cash
 		for _, line := range o.Lines {
 			lines = append(lines, storage.CashDelivery{Product: line.Product, Template: line.Template, Amount: line.Quantity * line.Units, Quantity: line.Quantity})
 		}
-		packets, e := shopPilotPackets(storage.CashReceipt{CharacterState: state, Deliveries: lines}, 0, true)
+		packets, e := shopPilotSpaces(l.pilot, storage.CashReceipt{CharacterState: state, Deliveries: lines}, 0, true)
 		if e != nil {
 			return nil, e
 		}
@@ -136,18 +162,25 @@ func (s *shopPilotSession) purchase(ctx context.Context, p *cashshop.Pilot, stor
 			})
 		}
 	}
-	prepared := preparedBagLedger{store, s.keys}
-	if receipt, applied, handled, err := p.TryPurchaseContract(ctx, prepared, account, character, key, cart); handled || err != nil {
-		return receipt, applied, err
-	}
+	prepared := preparedBagLedger{store, s.keys, p}
 	r, applied, e := p.Purchase(ctx, prepared, account, character, key, cart)
 	return r, applied, e
 }
 
 func shopPilotPackets(receipt storage.CashReceipt, balance uint64, applied bool) ([]outboundPacket, error) {
+	return shopPilotSpaces(nil, receipt, balance, applied)
+}
+
+// shopPilotSpaces builds the purchase response; the pilot refines which
+// special equipment spaces the delivery touched so the avatar wardrobe and
+// creature tab refresh alongside the ordinary bag. Without a pilot the
+// legacy pet-egg SKU fallback still refreshes creatures.
+func shopPilotSpaces(p *cashshop.Pilot, receipt storage.CashReceipt, balance uint64, applied bool) ([]outboundPacket, error) {
+	avatarTouched, creatureTouched := p.DeliverySpaces(receipt)
 	var update outboundPacket
 	var vaultUpgrade *outboundPacket
 	var creatureUpdate *outboundPacket
+	var avatarUpdate *outboundPacket
 	var b inventory.Bag
 	expansion := false
 	for _, delivery := range receipt.Deliveries {
@@ -221,12 +254,22 @@ func shopPilotPackets(receipt storage.CashReceipt, balance uint64, applied bool)
 		}
 		update = outboundPacket{"cera_purchase_inventory", 0, 14, items}
 
+		if avatarTouched && len(b.Special[1]) > 0 {
+			payload, err := inventory.EquipmentPayload(1, b.Special[1], false)
+			if err != nil {
+				return nil, err
+			}
+			avatarUpdate = &outboundPacket{"cera_purchase_avatar_inventory", 0, 14, payload}
+		}
+
 		if len(b.Special[7]) > 0 {
-			hasCreature := false
-			for _, d := range receipt.Deliveries {
-				if d.Product >= 3300000 && d.Product <= 3300011 {
-					hasCreature = true
-					break
+			hasCreature := creatureTouched
+			if !hasCreature {
+				for _, d := range receipt.Deliveries {
+					if d.Product >= 3300000 && d.Product <= 3300011 {
+						hasCreature = true
+						break
+					}
 				}
 			}
 			if hasCreature {
@@ -246,6 +289,9 @@ func shopPilotPackets(receipt storage.CashReceipt, balance uint64, applied bool)
 	if vaultUpgrade != nil {
 		// 扩容处理先于快照；角色金库使用 NOTI66，账号金库使用 CMD306 应答。
 		packets = append([]outboundPacket{*vaultUpgrade}, packets...)
+	}
+	if avatarUpdate != nil {
+		packets = append(packets, *avatarUpdate)
 	}
 	if creatureUpdate != nil {
 		packets = append(packets, *creatureUpdate)
@@ -273,6 +319,13 @@ func shopPilotPackets(receipt storage.CashReceipt, balance uint64, applied bool)
 			restorePayload, err := protocol.InventoryRestore(b.Rows(), b.Expansion)
 			if err == nil {
 				packets = append(packets, outboundPacket{"cera_purchase_inventory_restored", 0, 13, restorePayload})
+			}
+		}
+		// 契约激活后即时刷新客户端权益状态:NOTI66 放在 ACK64 之后,购买
+		// 状态机已关闭(旧的崩溃源于在"正在购买"弹窗期间广播)。
+		if applied {
+			for _, pr := range receipt.Premiums {
+				packets = append(packets, outboundPacket{"cera_purchase_premium_activated", 0, 66, protocol.CeraSpecialItemNotification(pr.Type, pr.EndTime)})
 			}
 		}
 	}

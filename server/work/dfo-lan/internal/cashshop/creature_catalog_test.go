@@ -26,7 +26,7 @@ func TestCreatureEquipmentResolution(t *testing.T) {
 	c.Entries = []OrdinaryProduct{food, egg}
 	index := catalog.ScriptRecord{SHA256: strings.Repeat("b", 64), Cells: []pvf.Token{{Value: 63006}, {Type: 6, Text: "equipment/creature/egg_faras.equ"}, {Value: food.Row[1].Value}, {Type: 6, Text: "equipment/creature/not_food.equ"}}}
 	calls := 0
-	err := c.resolveCreatureEquipment(index, func(name string) (catalog.ScriptRecord, error) {
+	err := c.resolveEquipmentEntries(index, func(name string) (catalog.ScriptRecord, error) {
 		calls++
 		return catalog.ScriptRecord{Path: name, SHA256: strings.Repeat("c", 64)}, nil
 	})
@@ -47,7 +47,7 @@ func TestCreatureEquipmentResolution(t *testing.T) {
 			if failure == "wrong family" {
 				idx.Cells[1].Text = "equipment/character/weapon.equ"
 			}
-			err := c.resolveCreatureEquipment(idx, func(name string) (catalog.ScriptRecord, error) {
+			err := c.resolveEquipmentEntries(idx, func(name string) (catalog.ScriptRecord, error) {
 				if failure == "read error" {
 					return catalog.ScriptRecord{}, fmt.Errorf("missing script")
 				}

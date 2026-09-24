@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"sort"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -344,7 +345,24 @@ func (s *Store) PurchaseCashPremium(ctx context.Context, o CashOrder, premiumTyp
 	if o.DeliveryMode != "" || premiumType == 0 || durationSecond <= 0 {
 		return CashReceipt{}, false, fmt.Errorf("invalid premium purchase")
 	}
-	return s.purchaseCash(ctx, o, nil, &CashPremiumActivation{Type: premiumType, DurationSecond: durationSecond})
+	return s.purchaseCash(ctx, o, nil, map[int]CashPremiumActivation{0: {Type: premiumType, DurationSecond: durationSecond}})
+}
+
+// PurchaseCashMixed charges one order inside a single transaction: every line
+// named in premiums activates its account contract (no inventory row), the
+// remaining lines deliver through the caller's bag mutation.
+func (s *Store) PurchaseCashMixed(ctx context.Context, o CashOrder, deliver func(json.RawMessage) (json.RawMessage, error), premiums map[int]CashPremiumActivation) (CashReceipt, bool, error) {
+	if o.DeliveryMode != "" {
+		return CashReceipt{}, false, fmt.Errorf("unexpected cash delivery mode")
+	}
+	if deliver == nil {
+		return CashReceipt{}, false, fmt.Errorf("missing bag delivery")
+	}
+	if len(premiums) == 0 || len(premiums) > len(o.Lines) {
+		return CashReceipt{}, false, fmt.Errorf("invalid contract cart")
+	}
+	o.DeliveryMode = "bag-v1"
+	return s.purchaseCash(ctx, o, deliver, premiums)
 }
 
 // PurchaseCashToBag executes a pure, source-backed inventory mutation under
@@ -394,7 +412,9 @@ type CashPremiumActivation struct {
 	DurationSecond int64
 }
 
-func (s *Store) purchaseCash(ctx context.Context, o CashOrder, deliver func(json.RawMessage) (json.RawMessage, error), premium *CashPremiumActivation, upgrades ...func(VaultState) (VaultState, error)) (CashReceipt, bool, error) {
+// purchaseCash keys activations by order-line index: a contract line never
+// reaches cash_inventory, an ordinary line never activates a contract.
+func (s *Store) purchaseCash(ctx context.Context, o CashOrder, deliver func(json.RawMessage) (json.RawMessage, error), premiums map[int]CashPremiumActivation, upgrades ...func(VaultState) (VaultState, error)) (CashReceipt, bool, error) {
 	var receipt CashReceipt
 	cost, e := o.total()
 	if e != nil {
@@ -460,7 +480,7 @@ func (s *Store) purchaseCash(ctx context.Context, o CashOrder, deliver func(json
 		if e = json.Unmarshal(saved, &receipt); e != nil {
 			return receipt, false, e
 		}
-		if deliver != nil || premium != nil {
+		if deliver != nil || len(premiums) > 0 {
 			receipt.CharacterState = state
 		}
 		if len(upgrades) > 0 {
@@ -484,29 +504,37 @@ func (s *Store) purchaseCash(ctx context.Context, o CashOrder, deliver func(json
 		return receipt, false, fmt.Errorf("CERA balance exceeds native range")
 	}
 	receipt = CashReceipt{Order: o.Key, Before: uint64(balance), After: uint64(balance) - cost, Charged: cost}
-	if premium != nil {
-		if premium.DurationSecond <= 0 || premium.DurationSecond > math.MaxInt64 {
-			return CashReceipt{}, false, fmt.Errorf("invalid premium duration")
-		}
+	if len(premiums) > 0 {
 		now := time.Now().Unix()
-		var oldEnd int64
-		if e = tx.QueryRow(ctx, `SELECT end_time FROM account_premiums WHERE account_id=$1 AND premium_type=$2 FOR UPDATE`, o.Account, premium.Type).Scan(&oldEnd); e != nil && !errors.Is(e, pgx.ErrNoRows) {
-			return CashReceipt{}, false, e
+		indexes := make([]int, 0, len(premiums))
+		for i := range premiums {
+			indexes = append(indexes, i)
 		}
-		base := now
-		if oldEnd > base {
-			base = oldEnd
-		}
-		end := base + premium.DurationSecond
-		if end <= base {
-			return CashReceipt{}, false, fmt.Errorf("premium expiry overflow")
-		}
-		_, e = tx.Exec(ctx, `INSERT INTO account_premiums(account_id,premium_type,end_time,updated_at) VALUES($1,$2,$3,now()) ON CONFLICT(account_id,premium_type) DO UPDATE SET end_time=EXCLUDED.end_time,updated_at=now()`, o.Account, premium.Type, end)
-		if e != nil {
-			return CashReceipt{}, false, e
-		}
+		sort.Ints(indexes)
 		receipt.CharacterState = state
-		receipt.Premiums = []CashPremium{{Type: premium.Type, EndTime: end, RemainingSecond: end - now}}
+		receipt.Premiums = make([]CashPremium, 0, len(premiums))
+		for _, i := range indexes {
+			premium := premiums[i]
+			if premium.DurationSecond <= 0 || premium.DurationSecond > math.MaxInt64 {
+				return CashReceipt{}, false, fmt.Errorf("invalid premium duration")
+			}
+			var oldEnd int64
+			if e = tx.QueryRow(ctx, `SELECT end_time FROM account_premiums WHERE account_id=$1 AND premium_type=$2 FOR UPDATE`, o.Account, premium.Type).Scan(&oldEnd); e != nil && !errors.Is(e, pgx.ErrNoRows) {
+				return CashReceipt{}, false, e
+			}
+			base := now
+			if oldEnd > base {
+				base = oldEnd
+			}
+			end := base + premium.DurationSecond
+			if end <= base {
+				return CashReceipt{}, false, fmt.Errorf("premium expiry overflow")
+			}
+			if _, e = tx.Exec(ctx, `INSERT INTO account_premiums(account_id,premium_type,end_time,updated_at) VALUES($1,$2,$3,now()) ON CONFLICT(account_id,premium_type) DO UPDATE SET end_time=EXCLUDED.end_time,updated_at=now()`, o.Account, premium.Type, end); e != nil {
+				return CashReceipt{}, false, e
+			}
+			receipt.Premiums = append(receipt.Premiums, CashPremium{Type: premium.Type, EndTime: end, RemainingSecond: end - now})
+		}
 	}
 	if deliver != nil {
 		receipt.CharacterState, e = deliver(state)
@@ -556,7 +584,7 @@ func (s *Store) purchaseCash(ctx context.Context, o CashOrder, deliver func(json
 	}
 	for i, l := range o.Lines {
 		d := CashDelivery{Product: l.Product, Template: l.Template, Amount: l.Quantity * l.Units, Quantity: l.Quantity}
-		if premium != nil {
+		if _, isContract := premiums[i]; isContract {
 			receipt.Deliveries = append(receipt.Deliveries, d)
 			continue
 		}
