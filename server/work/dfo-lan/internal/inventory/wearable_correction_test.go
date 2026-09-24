@@ -6,6 +6,10 @@ import (
 	"dfolan/internal/catalog/pvf"
 )
 
+// testKind 是普通装备类别（非 "[* avatar]"）：缺 [minimum level] 仍然算不可识别
+// 的定义。时装家族的豁免（缺该字段 = 无等级要求）见 wearable_avatar_test.go。
+const testKind = "[weapon]"
+
 // 装备可以自带 [correction equipped level]（使用等级修正，客户端显示为「装备等级限制-5」）。
 // 有效需求 = [minimum level] + 修正。
 //
@@ -18,15 +22,15 @@ func TestWearableByAppliesCorrectionEquippedLevel(t *testing.T) {
 		"[usable job]":                {{Type: 6, Text: "[all]"}},
 	}
 	// 有效需求 45 ⇒ 48 级应当放行。
-	if err := WearableBy(fields, "swordman", 0, 48); err != nil {
+	if err := WearableBy(fields, testKind, "swordman", 0, 48); err != nil {
 		t.Fatalf("expected level 48 to wear an item whose effective requirement is 45, got %v", err)
 	}
 	// 44 < 45 ⇒ 仍应拒绝。
-	if err := WearableBy(fields, "swordman", 0, 44); err == nil {
+	if err := WearableBy(fields, testKind, "swordman", 0, 44); err == nil {
 		t.Fatal("expected level 44 to be refused: effective requirement is 45")
 	}
 	// 边界：正好等于有效需求。
-	if err := WearableBy(fields, "swordman", 0, 45); err != nil {
+	if err := WearableBy(fields, testKind, "swordman", 0, 45); err != nil {
 		t.Fatalf("expected level 45 to be accepted exactly, got %v", err)
 	}
 }
@@ -37,10 +41,10 @@ func TestWearableByWithoutCorrectionKeepsOldBehaviour(t *testing.T) {
 		"[minimum level]": {{Type: 0, Value: 50}},
 		"[usable job]":    {{Type: 6, Text: "[all]"}},
 	}
-	if err := WearableBy(fields, "swordman", 0, 48); err == nil {
+	if err := WearableBy(fields, testKind, "swordman", 0, 48); err == nil {
 		t.Fatal("expected level 48 to be refused when only [minimum level] is present")
 	}
-	if err := WearableBy(fields, "swordman", 0, 50); err != nil {
+	if err := WearableBy(fields, testKind, "swordman", 0, 50); err != nil {
 		t.Fatalf("expected level 50 to be accepted, got %v", err)
 	}
 }
@@ -59,10 +63,10 @@ func TestWearableByIgnoresMalformedCorrection(t *testing.T) {
 				"[correction equipped level]": corr,
 				"[usable job]":                {{Type: 6, Text: "[all]"}},
 			}
-			if err := WearableBy(fields, "swordman", 0, 50); err != nil {
+			if err := WearableBy(fields, testKind, "swordman", 0, 50); err != nil {
 				t.Fatalf("malformed correction must not change behaviour, got %v", err)
 			}
-			if err := WearableBy(fields, "swordman", 0, 49); err == nil {
+			if err := WearableBy(fields, testKind, "swordman", 0, 49); err == nil {
 				t.Fatal("level 49 must still be refused: malformed correction is ignored")
 			}
 		})
@@ -76,7 +80,7 @@ func TestWearableByClampsNegativeRequirement(t *testing.T) {
 		"[correction equipped level]": {{Type: 0, Value: -5}},
 		"[usable job]":                {{Type: 6, Text: "[all]"}},
 	}
-	if err := WearableBy(fields, "swordman", 0, 0); err != nil {
+	if err := WearableBy(fields, testKind, "swordman", 0, 0); err != nil {
 		t.Fatalf("expected level 0 to be accepted after clamping, got %v", err)
 	}
 }
@@ -94,7 +98,7 @@ func TestWearableByCorrectionDoesNotBypassJobOrAdvancement(t *testing.T) {
 		jobFields[k] = v
 	}
 	jobFields["[usable job]"] = []pvf.Token{{Type: 6, Text: "[fighter]"}}
-	if err := WearableBy(jobFields, "swordman", 0, 60); err == nil {
+	if err := WearableBy(jobFields, testKind, "swordman", 0, 60); err == nil {
 		t.Fatal("expected profession requirement to still reject")
 	}
 
@@ -103,7 +107,7 @@ func TestWearableByCorrectionDoesNotBypassJobOrAdvancement(t *testing.T) {
 		growFields[k] = v
 	}
 	growFields["[usable grow type]"] = []pvf.Token{{Type: 0, Value: 2}}
-	if err := WearableBy(growFields, "swordman", 3, 60); err == nil {
+	if err := WearableBy(growFields, testKind, "swordman", 3, 60); err == nil {
 		t.Fatal("expected advancement requirement to still reject")
 	}
 }

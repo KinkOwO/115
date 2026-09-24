@@ -114,7 +114,7 @@ func (s *WearService) wearable(role storage.Character, item BagEquipment, slot u
 			}
 		}
 	}
-	return WearableBy(d.Fields, job.Job, state.Advancement, level)
+	return WearableBy(d.Fields, kind[0].Text, job.Job, state.Advancement, level)
 }
 
 func (s *WearService) itemGroup(item *BagEquipment, flagGroup byte) byte {

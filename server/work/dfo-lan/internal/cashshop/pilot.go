@@ -13,6 +13,7 @@ import (
 	"math"
 	"os"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -26,6 +27,11 @@ type PilotConfig struct {
 	EquipmentIndexHash string                 `json:"equipment_index_hash,omitempty"`
 	Entries            []OrdinaryProduct      `json:"entries"`
 	Policies           map[string][]pvf.Token `json:"policies"`
+	// immediateTemplates caches the templates any [immediately adaptive
+	// product] SKU sells, so classify stays O(1) per entry. Built by
+	// LoadPilot/ImportPilot; classify falls back to a per-call derivation
+	// when the config was built by hand (tests).
+	immediateTemplates map[int32]bool
 }
 type OrdinaryProduct struct {
 	Section     string               `json:"section"`
@@ -38,6 +44,86 @@ type deliveryType struct {
 	Kind  string
 	Slots [2]uint16
 	Limit uint32
+}
+
+// boxStackableType answers the item's [stackable type] value when present.
+func boxStackableType(item catalog.ScriptRecord) (string, bool) {
+	for i, t := range item.Cells {
+		if t.Type == 3 && t.Text == "[stackable type]" {
+			if i+1 < len(item.Cells) && item.Cells[i+1].Type == 6 {
+				return item.Cells[i+1].Text, true
+			}
+			return "", false
+		}
+	}
+	return "", false
+}
+
+func boxKind(kind string) bool {
+	switch kind {
+	case "[booster]", "[booster selection]", "[booster random]", "[cera booster]", "[usable cera package]":
+		return true
+	}
+	return false
+}
+
+// boxContents reports whether the script carries the open-time reward table
+// ([package data], [booster info] or [booster select category]). A box family
+// item with a content table is delivered as an inert stackable; opening is
+// the separate booster/package flow.
+func boxContents(item catalog.ScriptRecord) bool {
+	for _, t := range item.Cells {
+		if t.Type != 3 {
+			continue
+		}
+		switch t.Text {
+		case "[package data]", "[booster info]", "[booster select category]":
+			return true
+		}
+	}
+	return false
+}
+
+// packageHandler classifies box delivery: the box itself lands in the
+// consumable slots one per slot, its contents resolve at open time.
+func packageHandler(item catalog.ScriptRecord) (deliveryType, error) {
+	kind := ""
+	limit := uint32(0)
+	contents := false
+	for i, t := range item.Cells {
+		if t.Type != 3 {
+			continue
+		}
+		switch t.Text {
+		case "[stackable type]":
+			if i+1 < len(item.Cells) && item.Cells[i+1].Type == 6 {
+				kind = item.Cells[i+1].Text
+			}
+		case "[stack limit]":
+			if i+1 < len(item.Cells) && item.Cells[i+1].Type == 0 && item.Cells[i+1].Value > 0 {
+				limit = uint32(item.Cells[i+1].Value)
+			}
+		case "[package data]", "[booster info]", "[booster select category]":
+			contents = true
+		}
+	}
+	h := deliveryType{Kind: kind, Slots: [2]uint16{65, 120}, Limit: 1}
+	switch kind {
+	case "[usable cera package]":
+		if !contents {
+			return h, fmt.Errorf("package without source contents")
+		}
+	case "[booster]", "[cera booster]", "[booster selection]", "[booster random]":
+		if !contents {
+			return h, fmt.Errorf("booster box without source pool")
+		}
+	default:
+		return h, fmt.Errorf("unimplemented box type %s", kind)
+	}
+	if limit > 0 {
+		h.Limit = limit
+	}
+	return h, nil
 }
 
 // Inventory families dispatch by script type, never by SKU.
@@ -53,6 +139,12 @@ func ordinaryHandler(item catalog.ScriptRecord) (deliveryType, error) {
 			}
 		}
 	}
+	// A box family item with a source content table is purchasable even in an
+	// ordinary section: the delivery is the closed box, opening is handled by
+	// the booster/package flows.
+	if kind, ok := boxStackableType(item); ok && boxKind(kind) && boxContents(item) {
+		return packageHandler(item)
+	}
 	h := deliveryType{Limit: 1000}
 	openAll := os.Getenv("DFO_SHOP_OPEN_ALL") == "1"
 	for i, t := range item.Cells {
@@ -64,10 +156,9 @@ func ordinaryHandler(item catalog.ScriptRecord) (deliveryType, error) {
 			if !openAll {
 				return h, fmt.Errorf("special delivery field %s", t.Text)
 			}
-		case "[action type]":
-			if i+1 < len(item.Cells) && item.Cells[i+1].Text == "[radiant treasure box]" && !openAll {
-				return h, fmt.Errorf("special delivery action radiant treasure box")
-			}
+		// [action type] 不再拦截:[radiant treasure box] 交付的就是未开启的
+		// 盒子,右键走既有 CMD160 光辉宝箱流程(next44);其余 action type
+		// 原本就随 [stackable type] 的普通处理放行。
 		case "[stackable type]":
 			if h.Kind != "" || i+1 >= len(item.Cells) || item.Cells[i+1].Type != 6 {
 				if !openAll {
@@ -127,7 +218,11 @@ func (c PilotConfig) validate() error {
 	}
 	templates := map[int32]string{}
 	for _, v := range c.Entries {
-		if len(v.Row) != 14 || v.Row[0].Type != 0 || v.Row[0].Value <= 0 {
+		width := 14
+		if v.Section == "[package]" {
+			width = 13
+		}
+		if len(v.Row) != width || v.Row[0].Type != 0 || v.Row[0].Value <= 0 {
 			return fmt.Errorf("malformed shop row")
 		}
 		id := v.Row[0].Value
@@ -155,6 +250,10 @@ type ItemInfo struct {
 type Pilot struct {
 	Config      PilotConfig
 	ItemCatalog map[uint32]ItemInfo
+
+	cacheMu       sync.Mutex
+	cacheOpenAll  string
+	cacheProducts map[uint32]Product
 }
 
 type PackageItem struct {
@@ -228,7 +327,7 @@ func (p *Pilot) findEntry(product, template uint32) (OrdinaryProduct, bool) {
 		return OrdinaryProduct{}, false
 	}
 	for _, entry := range p.Config.Entries {
-		if len(entry.Row) == 14 {
+		if width := len(entry.Row); width == 13 || width == 14 {
 			if product != 0 && uint32(entry.Row[0].Value) == product {
 				return entry, true
 			}
@@ -249,7 +348,7 @@ func (p *Pilot) resolveDeliveryType(template uint32) (deliveryType, error) {
 		}, nil
 	}
 	for _, entry := range p.Config.Entries {
-		if len(entry.Row) == 14 && uint32(entry.Row[1].Value) == template {
+		if width := len(entry.Row); (width == 13 || width == 14) && uint32(entry.Row[1].Value) == template {
 			_, handler, e := p.Config.classify(entry)
 			if e == nil {
 				return handler, nil
@@ -258,6 +357,13 @@ func (p *Pilot) resolveDeliveryType(template uint32) (deliveryType, error) {
 	}
 	if p != nil && p.ItemCatalog != nil {
 		if info, ok := p.ItemCatalog[template]; ok {
+			if info.Kind == "avatar" {
+				return deliveryType{
+					Kind:  "[avatar]",
+					Slots: [2]uint16{0, 209},
+					Limit: 1,
+				}, nil
+			}
 			limit := info.StackLimit
 			if limit == 0 {
 				limit = 1000
@@ -293,6 +399,7 @@ func LoadPilot(path, source string) (*Pilot, error) {
 	if e = json.Unmarshal(b, &c); e != nil {
 		return nil, e
 	}
+	c.immediateTemplates = c.deriveImmediateTemplates()
 	if e = c.validate(); e != nil {
 		return nil, e
 	}
@@ -310,6 +417,12 @@ func LoadPilot(path, source string) (*Pilot, error) {
 	return p, nil
 }
 func (p *Pilot) products() (map[uint32]Product, error) {
+	openAll := os.Getenv("DFO_SHOP_OPEN_ALL")
+	p.cacheMu.Lock()
+	defer p.cacheMu.Unlock()
+	if p.cacheProducts != nil && p.cacheOpenAll == openAll {
+		return p.cacheProducts, nil
+	}
 	if e := p.Config.validate(); e != nil {
 		return nil, e
 	}
@@ -320,6 +433,8 @@ func (p *Pilot) products() (map[uint32]Product, error) {
 			out[product.ID] = product
 		}
 	}
+	p.cacheOpenAll = openAll
+	p.cacheProducts = out
 	return out, nil
 }
 func (p *Pilot) EnabledCount() int { m, _ := p.products(); return len(m) }
@@ -328,70 +443,44 @@ type BagLedger interface {
 	PurchaseCashToBag(context.Context, storage.CashOrder, func(json.RawMessage) (json.RawMessage, error)) (storage.CashReceipt, bool, error)
 }
 
-type PremiumLedger interface {
-	PurchaseCashPremium(context.Context, storage.CashOrder, uint8, int64) (storage.CashReceipt, bool, error)
+// ContractCartLedger activates every named contract line and delivers the
+// remaining lines of one order inside a single transaction, so a cart may mix
+// contracts with ordinary merchandise (实机 2026-09-23:合并购买契约被旧的
+// "separate order" 限制整单拒绝)。
+type ContractCartLedger interface {
+	PurchaseCashMixed(context.Context, storage.CashOrder, func(json.RawMessage) (json.RawMessage, error), map[int]storage.CashPremiumActivation) (storage.CashReceipt, bool, error)
 }
 
-func (p *Pilot) purchaseContract(ctx context.Context, ledger BagLedger, order storage.CashOrder, cart []protocol.CeraCartItem) (storage.CashReceipt, bool, bool, error) {
-	if len(cart) != 1 {
-		return storage.CashReceipt{}, false, false, nil
-	}
-	entry, found := p.findEntry(cart[0].Product, 0)
-	if !found {
-		return storage.CashReceipt{}, false, false, nil
-	}
-	premium, isPremium, err := entryContract(entry)
-	if err != nil || !isPremium {
-		return storage.CashReceipt{}, false, isPremium, err
-	}
-	pl, ok := ledger.(PremiumLedger)
-	if !ok {
-		return storage.CashReceipt{}, false, false, nil
-	}
-	duration := premium.DurationSecond * int64(cart[0].Quantity) * int64(order.Lines[0].Units)
-	if duration <= 0 {
-		return storage.CashReceipt{}, false, true, fmt.Errorf("premium duration overflow")
-	}
-	receipt, applied, err := pl.PurchaseCashPremium(ctx, order, premium.Type, duration)
-	return receipt, applied, true, err
-}
-
-func (p *Pilot) TryPurchaseContract(ctx context.Context, ledger BagLedger, account, character int64, key string, cart []protocol.CeraCartItem) (storage.CashReceipt, bool, bool, error) {
-	if len(cart) != 1 {
-		for _, line := range cart {
-			entry, found := p.findEntry(line.Product, 0)
-			if !found {
-				continue
-			}
-			_, premium, err := entryContract(entry)
-			if err != nil {
-				return storage.CashReceipt{}, false, true, err
-			}
-			if premium {
-				return storage.CashReceipt{}, false, true, fmt.Errorf("premium contracts require a separate order")
-			}
+// contractActivations partitions the cart: every line whose source row
+// resolves to a premium contract (direct alias or single-child wrapper)
+// becomes an activation keyed by its cart index, and joins a synthetic
+// catalog product so the shared Quote can price the whole cart.
+func (p *Pilot) contractActivations(cart []protocol.CeraCartItem, products map[uint32]Product) (map[int]storage.CashPremiumActivation, error) {
+	activations := map[int]storage.CashPremiumActivation{}
+	for i, line := range cart {
+		entry, ok := p.findEntry(line.Product, 0)
+		if !ok {
+			continue
 		}
-		return storage.CashReceipt{}, false, false, nil
+		c, isPremium, err := entryContract(entry)
+		if err != nil {
+			return nil, err
+		}
+		if !isPremium {
+			continue
+		}
+		row := entry.Row
+		if len(row) != 14 || row[0].Value <= 0 || row[1].Value <= 0 || row[2].Value <= 0 || row[5].Value <= 0 {
+			return nil, fmt.Errorf("invalid contract product")
+		}
+		products[line.Product] = Product{ID: uint32(row[0].Value), Template: uint32(row[1].Value), Units: uint32(row[2].Value), Cera: uint32(row[5].Value), Enabled: true}
+		duration := c.DurationSecond * int64(line.Quantity) * int64(row[2].Value)
+		if duration <= 0 {
+			return nil, fmt.Errorf("premium duration overflow")
+		}
+		activations[i] = storage.CashPremiumActivation{Type: c.Type, DurationSecond: duration}
 	}
-	entry, found := p.findEntry(cart[0].Product, 0)
-	if !found || len(entry.Row) != 14 {
-		return storage.CashReceipt{}, false, false, nil
-	}
-	_, isPremium, err := entryContract(entry)
-	if err != nil || !isPremium {
-		return storage.CashReceipt{}, false, isPremium, err
-	}
-	r := entry.Row
-	if r[0].Value <= 0 || r[1].Value <= 0 || r[2].Value <= 0 || r[5].Value <= 0 {
-		return storage.CashReceipt{}, false, true, fmt.Errorf("invalid contract product")
-	}
-	product := Product{ID: uint32(r[0].Value), Template: uint32(r[1].Value), Units: uint32(r[2].Value), Cera: uint32(r[5].Value), Enabled: true}
-	service := Service{Catalog: Catalog{Source: p.Config.Source.Checksum, Products: map[uint32]Product{product.ID: product}}}
-	order, err := service.Quote(account, character, key, cart, time.Now())
-	if err != nil {
-		return storage.CashReceipt{}, false, true, err
-	}
-	return p.purchaseContract(ctx, ledger, order, cart)
+	return activations, nil
 }
 
 func (p *Pilot) Purchase(ctx context.Context, ledger BagLedger, account, character int64, key string, cart []protocol.CeraCartItem) (storage.CashReceipt, bool, error) {
@@ -407,6 +496,17 @@ func (p *Pilot) Purchase(ctx context.Context, ledger BagLedger, account, charact
 		}
 	}
 	products, e := p.products()
+	if e != nil {
+		return storage.CashReceipt{}, false, e
+	}
+	products = func() map[uint32]Product {
+		out := make(map[uint32]Product, len(products)+len(cart))
+		for id, product := range products {
+			out[id] = product
+		}
+		return out
+	}()
+	activations, e := p.contractActivations(cart, products)
 	if e != nil {
 		return storage.CashReceipt{}, false, e
 	}
@@ -432,8 +532,11 @@ func (p *Pilot) Purchase(ctx context.Context, ledger BagLedger, account, charact
 	if total > 112000 {
 		return storage.CashReceipt{}, false, fmt.Errorf("purchase exceeds delivery budget")
 	}
-	return ledger.PurchaseCashToBag(ctx, o, func(raw json.RawMessage) (json.RawMessage, error) {
-		for _, line := range o.Lines {
+	deliver := func(raw json.RawMessage) (json.RawMessage, error) {
+		for i, line := range o.Lines {
+			if _, isContract := activations[i]; isContract {
+				continue
+			}
 			entry, ok := p.findEntry(line.Product, line.Template)
 			if ok {
 				if pkgItems, isPkg := PackageItems(entry.Item); isPkg {
@@ -462,7 +565,15 @@ func (p *Pilot) Purchase(ctx context.Context, ledger BagLedger, account, charact
 			}
 		}
 		return raw, nil
-	})
+	}
+	if len(activations) == 0 {
+		return ledger.PurchaseCashToBag(ctx, o, deliver)
+	}
+	mixed, ok := ledger.(ContractCartLedger)
+	if !ok {
+		return storage.CashReceipt{}, false, fmt.Errorf("contract cart ledger missing")
+	}
+	return mixed.PurchaseCashMixed(ctx, o, deliver, activations)
 }
 func (p *Pilot) deliverAmount(raw json.RawMessage, template, amount uint32, expireTime ...uint32) (json.RawMessage, error) {
 	if amount == 0 || amount > 112000 {
@@ -486,6 +597,43 @@ func (p *Pilot) deliverAmount(raw json.RawMessage, template, amount uint32, expi
 	h, err := p.resolveDeliveryType(template)
 	if err != nil {
 		return nil, err
+	}
+	if h.Kind == "[avatar]" {
+		if info, ok := p.ItemCatalog[template]; ok && info.Kind != "avatar" {
+			return nil, fmt.Errorf("shop template %d does not resolve to an avatar", template)
+		}
+		b, e := inventory.ReadBag(raw)
+		if e != nil {
+			return nil, e
+		}
+		occupied := map[uint16]bool{}
+		if b.Special != nil {
+			for _, row := range b.Special[1] {
+				occupied[row.Slot] = true
+			}
+		}
+		for i := uint32(0); i < amount; i++ {
+			found := false
+			for s := uint16(0); s < 210; s++ {
+				if !occupied[s] {
+					occupied[s] = true
+					if b.Special == nil {
+						b.Special = map[byte][]inventory.BagEquipment{}
+					}
+					b.Special[1] = append(b.Special[1], inventory.BagEquipment{
+						Slot:     s,
+						Template: template,
+						Period:   exp,
+					})
+					found = true
+					break
+				}
+			}
+			if !found {
+				return nil, fmt.Errorf("avatar wardrobe full")
+			}
+		}
+		return inventory.SaveBag(raw, b)
 	}
 	if h.Kind == "[creature]" {
 		b, e := inventory.ReadBag(raw)
@@ -552,4 +700,53 @@ func (p *Pilot) deliverAmount(raw json.RawMessage, template, amount uint32, expi
 		return nil, e
 	}
 	return inventory.SaveBag(raw, b)
+}
+
+// DeliverySpaces reports which special equipment spaces a purchase receipt
+// touches, so the packet builder can refresh the avatar wardrobe (space 1)
+// and the creature tab (space 7) alongside the ordinary bag. Package lines
+// resolve through their [package data] children because only those reach a
+// bag.
+func (p *Pilot) DeliverySpaces(receipt storage.CashReceipt) (avatar, creature bool) {
+	if p == nil {
+		return false, false
+	}
+	for _, d := range receipt.Deliveries {
+		children, templates := []PackageItem(nil), []uint32(nil)
+		if entry, ok := p.findEntry(d.Product, 0); ok {
+			if pkgItems, isPkg := PackageItems(entry.Item); isPkg {
+				children = pkgItems
+			}
+		}
+		if children != nil {
+			for _, sub := range children {
+				templates = append(templates, sub.Template)
+			}
+		} else {
+			templates = append(templates, d.Template)
+		}
+		for _, template := range templates {
+			a, c := p.templateSpace(template)
+			avatar = avatar || a
+			creature = creature || c
+		}
+	}
+	return avatar, creature
+}
+
+func (p *Pilot) templateSpace(template uint32) (avatar, creature bool) {
+	if template == 0 || template == 1 {
+		return false, false
+	}
+	h, err := p.resolveDeliveryType(template)
+	if err != nil {
+		return false, false
+	}
+	switch h.Kind {
+	case "[avatar]":
+		return true, false
+	case "[creature]":
+		return false, true
+	}
+	return false, false
 }
