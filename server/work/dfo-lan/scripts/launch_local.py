@@ -122,6 +122,9 @@ def main():
  )
  args = parser.parse_args()
  local, cfg, pg, rh, rp = configuration()
+ channel_identity = local.get("channel_identity", False)
+ if type(channel_identity) is not bool:
+  raise ValueError("channel_identity must be a JSON boolean")
  client = resolved(local["client_dir"])
  binary = resolved(
   "work/dfo-lan/bin/wireprobe-handoff-source.exe"
@@ -187,6 +190,7 @@ def main():
   env.update(profile_env)
  env["DFO_CLIENT_DIR"] = str(client)
  env["DFO_SERVER_BINARY"] = str(binary)
+ env["DFO_CHANNEL_IDENTITY"] = "1" if channel_identity else "0"
  env["DFO_ENABLE_OBSERVER"] = "0"
  mode = "server-only" if args.server_only else ("client-only" if args.client_only else "interactive")
  with (

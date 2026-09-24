@@ -66,6 +66,7 @@ func main() {
 	cardRulesFile := flag.String("card-rules", "configs/cards.compat90.json", "separate compatible free-card policy")
 	learningFile := flag.String("skill-catalog", "", "current PVF learning metadata; enables manual learning and persisted skill slots")
 	channelRefreshFile := flag.String("channel-refresh-config", "", "separate local channel directory service for native refresh")
+	channelIdentityEnabled := flag.Bool("channel-identity", false, "candidate: synchronize NOTI2435 and all actor contexts with the connected channel")
 	equipmentRewardFile := flag.String("quest-equipment-catalog", "", "source basic-equipment metadata for atomic quest rewards")
 	wearRulesFile := flag.String("equipment-wear-rules", "", "current-client equipment slots and persistent wear handling")
 	fullEquipmentFile := flag.String("equipment-full-catalog", os.Getenv("DFO_EQUIPMENT_FULL_CATALOG"), "separate indexed wear catalog prefix; does not widen drops")
@@ -967,6 +968,19 @@ func main() {
 		defer func() { recoverConnection(peer, channel, c, event) }()
 		defer c.Close()
 		peer = c.RemoteAddr().String()
+		characters := characters // isolate context from simultaneous channel sessions
+		var channelNotice []byte
+		if *channelIdentityEnabled {
+			ctx, notice, identityErr := channelIdentity(channelCfg, channel)
+			if identityErr != nil || characters == nil {
+				event(map[string]any{"kind": "channel_identity_error", "error": fmt.Sprint(identityErr), "characters_present": characters != nil})
+				return
+			}
+			localCharacters := *characters
+			localCharacters.ChannelContext = ctx
+			characters = &localCharacters
+			channelNotice = notice
+		}
 		keys := make([]byte, wire.SessionKeyBytes)
 		for i := range keys {
 			keys[i] = byte(i%127 + 1)
@@ -3055,6 +3069,13 @@ func main() {
 				continue
 			}
 			if response, ok := responses[frame.ID]; ok {
+				if frame.ID == 1 && channelNotice != nil {
+					response, err = channelLoginResponse(keys, response, channelNotice[12])
+					if err != nil {
+						event(map[string]any{"kind": "channel_login_error", "error": err.Error()})
+						return
+					}
+				}
 				c.SetWriteDeadline(time.Now().Add(5 * time.Second))
 				if _, err := io.Copy(c, bytes.NewReader(response)); err != nil {
 					event(map[string]any{"kind": "write_error", "error": err.Error()})
@@ -3063,6 +3084,12 @@ func main() {
 				event(map[string]any{"kind": "server_response", "peer": peer, "id": frame.ID, "hex": hex.EncodeToString(response)})
 				if frame.ID == 1 {
 					bootstrapped = true
+					if channelNotice != nil {
+						if err = sendPayload(0, 2435, channelNotice); err != nil {
+							return
+						}
+						event(map[string]any{"kind": "channel_identity_sent", "server": channelCfg.ServerID, "channel": channel})
+					}
 				}
 			}
 		}
