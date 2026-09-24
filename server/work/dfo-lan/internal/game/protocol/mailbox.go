@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 	"unicode/utf8"
+
+	"golang.org/x/text/encoding/simplifiedchinese"
 )
 
 type MailSendItem struct {
@@ -31,7 +33,7 @@ type MailStatusRequest struct {
 	Status uint16
 }
 
-// 邮件字符串经 0x146D76080 编为 u32 长度和 UTF-8 字节；接收侧
+// 邮件字符串经 0x146D76080 编为 u32 字节长度和代码页字节；接收侧
 // 0x146D78070 对名字和正文分别使用 30、513 字节缓冲区。
 type mailReader struct {
 	p   []byte
@@ -196,12 +198,15 @@ func MailServerCharacters(server byte, roles []MailServerCharacter) ([]byte, err
 }
 
 type MailAttachmentView struct {
-	ID, MessageID uint64
-	Sender        string
-	Gold          uint32
-	Record        [CurrentItemRecordSize]byte
-	Remaining     uint32
-	State         byte
+	ID, MessageID                uint64
+	Sender                       string
+	Gold                         uint32
+	Record                       [CurrentItemRecordSize]byte
+	Remaining                    uint32
+	State                        byte
+	Avatar                       bool
+	AvatarOptions, AvatarSockets []byte
+	AvatarPeriod                 uint32
 }
 type MailTextView struct {
 	ID           uint64
@@ -241,6 +246,20 @@ func MailboxList(items []MailAttachmentView, letters []MailTextView, total uint1
 		p = append(p, 0, 0)
 		p = add16(p, 0)
 		p = append(p, a.Record[:]...)
+		if a.Avatar {
+			// 当前 0x14530A3A0 的类型 <= 11 分支：181 字节实例之后，
+			// 0x146D77F50 读取选项块，0x1459A0220(kind=3) 读取镶嵌块，随后读取期限。
+			// 两个块都以 u32 字节长度开头，空块仍须写入长度，避免后续邮件错位。
+			// 0x145770370 消费五条六字节选项；0x146D9A610 初始化四字节镶嵌值。
+			if len(a.AvatarOptions) > 30 || len(a.AvatarSockets) > 4 {
+				return nil, fmt.Errorf("时装邮件扩展超出客户端缓冲区")
+			}
+			p = add32(p, uint32(len(a.AvatarOptions)))
+			p = append(p, a.AvatarOptions...)
+			p = add32(p, uint32(len(a.AvatarSockets)))
+			p = append(p, a.AvatarSockets...)
+			p = add32(p, a.AvatarPeriod)
+		}
 		p = add32(p, a.Remaining)
 		p = binary.LittleEndian.AppendUint64(p, a.MessageID)
 		p = append(p, a.State)
@@ -251,10 +270,17 @@ func MailboxList(items []MailAttachmentView, letters []MailTextView, total uint1
 		if m.ID == 0 || len(m.Sender) > 29 || len(m.Text) > 512 || !utf8.ValidString(m.Sender) || !utf8.ValidString(m.Text) {
 			return nil, fmt.Errorf("邮件正文快照无效")
 		}
+		// 当前客户端 0x146D78070 -> 0x146E90CF0 按 ANSI 代码页
+		// 转为宽字符；本地中文环境为 CP936。存档仍保留 UTF-8，
+		// 只在正文发包边界转为 GBK，旧邮件无需改写或重新投递。
+		text, err := simplifiedchinese.GBK.NewEncoder().String(m.Text)
+		if err != nil || len(text) > 512 || strings.ContainsRune(text, 0) {
+			return nil, fmt.Errorf("邮件正文无法编码为客户端支持的 GBK 文本")
+		}
 		p = binary.LittleEndian.AppendUint64(p, m.ID)
 		p = add32(p, m.SenderID)
 		p = addName(p, m.Sender)
-		p = addName(p, m.Text)
+		p = addName(p, text)
 		p = add32(p, m.Remaining)
 		p = add16(p, m.Status)
 		p = append(p, m.State)
