@@ -1,6 +1,7 @@
 # CHANGELOG
 
 ## 2026-09-24
+- **Abandoned Mine 主线电梯临时修复（attempt 1/3，用户实机确认）**：仅在任务 3352 第二房间（地图 76384）不向客户端发送画面外模板 1 占位怪，电梯召唤的本地怪物波次保持原样。用户确认电梯停下并成功开门进入下一房间。此为地图专用临时措施，尚未还原电梯 OBJ/ACT 的完整原生事件联动。`go test ./...`、`go vet ./...` 通过；候选程序 SHA-256 `B3492056DF6720E24D19DEFACF2524F234B40BB9F047283F0A3D7834A93F017C`。确认基线：`server/work/dfo-lan/docs/protocol/abandoned-mine-elevator-20260924.md`。
 - **宠物通关经验与升级持久化（attempt 2/3，用户实机确认）**：保留普通副本不扣疲劳的现行规则，按本次 run 首次加载的房间数增加已穿戴宠物的累计经验；免疲劳副本不奖励。经验及等级在结算、切换角色和重新登录后保持，重复结算不会重复发奖。用户确认经验增加、等级提升、更换角色后仍保留。`go test ./...`、`go vet ./...` 通过；候选程序 SHA-256 `5D975BB82D8033A000B844111AF635089124E0437BF16701E89F44590C2A66CC`。确认基线：`server/work/dfo-lan/docs/protocol/creature-experience-20260924.md`。
 - **进城武器提示双态（attempt 2/3，用户实机确认）**：从存档穿戴槽 12 判断武器；有武器时在 NOTI24 前发送 `AppearanceProbe` 和两组 NOTI14 穿戴数据，无武器时跳过此前置帧，保留客户端原生提示。用户确认修复通过。`go test ./...`、`go vet ./...` 通过；候选程序 SHA-256 `520927BE6285789B0D470CBE28E0DB3F129C164C1251F20DF37DC8CF4CB7C257`。确认基线：`server/work/dfo-lan/docs/protocol/weapon-toast-dual-state-20260924.md`。
 - **频道名称同步（用户实机确认）**：显式启用 channel_identity 后，登录发送 NOTI2435，按连接统一角色 mode0/mode1 上下文与登录频道类型，修复 ch00.Unknown；实机显示 ch10.LAN Normal。补齐本机启动开关传递及候选进程停服名单。确认基线和部署说明见 `server/work/dfo-lan/docs/protocol/channel-identity-20260924.md`。

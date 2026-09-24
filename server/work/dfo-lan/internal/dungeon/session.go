@@ -504,6 +504,16 @@ func fixedMonsters(script catalog.ScriptRecord, basis uint32) ([]protocol.Dungeo
 		if level < 0 || level > 255 {
 			return nil, fmt.Errorf("invalid monster level")
 		}
+		// Quest 3352's elevator room has an off-map template-1 sentinel at
+		// (424,-364). Its elevator summons eleven local monsters, but the
+		// sentinel never dies in either captured run. Sending it as a live
+		// monster leaves the room occupied after those eleven are defeated.
+		// The source's ordinary elevator room (16408) has the same control
+		// objects without this sentinel.
+		if script.Path == "map/cataclysm/northmyre/05_town_of_doubt/3352_76384.map" &&
+			v[0] == 1 && v[3] == 424 && v[4] == -364 {
+			continue
+		}
 		out = append(out, protocol.DungeonMonster{Entity: uint16(4096 + len(out)), SourceIndex: uint32(len(out)), Level: byte(level), Template: uint32(v[0]), Rank: rank, Team: 100, NonCombat: nonCombat, SourceTail: [2]int32{v[6], v[7]}})
 	}
 	// Source teams are parallel to monster rows. Team0 supplies friendly
