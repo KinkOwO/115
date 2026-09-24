@@ -226,7 +226,27 @@ func (s *Service) resetAutoState(ctx context.Context, cur storage.Character, st 
 		}
 		st.SkillPoints[tree] = uint16(total)
 		st.LearnedSkills[tree] = next
+		// The reset discards the bar the player had built and republishes the
+		// source layout, so the saved slots have to go before it is derived -
+		// skillRows treats a persisted row as authoritative and would otherwise
+		// keep the old occupancy.
 		st.SkillSlots[tree] = map[uint16]uint16{}
+		// Persist the very layout this reset is about to publish. The client
+		// receives exactly these rows in the following NOTI 19 and later
+		// addresses them by slot (CMD 2179 after 自动加点). Leaving them
+		// unsaved let the next skillRows recompute re-lay the same skills - the
+		// 2026-09-23 capture has 94 going 22 -> 36 and 101 going 25 -> 43
+		// between the reset and the learn that follows it - and because a learn
+		// response does not re-send the full NOTI 19, the client stayed on the
+		// old layout. Its CMD 2179 then named source slots the server no
+		// longer had.
+		rows, e := s.skillRows(cur, *st, int(tree))
+		if e != nil {
+			return e
+		}
+		for _, v := range rows {
+			st.SkillSlots[tree][v.ID] = v.Slot
+		}
 	}
 	if variationUnlocked(st) {
 		v := st.SkillVariations[tree]
