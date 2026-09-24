@@ -10,6 +10,9 @@ import (
 	"dfolan/internal/storage"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"math"
 	"testing"
 )
 
@@ -17,6 +20,192 @@ type lifeTokenStore struct {
 	role  storage.Character
 	keys  map[string]bool
 	calls int
+}
+
+type ceraReviveFake struct {
+	lifeTokenStore
+	balance uint64
+	grants  []storage.Grant
+	failed  error
+	paid    map[string]bool
+}
+
+func (s *ceraReviveFake) ApplyGrant(_ context.Context, g storage.Grant, _ func(storage.Character) (json.RawMessage, json.RawMessage, error)) (storage.GrantResult, error) {
+	s.grants = append(s.grants, g)
+	if s.failed != nil {
+		return storage.GrantResult{}, s.failed
+	}
+	if s.paid == nil {
+		s.paid = map[string]bool{}
+	}
+	if !s.paid[g.ID] {
+		if g.Cera != -lifeTokenCeraCost || s.balance < uint64(-g.Cera) {
+			return storage.GrantResult{}, fmt.Errorf("insufficient CERA")
+		}
+		remaining := s.balance - uint64(-g.Cera)
+		if g.MaxCera != 0 && remaining > g.MaxCera {
+			return storage.GrantResult{}, fmt.Errorf("CERA exceeds client range")
+		}
+		s.balance = remaining
+		s.paid[g.ID] = true
+	}
+	return storage.GrantResult{Cera: s.balance, Applied: true}, nil
+}
+
+func ceraReviveFixture(t *testing.T, coins uint32) (*worldSession, *ceraReviveFake, []byte) {
+	t.Helper()
+	const source = "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+	state, e := inventory.SaveBag(json.RawMessage(`{"level":1}`), inventory.Bag{Version: "ordinary-bag-v1", Coin: coins})
+	if e != nil {
+		t.Fatal(e)
+	}
+	role := storage.Character{ID: 7, AccountID: 11, WireID: 9, ConfigVersion: source, State: state}
+	store := &ceraReviveFake{lifeTokenStore: lifeTokenStore{role: role}, balance: 30}
+	w := &worldSession{
+		role:          role,
+		loot:          &loot.Service{Catalog: catalog.LootCatalog{Source: pvf.ArchiveSnapshot{Checksum: source}}},
+		dungeons:      &catalog.DungeonCatalog{Maps: map[uint32]catalog.ScriptRecord{1: {}}},
+		activeDungeon: &dungeon.Session{RunID: "run-cera", Loaded: true, Room: catalog.DungeonRoom{Map: 1}},
+		pilotDeath:    &odysseyDeath{Run: "run-cera", Sequence: 3, Dead: true},
+	}
+	p := make([]byte, 8)
+	binary.LittleEndian.PutUint16(p, role.WireID)
+	return w, store, p
+}
+
+func TestCeraReviveChargesFifteenAndSendsThreeFrames(t *testing.T) {
+	w, store, p := ceraReviveFixture(t, 0)
+	plan, e := w.ceraRevive(context.Background(), store, p, []byte{41, 3})
+	if e != nil {
+		t.Fatal(e)
+	}
+	if len(plan) != 3 || plan[0].ID != 41 || plan[1].ID != 32 || plan[2].ID != 53 || plan[1].Payload[2] != 1 {
+		t.Fatalf("wrong packet sequence: %+v", plan)
+	}
+	if got := plan[0].Payload; len(got) != 3 || got[0] != 1 || binary.LittleEndian.Uint16(got[1:]) != w.role.WireID {
+		t.Fatalf("wrong ACK: %x", got)
+	}
+	if got := plan[2].Payload; len(got) != 9 || got[0] != 1 || binary.LittleEndian.Uint32(got[1:5]) != 15 {
+		t.Fatalf("wrong CERA balance: %x", got)
+	}
+	if len(store.grants) != 1 || store.grants[0].ID != "cera-revive:run-cera:3" || store.grants[0].AccountID != 11 || store.grants[0].Character != 0 || store.grants[0].Cera != -15 || store.grants[0].MaxCera != math.MaxInt32 || store.balance != 15 || w.pilotDeath.Dead {
+		t.Fatalf("wrong charge or state: grants=%+v balance=%d dead=%t", store.grants, store.balance, w.pilotDeath.Dead)
+	}
+}
+
+func TestCeraReviveIsIdempotentPerDeath(t *testing.T) {
+	w, store, p := ceraReviveFixture(t, 0)
+	frame := []byte{41, 3}
+	if _, e := w.ceraRevive(context.Background(), store, p, frame); e != nil {
+		t.Fatal(e)
+	}
+	plan, e := w.useCoinRevive(context.Background(), store, p, frame, false)
+	if e != nil || plan != nil || len(store.grants) != 1 || store.balance != 15 {
+		t.Fatalf("replay charged again: plan=%+v grants=%d balance=%d err=%v", plan, len(store.grants), store.balance, e)
+	}
+}
+
+func TestCeraReviveInsufficientBalanceRefuses22(t *testing.T) {
+	w, store, p := ceraReviveFixture(t, 0)
+	store.balance = 14
+	plan, e := w.useCoinRevive(context.Background(), store, p, []byte{41, 3}, false)
+	if e == nil || len(plan) != 0 || !w.pilotDeath.Dead || store.balance != 14 {
+		t.Fatalf("insufficient balance revived: plan=%+v err=%v", plan, e)
+	}
+	if got := boosterActionRefusal(41); len(got) != 3 || binary.LittleEndian.Uint16(got[1:]) != 22 {
+		t.Fatalf("wrong refusal payload: %x", got)
+	}
+	if got := boosterActionRefusal(160); binary.LittleEndian.Uint16(got[1:]) != 4 {
+		t.Fatalf("other action refusal changed: %x", got)
+	}
+}
+
+func TestReviveFallsThroughTokenToCera(t *testing.T) {
+	w, store, p := ceraReviveFixture(t, 0)
+	plan, e := w.useCoinRevive(context.Background(), store, p, []byte{41, 3}, false)
+	if e != nil || len(plan) != 3 || len(store.grants) != 1 || store.balance != 15 {
+		t.Fatalf("CERA fallback failed: plan=%+v grants=%d err=%v", plan, len(store.grants), e)
+	}
+}
+
+func TestReviveWithTokenDoesNotChargeCera(t *testing.T) {
+	w, store, p := ceraReviveFixture(t, 1)
+	plan, e := w.useCoinRevive(context.Background(), store, p, []byte{41, 3}, false)
+	if e != nil || len(plan) != 3 || plan[2].ID != 14 || len(store.grants) != 0 || store.balance != 30 {
+		t.Fatalf("token revive charged CERA: plan=%+v grants=%d err=%v", plan, len(store.grants), e)
+	}
+}
+
+func TestOdysseyCreditsExhaustThenTokenThenCera(t *testing.T) {
+	role, _ := odysseyRewardFixture(t)
+	role.AccountID = 11
+	state, e := inventory.SaveBag(role.State, inventory.Bag{Version: "ordinary-bag-v1", Coin: 0})
+	if e != nil {
+		t.Fatal(e)
+	}
+	role.State = state
+	store := &ceraReviveFake{lifeTokenStore: lifeTokenStore{role: role}, balance: 30}
+	w := &worldSession{
+		role:          role,
+		loot:          &loot.Service{Catalog: catalog.LootCatalog{Source: pvf.ArchiveSnapshot{Checksum: odysseySource}}},
+		dungeons:      &catalog.DungeonCatalog{Maps: map[uint32]catalog.ScriptRecord{1: {}}},
+		activeDungeon: &dungeon.Session{RunID: "odyssey-run", Loaded: true, Definition: catalog.DungeonDefinition{Odyssey: true}, Room: catalog.DungeonRoom{Map: 1}},
+		pilotDeath:    &odysseyDeath{Run: "odyssey-run", Sequence: 1, Dead: true, Revives: map[[32]byte]bool{}},
+	}
+	p := make([]byte, 8)
+	binary.LittleEndian.PutUint16(p, role.WireID)
+	plan, e := w.useCoinRevive(context.Background(), store, p, []byte{41, 1}, true)
+	if e != nil || len(plan) != 3 || plan[2].ID != 53 || len(store.grants) != 1 || store.calls != 2 {
+		t.Fatalf("exhausted credits did not reach CERA: plan=%+v calls=%d grants=%d err=%v", plan, store.calls, len(store.grants), e)
+	}
+}
+
+func TestOdysseyCreditsDoNotChargeTokenOrCera(t *testing.T) {
+	role, _ := odysseyRewardFixture(t)
+	role.AccountID = 11
+	role.State = json.RawMessage(`{"level":1,"custom_marker":42,"odyssey_pilot_revive_credits":1}`)
+	state, e := inventory.SaveBag(role.State, inventory.Bag{Version: "ordinary-bag-v1", Coin: 1})
+	if e != nil {
+		t.Fatal(e)
+	}
+	role.State = state
+	store := &ceraReviveFake{lifeTokenStore: lifeTokenStore{role: role}, balance: 30}
+	w := &worldSession{
+		role:          role,
+		loot:          &loot.Service{Catalog: catalog.LootCatalog{Source: pvf.ArchiveSnapshot{Checksum: odysseySource}}},
+		dungeons:      &catalog.DungeonCatalog{Maps: map[uint32]catalog.ScriptRecord{1: {}}},
+		activeDungeon: &dungeon.Session{RunID: "odyssey-run", Loaded: true, Definition: catalog.DungeonDefinition{Odyssey: true}, Room: catalog.DungeonRoom{Map: 1}},
+		pilotDeath:    &odysseyDeath{Run: "odyssey-run", Sequence: 1, Dead: true, Revives: map[[32]byte]bool{}},
+	}
+	p := make([]byte, 8)
+	binary.LittleEndian.PutUint16(p, role.WireID)
+	plan, e := w.useCoinRevive(context.Background(), store, p, []byte{41, 1}, true)
+	bag, bagErr := inventory.ReadBag(store.role.State)
+	if e != nil || bagErr != nil || len(plan) != 2 || len(store.grants) != 0 || store.calls != 1 || bag.Coin != 1 {
+		t.Fatalf("pilot success fell through: plan=%+v calls=%d grants=%d bag=%+v err=%v bagErr=%v", plan, store.calls, len(store.grants), bag, e, bagErr)
+	}
+}
+
+func TestReviveDoesNotFallThroughUnrelatedErrors(t *testing.T) {
+	w, store, p := ceraReviveFixture(t, 0)
+	p[0]++
+	if plan, e := w.useCoinRevive(context.Background(), store, p, []byte{41, 3}, false); e == nil || plan != nil || len(store.grants) != 0 {
+		t.Fatalf("invalid request fell through: plan=%+v err=%v", plan, e)
+	}
+	w, store, p = ceraReviveFixture(t, 0)
+	if plan, e := w.useCoinRevive(context.Background(), store, p, []byte{41, 3}, true); e == nil || len(plan) != 0 || store.calls != 0 || len(store.grants) != 0 {
+		t.Fatalf("pilot eligibility error fell through: plan=%+v err=%v", plan, e)
+	}
+	w, store, p = ceraReviveFixture(t, 0)
+	store.failed = errors.New("storage unavailable")
+	if plan, e := w.useCoinRevive(context.Background(), store, p, []byte{41, 3}, false); e == nil || len(plan) != 0 || !w.pilotDeath.Dead {
+		t.Fatalf("storage failure revived: plan=%+v err=%v", plan, e)
+	}
+	w, store, p = ceraReviveFixture(t, 0)
+	w.dungeons.Maps[1] = catalog.ScriptRecord{Cells: []pvf.Token{{Type: 3, Text: "[cannot use coin map]"}}}
+	if plan, e := w.useCoinRevive(context.Background(), store, p, []byte{41, 3}, false); e == nil || len(plan) != 0 || len(store.grants) != 0 {
+		t.Fatalf("forbidden map reached CERA: plan=%+v err=%v", plan, e)
+	}
 }
 
 func (s *lifeTokenStore) CommitCharacterEvent(_ context.Context, _ int64, _ int64, _, key, _ string, apply func(storage.Character) (json.RawMessage, json.RawMessage, error)) (storage.Character, bool, error) {

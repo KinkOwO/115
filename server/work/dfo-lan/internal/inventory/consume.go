@@ -2,8 +2,11 @@ package inventory
 
 import (
 	"dfolan/internal/catalog"
+	"errors"
 	"fmt"
 )
+
+var ErrCoinStackEmpty = errors.New("coin stack is already empty")
 
 // Consume removes one unit of a stackable from an exact bag slot.
 //
@@ -18,7 +21,7 @@ func (b Bag) Consume(c catalog.LootCatalog, slot uint16, template uint32) (Bag, 
 	}
 	if slot == 1 && template == 1 {
 		if b.Coin == 0 {
-			return b, 0, fmt.Errorf("coin stack is already empty")
+			return b, 0, ErrCoinStackEmpty
 		}
 		b.Coin--
 		return b, b.Coin, nil

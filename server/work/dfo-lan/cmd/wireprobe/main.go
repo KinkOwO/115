@@ -1152,13 +1152,8 @@ func main() {
 				var plan []outboundPacket
 				var e error
 				if frame.ID == 41 {
-					// Keep the explicitly approved Odyssey pilot credits isolated from
-					// ordinary life-token consumption.
-					if odysseyTemporaryCreditsEnabled() && isOdysseyRewardRole(worldState.role) && worldState.activeDungeon != nil && worldState.activeDungeon.Definition.Odyssey {
-						plan, e = worldState.pilotRevive(ctx, characters.Store, plaintext, frame.Raw)
-					} else {
-						plan, e = worldState.lifeTokenRevive(ctx, characters.Store, plaintext, frame.Raw)
-					}
+					pilotEnabled := odysseyTemporaryCreditsEnabled() && isOdysseyRewardRole(worldState.role) && worldState.activeDungeon != nil && worldState.activeDungeon.Definition.Odyssey
+					plan, e = worldState.useCoinRevive(ctx, characters.Store, plaintext, frame.Raw, pilotEnabled)
 				} else if worldState.activeDungeon != nil || worldState.role.ID == 0 {
 					e = fmt.Errorf("booster box use requires selected character in town")
 				} else {
@@ -1167,7 +1162,7 @@ func main() {
 				cancel()
 				if e != nil {
 					event(map[string]any{"kind": "booster_action_refused", "id": frame.ID, "reason": e.Error()})
-					plan = []outboundPacket{{"booster_action_refused_ack", 1, frame.ID, protocol.Refusal(4)}}
+					plan = []outboundPacket{{"booster_action_refused_ack", 1, frame.ID, boosterActionRefusal(frame.ID)}}
 				}
 				for _, packet := range plan {
 					if sendPayload(packet.Kind, packet.ID, packet.Payload) != nil {

@@ -7,8 +7,11 @@ import (
 	"dfolan/internal/storage"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"fmt"
 )
+
+var errOdysseyCreditsExhausted = errors.New("test revive credits exhausted")
 
 type odysseyDeath struct {
 	Run      string
@@ -46,7 +49,7 @@ func changeOdysseyCredits(role storage.Character, grant bool) (json.RawMessage, 
 		after = 10
 	} else {
 		if before == 0 {
-			return nil, nil, fmt.Errorf("test revive credits exhausted")
+			return nil, nil, errOdysseyCreditsExhausted
 		}
 		after--
 	}
@@ -95,7 +98,7 @@ func (w *worldSession) pilotReviveAllowed(p []byte) error {
 	}
 	return nil
 }
-func (w *worldSession) pilotRevive(ctx context.Context, s *storage.Store, p, frame []byte) ([]outboundPacket, error) {
+func (w *worldSession) pilotRevive(ctx context.Context, s dungeonReviveStore, p, frame []byte) ([]outboundPacket, error) {
 	if w != nil && w.activeDungeon != nil && w.pilotDeath != nil && w.pilotDeath.Run == w.activeDungeon.RunID && w.pilotDeath.Revives[sha256.Sum256(frame)] {
 		return nil, nil
 	}

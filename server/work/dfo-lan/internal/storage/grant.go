@@ -20,6 +20,7 @@ type Grant struct {
 	AccountID int64       `json:"account_id"`
 	Character int64       `json:"character_id,omitempty"`
 	Cera      int64       `json:"cera,omitempty"`
+	MaxCera   uint64      `json:"-"` // Optional transaction ceiling for client-encodable balances.
 	Gold      uint32      `json:"gold,omitempty"`
 	Items     []GrantItem `json:"items,omitempty"`
 	Reason    string      `json:"reason"`
@@ -127,6 +128,9 @@ func (s *Store) ApplyGrant(ctx context.Context, g Grant, mutate func(Character) 
 		if e = tx.QueryRow(ctx, `UPDATE account_currency SET cera=cera+$2,updated_at=now()
  WHERE account_id=$1 RETURNING cera`, g.AccountID, g.Cera).Scan(&out.Cera); e != nil {
 			return out, fmt.Errorf("cera adjustment refused (balance would go negative?): %w", e)
+		}
+		if g.MaxCera != 0 && out.Cera > g.MaxCera {
+			return out, fmt.Errorf("cera balance exceeds client range")
 		}
 	} else if out.Cera, e = s.AccountCera(ctx, g.AccountID); e != nil {
 		return out, e

@@ -8,12 +8,22 @@ import (
 	"dfolan/internal/storage"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"math"
 )
 
 type dungeonReviveStore interface {
 	CommitCharacterEvent(ctx context.Context, account, id int64, version, key, model string, apply func(storage.Character) (json.RawMessage, json.RawMessage, error)) (storage.Character, bool, error)
 }
+
+type ceraReviveStore interface {
+	dungeonReviveStore
+	ApplyGrant(context.Context, storage.Grant, func(storage.Character) (json.RawMessage, json.RawMessage, error)) (storage.GrantResult, error)
+}
+
+// The current client's Life Token shop text (dstr 39335) prices one token at 15 CERA.
+const lifeTokenCeraCost int64 = 15
 
 func (w *worldSession) lifeTokenReviveAllowed(p []byte) error {
 	if w == nil || w.role.ID == 0 || w.activeDungeon == nil || !w.activeDungeon.Loaded || w.resultSent {
@@ -112,4 +122,74 @@ func (w *worldSession) lifeTokenRevive(ctx context.Context, store dungeonReviveS
 		{"life_token_revived", 0, 32, death},
 		{"life_token_inventory_updated", 0, 14, update},
 	}, nil
+}
+
+// ceraRevive charges the account once per death when the bag has no Life Token.
+func (w *worldSession) ceraRevive(ctx context.Context, store ceraReviveStore, p, frame []byte) ([]outboundPacket, error) {
+	hash := sha256.Sum256(frame)
+	if w != nil && w.activeDungeon != nil && w.pilotDeath != nil && w.pilotDeath.Run == w.activeDungeon.RunID && w.pilotDeath.Revives[hash] {
+		return nil, nil
+	}
+	if e := w.lifeTokenReviveAllowed(p); e != nil {
+		return nil, e
+	}
+	if store == nil {
+		return nil, fmt.Errorf("cera revive storage unavailable")
+	}
+	// Prepare the native packets before the charge. The transaction ceiling below
+	// guarantees that the final balance can also be encoded after commit.
+	death, e := protocol.PlayerDeathState(w.role.WireID)
+	if e != nil {
+		return nil, e
+	}
+	death[2] = 1
+	ack := binary.LittleEndian.AppendUint16([]byte{1}, w.role.WireID)
+	key := fmt.Sprintf("cera-revive:%s:%d", w.pilotDeath.Run, w.pilotDeath.Sequence)
+	charged, e := store.ApplyGrant(ctx, storage.Grant{
+		ID: key, AccountID: w.role.AccountID, Cera: -lifeTokenCeraCost,
+		Operator: "system", Reason: "life-token-less revive (dstr 7689)", MaxCera: math.MaxInt32,
+	}, nil)
+	if e != nil {
+		return nil, e
+	}
+	balance, e := protocol.CeraBalance(charged.Cera)
+	if e != nil {
+		// ApplyGrant commits only a client-encodable balance for this operation.
+		return nil, e
+	}
+	if w.pilotDeath.Revives == nil {
+		w.pilotDeath.Revives = map[[32]byte]bool{}
+	}
+	w.pilotDeath.Dead = false
+	w.pilotDeath.Revives[hash] = true
+	return []outboundPacket{
+		{"cera_revive_ack", 1, 41, ack},
+		{"cera_revived", 0, 32, death},
+		{"cera_balance_after_revive", 0, 53, balance},
+	}, nil
+}
+
+// useCoinRevive only falls through on a confirmed empty credit or coin stack.
+func (w *worldSession) useCoinRevive(ctx context.Context, store ceraReviveStore, p, frame []byte, pilotEnabled bool) ([]outboundPacket, error) {
+	if w != nil && w.activeDungeon != nil && w.pilotDeath != nil && w.pilotDeath.Run == w.activeDungeon.RunID && w.pilotDeath.Revives[sha256.Sum256(frame)] {
+		return nil, nil
+	}
+	if pilotEnabled {
+		plan, e := w.pilotRevive(ctx, store, p, frame)
+		if e == nil || !errors.Is(e, errOdysseyCreditsExhausted) {
+			return plan, e
+		}
+	}
+	plan, e := w.lifeTokenRevive(ctx, store, p, frame)
+	if e == nil || !errors.Is(e, inventory.ErrCoinStackEmpty) {
+		return plan, e
+	}
+	return w.ceraRevive(ctx, store, p, frame)
+}
+
+func boosterActionRefusal(id uint16) []byte {
+	if id == 41 {
+		return protocol.Refusal(22) // The native USE_COIN failure arm silently ignores code 4.
+	}
+	return protocol.Refusal(4)
 }

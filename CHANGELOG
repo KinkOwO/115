@@ -1,6 +1,7 @@
 # CHANGELOG
 
 ## 2026-09-24
+- **CMD41 无复活币时扣 15 CERA 复活（用户确认验证通过）**：复活链按奥德赛测试额度 → 背包复活币 → 账号 CERA 执行，只在明确耗尽 / 无币时回落。账号扣款事务检查余额非负及客户端可编码上限；成功发送 ACK 41、NOTI 32、NOTI 53，失败回 Refusal(22)。`go test ./...`（21 个测试包）、`go vet ./...`、`go build ./...` 通过；候选程序 SHA-256 `DE6F4E8E8FA69D59FA8E191670AAB9A478F9ED83C463D8818135138D1C3932C6`。基线：`server/work/dfo-lan/docs/protocol/cera-revive-20260924.md`。
 - **本地 / 远端全量差异收口（并入上游 30 个提交）**：分支此前 `ahead 3 / behind 30`，本次把工作区所有改动（含非本会话的觉醒 / VP / 通知迁移线）全部入账后再并入 `origin/main`，使本地与远端重新同步。上游 30 个提交（21 个非 merge）覆盖副本完成与剧情层收口、Act2 任务链、Synopsis / STORY_DIGEST 读写、账号材料消耗、奥德赛装备等级与分解硬币、宠物期限、启动器 v1.4.6。
   - **冲突只有 2 处**，且都不是真的逻辑冲突：① `CHANGELOG` ② `cmd/wireprobe/story_digest_test.go`（add/add）。`entry_flow.go` / `main.go` 由 git 自动合并成功。
   - **`CHANGELOG` 的「整文件冲突」是行尾假象**：此前用脚本插入条目时把整个文件从 LF 改成了 CRLF（879 行全 CRLF），而 base / theirs 都是 LF，于是 diff 判定「每一行都变了」。三份全部归一到 LF 后重新三路合并，两边其实都是**纯插入**且位置不重叠（本地插在 base 第 3、8 行后，上游插在第 13 行后），合并零冲突，结果 908 = 857 + 22 + 29 行完全吻合。**教训：编辑 CHANGELOG 必须保持仓库原有的 LF，不要整文件重写行尾。**
