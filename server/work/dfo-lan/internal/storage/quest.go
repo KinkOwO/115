@@ -26,7 +26,20 @@ func (s *Store) MigrateQuests(ctx context.Context) error {
  CREATE TABLE IF NOT EXISTS character_quest_repairs (
    character_id bigint NOT NULL, quest_id integer NOT NULL, reason text NOT NULL,
    before_state jsonb NOT NULL, after_state jsonb NOT NULL, repaired_at timestamptz NOT NULL DEFAULT now(),
-   PRIMARY KEY(character_id,quest_id,reason));`)
+   PRIMARY KEY(character_id,quest_id,reason));
+
+ -- attempt 1 inserted every recursively reachable Act quest. Rows created by
+ -- that path have identical accepted/completed timestamps; a genuinely
+ -- accepted quest has an earlier accepted_at. Preserve an audit copy before
+ -- removing only those synthetic, never-accepted rows.
+ INSERT INTO character_quest_repairs(character_id,quest_id,reason,before_state,after_state)
+ SELECT q.character_id,q.quest_id,'act-clear-v1-unaccepted-insert',to_jsonb(q),'{"deleted":true}'::jsonb
+ FROM character_quests q
+ WHERE q.progress_model='act-clear-v1' AND q.status='completed' AND q.accepted_at=q.completed_at
+ ON CONFLICT (character_id,quest_id,reason) DO NOTHING;
+
+ DELETE FROM character_quests
+ WHERE progress_model='act-clear-v1' AND status='completed' AND accepted_at=completed_at;`)
 	return e
 }
 func (s *Store) AcceptQuest(ctx context.Context, account, characterID int64, qid uint16, version string, minLevel, maxLevel uint32, prerequisites []uint32, initial uint32, model string) (QuestState, error) {
@@ -146,9 +159,9 @@ func idsToInt64(ids []uint16) []int64 {
 	return out
 }
 
-// ClearActQuests completes only the source-selected epic IDs. Accepted quests
-// are completed without rewards; existing completed rows remain untouched.
-// The character lock and one transaction keep the batch atomic.
+// ClearActQuests completes only existing accepted rows. It never inserts a
+// quest, so successors unlocked by this update remain unaccepted and visible
+// to the normal quest list flow. The character lock keeps the batch atomic.
 func (s *Store) ClearActQuests(ctx context.Context, account, characterID int64, version string, ids []uint16) (int, error) {
 	if len(version) != 64 {
 		return 0, errors.New("invalid quest config version")
@@ -165,20 +178,14 @@ func (s *Store) ClearActQuests(ctx context.Context, account, characterID int64, 
 	if err = tx.QueryRow(ctx, `SELECT id FROM characters WHERE id=$1 AND account_id=$2 AND deleted_at IS NULL FOR UPDATE`, characterID, account).Scan(&owned); err != nil {
 		return 0, err
 	}
-	var stale int
-	if err = tx.QueryRow(ctx, `SELECT count(*) FROM character_quests WHERE character_id=$1 AND quest_id=ANY($2::int[]) AND config_version<>$3`, characterID, idsToInt64(ids), version).Scan(&stale); err != nil {
-		return 0, err
-	}
-	if stale != 0 {
-		return 0, errors.New("quest clear requires source migration")
-	}
-	tag, err := tx.Exec(ctx, `INSERT INTO character_quests(character_id,quest_id,status,config_version,progress,progress_model,completed_at)
-SELECT $1, q.id, 'completed', $3, 0, 'act-clear-v1', now()
-FROM unnest($2::int[]) AS q(id)
-ON CONFLICT (character_id,quest_id) DO UPDATE SET status='completed',progress=0,progress_model='act-clear-v1',completed_at=now()
-WHERE character_quests.status='accepted' AND character_quests.config_version=$3`, characterID, idsToInt64(ids), version)
+	tag, err := tx.Exec(ctx, `UPDATE character_quests
+SET status='completed',progress=0,progress_model='act-clear-v2',completed_at=now()
+WHERE character_id=$1 AND quest_id=ANY($2::int[]) AND status='accepted' AND config_version=$3`, characterID, idsToInt64(ids), version)
 	if err != nil {
 		return 0, err
+	}
+	if tag.RowsAffected() != int64(len(ids)) {
+		return 0, errors.New("accepted quest set changed or requires source migration")
 	}
 	if err = tx.Commit(ctx); err != nil {
 		return 0, err
