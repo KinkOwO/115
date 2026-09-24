@@ -87,6 +87,13 @@ func (w *worldSession) settlementExit(p []byte) (*dungeon.Session, []outboundPac
 	if r.State == 2 {
 		return nil, []outboundPacket{ack}, nil
 	}
+	// The selection flag is set from the decoded request, not read back out of
+	// the outgoing acknowledgement. The gateway used to do
+	// "worldState.selectingDungeon = p.Payload[2] == 1", which only worked
+	// while the ack happened to be three bytes wide; narrowing it to its
+	// native two bytes turned that line into index out of range [2] with
+	// length 2 and killed the whole process, dropping every connected player.
+	w.selectingDungeon = r.Option == 1
 	// Preflight routing before granting an automatic unclaimed free card.
 	var pending *dungeon.Session
 	var route []outboundPacket
