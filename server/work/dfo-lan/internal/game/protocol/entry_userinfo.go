@@ -13,8 +13,8 @@ import (
 // work/p8-equip-refresh/revert38/外观块-指令级定案.md):
 //
 //	+0     u8   Slot        index for every write target below
-//	+1     u32  Placeholder read into a local and discarded on this branch
-//	                       (0x1456398eb), but its 4 bytes are consumed
+//	+1     u32  Placeholder 历史命名；实际为装备模板，保存到 slot*8+0x30。
+//	                       145BEFD60 -> 145BD63D0 -> 145BEE6C0 用于城镇模型查找。
 //	+5     u32  Len         0x145639906 -> 0x1459a0220 -> 0x146d77f50, which
 //	                       reads this u32 then copies Len bytes
 //	+9     n    Payload     the copied bytes; its first 4 become the index
