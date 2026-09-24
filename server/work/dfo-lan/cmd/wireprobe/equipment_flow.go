@@ -65,6 +65,25 @@ func (s *equipmentSession) handle(service *inventory.WearService, w *worldSessio
 		w.role = saved
 		return nil, nil
 	}
+	// 剑帝主副手互换，attempt 2/3（2026-09-25）。attempt 1 仅回 CMD19，
+	// 实机仍保留旧城镇模型；重选角色正确。原生装备对象与城镇显示对象独立，
+	// 城镇显示对象由 145BEFD60 消费外观表的首个模板字段。
+	// 交换应答之后补发已修正主副手模板的外观；副本仍保留原生交换路径。
+	if r.SourceList == 3 && r.DestinationList == 3 &&
+		r.SourceItem != 0 && r.DestinationItem != 0 &&
+		((r.SourceSlot == 12 && r.DestinationSlot == 24) ||
+			(r.SourceSlot == 24 && r.DestinationSlot == 12)) {
+		plan := []outboundPacket{{"equipment_weapon_swap_committed", 1, 19, protocol.ItemMoveSuccess(r, 1)}}
+		if shouldSendEquipmentAppearanceRebuild(w.activeDungeon != nil, r) && w.characters != nil {
+			probe, err := w.characters.AppearanceProbe(saved, [2]byte{})
+			if err != nil {
+				return nil, err
+			}
+			plan = append(plan, outboundPacket{"equipment_weapon_swap_appearance_refreshed", 0, 2, probe})
+		}
+		w.role = saved
+		return plan, nil
+	}
 	b, e := inventory.ReadBag(saved.State)
 	if e != nil {
 		return nil, e

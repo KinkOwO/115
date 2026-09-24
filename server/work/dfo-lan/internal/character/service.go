@@ -398,7 +398,14 @@ func (s *Service) wornAppearance(state json.RawMessage) ([]protocol.EquippedAppe
 	}
 	rows := make([]protocol.EquippedAppearance, 0, len(bySlot))
 	for slot, model := range bySlot {
-		rows = append(rows, protocol.EquippedAppearance{Slot: byte(slot), Model: model})
+		row := protocol.EquippedAppearance{Slot: byte(slot), Model: model}
+		// 原生 145639840 将首个 u32 保存到 slot*8+48；145BEFD60 经
+		// 145BD63D0、145BEE6C0 用它查找城镇模型的装备模板，不能填 0。
+		// 此次只修正主副手槽，保留其他部位及克隆装扮的现有投影。
+		if slot == 12 || slot == 24 {
+			row.Placeholder = model
+		}
+		rows = append(rows, row)
 	}
 	if len(rows) == 0 {
 		return nil, nil
