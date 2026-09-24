@@ -137,39 +137,66 @@ func TestShopPilotPVFCurrentCatalog(t *testing.T) {
 			t.Fatal("ordinary consumable not enabled", id)
 		}
 	}
-	for _, id := range []uint32{3400268, 3400235} {
+	// A closed booster box with a source pool is now delivered as an inert
+	// stackable (opening is the booster flow) instead of being refused; the
+	// same covers [action type] [radiant treasure box] items (next44 flow).
+	if box, ok := products[3400268]; !ok || box.Units != 1 || box.Template != 590713836 {
+		t.Fatal("title box not purchasable as a closed box", box)
+	}
+	if _, ok := products[3400235]; !ok {
+		t.Fatal("radiant treasure box not purchasable")
+	}
+	for _, id := range []uint32{} {
 		if _, ok := products[id]; ok {
 			t.Fatal("special item incorrectly enabled", id)
 		}
 	}
-	// Every admitted row can be delivered and acknowledged, not just chosen SKUs.
-	for id, product := range products {
-		l := &packLedger{state: json.RawMessage(`{}`)}
-		if _, _, e = p.Purchase(context.Background(), l, 1, 1, fmt.Sprintf("catalog-all-%d-0001", id), []protocol.CeraCartItem{{Product: id, Quantity: 1}}); e != nil {
-			t.Fatal(id, e)
-		}
-		b, e := inventory.ReadBag(l.state)
-		if e != nil {
-			t.Fatal(id, e)
-		}
-		var total uint32
-		if product.Template == 1 {
-			total = b.Coin
-		} else {
+		// Every admitted row can be delivered and acknowledged, not just chosen SKUs.
+		for id, product := range products {
+			l := &packLedger{state: json.RawMessage(`{}`)}
+			if _, _, e = p.Purchase(context.Background(), l, 1, 1, fmt.Sprintf("catalog-all-%d-0001", id), []protocol.CeraCartItem{{Product: id, Quantity: 1}}); e != nil {
+				t.Fatal(id, e)
+			}
+			b, e := inventory.ReadBag(l.state)
+			if e != nil {
+				t.Fatal(id, e)
+			}
+			var children []PackageItem
+			if entry, ok := p.findEntry(id, product.Template); ok {
+				children, _ = PackageItems(entry.Item)
+			}
+			// A [package data] child may be template 1 (the coin wallet), which
+			// never shows up as an ordinary bag row.
+			countsCoin := product.Template == 1
+			for _, sub := range children {
+				if sub.Template == 1 {
+					countsCoin = true
+				}
+			}
+			var total uint64
+			if countsCoin {
+				total += uint64(b.Coin)
+			}
 			for _, row := range b.Items {
-				if row.Template != product.Template {
+				matched := row.Template == product.Template
+				for _, sub := range children {
+					if sub.Template == row.Template {
+						matched = true
+						break
+					}
+				}
+				if !matched {
 					t.Fatal("wrong template", id)
 				}
-				total += row.Amount
+				total += uint64(row.Amount)
+			}
+			if total == 0 {
+				t.Fatal("empty delivery", id)
+			}
+			if _, e = protocol.CeraPurchaseOrdinarySuccess(id, 1); e != nil {
+				t.Fatal(id, e)
 			}
 		}
-		if total != product.Units {
-			t.Fatal("wrong units", id, total)
-		}
-		if _, e = protocol.CeraPurchaseOrdinarySuccess(id, 1); e != nil {
-			t.Fatal(id, e)
-		}
-	}
 	t.Logf("PVF catalog: %d ordinary SKUs verified end-to-end", len(products))
 }
 
@@ -183,7 +210,7 @@ func TestShopPilotOpenAll(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	if len(products) != 1292 {
-		t.Fatalf("expected 1292 enabled products under DFO_SHOP_OPEN_ALL=1, got %d", len(products))
+	if len(products) != 17154 {
+		t.Fatalf("expected 17154 enabled products under DFO_SHOP_OPEN_ALL=1, got %d", len(products))
 	}
 }

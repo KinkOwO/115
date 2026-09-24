@@ -3,37 +3,31 @@ package inventory
 import (
 	"dfolan/internal/catalog/pvf"
 	"fmt"
+	"strings"
 )
 
-// correctionEquippedLevelKey 是装备自带的「使用等级修正」字段名，客户端把这一行显示成
-// 「装备等级限制-5」。抽成常量除了消除重复字面量，还让该字符串**进入二进制** ——
-// 部署时可用 `grep -a -c "correction equipped level" <exe>` 判定新逻辑是否真的编译了进去
-// （改动前该串在二进制里零命中）。
 const correctionEquippedLevelKey = "[correction equipped level]"
 
 // WearableBy reports whether a source definition's own requirements admit this
-// character: minimum level (including its [correction equipped level]
-// adjustment), usable job, usable grow type. It is the single place those three
-// rules live, so wearing a piece and being offered it as a drop cannot disagree.
-func WearableBy(fields map[string][]pvf.Token, job string, advancement, level byte) error {
+// character: minimum level, usable job, usable grow type. It is the single
+// place those three rules live, so wearing a piece and being offered it as a
+// drop cannot disagree.
+//
+// 实机取证 2026-09-23:时装(尤其皮肤 `[skin avatar]`、武器装扮 `[weapon avatar]`)
+// 的 .equ 源脚本经常**不带** `[minimum level]`(对比:裤子 502510504 带 `[minimum
+// level] 1`,皮肤 502580005 完全没有该段),穿戴时被旧守卫按"unavailable"拒绝。
+// 时装家族缺该字段按源语义视为无等级要求;普通装备缺失仍然是不可识别的定义。
+func WearableBy(fields map[string][]pvf.Token, kind string, job string, advancement, level byte) error {
 	levels := fields["[minimum level]"]
-	if len(levels) != 1 || levels[0].Type != 0 || levels[0].Value < 0 {
+	if len(levels) == 0 {
+		if !strings.HasSuffix(kind, " avatar]") {
+			return fmt.Errorf("equipment minimum level not met or unavailable")
+		}
+		levels = []pvf.Token{{Type: 0, Value: 0}}
+	} else if len(levels) != 1 || levels[0].Type != 0 || levels[0].Value < 0 {
 		return fmt.Errorf("equipment minimum level not met or unavailable")
 	}
 	required := levels[0].Value
-	// [correction equipped level] 是装备自带的「使用等级修正」，客户端把它显示成
-	// 「装备等级限制-5」；有效需求 = [minimum level] + 该修正。
-	//
-	// 漏读它会让客户端与服务端算法不一致：客户端按修正后的门槛放行、服务端按原始值拒绝，
-	// 表现就是「客户端让你点、服务端回绝」（客户端把 0x0004 一律渲染成「背包已满」）。
-	// 实机 2026-09-23：100051394 的 [minimum level]=50、修正=-5（有效 45），
-	// 角色 38 级 + 霸王(PremiumConqueror) 10 = 有效 48 ≥ 45，本该能穿却被拒。
-	//
-	// 全量装备目录（configs/equipment-full，424,216 条）实测 3,708 条带此字段，取值只有
-	// -5(2,793) / -4(287) / -2(628)，**恒为负、无一例正数**，且与 [minimum level] 呈
-	// 对齐意图（115→110、105→100、100→96/98），确认语义就是"降低使用等级门槛"。
-	//
-	// 字段缺失或形状异常时保持旧行为（只用 [minimum level]），不引入新的拒绝理由。
 	if corr := fields[correctionEquippedLevelKey]; len(corr) == 1 && corr[0].Type == 0 {
 		required += corr[0].Value
 	}

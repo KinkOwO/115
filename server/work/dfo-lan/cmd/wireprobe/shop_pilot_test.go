@@ -486,3 +486,96 @@ func TestShopPilotDatabasePurchase(t *testing.T) {
 	}
 	t.Log("PASS category cart: debit240 once; balance570; material121..176 and consumable65..120 persisted; ACKs encoded; replay no debit")
 }
+
+// 契约激活回执在 ACK64 之后追加 NOTI66,客户端即时刷新权益状态。
+func TestShopPilotPremiumActivationNotice(t *testing.T) {
+	r := storage.CashReceipt{
+		CharacterState: json.RawMessage(`{}`),
+		Deliveries:     []storage.CashDelivery{{Product: 3500001, Template: 45, Amount: 1, Quantity: 1}},
+		Premiums:       []storage.CashPremium{{Type: 27, EndTime: 1800000000}},
+	}
+	packets, e := shopPilotPackets(r, 70, true)
+	if e != nil {
+		t.Fatal(e)
+	}
+	last := packets[len(packets)-1]
+	if last.Name != "cera_purchase_premium_activated" || last.ID != 66 {
+		t.Fatalf("expected premium notice after acks, got %+v", last)
+	}
+	if last.Payload[2] != 27 {
+		t.Fatalf("premium type mismatch: %+v", last.Payload)
+	}
+}
+
+type contractCartPilotLedger struct {
+	pilotLedger
+}
+
+func (l *contractCartPilotLedger) PurchaseCashMixed(_ context.Context, o storage.CashOrder, fn func(json.RawMessage) (json.RawMessage, error), premiums map[int]storage.CashPremiumActivation) (storage.CashReceipt, bool, error) {
+	state, e := fn(l.state)
+	if e != nil {
+		return storage.CashReceipt{}, false, e
+	}
+	l.state = state
+	l.order = o
+	l.calls++
+	var charged uint64
+	var out []storage.CashPremium
+	var deliveries []storage.CashDelivery
+	for _, line := range o.Lines {
+		charged += uint64(line.UnitPrice) * uint64(line.Quantity)
+		deliveries = append(deliveries, storage.CashDelivery{Product: line.Product, Template: line.Template, Amount: line.Quantity * line.Units, Quantity: line.Quantity})
+	}
+	for _, act := range premiums {
+		out = append(out, storage.CashPremium{Type: act.Type, EndTime: time.Now().Unix() + act.DurationSecond})
+	}
+	return storage.CashReceipt{Order: o.Key, Charged: charged, CharacterState: json.RawMessage(`{}`), Deliveries: deliveries, Premiums: out}, true, nil
+}
+
+// 实机 2026-09-23:合并购买契约曾被 "premium contracts require a separate
+// order" 整单拒绝;契约行现在逐行激活并可与普通商品同单。
+func TestShopPilotContractCartPurchase(t *testing.T) {
+	p, e := cashshop.LoadPilot("../../configs/shop-vault-release.json", "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80")
+	if e != nil {
+		t.Fatal(e)
+	}
+	ledger := &contractCartPilotLedger{pilotLedger{state: json.RawMessage(`{}`)}}
+	s, e := newShopPilotSession()
+	if e != nil {
+		t.Fatal(e)
+	}
+	s.keys = make([]byte, wire.SessionKeyBytes)
+	body := make([]byte, 40)
+	body[2] = 3
+	binary.LittleEndian.PutUint32(body[5:], 3500001)
+	binary.LittleEndian.PutUint32(body[9:], 1)
+	binary.LittleEndian.PutUint32(body[17:], 3500009)
+	binary.LittleEndian.PutUint32(body[21:], 1)
+	binary.LittleEndian.PutUint32(body[29:], 3500016)
+	binary.LittleEndian.PutUint32(body[33:], 1)
+	frame := append(make([]byte, 13), body...)
+	r, applied, e := s.purchase(context.Background(), p, ledger, 1, 1, body, frame)
+	if e != nil || !applied {
+		t.Fatalf("merged contract cart failed: %v applied: %v", e, applied)
+	}
+	if len(r.Premiums) != 3 {
+		t.Fatalf("expected three activations, got %+v", r.Premiums)
+	}
+	types := map[uint8]bool{}
+	for _, pr := range r.Premiums {
+		types[pr.Type] = true
+	}
+	for _, want := range []uint8{27, 22, 92} {
+		if !types[want] {
+			t.Fatalf("missing premium activation %d: %+v", want, r.Premiums)
+		}
+	}
+	packets, e := shopPilotSpaces(p, r, r.After, applied)
+	if e != nil {
+		t.Fatal(e)
+	}
+	last := packets[len(packets)-1]
+	if last.Name != "cera_purchase_premium_activated" || last.ID != 66 {
+		t.Fatalf("expected trailing premium notice, got %+v", last)
+	}
+}

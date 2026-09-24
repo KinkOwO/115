@@ -36,6 +36,13 @@ func stackableSlotRange(r BagRules, stackableType string) [2]uint16 {
 	}
 }
 
+// StackableSlotRange exposes the category slot mapping to the package and
+// reward delivery paths outside this package, so a pool item with an unusual
+// type cannot strand a whole open on a missing rule entry.
+func StackableSlotRange(r BagRules, stackableType string) [2]uint16 {
+	return stackableSlotRange(r, stackableType)
+}
+
 // Buy adds an item purchased from an NPC shop into the bag and charges gold.
 // NPC shop items (templates 1-3175) are catalog-independent: if stackableType is
 // unspecified or not in catalog, they default to the throw range [65, 120] (consumables).
