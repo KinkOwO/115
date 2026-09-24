@@ -12,9 +12,9 @@ import (
 func TestWearableByAvatarMissingMinimumLevel(t *testing.T) {
 	// Shape copied from equipment/character/fighter/avatar/skin/502580005.equ.
 	skin := map[string][]pvf.Token{
-		"[usable job]":    {{Type: 6, Text: "[fighter]"}},
+		"[usable job]":     {{Type: 6, Text: "[fighter]"}},
 		"[equipment type]": {{Type: 6, Text: "[skin avatar]"}},
-		"[hit recovery]":  {{Type: 0, Value: 80}},
+		"[hit recovery]":   {{Type: 0, Value: 80}},
 	}
 	if e := WearableBy(skin, "[skin avatar]", "[fighter]", 0, 1); e != nil {
 		t.Fatal("avatar without [minimum level] must wear at level 1", e)
@@ -26,8 +26,8 @@ func TestWearableByAvatarMissingMinimumLevel(t *testing.T) {
 	// Shape copied from equipment/character/fighter/avatar/pants/502510504.equ:
 	// an explicit [minimum level] keeps binding avatars too.
 	pants := map[string][]pvf.Token{
-		"[minimum level]": {{Type: 0, Value: 20}},
-		"[usable job]":    {{Type: 6, Text: "[all]"}},
+		"[minimum level]":  {{Type: 0, Value: 20}},
+		"[usable job]":     {{Type: 6, Text: "[all]"}},
 		"[equipment type]": {{Type: 6, Text: "[pants avatar]"}},
 	}
 	if e := WearableBy(pants, "[pants avatar]", "fighter", 0, 19); e == nil {
@@ -39,7 +39,7 @@ func TestWearableByAvatarMissingMinimumLevel(t *testing.T) {
 
 	// Ordinary equipment without the field stays an unavailable definition.
 	ordinary := map[string][]pvf.Token{
-		"[usable job]":    {{Type: 6, Text: "[all]"}},
+		"[usable job]":     {{Type: 6, Text: "[all]"}},
 		"[equipment type]": {{Type: 6, Text: "[weapon]"}},
 	}
 	if e := WearableBy(ordinary, "[weapon]", "fighter", 0, 115); e == nil {

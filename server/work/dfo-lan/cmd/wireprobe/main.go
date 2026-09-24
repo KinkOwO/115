@@ -937,8 +937,14 @@ func main() {
 		event(map[string]any{"kind": "channel_refresh_ready", "address": cl.Addr().String(), "channels": len(endpoints)})
 	}
 	handleClient := func(c net.Conn, channel uint32) {
+		// Every connection runs in its own goroutine and the server had no
+		// recover() anywhere, so a single panic took the gateway process down
+		// and dropped everyone at once (2026-09-23: the CMD 72 acknowledgement
+		// index). Keep it on this connection, with the full stack in the log.
+		peer := ""
+		defer func() { recoverConnection(peer, channel, c, event) }()
 		defer c.Close()
-		peer := c.RemoteAddr().String()
+		peer = c.RemoteAddr().String()
 		keys := make([]byte, wire.SessionKeyBytes)
 		for i := range keys {
 			keys[i] = byte(i%127 + 1)
@@ -1623,7 +1629,7 @@ func main() {
 				}
 				continue
 			}
-			if characters != nil && bootstrapped && (frame.ID == 28 || frame.ID == 29 || frame.ID == 483 || frame.ID == 2347) {
+			if characters != nil && bootstrapped && (frame.ID == 28 || frame.ID == 29 || frame.ID == 483 || frame.ID == 2179 || frame.ID == 2347) {
 				if !verified {
 					continue
 				}
@@ -2090,7 +2096,12 @@ func main() {
 						worldState.resultSent = false
 						worldState.resetCards()
 						if p.Name == "settlement_exit_ack" {
-							worldState.selectingDungeon = p.Payload[2] == 1
+							// selectingDungeon was already set by settlementExit from
+							// the decoded request. Never index the outbound
+							// acknowledgement again: its width is a protocol detail and
+							// reading byte 2 of the native two-byte body is an
+							// out-of-range panic.
+							event(map[string]any{"kind": "settlement_exit_flag", "character_id": worldState.role.ID, "selecting_dungeon": worldState.selectingDungeon, "payload_len": len(p.Payload)})
 						} else {
 							worldState.selectingDungeon = false
 						}
@@ -2106,10 +2117,17 @@ func main() {
 						if worldState.deathSent == nil {
 							worldState.deathSent = map[uint16]bool{}
 						}
-						entity := uint16(p.Payload[0]) | uint16(p.Payload[1])<<8
-						worldState.deathSent[entity] = true
-						if worldState.drops != nil && len(worldState.drops.Skipped[entity]) > 0 {
-							event(map[string]any{"kind": "drop_rules_pending", "entity": entity, "rules": worldState.drops.Skipped[entity]})
+						// Same failure mode as the acknowledgement index above: the
+						// read used to be bare indexing on a payload whose width is
+						// only guaranteed elsewhere.
+						entity, ok := monsterDeathEntity(p.Payload)
+						if !ok {
+							event(map[string]any{"kind": "monster_death_ack_short_payload", "character_id": worldState.role.ID, "length": len(p.Payload)})
+						} else {
+							worldState.deathSent[entity] = true
+							if worldState.drops != nil && len(worldState.drops.Skipped[entity]) > 0 {
+								event(map[string]any{"kind": "drop_rules_pending", "entity": entity, "rules": worldState.drops.Skipped[entity]})
+							}
 						}
 					}
 					if p.Name == "dungeon_clear_enabled" {

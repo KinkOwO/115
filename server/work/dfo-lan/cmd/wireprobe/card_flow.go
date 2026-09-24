@@ -4,7 +4,7 @@ import (
 	"context"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
-	"encoding/binary"
+	"dfolan/internal/storage"
 	"fmt"
 	"time"
 )
@@ -87,18 +87,21 @@ func (w *worldSession) settlementExit(p []byte) (*dungeon.Session, []outboundPac
 	if r.State == 2 {
 		return nil, []outboundPacket{ack}, nil
 	}
+	// The selection flag is set from the decoded request, not read back out of
+	// the outgoing acknowledgement. The gateway used to do
+	// "worldState.selectingDungeon = p.Payload[2] == 1", which only worked
+	// while the ack happened to be three bytes wide; narrowing it to its
+	// native two bytes turned that line into index out of range [2] with
+	// length 2 and killed the whole process, dropping every connected player.
+	w.selectingDungeon = r.Option == 1
 	// Preflight routing before granting an automatic unclaimed free card.
 	var pending *dungeon.Session
 	var route []outboundPacket
 	switch r.Option {
 	case 0:
-		copy := *w
-		copy.activeDungeon = nil
-		request := make([]byte, 32)
-		binary.LittleEndian.PutUint32(request, w.activeDungeon.Definition.ID)
-		binary.LittleEndian.PutUint16(request[9:], 65535)
-		binary.LittleEndian.PutUint32(request[16:], uint32(w.activeDungeon.Maze.Quest))
-		pending, route, e = copy.selectDungeon(request)
+		// dstr 479 "Restart the dungeon.": reopen the run that was just
+		// settled, behind the dungeon-select head. See restartDungeon.
+		pending, route, e = w.restartDungeon()
 	case 1:
 		copy := *w
 		copy.activeDungeon = nil
@@ -125,4 +128,58 @@ func (w *worldSession) settlementExit(p []byte) (*dungeon.Session, []outboundPac
 	plan = append(plan, ack)
 	plan = append(plan, route...)
 	return pending, plan, nil
+}
+
+// restartDungeon reopens the run that has just been settled. The settlement
+// panel's option 0 is dstr 479 "Restart the dungeon." - the same map as a
+// fresh run, not a return to town (option 2 is dstr 481, "Return to town.").
+//
+// The client is still sitting on the settlement panel when it sends CMD 72,
+// and the native handler has already torn the instance module down; an entry
+// sequence pushed straight back arrives at a dismantled scene and takes the
+// client out with 0xC0000005 (live 20260922T193325, the only option 0 of that
+// session). The post-clear "next story dungeon" gate (CMD 2062) hit exactly
+// this and solved it by raising the client to the dungeon-select UI first -
+// ACK 15 + NOTI 27 - and only then replaying the CMD 16 entry sequence. This
+// reuses that shape with the finished run's own id and maze quest, so "again"
+// is a direct reopen and never routes through the town the way leaveDungeon
+// does.
+func (w *worldSession) restartDungeon() (*dungeon.Session, []outboundPacket, error) {
+	if w == nil || w.dungeons == nil || w.role.ID == 0 {
+		return nil, nil, fmt.Errorf("dungeon catalog or character unavailable")
+	}
+	old := w.activeDungeon
+	if old == nil {
+		return nil, nil, fmt.Errorf("retry without an active dungeon")
+	}
+	copy := *w
+	copy.activeDungeon = nil
+	sel := protocol.DungeonSelection{ID: old.Definition.ID, Party: 65535, Quest: uint32(old.Maze.Quest)}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	// The same entry gate the ordinary selection applies, minus its town-only
+	// check: the character is inside a run, so there is no PVF [dungeon gate]
+	// area under its feet to stand on.
+	if w.fatigue != nil && !old.Definition.NoFatigue && w.fatigue.Rules.RoomCost > 0 {
+		fp, err := w.fatigue.State(ctx, w.account, w.role.ID, time.Now())
+		if err != nil {
+			return nil, nil, err
+		}
+		if fp.Used >= fp.Limit {
+			return nil, nil, storage.ErrFatigueExhausted
+		}
+	}
+	accepted, e := copy.acceptedQuestIDs(ctx)
+	if e != nil {
+		return nil, nil, e
+	}
+	s, e := dungeon.Select(*copy.dungeons, sel, copy.level, accepted)
+	if e != nil {
+		return nil, nil, e
+	}
+	entry, e := copy.dungeonEntryPlan("dungeon_select_ack", 16, sel, s)
+	if e != nil {
+		return nil, nil, e
+	}
+	return s, append(dungeonSelectionHead(), entry...), nil
 }

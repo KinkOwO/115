@@ -151,52 +151,52 @@ func TestShopPilotPVFCurrentCatalog(t *testing.T) {
 			t.Fatal("special item incorrectly enabled", id)
 		}
 	}
-		// Every admitted row can be delivered and acknowledged, not just chosen SKUs.
-		for id, product := range products {
-			l := &packLedger{state: json.RawMessage(`{}`)}
-			if _, _, e = p.Purchase(context.Background(), l, 1, 1, fmt.Sprintf("catalog-all-%d-0001", id), []protocol.CeraCartItem{{Product: id, Quantity: 1}}); e != nil {
-				t.Fatal(id, e)
-			}
-			b, e := inventory.ReadBag(l.state)
-			if e != nil {
-				t.Fatal(id, e)
-			}
-			var children []PackageItem
-			if entry, ok := p.findEntry(id, product.Template); ok {
-				children, _ = PackageItems(entry.Item)
-			}
-			// A [package data] child may be template 1 (the coin wallet), which
-			// never shows up as an ordinary bag row.
-			countsCoin := product.Template == 1
-			for _, sub := range children {
-				if sub.Template == 1 {
-					countsCoin = true
-				}
-			}
-			var total uint64
-			if countsCoin {
-				total += uint64(b.Coin)
-			}
-			for _, row := range b.Items {
-				matched := row.Template == product.Template
-				for _, sub := range children {
-					if sub.Template == row.Template {
-						matched = true
-						break
-					}
-				}
-				if !matched {
-					t.Fatal("wrong template", id)
-				}
-				total += uint64(row.Amount)
-			}
-			if total == 0 {
-				t.Fatal("empty delivery", id)
-			}
-			if _, e = protocol.CeraPurchaseOrdinarySuccess(id, 1); e != nil {
-				t.Fatal(id, e)
+	// Every admitted row can be delivered and acknowledged, not just chosen SKUs.
+	for id, product := range products {
+		l := &packLedger{state: json.RawMessage(`{}`)}
+		if _, _, e = p.Purchase(context.Background(), l, 1, 1, fmt.Sprintf("catalog-all-%d-0001", id), []protocol.CeraCartItem{{Product: id, Quantity: 1}}); e != nil {
+			t.Fatal(id, e)
+		}
+		b, e := inventory.ReadBag(l.state)
+		if e != nil {
+			t.Fatal(id, e)
+		}
+		var children []PackageItem
+		if entry, ok := p.findEntry(id, product.Template); ok {
+			children, _ = PackageItems(entry.Item)
+		}
+		// A [package data] child may be template 1 (the coin wallet), which
+		// never shows up as an ordinary bag row.
+		countsCoin := product.Template == 1
+		for _, sub := range children {
+			if sub.Template == 1 {
+				countsCoin = true
 			}
 		}
+		var total uint64
+		if countsCoin {
+			total += uint64(b.Coin)
+		}
+		for _, row := range b.Items {
+			matched := row.Template == product.Template
+			for _, sub := range children {
+				if sub.Template == row.Template {
+					matched = true
+					break
+				}
+			}
+			if !matched {
+				t.Fatal("wrong template", id)
+			}
+			total += uint64(row.Amount)
+		}
+		if total == 0 {
+			t.Fatal("empty delivery", id)
+		}
+		if _, e = protocol.CeraPurchaseOrdinarySuccess(id, 1); e != nil {
+			t.Fatal(id, e)
+		}
+	}
 	t.Logf("PVF catalog: %d ordinary SKUs verified end-to-end", len(products))
 }
 

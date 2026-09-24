@@ -9,14 +9,18 @@ import (
 const correctionEquippedLevelKey = "[correction equipped level]"
 
 // WearableBy reports whether a source definition's own requirements admit this
-// character: minimum level, usable job, usable grow type. It is the single
-// place those three rules live, so wearing a piece and being offered it as a
-// drop cannot disagree.
+// character: minimum level (including its [correction equipped level]
+// adjustment), usable job, usable grow type. It is the single place those three
+// rules live, so wearing a piece and being offered it as a drop cannot disagree.
 //
-// 实机取证 2026-09-23:时装(尤其皮肤 `[skin avatar]`、武器装扮 `[weapon avatar]`)
-// 的 .equ 源脚本经常**不带** `[minimum level]`(对比:裤子 502510504 带 `[minimum
-// level] 1`,皮肤 502580005 完全没有该段),穿戴时被旧守卫按"unavailable"拒绝。
-// 时装家族缺该字段按源语义视为无等级要求;普通装备缺失仍然是不可识别的定义。
+// kind is the source [equipment type] text. The avatar family - skins
+// ([skin avatar]), weapon avatars ([weapon avatar]) and the rest of the
+// [* avatar] kinds - routinely ships .equ scripts with no [minimum level]
+// section at all: trousers 502510504 carry "[minimum level] 1" while skin
+// 502580005 has no such section. The old guard read a missing field as an
+// unrecognisable definition and refused the piece, which the client renders as
+// "背包已满". For those kinds a missing section means "no level requirement";
+// for ordinary equipment it still means unavailable.
 func WearableBy(fields map[string][]pvf.Token, kind string, job string, advancement, level byte) error {
 	levels := fields["[minimum level]"]
 	if len(levels) == 0 {

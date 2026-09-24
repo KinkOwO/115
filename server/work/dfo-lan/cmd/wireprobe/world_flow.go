@@ -284,6 +284,16 @@ func (w *worldSession) departArea() {
 	w.hub.depart(w.peer)
 }
 
+// prevVillage decodes CMD 1418 ENUM_CMDPACKET_PREV_VILLAGE into the area-change
+// request it stands for. The body is empty by construction (live 2026-09-23:
+// 13-byte bare headers, 39 in a row), so nothing is parsed out of it and no
+// field layout is guessed; the destination is the Return stamp this character
+// picked up on the way into the room. A character with no stamp is refused
+// instead of being sent somewhere plausible.
+func (w *worldSession) prevVillage(p []byte) (protocol.AreaChangeRequest, error) {
+	return previousVillageRequest(w.state.Position, p, w.activeDungeon != nil, w.selectingDungeon)
+}
+
 func (w *worldSession) areaPayload() ([]byte, error) {
 	p := w.state.Position
 	if w.hub == nil || w.peer == nil {
@@ -355,15 +365,23 @@ func (w *worldSession) handle(id uint16, p []byte, send func(byte, uint16, []byt
 	case 1418:
 		r, e := previousVillageRequest(old.Position, p, w.activeDungeon != nil, w.selectingDungeon)
 		if e != nil {
-			if old.Position.Return == nil && len(p) == 0 && w.activeDungeon == nil && !w.selectingDungeon {
-				event(map[string]any{"kind": "prev_village_refused", "reason": "no return area stamped"})
+			event(map[string]any{"kind": "prev_village_refused", "reason": e.Error()})
+			// No destination to name, so refuse at the area the character is
+			// already standing in; that clears the client's in-flight transition.
+			refusal, err := protocol.AreaChangeFailure(4, old.Position.Town, old.Position.Area)
+			if err != nil {
+				return err
 			}
-			return e
+			return send(1, 1418, refusal)
 		}
 		next, e = w.areaTransition(r)
 		if e != nil {
-			event(map[string]any{"kind": "prev_village_refused", "reason": e.Error()})
-			return e
+			event(map[string]any{"kind": "prev_village_refused", "town": r.Town, "area": r.Area, "reason": e.Error()})
+			refusal, err := protocol.AreaChangeFailure(4, r.Town, r.Area)
+			if err != nil {
+				return err
+			}
+			return send(1, 1418, refusal)
 		}
 	default:
 		return errors.New("unknown world request")
@@ -377,6 +395,9 @@ func (w *worldSession) handle(id uint16, p []byte, send func(byte, uint16, []byt
 	w.state = saved
 	event(map[string]any{"kind": "world_position_saved", "character_id": w.role.ID, "position": next, "revision": saved.Revision, "request": id})
 	if id == 36 || id == 1418 {
+		// The acknowledgement echoes the request's own opcode: the client is
+		// waiting on the command it sent, and CMD 1418 replays the CMD 36
+		// area-change frame sequence otherwise unchanged.
 		if e = send(1, id, protocol.AreaChangeSuccess()); e != nil {
 			return e
 		}

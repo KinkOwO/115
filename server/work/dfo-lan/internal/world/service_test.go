@@ -46,9 +46,12 @@ func TestTransitionAuthority(t *testing.T) {
 	if e != nil || returned.Return != nil {
 		t.Fatalf("return warp: %+v %v", returned, e)
 	}
+	// 出门的目的地永远是戳，不是请求：客户端报同镇另一个区域（38/3）也一样。
+	// 旧守卫「请求目的地 == Return」在这里不进分支，因为赛丽亚房没有门户边且
+	// SeriaReturnWarp=true，permissive 恒 false ⇒ 玩家被困在房间里。
 	back.Area = 3
 	redirected, e := s.Transition(20, false, next, back)
-	if e != nil || redirected.Town != 38 || redirected.Area != 0 || redirected.Return != nil {
+	if e != nil || redirected.Town != 38 || redirected.Area != 0 || redirected.X != 550 || redirected.Y != 230 || redirected.Return != nil {
 		t.Fatalf("return warp did not ignore client destination: %+v %v", redirected, e)
 	}
 }
@@ -89,26 +92,6 @@ func TestSameAreaRepositionKeepsReturnStamp(t *testing.T) {
 	out, err := s.Transition(1, false, inside, protocol.AreaChangeRequest{Town: 38, Area: 1, X: 540, Y: 210, PreviousTown: 38, PreviousArea: 1})
 	if err != nil || out.Town != 38 || out.Area != 1 || out.X != 540 || out.Y != 210 || out.Return != stamp {
 		t.Fatalf("in-room reposition changed return stamp: %+v %v", out, err)
-	}
-}
-
-func TestSeriaReturnIsSourceAgnostic(t *testing.T) {
-	s := Service{Catalog: catalog.WorldCatalog{Areas: map[string]catalog.WorldArea{
-		"38/1": {Town: 38, Area: 1, MinimumLevel: 1, Walkable: [][4]int32{{400, 100, 250, 300}}, SeriaReturnWarp: true, ReturnWarpBounds: [][4]int32{{470, 320, 150, 40}}},
-		"38/0": {Town: 38, Area: 0, MinimumLevel: 1, Walkable: [][4]int32{{0, 0, 1000, 500}}},
-		"39/0": {Town: 39, Area: 0, MinimumLevel: 1, Walkable: [][4]int32{{0, 0, 1000, 500}}},
-		"40/0": {Town: 40, Area: 0, MinimumLevel: 1, Walkable: [][4]int32{{0, 0, 1000, 500}}},
-	}}, Rules: Rules{RequirePortalProximity: true, PortalMargin: 10}}
-	for _, stamp := range []storage.WorldReturn{
-		{Town: 40, Area: 0, X: 403, Y: 181},
-		{Town: 39, Area: 0, X: 320, Y: 306},
-		{Town: 38, Area: 0, X: 622, Y: 196},
-	} {
-		inside := storage.WorldPosition{Town: 38, Area: 1, X: 550, Y: 340, Return: &stamp}
-		out, err := s.Transition(1, false, inside, protocol.AreaChangeRequest{Town: 38, Area: 0, X: 746, Y: 157, PreviousTown: 38, PreviousArea: 1})
-		if err != nil || out.Town != stamp.Town || out.Area != stamp.Area || out.X != stamp.X || out.Y != stamp.Y || out.Return != nil {
-			t.Fatalf("source %+v returned %+v: %v", stamp, out, err)
-		}
 	}
 }
 
@@ -299,5 +282,97 @@ func TestRequiredLevelKeepsOrdinaryGateWithoutSourceOdysseyLevel(t *testing.T) {
 	}
 	if got := RestorationLevel(a, true); got != 41 {
 		t.Fatalf("restoration gate %d", got)
+	}
+}
+
+// 离开赛丽亚房间（38/1、142/1，源里 [is seria room warp] 仅此两处）的目的地永远是
+// 本次进房时存下的 Return 戳，与客户端在请求里报的坐标 / 城镇无关。
+//
+// 上游旧守卫是「请求目的地 == Return」，于是两种真实请求都落空：
+//   - 通用动画落点（实机 live17 的 746,157，属于本镇另一区域）；
+//   - 地图选择器报的另一个镇。
+//
+// 落空之后赛丽亚房没有门户边且 SeriaReturnWarp=true（permissive 恒 false）⇒
+// "no authorized source portal to destination"，玩家被困在房间里出不去。
+func TestSeriaLeaveReturnsToStampedOrigin(t *testing.T) {
+	s := Service{Catalog: catalog.WorldCatalog{Areas: map[string]catalog.WorldArea{
+		"38/0": {Town: 38, Area: 0, MinimumLevel: 1, Walkable: [][4]int32{{0, 0, 1000, 500}}},
+		"38/1": {Town: 38, Area: 1, MinimumLevel: 1, Walkable: [][4]int32{{400, 100, 250, 300}}, SeriaReturnWarp: true, ReturnWarpBounds: [][4]int32{{470, 320, 150, 40}}},
+		"41/1": {Town: 41, Area: 1, MinimumLevel: 1, Walkable: [][4]int32{{300, 100, 400, 300}}},
+		"40/0": {Town: 40, Area: 0, MinimumLevel: 1, Walkable: [][4]int32{{0, 0, 1000, 500}}},
+	}}, Rules: Rules{RequirePortalProximity: true, PortalMargin: 10}}
+
+	// 从阿法利亚（41/1）进来，戳 = 41/1 (404,197)；客户端报的是同镇通用落点 38/0
+	// (746,157)。旧的「请求目的地 == 戳」守卫在这里不进分支。
+	inside := storage.WorldPosition{Town: 38, Area: 1, X: 550, Y: 340, Return: &storage.WorldReturn{Town: 41, Area: 1, X: 404, Y: 197}}
+	out, e := s.Transition(30, false, inside, protocol.AreaChangeRequest{
+		Town: 38, Area: 0, X: 746, Y: 157, PreviousTown: 38, PreviousArea: 1,
+	})
+	if e != nil {
+		t.Fatal(e)
+	}
+	if out.Town != 41 || out.Area != 1 || out.X != 404 || out.Y != 197 {
+		t.Fatalf("leave did not land on the stamped origin: %+v", out)
+	}
+	if out.Return != nil {
+		t.Fatal("return stamp survived the leave")
+	}
+
+	// 客户端报另一个镇也一样：目的地仍然是戳，不是请求里的镇。
+	inside = storage.WorldPosition{Town: 38, Area: 1, X: 550, Y: 340, Return: &storage.WorldReturn{Town: 41, Area: 1, X: 404, Y: 197}}
+	out, e = s.Transition(30, false, inside, protocol.AreaChangeRequest{
+		Town: 40, Area: 0, X: 388, Y: 180, PreviousTown: 38, PreviousArea: 1,
+	})
+	if e != nil {
+		t.Fatal(e)
+	}
+	if out.Town != 41 || out.Area != 1 || out.X != 404 || out.Y != 197 {
+		t.Fatalf("leave followed the client's town instead of the stamp: %+v", out)
+	}
+
+	// 站在出门光圈之外仍然不放行：ReturnWarpBounds 的站位判定没有被放宽。
+	far := storage.WorldPosition{Town: 38, Area: 1, X: 410, Y: 200, Return: &storage.WorldReturn{Town: 41, Area: 1, X: 404, Y: 197}}
+	if _, e = s.Transition(30, false, far, protocol.AreaChangeRequest{
+		Town: 38, Area: 0, X: 746, Y: 157, PreviousTown: 38, PreviousArea: 1,
+	}); e == nil {
+		t.Fatal("leave outside the return gate was admitted")
+	}
+}
+
+// Return 戳机制不区分来源镇：西海岸 / 阿法利亚 / 亨顿 / 艾尔文各来一例，出门都回
+// 各自来图；而且改写的必须是 Town/Area/X/Y 四元组，不能只改坐标。
+func TestSeriaReturnIsSourceAgnostic(t *testing.T) {
+	origins := []storage.WorldReturn{
+		{Town: 40, Area: 0, X: 400, Y: 200},
+		{Town: 41, Area: 1, X: 404, Y: 197},
+		{Town: 38, Area: 3, X: 500, Y: 250},
+		{Town: 39, Area: 2, X: 320, Y: 306},
+	}
+	areas := map[string]catalog.WorldArea{
+		"38/1": {Town: 38, Area: 1, MinimumLevel: 1, Walkable: [][4]int32{{400, 100, 250, 300}}, SeriaReturnWarp: true, ReturnWarpBounds: [][4]int32{{470, 320, 150, 40}}},
+		"38/0": {Town: 38, Area: 0, MinimumLevel: 1, Walkable: [][4]int32{{0, 0, 1000, 500}}},
+	}
+	for _, o := range origins {
+		if o.Town == 38 && o.Area == 1 {
+			continue
+		}
+		areas[catalog.AreaKey(o.Town, o.Area)] = catalog.WorldArea{
+			Town: o.Town, Area: o.Area, MinimumLevel: 1, Walkable: [][4]int32{{0, 0, 2000, 800}},
+		}
+	}
+	s := Service{Catalog: catalog.WorldCatalog{Areas: areas}, Rules: Rules{RequirePortalProximity: true, PortalMargin: 10}}
+	for _, o := range origins {
+		stamp := o
+		inside := storage.WorldPosition{Town: 38, Area: 1, X: 550, Y: 340, Return: &stamp}
+		// 客户端报的永远是"本镇通用落点"，与戳无关。
+		out, e := s.Transition(30, false, inside, protocol.AreaChangeRequest{
+			Town: 38, Area: 0, X: 746, Y: 157, PreviousTown: 38, PreviousArea: 1,
+		})
+		if e != nil {
+			t.Fatalf("origin %d/%d: %v", o.Town, o.Area, e)
+		}
+		if out.Town != o.Town || out.Area != o.Area || out.X != o.X || out.Y != o.Y {
+			t.Fatalf("origin %d/%d not restored: %+v", o.Town, o.Area, out)
+		}
 	}
 }

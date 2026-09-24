@@ -389,6 +389,91 @@ func (s *Service) MoveSkill(ctx context.Context, role storage.Character, key str
 	saved.WireID = role.WireID
 	return saved, applied, e
 }
+
+// MoveSkillTotal applies CMD 2179 CHANGE_SKILLSLOT_TOTAL: the sequential swap
+// list the client emits after 自动加点 to lay out its shortcut bar, right after
+// the learn burst. It used to reach the gateway as an unimplemented sample, so
+// the bar stayed in whatever order the server had last computed and the layout
+// the player saw in the auto-set preview was never the one they got.
+//
+// Sources name the state the previous pair produced, so the pairs are applied
+// in order; an empty target receives the source skill outright.
+func (s *Service) MoveSkillTotal(ctx context.Context, role storage.Character, key string, req protocol.SkillSlotTotal) (storage.Character, bool, error) {
+	if s.Learning == nil || req.Tree != 0 || len(req.Pairs) == 0 {
+		return role, false, fmt.Errorf("invalid skill slot total")
+	}
+	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, "source-skill-slots-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+		var state State
+		if e := json.Unmarshal(current.State, &state); e != nil {
+			return nil, nil, e
+		}
+		rows, e := s.skillRows(current, state, 0)
+		if e != nil {
+			return nil, nil, e
+		}
+		if e := s.applySkillSlotSwaps(current.Profession, rows, req.Pairs); e != nil {
+			return nil, nil, e
+		}
+		// The list is the layout the client is about to display; persist the
+		// same rows so the next skillRows cannot re-lay them somewhere else.
+		state.SkillSlots[0] = map[uint16]uint16{}
+		for _, v := range rows {
+			state.SkillSlots[0][v.ID] = v.Slot
+		}
+		p, e := mergeSkillState(current.State, state)
+		if e != nil {
+			return nil, nil, e
+		}
+		r, e := json.Marshal(req)
+		return p, r, e
+	})
+	saved.WireID = role.WireID
+	return saved, applied, e
+}
+
+// applySkillSlotSwaps mutates rows in place, one sequential swap per pair.
+//
+// The quick bar must not receive a passive skill; palette destinations are
+// unrestricted. The guard uses ShortcutCapable rather than Active on purpose:
+// the awakening and VP rows routinely have a [type] the export cannot resolve
+// (atmage 138/139 read "default", priest 133/134/250/253 have no line at all),
+// and those are exactly the rows 自动加点 puts on the bar - treating an
+// unresolvable [type] as passive would refuse the whole layout, which is the
+// same trap MoveSkill already had to have fixed.
+func (s *Service) applySkillSlotSwaps(profession byte, rows []protocol.LearnedSkill, pairs []protocol.SkillSlotSwap) error {
+	bySlot := map[uint16]int{}
+	for i, r := range rows {
+		if r.Slot < 255 {
+			bySlot[uint16(r.Slot)] = i
+		}
+	}
+	capable := func(i int) bool { return s.Learning.index[profession][rows[i].ID].ShortcutCapable() }
+	for _, pair := range pairs {
+		from, to := uint16(pair.Source), uint16(pair.Target)
+		i, ok := bySlot[from]
+		if !ok {
+			return fmt.Errorf("skill slot total source %d is empty", from)
+		}
+		j, ok := bySlot[to]
+		if to < 14 && !capable(i) {
+			return fmt.Errorf("passive skill cannot occupy a shortcut")
+		}
+		if ok && from < 14 && !capable(j) {
+			return fmt.Errorf("passive skill cannot occupy a shortcut")
+		}
+		if ok {
+			rows[j].Slot = from
+		}
+		rows[i].Slot = to
+		delete(bySlot, from)
+		bySlot[to] = i
+		if ok {
+			bySlot[from] = j
+		}
+	}
+	return nil
+}
+
 func (s *Service) LearningResponse(role storage.Character, req protocol.SkillPurchase) ([]byte, error) {
 	var state State
 	if e := json.Unmarshal(role.State, &state); e != nil {

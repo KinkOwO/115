@@ -29,7 +29,10 @@ func (w *worldSession) areaTransition(r protocol.AreaChangeRequest) (storage.Wor
 	}
 	src, _ := w.service.Catalog.Areas[catalog.AreaKey(old.Town, old.Area)]
 	dest, _ := w.service.Catalog.Areas[catalog.AreaKey(r.Town, r.Area)]
-	isSeriaReturn := old.Return != nil && src.SeriaReturnWarp && !(r.Town == old.Town && r.Area == old.Area)
+	// Requests from a stamped Seria room stay on the return-aware transition
+	// path. The client can report a generic animation landing or another town;
+	// world.transition validates the gate and restores the saved origin.
+	isSeriaReturn := old.Return != nil && src.SeriaReturnWarp
 	isMapTeleport := r.Flag == 5 && (r.TailFlags[0] == 5 || r.TailFlags[1] == 5)
 	isSeriaRoomTeleport := dest.SeriaReturnWarp && !src.SeriaReturnWarp
 	if !isSeriaReturn && (specialWarp || isMapTeleport || isSeriaRoomTeleport) {

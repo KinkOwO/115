@@ -2,6 +2,7 @@ package main
 
 import (
 	"dfolan/internal/catalog"
+	"dfolan/internal/dungeon"
 	"dfolan/internal/storage"
 	"dfolan/internal/world"
 	"testing"
@@ -38,5 +39,53 @@ func TestPrevVillageReturnsToStampedOrigin(t *testing.T) {
 	out, err := w.areaTransition(request)
 	if err != nil || out.Town != stamp.Town || out.Area != stamp.Area || out.X != stamp.X || out.Y != stamp.Y || out.Return != nil {
 		t.Fatalf("previous village transition failed: %+v %v", out, err)
+	}
+}
+
+// CMD 1418 uses an empty body and the saved Return stamp to identify the
+// destination. The handler must preserve that stamp and reject unsafe contexts.
+func TestPrevVillageUsesStampedOrigin(t *testing.T) {
+	w := &worldSession{role: storage.Character{ID: 7, WireID: 10}}
+	w.state.Position = storage.WorldPosition{
+		Town: 38, Area: 1, X: 557, Y: 340,
+		Return: &storage.WorldReturn{Town: 41, Area: 1, X: 404, Y: 197},
+	}
+	r, err := w.prevVillage(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Town != 41 || r.Area != 1 || r.X != 404 || r.Y != 197 {
+		t.Fatalf("destination is not the stamped origin: %+v", r)
+	}
+	if r.PreviousTown != 38 || r.PreviousArea != 1 {
+		t.Fatalf("source area is not the room the character stands in: %+v", r)
+	}
+}
+
+func TestPrevVillageRefusesWithoutEvidence(t *testing.T) {
+	stamped := func() *worldSession {
+		w := &worldSession{role: storage.Character{ID: 7, WireID: 10}}
+		w.state.Position = storage.WorldPosition{
+			Town: 38, Area: 1, X: 557, Y: 340,
+			Return: &storage.WorldReturn{Town: 41, Area: 1, X: 404, Y: 197},
+		}
+		return w
+	}
+
+	w := stamped()
+	if _, err := w.prevVillage([]byte{0}); err == nil {
+		t.Fatal("non-empty body accepted")
+	}
+
+	w = &worldSession{role: storage.Character{ID: 7, WireID: 10}}
+	w.state.Position = storage.WorldPosition{Town: 38, Area: 1, X: 557, Y: 340}
+	if _, err := w.prevVillage(nil); err == nil {
+		t.Fatal("prev village without a return stamp accepted")
+	}
+
+	w = stamped()
+	w.activeDungeon = &dungeon.Session{}
+	if _, err := w.prevVillage(nil); err == nil {
+		t.Fatal("prev village inside a dungeon accepted")
 	}
 }

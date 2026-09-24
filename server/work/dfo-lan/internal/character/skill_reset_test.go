@@ -35,8 +35,49 @@ func TestResetAutoSetKeepsSourceFloorWithoutRefund(t *testing.T) {
 	if st.LearnedSkills[0][62] != 1 {
 		t.Fatalf("源授予的 rank1 被清掉: %v", st.LearnedSkills[0])
 	}
-	if len(st.SkillSlots[0]) != 0 {
-		t.Fatalf("旧槽位没清，新推荐技能会挤到 14+ palette: %v", st.SkillSlots[0])
+	// Reset 释放的是"旧的快捷栏占用"，发的仍是清空后重算的那一版布局
+	// （NOTI19 会把同一版下发给客户端）。旧的 bar 槽位必须让出来，否则新推荐
+	// 的技能会被挤到 14+ palette。
+	if slot, ok := st.SkillSlots[0][62]; ok && slot < 14 {
+		t.Fatalf("旧快捷栏槽位没清，新推荐技能会挤到 14+ palette: %v", st.SkillSlots[0])
+	}
+}
+
+// Reset 下发的那一版布局必须落库。2026-09-23 实测：不清布局只清鼓励等级时，
+// 服务端会把 NOTI19 里的槽位（94→22、101→25）发给客户端，随后 CMD29 学习时
+// skillRows 又按默认重排一次（94→36、101→43），而学习不补发全量 NOTI19，
+// 客户端于是停在旧版 → 它上报的 CMD2179 源槽位（25）服务端已经不认识，
+// 自动加点的快捷栏布局被拒。
+func TestResetAutoSetPersistsPublishedSlots(t *testing.T) {
+	s, role, st := autoSkillFixture(t)
+	st.LearnedSkills[0] = map[uint16]byte{62: 1}
+	st.SkillSlots[0] = map[uint16]uint16{62: 0}
+	if e := s.resetAutoState(t.Context(), role, &st, 0, 1); e != nil {
+		t.Fatal(e)
+	}
+	rows, e := s.skillRows(role, st, 0)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if len(rows) == 0 {
+		t.Fatal("reset 后没有下发任何技能行")
+	}
+	for _, row := range rows {
+		slot, ok := st.SkillSlots[0][row.ID]
+		if !ok || slot != row.Slot {
+			t.Fatalf("落库布局与下发的不一致: skill %d 落库 %v, 下发 %d", row.ID, slot, row.Slot)
+		}
+	}
+	// 重算必须幂等：否则下次 skillRows（例如紧随其后的 CMD29 学习）会把同一
+	// 批技能排到别的槽位，而那次不会再补发全量 NOTI19。
+	again, e := s.skillRows(role, st, 0)
+	if e != nil {
+		t.Fatal(e)
+	}
+	for i := range again {
+		if again[i].ID != rows[i].ID || again[i].Slot != rows[i].Slot || again[i].Level != rows[i].Level {
+			t.Fatalf("槽位分配不幂等: skill %d %d -> %d", rows[i].ID, rows[i].Slot, again[i].Slot)
+		}
 	}
 }
 

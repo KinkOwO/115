@@ -138,8 +138,9 @@ func (s *Service) transition(level byte, odyssey bool, old storage.WorldPosition
 		return old, errors.New("unknown source area")
 	}
 	next.Town, next.Area, next.X, next.Y = r.Town, r.Area, r.X, r.Y
-	// The client's animated exit may name a generic map. The stamped origin
-	// is the destination to authorize and validate when leaving Seria's room.
+	// A Seria return gate always targets the saved origin, even when the client
+	// reports a generic animation landing or another town. Resolve that origin
+	// before destination lookup and authorization so the request cannot choose it.
 	seriaLeave := old.Return != nil && src.SeriaReturnWarp && !(r.Town == old.Town && r.Area == old.Area)
 	if seriaLeave {
 		next.Town, next.Area = old.Return.Town, old.Return.Area
@@ -163,7 +164,8 @@ func (s *Service) transition(level byte, odyssey bool, old storage.WorldPosition
 		adjacent = true
 	}
 	// A source Seria return warp targets the saved origin. Its animated
-	// portal condition remains explicit, regardless of the requested map.
+	// portal condition remains explicit, regardless of the requested map; the
+	// same-area branch above instead keeps this as an in-room reposition.
 	if seriaLeave {
 		if !s.Rules.RequirePortalProximity {
 			adjacent = true
