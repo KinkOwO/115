@@ -179,7 +179,14 @@ func ParseDungeon(id uint32, s ScriptRecord) (DungeonDefinition, error) {
 			dst      *[2]byte
 			absentOK bool
 		}{{"[size]", &m.Size, false}, {"[start map]", &m.Start, false}, {"[boss map]", &m.Boss, true}} {
-			v, e := sourceFirstPair(sectionCells(c, p.name), p.absentOK)
+			cells := sectionCells(c, p.name)
+			if p.name == "[size]" && len(cells) > 2 {
+				// Dungeon 53, quest 3354 declares [size] 4 3 followed by
+				// [size] 4 4. The final dimensions contain its start (3,3)
+				// and all seven source rooms; the earlier dimensions do not.
+				cells = cells[len(cells)-2:]
+			}
+			v, e := sourceFirstPair(cells, p.absentOK)
 			if e != nil {
 				m.Pending = append(m.Pending, p.name+": "+e.Error())
 			} else {
