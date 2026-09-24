@@ -145,3 +145,43 @@ func idsToInt64(ids []uint16) []int64 {
 	}
 	return out
 }
+
+// ClearActQuests completes only the source-selected epic IDs. Accepted quests
+// are completed without rewards; existing completed rows remain untouched.
+// The character lock and one transaction keep the batch atomic.
+func (s *Store) ClearActQuests(ctx context.Context, account, characterID int64, version string, ids []uint16) (int, error) {
+	if len(version) != 64 {
+		return 0, errors.New("invalid quest config version")
+	}
+	if len(ids) == 0 {
+		return 0, nil
+	}
+	tx, err := s.DB.Begin(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback(ctx)
+	var owned int64
+	if err = tx.QueryRow(ctx, `SELECT id FROM characters WHERE id=$1 AND account_id=$2 AND deleted_at IS NULL FOR UPDATE`, characterID, account).Scan(&owned); err != nil {
+		return 0, err
+	}
+	var stale int
+	if err = tx.QueryRow(ctx, `SELECT count(*) FROM character_quests WHERE character_id=$1 AND quest_id=ANY($2::int[]) AND config_version<>$3`, characterID, idsToInt64(ids), version).Scan(&stale); err != nil {
+		return 0, err
+	}
+	if stale != 0 {
+		return 0, errors.New("quest clear requires source migration")
+	}
+	tag, err := tx.Exec(ctx, `INSERT INTO character_quests(character_id,quest_id,status,config_version,progress,progress_model,completed_at)
+SELECT $1, q.id, 'completed', $3, 0, 'act-clear-v1', now()
+FROM unnest($2::int[]) AS q(id)
+ON CONFLICT (character_id,quest_id) DO UPDATE SET status='completed',progress=0,progress_model='act-clear-v1',completed_at=now()
+WHERE character_quests.status='accepted' AND character_quests.config_version=$3`, characterID, idsToInt64(ids), version)
+	if err != nil {
+		return 0, err
+	}
+	if err = tx.Commit(ctx); err != nil {
+		return 0, err
+	}
+	return int(tag.RowsAffected()), nil
+}

@@ -2271,6 +2271,50 @@ func main() {
 				}
 				continue
 			}
+			if questService != nil && bootstrapped && worldState != nil && (frame.ID == 1422 || frame.ID == 2278) {
+				if !verified || worldState.role.ID == 0 || worldState.activeDungeon != nil {
+					event(map[string]any{"kind": "act_quest_clear_refused", "id": frame.ID, "reason": "invalid session or checksum"})
+					continue
+				}
+				if frame.ID == 1422 {
+					if e := protocol.DecodeClearQuestTicket(plaintext); e != nil {
+						event(map[string]any{"kind": "act_quest_clear_refused", "id": frame.ID, "reason": e.Error()})
+						continue
+					}
+					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					count, e := questService.ClearActQuests(ctx, worldState.role)
+					cancel()
+					if e != nil {
+						event(map[string]any{"kind": "act_quest_clear_refused", "id": frame.ID, "reason": e.Error()})
+						continue
+					}
+					if e = sendPayload(1, 1422, protocol.ClearQuestTicketAccepted()); e != nil {
+						return
+					}
+					event(map[string]any{"kind": "act_quests_cleared", "character_id": worldState.role.ID, "count": count})
+				} else {
+					// The native CMD1422 success branch immediately requests CMD2278.
+					// Its sender writes no body; publish the quest snapshots here.
+					if len(plaintext) != 0 {
+						event(map[string]any{"kind": "act_quest_refresh_refused", "reason": "unexpected request body"})
+						continue
+					}
+					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					plan, e := worldState.actQuestRefresh(ctx)
+					cancel()
+					if e != nil {
+						event(map[string]any{"kind": "act_quest_refresh_refused", "reason": e.Error()})
+						continue
+					}
+					for _, p := range plan {
+						if e = sendPayload(p.Kind, p.ID, p.Payload); e != nil {
+							return
+						}
+						event(map[string]any{"kind": p.Name, "character_id": worldState.role.ID})
+					}
+				}
+				continue
+			}
 			if questService != nil && bootstrapped && frame.ID == 33 && worldState != nil && verified {
 				plan, e := worldState.questInteraction(plaintext)
 				if e != nil {

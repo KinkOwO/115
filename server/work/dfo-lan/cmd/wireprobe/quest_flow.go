@@ -156,6 +156,34 @@ func (w *worldSession) availableQuestPayload(ctx context.Context) ([]byte, error
 	return protocol.AvailableQuests(w.level, ids)
 }
 
+func (w *worldSession) actQuestRefresh(ctx context.Context) ([]outboundPacket, error) {
+	active, err := w.quests.Active(ctx, w.role)
+	if err != nil {
+		return nil, err
+	}
+	done, err := w.quests.Completed(ctx, w.role)
+	if err != nil {
+		return nil, err
+	}
+	triggers, err := protocol.QuestTriggers(active)
+	if err != nil {
+		return nil, err
+	}
+	completed, err := protocol.CompletedQuests(done)
+	if err != nil {
+		return nil, err
+	}
+	available, err := w.availableQuestPayload(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return []outboundPacket{
+		{"act_quest_triggers_updated", 0, 291, triggers},
+		{"act_completed_quests_updated", 0, 342, completed},
+		{"act_available_quests_updated", 0, 21, available},
+	}, nil
+}
+
 func (w *worldSession) questInteraction(p []byte) ([]outboundPacket, error) {
 	if w == nil || w.role.ID == 0 || w.quests == nil {
 		return nil, fmt.Errorf("quest check requires an owned character")
