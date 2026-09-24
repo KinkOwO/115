@@ -29,7 +29,12 @@ func (w *worldSession) areaTransition(r protocol.AreaChangeRequest) (storage.Wor
 	}
 	src, _ := w.service.Catalog.Areas[catalog.AreaKey(old.Town, old.Area)]
 	dest, _ := w.service.Catalog.Areas[catalog.AreaKey(r.Town, r.Area)]
-	isSeriaReturn := old.Return != nil && src.SeriaReturnWarp && old.Return.Town == r.Town && old.Return.Area == r.Area
+	// Any gate leaving a Seria return room is a home gate; where it lands is
+	// decided by the Return stamp in world.transition, not by the request. The
+	// previous "request destination == Return" form only recognised the client
+	// when it happened to name the stamped town, which is exactly what live17
+	// (generic landing 746,157) and the map selector do not do.
+	isSeriaReturn := old.Return != nil && src.SeriaReturnWarp
 	isMapTeleport := r.Flag == 5 && (r.TailFlags[0] == 5 || r.TailFlags[1] == 5)
 	isSeriaRoomTeleport := dest.SeriaReturnWarp && !src.SeriaReturnWarp
 	if !isSeriaReturn && (specialWarp || isMapTeleport || isSeriaRoomTeleport) {
