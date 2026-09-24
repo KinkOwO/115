@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"dfolan/internal/character"
 	"dfolan/internal/game/protocol"
+	"dfolan/internal/inventory"
 	"encoding/binary"
 	"fmt"
 	"time"
@@ -65,6 +66,17 @@ func (w *worldSession) dungeonResult(p []byte) ([]outboundPacket, error) {
 	}
 	w.role, w.level = role, experience[0]
 	plan := []outboundPacket{{"dungeon_play_result", 0, 34, notice}, {"dungeon_clear_experience", 0, 37, experience}, {"dungeon_clear_reward", 0, 35, reward}}
+	if receipt.CreatureExperienceGained > 0 {
+		creatures, err := inventory.CreatureListPayload(role.State)
+		if err != nil {
+			return nil, err
+		}
+		growth, err := inventory.CreatureGrowthPayload(role.State)
+		if err != nil {
+			return nil, err
+		}
+		plan = append(plan, outboundPacket{"dungeon_clear_creature_list", 0, 105, creatures}, outboundPacket{"dungeon_clear_creature_growth", 0, 102, growth})
+	}
 	// 结算会重刷整个技能窗口，所以 id29（VP 帧）必须跟着 id19 一起补发。
 	// 少发 id29 时客户端把 Enhance/Evolve/VP 渲染成已清空（case 2347 的注释
 	// 里已经踩过一次），玩家看到的就是「VP 点和学过的 VP 技能全没了」——

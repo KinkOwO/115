@@ -67,3 +67,60 @@ func TestCreatureListPayloadAndEquipmentRow(t *testing.T) {
 		t.Fatal("expected empty bag HasEquippedCreature to be false")
 	}
 }
+
+func TestCreatureExperienceAwardPersistsAndLevels(t *testing.T) {
+	bag := Bag{Version: "ordinary-bag-v1", Worn: []BagEquipment{{Slot: 26, Template: 63000}}}
+	state, err := SaveBag(json.RawMessage(`{"other_state":7}`), bag)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []struct {
+		exp   uint32
+		level byte
+	}{{1, 1}, {2, 2}} {
+		var gained uint32
+		state, gained, err = AwardEquippedCreatureExperience(state, 1)
+		if err != nil || gained != 1 {
+			t.Fatalf("award: gained=%d err=%v", gained, err)
+		}
+		growth, err := CreatureGrowthPayload(state)
+		if err != nil || len(growth) != 6 || growth[0] != want.level || binary.LittleEndian.Uint32(growth[2:]) != want.exp {
+			t.Fatalf("growth for exp %d: %x err=%v", want.exp, growth, err)
+		}
+		list, err := CreatureListPayload(state)
+		if err != nil || binary.LittleEndian.Uint32(list[7:11]) != want.exp || list[11] != want.level {
+			t.Fatalf("list for exp %d: %x err=%v", want.exp, list, err)
+		}
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(state, &fields); err != nil || string(fields["other_state"]) != "7" {
+		t.Fatalf("unrelated state changed: %s err=%v", state, err)
+	}
+	bag, err = ReadBag(state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bag.Special = map[byte][]BagEquipment{7: {{Slot: 0, Template: bag.Worn[0].Template, Record: bag.Worn[0].Record}}}
+	bag.Worn = nil
+	state, err = SaveBag(state, bag)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if growth, err := CreatureGrowthPayload(state); err != nil || growth != nil {
+		t.Fatalf("unequipped growth=%x err=%v", growth, err)
+	}
+	if _, gained, err := AwardEquippedCreatureExperience(state, 5); err != nil || gained != 0 {
+		t.Fatalf("unequipped award=%d err=%v", gained, err)
+	}
+	bag.Worn = []BagEquipment{bag.Special[7][0]}
+	bag.Worn[0].Slot = 26
+	bag.Special = nil
+	state, err = SaveBag(state, bag)
+	if err != nil {
+		t.Fatal(err)
+	}
+	growth, err := CreatureGrowthPayload(state)
+	if err != nil || binary.LittleEndian.Uint32(growth[2:]) != 2 {
+		t.Fatalf("re-equipped experience lost: %x err=%v", growth, err)
+	}
+}

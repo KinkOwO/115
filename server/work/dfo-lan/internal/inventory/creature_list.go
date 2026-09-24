@@ -8,10 +8,10 @@ import (
 
 type CreatureEntry struct {
 	Key     uint32
-	Satiety byte   // default 100
-	Mode    byte   // default 0
-	Exp     uint32 // default 0
-	Level   byte   // default 1
+	Satiety byte // default 100
+	Mode    byte // default 0
+	Exp     uint32
+	Level   byte
 	Name    string // custom name if any, empty loads default PVF name
 	Tail    byte   // default 1
 }
@@ -31,6 +31,91 @@ var CreatureDefaultNames = map[uint32]string{
 	63032: "Belz",
 }
 
+// Current 115 client Script.inner.pvf creature/exptable.tbl (55 entries).
+// The native growth reader sub_145E349E0 uses table[level-2] as the
+// cumulative threshold for the current level. The final value is the cap.
+var creatureExperienceThresholds = [...]uint32{
+	2, 5, 9, 15, 23, 33, 44, 57, 71, 88, 106, 126, 148, 171,
+	196, 223, 252, 283, 315, 350, 388, 429, 472, 517, 565, 615,
+	668, 725, 785, 849, 918, 993, 1073, 1158, 1245, 1335, 1430,
+	1532, 1642, 1759, 1879, 2011, 2151, 2301, 2464, 2639,
+	2829, 3049, 3294, 3564, 3879, 4229, 4629, 5079, 5579,
+}
+
+func creatureLevel(exp uint32) byte {
+	level := byte(1)
+	for i := 0; i < len(creatureExperienceThresholds)-1 && exp >= creatureExperienceThresholds[i]; i++ {
+		level++
+	}
+	return level
+}
+
+func creatureKey(it BagEquipment, fallback uint32) uint32 {
+	if len(it.Record) == protocol.CurrentItemRecordSize {
+		if key := binary.LittleEndian.Uint32(it.Record[6:10]); key != 0 {
+			return key
+		}
+	}
+	return fallback
+}
+
+func equippedCreature(b Bag) (uint32, bool) {
+	for _, it := range b.Worn {
+		if it.Slot == 26 && it.Template != 0 {
+			return creatureKey(it, 1), true
+		}
+	}
+	return 0, false
+}
+
+// AwardEquippedCreatureExperience preserves all other character state and
+// only credits the creature worn when the clear is committed.
+func AwardEquippedCreatureExperience(state json.RawMessage, gain uint32) (json.RawMessage, uint32, error) {
+	if gain == 0 {
+		return state, 0, nil
+	}
+	b, err := ReadBag(state)
+	if err != nil {
+		return nil, 0, err
+	}
+	key, ok := equippedCreature(b)
+	if !ok {
+		return state, 0, nil
+	}
+	if b.CreatureExperience == nil {
+		b.CreatureExperience = make(map[uint32]uint32)
+	}
+	before := b.CreatureExperience[key]
+	maximum := creatureExperienceThresholds[len(creatureExperienceThresholds)-1]
+	if before >= maximum {
+		return state, 0, nil
+	}
+	after := before + gain
+	if after < before || after > maximum {
+		after = maximum
+	}
+	b.CreatureExperience[key] = after
+	state, err = SaveBag(state, b)
+	return state, after - before, err
+}
+
+// CreatureGrowthPayload follows the native NOTI 102 reader sub_1452D0DA0:
+// u8 level, u8 mode, u32 cumulative experience (two extra bytes for mode 1).
+func CreatureGrowthPayload(state json.RawMessage) ([]byte, error) {
+	b, err := ReadBag(state)
+	if err != nil {
+		return nil, err
+	}
+	key, ok := equippedCreature(b)
+	if !ok {
+		return nil, nil
+	}
+	exp := b.CreatureExperience[key]
+	p := []byte{creatureLevel(exp), 0}
+	p = binary.LittleEndian.AppendUint32(p, exp)
+	return p, nil
+}
+
 // CreatureListPayload constructs NOTI 105 (0x0069, ENUM_NOTIPACKET_CREATURE_ITEM_LIST).
 // Native reader sub_1452CA7E0 consumes:
 // u8 count; repeat { u32 key, u8 satiety, u8 mode, u32 exp, [mode==1: u8, u8], u8 level, dstr name, u8 tail }.
@@ -45,20 +130,15 @@ func CreatureListPayload(state json.RawMessage) ([]byte, error) {
 	// 1. Equipped creature at worn slot 26
 	for _, it := range b.Worn {
 		if it.Slot == 26 && it.Template != 0 {
-			key := uint32(1)
-			if len(it.Record) == protocol.CurrentItemRecordSize {
-				if k := binary.LittleEndian.Uint32(it.Record[6:10]); k != 0 {
-					key = k
-				}
-			}
+			key := creatureKey(it, 1)
 			seenKeys[key] = true
 			name := CreatureDefaultNames[it.Template]
 			entries = append(entries, CreatureEntry{
 				Key:     key,
 				Satiety: 100,
 				Mode:    0,
-				Exp:     0,
-				Level:   1,
+				Exp:     b.CreatureExperience[key],
+				Level:   creatureLevel(b.CreatureExperience[key]),
 				Name:    name,
 				Tail:    0,
 			})
@@ -73,12 +153,7 @@ func CreatureListPayload(state json.RawMessage) ([]byte, error) {
 				if _, isEgg := EggHatchOutputs[it.Template]; isEgg {
 					continue // unhatched eggs do not enter creature list
 				}
-				key := uint32(it.Slot + 2)
-				if len(it.Record) == protocol.CurrentItemRecordSize {
-					if k := binary.LittleEndian.Uint32(it.Record[6:10]); k != 0 {
-						key = k
-					}
-				}
+				key := creatureKey(it, uint32(it.Slot+2))
 				if seenKeys[key] {
 					key = uint32(len(seenKeys) + 10)
 				}
@@ -88,8 +163,8 @@ func CreatureListPayload(state json.RawMessage) ([]byte, error) {
 					Key:     key,
 					Satiety: 100,
 					Mode:    0,
-					Exp:     0,
-					Level:   1,
+					Exp:     b.CreatureExperience[key],
+					Level:   creatureLevel(b.CreatureExperience[key]),
 					Name:    name,
 					Tail:    0,
 				})

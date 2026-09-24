@@ -3,6 +3,7 @@ package character
 import (
 	"context"
 	"dfolan/internal/dungeon"
+	"dfolan/internal/inventory"
 	"dfolan/internal/progression"
 	"dfolan/internal/storage"
 	"encoding/hex"
@@ -14,12 +15,13 @@ import (
 
 type ClearReceipt struct {
 	progression.ClearGain
-	Source, Run       string
-	Elapsed           uint32
-	BestElapsed       uint32
-	NewRecord         bool
-	AllClear          bool
-	MonsterExperience uint32
+	Source, Run              string
+	Elapsed                  uint32
+	BestElapsed              uint32
+	NewRecord                bool
+	AllClear                 bool
+	MonsterExperience        uint32
+	CreatureExperienceGained uint32
 }
 
 func (s *ProgressionService) Clear(ctx context.Context, role storage.Character, run *dungeon.Session, rank byte, now time.Time) (storage.Character, ClearReceipt, bool, error) {
@@ -40,6 +42,17 @@ func (s *ProgressionService) Clear(ctx context.Context, role storage.Character, 
 	}
 	if monsterTotal > math.MaxUint32 {
 		return fail(fmt.Errorf("result monster experience out of range"))
+	}
+	// The room ledger records each first loaded map once. In the local free
+	// fatigue policy, these receipts still give the pet a progression measure.
+	var chargedFatigue, loadedRooms int64
+	e = s.Store.DB.QueryRow(ctx, `SELECT COALESCE(SUM(f.cost),0)::bigint,COUNT(*)::bigint FROM character_fatigue_rooms f JOIN characters c ON c.id=f.character_id WHERE c.account_id=$1 AND c.id=$2 AND f.run_id=$3`, role.AccountID, role.ID, run.RunID).Scan(&chargedFatigue, &loadedRooms)
+	if e != nil {
+		return fail(e)
+	}
+	creatureGain, e := dungeonCreatureExperience(chargedFatigue, loadedRooms, run.Definition.NoFatigue)
+	if e != nil {
+		return fail(fmt.Errorf("creature experience gain out of range"))
 	}
 	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, s.Catalog.Source.Checksum, key, s.Rules.Model, func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
 		gain, e := progression.DungeonClear(s.Catalog, run.Definition, 0, rank)
@@ -65,6 +78,11 @@ func (s *ProgressionService) Clear(ctx context.Context, role storage.Character, 
 			return nil, nil, e
 		}
 		next.State = state
+		var creatureAwarded uint32
+		next.State, creatureAwarded, e = inventory.AwardEquippedCreatureExperience(next.State, creatureGain)
+		if e != nil {
+			return nil, nil, e
+		}
 		all := true
 		for _, room := range run.Maze.Rooms {
 			monsters, visited := run.Visited[room.Map]
@@ -77,7 +95,7 @@ func (s *ProgressionService) Clear(ctx context.Context, role storage.Character, 
 				}
 			}
 		}
-		outcome, e := json.Marshal(ClearReceipt{ClearGain: gain, Source: s.Catalog.Source.Checksum, Run: run.RunID, Elapsed: uint32(elapsed), BestElapsed: best, NewRecord: improved, AllClear: all, MonsterExperience: uint32(monsterTotal)})
+		outcome, e := json.Marshal(ClearReceipt{ClearGain: gain, Source: s.Catalog.Source.Checksum, Run: run.RunID, Elapsed: uint32(elapsed), BestElapsed: best, NewRecord: improved, AllClear: all, MonsterExperience: uint32(monsterTotal), CreatureExperienceGained: creatureAwarded})
 		return next.State, outcome, e
 	})
 	if e != nil {
@@ -94,6 +112,22 @@ func (s *ProgressionService) Clear(ctx context.Context, role storage.Character, 
 		return fail(fmt.Errorf("clear retry conflicts with saved result"))
 	}
 	return saved, receipt, applied, nil
+}
+
+// A free-fatigue server still awards one pet experience per first-loaded room.
+// Explicit no-fatigue dungeons remain exempt, and paid policies use the
+// actual charged amount when it is positive.
+func dungeonCreatureExperience(chargedFatigue, loadedRooms int64, exempt bool) (uint32, error) {
+	if chargedFatigue < 0 || loadedRooms < 0 || chargedFatigue > math.MaxUint32 || loadedRooms > math.MaxUint32 {
+		return 0, fmt.Errorf("invalid creature experience source")
+	}
+	if exempt {
+		return 0, nil
+	}
+	if chargedFatigue > 0 {
+		return uint32(chargedFatigue), nil
+	}
+	return uint32(loadedRooms), nil
 }
 
 // The supported dungeon flow currently admits Normal solo difficulty only.

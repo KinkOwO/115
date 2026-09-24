@@ -94,6 +94,9 @@ type Bag struct {
 	Equipment []BagEquipment          `json:"equipment,omitempty"`
 	Worn      []BagEquipment          `json:"worn,omitempty"`
 	Special   map[byte][]BagEquipment `json:"special_equipment,omitempty"`
+	// CreatureExperience is keyed by the creature instance key stored in its
+	// equipment record. Older saves omit it and start at zero experience.
+	CreatureExperience map[uint32]uint32 `json:"creature_experience,omitempty"`
 	// ExpandEquipFlags carries the extended equipment-slot unlock bits the
 	// armoury draws its padlocks from: support 1<<0, magic stone 1<<1 and
 	// earring 1<<4. Quests 649/650/2636 award one bit each and every award

@@ -2784,9 +2784,7 @@ func main() {
 					}
 					if e == nil {
 						plan.CreatureList, _ = inventory.CreatureListPayload(role.State)
-						if inventory.HasEquippedCreature(role.State) {
-							plan.CreatureGrowth = []byte{1, 0, 0, 0, 0, 0}
-						}
+						plan.CreatureGrowth, _ = inventory.CreatureGrowthPayload(role.State)
 					}
 					if e != nil {
 						event(map[string]any{"kind": "entry_worn_error", "error": e.Error()})

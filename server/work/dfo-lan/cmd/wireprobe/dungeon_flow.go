@@ -160,7 +160,10 @@ func (w *worldSession) dungeonEntryPlan(ackName string, ackID uint16, sel protoc
 			clPayload, err := inventory.CreatureListPayload(w.role.State)
 			if err == nil {
 				plan = append(plan, outboundPacket{"dungeon_creature_list_sent", 0, 105, clPayload})
-				plan = append(plan, outboundPacket{"dungeon_creature_growth_sent", 0, 102, []byte{1, 0, 0, 0, 0, 0}})
+				growth, err := inventory.CreatureGrowthPayload(w.role.State)
+				if err == nil {
+					plan = append(plan, outboundPacket{"dungeon_creature_growth_sent", 0, 102, growth})
+				}
 			}
 		}
 	}
@@ -361,7 +364,10 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 			clPayload, err := inventory.CreatureListPayload(w.role.State)
 			if err == nil {
 				plan = append(plan, outboundPacket{"dungeon_creature_list_restored", 0, 105, clPayload})
-				plan = append(plan, outboundPacket{"dungeon_creature_growth_restored", 0, 102, []byte{1, 0, 0, 0, 0, 0}})
+				growth, err := inventory.CreatureGrowthPayload(w.role.State)
+				if err == nil {
+					plan = append(plan, outboundPacket{"dungeon_creature_growth_restored", 0, 102, growth})
+				}
 			}
 		}
 	}
@@ -544,7 +550,10 @@ func (w *worldSession) leaveDungeon() ([]outboundPacket, error) {
 			clPayload, err := inventory.CreatureListPayload(w.role.State)
 			if err == nil {
 				plan = append(plan, outboundPacket{"town_creature_list_restored", 0, 105, clPayload})
-				plan = append(plan, outboundPacket{"town_creature_growth_restored", 0, 102, []byte{1, 0, 0, 0, 0, 0}})
+				growth, err := inventory.CreatureGrowthPayload(w.role.State)
+				if err == nil {
+					plan = append(plan, outboundPacket{"town_creature_growth_restored", 0, 102, growth})
+				}
 			}
 		}
 	}

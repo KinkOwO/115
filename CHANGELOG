@@ -1,6 +1,7 @@
 # CHANGELOG
 
 ## 2026-09-24
+- **宠物通关经验与升级持久化（attempt 2/3，用户实机确认）**：保留普通副本不扣疲劳的现行规则，按本次 run 首次加载的房间数增加已穿戴宠物的累计经验；免疲劳副本不奖励。经验及等级在结算、切换角色和重新登录后保持，重复结算不会重复发奖。用户确认经验增加、等级提升、更换角色后仍保留。`go test ./...`、`go vet ./...` 通过；候选程序 SHA-256 `5D975BB82D8033A000B844111AF635089124E0437BF16701E89F44590C2A66CC`。确认基线：`server/work/dfo-lan/docs/protocol/creature-experience-20260924.md`。
 - **进城武器提示双态（attempt 2/3，用户实机确认）**：从存档穿戴槽 12 判断武器；有武器时在 NOTI24 前发送 `AppearanceProbe` 和两组 NOTI14 穿戴数据，无武器时跳过此前置帧，保留客户端原生提示。用户确认修复通过。`go test ./...`、`go vet ./...` 通过；候选程序 SHA-256 `520927BE6285789B0D470CBE28E0DB3F129C164C1251F20DF37DC8CF4CB7C257`。确认基线：`server/work/dfo-lan/docs/protocol/weapon-toast-dual-state-20260924.md`。
 - **频道名称同步（用户实机确认）**：显式启用 channel_identity 后，登录发送 NOTI2435，按连接统一角色 mode0/mode1 上下文与登录频道类型，修复 ch00.Unknown；实机显示 ch10.LAN Normal。补齐本机启动开关传递及候选进程停服名单。确认基线和部署说明见 `server/work/dfo-lan/docs/protocol/channel-identity-20260924.md`。
 - **金库排序、Transfer 与个人金库升级修复（用户实机确认；账号金库相关待测）**：金库1/2排序、金库1↔2 Transfer、金库2升级与容量恢复已由用户确认通过。服务端候选版同时包含账号金库存取、三库互通、格子刷新及 CMD307/308 金币按钮修复，因当前无测试条件暂不标记实机通过。`go test ./...`、`go vet ./...` 通过；候选版 SHA-256 `0D4D2EDF0E3FDCB6AD8317CB54A8591C709B92B600FC1AC8DB5375A94E6983B4`。确认基线：`server/work/dfo-lan/docs/protocol/next43-vault-repair.md`。
