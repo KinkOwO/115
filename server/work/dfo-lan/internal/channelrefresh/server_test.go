@@ -228,3 +228,50 @@ func TestDirectorySeparatesChannelPorts(t *testing.T) {
 		}
 	}
 }
+
+// The legion channel is the first directory row with no source counterpart:
+// analysis/tasks/next98-apocalypse-entry-evidence.md §16 shows channel_info.etc
+// tops out at Type 6, so a special content channel has to be supplied here. It
+// is also the first row without a [dungeon] block, and that is deliberate - the
+// legion entry runs through CMD2043 and never through a town gate list, so the
+// row names the source's own [none] area.
+func TestLocalDirectoryPublishesLegionChannel(t *testing.T) {
+	c, err := Load("../../configs/channel.local34.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var row *Channel
+	for i := range c.Channels {
+		if c.Channels[i].ID == 119 {
+			row = &c.Channels[i]
+		}
+	}
+	if row == nil {
+		t.Fatal("no channel 119 in the local directory")
+	}
+	// The Type is the clientChannelInfo channelType, which is what maps the
+	// channel onto isLegion=1 and town 239. It is outside 22/28/33 on purpose:
+	// native144d998b0 grants AUTO-SELECT only to those three, and next31 showed
+	// an ineligible type:2 channel still being listed, so being listed and being
+	// auto-selected are separate gates.
+	if row.Type != 119 || row.Area != "[none]" {
+		t.Fatalf("legion row type=%d area=%q, want 119 / [none]", row.Type, row.Area)
+	}
+	script := string(c.Script())
+	if !bytes.Contains([]byte(script), []byte("119 `Legion` 119 `[none]`")) {
+		t.Fatalf("script is missing the legion row:\n%s", script)
+	}
+	if bytes.Contains([]byte(script), []byte("[dungeon]\n`[none]`")) {
+		t.Fatal("the legion row grew a town gate list it does not have")
+	}
+	// The directory has to advertise a game endpoint for it, and a missing one
+	// must fail the whole directory rather than quietly drop the channel.
+	endpoints := fixedEndpoints(c, "127.0.0.1", 7001)
+	if _, err = c.Directory(endpoints); err != nil {
+		t.Fatal(err)
+	}
+	delete(endpoints, 119)
+	if _, err = c.Directory(endpoints); err == nil {
+		t.Fatal("directory accepted a channel with no game endpoint")
+	}
+}
