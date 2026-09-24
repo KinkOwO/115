@@ -8,6 +8,35 @@ import (
 	"testing"
 )
 
+// 出站 ACK 的合法形状就是原生 reader 消费的两个 u8 (state, option)；旧的三字节
+// {1, state, option} 多出来的那个前导 1 是入站请求体才有的 literal。
+func TestSettlementExitAckWidth(t *testing.T) {
+	for s := byte(1); s <= 2; s++ {
+		for o := byte(0); o <= 3; o++ {
+			got := SettlementExitSuccess(SettlementExit{State: s, Option: o})
+			if len(got) != 2 || got[0] != s || got[1] != o {
+				t.Fatalf("ack %d/%d not the native two-byte body: %v", s, o, got)
+			}
+		}
+	}
+}
+
+// 旧的 selectingDungeon 是「读旧三字节 ACK 的 byte 2」；byte 2 恰好是 Option，
+// 所以语义等价于 option == 1。现在由解码后的请求推导，这条用例钉住两者等价。
+func TestSettlementExitSelectionFlagMatchesLegacyAckByte(t *testing.T) {
+	want := map[byte]bool{0: false, 1: true, 2: false, 3: false}
+	for o, expected := range want {
+		r := SettlementExit{State: 1, Option: o}
+		legacy := []byte{1, r.State, r.Option} // 收窄之前的出站 ACK
+		if got := r.KeepsDungeonSelection(); got != expected {
+			t.Fatalf("option %d: flag %v want %v", o, got, expected)
+		}
+		if got, legacyValue := r.KeepsDungeonSelection(), legacy[2] == 1; got != legacyValue {
+			t.Fatalf("option %d: flag %v != legacy byte 2 value %v", o, got, legacyValue)
+		}
+	}
+}
+
 func TestCurrentNativeCardPackets(t *testing.T) {
 	check := func(name string, p []byte) {
 		t.Helper()
@@ -37,7 +66,7 @@ func TestCurrentNativeCardPackets(t *testing.T) {
 	}
 	for s := byte(1); s <= 2; s++ {
 		for o := byte(0); o <= 2; o++ {
-			check(fmt.Sprintf("card_exit_%d_%d", s, o), SettlementExitSuccess(SettlementExit{s, o})[1:])
+			check(fmt.Sprintf("card_exit_%d_%d", s, o), SettlementExitSuccess(SettlementExit{State: s, Option: o}))
 		}
 	}
 	r := ClearRewardState{BaseExperience: 500, ScoreExperience: 50, MonsterExperience: 1234}
