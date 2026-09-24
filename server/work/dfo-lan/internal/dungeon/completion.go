@@ -30,7 +30,7 @@ func (s *Session) BossCheck(r protocol.BossCheckRequest, actor uint16) error {
 					// boss coordinate. A real owned target/death is still required.
 					found = m.Template == s.Definition.HuntBoss
 				} else {
-					found = s.Room.Boss && position == s.Maze.Boss
+					found = s.Room.Boss && position == s.Maze.Boss || s.Room.Map == s.postBossQuestMap()
 				}
 			}
 		}
@@ -81,6 +81,12 @@ func (s *Session) atLayerFinalMap() bool {
 // completion must not wait for those reports. Every source boss in the room
 // still requires its own death report before the run is complete.
 func (s *Session) tryComplete() {
+	// Quest 23108's source maze continues past its boss room. The quest and
+	// dungeon [clear condition] both name the final scene map, so settling on
+	// the earlier boss map would strand the player before that objective.
+	if target := s.postBossQuestMap(); target != 0 && s.Room.Map != target {
+		return
+	}
 	if s.completionTarget == 0 {
 		// Dungeon 26 maze 3's terminal layer is the opposite shape. Its last map
 		// is entered with a live combat target, and the validated closing
@@ -142,6 +148,18 @@ func (s *Session) tryComplete() {
 		return
 	}
 	s.completed = true
+}
+
+func (s *Session) postBossQuestMap() uint32 {
+	if s == nil || s.Definition.ID != 7123 || s.Maze.Quest != 23108 || s.Maze.Boss != [2]byte{4, 0} {
+		return 0
+	}
+	for _, layer := range s.Maze.Layers {
+		if layer.Position == [2]byte{6, 0} && len(layer.Maps) == 1 && layer.Maps[0] == 100008696 {
+			return 100008696
+		}
+	}
+	return 0
 }
 
 func (s *Session) TryComplete() { s.tryComplete() }
