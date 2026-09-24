@@ -27,6 +27,22 @@ CREATE TABLE IF NOT EXISTS character_secondary_vaults (
 	return e
 }
 
+// UpgradeSecondaryVaultCapacity only raises capacity; existing items and
+// purchased slots are never rewritten or reduced. Legacy cargo rows are used
+// when present, otherwise an 8-slot Safe II advances to the 24-slot baseline.
+func (s *Store) UpgradeSecondaryVaultCapacity(ctx context.Context) error {
+	_, err := s.DB.Exec(ctx, `UPDATE character_secondary_vaults SET slots=24,updated_at=now() WHERE slots<24`)
+	if err != nil {
+		return err
+	}
+	_, err = s.DB.Exec(ctx, `DO $$ BEGIN
+ IF to_regclass('character_cargos') IS NOT NULL THEN
+  EXECUTE 'UPDATE character_secondary_vaults s SET slots=c.slots,updated_at=now() FROM character_cargos c WHERE c.kind=45 AND c.character_id=s.character_id AND c.slots>s.slots';
+ END IF;
+END $$`)
+	return err
+}
+
 // 表名只取自固定容器映射；缺省保持金库 1，旧调用和旧存档均不迁移。
 func personalVaultTable(space []byte) (string, error) {
 	if len(space) == 0 || (len(space) == 1 && space[0] == 2) {
@@ -111,4 +127,55 @@ func (s *Store) CommitVaultMove(ctx context.Context, account, id int64,
 	vault.Items = newVaultItems
 	s.Cache.Del(ctx, fmt.Sprintf("%scharacters:%d", s.prefix, account))
 	return role, vault, nil
+}
+
+// CommitVaultCrossMove locks the character and both personal vault rows in a
+// fixed order, so a failed transfer leaves both inventories unchanged.
+func (s *Store) CommitVaultCrossMove(ctx context.Context, account, id int64,
+	apply func(Character, VaultState, VaultState) (json.RawMessage, json.RawMessage, json.RawMessage, error),
+) (Character, VaultState, VaultState, error) {
+	var role Character
+	var first, second VaultState
+	if apply == nil {
+		return role, first, second, errors.New("nil cross-vault apply")
+	}
+	tx, err := s.DB.Begin(ctx)
+	if err != nil {
+		return role, first, second, err
+	}
+	defer tx.Rollback(ctx)
+	err = tx.QueryRow(ctx, `SELECT id,account_id,wire_id,name,profession,create_request,config_version,state,created_at FROM characters WHERE account_id=$1 AND id=$2 AND deleted_at IS NULL FOR UPDATE`, account, id).Scan(&role.ID, &role.AccountID, &role.WireID, &role.Name, &role.Profession, &role.Request, &role.ConfigVersion, &role.State, &role.CreatedAt)
+	if err != nil {
+		return role, first, second, err
+	}
+	err = tx.QueryRow(ctx, `SELECT slots,items,config_version FROM character_vaults WHERE character_id=$1 FOR UPDATE`, id).Scan(&first.Slots, &first.Items, &first.ConfigVersion)
+	if err != nil {
+		return role, first, second, err
+	}
+	err = tx.QueryRow(ctx, `SELECT slots,items,config_version FROM character_secondary_vaults WHERE character_id=$1 FOR UPDATE`, id).Scan(&second.Slots, &second.Items, &second.ConfigVersion)
+	if err != nil {
+		return role, first, second, err
+	}
+	state, items1, items2, err := apply(role, first, second)
+	if err != nil {
+		return role, first, second, err
+	}
+	if !json.Valid(state) || !json.Valid(items1) || !json.Valid(items2) {
+		return role, first, second, errors.New("invalid cross-vault JSON")
+	}
+	if _, err = tx.Exec(ctx, `UPDATE characters SET state=$2 WHERE id=$1`, id, state); err != nil {
+		return role, first, second, err
+	}
+	if _, err = tx.Exec(ctx, `UPDATE character_vaults SET items=$2,updated_at=now() WHERE character_id=$1`, id, items1); err != nil {
+		return role, first, second, err
+	}
+	if _, err = tx.Exec(ctx, `UPDATE character_secondary_vaults SET items=$2,updated_at=now() WHERE character_id=$1`, id, items2); err != nil {
+		return role, first, second, err
+	}
+	if err = tx.Commit(ctx); err != nil {
+		return role, first, second, err
+	}
+	role.State, first.Items, second.Items = state, items1, items2
+	s.Cache.Del(ctx, fmt.Sprintf("%scharacters:%d", s.prefix, account))
+	return role, first, second, nil
 }

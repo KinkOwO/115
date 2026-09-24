@@ -62,6 +62,17 @@ func AccountVaultPayload(v storage.AccountVaultState, rules AccountVaultRules) (
 	return protocol.AccountVaultRestore(v.Slots, v.Gold, items.Rows())
 }
 
+func SortAccountVaultItems(v storage.AccountVaultState) (json.RawMessage, error) {
+	if v.Slots == 0 {
+		return json.RawMessage("[]"), nil
+	}
+	items, err := ReadExtendedVault(storage.VaultState{Slots: v.Slots, Items: v.Items})
+	if err != nil {
+		return nil, err
+	}
+	return SaveVault(SortVaultSpace(items))
+}
+
 // 仅按源表处理 CMD305 材料开通与 CMD306 金币升级。负材料编号的商城
 // 档位绝不能作为零费用档位处理；服务端不信任客户端显示的材料数量。
 func UpgradeAccountVault(role storage.Character, raw json.RawMessage, vault storage.AccountVaultState, rules AccountVaultRules, create bool) (json.RawMessage, json.RawMessage, storage.AccountVaultState, error) {

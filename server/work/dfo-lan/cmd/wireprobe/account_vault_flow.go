@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/storage"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -89,57 +91,51 @@ func (w *worldSession) upgradeAccountVault(ctx context.Context, opcode uint16, p
 	return accountVaultUpgradePackets(saved, materials, vault, rules, opcode, applied)
 }
 
-func accountVaultMovePackets(role storage.Character, vault storage.AccountVaultState, rules inventory.AccountVaultRules) ([]outboundPacket, error) {
-	body, err := inventory.AccountVaultPayload(vault, rules)
-	if err != nil {
-		return nil, err
-	}
-	packets := []outboundPacket{{"账号金库存取快照", 0, 13, body}}
-	bag, err := inventory.ReadBag(role.State)
-	if err != nil {
-		return nil, err
-	}
-	body, err = protocol.InventoryRestore(bag.Rows(), bag.Expansion)
-	if err != nil {
-		return nil, err
-	}
-	return append(packets, outboundPacket{"账号金库存取背包", 0, 13, body}), nil
-}
-
 func (w *worldSession) moveAccountVault(service *inventory.WearService, r protocol.ItemMoveRequest, key string) ([]outboundPacket, error) {
 	if w.vault == nil || w.vault.Store == nil || w.vault.Rules.Account == nil || w.activeDungeon != nil {
 		return nil, fmt.Errorf("当前不能操作账号金库")
+	}
+	if r.SourceList == 2 || r.SourceList == 45 || r.DestinationList == 2 || r.DestinationList == 45 {
+		return w.moveAccountVaultCross(service, r, key)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	var count uint32
 	var changed [][protocol.CurrentItemRecordSize]byte
-	saved, _, vault, applied, err := w.vault.Store.CommitAccountVault(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, 19,
+	var bagChanged [][protocol.CurrentItemRecordSize]byte
+	saved, _, _, applied, err := w.vault.Store.CommitAccountVault(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, 19,
 		func(role storage.Character, materials json.RawMessage, vault storage.AccountVaultState) (json.RawMessage, json.RawMessage, storage.AccountVaultState, error) {
 			old, err := inventory.ReadExtendedVault(storage.VaultState{Slots: vault.Slots, Items: vault.Items})
 			if err != nil {
 				return nil, nil, vault, err
 			}
-			state, next, moved, err := inventory.MoveAccountVault(role, vault, service.BagRules, w.vault.Catalog, service.Catalog, r)
+			oldBag, err := inventory.ReadBag(role.State)
+			if err != nil {
+				return nil, nil, vault, err
+			}
+			state, next, moved, err := inventory.MoveAccountVault(role, vault, service.BagRules, w.vault.Catalog, service.Catalog, r, *w.vault.Rules.Account)
 			if err != nil {
 				return nil, nil, vault, err
 			}
 			count = moved
 			role.State = state
-			if _, err = accountVaultMovePackets(role, next, *w.vault.Rules.Account); err != nil {
+			if _, err = inventory.AccountVaultPayload(next, *w.vault.Rules.Account); err != nil {
 				return nil, nil, vault, err
 			}
 			updated, err := inventory.ReadExtendedVault(storage.VaultState{Slots: next.Slots, Items: next.Items})
 			if err != nil {
 				return nil, nil, vault, err
 			}
-			changed = updated.Rows()
-			for _, item := range old.Items {
-				if updated.ItemAt(item.Slot) == nil {
-					changed = append(changed, protocol.EmptyOrdinaryItem(item.Slot))
-				}
+			changed = changedAccountVaultRows(old, updated)
+			newBag, err := inventory.ReadBag(state)
+			if err != nil {
+				return nil, nil, vault, err
 			}
+			bagChanged = inventory.ChangedItemRows(oldBag, newBag)
 			if _, err = protocol.InventorySpaceUpdate(12, changed); err != nil {
+				return nil, nil, vault, err
+			}
+			if _, err = protocol.InventoryUpdate(bagChanged); err != nil {
 				return nil, nil, vault, err
 			}
 			return state, materials, next, nil
@@ -149,17 +145,232 @@ func (w *worldSession) moveAccountVault(service *inventory.WearService, r protoc
 	}
 	saved.WireID = w.role.WireID
 	w.role = saved
-	packets, err := accountVaultMovePackets(saved, vault, *w.vault.Rules.Account)
+	packets := []outboundPacket{{"账号金库存取成功", 1, 19, protocol.ItemMoveSuccess(r, count)}}
+	if applied {
+		if len(changed) > 0 {
+			body, err := protocol.InventorySpaceUpdate(12, changed)
+			if err != nil {
+				return nil, err
+			}
+			packets = append(packets, outboundPacket{"账号金库格子刷新", 0, 14, body})
+		}
+		if len(bagChanged) > 0 {
+			body, err := protocol.InventoryUpdate(bagChanged)
+			if err != nil {
+				return nil, err
+			}
+			packets = append(packets, outboundPacket{"账号金库背包格子刷新", 0, 14, body})
+		}
+	}
+	return packets, nil
+}
+
+func changedAccountVaultRows(old, updated inventory.Vault) [][protocol.CurrentItemRecordSize]byte {
+	seen := map[uint16]bool{}
+	var out [][protocol.CurrentItemRecordSize]byte
+	for _, item := range old.Items {
+		seen[item.Slot] = true
+	}
+	for _, item := range updated.Items {
+		seen[item.Slot] = true
+	}
+	for slot := uint16(0); slot < updated.Slots; slot++ {
+		if !seen[slot] {
+			continue
+		}
+		a, b := old.ItemAt(slot), updated.ItemAt(slot)
+		if a != nil && b != nil && a.Row() == b.Row() {
+			continue
+		}
+		if b != nil {
+			out = append(out, b.Row())
+		} else {
+			out = append(out, protocol.EmptyOrdinaryItem(slot))
+		}
+	}
+	return out
+}
+
+func (w *worldSession) sortAccountVaultCmd() ([]outboundPacket, error) {
+	if w == nil || w.vault == nil || w.vault.Rules.Account == nil || w.activeDungeon != nil {
+		return nil, fmt.Errorf("账号金库排序不可用")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	v, err := w.vault.Store.CommitAccountVaultSort(ctx, w.account, w.role.ID, inventory.SortAccountVaultItems)
 	if err != nil {
 		return nil, err
 	}
-	if applied {
-		packets = append([]outboundPacket{{"账号金库存取成功", 1, 19, protocol.ItemMoveSuccess(r, count)}}, packets...)
-		body, err := protocol.InventorySpaceUpdate(12, changed)
+	body, err := inventory.AccountVaultPayload(v, *w.vault.Rules.Account)
+	if err != nil {
+		return nil, err
+	}
+	return []outboundPacket{{"account_vault_sorted", 1, 20, []byte{}}, {"account_vault_list", 0, 13, body}}, nil
+}
+
+func (w *worldSession) moveAccountVaultCross(service *inventory.WearService, r protocol.ItemMoveRequest, key string) ([]outboundPacket, error) {
+	space := r.SourceList
+	if space == 12 {
+		space = r.DestinationList
+	}
+	if space != 2 && space != 45 {
+		return nil, fmt.Errorf("个人金库容器无效")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	var moved uint32
+	saved, shared, personal, _, err := w.vault.Store.CommitAccountVaultCrossMove(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, space, func(role storage.Character, a storage.AccountVaultState, p storage.VaultState) (json.RawMessage, storage.AccountVaultState, json.RawMessage, error) {
+		if p.ConfigVersion != w.vault.Rules.SourceSHA256 {
+			return nil, a, nil, fmt.Errorf("个人金库存档版本不匹配")
+		}
+		if a.Slots == 0 {
+			return nil, a, nil, fmt.Errorf("账号金库尚未开通")
+		}
+		av, e := inventory.ReadAccountVault(a)
+		if e != nil {
+			return nil, a, nil, e
+		}
+		pv, e := inventory.ReadExtendedVault(p)
+		if e != nil {
+			return nil, a, nil, e
+		}
+		at := func(list byte, slot uint16) uint32 {
+			v := av
+			if list != 12 {
+				v = pv
+			}
+			if item := v.ItemAt(slot); item != nil {
+				return item.Template
+			}
+			return 0
+		}
+		if at(r.SourceList, r.SourceSlot) != r.SourceItem || at(r.DestinationList, r.DestinationSlot) != r.DestinationItem {
+			return nil, a, nil, fmt.Errorf("账号金库跨库移动的槽位物品已经改变")
+		}
+		av, pv, moved, e = inventory.MoveAccountVaultCross(av, pv, service.BagRules.MissingStackLimit, r, w.vault.Catalog, service.Catalog)
+		if e != nil {
+			return nil, a, nil, e
+		}
+		a.Items, e = inventory.SaveVault(av)
+		if e != nil {
+			return nil, a, nil, e
+		}
+		items, e := inventory.SaveVault(pv)
+		if e != nil {
+			return nil, a, nil, e
+		}
+		if _, e = inventory.AccountVaultPayload(a, *w.vault.Rules.Account); e != nil {
+			return nil, a, nil, e
+		}
+		if _, e = protocol.PersonalVaultSpace(space, pv.Slots, pv.Rows()); e != nil {
+			return nil, a, nil, e
+		}
+		return role.State, a, items, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	saved.WireID = w.role.WireID
+	w.role = saved
+	packets := []outboundPacket{{"账号金库跨库移动成功", 1, 19, protocol.ItemMoveSuccess(r, moved)}}
+	// Replays still receive authoritative snapshots; the transaction makes no
+	// second write, and the client can clear its pending transfer state.
+	body, err := inventory.VaultPayload(personal, space)
+	if err != nil {
+		return nil, err
+	}
+	name := "vault_cross_vault_restored"
+	if space == 45 {
+		name = "vault_cross_cargo_restored"
+	}
+	packets = append(packets, outboundPacket{name, 0, 13, body})
+	body, err = inventory.AccountVaultPayload(shared, *w.vault.Rules.Account)
+	if err != nil {
+		return nil, err
+	}
+	return append(packets, outboundPacket{"账号金库存取快照", 0, 13, body}), nil
+}
+
+func parseAccountVaultGoldWithdraw(plain []byte) (uint32, error) {
+	if len(plain) != 16 || !bytes.Equal(plain[4:], make([]byte, 12)) {
+		return 0, fmt.Errorf("金币取出请求体无效")
+	}
+	return binary.LittleEndian.Uint32(plain[:4]), nil
+}
+
+func (w *worldSession) accountVaultGoldPackets(role storage.Character, v storage.AccountVaultState) ([]outboundPacket, error) {
+	body, err := inventory.AccountVaultPayload(v, *w.vault.Rules.Account)
+	if err != nil {
+		return nil, err
+	}
+	packets := []outboundPacket{{"账号金库金币快照", 0, 13, body}}
+	bag, err := inventory.ReadBag(role.State)
+	if err != nil {
+		return nil, err
+	}
+	body, err = protocol.InventoryRestore(bag.Rows(), bag.Expansion)
+	if err != nil {
+		return nil, err
+	}
+	return append(packets, outboundPacket{"账号金库金币背包已同步", 0, 13, body}), nil
+}
+
+func (w *worldSession) changeAccountVaultGold(ctx context.Context, opcode uint16, plain, raw, keys []byte, prefix string) ([]outboundPacket, error) {
+	if w == nil || w.vault == nil || w.vault.Store == nil || w.vault.Rules.Account == nil || w.activeDungeon != nil || w.role.ID == 0 || prefix == "" {
+		return nil, fmt.Errorf("账号金库金币操作不可用")
+	}
+	var amount uint32
+	if opcode == 307 {
+		if len(plain) != 8 || !bytes.Equal(plain[4:], make([]byte, 4)) {
+			return nil, fmt.Errorf("金币存入请求体无效")
+		}
+		amount = binary.LittleEndian.Uint32(plain[:4])
+	} else if opcode == 308 {
+		var err error
+		amount, err = parseAccountVaultGoldWithdraw(plain)
 		if err != nil {
 			return nil, err
 		}
-		packets = append(packets, outboundPacket{"账号金库格子刷新", 0, 14, body})
+	} else {
+		return nil, fmt.Errorf("金币命令无效")
 	}
-	return packets, nil
+	if amount == 0 {
+		return nil, fmt.Errorf("金币金额不能为零")
+	}
+	key := fmt.Sprintf("account-vault-gold:%s:%x", prefix, sha256.Sum256(raw))
+	var plan []outboundPacket
+	saved, _, _, applied, err := w.vault.Store.CommitAccountVault(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, opcode, func(role storage.Character, materials json.RawMessage, v storage.AccountVaultState) (json.RawMessage, json.RawMessage, storage.AccountVaultState, error) {
+		var state json.RawMessage
+		var next storage.AccountVaultState
+		var e error
+		if opcode == 307 {
+			state, next, e = inventory.DepositAccountVaultGold(role, v, *w.vault.Rules.Account, amount)
+		} else {
+			state, next, e = inventory.WithdrawAccountVaultGold(role, v, *w.vault.Rules.Account, amount)
+		}
+		if e != nil {
+			return nil, nil, v, e
+		}
+		role.State = state
+		plan, e = w.accountVaultGoldPackets(role, next)
+		if e != nil {
+			return nil, nil, v, e
+		}
+		name := "账号金库金币存入成功"
+		if opcode == 308 {
+			name = "账号金库金币取出成功"
+		}
+		plan = append([]outboundPacket{{name, 1, opcode, []byte{1}}}, plan...)
+		_, e = preparePackets(keys, plan)
+		return state, materials, next, e
+	})
+	if err != nil {
+		return nil, err
+	}
+	saved.WireID = w.role.WireID
+	w.role = saved
+	if !applied {
+		return []outboundPacket{{"账号金库金币重复请求", 1, opcode, []byte{1}}}, nil
+	}
+	return plan, nil
 }

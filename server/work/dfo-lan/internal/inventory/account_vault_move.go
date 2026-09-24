@@ -6,8 +6,69 @@ import (
 	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
+	"math"
 	"strings"
 )
+
+func applyAccountVaultGold(bag Bag, saved storage.AccountVaultState, rules AccountVaultRules, amount uint32, deposit bool) (Bag, storage.AccountVaultState, error) {
+	if amount == 0 {
+		return bag, saved, fmt.Errorf("金币金额不能为零")
+	}
+	limit, err := rules.GoldLimit(saved.Slots)
+	if err != nil {
+		return bag, saved, err
+	}
+	if deposit {
+		if bag.Gold < amount || uint64(saved.Gold)+uint64(amount) > uint64(limit) {
+			return bag, saved, fmt.Errorf("背包金币不足或账号金库金币已达上限")
+		}
+		bag.Gold -= amount
+		saved.Gold += amount
+	} else {
+		if saved.Gold < amount || uint64(bag.Gold)+uint64(amount) > math.MaxUint32 {
+			return bag, saved, fmt.Errorf("账号金库金币不足或背包金币溢出")
+		}
+		saved.Gold -= amount
+		bag.Gold += amount
+	}
+	return bag, saved, nil
+}
+
+func moveAccountVaultGold(role storage.Character, saved storage.AccountVaultState, rules AccountVaultRules, amount uint32, deposit bool) (json.RawMessage, storage.AccountVaultState, error) {
+	if saved.Slots == 0 {
+		return nil, saved, fmt.Errorf("账号金库尚未开通")
+	}
+	bag, err := ReadBag(role.State)
+	if err != nil {
+		return nil, saved, err
+	}
+	bag, saved, err = applyAccountVaultGold(bag, saved, rules, amount, deposit)
+	if err != nil {
+		return nil, saved, err
+	}
+	state, err := SaveBag(role.State, bag)
+	return state, saved, err
+}
+
+func DepositAccountVaultGold(role storage.Character, saved storage.AccountVaultState, rules AccountVaultRules, amount uint32) (json.RawMessage, storage.AccountVaultState, error) {
+	return moveAccountVaultGold(role, saved, rules, amount, true)
+}
+func WithdrawAccountVaultGold(role storage.Character, saved storage.AccountVaultState, rules AccountVaultRules, amount uint32) (json.RawMessage, storage.AccountVaultState, error) {
+	return moveAccountVaultGold(role, saved, rules, amount, false)
+}
+
+func AccountVaultGoldMove(r protocol.ItemMoveRequest) (bool, bool) {
+	if r.Count == 0 || r.Selection != 0xffffffff || r.Extra != 0 || r.Flags != [3]byte{} {
+		return false, false
+	}
+	if r.SourceList == 0 && r.SourceSlot == 0 && r.SourceItem == 0 && r.DestinationList == 12 && r.DestinationItem == 0 {
+		return true, true
+	}
+	if r.SourceList == 12 && r.SourceSlot == 0 && r.SourceItem == 0 && r.DestinationList == 0 && r.DestinationSlot == 0 && r.DestinationItem == 0 {
+		return true, false
+	}
+	return false, false
+}
 
 // 账号金库只接受可交易或账号绑定实例；不会借共享存储把角色绑定变成可转移。
 func accountVaultItemAllowed(item VaultItem, items catalog.LootCatalog, equipment *EquipmentCatalog) error {
@@ -16,8 +77,12 @@ func accountVaultItemAllowed(item VaultItem, items catalog.LootCatalog, equipmen
 		if !ok || def.Kind != "stackable" || strings.Contains(def.StackableType, "quest") {
 			return fmt.Errorf("物品不属于可存入账号金库的普通物品")
 		}
-		allowed := false
+		characterBound := false
+		contents := false
 		for i, token := range def.Script.Cells {
+			if contents && (token.Type != 6 || token.Text != "gift") && token.Text != "[/impossible contents]" {
+				return fmt.Errorf("物品包含尚未支持的礼包内容物限制")
+			}
 			if token.Type != 3 {
 				continue
 			}
@@ -25,13 +90,17 @@ func accountVaultItemAllowed(item VaultItem, items catalog.LootCatalog, equipmen
 			case "[attach type]":
 				if i+1 < len(def.Script.Cells) {
 					attach := def.Script.Cells[i+1].Text
-					allowed = attach == "[free]" || attach == "[account]"
+					characterBound = attach == "[character]"
 				}
-			case "[cannot store]", "[cannot put in cargo]", "[impossible contents]":
+			case "[impossible contents]":
+				contents = true
+			case "[/impossible contents]":
+				contents = false
+			case "[cannot store]", "[cannot put in cargo]":
 				return fmt.Errorf("物品包含尚不支持的金库存放限制")
 			}
 		}
-		if !allowed {
+		if characterBound {
 			return fmt.Errorf("角色绑定物品不能存入账号金库")
 		}
 		return nil
@@ -58,12 +127,19 @@ func accountVaultItemAllowed(item VaultItem, items catalog.LootCatalog, equipmen
 	return nil
 }
 
-func MoveAccountVault(role storage.Character, saved storage.AccountVaultState, rules BagRules, items catalog.LootCatalog, equipment *EquipmentCatalog, request protocol.ItemMoveRequest) (json.RawMessage, storage.AccountVaultState, uint32, error) {
+func MoveAccountVault(role storage.Character, saved storage.AccountVaultState, rules BagRules, items catalog.LootCatalog, equipment *EquipmentCatalog, request protocol.ItemMoveRequest, goldRules ...AccountVaultRules) (json.RawMessage, storage.AccountVaultState, uint32, error) {
 	fail := func(reason string) (json.RawMessage, storage.AccountVaultState, uint32, error) {
 		return nil, saved, 0, fmt.Errorf("%s", reason)
 	}
 	if saved.Slots == 0 || (request.SourceList != 12 && request.DestinationList != 12) || (request.SourceList != 0 && request.SourceList != 12) || (request.DestinationList != 0 && request.DestinationList != 12) || request.Extra != 0 || request.Selection != 0xffffffff || request.Flags != [3]byte{} {
 		return fail("账号金库未开通或存取请求无效")
+	}
+	if gold, deposit := AccountVaultGoldMove(request); gold {
+		if len(goldRules) == 0 {
+			return fail("账号金库金币规则缺失")
+		}
+		state, next, err := moveAccountVaultGold(role, saved, goldRules[0], request.Count, deposit)
+		return state, next, request.Count, err
 	}
 	bag, err := ReadBag(role.State)
 	if err != nil {
@@ -113,17 +189,6 @@ func MoveAccountVault(role storage.Character, saved storage.AccountVaultState, r
 	if !from.IsEquip {
 		if def, ok := items.Items[from.Template]; ok {
 			rules.MissingStackLimit = stackLimitFor(rules, def.StackableType, def.StackLimit)
-			if request.DestinationList == 0 {
-				slots, ok := rules.Slots[def.StackableType]
-				if !ok {
-					return fail("物品的背包分类规则缺失")
-				}
-				if request.DestinationSlot < slots[0] || request.DestinationSlot > slots[1] {
-					return fail("物品不能放入指定背包栏")
-				}
-			}
-		} else {
-			return fail("账号金库物品源规则缺失")
 		}
 	}
 	move := request

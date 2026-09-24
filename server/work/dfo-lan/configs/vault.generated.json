@@ -3,8 +3,9 @@
   "source": "DFO.exe",
   "native": "14008e7c0 -> 14ef57670 tier0 capacity; NOTI13 kind2",
   "initial_slots": 8,
+  "initial_secondary_slots": 24,
   "verified_slots": [
-    8
+    8, 24, 40, 56, 72, 88, 104, 120, 136, 152, 168, 184, 200, 216, 232, 248, 264
   ],
   "policy": "角色金库初始 8 格；账号金库按账号独立保存，须通过源材料费用开通。",
   "account": {

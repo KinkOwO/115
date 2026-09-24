@@ -15,10 +15,11 @@ import (
 )
 
 type VaultRules struct {
-	SourceSHA256  string             `json:"source_sha256"`
-	InitialSlots  uint16             `json:"initial_slots"`
-	VerifiedSlots []uint16           `json:"verified_slots"`
-	Account       *AccountVaultRules `json:"account,omitempty"`
+	SourceSHA256          string             `json:"source_sha256"`
+	InitialSlots          uint16             `json:"initial_slots"`
+	InitialSecondarySlots uint16             `json:"initial_secondary_slots,omitempty"`
+	VerifiedSlots         []uint16           `json:"verified_slots"`
+	Account               *AccountVaultRules `json:"account,omitempty"`
 }
 
 func LoadVaultRules(path string) (VaultRules, error) {
@@ -30,7 +31,7 @@ func LoadVaultRules(path string) (VaultRules, error) {
 	if e = json.Unmarshal(b, &r); e != nil {
 		return r, e
 	}
-	if len(r.SourceSHA256) != 64 || !r.allows(r.InitialSlots) {
+	if len(r.SourceSHA256) != 64 || !r.allows(r.InitialSlots) || (r.InitialSecondarySlots != 0 && !r.allows(r.InitialSecondarySlots)) {
 		return r, fmt.Errorf("invalid source vault configuration")
 	}
 	if r.Account != nil {
@@ -174,6 +175,20 @@ func (v Vault) ItemAt(slot uint16) *VaultItem {
 	return nil
 }
 
+func SortVaultSpace(v Vault) Vault {
+	v.Items = append([]VaultItem(nil), v.Items...)
+	sort.SliceStable(v.Items, func(i, j int) bool {
+		if v.Items[i].Template != v.Items[j].Template {
+			return v.Items[i].Template < v.Items[j].Template
+		}
+		return v.Items[i].Slot < v.Items[j].Slot
+	})
+	for i := range v.Items {
+		v.Items[i].Slot = uint16(i)
+	}
+	return v
+}
+
 type VaultService struct {
 	Store    *storage.Store
 	Rules    VaultRules
@@ -187,14 +202,18 @@ func (s *VaultService) Bootstrap(ctx context.Context, role storage.Character) ([
 
 // 两个个人金库各自初始化，使用同一容量档位规则，不复制另一金库的物品或升级。
 func (s *VaultService) BootstrapSpace(ctx context.Context, role storage.Character, space byte) ([]byte, error) {
-	v, e := s.Store.LoadVault(ctx, role.AccountID, role.ID, s.Rules.InitialSlots, s.Rules.SourceSHA256, space)
+	initial := s.Rules.InitialSlots
+	if space == 45 && s.Rules.InitialSecondarySlots != 0 {
+		initial = s.Rules.InitialSecondarySlots
+	}
+	v, e := s.Store.LoadVault(ctx, role.AccountID, role.ID, initial, s.Rules.SourceSHA256, space)
 	if e != nil {
 		return nil, e
 	}
 	if v.ConfigVersion != s.Rules.SourceSHA256 || !s.Rules.allows(v.Slots) {
 		return nil, fmt.Errorf("vault requires configuration migration")
 	}
-	vault, e := ReadVault(v)
+	vault, e := ReadExtendedVault(v)
 	if e != nil {
 		return nil, e
 	}

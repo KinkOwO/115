@@ -712,6 +712,9 @@ func main() {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		e = characters.Store.MigrateVault(ctx)
 		if e == nil {
+			e = characters.Store.UpgradeSecondaryVaultCapacity(ctx)
+		}
+		if e == nil {
 			e = characters.Store.MigrateAccountMaterials(ctx)
 		}
 		if e == nil && rules.Account != nil {
@@ -1323,6 +1326,28 @@ func main() {
 				}
 				continue
 			}
+			if frame.Type == 1 && bootstrapped && verified && (frame.ID == 307 || frame.ID == 308) && worldState != nil {
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				plan, err := worldState.changeAccountVaultGold(ctx, frame.ID, plaintext, frame.Raw, keys, purchaseSession.prefix)
+				cancel()
+				if err != nil {
+					event(map[string]any{"kind": "账号金库金币操作被拒", "id": frame.ID, "reason": err.Error(), "plain_hex": hex.EncodeToString(plaintext)})
+					if sendPayload(1, frame.ID, accountVaultRefusal(err)) != nil {
+						return
+					}
+					continue
+				}
+				prepared, err := preparePackets(keys, plan)
+				if err != nil {
+					return
+				}
+				if writePackets(c, prepared, func(p preparedPacket) {
+					event(map[string]any{"kind": p.Name, "id": p.ID, "plain_hex": hex.EncodeToString(p.Payload)})
+				}) != nil {
+					return
+				}
+				continue
+			}
 			if frame.ID == 19 && bootstrapped && verified && wearService != nil {
 				plan, e := equipmentState.handle(wearService, worldState, plaintext, frame.Raw)
 				if e != nil {
@@ -1372,13 +1397,28 @@ func main() {
 				}
 				continue
 			}
-			if frame.ID == 20 && bootstrapped && verified && wearService != nil {
+			if frame.ID == 20 && bootstrapped && verified && worldState != nil && len(plaintext) > 0 {
 				// CMD20 SORT_ITEM: the client has already arranged the bag and
 				// asks the server to adopt it. Answering is also what clears the
 				// client's "inventory in use" latch.
-				plan, e := sortState.handle(wearService, worldState, plaintext, frame.Raw)
+				var plan []outboundPacket
+				var e error
+				switch plaintext[0] {
+				case 0:
+					plan, e = sortState.handle(wearService, worldState, plaintext, frame.Raw)
+				case 2, 45:
+					plan, e = worldState.sortVaultSpace(plaintext[0])
+				case 12:
+					plan, e = worldState.sortAccountVaultCmd()
+				default:
+					event(map[string]any{"kind": "sort_unsupported_container", "space": plaintext[0]})
+					continue
+				}
 				if e != nil {
 					event(map[string]any{"kind": "item_sort_refused", "reason": e.Error()})
+					if plaintext[0] != 0 {
+						continue
+					}
 					if e = sendPayload(1, 20, protocol.Refusal(4)); e != nil {
 						return
 					}
