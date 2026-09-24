@@ -895,10 +895,18 @@ func main() {
 	var listeners []channelListener
 	var channelCfg channelrefresh.Config
 	var endpoints map[uint32]channelrefresh.ChannelEndpoint
+	// channelTypes maps a channel id to the Type of its directory row. The game
+	// connection carries no channel number, so the port a client dialled is the
+	// only channel identity a session has (see the listeners below); this map
+	// turns that identity back into the script value handlers report.
+	channelTypes := map[uint32]uint32{}
 	if *channelRefreshFile != "" {
 		channelCfg, err = channelrefresh.Load(*channelRefreshFile)
 		if err != nil {
 			log.Fatal(err)
+		}
+		for _, ch := range channelCfg.Channels {
+			channelTypes[ch.ID] = ch.Type
 		}
 		bindHost, _, _ := net.SplitHostPort(*gameListen)
 		_, portText, _ := net.SplitHostPort(l.Addr().String())
@@ -985,6 +993,7 @@ func main() {
 		var legionState legionSession
 		legionState.catalog = apocalypseCatalog
 		legionState.clock = apocalypseClock
+		legionState.channelType = channelTypes[channel]
 		if worldService != nil {
 			worldState = &worldSession{characters: characters, service: worldService, account: developmentAccount, flags: townPolicy.Flags, dungeons: dungeonCatalog, tutorials: tutorialRoutes, tutorialDungeons: tutorialDungeons, professions: characters.Catalog, fatigue: fatigueService, quests: questService, progression: progressionService, loot: lootService, selectionBoxes: selectionBoxes, vault: vaultService, soloPartyBootstrap: *soloPartyBootstrap, hub: hub}
 			worldState.serverID = channelCfg.ServerID

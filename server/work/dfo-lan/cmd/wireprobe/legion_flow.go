@@ -35,6 +35,14 @@ type legionSession struct {
 	// next to what the client announced. It is nil when no operation was
 	// confirmed or the catalog is not loaded.
 	plan *legion.RunPlan
+
+	// channelType is the Type of the directory row this connection arrived on,
+	// or 0 when no channel directory is configured. The game connection never
+	// carries a channel number - only the port a client dialled does - so this
+	// is how a handler can say which channel a request came from. It is
+	// recorded, never enforced: refusing a legion packet on a channel the
+	// client accepts would look like a dropped packet rather than a decision.
+	channelType uint32
 }
 
 // legionResult is one handled command: the packets to send plus the events that
@@ -110,12 +118,40 @@ func (s *legionSession) handle(w *worldSession, p []byte, id uint16) (legionResu
 		s.session.Begin(w.role.ID, request.Argument)
 		// StartAck is exactly the four bytes the client reads; the handler
 		// discards them and rebuilds its own screen state.
-		return legionResult{Packets: []outboundPacket{{
-			Name:    "legion_start_ack",
-			Kind:    1,
-			ID:      legion.CmdStart,
-			Payload: legion.StartAck(),
-		}}}, nil
+		//
+		// NOTI2895 follows it, and that is new: the client's entry flow reads
+		// this packet into the content object it has just raised, and the server
+		// had never sent one, so the object only ever held the values the
+		// client's own constructor wrote. The body is that constructor's triple
+		// verbatim (see internal/legion/legion_info.go for the byte map and for
+		// why the three variable fields must not be invented): @3/@7/@11 are
+		// handed to the content object and their meaning is still unresolved, so
+		// a packet built from this server's guesses would be indistinguishable
+		// from real data in the log. Order and lengths are pinned by the flow
+		// test, because a short body kills the client's reader.
+		return legionResult{
+			Packets: []outboundPacket{
+				{
+					Name:    "legion_start_ack",
+					Kind:    1,
+					ID:      legion.CmdStart,
+					Payload: legion.StartAck(),
+				},
+				{
+					Name:    "legion_info",
+					Kind:    0,
+					ID:      legion.NotiLegionInfo,
+					Payload: legion.LegionInfo(legion.DefaultLegionInfo()),
+				},
+			},
+			Events: []map[string]any{{
+				"kind":         "legion_entered_channel",
+				"character_id": w.role.ID,
+				"argument":     request.Argument,
+				"channel_type": s.channelType,
+				"info_values":  "client initializer defaults; @3/@7/@11 semantics unresolved",
+			}},
+		}, nil
 	case legion.CmdOperationSelect:
 		request, err := legion.DecodeOperationSelect(p)
 		if err != nil {
