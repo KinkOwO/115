@@ -141,7 +141,8 @@ func (s *Service) transition(level byte, odyssey bool, old storage.WorldPosition
 	// A Seria return gate always targets the saved origin, even when the client
 	// reports a generic animation landing or another town. Resolve that origin
 	// before destination lookup and authorization so the request cannot choose it.
-	seriaLeave := old.Return != nil && src.SeriaReturnWarp && !(r.Town == old.Town && r.Area == old.Area)
+	mapTeleport := r.Flag == 5 && (r.TailFlags[0] == 5 || r.TailFlags[1] == 5)
+	seriaLeave := old.Return != nil && src.SeriaReturnWarp && !mapTeleport && !(r.Town == old.Town && r.Area == old.Area)
 	if seriaLeave {
 		next.Town, next.Area = old.Return.Town, old.Return.Area
 		next.X, next.Y = old.Return.X, old.Return.Y

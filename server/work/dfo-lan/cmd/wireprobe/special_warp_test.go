@@ -217,6 +217,24 @@ func TestTownMapTeleportTransition(t *testing.T) {
 		t.Fatalf("teleport to seria room did not save return origin: %+v", next.Return)
 	}
 
+	// Live CMD36 from Seria's right-hand map selector: Flag=5, TailFlags[0]=5.
+	// The selected West Coast landing must win over the stamped Hendon origin.
+	quickRoom := next
+	quickRoom.Return = &storage.WorldReturn{Town: 39, Area: 0, X: 3494, Y: 314}
+	w.state.Position = quickRoom
+	quickBody, err := hex.DecodeString("28000000000000007f01bd00052600000001000005000000")
+	if err != nil {
+		t.Fatal(err)
+	}
+	quickRequest, err := protocol.DecodeAreaChangeRequest(quickBody)
+	if err != nil {
+		t.Fatal(err)
+	}
+	selected, err := w.areaTransition(quickRequest)
+	if err != nil || selected.Town != 40 || selected.Area != 0 || selected.X != 383 || selected.Y != 189 || selected.Return != nil {
+		t.Fatalf("Seria map selector ignored chosen destination: %+v %v", selected, err)
+	}
+
 	// 10. 从赛丽亚房间走到底部光圈返回西海岸，验证 Return 坐标被权威恢复
 	w.state.Position = next
 	rReturn := protocol.AreaChangeRequest{
