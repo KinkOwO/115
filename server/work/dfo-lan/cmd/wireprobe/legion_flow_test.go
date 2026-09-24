@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/binary"
+
 	"dfolan/internal/dungeon"
 	"dfolan/internal/legion"
 	"dfolan/internal/storage"
@@ -225,4 +227,47 @@ func putU32(p []byte, at int, v uint32) {
 	p[at+1] = byte(v >> 8)
 	p[at+2] = byte(v >> 16)
 	p[at+3] = byte(v >> 24)
+}
+
+// The entry answer is two frames: the acknowledgement the client is blocked on,
+// then NOTI2895. The order matters because the info packet is read into the
+// content object the acknowledgement has just raised, and the server had never
+// sent a 2895 at all - the entry screen was showing the client's constructor
+// values. A short body makes the client's reader write past what arrived.
+func TestLegionStartAnswersWithAckThenInfo(t *testing.T) {
+	s := &legionSession{channelType: 119}
+	w := townSession(7)
+	result, err := s.handle(w, startPayload(1), legion.CmdStart)
+	if err != nil {
+		t.Fatalf("CMD2043: %v", err)
+	}
+	if len(result.Packets) != 2 {
+		t.Fatalf("packets %d, want 2", len(result.Packets))
+	}
+	ack, info := result.Packets[0], result.Packets[1]
+	if ack.ID != legion.CmdStart || ack.Kind != 1 || len(ack.Payload) < legion.StartAckSize {
+		t.Fatalf("first frame id=%d kind=%d len=%d, want the CMD2043 acknowledgement", ack.ID, ack.Kind, len(ack.Payload))
+	}
+	if info.ID != legion.NotiLegionInfo || info.Kind != 0 || len(info.Payload) != legion.LegionInfoSize {
+		t.Fatalf("second frame id=%d kind=%d len=%d, want NOTI2895 with %d bytes", info.ID, info.Kind, len(info.Payload), legion.LegionInfoSize)
+	}
+	if got := binary.LittleEndian.Uint16(info.Payload); got != legion.OperationChannelCode {
+		t.Fatalf("info channel code %d, want %d", got, legion.OperationChannelCode)
+	}
+	// The event has to record which channel the entry arrived on and that the
+	// three variable fields are still the client's own defaults, so a live log
+	// cannot be read as "the counters were sent".
+	if len(result.Events) != 1 {
+		t.Fatalf("events %v, want one", result.Events)
+	}
+	note := result.Events[0]
+	if note["kind"] != "legion_entered_channel" || note["channel_type"] != uint32(119) {
+		t.Fatalf("event %v", note)
+	}
+	if note["info_values"] == nil {
+		t.Fatal("event does not record which values the info packet carried")
+	}
+	if s.session == nil || !s.session.Entered {
+		t.Fatal("session not entered after CMD2043")
+	}
 }
