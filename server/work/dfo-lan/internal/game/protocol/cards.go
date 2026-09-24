@@ -50,6 +50,14 @@ func CardSelected(index int) ([]byte, error) {
 
 type SettlementExit struct{ State, Option byte }
 
+// KeepsDungeonSelection reports whether this settlement exit leaves the client
+// in the dungeon-selection flow. It carries the meaning the third byte of the
+// old three-byte acknowledgement accidentally had - that byte was Option, so
+// "payload[2] == 1" meant "option == 1". The flag is now derived from the
+// decoded request, which is what makes the acknowledgement free to shrink to
+// its native width.
+func (r SettlementExit) KeepsDungeonSelection() bool { return r.Option == 1 }
+
 func DecodeSettlementExit(p []byte) (SettlementExit, error) {
 	if len(p) != 3 && len(p) != 8 && len(p) != 16 {
 		return SettlementExit{}, fmt.Errorf("invalid exit body")
@@ -68,5 +76,13 @@ func DecodeSettlementExit(p []byte) (SettlementExit, error) {
 	}
 	return SettlementExit{p[0], p[1]}, nil
 }
-func SettlementExitSuccess(r SettlementExit) []byte { return []byte{1, r.State, r.Option} }
+
+// SettlementExitSuccess is the acknowledgement body the native reader
+// consumes: exactly two u8s, (state, option). Native handler 0x145244570 reads
+// them at 0x1452445ad and 0x1452445b9, and testdata/native_card_exit_*.json pin
+// 0100 / 0102 / ... The extra leading 1 this used to carry was not part of the
+// body - the incoming request has a literal 1 at p[2] (see DecodeSettlementExit)
+// but the outgoing shape does not. Reading that byte back inside the gateway is
+// what once turned the acknowledgement's width into an out-of-range panic.
+func SettlementExitSuccess(r SettlementExit) []byte { return []byte{r.State, r.Option} }
 func SettlementExitRefused(option byte) []byte      { return append(Refusal(4), option) }
