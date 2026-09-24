@@ -73,10 +73,28 @@ func (s *WearService) wearable(role storage.Character, item BagEquipment, slot u
 	if len(kind) == 0 || kind[0].Type != 6 {
 		return fmt.Errorf("missing equipment type")
 	}
+	var state struct {
+		Level       byte `json:"level"`
+		Advancement byte `json:"advancement"`
+	}
+	if e := json.Unmarshal(role.State, &state); e != nil {
+		return e
+	}
+	job, ok := s.Professions.Professions[role.Profession]
+	if !ok {
+		return fmt.Errorf("equipment profession unavailable")
+	}
 	expected, ok := s.Rules.Slots[kind[0].Text]
 	talismanSlot := s.Rules.Special && kind[0].Text == "[talisman]" && slot >= 33 && slot <= 35
 	primerSlot := s.Rules.Special && kind[0].Text == "[primer]" && slot >= 36 && slot <= 46
-	if !ok || (expected != slot && !talismanSlot && !primerSlot) {
+	// 2026-09-25 实机 CMD19：光剑 28240 请求穿戴槽 24。
+	// 源 dualweapon.skl 限定女鬼剑转职 4；光剑源 [sub type] 为 5。
+	// 仅增加副手例外，之后仍执行武器自身的职业、转职及等级校验。
+	subType := d.Fields["[sub type]"]
+	offhandLightsabre := slot == 24 && kind[0].Text == "[weapon]" &&
+		job.Job == "[at swordman]" && state.Advancement == 4 &&
+		len(subType) == 1 && subType[0].Type == 0 && subType[0].Value == 5
+	if !ok || (expected != slot && !talismanSlot && !primerSlot && !offhandLightsabre) {
 		return fmt.Errorf("equipment does not fit destination slot")
 	}
 	if kind[0].Text == "[creature]" {
@@ -89,17 +107,6 @@ func (s *WearService) wearable(role storage.Character, item BagEquipment, slot u
 		if len(durability) != 1 || durability[0].Type != 0 || durability[0].Value < 0 || durability[0].Value > 65535 {
 			return fmt.Errorf("invalid equipment durability")
 		}
-	}
-	var state struct {
-		Level       byte `json:"level"`
-		Advancement byte `json:"advancement"`
-	}
-	if e := json.Unmarshal(role.State, &state); e != nil {
-		return e
-	}
-	job, ok := s.Professions.Professions[role.Profession]
-	if !ok {
-		return fmt.Errorf("equipment profession unavailable")
 	}
 	level := state.Level
 	if s.Store != nil {
