@@ -239,11 +239,20 @@ func (w *worldSession) directMoveDungeon(p []byte) (*dungeon.Session, []outbound
 	// 地下城」入口，走的是 gate_ack(15) + selection_sent(27) 这条 UI 层帧；先进这个
 	// 界面再下发进图帧，避免用"回城帧"造成的场景切换与进图撞车（实测那会让客户端
 	// 黑屏退出）。
-	head := []outboundPacket{
+	return s, append(dungeonSelectionHead(), plan...), nil
+}
+
+// dungeonSelectionHead is the client's dungeon-select UI layer: the gate
+// acknowledgement and NOTI 27. Whenever an entry sequence is sent to a client
+// that is not already standing in the town selection flow - the post-clear
+// "next story dungeon" gate and the settlement panel's "again" button - it has
+// to be preceded by this pair, or the entry frames land on a scene the client
+// has already torn down and it exits (0xC0000005).
+func dungeonSelectionHead() []outboundPacket {
+	return []outboundPacket{
 		{"dungeon_gate_ack", 1, 15, []byte{1}},
 		{"dungeon_selection_sent", 0, 27, protocol.EnterDungeonSelection()},
 	}
-	return s, append(head, plan...), nil
 }
 
 // directMoveEntryPlan is the CMD 2062 form of dungeonEntryPlan: the client
