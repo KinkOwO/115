@@ -448,6 +448,17 @@ func main() {
 		if e != nil {
 			log.Fatal(e)
 		}
+		trainingRoomPath := os.Getenv("DFO_TRAINING_ROOM_CATALOG")
+		if trainingRoomPath == "" {
+			trainingRoomPath = filepath.Join(filepath.Dir(*dungeonCatalogFile), "dungeons.training-room.json")
+		}
+		trainingRooms, e := catalog.LoadDungeons(trainingRoomPath)
+		if e != nil {
+			log.Fatal(e)
+		}
+		if e = catalog.MergeDungeonCatalog(&data, trainingRooms); e != nil {
+			log.Fatal(e)
+		}
 		if data.Source.Checksum != worldService.Catalog.Source.Checksum {
 			log.Fatal("dungeon/world source versions differ")
 		}

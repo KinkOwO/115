@@ -1,6 +1,7 @@
 # CHANGELOG
 
 ## 2026-09-24
+- **修炼场无法进入（attempt 1/3，用户实机确认）**：训练场副本缺失 `[basis level]` 时按推荐等级首值、再按最低等级回退，四个 5000 家族副本与七张地图以同校验值 overlay 并入目录；训练场门按 ACK15 + NOTI27 抬入选图，选图后复用 ACK16 + NOTI28/29 入场帧，训练场不扣疲劳。用户确认修复通过。`go test ./...`、`go vet ./...` 与候选版构建通过；候选程序 SHA-256 `873A9F9FE63906B9F5A8F6696750FBC79D7FA9EA992B5C4D02519BA09B75686E`。确认基线：`server/work/dfo-lan/docs/protocol/training-room-entry-20260924.md`。
 - **赛丽亚房间右侧快速传送恢复所选目的地（attempt 2/3，用户实机确认）**：依据实机 CMD 36 `Flag=5, TailFlags=[5,0]` 区分右侧地图选择与下方出口；地图选择经常规传送校验到达所选地图和落点，下方出口继续按 Return 戳返回来图。复验日志记录下方出口回 39/0，右侧选择后到达西海岸 40/0 `(374,191)`。`go test ./...`、`go vet ./...` 通过；候选程序 SHA-256 `63FFEF2584461D65E0ECCE7D8D7E8EF7A870286F3CDDEC94D19F441704926ED4`。确认基线：`server/work/dfo-lan/docs/protocol/seria-return-20260924.md` 与 `server/work/dfo-lan/docs/protocol/seria-map-selector-20260924.md`。
 - **Clone Avatar 副本裸体修复（用户实机确认）**：副本加载后对穿戴且可解析外观的 Clone 依次发送移除旧实例、重建带普通外观或职业默认覆盖值的 mode1，再用 NOTI14 恢复普通装备穿戴行。修复现为 Go 服务端默认行为，不需临时 JSON 或环境开关；未改数据库、存档与客户端。确认基线：`server/work/dfo-lan/docs/protocol/avatar-clone-coexistence-candidate.md`。
 - **商城单件 / 多件购买、装扮皮肤穿戴修复（用户实机确认）**：接入 `[dont trade avatar]` 与 `[package]` 商品目录，支持时装进入装扮栏、礼盒交付、混合购物车一次扣款及多契约激活；装扮分页即时刷新，缺少 `[minimum level]` 的时装按无等级要求校验，同时保留装备等级修正规则。用户实机确认验证通过。

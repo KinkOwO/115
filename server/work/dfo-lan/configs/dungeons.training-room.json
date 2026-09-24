@@ -1,0 +1,9393 @@
+{
+  "source": {
+    "format": "dfo_20260901_inner",
+    "path": "../client-build/Script.inner.pvf",
+    "size": 760530763,
+    "checksum": "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80",
+    "loaded_at": "2026-09-24T08:08:41.2056757Z",
+    "file_count": 5650173,
+    "group_count": 82571,
+    "cached_chunks": 0,
+    "cached_texts": 0
+  },
+  "dungeons": {
+    "100003314": {
+      "id": 100003314,
+      "script": {
+        "path": "dungeon/poongjintrainingroom/poongjintrainingroom_eachmap.dgn",
+        "sha256": "950d873dcf2e3c8b6e255ecf0127b8c26eacc45dc0cfc98e62ab37a59bc1d23e",
+        "cells": [
+          {
+            "type": 3,
+            "value": 184980071,
+            "text": "[background pos]"
+          },
+          {
+            "type": 0,
+            "value": 80
+          },
+          {
+            "type": 3,
+            "value": 157673341,
+            "text": "[name]"
+          },
+          {
+            "type": 8,
+            "value": 185512359,
+            "reference": "\u003c2::name_1196\u003e"
+          },
+          {
+            "type": 3,
+            "value": 157680133,
+            "text": "[explain]"
+          },
+          {
+            "type": 8,
+            "value": 185819537,
+            "reference": "\u003c2::explain_1196\u003e"
+          },
+          {
+            "type": 3,
+            "value": 184980105,
+            "text": "[cutscene image]"
+          },
+          {
+            "type": 6,
+            "value": 185749663,
+            "text": "Map/CutScene/PVP_town.img"
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 3,
+            "value": 184980261,
+            "text": "[minimap image]"
+          },
+          {
+            "type": 6,
+            "value": 184980293,
+            "text": "Map/MiniMap/Act6.img"
+          },
+          {
+            "type": 3,
+            "value": 184980335,
+            "text": "[worldmap pattern info]"
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 6,
+            "value": 185749715,
+            "text": "WorldMap/Abnoba.img"
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 3,
+            "value": 184980617,
+            "text": "[champion]"
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 3,
+            "value": 184980639,
+            "text": "[pathgate object]"
+          },
+          {
+            "type": 0,
+            "value": 109054459
+          },
+          {
+            "type": 0,
+            "value": 109054459
+          },
+          {
+            "type": 0,
+            "value": 109054461
+          },
+          {
+            "type": 0,
+            "value": 109054462
+          },
+          {
+            "type": 0,
+            "value": 109054462
+          },
+          {
+            "type": 0,
+            "value": 109054464
+          },
+          {
+            "type": 0,
+            "value": 109054465
+          },
+          {
+            "type": 0,
+            "value": 109054465
+          },
+          {
+            "type": 0,
+            "value": 109054467
+          },
+          {
+            "type": 0,
+            "value": 109054467
+          },
+          {
+            "type": 3,
+            "value": 185044449,
+            "text": "[experience increasing point]"
+          },
+          {
+            "type": 2,
+            "value": 981668463,
+            "number": 0.001
+          },
+          {
+            "type": 3,
+            "value": 184980539,
+            "text": "[minimum required level]"
+          },
+          {
+            "type": 0,
+            "value": 1
+          },
+          {
+            "type": 3,
+            "value": 184989663,
+            "text": "[recommended level]"
+          },
+          {
+            "type": 0,
+            "value": 1
+          },
+          {
+            "type": 0,
+            "value": 85
+          },
+          {
+            "type": 3,
+            "value": 184980675,
+            "text": "[limit party count]"
+          },
+          {
+            "type": 0,
+            "value": 4
+          },
+          {
+            "type": 3,
+            "value": 184980715,
+            "text": "[designate dungeon difficulty]"
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 3,
+            "value": 184981497,
+            "text": "[maze info]"
+          },
+          {
+            "type": 3,
+            "value": 172069227,
+            "text": "[size]"
+          },
+          {
+            "type": 0,
+            "value": 3
+          },
+          {
+            "type": 0,
+            "value": 1
+          },
+          {
+            "type": 3,
+            "value": 184981559,
+            "text": "[greed]"
+          },
+          {
+            "type": 6,
+            "value": 185043873,
+            "text": "BBFFEE"
+          },
+          {
+            "type": 3,
+            "value": 184981633,
+            "text": "[map specification]"
+          },
+          {
+            "type": 6,
+            "value": 171964033,
+            "text": "map"
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 0,
+            "value": 100008783
+          },
+          {
+            "type": 6,
+            "value": 171964033,
+            "text": "map"
+          },
+          {
+            "type": 0,
+            "value": 1
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 0,
+            "value": 100008784
+          },
+          {
+            "type": 6,
+            "value": 171964033,
+            "text": "map"
+          },
+          {
+            "type": 0,
+            "value": 2
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 0,
+            "value": 100008785
+          },
+          {
+            "type": 3,
+            "value": 184981673,
+            "text": "[/map specification]"
+          },
+          {
+            "type": 3,
+            "value": 184981715,
+            "text": "[start map]"
+          },
+          {
+            "type": 0,
+            "value": 1
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 3,
+            "value": 184981739,
+            "text": "[/start map]"
+          },
+          {
+            "type": 3,
+            "value": 184981765,
+            "text": "[boss map]"
+          },
+          {
+            "type": 0,
+            "value": 1
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 3,
+            "value": 184981787,
+            "text": "[/boss map]"
+          },
+          {
+            "type": 3,
+            "value": 185088039,
+            "text": "[individual map movement]"
+          },
+          {
+            "type": 0,
+            "value": 1
+          },
+          {
+            "type": 3,
+            "value": 185415539,
+            "text": "[open door even enemy]"
+          },
+          {
+            "type": 0,
+            "value": 1
+          },
+          {
+            "type": 3,
+            "value": 185072107,
+            "text": "[move map even enemy]"
+          },
+          {
+            "type": 0,
+            "value": 1
+          },
+          {
+            "type": 3,
+            "value": 184985045,
+            "text": "[warp map condition]"
+          },
+          {
+            "type": 3,
+            "value": 184985087,
+            "text": "[source grid pos]"
+          },
+          {
+            "type": 0,
+            "value": -1
+          },
+          {
+            "type": 0,
+            "value": -1
+          },
+          {
+            "type": 3,
+            "value": 184985123,
+            "text": "[dest grid pos]"
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 3,
+            "value": 184985087,
+            "text": "[source grid pos]"
+          },
+          {
+            "type": 0,
+            "value": -1
+          },
+          {
+            "type": 0,
+            "value": -1
+          },
+          {
+            "type": 3,
+            "value": 184985123,
+            "text": "[dest grid pos]"
+          },
+          {
+            "type": 0,
+            "value": 1
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 3,
+            "value": 184985087,
+            "text": "[source grid pos]"
+          },
+          {
+            "type": 0,
+            "value": -1
+          },
+          {
+            "type": 0,
+            "value": -1
+          },
+          {
+            "type": 3,
+            "value": 184985123,
+            "text": "[dest grid pos]"
+          },
+          {
+            "type": 0,
+            "value": 2
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 3,
+            "value": 184985155,
+            "text": "[/warp map condition]"
+          },
+          {
+            "type": 3,
+            "value": 185454759,
+            "text": "[does not draw boss icon]"
+          },
+          {
+            "type": 0,
+            "value": 1
+          },
+          {
+            "type": 3,
+            "value": 185128229,
+            "text": "[coin info]"
+          },
+          {
+            "type": 0,
+            "value": 1
+          },
+          {
+            "type": 6,
+            "value": 35527353,
+            "text": "[normal]"
+          },
+          {
+            "type": 0,
+            "value": -1
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 6,
+            "value": 86957815,
+            "text": "[expert]"
+          },
+          {
+            "type": 0,
+            "value": -1
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 6,
+            "value": 86957853,
+            "text": "[master]"
+          },
+          {
+            "type": 0,
+            "value": -1
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 6,
+            "value": 86957891,
+            "text": "[king]"
+          },
+          {
+            "type": 0,
+            "value": -1
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 6,
+            "value": 160041931,
+            "text": "[slayer]"
+          },
+          {
+            "type": 0,
+            "value": -1
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 3,
+            "value": 185128253,
+            "text": "[/coin info]"
+          },
+          {
+            "type": 3,
+            "value": 184989919,
+            "text": "[show boss hp percent gauge]"
+          },
+          {
+            "type": 0,
+            "value": 1
+          },
+          {
+            "type": 3,
+            "value": 184980777,
+            "text": "[hackcheck exception in start dungeon]"
+          },
+          {
+            "type": 3,
+            "value": 186839025,
+            "text": "[gm only enter dungeon]"
+          },
+          {
+            "type": 3,
+            "value": 185065689,
+            "text": "[hp gauge control]"
+          },
+          {
+            "type": 3,
+            "value": 185065727,
+            "text": "[max time]"
+          },
+          {
+            "type": 0,
+            "value": 1000
+          },
+          {
+            "type": 3,
+            "value": 185065749,
+            "text": "[value per line]"
+          },
+          {
+            "type": 0,
+            "value": 500000000
+          },
+          {
+            "type": 3,
+            "value": 185065783,
+            "text": "[named value per line]"
+          },
+          {
+            "type": 0,
+            "value": 1000000000
+          },
+          {
+            "type": 3,
+            "value": 185065829,
+            "text": "[boss value per line]"
+          },
+          {
+            "type": 0,
+            "value": 1000000000
+          },
+          {
+            "type": 3,
+            "value": 185065873,
+            "text": "[ai character value per line]"
+          },
+          {
+            "type": 0,
+            "value": 400000
+          },
+          {
+            "type": 3,
+            "value": 185065933,
+            "text": "[/hp gauge control]"
+          }
+        ]
+      },
+      "MinimumLevel": 1,
+      "BasisLevel": 1,
+      "Tutorial": false,
+      "NoFatigue": true,
+      "Odyssey": false,
+      "DesignatedDifficulty": 0,
+      "HuntBoss": 0,
+      "mazes": [
+        {
+          "index": 0,
+          "quest": 0,
+          "Size": [
+            3,
+            1
+          ],
+          "Start": [
+            1,
+            0
+          ],
+          "Boss": [
+            1,
+            0
+          ],
+          "rooms": [
+            {
+              "X": 0,
+              "Y": 0,
+              "Map": 100008783,
+              "Boss": false
+            },
+            {
+              "X": 1,
+              "Y": 0,
+              "Map": 100008784,
+              "Boss": false
+            },
+            {
+              "X": 2,
+              "Y": 0,
+              "Map": 100008785,
+              "Boss": false
+            }
+          ]
+        }
+      ]
+    },
+    "100003651": {
+      "id": 100003651,
+      "script": {
+        "path": "dungeon/poongjintrainingroom/poongjintrainingroom_movedungeon.dgn",
+        "sha256": "ecd9196558a0cce079262f444654872fe16d2415c69f71c3e35456ea502351e9",
+        "cells": [
+          {
+            "type": 3,
+            "value": 184980071,
+            "text": "[background pos]"
+          },
+          {
+            "type": 0,
+            "value": 80
+          },
+          {
+            "type": 3,
+            "value": 157673341,
+            "text": "[name]"
+          },
+          {
+            "type": 8,
+            "value": 186839287,
+            "reference": "\u003c2::name_100003651\u003e"
+          },
+          {
+            "type": 3,
+            "value": 157680133,
+            "text": "[explain]"
+          },
+          {
+            "type": 8,
+            "value": 186839287,
+            "reference": "\u003c2::name_100003651\u003e"
+          },
+          {
+            "type": 3,
+            "value": 184980105,
+            "text": "[cutscene image]"
+          },
+          {
+            "type": 6,
+            "value": 185749663,
+            "text": "Map/CutScene/PVP_town.img"
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 3,
+            "value": 184980261,
+            "text": "[minimap image]"
+          },
+          {
+            "type": 6,
+            "value": 184980293,
+            "text": "Map/MiniMap/Act6.img"
+          },
+          {
+            "type": 3,
+            "value": 184980335,
+            "text": "[worldmap pattern info]"
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 6,
+            "value": 185749715,
+            "text": "WorldMap/Abnoba.img"
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 3,
+            "value": 184980617,
+            "text": "[champion]"
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 3,
+            "value": 184980639,
+            "text": "[pathgate object]"
+          },
+          {
+            "type": 0,
+            "value": 109054459
+          },
+          {
+            "type": 0,
+            "value": 109054459
+          },
+          {
+            "type": 0,
+            "value": 109054461
+          },
+          {
+            "type": 0,
+            "value": 109054462
+          },
+          {
+            "type": 0,
+            "value": 109054462
+          },
+          {
+            "type": 0,
+            "value": 109054464
+          },
+          {
+            "type": 0,
+            "value": 109054465
+          },
+          {
+            "type": 0,
+            "value": 109054465
+          },
+          {
+            "type": 0,
+            "value": 109054467
+          },
+          {
+            "type": 0,
+            "value": 109054467
+          },
+          {
+            "type": 3,
+            "value": 185044449,
+            "text": "[experience increasing point]"
+          },
+          {
+            "type": 2,
+            "value": 981668463,
+            "number": 0.001
+          },
+          {
+            "type": 3,
+            "value": 184980539,
+            "text": "[minimum required level]"
+          },
+          {
+            "type": 0,
+            "value": 1
+          },
+          {
+            "type": 3,
+            "value": 184989663,
+            "text": "[recommended level]"
+          },
+          {
+            "type": 0,
+            "value": 1
+          },
+          {
+            "type": 0,
+            "value": 85
+          },
+          {
+            "type": 3,
+            "value": 184980675,
+            "text": "[limit party count]"
+          },
+          {
+            "type": 0,
+            "value": 4
+          },
+          {
+            "type": 3,
+            "value": 184980715,
+            "text": "[designate dungeon difficulty]"
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 3,
+            "value": 184981497,
+            "text": "[maze info]"
+          },
+          {
+            "type": 3,
+            "value": 172069227,
+            "text": "[size]"
+          },
+          {
+            "type": 0,
+            "value": 3
+          },
+          {
+            "type": 0,
+            "value": 1
+          },
+          {
+            "type": 3,
+            "value": 184981559,
+            "text": "[greed]"
+          },
+          {
+            "type": 6,
+            "value": 185043873,
+            "text": "BBFFEE"
+          },
+          {
+            "type": 3,
+            "value": 184981633,
+            "text": "[map specification]"
+          },
+          {
+            "type": 6,
+            "value": 171964033,
+            "text": "map"
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 0,
+            "value": 100010442
+          },
+          {
+            "type": 6,
+            "value": 171964033,
+            "text": "map"
+          },
+          {
+            "type": 0,
+            "value": 1
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 0,
+            "value": 100010443
+          },
+          {
+            "type": 6,
+            "value": 171964033,
+            "text": "map"
+          },
+          {
+            "type": 0,
+            "value": 2
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 0,
+            "value": 100010444
+          },
+          {
+            "type": 3,
+            "value": 184981673,
+            "text": "[/map specification]"
+          },
+          {
+            "type": 3,
+            "value": 184981715,
+            "text": "[start map]"
+          },
+          {
+            "type": 0,
+            "value": 1
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 3,
+            "value": 184981739,
+            "text": "[/start map]"
+          },
+          {
+            "type": 3,
+            "value": 184981765,
+            "text": "[boss map]"
+          },
+          {
+            "type": 0,
+            "value": 1
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 3,
+            "value": 184981787,
+            "text": "[/boss map]"
+          },
+          {
+            "type": 3,
+            "value": 185104351,
+            "text": "[direct move keep state]"
+          },
+          {
+            "type": 3,
+            "value": 185104401,
+            "text": "[keep character death]"
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 3,
+            "value": 185104447,
+            "text": "[keep buff and summons]"
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 3,
+            "value": 185104495,
+            "text": "[keep hp mp]"
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 3,
+            "value": 185104521,
+            "text": "[keep skill cooltime]"
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 3,
+            "value": 185104565,
+            "text": "[keep skill use count]"
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 3,
+            "value": 185109961,
+            "text": "[ignore grid clear]"
+          },
+          {
+            "type": 0,
+            "value": 1
+          },
+          {
+            "type": 3,
+            "value": 185104611,
+            "text": "[/direct move keep state]"
+          },
+          {
+            "type": 3,
+            "value": 184985045,
+            "text": "[warp map condition]"
+          },
+          {
+            "type": 3,
+            "value": 184985087,
+            "text": "[source grid pos]"
+          },
+          {
+            "type": 0,
+            "value": -1
+          },
+          {
+            "type": 0,
+            "value": -1
+          },
+          {
+            "type": 3,
+            "value": 184985123,
+            "text": "[dest grid pos]"
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 3,
+            "value": 184985087,
+            "text": "[source grid pos]"
+          },
+          {
+            "type": 0,
+            "value": -1
+          },
+          {
+            "type": 0,
+            "value": -1
+          },
+          {
+            "type": 3,
+            "value": 184985123,
+            "text": "[dest grid pos]"
+          },
+          {
+            "type": 0,
+            "value": 1
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 3,
+            "value": 184985087,
+            "text": "[source grid pos]"
+          },
+          {
+            "type": 0,
+            "value": -1
+          },
+          {
+            "type": 0,
+            "value": -1
+          },
+          {
+            "type": 3,
+            "value": 184985123,
+            "text": "[dest grid pos]"
+          },
+          {
+            "type": 0,
+            "value": 2
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 3,
+            "value": 184985155,
+            "text": "[/warp map condition]"
+          },
+          {
+            "type": 3,
+            "value": 185454759,
+            "text": "[does not draw boss icon]"
+          },
+          {
+            "type": 0,
+            "value": 1
+          },
+          {
+            "type": 3,
+            "value": 185128229,
+            "text": "[coin info]"
+          },
+          {
+            "type": 0,
+            "value": 1
+          },
+          {
+            "type": 6,
+            "value": 35527353,
+            "text": "[normal]"
+          },
+          {
+            "type": 0,
+            "value": -1
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 6,
+            "value": 86957815,
+            "text": "[expert]"
+          },
+          {
+            "type": 0,
+            "value": -1
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 6,
+            "value": 86957853,
+            "text": "[master]"
+          },
+          {
+            "type": 0,
+            "value": -1
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 6,
+            "value": 86957891,
+            "text": "[king]"
+          },
+          {
+            "type": 0,
+            "value": -1
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 6,
+            "value": 160041931,
+            "text": "[slayer]"
+          },
+          {
+            "type": 0,
+            "value": -1
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 3,
+            "value": 185128253,
+            "text": "[/coin info]"
+          },
+          {
+            "type": 3,
+            "value": 184989919,
+            "text": "[show boss hp percent gauge]"
+          },
+          {
+            "type": 0,
+            "value": 1
+          },
+          {
+            "type": 3,
+            "value": 184980777,
+            "text": "[hackcheck exception in start dungeon]"
+          },
+          {
+            "type": 3,
+            "value": 185065689,
+            "text": "[hp gauge control]"
+          },
+          {
+            "type": 3,
+            "value": 185065727,
+            "text": "[max time]"
+          },
+          {
+            "type": 0,
+            "value": 1000
+          },
+          {
+            "type": 3,
+            "value": 185065749,
+            "text": "[value per line]"
+          },
+          {
+            "type": 0,
+            "value": 500000000
+          },
+          {
+            "type": 3,
+            "value": 185065783,
+            "text": "[named value per line]"
+          },
+          {
+            "type": 0,
+            "value": 1000000000
+          },
+          {
+            "type": 3,
+            "value": 185065829,
+            "text": "[boss value per line]"
+          },
+          {
+            "type": 0,
+            "value": 1000000000
+          },
+          {
+            "type": 3,
+            "value": 185065873,
+            "text": "[ai character value per line]"
+          },
+          {
+            "type": 0,
+            "value": 400000
+          },
+          {
+            "type": 3,
+            "value": 185065933,
+            "text": "[/hp gauge control]"
+          }
+        ]
+      },
+      "MinimumLevel": 1,
+      "BasisLevel": 1,
+      "Tutorial": false,
+      "NoFatigue": true,
+      "Odyssey": false,
+      "DesignatedDifficulty": 0,
+      "HuntBoss": 0,
+      "mazes": [
+        {
+          "index": 0,
+          "quest": 0,
+          "Size": [
+            3,
+            1
+          ],
+          "Start": [
+            1,
+            0
+          ],
+          "Boss": [
+            1,
+            0
+          ],
+          "rooms": [
+            {
+              "X": 0,
+              "Y": 0,
+              "Map": 100010442,
+              "Boss": false
+            },
+            {
+              "X": 1,
+              "Y": 0,
+              "Map": 100010443,
+              "Boss": false
+            },
+            {
+              "X": 2,
+              "Y": 0,
+              "Map": 100010444,
+              "Boss": false
+            }
+          ]
+        }
+      ]
+    },
+    "100003652": {
+      "id": 100003652,
+      "script": {
+        "path": "dungeon/poongjintrainingroom/poongjintrainingroom_movedungeon_eachmap.dgn",
+        "sha256": "22e2e62db6d3f873eccdbf26c60bead8a296de351b2a36a7be014e590d47268f",
+        "cells": [
+          {
+            "type": 3,
+            "value": 184980071,
+            "text": "[background pos]"
+          },
+          {
+            "type": 0,
+            "value": 80
+          },
+          {
+            "type": 3,
+            "value": 157673341,
+            "text": "[name]"
+          },
+          {
+            "type": 8,
+            "value": 186839781,
+            "reference": "\u003c2::name_100003652\u003e"
+          },
+          {
+            "type": 3,
+            "value": 157680133,
+            "text": "[explain]"
+          },
+          {
+            "type": 8,
+            "value": 186839781,
+            "reference": "\u003c2::name_100003652\u003e"
+          },
+          {
+            "type": 3,
+            "value": 184980105,
+            "text": "[cutscene image]"
+          },
+          {
+            "type": 6,
+            "value": 185749663,
+            "text": "Map/CutScene/PVP_town.img"
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 3,
+            "value": 184980261,
+            "text": "[minimap image]"
+          },
+          {
+            "type": 6,
+            "value": 184980293,
+            "text": "Map/MiniMap/Act6.img"
+          },
+          {
+            "type": 3,
+            "value": 184980335,
+            "text": "[worldmap pattern info]"
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 6,
+            "value": 185749715,
+            "text": "WorldMap/Abnoba.img"
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 3,
+            "value": 184980617,
+            "text": "[champion]"
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 3,
+            "value": 184980639,
+            "text": "[pathgate object]"
+          },
+          {
+            "type": 0,
+            "value": 109054459
+          },
+          {
+            "type": 0,
+            "value": 109054459
+          },
+          {
+            "type": 0,
+            "value": 109054461
+          },
+          {
+            "type": 0,
+            "value": 109054462
+          },
+          {
+            "type": 0,
+            "value": 109054462
+          },
+          {
+            "type": 0,
+            "value": 109054464
+          },
+          {
+            "type": 0,
+            "value": 109054465
+          },
+          {
+            "type": 0,
+            "value": 109054465
+          },
+          {
+            "type": 0,
+            "value": 109054467
+          },
+          {
+            "type": 0,
+            "value": 109054467
+          },
+          {
+            "type": 3,
+            "value": 185044449,
+            "text": "[experience increasing point]"
+          },
+          {
+            "type": 2,
+            "value": 981668463,
+            "number": 0.001
+          },
+          {
+            "type": 3,
+            "value": 184980539,
+            "text": "[minimum required level]"
+          },
+          {
+            "type": 0,
+            "value": 1
+          },
+          {
+            "type": 3,
+            "value": 184989663,
+            "text": "[recommended level]"
+          },
+          {
+            "type": 0,
+            "value": 1
+          },
+          {
+            "type": 0,
+            "value": 85
+          },
+          {
+            "type": 3,
+            "value": 184980675,
+            "text": "[limit party count]"
+          },
+          {
+            "type": 0,
+            "value": 4
+          },
+          {
+            "type": 3,
+            "value": 184980715,
+            "text": "[designate dungeon difficulty]"
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 3,
+            "value": 184981497,
+            "text": "[maze info]"
+          },
+          {
+            "type": 3,
+            "value": 172069227,
+            "text": "[size]"
+          },
+          {
+            "type": 0,
+            "value": 3
+          },
+          {
+            "type": 0,
+            "value": 1
+          },
+          {
+            "type": 3,
+            "value": 184981559,
+            "text": "[greed]"
+          },
+          {
+            "type": 6,
+            "value": 185043873,
+            "text": "BBFFEE"
+          },
+          {
+            "type": 3,
+            "value": 184981633,
+            "text": "[map specification]"
+          },
+          {
+            "type": 6,
+            "value": 171964033,
+            "text": "map"
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 0,
+            "value": 100010442
+          },
+          {
+            "type": 6,
+            "value": 171964033,
+            "text": "map"
+          },
+          {
+            "type": 0,
+            "value": 1
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 0,
+            "value": 100010443
+          },
+          {
+            "type": 6,
+            "value": 171964033,
+            "text": "map"
+          },
+          {
+            "type": 0,
+            "value": 2
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 0,
+            "value": 100010444
+          },
+          {
+            "type": 3,
+            "value": 184981673,
+            "text": "[/map specification]"
+          },
+          {
+            "type": 3,
+            "value": 184981715,
+            "text": "[start map]"
+          },
+          {
+            "type": 0,
+            "value": 1
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 3,
+            "value": 184981739,
+            "text": "[/start map]"
+          },
+          {
+            "type": 3,
+            "value": 184981765,
+            "text": "[boss map]"
+          },
+          {
+            "type": 0,
+            "value": 1
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 3,
+            "value": 184981787,
+            "text": "[/boss map]"
+          },
+          {
+            "type": 3,
+            "value": 185088039,
+            "text": "[individual map movement]"
+          },
+          {
+            "type": 0,
+            "value": 1
+          },
+          {
+            "type": 3,
+            "value": 185415539,
+            "text": "[open door even enemy]"
+          },
+          {
+            "type": 0,
+            "value": 1
+          },
+          {
+            "type": 3,
+            "value": 185072107,
+            "text": "[move map even enemy]"
+          },
+          {
+            "type": 0,
+            "value": 1
+          },
+          {
+            "type": 3,
+            "value": 185104351,
+            "text": "[direct move keep state]"
+          },
+          {
+            "type": 3,
+            "value": 185104401,
+            "text": "[keep character death]"
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 3,
+            "value": 185104447,
+            "text": "[keep buff and summons]"
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 3,
+            "value": 185104495,
+            "text": "[keep hp mp]"
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 3,
+            "value": 185104521,
+            "text": "[keep skill cooltime]"
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 3,
+            "value": 185104565,
+            "text": "[keep skill use count]"
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 3,
+            "value": 185109961,
+            "text": "[ignore grid clear]"
+          },
+          {
+            "type": 0,
+            "value": 1
+          },
+          {
+            "type": 3,
+            "value": 185104611,
+            "text": "[/direct move keep state]"
+          },
+          {
+            "type": 3,
+            "value": 184985045,
+            "text": "[warp map condition]"
+          },
+          {
+            "type": 3,
+            "value": 184985087,
+            "text": "[source grid pos]"
+          },
+          {
+            "type": 0,
+            "value": -1
+          },
+          {
+            "type": 0,
+            "value": -1
+          },
+          {
+            "type": 3,
+            "value": 184985123,
+            "text": "[dest grid pos]"
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 3,
+            "value": 184985087,
+            "text": "[source grid pos]"
+          },
+          {
+            "type": 0,
+            "value": -1
+          },
+          {
+            "type": 0,
+            "value": -1
+          },
+          {
+            "type": 3,
+            "value": 184985123,
+            "text": "[dest grid pos]"
+          },
+          {
+            "type": 0,
+            "value": 1
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 3,
+            "value": 184985087,
+            "text": "[source grid pos]"
+          },
+          {
+            "type": 0,
+            "value": -1
+          },
+          {
+            "type": 0,
+            "value": -1
+          },
+          {
+            "type": 3,
+            "value": 184985123,
+            "text": "[dest grid pos]"
+          },
+          {
+            "type": 0,
+            "value": 2
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 3,
+            "value": 184985155,
+            "text": "[/warp map condition]"
+          },
+          {
+            "type": 3,
+            "value": 185454759,
+            "text": "[does not draw boss icon]"
+          },
+          {
+            "type": 0,
+            "value": 1
+          },
+          {
+            "type": 3,
+            "value": 185128229,
+            "text": "[coin info]"
+          },
+          {
+            "type": 0,
+            "value": 1
+          },
+          {
+            "type": 6,
+            "value": 35527353,
+            "text": "[normal]"
+          },
+          {
+            "type": 0,
+            "value": -1
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 6,
+            "value": 86957815,
+            "text": "[expert]"
+          },
+          {
+            "type": 0,
+            "value": -1
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 6,
+            "value": 86957853,
+            "text": "[master]"
+          },
+          {
+            "type": 0,
+            "value": -1
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 6,
+            "value": 86957891,
+            "text": "[king]"
+          },
+          {
+            "type": 0,
+            "value": -1
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 6,
+            "value": 160041931,
+            "text": "[slayer]"
+          },
+          {
+            "type": 0,
+            "value": -1
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 3,
+            "value": 185128253,
+            "text": "[/coin info]"
+          },
+          {
+            "type": 3,
+            "value": 184989919,
+            "text": "[show boss hp percent gauge]"
+          },
+          {
+            "type": 0,
+            "value": 1
+          },
+          {
+            "type": 3,
+            "value": 184980777,
+            "text": "[hackcheck exception in start dungeon]"
+          },
+          {
+            "type": 3,
+            "value": 185065689,
+            "text": "[hp gauge control]"
+          },
+          {
+            "type": 3,
+            "value": 185065727,
+            "text": "[max time]"
+          },
+          {
+            "type": 0,
+            "value": 1000
+          },
+          {
+            "type": 3,
+            "value": 185065749,
+            "text": "[value per line]"
+          },
+          {
+            "type": 0,
+            "value": 500000000
+          },
+          {
+            "type": 3,
+            "value": 185065783,
+            "text": "[named value per line]"
+          },
+          {
+            "type": 0,
+            "value": 1000000000
+          },
+          {
+            "type": 3,
+            "value": 185065829,
+            "text": "[boss value per line]"
+          },
+          {
+            "type": 0,
+            "value": 1000000000
+          },
+          {
+            "type": 3,
+            "value": 185065873,
+            "text": "[ai character value per line]"
+          },
+          {
+            "type": 0,
+            "value": 400000
+          },
+          {
+            "type": 3,
+            "value": 185065933,
+            "text": "[/hp gauge control]"
+          }
+        ]
+      },
+      "MinimumLevel": 1,
+      "BasisLevel": 1,
+      "Tutorial": false,
+      "NoFatigue": true,
+      "Odyssey": false,
+      "DesignatedDifficulty": 0,
+      "HuntBoss": 0,
+      "mazes": [
+        {
+          "index": 0,
+          "quest": 0,
+          "Size": [
+            3,
+            1
+          ],
+          "Start": [
+            1,
+            0
+          ],
+          "Boss": [
+            1,
+            0
+          ],
+          "rooms": [
+            {
+              "X": 0,
+              "Y": 0,
+              "Map": 100010442,
+              "Boss": false
+            },
+            {
+              "X": 1,
+              "Y": 0,
+              "Map": 100010443,
+              "Boss": false
+            },
+            {
+              "X": 2,
+              "Y": 0,
+              "Map": 100010444,
+              "Boss": false
+            }
+          ]
+        }
+      ]
+    },
+    "5000": {
+      "id": 5000,
+      "script": {
+        "path": "dungeon/poongjintrainingroom/poongjintrainingroom.dgn",
+        "sha256": "a77ef6d4688687f95f57a0838d2f799d53b7b4b7a3038cffd1735fb5c6534da6",
+        "cells": [
+          {
+            "type": 3,
+            "value": 184980071,
+            "text": "[background pos]"
+          },
+          {
+            "type": 0,
+            "value": 80
+          },
+          {
+            "type": 3,
+            "value": 157673341,
+            "text": "[name]"
+          },
+          {
+            "type": 8,
+            "value": 185512359,
+            "reference": "\u003c2::name_1196\u003e"
+          },
+          {
+            "type": 3,
+            "value": 157680133,
+            "text": "[explain]"
+          },
+          {
+            "type": 8,
+            "value": 185819537,
+            "reference": "\u003c2::explain_1196\u003e"
+          },
+          {
+            "type": 3,
+            "value": 184980105,
+            "text": "[cutscene image]"
+          },
+          {
+            "type": 6,
+            "value": 185749663,
+            "text": "Map/CutScene/PVP_town.img"
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 3,
+            "value": 184980335,
+            "text": "[worldmap pattern info]"
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 6,
+            "value": 185749715,
+            "text": "WorldMap/Abnoba.img"
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 3,
+            "value": 184980617,
+            "text": "[champion]"
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 3,
+            "value": 184980639,
+            "text": "[pathgate object]"
+          },
+          {
+            "type": 0,
+            "value": 5755
+          },
+          {
+            "type": 0,
+            "value": 5755
+          },
+          {
+            "type": 0,
+            "value": 5757
+          },
+          {
+            "type": 0,
+            "value": 5758
+          },
+          {
+            "type": 0,
+            "value": 5758
+          },
+          {
+            "type": 0,
+            "value": 5760
+          },
+          {
+            "type": 0,
+            "value": 5761
+          },
+          {
+            "type": 0,
+            "value": 5761
+          },
+          {
+            "type": 0,
+            "value": 5763
+          },
+          {
+            "type": 0,
+            "value": 5763
+          },
+          {
+            "type": 3,
+            "value": 185044449,
+            "text": "[experience increasing point]"
+          },
+          {
+            "type": 2,
+            "value": 981668463,
+            "number": 0.001
+          },
+          {
+            "type": 3,
+            "value": 184980539,
+            "text": "[minimum required level]"
+          },
+          {
+            "type": 0,
+            "value": 1
+          },
+          {
+            "type": 3,
+            "value": 184989663,
+            "text": "[recommended level]"
+          },
+          {
+            "type": 0,
+            "value": 1
+          },
+          {
+            "type": 0,
+            "value": 85
+          },
+          {
+            "type": 3,
+            "value": 184980675,
+            "text": "[limit party count]"
+          },
+          {
+            "type": 0,
+            "value": 4
+          },
+          {
+            "type": 3,
+            "value": 184980715,
+            "text": "[designate dungeon difficulty]"
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 3,
+            "value": 184981497,
+            "text": "[maze info]"
+          },
+          {
+            "type": 3,
+            "value": 172069227,
+            "text": "[size]"
+          },
+          {
+            "type": 0,
+            "value": 1
+          },
+          {
+            "type": 0,
+            "value": 1
+          },
+          {
+            "type": 3,
+            "value": 184981559,
+            "text": "[greed]"
+          },
+          {
+            "type": 6,
+            "value": 185047301,
+            "text": "BB"
+          },
+          {
+            "type": 3,
+            "value": 184981633,
+            "text": "[map specification]"
+          },
+          {
+            "type": 6,
+            "value": 171964033,
+            "text": "map"
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 0,
+            "value": 36250
+          },
+          {
+            "type": 3,
+            "value": 184981673,
+            "text": "[/map specification]"
+          },
+          {
+            "type": 3,
+            "value": 184981715,
+            "text": "[start map]"
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 3,
+            "value": 184981739,
+            "text": "[/start map]"
+          },
+          {
+            "type": 3,
+            "value": 184981765,
+            "text": "[boss map]"
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 3,
+            "value": 184981787,
+            "text": "[/boss map]"
+          },
+          {
+            "type": 3,
+            "value": 184985045,
+            "text": "[warp map condition]"
+          },
+          {
+            "type": 3,
+            "value": 184985087,
+            "text": "[source grid pos]"
+          },
+          {
+            "type": 0,
+            "value": 1
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 3,
+            "value": 184985123,
+            "text": "[dest grid pos]"
+          },
+          {
+            "type": 0,
+            "value": 1
+          },
+          {
+            "type": 0,
+            "value": 1
+          },
+          {
+            "type": 3,
+            "value": 184985155,
+            "text": "[/warp map condition]"
+          },
+          {
+            "type": 3,
+            "value": 185454759,
+            "text": "[does not draw boss icon]"
+          },
+          {
+            "type": 0,
+            "value": 1
+          },
+          {
+            "type": 3,
+            "value": 185128229,
+            "text": "[coin info]"
+          },
+          {
+            "type": 0,
+            "value": 1
+          },
+          {
+            "type": 6,
+            "value": 35527353,
+            "text": "[normal]"
+          },
+          {
+            "type": 0,
+            "value": -1
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 6,
+            "value": 86957815,
+            "text": "[expert]"
+          },
+          {
+            "type": 0,
+            "value": -1
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 6,
+            "value": 86957853,
+            "text": "[master]"
+          },
+          {
+            "type": 0,
+            "value": -1
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 6,
+            "value": 86957891,
+            "text": "[king]"
+          },
+          {
+            "type": 0,
+            "value": -1
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 6,
+            "value": 160041931,
+            "text": "[slayer]"
+          },
+          {
+            "type": 0,
+            "value": -1
+          },
+          {
+            "type": 0,
+            "value": 0
+          },
+          {
+            "type": 3,
+            "value": 185128253,
+            "text": "[/coin info]"
+          },
+          {
+            "type": 3,
+            "value": 184989919,
+            "text": "[show boss hp percent gauge]"
+          },
+          {
+            "type": 0,
+            "value": 1
+          },
+          {
+            "type": 3,
+            "value": 185065689,
+            "text": "[hp gauge control]"
+          },
+          {
+            "type": 3,
+            "value": 185065727,
+            "text": "[max time]"
+          },
+          {
+            "type": 0,
+            "value": 1000
+          },
+          {
+            "type": 3,
+            "value": 185065749,
+            "text": "[value per line]"
+          },
+          {
+            "type": 0,
+            "value": 500000000
+          },
+          {
+            "type": 3,
+            "value": 185065783,
+            "text": "[named value per line]"
+          },
+          {
+            "type": 0,
+            "value": 1000000000
+          },
+          {
+            "type": 3,
+            "value": 185065829,
+            "text": "[boss value per line]"
+          },
+          {
+            "type": 0,
+            "value": 1000000000
+          },
+          {
+            "type": 3,
+            "value": 185065873,
+            "text": "[ai character value per line]"
+          },
+          {
+            "type": 0,
+            "value": 400000
+          },
+          {
+            "type": 3,
+            "value": 185065933,
+            "text": "[/hp gauge control]"
+          }
+        ]
+      },
+      "MinimumLevel": 1,
+      "BasisLevel": 1,
+      "Tutorial": false,
+      "NoFatigue": true,
+      "Odyssey": false,
+      "DesignatedDifficulty": 0,
+      "HuntBoss": 0,
+      "mazes": [
+        {
+          "index": 0,
+          "quest": 0,
+          "Size": [
+            1,
+            1
+          ],
+          "Start": [
+            0,
+            0
+          ],
+          "Boss": [
+            0,
+            0
+          ],
+          "rooms": [
+            {
+              "X": 0,
+              "Y": 0,
+              "Map": 36250,
+              "Boss": false
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "maps": {
+    "100008783": {
+      "path": "map/poongjintrainingroom/100008783_left.map",
+      "sha256": "0a29a8539e396069e3bf7ded40e2e82d9cf5d53ad572bc214e5e982b55a9f4d0",
+      "cells": [
+        {
+          "type": 3,
+          "value": 396405611,
+          "text": "[player number]"
+        },
+        {
+          "type": 0,
+          "value": 2
+        },
+        {
+          "type": 0,
+          "value": 8
+        },
+        {
+          "type": 3,
+          "value": 415635005,
+          "text": "[time training]"
+        },
+        {
+          "type": 0,
+          "value": 1
+        },
+        {
+          "type": 3,
+          "value": 397400933,
+          "text": "[Use Fatigue]"
+        },
+        {
+          "type": 0,
+          "value": 1
+        },
+        {
+          "type": 3,
+          "value": 400189211,
+          "text": "[Use Endurance]"
+        },
+        {
+          "type": 0,
+          "value": 1
+        },
+        {
+          "type": 3,
+          "value": 401155925,
+          "text": "[Use GiveUpPenalty]"
+        },
+        {
+          "type": 0,
+          "value": 1
+        },
+        {
+          "type": 3,
+          "value": 401155965,
+          "text": "[Use SkillChange]"
+        },
+        {
+          "type": 0,
+          "value": 1
+        },
+        {
+          "type": 3,
+          "value": 396405683,
+          "text": "[pvp start area]"
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 3,
+          "value": 87898005,
+          "text": "[dungeon]"
+        },
+        {
+          "type": 0,
+          "value": 100003314
+        },
+        {
+          "type": 3,
+          "value": 210314289,
+          "text": "[/dungeon]"
+        },
+        {
+          "type": 3,
+          "value": 147066155,
+          "text": "[type]"
+        },
+        {
+          "type": 6,
+          "value": 35527353,
+          "text": "[normal]"
+        },
+        {
+          "type": 3,
+          "value": 184981559,
+          "text": "[greed]"
+        },
+        {
+          "type": 6,
+          "value": 396623297,
+          "text": "BB BB"
+        },
+        {
+          "type": 3,
+          "value": 166550463,
+          "text": "[tile]"
+        },
+        {
+          "type": 6,
+          "value": 401156001,
+          "text": "Tile/back0_1.til"
+        },
+        {
+          "type": 6,
+          "value": 396679277,
+          "text": "Tile/back1.til"
+        },
+        {
+          "type": 6,
+          "value": 396679307,
+          "text": "Tile/back2.til"
+        },
+        {
+          "type": 6,
+          "value": 396679337,
+          "text": "Tile/back3.til"
+        },
+        {
+          "type": 6,
+          "value": 396679367,
+          "text": "Tile/back4.til"
+        },
+        {
+          "type": 6,
+          "value": 401355623,
+          "text": "Tile/back5.til"
+        },
+        {
+          "type": 6,
+          "value": 415635037,
+          "text": "Tile/back6_1.til"
+        },
+        {
+          "type": 3,
+          "value": 166550477,
+          "text": "[/tile]"
+        },
+        {
+          "type": 3,
+          "value": 214388759,
+          "text": "[extended tile]"
+        },
+        {
+          "type": 3,
+          "value": 214388791,
+          "text": "[tile files]"
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679397,
+          "text": "Tile/back_EX.til"
+        },
+        {
+          "type": 3,
+          "value": 214389577,
+          "text": "[/tile files]"
+        },
+        {
+          "type": 3,
+          "value": 214389605,
+          "text": "[tile map]"
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 3,
+          "value": 214389627,
+          "text": "[/tile map]"
+        },
+        {
+          "type": 3,
+          "value": 214389651,
+          "text": "[/extended tile]"
+        },
+        {
+          "type": 3,
+          "value": 397396111,
+          "text": "[dungeon movable area]"
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 143
+        },
+        {
+          "type": 0,
+          "value": 1570
+        },
+        {
+          "type": 0,
+          "value": 225
+        },
+        {
+          "type": 3,
+          "value": 397396157,
+          "text": "[/dungeon movable area]"
+        },
+        {
+          "type": 3,
+          "value": 396406109,
+          "text": "[pathgate pos]"
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 1570
+        },
+        {
+          "type": 0,
+          "value": 250
+        },
+        {
+          "type": 0,
+          "value": 930
+        },
+        {
+          "type": 0,
+          "value": 160
+        },
+        {
+          "type": 0,
+          "value": 225
+        },
+        {
+          "type": 0,
+          "value": 711
+        },
+        {
+          "type": 3,
+          "value": 298796689,
+          "text": "[sound]"
+        },
+        {
+          "type": 6,
+          "value": 408547473,
+          "text": "M_PVP_PRACTICE"
+        },
+        {
+          "type": 3,
+          "value": 396362917,
+          "text": "[/sound]"
+        },
+        {
+          "type": 3,
+          "value": 186198975,
+          "text": "[animation]"
+        },
+        {
+          "type": 6,
+          "value": 408547503,
+          "text": "Animation/fighter_m.ani"
+        },
+        {
+          "type": 6,
+          "value": 7020463,
+          "text": "[closeback]"
+        },
+        {
+          "type": 0,
+          "value": 300
+        },
+        {
+          "type": 0,
+          "value": -99
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 408547551,
+          "text": "Animation/fighter_g.ani"
+        },
+        {
+          "type": 6,
+          "value": 7020463,
+          "text": "[closeback]"
+        },
+        {
+          "type": 0,
+          "value": 705
+        },
+        {
+          "type": 0,
+          "value": -1
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 408547599,
+          "text": "Animation/pungjin.ani"
+        },
+        {
+          "type": 6,
+          "value": 7020463,
+          "text": "[closeback]"
+        },
+        {
+          "type": 0,
+          "value": 1010
+        },
+        {
+          "type": 0,
+          "value": 50
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 166629203,
+          "text": "Animation/Stay.ani"
+        },
+        {
+          "type": 6,
+          "value": 35527353,
+          "text": "[normal]"
+        },
+        {
+          "type": 0,
+          "value": 1167
+        },
+        {
+          "type": 0,
+          "value": 60
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 57
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 505
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 281
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 729
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": -167
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 953
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 1177
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 1401
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": -67
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 381
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 157
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 605
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 1053
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 1501
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 1277
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 829
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 3,
+          "value": 186199231,
+          "text": "[/animation]"
+        },
+        {
+          "type": 3,
+          "value": 396406613,
+          "text": "[event monster position]"
+        },
+        {
+          "type": 0,
+          "value": 192
+        },
+        {
+          "type": 0,
+          "value": 132
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 192
+        },
+        {
+          "type": 0,
+          "value": 132
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 192
+        },
+        {
+          "type": 0,
+          "value": 132
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 192
+        },
+        {
+          "type": 0,
+          "value": 132
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 3,
+          "value": 396406663,
+          "text": "[/event monster position]"
+        },
+        {
+          "type": 3,
+          "value": 396406715,
+          "text": "[map name]"
+        },
+        {
+          "type": 8,
+          "value": 396423243,
+          "reference": "\u003c6::map_name_455\u003e"
+        },
+        {
+          "type": 3,
+          "value": 396423279,
+          "text": "[wide mode camera vertical correction]"
+        },
+        {
+          "type": 0,
+          "value": -20
+        },
+        {
+          "type": 3,
+          "value": 396488287,
+          "text": "[limit map camera move]"
+        },
+        {
+          "type": 3,
+          "value": 396488335,
+          "text": "[top edge]"
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 3,
+          "value": 396488357,
+          "text": "[/limit map camera move]"
+        }
+      ]
+    },
+    "100008784": {
+      "path": "map/poongjintrainingroom/100008784_center.map",
+      "sha256": "34576841cdc2c7c7c275fbc74db8c3f0aa209ffd847ce7fde6bf1f173f867d64",
+      "cells": [
+        {
+          "type": 3,
+          "value": 396405611,
+          "text": "[player number]"
+        },
+        {
+          "type": 0,
+          "value": 2
+        },
+        {
+          "type": 0,
+          "value": 8
+        },
+        {
+          "type": 3,
+          "value": 415635005,
+          "text": "[time training]"
+        },
+        {
+          "type": 0,
+          "value": 1
+        },
+        {
+          "type": 3,
+          "value": 397400933,
+          "text": "[Use Fatigue]"
+        },
+        {
+          "type": 0,
+          "value": 1
+        },
+        {
+          "type": 3,
+          "value": 400189211,
+          "text": "[Use Endurance]"
+        },
+        {
+          "type": 0,
+          "value": 1
+        },
+        {
+          "type": 3,
+          "value": 401155925,
+          "text": "[Use GiveUpPenalty]"
+        },
+        {
+          "type": 0,
+          "value": 1
+        },
+        {
+          "type": 3,
+          "value": 401155965,
+          "text": "[Use SkillChange]"
+        },
+        {
+          "type": 0,
+          "value": 1
+        },
+        {
+          "type": 3,
+          "value": 396405683,
+          "text": "[pvp start area]"
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 3,
+          "value": 87898005,
+          "text": "[dungeon]"
+        },
+        {
+          "type": 0,
+          "value": 100003314
+        },
+        {
+          "type": 3,
+          "value": 210314289,
+          "text": "[/dungeon]"
+        },
+        {
+          "type": 3,
+          "value": 147066155,
+          "text": "[type]"
+        },
+        {
+          "type": 6,
+          "value": 35527353,
+          "text": "[normal]"
+        },
+        {
+          "type": 3,
+          "value": 184981559,
+          "text": "[greed]"
+        },
+        {
+          "type": 6,
+          "value": 396929087,
+          "text": "FF FF"
+        },
+        {
+          "type": 3,
+          "value": 166550463,
+          "text": "[tile]"
+        },
+        {
+          "type": 6,
+          "value": 401156001,
+          "text": "Tile/back0_1.til"
+        },
+        {
+          "type": 6,
+          "value": 396679277,
+          "text": "Tile/back1.til"
+        },
+        {
+          "type": 6,
+          "value": 396679307,
+          "text": "Tile/back2.til"
+        },
+        {
+          "type": 6,
+          "value": 396679337,
+          "text": "Tile/back3.til"
+        },
+        {
+          "type": 6,
+          "value": 396679367,
+          "text": "Tile/back4.til"
+        },
+        {
+          "type": 6,
+          "value": 401355623,
+          "text": "Tile/back5.til"
+        },
+        {
+          "type": 6,
+          "value": 415635037,
+          "text": "Tile/back6_1.til"
+        },
+        {
+          "type": 3,
+          "value": 166550477,
+          "text": "[/tile]"
+        },
+        {
+          "type": 3,
+          "value": 214388759,
+          "text": "[extended tile]"
+        },
+        {
+          "type": 3,
+          "value": 214388791,
+          "text": "[tile files]"
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679397,
+          "text": "Tile/back_EX.til"
+        },
+        {
+          "type": 3,
+          "value": 214389577,
+          "text": "[/tile files]"
+        },
+        {
+          "type": 3,
+          "value": 214389605,
+          "text": "[tile map]"
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 3,
+          "value": 214389627,
+          "text": "[/tile map]"
+        },
+        {
+          "type": 3,
+          "value": 214389651,
+          "text": "[/extended tile]"
+        },
+        {
+          "type": 3,
+          "value": 397396111,
+          "text": "[dungeon movable area]"
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 143
+        },
+        {
+          "type": 0,
+          "value": 1570
+        },
+        {
+          "type": 0,
+          "value": 225
+        },
+        {
+          "type": 3,
+          "value": 397396157,
+          "text": "[/dungeon movable area]"
+        },
+        {
+          "type": 3,
+          "value": 396406109,
+          "text": "[pathgate pos]"
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 250
+        },
+        {
+          "type": 0,
+          "value": 1570
+        },
+        {
+          "type": 0,
+          "value": 250
+        },
+        {
+          "type": 0,
+          "value": 930
+        },
+        {
+          "type": 0,
+          "value": 160
+        },
+        {
+          "type": 0,
+          "value": 225
+        },
+        {
+          "type": 0,
+          "value": 711
+        },
+        {
+          "type": 3,
+          "value": 396406139,
+          "text": "[dungeon start area]"
+        },
+        {
+          "type": 0,
+          "value": 600
+        },
+        {
+          "type": 0,
+          "value": 250
+        },
+        {
+          "type": 0,
+          "value": 50
+        },
+        {
+          "type": 0,
+          "value": 50
+        },
+        {
+          "type": 3,
+          "value": 298796689,
+          "text": "[sound]"
+        },
+        {
+          "type": 6,
+          "value": 408547473,
+          "text": "M_PVP_PRACTICE"
+        },
+        {
+          "type": 3,
+          "value": 396362917,
+          "text": "[/sound]"
+        },
+        {
+          "type": 3,
+          "value": 186198975,
+          "text": "[animation]"
+        },
+        {
+          "type": 6,
+          "value": 408547503,
+          "text": "Animation/fighter_m.ani"
+        },
+        {
+          "type": 6,
+          "value": 7020463,
+          "text": "[closeback]"
+        },
+        {
+          "type": 0,
+          "value": 300
+        },
+        {
+          "type": 0,
+          "value": -99
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 408547551,
+          "text": "Animation/fighter_g.ani"
+        },
+        {
+          "type": 6,
+          "value": 7020463,
+          "text": "[closeback]"
+        },
+        {
+          "type": 0,
+          "value": 705
+        },
+        {
+          "type": 0,
+          "value": -1
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 408547599,
+          "text": "Animation/pungjin.ani"
+        },
+        {
+          "type": 6,
+          "value": 7020463,
+          "text": "[closeback]"
+        },
+        {
+          "type": 0,
+          "value": 1010
+        },
+        {
+          "type": 0,
+          "value": 50
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 166629203,
+          "text": "Animation/Stay.ani"
+        },
+        {
+          "type": 6,
+          "value": 35527353,
+          "text": "[normal]"
+        },
+        {
+          "type": 0,
+          "value": 1167
+        },
+        {
+          "type": 0,
+          "value": 60
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 57
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 505
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 281
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 729
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": -167
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 953
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 1177
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 1401
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": -67
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 381
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 157
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 605
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 1053
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 1501
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 1277
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 829
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 3,
+          "value": 186199231,
+          "text": "[/animation]"
+        },
+        {
+          "type": 3,
+          "value": 396406613,
+          "text": "[event monster position]"
+        },
+        {
+          "type": 0,
+          "value": 192
+        },
+        {
+          "type": 0,
+          "value": 132
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 192
+        },
+        {
+          "type": 0,
+          "value": 132
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 192
+        },
+        {
+          "type": 0,
+          "value": 132
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 192
+        },
+        {
+          "type": 0,
+          "value": 132
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 3,
+          "value": 396406663,
+          "text": "[/event monster position]"
+        },
+        {
+          "type": 3,
+          "value": 396406715,
+          "text": "[map name]"
+        },
+        {
+          "type": 8,
+          "value": 396423243,
+          "reference": "\u003c6::map_name_455\u003e"
+        },
+        {
+          "type": 3,
+          "value": 396423279,
+          "text": "[wide mode camera vertical correction]"
+        },
+        {
+          "type": 0,
+          "value": -20
+        },
+        {
+          "type": 3,
+          "value": 396488287,
+          "text": "[limit map camera move]"
+        },
+        {
+          "type": 3,
+          "value": 396488335,
+          "text": "[top edge]"
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 3,
+          "value": 396488357,
+          "text": "[/limit map camera move]"
+        }
+      ]
+    },
+    "100008785": {
+      "path": "map/poongjintrainingroom/100008785_right.map",
+      "sha256": "436fe6552f91730042cb1cedd573bed1c5d02e5bab522e453136385aa9ca2f32",
+      "cells": [
+        {
+          "type": 3,
+          "value": 396405611,
+          "text": "[player number]"
+        },
+        {
+          "type": 0,
+          "value": 2
+        },
+        {
+          "type": 0,
+          "value": 8
+        },
+        {
+          "type": 3,
+          "value": 415635005,
+          "text": "[time training]"
+        },
+        {
+          "type": 0,
+          "value": 1
+        },
+        {
+          "type": 3,
+          "value": 397400933,
+          "text": "[Use Fatigue]"
+        },
+        {
+          "type": 0,
+          "value": 1
+        },
+        {
+          "type": 3,
+          "value": 400189211,
+          "text": "[Use Endurance]"
+        },
+        {
+          "type": 0,
+          "value": 1
+        },
+        {
+          "type": 3,
+          "value": 401155925,
+          "text": "[Use GiveUpPenalty]"
+        },
+        {
+          "type": 0,
+          "value": 1
+        },
+        {
+          "type": 3,
+          "value": 401155965,
+          "text": "[Use SkillChange]"
+        },
+        {
+          "type": 0,
+          "value": 1
+        },
+        {
+          "type": 3,
+          "value": 396405683,
+          "text": "[pvp start area]"
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 3,
+          "value": 87898005,
+          "text": "[dungeon]"
+        },
+        {
+          "type": 0,
+          "value": 100003314
+        },
+        {
+          "type": 3,
+          "value": 210314289,
+          "text": "[/dungeon]"
+        },
+        {
+          "type": 3,
+          "value": 147066155,
+          "text": "[type]"
+        },
+        {
+          "type": 6,
+          "value": 35527353,
+          "text": "[normal]"
+        },
+        {
+          "type": 3,
+          "value": 184981559,
+          "text": "[greed]"
+        },
+        {
+          "type": 6,
+          "value": 396653929,
+          "text": "EE EE"
+        },
+        {
+          "type": 3,
+          "value": 166550463,
+          "text": "[tile]"
+        },
+        {
+          "type": 6,
+          "value": 401156001,
+          "text": "Tile/back0_1.til"
+        },
+        {
+          "type": 6,
+          "value": 396679277,
+          "text": "Tile/back1.til"
+        },
+        {
+          "type": 6,
+          "value": 396679307,
+          "text": "Tile/back2.til"
+        },
+        {
+          "type": 6,
+          "value": 396679337,
+          "text": "Tile/back3.til"
+        },
+        {
+          "type": 6,
+          "value": 396679367,
+          "text": "Tile/back4.til"
+        },
+        {
+          "type": 6,
+          "value": 401355623,
+          "text": "Tile/back5.til"
+        },
+        {
+          "type": 6,
+          "value": 415635037,
+          "text": "Tile/back6_1.til"
+        },
+        {
+          "type": 3,
+          "value": 166550477,
+          "text": "[/tile]"
+        },
+        {
+          "type": 3,
+          "value": 214388759,
+          "text": "[extended tile]"
+        },
+        {
+          "type": 3,
+          "value": 214388791,
+          "text": "[tile files]"
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679397,
+          "text": "Tile/back_EX.til"
+        },
+        {
+          "type": 3,
+          "value": 214389577,
+          "text": "[/tile files]"
+        },
+        {
+          "type": 3,
+          "value": 214389605,
+          "text": "[tile map]"
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 3,
+          "value": 214389627,
+          "text": "[/tile map]"
+        },
+        {
+          "type": 3,
+          "value": 214389651,
+          "text": "[/extended tile]"
+        },
+        {
+          "type": 3,
+          "value": 397396111,
+          "text": "[dungeon movable area]"
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 143
+        },
+        {
+          "type": 0,
+          "value": 1570
+        },
+        {
+          "type": 0,
+          "value": 225
+        },
+        {
+          "type": 3,
+          "value": 397396157,
+          "text": "[/dungeon movable area]"
+        },
+        {
+          "type": 3,
+          "value": 396406109,
+          "text": "[pathgate pos]"
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 250
+        },
+        {
+          "type": 0,
+          "value": 1800
+        },
+        {
+          "type": 0,
+          "value": 300
+        },
+        {
+          "type": 0,
+          "value": 930
+        },
+        {
+          "type": 0,
+          "value": 160
+        },
+        {
+          "type": 0,
+          "value": 225
+        },
+        {
+          "type": 0,
+          "value": 711
+        },
+        {
+          "type": 3,
+          "value": 298796689,
+          "text": "[sound]"
+        },
+        {
+          "type": 6,
+          "value": 408547473,
+          "text": "M_PVP_PRACTICE"
+        },
+        {
+          "type": 3,
+          "value": 396362917,
+          "text": "[/sound]"
+        },
+        {
+          "type": 3,
+          "value": 186198975,
+          "text": "[animation]"
+        },
+        {
+          "type": 6,
+          "value": 408547503,
+          "text": "Animation/fighter_m.ani"
+        },
+        {
+          "type": 6,
+          "value": 7020463,
+          "text": "[closeback]"
+        },
+        {
+          "type": 0,
+          "value": 300
+        },
+        {
+          "type": 0,
+          "value": -99
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 408547551,
+          "text": "Animation/fighter_g.ani"
+        },
+        {
+          "type": 6,
+          "value": 7020463,
+          "text": "[closeback]"
+        },
+        {
+          "type": 0,
+          "value": 705
+        },
+        {
+          "type": 0,
+          "value": -1
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 408547599,
+          "text": "Animation/pungjin.ani"
+        },
+        {
+          "type": 6,
+          "value": 7020463,
+          "text": "[closeback]"
+        },
+        {
+          "type": 0,
+          "value": 1010
+        },
+        {
+          "type": 0,
+          "value": 50
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 166629203,
+          "text": "Animation/Stay.ani"
+        },
+        {
+          "type": 6,
+          "value": 35527353,
+          "text": "[normal]"
+        },
+        {
+          "type": 0,
+          "value": 1167
+        },
+        {
+          "type": 0,
+          "value": 60
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 57
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 505
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 281
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 729
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": -167
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 953
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 1177
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 1401
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": -67
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 381
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 157
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 605
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 1053
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 1501
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 1277
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 829
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 3,
+          "value": 186199231,
+          "text": "[/animation]"
+        },
+        {
+          "type": 3,
+          "value": 396406613,
+          "text": "[event monster position]"
+        },
+        {
+          "type": 0,
+          "value": 192
+        },
+        {
+          "type": 0,
+          "value": 132
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 192
+        },
+        {
+          "type": 0,
+          "value": 132
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 192
+        },
+        {
+          "type": 0,
+          "value": 132
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 192
+        },
+        {
+          "type": 0,
+          "value": 132
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 3,
+          "value": 396406663,
+          "text": "[/event monster position]"
+        },
+        {
+          "type": 3,
+          "value": 396406715,
+          "text": "[map name]"
+        },
+        {
+          "type": 8,
+          "value": 396423243,
+          "reference": "\u003c6::map_name_455\u003e"
+        },
+        {
+          "type": 3,
+          "value": 396423279,
+          "text": "[wide mode camera vertical correction]"
+        },
+        {
+          "type": 0,
+          "value": -20
+        },
+        {
+          "type": 3,
+          "value": 396488287,
+          "text": "[limit map camera move]"
+        },
+        {
+          "type": 3,
+          "value": 396488335,
+          "text": "[top edge]"
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 3,
+          "value": 396488357,
+          "text": "[/limit map camera move]"
+        }
+      ]
+    },
+    "100010442": {
+      "path": "map/poongjintrainingroom/100010442_left.map",
+      "sha256": "67d50cf175de68bacf3b39762698d20aa2c4ccab1dda2839412e14ac0cdd2a00",
+      "cells": [
+        {
+          "type": 3,
+          "value": 396405611,
+          "text": "[player number]"
+        },
+        {
+          "type": 0,
+          "value": 2
+        },
+        {
+          "type": 0,
+          "value": 8
+        },
+        {
+          "type": 3,
+          "value": 415635005,
+          "text": "[time training]"
+        },
+        {
+          "type": 0,
+          "value": 1
+        },
+        {
+          "type": 3,
+          "value": 397400933,
+          "text": "[Use Fatigue]"
+        },
+        {
+          "type": 0,
+          "value": 1
+        },
+        {
+          "type": 3,
+          "value": 400189211,
+          "text": "[Use Endurance]"
+        },
+        {
+          "type": 0,
+          "value": 1
+        },
+        {
+          "type": 3,
+          "value": 401155925,
+          "text": "[Use GiveUpPenalty]"
+        },
+        {
+          "type": 0,
+          "value": 1
+        },
+        {
+          "type": 3,
+          "value": 401155965,
+          "text": "[Use SkillChange]"
+        },
+        {
+          "type": 0,
+          "value": 1
+        },
+        {
+          "type": 3,
+          "value": 396405683,
+          "text": "[pvp start area]"
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 3,
+          "value": 87898005,
+          "text": "[dungeon]"
+        },
+        {
+          "type": 0,
+          "value": 100003651
+        },
+        {
+          "type": 0,
+          "value": 100003652
+        },
+        {
+          "type": 0,
+          "value": 100003653
+        },
+        {
+          "type": 0,
+          "value": 100003654
+        },
+        {
+          "type": 3,
+          "value": 210314289,
+          "text": "[/dungeon]"
+        },
+        {
+          "type": 3,
+          "value": 147066155,
+          "text": "[type]"
+        },
+        {
+          "type": 6,
+          "value": 35527353,
+          "text": "[normal]"
+        },
+        {
+          "type": 3,
+          "value": 184981559,
+          "text": "[greed]"
+        },
+        {
+          "type": 6,
+          "value": 396623297,
+          "text": "BB BB"
+        },
+        {
+          "type": 3,
+          "value": 166550463,
+          "text": "[tile]"
+        },
+        {
+          "type": 6,
+          "value": 401156001,
+          "text": "Tile/back0_1.til"
+        },
+        {
+          "type": 6,
+          "value": 396679277,
+          "text": "Tile/back1.til"
+        },
+        {
+          "type": 6,
+          "value": 396679307,
+          "text": "Tile/back2.til"
+        },
+        {
+          "type": 6,
+          "value": 396679337,
+          "text": "Tile/back3.til"
+        },
+        {
+          "type": 6,
+          "value": 396679367,
+          "text": "Tile/back4.til"
+        },
+        {
+          "type": 6,
+          "value": 401355623,
+          "text": "Tile/back5.til"
+        },
+        {
+          "type": 6,
+          "value": 415635037,
+          "text": "Tile/back6_1.til"
+        },
+        {
+          "type": 3,
+          "value": 166550477,
+          "text": "[/tile]"
+        },
+        {
+          "type": 3,
+          "value": 214388759,
+          "text": "[extended tile]"
+        },
+        {
+          "type": 3,
+          "value": 214388791,
+          "text": "[tile files]"
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679397,
+          "text": "Tile/back_EX.til"
+        },
+        {
+          "type": 3,
+          "value": 214389577,
+          "text": "[/tile files]"
+        },
+        {
+          "type": 3,
+          "value": 214389605,
+          "text": "[tile map]"
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 3,
+          "value": 214389627,
+          "text": "[/tile map]"
+        },
+        {
+          "type": 3,
+          "value": 214389651,
+          "text": "[/extended tile]"
+        },
+        {
+          "type": 3,
+          "value": 397396111,
+          "text": "[dungeon movable area]"
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 143
+        },
+        {
+          "type": 0,
+          "value": 1570
+        },
+        {
+          "type": 0,
+          "value": 225
+        },
+        {
+          "type": 3,
+          "value": 397396157,
+          "text": "[/dungeon movable area]"
+        },
+        {
+          "type": 3,
+          "value": 396406109,
+          "text": "[pathgate pos]"
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 1570
+        },
+        {
+          "type": 0,
+          "value": 250
+        },
+        {
+          "type": 0,
+          "value": 930
+        },
+        {
+          "type": 0,
+          "value": 160
+        },
+        {
+          "type": 0,
+          "value": 225
+        },
+        {
+          "type": 0,
+          "value": 711
+        },
+        {
+          "type": 3,
+          "value": 298796689,
+          "text": "[sound]"
+        },
+        {
+          "type": 6,
+          "value": 408547473,
+          "text": "M_PVP_PRACTICE"
+        },
+        {
+          "type": 3,
+          "value": 396362917,
+          "text": "[/sound]"
+        },
+        {
+          "type": 3,
+          "value": 186198975,
+          "text": "[animation]"
+        },
+        {
+          "type": 6,
+          "value": 408547503,
+          "text": "Animation/fighter_m.ani"
+        },
+        {
+          "type": 6,
+          "value": 7020463,
+          "text": "[closeback]"
+        },
+        {
+          "type": 0,
+          "value": 300
+        },
+        {
+          "type": 0,
+          "value": -99
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 408547551,
+          "text": "Animation/fighter_g.ani"
+        },
+        {
+          "type": 6,
+          "value": 7020463,
+          "text": "[closeback]"
+        },
+        {
+          "type": 0,
+          "value": 705
+        },
+        {
+          "type": 0,
+          "value": -1
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 408547599,
+          "text": "Animation/pungjin.ani"
+        },
+        {
+          "type": 6,
+          "value": 7020463,
+          "text": "[closeback]"
+        },
+        {
+          "type": 0,
+          "value": 1010
+        },
+        {
+          "type": 0,
+          "value": 50
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 166629203,
+          "text": "Animation/Stay.ani"
+        },
+        {
+          "type": 6,
+          "value": 35527353,
+          "text": "[normal]"
+        },
+        {
+          "type": 0,
+          "value": 1167
+        },
+        {
+          "type": 0,
+          "value": 60
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 57
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 505
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 281
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 729
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": -167
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 953
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 1177
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 1401
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": -67
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 381
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 157
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 605
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 1053
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 1501
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 1277
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 829
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 3,
+          "value": 186199231,
+          "text": "[/animation]"
+        },
+        {
+          "type": 3,
+          "value": 162449095,
+          "text": "[passive object]"
+        },
+        {
+          "type": 0,
+          "value": 109115597
+        },
+        {
+          "type": 0,
+          "value": 40
+        },
+        {
+          "type": 0,
+          "value": 150
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 109115598
+        },
+        {
+          "type": 0,
+          "value": 40
+        },
+        {
+          "type": 0,
+          "value": 300
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 3,
+          "value": 162449827,
+          "text": "[/passive object]"
+        },
+        {
+          "type": 3,
+          "value": 396406613,
+          "text": "[event monster position]"
+        },
+        {
+          "type": 0,
+          "value": 192
+        },
+        {
+          "type": 0,
+          "value": 132
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 192
+        },
+        {
+          "type": 0,
+          "value": 132
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 192
+        },
+        {
+          "type": 0,
+          "value": 132
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 192
+        },
+        {
+          "type": 0,
+          "value": 132
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 3,
+          "value": 396406663,
+          "text": "[/event monster position]"
+        },
+        {
+          "type": 3,
+          "value": 396406715,
+          "text": "[map name]"
+        },
+        {
+          "type": 8,
+          "value": 415636181,
+          "reference": "\u003c6::map_name_50046\u003e"
+        },
+        {
+          "type": 3,
+          "value": 396423279,
+          "text": "[wide mode camera vertical correction]"
+        },
+        {
+          "type": 0,
+          "value": -20
+        },
+        {
+          "type": 3,
+          "value": 396488287,
+          "text": "[limit map camera move]"
+        },
+        {
+          "type": 3,
+          "value": 396488335,
+          "text": "[top edge]"
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 3,
+          "value": 396488357,
+          "text": "[/limit map camera move]"
+        }
+      ]
+    },
+    "100010443": {
+      "path": "map/poongjintrainingroom/100010443_center.map",
+      "sha256": "6070ebc9bebac0bf2596e4684fe698a9e4b3c0be7b95691531a31ebf5a936b91",
+      "cells": [
+        {
+          "type": 3,
+          "value": 396405611,
+          "text": "[player number]"
+        },
+        {
+          "type": 0,
+          "value": 2
+        },
+        {
+          "type": 0,
+          "value": 8
+        },
+        {
+          "type": 3,
+          "value": 415635005,
+          "text": "[time training]"
+        },
+        {
+          "type": 0,
+          "value": 1
+        },
+        {
+          "type": 3,
+          "value": 397400933,
+          "text": "[Use Fatigue]"
+        },
+        {
+          "type": 0,
+          "value": 1
+        },
+        {
+          "type": 3,
+          "value": 400189211,
+          "text": "[Use Endurance]"
+        },
+        {
+          "type": 0,
+          "value": 1
+        },
+        {
+          "type": 3,
+          "value": 401155925,
+          "text": "[Use GiveUpPenalty]"
+        },
+        {
+          "type": 0,
+          "value": 1
+        },
+        {
+          "type": 3,
+          "value": 401155965,
+          "text": "[Use SkillChange]"
+        },
+        {
+          "type": 0,
+          "value": 1
+        },
+        {
+          "type": 3,
+          "value": 396405683,
+          "text": "[pvp start area]"
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 3,
+          "value": 87898005,
+          "text": "[dungeon]"
+        },
+        {
+          "type": 0,
+          "value": 100003651
+        },
+        {
+          "type": 0,
+          "value": 100003652
+        },
+        {
+          "type": 0,
+          "value": 100003653
+        },
+        {
+          "type": 0,
+          "value": 100003654
+        },
+        {
+          "type": 3,
+          "value": 210314289,
+          "text": "[/dungeon]"
+        },
+        {
+          "type": 3,
+          "value": 147066155,
+          "text": "[type]"
+        },
+        {
+          "type": 6,
+          "value": 35527353,
+          "text": "[normal]"
+        },
+        {
+          "type": 3,
+          "value": 184981559,
+          "text": "[greed]"
+        },
+        {
+          "type": 6,
+          "value": 396929087,
+          "text": "FF FF"
+        },
+        {
+          "type": 3,
+          "value": 166550463,
+          "text": "[tile]"
+        },
+        {
+          "type": 6,
+          "value": 401156001,
+          "text": "Tile/back0_1.til"
+        },
+        {
+          "type": 6,
+          "value": 396679277,
+          "text": "Tile/back1.til"
+        },
+        {
+          "type": 6,
+          "value": 396679307,
+          "text": "Tile/back2.til"
+        },
+        {
+          "type": 6,
+          "value": 396679337,
+          "text": "Tile/back3.til"
+        },
+        {
+          "type": 6,
+          "value": 396679367,
+          "text": "Tile/back4.til"
+        },
+        {
+          "type": 6,
+          "value": 401355623,
+          "text": "Tile/back5.til"
+        },
+        {
+          "type": 6,
+          "value": 415635037,
+          "text": "Tile/back6_1.til"
+        },
+        {
+          "type": 3,
+          "value": 166550477,
+          "text": "[/tile]"
+        },
+        {
+          "type": 3,
+          "value": 214388759,
+          "text": "[extended tile]"
+        },
+        {
+          "type": 3,
+          "value": 214388791,
+          "text": "[tile files]"
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679397,
+          "text": "Tile/back_EX.til"
+        },
+        {
+          "type": 3,
+          "value": 214389577,
+          "text": "[/tile files]"
+        },
+        {
+          "type": 3,
+          "value": 214389605,
+          "text": "[tile map]"
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 3,
+          "value": 214389627,
+          "text": "[/tile map]"
+        },
+        {
+          "type": 3,
+          "value": 214389651,
+          "text": "[/extended tile]"
+        },
+        {
+          "type": 3,
+          "value": 397396111,
+          "text": "[dungeon movable area]"
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 143
+        },
+        {
+          "type": 0,
+          "value": 1570
+        },
+        {
+          "type": 0,
+          "value": 225
+        },
+        {
+          "type": 3,
+          "value": 397396157,
+          "text": "[/dungeon movable area]"
+        },
+        {
+          "type": 3,
+          "value": 396406109,
+          "text": "[pathgate pos]"
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 250
+        },
+        {
+          "type": 0,
+          "value": 1570
+        },
+        {
+          "type": 0,
+          "value": 250
+        },
+        {
+          "type": 0,
+          "value": 930
+        },
+        {
+          "type": 0,
+          "value": 160
+        },
+        {
+          "type": 0,
+          "value": 225
+        },
+        {
+          "type": 0,
+          "value": 711
+        },
+        {
+          "type": 3,
+          "value": 396406139,
+          "text": "[dungeon start area]"
+        },
+        {
+          "type": 0,
+          "value": 600
+        },
+        {
+          "type": 0,
+          "value": 250
+        },
+        {
+          "type": 0,
+          "value": 50
+        },
+        {
+          "type": 0,
+          "value": 50
+        },
+        {
+          "type": 3,
+          "value": 298796689,
+          "text": "[sound]"
+        },
+        {
+          "type": 6,
+          "value": 408547473,
+          "text": "M_PVP_PRACTICE"
+        },
+        {
+          "type": 3,
+          "value": 396362917,
+          "text": "[/sound]"
+        },
+        {
+          "type": 3,
+          "value": 186198975,
+          "text": "[animation]"
+        },
+        {
+          "type": 6,
+          "value": 408547503,
+          "text": "Animation/fighter_m.ani"
+        },
+        {
+          "type": 6,
+          "value": 7020463,
+          "text": "[closeback]"
+        },
+        {
+          "type": 0,
+          "value": 300
+        },
+        {
+          "type": 0,
+          "value": -99
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 408547551,
+          "text": "Animation/fighter_g.ani"
+        },
+        {
+          "type": 6,
+          "value": 7020463,
+          "text": "[closeback]"
+        },
+        {
+          "type": 0,
+          "value": 705
+        },
+        {
+          "type": 0,
+          "value": -1
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 408547599,
+          "text": "Animation/pungjin.ani"
+        },
+        {
+          "type": 6,
+          "value": 7020463,
+          "text": "[closeback]"
+        },
+        {
+          "type": 0,
+          "value": 1010
+        },
+        {
+          "type": 0,
+          "value": 50
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 166629203,
+          "text": "Animation/Stay.ani"
+        },
+        {
+          "type": 6,
+          "value": 35527353,
+          "text": "[normal]"
+        },
+        {
+          "type": 0,
+          "value": 1167
+        },
+        {
+          "type": 0,
+          "value": 60
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 57
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 505
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 281
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 729
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": -167
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 953
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 1177
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 1401
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": -67
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 381
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 157
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 605
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 1053
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 1501
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 1277
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 829
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 3,
+          "value": 186199231,
+          "text": "[/animation]"
+        },
+        {
+          "type": 3,
+          "value": 396406613,
+          "text": "[event monster position]"
+        },
+        {
+          "type": 0,
+          "value": 192
+        },
+        {
+          "type": 0,
+          "value": 132
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 192
+        },
+        {
+          "type": 0,
+          "value": 132
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 192
+        },
+        {
+          "type": 0,
+          "value": 132
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 192
+        },
+        {
+          "type": 0,
+          "value": 132
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 3,
+          "value": 396406663,
+          "text": "[/event monster position]"
+        },
+        {
+          "type": 3,
+          "value": 396406715,
+          "text": "[map name]"
+        },
+        {
+          "type": 8,
+          "value": 415636181,
+          "reference": "\u003c6::map_name_50046\u003e"
+        },
+        {
+          "type": 3,
+          "value": 396423279,
+          "text": "[wide mode camera vertical correction]"
+        },
+        {
+          "type": 0,
+          "value": -20
+        },
+        {
+          "type": 3,
+          "value": 396488287,
+          "text": "[limit map camera move]"
+        },
+        {
+          "type": 3,
+          "value": 396488335,
+          "text": "[top edge]"
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 3,
+          "value": 396488357,
+          "text": "[/limit map camera move]"
+        }
+      ]
+    },
+    "100010444": {
+      "path": "map/poongjintrainingroom/100010444_right.map",
+      "sha256": "46e5a4f3addfc6af5ee7e0eeefc2d62f59a12fee11f2c559ba42a2fb52266cd9",
+      "cells": [
+        {
+          "type": 3,
+          "value": 396405611,
+          "text": "[player number]"
+        },
+        {
+          "type": 0,
+          "value": 2
+        },
+        {
+          "type": 0,
+          "value": 8
+        },
+        {
+          "type": 3,
+          "value": 415635005,
+          "text": "[time training]"
+        },
+        {
+          "type": 0,
+          "value": 1
+        },
+        {
+          "type": 3,
+          "value": 397400933,
+          "text": "[Use Fatigue]"
+        },
+        {
+          "type": 0,
+          "value": 1
+        },
+        {
+          "type": 3,
+          "value": 400189211,
+          "text": "[Use Endurance]"
+        },
+        {
+          "type": 0,
+          "value": 1
+        },
+        {
+          "type": 3,
+          "value": 401155925,
+          "text": "[Use GiveUpPenalty]"
+        },
+        {
+          "type": 0,
+          "value": 1
+        },
+        {
+          "type": 3,
+          "value": 401155965,
+          "text": "[Use SkillChange]"
+        },
+        {
+          "type": 0,
+          "value": 1
+        },
+        {
+          "type": 3,
+          "value": 396405683,
+          "text": "[pvp start area]"
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 3,
+          "value": 87898005,
+          "text": "[dungeon]"
+        },
+        {
+          "type": 0,
+          "value": 100003651
+        },
+        {
+          "type": 0,
+          "value": 100003652
+        },
+        {
+          "type": 0,
+          "value": 100003653
+        },
+        {
+          "type": 0,
+          "value": 100003654
+        },
+        {
+          "type": 3,
+          "value": 210314289,
+          "text": "[/dungeon]"
+        },
+        {
+          "type": 3,
+          "value": 147066155,
+          "text": "[type]"
+        },
+        {
+          "type": 6,
+          "value": 35527353,
+          "text": "[normal]"
+        },
+        {
+          "type": 3,
+          "value": 184981559,
+          "text": "[greed]"
+        },
+        {
+          "type": 6,
+          "value": 396653929,
+          "text": "EE EE"
+        },
+        {
+          "type": 3,
+          "value": 166550463,
+          "text": "[tile]"
+        },
+        {
+          "type": 6,
+          "value": 401156001,
+          "text": "Tile/back0_1.til"
+        },
+        {
+          "type": 6,
+          "value": 396679277,
+          "text": "Tile/back1.til"
+        },
+        {
+          "type": 6,
+          "value": 396679307,
+          "text": "Tile/back2.til"
+        },
+        {
+          "type": 6,
+          "value": 396679337,
+          "text": "Tile/back3.til"
+        },
+        {
+          "type": 6,
+          "value": 396679367,
+          "text": "Tile/back4.til"
+        },
+        {
+          "type": 6,
+          "value": 401355623,
+          "text": "Tile/back5.til"
+        },
+        {
+          "type": 6,
+          "value": 415635037,
+          "text": "Tile/back6_1.til"
+        },
+        {
+          "type": 3,
+          "value": 166550477,
+          "text": "[/tile]"
+        },
+        {
+          "type": 3,
+          "value": 214388759,
+          "text": "[extended tile]"
+        },
+        {
+          "type": 3,
+          "value": 214388791,
+          "text": "[tile files]"
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679397,
+          "text": "Tile/back_EX.til"
+        },
+        {
+          "type": 3,
+          "value": 214389577,
+          "text": "[/tile files]"
+        },
+        {
+          "type": 3,
+          "value": 214389605,
+          "text": "[tile map]"
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 3,
+          "value": 214389627,
+          "text": "[/tile map]"
+        },
+        {
+          "type": 3,
+          "value": 214389651,
+          "text": "[/extended tile]"
+        },
+        {
+          "type": 3,
+          "value": 397396111,
+          "text": "[dungeon movable area]"
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 143
+        },
+        {
+          "type": 0,
+          "value": 1570
+        },
+        {
+          "type": 0,
+          "value": 225
+        },
+        {
+          "type": 3,
+          "value": 397396157,
+          "text": "[/dungeon movable area]"
+        },
+        {
+          "type": 3,
+          "value": 396406109,
+          "text": "[pathgate pos]"
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 250
+        },
+        {
+          "type": 0,
+          "value": 1800
+        },
+        {
+          "type": 0,
+          "value": 300
+        },
+        {
+          "type": 0,
+          "value": 930
+        },
+        {
+          "type": 0,
+          "value": 160
+        },
+        {
+          "type": 0,
+          "value": 225
+        },
+        {
+          "type": 0,
+          "value": 711
+        },
+        {
+          "type": 3,
+          "value": 298796689,
+          "text": "[sound]"
+        },
+        {
+          "type": 6,
+          "value": 408547473,
+          "text": "M_PVP_PRACTICE"
+        },
+        {
+          "type": 3,
+          "value": 396362917,
+          "text": "[/sound]"
+        },
+        {
+          "type": 3,
+          "value": 186198975,
+          "text": "[animation]"
+        },
+        {
+          "type": 6,
+          "value": 408547503,
+          "text": "Animation/fighter_m.ani"
+        },
+        {
+          "type": 6,
+          "value": 7020463,
+          "text": "[closeback]"
+        },
+        {
+          "type": 0,
+          "value": 300
+        },
+        {
+          "type": 0,
+          "value": -99
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 408547551,
+          "text": "Animation/fighter_g.ani"
+        },
+        {
+          "type": 6,
+          "value": 7020463,
+          "text": "[closeback]"
+        },
+        {
+          "type": 0,
+          "value": 705
+        },
+        {
+          "type": 0,
+          "value": -1
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 408547599,
+          "text": "Animation/pungjin.ani"
+        },
+        {
+          "type": 6,
+          "value": 7020463,
+          "text": "[closeback]"
+        },
+        {
+          "type": 0,
+          "value": 1010
+        },
+        {
+          "type": 0,
+          "value": 50
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 166629203,
+          "text": "Animation/Stay.ani"
+        },
+        {
+          "type": 6,
+          "value": 35527353,
+          "text": "[normal]"
+        },
+        {
+          "type": 0,
+          "value": 1167
+        },
+        {
+          "type": 0,
+          "value": 60
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 57
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 505
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 281
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 729
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": -167
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 953
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 1177
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 1401
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": -67
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 381
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 157
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 605
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 1053
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 1501
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 1277
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 829
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 3,
+          "value": 186199231,
+          "text": "[/animation]"
+        },
+        {
+          "type": 3,
+          "value": 162449095,
+          "text": "[passive object]"
+        },
+        {
+          "type": 0,
+          "value": 109115599
+        },
+        {
+          "type": 0,
+          "value": 1525
+        },
+        {
+          "type": 0,
+          "value": 150
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 109115600
+        },
+        {
+          "type": 0,
+          "value": 1525
+        },
+        {
+          "type": 0,
+          "value": 300
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 3,
+          "value": 162449827,
+          "text": "[/passive object]"
+        },
+        {
+          "type": 3,
+          "value": 396406613,
+          "text": "[event monster position]"
+        },
+        {
+          "type": 0,
+          "value": 192
+        },
+        {
+          "type": 0,
+          "value": 132
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 192
+        },
+        {
+          "type": 0,
+          "value": 132
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 192
+        },
+        {
+          "type": 0,
+          "value": 132
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 192
+        },
+        {
+          "type": 0,
+          "value": 132
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 3,
+          "value": 396406663,
+          "text": "[/event monster position]"
+        },
+        {
+          "type": 3,
+          "value": 396406715,
+          "text": "[map name]"
+        },
+        {
+          "type": 8,
+          "value": 415636181,
+          "reference": "\u003c6::map_name_50046\u003e"
+        },
+        {
+          "type": 3,
+          "value": 396423279,
+          "text": "[wide mode camera vertical correction]"
+        },
+        {
+          "type": 0,
+          "value": -20
+        },
+        {
+          "type": 3,
+          "value": 396488287,
+          "text": "[limit map camera move]"
+        },
+        {
+          "type": 3,
+          "value": 396488335,
+          "text": "[top edge]"
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 3,
+          "value": 396488357,
+          "text": "[/limit map camera move]"
+        }
+      ]
+    },
+    "36250": {
+      "path": "map/poongjintrainingroom/11100(0,0)start.map",
+      "sha256": "113f770c4b84c5fc4b27b3f5394dac2fc6c9f20cab64a6d9c34d6669b0e62121",
+      "cells": [
+        {
+          "type": 3,
+          "value": 396405611,
+          "text": "[player number]"
+        },
+        {
+          "type": 0,
+          "value": 2
+        },
+        {
+          "type": 0,
+          "value": 8
+        },
+        {
+          "type": 3,
+          "value": 397400933,
+          "text": "[Use Fatigue]"
+        },
+        {
+          "type": 0,
+          "value": 1
+        },
+        {
+          "type": 3,
+          "value": 400189211,
+          "text": "[Use Endurance]"
+        },
+        {
+          "type": 0,
+          "value": 1
+        },
+        {
+          "type": 3,
+          "value": 401155925,
+          "text": "[Use GiveUpPenalty]"
+        },
+        {
+          "type": 0,
+          "value": 1
+        },
+        {
+          "type": 3,
+          "value": 401155965,
+          "text": "[Use SkillChange]"
+        },
+        {
+          "type": 0,
+          "value": 1
+        },
+        {
+          "type": 3,
+          "value": 396405683,
+          "text": "[pvp start area]"
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 3,
+          "value": 87898005,
+          "text": "[dungeon]"
+        },
+        {
+          "type": 0,
+          "value": 5000
+        },
+        {
+          "type": 3,
+          "value": 210314289,
+          "text": "[/dungeon]"
+        },
+        {
+          "type": 3,
+          "value": 147066155,
+          "text": "[type]"
+        },
+        {
+          "type": 6,
+          "value": 35527353,
+          "text": "[normal]"
+        },
+        {
+          "type": 3,
+          "value": 184981559,
+          "text": "[greed]"
+        },
+        {
+          "type": 6,
+          "value": 396623297,
+          "text": "BB BB"
+        },
+        {
+          "type": 3,
+          "value": 166550463,
+          "text": "[tile]"
+        },
+        {
+          "type": 6,
+          "value": 396679247,
+          "text": "Tile/back0.til"
+        },
+        {
+          "type": 6,
+          "value": 396679277,
+          "text": "Tile/back1.til"
+        },
+        {
+          "type": 6,
+          "value": 396679307,
+          "text": "Tile/back2.til"
+        },
+        {
+          "type": 6,
+          "value": 396679337,
+          "text": "Tile/back3.til"
+        },
+        {
+          "type": 6,
+          "value": 396679367,
+          "text": "Tile/back4.til"
+        },
+        {
+          "type": 6,
+          "value": 401355623,
+          "text": "Tile/back5.til"
+        },
+        {
+          "type": 6,
+          "value": 401355653,
+          "text": "Tile/back6.til"
+        },
+        {
+          "type": 3,
+          "value": 166550477,
+          "text": "[/tile]"
+        },
+        {
+          "type": 3,
+          "value": 214388759,
+          "text": "[extended tile]"
+        },
+        {
+          "type": 3,
+          "value": 214388791,
+          "text": "[tile files]"
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679397,
+          "text": "Tile/back_EX.til"
+        },
+        {
+          "type": 3,
+          "value": 214389577,
+          "text": "[/tile files]"
+        },
+        {
+          "type": 3,
+          "value": 214389605,
+          "text": "[tile map]"
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 3,
+          "value": 214389627,
+          "text": "[/tile map]"
+        },
+        {
+          "type": 3,
+          "value": 214389651,
+          "text": "[/extended tile]"
+        },
+        {
+          "type": 3,
+          "value": 397396111,
+          "text": "[dungeon movable area]"
+        },
+        {
+          "type": 0,
+          "value": 205
+        },
+        {
+          "type": 0,
+          "value": 143
+        },
+        {
+          "type": 0,
+          "value": 1180
+        },
+        {
+          "type": 0,
+          "value": 225
+        },
+        {
+          "type": 3,
+          "value": 397396157,
+          "text": "[/dungeon movable area]"
+        },
+        {
+          "type": 3,
+          "value": 396406109,
+          "text": "[pathgate pos]"
+        },
+        {
+          "type": 0,
+          "value": 48
+        },
+        {
+          "type": 0,
+          "value": 192
+        },
+        {
+          "type": 0,
+          "value": 1800
+        },
+        {
+          "type": 0,
+          "value": 300
+        },
+        {
+          "type": 0,
+          "value": 930
+        },
+        {
+          "type": 0,
+          "value": 160
+        },
+        {
+          "type": 0,
+          "value": 225
+        },
+        {
+          "type": 0,
+          "value": 711
+        },
+        {
+          "type": 3,
+          "value": 396406139,
+          "text": "[dungeon start area]"
+        },
+        {
+          "type": 0,
+          "value": 120
+        },
+        {
+          "type": 0,
+          "value": 120
+        },
+        {
+          "type": 0,
+          "value": 50
+        },
+        {
+          "type": 0,
+          "value": 50
+        },
+        {
+          "type": 3,
+          "value": 298796689,
+          "text": "[sound]"
+        },
+        {
+          "type": 6,
+          "value": 408547473,
+          "text": "M_PVP_PRACTICE"
+        },
+        {
+          "type": 3,
+          "value": 396362917,
+          "text": "[/sound]"
+        },
+        {
+          "type": 3,
+          "value": 186198975,
+          "text": "[animation]"
+        },
+        {
+          "type": 6,
+          "value": 408547503,
+          "text": "Animation/fighter_m.ani"
+        },
+        {
+          "type": 6,
+          "value": 7020463,
+          "text": "[closeback]"
+        },
+        {
+          "type": 0,
+          "value": 300
+        },
+        {
+          "type": 0,
+          "value": -99
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 408547551,
+          "text": "Animation/fighter_g.ani"
+        },
+        {
+          "type": 6,
+          "value": 7020463,
+          "text": "[closeback]"
+        },
+        {
+          "type": 0,
+          "value": 705
+        },
+        {
+          "type": 0,
+          "value": -1
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 408547599,
+          "text": "Animation/pungjin.ani"
+        },
+        {
+          "type": 6,
+          "value": 7020463,
+          "text": "[closeback]"
+        },
+        {
+          "type": 0,
+          "value": 1010
+        },
+        {
+          "type": 0,
+          "value": 50
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679471,
+          "text": "Animation/Aganzo_chair.ani"
+        },
+        {
+          "type": 6,
+          "value": 35527353,
+          "text": "[normal]"
+        },
+        {
+          "type": 0,
+          "value": 88
+        },
+        {
+          "type": 0,
+          "value": 183
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679471,
+          "text": "Animation/Aganzo_chair.ani"
+        },
+        {
+          "type": 6,
+          "value": 35527353,
+          "text": "[normal]"
+        },
+        {
+          "type": 0,
+          "value": 1435
+        },
+        {
+          "type": 0,
+          "value": 166
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679471,
+          "text": "Animation/Aganzo_chair.ani"
+        },
+        {
+          "type": 6,
+          "value": 35527353,
+          "text": "[normal]"
+        },
+        {
+          "type": 0,
+          "value": 1555
+        },
+        {
+          "type": 0,
+          "value": 356
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 408547643,
+          "text": "Animation/atfighter_a.ani"
+        },
+        {
+          "type": 6,
+          "value": 35527353,
+          "text": "[normal]"
+        },
+        {
+          "type": 0,
+          "value": 116
+        },
+        {
+          "type": 0,
+          "value": 293
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 408547695,
+          "text": "Animation/atfighter_b.ani"
+        },
+        {
+          "type": 6,
+          "value": 35527353,
+          "text": "[normal]"
+        },
+        {
+          "type": 0,
+          "value": 119
+        },
+        {
+          "type": 0,
+          "value": 213
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 408547747,
+          "text": "Animation/atfighter_c.ani"
+        },
+        {
+          "type": 6,
+          "value": 35527353,
+          "text": "[normal]"
+        },
+        {
+          "type": 0,
+          "value": 50
+        },
+        {
+          "type": 0,
+          "value": 376
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679525,
+          "text": "Animation/fighter_a.ani"
+        },
+        {
+          "type": 6,
+          "value": 35527353,
+          "text": "[normal]"
+        },
+        {
+          "type": 0,
+          "value": 1443
+        },
+        {
+          "type": 0,
+          "value": 367
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679573,
+          "text": "Animation/fighter_b.ani"
+        },
+        {
+          "type": 6,
+          "value": 35527353,
+          "text": "[normal]"
+        },
+        {
+          "type": 0,
+          "value": 1515
+        },
+        {
+          "type": 0,
+          "value": 174
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679621,
+          "text": "Animation/fighter_b2.ani"
+        },
+        {
+          "type": 6,
+          "value": 35527353,
+          "text": "[normal]"
+        },
+        {
+          "type": 0,
+          "value": 1466
+        },
+        {
+          "type": 0,
+          "value": 288
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679671,
+          "text": "Animation/tablechair.ani"
+        },
+        {
+          "type": 6,
+          "value": 35527353,
+          "text": "[normal]"
+        },
+        {
+          "type": 0,
+          "value": 121
+        },
+        {
+          "type": 0,
+          "value": 359
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679671,
+          "text": "Animation/tablechair.ani"
+        },
+        {
+          "type": 6,
+          "value": 35527353,
+          "text": "[normal]"
+        },
+        {
+          "type": 0,
+          "value": 1534
+        },
+        {
+          "type": 0,
+          "value": 278
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679671,
+          "text": "Animation/tablechair.ani"
+        },
+        {
+          "type": 6,
+          "value": 35527353,
+          "text": "[normal]"
+        },
+        {
+          "type": 0,
+          "value": 1500
+        },
+        {
+          "type": 0,
+          "value": 380
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679471,
+          "text": "Animation/Aganzo_chair.ani"
+        },
+        {
+          "type": 6,
+          "value": 35527353,
+          "text": "[normal]"
+        },
+        {
+          "type": 0,
+          "value": 53
+        },
+        {
+          "type": 0,
+          "value": 273
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679671,
+          "text": "Animation/tablechair.ani"
+        },
+        {
+          "type": 6,
+          "value": 35527353,
+          "text": "[normal]"
+        },
+        {
+          "type": 0,
+          "value": 1433
+        },
+        {
+          "type": 0,
+          "value": 227
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 166629203,
+          "text": "Animation/Stay.ani"
+        },
+        {
+          "type": 6,
+          "value": 35527353,
+          "text": "[normal]"
+        },
+        {
+          "type": 0,
+          "value": 1167
+        },
+        {
+          "type": 0,
+          "value": 60
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 57
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 505
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 281
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 729
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": -167
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 953
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 1177
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 1401
+        },
+        {
+          "type": 0,
+          "value": 500
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": -67
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 381
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 157
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 605
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 1053
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 1501
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 1277
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 6,
+          "value": 396679721,
+          "text": "Animation/tile_ex.ani"
+        },
+        {
+          "type": 6,
+          "value": 9324695,
+          "text": "[bottom]"
+        },
+        {
+          "type": 0,
+          "value": 829
+        },
+        {
+          "type": 0,
+          "value": 540
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 3,
+          "value": 186199231,
+          "text": "[/animation]"
+        },
+        {
+          "type": 3,
+          "value": 162449095,
+          "text": "[passive object]"
+        },
+        {
+          "type": 0,
+          "value": 25242
+        },
+        {
+          "type": 0,
+          "value": 140
+        },
+        {
+          "type": 0,
+          "value": 290
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 25242
+        },
+        {
+          "type": 0,
+          "value": 1400
+        },
+        {
+          "type": 0,
+          "value": 200
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 3,
+          "value": 162449827,
+          "text": "[/passive object]"
+        },
+        {
+          "type": 3,
+          "value": 397237511,
+          "text": "[static player start pos]"
+        },
+        {
+          "type": 3,
+          "value": 397237563,
+          "text": "[player 1]"
+        },
+        {
+          "type": 0,
+          "value": 613
+        },
+        {
+          "type": 0,
+          "value": 255
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 3,
+          "value": 397240553,
+          "text": "[player 2]"
+        },
+        {
+          "type": 0,
+          "value": 623
+        },
+        {
+          "type": 0,
+          "value": 255
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 3,
+          "value": 397237585,
+          "text": "[player 3]"
+        },
+        {
+          "type": 0,
+          "value": 633
+        },
+        {
+          "type": 0,
+          "value": 255
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 3,
+          "value": 397237607,
+          "text": "[player 4]"
+        },
+        {
+          "type": 0,
+          "value": 643
+        },
+        {
+          "type": 0,
+          "value": 255
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 3,
+          "value": 397237629,
+          "text": "[/static player start pos]"
+        },
+        {
+          "type": 3,
+          "value": 415635005,
+          "text": "[time training]"
+        },
+        {
+          "type": 0,
+          "value": 1
+        },
+        {
+          "type": 3,
+          "value": 401155965,
+          "text": "[Use SkillChange]"
+        },
+        {
+          "type": 0,
+          "value": 1
+        },
+        {
+          "type": 3,
+          "value": 397400933,
+          "text": "[Use Fatigue]"
+        },
+        {
+          "type": 0,
+          "value": 1
+        },
+        {
+          "type": 3,
+          "value": 400189211,
+          "text": "[Use Endurance]"
+        },
+        {
+          "type": 0,
+          "value": 1
+        },
+        {
+          "type": 3,
+          "value": 401155925,
+          "text": "[Use GiveUpPenalty]"
+        },
+        {
+          "type": 0,
+          "value": 1
+        },
+        {
+          "type": 3,
+          "value": 396406715,
+          "text": "[map name]"
+        },
+        {
+          "type": 8,
+          "value": 396423243,
+          "reference": "\u003c6::map_name_455\u003e"
+        },
+        {
+          "type": 3,
+          "value": 396423279,
+          "text": "[wide mode camera vertical correction]"
+        },
+        {
+          "type": 0,
+          "value": -20
+        },
+        {
+          "type": 3,
+          "value": 396488287,
+          "text": "[limit map camera move]"
+        },
+        {
+          "type": 3,
+          "value": 396488335,
+          "text": "[top edge]"
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 0,
+          "value": 0
+        },
+        {
+          "type": 3,
+          "value": 396488357,
+          "text": "[/limit map camera move]"
+        }
+      ]
+    }
+  }
+}

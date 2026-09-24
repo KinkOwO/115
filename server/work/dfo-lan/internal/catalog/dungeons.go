@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 )
 
 type DungeonRoom struct {
@@ -114,21 +115,36 @@ func ParseDungeon(id uint32, s ScriptRecord) (DungeonDefinition, error) {
 		}
 		d.DesignatedDifficulty = byte(v[0].Value)
 	}
-	for _, pair := range []struct {
-		name string
-		dst  *uint32
-	}{{"[minimum required level]", &d.MinimumLevel}, {"[basis level]", &d.BasisLevel}} {
-		v := sectionCells(s.Cells, pair.name)
-		if len(v) != 1 || v[0].Type != 0 || v[0].Value < 1 {
-			return d, fmt.Errorf("invalid %s", pair.name)
+	minimum := sectionCells(s.Cells, "[minimum required level]")
+	if len(minimum) != 1 || minimum[0].Type != 0 || minimum[0].Value < 1 {
+		return d, fmt.Errorf("invalid [minimum required level]")
+	}
+	d.MinimumLevel = uint32(minimum[0].Value)
+	basis := sectionCells(s.Cells, "[basis level]")
+	hasBasis := false
+	for _, c := range s.Cells {
+		hasBasis = hasBasis || c.Type == 3 && c.Text == "[basis level]"
+	}
+	if hasBasis {
+		if len(basis) != 1 || basis[0].Type != 0 || basis[0].Value < 1 {
+			return d, fmt.Errorf("invalid [basis level]")
 		}
-		*pair.dst = uint32(v[0].Value)
+		d.BasisLevel = uint32(basis[0].Value)
+	} else {
+		d.BasisLevel = d.MinimumLevel
+		recommended := sectionCells(s.Cells, "[recommended level]")
+		if len(recommended) > 0 && recommended[0].Type == 0 && recommended[0].Value > 0 {
+			d.BasisLevel = uint32(recommended[0].Value)
+		}
 	}
 	for _, c := range s.Cells {
 		if c.Type == 3 {
 			d.Tutorial = d.Tutorial || c.Text == "[tutorial dungeon]"
 			d.NoFatigue = d.NoFatigue || c.Text == "[no fatigue]"
 		}
+	}
+	if strings.Contains(strings.ToLower(strings.ReplaceAll(s.Path, "\\", "/")), "/poongjintrainingroom/") {
+		d.NoFatigue = true
 	}
 	for i := 0; i < len(s.Cells); i++ {
 		if s.Cells[i].Type != 3 || s.Cells[i].Text != "[maze info]" {
@@ -427,6 +443,31 @@ func LoadDungeons(path string) (DungeonCatalog, error) {
 		}
 	}
 	return c, nil
+}
+
+// MergeDungeonCatalog adds a small source-matched import without rewriting the
+// full catalog. Existing dungeon definitions are never replaced.
+func MergeDungeonCatalog(dst *DungeonCatalog, overlay DungeonCatalog) error {
+	if dst == nil || dst.Source.Checksum == "" || dst.Source.Checksum != overlay.Source.Checksum {
+		return fmt.Errorf("dungeon overlay source checksum mismatch")
+	}
+	for id := range overlay.Dungeons {
+		if _, exists := dst.Dungeons[id]; exists {
+			return fmt.Errorf("dungeon overlay duplicates %d", id)
+		}
+	}
+	for id, script := range overlay.Maps {
+		if existing, exists := dst.Maps[id]; exists && existing.SHA256 != script.SHA256 {
+			return fmt.Errorf("dungeon overlay changes map %d", id)
+		}
+	}
+	for id, d := range overlay.Dungeons {
+		dst.Dungeons[id] = d
+	}
+	for id, script := range overlay.Maps {
+		dst.Maps[id] = script
+	}
+	return nil
 }
 
 func SceneRouteInMaze(d DungeonDefinition, r DungeonSceneRoute) bool {

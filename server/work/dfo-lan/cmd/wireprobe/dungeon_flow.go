@@ -34,6 +34,12 @@ func (w *worldSession) dungeonGate(p []byte) ([]outboundPacket, error) {
 	// supplies a source dungeon ID instead; accept that only when it is this
 	// character's own starting route and the route is still owed.
 	if requested != 0 {
+		if w.dungeons != nil && dungeon.IsTrainingRoom(*w.dungeons, requested) {
+			return []outboundPacket{
+				{"training_room_gate_ack", 1, 15, []byte{1}},
+				{"dungeon_selection_sent", 0, 27, protocol.EnterDungeonSelection()},
+			}, nil
+		}
 		if e = w.authorizeTutorial(requested); e != nil {
 			return nil, e
 		}
@@ -79,8 +85,11 @@ func (w *worldSession) selectDungeon(p []byte) (*dungeon.Session, []outboundPack
 			return w.selectTutorial(r.ID)
 		}
 	}
-	if _, e := w.dungeonGate(make([]byte, 8)); e != nil {
-		return nil, nil, e
+	trainingRoom := dungeon.IsTrainingRoom(*w.dungeons, r.ID)
+	if !trainingRoom {
+		if _, e := w.dungeonGate(make([]byte, 8)); e != nil {
+			return nil, nil, e
+		}
 	}
 	if w.soloPartyReady && r.Party == 1 {
 		// This connection owns the single-member bootstrap party. The dungeon
@@ -89,11 +98,16 @@ func (w *worldSession) selectDungeon(p []byte) (*dungeon.Session, []outboundPack
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	accepted, e := w.acceptedQuestIDs(ctx)
-	if e != nil {
-		return nil, nil, e
+	var s *dungeon.Session
+	if trainingRoom {
+		s, e = dungeon.SelectTrainingRoom(*w.dungeons, r, w.level)
+	} else {
+		var accepted map[uint16]bool
+		accepted, e = w.acceptedQuestIDs(ctx)
+		if e == nil {
+			s, e = dungeon.Select(*w.dungeons, r, w.level, accepted)
+		}
 	}
-	s, e := dungeon.Select(*w.dungeons, r, w.level, accepted)
 	if e != nil {
 		return nil, nil, e
 	}
@@ -218,14 +232,19 @@ func (w *worldSession) directMoveDungeon(p []byte) (*dungeon.Session, []outbound
 			return nil, nil, storage.ErrFatigueExhausted
 		}
 	}
-	accepted, e := w.acceptedQuestIDs(ctx)
-	if e != nil {
-		return nil, nil, e
-	}
 	// The direct-move body carries the dungeon id and difficulty only, so the
 	// remaining selection fields take the values CMD 16 uses for a solo run.
 	sel := protocol.DungeonSelection{ID: r.ID, Difficulty: r.Difficulty, Party: 65535}
-	s, e := dungeon.Select(*w.dungeons, sel, w.level, accepted)
+	var s *dungeon.Session
+	if dungeon.IsTrainingRoom(*w.dungeons, r.ID) {
+		s, e = dungeon.SelectTrainingRoom(*w.dungeons, sel, w.level)
+	} else {
+		var accepted map[uint16]bool
+		accepted, e = w.acceptedQuestIDs(ctx)
+		if e == nil {
+			s, e = dungeon.Select(*w.dungeons, sel, w.level, accepted)
+		}
+	}
 	if e != nil {
 		return nil, nil, e
 	}
