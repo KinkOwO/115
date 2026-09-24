@@ -284,6 +284,30 @@ func (w *worldSession) departArea() {
 	w.hub.depart(w.peer)
 }
 
+// prevVillage decodes CMD 1418 ENUM_CMDPACKET_PREV_VILLAGE into the area-change
+// request it stands for. The body is empty by construction (live 2026-09-23:
+// 13-byte bare headers, 39 in a row), so nothing is parsed out of it and no
+// field layout is guessed; the destination is the Return stamp this character
+// picked up on the way into the room. A character with no stamp is refused
+// instead of being sent somewhere plausible.
+func (w *worldSession) prevVillage(p []byte) (protocol.AreaChangeRequest, error) {
+	if len(p) != 0 {
+		return protocol.AreaChangeRequest{}, errors.New("prev village needs an empty body")
+	}
+	if w.activeDungeon != nil {
+		return protocol.AreaChangeRequest{}, errors.New("prev village requires a town character")
+	}
+	stamp := w.state.Position.Return
+	if stamp == nil {
+		return protocol.AreaChangeRequest{}, errors.New("no previous village")
+	}
+	return protocol.AreaChangeRequest{
+		Town: stamp.Town, Area: stamp.Area, X: stamp.X, Y: stamp.Y,
+		PreviousTown: w.state.Position.Town,
+		PreviousArea: uint16(w.state.Position.Area),
+	}, nil
+}
+
 func (w *worldSession) areaPayload() ([]byte, error) {
 	p := w.state.Position
 	if w.hub == nil || w.peer == nil {
@@ -336,6 +360,36 @@ func (w *worldSession) handle(id uint16, p []byte, send func(byte, uint16, []byt
 			}
 			return send(1, 36, refusal)
 		}
+	case 1418:
+		// ENUM_CMDPACKET_PREV_VILLAGE: leave a private return room (Seria's
+		// room) for the area it was entered from. Live 2026-09-23 the client
+		// spammed this empty body 39 times from new_seria_room and nothing
+		// happened, because no handler existed at all and the default branch
+		// dropped every frame. The body carries no destination - the
+		// destination is the Return stamp written on the way in - so a
+		// non-empty body is refused and an absent stamp is refused too,
+		// rather than inventing a town.
+		r, e := w.prevVillage(p)
+		if e != nil {
+			event(map[string]any{"kind": "prev_village_refused", "reason": e.Error()})
+			// No destination to name, so refuse at the area the character is
+			// already standing in; that clears the client's in-flight
+			// transition without moving it.
+			refusal, err := protocol.AreaChangeFailure(4, old.Position.Town, old.Position.Area)
+			if err != nil {
+				return err
+			}
+			return send(1, 1418, refusal)
+		}
+		next, e = w.areaTransition(r)
+		if e != nil {
+			event(map[string]any{"kind": "prev_village_refused", "town": r.Town, "area": r.Area, "reason": e.Error()})
+			refusal, err := protocol.AreaChangeFailure(4, r.Town, r.Area)
+			if err != nil {
+				return err
+			}
+			return send(1, 1418, refusal)
+		}
 	default:
 		return errors.New("unknown world request")
 	}
@@ -347,8 +401,11 @@ func (w *worldSession) handle(id uint16, p []byte, send func(byte, uint16, []byt
 	}
 	w.state = saved
 	event(map[string]any{"kind": "world_position_saved", "character_id": w.role.ID, "position": next, "revision": saved.Revision, "request": id})
-	if id == 36 {
-		if e = send(1, 36, protocol.AreaChangeSuccess()); e != nil {
+	if id == 36 || id == 1418 {
+		// The acknowledgement echoes the request's own opcode: the client is
+		// waiting on the command it sent, and CMD 1418 replays the CMD 36
+		// area-change frame sequence otherwise unchanged.
+		if e = send(1, id, protocol.AreaChangeSuccess()); e != nil {
 			return e
 		}
 		// NOTI23 is a distinct transition stage: its self branch invokes

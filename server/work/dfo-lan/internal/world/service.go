@@ -151,9 +151,17 @@ func (s *Service) transition(level byte, odyssey bool, old storage.WorldPosition
 			adjacent = true
 		}
 	}
-	// A source Seria return warp targets the saved origin, never an arbitrary
-	// client-selected map. Its animated portal condition remains explicit.
-	if old.Return != nil && src.SeriaReturnWarp && old.Return.Town == r.Town && old.Return.Area == r.Area {
+	// Leaving a source Seria return warp (the private room at 38/1 and 142/1)
+	// always means "back to the map this visit started from": enter from
+	// Alfhlyra and the bottom gate lands in Alfhlyra, enter from Elvengard and
+	// it lands in Elvengard. The client may name a generic animation landing
+	// (live17: 746,157) or another town entirely, so the destination is the
+	// stamped origin, never the request's own coordinates - the old
+	// "request destination == Return" guard let both of those fall through to
+	// "no authorized source portal" and trapped the player in the room. A
+	// same-area confirmation is a reposition inside the room, not a leave, so
+	// it neither rewrites the destination nor drops the stamp.
+	if old.Return != nil && src.SeriaReturnWarp && !(r.Town == old.Town && r.Area == old.Area) {
 		if !s.Rules.RequirePortalProximity {
 			adjacent = true
 		} else {
@@ -164,10 +172,11 @@ func (s *Service) transition(level byte, odyssey bool, old storage.WorldPosition
 			}
 		}
 		if adjacent {
-			// The Seria map selector may supply its generic animation landing
-			// point (live17: 746,157), which is outside this source town's
-			// walkable geometry. Restore this character's validated saved
-			// origin instead. Destination/portal ownership is still checked.
+			// Restore this character's validated saved origin, town and area
+			// included: rewriting only X/Y still trusted the client to have
+			// named the right town. Destination/portal ownership is still
+			// checked, and the player still has to stand in the return gate.
+			next.Town, next.Area = old.Return.Town, old.Return.Area
 			next.X, next.Y = old.Return.X, old.Return.Y
 			next.Return = nil
 		}
