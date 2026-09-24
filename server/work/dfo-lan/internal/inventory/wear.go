@@ -367,6 +367,20 @@ func (s *WearService) Move(ctx context.Context, role storage.Character, key stri
 	return saved, applied, e
 }
 
+// HasWornWeapon checks the native weapon slot in the persisted worn set.
+func HasWornWeapon(state json.RawMessage) bool {
+	bag, err := ReadBag(state)
+	if err != nil {
+		return false
+	}
+	for _, item := range bag.Worn {
+		if item.Slot == 12 && item.Template != 0 {
+			return true
+		}
+	}
+	return false
+}
+
 // WornSpaceUpdate rebuilds the local actor's equipped visuals after entry.
 // Restored for this handoff from the documented39 NOTI14 path; not a claim
 // that the original39 source has been recovered byte for byte.

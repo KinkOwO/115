@@ -2768,6 +2768,12 @@ func main() {
 						}
 					}
 					if e == nil {
+						plan.WeaponEquipped = inventory.HasWornWeapon(role.State)
+						if plan.WeaponEquipped {
+							plan.WeaponAppearance, e = characters.AppearanceProbe(role, [2]byte{})
+						}
+					}
+					if e == nil {
 						plan.AvatarReady, e = inventory.SpecialEquipmentRestorePayload(role.State, 1)
 					}
 					if e == nil {

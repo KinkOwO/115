@@ -33,3 +33,26 @@ func TestHandoffWornDisplayUpdate(t *testing.T) {
 		t.Fatal("empty equipment should not trigger rebuild")
 	}
 }
+
+func TestHasWornWeaponUsesWornSlot12(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		bag  Bag
+		want bool
+	}{
+		{"worn weapon", Bag{Worn: []BagEquipment{{Slot: 12, Template: 101000013}}}, true},
+		{"bag slot 12 only", Bag{Equipment: []BagEquipment{{Slot: 12, Template: 101000013}}}, false},
+		{"other worn slot", Bag{Worn: []BagEquipment{{Slot: 19, Template: 20002}}}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.bag.Version = "ordinary-bag-v1"
+			state, err := SaveBag(json.RawMessage(`{}`), tc.bag)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := HasWornWeapon(state); got != tc.want {
+				t.Fatalf("HasWornWeapon=%v, want %v", got, tc.want)
+			}
+		})
+	}
+}

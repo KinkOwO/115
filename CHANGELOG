@@ -1,6 +1,7 @@
 # CHANGELOG
 
 ## 2026-09-24
+- **进城武器提示双态（attempt 2/3，用户实机确认）**：从存档穿戴槽 12 判断武器；有武器时在 NOTI24 前发送 `AppearanceProbe` 和两组 NOTI14 穿戴数据，无武器时跳过此前置帧，保留客户端原生提示。用户确认修复通过。`go test ./...`、`go vet ./...` 通过；候选程序 SHA-256 `520927BE6285789B0D470CBE28E0DB3F129C164C1251F20DF37DC8CF4CB7C257`。确认基线：`server/work/dfo-lan/docs/protocol/weapon-toast-dual-state-20260924.md`。
 - **频道名称同步（用户实机确认）**：显式启用 channel_identity 后，登录发送 NOTI2435，按连接统一角色 mode0/mode1 上下文与登录频道类型，修复 ch00.Unknown；实机显示 ch10.LAN Normal。补齐本机启动开关传递及候选进程停服名单。确认基线和部署说明见 `server/work/dfo-lan/docs/protocol/channel-identity-20260924.md`。
 - **金库排序、Transfer 与个人金库升级修复（用户实机确认；账号金库相关待测）**：金库1/2排序、金库1↔2 Transfer、金库2升级与容量恢复已由用户确认通过。服务端候选版同时包含账号金库存取、三库互通、格子刷新及 CMD307/308 金币按钮修复，因当前无测试条件暂不标记实机通过。`go test ./...`、`go vet ./...` 通过；候选版 SHA-256 `0D4D2EDF0E3FDCB6AD8317CB54A8591C709B92B600FC1AC8DB5375A94E6983B4`。确认基线：`server/work/dfo-lan/docs/protocol/next43-vault-repair.md`。
 - **末世录军团频道入口：频道已可选中（实机确认），入口应答链已落地（待实机）**：`选择频道 > 军团` 标签页此前**永远是空的** —— 本地目录只发布普通频道，而源 `etc/channel_info.etc` 里最大 `Type` 只有 6，特殊内容频道只能由服务端下发（参考 fork 的六个 F7 频道 G0208 就是这么做的）。

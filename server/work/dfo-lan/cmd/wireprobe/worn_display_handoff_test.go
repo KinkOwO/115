@@ -51,12 +51,14 @@ func TestHandoffWornVisualsAfterEntry(t *testing.T) {
 	// worn-window refresh must also be emitted before the NOTI24 AREA_USERS
 	// frame, so the 38250 "Weapon not equipped." refresh chain sees slot 12
 	// installed. The after-barrier copies remain for the upgrade arrows.
-	pre := entryPayloads{WornSlots: []byte{3, 0}, WornUpdate: []byte{3, 1, 0}}.packets()
-	preWorn, preSlot, preWin, area := -1, -1, -1, -1
+	pre := entryPayloads{WeaponEquipped: true, WeaponAppearance: []byte{2}, WornSlots: []byte{3, 0}, WornUpdate: []byte{3, 1, 0}}.packets()
+	preWorn, preAppearance, preSlot, preWin, area := -1, -1, -1, -1, -1
 	for i, q := range pre {
 		switch q.Name {
 		case "worn_equipment_restored":
 			preWorn = i
+		case "weapon_appearance_entry_prelude":
+			preAppearance = i
 		case "equipment_slots_updated_entry_prelude":
 			preSlot = i
 		case "worn_equipment_window_refreshed_entry_prelude":
@@ -65,7 +67,22 @@ func TestHandoffWornVisualsAfterEntry(t *testing.T) {
 			area = i
 		}
 	}
-	if preWorn < 0 || preSlot < 0 || preWin < 0 || area < 0 || !(preWorn < preSlot && preSlot < preWin && preWin < area) {
-		t.Fatal("id-14 prelude frames must sit after the worn restore and before NOTI24 area-users")
+	if preWorn < 0 || preAppearance < 0 || preSlot < 0 || preWin < 0 || area < 0 || !(preWorn < preAppearance && preAppearance < preSlot && preSlot < preWin && preWin < area) {
+		t.Fatal("weapon appearance and id-14 frames must precede NOTI24 area-users")
+	}
+	bare := entryPayloads{WornSlots: []byte{3, 0}, WornUpdate: []byte{3, 1, 0}}.packets()
+	seenArea, seenAfterBarrier := false, false
+	for _, q := range bare {
+		switch q.Name {
+		case "weapon_appearance_entry_prelude", "equipment_slots_updated_entry_prelude", "worn_equipment_window_refreshed_entry_prelude":
+			t.Fatalf("empty weapon slot received prelude %s", q.Name)
+		case "town_entry_probe_sent":
+			seenArea = true
+		case "worn_equipment_window_refreshed_entry":
+			seenAfterBarrier = true
+		}
+	}
+	if !seenArea || !seenAfterBarrier {
+		t.Fatal("normal town entry or post-barrier worn refresh disappeared")
 	}
 }
