@@ -14,20 +14,36 @@ func (s *Service) EnemyDeath(ctx context.Context, role storage.Character, run *d
 	}
 	qid := run.Maze.Quest
 	en := s.Index().Entries[uint32(qid)]
-	if !singleHuntMatch(en, run, entity) {
+	if en == nil {
+		return false, nil
+	}
+	var target uint32
+	switch en.Model {
+	case SingleHuntEnemy:
+		target = en.HuntEnemy
+	case SingleHuntMonster:
+		target = en.HuntMonster
+	default:
+		return false, nil
+	}
+	if !singleKillMatch(en, run, entity, target) {
 		return false, nil
 	}
 	return s.Store.CompleteQuestObjective(ctx, role.AccountID, role.ID, qid, s.Catalog.Source.Checksum, en.Model)
 }
 
 func singleHuntMatch(en *Entry, run *dungeon.Session, entity uint16) bool {
-	if en == nil || !en.Implemented || en.Model != SingleHuntEnemy ||
+	return en != nil && en.Model == SingleHuntEnemy && singleKillMatch(en, run, entity, en.HuntEnemy)
+}
+
+func singleKillMatch(en *Entry, run *dungeon.Session, entity uint16, target uint32) bool {
+	if en == nil || !en.Implemented || target == 0 ||
 		run == nil || !run.Loaded || !run.Dead[entity] || run.Unowned[entity] ||
 		en.ID != uint32(run.Maze.Quest) || run.Definition.ID != en.HuntDungeon {
 		return false
 	}
 	for _, monster := range run.Monsters {
-		if monster.Entity == entity && monster.Template == en.HuntEnemy {
+		if monster.Entity == entity && monster.Template == target {
 			return true
 		}
 	}

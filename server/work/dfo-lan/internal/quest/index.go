@@ -28,6 +28,7 @@ type Entry struct {
 	Seek               SeekObjective
 	HuntDungeon        uint32
 	HuntEnemy          uint32
+	HuntMonster        uint32
 	UnderClear         UnderClearObjective
 }
 
@@ -167,6 +168,8 @@ func BuildIndex(c catalog.QuestCatalog) *Index {
 			x.Positional = append(x.Positional, id)
 		case model == SingleHuntEnemy:
 			e.HuntDungeon, e.HuntEnemy, _ = HuntEnemyObjective(d)
+		case model == SingleHuntMonster:
+			e.HuntDungeon, e.HuntMonster, _ = HuntMonsterObjective(d)
 		case model == AllRoomsUnderClear:
 			e.UnderClear, _ = ConditionUnderClearObjective(d)
 		}

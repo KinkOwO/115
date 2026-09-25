@@ -20,6 +20,7 @@ const SeekAndMeetNPC = "seek-items-and-meet-npc-remaining-v1"
 const LookCinematic = "look-cinematic-client-gated-v1"
 const MonsterKillCheckpoint = "monster-kill-checkpoint-client-gated-v1"
 const SingleHuntEnemy = "single-hunt-enemy-remaining-v1"
+const SingleHuntMonster = "single-hunt-monster-remaining-v1"
 const AllRoomsUnderClear = "all-rooms-under-clear-remaining-v1"
 const LegionContentClear = "legion-content-clear-client-gated-v1"
 
@@ -144,6 +145,9 @@ func InitialProgress(d catalog.QuestDefinition) (uint32, string, error) {
 	if _, _, ok := HuntEnemyObjective(d); ok {
 		return 1, SingleHuntEnemy, nil
 	}
+	if _, _, ok := HuntMonsterObjective(d); ok {
+		return 1, SingleHuntMonster, nil
+	}
 	if _, ok := ConditionUnderClearObjective(d); ok {
 		return 1, AllRoomsUnderClear, nil
 	}
@@ -180,6 +184,33 @@ func HuntEnemyObjective(d catalog.QuestDefinition) (dungeonID, enemy uint32, ok 
 		}
 	}
 	if c[0].Value <= 0 || c[1].Value != -1 || c[2].Value <= 0 || c[3].Value != 1 || c[4].Value != 1 {
+		return 0, 0, false
+	}
+	return uint32(c[0].Value), uint32(c[2].Value), true
+}
+
+// HuntMonsterObjective recognizes the source's one-monster, one-kill epic
+// form. Other grades and multi-target/count forms need separate progress
+// semantics and are not offered under this model.
+func HuntMonsterObjective(d catalog.QuestDefinition) (dungeonID, monster uint32, ok bool) {
+	c := d.ObjectiveCells
+	if d.Kind != "[hunt monster]" || len(d.Pending) != 0 || len(c) != 4 || reachSubtype(d) != -1 {
+		return 0, 0, false
+	}
+	grade := cells(d.Script.Cells, "[grade]")
+	if len(grade) != 1 || grade[0].Type != 6 || grade[0].Text != "[epic]" {
+		return 0, 0, false
+	}
+	for _, v := range c {
+		if v.Type != 0 {
+			return 0, 0, false
+		}
+	}
+	if c[0].Value <= 0 || c[1].Value != -1 || c[2].Value <= 0 || c[3].Value != 1 {
+		return 0, 0, false
+	}
+	info := cells(d.Script.Cells, "[dungeon info]")
+	if len(info) != 2 || info[0].Type != 0 || info[0].Value != c[0].Value || info[1].Type != 0 || info[1].Value != c[1].Value {
 		return 0, 0, false
 	}
 	return uint32(c[0].Value), uint32(c[2].Value), true
