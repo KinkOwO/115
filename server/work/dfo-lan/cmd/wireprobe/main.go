@@ -63,6 +63,7 @@ func main() {
 	lootCatalogFile := flag.String("loot-catalog", "", "current gold/ordinary stackable source projection; equipment pending")
 	lootRulesFile := flag.String("loot-rules", "configs/drop.compat90.json", "explicit reference drop formula policy")
 	bagRulesFile := flag.String("bag-rules", "configs/inventory.compat90.json", "separate bag slot and missing stack limit policy")
+	boxesFile := flag.String("boxes", "", "imported open-box content tables; empty resolves boxes.json beside the bag rules")
 	cardRulesFile := flag.String("card-rules", "configs/cards.compat90.json", "separate compatible free-card policy")
 	learningFile := flag.String("skill-catalog", "", "current PVF learning metadata; enables manual learning and persisted skill slots")
 	channelRefreshFile := flag.String("channel-refresh-config", "", "separate local channel directory service for native refresh")
@@ -364,7 +365,7 @@ func main() {
 					log.Printf("shop purchase pilot running on database: %s", database)
 				}
 			}
-			shopPilot, e = cashshop.LoadPilot(*shopPilotFile, data.Source.Checksum)
+			shopPilot, e = cashshop.LoadPilot(*shopPilotFile, data.Source.Checksum, *shopRelease)
 			if e != nil {
 				log.Fatal(e)
 			}
@@ -372,6 +373,7 @@ func main() {
 				log.Fatal(e)
 			}
 			log.Printf("PVF shop enabled: %d ordinary products", shopPilot.EnabledCount())
+			log.Printf("商城配置：%s，发布模式：%t", *shopPilotFile, shopPilot.Config.Release)
 		}
 		if *learningFile != "" {
 			characters.Learning, e = character.LoadLearningCatalog(*learningFile, data.Source.Checksum)
@@ -595,6 +597,26 @@ func main() {
 			log.Fatal(e)
 		}
 		lootService.CardPolicy = &cards
+		// Open-box tables are optional: without them a box is still consumed, it
+		// just cannot hand out a prize. The launcher passes every config path
+		// absolutely, so an unset -boxes resolves beside the bag rules rather
+		// than against the working directory, which is not the project directory.
+		boxesPath := *boxesFile
+		if boxesPath == "" {
+			boxesPath = filepath.Join(filepath.Dir(*bagRulesFile), "boxes.json")
+		}
+		if _, statErr := os.Stat(boxesPath); statErr == nil {
+			boxes, boxErr := loot.LoadBoxes(boxesPath)
+			if boxErr != nil {
+				log.Fatal(boxErr)
+			}
+			lootService.Boxes = boxes
+			log.Printf("PVF boxes: %d tables, %d prize templates", boxes.TableCount(), boxes.RewardCount())
+		} else if *boxesFile != "" {
+			log.Fatal("boxes file missing: " + boxesPath)
+		} else {
+			log.Printf("boxes: %s absent, open-box prizes disabled", boxesPath)
+		}
 	}
 	responses := map[uint16][]byte{}
 	if *questCatalogFile != "" {
@@ -1191,6 +1213,40 @@ func main() {
 					return
 				}
 				event(map[string]any{"kind": "cera_purchase_cancelled", "reason": reason, "items": items, "character_id": selectedCharacterID, "charged": false, "plain_hex": hex.EncodeToString(payload)})
+				continue
+			}
+			if frame.Type == 1 && bootstrapped && verified && frame.ID == 681 && worldState != nil && lootService != nil && lootService.Boxes != nil {
+				request, decodeErr := protocol.DecodeRadiantBoxOpen(plaintext)
+				if decodeErr != nil {
+					// Other events share this opcode; they stay unanswered as
+					// before instead of being answered with a guessed body.
+					event(map[string]any{"kind": "event_request_ignored", "id": frame.ID, "reason": decodeErr.Error()})
+					continue
+				}
+				count, countErr := radiantBoxOpens(request.Mode)
+				box, boxErr := radiantBoxHeld(lootService, worldState.role)
+				if countErr != nil || boxErr != nil {
+					reason := countErr
+					if reason == nil {
+						reason = boxErr
+					}
+					event(map[string]any{"kind": "event_request_refused", "character_id": selectedCharacterID, "reason": reason.Error()})
+					continue
+				}
+				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				packets, openErr := worldState.openRadiantBox(ctx, box, count)
+				cancel()
+				if openErr != nil {
+					event(map[string]any{"kind": "event_request_refused", "character_id": selectedCharacterID, "box": box, "mode": request.Mode, "reason": openErr.Error()})
+					continue
+				}
+				event(map[string]any{"kind": "radiant_box_opened", "character_id": selectedCharacterID, "box": box, "mode": request.Mode, "opened": count})
+				for _, p := range packets {
+					if err := sendPayload(p.Kind, p.ID, p.Payload); err != nil {
+						return
+					}
+					event(map[string]any{"kind": p.Name, "id": p.ID, "plain_hex": hex.EncodeToString(p.Payload)})
+				}
 				continue
 			}
 			if frame.Type == 1 && bootstrapped && verified && characters != nil && worldState != nil && (frame.ID == 102 || frame.ID == 173) {
@@ -1893,7 +1949,7 @@ func main() {
 					event(map[string]any{"kind": "item_use_rejected", "reason": "checksum failed"})
 					continue
 				}
-				plan, e := worldState.useStackable(plaintext)
+				plan, e := worldState.useStackable(plaintext, event)
 				if e != nil {
 					event(map[string]any{"kind": "item_use_refused", "character_id": worldState.role.ID, "reason": e.Error()})
 					if r, decodeErr := protocol.DecodeUseStackable(plaintext); decodeErr == nil {
@@ -2584,6 +2640,19 @@ func main() {
 					}
 				}
 				profile := *selectProbe
+				if lootService != nil && lootService.Boxes != nil {
+					ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+					updated, applied, repairErr := lootService.RepairBoxRewards(ctx, role)
+					cancel()
+					if repairErr != nil {
+						event(map[string]any{"kind": "box_reward_repair_error", "character_id": role.ID, "error": repairErr.Error()})
+						continue
+					}
+					role = updated
+					if applied {
+						event(map[string]any{"kind": "box_rewards_repaired", "character_id": role.ID})
+					}
+				}
 				ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
 				profile.TutorialCompleted, e = characters.Store.TutorialFlags(ctx, developmentAccount, role.ID)
 				cancel()
@@ -2681,7 +2750,7 @@ func main() {
 						continue
 					}
 					for _, premium := range premiums {
-						profile.Premiums = append(profile.Premiums, protocol.PremiumEntry{Type: premium.Type, EndTime: premium.EndTime})
+						profile.Premiums = append(profile.Premiums, protocol.PremiumEntry{Type: premium.Type, RemainingSecond: premium.RemainingSecond})
 					}
 					event(map[string]any{"kind": "premiums_restored", "account": developmentAccount, "count": len(profile.Premiums)})
 					areaPayload, e = protocol.AreaUsers(townCatalog.TownID, townCatalog.AreaID, []protocol.AreaUser{{ActorServerID: role.WireID, X: townPolicy.X, Y: townPolicy.Y, Flags: townPolicy.Flags}})

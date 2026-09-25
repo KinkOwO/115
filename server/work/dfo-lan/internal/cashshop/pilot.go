@@ -27,6 +27,9 @@ type PilotConfig struct {
 	EquipmentIndexHash string                 `json:"equipment_index_hash,omitempty"`
 	Entries            []OrdinaryProduct      `json:"entries"`
 	Policies           map[string][]pvf.Token `json:"policies"`
+	// Release 由目录文件中的 "release": true 显式启用。它只放宽既不涉及扣款、
+	// 也不推断发货语义的策略门禁；未配置该字段时仍沿用严格的试运行行为。
+	Release bool `json:"release,omitempty"`
 	// immediateTemplates caches the templates any [immediately adaptive
 	// product] SKU sells, so classify stays O(1) per entry. Built by
 	// LoadPilot/ImportPilot; classify falls back to a per-call derivation
@@ -127,7 +130,11 @@ func packageHandler(item catalog.ScriptRecord) (deliveryType, error) {
 }
 
 // Inventory families dispatch by script type, never by SKU.
-func ordinaryHandler(item catalog.ScriptRecord) (deliveryType, error) {
+//
+// release 仍使用有来源依据的数据，但不再拒绝特殊发货段，并接受与现有
+// throw/etc 类型共用槽位区间的消耗品类型。槽位区间只决定物品放置位置，
+// 不代表已经还原发货语义；没有对应区间的类型仍会被拒绝。
+func ordinaryHandler(item catalog.ScriptRecord, release bool) (deliveryType, error) {
 	for i, t := range item.Cells {
 		if t.Type == 3 && t.Text == "[equipment type]" {
 			if i+1 < len(item.Cells) && item.Cells[i+1].Text == "[creature]" {
@@ -153,7 +160,7 @@ func ordinaryHandler(item catalog.ScriptRecord) (deliveryType, error) {
 		}
 		switch t.Text {
 		case "[expiration date]", "[period]", "[package data]", "[selection]", "[booster info]", "[creature]":
-			if !openAll {
+			if !release && !openAll {
 				return h, fmt.Errorf("special delivery field %s", t.Text)
 			}
 		// [action type] 不再拦截:[radiant treasure box] 交付的就是未开启的
@@ -189,6 +196,18 @@ func ordinaryHandler(item catalog.ScriptRecord) (deliveryType, error) {
 	case "[material]":
 		h.Slots = [2]uint16{121, 176}
 	case "[etc]", "[waste]", "[throw]", "[hp]", "[mp]", "[hp mp]", "[expert town potion]":
+		h.Slots = [2]uint16{65, 120}
+	case "[material expert job]":
+		if !release && !openAll {
+			return h, fmt.Errorf("unimplemented delivery type %s", h.Kind)
+		}
+		h.Slots = [2]uint16{121, 176}
+	case "[usable cera package]", "[cera booster]", "[booster]", "[booster selection]",
+		"[grouped random box]", "[contract]", "[only effect]", "[feed]",
+		"[enchant waste]", "[unlimited waste]":
+		if !release && !openAll {
+			return h, fmt.Errorf("unimplemented delivery type %s", h.Kind)
+		}
 		h.Slots = [2]uint16{65, 120}
 	default:
 		if openAll {
@@ -390,7 +409,12 @@ func (p *Pilot) resolveDeliveryType(template uint32) (deliveryType, error) {
 	}, nil
 }
 
-func LoadPilot(path, source string) (*Pilot, error) {
+// 目录或启动参数任一显式启用发布模式时，使用已实现的发布商品规则。
+// 未传参数的目录检查、试运行及既有调用继续遵循目录自身的设置。
+func LoadPilot(path, source string, release ...bool) (*Pilot, error) {
+	if len(release) > 1 {
+		return nil, fmt.Errorf("商城发布模式参数重复")
+	}
 	b, e := os.ReadFile(path)
 	if e != nil {
 		return nil, e
@@ -398,6 +422,9 @@ func LoadPilot(path, source string) (*Pilot, error) {
 	var c PilotConfig
 	if e = json.Unmarshal(b, &c); e != nil {
 		return nil, e
+	}
+	if len(release) == 1 && release[0] {
+		c.Release = true
 	}
 	c.immediateTemplates = c.deriveImmediateTemplates()
 	if e = c.validate(); e != nil {

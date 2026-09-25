@@ -1,0 +1,1697 @@
+{
+ "tables": {
+  "590712474": {
+   "table": "radianttreasurebox.cos.txt",
+   "rate": 1000000,
+   "material_count": 1,
+   "main_group": 1,
+   "special_group": 3,
+   "groups": {
+    "1": [
+     {
+      "group": 1,
+      "template": 590723047,
+      "count": 1,
+      "weight": 5000
+     },
+     {
+      "group": 2,
+      "template": 590723050,
+      "count": 1,
+      "weight": 1600
+     },
+     {
+      "group": 2,
+      "template": 590723054,
+      "count": 1,
+      "weight": 700
+     },
+     {
+      "group": 2,
+      "template": 590723055,
+      "count": 1,
+      "weight": 1400
+     },
+     {
+      "group": 2,
+      "template": 590723056,
+      "count": 1,
+      "weight": 24000
+     },
+     {
+      "group": 2,
+      "template": 590723057,
+      "count": 1,
+      "weight": 1800
+     },
+     {
+      "group": 2,
+      "template": 590723060,
+      "count": 1,
+      "weight": 1600
+     },
+     {
+      "group": 2,
+      "template": 590723061,
+      "count": 1,
+      "weight": 400
+     },
+     {
+      "group": 2,
+      "template": 590723068,
+      "count": 1,
+      "weight": 1100
+     },
+     {
+      "group": 2,
+      "template": 590723075,
+      "count": 1,
+      "weight": 4000
+     },
+     {
+      "group": 2,
+      "template": 590723082,
+      "count": 1,
+      "weight": 600
+     },
+     {
+      "group": 2,
+      "template": 590723089,
+      "count": 1,
+      "weight": 4000
+     },
+     {
+      "group": 2,
+      "template": 50022395,
+      "count": 1,
+      "weight": 1300
+     },
+     {
+      "group": 2,
+      "template": 590714298,
+      "count": 1,
+      "weight": 2000
+     },
+     {
+      "group": 3,
+      "template": 590723096,
+      "count": 1,
+      "weight": 7000
+     },
+     {
+      "group": 3,
+      "template": 590723096,
+      "count": 3,
+      "weight": 5000
+     },
+     {
+      "group": 3,
+      "template": 590723096,
+      "count": 5,
+      "weight": 3000
+     },
+     {
+      "group": 3,
+      "template": 590723097,
+      "count": 1,
+      "weight": 7000
+     },
+     {
+      "group": 3,
+      "template": 590723097,
+      "count": 3,
+      "weight": 5000
+     },
+     {
+      "group": 3,
+      "template": 590723097,
+      "count": 5,
+      "weight": 3000
+     },
+     {
+      "group": 3,
+      "template": 590717430,
+      "count": 10,
+      "weight": 10000
+     },
+     {
+      "group": 3,
+      "template": 590717430,
+      "count": 20,
+      "weight": 5000
+     },
+     {
+      "group": 3,
+      "template": 10362432,
+      "count": 10,
+      "weight": 16000
+     },
+     {
+      "group": 3,
+      "template": 10362432,
+      "count": 20,
+      "weight": 15000
+     },
+     {
+      "group": 3,
+      "template": 10362432,
+      "count": 30,
+      "weight": 15000
+     },
+     {
+      "group": 3,
+      "template": 33,
+      "count": 1,
+      "weight": 39100
+     },
+     {
+      "group": 3,
+      "template": 45,
+      "count": 1,
+      "weight": 39100
+     },
+     {
+      "group": 3,
+      "template": 10000389,
+      "count": 1,
+      "weight": 39100
+     },
+     {
+      "group": 3,
+      "template": 2660410,
+      "count": 1,
+      "weight": 39100
+     },
+     {
+      "group": 3,
+      "template": 590015555,
+      "count": 1,
+      "weight": 39100
+     },
+     {
+      "group": 3,
+      "template": 590015555,
+      "count": 3,
+      "weight": 39100
+     },
+     {
+      "group": 3,
+      "template": 590015555,
+      "count": 5,
+      "weight": 39100
+     },
+     {
+      "group": 3,
+      "template": 15,
+      "count": 1,
+      "weight": 39100
+     },
+     {
+      "group": 3,
+      "template": 15,
+      "count": 3,
+      "weight": 39100
+     },
+     {
+      "group": 3,
+      "template": 15,
+      "count": 5,
+      "weight": 39100
+     },
+     {
+      "group": 3,
+      "template": 10327284,
+      "count": 10,
+      "weight": 39100
+     },
+     {
+      "group": 3,
+      "template": 10327284,
+      "count": 30,
+      "weight": 39100
+     },
+     {
+      "group": 3,
+      "template": 10327284,
+      "count": 50,
+      "weight": 39100
+     },
+     {
+      "group": 3,
+      "template": 10327285,
+      "count": 10,
+      "weight": 39100
+     },
+     {
+      "group": 3,
+      "template": 10327285,
+      "count": 30,
+      "weight": 39100
+     },
+     {
+      "group": 3,
+      "template": 10327285,
+      "count": 50,
+      "weight": 39100
+     },
+     {
+      "group": 3,
+      "template": 7740,
+      "count": 10,
+      "weight": 39100
+     },
+     {
+      "group": 3,
+      "template": 7740,
+      "count": 20,
+      "weight": 39100
+     },
+     {
+      "group": 3,
+      "template": 7740,
+      "count": 30,
+      "weight": 38750
+     },
+     {
+      "group": 3,
+      "template": 7741,
+      "count": 10,
+      "weight": 39100
+     },
+     {
+      "group": 3,
+      "template": 7741,
+      "count": 20,
+      "weight": 39100
+     },
+     {
+      "group": 3,
+      "template": 7741,
+      "count": 30,
+      "weight": 38750
+     }
+    ],
+    "2": [
+     {
+      "group": 1,
+      "template": 590723047,
+      "count": 1,
+      "weight": 10000
+     },
+     {
+      "group": 2,
+      "template": 590723050,
+      "count": 1,
+      "weight": 1900
+     },
+     {
+      "group": 2,
+      "template": 590723054,
+      "count": 1,
+      "weight": 900
+     },
+     {
+      "group": 2,
+      "template": 590723055,
+      "count": 1,
+      "weight": 1700
+     },
+     {
+      "group": 2,
+      "template": 590723056,
+      "count": 1,
+      "weight": 29200
+     },
+     {
+      "group": 2,
+      "template": 590723057,
+      "count": 1,
+      "weight": 2100
+     },
+     {
+      "group": 2,
+      "template": 590723060,
+      "count": 1,
+      "weight": 2000
+     },
+     {
+      "group": 2,
+      "template": 590723061,
+      "count": 1,
+      "weight": 500
+     },
+     {
+      "group": 2,
+      "template": 590723068,
+      "count": 1,
+      "weight": 1300
+     },
+     {
+      "group": 2,
+      "template": 590723075,
+      "count": 1,
+      "weight": 5400
+     },
+     {
+      "group": 2,
+      "template": 590723082,
+      "count": 1,
+      "weight": 800
+     },
+     {
+      "group": 2,
+      "template": 590723089,
+      "count": 1,
+      "weight": 4900
+     },
+     {
+      "group": 2,
+      "template": 50022395,
+      "count": 1,
+      "weight": 1500
+     },
+     {
+      "group": 2,
+      "template": 590714298,
+      "count": 1,
+      "weight": 2400
+     },
+     {
+      "group": 2,
+      "template": 590712474,
+      "count": 1,
+      "weight": 22900
+     },
+     {
+      "group": 2,
+      "template": 590712474,
+      "count": 5,
+      "weight": 4600
+     },
+     {
+      "group": 2,
+      "template": 590712474,
+      "count": 10,
+      "weight": 2300
+     },
+     {
+      "group": 2,
+      "template": 590712474,
+      "count": 20,
+      "weight": 1100
+     },
+     {
+      "group": 3,
+      "template": 590723096,
+      "count": 1,
+      "weight": 7000
+     },
+     {
+      "group": 3,
+      "template": 590723096,
+      "count": 3,
+      "weight": 5000
+     },
+     {
+      "group": 3,
+      "template": 590723096,
+      "count": 5,
+      "weight": 3000
+     },
+     {
+      "group": 3,
+      "template": 590723097,
+      "count": 1,
+      "weight": 7000
+     },
+     {
+      "group": 3,
+      "template": 590723097,
+      "count": 3,
+      "weight": 5000
+     },
+     {
+      "group": 3,
+      "template": 590723097,
+      "count": 5,
+      "weight": 3000
+     },
+     {
+      "group": 3,
+      "template": 590717430,
+      "count": 10,
+      "weight": 10000
+     },
+     {
+      "group": 3,
+      "template": 590717430,
+      "count": 20,
+      "weight": 5000
+     },
+     {
+      "group": 3,
+      "template": 10362432,
+      "count": 10,
+      "weight": 20000
+     },
+     {
+      "group": 3,
+      "template": 10362432,
+      "count": 20,
+      "weight": 20000
+     },
+     {
+      "group": 3,
+      "template": 10362432,
+      "count": 30,
+      "weight": 11900
+     },
+     {
+      "group": 3,
+      "template": 590015555,
+      "count": 1,
+      "weight": 67300
+     },
+     {
+      "group": 3,
+      "template": 590015555,
+      "count": 3,
+      "weight": 67300
+     },
+     {
+      "group": 3,
+      "template": 590015555,
+      "count": 5,
+      "weight": 67300
+     },
+     {
+      "group": 3,
+      "template": 15,
+      "count": 1,
+      "weight": 67300
+     },
+     {
+      "group": 3,
+      "template": 15,
+      "count": 3,
+      "weight": 67300
+     },
+     {
+      "group": 3,
+      "template": 15,
+      "count": 5,
+      "weight": 67300
+     },
+     {
+      "group": 3,
+      "template": 10327284,
+      "count": 10,
+      "weight": 67300
+     },
+     {
+      "group": 3,
+      "template": 10327284,
+      "count": 30,
+      "weight": 67300
+     },
+     {
+      "group": 3,
+      "template": 10327284,
+      "count": 50,
+      "weight": 67300
+     },
+     {
+      "group": 3,
+      "template": 10327285,
+      "count": 10,
+      "weight": 67300
+     },
+     {
+      "group": 3,
+      "template": 10327285,
+      "count": 30,
+      "weight": 67300
+     },
+     {
+      "group": 3,
+      "template": 10327285,
+      "count": 50,
+      "weight": 67300
+     }
+    ],
+    "3": [
+     {
+      "group": 1,
+      "template": 590723047,
+      "count": 1,
+      "weight": 1000000
+     }
+    ]
+   },
+   "point_stacks": [
+    {
+     "type": "bonus",
+     "gain": 1,
+     "max": 10,
+     "reward_type": "draw",
+     "reward_param": 2,
+     "section_reward": []
+    },
+    {
+     "type": "section",
+     "gain": 1,
+     "max": 100,
+     "reward_type": null,
+     "reward_param": null,
+     "section_reward": [
+      {
+       "group": 3,
+       "threshold": 25,
+       "template": 590722560,
+       "count": 1
+      },
+      {
+       "group": 3,
+       "threshold": 50,
+       "template": 590722561,
+       "count": 1
+      },
+      {
+       "group": 3,
+       "threshold": 75,
+       "template": 590722562,
+       "count": 1
+      },
+      {
+       "group": 3,
+       "threshold": 100,
+       "template": 590722563,
+       "count": 1
+      }
+     ]
+    }
+   ],
+   "postal_tag": [
+    "event_4202_mail_title",
+    "event_4202_mail_msg"
+   ],
+   "change_stack": 75
+  },
+  "590719043": {
+   "table": "radianttreasurebox.cos.txt",
+   "rate": 1000000,
+   "material_count": 1,
+   "main_group": 1,
+   "special_group": 3,
+   "groups": {
+    "1": [
+     {
+      "group": 1,
+      "template": 590718999,
+      "count": 1,
+      "weight": 5000
+     },
+     {
+      "group": 2,
+      "template": 590719005,
+      "count": 1,
+      "weight": 800
+     },
+     {
+      "group": 2,
+      "template": 590719006,
+      "count": 1,
+      "weight": 3500
+     },
+     {
+      "group": 2,
+      "template": 590719007,
+      "count": 1,
+      "weight": 3500
+     },
+     {
+      "group": 2,
+      "template": 590719008,
+      "count": 1,
+      "weight": 500
+     },
+     {
+      "group": 2,
+      "template": 590719009,
+      "count": 1,
+      "weight": 1600
+     },
+     {
+      "group": 2,
+      "template": 590719015,
+      "count": 1,
+      "weight": 500
+     },
+     {
+      "group": 2,
+      "template": 590719022,
+      "count": 1,
+      "weight": 1300
+     },
+     {
+      "group": 2,
+      "template": 590719029,
+      "count": 1,
+      "weight": 4700
+     },
+     {
+      "group": 2,
+      "template": 590719036,
+      "count": 1,
+      "weight": 3900
+     },
+     {
+      "group": 2,
+      "template": 590719010,
+      "count": 1,
+      "weight": 15100
+     },
+     {
+      "group": 2,
+      "template": 590719011,
+      "count": 1,
+      "weight": 2200
+     },
+     {
+      "group": 2,
+      "template": 590719014,
+      "count": 1,
+      "weight": 1400
+     },
+     {
+      "group": 2,
+      "template": 50022395,
+      "count": 1,
+      "weight": 1300
+     },
+     {
+      "group": 2,
+      "template": 50022396,
+      "count": 1,
+      "weight": 2200
+     },
+     {
+      "group": 2,
+      "template": 590714298,
+      "count": 1,
+      "weight": 2000
+     },
+     {
+      "group": 3,
+      "template": 590717430,
+      "count": 10,
+      "weight": 10000
+     },
+     {
+      "group": 3,
+      "template": 590717430,
+      "count": 20,
+      "weight": 5000
+     },
+     {
+      "group": 3,
+      "template": 10362432,
+      "count": 10,
+      "weight": 16000
+     },
+     {
+      "group": 3,
+      "template": 10362432,
+      "count": 20,
+      "weight": 15000
+     },
+     {
+      "group": 3,
+      "template": 10362432,
+      "count": 30,
+      "weight": 15000
+     },
+     {
+      "group": 3,
+      "template": 33,
+      "count": 1,
+      "weight": 40400
+     },
+     {
+      "group": 3,
+      "template": 45,
+      "count": 1,
+      "weight": 40400
+     },
+     {
+      "group": 3,
+      "template": 10000389,
+      "count": 1,
+      "weight": 40400
+     },
+     {
+      "group": 3,
+      "template": 2660410,
+      "count": 1,
+      "weight": 40400
+     },
+     {
+      "group": 3,
+      "template": 10000844,
+      "count": 1,
+      "weight": 40400
+     },
+     {
+      "group": 3,
+      "template": 10000844,
+      "count": 3,
+      "weight": 40400
+     },
+     {
+      "group": 3,
+      "template": 10000844,
+      "count": 5,
+      "weight": 40400
+     },
+     {
+      "group": 3,
+      "template": 590712537,
+      "count": 1,
+      "weight": 40500
+     },
+     {
+      "group": 3,
+      "template": 590712537,
+      "count": 3,
+      "weight": 40400
+     },
+     {
+      "group": 3,
+      "template": 590712537,
+      "count": 5,
+      "weight": 40400
+     },
+     {
+      "group": 3,
+      "template": 10327284,
+      "count": 10,
+      "weight": 40400
+     },
+     {
+      "group": 3,
+      "template": 10327284,
+      "count": 30,
+      "weight": 40400
+     },
+     {
+      "group": 3,
+      "template": 10327284,
+      "count": 50,
+      "weight": 40400
+     },
+     {
+      "group": 3,
+      "template": 10327285,
+      "count": 10,
+      "weight": 40400
+     },
+     {
+      "group": 3,
+      "template": 10327285,
+      "count": 30,
+      "weight": 40400
+     },
+     {
+      "group": 3,
+      "template": 10327285,
+      "count": 50,
+      "weight": 40400
+     },
+     {
+      "group": 3,
+      "template": 7740,
+      "count": 10,
+      "weight": 40500
+     },
+     {
+      "group": 3,
+      "template": 7740,
+      "count": 20,
+      "weight": 40500
+     },
+     {
+      "group": 3,
+      "template": 7740,
+      "count": 30,
+      "weight": 40500
+     },
+     {
+      "group": 3,
+      "template": 7741,
+      "count": 10,
+      "weight": 40500
+     },
+     {
+      "group": 3,
+      "template": 7741,
+      "count": 20,
+      "weight": 40500
+     },
+     {
+      "group": 3,
+      "template": 7741,
+      "count": 30,
+      "weight": 40500
+     }
+    ],
+    "2": [
+     {
+      "group": 1,
+      "template": 590718999,
+      "count": 1,
+      "weight": 10000
+     },
+     {
+      "group": 2,
+      "template": 590719005,
+      "count": 1,
+      "weight": 1500
+     },
+     {
+      "group": 2,
+      "template": 590719006,
+      "count": 1,
+      "weight": 6900
+     },
+     {
+      "group": 2,
+      "template": 590719007,
+      "count": 1,
+      "weight": 6900
+     },
+     {
+      "group": 2,
+      "template": 590719008,
+      "count": 1,
+      "weight": 900
+     },
+     {
+      "group": 2,
+      "template": 590719009,
+      "count": 1,
+      "weight": 3100
+     },
+     {
+      "group": 2,
+      "template": 590719015,
+      "count": 1,
+      "weight": 900
+     },
+     {
+      "group": 2,
+      "template": 590719022,
+      "count": 1,
+      "weight": 2400
+     },
+     {
+      "group": 2,
+      "template": 590719029,
+      "count": 1,
+      "weight": 9000
+     },
+     {
+      "group": 2,
+      "template": 590719036,
+      "count": 1,
+      "weight": 7500
+     },
+     {
+      "group": 2,
+      "template": 590719010,
+      "count": 1,
+      "weight": 29000
+     },
+     {
+      "group": 2,
+      "template": 590719011,
+      "count": 1,
+      "weight": 4300
+     },
+     {
+      "group": 2,
+      "template": 590719014,
+      "count": 1,
+      "weight": 2600
+     },
+     {
+      "group": 2,
+      "template": 50022395,
+      "count": 1,
+      "weight": 2400
+     },
+     {
+      "group": 2,
+      "template": 50022396,
+      "count": 1,
+      "weight": 4200
+     },
+     {
+      "group": 2,
+      "template": 590714298,
+      "count": 1,
+      "weight": 3900
+     },
+     {
+      "group": 3,
+      "template": 590717430,
+      "count": 10,
+      "weight": 10000
+     },
+     {
+      "group": 3,
+      "template": 590717430,
+      "count": 20,
+      "weight": 5000
+     },
+     {
+      "group": 3,
+      "template": 10362432,
+      "count": 10,
+      "weight": 20000
+     },
+     {
+      "group": 3,
+      "template": 10362432,
+      "count": 20,
+      "weight": 20000
+     },
+     {
+      "group": 3,
+      "template": 10362432,
+      "count": 30,
+      "weight": 11900
+     },
+     {
+      "group": 3,
+      "template": 10000844,
+      "count": 1,
+      "weight": 69800
+     },
+     {
+      "group": 3,
+      "template": 10000844,
+      "count": 3,
+      "weight": 69800
+     },
+     {
+      "group": 3,
+      "template": 10000844,
+      "count": 5,
+      "weight": 69800
+     },
+     {
+      "group": 3,
+      "template": 590712537,
+      "count": 1,
+      "weight": 69800
+     },
+     {
+      "group": 3,
+      "template": 590712537,
+      "count": 3,
+      "weight": 69800
+     },
+     {
+      "group": 3,
+      "template": 590712537,
+      "count": 5,
+      "weight": 69800
+     },
+     {
+      "group": 3,
+      "template": 10327284,
+      "count": 10,
+      "weight": 69800
+     },
+     {
+      "group": 3,
+      "template": 10327284,
+      "count": 30,
+      "weight": 69800
+     },
+     {
+      "group": 3,
+      "template": 10327284,
+      "count": 50,
+      "weight": 69800
+     },
+     {
+      "group": 3,
+      "template": 10327285,
+      "count": 10,
+      "weight": 69800
+     },
+     {
+      "group": 3,
+      "template": 10327285,
+      "count": 30,
+      "weight": 69800
+     },
+     {
+      "group": 3,
+      "template": 10327285,
+      "count": 50,
+      "weight": 69800
+     }
+    ],
+    "3": [
+     {
+      "group": 1,
+      "template": 590713024,
+      "count": 1,
+      "weight": 1000000
+     }
+    ]
+   },
+   "point_stacks": [
+    {
+     "type": "bonus",
+     "gain": 1,
+     "max": 10,
+     "reward_type": "draw",
+     "reward_param": 2,
+     "section_reward": []
+    },
+    {
+     "type": "section",
+     "gain": 1,
+     "max": 100,
+     "reward_type": null,
+     "reward_param": null,
+     "section_reward": [
+      {
+       "group": 3,
+       "threshold": 25,
+       "template": 590719045,
+       "count": 1
+      },
+      {
+       "group": 3,
+       "threshold": 50,
+       "template": 590719046,
+       "count": 1
+      },
+      {
+       "group": 3,
+       "threshold": 75,
+       "template": 590719047,
+       "count": 1
+      },
+      {
+       "group": 3,
+       "threshold": 100,
+       "template": 590719048,
+       "count": 1
+      }
+     ]
+    }
+   ],
+   "postal_tag": [
+    "event_4212_mail_title",
+    "event_4212_mail_msg"
+   ],
+   "change_stack": 75
+  }
+ },
+ "source": "inner Script.pvf .cos content scripts",
+ "rewards": {
+  "10000844": {
+   "path": "stackable/10000001/10000844.stk",
+   "stackable_type": "[waste]",
+   "stack_limit": 1000,
+   "slots": [
+    65,
+    120
+   ]
+  },
+  "10327284": {
+   "path": "stackable/10327001/10327284.stk",
+   "stackable_type": "[material]",
+   "stack_limit": 1000,
+   "slots": [
+    121,
+    176
+   ]
+  },
+  "10327285": {
+   "path": "stackable/10327001/10327285.stk",
+   "stackable_type": "[material]",
+   "stack_limit": 1000,
+   "slots": [
+    121,
+    176
+   ]
+  },
+  "10362432": {
+   "path": "stackable/10362001/10362432.stk",
+   "stackable_type": "[material]",
+   "stack_limit": 1000,
+   "slots": [
+    121,
+    176
+   ]
+  },
+  "590015555": {
+   "path": "stackable/590015001/590015555.stk",
+   "stackable_type": "[waste]",
+   "stack_limit": 1000,
+   "slots": [
+    65,
+    120
+   ]
+  },
+  "590712474": {
+   "path": "stackable/cash/590712474.stk",
+   "stackable_type": "[waste]",
+   "stack_limit": 1000,
+   "slots": [
+    65,
+    120
+   ]
+  },
+  "590712537": {
+   "path": "stackable/cash/590712537.stk",
+   "stackable_type": "[booster]",
+   "stack_limit": 1000,
+   "slots": [
+    65,
+    120
+   ]
+  },
+  "590713024": {
+   "path": "stackable/cash/590713024.stk",
+   "stackable_type": "[enchant waste]",
+   "stack_limit": 1000,
+   "slots": [
+    65,
+    120
+   ]
+  },
+  "590714298": {
+   "path": "stackable/cash/590714298.stk",
+   "stackable_type": "[contract]",
+   "stack_limit": 1000,
+   "slots": [
+    65,
+    120
+   ]
+  },
+  "590717430": {
+   "path": "stackable/cash/590717430.stk",
+   "stackable_type": "[booster]",
+   "stack_limit": 1000,
+   "slots": [
+    65,
+    120
+   ]
+  },
+  "590718999": {
+   "path": "stackable/cash/590718999.stk",
+   "stackable_type": "[booster selection]",
+   "stack_limit": 1000,
+   "slots": [
+    65,
+    120
+   ]
+  },
+  "590719005": {
+   "path": "stackable/cash/590719005.stk",
+   "stackable_type": "[booster]",
+   "stack_limit": 1000,
+   "slots": [
+    65,
+    120
+   ]
+  },
+  "590719006": {
+   "path": "stackable/cash/590719006.stk",
+   "stackable_type": "[booster selection]",
+   "stack_limit": 1000,
+   "slots": [
+    65,
+    120
+   ]
+  },
+  "590719007": {
+   "path": "stackable/cash/590719007.stk",
+   "stackable_type": "[booster selection]",
+   "stack_limit": 1000,
+   "slots": [
+    65,
+    120
+   ]
+  },
+  "590719008": {
+   "path": "stackable/cash/590719008.stk",
+   "stackable_type": "[etc]",
+   "stack_limit": 1000,
+   "slots": [
+    65,
+    120
+   ]
+  },
+  "590719009": {
+   "path": "stackable/cash/590719009.stk",
+   "stackable_type": "[etc]",
+   "stack_limit": 1000,
+   "slots": [
+    65,
+    120
+   ]
+  },
+  "590719010": {
+   "path": "stackable/cash/590719010.stk",
+   "stackable_type": "[material expert job]",
+   "stack_limit": 1000,
+   "slots": [
+    121,
+    176
+   ]
+  },
+  "590719011": {
+   "path": "stackable/cash/590719011.stk",
+   "stackable_type": "[booster selection]",
+   "stack_limit": 1000,
+   "slots": [
+    65,
+    120
+   ]
+  },
+  "590719014": {
+   "path": "stackable/cash/590719014.stk",
+   "stackable_type": "[etc]",
+   "stack_limit": 1000,
+   "slots": [
+    65,
+    120
+   ]
+  },
+  "590719015": {
+   "path": "stackable/cash/590719015.stk",
+   "stackable_type": "[booster]",
+   "stack_limit": 1000,
+   "slots": [
+    65,
+    120
+   ]
+  },
+  "590719022": {
+   "path": "stackable/cash/590719022.stk",
+   "stackable_type": "[booster]",
+   "stack_limit": 1000,
+   "slots": [
+    65,
+    120
+   ]
+  },
+  "590719029": {
+   "path": "stackable/cash/590719029.stk",
+   "stackable_type": "[booster]",
+   "stack_limit": 1000,
+   "slots": [
+    65,
+    120
+   ]
+  },
+  "590719036": {
+   "path": "stackable/cash/590719036.stk",
+   "stackable_type": "[booster]",
+   "stack_limit": 1000,
+   "slots": [
+    65,
+    120
+   ]
+  },
+  "590719045": {
+   "path": "stackable/cash/590719045.stk",
+   "stackable_type": "[booster selection]",
+   "stack_limit": 1000,
+   "slots": [
+    65,
+    120
+   ]
+  },
+  "590719046": {
+   "path": "stackable/cash/590719046.stk",
+   "stackable_type": "[booster selection]",
+   "stack_limit": 1000,
+   "slots": [
+    65,
+    120
+   ]
+  },
+  "590719047": {
+   "path": "stackable/cash/590719047.stk",
+   "stackable_type": "[booster selection]",
+   "stack_limit": 1000,
+   "slots": [
+    65,
+    120
+   ]
+  },
+  "590719048": {
+   "path": "stackable/cash/590719048.stk",
+   "stackable_type": "[booster selection]",
+   "stack_limit": 1000,
+   "slots": [
+    65,
+    120
+   ]
+  },
+  "590722560": {
+   "path": "stackable/cash/590722560.stk",
+   "stackable_type": "[booster]",
+   "stack_limit": 1000,
+   "slots": [
+    65,
+    120
+   ]
+  },
+  "590722561": {
+   "path": "stackable/cash/590722561.stk",
+   "stackable_type": "[booster]",
+   "stack_limit": 1000,
+   "slots": [
+    65,
+    120
+   ]
+  },
+  "590722562": {
+   "path": "stackable/cash/590722562.stk",
+   "stackable_type": "[booster]",
+   "stack_limit": 1000,
+   "slots": [
+    65,
+    120
+   ]
+  },
+  "590722563": {
+   "path": "stackable/cash/590722563.stk",
+   "stackable_type": "[booster]",
+   "stack_limit": 1000,
+   "slots": [
+    65,
+    120
+   ]
+  },
+  "590723047": {
+   "path": "stackable/cash/590723047.stk",
+   "stackable_type": "[booster]",
+   "stack_limit": 1000,
+   "slots": [
+    65,
+    120
+   ]
+  },
+  "590723050": {
+   "path": "stackable/cash/590723050.stk",
+   "stackable_type": "[booster]",
+   "stack_limit": 1000,
+   "slots": [
+    65,
+    120
+   ]
+  },
+  "590723054": {
+   "path": "stackable/cash/590723054.stk",
+   "stackable_type": "[etc]",
+   "stack_limit": 1000,
+   "slots": [
+    65,
+    120
+   ]
+  },
+  "590723055": {
+   "path": "stackable/cash/590723055.stk",
+   "stackable_type": "[etc]",
+   "stack_limit": 1000,
+   "slots": [
+    65,
+    120
+   ]
+  },
+  "590723056": {
+   "path": "stackable/cash/590723056.stk",
+   "stackable_type": "[material expert job]",
+   "stack_limit": 1000,
+   "slots": [
+    121,
+    176
+   ]
+  },
+  "590723057": {
+   "path": "stackable/cash/590723057.stk",
+   "stackable_type": "[booster selection]",
+   "stack_limit": 1000,
+   "slots": [
+    65,
+    120
+   ]
+  },
+  "590723060": {
+   "path": "stackable/cash/590723060.stk",
+   "stackable_type": "[etc]",
+   "stack_limit": 1000,
+   "slots": [
+    65,
+    120
+   ]
+  },
+  "590723061": {
+   "path": "stackable/cash/590723061.stk",
+   "stackable_type": "[booster]",
+   "stack_limit": 1000,
+   "slots": [
+    65,
+    120
+   ]
+  },
+  "590723068": {
+   "path": "stackable/cash/590723068.stk",
+   "stackable_type": "[booster]",
+   "stack_limit": 1000,
+   "slots": [
+    65,
+    120
+   ]
+  },
+  "590723075": {
+   "path": "stackable/cash/590723075.stk",
+   "stackable_type": "[booster]",
+   "stack_limit": 1000,
+   "slots": [
+    65,
+    120
+   ]
+  },
+  "590723082": {
+   "path": "stackable/cash/590723082.stk",
+   "stackable_type": "[booster]",
+   "stack_limit": 1000,
+   "slots": [
+    65,
+    120
+   ]
+  },
+  "590723089": {
+   "path": "stackable/cash/590723089.stk",
+   "stackable_type": "[booster]",
+   "stack_limit": 1000,
+   "slots": [
+    65,
+    120
+   ]
+  },
+  "590723096": {
+   "path": "stackable/cash/590723096.stk",
+   "stackable_type": "[town and dungeon]",
+   "stack_limit": 1000,
+   "slots": [
+    65,
+    120
+   ]
+  },
+  "590723097": {
+   "path": "stackable/cash/590723097.stk",
+   "stackable_type": "[town and dungeon]",
+   "stack_limit": 1000,
+   "slots": [
+    65,
+    120
+   ]
+  },
+  "15": {
+   "path": "stackable/cash/box_kaleido.stk",
+   "stackable_type": "[etc]",
+   "stack_limit": 1000,
+   "slots": [
+    65,
+    120
+   ]
+  },
+  "45": {
+   "path": "stackable/cash/contract_expert15.stk",
+   "stackable_type": "[etc]",
+   "stack_limit": 1000,
+   "slots": [
+    65,
+    120
+   ]
+  },
+  "2660410": {
+   "path": "stackable/cash/contract_growth_7.stk",
+   "stackable_type": "[contract]",
+   "stack_limit": 1000,
+   "slots": [
+    65,
+    120
+   ]
+  },
+  "10000389": {
+   "path": "stackable/cash/contract_growth_7_10000389.stk",
+   "stackable_type": "[contract]",
+   "stack_limit": 1000,
+   "slots": [
+    65,
+    120
+   ]
+  },
+  "33": {
+   "path": "stackable/cash/contract_monarch7.stk",
+   "stackable_type": "[etc]",
+   "stack_limit": 1000,
+   "slots": [
+    65,
+    120
+   ]
+  },
+  "50022395": {
+   "path": "stackable/dfo/cash/2017/0530/cera_shop/protect_amplifying.stk",
+   "stackable_type": "[material]",
+   "stack_limit": 1000,
+   "slots": [
+    121,
+    176
+   ]
+  },
+  "50022396": {
+   "path": "stackable/dfo/cash/2017/0530/cera_shop/protect_reinforcement.stk",
+   "stackable_type": "[material]",
+   "stack_limit": 1000,
+   "slots": [
+    121,
+    176
+   ]
+  },
+  "7740": {
+   "path": "stackable/event/vendingmachine/kanna_bigbread.stk",
+   "stackable_type": "[waste]",
+   "stack_limit": 1000,
+   "slots": [
+    65,
+    120
+   ]
+  },
+  "7741": {
+   "path": "stackable/event/vendingmachine/kanna_bigfreshmilk.stk",
+   "stackable_type": "[waste]",
+   "stack_limit": 1000,
+   "slots": [
+    65,
+    120
+   ]
+  }
+ },
+ "bands": {
+  "[material]": [
+   121,
+   176
+  ],
+  "[material expert job]": [
+   121,
+   176
+  ],
+  "[etc]": [
+   65,
+   120
+  ],
+  "[waste]": [
+   65,
+   120
+  ],
+  "[throw]": [
+   65,
+   120
+  ],
+  "[hp]": [
+   65,
+   120
+  ],
+  "[mp]": [
+   65,
+   120
+  ],
+  "[hp mp]": [
+   65,
+   120
+  ],
+  "[expert town potion]": [
+   65,
+   120
+  ],
+  "[usable cera package]": [
+   65,
+   120
+  ],
+  "[cera booster]": [
+   65,
+   120
+  ],
+  "[booster]": [
+   65,
+   120
+  ],
+  "[booster selection]": [
+   65,
+   120
+  ],
+  "[grouped random box]": [
+   65,
+   120
+  ],
+  "[contract]": [
+   65,
+   120
+  ],
+  "[only effect]": [
+   65,
+   120
+  ],
+  "[feed]": [
+   65,
+   120
+  ],
+  "[enchant waste]": [
+   65,
+   120
+  ],
+  "[unlimited waste]": [
+   65,
+   120
+  ],
+  "[town and dungeon]": [
+   65,
+   120
+  ]
+ }
+}
