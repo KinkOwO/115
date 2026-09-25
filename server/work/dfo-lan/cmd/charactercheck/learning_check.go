@@ -100,6 +100,18 @@ func learningCheck(ctx context.Context, s, reopened *storage.Store, other int64)
 	if slot, exists := newlyLearned.SkillSlots[0][1]; !exists || slot >= 14 {
 		return fmt.Errorf("new active skill was not bound to a free shortcut")
 	}
+	var sourceSkill, targetSkill uint16
+	for id, slot := range newlyLearned.SkillSlots[0] {
+		switch slot {
+		case 1:
+			sourceSkill = id
+		case 5:
+			targetSkill = id
+		}
+	}
+	if sourceSkill == 0 {
+		return fmt.Errorf("skill drag fixture has no source in slot 1")
+	}
 	moved, _, e := cs.MoveSkill(ctx, learned, "skill:drag", protocol.SkillMove{From: 1, To: 5})
 	if e != nil {
 		return e
@@ -115,11 +127,14 @@ func learningCheck(ctx context.Context, s, reopened *storage.Store, other int64)
 	if e = json.Unmarshal(rows[0].State, &state); e != nil {
 		return e
 	}
-	if state.SkillPoints != [2]uint16{60, 100} || state.LearnedSkills[0][46] != 2 || state.LearnedSkills[0][1] != 1 || state.SkillSlots[0][46] != 5 {
+	if state.SkillPoints != [2]uint16{60, 100} || state.LearnedSkills[0][46] != 2 || state.LearnedSkills[0][1] != 1 {
 		return fmt.Errorf("skill state mismatch: %+v", state)
 	}
-	if state.SkillSlots[0][1] != newlyLearned.SkillSlots[0][1] {
-		return fmt.Errorf("new skill shortcut lost after reopen")
+	if state.SkillSlots[0][sourceSkill] != 5 {
+		return fmt.Errorf("drag source skill %d did not persist at target slot 5: %v", sourceSkill, state.SkillSlots[0])
+	}
+	if targetSkill != 0 && state.SkillSlots[0][targetSkill] != 1 {
+		return fmt.Errorf("drag target skill %d did not persist at source slot 1: %v", targetSkill, state.SkillSlots[0])
 	}
 	json.Unmarshal(rows[0].State, &doc)
 	if string(doc["unrelated_module"]) != "{\"kept\": true}" && string(doc["unrelated_module"]) != "{\"kept\":true}" {
