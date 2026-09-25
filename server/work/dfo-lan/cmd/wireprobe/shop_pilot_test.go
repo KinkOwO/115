@@ -489,6 +489,7 @@ func TestShopPilotDatabasePurchase(t *testing.T) {
 
 // 契约激活回执在 ACK64 之后追加 NOTI66,客户端即时刷新权益状态。
 func TestShopPilotPremiumActivationNotice(t *testing.T) {
+	t.Setenv("DFO_CONTRACT_PURCHASE_CRASH_FIX", "0")
 	r := storage.CashReceipt{
 		CharacterState: json.RawMessage(`{}`),
 		Deliveries:     []storage.CashDelivery{{Product: 3500001, Template: 45, Amount: 1, Quantity: 1}},
@@ -504,6 +505,25 @@ func TestShopPilotPremiumActivationNotice(t *testing.T) {
 	}
 	if last.Payload[2] != 27 {
 		t.Fatalf("premium type mismatch: %+v", last.Payload)
+	}
+}
+
+func TestShopPilotContractPurchaseCrashFix(t *testing.T) {
+	t.Setenv("DFO_CONTRACT_PURCHASE_CRASH_FIX", "1")
+	r := storage.CashReceipt{
+		CharacterState: json.RawMessage(`{}`),
+		Deliveries:     []storage.CashDelivery{{Product: 3500009, Template: 33, Amount: 1, Quantity: 1}},
+		Premiums:       []storage.CashPremium{{Type: 22, EndTime: time.Now().Add(24 * time.Hour).Unix()}},
+	}
+	packets, err := shopPilotPackets(r, 70, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(packets) != 3 {
+		t.Fatalf("want inventory, balance, ACK only; got %+v", packets)
+	}
+	if packets[0].ID != 14 || packets[1].ID != 53 || packets[2].Kind != 1 || packets[2].ID != 64 {
+		t.Fatalf("unexpected contract purchase packet order: %+v", packets)
 	}
 }
 
@@ -535,6 +555,7 @@ func (l *contractCartPilotLedger) PurchaseCashMixed(_ context.Context, o storage
 // 实机 2026-09-23:合并购买契约曾被 "premium contracts require a separate
 // order" 整单拒绝;契约行现在逐行激活并可与普通商品同单。
 func TestShopPilotContractCartPurchase(t *testing.T) {
+	t.Setenv("DFO_CONTRACT_PURCHASE_CRASH_FIX", "0")
 	p, e := cashshop.LoadPilot("../../configs/shop-vault-release.json", "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80")
 	if e != nil {
 		t.Fatal(e)

@@ -2769,12 +2769,7 @@ func main() {
 					}
 				}
 				var areaPayload []byte
-				if *townProbeFile != "" {
-					var state character.State
-					if e = json.Unmarshal(role.State, &state); e != nil || !townCatalog.Allows(state.Level, townPolicy.X, townPolicy.Y) {
-						event(map[string]any{"kind": "town_entry_rejected", "error": "character level or spawn policy incompatible with source area"})
-						continue
-					}
+				if *townProbeFile != "" || contractPurchaseCrashFixEnabled() {
 					premiumCtx, premiumCancel := context.WithTimeout(context.Background(), 5*time.Second)
 					premiums, pe := characters.Store.ActivePremiums(premiumCtx, developmentAccount, time.Now())
 					premiumCancel()
@@ -2786,6 +2781,13 @@ func main() {
 						profile.Premiums = append(profile.Premiums, protocol.PremiumEntry{Type: premium.Type, RemainingSecond: premium.RemainingSecond})
 					}
 					event(map[string]any{"kind": "premiums_restored", "account": developmentAccount, "count": len(profile.Premiums)})
+				}
+				if *townProbeFile != "" {
+					var state character.State
+					if e = json.Unmarshal(role.State, &state); e != nil || !townCatalog.Allows(state.Level, townPolicy.X, townPolicy.Y) {
+						event(map[string]any{"kind": "town_entry_rejected", "error": "character level or spawn policy incompatible with source area"})
+						continue
+					}
 					areaPayload, e = protocol.AreaUsers(townCatalog.TownID, townCatalog.AreaID, []protocol.AreaUser{{ActorServerID: role.WireID, X: townPolicy.X, Y: townPolicy.Y, Flags: townPolicy.Flags}})
 					if e != nil {
 						event(map[string]any{"kind": "town_entry_error", "error": e.Error()})

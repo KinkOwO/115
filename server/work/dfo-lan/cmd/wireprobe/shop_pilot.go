@@ -12,8 +12,15 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"os"
 	"time"
 )
+
+// DFO_CONTRACT_PURCHASE_CRASH_FIX=1 skips the immediate premium notice sent
+// after a contract purchase ACK for clients that crash on that notice.
+func contractPurchaseCrashFixEnabled() bool {
+	return os.Getenv("DFO_CONTRACT_PURCHASE_CRASH_FIX") != "0"
+}
 
 type shopPilotSession struct {
 	prefix     string
@@ -322,20 +329,22 @@ func shopPilotSpaces(p *cashshop.Pilot, receipt storage.CashReceipt, balance uin
 				packets = append(packets, outboundPacket{"cera_purchase_inventory_restored", 0, 13, restorePayload})
 			}
 		}
-		// NOTI66 接收剩余秒数；回执 EndTime 是存档用的绝对到期时间。
-		// 与开箱、背包契约使用相同编码，保留购买 ACK 之后的发送顺序。
-		// 按发送时刻换算，既保留续费叠加期限，也不延长回执处理期间的时间。
-		now := time.Now().Unix()
-		for _, pr := range receipt.Premiums {
-			remaining := pr.EndTime - now
-			if remaining <= 0 {
-				continue
+		if !contractPurchaseCrashFixEnabled() {
+			// NOTI66 接收剩余秒数；回执 EndTime 是存档用的绝对到期时间。
+			// 与开箱、背包契约使用相同编码，保留购买 ACK 之后的发送顺序。
+			// 按发送时刻换算，既保留续费叠加期限，也不延长回执处理期间的时间。
+			now := time.Now().Unix()
+			for _, pr := range receipt.Premiums {
+				remaining := pr.EndTime - now
+				if remaining <= 0 {
+					continue
+				}
+				notice, err := protocol.PremiumActivationNotice(pr.Type, remaining)
+				if err != nil {
+					return nil, err
+				}
+				packets = append(packets, outboundPacket{"cera_purchase_premium_activated", 0, 66, notice})
 			}
-			notice, err := protocol.PremiumActivationNotice(pr.Type, remaining)
-			if err != nil {
-				return nil, err
-			}
-			packets = append(packets, outboundPacket{"cera_purchase_premium_activated", 0, 66, notice})
 		}
 	}
 	return packets, nil
