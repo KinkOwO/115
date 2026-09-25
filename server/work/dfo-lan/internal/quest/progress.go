@@ -20,6 +20,7 @@ const SeekAndMeetNPC = "seek-items-and-meet-npc-remaining-v1"
 const LookCinematic = "look-cinematic-client-gated-v1"
 const MonsterKillCheckpoint = "monster-kill-checkpoint-client-gated-v1"
 const SingleHuntEnemy = "single-hunt-enemy-remaining-v1"
+const AllRoomsUnderClear = "all-rooms-under-clear-remaining-v1"
 const LegionContentClear = "legion-content-clear-client-gated-v1"
 
 // RangeObjective is the six-integer, subtype-1 reach form: town, area,
@@ -142,6 +143,9 @@ func InitialProgress(d catalog.QuestDefinition) (uint32, string, error) {
 	}
 	if _, _, ok := HuntEnemyObjective(d); ok {
 		return 1, SingleHuntEnemy, nil
+	}
+	if _, ok := ConditionUnderClearObjective(d); ok {
+		return 1, AllRoomsUnderClear, nil
 	}
 	// A [look cinematic] objective has no server-verifiable condition: the
 	// client plays the cutscene locally and only then lets the player submit.

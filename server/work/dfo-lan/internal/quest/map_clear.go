@@ -23,5 +23,10 @@ func (s *Service) MapClear(ctx context.Context, role storage.Character, run *dun
 			return nil, err
 		}
 	}
+	if en := x.Entries[uint32(run.Maze.Quest)]; allRoomsUnderClearMatch(en, run) {
+		if _, err := s.Store.CompleteQuestObjective(ctx, role.AccountID, role.ID, run.Maze.Quest, source, AllRoomsUnderClear); err != nil {
+			return nil, err
+		}
+	}
 	return s.Active(ctx, role)
 }
