@@ -12,6 +12,8 @@ if %errorlevel% neq 0 (
 
 set DFO_SHOP_OPEN_ALL=1
 set DFO_ODYSSEY_MODE=1
+set DFO_CONTRACT_PURCHASE_CRASH_FIX=0
+set DFO_MAX_ITEM_PERIOD=1
 echo Starting DFO 115us Game Client and Server (Arad Odyssey Mode)...
 if exist "tools\python\python.exe" (
     "tools\python\python.exe" "server\work\dfo-lan\scripts\launch_local.py" %*
