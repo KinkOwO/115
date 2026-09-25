@@ -11,8 +11,8 @@ import (
 )
 
 type Session struct {
-	RunID      string
-	StartedAt  time.Time
+	RunID     string
+	StartedAt time.Time
 	// Difficulty 是这次进图实际用的难度，沿用客户端 1 起算的编号
 	// （1=普通 2=专家 3=达人 4=王者 5=英雄；奥德赛恒等于副本的
 	// [designated difficulty]）。掉落按它取难度加成，见 loot.Session.Death。
@@ -21,6 +21,7 @@ type Session struct {
 	Maze       catalog.DungeonMaze
 	Room       catalog.DungeonRoom
 	Monsters   []protocol.DungeonMonster
+	Tournament *TournamentRun
 	Loaded     bool
 	Dead       map[uint16]bool
 	// Unowned marks a monster this character did not kill. It dies and the
@@ -95,6 +96,16 @@ func Select(c catalog.DungeonCatalog, r protocol.DungeonSelection, level byte, a
 	}
 	s.Extra = r.Extra
 	s.Difficulty = r.Difficulty
+	if tournamentDungeon(d) {
+		run, actors, err := newTournamentRun(d, c.Maps[s.Room.Map], r.Difficulty)
+		if err != nil {
+			return nil, err
+		}
+		s.Tournament = run
+		s.Monsters = actors
+		s.Visited[s.Room.Map] = actors
+		s.NextEntity = uint16(4096 + len(actors))
+	}
 	if d.ID == 100003126 && s.Extra > 1 {
 		// 跳区入场（如从第 36、61、86 层开始），前面的层数标记为已通关/已领奖
 		start := int(s.Extra)
@@ -184,6 +195,12 @@ func (s *Session) ConfirmDeath(entity uint32, killer, actor uint16) (bool, error
 	}
 	for _, m := range s.Monsters {
 		if uint32(m.Entity) == entity {
+			if s.Tournament != nil && s.Dead[m.Entity] {
+				return false, nil
+			}
+			if s.Tournament != nil && (s.Tournament.CurrentRound < 1 || s.Tournament.CurrentRound > 4 || m.Entity != s.Tournament.Opening.Path[s.Tournament.CurrentRound-1].Entity) {
+				return false, fmt.Errorf("tournament opponent is outside current round")
+			}
 			// killerFFFF means the client attributes the death to nobody.
 			// Live capture 20260912T001341 shows the whole boss room report
 			// six deaths inside three milliseconds: 0x1015, 0x1019 and 0x101a
@@ -220,6 +237,9 @@ func (s *Session) ConfirmDeath(entity uint32, killer, actor uint16) (bool, error
 				s.Unowned[m.Entity] = true
 			}
 			s.Dead[m.Entity] = true
+			if s.Tournament != nil {
+				s.Tournament.CurrentRound++
+			}
 			s.tryComplete()
 			return true, nil
 		}
@@ -250,6 +270,9 @@ func (s *Session) ConfirmDeath(entity uint32, killer, actor uint16) (bool, error
 func (s *Session) RoomCleared() bool {
 	if s == nil || !s.Loaded {
 		return false
+	}
+	if s.Tournament != nil {
+		return s.Tournament.CurrentRound > 4
 	}
 	if s.Room.Map == 100016294 {
 		return true

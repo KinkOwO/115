@@ -138,6 +138,9 @@ func (w *worldSession) dungeonEntryPlan(ackName string, ackID uint16, sel protoc
 	if e := binary.Read(rand.Reader, binary.LittleEndian, &seed); e != nil {
 		return nil, e
 	}
+	if s.Tournament != nil {
+		seed = s.Tournament.Seed
+	}
 	start, e := protocol.StartMap(protocol.StartMapState{Position: s.Maze.Start, Seed: seed, Map: s.Room.Map, Monsters: s.Monsters})
 	if e != nil {
 		return nil, e
@@ -178,6 +181,20 @@ func (w *worldSession) dungeonEntryPlan(ackName string, ackID uint16, sel protoc
 		{"dungeon_info_sent", 0, 28, protocol.DungeonInfo(protocol.DungeonInfoState{ID: sel.ID, Difficulty: sel.Difficulty, Maze: s.Maze.Index, Boss: s.Maze.Boss})},
 		{"dungeon_start_map_sent", 0, 29, start},
 	}...)
+	if s.Tournament != nil {
+		info, err := protocol.TournamentInfo(s.Tournament.Opening)
+		if err != nil {
+			return nil, err
+		}
+		mapInfo, err := protocol.TournamentMapInfo(s.Maze.Start, seed, s.Room.Map)
+		if err != nil {
+			return nil, err
+		}
+		plan = append(plan,
+			outboundPacket{"tournament_info_sent", 0, 372, info},
+			outboundPacket{"tournament_map_info_sent", 0, 373, mapInfo},
+		)
+	}
 	return plan, nil
 }
 
@@ -848,6 +865,13 @@ func (w *worldSession) completeDungeon() ([]outboundPacket, error) {
 		return nil, err
 	}
 	plan = append(plan, outboundPacket{"boss_check_confirmed", 0, 115, body}, outboundPacket{"dungeon_clear_enabled", 0, 31, protocol.DungeonClearEnabled()})
+	if w.activeDungeon.Tournament != nil {
+		reward, e := w.tournamentClear()
+		if e != nil {
+			return nil, e
+		}
+		plan = append(plan, outboundPacket{"tournament_clear_reward", 0, 374, reward})
+	}
 	return plan, nil
 }
 

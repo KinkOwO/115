@@ -479,6 +479,12 @@ func main() {
 		if e = catalog.MergeDungeonCatalog(&data, trainingRooms); e != nil {
 			log.Fatal(e)
 		}
+		if filepath.Base(*dungeonCatalogFile) == "dungeons.full.json" {
+			path := filepath.Join(filepath.Dir(*dungeonCatalogFile), "dungeons.tournament-quest-maps.json")
+			if e = catalog.AttachTournamentQuestMaps(&data, path); e != nil {
+				log.Fatal(e)
+			}
+		}
 		if data.Source.Checksum != worldService.Catalog.Source.Checksum {
 			log.Fatal("dungeon/world source versions differ")
 		}
@@ -2213,6 +2219,10 @@ func main() {
 					plan, e = worldState.cardPick(plaintext)
 				case 72:
 					pending, plan, e = worldState.settlementExit(plaintext)
+				case 449:
+					plan, e = worldState.tournamentSelectState(plaintext)
+				case 450:
+					plan, e = worldState.tournamentSelect(plaintext)
 				case 132:
 					plan, e = worldState.returnFromDungeonSelection(plaintext)
 				case 42:
