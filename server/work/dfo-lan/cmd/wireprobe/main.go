@@ -652,7 +652,7 @@ func main() {
 		if progressionService != nil {
 			odysseyGrowth = progressionService.Odyssey
 		}
-		questService = &quest.Service{Store: characters.Store, Catalog: data, Professions: characters.Catalog, Progression: progressionService, Odyssey: odysseyGrowth}
+		questService = &quest.Service{Store: characters.Store, Catalog: data, Professions: characters.Catalog, Progression: progressionService, Odyssey: odysseyGrowth, Dungeons: dungeonCatalog}
 		if *equipmentRewardFile != "" {
 			if lootService == nil {
 				log.Fatal("quest inventory requires the shared bag catalog")

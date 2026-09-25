@@ -19,8 +19,9 @@ type Service struct {
 	Inventory   *inventory.Awarder
 	// Odyssey carries the quest tables of aradodyssey.etc; nil simply
 	// disables the graduation mainline pass.
-	Odyssey *catalog.OdysseyGrowth
-	index   *Index
+	Odyssey  *catalog.OdysseyGrowth
+	Dungeons *catalog.DungeonCatalog
+	index    *Index
 }
 
 func jobAllowed(jobs []string, job string) bool {
