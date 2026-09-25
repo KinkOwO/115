@@ -1,0 +1,210 @@
+pool_order,reward_template,raw_second_value,raw_third_value,stackable_type,script_path
+1,3600,1,1,[material expert job],stackable/monstercard/mcard_sieghart.stk
+2,3601,1,1,[material expert job],stackable/monstercard/mcard_lotus.stk
+3,3602,1,1,[material expert job],stackable/monstercard/mcard_spirrazzi.stk
+4,3603,1,1,[material expert job],stackable/monstercard/mcard_peter.stk
+5,3604,5,1,[material expert job],stackable/monstercard/mcard_vinoshu.stk
+6,3605,5,1,[material expert job],stackable/monstercard/mcard_platany.stk
+7,3606,5,1,[material expert job],stackable/monstercard/mcard_rodinglo.stk
+8,3607,5,1,[material expert job],stackable/monstercard/mcard_morgan.stk
+9,3608,5,1,[material expert job],stackable/monstercard/mcard_shavante.stk
+10,3609,5,1,[material expert job],stackable/monstercard/mcard_hakudo.stk
+11,3610,477,1,[material expert job],stackable/monstercard/mcard_taskmaster.stk
+12,3611,477,1,[material expert job],stackable/monstercard/mcard_taubeast.stk
+13,3612,477,1,[material expert job],stackable/monstercard/mcard_stonemaster.stk
+14,3613,477,1,[material expert job],stackable/monstercard/mcard_nightvision.stk
+15,3614,477,1,[material expert job],stackable/monstercard/mcard_gbloracle.stk
+16,3615,477,1,[material expert job],stackable/monstercard/mcard_flamecatapult.stk
+17,3616,477,1,[material expert job],stackable/monstercard/mcard_souleater.stk
+18,3617,477,1,[material expert job],stackable/monstercard/mcard_bantuamazones.stk
+19,3618,477,1,[material expert job],stackable/monstercard/mcard_madmadness.stk
+20,3620,1730,1,[material expert job],stackable/monstercard/mcard_lugaru.stk
+21,3621,1730,1,[material expert job],stackable/monstercard/mcard_tauguard.stk
+22,3622,1730,1,[material expert job],stackable/monstercard/mcard_mirkius.stk
+23,3623,1730,1,[material expert job],stackable/monstercard/mcard_bombkagel.stk
+24,3624,1730,1,[material expert job],stackable/monstercard/mcard_axeexpeller.stk
+25,3625,1730,1,[material expert job],stackable/monstercard/mcard_hunter.stk
+26,3626,1730,1,[material expert job],stackable/monstercard/mcard_gblbeliever.stk
+27,3627,1730,1,[material expert job],stackable/monstercard/mcard_tentacle.stk
+28,3628,1730,1,[material expert job],stackable/monstercard/mcard_marpisa.stk
+29,3629,1730,1,[material expert job],stackable/monstercard/mcard_darkelfguard.stk
+30,3630,1730,1,[material expert job],stackable/monstercard/mcard_myojindog.stk
+31,3638,1730,1,[material expert job],stackable/monstercard/mcard_zepplin.stk
+32,3639,1730,1,[material expert job],stackable/monstercard/mcard_greattentacle.stk
+33,3640,1730,1,[material expert job],stackable/monstercard/mcard_rebirthgblleader.stk
+34,3641,1730,1,[material expert job],stackable/monstercard/mcard_labina.stk
+35,3642,1730,1,[material expert job],stackable/monstercard/mcard_lilith.stk
+36,3643,1730,1,[material expert job],stackable/monstercard/mcard_goliath.stk
+37,3644,1730,1,[material expert job],stackable/monstercard/mcard_colossus.stk
+38,3645,1730,1,[material expert job],stackable/monstercard/mcard_lotuscocoon.stk
+39,3646,1730,1,[material expert job],stackable/monstercard/mcard_emeldir.stk
+40,3647,1730,1,[material expert job],stackable/monstercard/mcard_racksha.stk
+41,3648,1730,1,[material expert job],stackable/monstercard/mcard_poltergeist.stk
+42,3649,1730,1,[material expert job],stackable/monstercard/mcard_nifeclaese.stk
+43,3650,1730,1,[material expert job],stackable/monstercard/mcard_vulcherspecialforce.stk
+44,3651,477,1,[material expert job],stackable/monstercard/mcard_spiderboss.stk
+45,3652,477,1,[material expert job],stackable/monstercard/mcard_ricu.stk
+46,3653,477,1,[material expert job],stackable/monstercard/mcard_titan.stk
+47,3654,477,1,[material expert job],stackable/monstercard/mcard_sasquatch.stk
+48,3655,477,1,[material expert job],stackable/monstercard/mcard_buffalorari.stk
+49,3656,477,1,[material expert job],stackable/monstercard/mcard_hydracle.stk
+50,3657,477,1,[material expert job],stackable/monstercard/mcard_isadoragrim.stk
+51,3660,477,1,[material expert job],stackable/monstercard/mcard_humpri.stk
+52,3661,477,1,[material expert job],stackable/monstercard/mcard_macgee.stk
+53,3662,477,1,[material expert job],stackable/monstercard/mcard_elitebuffalowoman.stk
+54,3663,477,1,[material expert job],stackable/monstercard/mcard_berhik.stk
+55,3664,5,1,[material expert job],stackable/monstercard/mcard_queenrosi.stk
+56,3665,5,1,[material expert job],stackable/monstercard/mcard_vangelis.stk
+57,3666,5,1,[material expert job],stackable/monstercard/mcard_myojin.stk
+58,3668,5,1,[material expert job],stackable/monstercard/mcard_rocketman.stk
+59,3669,5,1,[material expert job],stackable/monstercard/mcard_cypher.stk
+60,3671,5,1,[material expert job],stackable/monstercard/mcard_bentinck.stk
+61,3673,5,1,[material expert job],stackable/monstercard/mcard_captainshured.stk
+62,3677,1,1,[material expert job],stackable/monstercard/mcard_bwanga.stk
+63,3680,1,1,[material expert job],stackable/monstercard/mcard_headlessknight.stk
+64,3683,1,1,[material expert job],stackable/monstercard/mcard_scasa.stk
+65,3686,1,1,[material expert job],stackable/monstercard/mcard_gt9600.stk
+66,3702,1730,1,[material expert job],stackable/monstercard/mcard_rusiola.stk
+67,3703,1730,1,[material expert job],stackable/monstercard/mcard_old_sergeant.stk
+68,3704,477,1,[material expert job],stackable/monstercard/mcard_medusa.stk
+69,3705,477,1,[material expert job],stackable/monstercard/mcard_silkhat.stk
+70,3706,477,1,[material expert job],stackable/monstercard/mcard_peltsue.stk
+71,3707,5,1,[material expert job],stackable/monstercard/mcard_ultimatem.stk
+72,3708,5,1,[material expert job],stackable/monstercard/mcard_mechanic_zigel.stk
+73,3709,5,1,[material expert job],stackable/monstercard/mcard_mosqueen.stk
+74,3710,5,1,[material expert job],stackable/monstercard/mcard_agarum.stk
+75,3711,5,1,[material expert job],stackable/monstercard/mcard_botichely.stk
+76,3712,1,1,[material expert job],stackable/monstercard/mcard_musambany.stk
+77,3713,477,1,[material expert job],stackable/monstercard/mcard_kongkong.stk
+78,3731,477,1,[material expert job],stackable/monstercard/mcard_glaia.stk
+79,3732,477,1,[material expert job],stackable/monstercard/mcard_carta.stk
+80,3733,5,1,[material expert job],stackable/monstercard/mcard_masaccio.stk
+81,2600294,1,1,[enchant waste],stackable/professional/bead/bead_sieghart.stk
+82,2600295,1,1,[enchant waste],stackable/professional/bead/bead_lotus.stk
+83,2600296,1,1,[enchant waste],stackable/professional/bead/bead_spirrazzi.stk
+84,2600297,1,1,[enchant waste],stackable/professional/bead/bead_peter.stk
+85,2600298,1,1,[enchant waste],stackable/professional/bead/bead_vinoshu.stk
+86,2600299,1,1,[enchant waste],stackable/professional/bead/bead_platany.stk
+87,2600300,1,1,[enchant waste],stackable/professional/bead/bead_rodinglo.stk
+88,2600301,1,1,[enchant waste],stackable/professional/bead/bead_morgan.stk
+89,2600302,1,1,[enchant waste],stackable/professional/bead/bead_shavante.stk
+90,2600303,1,1,[enchant waste],stackable/professional/bead/bead_hakudo.stk
+91,2600304,17,1,[enchant waste],stackable/professional/bead/bead_goblin_taskmaster.stk
+92,2600305,17,1,[enchant waste],stackable/professional/bead/bead_tau_beast.stk
+93,2600306,17,1,[enchant waste],stackable/professional/bead/bead_doll_player.stk
+94,2600307,17,1,[enchant waste],stackable/professional/bead/bead_night_vision_kagel.stk
+95,2600308,17,1,[enchant waste],stackable/professional/bead/bead_oracle_of_gbl.stk
+96,2600309,17,1,[enchant waste],stackable/professional/bead/bead_flame_catapult.stk
+97,2600310,17,1,[enchant waste],stackable/professional/bead/bead_soul_eater.stk
+98,2600311,17,1,[enchant waste],stackable/professional/bead/bead_amazones.stk
+99,2600312,17,1,[enchant waste],stackable/professional/bead/bead_mad_member_of_madness.stk
+100,2600313,99,1,[enchant waste],stackable/professional/bead/bead_seagab.stk
+101,2600314,99,1,[enchant waste],stackable/professional/bead/bead_lugaru.stk
+102,2600315,99,1,[enchant waste],stackable/professional/bead/bead_tau_guard.stk
+103,2600316,99,1,[enchant waste],stackable/professional/bead/bead_mirkius.stk
+104,2600317,99,1,[enchant waste],stackable/professional/bead/bead_bomb_kagel.stk
+105,2600318,99,1,[enchant waste],stackable/professional/bead/bead_axe_expeller.stk
+106,2600319,99,1,[enchant waste],stackable/professional/bead/bead_hunter.stk
+107,2600320,99,1,[enchant waste],stackable/professional/bead/bead_believer_of_gbl.stk
+108,2600321,99,1,[enchant waste],stackable/professional/bead/bead_tentacle.stk
+109,2600322,99,1,[enchant waste],stackable/professional/bead/bead_marpisa.stk
+110,2600323,99,1,[enchant waste],stackable/professional/bead/bead_dark_elf_guard.stk
+111,2600324,99,1,[enchant waste],stackable/professional/bead/bead_hunting_dog_of_myojin.stk
+112,2600325,99,1,[enchant waste],stackable/professional/bead/bead_dornier_ex.stk
+113,2600326,99,1,[enchant waste],stackable/professional/bead/bead_great_tentacle.stk
+114,2600327,99,1,[enchant waste],stackable/professional/bead/bead_macellus.stk
+115,2600328,99,1,[enchant waste],stackable/professional/bead/bead_labina.stk
+116,2600329,99,1,[enchant waste],stackable/professional/bead/bead_lilith.stk
+117,2600330,99,1,[enchant waste],stackable/professional/bead/bead_goliath.stk
+118,2600331,99,1,[enchant waste],stackable/professional/bead/bead_gbl_colossus.stk
+119,2600332,99,1,[enchant waste],stackable/professional/bead/bead_cocoon_of_lotus.stk
+120,2600333,99,1,[enchant waste],stackable/professional/bead/bead_poison_grapes_emeldir.stk
+121,2600334,99,1,[enchant waste],stackable/professional/bead/bead_racksha.stk
+122,2600335,99,1,[enchant waste],stackable/professional/bead/bead_bookcase_poltergeist.stk
+123,2600336,99,1,[enchant waste],stackable/professional/bead/bead_nifeclaese.stk
+124,2600337,99,1,[enchant waste],stackable/professional/bead/bead_minor_spelt.stk
+125,2600338,17,1,[enchant waste],stackable/professional/bead/bead_aracloso.stk
+126,2600339,17,1,[enchant waste],stackable/professional/bead/bead_ricu.stk
+127,2600340,17,1,[enchant waste],stackable/professional/bead/bead_titan.stk
+128,2600341,17,1,[enchant waste],stackable/professional/bead/bead_sasquatch.stk
+129,2600342,17,1,[enchant waste],stackable/professional/bead/bead_rariet_rari.stk
+130,2600343,17,1,[enchant waste],stackable/professional/bead/bead_hydracle.stk
+131,2600344,17,1,[enchant waste],stackable/professional/bead/bead_isadora.stk
+132,2600346,17,1,[enchant waste],stackable/professional/bead/bead_stubborn_heartnec.stk
+133,2600347,17,1,[enchant waste],stackable/professional/bead/bead_humpri.stk
+134,2600348,17,1,[enchant waste],stackable/professional/bead/bead_ranger_macgee.stk
+135,2600349,17,1,[enchant waste],stackable/professional/bead/bead_nasra.stk
+136,2600350,17,1,[enchant waste],stackable/professional/bead/bead_berhik.stk
+137,2600351,1,1,[enchant waste],stackable/professional/bead/bead_rosi.stk
+138,2600352,1,1,[enchant waste],stackable/professional/bead/bead_vangelis.stk
+139,2600353,1,1,[enchant waste],stackable/professional/bead/bead_myojin.stk
+140,2600355,1,1,[enchant waste],stackable/professional/bead/bead_rocketman.stk
+141,2600356,1,1,[enchant waste],stackable/professional/bead/bead_michelle_monaghan.stk
+142,2600358,1,1,[enchant waste],stackable/professional/bead/bead_arsonist_bentinck.stk
+143,2600360,1,1,[enchant waste],stackable/professional/bead/bead_captain_shured.stk
+144,2600364,1,1,[enchant waste],stackable/professional/bead/bead_bwanga.stk
+145,2600367,1,1,[enchant waste],stackable/professional/bead/bead_headless_knight.stk
+146,2600370,1,1,[enchant waste],stackable/professional/bead/bead_scasa.stk
+147,2600373,1,1,[enchant waste],stackable/professional/bead/bead_gt-9600.stk
+148,2600391,17,1,[enchant waste],stackable/professional/bead/bead_medusa.stk
+149,2600392,17,1,[enchant waste],stackable/professional/bead/bead_silkhat.stk
+150,2600393,17,1,[enchant waste],stackable/professional/bead/bead_peltsue.stk
+151,2600394,1,1,[enchant waste],stackable/professional/bead/bead_ultimatem.stk
+152,2600395,1,1,[enchant waste],stackable/professional/bead/bead_mechanic_zigel.stk
+153,2600396,1,1,[enchant waste],stackable/professional/bead/bead_mosqueen.stk
+154,2600397,1,1,[enchant waste],stackable/professional/bead/bead_agarum.stk
+155,2600398,1,1,[enchant waste],stackable/professional/bead/bead_botichely.stk
+156,2600399,1,1,[enchant waste],stackable/professional/bead/bead_musambany.stk
+157,2600400,17,1,[enchant waste],stackable/professional/bead/bead_kongkong.stk
+158,2600444,17,1,[enchant waste],stackable/professional/bead/bead_glaia.stk
+159,2600445,17,1,[enchant waste],stackable/professional/bead/bead_carta.stk
+160,2600446,1,1,[enchant waste],stackable/professional/bead/bead_masaccio.stk
+161,10089618,477,1,[material expert job],stackable/10089001/10089618.stk
+162,10089620,1730,1,[material expert job],stackable/10089001/10089620.stk
+163,10089627,1730,1,[material expert job],stackable/10089001/10089627.stk
+164,10089629,477,1,[material expert job],stackable/10089001/10089629.stk
+165,10089631,5,1,[material expert job],stackable/10089001/10089631.stk
+166,10089633,1730,1,[material expert job],stackable/10089001/10089633.stk
+167,10089635,10,1,[material expert job],stackable/10089001/10089635.stk
+168,10089637,10,1,[material expert job],stackable/10089001/10089637.stk
+169,10089639,5,1,[material expert job],stackable/10089001/10089639.stk
+170,10089641,1730,1,[material expert job],stackable/10089001/10089641.stk
+171,10089643,1730,1,[material expert job],stackable/10089001/10089643.stk
+172,10089645,1730,1,[material expert job],stackable/10089001/10089645.stk
+173,10089647,477,1,[material expert job],stackable/10089001/10089647.stk
+174,10089649,5,1,[material expert job],stackable/10089001/10089649.stk
+175,10089651,1730,1,[material expert job],stackable/10089001/10089651.stk
+176,10089653,1730,1,[material expert job],stackable/10089001/10089653.stk
+177,10089655,477,1,[material expert job],stackable/10089001/10089655.stk
+178,10089657,477,1,[material expert job],stackable/10089001/10089657.stk
+179,10089659,1730,1,[material expert job],stackable/10089001/10089659.stk
+180,10089661,477,1,[material expert job],stackable/10089001/10089661.stk
+181,10089663,477,1,[material expert job],stackable/10089001/10089663.stk
+182,10089665,1730,1,[material expert job],stackable/10089001/10089665.stk
+183,10089667,1730,1,[material expert job],stackable/10089001/10089667.stk
+184,10089669,477,1,[material expert job],stackable/10089001/10089669.stk
+185,10089671,10,1,[material expert job],stackable/10089001/10089671.stk
+186,10089673,5,1,[material expert job],stackable/10089001/10089673.stk
+187,10089675,10,1,[material expert job],stackable/10089001/10089675.stk
+188,10089677,10,1,[material expert job],stackable/10089001/10089677.stk
+189,10089679,10,1,[material expert job],stackable/10089001/10089679.stk
+190,10089681,477,1,[material expert job],stackable/10089001/10089681.stk
+191,10089683,477,1,[material expert job],stackable/10089001/10089683.stk
+192,10089685,1730,1,[material expert job],stackable/10089001/10089685.stk
+193,10089687,1730,1,[material expert job],stackable/10089001/10089687.stk
+194,10089689,1730,1,[material expert job],stackable/10089001/10089689.stk
+195,10089691,1730,1,[material expert job],stackable/10089001/10089691.stk
+196,10089693,1730,1,[material expert job],stackable/10089001/10089693.stk
+197,10089695,1730,1,[material expert job],stackable/10089001/10089695.stk
+198,10089697,1730,1,[material expert job],stackable/10089001/10089697.stk
+199,10089699,477,1,[material expert job],stackable/10089001/10089699.stk
+200,10089701,477,1,[material expert job],stackable/10089001/10089701.stk
+201,10089703,477,1,[material expert job],stackable/10089001/10089703.stk
+202,10089705,10,1,[material expert job],stackable/10089001/10089705.stk
+203,10089707,10,1,[material expert job],stackable/10089001/10089707.stk
+204,10089709,10,1,[material expert job],stackable/10089001/10089709.stk
+205,10089711,5,1,[material expert job],stackable/10089001/10089711.stk
+206,10089715,477,1,[material expert job],stackable/10089001/10089715.stk
+207,10089717,477,1,[material expert job],stackable/10089001/10089717.stk
+208,10089719,10,1,[material expert job],stackable/10089001/10089719.stk
+209,3619,36,1,[material expert job],stackable/monstercard/mcard_seagab.stk

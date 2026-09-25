@@ -800,6 +800,17 @@ func main() {
 			log.Printf("loaded booster catalog (%d definitions, %d item index entries)", len(boosterCatalog.Definitions), len(boosterCatalog.Items))
 		}
 	}
+	var lotteryPool *lotteryItemPool
+	if boosterCatalog != nil && *itemIndexFile != "" {
+		lotteryPath := filepath.Join(filepath.Dir(*itemIndexFile), "lottery-item-7772.json")
+		var err error
+		lotteryPool, err = loadLotteryItemPool(lotteryPath, boosterCatalog.Items)
+		if err != nil {
+			log.Printf("warning: lottery item 7772 disabled: %v", err)
+		} else {
+			log.Printf("loaded lottery item 7772 (%d rewards, weight total %d)", len(lotteryPool.Candidates), lotteryPool.total)
+		}
+	}
 	// Source selection boxes ([booster select category]) are deliberately absent
 	// from the fixed-content booster catalog, so without this table every pick-a-
 	// item box falls through to the random-pool branch and the client only ever
@@ -1283,6 +1294,28 @@ func main() {
 				if e != nil {
 					event(map[string]any{"kind": "booster_action_refused", "id": frame.ID, "reason": e.Error()})
 					plan = []outboundPacket{{"booster_action_refused_ack", 1, frame.ID, boosterActionRefusal(frame.ID)}}
+				}
+				for _, packet := range plan {
+					if sendPayload(packet.Kind, packet.ID, packet.Payload) != nil {
+						return
+					}
+					event(map[string]any{"kind": packet.Name, "id": packet.ID, "character_id": selectedCharacterID, "plain_hex": hex.EncodeToString(packet.Payload)})
+				}
+				continue
+			}
+			if frame.Type == 1 && frame.ID == 27 && bootstrapped && verified && characters != nil && worldState != nil {
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				var plan []outboundPacket
+				var e error
+				if lotteryPool == nil || boosterCatalog == nil {
+					e = fmt.Errorf("lottery item 7772 catalog unavailable")
+				} else {
+					plan, e = worldState.openLotteryItem(ctx, characters.Store, lotteryPool, boosterCatalog.Items, plaintext, frame.Raw)
+				}
+				cancel()
+				if e != nil {
+					event(map[string]any{"kind": "lottery_item_refused", "character_id": selectedCharacterID, "reason": e.Error()})
+					plan = []outboundPacket{{"lottery_item_refused_ack", 1, 27, protocol.Refusal(4)}}
 				}
 				for _, packet := range plan {
 					if sendPayload(packet.Kind, packet.ID, packet.Payload) != nil {
