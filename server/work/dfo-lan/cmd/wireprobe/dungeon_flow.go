@@ -586,7 +586,8 @@ func (w *worldSession) monsterDeath(p []byte) ([]outboundPacket, error) {
 	if e != nil {
 		return nil, e
 	}
-	if _, e = w.activeDungeon.ConfirmDeath(r.Entity, r.Killer, w.role.WireID); e != nil {
+	confirmed, e := w.activeDungeon.ConfirmDeath(r.Entity, r.Killer, w.role.WireID)
+	if e != nil {
 		return nil, e
 	}
 	// A monster the boss took with it is confirmed dead so the room can
@@ -633,6 +634,25 @@ func (w *worldSession) monsterDeath(p []byte) ([]outboundPacket, error) {
 			}
 		}
 		plan = append(plan, outboundPacket{"monster_death_confirmed", 0, 38, body})
+	}
+	if confirmed && w.quests != nil && !unowned {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		advanced, err := w.quests.EnemyDeath(ctx, w.role, w.activeDungeon, uint16(r.Entity))
+		if err == nil && advanced {
+			var active []protocol.ActiveQuest
+			active, err = w.quests.Active(ctx, w.role)
+			if err == nil {
+				var triggers []byte
+				triggers, err = protocol.QuestTriggers(active)
+				if err == nil {
+					plan = append(plan, outboundPacket{"enemy_hunt_quest_triggers", 0, 291, triggers})
+				}
+			}
+		}
+		cancel()
+		if err != nil {
+			return nil, err
+		}
 	}
 	if w.progression != nil && !unowned {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

@@ -19,6 +19,7 @@ const ReachNPC = "alflyra-3252-reach-npc-remaining-v1"
 const SeekAndMeetNPC = "seek-items-and-meet-npc-remaining-v1"
 const LookCinematic = "look-cinematic-client-gated-v1"
 const MonsterKillCheckpoint = "monster-kill-checkpoint-client-gated-v1"
+const SingleHuntEnemy = "single-hunt-enemy-remaining-v1"
 const LegionContentClear = "legion-content-clear-client-gated-v1"
 
 // RangeObjective is the six-integer, subtype-1 reach form: town, area,
@@ -139,6 +140,9 @@ func InitialProgress(d catalog.QuestDefinition) (uint32, string, error) {
 	if _, ok := SeekMeet(d); ok {
 		return 1, SeekAndMeetNPC, nil
 	}
+	if _, _, ok := HuntEnemyObjective(d); ok {
+		return 1, SingleHuntEnemy, nil
+	}
 	// A [look cinematic] objective has no server-verifiable condition: the
 	// client plays the cutscene locally and only then lets the player submit.
 	// Progress 0 means the server accepts that submit; the single cell is the
@@ -156,6 +160,25 @@ func InitialProgress(d catalog.QuestDefinition) (uint32, string, error) {
 		return 0, LegionContentClear, nil
 	}
 	return 0, "", fmt.Errorf("quest objective type or structure is not implemented: %s", d.Kind)
+}
+
+// HuntEnemyObjective recognizes the source's single-target, single-kill form.
+// Multi-target rows, negative dungeon/monster sentinels and other count forms
+// need their own evidence before they can be offered.
+func HuntEnemyObjective(d catalog.QuestDefinition) (dungeonID, enemy uint32, ok bool) {
+	c := d.ObjectiveCells
+	if d.Kind != "[hunt enemy]" || len(d.Pending) != 0 || len(c) != 5 {
+		return 0, 0, false
+	}
+	for _, v := range c {
+		if v.Type != 0 {
+			return 0, 0, false
+		}
+	}
+	if c[0].Value <= 0 || c[1].Value != -1 || c[2].Value <= 0 || c[3].Value != 1 || c[4].Value != 1 {
+		return 0, 0, false
+	}
+	return uint32(c[0].Value), uint32(c[2].Value), true
 }
 
 // MonsterKillCheckpointShape validates a `[monster kill checkpoint]` objective

@@ -26,6 +26,8 @@ type Entry struct {
 	NPCReach           NPCReachObjective
 	Range              RangeObjective
 	Seek               SeekObjective
+	HuntDungeon        uint32
+	HuntEnemy          uint32
 }
 
 // Index precomputes those properties once per catalog load. The hot paths —
@@ -162,6 +164,8 @@ func BuildIndex(c catalog.QuestCatalog) *Index {
 			e.Seek, _ = SeekMeet(d)
 			e.NPC = e.Seek.NPC
 			x.Positional = append(x.Positional, id)
+		case model == SingleHuntEnemy:
+			e.HuntDungeon, e.HuntEnemy, _ = HuntEnemyObjective(d)
 		}
 		x.Entries[id] = e
 		x.Ordered = append(x.Ordered, id)
