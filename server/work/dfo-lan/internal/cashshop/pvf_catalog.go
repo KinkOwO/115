@@ -241,6 +241,10 @@ func isCreatureEgg(v OrdinaryProduct) bool {
 // from the two markers the ordinary path explicitly permits.
 func (c PilotConfig) checkPolicies(productID, template int32) error {
 	for _, name := range []string{"[purchasing limit]", "[not stackable buy]", "[immediately adaptive product]", "[specific product mileage]", "[auto open booster item]"} {
+		// 发布模式保留本地销售限制策略，立即生效及自动开启仍需真实处理器。
+		if c.Release && (name == "[purchasing limit]" || name == "[not stackable buy]" || name == "[specific product mileage]") {
+			continue
+		}
 		for _, t := range c.Policies[name] {
 			if t.Type == 0 && t.Value == productID {
 				if template == 1 && (name == "[not stackable buy]" || name == "[immediately adaptive product]") {
@@ -421,8 +425,7 @@ func (c PilotConfig) classify(v OrdinaryProduct) (Product, deliveryType, error) 
 		return fail("invalid price row width")
 	}
 	r := v.Row
-	// Inventory expansion passes (物品栏扩展券) are sold into the bag and
-	// consumed client-side; allow them past the [item mod or ext] gate.
+	// 保留上游已支持的背包扩展券入口，发布模式不改变其原有放行条件。
 	invExtWhitelist := map[int32]bool{3000147: true, 3000148: true}
 	allowAny := openAll || invExtWhitelist[r[0].Value]
 	for _, i := range []int{0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 13} {
@@ -440,7 +443,12 @@ func (c PilotConfig) classify(v OrdinaryProduct) (Product, deliveryType, error) 
 	if r[5].Value > 0 {
 		ceraPrice = uint32(r[5].Value)
 	}
+
+	// 发布目录（目录中 "release": true）与 DFO_SHOP_OPEN_ALL 都是放宽门禁的开关：
+	// 前者只放宽有来源依据的销售限制段，来源校验、替代货币与发货处理器仍然生效；
+	// 后者整段跳过，仅用于取证。
 	if !allowAny {
+		// 契约必须走上游账号激活流程，发布模式也不能作为普通物品发放。
 		_, isContract, err := entryContract(v)
 		if err != nil {
 			return fail(err.Error())
@@ -448,43 +456,42 @@ func (c PilotConfig) classify(v OrdinaryProduct) (Product, deliveryType, error) 
 		if isContract {
 			return fail("premium contract requires account activation")
 		}
+		if !c.Release {
+			switch v.Section {
+			case "[item mod or ext]":
+				return fail("expansion requires capacity state, upgrade prerequisites and refresh handler")
+			case "[item period or contract]":
+				return fail("contract family requires effect, renewal and expiry handlers")
+			case "[creature]":
+				if !isCreatureEgg(v) {
+					return fail("creature requires dedicated index, inventory and hatch handlers")
+				}
 
-		switch v.Section {
-		case "[item mod or ext]":
-			return fail("expansion requires capacity state, upgrade prerequisites and refresh handler")
-		case "[item period or contract]":
-			return fail("contract family requires account activation")
-		case "[creature]":
-			if !isCreatureEgg(v) {
-				return fail("creature requires dedicated index, inventory and hatch handlers")
+			}
+			if v.Section != "[item]" && v.Section != "[item etc]" && v.Section != "[item second]" && v.Section != "[item event]" && v.Section != "[package related]" {
+				if v.Section != "[creature]" || !isCreatureEgg(v) {
+					return fail("unimplemented shop family")
+				}
 			}
 		}
-		// [package related] joins the ordinary families: its rows share the
-		// 14-cell layout, the box pre-check in ordinaryHandler requires a
-		// source content table, and pilot.Purchase expands [package data] at
-		// purchase time.
-		seasonal := v.Section == "[item event]" || v.Section == "[package related]"
-		if v.Section != "[item]" && v.Section != "[item etc]" && v.Section != "[item second]" && v.Section != "[item event]" && v.Section != "[package related]" {
-			if v.Section != "[creature]" || !isCreatureEgg(v) {
-				return fail("unimplemented shop family")
-			}
+		// 当前目录的 r[3]、r[4]、r[7] 没有数据，r[6] 仅一行有值；r[10] 则在
+		// petit_friends/luckybag 的 120 行中保存连续的类型引用（70383..70423），
+		// 实际点券价格仍在 r[5]。发布目录只放宽 r[10]，所有货币列继续受限，
+		// 且 r[5] 仍必须大于零。
+		alt := []int{3, 4, 6, 7}
+		if !c.Release {
+			alt = append(alt, 10)
 		}
-		for _, i := range []int{3, 4, 6, 7, 10} {
+		for _, i := range alt {
 			if r[i].Value != 0 {
 				return fail("alternate currency or special price policy")
 			}
 		}
-		// col12 carries either an empty string or a YYYYMMDD sale-window end
-		// on the seasonal families; the client owns the display window and the
-		// delivery path stamps MaxExpireTime when the script expires.
-		if r[12].Type != 6 || r[13].Value != -1 {
-			return fail("sale condition or date policy requires handler")
-		}
-		if r[12].Text != "" && !(seasonal && isSaleWindowDate(r[12].Text)) {
-			return fail("sale condition or date policy requires handler")
-		}
-		if r[9].Value != 0 && r[9].Value != 4 {
-			if !(seasonal && (r[9].Value == 1 || r[9].Value == 90)) {
+		if !c.Release {
+			if r[12].Type != 6 || (r[12].Text != "" && !((v.Section == "[item event]" || v.Section == "[package related]") && isSaleWindowDate(r[12].Text))) || r[13].Value != -1 {
+				return fail("sale condition or date policy requires handler")
+			}
+			if r[9].Value != 0 && r[9].Value != 4 && !((v.Section == "[item event]" || v.Section == "[package related]") && (r[9].Value == 1 || r[9].Value == 90)) {
 				return fail("hidden or unverified display policy")
 			}
 		}
@@ -515,7 +522,7 @@ func (c PilotConfig) classify(v OrdinaryProduct) (Product, deliveryType, error) 
 		// never an ordinary stackable projection of the section row.
 		h, e = packageHandler(v.Item)
 	} else {
-		h, e = ordinaryHandler(v.Item)
+		h, e = ordinaryHandler(v.Item, c.Release)
 	}
 	if e != nil {
 		return p, h, e

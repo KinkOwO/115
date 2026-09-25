@@ -42,6 +42,11 @@ func ResolveContract(template uint32) (Contract, bool) {
 	return c, ok
 }
 
+// ResolveContractItem 复用当前客户端的契约别名映射，供非商城奖励使用。
+func ResolveContractItem(template uint32) (Contract, bool) {
+	return resolveContract(template)
+}
+
 // resolveContract is an internal alias kept for package compatibility.
 func resolveContract(template uint32) (Contract, bool) {
 	return ResolveContract(template)
