@@ -25,7 +25,7 @@ func DecodeLotteryItemUse(p []byte) (uint16, error) {
 
 // LotteryItemSuccess follows the 115 client reader sub_14529EDE0:
 // common result/error header, consumed slot, then one 181-byte item record.
-// Stackable card rewards do not take the equipment-only trailing u32.
+// Gold and stackable rewards do not take the equipment-only trailing u32.
 func LotteryItemSuccess(sourceSlot uint16, reward [CurrentItemRecordSize]byte) []byte {
 	p := add16([]byte{1}, 0)
 	p = add16(p, sourceSlot)

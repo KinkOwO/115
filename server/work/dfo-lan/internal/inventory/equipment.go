@@ -193,6 +193,21 @@ func (c *EquipmentCatalog) Reward(id uint32) (uint16, error) {
 	return uint16(d[0].Value), nil
 }
 
+// RewardType resolves the numeric PVF equipment type through the same import
+// chain as Reward. CMD27's client reader uses this value to decide whether
+// an extra u32 follows the 181-byte equipment record.
+func (c *EquipmentCatalog) RewardType(id uint32) (int32, error) {
+	r, err := c.definitionResolved(id, 0)
+	if err != nil {
+		return 0, err
+	}
+	kind := r.Fields["[equipment type]"]
+	if len(kind) < 2 || kind[0].Type != 6 || kind[1].Type != 0 || kind[1].Value < 0 {
+		return 0, fmt.Errorf("numeric equipment type missing for %d", id)
+	}
+	return kind[1].Value, nil
+}
+
 // definitionResolved 跟随 [import script] 链补全"薄壳"装备。
 //
 // 真源里大量装备只是引用另一件的基础定义 —— equipment/character/common/jacket/cloth/
