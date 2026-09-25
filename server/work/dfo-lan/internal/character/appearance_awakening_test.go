@@ -47,3 +47,37 @@ func TestAppearanceProbeKeepsAwakeningStage(t *testing.T) {
 		t.Fatal("mode0 userinfo 只带了 advancement，觉醒阶段被抹成 0（换装必弹觉醒提示）")
 	}
 }
+
+func TestAppearanceProbePreservesCharacterMode(t *testing.T) {
+	state := json.RawMessage(`{"level":90,"advancement":1}`)
+	role := storage.Character{WireID: 1, Name: "LanTest01", Profession: 0, State: state}
+	s := &Service{}
+	for _, tc := range []struct {
+		name, setting string
+		want          byte
+	}{
+		{name: "odyssey", setting: "1", want: 5},
+		{name: "story", setting: "0", want: 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("DFO_ODYSSEY_MODE", tc.setting)
+			got, err := s.AppearanceProbe(role, [2]byte{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(got) < 13 {
+				t.Fatalf("appearance payload too short: %d", len(got))
+			}
+			if got[len(got)-13] != tc.want {
+				t.Fatalf("appearance mode byte = %d, want %d", got[len(got)-13], tc.want)
+			}
+			entry, err := s.EntryBasicProbe(role, [2]byte{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got[len(got)-13] != entry[len(entry)-13] {
+				t.Fatal("appearance mode differs from entry mode")
+			}
+		})
+	}
+}

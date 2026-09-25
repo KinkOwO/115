@@ -324,6 +324,10 @@ func (s *Service) AppearanceProbe(role storage.Character, channelContext [2]byte
 	if err := json.Unmarshal(role.State, &state); err != nil {
 		return nil, err
 	}
+	odyssey, err := s.IsOdyssey(role)
+	if err != nil {
+		return nil, err
+	}
 	rows, err := s.wornAppearance(role.State)
 	if err != nil {
 		return nil, err
@@ -349,7 +353,7 @@ func (s *Service) AppearanceProbe(role storage.Character, channelContext [2]byte
 	return protocol.UserInfoBasicProbe(protocol.EntryBasicProbe{
 		Fame:          fame,
 		ActorServerID: role.WireID, Context: channelContext,
-		Character:  protocol.CharacterRow{Name: role.Name, Profession: role.Profession, Advancement: advancement, Level: state.Level, CreatureItemID: creatureItemID, CreatureName: creatureName},
+		Character:  protocol.CharacterRow{Name: role.Name, Profession: role.Profession, Advancement: advancement, Level: state.Level, Odyssey: odyssey, CreatureItemID: creatureItemID, CreatureName: creatureName},
 		Appearance: rows,
 	})
 }
