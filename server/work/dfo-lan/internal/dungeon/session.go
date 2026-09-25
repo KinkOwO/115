@@ -478,6 +478,13 @@ func fixedMonsters(script catalog.ScriptRecord, basis uint32) ([]protocol.Dungeo
 			switch c[i].Text {
 			case "[fixed]":
 				fixed = true
+			case "[NPC]":
+				// Map 91757 uses [fixed] [NPC] 1020 [boss]. The NPC
+				// association has one numeric operand before the rank.
+				i++
+				if i >= len(c) || c[i].Type != 0 {
+					return nil, fmt.Errorf("short monster NPC option")
+				}
 			case "[normal]", "[champion]", "[boss]":
 				// Monster ranks: normal 0, champion 1, boss 3. Live capture
 				// 20260912T025417 refused CMD45 (move to the next room) with
