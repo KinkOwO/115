@@ -44,7 +44,7 @@ func TestMirkwoodSourceQuestRoute(t *testing.T) {
 	}
 }
 
-func TestFriendlyAPCCarriesWithDynamicNativeSource(t *testing.T) {
+func TestNativeAPCNotClonedIntoRoomWithoutSource(t *testing.T) {
 	apcMap := catalog.ScriptRecord{Cells: []pvf.Token{
 		{Type: 3, Text: "[ai character]"},
 		{Type: 0, Value: 6517}, {Type: 0, Value: 100}, {Type: 0, Value: 200}, {Type: 0, Value: 0},
@@ -62,23 +62,19 @@ func TestFriendlyAPCCarriesWithDynamicNativeSource(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(s.Monsters) != 1 || len(s.companions) != 1 || s.Monsters[0].SourceIndex != 0 {
-		t.Fatalf("native companion was not harvested: %+v", s.Monsters)
+	if len(s.Monsters) != 1 || s.Monsters[0].SourceIndex != 0 {
+		t.Fatalf("native APC was not spawned: %+v", s.Monsters)
 	}
 	s.Loaded = true
 	next, err := s.Move(c, [2]byte{1, 0})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(next.Monsters) != 1 {
-		t.Fatalf("carried companions=%d", len(next.Monsters))
-	}
-	got := next.Monsters[0]
-	if !got.APC || !got.NonCombat || got.Team != 0 || got.Template != 6517 || got.SourceIndex != dynamicAPCSourceIndex || got.Entity == s.Monsters[0].Entity {
-		t.Fatalf("bad carried companion: %+v", got)
+	if len(next.Monsters) != 0 {
+		t.Fatalf("APC must not be cloned without a current-map source: %+v", next.Monsters)
 	}
 	if _, err = protocol.StartMap(protocol.StartMapState{Map: next.Room.Map, Monsters: next.Monsters}); err != nil {
-		t.Fatalf("dynamic APC row rejected: %v", err)
+		t.Fatalf("empty next room rejected: %v", err)
 	}
 }
 

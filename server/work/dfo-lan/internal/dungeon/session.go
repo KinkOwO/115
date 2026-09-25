@@ -11,8 +11,8 @@ import (
 )
 
 type Session struct {
-	RunID      string
-	StartedAt  time.Time
+	RunID     string
+	StartedAt time.Time
 	// Difficulty 是这次进图实际用的难度，沿用客户端 1 起算的编号
 	// （1=普通 2=专家 3=达人 4=王者 5=英雄；奥德赛恒等于副本的
 	// [designated difficulty]）。掉落按它取难度加成，见 loot.Session.Death。
@@ -25,17 +25,13 @@ type Session struct {
 	Dead       map[uint16]bool
 	// Unowned marks a monster this character did not kill. It dies and the
 	// room clears, but it pays no loot and no experience.
-	Unowned       map[uint16]bool
-	Visited       map[uint32][]protocol.DungeonMonster
-	ScriptWarps   map[uint32]bool
-	NextEntity    uint16
-	Extra         uint16
-	WeeklyRewards [100]byte
-	SeasonRewards [100]byte
-	// companions are friendly map-native APCs already encountered in this
-	// run. A later room that does not declare the same AIC receives a dynamic
-	// NOTI29 row through the client's native SourceIndex=10000 branch.
-	companions          []protocol.DungeonMonster
+	Unowned             map[uint16]bool
+	Visited             map[uint32][]protocol.DungeonMonster
+	ScriptWarps         map[uint32]bool
+	NextEntity          uint16
+	Extra               uint16
+	WeeklyRewards       [100]byte
+	SeasonRewards       [100]byte
 	completionTarget    uint16
 	completed           bool
 	lotusClosingReached bool
@@ -171,7 +167,6 @@ func newSession(c catalog.DungeonCatalog, d catalog.DungeonDefinition, chosen ca
 		return nil, e
 	}
 	s.Monsters = monsters
-	s.companions = rememberCompanions(nil, monsters)
 	s.Dead = map[uint16]bool{}
 	s.Visited = map[uint32][]protocol.DungeonMonster{s.Room.Map: monsters}
 	s.NextEntity = uint16(4096 + len(monsters))
@@ -318,74 +313,9 @@ func (s *Session) enterRoom(c catalog.DungeonCatalog, room catalog.DungeonRoom) 
 			next.NextEntity++
 		}
 	}
-	// Harvest only map-native friendly APCs. Ordinary team-0 cinematic
-	// monsters and hostile/neutral APCs are intentionally excluded. A native
-	// row in this room wins; otherwise add one dynamic row with the sentinel
-	// source index proven in native145b20dc0.
-	next.companions = rememberCompanions(s.companions, monsters)
-	var e error
-	monsters, e = appendMissingCompanions(monsters, next.companions, &next.NextEntity)
-	if e != nil {
-		return nil, e
-	}
 	next.Visited[room.Map] = monsters
 	next.Monsters = monsters
 	return &next, nil
-}
-
-const dynamicAPCSourceIndex uint32 = 10000
-
-func rememberCompanions(known, monsters []protocol.DungeonMonster) []protocol.DungeonMonster {
-	out := append([]protocol.DungeonMonster(nil), known...)
-	byTemplate := make(map[uint32]int, len(out))
-	for i, m := range out {
-		byTemplate[m.Template] = i
-	}
-	for _, m := range monsters {
-		if !m.APC || m.Team != 0 || m.SourceIndex == dynamicAPCSourceIndex {
-			continue
-		}
-		m.Entity = 0
-		m.SourceIndex = dynamicAPCSourceIndex
-		m.NonCombat = true
-		m.SourceTail = [2]int32{}
-		if i, ok := byTemplate[m.Template]; ok {
-			out[i] = m
-			continue
-		}
-		byTemplate[m.Template] = len(out)
-		out = append(out, m)
-	}
-	return out
-}
-
-func appendMissingCompanions(monsters, companions []protocol.DungeonMonster, nextEntity *uint16) ([]protocol.DungeonMonster, error) {
-	present := make(map[uint32]bool, len(monsters))
-	for _, m := range monsters {
-		if m.APC && m.Team == 0 {
-			present[m.Template] = true
-		}
-	}
-	for _, companion := range companions {
-		if present[companion.Template] {
-			continue
-		}
-		if len(monsters) >= 255 || *nextEntity == 0 || *nextEntity >= 65535 {
-			return nil, fmt.Errorf("companion identity exhausted")
-		}
-		companion.Entity = *nextEntity
-		*nextEntity++
-		companion.SourceIndex = dynamicAPCSourceIndex
-		companion.Team = 0
-		companion.NonCombat = true
-		companion.APC = true
-		if companion.Rank < 5 || companion.Rank > 8 {
-			companion.Rank = 5
-		}
-		monsters = append(monsters, companion)
-		present[companion.Template] = true
-	}
-	return monsters, nil
 }
 
 // ClearedMaps lists every source map this run actually entered. A room

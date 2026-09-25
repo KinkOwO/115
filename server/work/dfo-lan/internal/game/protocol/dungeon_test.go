@@ -2,7 +2,6 @@ package protocol
 
 import (
 	"bytes"
-	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"os"
@@ -103,20 +102,9 @@ func TestSourceTeamsReachNativeSpawnReader(t *testing.T) {
 	}
 }
 
-func TestDynamicAPCUsesNativeSentinelSource(t *testing.T) {
-	p, err := StartMap(StartMapState{Position: [2]byte{1, 0}, Seed: 7, Map: 2, Monsters: []DungeonMonster{{
-		Entity: 4100, SourceIndex: 10000, Template: 6517, Rank: 5, Team: 0, APC: true, NonCombat: true,
-	}}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	// The first row begins at byte 37; its u32 source index follows the
-	// constructor's leading reserved u16.
-	if got := binary.LittleEndian.Uint32(p[39:43]); got != 10000 {
-		t.Fatalf("dynamic APC source=%d", got)
-	}
-	for _, invalid := range []uint32{64, 9999, 10001} {
-		_, err = StartMap(StartMapState{Map: 2, Monsters: []DungeonMonster{{
+func TestAPCRejectsSourceWithoutCurrentMapRow(t *testing.T) {
+	for _, invalid := range []uint32{64, 9999, 10000, 10001} {
+		_, err := StartMap(StartMapState{Map: 2, Monsters: []DungeonMonster{{
 			Entity: 1, SourceIndex: invalid, Template: 6517, Rank: 5, APC: true,
 		}}})
 		if err == nil {

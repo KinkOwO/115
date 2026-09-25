@@ -186,12 +186,10 @@ func StartMap(s StartMapState) ([]byte, error) {
 	seen := map[uint16]bool{}
 	for _, m := range s.Monsters {
 		// Fixed APCs address the current map's [ai character] table with
-		// SourceIndex 0..63. Native145b20dc0 has a separate, explicit 10000
-		// branch for an APC that has no row in the current map: it creates the
-		// AIC by Template, applies the packet Team and enables following. This
-		// is the retail path for carrying a story companion into the next room;
-		// reusing its old map-table index there dereferences the wrong table.
-		validAPCSource := m.SourceIndex < 64 || m.SourceIndex == 10000
+		// SourceIndex 0..63. The caller at 145B25E8A reduces values >=10000
+		// modulo 10000 before 145B20DC0, so its apparent source-10000 branch
+		// cannot be reached through this NOTI29 row.
+		validAPCSource := m.SourceIndex < 64
 		validRank := !m.APC && m.Rank <= 3 || m.APC && m.Rank >= 5 && m.Rank <= 8 && validAPCSource
 		if m.Entity == 0 || m.Entity == 65535 || seen[m.Entity] || m.Template == 0 || !validRank || m.Team > 0x7fffffff {
 			return nil, fmt.Errorf("invalid monster identity")
