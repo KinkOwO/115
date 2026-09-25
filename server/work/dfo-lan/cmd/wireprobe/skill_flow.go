@@ -49,14 +49,30 @@ func (s *skillSession) saveCommands(cs *character.Service, w *worldSession, p []
 // A VP apply (CMD29 carrying variation slots) must not: its own response
 // already carries the VP block, while id19 has none — the client overwrites the
 // panel it just rendered with an empty variation state, which reads as "Apply
-// silently reset my VP choices". Every other applied mutation keeps the restore
-// (it is what refreshes the palette), and a refused or idempotent request needs
-// it so the client returns to the stored state.
+// silently reset my VP choices". CMD28 moves are already applied locally by
+// the client; an id19 after their ACK also plays the learn sound and clears the
+// displayed VP choices. Other mutations keep the restore to refresh the palette
+// or return the client to stored state after a refused/idempotent request.
 func skillTreeRefreshRequired(id uint16, applied, varied bool) bool {
+	if id == 28 {
+		return false
+	}
 	if !applied {
 		return true
 	}
 	return !(id == 29 && varied)
+}
+
+func skillMutationResponsePlan(cs *character.Service, saved storage.Character, id uint16, body []byte, applied, varied bool) ([]outboundPacket, error) {
+	plan := []outboundPacket{{"skill_committed_response", 1, id, body}}
+	if skillTreeRefreshRequired(id, applied, varied) {
+		restore, err := cs.EntrySkills(saved)
+		if err != nil {
+			return nil, err
+		}
+		plan = append(plan, outboundPacket{"skill_state_restored", 0, 19, restore})
+	}
+	return plan, nil
 }
 
 func (s *skillSession) handle(cs *character.Service, w *worldSession, id uint16, p, raw []byte) ([]outboundPacket, error) {
@@ -193,13 +209,5 @@ func (s *skillSession) handle(cs *character.Service, w *worldSession, id uint16,
 		return nil, e
 	}
 	w.role = saved
-	plan := []outboundPacket{{"skill_committed_response", 1, id, body}}
-	if skillTreeRefreshRequired(id, applied, varied) {
-		restore, e := cs.EntrySkills(saved)
-		if e != nil {
-			return nil, e
-		}
-		plan = append(plan, outboundPacket{"skill_state_restored", 0, 19, restore})
-	}
-	return plan, nil
+	return skillMutationResponsePlan(cs, saved, id, body, applied, varied)
 }
