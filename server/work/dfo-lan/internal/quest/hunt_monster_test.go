@@ -63,7 +63,7 @@ func TestEpicHuntMonsterSourceRoutes(t *testing.T) {
 	}
 }
 
-func TestHuntMonsterDeathRequiresOwnedSourceTarget(t *testing.T) {
+func TestHuntMonsterDeathRequiresConfirmedSourceTarget(t *testing.T) {
 	en := &Entry{ID: 3571, Implemented: true, Model: SingleHuntMonster, HuntDungeon: 86, HuntMonster: 65472}
 	run := &dungeon.Session{
 		Loaded: true, Definition: catalog.DungeonDefinition{ID: 86},
@@ -74,19 +74,24 @@ func TestHuntMonsterDeathRequiresOwnedSourceTarget(t *testing.T) {
 	if !singleKillMatch(en, run, 4096, en.HuntMonster) {
 		t.Fatal("confirmed source target death did not advance hunt")
 	}
+	run.Unowned = map[uint16]bool{4096: true}
+	if !singleKillMatch(en, run, 4096, en.HuntMonster) {
+		t.Fatal("confirmed scripted target death did not advance hunt monster")
+	}
 	for _, mutate := range []func(*dungeon.Session){
 		func(s *dungeon.Session) { delete(s.Dead, 4096) },
-		func(s *dungeon.Session) { s.Unowned = map[uint16]bool{4096: true} },
 		func(s *dungeon.Session) { s.Maze.Quest++ },
 		func(s *dungeon.Session) { s.Definition.ID++ },
 		func(s *dungeon.Session) { s.Monsters[0].Template++ },
+		func(s *dungeon.Session) { s.Monsters[0].Entity++ },
+		func(s *dungeon.Session) { s.Loaded = false },
 	} {
 		copy := *run
 		copy.Dead = map[uint16]bool{4096: true}
 		copy.Monsters = append([]protocol.DungeonMonster(nil), run.Monsters...)
 		mutate(&copy)
 		if singleKillMatch(en, &copy, 4096, en.HuntMonster) {
-			t.Fatal("unowned or foreign death advanced hunt")
+			t.Fatal("unconfirmed or wrong-target death advanced hunt")
 		}
 	}
 }

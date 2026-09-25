@@ -20,3 +20,7 @@ In the live session `roles_persist_select_actor_town_world_live_detail_dungeon_m
 The player manually accepted 3571 at `09:22:59Z`, entered dungeon 86's quest maze 2 and reached map 57813, whose only configured monster is target template 65472. The confirmed target death caused the server to send the updated quest trigger at `09:24:06Z`. The player completed 3571 at `09:24:46Z` and accepted successor 3573 less than one second later. Session: `roles_persist_select_actor_town_world_live_detail_dungeon_manual_20260925_172229_261563_next37`.
 
 This confirms the single-target `[hunt monster]` model, player-owned death path, quest-maze restriction and level-62 successor chain. The other six source-matched quests retain static coverage and have not been played separately.
+
+## 2026-09-25 death-ownership update
+
+The current generic hunt rule also counts a server-confirmed death of the configured target when the client marks it unowned (`FFFF`) in the accepted quest maze. Drop and experience ownership remain unchanged. This rule was prompted by the live quest 3596 cinematic and is unit-tested for `[hunt monster]`; the other six hunt-monster routes have not been separately replayed. See `quest3596-cinematic-death-20260925.md`.
