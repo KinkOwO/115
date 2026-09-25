@@ -812,15 +812,15 @@ func main() {
 			log.Printf("loaded booster catalog (%d definitions, %d item index entries)", len(boosterCatalog.Definitions), len(boosterCatalog.Items))
 		}
 	}
-	var lotteryPool *lotteryItemPool
+	var lotteryPools *lotteryItemCatalog
 	if boosterCatalog != nil && *itemIndexFile != "" {
-		lotteryPath := filepath.Join(filepath.Dir(*itemIndexFile), "lottery-item-7772.json")
+		lotteryPath := filepath.Join(filepath.Dir(*itemIndexFile), "lottery-item-pools.json")
 		var err error
-		lotteryPool, err = loadLotteryItemPool(lotteryPath, boosterCatalog.Items)
+		lotteryPools, err = loadLotteryItemCatalog(lotteryPath, boosterCatalog.Items)
 		if err != nil {
-			log.Printf("warning: lottery item 7772 disabled: %v", err)
+			log.Printf("warning: lottery item catalog disabled: %v", err)
 		} else {
-			log.Printf("loaded lottery item 7772 (%d rewards, weight total %d)", len(lotteryPool.Candidates), lotteryPool.total)
+			log.Printf("loaded lottery item catalog (%d verified pools)", len(lotteryPools.Pools))
 		}
 	}
 	// Source selection boxes ([booster select category]) are deliberately absent
@@ -1333,10 +1333,10 @@ func main() {
 				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 				var plan []outboundPacket
 				var e error
-				if lotteryPool == nil || boosterCatalog == nil {
-					e = fmt.Errorf("lottery item 7772 catalog unavailable")
+				if lotteryPools == nil || boosterCatalog == nil {
+					e = fmt.Errorf("lottery item catalog unavailable")
 				} else {
-					plan, e = worldState.openLotteryItem(ctx, characters.Store, lotteryPool, boosterCatalog.Items, plaintext, frame.Raw)
+					plan, e = worldState.openLotteryItem(ctx, characters.Store, lotteryPools, boosterCatalog.Items, plaintext, frame.Raw)
 				}
 				cancel()
 				if e != nil {

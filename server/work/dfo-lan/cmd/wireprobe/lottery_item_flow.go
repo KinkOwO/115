@@ -9,14 +9,15 @@ import (
 	"dfolan/internal/inventory"
 	"dfolan/internal/storage"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"github.com/jackc/pgx/v5"
 	"math/big"
 	"os"
 	"time"
 )
 
-// The catalog is a checked export of the current client's template 7772 PVF
-// entry. Other lottery templates are deliberately not inferred from it.
+// One checked [upgradable legacy] entry from the current client PVF.
 type lotteryItemPool struct {
 	SourceItem         uint32                   `json:"source_item"`
 	SourceScript       string                   `json:"source_script"`
@@ -25,36 +26,58 @@ type lotteryItemPool struct {
 	total              int64
 }
 
-const lottery7772ScriptHash = "418da31021ef6ad9dffec621542adc963e87cb52eb33f9b9e049f18093aa1810"
+const lotterySourcePVFSHA256 = "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80"
 
-func loadLotteryItemPool(path string, index map[uint32]ItemIndexInfo) (*lotteryItemPool, error) {
+type lotteryItemCatalog struct {
+	SourcePVFSHA256 string             `json:"source_pvf_sha256"`
+	Pools           []*lotteryItemPool `json:"pools"`
+	byTemplate      map[uint32]*lotteryItemPool
+}
+
+func loadLotteryItemCatalog(path string, index map[uint32]ItemIndexInfo) (*lotteryItemCatalog, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
-	var p lotteryItemPool
-	if err := json.Unmarshal(data, &p); err != nil {
+	var c lotteryItemCatalog
+	if err := json.Unmarshal(data, &c); err != nil {
 		return nil, err
 	}
-	if p.SourceItem != 7772 || p.SourceScript != "stackable/ect/uplegacy_card01.stk" || p.SourceScriptSHA256 != lottery7772ScriptHash || len(p.Candidates) != 209 {
-		return nil, fmt.Errorf("lottery item 7772 source identity mismatch")
+	if c.SourcePVFSHA256 != lotterySourcePVFSHA256 || len(c.Pools) != 276 {
+		return nil, fmt.Errorf("lottery catalog source identity or pool count mismatch")
 	}
-	if source, ok := index[p.SourceItem]; !ok || source.Path != p.SourceScript || source.StackableType != "[upgradable legacy]" {
-		return nil, fmt.Errorf("lottery source missing from current item index")
-	}
-	seen := make(map[uint32]bool, len(p.Candidates))
-	for _, row := range p.Candidates {
-		def, ok := index[row.Template]
-		if !ok || def.Kind != "stackable" || row.Template == 0 || row.Weight == 0 || row.Count != 1 || seen[row.Template] {
-			return nil, fmt.Errorf("lottery reward %d is invalid or duplicated", row.Template)
+	c.byTemplate = make(map[uint32]*lotteryItemPool, len(c.Pools))
+	for _, p := range c.Pools {
+		if p == nil || p.SourceItem == 0 || len(p.SourceScriptSHA256) != 64 || len(p.Candidates) == 0 {
+			return nil, fmt.Errorf("invalid lottery pool identity")
 		}
-		seen[row.Template] = true
-		p.total += int64(row.Weight)
+		if source, ok := index[p.SourceItem]; !ok || source.Path != p.SourceScript || source.Kind != "stackable" || source.StackableType != "[upgradable legacy]" {
+			return nil, fmt.Errorf("lottery source %d missing from current item index", p.SourceItem)
+		}
+		if c.byTemplate[p.SourceItem] != nil {
+			return nil, fmt.Errorf("duplicate lottery source %d", p.SourceItem)
+		}
+		for _, row := range p.Candidates {
+			if row.Weight == 0 || row.Count == 0 || p.total > int64(^uint64(0)>>1)-int64(row.Weight) {
+				return nil, fmt.Errorf("lottery reward in source %d has invalid weight or count", p.SourceItem)
+			}
+			if row.Template != 0 {
+				def, ok := index[row.Template]
+				if !ok || def.Kind != "stackable" {
+					return nil, fmt.Errorf("lottery reward %d is not a source stackable", row.Template)
+				}
+			}
+			p.total += int64(row.Weight)
+		}
+		c.byTemplate[p.SourceItem] = p
 	}
-	if p.total != 98904 {
-		return nil, fmt.Errorf("lottery weight total changed: %d", p.total)
+	if p := c.byTemplate[7772]; p == nil || p.SourceScriptSHA256 != "b6f59a8a3193ae4f6c0796e156f90d48317cbf2e16af2c309bacbdc63322e54c" || len(p.Candidates) != 209 || p.total != 98904 {
+		return nil, fmt.Errorf("lottery item 7772 regression")
 	}
-	return &p, nil
+	if p := c.byTemplate[10306598]; p == nil || p.SourceScriptSHA256 != "a97094b202704c3cfb0f1e1e53a86bc9986813cddf071acc078c98b937414063" || len(p.Candidates) != 1 || p.Candidates[0] != (BoosterRewardCandidate{Template: 0, Weight: 10000, Count: 1000000}) {
+		return nil, fmt.Errorf("lottery gold pot 10306598 regression")
+	}
+	return &c, nil
 }
 
 func (p *lotteryItemPool) pick(draw int64) (BoosterRewardCandidate, error) {
@@ -76,14 +99,15 @@ type lotteryItemStore interface {
 }
 
 type lotteryItemReceipt struct {
+	SourceTemplate uint32                                 `json:"source_template"`
 	RewardTemplate uint32                                 `json:"reward_template"`
 	RewardSlot     uint16                                 `json:"reward_slot"`
 	GrantCount     uint32                                 `json:"grant_count"`
 	Updates        [][protocol.CurrentItemRecordSize]byte `json:"updates"`
 }
 
-func (w *worldSession) openLotteryItem(ctx context.Context, store lotteryItemStore, pool *lotteryItemPool, index map[uint32]ItemIndexInfo, request, raw []byte) ([]outboundPacket, error) {
-	if w == nil || w.role.ID == 0 || w.activeDungeon != nil || w.loot == nil || pool == nil {
+func (w *worldSession) openLotteryItem(ctx context.Context, store lotteryItemStore, pools *lotteryItemCatalog, index map[uint32]ItemIndexInfo, request, raw []byte) ([]outboundPacket, error) {
+	if w == nil || w.role.ID == 0 || w.activeDungeon != nil || w.loot == nil || pools == nil {
 		return nil, fmt.Errorf("lottery item requires selected character in town and loaded catalog")
 	}
 	sourceSlot, err := protocol.DecodeLotteryItemUse(request)
@@ -93,73 +117,83 @@ func (w *worldSession) openLotteryItem(ctx context.Context, store lotteryItemSto
 	if store == nil {
 		return nil, fmt.Errorf("lottery storage unavailable")
 	}
-	roll, err := rand.Int(rand.Reader, big.NewInt(pool.total))
-	if err != nil {
-		return nil, err
-	}
-	reward, err := pool.pick(roll.Int64())
-	if err != nil {
-		return nil, err
-	}
-	def, ok := index[reward.Template]
-	if !ok || def.Kind != "stackable" {
-		return nil, fmt.Errorf("lottery reward metadata absent")
-	}
-	// Bag.Add needs only the chosen item. Keep the shared drop catalog immutable.
-	awardCatalog := catalog.LootCatalog{Source: w.loot.Catalog.Source, Items: map[uint32]catalog.LootItem{
-		reward.Template: {ID: reward.Template, Kind: def.Kind, StackableType: def.StackableType, StackLimit: def.StackLimit},
-	}}
+	// Preserve the v1 event key so a retransmitted 7772 request cannot spend a
+	// second pot after the catalog upgrade. The raw frame keeps other slots apart.
 	key := fmt.Sprintf("lottery-item-7772:%d:%x", w.role.ID, sha256.Sum256(raw))
-	saved, _, err := store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, "lottery-item-7772-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
-		bag, err := inventory.ReadBag(current.State)
-		if err != nil {
-			return nil, nil, err
-		}
-		var source *inventory.BagItem
-		for i := range bag.Items {
-			if bag.Items[i].Slot == sourceSlot {
-				source = &bag.Items[i]
-				break
-			}
-		}
-		if source == nil || source.Template != pool.SourceItem || source.Amount == 0 {
-			return nil, nil, fmt.Errorf("slot %d does not hold lottery item 7772", sourceSlot)
-		}
-		if protocol.StoredItemExpired(source.ExpireTime, time.Now().Unix()) {
-			return nil, nil, fmt.Errorf("lottery item 7772 has expired")
-		}
-		bag, _, err = bag.Consume(awardCatalog, sourceSlot, pool.SourceItem)
-		if err != nil {
-			return nil, nil, err
-		}
-		bag, rewardSlot, err := bag.Add(awardCatalog, w.loot.BagRules, reward.Template, reward.Count)
-		if err != nil {
-			return nil, nil, err
-		}
-		nextState, err := inventory.SaveBag(current.State, bag)
-		if err != nil {
-			return nil, nil, err
-		}
-		updates := make([][protocol.CurrentItemRecordSize]byte, 0, 2)
-		if sourceSlot != rewardSlot {
-			row, _ := bag.RowAt(sourceSlot)
-			if row == ([protocol.CurrentItemRecordSize]byte{}) {
-				row = protocol.EmptyOrdinaryItem(sourceSlot)
-			}
-			updates = append(updates, row)
-		}
-		rewardAfter, ok := bag.RowAt(rewardSlot)
-		if !ok {
-			return nil, nil, fmt.Errorf("awarded slot missing after inventory update")
-		}
-		updates = append(updates, rewardAfter)
-		receipt, err := json.Marshal(lotteryItemReceipt{RewardTemplate: reward.Template, RewardSlot: rewardSlot, GrantCount: reward.Count, Updates: updates})
-		return nextState, receipt, err
-	})
-	if err != nil {
+	// A stored v1 or v2 receipt may carry a different model. Replay it before
+	// committing so the storage model check never turns a retry into a failure.
+	prior, err := store.CharacterEventReceipt(ctx, w.role.AccountID, w.role.ID, key)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return nil, err
 	}
-	data, err := store.CharacterEventReceipt(ctx, w.role.AccountID, w.role.ID, key)
+	saved := w.role
+	if len(prior) == 0 {
+		saved, _, err = store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, "lottery-item-v2", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+			bag, err := inventory.ReadBag(current.State)
+			if err != nil {
+				return nil, nil, err
+			}
+			var source *inventory.BagItem
+			for i := range bag.Items {
+				if bag.Items[i].Slot == sourceSlot {
+					source = &bag.Items[i]
+					break
+				}
+			}
+			if source == nil || source.Amount == 0 {
+				return nil, nil, fmt.Errorf("slot %d has no lottery item", sourceSlot)
+			}
+			pool := pools.byTemplate[source.Template]
+			if pool == nil {
+				return nil, nil, fmt.Errorf("lottery item %d has no verified gold or stackable pool", source.Template)
+			}
+			if protocol.StoredItemExpired(source.ExpireTime, time.Now().Unix()) {
+				return nil, nil, fmt.Errorf("lottery item %d has expired", source.Template)
+			}
+			roll, err := rand.Int(rand.Reader, big.NewInt(pool.total))
+			if err != nil {
+				return nil, nil, err
+			}
+			reward, err := pool.pick(roll.Int64())
+			if err != nil {
+				return nil, nil, err
+			}
+			awardCatalog := catalog.LootCatalog{Source: w.loot.Catalog.Source, Items: make(map[uint32]catalog.LootItem)}
+			if reward.Template != 0 {
+				def, ok := index[reward.Template]
+				if !ok || def.Kind != "stackable" {
+					return nil, nil, fmt.Errorf("lottery reward metadata absent")
+				}
+				awardCatalog.Items[reward.Template] = catalog.LootItem{ID: reward.Template, Kind: def.Kind, StackableType: def.StackableType, StackLimit: def.StackLimit}
+			}
+			before := bag
+			bag, _, err = bag.Consume(awardCatalog, sourceSlot, pool.SourceItem)
+			if err != nil {
+				return nil, nil, err
+			}
+			bag, rewardSlot, err := bag.Add(awardCatalog, w.loot.BagRules, reward.Template, reward.Count)
+			if err != nil {
+				return nil, nil, err
+			}
+			nextState, err := inventory.SaveBag(current.State, bag)
+			if err != nil {
+				return nil, nil, err
+			}
+			updates := inventory.ChangedItemRows(before, bag)
+			if len(updates) == 0 {
+				return nil, nil, fmt.Errorf("lottery inventory produced no change")
+			}
+			receipt, err := json.Marshal(lotteryItemReceipt{SourceTemplate: pool.SourceItem, RewardTemplate: reward.Template, RewardSlot: rewardSlot, GrantCount: reward.Count, Updates: updates})
+			return nextState, receipt, err
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+	data := prior
+	if len(data) == 0 {
+		data, err = store.CharacterEventReceipt(ctx, w.role.AccountID, w.role.ID, key)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -167,7 +201,10 @@ func (w *worldSession) openLotteryItem(ctx context.Context, store lotteryItemSto
 	if err := json.Unmarshal(data, &receipt); err != nil {
 		return nil, err
 	}
-	if receipt.RewardTemplate == 0 || receipt.GrantCount == 0 || len(receipt.Updates) == 0 {
+	if receipt.SourceTemplate == 0 && receipt.RewardTemplate != 0 {
+		receipt.SourceTemplate = 7772 // pre-upgrade receipts had no source field
+	}
+	if receipt.SourceTemplate == 0 || receipt.GrantCount == 0 || len(receipt.Updates) == 0 {
 		return nil, fmt.Errorf("lottery receipt incomplete")
 	}
 	saved.WireID = w.role.WireID
