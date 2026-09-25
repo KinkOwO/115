@@ -561,6 +561,9 @@ func main() {
 		if path := os.Getenv("DFO_LOOT_CATALOG"); path != "" {
 			lootPath = path
 		}
+		if err := inventory.LoadReinforcementTickets(filepath.Join(filepath.Dir(lootPath), "reinforcement-tickets.json")); err != nil {
+			log.Fatal(err)
+		}
 		c, e := catalog.LoadLoot(lootPath)
 		if e != nil {
 			log.Fatal(e)
@@ -2000,6 +2003,27 @@ func main() {
 						return
 					}
 					event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID})
+				}
+				continue
+			}
+			if worldState != nil && bootstrapped && frame.ID == 80 {
+				if !verified {
+					event(map[string]any{"kind": "reinforcement_rejected", "reason": "强化请求校验失败"})
+					continue
+				}
+				plan, err := equipmentState.reinforce(wearService, worldState, plaintext, frame.Raw, event)
+				if err != nil {
+					event(map[string]any{"kind": "reinforcement_refused", "character_id": worldState.role.ID, "reason": err.Error()})
+					// 14529B2F0 的失败分支只使用分发器读取的错误码，并清除等待态。
+					if err = sendPayload(1, 80, protocol.Refusal(22)); err != nil {
+						return
+					}
+					continue
+				}
+				for _, packet := range plan {
+					if err = sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
+						return
+					}
 				}
 				continue
 			}

@@ -1,6 +1,7 @@
 # CHANGELOG
 
 ## 2026-09-25
+- 修复普通固定等级强化券无响应：接入 CMD80，按源规则原子扣券、保存强化等级并刷新装备，失败保持原等级，重试不重复扣券。普通固定券支持 +1～+15，+20 测试券及尚未核实的专用限制拒绝且不扣券；不修改客户端或数据库结构。下游用户已确认普通强化券修复，现有全量测试与静态检查通过。
 - **带期限物品最大值环境开关（通用候选）**：`DFO_MAX_ITEM_PERIOD=1` 时，按源 PVF 的四类期限标记识别 124,610 个模板，并覆盖存档已有非零期限的实例；普通背包、装备、宠物和装扮下发最大值 `2147483647`，服务端使用检查同步放行。关闭开关沿用原行为，不改存档或客户端资源。590012183 已作为最大值机制样例由用户实机确认；通用覆盖仍待更多物品实机回归。来源与边界：`server/work/dfo-lan/docs/protocol/item-period-max-env-20260925.md`。
 - **光辉盒子随机装置服务端候选（待实机验证）**：CMD495/2036 回包 136 字节窗口状态（进度取角色存档），CMD681 开盒事务成功后推送 NOTI66 契约剩余时间；支持范围为当前导入配置中的 590712474、590719043。没有客户端或数据库结构改动。`go test ./...`、`go vet ./...` 通过；候选程序 `wireprobe-handoff-source.exe` SHA-256 `15CD7BAC4D6915A593F9975430A84BC495FF6F9553CC147D683E1BC500BB5FD4`。**未实机验证，不升级 confirmed baseline**；若商城点击只发 CMD2036 而未发 CMD681，尚需新会话日志确认开启入口。实施记录：`server/work/dfo-lan/docs/protocol/radiant-device-server-port-20260925.md`。
 - **商城契约购买闪退下游兼容开关（下游待实机验证）**：设置 `DFO_CONTRACT_PURCHASE_CRASH_FIX=1` 后，商城契约购买保留扣款、存档、NOTI14、NOTI53 与 ACK64，跳过购买路径即时 NOTI66；选角契约恢复不再依赖 `town-entry-probe`，仍按客户端要求发送剩余秒数。默认关闭，其他契约通知路径不变。新增包序测试和操作记录 `server/work/dfo-lan/docs/protocol/contract-purchase-crash-switch-20260925.md`。全量 `go test -p 1 ./...`、`go vet -p 1 ./...` 通过；独立候选版 `wireprobe-contract-crash-switch-20260925.exe` SHA-256 `970B8D9A7CDC63E112F4D9AE58D6758FDE4850E61842C7068EB6D0F4A0ECC64B`。下游是否因此不再闪退无法在本机复现，**尚未确认为修复基线**。
