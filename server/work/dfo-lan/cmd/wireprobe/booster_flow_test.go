@@ -13,12 +13,14 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 type mockBoosterStore struct {
 	character storage.Character
 	receipts  map[string]json.RawMessage
 	premiums  map[uint8]int64
+	now       int64
 }
 
 func newMockBoosterStore(char storage.Character) *mockBoosterStore {
@@ -26,12 +28,13 @@ func newMockBoosterStore(char storage.Character) *mockBoosterStore {
 		character: char,
 		receipts:  make(map[string]json.RawMessage),
 		premiums:  make(map[uint8]int64),
+		now:       time.Now().Unix(),
 	}
 }
 
 func (m *mockBoosterStore) ActivatePremium(ctx context.Context, account int64, premiumType uint8, durationSecond int64) (int64, error) {
 	oldEnd := m.premiums[premiumType]
-	now := int64(1750000000)
+	now := m.now
 	if oldEnd > now {
 		now = oldEnd
 	}
@@ -52,6 +55,39 @@ func (m *mockBoosterStore) CommitCharacterEvent(ctx context.Context, account, id
 
 func (m *mockBoosterStore) CharacterEventReceipt(ctx context.Context, account, id int64, key string) (json.RawMessage, error) {
 	return m.receipts[key], nil
+}
+
+// 合并适配：上游礼包用例继续验证发奖，模拟存储改为本地原子契约接口。
+func (m *mockBoosterStore) CommitCharacterPremiumEvent(ctx context.Context, account, id int64, version, key, model string, apply func(storage.Character) (json.RawMessage, json.RawMessage, []storage.CashPremiumActivation, error)) (storage.Character, bool, error) {
+	if _, ok := m.receipts[key]; ok {
+		return m.character, false, nil
+	}
+	raw, receipt, rewards, err := apply(m.character)
+	if err != nil {
+		return m.character, false, err
+	}
+	var fields map[string]json.RawMessage
+	if err = json.Unmarshal(receipt, &fields); err != nil {
+		return m.character, false, err
+	}
+	balances := map[uint8]int64{}
+	for kind, end := range m.premiums {
+		balances[kind] = end
+	}
+	now := m.now
+	var premiums []storage.CashPremium
+	for _, reward := range rewards {
+		end := max(now, balances[reward.Type]) + reward.DurationSecond
+		balances[reward.Type] = end
+		premiums = append(premiums, storage.CashPremium{Type: reward.Type, EndTime: end, RemainingSecond: end - now})
+	}
+	fields["premiums"], _ = json.Marshal(premiums)
+	receipt, err = json.Marshal(fields)
+	if err != nil {
+		return m.character, false, err
+	}
+	m.character.State, m.receipts[key], m.premiums = raw, receipt, balances
+	return m.character, true, nil
 }
 
 func TestBoosterUseTitleBox(t *testing.T) {
@@ -539,7 +575,7 @@ func TestBoosterOpenMasterContractPackage(t *testing.T) {
 		}
 	}
 	// Check that 4 premiums (22: Conqueror, 27: Tactician, 92: Cube, 79: Growth) were activated for 3 days (259200s)
-	expectedEnd := int64(1750000000) + 3*86400
+	expectedEnd := store.now + 3*86400
 	for _, pt := range []uint8{22, 27, 92, 79} {
 		if store.premiums[pt] != expectedEnd {
 			t.Fatalf("expected premium %d end time %d, got %d", pt, expectedEnd, store.premiums[pt])

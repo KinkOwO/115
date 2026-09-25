@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"dfolan/internal/cashshop"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"fmt"
@@ -11,8 +10,10 @@ import (
 
 // useStackable answers CMD44. The client applies the recovery effect itself,
 // so the server owns the durable decrement, the acknowledgement echoing the
-// consumed slot, and the authoritative bag refresh that follows it.
-func (w *worldSession) useStackable(p []byte) ([]outboundPacket, error) {
+// consumed slot, and the authoritative bag refresh that follows it. A box also
+// hands out its source lot row in that same transaction; event records both
+// shapes so a run can be read back without the capture log.
+func (w *worldSession) useStackable(p []byte, event func(map[string]any)) ([]outboundPacket, error) {
 	if w == nil || w.role.ID == 0 || w.loot == nil {
 		return nil, fmt.Errorf("item use before character selection")
 	}
@@ -26,9 +27,19 @@ func (w *worldSession) useStackable(p []byte) ([]outboundPacket, error) {
 	if e != nil {
 		return nil, e
 	}
-	saved, _, _, e := w.loot.Consume(ctx, w.role, r)
+	saved, receipt, _, e := w.loot.Consume(ctx, w.role, r)
 	if e != nil {
 		return nil, e
+	}
+	// One durable record per use: a box names the source lot row it handed out,
+	// an ordinary consumable records the slot it spent.
+	if len(receipt.Granted) > 0 {
+		event(map[string]any{"kind": "box_opened", "character_id": w.role.ID,
+			"box": receipt.Template, "slot": receipt.Slot,
+			"granted": receipt.Granted, "points": receipt.Points})
+	} else {
+		event(map[string]any{"kind": "item_consumed", "character_id": w.role.ID,
+			"template": receipt.Template, "slot": receipt.Slot, "remaining": receipt.Remaining})
 	}
 	ack, e := protocol.UseStackableSuccess(r)
 	if e != nil {
@@ -43,16 +54,22 @@ func (w *worldSession) useStackable(p []byte) ([]outboundPacket, error) {
 		return nil, e
 	}
 	w.role = saved
+	if len(receipt.Premiums) > 0 {
+		restore, err := protocol.InventoryRestore(b.Rows(), b.Expansion)
+		if err != nil {
+			return nil, err
+		}
+		event(map[string]any{"kind": "item_contracts_activated", "character_id": w.role.ID, "premiums": receipt.Premiums})
+		return []outboundPacket{
+			{"item_use_ack", 1, 44, ack},
+			{"item_use_inventory_restored", 0, 13, restore},
+		}, nil
+	}
 	// The absolute committed bag follows the acknowledgement, so a retried
 	// hotkey press cannot leave the client's own count drifting.
 	plan := []outboundPacket{
 		{"item_use_ack", 1, 44, ack},
 		{"item_use_inventory_updated", 0, 14, update},
-	}
-	if contract, isContract := cashshop.ResolveContract(r.Template); isContract && w.loot.Store != nil {
-		if endTime, err := w.loot.Store.ActivatePremium(ctx, w.role.AccountID, contract.Type, contract.DurationSecond); err == nil && endTime > 0 {
-			plan = append(plan, outboundPacket{"item_use_cera_special_item", 0, 66, protocol.CeraSpecialItemNotification(contract.Type, endTime)})
-		}
 	}
 	return plan, nil
 }

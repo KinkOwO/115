@@ -21,6 +21,8 @@ type Service struct {
 	Tables      Tables
 	Equipment   *inventory.EquipmentCatalog
 	CardPolicy  *CardRules
+	// Boxes 保存已导出的袖珍罐奖励与进度规则。
+	Boxes *BoxCatalog
 	// ItemShops 是源物品商店表（itemshop/**.shp）。它给出"用物品支付"的商品价格：
 	// 奥德赛商店的盒子要 100 个银币（10418036）。缺这张表时所有购买都会拿写死的
 	// 金币单价去扣，等于白送（实机 2026-09-23 玩家报告"银币没有扣减"）。

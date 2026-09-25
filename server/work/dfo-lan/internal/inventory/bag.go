@@ -304,6 +304,10 @@ func (b Bag) Add(c catalog.LootCatalog, r BagRules, id, amount uint32, expireTim
 	}
 	for i, row := range b.Items {
 		occupied[row.Slot] = true
+		// 新发放的限时物品不能继承另一堆的非零期限（尤其是已过期的旧堆）。
+		if exp != 0 && row.ExpireTime != 0 && row.ExpireTime != exp {
+			continue
+		}
 		if row.Template == id && row.Slot >= slots[0] && row.Slot <= slots[1] && uint64(row.Amount)+uint64(amount) <= uint64(limit) {
 			b.Items[i].Amount += amount
 			if exp != 0 && b.Items[i].ExpireTime == 0 {

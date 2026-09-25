@@ -39,14 +39,14 @@ func CeraPurchasePilotSuccess(product uint32) ([]byte, error) {
 
 // PremiumActivationNotice is the native S0/0042 mode-2 update: u16 mode,
 // u8 account premium type, i64 remaining seconds.
-func PremiumActivationNotice(premiumType uint8, endTime int64) ([]byte, error) {
-	if premiumType == 0 || endTime <= 0 {
+func PremiumActivationNotice(premiumType uint8, remainingSecond int64) ([]byte, error) {
+	if premiumType == 0 || remainingSecond <= 0 {
 		return nil, fmt.Errorf("invalid premium activation")
 	}
 	p := add16([]byte{}, 2)
 	p = append(p, premiumType)
 	for i := 0; i < 8; i++ {
-		p = append(p, byte(uint64(endTime)>>uint(8*i)))
+		p = append(p, byte(uint64(remainingSecond)>>uint(8*i)))
 	}
 	return p, nil
 }

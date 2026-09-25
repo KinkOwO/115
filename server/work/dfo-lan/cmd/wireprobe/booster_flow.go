@@ -148,6 +148,52 @@ type boosterEventStore interface {
 	CharacterEventReceipt(ctx context.Context, account, id int64, key string) (json.RawMessage, error)
 }
 
+// 礼包复用本地原子契约事务：扣物品、续期和回执同时提交，重试只读回执。
+func commitBoosterEvent(ctx context.Context, store boosterEventStore, role storage.Character, key, model string, apply func(storage.Character) (json.RawMessage, json.RawMessage, error)) (storage.Character, bool, error) {
+	decode := func(receipt json.RawMessage) ([]storage.CashPremiumActivation, error) {
+		var outcome struct {
+			ActivatedPremiums []struct {
+				Type     uint8 `json:"type"`
+				Duration int64 `json:"duration"`
+			} `json:"activated_premiums"`
+		}
+		if err := json.Unmarshal(receipt, &outcome); err != nil {
+			return nil, err
+		}
+		var rewards []storage.CashPremiumActivation
+		for _, p := range outcome.ActivatedPremiums {
+			rewards = append(rewards, storage.CashPremiumActivation{Type: p.Type, DurationSecond: p.Duration})
+		}
+		return rewards, nil
+	}
+	if atomicStore, ok := store.(interface {
+		CommitCharacterPremiumEvent(context.Context, int64, int64, string, string, string, func(storage.Character) (json.RawMessage, json.RawMessage, []storage.CashPremiumActivation, error)) (storage.Character, bool, error)
+	}); ok {
+		return atomicStore.CommitCharacterPremiumEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, model, func(current storage.Character) (json.RawMessage, json.RawMessage, []storage.CashPremiumActivation, error) {
+			raw, receipt, err := apply(current)
+			if err != nil {
+				return nil, nil, nil, err
+			}
+			rewards, err := decode(receipt)
+			return raw, receipt, rewards, err
+		})
+	}
+	return store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, model, func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+		raw, receipt, err := apply(current)
+		if err != nil {
+			return nil, nil, err
+		}
+		rewards, err := decode(receipt)
+		if err != nil {
+			return nil, nil, err
+		}
+		if len(rewards) > 0 {
+			return nil, nil, fmt.Errorf("礼包契约需要支持原子续期的存储服务")
+		}
+		return raw, receipt, nil
+	})
+}
+
 func (w *worldSession) openBoosterItem(
 	ctx context.Context,
 	store boosterEventStore,
@@ -199,7 +245,8 @@ func (w *worldSession) openBoosterItem(
 					w.role = saved
 				}
 				return plan, e
-			}		}
+			}
+		}
 	}
 
 	// 1b. Source selection boxes ([booster select category]). Their contents are
@@ -241,21 +288,27 @@ func (w *worldSession) openBoosterItem(
 
 	// 2. Direct contract item activation (e.g. Tactician, Conqueror, Growth, Cube, NeoPremium)
 	if contract, isContract := cashshop.ResolveContract(boxItem.Template); isContract {
+		if req.Amount != 1 || len(req.Selections) != 0 {
+			return nil, fmt.Errorf("契约道具必须单独使用一件")
+		}
 		eventKey := fmt.Sprintf("contract-use:%d:%x", w.role.ID, sha256.Sum256(raw))
-		saved, _, err := store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, eventKey, "contract-use-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+		saved, _, err := commitBoosterEvent(ctx, store, w.role, eventKey, "contract-use-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
 			b, err := inventory.ReadBag(current.State)
 			if err != nil {
 				return nil, nil, err
 			}
 			boxIdx := -1
 			for i, it := range b.Items {
-				if it.Slot == req.Slot {
+				if it.Slot == req.Slot && it.Template == boxItem.Template {
 					boxIdx = i
 					break
 				}
 			}
 			if boxIdx < 0 {
 				return nil, nil, fmt.Errorf("contract item at slot %d not found", req.Slot)
+			}
+			if expires := b.Items[boxIdx].ExpireTime; expires != 0 && int64(expires) <= time.Now().Unix() {
+				return nil, nil, fmt.Errorf("契约道具已过期")
 			}
 			if b.Items[boxIdx].Amount > 1 {
 				b.Items[boxIdx].Amount--
@@ -266,21 +319,22 @@ func (w *worldSession) openBoosterItem(
 			if err != nil {
 				return nil, nil, err
 			}
-			return rawBag, []byte("{}"), nil
+			receipt, err := json.Marshal(map[string]any{"activated_premiums": []map[string]any{{"type": contract.Type, "duration": contract.DurationSecond}}})
+			return rawBag, receipt, err
 		})
 		if err != nil {
 			return nil, err
 		}
 
-		var endTime int64
-		if premStore, ok := store.(interface {
-			ActivatePremium(context.Context, int64, uint8, int64) (int64, error)
-		}); ok {
-			var pe error
-			endTime, pe = premStore.ActivatePremium(ctx, w.role.AccountID, contract.Type, contract.DurationSecond)
-			if pe != nil {
-				return nil, pe
-			}
+		recorded, err := store.CharacterEventReceipt(ctx, w.role.AccountID, w.role.ID, eventKey)
+		if err != nil {
+			return nil, err
+		}
+		var receipt struct {
+			Premiums []storage.CashPremium `json:"premiums"`
+		}
+		if err = json.Unmarshal(recorded, &receipt); err != nil {
+			return nil, err
 		}
 
 		w.role = saved
@@ -296,8 +350,14 @@ func (w *worldSession) openBoosterItem(
 			return nil, err
 		}
 		plan = append(plan, outboundPacket{"contract_inventory_updated", 0, 14, mainUpdate})
-		if endTime > 0 {
-			plan = append(plan, outboundPacket{"contract_special_item_noti", 0, 66, protocol.CeraSpecialItemNotification(contract.Type, endTime)})
+		for _, premium := range receipt.Premiums {
+			if remaining := premium.EndTime - time.Now().Unix(); remaining > 0 {
+				notice, err := protocol.PremiumActivationNotice(premium.Type, remaining)
+				if err != nil {
+					return nil, err
+				}
+				plan = append(plan, outboundPacket{"contract_special_item_noti", 0, 66, notice})
+			}
 		}
 		plan = append(plan, outboundPacket{"contract_use_ack", 1, 160, protocol.BoosterOpenSuccess(boxItem.Template, req.Slot, nil)})
 		return plan, nil
@@ -315,10 +375,11 @@ func (w *worldSession) openBoosterItem(
 		HasAvatars        bool                          `json:"has_avatars"`
 		HasCreatures      bool                          `json:"has_creatures"`
 		ActivatedPremiums []activatedPremium            `json:"activated_premiums,omitempty"`
+		Premiums          []storage.CashPremium         `json:"premiums,omitempty"`
 	}
 	var res outcome
 
-	saved, applied, err := store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, eventKey, "booster-open-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+	saved, applied, err := commitBoosterEvent(ctx, store, w.role, eventKey, "booster-open-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
 		b, err := inventory.ReadBag(current.State)
 		if err != nil {
 			return nil, nil, err
@@ -656,15 +717,14 @@ func (w *worldSession) openBoosterItem(
 		plan = append(plan, outboundPacket{"booster_creature_inventory_updated", 0, 14, creaturePayload})
 	}
 
-	// Activate any granted contracts and emit NOTI 66
-	for _, p := range res.ActivatedPremiums {
-		if premStore, ok := store.(interface {
-			ActivatePremium(context.Context, int64, uint8, int64) (int64, error)
-		}); ok {
-			endTime, err := premStore.ActivatePremium(ctx, w.role.AccountID, p.Type, p.Duration)
-			if err == nil && endTime > 0 {
-				plan = append(plan, outboundPacket{"booster_special_item_noti", 0, 66, protocol.CeraSpecialItemNotification(p.Type, endTime)})
+	// 回执中的绝对到期时间只用于落账；客户端接收剩余秒数。
+	for _, p := range res.Premiums {
+		if remaining := p.EndTime - time.Now().Unix(); remaining > 0 {
+			notice, err := protocol.PremiumActivationNotice(p.Type, remaining)
+			if err != nil {
+				return nil, err
 			}
+			plan = append(plan, outboundPacket{"booster_special_item_noti", 0, 66, notice})
 		}
 	}
 

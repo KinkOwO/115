@@ -33,8 +33,8 @@ func DecodeUserInfoRequest(p []byte) (uint16, byte, error) {
 // not claim official initial world/tutorial rules or implement town entry.
 // Layout: 0x14525a120, nested 0x144f58e10 and 0x146cc6fd0.
 type PremiumEntry struct {
-	Type    uint8 `json:"type"`
-	EndTime int64 `json:"end_time"`
+	Type            uint8 `json:"type"`
+	RemainingSecond int64 `json:"remaining_second"`
 }
 
 type SelectProbeState struct {
@@ -86,13 +86,16 @@ func SelectProbeSuccess(s SelectProbeState) ([]byte, error) {
 	p = append(p, byte(len(s.Premiums)))
 	seenPremium := map[uint8]bool{}
 	for _, premium := range s.Premiums {
-		if premium.Type == 0 || premium.EndTime <= 0 || seenPremium[premium.Type] {
+		if premium.Type == 0 || premium.RemainingSecond <= 0 || seenPremium[premium.Type] {
 			return nil, fmt.Errorf("invalid premium entry")
 		}
 		seenPremium[premium.Type] = true
 		p = append(p, premium.Type)
+		// 14525a429 将这个 u64 交给 1459b5a10 原样保存。
+		// 1456d9bf0 经 145241f80 读取后直接除以 86400 显示天数，
+		// 因此必须发送剩余秒数，不能发送数据库的 Unix 到期时间戳。
 		for i := 0; i < 8; i++ {
-			p = append(p, byte(uint64(premium.EndTime)>>uint(8*i)))
+			p = append(p, byte(uint64(premium.RemainingSecond)>>uint(8*i)))
 		}
 	}
 	p = add32(p, s.Cash)

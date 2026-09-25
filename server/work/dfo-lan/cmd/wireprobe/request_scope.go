@@ -14,6 +14,10 @@ func dungeonRequest(id uint16) bool {
 }
 
 func observedGameRequest(id uint16) bool {
+	// 开罐和晶体契约选择已有处理器，每次请求都必须解密校验，不能受八次采样限制。
+	if id == 681 || id == 527 {
+		return true
+	}
 	if id == 305 || id == 306 || id == 307 || id == 308 {
 		return true
 	}
