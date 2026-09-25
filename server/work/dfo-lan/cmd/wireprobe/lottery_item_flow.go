@@ -8,12 +8,14 @@ import (
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/storage"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/jackc/pgx/v5"
 	"math/big"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -80,6 +82,72 @@ func loadLotteryItemCatalog(path string, index map[uint32]ItemIndexInfo) (*lotte
 	return &c, nil
 }
 
+// Equipment-containing pools use compact numeric triples to keep the checked
+// PVF export reviewable. Import the whole pool or none of it: removing a row
+// would change the source lottery odds.
+func loadLotteryEquipmentPools(path string, index map[uint32]ItemIndexInfo, catalog *lotteryItemCatalog) (int, error) {
+	if catalog == nil || catalog.SourcePVFSHA256 != lotterySourcePVFSHA256 {
+		return 0, fmt.Errorf("lottery base catalog unavailable")
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return 0, err
+	}
+	var source struct {
+		SourcePVFSHA256 string `json:"source_pvf_sha256"`
+		Pools           []struct {
+			SourceItem         uint32      `json:"source_item"`
+			SourceScript       string      `json:"source_script"`
+			SourceScriptSHA256 string      `json:"source_script_sha256"`
+			Candidates         [][3]uint32 `json:"candidates"`
+		} `json:"pools"`
+	}
+	if err := json.Unmarshal(data, &source); err != nil {
+		return 0, err
+	}
+	if source.SourcePVFSHA256 != lotterySourcePVFSHA256 || len(source.Pools) != 2477 {
+		return 0, fmt.Errorf("equipment lottery source identity or pool count mismatch")
+	}
+	additions := make(map[uint32]*lotteryItemPool, len(source.Pools))
+	for _, row := range source.Pools {
+		meta, ok := index[row.SourceItem]
+		hash, hashErr := hex.DecodeString(row.SourceScriptSHA256)
+		if !ok || row.SourceItem == 0 || meta.Path != row.SourceScript || meta.Kind != "stackable" || meta.StackableType != "[upgradable legacy]" || hashErr != nil || len(hash) != 32 || len(row.Candidates) == 0 || catalog.byTemplate[row.SourceItem] != nil || additions[row.SourceItem] != nil {
+			return 0, fmt.Errorf("equipment lottery source %d invalid", row.SourceItem)
+		}
+		p := &lotteryItemPool{SourceItem: row.SourceItem, SourceScript: row.SourceScript, SourceScriptSHA256: row.SourceScriptSHA256}
+		hasEquipment := false
+		for _, triple := range row.Candidates {
+			template, weight, count := triple[0], triple[1], triple[2]
+			if weight == 0 || count == 0 || p.total > int64(^uint64(0)>>1)-int64(weight) {
+				return 0, fmt.Errorf("equipment lottery source %d has invalid triple", row.SourceItem)
+			}
+			if template != 0 {
+				item, ok := index[template]
+				if !ok || (item.Kind != "stackable" && item.Kind != "equipment" && item.Kind != "avatar") || (item.Kind != "stackable" && count != 1) || (item.Kind == "equipment" && strings.Contains(item.Path, "equipment/creature/")) {
+					return 0, fmt.Errorf("equipment lottery source %d reward %d unsupported", row.SourceItem, template)
+				}
+				if item.Kind == "equipment" || item.Kind == "avatar" {
+					hasEquipment = true
+				}
+			}
+			p.Candidates = append(p.Candidates, BoosterRewardCandidate{Template: template, Weight: weight, Count: count})
+			p.total += int64(weight)
+		}
+		if !hasEquipment {
+			return 0, fmt.Errorf("equipment lottery source %d has no equipment", row.SourceItem)
+		}
+		additions[row.SourceItem] = p
+	}
+	if p := additions[7213]; p == nil || p.SourceScriptSHA256 != "995df495602d0ede8df426e8ae3f3b200ef0a740ee9e2411a8794b4c24dd01ee" || len(p.Candidates) != 78 {
+		return 0, fmt.Errorf("Pokin armor pot 7213 regression")
+	}
+	for id, p := range additions {
+		catalog.byTemplate[id] = p
+	}
+	return len(additions), nil
+}
+
 func (p *lotteryItemPool) pick(draw int64) (BoosterRewardCandidate, error) {
 	if p == nil || draw < 0 || draw >= p.total {
 		return BoosterRewardCandidate{}, fmt.Errorf("lottery draw out of range")
@@ -104,9 +172,12 @@ type lotteryItemReceipt struct {
 	RewardSlot     uint16                                 `json:"reward_slot"`
 	GrantCount     uint32                                 `json:"grant_count"`
 	Updates        [][protocol.CurrentItemRecordSize]byte `json:"updates"`
+	ResultRow      *[protocol.CurrentItemRecordSize]byte  `json:"result_row,omitempty"`
+	HasExtra       bool                                   `json:"has_extra,omitempty"`
+	SpecialRefresh []byte                                 `json:"special_refresh,omitempty"`
 }
 
-func (w *worldSession) openLotteryItem(ctx context.Context, store lotteryItemStore, pools *lotteryItemCatalog, index map[uint32]ItemIndexInfo, request, raw []byte) ([]outboundPacket, error) {
+func (w *worldSession) openLotteryItem(ctx context.Context, store lotteryItemStore, pools *lotteryItemCatalog, index map[uint32]ItemIndexInfo, request, raw []byte, wear ...*inventory.WearService) ([]outboundPacket, error) {
 	if w == nil || w.role.ID == 0 || w.activeDungeon != nil || w.loot == nil || pools == nil {
 		return nil, fmt.Errorf("lottery item requires selected character in town and loaded catalog")
 	}
@@ -145,7 +216,7 @@ func (w *worldSession) openLotteryItem(ctx context.Context, store lotteryItemSto
 			}
 			pool := pools.byTemplate[source.Template]
 			if pool == nil {
-				return nil, nil, fmt.Errorf("lottery item %d has no verified gold or stackable pool", source.Template)
+				return nil, nil, fmt.Errorf("lottery item %d has no verified pool", source.Template)
 			}
 			if protocol.StoredItemExpired(source.ExpireTime, time.Now().Unix()) {
 				return nil, nil, fmt.Errorf("lottery item %d has expired", source.Template)
@@ -159,21 +230,83 @@ func (w *worldSession) openLotteryItem(ctx context.Context, store lotteryItemSto
 				return nil, nil, err
 			}
 			awardCatalog := catalog.LootCatalog{Source: w.loot.Catalog.Source, Items: make(map[uint32]catalog.LootItem)}
+			kind := "gold"
 			if reward.Template != 0 {
 				def, ok := index[reward.Template]
-				if !ok || def.Kind != "stackable" {
+				if !ok {
 					return nil, nil, fmt.Errorf("lottery reward metadata absent")
 				}
-				awardCatalog.Items[reward.Template] = catalog.LootItem{ID: reward.Template, Kind: def.Kind, StackableType: def.StackableType, StackLimit: def.StackLimit}
+				kind = def.Kind
+				if kind == "stackable" {
+					awardCatalog.Items[reward.Template] = catalog.LootItem{ID: reward.Template, Kind: kind, StackableType: def.StackableType, StackLimit: def.StackLimit}
+				} else if kind != "equipment" && kind != "avatar" {
+					return nil, nil, fmt.Errorf("lottery reward %d has unsupported kind %s", reward.Template, kind)
+				}
+			}
+			if kind == "equipment" || kind == "avatar" {
+				if len(wear) == 0 || wear[0] == nil || wear[0].Catalog == nil || reward.Count != 1 {
+					return nil, nil, fmt.Errorf("equipment lottery grant unavailable")
+				}
 			}
 			before := bag
 			bag, _, err = bag.Consume(awardCatalog, sourceSlot, pool.SourceItem)
 			if err != nil {
 				return nil, nil, err
 			}
-			bag, rewardSlot, err := bag.Add(awardCatalog, w.loot.BagRules, reward.Template, reward.Count)
-			if err != nil {
-				return nil, nil, err
+			var rewardSlot uint16
+			var resultRow [protocol.CurrentItemRecordSize]byte
+			var specialRefresh []byte
+			hasExtra := false
+			switch kind {
+			case "equipment":
+				var slots []uint16
+				bag, slots, err = bag.AddEquipment(wear[0].Catalog, wear[0].BagRules.EquipmentSlots, reward.Template, 1)
+				if err != nil {
+					return nil, nil, err
+				}
+				rewardSlot = slots[0]
+				resultRow, _ = bag.RowAt(rewardSlot)
+				var typ int32
+				typ, err = wear[0].Catalog.RewardType(reward.Template)
+				if err != nil {
+					return nil, nil, err
+				}
+				hasExtra = typ <= 11
+			case "avatar":
+				// Every avatar in the pinned export has numeric PVF type 0.
+				// The equipment catalog indexes ordinary .equ files, not avatars.
+				hasExtra = true
+				used := make(map[uint16]bool)
+				for _, item := range bag.Special[1] {
+					used[item.Slot] = true
+				}
+				found := false
+				for slot := uint16(0); slot < 210; slot++ {
+					if !used[slot] {
+						rewardSlot = slot
+						found = true
+						break
+					}
+				}
+				if !found {
+					return nil, nil, fmt.Errorf("avatar bag is full")
+				}
+				if bag.Special == nil {
+					bag.Special = make(map[byte][]inventory.BagEquipment)
+				}
+				item := inventory.BagEquipment{Slot: rewardSlot, Template: reward.Template}
+				bag.Special[1] = append(bag.Special[1], item)
+				resultRow = inventory.EquipmentRow(item)
+				specialRefresh, err = inventory.EquipmentPayload(1, bag.Special[1], false)
+				if err != nil {
+					return nil, nil, err
+				}
+			default:
+				bag, rewardSlot, err = bag.Add(awardCatalog, w.loot.BagRules, reward.Template, reward.Count)
+				if err != nil {
+					return nil, nil, err
+				}
+				resultRow = protocol.OrdinaryItem(rewardSlot, reward.Template, reward.Count)
 			}
 			nextState, err := inventory.SaveBag(current.State, bag)
 			if err != nil {
@@ -183,7 +316,7 @@ func (w *worldSession) openLotteryItem(ctx context.Context, store lotteryItemSto
 			if len(updates) == 0 {
 				return nil, nil, fmt.Errorf("lottery inventory produced no change")
 			}
-			receipt, err := json.Marshal(lotteryItemReceipt{SourceTemplate: pool.SourceItem, RewardTemplate: reward.Template, RewardSlot: rewardSlot, GrantCount: reward.Count, Updates: updates})
+			receipt, err := json.Marshal(lotteryItemReceipt{SourceTemplate: pool.SourceItem, RewardTemplate: reward.Template, RewardSlot: rewardSlot, GrantCount: reward.Count, Updates: updates, ResultRow: &resultRow, HasExtra: hasExtra, SpecialRefresh: specialRefresh})
 			return nextState, receipt, err
 		})
 		if err != nil {
@@ -209,10 +342,21 @@ func (w *worldSession) openLotteryItem(ctx context.Context, store lotteryItemSto
 	}
 	saved.WireID = w.role.WireID
 	w.role = saved
-	ack := protocol.LotteryItemSuccess(sourceSlot, protocol.OrdinaryItem(receipt.RewardSlot, receipt.RewardTemplate, receipt.GrantCount))
+	resultRow := protocol.OrdinaryItem(receipt.RewardSlot, receipt.RewardTemplate, receipt.GrantCount)
+	if receipt.ResultRow != nil {
+		resultRow = *receipt.ResultRow
+	}
+	ack := protocol.LotteryItemSuccess(sourceSlot, resultRow)
+	if receipt.HasExtra {
+		ack = append(ack, 0, 0, 0, 0)
+	}
 	refresh, err := protocol.InventoryUpdate(receipt.Updates)
 	if err != nil {
 		return nil, err
 	}
-	return []outboundPacket{{"lottery_item_open", 1, 27, ack}, {"lottery_item_inventory", 0, 14, refresh}}, nil
+	packets := []outboundPacket{{"lottery_item_open", 1, 27, ack}, {"lottery_item_inventory", 0, 14, refresh}}
+	if len(receipt.SpecialRefresh) != 0 {
+		packets = append(packets, outboundPacket{"lottery_item_avatar", 0, 14, receipt.SpecialRefresh})
+	}
+	return packets, nil
 }

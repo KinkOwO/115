@@ -821,6 +821,14 @@ func main() {
 			log.Printf("warning: lottery item catalog disabled: %v", err)
 		} else {
 			log.Printf("loaded lottery item catalog (%d verified pools)", len(lotteryPools.Pools))
+			if wearService != nil && wearService.Catalog != nil {
+				equipmentPath := filepath.Join(filepath.Dir(*itemIndexFile), "lottery-equipment-pools.json")
+				if count, loadErr := loadLotteryEquipmentPools(equipmentPath, boosterCatalog.Items, lotteryPools); loadErr != nil {
+					log.Printf("warning: equipment lottery pools disabled: %v", loadErr)
+				} else {
+					log.Printf("loaded equipment lottery pools (%d verified pools)", count)
+				}
+			}
 		}
 	}
 	// Source selection boxes ([booster select category]) are deliberately absent
@@ -1336,7 +1344,7 @@ func main() {
 				if lotteryPools == nil || boosterCatalog == nil {
 					e = fmt.Errorf("lottery item catalog unavailable")
 				} else {
-					plan, e = worldState.openLotteryItem(ctx, characters.Store, lotteryPools, boosterCatalog.Items, plaintext, frame.Raw)
+					plan, e = worldState.openLotteryItem(ctx, characters.Store, lotteryPools, boosterCatalog.Items, plaintext, frame.Raw, wearService)
 				}
 				cancel()
 				if e != nil {

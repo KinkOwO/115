@@ -13,6 +13,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -38,6 +40,27 @@ func TestLotteryCatalogMatchesCurrentIndex(t *testing.T) {
 	gold := pools.byTemplate[10306598]
 	if gold == nil || gold.total != 10000 || gold.Candidates[0].Template != 0 || gold.Candidates[0].Count != 1000000 {
 		t.Fatalf("Gold Refund Pot missing or malformed: %+v", gold)
+	}
+}
+
+func TestLotteryEquipmentCatalogMatchesCurrentIndex(t *testing.T) {
+	index, err := LoadBoosterCatalog("", "../../configs/items.index.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pools, err := loadLotteryItemCatalog("../../configs/lottery-item-pools.json", index.Items)
+	if err != nil {
+		t.Fatal(err)
+	}
+	count, err := loadLotteryEquipmentPools("../../configs/lottery-equipment-pools.json", index.Items, pools)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 2477 || len(pools.byTemplate) != 2753 {
+		t.Fatalf("unexpected equipment pools: %d, total %d", count, len(pools.byTemplate))
+	}
+	if p := pools.byTemplate[7213]; p == nil || len(p.Candidates) != 78 {
+		t.Fatalf("Pokin armor pool missing: %+v", p)
 	}
 }
 
@@ -178,5 +201,90 @@ func TestLotteryLegacyReceiptReplaysWithoutConsumingAnotherPot(t *testing.T) {
 	after, err := inventory.ReadBag(store.character.State)
 	if err != nil || store.commitCalled || len(after.Items) != 2 || after.Items[0].Template != 7772 {
 		t.Fatalf("replay consumed a second pot: %+v err=%v", after, err)
+	}
+}
+
+func lotteryEquipmentWear(t *testing.T) *inventory.WearService {
+	t.Helper()
+	data := []byte(`{"source":{"checksum":"test"},"rows":[{"ID":10858,"Path":"equipment/test.equ","SHA256":"0000000000000000000000000000000000000000000000000000000000000000","Fields":{"[rarity]":[{"type":0,"value":3}],"[equipment type]":[{"type":6,"text":"[coat]"},{"type":0,"value":18}],"[durability]":[{"type":0,"value":60}]}}]}`)
+	path := filepath.Join(t.TempDir(), "equipment.json")
+	if err := os.WriteFile(path, data, 0600); err != nil {
+		t.Fatal(err)
+	}
+	gear, err := inventory.LoadEquipmentCatalog(path, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return &inventory.WearService{Catalog: gear, BagRules: inventory.BagRules{EquipmentSlots: [2]uint16{9, 9}}}
+}
+
+func TestLotteryEquipmentGrantAndFullBagRollback(t *testing.T) {
+	wear := lotteryEquipmentWear(t)
+	for _, full := range []bool{false, true} {
+		bag := inventory.Bag{Version: "ordinary-bag-v1", Items: []inventory.BagItem{{Slot: 70, Template: 7213, Amount: 1}}}
+		if full {
+			bag.Equipment = []inventory.BagEquipment{{Slot: 9, Template: 10858, Durability: 60}}
+		}
+		state, err := inventory.SaveBag(json.RawMessage(`{}`), bag)
+		if err != nil {
+			t.Fatal(err)
+		}
+		role := storage.Character{ID: 11, AccountID: 1, State: state}
+		store := newMockBoosterStore(role)
+		w := &worldSession{role: role, loot: &loot.Service{Catalog: catalog.LootCatalog{Source: pvf.ArchiveSnapshot{Checksum: "test"}}}}
+		pools := &lotteryItemCatalog{byTemplate: map[uint32]*lotteryItemPool{7213: {SourceItem: 7213, Candidates: []BoosterRewardCandidate{{Template: 10858, Weight: 1, Count: 1}}, total: 1}}}
+		index := map[uint32]ItemIndexInfo{10858: {ID: 10858, Kind: "equipment"}}
+		request := []byte{70, 0, 0, 0, 0, 0, 0, 0}
+		packets, err := w.openLotteryItem(context.Background(), store, pools, index, request, request, wear)
+		if full {
+			if err == nil {
+				t.Fatal("full equipment bag accepted")
+			}
+			after, readErr := inventory.ReadBag(store.character.State)
+			if readErr != nil || len(after.Items) != 1 || len(after.Equipment) != 1 {
+				t.Fatalf("failed grant changed bag: %+v %v", after, readErr)
+			}
+			continue
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(packets) != 2 || len(packets[0].Payload) != 186 || binary.LittleEndian.Uint16(packets[0].Payload[5:]) != 9 || binary.LittleEndian.Uint32(packets[0].Payload[7:]) != 10858 || binary.LittleEndian.Uint16(packets[0].Payload[16:]) != 60 {
+			t.Fatalf("wrong armor result: %+v", packets)
+		}
+		after, readErr := inventory.ReadBag(store.character.State)
+		if readErr != nil || len(after.Items) != 0 || len(after.Equipment) != 1 || after.Equipment[0].Durability != 60 {
+			t.Fatalf("armor not committed: %+v %v", after, readErr)
+		}
+	}
+}
+
+func TestLotteryAvatarGrantAndReplay(t *testing.T) {
+	wear := lotteryEquipmentWear(t)
+	bag := inventory.Bag{Version: "ordinary-bag-v1", Items: []inventory.BagItem{{Slot: 70, Template: 7213, Amount: 1}}}
+	state, err := inventory.SaveBag(json.RawMessage(`{}`), bag)
+	if err != nil {
+		t.Fatal(err)
+	}
+	role := storage.Character{ID: 11, AccountID: 1, State: state}
+	store := newMockBoosterStore(role)
+	w := &worldSession{role: role, loot: &loot.Service{Catalog: catalog.LootCatalog{Source: pvf.ArchiveSnapshot{Checksum: "test"}}}}
+	pools := &lotteryItemCatalog{byTemplate: map[uint32]*lotteryItemPool{7213: {SourceItem: 7213, Candidates: []BoosterRewardCandidate{{Template: 48357, Weight: 1, Count: 1}}, total: 1}}}
+	index := map[uint32]ItemIndexInfo{48357: {ID: 48357, Kind: "avatar"}}
+	request := []byte{70, 0, 0, 0, 0, 0, 0, 0}
+	packets, err := w.openLotteryItem(context.Background(), store, pools, index, request, request, wear)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(packets) != 3 || len(packets[0].Payload) != 190 || binary.LittleEndian.Uint32(packets[0].Payload[7:]) != 48357 || packets[2].Payload[0] != 1 {
+		t.Fatalf("wrong avatar result: %+v", packets)
+	}
+	after, err := inventory.ReadBag(store.character.State)
+	if err != nil || len(after.Items) != 0 || len(after.Special[1]) != 1 || after.Special[1][0].Template != 48357 {
+		t.Fatalf("avatar not committed: %+v %v", after, err)
+	}
+	replay, err := w.openLotteryItem(context.Background(), store, pools, index, request, request, wear)
+	if err != nil || len(replay) != 3 || string(replay[0].Payload) != string(packets[0].Payload) {
+		t.Fatalf("avatar replay changed: %+v %v", replay, err)
 	}
 }
