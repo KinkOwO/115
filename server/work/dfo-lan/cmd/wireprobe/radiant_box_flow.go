@@ -59,6 +59,10 @@ func (w *worldSession) openRadiantBox(ctx context.Context, box, count uint32) ([
 	if w == nil || w.loot == nil {
 		return nil, fmt.Errorf("box open before the loot service is ready")
 	}
+	before, e := inventory.ReadBag(w.role.State)
+	if e != nil {
+		return nil, e
+	}
 	saved, receipt, _, e := w.loot.OpenBoxes(ctx, w.role, box, count)
 	if e != nil {
 		return nil, e
@@ -93,7 +97,9 @@ func (w *worldSession) openRadiantBox(ctx context.Context, box, count uint32) ([
 	if e != nil {
 		return nil, e
 	}
-	update, e := protocol.InventoryUpdate(bag.Rows())
+	// 增量包不会删除未列出的槽位；比较开罐前后状态，显式清除耗尽的罐子。
+	// 若奖励复用了原槽位，差异行会直接同步新物品，避免误删奖励。
+	update, e := protocol.InventoryUpdate(inventory.ChangedItemRows(before, bag))
 	if e != nil {
 		return nil, e
 	}
