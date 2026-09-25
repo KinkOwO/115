@@ -71,6 +71,15 @@ func skillMutationResponsePlan(cs *character.Service, saved storage.Character, i
 			return nil, err
 		}
 		plan = append(plan, outboundPacket{"skill_state_restored", 0, 19, restore})
+		// 全量技能树会清空进化／突破显示；批量换位、普通加点和
+		// 幂等重放完成刷新后，需要恢复当前存档中的完整配置。
+		variation, err := cs.VariationRestore(saved)
+		if err != nil {
+			return nil, err
+		}
+		if len(variation) > 0 {
+			plan = append(plan, outboundPacket{"skill_variation_response", 1, 29, variation})
+		}
 	}
 	return plan, nil
 }
