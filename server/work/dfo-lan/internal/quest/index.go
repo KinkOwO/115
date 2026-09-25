@@ -26,6 +26,7 @@ type Entry struct {
 	NPCReach           NPCReachObjective
 	Range              RangeObjective
 	Seek               SeekObjective
+	Seeking            SeekingItemObjective
 	HuntDungeon        uint32
 	HuntEnemy          uint32
 	HuntMonster        uint32
@@ -166,6 +167,8 @@ func BuildIndex(c catalog.QuestCatalog) *Index {
 			e.Seek, _ = SeekMeet(d)
 			e.NPC = e.Seek.NPC
 			x.Positional = append(x.Positional, id)
+		case model == SeekingItems:
+			e.Seeking, _ = SeekingObjective(d)
 		case model == SingleHuntEnemy:
 			e.HuntDungeon, e.HuntEnemy, _ = HuntEnemyObjective(d)
 		case model == SingleHuntMonster:

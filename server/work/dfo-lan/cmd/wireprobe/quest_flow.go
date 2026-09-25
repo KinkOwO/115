@@ -95,7 +95,7 @@ func (w *worldSession) finishQuest(r protocol.QuestSubmitRequest) ([]outboundPac
 	// town even though the balance is committed. Live capture 20260911T215854
 	// shows quest 3149 crediting 4300 gold with no items and no NOTI13, so the
 	// on-screen number stayed put until the next relog.
-	if len(result.Receipt.Items) > 0 || result.Receipt.Gold > 0 {
+	if len(result.Receipt.Items) > 0 || len(result.Receipt.Consumed) > 0 || result.Receipt.Gold > 0 {
 		accountMaterial := false
 		for _, item := range result.Receipt.Items {
 			if _, ok := inventory.AccountMaterialSlot(item.Template); ok {

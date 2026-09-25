@@ -78,5 +78,22 @@ func (w *worldSession) pickup(p []byte) ([]outboundPacket, error) {
 		plan = append(plan, outboundPacket{"pickup_inventory_updated", 0, 14, update})
 	}
 	w.role = saved
+	if w.quests != nil {
+		advanced, err := w.quests.InventoryProgress(ctx, w.role)
+		if err != nil {
+			return nil, err
+		}
+		if len(advanced) > 0 {
+			active, err := w.quests.Active(ctx, w.role)
+			if err != nil {
+				return nil, err
+			}
+			triggers, err := protocol.QuestTriggers(active)
+			if err != nil {
+				return nil, err
+			}
+			plan = append(plan, outboundPacket{"seeking_quest_triggers", 0, 291, triggers})
+		}
+	}
 	return plan, nil
 }

@@ -637,6 +637,53 @@ func (w *worldSession) monsterDeath(p []byte) ([]outboundPacket, error) {
 	}
 	if confirmed && w.quests != nil && !unowned {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		grant, err := w.quests.GrantSeekingMonsterItems(ctx, w.role, w.activeDungeon, uint16(r.Entity))
+		if err != nil {
+			return nil, err
+		}
+		if len(grant.Items) > 0 {
+			grant.Role.WireID = w.role.WireID
+			w.role = grant.Role
+			bag, err := inventory.ReadBag(w.role.State)
+			if err != nil {
+				return nil, err
+			}
+			seen := map[uint16]bool{}
+			var rows [][protocol.CurrentItemRecordSize]byte
+			for _, item := range grant.Items {
+				for _, slot := range item.Slots {
+					if seen[slot] {
+						continue
+					}
+					row, ok := bag.RowAt(slot)
+					if !ok {
+						return nil, fmt.Errorf("quest item destination slot %d missing", slot)
+					}
+					seen[slot] = true
+					rows = append(rows, row)
+				}
+			}
+			update, err := protocol.InventoryUpdate(rows)
+			if err != nil {
+				return nil, err
+			}
+			plan = append(plan, outboundPacket{"seeking_items_granted", 0, 14, update})
+		}
+		if grant.Advanced {
+			active, err := w.quests.Active(ctx, w.role)
+			if err != nil {
+				return nil, err
+			}
+			triggers, err := protocol.QuestTriggers(active)
+			if err != nil {
+				return nil, err
+			}
+			plan = append(plan, outboundPacket{"seeking_quest_triggers", 0, 291, triggers})
+		}
+	}
+	if confirmed && w.quests != nil && !unowned {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		advanced, err := w.quests.EnemyDeath(ctx, w.role, w.activeDungeon, uint16(r.Entity))
 		if err == nil && advanced {
 			var active []protocol.ActiveQuest

@@ -20,6 +20,7 @@ type FinishReceipt struct {
 	Source     string                   `json:"source"`
 	Model      string                   `json:"model"`
 	Items      []inventory.AwardReceipt `json:"items,omitempty"`
+	Consumed   []inventory.AwardReceipt `json:"consumed,omitempty"`
 	// UnlockedEquipment carries the extended-slot bits this settlement just
 	// added. The gateway resends USERINFO0/USERINFO1 when it is non-zero,
 	// because the client only rebuilds its armoury from that unlock byte and
@@ -96,6 +97,17 @@ func (s *Service) Finish(ctx context.Context, role storage.Character, r protocol
 		if len(awards) > 0 && s.Inventory == nil {
 			return nil, nil, ErrRewardPending
 		}
+		var consumed []inventory.AwardReceipt
+		if model == SeekingItems {
+			objective, ok := SeekingObjective(d)
+			if !ok {
+				return nil, nil, ErrObjectiveIncomplete
+			}
+			current.State, consumed, e = consumeSeekingItems(current.State, objective.Items)
+			if e != nil {
+				return nil, nil, e
+			}
+		}
 		// EXP, gold, inventory and completion are prepared within one
 		// transaction.
 		gain, e := progression.QuestExperience(s.Progression.Catalog, d, state.Level)
@@ -146,7 +158,7 @@ func (s *Service) Finish(ctx context.Context, role storage.Character, r protocol
 			}
 			items = append(items, item)
 		}
-		receipt, e := json.Marshal(FinishReceipt{Quest: r.ID, Experience: gain, Gold: gold, Source: s.Catalog.Source.Checksum, Model: s.Progression.Rules.Model, Items: items, UnlockedEquipment: unlock})
+		receipt, e := json.Marshal(FinishReceipt{Quest: r.ID, Experience: gain, Gold: gold, Source: s.Catalog.Source.Checksum, Model: s.Progression.Rules.Model, Items: items, Consumed: consumed, UnlockedEquipment: unlock})
 		return saved.State, receipt, e
 	})
 	if e != nil {

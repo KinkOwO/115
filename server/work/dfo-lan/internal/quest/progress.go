@@ -17,6 +17,7 @@ const SingleReachRange = "single-reach-range-remaining-v1"
 // decoder and completion rule now cover every three-cell NPC reach objective.
 const ReachNPC = "alflyra-3252-reach-npc-remaining-v1"
 const SeekAndMeetNPC = "seek-items-and-meet-npc-remaining-v1"
+const SeekingItems = "seeking-items-remaining-v1"
 const LookCinematic = "look-cinematic-client-gated-v1"
 const MonsterKillCheckpoint = "monster-kill-checkpoint-client-gated-v1"
 const SingleHuntEnemy = "single-hunt-enemy-remaining-v1"
@@ -102,6 +103,84 @@ type SeekObjective struct {
 	NPC   uint32
 }
 
+// MonsterItemReward is one source [monster reward item] row:
+// monster, dungeon, difficulty, item, amount, probability and stack limit.
+// SeekingObjective only accepts the current epic form whose probability is
+// 100 and whose difficulty is the -1 wildcard, so runtime award decisions do
+// not need an invented random or difficulty interpretation.
+type MonsterItemReward struct {
+	Monster, Dungeon, Item uint32
+	Amount                 uint32
+}
+
+type SeekingItemObjective struct {
+	Items   []ItemNeed
+	Dungeon uint32
+	Rewards []MonsterItemReward
+}
+
+// SeekingObjective decodes every epic [seeking] row in the current source.
+// The objective is a list of (item, amount) pairs, and the quest's own
+// [monster reward item] rows name the owned monster deaths that create them.
+func SeekingObjective(d catalog.QuestDefinition) (SeekingItemObjective, bool) {
+	if len(d.Pending) != 0 || d.Kind != "[seeking]" || len(d.ObjectiveCells) < 2 || len(d.ObjectiveCells)%2 != 0 || reachSubtype(d) != -1 {
+		return SeekingItemObjective{}, false
+	}
+	grade := cells(d.Script.Cells, "[grade]")
+	info := cells(d.Script.Cells, "[dungeon info]")
+	rows := cells(d.Script.Cells, "[monster reward item]")
+	if len(grade) != 1 || grade[0].Type != 6 || grade[0].Text != "[epic]" ||
+		len(info) != 2 || info[0].Type != 0 || info[0].Value <= 0 || info[1].Type != 0 || info[1].Value != -1 ||
+		len(rows) == 0 || len(rows)%7 != 0 {
+		return SeekingItemObjective{}, false
+	}
+	var out SeekingItemObjective
+	out.Dungeon = uint32(info[0].Value)
+	need := map[uint32]uint32{}
+	for i := 0; i < len(d.ObjectiveCells); i += 2 {
+		a, n := d.ObjectiveCells[i], d.ObjectiveCells[i+1]
+		if a.Type != 0 || n.Type != 0 || a.Value <= 0 || n.Value <= 0 {
+			return SeekingItemObjective{}, false
+		}
+		item, amount := uint32(a.Value), uint32(n.Value)
+		if _, duplicate := need[item]; duplicate {
+			return SeekingItemObjective{}, false
+		}
+		need[item] = amount
+		out.Items = append(out.Items, ItemNeed{item, amount})
+	}
+	seen := map[[3]uint32]bool{}
+	covered := map[uint32]bool{}
+	for i := 0; i < len(rows); i += 7 {
+		r := rows[i : i+7]
+		for _, cell := range r {
+			if cell.Type != 0 {
+				return SeekingItemObjective{}, false
+			}
+		}
+		if r[0].Value <= 0 || r[1].Value != int32(out.Dungeon) || r[2].Value != -1 ||
+			r[3].Value <= 0 || r[4].Value <= 0 || r[5].Value != 100 || r[6].Value < r[4].Value {
+			return SeekingItemObjective{}, false
+		}
+		item, amount := uint32(r[3].Value), uint32(r[4].Value)
+		if need[item] == 0 {
+			return SeekingItemObjective{}, false
+		}
+		key := [3]uint32{uint32(r[0].Value), item, amount}
+		if !seen[key] {
+			seen[key] = true
+			out.Rewards = append(out.Rewards, MonsterItemReward{uint32(r[0].Value), out.Dungeon, item, amount})
+		}
+		covered[item] = true
+	}
+	for item := range need {
+		if !covered[item] {
+			return SeekingItemObjective{}, false
+		}
+	}
+	return out, true
+}
+
 func SeekMeet(d catalog.QuestDefinition) (SeekObjective, bool) {
 	c := d.ObjectiveCells
 	if len(d.Pending) != 0 || d.Kind != "[seek n meet npc]" || len(c) < 3 || len(c)%2 == 0 {
@@ -141,6 +220,9 @@ func InitialProgress(d catalog.QuestDefinition) (uint32, string, error) {
 	}
 	if _, ok := SeekMeet(d); ok {
 		return 1, SeekAndMeetNPC, nil
+	}
+	if _, ok := SeekingObjective(d); ok {
+		return 1, SeekingItems, nil
 	}
 	if _, _, ok := HuntEnemyObjective(d); ok {
 		return 1, SingleHuntEnemy, nil
