@@ -2,12 +2,26 @@ package protocol
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
 	"testing"
 )
+
+func TestBunnyAradAvatarBoxAlwaysGetsMaximumWirePeriod(t *testing.T) {
+	for _, stored := range []uint32{0, 1, 1745917200} {
+		row := OrdinaryItem(69, bunnyAradAvatarBoxTemplate, 1, stored)
+		if got := binary.LittleEndian.Uint32(row[56:60]); got != MaxItemPeriod {
+			t.Fatalf("stored period %d: wire period = %d, want %d", stored, got, MaxItemPeriod)
+		}
+	}
+	other := OrdinaryItem(70, bunnyAradAvatarBoxTemplate+1, 1, 1)
+	if got := binary.LittleEndian.Uint32(other[56:60]); got != 1 {
+		t.Fatalf("unrelated item period = %d, want 1", got)
+	}
+}
 
 func TestNonzeroGoldNoticeUsesNativeOverheadBranch(t *testing.T) {
 	p, e := GoldPickupConfirmed(0x11223344, 3, 31)

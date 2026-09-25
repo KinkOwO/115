@@ -1,6 +1,7 @@
 # CHANGELOG
 
 ## 2026-09-25
+- **590012183 礼盒期限覆盖（用户实机确认）**：对该模板的普通道具行偏移 56 下发最大值 `2147483647`，兼容旧存档 `expire_time=0`，不改客户端资源或玩家存档。用户确认礼盒不再显示过期并能够使用；`go test ./...`、`go vet ./...` 通过。确认基线：`server/work/dfo-lan/docs/protocol/item-590012183-expiration-20260925.md`。
 - **光辉盒子随机装置服务端候选（待实机验证）**：CMD495/2036 回包 136 字节窗口状态（进度取角色存档），CMD681 开盒事务成功后推送 NOTI66 契约剩余时间；支持范围为当前导入配置中的 590712474、590719043。没有客户端或数据库结构改动。`go test ./...`、`go vet ./...` 通过；候选程序 `wireprobe-handoff-source.exe` SHA-256 `15CD7BAC4D6915A593F9975430A84BC495FF6F9553CC147D683E1BC500BB5FD4`。**未实机验证，不升级 confirmed baseline**；若商城点击只发 CMD2036 而未发 CMD681，尚需新会话日志确认开启入口。实施记录：`server/work/dfo-lan/docs/protocol/radiant-device-server-port-20260925.md`。
 - **商城契约购买闪退下游兼容开关（下游待实机验证）**：设置 `DFO_CONTRACT_PURCHASE_CRASH_FIX=1` 后，商城契约购买保留扣款、存档、NOTI14、NOTI53 与 ACK64，跳过购买路径即时 NOTI66；选角契约恢复不再依赖 `town-entry-probe`，仍按客户端要求发送剩余秒数。默认关闭，其他契约通知路径不变。新增包序测试和操作记录 `server/work/dfo-lan/docs/protocol/contract-purchase-crash-switch-20260925.md`。全量 `go test -p 1 ./...`、`go vet -p 1 ./...` 通过；独立候选版 `wireprobe-contract-crash-switch-20260925.exe` SHA-256 `970B8D9A7CDC63E112F4D9AE58D6758FDE4850E61842C7068EB6D0F4A0ECC64B`。下游是否因此不再闪退无法在本机复现，**尚未确认为修复基线**。
 - **奥德赛城镇换装备后模式错乱（用户实机确认）**：修复 `AppearanceProbe` 漏传角色模式的问题，装备刷新现在沿用 `IsOdyssey` 判断结果；奥德赛模式编码为 5，普通剧情模式编码为 0。用户确认换装备后角色不再刷新为剧情模式，副本信息正确。新增回归测试验证两种模式并与进城包一致。全量 `go test ./...`、`go vet ./...` 通过，源码候选版已构建。确认基线：`server/work/dfo-lan/docs/protocol/odyssey-equipment-mode-refresh-20260925.md`。
