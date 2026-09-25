@@ -225,7 +225,11 @@ func (w *worldSession) questInteraction(p []byte) ([]outboundPacket, error) {
 	// form, so a request naming a quest whose NPC is genuinely elsewhere is
 	// still refused, and the passive ProximityProgress walk keeps its own
 	// in-area requirement (it never consults this path).
-	if !quest.AllowsRemoteNPCInteraction(d) &&
+	communicated := w.communicationQuest == id && w.communicationNPC == npc &&
+		w.communicationTown == w.state.Position.Town &&
+		w.communicationArea == w.state.Position.Area &&
+		time.Now().Before(w.communicationUntil)
+	if !communicated && !quest.AllowsRemoteNPCInteraction(d) &&
 		(w.service == nil || !w.service.HasNPC(w.state.Position, npc)) {
 		return nil, fmt.Errorf("quest %d NPC %d is absent from current source area %d/%d", id, npc, w.state.Position.Town, w.state.Position.Area)
 	}
@@ -233,6 +237,10 @@ func (w *worldSession) questInteraction(p []byte) ([]outboundPacket, error) {
 	defer cancel()
 	if e := w.quests.MeetNPC(ctx, w.role, id, npc); e != nil {
 		return nil, e
+	}
+	if communicated {
+		w.communicationQuest = 0
+		w.communicationNPC = 0
 	}
 	active, e := w.quests.Active(ctx, w.role)
 	if e != nil {
