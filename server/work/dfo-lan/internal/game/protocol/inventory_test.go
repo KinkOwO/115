@@ -10,16 +10,34 @@ import (
 	"testing"
 )
 
-func TestBunnyAradAvatarBoxAlwaysGetsMaximumWirePeriod(t *testing.T) {
+func TestMaxItemPeriodCoversTaggedAndInstanceLimitedItems(t *testing.T) {
+	const expiringTemplate = 590012183
+	ConfigureMaxItemPeriods(nil)
+	t.Cleanup(func() { ConfigureMaxItemPeriods(nil) })
+	disabled := OrdinaryItem(69, expiringTemplate, 1)
+	if got := binary.LittleEndian.Uint32(disabled[56:60]); got != 0 {
+		t.Fatalf("disabled override period = %d, want 0", got)
+	}
+	if !StoredItemExpired(1, 2) {
+		t.Fatal("disabled override did not retain expiry check")
+	}
+	ConfigureMaxItemPeriods([]uint32{expiringTemplate})
+	if StoredItemExpired(1, 2) {
+		t.Fatal("enabled override still rejects a time-limited instance")
+	}
 	for _, stored := range []uint32{0, 1, 1745917200} {
-		row := OrdinaryItem(69, bunnyAradAvatarBoxTemplate, 1, stored)
+		row := OrdinaryItem(69, expiringTemplate, 1, stored)
 		if got := binary.LittleEndian.Uint32(row[56:60]); got != MaxItemPeriod {
 			t.Fatalf("stored period %d: wire period = %d, want %d", stored, got, MaxItemPeriod)
 		}
 	}
-	other := OrdinaryItem(70, bunnyAradAvatarBoxTemplate+1, 1, 1)
-	if got := binary.LittleEndian.Uint32(other[56:60]); got != 1 {
-		t.Fatalf("unrelated item period = %d, want 1", got)
+	other := OrdinaryItem(70, expiringTemplate+1, 1)
+	if got := binary.LittleEndian.Uint32(other[56:60]); got != 0 {
+		t.Fatalf("unrelated item period = %d, want 0", got)
+	}
+	instanceLimited := OrdinaryItem(71, expiringTemplate+1, 1, 1)
+	if got := binary.LittleEndian.Uint32(instanceLimited[56:60]); got != MaxItemPeriod {
+		t.Fatalf("instance-limited item period = %d, want %d", got, MaxItemPeriod)
 	}
 }
 

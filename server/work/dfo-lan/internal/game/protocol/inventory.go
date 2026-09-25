@@ -20,12 +20,6 @@ import (
 // 「没有更好值」的兼容兜底（脚本不声明期限的物品不会渲染这行文案）。
 const MaxItemPeriod = math.MaxInt32
 
-// Bunny Bunny Arad Avatar Box is still distributed by this server even though
-// its client PVF declares a fixed 2025-04-29 expiration date. Give this one
-// template an explicit maximum period in every inventory row, including rows
-// restored from older saves where expire_time is zero.
-const bunnyAradAvatarBoxTemplate = 590012183
-
 // OrdinaryItem is the current 181-byte base row. Special equipment branches
 // require extra source/type validation and are deliberately separate.
 func OrdinaryItem(slot uint16, template, amount uint32, expireTime ...uint32) [CurrentItemRecordSize]byte {
@@ -33,10 +27,12 @@ func OrdinaryItem(slot uint16, template, amount uint32, expireTime ...uint32) [C
 	binary.LittleEndian.PutUint16(p[:], slot)
 	binary.LittleEndian.PutUint32(p[2:], template)
 	binary.LittleEndian.PutUint32(p[6:], amount)
-	if template == bunnyAradAvatarBoxTemplate {
-		binary.LittleEndian.PutUint32(p[56:], MaxItemPeriod)
-	} else if len(expireTime) > 0 && expireTime[0] != 0 {
-		binary.LittleEndian.PutUint32(p[56:], expireTime[0])
+	var period uint32
+	if len(expireTime) > 0 {
+		period = expireTime[0]
+	}
+	if period = ItemPeriodForWire(template, period); period != 0 {
+		binary.LittleEndian.PutUint32(p[56:], period)
 	}
 	return p
 }

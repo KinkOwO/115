@@ -358,6 +358,18 @@ func main() {
 		if e != nil {
 			log.Fatal(e)
 		}
+		if os.Getenv("DFO_MAX_ITEM_PERIOD") == "1" {
+			if *itemIndexFile == "" {
+				log.Fatal("DFO_MAX_ITEM_PERIOD requires -item-index")
+			}
+			periodFile := filepath.Join(filepath.Dir(*itemIndexFile), "item-period-tags.json")
+			templates, periodErr := catalog.LoadItemPeriods(periodFile, data.Source.Checksum)
+			if periodErr != nil {
+				log.Fatalf("DFO_MAX_ITEM_PERIOD: %v", periodErr)
+			}
+			protocol.ConfigureMaxItemPeriods(templates)
+			log.Printf("maximum item period enabled for %d PVF templates", len(templates))
+		}
 		if *shopPilotFile != "" {
 			var database string
 			if e = s.DB.QueryRow(ctx, "SELECT current_database()").Scan(&database); e == nil {

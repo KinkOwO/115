@@ -73,7 +73,7 @@ func (s *Service) Consume(ctx context.Context, role storage.Character, r protoco
 			}
 			if _, contract := cashshop.ResolveContractItem(r.Template); contract {
 				for _, row := range b.Items {
-					if row.Slot == r.Slot && row.Template == r.Template && row.ExpireTime != 0 && int64(row.ExpireTime) <= time.Now().Unix() {
+					if row.Slot == r.Slot && row.Template == r.Template && protocol.StoredItemExpired(row.ExpireTime, time.Now().Unix()) {
 						return nil, nil, nil, fmt.Errorf("契约物品已过期")
 					}
 				}

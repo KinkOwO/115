@@ -125,7 +125,7 @@ func (w *worldSession) openLotteryItem(ctx context.Context, store lotteryItemSto
 		if source == nil || source.Template != pool.SourceItem || source.Amount == 0 {
 			return nil, nil, fmt.Errorf("slot %d does not hold lottery item 7772", sourceSlot)
 		}
-		if source.ExpireTime != 0 && int64(source.ExpireTime) <= time.Now().Unix() {
+		if protocol.StoredItemExpired(source.ExpireTime, time.Now().Unix()) {
 			return nil, nil, fmt.Errorf("lottery item 7772 has expired")
 		}
 		bag, _, err = bag.Consume(awardCatalog, sourceSlot, pool.SourceItem)

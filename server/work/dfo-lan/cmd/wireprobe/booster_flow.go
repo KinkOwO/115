@@ -307,7 +307,7 @@ func (w *worldSession) openBoosterItem(
 			if boxIdx < 0 {
 				return nil, nil, fmt.Errorf("contract item at slot %d not found", req.Slot)
 			}
-			if expires := b.Items[boxIdx].ExpireTime; expires != 0 && int64(expires) <= time.Now().Unix() {
+			if protocol.StoredItemExpired(b.Items[boxIdx].ExpireTime, time.Now().Unix()) {
 				return nil, nil, fmt.Errorf("契约道具已过期")
 			}
 			if b.Items[boxIdx].Amount > 1 {

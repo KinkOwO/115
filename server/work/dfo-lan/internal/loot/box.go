@@ -4,6 +4,7 @@ import (
 	"context"
 	"dfolan/internal/cashshop"
 	"dfolan/internal/catalog"
+	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/storage"
 	"encoding/json"
@@ -358,7 +359,7 @@ func (s *Service) settleBoxRewardBag(bag inventory.Bag) (inventory.Bag, []storag
 			items = append(items, row)
 			continue
 		}
-		if contract, ok := cashshop.ResolveContractItem(row.Template); ok && row.Amount > 0 && (row.ExpireTime == 0 || int64(row.ExpireTime) > time.Now().Unix()) {
+		if contract, ok := cashshop.ResolveContractItem(row.Template); ok && row.Amount > 0 && !protocol.StoredItemExpired(row.ExpireTime, time.Now().Unix()) {
 			if contract.DurationSecond <= 0 || int64(row.Amount) > math.MaxInt64/contract.DurationSecond {
 				return bag, nil, fmt.Errorf("土罐契约时长溢出：%d", row.Template)
 			}
@@ -387,7 +388,7 @@ func (s *Service) RepairBoxRewards(ctx context.Context, role storage.Character) 
 	for _, row := range bag.Items {
 		if _, ok := s.Boxes.Rewards[strconv.FormatUint(uint64(row.Template), 10)]; ok {
 			_, contract := cashshop.ResolveContractItem(row.Template)
-			if row.ExpireTime == 0 || (contract && row.Amount > 0 && int64(row.ExpireTime) > time.Now().Unix()) {
+			if row.ExpireTime == 0 || (contract && row.Amount > 0 && !protocol.StoredItemExpired(row.ExpireTime, time.Now().Unix())) {
 				needed = true
 				break
 			}

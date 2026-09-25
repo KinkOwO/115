@@ -124,7 +124,7 @@ func EquipmentPayload(space byte, items []BagEquipment, restore bool) ([]byte, e
 		// u32、普通装备没有期限语义，两者都不在这次修复范围内。
 		if space == 7 || (space == 3 && i.Slot >= 26 && i.Slot <= 29) {
 			expiry := creatureRowPeriod(i.Template, i.Period, binary.LittleEndian.Uint32(row[56:60]))
-			binary.LittleEndian.PutUint32(row[56:], expiry)
+			binary.LittleEndian.PutUint32(row[56:], protocol.ItemPeriodForWire(i.Template, expiry))
 		}
 		p = append(p, row[:]...)
 		avatar := space == 1 || (space == 3 && i.Slot <= 11 && i.Template != 0)
@@ -135,7 +135,7 @@ func EquipmentPayload(space byte, items []BagEquipment, restore bool) ([]byte, e
 			p = append(p, i.AvatarSockets...)
 		}
 		if (restore && (space == 1 || space == 3)) || (!restore && avatar && i.Template != 0) {
-			u32(i.Period)
+			u32(protocol.ItemPeriodForWire(i.Template, i.Period))
 		}
 	}
 	return p, nil

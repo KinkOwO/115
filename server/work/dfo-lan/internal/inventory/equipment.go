@@ -270,6 +270,7 @@ func importTarget(cells []pvf.Token) uint32 {
 //     池外，掉落池只剩 grade<=20 的 1534 件；
 //   - 后果：等级 >=22 的副本**一件装备都掉不出来** —— 实机日志里
 //     `drop_rules_pending / equipment_grade_window_empty` 就是这条路径。
+//
 // 发放走的仍是 Reward（见 Bag.AddEquipment），放宽此处不影响任务/GM 发放。
 func (c *EquipmentCatalog) Basic(id uint32) (uint16, error) {
 	d, e := c.Reward(id)
@@ -298,6 +299,7 @@ func EquipmentRow(i BagEquipment) [protocol.CurrentItemRecordSize]byte {
 	}
 	binary.LittleEndian.PutUint16(r[:], i.Slot)
 	binary.LittleEndian.PutUint32(r[2:], i.Template)
+	binary.LittleEndian.PutUint32(r[56:], protocol.ItemPeriodForWire(i.Template, binary.LittleEndian.Uint32(r[56:60])))
 	// Worn slot 26 is the equipped creature. Its Data field is the
 	// creature instance key consumed by both NOTI13/14 and NOTI105.
 	if i.Slot == 26 && i.Template != 0 && binary.LittleEndian.Uint32(r[6:10]) == 0 {
