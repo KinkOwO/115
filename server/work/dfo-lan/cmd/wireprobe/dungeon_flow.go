@@ -682,7 +682,7 @@ func (w *worldSession) monsterDeath(p []byte) ([]outboundPacket, error) {
 			plan = append(plan, outboundPacket{"seeking_quest_triggers", 0, 291, triggers})
 		}
 	}
-	if confirmed && w.quests != nil && !unowned {
+	if confirmed && w.quests != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		advanced, err := w.quests.EnemyDeath(ctx, w.role, w.activeDungeon, uint16(r.Entity))
 		if err == nil && advanced {
