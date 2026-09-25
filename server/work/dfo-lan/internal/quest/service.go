@@ -75,6 +75,10 @@ func (s *Service) Accept(ctx context.Context, role storage.Character, id uint16)
 	if e := json.Unmarshal(role.State, &charState); e != nil {
 		return storage.QuestState{}, e
 	}
+	targets, usable := targetCharacters(d.Script.Cells)
+	if !usable || !targetCharacterAllowed(targets, job, charState.Advancement, charState.Awakening) {
+		return storage.QuestState{}, errors.New("quest target character requirement not met")
+	}
 	for _, g := range cells(d.Script.Cells, "[grow type]") {
 		if g.Type != 0 || g.Value >= 0 && g.Value != int32(charState.Advancement) {
 			return storage.QuestState{}, errors.New("quest advancement requirement not met")

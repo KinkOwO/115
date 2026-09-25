@@ -22,6 +22,8 @@ type Entry struct {
 	Prerequisites      []uint32
 	PrerequisiteGroups [][]uint32
 	GrowTypes          []int32
+	TargetCharacters   []targetCharacter
+	TargetUsable       bool
 	NPC                uint32
 	NPCReach           NPCReachObjective
 	Range              RangeObjective
@@ -139,6 +141,7 @@ func BuildIndex(c catalog.QuestCatalog) *Index {
 			MinimumLevel: d.MinimumLevel, MaximumLevel: d.MaximumLevel,
 			Jobs: d.Jobs, Prerequisites: d.Prerequisites, PrerequisiteGroups: groups,
 		}
+		e.TargetCharacters, e.TargetUsable = targetCharacters(d.Script.Cells)
 		for _, g := range cells(d.Script.Cells, "[grow type]") {
 			if g.Type != 0 {
 				e.GrowUsable = false

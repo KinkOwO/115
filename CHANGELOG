@@ -1,6 +1,7 @@
 # CHANGELOG
 
 ## 2026-09-26
+- **觉醒任务列表按目标角色筛选（用户实机确认）**：任务源的 `[target character]` 三元组限定职业、转职分支及觉醒阶段；服务端可接任务列表与接取校验现按该源条件判断，`-1` 作为通配值。用户确认 Episode 列表只保留符合当前 job/grow 的任务。无数据库或客户端改动；`go test ./...`、`go vet ./...` 通过；候选版 SHA-256 `145B1364F6AA02827D31C9F34638AE94FDD6D55327D8E3B76C50F6B57FB22986`。确认基线：`server/work/dfo-lan/docs/protocol/awakening-quest-target-character-20260926.md`。
 - **任务 3634「Militia Captain Hogas」Boss 结算后无法交付（用户实机确认）**：任务物品已入包，客户端发送 CMD33 触发位 `0x10`，但服务端原先只接受零值字段；任务 NPC 1298 位于专属副本 Boss 房，不在返回的城镇区域。修复候选按已确认的专属副本通关、Boss 地图 NPC 和持有物品推进任务。实机 NOTI291 显示进度归零，随后 CMD34 完成任务。`go test ./...`、`go vet ./...` 通过。确认基线：`server/work/dfo-lan/docs/protocol/quest-3634-trigger-evidence-gap-20260926.md`。
 - **同形态复合任务通用判定（attempt 2/3，待新任务实机覆盖）**：去除任务 3634、地图 91798、物品 10164777 与 NPC 1298 的运行时特例，改由任务 `[seek n meet npc]` 目标、副本信息、任务专属迷宫、源 Boss 房 `[NPC]` 行及角色实际持有物品共同判定。当前配置中只有 3634 命中该完整形态；未来相同源形态自动适用，其他会面任务仍保留原路径。新增模拟不同任务 ID 和错误迷宫、缺物品、缺 NPC 的回归测试。`go test ./...`、`go vet ./...` 通过；候选 SHA-256 `0A4FC40D52D7B4C0726871CD3833D490ACD93308CFC3E8E705C4D342CBA92D4E`。详情见同一任务交接记录。
 - **西部森林 boss 房间无法进入（用户实机确认通过）**：副本 78 的 boss 地图 91757 使用怪物行 `[fixed] [NPC] 1020 [boss]`；服务端此前未消费 `[NPC]` 的数值参数，导致 CMD45 房间切换被拒。解析器现校验并消费该参数，继续解析同一行的 boss 等级，保留后续怪物源索引。用户确认可进入 boss 房、通关并完成任务。新增地图行回归测试；`go test ./...`、`go vet ./...` 通过。候选版 SHA-256 `F9044AFD0DB5E272CA5F7C0DE76630363B70B10B00D9503F05CC1B69692D2068`。确认基线：`server/work/dfo-lan/docs/protocol/west-forest-boss-room-20260926.md`。
