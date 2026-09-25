@@ -24,8 +24,18 @@ func DecodeReinforcement(p []byte) (ReinforcementRequest, error) {
 		return r, fmt.Errorf("强化请求长度不足")
 	}
 	n := binary.LittleEndian.Uint32(p[13:17])
-	if n > 512 || uint64(n)+22 != uint64(len(p)) {
+	if n > 512 || uint64(n)+22 > uint64(len(p)) {
 		return r, fmt.Errorf("强化请求名称长度无效")
+	}
+	// CMD80 使用序号 10 的四字节对齐编码。正文长度不是四的倍数时，
+	// 解密结果会保留末尾零填充；不能把填充误判为名称长度错误。
+	// 同时保留原生发送器尚未补齐的直接向量，拒绝非零或多余尾部。
+	end := int(n) + 22
+	if len(p) != end && len(p) != (end+3)/4*4 {
+		return r, fmt.Errorf("强化请求尾部长度无效")
+	}
+	if err := padding(p[end:], 4); err != nil {
+		return r, err
 	}
 	r.Mode, r.EquipmentSpace = p[0], p[1]
 	r.EquipmentSlot = binary.LittleEndian.Uint16(p[2:4])
