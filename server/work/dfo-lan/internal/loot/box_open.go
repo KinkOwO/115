@@ -300,3 +300,29 @@ func readBoxCounter(state json.RawMessage, box uint32, name string) (uint32, err
 	}
 	return points[name], nil
 }
+
+// BoxWindowCounters reads the same persisted point stacks used by OpenBoxes.
+// The device window needs their current values even before the first open.
+func (s *Service) BoxWindowCounters(state json.RawMessage, box uint32) (uint32, uint32, error) {
+	if s == nil || s.Boxes == nil {
+		return 0, 0, fmt.Errorf("box catalog is not loaded")
+	}
+	table, ok := s.Boxes.Table(box)
+	if !ok {
+		return 0, 0, fmt.Errorf("box %d has no imported content table", box)
+	}
+	points, e := readBoxPoints(state, box)
+	if e != nil {
+		return 0, 0, e
+	}
+	var bonus, section uint32
+	for i, stack := range table.PointStacks {
+		switch stack.Type {
+		case "bonus":
+			bonus = points[strconv.Itoa(i)]
+		case "section":
+			section = points[strconv.Itoa(i)]
+		}
+	}
+	return bonus, section, nil
+}

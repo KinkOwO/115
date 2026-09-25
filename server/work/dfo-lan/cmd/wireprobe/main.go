@@ -1226,6 +1226,20 @@ func main() {
 				event(map[string]any{"kind": "cera_purchase_cancelled", "reason": reason, "items": items, "character_id": selectedCharacterID, "charged": false, "plain_hex": hex.EncodeToString(payload)})
 				continue
 			}
+			if frame.Type == 1 && bootstrapped && verified && worldState != nil && lootService != nil && lootService.Boxes != nil &&
+				((frame.ID == 2036 && protocol.IsCeraShopDeviceAction(plaintext)) ||
+					(frame.ID == 495 && protocol.IsCeraShopDeviceRefresh(plaintext))) {
+				blob, stateErr := radiantDeviceWindowState(lootService, worldState.role)
+				if stateErr != nil {
+					event(map[string]any{"kind": "radiant_device_state_refused", "id": frame.ID, "character_id": selectedCharacterID, "reason": stateErr.Error()})
+					continue
+				}
+				if e := sendPayload(1, 2036, blob); e != nil {
+					return
+				}
+				event(map[string]any{"kind": "radiant_device_state_sent", "id": frame.ID, "character_id": selectedCharacterID, "plain_hex": hex.EncodeToString(blob)})
+				continue
+			}
 			if frame.Type == 1 && bootstrapped && verified && frame.ID == 681 && worldState != nil && lootService != nil && lootService.Boxes != nil {
 				request, decodeErr := protocol.DecodeRadiantBoxOpen(plaintext)
 				if decodeErr != nil {

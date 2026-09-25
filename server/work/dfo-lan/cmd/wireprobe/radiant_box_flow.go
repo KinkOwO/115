@@ -8,6 +8,7 @@ import (
 	"dfolan/internal/storage"
 	"fmt"
 	"sort"
+	"time"
 )
 
 // radiantBoxOpens maps the window's mode word to how many boxes it opens. The
@@ -28,12 +29,23 @@ func radiantBoxOpens(mode uint32) (uint32, error) {
 // request names no template, so the bag decides; the transactional open re-reads
 // the same bag before it spends anything.
 func radiantBoxHeld(service *loot.Service, role storage.Character) (uint32, error) {
-	if service == nil {
-		return 0, fmt.Errorf("box catalog is not loaded")
+	box, ok, e := radiantBoxInBag(service, role)
+	if e != nil {
+		return 0, e
+	}
+	if !ok {
+		return 0, fmt.Errorf("no imported radiant box is owned")
+	}
+	return box, nil
+}
+
+func radiantBoxInBag(service *loot.Service, role storage.Character) (uint32, bool, error) {
+	if service == nil || service.Boxes == nil {
+		return 0, false, fmt.Errorf("box catalog is not loaded")
 	}
 	bag, e := inventory.ReadBag(role.State)
 	if e != nil {
-		return 0, e
+		return 0, false, e
 	}
 	ids := make([]string, 0, len(service.Boxes.Tables))
 	for id := range service.Boxes.Tables {
@@ -46,10 +58,26 @@ func radiantBoxHeld(service *loot.Service, role storage.Character) (uint32, erro
 			continue
 		}
 		if _, held, ok := loot.BoxOpenMaterial(bag, box); ok && held > 0 {
-			return box, nil
+			return box, true, nil
 		}
 	}
-	return 0, fmt.Errorf("no imported radiant box is owned")
+	return 0, false, nil
+}
+
+// radiantDeviceWindowState answers both shop and bag-side state requests.
+func radiantDeviceWindowState(service *loot.Service, role storage.Character) ([]byte, error) {
+	box, held, e := radiantBoxInBag(service, role)
+	if e != nil {
+		return nil, e
+	}
+	if !held {
+		return protocol.CeraShopDeviceState(0, 0)
+	}
+	bonus, section, e := service.BoxWindowCounters(role.State, box)
+	if e != nil {
+		return nil, e
+	}
+	return protocol.CeraShopDeviceState(bonus, section)
 }
 
 // openRadiantBox answers the radiant treasure box window's EVENT_REQUEST. It
@@ -104,19 +132,33 @@ func (w *worldSession) openRadiantBox(ctx context.Context, box, count uint32) ([
 		return nil, e
 	}
 	w.role = saved
+	plan := make([]outboundPacket, 0, 2+len(receipt.Premiums))
 	// 兑换遗留契约时可能删除多个槽位，使用完整还原清除客户端残留图标。
 	if len(receipt.Premiums) > 0 {
 		restore, err := protocol.InventoryRestore(bag.Rows(), bag.Expansion)
 		if err != nil {
 			return nil, err
 		}
-		return []outboundPacket{
-			{"radiant_box_inventory_restored", 0, 13, restore},
-			{"radiant_box_notice", 0, 2551, notice},
-		}, nil
+		plan = append(plan,
+			outboundPacket{"radiant_box_inventory_restored", 0, 13, restore},
+			outboundPacket{"radiant_box_notice", 0, 2551, notice},
+		)
+	} else {
+		plan = append(plan,
+			outboundPacket{"radiant_box_inventory_updated", 0, 14, update},
+			outboundPacket{"radiant_box_notice", 0, 2551, notice},
+		)
 	}
-	return []outboundPacket{
-		{"radiant_box_inventory_updated", 0, 14, update},
-		{"radiant_box_notice", 0, 2551, notice},
-	}, nil
+	for _, premium := range receipt.Premiums {
+		remaining := premium.EndTime - time.Now().Unix()
+		if remaining <= 0 {
+			continue
+		}
+		payload, err := protocol.PremiumActivationNotice(premium.Type, remaining)
+		if err != nil {
+			return nil, err
+		}
+		plan = append(plan, outboundPacket{"radiant_box_contract_noti", 0, 66, payload})
+	}
+	return plan, nil
 }
