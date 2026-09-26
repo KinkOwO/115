@@ -40,6 +40,7 @@ type State struct {
 	LearnedSkills   [2]map[uint16]byte     `json:"learned_skills,omitempty"`
 	SkillSlots      [2]map[uint16]uint16   `json:"skill_slots,omitempty"`
 	SkillCommands   []byte                 `json:"skill_commands,omitempty"`
+	SkillPreset     []byte                 `json:"skill_preset,omitempty"`
 	SourcePath      string                 `json:"source_path"`
 	SourceSHA256    string                 `json:"source_sha256"`
 	// Create equipment cells are intentionally unresolved until the native

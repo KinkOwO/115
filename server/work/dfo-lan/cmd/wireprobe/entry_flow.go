@@ -19,8 +19,8 @@ type preparedPacket struct {
 	Raw []byte
 }
 type entryPayloads struct {
-	Select, Basic, Addition, Skills, Vault, UserArea, Area, Fatigue, Complete []byte
-	Experience, CompletedQuests, Inventory                                    []byte
+	Select, Basic, Addition, Skills, SkillPreset, Vault, UserArea, Area, Fatigue, Complete []byte
+	Experience, CompletedQuests, Inventory                                                 []byte
 	// AccountMaterials is the NOTI13 list35 account material storage
 	// snapshot. It must be delivered before the list0 inventory snapshot so
 	// the client harvest (sub_145ADC2A0) moves the fixed slots 363..379 into
@@ -89,6 +89,7 @@ func (p entryPayloads) packets() []outboundPacket {
 		{"entry_basic_probe_sent", 0, 2, p.Basic},
 		{"entry_addition_sent", 0, 2, p.Addition},
 		{"entry_skills_sent", 0, 19, p.Skills},
+		{"skill_preset_restored", 0, 2758, p.SkillPreset},
 		{"vault_initialized", 0, 13, p.Vault},
 	}
 	if len(p.SecondaryVault) > 0 {

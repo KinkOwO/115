@@ -1906,6 +1906,15 @@ func main() {
 							return
 						}
 						event(map[string]any{"kind": "skill_commands_refreshed", "character_id": selectedCharacterID, "id": 19})
+						preset, presetErr := characters.SkillPresetInfo(worldState.role)
+						if presetErr != nil {
+							event(map[string]any{"kind": "skill_preset_refresh_failed", "reason": presetErr.Error(), "character_id": selectedCharacterID})
+						} else if len(preset) > 0 {
+							if e = sendPayload(0, 2758, preset); e != nil {
+								return
+							}
+							event(map[string]any{"kind": "skill_preset_restored_after_commands", "character_id": selectedCharacterID, "id": 2758})
+						}
 					}
 				}
 				continue
@@ -1927,7 +1936,7 @@ func main() {
 				}
 				continue
 			}
-			if characters != nil && bootstrapped && (frame.ID == 28 || frame.ID == 29 || frame.ID == 483 || frame.ID == 2179 || frame.ID == 2347) {
+			if characters != nil && bootstrapped && (frame.ID == 28 || frame.ID == 29 || frame.ID == 483 || frame.ID == 2179 || frame.ID == 2346 || frame.ID == 2347) {
 				if !verified {
 					continue
 				}
@@ -3168,6 +3177,11 @@ func main() {
 					plan.Skills, e = characters.EntrySkills(role)
 					if e != nil {
 						event(map[string]any{"kind": "entry_skills_error", "error": e.Error()})
+						continue
+					}
+					plan.SkillPreset, e = characters.SkillPresetInfo(role)
+					if e != nil {
+						event(map[string]any{"kind": "entry_skill_preset_error", "error": e.Error()})
 						continue
 					}
 				}

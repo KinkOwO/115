@@ -117,6 +117,10 @@ func (w *worldSession) dungeonResult(p []byte) ([]outboundPacket, error) {
 	if w.characters != nil {
 		if restore, e := w.characters.EntrySkills(role); e == nil {
 			plan = append(plan, outboundPacket{"skill_state_restored", 0, 19, restore})
+			plan, e = appendSkillPresetRestore(plan, w.characters, role, "skill_preset_restored_after_settlement")
+			if e != nil {
+				return nil, e
+			}
 		}
 		if variation, e := w.characters.VariationRestore(role); e == nil && len(variation) > 0 {
 			plan = append(plan, outboundPacket{"skill_variation_response", 1, 29, variation})
