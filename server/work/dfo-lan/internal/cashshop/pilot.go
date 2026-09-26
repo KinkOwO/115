@@ -153,7 +153,7 @@ func ordinaryHandler(item catalog.ScriptRecord, release bool) (deliveryType, err
 	if kind, ok := boxStackableType(item); ok && boxKind(kind) && boxContents(item) {
 		return packageHandler(item)
 	}
-	h := deliveryType{Limit: 1000}
+	h := deliveryType{Limit: math.MaxInt32}
 	openAll := os.Getenv("DFO_SHOP_OPEN_ALL") == "1"
 	for i, t := range item.Cells {
 		if t.Type != 3 {
@@ -188,7 +188,7 @@ func ordinaryHandler(item catalog.ScriptRecord, release bool) (deliveryType, err
 		}
 	}
 	if openAll && h.Limit == 0 {
-		h.Limit = 1000
+		h.Limit = math.MaxInt32
 	}
 	if openAll && h.Kind == "" {
 		h.Kind = "[etc]"
@@ -437,7 +437,7 @@ func (p *Pilot) resolveDeliveryType(template uint32) (deliveryType, error) {
 			}
 			limit := info.StackLimit
 			if limit == 0 {
-				limit = 1000
+				limit = math.MaxInt32
 			}
 			kind := info.StackableType
 			if kind == "" {
@@ -800,7 +800,11 @@ func (p *Pilot) deliverAmount(raw json.RawMessage, template, amount uint32, expi
 	if e != nil {
 		return nil, e
 	}
-	for _, row := range b.Items {
+	stackRows := b.Items
+	if inventory.IsPetConsumable(h.Kind) {
+		stackRows = b.PetItems
+	}
+	for _, row := range stackRows {
 		if amount == 0 {
 			break
 		}
@@ -872,6 +876,9 @@ func (p *Pilot) templateSpace(template uint32) (avatar, creature bool) {
 	case "[avatar]":
 		return true, false
 	case "[creature]":
+		return false, true
+	}
+	if inventory.IsPetConsumable(h.Kind) {
 		return false, true
 	}
 	return false, false

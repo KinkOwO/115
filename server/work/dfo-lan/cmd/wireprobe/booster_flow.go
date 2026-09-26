@@ -590,6 +590,23 @@ func (w *worldSession) openBoosterItem(
 				continue
 			}
 
+			if kind == "equipment" && wear != nil && wear.Catalog != nil {
+				gearKind, kindErr := wear.Catalog.EquipmentKind(g.Template)
+				if kindErr == nil && inventory.IsPetGear(gearKind) {
+					dur, durErr := boosterEquipmentDurability(wear, g.Template)
+					if durErr != nil {
+						return nil, nil, durErr
+					}
+					for cnt := uint32(0); cnt < g.Count; cnt++ {
+						b, _, err = b.AddPetGear(inventory.BagEquipment{Template: g.Template, Durability: dur})
+						if err != nil {
+							return nil, nil, err
+						}
+					}
+					hasCreatures = true
+					continue
+				}
+			}
 			// Destination 2: Creature (path contains "equipment/creature/")
 			if strings.Contains(itemPath, "equipment/creature/") {
 				hasCreatures = true
@@ -750,8 +767,8 @@ func (w *worldSession) openBoosterItem(
 		}
 		plan = append(plan, outboundPacket{"booster_avatar_inventory_updated", 0, 14, avatarPayload})
 	}
-	if res.HasCreatures && len(finalBag.Special[7]) > 0 {
-		creaturePayload, err := inventory.EquipmentPayload(7, finalBag.Special[7], false)
+	if (res.HasCreatures || len(finalBag.PetItems) > 0) && len(finalBag.Special[7])+len(finalBag.PetItems) > 0 {
+		creaturePayload, err := inventory.PetContainerBody(finalBag, false)
 		if err != nil {
 			return nil, err
 		}

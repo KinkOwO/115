@@ -71,6 +71,10 @@ func skillMutationResponsePlan(cs *character.Service, saved storage.Character, i
 			return nil, err
 		}
 		plan = append(plan, outboundPacket{"skill_state_restored", 0, 19, restore})
+		plan, err = appendSkillPresetRestore(plan, cs, saved, "skill_preset_restored_after_skill_state")
+		if err != nil {
+			return nil, err
+		}
 	}
 	return plan, nil
 }
@@ -131,6 +135,18 @@ func (s *skillSession) handle(cs *character.Service, w *worldSession, id uint16,
 		if e == nil {
 			body = protocol.SkillSlotTotalSuccess(r)
 		}
+	case 2346:
+		var r protocol.SkillPreset
+		r, e = protocol.DecodeSkillPresetSave(p)
+		if e == nil {
+			saved, applied, e = cs.SaveSkillPreset(ctx, w.role, key, r)
+		}
+		if e == nil {
+			w.role = saved
+			// The editor already applied this configuration locally. ACK only;
+			// NOTI2758 is used on entry and after a skill-tree rebuild.
+			return []outboundPacket{{"skill_preset_saved", 1, 2346, protocol.SkillPresetSaveSuccess()}}, nil
+		}
 	case 483:
 		// Two request shapes share this command. The Skill Reset window's
 		// Confirm frame is at least 8 bytes with a (style, mask) layout:
@@ -157,10 +173,12 @@ func (s *skillSession) handle(cs *character.Service, w *worldSession, id uint16,
 			// Reset window responses always lead with the full skill tree and
 			// close with the variation frame; the open Evolve/Enhance panel
 			// renders the last variation frame it receives.
-			return []outboundPacket{
-				{"skill_state_restored", 0, 19, restore},
-				{"skill_variation_reset_response", 1, 29, body},
-			}, nil
+			plan := []outboundPacket{{"skill_state_restored", 0, 19, restore}}
+			plan, e = appendSkillPresetRestore(plan, cs, saved, "skill_preset_restored_after_skill_reset")
+			if e != nil {
+				return nil, e
+			}
+			return append(plan, outboundPacket{"skill_variation_reset_response", 1, 29, body}), nil
 		}
 		if len(p) < 3 {
 			return nil, fmt.Errorf("short reset request")
@@ -175,6 +193,10 @@ func (s *skillSession) handle(cs *character.Service, w *worldSession, id uint16,
 			return nil, e
 		}
 		plan := []outboundPacket{{"skill_state_restored", 0, 19, restore}}
+		plan, e = appendSkillPresetRestore(plan, cs, saved, "skill_preset_restored_after_auto_set")
+		if e != nil {
+			return nil, e
+		}
 		variation, e := cs.VariationRestore(saved)
 		if e != nil {
 			return nil, e
@@ -184,9 +206,8 @@ func (s *skillSession) handle(cs *character.Service, w *worldSession, id uint16,
 		}
 		return plan, nil
 	case 2347:
-		// Chain / skill preset reset. The server stores no extra preset data:
-		// echo the current full skill tree (id19) and variation frame (id29)
-		// with zero state mutation. Omitting id29 would make the client render
+		// Chain / skill preset reset is not covered by the confirmed save/restore
+		// protocol. Keep the existing zero-mutation response. Omitting id29 would make the client render
 		// Enhance/Evolve/VP as cleared until the next login.
 		saved = w.role
 		restore, e := cs.EntrySkills(saved)

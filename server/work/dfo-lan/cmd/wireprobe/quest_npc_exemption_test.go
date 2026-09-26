@@ -204,6 +204,59 @@ func TestZasuraRevealedByPrecedingQuest(t *testing.T) {
 	}
 }
 
+func TestQuestLineageGuidesRevealedNPC(t *testing.T) {
+	qcat, err := catalog.LoadQuests("../../configs/quests.generated.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	d := qcat.Quests[13565]
+	const npc = 100001497
+	street := storage.WorldPosition{Town: 14, Area: 1}
+	t.Setenv("DFO_QUEST_VISIBLE_NPC_RELAX", "0")
+	if !questLineageShowsGuidedNPC(d, npc, street, qcat, true) ||
+		!allowsQuestVisibleNPCInteraction(13565, npc, street, d, qcat) {
+		t.Fatal("the 13562 clear/show and 13563 go guide should authorize 13565 in Slaugh 14/1")
+	}
+	for _, at := range []storage.WorldPosition{{Town: 14, Area: 0}, {Town: 54, Area: 1}} {
+		if allowsQuestVisibleNPCInteraction(13565, npc, at, d, qcat) {
+			t.Fatalf("quest 13565 was allowed outside its source guide at %+v", at)
+		}
+	}
+	if allowsQuestVisibleNPCInteraction(13565, 100001498, street, d, qcat) {
+		t.Fatal("wrong NPC was allowed")
+	}
+	if shown, found := questVisibilityOnClear(qcat.Quests[13562].Script.Cells, npc); !found || !shown {
+		t.Fatal("quest 13562 should show Erje on clear")
+	}
+	if shown, found := questVisibilityOnClear(qcat.Quests[13574].Script.Cells, npc); !found || shown {
+		t.Fatal("quest 13574 should hide Erje on clear")
+	}
+	t.Setenv("DFO_QUEST_VISIBLE_NPC_RELAX", "1")
+	if !allowsQuestVisibleNPCInteraction(13565, npc, storage.WorldPosition{Town: 1, Area: 0}, d, qcat) {
+		t.Fatal("opt-in source visibility path should cover deeper prerequisite chains")
+	}
+}
+
+func TestQuestReachTemporaryNPCFromNativeTrigger(t *testing.T) {
+	qcat, err := catalog.LoadQuests("../../configs/quests.generated.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	d := qcat.Quests[13574]
+	const npc = 100001497
+	street := storage.WorldPosition{Town: 14, Area: 1}
+	if !questLineageShowsReachNPC(d, npc, street, qcat) {
+		t.Fatal("the source should authorize the 13574 NPC reach trigger in Slaugh 14/1")
+	}
+	if questLineageShowsReachNPC(d, npc, storage.WorldPosition{Town: 14, Area: 0}, qcat) ||
+		questLineageShowsReachNPC(d, 100001494, street, qcat) {
+		t.Fatal("range trigger accepted an unlinked area or NPC")
+	}
+	if shown, found := questVisibilityOnClear(d.Script.Cells, npc); !found || shown {
+		t.Fatal("the NPC should hide only when quest 13574 is cleared")
+	}
+}
+
 // 客户端 CMD33 的形态（u16 33 / u16 quest / 其余 12 字节 0）之外的一律拒绝。
 func TestQuestInteractionRejectsNonNativeCMDForm(t *testing.T) {
 	w := &worldSession{

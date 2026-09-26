@@ -69,6 +69,22 @@ func TestEntryPacketsDelayAvatarRowsUntilAfterWorldInitialization(t *testing.T) 
 	}
 }
 
+func TestEntrySkillPresetFollowsSkillTree(t *testing.T) {
+	packets := (entryPayloads{Skills: []byte{1}, SkillPreset: make([]byte, 28)}).packets()
+	skills, preset := -1, -1
+	for i, p := range packets {
+		if p.ID == 19 {
+			skills = i
+		}
+		if p.ID == 2758 {
+			preset = i
+		}
+	}
+	if skills < 0 || preset != skills+1 {
+		t.Fatalf("skill preset order skills=%d preset=%d", skills, preset)
+	}
+}
+
 func TestCompleteEntryPreflight(t *testing.T) {
 	must := func(p []byte, err error) []byte {
 		t.Helper()

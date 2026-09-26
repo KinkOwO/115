@@ -21,7 +21,7 @@ func (s *Store) DeleteCharacter(ctx context.Context, account int64, slot uint16,
 	}
 	var id int64
 	var actual string
-	e = tx.QueryRow(ctx, `SELECT id,name FROM characters WHERE account_id=$1 AND deleted_at IS NULL ORDER BY wire_id OFFSET $2 LIMIT 1 FOR UPDATE`, account, int(slot)).Scan(&id, &actual)
+	e = tx.QueryRow(ctx, `SELECT id,name FROM characters WHERE account_id=$1 AND deleted_at IS NULL ORDER BY coalesce(roster_order,wire_id),wire_id OFFSET $2 LIMIT 1 FOR UPDATE`, account, int(slot)).Scan(&id, &actual)
 	if e != nil {
 		return 0, e
 	}

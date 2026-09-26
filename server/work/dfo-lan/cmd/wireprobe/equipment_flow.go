@@ -46,6 +46,9 @@ func (s *equipmentSession) handle(service *inventory.WearService, w *worldSessio
 		s.initialized = true
 	}
 	hash := sha256.Sum256(raw)
+	if plan, handled, e := w.movePetStack(service.BagRules, r, fmt.Sprintf("petmove:%x:%x", s.nonce, hash)); handled {
+		return plan, e
+	}
 	// A stack going onto the quick-use belt belongs to the stackable path; anything it does not
 	// recognise falls through to the equipment move unchanged.
 	if plan, handled, e := w.moveStack(service.BagRules, r, fmt.Sprintf("bagmove:%x:%x", s.nonce, hash)); handled {
@@ -176,6 +179,14 @@ func (s *equipmentSession) handle(service *inventory.WearService, w *worldSessio
 		plan = append(plan, outboundPacket{"equipment_appearance_refreshed", 0, 2, probe})
 	}
 	w.role = saved
+	if (r.SourceList == 3 && r.SourceSlot == 26) || (r.DestinationList == 3 && r.DestinationSlot == 26) {
+		loyaltyCtx, loyaltyCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		loyaltyPackets, loyaltyErr := w.refreshCreatureLoyalty(loyaltyCtx, time.Now(), w.activeDungeon != nil)
+		loyaltyCancel()
+		if loyaltyErr == nil {
+			plan = append(plan, loyaltyPackets...)
+		}
+	}
 	return plan, nil
 }
 

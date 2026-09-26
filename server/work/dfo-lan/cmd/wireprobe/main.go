@@ -750,6 +750,9 @@ func main() {
 			log.Fatal(e)
 		}
 		vaultService = &inventory.VaultService{Store: characters.Store, Rules: rules}
+		if wearService != nil {
+			vaultService.Equipment = wearService.Catalog
+		}
 		if *vaultPurchase || *vaultRelease || *shopRelease {
 			for n := uint16(24); n <= 264; n += 16 {
 				vaultService.Rules.VerifiedSlots = append(vaultService.Rules.VerifiedSlots, n)
@@ -1211,13 +1214,24 @@ func main() {
 					p, e := worldState.refreshDailyFatigue(now)
 					if e != nil {
 						event(map[string]any{"kind": "fatigue_daily_error", "error": e.Error()})
-						continue
 					}
-					if p != nil {
+					if e == nil && p != nil {
 						if e = sendPayload(0, 36, p); e != nil {
 							return
 						}
 						event(map[string]any{"kind": "fatigue_daily_refresh", "character_id": selectedCharacterID})
+					}
+					loyaltyCtx, loyaltyCancel := context.WithTimeout(context.Background(), 5*time.Second)
+					loyaltyPackets, loyaltyErr := worldState.refreshCreatureLoyalty(loyaltyCtx, now, worldState.activeDungeon != nil)
+					loyaltyCancel()
+					if loyaltyErr != nil {
+						event(map[string]any{"kind": "creature_loyalty_error", "character_id": selectedCharacterID, "error": loyaltyErr.Error()})
+					} else {
+						for _, packet := range loyaltyPackets {
+							if e := sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
+								return
+							}
+						}
 					}
 				}
 				continue
@@ -1915,6 +1929,15 @@ func main() {
 							return
 						}
 						event(map[string]any{"kind": "skill_commands_refreshed", "character_id": selectedCharacterID, "id": 19})
+						preset, presetErr := characters.SkillPresetInfo(worldState.role)
+						if presetErr != nil {
+							event(map[string]any{"kind": "skill_preset_refresh_failed", "reason": presetErr.Error(), "character_id": selectedCharacterID})
+						} else if len(preset) > 0 {
+							if e = sendPayload(0, 2758, preset); e != nil {
+								return
+							}
+							event(map[string]any{"kind": "skill_preset_restored_after_commands", "character_id": selectedCharacterID, "id": 2758})
+						}
 					}
 				}
 				continue
@@ -1936,7 +1959,7 @@ func main() {
 				}
 				continue
 			}
-			if characters != nil && bootstrapped && (frame.ID == 28 || frame.ID == 29 || frame.ID == 483 || frame.ID == 2179 || frame.ID == 2347) {
+			if characters != nil && bootstrapped && (frame.ID == 28 || frame.ID == 29 || frame.ID == 483 || frame.ID == 2179 || frame.ID == 2346 || frame.ID == 2347) {
 				if !verified {
 					continue
 				}
@@ -2364,6 +2387,18 @@ func main() {
 						worldState.resetCards()
 					}
 					worldState.activeDungeon = pending
+					loyaltyCtx, loyaltyCancel := context.WithTimeout(context.Background(), 5*time.Second)
+					loyaltyPackets, loyaltyErr := worldState.refreshCreatureLoyalty(loyaltyCtx, time.Now(), true)
+					loyaltyCancel()
+					if loyaltyErr != nil {
+						event(map[string]any{"kind": "creature_loyalty_error", "character_id": selectedCharacterID, "error": loyaltyErr.Error()})
+					} else {
+						for _, packet := range loyaltyPackets {
+							if e := sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
+								return
+							}
+						}
+					}
 					// A dungeon is a private instance: this actor leaves the shared town.
 					worldState.leaveScene()
 					worldState.completionSent = false
@@ -2404,6 +2439,18 @@ func main() {
 					}
 					if (p.Name == "settlement_exit_ack" || p.Name == "dungeon_leave_ack") && pending == nil {
 						worldState.activeDungeon = nil
+						loyaltyCtx, loyaltyCancel := context.WithTimeout(context.Background(), 5*time.Second)
+						loyaltyPackets, loyaltyErr := worldState.refreshCreatureLoyalty(loyaltyCtx, time.Now(), false)
+						loyaltyCancel()
+						if loyaltyErr != nil {
+							event(map[string]any{"kind": "creature_loyalty_error", "character_id": selectedCharacterID, "error": loyaltyErr.Error()})
+						} else {
+							for _, packet := range loyaltyPackets {
+								if e := sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
+									return
+								}
+							}
+						}
 						worldState.drops = nil
 						worldState.deathSent = nil
 						worldState.completionSent = false
@@ -2453,6 +2500,18 @@ func main() {
 				}
 				if frame.ID == 42 {
 					worldState.activeDungeon = nil
+					loyaltyCtx, loyaltyCancel := context.WithTimeout(context.Background(), 5*time.Second)
+					loyaltyPackets, loyaltyErr := worldState.refreshCreatureLoyalty(loyaltyCtx, time.Now(), false)
+					loyaltyCancel()
+					if loyaltyErr != nil {
+						event(map[string]any{"kind": "creature_loyalty_error", "character_id": selectedCharacterID, "error": loyaltyErr.Error()})
+					} else {
+						for _, packet := range loyaltyPackets {
+							if e := sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
+								return
+							}
+						}
+					}
 					if note, closed := legionState.abandonOnLeave("CMD42 dungeon leave", worldState.role.ID); closed {
 						note["id"] = frame.ID
 						event(note)
@@ -3078,6 +3137,97 @@ func main() {
 					}
 				}
 				event(map[string]any{"kind": "entry_skill_lock_prepared", "character_id": role.ID, "count": len(locks), "bytes": len(plan.SkillLocks)})
+				if lootService != nil {
+					// Relocate old stackables before the list-0 inventory snapshot.
+					// A failed relocation rolls back and does not prevent entry.
+					sweepCtx, sweepCancel := context.WithTimeout(context.Background(), 5*time.Second)
+					var applied bool
+					var sweepErr error
+					var sweptRole storage.Character
+					sweptRole, applied, sweepErr = characters.Store.CommitCharacterEvent(sweepCtx, role.AccountID, role.ID, role.ConfigVersion,
+						"stack-slot-resweep", "stack-slot-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+							bag, err := inventory.ReadBag(current.State)
+							if err != nil {
+								return nil, nil, err
+							}
+							fixed, moved, err := inventory.SweepStackSlots(bag, lootService.Catalog, lootService.BagRules)
+							if err != nil {
+								return nil, nil, err
+							}
+							state, err := inventory.SaveBag(current.State, fixed)
+							if err != nil {
+								return nil, nil, err
+							}
+							outcome, err := json.Marshal(map[string]bool{"moved": moved})
+							return state, outcome, err
+						})
+					sweepCancel()
+					if sweepErr != nil {
+						event(map[string]any{"kind": "entry_stack_slot_error", "character_id": role.ID, "error": sweepErr.Error()})
+					} else {
+						role = sweptRole
+						if applied {
+							event(map[string]any{"kind": "entry_stack_slot_swept", "character_id": role.ID})
+						}
+					}
+					petCtx, petCancel := context.WithTimeout(context.Background(), 5*time.Second)
+					petRole, _, petErr := characters.Store.CommitCharacterEvent(petCtx, role.AccountID, role.ID, role.ConfigVersion,
+						"pet-container-resweep", "pet-container-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+							bag, err := inventory.ReadBag(current.State)
+							if err != nil {
+								return nil, nil, err
+							}
+							fixed, _, err := inventory.SweepPetConsumables(bag, lootService.Catalog, lootService.BagRules)
+							if err != nil {
+								return nil, nil, err
+							}
+							state, err := inventory.SaveBag(current.State, fixed)
+							return state, json.RawMessage(`{}`), err
+						})
+					petCancel()
+					if petErr != nil {
+						event(map[string]any{"kind": "entry_pet_container_error", "character_id": role.ID, "error": petErr.Error()})
+					} else {
+						role = petRole
+					}
+				}
+				if wearService != nil && wearService.Catalog != nil {
+					gearCtx, gearCancel := context.WithTimeout(context.Background(), 5*time.Second)
+					gearRole, applied, gearErr := characters.Store.CommitCharacterEvent(gearCtx, role.AccountID, role.ID, role.ConfigVersion,
+						"pet-gear-resweep", "pet-gear-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+							bag, err := inventory.ReadBag(current.State)
+							if err != nil {
+								return nil, nil, err
+							}
+							fixed, _, err := inventory.SweepPetGear(bag, wearService.Catalog)
+							if err != nil {
+								return nil, nil, err
+							}
+							state, err := inventory.SaveBag(current.State, fixed)
+							return state, json.RawMessage(`{}`), err
+						})
+					gearCancel()
+					if gearErr != nil {
+						event(map[string]any{"kind": "entry_pet_gear_error", "character_id": role.ID, "error": gearErr.Error()})
+					} else {
+						role = gearRole
+						if applied {
+							event(map[string]any{"kind": "entry_pet_gear_swept", "character_id": role.ID})
+						}
+					}
+				}
+				loyaltyCtx, loyaltyCancel := context.WithTimeout(context.Background(), 5*time.Second)
+				loyaltyRole, _, loyaltyErr := characters.Store.CommitCharacterEvent(loyaltyCtx, role.AccountID, role.ID, role.ConfigVersion,
+					fmt.Sprintf("creature-loyalty-login:%d", time.Now().UnixNano()), "creature-loyalty-login-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+						state, err := inventory.BeginCreatureLoyaltySession(current.State, time.Now().Unix())
+						return state, json.RawMessage(`{}`), err
+					})
+				loyaltyCancel()
+				if loyaltyErr != nil {
+					event(map[string]any{"kind": "entry_creature_loyalty_error", "character_id": role.ID, "error": loyaltyErr.Error()})
+				} else {
+					role = loyaltyRole
+				}
 				if wearService != nil {
 					plan.Worn, e = inventory.WornPayload(role.State)
 					if e == nil {
@@ -3108,7 +3258,7 @@ func main() {
 						plan.Avatars, e = inventory.EquipmentPayload(1, nil, true)
 					}
 					if e == nil {
-						plan.Creatures, e = inventory.SpecialEquipmentRestorePayload(role.State, 7)
+						plan.Creatures, e = inventory.PetContainerRestorePayload(role.State)
 					}
 					if e == nil {
 						plan.CreatureList, _ = inventory.CreatureListPayload(role.State)
@@ -3130,9 +3280,20 @@ func main() {
 					cancel()
 					if e != nil {
 						event(map[string]any{"kind": "entry_account_materials_error", "error": e.Error()})
-						continue
+						materials = inventory.NewAccountMaterials()
+						fallbackCtx, fallbackCancel := context.WithTimeout(context.Background(), 5*time.Second)
+						if raw, readErr := characters.Store.AccountMaterials(fallbackCtx, role.AccountID); readErr == nil {
+							if savedMaterials, parseErr := inventory.ReadAccountMaterials(raw); parseErr == nil {
+								materials = savedMaterials
+							}
+						}
+						fallbackCancel()
+						e = nil
 					}
 					plan.AccountMaterials, e = accountMaterialSnapshot(materials)
+					if e == nil {
+						plan.RadiantSouls, e = radiantSoulSnapshot(materials)
+					}
 					if e == nil {
 						plan.Inventory, e = lootService.Bootstrap(role)
 					}
@@ -3177,6 +3338,11 @@ func main() {
 					plan.Skills, e = characters.EntrySkills(role)
 					if e != nil {
 						event(map[string]any{"kind": "entry_skills_error", "error": e.Error()})
+						continue
+					}
+					plan.SkillPreset, e = characters.SkillPresetInfo(role)
+					if e != nil {
+						event(map[string]any{"kind": "entry_skill_preset_error", "error": e.Error()})
 						continue
 					}
 				}
@@ -3228,6 +3394,33 @@ func main() {
 					if e = worldState.announceSelf(event); e != nil {
 						event(map[string]any{"kind": "area_presence_error", "error": e.Error()})
 					}
+				}
+				continue
+			}
+			if characters != nil && bootstrapped && frame.ID == 295 {
+				if !verified {
+					event(map[string]any{"kind": "character_slot_rejected", "error": "request checksum or cipher rejected"})
+					return
+				}
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				err := changeRosterSlot(ctx, characters, developmentAccount, selectedCharacterID, plaintext)
+				cancel()
+				payload := protocol.CharacterSlotSuccess()
+				if err != nil {
+					event(map[string]any{"kind": "character_slot_rejected", "error": err.Error()})
+					payload = protocol.Refusal(19)
+				} else {
+					event(map[string]any{"kind": "character_slot_saved", "account_id": developmentAccount, "plain_hex": hex.EncodeToString(plaintext)})
+				}
+				if e := sendPayload(1, 295, payload); e != nil {
+					return
+				}
+				// The native drag already updates its local maps. Do not reload
+				// the roster between the packets of a multi-cell drag operation.
+				// A refused operation leaves those maps ahead of storage; close
+				// this session so it cannot select/archive a different character.
+				if err != nil {
+					return
 				}
 				continue
 			}

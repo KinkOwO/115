@@ -15,8 +15,8 @@ func TestAccountMaterialSlotMapMatchesClientTables(t *testing.T) {
 		10100115: 369, 10100116: 370, 10099773: 371, 10099774: 372, 10099775: 373, 10158124: 374,
 		10361512: 375, 10361513: 376, 10361514: 377, 10361515: 378, 10361516: 379,
 	}
-	if len(accountMaterialSlotByTemplate) != 17 || len(accountMaterialTemplateBySlot) != 17 {
-		t.Fatalf("expected 17 fixed templates, got %d/%d", len(accountMaterialSlotByTemplate), len(accountMaterialTemplateBySlot))
+	if len(accountMaterialSlotByTemplate) != 19 || len(accountMaterialTemplateBySlot) != 19 {
+		t.Fatalf("expected 19 fixed templates, got %d/%d", len(accountMaterialSlotByTemplate), len(accountMaterialTemplateBySlot))
 	}
 	for template, slot := range want {
 		got, ok := AccountMaterialSlot(template)
@@ -30,6 +30,45 @@ func TestAccountMaterialSlotMapMatchesClientTables(t *testing.T) {
 	}
 	if _, ok := AccountMaterialSlot(999999); ok {
 		t.Fatalf("unrelated template must not map into the storage")
+	}
+}
+
+func TestRadiantSoulRowsUseContainer42(t *testing.T) {
+	m := NewAccountMaterials()
+	for _, template := range []uint32{10415190, 10415191} {
+		space, _, ok := AccountMaterialTarget(template)
+		if !ok || space != RadiantSoulSpace {
+			t.Fatalf("template %d target = %d,%v", template, space, ok)
+		}
+		var err error
+		m, _, err = m.Add(template, 7)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got := m.Rows(AccountMaterialSpace); len(got) != 0 {
+		t.Fatalf("list35 contains radiant souls: %d", len(got))
+	}
+	rows := m.Rows(RadiantSoulSpace)
+	if len(rows) != 2 || binary.LittleEndian.Uint16(rows[0][:2]) != 0 || binary.LittleEndian.Uint16(rows[1][:2]) != 1 {
+		t.Fatalf("list42 rows = %v", rows)
+	}
+	for _, slot := range []uint16{0, 1} {
+		if _, ok := StorageRowTemplate(slot); ok {
+			t.Fatalf("bag slot %d mapped as list35", slot)
+		}
+	}
+	raw, err := m.Save()
+	if err != nil {
+		t.Fatal(err)
+	}
+	restored, err := ReadAccountMaterials(raw)
+	if err != nil || restored.Count(10415190) != 7 || restored.Count(10415191) != 7 {
+		t.Fatalf("restore = %+v, %v", restored, err)
+	}
+	legacy, err := ReadAccountMaterials(json.RawMessage(`{"version":"account-materials-v1","counts":{"381":3,"382":4,"0":2}}`))
+	if err != nil || legacy.Count(10415190) != 5 || legacy.Count(10415191) != 4 {
+		t.Fatalf("legacy souls = %+v, %v", legacy, err)
 	}
 }
 

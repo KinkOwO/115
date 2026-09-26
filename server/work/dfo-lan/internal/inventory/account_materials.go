@@ -9,7 +9,7 @@ import (
 )
 
 // Account material storage ("soul storage"): the 115 client pins seventeen
-// fixed stackable templates to the account-shared list 35. The template to
+// templates to list 35 and two radiant souls to list 42. The template to
 // slot mapping below is verified against client/DFO.exe.i64:
 //
 //	sub_145ACA5E0 cube fragments -> 363+i (dword_14A9288E0)
@@ -19,6 +19,7 @@ import (
 // and sub_14500CE40 routes every one of these templates to container 35.
 const (
 	AccountMaterialSpace    = 35
+	RadiantSoulSpace        = 42
 	AccountMaterialSlotBase = 363
 )
 
@@ -26,6 +27,18 @@ var accountMaterialSlotByTemplate = map[uint32]uint16{
 	3033: 363, 3034: 364, 3035: 365, 3036: 366, 3037: 367, 3262: 368,
 	10100115: 369, 10100116: 370, 10099773: 371, 10099774: 372, 10099775: 373, 10158124: 374,
 	10361512: 375, 10361513: 376, 10361514: 377, 10361515: 378, 10361516: 379,
+	10415190: 0, 10415191: 1,
+}
+
+func AccountMaterialTarget(template uint32) (byte, uint16, bool) {
+	slot, ok := accountMaterialSlotByTemplate[template]
+	if !ok {
+		return 0, 0, false
+	}
+	if template == 10415190 || template == 10415191 {
+		return RadiantSoulSpace, slot, true
+	}
+	return AccountMaterialSpace, slot, true
 }
 
 var accountMaterialTemplateBySlot = func() map[uint16]uint32 {
@@ -36,7 +49,7 @@ var accountMaterialTemplateBySlot = func() map[uint16]uint32 {
 	return m
 }()
 
-// AccountMaterialSlot reports the fixed storage slot of one of the seventeen
+// AccountMaterialSlot reports the fixed storage slot of one of the nineteen
 // account-shared material templates.
 func AccountMaterialSlot(template uint32) (uint16, bool) {
 	s, ok := accountMaterialSlotByTemplate[template]
@@ -73,6 +86,15 @@ func ReadAccountMaterials(raw json.RawMessage) (AccountMaterials, error) {
 	}
 	if m.Version != "account-materials-v1" {
 		return m, fmt.Errorf("unsupported account material storage")
+	}
+	for _, legacy := range []struct{ from, to uint16 }{{381, 0}, {382, 1}} {
+		if n := m.Counts[legacy.from]; n != 0 {
+			if uint64(m.Counts[legacy.to])+uint64(n) > math.MaxUint32 {
+				return m, fmt.Errorf("account material overflow")
+			}
+			m.Counts[legacy.to] += n
+		}
+		delete(m.Counts, legacy.from)
 	}
 	for slot, n := range m.Counts {
 		if _, ok := accountMaterialTemplateBySlot[slot]; !ok {
@@ -154,10 +176,17 @@ func (m AccountMaterials) Spend(template, amount uint32) (AccountMaterials, uint
 // Rows renders the authoritative snapshot rows. Zero-count slots are
 // omitted, matching the storage panel's empty-cell representation. A spend
 // removes a slot when its count reaches zero.
-func (m AccountMaterials) Rows() [][protocol.CurrentItemRecordSize]byte {
+func (m AccountMaterials) Rows(requested ...byte) [][protocol.CurrentItemRecordSize]byte {
+	space := byte(AccountMaterialSpace)
+	if len(requested) != 0 {
+		space = requested[0]
+	}
 	slots := make([]uint16, 0, len(m.Counts))
 	for slot, n := range m.Counts {
 		if _, ok := accountMaterialTemplateBySlot[slot]; !ok || n == 0 {
+			continue
+		}
+		if (slot < AccountMaterialSlotBase && space != RadiantSoulSpace) || (slot >= AccountMaterialSlotBase && space != AccountMaterialSpace) {
 			continue
 		}
 		slots = append(slots, slot)
@@ -221,6 +250,9 @@ func (m AccountMaterials) ApplyDeltas(deltas []AccountMaterialDelta) (AccountMat
 
 // StorageRowTemplate resolves the fixed template rendered at a storage slot.
 func StorageRowTemplate(slot uint16) (uint32, bool) {
+	if slot < AccountMaterialSlotBase {
+		return 0, false
+	}
 	t, ok := accountMaterialTemplateBySlot[slot]
 	return t, ok
 }
