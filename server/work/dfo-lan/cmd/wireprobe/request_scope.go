@@ -18,6 +18,11 @@ func observedGameRequest(id uint16) bool {
 	if id == 681 || id == 527 {
 		return true
 	}
+	// 1565 是皮肤仓库「应用」按钮的请求，已有处理器：只解密前八次会让第八次之后的
+	// 点击全部分流不进去，实机表现为「第一次能应用，之后换不动字体」。
+	if id == 1565 {
+		return true
+	}
 	if id == 305 || id == 306 || id == 307 || id == 308 {
 		return true
 	}
