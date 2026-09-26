@@ -36,7 +36,7 @@ func (w *worldSession) areaTransition(r protocol.AreaChangeRequest) (storage.Wor
 	// Only the exit gate uses the stamped origin as its destination.
 	isSeriaReturn := old.Return != nil && src.SeriaReturnWarp && !isMapTeleport
 	isSeriaRoomTeleport := dest.SeriaReturnWarp && !src.SeriaReturnWarp
-	if w.finalDefenseLineTeleport(r) {
+	if w.npcMoveTeleport(r) || w.episodeTownReturn(r) {
 		if err := w.service.ValidateRestoredPosition(w.level, w.odyssey, old); err != nil {
 			return old, err
 		}
@@ -51,17 +51,38 @@ func (w *worldSession) areaTransition(r protocol.AreaChangeRequest) (storage.Wor
 	return w.service.Transition(w.level, w.odyssey, old, r)
 }
 
-// The quest book sends an ordinary CMD36 from 38/0 to the Fiendwar episode
-// town, with no source portal, map-teleport tail, or CMD2261 preparation.
-// Its destination requires quest 8645 in the source data; quest 8646 meets
-// NPC 619 at this town. Keep this exception scoped to the observed route and
-// the character's persisted quest progression.
-func (w *worldSession) finalDefenseLineTeleport(r protocol.AreaChangeRequest) bool {
-	if w == nil || w.quests == nil || w.quests.Store == nil || w.activeDungeon != nil || w.selectingDungeon ||
-		w.role.ID == 0 || w.role.AccountID != w.account ||
-		w.state.Position.Town != 38 || w.state.Position.Area != 0 ||
-		r.PreviousTown != 38 || r.PreviousArea != 0 || r.Town != 55 || r.Area != 0 ||
-		r.Flag != 5 || r.TailFlags != [2]byte{} {
+func (w *worldSession) npcMoveTeleport(r protocol.AreaChangeRequest) bool {
+	if !w.ownedTownTeleport(r) {
+		return false
+	}
+	from, to := catalog.NPCPlace{Town: r.PreviousTown, Area: uint32(r.PreviousArea)}, catalog.NPCPlace{Town: r.Town, Area: r.Area}
+	for _, move := range w.service.Catalog.NPCMoves {
+		sources, targets := w.service.Catalog.NPCPlaces[move.NPCID], w.service.Catalog.NPCPlaces[move.TargetNPC]
+		if len(targets) != 1 || targets[0] != to {
+			continue
+		}
+		foundSource := false
+		for _, source := range sources {
+			if source == from {
+				foundSource = true
+				break
+			}
+		}
+		if !foundSource {
+			continue
+		}
+		if len(move.Quests) == 0 {
+			return true
+		}
+		if w.npcMoveQuestAccepted(move.Quests) {
+			return true
+		}
+	}
+	return false
+}
+
+func (w *worldSession) npcMoveQuestAccepted(quests []uint32) bool {
+	if w.quests == nil || w.quests.Store == nil {
 		return false
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -70,16 +91,52 @@ func (w *worldSession) finalDefenseLineTeleport(r protocol.AreaChangeRequest) bo
 	if err != nil {
 		return false
 	}
-	completed, active := false, false
+	status := make(map[uint32]string, len(states))
+	accepted := make(map[uint32]bool, len(states))
 	for _, state := range states {
-		switch state.ID {
-		case 8645:
-			completed = state.Status == "completed"
-		case 8646:
-			active = state.Status == "accepted" && state.ConfigVersion == w.quests.Catalog.Source.Checksum
+		status[uint32(state.ID)] = state.Status
+		accepted[uint32(state.ID)] = state.Status == "accepted" && state.ConfigVersion == w.quests.Catalog.Source.Checksum
+	}
+	for _, id := range quests {
+		if !accepted[id] {
+			continue
+		}
+		definition, ok := w.quests.Catalog.Quests[id]
+		if !ok {
+			continue
+		}
+		if len(definition.PrerequisiteGroups) == 0 {
+			return true
+		}
+		for _, group := range definition.PrerequisiteGroups {
+			met := len(group) > 0
+			for _, previous := range group {
+				if status[previous] != "completed" {
+					met = false
+					break
+				}
+			}
+			if met {
+				return true
+			}
 		}
 	}
-	return completed && active
+	return false
+}
+
+func (w *worldSession) episodeTownReturn(r protocol.AreaChangeRequest) bool {
+	if !w.ownedTownTeleport(r) {
+		return false
+	}
+	returnArea, ok := w.service.Catalog.EpisodeReturns[r.PreviousTown]
+	return ok && returnArea.Town == r.Town && returnArea.Area == r.Area && r.Town != r.PreviousTown
+}
+
+func (w *worldSession) ownedTownTeleport(r protocol.AreaChangeRequest) bool {
+	return w != nil && w.service != nil && w.activeDungeon == nil && !w.selectingDungeon &&
+		w.role.ID != 0 && w.role.AccountID == w.account &&
+		w.state.Position.Town == r.PreviousTown && w.state.Position.Area == uint32(r.PreviousArea) &&
+		r.Flag == 5 && r.TailFlags == [2]byte{}
 }
 
 func (w *worldSession) teleportTransition(old storage.WorldPosition, r protocol.AreaChangeRequest) (storage.WorldPosition, error) {

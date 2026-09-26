@@ -57,12 +57,15 @@ type WorldArea struct {
 }
 
 type WorldCatalog struct {
-	Source       pvf.ArchiveSnapshot  `json:"source"`
-	TownIndex    ScriptRecord         `json:"town_index"`
-	Towns        []ScriptRecord       `json:"towns"`
-	Areas        map[string]WorldArea `json:"areas"`
-	DungeonIndex ScriptRecord         `json:"dungeon_index"`
-	Dungeons     []IndexEntry         `json:"dungeons"`
+	Source         pvf.ArchiveSnapshot   `json:"source"`
+	TownIndex      ScriptRecord          `json:"town_index"`
+	Towns          []ScriptRecord        `json:"towns"`
+	Areas          map[string]WorldArea  `json:"areas"`
+	DungeonIndex   ScriptRecord          `json:"dungeon_index"`
+	Dungeons       []IndexEntry          `json:"dungeons"`
+	NPCMoves       []NPCMove             `json:"-"`
+	NPCPlaces      map[uint32][]NPCPlace `json:"-"`
+	EpisodeReturns map[uint32]NPCPlace   `json:"-"`
 }
 
 func AreaKey(town, area uint32) string { return fmt.Sprintf("%d/%d", town, area) }
@@ -366,5 +369,10 @@ func LoadWorld(file string) (WorldCatalog, error) {
 			}
 		}
 	}
+	w.NPCMoves, e = loadNPCMoves(file, w.Source.Checksum)
+	if e != nil {
+		return w, e
+	}
+	w.indexNPCTeleports()
 	return w, nil
 }
