@@ -217,7 +217,31 @@ func (w *worldSession) questInteraction(p []byte) ([]outboundPacket, error) {
 		return []outboundPacket{{"quest_scene_trigger", 0, 291, body}}, nil
 	}
 	d, ok := w.quests.Catalog.Quests[uint32(id)]
-	if !ok || d.Kind != "[meet npc]" || len(d.ObjectiveCells) != 1 {
+	if !ok {
+		return nil, nil
+	}
+	if d.Kind == "[reach the range]" {
+		r, valid := quest.ReachNPCObjective(d)
+		if !valid || !questLineageShowsReachNPC(d, r.NPC, w.state.Position, w.quests.Catalog) {
+			return nil, nil
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		applied, e := w.quests.ReachNPCFromClient(ctx, w.role, id, r.NPC)
+		if e != nil || !applied {
+			return nil, e
+		}
+		active, e := w.quests.Active(ctx, w.role)
+		if e != nil {
+			return nil, e
+		}
+		body, e := protocol.QuestTriggers(active)
+		if e != nil {
+			return nil, e
+		}
+		return []outboundPacket{{"quest_npc_reach_objective", 0, 291, body}}, nil
+	}
+	if d.Kind != "[meet npc]" || len(d.ObjectiveCells) != 1 {
 		return nil, nil
 	}
 	npc := uint32(d.ObjectiveCells[0].Value)
@@ -292,6 +316,17 @@ func questLineageShowsGuidedNPC(d catalog.QuestDefinition, npc uint32, at storag
 		!questCompletionNPCMatches(d, npc) {
 		return false
 	}
+	return questLineageShowsNPC(d, npc, at, quests, requireGuide, false)
+}
+
+// A subtype-0 reach objective may name an NPC distinct from its completion
+// NPC. Its own clear/hide rule takes effect after this objective completes.
+func questLineageShowsReachNPC(d catalog.QuestDefinition, npc uint32, at storage.WorldPosition, quests catalog.QuestCatalog) bool {
+	r, ok := quest.ReachNPCObjective(d)
+	return ok && r.NPC == npc && questLineageShowsNPC(d, npc, at, quests, true, true)
+}
+
+func questLineageShowsNPC(d catalog.QuestDefinition, npc uint32, at storage.WorldPosition, quests catalog.QuestCatalog, requireGuide, allowCurrentClearHide bool) bool {
 	seen := make(map[uint32]bool)
 	var visit func(catalog.QuestDefinition, int) (bool, bool)
 	visit = func(current catalog.QuestDefinition, depth int) (bool, bool) {
@@ -304,7 +339,7 @@ func questLineageShowsGuidedNPC(d catalog.QuestDefinition, npc uint32, at storag
 		shown, found := false, false
 		if depth > 0 {
 			shown, found = questVisibilityOnClear(current.Script.Cells, npc)
-		} else if currentShown, currentFound := questVisibilityOnClear(current.Script.Cells, npc); currentFound && !currentShown {
+		} else if currentShown, currentFound := questVisibilityOnClear(current.Script.Cells, npc); !allowCurrentClearHide && currentFound && !currentShown {
 			// A current quest that hides the NPC is not evidence of a
 			// presently visible conversation target.
 			return false, false

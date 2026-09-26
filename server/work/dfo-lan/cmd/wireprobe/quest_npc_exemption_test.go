@@ -237,6 +237,26 @@ func TestQuestLineageGuidesRevealedNPC(t *testing.T) {
 	}
 }
 
+func TestQuestReachTemporaryNPCFromNativeTrigger(t *testing.T) {
+	qcat, err := catalog.LoadQuests("../../configs/quests.generated.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	d := qcat.Quests[13574]
+	const npc = 100001497
+	street := storage.WorldPosition{Town: 14, Area: 1}
+	if !questLineageShowsReachNPC(d, npc, street, qcat) {
+		t.Fatal("the source should authorize the 13574 NPC reach trigger in Slaugh 14/1")
+	}
+	if questLineageShowsReachNPC(d, npc, storage.WorldPosition{Town: 14, Area: 0}, qcat) ||
+		questLineageShowsReachNPC(d, 100001494, street, qcat) {
+		t.Fatal("range trigger accepted an unlinked area or NPC")
+	}
+	if shown, found := questVisibilityOnClear(d.Script.Cells, npc); !found || shown {
+		t.Fatal("the NPC should hide only when quest 13574 is cleared")
+	}
+}
+
 // 客户端 CMD33 的形态（u16 33 / u16 quest / 其余 12 字节 0）之外的一律拒绝。
 func TestQuestInteractionRejectsNonNativeCMDForm(t *testing.T) {
 	w := &worldSession{
