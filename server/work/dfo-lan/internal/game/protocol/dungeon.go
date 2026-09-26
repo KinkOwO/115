@@ -114,6 +114,7 @@ type DungeonInfoState struct {
 	ID               uint32
 	Difficulty, Maze byte
 	Boss             [2]byte
+	Hell             *[2]byte
 }
 
 func DungeonInfo(s DungeonInfoState) []byte {
@@ -124,7 +125,11 @@ func DungeonInfo(s DungeonInfoState) []byte {
 	// native room predicate145b34090 and path gate14614de00. The current
 	// room belongs only in NOTI29. The following XY is the random-hell
 	// location (145b27520);255/255 is the native absent sentinel1452a94b2.
-	p = append(p, s.Maze, s.Boss[0], s.Boss[1], 255, 255, 0, 0)
+	hell := [2]byte{255, 255}
+	if s.Hell != nil {
+		hell = *s.Hell
+	}
+	p = append(p, s.Maze, s.Boss[0], s.Boss[1], hell[0], hell[1], 0, 0)
 	p = add16(add16(p, 0), 0)
 	p = append(p, 0)
 	p = add32(p, 0xffffffff)

@@ -492,6 +492,10 @@ func main() {
 			if e = catalog.AttachTournamentQuestMaps(&data, path); e != nil {
 				log.Fatal(e)
 			}
+			hellPath := filepath.Join(filepath.Dir(*dungeonCatalogFile), "dungeons.hell-party-maps.json")
+			if e = catalog.AttachHellPartyMaps(&data, hellPath); e != nil {
+				log.Fatal(e)
+			}
 		}
 		if data.Source.Checksum != worldService.Catalog.Source.Checksum {
 			log.Fatal("dungeon/world source versions differ")

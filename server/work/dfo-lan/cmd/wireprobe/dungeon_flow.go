@@ -179,7 +179,7 @@ func (w *worldSession) dungeonEntryPlan(ackName string, ackID uint16, sel protoc
 		plan = append(plan, outboundPacket{"solo_party_initialized", 0, 9, party})
 	}
 	plan = append(plan, []outboundPacket{
-		{"dungeon_info_sent", 0, 28, protocol.DungeonInfo(protocol.DungeonInfoState{ID: sel.ID, Difficulty: sel.Difficulty, Maze: s.Maze.Index, Boss: s.Maze.Boss})},
+		{"dungeon_info_sent", 0, 28, protocol.DungeonInfo(protocol.DungeonInfoState{ID: sel.ID, Difficulty: sel.Difficulty, Maze: s.Maze.Index, Boss: s.Maze.Boss, Hell: s.HellPosition})},
 		{"dungeon_start_map_sent", 0, 29, start},
 	}...)
 	if s.Tournament != nil {

@@ -39,12 +39,22 @@ type DungeonDefinition struct {
 	Tutorial, NoFatigue      bool
 	Odyssey                  bool
 	DesignatedDifficulty     byte
-	HuntBoss                 uint32        // Source Odyssey [hunt boss] single-target completion.
+	HuntBoss                 uint32 // Source Odyssey [hunt boss] single-target completion.
 	// AttunementBoss 是「调律之边界」玩法（[dungeon type] boundary of attunement）的源领主模板。
 	// 该玩法单人、不发 CMD117，所以只有这只领主的死亡确认能结束本次挑战 ——
 	// 见 internal/dungeon/completion.go 的 tryComplete。
 	AttunementBoss uint32
-	Mazes                    []DungeonMaze `json:"mazes"`
+	HellParty      *DungeonHellParty `json:"hell_party,omitempty"`
+	Mazes          []DungeonMaze     `json:"mazes"`
+}
+
+// DungeonHellParty retains the original DGN's ordinary Hell Party room.
+// These values come from the current client resource, not legacy server data.
+type DungeonHellParty struct {
+	SealMap            uint32  `json:"seal_map"`
+	SealPosition       [2]byte `json:"seal_position"`
+	SeasonSealMap      uint32  `json:"season_seal_map,omitempty"`
+	SeasonSealPosition [2]byte `json:"season_seal_position,omitempty"`
 }
 type DungeonCatalog struct {
 	Source      pvf.ArchiveSnapshot          `json:"source"`
@@ -103,6 +113,23 @@ func sourceFirstPair(c []pvf.Token, absentOK bool) ([2]byte, error) {
 }
 func ParseDungeon(id uint32, s ScriptRecord) (DungeonDefinition, error) {
 	d := DungeonDefinition{ID: id, Script: s}
+	if enabled := sectionCells(s.Cells, "[hell dungeon]"); len(enabled) == 1 && enabled[0].Type == 0 && enabled[0].Value == 1 {
+		mapIndex := sectionCells(s.Cells, "[seal door map index]")
+		position := sectionCells(s.Cells, "[seal door pos]")
+		if len(mapIndex) == 1 && mapIndex[0].Type == 0 && mapIndex[0].Value > 0 {
+			if xy, err := dungeonPair(position); err == nil {
+				d.HellParty = &DungeonHellParty{SealMap: uint32(mapIndex[0].Value), SealPosition: xy}
+				seasonIndex := sectionCells(s.Cells, "[season seal door map index]")
+				seasonPosition := sectionCells(s.Cells, "[season seal door pos]")
+				if len(seasonIndex) == 1 && seasonIndex[0].Type == 0 && seasonIndex[0].Value > 0 {
+					if xy, err := dungeonPair(seasonPosition); err == nil {
+						d.HellParty.SeasonSealMap = uint32(seasonIndex[0].Value)
+						d.HellParty.SeasonSealPosition = xy
+					}
+				}
+			}
+		}
+	}
 	mode := sectionCells(s.Cells, "[dungeon mode script]")
 	d.Odyssey = len(mode) == 1 && mode[0].Type == 6 && mode[0].Text == "arad odyssey"
 	if d.Odyssey {
