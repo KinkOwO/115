@@ -829,6 +829,26 @@ func main() {
 			log.Printf("loaded booster catalog (%d definitions, %d item index entries)", len(boosterCatalog.Definitions), len(boosterCatalog.Items))
 		}
 	}
+	// 商城发货分类需要完整的物品索引：LootCatalog 只投影 stackable（装备投影
+	// 被刻意拒绝），礼包就地展开开出装备时（实机 2026-09-26：称号进消耗品栏）
+	// 兜底会把它当 [etc] 发进 Use 区。这里把索引里的 equipment/avatar/creature
+	// 分类补进商城目录；已有条目不覆盖，堆叠物仍以 LootCatalog 为准。
+	if shopPilot != nil && boosterCatalog != nil {
+		kinds := make(map[uint32]cashshop.ItemInfo, len(boosterCatalog.Items))
+		for id, it := range boosterCatalog.Items {
+			if it.Kind == "equipment" || it.Kind == "avatar" {
+				kinds[id] = cashshop.ItemInfo{ID: id, Kind: it.Kind, Path: it.Path}
+			}
+		}
+		shopPilot.SupplementItemKinds(kinds)
+		log.Printf("shop delivery: %d equipment/avatar templates classified from item index", len(kinds))
+	}
+	// 装备耐久与开盒/任务/掉落同一条规则（Catalog.Reward 读源 .equ）。
+	if shopPilot != nil && wearService != nil && wearService.Catalog != nil {
+		shopPilot.SetEquipmentDurability(func(id uint32) (uint16, error) {
+			return wearService.Catalog.Reward(id)
+		})
+	}
 	var lotteryPools *lotteryItemCatalog
 	if boosterCatalog != nil && *itemIndexFile != "" {
 		lotteryPath := filepath.Join(filepath.Dir(*itemIndexFile), "lottery-item-pools.json")
@@ -1578,20 +1598,12 @@ func main() {
 					continue
 				}
 				r, decodeErr := protocol.DecodeItemMove(plaintext)
-				var cloneRefresh []outboundPacket
-				var cloneRefreshed bool
-				if decodeErr == nil && len(plan) > 0 {
-					cloneRefresh, cloneRefreshed, e = dungeonCloneEquipmentRefresh(worldState, r)
-					if e != nil {
-						event(map[string]any{"kind": "equipment_dungeon_clone_refresh_error", "error": e.Error()})
-						cloneRefreshed = false
-					}
-				}
-				// Ordinary worn-set moves already append WornSpaceUpdate in
-				// equipmentSession.handle. Do not repeat the mode-0 actor rebuild
-				// mid-dungeon: that previously stranded the next room request. The
-				// Clone-only mode-1 pair below is a separate, unconfirmed timing.
-				// Keep this mode-0 refresh only for slot-26 moves outside the worn list.
+				// Ordinary worn-set moves already append AppearanceProbe and
+				// WornSpaceUpdate in equipmentSession.handle. Re-sending an entry
+				// user-info and the same worn-window refresh here rebuilds the actor
+				// twice mid-dungeon and can strand the client before its next room
+				// request. Keep the separate actor refresh only for slot-26 moves
+				// that did not pass through the worn list.
 				if decodeErr == nil && characters != nil && (r.SourceSlot == 26 || r.DestinationSlot == 26) && r.SourceList != 3 && r.DestinationList != 3 {
 					var visual []byte
 					visual, e = characters.EntryBasicProbe(worldState.role, [2]byte{})
@@ -1599,7 +1611,7 @@ func main() {
 						plan = append(plan, outboundPacket{"creature_actor_appearance_updated", 0, 2, visual})
 					}
 				}
-				if decodeErr == nil && characters != nil && !cloneRefreshed && cloneAvatarRemoval(r, wearService.Catalog) {
+				if decodeErr == nil && characters != nil && cloneAvatarRemoval(r, wearService.Catalog) {
 					// attempt 3/3: entry's known mode-1 reader restores the ordinary
 					// Avatar association on relog. Send it only after every CMD19
 					// NOTI13/14 and mode-0 refresh, so later slot reconstruction
@@ -1610,9 +1622,6 @@ func main() {
 					} else {
 						plan = append(plan, outboundPacket{"equipment_avatar_addition_refreshed", 0, 2, addition})
 					}
-				}
-				if cloneRefreshed {
-					plan = append(plan, cloneRefresh...)
 				}
 				prepared, e := preparePackets(keys, plan)
 				if e != nil {

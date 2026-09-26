@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"log"
 	"math"
 	"os"
 	"strings"
@@ -264,11 +265,16 @@ type ItemInfo struct {
 	Kind          string
 	StackableType string
 	StackLimit    uint32
+	Path          string
 }
 
 type Pilot struct {
 	Config      PilotConfig
 	ItemCatalog map[uint32]ItemInfo
+
+	// equipmentDurability 由宿主进程注入（EquipmentCatalog.Reward，与开盒/
+	// 任务/掉落发放同一 [durability] 规则）；未注入时装备耐久按 0 发放。
+	equipmentDurability func(uint32) (uint16, error)
 
 	cacheMu       sync.Mutex
 	cacheOpenAll  string
@@ -341,6 +347,36 @@ func (p *Pilot) SetItemCatalog(items map[uint32]catalog.LootItem) {
 	p.ItemCatalog = m
 }
 
+// SupplementItemKinds merges the full item-index classification into the
+// delivery catalog. The loot catalog deliberately refuses to project
+// equipment, so a shop purchase whose package auto-opens into a piece of
+// equipment (live 2026-09-26: "Adventurer's Will" title) used to fall through
+// the "[etc]" consumable fallback and land in the Use tab. Existing entries
+// win, so the stackable projection stays authoritative for stackables.
+func (p *Pilot) SupplementItemKinds(items map[uint32]ItemInfo) {
+	if p == nil || len(items) == 0 {
+		return
+	}
+	if p.ItemCatalog == nil {
+		p.ItemCatalog = make(map[uint32]ItemInfo, len(items))
+	}
+	for id, it := range items {
+		if _, exists := p.ItemCatalog[id]; !exists {
+			p.ItemCatalog[id] = it
+		}
+	}
+}
+
+// SetEquipmentDurability injects the same [durability] rule the booster,
+// quest and drop paths use (EquipmentCatalog.Reward). Unresolved durability
+// is delivered as 0 with a log line, mirroring boosterEquipmentDurability.
+func (p *Pilot) SetEquipmentDurability(fn func(uint32) (uint16, error)) {
+	if p == nil {
+		return
+	}
+	p.equipmentDurability = fn
+}
+
 func (p *Pilot) findEntry(product, template uint32) (OrdinaryProduct, bool) {
 	if p == nil {
 		return OrdinaryProduct{}, false
@@ -380,6 +416,22 @@ func (p *Pilot) resolveDeliveryType(template uint32) (deliveryType, error) {
 				return deliveryType{
 					Kind:  "[avatar]",
 					Slots: [2]uint16{0, 209},
+					Limit: 1,
+				}, nil
+			}
+			if info.Kind == "equipment" {
+				// Creature eggs are .equ too but belong to the creature space
+				// (Special[7]); route them by their source path, not their kind.
+				if strings.Contains(info.Path, "equipment/creature/") || strings.Contains(info.Path, "/creature/") {
+					return deliveryType{
+						Kind:  "[creature]",
+						Slots: [2]uint16{0, 139},
+						Limit: 1,
+					}, nil
+				}
+				return deliveryType{
+					Kind:  "[equipment]",
+					Slots: [2]uint16{9, 64},
 					Limit: 1,
 				}, nil
 			}
@@ -691,6 +743,53 @@ func (p *Pilot) deliverAmount(raw json.RawMessage, template, amount uint32, expi
 			}
 			if !found {
 				return nil, fmt.Errorf("creature inventory full")
+			}
+		}
+		return inventory.SaveBag(raw, b)
+	}
+	if h.Kind == "[equipment]" {
+		// 实机 2026-09-26：礼包就地展开开出称号（Adventurer's Will，
+		// equipment/character/common/title/*.equ），此前按兜底 "[etc]" 落进
+		// 消耗品区（Use），且客户端拖回装备区被拒。装备必须走 b.Equipment，
+		// 槽位区间与开盒/掉落一致（equipment_slots [9,64]，快捷栏 [0,8] 除外）。
+		// 耐久与开盒发放同一条规则（Catalog.Reward，读源 .equ 的 [durability]；
+		// 称号等 durabilityOptional 部位本来就是 0），解析不出按 0 发放并记日志。
+		b, e := inventory.ReadBag(raw)
+		if e != nil {
+			return nil, e
+		}
+		occupied := map[uint16]bool{}
+		for _, eq := range b.Equipment {
+			occupied[eq.Slot] = true
+		}
+		for _, row := range b.Items {
+			occupied[row.Slot] = true
+		}
+		dur := uint16(0)
+		if p.equipmentDurability != nil {
+			d, durErr := p.equipmentDurability(template)
+			if durErr != nil {
+				log.Printf("shop equipment %d: durability unresolved (%v); granted at 0", template, durErr)
+			} else {
+				dur = d
+			}
+		}
+		for i := uint32(0); i < amount; i++ {
+			found := false
+			for s := uint16(9); s <= 64; s++ {
+				if !occupied[s] {
+					occupied[s] = true
+					b.Equipment = append(b.Equipment, inventory.BagEquipment{
+						Slot:       s,
+						Template:   template,
+						Durability: dur,
+					})
+					found = true
+					break
+				}
+			}
+			if !found {
+				return nil, fmt.Errorf("equipment inventory full")
 			}
 		}
 		return inventory.SaveBag(raw, b)
