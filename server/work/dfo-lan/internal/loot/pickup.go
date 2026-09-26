@@ -34,6 +34,10 @@ type Service struct {
 	// rewardboostinfo CTP。只对声明了 [dungeon index] 的副本生效，其它副本
 	// 连掷骰种子都不消耗。
 	Attunement *AttunementRewards
+	// RewardBoxes 解析奖励包装（源的 [booster]）开一层会出什么。奖励表发出来的
+	// 是包装本身，玩家该拿到的是包装里的东西，所以展开发生在掉落时；见
+	// OpenRewardBoxes。为 nil 时包装原样落地，启动期会拦下这个组合。
+	RewardBoxes RewardBoxSource
 }
 type PickupReceipt struct {
 	Run         string

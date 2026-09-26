@@ -143,6 +143,47 @@ func LoadBoosterCatalog(catPath, indexPath string) (*BoosterCatalog, error) {
 	return cat, nil
 }
 
+// boosterBoxSource 把已加载的礼包目录接到奖励展开上：奖励表发的是外层包装，
+// 这里回答两个问题 —— 开一层会出什么，以及某个模板到底是不是真物品。
+type boosterBoxSource struct{ catalog *BoosterCatalog }
+
+func (s boosterBoxSource) RewardBox(template uint32) (loot.RewardBox, bool) {
+	if s.catalog == nil {
+		return loot.RewardBox{}, false
+	}
+	def, ok := s.catalog.Definitions[template]
+	if !ok || len(def.Pools) == 0 {
+		return loot.RewardBox{}, false
+	}
+	out := loot.RewardBox{Pools: make([]loot.RewardBoxPool, 0, len(def.Pools))}
+	for _, p := range def.Pools {
+		pool := loot.RewardBoxPool{
+			Draws:      p.DrawCount,
+			Candidates: make([]loot.RewardBoxCandidate, 0, len(p.Candidates)),
+		}
+		for _, c := range p.Candidates {
+			pool.Candidates = append(pool.Candidates, loot.RewardBoxCandidate{
+				Template: c.Template, Weight: c.Weight, Count: c.Count,
+			})
+		}
+		out.Pools = append(out.Pools, pool)
+	}
+	return out, true
+}
+
+// Item 覆盖装备与可堆叠物两类：一层展开既会出装备（本转职的基础装备），也会出
+// 材料、虚拟道具、书和罐子。目录里没有的模板是源留的「空槽」，不是可发放物品。
+func (s boosterBoxSource) Item(template uint32) bool {
+	if s.catalog == nil {
+		return false
+	}
+	item, ok := s.catalog.Items[template]
+	if !ok {
+		return false
+	}
+	return item.Kind == "equipment" || item.Kind == "stackable"
+}
+
 type boosterEventStore interface {
 	CommitCharacterEvent(ctx context.Context, account, id int64, version, key, model string, apply func(storage.Character) (json.RawMessage, json.RawMessage, error)) (storage.Character, bool, error)
 	CharacterEventReceipt(ctx context.Context, account, id int64, key string) (json.RawMessage, error)
