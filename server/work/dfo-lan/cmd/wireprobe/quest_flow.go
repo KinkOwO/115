@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"dfolan/internal/catalog"
 	"dfolan/internal/character"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
@@ -9,6 +10,7 @@ import (
 	"dfolan/internal/storage"
 	"encoding/binary"
 	"fmt"
+	"os"
 	"time"
 )
 
@@ -225,7 +227,11 @@ func (w *worldSession) questInteraction(p []byte) ([]outboundPacket, error) {
 	// form, so a request naming a quest whose NPC is genuinely elsewhere is
 	// still refused, and the passive ProximityProgress walk keeps its own
 	// in-area requirement (it never consults this path).
-	if !quest.AllowsRemoteNPCInteraction(d) &&
+	communicated := w.communicationQuest == id && w.communicationNPC == npc &&
+		w.communicationTown == w.state.Position.Town &&
+		w.communicationArea == w.state.Position.Area &&
+		time.Now().Before(w.communicationUntil)
+	if !communicated && !quest.AllowsRemoteNPCInteraction(d) && !allowsQuestVisibleNPCInteraction(id, npc, w.state.Position, d) &&
 		(w.service == nil || !w.service.HasNPC(w.state.Position, npc)) {
 		return nil, fmt.Errorf("quest %d NPC %d is absent from current source area %d/%d", id, npc, w.state.Position.Town, w.state.Position.Area)
 	}
@@ -233,6 +239,10 @@ func (w *worldSession) questInteraction(p []byte) ([]outboundPacket, error) {
 	defer cancel()
 	if e := w.quests.MeetNPC(ctx, w.role, id, npc); e != nil {
 		return nil, e
+	}
+	if communicated {
+		w.communicationQuest = 0
+		w.communicationNPC = 0
 	}
 	active, e := w.quests.Active(ctx, w.role)
 	if e != nil {
@@ -243,4 +253,68 @@ func (w *worldSession) questInteraction(p []byte) ([]outboundPacket, error) {
 		return nil, e
 	}
 	return []outboundPacket{{"quest_npc_objective", 0, 291, body}}, nil
+}
+
+// Prey_01 (6200) declares NPC 8000 both as its objective and in two
+// [npc visibility] blocks, but no static town map contains that NPC. The
+// current client repeatedly sends CMD33 for 6200 while in Black Market 54/1.
+// Accept only that native request in that area; MeetNPC still requires the
+// character to own an accepted quest with the matching objective and version.
+func allowsQuestVisibleNPCInteraction(id uint16, npc uint32, at storage.WorldPosition, d catalog.QuestDefinition) bool {
+	// Preserve the user-confirmed 6200 behavior even with the relaxation off.
+	if id == 6200 && npc == 8000 && at.Town == 54 && at.Area == 1 && questShowsObjectiveNPCOnAccept(d, npc) {
+		return true
+	}
+	return os.Getenv("DFO_QUEST_VISIBLE_NPC_RELAX") == "1" && questShowsObjectiveNPCOnAccept(d, npc)
+}
+
+// A visible quest NPC can be absent from the static town map because the
+// client adds it from quest state. The opt-in path requires the source quest
+// to name that NPC as both the objective and completion NPC, and to show it
+// on acceptance. MeetNPC separately verifies ownership and accepted state.
+func questShowsObjectiveNPCOnAccept(d catalog.QuestDefinition, npc uint32) bool {
+	if npc == 0 || npc > 0x7fffffff || len(d.Pending) != 0 || len(d.Script.Cells) < 2 ||
+		d.Kind != "[meet npc]" || len(d.ObjectiveCells) != 1 ||
+		d.ObjectiveCells[0].Type != 0 || d.ObjectiveCells[0].Value != int32(npc) {
+		return false
+	}
+	completeNPC := false
+	for i, c := range d.Script.Cells[:len(d.Script.Cells)-1] {
+		if c.Type == 3 && c.Text == "[complete npc index]" &&
+			d.Script.Cells[i+1].Type == 0 && d.Script.Cells[i+1].Value == int32(npc) {
+			completeNPC = true
+			break
+		}
+	}
+	if !completeNPC {
+		return false
+	}
+	for i, c := range d.Script.Cells {
+		if c.Type != 3 || c.Text != "[npc visibility]" {
+			continue
+		}
+		var target, accept, show bool
+		for j := i + 1; j+1 < len(d.Script.Cells); j++ {
+			field := d.Script.Cells[j]
+			if field.Type != 3 {
+				continue
+			}
+			if field.Text == "[/npc visibility]" {
+				break
+			}
+			next := d.Script.Cells[j+1]
+			switch field.Text {
+			case "[npc]":
+				target = next.Type == 0 && next.Value == int32(npc)
+			case "[condition]":
+				accept = next.Type == 6 && next.Text == "[accept]"
+			case "[visibility]":
+				show = next.Type == 6 && next.Text == "[show]"
+			}
+		}
+		if target && accept && show {
+			return true
+		}
+	}
+	return false
 }

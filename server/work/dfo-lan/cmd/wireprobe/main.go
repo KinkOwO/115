@@ -2521,6 +2521,30 @@ func main() {
 				}
 				continue
 			}
+			if questService != nil && bootstrapped && frame.Type == 1 && frame.ID == 467 {
+				if !verified || worldState == nil || worldState.role.ID != selectedCharacterID || len(plaintext) != 0 {
+					event(map[string]any{"kind": "image_communication_rejected", "reason": "invalid request or session"})
+					continue
+				}
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				qid, npc, lookupErr := questService.ImageCommunicationTarget(ctx, worldState.role)
+				cancel()
+				if lookupErr != nil {
+					event(map[string]any{"kind": "image_communication_rejected", "reason": lookupErr.Error(), "character_id": selectedCharacterID})
+					continue
+				}
+				ack := protocol.ImageCommunicationAck(npc)
+				if e := sendPayload(1, 467, ack); e != nil {
+					return
+				}
+				worldState.communicationQuest = qid
+				worldState.communicationNPC = npc
+				worldState.communicationTown = worldState.state.Position.Town
+				worldState.communicationArea = worldState.state.Position.Area
+				worldState.communicationUntil = time.Now().Add(20 * time.Second) // PVF [summon time] = 20000 ms
+				event(map[string]any{"kind": "image_communication_ack", "character_id": selectedCharacterID, "quest": qid, "npc": npc, "attempt": "2/3", "plain_hex": hex.EncodeToString(ack)})
+				continue
+			}
 			if questService != nil && bootstrapped && frame.ID == 33 && worldState != nil && verified {
 				plan, e := worldState.questInteraction(plaintext)
 				if e != nil {

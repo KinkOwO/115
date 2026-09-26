@@ -54,6 +54,11 @@ type worldSession struct {
 	cardLayoutSent     bool
 	cardReceipt        *loot.CardReceipt
 	answeredQuests     map[uint16]bool
+	communicationQuest uint16
+	communicationNPC   uint32
+	communicationTown  uint32
+	communicationArea  uint32
+	communicationUntil time.Time
 	soloPartyBootstrap bool
 	soloPartyReady     bool
 	specialWarpPending bool
