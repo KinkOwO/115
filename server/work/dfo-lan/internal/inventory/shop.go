@@ -212,21 +212,19 @@ func (b Bag) BuyWithMaterials(r BagRules, template, count uint32, materials []Ma
 // - b.Worn (equipped gear) is rejected
 // Slot overlap resolution: equipment slots 12-25 overlap with worn slots 12-25.
 // Equipment range checks b.Equipment first; only if absent from b.Equipment does it check Worn.
-func (b Bag) Sell(r BagRules, list byte, slot uint16, unitPrice uint32) (Bag, uint32, uint32, error) {
+func (b Bag) Sell(r BagRules, list byte, slot uint16, count, unitPrice uint32) (Bag, uint32, uint32, error) {
 	if list != 0 {
 		return b, 0, 0, fmt.Errorf("unsupported inventory list %d", list)
 	}
-	if slot == 0 {
-		return b, 0, 0, fmt.Errorf("invalid sell slot")
+	if slot == 0 || count == 0 || count > math.MaxInt32 {
+		return b, 0, 0, fmt.Errorf("invalid sell slot or quantity")
 	}
 
-	goldGained := unitPrice
-	if goldGained == 0 {
-		goldGained = 1
-	}
-	if uint64(b.Gold)+uint64(goldGained) > math.MaxUint32 {
+	total := uint64(count) * uint64(unitPrice)
+	if total > math.MaxUint32 || uint64(b.Gold)+total > math.MaxUint32 {
 		return b, 0, 0, fmt.Errorf("gold overflow")
 	}
+	goldGained := uint32(total)
 
 	eqSlots := r.EquipmentSlots
 	if eqSlots == [2]uint16{} {
@@ -237,6 +235,9 @@ func (b Bag) Sell(r BagRules, list byte, slot uint16, unitPrice uint32) (Bag, ui
 	if slot >= eqSlots[0] && slot <= eqSlots[1] {
 		for i, eq := range b.Equipment {
 			if eq.Slot == slot {
+				if count != 1 {
+					return b, 0, 0, fmt.Errorf("equipment sale requires quantity one")
+				}
 				template := eq.Template
 				b.Equipment = append([]BagEquipment(nil), b.Equipment...)
 				b.Equipment = append(b.Equipment[:i], b.Equipment[i+1:]...)
@@ -255,12 +256,15 @@ func (b Bag) Sell(r BagRules, list byte, slot uint16, unitPrice uint32) (Bag, ui
 	// 2. Check stackable items in b.Items
 	for i, it := range b.Items {
 		if it.Slot == slot {
+			if count > it.Amount {
+				return b, 0, 0, fmt.Errorf("sell quantity %d exceeds owned amount %d", count, it.Amount)
+			}
 			template := it.Template
 			b.Items = append([]BagItem(nil), b.Items...)
-			if it.Amount <= 1 {
+			if it.Amount == count {
 				b.Items = append(b.Items[:i], b.Items[i+1:]...)
 			} else {
-				b.Items[i].Amount--
+				b.Items[i].Amount -= count
 			}
 			b.Gold += goldGained
 			return b, template, goldGained, nil

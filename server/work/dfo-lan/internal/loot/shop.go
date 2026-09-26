@@ -40,6 +40,7 @@ type SellReceipt struct {
 	NpcID      uint32 `json:"npc_id"`
 	Slot       uint16 `json:"slot"`
 	Template   uint32 `json:"template"`
+	Count      uint32 `json:"count"`
 	GoldGained uint32 `json:"gold_gained"`
 	NewGold    uint32 `json:"new_gold"`
 	Source     string `json:"source"`
@@ -170,7 +171,7 @@ func (s *Service) Sell(ctx context.Context, role storage.Character, r protocol.S
 			if e != nil {
 				return nil, nil, e
 			}
-			b, template, goldGained, e := b.Sell(s.BagRules, r.List, r.Slot, shopUnitPrice)
+			b, template, goldGained, e := b.Sell(s.BagRules, r.List, r.Slot, r.Count, shopUnitPrice)
 			if e != nil {
 				return nil, nil, e
 			}
@@ -182,6 +183,7 @@ func (s *Service) Sell(ctx context.Context, role storage.Character, r protocol.S
 				NpcID:      r.NpcID,
 				Slot:       r.Slot,
 				Template:   template,
+				Count:      r.Count,
 				GoldGained: goldGained,
 				NewGold:    b.Gold,
 				Source:     s.Catalog.Source.Checksum,
@@ -200,7 +202,7 @@ func (s *Service) Sell(ctx context.Context, role storage.Character, r protocol.S
 	if e = json.Unmarshal(receipt, &out); e != nil {
 		return fail(e)
 	}
-	if out.Source != s.Catalog.Source.Checksum || out.Slot != r.Slot {
+	if out.Source != s.Catalog.Source.Checksum || out.Slot != r.Slot || out.Count != r.Count {
 		return fail(fmt.Errorf("sell receipt conflict"))
 	}
 	saved.WireID = role.WireID
