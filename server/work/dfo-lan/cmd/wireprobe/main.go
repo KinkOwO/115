@@ -2080,8 +2080,26 @@ func main() {
 				}
 				continue
 			}
-			if worldState != nil && bootstrapped && frame.ID == 507 && fatigueService != nil {
+			if worldState != nil && bootstrapped && frame.ID == 507 {
 				if !verified {
+					continue
+				}
+				if len(plaintext) >= 11 && binary.LittleEndian.Uint32(plaintext[7:11]) == 206 {
+					plan, e := worldState.useQuestAirshipItem(plaintext, event)
+					if e != nil {
+						event(map[string]any{"kind": "quest_item_action_refused", "character_id": worldState.role.ID, "reason": e.Error()})
+						continue
+					}
+					for _, packet := range plan {
+						if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
+							return
+						}
+						event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID})
+					}
+					continue
+				}
+				if fatigueService == nil {
+					event(map[string]any{"kind": "fatigue_potion_refused", "character_id": worldState.role.ID, "reason": "fatigue service unavailable"})
 					continue
 				}
 				plan, e := worldState.recoverFatiguePotion(plaintext)

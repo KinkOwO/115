@@ -15,6 +15,7 @@ import (
 )
 
 type ConsumeReceipt struct {
+	EventKey  string                `json:"-"`
 	Slot      uint16                `json:"slot"`
 	Template  uint32                `json:"template"`
 	Remaining uint32                `json:"remaining"`
@@ -175,6 +176,7 @@ func (s *Service) Consume(ctx context.Context, role storage.Character, r protoco
 	if out.Source != s.Catalog.Source.Checksum || out.Template != r.Template || out.Slot != r.Slot {
 		return fail(fmt.Errorf("consume receipt conflict"))
 	}
+	out.EventKey = key
 	saved.WireID = role.WireID
 	return saved, out, applied, nil
 }

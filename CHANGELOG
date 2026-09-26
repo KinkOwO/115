@@ -1,5 +1,8 @@
 # CHANGELOG
 
+## 2026-09-27
+- **单道具任务目标使用 CMD507 通用入口（主线提交，扩展实机验证待后续任务）**：根据 12122 实机向量，在服务端按拥有的背包槽位、已接任务及源数据 `[use item]` 单物品目标匹配，不写死任务或道具 ID；成功后事务扣除一件、发送 NOTI14 并刷新 NOTI291，任务奖励仍由玩家原生提交。12122 的使用后可提交和提交结果已有实机验证；通用目录匹配目前只有这一条主线样本，等待后续同类任务验证。无数据库结构、客户端或 DLL 改动。`go test ./...`、`go vet ./...` 与 quest-use PostgreSQL 临时表回归通过。候选 SHA-256 `D840C869CE82D32005FBD77C713EF684A5E724E10AD4FE12AA27E9F9111DF0EF`。基线与限制：`server/work/dfo-lan/docs/protocol/skywar-quest-12122-use-item-20260926.md`。
+
 ## 2026-09-26
 - **阶段地图任务 NPC 通用判定（用户实机确认）**：从当前 115 客户端 PVF 导出 62 个区域阶段地图中的 775 条 NPC 位置，服务端对原生任务 CMD33 校验当前区域的阶段地图 NPC、任务目标、任务显示链及已接任务状态。用户首先指出 13595 仍为空；修正当前任务 `[clear] [hide]` 仅在完成后生效，并保留宽松开关的隐藏任务限制后，用户确认 13595 可完成。日志还确认同一会话完成任务 650。`go test ./...`、`go vet ./...` 通过；候选 SHA-256 `53BCC1A57C0182C1DE6F378F23D8960DE6325C7CBD0FA694AD41D61634120AED`。阶段地图通用规则及 13595 确认基线：`server/work/dfo-lan/docs/protocol/quest-phase-map-npc-generalization-20260926.md`、`server/work/dfo-lan/docs/protocol/empress-erje-quest-13595-current-clear-hide-20260926.md`。
 - **A Snake in the Hole 任务 13588 的 Ghent 战后 NPC（用户实机确认）**：服务端原先只读取 `[npc]` 显示列表中的第一位，漏掉前置任务 13587 完成时显示的 Woon 100000304；基础地图也没有该 NPC，但客户端战后阶段地图包含它。已修正多 NPC 列表读取，并按实机 CMD33 限定在 Ghent 6/3 放行。用户确认完成 13588，日志记录后续 13589 接取。`go test ./...`、`go vet ./...` 通过；候选 SHA-256 `74320ACDD2C760FDD3D51C62198FC4665956182EBD7550557D0D827DEC67276C`。无数据库或客户端改动。确认基线：`server/work/dfo-lan/docs/protocol/snake-in-the-hole-quest-13588-ghent-phase-npc-20260926.md`。
