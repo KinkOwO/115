@@ -204,6 +204,39 @@ func TestZasuraRevealedByPrecedingQuest(t *testing.T) {
 	}
 }
 
+func TestWoonRevealedByGroupedVisibilityInGhentAfterwar(t *testing.T) {
+	t.Setenv("DFO_QUEST_VISIBLE_NPC_RELAX", "0")
+	qcat, err := catalog.LoadQuests("../../configs/quests.generated.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	wcat, err := catalog.LoadWorld("../../configs/world.generated.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	const npc = 100000304
+	ghent := storage.WorldPosition{Town: 6, Area: 3}
+	d := qcat.Quests[13588]
+	if (&world.Service{Catalog: wcat}).HasNPC(ghent, npc) {
+		t.Fatal("Woon unexpectedly exists in the base Ghent dock map")
+	}
+	if shown, found := questVisibilityOnClear(qcat.Quests[13587].Script.Cells, npc); !found || !shown {
+		t.Fatal("skywar_30 grouped visibility should show its second NPC on clear")
+	}
+	if !questShownByPrerequisiteOnClear(d, npc, qcat) || !allowsQuestVisibleNPCInteraction(13588, npc, ghent, d, qcat) {
+		t.Fatal("the observed skywar_31 interaction should pass the area check")
+	}
+	for _, at := range []storage.WorldPosition{{Town: 6, Area: 2}, {Town: 40, Area: 2}} {
+		if allowsQuestVisibleNPCInteraction(13588, npc, at, d, qcat) {
+			t.Fatalf("Woon interaction allowed outside Ghent dock at %+v", at)
+		}
+	}
+	if allowsQuestVisibleNPCInteraction(13588, 100000299, ghent, d, qcat) ||
+		allowsQuestVisibleNPCInteraction(13590, npc, ghent, qcat.Quests[13590], qcat) {
+		t.Fatal("unrelated quest or NPC was allowed")
+	}
+}
+
 func TestQuestLineageGuidesRevealedNPC(t *testing.T) {
 	qcat, err := catalog.LoadQuests("../../configs/quests.generated.json")
 	if err != nil {

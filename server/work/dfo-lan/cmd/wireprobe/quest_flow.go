@@ -307,6 +307,12 @@ func allowsQuestVisibleNPCInteraction(id uint16, npc uint32, at storage.WorldPos
 	if id == 6357 && npc == 100000175 && at.Town == 54 && at.Area == 1 && questShownByPrerequisiteOnClear(d, npc, quests) {
 		return true
 	}
+	// Ghent's afterwar phase map contains Woon, while the exported base map
+	// does not. The native CMD33 for skywar_31 was observed in area 6/3;
+	// clearing skywar_30 reveals Woon in a grouped [npc] visibility list.
+	if id == 13588 && npc == 100000304 && at.Town == 6 && at.Area == 3 && questShownByPrerequisiteOnClear(d, npc, quests) {
+		return true
+	}
 	// A quest chain can reveal an NPC several steps before the meeting quest.
 	// A source [go guide] in that chain pins the NPC to a town area.
 	if questLineageShowsGuidedNPC(d, npc, at, quests, true) {
@@ -412,6 +418,16 @@ func questGoGuideTargetsNPC(cells []pvf.Token, npc uint32, at storage.WorldPosit
 	return found, matches
 }
 
+// Source [npc] groups can name several NPCs before the next field tag.
+func questVisibilityTargetsNPC(cells []pvf.Token, start int, npc uint32) bool {
+	for i := start; i < len(cells) && cells[i].Type != 3; i++ {
+		if cells[i].Type == 0 && cells[i].Value == int32(npc) {
+			return true
+		}
+	}
+	return false
+}
+
 func questVisibilityOnClear(cells []pvf.Token, npc uint32) (show bool, found bool) {
 	for i, c := range cells {
 		if c.Type != 3 || c.Text != "[npc visibility]" {
@@ -430,7 +446,7 @@ func questVisibilityOnClear(cells []pvf.Token, npc uint32) (show bool, found boo
 			next := cells[j+1]
 			switch field.Text {
 			case "[npc]":
-				target = next.Type == 0 && next.Value == int32(npc)
+				target = questVisibilityTargetsNPC(cells, j+1, npc)
 			case "[condition]":
 				clear = next.Type == 6 && next.Text == "[clear]"
 			case "[visibility]":
@@ -516,7 +532,7 @@ func questVisibilityShows(cells []pvf.Token, npc uint32, condition string) bool 
 			next := cells[j+1]
 			switch field.Text {
 			case "[npc]":
-				target = next.Type == 0 && next.Value == int32(npc)
+				target = questVisibilityTargetsNPC(cells, j+1, npc)
 			case "[condition]":
 				accept = next.Type == 6 && next.Text == condition
 			case "[visibility]":
