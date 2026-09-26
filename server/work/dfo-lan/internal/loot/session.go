@@ -23,6 +23,7 @@ type Session struct {
 	Currency              *OdysseyCurrency
 	ChapterDrop           *OdysseyChapterDrop
 	Attunement            *AttunementRewards
+	RewardBoxes           RewardBoxSource
 	QuestDropBonusPercent int
 	// attunementRolled 保证一轮只抽一次专属奖励：同一只源领主再被确认死亡
 	// （或同模板的第二只 rank3）都不会重复发奖。
@@ -112,6 +113,16 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 		if err != nil {
 			return nil, err
 		}
+		// 表发出来的是**外层包装**：源把每件奖品都包了一层 [booster]，而玩家该看到的
+		// 是开一层之后的东西 —— 装备以装备落地、誓约以随机书落地、星蕴石连着它的罐子。
+		// 直接把包装丢在地上等于把开箱时机搬到玩家手里，产出与官方不一致，这正是实机
+		// 反馈「只掉出罐子」的来源。
+		if s.RewardBoxes == nil {
+			// 启动期 ValidateBoxes 会拦下这个组合，真到这里说明配置被动过。记一笔
+			// 而不是静默按包装发：包装落地是错的，但拒绝整条怪死请求更糟。
+			result.SkippedKinds = append(result.SkippedKinds, "attunement_reward_boxes_unavailable")
+		}
+		awards, next = OpenRewardBoxes(next, s.RewardBoxes, awards)
 		s.attunementRolled = true
 		result.Awards = append(result.Awards, awards...)
 		result.NextSeed = next

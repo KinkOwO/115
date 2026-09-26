@@ -266,3 +266,101 @@ func TestAttunementValidateTemplates(t *testing.T) {
 		t.Fatal("a non-stackable reward template was accepted")
 	}
 }
+
+// TestAttunementRolledTemplatesExcludeTheHiddenTables separates "the table names
+// it" from "a clear can pay it". The hidden lists are parsed and kept, but
+// nothing rolls them, and 48 of the wrappers they hold resolve to a reserved id
+// with no script - so counting them as payable would make the reward set look
+// twice its real size and hide an unresolved slot behind it.
+func TestAttunementRolledTemplatesExcludeTheHiddenTables(t *testing.T) {
+	a, err := LoadAttunementRewards(attunementConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	all := map[uint32]bool{}
+	for _, id := range a.Templates() {
+		all[id] = true
+	}
+	rolled := a.RolledTemplates()
+	if len(rolled) == 0 {
+		t.Fatal("no rolled template at all")
+	}
+	if len(rolled) >= len(a.Templates()) {
+		t.Fatalf("rolled %d of %d: the hidden tables are being counted as payable", len(rolled), len(a.Templates()))
+	}
+	rolledSet := map[uint32]bool{}
+	for _, id := range rolled {
+		if !all[id] {
+			t.Fatalf("rolled template %d is not part of the table", id)
+		}
+		if rolledSet[id] {
+			t.Fatalf("rolled template %d listed twice", id)
+		}
+		rolledSet[id] = true
+	}
+	// The epic hidden tables (mazes 1 and 2) name these; none may be payable.
+	for _, id := range []uint32{10410314, 10410326, 10410338, 10410350} {
+		if !all[id] {
+			t.Fatalf("hidden-only wrapper %d missing from Templates()", id)
+		}
+		if rolledSet[id] {
+			t.Fatalf("hidden-only wrapper %d counted as payable", id)
+		}
+	}
+}
+
+// TestAttunementValidateBoxes pins both halves of the startup gate: an
+// unresolvable wrapper is refused (it would drop as a jar nobody can open), and
+// a slot the item catalog does not know is reported rather than invented.
+func TestAttunementValidateBoxes(t *testing.T) {
+	a, err := LoadAttunementRewards(attunementConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rolled := a.RolledTemplates()
+
+	good := fakeBoxes{boxes: map[uint32]RewardBox{}, items: map[uint32]bool{11: true}}
+	for _, id := range rolled {
+		good.boxes[id] = RewardBox{Pools: []RewardBoxPool{{
+			Draws:      1,
+			Candidates: []RewardBoxCandidate{{Template: 11, Weight: 1, Count: 1}},
+		}}}
+	}
+	empties, err := a.ValidateBoxes(good)
+	if err != nil {
+		t.Fatalf("complete source refused: %v", err)
+	}
+	if len(empties) != 0 {
+		t.Fatalf("empties = %v, want none", empties)
+	}
+
+	missing := fakeBoxes{boxes: map[uint32]RewardBox{}, items: map[uint32]bool{11: true}}
+	for k, v := range good.boxes {
+		missing.boxes[k] = v
+	}
+	delete(missing.boxes, rolled[0])
+	if _, err := a.ValidateBoxes(missing); err == nil {
+		t.Fatal("a wrapper the box catalog cannot open was accepted")
+	}
+
+	// Every pooled entry names an id no catalog knows: that is the source's
+	// empty face, and it must come back listed instead of being paid.
+	sparse := fakeBoxes{boxes: map[uint32]RewardBox{}, items: map[uint32]bool{}}
+	for _, id := range rolled {
+		sparse.boxes[id] = RewardBox{Pools: []RewardBoxPool{{
+			Draws:      1,
+			Candidates: []RewardBoxCandidate{{Template: 12, Weight: 1, Count: 1}},
+		}}}
+	}
+	empties, err = a.ValidateBoxes(sparse)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(empties) != 1 || empties[0] != 12 {
+		t.Fatalf("empties = %v, want [12]", empties)
+	}
+
+	if _, err := a.ValidateBoxes(nil); err != nil {
+		t.Fatalf("a nil source must be inert, got %v", err)
+	}
+}

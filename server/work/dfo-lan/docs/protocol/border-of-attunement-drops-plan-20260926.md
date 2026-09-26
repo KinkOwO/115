@@ -1345,3 +1345,173 @@ bin/wireprobe-handoff-source.exe
 
 **未提交**（按纪律等实机验证）。`DFO-115US单机一键启动器.exe` 在 git 里仍显示被改动 —— **不是本项目动的**
 （估为启动器自更新），收口提交时别带上它。
+
+## 勘误 + 取证：「掉落等级偏低」不是索引缺失（2026-09-26 15:5x）
+
+本文件「已知边界」一节原本写着「既有装备索引最高 grade 107 ⇒ 需另行重导更高等级的装备索引」。
+**这句话是错的，撤回。** 取证如下。
+
+### 事实一：索引里有高等级装备，而且运行期已经加载
+
+| 目录 | 行数 | `[grade]` 范围 | 用途 |
+| --- | --- | --- | --- |
+| `configs/equipment.current37.json` | 3,174 | 1–107 | **掉落池**（`-equipment-catalog`）|
+| `configs/equipment-full.*` | **424,216** | 1–**122** | 全量定义（`-equipment-full-catalog`）|
+
+`101001153`（115 级剑，`grade=122`）与 `100313553`（`grade=122`）**都在全量索引里**，只是不在掉落目录里。
+而全量目录**在运行期确实被加载**：实机 `gateway.err` 有一行
+`separate wear catalog: 424216 records; original reward/drop catalog: 3174`。
+
+⇒ **重导索引不会改变任何事。**
+
+### 事实二：107 的上限是**掉落池规则**的必然结果，而且是有意为之
+
+对全量目录抽样 12 万条（其中非 avatar 59,055 条）：
+
+| 口径 | 结果 |
+| --- | --- |
+| 全部非 avatar | grade 1–122；`>=100` 的 9,077 条，**全部**落在 `[100,148)` |
+| 按掉落池规则（`[attach type]==[free]` 且 `[rarity]<=2`）筛 | 接受 2,394 条（4.05%）；**grade 上限恰好 107** |
+
+被拒的理由分布：`attach != [free]` 共 50,458 条（`[trade]` 39,362、`[avatar trade]` 6,592、
+`[sealing]` 3,064、`[trade delete]` 1,166、`[account]` 64…），`rarity > 2` 或缺失 4,953 条。
+
+`internal/inventory/equipment.go` 里这件事是**写明的设计**：`Reward()` 的注释说它
+「keeps every structural check Basic makes … **but not Basic's two drop-pool rules**: a reward may be
+account- or character-bound, and it may be rarer than rare」，并附了实机依据（任务 21650 的 `100261068`）；
+`Basic()` 则把这**两条额外规则**用于掉落的池子。`internal/inventory/equipment_catalog37_test.go`
+正是钉住这件事的：`current37` 之所以比 `current35` 宽，只是为了**能发任务奖励**，
+测试注释写着这些行「**must not quietly become monster drops**」，并断言
+`wide.Basic(100261068)` 必须失败、`Reward` 必须比 `Basic` 宽。
+
+⇒ **所以要提高掉落等级，改的是规则（谁可以掉），不是索引（谁能被描述）。** 这是策略变更。
+
+### 事实三：深渊的专属奖励**本来就能给高等级装备**
+
+把三档 CTP 的 94 个礼盒按 `configs/booster-catalog.json` **递归展开到底**：
+
+| 难度表 | 礼盒数 | 展开后装备件数 | 底层 stackable 类型 |
+| --- | --- | --- | --- |
+| `unique.ctp`（100005066） | 27 | **48** | `[virtual]` 57、`[booster]` 20、`[material]` 8 |
+| `legendary.ctp`（100005067） | 27 | **49** | `[virtual]` 56、`[booster]` 27、`[material]` 11、`[etc]` 3、`[booster selection]` 1 |
+| `epic.ctp`（100005068） | 24 | **49** | `[virtual]` 45、`[booster]` 19、`[material]` 10、`[booster selection]` 1 |
+
+其中的装备是 **`grade=116`、`rarity=3/4`、`[minimum level]=115` 的 `[oath]` 系列**——
+**比通用掉落池的 107 上限更高**。它们能发出来，是因为礼盒内容的授予走
+`boosterEquipmentDurability → WearService.Catalog.Reward`，而那份目录挂着 `Full`（全量定义），
+**不走掉落池**。
+
+⇒ **「深渊给不给高等级装备」这件事已经成立**；通用掉落池的 107 上限与它无关。
+
+### 于是真正要定的是这个（三选一）
+
+| | 做法 | 代价 |
+| --- | --- | --- |
+| **A** | **不动**。承认现状：深渊的高等级产出走礼盒内容，通用掉落池维持 `[free]`+rarity≤2 | 零风险；但需接受「通用掉落永远不超过 grade 107」 |
+| **B** | **放宽掉落池到 `Reward()` 口径**（即删掉 `Basic` 的两条额外规则） | 池子从 3,174 涨到约 5 万行量级；**全游戏所有副本的掉落都变**；推翻一条有实机依据 + 测试钉住的既有决定，必须说明那条决定的适用边界 |
+| **C** | **只给需要的内容开一条更宽的池**（例如 145 档/深渊），通用池不动 | 新机制，改动面比 B 小、零回归；但要定义"谁用宽池"的判据 |
+
+倾向：**先确认症状到底是哪一个**。若玩家的体感是「盒子打开后大头是虚拟道具/材料」，
+那落点在**礼盒内容的权重**（B/C 都治不了）；若目标是「深渊的杂兵也该掉装备」，
+那才是 B 或 C。取证工具：`runtime/equipfullsurvey.py`（全量目录的 accept/grade 交叉统计）、
+`runtime/ctp_show.py`（CTP 逐格）、以及 `configs/booster-catalog.json` 的递归展开。
+
+## B 落地：奖励就地「展开一层」（2026-09-26）
+
+### 玩家侧真值（本轮的决定性输入）
+
+- **打死后直接出现**（不是先拿罐子再自己开）；并且**开过罐子，能出东西但不对**。
+- 三样东西：**装备直接掉装备**、**星蕴石发一个粉色的罐子**、**誓约掉一个随机的书**。
+
+⇒ 上一轮「直接发盒子、服务端不展开」的选择**是错的**。源把每件奖品都包了一层
+`[booster]`，玩家该看到的是**开一层之后**的东西。
+
+### 展开深度 = 一层（推断，但有反证支撑）
+
+`RewardBoxDepth = 1`。依据是三条真值只有一种深度能同时满足：
+
+| 玩家说法 | 展开一层 | 递归展开到底 |
+| --- | --- | --- |
+| 装备**直接掉装备** | `10419728.pool2 → 100401592`（装备）✓ | ✓ |
+| **誓约掉一个随机的书** | `pool1 → 10420672`（书族 `consumption_2.img 914`）✓ | ✗ 书会被继续展开成 `10419719` → 某件具体誓约装备 |
+| **星蕴石发一个粉色的罐子** | `fx=2001 → 10409486 → 10409489`（罐子）✓ | ✗ 罐子会被展开掉 |
+
+⇒ 玩家明确说收到的是**书**和**罐子**，而书/罐子**本身就是奖品**（由玩家自己开）。
+再往下开会把源真正要发的物品溶掉。第三方文档写的是「递归展开内部容器」，与这两条真值冲突，
+**不采纳**。
+
+### 落地（只碰服务端）
+
+| 位置 | 内容 |
+| --- | --- |
+| `internal/loot/reward_box.go`（新） | `RewardBox` / `RewardBoxPool` / `RewardBoxCandidate`、`RewardBoxSource` 接口、`OpenRewardBoxes`、`RewardBoxDepth` |
+| `internal/loot/attunement.go` | 新增 `RolledTemplates()`（只含可发的 fixed+additional，**排除 hidden**）与 `ValidateBoxes()` |
+| `internal/loot/session.go` | `RewardBoxes` 字段；`Death` 在调律分支 `Roll` 之后**就地展开** |
+| `internal/loot/pickup.go` | `Service.RewardBoxes` |
+| `cmd/wireprobe/booster_flow.go` | `boosterBoxSource`：把既有礼包目录接到展开上 |
+| `cmd/wireprobe/main.go` | 接线 + **硬失败**（有奖励表却没有礼包目录 ⇒ 拒绝启动）+ 启动日志打出空槽模板 |
+| `cmd/wireprobe/dungeon_flow.go` | 会话透传 |
+
+### 规格（全部由源数据判定，不是猜）
+
+- **空槽靠数据判**：池里某个模板在**物品目录里不存在** ⇒ 那是源的「本次没有」，发 0 件，
+  **不发明成物品**。可发集合里只有 `12` 一个（固定载体 pool2 的 47.45%）。
+  `12` 是保留 id：`items.index` 在 0–199 的稠密段里恰好缺 **12 / 13 / 17**。
+- **hidden 表不进展开校验**：它有 48 个包装指向另一个保留 id `490000001`，而 hidden 只在
+  maze 1/2，**运行期 maze 恒为 0** ⇒ 永远到不了，也不该当成可发奖励。
+  于是 `RolledTemplates()` = **46**，`Templates()` = 94。
+- **开箱规则与既有开箱路径一致**：`draw_count` 缺省为 1、零权重按 1 算、权重不覆盖时取最后一个
+  候选。这样「手动开罐」与「掉落时展开」对同一件东西给同一个分布。
+- **没有实现通用 `-1` 迷宫回退**：本配置的 `[maze]` 只有 0/1/2，源里没有 `-1` 行；
+  真出现了再按证据加。
+
+### 离线验证（2000 次运行，`runtime/boxprobe`）
+
+| 落地面 | 观测 | 源权重 |
+| --- | --- | --- |
+| `100401592` 装备 | 547 / 2000 = **27.4%** | 27.20% |
+| `10420672` 等书 | 239 / 2000 = **12.0%** | 12.00% |
+| `10409489` 星蕴石罐 | 151 / 2000 = **7.6%** | 7.50% |
+| `10420594` 自选箱 | 34 / 2000 = **1.7%** | 2.00% |
+| `10419720` 虚拟道具罐 | 506 / 2000 = **25.3%** | 25.35% |
+| `1` 金币 | 1646 / 2000 = **82.3%** | 82.24% |
+
+**外层包装出现在地面上的次数 = 0**（2000 次运行）；每场最少 4 行、平均 7.04 行。
+⇒ 分布与权重逐项吻合，说明展开路径与字段读法都对得上。
+
+### 测试
+
+- `internal/loot/reward_box_test.go`（新，7 条）：内容而非包装落地、`draw_count`、缺省为 1、
+  空槽发 0 件、**恰好一层**（内层包装原样落地）、不可开的东西原样透传、nil 源惰性、确定性。
+- `internal/loot/attunement_test.go`（+2 条）：`RolledTemplates` 排除 hidden；`ValidateBoxes`
+  拒绝不可开的包装，并把空槽报出来。
+- `cmd/wireprobe/attunement_reward_integration_test.go`（重写）：真实 `100005068`，60 次运行，
+  断言**地面上没有任何外层包装**、每次至少一行保底材料、装备/书/星蕴石罐都出现过，且
+  **非 boss 怪从不携带调律专属行**（70 个保底材料是调律独有的指纹 —— 通用掷骰一次只给 1 个）。
+
+### 仍未做（说清楚）
+
+- **`490000001` 未解**：只出现在 hidden 表，运行期到不到，未展开。
+- **装备池等级上限仍是 107**：与本轮无关，另案（见上文勘误）。
+- **杂兵的通用掉落未动**：第三方文档主张「杂兵不套用普通掉落池」，那是**改行为**且无 L0 证据。
+
+### 校验（2026-09-26 16:41）
+
+`go build ./...` + `go vet ./internal/... ./cmd/...` + `go test -p 1 -count=1 ./internal/... ./cmd/...`
++ 两条门控集成 → **全 0，23 个有测试的包 0 FAIL**；改动文件 gofmt 通过。
+
+候选 exe（源码 = 本次改动）：
+
+```
+bin/wireprobe-handoff-source.exe
+  E8BFA54AD3F4FB5498AD48F1D67AD2940698AA98CF8530F32D0B246819F4ADFC   16:41   19,617,280 B
+（上一版 9C9F8CD2…DA45E6 为 15:32）
+```
+
+启动日志新增一行（可用来现场确认装配）：
+
+```
+loaded booster catalog (N definitions, M item index entries)
+loaded attunement rewards (3 dungeons [...], 94 reward templates) from ...
+attunement reward wrappers open one layer; 1 empty-face templates: [12]
+```

@@ -936,7 +936,21 @@ func main() {
 		if e = attunement.ValidateTemplates(lootService.Catalog); e != nil {
 			log.Fatal(e)
 		}
+		// 展开一层要用的礼包目录。缺了它就只能把包装丢在地上，而那正是本功能要
+		// 修的那个报告，所以这里硬失败而不是退化成旧行为。
+		if boosterCatalog == nil || len(boosterCatalog.Definitions) == 0 {
+			log.Fatal("attunement rewards need -booster-catalog: the table pays wrappers, and without the box catalog they cannot be opened at drop time")
+		}
+		boxes := boosterBoxSource{catalog: boosterCatalog}
+		empties, e := attunement.ValidateBoxes(boxes)
+		if e != nil {
+			log.Fatal(e)
+		}
 		lootService.Attunement = attunement
+		lootService.RewardBoxes = boxes
+		// 空槽是源的合法面（CTP 用一个没有脚本的保留 id 表示"本次没有"），但
+		// "本次没有"和"目录缺了这个物品"在这里长得一模一样，所以把它打出来。
+		log.Printf("attunement reward wrappers open one layer; %d empty-face templates: %v", len(empties), empties)
 		log.Printf("loaded attunement rewards (%d dungeons %v, %d reward templates) from %s",
 			len(attunement.Dungeons()), attunement.Dungeons(), len(attunement.Templates()), *attunementRewardsFile)
 	} else {
