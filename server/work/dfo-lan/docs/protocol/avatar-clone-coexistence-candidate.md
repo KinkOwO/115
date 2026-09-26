@@ -122,3 +122,11 @@ attempt 2/3 静态门禁：`go test ./...` 与 `go vet ./...` 均通过。独立
 候选阶段的静态门禁：`go test ./...`、`go vet ./...`、`scripts/test_repair_profile.py` 均通过；隔离构建 `bin/wireprobe-clone-reattach-attempt3.exe` 的 SHA-256 为 `667E0FCED2E881D6FB20A22D35A90147DA873F2468C5E5D5FF48BAE0C30B0E01`。本地忽略的测试 profile 位于 `runtime/clone-reattach-attempt3.json`，已用启动器 `--check` 验证所需路径；正常启动配置未更改。未自动启动客户端或运行副本。
 
 用户现已确认副本裸体问题修复。将经测试的逻辑纳入服务端默认路径：只要角色穿戴了可解析覆盖外观的 Clone，就在 CMD37 加载后执行上述重建序列，不再依赖临时环境开关或测试 profile。临时 `clone-reattach-attempt3.json` 已移除，正常启动器继续使用 `bin/wireprobe-handoff-source.exe`。此确认仅覆盖用户反馈的副本外观修复；更广泛的职业、普通装备组合仍保留回归测试。主线 `go test ./...`、`go vet ./...` 全部通过；重建的正常启动程序 SHA-256 为 `8EB6786366EDA5BFB4C86249638A973BDF3EC37F496DCA4660BFA4D6223D0F0D`。
+
+### 2026-09-26 副本内实时换装修复（用户实机确认）
+
+用户报告在副本内换普通装备、Clone Avatar 或普通外观 Avatar 都会让仍穿着的 Clone 对应部位再次裸体。2026-09-26 会话 `roles_persist_select_actor_town_world_live_detail_dungeon_manual_20260926_164801_795604_next37` 的 UTC 09:15:26 可见一次副本中 CMD19（背包槽 32 → 穿戴槽 20）：服务端回成功后依次发 NOTI13 背包/穿戴、两条单槽 NOTI14，以及包含全部 21 个穿戴行的 `equipment_worn_window_refreshed`。当时该会话此前的 CMD37 已多次发送 `dungeon_clone_reattached`，而实时 CMD19 路径没有执行 Clone 重建。历史静态证据表明 NOTI14 会重建穿戴对象；具体哪一条换装包使图层丢失，尚无 NGS 环境动态命中，不能宣称单独根因。
+
+实现保持原 CMD19 应答及 NOTI13/14，只在成功触及穿戴表、当前仍有可解析 Clone、且身处副本时，于既有刷新之后复用已在 CMD37 验证的两包 mode1 移除/重建，再以 NOTI14 恢复普通装备。背包内移动、城镇换装、已无 Clone 的脱装都不追加；若本次脱下一个 Clone 但其他槽仍有 Clone，使用两包重建并避免旧的单包 `EntryAddition` 重复追加。用户已实机确认副本内普通装备、Clone Avatar、普通外观 Avatar 三类换装后修复正常。
+
+验证：新增普通装备、Clone Avatar、普通外观 Avatar 三类穿戴移动及城镇/背包排除的回归测试；`go test ./...`、`go vet ./...` 均通过。用户手动使用隔离程序实机确认修复，并检查换装后外观及后续切图正常。正常启动程序 `bin/wireprobe-handoff-source.exe` SHA-256 `2D796024CAF46A5A0B3095E32DF00F4AF118892EDF9389FDDF31386C5700B200`；临时测试 profile 已移除。
