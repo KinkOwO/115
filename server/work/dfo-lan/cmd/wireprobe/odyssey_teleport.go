@@ -1,12 +1,14 @@
 package main
 
 import (
+	"context"
 	"dfolan/internal/catalog"
 	"dfolan/internal/character"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/storage"
 	"dfolan/internal/world"
 	"errors"
+	"time"
 )
 
 func (w *worldSession) areaTransition(r protocol.AreaChangeRequest) (storage.WorldPosition, error) {
@@ -34,6 +36,12 @@ func (w *worldSession) areaTransition(r protocol.AreaChangeRequest) (storage.Wor
 	// Only the exit gate uses the stamped origin as its destination.
 	isSeriaReturn := old.Return != nil && src.SeriaReturnWarp && !isMapTeleport
 	isSeriaRoomTeleport := dest.SeriaReturnWarp && !src.SeriaReturnWarp
+	if w.finalDefenseLineTeleport(r) {
+		if err := w.service.ValidateRestoredPosition(w.level, w.odyssey, old); err != nil {
+			return old, err
+		}
+		return w.teleportTransition(old, r)
+	}
 	if !isSeriaReturn && (specialWarp || isMapTeleport || isSeriaRoomTeleport) {
 		return w.teleportTransition(old, r)
 	}
@@ -41,6 +49,37 @@ func (w *worldSession) areaTransition(r protocol.AreaChangeRequest) (storage.Wor
 		return w.service.TransitionStrict(w.level, w.odyssey, old, r)
 	}
 	return w.service.Transition(w.level, w.odyssey, old, r)
+}
+
+// The quest book sends an ordinary CMD36 from 38/0 to the Fiendwar episode
+// town, with no source portal, map-teleport tail, or CMD2261 preparation.
+// Its destination requires quest 8645 in the source data; quest 8646 meets
+// NPC 619 at this town. Keep this exception scoped to the observed route and
+// the character's persisted quest progression.
+func (w *worldSession) finalDefenseLineTeleport(r protocol.AreaChangeRequest) bool {
+	if w == nil || w.quests == nil || w.quests.Store == nil || w.activeDungeon != nil || w.selectingDungeon ||
+		w.role.ID == 0 || w.role.AccountID != w.account ||
+		w.state.Position.Town != 38 || w.state.Position.Area != 0 ||
+		r.PreviousTown != 38 || r.PreviousArea != 0 || r.Town != 55 || r.Area != 0 ||
+		r.Flag != 5 || r.TailFlags != [2]byte{} {
+		return false
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	states, err := w.quests.Store.Quests(ctx, w.account, w.role.ID)
+	if err != nil {
+		return false
+	}
+	completed, active := false, false
+	for _, state := range states {
+		switch state.ID {
+		case 8645:
+			completed = state.Status == "completed"
+		case 8646:
+			active = state.Status == "accepted" && state.ConfigVersion == w.quests.Catalog.Source.Checksum
+		}
+	}
+	return completed && active
 }
 
 func (w *worldSession) teleportTransition(old storage.WorldPosition, r protocol.AreaChangeRequest) (storage.WorldPosition, error) {
