@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"dfolan/internal/catalog"
 	"dfolan/internal/character"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
@@ -229,7 +230,7 @@ func (w *worldSession) questInteraction(p []byte) ([]outboundPacket, error) {
 		w.communicationTown == w.state.Position.Town &&
 		w.communicationArea == w.state.Position.Area &&
 		time.Now().Before(w.communicationUntil)
-	if !communicated && !quest.AllowsRemoteNPCInteraction(d) &&
+	if !communicated && !quest.AllowsRemoteNPCInteraction(d) && !allowsQuestVisibleNPCInteraction(id, npc, w.state.Position, d) &&
 		(w.service == nil || !w.service.HasNPC(w.state.Position, npc)) {
 		return nil, fmt.Errorf("quest %d NPC %d is absent from current source area %d/%d", id, npc, w.state.Position.Town, w.state.Position.Area)
 	}
@@ -251,4 +252,31 @@ func (w *worldSession) questInteraction(p []byte) ([]outboundPacket, error) {
 		return nil, e
 	}
 	return []outboundPacket{{"quest_npc_objective", 0, 291, body}}, nil
+}
+
+// Prey_01 (6200) declares NPC 8000 both as its objective and in two
+// [npc visibility] blocks, but no static town map contains that NPC. The
+// current client repeatedly sends CMD33 for 6200 while in Black Market 54/1.
+// Accept only that native request in that area; MeetNPC still requires the
+// character to own an accepted quest with the matching objective and version.
+func allowsQuestVisibleNPCInteraction(id uint16, npc uint32, at storage.WorldPosition, d catalog.QuestDefinition) bool {
+	if id != 6200 || npc != 8000 || at.Town != 54 || at.Area != 1 ||
+		d.Kind != "[meet npc]" || len(d.ObjectiveCells) != 1 ||
+		d.ObjectiveCells[0].Type != 0 || d.ObjectiveCells[0].Value != int32(npc) {
+		return false
+	}
+	for i, c := range d.Script.Cells {
+		if c.Type == 3 && c.Text == "[npc visibility]" {
+			for j := i + 1; j+1 < len(d.Script.Cells); j++ {
+				if d.Script.Cells[j].Type == 3 && d.Script.Cells[j].Text == "[/npc visibility]" {
+					break
+				}
+				if d.Script.Cells[j].Type == 3 && d.Script.Cells[j].Text == "[npc]" &&
+					d.Script.Cells[j+1].Type == 0 && d.Script.Cells[j+1].Value == int32(npc) {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }

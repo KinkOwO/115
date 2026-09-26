@@ -101,6 +101,39 @@ func TestQuestNPCCheckExemptsOnlyExplicitDialogueQuests(t *testing.T) {
 	}
 }
 
+func TestPreyQuestVisibleNPCUsesObservedBlackMarketInteraction(t *testing.T) {
+	qcat, err := catalog.LoadQuests("../../configs/quests.generated.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	wcat, err := catalog.LoadWorld("../../configs/world.generated.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	d := qcat.Quests[6200]
+	at := storage.WorldPosition{Town: 54, Area: 1}
+	if (&world.Service{Catalog: wcat}).HasNPC(at, 8000) {
+		t.Fatal("NPC 8000 unexpectedly exists in the static Black Market map")
+	}
+	if !allowsQuestVisibleNPCInteraction(6200, 8000, at, d) {
+		t.Fatal("observed Prey_01 CMD33 should reach the owned quest check")
+	}
+	for _, tc := range []struct {
+		id  uint16
+		npc uint32
+		at  storage.WorldPosition
+	}{
+		{6200, 8000, storage.WorldPosition{Town: 54, Area: 0}},
+		{6200, 8000, storage.WorldPosition{Town: 35, Area: 2}},
+		{6200, 607, at},
+		{6201, 8000, at},
+	} {
+		if allowsQuestVisibleNPCInteraction(tc.id, tc.npc, tc.at, d) {
+			t.Fatalf("unobserved quest interaction was exempted: %+v", tc)
+		}
+	}
+}
+
 // 客户端 CMD33 的形态（u16 33 / u16 quest / 其余 12 字节 0）之外的一律拒绝。
 func TestQuestInteractionRejectsNonNativeCMDForm(t *testing.T) {
 	w := &worldSession{
