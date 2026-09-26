@@ -30,6 +30,10 @@ type Service struct {
 	// ChapterDrop 是章节最终领主的章节盒掉落（手册 P3 子项 3）。默认整表
 	// enabled=false，禁用行连掷骰种子都不消耗；由 profile 显式开启。
 	ChapterDrop *OdysseyChapterDrop
+	// Attunement 是「调律之边界」（深渊）副本的专属奖励表，直接取自源
+	// rewardboostinfo CTP。只对声明了 [dungeon index] 的副本生效，其它副本
+	// 连掷骰种子都不消耗。
+	Attunement *AttunementRewards
 }
 type PickupReceipt struct {
 	Run         string

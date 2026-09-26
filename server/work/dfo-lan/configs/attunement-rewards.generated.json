@@ -1,0 +1,1259 @@
+{
+ "model": "rewardboostinfo-ctp-v1",
+ "archive": {
+  "format": "dfo_20260901_inner",
+  "path": "../client-build/Script.inner.pvf",
+  "size": 760530763,
+  "checksum": "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80",
+  "loaded_at": "2026-09-26T07:18:04.3114507Z",
+  "file_count": 5650173,
+  "group_count": 82571,
+  "cached_chunks": 0,
+  "cached_texts": 0
+ },
+ "tables": [
+  {
+   "path": "etc/rewardboostinfo/skyofathousandseasofborder/unique.ctp",
+   "sha256": "4431b84f15c594ddcab8a63c2381ac6e6c73e1f5252c32dc95e5e009d1a4d94b",
+   "bytes": 6352,
+   "version": 1,
+   "recordCount": 53,
+   "dungeon": 100005066,
+   "fixed": [
+    {
+     "maze": 0,
+     "entries": [
+      {
+       "tier": "unique",
+       "weight": 789000,
+       "item": 10419721
+      },
+      {
+       "tier": "legendary",
+       "weight": 142000,
+       "item": 10419722
+      },
+      {
+       "tier": "epic",
+       "weight": 63100,
+       "item": 10419723
+      },
+      {
+       "tier": "primeval",
+       "weight": 5900,
+       "item": 10419724
+      }
+     ]
+    }
+   ],
+   "additional": [
+    {
+     "effectIndex": 1,
+     "selectProb": 130000,
+     "dropCount": 2,
+     "entries": [
+      {
+       "tier": "normal",
+       "weight": 274500,
+       "item": 10419730
+      },
+      {
+       "tier": "normal",
+       "weight": 200000,
+       "item": 10419731
+      },
+      {
+       "tier": "rare",
+       "weight": 272000,
+       "item": 10419732
+      },
+      {
+       "tier": "unique",
+       "weight": 200000,
+       "item": 10419733
+      },
+      {
+       "tier": "legendary",
+       "weight": 36000,
+       "item": 10419734
+      },
+      {
+       "tier": "epic",
+       "weight": 16000,
+       "item": 10419735
+      },
+      {
+       "tier": "primeval",
+       "weight": 1500,
+       "item": 10419736
+      }
+     ]
+    },
+    {
+     "effectIndex": 2,
+     "selectProb": 120000,
+     "dropCount": 3,
+     "entries": [
+      {
+       "tier": "normal",
+       "weight": 274500,
+       "item": 10419730
+      },
+      {
+       "tier": "normal",
+       "weight": 200000,
+       "item": 10419731
+      },
+      {
+       "tier": "rare",
+       "weight": 272000,
+       "item": 10419732
+      },
+      {
+       "tier": "unique",
+       "weight": 200000,
+       "item": 10419733
+      },
+      {
+       "tier": "legendary",
+       "weight": 36000,
+       "item": 10419734
+      },
+      {
+       "tier": "epic",
+       "weight": 16000,
+       "item": 10419735
+      },
+      {
+       "tier": "primeval",
+       "weight": 1500,
+       "item": 10419736
+      }
+     ]
+    },
+    {
+     "effectIndex": 3,
+     "selectProb": 50000,
+     "dropCount": 5,
+     "entries": [
+      {
+       "tier": "normal",
+       "weight": 274500,
+       "item": 10419730
+      },
+      {
+       "tier": "normal",
+       "weight": 200000,
+       "item": 10419731
+      },
+      {
+       "tier": "rare",
+       "weight": 272000,
+       "item": 10419732
+      },
+      {
+       "tier": "unique",
+       "weight": 200000,
+       "item": 10419733
+      },
+      {
+       "tier": "legendary",
+       "weight": 36000,
+       "item": 10419734
+      },
+      {
+       "tier": "epic",
+       "weight": 16000,
+       "item": 10419735
+      },
+      {
+       "tier": "primeval",
+       "weight": 1500,
+       "item": 10419736
+      }
+     ]
+    },
+    {
+     "effectIndex": 5,
+     "selectProb": 90000,
+     "dropCount": 1,
+     "entries": [
+      {
+       "tier": "unique",
+       "weight": 789000,
+       "item": 10419721
+      },
+      {
+       "tier": "legendary",
+       "weight": 142000,
+       "item": 10419722
+      },
+      {
+       "tier": "epic",
+       "weight": 63100,
+       "item": 10419723
+      },
+      {
+       "tier": "primeval",
+       "weight": 5900,
+       "item": 10419724
+      }
+     ]
+    },
+    {
+     "effectIndex": 101,
+     "selectProb": 90000,
+     "dropCount": 1,
+     "entries": [
+      {
+       "tier": "unique",
+       "weight": 789000,
+       "item": 10409465
+      },
+      {
+       "tier": "legendary",
+       "weight": 142000,
+       "item": 10409466
+      },
+      {
+       "tier": "epic",
+       "weight": 63100,
+       "item": 10409467
+      },
+      {
+       "tier": "primeval",
+       "weight": 5900,
+       "item": 10409468
+      }
+     ]
+    },
+    {
+     "effectIndex": 102,
+     "selectProb": 90000,
+     "dropCount": 1,
+     "entries": [
+      {
+       "tier": "unique",
+       "weight": 789000,
+       "item": 10409469
+      },
+      {
+       "tier": "legendary",
+       "weight": 142000,
+       "item": 10409470
+      },
+      {
+       "tier": "epic",
+       "weight": 63100,
+       "item": 10409471
+      },
+      {
+       "tier": "primeval",
+       "weight": 5900,
+       "item": 10409472
+      }
+     ]
+    },
+    {
+     "effectIndex": 103,
+     "selectProb": 90000,
+     "dropCount": 1,
+     "entries": [
+      {
+       "tier": "unique",
+       "weight": 793700,
+       "item": 10409473
+      },
+      {
+       "tier": "legendary",
+       "weight": 142900,
+       "item": 10409474
+      },
+      {
+       "tier": "epic",
+       "weight": 63400,
+       "item": 10409475
+      }
+     ]
+    },
+    {
+     "effectIndex": 104,
+     "selectProb": 90000,
+     "dropCount": 1,
+     "entries": [
+      {
+       "tier": "unique",
+       "weight": 793700,
+       "item": 10409476
+      },
+      {
+       "tier": "legendary",
+       "weight": 142900,
+       "item": 10409477
+      },
+      {
+       "tier": "epic",
+       "weight": 63400,
+       "item": 10409478
+      }
+     ]
+    },
+    {
+     "effectIndex": 1001,
+     "selectProb": 183500,
+     "dropCount": 1,
+     "entries": [
+      {
+       "tier": "voidsoul",
+       "weight": 1000000,
+       "item": 10409479
+      }
+     ]
+    },
+    {
+     "effectIndex": 1001,
+     "selectProb": 66500,
+     "dropCount": 1,
+     "entries": [
+      {
+       "tier": "voidsoul",
+       "weight": 1000000,
+       "item": 10409480
+      }
+     ]
+    }
+   ],
+   "hidden": null
+  },
+  {
+   "path": "etc/rewardboostinfo/skyofathousandseasofborder/legendary.ctp",
+   "sha256": "5f37231b8e771c6e06d1de5747b4fa8f04c63f5a26f2da2676e97163e46ed64c",
+   "bytes": 6960,
+   "version": 1,
+   "recordCount": 63,
+   "dungeon": 100005067,
+   "fixed": [
+    {
+     "maze": 0,
+     "entries": [
+      {
+       "tier": "legendary",
+       "weight": 672900,
+       "item": 10419725
+      },
+      {
+       "tier": "epic",
+       "weight": 299100,
+       "item": 10419726
+      },
+      {
+       "tier": "primeval",
+       "weight": 28000,
+       "item": 10419727
+      }
+     ]
+    }
+   ],
+   "additional": [
+    {
+     "effectIndex": 1,
+     "selectProb": 120000,
+     "dropCount": 2,
+     "entries": [
+      {
+       "tier": "normal",
+       "weight": 274500,
+       "item": 10419730
+      },
+      {
+       "tier": "normal",
+       "weight": 200000,
+       "item": 10419731
+      },
+      {
+       "tier": "rare",
+       "weight": 272000,
+       "item": 10419732
+      },
+      {
+       "tier": "unique",
+       "weight": 200000,
+       "item": 10419733
+      },
+      {
+       "tier": "legendary",
+       "weight": 36000,
+       "item": 10419734
+      },
+      {
+       "tier": "epic",
+       "weight": 16000,
+       "item": 10419735
+      },
+      {
+       "tier": "primeval",
+       "weight": 1500,
+       "item": 10419736
+      }
+     ]
+    },
+    {
+     "effectIndex": 2,
+     "selectProb": 110000,
+     "dropCount": 3,
+     "entries": [
+      {
+       "tier": "normal",
+       "weight": 274500,
+       "item": 10419730
+      },
+      {
+       "tier": "normal",
+       "weight": 200000,
+       "item": 10419731
+      },
+      {
+       "tier": "rare",
+       "weight": 272000,
+       "item": 10419732
+      },
+      {
+       "tier": "unique",
+       "weight": 200000,
+       "item": 10419733
+      },
+      {
+       "tier": "legendary",
+       "weight": 36000,
+       "item": 10419734
+      },
+      {
+       "tier": "epic",
+       "weight": 16000,
+       "item": 10419735
+      },
+      {
+       "tier": "primeval",
+       "weight": 1500,
+       "item": 10419736
+      }
+     ]
+    },
+    {
+     "effectIndex": 3,
+     "selectProb": 70000,
+     "dropCount": 5,
+     "entries": [
+      {
+       "tier": "normal",
+       "weight": 274500,
+       "item": 10419730
+      },
+      {
+       "tier": "normal",
+       "weight": 200000,
+       "item": 10419731
+      },
+      {
+       "tier": "rare",
+       "weight": 272000,
+       "item": 10419732
+      },
+      {
+       "tier": "unique",
+       "weight": 200000,
+       "item": 10419733
+      },
+      {
+       "tier": "legendary",
+       "weight": 36000,
+       "item": 10419734
+      },
+      {
+       "tier": "epic",
+       "weight": 16000,
+       "item": 10419735
+      },
+      {
+       "tier": "primeval",
+       "weight": 1500,
+       "item": 10419736
+      }
+     ]
+    },
+    {
+     "effectIndex": 5,
+     "selectProb": 100000,
+     "dropCount": 1,
+     "entries": [
+      {
+       "tier": "legendary",
+       "weight": 672900,
+       "item": 10420676
+      },
+      {
+       "tier": "epic",
+       "weight": 299100,
+       "item": 10420677
+      },
+      {
+       "tier": "primeval",
+       "weight": 28000,
+       "item": 10420678
+      }
+     ]
+    },
+    {
+     "effectIndex": 201,
+     "selectProb": 100000,
+     "dropCount": 1,
+     "entries": [
+      {
+       "tier": "legendary",
+       "weight": 672900,
+       "item": 10409466
+      },
+      {
+       "tier": "epic",
+       "weight": 299100,
+       "item": 10409467
+      },
+      {
+       "tier": "primeval",
+       "weight": 28000,
+       "item": 10409468
+      }
+     ]
+    },
+    {
+     "effectIndex": 202,
+     "selectProb": 100000,
+     "dropCount": 1,
+     "entries": [
+      {
+       "tier": "legendary",
+       "weight": 672900,
+       "item": 10409470
+      },
+      {
+       "tier": "epic",
+       "weight": 299100,
+       "item": 10409471
+      },
+      {
+       "tier": "primeval",
+       "weight": 28000,
+       "item": 10409472
+      }
+     ]
+    },
+    {
+     "effectIndex": 203,
+     "selectProb": 100000,
+     "dropCount": 1,
+     "entries": [
+      {
+       "tier": "legendary",
+       "weight": 692300,
+       "item": 10409474
+      },
+      {
+       "tier": "epic",
+       "weight": 307700,
+       "item": 10409475
+      }
+     ]
+    },
+    {
+     "effectIndex": 204,
+     "selectProb": 100000,
+     "dropCount": 1,
+     "entries": [
+      {
+       "tier": "legendary",
+       "weight": 692300,
+       "item": 10409477
+      },
+      {
+       "tier": "epic",
+       "weight": 307700,
+       "item": 10409478
+      }
+     ]
+    },
+    {
+     "effectIndex": 1001,
+     "selectProb": 50000,
+     "dropCount": 1,
+     "entries": [
+      {
+       "tier": "voidsoul",
+       "weight": 1000000,
+       "item": 10409480
+      }
+     ]
+    },
+    {
+     "effectIndex": 1001,
+     "selectProb": 100000,
+     "dropCount": 1,
+     "entries": [
+      {
+       "tier": "voidsoul",
+       "weight": 1000000,
+       "item": 10409482
+      }
+     ]
+    },
+    {
+     "effectIndex": 1001,
+     "selectProb": 30000,
+     "dropCount": 1,
+     "entries": [
+      {
+       "tier": "voidsoul",
+       "weight": 1000000,
+       "item": 10409483
+      }
+     ]
+    },
+    {
+     "effectIndex": 3001,
+     "selectProb": 20000,
+     "dropCount": 1,
+     "entries": [
+      {
+       "tier": "legendary",
+       "weight": 1000000,
+       "item": 10420607
+      }
+     ]
+    }
+   ],
+   "hidden": null
+  },
+  {
+   "path": "etc/rewardboostinfo/skyofathousandseasofborder/epic.ctp",
+   "sha256": "52810da52a566db5e43acf9e50f84a1083b54eaf557e371ba62ff47265821d59",
+   "bytes": 11280,
+   "version": 1,
+   "recordCount": 90,
+   "dungeon": 100005068,
+   "fixed": [
+    {
+     "maze": 0,
+     "entries": [
+      {
+       "tier": "epic",
+       "weight": 914300,
+       "item": 10419728
+      },
+      {
+       "tier": "primeval",
+       "weight": 85700,
+       "item": 10419729
+      }
+     ]
+    },
+    {
+     "maze": 1,
+     "entries": [
+      {
+       "tier": "epic",
+       "weight": 914300,
+       "item": 10419728
+      },
+      {
+       "tier": "primeval",
+       "weight": 85700,
+       "item": 10419729
+      }
+     ]
+    },
+    {
+     "maze": 2,
+     "entries": [
+      {
+       "tier": "epic",
+       "weight": 914300,
+       "item": 10419728
+      },
+      {
+       "tier": "primeval",
+       "weight": 85700,
+       "item": 10419729
+      }
+     ]
+    }
+   ],
+   "additional": [
+    {
+     "effectIndex": 2,
+     "selectProb": 90000,
+     "dropCount": 3,
+     "entries": [
+      {
+       "tier": "normal",
+       "weight": 274500,
+       "item": 10419730
+      },
+      {
+       "tier": "normal",
+       "weight": 200000,
+       "item": 10419731
+      },
+      {
+       "tier": "rare",
+       "weight": 272000,
+       "item": 10419732
+      },
+      {
+       "tier": "unique",
+       "weight": 200000,
+       "item": 10419733
+      },
+      {
+       "tier": "legendary",
+       "weight": 36000,
+       "item": 10419734
+      },
+      {
+       "tier": "epic",
+       "weight": 16000,
+       "item": 10419735
+      },
+      {
+       "tier": "primeval",
+       "weight": 1500,
+       "item": 10419736
+      }
+     ]
+    },
+    {
+     "effectIndex": 3,
+     "selectProb": 85000,
+     "dropCount": 5,
+     "entries": [
+      {
+       "tier": "normal",
+       "weight": 274500,
+       "item": 10419730
+      },
+      {
+       "tier": "normal",
+       "weight": 200000,
+       "item": 10419731
+      },
+      {
+       "tier": "rare",
+       "weight": 272000,
+       "item": 10419732
+      },
+      {
+       "tier": "unique",
+       "weight": 200000,
+       "item": 10419733
+      },
+      {
+       "tier": "legendary",
+       "weight": 36000,
+       "item": 10419734
+      },
+      {
+       "tier": "epic",
+       "weight": 16000,
+       "item": 10419735
+      },
+      {
+       "tier": "primeval",
+       "weight": 1500,
+       "item": 10419736
+      }
+     ]
+    },
+    {
+     "effectIndex": 4,
+     "selectProb": 80000,
+     "dropCount": 10,
+     "entries": [
+      {
+       "tier": "normal",
+       "weight": 274500,
+       "item": 10419730
+      },
+      {
+       "tier": "normal",
+       "weight": 200000,
+       "item": 10419731
+      },
+      {
+       "tier": "rare",
+       "weight": 272000,
+       "item": 10419732
+      },
+      {
+       "tier": "unique",
+       "weight": 200000,
+       "item": 10419733
+      },
+      {
+       "tier": "legendary",
+       "weight": 36000,
+       "item": 10419734
+      },
+      {
+       "tier": "epic",
+       "weight": 16000,
+       "item": 10419735
+      },
+      {
+       "tier": "primeval",
+       "weight": 1500,
+       "item": 10419736
+      }
+     ]
+    },
+    {
+     "effectIndex": 5,
+     "selectProb": 90000,
+     "dropCount": 1,
+     "entries": [
+      {
+       "tier": "epic",
+       "weight": 914300,
+       "item": 10420679
+      },
+      {
+       "tier": "primeval",
+       "weight": 85700,
+       "item": 10420680
+      }
+     ]
+    },
+    {
+     "effectIndex": 301,
+     "selectProb": 90000,
+     "dropCount": 1,
+     "entries": [
+      {
+       "tier": "epic",
+       "weight": 914300,
+       "item": 10409467
+      },
+      {
+       "tier": "primeval",
+       "weight": 85700,
+       "item": 10409468
+      }
+     ]
+    },
+    {
+     "effectIndex": 302,
+     "selectProb": 90000,
+     "dropCount": 1,
+     "entries": [
+      {
+       "tier": "epic",
+       "weight": 914300,
+       "item": 10409471
+      },
+      {
+       "tier": "primeval",
+       "weight": 85700,
+       "item": 10409472
+      }
+     ]
+    },
+    {
+     "effectIndex": 303,
+     "selectProb": 90000,
+     "dropCount": 1,
+     "entries": [
+      {
+       "tier": "epic",
+       "weight": 1000000,
+       "item": 10409475
+      }
+     ]
+    },
+    {
+     "effectIndex": 304,
+     "selectProb": 90000,
+     "dropCount": 1,
+     "entries": [
+      {
+       "tier": "epic",
+       "weight": 1000000,
+       "item": 10409478
+      }
+     ]
+    },
+    {
+     "effectIndex": 305,
+     "selectProb": 20000,
+     "dropCount": 1,
+     "entries": [
+      {
+       "tier": "epic",
+       "weight": 914300,
+       "item": 10409487
+      },
+      {
+       "tier": "primeval",
+       "weight": 85700,
+       "item": 10409488
+      }
+     ]
+    },
+    {
+     "effectIndex": 1001,
+     "selectProb": 50000,
+     "dropCount": 1,
+     "entries": [
+      {
+       "tier": "voidsoul",
+       "weight": 1000000,
+       "item": 10409483
+      }
+     ]
+    },
+    {
+     "effectIndex": 1001,
+     "selectProb": 100000,
+     "dropCount": 1,
+     "entries": [
+      {
+       "tier": "voidsoul",
+       "weight": 1000000,
+       "item": 10409484
+      }
+     ]
+    },
+    {
+     "effectIndex": 1001,
+     "selectProb": 30000,
+     "dropCount": 1,
+     "entries": [
+      {
+       "tier": "voidsoul",
+       "weight": 1000000,
+       "item": 10409485
+      }
+     ]
+    },
+    {
+     "effectIndex": 3002,
+     "selectProb": 20000,
+     "dropCount": 1,
+     "entries": [
+      {
+       "tier": "epic",
+       "weight": 1000000,
+       "item": 10420608
+      }
+     ]
+    },
+    {
+     "effectIndex": 2001,
+     "selectProb": 75000,
+     "dropCount": 1,
+     "entries": [
+      {
+       "tier": "primestella",
+       "weight": 1000000,
+       "item": 10409486
+      }
+     ]
+    }
+   ],
+   "hidden": [
+    {
+     "maze": 1,
+     "index": 0,
+     "entries": [
+      {
+       "tier": "epic",
+       "key": 0,
+       "item": 10409487
+      }
+     ]
+    },
+    {
+     "maze": 1,
+     "index": 1,
+     "entries": [
+      {
+       "tier": "epic",
+       "key": 0,
+       "item": 10410338
+      },
+      {
+       "tier": "epic",
+       "key": 1,
+       "item": 10410339
+      },
+      {
+       "tier": "epic",
+       "key": 2,
+       "item": 10410340
+      },
+      {
+       "tier": "epic",
+       "key": 3,
+       "item": 10410341
+      },
+      {
+       "tier": "epic",
+       "key": 4,
+       "item": 10410342
+      },
+      {
+       "tier": "epic",
+       "key": 5,
+       "item": 10410343
+      },
+      {
+       "tier": "epic",
+       "key": 6,
+       "item": 10410344
+      },
+      {
+       "tier": "epic",
+       "key": 7,
+       "item": 10410345
+      },
+      {
+       "tier": "epic",
+       "key": 8,
+       "item": 10410346
+      },
+      {
+       "tier": "epic",
+       "key": 9,
+       "item": 10410347
+      },
+      {
+       "tier": "epic",
+       "key": 10,
+       "item": 10410348
+      },
+      {
+       "tier": "epic",
+       "key": 11,
+       "item": 10410349
+      }
+     ]
+    },
+    {
+     "maze": 1,
+     "index": 2,
+     "entries": [
+      {
+       "tier": "epic",
+       "key": 0,
+       "item": 10410314
+      },
+      {
+       "tier": "epic",
+       "key": 1,
+       "item": 10410315
+      },
+      {
+       "tier": "epic",
+       "key": 2,
+       "item": 10410316
+      },
+      {
+       "tier": "epic",
+       "key": 3,
+       "item": 10410317
+      },
+      {
+       "tier": "epic",
+       "key": 4,
+       "item": 10410318
+      },
+      {
+       "tier": "epic",
+       "key": 5,
+       "item": 10410319
+      },
+      {
+       "tier": "epic",
+       "key": 6,
+       "item": 10410320
+      },
+      {
+       "tier": "epic",
+       "key": 7,
+       "item": 10410321
+      },
+      {
+       "tier": "epic",
+       "key": 8,
+       "item": 10410322
+      },
+      {
+       "tier": "epic",
+       "key": 9,
+       "item": 10410323
+      },
+      {
+       "tier": "epic",
+       "key": 10,
+       "item": 10410324
+      },
+      {
+       "tier": "epic",
+       "key": 11,
+       "item": 10410325
+      }
+     ]
+    },
+    {
+     "maze": 1,
+     "index": 3,
+     "entries": [
+      {
+       "tier": "epic",
+       "key": 0,
+       "item": 10410350
+      },
+      {
+       "tier": "epic",
+       "key": 1,
+       "item": 10410351
+      },
+      {
+       "tier": "epic",
+       "key": 2,
+       "item": 10410352
+      },
+      {
+       "tier": "epic",
+       "key": 3,
+       "item": 10410353
+      },
+      {
+       "tier": "epic",
+       "key": 4,
+       "item": 10410354
+      },
+      {
+       "tier": "epic",
+       "key": 5,
+       "item": 10410355
+      },
+      {
+       "tier": "epic",
+       "key": 6,
+       "item": 10410356
+      },
+      {
+       "tier": "epic",
+       "key": 7,
+       "item": 10410357
+      },
+      {
+       "tier": "epic",
+       "key": 8,
+       "item": 10410358
+      },
+      {
+       "tier": "epic",
+       "key": 9,
+       "item": 10410359
+      },
+      {
+       "tier": "epic",
+       "key": 10,
+       "item": 10410360
+      },
+      {
+       "tier": "epic",
+       "key": 11,
+       "item": 10410361
+      }
+     ]
+    },
+    {
+     "maze": 2,
+     "index": 0,
+     "entries": [
+      {
+       "tier": "primeval",
+       "key": 0,
+       "item": 10409488
+      }
+     ]
+    },
+    {
+     "maze": 2,
+     "index": 2,
+     "entries": [
+      {
+       "tier": "primeval",
+       "key": 0,
+       "item": 10410326
+      },
+      {
+       "tier": "primeval",
+       "key": 1,
+       "item": 10410327
+      },
+      {
+       "tier": "primeval",
+       "key": 2,
+       "item": 10410328
+      },
+      {
+       "tier": "primeval",
+       "key": 3,
+       "item": 10410329
+      },
+      {
+       "tier": "primeval",
+       "key": 4,
+       "item": 10410330
+      },
+      {
+       "tier": "primeval",
+       "key": 5,
+       "item": 10410331
+      },
+      {
+       "tier": "primeval",
+       "key": 6,
+       "item": 10410332
+      },
+      {
+       "tier": "primeval",
+       "key": 7,
+       "item": 10410333
+      },
+      {
+       "tier": "primeval",
+       "key": 8,
+       "item": 10410334
+      },
+      {
+       "tier": "primeval",
+       "key": 9,
+       "item": 10410335
+      },
+      {
+       "tier": "primeval",
+       "key": 10,
+       "item": 10410336
+      },
+      {
+       "tier": "primeval",
+       "key": 11,
+       "item": 10410337
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

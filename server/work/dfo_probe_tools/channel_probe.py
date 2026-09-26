@@ -317,7 +317,7 @@ with (
    "-progression-rules",
    str(project / "configs/experience.compat90.json"),
    "-loot-catalog",
-   str(project / "configs/loot.next25.json"),
+   str(project / "configs/loot.level150.json"),
    "-loot-rules",
    str(project / "configs/drop.compat90.json"),
    "-bag-rules",
@@ -608,6 +608,20 @@ with (
    os.environ["DFO_EQUIPMENT_WEAR_RULES"] = str(eq_wear_full.resolve())
  # ★ 下发前按当前服务端程序自报的能力过滤参数（见 prune_unsupported）。
  command = prune_unsupported(command)
+ # The gear a run can drop. Required with -loot-catalog: without it the
+ # session builds an empty pool and every equipment award is discarded, which
+ # is what made a full border-of-attunement clear pay nothing. The gateway
+ # cwd is the pack root, so a relative built-in default never resolves.
+ os.environ["DFO_EQUIPMENT_CATALOG"] = str(
+  project / "configs/equipment.current37.json"
+ )
+ # The boundary-of-attunement reward table (source rewardboostinfo CTPs).
+ # Without it a full border-of-attunement clear pays no exclusive reward; the
+ # gateway only ever finds it through this absolute path, for the same cwd
+ # reason as the gear catalog above.
+ os.environ["DFO_ATTUNEMENT_REWARDS"] = str(
+  project / "configs/attunement-rewards.generated.json"
+ )
  stdout.write(' '.join(command) + '\n')
  server = subprocess.Popen(command, stdout=stdout, stderr=stderr, creationflags=flags)
  try:

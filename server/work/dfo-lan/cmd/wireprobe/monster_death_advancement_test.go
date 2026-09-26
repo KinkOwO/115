@@ -159,7 +159,7 @@ func TestMonsterDeathAfterAdvancementIntegration(t *testing.T) {
 		if err != nil || report.Entity != frame.Entity || report.Killer != frame.Killer {
 			t.Fatalf("capture line %d identity: %+v, %v", frame.Line, report, err)
 		}
-		plan, err := w.monsterDeath(body)
+		plan, err := w.monsterDeath(body, func(map[string]any) {})
 		if err != nil {
 			t.Fatalf("capture line %d withheld death confirmation: %v", frame.Line, err)
 		}
@@ -188,7 +188,7 @@ func TestMonsterDeathAfterAdvancementIntegration(t *testing.T) {
 		// Lost-send retry still returns the same confirmation but must not
 		// apply experience a second time. Successful-send retries omit NOTI38.
 		for retry := 0; retry < 2; retry++ {
-			replay, err := w.monsterDeath(body)
+			replay, err := w.monsterDeath(body, func(map[string]any) {})
 			if err != nil || len(replay) != 3-retry {
 				t.Fatal("death replay", len(replay), err)
 			}

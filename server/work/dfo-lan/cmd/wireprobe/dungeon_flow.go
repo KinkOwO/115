@@ -12,6 +12,7 @@ import (
 	"dfolan/internal/storage"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 )
@@ -595,7 +596,45 @@ func (w *worldSession) returnFromDungeonSelection(p []byte) ([]outboundPacket, e
 	plan[0] = outboundPacket{"dungeon_selection_return", 0, 132, protocol.DungeonSelectionReturn()}
 	return plan, nil
 }
-func (w *worldSession) monsterDeath(p []byte) ([]outboundPacket, error) {
+
+// fatalDropFailure classifies a failed drop roll for an already-confirmed death.
+//
+// A coverage gap - the imported model has no row for this monster's level - is not
+// fatal: the death is a fact the client reported, while the drop is the server's own
+// choice, and withholding the report over a gap leaves the client's monsters alive and
+// the gate unopened (2026-09-26 border-of-attunement, and the FFFF killer arm in
+// dungeon.ConfirmDeath before it). Every other failure is a defect of the model
+// itself and must still fail the request, so that a real bug cannot hide behind
+// "this monster simply paid nothing".
+func fatalDropFailure(err error) error {
+	if err == nil || errors.Is(err, loot.ErrOutOfDropRange) {
+		return nil
+	}
+	return err
+}
+
+// noteDropGap records that a confirmed death paid nothing because the imported drop
+// model does not cover the monster. The death itself is already applied; this only
+// keeps the coverage gap visible instead of letting loot vanish quietly.
+func (w *worldSession) noteDropGap(event func(map[string]any), entity uint16, e error) {
+	if event == nil {
+		return
+	}
+	fields := map[string]any{"kind": "drop_roll_skipped", "entity": entity, "reason": e.Error()}
+	if w.activeDungeon != nil {
+		for _, m := range w.activeDungeon.Monsters {
+			if m.Entity == entity {
+				fields["level"] = m.Level
+				fields["rank"] = m.Rank
+				fields["template"] = m.Template
+				break
+			}
+		}
+	}
+	event(fields)
+}
+
+func (w *worldSession) monsterDeath(p []byte, event func(map[string]any)) ([]outboundPacket, error) {
 	if w.activeDungeon == nil {
 		return nil, fmt.Errorf("death without active run")
 	}
@@ -629,6 +668,7 @@ func (w *worldSession) monsterDeath(p []byte) ([]outboundPacket, error) {
 					w.drops.Currency = w.loot.Currency
 					w.drops.ChapterDrop = w.loot.ChapterDrop
 				}
+				w.drops.Attunement = w.loot.Attunement
 				store := w.service.Store
 				if store == nil && w.characters != nil {
 					store = w.characters.Store
@@ -642,8 +682,14 @@ func (w *worldSession) monsterDeath(p []byte) ([]outboundPacket, error) {
 				}
 			}
 			rows, err := w.drops.Death(w.activeDungeon, uint16(r.Entity))
+			if fatal := fatalDropFailure(err); fatal != nil {
+				return nil, fatal
+			}
 			if err != nil {
-				return nil, err
+				// Coverage gap: the imported model does not reach this monster, so the
+				// death stands and pays nothing. See fatalDropFailure.
+				w.noteDropGap(event, uint16(r.Entity), err)
+				rows = nil
 			}
 			body, err = protocol.MonsterDeathDrops(uint16(r.Entity), rows)
 			if err != nil {

@@ -40,6 +40,10 @@ type DungeonDefinition struct {
 	Odyssey                  bool
 	DesignatedDifficulty     byte
 	HuntBoss                 uint32        // Source Odyssey [hunt boss] single-target completion.
+	// AttunementBoss 是「调律之边界」玩法（[dungeon type] boundary of attunement）的源领主模板。
+	// 该玩法单人、不发 CMD117，所以只有这只领主的死亡确认能结束本次挑战 ——
+	// 见 internal/dungeon/completion.go 的 tryComplete。
+	AttunementBoss uint32
 	Mazes                    []DungeonMaze `json:"mazes"`
 }
 type DungeonCatalog struct {
@@ -114,6 +118,37 @@ func ParseDungeon(id uint32, s ScriptRecord) (DungeonDefinition, error) {
 			return d, fmt.Errorf("invalid Odyssey designated difficulty")
 		}
 		d.DesignatedDifficulty = byte(v[0].Value)
+	}
+	// 「调律之边界」单独识别：非 Odyssey 副本里带 [hunt boss] 的有一批
+	// （`runtime/attunementsurvey` 可复算），所以必须三条同时成立才置位，
+	// 不能把现有 Odyssey 专用的 HuntBoss 解析放宽到全体。
+	// 出货目录里只有 100005067 / 100005068 命中，源领主都是 109008634。
+	if typ := sectionCells(s.Cells, "[dungeon type]"); len(typ) == 1 && typ[0].Type == 6 && typ[0].Text == "boundary of attunement" {
+		limit := sectionCells(s.Cells, "[limit party count]")
+		hunt := sectionCells(s.Cells, "[hunt boss]")
+		// sectionCells 会**累积**同名的每一段，而史诗档一张脚本里每个 maze 各声明一次
+		// [hunt boss]：100005068 有 3 个 maze ⇒ 3 段 ⇒ 6 个 cell，按「恰好一对」判定会漏掉它
+		// （100005067 只有 1 个 maze ⇒ 1 段，所以只修一个副本不会被发现）。
+		// 接受「所有段都指向同一个领主」，其余形态（真正多目标）保持 0、不猜测。
+		if len(limit) == 1 && limit[0].Type == 0 && limit[0].Value == 1 && len(hunt) >= 2 && len(hunt)%2 == 0 {
+			boss := int32(0)
+			same := true
+			for i := 0; i+1 < len(hunt); i += 2 {
+				if hunt[i].Type != 0 || hunt[i].Value <= 0 || hunt[i+1].Type != 0 || hunt[i+1].Value != 1 {
+					same = false
+					break
+				}
+				if boss == 0 {
+					boss = hunt[i].Value
+				} else if boss != hunt[i].Value {
+					same = false
+					break
+				}
+			}
+			if same {
+				d.AttunementBoss = uint32(boss)
+			}
+		}
 	}
 	minimum := sectionCells(s.Cells, "[minimum required level]")
 	if len(minimum) != 1 || minimum[0].Type != 0 || minimum[0].Value < 1 {
