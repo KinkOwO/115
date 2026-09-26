@@ -32,6 +32,7 @@ func sectionCells(d catalog.QuestDefinition, name string) []pvf.Token {
 // 本测试不依赖数据库：被豁免的任务会继续走到 MeetNPC（需要连接库），因此这里只
 // 断言"地图检查"这一层的判据本身，以及豁免没有放宽到普通对话任务。
 func TestQuestNPCCheckExemptsOnlyExplicitDialogueQuests(t *testing.T) {
+	t.Setenv("DFO_QUEST_VISIBLE_NPC_RELAX", "0")
 	wcat, e := catalog.LoadWorld("../../configs/world.generated.json")
 	if e != nil {
 		t.Fatal(e)
@@ -102,6 +103,7 @@ func TestQuestNPCCheckExemptsOnlyExplicitDialogueQuests(t *testing.T) {
 }
 
 func TestPreyQuestVisibleNPCUsesObservedBlackMarketInteraction(t *testing.T) {
+	t.Setenv("DFO_QUEST_VISIBLE_NPC_RELAX", "0")
 	qcat, err := catalog.LoadQuests("../../configs/quests.generated.json")
 	if err != nil {
 		t.Fatal(err)
@@ -131,6 +133,42 @@ func TestPreyQuestVisibleNPCUsesObservedBlackMarketInteraction(t *testing.T) {
 		if allowsQuestVisibleNPCInteraction(tc.id, tc.npc, tc.at, d) {
 			t.Fatalf("unobserved quest interaction was exempted: %+v", tc)
 		}
+	}
+}
+
+func TestQuestVisibleNPCRelaxSwitch(t *testing.T) {
+	qcat, err := catalog.LoadQuests("../../configs/quests.generated.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	farAway := storage.WorldPosition{Town: 1, Area: 0}
+	t.Setenv("DFO_QUEST_VISIBLE_NPC_RELAX", "0")
+	for _, id := range []uint16{6200, 12411, 12952} {
+		d := qcat.Quests[uint32(id)]
+		npc := uint32(d.ObjectiveCells[0].Value)
+		if !questShowsObjectiveNPCOnAccept(d, npc) {
+			t.Fatalf("quest %d no longer has an accept/show objective NPC", id)
+		}
+		if allowsQuestVisibleNPCInteraction(id, npc, farAway, d) {
+			t.Fatalf("quest %d was relaxed while the switch was off", id)
+		}
+	}
+	if questShowsObjectiveNPCOnAccept(qcat.Quests[12167], 100000319) {
+		t.Fatal("hide-on-clear quest was classified as show-on-accept")
+	}
+	t.Setenv("DFO_QUEST_VISIBLE_NPC_RELAX", "1")
+	for _, id := range []uint16{6200, 12411, 12952} {
+		d := qcat.Quests[uint32(id)]
+		npc := uint32(d.ObjectiveCells[0].Value)
+		if !allowsQuestVisibleNPCInteraction(id, npc, farAway, d) {
+			t.Fatalf("quest %d was not relaxed with the switch on", id)
+		}
+	}
+	if allowsQuestVisibleNPCInteraction(12167, 100000319, farAway, qcat.Quests[12167]) {
+		t.Fatal("hide-on-clear quest was relaxed")
+	}
+	if allowsQuestVisibleNPCInteraction(6200, 607, farAway, qcat.Quests[6200]) {
+		t.Fatal("wrong objective NPC was relaxed")
 	}
 }
 

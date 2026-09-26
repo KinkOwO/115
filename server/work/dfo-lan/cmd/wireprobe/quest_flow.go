@@ -10,6 +10,7 @@ import (
 	"dfolan/internal/storage"
 	"encoding/binary"
 	"fmt"
+	"os"
 	"time"
 )
 
@@ -260,22 +261,59 @@ func (w *worldSession) questInteraction(p []byte) ([]outboundPacket, error) {
 // Accept only that native request in that area; MeetNPC still requires the
 // character to own an accepted quest with the matching objective and version.
 func allowsQuestVisibleNPCInteraction(id uint16, npc uint32, at storage.WorldPosition, d catalog.QuestDefinition) bool {
-	if id != 6200 || npc != 8000 || at.Town != 54 || at.Area != 1 ||
+	// Preserve the user-confirmed 6200 behavior even with the relaxation off.
+	if id == 6200 && npc == 8000 && at.Town == 54 && at.Area == 1 && questShowsObjectiveNPCOnAccept(d, npc) {
+		return true
+	}
+	return os.Getenv("DFO_QUEST_VISIBLE_NPC_RELAX") == "1" && questShowsObjectiveNPCOnAccept(d, npc)
+}
+
+// A visible quest NPC can be absent from the static town map because the
+// client adds it from quest state. The opt-in path requires the source quest
+// to name that NPC as both the objective and completion NPC, and to show it
+// on acceptance. MeetNPC separately verifies ownership and accepted state.
+func questShowsObjectiveNPCOnAccept(d catalog.QuestDefinition, npc uint32) bool {
+	if npc == 0 || npc > 0x7fffffff || len(d.Pending) != 0 || len(d.Script.Cells) < 2 ||
 		d.Kind != "[meet npc]" || len(d.ObjectiveCells) != 1 ||
 		d.ObjectiveCells[0].Type != 0 || d.ObjectiveCells[0].Value != int32(npc) {
 		return false
 	}
+	completeNPC := false
+	for i, c := range d.Script.Cells[:len(d.Script.Cells)-1] {
+		if c.Type == 3 && c.Text == "[complete npc index]" &&
+			d.Script.Cells[i+1].Type == 0 && d.Script.Cells[i+1].Value == int32(npc) {
+			completeNPC = true
+			break
+		}
+	}
+	if !completeNPC {
+		return false
+	}
 	for i, c := range d.Script.Cells {
-		if c.Type == 3 && c.Text == "[npc visibility]" {
-			for j := i + 1; j+1 < len(d.Script.Cells); j++ {
-				if d.Script.Cells[j].Type == 3 && d.Script.Cells[j].Text == "[/npc visibility]" {
-					break
-				}
-				if d.Script.Cells[j].Type == 3 && d.Script.Cells[j].Text == "[npc]" &&
-					d.Script.Cells[j+1].Type == 0 && d.Script.Cells[j+1].Value == int32(npc) {
-					return true
-				}
+		if c.Type != 3 || c.Text != "[npc visibility]" {
+			continue
+		}
+		var target, accept, show bool
+		for j := i + 1; j+1 < len(d.Script.Cells); j++ {
+			field := d.Script.Cells[j]
+			if field.Type != 3 {
+				continue
 			}
+			if field.Text == "[/npc visibility]" {
+				break
+			}
+			next := d.Script.Cells[j+1]
+			switch field.Text {
+			case "[npc]":
+				target = next.Type == 0 && next.Value == int32(npc)
+			case "[condition]":
+				accept = next.Type == 6 && next.Text == "[accept]"
+			case "[visibility]":
+				show = next.Type == 6 && next.Text == "[show]"
+			}
+		}
+		if target && accept && show {
+			return true
 		}
 	}
 	return false
