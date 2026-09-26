@@ -1,6 +1,6 @@
 # Quest-visible NPC relaxation switch (2026-09-26)
 
-Status: user live confirmed for quests 6200 and 6357. Other structurally matching temporary NPC quests remain unverified. Attempt 2/3 for the temporary quest NPC interaction feature.
+Status: user live confirmed for quests 6200, 6357 and 13565. Other structurally matching temporary NPC quests remain unverified. Attempt 3/3 for the temporary quest NPC interaction feature.
 
 ## Behavior
 
@@ -16,6 +16,8 @@ The native CMD33 shape, accepted quest ownership, progress model, objective, and
 The current catalog has three clear examples of the accept/show form without a static town-map NPC: 6200 / 8000 (live confirmed only in Black Market 54/1), 12411 / 100000666, and 12952 / 100001416. Quest 12167 / 100000319 is a counterexample: its visibility block is `[clear] [hide]`, so the switch does not exempt it. Other quests may match the structural rule; this list is not an allowlist.
 
 Quest 6357 / NPC 100000175 adds the prerequisite-clear form: quest 6356 shows that NPC on clear. The specific Black Market 54/1 interaction is enabled even with the switch off, based on the user's screenshot and native CMD33 log. The user confirmed quest 6357 can now be completed; see `zasura-quest-6357-empty-list-20260926.md`.
+
+Quest 13565 / NPC 100001497 uses a longer source chain: 13562 shows the NPC on clear, 13563 guides to town 14/area 1, and 13564 leads to 13565. The user confirmed completion and acceptance of quest 13566; see `wish-quest-13565-lineage-npc-20260926.md`.
 
 ## Operation
 

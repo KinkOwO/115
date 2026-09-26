@@ -271,8 +271,132 @@ func allowsQuestVisibleNPCInteraction(id uint16, npc uint32, at storage.WorldPos
 	if id == 6357 && npc == 100000175 && at.Town == 54 && at.Area == 1 && questShownByPrerequisiteOnClear(d, npc, quests) {
 		return true
 	}
+	// A quest chain can reveal an NPC several steps before the meeting quest.
+	// A source [go guide] in that chain pins the NPC to a town area.
+	if questLineageShowsGuidedNPC(d, npc, at, quests, true) {
+		return true
+	}
 	return os.Getenv("DFO_QUEST_VISIBLE_NPC_RELAX") == "1" &&
-		(questShowsObjectiveNPCOnAccept(d, npc) || questShownByPrerequisiteOnClear(d, npc, quests))
+		(questShowsObjectiveNPCOnAccept(d, npc) || questShownByPrerequisiteOnClear(d, npc, quests) ||
+			questLineageShowsGuidedNPC(d, npc, at, quests, false))
+}
+
+// Follow source prerequisites, not numeric quest adjacency. A clear/show rule
+// remains effective through later quests until a clear/hide rule supersedes it.
+// The guide supplies the area for the normal path; the opt-in path only needs
+// the source visibility rule. MeetNPC still validates the accepted quest.
+func questLineageShowsGuidedNPC(d catalog.QuestDefinition, npc uint32, at storage.WorldPosition, quests catalog.QuestCatalog, requireGuide bool) bool {
+	if npc == 0 || npc > 0x7fffffff || len(d.Pending) != 0 ||
+		d.Kind != "[meet npc]" || len(d.ObjectiveCells) != 1 ||
+		d.ObjectiveCells[0].Type != 0 || d.ObjectiveCells[0].Value != int32(npc) ||
+		!questCompletionNPCMatches(d, npc) {
+		return false
+	}
+	seen := make(map[uint32]bool)
+	var visit func(catalog.QuestDefinition, int) (bool, bool)
+	visit = func(current catalog.QuestDefinition, depth int) (bool, bool) {
+		if depth > 16 || seen[current.ID] {
+			return false, false
+		}
+		seen[current.ID] = true
+		defer delete(seen, current.ID)
+		guideFound, guide := questGoGuideTargetsNPC(current.Script.Cells, npc, at)
+		shown, found := false, false
+		if depth > 0 {
+			shown, found = questVisibilityOnClear(current.Script.Cells, npc)
+		} else if currentShown, currentFound := questVisibilityOnClear(current.Script.Cells, npc); currentFound && !currentShown {
+			// A current quest that hides the NPC is not evidence of a
+			// presently visible conversation target.
+			return false, false
+		}
+		bestShown, bestGuide := shown, guide
+		for _, parentID := range questSourcePrerequisiteIDs(current.Script.Cells) {
+			parent, ok := quests.Quests[parentID]
+			if !ok {
+				continue
+			}
+			parentShown, parentGuide := visit(parent, depth+1)
+			pathShown := shown
+			if !found {
+				pathShown = parentShown
+			}
+			pathGuide := parentGuide
+			if guideFound {
+				pathGuide = guide
+			}
+			if pathShown && (!requireGuide || pathGuide) {
+				return true, pathGuide
+			}
+			if pathShown {
+				bestShown, bestGuide = true, pathGuide
+			}
+		}
+		return bestShown, bestGuide
+	}
+	shown, guide := visit(d, 0)
+	return shown && (!requireGuide || guide)
+}
+
+func questSourcePrerequisiteIDs(cells []pvf.Token) []uint32 {
+	for i, c := range cells {
+		if c.Type != 3 || c.Text != "[pre required quest]" {
+			continue
+		}
+		var ids []uint32
+		for j := i + 1; j < len(cells) && cells[j].Type != 3; j++ {
+			if cells[j].Type == 0 && cells[j].Value > 0 {
+				ids = append(ids, uint32(cells[j].Value))
+			}
+		}
+		return ids
+	}
+	return nil
+}
+
+func questGoGuideTargetsNPC(cells []pvf.Token, npc uint32, at storage.WorldPosition) (found bool, matches bool) {
+	for i, c := range cells {
+		if c.Type == 3 && c.Text == "[go guide]" && i+3 < len(cells) &&
+			cells[i+1].Type == 0 && cells[i+2].Type == 0 && cells[i+3].Type == 0 &&
+			cells[i+3].Value == int32(npc) {
+			found = true
+			matches = cells[i+1].Value == int32(at.Town) && cells[i+2].Value == int32(at.Area)
+		}
+	}
+	return found, matches
+}
+
+func questVisibilityOnClear(cells []pvf.Token, npc uint32) (show bool, found bool) {
+	for i, c := range cells {
+		if c.Type != 3 || c.Text != "[npc visibility]" {
+			continue
+		}
+		var target, clear bool
+		var visibility string
+		for j := i + 1; j+1 < len(cells); j++ {
+			field := cells[j]
+			if field.Type != 3 {
+				continue
+			}
+			if field.Text == "[/npc visibility]" {
+				break
+			}
+			next := cells[j+1]
+			switch field.Text {
+			case "[npc]":
+				target = next.Type == 0 && next.Value == int32(npc)
+			case "[condition]":
+				clear = next.Type == 6 && next.Text == "[clear]"
+			case "[visibility]":
+				if next.Type == 6 {
+					visibility = next.Text
+				}
+			}
+		}
+		if target && clear && (visibility == "[show]" || visibility == "[hide]") {
+			show, found = visibility == "[show]", true
+		}
+	}
+	return show, found
 }
 
 // A visible quest NPC can be absent from the static town map because the
