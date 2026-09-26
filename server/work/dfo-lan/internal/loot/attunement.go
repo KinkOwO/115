@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sort"
 )
 
 // AttunementModel names the document shape LoadAttunementRewards accepts. The
@@ -222,6 +223,38 @@ func (a *AttunementRewards) Templates() []uint32 {
 	return out
 }
 
+// RolledTemplates lists the entries a clear can actually pay: the fixed lists and
+// the additional branches. The hidden tables are excluded because nothing rolls
+// them, so a template that only ever appears there never reaches a player - and
+// some of what they hold is unresolved, which must not be mistaken for a
+// payable reward.
+func (a *AttunementRewards) RolledTemplates() []uint32 {
+	if a == nil {
+		return nil
+	}
+	seen := map[uint32]bool{}
+	var out []uint32
+	add := func(id uint32) {
+		if id != 0 && !seen[id] {
+			seen[id] = true
+			out = append(out, id)
+		}
+	}
+	for _, t := range a.Tables {
+		for _, f := range t.Fixed {
+			for _, e := range f.Entries {
+				add(e.Item)
+			}
+		}
+		for _, at := range t.Additional {
+			for _, e := range at.Entries {
+				add(e.Item)
+			}
+		}
+	}
+	return out
+}
+
 // ValidateTemplates refuses a reward table whose items the running item catalog
 // does not know as stackables. Every source entry is a [booster] box, and the
 // bag can only hold a box it can identify - an unknown template would be routed
@@ -241,6 +274,45 @@ func (a *AttunementRewards) ValidateTemplates(c catalog.LootCatalog) error {
 		}
 	}
 	return nil
+}
+
+// ValidateBoxes checks that every wrapper a clear can pay is one the box source
+// can open, and reports the pool entries the source leaves empty.
+//
+// Both halves are load-bearing. An unresolvable wrapper would reach the ground
+// as a jar nobody can open, which is worse than paying nothing because the
+// player has already watched it drop. An empty face is legitimate - the CTPs
+// spend a reserved id on "no prize" and hand it real weight - but it is also
+// exactly what a prize missing from the item catalog looks like from here, so
+// the ids come back for the caller to log and compare against the build.
+func (a *AttunementRewards) ValidateBoxes(src RewardBoxSource) ([]uint32, error) {
+	if !a.Enabled() || src == nil {
+		return nil, nil
+	}
+	var empties []uint32
+	seen := map[uint32]bool{}
+	for _, id := range a.RolledTemplates() {
+		box, ok := src.RewardBox(id)
+		if !ok {
+			return nil, fmt.Errorf("attunement reward %d is not a wrapper the box catalog can open", id)
+		}
+		for _, pool := range box.Pools {
+			for _, c := range pool.Candidates {
+				if _, ok := src.RewardBox(c.Template); ok {
+					continue
+				}
+				if src.Item(c.Template) {
+					continue
+				}
+				if !seen[c.Template] {
+					seen[c.Template] = true
+					empties = append(empties, c.Template)
+				}
+			}
+		}
+	}
+	sort.Slice(empties, func(i, j int) bool { return empties[i] < empties[j] })
+	return empties, nil
 }
 
 // Roll pays one cleared attunement maze.

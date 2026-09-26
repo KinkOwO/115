@@ -669,6 +669,7 @@ func (w *worldSession) monsterDeath(p []byte, event func(map[string]any)) ([]out
 					w.drops.ChapterDrop = w.loot.ChapterDrop
 				}
 				w.drops.Attunement = w.loot.Attunement
+				w.drops.RewardBoxes = w.loot.RewardBoxes
 				store := w.service.Store
 				if store == nil && w.characters != nil {
 					store = w.characters.Store
