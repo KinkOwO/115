@@ -117,7 +117,7 @@ func TestPreyQuestVisibleNPCUsesObservedBlackMarketInteraction(t *testing.T) {
 	if (&world.Service{Catalog: wcat}).HasNPC(at, 8000) {
 		t.Fatal("NPC 8000 unexpectedly exists in the static Black Market map")
 	}
-	if !allowsQuestVisibleNPCInteraction(6200, 8000, at, d) {
+	if !allowsQuestVisibleNPCInteraction(6200, 8000, at, d, qcat) {
 		t.Fatal("observed Prey_01 CMD33 should reach the owned quest check")
 	}
 	for _, tc := range []struct {
@@ -130,7 +130,7 @@ func TestPreyQuestVisibleNPCUsesObservedBlackMarketInteraction(t *testing.T) {
 		{6200, 607, at},
 		{6201, 8000, at},
 	} {
-		if allowsQuestVisibleNPCInteraction(tc.id, tc.npc, tc.at, d) {
+		if allowsQuestVisibleNPCInteraction(tc.id, tc.npc, tc.at, d, qcat) {
 			t.Fatalf("unobserved quest interaction was exempted: %+v", tc)
 		}
 	}
@@ -149,7 +149,7 @@ func TestQuestVisibleNPCRelaxSwitch(t *testing.T) {
 		if !questShowsObjectiveNPCOnAccept(d, npc) {
 			t.Fatalf("quest %d no longer has an accept/show objective NPC", id)
 		}
-		if allowsQuestVisibleNPCInteraction(id, npc, farAway, d) {
+		if allowsQuestVisibleNPCInteraction(id, npc, farAway, d, qcat) {
 			t.Fatalf("quest %d was relaxed while the switch was off", id)
 		}
 	}
@@ -160,15 +160,47 @@ func TestQuestVisibleNPCRelaxSwitch(t *testing.T) {
 	for _, id := range []uint16{6200, 12411, 12952} {
 		d := qcat.Quests[uint32(id)]
 		npc := uint32(d.ObjectiveCells[0].Value)
-		if !allowsQuestVisibleNPCInteraction(id, npc, farAway, d) {
+		if !allowsQuestVisibleNPCInteraction(id, npc, farAway, d, qcat) {
 			t.Fatalf("quest %d was not relaxed with the switch on", id)
 		}
 	}
-	if allowsQuestVisibleNPCInteraction(12167, 100000319, farAway, qcat.Quests[12167]) {
+	if allowsQuestVisibleNPCInteraction(12167, 100000319, farAway, qcat.Quests[12167], qcat) {
 		t.Fatal("hide-on-clear quest was relaxed")
 	}
-	if allowsQuestVisibleNPCInteraction(6200, 607, farAway, qcat.Quests[6200]) {
+	if allowsQuestVisibleNPCInteraction(6200, 607, farAway, qcat.Quests[6200], qcat) {
 		t.Fatal("wrong objective NPC was relaxed")
+	}
+}
+
+func TestZasuraRevealedByPrecedingQuest(t *testing.T) {
+	qcat, err := catalog.LoadQuests("../../configs/quests.generated.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	d := qcat.Quests[6357]
+	const npc = 100000175
+	if !questShownByPrerequisiteOnClear(d, npc, qcat) {
+		t.Fatal("quest 6356 should reveal the objective NPC for 6357 on clear")
+	}
+	if questShowsObjectiveNPCOnAccept(d, npc) {
+		t.Fatal("quest 6357 itself has no accept/show visibility rule")
+	}
+	t.Setenv("DFO_QUEST_VISIBLE_NPC_RELAX", "0")
+	market := storage.WorldPosition{Town: 54, Area: 1}
+	if !allowsQuestVisibleNPCInteraction(6357, npc, market, d, qcat) {
+		t.Fatal("observed Black Market CMD33 remains blocked")
+	}
+	farAway := storage.WorldPosition{Town: 1, Area: 0}
+	if allowsQuestVisibleNPCInteraction(6357, npc, farAway, d, qcat) {
+		t.Fatal("quest 6357 was allowed outside the observed area with switch off")
+	}
+	t.Setenv("DFO_QUEST_VISIBLE_NPC_RELAX", "1")
+	if !allowsQuestVisibleNPCInteraction(6357, npc, farAway, d, qcat) {
+		t.Fatal("the relaxed predecessor visibility form was not recognized")
+	}
+	if allowsQuestVisibleNPCInteraction(6357, 100000181, farAway, d, qcat) ||
+		allowsQuestVisibleNPCInteraction(6358, npc, farAway, qcat.Quests[6358], qcat) {
+		t.Fatal("unrelated NPC or quest was allowed")
 	}
 }
 

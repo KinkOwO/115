@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"dfolan/internal/catalog"
+	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/character"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
@@ -231,7 +232,7 @@ func (w *worldSession) questInteraction(p []byte) ([]outboundPacket, error) {
 		w.communicationTown == w.state.Position.Town &&
 		w.communicationArea == w.state.Position.Area &&
 		time.Now().Before(w.communicationUntil)
-	if !communicated && !quest.AllowsRemoteNPCInteraction(d) && !allowsQuestVisibleNPCInteraction(id, npc, w.state.Position, d) &&
+	if !communicated && !quest.AllowsRemoteNPCInteraction(d) && !allowsQuestVisibleNPCInteraction(id, npc, w.state.Position, d, w.quests.Catalog) &&
 		(w.service == nil || !w.service.HasNPC(w.state.Position, npc)) {
 		return nil, fmt.Errorf("quest %d NPC %d is absent from current source area %d/%d", id, npc, w.state.Position.Town, w.state.Position.Area)
 	}
@@ -260,54 +261,93 @@ func (w *worldSession) questInteraction(p []byte) ([]outboundPacket, error) {
 // current client repeatedly sends CMD33 for 6200 while in Black Market 54/1.
 // Accept only that native request in that area; MeetNPC still requires the
 // character to own an accepted quest with the matching objective and version.
-func allowsQuestVisibleNPCInteraction(id uint16, npc uint32, at storage.WorldPosition, d catalog.QuestDefinition) bool {
+func allowsQuestVisibleNPCInteraction(id uint16, npc uint32, at storage.WorldPosition, d catalog.QuestDefinition, quests catalog.QuestCatalog) bool {
 	// Preserve the user-confirmed 6200 behavior even with the relaxation off.
 	if id == 6200 && npc == 8000 && at.Town == 54 && at.Area == 1 && questShowsObjectiveNPCOnAccept(d, npc) {
 		return true
 	}
-	return os.Getenv("DFO_QUEST_VISIBLE_NPC_RELAX") == "1" && questShowsObjectiveNPCOnAccept(d, npc)
+	// Live CMD33 in Black Market and the source quest chain prove this form:
+	// completing 6356 reveals NPC 100000175, which quest 6357 meets.
+	if id == 6357 && npc == 100000175 && at.Town == 54 && at.Area == 1 && questShownByPrerequisiteOnClear(d, npc, quests) {
+		return true
+	}
+	return os.Getenv("DFO_QUEST_VISIBLE_NPC_RELAX") == "1" &&
+		(questShowsObjectiveNPCOnAccept(d, npc) || questShownByPrerequisiteOnClear(d, npc, quests))
 }
 
 // A visible quest NPC can be absent from the static town map because the
-// client adds it from quest state. The opt-in path requires the source quest
-// to name that NPC as both the objective and completion NPC, and to show it
-// on acceptance. MeetNPC separately verifies ownership and accepted state.
+// client adds it from quest state. MeetNPC separately verifies ownership and
+// accepted state.
 func questShowsObjectiveNPCOnAccept(d catalog.QuestDefinition, npc uint32) bool {
 	if npc == 0 || npc > 0x7fffffff || len(d.Pending) != 0 || len(d.Script.Cells) < 2 ||
 		d.Kind != "[meet npc]" || len(d.ObjectiveCells) != 1 ||
 		d.ObjectiveCells[0].Type != 0 || d.ObjectiveCells[0].Value != int32(npc) {
 		return false
 	}
-	completeNPC := false
-	for i, c := range d.Script.Cells[:len(d.Script.Cells)-1] {
-		if c.Type == 3 && c.Text == "[complete npc index]" &&
+	if !questCompletionNPCMatches(d, npc) {
+		return false
+	}
+	return questVisibilityShows(d.Script.Cells, npc, "[accept]")
+}
+
+func questCompletionNPCMatches(d catalog.QuestDefinition, npc uint32) bool {
+	for i, c := range d.Script.Cells {
+		if c.Type == 3 && c.Text == "[complete npc index]" && i+1 < len(d.Script.Cells) &&
 			d.Script.Cells[i+1].Type == 0 && d.Script.Cells[i+1].Value == int32(npc) {
-			completeNPC = true
-			break
+			return true
 		}
 	}
-	if !completeNPC {
+	return false
+}
+
+// A preceding quest can reveal the NPC only after it is cleared. The exported
+// quest catalog predates prerequisite-group parsing, so read the source cells
+// rather than relying on its empty Prerequisites projection.
+func questShownByPrerequisiteOnClear(d catalog.QuestDefinition, npc uint32, quests catalog.QuestCatalog) bool {
+	if npc == 0 || npc > 0x7fffffff || len(d.Pending) != 0 ||
+		d.Kind != "[meet npc]" || len(d.ObjectiveCells) != 1 ||
+		d.ObjectiveCells[0].Type != 0 || d.ObjectiveCells[0].Value != int32(npc) ||
+		!questCompletionNPCMatches(d, npc) {
 		return false
 	}
 	for i, c := range d.Script.Cells {
+		if c.Type != 3 || c.Text != "[pre required quest]" {
+			continue
+		}
+		for j := i + 1; j < len(d.Script.Cells) && d.Script.Cells[j].Type != 3; j++ {
+			parentID := d.Script.Cells[j].Value
+			if d.Script.Cells[j].Type != 0 || parentID <= 0 {
+				continue
+			}
+			parent, ok := quests.Quests[uint32(parentID)]
+			if ok && questVisibilityShows(parent.Script.Cells, npc, "[clear]") {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func questVisibilityShows(cells []pvf.Token, npc uint32, condition string) bool {
+	for i, c := range cells {
 		if c.Type != 3 || c.Text != "[npc visibility]" {
 			continue
 		}
 		var target, accept, show bool
-		for j := i + 1; j+1 < len(d.Script.Cells); j++ {
-			field := d.Script.Cells[j]
+		for j := i + 1; j+1 < len(cells); j++ {
+			field := cells[j]
 			if field.Type != 3 {
 				continue
 			}
 			if field.Text == "[/npc visibility]" {
 				break
 			}
-			next := d.Script.Cells[j+1]
+			next := cells[j+1]
 			switch field.Text {
 			case "[npc]":
 				target = next.Type == 0 && next.Value == int32(npc)
 			case "[condition]":
-				accept = next.Type == 6 && next.Text == "[accept]"
+				accept = next.Type == 6 && next.Text == condition
 			case "[visibility]":
 				show = next.Type == 6 && next.Text == "[show]"
 			}
