@@ -9,6 +9,7 @@ import (
 	"dfolan/internal/inventory"
 	"dfolan/internal/quest"
 	"dfolan/internal/storage"
+	"dfolan/internal/world"
 	"encoding/binary"
 	"fmt"
 	"os"
@@ -269,6 +270,7 @@ func (w *worldSession) questInteraction(p []byte) ([]outboundPacket, error) {
 		w.communicationArea == w.state.Position.Area &&
 		time.Now().Before(w.communicationUntil)
 	if !communicated && !quest.AllowsRemoteNPCInteraction(d) && !allowsQuestVisibleNPCInteraction(id, npc, w.state.Position, d, w.quests.Catalog) &&
+		!allowsQuestPhaseNPCInteraction(w.service, npc, w.state.Position, d, w.quests.Catalog) &&
 		(w.service == nil || !w.service.HasNPC(w.state.Position, npc)) {
 		return nil, fmt.Errorf("quest %d NPC %d is absent from current source area %d/%d", id, npc, w.state.Position.Town, w.state.Position.Area)
 	}
@@ -307,12 +309,6 @@ func allowsQuestVisibleNPCInteraction(id uint16, npc uint32, at storage.WorldPos
 	if id == 6357 && npc == 100000175 && at.Town == 54 && at.Area == 1 && questShownByPrerequisiteOnClear(d, npc, quests) {
 		return true
 	}
-	// Ghent's afterwar phase map contains Woon, while the exported base map
-	// does not. The native CMD33 for skywar_31 was observed in area 6/3;
-	// clearing skywar_30 reveals Woon in a grouped [npc] visibility list.
-	if id == 13588 && npc == 100000304 && at.Town == 6 && at.Area == 3 && questShownByPrerequisiteOnClear(d, npc, quests) {
-		return true
-	}
 	// A quest chain can reveal an NPC several steps before the meeting quest.
 	// A source [go guide] in that chain pins the NPC to a town area.
 	if questLineageShowsGuidedNPC(d, npc, at, quests, true) {
@@ -321,6 +317,16 @@ func allowsQuestVisibleNPCInteraction(id uint16, npc uint32, at storage.WorldPos
 	return os.Getenv("DFO_QUEST_VISIBLE_NPC_RELAX") == "1" &&
 		(questShowsObjectiveNPCOnAccept(d, npc) || questShownByPrerequisiteOnClear(d, npc, quests) ||
 			questLineageShowsGuidedNPC(d, npc, at, quests, false))
+}
+
+// A phase map is an area-specific source of NPC placement, but its NPCs are
+// not all visible at once. Require the accepted meet quest's objective and
+// completion NPC to match a source visibility rule as well as a phase map row.
+func allowsQuestPhaseNPCInteraction(service *world.Service, npc uint32, at storage.WorldPosition, d catalog.QuestDefinition, quests catalog.QuestCatalog) bool {
+	if service == nil || !service.HasPhaseNPC(at, npc) {
+		return false
+	}
+	return questShowsObjectiveNPCOnAccept(d, npc) || questLineageShowsGuidedNPC(d, npc, at, quests, false)
 }
 
 // Follow source prerequisites, not numeric quest adjacency. A clear/show rule
