@@ -39,6 +39,8 @@ type entryPayloads struct {
 	// every login. Empty payloads are skipped by preparePackets.
 	InformNotice    []byte
 	InformNotice2nd []byte
+	// Category-0 owned skins must arrive before their persisted selection.
+	ProfileSkinCargo, ProfileSkinSelection []byte
 	// WornSlots is the id-14 per-slot update frame for the full worn set
 	// (space 3), same builder the equipment-move path uses. The live
 	// 20260921 probe timeline showed the equip-change heal always carries
@@ -85,6 +87,8 @@ func (p entryPayloads) packets() []outboundPacket {
 		{"account_options_restored", 0, 2826, p.AccountOptions},
 		{"inform_notice_restored", 0, 402, p.InformNotice},
 		{"inform_notice_2nd_restored", 0, 426, p.InformNotice2nd},
+		{"profile_skin_cargo_restored", 0, 1545, p.ProfileSkinCargo},
+		{"profile_skin_selection_restored", 0, 1546, p.ProfileSkinSelection},
 		{"cinematic_skips_restored", 0, 1352, p.CinematicSkips},
 		{"story_digest_restored", 0, 1370, p.StoryDigest},
 		{"entry_basic_probe_sent", 0, 2, p.Basic},
