@@ -190,10 +190,11 @@ func SortVaultSpace(v Vault) Vault {
 }
 
 type VaultService struct {
-	Store    *storage.Store
-	Rules    VaultRules
-	Catalog  catalog.LootCatalog
-	BagRules BagRules
+	Store     *storage.Store
+	Rules     VaultRules
+	Catalog   catalog.LootCatalog
+	BagRules  BagRules
+	Equipment *EquipmentCatalog
 }
 
 func (s *VaultService) Bootstrap(ctx context.Context, role storage.Character) ([]byte, error) {
@@ -252,7 +253,7 @@ func vaultWithdrawBagMergeSlot(rules BagRules, destination, candidate uint16) bo
 }
 
 // MoveVaultItem handles item transfer between Bag and Vault, or within Vault.
-func MoveVaultItem(b Bag, v Vault, rules BagRules, r protocol.ItemMoveRequest) (Bag, Vault, uint32, error) {
+func MoveVaultItem(b Bag, v Vault, rules BagRules, r protocol.ItemMoveRequest, equipment ...*EquipmentCatalog) (Bag, Vault, uint32, error) {
 	if r.SourceList != 2 && r.DestinationList != 2 {
 		return b, v, 0, fmt.Errorf("not a vault move operation")
 	}
@@ -260,6 +261,57 @@ func MoveVaultItem(b Bag, v Vault, rules BagRules, r protocol.ItemMoveRequest) (
 	b.Items = append([]BagItem(nil), b.Items...)
 	b.Equipment = append([]BagEquipment(nil), b.Equipment...)
 	v.Items = append([]VaultItem(nil), v.Items...)
+	// Live CMD19 withdraws a creature to list 7 slot 0 and its artifact to
+	// list 7 slot 321. The imported equipment kind validates the requested band.
+	if r.SourceList == 2 && r.DestinationList == 7 {
+		if len(equipment) == 0 || equipment[0] == nil || r.SourceSlot >= v.Slots || r.Count != 1 {
+			return b, v, 0, fmt.Errorf("pet vault withdrawal requires equipment catalog and valid source")
+		}
+		srcIdx := -1
+		for i := range v.Items {
+			if v.Items[i].Slot == r.SourceSlot {
+				srcIdx = i
+				break
+			}
+		}
+		if srcIdx < 0 || !v.Items[srcIdx].IsEquip {
+			return b, v, 0, fmt.Errorf("vault source is not pet equipment")
+		}
+		item := v.Items[srcIdx]
+		kind, err := equipment[0].EquipmentKind(item.Template)
+		if err != nil {
+			return b, v, 0, err
+		}
+		if !(kind == "[creature]" && r.DestinationSlot < 140 || IsPetGear(kind) && r.DestinationSlot >= PetGearFirst && r.DestinationSlot <= PetGearLast) {
+			return b, v, 0, fmt.Errorf("pet equipment does not fit destination slot")
+		}
+		for _, row := range b.Special[7] {
+			if row.Slot == r.DestinationSlot {
+				return b, v, 0, fmt.Errorf("target pet slot is occupied")
+			}
+		}
+		for _, row := range b.PetItems {
+			if row.Slot == r.DestinationSlot {
+				return b, v, 0, fmt.Errorf("target pet slot is occupied")
+			}
+		}
+		instance := BagEquipment{Slot: r.DestinationSlot, Template: item.Template, Durability: item.Durability}
+		if item.Equipment != nil {
+			instance = *item.Equipment
+			instance.Slot = r.DestinationSlot
+		}
+		if err := instance.ValidateRecord(); err != nil {
+			return b, v, 0, err
+		}
+		clone := make(map[byte][]BagEquipment, len(b.Special)+1)
+		for space, rows := range b.Special {
+			clone[space] = rows
+		}
+		b.Special = clone
+		b.Special[7] = append(append([]BagEquipment(nil), b.Special[7]...), instance)
+		v.Items = append(v.Items[:srcIdx], v.Items[srcIdx+1:]...)
+		return b, v, 1, nil
+	}
 
 	// Case 1: Bag -> Vault
 	if r.SourceList == 0 && r.DestinationList == 2 {

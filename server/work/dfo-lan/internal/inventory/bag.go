@@ -97,6 +97,13 @@ type Bag struct {
 	// CreatureExperience is keyed by the creature instance key stored in its
 	// equipment record. Older saves omit it and start at zero experience.
 	CreatureExperience map[uint32]uint32 `json:"creature_experience,omitempty"`
+	// Missing values in old saves mean a fully fed creature.
+	CreatureSatiety map[uint32]byte `json:"creature_satiety,omitempty"`
+	// Loyalty accrues in 1/360 point units: town/unequipped +1 per second,
+	// equipped in a dungeon -6 per second. Old saves start at login time.
+	CreatureLoyaltyUpdatedAt  int64            `json:"creature_loyalty_updated_at,omitempty"`
+	CreatureLoyaltyDungeonKey uint32           `json:"creature_loyalty_dungeon_key,omitempty"`
+	CreatureLoyaltyFraction   map[uint32]int64 `json:"creature_loyalty_fraction,omitempty"`
 	// ExpandEquipFlags carries the extended equipment-slot unlock bits the
 	// armoury draws its padlocks from: support 1<<0, magic stone 1<<1 and
 	// earring 1<<4. Quests 649/650/2636 award one bit each and every award

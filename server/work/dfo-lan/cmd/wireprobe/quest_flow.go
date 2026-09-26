@@ -135,7 +135,7 @@ func (w *worldSession) finishQuest(r protocol.QuestSubmitRequest) ([]outboundPac
 			return nil, e
 		}
 		plan = append(plan, outboundPacket{"quest_inventory_committed", 0, 13, body})
-		if len(bag.PetItems) > 0 {
+		if len(bag.PetItems)+len(bag.Special[7]) > 0 {
 			petBody, petErr := inventory.PetContainerBody(bag, true)
 			if petErr != nil {
 				return nil, petErr

@@ -24,7 +24,7 @@ const correctionEquippedLevelKey = "[correction equipped level]"
 func WearableBy(fields map[string][]pvf.Token, kind string, job string, advancement, level byte) error {
 	levels := fields["[minimum level]"]
 	if len(levels) == 0 {
-		if !strings.HasSuffix(kind, " avatar]") {
+		if !strings.HasSuffix(kind, " avatar]") && !IsPetGear(kind) && EquipmentBagSpace(kind) != 7 {
 			return fmt.Errorf("equipment minimum level not met or unavailable")
 		}
 		levels = []pvf.Token{{Type: 0, Value: 0}}

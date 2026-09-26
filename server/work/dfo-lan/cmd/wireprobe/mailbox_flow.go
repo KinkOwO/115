@@ -435,7 +435,7 @@ func (w *worldSession) claimMail(ctx context.Context, p, keys []byte, key string
 		if readErr != nil {
 			return nil, 0, readErr
 		}
-		if len(bag.PetItems) > 0 {
+		if len(bag.PetItems)+len(bag.Special[7]) > 0 {
 			petBody, petErr := inventory.PetContainerBody(bag, true)
 			if petErr != nil {
 				return nil, 0, petErr

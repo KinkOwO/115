@@ -750,6 +750,9 @@ func main() {
 			log.Fatal(e)
 		}
 		vaultService = &inventory.VaultService{Store: characters.Store, Rules: rules}
+		if wearService != nil {
+			vaultService.Equipment = wearService.Catalog
+		}
 		if *vaultPurchase || *vaultRelease || *shopRelease {
 			for n := uint16(24); n <= 264; n += 16 {
 				vaultService.Rules.VerifiedSlots = append(vaultService.Rules.VerifiedSlots, n)
@@ -1191,13 +1194,24 @@ func main() {
 					p, e := worldState.refreshDailyFatigue(now)
 					if e != nil {
 						event(map[string]any{"kind": "fatigue_daily_error", "error": e.Error()})
-						continue
 					}
-					if p != nil {
+					if e == nil && p != nil {
 						if e = sendPayload(0, 36, p); e != nil {
 							return
 						}
 						event(map[string]any{"kind": "fatigue_daily_refresh", "character_id": selectedCharacterID})
+					}
+					loyaltyCtx, loyaltyCancel := context.WithTimeout(context.Background(), 5*time.Second)
+					loyaltyPackets, loyaltyErr := worldState.refreshCreatureLoyalty(loyaltyCtx, now, worldState.activeDungeon != nil)
+					loyaltyCancel()
+					if loyaltyErr != nil {
+						event(map[string]any{"kind": "creature_loyalty_error", "character_id": selectedCharacterID, "error": loyaltyErr.Error()})
+					} else {
+						for _, packet := range loyaltyPackets {
+							if e := sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
+								return
+							}
+						}
 					}
 				}
 				continue
@@ -2364,6 +2378,18 @@ func main() {
 						worldState.resetCards()
 					}
 					worldState.activeDungeon = pending
+					loyaltyCtx, loyaltyCancel := context.WithTimeout(context.Background(), 5*time.Second)
+					loyaltyPackets, loyaltyErr := worldState.refreshCreatureLoyalty(loyaltyCtx, time.Now(), true)
+					loyaltyCancel()
+					if loyaltyErr != nil {
+						event(map[string]any{"kind": "creature_loyalty_error", "character_id": selectedCharacterID, "error": loyaltyErr.Error()})
+					} else {
+						for _, packet := range loyaltyPackets {
+							if e := sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
+								return
+							}
+						}
+					}
 					// A dungeon is a private instance: this actor leaves the shared town.
 					worldState.leaveScene()
 					worldState.completionSent = false
@@ -2404,6 +2430,18 @@ func main() {
 					}
 					if (p.Name == "settlement_exit_ack" || p.Name == "dungeon_leave_ack") && pending == nil {
 						worldState.activeDungeon = nil
+						loyaltyCtx, loyaltyCancel := context.WithTimeout(context.Background(), 5*time.Second)
+						loyaltyPackets, loyaltyErr := worldState.refreshCreatureLoyalty(loyaltyCtx, time.Now(), false)
+						loyaltyCancel()
+						if loyaltyErr != nil {
+							event(map[string]any{"kind": "creature_loyalty_error", "character_id": selectedCharacterID, "error": loyaltyErr.Error()})
+						} else {
+							for _, packet := range loyaltyPackets {
+								if e := sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
+									return
+								}
+							}
+						}
 						worldState.drops = nil
 						worldState.deathSent = nil
 						worldState.completionSent = false
@@ -2453,6 +2491,18 @@ func main() {
 				}
 				if frame.ID == 42 {
 					worldState.activeDungeon = nil
+					loyaltyCtx, loyaltyCancel := context.WithTimeout(context.Background(), 5*time.Second)
+					loyaltyPackets, loyaltyErr := worldState.refreshCreatureLoyalty(loyaltyCtx, time.Now(), false)
+					loyaltyCancel()
+					if loyaltyErr != nil {
+						event(map[string]any{"kind": "creature_loyalty_error", "character_id": selectedCharacterID, "error": loyaltyErr.Error()})
+					} else {
+						for _, packet := range loyaltyPackets {
+							if e := sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
+								return
+							}
+						}
+					}
 					if note, closed := legionState.abandonOnLeave("CMD42 dungeon leave", worldState.role.ID); closed {
 						note["id"] = frame.ID
 						event(note)
@@ -3131,6 +3181,43 @@ func main() {
 					} else {
 						role = petRole
 					}
+				}
+				if wearService != nil && wearService.Catalog != nil {
+					gearCtx, gearCancel := context.WithTimeout(context.Background(), 5*time.Second)
+					gearRole, applied, gearErr := characters.Store.CommitCharacterEvent(gearCtx, role.AccountID, role.ID, role.ConfigVersion,
+						"pet-gear-resweep", "pet-gear-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+							bag, err := inventory.ReadBag(current.State)
+							if err != nil {
+								return nil, nil, err
+							}
+							fixed, _, err := inventory.SweepPetGear(bag, wearService.Catalog)
+							if err != nil {
+								return nil, nil, err
+							}
+							state, err := inventory.SaveBag(current.State, fixed)
+							return state, json.RawMessage(`{}`), err
+						})
+					gearCancel()
+					if gearErr != nil {
+						event(map[string]any{"kind": "entry_pet_gear_error", "character_id": role.ID, "error": gearErr.Error()})
+					} else {
+						role = gearRole
+						if applied {
+							event(map[string]any{"kind": "entry_pet_gear_swept", "character_id": role.ID})
+						}
+					}
+				}
+				loyaltyCtx, loyaltyCancel := context.WithTimeout(context.Background(), 5*time.Second)
+				loyaltyRole, _, loyaltyErr := characters.Store.CommitCharacterEvent(loyaltyCtx, role.AccountID, role.ID, role.ConfigVersion,
+					fmt.Sprintf("creature-loyalty-login:%d", time.Now().UnixNano()), "creature-loyalty-login-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+						state, err := inventory.BeginCreatureLoyaltySession(current.State, time.Now().Unix())
+						return state, json.RawMessage(`{}`), err
+					})
+				loyaltyCancel()
+				if loyaltyErr != nil {
+					event(map[string]any{"kind": "entry_creature_loyalty_error", "character_id": role.ID, "error": loyaltyErr.Error()})
+				} else {
+					role = loyaltyRole
 				}
 				if wearService != nil {
 					plan.Worn, e = inventory.WornPayload(role.State)

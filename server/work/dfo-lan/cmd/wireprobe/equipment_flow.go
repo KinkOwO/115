@@ -179,6 +179,14 @@ func (s *equipmentSession) handle(service *inventory.WearService, w *worldSessio
 		plan = append(plan, outboundPacket{"equipment_appearance_refreshed", 0, 2, probe})
 	}
 	w.role = saved
+	if (r.SourceList == 3 && r.SourceSlot == 26) || (r.DestinationList == 3 && r.DestinationSlot == 26) {
+		loyaltyCtx, loyaltyCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		loyaltyPackets, loyaltyErr := w.refreshCreatureLoyalty(loyaltyCtx, time.Now(), w.activeDungeon != nil)
+		loyaltyCancel()
+		if loyaltyErr == nil {
+			plan = append(plan, loyaltyPackets...)
+		}
+	}
 	return plan, nil
 }
 

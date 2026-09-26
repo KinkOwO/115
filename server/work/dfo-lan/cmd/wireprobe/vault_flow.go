@@ -22,8 +22,11 @@ func (w *worldSession) moveVault(rules inventory.BagRules, r protocol.ItemMoveRe
 	} else if r.SourceList != 2 && r.DestinationList != 2 {
 		return nil, false, nil
 	}
-	if (r.SourceList != 0 && r.SourceList != space) || (r.DestinationList != 0 && r.DestinationList != space) {
+	if (r.SourceList != 0 && r.SourceList != space) || (r.DestinationList != 0 && r.DestinationList != 7 && r.DestinationList != space) {
 		return nil, true, fmt.Errorf("个人金库不支持此容器组合：%d → %d", r.SourceList, r.DestinationList)
+	}
+	if r.DestinationList == 7 && r.SourceList != 2 {
+		return nil, true, fmt.Errorf("宠物栏金库取出尚未确认容器组合：%d → %d", r.SourceList, r.DestinationList)
 	}
 	if w == nil || w.role.ID == 0 || w.vault == nil || w.vault.Store == nil {
 		return nil, true, fmt.Errorf("vault move before character or vault service initialization")
@@ -66,6 +69,19 @@ func (w *worldSession) moveVault(rules inventory.BagRules, r protocol.ItemMoveRe
 					}
 					return 0
 				}
+				if list == 7 {
+					for _, item := range b.Special[7] {
+						if item.Slot == slot {
+							return item.Template
+						}
+					}
+					for _, item := range b.PetItems {
+						if item.Slot == slot {
+							return item.Template
+						}
+					}
+					return 0
+				}
 				for _, item := range b.Items {
 					if item.Slot == slot {
 						return item.Template
@@ -88,7 +104,7 @@ func (w *worldSession) moveVault(rules inventory.BagRules, r protocol.ItemMoveRe
 				limitTemplate = move.DestinationItem
 			}
 			moveRules.MissingStackLimit = inventory.StackLimitForTemplate(w.vault.Catalog, rules, limitTemplate)
-			newBag, newVault, movedCount, moveErr = inventory.MoveVaultItem(b, v, moveRules, move)
+			newBag, newVault, movedCount, moveErr = inventory.MoveVaultItem(b, v, moveRules, move, w.vault.Equipment)
 			if moveErr != nil {
 				return nil, nil, moveErr
 			}
@@ -106,6 +122,11 @@ func (w *worldSession) moveVault(rules inventory.BagRules, r protocol.ItemMoveRe
 			}
 			if _, e = protocol.InventoryRestore(newBag.Rows(), newBag.Expansion); e != nil {
 				return nil, nil, e
+			}
+			if move.DestinationList == 7 {
+				if _, e = inventory.PetContainerBody(newBag, true); e != nil {
+					return nil, nil, e
+				}
 			}
 			return savedBagRaw, savedVaultRaw, nil
 		}, space)
@@ -125,6 +146,18 @@ func (w *worldSession) moveVault(rules inventory.BagRules, r protocol.ItemMoveRe
 			return nil, true, e
 		}
 		plan = append(plan, outboundPacket{"vault_bag_restored", 0, 13, bagUpdate})
+	}
+	if r.DestinationList == 7 {
+		petBody, e := inventory.PetContainerBody(newBag, true)
+		if e != nil {
+			return nil, true, e
+		}
+		plan = append(plan, outboundPacket{"vault_pet_container_restored", 0, 13, petBody})
+		creatures, e := inventory.CreatureListPayload(savedRole.State)
+		if e != nil {
+			return nil, true, e
+		}
+		plan = append(plan, outboundPacket{"vault_creature_list_updated", 0, 105, creatures})
 	}
 
 	if r.SourceList == space || r.DestinationList == space {

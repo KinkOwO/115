@@ -1,6 +1,7 @@
 {
   "source": "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80",
   "native_evidence": "1470cb2a0 current equipment type map initializer",
+  "special": true,
   "slots": {
     "[weapon]": 12,
     "[title name]": 13,
@@ -15,6 +16,11 @@
     "[support]": 22,
     "[magic stone]": 23,
     "[support weapon]": 24,
-    "[earring]": 25
+    "[earring]": 25,
+    "[creature]": 26,
+    "[artifact red]": 27,
+    "[artifact blue]": 28,
+    "[artifact green]": 29,
+    "[creature skin]": 32
   }
 }

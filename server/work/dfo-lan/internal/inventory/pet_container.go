@@ -12,6 +12,94 @@ import (
 
 const PetConsumableFirst uint16 = 376
 const PetConsumableLast uint16 = 431
+const PetGearFirst uint16 = 320
+const PetGearLast uint16 = 375
+
+func IsPetGear(kind string) bool {
+	switch kind {
+	case "[artifact red]", "[artifact blue]", "[artifact green]":
+		return true
+	}
+	return false
+}
+
+func IsPetFeed(stackableType string) bool {
+	return strings.HasPrefix(normalizeStackableType(stackableType), "[feed]")
+}
+
+func (b Bag) AddPetGear(item BagEquipment) (Bag, uint16, error) {
+	occupied := make(map[uint16]bool, len(b.Special[7])+len(b.PetItems))
+	for _, row := range b.Special[7] {
+		occupied[row.Slot] = true
+	}
+	for _, row := range b.PetItems {
+		occupied[row.Slot] = true
+	}
+	for slot := PetGearFirst; slot <= PetGearLast; slot++ {
+		if occupied[slot] {
+			continue
+		}
+		next := b
+		next.Special = make(map[byte][]BagEquipment, len(b.Special)+1)
+		for space, rows := range b.Special {
+			next.Special[space] = rows
+		}
+		item.Slot = slot
+		next.Special[7] = append(append([]BagEquipment(nil), b.Special[7]...), item)
+		return next, slot, nil
+	}
+	return b, 0, fmt.Errorf("pet equipment container is full")
+}
+
+// SweepPetGear relocates old rewards without changing any item instance.
+func SweepPetGear(b Bag, equipment *EquipmentCatalog) (Bag, bool, error) {
+	if equipment == nil {
+		return b, false, fmt.Errorf("pet equipment catalog unavailable")
+	}
+	next := b
+	next.Equipment = append([]BagEquipment(nil), b.Equipment...)
+	moved := false
+	for i := 0; i < len(next.Equipment); {
+		item := next.Equipment[i]
+		kind, err := equipment.EquipmentKind(item.Template)
+		if err != nil || !IsPetGear(kind) {
+			i++
+			continue
+		}
+		placed, _, err := next.AddPetGear(item)
+		if err != nil {
+			return b, false, err
+		}
+		next = placed
+		next.Equipment = append(next.Equipment[:i], next.Equipment[i+1:]...)
+		moved = true
+	}
+	rows := append([]BagEquipment(nil), next.Special[7]...)
+	for _, item := range rows {
+		if item.Slot >= PetGearFirst && item.Slot <= PetGearLast {
+			continue
+		}
+		kind, err := equipment.EquipmentKind(item.Template)
+		if err != nil || !IsPetGear(kind) {
+			continue
+		}
+		// Remove the old slot before finding a destination.
+		kept := make([]BagEquipment, 0, len(next.Special[7])-1)
+		for _, row := range next.Special[7] {
+			if row.Slot != item.Slot {
+				kept = append(kept, row)
+			}
+		}
+		next.Special[7] = kept
+		placed, _, err := next.AddPetGear(item)
+		if err != nil {
+			return b, false, err
+		}
+		next = placed
+		moved = true
+	}
+	return next, moved, nil
+}
 
 func IsPetConsumable(stackableType string) bool {
 	t := normalizeStackableType(stackableType)

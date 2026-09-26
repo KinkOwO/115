@@ -166,6 +166,14 @@ func (b Bag) AddMailItem(c catalog.LootCatalog, r BagRules, equipment *Equipment
 		if _, err := equipment.Reward(item.Template); err != nil {
 			return b, err
 		}
+		kind, err := equipment.EquipmentKind(item.Template)
+		if err != nil {
+			return b, err
+		}
+		if IsPetGear(kind) {
+			next, _, err := b.AddPetGear(item)
+			return next, err
+		}
 		next, slots, err := b.AddEquipment(equipment, r.EquipmentSlots, item.Template, 1)
 		if err != nil {
 			return b, ErrMailBagFull
