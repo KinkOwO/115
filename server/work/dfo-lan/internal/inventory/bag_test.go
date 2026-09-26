@@ -58,7 +58,7 @@ func TestBagAtomicCapacityAndPreservesState(t *testing.T) {
 	}
 	full := Bag{Version: "ordinary-bag-v1", Gold: math.MaxUint32}
 	for n := 65; n <= 120; n++ {
-		full.Items = append(full.Items, BagItem{Slot: uint16(n), Template: id, Amount: rules.MissingStackLimit})
+		full.Items = append(full.Items, BagItem{Slot: uint16(n), Template: id, Amount: stackLimitFor(rules, c.Items[id].StackableType, c.Items[id].StackLimit)})
 	}
 	before, _ := json.Marshal(full)
 	if _, _, e = full.Add(c, rules, id, 1); e == nil {

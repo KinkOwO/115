@@ -1,6 +1,7 @@
 package inventory
 
 import (
+	"dfolan/internal/catalog"
 	"fmt"
 	"math"
 	"strings"
@@ -78,22 +79,26 @@ func (b Bag) Buy(r BagRules, template, count, cost uint32, stackableType ...stri
 
 // stackLimitFor 给出某物品的堆叠上限。
 //
-// 源里"无限"类物品通常**不写** [stackable limit]：银币/金币（10418036/10418035）的 .stk
-// 只有 [stackable type] `[unlimited waste]`，靠类型名声明"无限"。服务端过去把"没写上限"
-// 一律兜成 missing_stack_limit（默认 1000），于是 GM 发 1000 银币会和手里的 23 个分成
-// 两叠（实机 2026-09-23 观察）。这里按源语义处理：显式上限优先，其次认 unlimited 类型，
-// 最后才用 bag 规则的 missing_stack_limit。
+// A declared stack limit wins. Items without one use the client's signed
+// 32-bit maximum; MissingStackLimit is retained only for old policy files.
 //
 // 上限取值：wire 里的 amount 是无符号 u32，但客户端内部按有符号 int 消费，超过 2^31-1
 // 有显示成负数的风险，所以"无限"类实际取 int32 上限。
-func stackLimitFor(r BagRules, stackableType string, explicit uint32) uint32 {
+func stackLimitFor(_ BagRules, _ string, explicit uint32) uint32 {
 	if explicit > 0 {
 		return explicit
 	}
-	if strings.Contains(normalizeStackableType(stackableType), "unlimited") {
-		return math.MaxInt32
+	return math.MaxInt32
+}
+
+// StackLimitForTemplate resolves a saved stack's limit at vault boundaries.
+// Unknown templates retain the compatibility cap because their script cannot
+// establish whether a larger amount is legal.
+func StackLimitForTemplate(c catalog.LootCatalog, r BagRules, template uint32) uint32 {
+	if item, ok := c.Items[template]; ok && item.Kind == "stackable" {
+		return stackLimitFor(r, item.StackableType, item.StackLimit)
 	}
-	if r.MissingStackLimit > 0 {
+	if r.MissingStackLimit != 0 {
 		return r.MissingStackLimit
 	}
 	return 1000
@@ -108,6 +113,7 @@ func (b Bag) addStackable(r BagRules, template, count uint32, stackableType stri
 	if count > limit {
 		return b, 0, fmt.Errorf("buy count exceeds stack limit")
 	}
+	original := b
 
 	occupied := map[uint16]bool{}
 	for _, eq := range b.Equipment {
@@ -118,9 +124,11 @@ func (b Bag) addStackable(r BagRules, template, count uint32, stackableType stri
 	b.Items = append([]BagItem(nil), b.Items...)
 	for i, it := range b.Items {
 		occupied[it.Slot] = true
-		if it.Template == template && it.Slot >= slots[0] && it.Slot <= slots[1] {
-			if uint64(it.Amount)+uint64(count) <= uint64(limit) {
-				b.Items[i].Amount += count
+		if it.Template == template && it.Slot >= slots[0] && it.Slot <= slots[1] && it.Amount < limit {
+			added := min(count, limit-it.Amount)
+			b.Items[i].Amount += added
+			count -= added
+			if count == 0 {
 				return b, it.Slot, nil
 			}
 		}
@@ -135,7 +143,7 @@ func (b Bag) addStackable(r BagRules, template, count uint32, stackableType stri
 		}
 	}
 
-	return b, 0, fmt.Errorf("bag category is full")
+	return original, 0, fmt.Errorf("bag category is full")
 }
 
 // MaterialCost is one unit of "pay with items": Count of Template per purchase.

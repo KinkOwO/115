@@ -750,8 +750,8 @@ func (w *worldSession) openBoosterItem(
 		}
 		plan = append(plan, outboundPacket{"booster_avatar_inventory_updated", 0, 14, avatarPayload})
 	}
-	if res.HasCreatures && len(finalBag.Special[7]) > 0 {
-		creaturePayload, err := inventory.EquipmentPayload(7, finalBag.Special[7], false)
+	if (res.HasCreatures || len(finalBag.PetItems) > 0) && len(finalBag.Special[7])+len(finalBag.PetItems) > 0 {
+		creaturePayload, err := inventory.PetContainerBody(finalBag, false)
 		if err != nil {
 			return nil, err
 		}

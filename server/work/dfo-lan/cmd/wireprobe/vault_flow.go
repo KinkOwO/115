@@ -7,7 +7,6 @@ import (
 	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
-	"sort"
 	"time"
 )
 
@@ -32,7 +31,6 @@ func (w *worldSession) moveVault(rules inventory.BagRules, r protocol.ItemMoveRe
 
 	var movedCount uint32
 	var newBag inventory.Bag
-	var oldVault inventory.Vault
 	var newVault inventory.Vault
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -83,9 +81,14 @@ func (w *worldSession) moveVault(rules inventory.BagRules, r protocol.ItemMoveRe
 			if templateAt(move.SourceList, move.SourceSlot) != move.SourceItem || templateAt(move.DestinationList, move.DestinationSlot) != move.DestinationItem {
 				return nil, nil, fmt.Errorf("金库移动的槽位物品已经改变")
 			}
-			oldVault = v
 			var moveErr error
-			newBag, newVault, movedCount, moveErr = inventory.MoveVaultItem(b, v, rules, move)
+			moveRules := rules
+			limitTemplate := move.SourceItem
+			if limitTemplate == 0 {
+				limitTemplate = move.DestinationItem
+			}
+			moveRules.MissingStackLimit = inventory.StackLimitForTemplate(w.vault.Catalog, rules, limitTemplate)
+			newBag, newVault, movedCount, moveErr = inventory.MoveVaultItem(b, v, moveRules, move)
 			if moveErr != nil {
 				return nil, nil, moveErr
 			}
@@ -101,7 +104,7 @@ func (w *worldSession) moveVault(rules inventory.BagRules, r protocol.ItemMoveRe
 			if _, e = protocol.PersonalVaultSpace(space, newVault.Slots, newVault.Rows()); e != nil {
 				return nil, nil, e
 			}
-			if _, e = protocol.InventoryUpdate(inventory.ChangedItemRows(b, newBag)); e != nil {
+			if _, e = protocol.InventoryRestore(newBag.Rows(), newBag.Expansion); e != nil {
 				return nil, nil, e
 			}
 			return savedBagRaw, savedVaultRaw, nil
@@ -117,60 +120,19 @@ func (w *worldSession) moveVault(rules inventory.BagRules, r protocol.ItemMoveRe
 	}
 
 	if r.SourceList == 0 || r.DestinationList == 0 {
-		beforeBag, e := inventory.ReadBag(w.role.State)
+		bagUpdate, e := protocol.InventoryRestore(newBag.Rows(), newBag.Expansion)
 		if e != nil {
 			return nil, true, e
 		}
-		bagUpdate, e := protocol.InventoryUpdate(inventory.ChangedItemRows(beforeBag, newBag))
-		if e != nil {
-			return nil, true, e
-		}
-		plan = append(plan, outboundPacket{"vault_bag_updated", 0, 14, bagUpdate})
+		plan = append(plan, outboundPacket{"vault_bag_restored", 0, 13, bagUpdate})
 	}
 
 	if r.SourceList == space || r.DestinationList == space {
-		affectedMap := make(map[uint16]bool)
-		if r.SourceList == space {
-			affectedMap[r.SourceSlot] = true
+		vaultRestore, e := protocol.PersonalVaultSpace(space, newVault.Slots, newVault.Rows())
+		if e != nil {
+			return nil, true, e
 		}
-		if r.DestinationList == space {
-			affectedMap[r.DestinationSlot] = true
-		}
-		for _, it := range oldVault.Items {
-			newIt := newVault.ItemAt(it.Slot)
-			if newIt == nil || newIt.Template != it.Template || newIt.Amount != it.Amount || newIt.Durability != it.Durability {
-				affectedMap[it.Slot] = true
-			}
-		}
-		for _, it := range newVault.Items {
-			oldIt := oldVault.ItemAt(it.Slot)
-			if oldIt == nil || oldIt.Template != it.Template || oldIt.Amount != it.Amount || oldIt.Durability != it.Durability {
-				affectedMap[it.Slot] = true
-			}
-		}
-
-		var affectedSlots []uint16
-		for slot := range affectedMap {
-			affectedSlots = append(affectedSlots, slot)
-		}
-		sort.Slice(affectedSlots, func(i, j int) bool { return affectedSlots[i] < affectedSlots[j] })
-
-		var vaultRows [][protocol.CurrentItemRecordSize]byte
-		for _, slot := range affectedSlots {
-			if it := newVault.ItemAt(slot); it != nil {
-				vaultRows = append(vaultRows, it.Row())
-			} else {
-				vaultRows = append(vaultRows, protocol.EmptyOrdinaryItem(slot))
-			}
-		}
-
-		if len(vaultRows) > 0 {
-			vaultUpdate, e := protocol.InventorySpaceUpdate(space, vaultRows)
-			if e != nil {
-				return nil, true, e
-			}
-			plan = append(plan, outboundPacket{"vault_slots_updated", 0, 14, vaultUpdate})
-		}
+		plan = append(plan, outboundPacket{"vault_restored", 0, 13, vaultRestore})
 	}
 
 	return plan, true, nil
@@ -208,7 +170,11 @@ func (w *worldSession) moveVaultCross(rules inventory.BagRules, r protocol.ItemM
 		if at(r.SourceList, r.SourceSlot) != r.SourceItem || at(r.DestinationList, r.DestinationSlot) != r.DestinationItem {
 			return nil, nil, nil, fmt.Errorf("跨库槽位物品已经改变")
 		}
-		v1, v2, moved, e = inventory.MoveVaultCross(v1, v2, rules.MissingStackLimit, r)
+		limitTemplate := r.SourceItem
+		if limitTemplate == 0 {
+			limitTemplate = r.DestinationItem
+		}
+		v1, v2, moved, e = inventory.MoveVaultCross(v1, v2, inventory.StackLimitForTemplate(w.vault.Catalog, rules, limitTemplate), r)
 		if e != nil {
 			return nil, nil, nil, e
 		}

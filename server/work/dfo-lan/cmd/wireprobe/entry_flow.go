@@ -26,6 +26,7 @@ type entryPayloads struct {
 	// the client harvest (sub_145ADC2A0) moves the fixed slots 363..379 into
 	// the soul-storage pipeline.
 	AccountMaterials []byte
+	RadiantSouls     []byte
 	SecondaryVault   []byte
 	AccountVault     []byte
 	AvailableQuests  []byte
@@ -100,6 +101,7 @@ func (p entryPayloads) packets() []outboundPacket {
 	}
 	out = append(out, []outboundPacket{
 		{"account_materials_restored", 0, 13, p.AccountMaterials},
+		{"radiant_souls_restored", 0, 13, p.RadiantSouls},
 		{"inventory_restored", 0, 13, p.Inventory},
 		// Initialize list 1 empty. The client accepts authoritative avatar rows
 		// only after the town actor/UserInfo graph has been installed.

@@ -7,9 +7,11 @@ import (
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/storage"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"math"
 	"time"
 )
@@ -78,8 +80,20 @@ func mailboxSnapshot(messages []storage.MailMessage) ([]outboundPacket, error) {
 		if m.Deleted || (m.Status != 3 && !m.ExpiresAt.After(now)) {
 			continue
 		}
-		total++
 		remaining := mailRemaining(m, now)
+		letter := protocol.MailTextView{ID: uint64(m.ID), Sender: m.SenderName, Text: m.Text, Remaining: remaining, Status: m.Status}
+		if _, err := protocol.MailboxList(nil, []protocol.MailTextView{letter}, 1); err != nil {
+			log.Printf("mail %d skipped: %v", m.ID, err)
+			continue
+		}
+		total++
+		appendAttachment := func(v protocol.MailAttachmentView, assetID int64) {
+			if _, err := protocol.MailboxList([]protocol.MailAttachmentView{v}, nil, 0); err != nil {
+				log.Printf("mail %d asset %d skipped: %v", m.ID, assetID, err)
+				return
+			}
+			attachments = append(attachments, v)
+		}
 		for _, a := range m.Assets {
 			if a.Claimed {
 				continue
@@ -88,21 +102,32 @@ func mailboxSnapshot(messages []storage.MailMessage) ([]outboundPacket, error) {
 			if len(a.Item) != 0 {
 				var item inventory.MailItem
 				if err := json.Unmarshal(a.Item, &item); err != nil {
-					return nil, err
+					log.Printf("mail %d asset %d skipped: %v", m.ID, a.ID, err)
+					continue
+				}
+				if item.Space == 0 && item.Equipment == nil && item.Stack != nil && item.Stack.Template == 1 && item.Stack.Amount > 0 {
+					if uint64(v.Gold)+uint64(item.Stack.Amount) > math.MaxUint32 {
+						log.Printf("mail %d asset %d skipped: gold overflow", m.ID, a.ID)
+						continue
+					}
+					v.Gold += item.Stack.Amount
+					appendAttachment(v, a.ID)
+					continue
 				}
 				var err error
 				v.Record, err = item.Row()
 				if err != nil {
-					return nil, err
+					log.Printf("mail %d asset %d skipped: %v", m.ID, a.ID, err)
+					continue
 				}
 				if item.Space == 1 {
 					v.Avatar = true
 					v.AvatarOptions, v.AvatarSockets, v.AvatarPeriod = item.Equipment.AvatarOptions, item.Equipment.AvatarSockets, item.Equipment.Period
 				}
 			}
-			attachments = append(attachments, v)
+			appendAttachment(v, a.ID)
 		}
-		letters = append(letters, protocol.MailTextView{ID: uint64(m.ID), Sender: m.SenderName, Text: m.Text, Remaining: remaining, Status: m.Status})
+		letters = append(letters, letter)
 	}
 	body, err := protocol.MailboxList(attachments, letters, total)
 	if err != nil {
@@ -276,6 +301,9 @@ func (w *worldSession) sendMail(ctx context.Context, id uint16, p, keys []byte, 
 			}
 			// 提交前验证收件列表和背包都能编码；真实编号由存储事务分配。
 			preview, err := mailboxSnapshot([]storage.MailMessage{{ID: 1, SenderName: current.Name, Text: r.Text, Status: 1, Assets: assets, ExpiresAt: time.Now().Add(15 * 24 * time.Hour)}})
+			if err == nil && (len(preview) != 1 || len(preview[0].Payload) < 4 || int(preview[0].Payload[0]) != len(assets) || binary.LittleEndian.Uint16(preview[0].Payload[2:4]) != 1) {
+				err = fmt.Errorf("发信预览含不可编码附件")
+			}
 			if err == nil {
 				_, err = preparePackets(keys, append(preview, update, outboundPacket{"mailbox_sent", 1, id, []byte{1}}))
 			}
@@ -333,9 +361,16 @@ func (w *worldSession) claimMail(ctx context.Context, p, keys []byte, key string
 						if err = json.Unmarshal(a.Item, &item); err != nil {
 							return nil, nil, nil, err
 						}
-						bag, err = bag.AddMailItem(w.loot.Catalog, w.loot.BagRules, w.loot.Equipment, item)
-						if err != nil {
-							return nil, nil, nil, err
+						if item.Space == 0 && item.Equipment == nil && item.Stack != nil && item.Stack.Template == 1 && item.Stack.Amount > 0 {
+							if uint64(bag.Gold)+uint64(item.Stack.Amount) > math.MaxUint32 {
+								return nil, nil, nil, inventory.ErrMailGold
+							}
+							bag.Gold += item.Stack.Amount
+						} else {
+							bag, err = bag.AddMailItem(w.loot.Catalog, w.loot.BagRules, w.loot.Equipment, item)
+							if err != nil {
+								return nil, nil, nil, err
+							}
 						}
 					}
 					a.Claimed = true
@@ -376,12 +411,39 @@ func (w *worldSession) claimMail(ctx context.Context, p, keys []byte, key string
 		return nil, 0, err
 	}
 	saved.WireID = w.role.WireID
-	w.role = saved
 	var results []protocol.MailClaimResult
 	if err = json.Unmarshal(receipt, &results); err != nil {
 		return nil, 0, err
 	}
-	updates, err := mailClaimBagPackets(saved.State)
+	var updates []outboundPacket
+	if w.loot != nil {
+		var materials inventory.AccountMaterials
+		var swept storage.Character
+		swept, materials, err = sweepAccountMaterials(ctx, w.characters.Store, saved)
+		if err == nil {
+			saved = swept
+			updates, err = accountMaterialRefreshPackets(materials, saved)
+		} else {
+			log.Printf("mail claim account material sweep deferred for character %d: %v", saved.ID, err)
+		}
+	}
+	if updates == nil {
+		updates, err = mailClaimBagPackets(saved.State)
+	}
+	if err == nil {
+		bag, readErr := inventory.ReadBag(saved.State)
+		if readErr != nil {
+			return nil, 0, readErr
+		}
+		if len(bag.PetItems) > 0 {
+			petBody, petErr := inventory.PetContainerBody(bag, true)
+			if petErr != nil {
+				return nil, 0, petErr
+			}
+			updates = append(updates, outboundPacket{"mailbox_pet_container_restored", 0, 13, petBody})
+		}
+	}
+	w.role = saved
 	// 原生领取回调要查旧邮件对象，必须先更新背包，再应答，不提前清空列表。
 	return append(updates, outboundPacket{"mailbox_claimed", 1, 95, protocol.MailClaimReply(r.Kind, results)}), 0, err
 }

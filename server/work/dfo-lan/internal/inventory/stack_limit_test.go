@@ -19,7 +19,7 @@ func TestUnlimitedStackablesIgnoreMissingStackLimit(t *testing.T) {
 	cat := catalog.LootCatalog{
 		Source: pvf.ArchiveSnapshot{Checksum: "test"},
 		Items: map[uint32]catalog.LootItem{
-			coin:  {ID: coin, Kind: "stackable", StackableType: "[unlimited waste]"},
+			coin:   {ID: coin, Kind: "stackable", StackableType: "[unlimited waste]"},
 			capped: {ID: capped, Kind: "stackable", StackableType: "[waste]", StackLimit: 10},
 		},
 	}
@@ -46,5 +46,23 @@ func TestUnlimitedStackablesIgnoreMissingStackLimit(t *testing.T) {
 	}
 	if _, _, err := bag.Add(cat, rules, capped, 10); err != nil {
 		t.Fatalf("上限内的数量被拒: %v", err)
+	}
+}
+
+func TestMissingExplicitStackLimitUsesSignedClientMaximum(t *testing.T) {
+	rules := BagRules{Source: "test", MissingStackLimit: 1000}
+	cat := catalog.LootCatalog{Source: pvf.ArchiveSnapshot{Checksum: "test"}, Items: map[uint32]catalog.LootItem{
+		42: {ID: 42, Kind: "stackable", StackableType: "[waste]"},
+	}}
+	if got := StackLimitForTemplate(cat, rules, 42); got != 2147483647 {
+		t.Fatalf("known template limit = %d", got)
+	}
+	if got := StackLimitForTemplate(cat, rules, 99); got != 1000 {
+		t.Fatalf("unknown template limit = %d", got)
+	}
+	bag := Bag{Version: "ordinary-bag-v1", Items: []BagItem{{Slot: 65, Template: 42, Amount: 1000}}}
+	bag, _, err := bag.Add(cat, rules, 42, 1500)
+	if err != nil || len(bag.Items) != 1 || bag.Items[0].Amount != 2500 {
+		t.Fatalf("bag stack = %+v, %v", bag, err)
 	}
 }

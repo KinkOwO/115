@@ -3111,6 +3111,26 @@ func main() {
 							event(map[string]any{"kind": "entry_stack_slot_swept", "character_id": role.ID})
 						}
 					}
+					petCtx, petCancel := context.WithTimeout(context.Background(), 5*time.Second)
+					petRole, _, petErr := characters.Store.CommitCharacterEvent(petCtx, role.AccountID, role.ID, role.ConfigVersion,
+						"pet-container-resweep", "pet-container-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+							bag, err := inventory.ReadBag(current.State)
+							if err != nil {
+								return nil, nil, err
+							}
+							fixed, _, err := inventory.SweepPetConsumables(bag, lootService.Catalog, lootService.BagRules)
+							if err != nil {
+								return nil, nil, err
+							}
+							state, err := inventory.SaveBag(current.State, fixed)
+							return state, json.RawMessage(`{}`), err
+						})
+					petCancel()
+					if petErr != nil {
+						event(map[string]any{"kind": "entry_pet_container_error", "character_id": role.ID, "error": petErr.Error()})
+					} else {
+						role = petRole
+					}
 				}
 				if wearService != nil {
 					plan.Worn, e = inventory.WornPayload(role.State)
@@ -3142,7 +3162,7 @@ func main() {
 						plan.Avatars, e = inventory.EquipmentPayload(1, nil, true)
 					}
 					if e == nil {
-						plan.Creatures, e = inventory.SpecialEquipmentRestorePayload(role.State, 7)
+						plan.Creatures, e = inventory.PetContainerRestorePayload(role.State)
 					}
 					if e == nil {
 						plan.CreatureList, _ = inventory.CreatureListPayload(role.State)
@@ -3164,9 +3184,20 @@ func main() {
 					cancel()
 					if e != nil {
 						event(map[string]any{"kind": "entry_account_materials_error", "error": e.Error()})
-						continue
+						materials = inventory.NewAccountMaterials()
+						fallbackCtx, fallbackCancel := context.WithTimeout(context.Background(), 5*time.Second)
+						if raw, readErr := characters.Store.AccountMaterials(fallbackCtx, role.AccountID); readErr == nil {
+							if savedMaterials, parseErr := inventory.ReadAccountMaterials(raw); parseErr == nil {
+								materials = savedMaterials
+							}
+						}
+						fallbackCancel()
+						e = nil
 					}
 					plan.AccountMaterials, e = accountMaterialSnapshot(materials)
+					if e == nil {
+						plan.RadiantSouls, e = radiantSoulSnapshot(materials)
+					}
 					if e == nil {
 						plan.Inventory, e = lootService.Bootstrap(role)
 					}

@@ -235,6 +235,22 @@ func VaultPayload(v storage.VaultState, space ...byte) ([]byte, error) {
 	return protocol.PersonalVaultSpace(list, v.Slots, items.Rows())
 }
 
+func vaultWithdrawBagMergeSlot(rules BagRules, destination, candidate uint16) bool {
+	if rules.Quick(candidate) {
+		return false
+	}
+	for _, slots := range rules.Slots {
+		candidateIn := candidate >= slots[0] && candidate <= slots[1]
+		if destination >= slots[0] && destination <= slots[1] {
+			return candidateIn
+		}
+		if rules.Quick(destination) && candidateIn {
+			return true
+		}
+	}
+	return len(rules.Slots) == 0 && !rules.Quick(candidate)
+}
+
 // MoveVaultItem handles item transfer between Bag and Vault, or within Vault.
 func MoveVaultItem(b Bag, v Vault, rules BagRules, r protocol.ItemMoveRequest) (Bag, Vault, uint32, error) {
 	if r.SourceList != 2 && r.DestinationList != 2 {
@@ -456,40 +472,50 @@ func MoveVaultItem(b Bag, v Vault, rules BagRules, r protocol.ItemMoveRequest) (
 			limit = 1000
 		}
 
+		remaining := count
+		// First fill the client's chosen stack, then other matching stacks.
 		if targetBagItem != nil {
-			if targetBagItem.Template != srcItem.Template || targetBagItem.ExpireTime != srcItem.ExpireTime {
-				return b, v, 0, fmt.Errorf("target bag slot %d occupied by different item", r.DestinationSlot)
+			if targetBagItem.Template == srcItem.Template && targetBagItem.ExpireTime == srcItem.ExpireTime && targetBagItem.Amount < limit {
+				added := min(remaining, limit-targetBagItem.Amount)
+				targetBagItem.Amount += added
+				remaining -= added
 			}
-			if targetBagItem.Amount >= limit {
-				return b, v, 0, fmt.Errorf("目标背包堆叠已满")
+		}
+		order := make([]int, len(b.Items))
+		for i := range order {
+			order[i] = i
+		}
+		sort.Slice(order, func(i, j int) bool { return b.Items[order[i]].Slot < b.Items[order[j]].Slot })
+		for _, i := range order {
+			if remaining == 0 {
+				break
 			}
-			spaceLeft := limit - targetBagItem.Amount
-			if spaceLeft == 0 {
+			row := &b.Items[i]
+			// Only an explicitly targeted quick-use stack may receive a merge.
+			// Otherwise search bag stacks, keeping the bag tab when known.
+			if !vaultWithdrawBagMergeSlot(rules, r.DestinationSlot, row.Slot) || row.Slot == r.DestinationSlot || row.Template != srcItem.Template || row.ExpireTime != srcItem.ExpireTime || row.Amount >= limit {
+				continue
+			}
+			added := min(remaining, limit-row.Amount)
+			row.Amount += added
+			remaining -= added
+		}
+		if remaining > 0 && targetBagItem == nil {
+			if remaining > limit {
 				return b, v, 0, fmt.Errorf("target bag stack is full")
 			}
-			toMove := count
-			if toMove > spaceLeft {
-				toMove = spaceLeft
-			}
-			targetBagItem.Amount += toMove
-			srcItem.Amount -= toMove
-			if srcItem.Amount == 0 {
-				v.Items = append(v.Items[:srcIdx], v.Items[srcIdx+1:]...)
-			}
-			return b, v, toMove, nil
+			b.Items = append(b.Items, BagItem{Slot: r.DestinationSlot, Template: srcItem.Template, Amount: remaining, ExpireTime: srcItem.ExpireTime})
+			remaining = 0
 		}
-
-		b.Items = append(b.Items, BagItem{
-			Slot:       r.DestinationSlot,
-			Template:   srcItem.Template,
-			Amount:     count,
-			ExpireTime: srcItem.ExpireTime,
-		})
-		srcItem.Amount -= count
+		moved := count - remaining
+		if moved == 0 {
+			return b, v, 0, fmt.Errorf("目标背包堆叠已满")
+		}
+		srcItem.Amount -= moved
 		if srcItem.Amount == 0 {
 			v.Items = append(v.Items[:srcIdx], v.Items[srcIdx+1:]...)
 		}
-		return b, v, count, nil
+		return b, v, moved, nil
 	}
 
 	// Case 3: Vault -> Vault

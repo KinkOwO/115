@@ -46,6 +46,9 @@ func (s *equipmentSession) handle(service *inventory.WearService, w *worldSessio
 		s.initialized = true
 	}
 	hash := sha256.Sum256(raw)
+	if plan, handled, e := w.movePetStack(service.BagRules, r, fmt.Sprintf("petmove:%x:%x", s.nonce, hash)); handled {
+		return plan, e
+	}
 	// A stack going onto the quick-use belt belongs to the stackable path; anything it does not
 	// recognise falls through to the equipment move unchanged.
 	if plan, handled, e := w.moveStack(service.BagRules, r, fmt.Sprintf("bagmove:%x:%x", s.nonce, hash)); handled {

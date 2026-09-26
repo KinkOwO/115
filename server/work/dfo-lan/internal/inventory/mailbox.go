@@ -179,12 +179,13 @@ func (b Bag) AddMailItem(c catalog.LootCatalog, r BagRules, equipment *Equipment
 	if !ok || definition.Kind != "stackable" || r.Source != c.Source.Checksum {
 		return b, fmt.Errorf("邮件物品目录版本无效")
 	}
-	limit := definition.StackLimit
-	if limit == 0 {
-		limit = r.MissingStackLimit
-	}
+	limit := stackLimitFor(r, definition.StackableType, definition.StackLimit)
 	if item.Amount > limit || limit == 0 {
 		return b, fmt.Errorf("邮件附件超过堆叠上限")
+	}
+	if IsPetConsumable(definition.StackableType) {
+		next, _, err := b.addPetStack(r, item.Template, item.Amount, item.ExpireTime, definition.StackLimit)
+		return next, err
 	}
 	slots := stackableSlotRange(r, definition.StackableType)
 	occupied := map[uint16]bool{}

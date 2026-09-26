@@ -270,7 +270,7 @@ func shopPilotSpaces(p *cashshop.Pilot, receipt storage.CashReceipt, balance uin
 			avatarUpdate = &outboundPacket{"cera_purchase_avatar_inventory", 0, 14, payload}
 		}
 
-		if len(b.Special[7]) > 0 {
+		if len(b.Special[7])+len(b.PetItems) > 0 {
 			hasCreature := creatureTouched
 			if !hasCreature {
 				for _, d := range receipt.Deliveries {
@@ -281,7 +281,7 @@ func shopPilotSpaces(p *cashshop.Pilot, receipt storage.CashReceipt, balance uin
 				}
 			}
 			if hasCreature {
-				payload, err := inventory.EquipmentPayload(7, b.Special[7], false)
+				payload, err := inventory.PetContainerBody(b, false)
 				if err != nil {
 					return nil, err
 				}

@@ -120,6 +120,11 @@ func (w *worldSession) finishQuest(r protocol.QuestSubmitRequest) ([]outboundPac
 				return nil, e
 			}
 			plan = append(plan, outboundPacket{"quest_account_materials_committed", 0, 13, storageBody})
+			soulBody, e := radiantSoulSnapshot(materials)
+			if e != nil {
+				return nil, e
+			}
+			plan = append(plan, outboundPacket{"quest_radiant_souls_committed", 0, 13, soulBody})
 		}
 		bag, e := inventory.ReadBag(result.Role.State)
 		if e != nil {
@@ -130,6 +135,13 @@ func (w *worldSession) finishQuest(r protocol.QuestSubmitRequest) ([]outboundPac
 			return nil, e
 		}
 		plan = append(plan, outboundPacket{"quest_inventory_committed", 0, 13, body})
+		if len(bag.PetItems) > 0 {
+			petBody, petErr := inventory.PetContainerBody(bag, true)
+			if petErr != nil {
+				return nil, petErr
+			}
+			plan = append(plan, outboundPacket{"quest_pet_container_committed", 0, 13, petBody})
+		}
 	}
 	// A reward that opened an extended equipment slot has to be republished:
 	// the client keeps showing the padlock until the new unlock byte arrives
