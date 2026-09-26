@@ -1345,3 +1345,73 @@ bin/wireprobe-handoff-source.exe
 
 **未提交**（按纪律等实机验证）。`DFO-115US单机一键启动器.exe` 在 git 里仍显示被改动 —— **不是本项目动的**
 （估为启动器自更新），收口提交时别带上它。
+
+## 勘误 + 取证：「掉落等级偏低」不是索引缺失（2026-09-26 15:5x）
+
+本文件「已知边界」一节原本写着「既有装备索引最高 grade 107 ⇒ 需另行重导更高等级的装备索引」。
+**这句话是错的，撤回。** 取证如下。
+
+### 事实一：索引里有高等级装备，而且运行期已经加载
+
+| 目录 | 行数 | `[grade]` 范围 | 用途 |
+| --- | --- | --- | --- |
+| `configs/equipment.current37.json` | 3,174 | 1–107 | **掉落池**（`-equipment-catalog`）|
+| `configs/equipment-full.*` | **424,216** | 1–**122** | 全量定义（`-equipment-full-catalog`）|
+
+`101001153`（115 级剑，`grade=122`）与 `100313553`（`grade=122`）**都在全量索引里**，只是不在掉落目录里。
+而全量目录**在运行期确实被加载**：实机 `gateway.err` 有一行
+`separate wear catalog: 424216 records; original reward/drop catalog: 3174`。
+
+⇒ **重导索引不会改变任何事。**
+
+### 事实二：107 的上限是**掉落池规则**的必然结果，而且是有意为之
+
+对全量目录抽样 12 万条（其中非 avatar 59,055 条）：
+
+| 口径 | 结果 |
+| --- | --- |
+| 全部非 avatar | grade 1–122；`>=100` 的 9,077 条，**全部**落在 `[100,148)` |
+| 按掉落池规则（`[attach type]==[free]` 且 `[rarity]<=2`）筛 | 接受 2,394 条（4.05%）；**grade 上限恰好 107** |
+
+被拒的理由分布：`attach != [free]` 共 50,458 条（`[trade]` 39,362、`[avatar trade]` 6,592、
+`[sealing]` 3,064、`[trade delete]` 1,166、`[account]` 64…），`rarity > 2` 或缺失 4,953 条。
+
+`internal/inventory/equipment.go` 里这件事是**写明的设计**：`Reward()` 的注释说它
+「keeps every structural check Basic makes … **but not Basic's two drop-pool rules**: a reward may be
+account- or character-bound, and it may be rarer than rare」，并附了实机依据（任务 21650 的 `100261068`）；
+`Basic()` 则把这**两条额外规则**用于掉落的池子。`internal/inventory/equipment_catalog37_test.go`
+正是钉住这件事的：`current37` 之所以比 `current35` 宽，只是为了**能发任务奖励**，
+测试注释写着这些行「**must not quietly become monster drops**」，并断言
+`wide.Basic(100261068)` 必须失败、`Reward` 必须比 `Basic` 宽。
+
+⇒ **所以要提高掉落等级，改的是规则（谁可以掉），不是索引（谁能被描述）。** 这是策略变更。
+
+### 事实三：深渊的专属奖励**本来就能给高等级装备**
+
+把三档 CTP 的 94 个礼盒按 `configs/booster-catalog.json` **递归展开到底**：
+
+| 难度表 | 礼盒数 | 展开后装备件数 | 底层 stackable 类型 |
+| --- | --- | --- | --- |
+| `unique.ctp`（100005066） | 27 | **48** | `[virtual]` 57、`[booster]` 20、`[material]` 8 |
+| `legendary.ctp`（100005067） | 27 | **49** | `[virtual]` 56、`[booster]` 27、`[material]` 11、`[etc]` 3、`[booster selection]` 1 |
+| `epic.ctp`（100005068） | 24 | **49** | `[virtual]` 45、`[booster]` 19、`[material]` 10、`[booster selection]` 1 |
+
+其中的装备是 **`grade=116`、`rarity=3/4`、`[minimum level]=115` 的 `[oath]` 系列**——
+**比通用掉落池的 107 上限更高**。它们能发出来，是因为礼盒内容的授予走
+`boosterEquipmentDurability → WearService.Catalog.Reward`，而那份目录挂着 `Full`（全量定义），
+**不走掉落池**。
+
+⇒ **「深渊给不给高等级装备」这件事已经成立**；通用掉落池的 107 上限与它无关。
+
+### 于是真正要定的是这个（三选一）
+
+| | 做法 | 代价 |
+| --- | --- | --- |
+| **A** | **不动**。承认现状：深渊的高等级产出走礼盒内容，通用掉落池维持 `[free]`+rarity≤2 | 零风险；但需接受「通用掉落永远不超过 grade 107」 |
+| **B** | **放宽掉落池到 `Reward()` 口径**（即删掉 `Basic` 的两条额外规则） | 池子从 3,174 涨到约 5 万行量级；**全游戏所有副本的掉落都变**；推翻一条有实机依据 + 测试钉住的既有决定，必须说明那条决定的适用边界 |
+| **C** | **只给需要的内容开一条更宽的池**（例如 145 档/深渊），通用池不动 | 新机制，改动面比 B 小、零回归；但要定义"谁用宽池"的判据 |
+
+倾向：**先确认症状到底是哪一个**。若玩家的体感是「盒子打开后大头是虚拟道具/材料」，
+那落点在**礼盒内容的权重**（B/C 都治不了）；若目标是「深渊的杂兵也该掉装备」，
+那才是 B 或 C。取证工具：`runtime/equipfullsurvey.py`（全量目录的 accept/grade 交叉统计）、
+`runtime/ctp_show.py`（CTP 逐格）、以及 `configs/booster-catalog.json` 的递归展开。
