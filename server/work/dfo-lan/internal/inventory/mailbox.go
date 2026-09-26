@@ -186,13 +186,7 @@ func (b Bag) AddMailItem(c catalog.LootCatalog, r BagRules, equipment *Equipment
 	if item.Amount > limit || limit == 0 {
 		return b, fmt.Errorf("邮件附件超过堆叠上限")
 	}
-	slots, ok := r.Slots[definition.StackableType]
-	if !ok {
-		slots = [2]uint16{65, 120}
-		if strings.Contains(strings.ToLower(definition.StackableType), "material") {
-			slots = [2]uint16{121, 176}
-		}
-	}
+	slots := stackableSlotRange(r, definition.StackableType)
 	occupied := map[uint16]bool{}
 	for _, e := range b.Equipment {
 		occupied[e.Slot] = true

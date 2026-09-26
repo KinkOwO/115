@@ -3078,6 +3078,40 @@ func main() {
 					}
 				}
 				event(map[string]any{"kind": "entry_skill_lock_prepared", "character_id": role.ID, "count": len(locks), "bytes": len(plan.SkillLocks)})
+				if lootService != nil {
+					// Relocate old stackables before the list-0 inventory snapshot.
+					// A failed relocation rolls back and does not prevent entry.
+					sweepCtx, sweepCancel := context.WithTimeout(context.Background(), 5*time.Second)
+					var applied bool
+					var sweepErr error
+					var sweptRole storage.Character
+					sweptRole, applied, sweepErr = characters.Store.CommitCharacterEvent(sweepCtx, role.AccountID, role.ID, role.ConfigVersion,
+						"stack-slot-resweep", "stack-slot-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+							bag, err := inventory.ReadBag(current.State)
+							if err != nil {
+								return nil, nil, err
+							}
+							fixed, moved, err := inventory.SweepStackSlots(bag, lootService.Catalog, lootService.BagRules)
+							if err != nil {
+								return nil, nil, err
+							}
+							state, err := inventory.SaveBag(current.State, fixed)
+							if err != nil {
+								return nil, nil, err
+							}
+							outcome, err := json.Marshal(map[string]bool{"moved": moved})
+							return state, outcome, err
+						})
+					sweepCancel()
+					if sweepErr != nil {
+						event(map[string]any{"kind": "entry_stack_slot_error", "character_id": role.ID, "error": sweepErr.Error()})
+					} else {
+						role = sweptRole
+						if applied {
+							event(map[string]any{"kind": "entry_stack_slot_swept", "character_id": role.ID})
+						}
+					}
+				}
 				if wearService != nil {
 					plan.Worn, e = inventory.WornPayload(role.State)
 					if e == nil {

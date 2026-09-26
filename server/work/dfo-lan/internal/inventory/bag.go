@@ -8,7 +8,6 @@ import (
 	"math"
 	"os"
 	"sort"
-	"strings"
 )
 
 type BagRules struct {
@@ -286,14 +285,7 @@ func (b Bag) Add(c catalog.LootCatalog, r BagRules, id, amount uint32, expireTim
 	if !ok || item.Kind != "stackable" {
 		return b, 0, fmt.Errorf("unsupported source item")
 	}
-	slots, ok := r.Slots[item.StackableType]
-	if !ok {
-		if strings.Contains(strings.ToLower(item.StackableType), "material") {
-			slots = [2]uint16{121, 176}
-		} else {
-			slots = [2]uint16{65, 120}
-		}
-	}
+	slots := stackableSlotRange(r, item.StackableType)
 	limit := stackLimitFor(r, item.StackableType, item.StackLimit)
 	if amount > limit {
 		return b, 0, fmt.Errorf("award exceeds stack limit")
@@ -324,6 +316,38 @@ func (b Bag) Add(c catalog.LootCatalog, r BagRules, id, amount uint32, expireTim
 		}
 	}
 	return b, 0, fmt.Errorf("bag category is full")
+}
+
+// SweepStackSlots relocates saved stackables with known categories. It leaves
+// quick slots and unknown types alone, and returns the original bag on any
+// placement error so a failed migration cannot lose an item.
+func SweepStackSlots(b Bag, c catalog.LootCatalog, r BagRules) (Bag, bool, error) {
+	next := b
+	next.Items = append([]BagItem(nil), b.Items...)
+	moved := false
+	for i := 0; i < len(next.Items); {
+		row := next.Items[i]
+		definition, ok := c.Items[row.Template]
+		if !ok || definition.Kind != "stackable" || row.Slot <= 8 {
+			i++
+			continue
+		}
+		slots, known := classifyStackableSlot(r, definition.StackableType)
+		if !known || row.Slot >= slots[0] && row.Slot <= slots[1] {
+			i++
+			continue
+		}
+		next.Items = append(next.Items[:i], next.Items[i+1:]...)
+		placed, err := next.AddMailItem(c, r, nil, MailItem{Stack: &row})
+		if err != nil {
+			return b, false, fmt.Errorf("relocate stackable %d from slot %d: %w", row.Template, row.Slot, err)
+		}
+		next = placed
+		moved = true
+		// The relocated row is appended in its correct range; examine the
+		// remaining original row at this index next.
+	}
+	return next, moved, nil
 }
 
 // WornBaseItems filters b.Worn down to at most one item per slot (0..47),

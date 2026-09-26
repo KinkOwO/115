@@ -13,26 +13,34 @@ func normalizeStackableType(s string) string {
 // stackableSlotRange maps a stackable type string to its bag slot range.
 // If not specified or absent from rules, defaults to the throw/consumables range [65, 120].
 func stackableSlotRange(r BagRules, stackableType string) [2]uint16 {
+	rng, _ := classifyStackableSlot(r, stackableType)
+	return rng
+}
+
+// classifyStackableSlot reports whether the range comes from a declared or
+// built-in category. Unknown types use the consumables fallback, which is not
+// enough evidence to move an existing saved item.
+func classifyStackableSlot(r BagRules, stackableType string) ([2]uint16, bool) {
 	norm := normalizeStackableType(stackableType)
 	if rng, ok := r.Slots[norm]; ok && rng != [2]uint16{} {
-		return rng
+		return rng, true
 	}
 	switch {
 	case strings.HasPrefix(norm, "[material]") && strings.HasSuffix(norm, "4"):
-		return [2]uint16{345, 359}
+		return [2]uint16{345, 359}, true
 	case strings.HasPrefix(norm, "[material]"):
-		return [2]uint16{121, 176}
+		return [2]uint16{121, 176}, true
 	case strings.HasPrefix(norm, "[quest]"):
-		return [2]uint16{177, 232}
+		return [2]uint16{177, 232}, true
 	case strings.HasPrefix(norm, "[material expert job]"):
-		return [2]uint16{233, 288}
+		return [2]uint16{233, 288}, true
 	case strings.HasPrefix(norm, "[avatar emblem]"):
-		return [2]uint16{289, 344}
+		return [2]uint16{289, 344}, true
 	default:
 		if rng, ok := r.Slots["[throw]"]; ok && rng != [2]uint16{} {
-			return rng
+			return rng, false
 		}
-		return [2]uint16{65, 120}
+		return [2]uint16{65, 120}, false
 	}
 }
 
