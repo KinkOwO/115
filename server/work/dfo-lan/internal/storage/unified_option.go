@@ -106,7 +106,9 @@ func (s *Store) SaveCharacterUnifiedOptions(ctx context.Context, account, id int
 }
 
 // AccountUnifiedOptions returns the stored account option overrides for the
-// NOTI2826 restore payload.
+// NOTI2826 restore payload. The native missing-value sentinel is not an
+// override: leave that position at the client's default instead of rejecting
+// the whole account block and losing unrelated settings such as guide flags.
 func (s *Store) AccountUnifiedOptions(ctx context.Context, account int64) (map[uint16]uint16, error) {
 	out := map[uint16]uint16{}
 	if account == 0 {
@@ -121,6 +123,9 @@ func (s *Store) AccountUnifiedOptions(ctx context.Context, account int64) (map[u
 		var idx, value int
 		if e = rows.Scan(&idx, &value); e != nil {
 			return nil, e
+		}
+		if value == 65535 {
+			continue
 		}
 		out[uint16(idx)] = uint16(value)
 	}
