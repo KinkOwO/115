@@ -2,11 +2,13 @@ package loot
 
 import (
 	"context"
+	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -22,8 +24,6 @@ import (
 // 不改存档，却仍然回了成功 ack（用的是旧 receipt 里的 slot 66），客户端凭空画出
 // 一个服务端并不存在的盒子，右键时被服务端如实拒绝（客户端显示「库存已满」）。
 var shopEventSeq uint64
-
-const shopUnitPrice = 1
 
 type BuyReceipt struct {
 	NpcID    uint32 `json:"npc_id"`
@@ -41,6 +41,7 @@ type SellReceipt struct {
 	Slot       uint16 `json:"slot"`
 	Template   uint32 `json:"template"`
 	Count      uint32 `json:"count"`
+	UnitPrice  uint32 `json:"unit_price"`
 	GoldGained uint32 `json:"gold_gained"`
 	NewGold    uint32 `json:"new_gold"`
 	Source     string `json:"source"`
@@ -79,6 +80,15 @@ func shopEventKeyAt(boot int64, op string, seq uint64, fields ...uint32) string 
 	return sb.String()
 }
 
+func (s *Service) shopPrice(template uint32) (catalog.ShopPrice, error) {
+	if s.Prices != nil && s.Prices.Source == s.Catalog.Source.Checksum {
+		if price, ok := s.Prices.Items[template]; ok {
+			return price, nil
+		}
+	}
+	return catalog.ShopPrice{}, fmt.Errorf("missing current-source shop price for item %d", template)
+}
+
 func (s *Service) Buy(ctx context.Context, role storage.Character, r protocol.BuyItemRequest) (storage.Character, BuyReceipt, bool, error) {
 	var out BuyReceipt
 	fail := func(e error) (storage.Character, BuyReceipt, bool, error) {
@@ -89,7 +99,17 @@ func (s *Service) Buy(ctx context.Context, role storage.Character, r protocol.Bu
 	}
 	seq := atomic.AddUint64(&shopEventSeq, 1)
 	key := shopEventKey("buy", seq, r.Template, r.Count)
-	cost := r.Count * shopUnitPrice
+	var cost uint32
+	if _, _, paid := s.ItemShops.Materials(r.NpcID, r.Template); !paid {
+		p, err := s.shopPrice(r.Template)
+		if err != nil {
+			return fail(err)
+		}
+		if p.Buy == nil || r.Count == 0 || uint64(*p.Buy)*uint64(r.Count) > math.MaxUint32 {
+			return fail(fmt.Errorf("missing or overflowing source purchase price"))
+		}
+		cost = *p.Buy * r.Count
+	}
 
 	var stackableType string
 	if item, ok := s.Catalog.Items[r.Template]; ok {
@@ -171,7 +191,17 @@ func (s *Service) Sell(ctx context.Context, role storage.Character, r protocol.S
 			if e != nil {
 				return nil, nil, e
 			}
-			b, template, goldGained, e := b.Sell(s.BagRules, r.List, r.Slot, r.Count, shopUnitPrice)
+			// Resolve the identity from the transaction's current owned bag, never
+			// from request metadata or a potentially stale session snapshot.
+			_, template, _, e := b.Sell(s.BagRules, r.List, r.Slot, r.Count, 0)
+			if e != nil {
+				return nil, nil, e
+			}
+			price, e := s.shopPrice(template)
+			if e != nil {
+				return nil, nil, e
+			}
+			b, template, goldGained, e := b.Sell(s.BagRules, r.List, r.Slot, r.Count, price.Sell)
 			if e != nil {
 				return nil, nil, e
 			}
@@ -184,6 +214,7 @@ func (s *Service) Sell(ctx context.Context, role storage.Character, r protocol.S
 				Slot:       r.Slot,
 				Template:   template,
 				Count:      r.Count,
+				UnitPrice:  price.Sell,
 				GoldGained: goldGained,
 				NewGold:    b.Gold,
 				Source:     s.Catalog.Source.Checksum,

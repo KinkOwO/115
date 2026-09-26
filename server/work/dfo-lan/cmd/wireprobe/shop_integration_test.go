@@ -60,6 +60,17 @@ func TestShopQuantityDatabaseAndWire(t *testing.T) {
 		}
 	}
 	source := "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80"
+	price, e := catalog.ShopPriceFromScript([]pvf.Token{{Type: 3, Text: "[price]"}, {Type: 0, Value: 200}})
+	if e != nil {
+		t.Fatal(e)
+	}
+	prices := &catalog.ShopPrices{Source: source, Items: map[uint32]catalog.ShopPrice{1150: price}}
+	if file := os.Getenv("SHOP_INTEGRATION_PRICES"); file != "" {
+		prices, e = catalog.LoadShopPrices(file, source)
+		if e != nil {
+			t.Fatal(e)
+		}
+	}
 	account, e := store.DevelopmentAccount(ctx, "sale-fixture")
 	if e != nil {
 		t.Fatal(e)
@@ -72,7 +83,7 @@ func TestShopQuantityDatabaseAndWire(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	service := &loot.Service{Store: store, Catalog: catalog.LootCatalog{Source: pvf.ArchiveSnapshot{Checksum: source}, Items: map[uint32]catalog.LootItem{1150: {ID: 1150, Kind: "stackable", StackableType: "[waste]"}}}, Rules: loot.Rules{Model: "reference90-gold-stack-v1"}, BagRules: inventory.BagRules{MissingStackLimit: 1000, EquipmentSlots: [2]uint16{9, 64}}}
+	service := &loot.Service{Store: store, Catalog: catalog.LootCatalog{Source: pvf.ArchiveSnapshot{Checksum: source}, Items: map[uint32]catalog.LootItem{1150: {ID: 1150, Kind: "stackable", StackableType: "[waste]"}}}, Rules: loot.Rules{Model: "reference90-gold-stack-v1"}, BagRules: inventory.BagRules{MissingStackLimit: 1000, EquipmentSlots: [2]uint16{9, 64}}, Prices: prices}
 	w := worldSession{role: role, loot: service}
 	payload, _ := hex.DecodeString("d20100009400000001007c00e8030000c908000000000000")
 	binary.LittleEndian.PutUint32(payload[12:], 200)
@@ -84,11 +95,11 @@ func TestShopQuantityDatabaseAndWire(t *testing.T) {
 	if len(packets) != 2 {
 		t.Fatalf("packets %d", len(packets))
 	}
-	if packets[0].Kind != 1 || packets[0].ID != 22 || hex.EncodeToString(packets[0].Payload) != "019608000001000000007c00c8000000" || packets[1].Kind != 0 || packets[1].ID != 14 {
+	if packets[0].Kind != 1 || packets[0].ID != 22 || hex.EncodeToString(packets[0].Payload) != "010e27000001000000007c00c8000000" || packets[1].Kind != 0 || packets[1].ID != 14 {
 		t.Fatalf("ACK/inventory mismatch: %+v", packets)
 	}
 	bag, e := inventory.ReadBag(w.role.State)
-	if e != nil || bag.Gold != 2198 || len(bag.Items) != 1 || bag.Items[0].Amount != 800 {
+	if e != nil || bag.Gold != 9998 || len(bag.Items) != 1 || bag.Items[0].Amount != 800 {
 		t.Fatalf("partial sale %+v %v", bag, e)
 	}
 	// Two concurrent attempts each try to sell 500 of the remaining 800.
@@ -113,8 +124,17 @@ func TestShopQuantityDatabaseAndWire(t *testing.T) {
 		t.Fatal(e)
 	}
 	bag, e = inventory.ReadBag(roles[0].State)
-	if e != nil || bag.Gold != 2698 || bag.Items[0].Amount != 300 {
+	if e != nil || bag.Gold != 29998 || bag.Items[0].Amount != 300 {
 		t.Fatalf("durable concurrency %+v %v", bag, e)
+	}
+	// Buy uses the same source price, preventing buy-for-1/sell-for-40 arbitrage.
+	bought, receipt, applied, e := service.Buy(ctx, role, protocol.BuyItemRequest{Template: 1150, Count: 2, NpcID: 466})
+	if e != nil || !applied || receipt.Cost != 400 || receipt.NewGold != 29598 {
+		t.Fatalf("buy %+v %v", receipt, e)
+	}
+	_, sale, applied, e := service.Sell(ctx, bought, protocol.SellItemRequest{Entries: 1, Slot: receipt.Slot, Count: 2})
+	if e != nil || !applied || sale.GoldGained != 80 || sale.UnitPrice != 40 || sale.NewGold != 29678 {
+		t.Fatalf("sell back %+v %v", sale, e)
 	}
 	other := role
 	other.AccountID++
@@ -129,11 +149,11 @@ func TestShopQuantityDatabaseAndWire(t *testing.T) {
 		t.Fatal(e)
 	}
 	bag, e = inventory.ReadBag(w.role.State)
-	if e != nil || len(bag.Items) != 0 || bag.Gold != 2998 {
+	if e != nil || len(bag.Items) != 0 || bag.Gold != 41678 {
 		t.Fatalf("whole stack %+v %v", bag, e)
 	}
 	if _, e = w.sellItem(payload); e == nil {
 		t.Fatal("resold empty slot")
 	}
-	t.Log("partial/whole stacks, ACK balance/quantity, concurrent oversell and ownership verified in isolated PostgreSQL; pricing remains a separate follow-up")
+	t.Log("partial/whole stacks, current-source 40 gold, gold purchase 200, concurrent oversell and ownership verified in isolated PostgreSQL")
 }

@@ -76,6 +76,7 @@ func main() {
 	boosterCatalogFile := flag.String("booster-catalog", os.Getenv("DFO_BOOSTER_CATALOG"), "booster definitions JSON")
 	selectionBoxFile := flag.String("selection-boxes", os.Getenv("DFO_SELECTION_BOXES"), "source selection box JSON ([booster select category] boxes)")
 	itemShopFile := flag.String("item-shop", os.Getenv("DFO_ITEM_SHOP"), "source item shop JSON (itemshop/**.shp; prices goods with [need material], e.g. the Odyssey shop's silver coins)")
+	shopPricesFile := flag.String("shop-prices", os.Getenv("DFO_SHOP_PRICES"), "source NPC prices; empty resolves shop-prices.json beside the loot catalog")
 	soloPartyBootstrap := flag.Bool("solo-party-bootstrap", false, "initialize the owned actor in the current solo party roster")
 	accountOptionsFile := flag.String("account-options", "", "sparse current-client account option overrides; other defaults remain client-owned")
 	unifiedCharacFile := flag.String("unified-charac-template", "", "override the built-in 3539 byte character option block sent as NOTI2827 (different client build only)")
@@ -615,6 +616,19 @@ func main() {
 			}
 		}
 		lootService = &loot.Service{Store: characters.Store, Catalog: c, DropCatalog: dropCatalog, Rules: r, BagRules: bag, Tables: tables, Equipment: gear}
+		pricesPath := *shopPricesFile
+		if pricesPath == "" {
+			pricesPath = filepath.Join(filepath.Dir(lootPath), "shop-prices.json")
+		}
+		if _, err := os.Stat(pricesPath); err == nil || *shopPricesFile != "" {
+			lootService.Prices, e = catalog.LoadShopPrices(pricesPath, c.Source.Checksum)
+			if e != nil {
+				log.Fatal(e)
+			}
+			log.Printf("loaded %d source NPC prices from %s", len(lootService.Prices.Items), pricesPath)
+		} else {
+			log.Printf("warning: no source NPC prices (%s); gold purchases and sales are refused", pricesPath)
+		}
 		if path := os.Getenv("DFO_ODYSSEY_COIN_RULES"); path != "" {
 			lootService.Currency, e = loot.LoadOdysseyCurrency(path)
 			if e != nil {
@@ -898,7 +912,7 @@ func main() {
 		}
 	}
 	if itemShops == nil {
-		log.Printf("warning: no item shop catalog; every purchase is charged the flat gold price")
+		log.Printf("warning: no item shop catalog; material-priced purchases cannot be resolved")
 	} else if lootService != nil {
 		lootService.ItemShops = itemShops
 	}
