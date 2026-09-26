@@ -3388,6 +3388,33 @@ func main() {
 				}
 				continue
 			}
+			if characters != nil && bootstrapped && frame.ID == 295 {
+				if !verified {
+					event(map[string]any{"kind": "character_slot_rejected", "error": "request checksum or cipher rejected"})
+					return
+				}
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				err := changeRosterSlot(ctx, characters, developmentAccount, selectedCharacterID, plaintext)
+				cancel()
+				payload := protocol.CharacterSlotSuccess()
+				if err != nil {
+					event(map[string]any{"kind": "character_slot_rejected", "error": err.Error()})
+					payload = protocol.Refusal(19)
+				} else {
+					event(map[string]any{"kind": "character_slot_saved", "account_id": developmentAccount, "plain_hex": hex.EncodeToString(plaintext)})
+				}
+				if e := sendPayload(1, 295, payload); e != nil {
+					return
+				}
+				// The native drag already updates its local maps. Do not reload
+				// the roster between the packets of a multi-cell drag operation.
+				// A refused operation leaves those maps ahead of storage; close
+				// this session so it cannot select/archive a different character.
+				if err != nil {
+					return
+				}
+				continue
+			}
 			if characters != nil && bootstrapped && frame.ID == 637 {
 				if verified && len(plaintext) == 0 && selectedCharacterID == 0 {
 					// 145250040 reads the count of pending delayed deletions.

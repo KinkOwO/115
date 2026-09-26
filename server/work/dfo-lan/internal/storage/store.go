@@ -95,6 +95,8 @@ func (s *Store) Migrate(ctx context.Context) error {
  created_at timestamptz NOT NULL DEFAULT now(),
  UNIQUE(account_id,wire_id));
  ALTER TABLE characters ADD COLUMN IF NOT EXISTS deleted_at timestamptz;
+ ALTER TABLE characters ADD COLUMN IF NOT EXISTS roster_order bigint CHECK(roster_order > 0);
+ ALTER TABLE characters ADD COLUMN IF NOT EXISTS fixed_slot smallint NOT NULL DEFAULT 0 CHECK(fixed_slot BETWEEN 0 AND 255);
  CREATE UNIQUE INDEX IF NOT EXISTS characters_name_unique ON characters(lower(name));`)
 	return e
 }
@@ -108,6 +110,7 @@ type Character struct {
 	ID            int64
 	AccountID     int64
 	WireID        uint16
+	FixedSlot     byte
 	Name          string
 	Profession    byte
 	Request       []byte
@@ -130,14 +133,16 @@ func (s *Store) CreateCharacter(ctx context.Context, c Character, maxCharacters 
 		return c, e
 	}
 	var n, next int
-	if e = tx.QueryRow(ctx, `SELECT count(*) FILTER (WHERE deleted_at IS NULL),coalesce(max(wire_id),0)+1 FROM characters WHERE account_id=$1`, account).Scan(&n, &next); e != nil {
+	var order int64
+	if e = tx.QueryRow(ctx, `SELECT count(*) FILTER (WHERE deleted_at IS NULL),coalesce(max(wire_id),0)+1,coalesce(max(coalesce(roster_order,wire_id)),0)+1 FROM characters WHERE account_id=$1`, account).Scan(&n, &next, &order); e != nil {
 		return c, e
 	}
 	if n >= maxCharacters || next > 65534 {
 		return c, errors.New("character slots full")
 	}
 	c.WireID = uint16(next)
-	e = tx.QueryRow(ctx, `INSERT INTO characters(account_id,wire_id,name,profession,create_request,config_version,state) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id,created_at`, account, next, c.Name, c.Profession, c.Request, c.ConfigVersion, c.State).Scan(&c.ID, &c.CreatedAt)
+	c.FixedSlot = 0
+	e = tx.QueryRow(ctx, `INSERT INTO characters(account_id,wire_id,name,profession,create_request,config_version,state,roster_order,fixed_slot) VALUES($1,$2,$3,$4,$5,$6,$7,$8,0) RETURNING id,created_at`, account, next, c.Name, c.Profession, c.Request, c.ConfigVersion, c.State, order).Scan(&c.ID, &c.CreatedAt)
 	if e != nil {
 		return c, e
 	}
@@ -149,7 +154,7 @@ func (s *Store) CreateCharacter(ctx context.Context, c Character, maxCharacters 
 	return c, nil
 }
 func (s *Store) Characters(ctx context.Context, account int64) ([]Character, error) {
-	rows, e := s.DB.Query(ctx, `SELECT id,account_id,wire_id,name,profession,create_request,config_version,state,created_at FROM characters WHERE account_id=$1 AND deleted_at IS NULL ORDER BY wire_id`, account)
+	rows, e := s.DB.Query(ctx, `SELECT id,account_id,wire_id,name,profession,create_request,config_version,state,created_at,fixed_slot FROM characters WHERE account_id=$1 AND deleted_at IS NULL ORDER BY coalesce(roster_order,wire_id),wire_id`, account)
 	if e != nil {
 		return nil, e
 	}
@@ -157,7 +162,7 @@ func (s *Store) Characters(ctx context.Context, account int64) ([]Character, err
 	out := []Character{}
 	for rows.Next() {
 		var c Character
-		if e = rows.Scan(&c.ID, &c.AccountID, &c.WireID, &c.Name, &c.Profession, &c.Request, &c.ConfigVersion, &c.State, &c.CreatedAt); e != nil {
+		if e = rows.Scan(&c.ID, &c.AccountID, &c.WireID, &c.Name, &c.Profession, &c.Request, &c.ConfigVersion, &c.State, &c.CreatedAt, &c.FixedSlot); e != nil {
 			return nil, e
 		}
 		out = append(out, c)
