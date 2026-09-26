@@ -25,8 +25,12 @@ type LootCatalog struct {
 	Rules        map[string]ScriptRecord `json:"rules"`
 	Items        map[uint32]LootItem     `json:"items"`
 	IndexHashes  map[string]string       `json:"index_hashes"`
-	Skipped      []string                `json:"skipped,omitempty"`
-	Pending      []string                `json:"pending,omitempty"`
+	// DropGroups is the typed projection of etc/dungeondroptablebygroup.etc; a
+	// dungeon script's [difficulty dropitem group list] indexes into it by id.
+	DropGroupSource DropGroupSource `json:"drop_group_source"`
+	DropGroups      []DropGroup     `json:"drop_groups,omitempty"`
+	Skipped         []string        `json:"skipped,omitempty"`
+	Pending         []string        `json:"pending,omitempty"`
 }
 
 func lootInt(c []pvf.Token, name string) (int32, bool) {
@@ -50,6 +54,21 @@ func ImportLoot(a *pvf.Archive, maxGrade uint32) (LootCatalog, error) {
 			return c, e
 		}
 		c.Rules[name] = s
+	}
+	// etc/dungeondroptablebygroup.etc is the per-dungeon drop group table a
+	// dungeon's [difficulty dropitem group list] indexes into. It is stored as a
+	// typed projection instead of raw cells: the cell stream is 85k entries, and
+	// repeating it would grow every loot catalog sixfold. Importing it is not the
+	// same as awarding from it - the award semantics are still not established, so
+	// nothing consumes these groups yet.
+	groupTable, e := ResolveScript(a, "etc/dungeondroptablebygroup.etc")
+	if e != nil {
+		return c, e
+	}
+	c.DropGroupSource = DropGroupSource{Path: groupTable.Path, SHA256: groupTable.SHA256}
+	c.DropGroups, e = ParseDropGroups(groupTable.Cells)
+	if e != nil {
+		return c, e
 	}
 	refs := map[string]map[uint32]string{}
 	for _, kind := range []string{"stackable", "equipment"} {
@@ -146,6 +165,31 @@ func LoadLoot(path string) (LootCatalog, error) {
 	for id, item := range c.Items {
 		if id == 0 || id != item.ID || item.Weight == 0 || item.Grade <= 0 || uint32(item.Grade) > c.MaximumGrade || len(item.Script.SHA256) != 64 {
 			return c, fmt.Errorf("invalid loot item projection")
+		}
+	}
+	// A catalog that declares a group table source must carry a well-formed
+	// projection of it. Catalogs written before the projection existed have
+	// neither and still load, so the transition does not break stored artifacts.
+	if c.DropGroupSource.SHA256 != "" || len(c.DropGroups) > 0 {
+		if c.DropGroupSource.Path == "" || len(c.DropGroupSource.SHA256) != 64 {
+			return c, fmt.Errorf("drop groups without source provenance")
+		}
+		if len(c.DropGroups) == 0 {
+			return c, fmt.Errorf("drop group source without groups")
+		}
+		seen := map[uint32]bool{}
+		for _, g := range c.DropGroups {
+			if g.ID == 0 || seen[g.ID] || (len(g.Explicit) == 0 && len(g.Smart) == 0) {
+				return c, fmt.Errorf("invalid drop group %d", g.ID)
+			}
+			seen[g.ID] = true
+			for _, row := range [2][]DropWeight{g.Explicit, g.Smart} {
+				for _, w := range row {
+					if w.Template == 0 {
+						return c, fmt.Errorf("invalid drop group item")
+					}
+				}
+			}
 		}
 	}
 	return c, nil

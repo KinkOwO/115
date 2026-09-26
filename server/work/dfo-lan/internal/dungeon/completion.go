@@ -126,6 +126,18 @@ func (s *Session) tryComplete() {
 			s.completed = true
 			return
 		}
+		// 「调律之边界」的源领主是**可战斗**的 boss（rank 3 / Team 100），
+		// 所以上面两条 display-boss 路径（都要求 !hasFightableBoss()）对它都不成立；
+		// 而该玩法确认不发 CMD117，completionTarget 恒为 0。源脚本的 [hunt boss]
+		// 就是它对通关条件的声明，按它判定。
+		if s.Definition.AttunementBoss != 0 && s.Loaded {
+			for _, m := range s.Monsters {
+				if m.Template == s.Definition.AttunementBoss && m.Rank == 3 && !m.NonCombat && m.Team != 0 && s.Dead[m.Entity] {
+					s.completed = true
+					return
+				}
+			}
+		}
 		return
 	}
 	if s.Definition.Odyssey || s.Definition.ID == 100003126 {
@@ -177,6 +189,16 @@ func (s *Session) CompletionTarget() uint16 {
 		return 0
 	}
 	if s.completionTarget == 0 {
+		// 调律玩法没有 CMD117，NOTI115 的身份要自己挑。按**源领主模板**取，
+		// 而不是楼下「房间里第一个 rank3」—— 两者在出货脚本里恰好同值（房间只有一只
+		// rank3），但只有按模板取才对得上 [hunt boss] 的语义。
+		if s.Definition.AttunementBoss != 0 {
+			for _, m := range s.Monsters {
+				if m.Template == s.Definition.AttunementBoss && m.Rank == 3 && m.Team != 0 && m.Entity != 0 && m.Entity != 65535 {
+					return m.Entity
+				}
+			}
+		}
 		if target := s.reportableDisplayBoss(); target != 0 && !s.lotusClosingReached {
 			return target
 		}
