@@ -76,6 +76,7 @@ func main() {
 	boosterCatalogFile := flag.String("booster-catalog", os.Getenv("DFO_BOOSTER_CATALOG"), "booster definitions JSON")
 	selectionBoxFile := flag.String("selection-boxes", os.Getenv("DFO_SELECTION_BOXES"), "source selection box JSON ([booster select category] boxes)")
 	itemShopFile := flag.String("item-shop", os.Getenv("DFO_ITEM_SHOP"), "source item shop JSON (itemshop/**.shp; prices goods with [need material], e.g. the Odyssey shop's silver coins)")
+	shopPricesFile := flag.String("shop-prices", os.Getenv("DFO_SHOP_PRICES"), "source NPC prices; empty resolves shop-prices.json beside the loot catalog")
 	soloPartyBootstrap := flag.Bool("solo-party-bootstrap", false, "initialize the owned actor in the current solo party roster")
 	accountOptionsFile := flag.String("account-options", "", "sparse current-client account option overrides; other defaults remain client-owned")
 	unifiedCharacFile := flag.String("unified-charac-template", "", "override the built-in 3539 byte character option block sent as NOTI2827 (different client build only)")
@@ -335,6 +336,11 @@ func main() {
 		// Per-character read-notice ledger (NOTI402/426) backs the teaching
 		// frame suppression for third-awakened characters.
 		if e = s.MigrateCharacterNotices(ctx); e != nil {
+			log.Fatal(e)
+		}
+		// Per-character profile skin snapshot (NOTI1545/1546) backs the
+		// category-0 owned/selected state sent on character entry.
+		if e = s.MigrateProfileSkins(ctx); e != nil {
 			log.Fatal(e)
 		}
 		if e = s.MigrateMailbox(ctx); e != nil {
@@ -615,6 +621,19 @@ func main() {
 			}
 		}
 		lootService = &loot.Service{Store: characters.Store, Catalog: c, DropCatalog: dropCatalog, Rules: r, BagRules: bag, Tables: tables, Equipment: gear}
+		pricesPath := *shopPricesFile
+		if pricesPath == "" {
+			pricesPath = filepath.Join(filepath.Dir(lootPath), "shop-prices.json")
+		}
+		if _, err := os.Stat(pricesPath); err == nil || *shopPricesFile != "" {
+			lootService.Prices, e = catalog.LoadShopPrices(pricesPath, c.Source.Checksum)
+			if e != nil {
+				log.Fatal(e)
+			}
+			log.Printf("loaded %d source NPC prices from %s", len(lootService.Prices.Items), pricesPath)
+		} else {
+			log.Printf("warning: no source NPC prices (%s); gold purchases and sales are refused", pricesPath)
+		}
 		if path := os.Getenv("DFO_ODYSSEY_COIN_RULES"); path != "" {
 			lootService.Currency, e = loot.LoadOdysseyCurrency(path)
 			if e != nil {
@@ -921,7 +940,7 @@ func main() {
 		}
 	}
 	if itemShops == nil {
-		log.Printf("warning: no item shop catalog; every purchase is charged the flat gold price")
+		log.Printf("warning: no item shop catalog; material-priced purchases cannot be resolved")
 	} else if lootService != nil {
 		lootService.ItemShops = itemShops
 	}
@@ -2089,8 +2108,26 @@ func main() {
 				}
 				continue
 			}
-			if worldState != nil && bootstrapped && frame.ID == 507 && fatigueService != nil {
+			if worldState != nil && bootstrapped && frame.ID == 507 {
 				if !verified {
+					continue
+				}
+				if len(plaintext) >= 11 && binary.LittleEndian.Uint32(plaintext[7:11]) == 206 {
+					plan, e := worldState.useQuestAirshipItem(plaintext, event)
+					if e != nil {
+						event(map[string]any{"kind": "quest_item_action_refused", "character_id": worldState.role.ID, "reason": e.Error()})
+						continue
+					}
+					for _, packet := range plan {
+						if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
+							return
+						}
+						event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID})
+					}
+					continue
+				}
+				if fatigueService == nil {
+					event(map[string]any{"kind": "fatigue_potion_refused", "character_id": worldState.role.ID, "reason": "fatigue service unavailable"})
 					continue
 				}
 				plan, e := worldState.recoverFatiguePotion(plaintext)
@@ -3053,6 +3090,22 @@ func main() {
 				plan := entryPayloads{Select: payload, Basic: basic, Addition: addition, Vault: vaultPayload, UserArea: userArea, Area: areaPayload, Fatigue: fatiguePayload, AccountOptions: accountOptions}
 				plan.SecondaryVault = secondaryVaultPayload
 				plan.AccountVault = accountVaultPayload
+				// Restore the persisted category-0 skin state; without owned +
+				// selection frames the inventory CharBG keeps its default NEW
+				// animation. A failed restore aborts this entry rather than
+				// sending a fabricated success state.
+				if characters != nil {
+					skinCtx, skinCancel := context.WithTimeout(context.Background(), 5*time.Second)
+					skinState, skinErr := characters.Store.RestoreProfileSkins(skinCtx, developmentAccount, role.ID)
+					skinCancel()
+					if skinErr == nil {
+						plan.ProfileSkinCargo, plan.ProfileSkinSelection, skinErr = protocol.ProfileSkinRestore(skinState)
+					}
+					if skinErr != nil {
+						event(map[string]any{"kind": "profile_skin_restore_error", "character_id": role.ID, "error": skinErr.Error()})
+						continue
+					}
+				}
 				plan.CubeContract, e = cubeContractRestore(role.State)
 				if e != nil {
 					event(map[string]any{"kind": "cube_contract_restore_error", "character_id": role.ID, "reason": e.Error()})

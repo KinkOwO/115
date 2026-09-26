@@ -204,6 +204,88 @@ func TestZasuraRevealedByPrecedingQuest(t *testing.T) {
 	}
 }
 
+func TestWoonRevealedByGroupedVisibilityInGhentAfterwar(t *testing.T) {
+	t.Setenv("DFO_QUEST_VISIBLE_NPC_RELAX", "0")
+	qcat, err := catalog.LoadQuests("../../configs/quests.generated.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	wcat, err := catalog.LoadWorld("../../configs/world.generated.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	const npc = 100000304
+	ghent := storage.WorldPosition{Town: 6, Area: 3}
+	d := qcat.Quests[13588]
+	if (&world.Service{Catalog: wcat}).HasNPC(ghent, npc) {
+		t.Fatal("Woon unexpectedly exists in the base Ghent dock map")
+	}
+	svc := &world.Service{Catalog: wcat}
+	if !svc.HasPhaseNPC(ghent, npc) {
+		t.Fatal("Woon is missing from the exported Ghent phase maps")
+	}
+	placementFound := false
+	for _, row := range wcat.Areas[catalog.AreaKey(ghent.Town, ghent.Area)].PhaseNPCs {
+		if row.ID == npc && row.MapPath == "map/cataclysm/town/gent_afterwar/gent_dock.map" && row.X == 845 && row.Y == 180 && len(row.MapSHA256) == 64 {
+			placementFound = true
+		}
+	}
+	if !placementFound {
+		t.Fatal("Woon's source phase-map placement or provenance changed")
+	}
+	if shown, found := questVisibilityOnClear(qcat.Quests[13587].Script.Cells, npc); !found || !shown {
+		t.Fatal("skywar_30 grouped visibility should show its second NPC on clear")
+	}
+	if !questShownByPrerequisiteOnClear(d, npc, qcat) || !allowsQuestPhaseNPCInteraction(svc, npc, ghent, d, qcat) {
+		t.Fatal("the observed skywar_31 interaction should pass the area check")
+	}
+	if !allowsQuestPhaseNPCInteraction(svc, npc, ghent, qcat.Quests[13590], qcat) {
+		t.Fatal("the later Woon meeting should reuse the source phase placement and visibility chain")
+	}
+	for _, at := range []storage.WorldPosition{{Town: 6, Area: 2}, {Town: 40, Area: 2}} {
+		if allowsQuestPhaseNPCInteraction(svc, npc, at, d, qcat) {
+			t.Fatalf("Woon interaction allowed outside Ghent dock at %+v", at)
+		}
+	}
+	if allowsQuestPhaseNPCInteraction(svc, 100000299, ghent, d, qcat) ||
+		allowsQuestPhaseNPCInteraction(svc, npc, ghent, qcat.Quests[6200], qcat) {
+		t.Fatal("unrelated quest or NPC was allowed")
+	}
+}
+
+func TestErjeMeetingBeforeItsOwnClearHide(t *testing.T) {
+	t.Setenv("DFO_QUEST_VISIBLE_NPC_RELAX", "0")
+	qcat, err := catalog.LoadQuests("../../configs/quests.generated.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	wcat, err := catalog.LoadWorld("../../configs/world.generated.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	const npc = 100000305
+	palace := storage.WorldPosition{Town: 6, Area: 2}
+	d := qcat.Quests[13595]
+	svc := &world.Service{Catalog: wcat}
+	if svc.HasNPC(palace, npc) || !svc.HasPhaseNPC(palace, npc) {
+		t.Fatal("Erje should occur in the Ghent palace phase map, not its base map")
+	}
+	if shown, found := questVisibilityOnClear(qcat.Quests[13592].Script.Cells, npc); !found || !shown {
+		t.Fatal("quest 13592 should reveal Erje")
+	}
+	if shown, found := questVisibilityOnClear(d.Script.Cells, npc); !found || shown {
+		t.Fatal("quest 13595 should hide Erje after it is cleared")
+	}
+	if !questLineageShowsGuidedNPC(d, npc, palace, qcat, true) ||
+		!allowsQuestPhaseNPCInteraction(svc, npc, palace, d, qcat) {
+		t.Fatal("the future clear/hide must not block the current Erje meeting")
+	}
+	if allowsQuestPhaseNPCInteraction(svc, npc, storage.WorldPosition{Town: 6, Area: 3}, d, qcat) ||
+		allowsQuestPhaseNPCInteraction(svc, 100000304, palace, d, qcat) {
+		t.Fatal("Erje meeting allowed in a wrong area or with a wrong NPC")
+	}
+}
+
 func TestQuestLineageGuidesRevealedNPC(t *testing.T) {
 	qcat, err := catalog.LoadQuests("../../configs/quests.generated.json")
 	if err != nil {

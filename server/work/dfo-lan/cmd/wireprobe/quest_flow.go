@@ -9,6 +9,7 @@ import (
 	"dfolan/internal/inventory"
 	"dfolan/internal/quest"
 	"dfolan/internal/storage"
+	"dfolan/internal/world"
 	"encoding/binary"
 	"fmt"
 	"os"
@@ -269,6 +270,7 @@ func (w *worldSession) questInteraction(p []byte) ([]outboundPacket, error) {
 		w.communicationArea == w.state.Position.Area &&
 		time.Now().Before(w.communicationUntil)
 	if !communicated && !quest.AllowsRemoteNPCInteraction(d) && !allowsQuestVisibleNPCInteraction(id, npc, w.state.Position, d, w.quests.Catalog) &&
+		!allowsQuestPhaseNPCInteraction(w.service, npc, w.state.Position, d, w.quests.Catalog) &&
 		(w.service == nil || !w.service.HasNPC(w.state.Position, npc)) {
 		return nil, fmt.Errorf("quest %d NPC %d is absent from current source area %d/%d", id, npc, w.state.Position.Town, w.state.Position.Area)
 	}
@@ -317,18 +319,36 @@ func allowsQuestVisibleNPCInteraction(id uint16, npc uint32, at storage.WorldPos
 			questLineageShowsGuidedNPC(d, npc, at, quests, false))
 }
 
+// A phase map is an area-specific source of NPC placement, but its NPCs are
+// not all visible at once. Require the accepted meet quest's objective and
+// completion NPC to match a source visibility rule as well as a phase map row.
+func allowsQuestPhaseNPCInteraction(service *world.Service, npc uint32, at storage.WorldPosition, d catalog.QuestDefinition, quests catalog.QuestCatalog) bool {
+	if service == nil || !service.HasPhaseNPC(at, npc) {
+		return false
+	}
+	return questShowsObjectiveNPCOnAccept(d, npc) || questLineageShowsVisibleNPC(d, npc, at, quests, false, true)
+}
+
 // Follow source prerequisites, not numeric quest adjacency. A clear/show rule
 // remains effective through later quests until a clear/hide rule supersedes it.
 // The guide supplies the area for the normal path; the opt-in path only needs
 // the source visibility rule. MeetNPC still validates the accepted quest.
 func questLineageShowsGuidedNPC(d catalog.QuestDefinition, npc uint32, at storage.WorldPosition, quests catalog.QuestCatalog, requireGuide bool) bool {
+	// A matching source guide proves the current area; the opt-in no-guide
+	// path keeps its older, stricter treatment of this quest's clear/hide.
+	return questLineageShowsVisibleNPC(d, npc, at, quests, requireGuide, requireGuide)
+}
+
+func questLineageShowsVisibleNPC(d catalog.QuestDefinition, npc uint32, at storage.WorldPosition, quests catalog.QuestCatalog, requireGuide, allowCurrentClearHide bool) bool {
 	if npc == 0 || npc > 0x7fffffff || len(d.Pending) != 0 ||
 		d.Kind != "[meet npc]" || len(d.ObjectiveCells) != 1 ||
 		d.ObjectiveCells[0].Type != 0 || d.ObjectiveCells[0].Value != int32(npc) ||
 		!questCompletionNPCMatches(d, npc) {
 		return false
 	}
-	return questLineageShowsNPC(d, npc, at, quests, requireGuide, false)
+	// The current quest's clear/hide is a future effect, but only let it be
+	// ignored when a guide or a source phase-map row proves the current area.
+	return questLineageShowsNPC(d, npc, at, quests, requireGuide, allowCurrentClearHide)
 }
 
 // A subtype-0 reach objective may name an NPC distinct from its completion
@@ -412,6 +432,16 @@ func questGoGuideTargetsNPC(cells []pvf.Token, npc uint32, at storage.WorldPosit
 	return found, matches
 }
 
+// Source [npc] groups can name several NPCs before the next field tag.
+func questVisibilityTargetsNPC(cells []pvf.Token, start int, npc uint32) bool {
+	for i := start; i < len(cells) && cells[i].Type != 3; i++ {
+		if cells[i].Type == 0 && cells[i].Value == int32(npc) {
+			return true
+		}
+	}
+	return false
+}
+
 func questVisibilityOnClear(cells []pvf.Token, npc uint32) (show bool, found bool) {
 	for i, c := range cells {
 		if c.Type != 3 || c.Text != "[npc visibility]" {
@@ -430,7 +460,7 @@ func questVisibilityOnClear(cells []pvf.Token, npc uint32) (show bool, found boo
 			next := cells[j+1]
 			switch field.Text {
 			case "[npc]":
-				target = next.Type == 0 && next.Value == int32(npc)
+				target = questVisibilityTargetsNPC(cells, j+1, npc)
 			case "[condition]":
 				clear = next.Type == 6 && next.Text == "[clear]"
 			case "[visibility]":
@@ -516,7 +546,7 @@ func questVisibilityShows(cells []pvf.Token, npc uint32, condition string) bool 
 			next := cells[j+1]
 			switch field.Text {
 			case "[npc]":
-				target = next.Type == 0 && next.Value == int32(npc)
+				target = questVisibilityTargetsNPC(cells, j+1, npc)
 			case "[condition]":
 				accept = next.Type == 6 && next.Text == condition
 			case "[visibility]":

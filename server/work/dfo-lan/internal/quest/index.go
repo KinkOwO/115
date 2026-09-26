@@ -28,6 +28,7 @@ type Entry struct {
 	NPCReach           NPCReachObjective
 	Range              RangeObjective
 	Seek               SeekObjective
+	UseItem            uint32
 	Seeking            SeekingItemObjective
 	HuntDungeon        uint32
 	HuntEnemy          uint32
@@ -44,6 +45,7 @@ type Index struct {
 	Ordered    []uint32
 	Entries    map[uint32]*Entry
 	ByClearMap map[uint32][]uint16
+	ByUseItem  map[uint32][]uint16
 	Positional []uint32
 }
 
@@ -128,7 +130,7 @@ func rewardUsable(d catalog.QuestDefinition) bool {
 }
 
 func BuildIndex(c catalog.QuestCatalog) *Index {
-	x := &Index{Source: c.Source.Checksum, Entries: map[uint32]*Entry{}, ByClearMap: map[uint32][]uint16{}}
+	x := &Index{Source: c.Source.Checksum, Entries: map[uint32]*Entry{}, ByClearMap: map[uint32][]uint16{}, ByUseItem: map[uint32][]uint16{}}
 	for id, d := range c.Quests {
 		initial, model, err := InitialProgress(d)
 		groups := d.PrerequisiteGroups
@@ -172,6 +174,11 @@ func BuildIndex(c catalog.QuestCatalog) *Index {
 			x.Positional = append(x.Positional, id)
 		case model == SeekingItems:
 			e.Seeking, _ = SeekingObjective(d)
+		case model == SingleUseItem:
+			e.UseItem, _ = UseItemObjective(d)
+			if id < 65535 && id != 0 {
+				x.ByUseItem[e.UseItem] = append(x.ByUseItem[e.UseItem], uint16(id))
+			}
 		case model == SingleHuntEnemy:
 			e.HuntDungeon, e.HuntEnemy, _ = HuntEnemyObjective(d)
 		case model == SingleHuntMonster:

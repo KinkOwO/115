@@ -39,3 +39,21 @@ func TestFatigueActionCaptured(t *testing.T) {
 		}
 	}
 }
+
+func TestQuestAirshipActionCaptured(t *testing.T) {
+	// User-operated right click after moving the communicator to bag slot 113.
+	p, err := hex.DecodeString("71000000000000ce0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if slot, err := DecodeQuestAirshipAction(p); err != nil || slot != 113 {
+		t.Fatal(slot, err)
+	}
+	for _, at := range []int{2, 3, 6, 7, 8, 11, 19, 63} {
+		q := append([]byte{}, p...)
+		q[at] = 255
+		if _, err := DecodeQuestAirshipAction(q); err == nil {
+			t.Fatalf("mutation %d accepted", at)
+		}
+	}
+}
