@@ -253,6 +253,39 @@ func TestWoonRevealedByGroupedVisibilityInGhentAfterwar(t *testing.T) {
 	}
 }
 
+func TestErjeMeetingBeforeItsOwnClearHide(t *testing.T) {
+	t.Setenv("DFO_QUEST_VISIBLE_NPC_RELAX", "0")
+	qcat, err := catalog.LoadQuests("../../configs/quests.generated.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	wcat, err := catalog.LoadWorld("../../configs/world.generated.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	const npc = 100000305
+	palace := storage.WorldPosition{Town: 6, Area: 2}
+	d := qcat.Quests[13595]
+	svc := &world.Service{Catalog: wcat}
+	if svc.HasNPC(palace, npc) || !svc.HasPhaseNPC(palace, npc) {
+		t.Fatal("Erje should occur in the Ghent palace phase map, not its base map")
+	}
+	if shown, found := questVisibilityOnClear(qcat.Quests[13592].Script.Cells, npc); !found || !shown {
+		t.Fatal("quest 13592 should reveal Erje")
+	}
+	if shown, found := questVisibilityOnClear(d.Script.Cells, npc); !found || shown {
+		t.Fatal("quest 13595 should hide Erje after it is cleared")
+	}
+	if !questLineageShowsGuidedNPC(d, npc, palace, qcat, true) ||
+		!allowsQuestPhaseNPCInteraction(svc, npc, palace, d, qcat) {
+		t.Fatal("the future clear/hide must not block the current Erje meeting")
+	}
+	if allowsQuestPhaseNPCInteraction(svc, npc, storage.WorldPosition{Town: 6, Area: 3}, d, qcat) ||
+		allowsQuestPhaseNPCInteraction(svc, 100000304, palace, d, qcat) {
+		t.Fatal("Erje meeting allowed in a wrong area or with a wrong NPC")
+	}
+}
+
 func TestQuestLineageGuidesRevealedNPC(t *testing.T) {
 	qcat, err := catalog.LoadQuests("../../configs/quests.generated.json")
 	if err != nil {

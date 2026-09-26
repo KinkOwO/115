@@ -326,7 +326,7 @@ func allowsQuestPhaseNPCInteraction(service *world.Service, npc uint32, at stora
 	if service == nil || !service.HasPhaseNPC(at, npc) {
 		return false
 	}
-	return questShowsObjectiveNPCOnAccept(d, npc) || questLineageShowsGuidedNPC(d, npc, at, quests, false)
+	return questShowsObjectiveNPCOnAccept(d, npc) || questLineageShowsVisibleNPC(d, npc, at, quests, false, true)
 }
 
 // Follow source prerequisites, not numeric quest adjacency. A clear/show rule
@@ -334,13 +334,21 @@ func allowsQuestPhaseNPCInteraction(service *world.Service, npc uint32, at stora
 // The guide supplies the area for the normal path; the opt-in path only needs
 // the source visibility rule. MeetNPC still validates the accepted quest.
 func questLineageShowsGuidedNPC(d catalog.QuestDefinition, npc uint32, at storage.WorldPosition, quests catalog.QuestCatalog, requireGuide bool) bool {
+	// A matching source guide proves the current area; the opt-in no-guide
+	// path keeps its older, stricter treatment of this quest's clear/hide.
+	return questLineageShowsVisibleNPC(d, npc, at, quests, requireGuide, requireGuide)
+}
+
+func questLineageShowsVisibleNPC(d catalog.QuestDefinition, npc uint32, at storage.WorldPosition, quests catalog.QuestCatalog, requireGuide, allowCurrentClearHide bool) bool {
 	if npc == 0 || npc > 0x7fffffff || len(d.Pending) != 0 ||
 		d.Kind != "[meet npc]" || len(d.ObjectiveCells) != 1 ||
 		d.ObjectiveCells[0].Type != 0 || d.ObjectiveCells[0].Value != int32(npc) ||
 		!questCompletionNPCMatches(d, npc) {
 		return false
 	}
-	return questLineageShowsNPC(d, npc, at, quests, requireGuide, false)
+	// The current quest's clear/hide is a future effect, but only let it be
+	// ignored when a guide or a source phase-map row proves the current area.
+	return questLineageShowsNPC(d, npc, at, quests, requireGuide, allowCurrentClearHide)
 }
 
 // A subtype-0 reach objective may name an NPC distinct from its completion
