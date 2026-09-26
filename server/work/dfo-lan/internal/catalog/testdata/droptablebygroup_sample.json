@@ -1,0 +1,3489 @@
+{
+ "source": "etc/dungeondroptablebygroup.etc",
+ "source_sha256": "2590d9378a81de11e66e3dcc11f6d05124becac627259f6b088df275b2bcdf51",
+ "pvf_checksum": "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80",
+ "note": "slice of the real cell stream for groups [1, 2, 21251, 21279, 21289, 21310, 21600, 21601, 21602, 21603]",
+ "cells": [
+  {
+   "type": 3,
+   "value": 172333145,
+   "text": "[table]"
+  },
+  {
+   "type": 3,
+   "value": 187207449,
+   "text": "[group]"
+  },
+  {
+   "type": 0,
+   "value": 1
+  },
+  {
+   "type": 3,
+   "value": 162566997,
+   "text": "[creation rate]"
+  },
+  {
+   "type": 0,
+   "value": 12000
+  },
+  {
+   "type": 0,
+   "value": 0
+  },
+  {
+   "type": 3,
+   "value": 214397663,
+   "text": "[smart drop item]"
+  },
+  {
+   "type": 0,
+   "value": 109040488
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 109000713
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 109010657
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 109030634
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 102020735
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 102040772
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 102010836
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 102000788
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 102030713
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 104000810
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 104010789
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 104040796
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 104020767
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 104030798
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 106000762
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 106020826
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 106010778
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 106030859
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 106040738
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 101011199
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 101040735
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 101020956
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 101031067
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 101001024
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 114000410
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 114010390
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 114020281
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 114030281
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 108000753
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 108010734
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 108020637
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 108040713
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 108030762
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 116010275
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 116020277
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 116000300
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 116030312
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 117000131
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 117010141
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 117020131
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 117030131
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 117040072
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 100140731
+  },
+  {
+   "type": 0,
+   "value": 144
+  },
+  {
+   "type": 0,
+   "value": 100190674
+  },
+  {
+   "type": 0,
+   "value": 144
+  },
+  {
+   "type": 0,
+   "value": 100240678
+  },
+  {
+   "type": 0,
+   "value": 144
+  },
+  {
+   "type": 0,
+   "value": 100290714
+  },
+  {
+   "type": 0,
+   "value": 144
+  },
+  {
+   "type": 0,
+   "value": 100090752
+  },
+  {
+   "type": 0,
+   "value": 144
+  },
+  {
+   "type": 0,
+   "value": 100101024
+  },
+  {
+   "type": 0,
+   "value": 144
+  },
+  {
+   "type": 0,
+   "value": 100051139
+  },
+  {
+   "type": 0,
+   "value": 144
+  },
+  {
+   "type": 0,
+   "value": 100150965
+  },
+  {
+   "type": 0,
+   "value": 144
+  },
+  {
+   "type": 0,
+   "value": 100200937
+  },
+  {
+   "type": 0,
+   "value": 144
+  },
+  {
+   "type": 0,
+   "value": 100250976
+  },
+  {
+   "type": 0,
+   "value": 144
+  },
+  {
+   "type": 0,
+   "value": 100170857
+  },
+  {
+   "type": 0,
+   "value": 144
+  },
+  {
+   "type": 0,
+   "value": 100220856
+  },
+  {
+   "type": 0,
+   "value": 144
+  },
+  {
+   "type": 0,
+   "value": 100270874
+  },
+  {
+   "type": 0,
+   "value": 144
+  },
+  {
+   "type": 0,
+   "value": 100070935
+  },
+  {
+   "type": 0,
+   "value": 144
+  },
+  {
+   "type": 0,
+   "value": 100120911
+  },
+  {
+   "type": 0,
+   "value": 144
+  },
+  {
+   "type": 0,
+   "value": 100230868
+  },
+  {
+   "type": 0,
+   "value": 144
+  },
+  {
+   "type": 0,
+   "value": 100130928
+  },
+  {
+   "type": 0,
+   "value": 144
+  },
+  {
+   "type": 0,
+   "value": 100280881
+  },
+  {
+   "type": 0,
+   "value": 144
+  },
+  {
+   "type": 0,
+   "value": 100080964
+  },
+  {
+   "type": 0,
+   "value": 144
+  },
+  {
+   "type": 0,
+   "value": 100180867
+  },
+  {
+   "type": 0,
+   "value": 144
+  },
+  {
+   "type": 0,
+   "value": 100110983
+  },
+  {
+   "type": 0,
+   "value": 144
+  },
+  {
+   "type": 0,
+   "value": 100160894
+  },
+  {
+   "type": 0,
+   "value": 144
+  },
+  {
+   "type": 0,
+   "value": 100260955
+  },
+  {
+   "type": 0,
+   "value": 144
+  },
+  {
+   "type": 0,
+   "value": 100061013
+  },
+  {
+   "type": 0,
+   "value": 144
+  },
+  {
+   "type": 0,
+   "value": 100210917
+  },
+  {
+   "type": 0,
+   "value": 144
+  },
+  {
+   "type": 0,
+   "value": 100301567
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 100313277
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 100323161
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 100345692
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 100353832
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 100390744
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 3,
+   "value": 214397699,
+   "text": "[/smart drop item]"
+  },
+  {
+   "type": 3,
+   "value": 172395903,
+   "text": "[/table]"
+  },
+  {
+   "type": 3,
+   "value": 172333145,
+   "text": "[table]"
+  },
+  {
+   "type": 3,
+   "value": 187207449,
+   "text": "[group]"
+  },
+  {
+   "type": 0,
+   "value": 2
+  },
+  {
+   "type": 3,
+   "value": 162566997,
+   "text": "[creation rate]"
+  },
+  {
+   "type": 0,
+   "value": 12000
+  },
+  {
+   "type": 0,
+   "value": 0
+  },
+  {
+   "type": 3,
+   "value": 214397737,
+   "text": "[armor creation rate]"
+  },
+  {
+   "type": 0,
+   "value": 432
+  },
+  {
+   "type": 3,
+   "value": 214397663,
+   "text": "[smart drop item]"
+  },
+  {
+   "type": 0,
+   "value": 104030802
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 114030285
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 102040777
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 108020641
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 102020740
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 116030316
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 106000766
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 109040492
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 116020281
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 114000414
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 116000304
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 104010793
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 109030638
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 108010740
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 109010662
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 108000757
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 106030864
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 116010279
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 101001032
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 106040742
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 106010783
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 104040801
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 108040717
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 114010394
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 104020772
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 104000814
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 106020832
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 101020963
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 101011209
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 101031074
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 109000717
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 102000793
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 108030767
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 102030717
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 114020285
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 101040739
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 102010840
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 117000132
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 117010142
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 117020132
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 117030132
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 117040073
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 100110987
+  },
+  {
+   "type": 0,
+   "value": 144
+  },
+  {
+   "type": 0,
+   "value": 100160898
+  },
+  {
+   "type": 0,
+   "value": 144
+  },
+  {
+   "type": 0,
+   "value": 100260959
+  },
+  {
+   "type": 0,
+   "value": 144
+  },
+  {
+   "type": 0,
+   "value": 100061017
+  },
+  {
+   "type": 0,
+   "value": 144
+  },
+  {
+   "type": 0,
+   "value": 100210921
+  },
+  {
+   "type": 0,
+   "value": 144
+  },
+  {
+   "type": 0,
+   "value": 100101032
+  },
+  {
+   "type": 0,
+   "value": 144
+  },
+  {
+   "type": 0,
+   "value": 100051147
+  },
+  {
+   "type": 0,
+   "value": 144
+  },
+  {
+   "type": 0,
+   "value": 100150973
+  },
+  {
+   "type": 0,
+   "value": 144
+  },
+  {
+   "type": 0,
+   "value": 100200945
+  },
+  {
+   "type": 0,
+   "value": 144
+  },
+  {
+   "type": 0,
+   "value": 100250984
+  },
+  {
+   "type": 0,
+   "value": 144
+  },
+  {
+   "type": 0,
+   "value": 100170869
+  },
+  {
+   "type": 0,
+   "value": 144
+  },
+  {
+   "type": 0,
+   "value": 100220868
+  },
+  {
+   "type": 0,
+   "value": 144
+  },
+  {
+   "type": 0,
+   "value": 100270886
+  },
+  {
+   "type": 0,
+   "value": 144
+  },
+  {
+   "type": 0,
+   "value": 100070947
+  },
+  {
+   "type": 0,
+   "value": 144
+  },
+  {
+   "type": 0,
+   "value": 100120923
+  },
+  {
+   "type": 0,
+   "value": 144
+  },
+  {
+   "type": 0,
+   "value": 100080972
+  },
+  {
+   "type": 0,
+   "value": 144
+  },
+  {
+   "type": 0,
+   "value": 100130936
+  },
+  {
+   "type": 0,
+   "value": 144
+  },
+  {
+   "type": 0,
+   "value": 100180875
+  },
+  {
+   "type": 0,
+   "value": 144
+  },
+  {
+   "type": 0,
+   "value": 100230876
+  },
+  {
+   "type": 0,
+   "value": 144
+  },
+  {
+   "type": 0,
+   "value": 100280889
+  },
+  {
+   "type": 0,
+   "value": 144
+  },
+  {
+   "type": 0,
+   "value": 100090760
+  },
+  {
+   "type": 0,
+   "value": 144
+  },
+  {
+   "type": 0,
+   "value": 100140739
+  },
+  {
+   "type": 0,
+   "value": 144
+  },
+  {
+   "type": 0,
+   "value": 100190682
+  },
+  {
+   "type": 0,
+   "value": 144
+  },
+  {
+   "type": 0,
+   "value": 100240686
+  },
+  {
+   "type": 0,
+   "value": 144
+  },
+  {
+   "type": 0,
+   "value": 100290722
+  },
+  {
+   "type": 0,
+   "value": 144
+  },
+  {
+   "type": 0,
+   "value": 100301571
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 100313281
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 100323165
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 100345696
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 100353836
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 0,
+   "value": 100390748
+  },
+  {
+   "type": 0,
+   "value": 300
+  },
+  {
+   "type": 3,
+   "value": 214397699,
+   "text": "[/smart drop item]"
+  },
+  {
+   "type": 3,
+   "value": 172395903,
+   "text": "[/table]"
+  },
+  {
+   "type": 3,
+   "value": 172333145,
+   "text": "[table]"
+  },
+  {
+   "type": 3,
+   "value": 187207449,
+   "text": "[group]"
+  },
+  {
+   "type": 0,
+   "value": 21251
+  },
+  {
+   "type": 3,
+   "value": 162566997,
+   "text": "[creation rate]"
+  },
+  {
+   "type": 0,
+   "value": 0
+  },
+  {
+   "type": 0,
+   "value": 0
+  },
+  {
+   "type": 3,
+   "value": 214397663,
+   "text": "[smart drop item]"
+  },
+  {
+   "type": 0,
+   "value": 100051304
+  },
+  {
+   "type": 0,
+   "value": 10
+  },
+  {
+   "type": 0,
+   "value": 100101187
+  },
+  {
+   "type": 0,
+   "value": 10
+  },
+  {
+   "type": 0,
+   "value": 100151128
+  },
+  {
+   "type": 0,
+   "value": 10
+  },
+  {
+   "type": 0,
+   "value": 100201100
+  },
+  {
+   "type": 0,
+   "value": 10
+  },
+  {
+   "type": 0,
+   "value": 100251140
+  },
+  {
+   "type": 0,
+   "value": 10
+  },
+  {
+   "type": 0,
+   "value": 100301847
+  },
+  {
+   "type": 0,
+   "value": 10
+  },
+  {
+   "type": 0,
+   "value": 100313550
+  },
+  {
+   "type": 0,
+   "value": 10
+  },
+  {
+   "type": 0,
+   "value": 100323440
+  },
+  {
+   "type": 0,
+   "value": 10
+  },
+  {
+   "type": 0,
+   "value": 100345985
+  },
+  {
+   "type": 0,
+   "value": 10
+  },
+  {
+   "type": 0,
+   "value": 100354160
+  },
+  {
+   "type": 0,
+   "value": 10
+  },
+  {
+   "type": 0,
+   "value": 100391038
+  },
+  {
+   "type": 0,
+   "value": 10
+  },
+  {
+   "type": 3,
+   "value": 214397699,
+   "text": "[/smart drop item]"
+  },
+  {
+   "type": 3,
+   "value": 172395903,
+   "text": "[/table]"
+  },
+  {
+   "type": 3,
+   "value": 172333145,
+   "text": "[table]"
+  },
+  {
+   "type": 3,
+   "value": 187207449,
+   "text": "[group]"
+  },
+  {
+   "type": 0,
+   "value": 21279
+  },
+  {
+   "type": 3,
+   "value": 214398301,
+   "text": "[drop item]"
+  },
+  {
+   "type": 0,
+   "value": 10401449
+  },
+  {
+   "type": 0,
+   "value": 1
+  },
+  {
+   "type": 0,
+   "value": 10401450
+  },
+  {
+   "type": 0,
+   "value": 1
+  },
+  {
+   "type": 0,
+   "value": 10401451
+  },
+  {
+   "type": 0,
+   "value": 1
+  },
+  {
+   "type": 0,
+   "value": 10401452
+  },
+  {
+   "type": 0,
+   "value": 1
+  },
+  {
+   "type": 0,
+   "value": 10401464
+  },
+  {
+   "type": 0,
+   "value": 1
+  },
+  {
+   "type": 0,
+   "value": 10401465
+  },
+  {
+   "type": 0,
+   "value": 1
+  },
+  {
+   "type": 0,
+   "value": 10401466
+  },
+  {
+   "type": 0,
+   "value": 1
+  },
+  {
+   "type": 0,
+   "value": 10401467
+  },
+  {
+   "type": 0,
+   "value": 1
+  },
+  {
+   "type": 0,
+   "value": 10401468
+  },
+  {
+   "type": 0,
+   "value": 1
+  },
+  {
+   "type": 0,
+   "value": 10401469
+  },
+  {
+   "type": 0,
+   "value": 1
+  },
+  {
+   "type": 0,
+   "value": 10401470
+  },
+  {
+   "type": 0,
+   "value": 1
+  },
+  {
+   "type": 0,
+   "value": 10401471
+  },
+  {
+   "type": 0,
+   "value": 1
+  },
+  {
+   "type": 3,
+   "value": 214398325,
+   "text": "[/drop item]"
+  },
+  {
+   "type": 3,
+   "value": 172395903,
+   "text": "[/table]"
+  },
+  {
+   "type": 3,
+   "value": 172333145,
+   "text": "[table]"
+  },
+  {
+   "type": 3,
+   "value": 187207449,
+   "text": "[group]"
+  },
+  {
+   "type": 0,
+   "value": 21289
+  },
+  {
+   "type": 3,
+   "value": 162566997,
+   "text": "[creation rate]"
+  },
+  {
+   "type": 0,
+   "value": 1200
+  },
+  {
+   "type": 0,
+   "value": 0
+  },
+  {
+   "type": 3,
+   "value": 147129423,
+   "text": "[target]"
+  },
+  {
+   "type": 6,
+   "value": 214405577,
+   "text": "weapon legacy"
+  },
+  {
+   "type": 3,
+   "value": 214397663,
+   "text": "[smart drop item]"
+  },
+  {
+   "type": 0,
+   "value": 101001151
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 101011317
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 101021074
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 101031187
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 101040829
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 102000892
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 102010939
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 102020838
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 102030804
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 102040874
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 104000915
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 104010898
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 104020872
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 104030903
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 104040901
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 106000871
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 106010887
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 106020935
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 106030968
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 106040837
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 108000872
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 108010838
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 108020740
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 108030865
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 108040816
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 109000807
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 109010754
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 109030729
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 109040577
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 114000505
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 114010485
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 114020376
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 114030377
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 116000395
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 116010372
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 116020372
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 116030407
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 117000250
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 117010251
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 117020243
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 117030243
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 117040131
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 101001154
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 101011320
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 101021077
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 101031190
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 101040832
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 102000895
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 102010942
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 102020841
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 102030807
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 102040877
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 104000918
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 104010901
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 104020875
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 104030906
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 104040904
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 106000874
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 106010890
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 106020938
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 106030971
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 106040840
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 108000875
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 108010841
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 108020743
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 108030868
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 108040819
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 109000810
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 109010757
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 109030732
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 109040580
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 114000508
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 114010488
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 114020379
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 114030380
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 116000398
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 116010375
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 116020375
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 116030410
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 117000253
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 117010254
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 117020246
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 117030246
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 117040137
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 100051281
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100101164
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100151105
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100201077
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100251117
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100301824
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100313527
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100323417
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100345962
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100354137
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100391015
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100051285
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100101168
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100151109
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100201081
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100251121
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100301828
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100313531
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100323421
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100345966
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100354141
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100391019
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100051289
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100101172
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100151113
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100201085
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100251125
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100301832
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100313535
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100323425
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100345970
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100354145
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100391023
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100051293
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100101176
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100151117
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100201089
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100251129
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100301836
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100313539
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100323429
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100345974
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100354149
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100391027
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100051297
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100101180
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100151121
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100201093
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100251133
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100301840
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100313543
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100323433
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100345978
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100354153
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100391031
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100051276
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100101159
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100151100
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100201072
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100251111
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100301818
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100313521
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100323411
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100345956
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100354131
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100391009
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100051301
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100101184
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100151125
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100201097
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100251137
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100301844
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100313547
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100323437
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100345982
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100354157
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100391035
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100061161
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100111131
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100161042
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100211065
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100261105
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100301848
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100313551
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100323441
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100345986
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100354161
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100391039
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100051306
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100101189
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100151130
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100201102
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100251142
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100301853
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100313556
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100323446
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100345991
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100354166
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100391044
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100061156
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100111126
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100161037
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100211060
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100261100
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100301814
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100313517
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100323407
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100345952
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100354127
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100391005
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100051310
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100101193
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100151134
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100201106
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100251146
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100301857
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100313560
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100323450
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100345995
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100354170
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100391048
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100051314
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100101197
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100151138
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100201110
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100251150
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100301861
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100313564
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100323454
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100345999
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100354174
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 0,
+   "value": 100391052
+  },
+  {
+   "type": 0,
+   "value": 20
+  },
+  {
+   "type": 3,
+   "value": 214397699,
+   "text": "[/smart drop item]"
+  },
+  {
+   "type": 3,
+   "value": 172395903,
+   "text": "[/table]"
+  },
+  {
+   "type": 3,
+   "value": 172333145,
+   "text": "[table]"
+  },
+  {
+   "type": 3,
+   "value": 187207449,
+   "text": "[group]"
+  },
+  {
+   "type": 0,
+   "value": 21310
+  },
+  {
+   "type": 3,
+   "value": 214398301,
+   "text": "[drop item]"
+  },
+  {
+   "type": 0,
+   "value": 10336310
+  },
+  {
+   "type": 0,
+   "value": 1
+  },
+  {
+   "type": 3,
+   "value": 214398325,
+   "text": "[/drop item]"
+  },
+  {
+   "type": 3,
+   "value": 172395903,
+   "text": "[/table]"
+  },
+  {
+   "type": 3,
+   "value": 172333145,
+   "text": "[table]"
+  },
+  {
+   "type": 3,
+   "value": 187207449,
+   "text": "[group]"
+  },
+  {
+   "type": 0,
+   "value": 21600
+  },
+  {
+   "type": 3,
+   "value": 214398301,
+   "text": "[drop item]"
+  },
+  {
+   "type": 0,
+   "value": 10420063
+  },
+  {
+   "type": 0,
+   "value": 1
+  },
+  {
+   "type": 3,
+   "value": 214398325,
+   "text": "[/drop item]"
+  },
+  {
+   "type": 3,
+   "value": 172395903,
+   "text": "[/table]"
+  },
+  {
+   "type": 3,
+   "value": 172333145,
+   "text": "[table]"
+  },
+  {
+   "type": 3,
+   "value": 187207449,
+   "text": "[group]"
+  },
+  {
+   "type": 0,
+   "value": 21601
+  },
+  {
+   "type": 3,
+   "value": 214398301,
+   "text": "[drop item]"
+  },
+  {
+   "type": 0,
+   "value": 10420064
+  },
+  {
+   "type": 0,
+   "value": 1
+  },
+  {
+   "type": 3,
+   "value": 214398325,
+   "text": "[/drop item]"
+  },
+  {
+   "type": 3,
+   "value": 172395903,
+   "text": "[/table]"
+  },
+  {
+   "type": 3,
+   "value": 172333145,
+   "text": "[table]"
+  },
+  {
+   "type": 3,
+   "value": 187207449,
+   "text": "[group]"
+  },
+  {
+   "type": 0,
+   "value": 21602
+  },
+  {
+   "type": 3,
+   "value": 214398301,
+   "text": "[drop item]"
+  },
+  {
+   "type": 0,
+   "value": 10420065
+  },
+  {
+   "type": 0,
+   "value": 1
+  },
+  {
+   "type": 3,
+   "value": 214398325,
+   "text": "[/drop item]"
+  },
+  {
+   "type": 3,
+   "value": 172395903,
+   "text": "[/table]"
+  },
+  {
+   "type": 3,
+   "value": 172333145,
+   "text": "[table]"
+  },
+  {
+   "type": 3,
+   "value": 187207449,
+   "text": "[group]"
+  },
+  {
+   "type": 0,
+   "value": 21603
+  },
+  {
+   "type": 3,
+   "value": 214398301,
+   "text": "[drop item]"
+  },
+  {
+   "type": 0,
+   "value": 10404804
+  },
+  {
+   "type": 0,
+   "value": 1
+  },
+  {
+   "type": 3,
+   "value": 214398325,
+   "text": "[/drop item]"
+  },
+  {
+   "type": 3,
+   "value": 172395903,
+   "text": "[/table]"
+  }
+ ]
+}

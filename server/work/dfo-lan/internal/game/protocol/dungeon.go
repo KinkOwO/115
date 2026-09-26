@@ -238,6 +238,27 @@ type MonsterDeathReport struct {
 	Killer uint16
 }
 
+// EplpRechallenge is the NOTI 261 body (ENUM_NOTIPACKET_EPLP_RECHALLENGE -
+// the opcode name comes from analysis/dumps/opcodes.tsv). The client reads a
+// single byte into the settlement panel's retry state: 9 lights the
+// "continue challenge" entry and the right-edge arrow, 1 leaves it greyed.
+//
+// It is sent after NOTI 35 because the panel is built from that reward; a
+// patch pushed before it has nothing to attach to. Only 9/1 are ever sent -
+// do not pass arbitrary values, the client switches on them.
+//
+// Origin: the outside repair document describes the same single byte and the
+// same two values. Our own evidence for the opcode name is the dump above;
+// the two values still need live confirmation on this client build.
+const (
+	// EplpRechallengeReady enables the retry entry (another run is allowed).
+	EplpRechallengeReady byte = 9
+	// EplpRechallengeBlocked leaves it greyed out (fatigue or entry refused).
+	EplpRechallengeBlocked byte = 1
+)
+
+func EplpRechallenge(state byte) []byte { return []byte{state} }
+
 func DecodeMonsterDeath(p []byte) (MonsterDeathReport, error) {
 	// Native145dc9bf4..145dca2af. The following combat/check fields are opaque;
 	// do not interpret them as HP, damage, item IDs or authoritative rewards.

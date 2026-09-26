@@ -50,6 +50,12 @@ func CardSelected(index int) ([]byte, error) {
 
 type SettlementExit struct{ State, Option byte }
 
+// SettlementExitSeamless is option 5: the EPLP seamless rechallenge the
+// right-edge of the clear panel sends (CMD 72 ENUM_CMDPACKET_EPLP_COMMAND,
+// body 01 05 01). The sender is the client's own dungeon module, so the
+// gateway only has to stop rejecting it.
+const SettlementExitSeamless byte = 5
+
 // KeepsDungeonSelection reports whether this settlement exit leaves the client
 // in the dungeon-selection flow. It carries the meaning the third byte of the
 // old three-byte acknowledgement accidentally had - that byte was Option, so
@@ -71,7 +77,11 @@ func DecodeSettlementExit(p []byte) (SettlementExit, error) {
 			return SettlementExit{}, fmt.Errorf("nonzero exit padding")
 		}
 	}
-	if (p[0] != 1 && p[0] != 2) || p[1] > 3 {
+	// Option 5 is the EPLP seamless rechallenge (right-edge walk-in). The
+	// native sender writes state, option, literal1 just like options 0..3, so
+	// only the range guard had to widen. Its body shape is pinned below by
+	// the same length and padding rules.
+	if (p[0] != 1 && p[0] != 2) || (p[1] > 3 && p[1] != SettlementExitSeamless) {
 		return SettlementExit{}, fmt.Errorf("unsupported exit action")
 	}
 	return SettlementExit{p[0], p[1]}, nil

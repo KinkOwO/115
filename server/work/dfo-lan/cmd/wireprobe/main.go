@@ -62,6 +62,7 @@ func main() {
 	progressionRulesFile := flag.String("progression-rules", "configs/experience.compat90.json", "separate reference compatibility formula settings")
 	lootCatalogFile := flag.String("loot-catalog", "", "current gold/ordinary stackable source projection; equipment pending")
 	lootRulesFile := flag.String("loot-rules", "configs/drop.compat90.json", "explicit reference drop formula policy")
+	equipmentCatalogFile := flag.String("equipment-catalog", os.Getenv("DFO_EQUIPMENT_CATALOG"), "source equipment catalog a run selects gear from; required whenever loot is enabled")
 	bagRulesFile := flag.String("bag-rules", "configs/inventory.compat90.json", "separate bag slot and missing stack limit policy")
 	boxesFile := flag.String("boxes", "", "imported open-box content tables; empty resolves boxes.json beside the bag rules")
 	cardRulesFile := flag.String("card-rules", "configs/cards.compat90.json", "separate compatible free-card policy")
@@ -87,6 +88,7 @@ func main() {
 	vaultRelease := flag.Bool("vault-purchase-release", os.Getenv("DFO_VAULT_PURCHASE_RELEASE") == "1", "enable accepted personal vault purchases in release profile")
 	randomOptionFile := flag.String("random-option-catalog", os.Getenv("DFO_RANDOM_OPTION_CATALOG"), "current-client magic-seal random option rules; enables CMD393 unsealing")
 	apocalypseCatalogFile := flag.String("apocalypse-catalog", "configs/apocalypse.generated.json", "compiled apocalypse.ctp table (phase clock, operations, gates, rewards, duty skills)")
+	attunementRewardsFile := flag.String("attunement-rewards", os.Getenv("DFO_ATTUNEMENT_REWARDS"), "boundary-of-attunement reward table generated from the source rewardboostinfo CTPs")
 	boosterGageHide := flag.Bool("booster-gage-hide", os.Getenv("DFO_BOOSTER_GAGE") != "0", "send NOTI398 booster-gage with displayValue=0 on town entry to hide the top-left Liberation Trace panel; disable with -booster-gage-hide=false or DFO_BOOSTER_GAGE=0")
 	flag.Parse()
 	if *fullEquipmentFile == "" {
@@ -586,6 +588,15 @@ func main() {
 		if c.Source.Checksum != characters.Catalog.Source.Checksum || bag.Source != c.Source.Checksum {
 			log.Fatal("loot source mismatch")
 		}
+		if *equipmentCatalogFile == "" {
+			log.Fatal("loot requires -equipment-catalog or DFO_EQUIPMENT_CATALOG: without it every equipment award is silently dropped")
+		}
+		gear, e := inventory.LoadEquipmentCatalog(*equipmentCatalogFile, c.Source.Checksum)
+		if e != nil {
+			log.Fatal(e)
+		}
+		log.Printf("loaded equipment catalog: %d rows, %d droppable, from %s",
+			len(gear.Rows), len(gear.DropPool()), *equipmentCatalogFile)
 		dropCatalog := c
 		itemIndexPath := *itemIndexFile
 		if itemIndexPath == "" {
@@ -603,7 +614,7 @@ func main() {
 				log.Printf("supplemented stackable catalog from %s (total items: %d)", itemIndexPath, len(c.Items))
 			}
 		}
-		lootService = &loot.Service{Store: characters.Store, Catalog: c, DropCatalog: dropCatalog, Rules: r, BagRules: bag, Tables: tables}
+		lootService = &loot.Service{Store: characters.Store, Catalog: c, DropCatalog: dropCatalog, Rules: r, BagRules: bag, Tables: tables, Equipment: gear}
 		if path := os.Getenv("DFO_ODYSSEY_COIN_RULES"); path != "" {
 			lootService.Currency, e = loot.LoadOdysseyCurrency(path)
 			if e != nil {
@@ -909,6 +920,27 @@ func main() {
 				log.Printf("Odyssey chapter drop enabled")
 			}
 		}
+	}
+	// 调律之边界（深渊）专属奖励表：按副本声明（[dungeon index]），取自源
+	// rewardboostinfo CTP。奖励物全是 [booster] 礼盒，落袋走背包对未知 stackable
+	// 类型的既有兜底槽位，开盒走既有的 booster 目录 —— 所以这里只校验、不覆盖
+	// 任何目录条目。
+	if *attunementRewardsFile != "" {
+		attunement, e := loot.LoadAttunementRewards(*attunementRewardsFile)
+		if e != nil {
+			log.Fatal(e)
+		}
+		if lootService == nil {
+			log.Fatal("attunement rewards need the loot service")
+		}
+		if e = attunement.ValidateTemplates(lootService.Catalog); e != nil {
+			log.Fatal(e)
+		}
+		lootService.Attunement = attunement
+		log.Printf("loaded attunement rewards (%d dungeons %v, %d reward templates) from %s",
+			len(attunement.Dungeons()), attunement.Dungeons(), len(attunement.Templates()), *attunementRewardsFile)
+	} else {
+		log.Printf("warning: no attunement reward table; boundary-of-attunement clears pay no exclusive reward")
 	}
 	if *responseFile != "" {
 		b, err := os.ReadFile(*responseFile)
@@ -2198,7 +2230,7 @@ func main() {
 					pending, plan, e = worldState.interactDoor(plaintext)
 				case 39:
 					worldState.completionErr = nil
-					plan, e = worldState.monsterDeath(plaintext)
+					plan, e = worldState.monsterDeath(plaintext, event)
 				case 40:
 					plan, e = worldState.playerDeath(plaintext, frame.Raw)
 				case 43:

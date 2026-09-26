@@ -22,20 +22,24 @@ type Drop struct {
 type Session struct {
 	Currency              *OdysseyCurrency
 	ChapterDrop           *OdysseyChapterDrop
+	Attunement            *AttunementRewards
 	QuestDropBonusPercent int
-	mu                    sync.Mutex
-	Catalog               catalog.LootCatalog
-	Tables                Tables
-	Rules                 Rules
-	Equipment             *inventory.EquipmentCatalog
-	Run                   string
-	Account, Character    int64
-	Actor                 uint16
-	next                  uint32
-	seeds                 map[uint32]uint32
-	deaths                map[uint16][]protocol.SceneDrop
-	Objects               map[uint32]Drop
-	Skipped               map[uint16][]string
+	// attunementRolled 保证一轮只抽一次专属奖励：同一只源领主再被确认死亡
+	// （或同模板的第二只 rank3）都不会重复发奖。
+	attunementRolled   bool
+	mu                 sync.Mutex
+	Catalog            catalog.LootCatalog
+	Tables             Tables
+	Rules              Rules
+	Equipment          *inventory.EquipmentCatalog
+	Run                string
+	Account, Character int64
+	Actor              uint16
+	next               uint32
+	seeds              map[uint32]uint32
+	deaths             map[uint16][]protocol.SceneDrop
+	Objects            map[uint32]Drop
+	Skipped            map[uint16][]string
 }
 
 func NewSession(c catalog.LootCatalog, t Tables, r Rules, equipment *inventory.EquipmentCatalog, run string, account, character int64, actor uint16) *Session {
@@ -95,6 +99,21 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 			return nil, err
 		}
 		result.Awards = append(result.Awards, box...)
+		result.NextSeed = next
+	}
+	// 调律之边界（深渊）：源领主死亡时给专属奖励。触发器取自副本脚本自己写的
+	// [hunt boss] 领主（DungeonDefinition.AttunementBoss）—— 这与通关判定锚在
+	// 同一个事实上，而不是再叠一道「副本是否已通关」的闸门：该闸门多余，且一旦
+	// 时序不同就会静默扣下奖励，正是本次要消灭的失败形态。
+	// 没有奖励表的副本在这里连种子都不消耗。
+	if s.Attunement.Enabled() && d.Definition.AttunementBoss != 0 &&
+		monster.Rank == 3 && monster.Template == d.Definition.AttunementBoss && !s.attunementRolled {
+		awards, next, err := s.Attunement.Roll(result.NextSeed, d.Definition.ID, uint32(d.Maze.Index))
+		if err != nil {
+			return nil, err
+		}
+		s.attunementRolled = true
+		result.Awards = append(result.Awards, awards...)
 		result.NextSeed = next
 	}
 	if d.NextEntity == 0 || uint64(d.NextEntity)+uint64(len(result.Awards)) >= 65535 || uint64(s.next)+uint64(len(result.Awards)) >= 65535 {

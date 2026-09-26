@@ -106,6 +106,21 @@ func (w *worldSession) settlementExit(p []byte) (*dungeon.Session, []outboundPac
 		copy := *w
 		copy.activeDungeon = nil
 		route, e = copy.dungeonGate(make([]byte, 8))
+	case protocol.SettlementExitSeamless:
+		// 无缝续刷（CMD72 选项 5）。复用 restartDungeon —— 它已经是
+		// 「ACK15 + NOTI27 + 入场序列」的形状，正是这份修复需要的顺序
+		// （两份外部文档在「要不要发 NOTI27」上互相矛盾，较晚的那份明确纠正
+		// 了较早的「省略 NOTI27」，理由是该清理函数同时负责卸载
+		// onExitModule_SeamlessLoading 的旧地图状态）。
+		// ACK 里的 option 原样保留 5（SettlementExitSuccess 用 r.Option），
+		// 客户端据此走无缝重置路径而不是普通重开。
+		//
+		// 准入：只有**已通关**的那一次可以借它续刷；未通关时这个选项
+		// 不该出现，出现也拒绝，避免把未完成的挑战重开成新一轮。
+		if w.activeDungeon == nil || !w.activeDungeon.Completed() {
+			return nil, nil, fmt.Errorf("seamless rechallenge before a committed clear")
+		}
+		pending, route, e = w.restartDungeon()
 	case 2, 3:
 		// Current scenario option3 is "Start Next Quest". A town objective
 		// returns to the owned town; preserve the active quest for NPC handling.
