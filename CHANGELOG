@@ -1,6 +1,7 @@
 # CHANGELOG
 
 ## 2026-09-26
+- **城镇门户 CMD36 零落点通用处理（35/0 → 35/2 实机确认）**：用户确认窄范围候选可进入 Pandemonium Junction。主线按当前 115 客户端 IDB `sub_144D26750` 的默认分支，在来源明确门户已授权、目标无匹配来源入口、请求坐标 (0,0) 且 Flag 5/TailFlags [0,0] 时，落到目标首个 `[virtual movable area]` 中心；不再写死城镇/区域 ID。其它地图尚未逐个实机验收，目标有匹配入口的偏移分支仍按原校验。无数据库、存档或客户端改动。确认基线：`server/work/dfo-lan/docs/protocol/pandemonium-junction-zero-landing-20260926.md`。
 - **图像通讯器 CMD467 与 Erje 对话完成任务（attempt 2/3，用户实机确认）**：空 body CMD467 按当前客户端 ACK reader 回成功标志、保留字段和 PVF 配置 NPC；在配置的召唤时限、城镇与区域内，允许对应进行中任务通过召出 NPC 的 CMD33 会面推进。用户确认 NPC 出现、能够对话并完成任务；实机事件记录角色 11 的任务 3741 于 20:44:33Z 收到 NPC 2001 成功 ACK，20:44:36Z 触发 NPC 目标，20:44:42Z 完成。`go test ./...`、`go vet ./...` 通过；候选版 SHA-256 `9B1E4EB235B893F1EFD2C34674D6529ED9D30B68C085892613D8A0BB57C2777C`。无数据库 schema 或客户端改动。确认基线：`analysis/tasks/image-communication-467-evidence-gap-20260926.md`。
 - **觉醒任务列表按目标角色筛选（用户实机确认）**：任务源的 `[target character]` 三元组限定职业、转职分支及觉醒阶段；服务端可接任务列表与接取校验现按该源条件判断，`-1` 作为通配值。用户确认 Episode 列表只保留符合当前 job/grow 的任务。无数据库或客户端改动；`go test ./...`、`go vet ./...` 通过；候选版 SHA-256 `145B1364F6AA02827D31C9F34638AE94FDD6D55327D8E3B76C50F6B57FB22986`。确认基线：`server/work/dfo-lan/docs/protocol/awakening-quest-target-character-20260926.md`。
 - **任务 3634「Militia Captain Hogas」Boss 结算后无法交付（用户实机确认）**：任务物品已入包，客户端发送 CMD33 触发位 `0x10`，但服务端原先只接受零值字段；任务 NPC 1298 位于专属副本 Boss 房，不在返回的城镇区域。修复候选按已确认的专属副本通关、Boss 地图 NPC 和持有物品推进任务。实机 NOTI291 显示进度归零，随后 CMD34 完成任务。`go test ./...`、`go vet ./...` 通过。确认基线：`server/work/dfo-lan/docs/protocol/quest-3634-trigger-evidence-gap-20260926.md`。

@@ -4,9 +4,86 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/storage"
+	"encoding/hex"
 	"errors"
 	"testing"
 )
+
+func TestPandemoniumJunctionNativeZeroLanding(t *testing.T) {
+	cat, err := catalog.LoadWorld("../../configs/world.generated.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	from := storage.WorldPosition{Town: 35, Area: 0, X: 903, Y: 353}
+	portal := cat.Areas["35/0"].Portals
+	found := false
+	for _, p := range portal {
+		if p.Town == 35 && p.Area == 2 && Contains(p.Bounds, from.X, from.Y, 32) {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("captured source position is not near the 35/2 portal")
+	}
+	dest := cat.Areas["35/2"]
+	if len(dest.Walkable) == 0 || dest.Walkable[0] != [4]int32{13, 180, 1100, 250} {
+		t.Fatalf("unexpected native destination geometry: %v", dest.Walkable)
+	}
+	body, err := hex.DecodeString("230000000200000000000000052300000000000000000000")
+	if err != nil {
+		t.Fatal(err)
+	}
+	req, err := protocol.DecodeAreaChangeRequest(body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := Service{Catalog: cat, Rules: Rules{RequirePortalProximity: true, PortalMargin: 32}}
+	next, err := s.Transition(87, false, from, req)
+	if err != nil || next.Town != 35 || next.Area != 2 || next.X != 563 || next.Y != 305 {
+		t.Fatalf("native fallback landing failed: %+v %v", next, err)
+	}
+	if _, err := s.Transition(84, false, from, req); !errors.Is(err, ErrLevel) {
+		t.Fatalf("level gate bypassed: %v", err)
+	}
+	remote := from
+	remote.X, remote.Y = 100, 200
+	if _, err := s.Transition(87, false, remote, req); err == nil {
+		t.Fatal("remote zero-coordinate portal request accepted")
+	}
+	req.TailFlags = [2]byte{0, 5}
+	if _, err := s.Transition(87, false, from, req); err == nil {
+		t.Fatal("other zero-coordinate request accepted")
+	}
+}
+
+func TestNativeZeroLandingUsesDestinationGeometryAcrossAreas(t *testing.T) {
+	from := storage.WorldPosition{Town: 70, Area: 3, X: 240, Y: 210}
+	req := protocol.AreaChangeRequest{Town: 91, Area: 4, PreviousTown: 70, PreviousArea: 3, Flag: 5}
+	areas := map[string]catalog.WorldArea{
+		"70/3": {Town: 70, Area: 3, Walkable: [][4]int32{{100, 100, 300, 300}}, Portals: []catalog.Portal{{Bounds: [4]int32{200, 200, 80, 80}, Town: 91, Area: 4}}},
+		"91/4": {Town: 91, Area: 4, Walkable: [][4]int32{{-100, 200, 600, 300}, {1000, 1000, 200, 200}}},
+	}
+	s := Service{Catalog: catalog.WorldCatalog{Areas: areas}, Rules: Rules{RequirePortalProximity: true, PortalMargin: 16}}
+	next, err := s.Transition(1, false, from, req)
+	if err != nil || next.X != 200 || next.Y != 350 {
+		t.Fatalf("first destination rectangle center: %+v %v", next, err)
+	}
+	// A matching destination entrance selects the client's other branch,
+	// whose offset is not present in the imported portal catalog.
+	dest := areas["91/4"]
+	dest.Portals = []catalog.Portal{{Bounds: [4]int32{150, 260, 80, 80}, Town: 70, Area: 3}}
+	areas["91/4"] = dest
+	if _, err := s.Transition(1, false, from, req); err == nil {
+		t.Fatal("zero landing with a matching destination entrance was fabricated")
+	}
+	delete(areas, "91/4")
+	areas["91/4"] = catalog.WorldArea{Town: 91, Area: 4, Walkable: [][4]int32{{0, 200, 100, 100}}}
+	delete(areas, "70/3")
+	areas["70/3"] = catalog.WorldArea{Town: 70, Area: 3, Walkable: [][4]int32{{100, 100, 300, 300}}, Pending: []string{"dynamic portal destination"}}
+	if _, err := s.Transition(1, false, from, req); err == nil {
+		t.Fatal("dynamic permissive edge was treated as a source portal")
+	}
+}
 
 func TestTransitionAuthority(t *testing.T) {
 	s := Service{Catalog: catalog.WorldCatalog{Areas: map[string]catalog.WorldArea{
