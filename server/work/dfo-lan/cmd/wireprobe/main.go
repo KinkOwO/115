@@ -337,6 +337,11 @@ func main() {
 		if e = s.MigrateCharacterNotices(ctx); e != nil {
 			log.Fatal(e)
 		}
+		// Per-character profile skin snapshot (NOTI1545/1546) backs the
+		// category-0 owned/selected state sent on character entry.
+		if e = s.MigrateProfileSkins(ctx); e != nil {
+			log.Fatal(e)
+		}
 		if e = s.MigrateMailbox(ctx); e != nil {
 			log.Fatal(e)
 		}
@@ -3044,6 +3049,22 @@ func main() {
 				plan := entryPayloads{Select: payload, Basic: basic, Addition: addition, Vault: vaultPayload, UserArea: userArea, Area: areaPayload, Fatigue: fatiguePayload, AccountOptions: accountOptions}
 				plan.SecondaryVault = secondaryVaultPayload
 				plan.AccountVault = accountVaultPayload
+				// Restore the persisted category-0 skin state; without owned +
+				// selection frames the inventory CharBG keeps its default NEW
+				// animation. A failed restore aborts this entry rather than
+				// sending a fabricated success state.
+				if characters != nil {
+					skinCtx, skinCancel := context.WithTimeout(context.Background(), 5*time.Second)
+					skinState, skinErr := characters.Store.RestoreProfileSkins(skinCtx, developmentAccount, role.ID)
+					skinCancel()
+					if skinErr == nil {
+						plan.ProfileSkinCargo, plan.ProfileSkinSelection, skinErr = protocol.ProfileSkinRestore(skinState)
+					}
+					if skinErr != nil {
+						event(map[string]any{"kind": "profile_skin_restore_error", "character_id": role.ID, "error": skinErr.Error()})
+						continue
+					}
+				}
 				plan.CubeContract, e = cubeContractRestore(role.State)
 				if e != nil {
 					event(map[string]any{"kind": "cube_contract_restore_error", "character_id": role.ID, "reason": e.Error()})
