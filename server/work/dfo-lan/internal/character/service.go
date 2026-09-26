@@ -173,7 +173,7 @@ func (s *Service) ListWithFatigue(ctx context.Context, account int64, fatigue *F
 		if e = json.Unmarshal(c.State, &state); e != nil {
 			return nil, e
 		}
-		row := protocol.CharacterRow{Slot: uint16(slot), Name: c.Name, Profession: c.Profession, Advancement: state.Advancement, Level: state.Level}
+		row := protocol.CharacterRow{Slot: uint16(slot), FixedSlot: c.FixedSlot, Name: c.Name, Profession: c.Profession, Advancement: state.Advancement, Level: state.Level}
 		row.Advancement, e = state.WireAdvancement()
 		if e != nil {
 			return nil, e
