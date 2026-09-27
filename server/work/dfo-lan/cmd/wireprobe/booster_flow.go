@@ -412,13 +412,18 @@ func (w *worldSession) openBoosterItem(
 			return nil, err
 		}
 		plan = append(plan, outboundPacket{"contract_inventory_updated", 0, 14, mainUpdate})
-		for _, premium := range receipt.Premiums {
-			if remaining := premium.EndTime - time.Now().Unix(); remaining > 0 {
-				notice, err := protocol.PremiumActivationNotice(premium.Type, remaining)
-				if err != nil {
-					return nil, err
+		// 即时 NOTI66 与客户端闪退强相关（2026-09-27 实机确认），契约道具
+		// 直接使用路径与商城购买、开箱共用 DFO_CONTRACT_PURCHASE_CRASH_FIX
+		// 开关；修复开启（默认）时契约仍落库，选角时经 premiums_restored 恢复。
+		if !contractPurchaseCrashFixEnabled() {
+			for _, premium := range receipt.Premiums {
+				if remaining := premium.EndTime - time.Now().Unix(); remaining > 0 {
+					notice, err := protocol.PremiumActivationNotice(premium.Type, remaining)
+					if err != nil {
+						return nil, err
+					}
+					plan = append(plan, outboundPacket{"contract_special_item_noti", 0, 66, notice})
 				}
-				plan = append(plan, outboundPacket{"contract_special_item_noti", 0, 66, notice})
 			}
 		}
 		plan = append(plan, outboundPacket{"contract_use_ack", 1, 160, protocol.BoosterOpenSuccess(boxItem.Template, req.Slot, nil)})
@@ -797,13 +802,18 @@ func (w *worldSession) openBoosterItem(
 	}
 
 	// 回执中的绝对到期时间只用于落账；客户端接收剩余秒数。
-	for _, p := range res.Premiums {
-		if remaining := p.EndTime - time.Now().Unix(); remaining > 0 {
-			notice, err := protocol.PremiumActivationNotice(p.Type, remaining)
-			if err != nil {
-				return nil, err
+	// 即时 NOTI66 与客户端闪退强相关（2026-09-27 实机确认），booster 开箱
+	// 路径与商城购买、契约道具使用共用 DFO_CONTRACT_PURCHASE_CRASH_FIX 开关；
+	// 修复开启（默认）时契约仍落库，选角时经 premiums_restored 恢复。
+	if !contractPurchaseCrashFixEnabled() {
+		for _, p := range res.Premiums {
+			if remaining := p.EndTime - time.Now().Unix(); remaining > 0 {
+				notice, err := protocol.PremiumActivationNotice(p.Type, remaining)
+				if err != nil {
+					return nil, err
+				}
+				plan = append(plan, outboundPacket{"booster_special_item_noti", 0, 66, notice})
 			}
-			plan = append(plan, outboundPacket{"booster_special_item_noti", 0, 66, notice})
 		}
 	}
 

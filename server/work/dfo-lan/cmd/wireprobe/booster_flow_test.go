@@ -511,6 +511,7 @@ func TestBoosterOpenLifeTokenBox(t *testing.T) {
 }
 
 func TestBoosterOpenMasterContractPackage(t *testing.T) {
+	t.Setenv("DFO_CONTRACT_PURCHASE_CRASH_FIX", "0") // 本用例断言原即时 NOTI66 行为
 	cat, err := LoadBoosterCatalog("../../configs/booster-catalog.json", "../../configs/items.index.json")
 	if err != nil {
 		t.Fatal(err)
@@ -597,6 +598,79 @@ func TestBoosterOpenMasterContractPackage(t *testing.T) {
 	}
 }
 
+// 修复开启（DFO_CONTRACT_PURCHASE_CRASH_FIX!=0，默认即开启）时，booster 开箱
+// 命中契约奖不再追加即时 NOTI66，避免客户端闪退；契约仍激活落库。
+func TestBoosterOpenMasterContractPackageCrashFix(t *testing.T) {
+	t.Setenv("DFO_CONTRACT_PURCHASE_CRASH_FIX", "1")
+	cat, err := LoadBoosterCatalog("../../configs/booster-catalog.json", "../../configs/items.index.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// 10333726: Master Contract Package 3 Days
+	bag := inventory.Bag{
+		Version: "ordinary-bag-v1",
+		Items: []inventory.BagItem{
+			{Slot: 77, Template: 10333726, Amount: 1},
+		},
+	}
+	state, _ := inventory.SaveBag(json.RawMessage(`{}`), bag)
+	char := storage.Character{
+		ID:        10,
+		AccountID: 1,
+		State:     state,
+	}
+	store := newMockBoosterStore(char)
+
+	lootSvc := &loot.Service{
+		Catalog: catalog.LootCatalog{
+			Source: pvf.ArchiveSnapshot{Checksum: "test"},
+			Items:  map[uint32]catalog.LootItem{},
+		},
+		BagRules: inventory.BagRules{
+			Source: "test",
+			Slots: map[string][2]uint16{
+				"[booster]":  {65, 120},
+				"[etc]":      {65, 120},
+				"[contract]": {65, 120},
+			},
+			MissingStackLimit: 1000,
+		},
+	}
+
+	w := &worldSession{
+		role: char,
+		loot: lootSvc,
+	}
+
+	reqBytes := make([]byte, 8)
+	binary.LittleEndian.PutUint16(reqBytes[0:2], 77)
+	binary.LittleEndian.PutUint32(reqBytes[2:6], 1)
+	binary.LittleEndian.PutUint16(reqBytes[6:8], 0)
+
+	packets, err := w.openBoosterItem(context.Background(), store, nil, lootSvc, cat, odysseyWeaponChoices{}, reqBytes, reqBytes)
+	if err != nil {
+		t.Fatal("open master contract package failed:", err)
+	}
+
+	// 修复开启：仅背包刷新 + ACK，不追加即时 NOTI66。
+	if len(packets) != 2 {
+		t.Fatalf("expected 2 packets (update + ack) with crash fix on, got %d: %+v", len(packets), packets)
+	}
+	for _, p := range packets {
+		if p.ID == 66 {
+			t.Fatalf("immediate NOTI66 must not be sent with crash fix on: %+v", p)
+		}
+	}
+	// 契约仍激活落库：4 个契约各 3 天（259200s）。
+	expectedEnd := store.now + 3*86400
+	for _, pt := range []uint8{22, 27, 92, 79} {
+		if store.premiums[pt] != expectedEnd {
+			t.Fatalf("expected premium %d end time %d, got %d", pt, expectedEnd, store.premiums[pt])
+		}
+	}
+}
+
 func TestBoosterOpenRemySparklingTouchBox(t *testing.T) {
 	cat, err := LoadBoosterCatalog("../../configs/booster-catalog.json", "../../configs/items.index.json")
 	if err != nil {
@@ -661,6 +735,7 @@ func TestBoosterOpenRemySparklingTouchBox(t *testing.T) {
 }
 
 func TestBoosterDirectContractActivation(t *testing.T) {
+	t.Setenv("DFO_CONTRACT_PURCHASE_CRASH_FIX", "0") // 本用例断言原即时 NOTI66 行为
 	cat, err := LoadBoosterCatalog("../../configs/booster-catalog.json", "../../configs/items.index.json")
 	if err != nil {
 		t.Fatal(err)
@@ -715,6 +790,58 @@ func TestBoosterDirectContractActivation(t *testing.T) {
 	}
 	if packets[2].Name != "contract_use_ack" || packets[2].ID != 160 {
 		t.Fatalf("expected packet 2 to be ACK 160, got %+v", packets[2])
+	}
+	if store.premiums[27] <= 1750000000 {
+		t.Fatalf("expected tactician contract (27) to be activated, got %d", store.premiums[27])
+	}
+}
+
+// 修复开启（DFO_CONTRACT_PURCHASE_CRASH_FIX!=0，默认即开启）时，直接使用契约
+// 道具同样不追加即时 NOTI66；契约仍激活落库。
+func TestBoosterDirectContractActivationCrashFix(t *testing.T) {
+	t.Setenv("DFO_CONTRACT_PURCHASE_CRASH_FIX", "1")
+	cat, err := LoadBoosterCatalog("../../configs/booster-catalog.json", "../../configs/items.index.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// 44: Tactician's Contract 3D
+	bag := inventory.Bag{
+		Version: "ordinary-bag-v1",
+		Items: []inventory.BagItem{
+			{Slot: 65, Template: 44, Amount: 1},
+		},
+	}
+	state, _ := inventory.SaveBag(json.RawMessage(`{}`), bag)
+	char := storage.Character{
+		ID:        10,
+		AccountID: 1,
+		State:     state,
+	}
+	store := newMockBoosterStore(char)
+
+	w := &worldSession{
+		role: char,
+	}
+
+	reqBytes := make([]byte, 8)
+	binary.LittleEndian.PutUint16(reqBytes[0:2], 65)
+	binary.LittleEndian.PutUint32(reqBytes[2:6], 1)
+	binary.LittleEndian.PutUint16(reqBytes[6:8], 0)
+
+	packets, err := w.openBoosterItem(context.Background(), store, nil, nil, cat, odysseyWeaponChoices{}, reqBytes, reqBytes)
+	if err != nil {
+		t.Fatal("direct contract activation failed:", err)
+	}
+
+	// 修复开启：背包刷新 + ACK 两包，无即时 NOTI66。
+	if len(packets) != 2 {
+		t.Fatalf("expected 2 packets with crash fix on, got %d: %+v", len(packets), packets)
+	}
+	for _, p := range packets {
+		if p.ID == 66 {
+			t.Fatalf("immediate NOTI66 must not be sent with crash fix on: %+v", p)
+		}
 	}
 	if store.premiums[27] <= 1750000000 {
 		t.Fatalf("expected tactician contract (27) to be activated, got %d", store.premiums[27])

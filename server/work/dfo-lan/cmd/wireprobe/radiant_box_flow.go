@@ -149,16 +149,22 @@ func (w *worldSession) openRadiantBox(ctx context.Context, box, count uint32) ([
 			outboundPacket{"radiant_box_notice", 0, 2551, notice},
 		)
 	}
-	for _, premium := range receipt.Premiums {
-		remaining := premium.EndTime - time.Now().Unix()
-		if remaining <= 0 {
-			continue
+	// 即时 NOTI66 契约通知已实机确认与客户端闪退强相关（2026-09-27 开箱路径
+	// 复现，4× NOTI66 后约 1.1s 客户端 0xC0000005 崩溃），与商城购买路径共用
+	// DFO_CONTRACT_PURCHASE_CRASH_FIX 开关：修复开启（默认）时不追加即时
+	// NOTI66，契约仍落库，选角时经 premiums_restored 恢复。
+	if !contractPurchaseCrashFixEnabled() {
+		for _, premium := range receipt.Premiums {
+			remaining := premium.EndTime - time.Now().Unix()
+			if remaining <= 0 {
+				continue
+			}
+			payload, err := protocol.PremiumActivationNotice(premium.Type, remaining)
+			if err != nil {
+				return nil, err
+			}
+			plan = append(plan, outboundPacket{"radiant_box_contract_noti", 0, 66, payload})
 		}
-		payload, err := protocol.PremiumActivationNotice(premium.Type, remaining)
-		if err != nil {
-			return nil, err
-		}
-		plan = append(plan, outboundPacket{"radiant_box_contract_noti", 0, 66, payload})
 	}
 	return plan, nil
 }
