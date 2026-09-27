@@ -64,6 +64,9 @@ func (s *Service) Consume(ctx context.Context, role storage.Character, r protoco
 		// inventories) have their own unverified semantics.
 		return fail(fmt.Errorf("unsupported source container %d", r.List))
 	}
+	if inventory.IsReinforcementTicket(r.Template) {
+		return fail(fmt.Errorf("强化券必须选择装备后使用，不能作为普通消耗品扣除"))
+	}
 	key := fmt.Sprintf("consume:%d:%d:%d", r.Slot, r.Template, r.Instance)
 	if r.List == 7 {
 		key = fmt.Sprintf("consume-pet:%d:%d:%d", r.Slot, r.Template, r.Instance)

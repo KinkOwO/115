@@ -184,6 +184,27 @@ func (s boosterBoxSource) Item(template uint32) bool {
 	return item.Kind == "equipment" || item.Kind == "stackable"
 }
 
+// Container recognises the box family. The catalog is the primary witness: it is
+// built from the source's own [booster info] section, so membership means the
+// template really is a container - including the ones whose stackable type does
+// not advertise it. 10362480 is typed [virtual] and still declares [booster info]
+// with [instantly open]; judging it by its type string let it reach the ground as
+// a box nobody can open. The type string is kept as a fallback so a catalog
+// generated before the structural export keeps behaving the way it did.
+func (s boosterBoxSource) Container(template uint32) bool {
+	if s.catalog == nil {
+		return false
+	}
+	if _, ok := s.catalog.Definitions[template]; ok {
+		return true
+	}
+	item, ok := s.catalog.Items[template]
+	if !ok {
+		return false
+	}
+	return strings.Contains(strings.ToLower(item.StackableType), "booster")
+}
+
 type boosterEventStore interface {
 	CommitCharacterEvent(ctx context.Context, account, id int64, version, key, model string, apply func(storage.Character) (json.RawMessage, json.RawMessage, error)) (storage.Character, bool, error)
 	CharacterEventReceipt(ctx context.Context, account, id int64, key string) (json.RawMessage, error)

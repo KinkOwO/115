@@ -14,8 +14,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"time"
 )
+
+// monsterCreateTriggerEnabled 让进图包带上 [monster create trigger] 的真值
+// （怪物记录里 Rank 之后那一格，原本恒为 0）。该字段语义尚未确认，
+// 所以由环境变量控制：DFO_MONSTER_CREATE_TRIGGER=1 时编码真值，
+// 否则编 0，输出与原先完全一致。
+func monsterCreateTriggerEnabled() bool {
+	return os.Getenv("DFO_MONSTER_CREATE_TRIGGER") == "1"
+}
 
 func randomSeed() (uint32, error) {
 	var seed uint32
@@ -142,7 +151,7 @@ func (w *worldSession) dungeonEntryPlan(ackName string, ackID uint16, sel protoc
 	if s.Tournament != nil {
 		seed = s.Tournament.Seed
 	}
-	start, e := protocol.StartMap(protocol.StartMapState{Position: s.Maze.Start, Seed: seed, Map: s.Room.Map, Monsters: s.Monsters})
+	start, e := protocol.StartMap(protocol.StartMapState{Position: s.Maze.Start, Seed: seed, Map: s.Room.Map, Monsters: s.Monsters, EncodeCreateTrigger: monsterCreateTriggerEnabled()})
 	if e != nil {
 		return nil, e
 	}
@@ -335,6 +344,10 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 		return nil, e
 	}
 	plan := []outboundPacket{{"dungeon_loading_ack", 1, 37, []byte{1}}, {"dungeon_actor_state", 0, 3, state}, {"dungeon_loading_complete", 0, 30, protocol.DungeonLoaded()}}
+	// 常驻状态：把两个档位在客户端读 getter 之前下发（见 oath_info.go）。
+	plan = append(plan, w.oathInfoPackets()...)
+	// 诊断注入器：把候选通知塞在副本加载应答里，天平开场读 getter 之前就到位。
+	plan = append(plan, w.oathInjectNext()...)
 	if w.progression != nil {
 		p, err := character.ExperiencePayload(w.role)
 		if err != nil {
@@ -388,6 +401,10 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 				}
 			}
 		}
+		// The damage font the player applied in town is state the rebuilt actor
+		// never asks the warehouse for, so the owned page and the selection go
+		// back here the way the worn visuals do.
+		plan = append(plan, w.damageFontRestore()...)
 	}
 	if w.activeDungeon.Definition.ID == 100003126 {
 		// Elvenmere 初始化层数：根据进图选取的 Zone（Extra）设置当前层与最高已通关层。
@@ -634,6 +651,40 @@ func (w *worldSession) noteDropGap(event func(map[string]any), entity uint16, e 
 	event(fields)
 }
 
+// noteOmenClear 把最近一次征兆结算记进事件流。玩家报告的「这把给了什么」应当
+// 能从日志直接读出来，而不是靠反推掉落物属于哪一档。账本按自增序号去重，所以
+// 同一场里其余怪物的死亡不会重复报同一条。
+func (w *worldSession) noteOmenClear(event func(map[string]any)) {
+	if w.drops == nil || w.drops.Omen == nil {
+		return
+	}
+	outcome, ok := w.drops.Omen.Last(w.role.ID)
+	if !ok || outcome.Seq == w.omenReported {
+		return
+	}
+	w.omenReported = outcome.Seq
+	if event == nil {
+		return
+	}
+	fields := map[string]any{
+		"kind":    "omen_clear",
+		"dungeon": outcome.Dungeon,
+		"held":    outcome.Held,
+		"after":   outcome.After,
+		"gained":  outcome.Gained,
+		"paid":    outcome.Paid,
+		"stage":   outcome.Stage,
+	}
+	if len(outcome.Awards) > 0 {
+		ids := make([]uint32, 0, len(outcome.Awards))
+		for _, a := range outcome.Awards {
+			ids = append(ids, a.Template)
+		}
+		fields["templates"] = ids
+	}
+	event(fields)
+}
+
 func (w *worldSession) monsterDeath(p []byte, event func(map[string]any)) ([]outboundPacket, error) {
 	if w.activeDungeon == nil {
 		return nil, fmt.Errorf("death without active run")
@@ -670,6 +721,13 @@ func (w *worldSession) monsterDeath(p []byte, event func(map[string]any)) ([]out
 				}
 				w.drops.Attunement = w.loot.Attunement
 				w.drops.RewardBoxes = w.loot.RewardBoxes
+				w.drops.Omen = w.loot.Omen
+				if w.loot.Omen != nil && !w.omenHoldApplied && w.omenHold >= 0 {
+					// 诊断入口，每个会话只应用一次：放到指定阶段后就交回正常的
+					// 累积/结算路径，免得每进一次副本都被拽回同一格。
+					w.loot.Omen.Set(w.role.ID, uint32(w.omenHold))
+					w.omenHoldApplied = true
+				}
 				store := w.service.Store
 				if store == nil && w.characters != nil {
 					store = w.characters.Store
@@ -696,6 +754,7 @@ func (w *worldSession) monsterDeath(p []byte, event func(map[string]any)) ([]out
 			if err != nil {
 				return nil, err
 			}
+			w.noteOmenClear(event)
 		}
 		plan = append(plan, outboundPacket{"monster_death_confirmed", 0, 38, body})
 	}
@@ -968,7 +1027,7 @@ func (w *worldSession) moveDungeonRoom(p []byte) (*dungeon.Session, []outboundPa
 	if e = binary.Read(rand.Reader, binary.LittleEndian, &seed); e != nil {
 		return nil, nil, e
 	}
-	state := protocol.StartMapState{Position: r.Position, Seed: seed, Map: next.Room.Map, Monsters: next.LivingMonsters(), LayerChange: r.LayerChange}
+	state := protocol.StartMapState{Position: r.Position, Seed: seed, Map: next.Room.Map, Monsters: next.LivingMonsters(), LayerChange: r.LayerChange, EncodeCreateTrigger: monsterCreateTriggerEnabled()}
 	if r.LayerChange && next.Room.Map == w.activeDungeon.Room.Map {
 		state.ReuseRoom = true
 		state.Monsters = nil

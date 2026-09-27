@@ -7,15 +7,34 @@ import "dfolan/internal/legion"
 // regressions stay diagnosable.
 func dungeonRequest(id uint16) bool {
 	switch id {
-	case 16, 37, 38, 39, 40, 42, 43, 45, 46, 69, 70, 71, 72, 117, 132, 449, 450, 2015, 2062:
+	// 2329 = ENUM_CMDPACKET_MONSTER_HISTORY_LOG：定盘机关每秒上报一次自己的
+	// 血量与模板号，scale_death.go 用它判断「玩家已经把它打到血底」。
+	case 16, 37, 38, 39, 40, 42, 43, 45, 46, 69, 70, 71, 72, 117, 132, 449, 450, 2015, 2062, 2329:
 		return true
 	}
 	return false
 }
 
 func observedGameRequest(id uint16) bool {
+	// 强化券的重复使用也必须逐次解密，不受未实现指令的八次采样上限影响。
+	if id == 80 {
+		return true
+	}
 	// 开罐和晶体契约选择已有处理器，每次请求都必须解密校验，不能受八次采样限制。
 	if id == 681 || id == 527 {
+		return true
+	}
+	// 2329 = ENUM_CMDPACKET_MONSTER_HISTORY_LOG：定盘机关的每次上报，服务端判死兜底靠它
+	// (见 scale_death.go)。它不在这个集合里时会被 BodySampleLimit(8) 截断，此后每条都因为
+	// `verified` 从未被计算而被 dungeonRequest 拒掉，而拒绝理由是 `checksum failed` —— 那是
+	// 误导：帧本身完全正常，只是我们没解密校验过它。实测 2026-09-27 一场 20 条里 12 条这样丢掉，
+	// 恰好让「峰值判据」失效。故它必须每次请求都解密校验、不受采样限制。
+	if id == 2329 {
+		return true
+	}
+	// 1565 是皮肤仓库「应用」按钮的请求，已有处理器：只解密前八次会让第八次之后的
+	// 点击全部分流不进去，实机表现为「第一次能应用，之后换不动字体」。
+	if id == 1565 {
 		return true
 	}
 	if id == 305 || id == 306 || id == 307 || id == 308 {

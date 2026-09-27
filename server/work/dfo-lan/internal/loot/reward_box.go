@@ -1,5 +1,7 @@
 package loot
 
+import "fmt"
+
 // RewardBoxCandidate is one entry of a wrapper's pool: the template it pays, the
 // weight it is drawn with in that pool, and how many copies one draw hands over.
 type RewardBoxCandidate struct {
@@ -24,88 +26,97 @@ type RewardBox struct {
 // RewardBoxSource resolves a wrapper into what one open of it pays.
 //
 // The abyss tables never hand the player a finished prize: every reward entry is
-// a [booster] wrapper, and what the player is meant to see is what comes out of
-// it. That distinction is not cosmetic. Handing the wrapper over moves the open
-// from drop time to a deliberate player action, and the two are not
-// interchangeable: the wrapper's contents are what the source pays a clear, so
-// dropping the wrapper instead of its contents pays the wrong items - the
-// reported symptom was a run that dropped only jars, and jars that opened into
-// things the dungeon never pays.
+// a [booster] wrapper, and what the player is owed is what is inside it.
 type RewardBoxSource interface {
 	// RewardBox returns the pools of a wrapper. ok is false for a template that
-	// is not a wrapper this build can open, which is the ordinary case for a
-	// plain prize and the failure case for a wrapper nobody can resolve.
+	// is not a wrapper this build can open.
 	RewardBox(template uint32) (RewardBox, bool)
 	// Item reports whether a template names something the server can actually
 	// hand over, gear included. A pool entry the catalog does not know is the
 	// source's empty face - the CTPs spend a reserved id on it - and it must be
 	// paid as nothing rather than invented into an item.
 	Item(template uint32) bool
+	// Container reports whether a template is a box by the source's own
+	// metadata, even when this build cannot open it. Such an entry must not
+	// reach the ground either: an unopenable box is the same defect under a
+	// different name, and the player cannot use it.
+	Container(template uint32) bool
 }
 
-// RewardBoxDepth is how deep a reward entry is unwrapped, and it is one on
-// purpose.
-//
-// The source wraps an abyss prize once. What reaches the ground is the wrapper's
-// contents, which is why the equipment arrives as equipment while the oath prize
-// arrives as the random book that picks it and the star-stone arrives inside its
-// jar: those wrappers *are* prizes the player is meant to receive and open.
-// Unwrapping further would dissolve them into leaves the player never gets to
-// choose between, and the run would stop paying the book and the jar at all.
-const RewardBoxDepth = 1
+// rewardBoxMaxDepth guards against a source that nests boxes cyclically. The
+// shipped abyss tables nest three levels deep at most.
+const rewardBoxMaxDepth = 8
 
-// OpenRewardBoxes replaces every wrapper in awards with what one open of it
-// pays, and returns the seed advanced by those draws.
+// OpenRewardBoxes replaces every wrapper in awards with what opening it pays,
+// repeating until nothing left is a wrapper, and returns the seed advanced by
+// those draws plus the entries that could not be resolved.
 //
-// Entries that are not wrappers are passed through untouched, so a table that
-// already names a plain prize is not disturbed. A nil source passes everything
-// through: the caller is expected to have refused to start in that case (see
-// AttunementRewards.ValidateBoxes), because paying a wrapper is paying the
-// wrong item.
+// The depth is not a knob, it is the source's shape. The abyss reward entries
+// are wrappers down to real items, and a wrapper that reaches the bag cannot be
+// used at all - the reported symptom was a clear that dropped only boxes, none
+// of which would open. The source says the same thing about itself: the prize
+// descriptions read "not actually dispensed as a gift box, dispensed in the
+// opened state". So every wrapper is taken apart here, and what reaches the
+// ground is the equipment, the star-stone, the oath prize or the material.
+//
+// Two things are deliberately *not* paid, and both come back in the skipped
+// list so they stay visible: an entry the item catalog does not know (the
+// source's empty face), and a box this build cannot open - a selection box that
+// needs a choice the server cannot make. Paying either would put something
+// useless on the ground, which is exactly the defect being fixed.
 //
 // The draws mirror the open path deliberately, down to the conventions
 // ([draw count] of zero meaning once, the last candidate kept when the weights
 // fail to cover the roll): opening the wrapper by hand and letting the drop
-// open it must pay the same distribution, or the same item would be worth two
-// different things depending on how it arrived.
-func OpenRewardBoxes(seed uint32, src RewardBoxSource, awards []Award) ([]Award, uint32) {
+// open it must pay the same distribution.
+func OpenRewardBoxes(seed uint32, src RewardBoxSource, awards []Award) ([]Award, uint32, []string) {
 	if src == nil || len(awards) == 0 {
-		return awards, seed
+		return awards, seed, nil
 	}
 	rng := RNG{seed}
-	for depth := 0; depth < RewardBoxDepth; depth++ {
-		out := make([]Award, 0, len(awards))
-		opened := false
-		for _, a := range awards {
-			box, ok := src.RewardBox(a.Template)
-			if !ok {
-				out = append(out, a)
-				continue
-			}
-			opened = true
-			for _, pool := range box.Pools {
-				for i := uint32(0); i < pool.draws(); i++ {
-					c, ok := pool.pick(&rng)
-					if !ok {
-						continue
-					}
-					if !src.Item(c.Template) {
-						continue
-					}
-					amount := c.Count
-					if amount == 0 {
-						amount = 1
-					}
-					out = append(out, Award{Template: c.Template, Amount: amount})
-				}
-			}
-		}
-		awards = out
-		if !opened {
+	var skipped []string
+	products := make([]Award, 0, len(awards))
+	level := awards
+	for depth := 0; len(level) > 0; depth++ {
+		if depth > rewardBoxMaxDepth {
+			skipped = append(skipped, "attunement_reward_nesting_too_deep")
 			break
 		}
+		next := make([]Award, 0, len(level))
+		for _, a := range level {
+			// One classification point: openable, unopenable box, empty face,
+			// or a product. Deciding this only here keeps a wrapper that is not
+			// yet a known item from being mistaken for an empty slot on the way
+			// down - it has to be opened, not dropped.
+			if box, ok := src.RewardBox(a.Template); ok {
+				for _, pool := range box.Pools {
+					for i := uint32(0); i < pool.draws(); i++ {
+						c, ok := pool.pick(&rng)
+						if !ok {
+							continue
+						}
+						amount := c.Count
+						if amount == 0 {
+							amount = 1
+						}
+						next = append(next, Award{Template: c.Template, Amount: amount})
+					}
+				}
+				continue
+			}
+			if src.Container(a.Template) {
+				skipped = append(skipped, fmt.Sprintf("attunement_unopenable_box_%d", a.Template))
+				continue
+			}
+			if !src.Item(a.Template) {
+				skipped = append(skipped, fmt.Sprintf("attunement_empty_prize_%d", a.Template))
+				continue
+			}
+			products = append(products, a)
+		}
+		level = next
 	}
-	return awards, rng.Seed
+	return products, rng.Seed, skipped
 }
 
 // draws is the number of rolls one open takes from this pool. A source that

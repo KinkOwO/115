@@ -20,14 +20,18 @@ type Drop struct {
 	Award  Award
 }
 type Session struct {
-	Currency              *OdysseyCurrency
-	ChapterDrop           *OdysseyChapterDrop
-	Attunement            *AttunementRewards
-	RewardBoxes           RewardBoxSource
+	Currency    *OdysseyCurrency
+	ChapterDrop *OdysseyChapterDrop
+	Attunement  *AttunementRewards
+	RewardBoxes RewardBoxSource
+	// Omen 是征兆系统的按角色累积账（见 omen.go）。为 nil 时这条线完全不推进。
+	Omen                  *OmenLedger
 	QuestDropBonusPercent int
 	// attunementRolled 保证一轮只抽一次专属奖励：同一只源领主再被确认死亡
 	// （或同模板的第二只 rank3）都不会重复发奖。
-	attunementRolled   bool
+	attunementRolled bool
+	// omenRolled 与 attunementRolled 同理：同一场只推进一次征兆。
+	omenRolled         bool
 	mu                 sync.Mutex
 	Catalog            catalog.LootCatalog
 	Tables             Tables
@@ -103,29 +107,55 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 		result.NextSeed = next
 	}
 	// 调律之边界（深渊）：源领主死亡时给专属奖励。触发器取自副本脚本自己写的
-	// [hunt boss] 领主（DungeonDefinition.AttunementBoss）—— 这与通关判定锚在
+	// [clear condition] [hunt boss] 领主（DungeonDefinition.SourceBoss）—— 这与通关判定锚在
 	// 同一个事实上，而不是再叠一道「副本是否已通关」的闸门：该闸门多余，且一旦
 	// 时序不同就会静默扣下奖励，正是本次要消灭的失败形态。
 	// 没有奖励表的副本在这里连种子都不消耗。
-	if s.Attunement.Enabled() && d.Definition.AttunementBoss != 0 &&
-		monster.Rank == 3 && monster.Template == d.Definition.AttunementBoss && !s.attunementRolled {
+	// 没有奖励表的副本在这里连种子都不消耗：Roll 按副本查表，查不到就原样返回种子。
+	// 所以把触发器放宽到「任何声明了源领主的副本」不会给别的副本发奖。
+	if s.Attunement.Enabled() && d.Definition.SourceBoss != 0 &&
+		monster.Rank == 3 && monster.Template == d.Definition.SourceBoss && !s.attunementRolled {
 		awards, next, err := s.Attunement.Roll(result.NextSeed, d.Definition.ID, uint32(d.Maze.Index))
 		if err != nil {
 			return nil, err
 		}
-		// 表发出来的是**外层包装**：源把每件奖品都包了一层 [booster]，而玩家该看到的
-		// 是开一层之后的东西 —— 装备以装备落地、誓约以随机书落地、星蕴石连着它的罐子。
-		// 直接把包装丢在地上等于把开箱时机搬到玩家手里，产出与官方不一致，这正是实机
-		// 反馈「只掉出罐子」的来源。
-		if s.RewardBoxes == nil {
-			// 启动期 ValidateBoxes 会拦下这个组合，真到这里说明配置被动过。记一笔
-			// 而不是静默按包装发：包装落地是错的，但拒绝整条怪死请求更糟。
-			result.SkippedKinds = append(result.SkippedKinds, "attunement_reward_boxes_unavailable")
+		// 征兆（omen）：本副本的通关判定与源领主的死亡是同一个事实（见上），所以
+		// 征兆也在这里推进。它和固定奖励走**同一条**开箱路径（见下面的统一展开），
+		// 分两条路就等于同一件东西有两个分布。
+		if s.Omen != nil && !s.omenRolled {
+			outcome, omenAwards, err := s.Omen.Advance(s.Character, d.Definition.ID, next)
+			if err != nil {
+				return nil, err
+			}
+			awards = append(awards, omenAwards...)
+			next = outcome.Seed
+			s.omenRolled = true
 		}
-		awards, next = OpenRewardBoxes(next, s.RewardBoxes, awards)
 		s.attunementRolled = true
 		result.Awards = append(result.Awards, awards...)
 		result.NextSeed = next
+	}
+	// 包装展开：**所有来源统一在这里做一次** —— 通用掉落池、章节盒、调律专属奖励、征兆。
+	//
+	// 源自己写着「不实际发放礼盒，以开封状态发放」（这批盒子的客户端文案就是这个），
+	// 所以礼盒落到玩家脚下，在任何一条线上都是错的 —— 它打不开。此前展开只挂在调律
+	// 那一块，于是通用掉落给出的包装原样落地，实机反馈里那批盒子就是这么来的。
+	//
+	// 不含包装的掉落在这里**连随机数都不消耗**（OpenRewardBoxes 只在真的开箱时才掷骰），
+	// 所以对没有包装的副本，这条改动逐字节等于旧行为。金币的 template 0 在物品目录里
+	// 是 stackable，会被原样放行，不会被当成奖励表那个「本次没有」的空槽吃掉。
+	if len(result.Awards) > 0 {
+		if s.RewardBoxes == nil {
+			// 启动期 ValidateBoxes 会拦下「有奖励表却没有礼包目录」这个组合，真到这里
+			// 说明配置被动过。记一笔而不是静默按包装发：包装落地是错的，但拒绝整条怪死
+			// 请求更糟。
+			result.SkippedKinds = append(result.SkippedKinds, "reward_boxes_unavailable")
+		} else {
+			opened, next, unresolved := OpenRewardBoxes(result.NextSeed, s.RewardBoxes, result.Awards)
+			result.Awards = opened
+			result.NextSeed = next
+			result.SkippedKinds = append(result.SkippedKinds, unresolved...)
+		}
 	}
 	if d.NextEntity == 0 || uint64(d.NextEntity)+uint64(len(result.Awards)) >= 65535 || uint64(s.next)+uint64(len(result.Awards)) >= 65535 {
 		return nil, fmt.Errorf("drop identity exhausted")

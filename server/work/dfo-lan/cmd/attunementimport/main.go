@@ -19,6 +19,7 @@
 //	[additional drop table]  x N            [effect index] + [select prob]
 //	                                         + [drop count] + [drop list]
 //	[hidden drop table]      per maze       [maze] + N x [drop list]
+//	[coupon drop table]      x N            [obtain prob] + [drop prob] + [drop list]
 //
 // [drop list] inside a fixed/additional table is (tier, weight, item) repeated,
 // and the weights always sum to exactly one million. That invariant is the
@@ -44,6 +45,9 @@ const (
 	fixedTableColumn   = "[fixed drop table]"
 	additionalColumn   = "[additional drop table]"
 	hiddenTableColumn  = "[hidden drop table]"
+	couponTableColumn  = "[coupon drop table]"
+	obtainProbColumn   = "[obtain prob]"
+	dropProbColumn     = "[drop prob]"
 	mazeColumn         = "[maze]"
 	dropListColumn     = "[drop list]"
 	effectIndexColumn  = "[effect index]"
@@ -90,6 +94,21 @@ type hiddenTable struct {
 	Entries []hiddenEntry `json:"entries"`
 }
 
+// couponTable is one [coupon drop table] row, carried verbatim.
+//
+// Two probabilities and a drop list - and no invariant in the source separates
+// the readings that fit them: two independent rolls ("does this player hold the
+// coupon" then "does it drop this clear"), one row per client difficulty, or a
+// gate plus a chance. Their sums do not land on the million space either
+// (obtain 400000, drop 2330000 on the one table we have), so unlike [drop list]
+// there is nothing to falsify a guess with. The row is therefore recorded, not
+// interpreted: nothing in the server rolls it.
+type couponTable struct {
+	ObtainProb uint32        `json:"obtainProb"`
+	DropProb   uint32        `json:"dropProb"`
+	Entries    []rewardEntry `json:"entries"`
+}
+
 type dungeonRewards struct {
 	Path        string            `json:"path"`
 	SHA256      string            `json:"sha256"`
@@ -100,6 +119,7 @@ type dungeonRewards struct {
 	Fixed       []fixedTable      `json:"fixed"`
 	Additional  []additionalTable `json:"additional"`
 	Hidden      []hiddenTable     `json:"hidden"`
+	Coupons     []couponTable     `json:"coupons,omitempty"`
 }
 
 type document struct {
@@ -111,6 +131,7 @@ type document struct {
 func main() {
 	source := flag.String("source", "../client-build/Script.inner.pvf", "source PVF")
 	baseDir := flag.String("base", "etc/rewardboostinfo/skyofathousandseasofborder", "directory holding the difficulty tables")
+	extra := flag.String("extra", "", "comma separated extra archive entries to import alongside the base directory (e.g. the endkeeperoforder table)")
 	output := flag.String("output", "configs/attunement-rewards.generated.json", "generated config")
 	flag.Parse()
 
@@ -120,13 +141,27 @@ func main() {
 	}
 
 	doc := document{Model: model, Archive: a.Snapshot()}
+	sources := make([]string, 0, 4)
 	for _, name := range []string{"unique.ctp", "legendary.ctp", "epic.ctp"} {
-		table, err := readTable(a, path.Join(*baseDir, name))
-		if err != nil {
-			log.Fatalf("read %s: %v", name, err)
+		sources = append(sources, path.Join(*baseDir, name))
+	}
+	// -extra lets one generated file carry other dungeons' rewardboostinfo
+	// tables. Every table names its own dungeon in [dungeon index], so the
+	// document keeps its one-table-per-dungeon shape no matter how many are
+	// imported together; a duplicate dungeon index is refused by the loader.
+	for _, e := range strings.Split(*extra, ",") {
+		if e = strings.TrimSpace(e); e != "" {
+			sources = append(sources, e)
 		}
-		fmt.Printf("%-14s dungeon=%d fixed=%d additional=%d hidden=%d\n",
-			name, table.Dungeon, len(table.Fixed), len(table.Additional), len(table.Hidden))
+	}
+	for _, entry := range sources {
+		table, err := readTable(a, entry)
+		if err != nil {
+			log.Fatalf("read %s: %v", entry, err)
+		}
+		fmt.Printf("%-58s dungeon=%-10d fixed=%d additional=%d hidden=%d coupon=%d\n",
+			path.Base(entry), table.Dungeon, len(table.Fixed), len(table.Additional),
+			len(table.Hidden), len(table.Coupons))
 		doc.Tables = append(doc.Tables, table)
 	}
 	if len(doc.Tables) == 0 {
@@ -233,6 +268,31 @@ func readTable(a *pvf.Archive, entry string) (dungeonRewards, error) {
 				return out, err
 			}
 			out.Additional = append(out.Additional, at)
+		case couponTableColumn:
+			var ct couponTable
+			for _, col := range []struct {
+				name string
+				dst  *uint32
+			}{{obtainProbColumn, &ct.ObtainProb}, {dropProbColumn, &ct.DropProb}} {
+				j, ok := childNamed(i, col.name)
+				if !ok {
+					return out, fmt.Errorf("%s at %d carries no %s", couponTableColumn, i, col.name)
+				}
+				if *col.dst, err = singleNumber(t.Records[j]); err != nil {
+					return out, err
+				}
+			}
+			j, ok := childNamed(i, dropListColumn)
+			if !ok {
+				return out, fmt.Errorf("%s at %d carries no %s", couponTableColumn, i, dropListColumn)
+			}
+			// An empty drop list is real here: one row spends its cells on
+			// obtain/drop prob alone, and its drop prob is zero, so it pays
+			// nothing. Refusing it would drop the row and hide that.
+			if ct.Entries, err = couponEntries(t.Records[j]); err != nil {
+				return out, err
+			}
+			out.Coupons = append(out.Coupons, ct)
 		case hiddenTableColumn:
 			var ht hiddenTable
 			if j, ok := childNamed(i, mazeColumn); ok {
@@ -259,6 +319,23 @@ func readTable(a *pvf.Archive, entry string) (dungeonRewards, error) {
 	}
 	if len(out.Fixed) == 0 && len(out.Additional) == 0 {
 		return out, fmt.Errorf("table carries no reward list")
+	}
+
+	// Coupon rows are structural only. Both probabilities live in the same
+	// million-space the rest of the file uses, so anything outside it is a
+	// misread column rather than data - that much is checkable. Whether the two
+	// are independent, sequential or indexed by difficulty is not, which is why
+	// no roll reads them (see couponTable).
+	for i, ct := range out.Coupons {
+		if ct.ObtainProb > weightSpace || ct.DropProb > weightSpace {
+			return out, fmt.Errorf("%s %d prob (%d/%d) is outside the %d space",
+				couponTableColumn, i, ct.ObtainProb, ct.DropProb, weightSpace)
+		}
+		if len(ct.Entries) > 0 {
+			if err := checkWeights(ct.Entries, fmt.Sprintf("%s %d", couponTableColumn, i)); err != nil {
+				return out, err
+			}
+		}
 	}
 
 	// The additional tables are a single draw from the same million-space: their
@@ -352,6 +429,21 @@ func entries(r pvf.CTPRecord) ([]rewardEntry, error) {
 		return nil, fmt.Errorf("%s is empty", dropListColumn)
 	}
 	return out, nil
+}
+
+// couponEntries reads a [coupon drop table]'s drop list, tolerating the empty
+// list the source uses for a row that pays nothing.
+func couponEntries(r pvf.CTPRecord) ([]rewardEntry, error) {
+	var cells []pvf.CTPCell
+	for _, c := range r.Cells {
+		if c.Kind != "" {
+			cells = append(cells, c)
+		}
+	}
+	if len(cells) == 0 {
+		return nil, nil
+	}
+	return entries(r)
 }
 
 func checkWeights(list []rewardEntry, what string) error {

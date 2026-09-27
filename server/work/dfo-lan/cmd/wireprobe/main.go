@@ -91,7 +91,30 @@ func main() {
 	apocalypseCatalogFile := flag.String("apocalypse-catalog", "configs/apocalypse.generated.json", "compiled apocalypse.ctp table (phase clock, operations, gates, rewards, duty skills)")
 	attunementRewardsFile := flag.String("attunement-rewards", os.Getenv("DFO_ATTUNEMENT_REWARDS"), "boundary-of-attunement reward table generated from the source rewardboostinfo CTPs")
 	boosterGageHide := flag.Bool("booster-gage-hide", os.Getenv("DFO_BOOSTER_GAGE") != "0", "send NOTI398 booster-gage with displayValue=0 on town entry to hide the top-left Liberation Trace panel; disable with -booster-gage-hide=false or DFO_BOOSTER_GAGE=0")
+	oathGrades := flag.String("oath-grades", os.Getenv("DFO_OATH_GRADES"), "下发给客户端的引子/誓约档位 primer,oath（见 oath_info.go）；默认 45,45 = 第四档「太初」")
+	oathInject := flag.String("oath-inject", os.Getenv("DFO_OATH_INJECT"), "诊断用：向客户端注入任意 noti 的候选列表，形式 id:size:fill;off:val,...（见 oath_probe.go）；默认空 = 关闭")
+	omenHoldDefault := -1
+	if v := os.Getenv("DFO_OMEN_HOLD"); v != "" {
+		if n, convErr := strconv.Atoi(v); convErr == nil {
+			omenHoldDefault = n
+		}
+	}
+	omenHold := flag.Int("omen-hold", omenHoldDefault, "诊断：把玩家直接放到指定征兆阶段(0-4)，-1 = 不动；只用来验证保底，不改任何掉落规则")
+	omenRewards := flag.Bool("omen-rewards", os.Getenv("DFO_OMEN_REWARDS") == "1", "千海之空深渊的征兆系统：通关时按 [coupon drop table] 的阶段表累积并结算（见 internal/loot/omen.go）。默认关闭")
+	scaleDeathFromHP := flag.Bool("scale-death-from-hp", os.Getenv("DFO_SCALE_DEATH_FROM_HP") == "1", "boundary-of-attunement 定盘机关(109019266)的兜底判死：它血量触底时服务端合成一条死亡上报，不再依赖引擎那两个恒为 72 的 rarity 天花板；默认关闭")
 	flag.Parse()
+	oathGradePair, oathGradesErr := parseOathGrades(*oathGrades)
+	if oathGradesErr != nil {
+		log.Fatalf("bad -oath-grades: %v", oathGradesErr)
+	}
+	log.Printf("oath grades: primer=%d oath=%d", oathGradePair[0], oathGradePair[1])
+	oathInjectSpecs, oathInjectErr := parseOathInject(*oathInject)
+	if oathInjectErr != nil {
+		log.Fatalf("bad -oath-inject: %v", oathInjectErr)
+	}
+	if len(oathInjectSpecs) > 0 {
+		log.Printf("oath injector armed: %d candidate notification(s)", len(oathInjectSpecs))
+	}
 	if *fullEquipmentFile == "" {
 		for _, cand := range []string{
 			"configs/equipment-full",
@@ -294,6 +317,10 @@ func main() {
 	var lootService *loot.Service
 	var shopPilot *cashshop.Pilot
 	var unsealService *inventory.UnsealService
+	// skinCatalog maps an `[add skin storage]` stackable template to its PVF
+	// facts, driving CMD507 action 169 (damage font) registration. Nil when no
+	// item index is configured, which disables the skin flow.
+	var skinCatalog map[uint32]catalog.SkinStorageEntry
 	if *characterStorage != "" {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
@@ -377,6 +404,27 @@ func main() {
 			}
 			protocol.ConfigureMaxItemPeriods(templates)
 			log.Printf("maximum item period enabled for %d PVF templates", len(templates))
+		}
+		// Skin-cargo registration (CMD507 action 169, `[add skin storage]`) reads
+		// the skin key straight from PVF and persists the unlock per account.
+		if *itemIndexFile != "" {
+			skinFile := filepath.Join(filepath.Dir(*itemIndexFile), "skin-storage-items.json")
+			entries, skinErr := catalog.LoadSkinStorage(skinFile, data.Source.Checksum)
+			if skinErr != nil {
+				log.Printf("skin storage registration disabled: %v", skinErr)
+			} else if e = s.MigrateSkinCargo(ctx); e != nil {
+				log.Fatal(e)
+			} else if e = s.MigrateSkinSelection(ctx); e != nil {
+				log.Fatal(e)
+			} else {
+				skinCatalog = entries
+				templates := make([]uint32, 0, len(entries))
+				for template := range entries {
+					templates = append(templates, template)
+				}
+				protocol.ConfigureSkinStoragePeriods(templates)
+				log.Printf("skin storage registration armed for %d PVF templates", len(entries))
+			}
 		}
 		if *shopPilotFile != "" {
 			var database string
@@ -578,6 +626,9 @@ func main() {
 		lootPath := *lootCatalogFile
 		if path := os.Getenv("DFO_LOOT_CATALOG"); path != "" {
 			lootPath = path
+		}
+		if err := inventory.LoadReinforcementTickets(filepath.Join(filepath.Dir(lootPath), "reinforcement-tickets.json")); err != nil {
+			log.Fatal(err)
 		}
 		c, e := catalog.LoadLoot(lootPath)
 		if e != nil {
@@ -855,6 +906,26 @@ func main() {
 			log.Printf("loaded booster catalog (%d definitions, %d item index entries)", len(boosterCatalog.Definitions), len(boosterCatalog.Items))
 		}
 	}
+	// 商城发货分类需要完整的物品索引：LootCatalog 只投影 stackable（装备投影
+	// 被刻意拒绝），礼包就地展开开出装备时（实机 2026-09-26：称号进消耗品栏）
+	// 兜底会把它当 [etc] 发进 Use 区。这里把索引里的 equipment/avatar/creature
+	// 分类补进商城目录；已有条目不覆盖，堆叠物仍以 LootCatalog 为准。
+	if shopPilot != nil && boosterCatalog != nil {
+		kinds := make(map[uint32]cashshop.ItemInfo, len(boosterCatalog.Items))
+		for id, it := range boosterCatalog.Items {
+			if it.Kind == "equipment" || it.Kind == "avatar" {
+				kinds[id] = cashshop.ItemInfo{ID: id, Kind: it.Kind, Path: it.Path}
+			}
+		}
+		shopPilot.SupplementItemKinds(kinds)
+		log.Printf("shop delivery: %d equipment/avatar templates classified from item index", len(kinds))
+	}
+	// 装备耐久与开盒/任务/掉落同一条规则（Catalog.Reward 读源 .equ）。
+	if shopPilot != nil && wearService != nil && wearService.Catalog != nil {
+		shopPilot.SetEquipmentDurability(func(id uint32) (uint16, error) {
+			return wearService.Catalog.Reward(id)
+		})
+	}
 	var lotteryPools *lotteryItemCatalog
 	if boosterCatalog != nil && *itemIndexFile != "" {
 		lotteryPath := filepath.Join(filepath.Dir(*itemIndexFile), "lottery-item-pools.json")
@@ -968,17 +1039,39 @@ func main() {
 			log.Fatal("attunement rewards need -booster-catalog: the table pays wrappers, and without the box catalog they cannot be opened at drop time")
 		}
 		boxes := boosterBoxSource{catalog: boosterCatalog}
-		empties, e := attunement.ValidateBoxes(boxes)
+		empties, unopenable, e := attunement.ValidateBoxes(boxes)
 		if e != nil {
 			log.Fatal(e)
 		}
+		if len(unopenable) > 0 {
+			log.Printf("warning: attunement rewards name %d box(es) this build cannot open; they will not be paid: %v", len(unopenable), unopenable)
+		}
 		lootService.Attunement = attunement
 		lootService.RewardBoxes = boxes
+		// 征兆系统（omen）。默认关闭：它改变通关的产出，而首次实机验证还没做，
+		// 所以打开它必须是显式的一步，而不是跟着奖励表悄悄上线。
+		if *omenRewards {
+			if e := attunement.ValidateOmen(); e != nil {
+				log.Fatal(e)
+			}
+			lootService.Omen = loot.NewOmenLedger(attunement)
+			for _, d := range attunement.Dungeons() {
+				if n := attunement.OmenStagesCount(d); n > 0 {
+					log.Printf("omen system on dungeon %d: %d stage(s), %d reward template(s)", d, n, len(attunement.OmenTemplates()))
+				}
+			}
+		}
 		// 空槽是源的合法面（CTP 用一个没有脚本的保留 id 表示"本次没有"），但
 		// "本次没有"和"目录缺了这个物品"在这里长得一模一样，所以把它打出来。
 		log.Printf("attunement reward wrappers open one layer; %d empty-face templates: %v", len(empties), empties)
 		log.Printf("loaded attunement rewards (%d dungeons %v, %d reward templates) from %s",
 			len(attunement.Dungeons()), attunement.Dungeons(), len(attunement.Templates()), *attunementRewardsFile)
+		// [coupon drop table] 就是征兆系统的阶段表（见 internal/loot/omen.go）。
+		// 开关关着时把它明确打出来，让「导入了但没接线」保持可见，而不是让玩家
+		// 以为那几行已经在出货。
+		if n := attunement.Coupons(); n > 0 && !*omenRewards {
+			log.Printf("attunement reward tables carry %d [coupon drop table] row(s) = omen stages; -omen-rewards is off, so no roll uses them", n)
+		}
 	} else {
 		log.Printf("warning: no attunement reward table; boundary-of-attunement clears pay no exclusive reward")
 	}
@@ -1146,7 +1239,7 @@ func main() {
 		legionState.clock = apocalypseClock
 		legionState.channelType = channelTypes[channel]
 		if worldService != nil {
-			worldState = &worldSession{characters: characters, service: worldService, account: developmentAccount, flags: townPolicy.Flags, dungeons: dungeonCatalog, tutorials: tutorialRoutes, tutorialDungeons: tutorialDungeons, professions: characters.Catalog, fatigue: fatigueService, quests: questService, progression: progressionService, loot: lootService, selectionBoxes: selectionBoxes, vault: vaultService, soloPartyBootstrap: *soloPartyBootstrap, hub: hub}
+			worldState = &worldSession{characters: characters, service: worldService, account: developmentAccount, flags: townPolicy.Flags, dungeons: dungeonCatalog, tutorials: tutorialRoutes, tutorialDungeons: tutorialDungeons, professions: characters.Catalog, fatigue: fatigueService, quests: questService, progression: progressionService, loot: lootService, selectionBoxes: selectionBoxes, vault: vaultService, skinCatalog: skinCatalog, soloPartyBootstrap: *soloPartyBootstrap, hub: hub, scaleDeathFromHP: *scaleDeathFromHP, oathGrades: oathGradePair, oathInject: oathInjectSpecs, omenHold: *omenHold}
 			worldState.serverID = channelCfg.ServerID
 		}
 		if worldState != nil {
@@ -1615,20 +1708,12 @@ func main() {
 					continue
 				}
 				r, decodeErr := protocol.DecodeItemMove(plaintext)
-				var cloneRefresh []outboundPacket
-				var cloneRefreshed bool
-				if decodeErr == nil && len(plan) > 0 {
-					cloneRefresh, cloneRefreshed, e = dungeonCloneEquipmentRefresh(worldState, r)
-					if e != nil {
-						event(map[string]any{"kind": "equipment_dungeon_clone_refresh_error", "error": e.Error()})
-						cloneRefreshed = false
-					}
-				}
-				// Ordinary worn-set moves already append WornSpaceUpdate in
-				// equipmentSession.handle. Do not repeat the mode-0 actor rebuild
-				// mid-dungeon: that previously stranded the next room request. The
-				// Clone-only mode-1 pair below is a separate, unconfirmed timing.
-				// Keep this mode-0 refresh only for slot-26 moves outside the worn list.
+				// Ordinary worn-set moves already append AppearanceProbe and
+				// WornSpaceUpdate in equipmentSession.handle. Re-sending an entry
+				// user-info and the same worn-window refresh here rebuilds the actor
+				// twice mid-dungeon and can strand the client before its next room
+				// request. Keep the separate actor refresh only for slot-26 moves
+				// that did not pass through the worn list.
 				if decodeErr == nil && characters != nil && (r.SourceSlot == 26 || r.DestinationSlot == 26) && r.SourceList != 3 && r.DestinationList != 3 {
 					var visual []byte
 					visual, e = characters.EntryBasicProbe(worldState.role, [2]byte{})
@@ -1636,7 +1721,7 @@ func main() {
 						plan = append(plan, outboundPacket{"creature_actor_appearance_updated", 0, 2, visual})
 					}
 				}
-				if decodeErr == nil && characters != nil && !cloneRefreshed && cloneAvatarRemoval(r, wearService.Catalog) {
+				if decodeErr == nil && characters != nil && cloneAvatarRemoval(r, wearService.Catalog) {
 					// attempt 3/3: entry's known mode-1 reader restores the ordinary
 					// Avatar association on relog. Send it only after every CMD19
 					// NOTI13/14 and mode-0 refresh, so later slot reconstruction
@@ -1647,9 +1732,6 @@ func main() {
 					} else {
 						plan = append(plan, outboundPacket{"equipment_avatar_addition_refreshed", 0, 2, addition})
 					}
-				}
-				if cloneRefreshed {
-					plan = append(plan, cloneRefresh...)
 				}
 				prepared, e := preparePackets(keys, plan)
 				if e != nil {
@@ -2107,6 +2189,24 @@ func main() {
 				if !verified {
 					continue
 				}
+				// CMD507 is the shared "use stackable" frame. Split it by action so
+				// the fatigue potion (54) and `[add skin storage]` (169, damage font)
+				// paths never collide; the fatigue path keeps its exact prior shape.
+				_, action, actionErr := protocol.DecodeStackableAction(plaintext)
+				if actionErr == nil && action == protocol.AddSkinStorageAction {
+					plan, e := worldState.useAddSkinStorage(plaintext, event)
+					if e != nil {
+						event(map[string]any{"kind": "add_skin_storage_refused", "character_id": worldState.role.ID, "reason": e.Error()})
+						continue
+					}
+					for _, packet := range plan {
+						if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
+							return
+						}
+						event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID, "id": packet.ID})
+					}
+					continue
+				}
 				if len(plaintext) >= 11 && binary.LittleEndian.Uint32(plaintext[7:11]) == 206 {
 					plan, e := worldState.useQuestAirshipItem(plaintext, event)
 					if e != nil {
@@ -2135,6 +2235,48 @@ func main() {
 						return
 					}
 					event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID})
+				}
+				continue
+			}
+			if worldState != nil && bootstrapped && frame.ID == 80 {
+				if !verified {
+					event(map[string]any{"kind": "reinforcement_rejected", "reason": "强化请求校验失败"})
+					continue
+				}
+				plan, err := equipmentState.reinforce(wearService, worldState, plaintext, frame.Raw, event)
+				if err != nil {
+					event(map[string]any{"kind": "reinforcement_refused", "character_id": worldState.role.ID, "reason": err.Error()})
+					// 14529B2F0 的失败分支只使用分发器读取的错误码，并清除等待态。
+					if err = sendPayload(1, 80, protocol.Refusal(22)); err != nil {
+						return
+					}
+					continue
+				}
+				for _, packet := range plan {
+					if err = sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
+						return
+					}
+				}
+				continue
+			}
+			if worldState != nil && bootstrapped && frame.ID == 1565 {
+				if !verified {
+					continue
+				}
+				// CMD1565 is the skin cargo's 应用 click. The client sends it and
+				// waits: nothing on screen changes until the selection frame comes
+				// back, which is why an applied damage font used to look inert.
+				plan, e := worldState.selectSkin(plaintext, event)
+				if e != nil {
+					event(map[string]any{"kind": "skin_selection_failed", "character_id": worldState.role.ID, "reason": e.Error()})
+					continue
+				}
+				for _, packet := range plan {
+					if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
+						return
+					}
+					event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID, "id": packet.ID,
+						"plain_hex": hex.EncodeToString(packet.Payload)})
 				}
 				continue
 			}
@@ -2320,6 +2462,8 @@ func main() {
 				case 39:
 					worldState.completionErr = nil
 					plan, e = worldState.monsterDeath(plaintext, event)
+				case 2329:
+					plan, e = worldState.scaleStatus(plaintext, event)
 				case 40:
 					plan, e = worldState.playerDeath(plaintext, frame.Raw)
 				case 43:
@@ -3099,6 +3243,31 @@ func main() {
 					if skinErr != nil {
 						event(map[string]any{"kind": "profile_skin_restore_error", "character_id": role.ID, "error": skinErr.Error()})
 						continue
+					}
+				}
+				// Feed the account's damage-font cargo so the panel grid has
+				// something to enumerate. A read failure only drops this frame:
+				// entry must not depend on the skin storage the way the profile
+				// decoration state does.
+				if characters != nil && skinCatalog != nil {
+					cargoCtx, cargoCancel := context.WithTimeout(context.Background(), 5*time.Second)
+					cargo, cargoErr := damageFontCargo(cargoCtx, characters.Store, developmentAccount, skinCatalog)
+					if cargoErr == nil {
+						plan.SkinCargoDamageFont = cargo
+						// The chosen fonts are per character and per panel tab, and
+						// only these frames put them back on the damage numbers.
+						plan.SkinSelectionDamageFontNormal, cargoErr = restoreDamageFontSelection(cargoCtx,
+							characters.Store, role.ID, developmentAccount, skinCatalog,
+							protocol.SkinSelectionDamageFontNormal)
+						if cargoErr == nil {
+							plan.SkinSelectionDamageFontCumulative, cargoErr = restoreDamageFontSelection(cargoCtx,
+								characters.Store, role.ID, developmentAccount, skinCatalog,
+								protocol.SkinSelectionDamageFontCumulative)
+						}
+					}
+					cargoCancel()
+					if cargoErr != nil {
+						event(map[string]any{"kind": "skin_cargo_damage_font_restore_error", "character_id": role.ID, "reason": cargoErr.Error()})
 					}
 				}
 				plan.CubeContract, e = cubeContractRestore(role.State)

@@ -58,7 +58,7 @@ func TestAttunementRewardsLoadsTheShippedTable(t *testing.T) {
 	if !a.Enabled() {
 		t.Fatal("shipped table reports itself disabled")
 	}
-	want := []uint32{100005066, 100005067, 100005068}
+	want := []uint32{100005066, 100005067, 100005068, 100005014}
 	got := a.Dungeons()
 	if len(got) != len(want) {
 		t.Fatalf("dungeons = %v, want %v", got, want)
@@ -85,6 +85,21 @@ func TestAttunementRewardsLoadsTheShippedTable(t *testing.T) {
 	}
 	if len(a.byDungeon[100005067].Hidden) != 0 {
 		t.Fatal("legendary table carries no hidden table in the source")
+	}
+	// The endkeeper-of-order table (small abyss, 100005014) comes out of the
+	// same generator run with -extra: one fixed list per maze and two additional
+	// branches are the payable half, and five [coupon drop table] rows are
+	// carried without a roll (see the coupon pin below).
+	endkeeper := a.byDungeon[100005014]
+	if endkeeper == nil {
+		t.Fatal("endkeeper dungeon 100005014 is not bound")
+	}
+	if len(endkeeper.Fixed) != 2 || len(endkeeper.Additional) != 2 {
+		t.Fatalf("endkeeper lists = %d fixed / %d additional, want 2/2",
+			len(endkeeper.Fixed), len(endkeeper.Additional))
+	}
+	if len(endkeeper.Hidden) != 0 {
+		t.Fatal("endkeeper table carries no hidden table in the source")
 	}
 }
 
@@ -309,6 +324,79 @@ func TestAttunementRolledTemplatesExcludeTheHiddenTables(t *testing.T) {
 	}
 }
 
+// TestAttunementCouponRowsAreTheOmenStages pins the read of the
+// endkeeper-of-order [coupon drop table] rows: they are the omen stages.
+//
+// A row carries two probabilities and a drop list, and their sums miss the
+// million space every other list in the file sums to (obtain 400000, drop
+// 2330000 on the only table we have). That used to be read as "no invariant
+// separates the readings"; it is in fact the strongest evidence *for* the
+// reading now implemented in omen.go, where the two columns are the first two
+// branches of a three-way choice and "no change" takes the remainder - a
+// three-way choice is exactly what does not need them to sum to the space.
+//
+// The rows are paid by AdvanceOmen, per accumulated stage, never by Roll: one
+// reward set belongs to a single clear, the other to a player's run of clears.
+func TestAttunementCouponRowsAreTheOmenStages(t *testing.T) {
+	a, err := LoadAttunementRewards(attunementConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tab := a.byDungeon[100005014]
+	if tab == nil {
+		t.Fatal("endkeeper dungeon 100005014 is not bound")
+	}
+	if len(tab.Coupons) != 5 {
+		t.Fatalf("coupon rows = %d, want 5", len(tab.Coupons))
+	}
+	var obtain, drop uint64
+	for i, c := range tab.Coupons {
+		obtain += uint64(c.ObtainProb)
+		drop += uint64(c.DropProb)
+		if c.ObtainProb > attunementWeightSpace || c.DropProb > attunementWeightSpace {
+			t.Fatalf("coupon %d prob outside the space: %d/%d", i, c.ObtainProb, c.DropProb)
+		}
+	}
+	// These two sums are the load-bearing observation behind the reading: every
+	// other list in the file lands on the space and these do not. If that ever
+	// changes, the three-way model has to be re-argued.
+	if obtain == attunementWeightSpace || drop == attunementWeightSpace {
+		t.Fatal("coupon probabilities now sum to the million space; the three-way reading in omen.go needs re-arguing")
+	}
+	all := map[uint32]bool{}
+	for _, id := range a.Templates() {
+		all[id] = true
+	}
+	rolled := map[uint32]bool{}
+	for _, id := range a.RolledTemplates() {
+		rolled[id] = true
+	}
+	payable := map[uint32]bool{}
+	for _, id := range a.payableTemplates() {
+		payable[id] = true
+	}
+	// Named by a coupon row and by nothing else: paid per accumulated omen
+	// stage, not by one clear's fixed/additional roll.
+	for _, id := range []uint32{10416150, 10417543, 10417544, 10417545, 10417546, 10417547, 10417552, 10417554, 10417571} {
+		if !all[id] {
+			t.Fatalf("coupon wrapper %d missing from Templates()", id)
+		}
+		if rolled[id] {
+			t.Fatalf("coupon wrapper %d counted in RolledTemplates(): AdvanceOmen pays it, not a single clear", id)
+		}
+		if !payable[id] {
+			t.Fatalf("coupon wrapper %d is not part of what a clear can pay", id)
+		}
+	}
+	// The fixed and additional lists of this dungeon are payable, primeval
+	// included - that is the whole point of wiring the exclusive table.
+	for _, id := range []uint32{10416103, 10416110, 10416752, 10416141, 10416144} {
+		if !rolled[id] {
+			t.Fatalf("endkeeper wrapper %d is not payable", id)
+		}
+	}
+}
+
 // TestAttunementValidateBoxes pins both halves of the startup gate: an
 // unresolvable wrapper is refused (it would drop as a jar nobody can open), and
 // a slot the item catalog does not know is reported rather than invented.
@@ -317,7 +405,9 @@ func TestAttunementValidateBoxes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rolled := a.RolledTemplates()
+	// ValidateBoxes walks payableTemplates (fixed + additional + omen stages),
+	// so the complete source has to cover the omen wrappers too.
+	rolled := a.payableTemplates()
 
 	good := fakeBoxes{boxes: map[uint32]RewardBox{}, items: map[uint32]bool{11: true}}
 	for _, id := range rolled {
@@ -326,12 +416,12 @@ func TestAttunementValidateBoxes(t *testing.T) {
 			Candidates: []RewardBoxCandidate{{Template: 11, Weight: 1, Count: 1}},
 		}}}
 	}
-	empties, err := a.ValidateBoxes(good)
+	empties, unopenable, err := a.ValidateBoxes(good)
 	if err != nil {
 		t.Fatalf("complete source refused: %v", err)
 	}
-	if len(empties) != 0 {
-		t.Fatalf("empties = %v, want none", empties)
+	if len(empties) != 0 || len(unopenable) != 0 {
+		t.Fatalf("empties = %v, unopenable = %v, want none", empties, unopenable)
 	}
 
 	missing := fakeBoxes{boxes: map[uint32]RewardBox{}, items: map[uint32]bool{11: true}}
@@ -339,7 +429,7 @@ func TestAttunementValidateBoxes(t *testing.T) {
 		missing.boxes[k] = v
 	}
 	delete(missing.boxes, rolled[0])
-	if _, err := a.ValidateBoxes(missing); err == nil {
+	if _, _, err := a.ValidateBoxes(missing); err == nil {
 		t.Fatal("a wrapper the box catalog cannot open was accepted")
 	}
 
@@ -352,15 +442,35 @@ func TestAttunementValidateBoxes(t *testing.T) {
 			Candidates: []RewardBoxCandidate{{Template: 12, Weight: 1, Count: 1}},
 		}}}
 	}
-	empties, err = a.ValidateBoxes(sparse)
+	empties, unopenable, err = a.ValidateBoxes(sparse)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(empties) != 1 || empties[0] != 12 {
 		t.Fatalf("empties = %v, want [12]", empties)
 	}
+	if len(unopenable) != 0 {
+		t.Fatalf("unopenable = %v, want none", unopenable)
+	}
 
-	if _, err := a.ValidateBoxes(nil); err != nil {
+	// A box the catalog cannot open is reported, not treated as a prize: the
+	// walk has to record it whether it sits at the top or further down.
+	boxed := fakeBoxes{boxes: map[uint32]RewardBox{}, items: map[uint32]bool{}, containers: map[uint32]bool{903: true}}
+	for _, id := range rolled {
+		boxed.boxes[id] = RewardBox{Pools: []RewardBoxPool{{
+			Draws:      1,
+			Candidates: []RewardBoxCandidate{{Template: 903, Weight: 1, Count: 1}},
+		}}}
+	}
+	empties, unopenable, err = a.ValidateBoxes(boxed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(empties) != 0 || len(unopenable) != 1 || unopenable[0] != 903 {
+		t.Fatalf("empties = %v, unopenable = %v, want [903] and no empty face", empties, unopenable)
+	}
+
+	if _, _, err := a.ValidateBoxes(nil); err != nil {
 		t.Fatalf("a nil source must be inert, got %v", err)
 	}
 }

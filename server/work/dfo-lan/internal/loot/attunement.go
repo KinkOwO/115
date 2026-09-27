@@ -54,6 +54,23 @@ type attunementHidden struct {
 	Entries []attunementHiddenEntry `json:"entries"`
 }
 
+// attunementCoupon is one [coupon drop table] row, kept verbatim.
+//
+// The row is one stage of the omen system. See omen.go for the reading and the
+// two independent truths that pin it down: the official description of a
+// three-way choice, and the fact that these two sums are the only ones in the
+// file that do not land on the million space - a three-way choice does not need
+// them to, because "no change" takes the remainder.
+//
+// It is rolled by AttunementRewards.AdvanceOmen, not by Roll: the fixed and
+// additional lists pay one clear, the omen stage pays a player's accumulated
+// run of clears.
+type attunementCoupon struct {
+	ObtainProb uint32            `json:"obtainProb"`
+	DropProb   uint32            `json:"dropProb"`
+	Entries    []attunementEntry `json:"entries"`
+}
+
 type attunementDungeon struct {
 	Path        string                 `json:"path"`
 	SHA256      string                 `json:"sha256"`
@@ -64,6 +81,7 @@ type attunementDungeon struct {
 	Fixed       []attunementFixed      `json:"fixed"`
 	Additional  []attunementAdditional `json:"additional"`
 	Hidden      []attunementHidden     `json:"hidden"`
+	Coupons     []attunementCoupon     `json:"coupons,omitempty"`
 }
 
 // AttunementRewards is the decoded reward table of the "boundary of attunement"
@@ -148,6 +166,20 @@ func LoadAttunementRewards(path string) (*AttunementRewards, error) {
 				}
 			}
 		}
+		for i, c := range t.Coupons {
+			if c.ObtainProb > attunementWeightSpace || c.DropProb > attunementWeightSpace {
+				return nil, fmt.Errorf("dungeon %d coupon %d prob is outside the %d space",
+					t.Dungeon, i, attunementWeightSpace)
+			}
+			// Empty is legitimate on a row whose drop prob is zero; a row that
+			// does carry a list must still sum to the space, or the column was
+			// misread.
+			if len(c.Entries) > 0 {
+				if err := checkAttunementEntries(c.Entries, fmt.Sprintf("dungeon %d coupon %d", t.Dungeon, i)); err != nil {
+					return nil, err
+				}
+			}
+		}
 		a.byDungeon[t.Dungeon] = t
 	}
 	return &a, nil
@@ -173,6 +205,21 @@ func checkAttunementEntries(list []attunementEntry, what string) error {
 	return nil
 }
 
+// Coupons counts the [coupon drop table] rows this document carries. They are
+// imported and validated but never rolled (see attunementCoupon), so the count
+// exists to keep that gap visible at startup rather than letting the rows look
+// like they are already paying out.
+func (a *AttunementRewards) Coupons() int {
+	if a == nil {
+		return 0
+	}
+	n := 0
+	for i := range a.Tables {
+		n += len(a.Tables[i].Coupons)
+	}
+	return n
+}
+
 // Enabled reports whether any dungeon carries a reward table.
 func (a *AttunementRewards) Enabled() bool { return a != nil && len(a.Tables) > 0 }
 
@@ -188,9 +235,9 @@ func (a *AttunementRewards) Dungeons() []uint32 {
 	return out
 }
 
-// Templates lists every item the table can pay, hidden tables included. The
-// hidden lists are never rolled, but they are part of the same reward set, so
-// they are validated alongside it instead of being left unchecked.
+// Templates lists every item the table can pay, the unrolled hidden and coupon
+// rows included. They are never rolled, but they are part of the same reward
+// set, so they are validated alongside it instead of being left unchecked.
 func (a *AttunementRewards) Templates() []uint32 {
 	if a == nil {
 		return nil
@@ -219,15 +266,20 @@ func (a *AttunementRewards) Templates() []uint32 {
 				add(e.Item)
 			}
 		}
+		for _, c := range t.Coupons {
+			for _, e := range c.Entries {
+				add(e.Item)
+			}
+		}
 	}
 	return out
 }
 
-// RolledTemplates lists the entries a clear can actually pay: the fixed lists and
-// the additional branches. The hidden tables are excluded because nothing rolls
-// them, so a template that only ever appears there never reaches a player - and
-// some of what they hold is unresolved, which must not be mistaken for a
-// payable reward.
+// RolledTemplates lists what one *clear* pays: the fixed lists and the
+// additional branches. The hidden rows are excluded because nothing rolls them,
+// and the coupon rows because they are rolled per accumulated stage instead
+// (AdvanceOmen); both reach the ground through payableTemplates, which is what
+// the startup box validation walks.
 func (a *AttunementRewards) RolledTemplates() []uint32 {
 	if a == nil {
 		return nil
@@ -276,43 +328,63 @@ func (a *AttunementRewards) ValidateTemplates(c catalog.LootCatalog) error {
 	return nil
 }
 
-// ValidateBoxes checks that every wrapper a clear can pay is one the box source
-// can open, and reports the pool entries the source leaves empty.
+// ValidateBoxes walks the whole reward tree and reports what a clear could not
+// resolve. It fails only when a *rolled* entry is not a wrapper the box catalog
+// can open, because that is a misreading of the table rather than a gap in it.
 //
-// Both halves are load-bearing. An unresolvable wrapper would reach the ground
-// as a jar nobody can open, which is worse than paying nothing because the
-// player has already watched it drop. An empty face is legitimate - the CTPs
-// spend a reserved id on "no prize" and hand it real weight - but it is also
-// exactly what a prize missing from the item catalog looks like from here, so
-// the ids come back for the caller to log and compare against the build.
-func (a *AttunementRewards) ValidateBoxes(src RewardBoxSource) ([]uint32, error) {
+// Two lists come back for the caller to log, and both are load-bearing in
+// opposite directions. An empty face is legitimate - the CTPs spend a reserved
+// id on "no prize" and give it real weight - but it is also exactly what a prize
+// missing from the item catalog looks like from here. An unopenable box is a
+// container this build cannot take apart, so the player cannot use it either;
+// OpenRewardBoxes refuses to pay it, and the ids are reported so the gap stays
+// visible instead of quietly costing a reward branch.
+func (a *AttunementRewards) ValidateBoxes(src RewardBoxSource) (empties, unopenable []uint32, err error) {
 	if !a.Enabled() || src == nil {
-		return nil, nil
+		return nil, nil, nil
 	}
-	var empties []uint32
-	seen := map[uint32]bool{}
-	for _, id := range a.RolledTemplates() {
+	emptySeen := map[uint32]bool{}
+	boxSeen := map[uint32]bool{}
+	var walk func(id uint32, depth int) error
+	walk = func(id uint32, depth int) error {
 		box, ok := src.RewardBox(id)
 		if !ok {
-			return nil, fmt.Errorf("attunement reward %d is not a wrapper the box catalog can open", id)
+			if src.Container(id) {
+				if !boxSeen[id] {
+					boxSeen[id] = true
+					unopenable = append(unopenable, id)
+				}
+				return nil
+			}
+			if !src.Item(id) && !emptySeen[id] {
+				emptySeen[id] = true
+				empties = append(empties, id)
+			}
+			return nil
+		}
+		if depth > rewardBoxMaxDepth {
+			return fmt.Errorf("attunement reward %d nests deeper than %d levels", id, rewardBoxMaxDepth)
 		}
 		for _, pool := range box.Pools {
 			for _, c := range pool.Candidates {
-				if _, ok := src.RewardBox(c.Template); ok {
-					continue
-				}
-				if src.Item(c.Template) {
-					continue
-				}
-				if !seen[c.Template] {
-					seen[c.Template] = true
-					empties = append(empties, c.Template)
+				if err := walk(c.Template, depth+1); err != nil {
+					return err
 				}
 			}
 		}
+		return nil
+	}
+	for _, id := range a.payableTemplates() {
+		if _, ok := src.RewardBox(id); !ok {
+			return nil, nil, fmt.Errorf("attunement reward %d is not a wrapper the box catalog can open", id)
+		}
+		if err := walk(id, 0); err != nil {
+			return nil, nil, err
+		}
 	}
 	sort.Slice(empties, func(i, j int) bool { return empties[i] < empties[j] })
-	return empties, nil
+	sort.Slice(unopenable, func(i, j int) bool { return unopenable[i] < unopenable[j] })
+	return empties, unopenable, nil
 }
 
 // Roll pays one cleared attunement maze.
@@ -328,7 +400,7 @@ func (a *AttunementRewards) ValidateBoxes(src RewardBoxSource) ([]uint32, error)
 // seed untouched: the line stays inert for every other dungeon in the game, the
 // same way a disabled Odyssey chapter drop does.
 //
-// The hidden tables are parsed and validated but not rolled. Their middle number
+// The hidden table is parsed and validated but not rolled. Its middle number
 // is not a weight (it steps 0,1,2,.. with the item ids), so the trigger they
 // belong to is not established, and a guess there would pay items on clears the
 // source never pays them on. Which dungeon even has them is recorded: only the
