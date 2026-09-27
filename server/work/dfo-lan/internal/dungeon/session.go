@@ -478,6 +478,15 @@ func fixedMonsters(script catalog.ScriptRecord, basis uint32) ([]protocol.Dungeo
 			switch c[i].Text {
 			case "[fixed]":
 				fixed = true
+			case "[named]":
+				// The 115 client map reader sub_1471E9060 only maps
+				// [normal]/[champion]/[super champion]/[boss] to ranks.
+				// [named] leaves its default rank 0 (sub_1471C18C0).
+				// Dazzlement maps use it as a named spawn tag.
+				if rankSeen {
+					return nil, fmt.Errorf("duplicate source monster rank")
+				}
+				rankSeen = true
 			case "[NPC]":
 				// Map 91757 uses [fixed] [NPC] 1020 [boss]. The NPC
 				// association has one numeric operand before the rank.

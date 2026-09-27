@@ -1,6 +1,7 @@
 # CHANGELOG
 
 ## 2026-09-27
+- **迷眩之塔 7601 入场与双房流程（用户实机确认）**：从当前 115 客户端 PVF 的 `etc/towerofdazzlement.etc`、DGN 和 MAP 归属导出 33 个遭遇副本、56 张房间图，补齐原目录缺失的迷宫房间；按客户端原生解析将地图怪物 `[named]` 保持默认阶级 0。用户确认可进入地下 1 层、换到下一房间、击败 Boss 并完成当前普通副本结算。塔专属结算、奖励、进度和次数尚未实现或验证。`go test ./...`、`go vet ./...` 通过；候选 SHA-256 `C2F959D025EC73DB48328EED7EE0AEF0C3ADE2D49672B8FA2B84F43DCF6D199F`。确认基线：`server/work/dfo-lan/docs/protocol/tower-of-dazzlement-entry-20260927.md`。
 - **NPC 传送与剧情城镇快速返回（用户实机确认）**：服务端从 `.npc` 的 `[role] [move town]` 和任务条件生成 236 条传送关系，并从剧情城镇 `[episode town] [return npc]` 规则解析返回地点；NPC 位置来自世界地图及导入地图。Final Defense Line 的任务书入口 38/0→55/0 与出口 55/0→38/0 均由这些源定义授权，验证任务状态、角色归属、等级和落点；75、82、149 等剧情城镇返回也按资源配置。用户确认可正常传送。`go test ./...`、`go vet ./...` 通过；候选 SHA-256 `A1AFABDE8C5FEC2D34F69D050228DB139AB1089656A2530B7A2B9A311BACB9FF`。NPC 目标位置缺失或多处歧义的路线保持关闭。确认基线：`server/work/dfo-lan/docs/protocol/final-defense-line-town-entry-20260927.md`。
 - **单道具任务目标使用 CMD507 通用入口（主线提交，扩展实机验证待后续任务）**：根据 12122 实机向量，在服务端按拥有的背包槽位、已接任务及源数据 `[use item]` 单物品目标匹配，不写死任务或道具 ID；成功后事务扣除一件、发送 NOTI14 并刷新 NOTI291，任务奖励仍由玩家原生提交。12122 的使用后可提交和提交结果已有实机验证；通用目录匹配目前只有这一条主线样本，等待后续同类任务验证。无数据库结构、客户端或 DLL 改动。`go test ./...`、`go vet ./...` 与 quest-use PostgreSQL 临时表回归通过。候选 SHA-256 `D840C869CE82D32005FBD77C713EF684A5E724E10AD4FE12AA27E9F9111DF0EF`。基线与限制：`server/work/dfo-lan/docs/protocol/skywar-quest-12122-use-item-20260926.md`。
 
