@@ -54,7 +54,10 @@ func appearanceRestore(service *character.Service, role storage.Character) ([]ou
 		return nil, e
 	}
 	plan = append([]outboundPacket{{"appearance_attributes_restored", 0, 2, addition}}, plan...)
-	return append(plan,
-		outboundPacket{"appearance_skills_restored", 0, 19, skills},
-		outboundPacket{"appearance_variations_restored", 1, 29, variation}), nil
+	plan = append(plan, outboundPacket{"appearance_skills_restored", 0, 19, skills})
+	plan, e = appendSkillPresetRestore(plan, service, role, "skill_preset_restored_after_appearance_skills")
+	if e != nil {
+		return nil, e
+	}
+	return append(plan, outboundPacket{"appearance_variations_restored", 1, 29, variation}), nil
 }

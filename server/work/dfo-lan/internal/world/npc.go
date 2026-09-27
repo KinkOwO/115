@@ -10,6 +10,22 @@ func (s *Service) HasNPC(p storage.WorldPosition, id uint32) bool {
 	return ok
 }
 
+// HasPhaseNPC checks NPC rows exported from source [phase] maps of this area.
+// Quest-state visibility is checked separately before such a row can authorize
+// an interaction; a phase row alone does not mean that phase is active.
+func (s *Service) HasPhaseNPC(p storage.WorldPosition, id uint32) bool {
+	area, ok := s.Catalog.Areas[catalog.AreaKey(p.Town, p.Area)]
+	if !ok || id == 0 {
+		return false
+	}
+	for _, row := range area.PhaseNPCs {
+		if row.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
 // NPCPosition returns where a source NPC stands in this area. A source [NPC]
 // row is five cells: identity, facing tag, x, y and a trailing flag — read
 // against town38/area0 NPC1 "[left] 1227 164 0" and town40/area0 NPC358

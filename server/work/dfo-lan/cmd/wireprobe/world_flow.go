@@ -42,8 +42,11 @@ type worldSession struct {
 	loot             *loot.Service
 	selectionBoxes   *catalog.SelectionBoxes
 	vault            *inventory.VaultService
-	drops            *loot.Session
-	deathSent        map[uint16]bool
+	// skinCatalog maps an `[add skin storage]` template to its PVF skin key; nil
+	// disables the CMD507 action 169 flow.
+	skinCatalog map[uint32]catalog.SkinStorageEntry
+	drops       *loot.Session
+	deathSent   map[uint16]bool
 	// scaleDeathFromHP 打开「定盘机关血量触底时由服务端宣布它死亡」这条兜底路径
 	// （见 scale_death.go）。默认关闭，开启方式是 -scale-death-from-hp
 	// 或 DFO_SCALE_DEATH_FROM_HP=1。

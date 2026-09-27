@@ -76,6 +76,7 @@ func main() {
 	boosterCatalogFile := flag.String("booster-catalog", os.Getenv("DFO_BOOSTER_CATALOG"), "booster definitions JSON")
 	selectionBoxFile := flag.String("selection-boxes", os.Getenv("DFO_SELECTION_BOXES"), "source selection box JSON ([booster select category] boxes)")
 	itemShopFile := flag.String("item-shop", os.Getenv("DFO_ITEM_SHOP"), "source item shop JSON (itemshop/**.shp; prices goods with [need material], e.g. the Odyssey shop's silver coins)")
+	shopPricesFile := flag.String("shop-prices", os.Getenv("DFO_SHOP_PRICES"), "source NPC prices; empty resolves shop-prices.json beside the loot catalog")
 	soloPartyBootstrap := flag.Bool("solo-party-bootstrap", false, "initialize the owned actor in the current solo party roster")
 	accountOptionsFile := flag.String("account-options", "", "sparse current-client account option overrides; other defaults remain client-owned")
 	unifiedCharacFile := flag.String("unified-charac-template", "", "override the built-in 3539 byte character option block sent as NOTI2827 (different client build only)")
@@ -316,6 +317,10 @@ func main() {
 	var lootService *loot.Service
 	var shopPilot *cashshop.Pilot
 	var unsealService *inventory.UnsealService
+	// skinCatalog maps an `[add skin storage]` stackable template to its PVF
+	// facts, driving CMD507 action 169 (damage font) registration. Nil when no
+	// item index is configured, which disables the skin flow.
+	var skinCatalog map[uint32]catalog.SkinStorageEntry
 	if *characterStorage != "" {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
@@ -360,6 +365,11 @@ func main() {
 		if e = s.MigrateCharacterNotices(ctx); e != nil {
 			log.Fatal(e)
 		}
+		// Per-character profile skin snapshot (NOTI1545/1546) backs the
+		// category-0 owned/selected state sent on character entry.
+		if e = s.MigrateProfileSkins(ctx); e != nil {
+			log.Fatal(e)
+		}
 		if e = s.MigrateMailbox(ctx); e != nil {
 			log.Fatal(e)
 		}
@@ -394,6 +404,27 @@ func main() {
 			}
 			protocol.ConfigureMaxItemPeriods(templates)
 			log.Printf("maximum item period enabled for %d PVF templates", len(templates))
+		}
+		// Skin-cargo registration (CMD507 action 169, `[add skin storage]`) reads
+		// the skin key straight from PVF and persists the unlock per account.
+		if *itemIndexFile != "" {
+			skinFile := filepath.Join(filepath.Dir(*itemIndexFile), "skin-storage-items.json")
+			entries, skinErr := catalog.LoadSkinStorage(skinFile, data.Source.Checksum)
+			if skinErr != nil {
+				log.Printf("skin storage registration disabled: %v", skinErr)
+			} else if e = s.MigrateSkinCargo(ctx); e != nil {
+				log.Fatal(e)
+			} else if e = s.MigrateSkinSelection(ctx); e != nil {
+				log.Fatal(e)
+			} else {
+				skinCatalog = entries
+				templates := make([]uint32, 0, len(entries))
+				for template := range entries {
+					templates = append(templates, template)
+				}
+				protocol.ConfigureSkinStoragePeriods(templates)
+				log.Printf("skin storage registration armed for %d PVF templates", len(entries))
+			}
 		}
 		if *shopPilotFile != "" {
 			var database string
@@ -638,6 +669,19 @@ func main() {
 			}
 		}
 		lootService = &loot.Service{Store: characters.Store, Catalog: c, DropCatalog: dropCatalog, Rules: r, BagRules: bag, Tables: tables, Equipment: gear}
+		pricesPath := *shopPricesFile
+		if pricesPath == "" {
+			pricesPath = filepath.Join(filepath.Dir(lootPath), "shop-prices.json")
+		}
+		if _, err := os.Stat(pricesPath); err == nil || *shopPricesFile != "" {
+			lootService.Prices, e = catalog.LoadShopPrices(pricesPath, c.Source.Checksum)
+			if e != nil {
+				log.Fatal(e)
+			}
+			log.Printf("loaded %d source NPC prices from %s", len(lootService.Prices.Items), pricesPath)
+		} else {
+			log.Printf("warning: no source NPC prices (%s); gold purchases and sales are refused", pricesPath)
+		}
 		if path := os.Getenv("DFO_ODYSSEY_COIN_RULES"); path != "" {
 			lootService.Currency, e = loot.LoadOdysseyCurrency(path)
 			if e != nil {
@@ -773,6 +817,9 @@ func main() {
 			log.Fatal(e)
 		}
 		vaultService = &inventory.VaultService{Store: characters.Store, Rules: rules}
+		if wearService != nil {
+			vaultService.Equipment = wearService.Catalog
+		}
 		if *vaultPurchase || *vaultRelease || *shopRelease {
 			for n := uint16(24); n <= 264; n += 16 {
 				vaultService.Rules.VerifiedSlots = append(vaultService.Rules.VerifiedSlots, n)
@@ -921,7 +968,7 @@ func main() {
 		}
 	}
 	if itemShops == nil {
-		log.Printf("warning: no item shop catalog; every purchase is charged the flat gold price")
+		log.Printf("warning: no item shop catalog; material-priced purchases cannot be resolved")
 	} else if lootService != nil {
 		lootService.ItemShops = itemShops
 	}
@@ -1165,7 +1212,7 @@ func main() {
 		legionState.clock = apocalypseClock
 		legionState.channelType = channelTypes[channel]
 		if worldService != nil {
-			worldState = &worldSession{characters: characters, service: worldService, account: developmentAccount, flags: townPolicy.Flags, dungeons: dungeonCatalog, tutorials: tutorialRoutes, tutorialDungeons: tutorialDungeons, professions: characters.Catalog, fatigue: fatigueService, quests: questService, progression: progressionService, loot: lootService, selectionBoxes: selectionBoxes, vault: vaultService, soloPartyBootstrap: *soloPartyBootstrap, hub: hub, scaleDeathFromHP: *scaleDeathFromHP, oathGrades: oathGradePair, oathInject: oathInjectSpecs, omenHold: *omenHold}
+			worldState = &worldSession{characters: characters, service: worldService, account: developmentAccount, flags: townPolicy.Flags, dungeons: dungeonCatalog, tutorials: tutorialRoutes, tutorialDungeons: tutorialDungeons, professions: characters.Catalog, fatigue: fatigueService, quests: questService, progression: progressionService, loot: lootService, selectionBoxes: selectionBoxes, vault: vaultService, skinCatalog: skinCatalog, soloPartyBootstrap: *soloPartyBootstrap, hub: hub, scaleDeathFromHP: *scaleDeathFromHP, oathGrades: oathGradePair, oathInject: oathInjectSpecs, omenHold: *omenHold}
 			worldState.serverID = channelCfg.ServerID
 		}
 		if worldState != nil {
@@ -1236,13 +1283,24 @@ func main() {
 					p, e := worldState.refreshDailyFatigue(now)
 					if e != nil {
 						event(map[string]any{"kind": "fatigue_daily_error", "error": e.Error()})
-						continue
 					}
-					if p != nil {
+					if e == nil && p != nil {
 						if e = sendPayload(0, 36, p); e != nil {
 							return
 						}
 						event(map[string]any{"kind": "fatigue_daily_refresh", "character_id": selectedCharacterID})
+					}
+					loyaltyCtx, loyaltyCancel := context.WithTimeout(context.Background(), 5*time.Second)
+					loyaltyPackets, loyaltyErr := worldState.refreshCreatureLoyalty(loyaltyCtx, now, worldState.activeDungeon != nil)
+					loyaltyCancel()
+					if loyaltyErr != nil {
+						event(map[string]any{"kind": "creature_loyalty_error", "character_id": selectedCharacterID, "error": loyaltyErr.Error()})
+					} else {
+						for _, packet := range loyaltyPackets {
+							if e := sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
+								return
+							}
+						}
 					}
 				}
 				continue
@@ -1623,12 +1681,20 @@ func main() {
 					continue
 				}
 				r, decodeErr := protocol.DecodeItemMove(plaintext)
-				// Ordinary worn-set moves already append AppearanceProbe and
-				// WornSpaceUpdate in equipmentSession.handle. Re-sending an entry
-				// user-info and the same worn-window refresh here rebuilds the actor
-				// twice mid-dungeon and can strand the client before its next room
-				// request. Keep the separate actor refresh only for slot-26 moves
-				// that did not pass through the worn list.
+				var cloneRefresh []outboundPacket
+				var cloneRefreshed bool
+				if decodeErr == nil && len(plan) > 0 {
+					cloneRefresh, cloneRefreshed, e = dungeonCloneEquipmentRefresh(worldState, r)
+					if e != nil {
+						event(map[string]any{"kind": "equipment_dungeon_clone_refresh_error", "error": e.Error()})
+						cloneRefreshed = false
+					}
+				}
+				// Ordinary worn-set moves already append WornSpaceUpdate in
+				// equipmentSession.handle. Do not repeat the mode-0 actor rebuild
+				// mid-dungeon: that previously stranded the next room request. The
+				// Clone-only mode-1 pair below is a separate, unconfirmed timing.
+				// Keep this mode-0 refresh only for slot-26 moves outside the worn list.
 				if decodeErr == nil && characters != nil && (r.SourceSlot == 26 || r.DestinationSlot == 26) && r.SourceList != 3 && r.DestinationList != 3 {
 					var visual []byte
 					visual, e = characters.EntryBasicProbe(worldState.role, [2]byte{})
@@ -1636,7 +1702,7 @@ func main() {
 						plan = append(plan, outboundPacket{"creature_actor_appearance_updated", 0, 2, visual})
 					}
 				}
-				if decodeErr == nil && characters != nil && cloneAvatarRemoval(r, wearService.Catalog) {
+				if decodeErr == nil && characters != nil && !cloneRefreshed && cloneAvatarRemoval(r, wearService.Catalog) {
 					// attempt 3/3: entry's known mode-1 reader restores the ordinary
 					// Avatar association on relog. Send it only after every CMD19
 					// NOTI13/14 and mode-0 refresh, so later slot reconstruction
@@ -1647,6 +1713,9 @@ func main() {
 					} else {
 						plan = append(plan, outboundPacket{"equipment_avatar_addition_refreshed", 0, 2, addition})
 					}
+				}
+				if cloneRefreshed {
+					plan = append(plan, cloneRefresh...)
 				}
 				prepared, e := preparePackets(keys, plan)
 				if e != nil {
@@ -1940,6 +2009,15 @@ func main() {
 							return
 						}
 						event(map[string]any{"kind": "skill_commands_refreshed", "character_id": selectedCharacterID, "id": 19})
+						preset, presetErr := characters.SkillPresetInfo(worldState.role)
+						if presetErr != nil {
+							event(map[string]any{"kind": "skill_preset_refresh_failed", "reason": presetErr.Error(), "character_id": selectedCharacterID})
+						} else if len(preset) > 0 {
+							if e = sendPayload(0, 2758, preset); e != nil {
+								return
+							}
+							event(map[string]any{"kind": "skill_preset_restored_after_commands", "character_id": selectedCharacterID, "id": 2758})
+						}
 					}
 				}
 				continue
@@ -1961,7 +2039,7 @@ func main() {
 				}
 				continue
 			}
-			if characters != nil && bootstrapped && (frame.ID == 28 || frame.ID == 29 || frame.ID == 483 || frame.ID == 2179 || frame.ID == 2347) {
+			if characters != nil && bootstrapped && (frame.ID == 28 || frame.ID == 29 || frame.ID == 483 || frame.ID == 2179 || frame.ID == 2346 || frame.ID == 2347) {
 				if !verified {
 					continue
 				}
@@ -2091,8 +2169,44 @@ func main() {
 				}
 				continue
 			}
-			if worldState != nil && bootstrapped && frame.ID == 507 && fatigueService != nil {
+			if worldState != nil && bootstrapped && frame.ID == 507 {
 				if !verified {
+					continue
+				}
+				// CMD507 is the shared "use stackable" frame. Split it by action so
+				// the fatigue potion (54) and `[add skin storage]` (169, damage font)
+				// paths never collide; the fatigue path keeps its exact prior shape.
+				_, action, actionErr := protocol.DecodeStackableAction(plaintext)
+				if actionErr == nil && action == protocol.AddSkinStorageAction {
+					plan, e := worldState.useAddSkinStorage(plaintext, event)
+					if e != nil {
+						event(map[string]any{"kind": "add_skin_storage_refused", "character_id": worldState.role.ID, "reason": e.Error()})
+						continue
+					}
+					for _, packet := range plan {
+						if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
+							return
+						}
+						event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID, "id": packet.ID})
+					}
+					continue
+				}
+				if len(plaintext) >= 11 && binary.LittleEndian.Uint32(plaintext[7:11]) == 206 {
+					plan, e := worldState.useQuestAirshipItem(plaintext, event)
+					if e != nil {
+						event(map[string]any{"kind": "quest_item_action_refused", "character_id": worldState.role.ID, "reason": e.Error()})
+						continue
+					}
+					for _, packet := range plan {
+						if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
+							return
+						}
+						event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID})
+					}
+					continue
+				}
+				if fatigueService == nil {
+					event(map[string]any{"kind": "fatigue_potion_refused", "character_id": worldState.role.ID, "reason": "fatigue service unavailable"})
 					continue
 				}
 				plan, e := worldState.recoverFatiguePotion(plaintext)
@@ -2105,6 +2219,27 @@ func main() {
 						return
 					}
 					event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID})
+				}
+				continue
+			}
+			if worldState != nil && bootstrapped && frame.ID == 1565 {
+				if !verified {
+					continue
+				}
+				// CMD1565 is the skin cargo's 应用 click. The client sends it and
+				// waits: nothing on screen changes until the selection frame comes
+				// back, which is why an applied damage font used to look inert.
+				plan, e := worldState.selectSkin(plaintext, event)
+				if e != nil {
+					event(map[string]any{"kind": "skin_selection_failed", "character_id": worldState.role.ID, "reason": e.Error()})
+					continue
+				}
+				for _, packet := range plan {
+					if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
+						return
+					}
+					event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID, "id": packet.ID,
+						"plain_hex": hex.EncodeToString(packet.Payload)})
 				}
 				continue
 			}
@@ -2391,6 +2526,18 @@ func main() {
 						worldState.resetCards()
 					}
 					worldState.activeDungeon = pending
+					loyaltyCtx, loyaltyCancel := context.WithTimeout(context.Background(), 5*time.Second)
+					loyaltyPackets, loyaltyErr := worldState.refreshCreatureLoyalty(loyaltyCtx, time.Now(), true)
+					loyaltyCancel()
+					if loyaltyErr != nil {
+						event(map[string]any{"kind": "creature_loyalty_error", "character_id": selectedCharacterID, "error": loyaltyErr.Error()})
+					} else {
+						for _, packet := range loyaltyPackets {
+							if e := sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
+								return
+							}
+						}
+					}
 					// A dungeon is a private instance: this actor leaves the shared town.
 					worldState.leaveScene()
 					worldState.completionSent = false
@@ -2431,6 +2578,18 @@ func main() {
 					}
 					if (p.Name == "settlement_exit_ack" || p.Name == "dungeon_leave_ack") && pending == nil {
 						worldState.activeDungeon = nil
+						loyaltyCtx, loyaltyCancel := context.WithTimeout(context.Background(), 5*time.Second)
+						loyaltyPackets, loyaltyErr := worldState.refreshCreatureLoyalty(loyaltyCtx, time.Now(), false)
+						loyaltyCancel()
+						if loyaltyErr != nil {
+							event(map[string]any{"kind": "creature_loyalty_error", "character_id": selectedCharacterID, "error": loyaltyErr.Error()})
+						} else {
+							for _, packet := range loyaltyPackets {
+								if e := sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
+									return
+								}
+							}
+						}
 						worldState.drops = nil
 						worldState.deathSent = nil
 						worldState.completionSent = false
@@ -2480,6 +2639,18 @@ func main() {
 				}
 				if frame.ID == 42 {
 					worldState.activeDungeon = nil
+					loyaltyCtx, loyaltyCancel := context.WithTimeout(context.Background(), 5*time.Second)
+					loyaltyPackets, loyaltyErr := worldState.refreshCreatureLoyalty(loyaltyCtx, time.Now(), false)
+					loyaltyCancel()
+					if loyaltyErr != nil {
+						event(map[string]any{"kind": "creature_loyalty_error", "character_id": selectedCharacterID, "error": loyaltyErr.Error()})
+					} else {
+						for _, packet := range loyaltyPackets {
+							if e := sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
+								return
+							}
+						}
+					}
 					if note, closed := legionState.abandonOnLeave("CMD42 dungeon leave", worldState.role.ID); closed {
 						note["id"] = frame.ID
 						event(note)
@@ -3021,6 +3192,47 @@ func main() {
 				plan := entryPayloads{Select: payload, Basic: basic, Addition: addition, Vault: vaultPayload, UserArea: userArea, Area: areaPayload, Fatigue: fatiguePayload, AccountOptions: accountOptions}
 				plan.SecondaryVault = secondaryVaultPayload
 				plan.AccountVault = accountVaultPayload
+				// Restore the persisted category-0 skin state; without owned +
+				// selection frames the inventory CharBG keeps its default NEW
+				// animation. A failed restore aborts this entry rather than
+				// sending a fabricated success state.
+				if characters != nil {
+					skinCtx, skinCancel := context.WithTimeout(context.Background(), 5*time.Second)
+					skinState, skinErr := characters.Store.RestoreProfileSkins(skinCtx, developmentAccount, role.ID)
+					skinCancel()
+					if skinErr == nil {
+						plan.ProfileSkinCargo, plan.ProfileSkinSelection, skinErr = protocol.ProfileSkinRestore(skinState)
+					}
+					if skinErr != nil {
+						event(map[string]any{"kind": "profile_skin_restore_error", "character_id": role.ID, "error": skinErr.Error()})
+						continue
+					}
+				}
+				// Feed the account's damage-font cargo so the panel grid has
+				// something to enumerate. A read failure only drops this frame:
+				// entry must not depend on the skin storage the way the profile
+				// decoration state does.
+				if characters != nil && skinCatalog != nil {
+					cargoCtx, cargoCancel := context.WithTimeout(context.Background(), 5*time.Second)
+					cargo, cargoErr := damageFontCargo(cargoCtx, characters.Store, developmentAccount, skinCatalog)
+					if cargoErr == nil {
+						plan.SkinCargoDamageFont = cargo
+						// The chosen fonts are per character and per panel tab, and
+						// only these frames put them back on the damage numbers.
+						plan.SkinSelectionDamageFontNormal, cargoErr = restoreDamageFontSelection(cargoCtx,
+							characters.Store, role.ID, developmentAccount, skinCatalog,
+							protocol.SkinSelectionDamageFontNormal)
+						if cargoErr == nil {
+							plan.SkinSelectionDamageFontCumulative, cargoErr = restoreDamageFontSelection(cargoCtx,
+								characters.Store, role.ID, developmentAccount, skinCatalog,
+								protocol.SkinSelectionDamageFontCumulative)
+						}
+					}
+					cargoCancel()
+					if cargoErr != nil {
+						event(map[string]any{"kind": "skin_cargo_damage_font_restore_error", "character_id": role.ID, "reason": cargoErr.Error()})
+					}
+				}
 				plan.CubeContract, e = cubeContractRestore(role.State)
 				if e != nil {
 					event(map[string]any{"kind": "cube_contract_restore_error", "character_id": role.ID, "reason": e.Error()})
@@ -3105,6 +3317,97 @@ func main() {
 					}
 				}
 				event(map[string]any{"kind": "entry_skill_lock_prepared", "character_id": role.ID, "count": len(locks), "bytes": len(plan.SkillLocks)})
+				if lootService != nil {
+					// Relocate old stackables before the list-0 inventory snapshot.
+					// A failed relocation rolls back and does not prevent entry.
+					sweepCtx, sweepCancel := context.WithTimeout(context.Background(), 5*time.Second)
+					var applied bool
+					var sweepErr error
+					var sweptRole storage.Character
+					sweptRole, applied, sweepErr = characters.Store.CommitCharacterEvent(sweepCtx, role.AccountID, role.ID, role.ConfigVersion,
+						"stack-slot-resweep", "stack-slot-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+							bag, err := inventory.ReadBag(current.State)
+							if err != nil {
+								return nil, nil, err
+							}
+							fixed, moved, err := inventory.SweepStackSlots(bag, lootService.Catalog, lootService.BagRules)
+							if err != nil {
+								return nil, nil, err
+							}
+							state, err := inventory.SaveBag(current.State, fixed)
+							if err != nil {
+								return nil, nil, err
+							}
+							outcome, err := json.Marshal(map[string]bool{"moved": moved})
+							return state, outcome, err
+						})
+					sweepCancel()
+					if sweepErr != nil {
+						event(map[string]any{"kind": "entry_stack_slot_error", "character_id": role.ID, "error": sweepErr.Error()})
+					} else {
+						role = sweptRole
+						if applied {
+							event(map[string]any{"kind": "entry_stack_slot_swept", "character_id": role.ID})
+						}
+					}
+					petCtx, petCancel := context.WithTimeout(context.Background(), 5*time.Second)
+					petRole, _, petErr := characters.Store.CommitCharacterEvent(petCtx, role.AccountID, role.ID, role.ConfigVersion,
+						"pet-container-resweep", "pet-container-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+							bag, err := inventory.ReadBag(current.State)
+							if err != nil {
+								return nil, nil, err
+							}
+							fixed, _, err := inventory.SweepPetConsumables(bag, lootService.Catalog, lootService.BagRules)
+							if err != nil {
+								return nil, nil, err
+							}
+							state, err := inventory.SaveBag(current.State, fixed)
+							return state, json.RawMessage(`{}`), err
+						})
+					petCancel()
+					if petErr != nil {
+						event(map[string]any{"kind": "entry_pet_container_error", "character_id": role.ID, "error": petErr.Error()})
+					} else {
+						role = petRole
+					}
+				}
+				if wearService != nil && wearService.Catalog != nil {
+					gearCtx, gearCancel := context.WithTimeout(context.Background(), 5*time.Second)
+					gearRole, applied, gearErr := characters.Store.CommitCharacterEvent(gearCtx, role.AccountID, role.ID, role.ConfigVersion,
+						"pet-gear-resweep", "pet-gear-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+							bag, err := inventory.ReadBag(current.State)
+							if err != nil {
+								return nil, nil, err
+							}
+							fixed, _, err := inventory.SweepPetGear(bag, wearService.Catalog)
+							if err != nil {
+								return nil, nil, err
+							}
+							state, err := inventory.SaveBag(current.State, fixed)
+							return state, json.RawMessage(`{}`), err
+						})
+					gearCancel()
+					if gearErr != nil {
+						event(map[string]any{"kind": "entry_pet_gear_error", "character_id": role.ID, "error": gearErr.Error()})
+					} else {
+						role = gearRole
+						if applied {
+							event(map[string]any{"kind": "entry_pet_gear_swept", "character_id": role.ID})
+						}
+					}
+				}
+				loyaltyCtx, loyaltyCancel := context.WithTimeout(context.Background(), 5*time.Second)
+				loyaltyRole, _, loyaltyErr := characters.Store.CommitCharacterEvent(loyaltyCtx, role.AccountID, role.ID, role.ConfigVersion,
+					fmt.Sprintf("creature-loyalty-login:%d", time.Now().UnixNano()), "creature-loyalty-login-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+						state, err := inventory.BeginCreatureLoyaltySession(current.State, time.Now().Unix())
+						return state, json.RawMessage(`{}`), err
+					})
+				loyaltyCancel()
+				if loyaltyErr != nil {
+					event(map[string]any{"kind": "entry_creature_loyalty_error", "character_id": role.ID, "error": loyaltyErr.Error()})
+				} else {
+					role = loyaltyRole
+				}
 				if wearService != nil {
 					plan.Worn, e = inventory.WornPayload(role.State)
 					if e == nil {
@@ -3135,7 +3438,7 @@ func main() {
 						plan.Avatars, e = inventory.EquipmentPayload(1, nil, true)
 					}
 					if e == nil {
-						plan.Creatures, e = inventory.SpecialEquipmentRestorePayload(role.State, 7)
+						plan.Creatures, e = inventory.PetContainerRestorePayload(role.State)
 					}
 					if e == nil {
 						plan.CreatureList, _ = inventory.CreatureListPayload(role.State)
@@ -3157,9 +3460,20 @@ func main() {
 					cancel()
 					if e != nil {
 						event(map[string]any{"kind": "entry_account_materials_error", "error": e.Error()})
-						continue
+						materials = inventory.NewAccountMaterials()
+						fallbackCtx, fallbackCancel := context.WithTimeout(context.Background(), 5*time.Second)
+						if raw, readErr := characters.Store.AccountMaterials(fallbackCtx, role.AccountID); readErr == nil {
+							if savedMaterials, parseErr := inventory.ReadAccountMaterials(raw); parseErr == nil {
+								materials = savedMaterials
+							}
+						}
+						fallbackCancel()
+						e = nil
 					}
 					plan.AccountMaterials, e = accountMaterialSnapshot(materials)
+					if e == nil {
+						plan.RadiantSouls, e = radiantSoulSnapshot(materials)
+					}
 					if e == nil {
 						plan.Inventory, e = lootService.Bootstrap(role)
 					}
@@ -3204,6 +3518,11 @@ func main() {
 					plan.Skills, e = characters.EntrySkills(role)
 					if e != nil {
 						event(map[string]any{"kind": "entry_skills_error", "error": e.Error()})
+						continue
+					}
+					plan.SkillPreset, e = characters.SkillPresetInfo(role)
+					if e != nil {
+						event(map[string]any{"kind": "entry_skill_preset_error", "error": e.Error()})
 						continue
 					}
 				}
@@ -3255,6 +3574,33 @@ func main() {
 					if e = worldState.announceSelf(event); e != nil {
 						event(map[string]any{"kind": "area_presence_error", "error": e.Error()})
 					}
+				}
+				continue
+			}
+			if characters != nil && bootstrapped && frame.ID == 295 {
+				if !verified {
+					event(map[string]any{"kind": "character_slot_rejected", "error": "request checksum or cipher rejected"})
+					return
+				}
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				err := changeRosterSlot(ctx, characters, developmentAccount, selectedCharacterID, plaintext)
+				cancel()
+				payload := protocol.CharacterSlotSuccess()
+				if err != nil {
+					event(map[string]any{"kind": "character_slot_rejected", "error": err.Error()})
+					payload = protocol.Refusal(19)
+				} else {
+					event(map[string]any{"kind": "character_slot_saved", "account_id": developmentAccount, "plain_hex": hex.EncodeToString(plaintext)})
+				}
+				if e := sendPayload(1, 295, payload); e != nil {
+					return
+				}
+				// The native drag already updates its local maps. Do not reload
+				// the roster between the packets of a multi-cell drag operation.
+				// A refused operation leaves those maps ahead of storage; close
+				// this session so it cannot select/archive a different character.
+				if err != nil {
+					return
 				}
 				continue
 			}

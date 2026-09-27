@@ -12,7 +12,7 @@ func TestOrderAwakeningPacketsPlacesVariationAfterCompletion(t *testing.T) {
 		{"skill_variation_response", 1, 29, []byte{0xBB}},
 		{"avatar_restored", 0, 13, []byte{0xCC}},
 	}
-	plan := orderAwakeningPackets([]byte{0x01}, restored, []byte{0x02})
+	plan := orderAwakeningPackets([]byte{0x01}, restored, []byte{0x02}, []byte{0x03})
 	var ids []uint16
 	for _, p := range plan {
 		if len(p.Payload) == 0 {
@@ -20,7 +20,7 @@ func TestOrderAwakeningPacketsPlacesVariationAfterCompletion(t *testing.T) {
 		}
 		ids = append(ids, p.ID)
 	}
-	want := []uint16{2, 2, 13, 19, 2177, 29}
+	want := []uint16{2, 2, 13, 19, 2758, 2177, 29}
 	if len(ids) != len(want) {
 		t.Fatalf("plan ids = %v, want %v", ids, want)
 	}
@@ -35,7 +35,7 @@ func TestOrderAwakeningPacketsPlacesVariationAfterCompletion(t *testing.T) {
 // drops it); ordering must not fabricate a variation frame.
 func TestOrderAwakeningPacketsWithoutVariation(t *testing.T) {
 	restored := []outboundPacket{{"avatar_restored", 0, 13, []byte{0xCC}}}
-	plan := orderAwakeningPackets([]byte{0x01}, restored, []byte{0x02})
+	plan := orderAwakeningPackets([]byte{0x01}, restored, []byte{0x02}, nil)
 	var ids []uint16
 	for _, p := range plan {
 		if len(p.Payload) == 0 {

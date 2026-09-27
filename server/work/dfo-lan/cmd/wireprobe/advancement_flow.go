@@ -83,10 +83,12 @@ func changeGrowType(service *character.Service, w *worldSession, p, keys []byte,
 			{"advancement_job_info", 0, 718, []byte{growType}},
 		}
 		plan = append(plan, restored...)
-		plan = append(plan, []outboundPacket{
-			{"advancement_skills_updated", 0, 19, skills},
-			{"advancement_completed", 1, responseID, protocol.ChangeGrowTypeSuccess()},
-		}...)
+		plan = append(plan, outboundPacket{"advancement_skills_updated", 0, 19, skills})
+		plan, e = appendSkillPresetRestore(plan, service, role, "skill_preset_restored_after_advancement")
+		if e != nil {
+			return nil, e
+		}
+		plan = append(plan, outboundPacket{"advancement_completed", 1, responseID, protocol.ChangeGrowTypeSuccess()})
 		return preparePackets(keys, plan)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

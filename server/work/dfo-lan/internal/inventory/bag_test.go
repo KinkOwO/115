@@ -58,7 +58,7 @@ func TestBagAtomicCapacityAndPreservesState(t *testing.T) {
 	}
 	full := Bag{Version: "ordinary-bag-v1", Gold: math.MaxUint32}
 	for n := 65; n <= 120; n++ {
-		full.Items = append(full.Items, BagItem{Slot: uint16(n), Template: id, Amount: rules.MissingStackLimit})
+		full.Items = append(full.Items, BagItem{Slot: uint16(n), Template: id, Amount: stackLimitFor(rules, c.Items[id].StackableType, c.Items[id].StackLimit)})
 	}
 	before, _ := json.Marshal(full)
 	if _, _, e = full.Add(c, rules, id, 1); e == nil {
@@ -121,5 +121,77 @@ func TestBagCoinWalletAndConsolidation(t *testing.T) {
 	consumed, rem, e := restored.Consume(c, 1, 1)
 	if e != nil || rem != 24 || consumed.Coin != 24 {
 		t.Fatalf("consume coin failed: rem=%d coin=%d err=%v", rem, consumed.Coin, e)
+	}
+}
+
+func TestQuestStackRoutesAndSavedSlotSweep(t *testing.T) {
+	c, err := catalog.LoadLoot("../../configs/loot.next25.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := c.SupplementStackables("../../configs/items.index.json"); err != nil {
+		t.Fatal(err)
+	}
+	rules, err := LoadBagRules("../../configs/inventory.current37.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := c.Items[4790].StackableType; got != "[quest]" {
+		t.Fatalf("quest source changed: %q", got)
+	}
+	bag := Bag{Version: "ordinary-bag-v1"}
+	bag, slot, err := bag.Add(c, rules, 4790, 3)
+	if err != nil || slot != 177 {
+		t.Fatalf("ordinary grant: slot=%d err=%v", slot, err)
+	}
+	mail := MailItem{Stack: &BagItem{Template: 4790, Amount: 2}}
+	bag, err = bag.AddMailItem(c, rules, nil, mail)
+	if err != nil || len(bag.Items) != 1 || bag.Items[0].Amount != 5 {
+		t.Fatalf("mail grant: bag=%+v err=%v", bag.Items, err)
+	}
+	old := Bag{Version: "ordinary-bag-v1", Items: []BagItem{
+		{Slot: 65, Template: 4790, Amount: 3},
+		{Slot: 177, Template: 4790, Amount: 2},
+		{Slot: 121, Template: 10418028, Amount: 5},
+	}}
+	fixed, moved, err := SweepStackSlots(old, c, rules)
+	if err != nil || !moved {
+		t.Fatalf("sweep: moved=%v err=%v", moved, err)
+	}
+	if len(fixed.Items) != 2 || fixed.Items[0].Slot != 177 || fixed.Items[0].Amount != 5 || fixed.Items[1] != old.Items[2] {
+		t.Fatalf("unexpected sweep result: %+v", fixed.Items)
+	}
+	again, moved, err := SweepStackSlots(fixed, c, rules)
+	if err != nil || moved || len(again.Items) != len(fixed.Items) {
+		t.Fatalf("sweep must be idempotent: moved=%v err=%v", moved, err)
+	}
+}
+
+func TestStackSlotSweepPreservesExpiryAndRollsBackWhenFull(t *testing.T) {
+	c, err := catalog.LoadLoot("../../configs/loot.next25.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := c.SupplementStackables("../../configs/items.index.json"); err != nil {
+		t.Fatal(err)
+	}
+	rules, err := LoadBagRules("../../configs/inventory.current37.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := Bag{Version: "ordinary-bag-v1", Items: []BagItem{
+		{Slot: 65, Template: 4790, Amount: 3, ExpireTime: 100},
+		{Slot: 177, Template: 4790, Amount: 2, ExpireTime: 200},
+	}}
+	fixed, moved, err := SweepStackSlots(old, c, rules)
+	if err != nil || !moved || len(fixed.Items) != 2 || fixed.Items[1].Slot != 178 || fixed.Items[1].ExpireTime != 100 {
+		t.Fatalf("expiry changed during sweep: %+v, %v", fixed.Items, err)
+	}
+	for slot := uint16(178); slot <= 232; slot++ {
+		old.Items = append(old.Items, BagItem{Slot: slot, Template: 4790, Amount: 1000, ExpireTime: 200})
+	}
+	result, moved, err := SweepStackSlots(old, c, rules)
+	if err == nil || moved || len(result.Items) != len(old.Items) || result.Items[0] != old.Items[0] {
+		t.Fatalf("full category must preserve saved bag: moved=%v err=%v", moved, err)
 	}
 }

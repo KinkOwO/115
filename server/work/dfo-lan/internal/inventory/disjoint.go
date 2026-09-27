@@ -126,20 +126,17 @@ func (b Bag) Disjoint(
 	// 发放产物
 	for _, template := range rewardOrder {
 		remaining := accumulatedRewards[template]
-		fixedSlot, isAccount := AccountMaterialSlot(template)
+		accountSpace, fixedSlot, isAccount := AccountMaterialTarget(template)
 
 		// 落位与堆叠上限必须和 AddItem / addStackable 用**同一套**规则，否则分解产物
 		// 会出现在"客户端认为不对"的那一栏。旧实现把非账号材料一律塞进材料栏，
 		// 于是 [unlimited waste] 的奥德赛金币/银币（客户端钉在消耗品栏 65..120）
 		// 落到了材料栏 121..176 —— 客户端的分解产物列表根本拿不到它。2026-09-23 修。
 		target := materialSlots
-		limit := r.MissingStackLimit
+		limit := stackLimitFor(r, "", 0)
 		if item, ok := c.Items[template]; ok {
 			target = stackableSlotRange(r, item.StackableType)
 			limit = stackLimitFor(r, item.StackableType, item.StackLimit)
-		}
-		if limit == 0 {
-			limit = 1000
 		}
 		if isAccount {
 			// 账号共享材料仍优先入材料栏槽位（随后 sweep 会迁入 list35）；
@@ -185,6 +182,9 @@ func (b Bag) Disjoint(
 					}
 				}
 				if chosenSlot == 0 {
+					if accountSpace != AccountMaterialSpace {
+						return b, zeroResult, fmt.Errorf("material inventory is full")
+					}
 					chosenSlot = fixedSlot
 					occupied[chosenSlot] = true
 				}

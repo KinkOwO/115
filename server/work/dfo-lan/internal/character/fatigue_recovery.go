@@ -11,8 +11,9 @@ import (
 	"time"
 )
 
-// Client CMD507 is sent only for fatigue potions: the slot's stackable must be
-// an expert town potion (or a nostrum recovery) to be consumed as fatigue fuel.
+// CMD507 action 54 is the observed fatigue-potion form. Other action values
+// (including the quest airship communicator's action 206) use the same opcode.
+// Only an expert town potion or a nostrum recovery can be consumed here.
 func (s *FatigueService) RecoverPotion(ctx context.Context, role storage.Character, c catalog.LootCatalog, slot uint16, now time.Time) (storage.Character, storage.FatigueState, error) {
 	var fp storage.FatigueState
 	b, e := inventory.ReadBag(role.State)

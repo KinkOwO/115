@@ -49,6 +49,22 @@ func (w *worldSession) useStackable(p []byte, event func(map[string]any)) ([]out
 	if e != nil {
 		return nil, e
 	}
+	if r.List == 7 {
+		petBody, err := inventory.PetContainerBody(b, false)
+		if err != nil {
+			return nil, err
+		}
+		creatures, err := inventory.CreatureListPayload(saved.State)
+		if err != nil {
+			return nil, err
+		}
+		w.role = saved
+		return []outboundPacket{
+			{"pet_feed_ack", 1, 44, ack},
+			{"pet_feed_container_updated", 0, 14, petBody},
+			{"pet_feed_creature_list_updated", 0, 105, creatures},
+		}, nil
+	}
 	update, e := protocol.InventoryUpdate(inventory.ChangedItemRows(before, b))
 	if e != nil {
 		return nil, e

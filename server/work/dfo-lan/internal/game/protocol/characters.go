@@ -137,6 +137,7 @@ func EquipmentAppearance(rows []Equipment) ([]byte, error) {
 type CharacterRow struct {
 	Odyssey          bool
 	Slot             uint16
+	FixedSlot        byte // zero: normal list; otherwise one-based fixed grid cell
 	Name             string
 	Profession       byte
 	Advancement      byte
@@ -161,11 +162,18 @@ func CharacterList(capacity uint16, roles []CharacterRow) ([]byte, error) {
 	p = add16(p, 0)
 	p = add32(p, 0)
 	p = add16(p, uint16(len(roles)))
+	fixed := map[byte]bool{}
 	for index, r := range roles {
 		// 0x1401f64d8 builds the native lookup from insertion positions. The
 		// row key and create receipt must use that same zero-based position.
 		if r.Slot != uint16(index) || r.Level == 0 {
 			return nil, fmt.Errorf("invalid character row")
+		}
+		if r.FixedSlot != 0 {
+			if uint16(r.FixedSlot) > capacity || fixed[r.FixedSlot] {
+				return nil, fmt.Errorf("invalid fixed character slot")
+			}
+			fixed[r.FixedSlot] = true
 		}
 		if _, _, e := parseName(addName(nil, r.Name)); e != nil {
 			return nil, e
@@ -196,7 +204,9 @@ func CharacterList(capacity uint16, roles []CharacterRow) ([]byte, error) {
 		if r.Odyssey {
 			mode = 5
 		}
-		p = append(p, 0, 0, mode)
+		// 14563e9b0 stores the first byte at row-info+0x660;
+		// 1401f6340 uses it to restore the fixed grid cell.
+		p = append(p, r.FixedSlot, 0, mode)
 		// 14563ea07 读取的首个 u32 写入 row-info+0x6b4，与进城名望使用同一字段。
 		p = add32(p, r.Fame)
 		for i := 0; i < 3; i++ {

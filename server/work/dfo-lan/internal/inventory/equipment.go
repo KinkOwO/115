@@ -208,6 +208,18 @@ func (c *EquipmentCatalog) RewardType(id uint32) (int32, error) {
 	return kind[1].Value, nil
 }
 
+func (c *EquipmentCatalog) EquipmentKind(id uint32) (string, error) {
+	r, err := c.definitionResolved(id, 0)
+	if err != nil {
+		return "", err
+	}
+	kind := r.Fields["[equipment type]"]
+	if len(kind) == 0 || kind[0].Type != 6 {
+		return "", fmt.Errorf("equipment type missing for %d", id)
+	}
+	return kind[0].Text, nil
+}
+
 // definitionResolved 跟随 [import script] 链补全"薄壳"装备。
 //
 // 真源里大量装备只是引用另一件的基础定义 —— equipment/character/common/jacket/cloth/

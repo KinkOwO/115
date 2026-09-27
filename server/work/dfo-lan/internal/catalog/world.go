@@ -14,6 +14,17 @@ type Portal struct {
 	Area   uint32   `json:"area"`
 }
 
+// PhaseNPC records an NPC row from a town area's source [phase] map.
+// Keeping the map identity makes the placement auditable without embedding
+// every phase map script in the world catalog.
+type PhaseNPC struct {
+	MapPath   string `json:"map_path"`
+	MapSHA256 string `json:"map_sha256"`
+	ID        uint32 `json:"id"`
+	X         uint16 `json:"x"`
+	Y         uint16 `json:"y"`
+}
+
 type WorldArea struct {
 	Town         uint32 `json:"town"`
 	Area         uint32 `json:"area"`
@@ -28,26 +39,33 @@ type WorldArea struct {
 	// the entry gate, so the server has to mirror the min rule or it refuses
 	// source-legal progression travel. Zero means the source defines no
 	// Odyssey value for this area.
-	OdysseyMinimumLevel uint32         `json:"odyssey_minimum_level,omitempty"`
-	Kind                string         `json:"kind"`
-	Definition          []pvf.Token    `json:"definition"`
-	Map              ScriptRecord   `json:"map"`
-	ImportedScripts  []ScriptRecord `json:"imported_scripts,omitempty"`
-	SeriaReturnWarp  bool           `json:"seria_return_warp,omitempty"`
-	ReturnWarpBounds [][4]int32     `json:"return_warp_bounds,omitempty"`
-	Walkable         [][4]int32     `json:"walkable"`
-	Portals          []Portal       `json:"portals"`
-	Imports          []string       `json:"imports,omitempty"`
-	Pending          []string       `json:"pending,omitempty"`
+	OdysseyMinimumLevel uint32 `json:"odyssey_minimum_level,omitempty"`
+	// Older generated catalogs used this field name. Preserve it during a
+	// phase-row refresh so unrelated source data is never discarded.
+	OdysseyEnterLevel uint32         `json:"odyssey_enter_level,omitempty"`
+	Kind              string         `json:"kind"`
+	Definition        []pvf.Token    `json:"definition"`
+	Map               ScriptRecord   `json:"map"`
+	ImportedScripts   []ScriptRecord `json:"imported_scripts,omitempty"`
+	PhaseNPCs         []PhaseNPC     `json:"phase_npcs,omitempty"`
+	SeriaReturnWarp   bool           `json:"seria_return_warp,omitempty"`
+	ReturnWarpBounds  [][4]int32     `json:"return_warp_bounds,omitempty"`
+	Walkable          [][4]int32     `json:"walkable"`
+	Portals           []Portal       `json:"portals"`
+	Imports           []string       `json:"imports,omitempty"`
+	Pending           []string       `json:"pending,omitempty"`
 }
 
 type WorldCatalog struct {
-	Source       pvf.ArchiveSnapshot  `json:"source"`
-	TownIndex    ScriptRecord         `json:"town_index"`
-	Towns        []ScriptRecord       `json:"towns"`
-	Areas        map[string]WorldArea `json:"areas"`
-	DungeonIndex ScriptRecord         `json:"dungeon_index"`
-	Dungeons     []IndexEntry         `json:"dungeons"`
+	Source         pvf.ArchiveSnapshot   `json:"source"`
+	TownIndex      ScriptRecord          `json:"town_index"`
+	Towns          []ScriptRecord        `json:"towns"`
+	Areas          map[string]WorldArea  `json:"areas"`
+	DungeonIndex   ScriptRecord          `json:"dungeon_index"`
+	Dungeons       []IndexEntry          `json:"dungeons"`
+	NPCMoves       []NPCMove             `json:"-"`
+	NPCPlaces      map[uint32][]NPCPlace `json:"-"`
+	EpisodeReturns map[uint32]NPCPlace   `json:"-"`
 }
 
 func AreaKey(town, area uint32) string { return fmt.Sprintf("%d/%d", town, area) }
@@ -176,6 +194,30 @@ func ImportWorld(a *pvf.Archive) (WorldCatalog, error) {
 			if _, ok := w.Areas[key]; ok {
 				return w, fmt.Errorf("duplicate area %s", key)
 			}
+			for _, phase := range sectionCells(area.Definition, "[phase]") {
+				if phase.Type != 6 {
+					area.Pending = append(area.Pending, "unsupported phase map cell")
+					continue
+				}
+				name := strings.ToLower(strings.ReplaceAll(phase.Text, "\\", "/"))
+				if _, found := a.FindFile(name); !found {
+					name = "map/" + strings.TrimPrefix(name, "map/")
+				}
+				phaseMap, phaseErr := ResolveScript(a, name)
+				if phaseErr != nil {
+					area.Pending = append(area.Pending, phaseErr.Error())
+					continue
+				}
+				area.PhaseNPCs = append(area.PhaseNPCs, sourcePhaseNPCs(phaseMap)...)
+				phaseImports, importErr := resolveMapImports(a, phaseMap, map[string]bool{}, 0)
+				if importErr != nil {
+					area.Pending = append(area.Pending, importErr.Error())
+					continue
+				}
+				for _, imported := range phaseImports {
+					area.PhaseNPCs = append(area.PhaseNPCs, sourcePhaseNPCs(imported)...)
+				}
+			}
 			area.Map, e = ResolveScript(a, area.MapPath)
 			if e != nil {
 				area.Pending = append(area.Pending, e.Error())
@@ -250,6 +292,27 @@ func ImportWorld(a *pvf.Archive) (WorldCatalog, error) {
 	return w, e
 }
 
+func sourcePhaseNPCs(script ScriptRecord) []PhaseNPC {
+	var result []PhaseNPC
+	cells := script.Cells
+	for i, c := range cells {
+		if c.Type != 3 || c.Text != "[NPC]" {
+			continue
+		}
+		for i++; i < len(cells) && cells[i].Type != 3; i += 5 {
+			if i+4 >= len(cells) || cells[i].Type != 0 || cells[i+1].Type != 6 ||
+				cells[i+2].Type != 0 || cells[i+3].Type != 0 || cells[i+4].Type != 0 {
+				break
+			}
+			id, x, y := cells[i].Value, cells[i+2].Value, cells[i+3].Value
+			if id > 0 && x >= 0 && x <= 65535 && y >= 0 && y <= 65535 {
+				result = append(result, PhaseNPC{MapPath: script.Path, MapSHA256: script.SHA256, ID: uint32(id), X: uint16(x), Y: uint16(y)})
+			}
+		}
+	}
+	return result
+}
+
 func resolveMapImports(a *pvf.Archive, script ScriptRecord, visiting map[string]bool, depth int) ([]ScriptRecord, error) {
 	if visiting[script.Path] || depth > 16 {
 		return nil, fmt.Errorf("cyclic or excessive map imports at %s", script.Path)
@@ -306,5 +369,10 @@ func LoadWorld(file string) (WorldCatalog, error) {
 			}
 		}
 	}
+	w.NPCMoves, e = loadNPCMoves(file, w.Source.Checksum)
+	if e != nil {
+		return w, e
+	}
+	w.indexNPCTeleports()
 	return w, nil
 }

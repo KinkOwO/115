@@ -1,0 +1,838 @@
+{
+  "generated": "2026-09-26T04:17:52",
+  "noti_helper_present": true,
+  "targets": [
+    {
+      "family": "noti",
+      "id": 1231,
+      "hex": "0x4cf",
+      "name": "DAMAGE_FONT_SKIN_LIST",
+      "string_va": "0x14b010440",
+      "string": "",
+      "slot_va": "0x14ef35b28",
+      "slot_seg": ".data",
+      "slot_qword": "0xffffffffffffffff",
+      "slot_qword_seg": null,
+      "slot_qword_is_code": false,
+      "slot_qword_name": "",
+      "slot_xrefs": [
+        {
+          "ea": "0x14007ab74",
+          "func": "sub_140075000",
+          "func_ea": "0x140075000"
+        }
+      ],
+      "immediate_funcs": [
+        {
+          "ea": "0x141192bc0",
+          "name": "sub_141192BC0"
+        },
+        {
+          "ea": "0x1412327c0",
+          "name": "sub_1412327C0"
+        },
+        {
+          "ea": "0x1422a1d10",
+          "name": "sub_1422A1D10"
+        },
+        {
+          "ea": "0x1422b8c10",
+          "name": "sub_1422B8C10"
+        },
+        {
+          "ea": "0x1422b94d0",
+          "name": "sub_1422B94D0"
+        },
+        {
+          "ea": "0x1422ba250",
+          "name": "sub_1422BA250"
+        },
+        {
+          "ea": "0x1431bf720",
+          "name": "sub_1431BF720"
+        },
+        {
+          "ea": "0x143270b30",
+          "name": "sub_143270B30"
+        },
+        {
+          "ea": "0x143271e50",
+          "name": "sub_143271E50"
+        },
+        {
+          "ea": "0x144fe1eb0",
+          "name": "sub_144FE1EB0"
+        },
+        {
+          "ea": "0x144fe2ae0",
+          "name": "sub_144FE2AE0"
+        },
+        {
+          "ea": "0x145038000",
+          "name": "sub_145038000"
+        },
+        {
+          "ea": "0x145364f50",
+          "name": "sub_145364F50"
+        },
+        {
+          "ea": "0x1453c8620",
+          "name": "sub_1453C8620"
+        },
+        {
+          "ea": "0x1453cdbc0",
+          "name": "sub_1453CDBC0"
+        },
+        {
+          "ea": "0x1453cddb0",
+          "name": "sub_1453CDDB0"
+        },
+        {
+          "ea": "0x1457a7110",
+          "name": "sub_1457A7110"
+        },
+        {
+          "ea": "0x145931980",
+          "name": "sub_145931980"
+        },
+        {
+          "ea": "0x14595b590",
+          "name": "sub_14595B590"
+        },
+        {
+          "ea": "0x14666ce90",
+          "name": "sub_14666CE90"
+        }
+      ],
+      "immediate_func_count": 30
+    },
+    {
+      "family": "noti",
+      "id": 1545,
+      "hex": "0x609",
+      "name": "SKIN_CARGO_INFO",
+      "string_va": "0x14b019800",
+      "string": "",
+      "slot_va": "0x14ef364f8",
+      "slot_seg": ".data",
+      "slot_qword": "0xffffffffffffffff",
+      "slot_qword_seg": null,
+      "slot_qword_is_code": false,
+      "slot_qword_name": "",
+      "slot_xrefs": [
+        {
+          "ea": "0x14007c2c2",
+          "func": "sub_140075000",
+          "func_ea": "0x140075000"
+        }
+      ],
+      "immediate_funcs": [
+        {
+          "ea": "0x140725450",
+          "name": "sub_140725450"
+        },
+        {
+          "ea": "0x14072ac50",
+          "name": "sub_14072AC50"
+        },
+        {
+          "ea": "0x14072cff0",
+          "name": "sub_14072CFF0"
+        },
+        {
+          "ea": "0x141192bc0",
+          "name": "sub_141192BC0"
+        },
+        {
+          "ea": "0x1412327c0",
+          "name": "sub_1412327C0"
+        },
+        {
+          "ea": "0x142f1def0",
+          "name": "sub_142F1DEF0"
+        },
+        {
+          "ea": "0x142f216d0",
+          "name": "sub_142F216D0"
+        },
+        {
+          "ea": "0x1444e81c0",
+          "name": "sub_1444E81C0"
+        },
+        {
+          "ea": "0x14488cf80",
+          "name": "sub_14488CF80"
+        },
+        {
+          "ea": "0x14488d7d0",
+          "name": "sub_14488D7D0"
+        },
+        {
+          "ea": "0x1449b7340",
+          "name": "sub_1449B7340"
+        },
+        {
+          "ea": "0x145013ad0",
+          "name": "sub_145013AD0"
+        },
+        {
+          "ea": "0x14567c390",
+          "name": "sub_14567C390"
+        },
+        {
+          "ea": "0x1457a7110",
+          "name": "sub_1457A7110"
+        },
+        {
+          "ea": "0x146943f50",
+          "name": "sub_146943F50"
+        },
+        {
+          "ea": "0x146951b40",
+          "name": "sub_146951B40"
+        },
+        {
+          "ea": "0x1469521a0",
+          "name": "sub_1469521A0"
+        },
+        {
+          "ea": "0x1469612c0",
+          "name": "sub_1469612C0"
+        },
+        {
+          "ea": "0x146962890",
+          "name": "sub_146962890"
+        },
+        {
+          "ea": "0x146963160",
+          "name": "sub_146963160"
+        }
+      ],
+      "immediate_func_count": 27
+    },
+    {
+      "family": "noti",
+      "id": 1546,
+      "hex": "0x60a",
+      "name": "SELECT_SKIN_LIST",
+      "string_va": "0x14b019890",
+      "string": "",
+      "slot_va": "0x14ef36500",
+      "slot_seg": ".data",
+      "slot_qword": "0xffffffffffffffff",
+      "slot_qword_seg": null,
+      "slot_qword_is_code": false,
+      "slot_qword_name": "",
+      "slot_xrefs": [
+        {
+          "ea": "0x14007c2d5",
+          "func": "sub_140075000",
+          "func_ea": "0x140075000"
+        }
+      ],
+      "immediate_funcs": [
+        {
+          "ea": "0x140309aa0",
+          "name": "sub_140309AA0"
+        },
+        {
+          "ea": "0x140313fa0",
+          "name": "sub_140313FA0"
+        },
+        {
+          "ea": "0x14059f660",
+          "name": "sub_14059F660"
+        },
+        {
+          "ea": "0x140d95b80",
+          "name": "sub_140D95B80"
+        },
+        {
+          "ea": "0x141192bc0",
+          "name": "sub_141192BC0"
+        },
+        {
+          "ea": "0x1412327c0",
+          "name": "sub_1412327C0"
+        },
+        {
+          "ea": "0x14138a5c0",
+          "name": "sub_14138A5C0"
+        },
+        {
+          "ea": "0x141454760",
+          "name": "sub_141454760"
+        },
+        {
+          "ea": "0x141869750",
+          "name": "sub_141869750"
+        },
+        {
+          "ea": "0x14263cd60",
+          "name": "sub_14263CD60"
+        },
+        {
+          "ea": "0x142fbce40",
+          "name": "sub_142FBCE40"
+        },
+        {
+          "ea": "0x1438c36f0",
+          "name": "sub_1438C36F0"
+        },
+        {
+          "ea": "0x14390c130",
+          "name": "sub_14390C130"
+        },
+        {
+          "ea": "0x143b3cf30",
+          "name": "sub_143B3CF30"
+        },
+        {
+          "ea": "0x143b3f3e0",
+          "name": "sub_143B3F3E0"
+        },
+        {
+          "ea": "0x143ea0af0",
+          "name": "sub_143EA0AF0"
+        },
+        {
+          "ea": "0x143ea0b50",
+          "name": "sub_143EA0B50"
+        },
+        {
+          "ea": "0x1444e81c0",
+          "name": "sub_1444E81C0"
+        },
+        {
+          "ea": "0x1447668c0",
+          "name": "sub_1447668C0"
+        },
+        {
+          "ea": "0x14476a320",
+          "name": "sub_14476A320"
+        }
+      ],
+      "immediate_func_count": 40
+    },
+    {
+      "family": "noti",
+      "id": 1547,
+      "hex": "0x60b",
+      "name": "RECENT_ADD_SKIN_LIST",
+      "string_va": "0x14b019910",
+      "string": "",
+      "slot_va": "0x14ef36508",
+      "slot_seg": ".data",
+      "slot_qword": "0xffffffffffffffff",
+      "slot_qword_seg": null,
+      "slot_qword_is_code": false,
+      "slot_qword_name": "",
+      "slot_xrefs": [
+        {
+          "ea": "0x14007c2e8",
+          "func": "sub_140075000",
+          "func_ea": "0x140075000"
+        }
+      ],
+      "immediate_funcs": [
+        {
+          "ea": "0x1401880b0",
+          "name": "sub_1401880B0"
+        },
+        {
+          "ea": "0x1410fd9f0",
+          "name": "sub_1410FD9F0"
+        },
+        {
+          "ea": "0x141192bc0",
+          "name": "sub_141192BC0"
+        },
+        {
+          "ea": "0x1412327c0",
+          "name": "sub_1412327C0"
+        },
+        {
+          "ea": "0x1428c6120",
+          "name": "sub_1428C6120"
+        },
+        {
+          "ea": "0x142e65e00",
+          "name": "sub_142E65E00"
+        },
+        {
+          "ea": "0x1444d1890",
+          "name": "sub_1444D1890"
+        },
+        {
+          "ea": "0x1444e81c0",
+          "name": "sub_1444E81C0"
+        },
+        {
+          "ea": "0x1449d6b10",
+          "name": "sub_1449D6B10"
+        },
+        {
+          "ea": "0x1457a7110",
+          "name": "sub_1457A7110"
+        },
+        {
+          "ea": "0x146ed9550",
+          "name": "sub_146ED9550"
+        },
+        {
+          "ea": "0x146eda3b0",
+          "name": "sub_146EDA3B0"
+        },
+        {
+          "ea": "0x1474e9630",
+          "name": "sub_1474E9630"
+        },
+        {
+          "ea": "0x1476e0120",
+          "name": "sub_1476E0120"
+        },
+        {
+          "ea": "0x14782b210",
+          "name": "sub_14782B210"
+        },
+        {
+          "ea": "0x147994380",
+          "name": "sub_147994380"
+        },
+        {
+          "ea": "0x147adecb0",
+          "name": "sub_147ADECB0"
+        },
+        {
+          "ea": "0x147b29ba0",
+          "name": "sub_147B29BA0"
+        },
+        {
+          "ea": "0x14845f010",
+          "name": "sub_14845F010"
+        },
+        {
+          "ea": "0x14899ee10",
+          "name": "sub_14899EE10"
+        }
+      ],
+      "immediate_func_count": 21
+    },
+    {
+      "family": "cmd",
+      "id": 857,
+      "hex": "0x359",
+      "name": "OPEN_AURA_SKIN_SLOT",
+      "string_va": "0x14b050fd0",
+      "string": "",
+      "slot_va": "0x14ef3aa28",
+      "slot_seg": ".data",
+      "slot_qword": "0xffffffffffffffff",
+      "slot_qword_seg": null,
+      "slot_qword_is_code": false,
+      "slot_qword_name": "",
+      "slot_xrefs": [
+        {
+          "ea": "0x14006db62",
+          "func": "sub_140069BB0",
+          "func_ea": "0x140069bb0"
+        }
+      ],
+      "immediate_funcs": [
+        {
+          "ea": "0x140410a50",
+          "name": "sub_140410A50"
+        },
+        {
+          "ea": "0x141192bc0",
+          "name": "sub_141192BC0"
+        },
+        {
+          "ea": "0x1412327c0",
+          "name": "sub_1412327C0"
+        },
+        {
+          "ea": "0x141a4b270",
+          "name": "sub_141A4B270"
+        },
+        {
+          "ea": "0x1429d6d00",
+          "name": "sub_1429D6D00"
+        },
+        {
+          "ea": "0x142c39760",
+          "name": "sub_142C39760"
+        },
+        {
+          "ea": "0x1433f2a20",
+          "name": "sub_1433F2A20"
+        },
+        {
+          "ea": "0x14344e360",
+          "name": "sub_14344E360"
+        },
+        {
+          "ea": "0x143880630",
+          "name": "sub_143880630"
+        },
+        {
+          "ea": "0x1438830d0",
+          "name": "sub_1438830D0"
+        },
+        {
+          "ea": "0x1438f8dd0",
+          "name": "sub_1438F8DD0"
+        },
+        {
+          "ea": "0x143963a20",
+          "name": "sub_143963A20"
+        },
+        {
+          "ea": "0x143963d20",
+          "name": "sub_143963D20"
+        },
+        {
+          "ea": "0x143963f10",
+          "name": "sub_143963F10"
+        },
+        {
+          "ea": "0x143964340",
+          "name": "sub_143964340"
+        },
+        {
+          "ea": "0x143965630",
+          "name": "sub_143965630"
+        },
+        {
+          "ea": "0x143972270",
+          "name": "sub_143972270"
+        },
+        {
+          "ea": "0x143c64280",
+          "name": "sub_143C64280"
+        },
+        {
+          "ea": "0x143c65540",
+          "name": "sub_143C65540"
+        },
+        {
+          "ea": "0x143cc40d0",
+          "name": "sub_143CC40D0"
+        }
+      ],
+      "immediate_func_count": 34
+    },
+    {
+      "family": "cmd",
+      "id": 1282,
+      "hex": "0x502",
+      "name": "SELECT_DAMAGE_FONT_SKIN",
+      "string_va": "0x14b05a790",
+      "string": "",
+      "slot_va": "0x14ef3b770",
+      "slot_seg": ".data",
+      "slot_qword": "0xffffffffffffffff",
+      "slot_qword_seg": null,
+      "slot_qword_is_code": false,
+      "slot_qword_name": "",
+      "slot_xrefs": [
+        {
+          "ea": "0x14006faed",
+          "func": "sub_140069BB0",
+          "func_ea": "0x140069bb0"
+        }
+      ],
+      "immediate_funcs": [
+        {
+          "ea": "0x1402c1950",
+          "name": "sub_1402C1950"
+        },
+        {
+          "ea": "0x1402c2df0",
+          "name": "sub_1402C2DF0"
+        },
+        {
+          "ea": "0x1402c64a0",
+          "name": "sub_1402C64A0"
+        },
+        {
+          "ea": "0x14072f9e0",
+          "name": "sub_14072F9E0"
+        },
+        {
+          "ea": "0x140730640",
+          "name": "sub_140730640"
+        },
+        {
+          "ea": "0x140efb250",
+          "name": "sub_140EFB250"
+        },
+        {
+          "ea": "0x140efb320",
+          "name": "sub_140EFB320"
+        },
+        {
+          "ea": "0x140efb490",
+          "name": "sub_140EFB490"
+        },
+        {
+          "ea": "0x140efb8e0",
+          "name": "sub_140EFB8E0"
+        },
+        {
+          "ea": "0x140efbd20",
+          "name": "sub_140EFBD20"
+        },
+        {
+          "ea": "0x141192bc0",
+          "name": "sub_141192BC0"
+        },
+        {
+          "ea": "0x1412327c0",
+          "name": "sub_1412327C0"
+        },
+        {
+          "ea": "0x141c57270",
+          "name": "sub_141C57270"
+        },
+        {
+          "ea": "0x1435ad3c0",
+          "name": "sub_1435AD3C0"
+        },
+        {
+          "ea": "0x1435ad810",
+          "name": "sub_1435AD810"
+        },
+        {
+          "ea": "0x1435ae1b0",
+          "name": "sub_1435AE1B0"
+        },
+        {
+          "ea": "0x1439e39f0",
+          "name": "sub_1439E39F0"
+        },
+        {
+          "ea": "0x1439e3c50",
+          "name": "sub_1439E3C50"
+        },
+        {
+          "ea": "0x1439e3ef0",
+          "name": "sub_1439E3EF0"
+        },
+        {
+          "ea": "0x144d7e060",
+          "name": "sub_144D7E060"
+        }
+      ],
+      "immediate_func_count": 33
+    },
+    {
+      "family": "cmd",
+      "id": 1565,
+      "hex": "0x61d",
+      "name": "SELECT_SKIN",
+      "string_va": "0x14b060d90",
+      "string": "",
+      "slot_va": "0x14ef3c048",
+      "slot_seg": ".data",
+      "slot_qword": "0xffffffffffffffff",
+      "slot_qword_seg": null,
+      "slot_qword_is_code": false,
+      "slot_qword_name": "",
+      "slot_xrefs": [
+        {
+          "ea": "0x140070fe7",
+          "func": "sub_140069BB0",
+          "func_ea": "0x140069bb0"
+        }
+      ],
+      "immediate_funcs": [
+        {
+          "ea": "0x141192bc0",
+          "name": "sub_141192BC0"
+        },
+        {
+          "ea": "0x1412327c0",
+          "name": "sub_1412327C0"
+        },
+        {
+          "ea": "0x1427fac20",
+          "name": "sub_1427FAC20"
+        },
+        {
+          "ea": "0x142f20680",
+          "name": "sub_142F20680"
+        },
+        {
+          "ea": "0x14399d590",
+          "name": "sub_14399D590"
+        },
+        {
+          "ea": "0x143cd18b0",
+          "name": "sub_143CD18B0"
+        },
+        {
+          "ea": "0x143cd19d0",
+          "name": "sub_143CD19D0"
+        },
+        {
+          "ea": "0x143cd1b90",
+          "name": "sub_143CD1B90"
+        },
+        {
+          "ea": "0x143cd2e20",
+          "name": "sub_143CD2E20"
+        },
+        {
+          "ea": "0x1444e81c0",
+          "name": "sub_1444E81C0"
+        },
+        {
+          "ea": "0x1444f0fe0",
+          "name": "sub_1444F0FE0"
+        },
+        {
+          "ea": "0x1444f1090",
+          "name": "sub_1444F1090"
+        },
+        {
+          "ea": "0x1444f1310",
+          "name": "sub_1444F1310"
+        },
+        {
+          "ea": "0x1444f1880",
+          "name": "sub_1444F1880"
+        },
+        {
+          "ea": "0x14451e1e0",
+          "name": "sub_14451E1E0"
+        },
+        {
+          "ea": "0x144522cb0",
+          "name": "sub_144522CB0"
+        },
+        {
+          "ea": "0x144a59ea0",
+          "name": "sub_144A59EA0"
+        },
+        {
+          "ea": "0x1457a7110",
+          "name": "sub_1457A7110"
+        },
+        {
+          "ea": "0x14694a060",
+          "name": "sub_14694A060"
+        },
+        {
+          "ea": "0x147093310",
+          "name": "sub_147093310"
+        }
+      ],
+      "immediate_func_count": 24
+    },
+    {
+      "family": "cmd",
+      "id": 1592,
+      "hex": "0x638",
+      "name": "MAKE_SKIN",
+      "string_va": "0x14b0616e8",
+      "string": "",
+      "slot_va": "0x14ef3c120",
+      "slot_seg": ".data",
+      "slot_qword": "0xffffffffffffffff",
+      "slot_qword_seg": null,
+      "slot_qword_is_code": false,
+      "slot_qword_name": "",
+      "slot_xrefs": [
+        {
+          "ea": "0x1400711e8",
+          "func": "sub_140069BB0",
+          "func_ea": "0x140069bb0"
+        }
+      ],
+      "immediate_funcs": [
+        {
+          "ea": "0x1401880b0",
+          "name": "sub_1401880B0"
+        },
+        {
+          "ea": "0x1401d4970",
+          "name": "sub_1401D4970"
+        },
+        {
+          "ea": "0x1401eb630",
+          "name": "sub_1401EB630"
+        },
+        {
+          "ea": "0x1401ec970",
+          "name": "sub_1401EC970"
+        },
+        {
+          "ea": "0x1401ed350",
+          "name": "sub_1401ED350"
+        },
+        {
+          "ea": "0x1401f1140",
+          "name": "sub_1401F1140"
+        },
+        {
+          "ea": "0x1401f2380",
+          "name": "sub_1401F2380"
+        },
+        {
+          "ea": "0x1401f6230",
+          "name": "sub_1401F6230"
+        },
+        {
+          "ea": "0x1401fec80",
+          "name": "sub_1401FEC80"
+        },
+        {
+          "ea": "0x140220030",
+          "name": "sub_140220030"
+        },
+        {
+          "ea": "0x14025a340",
+          "name": "sub_14025A340"
+        },
+        {
+          "ea": "0x14025a690",
+          "name": "sub_14025A690"
+        },
+        {
+          "ea": "0x14025b540",
+          "name": "sub_14025B540"
+        },
+        {
+          "ea": "0x140264130",
+          "name": "sub_140264130"
+        },
+        {
+          "ea": "0x140266be0",
+          "name": "sub_140266BE0"
+        },
+        {
+          "ea": "0x140266d80",
+          "name": "sub_140266D80"
+        },
+        {
+          "ea": "0x140267270",
+          "name": "sub_140267270"
+        },
+        {
+          "ea": "0x1402683f0",
+          "name": "sub_1402683F0"
+        },
+        {
+          "ea": "0x14026a540",
+          "name": "sub_14026A540"
+        },
+        {
+          "ea": "0x14026ab10",
+          "name": "sub_14026AB10"
+        }
+      ],
+      "immediate_func_count": 26
+    }
+  ]
+}
