@@ -4,6 +4,9 @@ import (
 	"context"
 	"dfolan/internal/inventory"
 	"dfolan/internal/storage"
+	"math"
+	"os"
+	"strconv"
 )
 
 // NPCLocator reports where a source NPC stands in the character's current
@@ -15,6 +18,17 @@ type NPCLocator func(npc uint32) ([2]uint16, bool)
 // gates its conversation on its own reach test, which is not recovered; this
 // server-side distance is an explicit local policy, not an official value.
 const ProximityRadius = 180
+
+// NPCDistanceMultiplier expands server-side NPC objective proximity. Invalid
+// values and values below one retain the source/default distances.
+func NPCDistanceMultiplier() float64 {
+	raw := os.Getenv("DFO_QUEST_NPC_DISTANCE_MULTIPLIER")
+	value, err := strconv.ParseFloat(raw, 64)
+	if err != nil || value < 1 || math.IsNaN(value) || math.IsInf(value, 0) {
+		return 1
+	}
+	return value
+}
 
 func nearRadius(a, b uint16, radius int) bool {
 	d := int(a) - int(b)
@@ -29,7 +43,8 @@ func nearNPCWithin(npc uint32, at storage.WorldPosition, locate NPCLocator, radi
 		return false
 	}
 	p, ok := locate(npc)
-	return ok && nearRadius(at.X, p[0], radius) && nearRadius(at.Y, p[1], radius)
+	limit := math.Min(65535, math.Ceil(float64(radius)*NPCDistanceMultiplier()))
+	return ok && nearRadius(at.X, p[0], int(limit)) && nearRadius(at.Y, p[1], int(limit))
 }
 
 func nearNPC(npc uint32, at storage.WorldPosition, locate NPCLocator) bool {
@@ -49,8 +64,9 @@ func nearNPCReach(r NPCReachObjective, at storage.WorldPosition, locate NPCLocat
 	}
 	dx := int64(at.X) - int64(p[0])
 	dy := int64(at.Y) - int64(p[1])
-	return 2*dx >= -int64(r.W) && 2*dx <= int64(r.W) &&
-		2*dy >= -int64(r.H) && 2*dy <= int64(r.H)
+	multiplier := NPCDistanceMultiplier()
+	return math.Abs(float64(dx)) <= float64(r.W)*multiplier/2 &&
+		math.Abs(float64(dy)) <= float64(r.H)*multiplier/2
 }
 
 // holds reports whether the bag already carries every required item. Quest
@@ -89,7 +105,7 @@ func holds(b inventory.Bag, need []ItemNeed) bool {
 // the primary path for [meet npc]; this walk is what keeps a chain moving
 // when that request is not observed, and it never invents a completion — the
 // character has to actually be at the source coordinates.
-func (s *Service) ProximityProgress(ctx context.Context, role storage.Character, at storage.WorldPosition, locate NPCLocator) ([]uint16, error) {
+func (s *Service) ProximityProgress(ctx context.Context, role storage.Character, at storage.WorldPosition, locate, phaseLocate NPCLocator) ([]uint16, error) {
 	states, e := s.Store.Quests(ctx, role.AccountID, role.ID)
 	if e != nil {
 		return nil, e
@@ -111,6 +127,11 @@ func (s *Service) ProximityProgress(ctx context.Context, role storage.Character,
 			satisfied = nearNPC(en.NPC, at, locate)
 		case ReachNPC:
 			satisfied = nearNPCReach(en.NPCReach, at, locate)
+			// Phase-map NPCs are only usable for accepted range objectives;
+			// their source placement is not proof of a visible dialogue NPC.
+			if !satisfied {
+				satisfied = nearNPCReach(en.NPCReach, at, phaseLocate)
+			}
 		case SingleReachRange:
 			satisfied = en.Range.Contains(at)
 		case SeekAndMeetNPC:

@@ -12,6 +12,7 @@ import (
 	"dfolan/internal/world"
 	"encoding/binary"
 	"fmt"
+	"math"
 	"os"
 	"time"
 )
@@ -371,8 +372,9 @@ func questReachNPCAtSourcePlacement(service *world.Service, at storage.WorldPosi
 	}
 	dx := int64(at.X) - int64(position[0])
 	dy := int64(at.Y) - int64(position[1])
-	return dx >= -int64(r.W) && dx <= int64(r.W) &&
-		dy >= -int64(r.H) && dy <= int64(r.H)
+	multiplier := quest.NPCDistanceMultiplier()
+	return math.Abs(float64(dx)) <= float64(r.W)*multiplier &&
+		math.Abs(float64(dy)) <= float64(r.H)*multiplier
 }
 
 func questLineageShowsNPC(d catalog.QuestDefinition, npc uint32, at storage.WorldPosition, quests catalog.QuestCatalog, requireGuide, allowCurrentClearHide bool) bool {

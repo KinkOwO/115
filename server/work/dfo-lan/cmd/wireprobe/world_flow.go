@@ -512,6 +512,8 @@ func (w *worldSession) settleProximityObjectives(ctx context.Context, send func(
 	}
 	advanced, e := w.quests.ProximityProgress(ctx, w.role, w.state.Position, func(npc uint32) ([2]uint16, bool) {
 		return w.service.NPCPosition(w.state.Position, npc)
+	}, func(npc uint32) ([2]uint16, bool) {
+		return w.service.PhaseNPCPosition(w.state.Position, npc)
 	})
 	if e != nil {
 		event(map[string]any{"kind": "quest_proximity_error", "character_id": w.role.ID, "error": e.Error()})

@@ -373,6 +373,11 @@ func TestPathToMtHardtNativeReachUsesStationNPC(t *testing.T) {
 			t.Fatalf("source NPC reach accepted outside its area or extents: %+v", position)
 		}
 	}
+	t.Setenv("DFO_QUEST_NPC_DISTANCE_MULTIPLIER", "2")
+	if !questReachNPCAtSourcePlacement(svc, storage.WorldPosition{Town: 40, Area: 4, X: 800, Y: 242}, r) ||
+		questReachNPCAtSourcePlacement(svc, storage.WorldPosition{Town: 40, Area: 3, X: 800, Y: 242}, r) {
+		t.Fatal("expanded native reach ignored source area or distance")
+	}
 }
 
 // 客户端 CMD33 的形态（u16 33 / u16 quest / 其余 12 字节 0）之外的一律拒绝。

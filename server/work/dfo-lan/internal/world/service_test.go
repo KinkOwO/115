@@ -9,6 +9,24 @@ import (
 	"testing"
 )
 
+func TestSiroccoCentralTentPhaseNPCPlacement(t *testing.T) {
+	cat, err := catalog.LoadWorld("../../configs/world.generated.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc := &Service{Catalog: cat}
+	at := storage.WorldPosition{Town: 40, Area: 3, X: 515, Y: 160}
+	if _, found := svc.NPCPosition(at, 100000374); found {
+		t.Fatal("Sirocco target unexpectedly became a base-map NPC")
+	}
+	if position, found := svc.PhaseNPCPosition(at, 100000374); !found || position != [2]uint16{515, 114} {
+		t.Fatalf("Sirocco phase NPC placement changed: %v, %v", position, found)
+	}
+	if _, found := svc.PhaseNPCPosition(storage.WorldPosition{Town: 40, Area: 2}, 100000374); found {
+		t.Fatal("phase NPC leaked into another area")
+	}
+}
+
 func TestPandemoniumJunctionNativeZeroLanding(t *testing.T) {
 	cat, err := catalog.LoadWorld("../../configs/world.generated.json")
 	if err != nil {
