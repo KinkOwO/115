@@ -108,3 +108,52 @@ func TestTerminalSceneUsesCatalogInsteadOfQuestIDs(t *testing.T) {
 		t.Fatal("terminal scene from a different PVF source was accepted")
 	}
 }
+
+func TestTerminalSceneAcceptsSourceCinematicBossDestroy(t *testing.T) {
+	const objectiveMap uint32 = 292106929
+	const finalMap uint32 = 100000295
+	const bossTemplate uint32 = 109010772
+	c := catalog.DungeonCatalog{
+		Maps: map[uint32]catalog.ScriptRecord{finalMap: {SHA256: "final-map"}},
+		TerminalScenes: []catalog.DungeonTerminalScene{{
+			Source: "source", Dungeon: 100000006, Maze: 3, Quest: 12165,
+			Position: [2]byte{2, 2}, ObjectiveMap: objectiveMap, FinalMap: finalMap,
+			XMin: 476, XMax: 476, YMin: 300, YMax: 300,
+			DungeonSHA256: "dungeon", MapSHA256: "final-map",
+			ObjectiveCinematicDestroyTemplate: bossTemplate,
+		}},
+	}
+	c.Source.Checksum = "source"
+	boss := protocol.DungeonMonster{Entity: 0x1020, Template: bossTemplate, Team: 100, Rank: 3}
+	s := &Session{
+		Definition: catalog.DungeonDefinition{ID: 100000006, Script: catalog.ScriptRecord{SHA256: "dungeon"}},
+		Maze: catalog.DungeonMaze{Index: 3, Quest: 12165, Layers: []catalog.DungeonLayer{{
+			Position: [2]byte{2, 2}, Maps: []uint32{finalMap},
+		}}},
+		Room: catalog.DungeonRoom{X: 2, Y: 2, Map: finalMap, Boss: true}, Loaded: true,
+		Visited: map[uint32][]protocol.DungeonMonster{objectiveMap: {boss}},
+		Dead:    map[uint16]bool{},
+	}
+	r := protocol.DungeonRoomTransition{
+		Dungeon: 100000006, Position: [2]byte{2, 2}, LayerChange: true,
+		Record: [18]byte{0, 0, 0, 0, 4, 5, 0xdc, 0x01, 0x2c, 0x01},
+	}
+	next, err := s.MoveScene(c, r)
+	if err != nil || next.Room.Map != finalMap || next.Loaded {
+		t.Fatalf("source cinematic boss destroy should permit the closing scene: next=%+v err=%v", next, err)
+	}
+	next.Loaded = true
+	next.TryComplete()
+	if !next.Completed() {
+		t.Fatal("accepted closing scene did not complete the quest run")
+	}
+	c.TerminalScenes[0].ObjectiveCinematicDestroyTemplate = 0
+	if _, err := s.MoveScene(c, r); err == nil {
+		t.Fatal("missing cinematic destroy evidence accepted a live boss")
+	}
+	c.TerminalScenes[0].ObjectiveCinematicDestroyTemplate = bossTemplate
+	s.Visited[objectiveMap] = append(s.Visited[objectiveMap], protocol.DungeonMonster{Entity: 0x1021, Team: 100})
+	if _, err := s.MoveScene(c, r); err == nil {
+		t.Fatal("cinematic evidence for one boss accepted another live enemy")
+	}
+}

@@ -20,6 +20,16 @@ func TestCurrentTerminalSceneExportMatchesDungeonSource(t *testing.T) {
 	if !found {
 		t.Fatal("confirmed closing scene missing from current source export")
 	}
+	foundCinematicBoss := false
+	for _, scene := range c.TerminalScenes {
+		if scene.Quest == 12165 && scene.ObjectiveMap == 292106929 && scene.FinalMap == 100000295 &&
+			scene.ObjectiveCinematicDestroyTemplate == 109010772 {
+			foundCinematicBoss = true
+		}
+	}
+	if !foundCinematicBoss {
+		t.Fatal("Oculus cinematic boss destroy missing from current source export")
+	}
 	c.Source.Checksum = "different-pvf"
 	if err := AttachTerminalScenes(&c, "../../configs/dungeons.terminal-scenes.json"); err == nil {
 		t.Fatal("accepted stale terminal scenes after a PVF change")

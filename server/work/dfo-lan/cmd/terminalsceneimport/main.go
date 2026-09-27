@@ -138,7 +138,8 @@ func run(archivePath, dungeonsPath, questsPath, output string) error {
 					scenes = append(scenes, catalog.DungeonTerminalScene{
 						Source: d.Source.Checksum, Dungeon: def.ID, Maze: maze.Index, Quest: maze.Quest, Position: layer.Position,
 						ObjectiveMap: objective, FinalMap: final, XMin: xmin, XMax: xmax, YMin: ymin, YMax: ymax,
-						DungeonSHA256: def.Script.SHA256, MapSHA256: m.SHA256, ActionSHA256: action.SHA256,
+						ObjectiveCinematicDestroyTemplate: cinematicDestroyedObjective(a, paths, d.Maps[objective], objective),
+						DungeonSHA256:                     def.Script.SHA256, MapSHA256: m.SHA256, ActionSHA256: action.SHA256,
 						CinematicSHA256: cmt.SHA256, CinematicPath: cmt.Path,
 					})
 				}
@@ -169,6 +170,88 @@ func run(archivePath, dungeonsPath, questsPath, output string) error {
 	}
 	fmt.Printf("exported %d terminal scenes to %s\n", len(scenes), output)
 	return nil
+}
+
+// cinematicDestroyedObjective recognizes a sole source boss removed by its
+// own map action. That removal has no corresponding native monster-death CMD.
+func cinematicDestroyedObjective(a *pvf.Archive, paths map[uint32]string, m catalog.ScriptRecord, mapID uint32) uint32 {
+	var template uint32
+	count := 0
+	var actionPath string
+	for i, t := range m.Cells {
+		if t.Type == 3 && t.Text == "[monster]" {
+			count++
+			boss := false
+			for j := i + 1; j < len(m.Cells) && m.Cells[j].Text != "[/monster]"; j++ {
+				boss = boss || m.Cells[j].Text == "[boss]"
+			}
+			if boss && i+1 < len(m.Cells) && m.Cells[i+1].Type == 0 && m.Cells[i+1].Value > 0 {
+				template = uint32(m.Cells[i+1].Value)
+			}
+		}
+		if t.Type == 3 && t.Text == "[basic action]" && i+1 < len(m.Cells) && m.Cells[i+1].Type == 6 {
+			actionPath = path.Join(path.Dir(m.Path), strings.ReplaceAll(m.Cells[i+1].Text, "\\", "/"))
+		}
+	}
+	if count != 1 || template == 0 || actionPath == "" {
+		return 0
+	}
+	action, err := catalog.ResolveScript(a, actionPath)
+	if err != nil {
+		return 0
+	}
+	for i, t := range action.Cells {
+		if t.Type != 3 || t.Text != "[CINEMATIC]" || i+1 >= len(action.Cells) || action.Cells[i+1].Type != 0 {
+			continue
+		}
+		cmtPath := paths[uint32(action.Cells[i+1].Value)]
+		if cmtPath == "" {
+			continue
+		}
+		cmt, err := catalog.ResolveScript(a, cmtPath)
+		if err != nil || !cinematicDestroysSoleMonster(cmt.Cells, mapID) {
+			continue
+		}
+		return template
+	}
+	return 0
+}
+
+func cinematicDestroysSoleMonster(cells []pvf.Token, mapID uint32) bool {
+	mapMatched := false
+	actorZero := false
+	for i, t := range cells {
+		if t.Type != 3 {
+			continue
+		}
+		if t.Text == "[MAP]" && i+1 < len(cells) && cells[i+1].Type == 0 {
+			mapMatched = uint32(cells[i+1].Value) == mapID
+		}
+		if t.Text == "[ACTOR]" {
+			actorZero = false
+			monster, indexZero := false, false
+			for j := i + 1; j < len(cells) && cells[j].Text != "[/ACTOR]"; j++ {
+				if cells[j].Text == "[TYPE]" && j+1 < len(cells) && cells[j+1].Text == "[MONSTER]" {
+					monster = true
+				}
+				if cells[j].Text == "[INDEX]" && j+1 < len(cells) && cells[j+1].Type == 0 && cells[j+1].Value == 0 {
+					indexZero = true
+				}
+			}
+			actorZero = monster && indexZero
+		}
+		if t.Text == "[/SCENE]" {
+			actorZero = false
+		}
+		if actorZero && t.Text == "[DESTROY]" && i+1 < len(cells) {
+			for j := i + 1; j < len(cells) && cells[j].Text != "[/DESTROY]"; j++ {
+				if cells[j].Text == "[IS REWARD]" && j+1 < len(cells) && cells[j+1].Type == 0 && cells[j+1].Value == 1 {
+					return mapMatched
+				}
+			}
+		}
+	}
+	return false
 }
 
 func changeMapArea(c []pvf.Token) (uint16, uint16, uint16, uint16, bool) {

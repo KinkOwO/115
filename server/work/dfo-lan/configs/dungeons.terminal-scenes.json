@@ -43,7 +43,8 @@
       "map_sha256": "4e391744291f204257c2e034d1970ea72b6107514cc1a91485149a904f481491",
       "action_sha256": "637f4ce3629ffc56030ce89a035d97e246bb948e6e2d96d4dc64c27a9087e276",
       "cinematic_sha256": "6e397cd240a7ab6742b49843e59d5eb595469c63fc01ed1c860970da07b0d834",
-      "cinematic_path": "cinematic/dungeon/kcontents2/theoculus/scenario/14046.cmt"
+      "cinematic_path": "cinematic/dungeon/kcontents2/theoculus/scenario/14046.cmt",
+      "objective_cinematic_destroy_template": 109010772
     },
     {
       "source": "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80",

@@ -50,7 +50,13 @@ func (s *Session) terminalSceneRevisit(c catalog.DungeonCatalog, r protocol.Dung
 		}
 		for _, m := range objective {
 			if m.Team != 0 && !m.NonCombat && !s.Dead[m.Entity] {
-				return false
+				// The source cinematic can destroy its sole boss without a CMD39.
+				// This exception is imported only when that exact source action
+				// and cinematic contain the matching monster DESTROY event.
+				if len(objective) != 1 || scene.ObjectiveCinematicDestroyTemplate == 0 ||
+					m.Template != scene.ObjectiveCinematicDestroyTemplate {
+					return false
+				}
 			}
 		}
 		return true

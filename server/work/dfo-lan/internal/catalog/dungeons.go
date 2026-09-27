@@ -87,6 +87,11 @@ type DungeonTerminalScene struct {
 	ActionSHA256    string  `json:"action_sha256"`
 	CinematicSHA256 string  `json:"cinematic_sha256"`
 	CinematicPath   string  `json:"cinematic_path"`
+
+	// Some objective bosses are destroyed by the map's own cinematic instead
+	// of a separate monster-death report. The importer records the sole boss
+	// template only when the source action and cinematic prove that sequence.
+	ObjectiveCinematicDestroyTemplate uint32 `json:"objective_cinematic_destroy_template,omitempty"`
 }
 
 // DungeonSceneRoute is generated from the maze order and original CMT/ACT landing area.
