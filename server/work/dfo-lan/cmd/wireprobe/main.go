@@ -90,7 +90,30 @@ func main() {
 	apocalypseCatalogFile := flag.String("apocalypse-catalog", "configs/apocalypse.generated.json", "compiled apocalypse.ctp table (phase clock, operations, gates, rewards, duty skills)")
 	attunementRewardsFile := flag.String("attunement-rewards", os.Getenv("DFO_ATTUNEMENT_REWARDS"), "boundary-of-attunement reward table generated from the source rewardboostinfo CTPs")
 	boosterGageHide := flag.Bool("booster-gage-hide", os.Getenv("DFO_BOOSTER_GAGE") != "0", "send NOTI398 booster-gage with displayValue=0 on town entry to hide the top-left Liberation Trace panel; disable with -booster-gage-hide=false or DFO_BOOSTER_GAGE=0")
+	oathGrades := flag.String("oath-grades", os.Getenv("DFO_OATH_GRADES"), "下发给客户端的引子/誓约档位 primer,oath（见 oath_info.go）；默认 45,45 = 第四档「太初」")
+	oathInject := flag.String("oath-inject", os.Getenv("DFO_OATH_INJECT"), "诊断用：向客户端注入任意 noti 的候选列表，形式 id:size:fill;off:val,...（见 oath_probe.go）；默认空 = 关闭")
+	omenHoldDefault := -1
+	if v := os.Getenv("DFO_OMEN_HOLD"); v != "" {
+		if n, convErr := strconv.Atoi(v); convErr == nil {
+			omenHoldDefault = n
+		}
+	}
+	omenHold := flag.Int("omen-hold", omenHoldDefault, "诊断：把玩家直接放到指定征兆阶段(0-4)，-1 = 不动；只用来验证保底，不改任何掉落规则")
+	omenRewards := flag.Bool("omen-rewards", os.Getenv("DFO_OMEN_REWARDS") == "1", "千海之空深渊的征兆系统：通关时按 [coupon drop table] 的阶段表累积并结算（见 internal/loot/omen.go）。默认关闭")
+	scaleDeathFromHP := flag.Bool("scale-death-from-hp", os.Getenv("DFO_SCALE_DEATH_FROM_HP") == "1", "boundary-of-attunement 定盘机关(109019266)的兜底判死：它血量触底时服务端合成一条死亡上报，不再依赖引擎那两个恒为 72 的 rarity 天花板；默认关闭")
 	flag.Parse()
+	oathGradePair, oathGradesErr := parseOathGrades(*oathGrades)
+	if oathGradesErr != nil {
+		log.Fatalf("bad -oath-grades: %v", oathGradesErr)
+	}
+	log.Printf("oath grades: primer=%d oath=%d", oathGradePair[0], oathGradePair[1])
+	oathInjectSpecs, oathInjectErr := parseOathInject(*oathInject)
+	if oathInjectErr != nil {
+		log.Fatalf("bad -oath-inject: %v", oathInjectErr)
+	}
+	if len(oathInjectSpecs) > 0 {
+		log.Printf("oath injector armed: %d candidate notification(s)", len(oathInjectSpecs))
+	}
 	if *fullEquipmentFile == "" {
 		for _, cand := range []string{
 			"configs/equipment-full",
@@ -942,17 +965,39 @@ func main() {
 			log.Fatal("attunement rewards need -booster-catalog: the table pays wrappers, and without the box catalog they cannot be opened at drop time")
 		}
 		boxes := boosterBoxSource{catalog: boosterCatalog}
-		empties, e := attunement.ValidateBoxes(boxes)
+		empties, unopenable, e := attunement.ValidateBoxes(boxes)
 		if e != nil {
 			log.Fatal(e)
 		}
+		if len(unopenable) > 0 {
+			log.Printf("warning: attunement rewards name %d box(es) this build cannot open; they will not be paid: %v", len(unopenable), unopenable)
+		}
 		lootService.Attunement = attunement
 		lootService.RewardBoxes = boxes
+		// 征兆系统（omen）。默认关闭：它改变通关的产出，而首次实机验证还没做，
+		// 所以打开它必须是显式的一步，而不是跟着奖励表悄悄上线。
+		if *omenRewards {
+			if e := attunement.ValidateOmen(); e != nil {
+				log.Fatal(e)
+			}
+			lootService.Omen = loot.NewOmenLedger(attunement)
+			for _, d := range attunement.Dungeons() {
+				if n := attunement.OmenStagesCount(d); n > 0 {
+					log.Printf("omen system on dungeon %d: %d stage(s), %d reward template(s)", d, n, len(attunement.OmenTemplates()))
+				}
+			}
+		}
 		// 空槽是源的合法面（CTP 用一个没有脚本的保留 id 表示"本次没有"），但
 		// "本次没有"和"目录缺了这个物品"在这里长得一模一样，所以把它打出来。
 		log.Printf("attunement reward wrappers open one layer; %d empty-face templates: %v", len(empties), empties)
 		log.Printf("loaded attunement rewards (%d dungeons %v, %d reward templates) from %s",
 			len(attunement.Dungeons()), attunement.Dungeons(), len(attunement.Templates()), *attunementRewardsFile)
+		// [coupon drop table] 就是征兆系统的阶段表（见 internal/loot/omen.go）。
+		// 开关关着时把它明确打出来，让「导入了但没接线」保持可见，而不是让玩家
+		// 以为那几行已经在出货。
+		if n := attunement.Coupons(); n > 0 && !*omenRewards {
+			log.Printf("attunement reward tables carry %d [coupon drop table] row(s) = omen stages; -omen-rewards is off, so no roll uses them", n)
+		}
 	} else {
 		log.Printf("warning: no attunement reward table; boundary-of-attunement clears pay no exclusive reward")
 	}
@@ -1120,7 +1165,7 @@ func main() {
 		legionState.clock = apocalypseClock
 		legionState.channelType = channelTypes[channel]
 		if worldService != nil {
-			worldState = &worldSession{characters: characters, service: worldService, account: developmentAccount, flags: townPolicy.Flags, dungeons: dungeonCatalog, tutorials: tutorialRoutes, tutorialDungeons: tutorialDungeons, professions: characters.Catalog, fatigue: fatigueService, quests: questService, progression: progressionService, loot: lootService, selectionBoxes: selectionBoxes, vault: vaultService, soloPartyBootstrap: *soloPartyBootstrap, hub: hub}
+			worldState = &worldSession{characters: characters, service: worldService, account: developmentAccount, flags: townPolicy.Flags, dungeons: dungeonCatalog, tutorials: tutorialRoutes, tutorialDungeons: tutorialDungeons, professions: characters.Catalog, fatigue: fatigueService, quests: questService, progression: progressionService, loot: lootService, selectionBoxes: selectionBoxes, vault: vaultService, soloPartyBootstrap: *soloPartyBootstrap, hub: hub, scaleDeathFromHP: *scaleDeathFromHP, oathGrades: oathGradePair, oathInject: oathInjectSpecs, omenHold: *omenHold}
 			worldState.serverID = channelCfg.ServerID
 		}
 		if worldState != nil {
@@ -2245,6 +2290,8 @@ func main() {
 				case 39:
 					worldState.completionErr = nil
 					plan, e = worldState.monsterDeath(plaintext, event)
+				case 2329:
+					plan, e = worldState.scaleStatus(plaintext, event)
 				case 40:
 					plan, e = worldState.playerDeath(plaintext, frame.Raw)
 				case 43:

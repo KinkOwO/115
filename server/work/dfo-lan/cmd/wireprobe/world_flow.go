@@ -27,23 +27,45 @@ type worldSession struct {
 	// odyssey mirrors character.OdysseyRole for this session. It selects which
 	// source level gate the world service applies: an Arad Odyssey character
 	// follows the client's [odyssey enter level] instead of [need level].
-	odyssey            bool
-	state              storage.WorldState
-	flags              [3]byte
-	dungeons           *catalog.DungeonCatalog
-	tutorials          *catalog.TutorialCatalog
-	tutorialDungeons   *catalog.DungeonCatalog
-	professions        catalog.Characters
-	inTutorial         bool
-	fatigue            *character.FatigueService
-	lastFatigueDay     string
-	quests             *quest.Service
-	progression        *character.ProgressionService
-	loot               *loot.Service
-	selectionBoxes     *catalog.SelectionBoxes
-	vault              *inventory.VaultService
-	drops              *loot.Session
-	deathSent          map[uint16]bool
+	odyssey          bool
+	state            storage.WorldState
+	flags            [3]byte
+	dungeons         *catalog.DungeonCatalog
+	tutorials        *catalog.TutorialCatalog
+	tutorialDungeons *catalog.DungeonCatalog
+	professions      catalog.Characters
+	inTutorial       bool
+	fatigue          *character.FatigueService
+	lastFatigueDay   string
+	quests           *quest.Service
+	progression      *character.ProgressionService
+	loot             *loot.Service
+	selectionBoxes   *catalog.SelectionBoxes
+	vault            *inventory.VaultService
+	drops            *loot.Session
+	deathSent        map[uint16]bool
+	// scaleDeathFromHP 打开「定盘机关血量触底时由服务端宣布它死亡」这条兜底路径
+	// （见 scale_death.go）。默认关闭，开启方式是 -scale-death-from-hp
+	// 或 DFO_SCALE_DEATH_FROM_HP=1。
+	scaleDeathFromHP bool
+	scaleHP          map[uint32]float64
+	scaleForced      map[uint16]bool
+	// oathGrades 是本会话下发的两个引子/誓约档位（noti 2838 的载荷），见 oath_info.go。
+	oathGrades [2]uint16
+	// oathInject 是本轮要注入给客户端的候选通知（诊断用，默认空），见 oath_probe.go。
+	oathInject []oathInjectSpec
+	// oathNext 是注入队列的游标：每进一次副本推进一格，见 oathInjectNext。
+	oathNext int
+	// omenHold 是诊断入口：把玩家直接放到指定征兆阶段，省掉刷场次（-1 = 不动）。
+	// 它只在会话里生效一次，之后仍按通关正常累积/结算。
+	omenHold        int
+	omenHoldApplied bool
+	// omenReported 是本会话已经记过事件的征兆结算序号（见 noteOmenClear）。
+	omenReported uint64
+	// scaleRun 是上面两张表所归属的副本运行号。同一会话里重进副本会把 entity 从
+	// 0x1000 重新发一遍，只按 entity 去重会让第二场之后再也不可能判死（实战踩过），
+	// 所以换 RunID 时必须整表清空。
+	scaleRun           string
 	activeDungeon      *dungeon.Session
 	selectingDungeon   bool
 	completionSent     bool

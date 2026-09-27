@@ -1,6 +1,7 @@
 package main
 
 import (
+	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
 	"encoding/json"
 	"fmt"
@@ -185,6 +186,7 @@ func main() {
 	pvfPath := "runtime/pvf_source/Script.inner.pvf"
 	indexPath := "configs/items.index.json"
 	outPath := "configs/booster-catalog.json"
+	groupsPath := "etc/dungeondroptablebygroup.etc"
 
 	data, err := os.ReadFile(indexPath)
 	if err != nil {
@@ -203,18 +205,34 @@ func main() {
 		}
 	}
 
+	groups := loadSmartDropGroups(a, groupsPath)
+
 	result := make(map[string]BoosterDefinition)
 	count := 0
+	substituted := 0
+	var sealed []uint32   // structural containers the type test cannot see -> entry without pools
+	var unresolved []uint32 // [booster]-typed bodies this build still cannot parse -> reported, never silent
+	var unreadable []uint32
 	t0 := time.Now()
 
 	for idStr, item := range idx.Items {
-		isBooster := strings.Contains(item.StackableType, "booster")
-		isPkg := strings.Contains(item.StackableType, "package")
-		if !isBooster && !isPkg {
+		if item.Kind != "stackable" || !strings.HasPrefix(item.Path, "stackable/") {
 			continue
 		}
 		cells, err := a.Tokens(item.Path)
 		if err != nil {
+			// An item the archive cannot hand over is worth knowing about, but it is
+			// not a container decision; only count the ones we expected to be boxes.
+			if strings.Contains(item.StackableType, "booster") {
+				unreadable = append(unreadable, item.ID)
+			}
+			continue
+		}
+		// Structural test first: the section is what makes a box, not the type string.
+		hasInfo := declaresSection(cells, "[booster info]")
+		isBooster := strings.Contains(item.StackableType, "booster")
+		isPkg := strings.Contains(item.StackableType, "package")
+		if !hasInfo && !isBooster && !isPkg {
 			continue
 		}
 		pools := parseBoosterInfo(cells)
@@ -222,12 +240,23 @@ func main() {
 			pools = parsePackageData(cells)
 		}
 		if len(pools) > 0 {
+			pools = resolveSmartDrop(pools, sectionNumber(cells, "[smart drop group id]"), groups, &substituted)
 			result[idStr] = BoosterDefinition{
 				Template: item.ID,
 				Type:     item.StackableType,
 				Pools:    pools,
 			}
 			count++
+			continue
+		}
+		switch {
+		case hasInfo && !isBooster:
+			// A container the type test misses. It must not reach the ground, and
+			// the only way the drop layer can know that is to see it here.
+			result[idStr] = BoosterDefinition{Template: item.ID, Type: item.StackableType}
+			sealed = append(sealed, item.ID)
+		case hasInfo:
+			unresolved = append(unresolved, item.ID)
 		}
 	}
 
@@ -240,5 +269,120 @@ func main() {
 	}
 
 	fmt.Printf("Exported %d booster definitions to %s in %v\n", count, outPath, time.Since(t0))
+	fmt.Printf("  smart drop groups loaded : %d (%s)\n", len(groups), groupsPath)
+	fmt.Printf("  smart drop substitutions : %d\n", substituted)
+	fmt.Printf("  containers sealed (no payload, invisible to the type test): %d %v\n",
+		len(sealed), headU32(sealed, 12))
+	fmt.Printf("  [booster] bodies not parsed by this build : %d %v\n",
+		len(unresolved), headU32(unresolved, 12))
+	fmt.Printf("  [booster]-typed items the archive did not hand over: %d %v\n",
+		len(unreadable), headU32(unreadable, 12))
 	_ = filepath.Base("")
+}
+
+// declaresSection reports whether the script declares a section header verbatim.
+// This is the structural half of "is this a box": the stackable type is a label,
+// the [booster info] block is the payload.
+func declaresSection(cells []pvf.Token, header string) bool {
+	for _, c := range cells {
+		if c.Type == 3 && c.Text == header {
+			return true
+		}
+	}
+	return false
+}
+
+// sectionNumber returns the first numeric cell that follows a section header, or
+// 0 when the section is absent.
+func sectionNumber(cells []pvf.Token, header string) uint32 {
+	for i, c := range cells {
+		if c.Type == 3 && c.Text == header && i+1 < len(cells) && cells[i+1].Type == 0 {
+			return uint32(cells[i+1].Value)
+		}
+	}
+	return 0
+}
+
+// reservedTemplateLow/High bracket the ids the source spends on "not a real
+// item". 490000001 is the one the booster bodies use for "the real payload comes
+// from elsewhere".
+const (
+	reservedTemplateLow  = 490000000
+	reservedTemplateHigh = 490001000
+)
+
+func isReservedTemplate(t uint32) bool {
+	return t >= reservedTemplateLow && t < reservedTemplateHigh
+}
+
+// loadSmartDropGroups reads etc/dungeondroptablebygroup.etc into
+// group id -> candidate rows. A table that cannot be read is reported, not
+// ignored: without it, every smart drop carrier would be sealed instead of paid.
+func loadSmartDropGroups(a *pvf.Archive, path string) map[uint32][]RewardCandidate {
+	cells, err := a.Tokens(path)
+	if err != nil {
+		log.Printf("smart drop groups: %s unreadable: %v", path, err)
+		return nil
+	}
+	gs, unreadable, err := catalog.ParseDropGroups(cells)
+	if err != nil {
+		log.Printf("smart drop groups: %s unparsable: %v", path, err)
+		return nil
+	}
+	if len(unreadable) > 0 {
+		// Reported, not guessed: a carrier pointing at one of these will keep its
+		// reserved placeholder and be paid as nothing, which is visible in the
+		// export summary instead of becoming a silently wrong distribution.
+		log.Printf("smart drop groups: %d group(s) the parser refused: %v", len(unreadable), headU32(unreadable, 8))
+	}
+	out := make(map[uint32][]RewardCandidate, len(gs))
+	for _, g := range gs {
+		cands := make([]RewardCandidate, 0, len(g.Explicit)+len(g.Smart))
+		for _, w := range g.Explicit {
+			cands = append(cands, RewardCandidate{Template: w.Template, Weight: w.Weight, Count: 1})
+		}
+		for _, w := range g.Smart {
+			cands = append(cands, RewardCandidate{Template: w.Template, Weight: w.Weight, Count: 1})
+		}
+		if len(cands) > 0 {
+			out[g.ID] = cands
+		}
+	}
+	return out
+}
+
+// resolveSmartDrop replaces a pool that pays a reserved id with the rows of the
+// group the item names. A pool that pays real templates is left alone: only the
+// source's placeholder is resolved.
+func resolveSmartDrop(pools []RewardPool, smartID uint32, groups map[uint32][]RewardCandidate, substituted *int) []RewardPool {
+	if smartID == 0 || len(groups) == 0 {
+		return pools
+	}
+	cands, ok := groups[smartID]
+	if !ok {
+		return pools
+	}
+	out := make([]RewardPool, 0, len(pools))
+	for _, p := range pools {
+		placeholder := false
+		for _, c := range p.Candidates {
+			if isReservedTemplate(c.Template) {
+				placeholder = true
+			}
+		}
+		if !placeholder {
+			out = append(out, p)
+			continue
+		}
+		*substituted++
+		out = append(out, RewardPool{DrawCount: p.DrawCount, Candidates: cands})
+	}
+	return out
+}
+
+func headU32(v []uint32, n int) []uint32 {
+	if len(v) <= n {
+		return v
+	}
+	return v[:n]
 }
