@@ -90,6 +90,14 @@ func main() {
 	randomOptionFile := flag.String("random-option-catalog", os.Getenv("DFO_RANDOM_OPTION_CATALOG"), "current-client magic-seal random option rules; enables CMD393 unsealing")
 	apocalypseCatalogFile := flag.String("apocalypse-catalog", "configs/apocalypse.generated.json", "compiled apocalypse.ctp table (phase clock, operations, gates, rewards, duty skills)")
 	attunementRewardsFile := flag.String("attunement-rewards", os.Getenv("DFO_ATTUNEMENT_REWARDS"), "boundary-of-attunement reward table generated from the source rewardboostinfo CTPs")
+	attunementRebalanceOn := flag.Bool("attunement-rebalance", os.Getenv("DFO_ATTUNEMENT_REBALANCE") == "1", "本私服的掉落调参（**与官服的显式差异**）：征兆「无事发生」减半、fixed 池低档按比例向高档倾斜。见 internal/loot/attunement_rebalance.go")
+	attunementFixedTiltDefault := 25
+	if v := os.Getenv("DFO_ATTUNEMENT_FIXED_TILT"); v != "" {
+		if n, convErr := strconv.Atoi(v); convErr == nil {
+			attunementFixedTiltDefault = n
+		}
+	}
+	attunementFixedTilt := flag.Int("attunement-fixed-tilt", attunementFixedTiltDefault, "固定池倾斜幅度：普通/稀有各减这么多百分比权重，减掉的按高档现有比例补（1..99）。0 = 不动固定池；只在 -attunement-rebalance 打开时生效")
 	boosterGageHide := flag.Bool("booster-gage-hide", os.Getenv("DFO_BOOSTER_GAGE") != "0", "send NOTI398 booster-gage with displayValue=0 on town entry to hide the top-left Liberation Trace panel; disable with -booster-gage-hide=false or DFO_BOOSTER_GAGE=0")
 	oathGrades := flag.String("oath-grades", os.Getenv("DFO_OATH_GRADES"), "诊断覆盖：固定下发的引子/誓约档位 primer,oath（见 oath_info.go）。留空 = 按角色穿戴的誓约/引子装备算，这是正常路径")
 	oathGradesTable := flag.String("oath-grades-table", os.Getenv("DFO_OATH_GRADES_TABLE"), "誓约/引子装备稀有度表（cmd/oathgradeimport 生成）；只在 -oath-grades-from-gear 打开时用")
@@ -172,6 +180,17 @@ func main() {
 	if *omenState && !*omenRewards {
 		log.Fatal("-omen-state needs -omen-rewards: the [coupon drop table] roll is what advances the omen, " +
 			"so a state-only run would sit at stage 0 forever")
+	}
+	// 掉落调参（与官服的显式差异）。开关关着时两个参数都不参与，表保持官方原值。
+	attunementRebalance := loot.Rebalance{}
+	if *attunementRebalanceOn {
+		if *attunementFixedTilt < 0 || *attunementFixedTilt >= 100 {
+			log.Fatalf("bad -attunement-fixed-tilt: %d is outside 0..99 (100 would empty the common tiers)", *attunementFixedTilt)
+		}
+		attunementRebalance = loot.Rebalance{
+			OmenHalveIdle:    true,
+			FixedTiltPercent: uint32(*attunementFixedTilt),
+		}
 	}
 	if *fullEquipmentFile == "" {
 		for _, cand := range []string{
@@ -612,9 +631,19 @@ func main() {
 			if e = catalog.AttachDazzlementMaps(&data, path); e != nil {
 				log.Fatal(e)
 			}
+			path = filepath.Join(filepath.Dir(*dungeonCatalogFile), "dungeons.maze-chance-rates.json")
+			if e = catalog.AttachMazeChanceRates(&data, path); e != nil {
+				log.Fatal(e)
+			}
 		}
 		if data.Source.Checksum != worldService.Catalog.Source.Checksum {
 			log.Fatal("dungeon/world source versions differ")
+		}
+		// 「哪些副本按权重掷骰选图」念出来（权重是我们改写过的，见 §41）。
+		// 强制选图放在念完之后：日志先反映配置，再反映这次的诊断覆盖。
+		logMazeChance(&data)
+		if e = forceMaze(&data, os.Getenv("DFO_MAZE_FORCE")); e != nil {
+			log.Fatal(e)
 		}
 		dungeonCatalog = &data
 	}
@@ -1101,6 +1130,13 @@ func main() {
 		if e = attunement.ValidateTemplates(lootService.Catalog); e != nil {
 			log.Fatal(e)
 		}
+		// 调参层在**源校验之后**才动手：先证明「表读对了」，再谈「我们想改哪里」。
+		// ApplyRebalance 自己会复核权重不变量（每份 drop list 仍恰好 1e6），所以
+		// 改完的表与源表在结构上同样合法。
+		if _, _, e = attunement.ApplyRebalance(attunementRebalance); e != nil {
+			log.Fatal(e)
+		}
+		logAttunementRebalance(attunement, attunementRebalance)
 		// 展开一层要用的礼包目录。缺了它就只能把包装丢在地上，而那正是本功能要
 		// 修的那个报告，所以这里硬失败而不是退化成旧行为。
 		if boosterCatalog == nil || len(boosterCatalog.Definitions) == 0 {
@@ -1134,6 +1170,21 @@ func main() {
 		log.Printf("attunement reward wrappers open one layer; %d empty-face templates: %v", len(empties), empties)
 		log.Printf("loaded attunement rewards (%d dungeons %v, %d reward templates) from %s",
 			len(attunement.Dungeons()), attunement.Dungeons(), len(attunement.Templates()), *attunementRewardsFile)
+
+		// 幸运事件（小幸运 ×15 / 大幸运 ×50）：它没有任何服务端代码 —— 两个档就落在
+		// fixed 池里，倍数写在盒子的 pool 里。这里只是把它念出来，免得它一直是
+		// 「看不见的活」。见 internal/loot/attunement_luck.go。
+		if luck := attunement.LuckTemplates(); len(luck) > 0 {
+			log.Printf("mystical fortune (luck) tiers are live: templates %v rolled straight out of the fixed pool", luck)
+			for _, d := range attunement.Dungeons() {
+				small, large := attunement.LuckWeights(d, 0)
+				if small == 0 && large == 0 {
+					continue
+				}
+				log.Printf("  dungeon %d maze 0 luck: small %d/%d (%.4f%%) · large %d/%d (%.4f%%)",
+					d, small, 1000000, float64(small)/10000, large, 1000000, float64(large)/10000)
+			}
+		}
 		// [coupon drop table] 就是征兆系统的阶段表（见 internal/loot/omen.go）。
 		// 开关关着时把它明确打出来，让「导入了但没接线」保持可见，而不是让玩家
 		// 以为那几行已经在出货。

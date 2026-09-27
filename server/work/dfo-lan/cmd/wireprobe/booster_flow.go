@@ -143,12 +143,38 @@ func LoadBoosterCatalog(catPath, indexPath string) (*BoosterCatalog, error) {
 	return cat, nil
 }
 
+// payAsIsWrappers 是**声明了 [booster info]、但必须原样发给玩家**的模板。
+//
+// 源里两种东西共用 [booster info]，只能逐个判：
+//   - 一次性礼盒 / 服务端载体 —— 玩家打不开或用不上，必须在这里展开。
+//     10362480 的文案就是「不实际发放礼盒，以开封状态发放」；
+//     10416752「Endkeeper of Order Oath Not Obtained」是「本次没拿到誓约」的空奖
+//     占位，展开成什么都没有才是对的；10418293「Doom Oracle Orb (500)」展开成
+//     10362429×500，名字里的 (500) 就是它的含量。
+//   - 玩家会攒起来自己使用的材料 —— 应当原样发放。
+//
+// 10415192「Splendor Soul Crystal（光辉灵魂结晶）」是后者：它落在小深渊 maze 1
+// 固定掉落表的**材料槽**上，而 maze 0 的同一槽位是 10362432「迷雾工商协会银币」
+// —— 那个根本不是盒子，一直按原样发。两张表在这一格上是镜像的（一个给银币、
+// 一个给结晶），所以官方给的也是结晶本身，玩家在 Scales UI 里自己消耗。
+// 不豁免的话，展开会把它变成 Splendor Soul —— 名字和数量都不是玩家该看到的东西。
+//
+// 判据只能是具名：全库 37,387 个 [booster] 可堆叠物里 30,230 个没有 stack_limit，
+// 其中既有真礼盒（box_08sealed / booster_gate* / package_*）也有材料，
+// 「能不能堆叠」和 stackable_type 字符串都分不开这两类。所以这里逐个列并写明依据。
+var payAsIsWrappers = map[uint32]string{
+	10415192: "小深渊 maze 1 固定表的材料槽（maze 0 的同槽位是 10362432 银币，本就不是盒子）；官方发结晶本身，玩家自己使用",
+}
+
 // boosterBoxSource 把已加载的礼包目录接到奖励展开上：奖励表发的是外层包装，
 // 这里回答两个问题 —— 开一层会出什么，以及某个模板到底是不是真物品。
 type boosterBoxSource struct{ catalog *BoosterCatalog }
 
 func (s boosterBoxSource) RewardBox(template uint32) (loot.RewardBox, bool) {
 	if s.catalog == nil {
+		return loot.RewardBox{}, false
+	}
+	if _, exempt := payAsIsWrappers[template]; exempt {
 		return loot.RewardBox{}, false
 	}
 	def, ok := s.catalog.Definitions[template]
@@ -193,6 +219,11 @@ func (s boosterBoxSource) Item(template uint32) bool {
 // generated before the structural export keeps behaving the way it did.
 func (s boosterBoxSource) Container(template uint32) bool {
 	if s.catalog == nil {
+		return false
+	}
+	// 豁免的模板必须**两边都不认**：只从 RewardBox 摘掉会让它掉进 Container
+	// 那支，被当成「本 build 打不开的盒子」直接丢掉。
+	if _, exempt := payAsIsWrappers[template]; exempt {
 		return false
 	}
 	if _, ok := s.catalog.Definitions[template]; ok {
