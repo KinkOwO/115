@@ -45,3 +45,18 @@ func TestBodySamplerRetainsUnimplementedCommands(t *testing.T) {
 		t.Fatal("a nil counter must not retain an unimplemented body")
 	}
 }
+
+// 2026-09-27 回归：CMD2329 是定盘机关判死兜底唯一的状态源，却被 8 次采样上限截断，
+// 此后每条都因为 `verified` 从未算过而被拒（理由还写成 checksum failed）—— 实测一场
+// 20 条里 12 条这样丢掉，恰好让「血量峰值」判据失效。它必须不受采样限制。
+func TestMonsterHistoryLogIsExemptFromTheBodySampleCap(t *testing.T) {
+	seen := map[uint16]int{2329: BodySampleLimit}
+	for i := 0; i < BodySampleLimit+5; i++ {
+		if !retainRequestBody(2329, seen) {
+			t.Fatal("the scale's status log stopped being verified after the cap")
+		}
+	}
+	if seen[2329] != BodySampleLimit {
+		t.Fatalf("the exemption consumed samples: %d", seen[2329])
+	}
+}

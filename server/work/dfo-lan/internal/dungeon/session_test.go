@@ -236,3 +236,34 @@ func TestCompleteSourceRoutePreservesCinematicActors(t *testing.T) {
 		t.Fatal("source display dummy must remain spawned but not block clear")
 	}
 }
+
+// 客户端本地召唤的怪（动作脚本里的 [SUMMON MONSTER]）不在投放列表里，但它的死亡必须
+// 被确认：不回确认，客户端就认为它还活着，脚本链条随之断掉（2026-09-26 小深渊实机：
+// 天平 109019266 召唤的真 BOSS 打死后，天平的伤害箱 [SET DAMAGE BOX] 永不恢复，
+// 于是天平永远打不死）。这类死亡按「无主」处理：回确认、不给掉落与经验，也不参与
+// 房间清空与通关判定；明显无效的值（低于 entity 空间起点 4096）仍然拒绝。
+func TestUnknownSummonedEntityConfirmedUnowned(t *testing.T) {
+	c, e := catalog.LoadDungeons("../../configs/dungeons.generated.json")
+	if e != nil {
+		t.Fatal(e)
+	}
+	s, e := Select(c, protocol.DungeonSelection{ID: 3, Party: 65535, Quest: 3145}, 1, map[uint16]bool{3145: true})
+	if e != nil {
+		t.Fatal(e)
+	}
+	s.Loaded = true
+	summoned := uint32(60000)
+	fresh, e := s.ConfirmDeath(summoned, 3, 3)
+	if e != nil || !fresh {
+		t.Fatalf("summoned entity death not confirmed: fresh=%v err=%v", fresh, e)
+	}
+	if !s.Unowned[uint16(summoned)] {
+		t.Fatal("summoned entity death was not marked unowned")
+	}
+	if fresh, e = s.ConfirmDeath(summoned, 3, 3); e != nil || fresh {
+		t.Fatal("duplicate summoned death counted")
+	}
+	if _, e = s.ConfirmDeath(100, 3, 3); e == nil {
+		t.Fatal("invalid entity accepted below the entity space")
+	}
+}

@@ -1,9 +1,11 @@
 package inventory
 
 import (
+	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
 	"encoding/binary"
 	"encoding/json"
+	"sort"
 )
 
 type CreatureEntry struct {
@@ -68,6 +70,167 @@ func equippedCreature(b Bag) (uint32, bool) {
 	return 0, false
 }
 
+func creatureSatiety(b Bag, key uint32) byte {
+	if value, ok := b.CreatureSatiety[key]; ok {
+		return value
+	}
+	return 100
+}
+
+// AdvanceCreatureLoyalty applies the official hourly rates to elapsed time.
+// The previous dungeon key owns the interval being settled; the new key owns
+// the next interval. A missing timestamp in an older save starts at now.
+func AdvanceCreatureLoyalty(state json.RawMessage, now int64, inDungeon bool, catalog catalog.LootCatalog) (json.RawMessage, bool, bool, error) {
+	b, err := ReadBag(state)
+	if err != nil {
+		return nil, false, false, err
+	}
+	currentKey, equipped := equippedCreature(b)
+	nextDungeonKey := uint32(0)
+	if inDungeon && equipped {
+		nextDungeonKey = currentKey
+	}
+	if b.CreatureLoyaltyUpdatedAt == 0 {
+		b.CreatureLoyaltyUpdatedAt = now
+		b.CreatureLoyaltyDungeonKey = nextDungeonKey
+		state, err = SaveBag(state, b)
+		return state, false, false, err
+	}
+	if now < b.CreatureLoyaltyUpdatedAt {
+		now = b.CreatureLoyaltyUpdatedAt
+	}
+	seconds := now - b.CreatureLoyaltyUpdatedAt
+	changed, fed := false, false
+	keys := map[uint32]bool{}
+	for key := range b.CreatureExperience {
+		keys[key] = true
+	}
+	for key := range b.CreatureSatiety {
+		keys[key] = true
+	}
+	if equipped {
+		keys[currentKey] = true
+	}
+	for _, item := range b.Special[7] {
+		if item.Slot < 140 && item.Template != 0 {
+			if _, egg := EggHatchOutputs[item.Template]; !egg {
+				keys[creatureKey(item, uint32(item.Slot+2))] = true
+			}
+		}
+	}
+	if b.CreatureSatiety == nil {
+		b.CreatureSatiety = make(map[uint32]byte)
+	}
+	if b.CreatureLoyaltyFraction == nil {
+		b.CreatureLoyaltyFraction = make(map[uint32]int64)
+	}
+	orderedKeys := make([]uint32, 0, len(keys))
+	for key := range keys {
+		orderedKeys = append(orderedKeys, key)
+	}
+	sort.Slice(orderedKeys, func(i, j int) bool {
+		if orderedKeys[i] == currentKey && orderedKeys[j] != currentKey {
+			return true
+		}
+		if orderedKeys[j] == currentKey && orderedKeys[i] != currentKey {
+			return false
+		}
+		return orderedKeys[i] < orderedKeys[j]
+	})
+	for _, key := range orderedKeys {
+		old := creatureSatiety(b, key)
+		rate := int64(1)
+		if key == b.CreatureLoyaltyDungeonKey {
+			rate = -6
+		}
+		fraction := b.CreatureLoyaltyFraction[key]
+		points := int64(old)
+		remaining := seconds
+		feedIndex := func() int {
+			for i, row := range b.PetItems {
+				definition, ok := catalog.Items[row.Template]
+				if ok && IsPetFeed(definition.StackableType) && row.Amount > 0 {
+					return i
+				}
+			}
+			return -1
+		}
+		consumeFeed := func(index int) {
+			b.PetItems = append([]BagItem(nil), b.PetItems...)
+			b.PetItems[index].Amount--
+			if b.PetItems[index].Amount == 0 {
+				b.PetItems = append(b.PetItems[:index], b.PetItems[index+1:]...)
+			}
+			points, fraction, fed = 100, 0, true
+		}
+		for {
+			index := feedIndex()
+			if points <= 10 && index >= 0 {
+				consumeFeed(index)
+				continue
+			}
+			if rate < 0 && points > 10 && index >= 0 {
+				need := (points-10)*360 + fraction
+				toThreshold := (need + 5) / 6
+				if toThreshold <= remaining {
+					fraction -= 6 * toThreshold
+					points += fraction / 360
+					fraction %= 360
+					remaining -= toThreshold
+					consumeFeed(index)
+					continue
+				}
+			}
+			fraction += rate * remaining
+			points += fraction / 360
+			fraction %= 360
+			break
+		}
+		if points < 0 {
+			points, fraction = 0, 0
+		}
+		if points > 100 || (points == 100 && rate > 0) {
+			points, fraction = 100, 0
+		}
+		if byte(points) != old {
+			changed = true
+		}
+		b.CreatureSatiety[key] = byte(points)
+		b.CreatureLoyaltyFraction[key] = fraction
+	}
+	b.CreatureLoyaltyUpdatedAt = now
+	b.CreatureLoyaltyDungeonKey = nextDungeonKey
+	state, err = SaveBag(state, b)
+	return state, changed, fed, err
+}
+
+// BeginCreatureLoyaltySession does not charge offline time, whose location is
+// unknown after a disconnect. It preserves the saved loyalty and fraction.
+func BeginCreatureLoyaltySession(state json.RawMessage, now int64) (json.RawMessage, error) {
+	b, err := ReadBag(state)
+	if err != nil {
+		return nil, err
+	}
+	b.CreatureLoyaltyUpdatedAt = now
+	b.CreatureLoyaltyDungeonKey = 0
+	return SaveBag(state, b)
+}
+
+func FeedEquippedCreatureBag(b Bag) (Bag, bool) {
+	key, ok := equippedCreature(b)
+	if !ok || creatureSatiety(b, key) == 100 {
+		return b, false
+	}
+	if b.CreatureSatiety == nil {
+		b.CreatureSatiety = make(map[uint32]byte)
+	}
+	b.CreatureSatiety[key] = 100
+	if b.CreatureLoyaltyFraction != nil {
+		b.CreatureLoyaltyFraction[key] = 0
+	}
+	return b, true
+}
+
 // AwardEquippedCreatureExperience preserves all other character state and
 // only credits the creature worn when the clear is committed.
 func AwardEquippedCreatureExperience(state json.RawMessage, gain uint32) (json.RawMessage, uint32, error) {
@@ -80,6 +243,9 @@ func AwardEquippedCreatureExperience(state json.RawMessage, gain uint32) (json.R
 	}
 	key, ok := equippedCreature(b)
 	if !ok {
+		return state, 0, nil
+	}
+	if creatureSatiety(b, key) == 0 {
 		return state, 0, nil
 	}
 	if b.CreatureExperience == nil {
@@ -135,7 +301,7 @@ func CreatureListPayload(state json.RawMessage) ([]byte, error) {
 			name := CreatureDefaultNames[it.Template]
 			entries = append(entries, CreatureEntry{
 				Key:     key,
-				Satiety: 100,
+				Satiety: creatureSatiety(b, key),
 				Mode:    0,
 				Exp:     b.CreatureExperience[key],
 				Level:   creatureLevel(b.CreatureExperience[key]),
@@ -161,7 +327,7 @@ func CreatureListPayload(state json.RawMessage) ([]byte, error) {
 				name := CreatureDefaultNames[it.Template]
 				entries = append(entries, CreatureEntry{
 					Key:     key,
-					Satiety: 100,
+					Satiety: creatureSatiety(b, key),
 					Mode:    0,
 					Exp:     b.CreatureExperience[key],
 					Level:   creatureLevel(b.CreatureExperience[key]),

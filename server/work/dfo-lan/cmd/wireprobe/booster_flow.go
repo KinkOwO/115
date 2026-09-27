@@ -143,6 +143,68 @@ func LoadBoosterCatalog(catPath, indexPath string) (*BoosterCatalog, error) {
 	return cat, nil
 }
 
+// boosterBoxSource 把已加载的礼包目录接到奖励展开上：奖励表发的是外层包装，
+// 这里回答两个问题 —— 开一层会出什么，以及某个模板到底是不是真物品。
+type boosterBoxSource struct{ catalog *BoosterCatalog }
+
+func (s boosterBoxSource) RewardBox(template uint32) (loot.RewardBox, bool) {
+	if s.catalog == nil {
+		return loot.RewardBox{}, false
+	}
+	def, ok := s.catalog.Definitions[template]
+	if !ok || len(def.Pools) == 0 {
+		return loot.RewardBox{}, false
+	}
+	out := loot.RewardBox{Pools: make([]loot.RewardBoxPool, 0, len(def.Pools))}
+	for _, p := range def.Pools {
+		pool := loot.RewardBoxPool{
+			Draws:      p.DrawCount,
+			Candidates: make([]loot.RewardBoxCandidate, 0, len(p.Candidates)),
+		}
+		for _, c := range p.Candidates {
+			pool.Candidates = append(pool.Candidates, loot.RewardBoxCandidate{
+				Template: c.Template, Weight: c.Weight, Count: c.Count,
+			})
+		}
+		out.Pools = append(out.Pools, pool)
+	}
+	return out, true
+}
+
+// Item 覆盖装备与可堆叠物两类：一层展开既会出装备（本转职的基础装备），也会出
+// 材料、虚拟道具、书和罐子。目录里没有的模板是源留的「空槽」，不是可发放物品。
+func (s boosterBoxSource) Item(template uint32) bool {
+	if s.catalog == nil {
+		return false
+	}
+	item, ok := s.catalog.Items[template]
+	if !ok {
+		return false
+	}
+	return item.Kind == "equipment" || item.Kind == "stackable"
+}
+
+// Container recognises the box family. The catalog is the primary witness: it is
+// built from the source's own [booster info] section, so membership means the
+// template really is a container - including the ones whose stackable type does
+// not advertise it. 10362480 is typed [virtual] and still declares [booster info]
+// with [instantly open]; judging it by its type string let it reach the ground as
+// a box nobody can open. The type string is kept as a fallback so a catalog
+// generated before the structural export keeps behaving the way it did.
+func (s boosterBoxSource) Container(template uint32) bool {
+	if s.catalog == nil {
+		return false
+	}
+	if _, ok := s.catalog.Definitions[template]; ok {
+		return true
+	}
+	item, ok := s.catalog.Items[template]
+	if !ok {
+		return false
+	}
+	return strings.Contains(strings.ToLower(item.StackableType), "booster")
+}
+
 type boosterEventStore interface {
 	CommitCharacterEvent(ctx context.Context, account, id int64, version, key, model string, apply func(storage.Character) (json.RawMessage, json.RawMessage, error)) (storage.Character, bool, error)
 	CharacterEventReceipt(ctx context.Context, account, id int64, key string) (json.RawMessage, error)
@@ -549,6 +611,23 @@ func (w *worldSession) openBoosterItem(
 				continue
 			}
 
+			if kind == "equipment" && wear != nil && wear.Catalog != nil {
+				gearKind, kindErr := wear.Catalog.EquipmentKind(g.Template)
+				if kindErr == nil && inventory.IsPetGear(gearKind) {
+					dur, durErr := boosterEquipmentDurability(wear, g.Template)
+					if durErr != nil {
+						return nil, nil, durErr
+					}
+					for cnt := uint32(0); cnt < g.Count; cnt++ {
+						b, _, err = b.AddPetGear(inventory.BagEquipment{Template: g.Template, Durability: dur})
+						if err != nil {
+							return nil, nil, err
+						}
+					}
+					hasCreatures = true
+					continue
+				}
+			}
 			// Destination 2: Creature (path contains "equipment/creature/")
 			if strings.Contains(itemPath, "equipment/creature/") {
 				hasCreatures = true
@@ -709,8 +788,8 @@ func (w *worldSession) openBoosterItem(
 		}
 		plan = append(plan, outboundPacket{"booster_avatar_inventory_updated", 0, 14, avatarPayload})
 	}
-	if res.HasCreatures && len(finalBag.Special[7]) > 0 {
-		creaturePayload, err := inventory.EquipmentPayload(7, finalBag.Special[7], false)
+	if (res.HasCreatures || len(finalBag.PetItems) > 0) && len(finalBag.Special[7])+len(finalBag.PetItems) > 0 {
+		creaturePayload, err := inventory.PetContainerBody(finalBag, false)
 		if err != nil {
 			return nil, err
 		}

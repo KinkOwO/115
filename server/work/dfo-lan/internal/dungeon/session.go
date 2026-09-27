@@ -3,16 +3,18 @@ package dungeon
 import (
 	"crypto/rand"
 	"dfolan/internal/catalog"
+	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/game/protocol"
 	"encoding/hex"
 	"fmt"
+	"os"
 	"sort"
 	"time"
 )
 
 type Session struct {
-	RunID      string
-	StartedAt  time.Time
+	RunID     string
+	StartedAt time.Time
 	// Difficulty 是这次进图实际用的难度，沿用客户端 1 起算的编号
 	// （1=普通 2=专家 3=达人 4=王者 5=英雄；奥德赛恒等于副本的
 	// [designated difficulty]）。掉落按它取难度加成，见 loot.Session.Death。
@@ -21,6 +23,7 @@ type Session struct {
 	Maze       catalog.DungeonMaze
 	Room       catalog.DungeonRoom
 	Monsters   []protocol.DungeonMonster
+	Tournament *TournamentRun
 	Loaded     bool
 	Dead       map[uint16]bool
 	// Unowned marks a monster this character did not kill. It dies and the
@@ -95,6 +98,16 @@ func Select(c catalog.DungeonCatalog, r protocol.DungeonSelection, level byte, a
 	}
 	s.Extra = r.Extra
 	s.Difficulty = r.Difficulty
+	if tournamentDungeon(d) {
+		run, actors, err := newTournamentRun(d, c.Maps[s.Room.Map], r.Difficulty)
+		if err != nil {
+			return nil, err
+		}
+		s.Tournament = run
+		s.Monsters = actors
+		s.Visited[s.Room.Map] = actors
+		s.NextEntity = uint16(4096 + len(actors))
+	}
 	if d.ID == 100003126 && s.Extra > 1 {
 		// 跳区入场（如从第 36、61、86 层开始），前面的层数标记为已通关/已领奖
 		start := int(s.Extra)
@@ -170,6 +183,9 @@ func newSession(c catalog.DungeonCatalog, d catalog.DungeonDefinition, chosen ca
 	if e != nil {
 		return nil, e
 	}
+	if triggeredSpawnsSuppressed() {
+		monsters = dropTriggeredMonsters(script, monsters)
+	}
 	s.Monsters = monsters
 	s.companions = rememberCompanions(nil, monsters)
 	s.Dead = map[uint16]bool{}
@@ -184,6 +200,12 @@ func (s *Session) ConfirmDeath(entity uint32, killer, actor uint16) (bool, error
 	}
 	for _, m := range s.Monsters {
 		if uint32(m.Entity) == entity {
+			if s.Tournament != nil && s.Dead[m.Entity] {
+				return false, nil
+			}
+			if s.Tournament != nil && (s.Tournament.CurrentRound < 1 || s.Tournament.CurrentRound > 4 || m.Entity != s.Tournament.Opening.Path[s.Tournament.CurrentRound-1].Entity) {
+				return false, fmt.Errorf("tournament opponent is outside current round")
+			}
 			// killerFFFF means the client attributes the death to nobody.
 			// Live capture 20260912T001341 shows the whole boss room report
 			// six deaths inside three milliseconds: 0x1015, 0x1019 and 0x101a
@@ -220,36 +242,52 @@ func (s *Session) ConfirmDeath(entity uint32, killer, actor uint16) (bool, error
 				s.Unowned[m.Entity] = true
 			}
 			s.Dead[m.Entity] = true
+			if s.Tournament != nil {
+				s.Tournament.CurrentRound++
+			}
 			s.tryComplete()
 			return true, nil
 		}
 	}
-	if s.Definition.ID == 100003126 {
-		unowned := killer == 65535
-		if killer != actor && !unowned {
-			return false, fmt.Errorf("foreign combat killer")
-		}
-		if s.Dead == nil {
-			s.Dead = map[uint16]bool{}
-		}
-		if s.Dead[uint16(entity)] {
-			return false, nil
-		}
-		if unowned {
-			if s.Unowned == nil {
-				s.Unowned = map[uint16]bool{}
-			}
-			s.Unowned[uint16(entity)] = true
-		}
-		s.Dead[uint16(entity)] = true
-		s.tryComplete()
-		return true, nil
+	// 客户端本地召唤的怪不在投放列表里：`[SUMMON MONSTER]` 是客户端动作脚本里的行为，
+	// 服务端从不参与，所以这类 entity 永远查不到。但它的死亡必须被确认 —— 不回确认，
+	// 客户端就认为它还活着，脚本链条随之断掉。2026-09-26 小深渊实机即是此形态：
+	// 天平（109019266）召唤的真 BOSS 打死后，天平的伤害箱 [SET DAMAGE BOX] 永远回不到 1，
+	// 于是天平永远打不死。
+	// 这类死亡一律按「无主」处理：回确认、不给掉落与经验。它不参与房间清空与通关判定，
+	// 因为它的 entity 不在 s.Monsters 里，RoomCleared/tryComplete 本来就看不见它。
+	// 这一段原先是 Elvenmere（100003126）的专用分支，现按同一理由泛化到所有副本，
+	// 只加一道守卫：值必须落在正常的 entity 空间里。服务端投放的怪从 4096 起
+	// （fixedMonsters 用 4096 + index），客户端本地召唤的怪共享同一空间；明显无效的
+	// 值（如 100）仍然拒绝，既有契约不变。
+	if entity < 4096 {
+		return false, fmt.Errorf("monster absent from current source room")
 	}
-	return false, fmt.Errorf("monster absent from current source room")
+	unowned := killer == 65535
+	if killer != actor && !unowned {
+		return false, fmt.Errorf("foreign combat killer")
+	}
+	if s.Dead == nil {
+		s.Dead = map[uint16]bool{}
+	}
+	if s.Dead[uint16(entity)] {
+		return false, nil
+	}
+	if s.Unowned == nil {
+		s.Unowned = map[uint16]bool{}
+	}
+	s.Unowned[uint16(entity)] = true
+	s.Dead[uint16(entity)] = true
+	s.tryComplete()
+	return true, nil
 }
+
 func (s *Session) RoomCleared() bool {
 	if s == nil || !s.Loaded {
 		return false
+	}
+	if s.Tournament != nil {
+		return s.Tournament.CurrentRound > 4
 	}
 	if s.Room.Map == 100016294 {
 		return true
@@ -309,6 +347,9 @@ func (s *Session) enterRoom(c catalog.DungeonCatalog, room catalog.DungeonRoom) 
 		monsters, e = fixedMonsters(script, s.Definition.BasisLevel)
 		if e != nil {
 			return nil, e
+		}
+		if triggeredSpawnsSuppressed() {
+			monsters = dropTriggeredMonsters(script, monsters)
 		}
 		for i := range monsters {
 			if next.NextEntity >= 65535 {
@@ -426,10 +467,69 @@ func (s *Session) LivingMonsters() []protocol.DungeonMonster {
 // Preserve source indices: the native map parser uses them to retrieve spawn
 // coordinates, behavior and cinematic flags from its matching PVF map row.
 // Only fixed, exactly-one spawns are supported here; random rows are refused.
+// triggeredSpawnsSuppressed 报告运营者是否要求服务端停止投放
+// [monster create trigger] 序号大于 1 的怪。
+//
+// 该序号的语义尚未确立（全目录 369 张带该段的 map 里 117 张非单调，
+// 且它的最大值与副本 maze 数对不上），所以这是一条诊断开关，不是规则。
+// 小深渊（100005014）的两张地图各自带 11 只 trigger=1 的杂兵，
+// 另加 trigger=2 的天平 109019266 与 109019280（同坐标 3168,191）。
+// 用这条开关实机对照一次，就能判定这两只该不该由服务端投。
+// 默认关闭，行为与原先一致。
+func triggeredSpawnsSuppressed() bool {
+	return os.Getenv("DFO_SKIP_TRIGGERED_SPAWNS") == "1"
+}
+
+// dropTriggeredMonsters 剔除 [monster create trigger] 序号大于 1 的行。
+// SourceIndex 就是行序号，而 trigger 段与怪物行并行，两者可按下标对齐。
+func dropTriggeredMonsters(script catalog.ScriptRecord, monsters []protocol.DungeonMonster) []protocol.DungeonMonster {
+	ordinals := createTriggerOrdinals(script.Cells)
+	if len(ordinals) == 0 {
+		return monsters
+	}
+	out := make([]protocol.DungeonMonster, 0, len(monsters))
+	for _, m := range monsters {
+		if int(m.SourceIndex) < len(ordinals) && ordinals[m.SourceIndex] > 1 {
+			continue
+		}
+		out = append(out, m)
+	}
+	return out
+}
+
+// createTriggerAt 取第 index 行的 trigger 原值，越界或超出 byte 范围时返回 0。
+func createTriggerAt(ordinals []int32, index int) byte {
+	if index < 0 || index >= len(ordinals) {
+		return 0
+	}
+	v := ordinals[index]
+	if v < 0 || v > 255 {
+		return 0
+	}
+	return byte(v)
+}
+
+func createTriggerOrdinals(cells []pvf.Token) []int32 {
+	var out []int32
+	active := false
+	for _, c := range cells {
+		if c.Type == 3 {
+			active = c.Text == "[monster create trigger]"
+			continue
+		}
+		if active && c.Type == 0 {
+			out = append(out, c.Value)
+		}
+	}
+	return out
+}
+
 func fixedMonsters(script catalog.ScriptRecord, basis uint32) ([]protocol.DungeonMonster, error) {
 	var out []protocol.DungeonMonster
 	active := false
 	c := script.Cells
+	// [monster create trigger] 与怪物行并行，按 SourceIndex 对齐后保留原值。
+	ordinals := createTriggerOrdinals(c)
 	for i := 0; i < len(c); i++ {
 		if c[i].Type == 3 {
 			active = c[i].Text == "[monster]"
@@ -455,6 +555,13 @@ func fixedMonsters(script catalog.ScriptRecord, basis uint32) ([]protocol.Dungeo
 			switch c[i].Text {
 			case "[fixed]":
 				fixed = true
+			case "[NPC]":
+				// Map 91757 uses [fixed] [NPC] 1020 [boss]. The NPC
+				// association has one numeric operand before the rank.
+				i++
+				if i >= len(c) || c[i].Type != 0 {
+					return nil, fmt.Errorf("short monster NPC option")
+				}
 			case "[normal]", "[champion]", "[boss]":
 				// Monster ranks: normal 0, champion 1, boss 3. Live capture
 				// 20260912T025417 refused CMD45 (move to the next room) with
@@ -514,7 +621,7 @@ func fixedMonsters(script catalog.ScriptRecord, basis uint32) ([]protocol.Dungeo
 			v[0] == 1 && v[3] == 424 && v[4] == -364 {
 			continue
 		}
-		out = append(out, protocol.DungeonMonster{Entity: uint16(4096 + len(out)), SourceIndex: uint32(len(out)), Level: byte(level), Template: uint32(v[0]), Rank: rank, Team: 100, NonCombat: nonCombat, SourceTail: [2]int32{v[6], v[7]}})
+		out = append(out, protocol.DungeonMonster{Entity: uint16(4096 + len(out)), SourceIndex: uint32(len(out)), Level: byte(level), Template: uint32(v[0]), Rank: rank, Team: 100, NonCombat: nonCombat, SourceTail: [2]int32{v[6], v[7]}, CreateTrigger: createTriggerAt(ordinals, len(out))})
 	}
 	// Source teams are parallel to monster rows. Team0 supplies friendly
 	// cinematic actors in this route; team100 supplies enemies. Never remove

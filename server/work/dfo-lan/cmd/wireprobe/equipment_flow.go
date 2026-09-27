@@ -46,6 +46,9 @@ func (s *equipmentSession) handle(service *inventory.WearService, w *worldSessio
 		s.initialized = true
 	}
 	hash := sha256.Sum256(raw)
+	if plan, handled, e := w.movePetStack(service.BagRules, r, fmt.Sprintf("petmove:%x:%x", s.nonce, hash)); handled {
+		return plan, e
+	}
 	// A stack going onto the quick-use belt belongs to the stackable path; anything it does not
 	// recognise falls through to the equipment move unchanged.
 	if plan, handled, e := w.moveStack(service.BagRules, r, fmt.Sprintf("bagmove:%x:%x", s.nonce, hash)); handled {
@@ -176,6 +179,14 @@ func (s *equipmentSession) handle(service *inventory.WearService, w *worldSessio
 		plan = append(plan, outboundPacket{"equipment_appearance_refreshed", 0, 2, probe})
 	}
 	w.role = saved
+	if (r.SourceList == 3 && r.SourceSlot == 26) || (r.DestinationList == 3 && r.DestinationSlot == 26) {
+		loyaltyCtx, loyaltyCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		loyaltyPackets, loyaltyErr := w.refreshCreatureLoyalty(loyaltyCtx, time.Now(), w.activeDungeon != nil)
+		loyaltyCancel()
+		if loyaltyErr == nil {
+			plan = append(plan, loyaltyPackets...)
+		}
+	}
 	return plan, nil
 }
 
@@ -187,6 +198,34 @@ func (s *equipmentSession) handle(service *inventory.WearService, w *worldSessio
 // the same run had advanced rooms normally.
 func shouldSendEquipmentAppearanceRebuild(inDungeon bool, r protocol.ItemMoveRequest) bool {
 	return !inDungeon && (r.SourceList == 3 || r.DestinationList == 3)
+}
+
+// The confirmed CMD37 repair must run again after a successful in-dungeon
+// worn move: the move's NOTI14 rows rebuild item visuals, including Clone
+// objects whose cover had already been attached at room load. A bag-only move
+// does not touch those objects. Keep the same detach/reattach/ordinary-gear
+// order as finishDungeonLoading; this is a new live timing to verify manually.
+func dungeonCloneEquipmentRefresh(w *worldSession, r protocol.ItemMoveRequest) ([]outboundPacket, bool, error) {
+	if w == nil || w.activeDungeon == nil || w.characters == nil ||
+		(r.SourceList != 3 && r.DestinationList != 3) {
+		return nil, false, nil
+	}
+	reset, full, enabled, err := w.characters.CloneReattachPackets(w.role)
+	if err != nil || !enabled {
+		return nil, false, err
+	}
+	restore, err := inventory.NonAvatarWornSpaceUpdate(w.role.State)
+	if err != nil {
+		return nil, false, err
+	}
+	plan := []outboundPacket{
+		{"equipment_dungeon_clone_detached", 0, 2, reset},
+		{"equipment_dungeon_clone_reattached", 0, 2, full},
+	}
+	if len(restore) > 0 {
+		plan = append(plan, outboundPacket{"equipment_dungeon_nonavatar_worn_restored", 0, 14, restore})
+	}
+	return plan, true, nil
 }
 
 func cloneAvatarRemoval(r protocol.ItemMoveRequest, catalog *inventory.EquipmentCatalog) bool {

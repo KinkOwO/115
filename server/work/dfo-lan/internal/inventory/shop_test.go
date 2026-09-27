@@ -101,7 +101,7 @@ func TestShopSellStackableAndEquipment(t *testing.T) {
 	}
 
 	// 1. Sell 1 stackable from slot 65
-	bag, tmpl, gold, err := bag.Sell(rules, 0, 65, 5)
+	bag, tmpl, gold, err := bag.Sell(rules, 0, 65, 1, 5)
 	if err != nil {
 		t.Fatalf("unexpected sell stackable error: %v", err)
 	}
@@ -113,7 +113,7 @@ func TestShopSellStackableAndEquipment(t *testing.T) {
 	}
 
 	// 2. Sell the remaining stackable from slot 65 -> slot is emptied
-	bag, tmpl, gold, err = bag.Sell(rules, 0, 65, 5)
+	bag, tmpl, gold, err = bag.Sell(rules, 0, 65, 1, 5)
 	if err != nil {
 		t.Fatalf("unexpected sell last stackable error: %v", err)
 	}
@@ -125,7 +125,7 @@ func TestShopSellStackableAndEquipment(t *testing.T) {
 	}
 
 	// 3. Sell equipment from slot 15
-	bag, tmpl, gold, err = bag.Sell(rules, 0, 15, 25)
+	bag, tmpl, gold, err = bag.Sell(rules, 0, 15, 1, 25)
 	if err != nil {
 		t.Fatalf("unexpected sell equipment error: %v", err)
 	}
@@ -148,7 +148,7 @@ func TestShopSellWornRefusedAndSlotOverlap(t *testing.T) {
 			{Slot: 15, Template: 6001, Durability: 100},
 		},
 	}
-	_, _, _, err := bag.Sell(rules, 0, 15, 10)
+	_, _, _, err := bag.Sell(rules, 0, 15, 1, 10)
 	if err == nil {
 		t.Fatal("expected error selling worn equipment")
 	}
@@ -165,7 +165,7 @@ func TestShopSellWornRefusedAndSlotOverlap(t *testing.T) {
 			{Slot: 15, Template: 6001, Durability: 100},
 		},
 	}
-	bagWithBoth, tmpl, gold, err := bagWithBoth.Sell(rules, 0, 15, 10)
+	bagWithBoth, tmpl, gold, err := bagWithBoth.Sell(rules, 0, 15, 1, 10)
 	if err != nil {
 		t.Fatalf("unexpected sell error with overlap: %v", err)
 	}

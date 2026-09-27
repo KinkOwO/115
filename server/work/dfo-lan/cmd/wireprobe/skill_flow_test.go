@@ -2,7 +2,9 @@ package main
 
 import (
 	"bytes"
+	"dfolan/internal/character"
 	"dfolan/internal/storage"
+	"encoding/json"
 	"testing"
 )
 
@@ -31,5 +33,23 @@ func TestSkillTreeRefreshPlan(t *testing.T) {
 		if len(plan) != 1 || plan[0].ID != 28 || plan[0].Kind != 1 || plan[0].Name != "skill_committed_response" || !bytes.Equal(plan[0].Payload, body) {
 			t.Fatalf("CMD28 applied=%t 响应计划应只有原始 ACK: %+v", applied, plan)
 		}
+	}
+}
+
+func TestSkillPresetRestoreImmediatelyFollowsSkillTree(t *testing.T) {
+	raw, err := json.Marshal(character.State{SkillPreset: make([]byte, 14)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan, err := appendSkillPresetRestore(
+		[]outboundPacket{{"skill_state_restored", 0, 19, []byte{1}}},
+		&character.Service{}, storage.Character{State: raw},
+		"skill_preset_restored_after_skill_state",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(plan) != 2 || plan[0].ID != 19 || plan[1].ID != 2758 || len(plan[1].Payload) != 28 {
+		t.Fatalf("skill restore plan=%+v", plan)
 	}
 }

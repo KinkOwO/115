@@ -143,6 +143,10 @@ type DungeonMonster struct {
 	NonCombat   bool     // Source team0/dummy; still spawned for native cinematic scripts.
 	SourceTail  [2]int32 // Map row fields6/7, retained separately from spawn count.
 	APC         bool     // Fixed map AIC; uses ranks5..8 and its own source row index.
+	// CreateTrigger 是该行在 map 里的 [monster create trigger] 原值。
+	// 它是否会写进进图包由 StartMapState.EncodeCreateTrigger 决定；
+	// 该字段的语义尚未确认，所以默认不编码。
+	CreateTrigger byte
 }
 type StartMapState struct {
 	ReuseRoom   bool
@@ -151,6 +155,9 @@ type StartMapState struct {
 	Position    [2]byte
 	Seed, Map   uint32
 	Monsters    []DungeonMonster
+	// EncodeCreateTrigger 置位时，怪物记录里 Rank 之后那一格（原本恒为 0）
+	// 改写实例的 CreateTrigger。默认 false 时输出与原先逐字节一致。
+	EncodeCreateTrigger bool
 }
 
 func StartMap(s StartMapState) ([]byte, error) {
@@ -202,7 +209,11 @@ func StartMap(s StartMapState) ([]byte, error) {
 		// against the same constructor and named log at 1452b6492.
 		p = add32(add16(p, 0), m.SourceIndex)
 		p = add32(add16(p, m.Entity), m.Template)
-		p = append(p, m.Level, m.Rank, 0, 0, 255)
+		createTrigger := byte(0)
+		if s.EncodeCreateTrigger {
+			createTrigger = m.CreateTrigger
+		}
+		p = append(p, m.Level, m.Rank, createTrigger, 0, 255)
 		// 145b0d910 record+40 ->145b219d0 ->145b144f0 ->vtable+a40
 		// ->145dd6080 ->145d87580 writes actor+f10 (team), not HP.
 		p = add32(p, m.Team)
@@ -237,6 +248,27 @@ type MonsterDeathReport struct {
 	Entity uint32
 	Killer uint16
 }
+
+// EplpRechallenge is the NOTI 261 body (ENUM_NOTIPACKET_EPLP_RECHALLENGE -
+// the opcode name comes from analysis/dumps/opcodes.tsv). The client reads a
+// single byte into the settlement panel's retry state: 9 lights the
+// "continue challenge" entry and the right-edge arrow, 1 leaves it greyed.
+//
+// It is sent after NOTI 35 because the panel is built from that reward; a
+// patch pushed before it has nothing to attach to. Only 9/1 are ever sent -
+// do not pass arbitrary values, the client switches on them.
+//
+// Origin: the outside repair document describes the same single byte and the
+// same two values. Our own evidence for the opcode name is the dump above;
+// the two values still need live confirmation on this client build.
+const (
+	// EplpRechallengeReady enables the retry entry (another run is allowed).
+	EplpRechallengeReady byte = 9
+	// EplpRechallengeBlocked leaves it greyed out (fatigue or entry refused).
+	EplpRechallengeBlocked byte = 1
+)
+
+func EplpRechallenge(state byte) []byte { return []byte{state} }
 
 func DecodeMonsterDeath(p []byte) (MonsterDeathReport, error) {
 	// Native145dc9bf4..145dca2af. The following combat/check fields are opaque;

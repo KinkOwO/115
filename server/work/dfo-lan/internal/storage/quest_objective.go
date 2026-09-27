@@ -32,6 +32,27 @@ func (s *Store) CompleteQuestObjective(ctx context.Context, account, characterID
 	return tag.RowsAffected() == 1, nil
 }
 
+// CompleteQuestUseObjective requires a committed item-use event created after
+// this quest was accepted. A retried item action can repair an interrupted progress
+// refresh without letting an item used before acceptance satisfy the quest.
+func (s *Store) CompleteQuestUseObjective(ctx context.Context, account, characterID int64, qid uint16, version, model, eventKey string, template uint32) (bool, error) {
+	if qid == 0 || qid == 65535 || len(version) != 64 || model == "" || eventKey == "" || template == 0 {
+		return false, fmt.Errorf("invalid item-use quest completion")
+	}
+	tag, err := s.DB.Exec(ctx, `UPDATE character_quests q SET progress=0
+ FROM characters c, character_events e
+ WHERE c.id=q.character_id AND c.account_id=$1 AND c.id=$2 AND c.deleted_at IS NULL
+ AND e.character_id=c.id AND e.event_key=$6 AND e.config_version=$4
+ AND e.outcome->>'template'=$7 AND e.created_at>=q.accepted_at
+ AND q.quest_id=$3 AND q.status='accepted' AND q.config_version=$4
+ AND q.progress_model=$5 AND q.progress=1`,
+		account, characterID, qid, version, model, eventKey, fmt.Sprint(template))
+	if err != nil {
+		return false, err
+	}
+	return tag.RowsAffected() == 1, nil
+}
+
 // A server-owned run supplies the map and matching source objective IDs.
 // A duplicate clear must not complete a newly accepted/reaccepted quest.
 func (s *Store) RecordQuestMapClear(ctx context.Context, account, characterID int64, run string, mapID uint32, version, model string, matching []uint16) (bool, error) {

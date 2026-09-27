@@ -19,8 +19,9 @@ type Service struct {
 	Inventory   *inventory.Awarder
 	// Odyssey carries the quest tables of aradodyssey.etc; nil simply
 	// disables the graduation mainline pass.
-	Odyssey *catalog.OdysseyGrowth
-	index   *Index
+	Odyssey  *catalog.OdysseyGrowth
+	Dungeons *catalog.DungeonCatalog
+	index    *Index
 }
 
 func jobAllowed(jobs []string, job string) bool {
@@ -73,6 +74,10 @@ func (s *Service) Accept(ctx context.Context, role storage.Character, id uint16)
 	var charState character.State
 	if e := json.Unmarshal(role.State, &charState); e != nil {
 		return storage.QuestState{}, e
+	}
+	targets, usable := targetCharacters(d.Script.Cells)
+	if !usable || !targetCharacterAllowed(targets, job, charState.Advancement, charState.Awakening) {
+		return storage.QuestState{}, errors.New("quest target character requirement not met")
 	}
 	for _, g := range cells(d.Script.Cells, "[grow type]") {
 		if g.Type != 0 || g.Value >= 0 && g.Value != int32(charState.Advancement) {

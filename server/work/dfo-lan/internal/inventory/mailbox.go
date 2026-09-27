@@ -166,6 +166,14 @@ func (b Bag) AddMailItem(c catalog.LootCatalog, r BagRules, equipment *Equipment
 		if _, err := equipment.Reward(item.Template); err != nil {
 			return b, err
 		}
+		kind, err := equipment.EquipmentKind(item.Template)
+		if err != nil {
+			return b, err
+		}
+		if IsPetGear(kind) {
+			next, _, err := b.AddPetGear(item)
+			return next, err
+		}
 		next, slots, err := b.AddEquipment(equipment, r.EquipmentSlots, item.Template, 1)
 		if err != nil {
 			return b, ErrMailBagFull
@@ -179,20 +187,15 @@ func (b Bag) AddMailItem(c catalog.LootCatalog, r BagRules, equipment *Equipment
 	if !ok || definition.Kind != "stackable" || r.Source != c.Source.Checksum {
 		return b, fmt.Errorf("邮件物品目录版本无效")
 	}
-	limit := definition.StackLimit
-	if limit == 0 {
-		limit = r.MissingStackLimit
-	}
+	limit := stackLimitFor(r, definition.StackableType, definition.StackLimit)
 	if item.Amount > limit || limit == 0 {
 		return b, fmt.Errorf("邮件附件超过堆叠上限")
 	}
-	slots, ok := r.Slots[definition.StackableType]
-	if !ok {
-		slots = [2]uint16{65, 120}
-		if strings.Contains(strings.ToLower(definition.StackableType), "material") {
-			slots = [2]uint16{121, 176}
-		}
+	if IsPetConsumable(definition.StackableType) {
+		next, _, err := b.addPetStack(r, item.Template, item.Amount, item.ExpireTime, definition.StackLimit)
+		return next, err
 	}
+	slots := stackableSlotRange(r, definition.StackableType)
 	occupied := map[uint16]bool{}
 	for _, e := range b.Equipment {
 		occupied[e.Slot] = true

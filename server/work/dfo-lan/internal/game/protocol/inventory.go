@@ -84,7 +84,7 @@ func InventoryExpansionNotice(tier byte) ([]byte, error) {
 // 0/1 (and a u8+u16 pair for 38); every other list starts with the plain
 // u16 row count. List 35 is the account material storage: rows at fixed
 // slots 363..379 are re-harvested out of the bag manager when the list0
-// snapshot follows (sub_145ADC2A0).
+// snapshot follows (sub_145ADC2A0). List 42 holds the two radiant souls.
 func InventoryRestoreSpace(space byte, rows [][CurrentItemRecordSize]byte) ([]byte, error) {
 	if space == 0 {
 		return InventoryRestore(rows)
