@@ -1,6 +1,7 @@
 # CHANGELOG
 
 ## 2026-09-28
+- **A Farewell（任务 12165）Oculus Boss 过场卡场景（服务端，用户实机确认）**：源地图 Boss 由 cinematic 14047 的 `[DESTROY]` 行为清除，不会另发 CMD39；服务端按导入的源路线标记唯一 Boss，并在有效终场切图后正常结算。用户确认可触发通关结算并完成任务。候选 SHA-256：`A7E4F401024B78F0D3B662D29B7197DA15837F38EBDE8D5B041ABCD241EF3A3D`。未改客户端、DLL、协议包布局或数据库。确认基线：`server/work/dfo-lan/docs/protocol/a-farewell-oculus-cinematic-boss-20260928.md`。
 - **West Coast 任务到达场景与城镇交互（服务端，用户实机确认）**：从 115 PVF 构建 `[move to dungeon]` + `arrive in town` 白名单，并保留 area 40/0 的城镇语义；修复白名单变量作用域遗漏，以及角色进城时同位置 CMD36 与任务场景待加载状态的竞态。用户确认可进入 West Coast、与 NPC 交互、传送、切换其它 area。最新手动会话记录 NPC 任务目标推进、West Coast area 0/1/2/3/7 切换及 Hendonmyre 往返；服务端无同区域传送拒绝或加载态交互锁。未改数据库、客户端或 DLL。候选 SHA-256：`C9700B6F00319807AEE64C0271EDB0821C40D7FBF17A0D81C8D54B04C5E1F691`。确认基线与取证记录：`server/work/dfo-lan/docs/protocol/west-coast-quest12152-town-scene-desync-20260928.md`。
 - **宠物幻化（Pet Skin，穿戴槽 32）：开栏 / 放入 / 外观 / 图标 / 重登恢复（服务端，待实机验收）**：把一只宠物放进**宠物幻化栏**（穿戴容器 list 3 的槽 32，客户端 F6 宠物窗口里的 Skin 框），只换角色身边的显示外观、不改本体。此前后端对这一栏完全没有实现：券点不开栏、宠物拖不进去、外观不变、图标空白。
   - **开栏**：CMD507（`USE_STACKABLE_ACTION`）action **197** 编码扩展券（模板 `10309084`）。扣券与置位在同一个 `CommitCharacterEvent` 事务里、按请求 sha256 幂等 —— 客户端重试命中 receipt 再扣第二张券。开启状态不是独立字段，而是 USERINFO1 解锁字节的 **bit5**（`ExpandEquipFlags`，客户端把它直写角色 `+0x198`），所以置位后必须补发 mode0+mode1 的 USERINFO1（`unlockRefresh`）。券所开的那一位按**模板**反查（`SkinSlotMaskForTicket` / `SkinSlotTicketSlot`），不按槽位。
