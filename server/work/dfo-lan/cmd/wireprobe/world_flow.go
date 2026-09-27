@@ -27,21 +27,24 @@ type worldSession struct {
 	// odyssey mirrors character.OdysseyRole for this session. It selects which
 	// source level gate the world service applies: an Arad Odyssey character
 	// follows the client's [odyssey enter level] instead of [need level].
-	odyssey            bool
-	state              storage.WorldState
-	flags              [3]byte
-	dungeons           *catalog.DungeonCatalog
-	tutorials          *catalog.TutorialCatalog
-	tutorialDungeons   *catalog.DungeonCatalog
-	professions        catalog.Characters
-	inTutorial         bool
-	fatigue            *character.FatigueService
-	lastFatigueDay     string
-	quests             *quest.Service
-	progression        *character.ProgressionService
-	loot               *loot.Service
-	selectionBoxes     *catalog.SelectionBoxes
-	vault              *inventory.VaultService
+	odyssey          bool
+	state            storage.WorldState
+	flags            [3]byte
+	dungeons         *catalog.DungeonCatalog
+	tutorials        *catalog.TutorialCatalog
+	tutorialDungeons *catalog.DungeonCatalog
+	professions      catalog.Characters
+	inTutorial       bool
+	fatigue          *character.FatigueService
+	lastFatigueDay   string
+	quests           *quest.Service
+	progression      *character.ProgressionService
+	loot             *loot.Service
+	selectionBoxes   *catalog.SelectionBoxes
+	vault            *inventory.VaultService
+	// skinCatalog maps an `[add skin storage]` template to its PVF skin key; nil
+	// disables the CMD507 action 169 flow.
+	skinCatalog        map[uint32]catalog.SkinStorageEntry
 	drops              *loot.Session
 	deathSent          map[uint16]bool
 	activeDungeon      *dungeon.Session
