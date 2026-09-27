@@ -294,6 +294,10 @@ func main() {
 	var lootService *loot.Service
 	var shopPilot *cashshop.Pilot
 	var unsealService *inventory.UnsealService
+	// skinCatalog maps an `[add skin storage]` stackable template to its PVF
+	// facts, driving CMD507 action 169 (damage font) registration. Nil when no
+	// item index is configured, which disables the skin flow.
+	var skinCatalog map[uint32]catalog.SkinStorageEntry
 	if *characterStorage != "" {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
@@ -377,6 +381,27 @@ func main() {
 			}
 			protocol.ConfigureMaxItemPeriods(templates)
 			log.Printf("maximum item period enabled for %d PVF templates", len(templates))
+		}
+		// Skin-cargo registration (CMD507 action 169, `[add skin storage]`) reads
+		// the skin key straight from PVF and persists the unlock per account.
+		if *itemIndexFile != "" {
+			skinFile := filepath.Join(filepath.Dir(*itemIndexFile), "skin-storage-items.json")
+			entries, skinErr := catalog.LoadSkinStorage(skinFile, data.Source.Checksum)
+			if skinErr != nil {
+				log.Printf("skin storage registration disabled: %v", skinErr)
+			} else if e = s.MigrateSkinCargo(ctx); e != nil {
+				log.Fatal(e)
+			} else if e = s.MigrateSkinSelection(ctx); e != nil {
+				log.Fatal(e)
+			} else {
+				skinCatalog = entries
+				templates := make([]uint32, 0, len(entries))
+				for template := range entries {
+					templates = append(templates, template)
+				}
+				protocol.ConfigureSkinStoragePeriods(templates)
+				log.Printf("skin storage registration armed for %d PVF templates", len(entries))
+			}
 		}
 		if *shopPilotFile != "" {
 			var database string
@@ -1162,7 +1187,7 @@ func main() {
 		legionState.clock = apocalypseClock
 		legionState.channelType = channelTypes[channel]
 		if worldService != nil {
-			worldState = &worldSession{characters: characters, service: worldService, account: developmentAccount, flags: townPolicy.Flags, dungeons: dungeonCatalog, tutorials: tutorialRoutes, tutorialDungeons: tutorialDungeons, professions: characters.Catalog, fatigue: fatigueService, quests: questService, progression: progressionService, loot: lootService, selectionBoxes: selectionBoxes, vault: vaultService, soloPartyBootstrap: *soloPartyBootstrap, hub: hub}
+			worldState = &worldSession{characters: characters, service: worldService, account: developmentAccount, flags: townPolicy.Flags, dungeons: dungeonCatalog, tutorials: tutorialRoutes, tutorialDungeons: tutorialDungeons, professions: characters.Catalog, fatigue: fatigueService, quests: questService, progression: progressionService, loot: lootService, selectionBoxes: selectionBoxes, vault: vaultService, skinCatalog: skinCatalog, soloPartyBootstrap: *soloPartyBootstrap, hub: hub}
 			worldState.serverID = channelCfg.ServerID
 		}
 		if worldState != nil {
@@ -2112,6 +2137,24 @@ func main() {
 				if !verified {
 					continue
 				}
+				// CMD507 is the shared "use stackable" frame. Split it by action so
+				// the fatigue potion (54) and `[add skin storage]` (169, damage font)
+				// paths never collide; the fatigue path keeps its exact prior shape.
+				_, action, actionErr := protocol.DecodeStackableAction(plaintext)
+				if actionErr == nil && action == protocol.AddSkinStorageAction {
+					plan, e := worldState.useAddSkinStorage(plaintext, event)
+					if e != nil {
+						event(map[string]any{"kind": "add_skin_storage_refused", "character_id": worldState.role.ID, "reason": e.Error()})
+						continue
+					}
+					for _, packet := range plan {
+						if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
+							return
+						}
+						event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID, "id": packet.ID})
+					}
+					continue
+				}
 				if len(plaintext) >= 11 && binary.LittleEndian.Uint32(plaintext[7:11]) == 206 {
 					plan, e := worldState.useQuestAirshipItem(plaintext, event)
 					if e != nil {
@@ -2140,6 +2183,27 @@ func main() {
 						return
 					}
 					event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID})
+				}
+				continue
+			}
+			if worldState != nil && bootstrapped && frame.ID == 1565 {
+				if !verified {
+					continue
+				}
+				// CMD1565 is the skin cargo's 应用 click. The client sends it and
+				// waits: nothing on screen changes until the selection frame comes
+				// back, which is why an applied damage font used to look inert.
+				plan, e := worldState.selectSkin(plaintext, event)
+				if e != nil {
+					event(map[string]any{"kind": "skin_selection_failed", "character_id": worldState.role.ID, "reason": e.Error()})
+					continue
+				}
+				for _, packet := range plan {
+					if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
+						return
+					}
+					event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID, "id": packet.ID,
+						"plain_hex": hex.EncodeToString(packet.Payload)})
 				}
 				continue
 			}
@@ -3104,6 +3168,31 @@ func main() {
 					if skinErr != nil {
 						event(map[string]any{"kind": "profile_skin_restore_error", "character_id": role.ID, "error": skinErr.Error()})
 						continue
+					}
+				}
+				// Feed the account's damage-font cargo so the panel grid has
+				// something to enumerate. A read failure only drops this frame:
+				// entry must not depend on the skin storage the way the profile
+				// decoration state does.
+				if characters != nil && skinCatalog != nil {
+					cargoCtx, cargoCancel := context.WithTimeout(context.Background(), 5*time.Second)
+					cargo, cargoErr := damageFontCargo(cargoCtx, characters.Store, developmentAccount, skinCatalog)
+					if cargoErr == nil {
+						plan.SkinCargoDamageFont = cargo
+						// The chosen fonts are per character and per panel tab, and
+						// only these frames put them back on the damage numbers.
+						plan.SkinSelectionDamageFontNormal, cargoErr = restoreDamageFontSelection(cargoCtx,
+							characters.Store, role.ID, developmentAccount, skinCatalog,
+							protocol.SkinSelectionDamageFontNormal)
+						if cargoErr == nil {
+							plan.SkinSelectionDamageFontCumulative, cargoErr = restoreDamageFontSelection(cargoCtx,
+								characters.Store, role.ID, developmentAccount, skinCatalog,
+								protocol.SkinSelectionDamageFontCumulative)
+						}
+					}
+					cargoCancel()
+					if cargoErr != nil {
+						event(map[string]any{"kind": "skin_cargo_damage_font_restore_error", "character_id": role.ID, "reason": cargoErr.Error()})
 					}
 				}
 				plan.CubeContract, e = cubeContractRestore(role.State)

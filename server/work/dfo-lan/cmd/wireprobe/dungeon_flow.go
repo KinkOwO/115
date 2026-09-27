@@ -388,6 +388,10 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 				}
 			}
 		}
+		// The damage font the player applied in town is state the rebuilt actor
+		// never asks the warehouse for, so the owned page and the selection go
+		// back here the way the worn visuals do.
+		plan = append(plan, w.damageFontRestore()...)
 	}
 	if w.activeDungeon.Definition.ID == 100003126 {
 		// Elvenmere 初始化层数：根据进图选取的 Zone（Extra）设置当前层与最高已通关层。
