@@ -122,6 +122,7 @@ func (w *worldSession) selectDungeon(p []byte) (*dungeon.Session, []outboundPack
 	if e != nil {
 		return nil, nil, e
 	}
+	noteMazeEntry(s)
 	if w.fatigue != nil && !s.Definition.NoFatigue && w.fatigue.Rules.RoomCost > 0 {
 		fp, err := w.fatigue.State(ctx, w.account, w.role.ID, time.Now())
 		if err != nil {
@@ -279,6 +280,7 @@ func (w *worldSession) directMoveDungeon(p []byte) (*dungeon.Session, []outbound
 	if e != nil {
 		return nil, nil, e
 	}
+	noteMazeEntry(s)
 	plan, e := w.directMoveEntryPlan(sel, s)
 	if e != nil {
 		return nil, nil, e
