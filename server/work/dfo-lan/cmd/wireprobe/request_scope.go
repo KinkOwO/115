@@ -37,6 +37,12 @@ func observedGameRequest(id uint16) bool {
 	if id == 1565 {
 		return true
 	}
+	// 武器幻化复制（CMD1592）已有处理器：包体只有八字节，只解密前八次会让第八次
+	// 之后的确认全部分流不进去；每次都要留证以便比对窗口索引到底指向哪个槽位。
+	// 1565 已经是共用帧（subtype 区分武器页签与字体页签），无需另加。
+	if id == 1592 {
+		return true
+	}
 	if id == 305 || id == 306 || id == 307 || id == 308 {
 		return true
 	}

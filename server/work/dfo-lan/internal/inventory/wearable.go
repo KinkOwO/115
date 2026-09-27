@@ -41,6 +41,18 @@ func WearableBy(fields map[string][]pvf.Token, kind string, job string, advancem
 	if int32(level) < required {
 		return fmt.Errorf("equipment minimum level not met or unavailable")
 	}
+	return UsableByJob(fields, job, advancement)
+}
+
+// UsableByJob 只判「谁可以用」这一半：[usable job] 必须命中职业文本或 [all]，
+// 声明了 [usable grow type] 时转职索引必须在其中（-1 表示不限）。
+//
+// 单独抽出来是给武器幻化用的（internal/inventory/skin_replicate.go）：客户端自己的
+// 确认框只拦「不是武器」和「已穿戴」，不拦职业，于是复制出来的皮肤进了仓库本职业
+// 根本用不上（实机 2026-09-27）。这里刻意不判 [minimum level]：幻化登记的是外观，
+// 玩家背包里有这件武器就说明等级门槛与他当下的取舍无关（可能是留给别的号或以后
+// 再穿的），按等级挡会把正常流程一起挡掉；要收紧只需把这里换成 WearableBy。
+func UsableByJob(fields map[string][]pvf.Token, job string, advancement byte) error {
 	allowed := false
 	for _, j := range fields["[usable job]"] {
 		allowed = allowed || j.Text == "[all]" || j.Text == job

@@ -2399,6 +2399,48 @@ func main() {
 				}
 				continue
 			}
+			// 武器幻化复制确认（CMD1592）：窗口点确认后服务端扣武器本体 + 一枚模具，
+			// 并把皮肤登记进幻化仓库。包体只有八字节，模板要靠 Index 自己解析。
+			if worldState != nil && bootstrapped && frame.ID == 1592 {
+				if !verified {
+					event(map[string]any{"kind": "make_skin_rejected", "reason": "checksum failed"})
+					continue
+				}
+				plan, e := worldState.makeSkin(plaintext, event)
+				if e != nil {
+					event(map[string]any{"kind": "make_skin_refused", "character_id": worldState.role.ID, "reason": e.Error()})
+					continue
+				}
+				for _, packet := range plan {
+					if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
+						return
+					}
+					event(map[string]any{"kind": packet.Name, "id": packet.ID, "character_id": worldState.role.ID, "plain_hex": hex.EncodeToString(packet.Payload)})
+				}
+				continue
+			}
+			// 武器幻化应用（CMD1565）：幻化仓库窗口的容器同步。开页签与按 Apply 都发这
+			// 一条，而 Apply 处理器硬编码 subtype=4（武器外观页），所以 subtype 4 且带皮
+			// 肤 id 的帧就是「把这个外观应用到我的武器上」。落库后立刻用 opcode 2 的
+			// mode0 用户信息块重建角色——装备外观块是驱动世界模型的唯一通道。
+			if worldState != nil && bootstrapped && frame.ID == 1565 {
+				if !verified {
+					event(map[string]any{"kind": "skin_cargo_sync_rejected", "reason": "checksum failed"})
+					continue
+				}
+				plan, e := worldState.syncSkin(plaintext, event)
+				if e != nil {
+					event(map[string]any{"kind": "skin_cargo_sync_refused", "character_id": worldState.role.ID, "reason": e.Error()})
+					continue
+				}
+				for _, packet := range plan {
+					if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
+						return
+					}
+					event(map[string]any{"kind": packet.Name, "id": packet.ID, "character_id": worldState.role.ID, "plain_hex": hex.EncodeToString(packet.Payload)})
+				}
+				continue
+			}
 			if worldState != nil && bootstrapped && frame.ID == 44 && lootService != nil {
 				if !verified {
 					event(map[string]any{"kind": "item_use_rejected", "reason": "checksum failed"})
@@ -3388,6 +3430,23 @@ func main() {
 					if cargoErr != nil {
 						event(map[string]any{"kind": "skin_cargo_damage_font_restore_error", "character_id": role.ID, "reason": cargoErr.Error()})
 					}
+				}
+				// 幻化仓库（武器外观页签）容器只在复制时被推过一次，客户端重登即空；
+				// 这里按存档重推 NOTI1545。读不出状态只记事件照常进场，仓库空一次
+				// 比卡在角色选择界面好。
+				plan.SkinCargo, e = skinCargoRestore(role.State)
+				if e != nil {
+					event(map[string]any{"kind": "skin_cargo_restore_error", "error": e.Error()})
+					plan.SkinCargo = nil
+					e = nil
+				}
+				// 幻化仓库里正在佩戴那一行的高亮：客户端只在 Apply 时写窗口本地格，
+				// 重开窗口就丢。入场补一次 NOTI1546，重登后第一次打开就能看到边框。
+				plan.SkinSelection, e = skinSelectionRestore(role.State)
+				if e != nil {
+					event(map[string]any{"kind": "skin_selection_restore_error", "error": e.Error()})
+					plan.SkinSelection = nil
+					e = nil
 				}
 				plan.CubeContract, e = cubeContractRestore(role.State)
 				if e != nil {
