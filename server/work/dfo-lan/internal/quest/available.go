@@ -39,13 +39,13 @@ func (s *Service) Available(ctx context.Context, role storage.Character) ([]uint
 		// A quest whose objective or reward this build cannot settle must not
 		// be offered: accepting one strands the character on a quest that can
 		// be handed in forever without ever completing.
-		if !en.Implemented || !en.RewardUsable || !en.GrowUsable {
+		if !en.Implemented || !en.RewardUsable || !en.GrowUsable || !en.TargetUsable {
 			continue
 		}
 		if uint32(state.Level) < en.MinimumLevel || uint32(state.Level) > en.MaximumLevel {
 			continue
 		}
-		allowed := jobAllowed(en.Jobs, job)
+		allowed := jobAllowed(en.Jobs, job) && targetCharacterAllowed(en.TargetCharacters, job, state.Advancement, state.Awakening)
 		if !prerequisitesMet(en.PrerequisiteGroups, status) {
 			allowed = false
 		}

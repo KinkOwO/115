@@ -16,7 +16,7 @@ import (
 // variation restore — must arrive after it. Any id29 riding inside `restored`
 // is pulled out and re-appended last; stage 1/2 builds carry an empty id29
 // payload which preparePackets skips.
-func orderAwakeningPackets(basic []byte, restored []outboundPacket, skills []byte) []outboundPacket {
+func orderAwakeningPackets(basic []byte, restored []outboundPacket, skills, preset []byte) []outboundPacket {
 	var variation outboundPacket
 	var base []outboundPacket
 	for _, pkt := range restored {
@@ -30,6 +30,7 @@ func orderAwakeningPackets(basic []byte, restored []outboundPacket, skills []byt
 	plan = append(plan, base...)
 	plan = append(plan,
 		outboundPacket{"awakening_skills_updated", 0, 19, skills},
+		outboundPacket{"skill_preset_restored_after_awakening", 0, 2758, preset},
 		outboundPacket{"awakening_completed", 1, 2177, []byte{1}},
 		variation,
 	)
@@ -58,7 +59,11 @@ func awakenCharacter(service *character.Service, w *worldSession, p, keys []byte
 		if e != nil {
 			return nil, e
 		}
-		plan := orderAwakeningPackets(basic, restored, skills)
+		preset, e := service.SkillPresetInfo(role)
+		if e != nil {
+			return nil, e
+		}
+		plan := orderAwakeningPackets(basic, restored, skills, preset)
 		return preparePackets(keys, plan)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

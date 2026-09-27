@@ -38,7 +38,7 @@ func accountVaultUpgradePackets(role storage.Character, raw json.RawMessage, vau
 	if err != nil {
 		return nil, err
 	}
-	rows := materials.Rows()
+	rows := materials.Rows(inventory.AccountMaterialSpace)
 	// 开通恰好耗尽 100 个晶块时，也明确同步零数量，不能省略后残留旧显示。
 	if materials.Count(3262) == 0 {
 		slot, _ := inventory.AccountMaterialSlot(3262)
@@ -49,6 +49,11 @@ func accountVaultUpgradePackets(role storage.Character, raw json.RawMessage, vau
 		return nil, err
 	}
 	packets = append(packets, outboundPacket{"账号金库费用材料已同步", 0, 13, body})
+	body, err = radiantSoulSnapshot(materials)
+	if err != nil {
+		return nil, err
+	}
+	packets = append(packets, outboundPacket{"账号金库光辉灵魂已同步", 0, 13, body})
 	bag, err := inventory.ReadBag(role.State)
 	if err != nil {
 		return nil, err
@@ -101,18 +106,8 @@ func (w *worldSession) moveAccountVault(service *inventory.WearService, r protoc
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	var count uint32
-	var changed [][protocol.CurrentItemRecordSize]byte
-	var bagChanged [][protocol.CurrentItemRecordSize]byte
-	saved, _, _, applied, err := w.vault.Store.CommitAccountVault(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, 19,
+	saved, _, savedVault, _, err := w.vault.Store.CommitAccountVault(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, 19,
 		func(role storage.Character, materials json.RawMessage, vault storage.AccountVaultState) (json.RawMessage, json.RawMessage, storage.AccountVaultState, error) {
-			old, err := inventory.ReadExtendedVault(storage.VaultState{Slots: vault.Slots, Items: vault.Items})
-			if err != nil {
-				return nil, nil, vault, err
-			}
-			oldBag, err := inventory.ReadBag(role.State)
-			if err != nil {
-				return nil, nil, vault, err
-			}
 			state, next, moved, err := inventory.MoveAccountVault(role, vault, service.BagRules, w.vault.Catalog, service.Catalog, r, *w.vault.Rules.Account)
 			if err != nil {
 				return nil, nil, vault, err
@@ -122,20 +117,11 @@ func (w *worldSession) moveAccountVault(service *inventory.WearService, r protoc
 			if _, err = inventory.AccountVaultPayload(next, *w.vault.Rules.Account); err != nil {
 				return nil, nil, vault, err
 			}
-			updated, err := inventory.ReadExtendedVault(storage.VaultState{Slots: next.Slots, Items: next.Items})
-			if err != nil {
-				return nil, nil, vault, err
-			}
-			changed = changedAccountVaultRows(old, updated)
 			newBag, err := inventory.ReadBag(state)
 			if err != nil {
 				return nil, nil, vault, err
 			}
-			bagChanged = inventory.ChangedItemRows(oldBag, newBag)
-			if _, err = protocol.InventorySpaceUpdate(12, changed); err != nil {
-				return nil, nil, vault, err
-			}
-			if _, err = protocol.InventoryUpdate(bagChanged); err != nil {
+			if _, err = protocol.InventoryRestore(newBag.Rows(), newBag.Expansion); err != nil {
 				return nil, nil, vault, err
 			}
 			return state, materials, next, nil
@@ -146,49 +132,20 @@ func (w *worldSession) moveAccountVault(service *inventory.WearService, r protoc
 	saved.WireID = w.role.WireID
 	w.role = saved
 	packets := []outboundPacket{{"账号金库存取成功", 1, 19, protocol.ItemMoveSuccess(r, count)}}
-	if applied {
-		if len(changed) > 0 {
-			body, err := protocol.InventorySpaceUpdate(12, changed)
-			if err != nil {
-				return nil, err
-			}
-			packets = append(packets, outboundPacket{"账号金库格子刷新", 0, 14, body})
-		}
-		if len(bagChanged) > 0 {
-			body, err := protocol.InventoryUpdate(bagChanged)
-			if err != nil {
-				return nil, err
-			}
-			packets = append(packets, outboundPacket{"账号金库背包格子刷新", 0, 14, body})
-		}
+	vaultBody, err := inventory.AccountVaultPayload(savedVault, *w.vault.Rules.Account)
+	if err != nil {
+		return nil, err
 	}
+	bag, err := inventory.ReadBag(saved.State)
+	if err != nil {
+		return nil, err
+	}
+	bagBody, err := protocol.InventoryRestore(bag.Rows(), bag.Expansion)
+	if err != nil {
+		return nil, err
+	}
+	packets = append(packets, outboundPacket{"账号金库完整刷新", 0, 13, vaultBody}, outboundPacket{"账号金库背包完整刷新", 0, 13, bagBody})
 	return packets, nil
-}
-
-func changedAccountVaultRows(old, updated inventory.Vault) [][protocol.CurrentItemRecordSize]byte {
-	seen := map[uint16]bool{}
-	var out [][protocol.CurrentItemRecordSize]byte
-	for _, item := range old.Items {
-		seen[item.Slot] = true
-	}
-	for _, item := range updated.Items {
-		seen[item.Slot] = true
-	}
-	for slot := uint16(0); slot < updated.Slots; slot++ {
-		if !seen[slot] {
-			continue
-		}
-		a, b := old.ItemAt(slot), updated.ItemAt(slot)
-		if a != nil && b != nil && a.Row() == b.Row() {
-			continue
-		}
-		if b != nil {
-			out = append(out, b.Row())
-		} else {
-			out = append(out, protocol.EmptyOrdinaryItem(slot))
-		}
-	}
-	return out
 }
 
 func (w *worldSession) sortAccountVaultCmd() ([]outboundPacket, error) {
@@ -247,7 +204,11 @@ func (w *worldSession) moveAccountVaultCross(service *inventory.WearService, r p
 		if at(r.SourceList, r.SourceSlot) != r.SourceItem || at(r.DestinationList, r.DestinationSlot) != r.DestinationItem {
 			return nil, a, nil, fmt.Errorf("账号金库跨库移动的槽位物品已经改变")
 		}
-		av, pv, moved, e = inventory.MoveAccountVaultCross(av, pv, service.BagRules.MissingStackLimit, r, w.vault.Catalog, service.Catalog)
+		limitTemplate := r.SourceItem
+		if limitTemplate == 0 {
+			limitTemplate = r.DestinationItem
+		}
+		av, pv, moved, e = inventory.MoveAccountVaultCross(av, pv, inventory.StackLimitForTemplate(w.vault.Catalog, service.BagRules, limitTemplate), r, w.vault.Catalog, service.Catalog)
 		if e != nil {
 			return nil, a, nil, e
 		}

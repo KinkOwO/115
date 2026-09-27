@@ -1,7 +1,9 @@
 package protocol
 
 import (
+	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"testing"
 )
 
@@ -55,46 +57,43 @@ func TestDecodeBuyItemRejectsMalformed(t *testing.T) {
 	}
 }
 
-func TestDecodeSellItemMatchesRecoveredLayout(t *testing.T) {
-	// 24 bytes: npcId=1, actorId=2, flag=1, list=0, slot=65, template=1, price=1001, pad=0,0,0,0
-	var p [24]byte
-	binary.LittleEndian.PutUint32(p[0:], 1)
-	binary.LittleEndian.PutUint32(p[4:], 2)
-	p[8] = 1
-	p[9] = 0
-	binary.LittleEndian.PutUint16(p[10:], 65)
-	binary.LittleEndian.PutUint32(p[12:], 1)
-	binary.LittleEndian.PutUint32(p[16:], 1001)
-
-	r, err := DecodeSellItem(p[:])
-	if err != nil {
-		t.Fatalf("unexpected decode error: %v", err)
-	}
-	if r.NpcID != 1 || r.ActorID != 2 || r.Flag != 1 || r.List != 0 || r.Slot != 65 || r.Template != 1 || r.Price != 1001 {
-		t.Fatalf("sell layout mismatch: %+v", r)
+// Captured from the user's current client, 2026-09-26 08:40/08:41 UTC.
+func TestDecodeSellItemNativeRequests(t *testing.T) {
+	for _, tc := range []struct {
+		raw          string
+		slot         uint16
+		count, check uint32
+	}{
+		{"d20100009400000001004c00c80000002902000000000000", 76, 200, 553},
+		{"d20100009400000001007c00e8030000c908000000000000", 124, 1000, 2249},
+	} {
+		p, _ := hex.DecodeString(tc.raw)
+		for _, confirmed := range []bool{true, false} {
+			if !confirmed {
+				p[16] &^= 1
+			}
+			r, e := DecodeSellItem(p)
+			if e != nil || r.NpcID != 466 || r.ActorID != 148 || r.Entries != 1 || r.List != 0 || r.Slot != tc.slot || r.Count != tc.count || r.Check&^1 != tc.check&^1 {
+				t.Fatalf("native sale: %+v, %v", r, e)
+			}
+		}
 	}
 }
 
 func TestDecodeSellItemRejectsMalformed(t *testing.T) {
-	var p [24]byte
-	binary.LittleEndian.PutUint32(p[0:], 1)
-	binary.LittleEndian.PutUint32(p[4:], 2)
-	p[8] = 1
-	p[9] = 0
-	binary.LittleEndian.PutUint16(p[10:], 65)
-	binary.LittleEndian.PutUint32(p[12:], 1)
-	binary.LittleEndian.PutUint32(p[16:], 1001)
-
-	// Wrong length
-	if _, err := DecodeSellItem(p[:20]); err == nil {
-		t.Fatal("expected error on unpadded 20 bytes")
-	}
-
-	// Non-zero padding
-	dirty := p
-	dirty[23] = 1
-	if _, err := DecodeSellItem(dirty[:]); err == nil {
-		t.Fatal("expected error on dirty padding")
+	good, _ := hex.DecodeString("d20100009400000001007c00e8030000c908000000000000")
+	for _, change := range []func([]byte) []byte{
+		func(p []byte) []byte { return p[:20] },
+		func(p []byte) []byte { return append(p, 0) },
+		func(p []byte) []byte { p[23] = 1; return p },
+		func(p []byte) []byte { p[8] = 2; return p },
+		func(p []byte) []byte { binary.LittleEndian.PutUint32(p[12:], 0); return p },
+		func(p []byte) []byte { binary.LittleEndian.PutUint32(p[12:], 0xffffffff); return p },
+		func(p []byte) []byte { p[16] ^= 2; return p },
+	} {
+		if _, e := DecodeSellItem(change(append([]byte(nil), good...))); e == nil {
+			t.Fatal("accepted malformed sale")
+		}
 	}
 }
 
@@ -126,8 +125,8 @@ func TestBuyItemSuccessAcknowledgement(t *testing.T) {
 
 func TestSellItemSuccessAcknowledgement(t *testing.T) {
 	// Single item: 16 bytes
-	items := []SoldItem{{List: 0, Slot: 65, Template: 1001}}
-	ack, err := SellItemSuccess(50, items)
+	items := []SoldItem{{List: 0, Slot: 65, Count: 1000}}
+	ack, err := SellItemSuccess(41997, items)
 	if err != nil {
 		t.Fatalf("SellItemSuccess error: %v", err)
 	}
@@ -135,14 +134,18 @@ func TestSellItemSuccessAcknowledgement(t *testing.T) {
 	if len(ack) != 16 {
 		t.Fatalf("SellItemSuccess width = %d, want 16", len(ack))
 	}
+	want, _ := hex.DecodeString("010da4000001000000004100e8030000")
+	if !bytes.Equal(ack, want) {
+		t.Fatalf("sell ACK %x, want %x", ack, want)
+	}
 	if ack[0] != 1 {
 		t.Fatalf("SellItemSuccess flag = %d, want 1", ack[0])
 	}
 
 	// Multi-item path rejected
 	multi := []SoldItem{
-		{List: 0, Slot: 65, Template: 1001},
-		{List: 0, Slot: 66, Template: 1002},
+		{List: 0, Slot: 65, Count: 1},
+		{List: 0, Slot: 66, Count: 1},
 	}
 	if _, err := SellItemSuccess(100, multi); err == nil {
 		t.Fatal("expected error on multi-item sell")

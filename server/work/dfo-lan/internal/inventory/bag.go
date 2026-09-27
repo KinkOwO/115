@@ -8,7 +8,6 @@ import (
 	"math"
 	"os"
 	"sort"
-	"strings"
 )
 
 type BagRules struct {
@@ -91,12 +90,20 @@ type Bag struct {
 	Gold      uint32                  `json:"gold"`
 	Coin      uint32                  `json:"coin,omitempty"`
 	Items     []BagItem               `json:"items"`
+	PetItems  []BagItem               `json:"pet_items,omitempty"`
 	Equipment []BagEquipment          `json:"equipment,omitempty"`
 	Worn      []BagEquipment          `json:"worn,omitempty"`
 	Special   map[byte][]BagEquipment `json:"special_equipment,omitempty"`
 	// CreatureExperience is keyed by the creature instance key stored in its
 	// equipment record. Older saves omit it and start at zero experience.
 	CreatureExperience map[uint32]uint32 `json:"creature_experience,omitempty"`
+	// Missing values in old saves mean a fully fed creature.
+	CreatureSatiety map[uint32]byte `json:"creature_satiety,omitempty"`
+	// Loyalty accrues in 1/360 point units: town/unequipped +1 per second,
+	// equipped in a dungeon -6 per second. Old saves start at login time.
+	CreatureLoyaltyUpdatedAt  int64            `json:"creature_loyalty_updated_at,omitempty"`
+	CreatureLoyaltyDungeonKey uint32           `json:"creature_loyalty_dungeon_key,omitempty"`
+	CreatureLoyaltyFraction   map[uint32]int64 `json:"creature_loyalty_fraction,omitempty"`
 	// ExpandEquipFlags carries the extended equipment-slot unlock bits the
 	// armoury draws its padlocks from: support 1<<0, magic stone 1<<1 and
 	// earring 1<<4. Quests 649/650/2636 award one bit each and every award
@@ -141,6 +148,13 @@ func ReadBag(state json.RawMessage) (Bag, error) {
 		filtered = append(filtered, i)
 	}
 	b.Items = filtered
+	petSeen := map[uint16]bool{}
+	for _, i := range b.PetItems {
+		if i.Slot < 376 || i.Slot > 431 || i.Template < 2 || i.Amount == 0 || petSeen[i.Slot] {
+			return b, fmt.Errorf("invalid saved pet consumable")
+		}
+		petSeen[i.Slot] = true
+	}
 	seen := map[uint16]bool{}
 	for _, i := range b.Items {
 		if i.Slot == 0 || i.Slot == 1 || i.Template == 0 || i.Amount == 0 || seen[i.Slot] {
@@ -188,7 +202,7 @@ func ReadBag(state json.RawMessage) (Bag, error) {
 			if e := i.ValidateRecord(); e != nil {
 				return b, e
 			}
-			if i.Template == 0 || seen[i.Slot] {
+			if i.Template == 0 || seen[i.Slot] || (space == 7 && petSeen[i.Slot]) {
 				return b, fmt.Errorf("invalid special equipment")
 			}
 			seen[i.Slot] = true
@@ -286,18 +300,15 @@ func (b Bag) Add(c catalog.LootCatalog, r BagRules, id, amount uint32, expireTim
 	if !ok || item.Kind != "stackable" {
 		return b, 0, fmt.Errorf("unsupported source item")
 	}
-	slots, ok := r.Slots[item.StackableType]
-	if !ok {
-		if strings.Contains(strings.ToLower(item.StackableType), "material") {
-			slots = [2]uint16{121, 176}
-		} else {
-			slots = [2]uint16{65, 120}
-		}
+	if IsPetConsumable(item.StackableType) {
+		return b.addPetStack(r, id, amount, exp, item.StackLimit)
 	}
+	slots := stackableSlotRange(r, item.StackableType)
 	limit := stackLimitFor(r, item.StackableType, item.StackLimit)
 	if amount > limit {
 		return b, 0, fmt.Errorf("award exceeds stack limit")
 	}
+	original := b
 	occupied := map[uint16]bool{}
 	for _, i := range b.Equipment {
 		occupied[i.Slot] = true
@@ -308,12 +319,16 @@ func (b Bag) Add(c catalog.LootCatalog, r BagRules, id, amount uint32, expireTim
 		if exp != 0 && row.ExpireTime != 0 && row.ExpireTime != exp {
 			continue
 		}
-		if row.Template == id && row.Slot >= slots[0] && row.Slot <= slots[1] && uint64(row.Amount)+uint64(amount) <= uint64(limit) {
-			b.Items[i].Amount += amount
+		if row.Template == id && row.Slot >= slots[0] && row.Slot <= slots[1] && row.Amount < limit {
+			added := min(amount, limit-row.Amount)
+			b.Items[i].Amount += added
+			amount -= added
 			if exp != 0 && b.Items[i].ExpireTime == 0 {
 				b.Items[i].ExpireTime = exp
 			}
-			return b, row.Slot, nil
+			if amount == 0 {
+				return b, row.Slot, nil
+			}
 		}
 	}
 	for n := uint32(slots[0]); n <= uint32(slots[1]); n++ {
@@ -323,7 +338,39 @@ func (b Bag) Add(c catalog.LootCatalog, r BagRules, id, amount uint32, expireTim
 			return b, slot, nil
 		}
 	}
-	return b, 0, fmt.Errorf("bag category is full")
+	return original, 0, fmt.Errorf("bag category is full")
+}
+
+// SweepStackSlots relocates saved stackables with known categories. It leaves
+// quick slots and unknown types alone, and returns the original bag on any
+// placement error so a failed migration cannot lose an item.
+func SweepStackSlots(b Bag, c catalog.LootCatalog, r BagRules) (Bag, bool, error) {
+	next := b
+	next.Items = append([]BagItem(nil), b.Items...)
+	moved := false
+	for i := 0; i < len(next.Items); {
+		row := next.Items[i]
+		definition, ok := c.Items[row.Template]
+		if !ok || definition.Kind != "stackable" || row.Slot <= 8 || IsPetConsumable(definition.StackableType) {
+			i++
+			continue
+		}
+		slots, known := classifyStackableSlot(r, definition.StackableType)
+		if !known || row.Slot >= slots[0] && row.Slot <= slots[1] {
+			i++
+			continue
+		}
+		next.Items = append(next.Items[:i], next.Items[i+1:]...)
+		placed, err := next.AddMailItem(c, r, nil, MailItem{Stack: &row})
+		if err != nil {
+			return b, false, fmt.Errorf("relocate stackable %d from slot %d: %w", row.Template, row.Slot, err)
+		}
+		next = placed
+		moved = true
+		// The relocated row is appended in its correct range; examine the
+		// remaining original row at this index next.
+	}
+	return next, moved, nil
 }
 
 // WornBaseItems filters b.Worn down to at most one item per slot (0..47),

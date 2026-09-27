@@ -38,17 +38,27 @@ func (w *worldSession) pickup(p []byte) ([]outboundPacket, error) {
 	if e != nil {
 		return nil, e
 	}
+	isPetConsumable := false
+	for _, item := range b.PetItems {
+		if item.Slot == receipt.Destination && item.Template == receipt.Award.Template {
+			isPetConsumable = true
+			break
+		}
+	}
 	// NOTI14 is an incremental slot update: publish only the pickup
 	// destination row so the client marks just that slot as newly obtained.
 	// A full-bag update makes every slot flash the new-item highlight on every
 	// pickup, which the client shows as a highlight on all items.
-	row, ok := b.RowAt(receipt.Destination)
-	if !ok {
-		return nil, fmt.Errorf("pickup destination slot %d missing", receipt.Destination)
-	}
-	update, e := protocol.InventoryUpdate([][protocol.CurrentItemRecordSize]byte{row})
-	if e != nil {
-		return nil, e
+	var update []byte
+	if !isAccountMaterial && !isPetConsumable {
+		row, ok := b.RowAt(receipt.Destination)
+		if !ok {
+			return nil, fmt.Errorf("pickup destination slot %d missing", receipt.Destination)
+		}
+		update, e = protocol.InventoryUpdate([][protocol.CurrentItemRecordSize]byte{row})
+		if e != nil {
+			return nil, e
+		}
 	}
 	plan := []outboundPacket{{"pickup_ack", 1, 43, []byte{1}}}
 	// NOTI39's parser changes branch after the scene object has been removed.
@@ -74,6 +84,12 @@ func (w *worldSession) pickup(p []byte) ([]outboundPacket, error) {
 			p.Name = "pickup_" + p.Name
 			plan = append(plan, p)
 		}
+	} else if isPetConsumable {
+		petBody, e := inventory.PetContainerBody(b, true)
+		if e != nil {
+			return nil, e
+		}
+		plan = append(plan, outboundPacket{"pickup_pet_container_restored", 0, 13, petBody})
 	} else {
 		plan = append(plan, outboundPacket{"pickup_inventory_updated", 0, 14, update})
 	}

@@ -40,6 +40,7 @@ type State struct {
 	LearnedSkills   [2]map[uint16]byte     `json:"learned_skills,omitempty"`
 	SkillSlots      [2]map[uint16]uint16   `json:"skill_slots,omitempty"`
 	SkillCommands   []byte                 `json:"skill_commands,omitempty"`
+	SkillPreset     []byte                 `json:"skill_preset,omitempty"`
 	SourcePath      string                 `json:"source_path"`
 	SourceSHA256    string                 `json:"source_sha256"`
 	// Create equipment cells are intentionally unresolved until the native
@@ -172,7 +173,7 @@ func (s *Service) ListWithFatigue(ctx context.Context, account int64, fatigue *F
 		if e = json.Unmarshal(c.State, &state); e != nil {
 			return nil, e
 		}
-		row := protocol.CharacterRow{Slot: uint16(slot), Name: c.Name, Profession: c.Profession, Advancement: state.Advancement, Level: state.Level}
+		row := protocol.CharacterRow{Slot: uint16(slot), FixedSlot: c.FixedSlot, Name: c.Name, Profession: c.Profession, Advancement: state.Advancement, Level: state.Level}
 		row.Advancement, e = state.WireAdvancement()
 		if e != nil {
 			return nil, e
@@ -405,10 +406,12 @@ func (s *Service) wornAppearance(state json.RawMessage) ([]protocol.EquippedAppe
 		row := protocol.EquippedAppearance{Slot: byte(slot), Model: model}
 		// 原生 145639840 将首个 u32 保存到 slot*8+48；145BEFD60 经
 		// 145BD63D0、145BEE6C0 用它查找城镇模型的装备模板，不能填 0。
-		// 此次只修正主副手槽，保留其他部位及克隆装扮的现有投影。
-		if slot == 12 || slot == 24 {
-			row.Placeholder = model
-		}
+		// 2026-09-25 的武器互换修复只填了主副手槽（12/24），其余槽位
+		// （含时装 0..11）Placeholder 留 0 —— 实机 2026-09-26：穿时装后
+		// 城镇模型不实时更新，重选角色才生效，与武器互换修复前的症状
+		// 完全一致。城镇显示对象按槽位查这张表，所有 worn 槽统一投影
+		// 自身模板（与进城时客户端从 worn 物件自填的值同形）。
+		row.Placeholder = model
 		rows = append(rows, row)
 	}
 	if len(rows) == 0 {

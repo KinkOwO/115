@@ -5,8 +5,69 @@ import (
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/storage"
+	"encoding/json"
 	"time"
 )
+
+func (w *worldSession) movePetStack(rules inventory.BagRules, r protocol.ItemMoveRequest, key string) ([]outboundPacket, bool, error) {
+	if w == nil || w.role.ID == 0 || w.loot == nil {
+		return nil, false, nil
+	}
+	bag, err := inventory.ReadBag(w.role.State)
+	if err != nil {
+		return nil, false, err
+	}
+	if !inventory.IsPetContainerMove(bag, r) {
+		return nil, false, nil
+	}
+	catalog := w.loot.Catalog
+	if w.vault != nil {
+		catalog = w.vault.Catalog
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	saved, applied, err := w.loot.Store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, "pet-move-v1",
+		func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+			currentBag, e := inventory.ReadBag(current.State)
+			if e != nil {
+				return nil, nil, e
+			}
+			moved, e := currentBag.MovePetStackRequest(catalog, rules, r)
+			if e != nil {
+				return nil, nil, e
+			}
+			state, e := inventory.SaveBag(current.State, moved)
+			if e != nil {
+				return nil, nil, e
+			}
+			if _, e = inventory.PetContainerBody(moved, true); e != nil {
+				return nil, nil, e
+			}
+			return state, json.RawMessage(`{}`), nil
+		})
+	if err != nil {
+		return nil, true, err
+	}
+	saved.WireID = w.role.WireID
+	w.role = saved
+	bag, err = inventory.ReadBag(saved.State)
+	if err != nil {
+		return nil, true, err
+	}
+	bagBody, err := protocol.InventoryRestore(bag.Rows(), bag.Expansion)
+	if err != nil {
+		return nil, true, err
+	}
+	petBody, err := inventory.PetContainerBody(bag, true)
+	if err != nil {
+		return nil, true, err
+	}
+	packets := []outboundPacket{}
+	if applied {
+		packets = append(packets, outboundPacket{"pet_stack_move_committed", 1, 19, protocol.ItemMoveSuccess(r, max(1, r.Count))})
+	}
+	return append(packets, outboundPacket{"pet_stack_bag_restored", 0, 13, bagBody}, outboundPacket{"pet_stack_container_restored", 0, 13, petBody}), true, nil
+}
 
 // moveStack answers the CMD19 moves that carry a stack rather than a piece of
 // equipment: dragging a consumable onto the quick-use belt and back. It

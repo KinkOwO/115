@@ -75,7 +75,7 @@ func (w *worldSession) selectTutorial(requested uint32) (*dungeon.Session, []out
 	if e != nil {
 		return nil, nil, e
 	}
-	start, e := protocol.StartMap(protocol.StartMapState{Position: s.Maze.Start, Seed: seed, Map: s.Room.Map, Monsters: s.Monsters})
+	start, e := protocol.StartMap(protocol.StartMapState{Position: s.Maze.Start, Seed: seed, Map: s.Room.Map, Monsters: s.Monsters, EncodeCreateTrigger: monsterCreateTriggerEnabled()})
 	if e != nil {
 		return nil, nil, e
 	}

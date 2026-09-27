@@ -267,13 +267,13 @@ func UnifiedCharacOptionsFrom(template []byte, locks []uint16, skillLockAt int) 
 }
 
 // UnifiedCharacSettingsAt is the subtype 5 (character system settings) object
-// inside the 3539-byte NOTI2827 block, located by walking the client sub_14757B0C0
-// subtype switch backwards from the anchored skill-lock objects (subtype 18 @
-// 2716, subtype 19 @ 2736). It holds N=173 u16 slots at obj+2, with one exist
-// byte per slot at obj+2+2*N. A captured CMD2377 subtype-0x05 frame (entries
-// Position=94/101/103/137/138) confirms entries map 1:1 onto these slots.
+// inside the 3539-byte NOTI2827 block. The current client's sub_14757B0C0
+// selects offset 946 for subtype 5 (subtype 6 starts at 1467). The consumer
+// sub_147578C40 requires obj[0] == 1 and an exist byte at obj+348+position
+// before reading the u16 at obj+2+2*position; there are 173 positions.
+// This includes the skill cooldown alert settings saved by CMD2377.
 const (
-	UnifiedCharacSettingsAt    = 1558
+	UnifiedCharacSettingsAt    = 946
 	UnifiedCharacSettingsSlots = 173
 )
 
@@ -292,6 +292,7 @@ func FillCharacSettings(block []byte, settings map[uint16]uint16) error {
 		if int(position) >= UnifiedCharacSettingsSlots {
 			continue
 		}
+		block[obj] = 1
 		slot := obj + 2 + int(position)*2
 		binary.LittleEndian.PutUint16(block[slot:], value)
 		exist := obj + 2 + 2*UnifiedCharacSettingsSlots + int(position)
@@ -299,4 +300,3 @@ func FillCharacSettings(block []byte, settings map[uint16]uint16) error {
 	}
 	return nil
 }
-

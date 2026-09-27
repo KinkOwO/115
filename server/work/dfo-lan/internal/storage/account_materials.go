@@ -7,9 +7,9 @@ import (
 	"fmt"
 )
 
-// Account material storage keeps the seventeen account-shared material
-// stacks (colored cube fragments, souls, old souls) per account. The client
-// pins them to list 35 at fixed slots 363..379; see
+// Account material storage keeps nineteen account-shared material
+// stacks per account. The client pins seventeen to list 35 at 363..379
+// and two radiant souls to list 42 at 0..1; see
 // docs/protocol/next43-account-material-storage.md.
 func (s *Store) MigrateAccountMaterials(ctx context.Context) error {
 	_, e := s.DB.Exec(ctx, `CREATE TABLE IF NOT EXISTS account_material_storage (

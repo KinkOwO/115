@@ -19,13 +19,14 @@ type preparedPacket struct {
 	Raw []byte
 }
 type entryPayloads struct {
-	Select, Basic, Addition, Skills, Vault, UserArea, Area, Fatigue, Complete []byte
-	Experience, CompletedQuests, Inventory                                    []byte
+	Select, Basic, Addition, Skills, SkillPreset, Vault, UserArea, Area, Fatigue, Complete []byte
+	Experience, CompletedQuests, Inventory                                                 []byte
 	// AccountMaterials is the NOTI13 list35 account material storage
 	// snapshot. It must be delivered before the list0 inventory snapshot so
 	// the client harvest (sub_145ADC2A0) moves the fixed slots 363..379 into
 	// the soul-storage pipeline.
 	AccountMaterials []byte
+	RadiantSouls     []byte
 	SecondaryVault   []byte
 	AccountVault     []byte
 	AvailableQuests  []byte
@@ -38,6 +39,18 @@ type entryPayloads struct {
 	// every login. Empty payloads are skipped by preparePackets.
 	InformNotice    []byte
 	InformNotice2nd []byte
+	// Category-0 owned skins must arrive before their persisted selection.
+	ProfileSkinCargo, ProfileSkinSelection []byte
+	// SkinCargoDamageFont is the NOTI1545 damage-font owned page: every
+	// `[add skin storage]` skin the account has spent a damage font on. It is a
+	// page frame, so it rebuilds that page from scratch and must carry the whole
+	// list, not only the newest grant.
+	SkinCargoDamageFont []byte
+	// SkinSelectionDamageFontNormal / Cumulative are the two NOTI1546 frames that
+	// re-apply the fonts this character chose in the panel's two tabs. Each has to
+	// follow its own owned page above.
+	SkinSelectionDamageFontNormal     []byte
+	SkinSelectionDamageFontCumulative []byte
 	// WornSlots is the id-14 per-slot update frame for the full worn set
 	// (space 3), same builder the equipment-move path uses. The live
 	// 20260921 probe timeline showed the equip-change heal always carries
@@ -84,11 +97,17 @@ func (p entryPayloads) packets() []outboundPacket {
 		{"account_options_restored", 0, 2826, p.AccountOptions},
 		{"inform_notice_restored", 0, 402, p.InformNotice},
 		{"inform_notice_2nd_restored", 0, 426, p.InformNotice2nd},
+		{"skin_cargo_damage_font_restored", 0, 1545, p.SkinCargoDamageFont},
+		{"skin_selection_damage_font_restored", 0, 1546, p.SkinSelectionDamageFontNormal},
+		{"skin_selection_damage_font_restored", 0, 1546, p.SkinSelectionDamageFontCumulative},
+		{"profile_skin_cargo_restored", 0, 1545, p.ProfileSkinCargo},
+		{"profile_skin_selection_restored", 0, 1546, p.ProfileSkinSelection},
 		{"cinematic_skips_restored", 0, 1352, p.CinematicSkips},
 		{"story_digest_restored", 0, 1370, p.StoryDigest},
 		{"entry_basic_probe_sent", 0, 2, p.Basic},
 		{"entry_addition_sent", 0, 2, p.Addition},
 		{"entry_skills_sent", 0, 19, p.Skills},
+		{"skill_preset_restored", 0, 2758, p.SkillPreset},
 		{"vault_initialized", 0, 13, p.Vault},
 	}
 	if len(p.SecondaryVault) > 0 {
@@ -99,6 +118,7 @@ func (p entryPayloads) packets() []outboundPacket {
 	}
 	out = append(out, []outboundPacket{
 		{"account_materials_restored", 0, 13, p.AccountMaterials},
+		{"radiant_souls_restored", 0, 13, p.RadiantSouls},
 		{"inventory_restored", 0, 13, p.Inventory},
 		// Initialize list 1 empty. The client accepts authoritative avatar rows
 		// only after the town actor/UserInfo graph has been installed.

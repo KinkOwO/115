@@ -83,10 +83,7 @@ func (b Bag) MoveStackRequest(c catalog.LootCatalog, rules BagRules, r protocol.
 				return 0, fmt.Errorf("equipment occupies stack destination")
 			}
 		}
-		n := item.StackLimit
-		if n == 0 {
-			n = rules.MissingStackLimit
-		}
+		n := stackLimitFor(rules, item.StackableType, item.StackLimit)
 		if n == 0 || v.Amount > n {
 			return 0, fmt.Errorf("invalid stack amount")
 		}

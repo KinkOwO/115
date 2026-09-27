@@ -27,9 +27,20 @@ type Service struct {
 	// 奥德赛商店的盒子要 100 个银币（10418036）。缺这张表时所有购买都会拿写死的
 	// 金币单价去扣，等于白送（实机 2026-09-23 玩家报告"银币没有扣减"）。
 	ItemShops *catalog.ItemShops
+	Prices    *catalog.ShopPrices
 	// ChapterDrop 是章节最终领主的章节盒掉落（手册 P3 子项 3）。默认整表
 	// enabled=false，禁用行连掷骰种子都不消耗；由 profile 显式开启。
 	ChapterDrop *OdysseyChapterDrop
+	// Attunement 是「调律之边界」（深渊）副本的专属奖励表，直接取自源
+	// rewardboostinfo CTP。只对声明了 [dungeon index] 的副本生效，其它副本
+	// 连掷骰种子都不消耗。
+	Attunement *AttunementRewards
+	// RewardBoxes 解析奖励包装（源的 [booster]）开一层会出什么。奖励表发出来的
+	// 是包装本身，玩家该拿到的是包装里的东西，所以展开发生在掉落时；见
+	// OpenRewardBoxes。为 nil 时包装原样落地，启动期会拦下这个组合。
+	RewardBoxes RewardBoxSource
+	// Omen 是千海之空深渊的征兆系统累积账（见 omen.go）。为 nil 时通关不推进。
+	Omen *OmenLedger
 }
 type PickupReceipt struct {
 	Run         string

@@ -246,3 +246,38 @@ func TestTownMapTeleportTransition(t *testing.T) {
 		t.Fatalf("return from seria room failed: %+v, err: %v", returned, err)
 	}
 }
+
+func TestNativeEpisodeTownReturnFromSavedPosition(t *testing.T) {
+	c, err := catalog.LoadWorld("../../configs/world.generated.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	w := &worldSession{
+		account: 7,
+		level:   94,
+		service: &world.Service{Catalog: c},
+		role:    storage.Character{ID: 14, AccountID: 7, WireID: 14},
+		state:   storage.WorldState{Position: storage.WorldPosition{Town: 55, Area: 0, X: 862, Y: 345}},
+	}
+	r := protocol.AreaChangeRequest{Town: 38, Area: 0, X: 2092, Y: 220, Flag: 5, PreviousTown: 55, PreviousArea: 0}
+	if !w.npcMoveTeleport(r) || !w.episodeTownReturn(r) {
+		t.Fatal("NPC move and episode return source rules not indexed")
+	}
+	next, err := w.areaTransition(r)
+	if err != nil || next.Town != 38 || next.Area != 0 || next.X != 2092 || next.Y != 220 {
+		t.Fatalf("episode town exit refused: %+v, %v", next, err)
+	}
+	r.Town = 40
+	if _, err := w.areaTransition(r); err == nil {
+		t.Fatal("unrelated destination admitted from episode town")
+	}
+	for _, tc := range []struct{ episodeTown, returnTown, returnArea uint32 }{
+		{75, 22, 4}, {82, 22, 4}, {149, 6, 2},
+	} {
+		w.state.Position = storage.WorldPosition{Town: tc.episodeTown, Area: 0}
+		r = protocol.AreaChangeRequest{Town: tc.returnTown, Area: tc.returnArea, Flag: 5, PreviousTown: tc.episodeTown}
+		if !w.episodeTownReturn(r) {
+			t.Fatalf("episode %d return NPC destination refused", tc.episodeTown)
+		}
+	}
+}

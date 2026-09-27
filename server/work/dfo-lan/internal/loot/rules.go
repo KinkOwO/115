@@ -5,6 +5,7 @@ import (
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/inventory"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -12,6 +13,19 @@ import (
 	"strconv"
 	"strings"
 )
+
+// ErrOutOfDropRange reports that the imported drop model does not cover the
+// monster being rolled: its level sits above the catalog's import ceiling, or the
+// source tables carry no row for it.
+//
+// It is a data-coverage gap, not a defect, so callers are expected to treat it as
+// "this monster pays nothing" rather than failing the request that reported the
+// death. Withholding a confirmed death for this reason leaves the client's
+// monsters alive and the gate unopened - the failure the FFFF killer arm in
+// dungeon.ConfirmDeath documents. Defects of the model itself (a malformed table, a
+// source inconsistency, an exhausted drop identity) deliberately do NOT carry this
+// sentinel: those must still fail loudly.
+var ErrOutOfDropRange = errors.New("drop source range is not imported")
 
 type Rules struct {
 	Model                          string    `json:"model"`
@@ -152,7 +166,7 @@ func RollWithBonus(c catalog.LootCatalog, t Tables, r Rules, pool []inventory.Eq
 		enabled[kind] = true
 	}
 	if level == 0 || rank > 3 || int(difficulty) >= len(r.DifficultyBonus) || uint32(level)+3 > c.MaximumGrade {
-		return out, fmt.Errorf("drop source range is not imported")
+		return out, ErrOutOfDropRange
 	}
 	var prob, gold, grade []float64
 	for i := 0; i < len(t.Probability); i += 7 {
@@ -175,7 +189,7 @@ func RollWithBonus(c catalog.LootCatalog, t Tables, r Rules, pool []inventory.Eq
 		}
 	}
 	if len(prob) != 5 || gold == nil || grade == nil {
-		return out, fmt.Errorf("missing source drop level")
+		return out, fmt.Errorf("%w: missing source drop level", ErrOutOfDropRange)
 	}
 	if gold[1] <= 0 || gold[2] < 0 || gold[2] > 100 {
 		return out, fmt.Errorf("invalid source gold")

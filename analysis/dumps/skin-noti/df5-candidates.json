@@ -1,0 +1,41 @@
+[
+  {
+    "func": "0x144360950",
+    "name": "sub_144360950",
+    "readers": [
+      "0x146EA09F0"
+    ]
+  },
+  {
+    "func": "0x1444ECFF0",
+    "name": "sub_1444ECFF0",
+    "readers": [
+      "0x146EA09F0",
+      "0x146EA0BE0"
+    ]
+  },
+  {
+    "func": "0x1444ED1B0",
+    "name": "sub_1444ED1B0",
+    "readers": [
+      "0x146EA0BA0"
+    ]
+  },
+  {
+    "func": "0x1444EDD60",
+    "name": "sub_1444EDD60",
+    "readers": [
+      "0x146EA0BA0",
+      "0x146EA0BE0"
+    ]
+  },
+  {
+    "func": "0x1452FC5B0",
+    "name": "sub_1452FC5B0",
+    "readers": [
+      "0x146EA09F0",
+      "0x146EA0BA0",
+      "0x146EA1920"
+    ]
+  }
+]

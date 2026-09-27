@@ -18,5 +18,6 @@ func (w *worldSession) automaticSkillRefresh() ([]outboundPacket, error) {
 	if err != nil {
 		return nil, err
 	}
-	return []outboundPacket{{"automatic_skills_updated", 0, 19, p}}, nil
+	plan := []outboundPacket{{"automatic_skills_updated", 0, 19, p}}
+	return appendSkillPresetRestore(plan, w.characters, w.role, "skill_preset_restored_after_automatic_skills")
 }

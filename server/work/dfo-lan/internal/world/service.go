@@ -52,6 +52,35 @@ func Walkable(a catalog.WorldArea, x, y uint16) bool {
 	return false
 }
 
+// nativeDefaultLanding mirrors the default branch of client sub_144D26750.
+// When the destination has no entrance for the source area, the first
+// [virtual movable area] supplies the landing rectangle. Only a zero landing
+// from an authorized source portal uses this fallback; nonzero coordinates and
+// other transition families retain their existing validation.
+func nativeDefaultLanding(old storage.WorldPosition, r protocol.AreaChangeRequest, dest catalog.WorldArea, sourcePortal bool) (uint16, uint16, bool) {
+	if !sourcePortal || r.X != 0 || r.Y != 0 || r.Flag != 5 ||
+		r.TailFlags != [2]byte{} || len(dest.Walkable) == 0 {
+		return 0, 0, false
+	}
+	for _, portal := range dest.Portals {
+		if portal.Town == old.Town && portal.Area == old.Area {
+			// The client's matching-entrance branch also uses signed offsets.
+			// That branch is outside this default-landing rule.
+			return 0, 0, false
+		}
+	}
+	rect := dest.Walkable[0]
+	if rect[2] <= 0 || rect[3] <= 0 {
+		return 0, 0, false
+	}
+	x := int64(rect[0]) + int64(rect[2])/2
+	y := int64(rect[1]) + int64(rect[3])/2
+	if x < 0 || x > 65535 || y < 0 || y > 65535 {
+		return 0, 0, false
+	}
+	return uint16(x), uint16(y), true
+}
+
 // RequiredLevel is the source level gate of an area. An Arad Odyssey character
 // follows the same permission data the client uses: [odyssey enter level] can
 // only LOWER the gate, never raise it — the effective Odyssey gate is the
@@ -155,9 +184,11 @@ func (s *Service) transition(level byte, odyssey bool, old storage.WorldPosition
 		return old, ErrLevel
 	}
 	adjacent := false
+	sourcePortal := false
 	for _, p := range src.Portals {
 		if p.Town == next.Town && p.Area == next.Area && (!s.Rules.RequirePortalProximity || Contains(p.Bounds, old.X, old.Y, s.Rules.PortalMargin)) {
 			adjacent = true
+			sourcePortal = true
 		}
 	}
 	if old.Return != nil && src.SeriaReturnWarp && r.Town == old.Town && r.Area == old.Area {
@@ -196,6 +227,9 @@ func (s *Service) transition(level byte, odyssey bool, old storage.WorldPosition
 		if strict || !permissive {
 			return old, errors.New("no authorized source portal to destination")
 		}
+	}
+	if x, y, ok := nativeDefaultLanding(old, r, dest, sourcePortal && !seriaLeave); ok {
+		next.X, next.Y = x, y
 	}
 	if e := s.ValidatePosition(level, odyssey, next); e != nil {
 		return old, e

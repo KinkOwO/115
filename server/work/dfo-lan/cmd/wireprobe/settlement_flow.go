@@ -11,6 +11,26 @@ import (
 	"time"
 )
 
+// canRechallenge reports whether another run of the settled dungeon is
+// allowed - the condition behind NOTI 261 value 9. It mirrors the gate
+// restartDungeon applies so the lit button is never a dead end: a run with
+// no fatigue cost (or an exhausted fatigue pool) is answered before the
+// player presses anything.
+func (w *worldSession) canRechallenge(ctx context.Context) bool {
+	d := w.activeDungeon
+	if w == nil || d == nil || !d.Completed() {
+		return false
+	}
+	if w.fatigue == nil || d.Definition.NoFatigue || w.fatigue.Rules.RoomCost <= 0 {
+		return true
+	}
+	fp, err := w.fatigue.State(ctx, w.account, w.role.ID, time.Now())
+	if err != nil {
+		return false
+	}
+	return fp.Used < fp.Limit
+}
+
 func (w *worldSession) dungeonResult(p []byte) ([]outboundPacket, error) {
 	if w == nil || w.progression == nil || w.activeDungeon == nil || !w.activeDungeon.Completed() || !w.completionSent {
 		return nil, fmt.Errorf("result before committed boss completion")
@@ -66,6 +86,17 @@ func (w *worldSession) dungeonResult(p []byte) ([]outboundPacket, error) {
 	}
 	w.role, w.level = role, experience[0]
 	plan := []outboundPacket{{"dungeon_play_result", 0, 34, notice}, {"dungeon_clear_experience", 0, 37, experience}, {"dungeon_clear_reward", 0, 35, reward}}
+	// NOTI261（ENUM_NOTIPACKET_EPLP_RECHALLENGE）必须**跟在 NOTI35 之后**：
+	// 结算面板由 35 构建，261 只负责把「继续挑战」入口与右侧箭头置为可用（9）
+	// 或置灰（1）。不发它时面板照常显示，但入口永远点不动、右侧也不出箭头。
+	//
+	// 亮 9 的条件与 restartDungeon 的准入保持一致（同一套疲劳判定），
+	// 这样「按钮亮着」就等价于「按下去能成」，不会给玩家一个点了会失败的入口。
+	rechallenge := protocol.EplpRechallengeBlocked
+	if w.canRechallenge(ctx) {
+		rechallenge = protocol.EplpRechallengeReady
+	}
+	plan = append(plan, outboundPacket{"eplp_rechallenge", 0, 261, protocol.EplpRechallenge(rechallenge)})
 	if receipt.CreatureExperienceGained > 0 {
 		creatures, err := inventory.CreatureListPayload(role.State)
 		if err != nil {
@@ -86,6 +117,10 @@ func (w *worldSession) dungeonResult(p []byte) ([]outboundPacket, error) {
 	if w.characters != nil {
 		if restore, e := w.characters.EntrySkills(role); e == nil {
 			plan = append(plan, outboundPacket{"skill_state_restored", 0, 19, restore})
+			plan, e = appendSkillPresetRestore(plan, w.characters, role, "skill_preset_restored_after_settlement")
+			if e != nil {
+				return nil, e
+			}
 		}
 		if variation, e := w.characters.VariationRestore(role); e == nil && len(variation) > 0 {
 			plan = append(plan, outboundPacket{"skill_variation_response", 1, 29, variation})

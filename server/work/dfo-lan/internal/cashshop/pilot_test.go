@@ -107,7 +107,7 @@ func TestShopPilotPacksAndAtomicCapacity(t *testing.T) {
 	}
 	full := inventory.Bag{Version: "ordinary-bag-v1"}
 	for slot := uint16(65); slot <= 120; slot++ {
-		full.Items = append(full.Items, inventory.BagItem{Slot: slot, Template: 15, Amount: 1000})
+		full.Items = append(full.Items, inventory.BagItem{Slot: slot, Template: 15, Amount: 2147483647})
 	}
 	l.state, e = inventory.SaveBag(l.state, full)
 	if e != nil {
@@ -177,17 +177,17 @@ func TestShopPilotCartAndSplitStacks(t *testing.T) {
 	amounts := map[uint32]uint32{}
 	for _, row := range b.Items {
 		amounts[row.Template] += row.Amount
-		if row.Amount > 1000 {
+		if row.Amount > 2147483647 {
 			t.Fatal("stack overflow")
 		}
 	}
-	if len(b.Items) != 4 || amounts[15] != 1050 || amounts[14] != 10 || amounts[590722509] != 3 {
+	if len(b.Items) != 3 || amounts[15] != 1050 || amounts[14] != 10 || amounts[590722509] != 3 {
 		t.Fatal("wrong mixed delivery", b)
 	}
 	// First cart line fits an existing stack; second needs a new, unavailable slot.
 	full := inventory.Bag{Version: "ordinary-bag-v1"}
 	for slot := uint16(65); slot <= 120; slot++ {
-		full.Items = append(full.Items, inventory.BagItem{Slot: slot, Template: 15, Amount: 999})
+		full.Items = append(full.Items, inventory.BagItem{Slot: slot, Template: 15, Amount: 2147483646})
 	}
 	l.state, err = inventory.SaveBag(json.RawMessage(`{}`), full)
 	if err != nil {
@@ -213,7 +213,7 @@ func TestShopPilotCartAndSplitStacks(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, row := range b.Items {
-		if row.Amount != 1000 {
+		if row.Amount != 2147483647 {
 			t.Fatal("partial stack not filled", row)
 		}
 	}

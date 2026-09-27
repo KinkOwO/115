@@ -64,3 +64,31 @@ func (b Bag) Consume(c catalog.LootCatalog, slot uint16, template uint32) (Bag, 
 	}
 	return b, 0, fmt.Errorf("no such owned bag slot")
 }
+
+func (b Bag) ConsumePet(c catalog.LootCatalog, slot uint16, template uint32) (Bag, uint32, error) {
+	if slot < PetConsumableFirst || slot > PetConsumableLast || template == 0 {
+		return b, 0, fmt.Errorf("invalid pet consumable slot")
+	}
+	definition, known := c.Items[template]
+	if known && (definition.Kind != "stackable" || !IsPetConsumable(definition.StackableType)) {
+		return b, 0, fmt.Errorf("item is not a pet consumable")
+	}
+	for i, row := range b.PetItems {
+		if row.Slot != slot {
+			continue
+		}
+		if row.Template != template || row.Amount == 0 {
+			return b, 0, fmt.Errorf("pet consumable slot differs")
+		}
+		next := b
+		next.PetItems = append([]BagItem(nil), b.PetItems...)
+		remaining := row.Amount - 1
+		if remaining == 0 {
+			next.PetItems = append(next.PetItems[:i], next.PetItems[i+1:]...)
+		} else {
+			next.PetItems[i].Amount = remaining
+		}
+		return next, remaining, nil
+	}
+	return b, 0, fmt.Errorf("no such owned pet consumable")
+}

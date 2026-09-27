@@ -1,0 +1,2420 @@
+{
+ "cells": [
+  {
+   "type": 3,
+   "value": 172333145,
+   "text": "[table]"
+  },
+  {
+   "type": 3,
+   "value": 187207449,
+   "text": "[group]"
+  },
+  {
+   "type": 0,
+   "value": 20049
+  },
+  {
+   "type": 3,
+   "value": 162566997,
+   "text": "[creation rate]"
+  },
+  {
+   "type": 0,
+   "value": 2400
+  },
+  {
+   "type": 0,
+   "value": 0
+  },
+  {
+   "type": 3,
+   "value": 214402631,
+   "text": "[create random option level]"
+  },
+  {
+   "type": 0,
+   "value": 23
+  },
+  {
+   "type": 0,
+   "value": 4
+  },
+  {
+   "type": 0,
+   "value": 16
+  },
+  {
+   "type": 3,
+   "value": 214402689,
+   "text": "[zero price drop]"
+  },
+  {
+   "type": 3,
+   "value": 214397663,
+   "text": "[smart drop item]"
+  },
+  {
+   "type": 0,
+   "value": 101001074
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 101011249
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 101021006
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 101031117
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 101040773
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 102000831
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 102010878
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 102020777
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 102030749
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 102040813
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 104000853
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 104010836
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 104020810
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 104030841
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 104040839
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 106000807
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 106010823
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 106020871
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 106030904
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 106040777
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 108000796
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 108010777
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 108020679
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 108030804
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 108040755
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 109000750
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 109010697
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 109030672
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 109040523
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 114000448
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 114010428
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 114020319
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 114030320
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 116000338
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 116010315
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 116020315
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 116030350
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 117000197
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 117010192
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 117040102
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 117030134
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 117020134
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 104000813
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 104010792
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 104040799
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 104020770
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 104030801
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 102020738
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 102040775
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 102010839
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 102000791
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 102030716
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 101011203
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 101040738
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 101020959
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 101031070
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 101001027
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 109040491
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 109000716
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 109010660
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 109030637
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 106000765
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 106020829
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 106010781
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 106030862
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 106040741
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 114000413
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 114010393
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 114020284
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 114030284
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 117000134
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 117010004
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 116010278
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 116020280
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 116000303
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 116030315
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 108000756
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 108010737
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 108020640
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 108040716
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 108030765
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 117020002
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 117030002
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 117040093
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 3,
+   "value": 214397699,
+   "text": "[/smart drop item]"
+  },
+  {
+   "type": 3,
+   "value": 172395903,
+   "text": "[/table]"
+  },
+  {
+   "type": 3,
+   "value": 172333145,
+   "text": "[table]"
+  },
+  {
+   "type": 3,
+   "value": 187207449,
+   "text": "[group]"
+  },
+  {
+   "type": 0,
+   "value": 20050
+  },
+  {
+   "type": 3,
+   "value": 162566997,
+   "text": "[creation rate]"
+  },
+  {
+   "type": 0,
+   "value": 0
+  },
+  {
+   "type": 0,
+   "value": 0
+  },
+  {
+   "type": 3,
+   "value": 214402631,
+   "text": "[create random option level]"
+  },
+  {
+   "type": 0,
+   "value": 23
+  },
+  {
+   "type": 0,
+   "value": 4
+  },
+  {
+   "type": 0,
+   "value": 16
+  },
+  {
+   "type": 3,
+   "value": 214402689,
+   "text": "[zero price drop]"
+  },
+  {
+   "type": 3,
+   "value": 214397663,
+   "text": "[smart drop item]"
+  },
+  {
+   "type": 0,
+   "value": 100061152
+  },
+  {
+   "type": 0,
+   "value": 1000
+  },
+  {
+   "type": 3,
+   "value": 214397699,
+   "text": "[/smart drop item]"
+  },
+  {
+   "type": 3,
+   "value": 172395903,
+   "text": "[/table]"
+  },
+  {
+   "type": 3,
+   "value": 172333145,
+   "text": "[table]"
+  },
+  {
+   "type": 3,
+   "value": 187207449,
+   "text": "[group]"
+  },
+  {
+   "type": 0,
+   "value": 20051
+  },
+  {
+   "type": 3,
+   "value": 162566997,
+   "text": "[creation rate]"
+  },
+  {
+   "type": 0,
+   "value": 0
+  },
+  {
+   "type": 0,
+   "value": 0
+  },
+  {
+   "type": 3,
+   "value": 214402631,
+   "text": "[create random option level]"
+  },
+  {
+   "type": 0,
+   "value": 23
+  },
+  {
+   "type": 0,
+   "value": 4
+  },
+  {
+   "type": 0,
+   "value": 16
+  },
+  {
+   "type": 3,
+   "value": 214402689,
+   "text": "[zero price drop]"
+  },
+  {
+   "type": 3,
+   "value": 214397663,
+   "text": "[smart drop item]"
+  },
+  {
+   "type": 0,
+   "value": 100111122
+  },
+  {
+   "type": 0,
+   "value": 1000
+  },
+  {
+   "type": 3,
+   "value": 214397699,
+   "text": "[/smart drop item]"
+  },
+  {
+   "type": 3,
+   "value": 172395903,
+   "text": "[/table]"
+  },
+  {
+   "type": 3,
+   "value": 172333145,
+   "text": "[table]"
+  },
+  {
+   "type": 3,
+   "value": 187207449,
+   "text": "[group]"
+  },
+  {
+   "type": 0,
+   "value": 20052
+  },
+  {
+   "type": 3,
+   "value": 162566997,
+   "text": "[creation rate]"
+  },
+  {
+   "type": 0,
+   "value": 0
+  },
+  {
+   "type": 0,
+   "value": 0
+  },
+  {
+   "type": 3,
+   "value": 214402631,
+   "text": "[create random option level]"
+  },
+  {
+   "type": 0,
+   "value": 23
+  },
+  {
+   "type": 0,
+   "value": 4
+  },
+  {
+   "type": 0,
+   "value": 16
+  },
+  {
+   "type": 3,
+   "value": 214402689,
+   "text": "[zero price drop]"
+  },
+  {
+   "type": 3,
+   "value": 214397663,
+   "text": "[smart drop item]"
+  },
+  {
+   "type": 0,
+   "value": 100161033
+  },
+  {
+   "type": 0,
+   "value": 1000
+  },
+  {
+   "type": 3,
+   "value": 214397699,
+   "text": "[/smart drop item]"
+  },
+  {
+   "type": 3,
+   "value": 172395903,
+   "text": "[/table]"
+  },
+  {
+   "type": 3,
+   "value": 172333145,
+   "text": "[table]"
+  },
+  {
+   "type": 3,
+   "value": 187207449,
+   "text": "[group]"
+  },
+  {
+   "type": 0,
+   "value": 20053
+  },
+  {
+   "type": 3,
+   "value": 162566997,
+   "text": "[creation rate]"
+  },
+  {
+   "type": 0,
+   "value": 0
+  },
+  {
+   "type": 0,
+   "value": 0
+  },
+  {
+   "type": 3,
+   "value": 214402631,
+   "text": "[create random option level]"
+  },
+  {
+   "type": 0,
+   "value": 23
+  },
+  {
+   "type": 0,
+   "value": 4
+  },
+  {
+   "type": 0,
+   "value": 16
+  },
+  {
+   "type": 3,
+   "value": 214402689,
+   "text": "[zero price drop]"
+  },
+  {
+   "type": 3,
+   "value": 214397663,
+   "text": "[smart drop item]"
+  },
+  {
+   "type": 0,
+   "value": 100211056
+  },
+  {
+   "type": 0,
+   "value": 1000
+  },
+  {
+   "type": 3,
+   "value": 214397699,
+   "text": "[/smart drop item]"
+  },
+  {
+   "type": 3,
+   "value": 172395903,
+   "text": "[/table]"
+  },
+  {
+   "type": 3,
+   "value": 172333145,
+   "text": "[table]"
+  },
+  {
+   "type": 3,
+   "value": 187207449,
+   "text": "[group]"
+  },
+  {
+   "type": 0,
+   "value": 20054
+  },
+  {
+   "type": 3,
+   "value": 162566997,
+   "text": "[creation rate]"
+  },
+  {
+   "type": 0,
+   "value": 0
+  },
+  {
+   "type": 0,
+   "value": 0
+  },
+  {
+   "type": 3,
+   "value": 214402631,
+   "text": "[create random option level]"
+  },
+  {
+   "type": 0,
+   "value": 23
+  },
+  {
+   "type": 0,
+   "value": 4
+  },
+  {
+   "type": 0,
+   "value": 16
+  },
+  {
+   "type": 3,
+   "value": 214402689,
+   "text": "[zero price drop]"
+  },
+  {
+   "type": 3,
+   "value": 214397663,
+   "text": "[smart drop item]"
+  },
+  {
+   "type": 0,
+   "value": 100261096
+  },
+  {
+   "type": 0,
+   "value": 1000
+  },
+  {
+   "type": 3,
+   "value": 214397699,
+   "text": "[/smart drop item]"
+  },
+  {
+   "type": 3,
+   "value": 172395903,
+   "text": "[/table]"
+  },
+  {
+   "type": 3,
+   "value": 172333145,
+   "text": "[table]"
+  },
+  {
+   "type": 3,
+   "value": 187207449,
+   "text": "[group]"
+  },
+  {
+   "type": 0,
+   "value": 20055
+  },
+  {
+   "type": 3,
+   "value": 162566997,
+   "text": "[creation rate]"
+  },
+  {
+   "type": 0,
+   "value": 0
+  },
+  {
+   "type": 0,
+   "value": 0
+  },
+  {
+   "type": 3,
+   "value": 214402631,
+   "text": "[create random option level]"
+  },
+  {
+   "type": 0,
+   "value": 23
+  },
+  {
+   "type": 0,
+   "value": 4
+  },
+  {
+   "type": 0,
+   "value": 16
+  },
+  {
+   "type": 3,
+   "value": 214402689,
+   "text": "[zero price drop]"
+  },
+  {
+   "type": 3,
+   "value": 214397663,
+   "text": "[smart drop item]"
+  },
+  {
+   "type": 0,
+   "value": 100313503
+  },
+  {
+   "type": 0,
+   "value": 1000
+  },
+  {
+   "type": 3,
+   "value": 214397699,
+   "text": "[/smart drop item]"
+  },
+  {
+   "type": 3,
+   "value": 172395903,
+   "text": "[/table]"
+  },
+  {
+   "type": 3,
+   "value": 172333145,
+   "text": "[table]"
+  },
+  {
+   "type": 3,
+   "value": 187207449,
+   "text": "[group]"
+  },
+  {
+   "type": 0,
+   "value": 20056
+  },
+  {
+   "type": 3,
+   "value": 162566997,
+   "text": "[creation rate]"
+  },
+  {
+   "type": 0,
+   "value": 0
+  },
+  {
+   "type": 0,
+   "value": 0
+  },
+  {
+   "type": 3,
+   "value": 214402631,
+   "text": "[create random option level]"
+  },
+  {
+   "type": 0,
+   "value": 23
+  },
+  {
+   "type": 0,
+   "value": 4
+  },
+  {
+   "type": 0,
+   "value": 16
+  },
+  {
+   "type": 3,
+   "value": 214402689,
+   "text": "[zero price drop]"
+  },
+  {
+   "type": 3,
+   "value": 214397663,
+   "text": "[smart drop item]"
+  },
+  {
+   "type": 0,
+   "value": 100301791
+  },
+  {
+   "type": 0,
+   "value": 1000
+  },
+  {
+   "type": 3,
+   "value": 214397699,
+   "text": "[/smart drop item]"
+  },
+  {
+   "type": 3,
+   "value": 172395903,
+   "text": "[/table]"
+  },
+  {
+   "type": 3,
+   "value": 172333145,
+   "text": "[table]"
+  },
+  {
+   "type": 3,
+   "value": 187207449,
+   "text": "[group]"
+  },
+  {
+   "type": 0,
+   "value": 20057
+  },
+  {
+   "type": 3,
+   "value": 162566997,
+   "text": "[creation rate]"
+  },
+  {
+   "type": 0,
+   "value": 0
+  },
+  {
+   "type": 0,
+   "value": 0
+  },
+  {
+   "type": 3,
+   "value": 214402631,
+   "text": "[create random option level]"
+  },
+  {
+   "type": 0,
+   "value": 23
+  },
+  {
+   "type": 0,
+   "value": 4
+  },
+  {
+   "type": 0,
+   "value": 16
+  },
+  {
+   "type": 3,
+   "value": 214402689,
+   "text": "[zero price drop]"
+  },
+  {
+   "type": 3,
+   "value": 214397663,
+   "text": "[smart drop item]"
+  },
+  {
+   "type": 0,
+   "value": 100323386
+  },
+  {
+   "type": 0,
+   "value": 1000
+  },
+  {
+   "type": 3,
+   "value": 214397699,
+   "text": "[/smart drop item]"
+  },
+  {
+   "type": 3,
+   "value": 172395903,
+   "text": "[/table]"
+  },
+  {
+   "type": 3,
+   "value": 172333145,
+   "text": "[table]"
+  },
+  {
+   "type": 3,
+   "value": 187207449,
+   "text": "[group]"
+  },
+  {
+   "type": 0,
+   "value": 20058
+  },
+  {
+   "type": 3,
+   "value": 162566997,
+   "text": "[creation rate]"
+  },
+  {
+   "type": 0,
+   "value": 0
+  },
+  {
+   "type": 0,
+   "value": 0
+  },
+  {
+   "type": 3,
+   "value": 214402631,
+   "text": "[create random option level]"
+  },
+  {
+   "type": 0,
+   "value": 23
+  },
+  {
+   "type": 0,
+   "value": 4
+  },
+  {
+   "type": 0,
+   "value": 16
+  },
+  {
+   "type": 3,
+   "value": 214402689,
+   "text": "[zero price drop]"
+  },
+  {
+   "type": 3,
+   "value": 214397663,
+   "text": "[smart drop item]"
+  },
+  {
+   "type": 0,
+   "value": 100345937
+  },
+  {
+   "type": 0,
+   "value": 1000
+  },
+  {
+   "type": 3,
+   "value": 214397699,
+   "text": "[/smart drop item]"
+  },
+  {
+   "type": 3,
+   "value": 172395903,
+   "text": "[/table]"
+  },
+  {
+   "type": 3,
+   "value": 172333145,
+   "text": "[table]"
+  },
+  {
+   "type": 3,
+   "value": 187207449,
+   "text": "[group]"
+  },
+  {
+   "type": 0,
+   "value": 20059
+  },
+  {
+   "type": 3,
+   "value": 162566997,
+   "text": "[creation rate]"
+  },
+  {
+   "type": 0,
+   "value": 0
+  },
+  {
+   "type": 0,
+   "value": 0
+  },
+  {
+   "type": 3,
+   "value": 214402631,
+   "text": "[create random option level]"
+  },
+  {
+   "type": 0,
+   "value": 23
+  },
+  {
+   "type": 0,
+   "value": 4
+  },
+  {
+   "type": 0,
+   "value": 16
+  },
+  {
+   "type": 3,
+   "value": 214402689,
+   "text": "[zero price drop]"
+  },
+  {
+   "type": 3,
+   "value": 214397663,
+   "text": "[smart drop item]"
+  },
+  {
+   "type": 0,
+   "value": 100354077
+  },
+  {
+   "type": 0,
+   "value": 1000
+  },
+  {
+   "type": 3,
+   "value": 214397699,
+   "text": "[/smart drop item]"
+  },
+  {
+   "type": 3,
+   "value": 172395903,
+   "text": "[/table]"
+  },
+  {
+   "type": 3,
+   "value": 172333145,
+   "text": "[table]"
+  },
+  {
+   "type": 3,
+   "value": 187207449,
+   "text": "[group]"
+  },
+  {
+   "type": 0,
+   "value": 20060
+  },
+  {
+   "type": 3,
+   "value": 162566997,
+   "text": "[creation rate]"
+  },
+  {
+   "type": 0,
+   "value": 0
+  },
+  {
+   "type": 0,
+   "value": 0
+  },
+  {
+   "type": 3,
+   "value": 214402631,
+   "text": "[create random option level]"
+  },
+  {
+   "type": 0,
+   "value": 23
+  },
+  {
+   "type": 0,
+   "value": 4
+  },
+  {
+   "type": 0,
+   "value": 16
+  },
+  {
+   "type": 3,
+   "value": 214402689,
+   "text": "[zero price drop]"
+  },
+  {
+   "type": 3,
+   "value": 214397663,
+   "text": "[smart drop item]"
+  },
+  {
+   "type": 0,
+   "value": 100390990
+  },
+  {
+   "type": 0,
+   "value": 1000
+  },
+  {
+   "type": 3,
+   "value": 214397699,
+   "text": "[/smart drop item]"
+  },
+  {
+   "type": 3,
+   "value": 172395903,
+   "text": "[/table]"
+  },
+  {
+   "type": 3,
+   "value": 172333145,
+   "text": "[table]"
+  },
+  {
+   "type": 3,
+   "value": 187207449,
+   "text": "[group]"
+  },
+  {
+   "type": 0,
+   "value": 20081
+  },
+  {
+   "type": 3,
+   "value": 162566997,
+   "text": "[creation rate]"
+  },
+  {
+   "type": 0,
+   "value": 2220
+  },
+  {
+   "type": 0,
+   "value": 0
+  },
+  {
+   "type": 3,
+   "value": 214402631,
+   "text": "[create random option level]"
+  },
+  {
+   "type": 0,
+   "value": 7
+  },
+  {
+   "type": 0,
+   "value": 4
+  },
+  {
+   "type": 0,
+   "value": 4
+  },
+  {
+   "type": 3,
+   "value": 214402689,
+   "text": "[zero price drop]"
+  },
+  {
+   "type": 3,
+   "value": 214397663,
+   "text": "[smart drop item]"
+  },
+  {
+   "type": 0,
+   "value": 104000813
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 104010792
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 104040799
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 104020770
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 104030801
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 102020738
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 102040775
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 102010839
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 102000791
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 102030716
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 101011203
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 101040738
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 101020959
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 101031070
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 101001027
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 109040491
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 109000716
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 109010660
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 109030637
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 106000765
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 106020829
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 106010781
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 106030862
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 106040741
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 114000413
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 114010393
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 114020284
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 114030284
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 117000134
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 117010004
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 116010278
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 116020280
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 116000303
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 116030315
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 108000756
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 108010737
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 108020640
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 108040716
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 0,
+   "value": 108030765
+  },
+  {
+   "type": 0,
+   "value": 60
+  },
+  {
+   "type": 3,
+   "value": 214397699,
+   "text": "[/smart drop item]"
+  },
+  {
+   "type": 3,
+   "value": 172395903,
+   "text": "[/table]"
+  },
+  {
+   "type": 3,
+   "value": 172333145,
+   "text": "[table]"
+  },
+  {
+   "type": 3,
+   "value": 187207449,
+   "text": "[group]"
+  },
+  {
+   "type": 0,
+   "value": 21250
+  },
+  {
+   "type": 3,
+   "value": 162566997,
+   "text": "[creation rate]"
+  },
+  {
+   "type": 0,
+   "value": 1085
+  },
+  {
+   "type": 0,
+   "value": 0
+  },
+  {
+   "type": 3,
+   "value": 214397663,
+   "text": "[smart drop item]"
+  },
+  {
+   "type": 0,
+   "value": 101001149
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 101011315
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 101021072
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 101031185
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 101040827
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 102000890
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 102010937
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 102020836
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 102030802
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 102040872
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 104000913
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 104010896
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 104020870
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 104030901
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 104040899
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 106000869
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 106010885
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 106020933
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 106030966
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 106040835
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 108000870
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 108010836
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 108020738
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 108030863
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 108040814
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 109000805
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 109010752
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 109030727
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 109040575
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 114000503
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 114010483
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 114020374
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 114030375
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 116000393
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 116010370
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 116020370
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 116030405
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 117000248
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 117010249
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 117020241
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 117030241
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 0,
+   "value": 117040129
+  },
+  {
+   "type": 0,
+   "value": 30
+  },
+  {
+   "type": 3,
+   "value": 214397699,
+   "text": "[/smart drop item]"
+  },
+  {
+   "type": 3,
+   "value": 172395903,
+   "text": "[/table]"
+  },
+  {
+   "type": 3,
+   "value": 172333145,
+   "text": "[table]"
+  },
+  {
+   "type": 3,
+   "value": 187207449,
+   "text": "[group]"
+  },
+  {
+   "type": 0,
+   "value": 21251
+  },
+  {
+   "type": 3,
+   "value": 162566997,
+   "text": "[creation rate]"
+  },
+  {
+   "type": 0,
+   "value": 0
+  },
+  {
+   "type": 0,
+   "value": 0
+  },
+  {
+   "type": 3,
+   "value": 214397663,
+   "text": "[smart drop item]"
+  },
+  {
+   "type": 0,
+   "value": 100051304
+  },
+  {
+   "type": 0,
+   "value": 10
+  },
+  {
+   "type": 0,
+   "value": 100101187
+  },
+  {
+   "type": 0,
+   "value": 10
+  },
+  {
+   "type": 0,
+   "value": 100151128
+  },
+  {
+   "type": 0,
+   "value": 10
+  },
+  {
+   "type": 0,
+   "value": 100201100
+  },
+  {
+   "type": 0,
+   "value": 10
+  },
+  {
+   "type": 0,
+   "value": 100251140
+  },
+  {
+   "type": 0,
+   "value": 10
+  },
+  {
+   "type": 0,
+   "value": 100301847
+  },
+  {
+   "type": 0,
+   "value": 10
+  },
+  {
+   "type": 0,
+   "value": 100313550
+  },
+  {
+   "type": 0,
+   "value": 10
+  },
+  {
+   "type": 0,
+   "value": 100323440
+  },
+  {
+   "type": 0,
+   "value": 10
+  },
+  {
+   "type": 0,
+   "value": 100345985
+  },
+  {
+   "type": 0,
+   "value": 10
+  },
+  {
+   "type": 0,
+   "value": 100354160
+  },
+  {
+   "type": 0,
+   "value": 10
+  },
+  {
+   "type": 0,
+   "value": 100391038
+  },
+  {
+   "type": 0,
+   "value": 10
+  },
+  {
+   "type": 3,
+   "value": 214397699,
+   "text": "[/smart drop item]"
+  },
+  {
+   "type": 3,
+   "value": 172395903,
+   "text": "[/table]"
+  }
+ ],
+ "note": "slice of the real cell stream for groups [20049 20050 20051 20052 20053 20054 20055 20056 20057 20058 20059 20060 20081 21250 21251] (forced by [20049/[create random option level] 20049/[zero price drop] 20050/[create random option level] 20050/[zero price drop] 20051/[create random option level] 20051/[zero price drop] 20052/[create random option level] 20052/[zero price drop] 20053/[create random option level] 20053/[zero price drop] 20054/[create random option level] 20054/[zero price drop] 20055/[create random option level] 20055/[zero price drop] 20056/[create random option level] 20056/[zero price drop] 20057/[create random option level] 20057/[zero price drop] 20058/[create random option level] 20058/[zero price drop] 20059/[create random option level] 20059/[zero price drop] 20060/[create random option level] 20060/[zero price drop] 20081/[create random option level] 20081/[zero price drop]])",
+ "pvf_checksum": "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80",
+ "source": "etc/dungeondroptablebygroup.etc",
+ "source_sha256": "2590d9378a81de11e66e3dcc11f6d05124becac627259f6b088df275b2bcdf51"
+}

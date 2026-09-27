@@ -24,6 +24,7 @@ const SingleHuntEnemy = "single-hunt-enemy-remaining-v1"
 const SingleHuntMonster = "single-hunt-monster-remaining-v1"
 const AllRoomsUnderClear = "all-rooms-under-clear-remaining-v1"
 const LegionContentClear = "legion-content-clear-client-gated-v1"
+const SingleUseItem = "single-use-item-remaining-v1"
 
 // RangeObjective is the six-integer, subtype-1 reach form: town, area,
 // rectangle origin, width and height. Quest 13748's Y origin is -240; the
@@ -93,6 +94,23 @@ func (r RangeObjective) Contains(p storage.WorldPosition) bool {
 }
 
 type ItemNeed struct{ Template, Amount uint32 }
+
+// UseItemObjective recognizes the epic, single-use form. The leading 1 is
+// the source's item-entry count, followed by (template, use count). Other
+// forms remain unsupported until their progress encoding is established.
+func UseItemObjective(d catalog.QuestDefinition) (uint32, bool) {
+	c := d.ObjectiveCells
+	if len(d.Pending) != 0 || d.Kind != "[use item]" || reachSubtype(d) != 1 || len(c) != 3 {
+		return 0, false
+	}
+	grade := cells(d.Script.Cells, "[grade]")
+	if len(grade) != 1 || grade[0].Type != 6 || grade[0].Text != "[epic]" ||
+		c[0].Type != 0 || c[0].Value != 1 || c[1].Type != 0 || c[1].Value <= 0 ||
+		c[2].Type != 0 || c[2].Value != 1 {
+		return 0, false
+	}
+	return uint32(c[1].Value), true
+}
 
 // SeekObjective is an odd-length [seek n meet npc] objective: repeated
 // (item, amount) pairs followed by the NPC identity. Source 3173
@@ -223,6 +241,9 @@ func InitialProgress(d catalog.QuestDefinition) (uint32, string, error) {
 	}
 	if _, ok := SeekingObjective(d); ok {
 		return 1, SeekingItems, nil
+	}
+	if _, ok := UseItemObjective(d); ok {
+		return 1, SingleUseItem, nil
 	}
 	if _, _, ok := HuntEnemyObjective(d); ok {
 		return 1, SingleHuntEnemy, nil

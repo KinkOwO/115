@@ -15,6 +15,7 @@ import (
 )
 
 type ConsumeReceipt struct {
+	EventKey  string                `json:"-"`
 	Slot      uint16                `json:"slot"`
 	Template  uint32                `json:"template"`
 	Remaining uint32                `json:"remaining"`
@@ -58,7 +59,7 @@ func (s *Service) Consume(ctx context.Context, role storage.Character, r protoco
 	if role.ConfigVersion != s.Catalog.Source.Checksum {
 		return fail(fmt.Errorf("consume source mismatch"))
 	}
-	if r.List != 0 {
+	if r.List != 0 && r.List != 7 {
 		// list0 is the ordinary bag. Other containers (the shared temporary
 		// inventories) have their own unverified semantics.
 		return fail(fmt.Errorf("unsupported source container %d", r.List))
@@ -67,6 +68,9 @@ func (s *Service) Consume(ctx context.Context, role storage.Character, r protoco
 		return fail(fmt.Errorf("强化券必须选择装备后使用，不能作为普通消耗品扣除"))
 	}
 	key := fmt.Sprintf("consume:%d:%d:%d", r.Slot, r.Template, r.Instance)
+	if r.List == 7 {
+		key = fmt.Sprintf("consume-pet:%d:%d:%d", r.Slot, r.Template, r.Instance)
+	}
 	saved, applied, e := s.Store.CommitCharacterPremiumEvent(ctx, role.AccountID, role.ID,
 		s.Catalog.Source.Checksum, key, s.Rules.Model,
 		func(current storage.Character) (json.RawMessage, json.RawMessage, []storage.CashPremiumActivation, error) {
@@ -81,7 +85,26 @@ func (s *Service) Consume(ctx context.Context, role storage.Character, r protoco
 					}
 				}
 			}
-			b, remaining, e := b.Consume(s.Catalog, r.Slot, r.Template)
+			var remaining uint32
+			if r.List == 7 {
+				definition, ok := s.Catalog.Items[r.Template]
+				if !ok || !inventory.IsPetFeed(definition.StackableType) {
+					return nil, nil, nil, fmt.Errorf("unsupported pet consumable effect")
+				}
+				if !inventory.HasEquippedCreature(current.State) {
+					return nil, nil, nil, fmt.Errorf("no equipped creature to feed")
+				}
+				b, remaining, e = b.ConsumePet(s.Catalog, r.Slot, r.Template)
+				if e == nil {
+					var fed bool
+					b, fed = inventory.FeedEquippedCreatureBag(b)
+					if !fed {
+						return nil, nil, nil, fmt.Errorf("equipped creature is already fully fed")
+					}
+				}
+			} else {
+				b, remaining, e = b.Consume(s.Catalog, r.Slot, r.Template)
+			}
 			if e != nil {
 				return nil, nil, nil, e
 			}
@@ -96,7 +119,7 @@ func (s *Service) Consume(ctx context.Context, role storage.Character, r protoco
 			// prize into a guessed slot.
 			var granted []ConsumeGrant
 			var points map[string]uint32
-			if table, ok := s.Boxes.Table(r.Template); ok {
+			if table, ok := s.Boxes.Table(r.Template); ok && r.List == 0 {
 				seed, e := boxSeed()
 				if e != nil {
 					return nil, nil, nil, e
@@ -156,6 +179,7 @@ func (s *Service) Consume(ctx context.Context, role storage.Character, r protoco
 	if out.Source != s.Catalog.Source.Checksum || out.Template != r.Template || out.Slot != r.Slot {
 		return fail(fmt.Errorf("consume receipt conflict"))
 	}
+	out.EventKey = key
 	saved.WireID = role.WireID
 	return saved, out, applied, nil
 }

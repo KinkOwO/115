@@ -2,13 +2,17 @@ package main
 
 import (
 	"context"
+	"dfolan/internal/catalog"
+	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/character"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/quest"
 	"dfolan/internal/storage"
+	"dfolan/internal/world"
 	"encoding/binary"
 	"fmt"
+	"os"
 	"time"
 )
 
@@ -117,6 +121,11 @@ func (w *worldSession) finishQuest(r protocol.QuestSubmitRequest) ([]outboundPac
 				return nil, e
 			}
 			plan = append(plan, outboundPacket{"quest_account_materials_committed", 0, 13, storageBody})
+			soulBody, e := radiantSoulSnapshot(materials)
+			if e != nil {
+				return nil, e
+			}
+			plan = append(plan, outboundPacket{"quest_radiant_souls_committed", 0, 13, soulBody})
 		}
 		bag, e := inventory.ReadBag(result.Role.State)
 		if e != nil {
@@ -127,6 +136,13 @@ func (w *worldSession) finishQuest(r protocol.QuestSubmitRequest) ([]outboundPac
 			return nil, e
 		}
 		plan = append(plan, outboundPacket{"quest_inventory_committed", 0, 13, body})
+		if len(bag.PetItems)+len(bag.Special[7]) > 0 {
+			petBody, petErr := inventory.PetContainerBody(bag, true)
+			if petErr != nil {
+				return nil, petErr
+			}
+			plan = append(plan, outboundPacket{"quest_pet_container_committed", 0, 13, petBody})
+		}
 	}
 	// A reward that opened an extended equipment slot has to be republished:
 	// the client keeps showing the padlock until the new unlock byte arrives
@@ -214,7 +230,31 @@ func (w *worldSession) questInteraction(p []byte) ([]outboundPacket, error) {
 		return []outboundPacket{{"quest_scene_trigger", 0, 291, body}}, nil
 	}
 	d, ok := w.quests.Catalog.Quests[uint32(id)]
-	if !ok || d.Kind != "[meet npc]" || len(d.ObjectiveCells) != 1 {
+	if !ok {
+		return nil, nil
+	}
+	if d.Kind == "[reach the range]" {
+		r, valid := quest.ReachNPCObjective(d)
+		if !valid || !questLineageShowsReachNPC(d, r.NPC, w.state.Position, w.quests.Catalog) {
+			return nil, nil
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		applied, e := w.quests.ReachNPCFromClient(ctx, w.role, id, r.NPC)
+		if e != nil || !applied {
+			return nil, e
+		}
+		active, e := w.quests.Active(ctx, w.role)
+		if e != nil {
+			return nil, e
+		}
+		body, e := protocol.QuestTriggers(active)
+		if e != nil {
+			return nil, e
+		}
+		return []outboundPacket{{"quest_npc_reach_objective", 0, 291, body}}, nil
+	}
+	if d.Kind != "[meet npc]" || len(d.ObjectiveCells) != 1 {
 		return nil, nil
 	}
 	npc := uint32(d.ObjectiveCells[0].Value)
@@ -225,7 +265,12 @@ func (w *worldSession) questInteraction(p []byte) ([]outboundPacket, error) {
 	// form, so a request naming a quest whose NPC is genuinely elsewhere is
 	// still refused, and the passive ProximityProgress walk keeps its own
 	// in-area requirement (it never consults this path).
-	if !quest.AllowsRemoteNPCInteraction(d) &&
+	communicated := w.communicationQuest == id && w.communicationNPC == npc &&
+		w.communicationTown == w.state.Position.Town &&
+		w.communicationArea == w.state.Position.Area &&
+		time.Now().Before(w.communicationUntil)
+	if !communicated && !quest.AllowsRemoteNPCInteraction(d) && !allowsQuestVisibleNPCInteraction(id, npc, w.state.Position, d, w.quests.Catalog) &&
+		!allowsQuestPhaseNPCInteraction(w.service, npc, w.state.Position, d, w.quests.Catalog) &&
 		(w.service == nil || !w.service.HasNPC(w.state.Position, npc)) {
 		return nil, fmt.Errorf("quest %d NPC %d is absent from current source area %d/%d", id, npc, w.state.Position.Town, w.state.Position.Area)
 	}
@@ -233,6 +278,10 @@ func (w *worldSession) questInteraction(p []byte) ([]outboundPacket, error) {
 	defer cancel()
 	if e := w.quests.MeetNPC(ctx, w.role, id, npc); e != nil {
 		return nil, e
+	}
+	if communicated {
+		w.communicationQuest = 0
+		w.communicationNPC = 0
 	}
 	active, e := w.quests.Active(ctx, w.role)
 	if e != nil {
@@ -243,4 +292,270 @@ func (w *worldSession) questInteraction(p []byte) ([]outboundPacket, error) {
 		return nil, e
 	}
 	return []outboundPacket{{"quest_npc_objective", 0, 291, body}}, nil
+}
+
+// Prey_01 (6200) declares NPC 8000 both as its objective and in two
+// [npc visibility] blocks, but no static town map contains that NPC. The
+// current client repeatedly sends CMD33 for 6200 while in Black Market 54/1.
+// Accept only that native request in that area; MeetNPC still requires the
+// character to own an accepted quest with the matching objective and version.
+func allowsQuestVisibleNPCInteraction(id uint16, npc uint32, at storage.WorldPosition, d catalog.QuestDefinition, quests catalog.QuestCatalog) bool {
+	// Preserve the user-confirmed 6200 behavior even with the relaxation off.
+	if id == 6200 && npc == 8000 && at.Town == 54 && at.Area == 1 && questShowsObjectiveNPCOnAccept(d, npc) {
+		return true
+	}
+	// Live CMD33 in Black Market and the source quest chain prove this form:
+	// completing 6356 reveals NPC 100000175, which quest 6357 meets.
+	if id == 6357 && npc == 100000175 && at.Town == 54 && at.Area == 1 && questShownByPrerequisiteOnClear(d, npc, quests) {
+		return true
+	}
+	// A quest chain can reveal an NPC several steps before the meeting quest.
+	// A source [go guide] in that chain pins the NPC to a town area.
+	if questLineageShowsGuidedNPC(d, npc, at, quests, true) {
+		return true
+	}
+	return os.Getenv("DFO_QUEST_VISIBLE_NPC_RELAX") == "1" &&
+		(questShowsObjectiveNPCOnAccept(d, npc) || questShownByPrerequisiteOnClear(d, npc, quests) ||
+			questLineageShowsGuidedNPC(d, npc, at, quests, false))
+}
+
+// A phase map is an area-specific source of NPC placement, but its NPCs are
+// not all visible at once. Require the accepted meet quest's objective and
+// completion NPC to match a source visibility rule as well as a phase map row.
+func allowsQuestPhaseNPCInteraction(service *world.Service, npc uint32, at storage.WorldPosition, d catalog.QuestDefinition, quests catalog.QuestCatalog) bool {
+	if service == nil || !service.HasPhaseNPC(at, npc) {
+		return false
+	}
+	return questShowsObjectiveNPCOnAccept(d, npc) || questLineageShowsVisibleNPC(d, npc, at, quests, false, true)
+}
+
+// Follow source prerequisites, not numeric quest adjacency. A clear/show rule
+// remains effective through later quests until a clear/hide rule supersedes it.
+// The guide supplies the area for the normal path; the opt-in path only needs
+// the source visibility rule. MeetNPC still validates the accepted quest.
+func questLineageShowsGuidedNPC(d catalog.QuestDefinition, npc uint32, at storage.WorldPosition, quests catalog.QuestCatalog, requireGuide bool) bool {
+	// A matching source guide proves the current area; the opt-in no-guide
+	// path keeps its older, stricter treatment of this quest's clear/hide.
+	return questLineageShowsVisibleNPC(d, npc, at, quests, requireGuide, requireGuide)
+}
+
+func questLineageShowsVisibleNPC(d catalog.QuestDefinition, npc uint32, at storage.WorldPosition, quests catalog.QuestCatalog, requireGuide, allowCurrentClearHide bool) bool {
+	if npc == 0 || npc > 0x7fffffff || len(d.Pending) != 0 ||
+		d.Kind != "[meet npc]" || len(d.ObjectiveCells) != 1 ||
+		d.ObjectiveCells[0].Type != 0 || d.ObjectiveCells[0].Value != int32(npc) ||
+		!questCompletionNPCMatches(d, npc) {
+		return false
+	}
+	// The current quest's clear/hide is a future effect, but only let it be
+	// ignored when a guide or a source phase-map row proves the current area.
+	return questLineageShowsNPC(d, npc, at, quests, requireGuide, allowCurrentClearHide)
+}
+
+// A subtype-0 reach objective may name an NPC distinct from its completion
+// NPC. Its own clear/hide rule takes effect after this objective completes.
+func questLineageShowsReachNPC(d catalog.QuestDefinition, npc uint32, at storage.WorldPosition, quests catalog.QuestCatalog) bool {
+	r, ok := quest.ReachNPCObjective(d)
+	return ok && r.NPC == npc && questLineageShowsNPC(d, npc, at, quests, true, true)
+}
+
+func questLineageShowsNPC(d catalog.QuestDefinition, npc uint32, at storage.WorldPosition, quests catalog.QuestCatalog, requireGuide, allowCurrentClearHide bool) bool {
+	seen := make(map[uint32]bool)
+	var visit func(catalog.QuestDefinition, int) (bool, bool)
+	visit = func(current catalog.QuestDefinition, depth int) (bool, bool) {
+		if depth > 16 || seen[current.ID] {
+			return false, false
+		}
+		seen[current.ID] = true
+		defer delete(seen, current.ID)
+		guideFound, guide := questGoGuideTargetsNPC(current.Script.Cells, npc, at)
+		shown, found := false, false
+		if depth > 0 {
+			shown, found = questVisibilityOnClear(current.Script.Cells, npc)
+		} else if currentShown, currentFound := questVisibilityOnClear(current.Script.Cells, npc); !allowCurrentClearHide && currentFound && !currentShown {
+			// A current quest that hides the NPC is not evidence of a
+			// presently visible conversation target.
+			return false, false
+		}
+		bestShown, bestGuide := shown, guide
+		for _, parentID := range questSourcePrerequisiteIDs(current.Script.Cells) {
+			parent, ok := quests.Quests[parentID]
+			if !ok {
+				continue
+			}
+			parentShown, parentGuide := visit(parent, depth+1)
+			pathShown := shown
+			if !found {
+				pathShown = parentShown
+			}
+			pathGuide := parentGuide
+			if guideFound {
+				pathGuide = guide
+			}
+			if pathShown && (!requireGuide || pathGuide) {
+				return true, pathGuide
+			}
+			if pathShown {
+				bestShown, bestGuide = true, pathGuide
+			}
+		}
+		return bestShown, bestGuide
+	}
+	shown, guide := visit(d, 0)
+	return shown && (!requireGuide || guide)
+}
+
+func questSourcePrerequisiteIDs(cells []pvf.Token) []uint32 {
+	for i, c := range cells {
+		if c.Type != 3 || c.Text != "[pre required quest]" {
+			continue
+		}
+		var ids []uint32
+		for j := i + 1; j < len(cells) && cells[j].Type != 3; j++ {
+			if cells[j].Type == 0 && cells[j].Value > 0 {
+				ids = append(ids, uint32(cells[j].Value))
+			}
+		}
+		return ids
+	}
+	return nil
+}
+
+func questGoGuideTargetsNPC(cells []pvf.Token, npc uint32, at storage.WorldPosition) (found bool, matches bool) {
+	for i, c := range cells {
+		if c.Type == 3 && c.Text == "[go guide]" && i+3 < len(cells) &&
+			cells[i+1].Type == 0 && cells[i+2].Type == 0 && cells[i+3].Type == 0 &&
+			cells[i+3].Value == int32(npc) {
+			found = true
+			matches = cells[i+1].Value == int32(at.Town) && cells[i+2].Value == int32(at.Area)
+		}
+	}
+	return found, matches
+}
+
+// Source [npc] groups can name several NPCs before the next field tag.
+func questVisibilityTargetsNPC(cells []pvf.Token, start int, npc uint32) bool {
+	for i := start; i < len(cells) && cells[i].Type != 3; i++ {
+		if cells[i].Type == 0 && cells[i].Value == int32(npc) {
+			return true
+		}
+	}
+	return false
+}
+
+func questVisibilityOnClear(cells []pvf.Token, npc uint32) (show bool, found bool) {
+	for i, c := range cells {
+		if c.Type != 3 || c.Text != "[npc visibility]" {
+			continue
+		}
+		var target, clear bool
+		var visibility string
+		for j := i + 1; j+1 < len(cells); j++ {
+			field := cells[j]
+			if field.Type != 3 {
+				continue
+			}
+			if field.Text == "[/npc visibility]" {
+				break
+			}
+			next := cells[j+1]
+			switch field.Text {
+			case "[npc]":
+				target = questVisibilityTargetsNPC(cells, j+1, npc)
+			case "[condition]":
+				clear = next.Type == 6 && next.Text == "[clear]"
+			case "[visibility]":
+				if next.Type == 6 {
+					visibility = next.Text
+				}
+			}
+		}
+		if target && clear && (visibility == "[show]" || visibility == "[hide]") {
+			show, found = visibility == "[show]", true
+		}
+	}
+	return show, found
+}
+
+// A visible quest NPC can be absent from the static town map because the
+// client adds it from quest state. MeetNPC separately verifies ownership and
+// accepted state.
+func questShowsObjectiveNPCOnAccept(d catalog.QuestDefinition, npc uint32) bool {
+	if npc == 0 || npc > 0x7fffffff || len(d.Pending) != 0 || len(d.Script.Cells) < 2 ||
+		d.Kind != "[meet npc]" || len(d.ObjectiveCells) != 1 ||
+		d.ObjectiveCells[0].Type != 0 || d.ObjectiveCells[0].Value != int32(npc) {
+		return false
+	}
+	if !questCompletionNPCMatches(d, npc) {
+		return false
+	}
+	return questVisibilityShows(d.Script.Cells, npc, "[accept]")
+}
+
+func questCompletionNPCMatches(d catalog.QuestDefinition, npc uint32) bool {
+	for i, c := range d.Script.Cells {
+		if c.Type == 3 && c.Text == "[complete npc index]" && i+1 < len(d.Script.Cells) &&
+			d.Script.Cells[i+1].Type == 0 && d.Script.Cells[i+1].Value == int32(npc) {
+			return true
+		}
+	}
+	return false
+}
+
+// A preceding quest can reveal the NPC only after it is cleared. The exported
+// quest catalog predates prerequisite-group parsing, so read the source cells
+// rather than relying on its empty Prerequisites projection.
+func questShownByPrerequisiteOnClear(d catalog.QuestDefinition, npc uint32, quests catalog.QuestCatalog) bool {
+	if npc == 0 || npc > 0x7fffffff || len(d.Pending) != 0 ||
+		d.Kind != "[meet npc]" || len(d.ObjectiveCells) != 1 ||
+		d.ObjectiveCells[0].Type != 0 || d.ObjectiveCells[0].Value != int32(npc) ||
+		!questCompletionNPCMatches(d, npc) {
+		return false
+	}
+	for i, c := range d.Script.Cells {
+		if c.Type != 3 || c.Text != "[pre required quest]" {
+			continue
+		}
+		for j := i + 1; j < len(d.Script.Cells) && d.Script.Cells[j].Type != 3; j++ {
+			parentID := d.Script.Cells[j].Value
+			if d.Script.Cells[j].Type != 0 || parentID <= 0 {
+				continue
+			}
+			parent, ok := quests.Quests[uint32(parentID)]
+			if ok && questVisibilityShows(parent.Script.Cells, npc, "[clear]") {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func questVisibilityShows(cells []pvf.Token, npc uint32, condition string) bool {
+	for i, c := range cells {
+		if c.Type != 3 || c.Text != "[npc visibility]" {
+			continue
+		}
+		var target, accept, show bool
+		for j := i + 1; j+1 < len(cells); j++ {
+			field := cells[j]
+			if field.Type != 3 {
+				continue
+			}
+			if field.Text == "[/npc visibility]" {
+				break
+			}
+			next := cells[j+1]
+			switch field.Text {
+			case "[npc]":
+				target = questVisibilityTargetsNPC(cells, j+1, npc)
+			case "[condition]":
+				accept = next.Type == 6 && next.Text == condition
+			case "[visibility]":
+				show = next.Type == 6 && next.Text == "[show]"
+			}
+		}
+		if target && accept && show {
+			return true
+		}
+	}
+	return false
 }

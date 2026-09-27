@@ -281,3 +281,82 @@ func TestVaultMoveWithinVaultReversedClientReposition(t *testing.T) {
 		t.Fatalf("expected item at slot 3 with amount 16, got %+v", destItem)
 	}
 }
+
+func TestVaultWithdrawMergesIntoExistingBagStack(t *testing.T) {
+	bag := Bag{Version: "ordinary-bag-v1", Items: []BagItem{{Slot: 65, Template: 2627, Amount: 1627}}}
+	vault := Vault{Slots: 8, Items: []VaultItem{{Slot: 0, Template: 2627, Amount: 1000}}}
+	rules := BagRules{MissingStackLimit: 2147483647}
+	request := protocol.ItemMoveRequest{SourceList: 2, SourceSlot: 0, DestinationList: 0, DestinationSlot: 66, Count: 1000}
+	gotBag, gotVault, moved, err := MoveVaultItem(bag, vault, rules, request)
+	if err != nil || moved != 1000 || len(gotBag.Items) != 1 || gotBag.Items[0].Amount != 2627 || len(gotVault.Items) != 0 {
+		t.Fatalf("withdraw = %+v, %+v, %d, %v", gotBag, gotVault, moved, err)
+	}
+}
+
+func TestVaultWithdrawKeepsBagStackSeparateFromQuickBar(t *testing.T) {
+	bag := Bag{Version: "ordinary-bag-v1", Items: []BagItem{
+		{Slot: 3, Template: 1106, Amount: 25},
+		{Slot: 65, Template: 1106, Amount: 6},
+	}}
+	vault := Vault{Slots: 216, Items: []VaultItem{{Slot: 46, Template: 1106, Amount: 8}}}
+	rules := BagRules{
+		MissingStackLimit: 2147483647,
+		QuickSlots:        [2]uint16{0, 8},
+		Slots:             map[string][2]uint16{"[throw]": {65, 120}, "[material]": {121, 176}},
+	}
+	request := protocol.ItemMoveRequest{SourceList: 2, SourceSlot: 46, SourceItem: 1106, DestinationList: 0, DestinationSlot: 74, Count: 8}
+	gotBag, gotVault, moved, err := MoveVaultItem(bag, vault, rules, request)
+	if err != nil || moved != 8 || len(gotVault.Items) != 0 || len(gotBag.Items) != 2 {
+		t.Fatalf("withdraw = %+v, %+v, %d, %v", gotBag, gotVault, moved, err)
+	}
+	if gotBag.Items[0].Amount != 25 || gotBag.Items[1].Amount != 14 {
+		t.Fatalf("withdraw filled wrong region: %+v", gotBag.Items)
+	}
+}
+
+func TestVaultWithdrawExplicitQuickBarTarget(t *testing.T) {
+	base := Bag{Version: "ordinary-bag-v1", Items: []BagItem{
+		{Slot: 3, Template: 1106, Amount: 25},
+		{Slot: 65, Template: 1106, Amount: 6},
+	}}
+	rules := BagRules{
+		MissingStackLimit: 2147483647,
+		QuickSlots:        [2]uint16{0, 8},
+		Slots:             map[string][2]uint16{"[throw]": {65, 120}},
+	}
+	for _, tc := range []struct {
+		name      string
+		dest      uint16
+		quickWant uint32
+		bagWant   uint32
+	}{
+		{"occupied quick slot", 3, 33, 6},
+		{"empty quick slot", 4, 25, 14},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			vault := Vault{Slots: 8, Items: []VaultItem{{Slot: 0, Template: 1106, Amount: 8}}}
+			r := protocol.ItemMoveRequest{SourceList: 2, SourceSlot: 0, SourceItem: 1106, DestinationList: 0, DestinationSlot: tc.dest, Count: 8}
+			got, remaining, moved, err := MoveVaultItem(base, vault, rules, r)
+			if err != nil || moved != 8 || len(remaining.Items) != 0 || len(got.Items) != 2 {
+				t.Fatalf("withdraw = %+v, %+v, %d, %v", got, remaining, moved, err)
+			}
+			if got.Items[0].Amount != tc.quickWant || got.Items[1].Amount != tc.bagWant {
+				t.Fatalf("unexpected merge targets: %+v", got.Items)
+			}
+		})
+	}
+}
+
+func TestVaultWithdrawDifferentTargetMergesExistingBagStack(t *testing.T) {
+	bag := Bag{Version: "ordinary-bag-v1", Items: []BagItem{
+		{Slot: 3, Template: 1112, Amount: 1},
+		{Slot: 65, Template: 1106, Amount: 6},
+	}}
+	vault := Vault{Slots: 8, Items: []VaultItem{{Slot: 0, Template: 1106, Amount: 8}}}
+	rules := BagRules{MissingStackLimit: 2147483647, QuickSlots: [2]uint16{0, 8}, Slots: map[string][2]uint16{"[throw]": {65, 120}}}
+	r := protocol.ItemMoveRequest{SourceList: 2, SourceSlot: 0, SourceItem: 1106, DestinationList: 0, DestinationSlot: 3, DestinationItem: 1112, Count: 8}
+	got, remaining, moved, err := MoveVaultItem(bag, vault, rules, r)
+	if err != nil || moved != 8 || len(remaining.Items) != 0 || got.Items[0].Amount != 1 || got.Items[1].Amount != 14 {
+		t.Fatalf("withdraw = %+v, %+v, %d, %v", got, remaining, moved, err)
+	}
+}

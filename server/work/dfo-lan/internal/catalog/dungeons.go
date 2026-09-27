@@ -39,8 +39,15 @@ type DungeonDefinition struct {
 	Tutorial, NoFatigue      bool
 	Odyssey                  bool
 	DesignatedDifficulty     byte
-	HuntBoss                 uint32        // Source Odyssey [hunt boss] single-target completion.
-	Mazes                    []DungeonMaze `json:"mazes"`
+	HuntBoss                 uint32 // Source Odyssey [hunt boss] single-target completion.
+	// SourceBoss 是副本脚本自己用 [clear condition] [hunt boss] <模板> <数量> 声明的
+	// 通关领主：杀掉它就算通关。这是**源对通关条件的声明**，对所有副本成立，
+	// 不是某个玩法的特例。
+	//
+	// 只有「客户端不发 CMD117」的副本才走得到它，见 internal/dungeon/completion.go
+	// 的 tryComplete —— 客户端会发 CMD117 的副本由那条路径负责，这里不会重复结算。
+	SourceBoss uint32
+	Mazes      []DungeonMaze `json:"mazes"`
 }
 type DungeonCatalog struct {
 	Source      pvf.ArchiveSnapshot          `json:"source"`
@@ -97,6 +104,57 @@ func sourceFirstPair(c []pvf.Token, absentOK bool) ([2]byte, error) {
 	}
 	return dungeonPair(c[:2])
 }
+
+// sourceBoss reads the script's own clear condition: [clear condition] holds one
+// [hunt boss] <template> <count> pair per maze, and killing that template is what
+// clears the run. Sources repeat it once per maze rather than once per dungeon, so
+// every pair must agree on a single template with count 1, or the reading is left
+// at zero rather than guessed - settling a run on the wrong monster's death is
+// worse than not settling it.
+//
+// Scoped to [clear condition] on purpose: [hunt boss] also appears in other
+// blocks, and only the clear condition makes a statement about completion.
+func sourceBoss(cells []pvf.Token) uint32 {
+	var pairs []int32
+	inClear, inHunt := false, false
+	for _, c := range cells {
+		if c.Type == 3 {
+			switch c.Text {
+			case "[clear condition]":
+				inClear = true
+				inHunt = false
+			case "[/clear condition]":
+				inClear = false
+				inHunt = false
+			case "[hunt boss]":
+				inHunt = inClear
+			default:
+				inHunt = false
+			}
+			continue
+		}
+		if !inHunt || c.Type != 0 {
+			continue
+		}
+		pairs = append(pairs, c.Value)
+	}
+	if len(pairs) < 2 || len(pairs)%2 != 0 {
+		return 0
+	}
+	boss := int32(0)
+	for i := 0; i+1 < len(pairs); i += 2 {
+		if pairs[i] <= 0 || pairs[i+1] != 1 {
+			return 0
+		}
+		if boss == 0 {
+			boss = pairs[i]
+		} else if boss != pairs[i] {
+			return 0
+		}
+	}
+	return uint32(boss)
+}
+
 func ParseDungeon(id uint32, s ScriptRecord) (DungeonDefinition, error) {
 	d := DungeonDefinition{ID: id, Script: s}
 	mode := sectionCells(s.Cells, "[dungeon mode script]")
@@ -115,6 +173,7 @@ func ParseDungeon(id uint32, s ScriptRecord) (DungeonDefinition, error) {
 		}
 		d.DesignatedDifficulty = byte(v[0].Value)
 	}
+	d.SourceBoss = sourceBoss(s.Cells)
 	minimum := sectionCells(s.Cells, "[minimum required level]")
 	if len(minimum) != 1 || minimum[0].Type != 0 || minimum[0].Value < 1 {
 		return d, fmt.Errorf("invalid [minimum required level]")

@@ -33,7 +33,28 @@ func (a *Awarder) Grant(raw json.RawMessage, id, amount uint32) (json.RawMessage
 		if a.Equipment == nil || a.Equipment.Source.Checksum != a.Rules.Source {
 			return nil, r, fmt.Errorf("equipment award source missing")
 		}
-		b, r.Slots, e = b.AddEquipment(a.Equipment, a.Rules.EquipmentSlots, id, amount)
+		kind, kindErr := a.Equipment.EquipmentKind(id)
+		if kindErr != nil {
+			return nil, r, kindErr
+		}
+		if IsPetGear(kind) {
+			if amount == 0 || amount > uint32(PetGearLast-PetGearFirst+1) {
+				return nil, r, fmt.Errorf("invalid pet equipment award amount")
+			}
+			if _, e = a.Equipment.Reward(id); e != nil {
+				return nil, r, e
+			}
+			for n := uint32(0); n < amount; n++ {
+				var slot uint16
+				b, slot, e = b.AddPetGear(BagEquipment{Template: id})
+				if e != nil {
+					return nil, r, e
+				}
+				r.Slots = append(r.Slots, slot)
+			}
+		} else {
+			b, r.Slots, e = b.AddEquipment(a.Equipment, a.Rules.EquipmentSlots, id, amount)
+		}
 	}
 	if e != nil {
 		return nil, r, e
