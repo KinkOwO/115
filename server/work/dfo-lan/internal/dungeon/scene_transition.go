@@ -25,6 +25,39 @@ func (s *Session) lotusClosingRevisit(r protocol.DungeonRoomTransition) bool {
 	return x >= 701 && x <= 704 && y >= 229 && y <= 231
 }
 
+// A terminal cinematic without a boss identity may revisit its cached layer
+// after clearing the quest's source objective room. Match the exact source
+// CMT landing area imported for this maze; cinematic actors in the last map
+// are not a room-clear precondition.
+func (s *Session) terminalSceneRevisit(c catalog.DungeonCatalog, r protocol.DungeonRoomTransition) bool {
+	if s.completionTarget != 0 || s.hasFightableBoss() || s.reportableDisplayBoss() != 0 ||
+		r.Record[0] != 0 || r.Record[1] != 0 || r.Record[2] != 0 ||
+		r.Record[3] != 0 || r.Record[4] != 4 || r.Record[5] != 5 {
+		return false
+	}
+	x := binary.LittleEndian.Uint16(r.Record[6:8])
+	y := binary.LittleEndian.Uint16(r.Record[8:10])
+	for _, scene := range c.TerminalScenes {
+		if scene.Source != c.Source.Checksum || scene.Dungeon != s.Definition.ID || scene.Maze != s.Maze.Index ||
+			scene.Quest != s.Maze.Quest || scene.Position != r.Position || scene.FinalMap != s.Room.Map ||
+			scene.DungeonSHA256 != s.Definition.Script.SHA256 || scene.MapSHA256 != c.Maps[s.Room.Map].SHA256 ||
+			x < scene.XMin || x > scene.XMax || y < scene.YMin || y > scene.YMax {
+			continue
+		}
+		objective, seen := s.Visited[scene.ObjectiveMap]
+		if !seen {
+			return false
+		}
+		for _, m := range objective {
+			if m.Team != 0 && !m.NonCombat && !s.Dead[m.Entity] {
+				return false
+			}
+		}
+		return true
+	}
+	return false
+}
+
 func (s *Session) MoveScene(c catalog.DungeonCatalog, r protocol.DungeonRoomTransition) (*Session, error) {
 	if s == nil || !s.Loaded || !r.LayerChange || s.Completed() {
 		return nil, fmt.Errorf("scene transition requires owned cleared loaded room")
@@ -79,6 +112,14 @@ func (s *Session) MoveScene(c catalog.DungeonCatalog, r protocol.DungeonRoomTran
 					return nil, err
 				}
 				next.lotusClosingReached = true
+				return next, nil
+			}
+			if currentIdx == len(layer.Maps)-1 && s.terminalSceneRevisit(c, r) {
+				next, err := s.enterRoom(c, s.Room)
+				if err != nil {
+					return nil, err
+				}
+				next.terminalSceneClosingReached = true
 				return next, nil
 			}
 			return nil, fmt.Errorf("no next layer map")

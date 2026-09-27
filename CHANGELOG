@@ -1,5 +1,8 @@
 # CHANGELOG
 
+## 2026-09-28
+- **终层过场任务结算通用化（服务端）**：玩家确认「Woman in Red」任务 12147 可完成；实机日志显示末层过场 CMD45 → 场景加载 CMD37 → NOTI291 任务进度 → NOTI31 通关启用。将原副本/任务/地图/坐标固定判断改为从当前 PVF 的任务、迷宫、地图动作和过场 `[CHANGE MAP]` 自动导出终层场景范围；启动时校验源校验和及 DGN/MAP 哈希。仅对源任务目标 Boss 房已清、末层无可报告 Boss 的匹配场景使用无 Boss 身份的结算路径，罗特斯原路径保持独立。另修正 CMD37 直接下发 NOTI31 后未记录已通知状态，导致随后 CMD46 被拒；此结算请求修正和其它导出路线尚待实机验证。无数据库结构或存档变更。确认基线：`server/work/dfo-lan/docs/protocol/woman-in-red-oculus-closing-scene-20260927.md`。
+
 ## 2026-09-27
 - **范围到达任务的地图 NPC 原生触发通用处理（服务端，玩家确认 7978 可完成）**：对脚本定义的 `[reach the range]` subtype 0 目标，CMD33 在当前地图确有目标 NPC 且角色位于脚本范围内时可以推进；任务、NPC、区域、坐标和范围均从任务与世界目录读取，运行逻辑没有 7978 或西海岸站的固定值。保留原临时 NPC 路径，未改协议、数据库或存档。玩家实机日志显示 7978 经靠近推进并完成，随后接取并完成 7979；本轮成功路径没有命中 CMD33 新分支，该分支由资源目录回归用例覆盖。相关测试与 vet 通过；全量 `go test ./...` / `go vet ./...` 被其它任务的 `internal/dungeon/tower_dazzlement_entry_test.go` 引用不存在的 `DungeonDefinition.Tower` 阻断。确认基线：`server/work/dfo-lan/docs/protocol/path-to-mt-hardt-quest-7978-station-reach-20260927.md`。
 - **迷眩之塔 7601 入场与双房流程（用户实机确认）**：从当前 115 客户端 PVF 的 `etc/towerofdazzlement.etc`、DGN 和 MAP 归属导出 33 个遭遇副本、56 张房间图，补齐原目录缺失的迷宫房间；按客户端原生解析将地图怪物 `[named]` 保持默认阶级 0。用户确认可进入地下 1 层、换到下一房间、击败 Boss 并完成当前普通副本结算。塔专属结算、奖励、进度和次数尚未实现或验证。`go test ./...`、`go vet ./...` 通过；候选 SHA-256 `C2F959D025EC73DB48328EED7EE0AEF0C3ADE2D49672B8FA2B84F43DCF6D199F`。确认基线：`server/work/dfo-lan/docs/protocol/tower-of-dazzlement-entry-20260927.md`。

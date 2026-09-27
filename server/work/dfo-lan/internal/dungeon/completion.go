@@ -88,6 +88,13 @@ func (s *Session) tryComplete() {
 		return
 	}
 	if s.completionTarget == 0 {
+		// The source-matched final [CHANGE MAP] scene is the terminal event
+		// for a layer with no reportable boss. It was accepted only after the
+		// quest's objective room was actually cleared.
+		if s.terminalSceneClosingReached && s.Loaded && s.atLayerFinalMap() && s.reportableDisplayBoss() == 0 {
+			s.completed = true
+			return
+		}
 		// Dungeon 26 maze 3's terminal layer is the opposite shape. Its last map
 		// is entered with a live combat target, and the validated closing
 		// [CHANGE MAP] cinematic returns to that cached final map once the
@@ -186,6 +193,12 @@ func (s *Session) postBossQuestMap() uint32 {
 func (s *Session) TryComplete() { s.tryComplete() }
 
 func (s *Session) Completed() bool { return s != nil && s.completed }
+
+// A source closing scene without a boss identity can enable dungeon clear
+// directly; NOTI115 requires a real rank-3 entity from the current layer.
+func (s *Session) CompletionNeedsBossCheck() bool {
+	return s != nil && s.Completed() && !s.terminalSceneClosingReached
+}
 
 // CompletionTarget is the boss identity echoed back in the NOTI 115 payload. A
 // story layer never raises a BOSS_CHECK, so no requested identity exists; the

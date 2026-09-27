@@ -966,11 +966,14 @@ func (w *worldSession) completeDungeon() ([]outboundPacket, error) {
 		}
 		plan = append(plan, outboundPacket{"map_clear_quest_triggers", 0, 291, triggers})
 	}
-	body, err := protocol.BossCheckConfirmed(w.activeDungeon.CompletionTarget())
-	if err != nil {
-		return nil, err
+	if w.activeDungeon.CompletionNeedsBossCheck() {
+		body, err := protocol.BossCheckConfirmed(w.activeDungeon.CompletionTarget())
+		if err != nil {
+			return nil, err
+		}
+		plan = append(plan, outboundPacket{"boss_check_confirmed", 0, 115, body})
 	}
-	plan = append(plan, outboundPacket{"boss_check_confirmed", 0, 115, body}, outboundPacket{"dungeon_clear_enabled", 0, 31, protocol.DungeonClearEnabled()})
+	plan = append(plan, outboundPacket{"dungeon_clear_enabled", 0, 31, protocol.DungeonClearEnabled()})
 	if w.activeDungeon.Tournament != nil {
 		reward, e := w.tournamentClear()
 		if e != nil {
