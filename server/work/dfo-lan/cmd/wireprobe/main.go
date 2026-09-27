@@ -506,6 +506,8 @@ func main() {
 				log.Fatal(e)
 			} else if e = s.MigrateSkinSelection(ctx); e != nil {
 				log.Fatal(e)
+			} else if e = s.MigrateSkinSelectionList(ctx); e != nil {
+				log.Fatal(e)
 			} else {
 				skinCatalog = entries
 				templates := make([]uint32, 0, len(entries))
@@ -3546,6 +3548,17 @@ func main() {
 					if cargoErr != nil {
 						event(map[string]any{"kind": "skin_cargo_damage_font_restore_error", "character_id": role.ID, "reason": cargoErr.Error()})
 					}
+				}
+				// The 边框 and 觉醒插图 pages are filled for the same entry group. Their
+				// packets go after the profile pair because a NOTI1545 frame rebuilds the
+				// page it names and the last frame for page 0 is the state the client keeps;
+				// these payloads carry that feature's built-in rows too, and a selection
+				// frame is only sent when this character actually stores one.
+				if characters != nil && skinCatalog != nil {
+					familyCtx, familyCancel := context.WithTimeout(context.Background(), 5*time.Second)
+					plan.restoreSkinFamilies(familyCtx, characters.Store, developmentAccount, role.ID,
+						skinCatalog, event)
+					familyCancel()
 				}
 				// 幻化仓库（武器外观页签）容器只在复制时被推过一次，客户端重登即空；
 				// 这里按存档重推 NOTI1545。读不出状态只记事件照常进场，仓库空一次

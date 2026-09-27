@@ -30,10 +30,10 @@ type entryPayloads struct {
 	SecondaryVault   []byte
 	AccountVault     []byte
 	AvailableQuests  []byte
-		Worn             []byte
-		AccountOptions   []byte
-		GamepadOptions   []byte
-		// InformNotice / InformNotice2nd are the per-character read-notice sets
+	Worn             []byte
+	AccountOptions   []byte
+	GamepadOptions   []byte
+	// InformNotice / InformNotice2nd are the per-character read-notice sets
 	// (NOTI402 / NOTI426). They ride right after account options: the client
 	// clears its read set from them, and a third-awakened character whose
 	// notice ledger is missing would otherwise re-pop the teaching frame on
@@ -52,6 +52,17 @@ type entryPayloads struct {
 	// follow its own owned page above.
 	SkinSelectionDamageFontNormal     []byte
 	SkinSelectionDamageFontCumulative []byte
+	// SkinCargoPartyFrame / SkinCargoSkillCutscene are the 边框 and 觉醒插图 owned
+	// pages. The border page is also the profile-decoration feature's page, so these
+	// arrive after its own pair below: a NOTI1545 frame rebuilds the page it names,
+	// and the later frame is the one the client keeps.
+	SkinCargoPartyFrame    []byte
+	SkinCargoSkillCutscene []byte
+	// SkinSelectionPartyFrame / SkinSelectionSkillCutscene re-apply what this
+	// character has selected in those two panels. Both are sets, not single ids:
+	// the cutscene renderer draws a random member of the vector.
+	SkinSelectionPartyFrame    []byte
+	SkinSelectionSkillCutscene []byte
 	// WornSlots is the id-14 per-slot update frame for the full worn set
 	// (space 3), same builder the equipment-move path uses. The live
 	// 20260921 probe timeline showed the equip-change heal always carries
@@ -107,18 +118,26 @@ type entryPayloads struct {
 	Peers [][]byte
 }
 
-	func (p entryPayloads) packets() []outboundPacket {
-		out := []outboundPacket{
-			{"select_parser_response", 1, 4, p.Select},
-			{"account_options_restored", 0, 2826, p.AccountOptions},
-			{"gamepad_options_restored", 0, 2128, p.GamepadOptions},
-			{"inform_notice_restored", 0, 402, p.InformNotice},
+func (p entryPayloads) packets() []outboundPacket {
+	out := []outboundPacket{
+		{"select_parser_response", 1, 4, p.Select},
+		{"account_options_restored", 0, 2826, p.AccountOptions},
+		{"gamepad_options_restored", 0, 2128, p.GamepadOptions},
+		{"inform_notice_restored", 0, 402, p.InformNotice},
 		{"inform_notice_2nd_restored", 0, 426, p.InformNotice2nd},
 		{"skin_cargo_damage_font_restored", 0, 1545, p.SkinCargoDamageFont},
 		{"skin_selection_damage_font_restored", 0, 1546, p.SkinSelectionDamageFontNormal},
 		{"skin_selection_damage_font_restored", 0, 1546, p.SkinSelectionDamageFontCumulative},
 		{"profile_skin_cargo_restored", 0, 1545, p.ProfileSkinCargo},
 		{"profile_skin_selection_restored", 0, 1546, p.ProfileSkinSelection},
+		// Both list families follow the profile pair above on purpose: the border
+		// page is the same page that feature rebuilds, and the last page frame for a
+		// page is the state the client keeps. A page rebuild is absolute, so these
+		// payloads already carry the profile feature's built-in rows.
+		{"skin_cargo_party_frame_restored", 0, 1545, p.SkinCargoPartyFrame},
+		{"skin_selection_party_frame_restored", 0, 1546, p.SkinSelectionPartyFrame},
+		{"skin_cargo_skill_cutscene_restored", 0, 1545, p.SkinCargoSkillCutscene},
+		{"skin_selection_skill_cutscene_restored", 0, 1546, p.SkinSelectionSkillCutscene},
 		{"cinematic_skips_restored", 0, 1352, p.CinematicSkips},
 		{"story_digest_restored", 0, 1370, p.StoryDigest},
 		{"entry_basic_probe_sent", 0, 2, p.Basic},

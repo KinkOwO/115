@@ -19,8 +19,10 @@ import (
 // damage-font panel has two tabs that both enumerate owned page 2, and each keeps
 // its own vector (sub_1444EECA0 case 2 / case 6), so the answer has to carry the
 // category the click came from — answering the other one lights the wrong tab.
-// Categories outside that pair have no reversed meaning, so their click is logged
-// and refused instead of being answered with an invented frame.
+// Categories outside that pair are the two list panels, whose click carries a whole
+// selection and is answered in skin_family_flow.go; a category with no reversed
+// reader at all is logged and refused instead of being answered with an invented
+// frame.
 func (w *worldSession) selectSkin(p []byte, event func(map[string]any)) ([]outboundPacket, error) {
 	if w == nil || w.role.ID == 0 || w.characters == nil {
 		return nil, fmt.Errorf("skin selection before character load")
@@ -31,18 +33,31 @@ func (w *worldSession) selectSkin(p []byte, event func(map[string]any)) ([]outbo
 	}
 	record := map[string]any{"character_id": w.role.ID, "category": request.Category,
 		"result": request.Result, "skin_key": request.SkinID}
-	if !protocol.IsSkinSelectionDamageFontCategory(request.Category) {
-		record["kind"] = "skin_selection_unsupported_category"
-		event(record)
-		return nil, fmt.Errorf("skin selection category %d has no reversed meaning", request.Category)
+	if protocol.IsSkinSelectionDamageFontCategory(request.Category) {
+		if w.skinCatalog == nil {
+			return nil, fmt.Errorf("skin storage catalog is not loaded")
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		return damageFontSelectionFrame(ctx, w.characters.Store, w.role.ID, w.role.AccountID,
+			w.skinCatalog, request.Category, request.SkinID, record, event)
 	}
-	if w.skinCatalog == nil {
-		return nil, fmt.Errorf("skin storage catalog is not loaded")
+	// The 边框 and 觉醒插图 panels carry a whole selection in one click instead of a
+	// single id, so they answer through their own path, which also has to echo the
+	// request body untouched.
+	if _, ok := skinFamilyForCategory(request.Category); ok {
+		if w.skinCatalog == nil {
+			return nil, fmt.Errorf("skin storage catalog is not loaded")
+		}
+		record["skin_keys"] = request.SkinIDs
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		return skinFamilySelectionFrame(ctx, w.characters.Store, w.role.ID, w.role.AccountID,
+			w.skinCatalog, request, p, record, event)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	return damageFontSelectionFrame(ctx, w.characters.Store, w.role.ID, w.role.AccountID,
-		w.skinCatalog, request.Category, request.SkinID, record, event)
+	record["kind"] = "skin_selection_unsupported_category"
+	event(record)
+	return nil, fmt.Errorf("skin selection category %d has no reversed meaning", request.Category)
 }
 
 // damageFontSelectionFrame persists one click and builds the frames that replay
@@ -120,8 +135,8 @@ func damageFontSelectionFrames(kind string, category, id uint32) ([]outboundPack
 	return append(out, outboundPacket{"skin_selection_normal_damage_reset_echo", 1, 1565, echo}), nil
 }
 
-// damageFontRestore re-pushes the owned page and both applied fonts after the
-// client has rebuilt its actor for a dungeon. The damage number renderer resolves
+// damageFontRestore re-pushes the owned skin pages and their applied selections after
+// the client has rebuilt its actor for a dungeon. The damage number renderer resolves
 // its font when it creates the text object, reading the applied id off the avatar
 // (sub_1447EB510 with its id argument -1 takes *(avatar+232), which only
 // sub_142581F20 writes), so a frame that arrived in town does not carry into the
@@ -133,20 +148,20 @@ func (w *worldSession) damageFontRestore() []outboundPacket {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+	var out []outboundPacket
 	cargo, e := damageFontCargo(ctx, w.characters.Store, w.role.AccountID, w.skinCatalog)
-	if e != nil {
-		return nil
-	}
-	out := []outboundPacket{{"dungeon_skin_cargo_damage_font_restored", 0, 1545, cargo}}
-	for _, category := range damageFontSelectionCategories {
-		sel, e := restoreDamageFontSelection(ctx, w.characters.Store, w.role.ID, w.role.AccountID,
-			w.skinCatalog, category)
-		if e != nil || sel == nil {
-			continue
+	if e == nil {
+		out = append(out, outboundPacket{"dungeon_skin_cargo_damage_font_restored", 0, 1545, cargo})
+		for _, category := range damageFontSelectionCategories {
+			sel, e := restoreDamageFontSelection(ctx, w.characters.Store, w.role.ID, w.role.AccountID,
+				w.skinCatalog, category)
+			if e != nil || sel == nil {
+				continue
+			}
+			out = append(out, outboundPacket{"dungeon_skin_selection_damage_font_restored", 0, 1546, sel})
 		}
-		out = append(out, outboundPacket{"dungeon_skin_selection_damage_font_restored", 0, 1546, sel})
 	}
-	return out
+	return append(out, w.skinFamilyRestoreFrames(ctx)...)
 }
 
 // damageFontSelectionCategories are the two tabs of the damage-font panel, in the
