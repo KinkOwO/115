@@ -142,9 +142,19 @@ func TestAdvanceOmenStageZeroNeverSettlesAndStageFourAlwaysDoes(t *testing.T) {
 		if full.Stage != 4 || full.After != 0 {
 			t.Fatalf("seed %d settled stage %d and ended at %d, want stage 4 -> 0", i, full.Stage, full.After)
 		}
-		// 第 4 行只有一项（权重 100%），所以保底内容是固定的。
-		if len(full.Awards) != 1 || full.Awards[0].Template != 10417571 {
-			t.Fatalf("seed %d stage 4 paid %v, want the single primeval entry 10417571", i, full.Awards)
+		// 满档结算 = 四档各一件（官方「奖励可以兼得」）。第 4 行只有一项（权重 100%），
+		// 所以最后那件是固定的保底项 10417571。
+		if len(full.Awards) != 4 || len(full.PaidStages) != 4 {
+			t.Fatalf("seed %d a full settle paid %d award(s) over %d stage(s), want 4 each",
+				i, len(full.Awards), len(full.PaidStages))
+		}
+		if full.Awards[3].Template != 10417571 {
+			t.Fatalf("seed %d the primeval entry is %v, want 10417571", i, full.Awards[3])
+		}
+		for k, st := range full.PaidStages {
+			if st != uint32(k+1) {
+				t.Fatalf("seed %d paid stages %v, want 1..4", i, full.PaidStages)
+			}
 		}
 	}
 }
@@ -166,6 +176,57 @@ func TestAdvanceOmenIgnoresDungeonsWithoutStages(t *testing.T) {
 	}
 	if len(out.Awards) != 0 {
 		t.Fatalf("a dungeon without omen stages paid %v", out.Awards)
+	}
+}
+
+// TestOmenSettlementPaysEveryActivatedStage 是官方第 ④ 条的直接断言：
+// 「奖励可以兼得」—— 持有 N 个征兆时结算，就对已激活的 1..N 行各抽一次，
+// 各出一件，且每一件都必须来自它自己那一行的 [drop list]。
+//
+// 这条曾经是错的（只发当前行一件），所以它单独一条测试：改回来会立刻红。
+func TestOmenSettlementPaysEveryActivatedStage(t *testing.T) {
+	a, err := LoadAttunementRewards(attunementConfig)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	stages := a.OmenStages(omenDungeon)
+	if len(stages) < 5 {
+		t.Fatalf("need the five shipped rows, got %d", len(stages))
+	}
+	for held := uint32(1); held <= 4; held++ {
+		// 固定 seeds 里挑出「结算」那一支，确保走的是发放路径。
+		paid := 0
+		for i := uint32(1); i <= 5000 && paid < 5; i++ {
+			seed := i*2654435761 + 11
+			out, err := a.AdvanceOmen(seed, omenDungeon, held)
+			if err != nil {
+				t.Fatalf("advance: %v", err)
+			}
+			if !out.Paid {
+				continue
+			}
+			paid++
+			if len(out.Awards) != int(held) || len(out.PaidStages) != int(held) {
+				t.Fatalf("held %d settled %d award(s) over %v, want %d",
+					held, len(out.Awards), out.PaidStages, held)
+			}
+			for k, st := range out.PaidStages {
+				if st != uint32(k+1) {
+					t.Fatalf("held %d paid stages %v, want 1..%d", held, out.PaidStages, held)
+				}
+				row := map[uint32]bool{}
+				for _, e := range stages[st].entries {
+					row[e.Item] = true
+				}
+				if !row[out.Awards[k].Template] {
+					t.Fatalf("held %d award #%d = %d is not in row %d's list",
+						held, k, out.Awards[k].Template, st)
+				}
+			}
+		}
+		if paid == 0 {
+			t.Fatalf("held %d never settled in 5000 seeds", held)
+		}
 	}
 }
 
@@ -192,7 +253,8 @@ func TestOmenLedgerAccumulatesToTheGuarantee(t *testing.T) {
 		}
 		if out.Paid && out.Stage == 4 {
 			reached++
-			if len(awards) != 1 || awards[0].Template != 10417571 {
+			// 满档结算发 4 件（神器/传说/史诗/太初各 1），最后一件是保底的太初项。
+			if len(awards) != 4 || awards[3].Template != 10417571 {
 				t.Fatalf("run %d: the guarantee paid %v", i, awards)
 			}
 		}

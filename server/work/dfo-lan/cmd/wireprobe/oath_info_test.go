@@ -1,6 +1,11 @@
 package main
 
-import "testing"
+import (
+	"encoding/binary"
+	"testing"
+
+	"dfolan/internal/inventory"
+)
 
 // noti 2838 的载荷是 8 字节、两个 little-endian u32；4/4 实机差分已把偏移钉死。
 func TestOathInfoPayloadOrder(t *testing.T) {
@@ -28,12 +33,13 @@ func TestOathInfoPayloadOrder(t *testing.T) {
 }
 
 func TestParseOathGrades(t *testing.T) {
+	// 空串 = 不覆盖（零值），由通关保底决定档位。
 	got, err := parseOathGrades("")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got != [2]uint16{oathGradeDefault, oathGradeDefault} {
-		t.Fatalf("default = %v, want %d twice", got, oathGradeDefault)
+	if got != [2]uint16{} {
+		t.Fatalf("empty spec = %v, want the zero pair (no override)", got)
 	}
 
 	got, err = parseOathGrades(" 45 , 71 ")
@@ -62,25 +68,36 @@ func TestParseOathGrades(t *testing.T) {
 	}
 }
 
-// The default is the tier that reaches the hidden boss: `oath_max == 45` is the only
-// branch that selects nox_is_orthaire (confirmed live: c:nox_index became 109019264).
-func TestOathGradeDefaultReachesTheHiddenBoss(t *testing.T) {
-	var primer, oath uint16 = oathGradeDefault, oathGradeDefault
-	if _, ok := oathGradeTiers[primer]; !ok {
-		t.Fatalf("primer default %d is not a legal tier", primer)
+// 没配保底（或没进计入保底的副本）时档位必须落回 normal —— 那才是「隐藏 BOSS 稀有」
+// 的落点。恒发 45 会让 state machine 在 oath_now == 44 时必然 summon_orthaire
+// （实机确认过 c:nox_index 变成 109019264），也就是场场登场。
+func TestOathInfoPacketsFallsBackToNormalWithoutPity(t *testing.T) {
+	w := &worldSession{} // 零值覆盖 + 保底场次 0（关闭）
+	plan, err := w.oathInfoPackets()
+	if err != nil {
+		t.Fatal(err)
 	}
-	if oath != 45 {
-		t.Fatalf("oath default = %d; 45 (primitive) is the only tier that summons the hidden boss", oath)
+	if len(plan) != 1 || plan[0].ID != 2838 {
+		t.Fatalf("plan = %+v", plan)
 	}
-	if idx := int32(primer) - 40; idx < 0 || idx > 7 {
-		t.Fatalf("primer default %d indexes o:hp_limit out of bounds (%d)", primer, idx)
+	p := plan[0].Payload
+	primer := binary.LittleEndian.Uint32(p[0:4])
+	oath := binary.LittleEndian.Uint32(p[4:8])
+	if primer != uint32(inventory.OathGradeNormal) || oath != uint32(inventory.OathGradeNormal) {
+		t.Fatalf("payload = %d/%d, want normal(%d) for both", primer, oath, inventory.OathGradeNormal)
+	}
+	if _, ok := oathGradeTiers[uint16(oath)]; !ok {
+		t.Fatalf("oath %d is outside the eight tiers the script accepts", oath)
 	}
 }
 
 // 发出去的包必须是「一个 id + 8 字节」，且 kind 名可被日志认出来。
 func TestOathInfoPacketsShape(t *testing.T) {
 	w := &worldSession{oathGrades: [2]uint16{45, 45}}
-	plan := w.oathInfoPackets()
+	plan, err := w.oathInfoPackets()
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(plan) != 1 {
 		t.Fatalf("got %d packets", len(plan))
 	}
