@@ -16,6 +16,10 @@ func dungeonRequest(id uint16) bool {
 }
 
 func observedGameRequest(id uint16) bool {
+	// 强化券的重复使用也必须逐次解密，不受未实现指令的八次采样上限影响。
+	if id == 80 {
+		return true
+	}
 	// 开罐和晶体契约选择已有处理器，每次请求都必须解密校验，不能受八次采样限制。
 	if id == 681 || id == 527 {
 		return true
