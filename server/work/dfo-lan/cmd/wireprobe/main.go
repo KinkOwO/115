@@ -1660,6 +1660,23 @@ func main() {
 				}
 				continue
 			}
+			if frame.Type == 1 && frame.ID == 806 && bootstrapped && verified && worldState != nil {
+				plan, favorErr := worldState.giveFavor(plaintext)
+				if favorErr != nil {
+					event(map[string]any{"kind": "npc_favor_refused", "attempt": "1/3", "character_id": selectedCharacterID, "reason": favorErr.Error(), "plain_hex": hex.EncodeToString(plaintext)})
+					if e := sendPayload(1, 806, protocol.Refusal(4)); e != nil {
+						return
+					}
+					continue
+				}
+				for _, packet := range plan {
+					if e := sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
+						return
+					}
+					event(map[string]any{"kind": packet.Name, "attempt": "1/3", "character_id": selectedCharacterID, "id": packet.ID, "plain_hex": hex.EncodeToString(packet.Payload)})
+				}
+				continue
+			}
 			if frame.Type == 1 && frame.ID == 2079 && bootstrapped && verified && characters != nil {
 				id, err := protocol.DecodeSynopsisRead(plaintext)
 				var payload []byte
