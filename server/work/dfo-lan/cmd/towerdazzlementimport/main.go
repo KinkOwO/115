@@ -1,0 +1,32 @@
+package main
+
+import (
+	"dfolan/internal/catalog"
+	"dfolan/internal/catalog/pvf"
+	"encoding/json"
+	"flag"
+	"log"
+	"os"
+)
+
+func main() {
+	source := flag.String("source", "../client-build/Script.inner.pvf", "current source PVF")
+	output := flag.String("output", "configs/dungeons.tower-of-dazzlement-maps.json", "source-matched tower overlay")
+	flag.Parse()
+	a, err := pvf.LoadArchive(pvf.Options{Path: *source, MaxBytes: 1024 * 1024 * 1024})
+	if err != nil {
+		log.Fatal(err)
+	}
+	overlay, err := catalog.ImportDazzlementOverlay(a)
+	if err != nil {
+		log.Fatal(err)
+	}
+	b, err := json.Marshal(overlay)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if err := os.WriteFile(*output, b, 0644); err != nil {
+		log.Fatal(err)
+	}
+	log.Printf("wrote %d dungeons and %d maps to %s", len(overlay.Dungeons), len(overlay.Maps), *output)
+}

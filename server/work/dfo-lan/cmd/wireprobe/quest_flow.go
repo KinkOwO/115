@@ -235,7 +235,8 @@ func (w *worldSession) questInteraction(p []byte) ([]outboundPacket, error) {
 	}
 	if d.Kind == "[reach the range]" {
 		r, valid := quest.ReachNPCObjective(d)
-		if !valid || !questLineageShowsReachNPC(d, r.NPC, w.state.Position, w.quests.Catalog) {
+		if !valid || (!questLineageShowsReachNPC(d, r.NPC, w.state.Position, w.quests.Catalog) &&
+			!questReachNPCAtSourcePlacement(w.service, w.state.Position, r)) {
 			return nil, nil
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -356,6 +357,22 @@ func questLineageShowsVisibleNPC(d catalog.QuestDefinition, npc uint32, at stora
 func questLineageShowsReachNPC(d catalog.QuestDefinition, npc uint32, at storage.WorldPosition, quests catalog.QuestCatalog) bool {
 	r, ok := quest.ReachNPCObjective(d)
 	return ok && r.NPC == npc && questLineageShowsNPC(d, npc, at, quests, true, true)
+}
+
+// For an NPC placed by the current area's source map, accept the native
+// range trigger only within the quest script's configured extents.
+func questReachNPCAtSourcePlacement(service *world.Service, at storage.WorldPosition, r quest.NPCReachObjective) bool {
+	if service == nil || r.W <= 0 || r.H <= 0 {
+		return false
+	}
+	position, found := service.NPCPosition(at, r.NPC)
+	if !found {
+		return false
+	}
+	dx := int64(at.X) - int64(position[0])
+	dy := int64(at.Y) - int64(position[1])
+	return dx >= -int64(r.W) && dx <= int64(r.W) &&
+		dy >= -int64(r.H) && dy <= int64(r.H)
 }
 
 func questLineageShowsNPC(d catalog.QuestDefinition, npc uint32, at storage.WorldPosition, quests catalog.QuestCatalog, requireGuide, allowCurrentClearHide bool) bool {
