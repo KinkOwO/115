@@ -1,6 +1,14 @@
 # CHANGELOG
 
 ## 2026-09-27
+- **调律之边界（深渊）掉落：把包装盒真正展开成装备（服务端，已实机验收）**：实机通关后地面掉的是打不开的盒子，而不是装备。
+  - **根因（判据读了类型字符串）**：容器判定读 `[stackable type]`，而两个载体 `10362480`/`10362481` 是 `[virtual]` 却仍带 `[booster info]` + `[instantly open]`，于是进不了 booster 目录，原样落地、点不开。
+  - **修法**：判据改为「脚本里有没有 `[booster info]`」；载体体内那个保留占位 id `490000001` 由它自己声明的 `[smart drop group id]` 回填 —— 依据是全量 226 个「booster 体付保留 id」的模板**全部**声明了 smart group，零反例。
+  - **组表终于能读**：`etc/dungeondroptablebygroup.etc` 的四种实存形态（两个新段、空物品段、奇数宽度组、逐字节重复组）分别接受/跳过并报 id；1,220 组载入只拒畸形组 `21469`。
+  - **展开结果**：`10362480` → 组 21250（42 件 `One in a Hundred` 系列武器，等权）；`10362481` → 组 21251（11 件 `Starter` 系列防具，等权）；`[draw count]` = 1，每次开一件。
+  - **同一场实机顺带收口**：noti 2838 下发真实 primer/oath 档位，替换客户端硬编码的 72 哨兵（`cmd/wireprobe/oath_info.go`）——它是「天平不死 / 隐藏 BOSS 不出 / 玩家退不出」三件事的同一根因；征兆系统按 `[coupon drop table]` 阶段表累积与结算（`internal/loot/omen.go`，默认关）；物品显示名可按 ID 经 `list/n_string.lst` → `String/<类别>.uv.str` 取回（`internal/catalog/pvf/nameref.go`）。
+  - **物品身份口径（本轮确立）**：物品 ID 是独立编号、**不等于文件名**（`stackable/gold.stk` 的 ID 是 0），采样 2000 件里 `key == name_<id>` 只占 95.3%（另有装扮复用别的 ID 的名字，以及 `chn_name_` 平行键体系）⇒ 取名字必须按引用给出的键，任何以名字文本当标识的做法在未汉化客户端上都会失效。
+  - **验证**：`go build ./...`、`go vet ./internal/... ./cmd/...` 0 项，`go test -p 1 -count=1 ./internal/... ./cmd/...` 全绿（21 包 ok、0 FAIL）。玩家实机一轮：地面直接掉落装备，不再是盒子。候选程序 `server/work/dfo-lan/bin/wireprobe-handoff-source.exe` SHA-256 `2ba4901da165cb542377d34cc62c686233ee770167cf1da3f13201e529989d3a`（本 MR 只新增 `internal/catalog/pvf/nameref.go` 等文件、未改 wireprobe 既有路径，故与实机验收所用程序行为一致）。客户端 `Script.pvf` 保持原版 `5681103c…`。
 - **伤害字体消耗道具：消耗、入库、进仓库可识别、应用生效（服务端，待实机验证）**：`[action type] [add skin storage]` 类道具（伤害字体等）此前只能被消耗并写库，客户端皮肤仓库里看不到。
   - **皮肤键（真源修正）**：`configs/skin-storage-items.json` 由 v1 换成 v2。注册键就是 `[action type]` 的参数，即 `list/skin.lst` 的皮肤 ID，也正是客户端仓库页与静态注册表所用的键（客户端自己这样读：`0x1444EC1B0` 要求动作字为 169，并从其后的参数向量取皮肤 ID）。`[damage font info][index]` 是另一套命名空间（它选 `event/damagefontskin/damagefontskin.lst` 里的 `.dfk`），354 个伤害字体模板里只有 73 个声明它，故只作诊断记录、绝不当键。家族改由皮肤自身 `.skn [type]` 判定：伤害字体 354 模板 / 135 个不同皮肤、技能过场 593、即时表情 540、组队框 224、飞艇特效 11、喷漆 9、武器皮肤 2；另有 127 个模板引用的 ID 在 `skin.lst` 中不存在，导出为 `missing_skins` 并跳过，不再让整表导入失败。v1 表会被 `LoadSkinStorage` 的校验直接拒绝，等于该功能此前并未挂载。
   - **显示链取证（`client/DFO.exe.i64`，Dump 见 `analysis/dumps/skin-noti/df2*.c`）**：NOTI1545 处理器 `sub_1444ED900` 先读 1 个 u8 页选择子，再交给 `sub_1444EFF40(mgr, page)`；后者**先清空该页映射再插入**，所以每个页帧都是绝对状态——只带最新一个皮肤的帧会删掉同页其它皮肤。伤害字体面板（`window+9760`，类 vtable `off_14A230DE8` 槽 3 = `sub_1441E3510`）用 `sub_1444EBDF0(mgr, 2)` 快照**第 2 页**，并按客户端静态注册表 `record+8 == 2` 过滤，注册表只读不写（`sub_1444EBAB0`），未知 ID 直接不显示；已装备项走 NOTI1546 **category 6**（单个 u32，未拥有时装入哨兵值 `99999999`）。到期判定 `sub_1444EC2C0` 把「标志置位且到期值为 0」判为永不过期，故永久授予不依赖时钟域；非零到期要与 `sub_145A11A50` 比较，该时钟编码未证实，因此服务端一律只写 0。

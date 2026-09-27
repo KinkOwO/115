@@ -39,12 +39,15 @@ type DungeonDefinition struct {
 	Tutorial, NoFatigue      bool
 	Odyssey                  bool
 	DesignatedDifficulty     byte
-	HuntBoss                 uint32        // Source Odyssey [hunt boss] single-target completion.
-	// AttunementBoss 是「调律之边界」玩法（[dungeon type] boundary of attunement）的源领主模板。
-	// 该玩法单人、不发 CMD117，所以只有这只领主的死亡确认能结束本次挑战 ——
-	// 见 internal/dungeon/completion.go 的 tryComplete。
-	AttunementBoss uint32
-	Mazes                    []DungeonMaze `json:"mazes"`
+	HuntBoss                 uint32 // Source Odyssey [hunt boss] single-target completion.
+	// SourceBoss 是副本脚本自己用 [clear condition] [hunt boss] <模板> <数量> 声明的
+	// 通关领主：杀掉它就算通关。这是**源对通关条件的声明**，对所有副本成立，
+	// 不是某个玩法的特例。
+	//
+	// 只有「客户端不发 CMD117」的副本才走得到它，见 internal/dungeon/completion.go
+	// 的 tryComplete —— 客户端会发 CMD117 的副本由那条路径负责，这里不会重复结算。
+	SourceBoss uint32
+	Mazes      []DungeonMaze `json:"mazes"`
 }
 type DungeonCatalog struct {
 	Source      pvf.ArchiveSnapshot          `json:"source"`
@@ -101,6 +104,57 @@ func sourceFirstPair(c []pvf.Token, absentOK bool) ([2]byte, error) {
 	}
 	return dungeonPair(c[:2])
 }
+
+// sourceBoss reads the script's own clear condition: [clear condition] holds one
+// [hunt boss] <template> <count> pair per maze, and killing that template is what
+// clears the run. Sources repeat it once per maze rather than once per dungeon, so
+// every pair must agree on a single template with count 1, or the reading is left
+// at zero rather than guessed - settling a run on the wrong monster's death is
+// worse than not settling it.
+//
+// Scoped to [clear condition] on purpose: [hunt boss] also appears in other
+// blocks, and only the clear condition makes a statement about completion.
+func sourceBoss(cells []pvf.Token) uint32 {
+	var pairs []int32
+	inClear, inHunt := false, false
+	for _, c := range cells {
+		if c.Type == 3 {
+			switch c.Text {
+			case "[clear condition]":
+				inClear = true
+				inHunt = false
+			case "[/clear condition]":
+				inClear = false
+				inHunt = false
+			case "[hunt boss]":
+				inHunt = inClear
+			default:
+				inHunt = false
+			}
+			continue
+		}
+		if !inHunt || c.Type != 0 {
+			continue
+		}
+		pairs = append(pairs, c.Value)
+	}
+	if len(pairs) < 2 || len(pairs)%2 != 0 {
+		return 0
+	}
+	boss := int32(0)
+	for i := 0; i+1 < len(pairs); i += 2 {
+		if pairs[i] <= 0 || pairs[i+1] != 1 {
+			return 0
+		}
+		if boss == 0 {
+			boss = pairs[i]
+		} else if boss != pairs[i] {
+			return 0
+		}
+	}
+	return uint32(boss)
+}
+
 func ParseDungeon(id uint32, s ScriptRecord) (DungeonDefinition, error) {
 	d := DungeonDefinition{ID: id, Script: s}
 	mode := sectionCells(s.Cells, "[dungeon mode script]")
@@ -119,37 +173,7 @@ func ParseDungeon(id uint32, s ScriptRecord) (DungeonDefinition, error) {
 		}
 		d.DesignatedDifficulty = byte(v[0].Value)
 	}
-	// 「调律之边界」单独识别：非 Odyssey 副本里带 [hunt boss] 的有一批
-	// （`runtime/attunementsurvey` 可复算），所以必须三条同时成立才置位，
-	// 不能把现有 Odyssey 专用的 HuntBoss 解析放宽到全体。
-	// 出货目录里只有 100005067 / 100005068 命中，源领主都是 109008634。
-	if typ := sectionCells(s.Cells, "[dungeon type]"); len(typ) == 1 && typ[0].Type == 6 && typ[0].Text == "boundary of attunement" {
-		limit := sectionCells(s.Cells, "[limit party count]")
-		hunt := sectionCells(s.Cells, "[hunt boss]")
-		// sectionCells 会**累积**同名的每一段，而史诗档一张脚本里每个 maze 各声明一次
-		// [hunt boss]：100005068 有 3 个 maze ⇒ 3 段 ⇒ 6 个 cell，按「恰好一对」判定会漏掉它
-		// （100005067 只有 1 个 maze ⇒ 1 段，所以只修一个副本不会被发现）。
-		// 接受「所有段都指向同一个领主」，其余形态（真正多目标）保持 0、不猜测。
-		if len(limit) == 1 && limit[0].Type == 0 && limit[0].Value == 1 && len(hunt) >= 2 && len(hunt)%2 == 0 {
-			boss := int32(0)
-			same := true
-			for i := 0; i+1 < len(hunt); i += 2 {
-				if hunt[i].Type != 0 || hunt[i].Value <= 0 || hunt[i+1].Type != 0 || hunt[i+1].Value != 1 {
-					same = false
-					break
-				}
-				if boss == 0 {
-					boss = hunt[i].Value
-				} else if boss != hunt[i].Value {
-					same = false
-					break
-				}
-			}
-			if same {
-				d.AttunementBoss = uint32(boss)
-			}
-		}
-	}
+	d.SourceBoss = sourceBoss(s.Cells)
 	minimum := sectionCells(s.Cells, "[minimum required level]")
 	if len(minimum) != 1 || minimum[0].Type != 0 || minimum[0].Value < 1 {
 		return d, fmt.Errorf("invalid [minimum required level]")

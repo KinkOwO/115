@@ -1515,3 +1515,162 @@ loaded booster catalog (N definitions, M item index entries)
 loaded attunement rewards (3 dungeons [...], 94 reward templates) from ...
 attunement reward wrappers open one layer; 1 empty-face templates: [12]
 ```
+
+## 奖励不再发包装：递归展开到产物（2026-09-26 晚）
+
+### 触发：玩家侧的实机真值与截图
+
+玩家反馈**打出来的盒子类道具无法打开**，并给出客户端截图：`神器星蕴石` 的说明写着
+**「(不实际发放礼盒,以开封状态发放)」**。⇒ 上一轮「展开一层」仍然不对：**地面上不该出现任何盒子**。
+
+同时玩家给出了千海天（115 级）两套深渊的产出说明，其中**令牌深渊（= 本副本「调律之边界」）**：
+
+> 入场消耗：对应品级令牌×3 + 深渊票（神器85张/传说350张/史诗750张）
+> **保底掉落：对应品级的115级装备（神器/传说/史诗）**
+> 随机额外掉落：稀有~太初星蕴石随机罐（账绑）、粉~太初誓约随机罐（账绑）
+> 注意：大深渊保底的是现版本115级粉~史诗装备，**不保底誓约和星蕴石**；罐子均为账号绑定，不可交易。
+
+### 改动（服务端）
+
+`internal/loot/reward_box.go` 的 `OpenRewardBoxes` 从「展开一层」改为**递归展开到产物**：
+反复把包装换成它的内容，直到没有包装为止；`RewardBoxSource` 增加第三个方法 `Container`，
+用来识别「**本 build 打不开的盒子**」——它同样**不许落地**（自选箱需要玩家做选择，服务端替不了）。
+
+分类只在一处发生（可展开 / 打不开的盒子 / 空槽 / 产物），这是本轮唯一一个实现陷阱：
+第一版在池内先判「不在物品目录 ⇒ 空槽」，于是**可展开的包装也被当空槽丢掉**，
+`TestOpenRewardBoxesUnwrapsToTheProducts` 一次就把它抓出来了。
+
+三种不发放的情形都会**记进 `SkippedKinds`**（落进实机 `drop_rules_pending` 事件），不静默：
+- `attunement_empty_prize_<id>`：源用保留 id 表示的「本次没有」；
+- `attunement_unopenable_box_<id>`：本 build 打不开的盒子；
+- `attunement_reward_nesting_too_deep`：嵌套超过 8 层的防御（出货表最深 3 层）。
+
+`ValidateBoxes` 改为遍历**整棵树**，启动期报告空槽与打不开的盒子；启动日志会多一行
+`warning: attunement rewards name N box(es) this build cannot open; they will not be paid: [...]`。
+
+### 递归展开后的落地面（`runtime/boxprobe`，2000 次运行）
+
+```
+包装落地面 = 0（既无奖励项包装，也无嵌套包装）
+打不开的盒子（报告但不发）= 10420581 10420594（两个自选箱，各占一条 2% 的分支）
+每场行数：最少 3、平均 7.02
+family 分布：
+  equipment      901 行 / 2000 场（`primer/100401592` + `equipment/character/common/oath/*` 48 件）
+  stackable    13137 行（材料 `10362432`/`10400396`/`10403609`、金币 `1`、以及约 25 种 `[virtual]`）
+```
+
+### ⚠️ 残留不确定，必须说清
+
+1. **`[virtual]` 这批（约 25 种）身份未确证**：`grade=1`、`rarity` 3/4/6/8、`[trade]`、
+   **`[name]` 段与 `[explain]` 段全为空**、图标与 94 个奖励项**同为 `consumption.img 1589`**。
+   它们最可能是**星蕴石**（档位名与其父包装 `10419730..10419736` 的 normal/rare/unique/legendary/
+   epic/primeval 对得上），但**客户端没有可用中文名表**可核，所以这是推断而非确证。
+   若实机发现这些物品不可用/显示异常，退路是**保留其父包装**（即回到「展开一层」）—— 切换点只有一处。
+2. **文档说罐子是「账绑」，我们的产物不是**：`10403609`（primestella 那一支的产物）的
+   `attach type=[trade]`，`10362432`/`10400396` 才是 `[account]`。若「账绑」是关键约束，
+   需要另做「投递时改用账号绑定版本」的处理。
+
+### 本轮暴露的另一个缺口：**副本自己的「保底装备」组从未接线**
+
+玩家给出的产出说明写着大深渊**保底掉落对应品级的 115 级装备**，而我们目前**一件保底装备都没有**。
+根因已在源数据里定位：
+
+副本脚本（`orderoftheborder_epic.dgn`）自带一段 `[difficulty dropitem group list]`，
+其三段 `[group info]` 里写着 `[normal group index] 1 21251 1 21600/21601/21602`，
+而 `etc/dungeondroptablebygroup.etc` 的 **`[group] 21251` 是一组 11 件真实 115 装备**：
+
+```
+100051304 jacket/cloth   100101187 pants/cloth    100151128 shoulder/cloth
+100201100 belt/cloth     100251140 shoes/cloth    100301847 amulet
+100313550 wrist          100323440 ring           100345985 support
+100354160 magicstone     100391038 earring        （各 weight 10 ⇒ 随机一件）
+```
+
+`[group] 21600/21601/21602` 则是 `10420063/64/65`（`[booster]`）。
+另外 `[special setinfo reward]` 四行带**语义标签**，指向另外四组：
+`21279 <SetEquipmentReward>`、`21468 <SetOathPrimerReward>`、`21470 <RareEquipmentReward>`、
+`21310 <WeaponEquipmentReward>`；这几组的内容是 `[etc]` 堆叠物
+（`10401449..`、`10419326..`、`10419544`、`10336310`）。
+
+**现状**：`internal/catalog/droptable.go` 能解析这张表，`LootCatalog` 也有 `DropGroups` 字段，
+但**出货的 `configs/loot.*.json` 里 `dropGroups` 是空的**（当时为避开无关漂移没有重导），
+所以运行期**根本没有这张表**，更没有消费它的代码。⇒ 「保底装备」是下一轮要补的正题。
+
+### 另记：普通深渊（小深渊，「最终调律者」）不在本轮范围
+
+玩家给的说明里另有一整套小深渊系统（入场 62 票 + 8 疲劳、**征兆系统 1~4 阶段**、
+深渊裂缝 / 神秘好运特殊事件、**天平 NPC 商店**用装备灵魂兑换星辰/共鸣/超越天平、小鸟票 10 万）。
+它是**另一条内容线**，与本副本无关，本轮只登记不实现。
+
+## 小深渊（普通深渊「最终调律者」）：定位、实机取证与「源领主」泛化（2026-09-26 晚）
+
+### 它是哪个副本：`100005014` `endkeeperoforder`
+
+玩家给了副本卡截图（标题「深渊 : 最终调律者」，`Lv. 115`，画面是天平）。定位依据全部是 L0 资源：
+
+- `contents/2026/endkeeperoforder/` 下有 **`passiveobject/omen_drop{,_1..4}`、`text_omen`**（= 玩家文档里的
+  **征兆系统**）、`oath_drop_maker` / `oath_camera`（誓约）、`special_entrance`、`move_map`、
+  `screen_arrow_maker`（GO 箭头）、`common/{unique,legendary,epic,primeval}drop*.ani`、
+  以及 `etc/endkeeperoforder.ctp`（一张奖励表）。
+- `monster/` 顶层 `.mob`：`dreadrift_hell` / `harvex_hell` / `ruinbound_hell`（深渊派对怪）、
+  `orderwatcher`、以及 **`scale_oath` / `scale_primer` / `scale_sandbag`** —— **天平就是它**。
+- 脚本（`contents/2026/endkeeperoforder/dungeon/endkeeperoforder.dgn`）：
+  `[minimum required level] 115`、`[basis level] 145`、**`[use fatigue only start dungeon] 8`**
+  （对上玩家文档的「8 疲劳」）、`[limit party count] 4`、`[keep character death] 1`、
+  **`[clear condition] [hunt boss] 109019266 1`**（两个 maze 各声明一次）。
+- 地图 `100016614_normal.map` / `100016615_special.map` / `100016616_special_phaseshift.map`：
+  maze 0/1 各 13 行 —— 11 只 `rank=0` 杂兵（`109019402/3/4`）+ **`109019266` `rank=3` `[fixed] [boss]`**
+  （天平，坐标 3168,191）+ `109019280` `rank=0`（**与 boss 同坐标**）。
+
+### 实机（会话 `..._20260926_211558_616900`）
+
+```
+13:37:54.733  dungeon_session_started {dungeon:100005014, map:100016614, maze:0, monsters:13}
+13:38:02 起  CMD39 ×11  → monster_death_ack / confirmed / experience 各 11 条
+             （11 只杂兵 + entity 4108 = 109019280，全部正常处理）
+之后         只有 CMD38（开门）与 CMD18/CMD48 的反复，直到 13:38:57 断开
+```
+
+**boss `109019266`（entity 4107）一次都没有上报死亡**，也没有 CMD117、没有结算事件。⇒ 两个独立问题：
+
+1. **天平（`109019266`）打不死。** 玩家在 boss 的同一坐标能把 `109019280` 打死，却打不死 BOSS 本身。
+   服务端**不下发 HP**（客户端按自己的模板数据算伤害与血量），所以这不是服务端的数值问题 ——
+   需要另查（候选：该 boss 的受击判定不在普通攻击上，或客户端在等一个脚本事件）。
+2. **就算它死了也不会结算。** 我方 `tryComplete` 的三条免 CMD117 路径全部要求 `!hasFightableBoss()`，
+   而它是 `rank=3` 的可战斗 boss；`AttunementBoss` 的识别又只认
+   `[dungeon type] == boundary of attunement` ⇒ `completed` 永远不会置真。
+   **这一条本轮已修。**
+
+### 修复：把「源领主」从玩法专属放宽成脚本自己的声明
+
+`DungeonDefinition.AttunementBoss` → **`SourceBoss`**：
+
+- **解析**：在 `[clear condition]` 段内读 `[hunt boss] <模板> <数量>`（不再限定 `[dungeon type]` 与
+  `[limit party count]`），要求**所有段指向同一个模板且数量为 1**；不成立就保持 0。
+  作用域限定在 `[clear condition]` 是刻意的：`[hunt boss]` 也出现在别的块里，只有通关条件是对结算的声明。
+- **通关判定**：`tryComplete` 在 `completionTarget == 0` 块内新增/改写那条路径，并补上与上面两条
+  display-boss 路径**同形的两道守卫** —— **在脚本声明的 boss 房间**（`atSourceBossMap()`）
+  且 **房间里没有活着的可击杀目标**（`roomEnemiesDead()`）。这条路径在
+  `completionTarget == 0` 之内 ⇒ **客户端会发 CMD117 的副本根本走不到它**。
+- **身份与奖励**：`CompletionTarget()` 与掉落的奖励触发（`loot.Session.Death`）同步改用 `SourceBoss`。
+  奖励仍由 CTP 表把关（`Roll` 按副本查表，查不到原样返回种子）⇒ 放宽触发器**不会**给别的副本发奖。
+
+**影响面**（`runtime/sourcebossaudit` 可复算，逐副本核对自己地图里的 rank-3 `[boss]` 行）：
+
+| 项 | 数 |
+| --- | --- |
+| 出货副本总数 | 3200 |
+| 声明了源领主的副本 | **325** |
+| 其中值能对上自己地图里 rank-3 `[boss]` 行的（路径可能生效） | **279** |
+| 对不上的（运行期惰性，永不触发结算） | 46 |
+| 值 < 100000、疑似不是模板 id 的 | 19 |
+
+⇒ 泛化的实际可达面是那 279 个「声明了一个真实 boss 的副本」，而且只在这类副本**不发 CMD117**
+时才生效。「调律之边界」`100005067/68` 与「最终调律者」`100005014` 都在其中。
+
+### 仍然未做
+
+- **天平（`109019266`）为什么打不死**：未解。在没有实机复现前不动服务端（候选见上）。
+- **小深渊的奖励**：`etc/endkeeperoforder.ctp` **不是奖励表**（它是征兆/誓约掉落装置的参数表）；真正的掉落表是 `etc/rewardboostinfo/endkeeperoforder/normal.ctp`，**2026-09-27 04:0x 已接入**（生成器 `-extra` + 原运行时零改动，见 `endkeeper-of-order-primer-20260926.md` §16）。`[difficulty dropitem group list]` / `[normal group index] 1 21251` 仍未接线；`[coupon drop table]` 五行导入但按「语义未确立」不抽。
+  **2026-09-27 03:2x 实机复核（天平判死绕过生效、已结算）**：本场只掉出`1 × 100130928`（重甲下装，`[rarity]=2` 紫、grade 107、min lv105）+ 金币 3293/2810/3165 + 3,151,739 经验；`dungeon_clear_reward`(NOTI35) 里**只有经验与 627 金币卡**。原因是这三条独立缺陷叠加：① 本表未接线；② 通用掉落池 `Basic()` 上限 `[rarity]<=2`；③ 天平 `primer_max=72>69` 钉死 `GO_RAINBOW1` 分支 ⇒ `summon_orthaire` 死代码、隐藏 BOSS `109019264` 从未登场。详见 `endkeeper-of-order-primer-20260926.md` §15。
+- 「小深渊」玩家文档里的其它系统（征兆 1~4 阶段、深渊裂缝、神秘好运、天平 NPC 商店）都还没做。

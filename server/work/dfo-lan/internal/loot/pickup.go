@@ -39,6 +39,8 @@ type Service struct {
 	// 是包装本身，玩家该拿到的是包装里的东西，所以展开发生在掉落时；见
 	// OpenRewardBoxes。为 nil 时包装原样落地，启动期会拦下这个组合。
 	RewardBoxes RewardBoxSource
+	// Omen 是千海之空深渊的征兆系统累积账（见 omen.go）。为 nil 时通关不推进。
+	Omen *OmenLedger
 }
 type PickupReceipt struct {
 	Run         string

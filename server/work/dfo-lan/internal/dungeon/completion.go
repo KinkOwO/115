@@ -126,13 +126,22 @@ func (s *Session) tryComplete() {
 			s.completed = true
 			return
 		}
-		// 「调律之边界」的源领主是**可战斗**的 boss（rank 3 / Team 100），
-		// 所以上面两条 display-boss 路径（都要求 !hasFightableBoss()）对它都不成立；
-		// 而该玩法确认不发 CMD117，completionTarget 恒为 0。源脚本的 [hunt boss]
-		// 就是它对通关条件的声明，按它判定。
-		if s.Definition.AttunementBoss != 0 && s.Loaded {
+		// 源领主是可战斗的 boss（rank 3 / Team 100），所以上面两条 display-boss
+		// 路径（都要求 !hasFightableBoss()）对它不成立；而这些副本确认不发 CMD117，
+		// completionTarget 恒为 0。脚本自己的 [clear condition] [hunt boss] 就是它对
+		// 通关条件的声明（"杀掉它就算通关"），按它判定。
+		//
+		// 走到这里说明客户端没发 CMD117，所以这条对「客户端会发」的副本没有影响：
+		// 那些副本在 boss 死时已经由 CMD117 置好 completionTarget，走不到这一行。
+		// 两道守卫与上面两条同形（**在脚本声明的 boss 房间**、**房间里再没有活着的
+		// 可击杀目标**），把这条限制在"该房间已清空且源领主已死"这一种状态：
+		// runtime/sourcebossaudit 复核过，3200 个副本里 325 个声明了源领主，其中
+		// 279 个的值能在自己地图里对上 rank3 [boss] 行（其余 46 个对不上 ⇒ 永远
+		// 不满足，惰性）。「调律之边界」100005067/68 与「最终调律者」100005014
+		// 都属前者；后者是那只 rank 3 的天平，此前完全没有结算路径。
+		if s.Definition.SourceBoss != 0 && s.Loaded && s.atSourceBossMap() && s.roomEnemiesDead() {
 			for _, m := range s.Monsters {
-				if m.Template == s.Definition.AttunementBoss && m.Rank == 3 && !m.NonCombat && m.Team != 0 && s.Dead[m.Entity] {
+				if m.Template == s.Definition.SourceBoss && m.Rank == 3 && !m.NonCombat && m.Team != 0 && s.Dead[m.Entity] {
 					s.completed = true
 					return
 				}
@@ -189,12 +198,12 @@ func (s *Session) CompletionTarget() uint16 {
 		return 0
 	}
 	if s.completionTarget == 0 {
-		// 调律玩法没有 CMD117，NOTI115 的身份要自己挑。按**源领主模板**取，
+		// 没有 CMD117 时 NOTI115 的身份要自己挑。按**源领主模板**取，
 		// 而不是楼下「房间里第一个 rank3」—— 两者在出货脚本里恰好同值（房间只有一只
-		// rank3），但只有按模板取才对得上 [hunt boss] 的语义。
-		if s.Definition.AttunementBoss != 0 {
+		// rank3），但只有按模板取才对得上 [clear condition] [hunt boss] 的语义。
+		if s.Definition.SourceBoss != 0 {
 			for _, m := range s.Monsters {
-				if m.Template == s.Definition.AttunementBoss && m.Rank == 3 && m.Team != 0 && m.Entity != 0 && m.Entity != 65535 {
+				if m.Template == s.Definition.SourceBoss && m.Rank == 3 && m.Team != 0 && m.Entity != 0 && m.Entity != 65535 {
 					return m.Entity
 				}
 			}

@@ -29,8 +29,14 @@ type LootCatalog struct {
 	// dungeon script's [difficulty dropitem group list] indexes into it by id.
 	DropGroupSource DropGroupSource `json:"drop_group_source"`
 	DropGroups      []DropGroup     `json:"drop_groups,omitempty"`
-	Skipped         []string        `json:"skipped,omitempty"`
-	Pending         []string        `json:"pending,omitempty"`
+	// DropGroupsUnreadable lists group ids the parser refused to decode. One
+	// group in the shipped table (21469) declares [drop item] with an odd count -
+	// eleven bare templates and no weights - which no reading explains, so the id
+	// is recorded instead of a weight being invented for it. A consumer that needs
+	// such a group has to fail loudly rather than award from a guess.
+	DropGroupsUnreadable []uint32 `json:"drop_groups_unreadable,omitempty"`
+	Skipped              []string `json:"skipped,omitempty"`
+	Pending              []string `json:"pending,omitempty"`
 }
 
 func lootInt(c []pvf.Token, name string) (int32, bool) {
@@ -66,7 +72,7 @@ func ImportLoot(a *pvf.Archive, maxGrade uint32) (LootCatalog, error) {
 		return c, e
 	}
 	c.DropGroupSource = DropGroupSource{Path: groupTable.Path, SHA256: groupTable.SHA256}
-	c.DropGroups, e = ParseDropGroups(groupTable.Cells)
+	c.DropGroups, c.DropGroupsUnreadable, e = ParseDropGroups(groupTable.Cells)
 	if e != nil {
 		return c, e
 	}
