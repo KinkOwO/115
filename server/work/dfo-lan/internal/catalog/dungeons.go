@@ -40,6 +40,7 @@ type DungeonDefinition struct {
 	Odyssey                  bool
 	DesignatedDifficulty     byte
 	HuntBoss                 uint32 // Source Odyssey [hunt boss] single-target completion.
+
 	// SourceBoss 是副本脚本自己用 [clear condition] [hunt boss] <模板> <数量> 声明的
 	// 通关领主：杀掉它就算通关。这是**源对通关条件的声明**，对所有副本成立，
 	// 不是某个玩法的特例。
@@ -47,7 +48,30 @@ type DungeonDefinition struct {
 	// 只有「客户端不发 CMD117」的副本才走得到它，见 internal/dungeon/completion.go
 	// 的 tryComplete —— 客户端会发 CMD117 的副本由那条路径负责，这里不会重复结算。
 	SourceBoss uint32
-	Mazes      []DungeonMaze `json:"mazes"`
+
+	// TowerGriefFloor is sourced from etc/towerofgrief.etc when the verified
+	// overlay is attached. It is runtime metadata for tower settlement only.
+	TowerGriefFloor uint16 `json:"-"`
+	// Tower is attached only after a tower's source floor/map rules are verified.
+	// Entry and progress are shared; reward packets remain tower specific.
+	Tower *TowerRuntime `json:"-"`
+	Mazes []DungeonMaze `json:"mazes"`
+}
+
+type TowerRuntime struct {
+	Key          string
+	Floor        uint16
+	TopFloor     uint16
+	DailyEntries uint16
+	ResetHourUTC uint8
+	RewardRule   string
+	// Items may be populated only from a verified reward table for this floor.
+	Items []TowerItemReward
+}
+
+type TowerItemReward struct {
+	Template uint32
+	Amount   uint32
 }
 type DungeonCatalog struct {
 	Source      pvf.ArchiveSnapshot          `json:"source"`

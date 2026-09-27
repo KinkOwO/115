@@ -167,6 +167,9 @@ func (w *worldSession) restartDungeon() (*dungeon.Session, []outboundPacket, err
 	if old == nil {
 		return nil, nil, fmt.Errorf("retry without an active dungeon")
 	}
+	if old.Definition.Tower != nil {
+		return nil, nil, fmt.Errorf("%s tower does not allow settlement retry", old.Definition.Tower.Key)
+	}
 	copy := *w
 	copy.activeDungeon = nil
 	sel := protocol.DungeonSelection{ID: old.Definition.ID, Party: 65535, Quest: uint32(old.Maze.Quest)}
