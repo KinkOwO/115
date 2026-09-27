@@ -623,7 +623,11 @@ func main() {
 			log.Fatal(e)
 		}
 		if filepath.Base(*dungeonCatalogFile) == "dungeons.full.json" {
-			path := filepath.Join(filepath.Dir(*dungeonCatalogFile), "dungeons.tournament-quest-maps.json")
+			path := filepath.Join(filepath.Dir(*dungeonCatalogFile), "dungeons.terminal-scenes.json")
+			if e = catalog.AttachTerminalScenes(&data, path); e != nil {
+				log.Fatal(e)
+			}
+			path = filepath.Join(filepath.Dir(*dungeonCatalogFile), "dungeons.tournament-quest-maps.json")
 			if e = catalog.AttachTournamentQuestMaps(&data, path); e != nil {
 				log.Fatal(e)
 			}
@@ -2788,6 +2792,9 @@ func main() {
 								return
 							}
 							event(map[string]any{"kind": packet.Name, "id": packet.ID, "plain_hex": hex.EncodeToString(packet.Payload), "character_id": selectedCharacterID})
+							if packet.Name == "dungeon_clear_enabled" {
+								worldState.completionSent = true
+							}
 						}
 					}
 				}

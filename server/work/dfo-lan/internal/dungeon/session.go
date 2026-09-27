@@ -39,10 +39,11 @@ type Session struct {
 	// companions are friendly map-native APCs already encountered in this
 	// run. A later room that does not declare the same AIC receives a dynamic
 	// NOTI29 row through the client's native SourceIndex=10000 branch.
-	companions          []protocol.DungeonMonster
-	completionTarget    uint16
-	completed           bool
-	lotusClosingReached bool
+	companions                  []protocol.DungeonMonster
+	completionTarget            uint16
+	completed                   bool
+	lotusClosingReached         bool
+	terminalSceneClosingReached bool
 }
 
 func Select(c catalog.DungeonCatalog, r protocol.DungeonSelection, level byte, accepted map[uint16]bool) (*Session, error) {
