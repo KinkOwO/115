@@ -1,10 +1,138 @@
 package inventory
 
 import (
+	"dfolan/internal/game/protocol"
 	"encoding/binary"
 	"encoding/json"
 	"testing"
 )
+
+// wireCreature 是 NOTI105 里一条生物条目的可读投影（key + 名字）。
+type wireCreature struct {
+	Key  uint32
+	Name string
+}
+
+// wireCreatures 按客户端读取器（sub_1452CA7E0）的布局解出下发列表，
+// 并顺带校验整份载荷刚好读完，避免布局写错却断言通过。
+func wireCreatures(t *testing.T, p []byte) []wireCreature {
+	t.Helper()
+	if len(p) == 0 {
+		t.Fatal("空列表")
+	}
+	count, off := int(p[0]), 1
+	out := make([]wireCreature, 0, count)
+	for i := 0; i < count; i++ {
+		if off+11 > len(p) {
+			t.Fatalf("第 %d 条越界", i)
+		}
+		key := binary.LittleEndian.Uint32(p[off:])
+		off += 5 // key + satiety
+		mode := p[off]
+		off += 5 // mode + exp
+		if mode == 1 {
+			off += 2
+		}
+		off++ // level
+		n := int(binary.LittleEndian.Uint32(p[off:]))
+		off += 4
+		if off+n+1 > len(p) {
+			t.Fatalf("第 %d 条名字越界", i)
+		}
+		out = append(out, wireCreature{key, string(p[off : off+n])})
+		off += n + 1 // name + tail
+	}
+	if off != len(p) {
+		t.Fatalf("列表长度不符：读完 %d 字节，共 %d 字节", off, len(p))
+	}
+	return out
+}
+
+// 2026-09-26 玩家报告：小退重登后 F6 的 Skin（幻化槽）框里图标消失，外观却仍是
+// 幻化槽宠物的外观。
+//
+// 客户端画那个框是「按 key 解析到的生物对象」+ list 3 那一行，而 NOTI105 原先只
+// 收录穿戴槽 26 与宠物栏，幻化槽宠物的 key 解析不到 ⇒ 框空白；外观走 mode-0
+// 生物段（直接读存档）所以一直在。这里按实机形状断言幻化槽宠物既进了列表，
+// key 又与 list 3 里槽 32 那一行完全一致。
+func TestCreatureListIncludesSkinSlotCreature(t *testing.T) {
+	// 实机形状：本体 63003(Charp, key1)、幻化槽 63011(Haagenti, 实例 key 3)、
+	// 宠物栏 slot2 的 63008(Botis, key = slot+2 = 4)。
+	skin := BagEquipment{Slot: CreatureSkinSlot, Template: 63011}
+	skin.Record = make([]byte, protocol.CurrentItemRecordSize)
+	binary.LittleEndian.PutUint32(skin.Record[2:], 63011)
+	binary.LittleEndian.PutUint32(skin.Record[6:], 3)
+	binary.LittleEndian.PutUint32(skin.Record[24:], 3)
+	b := Bag{
+		Version: "ordinary-bag-v1",
+		Worn:    []BagEquipment{{Slot: 26, Template: 63003}, skin},
+		Special: map[byte][]BagEquipment{7: {{Slot: 2, Template: 63008}}},
+	}
+	raw, err := SaveBag(json.RawMessage(`{}`), b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := CreatureListPayload(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := wireCreatures(t, p)
+	want := []wireCreature{{Key: 1, Name: "Charp"}, {Key: 3, Name: "Haagenti"}, {Key: 4, Name: "Botis"}}
+	if len(got) != len(want) {
+		t.Fatalf("生物条目 = %v，期望 %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("第 %d 条 = %+v，期望 %+v（完整列表 %v）", i, got[i], want[i], got)
+		}
+	}
+
+	// 列表里的 key 必须能从 list 3 槽 32 那一行解析到（客户端按 key 找物品行）。
+	rows, err := EquipmentPayload(3, b.Worn, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	skinRow := rowAt(t, rows, 1)
+	if s := binary.LittleEndian.Uint16(skinRow[0:]); s != CreatureSkinSlot {
+		t.Fatalf("槽位 = %d，期望 %d", s, CreatureSkinSlot)
+	}
+	if tpl := binary.LittleEndian.Uint32(skinRow[2:]); tpl != 63011 {
+		t.Fatalf("模板 = %d，期望 63011", tpl)
+	}
+	k6, k24 := binary.LittleEndian.Uint32(skinRow[6:]), binary.LittleEndian.Uint32(skinRow[24:])
+	if k6 != 3 || k24 != 3 {
+		t.Fatalf("幻化槽行实例键 = %d/%d，期望 3/3（列表里也是 3）", k6, k24)
+	}
+}
+
+// 存档里没带实例 key 时，幻化槽宠物也要有 key，且与 list 3 行一致 —— 兜底值
+// 不能是宠物本体的 1。
+func TestSkinSlotCreatureFallbackKeyMatchesRow(t *testing.T) {
+	b := Bag{Version: "ordinary-bag-v1", Worn: []BagEquipment{{Slot: CreatureSkinSlot, Template: 63011}}}
+	raw, err := SaveBag(json.RawMessage(`{}`), b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := CreatureListPayload(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := wireCreatures(t, p)
+	if len(got) != 1 || got[0].Key != CreatureSkinFallbackKey || got[0].Name != "Haagenti" {
+		t.Fatalf("生物条目 = %v，期望单条 key=%d Haagenti", got, CreatureSkinFallbackKey)
+	}
+	if CreatureSkinFallbackKey == 1 {
+		t.Fatal("兜底 key 与宠物本体的 1 撞车")
+	}
+	rows, err := EquipmentPayload(3, b.Worn, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	row := rowAt(t, rows, 0)
+	if k6, k24 := binary.LittleEndian.Uint32(row[6:]), binary.LittleEndian.Uint32(row[24:]); k6 != CreatureSkinFallbackKey || k24 != CreatureSkinFallbackKey {
+		t.Fatalf("幻化槽行实例键 = %d/%d，期望 %d", k6, k24, CreatureSkinFallbackKey)
+	}
+}
 
 func TestCreatureListPayloadAndEquipmentRow(t *testing.T) {
 	b := Bag{

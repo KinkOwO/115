@@ -10,7 +10,7 @@ import (
 )
 
 func TestAppearanceIncludesMandatoryBlobLength(t *testing.T) {
-	rows := []Equipment{{12, 101000013}, {3, 40601}, {47, 100610096}}
+	rows := []Equipment{{Slot: 12, Item: 101000013}, {Slot: 3, Item: 40601}, {Slot: 47, Item: 100610096}}
 	p, e := EquipmentAppearance(rows)
 	if e != nil || len(p) != 106 {
 		t.Fatalf("%d %v", len(p), e)
@@ -30,10 +30,10 @@ func TestAppearanceIncludesMandatoryBlobLength(t *testing.T) {
 			t.Fatal(e)
 		}
 	}
-	if _, e = EquipmentAppearance([]Equipment{{12, 1}, {12, 2}}); e == nil {
+	if _, e = EquipmentAppearance([]Equipment{{Slot: 12, Item: 1}, {Slot: 12, Item: 2}}); e == nil {
 		t.Fatal("duplicate")
 	}
-	if _, e = EquipmentAppearance([]Equipment{{48, 1}}); e == nil {
+	if _, e = EquipmentAppearance([]Equipment{{Slot: 48, Item: 1}}); e == nil {
 		t.Fatal("bounds")
 	}
 }

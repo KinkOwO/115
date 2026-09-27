@@ -425,9 +425,12 @@ func main() {
 		// Account/character unified options (CMD2377 0x01/0x05) persist here;
 		// the account block restores through NOTI2826, character settings are
 		// stored until the NOTI2827 layout is reversed.
-		if e = s.MigrateUnifiedOptions(ctx); e != nil {
-			log.Fatal(e)
-		}
+			if e = s.MigrateUnifiedOptions(ctx); e != nil {
+				log.Fatal(e)
+			}
+			if e = s.MigrateGamepad(ctx); e != nil {
+				log.Fatal(e)
+			}
 		// The account cera ledger backs the balance sent in SELECT.
 		if e = s.MigrateGrants(ctx); e != nil {
 			log.Fatal(e)
@@ -2098,6 +2101,69 @@ func main() {
 				continue
 			}
 
+			if bootstrapped && (frame.ID == 1950 || frame.ID == 1951) {
+				if !verified {
+					event(map[string]any{"kind": "gamepad_settings_rejected", "id": frame.ID, "reason": "checksum failed"})
+					continue
+				}
+				if characters == nil {
+					event(map[string]any{"kind": "gamepad_settings_rejected", "id": frame.ID, "reason": "storage unavailable"})
+					continue
+				}
+				if frame.ID == 1950 {
+					if len(plaintext) < 14 {
+						event(map[string]any{"kind": "gamepad_keys_rejected", "reason": "payload too short", "bytes": len(plaintext)})
+						continue
+					}
+					tsv := plaintext[14:]
+					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					err := characters.Store.SaveAccountGamepadKeys(ctx, developmentAccount, tsv)
+					var hotPayload []byte
+					if err == nil {
+						hotPayload, _ = characters.Store.AccountGamepadPayload(ctx, developmentAccount)
+					}
+					cancel()
+					if err != nil {
+						event(map[string]any{"kind": "gamepad_keys_save_error", "error": err.Error()})
+						continue
+					}
+					// 回复 ACK: Kind=1, ID=1950, Payload=[0]
+					if err := sendPayload(1, 1950, []byte{0}); err != nil {
+						event(map[string]any{"kind": "gamepad_keys_ack_error", "error": err.Error()})
+						continue
+					}
+					// 即时热生效：主动向客户端发送最新的 NOTI 2128
+					if len(hotPayload) > 0 {
+						if err := sendPayload(0, 2128, hotPayload); err != nil {
+							event(map[string]any{"kind": "gamepad_hot_reload_error", "error": err.Error()})
+						} else {
+							event(map[string]any{"kind": "gamepad_hot_reloaded", "account_id": developmentAccount, "bytes": len(hotPayload)})
+						}
+					}
+					event(map[string]any{"kind": "gamepad_keys_saved", "account_id": developmentAccount, "bytes": len(tsv)})
+				} else if frame.ID == 1951 {
+					if len(plaintext) < 24 {
+						event(map[string]any{"kind": "gamepad_options_rejected", "reason": "payload too short", "bytes": len(plaintext)})
+						continue
+					}
+					opts := plaintext[14:24]
+					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					err := characters.Store.SaveAccountGamepadOptions(ctx, developmentAccount, opts)
+					cancel()
+					if err != nil {
+						event(map[string]any{"kind": "gamepad_options_save_error", "error": err.Error()})
+						continue
+					}
+					// 回复 ACK: Kind=1, ID=1951, Payload=[0]
+					if err := sendPayload(1, 1951, []byte{0}); err != nil {
+						event(map[string]any{"kind": "gamepad_options_ack_error", "error": err.Error()})
+						continue
+					}
+					event(map[string]any{"kind": "gamepad_options_saved", "account_id": developmentAccount})
+				}
+				continue
+			}
+
 			if bootstrapped && (frame.ID == 3 || frame.ID == 7 || frame.ID == 1301) {
 				if !verified {
 					event(map[string]any{"kind": "menu_rejected", "id": frame.ID, "reason": "checksum failed"})
@@ -2361,6 +2427,22 @@ func main() {
 					plan, e := worldState.useQuestAirshipItem(plaintext, event)
 					if e != nil {
 						event(map[string]any{"kind": "quest_item_action_refused", "character_id": worldState.role.ID, "reason": e.Error()})
+						continue
+					}
+					for _, packet := range plan {
+						if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
+							return
+						}
+						event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID})
+					}
+					continue
+				}
+				if actionErr == nil && action == protocol.ActionOpenCreatureSkinSlot {
+					// 宠物幻化栏扩展券（action 197）。同一个 CMD507 上复用三种动作，
+					// 这里只接新增的这一路，54/169 保持各自原有的入口形状。
+					plan, e := worldState.stackableAction(plaintext)
+					if e != nil {
+						event(map[string]any{"kind": "skin_slot_expand_refused", "character_id": worldState.role.ID, "reason": e.Error()})
 						continue
 					}
 					for _, packet := range plan {
@@ -3472,9 +3554,19 @@ func main() {
 						}
 					}
 				}
-				plan := entryPayloads{Select: payload, Basic: basic, Addition: addition, Vault: vaultPayload, UserArea: userArea, Area: areaPayload, Fatigue: fatiguePayload, AccountOptions: accountOptions}
-				plan.SecondaryVault = secondaryVaultPayload
-				plan.AccountVault = accountVaultPayload
+					plan := entryPayloads{Select: payload, Basic: basic, Addition: addition, Vault: vaultPayload, UserArea: userArea, Area: areaPayload, Fatigue: fatiguePayload, AccountOptions: accountOptions}
+					plan.SecondaryVault = secondaryVaultPayload
+					plan.AccountVault = accountVaultPayload
+					if characters != nil {
+						gpCtx, gpCancel := context.WithTimeout(context.Background(), 5*time.Second)
+						gpPayload, gpErr := characters.Store.AccountGamepadPayload(gpCtx, developmentAccount)
+						gpCancel()
+						if gpErr != nil {
+							event(map[string]any{"kind": "gamepad_options_restore_error", "error": gpErr.Error()})
+						} else if len(gpPayload) > 0 {
+							plan.GamepadOptions = gpPayload
+						}
+					}
 				// Restore the persisted category-0 skin state; without owned +
 				// selection frames the inventory CharBG keeps its default NEW
 				// animation. A failed restore aborts this entry rather than

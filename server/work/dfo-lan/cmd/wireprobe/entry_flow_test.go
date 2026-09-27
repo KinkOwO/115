@@ -165,8 +165,33 @@ func TestCompleteEntryPreflight(t *testing.T) {
 	for _, bad := range []outboundPacket{{"invalid", 2, 4, []byte{1}}} {
 		plan := append(p.packets(), bad)
 		out, err := preparePackets(keys, plan)
-		if err == nil || out != nil || !strings.Contains(err.Error(), bad.Name) {
-			t.Fatalf("partial entry escaped preflight: %v", err)
+			if err == nil || out != nil || !strings.Contains(err.Error(), bad.Name) {
+				t.Fatalf("partial entry escaped preflight: %v", err)
+			}
 		}
 	}
+
+func TestEntryGamepadOptionsFollowsAccountOptions(t *testing.T) {
+	dummyPayload := make([]byte, 1411)
+	packets := (entryPayloads{
+		AccountOptions: []byte{1, 2},
+		GamepadOptions: dummyPayload,
+	}).packets()
+
+	accountOpts, gamepadOpts := -1, -1
+	for i, p := range packets {
+		if p.ID == 2826 && p.Name == "account_options_restored" {
+			accountOpts = i
+		}
+		if p.ID == 2128 && p.Name == "gamepad_options_restored" {
+			gamepadOpts = i
+		}
+	}
+	if accountOpts < 0 || gamepadOpts != accountOpts+1 {
+		t.Fatalf("expected gamepad_options_restored (2128) immediately after account_options_restored (2826): account=%d gamepad=%d", accountOpts, gamepadOpts)
+	}
+	if !bytes.Equal(packets[gamepadOpts].Payload, dummyPayload) {
+		t.Fatalf("gamepad payload was not preserved")
+	}
 }
+
