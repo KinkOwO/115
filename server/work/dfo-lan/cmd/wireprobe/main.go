@@ -2084,85 +2084,165 @@ func main() {
 						continue
 					}
 					event(map[string]any{"kind": "character_settings_saved", "character_id": selectedCharacterID, "entries": len(opt.Entries)})
-				case protocol.UnifiedOptionAccount:
-					if characters == nil {
-						event(map[string]any{"kind": "account_settings_rejected", "reason": "storage unavailable"})
-						continue
-					}
-					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-					e = characters.Store.SaveAccountUnifiedOptions(ctx, developmentAccount, unifiedEntries(opt.Entries))
-					cancel()
-					if e != nil {
-						event(map[string]any{"kind": "account_settings_rejected", "reason": e.Error()})
-						continue
-					}
-					event(map[string]any{"kind": "account_settings_saved", "entries": len(opt.Entries)})
-				}
-				continue
-			}
-
-			if bootstrapped && (frame.ID == 1950 || frame.ID == 1951) {
-				if !verified {
-					event(map[string]any{"kind": "gamepad_settings_rejected", "id": frame.ID, "reason": "checksum failed"})
-					continue
-				}
-				if characters == nil {
-					event(map[string]any{"kind": "gamepad_settings_rejected", "id": frame.ID, "reason": "storage unavailable"})
-					continue
-				}
-				if frame.ID == 1950 {
-					if len(plaintext) < 14 {
-						event(map[string]any{"kind": "gamepad_keys_rejected", "reason": "payload too short", "bytes": len(plaintext)})
-						continue
-					}
-					tsv := plaintext[14:]
-					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-					err := characters.Store.SaveAccountGamepadKeys(ctx, developmentAccount, tsv)
-					var hotPayload []byte
-					if err == nil {
-						hotPayload, _ = characters.Store.AccountGamepadPayload(ctx, developmentAccount)
-					}
-					cancel()
-					if err != nil {
-						event(map[string]any{"kind": "gamepad_keys_save_error", "error": err.Error()})
-						continue
-					}
-					// 回复 ACK: Kind=1, ID=1950, Payload=[0]
-					if err := sendPayload(1, 1950, []byte{0}); err != nil {
-						event(map[string]any{"kind": "gamepad_keys_ack_error", "error": err.Error()})
-						continue
-					}
-					// 即时热生效：主动向客户端发送最新的 NOTI 2128
-					if len(hotPayload) > 0 {
-						if err := sendPayload(0, 2128, hotPayload); err != nil {
-							event(map[string]any{"kind": "gamepad_hot_reload_error", "error": err.Error()})
-						} else {
-							event(map[string]any{"kind": "gamepad_hot_reloaded", "account_id": developmentAccount, "bytes": len(hotPayload)})
+					case protocol.UnifiedOptionAccount:
+						if characters == nil {
+							event(map[string]any{"kind": "account_settings_rejected", "reason": "storage unavailable"})
+							continue
 						}
+						ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+						e = characters.Store.SaveAccountUnifiedOptions(ctx, developmentAccount, unifiedEntries(opt.Entries))
+						cancel()
+						if e != nil {
+							event(map[string]any{"kind": "account_settings_rejected", "reason": e.Error()})
+							continue
+						}
+						event(map[string]any{"kind": "account_settings_saved", "entries": len(opt.Entries)})
+						case protocol.UnifiedOptionHotkeys, protocol.UnifiedOptionHotkeysExt:
+							if characters == nil {
+								event(map[string]any{"kind": "hotkeys_rejected", "reason": "storage unavailable"})
+								continue
+							}
+							charID := selectedCharacterID
+							if charID == 0 && worldState != nil && worldState.role.ID != 0 {
+								charID = worldState.role.ID
+							}
+							accountID := developmentAccount
+							if worldState != nil && worldState.role.AccountID != 0 {
+								accountID = worldState.role.AccountID
+							}
+							ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+							if opt.Scope == protocol.UnifiedOptionScopeAccount {
+								if charID != 0 {
+									_ = characters.Store.PromoteCharacterHotkeysToAccount(ctx, accountID, charID, opt.Subtype)
+								}
+								if len(opt.Entries) > 0 {
+									e = characters.Store.SaveAccountHotkeys(ctx, accountID, opt.Subtype, unifiedEntries(opt.Entries))
+								}
+								if e == nil {
+									_ = characters.Store.ClearAccountCharacterHotkeys(ctx, accountID, opt.Subtype)
+								}
+								cancel()
+								if e != nil {
+									event(map[string]any{"kind": "account_hotkeys_rejected", "reason": e.Error(), "subtype": opt.Subtype})
+									continue
+								}
+								event(map[string]any{"kind": "account_hotkeys_saved", "subtype": opt.Subtype, "entries": len(opt.Entries), "character_id": charID})
+							} else {
+								if charID == 0 {
+									cancel()
+									event(map[string]any{"kind": "character_hotkeys_rejected", "reason": "requires the owned selected character", "character_id": selectedCharacterID})
+									continue
+								}
+								_ = characters.Store.CopyAccountHotkeysToCharacter(ctx, accountID, charID, opt.Subtype)
+								e = characters.Store.SaveCharacterHotkeys(ctx, accountID, charID, opt.Subtype, unifiedEntries(opt.Entries))
+								cancel()
+								if e != nil {
+									event(map[string]any{"kind": "character_hotkeys_rejected", "reason": e.Error(), "character_id": charID, "subtype": opt.Subtype})
+									continue
+								}
+								event(map[string]any{"kind": "character_hotkeys_saved", "character_id": charID, "subtype": opt.Subtype, "entries": len(opt.Entries)})
+							}
+					case protocol.UnifiedOptionHotkeyUI:
+						event(map[string]any{"kind": "hotkey_ui_event", "character_id": selectedCharacterID, "scope": opt.Scope})
 					}
-					event(map[string]any{"kind": "gamepad_keys_saved", "account_id": developmentAccount, "bytes": len(tsv)})
-				} else if frame.ID == 1951 {
-					if len(plaintext) < 24 {
-						event(map[string]any{"kind": "gamepad_options_rejected", "reason": "payload too short", "bytes": len(plaintext)})
-						continue
-					}
-					opts := plaintext[14:24]
-					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-					err := characters.Store.SaveAccountGamepadOptions(ctx, developmentAccount, opts)
-					cancel()
-					if err != nil {
-						event(map[string]any{"kind": "gamepad_options_save_error", "error": err.Error()})
-						continue
-					}
-					// 回复 ACK: Kind=1, ID=1951, Payload=[0]
-					if err := sendPayload(1, 1951, []byte{0}); err != nil {
-						event(map[string]any{"kind": "gamepad_options_ack_error", "error": err.Error()})
-						continue
-					}
-					event(map[string]any{"kind": "gamepad_options_saved", "account_id": developmentAccount})
+					continue
 				}
-				continue
-			}
+
+				if bootstrapped && (frame.ID == 1950 || frame.ID == 1951) {
+					if !verified {
+						event(map[string]any{"kind": "gamepad_settings_rejected", "id": frame.ID, "reason": "checksum failed"})
+						continue
+					}
+					if characters == nil {
+						event(map[string]any{"kind": "gamepad_settings_rejected", "id": frame.ID, "reason": "storage unavailable"})
+						continue
+					}
+					charID := selectedCharacterID
+					if charID == 0 && worldState != nil && worldState.role.ID != 0 {
+						charID = worldState.role.ID
+					}
+					if frame.ID == 1950 {
+						if len(plaintext) < 14 {
+							event(map[string]any{"kind": "gamepad_keys_rejected", "reason": "payload too short", "bytes": len(plaintext)})
+							continue
+						}
+						scope := plaintext[13]
+						tsv := plaintext[14:]
+						ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+						var err error
+						var hotPayload []byte
+						if scope == 1 {
+							err = characters.Store.SaveAccountGamepadKeys(ctx, developmentAccount, tsv)
+							if err == nil {
+								_ = characters.Store.ClearAccountCharacterGamepadSettings(ctx, developmentAccount)
+								hotPayload, _ = characters.Store.AccountGamepadPayload(ctx, developmentAccount)
+							}
+						} else {
+							if charID == 0 {
+								cancel()
+								event(map[string]any{"kind": "gamepad_keys_rejected", "reason": "requires selected character", "bytes": len(plaintext)})
+								continue
+							}
+							err = characters.Store.SaveCharacterGamepadKeys(ctx, developmentAccount, charID, tsv)
+							if err == nil {
+								hotPayload, _ = characters.Store.ResolveGamepadPayload(ctx, developmentAccount, charID)
+							}
+						}
+						cancel()
+						if err != nil {
+							event(map[string]any{"kind": "gamepad_keys_save_error", "scope": scope, "error": err.Error()})
+							continue
+						}
+						// 回复 ACK: Kind=1, ID=1950, Payload=[0]
+						if err := sendPayload(1, 1950, []byte{0}); err != nil {
+							event(map[string]any{"kind": "gamepad_keys_ack_error", "error": err.Error()})
+							continue
+						}
+						// 即时热生效：主动向客户端发送最新的 NOTI 2128
+						if len(hotPayload) > 0 {
+							if err := sendPayload(0, 2128, hotPayload); err != nil {
+								event(map[string]any{"kind": "gamepad_hot_reload_error", "error": err.Error()})
+							} else {
+								event(map[string]any{"kind": "gamepad_hot_reloaded", "account_id": developmentAccount, "character_id": charID, "scope": scope, "bytes": len(hotPayload)})
+							}
+						}
+						event(map[string]any{"kind": "gamepad_keys_saved", "account_id": developmentAccount, "character_id": charID, "scope": scope, "bytes": len(tsv)})
+					} else if frame.ID == 1951 {
+						if len(plaintext) < 24 {
+							event(map[string]any{"kind": "gamepad_options_rejected", "reason": "payload too short", "bytes": len(plaintext)})
+							continue
+						}
+						scope := plaintext[13]
+						opts := plaintext[14:24]
+						ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+						var err error
+						if scope == 1 {
+							err = characters.Store.SaveAccountGamepadOptions(ctx, developmentAccount, opts)
+							if err == nil {
+								_ = characters.Store.ClearAccountCharacterGamepadSettings(ctx, developmentAccount)
+							}
+						} else {
+							if charID == 0 {
+								cancel()
+								event(map[string]any{"kind": "gamepad_options_rejected", "reason": "requires selected character", "bytes": len(plaintext)})
+								continue
+							}
+							err = characters.Store.SaveCharacterGamepadOptions(ctx, developmentAccount, charID, opts)
+						}
+						cancel()
+						if err != nil {
+							event(map[string]any{"kind": "gamepad_options_save_error", "scope": scope, "error": err.Error()})
+							continue
+						}
+						// 回复 ACK: Kind=1, ID=1951, Payload=[0]
+						if err := sendPayload(1, 1951, []byte{0}); err != nil {
+							event(map[string]any{"kind": "gamepad_options_ack_error", "error": err.Error()})
+							continue
+						}
+						event(map[string]any{"kind": "gamepad_options_saved", "account_id": developmentAccount, "character_id": charID, "scope": scope})
+					}
+					continue
+				}
 
 			if bootstrapped && (frame.ID == 3 || frame.ID == 7 || frame.ID == 1301) {
 				if !verified {
@@ -3540,33 +3620,55 @@ func main() {
 						continue
 					}
 				}
-				accountOptions := accountOptionsPayload
-				if characters != nil {
-					optCtx, optCancel := context.WithTimeout(context.Background(), 5*time.Second)
-					overrides, optErr := characters.Store.AccountUnifiedOptions(optCtx, developmentAccount)
-					optCancel()
-					if optErr != nil {
-						event(map[string]any{"kind": "account_options_restore_error", "error": optErr.Error()})
-					} else if len(overrides) > 0 {
-						if accountOptions, optErr = protocol.AccountOptions(overrides); optErr != nil {
-							event(map[string]any{"kind": "account_options_restore_error", "error": optErr.Error()})
-							accountOptions = accountOptionsPayload
+						accountOptions := append([]byte(nil), accountOptionsPayload...)
+						if characters != nil {
+							optCtx, optCancel := context.WithTimeout(context.Background(), 5*time.Second)
+							overrides, optErr := characters.Store.AccountUnifiedOptions(optCtx, developmentAccount)
+							optCancel()
+							if optErr != nil {
+								event(map[string]any{"kind": "account_options_restore_error", "error": optErr.Error()})
+							} else if len(overrides) > 0 {
+								if accountOptions, optErr = protocol.AccountOptions(overrides); optErr != nil {
+									event(map[string]any{"kind": "account_options_restore_error", "error": optErr.Error()})
+									accountOptions = append([]byte(nil), accountOptionsPayload...)
+								}
+							}
+						hkCtx, hkCancel := context.WithTimeout(context.Background(), 5*time.Second)
+						accHkA, errA := characters.Store.AccountHotkeys(hkCtx, developmentAccount, protocol.UnifiedOptionHotkeys)
+						accHkB, errB := characters.Store.AccountHotkeys(hkCtx, developmentAccount, protocol.UnifiedOptionHotkeysExt)
+						hkCancel()
+						if errA != nil || errB != nil {
+							event(map[string]any{"kind": "account_hotkeys_restore_error", "error_a": fmt.Sprint(errA), "error_b": fmt.Sprint(errB)})
+						} else if len(accHkA) > 0 || len(accHkB) > 0 {
+							if accountOptions == nil {
+								var tmplErr error
+								accountOptions, tmplErr = protocol.AccountOptions(nil)
+								if tmplErr != nil {
+									event(map[string]any{"kind": "account_options_template_error", "error": tmplErr.Error()})
+								}
+							}
+							if accountOptions != nil {
+								if fe := protocol.FillAccountHotkeys(accountOptions, accHkA, accHkB); fe != nil {
+									event(map[string]any{"kind": "account_hotkeys_restore_error", "error": fe.Error()})
+								} else {
+									event(map[string]any{"kind": "account_hotkeys_restored", "count_a": len(accHkA), "count_b": len(accHkB)})
+								}
+							}
 						}
 					}
-				}
 					plan := entryPayloads{Select: payload, Basic: basic, Addition: addition, Vault: vaultPayload, UserArea: userArea, Area: areaPayload, Fatigue: fatiguePayload, AccountOptions: accountOptions}
 					plan.SecondaryVault = secondaryVaultPayload
 					plan.AccountVault = accountVaultPayload
-					if characters != nil {
-						gpCtx, gpCancel := context.WithTimeout(context.Background(), 5*time.Second)
-						gpPayload, gpErr := characters.Store.AccountGamepadPayload(gpCtx, developmentAccount)
-						gpCancel()
-						if gpErr != nil {
-							event(map[string]any{"kind": "gamepad_options_restore_error", "error": gpErr.Error()})
-						} else if len(gpPayload) > 0 {
-							plan.GamepadOptions = gpPayload
+						if characters != nil {
+							gpCtx, gpCancel := context.WithTimeout(context.Background(), 5*time.Second)
+							gpPayload, gpErr := characters.Store.ResolveGamepadPayload(gpCtx, developmentAccount, role.ID)
+							gpCancel()
+							if gpErr != nil {
+								event(map[string]any{"kind": "gamepad_options_restore_error", "character_id": role.ID, "error": gpErr.Error()})
+							} else if len(gpPayload) > 0 {
+								plan.GamepadOptions = gpPayload
+							}
 						}
-					}
 				// Restore the persisted category-0 skin state; without owned +
 				// selection frames the inventory CharBG keeps its default NEW
 				// animation. A failed restore aborts this entry rather than
@@ -3692,22 +3794,39 @@ func main() {
 					event(map[string]any{"kind": "entry_skill_lock_error", "error": e.Error()})
 					continue
 				}
-				// Restore per-character system settings (CMD2377 subtype 0x05)
-				// onto the fresh NOTI2827 block so toggles survive relog/char switch.
-				{
-					restoreCtx, restoreCancel := context.WithTimeout(context.Background(), 3*time.Second)
-					settings, sErr := characters.Store.CharacterUnifiedOptions(restoreCtx, role.ID)
-					restoreCancel()
-					if sErr != nil {
-						event(map[string]any{"kind": "charac_settings_restore_error", "error": sErr.Error()})
-					} else if len(settings) > 0 {
-						if fe := protocol.FillCharacSettings(plan.SkillLocks, settings); fe != nil {
-							event(map[string]any{"kind": "charac_settings_restore_error", "error": fe.Error()})
-						} else {
-							event(map[string]any{"kind": "charac_settings_restored", "character_id": role.ID, "count": len(settings)})
+					// Restore per-character system settings (CMD2377 subtype 0x05)
+					// onto the fresh NOTI2827 block so toggles survive relog/char switch.
+					{
+						restoreCtx, restoreCancel := context.WithTimeout(context.Background(), 3*time.Second)
+						settings, sErr := characters.Store.CharacterUnifiedOptions(restoreCtx, role.ID)
+						restoreCancel()
+						if sErr != nil {
+							event(map[string]any{"kind": "charac_settings_restore_error", "error": sErr.Error()})
+						} else if len(settings) > 0 {
+							if fe := protocol.FillCharacSettings(plan.SkillLocks, settings); fe != nil {
+								event(map[string]any{"kind": "charac_settings_restore_error", "error": fe.Error()})
+							} else {
+								event(map[string]any{"kind": "charac_settings_restored", "character_id": role.ID, "count": len(settings)})
+							}
 						}
 					}
-				}
+					// Restore per-character hotkeys (CMD2377 subtype 0x03 / 0x04)
+					// onto the fresh NOTI2827 block.
+					if characters != nil && len(plan.SkillLocks) == protocol.UnifiedCharacOptionSize {
+						chkCtx, chkCancel := context.WithTimeout(context.Background(), 3*time.Second)
+						charHkA, errA := characters.Store.CharacterHotkeys(chkCtx, role.ID, protocol.UnifiedOptionHotkeys)
+						charHkB, errB := characters.Store.CharacterHotkeys(chkCtx, role.ID, protocol.UnifiedOptionHotkeysExt)
+						chkCancel()
+						if errA != nil || errB != nil {
+							event(map[string]any{"kind": "charac_hotkeys_restore_error", "character_id": role.ID, "error_a": fmt.Sprint(errA), "error_b": fmt.Sprint(errB)})
+						} else if len(charHkA) > 0 || len(charHkB) > 0 {
+							if fe := protocol.FillCharacHotkeys(plan.SkillLocks, charHkA, charHkB); fe != nil {
+								event(map[string]any{"kind": "charac_hotkeys_restore_error", "character_id": role.ID, "error": fe.Error()})
+							} else {
+								event(map[string]any{"kind": "charac_hotkeys_restored", "character_id": role.ID, "count_a": len(charHkA), "count_b": len(charHkB)})
+							}
+						}
+					}
 				event(map[string]any{"kind": "entry_skill_lock_prepared", "character_id": role.ID, "count": len(locks), "bytes": len(plan.SkillLocks)})
 				if lootService != nil {
 					// Relocate old stackables before the list-0 inventory snapshot.

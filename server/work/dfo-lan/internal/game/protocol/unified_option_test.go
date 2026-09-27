@@ -39,26 +39,18 @@ func loadCapturedUnifiedFrames(t *testing.T) [][]byte {
 	return out
 }
 
-// Every CMD2377 frame this client produced while playing must decode with the
-// layout the repair note describes: marker at +8, scope +13, subtype +14,
-// count +15 and 4 byte entries from +19. Every captured skill lock frame is a
-// page 0 re-statement (first position 0). One frame carries no marker at all:
-// CMD2377 also has a second payload shape this server does not model and must
-// keep rejecting instead of guessing.
+// Every CMD2377 frame this client produced while playing conforms to the universal
+// 19-byte header (+13 scope, +14 subtype, +15 u32 count, entries from +19).
 func TestDecodeCapturedUnifiedOptionFrames(t *testing.T) {
 	frames := loadCapturedUnifiedFrames(t)
 	if len(frames) < 37 {
 		t.Fatalf("captured frames = %d, want the 37 observed during play", len(frames))
 	}
-	locks, unmarked := 0, 0
+	locks := 0
 	for i, p := range frames {
 		opt, e := DecodeUnifiedOption(p)
 		if e != nil {
-			if bytes.Contains(p, unifiedOptionMarker) {
-				t.Fatalf("frame %d carries the marker but failed to decode: %v", i, e)
-			}
-			unmarked++
-			continue
+			t.Fatalf("frame %d failed to decode: %v", i, e)
 		}
 		if opt.Subtype != UnifiedOptionSkillLock {
 			continue
@@ -74,23 +66,97 @@ func TestDecodeCapturedUnifiedOptionFrames(t *testing.T) {
 	if locks != 13 {
 		t.Fatalf("captured skill lock frames = %d, want 13", locks)
 	}
-	if unmarked != 1 {
-		t.Fatalf("marker-less CMD2377 frames = %d, want 1", unmarked)
-	}
 }
 
 func TestDecodeUnifiedOptionRejectsShortAndForeignFrames(t *testing.T) {
 	if _, e := DecodeUnifiedOption(make([]byte, 18)); e == nil {
 		t.Fatal("decoded a short frame")
 	}
-	bad := make([]byte, 24)
-	bad[14], bad[15] = UnifiedOptionSkillLock, 1
-	if _, e := DecodeUnifiedOption(bad); e == nil {
-		t.Fatal("decoded a frame without the FE marker")
+	badPadding := make([]byte, 24)
+	badPadding[14], badPadding[15] = UnifiedOptionSkillLock, 1
+	badPadding[23] = 0xAA // non-zero padding
+	if _, e := DecodeUnifiedOption(badPadding); e == nil {
+		t.Fatal("decoded a frame with bad padding")
 	}
-	truncated := []byte{0, 0, 0, 0, 1, 0, 0, 0, 0xfe, 0xff, 0xff, 0xff, 0xff, 0, UnifiedOptionSkillLock, 2, 0, 0, 0, 1, 0, 0}
+	truncated := []byte{0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, UnifiedOptionSkillLock, 2, 0, 0, 0, 1, 0, 0}
 	if _, e := DecodeUnifiedOption(truncated); e == nil {
 		t.Fatal("decoded a frame whose count exceeds its length")
+	}
+}
+
+func TestDecodeHotkeyFrames(t *testing.T) {
+	// Real in-game hotkey apply frame captured from gameplay:
+	raw, err := hex.DecodeString("48091c4901000000000000000001030800000000004d00010037000200490003003a001400860015008600160086001b0086000000000000")
+	if err != nil {
+		t.Fatal(err)
+	}
+	opt, err := DecodeUnifiedOption(raw)
+	if err != nil {
+		t.Fatalf("decode hotkeys frame: %v", err)
+	}
+	if opt.Scope != UnifiedOptionScopeAccount || opt.Subtype != UnifiedOptionHotkeys {
+		t.Fatalf("scope=%d subtype=%d, want scope=1 subtype=3", opt.Scope, opt.Subtype)
+	}
+	if len(opt.Entries) != 8 {
+		t.Fatalf("entries=%d, want 8", len(opt.Entries))
+	}
+	if opt.Entries[0].Position != 0 || opt.Entries[0].Value != 0x4D {
+		t.Fatalf("entry 0 = %+v, want pos=0 val=0x4D", opt.Entries[0])
+	}
+}
+
+func TestHotkeysBlockFillAndRestore(t *testing.T) {
+	hotkeysA := map[uint16]uint16{0: 0x4D, 1: 0x37, 2: 0x49}
+	hotkeysB := map[uint16]uint16{4: 0x38, 58: 0x86}
+
+	// 1. Account Options (3648 bytes, Subtype 3 at 1277, Subtype 4 at 1750)
+	accBlock, err := AccountOptions(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = FillAccountHotkeys(accBlock, hotkeysA, hotkeysB); err != nil {
+		t.Fatal(err)
+	}
+	// Verify Scheme A at 1277
+	if accBlock[UnifiedAccountHotkeysAt] != 1 {
+		t.Fatal("account hotkey A valid flag not set")
+	}
+	if binary.LittleEndian.Uint16(accBlock[UnifiedAccountHotkeysAt+2:]) != 0x4D {
+		t.Fatal("slot 0 keycode mismatch")
+	}
+	if accBlock[UnifiedAccountHotkeysAt+UnifiedHotkeysExistAt] != 1 {
+		t.Fatal("slot 0 exist flag not set")
+	}
+	// Verify Scheme B at 1750
+	if accBlock[UnifiedAccountHotkeysExtAt] != 1 {
+		t.Fatal("account hotkey B valid flag not set")
+	}
+	if binary.LittleEndian.Uint16(accBlock[UnifiedAccountHotkeysExtAt+2+4*2:]) != 0x38 {
+		t.Fatal("slot 4 keycode mismatch")
+	}
+	if accBlock[UnifiedAccountHotkeysExtAt+UnifiedHotkeysExistAt+4] != 1 {
+		t.Fatal("slot 4 exist flag not set")
+	}
+
+	// 2. Character Options (3539 bytes, Subtype 3 at 0, Subtype 4 at 473)
+	charBlock := CharacOptionsTemplate()
+	if err = FillCharacHotkeys(charBlock, hotkeysA, hotkeysB); err != nil {
+		t.Fatal(err)
+	}
+	if charBlock[UnifiedCharacHotkeysAt] != 1 {
+		t.Fatal("charac hotkey A valid flag not set")
+	}
+	if binary.LittleEndian.Uint16(charBlock[UnifiedCharacHotkeysAt+2:]) != 0x4D {
+		t.Fatal("charac slot 0 keycode mismatch")
+	}
+	if charBlock[UnifiedCharacHotkeysAt+UnifiedHotkeysExistAt] != 1 {
+		t.Fatal("charac slot 0 exist flag not set")
+	}
+	if charBlock[UnifiedCharacHotkeysExtAt] != 1 {
+		t.Fatal("charac hotkey B valid flag not set")
+	}
+	if binary.LittleEndian.Uint16(charBlock[UnifiedCharacHotkeysExtAt+2+4*2:]) != 0x38 {
+		t.Fatal("charac slot 4 keycode mismatch")
 	}
 }
 
