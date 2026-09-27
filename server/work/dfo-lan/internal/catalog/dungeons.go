@@ -48,6 +48,15 @@ type DungeonDefinition struct {
 	// 的 tryComplete —— 客户端会发 CMD117 的副本由那条路径负责，这里不会重复结算。
 	SourceBoss uint32
 	Mazes      []DungeonMaze `json:"mazes"`
+	// MazeChanceRates 非空表示这张副本按源里的 [maze chance rate] 掷骰选图，
+	// 而不是「同 quest 里 index 最小者」。
+	//
+	// 它**不由通用解析填充**：源里有 67 个副本声明了该字段，量纲还不统一
+	// （合计 100 / 1e3 / 1e4 / 1e6 都有，还夹杂 0 权重），所以只有白名单
+	// overlay（configs/dungeons.maze-chance-rates.json）列出的副本会被填，
+	// 其余副本的行为一个字节都不变。长度必须等于 Mazes 的长度；权重在候选集
+	// 内归一化，0 表示永不选中。见 internal/catalog/maze_chance.go。
+	MazeChanceRates []uint32 `json:"maze_chance_rates,omitempty"`
 }
 type DungeonCatalog struct {
 	Source         pvf.ArchiveSnapshot          `json:"source"`

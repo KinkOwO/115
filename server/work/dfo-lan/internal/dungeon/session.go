@@ -5,6 +5,7 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/game/protocol"
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"os"
@@ -73,27 +74,11 @@ func Select(c catalog.DungeonCatalog, r protocol.DungeonSelection, level byte, a
 	if r.Quest > 65535 || r.Quest != 0 && !accepted[uint16(r.Quest)] {
 		return nil, fmt.Errorf("quest is not accepted by this character")
 	}
-	var chosen *catalog.DungeonMaze
-	for _, m := range d.Mazes {
-		if uint32(m.Quest) != r.Quest {
-			continue
-		}
-		// 源里同一个 quest 经常对应多张 maze（实测 3200 个副本里有 288 个副本的
-		// quest==0 有多张，通常是不同难度或随机版本）。原来只要匹配到第二张就
-		// 直接报 ambiguous source maze，玩家点图完全没反应。
-		// 现在按 index 最小者确定性选取，跳过解析不完整的 maze。
-		if len(m.Pending) > 0 {
-			continue
-		}
-		if chosen == nil || m.Index < chosen.Index {
-			copy := m
-			chosen = &copy
-		}
+	chosen, err := chooseMaze(d, r.Quest)
+	if err != nil {
+		return nil, err
 	}
-	if chosen == nil {
-		return nil, fmt.Errorf("no resolved source maze for requested quest")
-	}
-	s, err := newSession(c, d, *chosen)
+	s, err := newSession(c, d, chosen)
 	if err != nil {
 		return nil, err
 	}
@@ -123,6 +108,71 @@ func Select(c catalog.DungeonCatalog, r protocol.DungeonSelection, level byte, a
 		}
 	}
 	return s, nil
+}
+
+// chooseMaze 在候选 maze 里挑一张。
+//
+// 默认规则（副本没有声明 MazeChanceRates）是「同 quest 里 index 最小者」——
+// 这是原来的确定性行为，288 个多 maze 副本靠它保持稳定。声明了权重的副本
+// （目前只有小深渊，见 configs/dungeons.maze-chance-rates.json）改为按权重
+// 掷骰：源里的 [maze chance rate] 表达的就是「进哪张迷宫图」，而小深渊的两张
+// 图一张是普通、一张是 `_special`（官方叫异空间）。
+func chooseMaze(d catalog.DungeonDefinition, quest uint32) (catalog.DungeonMaze, error) {
+	var candidates []catalog.DungeonMaze
+	for _, m := range d.Mazes {
+		// 源里同一个 quest 经常对应多张 maze（实测 3200 个副本里有 288 个副本的
+		// quest==0 有多张，通常是不同难度或随机版本）。原来只要匹配到第二张就
+		// 直接报 ambiguous source maze，玩家点图完全没反应。
+		// 现在先跳过解析不完整的 maze，再在剩下的候选里决定。
+		if uint32(m.Quest) != quest || len(m.Pending) > 0 {
+			continue
+		}
+		candidates = append(candidates, m)
+	}
+	if len(candidates) == 0 {
+		return catalog.DungeonMaze{}, fmt.Errorf("no resolved source maze for requested quest")
+	}
+	if len(d.MazeChanceRates) == len(d.Mazes) && len(candidates) > 1 {
+		var total uint64
+		for _, m := range candidates {
+			total += uint64(d.MazeChanceRates[m.Index])
+		}
+		if total > 0 {
+			roll, err := randomUint64()
+			if err != nil {
+				return catalog.DungeonMaze{}, err
+			}
+			return pickWeightedMaze(candidates, d.MazeChanceRates, roll%total), nil
+		}
+	}
+	best := candidates[0]
+	for _, m := range candidates[1:] {
+		if m.Index < best.Index {
+			best = m
+		}
+	}
+	return best, nil
+}
+
+// pickWeightedMaze 是掷骰的纯函数部分：roll 必须落在 [0, 权重和)。
+// 抽出来是为了让「边界落在哪一张」能被直接测，而不必驱动整个选图流程。
+func pickWeightedMaze(candidates []catalog.DungeonMaze, rates []uint32, roll uint64) catalog.DungeonMaze {
+	var acc uint64
+	for _, m := range candidates {
+		acc += uint64(rates[m.Index])
+		if roll < acc {
+			return m
+		}
+	}
+	return candidates[len(candidates)-1]
+}
+
+func randomUint64() (uint64, error) {
+	var raw [8]byte
+	if _, err := rand.Read(raw[:]); err != nil {
+		return 0, err
+	}
+	return binary.LittleEndian.Uint64(raw[:]), nil
 }
 
 // resolveRoomMap 取该房间可用的地图脚本：先用主地图，主地图不在目录里时

@@ -401,6 +401,14 @@ func (s *Service) wornAppearance(state json.RawMessage) ([]protocol.EquippedAppe
 			bySlot[w.Slot] = w.Template
 		}
 	}
+	// 武器幻化（装备外观块）：应用过皮肤时用皮肤 id 覆盖武器槽，城镇模型才跟着换。
+	// 只在槽 12 本来就有穿戴武器时覆盖——空武器槽凭空补一行，客户端会给角色装上一把
+	// 并不存在的武器。
+	if bag.WeaponSkin != 0 {
+		if _, worn := bySlot[inventory.WeaponSlot]; worn {
+			bySlot[inventory.WeaponSlot] = bag.WeaponSkin
+		}
+	}
 	rows := make([]protocol.EquippedAppearance, 0, len(bySlot))
 	for slot, model := range bySlot {
 		row := protocol.EquippedAppearance{Slot: byte(slot), Model: model}

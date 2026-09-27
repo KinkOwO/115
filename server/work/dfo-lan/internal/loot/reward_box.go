@@ -89,17 +89,26 @@ func OpenRewardBoxes(seed uint32, src RewardBoxSource, awards []Award) ([]Award,
 			// yet a known item from being mistaken for an empty slot on the way
 			// down - it has to be opened, not dropped.
 			if box, ok := src.RewardBox(a.Template); ok {
-				for _, pool := range box.Pools {
-					for i := uint32(0); i < pool.draws(); i++ {
-						c, ok := pool.pick(&rng)
-						if !ok {
-							continue
+				// 一份包装只开一次，所以「×N 份包装」必须开 N 次。忽略 a.Amount 会让
+				// 它静默只发一份产物：小深渊 maze 1 的固定表发 10415192×2，就是这样
+				// 变成一份的（连名字都从结晶换成了它的产物）。
+				units := a.Amount
+				if units == 0 {
+					units = 1
+				}
+				for u := uint32(0); u < units; u++ {
+					for _, pool := range box.Pools {
+						for i := uint32(0); i < pool.draws(); i++ {
+							c, ok := pool.pick(&rng)
+							if !ok {
+								continue
+							}
+							amount := c.Count
+							if amount == 0 {
+								amount = 1
+							}
+							next = append(next, Award{Template: c.Template, Amount: amount})
 						}
-						amount := c.Count
-						if amount == 0 {
-							amount = 1
-						}
-						next = append(next, Award{Template: c.Template, Amount: amount})
 					}
 				}
 				continue

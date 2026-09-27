@@ -24,6 +24,12 @@ func observedGameRequest(id uint16) bool {
 	if id == 681 || id == 527 {
 		return true
 	}
+	// 送礼已有处理器。2026-09-27 实测：806 不在白名单时只解密前 8 帧，
+	// 第 9 次送礼起 verified=false 直接不进处理器，客户端表现为“点击送礼
+	// 没有任何反应”。每个 806 都必须解密分发。
+	if id == 806 {
+		return true
+	}
 	// 2329 = ENUM_CMDPACKET_MONSTER_HISTORY_LOG：定盘机关的每次上报，服务端判死兜底靠它
 	// (见 scale_death.go)。它不在这个集合里时会被 BodySampleLimit(8) 截断，此后每条都因为
 	// `verified` 从未被计算而被 dungeonRequest 拒掉，而拒绝理由是 `checksum failed` —— 那是
@@ -35,6 +41,12 @@ func observedGameRequest(id uint16) bool {
 	// 1565 是皮肤仓库「应用」按钮的请求，已有处理器：只解密前八次会让第八次之后的
 	// 点击全部分流不进去，实机表现为「第一次能应用，之后换不动字体」。
 	if id == 1565 {
+		return true
+	}
+	// 武器幻化复制（CMD1592）已有处理器：包体只有八字节，只解密前八次会让第八次
+	// 之后的确认全部分流不进去；每次都要留证以便比对窗口索引到底指向哪个槽位。
+	// 1565 已经是共用帧（subtype 区分武器页签与字体页签），无需另加。
+	if id == 1592 {
 		return true
 	}
 	if id == 305 || id == 306 || id == 307 || id == 308 {

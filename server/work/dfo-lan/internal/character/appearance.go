@@ -30,6 +30,11 @@ func wornAppearance(raw json.RawMessage) ([]protocol.Equipment, error) {
 	var state struct {
 		Inventory struct {
 			Worn []inventory.BagEquipment `json:"worn"`
+			// WeaponSkin 是幻化仓库里应用的武器外观（皮肤 id）。入场这条投影把
+			// 每行的模板写进装备外观块的 Placeholder，而城镇模型查找（145BEFD60
+			// → 145BD63D0 → 145BEE6C0）正是读那个字段，所以覆盖它才能让重登后
+			// 仍然显示幻化外观。
+			WeaponSkin uint32 `json:"weapon_skin"`
 		} `json:"inventory"`
 	}
 	if err := json.Unmarshal(raw, &state); err != nil {
@@ -48,6 +53,15 @@ func wornAppearance(raw json.RawMessage) ([]protocol.Equipment, error) {
 		} else if item.Group == 1 {
 			// Look avatar overrides clone avatar for visual paper doll
 			bySlot[slot] = item.Template
+		}
+	}
+	// 武器幻化：这条投影的 Item 由 EquipmentAppearance 写进装备外观块的 Placeholder，
+	// 而城镇模型查找（145BEFD60 → 145BD63D0 → 145BEE6C0）读的正是它，所以重登后仍要
+	// 显示幻化外观，就必须把槽 12 的武器模板换成应用的皮肤 id。只在槽 12 本来就有武器
+	// 时覆盖：空武器槽凭空补一行，客户端会给角色装上一把并不存在的武器。
+	if state.Inventory.WeaponSkin != 0 {
+		if _, worn := bySlot[byte(inventory.WeaponSlot)]; worn {
+			bySlot[byte(inventory.WeaponSlot)] = state.Inventory.WeaponSkin
 		}
 	}
 	var rows []protocol.Equipment

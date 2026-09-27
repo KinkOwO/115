@@ -97,7 +97,15 @@ func (s *Store) Migrate(ctx context.Context) error {
  ALTER TABLE characters ADD COLUMN IF NOT EXISTS deleted_at timestamptz;
  ALTER TABLE characters ADD COLUMN IF NOT EXISTS roster_order bigint CHECK(roster_order > 0);
  ALTER TABLE characters ADD COLUMN IF NOT EXISTS fixed_slot smallint NOT NULL DEFAULT 0 CHECK(fixed_slot BETWEEN 0 AND 255);
- CREATE UNIQUE INDEX IF NOT EXISTS characters_name_unique ON characters(lower(name));`)
+ CREATE UNIQUE INDEX IF NOT EXISTS characters_name_unique ON characters(lower(name));
+ CREATE TABLE IF NOT EXISTS npc_favor (
+ character_id bigint NOT NULL REFERENCES characters(id),
+ npc_id bigint NOT NULL,
+ point bigint NOT NULL DEFAULT 0,
+ daily_count integer NOT NULL DEFAULT 0,
+ last_gift_day date,
+ updated_at timestamptz NOT NULL DEFAULT now(),
+ PRIMARY KEY(character_id,npc_id));`)
 	return e
 }
 func (s *Store) DevelopmentAccount(ctx context.Context, name string) (int64, error) {

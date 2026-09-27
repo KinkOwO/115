@@ -19,12 +19,22 @@ import "fmt"
 //     其它每一张表都恰好落。三选一的模型**不需要**它们落，因为「无变化」拿走了
 //     剩余空间；这同时解释了为什么此前找不到可证伪的不变量。
 //
-// 行与官方四阶段逐条对应（三条独立对位）：条目数 3/3/2/1 等于官方斜杠分段数、
-// 档位 粉/传说/史诗/太初 等于 unique/legendary/epic/primeval、第 4 行
-// [drop prob] = 1000000 即「累积满 4 阶段必定触发奖励结算」。
+// 行与官方四阶段逐条对应（三条独立对位）：条目数 3/3/2/1 等于官方奖励表的件数、
+// 各档主奖励盒开出来恰好是该档稀有度（神器 unique / 传说 legendary / 史诗 epic /
+// 太初 primeval）、第 4 行 [drop prob] = 1000000 即「累积满 4 阶段必定触发奖励结算」。
 //
-// 结算后持有归零是**推断**：第 4 行 100% 结算，若不消耗则玩家此后每场必得太初。
-// 数据没有第二处能证伪它，所以它单独写在这里、单独有测试，改的时候只有一处。
+// 官方规则（业主 2026-09-27 提供，见 docs §38）：
+//
+//	① 无征兆通关 -> 有概率激活第一个征兆（永远是神器）；
+//	② 持有征兆通关 -> 三选一：无事发生 / 额外激活更高品质一个 / 结算并重置；
+//	③ 满 4 个 -> 直接结算；
+//	④ **奖励可以兼得**：结算时按**已激活的每一档**各给 1 个
+//	   （激活神器+传说+史诗时结算 = 三段奖励各 1 个）。
+//
+// 第 ④ 条就是 payOmenStages：一次结算对行 1..持有数 各抽一次 list。此前这里只抽
+// 当前行一次，等于**少发**（满档 1 件 vs 4 件），是 §38.3 的第 1 号差距。
+//
+// 结算后持有归零由官方第 ② 条「结算征兆**并重置**」直接给出，不再是推断。
 
 // OmenStage 是征兆表的一行。
 type OmenStage struct {
@@ -130,8 +140,11 @@ type OmenOutcome struct {
 	Gained bool
 	// Paid 表示这一场结算了阶段奖励。
 	Paid bool
-	// Stage 是结算的阶段（只有 Paid 时有意义，等于 Held）。
+	// Stage 是结算时用的行号（只有 Paid 时有意义，等于结算前的 Held）。
 	Stage uint32
+	// PaidStages 是**实际发了奖励的档位**，升序。官方「奖励可以兼得」⇒
+	// 结算持有 N 个时这里是 1..N；它等于 Awards 里每一项来自哪一行。
+	PaidStages []uint32
 	// Awards 是阶段奖励的**包装**，由调用方按既有开箱路径展开。
 	Awards []Award
 	// Seed 是推进后的种子。
@@ -157,6 +170,18 @@ func (a *AttunementRewards) AdvanceOmen(seed, dungeon, held uint32) (OmenOutcome
 	stage := stages[out.Held]
 	out.Stage = stage.Index
 	rng := RNG{seed}
+	// 满档：官方第 ③ 条「激活 4 个征兆时通关则直接结算」，不掷骰。
+	// （行 4 的 [drop prob] 本来就是 1000000，所以这与按行判定等价；
+	// 写成显式分支是为了让「满档」这件事在代码里看得见，而不是靠表里的常量。）
+	if int(out.Held) == len(stages)-1 {
+		out.Paid = true
+		if err := a.payOmenStages(&rng, stages, out.Held, &out); err != nil {
+			return out, err
+		}
+		out.After = 0
+		out.Seed = rng.Seed
+		return out, nil
+	}
 	roll := rng.Next(attunementWeightSpace)
 	switch {
 	case roll < stage.ObtainProb:
@@ -164,17 +189,36 @@ func (a *AttunementRewards) AdvanceOmen(seed, dungeon, held uint32) (OmenOutcome
 		if int(out.After)+1 < len(stages) {
 			out.After++
 		}
-	case roll < stage.ObtainProb+stage.DropProb && len(stage.entries) > 0:
-		e, err := pickAttunement(&rng, stage.entries)
-		if err != nil {
+	case roll < stage.ObtainProb+stage.DropProb:
+		out.Paid = true
+		if err := a.payOmenStages(&rng, stages, out.Held, &out); err != nil {
 			return out, err
 		}
-		out.Paid = true
-		out.Awards = []Award{{Template: e.Item, Amount: 1}}
 		out.After = 0
 	}
 	out.Seed = rng.Seed
 	return out, nil
+}
+
+// payOmenStages 结算**已激活的每一档**：官方「奖励可以兼得」——
+// 持有 held 个征兆时结算，就对行 1..held 各抽一次 [drop list]，各出一件。
+//
+// 行 0 不在范围内（它没有 list，也不代表任何已激活档位）。空 list 的行跳过：
+// ValidateOmen 已经保证「声称会结算却没有 list」的表进不来。
+func (a *AttunementRewards) payOmenStages(rng *RNG, stages []OmenStage, held uint32, out *OmenOutcome) error {
+	for i := uint32(1); i <= held && int(i) < len(stages); i++ {
+		st := stages[i]
+		if len(st.entries) == 0 {
+			continue
+		}
+		e, err := pickAttunement(rng, st.entries)
+		if err != nil {
+			return err
+		}
+		out.Awards = append(out.Awards, Award{Template: e.Item, Amount: 1})
+		out.PaidStages = append(out.PaidStages, i)
+	}
+	return nil
 }
 
 // payableTemplates 列出一次通关真能放到地上的所有模板：固定表、追加表，加上
@@ -214,4 +258,34 @@ func (a *AttunementRewards) ValidateOmen() error {
 		}
 	}
 	return nil
+}
+
+// OmenStageIDs returns the reward-preview template of every stage row: the
+// heaviest entry of that row's [drop list], which is exactly the main reward box
+// of the official table (row 1 = 10416150, row 2 = 10417545, row 3 = 10417552,
+// row 4 = 10417571 -- see the positional match in docs section 38.2).
+//
+// It is not a drop. These are the values of the "omen id" u32 array inside every
+// noti 2836 record: the client looks them up to draw the reward preview. Holding N
+// stages means writing the first N of them; row 0 carries no entries ("a chance to
+// activate the first omen") so it stays 0 and therefore never shows up in a payload.
+func (a *AttunementRewards) OmenStageIDs(dungeon uint32) []uint32 {
+	if a == nil {
+		return nil
+	}
+	tb, ok := a.byDungeon[dungeon]
+	if !ok {
+		return nil
+	}
+	out := make([]uint32, 0, len(tb.Coupons))
+	for _, c := range tb.Coupons {
+		var item, weight uint32
+		for _, e := range c.Entries {
+			if e.Item != 0 && e.Weight > weight {
+				item, weight = e.Item, e.Weight
+			}
+		}
+		out = append(out, item)
+	}
+	return out
 }

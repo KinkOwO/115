@@ -90,8 +90,30 @@ func main() {
 	randomOptionFile := flag.String("random-option-catalog", os.Getenv("DFO_RANDOM_OPTION_CATALOG"), "current-client magic-seal random option rules; enables CMD393 unsealing")
 	apocalypseCatalogFile := flag.String("apocalypse-catalog", "configs/apocalypse.generated.json", "compiled apocalypse.ctp table (phase clock, operations, gates, rewards, duty skills)")
 	attunementRewardsFile := flag.String("attunement-rewards", os.Getenv("DFO_ATTUNEMENT_REWARDS"), "boundary-of-attunement reward table generated from the source rewardboostinfo CTPs")
+	attunementRebalanceOn := flag.Bool("attunement-rebalance", os.Getenv("DFO_ATTUNEMENT_REBALANCE") == "1", "本私服的掉落调参（**与官服的显式差异**）：征兆「无事发生」减半、fixed 池低档按比例向高档倾斜。见 internal/loot/attunement_rebalance.go")
+	attunementFixedTiltDefault := 25
+	if v := os.Getenv("DFO_ATTUNEMENT_FIXED_TILT"); v != "" {
+		if n, convErr := strconv.Atoi(v); convErr == nil {
+			attunementFixedTiltDefault = n
+		}
+	}
+	attunementFixedTilt := flag.Int("attunement-fixed-tilt", attunementFixedTiltDefault, "固定池倾斜幅度：普通/稀有各减这么多百分比权重，减掉的按高档现有比例补（1..99）。0 = 不动固定池；只在 -attunement-rebalance 打开时生效")
 	boosterGageHide := flag.Bool("booster-gage-hide", os.Getenv("DFO_BOOSTER_GAGE") != "0", "send NOTI398 booster-gage with displayValue=0 on town entry to hide the top-left Liberation Trace panel; disable with -booster-gage-hide=false or DFO_BOOSTER_GAGE=0")
-	oathGrades := flag.String("oath-grades", os.Getenv("DFO_OATH_GRADES"), "下发给客户端的引子/誓约档位 primer,oath（见 oath_info.go）；默认 45,45 = 第四档「太初」")
+	oathGrades := flag.String("oath-grades", os.Getenv("DFO_OATH_GRADES"), "诊断覆盖：固定下发的引子/誓约档位 primer,oath（见 oath_info.go）。留空 = 按角色穿戴的誓约/引子装备算，这是正常路径")
+	oathGradesTable := flag.String("oath-grades-table", os.Getenv("DFO_OATH_GRADES_TABLE"), "誓约/引子装备稀有度表（cmd/oathgradeimport 生成）；只在 -oath-grades-from-gear 打开时用")
+	oathFromGear := flag.Bool("oath-grades-from-gear", os.Getenv("DFO_OATH_GRADES_FROM_GEAR") == "1", "诊断：按角色穿戴的誓约/引子装备算档位（旧规则）。默认关 —— 客户端脱不下誓约槽，穿上 primeval 就永久 oath=45")
+	oathProgressClearsDefault := oathDefaultProgressClears
+	if v := os.Getenv("DFO_OATH_PROGRESS_CLEARS"); v != "" {
+		if n, convErr := strconv.Atoi(v); convErr == nil {
+			oathProgressClearsDefault = n
+		}
+	}
+	oathProgressDungeonSpec := os.Getenv("DFO_OATH_PROGRESS_DUNGEONS")
+	if oathProgressDungeonSpec == "" {
+		oathProgressDungeonSpec = oathDefaultProgressDungeons
+	}
+	oathProgressClears := flag.Int("oath-progress-clears", oathProgressClearsDefault, "隐藏 BOSS 的保底场次：-oath-progress-dungeons 里的副本通关这么多场后，下一场下发 oath=45（必出一次）并在通关时归零；<=0 关闭保底")
+	oathProgressDungeons := flag.String("oath-progress-dungeons", oathProgressDungeonSpec, "计入保底的副本号，逗号分隔（默认只有小深渊 100005014）")
 	oathInject := flag.String("oath-inject", os.Getenv("DFO_OATH_INJECT"), "诊断用：向客户端注入任意 noti 的候选列表，形式 id:size:fill;off:val,...（见 oath_probe.go）；默认空 = 关闭")
 	omenHoldDefault := -1
 	if v := os.Getenv("DFO_OMEN_HOLD"); v != "" {
@@ -99,21 +121,76 @@ func main() {
 			omenHoldDefault = n
 		}
 	}
-	omenHold := flag.Int("omen-hold", omenHoldDefault, "诊断：把玩家直接放到指定征兆阶段(0-4)，-1 = 不动；只用来验证保底，不改任何掉落规则")
+	omenHold := flag.Int("omen-hold", omenHoldDefault, "诊断：把玩家直接放到指定征兆阶段(0-4)，-1 = 不动；-omen-state 打开时会写回角色存档")
 	omenRewards := flag.Bool("omen-rewards", os.Getenv("DFO_OMEN_REWARDS") == "1", "千海之空深渊的征兆系统：通关时按 [coupon drop table] 的阶段表累积并结算（见 internal/loot/omen.go）。默认关闭")
+	omenInfo := flag.String("omen-info", os.Getenv("DFO_OMEN_INFO"), "诊断：直接指定 noti 2836「征兆队伍状态」的 69 字节载荷，用来点亮征兆 UI 并实测字段语义。写法见 cmd/wireprobe/omen_info.go；留空 = 按角色存档里的真实档数生成（需 -omen-state）")
+	omenState := flag.Bool("omen-state", os.Getenv("DFO_OMEN_STATE") == "1", "征兆的正式状态：持有档数存进角色存档、进本按真实状态下发 noti 2836，并让隐藏 BOSS 由「满档结算」驱动（见 cmd/wireprobe/omen_state.go）。默认关闭")
 	scaleDeathFromHP := flag.Bool("scale-death-from-hp", os.Getenv("DFO_SCALE_DEATH_FROM_HP") == "1", "boundary-of-attunement 定盘机关(109019266)的兜底判死：它血量触底时服务端合成一条死亡上报，不再依赖引擎那两个恒为 72 的 rarity 天花板；默认关闭")
 	flag.Parse()
 	oathGradePair, oathGradesErr := parseOathGrades(*oathGrades)
 	if oathGradesErr != nil {
 		log.Fatalf("bad -oath-grades: %v", oathGradesErr)
 	}
-	log.Printf("oath grades: primer=%d oath=%d", oathGradePair[0], oathGradePair[1])
+	// 档位表只服务「按穿戴装备算档位」这条诊断路径（-oath-grades-from-gear）。
+	// 默认的保底路径不需要它，所以默认配置下**不加载、也不会因为缺表拒绝启动**。
+	var oathGradeTable *inventory.OathGradeTable
+	if *oathFromGear {
+		table, tableErr := loadOathGradeTable(*oathGradesTable)
+		if tableErr != nil {
+			log.Fatalf("bad -oath-grades-table: %v", tableErr)
+		}
+		oathGradeTable = table
+	}
+	oathProgressSet, oathProgressErr := parseOathProgressDungeons(*oathProgressDungeons)
+	if oathProgressErr != nil {
+		log.Fatalf("bad -oath-progress-dungeons: %v", oathProgressErr)
+	}
+	switch {
+	case len(oathGradePair) == 2 && (oathGradePair[0] != 0 || oathGradePair[1] != 0):
+		log.Printf("oath grades: overridden to primer=%d oath=%d (diagnostic)", oathGradePair[0], oathGradePair[1])
+	case *oathFromGear:
+		log.Printf("oath grades: derived from worn oath/primer gear (%d known items, diagnostic)", oathGradeTable.Len())
+	case *omenState:
+		log.Printf("oath grades: hidden boss driven by an omen full settlement on %s", *oathProgressDungeons)
+	case *oathProgressClears > 0:
+		log.Printf("oath grades: hidden-boss pity every %d clear(s) of %s", *oathProgressClears, *oathProgressDungeons)
+	default:
+		log.Printf("oath grades: always normal (pity disabled)")
+	}
 	oathInjectSpecs, oathInjectErr := parseOathInject(*oathInject)
 	if oathInjectErr != nil {
 		log.Fatalf("bad -oath-inject: %v", oathInjectErr)
 	}
 	if len(oathInjectSpecs) > 0 {
 		log.Printf("oath injector armed: %d candidate notification(s)", len(oathInjectSpecs))
+	}
+	// 征兆队伍状态（noti 2836）的载荷。**在启动期校验**：以前这段在频道会话建立时
+	// （每个频道一次）才解析，写错一个字符就会在玩家"进频道"的那一刻 log.Fatalf，
+	// 现象是"启动游戏进不去频道"，而且加载日志已经刷完、错误行在最底下，极难定位。
+	omenInfoBytes, omenInfoErr := parseOmenInfo(*omenInfo)
+	if omenInfoErr != nil {
+		log.Fatalf("bad -omen-info: %v", omenInfoErr)
+	}
+	if len(omenInfoBytes) > 0 {
+		log.Printf("omen info (noti 2836): injecting %d bytes: %s", len(omenInfoBytes), hex.EncodeToString(omenInfoBytes))
+	}
+	// -omen-state 单独打开是**静默坏掉**的配置：征兆阶段表才是推进持有数的那台机器，
+	// 关掉它之后存档会永远停在 0（既不涨、也永远不会满档结算），而 UI 会一直显示
+	// 空格子 —— 现象是「征兆系统上线了但什么都没发生」。宁可启动就报错。
+	if *omenState && !*omenRewards {
+		log.Fatal("-omen-state needs -omen-rewards: the [coupon drop table] roll is what advances the omen, " +
+			"so a state-only run would sit at stage 0 forever")
+	}
+	// 掉落调参（与官服的显式差异）。开关关着时两个参数都不参与，表保持官方原值。
+	attunementRebalance := loot.Rebalance{}
+	if *attunementRebalanceOn {
+		if *attunementFixedTilt < 0 || *attunementFixedTilt >= 100 {
+			log.Fatalf("bad -attunement-fixed-tilt: %d is outside 0..99 (100 would empty the common tiers)", *attunementFixedTilt)
+		}
+		attunementRebalance = loot.Rebalance{
+			OmenHalveIdle:    true,
+			FixedTiltPercent: uint32(*attunementFixedTilt),
+		}
 	}
 	if *fullEquipmentFile == "" {
 		for _, cand := range []string{
@@ -373,6 +450,16 @@ func main() {
 		if e = s.MigrateMailbox(ctx); e != nil {
 			log.Fatal(e)
 		}
+		// Per-(character,dungeon) hidden-boss pity counter. The client's tier
+		// ladder has no roll, so this table is the only place "rare" can live.
+		if e = s.MigrateOathProgress(ctx); e != nil {
+			log.Fatal(e)
+		}
+		// Per-(character,dungeon) omen save slot. The omen is not an item: it is a
+		// character-save marker the client reads out of NOTI2836 (see omen_state.go).
+		if e = s.MigrateOmenState(ctx); e != nil {
+			log.Fatal(e)
+		}
 		data, e := catalog.LoadCharacters(*characterCatalog)
 		if e != nil {
 			log.Fatal(e)
@@ -548,9 +635,19 @@ func main() {
 			if e = catalog.AttachDazzlementMaps(&data, path); e != nil {
 				log.Fatal(e)
 			}
+			path = filepath.Join(filepath.Dir(*dungeonCatalogFile), "dungeons.maze-chance-rates.json")
+			if e = catalog.AttachMazeChanceRates(&data, path); e != nil {
+				log.Fatal(e)
+			}
 		}
 		if data.Source.Checksum != worldService.Catalog.Source.Checksum {
 			log.Fatal("dungeon/world source versions differ")
+		}
+		// 「哪些副本按权重掷骰选图」念出来（权重是我们改写过的，见 §41）。
+		// 强制选图放在念完之后：日志先反映配置，再反映这次的诊断覆盖。
+		logMazeChance(&data)
+		if e = forceMaze(&data, os.Getenv("DFO_MAZE_FORCE")); e != nil {
+			log.Fatal(e)
 		}
 		dungeonCatalog = &data
 	}
@@ -1037,6 +1134,13 @@ func main() {
 		if e = attunement.ValidateTemplates(lootService.Catalog); e != nil {
 			log.Fatal(e)
 		}
+		// 调参层在**源校验之后**才动手：先证明「表读对了」，再谈「我们想改哪里」。
+		// ApplyRebalance 自己会复核权重不变量（每份 drop list 仍恰好 1e6），所以
+		// 改完的表与源表在结构上同样合法。
+		if _, _, e = attunement.ApplyRebalance(attunementRebalance); e != nil {
+			log.Fatal(e)
+		}
+		logAttunementRebalance(attunement, attunementRebalance)
 		// 展开一层要用的礼包目录。缺了它就只能把包装丢在地上，而那正是本功能要
 		// 修的那个报告，所以这里硬失败而不是退化成旧行为。
 		if boosterCatalog == nil || len(boosterCatalog.Definitions) == 0 {
@@ -1070,6 +1174,21 @@ func main() {
 		log.Printf("attunement reward wrappers open one layer; %d empty-face templates: %v", len(empties), empties)
 		log.Printf("loaded attunement rewards (%d dungeons %v, %d reward templates) from %s",
 			len(attunement.Dungeons()), attunement.Dungeons(), len(attunement.Templates()), *attunementRewardsFile)
+
+		// 幸运事件（小幸运 ×15 / 大幸运 ×50）：它没有任何服务端代码 —— 两个档就落在
+		// fixed 池里，倍数写在盒子的 pool 里。这里只是把它念出来，免得它一直是
+		// 「看不见的活」。见 internal/loot/attunement_luck.go。
+		if luck := attunement.LuckTemplates(); len(luck) > 0 {
+			log.Printf("mystical fortune (luck) tiers are live: templates %v rolled straight out of the fixed pool", luck)
+			for _, d := range attunement.Dungeons() {
+				small, large := attunement.LuckWeights(d, 0)
+				if small == 0 && large == 0 {
+					continue
+				}
+				log.Printf("  dungeon %d maze 0 luck: small %d/%d (%.4f%%) · large %d/%d (%.4f%%)",
+					d, small, 1000000, float64(small)/10000, large, 1000000, float64(large)/10000)
+			}
+		}
 		// [coupon drop table] 就是征兆系统的阶段表（见 internal/loot/omen.go）。
 		// 开关关着时把它明确打出来，让「导入了但没接线」保持可见，而不是让玩家
 		// 以为那几行已经在出货。
@@ -1243,7 +1362,7 @@ func main() {
 		legionState.clock = apocalypseClock
 		legionState.channelType = channelTypes[channel]
 		if worldService != nil {
-			worldState = &worldSession{characters: characters, service: worldService, account: developmentAccount, flags: townPolicy.Flags, dungeons: dungeonCatalog, tutorials: tutorialRoutes, tutorialDungeons: tutorialDungeons, professions: characters.Catalog, fatigue: fatigueService, quests: questService, progression: progressionService, loot: lootService, selectionBoxes: selectionBoxes, vault: vaultService, skinCatalog: skinCatalog, soloPartyBootstrap: *soloPartyBootstrap, hub: hub, scaleDeathFromHP: *scaleDeathFromHP, oathGrades: oathGradePair, oathInject: oathInjectSpecs, omenHold: *omenHold}
+			worldState = &worldSession{characters: characters, service: worldService, account: developmentAccount, flags: townPolicy.Flags, dungeons: dungeonCatalog, tutorials: tutorialRoutes, tutorialDungeons: tutorialDungeons, professions: characters.Catalog, fatigue: fatigueService, quests: questService, progression: progressionService, loot: lootService, selectionBoxes: selectionBoxes, vault: vaultService, skinCatalog: skinCatalog, soloPartyBootstrap: *soloPartyBootstrap, hub: hub, scaleDeathFromHP: *scaleDeathFromHP, oathGrades: oathGradePair, oathTable: oathGradeTable, oathFromGear: *oathFromGear, oathProgressClears: *oathProgressClears, oathProgressDungeons: oathProgressSet, oathInject: oathInjectSpecs, omenHold: *omenHold, omenState: *omenState, omenInfo: omenInfoBytes}
 			worldState.serverID = channelCfg.ServerID
 		}
 		if worldState != nil {
@@ -1542,6 +1661,23 @@ func main() {
 						return
 					}
 					event(map[string]any{"kind": packet.Name, "id": packet.ID, "character_id": selectedCharacterID, "plain_hex": hex.EncodeToString(packet.Payload)})
+				}
+				continue
+			}
+			if frame.Type == 1 && frame.ID == 806 && bootstrapped && verified && worldState != nil {
+				plan, favorErr := worldState.giveFavor(plaintext)
+				if favorErr != nil {
+					event(map[string]any{"kind": "npc_favor_refused", "attempt": "1/3", "character_id": selectedCharacterID, "reason": favorErr.Error(), "plain_hex": hex.EncodeToString(plaintext)})
+					if e := sendPayload(1, 806, protocol.Refusal(4)); e != nil {
+						return
+					}
+					continue
+				}
+				for _, packet := range plan {
+					if e := sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
+						return
+					}
+					event(map[string]any{"kind": packet.Name, "attempt": "1/3", "character_id": selectedCharacterID, "id": packet.ID, "plain_hex": hex.EncodeToString(packet.Payload)})
 				}
 				continue
 			}
@@ -2281,6 +2417,48 @@ func main() {
 					}
 					event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID, "id": packet.ID,
 						"plain_hex": hex.EncodeToString(packet.Payload)})
+				}
+				continue
+			}
+			// 武器幻化复制确认（CMD1592）：窗口点确认后服务端扣武器本体 + 一枚模具，
+			// 并把皮肤登记进幻化仓库。包体只有八字节，模板要靠 Index 自己解析。
+			if worldState != nil && bootstrapped && frame.ID == 1592 {
+				if !verified {
+					event(map[string]any{"kind": "make_skin_rejected", "reason": "checksum failed"})
+					continue
+				}
+				plan, e := worldState.makeSkin(plaintext, event)
+				if e != nil {
+					event(map[string]any{"kind": "make_skin_refused", "character_id": worldState.role.ID, "reason": e.Error()})
+					continue
+				}
+				for _, packet := range plan {
+					if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
+						return
+					}
+					event(map[string]any{"kind": packet.Name, "id": packet.ID, "character_id": worldState.role.ID, "plain_hex": hex.EncodeToString(packet.Payload)})
+				}
+				continue
+			}
+			// 武器幻化应用（CMD1565）：幻化仓库窗口的容器同步。开页签与按 Apply 都发这
+			// 一条，而 Apply 处理器硬编码 subtype=4（武器外观页），所以 subtype 4 且带皮
+			// 肤 id 的帧就是「把这个外观应用到我的武器上」。落库后立刻用 opcode 2 的
+			// mode0 用户信息块重建角色——装备外观块是驱动世界模型的唯一通道。
+			if worldState != nil && bootstrapped && frame.ID == 1565 {
+				if !verified {
+					event(map[string]any{"kind": "skin_cargo_sync_rejected", "reason": "checksum failed"})
+					continue
+				}
+				plan, e := worldState.syncSkin(plaintext, event)
+				if e != nil {
+					event(map[string]any{"kind": "skin_cargo_sync_refused", "character_id": worldState.role.ID, "reason": e.Error()})
+					continue
+				}
+				for _, packet := range plan {
+					if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
+						return
+					}
+					event(map[string]any{"kind": packet.Name, "id": packet.ID, "character_id": worldState.role.ID, "plain_hex": hex.EncodeToString(packet.Payload)})
 				}
 				continue
 			}
@@ -3276,6 +3454,23 @@ func main() {
 					if cargoErr != nil {
 						event(map[string]any{"kind": "skin_cargo_damage_font_restore_error", "character_id": role.ID, "reason": cargoErr.Error()})
 					}
+				}
+				// 幻化仓库（武器外观页签）容器只在复制时被推过一次，客户端重登即空；
+				// 这里按存档重推 NOTI1545。读不出状态只记事件照常进场，仓库空一次
+				// 比卡在角色选择界面好。
+				plan.SkinCargo, e = skinCargoRestore(role.State)
+				if e != nil {
+					event(map[string]any{"kind": "skin_cargo_restore_error", "error": e.Error()})
+					plan.SkinCargo = nil
+					e = nil
+				}
+				// 幻化仓库里正在佩戴那一行的高亮：客户端只在 Apply 时写窗口本地格，
+				// 重开窗口就丢。入场补一次 NOTI1546，重登后第一次打开就能看到边框。
+				plan.SkinSelection, e = skinSelectionRestore(role.State)
+				if e != nil {
+					event(map[string]any{"kind": "skin_selection_restore_error", "error": e.Error()})
+					plan.SkinSelection = nil
+					e = nil
 				}
 				plan.CubeContract, e = cubeContractRestore(role.State)
 				if e != nil {
