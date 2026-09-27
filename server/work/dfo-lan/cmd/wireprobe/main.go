@@ -386,6 +386,7 @@ func main() {
 	var worldService *world.Service
 	var wearService *inventory.WearService
 	var questService *quest.Service
+	var townArrivalScenes map[uint32]catalog.TownArrivalScene
 	var vaultService *inventory.VaultService
 	var fatigueService *character.FatigueService
 	var developmentAccount int64
@@ -839,6 +840,12 @@ func main() {
 			odysseyGrowth = progressionService.Odyssey
 		}
 		questService = &quest.Service{Store: characters.Store, Catalog: data, Professions: characters.Catalog, Progression: progressionService, Odyssey: odysseyGrowth, Dungeons: dungeonCatalog}
+		var sceneIssues []string
+		townArrivalScenes, sceneIssues = catalog.TownArrivalSceneWhitelist(data, worldService.Catalog)
+		for _, issue := range sceneIssues {
+			log.Printf("town arrival scene excluded: %s", issue)
+		}
+		log.Printf("PVF town arrival scene whitelist: %d entries", len(townArrivalScenes))
 		if *equipmentRewardFile != "" {
 			if lootService == nil {
 				log.Fatal("quest inventory requires the shared bag catalog")
@@ -1362,7 +1369,10 @@ func main() {
 		legionState.clock = apocalypseClock
 		legionState.channelType = channelTypes[channel]
 		if worldService != nil {
-			worldState = &worldSession{characters: characters, service: worldService, account: developmentAccount, flags: townPolicy.Flags, dungeons: dungeonCatalog, tutorials: tutorialRoutes, tutorialDungeons: tutorialDungeons, professions: characters.Catalog, fatigue: fatigueService, quests: questService, progression: progressionService, loot: lootService, selectionBoxes: selectionBoxes, vault: vaultService, skinCatalog: skinCatalog, soloPartyBootstrap: *soloPartyBootstrap, hub: hub, scaleDeathFromHP: *scaleDeathFromHP, oathGrades: oathGradePair, oathTable: oathGradeTable, oathFromGear: *oathFromGear, oathProgressClears: *oathProgressClears, oathProgressDungeons: oathProgressSet, oathInject: oathInjectSpecs, omenHold: *omenHold, omenState: *omenState, omenInfo: omenInfoBytes}
+			if questService != nil && townArrivalScenes == nil {
+				log.Fatal("town arrival scene whitelist was not passed to world sessions")
+			}
+			worldState = &worldSession{characters: characters, service: worldService, account: developmentAccount, flags: townPolicy.Flags, dungeons: dungeonCatalog, townArrivalScenes: townArrivalScenes, tutorials: tutorialRoutes, tutorialDungeons: tutorialDungeons, professions: characters.Catalog, fatigue: fatigueService, quests: questService, progression: progressionService, loot: lootService, selectionBoxes: selectionBoxes, vault: vaultService, skinCatalog: skinCatalog, soloPartyBootstrap: *soloPartyBootstrap, hub: hub, scaleDeathFromHP: *scaleDeathFromHP, oathGrades: oathGradePair, oathTable: oathGradeTable, oathFromGear: *oathFromGear, oathProgressClears: *oathProgressClears, oathProgressDungeons: oathProgressSet, oathInject: oathInjectSpecs, omenHold: *omenHold, omenState: *omenState, omenInfo: omenInfoBytes}
 			worldState.serverID = channelCfg.ServerID
 		}
 		if worldState != nil {
@@ -2605,6 +2615,7 @@ func main() {
 				}
 				plan, e := worldState.dungeonGate(plaintext)
 				if e != nil {
+					worldState.approvedDungeonGate = 0
 					event(map[string]any{"kind": "dungeon_gate_rejected", "reason": e.Error()})
 					if e = sendPayload(1, 15, protocol.Refusal(4)); e != nil {
 						return
@@ -2624,6 +2635,8 @@ func main() {
 					return
 				}
 				worldState.selectingDungeon = true
+				worldState.approvedDungeonGate, _ = protocol.DecodeDungeonGate(plaintext)
+				worldState.pendingTownArrival = nil
 				continue
 			}
 			if worldState != nil && bootstrapped && dungeonRequest(frame.ID) {
@@ -2633,12 +2646,27 @@ func main() {
 				}
 				var plan []outboundPacket
 				var pending *dungeon.Session
+				var townArrivalLoading bool
 				var e error
 				switch frame.ID {
 				case 16:
 					pending, plan, e = worldState.selectDungeon(plaintext)
 				case 37:
+					if worldState.activeDungeon == nil && worldState.pendingTownArrival != nil {
+						scene := worldState.townArrivalScenes[worldState.pendingTownArrival.Definition.ID]
+						if worldState.state.Position.Town != scene.Town || worldState.state.Position.Area != scene.Area {
+							worldState.pendingTownArrival = nil
+							e = fmt.Errorf("town arrival scene origin changed before loading")
+							break
+						}
+						worldState.activeDungeon = worldState.pendingTownArrival
+						townArrivalLoading = true
+					}
 					plan, e = worldState.finishDungeonLoading(plaintext)
+					if e != nil && townArrivalLoading {
+						worldState.activeDungeon = nil
+						townArrivalLoading = false
+					}
 				case 38:
 					pending, plan, e = worldState.interactDoor(plaintext)
 				case 39:
@@ -2738,6 +2766,28 @@ func main() {
 					event(map[string]any{"kind": "dungeon_completion_error", "map": worldState.activeDungeon.Room.Map, "error": worldState.completionErr.Error()})
 					worldState.completionErr = nil
 				}
+				if pending != nil && frame.ID == 16 {
+					if scene, ok := worldState.townArrivalScenes[pending.Definition.ID]; ok {
+						worldState.pendingTownArrival = pending
+						worldState.selectingDungeon = false
+						worldState.approvedDungeonGate = 0
+						event(map[string]any{"kind": "town_arrival_scene_waiting_for_load", "quest": scene.QuestID, "town": scene.Town, "area": scene.Area, "dungeon": scene.DungeonID})
+						pending = nil
+					}
+				}
+				if townArrivalLoading {
+					worldState.deathSent = map[uint16]bool{}
+					worldState.drops = nil
+					worldState.resetCards()
+					worldState.completionSent = false
+					worldState.completionErr = nil
+					worldState.resultSent = false
+					worldState.pendingTownArrival = nil
+					worldState.leaveScene()
+					worldState.selectingDungeon = false
+					worldState.approvedDungeonGate = 0
+					event(map[string]any{"kind": "dungeon_session_started", "dungeon": worldState.activeDungeon.Definition.ID, "maze": worldState.activeDungeon.Maze.Index, "map": worldState.activeDungeon.Room.Map, "monsters": len(worldState.activeDungeon.Monsters), "quests_changed": false, "town_arrival": true})
+				}
 				if pending != nil {
 					if frame.ID == 16 || frame.ID == 72 || frame.ID == 2062 {
 						worldState.deathSent = map[uint16]bool{}
@@ -2763,6 +2813,7 @@ func main() {
 					worldState.completionErr = nil
 					worldState.resultSent = false
 					worldState.selectingDungeon = false
+					worldState.approvedDungeonGate = 0
 					event(map[string]any{"kind": "dungeon_session_started", "dungeon": pending.Definition.ID, "maze": pending.Maze.Index, "map": pending.Room.Map, "monsters": len(pending.Monsters), "quests_changed": false})
 				}
 				if frame.ID == 37 && worldState.activeDungeon != nil {
@@ -2826,6 +2877,7 @@ func main() {
 							event(map[string]any{"kind": "settlement_exit_flag", "character_id": worldState.role.ID, "selecting_dungeon": worldState.selectingDungeon, "payload_len": len(p.Payload)})
 						} else {
 							worldState.selectingDungeon = false
+							worldState.approvedDungeonGate = 0
 						}
 						// A legion run lives inside a dungeon, so leaving it ends
 						// the run. The client normally says so itself; this is
@@ -2880,6 +2932,7 @@ func main() {
 				}
 				if frame.ID == 42 || frame.ID == 132 {
 					worldState.selectingDungeon = false
+					worldState.approvedDungeonGate = 0
 				}
 				if returnedToTown(plan) {
 					refresh, err := worldState.graduateOdysseyAtTown()
@@ -2925,6 +2978,14 @@ func main() {
 				if !verified {
 					event(map[string]any{"kind": "world_rejected", "id": frame.ID, "error": "checksum rejected"})
 					continue
+				}
+				if worldState.pendingTownArrival != nil {
+					if worldState.isTownArrivalOriginSync(frame.ID, plaintext) {
+						event(map[string]any{"kind": "town_arrival_scene_origin_sync", "dungeon": worldState.pendingTownArrival.Definition.ID, "id": frame.ID})
+					} else {
+						event(map[string]any{"kind": "town_arrival_scene_remains_town", "dungeon": worldState.pendingTownArrival.Definition.ID, "id": frame.ID})
+						worldState.pendingTownArrival = nil
+					}
 				}
 				if e := worldState.handle(frame.ID, plaintext, sendPayload, event); e != nil {
 					event(map[string]any{"kind": "world_error", "id": frame.ID, "error": e.Error()})

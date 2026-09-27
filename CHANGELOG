@@ -1,6 +1,7 @@
 # CHANGELOG
 
 ## 2026-09-28
+- **West Coast 任务到达场景与城镇交互（服务端，用户实机确认）**：从 115 PVF 构建 `[move to dungeon]` + `arrive in town` 白名单，并保留 area 40/0 的城镇语义；修复白名单变量作用域遗漏，以及角色进城时同位置 CMD36 与任务场景待加载状态的竞态。用户确认可进入 West Coast、与 NPC 交互、传送、切换其它 area。最新手动会话记录 NPC 任务目标推进、West Coast area 0/1/2/3/7 切换及 Hendonmyre 往返；服务端无同区域传送拒绝或加载态交互锁。未改数据库、客户端或 DLL。候选 SHA-256：`C9700B6F00319807AEE64C0271EDB0821C40D7FBF17A0D81C8D54B04C5E1F691`。确认基线与取证记录：`server/work/dfo-lan/docs/protocol/west-coast-quest12152-town-scene-desync-20260928.md`。
 - **终层过场任务结算通用化（服务端）**：玩家确认「Woman in Red」任务 12147 可完成；实机日志显示末层过场 CMD45 → 场景加载 CMD37 → NOTI291 任务进度 → NOTI31 通关启用。将原副本/任务/地图/坐标固定判断改为从当前 PVF 的任务、迷宫、地图动作和过场 `[CHANGE MAP]` 自动导出终层场景范围；启动时校验源校验和及 DGN/MAP 哈希。仅对源任务目标 Boss 房已清、末层无可报告 Boss 的匹配场景使用无 Boss 身份的结算路径，罗特斯原路径保持独立。另修正 CMD37 直接下发 NOTI31 后未记录已通知状态，导致随后 CMD46 被拒；此结算请求修正和其它导出路线尚待实机验证。无数据库结构或存档变更。确认基线：`server/work/dfo-lan/docs/protocol/woman-in-red-oculus-closing-scene-20260927.md`。
 - **武器幻化（Weapon Skin）：复制 / 应用 / 解除 / 仓库落库与重登重推（服务端，待实机验收）**：幻化仓库窗口的复制确认（CMD1592）、应用与浏览（CMD1565）、仓库内容（NOTI1545）、佩戴高亮（NOTI1546）与最近新增（NOTI1547）此前都没有处理器 —— 点确认没有任何反应。本条目落地完整链路。
   - **存档**：`Bag.WeaponSkin`（当前佩戴的皮肤 id，0 = 未佩戴）、`Bag.WeaponSkins`（仓库已登记的皮肤，按复制顺序）、`Bag.WeaponSkinSeq`（应用/解除的单调序号，只服务幂等键）。老存档缺字段与 0 同义；`WeaponSkinStorage()` 会把已应用项补进列表并去重（客户端仓库行的身份就是皮肤 id，重复行会让选择指到同一格）。

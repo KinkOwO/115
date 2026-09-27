@@ -183,6 +183,14 @@ func (s *Service) transition(level byte, odyssey bool, old storage.WorldPosition
 	if uint32(level) < RequiredLevel(dest, odyssey) {
 		return old, ErrLevel
 	}
+	// The client echoes its already published town position with CMD36 during
+	// world entry. This is a synchronization request, not a portal traversal.
+	if r.Town == old.Town && r.Area == old.Area && r.X == old.X && r.Y == old.Y && r.Flag == 0 && r.TailFlags == [2]byte{} {
+		if err := s.ValidateRestoredPosition(level, odyssey, old); err != nil {
+			return old, err
+		}
+		return old, nil
+	}
 	adjacent := false
 	sourcePortal := false
 	for _, p := range src.Portals {

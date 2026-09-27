@@ -42,6 +42,10 @@ type worldSession struct {
 	loot             *loot.Service
 	selectionBoxes   *catalog.SelectionBoxes
 	vault            *inventory.VaultService
+
+	townArrivalScenes   map[uint32]catalog.TownArrivalScene
+	approvedDungeonGate uint32
+	pendingTownArrival  *dungeon.Session
 	// skinCatalog maps an `[add skin storage]` template to its PVF skin key; nil
 	// disables the CMD507 action 169 flow.
 	skinCatalog map[uint32]catalog.SkinStorageEntry
@@ -161,6 +165,8 @@ func (w *worldSession) enter(role storage.Character, spawn storage.WorldPosition
 	w.soloPartyReady = false
 	w.specialWarpPending = false
 	w.selectingDungeon = false
+	w.approvedDungeonGate = 0
+	w.pendingTownArrival = nil
 	w.completionSent = false
 	w.completionErr = nil
 	w.resultSent = false

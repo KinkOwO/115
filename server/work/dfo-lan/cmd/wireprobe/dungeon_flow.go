@@ -45,6 +45,27 @@ func (w *worldSession) dungeonGate(p []byte) ([]outboundPacket, error) {
 	// supplies a source dungeon ID instead; accept that only when it is this
 	// character's own starting route and the route is still owed.
 	if requested != 0 {
+		if scene, ok := w.townArrivalScenes[requested]; ok {
+			if w.state.Position.Town != scene.Town || w.state.Position.Area != scene.Area {
+				return nil, fmt.Errorf("town arrival scene %d requires town area %d/%d", requested, scene.Town, scene.Area)
+			}
+			if err := w.service.ValidateRestoredPosition(w.level, w.odyssey, w.state.Position); err != nil {
+				return nil, err
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			accepted, err := w.acceptedQuestIDs(ctx)
+			cancel()
+			if err != nil {
+				return nil, err
+			}
+			if scene.QuestID > 65535 || !accepted[uint16(scene.QuestID)] {
+				return nil, fmt.Errorf("town arrival scene %d requires accepted source quest %d", requested, scene.QuestID)
+			}
+			return []outboundPacket{
+				{"town_arrival_scene_gate_ack", 1, 15, []byte{1}},
+				{"town_arrival_scene_selection_sent", 0, 27, protocol.EnterDungeonSelection()},
+			}, nil
+		}
 		if w.dungeons != nil && dungeon.IsTrainingRoom(*w.dungeons, requested) {
 			return []outboundPacket{
 				{"training_room_gate_ack", 1, 15, []byte{1}},
@@ -73,6 +94,19 @@ func (w *worldSession) dungeonGate(p []byte) ([]outboundPacket, error) {
 	}, nil
 }
 
+func (w *worldSession) isTownArrivalOriginSync(id uint16, p []byte) bool {
+	if w == nil || w.pendingTownArrival == nil || id != 36 {
+		return false
+	}
+	r, err := protocol.DecodeAreaChangeRequest(p)
+	if err != nil {
+		return false
+	}
+	pos := w.state.Position
+	return r.Town == pos.Town && r.Area == pos.Area && r.X == pos.X && r.Y == pos.Y &&
+		r.PreviousTown == pos.Town && uint32(r.PreviousArea) == pos.Area && r.Flag == 0 && r.TailFlags == [2]byte{}
+}
+
 func (w *worldSession) selectDungeon(p []byte) (*dungeon.Session, []outboundPacket, error) {
 	if w == nil || w.dungeons == nil || w.role.ID == 0 {
 		return nil, nil, fmt.Errorf("dungeon catalog or character unavailable")
@@ -83,6 +117,13 @@ func (w *worldSession) selectDungeon(p []byte) (*dungeon.Session, []outboundPack
 	r, e := protocol.DecodeDungeonSelection(p)
 	if e != nil {
 		return nil, nil, e
+	}
+	if scene, ok := w.townArrivalScenes[r.ID]; ok {
+		// A quest's arrival trigger is a town event. A rejected CMD15 must not
+		// become a private dungeon session through the following CMD16.
+		if r.Quest != scene.QuestID || w.state.Position.Town != scene.Town || w.state.Position.Area != scene.Area || !w.selectingDungeon || w.approvedDungeonGate != r.ID {
+			return nil, nil, fmt.Errorf("town arrival scene %d has no approved matching gate for quest %d at %d/%d", r.ID, r.Quest, w.state.Position.Town, w.state.Position.Area)
+		}
 	}
 	if d, ok := w.dungeons.Dungeons[r.ID]; ok && d.Odyssey {
 		if !character.OdysseyRole(w.role) {
@@ -97,7 +138,7 @@ func (w *worldSession) selectDungeon(p []byte) (*dungeon.Session, []outboundPack
 		}
 	}
 	trainingRoom := dungeon.IsTrainingRoom(*w.dungeons, r.ID)
-	if !trainingRoom {
+	if _, townArrival := w.townArrivalScenes[r.ID]; !trainingRoom && !townArrival {
 		if _, e := w.dungeonGate(make([]byte, 8)); e != nil {
 			return nil, nil, e
 		}

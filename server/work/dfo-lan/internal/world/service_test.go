@@ -224,6 +224,31 @@ func TestQuestGatedPortalToElvenmere(t *testing.T) {
 	}
 }
 
+func TestWestCoastTownOriginSync(t *testing.T) {
+	cat, err := catalog.LoadWorld("../../configs/world.generated.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := Service{Catalog: cat, Rules: Rules{RequirePortalProximity: true, PortalMargin: 10}}
+	old := storage.WorldPosition{Town: 40, Area: 0, X: 412, Y: 181}
+	actual, err := hex.DecodeString("28000000000000009c01b500002800000000000000000000")
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := protocol.DecodeAreaChangeRequest(actual)
+	if err != nil {
+		t.Fatal(err)
+	}
+	next, err := s.Transition(96, false, old, r)
+	if err != nil || next != old {
+		t.Fatalf("native town origin sync rejected: next=%+v err=%v", next, err)
+	}
+	r.X++
+	if _, err := s.Transition(96, false, old, r); err == nil {
+		t.Fatal("different destination should still require an authorized portal")
+	}
+}
+
 func TestNegativeCoordinateAreaTransition(t *testing.T) {
 	// 实源：lemidia_right.map（89/2，雷米迪亚大圣堂右侧区域）：
 	// 可行走矩形为 [-13, 256, 800, 140]，客户端生成的落点 X=-2（补码 uint16 为 65534）。
