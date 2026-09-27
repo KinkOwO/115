@@ -91,7 +91,21 @@ func main() {
 	apocalypseCatalogFile := flag.String("apocalypse-catalog", "configs/apocalypse.generated.json", "compiled apocalypse.ctp table (phase clock, operations, gates, rewards, duty skills)")
 	attunementRewardsFile := flag.String("attunement-rewards", os.Getenv("DFO_ATTUNEMENT_REWARDS"), "boundary-of-attunement reward table generated from the source rewardboostinfo CTPs")
 	boosterGageHide := flag.Bool("booster-gage-hide", os.Getenv("DFO_BOOSTER_GAGE") != "0", "send NOTI398 booster-gage with displayValue=0 on town entry to hide the top-left Liberation Trace panel; disable with -booster-gage-hide=false or DFO_BOOSTER_GAGE=0")
-	oathGrades := flag.String("oath-grades", os.Getenv("DFO_OATH_GRADES"), "下发给客户端的引子/誓约档位 primer,oath（见 oath_info.go）；默认 45,45 = 第四档「太初」")
+	oathGrades := flag.String("oath-grades", os.Getenv("DFO_OATH_GRADES"), "诊断覆盖：固定下发的引子/誓约档位 primer,oath（见 oath_info.go）。留空 = 按角色穿戴的誓约/引子装备算，这是正常路径")
+	oathGradesTable := flag.String("oath-grades-table", os.Getenv("DFO_OATH_GRADES_TABLE"), "誓约/引子装备稀有度表（cmd/oathgradeimport 生成）；只在 -oath-grades-from-gear 打开时用")
+	oathFromGear := flag.Bool("oath-grades-from-gear", os.Getenv("DFO_OATH_GRADES_FROM_GEAR") == "1", "诊断：按角色穿戴的誓约/引子装备算档位（旧规则）。默认关 —— 客户端脱不下誓约槽，穿上 primeval 就永久 oath=45")
+	oathProgressClearsDefault := oathDefaultProgressClears
+	if v := os.Getenv("DFO_OATH_PROGRESS_CLEARS"); v != "" {
+		if n, convErr := strconv.Atoi(v); convErr == nil {
+			oathProgressClearsDefault = n
+		}
+	}
+	oathProgressDungeonSpec := os.Getenv("DFO_OATH_PROGRESS_DUNGEONS")
+	if oathProgressDungeonSpec == "" {
+		oathProgressDungeonSpec = oathDefaultProgressDungeons
+	}
+	oathProgressClears := flag.Int("oath-progress-clears", oathProgressClearsDefault, "隐藏 BOSS 的保底场次：-oath-progress-dungeons 里的副本通关这么多场后，下一场下发 oath=45（必出一次）并在通关时归零；<=0 关闭保底")
+	oathProgressDungeons := flag.String("oath-progress-dungeons", oathProgressDungeonSpec, "计入保底的副本号，逗号分隔（默认只有小深渊 100005014）")
 	oathInject := flag.String("oath-inject", os.Getenv("DFO_OATH_INJECT"), "诊断用：向客户端注入任意 noti 的候选列表，形式 id:size:fill;off:val,...（见 oath_probe.go）；默认空 = 关闭")
 	omenHoldDefault := -1
 	if v := os.Getenv("DFO_OMEN_HOLD"); v != "" {
@@ -99,21 +113,65 @@ func main() {
 			omenHoldDefault = n
 		}
 	}
-	omenHold := flag.Int("omen-hold", omenHoldDefault, "诊断：把玩家直接放到指定征兆阶段(0-4)，-1 = 不动；只用来验证保底，不改任何掉落规则")
+	omenHold := flag.Int("omen-hold", omenHoldDefault, "诊断：把玩家直接放到指定征兆阶段(0-4)，-1 = 不动；-omen-state 打开时会写回角色存档")
 	omenRewards := flag.Bool("omen-rewards", os.Getenv("DFO_OMEN_REWARDS") == "1", "千海之空深渊的征兆系统：通关时按 [coupon drop table] 的阶段表累积并结算（见 internal/loot/omen.go）。默认关闭")
+	omenInfo := flag.String("omen-info", os.Getenv("DFO_OMEN_INFO"), "诊断：直接指定 noti 2836「征兆队伍状态」的 69 字节载荷，用来点亮征兆 UI 并实测字段语义。写法见 cmd/wireprobe/omen_info.go；留空 = 按角色存档里的真实档数生成（需 -omen-state）")
+	omenState := flag.Bool("omen-state", os.Getenv("DFO_OMEN_STATE") == "1", "征兆的正式状态：持有档数存进角色存档、进本按真实状态下发 noti 2836，并让隐藏 BOSS 由「满档结算」驱动（见 cmd/wireprobe/omen_state.go）。默认关闭")
 	scaleDeathFromHP := flag.Bool("scale-death-from-hp", os.Getenv("DFO_SCALE_DEATH_FROM_HP") == "1", "boundary-of-attunement 定盘机关(109019266)的兜底判死：它血量触底时服务端合成一条死亡上报，不再依赖引擎那两个恒为 72 的 rarity 天花板；默认关闭")
 	flag.Parse()
 	oathGradePair, oathGradesErr := parseOathGrades(*oathGrades)
 	if oathGradesErr != nil {
 		log.Fatalf("bad -oath-grades: %v", oathGradesErr)
 	}
-	log.Printf("oath grades: primer=%d oath=%d", oathGradePair[0], oathGradePair[1])
+	// 档位表只服务「按穿戴装备算档位」这条诊断路径（-oath-grades-from-gear）。
+	// 默认的保底路径不需要它，所以默认配置下**不加载、也不会因为缺表拒绝启动**。
+	var oathGradeTable *inventory.OathGradeTable
+	if *oathFromGear {
+		table, tableErr := loadOathGradeTable(*oathGradesTable)
+		if tableErr != nil {
+			log.Fatalf("bad -oath-grades-table: %v", tableErr)
+		}
+		oathGradeTable = table
+	}
+	oathProgressSet, oathProgressErr := parseOathProgressDungeons(*oathProgressDungeons)
+	if oathProgressErr != nil {
+		log.Fatalf("bad -oath-progress-dungeons: %v", oathProgressErr)
+	}
+	switch {
+	case len(oathGradePair) == 2 && (oathGradePair[0] != 0 || oathGradePair[1] != 0):
+		log.Printf("oath grades: overridden to primer=%d oath=%d (diagnostic)", oathGradePair[0], oathGradePair[1])
+	case *oathFromGear:
+		log.Printf("oath grades: derived from worn oath/primer gear (%d known items, diagnostic)", oathGradeTable.Len())
+	case *omenState:
+		log.Printf("oath grades: hidden boss driven by an omen full settlement on %s", *oathProgressDungeons)
+	case *oathProgressClears > 0:
+		log.Printf("oath grades: hidden-boss pity every %d clear(s) of %s", *oathProgressClears, *oathProgressDungeons)
+	default:
+		log.Printf("oath grades: always normal (pity disabled)")
+	}
 	oathInjectSpecs, oathInjectErr := parseOathInject(*oathInject)
 	if oathInjectErr != nil {
 		log.Fatalf("bad -oath-inject: %v", oathInjectErr)
 	}
 	if len(oathInjectSpecs) > 0 {
 		log.Printf("oath injector armed: %d candidate notification(s)", len(oathInjectSpecs))
+	}
+	// 征兆队伍状态（noti 2836）的载荷。**在启动期校验**：以前这段在频道会话建立时
+	// （每个频道一次）才解析，写错一个字符就会在玩家"进频道"的那一刻 log.Fatalf，
+	// 现象是"启动游戏进不去频道"，而且加载日志已经刷完、错误行在最底下，极难定位。
+	omenInfoBytes, omenInfoErr := parseOmenInfo(*omenInfo)
+	if omenInfoErr != nil {
+		log.Fatalf("bad -omen-info: %v", omenInfoErr)
+	}
+	if len(omenInfoBytes) > 0 {
+		log.Printf("omen info (noti 2836): injecting %d bytes: %s", len(omenInfoBytes), hex.EncodeToString(omenInfoBytes))
+	}
+	// -omen-state 单独打开是**静默坏掉**的配置：征兆阶段表才是推进持有数的那台机器，
+	// 关掉它之后存档会永远停在 0（既不涨、也永远不会满档结算），而 UI 会一直显示
+	// 空格子 —— 现象是「征兆系统上线了但什么都没发生」。宁可启动就报错。
+	if *omenState && !*omenRewards {
+		log.Fatal("-omen-state needs -omen-rewards: the [coupon drop table] roll is what advances the omen, " +
+			"so a state-only run would sit at stage 0 forever")
 	}
 	if *fullEquipmentFile == "" {
 		for _, cand := range []string{
@@ -371,6 +429,16 @@ func main() {
 			log.Fatal(e)
 		}
 		if e = s.MigrateMailbox(ctx); e != nil {
+			log.Fatal(e)
+		}
+		// Per-(character,dungeon) hidden-boss pity counter. The client's tier
+		// ladder has no roll, so this table is the only place "rare" can live.
+		if e = s.MigrateOathProgress(ctx); e != nil {
+			log.Fatal(e)
+		}
+		// Per-(character,dungeon) omen save slot. The omen is not an item: it is a
+		// character-save marker the client reads out of NOTI2836 (see omen_state.go).
+		if e = s.MigrateOmenState(ctx); e != nil {
 			log.Fatal(e)
 		}
 		data, e := catalog.LoadCharacters(*characterCatalog)
@@ -1235,7 +1303,7 @@ func main() {
 		legionState.clock = apocalypseClock
 		legionState.channelType = channelTypes[channel]
 		if worldService != nil {
-			worldState = &worldSession{characters: characters, service: worldService, account: developmentAccount, flags: townPolicy.Flags, dungeons: dungeonCatalog, tutorials: tutorialRoutes, tutorialDungeons: tutorialDungeons, professions: characters.Catalog, fatigue: fatigueService, quests: questService, progression: progressionService, loot: lootService, selectionBoxes: selectionBoxes, vault: vaultService, skinCatalog: skinCatalog, soloPartyBootstrap: *soloPartyBootstrap, hub: hub, scaleDeathFromHP: *scaleDeathFromHP, oathGrades: oathGradePair, oathInject: oathInjectSpecs, omenHold: *omenHold}
+			worldState = &worldSession{characters: characters, service: worldService, account: developmentAccount, flags: townPolicy.Flags, dungeons: dungeonCatalog, tutorials: tutorialRoutes, tutorialDungeons: tutorialDungeons, professions: characters.Catalog, fatigue: fatigueService, quests: questService, progression: progressionService, loot: lootService, selectionBoxes: selectionBoxes, vault: vaultService, skinCatalog: skinCatalog, soloPartyBootstrap: *soloPartyBootstrap, hub: hub, scaleDeathFromHP: *scaleDeathFromHP, oathGrades: oathGradePair, oathTable: oathGradeTable, oathFromGear: *oathFromGear, oathProgressClears: *oathProgressClears, oathProgressDungeons: oathProgressSet, oathInject: oathInjectSpecs, omenHold: *omenHold, omenState: *omenState, omenInfo: omenInfoBytes}
 			worldState.serverID = channelCfg.ServerID
 		}
 		if worldState != nil {

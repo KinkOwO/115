@@ -53,16 +53,44 @@ type worldSession struct {
 	scaleDeathFromHP bool
 	scaleHP          map[uint32]float64
 	scaleForced      map[uint16]bool
-	// oathGrades 是本会话下发的两个引子/誓约档位（noti 2838 的载荷），见 oath_info.go。
+	// oathGrades 是**显式覆盖**的引子/誓约档位（noti 2838 的载荷）；零值 = 不覆盖，
+	// 由角色穿戴的装备决定，见 oath_info.go。
 	oathGrades [2]uint16
+	// oathTable 把誓约/引子装备的稀有度换算成机制档位
+	// （internal/inventory/oath_grade.go）。恒发 45 曾让隐藏 BOSS 场场登场。
+	// 只在 -oath-grades-from-gear 打开时参与档位换算。
+	oathTable *inventory.OathGradeTable
+	// oathFromGear 打开旧规则（按穿戴装备算档位）—— **诊断用，默认关**。
+	// 它有个已知硬伤：客户端脱不下誓约槽，所以穿上 primeval 就永久 oath=45。
+	oathFromGear bool
+	// oathProgressClears 是保底阈值：oathProgressDungeons 里的副本通关这么多场后，
+	// 下一场下发 oath=45（必出一次隐藏 BOSS），并在通关时归零；<=0 = 关闭保底。
+	oathProgressClears int
+	// oathProgressDungeons 是计入保底的副本集合（默认只有小深渊 100005014）。
+	oathProgressDungeons map[uint32]bool
+	// omenInfo 是**显式注入**的 noti 2836 载荷（征兆队伍状态，69 字节）；空 = 按
+	// 角色存档里的真实档数生成（-omen-state）。它是征兆 UI 的唯一数据源，
+	// 几何与语义见 omen_info.go。
+	omenInfo []byte
 	// oathInject 是本轮要注入给客户端的候选通知（诊断用，默认空），见 oath_probe.go。
 	oathInject []oathInjectSpec
 	// oathNext 是注入队列的游标：每进一次副本推进一格，见 oathInjectNext。
 	oathNext int
 	// omenHold 是诊断入口：把玩家直接放到指定征兆阶段，省掉刷场次（-1 = 不动）。
-	// 它只在会话里生效一次，之后仍按通关正常累积/结算。
+	// 它只在会话里生效一次，之后仍按通关正常累积/结算；-omen-state 打开时会写回存档。
 	omenHold        int
 	omenHoldApplied bool
+	// omenState 打开「征兆 = 角色存档级状态」这条线（-omen-state，见 omen_state.go）：
+	// 进本读存档、结算写回、noti 2836 按真实档数下发，并让隐藏 BOSS 由「满档结算」
+	// 驱动，而不是按通关场次。关闭时征兆只活在内存账本里。
+	omenState bool
+	// omenHeldRun 是本场开始时的征兆持有档数（进本时从存档读出，见 loadOmenRunState）。
+	omenHeldRun uint32
+	// omenHeldReady 表示本场已经读过征兆存档（读失败会直接上抛，所以为真即可信）。
+	omenHeldReady bool
+	// omenOrthaierDue 表示这一场会下发 oath=45（召唤隐藏 BOSS）。它由存档里的
+	// orthaire_pending 得出，noti 2838 与 noti 2836 共用这一份判断。
+	omenOrthaierDue bool
 	// omenReported 是本会话已经记过事件的征兆结算序号（见 noteOmenClear）。
 	omenReported uint64
 	// scaleRun 是上面两张表所归属的副本运行号。同一会话里重进副本会把 entity 从

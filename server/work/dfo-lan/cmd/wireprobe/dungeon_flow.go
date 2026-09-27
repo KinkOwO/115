@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"time"
 )
@@ -343,9 +344,25 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 	if e != nil {
 		return nil, e
 	}
+	// 征兆存档必须先读出来：它同时决定 noti 2836 的队伍状态（omen_info.go）与
+	// noti 2838 的档位（oath_info.go —— 隐藏 BOSS 现在由「满档结算」驱动）。
+	if e := w.loadOmenRunState(w.oathProgressDungeon()); e != nil {
+		return nil, e
+	}
 	plan := []outboundPacket{{"dungeon_loading_ack", 1, 37, []byte{1}}, {"dungeon_actor_state", 0, 3, state}, {"dungeon_loading_complete", 0, 30, protocol.DungeonLoaded()}}
 	// 常驻状态：把两个档位在客户端读 getter 之前下发（见 oath_info.go）。
-	plan = append(plan, w.oathInfoPackets()...)
+	grades, e := w.oathInfoPackets()
+	if e != nil {
+		return nil, e
+	}
+	plan = append(plan, grades...)
+	// 征兆队伍状态（noti 2836）。客户端进 EOO 副本时自己已经把两个征兆窗开好，
+	// 这里只负责把每个座位的状态填进去。见 omen_info.go。
+	omen, e := w.omenInfoPackets()
+	if e != nil {
+		return nil, e
+	}
+	plan = append(plan, omen...)
 	// 诊断注入器：把候选通知塞在副本加载应答里，天平开场读 getter 之前就到位。
 	plan = append(plan, w.oathInjectNext()...)
 	if w.progression != nil {
@@ -654,17 +671,23 @@ func (w *worldSession) noteDropGap(event func(map[string]any), entity uint16, e 
 // noteOmenClear 把最近一次征兆结算记进事件流。玩家报告的「这把给了什么」应当
 // 能从日志直接读出来，而不是靠反推掉落物属于哪一档。账本按自增序号去重，所以
 // 同一场里其余怪物的死亡不会重复报同一条。
-func (w *worldSession) noteOmenClear(event func(map[string]any)) {
+func (w *worldSession) noteOmenClear(event func(map[string]any)) error {
 	if w.drops == nil || w.drops.Omen == nil {
-		return
+		return nil
 	}
 	outcome, ok := w.drops.Omen.Last(w.role.ID)
 	if !ok || outcome.Seq == w.omenReported {
-		return
+		return nil
 	}
 	w.omenReported = outcome.Seq
+	// 落库：持有数写回角色存档，满档结算额外置「下一场该出隐藏 BOSS」（见 omen_state.go）。
+	// 失败往上抛 —— 掉落已经按结算结果算出来了，静默丢掉这次推进会让存档和玩家看到的
+	// 东西互相矛盾。
+	if err := w.noteOmenSettlement(outcome); err != nil {
+		return err
+	}
 	if event == nil {
-		return
+		return nil
 	}
 	fields := map[string]any{
 		"kind":    "omen_clear",
@@ -683,6 +706,7 @@ func (w *worldSession) noteOmenClear(event func(map[string]any)) {
 		fields["templates"] = ids
 	}
 	event(fields)
+	return nil
 }
 
 func (w *worldSession) monsterDeath(p []byte, event func(map[string]any)) ([]outboundPacket, error) {
@@ -722,7 +746,12 @@ func (w *worldSession) monsterDeath(p []byte, event func(map[string]any)) ([]out
 				w.drops.Attunement = w.loot.Attunement
 				w.drops.RewardBoxes = w.loot.RewardBoxes
 				w.drops.Omen = w.loot.Omen
-				if w.loot.Omen != nil && !w.omenHoldApplied && w.omenHold >= 0 {
+				if w.loot.Omen != nil && w.omenHeldReady {
+					// 本场开始时的持有数：-omen-state 时来自角色存档
+					// （loadOmenRunState），否则来自 -omen-hold 诊断。账本本身是内存的，
+					// 所以新的一场必须重新预载，否则会沿用上一场结算后的值。
+					w.loot.Omen.Set(w.role.ID, w.omenHeldRun)
+				} else if w.loot.Omen != nil && !w.omenHoldApplied && w.omenHold >= 0 {
 					// 诊断入口，每个会话只应用一次：放到指定阶段后就交回正常的
 					// 累积/结算路径，免得每进一次副本都被拽回同一格。
 					w.loot.Omen.Set(w.role.ID, uint32(w.omenHold))
@@ -754,7 +783,9 @@ func (w *worldSession) monsterDeath(p []byte, event func(map[string]any)) ([]out
 			if err != nil {
 				return nil, err
 			}
-			w.noteOmenClear(event)
+			if err := w.noteOmenClear(event); err != nil {
+				return nil, err
+			}
 		}
 		plan = append(plan, outboundPacket{"monster_death_confirmed", 0, 38, body})
 	}
@@ -977,6 +1008,21 @@ func (w *worldSession) completeDungeon() ([]outboundPacket, error) {
 			return nil, e
 		}
 		plan = append(plan, outboundPacket{"tournament_clear_reward", 0, 374, reward})
+	}
+	// 隐藏 BOSS 的两种来源各自归位，都必须在「通关确认」之后 —— 掉线或退出不该
+	// 吞掉已经攒到的那一次。
+	cleared := w.oathProgressDungeon()
+	if w.omenState {
+		// 征兆线：这一场把进本时读到的「满档结算待出」标记兑现掉。见 omen_state.go。
+		if e := w.clearOmenOrthaier(cleared); e != nil {
+			return nil, e
+		}
+	} else if before, after, e := w.noteOathProgressClear(cleared); e != nil {
+		// 旧通关保底（-oath-progress-clears，诊断保留）。
+		return nil, e
+	} else if w.oathProgressEnabled(cleared) {
+		log.Printf("oath progress: dungeon %d clears %d -> %d (pity every %d)",
+			cleared, before, after, w.oathProgressClears)
 	}
 	return plan, nil
 }

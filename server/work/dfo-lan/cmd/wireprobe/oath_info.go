@@ -47,8 +47,12 @@ package main
 import (
 	"encoding/binary"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
+
+	"dfolan/internal/inventory"
 )
 
 // oathGradeTiers 是脚本真正接受的八个档位（其它值一律让 `max-40` 越界）。
@@ -63,21 +67,25 @@ var oathGradeTiers = map[uint16]string{
 	71: "rainbow2",
 }
 
-// oathGradeDefault 默认下发 45（primitive）。
+// 默认档位**不**是一个常数，也**不**看装备。它由「征兆」决定（业主 2026-09-27 定调
+// B1，见 cmd/wireprobe/omen_state.go）：征兆**集齐四档并在天平结算过**之后，下一场
+// 下发 oath=45（第四档「太初」，唯一召唤奥尔泰尔的档），通关时兑现并清零。
 //
-// 45 是「第四档 = 太初」：客户端动画 `Symptom_4/PrimevalSymptom`，也是四档里最高的
-// 普通档，`max-40 = 5` 是 `o:hp_limit` 的最后一个合法下标；**且它是唯一会召唤
-// 奥尔泰尔的分支**。发 70/71 会走 rainbow 分支（收尾用字面量 6/7），但四条选路
-// 都不成立 ⇒ 拿不到隐藏 BOSS。
-const oathGradeDefault = 45
+// 曾经恒发 45：隐藏 BOSS（代表必出太初）场场登场。之后改成按穿戴装备算，但客户端
+// **脱不下誓约槽**（实机 4 次 move 全是穿进、无一次被拒）⇒ 穿上 primeval 誓约就永久
+// 45 ⇒ 又变回场场出。所以装备表只留作诊断通道（-oath-grades-from-gear）。
+// 再之后是「通关 N 场保底」（-oath-progress-clears）：它没有任何出处，也把「稀有」
+// 变成一个与玩法无关的计数 ⇒ 同样退化成诊断兜底，只在 -omen-state 关着时生效。
 
-// parseOathGrades 解析 "primer,oath"。空串 = 用默认（45,45）。
+// parseOathGrades 解析 "primer,oath"。空串 = 不覆盖，返回零值，
+// 由通关保底决定档位（见 oath_progress.go）。
 //
 // 只接受八档内的值：发域外值等于把「打不死」原样复制一遍，所以宁可启动就报错。
 func parseOathGrades(spec string) ([2]uint16, error) {
 	spec = strings.TrimSpace(spec)
 	if spec == "" {
-		return [2]uint16{oathGradeDefault, oathGradeDefault}, nil
+		// 零值 = 未覆盖：oathInfoPackets 按通关保底算。
+		return [2]uint16{}, nil
 	}
 	parts := strings.Split(spec, ",")
 	if len(parts) != 2 {
@@ -114,7 +122,101 @@ func oathInfoPayload(primer, oath uint16) []byte {
 // 时机很关键：必须在天平开场执行 `Primer_Proc.act` cell 6–9 之前到位，所以挂在
 // 副本加载应答的同一个 plan 里（见 dungeon_flow.go 的 loading 分支）。
 // 这也是一份**常驻状态**：客户端只在收到它时才会覆盖构造器里的 72/72 兜底。
-func (w *worldSession) oathInfoPackets() []outboundPacket {
+// oathGradeTableDefaultPath 是生成器写表的默认位置。
+const oathGradeTableDefaultPath = "configs/oath-grades.json"
+
+// loadOathGradeTable 解析表路径。
+//
+// 顺序：显式路径（flag / DFO_OATH_GRADES_TABLE）→ 工作目录下的默认位置 →
+// **exe 旁的 ../configs**。最后一条是实机必需的：启动器把 gateway 的 cwd 设成
+// D:/115us，相对路径 "configs/..." 在那里解析不了，而 exe 一直在 bin/ 下。
+//
+// 全找不到时**硬失败**。档位表缺失会让每个角色都落回 normal，也就是隐藏 BOSS
+// 永远不登场 —— 那是静默的行为变更，比启动时报错难查得多。
+func loadOathGradeTable(path string) (*inventory.OathGradeTable, error) {
+	candidates := make([]string, 0, 3)
+	if path != "" {
+		candidates = append(candidates, path)
+	} else {
+		candidates = append(candidates, oathGradeTableDefaultPath)
+		if exe, err := os.Executable(); err == nil {
+			candidates = append(candidates, filepath.Join(filepath.Dir(exe), "..", oathGradeTableDefaultPath))
+		}
+	}
+	for _, c := range candidates {
+		if _, err := os.Stat(c); err == nil {
+			return inventory.LoadOathGradeTable(c)
+		}
+	}
+	return nil, fmt.Errorf("no oath grade table (tried %s): pass -oath-grades-table or set DFO_OATH_GRADES_TABLE",
+		strings.Join(candidates, ", "))
+}
+
+func (w *worldSession) oathInfoPackets() ([]outboundPacket, error) {
 	primer, oath := w.oathGrades[0], w.oathGrades[1]
-	return []outboundPacket{{"oath_system_grades", 0, 2838, oathInfoPayload(primer, oath)}}
+	if primer == 0 && oath == 0 {
+		var err error
+		if primer, oath, err = w.derivedOathGrades(); err != nil {
+			return nil, err
+		}
+	}
+	return []outboundPacket{{"oath_system_grades", 0, 2838, oathInfoPayload(primer, oath)}}, nil
+}
+
+// derivedOathGrades 是正常路径：按「这一场该不该召唤隐藏 BOSS」算档位。
+func (w *worldSession) derivedOathGrades() (uint16, uint16, error) {
+	if w.oathFromGear {
+		primer, oath := w.wornOathGrades()
+		return primer, oath, nil
+	}
+	due, err := w.orthaireDue()
+	if err != nil {
+		return 0, 0, err
+	}
+	primer, oath := oathGradesForPity(due)
+	return primer, oath, nil
+}
+
+// orthaireDue 判断这一场该不该召唤隐藏 BOSS（oath=45，唯一会出奥尔泰尔的档）。
+//
+// 两条来源，-omen-state 优先：
+//
+//   - 征兆线（正常路径，业主 2026-09-27 定调 B1）：看角色存档里「上一场刚满档结算过」
+//     这个标记。它由 loadOmenRunState 在进本时就读好了（omen_state.go），所以这里
+//     不再读库 —— noti 2838 与 noti 2836 必须从**同一份**状态推出来，分两次读库迟早
+//     会读到两次不同的快照。
+//   - 旧通关保底（-omen-state 关着时的兜底，诊断保留）：-oath-progress-dungeons 里的
+//     副本通关 -oath-progress-clears 场后下一场出，见 oath_progress.go。
+func (w *worldSession) orthaireDue() (bool, error) {
+	if w.omenState {
+		return w.omenOrthaierDue, nil
+	}
+	return w.oathProgressDue(w.oathProgressDungeon())
+}
+
+// oathGradesForPity 是保底档位的纯决策：到期给 oath=45（唯一召唤奥尔泰尔的档），
+// 否则两边都是 normal。primer 恒 normal 也意味着第二个隐藏 BOSS「守望者」
+// （`oath_max < 45 && primer_max == 45`）暂时不会出现 —— 它要另有一条保底。
+func oathGradesForPity(due bool) (uint16, uint16) {
+	if due {
+		return inventory.OathGradeNormal, oathGradePrimeval
+	}
+	return inventory.OathGradeNormal, inventory.OathGradeNormal
+}
+
+// wornOathGrades 是**诊断**路径（-oath-grades-from-gear）：按角色实际穿戴的
+// 誓约/引子装备算 (primer, oath) 档位。
+//
+// 一件都没穿（或表未配置）时给 normal。档位映射的取证见
+// internal/inventory/oath_grade.go。这条规则退场的理由是客户端脱不下誓约槽：
+// 穿上 primeval 就永久 45。
+func (w *worldSession) wornOathGrades() (uint16, uint16) {
+	if w.oathTable == nil {
+		return inventory.OathGradeNormal, inventory.OathGradeNormal
+	}
+	bag, err := inventory.ReadBag(w.role.State)
+	if err != nil {
+		return inventory.OathGradeNormal, inventory.OathGradeNormal
+	}
+	return w.oathTable.Grades(bag.Worn)
 }

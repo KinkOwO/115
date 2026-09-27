@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/binary"
 	"os"
+	"reflect"
 	"testing"
 
 	"dfolan/internal/catalog"
@@ -55,6 +56,21 @@ func loadOmenTestEnv(t *testing.T) omenTestEnv {
 		t.Fatalf("booster catalog came back empty (%d definitions, %d items)", len(bc.Definitions), len(bc.Items))
 	}
 	return omenTestEnv{a: a, boxes: boosterBoxSource{catalog: bc}, dc: dc, lc: lc, gear: gear}
+}
+
+// TestOmenStageIDsMatchTheOfficialBoxes 把「每档的奖励预览模板」钉在官方奖励表的
+// 主奖励盒上（docs §38.2 的逐位对位）：神器 10416150 / 传说 10417545 / 史诗 10417552 /
+// 太初 10417571。行 0 没有条目，所以是 0。
+//
+// 这四个 id 会进 noti 2836 的「征兆 ID 数组」，客户端拿它们做奖励预览 —— 值错了玩家
+// 会看到「这个征兆会给别的东西」，而掉落本身还是对的，所以只有对表才能发现。
+func TestOmenStageIDsMatchTheOfficialBoxes(t *testing.T) {
+	env := loadOmenTestEnv(t)
+	got := env.a.OmenStageIDs(endkeeperDungeon)
+	want := []uint32{0, 10416150, 10417545, 10417552, 10417571}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("omen stage ids = %v, want %v", got, want)
+	}
 }
 
 // TestOmenStagesPayTheirOwnTier 用真实目录证明四阶段各自发自己那一档：

@@ -3127,3 +3127,653 @@ SizeOfImage=0x11DB9000，**运行时解密镜像**」）+ 78 个运行期模块�
 - **建议**：把它登记为**次级参考**，并在文档里写清两个构建的标识（时间戳 / SizeOfImage / 节区名），
   避免以后误用地址。若**玩家实际跑的是这份更新的构建**（而不是我们 `client/` 里这一版），那才是需要认真处理的问题 ——
   因为本轮所有实机结论都来自 `client/DFO.exe`。
+## 32. 【复核】隐藏 BOSS 的档位门槛，以及「每次都出」的真实边界（2026-09-27 11:5x）
+
+**缘起**：业主实机反馈「每次打天平都会打到最后的隐藏 BOSS，这是不对的 —— 隐藏 BOSS 代表必定出太初」，
+随后追问「如果有誓约装备难道就一直有隐藏 BOSS 吗，感觉也不合理吧」。
+
+> **先纠正一个容易走偏的前提：客户端不读装备。** §12 已证 `getPrimerGrade()` / `getOathGrade()`
+> 读的是**服务端下发的玩家状态**（noti 2838 的 `[0:4)` = primer、`[4:8)` = oath）。
+> §8.8 那场「脱掉誓约、天花板逐字不变」正是此因：当时服务端从未下发，值恒为兜底 `72`，
+> 装备根本无从体现。⇒ 「有誓约就出」**不是**客户端的规则，是服务端选的策略。
+
+### 32.1 只有档位「恰好 45」才召唤奥尔泰尔
+
+§4b 的 `[ON DAMAGE]` 阶梯只在 **`oath_now < oath_max`** 时升级，所以能爬到哪一档、以及会不会召唤，
+完全由 `oath_max` 决定：
+
+| `oath_max` | 阶梯终点 | 会不会 `summon_orthaire` |
+| --- | --- | --- |
+| **45**（primeval 誓约） | `oath_now = 44`，此时 `44 < 45` **成立** ⇒ 进 `is_oath_epic_loop` 分支 | **会**（`c:nox_die == 0` 时） |
+| 44（epic 誓约） | `oath_now = 44`，此时 `44 < 44` **不成立** ⇒ 不再进任何分支 | **不会** |
+| ≤ 43 | 爬到 `oath_max` 就停 | 不会 |
+
+这与 §11.2 的 `nox_index_checker` 独立吻合：`oath_max == 45 → nox_is_orthaire`；
+`oath_max < 45 && primer_max == 45 → nox_is_wathcer`（另一个隐藏 BOSS「守望者」是它的互补分支）。
+⇒ **rare(41) / unique(42) / legendary(43) / epic(44) 都不会出隐藏 BOSS。**
+
+### 32.2 但 45 是「确定性」的：档位到位就**每场都出**
+
+阶梯里没有任何随机数（`is_oath_*_loop` 是状态标志，不是掷骰）⇒ 同一角色只要 `oath_max == 45`，
+**每次通关都会召唤奥尔泰尔**。⇒ 业主担心的「一直有」**成立**；
+也就是说，「稀有」这件事**只能靠档位门槛表达**，客户端这一侧没有别的旋钮。
+
+### 32.3 另一条断链：奖励表里根本没有誓约装备
+
+拿 `configs/oath-grades.json` 的 189 个 ID 去 `configs/attunement-rewards.generated.json` 全表比对
+（小深渊 `etc/rewardboostinfo/endkeeperoforder/normal.ctp` + 大深渊
+`etc/rewardboostinfo/skyofathousandseasofborder/{unique,legendary,epic}.ctp`）：
+**誓约 / 引子装备 0 件**。⇒ 按「按穿戴装备算档位」的规则，
+**正常玩法里隐藏 BOSS 永远不会出**。两个极端都不对（要么场场出、要么永不出）。
+
+### 32.4 档位映射（已落地：`internal/inventory/oath_grade.go`）
+
+誓约 / 引子装备的 `[rarity]` 全量实测只有 5 档，与 `oathsystemscript.cos` 的 `[base rarity section]` 逐位对位：
+
+`2 → 41 rare · 3 → 42 unique · 6 → 43 legendary · 4 → 44 epic · 8 → 45 primeval`
+
+⚠️ **数值序 ≠ 机制序**（legendary = 6 排在 epic = 4 **之前**）⇒ **必须查表**，`40 + rarity` 会把两档换位。
+一件对应装备都没穿 ⇒ `OathGradeNormal = 40`。生成器 `cmd/oathgradeimport`，产物 `configs/oath-grades.json`（189 件）。
+
+### 32.5 本轮实测现场
+
+- 角色 `test-xl`（id 11）发放前：`worn` = primer `100401640`(r3→42) + `100401592`×2(r2→41)
+  ⇒ **oath = 40 / primer = 42**，按新规则不出隐藏 BOSS。
+- 服务端 11:39 启动（exe `3b3d6c6f…`，含 §32.4 的档位换算），启动日志已打印
+  `oath grades: derived from worn oath/primer gear (189 known items)`。
+- 已用 `cmd/admin`（走既有事务 + 幂等 + 审计路径）发两件做 A/B，落 `inventory.equipment` slot 14 / 15：
+  **`100610096`**（oath，rarity 8 → 45）与 **`100313751`**（oath，rarity 4 → 44）。
+
+### 32.6 结论与待办（业主 2026-09-27 已拍板）
+
+- **档位规则改为「进度制」**：每通关一次深渊累加进度，**攒满 N 次那一场才下发 45（必出一次）后归零**。
+  这样保留「该出了」的保底语义（隐藏 BOSS = 必出太初），又不会场场出，也不依赖玩家去凑装备。
+  **N 待定，建议 10。** 落地前先跑 §32.5 的 A/B（只穿 epic 应**不出**、换 primeval 应**出**），
+  验证 §32.1 的阶梯判据。
+
+### 32.7 实机复核（2026-09-27 11:5x）：A/B 前半通过；**誓约槽脱不下来**
+
+- 11:49:44 下发的 noti 2838 载荷 = **`2a000000 2d000000`** ⇒ primer **42** / oath **45**
+  （oath=45 只可能来自 rarity 8 的誓约 `100610096`）⇒ **隐藏 BOSS 确实出现** ⇒ §32.1 的判据实机成立。
+- ⚠️ **客户端没有「誓约槽 → 背包」这个动作**：本场 4 条 `equipment_move_committed` 全部是
+  「装备栏 → `worn`」（目标槽 `47` / `39` / `40`），而且**没有任何一次"脱"被服务端拒绝**
+  （`refused` 类事件 0 条）⇒ 不是服务端拦的，是**客户端只能替换、不能清空**。
+  ⇒ 玩家一旦穿上 primeval 誓约就**永久** `oath = 45`。
+  ⇒ 这比 §32.2 描述的「每场都出」更糟，**进一步支持 §32.6 改用进度制**。
+- 为验证阴性一侧，已直接改库摘下 `worn` 里的 slot 47（并把那件还回装备栏），改前原样备份在
+  `runtime/_c11_backup_20260927-115338.json` 与 `D:/115us-backup/char11-state-20260927-115338.json`。
+  改后 `worn` 无誓约、primer 最高 42 ⇒ 预期 2838 = `2a000000 28000000`（42 / 40）⇒ **不出隐藏 BOSS**。
+
+### 32.8 落地：档位改为「通关保底」（2026-09-27 12:1x–12:3x）
+
+业主拍板三项：**N = 5 场**、计数范围**只有小深渊 `100005014`**、旧的「按穿戴装备算档位」**退场**（只留诊断开关）。
+
+**规则**
+- **进本**（`finishDungeonLoading`）：该角色在该副本上的通关数 `>= 5` ⇒ 下发 `primer=40 / oath=45`（必出一次）；否则 `40 / 40`。
+- **通关**（`completeDungeon`）：到阈值就**归零**，否则 `+1`。归零刻意放在**通关时**而不是进本时 ⇒ 掉线/退出不吞已攒场次。
+- `primer` 恒 40 ⇒ 第二个隐藏 BOSS「守望者」（`oath_max < 45 && primer_max == 45`）**暂不出现** —— 它要另有一条保底。
+
+**实现**
+- `internal/storage/oath_progress.go`：表 `character_oath_progress(character_id, dungeon_id, clears, updated_at)`；
+  `MigrateOathProgress` / `OathProgressClears`（无记录 = 0）/ `BumpOathProgress`（角色行外 `FOR UPDATE`，到期归零）。
+- `cmd/wireprobe/oath_progress.go`：`oathGradePrimeval = 45`、`oathDefaultProgressClears = 5`、`oathDefaultProgressDungeons = "100005014"`。
+- `cmd/wireprobe/oath_info.go`：`oathInfoPackets()` 改为返回 error；`derivedOathGrades()` 走保底，
+  `oathGradesForPity(due)` 是纯决策（到期 `(40,45)`、否则 `(40,40)`）。装备表只在 `-oath-grades-from-gear` 打开时加载。
+- 开关：`-oath-progress-clears`（`DFO_OATH_PROGRESS_CLEARS`，默认 5）、
+  `-oath-progress-dungeons`（`DFO_OATH_PROGRESS_DUNGEONS`，默认 `100005014`）、
+  `-oath-grades-from-gear`（`DFO_OATH_GRADES_FROM_GEAR`，默认关）。
+- 启动会打印 `oath grades: hidden-boss pity every 5 clear(s) of 100005014`；
+  每次通关打印 `oath progress: dungeon <id> clears <a> -> <b> (pity every 5)`。
+
+**验证**：`go build -p 1 ./...` OK；`go vet ./internal/... ./cmd/...` 干净；
+`go test -p 1 -count=1 ./internal/... ./cmd/...` **21 包全绿**；`CASH_INTEGRATION=1 go test -run TestOathProgressPity ./internal/storage/`
+**PASS**（真库：建表 / 新角色读 0 / 推进 `(0,1)→(1,2)→(2,0)→(0,1)` / 分副本独立 / 非法键拒绝）。
+候选程序 `bin/wireprobe-handoff-source.exe` = `23adbe74…`（12:39，**待实机**）；旧的 `3b3d6c6f…` 备份在 `D:/115us-backup/bin-before-pity-20260927/`。
+
+**尚未实机**：要打满 5 场，确认**第 6 场**出隐藏 BOSS、且该场通关后计数归零（下一轮从 1 开始）。
+
+### 32.9 保底实机验收通过；以及隐藏 BOSS 的**产出缺口**（2026-09-27 13:0x）
+
+**保底通过。** 会话 `..._20260927_125915_255302_next37` 的 `gateway.err` 有 6 条
+`oath progress: dungeon 100005014 clears a -> b (pity every 5)`，逐条为
+`0→1 · 1→2 · 2→3 · 3→4 · 4→5 · 5→0`，与 6 条 2838 载荷**逐条对上**：
+前 5 场 `2a00000028000000`（40/40），**第 6 场 `2a0000002d000000`（40/45）** ⇒ 隐藏 BOSS 登场；
+该场通关后计数归零。库里 `character_oath_progress = (11, 100005014, 0)` 佐证。
+
+**⚠️ 但隐藏 BOSS 没有任何专属奖励**
+- 小深渊表 `etc/rewardboostinfo/endkeeperoforder/normal.ctp` 的 **`hidden` 段是 `null`**
+  （大深渊那三张 `skyofathousandseasofborder/*.ctp` 才有 `hidden` 段）。
+- 服务端也没有「隐藏 BOSS 额外奖励」这条路径 —— 本轮只改了 2838 的档位。
+- 实证：第 6 场与第 5 场的 `dungeon_clear_reward` **逐字节相同**（`7b1730…`），
+  `dungeon_play_result` 只差通关耗时那个 u32。
+⇒ **打死隐藏 BOSS 与普通通关同酬**；「没看到太初星蕴石」不是被崩溃遮住，而是本来就没有这条产出。
+
+**📌「必有太初」的保底在征兆（omen），不在隐藏 BOSS**
+
+小深渊 `coupons` 五行：阶段 0 `entries=[]`（**数据里就没有奖励条目**，与实测
+`omen_clear{stage:0, gained:false, paid:false}` 吻合）；阶段 1/2/3 `obtainProb=10%`、`dropProb` 60/40/33%；
+**阶段 4 `obtainProb=0`、`dropProb=1000000`（100%）必给 `10417571`**。
+该盒子在 `booster-catalog.json` 里展开成 12 个候选（`100401598/602/606/610/614/618…`），
+而 `configs/oath-grades.json` 里这一段 `[rarity] = 8` ⇒ **正是 primeval（太初）星蕴石**。
+⚠️ 但 omen 石生成要求 `getEOOPartyOmenState() == 1`，而 **noti 2836 从未下发** ⇒ 阶段 4 走不到。
+
+**❓ 结算后闪退（未定位）**
+- Application 事件日志与 `%LOCALAPPDATA%\CrashDumps` 都**没有**新记录 ⇒ 客户端是**自己退出**，不是访问违例。
+- 崩溃点在结算卡片界面：`card_layout_ack` 之后**缺** `card_inventory_committed` / `card_selection_ack` / `settlement_exit_ack`，
+  且那一场**一次 `pickup_ack` 都没有**（普通场有 5 次）。
+- **反证**：11:49 那场同样是 `oath=45` + 打死隐藏 BOSS，却**正常结算到底**
+  ⇒ 不是 `oath=45`、也不是「打死隐藏 BOSS」的必然结果。需要复现才能定位。
+- 已把 `character_oath_progress.clears` 从 0 **放回 5**（崩溃那场消耗了保底但玩家什么都没拿到），
+  下一场会**再次**触发隐藏 BOSS，兼作复现测试。
+
+## 33. 【取证】征兆 UI 是一类**注册式 popup window**；2836 的载荷读取点仍未找到（2026-09-27 13:2x）
+
+**缘起**：业主「先把征兆的 UI 搞定」，之后要按官服重新对齐征兆玩法。
+
+### 33.1 UI 是注册式 popup window（`analysis/dumps/xorstr_map.tsv`）
+
+三个 popup 窗口类型名（UTF-16 字符串）：
+
+```
+0x1496535B0  POPUP_WINDOW_TYPE_ENDKEEPER_OF_ORDER_PARTY_OMEN_WINDOW
+0x149653630  POPUP_WINDOW_TYPE_ENDKEEPER_OF_ORDER_OMEN_WINDOW
+0x1496536A0  POPUP_WINDOW_TYPE_ENDKEEPER_OF_ORDER_BALLON_WINDOW
+```
+
+**注册点 `sub_141192BC0`**：把窗类名字符串存进全局并配一个 popup 类型 id ——
+`qword_14E64B610` + `dword_14E64B618 = 0x0F8A`(3978)、`qword_14E64B620` + `dword_14E64B628 = 0x0F8B`(3979)。
+另有两处**按名字注册进注册表对象**（`lea rcx,<registry>; call sub_140C59DA0(registry, key, value)`）：
+`sub_1457A7110` → `qword_14E681AB8`；`sub_1412327C0` → `qword_14E64C3C8`。
+两者都是**巨型生成式初始化函数**（栈帧 `0x351F8`），是 UI/字符串注册表，不是业务逻辑。
+
+### 33.2 整组 UI 控件名（与三个 xui 一一对应）
+
+`omen_start_%d` · `omen_loop_%d` · `omen_end_%d` · `omen_keep_%d` · `omen_slot_loop_%d` ·
+`omenInfo_main` · `omenInfo_icon_%d` · `omenInfo_txt_%d` · `Omen_%d` · `omen_%d` ·
+`box_normal_omen` · `box_mid_omen` · `omen_drop_process_on`（后者就是 `.act` 里那个变量名）。
+
+xui 路径：`Contents/2026/EndKeeperOfOrder/Xui/{myOmen,partyOmen,balloonOmen}.xui`。
+
+### 33.3 ⚠️ 修正 §12.7 的一条结论
+
+§12.7 写的「2836 → classId `0x728` → `sub_144FC1120`」**不可靠**：
+`sub_146E9F2A0(0x728)` 全库 **27 个调用点全在巨型分派器 `sub_146753320` 内**，而且是 **27 个不同的 case**
+（case 2492 → `sub_146811120`；case 2875 → `sub_1415F9C10(obj, payload, 0xB3B, 1)` …）。
+⇒ `0x728` 是**多个包共用的对象类**，不等于「2836 的专属 classId」。
+分派器每 case 的形态是：`mov ecx,<classId>; call sub_146E9F2A0` → 判空 → `mov rdx,payload; mov rcx,obj; call <handler>`。
+
+### 33.4 2836 的载荷读取点：仍未找到（已排除三条路）
+
+- 2836 对象 vtable = **`off_14A6C0798`**（48 槽真 vtable；`off_14A6C0B60` / `off_14A6C0B90` 是**数据表**，槽里是随机 64 位值，不是函数指针）。
+  该 vtable 的方法里**没有**任何读 `+350h`（载荷指针 `obj+848`）的指令。
+- **控制组已跑**（技能 §7.4）：`sub_146752340` 里恰好 1 条 `mov [rsi+350h], r15` ⇒ `+350h` 过滤器有效，别处的 0 是真 0。
+- `qword_14E64B610` / `dword_14E64B618`（含 `0xF8A`）**各只有 1 个 xref = 注册时那次写入，静态镜像里没有读者**
+  ⇒ **打开征兆窗不走这两个全局**，而是走注册表对象。
+
+### 33.5 `primerCollection.cos` 与征兆无关
+
+`etc/115lvability2/primercollection.cos`（18 KB）= `[item exchange]` / `[item crafting]` / `[primer disjoint]`
+（引子收集与合成），**不是征兆状态**；`contents/2026/endkeeperoforder/` 下**没有任何 `.cos`**。
+
+### 33.6 下一步（按性价比）
+
+1. **翻 `contents/2026/endkeeperoforder/` 的 `.act` / `.obj`**，看有没有 `[SHOW POPUP]` 类动作直接点名征兆窗 ——
+   若有，**触发点是客户端脚本**，服务端只需喂状态（工作量最小，也最能解释「征兆窗什么时候弹」）。
+2. **从注册表对象反查**：`qword_14E681AB8` / `qword_14E64C3C8` 的读者 = popup 管理器 ⇒ 打开征兆窗的调用形态。
+3. **查 `0xF8A` / `0xF8B` 这两个 id 的使用点**（按立即数扫要注意假命中，§7.3 / §10）。
+4. **钉死 `getEOOPartyOmenState` 的读取源**（VM 内置 2133–2137，`PrimerCollectionScript.cpp` 族）——
+   这才是「征兆石为什么不生成」的正主，也是 2836 载荷几何的真正出口。
+
+**产物**：`D:/115us-backup/ida-omen/`（IDB 副本 + 4 个脚本 + 4 份输出），**原库未动**。
+
+## 34. 【取证·结论】征兆 UI 由 noti 2836 驱动；服务端只需喂状态（2026-09-27 13:3x）
+
+**缘起**：业主「先把征兆的 UI 搞定」，并明确「4 阶段本身是官方设计，只是 4 阶段流转的模式需要对齐」。
+本轮按 §33.6 的候选 ① 先翻 EOO 的 `.act`/`.obj`，结果**否掉了「脚本里有 `[SHOW POPUP]`」这条路**，
+但顺着一张 popup 注册表把整条链路挖通了。
+
+### 34.1 `.act`/`.obj` 里没有开征兆窗的动作（候选 ① 否）
+
+`contents/2026/endkeeperoforder/` 全量 7,114 个文件：`.ani` 5,946 / `.als` 522 / `.act` **435** / `.obj` **88** /
+`.lua` **11**（**全是怪物 AI**）/ `.xui` 4。其中 `passiveobject/` 下的 108 个 `.act`/`.obj` 全部 dump 后统计动作关键字，
+**没有任何 popup / window / UI 类动作**（出现的是 `[BEHAVIOR]` / `[TRIGGER]` / `[NOTICE]` / `[CREATE ANIMATION OBJECT]` 之类）。
+
+**但 dump 出了新线索**：`getDungeonFreeEntryClearCount()`、`getHellDungeonBonusItemMaxRarity()`，
+以及成组出现的 `getEOOPartyOmenGrade(seat)` / `getEOOPartyOmenState(seat)`。
+而且 `text_omen.obj`（`check_omen` / `make_text` / `wait_bosskill`）与 `effect_eoo.obj`
+**读的正是那几个 omen 内置函数** ⇒ 它们在画**场内的**征兆表现，不是 UI 面板。
+
+### 34.2 内置函数 id（`sub_147685170` 的注册表，逐块可读）
+
+| id | 名称 | 名字串 |
+| --- | --- | --- |
+| `0x854`(2132) | `getDungeonFreeEntryClearCount` | `0x14B2CAFB0` |
+| `0x855`(2133) | `getEOOOmenGrade` | `0x14B2CAFF8` |
+| `0x856`(2134) | `getEOOOmenIndex` | `0x14B2CB020` |
+| `0x857`(2135) | `getEOOPartyOmenGrade` | `0x14B2CB048` |
+| `0x858`(2136) | `getEOOPartyOmenState` | `0x14B2CB080` |
+| `0x859`(2137) | `isEOOPartyOmenUse` | `0x14B2CB0B8` |
+
+实现（都读同一个单例 `qword_14E6388B8`）：
+
+- `getEOOPartyOmenState` → `sub_1406578F0(s, seat)` = `*(u8*)(s + 20*seat + 112)`
+- 「前导非零 u32 的个数」→ `sub_1406578B0(s, seat)` 数 `s + 20*seat + 96 + 4j`（j=0..3）
+- `getEOOPartyOmenGrade` 家族 → `sub_140657720(s, seat)` = `*(u32*)(s + 176 + 4*seat)`
+- `isEOOPartyOmenUse` = `sub_1406578F0(...) == 1`（`sub_1417FF2F0`）
+- 四个包装函数都在 `if (*(u32*)sub_145B2DF00(ctx) == 212)` 里取值 —— **212 是 `[dungeon type]` 的枚举值**
+  （`dungeon/endkeeperoforder.dgn` 里写着 ``[dungeon type] `endkeeper of order` ``），与服务端的副本号 `100005014` 无关。
+
+### 34.3 ★ 载荷几何：noti 2836 = 4 × 17 字节 + 1 个尾字节 = 69
+
+注册表 `sub_140657920` 只登记三个 id，且形态是 `lea r8,<handler>` **在前**、`mov edx,<id>` 在后：
+
+```
+0B16h -> sub_140656A00   (2838, 8 字节 -> 单例 +88/+92，即已修的 72 哨兵)
+0B15h -> sub_1406568F0   (2837, 20 字节 -> sub_140658D80 + 单例 +760)
+0B14h -> sub_140656A80   (2836, 69 字节 -> 征兆队伍状态)
+```
+
+`sub_140656A80` 第一件事就是 `sub_146EA0BE0(&buf, 69)`，随后按 **每条 17 字节、共 4 条** 解释
+（`v12 = (char*)v12 + 17`、`v23 += 17`），**68 + 1 = 69** 与读取长度精确吻合。
+17 字节 = **4 × u32 + 1 × u8**；尾部第 69 个字节（`HIBYTE(v47)`）是**标志位**：
+`== 1` 时先用「旧状态」把可视化刷一遍再套用载荷，否则直接套用。
+
+套用路径（对每个座位 i）：
+
+| 载荷字段 | 去向 | 谁读 |
+| --- | --- | --- |
+| `u32[0]` | 槽 `+96 + 20i + 0` | `getEOOPartyOmenState` 家族 / 奖励预览（`sub_140283D60(manager, id, 1)`） |
+| `u8[16]` | 槽 `+96 + 20i + 16` | **`getEOOPartyOmenState(seat)`** |
+| `u8[16]`（本人） | 单例 `+192` | — |
+| `u32[0]`（本人） | 单例 `+176` | **`getEOOPartyOmenGrade(seat)`** |
+
+`sub_1406590A0` 里 `v6 = a1 + 4*(a2 + 4*(a2+6)) - a3` 展开即 `a1 + 20*a2 + 96`，
+所以「座位 i 的槽基址 = `+96 + 20i`」是读代码算出来的，不是猜的。
+
+### 34.4 值域由脚本坐实（grade ∈ 1..4 = 四档石头）
+
+- `effect_eoo/action/basic.act`：`getEOOPartyOmenGrade(t:seatIndex()) == 1 / 2 / 3 / 4`
+  → 播 `omen_effect_1_start` … `omen_effect_4_start`；
+- `omen_drop_1/action/basic.act`：`state == 1` **且** `grade >= 1` → 给该座位出征兆石；
+- 目录 `passiveobject/omen_drop/omen_1..4` 正好是 unique / legendary / epic / primeval 四档。
+- `free_noti/action/basic.act`：`c:primer_die == 1` 且 `getDungeonFreeEntryClearCount() == 29`
+  → 对本人弹 `[NOTICE]`（引用 `<9::Notice_End_Free>`）。
+
+### 34.5 ★★ 开窗是客户端自己的事：服务端既不需要也无法"打开"UI
+
+全代码扫立即数 `0xF8A..0xF8D` 后：
+
+- **`sub_140658530` = 开窗**：`if (当前副本类型 == 212) { 0xF8C 未开则开; 0xF8B 未开则开 }`，然后清空 4 个座位槽；
+- **`sub_140658690` = 关窗**：`0xF8C / 0xF8B` 已开则关。
+- 这两个函数**只被数据引用** —— `0x1492D76D0` / `0x1492D76D8`，正是 EOO 单例 vtable
+  `off_1492D76A0` 的 `+0x30` / `+0x38` 槽 ⇒ 它们由**框架按内容生命周期自动调用**，没有业务代码去"开窗"。
+
+窗口 id（`sub_141192BC0` 注册）：**0xF8A** / **0xF8B = PARTY_OMEN** / **0xF8C = OMEN(个人)** / **0xF8D = BALLON**。
+`sub_140658720`（2836 处理器的下游）在本人座位变化时直接更新 **0xF8C / 0xF8B** ——
+它取的是 UI 容器对象并写 `a1[21*v5 + 197]` 这样的 4 个槽位，与 `myomen.xui` 的 4 槽布局一致。
+
+⇒ **结论：服务端要做的事只有一件 —— 发 noti 2836。** 客户端进 EOO 副本时会自己把窗口开好，
+收到 2836 就把每个座位的状态填进去；场内的 `effect_eoo`、征兆石生成读的也是同一份状态。
+
+### 34.6 本轮产出的代码（诊断注入，默认关）
+
+`cmd/wireprobe/omen_info.go`（+ 5 条测试）：
+
+- `omenInfoPayload(seats, states, flag)` — 按线格式拼 69 字节；
+- `parseOmenInfo(spec)` — 两种写法：**138 个十六进制字符**（原始载荷），或
+  `"2,0,0,0,1;0;0;0;0"` 这类可读写法（4 个座位段 + 尾标志段，座位段 = `u32,u32,u32,u32,u8`）；
+- `worldSession.omenInfoPackets()` — 在副本加载应答里下发（与 `oathInfoPackets` 同一时机、同一位置）；
+- 开关 `-omen-info` / `DFO_OMEN_INFO`，**默认空 = 不发**；启动会打印注入的十六进制以便核对。
+
+**为什么先做成注入器**：官方那套「4 阶段如何流转」还没对齐，而 17 字节记录里
+`u32[1..3]` 的确切语义只证到「参与前导非零计数」这一步。用它先把 UI 点亮、并把字段语义实测钉死，
+等玩法对齐后再把 `parseOmenInfo` 换成真正的状态机。
+
+### 34.7 顺带取到的事实
+
+- `dungeon/endkeeperoforder.dgn`：`[clear condition] [hunt boss] 109019266 1`（通关 = 打死天平）；
+- `[maze chance rate]` **两个值 992857 与 7143**，合计恰 **1,000,000** ⇒ 这是两段迷宫的选取概率（候选 ③ 有解了）；
+- `[dungeon type]` = "endkeeper of order"、`[minimum required level]` 115、`[recommended level]` 115 115；
+- `[pathgate object]` 10 个 id（`109084219..109084226`）、`[normal group index] 1 21251 1 21476`（**21251** 又是那个掉落组）。
+
+**产物**：`D:/115us-backup/ida-omen/`（IDB 副本 `omen.i64` + 10 个脚本 + 10 份输出），**原库未动**。
+
+## 35. 【更正·取证】征兆的「1 阶段结算」发生在**天平**，而且整条掉落链是**客户端脚本**驱动
+
+**缘起**：业主更正 —— 「其实 UI 正确和玩法联动，**在天平的时候会结算 1 阶段奖励**」。
+（这同时解释了上一轮那句「在阶段中就结算了，我不确定是征兆几阶段」。）
+
+**取证入口**：`monster/named/scale_primer/action/primer_proc.act`（天平自己的 proc，2,093 cells）
+—— 它是全 EOO 目录里唯一大量提到 omen 的脚本（41 处）。征兆的掉落过程 `omen_drop_process` 就在这里。
+
+### 35.1 启动点：天平被打 + 稀有度阶梯到顶 → `start_omen_drop_process`
+
+```
+[TRIGGER] omen_drop_process_trigger   [ENABLE] ON
+    [COMPARE VAR] c:primer_rarity_progress_now >= o:omen_drop_process_rarity
+    [ON DAMAGE] [WHICH MONSTER] IS INDEX 109019266          ; 就是天平
+                [IS ETC ACTION OR] 10 11 12 13 14  [CHECKED NO] > 1
+        -> [UPDATE VAR] start_omen_drop_process
+               c:omen_drop_process_ing = c:omen_drop_process_cnt_max
+               c:omen_drop_process_on  = 1
+        -> [DO BEHAVIOR NAME] ME end_omen_drop_process_trigger
+               [HP LIMIT ON] 1 PERCENT                      ; 天平被打到 1%
+               [SET TRIGGER ENABLE NAME] END_TRIGGER ON
+```
+
+**注意它的语义**：`o:omen_drop_process_rarity` 是**触发阈值**（和 `c:primer_rarity_progress_now` 比大小），
+不是奖励的稀有度 —— 它决定「天平被打到阶梯的哪一格时开始掉征兆」。阈值由**客户端自己掷**，按 primer 档位分派三条：
+
+| 宏 | 取值 |
+| --- | --- |
+| `set_omen_drop_process_rarity` | `o:omen_drop_process_rarity = rr(40, c:primer_rarity_progress_max)`（`primer_max < 70`）|
+| `set_omen_drop_process_rarity_rainbow1` | `rs(40, 70)`（`primer_max == 70`）|
+| `set_omen_drop_process_rarity_rainbow2` | `rs(40, 70, 71)`（`primer_max == 71`）|
+
+分派条件与 §20 的阶梯一致。⚠️ **这条不是奖励掷骰**，只是「打到第几格开始掉」，别和 §24 的
+`roll(1e6)`（`[coupon drop table]` 三选一）混为一谈。
+
+### 35.2 石头由 `omen_drop_maker` 生成，门槛就是 `getEOOPartyOmenState/Grade`
+
+`passiveobject/omen_drop_maker/action/basic.act`：`c:omen_drop_process_on == 1` → `go_next`；
+`make_omen_gem.act` 在 frame 1..4 逐级判定
+
+```
+getEOOPartyOmenGrade(o:targetindex) >= N   (N=1..3；N=4 是 == 4)
+且 getEOOPartyOmenState(o:targetindex) == 1
+且 t:seatIndex() == o:targetindex                       ; 只画自己那一份
+   -> [CREATE PASSIVEOBJECT] INDEX 109137366 + (N-1)     ; 四档石头
+```
+
+`109137366/367/368/369` = 四档石头对象。`omen_drop_1..4/action/init.act` 里写死了
+`[WHICH MONSTER] IS INDEX 109019266`，即**石头飞向天平**并撞击；`basic.act` 再用
+`getEOOPartyOmenState/Grade` 复核一次，不成立就 `destroy`。
+
+### 35.3 为什么"天平那一下"必须等掉落做完
+
+`process_end_flag.act` 维护两个计数器：
+
+```
+c:omen_drop_process_cnt_now += 1        ; 每颗石头处理完
+c:omen_drop_process_ing     -= 1
+```
+
+而放行"结束"的 `END_TRIGGER`（`end_trigger_on`）条件是**四条同时成立**：
+
+```
+c:primer_rarity_progress_now >= c:primer_rarity_progress_max
+c:oath_rarity_progress_now   >= c:oath_rarity_progress_max
+c:omen_drop_process_cnt_max  <= c:omen_drop_process_cnt_now    <-- 征兆掉完
+[CHECK TIME EX] o:die_delay_final
+```
+
+⇒ **必须先走完征兆掉落，才能触发 `die_trigger_on`。** 这正是"在天平的时候结算"的机制含义：
+天平被打到顶 → 掉征兆 → 掉完才允许结束 → 再按 §32 的阶梯决定隐藏 BOSS。
+
+另有 `end_trigger_on_quick`：本人 `getEOOPartyOmenState(t:seatIndex()) < 1`（**没带征兆**）时直接
+`[HP LIMIT ON] 1 PERCENT` + `END_TRIGGER ON`，跳过掉落 —— 所以**空手打**是快路径，
+这也解释了为什么"没征兆的那几场很快就结算了"。
+
+### 35.4 `cnt_max`（掉几颗）也是客户端自己数的
+
+```
+[WHICH PASSIVE] [IS INDEX] 109134988 109137638 109137641 109137642
+[BEGIN IF] [CHECKED NO] == 1 -> omen_drop_user_1 -> c:omen_drop_process_cnt_max = 1
+           == 2 -> user_2 -> 2      == 3 -> user_3 -> 3
+           == 4 -> user_4 -> 4      == 0 -> user_0 -> 0
+```
+
+`[CHECKED NO]` 是"命中该 checkup 的对象个数" ⇒ **地图上这 4 类标记对象的数量 = 本次掉几颗**。
+⚠️ 这 4 个索引**不是 PVF 文件名**（全库按名搜 0 命中），它们在别处定义，本轮未定位；
+但可以确定：**"掉几颗"由客户端数出来，不由服务端下发**。
+
+### 35.5 ⇒ 对服务端实现的三条直接后果
+
+1. **`rr(40, primer_max)` 是客户端的掷骰**，但它掷的是「掉落从阶梯哪一格开始」，**不是奖励稀有度**。
+   已复核本目录所有 `rr(` 用法：`primer_proc.act` 的 8 次是 `o:delay_time` 的抖动，`omen_drop_N` 各 2 次是位移动画
+   ⇒ **奖励侧没有第二处掷骰**。§24 的 `roll(1e6)`（`[coupon drop table]`）与这条触发链**是两件不同的事**，
+   服务端那套仍然只在「结算时给什么」这一层起作用。
+2. **整条掉落链的门槛是 `getEOOPartyOmenState/Grade`（= noti 2836）。** 不发 2836 ⇒ `state=0/grade=0`
+   ⇒ `make_omen_gem` 一颗石头都不生成 ⇒ 天平照旧走 `start_omen_drop_process`（`cnt_max=0`、`cnt_now=0`）
+   ⇒ **"进程跑了但里面是空的"**。这与实测 `omen_clear{held:0, stage:0, gained:false}` 完全一致。
+3. ✅ **服务端的结算挂钩点本来就在"天平那一下"，不需要改**（此条为对 §35 初稿的**自我更正**）：
+   `internal/loot/session.go` 的 `Session.Death` 里，征兆推进的条件是
+
+   ```go
+   if s.Attunement.Enabled() && d.Definition.SourceBoss != 0 &&
+      monster.Rank == 3 && monster.Template == d.Definition.SourceBoss && !s.attunementRolled {
+           ... s.Omen.Advance(...) ...
+   }
+   ```
+
+   而 `DungeonDefinition.SourceBoss` 正是从副本脚本的 `[clear condition] [hunt boss] <模板>`
+   解析出来的（`internal/catalog/dungeons.go:176`），小深渊的值就是 **109019266（天平）**。
+   ⇒ **天平确认死亡的那一刻就结算了**，与客户端 `start_omen_drop_process` 同一时点，
+   **和业主说的"在天平的时候结算"完全一致**。（上一稿我误以为它挂在 `completeDungeon()`。）
+
+### 36. 【更正·实机】「档位」= 该座位记录里**非零 u32 的个数**，不是 u32 的值（2026-09-27 14:3x）
+
+**缘起**：业主看到场上 4 颗不同颜色的石头 + 征兆 UI，问「当前是哪个档位，我看似乎是 4 档征兆」。
+一查，**业主是对的**，而 §34.3 / §34.4 把访问器认错了。
+
+#### 36.1 记录的真正语义
+
+`record = [4 × u32][u8]`（17B）：
+
+- **4 个 u32 = 该座位持有的征兆 ID（最多 4 个）**。ID 会被 `sub_1406590A0` / `sub_140658D80`
+  拿去 `sub_140283D60(qword_14E683B38, id, 1)` 查表（奖励预览向量写在单例 `+208+88j`）。**不是档位**。
+- **u8[16] = 状态字节**，进单例 `+112+20*seat`（`sub_1406578F0`）；`== 1` 时 `isEOOPartyOmenUse`（2137）为真。
+
+#### 36.2 脚本里的 grade（1..4）= 持有数
+
+`getEOOPartyOmenGrade(seat)` 的实现是**数该座位槽里前导非零 u32 的个数**：
+
+```c
+// sub_1406578B0
+v2 = a1 + 20*seat;
+while (*(u32*)(v2 + 4*j + 96) != 0) { ++count; if (++j >= 4) return 4; }
+return count;   // 0..4
+```
+
+而 `+176 + 4*seat`（`sub_140657720`）存的是**征兆 ID 数组**（`sub_140658D80` 从「本人那条记录」
+的 4 个 u32 拷入）—— §34.3 把它当成 grade 访问器是**错的**。
+
+这条更正解释了脚本里全部用法：`make_omen_gem.act` 的 `grade >= 1 / >= 2 / >= 3 / == 4` 四帧
+（每帧造一颗石头）、`effect_eoo` 的 `grade == N` 选 `Symptom_N/*Symptom_00.ani`、
+以及 tooltip 的「1–3 个三选一 / 4 个 100%」。
+
+#### 36.3 实机证据（业主截图 + 事件日志）
+
+- 本场（会话 `..._20260927_143712_703750_next37`）下发的 2836：**4 条记录各 `u32=(1,1,1,1)`、
+  state=1、flag=0** ⇒ 每个座位「持有数」= **4** ⇒ **4 档**。
+- 客户端表现吻合：场上**四颗石头**（unique / legendary / epic / primeval 全出）、屏幕特效取
+  `Symptom_4/PrimevalSymptom`、征兆 UI 落在 **第 4 格**。
+- 同场天平最后掉 3 件（`10362432` 银币 ×2 等），**没有**征兆石 —— 石头是客户端 `omen_drop_maker`
+  造的 passive object，飞向天平后由 `omen_drop_process_cnt_now` 计数，**不进普通掉落列表**。
+  **4 档 = tooltip 的「100% 必给」档**；服务端侧保底是否兑现另算（§35.5）。
+
+#### 36.4 怎么指定档位（诊断注入）
+
+档位 = 该座位记录里**非零 u32 的个数**，要几档就写几个非零：
+
+| 档位 | `DFO_OMEN_INFO`（4 个座位写一样，免得受座位号影响）|
+| --- | --- |
+| 1 档 | `1,0,0,0,1;1,0,0,0,1;1,0,0,0,1;1,0,0,0,1;0` |
+| 2 档 | `1,1,0,0,1;1,1,0,0,1;1,1,0,0,1;1,1,0,0,1;0` |
+| 3 档 | `1,1,1,0,1;1,1,1,0,1;1,1,1,0,1;1,1,1,0,1;0` |
+| 4 档 | `1,1,1,1,1;1,1,1,1,1;1,1,1,1,1;1,1,1,1,1;0` |
+| 无 | `0;0;0;0;0` |
+
+**预测（用于交叉验证）**：1 档应只见 **1 颗**石头（`SymptomUniqueStoneStart`）、屏幕特效
+`Symptom_1/UniqueSymptom`、UI 亮**第 1 格**；4 档则四颗全出、亮第 4 格。
+⚠️ 若 1 档仍出 4 颗，说明「四颗」不是 `make_omen_gem` 造的石头，需重查 —— 这也是这条更正的判别实验。
+
+### 37. 1 档实机复核通过；以及「太初星蕴石」来源的两处更正（2026-09-27 14:5x）
+
+**业主验证**：把注入值换成 1 档（`u32=(1,0,0,0)` / state=1）后 —— **场上确实只有 1 颗石头**，
+征兆 UI 只亮**第 1 格**。⇒ §36.2 的「档位 = 每座位记录里非零 u32 的个数」**两端都实机成立**
+（1 档 1 颗 / 4 档 4 颗），`>= 1 / >= 2 / >= 3 / == 4` 这条 `>=` 阶梯不需要再逐档验证。
+
+**更正 ①**：此前把本轮掉的 `100401620` 说成「太初星蕴石」是**错的**。查 `oath-grades.json`：
+`100401620` 与截图 tooltip 里的 `100401608` 都是 **rarity 3（unique，机制档 42）** 的引子，不是 rarity 8。
+
+**更正 ②**：「rarity 8（太初）引子 = 征兆阶段 4 保底盒专属」也**不准确**。全库恰好 **12 件** rarity 8 引子
+（`100401599/603/607/…/643`），它们是**很多盒子**的候选：
+
+| 载体 | 说明 |
+| --- | --- |
+| `10417571` | 征兆阶段 4 的必给盒：**唯一一个池 = 12 件 rarity 8，权重 100%**（`12000/12000`）⇒ 开出来必是太初 |
+| `10416110` / `10416118` | 小深渊普通奖励盒：3 个池，其中 **pool1 = 12 件 rarity 8**（另外两池是普通物） |
+| `10416119` / `10416120` | 小深渊普通奖励盒：**pool1 里 rarity 8 只占 0.15%**（`1500/1,000,000`），多数是 rarity 2/3 |
+| `10415194` / `10417807` / `10417885` / `10416127..132` / `10416140` | 同样是候选 |
+
+⇒ 「太初」既有**必给**的口子（征兆阶段 4），也有**普通奖励盒里按权重**的口子；
+「隐藏 BOSS / 征兆 = 太初的唯一来源」这个说法**不成立**（§32.9 的「隐藏 BOSS 无专属奖励」仍然成立）。
+
+**本轮天平（entity 0x100B）实际掉 5 件**，来源都能对上（走的是深渊普通奖励盒的展开链）：
+
+| idx | template | 是什么 | 来源佐证 |
+| --- | --- | --- | --- |
+| 2 | `0` + 3358 | 金币 | — |
+| 3 | `10362432` | Merchant Guild Silver Coin | `10416103` 的候选里有它 |
+| 4 | `100401620` | 引子（rarity 3） | 由奖励盒展开 |
+| 5 | `1` | `stackable/coin.stk`（硬币） | `10416752` 的候选 = `[1]` |
+| 6 | `102030802` | fighter 武器（boxglove） | 由奖励盒展开 |
+
+**仍缺**：无数组 `u32`（征兆 ID）该填什么 —— 现在填的 `1` 只是占位。真实实现要填**玩家实际持有的征兆 ID**
+（ID 会被 `sub_140283D60(qword_14E683B38, id, 1)` 查表做奖励预览），这要等「征兆怎么获得」的玩法定下来。
+
+## 38. 【官服规则】征兆系统的完整玩法（业主 2026-09-27 提供）与实现差距
+
+> 本节是**外部权威输入**（业主从官服/玩家社区取得），不是我们的推断；下面凡是「客户端的表」都是我实测的，
+> 两者**逐项吻合** —— 所以这一节可以作为实现规格。
+
+### 38.1 官方规则（原文要点）
+
+1. **无征兆通关**：有概率激活第一个征兆（**第一个永远是「神器」**）。
+2. **持有征兆通关**：从三种效果里随机触发一种 —— ① 无事发生；② **额外激活更高品质的 1 个征兆**
+   （神器→传说→史诗→太初）；③ **获得征兆奖励并重置征兆**。
+3. **满 4 个（神器~太初全激活）通关**：**直接结算奖励**。
+4. **奖励可以兼得**：结算时按**已激活的每个阶段**各给 1 个 —— 例：激活神器+传说+史诗时结算 ⇒ 三段奖励各 1 个。
+5. **进入异空间**：在常规爆装之外**额外掉 2 个光辉灵魂结晶**。（社区 1710 次 → 17 次异空间 ≈ 1%）
+6. **幸运事件**（彩虹柱子）：小幸运 **×15**、大幸运 **×50**。（1710 次 → 小幸运 7、大幸运 1）
+7. **特殊商店**：本次统计 10 种（小鸟票 14 次/100000 … 传说玛虎 6 次/350000），体验服无黑钻故只有 1 格。
+
+### 38.2 官方奖励表 ↔ 客户端的 `[coupon drop table]`（逐位吻合）
+
+| 阶段 | 官方奖励（件数）| 客户端行 | obtainProb | dropProb | 条目数 | 主奖励盒 → 内容（实测展开）|
+| --- | --- | --- | --- | --- | --- | --- |
+| — | （无征兆时只有「激活」）| 行 0 | 100000(10%) | 0 | **0** | — |
+| **神器** | 星蕴石 + 套装星蕴石自选礼盒 + 神器~太初星蕴石自选套装罐子 = **3** | 行 1 | 10% | 600000(60%) | **3** | `10416150` → **12 × rarity 3（神器）** |
+| **传说** | 同上结构 = **3** | 行 2 | 10% | 400000(40%) | **3** | `10417545` → **12 × rarity 6（传说）** |
+| **史诗** | 星蕴石 + 史诗~太初星蕴石自选套装罐子 = **2** | 行 3 | 10% | 330000(33%) | **2** | `10417552` → **12 × rarity 4（史诗）** |
+| **太初** | 星蕴石 = **1** | 行 4 | **0** | **1000000(100%)** | **1** | `10417571` → **12 × rarity 8（太初）** |
+
+三条独立对位：**件数 3/3/2/1 相等**、**主奖励盒内容的稀有度恰好是该档**、**行 4 的 100% = 「满 4 个直接结算」**。
+且**每行 `obtainProb + dropProb + 余数` 恰好 = 1,000,000** ⇒ 两列是**互斥三选一的靠前两段**，第三段是「无事发生」——
+这与官方规则第 2 条和游戏内 tooltip 完全一致。
+
+### 38.3 与现有实现的差距
+
+现有 `internal/loot/omen.go` 的 `AdvanceOmen` 已经实现了「三选一 + 行号 = 持有数 + 归零」，**但有 4 处与官方不符**：
+
+| # | 差距 | 现状 | 官方 | 影响 |
+| --- | --- | --- | --- | --- |
+| 1 | **结算不兼得** | 只抽当前行一次 ⇒ 发 **1** 件 | 对**已激活的每一档**各抽一次 ⇒ 发 **N** 件 | 严重少发（满 4 档：1 件 vs 4 件）|
+| 2 | **持有数不持久** | 内存账本（重启归零）| 「持有征兆」跨场次持续 | 玩家攒不起来 |
+| 3 | **noti 2836 未接正式状态** | 只有诊断注入固定值 | 按真实持有状态下发 | 客户端显示不出真实档位 |
+| 4 | **满档判定** | 走同一条 roll 分支（靠行 4 的 100% 间接实现）| 官方明说「满 4 直接结算」| 结果等价，但语义应写显式 |
+
+### 38.4 待业主拍板（实现规格里唯一还开放的部分）
+
+- **A. 「征兆」是物品还是纯状态？** 官方文案像「携带 Omen of Order」，且 2836 的 4 个 u32 是 **ID 数组**
+  （客户端拿去做奖励预览）。⇒ 走「真实物品」更贴官方，但要先定物品 ID；走「纯服务端状态」实现最快。
+- **B. 隐藏 BOSS（oath=45）与征兆的关系**：现在是「通关保底 N=5」（我们自定）。有了官服征兆规则后，
+  是否改成**与征兆挂钩**（例如满档结算后 / 太初档触发时才可能出隐藏 BOSS）？这是「推进模式重设计」的核心。
+- **C. 异空间 / 幸运事件 / 特殊商店**要不要这一期做？各自都缺表：
+  - 异空间：`.dgn` 的 **`[maze chance rate]` = 992857 / 7143**（合计 1e6）⇒ **0.7143% 特殊迷宫**，
+    与社区实测 17/1710（≈1%）同量级，**很可能就是异空间的入口概率**（待验证）；还需定「光辉灵魂结晶」的物品 ID。
+  - 幸运事件：乘以倍数（×15 / ×50）作用在掉落上，需要找到该事件的表/触发点。
+  - 特殊商店：仓库里已有商店系统，需要定「特殊商店」的商品池与刷新规则。
+
+## 39. 【定案 A2/B1/C1 + 落地】征兆 = 角色存档级状态；隐藏 BOSS 由满档结算驱动
+
+> 业主 2026-09-27 15:1x 对 §38.4 的三个开放项拍板：
+> **A2** —— 征兆**不是道具**，是**存档级别的占位标记**（绑定角色）；做成服务端会话状态
+> 会变成「角色共享」，不对。
+> **B1** —— 隐藏 BOSS（oath=45）改由**征兆满档结算**驱动，取代我们自定的「通关 N 场保底」。
+> **C1** —— 这一期只做征兆三件套；异空间 / 幸运事件 / 特殊商店**列为待办**，等前面的
+> 测试跑完再推进（见 §39.4）。
+
+### 39.1 A2 有数据撑：全库没有一件「征兆」物品
+
+把内层 PVF 的两张本地化文本表按**值**检索（`runtime/tablegrep`）：
+
+| 检索 | 结果 |
+| --- | --- |
+| `Stackable.uv.str` 含 `Omen` | 85 条。除与「Camirak the Omen Bird（预兆之鸟）」重名的无关项，**只有 `Omen of Order Reward (CS)` / `Endkeeper of Order Omen reward`** —— 全部是**奖励盒** |
+| `equipment.uv.str` 含 `Omen` | 0 条 |
+| 两张表含 `征兆` / `徵兆` / `命運` | 0 条（表是英文源，没有中文键） |
+
+而 noti 2836 记录里的 4 个 u32 也不是「拿在手里的东西」：它们会被
+`sub_140283D60(qword_14E683B38, id, 1)` 拿去**查表做奖励预览**（§34.3）。
+
+⇒ 官服的「携带 Omen of Order」= **角色存档里的一个标记**，UI 是客户端按 2836 画出来的。
+四个档各对应**该档的奖励盒**，这就是 u32 该填的值：
+
+| 档 | 表行 | 主奖励盒（该行 `[drop list]` 里权重最高的一条） |
+| --- | --- | --- |
+| 神器 | 1 | `10416150` |
+| 传说 | 2 | `10417545` |
+| 史诗 | 3 | `10417552` |
+| 太初 | 4 | `10417571` |
+
+`loot.AttunementRewards.OmenStageIDs` 从表里派生这四个值（不硬编码），集成测试
+`TestOmenStageIDsMatchTheOfficialBoxes` 把它们钉死。
+
+### 39.2 落地：一张存档表 + 两个时刻
+
+新增 `character_omen_state(character_id, dungeon_id, held, orthaire_pending)`：
+
+| 列 | 含义 | 写入时刻 |
+| --- | --- | --- |
+| `held` | 当前持有档数 0..4 | **天平死亡（结算那一刻）** —— 官方「结算征兆并重置」 |
+| `orthaire_pending` | 「下一场该出隐藏 BOSS」 | 满档结算时置位；**通关确认之后**清除 |
+
+**为什么拆两列**：两者归零的时刻不同。`held` 在结算那一刻就归零，而隐藏 BOSS 的机会
+要到通关确认之后才兑现 —— 进本就清会让掉线/退出吞掉已经攒到的那一次奥尔泰尔
+（与 `oath_progress.go` 同一条教训）。两列各用一个**单列 upsert** 写，不用
+「读整行 → 改一列 → 整行回写」，否则后写的那一列会把先写的抹掉
+（`TestOmenStateColumnsAreIndependent` 就是这条判据）。
+
+服务端这一半的链路（`cmd/wireprobe/omen_state.go`）：
+
+| 时刻 | 动作 | 产物 |
+| --- | --- | --- |
+| 进本 loading | `loadOmenRunState` 读存档 | `w.omenHeldRun` / `w.omenOrthaierDue` |
+| 同上 | `omen_info.go` 按 `held` 编载荷 | **noti 2836**：前 N 个 u32 = 各档奖励盒，state = 1 |
+| 同上 | `oath_info.go` 按 `pending` 选档 | **noti 2838**：`oath=45`（召唤奥尔泰尔）或 normal |
+| 天平死亡 | `noteOmenSettlement` 写回 | `held` 落库；满档额外置 `pending` |
+| 通关确认 | `clearOmenOrthaier` | 清 `pending`（这次机会已经兑现） |
+
+⇒ **2836 与 2838 从同一份会话状态推出来**，不再是一次注入、一次读库。
+
+开关 `-omen-state` / `DFO_OMEN_STATE=1`（启动脚本已打开）。它要求 `-omen-rewards`
+同时开着，否则**启动期硬失败** —— 阶段表才是推进持有数的那台机器，只开状态会让存档
+永远停在 0，而现象只是「UI 一直是空格子」，很难查。
+
+### 39.3 B1 带来的语义变化
+
+| | 旧（09-27 上午） | 新（B1） |
+| --- | --- | --- |
+| 隐藏 BOSS 触发 | 通关 N = 5 场（我们自定） | **征兆集齐四档并在天平结算过**，下一场出 |
+| 出处 | 无 | 官方四档 + §35「结算发生在天平」 |
+| 旧开关 | `-oath-progress-clears` | 退化成诊断，仅在 `-omen-state` 关着时生效 |
+
+### 39.4 C1 之后的待办（业主明示：先测完再推）
+
+| 线 | 现状 | 缺什么 |
+| --- | --- | --- |
+| 异空间 | `.dgn` 的 `[maze chance rate]` = 992857 / 7143（合计 1e6）⇒ **0.7143%**，与社区实测 17/1710 ≈ 1% 同量级 | 入口判据（是这一条吗）与「光辉灵魂结晶」的物品 id |
+| 幸运事件 | 疑似 `[additional drop table]` 的 effect 2（1.48%）与 fixed 里的 `luck15` / `luck30` | 触发点，以及 ×15 / ×50 作用在掉落的哪一层 |
+| 特殊商店 | 仓库里已有商店系统 | 「特殊商店」的商品池与刷新规则 |
