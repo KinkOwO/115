@@ -339,6 +339,42 @@ func TestQuestReachTemporaryNPCFromNativeTrigger(t *testing.T) {
 	}
 }
 
+func TestPathToMtHardtNativeReachUsesStationNPC(t *testing.T) {
+	qcat, err := catalog.LoadQuests("../../configs/quests.generated.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	wcat, err := catalog.LoadWorld("../../configs/world.generated.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	d := qcat.Quests[7978]
+	r, ok := quest.ReachNPCObjective(d)
+	if !ok || r.NPC != 11 || r.W != 50 || r.H != 50 {
+		t.Fatalf("source reach objective changed: %+v, %v", r, ok)
+	}
+	svc := &world.Service{Catalog: wcat}
+	at := storage.WorldPosition{Town: 40, Area: 4, X: 846, Y: 242}
+	if position, found := svc.NPCPosition(at, r.NPC); !found || position != [2]uint16{879, 238} {
+		t.Fatalf("station NPC placement changed: %v, %v", position, found)
+	}
+	if questLineageShowsReachNPC(d, r.NPC, at, qcat) {
+		t.Fatal("the station NPC should not depend on a temporary visibility rule")
+	}
+	if !questReachNPCAtSourcePlacement(svc, at, r) {
+		t.Fatal("the observed native CMD33 position must reach the station NPC")
+	}
+	for _, position := range []storage.WorldPosition{
+		{Town: 40, Area: 3, X: 846, Y: 242},
+		{Town: 40, Area: 4, X: 800, Y: 242},
+		{Town: 40, Area: 4, X: 879, Y: 300},
+	} {
+		if questReachNPCAtSourcePlacement(svc, position, r) {
+			t.Fatalf("source NPC reach accepted outside its area or extents: %+v", position)
+		}
+	}
+}
+
 // 客户端 CMD33 的形态（u16 33 / u16 quest / 其余 12 字节 0）之外的一律拒绝。
 func TestQuestInteractionRejectsNonNativeCMDForm(t *testing.T) {
 	w := &worldSession{
