@@ -11,7 +11,7 @@ import (
 	"strings"
 )
 
-const SkinStorageSchema = "skin-storage-items-v2"
+const SkinStorageSchema = "skin-storage-items-v3"
 
 // SkinStorageEntry is one `[add skin storage]` stackable: the template that sends
 // CMD507 action 169, plus the PVF facts that name the skin it registers. The
@@ -30,17 +30,68 @@ type SkinStorageEntry struct {
 	SkinID            uint32 `json:"skin_id"`
 	SkinPath          string `json:"skin_path"`
 	SkinType          string `json:"skin_type"`
+	SkinSubType       string `json:"skin_sub_type,omitempty"`
 	DamageFontIndex   uint32 `json:"damage_font_index"`
 	HasDamageFontInfo bool   `json:"has_damage_font_info"`
 }
 
+// skinLabels is the `.skn`'s own family declaration, cached per skin ID.
+type skinLabels struct {
+	Type    string
+	SubType string
+}
+
+// SkinFamily names the panel a registered skin belongs to, and therefore the owned
+// page NOTI1545 has to carry it on and the category NOTI1546 selects it with. The
+// label is read out of the `.skn` itself: `list/skin.lst` has no family column, and
+// the ID band only names a sub-family (`[type]` `party frame` alone covers the
+// 20000/50000/60000/80000 bands, which `[sub type]` then separates).
+type SkinFamily uint8
+
+const (
+	// SkinFamilyUnknown is a family no measured panel consumer enumerates, so the
+	// unlock stays durable-only and no page frame is produced for it.
+	SkinFamilyUnknown SkinFamily = iota
+	SkinFamilyPartyFrame
+	SkinFamilySkillCutscene
+	SkinFamilyDamageFont
+)
+
 // SkinKey is the ID NOTI1545/1546 carry for this skin.
 func (e SkinStorageEntry) SkinKey() uint32 { return e.SkinID }
 
+// Family classifies the registered skin by the `[type]` label it declares.
+func (e SkinStorageEntry) Family() SkinFamily {
+	switch strings.ToLower(strings.TrimSpace(e.SkinType)) {
+	case "damage font":
+		return SkinFamilyDamageFont
+	case "party frame":
+		return SkinFamilyPartyFrame
+	case "skill cutscene":
+		return SkinFamilySkillCutscene
+	}
+	return SkinFamilyUnknown
+}
+
 // IsDamageFont reports whether the registered skin is a damage font, according to
 // the `.skn` itself rather than according to the item.
-func (e SkinStorageEntry) IsDamageFont() bool {
-	return strings.Contains(strings.ToLower(e.SkinType), "damage font")
+func (e SkinStorageEntry) IsDamageFont() bool { return e.Family() == SkinFamilyDamageFont }
+
+// IsRaidPartyListFrame reports whether a party-frame skin is one of the 高级副本队伍列表
+// skins. NOTI1546's category-0 reader carries that partition as a trailing ID list
+// that refills the acquired set, while the other three partitions share the frame's
+// three single-value slots.
+func (e SkinStorageEntry) IsRaidPartyListFrame() bool {
+	return strings.Contains(strings.ToLower(e.SkinSubType), "raid party list")
+}
+
+// IsSecondAwakeningCutscene reports whether a cutscene skin is one of the 二次觉醒
+// 插图. CMD1565's category-1 store filter refuses to put such an id in the selection
+// vector (analysis/dumps/skin-noti/df23_sub_1444EE820.c:81 skips a record whose family
+// class is 1 and whose sub type is 3), and the panel sends that tab's rows inside the
+// same body, so the server has to know which ids the client class means.
+func (e SkinStorageEntry) IsSecondAwakeningCutscene() bool {
+	return strings.Contains(strings.ToLower(e.SkinSubType), "second awakening")
 }
 
 // MissingSkin records an `[add skin storage]` template whose `[action type]`
@@ -114,6 +165,18 @@ func skinTypeName(cells []pvf.Token) string {
 	return ""
 }
 
+// skinSubTypeName returns the `[sub type]` label a `.skn` declares, or "" when the
+// skin has none. Only the multi-partition families use it: `party frame` covers the
+// four border panels and `skill cutscene` covers the two awakening tiers.
+func skinSubTypeName(cells []pvf.Token) string {
+	for _, cell := range sectionCells(cells, "[sub type]") {
+		if cell.Type == 6 {
+			return cell.Text
+		}
+	}
+	return ""
+}
+
 // scriptTokens reads a script by its indexed path, retrying the `(r)` spelling the
 // source lists use for relocated files.
 func scriptTokens(a *pvf.Archive, name string) ([]pvf.Token, error) {
@@ -140,7 +203,7 @@ func ImportSkinStorage(a *pvf.Archive) (SkinStorageCatalog, error) {
 	if e != nil {
 		return result, e
 	}
-	types := map[uint32]string{}
+	types := map[uint32]skinLabels{}
 	for _, row := range rows {
 		name := row.Path
 		if !strings.HasPrefix(name, "stackable/") {
@@ -167,15 +230,16 @@ func ImportSkinStorage(a *pvf.Archive) (SkinStorageCatalog, error) {
 			if e != nil {
 				return SkinStorageCatalog{}, fmt.Errorf("skin %d (%s): %w", skinID, skinPath, e)
 			}
-			kind = skinTypeName(skinCells)
-			if kind == "" {
+			kind = skinLabels{Type: skinTypeName(skinCells), SubType: skinSubTypeName(skinCells)}
+			if kind.Type == "" {
 				return SkinStorageCatalog{}, fmt.Errorf("skin %d (%s) declares no [type]", skinID, skinPath)
 			}
 			types[skinID] = kind
 		}
 		dfIndex, hasDF := damageFontInfo(cells)
 		result.Entries = append(result.Entries, SkinStorageEntry{
-			Template: row.ID, SkinID: skinID, SkinPath: skinPath, SkinType: kind,
+			Template: row.ID, SkinID: skinID, SkinPath: skinPath,
+			SkinType: kind.Type, SkinSubType: kind.SubType,
 			DamageFontIndex: dfIndex, HasDamageFontInfo: hasDF,
 		})
 	}

@@ -98,6 +98,19 @@ func (w *worldSession) useAddSkinStorage(p []byte, event func(map[string]any)) (
 			out = append(out, outboundPacket{"skin_cargo_damage_font", 0, 1545, cargo})
 		}
 	}
+	// 边框 and 觉醒插图 registration works the same way on their own pages: the spend
+	// is answered with that family's whole page, so the panel's grid sees the new row
+	// without the client having to ask. Families with no measured page consumer (emote,
+	// spray, weapon skin, airship effect) keep the durable-only behaviour.
+	if frame, ok := skinFamilyForEntry(entry.Family()); ok {
+		cargo, push, e := skinFamilyCargo(ctx, w.characters.Store, saved.AccountID, saved.ID, w.skinCatalog, frame)
+		if e != nil {
+			event(map[string]any{"kind": "skin_cargo_family_error",
+				"character_id": saved.ID, "category": frame.category, "reason": e.Error()})
+		} else if push {
+			out = append(out, outboundPacket{"skin_cargo_family", 0, 1545, cargo})
+		}
+	}
 	return out, nil
 }
 
