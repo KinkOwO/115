@@ -30,9 +30,10 @@ type entryPayloads struct {
 	SecondaryVault   []byte
 	AccountVault     []byte
 	AvailableQuests  []byte
-	Worn             []byte
-	AccountOptions   []byte
-	// InformNotice / InformNotice2nd are the per-character read-notice sets
+		Worn             []byte
+		AccountOptions   []byte
+		GamepadOptions   []byte
+		// InformNotice / InformNotice2nd are the per-character read-notice sets
 	// (NOTI402 / NOTI426). They ride right after account options: the client
 	// clears its read set from them, and a third-awakened character whose
 	// notice ledger is missing would otherwise re-pop the teaching frame on
@@ -106,11 +107,12 @@ type entryPayloads struct {
 	Peers [][]byte
 }
 
-func (p entryPayloads) packets() []outboundPacket {
-	out := []outboundPacket{
-		{"select_parser_response", 1, 4, p.Select},
-		{"account_options_restored", 0, 2826, p.AccountOptions},
-		{"inform_notice_restored", 0, 402, p.InformNotice},
+	func (p entryPayloads) packets() []outboundPacket {
+		out := []outboundPacket{
+			{"select_parser_response", 1, 4, p.Select},
+			{"account_options_restored", 0, 2826, p.AccountOptions},
+			{"gamepad_options_restored", 0, 2128, p.GamepadOptions},
+			{"inform_notice_restored", 0, 402, p.InformNotice},
 		{"inform_notice_2nd_restored", 0, 426, p.InformNotice2nd},
 		{"skin_cargo_damage_font_restored", 0, 1545, p.SkinCargoDamageFont},
 		{"skin_selection_damage_font_restored", 0, 1546, p.SkinSelectionDamageFontNormal},
