@@ -94,6 +94,28 @@ func TestDetailedEquipmentCreatureRow(t *testing.T) {
 	}
 }
 
+// 幻化槽（穿戴槽 32）装的是 [creature] 物品，物品定义类型与槽 26 同为 26，而
+// 原生 reader sub_1452C1540 是按定义类型分派的，所以它拿到的仍是 creature 行
+// 布局（40 字节头 + 5 字节扩展 + 87 字节尾，无头像 blob）。
+func TestDetailedEquipmentCreatureSkinRow(t *testing.T) {
+	p, e := DetailedEquipment([]DetailedWorn{{Slot: 32, Template: 63008, Durability: 3, Period: 2147483647}})
+	if e != nil {
+		t.Fatal(e)
+	}
+	if len(p) != 146 || p[0] != 1 {
+		t.Fatalf("幻化槽行块大小=%d，期望 146", len(p))
+	}
+	if p[1] != 32 || binary.LittleEndian.Uint32(p[2:]) != 63008 || binary.LittleEndian.Uint16(p[11:]) != 3 {
+		t.Fatalf("幻化槽行头: %x", p)
+	}
+	if !bytes.Equal(p[41:46], make([]byte, 5)) {
+		t.Fatalf("幻化槽扩展必须是五个零字节: %x", p[41:46])
+	}
+	if p[46] != 0 || binary.LittleEndian.Uint32(p[47:]) != 2147483647 || p[51] != 0 {
+		t.Fatalf("幻化槽行尾偏移: %x", p)
+	}
+}
+
 // Creature gear slots 27..29 ride the plain row layout: no avatar blobs, no
 // creature extension.
 func TestDetailedEquipmentCreatureGearRow(t *testing.T) {

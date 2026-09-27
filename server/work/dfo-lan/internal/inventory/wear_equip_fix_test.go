@@ -92,3 +92,62 @@ func TestWearAcceptsBoundAndUncommonGear(t *testing.T) {
 		}
 	}
 }
+
+// 宠物幻化栏（穿戴槽 32）。2026-09-26 实机五次 CMD19 都是
+// `list7 槽8 item=63003/63008 -> list3 槽32`，五次全被
+// "equipment does not fit destination slot" 拒掉：配置里 [creature] 只映射到 26，
+// 而 115 客户端拖进幻化栏的是宠物本体，不是 [creature skin]。玩家看到的
+// 「The target inventory is full ... Can't move the item.」就是这次拒绝。
+//
+// 放行条件之一是扩展券已开启这一栏（USERINFO1 解锁字节 bit5）：客户端 UI 的挂锁
+// 读同一位，所以未开启时仍应拒绝。
+func TestWearAcceptsCreatureIntoUnlockedSkinSlot(t *testing.T) {
+	const sum = "2222222222222222222222222222222222222222222222222222222222222222"
+	cat := EquipmentCatalog{Source: pvf.ArchiveSnapshot{Checksum: sum}, Rows: []EquipmentDefinition{
+		{ID: 63003, Path: "equipment/creature/63003.equ", SHA256: sum, Fields: map[string][]pvf.Token{
+			"[equipment type]": {{Type: 6, Text: "[creature]"}},
+			"[usable job]":     {{Type: 6, Text: "[all]"}},
+		}},
+	}}
+	dir := t.TempDir()
+	path := filepath.Join(dir, "equipment.json")
+	b, e := json.Marshal(cat)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if e = os.WriteFile(path, b, 0o600); e != nil {
+		t.Fatal(e)
+	}
+	eq, e := LoadEquipmentCatalog(path, sum)
+	if e != nil {
+		t.Fatal(e)
+	}
+	svc := &WearService{
+		Catalog:     eq,
+		Professions: catalog.Characters{Source: pvf.ArchiveSnapshot{Checksum: sum}, Professions: map[byte]catalog.Profession{0: {Job: "[all]"}}},
+		BagRules:    BagRules{EquipmentSlots: [2]uint16{9, 44}},
+		Rules:       WearRules{Source: sum, Special: true, Slots: map[string]uint16{"[creature]": 26, "[creature skin]": 32}},
+	}
+	move := func(flags byte) (json.RawMessage, error) {
+		bag := Bag{Version: "ordinary-bag-v1", ExpandEquipFlags: flags,
+			Special: map[byte][]BagEquipment{7: {{Slot: 8, Template: 63003}}}}
+		state, e := SaveBag(json.RawMessage(`{"level":1,"advancement":0}`), bag)
+		if e != nil {
+			t.Fatal(e)
+		}
+		return svc.MoveOrdinary(storage.Character{Profession: 0, ConfigVersion: sum, State: state},
+			protocol.ItemMoveRequest{SourceList: 7, SourceSlot: 8, SourceItem: 63003,
+				DestinationList: 3, DestinationSlot: 32, Count: 1, Selection: 0xffffffff})
+	}
+	if _, e := move(0); e == nil {
+		t.Fatal("creature entered the skin slot while the expansion bit was clear")
+	}
+	raw, e := move(ExpandCreatureSkin)
+	if e != nil {
+		t.Fatalf("creature refused by the unlocked skin slot: %v", e)
+	}
+	worn, e := ReadBag(raw)
+	if e != nil || len(worn.Worn) != 1 || worn.Worn[0].Slot != 32 || worn.Worn[0].Template != 63003 {
+		t.Fatalf("creature not worn in the skin slot: %+v %v", worn, e)
+	}
+}

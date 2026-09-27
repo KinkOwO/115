@@ -12,6 +12,13 @@ import (
 // fatigue potion shares this frame with action 54.
 const AddSkinStorageAction = 169
 
+// CMD507 的动作 id。客户端对同一个 opcode 复用多种动作：54 是疲劳恢复药水，
+// 169 是 [add skin storage]，197 是宠物幻化栏扩展券（模板 10309084）。
+const (
+	ActionRecoverFatigue       uint32 = 54
+	ActionOpenCreatureSkinSlot uint32 = 197
+)
+
 // DecodeStackableAction parses the shared CMD507 "use stackable" frame and
 // returns its slot and action code. The frame is 59 or 64 bytes; the slot is a
 // u16 at offset 0 and the action a u32 at offset 7. All remaining bytes must be

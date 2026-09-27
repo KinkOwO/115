@@ -98,13 +98,18 @@ func (s *Service) entryAddition(role storage.Character, visualOverrides map[uint
 					continue
 				}
 				// Avatar slots (<= 11) ride the avatar row layout; the creature
-				// body slot 26 and creature gear slots 27..29 ride the plain /
-				// creature-extension layouts (protocol.DetailedEquipment pins all
-				// three against native reader sub_1452C1540). Slots 12..25 stay
-				// excluded exactly as before: their window data already arrives
+				// body slot 26, creature gear slots 27..29 and the pet-skin slot 32
+				// ride the plain / creature-extension layouts (protocol.DetailedEquipment
+				// pins all of them against native reader sub_1452C1540). Slots 12..25
+				// stay excluded exactly as before: their window data already arrives
 				// via NOTI 13/14 and their mode-1 projection is a separate,
 				// unverified change.
-				if !(item.Slot <= 11 || (item.Slot >= 26 && item.Slot <= 29)) {
+				//
+				// 实机 2026-09-27：幻化槽（32）原先被这条过滤挡掉，导致重登后
+				// 客户端手上没有槽 32 的物品，F6 幻化框拿不到模板而空白（同一次
+				// 登录里槽 26 的本体宠物因为被包含所以正常）。它是 [creature] 物品，
+				// 行布局与槽 26 同源。
+				if !(item.Slot <= 11 || (item.Slot >= 26 && item.Slot <= 29) || item.Slot == inventory.CreatureSkinSlot) {
 					continue
 				}
 				var dw protocol.DetailedWorn

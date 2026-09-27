@@ -60,3 +60,37 @@ func TestAddSkinStorageCaptured(t *testing.T) {
 // AddSkinStorageVector is the 64-byte plain body the client sent for bag slot 71
 // holding template 10358669.
 var AddSkinStorageVector = "4700" + strings.Repeat("00", 6) + "a9" + strings.Repeat("00", 55)
+
+// 实机 2026-09-26T11:02:34Z 点「Expand Creature Skin slots?」的 OK 后服务端抓到
+// 的明文（CMD507，frame.Raw[13:] 共 64 字节）：slot=81, list=0, action=197(0xC5)，
+// 其余全 0。当时宠物券正好摆在 81 格；券的归属由同会话 client_trace 的
+// "Creature Skin Slot Expansion Ticket(10309084) : SlotIndex(80/81)" 佐证，
+// 所以动作 id 是跟着券走的，不能按槽位记。
+var creatureSkinSlotCapture = "5100" + strings.Repeat("00", 5) + "c5" + strings.Repeat("00", 56)
+
+func TestStackableActionCreatureSkinTicketCaptured(t *testing.T) {
+	p, e := hex.DecodeString(creatureSkinSlotCapture)
+	if e != nil || len(p) != 64 {
+		t.Fatal(len(p), e)
+	}
+	slot, action, e := DecodeStackableAction(p)
+	if e != nil || slot != 81 || action != ActionOpenCreatureSkinSlot {
+		t.Fatalf("decoded %d %d %v", slot, action, e)
+	}
+	// action 54 的读取器必须继续拒绝这一包：否则疲劳药水路径会误吃幻化券。
+	if _, e := DecodeFatigueAction(p); e == nil {
+		t.Fatal("fatigue reader accepted a skin slot ticket")
+	}
+	if _, e := DecodeAddSkinStorageAction(p); e == nil {
+		t.Fatal("skin-storage reader accepted a pet-skin-slot ticket")
+	}
+	// 只有 slot / list / action 三处允许非零，其余字节任一处被改动都必须整包
+	// 拒绝。list 位由各动作自行判定，故不在这里做变异。
+	for _, at := range []int{3, 4, 5, 6, 11, 15, 40, 63} {
+		q := append([]byte{}, p...)
+		q[at] = 255
+		if _, _, e := DecodeStackableAction(q); e == nil {
+			t.Fatalf("mutation %d accepted", at)
+		}
+	}
+}

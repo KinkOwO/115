@@ -110,3 +110,36 @@ func TestUnlockEquipSlotsRejectsWideSavedValue(t *testing.T) {
 		t.Fatal("a saved unlock value wider than the native byte was accepted")
 	}
 }
+
+// 幻化栏扩展券映射到 USERINFO1 解锁字节里独立的一位，且不得与装备槽的
+// 1/2/16 重叠：145f02500 用 bit5 放开宠物幻化栏。
+func TestSkinSlotMaskForTicket(t *testing.T) {
+	creature, ok := SkinSlotMaskForTicket(CreatureSkinTicket)
+	if !ok || creature != 1<<5 {
+		t.Fatalf("creature ticket -> %d %v", creature, ok)
+	}
+	if creature&(ExpandSupport|ExpandMagicStone|ExpandEarring) != 0 {
+		t.Fatal("the skin bit collides with an equipment unlock bit")
+	}
+	if _, ok := SkinSlotMaskForTicket(3037); ok {
+		t.Fatal("an unrelated stackable claims a skin bit")
+	}
+}
+
+// 券只能按模板反查：反查必须命中先出现的那一格，且不能把别的消耗品当成券。
+func TestSkinSlotTicketSlotFindsByTemplate(t *testing.T) {
+	raw := expandState(t, `{"version":"ordinary-bag-v1","items":[`+
+		`{"slot":3,"Template":3037,"Amount":10},`+
+		`{"slot":11,"Template":10309084,"Amount":2}]}`)
+	b, e := ReadBag(raw)
+	if e != nil {
+		t.Fatal(e)
+	}
+	slot, ok := SkinSlotTicketSlot(b, ExpandCreatureSkin)
+	if !ok || slot != 11 {
+		t.Fatalf("creature ticket -> slot %d %v", slot, ok)
+	}
+	if _, ok = SkinSlotTicketSlot(b, ExpandEarring); ok {
+		t.Fatal("an equipment unlock mask must not match a ticket")
+	}
+}
