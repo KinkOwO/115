@@ -41,6 +41,10 @@ func wornAppearance(raw json.RawMessage) ([]protocol.Equipment, error) {
 		return nil, err
 	}
 	bySlot := make(map[byte]uint32)
+	// 宠物幻化槽（穿戴槽 32）的按槽绑定值：生物实例 key。它和 NOTI105 里那条生物
+	// 条目必须同源（都用 inventory.CreatureSkinKey），否则客户端对不上。
+	var skinModel uint32
+	skinSlot := byte(inventory.CreatureSkinSlot)
 	for _, item := range state.Inventory.Worn {
 		if item.Slot >= 48 {
 			return nil, fmt.Errorf("invalid worn appearance slot")
@@ -49,10 +53,16 @@ func wornAppearance(raw json.RawMessage) ([]protocol.Equipment, error) {
 		if item.Group == 0 {
 			if _, exists := bySlot[slot]; !exists {
 				bySlot[slot] = item.Template
+				if slot == skinSlot {
+					skinModel = inventory.CreatureSkinKey(item)
+				}
 			}
 		} else if item.Group == 1 {
 			// Look avatar overrides clone avatar for visual paper doll
 			bySlot[slot] = item.Template
+			if slot == skinSlot {
+				skinModel = inventory.CreatureSkinKey(item)
+			}
 		}
 	}
 	// 武器幻化：这条投影的 Item 由 EquipmentAppearance 写进装备外观块的 Placeholder，
@@ -66,12 +76,34 @@ func wornAppearance(raw json.RawMessage) ([]protocol.Equipment, error) {
 	}
 	var rows []protocol.Equipment
 	for slot, itemID := range bySlot {
-		rows = append(rows, protocol.Equipment{Slot: slot, Item: itemID})
+		row := protocol.Equipment{Slot: slot, Item: itemID}
+		if slot == skinSlot {
+			row.Model = skinModel
+		}
+		rows = append(rows, row)
 	}
 	sort.Slice(rows, func(i, j int) bool { return rows[i].Slot < rows[j].Slot })
 	return rows, nil
 }
 
+// wornCreature 给出 mode-0 生物段要显示的生物：**身份**取穿戴槽 26（宠物本体），
+// **模板**在有宠物幻化栏（穿戴槽 32，inventory.CreatureSkinSlot）时取幻化栏里的那只。
+//
+// 为什么幻化栏必须顶替槽 26 的模板：mode-0 生物段是客户端拿到「显示哪只生物」的
+// **唯一**下行通道 —— u32 item_id + dstr name + u8 present，客户端读取器
+// 0x1456394b0 把它写进 actor+0x504（名字写 +0x508，present 取反写 +0x518 的隐藏位）。
+// 另外两条路都到不了这里：外观块 0x145639840 有 slot ≤ 25 的上限（槽 26/32 都超表，
+// 见 protocol.maxEquippedAppearanceSlot），NOTI105（creature list）行里根本没有
+// 模板字段（只有 key/饱食度/经验/等级/名字）。
+//
+// 实机 2026-09-26 取证：Charp(63003) 放进幻化栏后，存档里 worn slot 32 =
+// {template 63003, key 3}，但服务端这次换装刷新发出的生物段仍是
+// 63008(Botis) + "Botis" + present=1 —— 客户端收到的就是要显示 Botis，F6 预览的
+// 模型因此不变（玩家报「宠物可以放进幻化栏了 但是宠物外观没有变」）。
+//
+// 名字仍取槽 26 的宠物名：幻化只换外观，本体宠物的名字/等级/饱食度都来自 NOTI105
+// 里那条 key=1 的记录，不能跟着换。没有穿戴宠物时槽 32 不单独生效 —— 幻化栏是
+// 外观覆盖，不是第二只宠物。
 func wornCreature(raw json.RawMessage) (uint32, string) {
 	var state struct {
 		Inventory struct {
@@ -84,14 +116,29 @@ func wornCreature(raw json.RawMessage) (uint32, string) {
 	if err := json.Unmarshal(raw, &state); err != nil {
 		return 0, ""
 	}
+	var equipped, skin uint32
+	var name string
 	for _, item := range state.Inventory.Worn {
-		if item.Slot == 26 && item.Template != 0 {
-			name := inventory.CreatureDefaultNames[item.Template]
-			if name == "" {
-				name = "Creature"
+		switch item.Slot {
+		case 26:
+			if item.Template != 0 {
+				equipped = item.Template
+				name = inventory.CreatureDefaultNames[item.Template]
+				if name == "" {
+					name = "Creature"
+				}
 			}
-			return item.Template, name
+		case inventory.CreatureSkinSlot:
+			if item.Template != 0 {
+				skin = item.Template
+			}
 		}
 	}
-	return 0, ""
+	if equipped == 0 {
+		return 0, ""
+	}
+	if skin != 0 {
+		return skin, name
+	}
+	return equipped, name
 }

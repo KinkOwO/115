@@ -42,12 +42,16 @@ type DetailedWorn struct {
 // here. Worn rows above slot 11 carry their instance Record over NOTI 13/14;
 // the mode-1 row has no cells for it, so Record is ignored there.
 const (
-	detailedWornHeaderSize       = 40
-	detailedWornTailSize         = 87
-	detailedWornCreatureExtSize  = 5
-	detailedWornAvatarSlotMax    = 11
-	detailedWornCreatureSlot     = 26
-	detailedWornCreatureSlotMax  = 29 // creature body 26 + creature gear 27..29
+	detailedWornHeaderSize      = 40
+	detailedWornTailSize        = 87
+	detailedWornCreatureExtSize = 5
+	detailedWornAvatarSlotMax   = 11
+	detailedWornCreatureSlot    = 26
+	detailedWornCreatureSlotMax = 29 // creature body 26 + creature gear 27..29
+	// detailedWornCreatureSkinSlot 是宠物幻化栏（list 3 槽 32）。它装的同样是
+	// [creature] 物品，itemdef+2120 与槽 26 一样是 26，所以按定义类型分派的原生
+	// reader sub_1452C1540 给它的也是 creature 行布局（5 字节扩展、无头像 blob）。
+	detailedWornCreatureSkinSlot = 32
 	detailedWornBlockTrailerSize = 13 // u32 scalar + u8 collection count + u64 flags
 )
 
@@ -59,8 +63,8 @@ func DetailedEquipment(rows []DetailedWorn) ([]byte, error) {
 	seen := map[uint16]bool{}
 	for _, v := range rows {
 		avatar := v.Slot <= detailedWornAvatarSlotMax
-		creature := v.Slot == detailedWornCreatureSlot
-		supported := avatar || (v.Slot >= detailedWornCreatureSlot && v.Slot <= detailedWornCreatureSlotMax)
+		creature := v.Slot == detailedWornCreatureSlot || v.Slot == detailedWornCreatureSkinSlot
+		supported := avatar || (v.Slot >= detailedWornCreatureSlot && v.Slot <= detailedWornCreatureSlotMax) || v.Slot == detailedWornCreatureSkinSlot
 		if !supported || v.Template == 0 || seen[v.Slot] {
 			return nil, fmt.Errorf("unsupported detailed equipment instance")
 		}

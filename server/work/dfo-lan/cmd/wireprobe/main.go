@@ -2427,6 +2427,22 @@ func main() {
 					}
 					continue
 				}
+				if actionErr == nil && action == protocol.ActionOpenCreatureSkinSlot {
+					// 宠物幻化栏扩展券（action 197）。同一个 CMD507 上复用三种动作，
+					// 这里只接新增的这一路，54/169 保持各自原有的入口形状。
+					plan, e := worldState.stackableAction(plaintext)
+					if e != nil {
+						event(map[string]any{"kind": "skin_slot_expand_refused", "character_id": worldState.role.ID, "reason": e.Error()})
+						continue
+					}
+					for _, packet := range plan {
+						if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
+							return
+						}
+						event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID})
+					}
+					continue
+				}
 				if fatigueService == nil {
 					event(map[string]any{"kind": "fatigue_potion_refused", "character_id": worldState.role.ID, "reason": "fatigue service unavailable"})
 					continue
