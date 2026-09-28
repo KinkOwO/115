@@ -76,9 +76,10 @@ func reinforcementRefusalCode(err error) uint16 {
 //   - amplify：**请求 mode=1**（增幅），放的是增幅材料矛盾结晶体 3242。
 //     增幅与强化共用 CMD80 与同一个请求结构，唯一差别就是 mode。
 const (
-	reinforcementTicketBranch  = "ticket"
-	reinforcementGoldBranch    = "gold"
-	reinforcementAmplifyBranch = "amplify"
+	reinforcementTicketBranch        = "ticket"
+	reinforcementGoldBranch          = "gold"
+	reinforcementAmplifyBranch       = "amplify"
+	reinforcementAmplifyTicketBranch = "amplify_ticket"
 )
 
 // reinforcementBranch 判断这次 CMD80 走哪条路径。@9 是玩家放进窗口那件东西的槽位：
@@ -123,9 +124,18 @@ func (s *equipmentSession) reinforce(service *inventory.WearService, w *worldSes
 	}
 	// 增幅（mode=1）先判定：它与强化共用同一个请求结构，但材料、规则、等级偏移都不同，
 	// 所以不能靠「窗口里放了什么东西」来区分，必须先看 mode。
+	//
+	// mode=1 内部还要再分一次：窗口「券位」放的是**增幅券**（跳级到券上写死的等级）
+	// 还是**增幅材料**（矛盾结晶体 3242 / 安全增幅材料，每级 +1）。
+	// 早期这里一律走材料增幅，于是券被当成材料校验 —— 不是 3242 就直接报
+	// 「增幅材料槽位放的不是矛盾结晶体」，表现就是「增幅券不能直接附加到装备上」。
 	branch := ""
 	if r.Mode == 1 {
-		branch = reinforcementAmplifyBranch
+		b, berr := amplifyBranch(w.role, r)
+		if berr != nil {
+			return nil, berr
+		}
+		branch = b
 	} else {
 		b, berr := reinforcementBranch(w.role, r)
 		if berr != nil {
@@ -136,6 +146,9 @@ func (s *equipmentSession) reinforce(service *inventory.WearService, w *worldSes
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	key := fmt.Sprintf("reinforcement-%s:%x:%x", branch, s.nonce, sha256.Sum256(raw))
+	if branch == reinforcementAmplifyTicketBranch {
+		return s.amplifyTicket(ctx, service, w, r, key, event)
+	}
 	if branch == reinforcementAmplifyBranch {
 		return s.amplifyUpgrade(ctx, service, w, r, key, event)
 	}
@@ -334,6 +347,84 @@ func (s *equipmentSession) amplifyUpgrade(ctx context.Context, service *inventor
 		"amplify_type": out.AmplifyType, "before": out.LevelBefore, "after": out.LevelAfter,
 		"result": out.Result, "penalty": out.Penalty, "destroyed": out.Destroyed,
 		"safe": out.Safe, "rate": out.SuccessPercent})
+	return plan, nil
+}
+
+// amplifyBranch 在 mode=1（增幅）内部再分一次流：看窗口「券位」里放的是
+// 增幅券还是增幅材料。
+//   - 增幅券（PVF 段 [equipment amplify reinforcement ticket]）→ 跳级到券的目标等级；
+//   - 其余一律按增幅材料处理，由 applyAmplifyUpgrade 给出准确报错
+//     （例如「增幅材料槽位放的不是矛盾结晶体」），这里不提前拦。
+func amplifyBranch(role storage.Character, r protocol.ReinforcementRequest) (string, error) {
+	bag, err := inventory.ReadBag(role.State)
+	if err != nil {
+		return "", err
+	}
+	for _, item := range bag.Items {
+		if item.Slot != r.TicketSlot {
+			continue
+		}
+		if inventory.IsAmplifyTicket(item.Template) {
+			return reinforcementAmplifyTicketBranch, nil
+		}
+		return reinforcementAmplifyBranch, nil
+	}
+	return "", fmt.Errorf("增幅窗口里的物品不在背包里（槽 %d 里没有物品）", r.TicketSlot)
+}
+
+// amplifyTicket 增幅券（CMD80 mode=1，窗口里放的是券）：扣券、把装备增幅到券的
+// 目标等级、刷新券与装备两行。
+//
+// 与 reinforceWithTicket（普通强化券）同套路：先用权威回包让客户端播结果动画，
+// 再以增量行刷新，避免整包重建打断动画引用的装备对象。
+func (s *equipmentSession) amplifyTicket(ctx context.Context, service *inventory.WearService, w *worldSession, r protocol.ReinforcementRequest, key string, event func(map[string]any)) ([]outboundPacket, error) {
+	saved, out, err := service.ApplyAmplifyTicket(ctx, w.role, key, r)
+	if err != nil {
+		return nil, err
+	}
+	w.role = saved
+	ack, err := protocol.AmplifyTicketReply(r, out.Remaining, out.Old, out.Level, out.Result)
+	if err != nil {
+		return nil, err
+	}
+	plan := []outboundPacket{{"amplify_ticket_result", 1, 80, ack}}
+	bag, err := inventory.ReadBag(saved.State)
+	if err != nil {
+		return nil, err
+	}
+	rows := [][protocol.CurrentItemRecordSize]byte{}
+	// 券行：券被扣完时该格已移除，用空行让客户端同步移除。
+	ticketRow, exists := bag.RowAt(r.TicketSlot)
+	if !exists {
+		ticketRow = protocol.EmptyOrdinaryItem(r.TicketSlot)
+	}
+	rows = append(rows, ticketRow)
+	if out.EquipmentSpace == 0 {
+		gearRow, ok := bag.RowAt(r.EquipmentSlot)
+		if !ok {
+			gearRow = protocol.EmptyOrdinaryItem(r.EquipmentSlot)
+		}
+		rows = append(rows, gearRow)
+	}
+	body, err := protocol.InventoryUpdate(rows)
+	if err != nil {
+		return nil, err
+	}
+	plan = append(plan, outboundPacket{"amplify_ticket_inventory", 0, 14, body})
+	if out.EquipmentSpace == 3 {
+		wornBody, werr := inventory.WornSpaceUpdate(saved.State)
+		if werr != nil {
+			return nil, werr
+		}
+		if len(wornBody) > 0 {
+			plan = append(plan, outboundPacket{"amplify_ticket_worn", 0, 14, wornBody})
+		}
+	}
+	event(map[string]any{"kind": "amplify_ticket_committed", "character_id": saved.ID,
+		"mode": r.Mode, "ticket": out.Ticket, "ticket_slot": r.TicketSlot, "remaining": out.Remaining,
+		"equipment": r.EquipmentTemplate, "space": out.EquipmentSpace, "slot": r.EquipmentSlot,
+		"amplify_type": out.AmplifyType, "before": out.Old, "after": out.Level,
+		"result": out.Result, "rate": out.SuccessPercent})
 	return plan, nil
 }
 

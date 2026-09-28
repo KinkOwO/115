@@ -761,6 +761,12 @@ func main() {
 		if err := inventory.LoadAmplifyUpgradeRules(filepath.Join(filepath.Dir(lootPath), "amplify-upgrade.json")); err != nil {
 			log.Fatal(err)
 		}
+		// 增幅券（把装备直接增幅到券上写死的等级）：识别方式是物品脚本含
+		// [equipment amplify reinforcement ticket]。与上面的「增幅升级」是两套东西 ——
+		// 前者是背包里的券道具（跳级），后者是 NPC 处消耗矛盾结晶体（每级 +1）。
+if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "amplify-tickets.json")); err != nil {
+			log.Fatal(err)
+		}
 		// 锻造（CMD430 / Refine）的武器限制、成功率表与材料消耗。
 		// 成功率由服主提供（115 版本），材料消耗 PVF 无表、走配置默认值。
 		if err := inventory.LoadRefineRules(filepath.Join(filepath.Dir(lootPath), "refine.json")); err != nil {
