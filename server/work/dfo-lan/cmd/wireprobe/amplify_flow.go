@@ -65,3 +65,15 @@ func (w *worldSession) applyAmplifyGrimoire(service *inventory.WearService, p, r
 		"prev_reinforce_level": out.PrevReinforceLevel, "amplify_level": out.AmplifyLevel})
 	return plan, nil
 }
+
+// amplifyGrimoireRefusal 是 CMD205（打红字）被拒时发给客户端的错误体。
+//
+// ⚠️ 不要照抄 CMD80/CMD430 的错误码表：205 的客户端 handler 是另一个函数
+// （sub_145282510），它的「错误码 → dstr 文案」映射**还没有实机取证**。
+// 这里只用 4（客户端文案 = dstr 1658「No items are available.」），语义最贴近
+// 205 现有的拒绝原因（不是增幅书 / 书不在背包 / 目标不在装备槽 / 属性类型越界）。
+// 等实机抓到 205 的报错文案再按需细分。
+//
+// 关键点是**必须有回包**：不回包时客户端会一直停在等待态，
+// 表现和「这条命令没实现」一模一样。
+func amplifyGrimoireRefusal() []byte { return protocol.Refusal(4) }
