@@ -2902,6 +2902,20 @@ func main() {
 					if e != nil {
 						return
 					}
+					// Accepting one [collision quest] branch removes its
+					// siblings from the offer list; push the refreshed list so
+					// the unchosen faction quests disappear from the client
+					// immediately instead of at the next level-up/finish/relog.
+					ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+					body, e := worldState.availableQuestPayload(ctx)
+					cancel()
+					if e != nil {
+						return
+					}
+					if e = sendPayload(1, 21, body); e != nil {
+						return
+					}
+					event(map[string]any{"kind": "available_quests_refreshed_after_accept", "character_id": worldState.role.ID, "quest": qid})
 				}
 				continue
 			}
