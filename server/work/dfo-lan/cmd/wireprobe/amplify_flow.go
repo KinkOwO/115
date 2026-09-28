@@ -55,7 +55,7 @@ func (w *worldSession) applyAmplifyGrimoire(service *inventory.WearService, p, r
 		"book": out.BookTemplate, "book_slot": out.BookSlot, "book_remaining": out.BookRemaining,
 		"equipment": out.Equipment.Template, "space": out.EquipmentSpace, "slot": out.EquipmentSlot,
 		"amplify_type": out.AmplifyType, "amplify_type_name": out.AmplifyTypeName, "amplify_value": out.AmplifyValue,
-		"re_amplified": out.ReAmplified, "golden": out.Golden,
+		"re_amplified": out.ReAmplified, "golden": out.Golden, "pure": out.Pure,
 		"prev_reinforce_level": out.PrevReinforceLevel, "amplify_level": out.AmplifyLevel})
 	return plan, nil
 }

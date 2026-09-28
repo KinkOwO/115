@@ -103,7 +103,7 @@ func TestApplyAmplifyGrimoireGoldenWritesLevelTypeAndValue(t *testing.T) {
 	}
 	// 原强化 +12，书摇到 10：等级必须被覆盖成 10，且再封装次数（bit5-7）保持不动。
 	svc, role := amplifyApplyFixture(t, 12, 0, 3, amplifyTestGoldenTmpl)
-	next, out, err := svc.applyAmplifyGrimoire(role, amplifyRequest(amplifyTestGoldenTmpl), 10, true)
+	next, out, err := svc.applyAmplifyGrimoire(role, amplifyRequest(amplifyTestGoldenTmpl), 10, true, false)
 	if err != nil {
 		t.Fatalf("黄金增幅书落库失败: %v", err)
 	}
@@ -139,7 +139,7 @@ func TestApplyAmplifyGrimoireGoldenWritesLevelTypeAndValue(t *testing.T) {
 func TestApplyAmplifyGrimoireGoldenRejectsSameType(t *testing.T) {
 	loadGrimoiresForTest(t)
 	svc, role := amplifyApplyFixture(t, 12, 3, 3, amplifyTestGoldenTmpl) // 已有红字类型 3 = 力量
-	_, _, err := svc.applyAmplifyGrimoire(role, amplifyRequest(amplifyTestGoldenTmpl), 10, true)
+	_, _, err := svc.applyAmplifyGrimoire(role, amplifyRequest(amplifyTestGoldenTmpl), 10, true, false)
 	if err == nil {
 		t.Fatal("黄金书对同类型红字应拒绝")
 	}
@@ -148,7 +148,7 @@ func TestApplyAmplifyGrimoireGoldenRejectsSameType(t *testing.T) {
 	}
 	// 同类型对非黄金书必须放行，并且照常落新等级（槽里换成白银书）。
 	svc, role = amplifyApplyFixture(t, 12, 3, 3, amplifyTestSilverTmpl)
-	next, out, err := svc.applyAmplifyGrimoire(role, amplifyRequest(amplifyTestSilverTmpl), 5, false)
+	next, out, err := svc.applyAmplifyGrimoire(role, amplifyRequest(amplifyTestSilverTmpl), 5, false, false)
 	if err != nil {
 		t.Fatalf("白银书同类型重打应放行: %v", err)
 	}
@@ -166,19 +166,19 @@ func TestApplyAmplifyGrimoireConsumesOnlyTheNamedBook(t *testing.T) {
 	loadGrimoiresForTest(t)
 	svc, role := amplifyApplyFixture(t, 12, 0, 1, amplifyTestGoldenTmpl)
 	// 槽里有书，但模板不是请求里那本。
-	if _, _, err := svc.applyAmplifyGrimoire(role, amplifyRequest(amplifyTestSilverTmpl), 5, false); err == nil ||
+	if _, _, err := svc.applyAmplifyGrimoire(role, amplifyRequest(amplifyTestSilverTmpl), 5, false, false); err == nil ||
 		!strings.Contains(err.Error(), "槽位与模板不符") {
 		t.Fatalf("槽位/模板不符应拒绝，实际 %v", err)
 	}
 	// 槽里根本没书。
 	req := amplifyRequest(amplifyTestGoldenTmpl)
 	req.BookSlot = amplifyTestEmptySlot
-	if _, _, err := svc.applyAmplifyGrimoire(role, req, 10, true); err == nil ||
+	if _, _, err := svc.applyAmplifyGrimoire(role, req, 10, true, false); err == nil ||
 		!strings.Contains(err.Error(), "不在背包") {
 		t.Fatalf("空槽应拒绝，实际 %v", err)
 	}
 	// 正常路径：数量 1 → 整行移除。
-	next, out, err := svc.applyAmplifyGrimoire(role, amplifyRequest(amplifyTestGoldenTmpl), 10, true)
+	next, out, err := svc.applyAmplifyGrimoire(role, amplifyRequest(amplifyTestGoldenTmpl), 10, true, false)
 	if err != nil {
 		t.Fatal(err)
 	}
