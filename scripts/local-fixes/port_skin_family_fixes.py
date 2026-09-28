@@ -1,4 +1,4 @@
-"""把皮肤仓库（伤害字体 / 觉醒插图 / 边框）第八~十一轮的修复重放到源码树上。
+"""把皮肤仓库（伤害字体 / 觉醒插图 / 边框 / 表情 / 涂鸦 / 飞空艇特效 / 星星收藏）第八~十二轮的修复重放到源码树上。
 
 背景：一键启动器的「同步上游」会整棵替换 server 目录，本任务未合进上游的改动因此每次同步
 都会退回上游版（2026-09-28 已发生三次：01:26:50 抹掉 42 个文件、02:37:20 抹掉 10 个、
@@ -37,6 +37,11 @@ import os
 import shutil
 import sys
 
+# 打印冲突行时会把载荷里的注释原样输出，里面混有 U+21D2 这类 GBK 编不出的字符；控制台默认
+# 用本地代码页，一旦命中就整个脚本 traceback 退出、判决结果反而看不到。
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 PAYLOAD = os.path.join(HERE, "skin-family-20260928")
 MODULE = "server/work/dfo-lan"
@@ -44,18 +49,26 @@ LINE_END = chr(10)
 
 # 本任务独占的文件：上游从来没有它们，别人的改动不会落在里面。
 FILES = [
+    "cmd/wireprobe/skin_cargo_restore_test.go",
     "cmd/wireprobe/skin_family_flow.go",
     "cmd/wireprobe/skin_family_flow_test.go",
+    "cmd/wireprobe/skin_flow.go",
+    "cmd/wireprobe/skin_recent_test.go",
     "cmd/wireprobe/skin_selection_flow.go",
     "cmd/wireprobe/skin_storage_flow.go",
     "cmd/wireprobe/skin_storage_flow_test.go",
     "cmd/wireprobe/entry_flow.go",
     "cmd/wireprobe/main.go",
+    "cmd/wireprobe/request_scope.go",
+    "internal/character/weapon_skin.go",
+    "internal/game/protocol/skin.go",
     "internal/game/protocol/skin_cargo.go",
     "internal/game/protocol/skin_cargo_test.go",
     "internal/catalog/skin_storage.go",
     "internal/storage/skin_selection_list.go",
     "internal/storage/skin_selection_list_test.go",
+    "internal/storage/skin_favorite.go",
+    "internal/storage/skin_favorite_test.go",
     "configs/skin-storage-items.json",
     "docs/protocol/skin-cargo-scaffolding-20260926.md",
 ]
@@ -213,9 +226,10 @@ def main():
     else:
         print("已重放 %d 个文件，已搬回 %d 份本机配置" % (changed, configs_moved))
     if blocked:
+        # 这两行以前用 U+21D2，GBK 控制台直接 UnicodeEncodeError 让整个脚本 traceback 退出。
         print("有 %d 个文件被判为冲突，未改动 —— 先看上面列出的行是谁的新改动：" % blocked)
-        print("  是被本任务取代的旧版 ⇒ 加 --force 按载荷覆盖；")
-        print("  是别人的新改动 ⇒ 手工把两边合起来，再跑 --refresh 前滚载荷。")
+        print("  是被本任务取代的旧版 => 加 --force 按载荷覆盖；")
+        print("  是别人的新改动 => 手工把两边合起来，再跑 --refresh 前滚载荷。")
         return 1
     return 0
 
