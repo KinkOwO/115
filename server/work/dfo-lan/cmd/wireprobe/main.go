@@ -749,7 +749,13 @@ func main() {
 		}
 		// 金币强化（材料 + 金币）的费用/成功率表，同样从 loot 目录旁边解析；
 		// 文件缺失时金币路径整体拒绝，券路径不受影响。
-		if err := inventory.LoadGoldRules(filepath.Join(filepath.Dir(lootPath), "reinforcement-gold.json")); err != nil {
+		// 增幅书（CMD205 打红字）的加权表，来自 PVF 的 [amplification random value] 段。
+		if err := inventory.LoadAmplifyGrimoires(filepath.Join(filepath.Dir(lootPath), "amplify-grimoire.json")); err != nil {
+			log.Fatal(err)
+		}
+		// 增幅（CMD80 mode=1）的材料与金币表，来自 PVF 的 etc/amplifyupgrade.etc；
+		// 文件缺失时增幅整体拒绝，强化与打红字不受影响。
+		if err := inventory.LoadAmplifyUpgradeRules(filepath.Join(filepath.Dir(lootPath), "amplify-upgrade.json")); err != nil {
 			log.Fatal(err)
 		}
 		c, e := catalog.LoadLoot(lootPath)
@@ -2567,6 +2573,16 @@ func main() {
 				}
 				continue
 			}
+			// 增幅摧毁装备后客户端会把金币显示清 0（存档是对的）。
+			// 挂在会话上的延后补发在这里出队 —— 放在主循环里串行发送，避免并发写 socket。
+			if worldState != nil {
+				if body := equipmentState.takePendingGold(time.Now()); len(body) > 0 {
+					if err := sendPayload(0, 14, body); err != nil {
+						return
+					}
+					event(map[string]any{"kind": "amplify_gold_resynced", "character_id": worldState.role.ID})
+				}
+			}
 			if worldState != nil && bootstrapped && frame.ID == 80 {
 				if !verified {
 					event(map[string]any{"kind": "reinforcement_rejected", "reason": "强化请求校验失败"})
@@ -2574,9 +2590,18 @@ func main() {
 				}
 				plan, err := equipmentState.reinforce(wearService, worldState, plaintext, frame.Raw, event)
 				if err != nil {
-					event(map[string]any{"kind": "reinforcement_refused", "character_id": worldState.role.ID, "reason": err.Error()})
+					// 客户端在 CMD80 的错误分支只认错误码（u16）去取 dstr 文案，不认原因字符串。
+					// 以前一律发 22，而 22 恰好映射到「材料不足」，于是任何拒绝都被玩家看成材料不够。
+					code := reinforcementRefusalCode(err)
+					event(map[string]any{
+						"kind":         "reinforcement_refused",
+						"character_id": worldState.role.ID,
+						"reason":       err.Error(),
+						"error_code":   code,
+						"request_hex":  hex.EncodeToString(plaintext),
+					})
 					// 14529B2F0 的失败分支只使用分发器读取的错误码，并清除等待态。
-					if err = sendPayload(1, 80, protocol.Refusal(22)); err != nil {
+					if err = sendPayload(1, 80, protocol.Refusal(code)); err != nil {
 						return
 					}
 					continue
