@@ -2694,6 +2694,38 @@ if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "am
 				}
 				continue
 			}
+			if worldState != nil && bootstrapped && frame.ID == 205 {
+				// CMD205 = ENUM_CMDPACKET_INVEST_ITEM_AMPLIFY_OPTION：用增幅书（红字书）
+				// 给装备打次元属性。
+				//
+				// ★ 2026-09-28：这条分派以前**整条缺失**。服务层的 ApplyAmplifyGrimoire 与
+				// 流程层的 applyAmplifyGrimoire 都在、清单也装载了，但没有任何地方调用它们
+				// —— 客户端发 205 得到的是「既不改状态也不回包」，玩家看到的就是
+				// 「增幅书打了没效果」（白银书与黄金书都受影响）。
+				if !verified {
+					event(map[string]any{"kind": "amplify_grimoire_rejected", "reason": "打红字请求校验失败"})
+					continue
+				}
+				plan, err := worldState.applyAmplifyGrimoire(wearService, plaintext, frame.Raw, event)
+				if err != nil {
+					event(map[string]any{
+						"kind":         "amplify_grimoire_refused",
+						"character_id": worldState.role.ID,
+						"reason":       err.Error(),
+						"request_hex":  hex.EncodeToString(plaintext),
+					})
+					if err = sendPayload(1, 205, amplifyGrimoireRefusal()); err != nil {
+						return
+					}
+					continue
+				}
+				for _, packet := range plan {
+					if err = sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
+						return
+					}
+				}
+				continue
+			}
 			if worldState != nil && bootstrapped && frame.ID == 430 {
 				// CMD430 = 锻造（Refine，NPC Kiri）：仅武器、上限 +8、失败等级不变不碎。
 				if !verified {
