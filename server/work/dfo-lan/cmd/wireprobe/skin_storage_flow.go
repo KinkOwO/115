@@ -14,10 +14,10 @@ import (
 // player uses an `[action type] [add skin storage]` stackable such as a damage
 // font. The item is spent with the same idempotent consume transaction the
 // fatigue potion uses on this frame and the committed bag goes back as NOTI 14;
-// when the registered skin is a damage font the account's whole damage-font page
-// also goes back as NOTI1545 page 2 (see protocol.SkinCargoDamageFontPage). Other
-// families stay durable-only: their owned page number has no measured panel
-// consumer yet, so no frame is invented.
+// the registered skin's family page then also goes back as NOTI1545, whole, for
+// every family in skinFamilyTable plus the damage font. A family with no measured
+// panel consumer (the 武器外观 tab, which the replication path owns) stays
+// durable-only, so no frame is invented for it.
 func (w *worldSession) useAddSkinStorage(p []byte, event func(map[string]any)) ([]outboundPacket, error) {
 	if w == nil || w.role.ID == 0 || w.loot == nil || w.characters == nil {
 		return nil, fmt.Errorf("skin registration before character selection")
@@ -98,10 +98,11 @@ func (w *worldSession) useAddSkinStorage(p []byte, event func(map[string]any)) (
 			out = append(out, outboundPacket{"skin_cargo_damage_font", 0, 1545, cargo})
 		}
 	}
-	// 边框 and 觉醒插图 registration works the same way on their own pages: the spend
-	// is answered with that family's whole page, so the panel's grid sees the new row
-	// without the client having to ask. Families with no measured page consumer (emote,
-	// spray, weapon skin, airship effect) keep the durable-only behaviour.
+	// Every family in skinFamilyTable (边框, 觉醒插图, 表情, 涂鸦, 飞空艇特效) works the
+	// same way on its own page: the spend is answered with that family's whole page, so
+	// the panel's grid sees the new row without the client having to ask. The 武器外观
+	// tab is not in that table — its page belongs to the replication path — so its
+	// unlock stays durable-only.
 	if frame, ok := skinFamilyForEntry(entry.Family()); ok {
 		cargo, push, e := skinFamilyCargo(ctx, w.characters.Store, saved.AccountID, saved.ID, w.skinCatalog, frame)
 		if e != nil {
@@ -109,6 +110,20 @@ func (w *worldSession) useAddSkinStorage(p []byte, event func(map[string]any)) (
 				"character_id": saved.ID, "category": frame.category, "reason": e.Error()})
 		} else if push {
 			out = append(out, outboundPacket{"skin_cargo_family", 0, 1545, cargo})
+		}
+	}
+	// The 最近获得 strip (NOTI1547) is a whole-list frame like the pages above, and the
+	// row it just registered is its newest tail element. Only once the row actually
+	// stored: a spend whose registration failed has nothing to show, and re-pressing the
+	// hotkey lands both frames.
+	if unlockErr == nil {
+		recent, e := skinRecentRestore(ctx, w.characters.Store, saved.AccountID, saved.State,
+			w.skinCatalog, w.characters.WeaponSkinUsableFor(saved))
+		if e != nil {
+			event(map[string]any{"kind": "skin_recent_list_error",
+				"character_id": saved.ID, "reason": e.Error()})
+		} else if recent != nil {
+			out = append(out, outboundPacket{"skin_recent_add", 0, 1547, recent})
 		}
 	}
 	return out, nil

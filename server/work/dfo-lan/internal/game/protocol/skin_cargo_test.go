@@ -3,6 +3,7 @@ package protocol
 import (
 	"bytes"
 	"encoding/binary"
+	"reflect"
 	"testing"
 )
 
@@ -118,6 +119,31 @@ func TestDecodeSelectSkinLiveVectors(t *testing.T) {
 	trailing[0], trailing[16] = 2, 9
 	if _, e := DecodeSelectSkin(trailing); e == nil {
 		t.Fatal("second id slot accepted")
+	}
+}
+
+// TestDecodeSelectSkinWeaponTabFrames replays the 武器外观 tab's captured bodies: the
+// 2026-09-27 session recorded five category-4 frames naming the replicated skin 27694,
+// three of them with a zero result and two with result 2 within a second of each other.
+// That split is structural, not accidental — the tab's generic composer zeroes the
+// result cell for every category (df39_sender_F1090.c: memset(&v24[1], 0, 84) and no
+// later write to v24[1]), while the star toggle's composer writes (flag != 0) + 2, i.e.
+// 2 or 3 (df39_sender_F0FE0.c). One body, two commands, so answering this category has
+// to branch on Result: 0 is 应用, 2/3 is 收藏.
+func TestDecodeSelectSkinWeaponTabFrames(t *testing.T) {
+	for _, result := range []uint32{0, 2, 3} {
+		p := make([]byte, SelectSkinBodySize)
+		binary.LittleEndian.PutUint32(p, SkinCargoWeaponShape)
+		binary.LittleEndian.PutUint32(p[4:], result)
+		binary.LittleEndian.PutUint32(p[8:], 27694)
+		got, e := DecodeSelectSkin(p)
+		if e != nil {
+			t.Fatal(e)
+		}
+		if got.Category != SkinCargoWeaponShape || got.Result != result ||
+			got.SkinID != 27694 || len(got.SkinIDs) != 1 {
+			t.Fatalf("request = %+v", got)
+		}
 	}
 }
 
@@ -343,6 +369,158 @@ func TestIsSkinSelectionFamilyBuiltin(t *testing.T) {
 	} {
 		if got := IsSkinSelectionFamilyBuiltin(tc.category, tc.id); got != tc.want {
 			t.Fatalf("IsSkinSelectionFamilyBuiltin(%d, %d) = %v, want %v", tc.category, tc.id, got, tc.want)
+		}
+	}
+}
+
+// TestSkinSelectionInstantEmoticonIsPositional pins the 表情 frame's fixed width:
+// sub_1444EECA0 case 3 reads four u32 with no count word anywhere, so a frame of three or
+// five words would make the reader run off the payload or into the next field. The zeros
+// are part of the state — they keep a cell's position — so they are written, not trimmed.
+func TestSkinSelectionInstantEmoticonIsPositional(t *testing.T) {
+	p, e := SkinSelectionInstantEmoticon([]uint32{40001, 0, 0, 40002})
+	if e != nil {
+		t.Fatal(e)
+	}
+	want := []byte{3}
+	want = add32(want, 40001)
+	want = add32(want, 0)
+	want = add32(want, 0)
+	want = add32(want, 40002)
+	if !bytes.Equal(p, want) {
+		t.Fatalf("emoticon selection = %x, want %x", p, want)
+	}
+	if len(p) != 1+4*SkinSelectionInstantEmoticonSlots {
+		t.Fatalf("emoticon selection is %d bytes", len(p))
+	}
+	// A short list is refused rather than padded: the caller owns the cell layout.
+	if _, e = SkinSelectionInstantEmoticon([]uint32{40001, 40002}); e == nil {
+		t.Fatal("two-slot emoticon frame accepted")
+	}
+}
+
+// TestSkinSelectionSingleCoversOnlyTheTwoSingletonFamilies pins the 涂鸦 / 飞空艇特效
+// frame (u8 category, u32 id) and refuses every other category, because their readers
+// consume a different body: 7 and 8 append one id as a one-element vector, while 2 and 6
+// go through SkinSelectionDamageFont and 4 through the replication path.
+func TestSkinSelectionSingleCoversOnlyTheTwoSingletonFamilies(t *testing.T) {
+	for _, tc := range []struct {
+		category, id uint32
+		want         []byte
+	}{
+		{SkinCategorySpray, 90001, []byte{7, 0x91, 0x5f, 0x01, 0x00}},
+		{SkinCategoryAirshipEffect, 90002, []byte{8, 0x92, 0x5f, 0x01, 0x00}},
+	} {
+		got, e := SkinSelectionSingle(tc.category, tc.id)
+		if e != nil {
+			t.Fatal(e)
+		}
+		if !bytes.Equal(got, tc.want) {
+			t.Fatalf("category %d selection = %x, want %x", tc.category, got, tc.want)
+		}
+	}
+	for _, category := range []uint32{SkinCategoryPartyFrame, SkinCategoryInstantEmoticon,
+		SkinSelectionDamageFontNormal, SkinCargoWeaponShape} {
+		if _, e := SkinSelectionSingle(category, 1); e == nil {
+			t.Fatalf("category %d encoded as a single-value family", category)
+		}
+	}
+}
+
+// TestSkinFavoritesMatchesReader pins NOTI2641's body against sub_1444ED1B0: ten groups
+// read as {u32 count, u32 ids[count]} with the group index taken from the loop counter —
+// there is no page field on the wire, so group i is page i — followed by four trailing
+// groups of the same shape. The reader frees the whole list before it parses, so a frame
+// that omits a group is a group the player no longer has starred.
+func TestSkinFavoritesMatchesReader(t *testing.T) {
+	pages := make([][]uint32, SkinFavoritePages)
+	pages[0] = []uint32{20001, 20002}
+	pages[3] = []uint32{40001}
+	p, e := SkinFavorites(pages)
+	if e != nil {
+		t.Fatal(e)
+	}
+	want := []byte{}
+	for i := 0; i < SkinFavoritePages; i++ {
+		want = add32(want, uint32(len(pages[i])))
+		for _, id := range pages[i] {
+			want = add32(want, id)
+		}
+	}
+	for i := 0; i < SkinFavoriteCrossGroups; i++ {
+		want = add32(want, 0)
+	}
+	if !bytes.Equal(p, want) {
+		t.Fatalf("favourites = %x, want %x", p, want)
+	}
+	if len(p) != 4*(SkinFavoritePages+SkinFavoriteCrossGroups)+4*3 {
+		t.Fatalf("favourites frame is %d bytes", len(p))
+	}
+	// A page count that does not match the reader's loop is refused: the groups are
+	// positional, so a short slice would shift every later page onto a different key.
+	if _, e = SkinFavorites(pages[:9]); e == nil {
+		t.Fatal("nine-group favourite frame accepted")
+	}
+}
+
+// TestDecodeSelectSkinEmoticonKeepsCellPositions replays the 表情 quick bar's flush body:
+// four words, one per cell, with a hole in the middle. SkinIDs trims zeros because the set
+// categories want a list, so the positional reader has to keep the untrimmed words.
+func TestDecodeSelectSkinEmoticonKeepsCellPositions(t *testing.T) {
+	body := make([]byte, SelectSkinBodySize)
+	binary.LittleEndian.PutUint32(body, SkinCategoryInstantEmoticon)
+	binary.LittleEndian.PutUint32(body[8:], 40001)
+	binary.LittleEndian.PutUint32(body[8+4*2:], 40002)
+	got, e := DecodeSelectSkin(body)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if want := []uint32{40001, 0, 40002, 0}; !reflect.DeepEqual(got.EmoticonSlots, want) {
+		t.Fatalf("slots = %v, want %v", got.EmoticonSlots, want)
+	}
+	if len(got.SkinIDs) != 2 {
+		t.Fatalf("merged ids = %v", got.SkinIDs)
+	}
+	// Only the 表情 body fills the slot list; the other categories leave it nil so a
+	// caller cannot mistake an absent selection for an empty bar.
+	body = make([]byte, SelectSkinBodySize)
+	binary.LittleEndian.PutUint32(body, SkinCategorySpray)
+	binary.LittleEndian.PutUint32(body[8:], 90001)
+	got, e = DecodeSelectSkin(body)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if got.EmoticonSlots != nil {
+		t.Fatalf("spray body filled the emoticon slots: %v", got.EmoticonSlots)
+	}
+}
+
+// TestDecodeSelectSkinFavoriteFlagSplitsStarFromApply pins the one thing that keeps a star
+// click from being answered as an 应用: the result word. The star composer writes
+// (currently_starred != 0) + 2, so 2 and 3 are toggles and only 0 is an apply — the same
+// split the 武器外观 capture showed on 2026-09-27, where one body shape carried both
+// commands.
+func TestDecodeSelectSkinFavoriteFlagSplitsStarFromApply(t *testing.T) {
+	for _, tc := range []struct {
+		result   uint32
+		favorite bool
+	}{
+		{SkinSelectResultApply, false},
+		{1, false},
+		{SkinSelectResultFavoriteAdd, true},
+		{SkinSelectResultFavoriteRemove, true},
+		{SkinSelectResultAcquiredErase, false},
+	} {
+		body := make([]byte, SelectSkinBodySize)
+		binary.LittleEndian.PutUint32(body, SkinCategoryPartyFrame)
+		binary.LittleEndian.PutUint32(body[4:], tc.result)
+		binary.LittleEndian.PutUint32(body[8:], 20001)
+		got, e := DecodeSelectSkin(body)
+		if e != nil {
+			t.Fatal(e)
+		}
+		if got.Favorite != tc.favorite {
+			t.Fatalf("result %d decoded as favorite=%v, want %v", tc.result, got.Favorite, tc.favorite)
 		}
 	}
 }

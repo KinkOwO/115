@@ -30,6 +30,9 @@ type skinFamilyFrame struct {
 var skinFamilyTable = []skinFamilyFrame{
 	{family: catalog.SkinFamilyPartyFrame, page: protocol.SkinCargoPartyFramePage, category: protocol.SkinCategoryPartyFrame},
 	{family: catalog.SkinFamilySkillCutscene, page: protocol.SkinCargoSkillCutscenePage, category: protocol.SkinCategorySkillCutscene},
+	{family: catalog.SkinFamilyInstantEmoticon, page: protocol.SkinCargoInstantEmoticonPage, category: protocol.SkinCategoryInstantEmoticon},
+	{family: catalog.SkinFamilySpray, page: protocol.SkinCargoSprayPage, category: protocol.SkinCategorySpray},
+	{family: catalog.SkinFamilyAirshipEffect, page: protocol.SkinCargoAirshipEffectPage, category: protocol.SkinCategoryAirshipEffect},
 }
 
 func skinFamilyForCategory(category uint32) (skinFamilyFrame, bool) {
@@ -51,6 +54,20 @@ func skinFamilyForEntry(family catalog.SkinFamily) (skinFamilyFrame, bool) {
 		}
 	}
 	return skinFamilyFrame{}, false
+}
+
+// skinFamilyPage is the owned page a family's skins are pushed onto. The client keys
+// three structures with that one number — owned page, selection category, and the
+// family class it compares a 最近获得 row against — so the page byte doubles as the
+// NOTI1547 kind (analysis/dumps/CLIENT-MECHANICS.md 14.1 and 20.2). The damage font is
+// not in skinFamilyTable (its two tabs share page 2 under categories 2 and 6), so it is
+// answered here rather than by the table.
+func skinFamilyPage(family catalog.SkinFamily) (byte, bool) {
+	if family == catalog.SkinFamilyDamageFont {
+		return protocol.SkinCargoDamageFontPage, true
+	}
+	frame, ok := skinFamilyForEntry(family)
+	return frame.page, ok
 }
 
 // skinFamilyBuiltins are the rows the client ships with and its own grid singles out
@@ -176,6 +193,39 @@ func skinFamilySelectionPayload(category uint32, ids, second []uint32,
 		singles = append(singles, id)
 	}
 	return protocol.SkinSelectionPartyFrame(singles, raid)
+}
+
+// skinFamilyFramePayload dispatches one family's accepted selection to its own frame
+// shape, because the five categories do not share one body layout:
+//
+//   - 0 边框 and 1 觉醒插图 are sets — every id in one vector, order irrelevant;
+//   - 3 表情 is positional — the reader consumes exactly four words with no count and its
+//     only consumer forwards that vector to the chat channel, so the slot index is part
+//     of the state and a zero word has to be sent for an empty cell;
+//   - 7 涂鸦 and 8 飞空艇特效 hold one id, and their reader appends it as a one-element
+//     vector after the ownership check.
+//
+// A nil return for 3 / 7 / 8 means "no selection to state", which the callers treat as
+// "send nothing": the 表情 frame with four zero words would be an explicit empty bar, and
+// the 7 / 8 branch that receives an unowned id stores nothing at all, so an absent frame
+// and a cleared frame are the same client state.
+func skinFamilyFramePayload(category uint32, ids, second, slots []uint32,
+	byID map[uint32]catalog.SkinStorageEntry) ([]byte, error) {
+	switch category {
+	case protocol.SkinCategoryInstantEmoticon:
+		for _, id := range slots {
+			if id != 0 {
+				return protocol.SkinSelectionInstantEmoticon(slots)
+			}
+		}
+		return nil, nil
+	case protocol.SkinCategorySpray, protocol.SkinCategoryAirshipEffect:
+		if len(ids) == 0 {
+			return nil, nil
+		}
+		return protocol.SkinSelectionSingle(category, ids[0])
+	}
+	return skinFamilySelectionPayload(category, ids, second, byID)
 }
 
 // skinCutscenePickedLists reads one 觉醒插图 应用 / 解除 request as the two lists the
@@ -333,23 +383,41 @@ func skinFamilySelectionFrame(ctx context.Context, store *storage.Store, charact
 		return nil, e
 	}
 	owned := skinFamilyOwnedSet(skins, entries, frame)
-	var accepted, second []uint32
+	var accepted, second, slots []uint32
 	rejected := make([]uint32, 0, len(request.SkinIDs))
 	var missing []uint32
-	if request.Category == protocol.SkinCategorySkillCutscene {
+	switch request.Category {
+	case protocol.SkinCategorySkillCutscene:
 		awakening, secondAwakening := skinCutscenePickedLists(request, skinByID(entries))
 		accepted, missing = skinKeepOwned(awakening, owned)
 		rejected = append(rejected, missing...)
 		second, missing = skinKeepOwned(secondAwakening, owned)
 		rejected = append(rejected, missing...)
-	} else {
+	case protocol.SkinCategoryInstantEmoticon:
+		// Position is kept: an unowned cell becomes a zero word rather than being dropped,
+		// because dropping it would move every later cell into a different quick-bar slot.
+		slots = make([]uint32, protocol.SkinSelectionInstantEmoticonSlots)
+		for i, id := range request.EmoticonSlots {
+			if i >= len(slots) {
+				break
+			}
+			if id == 0 {
+				continue
+			}
+			if !owned[id] {
+				rejected = append(rejected, id)
+				continue
+			}
+			slots[i] = id
+		}
+	default:
 		accepted, missing = skinKeepOwned(request.SkinIDs, owned)
 		rejected = append(rejected, missing...)
 	}
 	if len(rejected) > 0 {
 		record["rejected"] = rejected
 	}
-	selection, e := skinFamilySelectionPayload(request.Category, accepted, second, skinByID(entries))
+	selection, e := skinFamilyFramePayload(request.Category, accepted, second, slots, skinByID(entries))
 	if e != nil {
 		record["kind"] = "skin_selection_frame_error"
 		record["reason"] = e.Error()
@@ -358,7 +426,19 @@ func skinFamilySelectionFrame(ctx context.Context, store *storage.Store, charact
 	}
 	// Both pools share the category's storage rows; the frame splits them again on read.
 	stored := append(append([]uint32{}, accepted...), second...)
-	if e = store.SetSkinSelectionList(ctx, character, request.Category, stored); e != nil {
+	if request.Category == protocol.SkinCategoryInstantEmoticon {
+		// The 表情 bar keeps its cell index, so it has its own positional table.
+		e = store.SetSkinSelectionSlots(ctx, character, request.Category, slots)
+		stored = stored[:0]
+		for _, id := range slots {
+			if id != 0 {
+				stored = append(stored, id)
+			}
+		}
+	} else {
+		e = store.SetSkinSelectionList(ctx, character, request.Category, stored)
+	}
+	if e != nil {
 		record["kind"] = "skin_selection_store_failed"
 		record["reason"] = e.Error()
 		event(record)
@@ -368,8 +448,13 @@ func skinFamilySelectionFrame(ctx context.Context, store *storage.Store, charact
 		record["kind"] = "skin_selection_cleared"
 	} else {
 		record["kind"] = "skin_selection_applied"
-		record["selected"] = accepted
-		record["second_awakening"] = second
+		if slots != nil {
+			// The 表情 bar's state is its four cells, not a flat id list.
+			record["selected"] = slots
+		} else {
+			record["selected"] = accepted
+			record["second_awakening"] = second
+		}
 	}
 	event(record)
 	return []outboundPacket{
@@ -384,15 +469,34 @@ func skinFamilySelectionFrame(ctx context.Context, store *storage.Store, charact
 // from the vector anyway and the server invents nothing to cover that up.
 func restoreSkinFamilySelection(ctx context.Context, store *storage.Store, character, account int64,
 	entries map[uint32]catalog.SkinStorageEntry, frame skinFamilyFrame) ([]byte, error) {
+	byID := skinByID(entries)
+	if frame.category == protocol.SkinCategoryInstantEmoticon {
+		// Read back by cell, because the frame is positional; the width is the number of
+		// words the client's reader consumes.
+		slots, e := store.SkinSelectionSlots(ctx, character, frame.category,
+			protocol.SkinSelectionInstantEmoticonSlots)
+		if e != nil {
+			return nil, e
+		}
+		owned, e := skinFamilyOwnedFilter(ctx, store, account, entries, frame)
+		if e != nil {
+			return nil, e
+		}
+		for i, id := range slots {
+			if id != 0 && !owned[id] {
+				slots[i] = 0
+			}
+		}
+		return skinFamilyFramePayload(frame.category, nil, nil, slots, byID)
+	}
 	keys, e := store.SkinSelectionList(ctx, character, frame.category)
 	if e != nil || len(keys) == 0 {
 		return nil, e
 	}
-	skins, e := store.ListSkins(ctx, account)
+	owned, e := skinFamilyOwnedFilter(ctx, store, account, entries, frame)
 	if e != nil {
 		return nil, e
 	}
-	owned := skinFamilyOwnedSet(skins, entries, frame)
 	ids := make([]uint32, 0, len(keys))
 	for _, key := range keys {
 		if owned[key] {
@@ -401,18 +505,32 @@ func restoreSkinFamilySelection(ctx context.Context, store *storage.Store, chara
 	}
 	var second []uint32
 	if frame.category == protocol.SkinCategorySkillCutscene {
-		ids, second = skinCutsceneStoredLists(ids, skinByID(entries))
+		ids, second = skinCutsceneStoredLists(ids, byID)
 	}
 	if len(ids) == 0 && len(second) == 0 {
 		return nil, nil
 	}
-	return skinFamilySelectionPayload(frame.category, ids, second, skinByID(entries))
+	return skinFamilyFramePayload(frame.category, ids, second, nil, byID)
 }
 
-// restoreSkinFamilies fills the entry plan's page and selection payloads for both list
-// families. Like the damage-font block beside it, a read failure only drops these
-// frames: town entry must not depend on the skin storage the way the profile
-// decoration state does.
+// skinFamilyOwnedFilter is the owned set as a map, fetched once per restore.
+func skinFamilyOwnedFilter(ctx context.Context, store *storage.Store, account int64,
+	entries map[uint32]catalog.SkinStorageEntry, frame skinFamilyFrame) (map[uint32]bool, error) {
+	skins, e := store.ListSkins(ctx, account)
+	if e != nil {
+		return nil, e
+	}
+	return skinFamilyOwnedSet(skins, entries, frame), nil
+}
+
+// restoreSkinFamilies fills the entry plan's page and selection payloads for every family
+// in the table. Like the damage-font block beside it, a read failure only drops these
+// frames: town entry must not depend on the skin storage the way the profile decoration
+// state does.
+//
+// The two original families keep their named fields, because their page ordering relative
+// to the profile-decoration push is pinned by a test. The three newer ones append to
+// SkinFamilyRestores instead, which adds no field-per-family to the shared entry plan.
 func (p *entryPayloads) restoreSkinFamilies(ctx context.Context, store *storage.Store,
 	account, character int64, entries map[uint32]catalog.SkinStorageEntry, event func(map[string]any)) {
 	for _, frame := range skinFamilyTable {
@@ -434,9 +552,130 @@ func (p *entryPayloads) restoreSkinFamilies(ctx context.Context, store *storage.
 		switch frame.category {
 		case protocol.SkinCategoryPartyFrame:
 			p.SkinCargoPartyFrame, p.SkinSelectionPartyFrame = cargo, selection
-		default:
+			continue
+		case protocol.SkinCategorySkillCutscene:
 			p.SkinCargoSkillCutscene, p.SkinSelectionSkillCutscene = cargo, selection
+			continue
 		}
+		if push {
+			p.SkinFamilyRestores = append(p.SkinFamilyRestores,
+				outboundPacket{"skin_cargo_family_restored", 0, 1545, cargo})
+		}
+		if selection != nil {
+			p.SkinFamilyRestores = append(p.SkinFamilyRestores,
+				outboundPacket{"skin_selection_family_restored", 0, 1546, selection})
+		}
+	}
+	if favorites, e := restoreSkinFavorites(ctx, store, character); e != nil {
+		event(map[string]any{"kind": "skin_favorite_restore_error",
+			"character_id": character, "reason": e.Error()})
+	} else if favorites != nil {
+		p.SkinFamilyRestores = append(p.SkinFamilyRestores,
+			outboundPacket{"skin_favorites_restored", 0, 2641, favorites})
+	}
+}
+
+// restoreSkinFavorites encodes the character's stored stars as the absolute NOTI2641
+// frame. It returns nil when nothing is starred, which is the state the client already
+// has on a fresh login — its favourite list starts empty, and only this frame can fill it.
+func restoreSkinFavorites(ctx context.Context, store *storage.Store, character int64) ([]byte, error) {
+	pages, e := store.SkinFavorites(ctx, character, protocol.SkinFavoritePages)
+	if e != nil || pages == nil {
+		return nil, e
+	}
+	empty := true
+	for _, ids := range pages {
+		if len(ids) > 0 {
+			empty = false
+			break
+		}
+	}
+	if empty {
+		return nil, nil
+	}
+	return protocol.SkinFavorites(pages)
+}
+
+// skinFavoriteFrames answers one 星星 toggle.
+//
+// The toggle cannot be answered by the command echo alone: the CMD1565 reply core runs its
+// whole category switch only for result 0, so a star click leaves the client's favourite
+// list untouched, and that list's only writer is NOTI2641 (sub_1444E8DF0 has one caller,
+// sub_1444ED1B0 — analysis/ida-work/df42.log section 5). The frame is absolute, so the
+// answer is stored state re-encoded whole, including the all-empty case: after the last
+// star on a page is removed, only a frame that says so can take the row away. The two
+// frames are ordered by skinFavoriteAnswer, which is why the list goes out before the echo.
+//
+// The group a star belongs to is the skin's registry page, which for every family here is
+// also its selection category — the one proven exception being the damage font, whose two
+// tabs (2 and 6) both enumerate owned page 2.
+func skinFavoriteFrames(ctx context.Context, store *storage.Store, character int64,
+	request protocol.SelectSkinRequest, body []byte, record map[string]any,
+	event func(map[string]any)) ([]outboundPacket, error) {
+	page := request.Category
+	if page == protocol.SkinSelectionDamageFontCumulative {
+		page = protocol.SkinCargoDamageFontPage
+	}
+	echo, e := protocol.SelectSkinEchoRaw(body)
+	if e != nil {
+		return nil, e
+	}
+	if page >= protocol.SkinFavoritePages || request.SkinID == 0 {
+		record["kind"] = "skin_favorite_refused"
+		record["reason"] = "no favourite group for this category or no skin named"
+		event(record)
+		return []outboundPacket{{"skin_selection_echo_only", 1, 1565, echo}}, nil
+	}
+	starred := request.Result == protocol.SkinSelectResultFavoriteAdd
+	ok, e := store.SetSkinFavorite(ctx, character, page, request.SkinID, starred,
+		protocol.SkinFavoriteCapPerGroup)
+	if e != nil {
+		record["kind"] = "skin_favorite_store_failed"
+		record["reason"] = e.Error()
+		event(record)
+		return nil, e
+	}
+	// The client refuses an eleventh star with message 101037008 of its own; the server
+	// drops the add the same way rather than pushing a list the panel would not show.
+	record["kind"] = "skin_favorite_refused"
+	if ok {
+		if starred {
+			record["kind"] = "skin_favorite_added"
+		} else {
+			record["kind"] = "skin_favorite_removed"
+		}
+	}
+	event(record)
+	favorites, e := restoreSkinFavorites(ctx, store, character)
+	if e != nil {
+		return nil, e
+	}
+	// The stored state is empty only when the last star was just removed, and that is
+	// exactly the case where the client still holds the old node and needs the frame.
+	if favorites == nil {
+		favorites, e = protocol.SkinFavorites(make([][]uint32, protocol.SkinFavoritePages))
+		if e != nil {
+			return nil, e
+		}
+	}
+	return skinFavoriteAnswer(echo, favorites), nil
+}
+
+// skinFavoriteAnswer orders the two frames a star click is answered with: the absolute 收藏
+// list first, the command echo last.
+//
+// The echo is what repaints the window: for a non-zero result `sub_1444EE820` skips its
+// whole category switch and only tail-calls `sub_1444F1EE0(mgr, category)`, which rebuilds
+// the page from the manager's tables (analysis/dumps/skin-noti/rd_cmd1565_select_skin_else_1444ee820.c,
+// df13_cargo_render_tail_1444f1ee0.c). So an echo that arrives *before* NOTI2641 repaints
+// from the 收藏 table as it stood before the click, and the star and the 概要 rows then sit
+// stale until something else refreshes the page (live 2026-09-28: 收藏已入库，但星星不点亮、
+// 概要也不随分类应用变化). Same rule the normal-damage reset path already states: the echo
+// goes second so its refresh sees what the other frame just wrote.
+func skinFavoriteAnswer(echo, favorites []byte) []outboundPacket {
+	return []outboundPacket{
+		{"skin_favorites_restored", 0, 2641, favorites},
+		{"skin_selection_echo_only", 1, 1565, echo},
 	}
 }
 
