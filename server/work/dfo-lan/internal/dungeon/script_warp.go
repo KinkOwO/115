@@ -13,6 +13,22 @@ import (
 //go:embed script_warp_routes.json
 var scriptWarpData []byte
 
+// Source-backed forced moves outside Odyssey. These routes still require an
+// exact dungeon/map source identity and the native transition record.
+//go:embed forced_script_warp_routes.json
+var forcedScriptWarpData []byte
+
+func scriptWarpRoutes() ([]scriptWarpRoute, error) {
+	var routes, forced []scriptWarpRoute
+	if err := json.Unmarshal(scriptWarpData, &routes); err != nil {
+		return nil, err
+	}
+	if err := json.Unmarshal(forcedScriptWarpData, &forced); err != nil {
+		return nil, err
+	}
+	return append(routes, forced...), nil
+}
+
 type scriptWarpRoute struct {
 	Source          string   `json:"source"`
 	Dungeon         uint32   `json:"dungeon"`
@@ -28,11 +44,11 @@ type scriptWarpRoute struct {
 }
 
 func (s *Session) MoveScript(c catalog.DungeonCatalog, r protocol.DungeonRoomTransition) (*Session, error) {
-	if s == nil || !s.Loaded || !s.Definition.Odyssey || s.Completed() || s.completionTarget != 0 || r.LayerChange || r.Dungeon != s.Definition.ID {
-		return nil, fmt.Errorf("script warp requires owned loaded Odyssey room")
+	if s == nil || !s.Loaded || s.Completed() || s.completionTarget != 0 || r.LayerChange || r.Dungeon != s.Definition.ID {
+		return nil, fmt.Errorf("script warp requires owned loaded room")
 	}
-	var routes []scriptWarpRoute
-	if err := json.Unmarshal(scriptWarpData, &routes); err != nil {
+	routes, err := scriptWarpRoutes()
+	if err != nil {
 		return nil, err
 	}
 	for _, route := range routes {
@@ -75,8 +91,8 @@ func (s *Session) MoveScript(c catalog.DungeonCatalog, r protocol.DungeonRoomTra
 }
 
 func (s *Session) warpKeyRoom() bool {
-	var routes []scriptWarpRoute
-	if json.Unmarshal(scriptWarpData, &routes) != nil {
+	routes, err := scriptWarpRoutes()
+	if err != nil {
 		return false
 	}
 	for _, r := range routes {
@@ -93,8 +109,8 @@ func (s *Session) warpKeyRoom() bool {
 }
 
 func (s *Session) scriptStageReady() bool {
-	var routes []scriptWarpRoute
-	if json.Unmarshal(scriptWarpData, &routes) != nil {
+	routes, err := scriptWarpRoutes()
+	if err != nil {
 		return false
 	}
 	for _, r := range routes {
