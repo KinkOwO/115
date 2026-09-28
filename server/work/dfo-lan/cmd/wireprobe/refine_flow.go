@@ -105,5 +105,5 @@ func (w *worldSession) refine(service *inventory.WearService, p, raw []byte, eve
 		"record_offset": out.RecordOffset,
 		"row_before":    out.RowBefore, "row_after": out.RowAfter,
 	})
-	return plan, nil
+	return w.appendFameUpdate(plan, event), nil
 }

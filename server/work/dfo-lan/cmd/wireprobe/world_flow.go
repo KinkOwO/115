@@ -17,15 +17,17 @@ import (
 )
 
 type worldSession struct {
-	moonConfig *moonSoloConfig
-	moon       moonSoloState
-	characters *character.Service
-	pilotDeath *odysseyDeath
-	service    *world.Service
-	account    int64
-	serverID   uint32
-	role       storage.Character
-	level      byte
+	lastFame        uint32
+	fameInitialized bool
+	moonConfig      *moonSoloConfig
+	moon            moonSoloState
+	characters      *character.Service
+	pilotDeath      *odysseyDeath
+	service         *world.Service
+	account         int64
+	serverID        uint32
+	role            storage.Character
+	level           byte
 	// odyssey mirrors character.OdysseyRole for this session. It selects which
 	// source level gate the world service applies: an Arad Odyssey character
 	// follows the client's [odyssey enter level] instead of [need level].

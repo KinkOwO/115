@@ -16,6 +16,8 @@ type EquipmentDefinition struct {
 	ID           uint32
 	Path, SHA256 string
 	Fields       map[string][]pvf.Token
+	fameFields   map[string][]pvf.Token
+	fameLevels   []equipmentFameLevel
 }
 type EquipmentCatalog struct {
 	Full   *FullEquipmentCatalog `json:"-"`
