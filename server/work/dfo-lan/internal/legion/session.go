@@ -1,19 +1,11 @@
 // Package legion holds the in-memory state and wire contract for the legion /
 // apocalypse subsystem (军团频道 / 末世录).
 //
-// Two standing decisions are recorded in
-// analysis/tasks/next64-legion-apocalypse-plan.md — read §6.1 (the decisions)
-// and §6.2 (the compromises they cost) before extending this package:
-//
-//	D2 solo party: a legion is a multi-member party in the retail client, but
-//	   this server models exactly one member (the player). There is no party
-//	   table and no member synchronisation, so member lists carry our single
-//	   entry and the remaining slots stay zero (§6.2 T1/T4).
-//	D3 no persistence: the session lives in process memory. A server restart
-//	   drops it and the player falls out of the operation (§6.2 D3a).
-//
-// Everything here is derived from static analysis of client/DFO.exe.i64; the
-// per-packet evidence lives in analysis/tasks/next65-legion-packet-table.md.
+// The imported per-connection Session is only a UI/request tracker. The
+// production shared party/run owner now lives in internal/partyrun; do not
+// restore the upstream solo-only assumption. Rewards use durable personal
+// plans/receipts, whereas an active room is still in-memory. Historical
+// next64/next65 notes are not current-version function-address evidence.
 package legion
 
 import (
@@ -39,12 +31,8 @@ const (
 	CmdVenusEndAtPhase4     uint16 = 2293 // ENUM_CMDPACKET_VENUS_END_AT_PHASE4
 )
 
-// S2C notifications of the same family. They are declared here so the packet
-// ids in the flow code read as names, but none of them is sent yet: each one is
-// either a placeholder whose payload layout the client has not given up
-// (2252/2253/2895/2896) or a packet we decided not to send (2568/2254/2657).
-// The reasons are registered in analysis/tasks/next64-legion-apocalypse-plan.md
-// §6.2 as T5/X5/X6/X7 — read them before wiring any of these up.
+// N2895/N2896 and the N2252 personal result/exit path are wired. Other declared
+// IDs are not automatically implemented; native full-route acceptance remains.
 const (
 	NotiClearRewardBasic      uint16 = 2252 // ENUM_NOTIPACKET_LEGION_BASIC_CLEAR_REWARD
 	NotiClearRewardAdditional uint16 = 2253 // ENUM_NOTIPACKET_LEGION_ADDITIONAL_CLEAR_REWARD
@@ -56,19 +44,10 @@ const (
 	NotiDungeonTimeoutTime    uint16 = 1474 // ENUM_NOTIPACKET_DUNGEON_TIMEOUT_TIME
 )
 
-// EnvelopeSize is the fixed 13-byte prefix carried by every packet of this
-// family. Measured in the client: sub_146D746E0 writes
-// "01 | opcode(u16 LE) | 0x0000000000000000 | 0x0000" before the caller
-// appends its own fields. The five protocol decoders already verified against
-// the live client in this repo read their first field at p[13:] (awakening.go,
-// advancement.go, dungeon.go, unified_option.go, world.go), so we follow the
-// same convention.
-//
-// Residual uncertainty (tracked as X1 in next64 §6.2): whether the length the
-// caller passes to the sender already includes this envelope. Decoders here
-// therefore require only "long enough to hold the field" and report the
-// observed length instead of hard-rejecting on an exact size — the first live
-// session settles it from the logged plain_hex.
+// EnvelopeSize is an opaque13-byte prefix INSIDE this family's plaintext.
+// The observed start body has12 FF bytes plus00, not a13-byte network header.
+// Current1424FEBB0/1424FEA50 write fields at+13/+17 before copying the body.
+// Transport padding is not a field; the prefix semantics remain unnamed.
 const EnvelopeSize = 13
 
 // Requests reports whether the opcode belongs to this family. The caller still
@@ -105,16 +84,20 @@ func DecodeStart(p []byte) (StartRequest, error) {
 	}, nil
 }
 
-// StartAckSize is the minimum body the client reads for CMD2043: its handler
-// sub_1424FD900 calls sub_146EA0BE0(&v27, 4). A shorter body makes the reader
-// write through a null pointer and the client dies, so this size is a hard
-// contract rather than a suggestion. The four bytes themselves are consumed
-// and discarded by the handler — the client rebuilds its own screen state — so
-// the contents do not matter.
-const StartAckSize = 4
+// CMD2043: generic success byte, then1424FE0C0 reads a4B result code.
+// Inner code0 is accepted; it does NOT replace the outer success byte.
+const StartAckSize = 1 + 4
 
 // StartAck builds the CMD2043 response body.
-func StartAck() []byte { return make([]byte, StartAckSize) }
+func StartAck() []byte { return successfulReply(StartAckSize) }
+
+// The generic CMD dispatcher consumes the success byte BEFORE invoking the
+// per-command reader. Sizes below include this byte; NOTI payloads do not.
+func successfulReply(size int) []byte {
+	p := make([]byte, size)
+	p[0] = 1
+	return p
+}
 
 // OperationChannelCode is the u16 both ends of CMD2354/CMD2896/CMD2895 carry as
 // the first field. The client's handler refuses the packet unless it reads
@@ -150,29 +133,25 @@ func DecodeOperationSelect(p []byte) (OperationSelectRequest, error) {
 	}, nil
 }
 
-// OperationAckSize is the minimum body the client reads for CMD2354: its
-// handler sub_1424FD320 reads a u16 and then a 14-byte structure, so anything
-// shorter makes the reader write through a null pointer.
-const OperationAckSize = 2 + 14
+// CMD2354: generic success byte, then1424FDAE0 reads u16 content +14B.
+const OperationAckSize = 1 + 2 + 14
 
 // OperationAck echoes the action the player requested.
 //
-// The client handler (sub_1424FD320) reads the channel u16, then the 14-byte
-// structure, and hands it to sub_14069A360, which branches on the first dword:
+// The current handler1424FDAE0 reads the content u16, then the14-byte
+// structure, and hands it to14069AA80, which branches on the first dword:
 // 1 refreshes the operation screen (using a dword at +6), 2 confirms and enters
 // — on that branch the client sends CMD2045 itself. Both ends use 1 and 2 for
 // the same two actions, so echoing the request back is the smallest assumption
 // that lets either branch run.
 //
-// ASSUMPTION (tracked as X4 in next64 §6.2): the reply is expected to echo the
-// request's action, and the dword at +6 is left zero. Only the 107 channel code
-// and the length are contract. If the live client rejects the echo, the
-// fallback is to leave the whole structure zero — its handler then returns
-// early and does nothing, which is safe but inert.
+// The structure+6 deadline is still0 in this narrow prefix fix; its clock
+// domain needs separate validation. Never replace a failed reply with an
+// all-zero action, which would hide a missing UI transition.
 func OperationAck(action uint32) []byte {
-	body := make([]byte, OperationAckSize)
-	binary.LittleEndian.PutUint16(body, OperationChannelCode)
-	binary.LittleEndian.PutUint32(body[2:], action)
+	body := successfulReply(OperationAckSize)
+	binary.LittleEndian.PutUint16(body[1:], OperationChannelCode)
+	binary.LittleEndian.PutUint32(body[3:], action)
 	return body
 }
 
@@ -181,10 +160,12 @@ func OperationAck(action uint32) []byte {
 // Layout (next65 §1, evidence sub_1424FE290): int32 @13, int32 @17. The
 // client's own caller pins the fields: the operation-screen confirm branch
 // invokes sub_1424FE290(107, *(a1 + 115)) — the same 107 channel code as the
-// rest of the family, and the operation id held by the screen object.
+// rest of the family, and the current stage held at manager+115. Native
+// 140698C60 uses that same value to index the6x12 stage array; it is NOT the
+// CTP difficulty key. Difficulty is the choice byte+1 (140699750).
 type EnterDungeonRequest struct {
 	Channel    uint32
-	Operation  uint32
+	Stage      uint32
 	BodyLength int
 }
 
@@ -196,14 +177,13 @@ func DecodeEnterDungeon(p []byte) (EnterDungeonRequest, error) {
 	}
 	return EnterDungeonRequest{
 		Channel:    binary.LittleEndian.Uint32(p[EnvelopeSize:]),
-		Operation:  binary.LittleEndian.Uint32(p[EnvelopeSize+4:]),
+		Stage:      binary.LittleEndian.Uint32(p[EnvelopeSize+4:]),
 		BodyLength: len(p),
 	}, nil
 }
 
-// EnterDungeonAckSize is the body size the client reads for CMD2045: its
-// handler sub_1424FD160 calls sub_146EA0BE0(v11, 13).
-const EnterDungeonAckSize = 13
+// CMD2045: one generic success byte plus the13B command-specific block.
+const EnterDungeonAckSize = 1 + 13
 
 // EnterDungeonAck reports success.
 //
@@ -212,7 +192,7 @@ const EnterDungeonAckSize = 13
 // strings. Sending zeroes therefore means "accepted" — and the remaining three
 // fields (whose pre-read initialisers are 108, -1 and 0) are unused on that
 // path, so they are left zero rather than pretended to mean something.
-func EnterDungeonAck() []byte { return make([]byte, EnterDungeonAckSize) }
+func EnterDungeonAck() []byte { return successfulReply(EnterDungeonAckSize) }
 
 // RoleSelectRequest is the decoded CMD2355 APOCALYPSE_ROLE_SELECT body.
 //
@@ -240,11 +220,9 @@ func DecodeRoleSelect(p []byte) (RoleSelectRequest, error) {
 	}, nil
 }
 
-// RoleSelectAck is the CMD2355 response body. The client's handler
-// sub_14069E320 is a bare pass-through: it clears the pending-response entry
-// and forwards to the screen object without reading the payload, so the body is
-// empty and only the opcode matters.
-func RoleSelectAck() []byte { return nil }
+// CMD2355 has no command-specific body, but still needs the generic success
+// byte. A nil payload is skipped entirely by the host's preparePackets.
+func RoleSelectAck() []byte { return successfulReply(1) }
 
 // FailRequest is the decoded CMD2044 LEGION_FAIL body.
 //
@@ -271,14 +249,14 @@ func DecodeFail(p []byte) (FailRequest, error) {
 // FailAckSize is the body size the client reads for CMD2044: its handler
 // sub_1424FD290 calls sub_146EA0BE0(v5, 8). The eight bytes are discarded
 // afterwards, so only the length is contract.
-const FailAckSize = 8
+const FailAckSize = 1 + 8
 
 // FailAck builds the CMD2044 response body.
-func FailAck() []byte { return make([]byte, FailAckSize) }
+func FailAck() []byte { return successfulReply(FailAckSize) }
 
 // RewardEndRequest is the decoded CMD2046 LEGION_REWARD_END body.
 //
-// Layout (next65 §1, evidence sub_1424FE4A0): int32 @13 = a1, int32 @17 = a3,
+// Historical layout: int32 @13 = a1, int32 @17 = a3,
 // char @21 = a2, 22 bytes total. The register names in the client are the only
 // names we have, so the fields keep their positions instead of being renamed
 // into gameplay meanings.
@@ -305,11 +283,14 @@ func DecodeRewardEnd(p []byte) (RewardEndRequest, error) {
 
 // RewardEndAckSize is the body size the client reads for CMD2046: its handler
 // sub_1424FD3A0 calls sub_146EA0BE0(v50, 13). Again only the length is
-// contract; the handler discards the content.
-const RewardEndAckSize = 13
+// contract. G0380 re-located the current handler via the2046 registration at
+// 1424FEEDE:1424FDB60 still reads13B, then invokes client reward/UI cleanup.
+// The older1424FD3A0 address is not this handler in2.38.3.25. Length evidence
+// alone does not authorize a successful reply before durable own rewards.
+const RewardEndAckSize = 1 + 13
 
 // RewardEndAck builds the CMD2046 response body.
-func RewardEndAck() []byte { return make([]byte, RewardEndAckSize) }
+func RewardEndAck() []byte { return successfulReply(RewardEndAckSize) }
 
 // Session is the per-character legion progress. It is deliberately not
 // persisted (D3): the operation is session state, not save data, and keeping
@@ -370,13 +351,10 @@ func (s *Session) SelectOperation(action uint32, auxiliary byte) {
 	s.Auxiliary = auxiliary
 }
 
-// EnterDungeon records a CMD2045 request: the client sends it when the player
-// confirms on the operation screen, and again for later rooms, so this only
-// refreshes the stored values.
-func (s *Session) EnterDungeon(operation uint32) {
-	if operation != 0 {
-		s.Operation = operation
-	}
+// EnterDungeon records the accepted entry STAGE without changing difficulty.
+// Production admission/validation is owned by partyrun, not this tracking row.
+func (s *Session) EnterDungeon(stage uint32) {
+	s.Phase = byte(stage)
 	s.Entered = true
 }
 

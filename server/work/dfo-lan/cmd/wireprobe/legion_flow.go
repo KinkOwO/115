@@ -138,10 +138,11 @@ func (s *legionSession) handle(w *worldSession, p []byte, id uint16) (legionResu
 					Payload: legion.StartAck(),
 				},
 				{
-					Name:    "legion_info",
-					Kind:    0,
-					ID:      legion.NotiLegionInfo,
-					Payload: legion.LegionInfo(legion.DefaultLegionInfo()),
+					Name: "legion_info",
+					Kind: 0,
+					ID:   legion.NotiLegionInfo,
+					// 补丁：起始状态改发「等待区」状态（State2/Outcome0/Stage0），不是客户端构造初值 14。
+					Payload: legion.LegionInfo(legion.ApocalypseContent, legion.WaitingLegionInfoState()),
 				},
 			},
 			Events: []map[string]any{{
@@ -191,11 +192,11 @@ func (s *legionSession) handle(w *worldSession, p []byte, id uint16) (legionResu
 		// sends the confirmation, so it is the first place the server learns
 		// which of the four declared operations the player picked. Validate it
 		// against the compiled table rather than accepting any number.
-		plan, err := s.runPlan(request.Operation)
+		plan, err := s.runPlan(request.Stage)
 		if err != nil {
 			return legionResult{}, err
 		}
-		s.session.EnterDungeon(request.Operation)
+		s.session.EnterDungeon(request.Stage)
 		s.plan = plan
 		result := legionResult{Packets: []outboundPacket{{
 			Name: "legion_enter_ack",
@@ -208,7 +209,7 @@ func (s *legionSession) handle(w *worldSession, p []byte, id uint16) (legionResu
 		if plan == nil {
 			result.Events = append(result.Events, map[string]any{
 				"kind":         "legion_catalog_missing",
-				"operation":    request.Operation,
+				"operation":    request.Stage,
 				"reason":       "apocalypse catalog is not loaded; the operation was not validated",
 				"character_id": w.role.ID,
 			})

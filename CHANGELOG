@@ -1,6 +1,15 @@
 # CHANGELOG
 
 ## 2026-09-28
+- **军团 / 末世录（公开仓库贡献包）：落地「进频道 → 选作战 → 进图 → 阶段/门/时钟」的数据与协议基座，并修正六个回执缺失的公共成功前缀（服务端，待实机验收）**：本仓库已有 P1–P6 的 legion 基础（`internal/legion` + `cmd/wireprobe/legion_flow.go` + `catalog/apocalypse.go`），本包在其之上补齐基座。**26 个文件（20 新增 / 6 修改），+3860 / −306**。
+  - **★ 唯一直接影响已接线的行为修复：六个回执缺「通用成功前缀」`0x01`。** 客户端通用分发器在调用各命令自己的 reader **之前**先吃掉 1 字节成功位；上游这六个 ACK 没写 ⇒ 这就是实测的「难度面板打不开」。改动：`StartAckSize` 4 → **5**、`OperationAckSize` 2+14 → **1+2+14**、`EnterDungeonAck` 的结果码移到 `body[1:]`、`RoleSelectAck` 由**空**变成 **1 字节 `{0x01}`**；新增 `successfulReply(size)` 统一置 `p[0]=1`。⚠️ **本仓库原有测试断言的正是旧的错误形状**（`TestRoleSelectAckIsEmpty` 要求长度 0），本次随之改为 `TestRoleSelectAckHasSuccessPrefix` —— 也就是说这个 bug 之前被自己的测试**钉住了**。
+  - **NOTI2895（军团信息）读法被纠正**：原实现把 `@11` 当 `u64 Third`（同时覆盖 `@11..@18`），新读法拆成 **`@11 Stage u32` + `@15 Following u32`**，并补上 `@2 OperationChoice u8`（难度选择，0 基）；六条 12 字节相位记录由「清零」改为 **`byte0=0xFF` + `u64@+4=-1`**（未设置的「目的地/时间戳」是 -1，不是 0）。补丁的注释直接点名这是对旧读法的纠正（"The former Entry/Reward/uint64 Phase labels misidentified adjacent u32s"）。同时新增 **`WaitingLegionInfoState()`（State2/Outcome0/Stage0）**：成功接受入场请求后发「等待区」状态，而不是客户端的构造初值 14。两个旧常量名 `LegionInfoBodySize` / `LegionInfoSize` 保留为别名，旧调用方不必改。
+  - **新增基座（20 个文件，运行期尚未接线）**：`internal/legion/{entry_plan,gates,physical_doors}.go`（入口计划 / 门禁 `CompileGateRules(schedule, flow)` / 四个实体门）、`internal/catalog/legion_contents.go`（`contents/system/legionsystem/legionsystem.cos` 的目录装载器）、`configs/legion-contents.generated.json`（随包提供的产物，7 个 content）、`cmd/legionimport`（导出工具）、`internal/game/protocol/legion_*115.go` ×6 + 测试（NOTI2895 之外的 N2252/N2253 编码器、军团组队名册 mode38/route87、门户/计时编码器）、`internal/dungeon/validate_selection.go`（`Select` 的薄包装，供启动期核对六个源目的地可解析）。
+  - ⚠️ **重要边界（不粉饰）：这一包是「底座」，不是「修好了」。** 补丁**没有改 `cmd/wireprobe/main.go`**，全仓只有 `cmd/legionimport` 与两个测试调用 `LoadLegionContents` ⇒ **`configs/legion-contents.generated.json` 在运行期从未被装载**；新增的 6 个协议编码器、`physical_doors` 也**没有**被流程层调用（`legion_flow.go` 仍只用 `legion.*` 既有符号）。补丁自述也写明：结算与奖励、失败与撤退收尾、回城交互、多人共享 run **四块不在补丁内**，只给了实施文档。
+  - **数据源不重复**：新增的 `legionsystem.cos`（124,844 字节 / 7 contents）与本仓库既有的 `apocalypse.ctp`（9,280 字节 / 65 记录 / 4 作战 / 相位时钟）是**两个不同文件**，`catalog/apocalypse.go` 与 `catalog/legion_contents.go` 并存不冲突。
+  - **落地方式**：补丁按基线 `306a29e`（2026-09-25，即包含本仓库 P1–P6 的那个上游提交）生成，**在本仓库当前树上零 fuzz 直接 apply 通过**（26 个文件全 `Checking patch`）。§A5 审计：`session.go` / `legion_flow.go` **零声明丢失**；`legion_info.go` 的 3 个旧声明是被**替换**（`LegionInfoBody` 吸收进 `LegionInfo(content, state)`，两个常量名保留别名），全仓无遗留调用方。补丁另给 `cmd/wireprobe/legion_flow.go` 引入了一处 gofmt 对齐问题，已顺手修掉。
+  - **已知未决**：① 上面那条「运行期未接线」；② 结算/失败撤退/回城交互/多人四块未实现（有文档，无代码）；③ 本包只做 `go build/vet/test` 冒烟，**未实机**；④ 补丁自述其协议证据来自 2.38.3.25 客户端，未在 2.38.2.34 上核验。
+  - 未改客户端、DLL、协议版本号或数据库结构。
 - **强化/增幅保护券：服务端从未实现 → 改为「背包持有即自动生效」（服务端，待实机验收）**：强化失败落在会碎区间（其他装备目标 +11、武器目标 +13）或增幅失败落在会碎区间（目标 +11）时，装备直接碎掉，**不会消耗保护券**。
   - **根因 ①：功能压根没有。** `internal/inventory` 里既没有保护券模板识别，也没有任何扣券路径。
   - **根因 ②：旧代码把「保护券槽位」写进了形状校验。** 客户端强化/增幅窗口**没有**独立的保护券槽位（请求里的 `ProtectionSlot` 恒 `0xffff`，实机佐证），而旧代码是 `... || r.ProtectionSlot != 0xffff { return fail(...) }` ⇒ 只要这一位不合法就整体拒绝。原版语义是**背包持有保护券、失败到会碎区间自动消耗** ⇒ 改为服务端按模板 id 全背包查找；`ProtectionSlot` 不再参与形状校验。
