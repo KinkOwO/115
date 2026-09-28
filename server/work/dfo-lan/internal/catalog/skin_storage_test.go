@@ -46,6 +46,34 @@ func TestSkinKeyUsesActionParameter(t *testing.T) {
 	}
 }
 
+// TestSkinFamilyMatchesRegistryLoader pins the label→family pairs against the integers the
+// client's own registry loader stores at record+8 (sub_147C18830,
+// analysis/dumps/CLIENT-MECHANICS.md 14.2.1). Those integers are the owned page a NOTI1545
+// frame names and the category a NOTI1546 frame selects with, so a mislabeled family does
+// not merely misfile the skin — it rebuilds the wrong page.
+func TestSkinFamilyMatchesRegistryLoader(t *testing.T) {
+	for _, tc := range []struct {
+		label string
+		want  SkinFamily
+	}{
+		{"party frame", SkinFamilyPartyFrame},
+		{"skill cutscene", SkinFamilySkillCutscene},
+		{"damage font", SkinFamilyDamageFont},
+		{"instant emoticon", SkinFamilyInstantEmoticon},
+		{"spray", SkinFamilySpray},
+		{"airship effect", SkinFamilyAirshipEffect},
+		{" Instant Emoticon ", SkinFamilyInstantEmoticon},
+		// `[type]` `weapon skin` is family class 4, but its page belongs to the replication
+		// path, so it stays unclassified here rather than gaining a page frame.
+		{"weapon skin", SkinFamilyUnknown},
+		{"", SkinFamilyUnknown},
+	} {
+		if got := (SkinStorageEntry{SkinType: tc.label}).Family(); got != tc.want {
+			t.Fatalf("Family(%q) = %d, want %d", tc.label, got, tc.want)
+		}
+	}
+}
+
 func TestLoadSkinStorage(t *testing.T) {
 	source := pvf.ArchiveSnapshot{Checksum: testSourceChecksum}
 	t.Run("accepts v2", func(t *testing.T) {

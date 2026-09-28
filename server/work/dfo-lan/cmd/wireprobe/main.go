@@ -2659,6 +2659,25 @@ func main() {
 				}
 				continue
 			}
+			// 表情快捷键（CMD1551）：体是 `u32 表情皮肤 id, u32 0`。实机 2026-09-28 三格三个值
+			// （10179 / 10176 / 10175），都是 configs/skin-storage-items.json 里 instant emoticon 的
+			// 皮肤 id（模板 10325568 / 10325577 等）⇒ 体首就是玩家按下的那个表情。
+			//
+			// 这里**只留观测，不回包**：attempt 1/3 试过回 CMD 2039（体一个 01 状态字节，客户端
+			// sub_1444E8CC0 状态非 0 只发界面事件 2345），四格各按一次、服务端六条 emote_use_
+			// acknowledged，实机**没有气泡**⇒ 已否证，帧撤掉。另有一条独立理由：2039 的处理器一个
+			// 体字节都不读，带不了「哪个角色放哪个表情」，而气泡必须点名角色。1551 仍登记进
+			// request_scope（见那里的注释）：不登记就只解密前八次，第八条之后连这条日志都没有。
+			if worldState != nil && bootstrapped && verified && frame.ID == 1551 {
+				if len(plaintext) < 4 {
+					event(map[string]any{"kind": "emote_use_rejected", "reason": "short body",
+						"bytes": len(plaintext)})
+					continue
+				}
+				event(map[string]any{"kind": "emote_use_observed", "character_id": worldState.role.ID,
+					"skin_id": binary.LittleEndian.Uint32(plaintext)})
+				continue
+			}
 			if worldState != nil && bootstrapped && frame.ID == 26 && lootService != nil {
 				if !verified {
 					event(map[string]any{"kind": "disjoint_rejected", "id": frame.ID, "reason": "checksum failed"})
@@ -3726,7 +3745,12 @@ func main() {
 				// 幻化仓库（武器外观页签）容器只在复制时被推过一次，客户端重登即空；
 				// 这里按存档重推 NOTI1545。读不出状态只记事件照常进场，仓库空一次
 				// 比卡在角色选择界面好。
-				plan.SkinCargo, e = skinCargoRestore(role.State)
+				//
+				// 列表按本职业戴不戴得上过一遍：客户端那一页不做职业判断（见
+				// weaponSkinPageIDs），修好复制校验之前存下的条目就一直摆在那里
+				// （实机 2026-09-28）。nil 谓词 = 没有装备目录 = 原样发。
+				weaponSkinUsable := characters.WeaponSkinUsableFor(role)
+				plan.SkinCargo, e = skinCargoRestore(role.State, weaponSkinUsable)
 				if e != nil {
 					event(map[string]any{"kind": "skin_cargo_restore_error", "error": e.Error()})
 					plan.SkinCargo = nil
@@ -3739,6 +3763,21 @@ func main() {
 					event(map[string]any{"kind": "skin_selection_restore_error", "error": e.Error()})
 					plan.SkinSelection = nil
 					e = nil
+				}
+				// 「最近获得」那五行格只由 NOTI1547 喂，而这帧是整表重建，所以入场必须
+				// 把账号注册过的皮肤连同本角色复制出的武器外观一次发全。读失败只记事件
+				// 不发帧：仓库少一栏条不能把进城卡住。
+				if characters != nil && skinCatalog != nil {
+					recentCtx, recentCancel := context.WithTimeout(context.Background(), 5*time.Second)
+					recent, re := skinRecentRestore(recentCtx, characters.Store, developmentAccount,
+						role.State, skinCatalog, weaponSkinUsable)
+					recentCancel()
+					if re != nil {
+						event(map[string]any{"kind": "skin_recent_restore_error",
+							"character_id": role.ID, "reason": re.Error()})
+					} else {
+						plan.SkinRecent = recent
+					}
 				}
 				plan.CubeContract, e = cubeContractRestore(role.State)
 				if e != nil {
