@@ -773,6 +773,10 @@ if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "am
 		if err := inventory.LoadRefineRules(filepath.Join(filepath.Dir(lootPath), "refine.json")); err != nil {
 			log.Fatal(err)
 		}
+		// 附魔宝珠（CMD272 / ENCHANT_BY_BEAD）：宝珠模板 → 附魔卡（怪物卡）对照表。
+		if err := inventory.LoadEnchantBeads(filepath.Join(filepath.Dir(lootPath), "enchant-beads.json")); err != nil {
+			log.Fatal(err)
+		}
 		c, e := catalog.LoadLoot(lootPath)
 		if e != nil {
 			log.Fatal(e)
@@ -2742,6 +2746,30 @@ if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "am
 					// 锻造是 35076 "The equipment cannot be refined."，CMD80 是 1652）。
 					code := refineRefusalCode(err)
 					if err = sendPayload(1, 430, protocol.Refusal(code)); err != nil {
+						return
+					}
+					continue
+				}
+				for _, packet := range plan {
+					if err = sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
+						return
+					}
+				}
+				continue
+			}
+			if worldState != nil && bootstrapped && frame.ID == 272 {
+				// CMD272 = 附魔宝珠（ENCHANT_BY_BEAD）：扣 1 颗宝珠、把卡的附魔写进装备行。
+				if !verified {
+					event(map[string]any{"kind": "enchant_rejected", "reason": "附魔请求校验失败"})
+					continue
+				}
+				plan, err := worldState.enchantByBead(wearService, plaintext, frame.Raw, event)
+				if err != nil {
+					event(map[string]any{
+						"kind": "enchant_refused", "character_id": worldState.role.ID,
+						"reason": err.Error(), "request_hex": hex.EncodeToString(plaintext),
+					})
+					if err = sendPayload(1, 272, protocol.Refusal(enchantRefusalCode(err))); err != nil {
 						return
 					}
 					continue
