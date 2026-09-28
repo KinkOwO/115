@@ -17,6 +17,13 @@ import (
 // one-id-per-category and already round-trip through it. Adding a table keeps both
 // the existing rows and the existing code valid, which is what the save-compat
 // constraint asks for.
+//
+// The two further tables live in the same migration because the gateway calls exactly
+// one entry point here:
+//   - character_skin_selection_slot keeps a position, because the 表情 selection is
+//     positional rather than a set (see SetSkinSelectionSlots);
+//   - character_skin_favorite keeps the per-page star list the 概要 tab renders, which
+//     nothing else on the client stores (see skin_favorite.go).
 func (s *Store) MigrateSkinSelectionList(ctx context.Context) error {
 	_, e := s.DB.Exec(ctx, `CREATE TABLE IF NOT EXISTS character_skin_selection_list(
  character_id bigint NOT NULL REFERENCES characters(id),
@@ -24,6 +31,25 @@ func (s *Store) MigrateSkinSelectionList(ctx context.Context) error {
  skin_key bigint NOT NULL,
  updated_at timestamptz NOT NULL DEFAULT now(),
  PRIMARY KEY(character_id,category,skin_key));`)
+	if e != nil {
+		return e
+	}
+	_, e = s.DB.Exec(ctx, `CREATE TABLE IF NOT EXISTS character_skin_selection_slot(
+ character_id bigint NOT NULL REFERENCES characters(id),
+ category bigint NOT NULL,
+ slot bigint NOT NULL,
+ skin_key bigint NOT NULL,
+ updated_at timestamptz NOT NULL DEFAULT now(),
+ PRIMARY KEY(character_id,category,slot));`)
+	if e != nil {
+		return e
+	}
+	_, e = s.DB.Exec(ctx, `CREATE TABLE IF NOT EXISTS character_skin_favorite(
+ character_id bigint NOT NULL REFERENCES characters(id),
+ page bigint NOT NULL,
+ skin_key bigint NOT NULL,
+ updated_at timestamptz NOT NULL DEFAULT now(),
+ PRIMARY KEY(character_id,page,skin_key));`)
 	return e
 }
 
@@ -74,6 +100,74 @@ func (s *Store) SkinSelectionList(ctx context.Context, character int64, category
 			return nil, e
 		}
 		keys = append(keys, uint32(key))
+	}
+	return keys, rows.Err()
+}
+
+// SetSkinSelectionSlots replaces one category's positional selection.
+//
+// Unlike the set above, 表情 is stored by cell: NOTI1546's category-3 reader consumes a
+// fixed four words with no count prefix and appends each survivor to one vector in read
+// order, and its only consumer forwards that vector to the chat channel unchanged, so the
+// index in the vector IS the quick-bar cell. An empty cell is sent as a zero word — the
+// reader appends the zero and thereby keeps the positions after it — which is why this
+// table has (category, slot) rather than (category, skin_key) as its key: the same skin
+// legitimately occupies two cells, and dropping a duplicate would shift the bar.
+//
+// A zero slot is not stored; read back, it becomes the zero word again.
+func (s *Store) SetSkinSelectionSlots(ctx context.Context, character int64, category uint32, keys []uint32) error {
+	if character == 0 {
+		return errors.New("invalid skin selection")
+	}
+	tx, e := s.DB.Begin(ctx)
+	if e != nil {
+		return e
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	if _, e = tx.Exec(ctx, `DELETE FROM character_skin_selection_slot
+ WHERE character_id=$1 AND category=$2`, character, category); e != nil {
+		return e
+	}
+	for slot, key := range keys {
+		if key == 0 {
+			continue
+		}
+		if _, e = tx.Exec(ctx, `INSERT INTO character_skin_selection_slot(character_id,category,slot,skin_key)
+ VALUES($1,$2,$3,$4)`, character, category, slot, key); e != nil {
+			return e
+		}
+	}
+	return tx.Commit(ctx)
+}
+
+// SkinSelectionSlots returns the category's selection as a slice of exactly width
+// elements, ordered by cell and zero-filled where the cell is empty. Callers pass the
+// width the client's reader consumes (protocol.SkinSelectionInstantEmoticonSlots).
+func (s *Store) SkinSelectionSlots(ctx context.Context, character int64, category uint32, width int) ([]uint32, error) {
+	if character == 0 {
+		return nil, fmt.Errorf("invalid character")
+	}
+	if width <= 0 {
+		return nil, fmt.Errorf("invalid skin slot width")
+	}
+	rows, e := s.DB.Query(ctx, `SELECT slot, skin_key FROM character_skin_selection_slot
+ WHERE character_id=$1 AND category=$2`, character, category)
+	if e != nil {
+		return nil, e
+	}
+	defer rows.Close()
+	keys := make([]uint32, width)
+	for rows.Next() {
+		var slot, key uint64
+		if e = rows.Scan(&slot, &key); e != nil {
+			return nil, e
+		}
+		// A row beyond the width the current reader consumes is stale state from a wider
+		// layout; it is dropped rather than growing the frame past its proven length.
+		if slot >= uint64(width) {
+			continue
+		}
+		keys[slot] = uint32(key)
 	}
 	return keys, rows.Err()
 }

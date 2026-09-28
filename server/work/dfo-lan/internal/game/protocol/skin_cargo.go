@@ -35,6 +35,28 @@ const (
 	SkinCargoSkillCutscenePage = 1
 )
 
+// SkinCargoInstantEmoticonPage, SkinCargoSprayPage and SkinCargoAirshipEffectPage are
+// the owned pages the 表情, 涂鸦 and 飞空艇特效 panels enumerate. Like the two list
+// families above, each has one panel and therefore one selection category, so page and
+// category coincide.
+//
+// The three numbers are the family class the client's registry loader gives each
+// `[type]` label: sub_147C18830 compares the label text and stores the index at
+// record+8 (analysis/dumps/CLIENT-MECHANICS.md 14.2.1, df40_loader_*.c), and each panel's
+// grid refill keeps only the ids whose record class equals its own page
+// (df41_grid_sub_1441E7BE0 for 3, df41_grid_sub_1441EA4F0 for 7,
+// df41_grid_sub_1441EB0F0 + df41_grid_sub_1441E4600 for 8).
+//
+// None of the three has a client-shipped default row: the same five grid dumps hard-code
+// no 5..8 digit skin id at all, unlike page 0 (20000/50000/60000/80000) and page 1
+// (30000/100000). A page frame for these families therefore carries exactly the skins the
+// account registered and nothing else.
+const (
+	SkinCargoInstantEmoticonPage = 3
+	SkinCargoSprayPage           = 7
+	SkinCargoAirshipEffectPage   = 8
+)
+
 // SkinCargoPartyFrameBuiltins are the three category-0 skins the client ships with:
 // `Skin/PartyFrame/default.skn`, `Skin/PartyRequestFrame/default.skn` and
 // `Skin/CharacterInfoBG/default.skn`. A NOTI1545 page frame rebuilds the whole page,
@@ -185,9 +207,14 @@ func SkinSelectionDamageFont(category, id uint32) ([]byte, error) {
 
 // SkinCategoryPartyFrame and SkinCategorySkillCutscene are the selection
 // categories of the 边框 and 觉醒插图 panels. They equal the owned page numbers above.
+// SkinCategoryInstantEmoticon, SkinCategorySpray and SkinCategoryAirshipEffect are the
+// 表情, 涂鸦 and 飞空艇特效 categories, and they too equal their page number.
 const (
-	SkinCategoryPartyFrame    = SkinCargoPartyFramePage
-	SkinCategorySkillCutscene = SkinCargoSkillCutscenePage
+	SkinCategoryPartyFrame      = SkinCargoPartyFramePage
+	SkinCategorySkillCutscene   = SkinCargoSkillCutscenePage
+	SkinCategoryInstantEmoticon = SkinCargoInstantEmoticonPage
+	SkinCategorySpray           = SkinCargoSprayPage
+	SkinCategoryAirshipEffect   = SkinCargoAirshipEffectPage
 )
 
 // SkinSelectionPartyFrame encodes NOTI1546 category 0:
@@ -259,6 +286,120 @@ func SkinSelectionSkillCutscene(awakening, secondAwakening []uint32) ([]byte, er
 	return p, nil
 }
 
+// SkinSelectionInstantEmoticonSlots is the number of id words NOTI1546's category-3
+// reader consumes: sub_1444EECA0 case 3 runs a fixed four-iteration loop
+// (`v40 = 4; while (1) { read u32; ... if (!--v40) goto LABEL_155; }`,
+// analysis/dumps/skin-noti/df13_noti1546_body_1444eeca0.c:477-553) and there is no count
+// word anywhere in the body, so a short frame would make it read past the payload.
+//
+// The four words are **positional**: the tab is a four-cell quick bar, its sender
+// sub_1441E03D0 fills the vector from four cells at panel+4176 with stride 120, and the
+// one consumer sub_1444EC930 hands the whole vector to the chat channel unchanged
+// (sub_14668C520(chat, 34, vector, 0), analysis/dumps/skin-noti/
+// df41_reader_ebc10_sub_1444EC930_1444ec930.c:95-104). An empty cell is sent as a zero
+// word and the reader appends that zero, so the position of every survivor is kept; only
+// an id the owned page does not hold is dropped, which would shift the cells after it.
+// That is why this takes the full four-slot array instead of a trimmed list.
+const SkinSelectionInstantEmoticonSlots = 4
+
+// SkinSelectionInstantEmoticon encodes NOTI1546 category 3: `u8 3, u32 slots[4]`.
+func SkinSelectionInstantEmoticon(slots []uint32) ([]byte, error) {
+	if len(slots) != SkinSelectionInstantEmoticonSlots {
+		return nil, fmt.Errorf("emoticon selection has %d slots, want %d",
+			len(slots), SkinSelectionInstantEmoticonSlots)
+	}
+	p := []byte{SkinCategoryInstantEmoticon}
+	for _, id := range slots {
+		p = add32(p, id)
+	}
+	return p, nil
+}
+
+// SkinSelectionSingle encodes NOTI1546 for the two single-value families, 涂鸦 (7) and
+// 飞空艇特效 (8): `u8 category, u32 skin_id`.
+//
+// sub_1444EECA0's case 7 and case 8 share one tail (`v55 = 7|8; LABEL_151:`), which
+// validates the id against that page's owned map through sub_1444EBD90 plus the expiry
+// test sub_1444EC2C0 and then appends it as a one-element vector
+// (df13_noti1546_body_1444eeca0.c:610-623). An id the page does not hold jumps to
+// LABEL_208, which frees the half-built vector and assigns **nothing** — so this frame can
+// select but can never clear. Clearing is the CMD1565 echo's job: its own reader's case 7 /
+// case 8 stores `v43[2]` verbatim with no ownership check at all
+// (analysis/dumps/skin-noti/df40_core_sub_1444EE820.c:166-172), so the same word with id 0
+// leaves that category's vector holding the zero, which is what no 生效中 row means.
+func SkinSelectionSingle(category, id uint32) ([]byte, error) {
+	if category != SkinCategorySpray && category != SkinCategoryAirshipEffect {
+		return nil, fmt.Errorf("category %d is not a single-value skin family", category)
+	}
+	return add32([]byte{byte(category)}, id), nil
+}
+
+// The CMD1565 result word is the command kind, not a status code: the client's four
+// composers each write their own value into that slot of the same 88-byte body.
+//
+//   - 0  sub_1444F1090 (apply / page flush) — its `memset(&v24[1], 0, 84)` leaves 0, and it
+//     backfills a per-category empty selection (0→20000, 1→30000, 2→1, 3→four zero words,
+//     4→one zero word, 6→99999999, 9→four zero words, 7 and 8→ nothing at all);
+//     sub_1444F1310 also writes 0 or 1 for its category-9 flush.
+//   - 2 / 3  sub_1444F0FE0(mgr, page, skin, currently_starred) writes `(starred != 0) + 2`,
+//     so 2 is "this row is not starred and the player just turned it on" and 3 is the
+//     removal. The same handler's cap test refuses an add whose group already holds
+//     SkinFavoriteCapPerGroup entries (analysis/dumps/skin-noti/
+//     df41_fav_flush_DD510_1441dd510.c:116, message 101037008).
+//   - 4  sub_1444F1880(mgr, category, id), the acquired-set erase.
+const (
+	SkinSelectResultApply          = 0
+	SkinSelectResultFavoriteAdd    = 2
+	SkinSelectResultFavoriteRemove = 3
+	SkinSelectResultAcquiredErase  = 4
+)
+
+// SkinFavoritePages and SkinFavoriteCrossGroups are the group counts NOTI2641's reader
+// walks: `do { read count; read count ids } while (++page < 10)` and then
+// `for (j = 0; j < 4; ++j) { same }` (analysis/dumps/skin-noti/
+// df41_handler_NOTI_2641_1444ed1b0.c, restored as df39_fav_reader_ED1B0.c). The ten
+// groups are inserted as {page, -1, id, group count} and the four trailing ones as
+// {-1, j, id, group count}, and sub_1444EB840(mgr, page, slot) answers whichever comes
+// first in the list — the per-page group by its first key, a trailing group by its second.
+//
+// What those four cross-page groups count is not named by any evidence in this workspace,
+// so they are sent empty: the reader clears the whole list before it parses, so an empty
+// group simply contributes no node, and the only consumer that could ever ask for one
+// (the star handler's cap test) then sees 0 instead of a wrong number.
+const (
+	SkinFavoritePages       = 10
+	SkinFavoriteCrossGroups = 4
+	// SkinFavoriteCapPerGroup is the client's own limit: the star handler stops adding a
+	// page's favourites once sub_1444EB840 reports ten, and tells the player so.
+	SkinFavoriteCapPerGroup = 10
+)
+
+// SkinFavorites encodes NOTI2641, the only frame that fills the client's favourite table:
+// `for page 0..9: u32 count, u32 ids[count]` then `for j 0..3: u32 0`.
+//
+// This push is not optional and the command echo is not a substitute: the CMD1565 reply
+// core runs its whole category switch only `if ( !v43[1] )` — i.e. only for result 0 — so a
+// star click is never applied client-side by its own echo
+// (analysis/dumps/skin-noti/df40_core_sub_1444EE820.c:57), and the table's single writer is
+// this handler (sub_1444E8DF0, called only from sub_1444ED1B0, df42.log section 5). The body
+// is absolute state: the reader frees every node of the list before the first group.
+func SkinFavorites(pages [][]uint32) ([]byte, error) {
+	if len(pages) != SkinFavoritePages {
+		return nil, fmt.Errorf("favourite push has %d page groups, want %d", len(pages), SkinFavoritePages)
+	}
+	p := make([]byte, 0, 4*(SkinFavoritePages+SkinFavoriteCrossGroups)+4*SkinFavoriteCapPerGroup)
+	for _, ids := range pages {
+		p = add32(p, uint32(len(ids)))
+		for _, id := range ids {
+			p = add32(p, id)
+		}
+	}
+	for j := 0; j < SkinFavoriteCrossGroups; j++ {
+		p = add32(p, 0)
+	}
+	return p, nil
+}
+
 // SelectSkinBodySize is the fixed CMD1565 body. The client's own receive path for
 // the same opcode, sub_1444EE820, bulk-reads exactly this many bytes through
 // sub_146EA0BE0 and lays them out as `u32 category, u32 result, u32 skin_ids[20]`.
@@ -293,6 +434,20 @@ type SelectSkinRequest struct {
 	// category 1 fills these two fields.
 	Awakening       []uint32
 	SecondAwakening []uint32
+
+	// EmoticonSlots is the 表情 body read **by position**, all four words with the zeros
+	// kept, because the four cells are the client's four quick-bar slots and its consumer
+	// forwards the vector unchanged. Only category 3 fills it.
+	EmoticonSlots []uint32
+
+	// Favorite is one star toggle rather than an apply. The result word carries the
+	// direction: sub_1444F0FE0(mgr, page, skin, currently_starred) writes
+	// `(currently_starred != 0) + 2`, so 2 is the player turning a row on and 3 turning it
+	// off, and the body's id vector is exactly that one skin
+	// (analysis/dumps/skin-noti/df41_composer_F0FE0_ref.c:18-29). The client applies nothing
+	// itself — the CMD1565 reply core only runs its switch for result 0 — so the server owns
+	// the answer for this kind.
+	Favorite bool
 }
 
 // DecodeSelectSkin reads the fixed CMD1565 body. The damage-font categories are
@@ -339,6 +494,14 @@ func DecodeSelectSkin(p []byte) (SelectSkinRequest, error) {
 			}
 		}
 	}
+	if category == SkinCategoryInstantEmoticon {
+		req.EmoticonSlots = make([]uint32, SkinSelectionInstantEmoticonSlots)
+		for i := range req.EmoticonSlots {
+			req.EmoticonSlots[i] = binary.LittleEndian.Uint32(p[8+4*i:])
+		}
+	}
+	req.Favorite = req.Result == SkinSelectResultFavoriteAdd ||
+		req.Result == SkinSelectResultFavoriteRemove
 	return req, nil
 }
 

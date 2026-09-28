@@ -5,6 +5,7 @@ import (
 	"dfolan/internal/inventory"
 	"dfolan/internal/storage"
 	"encoding/json"
+	"errors"
 	"fmt"
 )
 
@@ -107,6 +108,27 @@ func (s *Service) weaponSkinUsable(cur storage.Character, skin uint32) error {
 		Advancement: state.Advancement,
 		CanUseSkill: s.canLearnSkill(cur.Profession, int(state.Advancement), int(state.Awakening)),
 	})
+}
+
+// WeaponSkinUsableFor 把佩戴那一道门交成单 id 谓词，供幻化仓库的两帧列表在一处决定
+// 「这一行还发不发」。
+//
+// 必须筛的是服务端：客户端的页 4 面板 `sub_1441E47B0` 对每个条目只做一次参数恒为
+// 0x9C40 的注册表检查（`analysis/dumps/skin-noti/df22_ui_1441E47B0.c:38-55`），既不看
+// 条目自身的 id、也不看职业 ⇒ 服务端发什么它就画什么。修好复制校验之前存下的条目
+// （实机 2026-09-27 狂战士仓库里躺着光剑）因此一直显示到玩家眼前。
+//
+// 只有谓词明确判「本职业用不上」（ErrWeaponSkinNotUsable）才返回 false：没有装备目录、
+// 职业查不到、存档读不出转职，都算「无从判断」而放行。缺目录不能让本来正常的仓库变成
+// 空的，而且**正在佩戴的那一条绝不能从页里消失**——消失后客户端就选不中它，玩家再也
+// 点不到「解除」，会被卡在一件本职业戴不上的外观里出不来（调用方自己保留那一条）。
+func (s *Service) WeaponSkinUsableFor(cur storage.Character) func(uint32) bool {
+	if s == nil || s.Equipment == nil {
+		return nil
+	}
+	return func(skin uint32) bool {
+		return !errors.Is(s.weaponSkinUsable(cur, skin), inventory.ErrWeaponSkinNotUsable)
+	}
 }
 
 // ReplicateWeaponSkin settles one replication (CMD1592): the weapon in bag slot
