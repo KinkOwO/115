@@ -1249,11 +1249,20 @@ func (w *worldSession) moveDungeonRoomDecoded(r protocol.DungeonRoomTransition) 
 	// StartMap 把 Position 写成包的前两字节，客户端据此安放角色 —— 用错就等于把玩家
 	// 放在地图外，实机表现是「角色不见了」（2026-09-28 贵族机要 100004968）。
 	state := protocol.StartMapState{Position: [2]byte{next.Room.X, next.Room.Y}, Seed: seed, Map: next.Room.Map, Monsters: next.LivingMonsters(), LayerChange: r.LayerChange, EncodeCreateTrigger: monsterCreateTriggerEnabled()}
+	if resume, ok := w.activeDungeon.SourceLayerResume(*w.dungeons, r); ok && resume != w.activeDungeon.Room.Map {
+		// Flag 2 clears the native layer ordinal at1452b7876; flag 0 only
+		// selects the base descriptor and leaves the active layer unchanged.
+		// Mode 0 retains the verified base actors and one-shot ACT state.
+		state.LayerChange = false
+		state.ExitLayer = true
+		state.ReuseRoom = true
+		state.Monsters = nil
+	}
 	if r.LayerChange && next.Room.Map == w.activeDungeon.Room.Map {
 		state.ReuseRoom = true
 		state.Monsters = nil
 	}
-	if _, visited := w.activeDungeon.Visited[next.Room.Map]; visited && next.Definition.Odyssey && !r.LayerChange {
+	if _, visited := w.activeDungeon.Visited[next.Room.Map]; visited && (next.Definition.Odyssey || next.IsResumedSceneBase()) && !r.LayerChange {
 		state.ReuseRoom = true
 		state.Monsters = nil
 	}

@@ -151,10 +151,13 @@ type DungeonMonster struct {
 type StartMapState struct {
 	ReuseRoom   bool
 	LayerChange bool
-	Transition  *[18]byte
-	Position    [2]byte
-	Seed, Map   uint32
-	Monsters    []DungeonMonster
+	// ExitLayer clears the native layer ordinal before selecting the base cache
+	// (1452b787f -> 1452b7876). Ordinary flag 0 leaves that ordinal unchanged.
+	ExitLayer  bool
+	Transition *[18]byte
+	Position   [2]byte
+	Seed, Map  uint32
+	Monsters   []DungeonMonster
 	// EncodeCreateTrigger 置位时，怪物记录里 Rank 之后那一格（原本恒为 0）
 	// 改写实例的 CreateTrigger。默认 false 时输出与原先逐字节一致。
 	EncodeCreateTrigger bool
@@ -167,12 +170,18 @@ func StartMap(s StartMapState) ([]byte, error) {
 	if s.ReuseRoom && len(s.Monsters) != 0 {
 		return nil, fmt.Errorf("cached room cannot initialize monsters")
 	}
+	if s.LayerChange && s.ExitLayer {
+		return nil, fmt.Errorf("conflicting layer transition modes")
+	}
 	p := append([]byte{}, s.Position[0], s.Position[1], 0)
-	if s.LayerChange {
+	if s.LayerChange || s.ExitLayer {
 		if s.Transition == nil {
 			return nil, fmt.Errorf("layer transition record required")
 		}
 		p[2] = 1
+		if s.ExitLayer {
+			p[2] = 2
+		}
 	}
 	p = add32(p, s.Seed)
 	p = append(p, 0, 0)

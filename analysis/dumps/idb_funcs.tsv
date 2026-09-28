@@ -1,3 +1,10 @@
 address	name	description
 0x140ced7f0	ActBehavior_KickOutMapCharacter_Execute	KICK OUT MAP CHARACTER execution, validates current room and delegates scripted map move to 145ea1ca0
 0x145ea2f90	DungeonTransition_DecodeNative18	NOTI29 native 18-byte transition decode, type/direction/position/random-range
+0x1452b7100	Handler_NotiStartMap	NOTI29; flag0 leaves layer ordinal unchanged, flag2 clears ordinal at1452b7876; mode0 preserves cached room. Evil Justice live20260929 confirms flag0 left active layer.
+0x145b2f650	Dungeon_GetBaseRoomDescriptor	64-byte base descriptor vector at dungeon+424/+432; index=x+y*width
+0x145b2ecc0	Dungeon_GetLayerRoomCache	Tree at dungeon+528; node+32 grid index and node+40 layer-cache pointer
+0x145b2ccb0	Dungeon_GetLayerOrdinal	Unsigned layer ordinal at dungeon+544 indexed by x+y*width; 0xffffffff denotes base
+0x145b2f160	Dungeon_GetBaseRoom	Base rendered room vector at dungeon+448/+456; bounds checked
+0x145df0410	RoomEntities_GetMonsterSlotCount	Monster weak-reference vector at manager+392/+400, stride24
+0x145df0390	RoomEntities_GetMonsterBySlot	Weak-reference control+8/ref+16; returns ref-48 only if control live

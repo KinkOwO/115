@@ -65,6 +65,7 @@ type DungeonCatalog struct {
 	Skipped        []string                     `json:"skipped,omitempty"`
 	SceneRoutes    []DungeonSceneRoute          `json:"scene_routes,omitempty"`
 	TerminalScenes []DungeonTerminalScene       `json:"terminal_scenes,omitempty"`
+	LayerRevisits  []DungeonLayerRevisit        `json:"layer_revisits,omitempty"`
 }
 
 // DungeonTerminalScene records a source CMT [CHANGE MAP] on a quest maze's

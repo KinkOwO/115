@@ -1,0 +1,45 @@
+{
+  "source": {
+    "checksum": "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80"
+  },
+  "layer_revisits": [
+    {
+      "source": "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80",
+      "dungeon": 100002721,
+      "maze": 0,
+      "quest": 12893,
+      "position": [
+        1,
+        1
+      ],
+      "map": 100004546,
+      "record": [
+        0,
+        0,
+        0,
+        0,
+        4,
+        5,
+        165,
+        0,
+        33,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "dungeon_sha256": "a5491c6f945c13383b1393ab85ba3b1b377bccf8335a20176de92215bf35f5f4",
+      "map_sha256": "865a33f304256c08c4d7d468f6c47b37d1fb3095d9f921712d26bd15eeca0f88",
+      "action_sha256": "bc2dad3b47b73e67d45659998445801ba976daabaa3d74a5165bfed1bbb984c8",
+      "cinematic_sha256": "1cf7200d226b99dea7425ea76cf59bf47a259f25b3c18efac27585e61cfbb977",
+      "cinematic_path": "contents/2022/110levelscenario/sanctusbellum/cinematic/q12893_13042.cmt",
+      "resume_map": 100004325,
+      "resume_map_sha256": "31337adb22f6e90f6bf915b64fe005fee2243d8878981abaa9b84e09fc66ab25"
+    }
+  ]
+}

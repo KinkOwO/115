@@ -644,6 +644,10 @@ func main() {
 			if e = catalog.AttachTerminalScenes(&data, path); e != nil {
 				log.Fatal(e)
 			}
+			path = filepath.Join(filepath.Dir(*dungeonCatalogFile), "dungeons.layer-revisits.json")
+			if e = catalog.AttachLayerRevisits(&data, path); e != nil {
+				log.Fatal(e)
+			}
 			path = filepath.Join(filepath.Dir(*dungeonCatalogFile), "dungeons.tournament-quest-maps.json")
 			if e = catalog.AttachTournamentQuestMaps(&data, path); e != nil {
 				log.Fatal(e)

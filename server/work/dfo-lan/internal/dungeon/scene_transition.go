@@ -39,6 +39,23 @@ func (s *Session) MoveScene(c catalog.DungeonCatalog, r protocol.DungeonRoomTran
 	if r.Dungeon != s.Definition.ID || r.Position != [2]byte{s.Room.X, s.Room.Y} {
 		return nil, fmt.Errorf("scene transition dungeon/position mismatch")
 	}
+	if resume, ok := s.SourceLayerResume(c, r); ok {
+		room := s.Room
+		room.Map = resume
+		s.noteSceneDiagnostic("source layer resume: room=%d -> %d pos=%v record=%x", s.Room.Map, resume, r.Position, r.Record[:])
+		next, err := s.enterRoom(c, room)
+		if err != nil {
+			return nil, err
+		}
+		if resume != s.Room.Map {
+			next.sceneBaseRooms = make(map[[2]byte]uint32, len(s.sceneBaseRooms)+1)
+			for pos, mapID := range s.sceneBaseRooms {
+				next.sceneBaseRooms[pos] = mapID
+			}
+			next.sceneBaseRooms[r.Position] = resume
+		}
+		return next, nil
+	}
 	if s.Definition.Odyssey && len(c.SceneRoutes) > 0 {
 		if !s.RoomCleared() {
 			return nil, fmt.Errorf("scene transition requires owned cleared loaded room")
@@ -186,6 +203,41 @@ func (s *Session) MoveScene(c catalog.DungeonCatalog, r protocol.DungeonRoomTran
 	}
 
 	return nil, fmt.Errorf("no layer configured for room position")
+}
+
+// SourceLayerResume is shared with the wire planner so cached base and cached
+// layer returns use the corresponding native START_MAP branch.
+func (s *Session) SourceLayerResume(c catalog.DungeonCatalog, r protocol.DungeonRoomTransition) (uint32, bool) {
+	if s == nil || !s.Loaded || !r.LayerChange || r.Dungeon != s.Definition.ID ||
+		r.Position != [2]byte{s.Room.X, s.Room.Y} || !s.AtLayerLastMap() {
+		return 0, false
+	}
+	if _, visited := s.Visited[s.Room.Map]; !visited {
+		return 0, false
+	}
+	for _, scene := range c.LayerRevisits {
+		if scene.Source == c.Source.Checksum && scene.Dungeon == s.Definition.ID &&
+			scene.Maze == s.Maze.Index && scene.Quest == s.Maze.Quest && scene.Position == r.Position &&
+			scene.Map == s.Room.Map && scene.Record == r.Record &&
+			scene.DungeonSHA256 == s.Definition.Script.SHA256 && scene.MapSHA256 == c.Maps[s.Room.Map].SHA256 {
+			if scene.ResumeMap == 0 {
+				return s.Room.Map, true
+			}
+			for _, room := range s.Maze.Rooms {
+				if room.Map == scene.ResumeMap && [2]byte{room.X, room.Y} == r.Position &&
+					scene.ResumeMapSHA256 != "" && c.Maps[scene.ResumeMap].SHA256 == scene.ResumeMapSHA256 {
+					if _, visited := s.Visited[scene.ResumeMap]; visited {
+						return scene.ResumeMap, true
+					}
+				}
+			}
+		}
+	}
+	return 0, false
+}
+
+func (s *Session) IsResumedSceneBase() bool {
+	return s != nil && s.sceneBaseRooms[[2]byte{s.Room.X, s.Room.Y}] == s.Room.Map && s.Room.Map != 0
 }
 
 // [MERGE-20260928-CINEMATIC-LAYER] LayerRoomIsCinematic 报告当前层图是否为
