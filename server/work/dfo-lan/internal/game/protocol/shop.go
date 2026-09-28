@@ -38,43 +38,73 @@ func DecodeBuyItem(p []byte) (BuyItemRequest, error) {
 	return r, nil
 }
 
-// SellItemRequest is the 24-byte payload (20B content + 4B pad) for CMD22
-// (ENUM_CMDPACKET_SELL_ITEM).
-type SellItemRequest struct {
-	NpcID   uint32 // NPC identifier
-	ActorID uint32 // Actor identifier
-	Entries byte   // Number of sale rows; only the single-row path is supported
-	List    byte   // Inventory list type, observed 0 (main bag)
-	Slot    uint16 // Inventory slot
-	Count   uint32 // Quantity to remove, not a template ID
-	Check   uint32 // 2*(list+slot+count) + confirmation bit; never a price
+// SellItemRow is one sale entry inside a CMD22 request.
+type SellItemRow struct {
+	List  byte   // Inventory list type, observed 0 (main bag)
+	Slot  uint16 // Inventory slot
+	Count uint32 // Quantity to remove, not a template ID
+	Check uint32 // 2*(list+slot+count) + confirmation bit; never a price
 }
 
-// DecodeSellItem decodes a 24-byte CMD22 request.
+// SellItemRequest is the CMD22 (ENUM_CMDPACKET_SELL_ITEM) payload for one or
+// more sale rows: u32 npcId, u32 actorId, u8 rows, rows x (u8 list, u16 slot,
+// u32 count, u32 check), then zero padding up to the next 8-byte boundary
+// (the cipher works on 8-byte blocks: 9 + 11*rows bytes of content, rounded up,
+// so 1 row is 24 bytes and 7 rows are 88).
+//
+// The plain Sell button frames the rows=1 case. The "Sell All" panel
+// (MultiSellItemWindow) registers several stacks and confirms with a single
+// packet carrying every registered row, so the decoder must accept rows >= 1
+// instead of rejecting anything but a single row — that rejection was why
+// "Sell All" silently did nothing: the server refused every attempt, so the
+// client retried and then gave up.
+type SellItemRequest struct {
+	NpcID   uint32
+	ActorID uint32
+	Rows    []SellItemRow
+}
+
+const sellItemRowSize = 11
+
+// DecodeSellItem decodes a CMD22 request with one or more sale rows.
 func DecodeSellItem(p []byte) (SellItemRequest, error) {
 	var r SellItemRequest
-	if len(p) != 24 {
-		return r, fmt.Errorf("sell item requires 24 bytes")
+	if len(p) < 13 {
+		return r, fmt.Errorf("sell item requires at least 13 bytes")
 	}
-	for _, b := range p[20:] {
+	rows := int(p[8])
+	if rows == 0 {
+		return r, fmt.Errorf("sell item requires at least one row")
+	}
+	content := 9 + sellItemRowSize*rows
+	if want := (content + 7) &^ 7; len(p) != want {
+		return r, fmt.Errorf("sell item requires %d bytes for %d rows", want, rows)
+	}
+	for _, b := range p[content:] {
 		if b != 0 {
 			return r, fmt.Errorf("nonzero sell item padding")
 		}
 	}
 	r.NpcID = binary.LittleEndian.Uint32(p[0:])
 	r.ActorID = binary.LittleEndian.Uint32(p[4:])
-	r.Entries = p[8]
-	r.List = p[9]
-	r.Slot = binary.LittleEndian.Uint16(p[10:])
-	r.Count = binary.LittleEndian.Uint32(p[12:])
-	r.Check = binary.LittleEndian.Uint32(p[16:])
-	// Native sender 1467fb0b0 (2026-09-26): a row count, then list,
-	// slot, quantity and a check word. The low check bit records confirmation.
-	if r.Entries != 1 || r.Count == 0 || r.Count > 0x7fffffff {
-		return r, fmt.Errorf("sell item requires one row with a positive quantity")
-	}
-	if r.Check&^1 != (uint32(r.List)+uint32(r.Slot)+r.Count)*2 {
-		return r, fmt.Errorf("sell item check mismatch")
+	r.Rows = make([]SellItemRow, 0, rows)
+	// Native sender 1467fb0b0 (2026-09-26): a row count, then list, slot,
+	// quantity and a check word per row. The low check bit records confirmation.
+	for i := 0; i < rows; i++ {
+		off := 9 + i*sellItemRowSize
+		row := SellItemRow{
+			List:  p[off],
+			Slot:  binary.LittleEndian.Uint16(p[off+1:]),
+			Count: binary.LittleEndian.Uint32(p[off+3:]),
+			Check: binary.LittleEndian.Uint32(p[off+7:]),
+		}
+		if row.Count == 0 || row.Count > 0x7fffffff {
+			return r, fmt.Errorf("sell item requires a positive quantity")
+		}
+		if row.Check&^1 != (uint32(row.List)+uint32(row.Slot)+row.Count)*2 {
+			return r, fmt.Errorf("sell item check mismatch")
+		}
+		r.Rows = append(r.Rows, row)
 	}
 	return r, nil
 }
@@ -107,23 +137,24 @@ type SoldItem struct {
 	Count uint32
 }
 
-// SellItemSuccess builds the 16-byte ACK for CMD22 for a single sold item:
-// u8(1) + u32(newGold) + u32(rows=1) + (u8 list, u16 slot, u32 quantity).
+// SellItemSuccess builds the ACK for CMD22 for one or more sold items:
+// u8(1) + u32(newGold) + u32(rows) + rows x (u8 list, u16 slot, u32 quantity).
 // Native reader 145294c70 sets the gold balance (vtable+d0) and removes
 // quantity (vtable+f0), or clears the slot when its full stack was sold.
-// Multi-item path is unsupported on CMD22 and rejected with an error.
+// The rows=1 case stays byte-identical to before (16 bytes); the "Sell All"
+// panel confirms with a multi-row request and expects every sold row echoed.
 func SellItemSuccess(newGold uint32, items []SoldItem) ([]byte, error) {
-	if len(items) != 1 {
-		return nil, fmt.Errorf("unsupported multi-item path: count=%d", len(items))
+	if len(items) == 0 {
+		return nil, fmt.Errorf("sell acknowledgement requires at least one item")
 	}
-	if items[0].Count == 0 {
-		return nil, fmt.Errorf("sell acknowledgement requires a positive quantity")
-	}
-	p := make([]byte, 0, 16)
+	p := make([]byte, 0, 9+7*len(items))
 	p = append(p, 1)
 	p = add32(p, newGold)
 	p = add32(p, uint32(len(items)))
 	for _, it := range items {
+		if it.Count == 0 {
+			return nil, fmt.Errorf("sell acknowledgement requires a positive quantity")
+		}
 		p = append(p, it.List)
 		p = add16(p, it.Slot)
 		p = add32(p, it.Count)

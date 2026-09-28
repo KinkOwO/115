@@ -19,10 +19,11 @@ import (
 // damage-font panel has two tabs that both enumerate owned page 2, and each keeps
 // its own vector (sub_1444EECA0 case 2 / case 6), so the answer has to carry the
 // category the click came from — answering the other one lights the wrong tab.
-// Categories outside that pair are the two list panels, whose click carries a whole
-// selection and is answered in skin_family_flow.go; a category with no reversed
-// reader at all is logged and refused instead of being answered with an invented
-// frame.
+// Categories outside that pair are the list panels — 边框, 觉醒插图, 表情, 涂鸦 and
+// 飞空艇特效 — whose click carries a whole selection and is answered in
+// skin_family_flow.go, and the 武器外观 tab, answered by the replication path's
+// syncSkin; a category with no reversed reader at all is logged and refused instead of
+// being answered with an invented frame.
 func (w *worldSession) selectSkin(p []byte, event func(map[string]any)) ([]outboundPacket, error) {
 	if w == nil || w.role.ID == 0 || w.characters == nil {
 		return nil, fmt.Errorf("skin selection before character load")
@@ -33,6 +34,19 @@ func (w *worldSession) selectSkin(p []byte, event func(map[string]any)) ([]outbo
 	}
 	record := map[string]any{"character_id": w.role.ID, "category": request.Category,
 		"result": request.Result, "skin_key": request.SkinID}
+	// A star click is not an apply: its composer writes 2 or 3 into the result slot
+	// (analysis/dumps/skin-noti/df39_sender_F0FE0.c: v12[1] = (a4 != 0) + 2), and the
+	// command reply core skips its whole category switch for anything but 0, so the
+	// client applies nothing and the server owns the answer. This branch has to come
+	// before the family routing below, whose categories are the same numbers.
+	if request.Favorite {
+		if w.role.ID == 0 {
+			return nil, fmt.Errorf("skin selection before character load")
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		return skinFavoriteFrames(ctx, w.characters.Store, w.role.ID, request, p, record, event)
+	}
 	if protocol.IsSkinSelectionDamageFontCategory(request.Category) {
 		if w.skinCatalog == nil {
 			return nil, fmt.Errorf("skin storage catalog is not loaded")
@@ -54,6 +68,22 @@ func (w *worldSession) selectSkin(p []byte, event func(map[string]any)) ([]outbo
 		defer cancel()
 		return skinFamilySelectionFrame(ctx, w.characters.Store, w.role.ID, w.role.AccountID,
 			w.skinCatalog, request, p, record, event)
+	}
+	// The 武器外观 tab belongs to the replication path, not to this one. Its 应用 is
+	// the same 88-byte frame under the weapon-shape category, and the client's own
+	// composer zeroes the result slot for every category it builds
+	// (analysis/dumps/skin-noti/df39_sender_F1090.c: memset(&v24[1], 0, 84) leaves
+	// v24[1] = 0), so a category-4 frame with result 0 is "wear this skin" — which
+	// only syncSkin can answer, because the weapon skin is stored on the character
+	// and the actor has to be rebuilt. The live capture is the refusal this used to
+	// produce: five frames, category 4, skin 27694, result 0
+	// (skin_selection_unsupported_category).
+	//
+	// A non-zero result on this category is not an apply: the only other sender of
+	// that slot writes 2 or 3 (df39_sender_F0FE0.c: v12[1] = (a4 != 0) + 2), which is
+	// the star toggle, so it stays unhandled below rather than wearing the skin.
+	if request.Category == protocol.SkinCargoWeaponShape && request.Result == 0 {
+		return w.syncSkin(p, event)
 	}
 	record["kind"] = "skin_selection_unsupported_category"
 	event(record)

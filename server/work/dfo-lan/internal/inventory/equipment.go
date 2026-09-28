@@ -108,6 +108,13 @@ type BagEquipment struct {
 	AvatarOptions []byte `json:"avatar_options,omitempty"`
 	AvatarSockets []byte `json:"avatar_sockets,omitempty"`
 	Period        uint32 `json:"period,omitempty"`
+	// Refine 是锻造（Refine / CMD430）等级，服务端权威状态。
+	//
+	// 为什么要单独存一格而不是只读行内字节：装备行里锻造等级那一格（configs/refine.json
+	// 的 record_offset）还没实机校准到位，等级必须以服务端状态为准，否则一旦改偏移，
+	// 玩家已经锻出来的等级就会读成 0（或者读到上一次写歪的残留值）。
+	// 行内那格只是给客户端渲染用的镜像，不影响判定。
+	Refine byte `json:"refine,omitempty"`
 }
 
 // IsCloneAvatar reports whether this equipment has PVF category "clear avatar".

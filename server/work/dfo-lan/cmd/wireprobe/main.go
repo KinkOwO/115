@@ -484,17 +484,27 @@ func main() {
 		if e != nil {
 			log.Fatal(e)
 		}
-		if os.Getenv("DFO_MAX_ITEM_PERIOD") == "1" {
+		// 带期限物品一律按「永不过期」下发。**默认开启**（DFO_MAX_ITEM_PERIOD=0 才关）：
+		// 三个 .cmd 入口都设了这个变量，但一键启动器自己拉起 launch_local.py、
+		// 从不设置它 ⇒ 走一键启动器时整条兜底不生效，脚本声明过期限的模板
+		// （银增幅书到期日 2022-11-08 之类）就会带着 0 下发，客户端显示
+		// 「剩余期限已过」并拒绝使用（错误码 31730）。
+		if os.Getenv("DFO_MAX_ITEM_PERIOD") != "0" {
+			protocol.ConfigureStoredPeriodLifting(true)
 			if *itemIndexFile == "" {
-				log.Fatal("DFO_MAX_ITEM_PERIOD requires -item-index")
+				log.Printf("maximum item period: no item index (-item-index), lifting stored periods only")
+			} else {
+				periodFile := filepath.Join(filepath.Dir(*itemIndexFile), "item-period-tags.json")
+				templates, periodErr := catalog.LoadItemPeriods(periodFile, data.Source.Checksum)
+				if periodErr != nil {
+					// 表读不到不再致命：退化为「存档里已有的非零期限一律抬到最大值」，
+					// 至少不会把已过期的旧道具重新判成过期。
+					log.Printf("maximum item period table unavailable (%v), lifting stored periods only", periodErr)
+				} else {
+					protocol.ConfigureMaxItemPeriods(templates)
+					log.Printf("maximum item period enabled for %d PVF templates", len(templates))
+				}
 			}
-			periodFile := filepath.Join(filepath.Dir(*itemIndexFile), "item-period-tags.json")
-			templates, periodErr := catalog.LoadItemPeriods(periodFile, data.Source.Checksum)
-			if periodErr != nil {
-				log.Fatalf("DFO_MAX_ITEM_PERIOD: %v", periodErr)
-			}
-			protocol.ConfigureMaxItemPeriods(templates)
-			log.Printf("maximum item period enabled for %d PVF templates", len(templates))
 		}
 		// Skin-cargo registration (CMD507 action 169, `[add skin storage]`) reads
 		// the skin key straight from PVF and persists the unlock per account.
@@ -735,6 +745,31 @@ func main() {
 			lootPath = path
 		}
 		if err := inventory.LoadReinforcementTickets(filepath.Join(filepath.Dir(lootPath), "reinforcement-tickets.json")); err != nil {
+			log.Fatal(err)
+		}
+		// 金币强化（材料 + 金币）的费用/成功率表，同样从 loot 目录旁边解析；
+		// 文件缺失时金币路径整体拒绝，券路径不受影响。
+		if err := inventory.LoadGoldRules(filepath.Join(filepath.Dir(lootPath), "reinforcement-gold.json")); err != nil {
+			log.Fatal(err)
+		}
+		// 增幅书（CMD205 打红字）的加权表，来自 PVF 的 [amplification random value] 段。
+		if err := inventory.LoadAmplifyGrimoires(filepath.Join(filepath.Dir(lootPath), "amplify-grimoire.json")); err != nil {
+			log.Fatal(err)
+		}
+		// 增幅（CMD80 mode=1）的材料与金币表，来自 PVF 的 etc/amplifyupgrade.etc；
+		// 文件缺失时增幅整体拒绝，强化与打红字不受影响。
+		if err := inventory.LoadAmplifyUpgradeRules(filepath.Join(filepath.Dir(lootPath), "amplify-upgrade.json")); err != nil {
+			log.Fatal(err)
+		}
+		// 增幅券（把装备直接增幅到券上写死的等级）：识别方式是物品脚本含
+		// [equipment amplify reinforcement ticket]。与上面的「增幅升级」是两套东西 ——
+		// 前者是背包里的券道具（跳级），后者是 NPC 处消耗矛盾结晶体（每级 +1）。
+if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "amplify-tickets.json")); err != nil {
+			log.Fatal(err)
+		}
+		// 锻造（CMD430 / Refine）的武器限制、成功率表与材料消耗。
+		// 成功率由服主提供（115 版本），材料消耗 PVF 无表、走配置默认值。
+		if err := inventory.LoadRefineRules(filepath.Join(filepath.Dir(lootPath), "refine.json")); err != nil {
 			log.Fatal(err)
 		}
 		c, e := catalog.LoadLoot(lootPath)
@@ -2552,6 +2587,16 @@ func main() {
 				}
 				continue
 			}
+			// 增幅摧毁装备后客户端会把金币显示清 0（存档是对的）。
+			// 挂在会话上的延后补发在这里出队 —— 放在主循环里串行发送，避免并发写 socket。
+			if worldState != nil {
+				if body := equipmentState.takePendingGold(time.Now()); len(body) > 0 {
+					if err := sendPayload(0, 14, body); err != nil {
+						return
+					}
+					event(map[string]any{"kind": "amplify_gold_resynced", "character_id": worldState.role.ID})
+				}
+			}
 			if worldState != nil && bootstrapped && frame.ID == 80 {
 				if !verified {
 					event(map[string]any{"kind": "reinforcement_rejected", "reason": "强化请求校验失败"})
@@ -2559,9 +2604,45 @@ func main() {
 				}
 				plan, err := equipmentState.reinforce(wearService, worldState, plaintext, frame.Raw, event)
 				if err != nil {
-					event(map[string]any{"kind": "reinforcement_refused", "character_id": worldState.role.ID, "reason": err.Error()})
+					// 客户端在 CMD80 的错误分支只认错误码（u16）去取 dstr 文案，不认原因字符串。
+					// 以前一律发 22，而 22 恰好映射到「材料不足」，于是任何拒绝都被玩家看成材料不够。
+					code := reinforcementRefusalCode(err)
+					event(map[string]any{
+						"kind":         "reinforcement_refused",
+						"character_id": worldState.role.ID,
+						"reason":       err.Error(),
+						"error_code":   code,
+						"request_hex":  hex.EncodeToString(plaintext),
+					})
 					// 14529B2F0 的失败分支只使用分发器读取的错误码，并清除等待态。
-					if err = sendPayload(1, 80, protocol.Refusal(22)); err != nil {
+					if err = sendPayload(1, 80, protocol.Refusal(code)); err != nil {
+						return
+					}
+					continue
+				}
+				for _, packet := range plan {
+					if err = sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
+						return
+					}
+				}
+				continue
+			}
+			if worldState != nil && bootstrapped && frame.ID == 430 {
+				// CMD430 = 锻造（Refine，NPC Kiri）：仅武器、上限 +8、失败等级不变不碎。
+				if !verified {
+					event(map[string]any{"kind": "refine_rejected", "reason": "锻造请求校验失败"})
+					continue
+				}
+				plan, err := worldState.refine(wearService, plaintext, frame.Raw, event)
+				if err != nil {
+					event(map[string]any{
+						"kind": "refine_refused", "character_id": worldState.role.ID,
+						"reason": err.Error(), "request_hex": hex.EncodeToString(plaintext),
+					})
+					// 锻造与其它升级命令共用同一张错误码表（唯一差别是 17 那格：
+					// 锻造是 35076 "The equipment cannot be refined."，CMD80 是 1652）。
+					code := refineRefusalCode(err)
+					if err = sendPayload(1, 430, protocol.Refusal(code)); err != nil {
 						return
 					}
 					continue
@@ -2657,6 +2738,25 @@ func main() {
 					}
 					event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID, "id": packet.ID})
 				}
+				continue
+			}
+			// 表情快捷键（CMD1551）：体是 `u32 表情皮肤 id, u32 0`。实机 2026-09-28 三格三个值
+			// （10179 / 10176 / 10175），都是 configs/skin-storage-items.json 里 instant emoticon 的
+			// 皮肤 id（模板 10325568 / 10325577 等）⇒ 体首就是玩家按下的那个表情。
+			//
+			// 这里**只留观测，不回包**：attempt 1/3 试过回 CMD 2039（体一个 01 状态字节，客户端
+			// sub_1444E8CC0 状态非 0 只发界面事件 2345），四格各按一次、服务端六条 emote_use_
+			// acknowledged，实机**没有气泡**⇒ 已否证，帧撤掉。另有一条独立理由：2039 的处理器一个
+			// 体字节都不读，带不了「哪个角色放哪个表情」，而气泡必须点名角色。1551 仍登记进
+			// request_scope（见那里的注释）：不登记就只解密前八次，第八条之后连这条日志都没有。
+			if worldState != nil && bootstrapped && verified && frame.ID == 1551 {
+				if len(plaintext) < 4 {
+					event(map[string]any{"kind": "emote_use_rejected", "reason": "short body",
+						"bytes": len(plaintext)})
+					continue
+				}
+				event(map[string]any{"kind": "emote_use_observed", "character_id": worldState.role.ID,
+					"skin_id": binary.LittleEndian.Uint32(plaintext)})
 				continue
 			}
 			if worldState != nil && bootstrapped && frame.ID == 26 && lootService != nil {
@@ -3726,7 +3826,12 @@ func main() {
 				// 幻化仓库（武器外观页签）容器只在复制时被推过一次，客户端重登即空；
 				// 这里按存档重推 NOTI1545。读不出状态只记事件照常进场，仓库空一次
 				// 比卡在角色选择界面好。
-				plan.SkinCargo, e = skinCargoRestore(role.State)
+				//
+				// 列表按本职业戴不戴得上过一遍：客户端那一页不做职业判断（见
+				// weaponSkinPageIDs），修好复制校验之前存下的条目就一直摆在那里
+				// （实机 2026-09-28）。nil 谓词 = 没有装备目录 = 原样发。
+				weaponSkinUsable := characters.WeaponSkinUsableFor(role)
+				plan.SkinCargo, e = skinCargoRestore(role.State, weaponSkinUsable)
 				if e != nil {
 					event(map[string]any{"kind": "skin_cargo_restore_error", "error": e.Error()})
 					plan.SkinCargo = nil
@@ -3739,6 +3844,21 @@ func main() {
 					event(map[string]any{"kind": "skin_selection_restore_error", "error": e.Error()})
 					plan.SkinSelection = nil
 					e = nil
+				}
+				// 「最近获得」那五行格只由 NOTI1547 喂，而这帧是整表重建，所以入场必须
+				// 把账号注册过的皮肤连同本角色复制出的武器外观一次发全。读失败只记事件
+				// 不发帧：仓库少一栏条不能把进城卡住。
+				if characters != nil && skinCatalog != nil {
+					recentCtx, recentCancel := context.WithTimeout(context.Background(), 5*time.Second)
+					recent, re := skinRecentRestore(recentCtx, characters.Store, developmentAccount,
+						role.State, skinCatalog, weaponSkinUsable)
+					recentCancel()
+					if re != nil {
+						event(map[string]any{"kind": "skin_recent_restore_error",
+							"character_id": role.ID, "reason": re.Error()})
+					} else {
+						plan.SkinRecent = recent
+					}
 				}
 				plan.CubeContract, e = cubeContractRestore(role.State)
 				if e != nil {

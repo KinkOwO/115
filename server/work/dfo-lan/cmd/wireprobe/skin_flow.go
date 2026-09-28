@@ -2,11 +2,14 @@ package main
 
 import (
 	"context"
+	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
+	"dfolan/internal/storage"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"time"
 )
 
@@ -96,23 +99,47 @@ func (w *worldSession) makeSkin(plaintext []byte, event func(map[string]any)) ([
 	}
 	// Rebuild the whole tab rather than appending one row: NOTI1545 is
 	// count-delimited, so this body is the container's full content. It is also
-	// the same body entry re-pushes, which keeps the two paths identical.
-	entries := make([]protocol.SkinCargoEntry, 0, len(ids))
-	for _, id := range ids {
+	// the same body entry re-pushes, which keeps the two paths identical. The two
+	// frames list the page this character can actually wear, while the event keeps
+	// the raw saved list so the log still shows what the save holds.
+	page := weaponSkinPageIDs(stored, w.characters.WeaponSkinUsableFor(saved))
+	entries := make([]protocol.SkinCargoEntry, 0, len(page))
+	for _, id := range page {
 		entries = append(entries, protocol.SkinCargoEntry{SkinID: id, Extra: 1})
 	}
 	cargo, e := protocol.SkinCargoInfo(byte(protocol.SkinCargoWeaponShape), entries, nil)
 	if e != nil {
 		return nil, e
 	}
-	recent, e := protocol.RecentAddSkinList([]protocol.RecentAddSkinEntry{{Kind: 0, SkinID: template}})
-	if e != nil {
-		return nil, e
+	// The 最近获得 strip is absolute state too (sub_1444ED400 clears the vector before
+	// its loop), so the frame carries every skin this account and character has, with
+	// the weapon just replicated at the tail — the cell the player expects to light up.
+	// Its kind byte is the family class the row cell compares against its own skin
+	// registry, and for the weapon-shape family that is 4 with a weapon template as id.
+	recentIDs := make([]uint32, 0, len(page)+1)
+	for _, id := range page {
+		if id != template {
+			recentIDs = append(recentIDs, id)
+		}
 	}
-	return append(plan,
-		outboundPacket{"skin_cargo_info", 0, 1545, cargo},
-		outboundPacket{"skin_recent_add", 0, 1547, recent},
-	), nil
+	recentIDs = append(recentIDs, template)
+	plan = append(plan, outboundPacket{"skin_cargo_info", 0, 1545, cargo})
+	skins, le := w.characters.Store.ListSkins(ctx, saved.AccountID)
+	if le != nil {
+		event(map[string]any{"kind": "skin_recent_list_error",
+			"character_id": saved.ID, "reason": le.Error()})
+		return plan, nil
+	}
+	recent, e := skinRecentList(skins, w.skinCatalog, recentIDs)
+	if e != nil {
+		event(map[string]any{"kind": "skin_recent_list_error",
+			"character_id": saved.ID, "reason": e.Error()})
+		return plan, nil
+	}
+	if recent != nil {
+		plan = append(plan, outboundPacket{"skin_recent_add", 0, 1547, recent})
+	}
+	return plan, nil
 }
 
 // skinCargoRestore rebuilds the NOTI1545 the skin storage window needs at entry.
@@ -121,12 +148,15 @@ func (w *worldSession) makeSkin(plaintext []byte, event func(map[string]any)) ([
 // a reconnect showed an empty storage even though the applied skin was still on
 // the character. The saved list is replayed here; the entry packet order in
 // entryPayloads.packets() places it after the actor/appearance block.
-func skinCargoRestore(state json.RawMessage) ([]byte, error) {
+//
+// `usable` is the job gate the apply path already refuses by, and nil means "keep
+// everything" — the state without an equipment catalog, which is the pre-fix list.
+func skinCargoRestore(state json.RawMessage, usable func(uint32) bool) ([]byte, error) {
 	bag, e := inventory.ReadBag(state)
 	if e != nil {
 		return nil, e
 	}
-	ids := bag.WeaponSkinStorage()
+	ids := weaponSkinPageIDs(bag, usable)
 	if len(ids) == 0 {
 		return nil, nil
 	}
@@ -135,6 +165,34 @@ func skinCargoRestore(state json.RawMessage) ([]byte, error) {
 		entries = append(entries, protocol.SkinCargoEntry{SkinID: id, Extra: 1})
 	}
 	return protocol.SkinCargoInfo(byte(protocol.SkinCargoWeaponShape), entries, nil)
+}
+
+// weaponSkinPageIDs is the 武器外观 page as one character should see it: the saved list
+// minus the shapes this job cannot wear.
+//
+// The panel itself does no job check — its filler 0x1441e47b0 snapshots page 4 and keeps
+// every row, because the predicate it applies reads the *constant* 0x9C40 registry record
+// rather than the entry (analysis/dumps/skin-noti/df22_ui_1441E47B0.c:40-41). So the
+// server listing an id is the only thing that puts it on screen, and the server dropping
+// it is the only thing that takes it off. Entries that predate the replication job gate
+// therefore still stared at the player (live 2026-09-28: 不适用于该武器类型的角色职业下
+// 出现幻化的武器外观); nothing is deleted from the save, only not pushed.
+//
+// The worn skin is kept unconditionally: its row is where the 解除 button lives, so
+// hiding a legacy worn shape would leave the player wearing something they can no
+// longer take off.
+func weaponSkinPageIDs(bag inventory.Bag, usable func(uint32) bool) []uint32 {
+	ids := bag.WeaponSkinStorage()
+	if usable == nil {
+		return ids
+	}
+	out := make([]uint32, 0, len(ids))
+	for _, id := range ids {
+		if id == bag.WeaponSkin || usable(id) {
+			out = append(out, id)
+		}
+	}
+	return out
 }
 
 // skinSelectionRestore rebuilds the NOTI1546 the storage window needs at entry.
@@ -286,4 +344,89 @@ func skinSlotItem(bag inventory.Bag, slot uint16) (uint32, string, bool) {
 		}
 	}
 	return 0, "", false
+}
+
+// skinRecentList builds the whole NOTI1547 body the storage window's 最近获得 strip
+// renders.
+//
+// Two properties of the client decide the shape (analysis/dumps/CLIENT-MECHANICS.md 20):
+// the reader sub_1444ED400 clears the manager vector before its loop, so one frame is the
+// list's absolute state and every acquisition has to re-send all of it; and the row cell
+// sub_1441E2620 refuses to draw an entry whose second byte is not the family class its
+// static registry has for that id, so `kind` is the skin's own page rather than a flag.
+// Page 4 is the one family whose id is a weapon item template instead of a skin id.
+//
+// Order is oldest first because sub_1441EAF20 walks the vector back from the end and puts
+// the tail in the first cell. The count is one byte, and a list longer than it drops from
+// the head so the newest entries stay.
+func skinRecentList(skins []storage.AccountSkin, entries map[uint32]catalog.SkinStorageEntry,
+	weapons []uint32) ([]byte, error) {
+	ordered := make([]storage.AccountSkin, len(skins))
+	copy(ordered, skins)
+	sort.SliceStable(ordered, func(i, j int) bool {
+		if !ordered[i].UnlockedAt.Equal(ordered[j].UnlockedAt) {
+			return ordered[i].UnlockedAt.Before(ordered[j].UnlockedAt)
+		}
+		return ordered[i].SourceTemplate < ordered[j].SourceTemplate
+	})
+	out := make([]protocol.RecentAddSkinEntry, 0, len(ordered)+len(weapons))
+	seen := make(map[uint32]bool, len(ordered)+len(weapons))
+	for _, skin := range ordered {
+		entry, ok := entries[skin.SourceTemplate]
+		if !ok {
+			continue
+		}
+		page, ok := skinFamilyPage(entry.Family())
+		if !ok || seen[skin.SkinKey] {
+			continue
+		}
+		seen[skin.SkinKey] = true
+		out = append(out, protocol.RecentAddSkinEntry{Kind: page, SkinID: skin.SkinKey})
+	}
+	for _, id := range weapons {
+		if id == 0 || seen[id] {
+			continue
+		}
+		seen[id] = true
+		out = append(out, protocol.RecentAddSkinEntry{
+			Kind: byte(protocol.SkinCargoWeaponShape), SkinID: id})
+	}
+	if len(out) > 255 {
+		out = out[len(out)-255:]
+	}
+	// An empty frame is not a no-op: the reader clears the vector before its loop, so a
+	// zero count erases the whole strip. Nothing drawn yet means nothing to send.
+	if len(out) == 0 {
+		return nil, nil
+	}
+	return protocol.RecentAddSkinList(out)
+}
+
+// skinRecentPayload is skinRecentList for one saved character: the account's registered
+// skins plus that character's replicated weapon shapes, which is every id the window can
+// call recently acquired. `usable` narrows the weapon ids to the shapes this job can wear,
+// for the same reason the page frame does — see weaponSkinPageIDs.
+func skinRecentPayload(skins []storage.AccountSkin, entries map[uint32]catalog.SkinStorageEntry,
+	state json.RawMessage, usable func(uint32) bool) ([]byte, error) {
+	bag, e := inventory.ReadBag(state)
+	if e != nil {
+		return nil, e
+	}
+	return skinRecentList(skins, entries, weaponSkinPageIDs(bag, usable))
+}
+
+// skinRecentRestore reads the account's registrations and encodes the entry push. A
+// storage read failure leaves the frame unset, which is the pre-fix state: the town must
+// not depend on the skin storage the way the character save does.
+func skinRecentRestore(ctx context.Context, store *storage.Store, account int64,
+	state json.RawMessage, entries map[uint32]catalog.SkinStorageEntry,
+	usable func(uint32) bool) ([]byte, error) {
+	if store == nil {
+		return nil, nil
+	}
+	skins, e := store.ListSkins(ctx, account)
+	if e != nil {
+		return nil, e
+	}
+	return skinRecentPayload(skins, entries, state, usable)
 }

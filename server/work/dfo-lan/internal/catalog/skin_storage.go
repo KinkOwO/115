@@ -55,22 +55,37 @@ const (
 	SkinFamilyPartyFrame
 	SkinFamilySkillCutscene
 	SkinFamilyDamageFont
+	// SkinFamilyInstantEmoticon is `[type]` `instant emoticon`, the 表情 tab. The
+	// loader sub_147C18830 gives that label the registry family class 3, which is the
+	// same index its owned page and its selection category use
+	// (analysis/dumps/CLIENT-MECHANICS.md 14.2.1).
+	SkinFamilyInstantEmoticon
+	// SkinFamilySpray is `[type]` `spray` (9 templates), family class 7.
+	SkinFamilySpray
+	// SkinFamilyAirshipEffect is `[type]` `airship effect` (11 templates, PVF
+	// `skin/teleport`), family class 8.
+	SkinFamilyAirshipEffect
 )
+
+// skinFamilyLabels maps the `.skn`'s own `[type]` text to the family class the client's
+// registry loader assigns it. The pairs are one-sided proof read out of the loader's
+// comparison chain (df40_loader_*.c), and the counts are the exported catalog's:
+// instant emoticon 540, spray 9, airship effect 11.
+var skinFamilyLabels = map[string]SkinFamily{
+	"damage font":      SkinFamilyDamageFont,
+	"party frame":      SkinFamilyPartyFrame,
+	"skill cutscene":   SkinFamilySkillCutscene,
+	"instant emoticon": SkinFamilyInstantEmoticon,
+	"spray":            SkinFamilySpray,
+	"airship effect":   SkinFamilyAirshipEffect,
+}
 
 // SkinKey is the ID NOTI1545/1546 carry for this skin.
 func (e SkinStorageEntry) SkinKey() uint32 { return e.SkinID }
 
 // Family classifies the registered skin by the `[type]` label it declares.
 func (e SkinStorageEntry) Family() SkinFamily {
-	switch strings.ToLower(strings.TrimSpace(e.SkinType)) {
-	case "damage font":
-		return SkinFamilyDamageFont
-	case "party frame":
-		return SkinFamilyPartyFrame
-	case "skill cutscene":
-		return SkinFamilySkillCutscene
-	}
-	return SkinFamilyUnknown
+	return skinFamilyLabels[strings.ToLower(strings.TrimSpace(e.SkinType))]
 }
 
 // IsDamageFont reports whether the registered skin is a damage font, according to

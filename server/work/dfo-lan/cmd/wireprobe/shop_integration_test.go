@@ -106,7 +106,7 @@ func TestShopQuantityDatabaseAndWire(t *testing.T) {
 	results := make(chan error, 2)
 	for range 2 {
 		go func() {
-			_, _, _, e := service.Sell(ctx, role, protocol.SellItemRequest{Entries: 1, Slot: 124, Count: 500})
+			_, _, _, e := service.Sell(ctx, role, protocol.SellItemRequest{Rows: []protocol.SellItemRow{{Slot: 124, Count: 500}}})
 			results <- e
 		}()
 	}
@@ -132,13 +132,13 @@ func TestShopQuantityDatabaseAndWire(t *testing.T) {
 	if e != nil || !applied || receipt.Cost != 400 || receipt.NewGold != 29598 {
 		t.Fatalf("buy %+v %v", receipt, e)
 	}
-	_, sale, applied, e := service.Sell(ctx, bought, protocol.SellItemRequest{Entries: 1, Slot: receipt.Slot, Count: 2})
-	if e != nil || !applied || sale.GoldGained != 80 || sale.UnitPrice != 40 || sale.NewGold != 29678 {
+	_, sale, applied, e := service.Sell(ctx, bought, protocol.SellItemRequest{Rows: []protocol.SellItemRow{{Slot: receipt.Slot, Count: 2}}})
+	if e != nil || !applied || sale.GoldGained != 80 || len(sale.Rows) != 1 || sale.Rows[0].UnitPrice != 40 || sale.NewGold != 29678 {
 		t.Fatalf("sell back %+v %v", sale, e)
 	}
 	other := role
 	other.AccountID++
-	if _, _, _, e = service.Sell(ctx, other, protocol.SellItemRequest{Entries: 1, Slot: 124, Count: 1}); e == nil {
+	if _, _, _, e = service.Sell(ctx, other, protocol.SellItemRequest{Rows: []protocol.SellItemRow{{Slot: 124, Count: 1}}}); e == nil {
 		t.Fatal("cross-account sale")
 	}
 	// Stale session state must not resurrect the already consumed stack.

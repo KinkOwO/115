@@ -73,9 +73,39 @@ func TestDecodeSellItemNativeRequests(t *testing.T) {
 				p[16] &^= 1
 			}
 			r, e := DecodeSellItem(p)
-			if e != nil || r.NpcID != 466 || r.ActorID != 148 || r.Entries != 1 || r.List != 0 || r.Slot != tc.slot || r.Count != tc.count || r.Check&^1 != tc.check&^1 {
+			if e != nil || r.NpcID != 466 || r.ActorID != 148 || len(r.Rows) != 1 {
 				t.Fatalf("native sale: %+v, %v", r, e)
 			}
+			row := r.Rows[0]
+			if row.List != 0 || row.Slot != tc.slot || row.Count != tc.count || row.Check&^1 != tc.check&^1 {
+				t.Fatalf("native sale row: %+v", row)
+			}
+		}
+	}
+}
+
+// Captured from the user's client, 2026-09-27 15:32 UTC. The "Sell All" panel
+// registered seven 1-count stacks (slots 10, 11, 12, 13, 14, 43, 48) and
+// confirmed them with one 88-byte CMD22. The old decoder accepted only the
+// 24-byte single-row layout, so the panel's OK button did nothing.
+func TestDecodeSellItemBatchRequest(t *testing.T) {
+	raw := "010000000200000007000a000100000016000000000b000100000018000000000c00010000001a000000000d00010000001c000000000e00010000001e000000002b00010000005800000000300001000000620000000000"
+	p, _ := hex.DecodeString(raw)
+	if len(p) != 88 {
+		t.Fatalf("fixture is %d bytes", len(p))
+	}
+	r, e := DecodeSellItem(p)
+	if e != nil || r.NpcID != 1 || r.ActorID != 2 || len(r.Rows) != 7 {
+		t.Fatalf("batch sale: %+v, %v", r, e)
+	}
+	want := []struct {
+		slot  uint16
+		check uint32
+	}{{10, 22}, {11, 24}, {12, 26}, {13, 28}, {14, 30}, {43, 88}, {48, 98}}
+	for i, w := range want {
+		row := r.Rows[i]
+		if row.List != 0 || row.Slot != w.slot || row.Count != 1 || row.Check != w.check {
+			t.Fatalf("batch row %d: %+v, want slot %d check %d", i, row, w.slot, w.check)
 		}
 	}
 }
@@ -142,13 +172,21 @@ func TestSellItemSuccessAcknowledgement(t *testing.T) {
 		t.Fatalf("SellItemSuccess flag = %d, want 1", ack[0])
 	}
 
-	// Multi-item path rejected
+	// Multi-item ("Sell All") path: 1 + 4 + 4 + 7*N bytes
 	multi := []SoldItem{
 		{List: 0, Slot: 65, Count: 1},
-		{List: 0, Slot: 66, Count: 1},
+		{List: 0, Slot: 66, Count: 2},
 	}
-	if _, err := SellItemSuccess(100, multi); err == nil {
-		t.Fatal("expected error on multi-item sell")
+	ack, err = SellItemSuccess(100, multi)
+	if err != nil {
+		t.Fatalf("SellItemSuccess multi error: %v", err)
+	}
+	if len(ack) != 9+7*len(multi) {
+		t.Fatalf("multi SellItemSuccess width = %d, want %d", len(ack), 9+7*len(multi))
+	}
+	wantMulti, _ := hex.DecodeString("0164000000020000000041000100000000420002000000")
+	if !bytes.Equal(ack, wantMulti) {
+		t.Fatalf("multi sell ACK %x, want %x", ack, wantMulti)
 	}
 	if _, err := SellItemSuccess(0, nil); err == nil {
 		t.Fatal("expected error on empty item sell")

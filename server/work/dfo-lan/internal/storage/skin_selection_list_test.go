@@ -53,6 +53,11 @@ func TestSkinSelectionListRoundTrip(t *testing.T) {
 	if e := s.MigrateSkinSelectionList(ctx); e != nil {
 		t.Fatal(e)
 	}
+	// The damage-font store is created by its own migration, and the two coexist: the
+	// assertion below is only meaningful once both have run against this schema.
+	if e := s.MigrateSkinSelection(ctx); e != nil {
+		t.Fatal(e)
+	}
 	role, err := s.CreateCharacter(ctx, Character{AccountID: account, Name: "SelectionListFixture",
 		Request: []byte{0}, ConfigVersion: "test", State: json.RawMessage(`{}`)}, 24)
 	if err != nil {

@@ -1,0 +1,42 @@
+[
+  {
+    "source": "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80",
+    "dungeon": 100002476,
+    "maze": 0,
+    "from_map": 100003288,
+    "to_map": 100003289,
+    "position": [
+      5,
+      0
+    ],
+    "target": [
+      6,
+      0
+    ],
+    "record": [
+      1,
+      0,
+      0,
+      0,
+      5,
+      5,
+      151,
+      0,
+      74,
+      1,
+      0,
+      0,
+      30,
+      0,
+      20,
+      0,
+      0,
+      0
+    ],
+    "required_key_maps": [],
+    "dungeon_sha256": "14b77f5218aca3bf50613c6c9bed7db2480d1b489077781ec108bdcab3b36335",
+    "map_sha256": "36d4f3281846622c22aa653b3e20a1de324bbe9dcf23a267fac7ac32a331341d",
+    "action_path": "contents/2021/ozma_raid/monster/raid/phase1/boss/berias_chariot/action/last_0.act",
+    "action_sha256": "ef821999c36196a4da7d43ef6a4c733043ede09527840f002a701a84fbbacdc3"
+  }
+]

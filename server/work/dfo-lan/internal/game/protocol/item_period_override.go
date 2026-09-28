@@ -11,6 +11,19 @@ var maxItemPeriodTemplates atomic.Pointer[itemPeriodSet]
 // skinStoragePeriodTemplates holds the `[add skin storage]` consumable templates.
 var skinStoragePeriodTemplates atomic.Pointer[itemPeriodSet]
 
+// liftStoredPeriods 兜底开关：装载不到 PVF 期限模板表时，至少保证**存档里已有的
+// 非零期限**不会被当成过期（按永不过期下发）。
+//
+// 为什么需要它：一键启动器（`DFO-115US单机一键启动器.exe`）自己拉起 launch_local.py，
+// 从不设置 DFO_MAX_ITEM_PERIOD（三个 .cmd 入口都设了）⇒ 走启动器时
+// ConfigureMaxItemPeriods 一次都没被调用，脚本声明过期限的模板（如银增幅书，
+// 到期日 2022-11-08）一律按 0 下发，客户端显示「剩余期限已过」并拒绝使用。
+var liftStoredPeriods atomic.Bool
+
+// ConfigureStoredPeriodLifting 打开/关闭上述兜底。与 ConfigureMaxItemPeriods
+// 互不冲突：两者都开时以模板表的规则为准。
+func ConfigureStoredPeriodLifting(on bool) { liftStoredPeriods.Store(on) }
+
 // ConfigureMaxItemPeriods installs the PVF-derived templates that should be
 // sent with the largest client period. A nil slice disables the override.
 // Configure once before accepting clients; the copy prevents later mutations.
@@ -56,6 +69,9 @@ func ItemPeriodForWire(template, stored uint32) uint32 {
 			return MaxItemPeriod
 		}
 	}
+	if stored != 0 && liftStoredPeriods.Load() {
+		return MaxItemPeriod
+	}
 	if stored == 0 {
 		if set := skinStoragePeriodTemplates.Load(); set != nil {
 			if _, ok := set.templates[template]; ok {
@@ -69,7 +85,7 @@ func ItemPeriodForWire(template, stored uint32) uint32 {
 // StoredItemExpired applies the same opt-in policy to server-side use checks.
 // A zero stored expiry is unspecified and cannot establish that an item expired.
 func StoredItemExpired(stored uint32, now int64) bool {
-	if stored == 0 || maxItemPeriodTemplates.Load() != nil {
+	if stored == 0 || maxItemPeriodTemplates.Load() != nil || liftStoredPeriods.Load() {
 		return false
 	}
 	return int64(stored) <= now
