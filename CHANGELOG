@@ -1,6 +1,11 @@
 # CHANGELOG
 
 ## 2026-09-28
+- **NPC 商店「Sell All」批量出售点了没反应（服务端，待实机验收）**：莱纳斯商店的批量出售面板注册若干物品后点 `Sell (Spacebar)` → 弹 Notice → 点 OK，界面毫无反应（物品不消失、金币不增加、面板不关）。根因是 **CMD22 被写死成「只能单行」**：`protocol.DecodeSellItem` 硬校验 `len(p) != 24` 且 `Entries != 1`，而批量面板把**全部已注册行打包进同一个 CMD22**（实机抓到 6 行 80 字节、7 行 88 字节）⇒ 解码阶段整帧被丢 ⇒ 服务端回通用拒绝帧 `Refusal(4)` ⇒ 客户端无任何反馈（实机日志里客户端连发 4 次后放弃，每次留下 `shop_sell_refused: sell item requires 24 bytes`）。
+  - **布局**：`u32 npcId + u32 actorId + u8 rows`，随后每行 11 字节（`u8 list + u16 slot + u32 count + u32 check`），末尾零填充到 **8 字节块边界**⇒ 总长 = `align8(9 + 11*rows)`（1 行 24、6 行 80、7 行 88）。⚠️ 更正旧文档「+20..23 恒为 4 字节零填充」——那只对单行成立。
+  - **校验**：逐字节确认零填充；每行 `count > 0` 且 `check &^ 1 == 2*(list + slot + count)`（低位是确认位）。
+  - **修复**：把「单行」泛化为「多行」，**`rows = 1` 的输出逐字节不变**（零回归）；`Service.Sell` 在**同一个 `CommitCharacterEvent` 事务**里遍历所有行，先 dry-run 取模板 → 查当前版本售价 → 实扣 → 累加金币，任一行失败则整单拒绝（不会只卖一半）；幂等键含「行数 + 首行槽位 + 末行槽位」。回执 `SoldItem` 回显的是**本次出售数量**（沿用单件出售已验证的语义），ACK 宽度 `9 + 7*N`。
+  - **测试**：回归夹具直接用实机抓到的 88 字节 7 行包（槽位 10/11/12/13/14/43/48，各 1 件）与 80 字节 6 行包。未改客户端、DLL、协议版本号或数据库结构。
 - **Collision（任务 12302）中央帐篷范围目标（服务端，用户实机确认）**：任务目标 NPC 100000374 只在阶段地图中有坐标，常驻地图查询不到；用户确认采用源阶段坐标的候选版可以完成任务。后续移除 12302/40/3 专用分支，对已接取的 NPC 范围目标通用读取坐标一致的阶段地图；新增 `DFO_QUEST_NPC_DISTANCE_MULTIPLIER` 控制服务端 NPC 距离倍率，默认 `1`，可用 `2` 等有限且不小于 `1` 的数值扩大 NPC 接近与范围判定。通用行为与非默认倍率已通过代码测试，待单独实机覆盖。无客户端、DLL、数据库或存档结构改动。基线：`server/work/dfo-lan/docs/protocol/sirocco-collision-quest-12302-phase-reach-20260928.md`。
 - **A Farewell（任务 12165）Oculus Boss 过场卡场景（服务端，用户实机确认）**：源地图 Boss 由 cinematic 14047 的 `[DESTROY]` 行为清除，不会另发 CMD39；服务端按导入的源路线标记唯一 Boss，并在有效终场切图后正常结算。用户确认可触发通关结算并完成任务。候选 SHA-256：`A7E4F401024B78F0D3B662D29B7197DA15837F38EBDE8D5B041ABCD241EF3A3D`。未改客户端、DLL、协议包布局或数据库。确认基线：`server/work/dfo-lan/docs/protocol/a-farewell-oculus-cinematic-boss-20260928.md`。
 - **West Coast 任务到达场景与城镇交互（服务端，用户实机确认）**：从 115 PVF 构建 `[move to dungeon]` + `arrive in town` 白名单，并保留 area 40/0 的城镇语义；修复白名单变量作用域遗漏，以及角色进城时同位置 CMD36 与任务场景待加载状态的竞态。用户确认可进入 West Coast、与 NPC 交互、传送、切换其它 area。最新手动会话记录 NPC 任务目标推进、West Coast area 0/1/2/3/7 切换及 Hendonmyre 往返；服务端无同区域传送拒绝或加载态交互锁。未改数据库、客户端或 DLL。候选 SHA-256：`C9700B6F00319807AEE64C0271EDB0821C40D7FBF17A0D81C8D54B04C5E1F691`。确认基线与取证记录：`server/work/dfo-lan/docs/protocol/west-coast-quest12152-town-scene-desync-20260928.md`。
