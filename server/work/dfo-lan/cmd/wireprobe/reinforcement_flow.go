@@ -178,16 +178,10 @@ func (s *equipmentSession) reinforceWithTicket(ctx context.Context, service *inv
 		return nil, err
 	}
 	// 即使重放旧回执，也发送当前槽位；采用增量更新保留强化动画引用的装备对象。
-	ticketRow, exists := bag.RowAt(r.TicketSlot)
-	if !exists {
-		ticketRow = protocol.EmptyOrdinaryItem(r.TicketSlot)
-	}
+	ticketRow := bagRowOrEmpty(bag, r.TicketSlot)
 	rows := [][protocol.CurrentItemRecordSize]byte{ticketRow}
 	if r.EquipmentSpace == 0 {
-		gearRow, exists := bag.RowAt(r.EquipmentSlot)
-		if !exists {
-			gearRow = protocol.EmptyOrdinaryItem(r.EquipmentSlot)
-		}
+		gearRow := bagRowOrEmpty(bag, r.EquipmentSlot)
 		rows = append(rows, gearRow)
 	}
 	body, err := protocol.InventoryUpdate(rows)
@@ -231,21 +225,25 @@ func (s *equipmentSession) reinforceWithMaterial(ctx context.Context, service *i
 	// 材料行：背包槽与账号材料仓库格（363..379）都按 list0 行回填 —— 客户端的 list0 读取器
 	// 会把这些格子收割进材料仓库面板（sub_145ADC2A0）。这里**不发整包快照**：
 	// 券路径的注释已经写明整包重建会打断强化动画引用的装备对象。
-	rows = append(rows, protocol.OrdinaryItem(out.MaterialSlot, out.MaterialTemplate, out.MaterialRemaining))
+	// ⚠️ 材料被扣完时该格已移除，必须发空行，否则图标留在原地（与保护券同一个坑）。
+	// 判据只能用「不是账号材料仓库 且 剩余量 0」：账号材料仓库的格子**不在背包行里**，
+	// 它用「省略该格」表示空格（见 AccountMaterials.Rows 的注释），
+	// 拿 bag.RowAt 找不到就当空行会在剩余量 > 0 时误发空行。
+	matRow := protocol.OrdinaryItem(out.MaterialSlot, out.MaterialTemplate, out.MaterialRemaining)
+	if !out.MaterialFromStorage && out.MaterialRemaining == 0 {
+		matRow = protocol.EmptyOrdinaryItem(out.MaterialSlot)
+	}
+	rows = append(rows, matRow)
 	// 保护券触发时刷新保护券行，让客户端立即看到扣减。
 	if out.Protected {
-		protRow, ok := bag.RowAt(out.ProtectionSlot)
-		if ok {
-			rows = append(rows, protRow)
-		}
+		// ⚠️ 必须走 bagRowOrEmpty：只有一张保护券时这一行会被整行移除，
+		// 那时若什么都不发，客户端会把图标留在原地（实机 2026-09-28）。
+		rows = append(rows, bagRowOrEmpty(bag, out.ProtectionSlot))
 	}
 	goldRow, _ := bag.RowAt(0)
 	rows = append(rows, goldRow)
 	if r.EquipmentSpace == 0 {
-		gearRow, exists := bag.RowAt(r.EquipmentSlot)
-		if !exists {
-			gearRow = protocol.EmptyOrdinaryItem(r.EquipmentSlot)
-		}
+		gearRow := bagRowOrEmpty(bag, r.EquipmentSlot)
 		rows = append(rows, gearRow)
 	}
 	body, err := protocol.InventoryUpdate(rows)
@@ -305,23 +303,16 @@ func (s *equipmentSession) amplifyUpgrade(ctx context.Context, service *inventor
 	}
 	rows := [][protocol.CurrentItemRecordSize]byte{}
 	// 材料行：材料被扣完时该格已移除，用空行让客户端同步移除。
-	matRow, exists := bag.RowAt(out.MaterialSlot)
-	if !exists {
-		matRow = protocol.EmptyOrdinaryItem(out.MaterialSlot)
-	}
+	matRow := bagRowOrEmpty(bag, out.MaterialSlot)
 	rows = append(rows, matRow)
 	// 保护券触发时刷新保护券行，让客户端立即看到扣减。
 	if out.Protected {
-		protRow, ok := bag.RowAt(out.ProtectionSlot)
-		if ok {
-			rows = append(rows, protRow)
-		}
+		// ⚠️ 必须走 bagRowOrEmpty：只有一张保护券时这一行会被整行移除，
+		// 那时若什么都不发，客户端会把图标留在原地（实机 2026-09-28）。
+		rows = append(rows, bagRowOrEmpty(bag, out.ProtectionSlot))
 	}
 	if out.EquipmentSpace == 0 {
-		gearRow, ok := bag.RowAt(out.EquipmentSlot)
-		if !ok {
-			gearRow = protocol.EmptyOrdinaryItem(out.EquipmentSlot)
-		}
+		gearRow := bagRowOrEmpty(bag, out.EquipmentSlot)
 		rows = append(rows, gearRow)
 	}
 	body, err := protocol.InventoryUpdate(rows)
@@ -414,16 +405,10 @@ func (s *equipmentSession) amplifyTicket(ctx context.Context, service *inventory
 	}
 	rows := [][protocol.CurrentItemRecordSize]byte{}
 	// 券行：券被扣完时该格已移除，用空行让客户端同步移除。
-	ticketRow, exists := bag.RowAt(r.TicketSlot)
-	if !exists {
-		ticketRow = protocol.EmptyOrdinaryItem(r.TicketSlot)
-	}
+	ticketRow := bagRowOrEmpty(bag, r.TicketSlot)
 	rows = append(rows, ticketRow)
 	if out.EquipmentSpace == 0 {
-		gearRow, ok := bag.RowAt(r.EquipmentSlot)
-		if !ok {
-			gearRow = protocol.EmptyOrdinaryItem(r.EquipmentSlot)
-		}
+		gearRow := bagRowOrEmpty(bag, r.EquipmentSlot)
 		rows = append(rows, gearRow)
 	}
 	body, err := protocol.InventoryUpdate(rows)

@@ -34,16 +34,10 @@ func (w *worldSession) applyAmplifyGrimoire(service *inventory.WearService, p, r
 	if err != nil {
 		return nil, err
 	}
-	bookRow, exists := bag.RowAt(out.BookSlot)
-	if !exists {
-		bookRow = protocol.EmptyOrdinaryItem(out.BookSlot)
-	}
+	bookRow := bagRowOrEmpty(bag, out.BookSlot)
 	rows := [][protocol.CurrentItemRecordSize]byte{bookRow}
 	if out.EquipmentSpace == 0 {
-		gearRow, exists := bag.RowAt(out.EquipmentSlot)
-		if !exists {
-			gearRow = protocol.EmptyOrdinaryItem(out.EquipmentSlot)
-		}
+		gearRow := bagRowOrEmpty(bag, out.EquipmentSlot)
 		rows = append(rows, gearRow)
 	}
 	body, err := protocol.InventoryUpdate(rows)

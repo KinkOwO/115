@@ -75,16 +75,10 @@ func (w *worldSession) refine(service *inventory.WearService, p, raw []byte, eve
 	}
 	rows := [][protocol.CurrentItemRecordSize]byte{}
 	// 材料行：被扣完时该格已移除，用空行让客户端同步移除。
-	matRow, exists := bag.RowAt(out.MaterialSlot)
-	if !exists {
-		matRow = protocol.EmptyOrdinaryItem(out.MaterialSlot)
-	}
+	matRow := bagRowOrEmpty(bag, out.MaterialSlot)
 	rows = append(rows, matRow)
 	if out.EquipmentSpace == 0 {
-		gearRow, ok := bag.RowAt(out.EquipmentSlot)
-		if !ok {
-			gearRow = protocol.EmptyOrdinaryItem(out.EquipmentSlot)
-		}
+		gearRow := bagRowOrEmpty(bag, out.EquipmentSlot)
 		rows = append(rows, gearRow)
 	}
 	body, err := protocol.InventoryUpdate(rows)
