@@ -25,6 +25,27 @@ def value(row):
     return val
 
 
+def _carry_pure_templates(output):
+    """从已存在的输出文件继承 pure_templates（去重），避免重导出把它冲掉。
+
+    文件不存在时返回空列表（仓库里 configs/amplify-grimoire.json 已带默认登记）。
+    """
+    try:
+        old = json.loads(output.read_text(encoding='utf-8'))
+    except (FileNotFoundError, json.JSONDecodeError):
+        return []
+    pts = old.get('pure_templates') or []
+    seen = set()
+    out = []
+    for t in pts:
+        if t in seen:
+            continue
+        seen.add(t)
+        out.append(t)
+    return out
+
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--source', type=Path, required=True)
@@ -84,9 +105,13 @@ def main():
         # 次元属性类型不由脚本决定：玩家在窗口里选，随 CMD205 请求上来。
         # 取值 1..4 与客户端 dstr 21306..21309 一一对应。
         'types': {'1': '体力', '2': '精神', '3': '力量', '4': '智力'},
+        # pure_templates：没有 [amplification random value] 段、却被客户端当作增幅书
+        # （发 CMD205）的纯净增幅书模板（如本服 1286）。这类书无法靠随机表自动识别，
+        # 只能显式登记；重导出时从旧文件继承，避免被冲掉。
+        'pure_templates': _carry_pure_templates(args.output),
         'grimoires': grimoires,
     }
-    with args.output.open('x', encoding='utf-8', newline='\n') as target:
+    with args.output.open('w', encoding='utf-8', newline='\n') as target:
         json.dump(out, target, ensure_ascii=False, indent=2)
         target.write('\n')
     expires = sum(1 for g in grimoires if g['expires'])

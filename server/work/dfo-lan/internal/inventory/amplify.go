@@ -32,6 +32,9 @@ const (
 	// 黄金增幅书会「删除当前强化等级」，即清掉低五位（reinforcement_gold.go:97 / reinforcement.go:208 同约定）。
 	amplifyReinforceOffset = 10
 	reinforceLevelMask     = 0x1f
+	// 纯书 / 黄金书走「纯净」行为（见 amplifyGrimoireOutcome）：只落「增幅 +0」、**不写红字数值**。
+	// 服主要求「只需要增幅 +0，不需要力量 +6」，所以 offset 20 恒为 0（客户端把 0 当作
+	// 「没有次元属性数值」→ 异次元属性那一行不显示）。类型 offset 19 仍写入，等级仍渲染成「增幅 +0」。
 )
 
 // amplifyLevel 读装备行里的增幅/强化共用的等级字节。
@@ -62,9 +65,15 @@ type amplifyValueWeight struct {
 }
 
 type amplifyGrimoireRules struct {
-	Version   int `json:"version"`
-	Source    string
-	Grimoires []struct {
+	Version int `json:"version"`
+	Source  string
+	// PureTemplates 是**没有 [amplification random value] 段**、却由客户端当作增幅书
+	// （对其发 CMD205）的纯净增幅书（Pure Amplification Scroll）模板清单。
+	// 例：本服（115US）的纯净增幅书被重模板为 1286（stackable/consumption_1286.stk，
+	// 一个 [etc] 消耗品，脚本里没有任何增幅段），客户端仍走 CMD205。这类书无法靠
+	// 「随机表值恒 0」自动识别，只能显式登记。导出脚本重导出时会保留本字段。
+	PureTemplates []uint32 `json:"pure_templates"`
+	Grimoires     []struct {
 		Template uint32               `json:"template"`
 		Path     string               `json:"path"`
 		Random   []amplifyValueWeight `json:"random"`
@@ -73,10 +82,16 @@ type amplifyGrimoireRules struct {
 		// 「扭转已有红字 + 删除当前强化等级」，与普通/超级增幅书（只打/只加红字）不同。
 		// PVF 里没有专门的标记字段，只能用路径里的 golden 区分（见 IsGoldenGrimoire）。
 		Golden bool `json:"golden"`
+		// Pure 由脚本 [amplification random value] 段识别：段内加权表的值恒为 0（[(0,100)]），
+		// 即「只打红字、增幅等级恒 0」的纯净增幅书（Pure Amplification Scroll）。
+		Pure bool `json:"pure"`
 	} `json:"grimoires"`
 }
 
 var amplifyGrimoires *amplifyGrimoireRules
+
+// pureGrimoireTemplates 是 PureTemplates 的去重集合，供 IsPureGrimoire 快速查表。
+var pureGrimoireTemplates = map[uint32]bool{}
 
 // amplifyRandomInt 是可替换的随机数源，测试里换成固定序列。
 var amplifyRandomInt = func(n int) (int, error) {
@@ -107,10 +122,24 @@ func LoadAmplifyGrimoires(path string) error {
 		return fmt.Errorf("增幅书规则源定义不完整")
 	}
 	for i := range rules.Grimoires {
+		g := &rules.Grimoires[i]
 		// 路径含 golden 即视为黄金增幅书（纯净的黄金增幅书 / 活动金书），会删除强化等级。
-		rules.Grimoires[i].Golden = strings.Contains(strings.ToLower(rules.Grimoires[i].Path), "golden")
+		g.Golden = strings.Contains(strings.ToLower(g.Path), "golden")
+		// 随机表的值恒为 0（[(0,100)]）即纯净增幅书：只打红字、增幅等级恒 0。
+		pure := len(g.Random) > 0
+		for _, w := range g.Random {
+			if w.Value != 0 {
+				pure = false
+				break
+			}
+		}
+		g.Pure = pure
 	}
 	amplifyGrimoires = &rules
+	pureGrimoireTemplates = make(map[uint32]bool, len(rules.PureTemplates))
+	for _, t := range rules.PureTemplates {
+		pureGrimoireTemplates[t] = true
+	}
 	return nil
 }
 
@@ -128,6 +157,55 @@ func IsGoldenGrimoire(template uint32) bool {
 		}
 	}
 	return false
+}
+
+// IsPureGrimoire 报告模板是否为纯净增幅书（Pure Amplification Scroll）：只打红字、
+// 增幅等级恒 0。识别口径有二：
+//  1. 脚本 [amplification random value] 段的值恒为 0（[(0,100)]）—— 见 LoadAmplifyGrimoires；
+//  2. 显式登记在 PureTemplates 里的模板（那些没有增幅段、却被客户端当增幅书发 CMD205 的书，
+//     如本服的 1286）。
+func IsPureGrimoire(template uint32) bool {
+	if amplifyGrimoires == nil {
+		return false
+	}
+	if pureGrimoireTemplates[template] {
+		return true
+	}
+	for _, g := range amplifyGrimoires.Grimoires {
+		if g.Template == template {
+			return g.Pure
+		}
+	}
+	return false
+}
+
+// classifyAmplifyBook 判定 CMD205 请求里的增幅书属于哪一类，并给出普通书摇出的红字数值。
+//
+//	golden=true → 黄金增幅书（脚本路径含 golden）：**仍走摇值即等级**（8..12），
+//	              与纯净增幅书是两个不同产物，不并入；
+//	pure=true   → 纯净增幅书（只落「增幅 +0」、不写红字数值）；
+//	否则         → 普通 / 白银 / 强烈书，value = 按加权表摇出的数值（3..6 / 8..13）。
+//
+// ★ 兜底：客户端只会对「增幅书」发 CMD205。凡不在 433 加权表里（脚本没有
+// [amplification random value] 段）的模板，都当作**纯净增幅书**（而不是拒绝）——
+// 本服除 1286 外，实测玩家用过的还有 stackable/.../pure.stk(590704000)、
+// 10356261、10354248、10360807、10000605。以前这里直接拒绝「窗口里的物品不是增幅书」，
+// 导致玩家背包里除 1286 外的纯书全都用不了。
+func classifyAmplifyBook(template uint32) (golden, pure bool, value byte) {
+	golden = IsGoldenGrimoire(template)
+	pure = IsPureGrimoire(template)
+	if pure {
+		return golden, true, 0
+	}
+	// 黄金增幅书**不并入纯净**：它的随机表在普通档（值非 0），所以 IsPureGrimoire 对它
+	// 返回 false，会走到下面的摇值分支 —— 这正是本仓库既有的「摇值即等级」行为。
+	v, ok := AmplifyGrimoireRollValue(template)
+	if !ok {
+		// 兜底：不在 433 加权表里、脚本也没有 [amplification random value] 段的模板，
+		// 一律当纯净书（不再拒绝「窗口里的物品不是增幅书」）。
+		return golden, true, 0
+	}
+	return golden, false, v
 }
 
 // AmplifyGrimoireValueTable 返回该增幅书的 (数值, 权重) 加权表。
@@ -205,7 +283,9 @@ func AmplifyTypeName(t int) string {
 //
 //	白银 / 普通增幅书：随机 3..6  → 打完直接 +3~+6
 //	强烈增幅书      ：随机 8..13 → 打完直接 +8~+13
-//	黄金增幅书      ：随机 8..12 → 打完直接 +8~+12（用户指定，与白银书同一套规则）
+//	黄金增幅书      ：随机 8..12 → 打完直接 +8~+12（与白银/强烈书同一套规则）；
+//	                ⚠️ **不并入纯净**（两个不同产物）
+//	                纯净增幅书：只落「增幅 +0」、不写红字数值，见 amplifyGrimoireOutcome 的 pure 分支
 //
 // ⚠️ 官方的黄金增幅书是「扭转红字 + 删除当前强化等级」（等级清 0），这里**不按官方**，
 // 按服主要求统一成「摇值即等级」。副作用：对已有高增幅的装备用黄金书会把等级顶回 8~12。
@@ -214,6 +294,31 @@ func AmplifyTypeName(t int) string {
 func applyGrimoireLevel(row []byte, value byte) byte {
 	setAmplifyLevel(row, value)
 	return row[amplifyReinforceOffset] & reinforceLevelMask
+}
+
+// amplifyGrimoireOutcome 决定打完红字后红字数值（offset 20）与增幅等级（offset 10 低五位）。
+//
+//	**纯净增幅书**：只落「增幅 +0」、**不写红字数值**（"纯净"行为，服主要求
+//	  「只需要增幅 +0、不需要力量 +6」）。
+//	  - redValue = 0：客户端把 offset 20 = 0 当作「没有次元属性数值」→「力量 +N」那一行不显示。
+//	  - 类型 offset 19 仍由调用方写入，客户端据此把等级渲染成「增幅 +0」（而不是「强化 +0」）。
+//	普通 / 白银 / 强烈书 / **黄金增幅书**：红字数值 = 摇出值，增幅等级 = 摇出值
+//	  （红字与等级一起落库，客户端才显示「增幅 +N」）。
+//
+// ⚠️ **黄金增幅书不并入纯净**：它与纯净增幅书是两个不同产物（前者路径含 golden、
+// 随机表在普通档 8..12，后者只打 +0 且不写红字数值）。服主明确规定要区分，别合并。
+//
+// 再封装次数（offset 10 高三位）一律保留，由 applyGrimoireLevel 负责。
+func amplifyGrimoireOutcome(row []byte, value byte, pure bool) (redValue, level byte) {
+	if pure {
+		// 不写红字数值：offset 20 清成 0 → 客户端不显示「力量 +N」，但仍是「增幅 +0」。
+		redValue = 0
+		level = applyGrimoireLevel(row, 0)
+		return redValue, level
+	}
+	redValue = value
+	level = applyGrimoireLevel(row, value)
+	return redValue, level
 }
 
 // AmplifyGrimoireReceipt 是一次「打红字」的结果。
@@ -232,6 +337,7 @@ type AmplifyGrimoireReceipt struct {
 	// Golden 由增幅书脚本路径识别（.../amplification_book_golden.stk）。
 	// 它摇的是 8..12；按服主要求与白银书同一套规则：摇值即增幅等级（不按官方清 0）。
 	Golden             bool `json:"golden"`
+	Pure               bool `json:"pure"`
 	PrevReinforceLevel byte `json:"prev_reinforce_level"`
 	// AmplifyLevel 是打完红字后装备行 offset 10 的等级 = 增幅书摇出的数值。
 	// 客户端就按这个字节渲染「增幅 +N」，所以红字与等级必须一起落库。
@@ -255,14 +361,10 @@ func (s *WearService) ApplyAmplifyGrimoire(ctx context.Context, role storage.Cha
 	if r.Type < amplifyTypeVitality || r.Type > amplifyTypeIntelligence {
 		return role, out, fmt.Errorf("次元属性类型 %d 不在 1..4 范围内", r.Type)
 	}
-	value, ok := AmplifyGrimoireRollValue(r.BookTemplate)
-	if !ok {
-		return role, out, fmt.Errorf("窗口里的物品不是增幅书")
-	}
-	golden := IsGoldenGrimoire(r.BookTemplate)
+	golden, pure, value := classifyAmplifyBook(r.BookTemplate)
 
 	saved, _, err := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, amplifyGrimoireModel, func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
-		next, receipt, e := s.applyAmplifyGrimoire(current, r, value, golden)
+		next, receipt, e := s.applyAmplifyGrimoire(current, r, value, golden, pure)
 		if e != nil {
 			return nil, nil, e
 		}
@@ -283,7 +385,7 @@ func (s *WearService) ApplyAmplifyGrimoire(ctx context.Context, role storage.Cha
 	return saved, out, err
 }
 
-func (s *WearService) applyAmplifyGrimoire(role storage.Character, r protocol.AmplifyOptionRequest, value byte, golden bool) (json.RawMessage, AmplifyGrimoireReceipt, error) {
+func (s *WearService) applyAmplifyGrimoire(role storage.Character, r protocol.AmplifyOptionRequest, value byte, golden, pure bool) (json.RawMessage, AmplifyGrimoireReceipt, error) {
 	var out AmplifyGrimoireReceipt
 	bag, err := ReadBag(role.State)
 	if err != nil {
@@ -331,6 +433,12 @@ func (s *WearService) applyAmplifyGrimoire(role storage.Character, r protocol.Am
 	reAmplified := row[amplifyTypeOffset] != 0                             // 类型位非空即视为「原本就带红字」
 	prevType := row[amplifyTypeOffset]                                     // 覆盖前的原类型（扭转动画用）
 	prevReinforceLevel := row[amplifyReinforceOffset] & reinforceLevelMask // 强化等级（低五位）
+	// 纯净增幅书（Pure Amplification Scroll）：只能用于「无红字 + 0 强化」的装备。
+	// 官方描述：Cannot be used on equipment that has been Reinforced；Adds a Dimensional
+	// stat to equipment with no Dimensional properties。覆写旧等级/旧红字一律拒绝。
+	if pure && (reAmplified || prevReinforceLevel != 0) {
+		return nil, out, fmt.Errorf("纯净增幅书只能用于无红字且 0 强化的装备")
+	}
 	// 黄金增幅书：扭转已有红字时，玩家不能选与之前相同的属性（描述：「无法选择与之前相同的属性」）。
 	if golden && reAmplified && r.Type == row[amplifyTypeOffset] {
 		return nil, out, fmt.Errorf("黄金增幅书无法选择与之前相同的异次元属性")
@@ -360,12 +468,10 @@ func (s *WearService) applyAmplifyGrimoire(role storage.Character, r protocol.Am
 		return nil, out, fmt.Errorf("增幅书不在背包里")
 	}
 
-	// 写红字：类型 @19，数值 @20 取增幅书加权表摇出的初始值。
+	// 写红字：类型 @19。数值 @20 与等级 @10 的处理因书而异（纯书 / 黄金书 / 普通·白银·强烈书）。
 	row[amplifyTypeOffset] = r.Type
-	row[amplifyValueOffset] = value
-	// ★ 落等级字节（offset 10 低五位）。红字与等级必须一起落库，否则客户端只显示
-	// 「增幅 +0」——玩家看到的就是「红字打上了、等级没动」。
-	level := applyGrimoireLevel(row[:], value)
+	redValue, level := amplifyGrimoireOutcome(row[:], value, pure)
+	row[amplifyValueOffset] = redValue
 	gear.Record = append([]byte(nil), row[:]...)
 	items = append([]BagEquipment(nil), items...)
 	items[index] = gear
@@ -379,8 +485,8 @@ func (s *WearService) applyAmplifyGrimoire(role storage.Character, r protocol.Am
 	out = AmplifyGrimoireReceipt{
 		Request: r, BookTemplate: r.BookTemplate, BookSlot: r.BookSlot, BookRemaining: remaining,
 		Equipment: gear, EquipmentSpace: space, EquipmentSlot: r.EquipmentSlot,
-		AmplifyType: r.Type, AmplifyTypeName: AmplifyTypeName(int(r.Type)), AmplifyValue: value,
-		ReAmplified: reAmplified, Golden: golden,
+		AmplifyType: r.Type, AmplifyTypeName: AmplifyTypeName(int(r.Type)), AmplifyValue: redValue,
+		ReAmplified: reAmplified, Golden: golden, Pure: pure,
 		PrevReinforceLevel: prevReinforceLevel,
 		PrevAmplifyType:    prevType,
 		AmplifyLevel:       level,
