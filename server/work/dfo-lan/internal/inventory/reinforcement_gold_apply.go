@@ -34,10 +34,15 @@ type GoldReinforcementReceipt struct {
 	// PostLevel 是落库后的真实等级；Level 是回包里要写的值。
 	// 实机证据：把降级（8→7）写进回包会让客户端发 ADD_HACKTYPE_CNT 并锁死窗口，
 	// 所以失败回包的 level 必须等于 old（与固定券分支的校验一致），掉级只靠装备行下发。
-	PostLevel      byte         `json:"post_level"`
-	Rate           int          `json:"rate"`   // 本次掷骰用的成功率（安全强化含失败补正）
-	Streak         int          `json:"streak"` // 安全强化本级的连续失败次数（成功后清零）
-	Destroyed      bool         `json:"destroyed,omitempty"`
+	PostLevel byte `json:"post_level"`
+	Rate      int  `json:"rate"`   // 本次掷骰用的成功率（安全强化含失败补正）
+	Streak    int  `json:"streak"` // 安全强化本级的连续失败次数（成功后清零）
+	Destroyed bool `json:"destroyed,omitempty"`
+	// Protected：本次失败落在「会碎」区间，但背包里有强化保护券，装备被保住（等级归零）。
+	Protected bool `json:"protected,omitempty"`
+	// ProtectionSlot：被消耗的那张保护券在背包里的槽位。客户端强化窗口没有保护券槽
+	// （请求里恒为 0xffff），这是服务端全背包查找后找到的位置。
+	ProtectionSlot uint16       `json:"protection_slot,omitempty"`
 	Equipment      BagEquipment `json:"equipment"`
 	EquipmentSpace byte         `json:"equipment_space"`
 	EquipmentSlot  uint16       `json:"equipment_slot"`
@@ -94,11 +99,13 @@ func (s *WearService) applyGoldReinforcement(role storage.Character, counts json
 	fail := func(reason string) (json.RawMessage, json.RawMessage, GoldReinforcementReceipt, error) {
 		return nil, nil, out, fmt.Errorf("%s", reason)
 	}
-	// 形状检查与券路径一致：单次、无保护券；@9 是材料槽位。
+	// 形状检查与券路径一致：单次；@9 是材料槽位。
 	// tail[4]（Multiple）左侧普通强化为 0、右侧安全强化为 1，所以这里不判断，改到材料解析之后。
+	// ProtectionSlot 不参与形状校验：客户端强化窗口**没有**独立保护券槽位（实测恒 0xffff），
+	// 原版语义是「背包持有保护券、失败到会碎区间自动消耗」，服务端自己全背包查找。
 	if r.Mode != 0 || (r.EquipmentSpace != 0 && r.EquipmentSpace != 3) || r.TicketSpace != 0 ||
-		r.TicketSlot == 0xffff || r.MaterialSlot != 0xffff || r.ProtectionSlot != 0xffff {
-		return fail("强化只支持单次普通/安全强化，不支持增幅或保护券")
+		r.TicketSlot == 0xffff || r.MaterialSlot != 0xffff {
+		return fail("强化只支持单次普通/安全强化，不支持增幅")
 	}
 	if r.Multiple > 1 {
 		return fail("不支持批量强化")
@@ -252,6 +259,8 @@ func (s *WearService) applyGoldReinforcement(role storage.Character, counts json
 	}
 	level, result := old, byte(1)
 	destroyed := false
+	protected := false
+	protectionSlot := uint16(0) // 背包里强化保护券所在槽位（客户端窗口无保护券槽，自动查找）
 	if roll.Int64() < int64(rate) {
 		level, result = old+1, 0
 	} else if !safe {
@@ -267,6 +276,15 @@ func (s *WearService) applyGoldReinforcement(role storage.Character, counts json
 		case goldPenaltyDestroy:
 			if goldDestroyEnabled() {
 				destroyed = true
+				// 客户端强化窗口没有独立保护券槽位；原版语义是「背包持有保护券、
+				// 失败到会碎区间自动消耗」。在背包里找强化保护券，找到则保护：
+				// 装备不破坏、强化等级归零、消耗一张券；找不到才摧毁。
+				if slot, found := findProtectionTicket(bag, false); found {
+					destroyed = false
+					protected = true
+					level = 0
+					protectionSlot = slot
+				}
 			}
 		}
 	}
@@ -321,6 +339,14 @@ func (s *WearService) applyGoldReinforcement(role storage.Character, counts json
 	}
 	bag.Gold -= gold
 
+	// 保护券触发时扣一张保护券（失败保护装备，代价是消耗券）。
+	if protected {
+		bag, err = consumeProtectionTicket(bag, protectionSlot)
+		if err != nil {
+			return nil, nil, out, err
+		}
+	}
+
 	mode := "normal"
 	if safe {
 		mode = "safe"
@@ -335,7 +361,7 @@ func (s *WearService) applyGoldReinforcement(role storage.Character, counts json
 		MaterialFromStorage: fromStorage, MaterialRemaining: materialRemaining,
 		MaterialSpent: needed, GoldSpent: gold, Gold: bag.Gold,
 		Old: old, Level: replyLevel, PostLevel: level, Rate: rate, Streak: streaks[streakKey],
-		Result: result, Destroyed: destroyed,
+		Result: result, Destroyed: destroyed, Protected: protected, ProtectionSlot: protectionSlot,
 		Equipment: gear, EquipmentSpace: r.EquipmentSpace, EquipmentSlot: r.EquipmentSlot,
 	}
 	if out.Equipment.Record != nil {

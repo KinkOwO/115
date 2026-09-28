@@ -222,23 +222,28 @@ var amplifyUpgradeRandomInt = func(n int) (int, error) {
 
 // AmplifyUpgradeReceipt 是一次增幅的结果。
 type AmplifyUpgradeReceipt struct {
-	Request           protocol.ReinforcementRequest `json:"request"`
-	Equipment         BagEquipment                  `json:"equipment"`
-	EquipmentSpace    byte                          `json:"equipment_space"`
-	EquipmentSlot     uint16                        `json:"equipment_slot"`
-	AmplifyType       byte                          `json:"amplify_type"`
-	LevelBefore       byte                          `json:"level_before"`
-	LevelAfter        byte                          `json:"level_after"`
-	Result            byte                          `json:"result"` // 0 成功 / 1 失败
-	Penalty           string                        `json:"penalty"`
-	Destroyed         bool                          `json:"destroyed"`
-	Safe              bool                          `json:"safe"` // 是否走安全增幅（材料不同、失败无惩罚）
-	MaterialSlot      uint16                        `json:"material_slot"`
-	MaterialRemaining uint32                        `json:"material_remaining"`
-	MaterialSpent     uint32                        `json:"material_spent"`
-	GoldSpent         uint32                        `json:"gold_spent"`
-	Gold              uint32                        `json:"gold"`
-	SuccessPercent    int                           `json:"success_percent"`
+	Request        protocol.ReinforcementRequest `json:"request"`
+	Equipment      BagEquipment                  `json:"equipment"`
+	EquipmentSpace byte                          `json:"equipment_space"`
+	EquipmentSlot  uint16                        `json:"equipment_slot"`
+	AmplifyType    byte                          `json:"amplify_type"`
+	LevelBefore    byte                          `json:"level_before"`
+	LevelAfter     byte                          `json:"level_after"`
+	Result         byte                          `json:"result"` // 0 成功 / 1 失败
+	Penalty        string                        `json:"penalty"`
+	Destroyed      bool                          `json:"destroyed"`
+	// Protected：本次增幅失败落在「会碎」区间，但背包里有增幅保护券，装备被保住（等级归零）。
+	Protected bool `json:"protected,omitempty"`
+	// ProtectionSlot：被消耗的那张增幅保护券在背包里的槽位（客户端增幅窗口没有保护券槽，
+	// 请求里恒为 0xffff，这是服务端全背包查找后找到的位置）。
+	ProtectionSlot    uint16 `json:"protection_slot,omitempty"`
+	Safe              bool   `json:"safe"` // 是否走安全增幅（材料不同、失败无惩罚）
+	MaterialSlot      uint16 `json:"material_slot"`
+	MaterialRemaining uint32 `json:"material_remaining"`
+	MaterialSpent     uint32 `json:"material_spent"`
+	GoldSpent         uint32 `json:"gold_spent"`
+	Gold              uint32 `json:"gold"`
+	SuccessPercent    int    `json:"success_percent"`
 }
 
 // ApplyAmplifyUpgrade 处理 CMD80 mode=1：校验次元属性与材料、扣费、按官方成功率判定。
@@ -429,7 +434,9 @@ func (s *WearService) applyAmplifyUpgrade(role storage.Character, r protocol.Rei
 	//   1 = 失败且等级不变  → 新等级 = 旧等级（客户端 handler 要求 old == new）
 	//   2 = 失败且降级      → 新等级 < 旧等级（客户端 handler 要求 old > new）
 	//   3 = 失败且摧毁      → 装备消失
+	protected := false
 	penalty := amplifyPenaltyNone
+	protectionSlot := uint16(0) // 背包里增幅保护券所在槽位（客户端窗口无保护券槽，自动查找）
 	result := byte(1)
 	newLevel := byte(level)
 	destroyed := false
@@ -454,13 +461,25 @@ func (s *WearService) applyAmplifyUpgrade(role storage.Character, r protocol.Rei
 		case amplifyPenaltyDestroy:
 			destroyed = true
 			result = 3
+			// 客户端增幅窗口没有独立保护券槽位；原版语义是「背包持有保护券、
+			// 失败到会碎区间自动消耗」。在背包里找增幅保护券，找到则保护：
+			// 装备不破坏、增幅等级归零、消耗一张券；找不到才摧毁。
+			if slot, found := findProtectionTicket(bag, true); found {
+				destroyed = false
+				newLevel = 0
+				result = 2
+				penalty = amplifyPenaltyDown
+				setAmplifyLevel(row[:], 0)
+				protected = true
+				protectionSlot = slot
+			}
 		}
 	}
 
 	out = AmplifyUpgradeReceipt{
 		Request: r, Equipment: gear, EquipmentSpace: space, EquipmentSlot: r.EquipmentSlot,
 		AmplifyType: ampType, LevelBefore: byte(level), LevelAfter: newLevel,
-		Result: result, Penalty: penalty, Destroyed: destroyed, Safe: safe,
+		Result: result, Penalty: penalty, Destroyed: destroyed, Protected: protected, ProtectionSlot: protectionSlot, Safe: safe,
 		MaterialSlot: r.TicketSlot, MaterialRemaining: remaining, MaterialSpent: count,
 		GoldSpent: gold, Gold: bag.Gold, SuccessPercent: percent,
 	}
@@ -479,6 +498,14 @@ func (s *WearService) applyAmplifyUpgrade(role storage.Character, r protocol.Rei
 		bag.Equipment = items
 	}
 	bag.Items = rows
+
+	// 保护券触发时扣一张保护券（失败保护装备，代价是消耗券）。
+	if protected {
+		bag, err = consumeProtectionTicket(bag, protectionSlot)
+		if err != nil {
+			return nil, out, err
+		}
+	}
 
 	next, err := SaveBag(role.State, bag)
 	if err != nil {
