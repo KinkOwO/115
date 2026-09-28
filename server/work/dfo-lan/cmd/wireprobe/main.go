@@ -484,17 +484,27 @@ func main() {
 		if e != nil {
 			log.Fatal(e)
 		}
-		if os.Getenv("DFO_MAX_ITEM_PERIOD") == "1" {
+		// 带期限物品一律按「永不过期」下发。**默认开启**（DFO_MAX_ITEM_PERIOD=0 才关）：
+		// 三个 .cmd 入口都设了这个变量，但一键启动器自己拉起 launch_local.py、
+		// 从不设置它 ⇒ 走一键启动器时整条兜底不生效，脚本声明过期限的模板
+		// （银增幅书到期日 2022-11-08 之类）就会带着 0 下发，客户端显示
+		// 「剩余期限已过」并拒绝使用（错误码 31730）。
+		if os.Getenv("DFO_MAX_ITEM_PERIOD") != "0" {
+			protocol.ConfigureStoredPeriodLifting(true)
 			if *itemIndexFile == "" {
-				log.Fatal("DFO_MAX_ITEM_PERIOD requires -item-index")
+				log.Printf("maximum item period: no item index (-item-index), lifting stored periods only")
+			} else {
+				periodFile := filepath.Join(filepath.Dir(*itemIndexFile), "item-period-tags.json")
+				templates, periodErr := catalog.LoadItemPeriods(periodFile, data.Source.Checksum)
+				if periodErr != nil {
+					// 表读不到不再致命：退化为「存档里已有的非零期限一律抬到最大值」，
+					// 至少不会把已过期的旧道具重新判成过期。
+					log.Printf("maximum item period table unavailable (%v), lifting stored periods only", periodErr)
+				} else {
+					protocol.ConfigureMaxItemPeriods(templates)
+					log.Printf("maximum item period enabled for %d PVF templates", len(templates))
+				}
 			}
-			periodFile := filepath.Join(filepath.Dir(*itemIndexFile), "item-period-tags.json")
-			templates, periodErr := catalog.LoadItemPeriods(periodFile, data.Source.Checksum)
-			if periodErr != nil {
-				log.Fatalf("DFO_MAX_ITEM_PERIOD: %v", periodErr)
-			}
-			protocol.ConfigureMaxItemPeriods(templates)
-			log.Printf("maximum item period enabled for %d PVF templates", len(templates))
 		}
 		// Skin-cargo registration (CMD507 action 169, `[add skin storage]`) reads
 		// the skin key straight from PVF and persists the unlock per account.
