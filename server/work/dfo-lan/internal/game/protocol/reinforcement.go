@@ -211,6 +211,55 @@ func AmplifyUpgradeReply(r ReinforcementRequest, remaining uint32, oldLevel, new
 	return p, nil
 }
 
+// AmplifyTicketReply 是 CMD80 mode=1 下使用**增幅券**（固定等级券）的结果体。
+//
+// 与 AmplifyUpgradeReply（材料增幅，每级 +1）的关键差别：增幅券是**跳级**券。
+// PVF 段 [equipment amplify reinforcement ticket] 的四个值是
+// [目标等级, 成功率, 'fixed', -1]，例如 +10 券会把装备从当前等级**直接**拉到 +10，
+// 而不是 +1。所以成功回包不能强制 newLevel == oldLevel+1，否则 +0 用 +10 券会被
+// 服务端自己判定为「结果不自洽」而整单拒绝 —— 这就是「增幅券不能直接附加到装备上」。
+//
+// 这与普通强化券的 ReinforcementTicketReply 完全对称：固定券本来就允许跳级
+// （+0 → +10 已实机验证可用），增幅券共用同一个 CMD80 handler（sub_14529B2F0）
+// 与同样的 35 字节布局，唯一的差别是 mode=1。
+//
+// 布局与 AmplifyUpgradeReply 一致：
+//
+//	[0]=1 [1]=回显 mode（非摧毁） [2..3]=券槽 [4..7]=券剩余 [8..9]=0xffff
+//	[10]=1 [11]=旧等级 [12]=结果(0 成功/1 失败不变) [13]=新等级 [14]=装备空间 [15..16]=装备槽
+//
+// 增幅券失败只消耗券、等级不变（与官方固定券一致：不降级、不摧毁），所以尾部
+// 恒为非摧毁的 35 字节布局。
+func AmplifyTicketReply(r ReinforcementRequest, remaining uint32, old, level, result byte) ([]byte, error) {
+	if r.Mode != 1 {
+		return nil, fmt.Errorf("增幅券回包的 mode 必须是 1，收到 %d", r.Mode)
+	}
+	if result > 1 {
+		return nil, fmt.Errorf("增幅券不降级也不摧毁，结果码只能是 0/1，收到 %d", result)
+	}
+	if result == 0 {
+		// 固定券的目标等级上限与强化券同为一个等级字节能表达的 1..15。
+		if !FixedReinforcementSupported(level) {
+			return nil, fmt.Errorf("增幅券目标等级 %d 超出客户端支持范围（1..15）", level)
+		}
+		// 跳级券允许 old+1 之外的跨度，但必须真的往上走。
+		if int(level) <= int(old) {
+			return nil, fmt.Errorf("增幅券成功回包的新等级必须高于旧等级（old=%d new=%d）", old, level)
+		}
+	}
+	if result == 1 && old != level {
+		return nil, fmt.Errorf("增幅券失败（等级不变）回包要求新旧等级相同")
+	}
+	p := []byte{1, cmd80UpgradeKind(r.Mode, result)}
+	p = binary.LittleEndian.AppendUint16(p, r.TicketSlot)
+	p = binary.LittleEndian.AppendUint32(p, remaining)
+	p = binary.LittleEndian.AppendUint16(p, 0xffff)
+	p = append(p, 1, old, result, level, r.EquipmentSpace)
+	p = binary.LittleEndian.AppendUint16(p, r.EquipmentSlot)
+	p = cmd80Tail(p, false)
+	return p, nil
+}
+
 // GoldReinforcementMaxLevel 是装备实例行偏移 10 低五位能表达的最高强化等级。
 const GoldReinforcementMaxLevel = 31
 
