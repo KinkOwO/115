@@ -39,6 +39,7 @@ import (
 )
 
 func main() {
+	moonConfigFile := flag.String("moon-solo-config", os.Getenv("DFO_MOON_SOLO_CONFIG"), "opt-in Moon Lake solo candidate, explicitly validated 2.38.3.25 profile")
 	fixture := flag.String("fixture", "", "verified-format server fixture to send after accept")
 	dir := flag.String("output", "runtime/wireprobe", "capture directory")
 	gameListen := flag.String("game-listen", "127.0.0.1:0", "game endpoint; use 0.0.0.0:PORT to accept clients from other machines")
@@ -1276,6 +1277,22 @@ if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "am
 		log.Fatal(err)
 	}
 	hub := newLanHub()
+	var moonConfig *moonSoloConfig
+	if *moonConfigFile != "" {
+		moonConfig, err = loadMoonSoloConfig(*moonConfigFile, lootService)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if worldService == nil || characters == nil || dungeonCatalog == nil || *channelRefreshFile == "" || !*entryBasicProbe || !*entryAdditionProbe {
+			log.Fatal("Moon requires complete persisted world/entry/dungeon/channel services")
+		}
+		if err = validateMoonResources(dungeonCatalog, lootService); err != nil {
+			log.Fatal(err)
+		}
+		if err = worldService.ValidatePosition(255, false, moonConfig.Entry); err != nil {
+			log.Fatal("Moon source entry: ", err)
+		}
+	}
 	l, err := net.Listen("tcp4", *gameListen)
 	if err != nil {
 		log.Fatal(err)
@@ -1307,6 +1324,17 @@ if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "am
 		}
 		for _, ch := range channelCfg.Channels {
 			channelTypes[ch.ID] = ch.Type
+		}
+		if moonConfig != nil {
+			found := false
+			for _, ch := range channelCfg.Channels {
+				if ch.ID == moonConfig.Channel {
+					found = ch.Type == 101
+				}
+			}
+			if !found {
+				log.Fatal("Moon channel must exist with source online type 101")
+			}
 		}
 		bindHost, _, _ := net.SplitHostPort(*gameListen)
 		_, portText, _ := net.SplitHostPort(l.Addr().String())
@@ -1414,6 +1442,9 @@ if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "am
 			}
 			worldState = &worldSession{characters: characters, service: worldService, account: developmentAccount, flags: townPolicy.Flags, dungeons: dungeonCatalog, townArrivalScenes: townArrivalScenes, tutorials: tutorialRoutes, tutorialDungeons: tutorialDungeons, professions: characters.Catalog, fatigue: fatigueService, quests: questService, progression: progressionService, loot: lootService, selectionBoxes: selectionBoxes, vault: vaultService, skinCatalog: skinCatalog, soloPartyBootstrap: *soloPartyBootstrap, hub: hub, scaleDeathFromHP: *scaleDeathFromHP, oathGrades: oathGradePair, oathTable: oathGradeTable, oathFromGear: *oathFromGear, oathProgressClears: *oathProgressClears, oathProgressDungeons: oathProgressSet, oathInject: oathInjectSpecs, omenHold: *omenHold, omenState: *omenState, omenInfo: omenInfoBytes}
 			worldState.serverID = channelCfg.ServerID
+			if moonConfig != nil && channel == moonConfig.Channel {
+				worldState.moonConfig = moonConfig
+			}
 		}
 		if worldState != nil {
 			defer worldState.departArea()
@@ -1451,10 +1482,30 @@ if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "am
 		var mailAlarmRole, mailDeliveryID int64
 		ticker := time.NewTicker(30 * time.Second)
 		defer ticker.Stop()
+		var moonTicks <-chan time.Time
+		if worldState != nil && worldState.moonConfig != nil {
+			mt := time.NewTicker(250 * time.Millisecond)
+			defer mt.Stop()
+			moonTicks = mt.C
+		}
 		for {
 			var incoming clientRead
 			select {
 			case incoming = <-frames:
+			case now := <-moonTicks:
+				if bootstrapped && selectedCharacterID != 0 {
+					packets, e := worldState.moonTick(now)
+					if e != nil {
+						event(map[string]any{"kind": "moon_tick_error", "error": e.Error()})
+					}
+					for _, packet := range packets {
+						if e := sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
+							return
+						}
+						event(map[string]any{"kind": packet.Name, "id": packet.ID})
+					}
+				}
+				continue
 			case <-mailTicker.C:
 				select {
 				case mailChanges <- struct{}{}:
@@ -1543,6 +1594,22 @@ if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "am
 				}
 			}
 			event(entry)
+			if frame.Type == 1 && bootstrapped && verified && worldState != nil && selectedCharacterID != 0 {
+				handled, packets, e := worldState.moonHandle(frame.ID, plaintext, time.Now(), event)
+				if handled {
+					if e != nil {
+						event(map[string]any{"kind": "moon_request_rejected", "id": frame.ID, "error": e.Error()})
+						packets = moonRefusal(frame.ID, plaintext)
+					}
+					for _, packet := range packets {
+						if e := sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
+							return
+						}
+						event(map[string]any{"kind": packet.Name, "id": packet.ID})
+					}
+					continue
+				}
+			}
 			if frame.Type == 1 && bootstrapped && verified && characters != nil && frame.ID == 63 {
 				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 				payload, e := ceraQuery(ctx, characters.Store, developmentAccount, plaintext)
@@ -4422,6 +4489,14 @@ if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "am
 					response, err = channelLoginResponse(keys, response, channelNotice[12])
 					if err != nil {
 						event(map[string]any{"kind": "channel_login_error", "error": err.Error()})
+						return
+					}
+				}
+				if frame.ID == 1 && moonConfig != nil && channel == moonConfig.Channel {
+					var e error
+					response, e = moonLoginResponse(response, keys)
+					if e != nil {
+						event(map[string]any{"kind": "moon_login_error", "error": e.Error()})
 						return
 					}
 				}

@@ -17,6 +17,8 @@ import (
 )
 
 type worldSession struct {
+	moonConfig *moonSoloConfig
+	moon       moonSoloState
 	characters *character.Service
 	pilotDeath *odysseyDeath
 	service    *world.Service
@@ -159,6 +161,17 @@ func (w *worldSession) enter(role storage.Character, spawn storage.WorldPosition
 		return e
 	}
 	w.role, w.level, w.state, w.odyssey = role, state.Level, saved, odyssey
+	w.moon = moonSoloState{}
+	if w.moonConfig != nil {
+		if e := w.service.ValidatePosition(w.level, w.odyssey, w.moonConfig.Entry); e != nil {
+			return e
+		}
+		// Explicit contribution test-channel spawn only; never write a dungeon
+		// coordinate into the ordinary world-position store.
+		if w.state.Position.Town != 215 {
+			w.state.Position = w.moonConfig.Entry
+		}
+	}
 	w.lastFatigueDay = ""
 	w.activeDungeon = nil
 	w.pilotDeath = nil

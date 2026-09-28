@@ -27,6 +27,25 @@ type Session struct {
 	Tournament *TournamentRun
 	Loaded     bool
 	Dead       map[uint16]bool
+	// 沉月湖（Moon Lake）单人攻坚状态。只有该频道启用了 moonConfig 时才会被写入，
+	// 普通副本与军团全程保持零值。
+	MoonFirstGrid                     [5]byte
+	MoonZermioSpawnedAt               time.Time
+	MoonZermioReportRoom              uint64
+	MoonZermioHealth                  uint64
+	MoonZermioMeter                   uint32
+	MoonRetired                       map[uint16]bool
+	MoonFeverUntil, MoonFeverCooldown time.Time
+	MoonDynamic                       map[uint16]protocol.UnassignedMonster115
+	MoonGridReady                     bool
+	MoonGrid                          [5][3]byte
+	MoonZermioGrid                    [2]int32
+	MoonZermioDefeated                bool
+	MoonNamed                         map[uint32]MoonNamedState
+	MoonCleared                       [5]bool
+	MoonScored                        map[uint16]bool
+	MoonTroopScore, MoonFeverScore    uint32
+	PhaseHistory                      []MoonCompletedPhase
 	// Unowned marks a monster this character did not kill. It dies and the
 	// room clears, but it pays no loot and no experience.
 	Unowned       map[uint16]bool
@@ -405,6 +424,9 @@ func (s *Session) enterRoom(c catalog.DungeonCatalog, room catalog.DungeonRoom) 
 		}
 		if triggeredSpawnsSuppressed() {
 			monsters = dropTriggeredMonsters(script, monsters)
+		}
+		if gate, ok := s.MoonNamed[room.Map]; s.Definition.ID == 100004136 && ok && gate.Slot == 0 && gate.Planned {
+			monsters = nil
 		}
 		for i := range monsters {
 			if next.NextEntity >= 65535 {
