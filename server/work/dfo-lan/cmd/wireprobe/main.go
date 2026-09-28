@@ -629,12 +629,16 @@ func main() {
 	if err := os.MkdirAll(*dir, 0700); err != nil {
 		log.Fatal(err)
 	}
-	raw, err := os.ReadFile(*fixture)
-	if err != nil {
-		log.Fatal(err)
-	}
-	if err = wire.ValidateServer(raw); err != nil {
-		log.Fatal(err)
+	var raw []byte
+	var err error
+	if *fixture != "" {
+		raw, err = os.ReadFile(*fixture)
+		if err != nil {
+			log.Fatalf("read fixture %q: %v", *fixture, err)
+		}
+		if err = wire.ValidateServer(raw); err != nil {
+			log.Fatalf("validate fixture %q: %v", *fixture, err)
+		}
 	}
 	hub := newLanHub()
 	l, err := net.Listen("tcp4", *gameListen)
