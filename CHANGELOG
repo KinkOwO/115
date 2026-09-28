@@ -1,6 +1,17 @@
 # CHANGELOG
 
 ## 2026-09-28
+- **★★ 保护券「只有一张时扣减后图标不消失」→ 已修（服务端，待实机复核）**：玩家反馈 —— 背包里**只有一张**保护券时，失败扣减后图标还在（服务端其实已经扣掉了），点一次「整理背包」或拖动别的物品触发整包重算后才消失；**多张时看不出问题**。
+  - **根因**：行刷新写成 `row, ok := bag.RowAt(slot); if ok { rows = append(rows, row) }`。扣到 0 时那一行**被整行移除** ⇒ `ok == false` ⇒ **什么都不发** ⇒ 客户端那一格永远保留旧状态。多张时 `RowAt` 仍能取到「新数量」的行，所以只有**正好扣掉最后一张**才暴露。
+  - **同一函数里的材料行 / 装备行 / 券行都写了 `!exists → EmptyOrdinaryItem` 回退，只有保护券漏了** —— 而且漏在**两处**：金币强化路径（`reinforceWithMaterial`）与材料增幅路径（`amplifyUpgrade`）。（券行 09-28 已由文案注释提醒过「券被扣完时该格已移除」，但同一函数里的保护券行没跟上。）
+  - **修法（收敛成一条不变量，而不是补两处）**：新增 `cmd/wireprobe/inventory_row.go` 的 `bagRowOrEmpty(bag, slot)` —— 取该格的行，**整行被移除时返回空行**（槽位 + 模板 `0xFFFFFFFF`，即 `protocol.EmptyOrdinaryItem`）。强化 / 增幅 / 锻造三个流程文件里 **11 处**行刷新全部改为走它，**包括原本写法正确的那 9 处** —— 这个模式已经漏过一次（保护券），再手写就会漏第三次。
+  - **顺带修一处同族缺陷**：金币强化路径的**材料行**原来无条件发 `OrdinaryItem(slot, tmpl, remaining)`，材料被扣完时会发「有模板 + 数量 0」，图标同样留在原地。现在按 `!MaterialFromStorage && MaterialRemaining == 0` 发空行。
+    - ⚠️ **这里不能用 `bag.RowAt` 判空**：材料可能来自**账号材料仓库**（槽 363..379），那些格子**不在背包行里**；用 `RowAt` 找不到就当空行，会在**剩余量 > 0** 时误发空行、把还有几百个的材料格显示成空。判据只能按「是否来自账号材料仓库 + 剩余量」。
+  - **新增守卫用例**（`cmd/wireprobe/inventory_row_test.go`，2 条）：
+    1. `bagRowOrEmpty` 的行为 —— 格子在 → 原样返回（模板与数量都对）；被用光 → 槽位 + `0xFFFFFFFF`，且与 `protocol.EmptyOrdinaryItem` 逐字节一致。**返回「有模板 + 数量 0」是不合格的**：客户端会把图标留着。
+    2. **禁止在强化 / 增幅 / 锻造三个流程文件里手写 `bag.RowAt`**（`0` / `1` 两格例外 —— 它们由 `Bag.RowAt` 自己合成，永远不会「被用光」）。这是这类事故的**结构性防线**：只要有人再写回 `if ok { ... }`，用例立刻红。
+  - **未做 / 已知边界**：账号材料仓库的格子在「剩余量 0」时仍沿用原样（发模板 + 数量 0）—— 该族用「**省略该格**」表示空格（全量快照语义，见 `AccountMaterials.Rows` 的注释），**增量更新时清空账号材料格的确切标记尚未取证**，故不猜、不改。其余流程文件（`lottery_item_flow`、`dungeon_flow` 等）本次未纳入守卫范围。
+  - 未改协议布局、未改客户端、未改数据库结构。
 - **★★ 增幅书（打红字，CMD205）整条分派缺失 → 已补：这是「黄金增幅书打了没效果」的真正原因（服务端，待实机复核）**：`worldSession.applyAmplifyGrimoire`（流程层）、`inventory.WearService.ApplyAmplifyGrimoire`（服务层）与 `configs/amplify-grimoire.json`（433 本加权表）都在，**但 `cmd/wireprobe/main.go` 里没有任何 `frame.ID == 205` 的分派** —— 客户端发 205 之后服务端既不改状态也不回包。**白银书与黄金书、以及所有增幅书全部受影响。**
   - **它是怎么"没被发现"的**：`request_scope.go` 早就把 205 登记进 `observedGameRequest`，所以请求体**会被解密并留证**（`client_frame` 里有 `plain_hex`）—— 看上去"这条命令已经接好了"，实际上只登记了采样白名单，没有处理器。**「登记采样」≠「已实现」。**
   - **归属澄清（重要）**：`git log -S` 显示 `main.go` **历史上从未出现过**这个调用点；把 `DNF-增幅修复完整包-20260928`（!85 的来源）与 `DNF-黄金增幅书修复-20260928` 两个包的补丁逐 hunk 读完之后确认：**两份交付都不含 main.go 的 205 分派**（完整包对 main.go 的 4 个 hunk 分别是 `DFO_MAX_ITEM_PERIOD` 默认开启、`LoadAmplifyUpgradeRules`、`takePendingGold` 出队、`refusalCode` 分流），黄金包的 6 文件补丁更是完全不碰 main.go。⇒ **不是我们漏落交付件，而是这条接线从未交付过**；从这两个包无论怎么落地都不可能让功能生效。
