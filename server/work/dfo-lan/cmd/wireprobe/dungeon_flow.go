@@ -1080,6 +1080,30 @@ func (w *worldSession) interactDoor(p []byte) (*dungeon.Session, []outboundPacke
 	if w.activeDungeon == nil {
 		return nil, nil, fmt.Errorf("door interaction without active dungeon")
 	}
+	run := w.activeDungeon
+	if run.Definition.ID == 7113 && run.Room.Map == 76026 && run.RoomCleared() {
+		for _, room := range run.Maze.Rooms {
+			dx, dy := int(room.X)-int(run.Room.X), int(room.Y)-int(run.Room.Y)
+			if dx < 0 {
+				dx = -dx
+			}
+			if dy < 0 {
+				dy = -dy
+			}
+			if room.Map != 76027 || dx+dy != 1 {
+				continue
+			}
+			req := make([]byte, 160)
+			req[0], req[1] = room.X, room.Y
+			binary.LittleEndian.PutUint32(req[151:155], run.Definition.ID)
+			next, movePlan, err := w.moveDungeonRoom(req)
+			if err != nil {
+				return nil, nil, err
+			}
+			plan := append([]outboundPacket{{"door_ack", 1, 38, []byte{1}}}, movePlan...)
+			return next, plan, nil
+		}
+	}
 	if w.activeDungeon.Room.Map == 100016294 {
 		// Sirocco cutscene room 100016294: synthesize a 160-byte transition to boss room (4,1)
 		req := make([]byte, 160)

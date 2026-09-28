@@ -121,6 +121,14 @@ func (s *Session) tryComplete() {
 		return
 	}
 	if s.completionTarget == 0 {
+		// Tutorial source maps do not consistently mark the terminal room as a
+		// boss room, and some (for example swordman_m) contain no rank-3 actor at
+		// all. The source maze's terminal coordinate plus a fully cleared room is
+		// the only completion signal those routes provide.
+		if s.Definition.Tutorial && s.Loaded && s.atTutorialTerminalMap() && s.RoomCleared() {
+			s.completed = true
+			return
+		}
 		// The source-matched final [CHANGE MAP] scene is the terminal event
 		// for a layer with no reportable boss. It was accepted only after the
 		// quest's objective room was actually cleared.
@@ -281,7 +289,12 @@ func (s *Session) Completed() bool { return s != nil && s.completed }
 // A source closing scene without a boss identity can enable dungeon clear
 // directly; NOTI115 requires a real rank-3 entity from the current layer.
 func (s *Session) CompletionNeedsBossCheck() bool {
-	return s != nil && s.Completed() && !s.terminalSceneClosingReached
+	if s == nil || !s.Completed() || s.terminalSceneClosingReached {
+		return false
+	}
+	// A tutorial without any reportable boss can finish on its source terminal
+	// map. NOTI31 is enough; NOTI115 requires a real entity identity.
+	return !s.Definition.Tutorial || s.CompletionTarget() != 0
 }
 
 // CompletionTarget is the boss identity echoed back in the NOTI 115 payload. A
@@ -334,6 +347,19 @@ func (s *Session) atSourceBossMap() bool {
 	}
 	for _, room := range s.Maze.Rooms {
 		if room.Boss && [2]byte{room.X, room.Y} == position && room.Map == s.Room.Map {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *Session) atTutorialTerminalMap() bool {
+	position := [2]byte{s.Room.X, s.Room.Y}
+	if position != s.Maze.Boss {
+		return false
+	}
+	for _, room := range s.Maze.Rooms {
+		if [2]byte{room.X, room.Y} == position && room.Map == s.Room.Map {
 			return true
 		}
 	}
