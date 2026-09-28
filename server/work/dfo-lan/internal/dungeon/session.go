@@ -719,7 +719,12 @@ func fixedMonsters(script catalog.ScriptRecord, basis uint32) ([]protocol.Dungeo
 			i++
 		}
 		i--
-		if !fixed || !rankSeen || v[0] <= 0 || v[6] < 0 || v[7] < 0 || len(out) >= 255 {
+		// The native constructor sub_1471C18C0 zeros the rank at +0x24.
+		// sub_1471E9060 leaves it unchanged when no rank option matches.
+		// White Land map 100004527 row 3 is [fixed] without a rank tag;
+		// requiring rankSeen rejects a valid ordinary monster and its room.
+		// Keep rankSeen for duplicate-option validation, not as a requirement.
+		if !fixed || v[0] <= 0 || v[6] < 0 || v[7] < 0 || len(out) >= 255 {
 			return nil, fmt.Errorf("unsupported random monster placement or invalid source row")
 		}
 		level := int64(v[2])
