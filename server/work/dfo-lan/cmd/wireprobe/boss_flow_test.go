@@ -48,6 +48,39 @@ func TestBossCompletionPreflightAndReplay(t *testing.T) {
 	}
 }
 
+func TestOculusClosingCompletionWithoutBossIdentity(t *testing.T) {
+	const finalMap uint32 = 100000294
+	monsters := []protocol.DungeonMonster{{Entity: 0x1021, Template: 109010976, Team: 100}, {Entity: 0x1022, Template: 109010748, Team: 100}}
+	c := catalog.DungeonCatalog{Maps: map[uint32]catalog.ScriptRecord{finalMap: {SHA256: "map"}}, TerminalScenes: []catalog.DungeonTerminalScene{{
+		Source: "source", Dungeon: 291100432, Quest: 12147, Position: [2]byte{1, 2},
+		ObjectiveMap: 292106830, FinalMap: finalMap, XMin: 741, XMax: 741, YMin: 346, YMax: 346,
+		DungeonSHA256: "dungeon", MapSHA256: "map",
+	}}}
+	c.Source.Checksum = "source"
+	run := &dungeon.Session{
+		Definition: catalog.DungeonDefinition{ID: 291100432, Script: catalog.ScriptRecord{SHA256: "dungeon"}},
+		Maze:       catalog.DungeonMaze{Quest: 12147, Layers: []catalog.DungeonLayer{{Position: [2]byte{1, 2}, Maps: []uint32{finalMap}}}},
+		Room:       catalog.DungeonRoom{X: 1, Y: 2, Map: finalMap, Boss: true}, Loaded: true,
+		Monsters: monsters, Visited: map[uint32][]protocol.DungeonMonster{292106830: {}, finalMap: monsters}, Dead: map[uint16]bool{},
+	}
+	record := protocol.DungeonRoomTransition{Dungeon: 291100432, Position: [2]byte{1, 2}, LayerChange: true,
+		Record: [18]byte{0, 0, 0, 0, 4, 5, 0xe5, 0x02, 0x5a, 0x01}}
+	next, err := run.MoveScene(c, record)
+	if err != nil {
+		t.Fatal(err)
+	}
+	next.Loaded = true
+	next.TryComplete()
+	w := &worldSession{activeDungeon: next}
+	plan, err := w.completeDungeon()
+	if err != nil || len(plan) != 1 || plan[0].ID != 31 {
+		t.Fatalf("expected clear enable without a fictitious boss check: plan=%+v err=%v", plan, err)
+	}
+	if maps := next.ClearedMaps(); len(maps) != 2 || maps[1] != 292106830 {
+		t.Fatalf("quest objective map missing from completed run: %v", maps)
+	}
+}
+
 func TestElvenmereTeleportFlow(t *testing.T) {
 	// 1. 无活动副本或非 Elvenmere 副本必须拒绝
 	w := &worldSession{}

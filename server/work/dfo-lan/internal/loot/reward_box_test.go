@@ -232,3 +232,32 @@ func TestOpenRewardBoxesIsDeterministic(t *testing.T) {
 		t.Fatal("the second unwrap reused the seed")
 	}
 }
+
+// 一份包装只开一次，所以「×N 份包装」必须开 N 次。忽略 Amount 会让玩家少拿，
+// 而且少得很安静：小深渊 maze 1 的固定表发 10415192×2，就曾被吃成一份。
+func TestOpenRewardBoxesOpensAStackOncePerUnit(t *testing.T) {
+	src := fakeBoxes{
+		boxes: map[uint32]RewardBox{
+			900: {Pools: []RewardBoxPool{
+				{Draws: 1, Candidates: []RewardBoxCandidate{{Template: 11, Weight: 1, Count: 7}}},
+			}},
+		},
+		items: map[uint32]bool{11: true},
+	}
+	for _, units := range []uint32{1, 2, 3, 5} {
+		got, _, _ := OpenRewardBoxes(7, src, []Award{{Template: 900, Amount: units}})
+		if len(got) != int(units) {
+			t.Fatalf("Amount %d 只开了 %d 次", units, len(got))
+		}
+		for _, a := range got {
+			if a.Template != 11 || a.Amount != 7 {
+				t.Fatalf("Amount %d 的产物是 %+v，期望 11×7", units, a)
+			}
+		}
+	}
+	// Amount 0 = 源里没写，按一份算 —— 与 [draw count] 的同一条约定。
+	got, _, _ := OpenRewardBoxes(7, src, []Award{{Template: 900}})
+	if len(got) != 1 {
+		t.Fatalf("Amount 0 开了 %d 次，期望 1", len(got))
+	}
+}

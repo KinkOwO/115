@@ -117,7 +117,7 @@ func TestCompletedBossRoomsHaveEncodableIdentity(t *testing.T) {
 					s.Dead[m.Entity] = true
 				}
 				s.TryComplete()
-				if s.Completed() {
+				if s.CompletionNeedsBossCheck() {
 					if _, err := protocol.BossCheckConfirmed(s.CompletionTarget()); err != nil {
 						t.Errorf("dungeon %d maze %d map %d completed without an encodable identity: %v", d.ID, maze.Index, room.Map, err)
 					}

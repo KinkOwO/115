@@ -61,6 +61,14 @@ func creatureKey(it BagEquipment, fallback uint32) uint32 {
 	return fallback
 }
 
+// CreatureSkinKey 给出幻化槽（穿戴槽 32）那一行携带的生物实例 key：行里已记的
+// 实例值优先，没有就用兜底常量。NOTI105 的生物条目、list 3 行的 offset 6/24、
+// 以及装备外观块的 Model 必须用同一个值，客户端才能把这三处对上（外观块那格是
+// 幻化槽唯一的物品来源，见 protocol.Equipment.Model）。
+func CreatureSkinKey(it BagEquipment) uint32 {
+	return creatureKey(it, CreatureSkinFallbackKey)
+}
+
 func equippedCreature(b Bag) (uint32, bool) {
 	for _, it := range b.Worn {
 		if it.Slot == 26 && it.Template != 0 {
@@ -75,6 +83,20 @@ func creatureSatiety(b Bag, key uint32) byte {
 		return value
 	}
 	return 100
+}
+
+// creatureEntry 按生物实例 key 组装 NOTI105 里的一条生物条目。
+func creatureEntry(b Bag, key, template uint32) CreatureEntry {
+	exp := b.CreatureExperience[key]
+	return CreatureEntry{
+		Key:     key,
+		Satiety: creatureSatiety(b, key),
+		Mode:    0,
+		Exp:     exp,
+		Level:   creatureLevel(exp),
+		Name:    CreatureDefaultNames[template],
+		Tail:    0,
+	}
 }
 
 // AdvanceCreatureLoyalty applies the official hourly rates to elapsed time.
@@ -298,21 +320,34 @@ func CreatureListPayload(state json.RawMessage) ([]byte, error) {
 		if it.Slot == 26 && it.Template != 0 {
 			key := creatureKey(it, 1)
 			seenKeys[key] = true
-			name := CreatureDefaultNames[it.Template]
-			entries = append(entries, CreatureEntry{
-				Key:     key,
-				Satiety: creatureSatiety(b, key),
-				Mode:    0,
-				Exp:     b.CreatureExperience[key],
-				Level:   creatureLevel(b.CreatureExperience[key]),
-				Name:    name,
-				Tail:    0,
-			})
+			entries = append(entries, creatureEntry(b, key, it.Template))
 			break
 		}
 	}
 
-	// 2. Hatched creatures in space 7 (slots 0..139)
+	// 2. 幻化槽（穿戴槽 32）里的宠物必须也出现在这份列表里。
+	//
+	// 实机 2026-09-26：小退重登后 F6 的 Skin 框空白、但外观仍是幻化槽宠物。
+	// 客户端画那个框走的是"按 key 解析到的生物对象"，不是 list 3 那一行 ——
+	// 刚拖入时之所以能画出来，只是因为客户端本地还留着该生物（它上一轮还在
+	// 宠物栏）；重登后客户端从零构建生物集合，而本函数原先只收录穿戴槽 26 与
+	// 宠物栏，幻化槽宠物的 key 无处解析，框就空了。外观不受影响是因为它走
+	// mode-0 生物段（internal/character 的 wornCreature 直接读存档）。
+	//
+	// key 用行里已有的实例 key（与 equipmentRows 对槽 32 的归一同一份来源），
+	// 撞到本体那只时不再收录：客户端会解析到本体条目，总比两份重复条目好。
+	for _, it := range b.Worn {
+		if it.Slot == CreatureSkinSlot && it.Template != 0 {
+			key := CreatureSkinKey(it)
+			if !seenKeys[key] {
+				seenKeys[key] = true
+				entries = append(entries, creatureEntry(b, key, it.Template))
+			}
+			break
+		}
+	}
+
+	// 3. Hatched creatures in space 7 (slots 0..139)
 	if b.Special != nil {
 		for _, it := range b.Special[7] {
 			if it.Template != 0 && it.Slot < 140 {
@@ -324,16 +359,7 @@ func CreatureListPayload(state json.RawMessage) ([]byte, error) {
 					key = uint32(len(seenKeys) + 10)
 				}
 				seenKeys[key] = true
-				name := CreatureDefaultNames[it.Template]
-				entries = append(entries, CreatureEntry{
-					Key:     key,
-					Satiety: creatureSatiety(b, key),
-					Mode:    0,
-					Exp:     b.CreatureExperience[key],
-					Level:   creatureLevel(b.CreatureExperience[key]),
-					Name:    name,
-					Tail:    0,
-				})
+				entries = append(entries, creatureEntry(b, key, it.Template))
 			}
 		}
 	}

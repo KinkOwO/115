@@ -270,10 +270,18 @@ func TestOdysseySceneRevisitAndEmptyVisited(t *testing.T) {
 		}
 	}
 	request := protocol.DungeonRoomTransition{Dungeon: r.Dungeon, Position: r.Position, LayerChange: true, Record: r.Record}
+	// [MERGE-20260928-SCENE-REVISIT] 层图可以往返。它没有怪，Visited[to] 恒为空，
+	// 原来这里把「已访问且为空」当成重放拒掉，导致客户端第二次进层图就卡在门上
+	// （实机 2026-09-28 安图恩讨伐战 100004950 的 164 ↔ 165）。两种情况都该放行。
 	s.Visited[r.To] = nil
-	if _, e = s.MoveScene(c, request); e == nil {
-		t.Fatal("empty visited map replayed")
+	if _, e = s.MoveScene(c, request); e != nil {
+		t.Fatalf("层图重访（空怪列表）应放行: %v", e)
 	}
+	s, e = s.enterRoom(c, catalog.DungeonRoom{X: 2, Y: 1, Map: 100016012})
+	if e != nil {
+		t.Fatal(e)
+	}
+	clearScene(s)
 	delete(s.Visited, r.To)
 	s, e = s.MoveScene(c, request)
 	if e != nil {
@@ -288,6 +296,75 @@ func TestOdysseySceneRevisitAndEmptyVisited(t *testing.T) {
 	s, e = s.Move(c, [2]byte{2, 1})
 	if e != nil || s.Room.Map != r.To {
 		t.Fatal(s, e)
+	}
+}
+
+// [MERGE-20260928-SCENE-REVISIT] 实机回归（2026-09-28 安图恩讨伐战）：
+// 100004950 的 Start (0,5) 挂了一张层图 100016165（anton_00.cmt 的 [CHANGE MAP]）。
+// 客户端在 base 100016164 与层图 100016165 之间往返，第二次进入层图曾被
+// "scene layer missing or already visited" 拒掉，客户端卡在门的蓝圈上过不去。
+//
+// [MERGE-20260928-CINEMATIC-LAYER] 同时锁住「战斗层图不是出口」：100016165 有 4 只
+// 可战斗怪，客户端打完会自己走下一步；服务端若替它合成出口，会把玩家弹回 base
+// （100016164，站了 3 个 NPC 的房间），客户端再进层图、再被弹回，来回循环 ——
+// 实机症状正是「NPC 反复重新说话」。
+func TestOdysseySceneAntonLayerRoundTrip(t *testing.T) {
+	c := odysseyScenes(t)
+	s, e := Select(c, protocol.DungeonSelection{ID: 100004950, Difficulty: 2, Party: 65535}, 60, nil)
+	if e != nil {
+		t.Fatal(e)
+	}
+	var r catalog.DungeonSceneRoute
+	found := false
+	for _, v := range c.SceneRoutes {
+		if v.Dungeon == 100004950 {
+			r, found = v, true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("100004950 没有场景路由")
+	}
+	if s.Room.Map != r.From {
+		t.Fatalf("起始房间应为 %d，得到 %d", r.From, s.Room.Map)
+	}
+	request := protocol.DungeonRoomTransition{Dungeon: r.Dungeon, Position: r.Position, LayerChange: true, Record: r.Record}
+
+	// 进入层图可以重复进行（层图重访不再被拒）。
+	for round := 0; round < 3; round++ {
+		clearScene(s)
+		next, err := s.MoveScene(c, request)
+		if err != nil {
+			t.Fatalf("第 %d 次进入层图 %d 被拒: %v", round+1, r.To, err)
+		}
+		if next.Room.Map != r.To {
+			t.Fatalf("应进入层图 %d，得到 %d", r.To, next.Room.Map)
+		}
+		if next.LayerRoomIsCinematic() {
+			t.Fatalf("100016165 有 4 只可战斗怪，不该被判为演出层图")
+		}
+		// [MERGE-20260928-LAYER-ROOM-CLEARED] 该层图是序列最后一张（只有它一张），
+		// 判定出口用 roomEnemiesDead 而不是 LayerRoomIsCinematic：怪清完即视为可退出。
+		// 这正是实机「晦月湖」缺的那一步：客户端清完场发 CMD45 要下一张，
+		// 服务端回 "no next layer map"，角色卡在图上。
+		clearScene(next)
+		if !next.roomEnemiesDead() {
+			t.Fatal("清场后应满足出口条件")
+		}
+		back, err := next.MoveScene(c, protocol.DungeonRoomTransition{
+			Dungeon: r.Dungeon, Position: r.Position, LayerChange: true,
+		})
+		if err != nil {
+			t.Fatalf("清场后应能从层图退出: %v", err)
+		}
+		if back.Room.Map == r.To {
+			t.Fatalf("清场后应离开层图 %d，仍在原图", r.To)
+		}
+		// 重新从 base 出发。
+		s, e = s.enterRoom(c, catalog.DungeonRoom{X: r.Position[0], Y: r.Position[1], Map: r.From})
+		if e != nil {
+			t.Fatal(e)
+		}
 	}
 }
 

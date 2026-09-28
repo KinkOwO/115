@@ -87,7 +87,7 @@ func TestVaultPurchasePackets(t *testing.T) {
 	if packets[0].Kind != 0 || packets[0].ID != 66 || !bytes.Equal(packets[0].Payload, []byte{1, 0, 24, 0}) {
 		t.Fatalf("首包应为个人金库 24 格即时解锁通知：%+v", packets[0])
 	}
-	if packets[1].Kind != 0 || packets[1].ID != 13 || !bytes.Equal(packets[1].Payload, []byte{2, 24, 0, 0, 0}) {
+	if packets[1].Kind != 0 || packets[1].ID != 13 || !bytes.Equal(packets[1].Payload, []byte{2, 24, 0, 0, 0, 0}) {
 		t.Fatalf("解锁后应同步个人金库容量和物品快照：%+v", packets[1])
 	}
 	if packets[2].Kind != 0 || packets[2].ID != 53 || packets[3].Kind != 1 || packets[3].ID != 64 {

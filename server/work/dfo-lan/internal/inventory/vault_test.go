@@ -190,7 +190,7 @@ func TestVaultBootstrapPopulated(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PersonalVaultRestore error: %v", err)
 	}
-	if len(p) != 1+2+2+protocol.CurrentItemRecordSize {
+	if len(p) != 1+2+2+protocol.CurrentItemRecordSize+1 {
 		t.Fatalf("unexpected length %d", len(p))
 	}
 }

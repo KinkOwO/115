@@ -42,7 +42,11 @@ func TestDazzlementSourceEntry(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Dazzlement dungeon %d: %v", id, err)
 			}
-			if len(s.Maze.Rooms) != group.rooms || s.Room.X != 0 || s.Room.Map == 0 || s.Definition.Tower != nil {
+			// 原文这里断言的是 catalog.DungeonDefinition.Tower，但全库没有任何地方
+			// 定义过这个字段，导致 internal/dungeon 整包编译不过、这个包的测试谁都跑不了。
+			// 改成同一类判断里的 Session.Tournament：塔之炫惑走的是 [map specification]
+			// + 源码地图叠加那条路，**不该**被当成锦标赛副本路由。
+			if len(s.Maze.Rooms) != group.rooms || s.Room.X != 0 || s.Room.Map == 0 || s.Tournament != nil {
 				t.Fatalf("Dazzlement dungeon %d wrong source entry: %+v", id, s.Room)
 			}
 			if group.rooms == 2 && (s.Maze.Rooms[1].Map == 0 || !s.Maze.Rooms[1].Boss) {

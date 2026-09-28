@@ -93,17 +93,27 @@ func (s *ProgressionService) OdysseyClear(ctx context.Context, role storage.Char
 		return role, false, fmt.Errorf("invalid Odyssey run")
 	}
 	target := s.Odyssey.ClearLevels[run.Definition.ID]
-	if target == 0 {
-		return role, false, fmt.Errorf("missing source clear target")
-	}
+	// [MERGE-20260928-ODYSSEY-CLEAR-NO-TARGET] 奥德赛副本不一定都在成长阶梯上：
+	// 100004984..100004989（正是 scenes 导出里没有 scene_routes 的那一批）也是
+	// Odyssey=true，但它们不是进度节点，ClearLevels 里没有条目。此前这里直接返回
+	// "missing source clear target"，于是这些副本即便被判为完成也发不出完成数据 ——
+	// 客户端看不到任何变化，玩家卡在 boss 房里（实机 2026-09-28「前往阿拉德」的
+	// dungeon_completion_error: missing source clear target 就是这一条，map 100016530）。
+	// 不在阶梯上的副本（target==0）只结算、不记录：saveOdysseyCompletion 会拒绝
+	// 未知 id，odysseyCompleted 读回来也会报 "unknown Odyssey journal dungeon"，
+	// 而「已通关列表」本来就只服务成长阶梯（journal 顺序门槛 / NOTI2856 进度）。
+	// 它们不在任何站点上，不记也不影响后续传送。
 	return s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, s.Odyssey.Source, "odyssey-growth:"+run.RunID, "odyssey-source-growth-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
-		next, e := s.ApplyOdysseyTarget(current, target)
-		if e != nil {
-			return nil, nil, e
-		}
-		next.State, e = s.saveOdysseyCompletion(next, run.Definition.ID)
-		if e != nil {
-			return nil, nil, e
+		next := current
+		if target != 0 {
+			var e error
+			next, e = s.ApplyOdysseyTarget(current, target)
+			if e != nil {
+				return nil, nil, e
+			}
+			if next.State, e = s.saveOdysseyCompletion(next, run.Definition.ID); e != nil {
+				return nil, nil, e
+			}
 		}
 		// The clear may also unlock an extended equipment slot. It lands in the
 		// same character transaction, so a failed commit rolls both back and a

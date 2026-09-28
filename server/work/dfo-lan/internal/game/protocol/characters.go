@@ -112,6 +112,10 @@ func Refusal(code uint16) []byte                    { return add16([]byte{0}, co
 type Equipment struct {
 	Slot byte
 	Item uint32
+	// Model 是该槽的模型索引，在外观块里以「Len + 载荷」的形式携带。
+	// 宠物幻化栏（穿戴槽 32）用它指向要画的生物实例 key；其余槽位留 0，
+	// 客户端对 Len=0 的处理是「保留该槽原有的模型索引」。
+	Model uint32
 }
 
 // 145639840 calls 1459a0220 with list46 for EVERY row, including weapons.
@@ -128,7 +132,15 @@ func EquipmentAppearance(rows []Equipment) ([]byte, error) {
 		}
 		seen[row.Slot] = true
 		p = add32(append(p, row.Slot), row.Item)
-		p = add32(p, 0)
+		// Len 与载荷必须成对出现：Len=0 表示「这个槽的模型索引不动」，
+		// Len=4 表示后面跟一个索引（1459a0220 读 Len 再读 Len 字节，客户端把
+		// 它存到 [actor + slot*4 + 0x405]）。
+		if row.Model == 0 {
+			p = add32(p, 0)
+		} else {
+			p = add32(p, equippedAppearanceModelSize)
+			p = add32(p, row.Model)
+		}
 		p = append(p, make([]byte, 26)...)
 	}
 	return p, nil

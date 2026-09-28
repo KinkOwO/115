@@ -180,10 +180,13 @@ func TestOperationAckLayout(t *testing.T) {
 	if OperationAckSize < 2+14 {
 		t.Fatalf("CMD2354 handler reads %d bytes; OperationAckSize %d would crash the client", 2+14, OperationAckSize)
 	}
-	if got := binary.LittleEndian.Uint16(body); got != OperationChannelCode {
+	if body[0] != 1 {
+		t.Fatal("missing generic command success prefix")
+	}
+	if got := binary.LittleEndian.Uint16(body[1:]); got != OperationChannelCode {
 		t.Fatalf("channel code %d, want %d", got, OperationChannelCode)
 	}
-	if got := binary.LittleEndian.Uint32(body[2:]); got != 2 {
+	if got := binary.LittleEndian.Uint32(body[3:]); got != 2 {
 		t.Fatalf("echoed action %d, want 2", got)
 	}
 }
@@ -217,8 +220,8 @@ func TestDecodeEnterDungeonFields(t *testing.T) {
 	if got.Channel != OperationChannelCode {
 		t.Fatalf("channel %d, want %d", got.Channel, OperationChannelCode)
 	}
-	if got.Operation != 4242 {
-		t.Fatalf("operation %d, want 4242", got.Operation)
+	if got.Stage != 4242 {
+		t.Fatalf("stage %d, want 4242", got.Stage)
 	}
 	if got.BodyLength != EnvelopeSize+8 {
 		t.Fatalf("body length %d, want %d", got.BodyLength, EnvelopeSize+8)
@@ -241,11 +244,11 @@ func TestEnterDungeonAckIsSuccess(t *testing.T) {
 	if EnterDungeonAckSize < 13 {
 		t.Fatalf("CMD2045 handler reads 13 bytes; EnterDungeonAckSize %d would crash the client", EnterDungeonAckSize)
 	}
-	if got := binary.LittleEndian.Uint32(body); got != 0 {
+	if got := binary.LittleEndian.Uint32(body[1:]); got != 0 {
 		t.Fatalf("result code %d, want 0 (success)", got)
 	}
 	for _, failure := range []uint32{252, 380} {
-		if binary.LittleEndian.Uint32(body) == failure {
+		if binary.LittleEndian.Uint32(body[1:]) == failure {
 			t.Fatalf("success body collides with failure code %d", failure)
 		}
 	}
@@ -270,21 +273,21 @@ func TestDecodeRoleSelectRejectsShortBody(t *testing.T) {
 	}
 }
 
-// The handler is a bare pass-through that never touches the cursor, so an empty
-// body is correct rather than a shortcut.
-func TestRoleSelectAckIsEmpty(t *testing.T) {
-	if got := RoleSelectAck(); len(got) != 0 {
-		t.Fatalf("RoleSelectAck %d bytes, want 0", len(got))
+// The command reader is empty; the generic dispatcher still consumes success.
+func TestRoleSelectAckHasSuccessPrefix(t *testing.T) {
+	if got := RoleSelectAck(); len(got) != 1 || got[0] != 1 {
+		t.Fatalf("RoleSelectAck %x, want success-only01", got)
 	}
 }
 
 func TestSessionEnterAndRoleAreIdempotent(t *testing.T) {
 	s := NewSession(42)
 	s.Begin(42, 1)
-	s.EnterDungeon(77)
-	s.EnterDungeon(0) // later rooms may re-send without an operation id
-	if s.Operation != 77 {
-		t.Fatalf("operation %d, want 77 (a zero must not clobber it)", s.Operation)
+	s.Operation = 1
+	s.EnterDungeon(0)
+	s.EnterDungeon(0) // initial stage0 is valid and does not select difficulty
+	if s.Operation != 1 || s.Phase != 0 {
+		t.Fatalf("operation/stage confused: %+v", s)
 	}
 	if !s.Entered {
 		t.Fatal("entering must keep the entry flag")
@@ -376,6 +379,7 @@ func TestRewardEndAckMeetsClientReadSize(t *testing.T) {
 func TestSessionFailKeepsRunThenRewardEndClosesIt(t *testing.T) {
 	s := NewSession(42)
 	s.Begin(42, 1)
+	s.Operation = 5
 	s.EnterDungeon(5)
 	s.Fail(9)
 	if !s.Failed {

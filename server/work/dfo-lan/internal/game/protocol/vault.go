@@ -41,14 +41,16 @@ func PersonalVaultUpgradeNotice(slots uint16, space ...byte) ([]byte, error) {
 }
 
 // NOTI13, native1452d5a80: inventory kind2, u16 slot capacity, u16 item
-// count. Empty rows skip 181-byte item structures and have no further reads.
+// count, 181 bytes per row, then one zero byte read by the current client.
 func EmptyPersonalVault(slots uint16) ([]byte, error) {
 	return PersonalVault(slots, nil)
 }
 
-// Kind 2 reads capacity, count and exactly 181 bytes per row. Native
-// 1452d61da and 1459a01e0/1459a0220 confirm there is no avatar/period tail.
-// 145ad8d10 bounds-checks zero-based slots against capacity.
+// Kind 2 reads capacity, count and exactly 181 bytes per row, followed by a
+// single byte at 0x14563965e. Live reader traces on 2026-09-28 saw that byte
+// succeed for six rows via cipher padding and fail for seven block-aligned
+// rows without padding (then CMD217). Emit it explicitly for every kind-2
+// snapshot. There is no avatar/period tail per row.
 func PersonalVault(slots uint16, rows [][CurrentItemRecordSize]byte) ([]byte, error) {
 	return PersonalVaultSpace(2, slots, rows)
 }
@@ -71,7 +73,11 @@ func PersonalVaultSpace(space byte, slots uint16, rows [][CurrentItemRecordSize]
 	if e != nil {
 		return nil, e
 	}
-	return append(add16([]byte{space}, slots), p...), nil
+	body := append(add16([]byte{space}, slots), p...)
+	if space == 2 {
+		return append(body, 0), nil
+	}
+	return body, nil
 }
 
 // PersonalVaultRestore retains the upstream API with slot validation.

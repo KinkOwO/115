@@ -5,6 +5,7 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/game/protocol"
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"os"
@@ -26,6 +27,25 @@ type Session struct {
 	Tournament *TournamentRun
 	Loaded     bool
 	Dead       map[uint16]bool
+	// 沉月湖（Moon Lake）单人攻坚状态。只有该频道启用了 moonConfig 时才会被写入，
+	// 普通副本与军团全程保持零值。
+	MoonFirstGrid                     [5]byte
+	MoonZermioSpawnedAt               time.Time
+	MoonZermioReportRoom              uint64
+	MoonZermioHealth                  uint64
+	MoonZermioMeter                   uint32
+	MoonRetired                       map[uint16]bool
+	MoonFeverUntil, MoonFeverCooldown time.Time
+	MoonDynamic                       map[uint16]protocol.UnassignedMonster115
+	MoonGridReady                     bool
+	MoonGrid                          [5][3]byte
+	MoonZermioGrid                    [2]int32
+	MoonZermioDefeated                bool
+	MoonNamed                         map[uint32]MoonNamedState
+	MoonCleared                       [5]bool
+	MoonScored                        map[uint16]bool
+	MoonTroopScore, MoonFeverScore    uint32
+	PhaseHistory                      []MoonCompletedPhase
 	// Unowned marks a monster this character did not kill. It dies and the
 	// room clears, but it pays no loot and no experience.
 	Unowned       map[uint16]bool
@@ -38,10 +58,16 @@ type Session struct {
 	// companions are friendly map-native APCs already encountered in this
 	// run. A later room that does not declare the same AIC receives a dynamic
 	// NOTI29 row through the client's native SourceIndex=10000 branch.
-	companions          []protocol.DungeonMonster
-	completionTarget    uint16
-	completed           bool
-	lotusClosingReached bool
+	companions                  []protocol.DungeonMonster
+	completionTarget            uint16
+	completed                   bool
+	lotusClosingReached         bool
+	terminalSceneClosingReached bool
+	// sceneDiagnostic 记录最近一次场景换图走了哪条判定分支，仅供排查（见 SceneDiagnostic）。
+	sceneDiagnostic string
+	// layerRecord 是客户端主动进当前层图时带来的换图记录（见 SceneEntryRecord）。
+	layerRecord    [18]byte
+	hasLayerRecord bool
 }
 
 func Select(c catalog.DungeonCatalog, r protocol.DungeonSelection, level byte, accepted map[uint16]bool) (*Session, error) {
@@ -72,27 +98,15 @@ func Select(c catalog.DungeonCatalog, r protocol.DungeonSelection, level byte, a
 	if r.Quest > 65535 || r.Quest != 0 && !accepted[uint16(r.Quest)] {
 		return nil, fmt.Errorf("quest is not accepted by this character")
 	}
-	var chosen *catalog.DungeonMaze
-	for _, m := range d.Mazes {
-		if uint32(m.Quest) != r.Quest {
-			continue
-		}
-		// 源里同一个 quest 经常对应多张 maze（实测 3200 个副本里有 288 个副本的
-		// quest==0 有多张，通常是不同难度或随机版本）。原来只要匹配到第二张就
-		// 直接报 ambiguous source maze，玩家点图完全没反应。
-		// 现在按 index 最小者确定性选取，跳过解析不完整的 maze。
-		if len(m.Pending) > 0 {
-			continue
-		}
-		if chosen == nil || m.Index < chosen.Index {
-			copy := m
-			chosen = &copy
-		}
+	mazeQuest, err := selectionMazeQuest(d, r.Quest, accepted)
+	if err != nil {
+		return nil, err
 	}
-	if chosen == nil {
-		return nil, fmt.Errorf("no resolved source maze for requested quest")
+	chosen, err := chooseMaze(d, mazeQuest)
+	if err != nil {
+		return nil, err
 	}
-	s, err := newSession(c, d, *chosen)
+	s, err := newSession(c, d, chosen)
 	if err != nil {
 		return nil, err
 	}
@@ -122,6 +136,71 @@ func Select(c catalog.DungeonCatalog, r protocol.DungeonSelection, level byte, a
 		}
 	}
 	return s, nil
+}
+
+// chooseMaze 在候选 maze 里挑一张。
+//
+// 默认规则（副本没有声明 MazeChanceRates）是「同 quest 里 index 最小者」——
+// 这是原来的确定性行为，288 个多 maze 副本靠它保持稳定。声明了权重的副本
+// （目前只有小深渊，见 configs/dungeons.maze-chance-rates.json）改为按权重
+// 掷骰：源里的 [maze chance rate] 表达的就是「进哪张迷宫图」，而小深渊的两张
+// 图一张是普通、一张是 `_special`（官方叫异空间）。
+func chooseMaze(d catalog.DungeonDefinition, quest uint32) (catalog.DungeonMaze, error) {
+	var candidates []catalog.DungeonMaze
+	for _, m := range d.Mazes {
+		// 源里同一个 quest 经常对应多张 maze（实测 3200 个副本里有 288 个副本的
+		// quest==0 有多张，通常是不同难度或随机版本）。原来只要匹配到第二张就
+		// 直接报 ambiguous source maze，玩家点图完全没反应。
+		// 现在先跳过解析不完整的 maze，再在剩下的候选里决定。
+		if uint32(m.Quest) != quest || len(m.Pending) > 0 {
+			continue
+		}
+		candidates = append(candidates, m)
+	}
+	if len(candidates) == 0 {
+		return catalog.DungeonMaze{}, fmt.Errorf("no resolved source maze for requested quest")
+	}
+	if len(d.MazeChanceRates) == len(d.Mazes) && len(candidates) > 1 {
+		var total uint64
+		for _, m := range candidates {
+			total += uint64(d.MazeChanceRates[m.Index])
+		}
+		if total > 0 {
+			roll, err := randomUint64()
+			if err != nil {
+				return catalog.DungeonMaze{}, err
+			}
+			return pickWeightedMaze(candidates, d.MazeChanceRates, roll%total), nil
+		}
+	}
+	best := candidates[0]
+	for _, m := range candidates[1:] {
+		if m.Index < best.Index {
+			best = m
+		}
+	}
+	return best, nil
+}
+
+// pickWeightedMaze 是掷骰的纯函数部分：roll 必须落在 [0, 权重和)。
+// 抽出来是为了让「边界落在哪一张」能被直接测，而不必驱动整个选图流程。
+func pickWeightedMaze(candidates []catalog.DungeonMaze, rates []uint32, roll uint64) catalog.DungeonMaze {
+	var acc uint64
+	for _, m := range candidates {
+		acc += uint64(rates[m.Index])
+		if roll < acc {
+			return m
+		}
+	}
+	return candidates[len(candidates)-1]
+}
+
+func randomUint64() (uint64, error) {
+	var raw [8]byte
+	if _, err := rand.Read(raw[:]); err != nil {
+		return 0, err
+	}
+	return binary.LittleEndian.Uint64(raw[:]), nil
 }
 
 // resolveRoomMap 取该房间可用的地图脚本：先用主地图，主地图不在目录里时
@@ -305,7 +384,14 @@ func (s *Session) RoomCleared() bool {
 }
 func (s *Session) Move(c catalog.DungeonCatalog, target [2]byte) (*Session, error) {
 	if s.Completed() || s.completionTarget != 0 {
-		return nil, fmt.Errorf("boss completion is pending or already accepted")
+		// [MERGE-20260928-POSTBOSS-SCENE] 完成之后仍允许走向「还有剧情层图的相邻格」。
+		// 苏醒之森 100004977 在 boss 房 (5,0) 就判完成，但后面还有 (6,0) 的过场
+		// （层图 100017263，scene_route 100017262→100017263）。一律拒会把这最后一段
+		// 挡在外面 —— 实机 2026-09-28 玩家打完 boss、点地图上的传送阵，服务端回
+		// "boss completion is pending or already accepted"，传送阵过不去。
+		if !s.adjacentLayerPending(c, target) {
+			return nil, fmt.Errorf("boss completion is pending or already accepted")
+		}
 	}
 	if !s.RoomCleared() {
 		return nil, fmt.Errorf("current room not loaded or still has live enemies")
@@ -329,6 +415,28 @@ func (s *Session) Move(c catalog.DungeonCatalog, target [2]byte) (*Session, erro
 	return s.enterRoom(c, s.latestLayer(*room))
 }
 
+// [MERGE-20260928-POSTBOSS-SCENE] adjacentLayerPending 报告目标格是否是「还没播完的
+// 剧情层图」所在格：该格在 maze 里、位于当前房间的相邻位、且挂有 layer 地图。
+//
+// boss 房之后还接一段过场的副本（苏醒之森 100004977：(5,0) → (6,0) 的 100017263）
+// 需要它 —— 否则 Move 的完成守卫会把这段挡在外面。
+func (s *Session) adjacentLayerPending(c catalog.DungeonCatalog, target [2]byte) bool {
+	if s == nil {
+		return false
+	}
+	dx := int(target[0]) - int(s.Room.X)
+	dy := int(target[1]) - int(s.Room.Y)
+	if dx*dx+dy*dy != 1 {
+		return false
+	}
+	for _, layer := range s.Maze.Layers {
+		if layer.Position == target && len(layer.Maps) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *Session) enterRoom(c catalog.DungeonCatalog, room catalog.DungeonRoom) (*Session, error) {
 	next := *s
 	next.Room = room
@@ -350,6 +458,9 @@ func (s *Session) enterRoom(c catalog.DungeonCatalog, room catalog.DungeonRoom) 
 		}
 		if triggeredSpawnsSuppressed() {
 			monsters = dropTriggeredMonsters(script, monsters)
+		}
+		if gate, ok := s.MoonNamed[room.Map]; s.Definition.ID == 100004136 && ok && gate.Slot == 0 && gate.Planned {
+			monsters = nil
 		}
 		for i := range monsters {
 			if next.NextEntity >= 65535 {
@@ -630,7 +741,18 @@ func fixedMonsters(script catalog.ScriptRecord, basis uint32) ([]protocol.Dungeo
 			v[0] == 1 && v[3] == 424 && v[4] == -364 {
 			continue
 		}
-		out = append(out, protocol.DungeonMonster{Entity: uint16(4096 + len(out)), SourceIndex: uint32(len(out)), Level: byte(level), Template: uint32(v[0]), Rank: rank, Team: 100, NonCombat: nonCombat, SourceTail: [2]int32{v[6], v[7]}, CreateTrigger: createTriggerAt(ordinals, len(out))})
+		team := uint32(100)
+		// The archer and gunblader tutorial maps place this normal-rank actor
+		// below the playable area. Keep its source row/entity index for map
+		// scripts, but don't let the unreachable actor keep the exit closed.
+		offMapTutorialActor :=
+			(script.Path == "map/cataclysm/newtutorial/archer_f_tutorial/100008880.map" && v[0] == 70216 && v[3] == 893 && v[4] == -333) ||
+				(script.Path == "map/cataclysm/newtutorial/gunblader_m/70577.map" && v[0] == 70216 && v[3] == 1014 && v[4] == -311)
+		if offMapTutorialActor {
+			team = 0
+			nonCombat = true
+		}
+		out = append(out, protocol.DungeonMonster{Entity: uint16(4096 + len(out)), SourceIndex: uint32(len(out)), Level: byte(level), Template: uint32(v[0]), Rank: rank, Team: team, NonCombat: nonCombat, SourceTail: [2]int32{v[6], v[7]}, CreateTrigger: createTriggerAt(ordinals, len(out))})
 	}
 	// Source teams are parallel to monster rows. Team0 supplies friendly
 	// cinematic actors in this route; team100 supplies enemies. Never remove

@@ -1,0 +1,1338 @@
+{
+  "source": {
+    "format": "dfo_20260901_inner",
+    "path": "D:/115us/server/work/client-build/Script.inner.pvf",
+    "size": 760530763,
+    "checksum": "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80",
+    "loaded_at": "2026-09-27T03:24:33.2943417Z",
+    "file_count": 5650173,
+    "group_count": 82571,
+    "cached_chunks": 0,
+    "cached_texts": 0
+  },
+  "entries": {
+    "100313750": {
+      "family": "oath",
+      "rarity": 3,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100313750.equ"
+    },
+    "100313751": {
+      "family": "oath",
+      "rarity": 4,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100313751.equ"
+    },
+    "100313752": {
+      "family": "oath",
+      "rarity": 3,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100313752.equ"
+    },
+    "100313753": {
+      "family": "oath",
+      "rarity": 4,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100313753.equ"
+    },
+    "100313754": {
+      "family": "oath",
+      "rarity": 3,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100313754.equ"
+    },
+    "100313755": {
+      "family": "oath",
+      "rarity": 4,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100313755.equ"
+    },
+    "100313756": {
+      "family": "oath",
+      "rarity": 3,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100313756.equ"
+    },
+    "100313757": {
+      "family": "oath",
+      "rarity": 4,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100313757.equ"
+    },
+    "100313758": {
+      "family": "oath",
+      "rarity": 3,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100313758.equ"
+    },
+    "100313759": {
+      "family": "oath",
+      "rarity": 4,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100313759.equ"
+    },
+    "100401592": {
+      "family": "primer",
+      "rarity": 2,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100401592.equ"
+    },
+    "100401593": {
+      "family": "primer",
+      "rarity": 3,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100401593.equ"
+    },
+    "100401594": {
+      "family": "primer",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100401594.equ"
+    },
+    "100401595": {
+      "family": "primer",
+      "rarity": 4,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100401595.equ"
+    },
+    "100401596": {
+      "family": "primer",
+      "rarity": 3,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100401596.equ"
+    },
+    "100401597": {
+      "family": "primer",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100401597.equ"
+    },
+    "100401598": {
+      "family": "primer",
+      "rarity": 4,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100401598.equ"
+    },
+    "100401599": {
+      "family": "primer",
+      "rarity": 8,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100401599.equ"
+    },
+    "100401600": {
+      "family": "primer",
+      "rarity": 3,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100401600.equ"
+    },
+    "100401601": {
+      "family": "primer",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100401601.equ"
+    },
+    "100401602": {
+      "family": "primer",
+      "rarity": 4,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100401602.equ"
+    },
+    "100401603": {
+      "family": "primer",
+      "rarity": 8,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100401603.equ"
+    },
+    "100401604": {
+      "family": "primer",
+      "rarity": 3,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100401604.equ"
+    },
+    "100401605": {
+      "family": "primer",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100401605.equ"
+    },
+    "100401606": {
+      "family": "primer",
+      "rarity": 4,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100401606.equ"
+    },
+    "100401607": {
+      "family": "primer",
+      "rarity": 8,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100401607.equ"
+    },
+    "100401608": {
+      "family": "primer",
+      "rarity": 3,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100401608.equ"
+    },
+    "100401609": {
+      "family": "primer",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100401609.equ"
+    },
+    "100401610": {
+      "family": "primer",
+      "rarity": 4,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100401610.equ"
+    },
+    "100401611": {
+      "family": "primer",
+      "rarity": 8,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100401611.equ"
+    },
+    "100401612": {
+      "family": "primer",
+      "rarity": 3,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100401612.equ"
+    },
+    "100401613": {
+      "family": "primer",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100401613.equ"
+    },
+    "100401614": {
+      "family": "primer",
+      "rarity": 4,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100401614.equ"
+    },
+    "100401615": {
+      "family": "primer",
+      "rarity": 8,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100401615.equ"
+    },
+    "100401616": {
+      "family": "primer",
+      "rarity": 3,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100401616.equ"
+    },
+    "100401617": {
+      "family": "primer",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100401617.equ"
+    },
+    "100401618": {
+      "family": "primer",
+      "rarity": 4,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100401618.equ"
+    },
+    "100401619": {
+      "family": "primer",
+      "rarity": 8,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100401619.equ"
+    },
+    "100401620": {
+      "family": "primer",
+      "rarity": 3,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100401620.equ"
+    },
+    "100401621": {
+      "family": "primer",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100401621.equ"
+    },
+    "100401622": {
+      "family": "primer",
+      "rarity": 4,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100401622.equ"
+    },
+    "100401623": {
+      "family": "primer",
+      "rarity": 8,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100401623.equ"
+    },
+    "100401624": {
+      "family": "primer",
+      "rarity": 3,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100401624.equ"
+    },
+    "100401625": {
+      "family": "primer",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100401625.equ"
+    },
+    "100401626": {
+      "family": "primer",
+      "rarity": 4,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100401626.equ"
+    },
+    "100401627": {
+      "family": "primer",
+      "rarity": 8,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100401627.equ"
+    },
+    "100401628": {
+      "family": "primer",
+      "rarity": 3,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100401628.equ"
+    },
+    "100401629": {
+      "family": "primer",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100401629.equ"
+    },
+    "100401630": {
+      "family": "primer",
+      "rarity": 4,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100401630.equ"
+    },
+    "100401631": {
+      "family": "primer",
+      "rarity": 8,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100401631.equ"
+    },
+    "100401632": {
+      "family": "primer",
+      "rarity": 3,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100401632.equ"
+    },
+    "100401633": {
+      "family": "primer",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100401633.equ"
+    },
+    "100401634": {
+      "family": "primer",
+      "rarity": 4,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100401634.equ"
+    },
+    "100401635": {
+      "family": "primer",
+      "rarity": 8,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100401635.equ"
+    },
+    "100401636": {
+      "family": "primer",
+      "rarity": 3,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100401636.equ"
+    },
+    "100401637": {
+      "family": "primer",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100401637.equ"
+    },
+    "100401638": {
+      "family": "primer",
+      "rarity": 4,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100401638.equ"
+    },
+    "100401639": {
+      "family": "primer",
+      "rarity": 8,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100401639.equ"
+    },
+    "100401640": {
+      "family": "primer",
+      "rarity": 3,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100401640.equ"
+    },
+    "100401641": {
+      "family": "primer",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100401641.equ"
+    },
+    "100401642": {
+      "family": "primer",
+      "rarity": 4,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100401642.equ"
+    },
+    "100401643": {
+      "family": "primer",
+      "rarity": 8,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100401643.equ"
+    },
+    "100430002": {
+      "family": "oath",
+      "rarity": 3,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100430002.equ"
+    },
+    "100430003": {
+      "family": "oath",
+      "rarity": 4,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100430003.equ"
+    },
+    "100430004": {
+      "family": "oath",
+      "rarity": 3,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100430004.equ"
+    },
+    "100430005": {
+      "family": "oath",
+      "rarity": 4,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100430005.equ"
+    },
+    "100430006": {
+      "family": "oath",
+      "rarity": 3,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100430006.equ"
+    },
+    "100430007": {
+      "family": "oath",
+      "rarity": 4,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100430007.equ"
+    },
+    "100430008": {
+      "family": "oath",
+      "rarity": 3,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100430008.equ"
+    },
+    "100430009": {
+      "family": "oath",
+      "rarity": 4,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100430009.equ"
+    },
+    "100430010": {
+      "family": "oath",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100430010.equ"
+    },
+    "100430011": {
+      "family": "oath",
+      "rarity": 8,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100430011.equ"
+    },
+    "100430012": {
+      "family": "oath",
+      "rarity": 3,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100430012.equ"
+    },
+    "100430013": {
+      "family": "oath",
+      "rarity": 4,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100430013.equ"
+    },
+    "100430014": {
+      "family": "oath",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100430014.equ"
+    },
+    "100430015": {
+      "family": "oath",
+      "rarity": 8,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100430015.equ"
+    },
+    "100430016": {
+      "family": "oath",
+      "rarity": 3,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100430016.equ"
+    },
+    "100430017": {
+      "family": "oath",
+      "rarity": 4,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100430017.equ"
+    },
+    "100430018": {
+      "family": "oath",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100430018.equ"
+    },
+    "100430019": {
+      "family": "oath",
+      "rarity": 8,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100430019.equ"
+    },
+    "100430020": {
+      "family": "oath",
+      "rarity": 3,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100430020.equ"
+    },
+    "100430021": {
+      "family": "oath",
+      "rarity": 4,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100430021.equ"
+    },
+    "100430022": {
+      "family": "oath",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100430022.equ"
+    },
+    "100430023": {
+      "family": "oath",
+      "rarity": 8,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100430023.equ"
+    },
+    "100430024": {
+      "family": "oath",
+      "rarity": 3,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100430024.equ"
+    },
+    "100430025": {
+      "family": "oath",
+      "rarity": 4,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100430025.equ"
+    },
+    "100430026": {
+      "family": "oath",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100430026.equ"
+    },
+    "100430027": {
+      "family": "oath",
+      "rarity": 8,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100430027.equ"
+    },
+    "100430028": {
+      "family": "oath",
+      "rarity": 3,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100430028.equ"
+    },
+    "100430029": {
+      "family": "oath",
+      "rarity": 4,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100430029.equ"
+    },
+    "100430030": {
+      "family": "oath",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100430030.equ"
+    },
+    "100430031": {
+      "family": "oath",
+      "rarity": 8,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100430031.equ"
+    },
+    "100430032": {
+      "family": "oath",
+      "rarity": 3,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100430032.equ"
+    },
+    "100430033": {
+      "family": "oath",
+      "rarity": 4,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100430033.equ"
+    },
+    "100430034": {
+      "family": "oath",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100430034.equ"
+    },
+    "100430035": {
+      "family": "oath",
+      "rarity": 8,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100430035.equ"
+    },
+    "100430036": {
+      "family": "oath",
+      "rarity": 3,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100430036.equ"
+    },
+    "100430037": {
+      "family": "oath",
+      "rarity": 4,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100430037.equ"
+    },
+    "100430038": {
+      "family": "oath",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100430038.equ"
+    },
+    "100430039": {
+      "family": "oath",
+      "rarity": 8,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100430039.equ"
+    },
+    "100430040": {
+      "family": "oath",
+      "rarity": 3,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100430040.equ"
+    },
+    "100430041": {
+      "family": "oath",
+      "rarity": 4,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100430041.equ"
+    },
+    "100430042": {
+      "family": "oath",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100430042.equ"
+    },
+    "100430043": {
+      "family": "oath",
+      "rarity": 8,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100430043.equ"
+    },
+    "100430044": {
+      "family": "oath",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100430044.equ"
+    },
+    "100430045": {
+      "family": "oath",
+      "rarity": 8,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100430045.equ"
+    },
+    "100430046": {
+      "family": "oath",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100430046.equ"
+    },
+    "100430047": {
+      "family": "oath",
+      "rarity": 8,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100430047.equ"
+    },
+    "100430048": {
+      "family": "oath",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100430048.equ"
+    },
+    "100430049": {
+      "family": "oath",
+      "rarity": 8,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100430049.equ"
+    },
+    "100440001": {
+      "family": "primer",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100440001.equ"
+    },
+    "100440002": {
+      "family": "primer",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100440002.equ"
+    },
+    "100440003": {
+      "family": "primer",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100440003.equ"
+    },
+    "100440004": {
+      "family": "primer",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100440004.equ"
+    },
+    "100440005": {
+      "family": "primer",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100440005.equ"
+    },
+    "100440006": {
+      "family": "primer",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100440006.equ"
+    },
+    "100440007": {
+      "family": "primer",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100440007.equ"
+    },
+    "100440008": {
+      "family": "primer",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100440008.equ"
+    },
+    "100440009": {
+      "family": "primer",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100440009.equ"
+    },
+    "100440010": {
+      "family": "primer",
+      "rarity": 3,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100440010.equ"
+    },
+    "100440011": {
+      "family": "primer",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100440011.equ"
+    },
+    "100440012": {
+      "family": "primer",
+      "rarity": 4,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100440012.equ"
+    },
+    "100610042": {
+      "family": "oath",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610042.equ"
+    },
+    "100610043": {
+      "family": "oath",
+      "rarity": 8,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610043.equ"
+    },
+    "100610044": {
+      "family": "oath",
+      "rarity": 3,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610044.equ"
+    },
+    "100610045": {
+      "family": "oath",
+      "rarity": 4,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610045.equ"
+    },
+    "100610046": {
+      "family": "oath",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610046.equ"
+    },
+    "100610047": {
+      "family": "oath",
+      "rarity": 8,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610047.equ"
+    },
+    "100610048": {
+      "family": "oath",
+      "rarity": 3,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610048.equ"
+    },
+    "100610049": {
+      "family": "oath",
+      "rarity": 4,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610049.equ"
+    },
+    "100610050": {
+      "family": "oath",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610050.equ"
+    },
+    "100610051": {
+      "family": "oath",
+      "rarity": 8,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610051.equ"
+    },
+    "100610052": {
+      "family": "oath",
+      "rarity": 3,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610052.equ"
+    },
+    "100610053": {
+      "family": "oath",
+      "rarity": 4,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610053.equ"
+    },
+    "100610054": {
+      "family": "oath",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610054.equ"
+    },
+    "100610055": {
+      "family": "oath",
+      "rarity": 8,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610055.equ"
+    },
+    "100610056": {
+      "family": "oath",
+      "rarity": 3,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610056.equ"
+    },
+    "100610057": {
+      "family": "oath",
+      "rarity": 4,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610057.equ"
+    },
+    "100610058": {
+      "family": "oath",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610058.equ"
+    },
+    "100610059": {
+      "family": "oath",
+      "rarity": 8,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610059.equ"
+    },
+    "100610060": {
+      "family": "oath",
+      "rarity": 3,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610060.equ"
+    },
+    "100610061": {
+      "family": "oath",
+      "rarity": 4,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610061.equ"
+    },
+    "100610062": {
+      "family": "oath",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610062.equ"
+    },
+    "100610063": {
+      "family": "oath",
+      "rarity": 8,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610063.equ"
+    },
+    "100610064": {
+      "family": "oath",
+      "rarity": 3,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610064.equ"
+    },
+    "100610065": {
+      "family": "oath",
+      "rarity": 4,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610065.equ"
+    },
+    "100610066": {
+      "family": "oath",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610066.equ"
+    },
+    "100610067": {
+      "family": "oath",
+      "rarity": 8,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610067.equ"
+    },
+    "100610068": {
+      "family": "oath",
+      "rarity": 3,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610068.equ"
+    },
+    "100610069": {
+      "family": "oath",
+      "rarity": 4,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610069.equ"
+    },
+    "100610070": {
+      "family": "oath",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610070.equ"
+    },
+    "100610071": {
+      "family": "oath",
+      "rarity": 8,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610071.equ"
+    },
+    "100610072": {
+      "family": "oath",
+      "rarity": 3,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610072.equ"
+    },
+    "100610073": {
+      "family": "oath",
+      "rarity": 4,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610073.equ"
+    },
+    "100610074": {
+      "family": "oath",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610074.equ"
+    },
+    "100610075": {
+      "family": "oath",
+      "rarity": 8,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610075.equ"
+    },
+    "100610076": {
+      "family": "oath",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610076.equ"
+    },
+    "100610077": {
+      "family": "oath",
+      "rarity": 8,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610077.equ"
+    },
+    "100610078": {
+      "family": "oath",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610078.equ"
+    },
+    "100610079": {
+      "family": "oath",
+      "rarity": 8,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610079.equ"
+    },
+    "100610080": {
+      "family": "oath",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610080.equ"
+    },
+    "100610081": {
+      "family": "oath",
+      "rarity": 8,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610081.equ"
+    },
+    "100610082": {
+      "family": "oath",
+      "rarity": 2,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610082.equ"
+    },
+    "100610083": {
+      "family": "oath",
+      "rarity": 2,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610083.equ"
+    },
+    "100610084": {
+      "family": "oath",
+      "rarity": 2,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610084.equ"
+    },
+    "100610085": {
+      "family": "oath",
+      "rarity": 2,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610085.equ"
+    },
+    "100610086": {
+      "family": "oath",
+      "rarity": 2,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610086.equ"
+    },
+    "100610087": {
+      "family": "oath",
+      "rarity": 2,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610087.equ"
+    },
+    "100610088": {
+      "family": "oath",
+      "rarity": 2,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610088.equ"
+    },
+    "100610089": {
+      "family": "oath",
+      "rarity": 2,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610089.equ"
+    },
+    "100610090": {
+      "family": "oath",
+      "rarity": 2,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610090.equ"
+    },
+    "100610091": {
+      "family": "oath",
+      "rarity": 2,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610091.equ"
+    },
+    "100610092": {
+      "family": "oath",
+      "rarity": 2,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610092.equ"
+    },
+    "100610093": {
+      "family": "oath",
+      "rarity": 2,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610093.equ"
+    },
+    "100610094": {
+      "family": "oath",
+      "rarity": 2,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610094.equ"
+    },
+    "100610095": {
+      "family": "oath",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610095.equ"
+    },
+    "100610096": {
+      "family": "oath",
+      "rarity": 8,
+      "grade": 116,
+      "type": "[oath]",
+      "path": "equipment/character/common/oath/100610096.equ"
+    },
+    "100620000": {
+      "family": "primer",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100620000.equ"
+    },
+    "100620001": {
+      "family": "primer",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100620001.equ"
+    },
+    "100620002": {
+      "family": "primer",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100620002.equ"
+    },
+    "100620003": {
+      "family": "primer",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100620003.equ"
+    },
+    "100620004": {
+      "family": "primer",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100620004.equ"
+    },
+    "100620005": {
+      "family": "primer",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100620005.equ"
+    },
+    "100620006": {
+      "family": "primer",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100620006.equ"
+    },
+    "100620007": {
+      "family": "primer",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100620007.equ"
+    },
+    "100620008": {
+      "family": "primer",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100620008.equ"
+    },
+    "100620009": {
+      "family": "primer",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100620009.equ"
+    },
+    "100620010": {
+      "family": "primer",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100620010.equ"
+    },
+    "100620011": {
+      "family": "primer",
+      "rarity": 6,
+      "grade": 116,
+      "type": "[primer]",
+      "path": "equipment/character/common/primer/100620011.equ"
+    }
+  }
+}

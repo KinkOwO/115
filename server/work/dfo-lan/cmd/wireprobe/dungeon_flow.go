@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"time"
 )
@@ -44,6 +45,27 @@ func (w *worldSession) dungeonGate(p []byte) ([]outboundPacket, error) {
 	// supplies a source dungeon ID instead; accept that only when it is this
 	// character's own starting route and the route is still owed.
 	if requested != 0 {
+		if scene, ok := w.townArrivalScenes[requested]; ok {
+			if w.state.Position.Town != scene.Town || w.state.Position.Area != scene.Area {
+				return nil, fmt.Errorf("town arrival scene %d requires town area %d/%d", requested, scene.Town, scene.Area)
+			}
+			if err := w.service.ValidateRestoredPosition(w.level, w.odyssey, w.state.Position); err != nil {
+				return nil, err
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			accepted, err := w.acceptedQuestIDs(ctx)
+			cancel()
+			if err != nil {
+				return nil, err
+			}
+			if scene.QuestID > 65535 || !accepted[uint16(scene.QuestID)] {
+				return nil, fmt.Errorf("town arrival scene %d requires accepted source quest %d", requested, scene.QuestID)
+			}
+			return []outboundPacket{
+				{"town_arrival_scene_gate_ack", 1, 15, []byte{1}},
+				{"town_arrival_scene_selection_sent", 0, 27, protocol.EnterDungeonSelection()},
+			}, nil
+		}
 		if w.dungeons != nil && dungeon.IsTrainingRoom(*w.dungeons, requested) {
 			return []outboundPacket{
 				{"training_room_gate_ack", 1, 15, []byte{1}},
@@ -72,6 +94,19 @@ func (w *worldSession) dungeonGate(p []byte) ([]outboundPacket, error) {
 	}, nil
 }
 
+func (w *worldSession) isTownArrivalOriginSync(id uint16, p []byte) bool {
+	if w == nil || w.pendingTownArrival == nil || id != 36 {
+		return false
+	}
+	r, err := protocol.DecodeAreaChangeRequest(p)
+	if err != nil {
+		return false
+	}
+	pos := w.state.Position
+	return r.Town == pos.Town && r.Area == pos.Area && r.X == pos.X && r.Y == pos.Y &&
+		r.PreviousTown == pos.Town && uint32(r.PreviousArea) == pos.Area && r.Flag == 0 && r.TailFlags == [2]byte{}
+}
+
 func (w *worldSession) selectDungeon(p []byte) (*dungeon.Session, []outboundPacket, error) {
 	if w == nil || w.dungeons == nil || w.role.ID == 0 {
 		return nil, nil, fmt.Errorf("dungeon catalog or character unavailable")
@@ -82,6 +117,13 @@ func (w *worldSession) selectDungeon(p []byte) (*dungeon.Session, []outboundPack
 	r, e := protocol.DecodeDungeonSelection(p)
 	if e != nil {
 		return nil, nil, e
+	}
+	if scene, ok := w.townArrivalScenes[r.ID]; ok {
+		// A quest's arrival trigger is a town event. A rejected CMD15 must not
+		// become a private dungeon session through the following CMD16.
+		if r.Quest != scene.QuestID || w.state.Position.Town != scene.Town || w.state.Position.Area != scene.Area || !w.selectingDungeon || w.approvedDungeonGate != r.ID {
+			return nil, nil, fmt.Errorf("town arrival scene %d has no approved matching gate for quest %d at %d/%d", r.ID, r.Quest, w.state.Position.Town, w.state.Position.Area)
+		}
 	}
 	if d, ok := w.dungeons.Dungeons[r.ID]; ok && d.Odyssey {
 		if !character.OdysseyRole(w.role) {
@@ -96,7 +138,7 @@ func (w *worldSession) selectDungeon(p []byte) (*dungeon.Session, []outboundPack
 		}
 	}
 	trainingRoom := dungeon.IsTrainingRoom(*w.dungeons, r.ID)
-	if !trainingRoom {
+	if _, townArrival := w.townArrivalScenes[r.ID]; !trainingRoom && !townArrival {
 		if _, e := w.dungeonGate(make([]byte, 8)); e != nil {
 			return nil, nil, e
 		}
@@ -121,6 +163,7 @@ func (w *worldSession) selectDungeon(p []byte) (*dungeon.Session, []outboundPack
 	if e != nil {
 		return nil, nil, e
 	}
+	noteMazeEntry(s)
 	if w.fatigue != nil && !s.Definition.NoFatigue && w.fatigue.Rules.RoomCost > 0 {
 		fp, err := w.fatigue.State(ctx, w.account, w.role.ID, time.Now())
 		if err != nil {
@@ -278,6 +321,7 @@ func (w *worldSession) directMoveDungeon(p []byte) (*dungeon.Session, []outbound
 	if e != nil {
 		return nil, nil, e
 	}
+	noteMazeEntry(s)
 	plan, e := w.directMoveEntryPlan(sel, s)
 	if e != nil {
 		return nil, nil, e
@@ -343,9 +387,25 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 	if e != nil {
 		return nil, e
 	}
+	// 征兆存档必须先读出来：它同时决定 noti 2836 的队伍状态（omen_info.go）与
+	// noti 2838 的档位（oath_info.go —— 隐藏 BOSS 现在由「满档结算」驱动）。
+	if e := w.loadOmenRunState(w.oathProgressDungeon()); e != nil {
+		return nil, e
+	}
 	plan := []outboundPacket{{"dungeon_loading_ack", 1, 37, []byte{1}}, {"dungeon_actor_state", 0, 3, state}, {"dungeon_loading_complete", 0, 30, protocol.DungeonLoaded()}}
 	// 常驻状态：把两个档位在客户端读 getter 之前下发（见 oath_info.go）。
-	plan = append(plan, w.oathInfoPackets()...)
+	grades, e := w.oathInfoPackets()
+	if e != nil {
+		return nil, e
+	}
+	plan = append(plan, grades...)
+	// 征兆队伍状态（noti 2836）。客户端进 EOO 副本时自己已经把两个征兆窗开好，
+	// 这里只负责把每个座位的状态填进去。见 omen_info.go。
+	omen, e := w.omenInfoPackets()
+	if e != nil {
+		return nil, e
+	}
+	plan = append(plan, omen...)
 	// 诊断注入器：把候选通知塞在副本加载应答里，天平开场读 getter 之前就到位。
 	plan = append(plan, w.oathInjectNext()...)
 	if w.progression != nil {
@@ -654,17 +714,23 @@ func (w *worldSession) noteDropGap(event func(map[string]any), entity uint16, e 
 // noteOmenClear 把最近一次征兆结算记进事件流。玩家报告的「这把给了什么」应当
 // 能从日志直接读出来，而不是靠反推掉落物属于哪一档。账本按自增序号去重，所以
 // 同一场里其余怪物的死亡不会重复报同一条。
-func (w *worldSession) noteOmenClear(event func(map[string]any)) {
+func (w *worldSession) noteOmenClear(event func(map[string]any)) error {
 	if w.drops == nil || w.drops.Omen == nil {
-		return
+		return nil
 	}
 	outcome, ok := w.drops.Omen.Last(w.role.ID)
 	if !ok || outcome.Seq == w.omenReported {
-		return
+		return nil
 	}
 	w.omenReported = outcome.Seq
+	// 落库：持有数写回角色存档，满档结算额外置「下一场该出隐藏 BOSS」（见 omen_state.go）。
+	// 失败往上抛 —— 掉落已经按结算结果算出来了，静默丢掉这次推进会让存档和玩家看到的
+	// 东西互相矛盾。
+	if err := w.noteOmenSettlement(outcome); err != nil {
+		return err
+	}
 	if event == nil {
-		return
+		return nil
 	}
 	fields := map[string]any{
 		"kind":    "omen_clear",
@@ -683,6 +749,7 @@ func (w *worldSession) noteOmenClear(event func(map[string]any)) {
 		fields["templates"] = ids
 	}
 	event(fields)
+	return nil
 }
 
 func (w *worldSession) monsterDeath(p []byte, event func(map[string]any)) ([]outboundPacket, error) {
@@ -722,7 +789,12 @@ func (w *worldSession) monsterDeath(p []byte, event func(map[string]any)) ([]out
 				w.drops.Attunement = w.loot.Attunement
 				w.drops.RewardBoxes = w.loot.RewardBoxes
 				w.drops.Omen = w.loot.Omen
-				if w.loot.Omen != nil && !w.omenHoldApplied && w.omenHold >= 0 {
+				if w.loot.Omen != nil && w.omenHeldReady {
+					// 本场开始时的持有数：-omen-state 时来自角色存档
+					// （loadOmenRunState），否则来自 -omen-hold 诊断。账本本身是内存的，
+					// 所以新的一场必须重新预载，否则会沿用上一场结算后的值。
+					w.loot.Omen.Set(w.role.ID, w.omenHeldRun)
+				} else if w.loot.Omen != nil && !w.omenHoldApplied && w.omenHold >= 0 {
 					// 诊断入口，每个会话只应用一次：放到指定阶段后就交回正常的
 					// 累积/结算路径，免得每进一次副本都被拽回同一格。
 					w.loot.Omen.Set(w.role.ID, uint32(w.omenHold))
@@ -754,7 +826,9 @@ func (w *worldSession) monsterDeath(p []byte, event func(map[string]any)) ([]out
 			if err != nil {
 				return nil, err
 			}
-			w.noteOmenClear(event)
+			if err := w.noteOmenClear(event); err != nil {
+				return nil, err
+			}
 		}
 		plan = append(plan, outboundPacket{"monster_death_confirmed", 0, 38, body})
 	}
@@ -881,6 +955,9 @@ func (w *worldSession) bossCheck(p []byte) ([]outboundPacket, error) {
 }
 
 func (w *worldSession) completeDungeon() ([]outboundPacket, error) {
+	if w.moon.owner != nil {
+		return nil, nil
+	} // Moon final death owns its completion.
 	if !w.activeDungeon.Completed() || w.completionSent {
 		return nil, nil
 	}
@@ -966,11 +1043,14 @@ func (w *worldSession) completeDungeon() ([]outboundPacket, error) {
 		}
 		plan = append(plan, outboundPacket{"map_clear_quest_triggers", 0, 291, triggers})
 	}
-	body, err := protocol.BossCheckConfirmed(w.activeDungeon.CompletionTarget())
-	if err != nil {
-		return nil, err
+	if w.activeDungeon.CompletionNeedsBossCheck() {
+		body, err := protocol.BossCheckConfirmed(w.activeDungeon.CompletionTarget())
+		if err != nil {
+			return nil, err
+		}
+		plan = append(plan, outboundPacket{"boss_check_confirmed", 0, 115, body})
 	}
-	plan = append(plan, outboundPacket{"boss_check_confirmed", 0, 115, body}, outboundPacket{"dungeon_clear_enabled", 0, 31, protocol.DungeonClearEnabled()})
+	plan = append(plan, outboundPacket{"dungeon_clear_enabled", 0, 31, protocol.DungeonClearEnabled()})
 	if w.activeDungeon.Tournament != nil {
 		reward, e := w.tournamentClear()
 		if e != nil {
@@ -978,12 +1058,51 @@ func (w *worldSession) completeDungeon() ([]outboundPacket, error) {
 		}
 		plan = append(plan, outboundPacket{"tournament_clear_reward", 0, 374, reward})
 	}
+	// 隐藏 BOSS 的两种来源各自归位，都必须在「通关确认」之后 —— 掉线或退出不该
+	// 吞掉已经攒到的那一次。
+	cleared := w.oathProgressDungeon()
+	if w.omenState {
+		// 征兆线：这一场把进本时读到的「满档结算待出」标记兑现掉。见 omen_state.go。
+		if e := w.clearOmenOrthaier(cleared); e != nil {
+			return nil, e
+		}
+	} else if before, after, e := w.noteOathProgressClear(cleared); e != nil {
+		// 旧通关保底（-oath-progress-clears，诊断保留）。
+		return nil, e
+	} else if w.oathProgressEnabled(cleared) {
+		log.Printf("oath progress: dungeon %d clears %d -> %d (pity every %d)",
+			cleared, before, after, w.oathProgressClears)
+	}
 	return plan, nil
 }
 
 func (w *worldSession) interactDoor(p []byte) (*dungeon.Session, []outboundPacket, error) {
 	if w.activeDungeon == nil {
 		return nil, nil, fmt.Errorf("door interaction without active dungeon")
+	}
+	run := w.activeDungeon
+	if run.Definition.ID == 7113 && run.Room.Map == 76026 && run.RoomCleared() {
+		for _, room := range run.Maze.Rooms {
+			dx, dy := int(room.X)-int(run.Room.X), int(room.Y)-int(run.Room.Y)
+			if dx < 0 {
+				dx = -dx
+			}
+			if dy < 0 {
+				dy = -dy
+			}
+			if room.Map != 76027 || dx+dy != 1 {
+				continue
+			}
+			req := make([]byte, 160)
+			req[0], req[1] = room.X, room.Y
+			binary.LittleEndian.PutUint32(req[151:155], run.Definition.ID)
+			next, movePlan, err := w.moveDungeonRoom(req)
+			if err != nil {
+				return nil, nil, err
+			}
+			plan := append([]outboundPacket{{"door_ack", 1, 38, []byte{1}}}, movePlan...)
+			return next, plan, nil
+		}
 	}
 	if w.activeDungeon.Room.Map == 100016294 {
 		// Sirocco cutscene room 100016294: synthesize a 160-byte transition to boss room (4,1)
@@ -998,7 +1117,82 @@ func (w *worldSession) interactDoor(p []byte) (*dungeon.Session, []outboundPacke
 		plan := append([]outboundPacket{{"door_ack", 1, 38, []byte{1}}}, movePlan...)
 		return next, plan, nil
 	}
+	// [MERGE-20260927-SCENE-EXIT] 场景房出口。scene_routes 只声明「从 base 进入
+	// 场景房」，没有出来的那一条；客户端在场景房里点门也只发 id=38（走到这里），
+	// 不发 layer 切换。此前除 100016294 外一律只回 ack，玩家进了场景房
+	// （实机 100016083_scene_0）就永远出不去。这里识别出「当前房间是某 layer 的
+	// 场景图」并合成一次回 base 房间的 layer 切换。
+	if req, ok := w.sceneExitRequest(); ok {
+		if r, de := protocol.DecodeDungeonRoomTransition(req); de == nil {
+			r.SceneExit = true
+			if next, movePlan, err := w.moveDungeonRoomDecoded(r); err == nil {
+				return next, append([]outboundPacket{{"door_ack", 1, 38, []byte{1}}}, movePlan...), nil
+			}
+		}
+		// 合成失败不改变既有行为：仍只回 ack，由 dungeon 层自己报错记录。
+	}
 	return nil, []outboundPacket{{"door_ack", 1, 38, []byte{1}}}, nil
+}
+
+// sceneExitRequest 在当前房间是某 layer 的场景图时，合成「回到该位置 base 房间」的
+// layer-change 请求（同位置换图）。不满足条件时 ok=false，调用方保持原样只回 ack。
+func (w *worldSession) sceneExitRequest() ([]byte, bool) {
+	if w == nil || w.activeDungeon == nil {
+		return nil, false
+	}
+	d := w.activeDungeon
+	// [MERGE-20260928-CINEMATIC-LAYER] 只对「演出层图」合成出口：那种层图没有
+	// 可战斗的怪，客户端点门后不会自己推进，不发这段就永远卡在场景房里出不去。
+	// 战斗层图（安图恩讨伐战 100004950 的 100016165 有 4 只怪）不能这么处理：
+	// 客户端打完会自己走下一步，若在这里合成出口就会把玩家弹回 base（164，站了
+	// 3 个 NPC 的房间），客户端再进层图、再被弹回，来回循环 —— 实机 2026-09-28。
+	// [MERGE-20260928-LAYER-SEQUENCE-EXIT] 还必须是**序列最后一张**：多张层图的中间
+	// 几张（100004981 的 100001054，4 张里的第 2 张，房里 9 个全是 noncombat 演员）
+	// 会被这个判据误命中，兜底把玩家弹回上一格，客户端又从头重播，最后退化成
+	// 「同图再进同图」（ReuseRoom 无缓存）直接闪退。
+	if !d.LayerRoomIsCinematic() || !d.AtLayerLastMap() {
+		return nil, false
+	}
+	var pos [2]byte
+	onLayer := false
+	for _, layer := range d.Maze.Layers {
+		for _, mapID := range layer.Maps {
+			if mapID == d.Room.Map {
+				pos = layer.Position
+				onLayer = true
+				break
+			}
+		}
+		if onLayer {
+			break
+		}
+	}
+	if !onLayer {
+		return nil, false
+	}
+	base := uint32(0)
+	for _, room := range d.Maze.Rooms {
+		if [2]byte{room.X, room.Y} == pos {
+			base = room.Map
+		}
+	}
+	if base == 0 {
+		return nil, false
+	}
+	req := make([]byte, 160)
+	req[0] = pos[0]
+	req[1] = pos[1]
+	req[10] = 1 // LayerChange：同位置换图
+	binary.LittleEndian.PutUint32(req[151:155], d.Definition.ID)
+	// [MERGE-20260928-LAYER-SEQUENCE-EXIT] 补上换图记录：客户端靠 StartMap 的
+	// Transition 记录安置角色（record[6:10] 是落点，读法见 lotusClosingRevisit）。
+	// 客户端点门只发 id=38，不带这份记录；留全零的话客户端会用默认落点，角色卡在
+	// 场景左上角（实机 2026-09-28 贵族机要 100004968）。记录从源路由取
+	// （100004944 那种自带出生点的图，路由记录本来就是全零，行为不变）。
+	if rec, ok := d.LayerRouteRecord(*w.dungeons, d.Room.Map); ok {
+		copy(req[132:150], rec[:])
+	}
+	return req, true
 }
 
 func (w *worldSession) moveDungeonRoom(p []byte) (*dungeon.Session, []outboundPacket, error) {
@@ -1009,9 +1203,27 @@ func (w *worldSession) moveDungeonRoom(p []byte) (*dungeon.Session, []outboundPa
 	if e != nil {
 		return nil, nil, e
 	}
+	return w.moveDungeonRoomDecoded(r)
+}
+
+// moveDungeonRoomDecoded 与 moveDungeonRoom 相同，但接受已经解码好的转换请求 ——
+// 让服务端合成的请求也能带上只在服务端有意义的标记（如 SceneExit）。
+func (w *worldSession) moveDungeonRoomDecoded(r protocol.DungeonRoomTransition) (*dungeon.Session, []outboundPacket, error) {
+	if w.activeDungeon == nil || w.dungeons == nil {
+		return nil, nil, fmt.Errorf("room transition without active run")
+	}
+	var e error
 	var next *dungeon.Session
 	if r.LayerChange {
-		next, e = w.activeDungeon.MoveScene(*w.dungeons, r)
+		// [MERGE-20260928-SCENE-EXIT-VS-SEQUENCE] 同样是 LayerChange，出口方向却相反：
+		//   - 场景房点门（服务端合成，SceneExit）→ 回该位置的 base；
+		//   - 客户端主动换图（序列末尾，CMD45）→ 前进到相邻格。
+		// 之前两条都走 MoveScene，只能二选一，于是修好一边就弄坏另一边。
+		if r.SceneExit {
+			next, e = w.activeDungeon.ExitSceneRoom(*w.dungeons, r.Position)
+		} else {
+			next, e = w.activeDungeon.MoveScene(*w.dungeons, r)
+		}
 	} else if r.Record[0] == 1 {
 		next, e = w.activeDungeon.MoveScript(*w.dungeons, r)
 		if e != nil {
@@ -1023,11 +1235,20 @@ func (w *worldSession) moveDungeonRoom(p []byte) (*dungeon.Session, []outboundPa
 	if e != nil {
 		return nil, nil, e
 	}
+	// [MERGE-20260928-DIAG] 暂存场景换图的决策路径，由 main.go 的 dispatch 落进 events。
+	w.sceneDiag = next.SceneDiagnostic()
+	w.sceneDiagFrom, w.sceneDiagTo = w.activeDungeon.Room.Map, next.Room.Map
 	var seed uint32
 	if e = binary.Read(rand.Reader, binary.LittleEndian, &seed); e != nil {
 		return nil, nil, e
 	}
-	state := protocol.StartMapState{Position: r.Position, Seed: seed, Map: next.Room.Map, Monsters: next.LivingMonsters(), LayerChange: r.LayerChange, EncodeCreateTrigger: monsterCreateTriggerEnabled()}
+	// [MERGE-20260928-LAYER-SEQUENCE-EXIT] Position 取**目标房间自己的坐标**，而不是
+	// 请求里的 r.Position。两者在正常路径上一致（Move/MoveScene/MoveScript 都只改
+	// Map、不改 X/Y），但在「多张层图序列走完后改用 Move 前进到相邻房间」这条新路径
+	// 上它们会不同：请求带的还是层图所在格的坐标 (0,2)，玩家却已经去了 (0,1)。
+	// StartMap 把 Position 写成包的前两字节，客户端据此安放角色 —— 用错就等于把玩家
+	// 放在地图外，实机表现是「角色不见了」（2026-09-28 贵族机要 100004968）。
+	state := protocol.StartMapState{Position: [2]byte{next.Room.X, next.Room.Y}, Seed: seed, Map: next.Room.Map, Monsters: next.LivingMonsters(), LayerChange: r.LayerChange, EncodeCreateTrigger: monsterCreateTriggerEnabled()}
 	if r.LayerChange && next.Room.Map == w.activeDungeon.Room.Map {
 		state.ReuseRoom = true
 		state.Monsters = nil
@@ -1036,8 +1257,25 @@ func (w *worldSession) moveDungeonRoom(p []byte) (*dungeon.Session, []outboundPa
 		state.ReuseRoom = true
 		state.Monsters = nil
 	}
+	// [MERGE-20260928-TRANSITION-DEFAULT] 有换图记录就照发；服务端合成请求时拿不到
+	// 记录（副本不在 scenes 路由表里，如「无信草原」100004781），Record 会是全零 ——
+	// 这时**不能**把全零发出去：StartMap 的默认换图记录是
+	// `0000ffffffffffffffff000000000000`（native1452b7494），全零会覆盖它，客户端
+	// 拿零落点安置角色，表现为「角色不显示」（实机 2026-09-28）。LayerChange 又要求
+	// Transition 必须存在，所以回落到那份默认记录。
 	if r.LayerChange || r.Record[0] == 1 {
-		state.Transition = &r.Record
+		rec := r.Record
+		if rec == ([18]byte{}) {
+			// [MERGE-20260928-START-LAYER-EXIT] 服务端合成的出口（起点层图格点门）
+			// 手里没有记录，而这一格的原记录只有客户端进层图那一包里有 —— 取留存的
+			// 那份。落点错位的话紧接的第二段剧情一开就崩（实机 2026-09-28 晦月湖）。
+			if entry, ok := next.SceneEntryRecord(); ok {
+				rec = entry
+			} else {
+				rec = [18]byte{0, 0, 0, 0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0, 0, 0, 0, 0, 0}
+			}
+		}
+		state.Transition = &rec
 	}
 	body, e := protocol.StartMap(state)
 	if e != nil {

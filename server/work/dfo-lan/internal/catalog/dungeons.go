@@ -48,13 +48,50 @@ type DungeonDefinition struct {
 	// 的 tryComplete —— 客户端会发 CMD117 的副本由那条路径负责，这里不会重复结算。
 	SourceBoss uint32
 	Mazes      []DungeonMaze `json:"mazes"`
+	// MazeChanceRates 非空表示这张副本按源里的 [maze chance rate] 掷骰选图，
+	// 而不是「同 quest 里 index 最小者」。
+	//
+	// 它**不由通用解析填充**：源里有 67 个副本声明了该字段，量纲还不统一
+	// （合计 100 / 1e3 / 1e4 / 1e6 都有，还夹杂 0 权重），所以只有白名单
+	// overlay（configs/dungeons.maze-chance-rates.json）列出的副本会被填，
+	// 其余副本的行为一个字节都不变。长度必须等于 Mazes 的长度；权重在候选集
+	// 内归一化，0 表示永不选中。见 internal/catalog/maze_chance.go。
+	MazeChanceRates []uint32 `json:"maze_chance_rates,omitempty"`
 }
 type DungeonCatalog struct {
-	Source      pvf.ArchiveSnapshot          `json:"source"`
-	Dungeons    map[uint32]DungeonDefinition `json:"dungeons"`
-	Maps        map[uint32]ScriptRecord      `json:"maps"`
-	Skipped     []string                     `json:"skipped,omitempty"`
-	SceneRoutes []DungeonSceneRoute          `json:"scene_routes,omitempty"`
+	Source         pvf.ArchiveSnapshot          `json:"source"`
+	Dungeons       map[uint32]DungeonDefinition `json:"dungeons"`
+	Maps           map[uint32]ScriptRecord      `json:"maps"`
+	Skipped        []string                     `json:"skipped,omitempty"`
+	SceneRoutes    []DungeonSceneRoute          `json:"scene_routes,omitempty"`
+	TerminalScenes []DungeonTerminalScene       `json:"terminal_scenes,omitempty"`
+}
+
+// DungeonTerminalScene records a source CMT [CHANGE MAP] on a quest maze's
+// final layer. The quest's single [clear map] objective is its boss room.
+// This metadata is generated from the current PVF, not inferred from a CMD45.
+type DungeonTerminalScene struct {
+	Source          string  `json:"source"`
+	Dungeon         uint32  `json:"dungeon"`
+	Maze            byte    `json:"maze"`
+	Quest           uint16  `json:"quest"`
+	Position        [2]byte `json:"position"`
+	ObjectiveMap    uint32  `json:"objective_map"`
+	FinalMap        uint32  `json:"final_map"`
+	XMin            uint16  `json:"x_min"`
+	XMax            uint16  `json:"x_max"`
+	YMin            uint16  `json:"y_min"`
+	YMax            uint16  `json:"y_max"`
+	DungeonSHA256   string  `json:"dungeon_sha256"`
+	MapSHA256       string  `json:"map_sha256"`
+	ActionSHA256    string  `json:"action_sha256"`
+	CinematicSHA256 string  `json:"cinematic_sha256"`
+	CinematicPath   string  `json:"cinematic_path"`
+
+	// Some objective bosses are destroyed by the map's own cinematic instead
+	// of a separate monster-death report. The importer records the sole boss
+	// template only when the source action and cinematic prove that sequence.
+	ObjectiveCinematicDestroyTemplate uint32 `json:"objective_cinematic_destroy_template,omitempty"`
 }
 
 // DungeonSceneRoute is generated from the maze order and original CMT/ACT landing area.

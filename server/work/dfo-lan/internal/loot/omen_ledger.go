@@ -5,8 +5,12 @@ import "sync"
 // OmenLedger 按角色保存征兆累积数。
 //
 // 征兆是**跨场累积**的玩家状态（官方：「通关时随机累积」），所以它既不属于
-// 掉落会话（Session 每场新建），也不能挂在副本状态上。这里按角色 ID 记账，
-// 一次服务运行内有效；重启归零，正式落地要接角色存档。
+// 掉落会话（Session 每场新建），也不能挂在副本状态上。
+//
+// 这本账只是**进程内缓存**：权威状态在角色存档里（character_omen_state，见
+// internal/storage/omen_state.go）。cmd/wireprobe 在每场开始时用存档刷新它、
+// 结算后写回，所以重启不再归零。这里不直接持有 Store 是为了让掉落会话不知道
+// 数据库的存在。
 type OmenLedger struct {
 	reward *AttunementRewards
 

@@ -94,7 +94,21 @@ func (s *WearService) wearable(role storage.Character, item BagEquipment, slot u
 	offhandLightsabre := slot == 24 && kind[0].Text == "[weapon]" &&
 		job.Job == "[at swordman]" && state.Advancement == 4 &&
 		len(subType) == 1 && subType[0].Type == 0 && subType[0].Value == 5
-	if !ok || (expected != slot && !talismanSlot && !primerSlot && !offhandLightsabre) {
+	// 宠物幻化栏（槽 32）：115 客户端把**宠物本体**（[creature]，实机 63003/63008）
+	// 直接拖进幻化栏，而不是 [creature skin]；配置里 [creature] 只映射到 26，于是
+	// 2026-09-26 实机五次 CMD19（list7 -> list3 槽 32）全被
+	// "equipment does not fit destination slot" 拒掉，客户端弹「目标栏位已满」。
+	// 只在扩展券把这一栏打开之后（USERINFO1 解锁字节 bit5）放行：没开栏时
+	// 客户端也不该往这里放。
+	creatureSkin := s.Rules.Special && kind[0].Text == "[creature]" &&
+		slot == CreatureSkinSlot && s.creatureSkinUnlocked(role)
+	// 光环幻化栏同型：客户端拖进槽 11 的是 [aurora avatar]（光环本体），而规则表里
+	// 该类型只映射到槽 9，于是 expected(9) != slot(11) 会把幻化整个拒掉。放行同样要求
+	// 券已开栏（bit3）：客户端 UI 的挂锁读同一位。不放行其它装扮类型，避免把上衣或
+	// 武器装扮塞进幻化栏。
+	auraSkin := s.Rules.Special && kind[0].Text == "[aurora avatar]" &&
+		slot == AuraSkinSlot && s.auraSkinUnlocked(role)
+	if !ok || (expected != slot && !talismanSlot && !primerSlot && !offhandLightsabre && !creatureSkin && !auraSkin) {
 		return fmt.Errorf("equipment does not fit destination slot")
 	}
 	if kind[0].Text == "[creature]" {
@@ -122,6 +136,27 @@ func (s *WearService) wearable(role storage.Character, item BagEquipment, slot u
 		}
 	}
 	return WearableBy(d.Fields, kind[0].Text, job.Job, state.Advancement, level)
+}
+
+// creatureSkinUnlocked 读存档里 USERINFO1 解锁字节的宠物幻化栏位（bit5）。
+// 读不到存档时按未开启处理：宁可不放行，也不要把宠物塞进客户端没打开的栏。
+func (s *WearService) creatureSkinUnlocked(role storage.Character) bool {
+	b, e := ReadBag(role.State)
+	if e != nil {
+		return false
+	}
+	return b.ExpandEquipFlags&ExpandCreatureSkin != 0
+}
+
+// auraSkinUnlocked 读存档里 USERINFO1 解锁字节的光环幻化栏位（bit3）。与
+// creatureSkinUnlocked 同一道理：客户端 UI 的挂锁读同一位，未开栏时服务端也不该
+// 放行，否则界面还锁着、东西却进去了，客户端/服务端状态就不一致了。
+func (s *WearService) auraSkinUnlocked(role storage.Character) bool {
+	b, e := ReadBag(role.State)
+	if e != nil {
+		return false
+	}
+	return b.ExpandEquipFlags&ExpandAuraSkin != 0
 }
 
 func (s *WearService) itemGroup(item *BagEquipment, flagGroup byte) byte {

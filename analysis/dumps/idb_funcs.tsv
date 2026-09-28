@@ -1,0 +1,3 @@
+address	name	description
+0x140ced7f0	ActBehavior_KickOutMapCharacter_Execute	KICK OUT MAP CHARACTER execution, validates current room and delegates scripted map move to 145ea1ca0
+0x145ea2f90	DungeonTransition_DecodeNative18	NOTI29 native 18-byte transition decode, type/direction/position/random-range

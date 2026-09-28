@@ -1,0 +1,2053 @@
+{
+ "source": {
+  "format": "dfo_20260901_inner",
+  "path": "E:\\dnf-new\\115us的us.exe（20260903以前的版本）\\分享的服务端\\115us\\server\\work\\client-build\\Script.inner.pvf",
+  "size": 760530763,
+  "checksum": "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80",
+  "loaded_at": "2026-09-24T08:06:15.5578478Z",
+  "file_count": 5650173,
+  "group_count": 82571,
+  "cached_chunks": 0,
+  "cached_texts": 0
+ },
+ "path": "contents/system/legionsystem/legionsystem.cos",
+ "sha256": "7251e41402e5da01891fa1ae774ad8bc2dd4c3480a5378dd685cde428337e913",
+ "bytes": 124844,
+ "contents": {
+  "Apocalypse": {
+   "name": "Apocalypse",
+   "limit_level": 115,
+   "last_phase": 5,
+   "need_fatigue": 0,
+   "recruiting_area": {
+    "town": 239,
+    "area": 1,
+    "x": 1110,
+    "y": 317
+   },
+   "waiting_area": {
+    "town": 239,
+    "area": 2,
+    "x": 727,
+    "y": 310
+   },
+   "movie_time": 90,
+   "operation_select_limit_seconds": 40,
+   "quest_index": [
+    0,
+    23128
+   ],
+   "dungeon_info_data": [
+    {
+     "name_ref": "\u003c7::Apocalypse_legion_Boss_Name_01\u003e",
+     "dungeon": 100005112,
+     "boss": 0,
+     "tail": [
+      5,
+      26,
+      43
+     ]
+    },
+    {
+     "name_ref": "\u003c7::Apocalypse_legion_Boss_Name_02\u003e",
+     "dungeon": 100004995,
+     "boss": 109019062,
+     "tail": [
+      5,
+      26,
+      43
+     ]
+    },
+    {
+     "name_ref": "\u003c7::Apocalypse_legion_Boss_Name_03\u003e",
+     "dungeon": 100005057,
+     "boss": 109019064,
+     "tail": [
+      5,
+      26,
+      43
+     ]
+    },
+    {
+     "name_ref": "\u003c7::Apocalypse_legion_Boss_Name_04\u003e",
+     "dungeon": 100004918,
+     "boss": 109019065,
+     "tail": [
+      5,
+      26,
+      43
+     ]
+    },
+    {
+     "name_ref": "\u003c7::Apocalypse_legion_Boss_Name_05\u003e",
+     "dungeon": 100005111,
+     "boss": 109019066,
+     "tail": [
+      5,
+      24,
+      42
+     ]
+    },
+    {
+     "name_ref": "\u003c7::Apocalypse_legion_Boss_Name_06\u003e",
+     "dungeon": 100004994,
+     "boss": 109019061,
+     "tail": [
+      5,
+      24,
+      42
+     ]
+    }
+   ],
+   "weekly_enter_count": 3,
+   "phase_reward_count": 1,
+   "enter_data": [
+    {
+     "difficulty": "normal",
+     "party_type": "solo",
+     "values": [
+      0,
+      0,
+      73993,
+      105881
+     ],
+     "fame_low": 73993,
+     "fame_high": 105881
+    },
+    {
+     "difficulty": "expert",
+     "party_type": "solo",
+     "values": [
+      0,
+      0,
+      73993,
+      105881
+     ],
+     "fame_low": 73993,
+     "fame_high": 105881
+    },
+    {
+     "difficulty": "master",
+     "party_type": "solo",
+     "values": [
+      0,
+      0,
+      73993,
+      105881
+     ],
+     "fame_low": 73993,
+     "fame_high": 105881
+    },
+    {
+     "difficulty": "normal",
+     "party_type": "party",
+     "values": [
+      0,
+      0,
+      73993,
+      105881
+     ],
+     "fame_low": 73993,
+     "fame_high": 105881
+    },
+    {
+     "difficulty": "expert",
+     "party_type": "party",
+     "values": [
+      0,
+      0,
+      73993,
+      105881
+     ],
+     "fame_low": 73993,
+     "fame_high": 105881
+    },
+    {
+     "difficulty": "master",
+     "party_type": "party",
+     "values": [
+      0,
+      0,
+      73993,
+      105881
+     ],
+     "fame_low": 73993,
+     "fame_high": 105881
+    }
+   ],
+   "incount_dungeon_index": 100004994,
+   "ui_int_list": {
+    "CHANNEL_BASE_DISABLE_IMAGE_INDEX": 17,
+    "CHANNEL_BASE_IMAGE_INDEX": 16,
+    "CHANNEL_NEW_MARK_IMG_SHOW": 1,
+    "CHANNEL_SLOT_IMAGE_INDEX": 15,
+    "CHANNEL_TAB_ORDER_INDEX": 0,
+    "CREATE_LEGION_BLOCK_DUNGEON_DIFFICULT_COVER_IONDEX": 95,
+    "CREATE_PARTY_DETAIL_WINDOW_BG_IMAGE_INDEX": 190,
+    "CREATE_PARTY_WINDOW_BG_IMAGE_INDEX": 189,
+    "ENABLE_CHANNEL_TAB_EVENT_ID": 1007,
+    "PARTY_MEMVER_BG_IMAGE_INDEX": 266,
+    "REWARD_ITEM_DUNGEON_INDEX": 100004994,
+    "REWARD_UI_CUSTOM_Y_POS_MISSION": 0,
+    "REWARD_UI_CUSTOM_Y_POS_TIME": 0,
+    "REWARD_UI_CUSTOM_Y_POS_USER": 0
+   },
+   "reward_data": [
+    {
+     "difficulty": "normal",
+     "kind": "basic",
+     "values": [
+      1000000,
+      10421368,
+      1
+     ]
+    },
+    {
+     "difficulty": "normal",
+     "kind": "pcroom",
+     "values": [
+      1000000,
+      10421379,
+      1
+     ]
+    },
+    {
+     "difficulty": "normal",
+     "kind": "aradpass",
+     "values": [
+      1000000,
+      10421379,
+      1
+     ]
+    },
+    {
+     "difficulty": "expert",
+     "kind": "basic",
+     "values": [
+      1000000,
+      10421370,
+      1
+     ]
+    },
+    {
+     "difficulty": "expert",
+     "kind": "pcroom",
+     "values": [
+      1000000,
+      10421380,
+      1
+     ]
+    },
+    {
+     "difficulty": "expert",
+     "kind": "aradpass",
+     "values": [
+      1000000,
+      10421380,
+      1
+     ]
+    },
+    {
+     "difficulty": "master",
+     "kind": "basic",
+     "values": [
+      1000000,
+      10421370,
+      1
+     ]
+    },
+    {
+     "difficulty": "master",
+     "kind": "pcroom",
+     "values": [
+      1000000,
+      10421380,
+      1
+     ]
+    },
+    {
+     "difficulty": "master",
+     "kind": "aradpass",
+     "values": [
+      1000000,
+      10421380,
+      1
+     ]
+    },
+    {
+     "difficulty": "match",
+     "kind": "basic",
+     "values": [
+      1000000,
+      10421366,
+      1
+     ]
+    },
+    {
+     "difficulty": "match",
+     "kind": "pcroom",
+     "values": [
+      1000000,
+      10421378,
+      1
+     ]
+    },
+    {
+     "difficulty": "match",
+     "kind": "aradpass",
+     "values": [
+      1000000,
+      10421378,
+      1
+     ]
+    }
+   ],
+   "ting_reward_data": null,
+   "complete": true
+  },
+  "Dimension Cloister": {
+   "name": "Dimension Cloister",
+   "limit_level": 110,
+   "last_phase": 2,
+   "need_fatigue": 0,
+   "recruiting_area": {
+    "town": 160,
+    "area": 1,
+    "x": 568,
+    "y": 311
+   },
+   "waiting_area": {
+    "town": 160,
+    "area": 2,
+    "x": 644,
+    "y": 163
+   },
+   "movie_time": 72,
+   "operation_select_limit_seconds": 30,
+   "quest_index": [
+    21092,
+    21093
+   ],
+   "dungeon_info_data": [
+    {
+     "name_ref": "\u003c7::DimensionCloister_Moros_name\u003e",
+     "dungeon": 100003180,
+     "boss": 109014900,
+     "tail": [
+      5,
+      27,
+      32
+     ]
+    },
+    {
+     "name_ref": "\u003c7::DimensionCloister_Charon_name\u003e",
+     "dungeon": 100003185,
+     "boss": 109015480,
+     "tail": [
+      5,
+      26,
+      31
+     ]
+    },
+    {
+     "name_ref": "\u003c7::DimensionCloister_Abyss_name\u003e",
+     "dungeon": 100003190,
+     "boss": 109014930,
+     "tail": [
+      5,
+      25,
+      30
+     ]
+    },
+    {
+     "name_ref": "\u003c7::DimensionCloister_TheMan_name\u003e",
+     "dungeon": 100003195,
+     "boss": 109014935,
+     "tail": [
+      5,
+      24,
+      29
+     ]
+    },
+    {
+     "name_ref": "\u003c7::DimensionCloister_LightWoman_name\u003e",
+     "dungeon": 100003200,
+     "boss": 109014940,
+     "tail": [
+      5,
+      23,
+      28
+     ]
+    }
+   ],
+   "weekly_enter_count": 3,
+   "phase_reward_count": 1,
+   "enter_data": [
+    {
+     "difficulty": "normal",
+     "party_type": "solo",
+     "values": [
+      0,
+      0,
+      17854,
+      19774
+     ],
+     "fame_low": 17854,
+     "fame_high": 19774
+    },
+    {
+     "difficulty": "expert",
+     "party_type": "solo",
+     "values": [
+      0,
+      0,
+      17854,
+      19774
+     ],
+     "fame_low": 17854,
+     "fame_high": 19774
+    },
+    {
+     "difficulty": "master",
+     "party_type": "solo",
+     "values": [
+      0,
+      0,
+      17854,
+      19774
+     ],
+     "fame_low": 17854,
+     "fame_high": 19774
+    },
+    {
+     "difficulty": "normal",
+     "party_type": "party",
+     "values": [
+      0,
+      0,
+      17854,
+      19774
+     ],
+     "fame_low": 17854,
+     "fame_high": 19774
+    },
+    {
+     "difficulty": "expert",
+     "party_type": "party",
+     "values": [
+      0,
+      0,
+      17854,
+      19774
+     ],
+     "fame_low": 17854,
+     "fame_high": 19774
+    },
+    {
+     "difficulty": "master",
+     "party_type": "party",
+     "values": [
+      0,
+      0,
+      17854,
+      19774
+     ],
+     "fame_low": 17854,
+     "fame_high": 19774
+    }
+   ],
+   "incount_dungeon_index": 0,
+   "ui_int_list": {
+    "CHANNEL_BASE_DISABLE_IMAGE_INDEX": 5,
+    "CHANNEL_BASE_IMAGE_INDEX": 4,
+    "CHANNEL_NEW_MARK_IMG_SHOW": 0,
+    "CHANNEL_SLOT_IMAGE_INDEX": 3,
+    "CHANNEL_TAB_ORDER_INDEX": 4,
+    "CREATE_LEGION_BLOCK_DUNGEON_DIFFICULT_COVER_IONDEX": 95,
+    "CREATE_PARTY_DETAIL_WINDOW_BG_IMAGE_INDEX": 99,
+    "CREATE_PARTY_WINDOW_BG_IMAGE_INDEX": 98,
+    "ENABLE_CHANNEL_TAB_EVENT_ID": 621,
+    "PARTY_MEMVER_BG_IMAGE_INDEX": 174,
+    "REWARD_ITEM_DUNGEON_INDEX": 100003213,
+    "REWARD_UI_CUSTOM_Y_POS_MISSION": 0,
+    "REWARD_UI_CUSTOM_Y_POS_TIME": 0,
+    "REWARD_UI_CUSTOM_Y_POS_USER": 0
+   },
+   "reward_data": [
+    {
+     "difficulty": "normal",
+     "kind": "basic",
+     "values": [
+      1000000,
+      10338472,
+      1
+     ]
+    },
+    {
+     "difficulty": "normal",
+     "kind": "pcroom",
+     "values": [
+      1000000,
+      10338473,
+      1
+     ]
+    },
+    {
+     "difficulty": "normal",
+     "kind": "aradpass",
+     "values": [
+      1000000,
+      10338474,
+      1
+     ]
+    },
+    {
+     "difficulty": "expert",
+     "kind": "basic",
+     "values": [
+      500000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "expert",
+     "kind": "basic",
+     "values": [
+      500000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "expert",
+     "kind": "account",
+     "values": [
+      500000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "expert",
+     "kind": "account",
+     "values": [
+      500000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "expert",
+     "kind": "pcroom",
+     "values": [
+      1000000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "expert",
+     "kind": "aradpass",
+     "values": [
+      1000000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "master",
+     "kind": "basic",
+     "values": [
+      500000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "master",
+     "kind": "basic",
+     "values": [
+      500000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "master",
+     "kind": "account",
+     "values": [
+      500000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "master",
+     "kind": "account",
+     "values": [
+      500000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "master",
+     "kind": "pcroom",
+     "values": [
+      1000000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "master",
+     "kind": "aradpass",
+     "values": [
+      1000000,
+      10332472,
+      1
+     ]
+    }
+   ],
+   "ting_reward_data": null,
+   "complete": true
+  },
+  "DuskyIsland": {
+   "name": "DuskyIsland",
+   "limit_level": 110,
+   "last_phase": 2,
+   "need_fatigue": 0,
+   "recruiting_area": {
+    "town": 178,
+    "area": 1,
+    "x": 568,
+    "y": 311
+   },
+   "waiting_area": {
+    "town": 178,
+    "area": 2,
+    "x": 644,
+    "y": 163
+   },
+   "movie_time": 72,
+   "operation_select_limit_seconds": 60,
+   "quest_index": [
+    21284,
+    22480
+   ],
+   "dungeon_info_data": [
+    {
+     "name_ref": "\u003c7::DuskyIsland_name_109016117\u003e",
+     "dungeon": 100003431,
+     "boss": 109016117,
+     "tail": [
+      7,
+      3,
+      33
+     ]
+    },
+    {
+     "name_ref": "\u003c7::DuskyIsland_name_109016118\u003e",
+     "dungeon": 100003432,
+     "boss": 109016118,
+     "tail": [
+      5,
+      25,
+      34
+     ]
+    },
+    {
+     "name_ref": "\u003c7::Treacherous_Name_109016119\u003e",
+     "dungeon": 100003433,
+     "boss": 109016119,
+     "tail": [
+      7,
+      26,
+      35
+     ]
+    }
+   ],
+   "weekly_enter_count": 3,
+   "phase_reward_count": 1,
+   "enter_data": [
+    {
+     "difficulty": "normal",
+     "party_type": "solo",
+     "values": [
+      0,
+      0,
+      25203,
+      29190
+     ],
+     "fame_low": 25203,
+     "fame_high": 29190
+    },
+    {
+     "difficulty": "expert",
+     "party_type": "solo",
+     "values": [
+      0,
+      0,
+      25203,
+      29190
+     ],
+     "fame_low": 25203,
+     "fame_high": 29190
+    },
+    {
+     "difficulty": "master",
+     "party_type": "solo",
+     "values": [
+      0,
+      0,
+      25203,
+      29190
+     ],
+     "fame_low": 25203,
+     "fame_high": 29190
+    },
+    {
+     "difficulty": "normal",
+     "party_type": "party",
+     "values": [
+      0,
+      0,
+      25203,
+      29190
+     ],
+     "fame_low": 25203,
+     "fame_high": 29190
+    },
+    {
+     "difficulty": "expert",
+     "party_type": "party",
+     "values": [
+      0,
+      0,
+      25203,
+      29190
+     ],
+     "fame_low": 25203,
+     "fame_high": 29190
+    },
+    {
+     "difficulty": "master",
+     "party_type": "party",
+     "values": [
+      0,
+      0,
+      25203,
+      29190
+     ],
+     "fame_low": 25203,
+     "fame_high": 29190
+    }
+   ],
+   "incount_dungeon_index": 0,
+   "ui_int_list": {
+    "CHANNEL_BASE_DISABLE_IMAGE_INDEX": 8,
+    "CHANNEL_BASE_IMAGE_INDEX": 7,
+    "CHANNEL_NEW_MARK_IMG_SHOW": 0,
+    "CHANNEL_SLOT_IMAGE_INDEX": 6,
+    "CHANNEL_TAB_ORDER_INDEX": 3,
+    "CREATE_LEGION_BLOCK_DUNGEON_DIFFICULT_COVER_IONDEX": 95,
+    "CREATE_PARTY_DETAIL_WINDOW_BG_IMAGE_INDEX": 105,
+    "CREATE_PARTY_WINDOW_BG_IMAGE_INDEX": 104,
+    "ENABLE_CHANNEL_TAB_EVENT_ID": 642,
+    "PARTY_MEMVER_BG_IMAGE_INDEX": 180,
+    "REWARD_ITEM_DUNGEON_INDEX": 100003434,
+    "REWARD_UI_CUSTOM_Y_POS_MISSION": 0,
+    "REWARD_UI_CUSTOM_Y_POS_TIME": 0,
+    "REWARD_UI_CUSTOM_Y_POS_USER": 0
+   },
+   "reward_data": [
+    {
+     "difficulty": "normal",
+     "kind": "basic",
+     "values": [
+      1000000,
+      10338472,
+      1
+     ]
+    },
+    {
+     "difficulty": "normal",
+     "kind": "account",
+     "values": [
+      1000000,
+      10338475,
+      1
+     ]
+    },
+    {
+     "difficulty": "normal",
+     "kind": "pcroom",
+     "values": [
+      1000000,
+      10338473,
+      1
+     ]
+    },
+    {
+     "difficulty": "normal",
+     "kind": "aradpass",
+     "values": [
+      1000000,
+      10338474,
+      1
+     ]
+    },
+    {
+     "difficulty": "normal",
+     "kind": "phase3",
+     "values": [
+      1000000,
+      10338476,
+      1
+     ]
+    },
+    {
+     "difficulty": "expert",
+     "kind": "basic",
+     "values": [
+      500000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "expert",
+     "kind": "basic",
+     "values": [
+      500000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "expert",
+     "kind": "account",
+     "values": [
+      500000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "expert",
+     "kind": "account",
+     "values": [
+      500000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "expert",
+     "kind": "pcroom",
+     "values": [
+      1000000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "expert",
+     "kind": "aradpass",
+     "values": [
+      1000000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "master",
+     "kind": "basic",
+     "values": [
+      500000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "master",
+     "kind": "basic",
+     "values": [
+      500000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "master",
+     "kind": "account",
+     "values": [
+      500000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "master",
+     "kind": "account",
+     "values": [
+      500000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "master",
+     "kind": "pcroom",
+     "values": [
+      1000000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "master",
+     "kind": "aradpass",
+     "values": [
+      1000000,
+      10332472,
+      1
+     ]
+    }
+   ],
+   "ting_reward_data": null,
+   "complete": true
+  },
+  "ForestOfAwakeningHard": {
+   "name": "ForestOfAwakeningHard",
+   "limit_level": 110,
+   "last_phase": 2,
+   "need_fatigue": 0,
+   "recruiting_area": {
+    "town": 198,
+    "area": 1,
+    "x": 568,
+    "y": 311
+   },
+   "waiting_area": {
+    "town": 198,
+    "area": 3,
+    "x": 644,
+    "y": 163
+   },
+   "movie_time": 72,
+   "operation_select_limit_seconds": 0,
+   "quest_index": [
+    22735,
+    22763
+   ],
+   "dungeon_info_data": null,
+   "weekly_enter_count": 10,
+   "phase_reward_count": 1,
+   "enter_data": [
+    {
+     "difficulty": "normal",
+     "party_type": "solo",
+     "values": [
+      0,
+      0,
+      28528,
+      33281
+     ],
+     "fame_low": 28528,
+     "fame_high": 33281
+    },
+    {
+     "difficulty": "expert",
+     "party_type": "solo",
+     "values": [
+      0,
+      0,
+      28528,
+      33281
+     ],
+     "fame_low": 28528,
+     "fame_high": 33281
+    },
+    {
+     "difficulty": "master",
+     "party_type": "solo",
+     "values": [
+      0,
+      0,
+      28528,
+      33281
+     ],
+     "fame_low": 28528,
+     "fame_high": 33281
+    },
+    {
+     "difficulty": "normal",
+     "party_type": "party",
+     "values": [
+      0,
+      0,
+      28528,
+      33281
+     ],
+     "fame_low": 28528,
+     "fame_high": 33281
+    },
+    {
+     "difficulty": "expert",
+     "party_type": "party",
+     "values": [
+      0,
+      0,
+      28528,
+      33281
+     ],
+     "fame_low": 28528,
+     "fame_high": 33281
+    },
+    {
+     "difficulty": "master",
+     "party_type": "party",
+     "values": [
+      0,
+      0,
+      28528,
+      33281
+     ],
+     "fame_low": 28528,
+     "fame_high": 33281
+    }
+   ],
+   "incount_dungeon_index": 0,
+   "ui_int_list": {
+    "CHANNEL_BASE_DISABLE_IMAGE_INDEX": 11,
+    "CHANNEL_BASE_IMAGE_INDEX": 10,
+    "CHANNEL_NEW_MARK_IMG_SHOW": 0,
+    "CHANNEL_SLOT_IMAGE_INDEX": 9,
+    "CHANNEL_TAB_ORDER_INDEX": -1,
+    "CREATE_LEGION_BLOCK_DUNGEON_DIFFICULT_COVER_IONDEX": 95,
+    "CREATE_PARTY_DETAIL_WINDOW_BG_IMAGE_INDEX": 130,
+    "CREATE_PARTY_WINDOW_BG_IMAGE_INDEX": 129,
+    "ENABLE_CHANNEL_TAB_EVENT_ID": 681,
+    "PARTY_MEMVER_BG_IMAGE_INDEX": 202,
+    "REWARD_ITEM_DUNGEON_INDEX": 100003876,
+    "REWARD_UI_CUSTOM_Y_POS_MISSION": 0,
+    "REWARD_UI_CUSTOM_Y_POS_TIME": 0,
+    "REWARD_UI_CUSTOM_Y_POS_USER": 0,
+    "START_UI_LEGION_APPEAR": 3000
+   },
+   "reward_data": [
+    {
+     "difficulty": "normal",
+     "kind": "basic",
+     "values": [
+      1000000,
+      10338472,
+      1
+     ]
+    },
+    {
+     "difficulty": "normal",
+     "kind": "account",
+     "values": [
+      1000000,
+      10338475,
+      1
+     ]
+    },
+    {
+     "difficulty": "normal",
+     "kind": "pcroom",
+     "values": [
+      1000000,
+      10338473,
+      1
+     ]
+    },
+    {
+     "difficulty": "normal",
+     "kind": "aradpass",
+     "values": [
+      1000000,
+      10338474,
+      1
+     ]
+    },
+    {
+     "difficulty": "normal",
+     "kind": "phase3",
+     "values": [
+      1000000,
+      10338476,
+      1
+     ]
+    },
+    {
+     "difficulty": "expert",
+     "kind": "basic",
+     "values": [
+      500000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "expert",
+     "kind": "basic",
+     "values": [
+      500000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "expert",
+     "kind": "account",
+     "values": [
+      500000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "expert",
+     "kind": "account",
+     "values": [
+      500000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "expert",
+     "kind": "pcroom",
+     "values": [
+      1000000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "expert",
+     "kind": "aradpass",
+     "values": [
+      1000000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "master",
+     "kind": "basic",
+     "values": [
+      500000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "master",
+     "kind": "basic",
+     "values": [
+      500000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "master",
+     "kind": "account",
+     "values": [
+      500000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "master",
+     "kind": "account",
+     "values": [
+      500000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "master",
+     "kind": "pcroom",
+     "values": [
+      1000000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "master",
+     "kind": "aradpass",
+     "values": [
+      1000000,
+      10332472,
+      1
+     ]
+    }
+   ],
+   "ting_reward_data": null,
+   "complete": false,
+   "missing": [
+    "[dungeon info data]"
+   ]
+  },
+  "ForestOfAwakeningNormal": {
+   "name": "ForestOfAwakeningNormal",
+   "limit_level": 110,
+   "last_phase": 2,
+   "need_fatigue": 0,
+   "recruiting_area": {
+    "town": 198,
+    "area": 1,
+    "x": 568,
+    "y": 311
+   },
+   "waiting_area": {
+    "town": 198,
+    "area": 2,
+    "x": 644,
+    "y": 163
+   },
+   "movie_time": 72,
+   "operation_select_limit_seconds": 0,
+   "quest_index": [
+    22735,
+    22763
+   ],
+   "dungeon_info_data": null,
+   "weekly_enter_count": 3,
+   "phase_reward_count": 1,
+   "enter_data": [
+    {
+     "difficulty": "normal",
+     "party_type": "solo",
+     "values": [
+      0,
+      0,
+      28528,
+      33072
+     ],
+     "fame_low": 28528,
+     "fame_high": 33072
+    },
+    {
+     "difficulty": "expert",
+     "party_type": "solo",
+     "values": [
+      0,
+      0,
+      28528,
+      33072
+     ],
+     "fame_low": 28528,
+     "fame_high": 33072
+    },
+    {
+     "difficulty": "master",
+     "party_type": "solo",
+     "values": [
+      0,
+      0,
+      28528,
+      33072
+     ],
+     "fame_low": 28528,
+     "fame_high": 33072
+    },
+    {
+     "difficulty": "normal",
+     "party_type": "party",
+     "values": [
+      0,
+      0,
+      28528,
+      33072
+     ],
+     "fame_low": 28528,
+     "fame_high": 33072
+    },
+    {
+     "difficulty": "expert",
+     "party_type": "party",
+     "values": [
+      0,
+      0,
+      28528,
+      33072
+     ],
+     "fame_low": 28528,
+     "fame_high": 33072
+    },
+    {
+     "difficulty": "master",
+     "party_type": "party",
+     "values": [
+      0,
+      0,
+      28528,
+      33072
+     ],
+     "fame_low": 28528,
+     "fame_high": 33072
+    }
+   ],
+   "incount_dungeon_index": 0,
+   "ui_int_list": {
+    "CHANNEL_BASE_DISABLE_IMAGE_INDEX": 11,
+    "CHANNEL_BASE_IMAGE_INDEX": 10,
+    "CHANNEL_NEW_MARK_IMG_SHOW": 0,
+    "CHANNEL_SLOT_IMAGE_INDEX": 9,
+    "CHANNEL_TAB_ORDER_INDEX": 2,
+    "CREATE_LEGION_BLOCK_DUNGEON_DIFFICULT_COVER_IONDEX": 95,
+    "CREATE_PARTY_DETAIL_WINDOW_BG_IMAGE_INDEX": 130,
+    "CREATE_PARTY_WINDOW_BG_IMAGE_INDEX": 129,
+    "ENABLE_CHANNEL_TAB_EVENT_ID": 680,
+    "PARTY_MEMVER_BG_IMAGE_INDEX": 202,
+    "REWARD_ITEM_DUNGEON_INDEX": 100003876,
+    "REWARD_UI_CUSTOM_Y_POS_MISSION": 0,
+    "REWARD_UI_CUSTOM_Y_POS_TIME": 0,
+    "REWARD_UI_CUSTOM_Y_POS_USER": 0,
+    "START_UI_LEGION_APPEAR": 3000
+   },
+   "reward_data": [
+    {
+     "difficulty": "normal",
+     "kind": "basic",
+     "values": [
+      1000000,
+      10338472,
+      1
+     ]
+    },
+    {
+     "difficulty": "normal",
+     "kind": "account",
+     "values": [
+      1000000,
+      10338475,
+      1
+     ]
+    },
+    {
+     "difficulty": "normal",
+     "kind": "pcroom",
+     "values": [
+      1000000,
+      10338473,
+      1
+     ]
+    },
+    {
+     "difficulty": "normal",
+     "kind": "aradpass",
+     "values": [
+      1000000,
+      10338474,
+      1
+     ]
+    },
+    {
+     "difficulty": "normal",
+     "kind": "phase3",
+     "values": [
+      1000000,
+      10338476,
+      1
+     ]
+    },
+    {
+     "difficulty": "expert",
+     "kind": "basic",
+     "values": [
+      500000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "expert",
+     "kind": "basic",
+     "values": [
+      500000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "expert",
+     "kind": "account",
+     "values": [
+      500000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "expert",
+     "kind": "account",
+     "values": [
+      500000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "expert",
+     "kind": "pcroom",
+     "values": [
+      1000000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "expert",
+     "kind": "aradpass",
+     "values": [
+      1000000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "master",
+     "kind": "basic",
+     "values": [
+      500000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "master",
+     "kind": "basic",
+     "values": [
+      500000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "master",
+     "kind": "account",
+     "values": [
+      500000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "master",
+     "kind": "account",
+     "values": [
+      500000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "master",
+     "kind": "pcroom",
+     "values": [
+      1000000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "master",
+     "kind": "aradpass",
+     "values": [
+      1000000,
+      10332472,
+      1
+     ]
+    }
+   ],
+   "ting_reward_data": null,
+   "complete": false,
+   "missing": [
+    "[dungeon info data]"
+   ]
+  },
+  "Ispins": {
+   "name": "Ispins",
+   "limit_level": 110,
+   "last_phase": 3,
+   "need_fatigue": 0,
+   "recruiting_area": {
+    "town": 146,
+    "area": 1,
+    "x": 815,
+    "y": 328
+   },
+   "waiting_area": {
+    "town": 146,
+    "area": 2,
+    "x": 587,
+    "y": 369
+   },
+   "movie_time": 72,
+   "operation_select_limit_seconds": 30,
+   "quest_index": [
+    13763,
+    13714
+   ],
+   "dungeon_info_data": [
+    {
+     "name_ref": "\u003c7::ispins_ashcore_name\u003e",
+     "dungeon": 100002985,
+     "boss": 109014132,
+     "tail": [
+      5,
+      1,
+      20
+     ]
+    },
+    {
+     "name_ref": "\u003c7::ispins_itrenog_name\u003e",
+     "dungeon": 100002986,
+     "boss": 109014134,
+     "tail": [
+      5,
+      2,
+      21
+     ]
+    },
+    {
+     "name_ref": "\u003c7::ispins_nemaug_name\u003e",
+     "dungeon": 100002987,
+     "boss": 109014133,
+     "tail": [
+      5,
+      0,
+      19
+     ]
+    },
+    {
+     "name_ref": "\u003c7::ispins_nagor_name\u003e",
+     "dungeon": 100002988,
+     "boss": 109014135,
+     "tail": [
+      5,
+      3,
+      22
+     ]
+    }
+   ],
+   "weekly_enter_count": 3,
+   "phase_reward_count": 1,
+   "enter_data": [
+    {
+     "difficulty": "normal",
+     "party_type": "solo",
+     "values": [
+      0,
+      0,
+      15538,
+      18338
+     ],
+     "fame_low": 15538,
+     "fame_high": 18338
+    },
+    {
+     "difficulty": "expert",
+     "party_type": "solo",
+     "values": [
+      0,
+      0,
+      15538,
+      18338
+     ],
+     "fame_low": 15538,
+     "fame_high": 18338
+    },
+    {
+     "difficulty": "master",
+     "party_type": "solo",
+     "values": [
+      0,
+      0,
+      15538,
+      18338
+     ],
+     "fame_low": 15538,
+     "fame_high": 18338
+    },
+    {
+     "difficulty": "normal",
+     "party_type": "party",
+     "values": [
+      0,
+      0,
+      15538,
+      18338
+     ],
+     "fame_low": 15538,
+     "fame_high": 18338
+    },
+    {
+     "difficulty": "expert",
+     "party_type": "party",
+     "values": [
+      0,
+      0,
+      15538,
+      18338
+     ],
+     "fame_low": 15538,
+     "fame_high": 18338
+    },
+    {
+     "difficulty": "master",
+     "party_type": "party",
+     "values": [
+      0,
+      0,
+      15538,
+      18338
+     ],
+     "fame_low": 15538,
+     "fame_high": 18338
+    }
+   ],
+   "incount_dungeon_index": 0,
+   "ui_int_list": {
+    "CHANNEL_BASE_DISABLE_IMAGE_INDEX": 2,
+    "CHANNEL_BASE_IMAGE_INDEX": 1,
+    "CHANNEL_NEW_MARK_IMG_SHOW": 0,
+    "CHANNEL_SLOT_IMAGE_INDEX": 0,
+    "CHANNEL_TAB_ORDER_INDEX": 5,
+    "CREATE_LEGION_BLOCK_DUNGEON_DIFFICULT_COVER_IONDEX": 95,
+    "CREATE_PARTY_DETAIL_WINDOW_BG_IMAGE_INDEX": 94,
+    "CREATE_PARTY_WINDOW_BG_IMAGE_INDEX": 93,
+    "ENABLE_CHANNEL_TAB_EVENT_ID": 776,
+    "PARTY_MEMVER_BG_IMAGE_INDEX": 169,
+    "REWARD_ITEM_DUNGEON_INDEX": 100003223,
+    "REWARD_UI_CUSTOM_Y_POS_MISSION": 0,
+    "REWARD_UI_CUSTOM_Y_POS_TIME": 0,
+    "REWARD_UI_CUSTOM_Y_POS_USER": 0
+   },
+   "reward_data": [
+    {
+     "difficulty": "normal",
+     "kind": "basic",
+     "values": [
+      1000000,
+      10332470,
+      1
+     ]
+    },
+    {
+     "difficulty": "normal",
+     "kind": "pcroom",
+     "values": [
+      1000000,
+      10332471,
+      1
+     ]
+    },
+    {
+     "difficulty": "normal",
+     "kind": "aradpass",
+     "values": [
+      1000000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "expert",
+     "kind": "basic",
+     "values": [
+      500000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "expert",
+     "kind": "basic",
+     "values": [
+      500000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "expert",
+     "kind": "account",
+     "values": [
+      500000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "expert",
+     "kind": "account",
+     "values": [
+      500000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "expert",
+     "kind": "pcroom",
+     "values": [
+      1000000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "expert",
+     "kind": "aradpass",
+     "values": [
+      1000000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "master",
+     "kind": "basic",
+     "values": [
+      500000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "master",
+     "kind": "basic",
+     "values": [
+      500000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "master",
+     "kind": "account",
+     "values": [
+      500000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "master",
+     "kind": "account",
+     "values": [
+      500000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "master",
+     "kind": "pcroom",
+     "values": [
+      1000000,
+      10332472,
+      1
+     ]
+    },
+    {
+     "difficulty": "master",
+     "kind": "aradpass",
+     "values": [
+      1000000,
+      10332472,
+      1
+     ]
+    }
+   ],
+   "ting_reward_data": null,
+   "complete": true
+  },
+  "Venus Legion": {
+   "name": "Venus Legion",
+   "limit_level": 115,
+   "last_phase": 3,
+   "need_fatigue": 0,
+   "recruiting_area": {
+    "town": 204,
+    "area": 1,
+    "x": 568,
+    "y": 311
+   },
+   "waiting_area": {
+    "town": 204,
+    "area": 2,
+    "x": 560,
+    "y": 400
+   },
+   "movie_time": 72,
+   "operation_select_limit_seconds": 60,
+   "quest_index": [
+    22907,
+    22932
+   ],
+   "dungeon_info_data": [
+    {
+     "name_ref": "\u003c7::Venus_Monster_Venus_Name_01\u003e",
+     "dungeon": 100003921,
+     "boss": 109016982,
+     "tail": [
+      7,
+      25,
+      41
+     ]
+    },
+    {
+     "name_ref": "\u003c7::Venus_Monster_Venus_Name_02\u003e",
+     "dungeon": 100003922,
+     "boss": 109016983,
+     "tail": [
+      5,
+      25,
+      41
+     ]
+    },
+    {
+     "name_ref": "\u003c7::Venus_Monster_Venus_Name_03\u003e",
+     "dungeon": 100003923,
+     "boss": 109016984,
+     "tail": [
+      7,
+      25,
+      41
+     ]
+    },
+    {
+     "name_ref": "\u003c7::Venus_Monster_Venus_Name_04\u003e",
+     "dungeon": 100003924,
+     "boss": 109016985,
+     "tail": [
+      7,
+      25,
+      41
+     ]
+    }
+   ],
+   "weekly_enter_count": 3,
+   "phase_reward_count": 1,
+   "enter_data": [
+    {
+     "difficulty": "normal",
+     "party_type": "solo",
+     "values": [
+      0,
+      0,
+      41929,
+      54580
+     ],
+     "fame_low": 41929,
+     "fame_high": 54580
+    },
+    {
+     "difficulty": "expert",
+     "party_type": "solo",
+     "values": [
+      0,
+      0,
+      41929,
+      54580
+     ],
+     "fame_low": 41929,
+     "fame_high": 54580
+    },
+    {
+     "difficulty": "master",
+     "party_type": "solo",
+     "values": [
+      0,
+      0,
+      41929,
+      54580
+     ],
+     "fame_low": 41929,
+     "fame_high": 54580
+    },
+    {
+     "difficulty": "normal",
+     "party_type": "party",
+     "values": [
+      0,
+      0,
+      41929,
+      54580
+     ],
+     "fame_low": 41929,
+     "fame_high": 54580
+    },
+    {
+     "difficulty": "expert",
+     "party_type": "party",
+     "values": [
+      0,
+      0,
+      41929,
+      54580
+     ],
+     "fame_low": 41929,
+     "fame_high": 54580
+    },
+    {
+     "difficulty": "master",
+     "party_type": "party",
+     "values": [
+      0,
+      0,
+      41929,
+      54580
+     ],
+     "fame_low": 41929,
+     "fame_high": 54580
+    }
+   ],
+   "incount_dungeon_index": 100003921,
+   "ui_int_list": {
+    "CHANNEL_BASE_DISABLE_IMAGE_INDEX": 14,
+    "CHANNEL_BASE_IMAGE_INDEX": 13,
+    "CHANNEL_NEW_MARK_IMG_SHOW": 0,
+    "CHANNEL_SLOT_IMAGE_INDEX": 12,
+    "CHANNEL_TAB_ORDER_INDEX": 1,
+    "CREATE_LEGION_BLOCK_DUNGEON_DIFFICULT_COVER_IONDEX": 95,
+    "CREATE_PARTY_DETAIL_WINDOW_BG_IMAGE_INDEX": 138,
+    "CREATE_PARTY_WINDOW_BG_IMAGE_INDEX": 137,
+    "ENABLE_CHANNEL_TAB_EVENT_ID": 627,
+    "PARTY_MEMVER_BG_IMAGE_INDEX": 225,
+    "REWARD_ITEM_DUNGEON_INDEX": 100004493,
+    "REWARD_UI_CUSTOM_Y_POS_MISSION": 26,
+    "REWARD_UI_CUSTOM_Y_POS_MISSION_RECODE": 12,
+    "REWARD_UI_CUSTOM_Y_POS_TIME": 15,
+    "REWARD_UI_CUSTOM_Y_POS_TIME_RECODE": 16,
+    "REWARD_UI_CUSTOM_Y_POS_USER": 30,
+    "isUseClearTimeRecord": 1
+   },
+   "reward_data": [
+    {
+     "difficulty": "normal",
+     "kind": "basic",
+     "values": [
+      1000000,
+      10404657,
+      1
+     ]
+    },
+    {
+     "difficulty": "normal",
+     "kind": "pcroom",
+     "values": [
+      1000000,
+      10404778,
+      1
+     ]
+    },
+    {
+     "difficulty": "normal",
+     "kind": "aradpass",
+     "values": [
+      1000000,
+      10404779,
+      1
+     ]
+    },
+    {
+     "difficulty": "expert",
+     "kind": "basic",
+     "values": [
+      1000000,
+      10404658,
+      1
+     ]
+    },
+    {
+     "difficulty": "expert",
+     "kind": "pcroom",
+     "values": [
+      1000000,
+      10404780,
+      1
+     ]
+    },
+    {
+     "difficulty": "expert",
+     "kind": "aradpass",
+     "values": [
+      1000000,
+      10404781,
+      1
+     ]
+    },
+    {
+     "difficulty": "master",
+     "kind": "basic",
+     "values": [
+      1000000,
+      10404659,
+      1
+     ]
+    },
+    {
+     "difficulty": "master",
+     "kind": "pcroom",
+     "values": [
+      1000000,
+      10404780,
+      1
+     ]
+    },
+    {
+     "difficulty": "master",
+     "kind": "aradpass",
+     "values": [
+      1000000,
+      10404781,
+      1
+     ]
+    },
+    {
+     "difficulty": "match",
+     "kind": "basic",
+     "values": [
+      1000000,
+      10408744,
+      1
+     ]
+    },
+    {
+     "difficulty": "match",
+     "kind": "pcroom",
+     "values": [
+      1000000,
+      10408745,
+      1
+     ]
+    },
+    {
+     "difficulty": "match",
+     "kind": "aradpass",
+     "values": [
+      1000000,
+      10408746,
+      1
+     ]
+    }
+   ],
+   "ting_reward_data": null,
+   "complete": true
+  }
+ }
+}

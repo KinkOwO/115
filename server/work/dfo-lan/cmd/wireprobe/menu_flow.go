@@ -8,6 +8,7 @@ import (
 
 func clearSelectedWorld(w *worldSession) {
 	if w != nil {
+		w.moon = moonSoloState{}
 		w.role = storage.Character{}
 		w.level = 0
 		w.odyssey = false

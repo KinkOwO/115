@@ -149,12 +149,15 @@ func mailBagPacket(state json.RawMessage) (outboundPacket, error) {
 }
 
 // 领取成功先同步普通背包及时装栏，再通知客户端移除已领附件。
-func mailClaimBagPackets(state json.RawMessage) ([]outboundPacket, error) {
-	main, err := mailBagPacket(state)
-	if err != nil {
-		return nil, err
+// 已有材料及普通背包刷新时直接复用，时装栏仍必须补齐。
+func mailClaimBagPackets(state json.RawMessage, packets ...outboundPacket) ([]outboundPacket, error) {
+	if len(packets) == 0 {
+		main, err := mailBagPacket(state)
+		if err != nil {
+			return nil, err
+		}
+		packets = append(packets, main)
 	}
-	packets := []outboundPacket{main}
 	avatar, err := inventory.SpecialEquipmentPayload(state, 1)
 	if err != nil {
 		return nil, err
@@ -427,9 +430,7 @@ func (w *worldSession) claimMail(ctx context.Context, p, keys []byte, key string
 			log.Printf("mail claim account material sweep deferred for character %d: %v", saved.ID, err)
 		}
 	}
-	if updates == nil {
-		updates, err = mailClaimBagPackets(saved.State)
-	}
+	updates, err = mailClaimBagPackets(saved.State, updates...)
 	if err == nil {
 		bag, readErr := inventory.ReadBag(saved.State)
 		if readErr != nil {

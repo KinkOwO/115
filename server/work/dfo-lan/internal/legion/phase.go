@@ -94,6 +94,7 @@ func (c *ApocalypseClock) Next(phase int64) (int64, bool) {
 // defaulting to zero, because absence is how the source expresses "not
 // configured".
 type RunPlan struct {
+	Gates       GateRules
 	OperationID uint32
 	// Row is the record index of the [operation data set] block, which is what
 	// the trailer maps the block to.
@@ -161,6 +162,13 @@ func BuildRunPlan(cat *catalog.ApocalypseCatalog, clock *ApocalypseClock, operat
 		CardSymbolIndex:     op.CardSymbolIndex,
 		StringData:          op.StringData,
 		MemberLimitClass:    op.MemberLimit,
+	}
+	if len(op.GateSchedule) != 0 || len(op.GateFlow) != 0 {
+		var err error
+		plan.Gates, err = CompileGateRules(op.GateSchedule, op.GateFlow)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if op.Reward != nil {
 		plan.RewardLabel = op.Reward.Label
