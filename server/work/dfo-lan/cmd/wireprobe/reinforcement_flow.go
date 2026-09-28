@@ -61,10 +61,12 @@ func reinforcementRefusalCode(err error) uint16 {
 		return cmd80ErrNotEquipment
 	case strings.Contains(msg, "没有次元属性"), strings.Contains(msg, "不符合安全增幅条件"),
 		strings.Contains(msg, "找不到"), strings.Contains(msg, "未找到"),
-		strings.Contains(msg, "不支持"), strings.Contains(msg, "无法核对"):
+		strings.Contains(msg, "不支持"), strings.Contains(msg, "无法核对"),
+		strings.Contains(msg, "保护券不能用于"):
 		return cmd80ErrNotUpgradable
 	case strings.Contains(msg, "不在背包"), strings.Contains(msg, "不在所属角色背包"),
-		strings.Contains(msg, "不在背包或已穿戴槽位"), strings.Contains(msg, "需要已选角色"):
+		strings.Contains(msg, "不在背包或已穿戴槽位"), strings.Contains(msg, "需要已选角色"),
+		strings.Contains(msg, "保护券槽位放的不是保护券"):
 		return cmd80ErrNoItems
 	}
 	return cmd80ErrGeneric
@@ -230,6 +232,13 @@ func (s *equipmentSession) reinforceWithMaterial(ctx context.Context, service *i
 	// 会把这些格子收割进材料仓库面板（sub_145ADC2A0）。这里**不发整包快照**：
 	// 券路径的注释已经写明整包重建会打断强化动画引用的装备对象。
 	rows = append(rows, protocol.OrdinaryItem(out.MaterialSlot, out.MaterialTemplate, out.MaterialRemaining))
+	// 保护券触发时刷新保护券行，让客户端立即看到扣减。
+	if out.Protected {
+		protRow, ok := bag.RowAt(out.ProtectionSlot)
+		if ok {
+			rows = append(rows, protRow)
+		}
+	}
 	goldRow, _ := bag.RowAt(0)
 	rows = append(rows, goldRow)
 	if r.EquipmentSpace == 0 {
@@ -268,7 +277,9 @@ func (s *equipmentSession) reinforceWithMaterial(ctx context.Context, service *i
 		"remaining": out.MaterialRemaining, "gold_spent": out.GoldSpent, "gold": out.Gold,
 		"equipment": r.EquipmentTemplate, "space": r.EquipmentSpace, "slot": r.EquipmentSlot,
 		"before": out.Old, "after": out.PostLevel, "reply_level": out.Level, "result": out.Result,
-		"rate": out.Rate, "streak": out.Streak, "destroyed": out.Destroyed})
+		"rate": out.Rate, "streak": out.Streak, "destroyed": out.Destroyed,
+		"protected": out.Protected, "protection_slot": out.ProtectionSlot,
+		"request_protection_slot": r.ProtectionSlot})
 	return plan, nil
 }
 
@@ -299,6 +310,13 @@ func (s *equipmentSession) amplifyUpgrade(ctx context.Context, service *inventor
 		matRow = protocol.EmptyOrdinaryItem(out.MaterialSlot)
 	}
 	rows = append(rows, matRow)
+	// 保护券触发时刷新保护券行，让客户端立即看到扣减。
+	if out.Protected {
+		protRow, ok := bag.RowAt(out.ProtectionSlot)
+		if ok {
+			rows = append(rows, protRow)
+		}
+	}
 	if out.EquipmentSpace == 0 {
 		gearRow, ok := bag.RowAt(out.EquipmentSlot)
 		if !ok {
@@ -346,7 +364,9 @@ func (s *equipmentSession) amplifyUpgrade(ctx context.Context, service *inventor
 		"equipment": r.EquipmentTemplate, "space": out.EquipmentSpace, "slot": out.EquipmentSlot,
 		"amplify_type": out.AmplifyType, "before": out.LevelBefore, "after": out.LevelAfter,
 		"result": out.Result, "penalty": out.Penalty, "destroyed": out.Destroyed,
-		"safe": out.Safe, "rate": out.SuccessPercent})
+		"safe": out.Safe, "rate": out.SuccessPercent,
+		"protected": out.Protected, "protection_slot": out.ProtectionSlot,
+		"request_protection_slot": r.ProtectionSlot})
 	return plan, nil
 }
 
