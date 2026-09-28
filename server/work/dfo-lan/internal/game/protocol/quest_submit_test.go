@@ -21,7 +21,7 @@ func TestCapturedQuestSubmit(t *testing.T) {
 }
 func TestVaultNativeBoundary(t *testing.T) {
 	p, e := EmptyPersonalVault(8)
-	if e != nil || !bytes.Equal(p, []byte{2, 8, 0, 0, 0}) {
+	if e != nil || !bytes.Equal(p, []byte{2, 8, 0, 0, 0, 0}) {
 		t.Fatalf("vault native empty row boundary: %x %v", p, e)
 	}
 	if _, e = EmptyPersonalVault(0); e == nil {

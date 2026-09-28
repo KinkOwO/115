@@ -39,7 +39,7 @@ func TestVaultSplitMergeWithdrawAndRestore(t *testing.T) {
 		t.Fatal(b, rows)
 	}
 	p, e := VaultPayload(v)
-	if e != nil || len(p) != 186 || binary.LittleEndian.Uint16(p[3:]) != 1 || binary.LittleEndian.Uint32(p[11:]) != 4 {
+	if e != nil || len(p) != 187 || binary.LittleEndian.Uint16(p[3:]) != 1 || binary.LittleEndian.Uint32(p[11:]) != 4 {
 		t.Fatal("native vault cursor", e, p)
 	}
 	r.DestinationItem = 15
@@ -63,7 +63,7 @@ func TestVaultSplitMergeWithdrawAndRestore(t *testing.T) {
 		t.Fatal("withdraw conservation", b, rows)
 	}
 	p, e = VaultPayload(v)
-	if e != nil || !bytes.Equal(p, []byte{2, 8, 0, 0, 0}) {
+	if e != nil || !bytes.Equal(p, []byte{2, 8, 0, 0, 0, 0}) {
 		t.Fatal("empty restore changed", e, p)
 	}
 	var extra map[string]json.RawMessage
@@ -122,7 +122,7 @@ func TestVaultSavedRowsAndCapacity(t *testing.T) {
 		}
 	}
 	rows := [][protocol.CurrentItemRecordSize]byte{protocol.OrdinaryItem(0, 15, 1), protocol.OrdinaryItem(7, 16, 2)}
-	if p, e := protocol.PersonalVault(8, rows); e != nil || len(p) != 367 {
+	if p, e := protocol.PersonalVault(8, rows); e != nil || len(p) != 368 {
 		t.Fatal(e, len(p))
 	}
 	rows[1] = protocol.OrdinaryItem(8, 16, 2)
