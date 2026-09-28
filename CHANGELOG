@@ -9,6 +9,14 @@
   - `configs/amplify-grimoire.json` 新增 `pure_templates`（`[1286, 590704000, 10356261, 10354248, 10360807, 10000605]`）；导出脚本 `export_amplify_grimoire.py` 重导出时**继承**该字段（`_carry_pure_templates`），不会被冲掉。
   - ⚠️ **刻意分歧（不采纳修复包的一处合并）**：该包把「**黄金增幅书**」也并入「纯净」行为（去掉原 `+8~12` 随机、等级锁 `+0`）。本仓库**不采纳** —— **黄金增幅书与纯净增幅书是两个不同产物**：黄金书按服主要求维持「**摇值即等级 8~12**」（既有测试 `TestApplyAmplifyGrimoireGoldenWritesLevelTypeAndValue` 钉住该行为）。包内那条断言「黄金书走纯净」的测试已改写为「黄金书摇值即等级 / 纯净书锁 +0」的双向对照，防止将来有人再把两者合并。
   - ⚠️ **顺带修一处签名传播**：`applyAmplifyGrimoire` 增了 `pure` 参数 ⇒ 一并更新本仓库自有测试 `internal/inventory/amplify_apply_test.go` 的 6 处调用（该文件不在修复包里，包侧不会报错）。
+- **附魔宝珠（CMD272 `ENCHANT_BY_BEAD`）打通**：此前服务端**完全没有实现**该命令（`events.jsonl` 里 `id:272` 全是 `unimplemented_sample`），玩家点宝珠附魔毫无反应。
+  - **数据链**：宝珠物品脚本 `[stackable type] [enchant waste]` + `[monster card id]` → 怪物卡 → 卡的 `[enchant table]` 附魔属性；导出为 `configs/enchant-beads.json`（全库 5416 件 `[enchant waste]`，其中 **4846 件**带 `[monster card id]` = 真正的附魔宝珠）。
+  - **协议**（实机 + 反汇编坐实）：请求 16 字节明文 `[0] bead_space u8 / [1:3] bead_slot u16 / [3] equip_space u8 / [4:6] equip_slot u16`，其余补零；成功回包 `[0]=1 + u8 容器 + u16 槽`（客户端据此读物品刷新），失败 `[0]=0 + u16 错误码`。
+  - **落地**：新增 `internal/game/protocol/enchant.go`（`DecodeEnchantByBead` / `EnchantByBeadReply`）、`internal/inventory/enchant.go`（`LoadEnchantBeads` / `EnchantCardForBead` / `ApplyEnchantByBead`）、`cmd/wireprobe/enchant_flow.go`、`configs/enchant-beads.json`、`scripts/export_enchant_beads.py`；`main.go` 装载 + **`frame.ID == 272` 分派（失败也回 `Refusal(code)`，不回包客户端会一直挂在等待态）**；`request_scope.go` 登记为 `205 || 272 || 430`。
+  - 装备行 **`offset 14` (u32) = 附魔卡模板**，**直接覆写**（新附魔覆盖旧的）。
+  - ⚠️ **两个坑**：① `offset 14` 存的是**怪物卡模板**本身（不是卡里别的值）；② **回包必须发在「物品行刷新」之后** —— 客户端是收到回包才去读那件装备、刷新附魔窗口的，回包先到会让窗口读到**未更新的旧装备**（症状是「附魔成功了但预览窗口还是旧的」）；而背包那一格是被随后到的物品行刷新的，所以背包一直是对的，极易误判。
+  - ⚠️ **装载是软失败**：`LoadEnchantBeads` 在文件缺失时返回 `nil`（附魔整体拒绝，不影响其它系统），不会让启动失败。
+  - **未做**：宝珠的**部位限制**、**等级限制**、**随机属性**宝珠（随机附魔）、宝珠到期字段 —— 当前按「固定属性」打通；NPC 附魔三连（CMD168/169/170）与便携附魔（CMD1911）、附魔仓库（CMD592）不在本包范围。
 - **奥德赛 / 满级后剧情地图卡点修复（移植 20260928 修复包）**：层图（layer map）出口的判定收敛为**三条互斥规则**，并补齐「场景房出口 / 换图记录 / 剧情副本结算 / 死亡超时」四块缺失的链路。
   - **两条方向相反的路，别再合并**：客户端在场景房点门（`CMD38`）要**回 base**，而层图序列走完主动换图（`CMD45`）要**前进到相邻格**。此前两者都走 `MoveScene`、判据只能二选一，于是「修好一边必然弄坏另一边」。现在由服务端专用字段 `protocol.DungeonRoomTransition.SceneExit` 区分（**不进 wire 报文**）。
   - **层图出口三条规则**（`internal/dungeon/scene_transition.go`）：
