@@ -34,6 +34,12 @@ func observedGameRequest(id uint16) bool {
 	if id == 205 || id == 272 || id == 430 {
 		return true
 	}
+	// 857 = ENUM_CMDPACKET_OPEN_AURA_SKIN_SLOT（幻化栏窗口点 OK 开启光环/宠物幻化栏）。
+	// 包体只有 4 字节且每次都要留证（要核对客户端报的是哪一种窗口）；一旦落进八次采样
+	// 门，第 9 次起 verified 不再被计算，表现与「这条命令根本没实现」完全一样。
+	if id == 857 {
+		return true
+	}
 	// 开罐和晶体契约选择已有处理器，每次请求都必须解密校验，不能受八次采样限制。
 	if id == 681 || id == 527 {
 		return true

@@ -94,3 +94,51 @@ func TestStackableActionCreatureSkinTicketCaptured(t *testing.T) {
 		}
 	}
 }
+
+// 实机 2026-09-26 从背包直接使用光环幻化栏扩展券（模板 10157209，摆在 81 格）时抓到
+// 的 CMD507（64 字节）：slot=81、list=0、action=101(0x65)，其余全 0。同会话
+// client_trace 把它记成 "Skin Slot Unlocker (Aura)(10157209) : SlotIndex(81)"。
+//
+// 它和宠物券（197）是同一帧形状、只有动作号不同，所以只能按动作号分流：按槽位或按
+// 券模板都认不出来 —— 10157209 的物品脚本里根本没有 [action type] 段。
+var auraSkinSlotCapture = "5100" + strings.Repeat("00", 5) + "65" + strings.Repeat("00", 56)
+
+func TestStackableActionAuraSkinTicketCaptured(t *testing.T) {
+	if ActionOpenAuraSkinSlot != 101 {
+		t.Fatalf("aura action is %d, want 101", ActionOpenAuraSkinSlot)
+	}
+	p, e := hex.DecodeString(auraSkinSlotCapture)
+	if e != nil || len(p) != 64 {
+		t.Fatal(len(p), e)
+	}
+	slot, action, e := DecodeStackableAction(p)
+	if e != nil || slot != 81 || action != ActionOpenAuraSkinSlot {
+		t.Fatalf("decoded %d %d %v", slot, action, e)
+	}
+	// 其它读取器不得吃下这一包，否则会走错路径（疲劳药水 / 皮肤仓库 / 宠物券）。
+	if _, e := DecodeFatigueAction(p); e == nil {
+		t.Fatal("fatigue reader accepted an aura ticket")
+	}
+	if _, e := DecodeAddSkinStorageAction(p); e == nil {
+		t.Fatal("skin-storage reader accepted an aura ticket")
+	}
+	// 光环券与宠物券必须解出**不同**的动作号，否则两条路会互相顶掉。
+	creature, e := hex.DecodeString(creatureSkinSlotCapture)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if _, a, e := DecodeStackableAction(creature); e != nil || a != ActionOpenCreatureSkinSlot {
+		t.Fatalf("creature ticket -> %d %v", a, e)
+	}
+}
+
+// list 字节（offset 2）是字段本身：光环与宠物券实机都发 0，但它不能被钉死为 0 ——
+// 上游哪天多发一个 list 值，整包就会被丢弃，表现与「这条命令没实现」一模一样。
+func TestStackableActionAcceptsListByte(t *testing.T) {
+	q := stackableFrame(81, 101, 64)
+	q[2] = 1
+	slot, action, e := DecodeStackableAction(q)
+	if e != nil || slot != 81 || action != ActionOpenAuraSkinSlot {
+		t.Fatalf("non-zero list byte rejected: %d %d %v", slot, action, e)
+	}
+}

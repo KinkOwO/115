@@ -10,7 +10,8 @@ import (
 )
 
 // stackableAction 分发 CMD507（USE_STACKABLE_ACTION）。客户端对同一个 opcode
-// 复用多种动作：54 是疲劳恢复药水，197 是宠物幻化栏券（10309084）。
+// 复用多种动作：54 是疲劳恢复药水，101 是光环幻化栏券（10157209），197 是宠物
+// 幻化栏券（10309084）。三种券发的帧形状完全一样，只有动作号不同。
 func (w *worldSession) stackableAction(p []byte) ([]outboundPacket, error) {
 	slot, action, e := protocol.DecodeStackableAction(p)
 	if e != nil {
@@ -19,14 +20,15 @@ func (w *worldSession) stackableAction(p []byte) ([]outboundPacket, error) {
 	switch action {
 	case protocol.ActionRecoverFatigue:
 		return w.recoverFatiguePotion(p)
-	case protocol.ActionOpenCreatureSkinSlot:
+	case protocol.ActionOpenAuraSkinSlot, protocol.ActionOpenCreatureSkinSlot:
 		return w.expandSkinSlot(p, slot)
 	}
 	return nil, fmt.Errorf("unsupported stackable action %d", action)
 }
 
-// expandSkinSlot 处理宠物幻化栏扩展券的 CMD507 形态（动作 197）。请求里带了券的
-// 真实槽位，所以券源可以直接核对，并由券的模板反查出要开的那一位（宠物券 bit5）。
+// expandSkinSlot 处理幻化栏扩展券的 CMD507 形态（光环动作 101、宠物动作 197）。请求
+// 里带了券的真实槽位，所以券源可以直接核对，再由券的模板反查出要开的那一位（光环券
+// bit3、宠物券 bit5）。动作号是跟着券走的，不能按槽位猜。
 func (w *worldSession) expandSkinSlot(p []byte, slot uint16) ([]outboundPacket, error) {
 	if w == nil || w.role.ID == 0 || w.characters == nil || w.characters.Store == nil {
 		return nil, fmt.Errorf("skin slot expansion before character selection")
@@ -48,6 +50,51 @@ func (w *worldSession) expandSkinSlot(p []byte, slot uint16) ([]outboundPacket, 
 		return nil, fmt.Errorf("slot %d does not hold a skin slot ticket", slot)
 	}
 	return w.unlockSkinSlot(slot, mask, fmt.Sprintf("skin-slot-expand:%d:%x", w.role.ID, sha256.Sum256(p)))
+}
+
+// openSkinSlot 处理 CMD857（ENUM_CMDPACKET_OPEN_AURA_SKIN_SLOT），也就是
+// 「Unlock the Aura Skin slot?」确认框的 OK。它和 CMD507 是两条不同的入口：同一个
+// 窗口「从背包直接使用券」走 507，「点确认框 OK」走 857，两条最终落到同一套落地逻辑。
+//
+// 请求体只有前四个字节有意义：第一个 u16 恒为 0xffff（客户端不报券在哪一格），第二个
+// u16 才是窗口类型 —— 11 光环、32 宠物，也就是要开哪一栏。券由模板反查。
+func (w *worldSession) openSkinSlot(p []byte) ([]outboundPacket, error) {
+	if w == nil || w.role.ID == 0 || w.characters == nil || w.characters.Store == nil {
+		return nil, fmt.Errorf("skin slot open before character selection")
+	}
+	req, e := protocol.DecodeOpenSkinSlot(p)
+	if e != nil {
+		return nil, e
+	}
+	var mask byte
+	switch req.Window {
+	case protocol.SkinSlotWindowAura:
+		mask = inventory.ExpandAuraSkin
+	case protocol.SkinSlotWindowCreature:
+		mask = inventory.ExpandCreatureSkin
+	default:
+		return nil, fmt.Errorf("unsupported skin slot window %d", req.Window)
+	}
+	// 已经开过的栏再被请求一次（客户端理论上不会弹这个框，但重连/重开窗口后会）：
+	// 不再扣券，但**仍然要回成功包** —— 客户端在等这一包，不回它就永远停在等待态，
+	// 观感与「这条命令没实现」一模一样。这条与「重放」不同：重放是同一个事务 key
+	// 再次命中，由 unlockSkinSlot 返回的 applied 处理，不在这里。
+	if before, e := inventory.ReadBag(w.role.State); e == nil && before.ExpandEquipFlags&mask != 0 {
+		refresh, e := w.unlockRefresh(w.role)
+		if e != nil {
+			return nil, e
+		}
+		return append(refresh, outboundPacket{"open_skin_slot_answered", 1, 857, protocol.OpenSkinSlotReply(req.Window)}), nil
+	}
+	plan, e := w.unlockSkinSlot(0, mask, fmt.Sprintf("skin-slot-expand:%d:%x", w.role.ID, sha256.Sum256(p)))
+	if e != nil {
+		return nil, e
+	}
+	// 857 的回包必须**恰好 3 字节** {1, lo, hi}：收包分发器先把 body[0] 当成功标志并
+	// 推进游标，handler 0x145286a50 再从偏移 1 读回窗口类型。多写字节会把 handler 之后
+	// 的读取整体错位。
+	plan = append(plan, outboundPacket{"open_skin_slot_answered", 1, 857, protocol.OpenSkinSlotReply(req.Window)})
+	return plan, nil
 }
 
 // unlockSkinSlot 是落地：扣一张券、置 USERINFO1 位、补发权威刷新。开启状态不是

@@ -102,7 +102,13 @@ func (s *WearService) wearable(role storage.Character, item BagEquipment, slot u
 	// 客户端也不该往这里放。
 	creatureSkin := s.Rules.Special && kind[0].Text == "[creature]" &&
 		slot == CreatureSkinSlot && s.creatureSkinUnlocked(role)
-	if !ok || (expected != slot && !talismanSlot && !primerSlot && !offhandLightsabre && !creatureSkin) {
+	// 光环幻化栏同型：客户端拖进槽 11 的是 [aurora avatar]（光环本体），而规则表里
+	// 该类型只映射到槽 9，于是 expected(9) != slot(11) 会把幻化整个拒掉。放行同样要求
+	// 券已开栏（bit3）：客户端 UI 的挂锁读同一位。不放行其它装扮类型，避免把上衣或
+	// 武器装扮塞进幻化栏。
+	auraSkin := s.Rules.Special && kind[0].Text == "[aurora avatar]" &&
+		slot == AuraSkinSlot && s.auraSkinUnlocked(role)
+	if !ok || (expected != slot && !talismanSlot && !primerSlot && !offhandLightsabre && !creatureSkin && !auraSkin) {
 		return fmt.Errorf("equipment does not fit destination slot")
 	}
 	if kind[0].Text == "[creature]" {
@@ -140,6 +146,17 @@ func (s *WearService) creatureSkinUnlocked(role storage.Character) bool {
 		return false
 	}
 	return b.ExpandEquipFlags&ExpandCreatureSkin != 0
+}
+
+// auraSkinUnlocked 读存档里 USERINFO1 解锁字节的光环幻化栏位（bit3）。与
+// creatureSkinUnlocked 同一道理：客户端 UI 的挂锁读同一位，未开栏时服务端也不该
+// 放行，否则界面还锁着、东西却进去了，客户端/服务端状态就不一致了。
+func (s *WearService) auraSkinUnlocked(role storage.Character) bool {
+	b, e := ReadBag(role.State)
+	if e != nil {
+		return false
+	}
+	return b.ExpandEquipFlags&ExpandAuraSkin != 0
 }
 
 func (s *WearService) itemGroup(item *BagEquipment, flagGroup byte) byte {

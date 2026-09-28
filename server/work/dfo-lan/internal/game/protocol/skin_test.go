@@ -165,3 +165,50 @@ func TestDecodeSkinCargoSyncRejectsShortBody(t *testing.T) {
 		t.Fatal("short skin cargo sync accepted")
 	}
 }
+
+// 实机 2026-09-26 三次 CMD857（幻化栏窗口点 OK 开栏）：第一个 u16 恒为 0xffff ——
+// 客户端根本不报券在背包哪一格；第二个 u16 才是窗口类型，0x0b(11) 光环、0x20(32)
+// 宠物。body 会补齐到 16 字节。
+func TestDecodeOpenSkinSlotMatchesCapture(t *testing.T) {
+	raw, e := hex.DecodeString("ffff0b0000000000000000000000000000")
+	if e != nil {
+		t.Fatal(e)
+	}
+	r, e := DecodeOpenSkinSlot(raw)
+	if e != nil || r.Slot != 0xffff || r.Window != SkinSlotWindowAura {
+		t.Fatalf("aura window -> %+v %v", r, e)
+	}
+	if SkinSlotWindowAura != 11 || SkinSlotWindowCreature != 32 {
+		t.Fatalf("windows %d %d", SkinSlotWindowAura, SkinSlotWindowCreature)
+	}
+	raw2, e := hex.DecodeString("ffff200000000000000000000000000000")
+	if e != nil {
+		t.Fatal(e)
+	}
+	if r2, e := DecodeOpenSkinSlot(raw2); e != nil || r2.Window != SkinSlotWindowCreature {
+		t.Fatalf("creature window -> %+v %v", r2, e)
+	}
+}
+
+func TestDecodeOpenSkinSlotRejectsShortBody(t *testing.T) {
+	if _, e := DecodeOpenSkinSlot([]byte{0xff, 0xff, 0x0b}); e == nil {
+		t.Fatal("3-byte body accepted")
+	}
+}
+
+// 回包必须**恰好 3 字节**：收包分发器把 body[0] 当成功标志并推进游标，handler
+// 0x145286a50 再从偏移 1 读回窗口类型。多一个字节就把 handler 之后的读取整体错位。
+func TestOpenSkinSlotReplyLayout(t *testing.T) {
+	for _, w := range []uint16{SkinSlotWindowAura, SkinSlotWindowCreature} {
+		got := OpenSkinSlotReply(w)
+		if len(got) != 3 || got[0] != 1 || got[1] != byte(w) || got[2] != byte(w>>8) {
+			t.Fatalf("window %d -> % x", w, got)
+		}
+	}
+	if got := OpenSkinSlotReply(SkinSlotWindowAura); !bytes.Equal(got, []byte{1, 0x0b, 0x00}) {
+		t.Fatalf("aura reply -> % x", got)
+	}
+	if got := OpenSkinSlotReply(SkinSlotWindowCreature); !bytes.Equal(got, []byte{1, 0x20, 0x00}) {
+		t.Fatalf("creature reply -> % x", got)
+	}
+}
