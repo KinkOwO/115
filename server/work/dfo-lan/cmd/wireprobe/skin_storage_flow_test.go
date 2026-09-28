@@ -154,7 +154,7 @@ func TestDamageFontResetFrames(t *testing.T) {
 			t.Fatalf("%s: echo status byte is 0, the handler would only show a toast", tc.name)
 		}
 		if got, e := protocol.DecodeSelectSkin(echo.Payload[1:]); e != nil ||
-			got != (protocol.SelectSkinRequest{Category: tc.category, SkinID: tc.id}) {
+			got.Category != tc.category || got.SkinID != tc.id || len(got.SkinIDs) != 1 {
 			t.Fatalf("%s: echo decodes back as %+v (%v)", tc.name, got, e)
 		}
 	}

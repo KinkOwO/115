@@ -538,6 +538,224 @@ different subsystem: an inert frame, not a wrong value.
   does not revert, the remaining unknown is which pool renders it, and that is a
   client-side observation gap, not another frame to invent.
 
+## Round 8 — 觉醒插图与边框按同一条链实装（待实机验证）
+
+用户要求把伤害字体跑通的整条链（消耗 → 仓库页 → 面板可识别 → 应用/解除 → 入场/进城恢复）
+套到同一仓库里的另外两族消耗品上。本轮不碰伤害字体任何一个字节：它的回声仍是
+`u8 1 + u32 category + u32 0 + u32 id`，第七轮的实机判定照旧有效。
+
+判据来自 `analysis/dumps/CLIENT-MECHANICS.md` §14（df34/df35 两轮只读 IDA + `Script.inner.pvf`
+实测），没有为这两族花新的 C2S 次数：
+
+- **页号 = 选中类别 = 注册表家庭类**。`sub_1444EBD90(mgr, page, id)` 取 `mgr+136+16*page`，
+  两个面板的表格填充只保留 `record+8` 等于自己页号 id（`df22_ui_1441E3F40.c` 边框 = 0，
+  `df22_ui_1441E4180.c` 觉醒插图 = 1），`mgr+296` 的选中向量也用同一个下标。
+  ⇒ 边框 0 页 / 类别 0，觉醒插图 1 页 / 类别 1；伤害字体是唯一的例外（两标签页共用 2 页，
+  类别 2 与 6）。
+- **家庭由 `.skn` 自己的 type/sub type 标签决定**，不看路径也不看物品：1733 条目录项按标签
+  分组后与目录一一对应（party frame 153 + party request frame 40 + character info BG 28 +
+  raid party list frame 3 = 224；skill cutscene 476 + second awakening cutscene 117 = 593）。
+  `DFO.exe` 里这些标签一个明文都没有（mmap 全文件逐串扫过，命中 0），所以服务端**从不发**
+  那个 int，只用标签决定发到哪一页、落在页内哪个槽。
+- **边框的类别 0 有两个去向不同的通道**：三个单值槽并进同一个选中向量（读入顺序无关，消费方
+  各自按 `+12` 过滤），尾部 id 列表则整表重建 `mgr+312` 的"已获得"集合、空列表补 80000。
+  三条独立证据合出 `raid party list frame` 就是家庭类 0 的 `+12==2` 那一族 ⇒ 它进列表，
+  其余三族进单值槽。
+- **觉醒插图的选中天然是一个集合**：`df26_ebc10caller_sub_1444EA8A0.c` 在向量里**随机取一条**
+  当本次插图，空向量回落 30000；第二列表写的 `mgr+1152/+1176` 全 dump 集里除构造器置 0 外
+  没有第三个读者 ⇒ 服务端恒发 `m=0`，并记为缺口。
+- **回声对类别 1 会剔除二觉 id**（`df23_sub_1444EE820.c:60-90` 只写 `+12 != 3` 的槽），而实机
+  05:28 的二觉「解除」正是 `1, 0, 100000` ⇒ 回声执行的是客户端自己要求的卸下。所以这两族的
+  帧序与伤害字体**相反**：先原样回声（做客户端要求的删除/集合改写），再发 NOTI1546 把向量覆盖成
+  校验过的选中集合。回声体不做任何重建，因为同一个读取器还有一个 `result==4 && category==0`
+  分支要从已获得集合里删掉一个 id，那是任何"服务端拼出来的 id 列表"都表达不了的意图。
+
+### 实现
+
+- `internal/catalog/skin_storage.go`：目录 schema v2 → **v3**，每条新增 `skin_sub_type`，
+  并导出 `SkinFamily` / `Family()` / `IsRaidPartyListFrame()`。`configs/skin-storage-items.json`
+  用 `cmd/skinstorageimport` 重生成：`templates=1733 damage_fonts=354 party_frames=224
+  skill_cutscenes=593 missing_skins=127`，源校验和 `7ef2db59…d88e80` 不变（与 §14.2 的分组逐条一致）。
+- `internal/game/protocol/skin_cargo.go`：新增 0/1 两页的页号、内建默认行
+  （`20000/50000/60000` + `80000`；`30000/100000`）、`SkinSelectionPartyFrame(singles, raidList)`、
+  `SkinSelectionSkillCutscene(ids)`、`SelectSkinEchoList`→改为 `SelectSkinEchoRaw(body)`、
+  `IsSkinSelectionFamilyBuiltin`。`DecodeSelectSkin` 现在返回整张去零的 id 列表，但**只对
+  2/6 两类保留"槽 0 以外必须全零"那道严格门**，所以已实机验证过的字节没有放宽。
+- `internal/storage/skin_selection_list.go`（新）：`character_skin_selection_list` 纯增量建表 +
+  整类替换写/读。**旧表 `character_skin_selection` 与它的代码一行没动** —— 两族要的是集合，
+  伤害字体要的是单值，合成一张表反而要让旧路径处理新形状。
+- `cmd/wireprobe/skin_family_flow.go`（新）：表驱动的 家庭→页→类别 映射、绝对页帧
+  （内建默认 ∪ 账号已注册 ∪ **该角色 profile 状态已归属的行**，去重）、点击应答、入场与进城恢复。
+  账号在该族一件都没有时**不发页帧**：0 页同时属于"角色装饰"特性，用一个只重复默认行的页去
+  覆盖它的页是回归而不是改进。
+- `cmd/wireprobe/skin_storage_flow.go`：消耗注册成功后按族推该族整页（emoticon / spray /
+  weapon skin / airship effect 四族仍只记账，不发帧）。
+- `cmd/wireprobe/skin_selection_flow.go`：CMD1565 路由类别 0/1 到新路径；`damageFontRestore`
+  末尾追加两族的页+选中（副本重建 actor 后同样是快照问题）。
+- `cmd/wireprobe/entry_flow.go` + `main.go`：入场新增 4 个 plan 字段与包，排在
+  `profile_skin_cargo_restored` / `profile_skin_selection_restored` **之后**；迁移链新增
+  `MigrateSkinSelectionList`。
+
+### 缺口（不发帧，不猜）
+
+1. 类别 0/1 的 C2S 载荷形状**没有实机样本**（本场只抓到类别 2、6 与一条二觉解除）。88 字节固定体
+   与 20 槽由 `sub_1444EE820` 的读法证明，但"一次应用是否携带其余分区的已选值"未证 ⇒ 本轮实现按
+   §14.6 的约定**原样存回客户端发来的整张列表**，第一轮实机用日志核对 `skin_keys` 字段。
+2. `mgr+1152/+1176` 无读者 ⇒ 恒发 `m=0`。
+3. 家庭类 0 的 `+12` 只钉死了 raid = 2，其余三族取值未证；因为三个单槽并进同一向量、消费方自己
+   按 `+12` 路由，这个不确定性对服务端无影响，不为它花 IDA 轮。
+4. emoticon / spray / weapon skin / airship effect 四族页号无面板读者证据 ⇒ 不发页。
+5. 新表用例 `TestSkinSelectionListRoundTrip` 已写（隔离 schema，`CASH_INTEGRATION=1` 门），本机
+   PostgreSQL 25438 未监听，本轮未实跑。
+
+### 验证与候选
+
+- `gofmt -l` 本任务 13 个文件为空；`go build ./cmd/... ./internal/...` 0 项；
+  `go vet ./cmd/... ./internal/...` 0 项；`go test -count=1 ./cmd/... ./internal/...` 全绿
+  （21 包 ok、0 FAIL、TEST_EXIT=0）。未走 `server/Build-Server.ps1`，原因同前几轮：官方脚本对
+  `./...` 做 test/vet，会先撞上并发任务留在 `runtime/update-backup/**` 的不可编译副本。
+- 新增用例：`TestSkinSelectionPartyFrameLayout`、`TestSkinSelectionSkillCutsceneLayout`、
+  `TestDecodeSelectSkinListCategory`（含"2/6 类第二槽仍拒绝"）、`TestSelectSkinEchoRawKeepsTheRequestBody`、
+  `TestIsSkinSelectionFamilyBuiltin`、`TestSkinFamilyEntryOrder`、`TestSkinFamilyPageIDsKeepsBuiltins`、
+  `TestSkinFamilySelectionPayloadPartitionsRaidList`、`TestSkinFamilyForEntryRefusesUnprovenFamilies`；
+  两处 `SelectSkinRequest` 的等值比较改成逐字段（结构体现在含切片，不可比）。
+- 候选 `bin/wireprobe-handoff-source.exe` SHA-256
+  `d66c79c835c697f15b62d4f601da12cef94a0a94f42d900ce00aab945051127c`；
+  本轮构建过程中先出的 `ea0c0deb…5755`（未含 profile 归属行合并）与第七轮那枚（未含 0/1 类实现）
+  一并作废， `-newer` 判据为空。
+- 实机观察点：消耗一件边框/觉醒插图后 `skin_storage_registered`（`damage_font=false`）后面板应出现
+  该族新行；点应用应成对出现 `skin_selection_applied` → `skin_selection_family_echo` →
+  `skin_selection_family_restored`，`skin_selection_family` 页帧在注册时出现；进副本后两族
+  `dungeon_skin_*` 应重新下发。
+
+
+## Round 9 — 觉醒插图的「随机」不是开关，是抽签池被服务端灌长（实机 2026-09-28 反馈）
+
+Round 8 landed and the user's live run confirmed 觉醒插图 swaps ("已经成功可以更换觉醒插图了"),
+but reported a new symptom: applying one newly added cutscene also turns the panel's 随机
+checkbox on by itself, and they asked for that to be the player's decision. 边框 was not
+reported on, so its round-8 verdict is still open; nothing below changes category 0.
+
+The live session is `runtime/roles_persist_select_actor_town_world_live_detail_dungeon_manual_20260927_232446_114792_next37`.
+Triaging it before touching code is what turned the diagnosis around (`CLIENT-MECHANICS.md` §15):
+
+| Fact | Evidence |
+| --- | --- |
+| 13 C2S 1565 bodies decoded: every category-1 request holds 100000 in **slot 0** and that tab's picks from **slot 10** on | `events.jsonl`, `kind=client_frame, id=1565, plain_hex` |
+| The body is composed by the client itself that way: `sub_1444F1410` puts the `mgr+1176` list into slots 0..9 and the `mgr+1128` list into slots 10..19, then hands it to `sub_1444F1090(mgr, 1, …)` | `df36_caller_f1090_0x1444f1410.c`, `df36_fn_f1090_0x1444f1090.c` |
+| `sub_1444F1090` inserts a category's **default id** into the body only when it is handed an empty vector — 0→20000, 1→30000, 2→1, 6→99999999 — which independently re-proves §13.4's per-tab reset ids | same file, the switch |
+| All three manager lists are empty at construction, so the 30000/100000 the panel sent are that tab's 默认 rows, not shipped pool members | `df13_cargo_ctor_1444e81c0.c:95-102` |
+| `mgr+296[1]` is a **draw pool**: `sub_1444EA8A0` sets the cutscene actually used to `pool[RNG % size]`, so size ≥ 2 *is* random mode, size 1 is fixed, size 0 renders 30000. There is no separate random flag anywhere in the cluster | `df26_ebc10caller_sub_1444EA8A0_0x1444ea8a0.c:15-19`, `df36.log` §2 |
+| One live request held 100000 **twice**, in the second list, one round trip after the server echoed it into the pool | the `23:24` capture |
+
+So round 8's "store the request's slot list verbatim" was the mechanism: the 20 slots are two
+different tabs' lists, and mirroring them merged the second-awakening tab's row into the
+觉醒插图 draw pool — which both lit the 随机 state and made the pool grow on every round trip.
+
+### Implemented (round 9)
+
+- `internal/catalog/skin_storage.go`: `SkinStorageEntry.IsSecondAwakeningCutscene()`, the
+  PVF sub-type label behind the class the client's own echo filter refuses.
+- `internal/game/protocol/skin_cargo.go`: `SkinSelectionCutsceneDefault = 30000`, named by
+  `sub_1444F1090` as the "nothing chosen" marker for that tab.
+- `cmd/wireprobe/skin_family_flow.go`: `skinFamilyPool(category, ids, byID)` drops, for
+  category 1 only, the 30000 marker and every second-awakening skin. Called where the
+  accepted list is built (so the stored rows are the clean pool) and again on the restore
+  read, which is what lets the rows round 8 already wrote heal on the next login without a
+  schema change. Category 0 and the damage-font categories pass through untouched.
+- The echo is still the request body verbatim (`SelectSkinEchoRaw`): the client compares
+  that body against its own two lists, so rewriting it would break its own bookkeeping.
+  NOTI1546 still fills only its first list; the second list stays `m=0` — `sub_1444F1410`
+  reads it, but no renderer consumer is proven, so nothing is invented for the
+  second-awakening tab.
+- Tests: `TestSkinFamilyPoolKeepsOnlyRealPicks` replays the five distinct live bodies
+  (`{100000,30000}`→empty, `{100000,30000,30117}`→`{30117}`, the duplicated-100000 body→
+  `{30117}`, a second-awakening id mixed into the picks→`{30117}`, and a deliberate two-skin
+  pool→ random stays available), `TestSkinFamilyPoolLeavesOtherCategoriesAlone` pins that
+  category 0 and 2 pass through.
+- Player-visible result: 应用 one cutscene = pool of one = fixed, 随机 off; checking a second
+  row is what turns random on; 解除 (the body then holds only 30000) = empty pool = default.
+- Gate: `gofmt -l` empty on the four task files; `go build`/`go vet`/`go test -count=1` over
+  `./cmd/... ./internal/...` all green (21 packages ok, 0 FAIL, TEST_EXIT=0). The official
+  `server/Build-Server.ps1` was not used, same reason as rounds 6-8: it tests `./...` and dies
+  on another agent's uncompilable copy under `runtime/update-backup/**`.
+- Candidate `bin/wireprobe-handoff-source.exe` SHA-256
+  `f4f4168013939c7d8a5b3d87d4680e066ec22d18b98cb419ff4b3b4c610532ae`; this voids round 8's
+  `d66c79c8…127c`, whose category-1 mirror is the bug being fixed. `-newer` judgement empty
+  after the rebuild.
+- Attempt **1/3** for this hypothesis chain. Live checkpoints after restart: the
+  `skin_selection_family_restored` hex for category 1 must no longer contain `a08601 00`
+  (100000) or `30750000` (30000); with one skin applied its count field must be `0100`;
+  `skin_selection_applied` keeps echoing the raw request, which is expected.
+
+## Round 10 — 二次觉醒插图在副本里不生效：二觉渲染池 `mgr+1152` 从未被投递（实机 2026-09-28 反馈）
+
+Round 9's filter was aimed at the right pool and the wrong half of the body. The user then
+reported 「二次觉醒分类下的插图在副本中不生效」 — 一觉 cutscenes swap, 二觉 ones never show inside a
+dungeon. Nothing below changes category 0 (边框) or the damage-font chain.
+
+`CLIENT-MECHANICS.md` §16 is the evidence; the read-only round is `analysis/ida-work/df37.log`
+with dumps `df37_*.c` (no C2S attempt spent, the IDB opened was the working copy only).
+
+| Fact | Evidence |
+| --- | --- |
+| Inside a dungeon the cutscene id is chosen by `sub_145D451D0(actor, animationSlot)`: 一觉 slot → `sub_1444EA8A0(mgr)`; the 二觉 gate → hardcoded 100000 only when vtable `+4832==3 && +4848==3 && a2==247`, otherwise `sub_1444EBAD0(mgr)` | `df36_caller_ea8a0_0x145d451d0.c:35-63`, `df37_gate_0x145cf7c40.c` |
+| `sub_1444EBAD0` reads **`mgr+1152`** and draws `pool[RNG % size]`, with 100000 as the empty-pool fallback — the same draw semantics as the 一觉 pool | `df37_fn_ebad0_0x1444ebad0.c:11-15` |
+| `mgr+1152` has exactly one reader (that function, called live every time a cutscene plays — there is no enter-town snapshot) and exactly one writer: NOTI1546 category 1's **second list**, which is assigned to both `mgr+1152` and `mgr+1176` and keeps any id greater than zero without an ownership check | `df37.log` §1, `df13_noti1546_body_1444eeca0.c:368-371` |
+| CMD1565's own client receive path never touches `mgr+1152` — its case 1 writes only `mgr+296[1]` and skips registry class 1 / sub type 3 records | `df23_sub_1444EE820.c:64-110` |
+| The 88-byte body is **positional**: `sub_1444F1410` lays `mgr+1176` (the panel's 二觉 rows) into slots 0..9 and `mgr+1128` (its 一觉 rows) into slots 10..19; each list holds at most ten rows | `df36_fn_f1410_0x1444f1410.c:103-131`, `df37_writer_0x1444e9240.c`, `df37_writer_0x1444e9290.c` |
+| Each list carries its own "nothing chosen" marker, inserted client-side when the assignment leaves it empty: 30000 for `mgr+1128`, **100000** for `mgr+1176` — which is why slot 0 was 100000 in all 13 live requests | `df37_writer_0x1444f1b60.c:12-21`, `df37_writer_0x1444f1be0.c:14-21` |
+
+⇒ 真源修正：服务端把类别 1 的第二个列表常年发成 `m=0`（写在 `skin_cargo.go` 的注释里，理由是"没有
+渲染消费者"），等于**从不投递二觉池**，副本里只能退回硬编码 100000。那条"没有消费者"的判断来自 df36
+的簇内偏移扫描（`0x1444E8000..0x1444F2200`），df37 放开范围后在簇外找到了唯一读者；这是 §9 第 23 条
+记下的坑。
+
+### Implemented (round 10)
+
+- `internal/game/protocol/skin_cargo.go`:
+  - `SkinSelectionSkillCutscene(awakening, secondAwakening)` now encodes both lists
+    (`u8 1, u16 n, ids…, u16 n2, ids2…`) instead of hardcoding the trailing count;
+  - `SkinSelectionSecondAwakeningDefault = 100000`, the 二觉 marker;
+  - `SelectSkinRequest` gains `Awakening` / `SecondAwakening`, decoded **by slot position**
+    for category 1 (slots 10..19 and slots 0..9), leaving the other categories' merged
+    `SkinIDs` exactly as before.
+- `cmd/wireprobe/skin_family_flow.go`:
+  - `skinCutscenePickedLists(request, byID)` — request path: take the two positional lists,
+    drop each list's own marker, and re-route a 二觉 row that arrived inside the 一觉 list;
+  - `skinCutsceneStoredLists(ids, byID)` — restore path: storage rows have no positions, so
+    the family comes from the skin's PVF sub type label and both markers are dropped by value;
+  - `skinKeepOwned(ids, owned)` — the 二觉 list is *not* ownership-checked by the client's
+    reader, so the server refuses ids the account does not hold instead of pushing them;
+  - both pools persist in the existing `character_skin_selection_list(character_id, category,
+    skin_key)` rows — **no schema change**, and round 8/9's dirty rows heal on the next read;
+  - `skinFamilyPool` is gone: it merged the two lists and filtered by content, which was the
+    best available reading before the composer was decompiled.
+- Round 9's result stands and is now better-founded: 应用 one 一觉 skin = pool of one = fixed;
+  and the same rule holds for 二觉 (`sub_1444EBAD0` draws from `mgr+1152`), so one 二觉 pick is
+  fixed and a second row is what makes it random.
+- Tests: `TestSkinCutscenePickedListsSplitsTheBodyByPosition` (six bodies incl. the live
+  marker shapes and the mis-routed 二觉 row), `TestSkinCutsceneStoredListsRoutesBySkinLabel`,
+  `TestSkinKeepOwnedReportsUnownedIDs`, `TestSkinSelectionSkillCutsceneLayout` (both lists and
+  the empty-second-list prefix), `TestDecodeSelectSkinSplitsTheCutsceneBodyByPosition` (pins
+  that the 边框 body does not fill the cutscene lists).
+- Gate: `gofmt -l` empty on the five task files; `go build` / `go vet` / `go test -count=1` over
+  `./cmd/... ./internal/...` green (no FAIL). `server/Build-Server.ps1` not used — same reason as
+  rounds 6-9 (it tests `./...` and dies on another agent's copy under `runtime/update-backup/**`).
+  Candidate rebuilt with the official flags (`go build -trimpath -o bin/wireprobe-handoff-source.exe ./cmd/wireprobe`).
+- Candidate `bin/wireprobe-handoff-source.exe` SHA-256
+  `99153977ea59b8b0f4962bd61085058277288277109863c1b44264ba2776705e`; this **voids round 9's**
+  `f4f41680…532ae` (and round 8's `d66c79c8…127c` before it), because neither fills NOTI1546's
+  second list, which is the frame 二次觉醒 needs.
+- Attempt **1/3** for this hypothesis. Live checkpoints after the user restarts the server:
+  1. `skin_selection_family_restored` for category 1 must now carry a **nonzero second count**
+     with the applied 二觉 id after it (previously always `0000`);
+  2. `skin_selection_applied` records `second_awakening` alongside `selected`;
+  3. the player applies one 二觉 插图 → the 觉醒动画 in the dungeon must be that skin, and the
+     panel's 随机 must stay off;
+  4. 解除 (body's slots 0..9 back to just 100000) → second list empty → the default 100000.
+
+
 ## Remaining evidence gaps
 
 - **The burst (`9999999`) damage layer.** Round 4's prediction is now live-confirmed
@@ -545,11 +763,20 @@ different subsystem: an inert frame, not a wrong value.
   window's three `5×400` record pools (`+5384` / `+7536` / `+9912`) renders it, and
   what `window+2184` is when it does, are still unproven. No frame is invented for
   it; it works because the tab's own setter updates it.
+- ~~**The 二次觉醒 tab's own selection is not restored.**~~ **Closed in round 10:** that list
+  (`mgr+1152`) is the 二觉 render pool — `sub_1444EBAD0` draws it live for every
+  second-awakening cutscene — and NOTI1546's second list now carries it (§16).
+- **The 随机 checkbox control itself was never located.** What is proven is the pool
+  semantics (`sub_1444EA8A0` draws `pool[RNG % size]`) plus the composer's slot split, which
+  is enough to make the switch follow the player's picks. The UI element that draws the
+  tick was not identified, so if a live run still shows it lit with a one-item pool, the
+  next evidence to gather is that control's reader — not another frame.
 - **NOTI1672's slot parameter** has no client-side consumer (§13.1), so per-slot
   font delivery is not available from the server at all.
-- **Other pages' selection categories.** The 边框 tab sends page 1 with id 100000;
-  which NOTI1546 category owns page 1 is unreversed, so that click stays
-  unanswered rather than being answered with a guessed category.
+- **Other pages' selection categories.** Closed in round 8: 边框 is page/category 0
+  and 觉醒插图 is page/category 1 (§14.1, §14.3, §14.4), and both clicks are now
+  answered. What stays unproven is only the C2S payload *shape* for those two
+  categories, which is why the server stores the client's own id list back verbatim.
 - **The echo is emitted for one case only.** `sub_1444EE820` also has branches for
   categories 0, 1, 3, 4 (and a `v43[1] == 4` second-list path); none of them is
   needed by the damage-font tabs, so the server never sends them.
@@ -568,9 +795,59 @@ different subsystem: an inert frame, not a wrong value.
   "recently added" frame is emitted.
 - **Timed skins** need the `sub_145A11A50` clock domain before the expiry column
   can carry anything but 0.
-- **Other families** (skill cutscene, emoticon, party frame, spray, weapon skin,
-  airship effect) register durably but are not rendered yet: their unlocks land in
-  `account_skin_cargo`, and each needs its own registry page confirmed the way
-  page 2 was.
+- **Other families.** 觉醒插图 and 边框 are rendered from round 8 on. Emoticon,
+  spray, weapon skin and airship effect still register durably only — their page
+  numbers have no panel reader as evidence, so no frame is invented for them.
 - NOTI1231/CMD1282-style damage-font-specific opcodes were never found in the
   registrar; they are not needed, since the panel reads the generic pages.
+
+## Round 11 — 多选被「默认行剥离」吃掉：类别 1 的两张列表各有一个可勾选的默认行（实机 2026-09-28 反馈）
+
+用户回报：一觉与二觉插图无法选取应用多个，且关一次皮肤仓库再打开就失效。本轮不花 IDA 轮次、
+不花 C2S 次数——证据全在 df36/df37 的既有 dump 与实机 body 里，缺的是把 §Round 10 的两处结论
+放在一起读。完整取证写回 `analysis/dumps/CLIENT-MECHANICS.md` §17 与 §9 第 24 条。
+
+### 真源
+
+- **请求体按位置属于两张工作集**：`sub_1444F1410` 把 `mgr+1176`（二觉页的行）写进槽 0..9、
+  `mgr+1128`（一觉页的行）写进槽 10..19，并在拼体前把已生效的 `mgr+296[1]` 从一觉集合里减掉。
+  ⇒ 合并 20 个槽去零 = 把两页的勾选混成一页，这是第十轮位置化改动的根据，本轮沿用。
+- **默认行是行，不是哨兵**：`sub_1444F1B60` / `sub_1444F1BE0` 都是「先按向量 insert，insert 完发现表空」
+  才补进 30000 / 100000。所以这两个 id 只在**单独成为该表唯一元素**时才表示「未选」；与真实行
+  并列时，它就是玩家那一格勾上了。实机三场 body 直接给出三种位置关系（17:11:02 各一件无标记、
+  17:12:19 标记与真实行并列、17:13:07 三行且另一页只剩标记）。
+- **为什么表现为「重开才失效」**：回声先执行客户端自己要求的删除，NOTI1546 类别 1 再整表覆盖
+  `mgr+296[1]` 与 `mgr+1152`/`mgr+1176`；面板的勾选态读的是这几张工作列表而不是服务端存储，
+  所以存储被剥短的那一刻界面不变，重开（或下一帧覆盖）才显出多选没保住。
+
+### 实现
+
+- `cmd/wireprobe/skin_family_flow.go`：新增 `skinCutsceneKeepChosen`，两张表各自只在「唯一元素恰是该表
+  默认行」时判空；`skinCutscenePickedLists` 不再无条件丢弃标记，并把从一觉槽位识别出来的二觉行**替换**
+  二觉表的标记而不是并列（玩家没在二觉页勾过它，它出现在那里只是上面那次减法留下的位移）；
+  `skinCutsceneStoredLists` 用同一口径复分类存量行，所以第十轮之前写进库的短集合会在下次应用/进城自动
+  收敛，**零 schema 变更、零迁移**。
+- `internal/game/protocol/skin_cargo.go`：`SkinSelectionCutsceneDefault` 与
+  `SkinSelectionSecondAwakeningDefault` 的注释口径从「未选哨兵」改写为「仅当它是该列表唯一元素时才是
+  未选标记，否则它是该页的默认行」，并补上两个写入方的 dump 行号。
+- 随机规则一字未动：池内 1 项恒定、≥2 项随机、空池回落默认 ⇒ 第九轮「随机由玩家决定」的口径
+  原样成立，且这一轮才有了客户端证据。
+
+### 缺口（发包前不猜）
+
+- 面板「生效中」高亮究竟读 `mgr+296[1]` 还是读两张工作列表，未证 ⇒ 本轮不改回帧形状，只保证服务端
+  存储与回帧两张列表一致。
+- 客户端发送方对每张表截断在 10 行；服务端不做截断，收到什么存什么，超过 10 项时的客户端表现未测。
+
+### 工作区事故（本轮交付包含一次恢复）
+
+2026-09-28 01:26:50，一个并发进程把 42 个工作树文件还原到第八轮之前的基线，抹掉了本任务第八~
+十轮的接线，构建红灯。按用户指定的「只加不删、逐段贴回」恢复：纯回退的 8 个文件从当日快照
+`runtime/update-backup/20260928-012650/server/work/dfo-lan/` 整体取回（`protocol/skin_cargo.go` 及其用例、
+`catalog/skin_storage.go`、目录 JSON v3、`skin_selection_flow.go`、`skin_storage_flow.go` 及其用例、本文档），
+`entry_flow.go` 与 `main.go` 只重贴本任务 hunk 以保留他人新增的手柄设置与 boss 检查门，
+`internal/storage/store.go` 与 `cmd/wireprobe/dungeon_flow.go` 经查不含本任务丢失行、保留他人版本。两处
+为通过 gofmt 门禁做过纯空白归一（他人手工插入行的缩进层级错），无任何语义改动。
+
+候选 `bin/wireprobe-handoff-source.exe` 重建后 SHA-256 为
+`5c548b087f053ec1198c4d3529bfa0815636819446bed8142e9067edaf32b463`，第十轮那枚 `99153977…6705e` 与更早的 `f4f41680…532ae` 一并作废。

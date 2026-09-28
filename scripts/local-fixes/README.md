@@ -36,6 +36,7 @@ python fix_launch_wiring.py --channel-probe <dfo_probe_tools/channel_probe.py>
 | `apply_local_config.py` | 补门户边 / loot 等级 / 掉落类别 / 装备目录合并 / 校验 dungeons.full 与 world 校验和一致 | ✓ |
 | `remerge_equipment.py` | 把 `equipment-high.json` 合并进 `equipment.current37.json`（**纯加法**） | ✓ |
 | `fix_launch_wiring.py` | 修 `channel_probe.py` 的副本目录接线 | ✓ |
+| `port_skin_family_fixes.py` | 重放皮肤仓库（伤害字体 / 觉醒插图 / 边框）第八~十一轮修复；缺行整文件回写、有别人新行则判冲突不动盘 | ✓ |
 
 ---
 
@@ -137,3 +138,71 @@ type Bag struct {
 | 奥德赛装备隔离 | 服务端里 **Odyssey 没有任何独立背包/装备容器**；所谓"奥德赛装备独立"是客户端行为 |
 | 装备掉落 | `internal/loot/rules.go:215` 的 `if !enabled["equipment"]` 会整段跳过装备分支；需在 **实际生效的那份** rules 文件（本侧是 `drop.current36.json`）的 `supported_kinds` 里加 `"equipment"` |
 | 装备职业过滤 | `equipmentCandidates` **不做职业过滤**，会掉出别的职业的装备（原版 DNF 亦如此） |
+
+---
+
+## `port_skin_family_fixes.py`：皮肤仓库这条链的重放脚本
+
+为什么需要它：一键启动器的「同步上游」会整棵替换 `server/` 目录。本任务（伤害字体 / 觉醒插图 /
+边框，第八~十一轮）的改动没有合进上游，所以每次同步都会退回上游版 —— 2026-09-28 一天内发生三次
+（01:26:50 抹掉 42 个文件、02:37:20 抹掉 10 个、03:09:59 抹掉 14 个并且真的把本任务新增的 4 个未
+跟踪源文件从磁盘上删了），构建报 `undefined: catalog.SkinFamily` 一类错。
+启动器弹窗把这 4 个未跟踪文件说成「上游已删除、本机仍存在」的编译残留，方向是反的：它们是本任务
+**新增**的源文件，`main.go` / `entry_flow.go` / `skin_selection_flow.go` 正在引用其中的符号，点
+「清理残留并重试」删掉它们才是真的编译失败。
+
+```bash
+python port_skin_family_fixes.py --dry             # 先看会动哪些文件与配置
+python port_skin_family_fixes.py                   # 实际重放（幂等，可反复跑）
+python port_skin_family_fixes.py --configs-only    # 只搬回被隔离的 4 份本机配置，不动源码
+python port_skin_family_fixes.py --target D:/115us
+python port_skin_family_fixes.py --force           # 冲突文件也按载荷覆盖，判据见下
+python port_skin_family_fixes.py --refresh         # 确认版前滚：用当前工作树刷新载荷
+```
+
+载荷在 `skin-family-20260928/server/work/dfo-lan/` 下，是实机确认过的那一代源码（候选
+`bin/wireprobe-handoff-source.exe` SHA-256 `945d17eb…a97a7b`；`5c548b08…b463` 是同一代皮肤代码、
+但缺副本内 Clone 装备刷新块的那枚，已作废），共 14 个文件。
+
+## 另一类事故：启动器把本机配置搬进隔离区
+
+03:18:12（那场启动的前 9 秒）启动器把 `configs/` 下 4 份「本机才有、上游清单没有」的大配置搬进了
+`server/work/dfo-lan/runtime/disabled-configs/`：`items.index.json`、`booster-catalog.json`、
+`shop-vault-release.json`、`shop-purchase-pilot.json`。后果不是编译失败而是**启动失败**：命令行里
+对应的参数一起消失，物品索引没被补全（日志少一行 `supplemented stackable catalog … total items:
+175554`），装备目录只剩 3174 行，于是 `internal/loot/attunement.go` 的 `ValidateTemplates` 查不到
+箱类模板就 `log.Fatal`，报 `attunement reward 10419721 is absent from the item catalog; is the item
+index still supplemented?`，启动脚本 `exit status 1`。
+
+判责方法：拿两场 `runtime/roles_persist_*_/gateway.out` 里的 `configs\*.json` 清单做差集，再看
+`runtime/disabled-configs/` 的目录 mtime 是不是正好等于启动那一刻。不要把那条 Fatal 降级成 warning
+—— 那只会让玩家看到掉落却领不到奖；`go test` 里 Shop 系列用例也会因为缺 `shop-purchase-pilot.json`
+直接红。重放脚本会把「`configs/` 里没有、隔离区里有」的那份搬回去，两边都有时不动。
+
+判定规则（**机械保证源码侧只加不删**）：
+
+- 目标文件缺行（上游退回旧版）⇒ 用载荷整文件回写；
+- 目标文件含有载荷里没有的非空白行 ⇒ 判为冲突，打印那些行，一个字节都不动；
+- 目标文件与载荷逐字节相同 ⇒ 跳过。
+
+冲突要逐条判一次再决定加不加 `--force`：判据是「目标多出的行是不是被本任务取代的上游旧实现」。
+03:09:59 那次同步之后，`main.go` / `skin_cargo.go` / `catalog/skin_storage.go` /
+`configs/skin-storage-items.json` 等 8 个文件多出的行总共只有 0~8 行，内容全是旧版
+（单 id 的 `SelectSkinRequest`、`skin-storage-items-v2`、slot-26 那段旧注释），没有一行是别人
+的新功能 ⇒ 那一次 `--force` 整文件覆盖是对的。若列出的行里混进了别人的新功能，就只手工合并
+自己那一段，再跑 `--refresh` 把合并结果前滚进载荷（**注意：`--refresh` 是用目标树覆盖载荷，
+对着被还原的目标树跑它等于确认旧版**）。
+
+它顺带补 `server/work/dfo-lan/runtime/update-backup/go.mod` 一枚 module 边界标记：更新器留在该目录
+下的整文件副本带 `//go:embed`，副本树里没有可嵌资源，`go build ./...` 会因此常年红灯；有了边界标记
+Go 工具整棵跳过该子树，不删不改任何人的副本。
+
+重放完的窄口径门禁：
+
+```bash
+cd D:/115us/server/work/dfo-lan
+go build ./... && go vet ./... && go test -count=1 ./cmd/... ./internal/...
+go build -o bin/wireprobe-handoff-source.exe ./cmd/wireprobe   # 与实机那枚逐字节相同（不带 -trimpath）
+```
+
+注意：官方 `server/Build-Server.ps1` 带 `-trimpath`，同一源码树产出 `a54b9fa8…b444`，只差内嵌构建路径。
