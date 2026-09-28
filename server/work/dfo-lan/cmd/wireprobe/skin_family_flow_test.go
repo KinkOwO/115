@@ -185,3 +185,109 @@ func TestSkinKeepOwnedReportsUnownedIDs(t *testing.T) {
 		t.Fatalf("kept = %v, missing = %v", kept, missing)
 	}
 }
+
+// TestSkinFamilyFramePayloadRoutesByShape pins the dispatcher the three newer families
+// need, because their bodies are not sets: 表情 is four positional words (zeros included,
+// so a cell's index survives), 涂鸦 and 飞空艇特效 carry one id, and an empty selection in
+// either shape sends no frame at all — the 7 / 8 reader's unowned branch stores nothing,
+// and the 3 reader appends the zeros it is given, so an absent frame and a cleared bar are
+// the same client state.
+func TestSkinFamilyFramePayloadRoutesByShape(t *testing.T) {
+	byID := map[uint32]catalog.SkinStorageEntry{
+		40001: {SkinID: 40001, SkinType: "instant emoticon"},
+		90001: {SkinID: 90001, SkinType: "spray"},
+	}
+	p, e := skinFamilyFramePayload(protocol.SkinCategoryInstantEmoticon,
+		nil, nil, []uint32{40001, 0, 0, 0}, byID)
+	if e != nil {
+		t.Fatal(e)
+	}
+	want, e := protocol.SkinSelectionInstantEmoticon([]uint32{40001, 0, 0, 0})
+	if e != nil {
+		t.Fatal(e)
+	}
+	if !bytes.Equal(p, want) {
+		t.Fatalf("emoticon frame = %x, want %x", p, want)
+	}
+	if p, e = skinFamilyFramePayload(protocol.SkinCategoryInstantEmoticon,
+		nil, nil, []uint32{0, 0, 0, 0}, byID); e != nil || p != nil {
+		t.Fatalf("empty bar encoded as %x (%v)", p, e)
+	}
+	if p, e = skinFamilyFramePayload(protocol.SkinCategorySpray, []uint32{90001}, nil, nil, byID); e != nil {
+		t.Fatal(e)
+	}
+	want, e = protocol.SkinSelectionSingle(protocol.SkinCategorySpray, 90001)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if !bytes.Equal(p, want) {
+		t.Fatalf("spray frame = %x, want %x", p, want)
+	}
+	if p, e = skinFamilyFramePayload(protocol.SkinCategoryAirshipEffect, nil, nil, nil, byID); e != nil || p != nil {
+		t.Fatalf("empty single frame = %x (%v)", p, e)
+	}
+	// The set-shaped families still go through their own two-channel encoder.
+	if p, e = skinFamilyFramePayload(protocol.SkinCategoryPartyFrame,
+		[]uint32{20001}, nil, nil, byID); e != nil || p == nil {
+		t.Fatalf("party frame through the dispatcher = %x (%v)", p, e)
+	}
+}
+
+// TestSkinFamilyEntryRestoresCarryTheNewFamiliesAndStars pins where the appended entry
+// frames sit: a NOTI1545 page rebuilds the page it names, so the newer family pages have
+// to follow the profile-decoration pair that owns page 0 and precede the town refresh,
+// exactly like the two families the named fields carry.
+func TestSkinFamilyEntryRestoresCarryTheNewFamiliesAndStars(t *testing.T) {
+	p := entryPayloads{
+		ProfileSkinCargo: []byte{1},
+		SkinFamilyRestores: []outboundPacket{
+			{"skin_cargo_family_restored", 0, 1545, []byte{3}},
+			{"skin_selection_family_restored", 0, 1546, []byte{3, 1, 2, 3, 4}},
+			{"skin_favorites_restored", 0, 2641, []byte{0, 0, 0, 0}},
+		},
+	}
+	index := map[string]int{}
+	for i, packet := range p.packets() {
+		index[packet.Name] = i
+	}
+	profile, ok := index["profile_skin_cargo_restored"]
+	if !ok {
+		t.Fatal("profile page is not emitted at entry")
+	}
+	world, ok := index["enter_gameworld_complete_sent"]
+	if !ok {
+		t.Fatal("town refresh is not emitted at entry")
+	}
+	for _, name := range []string{"skin_cargo_family_restored", "skin_selection_family_restored",
+		"skin_favorites_restored"} {
+		at, ok := index[name]
+		if !ok {
+			t.Fatalf("%s is not emitted at entry", name)
+		}
+		if at <= profile {
+			t.Fatalf("%s = %d arrives before the profile page at %d", name, at, profile)
+		}
+		if at >= world {
+			t.Fatalf("%s = %d must arrive before the town refresh at %d", name, at, world)
+		}
+	}
+}
+
+// TestSkinFavoriteAnswerPushesListBeforeRefreshEcho pins the two frames a star click is
+// answered with. The echo's only effect for result 2/3 is the page rebuild it tail-calls,
+// and that rebuild reads the manager's 收藏 table — so an echo that goes out first repaints
+// the window from the state before the click, which is exactly the live report「星星点击不点
+// 亮、概要不随应用实时更改」while the storage itself had already recorded the toggle.
+func TestSkinFavoriteAnswerPushesListBeforeRefreshEcho(t *testing.T) {
+	frames := skinFavoriteAnswer([]byte{1, 9}, []byte{3, 4})
+	if len(frames) != 2 {
+		t.Fatalf("frames %+v, want the absolute list then the command echo", frames)
+	}
+	if frames[0].Name != "skin_favorites_restored" || frames[0].ID != 2641 ||
+		!bytes.Equal(frames[0].Payload, []byte{3, 4}) {
+		t.Fatalf("first frame %+v, want NOTI2641 carrying the stored list", frames[0])
+	}
+	if frames[1].Name != "skin_selection_echo_only" || frames[1].Kind != 1 || frames[1].ID != 1565 {
+		t.Fatalf("second frame %+v, want the kind-1 CMD1565 echo that refreshes the page", frames[1])
+	}
+}

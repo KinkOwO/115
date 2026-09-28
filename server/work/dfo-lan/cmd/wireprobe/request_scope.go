@@ -49,6 +49,12 @@ func observedGameRequest(id uint16) bool {
 	if id == 1592 {
 		return true
 	}
+	// 表情快捷键（CMD1551）已有回包：它只有八字节体，且玩家会连着按。留在采样门里就是
+	// 第八次之后 verified 不再被算、回包整个停发，实机表现与「没做这条」一模一样（同 1565
+	// 那条坑，见 CHANGELOG 2026-09-27 第二轮）。
+	if id == 1551 {
+		return true
+	}
 	if id == 305 || id == 306 || id == 307 || id == 308 {
 		return true
 	}
