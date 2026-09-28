@@ -2160,11 +2160,8 @@ if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "am
 					continue
 				}
 				// CMD2377 SET_UNIFIED_OPTION carries one option block per frame:
-				// subtype 0x13 is the skill lock, 0x05 ordinary settings, and
-				// 0x01 the account level block restored by NOTI2826. Skill locks
-				// and both setting blocks are persisted here; the character
-				// settings block has no reversed NOTI2827 offset yet, so it is
-				// stored for a later restore path.
+				// subtype 0x13 is the skill lock, 0x12 character effects, 0x05
+				// ordinary settings, and 0x01 the account block restored by NOTI2826.
 				opt, e := protocol.DecodeUnifiedOption(plaintext)
 				if e != nil {
 					event(map[string]any{"kind": "unified_option_rejected", "reason": e.Error(), "bytes": len(plaintext)})
@@ -2200,6 +2197,19 @@ if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "am
 						continue
 					}
 					event(map[string]any{"kind": "character_settings_saved", "character_id": selectedCharacterID, "entries": len(opt.Entries)})
+				case protocol.UnifiedOptionCharacterEffects:
+					if opt.Scope != protocol.UnifiedOptionScopeCharac || characters == nil || worldState == nil || worldState.role.ID == 0 || worldState.role.ID != selectedCharacterID {
+						event(map[string]any{"kind": "character_effect_options_rejected", "reason": "requires the owned selected character", "character_id": selectedCharacterID, "scope": opt.Scope})
+						continue
+					}
+					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					e = characters.Store.SaveCharacterUnifiedOptionGroup(ctx, worldState.role.AccountID, worldState.role.ID, opt.Subtype, unifiedEntries(opt.Entries))
+					cancel()
+					if e != nil {
+						event(map[string]any{"kind": "character_effect_options_rejected", "reason": e.Error(), "character_id": selectedCharacterID})
+						continue
+					}
+					event(map[string]any{"kind": "character_effect_options_saved", "character_id": selectedCharacterID, "entries": len(opt.Entries), "options": opt.Entries})
 					case protocol.UnifiedOptionAccount:
 						if characters == nil {
 							event(map[string]any{"kind": "account_settings_rejected", "reason": "storage unavailable"})
@@ -4150,6 +4160,22 @@ if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "am
 								event(map[string]any{"kind": "charac_settings_restore_error", "error": fe.Error()})
 							} else {
 								event(map[string]any{"kind": "charac_settings_restored", "character_id": role.ID, "count": len(settings)})
+							}
+						}
+					}
+					// Restore the six character effect settings carried by CMD2377
+					// subtype 0x12 into their own object in NOTI2827.
+					{
+						effectCtx, effectCancel := context.WithTimeout(context.Background(), 3*time.Second)
+						effects, effectErr := characters.Store.CharacterUnifiedOptionGroup(effectCtx, role.ID, protocol.UnifiedOptionCharacterEffects)
+						effectCancel()
+						if effectErr != nil {
+							event(map[string]any{"kind": "charac_effect_options_restore_error", "character_id": role.ID, "error": effectErr.Error()})
+						} else if len(effects) > 0 {
+							if fe := protocol.FillCharacEffects(plan.SkillLocks, effects); fe != nil {
+								event(map[string]any{"kind": "charac_effect_options_restore_error", "character_id": role.ID, "error": fe.Error()})
+							} else {
+								event(map[string]any{"kind": "charac_effect_options_restored", "character_id": role.ID, "count": len(effects), "options": effects})
 							}
 						}
 					}
