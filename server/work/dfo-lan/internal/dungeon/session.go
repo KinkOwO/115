@@ -74,7 +74,11 @@ func Select(c catalog.DungeonCatalog, r protocol.DungeonSelection, level byte, a
 	if r.Quest > 65535 || r.Quest != 0 && !accepted[uint16(r.Quest)] {
 		return nil, fmt.Errorf("quest is not accepted by this character")
 	}
-	chosen, err := chooseMaze(d, r.Quest)
+	mazeQuest, err := selectionMazeQuest(d, r.Quest, accepted)
+	if err != nil {
+		return nil, err
+	}
+	chosen, err := chooseMaze(d, mazeQuest)
 	if err != nil {
 		return nil, err
 	}
