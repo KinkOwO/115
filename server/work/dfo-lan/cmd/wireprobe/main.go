@@ -2625,9 +2625,9 @@ if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "am
 					}
 					continue
 				}
-				if actionErr == nil && action == protocol.ActionOpenCreatureSkinSlot {
-					// 宠物幻化栏扩展券（action 197）。同一个 CMD507 上复用三种动作，
-					// 这里只接新增的这一路，54/169 保持各自原有的入口形状。
+				if actionErr == nil && (action == protocol.ActionOpenAuraSkinSlot || action == protocol.ActionOpenCreatureSkinSlot) {
+					// 幻化栏扩展券：光环 action 101、宠物 action 197。同一个 CMD507 上复用多种
+					// 动作，这里只接这两路，54/169/206 保持各自原有的入口形状。
 					plan, e := worldState.stackableAction(plaintext)
 					if e != nil {
 						event(map[string]any{"kind": "skin_slot_expand_refused", "character_id": worldState.role.ID, "reason": e.Error()})
@@ -2655,6 +2655,28 @@ if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "am
 						return
 					}
 					event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID})
+				}
+				continue
+			}
+			// CMD857 = ENUM_CMDPACKET_OPEN_AURA_SKIN_SLOT：幻化栏窗口弹「Unlock the Aura
+			// Skin slot?」时点 OK 发的就是它。以前没有这一分支，服务端既不置位也不回包，客户
+			// 端拿不到成功标志就永远不推进 —— 玩家看到的就是「点了没反应」。
+			if worldState != nil && bootstrapped && frame.ID == 857 {
+				if !verified {
+					event(map[string]any{"kind": "open_skin_slot_rejected", "reason": "幻化栏开启请求校验失败"})
+					continue
+				}
+				plan, e := worldState.openSkinSlot(plaintext)
+				if e != nil {
+					event(map[string]any{"kind": "open_skin_slot_refused", "character_id": worldState.role.ID,
+						"reason": e.Error(), "request_hex": hex.EncodeToString(plaintext)})
+					continue
+				}
+				for _, packet := range plan {
+					if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
+						return
+					}
+					event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID, "id": packet.ID})
 				}
 				continue
 			}

@@ -16,6 +16,12 @@ const (
 	ExpandEarring    byte = 1 << 4 // equipment slot 25
 	// ExpandCreatureSkin 是宠物幻化栏（穿戴槽 32）的开启位。
 	ExpandCreatureSkin byte = 1 << 5
+	// ExpandAuraSkin 是光环幻化栏（穿戴槽 11）的开启位。
+	//
+	// 与宠物侧同源：客户端读的是同一个 USERINFO1 解锁字节的另一位 —— 宠物幻化栏读
+	// bit5（原生 145f02500），光环幻化栏读 bit3（原生 145f02550，它同时是装扮槽
+	// 11 的挂锁位）。所以置位后必须重发 USERINFO1，见 worldSession.unlockRefresh。
+	ExpandAuraSkin byte = 1 << 3
 )
 
 // CreatureSkinSlot 是宠物幻化栏在穿戴容器（list 3）里的槽号。
@@ -23,6 +29,16 @@ const (
 // 实机 2026-09-26 全量会话统计：客户端对 dst >= 26 只用过 26/27/28/29/32，
 // 其中 32 只出现在 [creature] 本体（63003/63008）上，没有别的用途。
 const CreatureSkinSlot uint16 = 32
+
+// AuraSkinSlot 是光环幻化栏在穿戴容器（list 3）里的槽号。
+//
+// 装扮槽口径与官方一致：8 皮肤、9 光环本体、10 武器装扮、**11 光环幻化**。
+// 115 客户端拖进幻化栏做幻化的就是**光环本体**（[aurora avatar]），而规则表里该
+// 类型只映射到 9，于是 expected(9) != slot(11) 会把整次移动拒掉 —— 玩家看到的就是
+// 「The target inventory is full or has the same item in the maximum quantity in
+// it. Can't move the item.」。所以这条例外必须和 [aura skin avatar] -> 11 的既有
+// 映射并存（后者本来就映射到 11，无需例外）。
+const AuraSkinSlot uint16 = 11
 
 // CreatureSkinFallbackKey 是幻化槽宠物在存档里没有实例 key 时用的兜底 key。
 //
@@ -39,12 +55,30 @@ const CreatureSkinFallbackKey uint32 = uint32(CreatureSkinSlot) + 2
 // 的 [open creature skin slot]）。
 const CreatureSkinTicket uint32 = 10309084
 
+// AuraSkinTicket 是光环幻化栏扩展券的模板 id（玩家实际持有的那张）。
+//
+// 实机 2026-09-26：同会话 client_trace 把它记成
+// "Skin Slot Unlocker (Aura)(10157209) : SlotIndex(81)"。注意它的物品脚本里**没有**
+// [action type] 段（是纯 [etc] 消耗品），所以按脚本段反查不出动作 —— 这一路只能靠
+// CMD507 的动作号 101 / CMD857 的窗口类型 11 来认，与宠物券（脚本里有
+// [open creature skin slot]）不同。
+const AuraSkinTicket uint32 = 10157209
+
+// AuraSkinLicense 是商店里与 AuraSkinTicket 语义相同的许可证
+// （源 stackable/dfo/cash/2016/1025/aura_skin_slot.stk）。两者都只映射 bit3，所以
+// 认错也开不到宠物栏。
+const AuraSkinLicense uint32 = 50006401
+
 // SkinSlotMaskForTicket 把一张幻化栏扩展券模板映射到它开启的那一位。
 // 客户端用同一个 USERINFO1 解锁字节驱动装备栏挂锁与幻化栏
-// （原生 145f02500 读 bit5），所以券只对应位图里的一个 bit。
+// （原生 145f02500 读 bit5、145f02550 读 bit3），所以一张券只对应位图里的一个
+// bit，且光环券绝不能落到宠物那一位上（否则会「开错栏 + 白扣一张券」）。
 func SkinSlotMaskForTicket(template uint32) (byte, bool) {
-	if template == CreatureSkinTicket {
+	switch template {
+	case CreatureSkinTicket:
 		return ExpandCreatureSkin, true
+	case AuraSkinTicket, AuraSkinLicense:
+		return ExpandAuraSkin, true
 	}
 	return 0, false
 }

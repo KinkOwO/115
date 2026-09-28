@@ -143,3 +143,45 @@ func TestSkinSlotTicketSlotFindsByTemplate(t *testing.T) {
 		t.Fatal("an equipment unlock mask must not match a ticket")
 	}
 }
+
+// 光环幻化栏是同一个解锁字节的另一位：宠物读 bit5（145f02500），光环读 bit3
+// （145f02550，它同时是装扮槽 11 的挂锁位）。两张光环券 —— 玩家实际持有的 10157209
+// 与商店同语义许可证 50006401 —— 都只映射 bit3：若映射到宠物那一位，就会「开错栏 +
+// 白扣一张券」。
+func TestAuraSkinTicketTemplates(t *testing.T) {
+	if AuraSkinTicket != 10157209 || AuraSkinLicense != 50006401 {
+		t.Fatalf("aura tickets %d %d", AuraSkinTicket, AuraSkinLicense)
+	}
+	if AuraSkinSlot != 11 {
+		t.Fatalf("aura skin slot is %d, want 11", AuraSkinSlot)
+	}
+	if ExpandAuraSkin != 1<<3 {
+		t.Fatalf("aura bit is %#02x, want 1<<3", ExpandAuraSkin)
+	}
+	if ExpandAuraSkin&(ExpandSupport|ExpandMagicStone|ExpandEarring) != 0 {
+		t.Fatal("the aura bit collides with an equipment unlock bit")
+	}
+	for _, tmpl := range []uint32{AuraSkinTicket, AuraSkinLicense} {
+		mask, ok := SkinSlotMaskForTicket(tmpl)
+		if !ok || mask != ExpandAuraSkin {
+			t.Fatalf("template %d -> %#02x %v", tmpl, mask, ok)
+		}
+		if mask == ExpandCreatureSkin {
+			t.Fatal("an aura ticket was mapped onto the creature bit")
+		}
+	}
+	// 两张券互不串位：反查各自 mask 必须拿到各自那一格。
+	raw := expandState(t, `{"version":"ordinary-bag-v1","items":[`+
+		`{"slot":70,"Template":10309084,"Amount":1},`+
+		`{"slot":71,"Template":10157209,"Amount":1}]}`)
+	b, e := ReadBag(raw)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if slot, ok := SkinSlotTicketSlot(b, ExpandAuraSkin); !ok || slot != 71 {
+		t.Fatalf("aura ticket slot -> %d %v", slot, ok)
+	}
+	if slot, ok := SkinSlotTicketSlot(b, ExpandCreatureSkin); !ok || slot != 70 {
+		t.Fatalf("creature ticket slot -> %d %v", slot, ok)
+	}
+}

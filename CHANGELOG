@@ -1,6 +1,18 @@
 # CHANGELOG
 
 ## 2026-09-28
+- **幻化栏开启（CMD857 `OPEN_AURA_SKIN_SLOT`）+ 光环幻化槽放行**：修两个叠加的缺陷 ——「点 OK 后光环幻化栏不开启」与「栏开了但光环放不进幻化槽」。交付只有说明文档（无配套 patch），按文档逐文件实现；上游的宠物幻化栏底座已在，故本次只补光环侧 + 857。
+  - **缺陷一：CMD857 整条分派从来不存在**。客户端在「Unlock the Aura Skin slot?」确认框点 OK 之后发的是 CMD857；服务端 `main.go` 既无 `frame.ID == 857` 分支、也不回包，客户端拿不到成功标志于是永远不推进 —— 玩家看到的就是「点了没反应」。三条叠加，缺一条都是同一症状：
+    - CMD857 无处理器（本 MR 补）；
+    - **光环券模板认错**：玩家实际持有的是 `10157209`（同会话 client_trace 记成 `Skin Slot Unlocker (Aura)(10157209) : SlotIndex(81)`），`50006401` 只是 cera 商店里同语义的许可证；两者都只映射 bit3。⚠️ `10157209` 的物品脚本里**没有 `[action type]` 段**（纯 `[etc]` 消耗品），所以它按脚本段反查不出动作 —— 与宠物券（脚本里有 `[open creature skin slot]`）不同。
+    - **CMD507 动作号缺失**：从背包直接使用券时走 CMD507，光环券的**动作号是 101**（宠物券 197），原先只认 54/169/197 ⇒ 101 被整包丢弃且不回任何包。
+  - **协议**（实机坐实）：CMD857 请求体两次 u16 —— **第一个恒为 `0xffff`**（客户端根本不报券在背包哪一格 ⇒ 服务端只能用券的模板反查槽位），第二个才是窗口类型（`0x0b`=11 光环、`0x20`=32 宠物，正是客户端 handler `0x145286a50` 用来比对的取值）。**回包必须恰好 3 字节 `{1, lo, hi}`**：收包分发器先把 `body[0]` 当成功标志并推进游标，handler 再从偏移 1 读回窗口类型，多写字节会把 handler 之后的读取整体错位。
+  - **开启状态不是独立字段**，而是 USERINFO1 解锁字节里的一位：原生 `0x14563d692` 把它直接写进角色 `+0x198`；宠物幻化栏读 **bit5**（`0x145f02500`），光环幻化栏读 **bit3**（`0x145f02550`，它同时是装扮槽 11 的挂锁位）。因此置位后必须重发 USERINFO1 mode0 + mode1（`unlockRefresh`）。
+  - **缺陷二：光环放不进槽 11**。`wearable()` 只放行「配置里该类型映射到的槽号 == 目标槽号」，而 `equipment-wear.full-candidate.json` 里 `[aurora avatar]` 只映射到 **9**（光环本体槽），115 客户端拖进幻化栏做幻化的恰恰是**光环本体**、目标槽 **11** ⇒ `expected(9) != slot(11)` 返回 `equipment does not fit destination slot`（实机四次该拒绝），客户端弹「The target inventory is full ... Can't move the item.」。与宠物侧（`[creature]`→26 而实拖 32）完全同型。
+  - 落地：`game/protocol/skin.go` 新增 `OpenSkinSlotRequest` / `SkinSlotWindowAura=11` / `SkinSlotWindowCreature=32` / `DecodeOpenSkinSlot` / `OpenSkinSlotReply`；`stackable_action.go` 加 `ActionOpenAuraSkinSlot=101`，并**放开 offset 2（`list` 字节）的判定** —— 它是字段本身、由各动作自行判读，钉死为 0 会让上游哪天多发一个 list 值就整包丢弃、表现同样是「没反应」；`inventory/expand_slots.go` 加 `ExpandAuraSkin=1<<3` / `AuraSkinSlot=11` / `AuraSkinTicket=10157209` / `AuraSkinLicense=50006401`，`SkinSlotMaskForTicket` 改 `switch`；`inventory/wear.go` 加 `[aurora avatar]`→槽 11 的例外（要求 bit3 已开，方法 `auraSkinUnlocked`）；`cmd/wireprobe/skin_slot_flow.go` 新增 `openSkinSlot`（857 形态，按窗口定 mask，与 507 形态共用落地 `unlockSkinSlot`）；`main.go` 507 分支放开动作 101 + 新增 857 分支（`open_skin_slot_rejected` / `open_skin_slot_refused`）；`request_scope.go` 登记 857（包体只有 4 字节且每次都要留证；落进八次采样门后第 9 次起 verified 不再被计算，表现与「这条命令没实现」完全一样）。
+  - 回包次序：`skin_slot_ticket_spent`（NOTI14 绝对行，**数量归零时发显式空行**，否则客户端会留着最后一张券的图标）→ USERINFO1 刷新 → `open_skin_slot_answered`（仅 857 路径需要）。
+  - 新增用例：动作 101 的实机包 / `list` 字节可非零 / 857 解码与短包拒绝 / 回包**恰好 3 字节** / 两张光环券都只落 bit3（且不与宠物位、装备槽位碰撞）/ 券按模板反查互不串位 / 未开栏拒绝 + **只开宠物位也不放行** + 开栏后落到槽 11。
+  - 已知限制：只放行 `[aurora avatar]`（`[aura skin avatar]` 本来就映射到 11，无需例外），不放行其它装扮类型，避免把上衣或武器装扮塞进幻化栏；槽 11 属装扮位（≤11），沿用既有 `Group` 逻辑、未加类似槽 26/32 的特殊 record 重写 —— 若实机出现光环在槽 11 显示异常，需按槽 26 的写法补 record。
 - **纯净增幅书（CMD205 打红字）不再被拒**：此前服务端只认 `configs/amplify-grimoire.json` 里那 433 本加权表内的书，**表外的纯书一律报「窗口里的物品不是增幅书」** ⇒ 玩家手里除 `1286` 外的纯书（`590704000` / `10356261` / `10354248` / `10360807` / `10000605`，实测都出现过 CMD205 帧）**全都用不了**。
   - **关键认识**：客户端**只会对「增幅书」发 CMD205**，而这类纯书的脚本里**没有任何增幅段**（纯 `[etc]` 消耗品，只是名字叫「纯净的增幅书」）⇒ 客户端识别增幅书用的是**硬编码 / 按名**逻辑，**不可能靠扫脚本把它们枚举出来**。正确做法是**服务端兜底**，而不是一本一本地登记。
   - `classifyAmplifyBook(template)`：在 433 表且能摇出值 → 普通/白银/强烈书（红字数值 = 摇值）；脚本路径含 `golden` → 黄金增幅书；表值恒 0 或显式登记在 `pure_templates` → 纯净增幅书；**不在 433 表里 → 兜底判为纯净增幅书（不再拒绝）**。

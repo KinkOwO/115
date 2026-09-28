@@ -197,3 +197,49 @@ func RecentAddSkinList(entries []RecentAddSkinEntry) ([]byte, error) {
 	}
 	return p, nil
 }
+
+// OpenSkinSlotRequest is the body of CMD857
+// (ENUM_CMDPACKET_OPEN_AURA_SKIN_SLOT): the confirm dialog the skin storage
+// window raises when the player presses OK on "Unlock the Aura Skin slot?".
+//
+// Live capture 2026-09-26 (every request had the same shape):
+//
+//	u16 slot    always 0xffff - the client never reports which bag cell holds
+//	            the ticket, so the server has to resolve it from the template
+//	u16 window  0x000b (11) = aura skin slot, 0x0020 (32) = creature skin slot,
+//	            the same values the client handler 0x145286a50 compares against
+//
+// The body is padded to 16 bytes, so only the first four carry meaning.
+type OpenSkinSlotRequest struct {
+	Slot   uint16
+	Window uint16
+}
+
+// The two windows CMD857 can ask to open. They are destination slots in the
+// worn container (list 3), not unlock-byte bit numbers.
+const (
+	SkinSlotWindowAura     uint16 = 11
+	SkinSlotWindowCreature uint16 = 32
+)
+
+// DecodeOpenSkinSlot reads the CMD857 body; only four bytes are meaningful.
+func DecodeOpenSkinSlot(p []byte) (OpenSkinSlotRequest, error) {
+	if len(p) < 4 {
+		return OpenSkinSlotRequest{}, fmt.Errorf("open skin slot body is shorter than 4 bytes")
+	}
+	return OpenSkinSlotRequest{
+		Slot:   binary.LittleEndian.Uint16(p),
+		Window: binary.LittleEndian.Uint16(p[2:]),
+	}, nil
+}
+
+// OpenSkinSlotReply builds the CMD857 answer, which must be *exactly* three
+// bytes {1, windowLo, windowHi}.
+//
+// The receive dispatcher (0x146ea09f0) consumes body[0] as the success flag and
+// advances its cursor past it; the handler 0x145286a50 then reads the window
+// type back from offset 1. Writing any extra byte shifts every read the handler
+// makes afterwards.
+func OpenSkinSlotReply(window uint16) []byte {
+	return []byte{1, byte(window), byte(window >> 8)}
+}

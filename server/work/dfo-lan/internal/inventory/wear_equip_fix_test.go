@@ -151,3 +151,64 @@ func TestWearAcceptsCreatureIntoUnlockedSkinSlot(t *testing.T) {
 		t.Fatalf("creature not worn in the skin slot: %+v %v", worn, e)
 	}
 }
+
+// 光环幻化栏（穿戴槽 11）。与宠物侧完全同型：规则表里 [aurora avatar] 只映射到 9
+// （光环本体槽），而 115 客户端拖进幻化栏做幻化的正是**光环本体**，目标槽 11。实机
+// 四次 "equipment does not fit destination slot" 就是这次拒绝，客户端弹的是
+// 「The target inventory is full ... Can't move the item.」。
+//
+// 放行条件之一是扩展券已开启这一栏（USERINFO1 解锁字节 bit3）：客户端 UI 的挂锁读同
+// 一位，未开栏时服务端不该放行；而**开错位**（只开了宠物那一位）同样不能放行。
+func TestWearAcceptsAuraIntoUnlockedSkinSlot(t *testing.T) {
+	const sum = "3333333333333333333333333333333333333333333333333333333333333333"
+	cat := EquipmentCatalog{Source: pvf.ArchiveSnapshot{Checksum: sum}, Rows: []EquipmentDefinition{
+		{ID: 101009001, Path: "equipment/avatar/101009001.equ", SHA256: sum, Fields: map[string][]pvf.Token{
+			"[equipment type]": {{Type: 6, Text: "[aurora avatar]"}},
+			"[usable job]":     {{Type: 6, Text: "[all]"}},
+		}},
+	}}
+	dir := t.TempDir()
+	path := filepath.Join(dir, "equipment.json")
+	b, e := json.Marshal(cat)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if e = os.WriteFile(path, b, 0o600); e != nil {
+		t.Fatal(e)
+	}
+	eq, e := LoadEquipmentCatalog(path, sum)
+	if e != nil {
+		t.Fatal(e)
+	}
+	svc := &WearService{
+		Catalog:     eq,
+		Professions: catalog.Characters{Source: pvf.ArchiveSnapshot{Checksum: sum}, Professions: map[byte]catalog.Profession{0: {Job: "[all]"}}},
+		BagRules:    BagRules{EquipmentSlots: [2]uint16{9, 44}},
+		Rules:       WearRules{Source: sum, Special: true, Slots: map[string]uint16{"[aurora avatar]": 9, "[aura skin avatar]": 11}},
+	}
+	move := func(flags byte) (json.RawMessage, error) {
+		bag := Bag{Version: "ordinary-bag-v1", ExpandEquipFlags: flags,
+			Special: map[byte][]BagEquipment{1: {{Slot: 0, Template: 101009001}}}}
+		state, e := SaveBag(json.RawMessage(`{"level":1,"advancement":0}`), bag)
+		if e != nil {
+			t.Fatal(e)
+		}
+		return svc.MoveOrdinary(storage.Character{Profession: 0, ConfigVersion: sum, State: state},
+			protocol.ItemMoveRequest{SourceList: 1, SourceSlot: 0, SourceItem: 101009001,
+				DestinationList: 3, DestinationSlot: 11, Count: 1, Selection: 0xffffffff})
+	}
+	if _, e := move(0); e == nil {
+		t.Fatal("aura entered the skin slot while the expansion bit was clear")
+	}
+	if _, e := move(ExpandCreatureSkin); e == nil {
+		t.Fatal("the creature bit opened the aura skin slot")
+	}
+	raw, e := move(ExpandAuraSkin)
+	if e != nil {
+		t.Fatalf("aura refused by the unlocked skin slot: %v", e)
+	}
+	worn, e := ReadBag(raw)
+	if e != nil || len(worn.Worn) != 1 || worn.Worn[0].Slot != 11 || worn.Worn[0].Template != 101009001 {
+		t.Fatalf("aura not worn in the skin slot: %+v %v", worn, e)
+	}
+}
