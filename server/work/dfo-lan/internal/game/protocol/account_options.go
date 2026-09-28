@@ -28,3 +28,23 @@ func AccountOptions(overrides map[uint16]uint16) ([]byte, error) {
 	}
 	return p, nil
 }
+
+// FillAccountHotkeys overlays account-wide hotkey schemes onto the 3648-byte NOTI2826 block.
+// Subtype 3 (Scheme A) sits at offset 1277, and Subtype 4 (Scheme B) sits at offset 1750.
+func FillAccountHotkeys(block []byte, hotkeys, hotkeysExt map[uint16]uint16) error {
+	if len(block) != 3648 {
+		return fmt.Errorf("account option block size mismatch: %d != 3648", len(block))
+	}
+	if len(hotkeys) > 0 {
+		if err := FillHotkeysBlock(block[UnifiedAccountHotkeysAt:UnifiedAccountHotkeysAt+UnifiedHotkeysBlockSize], hotkeys); err != nil {
+			return err
+		}
+	}
+	if len(hotkeysExt) > 0 {
+		if err := FillHotkeysBlock(block[UnifiedAccountHotkeysExtAt:UnifiedAccountHotkeysExtAt+UnifiedHotkeysBlockSize], hotkeysExt); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
