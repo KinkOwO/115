@@ -1,6 +1,12 @@
 # CHANGELOG
 
 ## 2026-09-28
+- **GM 发放的道具显示「剩余期限已过」（服务端，待实机验收）**：用 GM 工具或 `bin/admin.exe` 发放的道具在客户端显示已过期、点下去没有任何反应（客户端根本不发使用请求，错误码 31730 `Expired and can't be used`）。典型例子是白银增幅书（`amplification_book_silver.stk` 的 `[expiration date]` 声明到期日 2022-11-08）。
+  - **根因（两层）**：① 181 字节物品行的**偏移 56** 就是客户端判过期的那一格，而 `inventory.Awarder.Grant` → `Bag.Add` **从来不传期限**，落库 `expire_time` 恒 0 ⇒ 凡是脚本声明过期限的模板一律过期（未声明期限的物品客户端不渲染那行文案，所以只有它们看起来正常）。② 兜底开关 `DFO_MAX_ITEM_PERIOD=1` 只在三个 `.cmd` 入口设置，而玩家双击的**一键启动器自己拉起 `launch_local.py`、从不设置它** ⇒ 整条兜底从未生效。
+  - **修复**：`awards.go` 发放可叠加物时写 `GrantExpireTime`（= `protocol.MaxItemPeriod`），发放装备后按**本次落到的槽位**写 `Period`（新增 `stampEquipmentPeriod`）；`item_period_override.go` 新增 `ConfigureStoredPeriodLifting` —— 让**旧存档里已过期的道具不用重发**就恢复可用（存档里已有的非零期限一律抬到 2147483647，**0 仍原样下发**）；`main.go` 把兜底改为**默认开启**（只有显式 `DFO_MAX_ITEM_PERIOD=0` 才关），且期限表读不到时**不再 `log.Fatal`**，降级为「只抬存量」。
+  - **口径**：永不过期哨兵 = **2147483647**，与商城 `cashshop.MaxExpireTime`、礼盒开箱 `loot/box.go` 同一口径；发放不是购买，没有真实倒计时可写。宠物 `[creature]` **不打 `Period`**（它的期限是脚本 `[usable period]` 的真值，由 `creatureRowPeriod` 负责，打了面板会从「7 天」变成「24856 天」）。
+  - **⚠️ 行为变更**：默认开启后**所有带期限的物品**都按「永不过期」下发，契约/限时道具的真实倒计时同样被抬到最大值 —— 这与三个 `.cmd` 入口一直以来的语义一致，本次只是把「默认」对齐；需要真实倒计时时设 `DFO_MAX_ITEM_PERIOD=0`。
+  - **测试**：新增 4 条（`TestGrantWritesNonExpiringPeriod`、`TestGrantSkipsExpiredStack`、`TestStampEquipmentPeriodTouchesOnlyGrantedSlots`、`TestStoredPeriodLiftingCoversExpiredRows`）。未改客户端、DLL、数据库结构或存档字段。
 - **NPC 商店「Sell All」批量出售点了没反应（服务端，待实机验收）**：莱纳斯商店的批量出售面板注册若干物品后点 `Sell (Spacebar)` → 弹 Notice → 点 OK，界面毫无反应（物品不消失、金币不增加、面板不关）。根因是 **CMD22 被写死成「只能单行」**：`protocol.DecodeSellItem` 硬校验 `len(p) != 24` 且 `Entries != 1`，而批量面板把**全部已注册行打包进同一个 CMD22**（实机抓到 6 行 80 字节、7 行 88 字节）⇒ 解码阶段整帧被丢 ⇒ 服务端回通用拒绝帧 `Refusal(4)` ⇒ 客户端无任何反馈（实机日志里客户端连发 4 次后放弃，每次留下 `shop_sell_refused: sell item requires 24 bytes`）。
   - **布局**：`u32 npcId + u32 actorId + u8 rows`，随后每行 11 字节（`u8 list + u16 slot + u32 count + u32 check`），末尾零填充到 **8 字节块边界**⇒ 总长 = `align8(9 + 11*rows)`（1 行 24、6 行 80、7 行 88）。⚠️ 更正旧文档「+20..23 恒为 4 字节零填充」——那只对单行成立。
   - **校验**：逐字节确认零填充；每行 `count > 0` 且 `check &^ 1 == 2*(list + slot + count)`（低位是确认位）。
