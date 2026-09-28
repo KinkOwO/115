@@ -17,8 +17,10 @@ func TestReinforcementGoldReplyShape(t *testing.T) {
 	if len(body) != 35 {
 		t.Fatalf("金币强化成功体长度 = %d，期望 35", len(body))
 	}
-	if body[0] != 1 || body[1] != r.Mode {
-		t.Errorf("头部 = %v，期望 [1 %d]", body[:2], r.Mode)
+	// 金币强化不会摧毁，[1] 回显请求 mode=0（写 10 会让客户端 dynamic_cast
+	// 失败、进不去结果分支，弹 1658「No items are available.」）。
+	if body[0] != 1 || body[1] != 0 {
+		t.Errorf("头部 = %v，期望 [1 0]", body[:2])
 	}
 	if slot := binary.LittleEndian.Uint16(body[2:]); slot != 367 {
 		t.Errorf("材料槽 = %d，期望 367", slot)

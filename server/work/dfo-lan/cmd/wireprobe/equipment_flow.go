@@ -13,6 +13,22 @@ import (
 type equipmentSession struct {
 	nonce       [16]byte
 	initialized bool
+	// 增幅摧毁装备后，客户端会把金币**显示**清成 0（存档里的金币是对的，重登即恢复）。
+	// 单独补发一次金币包没用 —— 客户端是在「装备破坏」动画之后才刷 UI 的，
+	// 所以这里把金币包挂起来，等主循环到点后再补发一次（同一 goroutine 串行发送，不并发写 socket）。
+	pendingGoldBody []byte
+	pendingGoldDue  time.Time
+}
+
+// takePendingGold 到点则取出待补发的金币包（未到点或没有则返回 nil）。
+func (s *equipmentSession) takePendingGold(now time.Time) []byte {
+	if len(s.pendingGoldBody) == 0 || now.Before(s.pendingGoldDue) {
+		return nil
+	}
+	body := s.pendingGoldBody
+	s.pendingGoldBody = nil
+	s.pendingGoldDue = time.Time{}
+	return body
 }
 
 func (s *equipmentSession) handle(service *inventory.WearService, w *worldSession, p, raw []byte) ([]outboundPacket, error) {
