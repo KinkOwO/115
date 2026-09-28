@@ -30,10 +30,10 @@ type entryPayloads struct {
 	SecondaryVault   []byte
 	AccountVault     []byte
 	AvailableQuests  []byte
-		Worn             []byte
-		AccountOptions   []byte
-		GamepadOptions   []byte
-		// InformNotice / InformNotice2nd are the per-character read-notice sets
+	Worn             []byte
+	AccountOptions   []byte
+	GamepadOptions   []byte
+	// InformNotice / InformNotice2nd are the per-character read-notice sets
 	// (NOTI402 / NOTI426). They ride right after account options: the client
 	// clears its read set from them, and a third-awakened character whose
 	// notice ledger is missing would otherwise re-pop the teaching frame on
@@ -52,6 +52,23 @@ type entryPayloads struct {
 	// follow its own owned page above.
 	SkinSelectionDamageFontNormal     []byte
 	SkinSelectionDamageFontCumulative []byte
+	// SkinCargoPartyFrame / SkinCargoSkillCutscene are the 边框 and 觉醒插图 owned
+	// pages. The border page is also the profile-decoration feature's page, so these
+	// arrive after its own pair below: a NOTI1545 frame rebuilds the page it names,
+	// and the later frame is the one the client keeps.
+	SkinCargoPartyFrame    []byte
+	SkinCargoSkillCutscene []byte
+	// SkinSelectionPartyFrame / SkinSelectionSkillCutscene re-apply what this
+	// character has selected in those two panels. Both are sets, not single ids:
+	// the cutscene renderer draws a random member of the vector.
+	SkinSelectionPartyFrame    []byte
+	SkinSelectionSkillCutscene []byte
+	// SkinFamilyRestores carries the entry frames of the skin families added after
+	// those two — 表情 / 涂鸦 / 飞空艇特效 owned pages and selections, plus the
+	// NOTI2641 收藏 push. They sit in the same window as the pair above (after the
+	// profile-decoration pages, before the town refresh) and each is emitted only when
+	// it has something to say, so preparePackets drops the empty ones.
+	SkinFamilyRestores []outboundPacket
 	// WornSlots is the id-14 per-slot update frame for the full worn set
 	// (space 3), same builder the equipment-move path uses. The live
 	// 20260921 probe timeline showed the equip-change heal always carries
@@ -81,6 +98,13 @@ type entryPayloads struct {
 	SkinSelection                                                 []byte
 	Avatars, AvatarReady, Creatures, CreatureList, CreatureGrowth []byte
 	CinematicSkips                                                []byte
+	// SkinRecent is the NOTI1547 body the storage window's 最近获得 strip rebuilds from
+	// its own five cells. The frame is absolute state - the reader clears the manager
+	// vector before its loop - so the entry push carries the whole list: every skin the
+	// account registered plus this character's replicated weapon shapes, oldest first.
+	// Empty when nothing is visible to the client, which leaves the strip as the client
+	// itself ships it.
+	SkinRecent []byte
 	// StoryDigest is the NOTI1370 4-byte little-endian story digest level.
 	// It must follow NOTI1352 inside the same entry group: the client asks on
 	// every town entry "how far has this character seen", and without an answer
@@ -107,18 +131,26 @@ type entryPayloads struct {
 	Peers [][]byte
 }
 
-	func (p entryPayloads) packets() []outboundPacket {
-		out := []outboundPacket{
-			{"select_parser_response", 1, 4, p.Select},
-			{"account_options_restored", 0, 2826, p.AccountOptions},
-			{"gamepad_options_restored", 0, 2128, p.GamepadOptions},
-			{"inform_notice_restored", 0, 402, p.InformNotice},
+func (p entryPayloads) packets() []outboundPacket {
+	out := []outboundPacket{
+		{"select_parser_response", 1, 4, p.Select},
+		{"account_options_restored", 0, 2826, p.AccountOptions},
+		{"gamepad_options_restored", 0, 2128, p.GamepadOptions},
+		{"inform_notice_restored", 0, 402, p.InformNotice},
 		{"inform_notice_2nd_restored", 0, 426, p.InformNotice2nd},
 		{"skin_cargo_damage_font_restored", 0, 1545, p.SkinCargoDamageFont},
 		{"skin_selection_damage_font_restored", 0, 1546, p.SkinSelectionDamageFontNormal},
 		{"skin_selection_damage_font_restored", 0, 1546, p.SkinSelectionDamageFontCumulative},
 		{"profile_skin_cargo_restored", 0, 1545, p.ProfileSkinCargo},
 		{"profile_skin_selection_restored", 0, 1546, p.ProfileSkinSelection},
+		// Both list families follow the profile pair above on purpose: the border
+		// page is the same page that feature rebuilds, and the last page frame for a
+		// page is the state the client keeps. A page rebuild is absolute, so these
+		// payloads already carry the profile feature's built-in rows.
+		{"skin_cargo_party_frame_restored", 0, 1545, p.SkinCargoPartyFrame},
+		{"skin_selection_party_frame_restored", 0, 1546, p.SkinSelectionPartyFrame},
+		{"skin_cargo_skill_cutscene_restored", 0, 1545, p.SkinCargoSkillCutscene},
+		{"skin_selection_skill_cutscene_restored", 0, 1546, p.SkinSelectionSkillCutscene},
 		{"cinematic_skips_restored", 0, 1352, p.CinematicSkips},
 		{"story_digest_restored", 0, 1370, p.StoryDigest},
 		{"entry_basic_probe_sent", 0, 2, p.Basic},
@@ -127,6 +159,11 @@ type entryPayloads struct {
 		{"skill_preset_restored", 0, 2758, p.SkillPreset},
 		{"vault_initialized", 0, 13, p.Vault},
 	}
+	// The newer skin families and the 收藏 push join the same entry window as the two
+	// list families above: an owned-page frame rebuilds its page from scratch, so it has
+	// to arrive before the selection frame that names ids from it, and both have to
+	// precede the town refresh.
+	out = append(out, p.SkinFamilyRestores...)
 	if len(p.SecondaryVault) > 0 {
 		out = append(out, outboundPacket{"secondary_vault_initialized", 0, 13, p.SecondaryVault})
 	}
@@ -217,6 +254,14 @@ type entryPayloads struct {
 	// 紧跟着上面那条容器帧补一次 NOTI1546，重开时客户端才能按同一个 id 重新高亮。
 	if len(p.SkinSelection) > 0 {
 		out = append(out, outboundPacket{"skin_cargo_selected", 0, 1546, p.SkinSelection})
+	}
+	// The 最近获得 strip is the window's own five-cell row list, fed only by NOTI1547,
+	// and that frame is a whole-list rebuild (sub_1444ED400 clears the vector before its
+	// loop). Nothing re-sent it since replication, so a relog left the strip empty even
+	// with skins registered. It joins the same place as the two weapon-shape frames
+	// above: after the initialization barrier, before the last actor rebuild.
+	if len(p.SkinRecent) > 0 {
+		out = append(out, outboundPacket{"skin_recent_restored", 0, 1547, p.SkinRecent})
 	}
 	return append(out,
 		outboundPacket{"actor_appearance_ready", 0, 2, p.Basic},

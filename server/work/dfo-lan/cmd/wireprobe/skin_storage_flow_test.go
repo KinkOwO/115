@@ -154,8 +154,29 @@ func TestDamageFontResetFrames(t *testing.T) {
 			t.Fatalf("%s: echo status byte is 0, the handler would only show a toast", tc.name)
 		}
 		if got, e := protocol.DecodeSelectSkin(echo.Payload[1:]); e != nil ||
-			got != (protocol.SelectSkinRequest{Category: tc.category, SkinID: tc.id}) {
+			got.Category != tc.category || got.SkinID != tc.id || len(got.SkinIDs) != 1 {
 			t.Fatalf("%s: echo decodes back as %+v (%v)", tc.name, got, e)
 		}
+	}
+}
+
+// TestEmoteHotkeyRequestIsAlwaysDecrypted pins the observation gate for CMD1551, the
+// 表情快捷键 press (body `u32 emote skin id, u32 0` — live 2026-09-28 gave 10179 / 10176 / 10175
+// for three different slots, all instant-emoticon ids in configs/skin-storage-items.json).
+//
+// The frame has no handler that answers it any more: attempt 1/3 replied with CMD 2039 and the
+// client showed no bubble, so the reply is gone (analysis/dumps/CLIENT-MECHANICS.md §21.5).
+// What stays is the log line, and it only exists while 1551 clears the sample cap — a player
+// presses emotes repeatedly, and past the cap the frame stops being decrypted, which would
+// quietly delete the evidence the next attempt needs (the same trap 1565 fell into).
+func TestEmoteHotkeyRequestIsAlwaysDecrypted(t *testing.T) {
+	seen := map[uint16]int{}
+	for i := 0; i < BodySampleLimit+20; i++ {
+		if !retainRequestBody(1551, seen) {
+			t.Fatal("a later 表情快捷键 request was not decrypted")
+		}
+	}
+	if seen[1551] != 0 {
+		t.Fatalf("1551 consumed %d sample slots", seen[1551])
 	}
 }

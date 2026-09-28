@@ -1,7 +1,6 @@
 package protocol
 
 import (
-	"bytes"
 	_ "embed"
 	"encoding/binary"
 	"fmt"
@@ -15,29 +14,47 @@ import (
 //
 //	+00 u32 stamp            (varies per frame)
 //	+04 u32                  (0, 1 and 0xFFFFFFFF all observed)
-//	+08 5B FE FF FF FF FF    (marker)
-//	+13 u8  scope
-//	+14 u8  subtype          (0x13 skill lock, 0x05 system settings)
-//	+15 u8  entry count
-//	+16 3B  zero
+//	+08 5B                   (context parameter / pointer / marker)
+//	+13 u8  scope            (0 = character, 1 = account)
+//	+14 u8  subtype          (0x01 account, 0x03 hotkeys A, 0x04 hotkeys B, 0x05 settings, 0x07 hotkey UI, 0x13 skill lock)
+//	+15 u32 entry count      (little endian)
 //	+19      count x (u16 position, u16 value)
-//	tail    0..5 bytes of zero padding
+//	tail    0..8 bytes of zero padding
 //
 // A forwarded repair note claims +04 is always 01000000; the captures falsify
 // that, so +04 is never validated here.
 const (
-	unifiedOptionLen      = 19
-	unifiedOptionMarkerAt = 8
-	unifiedOptionMaxTail  = 8
+	unifiedOptionLen     = 19
+	unifiedOptionMaxTail = 8
 
-	// UnifiedOptionSkillLock is the subtype that carries the skill lock block.
-	UnifiedOptionSkillLock = 0x13
-	// UnifiedOptionSettings is the subtype of the ordinary settings block,
-	// which shares the opcode but has its own index/value semantics.
-	UnifiedOptionSettings = 0x05
+	UnifiedOptionScopeCharac  = 0x00
+	UnifiedOptionScopeAccount = 0x01
+
 	// UnifiedOptionAccount is the subtype of the account-level option block,
 	// restored through NOTI2826.
 	UnifiedOptionAccount = 0x01
+	// UnifiedOptionHotkeys is keyboard scheme A (Type A).
+	UnifiedOptionHotkeys = 0x03
+	// UnifiedOptionHotkeysExt is keyboard scheme B (Type B).
+	UnifiedOptionHotkeysExt = 0x04
+	// UnifiedOptionSettings is the subtype of the ordinary settings block,
+	// which shares the opcode but has its own index/value semantics.
+	UnifiedOptionSettings = 0x05
+	// UnifiedOptionHotkeyUI is the UI state reporting frame.
+	UnifiedOptionHotkeyUI = 0x07
+	// UnifiedOptionSkillLock is the subtype that carries the skill lock block.
+	UnifiedOptionSkillLock = 0x13
+
+	UnifiedHotkeysSlots     = 157
+	UnifiedHotkeysBlockSize = 473
+	UnifiedHotkeysSlotsAt   = 2
+	UnifiedHotkeysExistAt   = 2 + 157*2 // 316
+
+	UnifiedAccountHotkeysAt    = 1277 // Subtype 3 in NOTI2826 (offset 0x4fd)
+	UnifiedAccountHotkeysExtAt = 1750 // Subtype 4 in NOTI2826 (offset 0x6d6)
+
+	UnifiedCharacHotkeysAt    = 0   // Subtype 3 in NOTI2827
+	UnifiedCharacHotkeysExtAt = 473 // Subtype 4 in NOTI2827
 )
 
 var unifiedOptionMarker = []byte{0xFE, 0xFF, 0xFF, 0xFF, 0xFF}
@@ -60,11 +77,11 @@ func DecodeUnifiedOption(p []byte) (UnifiedOption, error) {
 	if len(p) < unifiedOptionLen {
 		return r, fmt.Errorf("short unified option frame")
 	}
-	if !bytes.Equal(p[unifiedOptionMarkerAt:unifiedOptionMarkerAt+len(unifiedOptionMarker)], unifiedOptionMarker) {
-		return r, fmt.Errorf("unified option marker mismatch")
-	}
 	r.Scope, r.Subtype = p[13], p[14]
-	count := int(p[15])
+	count := int(binary.LittleEndian.Uint32(p[15:19]))
+	if count > 512 {
+		return r, fmt.Errorf("unsupported unified option entry count %d", count)
+	}
 	end := unifiedOptionLen + count*4
 	if len(p) < end || len(p) > end+unifiedOptionMaxTail {
 		return r, fmt.Errorf("unsupported unified option entry count")
@@ -300,3 +317,46 @@ func FillCharacSettings(block []byte, settings map[uint16]uint16) error {
 	}
 	return nil
 }
+
+// FillHotkeysBlock fills a 473-byte hotkey block (valid + version + 157*u16 + 157*exist)
+// at the destination slice.
+func FillHotkeysBlock(dst []byte, hotkeys map[uint16]uint16) error {
+	if len(dst) < UnifiedHotkeysBlockSize {
+		return fmt.Errorf("hotkey block buffer too short: %d < %d", len(dst), UnifiedHotkeysBlockSize)
+	}
+	if len(hotkeys) == 0 {
+		return nil
+	}
+	dst[0] = 1
+	dst[1] = 0
+	for pos, keycode := range hotkeys {
+		if pos >= UnifiedHotkeysSlots {
+			continue
+		}
+		slot := UnifiedHotkeysSlotsAt + int(pos)*2
+		binary.LittleEndian.PutUint16(dst[slot:], keycode)
+		exist := UnifiedHotkeysExistAt + int(pos)
+		dst[exist] = 1
+	}
+	return nil
+}
+
+// FillCharacHotkeys overlays character-specific hotkey schemes onto the 3539-byte NOTI2827 block.
+// Subtype 3 (Scheme A) sits at offset 0, and Subtype 4 (Scheme B) sits at offset 473.
+func FillCharacHotkeys(block []byte, hotkeys, hotkeysExt map[uint16]uint16) error {
+	if len(block) != UnifiedCharacOptionSize {
+		return fmt.Errorf("character option block size mismatch: %d != %d", len(block), UnifiedCharacOptionSize)
+	}
+	if len(hotkeys) > 0 {
+		if err := FillHotkeysBlock(block[UnifiedCharacHotkeysAt:UnifiedCharacHotkeysAt+UnifiedHotkeysBlockSize], hotkeys); err != nil {
+			return err
+		}
+	}
+	if len(hotkeysExt) > 0 {
+		if err := FillHotkeysBlock(block[UnifiedCharacHotkeysExtAt:UnifiedCharacHotkeysExtAt+UnifiedHotkeysBlockSize], hotkeysExt); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+

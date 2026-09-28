@@ -26,7 +26,7 @@ func skinState(t *testing.T, skins []uint32, applied uint32) json.RawMessage {
 // an empty window unless entry replays the whole saved tab. Live 2026-09-26: the
 // applied skin still drove the real model while the storage window was blank.
 func TestSkinCargoRestoreReplaysSavedTab(t *testing.T) {
-	got, e := skinCargoRestore(skinState(t, []uint32{101010912, 101010438}, 101010438))
+	got, e := skinCargoRestore(skinState(t, []uint32{101010912, 101010438}, 101010438), nil)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -43,7 +43,7 @@ func TestSkinCargoRestoreReplaysSavedTab(t *testing.T) {
 // An old save has no list, only the applied skin. Entry must still show that one
 // rather than an empty window.
 func TestSkinCargoRestoreFallsBackToAppliedSkin(t *testing.T) {
-	got, e := skinCargoRestore(skinState(t, nil, 101010912))
+	got, e := skinCargoRestore(skinState(t, nil, 101010912), nil)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -59,12 +59,51 @@ func TestSkinCargoRestoreFallsBackToAppliedSkin(t *testing.T) {
 // A character that replicated nothing must not get a NOTI1545: the entry packet
 // list skips empty payloads, so a nil body means the frame is not sent at all.
 func TestSkinCargoRestoreSilentWithoutSkins(t *testing.T) {
-	got, e := skinCargoRestore(skinState(t, nil, 0))
+	got, e := skinCargoRestore(skinState(t, nil, 0), nil)
 	if e != nil {
 		t.Fatal(e)
 	}
 	if len(got) != 0 {
 		t.Fatalf("cargo %x, want empty", got)
+	}
+}
+
+// The 武器外观 tab is the server's list verbatim: the panel filler 0x1441e47b0 keeps
+// every page-4 entry because its predicate reads the constant 0x9C40 registry record
+// instead of the entry, so it filters neither by id nor by job
+// (analysis/dumps/skin-noti/df22_ui_1441E47B0.c:40-41; live 2026-09-28 reported
+// shapes for weapon types this job cannot wear). Only dropping the id from the push
+// takes the row off screen, and nothing is deleted from the save.
+func TestSkinCargoRestoreDropsSkinsThisJobCannotWear(t *testing.T) {
+	usable := func(skin uint32) bool { return skin == 101010912 }
+	got, e := skinCargoRestore(skinState(t, []uint32{101010912, 101010438}, 0), usable)
+	if e != nil {
+		t.Fatal(e)
+	}
+	want := []byte{byte(protocol.SkinCargoWeaponShape)}
+	want = binary.LittleEndian.AppendUint16(want, 1)
+	want = binary.LittleEndian.AppendUint32(want, 101010912)
+	want = binary.LittleEndian.AppendUint16(want, 0)
+	if !bytes.Equal(got, want) {
+		t.Fatalf("cargo %x, want %x", got, want)
+	}
+}
+
+// The worn row is where the 解除 button lives, so a legacy shape that predates the
+// replication job gate must stay listed even though the gate now refuses it: hiding
+// it would leave the player wearing a skin with no way to take it off.
+func TestSkinCargoRestoreKeepsWornSkinEvenWhenUnusable(t *testing.T) {
+	usable := func(uint32) bool { return false }
+	got, e := skinCargoRestore(skinState(t, []uint32{101010912, 101010438}, 101010438), usable)
+	if e != nil {
+		t.Fatal(e)
+	}
+	want := []byte{byte(protocol.SkinCargoWeaponShape)}
+	want = binary.LittleEndian.AppendUint16(want, 1)
+	want = binary.LittleEndian.AppendUint32(want, 101010438)
+	want = binary.LittleEndian.AppendUint16(want, 0)
+	if !bytes.Equal(got, want) {
+		t.Fatalf("cargo %x, want %x", got, want)
 	}
 }
 

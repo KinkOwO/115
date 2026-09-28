@@ -81,11 +81,11 @@ func (w *worldSession) sellItem(p []byte) ([]outboundPacket, error) {
 	if !applied {
 		return nil, fmt.Errorf("duplicate shop sale request")
 	}
-	ack, e := protocol.SellItemSuccess(receipt.NewGold, []protocol.SoldItem{{
-		List:  r.List,
-		Slot:  r.Slot,
-		Count: receipt.Count,
-	}})
+	sold := make([]protocol.SoldItem, 0, len(receipt.Rows))
+	for _, row := range receipt.Rows {
+		sold = append(sold, protocol.SoldItem{List: row.List, Slot: row.Slot, Count: row.Count})
+	}
+	ack, e := protocol.SellItemSuccess(receipt.NewGold, sold)
 	if e != nil {
 		return nil, e
 	}

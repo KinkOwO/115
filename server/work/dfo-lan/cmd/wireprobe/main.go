@@ -484,17 +484,27 @@ func main() {
 		if e != nil {
 			log.Fatal(e)
 		}
-		if os.Getenv("DFO_MAX_ITEM_PERIOD") == "1" {
+		// 带期限物品一律按「永不过期」下发。**默认开启**（DFO_MAX_ITEM_PERIOD=0 才关）：
+		// 三个 .cmd 入口都设了这个变量，但一键启动器自己拉起 launch_local.py、
+		// 从不设置它 ⇒ 走一键启动器时整条兜底不生效，脚本声明过期限的模板
+		// （银增幅书到期日 2022-11-08 之类）就会带着 0 下发，客户端显示
+		// 「剩余期限已过」并拒绝使用（错误码 31730）。
+		if os.Getenv("DFO_MAX_ITEM_PERIOD") != "0" {
+			protocol.ConfigureStoredPeriodLifting(true)
 			if *itemIndexFile == "" {
-				log.Fatal("DFO_MAX_ITEM_PERIOD requires -item-index")
+				log.Printf("maximum item period: no item index (-item-index), lifting stored periods only")
+			} else {
+				periodFile := filepath.Join(filepath.Dir(*itemIndexFile), "item-period-tags.json")
+				templates, periodErr := catalog.LoadItemPeriods(periodFile, data.Source.Checksum)
+				if periodErr != nil {
+					// 表读不到不再致命：退化为「存档里已有的非零期限一律抬到最大值」，
+					// 至少不会把已过期的旧道具重新判成过期。
+					log.Printf("maximum item period table unavailable (%v), lifting stored periods only", periodErr)
+				} else {
+					protocol.ConfigureMaxItemPeriods(templates)
+					log.Printf("maximum item period enabled for %d PVF templates", len(templates))
+				}
 			}
-			periodFile := filepath.Join(filepath.Dir(*itemIndexFile), "item-period-tags.json")
-			templates, periodErr := catalog.LoadItemPeriods(periodFile, data.Source.Checksum)
-			if periodErr != nil {
-				log.Fatalf("DFO_MAX_ITEM_PERIOD: %v", periodErr)
-			}
-			protocol.ConfigureMaxItemPeriods(templates)
-			log.Printf("maximum item period enabled for %d PVF templates", len(templates))
 		}
 		// Skin-cargo registration (CMD507 action 169, `[add skin storage]`) reads
 		// the skin key straight from PVF and persists the unlock per account.
@@ -506,6 +516,8 @@ func main() {
 			} else if e = s.MigrateSkinCargo(ctx); e != nil {
 				log.Fatal(e)
 			} else if e = s.MigrateSkinSelection(ctx); e != nil {
+				log.Fatal(e)
+			} else if e = s.MigrateSkinSelectionList(ctx); e != nil {
 				log.Fatal(e)
 			} else {
 				skinCatalog = entries
@@ -733,6 +745,17 @@ func main() {
 			lootPath = path
 		}
 		if err := inventory.LoadReinforcementTickets(filepath.Join(filepath.Dir(lootPath), "reinforcement-tickets.json")); err != nil {
+			log.Fatal(err)
+		}
+		// 金币强化（材料 + 金币）的费用/成功率表，同样从 loot 目录旁边解析；
+		// 文件缺失时金币路径整体拒绝，券路径不受影响。
+		// 增幅书（CMD205 打红字）的加权表，来自 PVF 的 [amplification random value] 段。
+		if err := inventory.LoadAmplifyGrimoires(filepath.Join(filepath.Dir(lootPath), "amplify-grimoire.json")); err != nil {
+			log.Fatal(err)
+		}
+		// 增幅（CMD80 mode=1）的材料与金币表，来自 PVF 的 etc/amplifyupgrade.etc；
+		// 文件缺失时增幅整体拒绝，强化与打红字不受影响。
+		if err := inventory.LoadAmplifyUpgradeRules(filepath.Join(filepath.Dir(lootPath), "amplify-upgrade.json")); err != nil {
 			log.Fatal(err)
 		}
 		c, e := catalog.LoadLoot(lootPath)
@@ -2084,85 +2107,165 @@ func main() {
 						continue
 					}
 					event(map[string]any{"kind": "character_settings_saved", "character_id": selectedCharacterID, "entries": len(opt.Entries)})
-				case protocol.UnifiedOptionAccount:
-					if characters == nil {
-						event(map[string]any{"kind": "account_settings_rejected", "reason": "storage unavailable"})
-						continue
-					}
-					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-					e = characters.Store.SaveAccountUnifiedOptions(ctx, developmentAccount, unifiedEntries(opt.Entries))
-					cancel()
-					if e != nil {
-						event(map[string]any{"kind": "account_settings_rejected", "reason": e.Error()})
-						continue
-					}
-					event(map[string]any{"kind": "account_settings_saved", "entries": len(opt.Entries)})
-				}
-				continue
-			}
-
-			if bootstrapped && (frame.ID == 1950 || frame.ID == 1951) {
-				if !verified {
-					event(map[string]any{"kind": "gamepad_settings_rejected", "id": frame.ID, "reason": "checksum failed"})
-					continue
-				}
-				if characters == nil {
-					event(map[string]any{"kind": "gamepad_settings_rejected", "id": frame.ID, "reason": "storage unavailable"})
-					continue
-				}
-				if frame.ID == 1950 {
-					if len(plaintext) < 14 {
-						event(map[string]any{"kind": "gamepad_keys_rejected", "reason": "payload too short", "bytes": len(plaintext)})
-						continue
-					}
-					tsv := plaintext[14:]
-					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-					err := characters.Store.SaveAccountGamepadKeys(ctx, developmentAccount, tsv)
-					var hotPayload []byte
-					if err == nil {
-						hotPayload, _ = characters.Store.AccountGamepadPayload(ctx, developmentAccount)
-					}
-					cancel()
-					if err != nil {
-						event(map[string]any{"kind": "gamepad_keys_save_error", "error": err.Error()})
-						continue
-					}
-					// 回复 ACK: Kind=1, ID=1950, Payload=[0]
-					if err := sendPayload(1, 1950, []byte{0}); err != nil {
-						event(map[string]any{"kind": "gamepad_keys_ack_error", "error": err.Error()})
-						continue
-					}
-					// 即时热生效：主动向客户端发送最新的 NOTI 2128
-					if len(hotPayload) > 0 {
-						if err := sendPayload(0, 2128, hotPayload); err != nil {
-							event(map[string]any{"kind": "gamepad_hot_reload_error", "error": err.Error()})
-						} else {
-							event(map[string]any{"kind": "gamepad_hot_reloaded", "account_id": developmentAccount, "bytes": len(hotPayload)})
+					case protocol.UnifiedOptionAccount:
+						if characters == nil {
+							event(map[string]any{"kind": "account_settings_rejected", "reason": "storage unavailable"})
+							continue
 						}
+						ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+						e = characters.Store.SaveAccountUnifiedOptions(ctx, developmentAccount, unifiedEntries(opt.Entries))
+						cancel()
+						if e != nil {
+							event(map[string]any{"kind": "account_settings_rejected", "reason": e.Error()})
+							continue
+						}
+						event(map[string]any{"kind": "account_settings_saved", "entries": len(opt.Entries)})
+						case protocol.UnifiedOptionHotkeys, protocol.UnifiedOptionHotkeysExt:
+							if characters == nil {
+								event(map[string]any{"kind": "hotkeys_rejected", "reason": "storage unavailable"})
+								continue
+							}
+							charID := selectedCharacterID
+							if charID == 0 && worldState != nil && worldState.role.ID != 0 {
+								charID = worldState.role.ID
+							}
+							accountID := developmentAccount
+							if worldState != nil && worldState.role.AccountID != 0 {
+								accountID = worldState.role.AccountID
+							}
+							ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+							if opt.Scope == protocol.UnifiedOptionScopeAccount {
+								if charID != 0 {
+									_ = characters.Store.PromoteCharacterHotkeysToAccount(ctx, accountID, charID, opt.Subtype)
+								}
+								if len(opt.Entries) > 0 {
+									e = characters.Store.SaveAccountHotkeys(ctx, accountID, opt.Subtype, unifiedEntries(opt.Entries))
+								}
+								if e == nil {
+									_ = characters.Store.ClearAccountCharacterHotkeys(ctx, accountID, opt.Subtype)
+								}
+								cancel()
+								if e != nil {
+									event(map[string]any{"kind": "account_hotkeys_rejected", "reason": e.Error(), "subtype": opt.Subtype})
+									continue
+								}
+								event(map[string]any{"kind": "account_hotkeys_saved", "subtype": opt.Subtype, "entries": len(opt.Entries), "character_id": charID})
+							} else {
+								if charID == 0 {
+									cancel()
+									event(map[string]any{"kind": "character_hotkeys_rejected", "reason": "requires the owned selected character", "character_id": selectedCharacterID})
+									continue
+								}
+								_ = characters.Store.CopyAccountHotkeysToCharacter(ctx, accountID, charID, opt.Subtype)
+								e = characters.Store.SaveCharacterHotkeys(ctx, accountID, charID, opt.Subtype, unifiedEntries(opt.Entries))
+								cancel()
+								if e != nil {
+									event(map[string]any{"kind": "character_hotkeys_rejected", "reason": e.Error(), "character_id": charID, "subtype": opt.Subtype})
+									continue
+								}
+								event(map[string]any{"kind": "character_hotkeys_saved", "character_id": charID, "subtype": opt.Subtype, "entries": len(opt.Entries)})
+							}
+					case protocol.UnifiedOptionHotkeyUI:
+						event(map[string]any{"kind": "hotkey_ui_event", "character_id": selectedCharacterID, "scope": opt.Scope})
 					}
-					event(map[string]any{"kind": "gamepad_keys_saved", "account_id": developmentAccount, "bytes": len(tsv)})
-				} else if frame.ID == 1951 {
-					if len(plaintext) < 24 {
-						event(map[string]any{"kind": "gamepad_options_rejected", "reason": "payload too short", "bytes": len(plaintext)})
-						continue
-					}
-					opts := plaintext[14:24]
-					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-					err := characters.Store.SaveAccountGamepadOptions(ctx, developmentAccount, opts)
-					cancel()
-					if err != nil {
-						event(map[string]any{"kind": "gamepad_options_save_error", "error": err.Error()})
-						continue
-					}
-					// 回复 ACK: Kind=1, ID=1951, Payload=[0]
-					if err := sendPayload(1, 1951, []byte{0}); err != nil {
-						event(map[string]any{"kind": "gamepad_options_ack_error", "error": err.Error()})
-						continue
-					}
-					event(map[string]any{"kind": "gamepad_options_saved", "account_id": developmentAccount})
+					continue
 				}
-				continue
-			}
+
+				if bootstrapped && (frame.ID == 1950 || frame.ID == 1951) {
+					if !verified {
+						event(map[string]any{"kind": "gamepad_settings_rejected", "id": frame.ID, "reason": "checksum failed"})
+						continue
+					}
+					if characters == nil {
+						event(map[string]any{"kind": "gamepad_settings_rejected", "id": frame.ID, "reason": "storage unavailable"})
+						continue
+					}
+					charID := selectedCharacterID
+					if charID == 0 && worldState != nil && worldState.role.ID != 0 {
+						charID = worldState.role.ID
+					}
+					if frame.ID == 1950 {
+						if len(plaintext) < 14 {
+							event(map[string]any{"kind": "gamepad_keys_rejected", "reason": "payload too short", "bytes": len(plaintext)})
+							continue
+						}
+						scope := plaintext[13]
+						tsv := plaintext[14:]
+						ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+						var err error
+						var hotPayload []byte
+						if scope == 1 {
+							err = characters.Store.SaveAccountGamepadKeys(ctx, developmentAccount, tsv)
+							if err == nil {
+								_ = characters.Store.ClearAccountCharacterGamepadSettings(ctx, developmentAccount)
+								hotPayload, _ = characters.Store.AccountGamepadPayload(ctx, developmentAccount)
+							}
+						} else {
+							if charID == 0 {
+								cancel()
+								event(map[string]any{"kind": "gamepad_keys_rejected", "reason": "requires selected character", "bytes": len(plaintext)})
+								continue
+							}
+							err = characters.Store.SaveCharacterGamepadKeys(ctx, developmentAccount, charID, tsv)
+							if err == nil {
+								hotPayload, _ = characters.Store.ResolveGamepadPayload(ctx, developmentAccount, charID)
+							}
+						}
+						cancel()
+						if err != nil {
+							event(map[string]any{"kind": "gamepad_keys_save_error", "scope": scope, "error": err.Error()})
+							continue
+						}
+						// 回复 ACK: Kind=1, ID=1950, Payload=[0]
+						if err := sendPayload(1, 1950, []byte{0}); err != nil {
+							event(map[string]any{"kind": "gamepad_keys_ack_error", "error": err.Error()})
+							continue
+						}
+						// 即时热生效：主动向客户端发送最新的 NOTI 2128
+						if len(hotPayload) > 0 {
+							if err := sendPayload(0, 2128, hotPayload); err != nil {
+								event(map[string]any{"kind": "gamepad_hot_reload_error", "error": err.Error()})
+							} else {
+								event(map[string]any{"kind": "gamepad_hot_reloaded", "account_id": developmentAccount, "character_id": charID, "scope": scope, "bytes": len(hotPayload)})
+							}
+						}
+						event(map[string]any{"kind": "gamepad_keys_saved", "account_id": developmentAccount, "character_id": charID, "scope": scope, "bytes": len(tsv)})
+					} else if frame.ID == 1951 {
+						if len(plaintext) < 24 {
+							event(map[string]any{"kind": "gamepad_options_rejected", "reason": "payload too short", "bytes": len(plaintext)})
+							continue
+						}
+						scope := plaintext[13]
+						opts := plaintext[14:24]
+						ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+						var err error
+						if scope == 1 {
+							err = characters.Store.SaveAccountGamepadOptions(ctx, developmentAccount, opts)
+							if err == nil {
+								_ = characters.Store.ClearAccountCharacterGamepadSettings(ctx, developmentAccount)
+							}
+						} else {
+							if charID == 0 {
+								cancel()
+								event(map[string]any{"kind": "gamepad_options_rejected", "reason": "requires selected character", "bytes": len(plaintext)})
+								continue
+							}
+							err = characters.Store.SaveCharacterGamepadOptions(ctx, developmentAccount, charID, opts)
+						}
+						cancel()
+						if err != nil {
+							event(map[string]any{"kind": "gamepad_options_save_error", "scope": scope, "error": err.Error()})
+							continue
+						}
+						// 回复 ACK: Kind=1, ID=1951, Payload=[0]
+						if err := sendPayload(1, 1951, []byte{0}); err != nil {
+							event(map[string]any{"kind": "gamepad_options_ack_error", "error": err.Error()})
+							continue
+						}
+						event(map[string]any{"kind": "gamepad_options_saved", "account_id": developmentAccount, "character_id": charID, "scope": scope})
+					}
+					continue
+				}
 
 			if bootstrapped && (frame.ID == 3 || frame.ID == 7 || frame.ID == 1301) {
 				if !verified {
@@ -2470,6 +2573,16 @@ func main() {
 				}
 				continue
 			}
+			// 增幅摧毁装备后客户端会把金币显示清 0（存档是对的）。
+			// 挂在会话上的延后补发在这里出队 —— 放在主循环里串行发送，避免并发写 socket。
+			if worldState != nil {
+				if body := equipmentState.takePendingGold(time.Now()); len(body) > 0 {
+					if err := sendPayload(0, 14, body); err != nil {
+						return
+					}
+					event(map[string]any{"kind": "amplify_gold_resynced", "character_id": worldState.role.ID})
+				}
+			}
 			if worldState != nil && bootstrapped && frame.ID == 80 {
 				if !verified {
 					event(map[string]any{"kind": "reinforcement_rejected", "reason": "强化请求校验失败"})
@@ -2477,9 +2590,18 @@ func main() {
 				}
 				plan, err := equipmentState.reinforce(wearService, worldState, plaintext, frame.Raw, event)
 				if err != nil {
-					event(map[string]any{"kind": "reinforcement_refused", "character_id": worldState.role.ID, "reason": err.Error()})
+					// 客户端在 CMD80 的错误分支只认错误码（u16）去取 dstr 文案，不认原因字符串。
+					// 以前一律发 22，而 22 恰好映射到「材料不足」，于是任何拒绝都被玩家看成材料不够。
+					code := reinforcementRefusalCode(err)
+					event(map[string]any{
+						"kind":         "reinforcement_refused",
+						"character_id": worldState.role.ID,
+						"reason":       err.Error(),
+						"error_code":   code,
+						"request_hex":  hex.EncodeToString(plaintext),
+					})
 					// 14529B2F0 的失败分支只使用分发器读取的错误码，并清除等待态。
-					if err = sendPayload(1, 80, protocol.Refusal(22)); err != nil {
+					if err = sendPayload(1, 80, protocol.Refusal(code)); err != nil {
 						return
 					}
 					continue
@@ -2575,6 +2697,25 @@ func main() {
 					}
 					event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID, "id": packet.ID})
 				}
+				continue
+			}
+			// 表情快捷键（CMD1551）：体是 `u32 表情皮肤 id, u32 0`。实机 2026-09-28 三格三个值
+			// （10179 / 10176 / 10175），都是 configs/skin-storage-items.json 里 instant emoticon 的
+			// 皮肤 id（模板 10325568 / 10325577 等）⇒ 体首就是玩家按下的那个表情。
+			//
+			// 这里**只留观测，不回包**：attempt 1/3 试过回 CMD 2039（体一个 01 状态字节，客户端
+			// sub_1444E8CC0 状态非 0 只发界面事件 2345），四格各按一次、服务端六条 emote_use_
+			// acknowledged，实机**没有气泡**⇒ 已否证，帧撤掉。另有一条独立理由：2039 的处理器一个
+			// 体字节都不读，带不了「哪个角色放哪个表情」，而气泡必须点名角色。1551 仍登记进
+			// request_scope（见那里的注释）：不登记就只解密前八次，第八条之后连这条日志都没有。
+			if worldState != nil && bootstrapped && verified && frame.ID == 1551 {
+				if len(plaintext) < 4 {
+					event(map[string]any{"kind": "emote_use_rejected", "reason": "short body",
+						"bytes": len(plaintext)})
+					continue
+				}
+				event(map[string]any{"kind": "emote_use_observed", "character_id": worldState.role.ID,
+					"skin_id": binary.LittleEndian.Uint32(plaintext)})
 				continue
 			}
 			if worldState != nil && bootstrapped && frame.ID == 26 && lootService != nil {
@@ -3540,33 +3681,55 @@ func main() {
 						continue
 					}
 				}
-				accountOptions := accountOptionsPayload
-				if characters != nil {
-					optCtx, optCancel := context.WithTimeout(context.Background(), 5*time.Second)
-					overrides, optErr := characters.Store.AccountUnifiedOptions(optCtx, developmentAccount)
-					optCancel()
-					if optErr != nil {
-						event(map[string]any{"kind": "account_options_restore_error", "error": optErr.Error()})
-					} else if len(overrides) > 0 {
-						if accountOptions, optErr = protocol.AccountOptions(overrides); optErr != nil {
-							event(map[string]any{"kind": "account_options_restore_error", "error": optErr.Error()})
-							accountOptions = accountOptionsPayload
+						accountOptions := append([]byte(nil), accountOptionsPayload...)
+						if characters != nil {
+							optCtx, optCancel := context.WithTimeout(context.Background(), 5*time.Second)
+							overrides, optErr := characters.Store.AccountUnifiedOptions(optCtx, developmentAccount)
+							optCancel()
+							if optErr != nil {
+								event(map[string]any{"kind": "account_options_restore_error", "error": optErr.Error()})
+							} else if len(overrides) > 0 {
+								if accountOptions, optErr = protocol.AccountOptions(overrides); optErr != nil {
+									event(map[string]any{"kind": "account_options_restore_error", "error": optErr.Error()})
+									accountOptions = append([]byte(nil), accountOptionsPayload...)
+								}
+							}
+						hkCtx, hkCancel := context.WithTimeout(context.Background(), 5*time.Second)
+						accHkA, errA := characters.Store.AccountHotkeys(hkCtx, developmentAccount, protocol.UnifiedOptionHotkeys)
+						accHkB, errB := characters.Store.AccountHotkeys(hkCtx, developmentAccount, protocol.UnifiedOptionHotkeysExt)
+						hkCancel()
+						if errA != nil || errB != nil {
+							event(map[string]any{"kind": "account_hotkeys_restore_error", "error_a": fmt.Sprint(errA), "error_b": fmt.Sprint(errB)})
+						} else if len(accHkA) > 0 || len(accHkB) > 0 {
+							if accountOptions == nil {
+								var tmplErr error
+								accountOptions, tmplErr = protocol.AccountOptions(nil)
+								if tmplErr != nil {
+									event(map[string]any{"kind": "account_options_template_error", "error": tmplErr.Error()})
+								}
+							}
+							if accountOptions != nil {
+								if fe := protocol.FillAccountHotkeys(accountOptions, accHkA, accHkB); fe != nil {
+									event(map[string]any{"kind": "account_hotkeys_restore_error", "error": fe.Error()})
+								} else {
+									event(map[string]any{"kind": "account_hotkeys_restored", "count_a": len(accHkA), "count_b": len(accHkB)})
+								}
+							}
 						}
 					}
-				}
 					plan := entryPayloads{Select: payload, Basic: basic, Addition: addition, Vault: vaultPayload, UserArea: userArea, Area: areaPayload, Fatigue: fatiguePayload, AccountOptions: accountOptions}
 					plan.SecondaryVault = secondaryVaultPayload
 					plan.AccountVault = accountVaultPayload
-					if characters != nil {
-						gpCtx, gpCancel := context.WithTimeout(context.Background(), 5*time.Second)
-						gpPayload, gpErr := characters.Store.AccountGamepadPayload(gpCtx, developmentAccount)
-						gpCancel()
-						if gpErr != nil {
-							event(map[string]any{"kind": "gamepad_options_restore_error", "error": gpErr.Error()})
-						} else if len(gpPayload) > 0 {
-							plan.GamepadOptions = gpPayload
+						if characters != nil {
+							gpCtx, gpCancel := context.WithTimeout(context.Background(), 5*time.Second)
+							gpPayload, gpErr := characters.Store.ResolveGamepadPayload(gpCtx, developmentAccount, role.ID)
+							gpCancel()
+							if gpErr != nil {
+								event(map[string]any{"kind": "gamepad_options_restore_error", "character_id": role.ID, "error": gpErr.Error()})
+							} else if len(gpPayload) > 0 {
+								plan.GamepadOptions = gpPayload
+							}
 						}
-					}
 				// Restore the persisted category-0 skin state; without owned +
 				// selection frames the inventory CharBG keeps its default NEW
 				// animation. A failed restore aborts this entry rather than
@@ -3608,10 +3771,26 @@ func main() {
 						event(map[string]any{"kind": "skin_cargo_damage_font_restore_error", "character_id": role.ID, "reason": cargoErr.Error()})
 					}
 				}
+				// The 边框 and 觉醒插图 pages are filled for the same entry group. Their
+				// packets go after the profile pair because a NOTI1545 frame rebuilds the
+				// page it names and the last frame for page 0 is the state the client keeps;
+				// these payloads carry that feature's built-in rows too, and a selection
+				// frame is only sent when this character actually stores one.
+				if characters != nil && skinCatalog != nil {
+					familyCtx, familyCancel := context.WithTimeout(context.Background(), 5*time.Second)
+					plan.restoreSkinFamilies(familyCtx, characters.Store, developmentAccount, role.ID,
+						skinCatalog, event)
+					familyCancel()
+				}
 				// 幻化仓库（武器外观页签）容器只在复制时被推过一次，客户端重登即空；
 				// 这里按存档重推 NOTI1545。读不出状态只记事件照常进场，仓库空一次
 				// 比卡在角色选择界面好。
-				plan.SkinCargo, e = skinCargoRestore(role.State)
+				//
+				// 列表按本职业戴不戴得上过一遍：客户端那一页不做职业判断（见
+				// weaponSkinPageIDs），修好复制校验之前存下的条目就一直摆在那里
+				// （实机 2026-09-28）。nil 谓词 = 没有装备目录 = 原样发。
+				weaponSkinUsable := characters.WeaponSkinUsableFor(role)
+				plan.SkinCargo, e = skinCargoRestore(role.State, weaponSkinUsable)
 				if e != nil {
 					event(map[string]any{"kind": "skin_cargo_restore_error", "error": e.Error()})
 					plan.SkinCargo = nil
@@ -3624,6 +3803,21 @@ func main() {
 					event(map[string]any{"kind": "skin_selection_restore_error", "error": e.Error()})
 					plan.SkinSelection = nil
 					e = nil
+				}
+				// 「最近获得」那五行格只由 NOTI1547 喂，而这帧是整表重建，所以入场必须
+				// 把账号注册过的皮肤连同本角色复制出的武器外观一次发全。读失败只记事件
+				// 不发帧：仓库少一栏条不能把进城卡住。
+				if characters != nil && skinCatalog != nil {
+					recentCtx, recentCancel := context.WithTimeout(context.Background(), 5*time.Second)
+					recent, re := skinRecentRestore(recentCtx, characters.Store, developmentAccount,
+						role.State, skinCatalog, weaponSkinUsable)
+					recentCancel()
+					if re != nil {
+						event(map[string]any{"kind": "skin_recent_restore_error",
+							"character_id": role.ID, "reason": re.Error()})
+					} else {
+						plan.SkinRecent = recent
+					}
 				}
 				plan.CubeContract, e = cubeContractRestore(role.State)
 				if e != nil {
@@ -3692,22 +3886,39 @@ func main() {
 					event(map[string]any{"kind": "entry_skill_lock_error", "error": e.Error()})
 					continue
 				}
-				// Restore per-character system settings (CMD2377 subtype 0x05)
-				// onto the fresh NOTI2827 block so toggles survive relog/char switch.
-				{
-					restoreCtx, restoreCancel := context.WithTimeout(context.Background(), 3*time.Second)
-					settings, sErr := characters.Store.CharacterUnifiedOptions(restoreCtx, role.ID)
-					restoreCancel()
-					if sErr != nil {
-						event(map[string]any{"kind": "charac_settings_restore_error", "error": sErr.Error()})
-					} else if len(settings) > 0 {
-						if fe := protocol.FillCharacSettings(plan.SkillLocks, settings); fe != nil {
-							event(map[string]any{"kind": "charac_settings_restore_error", "error": fe.Error()})
-						} else {
-							event(map[string]any{"kind": "charac_settings_restored", "character_id": role.ID, "count": len(settings)})
+					// Restore per-character system settings (CMD2377 subtype 0x05)
+					// onto the fresh NOTI2827 block so toggles survive relog/char switch.
+					{
+						restoreCtx, restoreCancel := context.WithTimeout(context.Background(), 3*time.Second)
+						settings, sErr := characters.Store.CharacterUnifiedOptions(restoreCtx, role.ID)
+						restoreCancel()
+						if sErr != nil {
+							event(map[string]any{"kind": "charac_settings_restore_error", "error": sErr.Error()})
+						} else if len(settings) > 0 {
+							if fe := protocol.FillCharacSettings(plan.SkillLocks, settings); fe != nil {
+								event(map[string]any{"kind": "charac_settings_restore_error", "error": fe.Error()})
+							} else {
+								event(map[string]any{"kind": "charac_settings_restored", "character_id": role.ID, "count": len(settings)})
+							}
 						}
 					}
-				}
+					// Restore per-character hotkeys (CMD2377 subtype 0x03 / 0x04)
+					// onto the fresh NOTI2827 block.
+					if characters != nil && len(plan.SkillLocks) == protocol.UnifiedCharacOptionSize {
+						chkCtx, chkCancel := context.WithTimeout(context.Background(), 3*time.Second)
+						charHkA, errA := characters.Store.CharacterHotkeys(chkCtx, role.ID, protocol.UnifiedOptionHotkeys)
+						charHkB, errB := characters.Store.CharacterHotkeys(chkCtx, role.ID, protocol.UnifiedOptionHotkeysExt)
+						chkCancel()
+						if errA != nil || errB != nil {
+							event(map[string]any{"kind": "charac_hotkeys_restore_error", "character_id": role.ID, "error_a": fmt.Sprint(errA), "error_b": fmt.Sprint(errB)})
+						} else if len(charHkA) > 0 || len(charHkB) > 0 {
+							if fe := protocol.FillCharacHotkeys(plan.SkillLocks, charHkA, charHkB); fe != nil {
+								event(map[string]any{"kind": "charac_hotkeys_restore_error", "character_id": role.ID, "error": fe.Error()})
+							} else {
+								event(map[string]any{"kind": "charac_hotkeys_restored", "character_id": role.ID, "count_a": len(charHkA), "count_b": len(charHkB)})
+							}
+						}
+					}
 				event(map[string]any{"kind": "entry_skill_lock_prepared", "character_id": role.ID, "count": len(locks), "bytes": len(plan.SkillLocks)})
 				if lootService != nil {
 					// Relocate old stackables before the list-0 inventory snapshot.
