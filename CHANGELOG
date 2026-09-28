@@ -1,6 +1,7 @@
 # CHANGELOG
 
 ## 2026-09-29
+- **Luke 任务3939剧情收尾无法结算：实机已确认**。末房无可报告的 Boss 编号，原任务剧情触发后尝试编码 NOTI115 的目标 0，导致任务刷新和通关通知整批丢弃。Go 服务端仅在完成目标非零时发送 Boss 确认；无 Boss 身份的已完成剧情直接发送现有 NOTI31。用户确认任务完成，实机日志包含剧情触发、通关通知、结算及3939提交完成。全量测试、vet和构建通过；候选 SHA-256 `61434FE1412A7B1E742742CD9C0ED0721397B3BD7C75912A15F2D487879D969E`。未改客户端或数据库结构。基线：`server/work/dfo-lan/docs/protocol/luke-quest3939-scene-completion-20260929.md`。
 - **Evil Justice（任务12893）第二房间过场恢复战斗房：实机已确认**。用户确认第三轮候选在过场后进入正确的战斗房间。客户端原生NOTI29 flag2清除剧情层索引，mode0复用同格战斗房缓存；不重建房间、敌人或演出状态。该行为纳入已确认基线；完整后续房间推进未单独记录验收。取证、回滚与验收范围：`server/work/dfo-lan/docs/protocol/evil-justice-quest12893-layer-revisit-20260929.md`。
 
 

@@ -292,9 +292,10 @@ func (s *Session) CompletionNeedsBossCheck() bool {
 	if s == nil || !s.Completed() || s.terminalSceneClosingReached {
 		return false
 	}
-	// A tutorial without any reportable boss can finish on its source terminal
-	// map. NOTI31 is enough; NOTI115 requires a real entity identity.
-	return !s.Definition.Tutorial || s.CompletionTarget() != 0
+	// Tutorials and quest-triggered story scenes can finish without a
+	// reportable boss. NOTI31 enables clear in that case; NOTI115 requires a
+	// real entity identity and must not discard the whole completion batch.
+	return s.CompletionTarget() != 0
 }
 
 // CompletionTarget is the boss identity echoed back in the NOTI 115 payload. A
