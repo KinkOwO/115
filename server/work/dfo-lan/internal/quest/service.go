@@ -84,6 +84,23 @@ func (s *Service) Accept(ctx context.Context, role storage.Character, id uint16)
 			return storage.QuestState{}, errors.New("quest advancement requirement not met")
 		}
 	}
+	// A [collision quest] branch may only be taken while none of its peers is
+	// accepted or completed. Without this gate the client-side available list
+	// alone decides the faction choice, and a forged accept could still open
+	// several Silent City branches at once.
+	if len(d.Collisions) > 0 {
+		states, e := s.Store.Quests(ctx, role.AccountID, role.ID)
+		if e != nil {
+			return storage.QuestState{}, e
+		}
+		for _, q := range states {
+			for _, c := range d.Collisions {
+				if uint32(q.ID) == c && (q.Status == "accepted" || q.Status == "completed") {
+					return storage.QuestState{}, fmt.Errorf("quest %d conflicts with accepted or completed quest %d", id, q.ID)
+				}
+			}
+		}
+	}
 	initial, model, e := InitialProgress(d)
 	if e != nil {
 		return storage.QuestState{}, e

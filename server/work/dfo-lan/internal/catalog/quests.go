@@ -15,7 +15,12 @@ type QuestDefinition struct {
 	Jobs               []string     `json:"jobs"`
 	Prerequisites      []uint32     `json:"prerequisites"`
 	PrerequisiteGroups [][]uint32   `json:"prerequisite_groups,omitempty"`
-	Kind               string       `json:"kind"`
+	// Collisions names every [collision quest] peer. Source quests mark the
+	// branches of a single choice (Silent City faction, job change, ...) as
+	// mutually exclusive: once a character accepts or completes one member,
+	// the others must leave the available list and refuse acceptance.
+	Collisions []uint32 `json:"collisions,omitempty"`
+	Kind       string   `json:"kind"`
 	ObjectiveCells     []pvf.Token  `json:"objective_cells"`
 	RewardCells        []pvf.Token  `json:"reward_cells"`
 	Pending            []string     `json:"pending,omitempty"`
@@ -73,6 +78,7 @@ func ImportQuests(a *pvf.Archive) (QuestCatalog, error) {
 		}
 		d.ObjectiveCells = sectionCells(d.Script.Cells, "[int data]")
 		d.RewardCells = sectionCells(d.Script.Cells, "[reward int data]")
+		d.Collisions = parseCollisionQuests(d.Script.Cells)
 		q.Quests[row.ID] = d
 	}
 	return q, nil
@@ -113,6 +119,7 @@ func LoadQuests(path string) (QuestCatalog, error) {
 				break
 			}
 		}
+		d.Collisions = parseCollisionQuests(d.Script.Cells)
 		q.Quests[id] = d
 	}
 	return q, nil
@@ -159,4 +166,22 @@ func parsePrerequisiteGroups(cells []pvf.Token) ([][]uint32, []uint32, error) {
 		return nil, nil, err
 	}
 	return groups, flat, nil
+}
+
+// parseCollisionQuests reads every [collision quest] section: the plain quest
+// IDs it names are the peers of a mutually exclusive branch. Unlike the
+// prerequisite parser, an empty section is simply no constraint.
+func parseCollisionQuests(cells []pvf.Token) []uint32 {
+	var ids []uint32
+	on := false
+	for _, cell := range cells {
+		if cell.Type == 3 {
+			on = cell.Text == "[collision quest]"
+			continue
+		}
+		if on && cell.Type == 0 && cell.Value > 0 {
+			ids = append(ids, uint32(cell.Value))
+		}
+	}
+	return ids
 }

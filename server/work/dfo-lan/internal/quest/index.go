@@ -21,6 +21,10 @@ type Entry struct {
 	Jobs               []string
 	Prerequisites      []uint32
 	PrerequisiteGroups [][]uint32
+	// Collisions are the mutually exclusive branch peers: the available list
+	// hides a quest whose collision peer is already accepted or completed,
+	// and Accept refuses it.
+	Collisions []uint32
 	GrowTypes          []int32
 	TargetCharacters   []targetCharacter
 	TargetUsable       bool
@@ -142,6 +146,7 @@ func BuildIndex(c catalog.QuestCatalog) *Index {
 			RewardUsable: rewardUsable(d), GrowUsable: true,
 			MinimumLevel: d.MinimumLevel, MaximumLevel: d.MaximumLevel,
 			Jobs: d.Jobs, Prerequisites: d.Prerequisites, PrerequisiteGroups: groups,
+			Collisions: d.Collisions,
 		}
 		e.TargetCharacters, e.TargetUsable = targetCharacters(d.Script.Cells)
 		for _, g := range cells(d.Script.Cells, "[grow type]") {
