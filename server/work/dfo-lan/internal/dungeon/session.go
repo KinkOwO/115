@@ -707,7 +707,18 @@ func fixedMonsters(script catalog.ScriptRecord, basis uint32) ([]protocol.Dungeo
 			v[0] == 1 && v[3] == 424 && v[4] == -364 {
 			continue
 		}
-		out = append(out, protocol.DungeonMonster{Entity: uint16(4096 + len(out)), SourceIndex: uint32(len(out)), Level: byte(level), Template: uint32(v[0]), Rank: rank, Team: 100, NonCombat: nonCombat, SourceTail: [2]int32{v[6], v[7]}, CreateTrigger: createTriggerAt(ordinals, len(out))})
+		team := uint32(100)
+		// The archer and gunblader tutorial maps place this normal-rank actor
+		// below the playable area. Keep its source row/entity index for map
+		// scripts, but don't let the unreachable actor keep the exit closed.
+		offMapTutorialActor :=
+			(script.Path == "map/cataclysm/newtutorial/archer_f_tutorial/100008880.map" && v[0] == 70216 && v[3] == 893 && v[4] == -333) ||
+				(script.Path == "map/cataclysm/newtutorial/gunblader_m/70577.map" && v[0] == 70216 && v[3] == 1014 && v[4] == -311)
+		if offMapTutorialActor {
+			team = 0
+			nonCombat = true
+		}
+		out = append(out, protocol.DungeonMonster{Entity: uint16(4096 + len(out)), SourceIndex: uint32(len(out)), Level: byte(level), Template: uint32(v[0]), Rank: rank, Team: team, NonCombat: nonCombat, SourceTail: [2]int32{v[6], v[7]}, CreateTrigger: createTriggerAt(ordinals, len(out))})
 	}
 	// Source teams are parallel to monster rows. Team0 supplies friendly
 	// cinematic actors in this route; team100 supplies enemies. Never remove

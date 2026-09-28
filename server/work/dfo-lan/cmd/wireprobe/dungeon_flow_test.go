@@ -2,9 +2,12 @@ package main
 
 import (
 	"bytes"
+	"dfolan/internal/catalog"
 	"dfolan/internal/dungeon"
+	"dfolan/internal/game/protocol"
 	"dfolan/internal/game/wire"
 	"dfolan/internal/storage"
+	"encoding/binary"
 	"testing"
 )
 
@@ -42,5 +45,59 @@ func TestDungeonActorLifecyclePreflight(t *testing.T) {
 		if _, err = w.finishDungeonLoading(p); err == nil {
 			t.Fatal("accepted malformed loading request")
 		}
+	}
+}
+
+func TestPriestTutorialDoorAdvancesAfterRoomClear(t *testing.T) {
+	c, err := catalog.LoadDungeons("../../configs/tutorial-dungeons.current36.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	definition := c.Dungeons[7113]
+	if definition.ID == 0 || len(definition.Mazes) == 0 {
+		t.Fatal("priest tutorial dungeon 7113 is missing")
+	}
+	var room catalog.DungeonRoom
+	for _, candidate := range definition.Mazes[0].Rooms {
+		if candidate.Map == 76026 {
+			room = candidate
+			break
+		}
+	}
+	if room.Map == 0 {
+		t.Fatal("tutorial room 76026 is missing from source maze")
+	}
+	s := &dungeon.Session{
+		Definition: definition,
+		Maze:       definition.Mazes[0],
+		Room:       room,
+		Loaded:     true,
+		Monsters:   []protocol.DungeonMonster{{Entity: 0x1006, Template: 22006, Rank: 5, Team: 100, APC: true}},
+		Dead:       map[uint16]bool{},
+		NextEntity: 0x1007,
+	}
+	w := &worldSession{dungeons: &c, activeDungeon: s}
+
+	next, plan, err := w.interactDoor(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if next != nil || len(plan) != 1 || plan[0].ID != 38 {
+		t.Fatalf("door advanced with a live room monster: next=%+v plan=%+v", next, plan)
+	}
+
+	s.Dead[0x1006] = true
+	next, plan, err = w.interactDoor(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if next == nil || next.Room.Map != 76027 || next.Room.X != 3 || next.Room.Y != 0 {
+		t.Fatalf("cleared tutorial room did not advance to 76027: next=%+v", next)
+	}
+	if len(plan) != 3 || plan[0].ID != 38 || plan[1].ID != 45 || plan[2].ID != 29 {
+		t.Fatalf("unexpected tutorial transition packets: %+v", plan)
+	}
+	if got := binary.LittleEndian.Uint32(plan[2].Payload[32:36]); got != 76027 {
+		t.Fatalf("next-map packet names map %d, want 76027", got)
 	}
 }
