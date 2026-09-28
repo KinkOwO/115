@@ -73,3 +73,34 @@ func ReinforcementTicketReply(r ReinforcementRequest, remaining uint32, old, lev
 	p = append(p, make([]byte, 12)...)
 	return p, nil
 }
+
+// CMD80 金币强化（材料 + 金币）的成功体。与固定券共用 14529B2F0 的 reader 布局，
+// 槽位与剩余量换成被消耗的材料；差别只有两点：
+//
+//  1. 等级上限按客户端实机上限 15（超过会出现 ADD_HACKTYPE_CNT 与窗口锁死）；
+//  2. 失败分支与固定券一样要求 old == level —— 实机把 8→7 的降级写进回包同样被判定异常，
+//     真实掉级改由随后的装备行下发（客户端按行更新显示）。
+func ReinforcementGoldReply(r ReinforcementRequest, remaining uint32, old, level, result byte) ([]byte, error) {
+	if r.Mode != 0 || (r.EquipmentSpace != 0 && r.EquipmentSpace != 3) ||
+		r.TicketSpace != 0 || result > 1 || level > GoldReinforcementMaxLevel || old > GoldReinforcementMaxLevel ||
+		(result == 0 && level > GoldReinforcementResultCap) ||
+		(result == 1 && old != level) {
+		return nil, fmt.Errorf("金币强化结果不符合客户端规则")
+	}
+	p := []byte{1, r.Mode}
+	p = binary.LittleEndian.AppendUint16(p, r.TicketSlot)
+	p = binary.LittleEndian.AppendUint32(p, remaining)
+	p = binary.LittleEndian.AppendUint16(p, 0xffff)
+	p = append(p, 1, old, result, level, r.EquipmentSpace)
+	p = binary.LittleEndian.AppendUint16(p, r.EquipmentSlot)
+	p = binary.LittleEndian.AppendUint16(p, 0xffff)
+	p = binary.LittleEndian.AppendUint32(p, 0) // 语义未核实，与券路径保持一致填 0。
+	p = append(p, make([]byte, 12)...)
+	return p, nil
+}
+
+// GoldReinforcementMaxLevel 是装备实例行偏移 10 低五位能表达的最高强化等级。
+const GoldReinforcementMaxLevel = 31
+
+// GoldReinforcementResultCap 是客户端 CMD80 reader 实机接受的结果等级上限（成功分支）。
+const GoldReinforcementResultCap = 15
