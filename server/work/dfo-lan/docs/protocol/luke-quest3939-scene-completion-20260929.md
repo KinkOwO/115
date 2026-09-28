@@ -1,6 +1,6 @@
-# Luke quest 3939: scene completion with no boss identity
+# Luke quests 3939 and 4851: scene completion with no boss identity
 
-Status: **confirmed by the player on 2026-09-29**, attempt 1/3. Quest 3939 completes after the scene and settlement. This is the confirmed baseline for this task.
+Status: **confirmed by the player on 2026-09-29**, attempt 1/3. Quests 3939 and 4851 complete after their scenes and settlement with the same candidate. This is the confirmed baseline for these tasks.
 
 ## Reproduction
 
@@ -43,7 +43,13 @@ Validation: targeted regressions, full `go test ./...`, `go vet ./...`, and cand
 
 ## Confirmed player regression
 
-The player explicitly confirmed quest completion. In `runtime/roles_persist_select_actor_town_world_live_detail_dungeon_manual_20260929_033430_711389_next37/events.jsonl`, line 622 records `quest_scene_trigger`, line 624 `dungeon_clear_enabled`, line 628 `dungeon_play_result`, and line 652 `quest_finished` for quest 3939. The character's saved task is completed, progress 0, with its reward receipt present. No invalid-boss-identity failure occurred in this completion chain. Confirmation covers this task and its settlement/submission; other scene tasks are not claimed as individually tested.
+The player explicitly confirmed quest completion. In `runtime/roles_persist_select_actor_town_world_live_detail_dungeon_manual_20260929_033430_711389_next37/events.jsonl`, line 622 records `quest_scene_trigger`, line 624 `dungeon_clear_enabled`, line 628 `dungeon_play_result`, and line 652 `quest_finished` for quest 3939. The character's saved task is completed, progress 0, with its reward receipt present. No invalid-boss-identity failure occurred in this completion chain.
+
+The player then confirmed quest 4851 also works with this candidate. Its original completed row and reward receipt were backed up under `runtime/quest4851-repro-20260929/` and audited before resetting only that task to accepted/progress 1; existing awards and all other tasks remained intact. In `runtime/roles_persist_select_actor_town_world_live_detail_dungeon_manual_20260929_034019_571456_next37/events.jsonl`, line 583 reaches dungeon 5111, maze 1, objective map 312147; line 613 records `quest_scene_trigger`, line 615 `dungeon_clear_enabled`, line 619 `dungeon_play_result`, and line 643 `quest_finished` for quest 4851. Both saved tasks are completed with progress 0. Confirmation covers these two tasks and their settlement/submission; other scene tasks are not claimed as individually tested.
+
+## Maintenance constraint
+
+The code comment at `CompletionNeedsBossCheck` records the original bad expression and its failure chain. Do not restore `!s.Definition.Tutorial || s.CompletionTarget() != 0`, and do not invent a boss identity for a scene with none. Any future refactor must preserve direct NOTI31 for an already-completed scene without a boss identity and NOTI115 followed by NOTI31 for a real boss. Preserve the regressions `TestQuest3939SceneCompletionWithoutBossIdentity` and `TestSceneCompletionKeepsRealBossConfirmation`.
 
 ## Retest and rollback
 

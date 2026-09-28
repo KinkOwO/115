@@ -292,9 +292,18 @@ func (s *Session) CompletionNeedsBossCheck() bool {
 	if s == nil || !s.Completed() || s.terminalSceneClosingReached {
 		return false
 	}
-	// Tutorials and quest-triggered story scenes can finish without a
-	// reportable boss. NOTI31 enables clear in that case; NOTI115 requires a
-	// real entity identity and must not discard the whole completion batch.
+	// [CONFIRMED-20260929-QUEST3939-4851] 必须保留非零完成目标检查。
+	// 旧写法 `!s.Definition.Tutorial || s.CompletionTarget() != 0` 会让普通
+	// 剧情副本在没有可报告 Boss（CompletionTarget()==0）时仍发送 NOTI115。
+	// 3939 实机已复现：CMD33 剧情触发后，BossCheckConfirmed(0) 报
+	// "invalid boss identity"，整批任务刷新 NOTI291 和通关通知 NOTI31 被丢弃；
+	// 玩家看不到结算，任务无法正常完成，即使数据库目标已经推进到 0。
+	// 修复后 3939、4851 均已由用户实机确认完成：无 Boss 身份的已完成剧情
+	// 直接走现有 NOTI31；真实 Boss 仍先发 NOTI115。不要恢复旧写法，也不要
+	// 为绕过检查伪造 Boss 编号。修改此处必须保留这两种完成通知语义，回归
+	// TestQuest3939SceneCompletionWithoutBossIdentity 和
+	// TestSceneCompletionKeepsRealBossConfirmation。证据见
+	// docs/protocol/luke-quest3939-scene-completion-20260929.md。
 	return s.CompletionTarget() != 0
 }
 
