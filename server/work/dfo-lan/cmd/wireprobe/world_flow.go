@@ -102,11 +102,15 @@ type worldSession struct {
 	// scaleRun 是上面两张表所归属的副本运行号。同一会话里重进副本会把 entity 从
 	// 0x1000 重新发一遍，只按 entity 去重会让第二场之后再也不可能判死（实战踩过），
 	// 所以换 RunID 时必须整表清空。
-	scaleRun           string
-	activeDungeon      *dungeon.Session
-	selectingDungeon   bool
-	completionSent     bool
-	completionErr      error
+	scaleRun         string
+	activeDungeon    *dungeon.Session
+	selectingDungeon bool
+	completionSent   bool
+	completionErr    error
+	// [MERGE-20260928-DIAG] 最近一次场景换图的决策路径，由 dispatch 落进 events。
+	sceneDiag          string
+	sceneDiagFrom      uint32
+	sceneDiagTo        uint32
 	resultSent         bool
 	cardPlan           *loot.CardPlan
 	cardScrolled       bool

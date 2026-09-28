@@ -21,7 +21,19 @@ func (s *Session) BossCheck(r protocol.BossCheckRequest, actor uint16) error {
 	}
 	found := false
 	if s.Definition.Odyssey || s.Definition.ID == 100003126 {
+		// 本仓库契约：奥德赛的 BossCheck 立即受理（见 TestOdysseyBossCheckImmediateCompletion，
+		// 它用不存在的实体编号 9999 断言必须放行并直接完成）。
+		//
+		// ⚠️ 刻意分歧（不采纳修复包的收紧）：包里把这里换成「必须命中脚本声明的
+		// [hunt boss] 模板 / 位于 maze.Boss」，用来防「奥德赛场景房里的 rank3 演出假 boss
+		// 被客户端当 boss 上报 CMD117 → 副本在场景房里提前通关」。这条收紧会推翻上面的
+		// 既有契约（单元测试与若干实机副本都依赖「立即受理」）。
+		// 本仓库对同一风险已有**另一道**防护，就在本函数开头：
+		//   boss scene sequence has not reached its final map
+		// —— 只要当前格子挂着层图、而房间地图不是该层图序列的最后一张，就直接拒绝。
+		// 因此这里维持原语义，不为同一问题再叠一层会破坏契约的判据。
 		found = true
+
 	} else {
 		bossRoom := s.Room.Boss && position == s.Maze.Boss
 		// Tutorial source data names the terminal coordinate in [boss] but
@@ -39,6 +51,20 @@ func (s *Session) BossCheck(r protocol.BossCheckRequest, actor uint16) error {
 				} else {
 					found = bossRoom || s.Room.Map == s.postBossQuestMap()
 				}
+			}
+		}
+	}
+	// [MERGE-20260927-BOSS-ID-SKEW] 客户端上报的 boss 实体可能与服务端的 rank3
+	// 标记错位：教程副本 7118 的 boss 房（91210）里，服务端 rank3 是 4126，客户端
+	// 报的却是 4127（服务端视角的 rank0 小怪）。两边对不上就永远拿不到 boss 确认，
+	// CMD117 被静默丢弃、客户端死等（实机 2026-09-27 黑屏卡死）。
+	// 源已声明 boss 房位置、且房里确实存在可战斗的源领主时，接受客户端指定的任意
+	// 本房间敌怪作为完成目标；目标仍必须是真实存在的源怪（team≠0 且非剧情 actor）。
+	if !found && s.Room.Boss && position == s.Maze.Boss && s.hasFightableBoss() {
+		for _, m := range s.Monsters {
+			if m.Entity == r.Target && m.Team != 0 && !m.NonCombat {
+				found = true
+				break
 			}
 		}
 	}
@@ -123,6 +149,16 @@ func (s *Session) tryComplete() {
 			s.completed = true
 			return
 		}
+		// [MERGE-20260928-BOSS-ROOM-ACTOR] 上一条要求房里存在 rank-3 的 display boss。
+		// 但奥德赛里脚本声明的 boss 房也可能只摆 rank=0 的源怪（100004984..989 的 boss
+		// 房就是 tpl=109019487 rank=0）：客户端不会为 rank0 发 CMD117，于是这里成了唯一
+		// 能结算的入口。限定在 Odyssey，普通副本不因为「刚好有只敌怪」而多出结算路径
+		// （TestSourceBossCompletionRequiresTheSourceBoss 守着这一点）。两道守卫与上一条
+		// 同形（**在脚本声明的 boss 房间**、**房里可击杀目标已清空**）。
+		if s.Definition.Odyssey && s.Loaded && s.atSourceBossMap() && s.roomEnemiesDead() && s.reportableRoomActor() != 0 {
+			s.completed = true
+			return
+		}
 		// A layered story sequence whose only rank-3 actor is a display dummy
 		// never yields a BOSS_CHECK - the client raises command 117 only for a
 		// real boss - so completionTarget stays zero and no death report for
@@ -199,6 +235,47 @@ func (s *Session) postBossQuestMap() uint32 {
 
 func (s *Session) TryComplete() { s.tryComplete() }
 
+// SceneDiagnostic 记录最近一次场景换图走了哪条判定分支，仅供排查用（不影响行为）。
+// nil 接收者安全。
+func (s *Session) SceneDiagnostic() string {
+	if s == nil {
+		return ""
+	}
+	return s.sceneDiagnostic
+}
+
+func (s *Session) noteSceneDiagnostic(format string, a ...any) {
+	s.sceneDiagnostic = fmt.Sprintf(format, a...)
+}
+
+// SceneEntryRecord 报告进入当前层图时客户端带来的换图记录。
+//
+// [MERGE-20260928-START-LAYER-EXIT] 起点层图格点门要**前进**，而前进那一包也得带上
+// 换图记录：客户端靠 StartMap 的 Transition 安置角色。这份记录 scene_routes 里查不到
+// （晦月湖 100004777 整条链都不在路由表里），只能从「客户端主动进层图」那一包里
+// 原样留存 —— 留着默认全 f 会让角色落点错位，紧接的第二段剧情一开就崩。
+func (s *Session) SceneEntryRecord() ([18]byte, bool) {
+	if s == nil {
+		return [18]byte{}, false
+	}
+	return s.layerRecord, s.hasLayerRecord
+}
+
+// [MERGE-20260928-SCENE-CLEAR-COMPLETE] MarkSceneCompleted 由「[clear map] 剧情副本」
+// 的任务触发调用。
+//
+// 这类副本的结束信号是任务本身：脚本里没有可击杀的收尾 BOSS（实机 100004786
+// 「墨色瘟疫之匣」的 BOSS 带 `[show boss hp percent gauge]`，但设计上永不死亡，
+// 客户端血条显示 Immortal），客户端因此**不会**发 CMD117，玩家在剧情播完后由
+// 客户端发 SET_QUEST_TRIGGER(33) 收尾。任务侧结算成功即代表本次攻略完成，
+// 这里把副本一并标记完成，好让上层走正常的完成结算（NOTI34/37/35 等）。
+func (s *Session) MarkSceneCompleted() {
+	if s == nil {
+		return
+	}
+	s.completed = true
+}
+
 func (s *Session) Completed() bool { return s != nil && s.completed }
 
 // A source closing scene without a boss identity can enable dungeon clear
@@ -230,6 +307,15 @@ func (s *Session) CompletionTarget() uint16 {
 		}
 		if target := s.reportableDisplayBoss(); target != 0 && !s.lotusClosingReached {
 			return target
+		}
+		// [MERGE-20260928-BOSS-ROOM-ACTOR] 没有 rank-3 领主的 boss 房（100004984..989）
+		// 走不到上面两条，返回 0 会被编码器拒绝、整批完成数据被丢弃。挑一个可报告的
+		// 源怪当身份，与 tryComplete 新增的那条 Odyssey 结算路径配套；限定 Odyssey，
+		// 普通副本的身份选择不变。
+		if s.Definition.Odyssey {
+			if target := s.reportableRoomActor(); target != 0 && !s.lotusClosingReached {
+				return target
+			}
 		}
 		return s.reportableLotusTarget()
 	}
@@ -283,6 +369,24 @@ func (s *Session) reportableDisplayBoss() uint16 {
 
 // A story display boss is present in the final map's NOTI29 rows. Use its
 // actual entity as the confirmation identity when no CMD117 was sent.
+// [MERGE-20260928-BOSS-ROOM-ACTOR] reportableRoomActor 在**没有 rank-3 领主**的
+// boss 房里挑一个可报告的源怪，作为 NOTI115 的身份。
+//
+//	奥德赛的 100004984..100004989 这 5 个副本（正是 scenes 导出里没有 scene_routes
+//	的那一批）的 boss 房只摆 rank=0 的源怪（tpl=109019487）。客户端不会为 rank0 发
+//	CMD117，而 reportableDisplayBoss 要求 rank==3 故返回 0 —— 于是 tryComplete 的
+//	兜底不成立、CompletionTarget 也返回 0，可编码器拒绝 0，整批完成数据被丢弃：
+//	客户端看不到任何变化，玩家在 boss 房里点门只收到 door_ack。
+//	实机 2026-09-28「前往阿拉德」（副本 100004986，boss 房 100016525）就是这样卡住的。
+func (s *Session) reportableRoomActor() uint16 {
+	for _, m := range s.Monsters {
+		if m.Entity != 0 && m.Entity != 65535 && m.Team != 0 && !m.NonCombat {
+			return m.Entity
+		}
+	}
+	return 0
+}
+
 func (s *Session) reportableLotusTarget() uint16 {
 	if s == nil || !s.lotusClosingReached || s.Definition.ID != 26 || s.Maze.Index != 3 || s.Room.Map != 100008697 {
 		return 0

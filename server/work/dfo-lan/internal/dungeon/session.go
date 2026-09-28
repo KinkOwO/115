@@ -63,6 +63,11 @@ type Session struct {
 	completed                   bool
 	lotusClosingReached         bool
 	terminalSceneClosingReached bool
+	// sceneDiagnostic 记录最近一次场景换图走了哪条判定分支，仅供排查（见 SceneDiagnostic）。
+	sceneDiagnostic string
+	// layerRecord 是客户端主动进当前层图时带来的换图记录（见 SceneEntryRecord）。
+	layerRecord    [18]byte
+	hasLayerRecord bool
 }
 
 func Select(c catalog.DungeonCatalog, r protocol.DungeonSelection, level byte, accepted map[uint16]bool) (*Session, error) {
@@ -379,7 +384,14 @@ func (s *Session) RoomCleared() bool {
 }
 func (s *Session) Move(c catalog.DungeonCatalog, target [2]byte) (*Session, error) {
 	if s.Completed() || s.completionTarget != 0 {
-		return nil, fmt.Errorf("boss completion is pending or already accepted")
+		// [MERGE-20260928-POSTBOSS-SCENE] 完成之后仍允许走向「还有剧情层图的相邻格」。
+		// 苏醒之森 100004977 在 boss 房 (5,0) 就判完成，但后面还有 (6,0) 的过场
+		// （层图 100017263，scene_route 100017262→100017263）。一律拒会把这最后一段
+		// 挡在外面 —— 实机 2026-09-28 玩家打完 boss、点地图上的传送阵，服务端回
+		// "boss completion is pending or already accepted"，传送阵过不去。
+		if !s.adjacentLayerPending(c, target) {
+			return nil, fmt.Errorf("boss completion is pending or already accepted")
+		}
 	}
 	if !s.RoomCleared() {
 		return nil, fmt.Errorf("current room not loaded or still has live enemies")
@@ -401,6 +413,28 @@ func (s *Session) Move(c catalog.DungeonCatalog, target [2]byte) (*Session, erro
 	}
 	// Return to the last entered scene, including rooms with zero monsters.
 	return s.enterRoom(c, s.latestLayer(*room))
+}
+
+// [MERGE-20260928-POSTBOSS-SCENE] adjacentLayerPending 报告目标格是否是「还没播完的
+// 剧情层图」所在格：该格在 maze 里、位于当前房间的相邻位、且挂有 layer 地图。
+//
+// boss 房之后还接一段过场的副本（苏醒之森 100004977：(5,0) → (6,0) 的 100017263）
+// 需要它 —— 否则 Move 的完成守卫会把这段挡在外面。
+func (s *Session) adjacentLayerPending(c catalog.DungeonCatalog, target [2]byte) bool {
+	if s == nil {
+		return false
+	}
+	dx := int(target[0]) - int(s.Room.X)
+	dy := int(target[1]) - int(s.Room.Y)
+	if dx*dx+dy*dy != 1 {
+		return false
+	}
+	for _, layer := range s.Maze.Layers {
+		if layer.Position == target && len(layer.Maps) > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Session) enterRoom(c catalog.DungeonCatalog, room catalog.DungeonRoom) (*Session, error) {
