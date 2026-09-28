@@ -479,6 +479,9 @@ func main() {
 		if e = s.Migrate(ctx); e != nil {
 			log.Fatal(e)
 		}
+		if e = s.MigrateAdventure(ctx); e != nil {
+			log.Fatal(e)
+		}
 		if e = s.MigrateTutorial(ctx); e != nil {
 			log.Fatal(e)
 		}
@@ -1564,6 +1567,19 @@ if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "am
 			}
 			return e
 		}
+		sendServerTime := func(reason string) error {
+			now := time.Now()
+			payload, err := protocol.ServerTimeSuccess(now)
+			if err != nil {
+				event(map[string]any{"kind": "server_time_error", "error": err.Error()})
+				return err
+			}
+			if err = sendPayload(1, 1960, payload); err != nil {
+				return err
+			}
+			event(map[string]any{"kind": "server_time_sent", "id": 1960, "reason": reason, "unix_seconds": now.Unix(), "plain_hex": hex.EncodeToString(payload)})
+			return nil
+		}
 		event(map[string]any{"kind": "accept", "peer": peer})
 		c.SetWriteDeadline(time.Now().Add(5 * time.Second))
 		if _, err := io.Copy(c, bytes.NewReader(raw)); err != nil {
@@ -1613,6 +1629,21 @@ if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "am
 				continue
 			case <-mailChanges:
 				if bootstrapped && selectedCharacterID != 0 && worldState != nil && worldState.characters != nil {
+					adventureCtx, adventureCancel := context.WithTimeout(context.Background(), 5*time.Second)
+					adventurePackets, adventureErr := worldState.refreshAdventure(adventureCtx)
+					adventureCancel()
+					if adventureErr != nil {
+						event(map[string]any{"kind": "adventure_refresh_error", "reason": adventureErr.Error()})
+					} else {
+						for _, packet := range adventurePackets {
+							if err := sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
+								return
+							}
+							if packet.ID == 2799 {
+								event(map[string]any{"kind": "season_level_synced", "character_id": selectedCharacterID, "attempt": "2/3（源阶段及领奖reader已核实）", "id": packet.ID, "plain_hex": hex.EncodeToString(packet.Payload)})
+							}
+						}
+					}
 					mailCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 					alarm, latest, err := worldState.mailboxAlarm(mailCtx)
 					cancel()
@@ -2145,6 +2176,78 @@ if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "am
 			}
 			if frame.Type != 1 {
 				event(map[string]any{"kind": "unsupported_client_type", "type": frame.Type})
+				continue
+			}
+			if bootstrapped && frame.ID == 1960 {
+				if !verified {
+					event(map[string]any{"kind": "server_time_request_rejected", "reason": "服务器时间请求校验失败"})
+					continue
+				}
+				if err := protocol.DecodeServerTimeRequest(plaintext); err != nil {
+					event(map[string]any{"kind": "server_time_request_rejected", "reason": err.Error()})
+					continue
+				}
+				if err := sendServerTime("客户端请求"); err != nil {
+					return
+				}
+				continue
+			}
+			if bootstrapped && frame.ID == 1395 {
+				if !verified {
+					event(map[string]any{"kind": "adventure_request_rejected", "reason": "冒险团请求校验失败"})
+					continue
+				}
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				payload, err := worldState.handleAdventure(ctx, selectedCharacterID, plaintext)
+				cancel()
+				if err != nil {
+					event(map[string]any{"kind": "adventure_request_rejected", "character_id": selectedCharacterID, "reason": err.Error()})
+					// 原生处理器不检查成功参数，不能给它发送仅三字节的
+					// 通用拒绝体，否则它仍会读取完整详情并越界。
+					continue
+				}
+				if err := sendPayload(1, frame.ID, payload); err != nil {
+					return
+				}
+				event(map[string]any{"kind": "adventure_info_sent", "character_id": selectedCharacterID, "id": frame.ID, "attempt": "4（CMD217与原生包尾读取链已核实）", "plain_hex": hex.EncodeToString(payload)})
+				continue
+			}
+			if bootstrapped && selectedCharacterID != 0 && (frame.ID == 1406 || frame.ID == 2331 || frame.ID == 1719 || frame.ID == 1811 || frame.ID == 2419 || frame.ID == 2405) {
+				if !verified {
+					event(map[string]any{"kind": "adventure_request_rejected", "id": frame.ID, "reason": "冒险团命令校验失败"})
+					continue
+				}
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				var packets []outboundPacket
+				var err error
+				switch frame.ID {
+				case 2419:
+					packets, err = worldState.claimSeasonReward(ctx, plaintext)
+				case 2405:
+					packets, err = worldState.acquireSeasonOath(ctx, plaintext, frame.Raw, purchaseSession.prefix)
+				case 2331:
+					packets, err = worldState.setAdventureBestHonor(ctx, plaintext, frame.Raw, purchaseSession.prefix)
+				case 1719:
+					packets, err = worldState.setAdventureElite(ctx, plaintext, frame.Raw, purchaseSession.prefix)
+				case 1811:
+					packets, err = worldState.loadAdventureElite(plaintext)
+				default:
+					packets, err = worldState.buyAdventureItem(ctx, plaintext, frame.Raw, purchaseSession.prefix)
+				}
+				cancel()
+				if err != nil {
+					event(map[string]any{"kind": "adventure_request_rejected", "id": frame.ID, "reason": err.Error()})
+					if err = sendPayload(1, frame.ID, adventureFailure(frame.ID, err)); err != nil {
+						return
+					}
+					continue
+				}
+				for _, packet := range packets {
+					if err = sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
+						return
+					}
+					event(map[string]any{"kind": packet.Name, "id": packet.ID, "character_id": selectedCharacterID})
+				}
 				continue
 			}
 			if bootstrapped && mailboxRequest(frame.ID) {
@@ -2697,6 +2800,27 @@ if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "am
 			}
 			if worldState != nil && bootstrapped && frame.ID == 507 {
 				if !verified {
+					continue
+				}
+				if len(plaintext) >= 11 && binary.LittleEndian.Uint32(plaintext[7:11]) == protocol.SeasonCapsuleAction {
+					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					packets, err := worldState.useSeasonCapsule(ctx, plaintext, frame.Raw, purchaseSession.prefix)
+					cancel()
+					if err != nil {
+						event(map[string]any{"kind": "season_capsule_refused", "character_id": selectedCharacterID, "reason": err.Error()})
+						if slot, decodeErr := protocol.DecodeSeasonCapsule(plaintext); decodeErr == nil {
+							if err = sendPayload(1, 507, protocol.SeasonCapsuleReply(slot, false)); err != nil {
+								return
+							}
+						}
+						continue
+					}
+					for _, packet := range packets {
+						if err = sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
+							return
+						}
+						event(map[string]any{"kind": packet.Name, "character_id": selectedCharacterID, "id": packet.ID})
+					}
 					continue
 				}
 				// CMD507 is the shared "use stackable" frame. Split it by action so
@@ -4861,6 +4985,13 @@ if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "am
 				event(map[string]any{"kind": "server_response", "peer": peer, "id": frame.ID, "hex": hex.EncodeToString(response)})
 				if frame.ID == 1 {
 					bootstrapped = true
+					// 固定 CMD1 登录模板不经过 NOTI1 的服务器时钟初始化。
+					// 145257F70 是已注册的 CMD1960 原生同步入口；1459A2D70
+					// 按 opcode 直接分发，无请求等待态依赖。必须在角色/UI包前
+					// 建立时钟，不能等冒险团日期判断已访问空指针后再补发。
+					if err = sendServerTime("登录初始化"); err != nil {
+						return
+					}
 					if channelNotice != nil {
 						if err = sendPayload(0, 2435, channelNotice); err != nil {
 							return

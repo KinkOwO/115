@@ -28,6 +28,8 @@ type worldSession struct {
 	serverID        uint32
 	role            storage.Character
 	level           byte
+	adventureSnapshot [32]byte
+	adventureEliteSnapshot [32]byte
 	// odyssey mirrors character.OdysseyRole for this session. It selects which
 	// source level gate the world service applies: an Arad Odyssey character
 	// follows the client's [odyssey enter level] instead of [need level].
@@ -154,7 +156,10 @@ type worldSession struct {
 	// loading the scene - it comes after the whole entry command burst, or after
 	// a CMD 36 area change - so the first one is already a safe moment. It is not
 	// sent during the entry sequence itself: doing that crashes the client.
-	poseRefreshAfter int
+	poseRefreshAfter    int
+	adventureReady      bool
+	seasonLevelSnapshot [32]byte
+	seasonOathSnapshot  [32]byte
 }
 
 func (w *worldSession) enter(role storage.Character, spawn storage.WorldPosition) error {
@@ -186,6 +191,11 @@ func (w *worldSession) enter(role storage.Character, spawn storage.WorldPosition
 		}
 	}
 	w.lastFatigueDay = ""
+	w.adventureSnapshot = [32]byte{}
+	w.adventureEliteSnapshot = [32]byte{}
+	w.adventureReady = false
+	w.seasonLevelSnapshot = [32]byte{}
+	w.seasonOathSnapshot = [32]byte{}
 	w.activeDungeon = nil
 	w.pilotDeath = nil
 	w.soloPartyReady = false
@@ -328,6 +338,7 @@ func (w *worldSession) broadcastMove() {
 // sees the others standing in the default facing regardless of where they
 // actually face.
 func (w *worldSession) notePositionReport(event func(map[string]any)) {
+	w.adventureReady = true
 	if w.poseRefreshAfter <= 0 {
 		return
 	}

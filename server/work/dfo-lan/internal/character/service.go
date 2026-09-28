@@ -3,6 +3,7 @@ package character
 import (
 	"bytes"
 	"context"
+	"dfolan/internal/adventure"
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
@@ -22,15 +23,18 @@ type Rules struct {
 	InitialLevel     byte `json:"initial_level"`
 	SwordmasterPilot bool `json:"swordmaster_pilot,omitempty"`
 }
+
 type State struct {
-	AllJobsPilot    bool      `json:"all_jobs_pilot,omitempty"`
-	Level           byte      `json:"level"`
-	Experience      uint64    `json:"experience,omitempty"`
-	SkillPoints     [2]uint16 `json:"skill_points,omitempty"`
-	TechniquePoints [2]uint16 `json:"technique_points,omitempty"`
-	CurrencySlot2   uint32    `json:"currency_slot2,omitempty"`
-	Advancement     byte      `json:"advancement"`
-	Awakening       byte      `json:"awakening,omitempty"`
+	SeasonLevel               adventure.SeasonState `json:"season_level,omitempty"`
+	AllJobsPilot              bool                  `json:"all_jobs_pilot,omitempty"`
+	Level                     byte                  `json:"level"`
+	Experience                uint64                `json:"experience,omitempty"`
+	AdventureEarnedExperience uint64                `json:"adventure_earned_experience,omitempty"`
+	SkillPoints               [2]uint16             `json:"skill_points,omitempty"`
+	TechniquePoints           [2]uint16             `json:"technique_points,omitempty"`
+	CurrencySlot2             uint32                `json:"currency_slot2,omitempty"`
+	Advancement               byte                  `json:"advancement"`
+	Awakening                 byte                  `json:"awakening,omitempty"`
 	// No omitempty: an unallocated VP block still has to serialize, otherwise
 	// the client decodes an empty variation section and the panel reads blank
 	// until the next character switch.
@@ -285,6 +289,7 @@ func (s *Service) EntryBasicProbe(role storage.Character, channelContext [2]byte
 	}
 	return protocol.UserInfoBasicProbe(protocol.EntryBasicProbe{
 		Fame:          fame,
+		SeasonLevel:   seasonLevel(state.SeasonLevel),
 		ActorServerID: role.WireID, Context: channelContext,
 		Character: protocol.CharacterRow{Name: role.Name, Profession: role.Profession, Advancement: advancement, Level: state.Level, Odyssey: odyssey, Equipment: equipment, CreatureItemID: creatureItemID, CreatureName: creatureName},
 		// The explicit per-slot block must stay empty on the entry path. A
@@ -353,6 +358,7 @@ func (s *Service) AppearanceProbe(role storage.Character, channelContext [2]byte
 	}
 	return protocol.UserInfoBasicProbe(protocol.EntryBasicProbe{
 		Fame:          fame,
+		SeasonLevel:   seasonLevel(state.SeasonLevel),
 		ActorServerID: role.WireID, Context: channelContext,
 		Character:  protocol.CharacterRow{Name: role.Name, Profession: role.Profession, Advancement: advancement, Level: state.Level, Odyssey: odyssey, CreatureItemID: creatureItemID, CreatureName: creatureName},
 		Appearance: rows,

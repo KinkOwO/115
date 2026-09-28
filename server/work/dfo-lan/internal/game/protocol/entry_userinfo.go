@@ -95,6 +95,7 @@ type EntryBasicProbe struct {
 	Context       [2]byte
 	Character     CharacterRow
 	Fame          uint32
+	SeasonLevel   uint32
 
 	// Appearance is the per-slot state the native 0x145639840 block carries,
 	// one entry per slot the packet speaks about. Slots the packet does not
@@ -221,7 +222,9 @@ func UserInfoBasicProbe(s EntryBasicProbe) ([]byte, error) {
 		mode = 5
 	}
 	p = append(p, 0, 0, 0, 0, 0, mode)
-	p = add32(add32(add32(p, 0), 0), 0)
+	// 145640965读取尾部第三个u32到info+0x674，145640F44应用到角色。
+	// 阶段0没有源定义，会令迷雾誓约页面保留XUI的99及9999999占位。
+	p = add32(add32(add32(p, 0), 0), s.SeasonLevel)
 	return p, nil
 }
 

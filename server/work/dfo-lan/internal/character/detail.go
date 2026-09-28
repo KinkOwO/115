@@ -1,18 +1,43 @@
 package character
 
 import (
+	"context"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 	"math"
+	"time"
 )
 
 // EntryAddition uses persisted source attributes and initial skills in native
 // wire units. Equipment and advancement-specific skill learning are separate.
 func (s *Service) EntryAddition(role storage.Character) ([]byte, error) {
 	return s.entryAddition(role, nil, false)
+}
+
+// AdventureEliteSkillUsage 只接受该角色已掌握的技能使用偏好。
+// 设置不会授予技能或改变等级；实际技能资料仍必须由角色存档生成。
+func (s *Service) AdventureEliteSkillUsage(role storage.Character, requested [30]int32) ([30]int32, error) {
+	var state State
+	if err := json.Unmarshal(role.State, &state); err != nil {
+		return [30]int32{}, err
+	}
+	known, err := s.knownSkills(role, state, 0)
+	if err != nil {
+		return [30]int32{}, err
+	}
+	for _, id := range requested {
+		// 零值来自当前客户端未设置的原生记录；-1不指向任何技能。
+		if id == 0 || id == -1 {
+			continue
+		}
+		if id < 0 || id > math.MaxUint16 || known[uint16(id)] == 0 {
+			return [30]int32{}, fmt.Errorf("精锐角色技能使用设置包含未掌握的技能：%d", id)
+		}
+	}
+	return requested, nil
 }
 
 // visualOverrides is used by the Clone reattach sequence. The ordinary entry
@@ -144,7 +169,16 @@ func (s *Service) entryAddition(role storage.Character, visualOverrides map[uint
 	if err != nil {
 		return nil, err
 	}
-	return protocol.UserInfoAdditionProbe(protocol.EntryAdditionProbe{Context: s.ChannelContext, ActorServerID: role.WireID, Experience: state.Experience, Stats: stats, SkillTrees: trees, Worn: worn, Fame: fame, ExpandEquipFlags: projection.Inventory.ExpandEquipFlags})
+	var adventureLevel uint32
+	if s.Store != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		adventureLevel, err = s.Store.AdventureLevel(ctx, role.AccountID, role.ID)
+		if err != nil {
+			return nil, fmt.Errorf("读取角色属性包的冒险团等级：%w", err)
+		}
+	}
+	return protocol.UserInfoAdditionProbe(protocol.EntryAdditionProbe{Context: s.ChannelContext, ActorServerID: role.WireID, Experience: state.Experience, Stats: stats, SkillTrees: trees, Worn: worn, Fame: fame, ExpandEquipFlags: projection.Inventory.ExpandEquipFlags, AdventureLevel: adventureLevel})
 }
 
 // EquipmentFame复用完整穿戴名望投影；明细可通过EquipmentFameBreakdown核对。
