@@ -292,6 +292,7 @@ func (w *worldSession) questInteraction(p []byte) ([]outboundPacket, error) {
 		time.Now().Before(w.communicationUntil)
 	if !communicated && !quest.AllowsRemoteNPCInteraction(d) && !allowsQuestVisibleNPCInteraction(id, npc, w.state.Position, d, w.quests.Catalog) &&
 		!allowsQuestPhaseNPCInteraction(w.service, npc, w.state.Position, d, w.quests.Catalog) &&
+		!allowsALullPhaseNPCInteraction(w.service, id, npc, w.state.Position, d, w.quests.Catalog) &&
 		(w.service == nil || !w.service.HasNPC(w.state.Position, npc)) {
 		return nil, fmt.Errorf("quest %d NPC %d is absent from current source area %d/%d", id, npc, w.state.Position.Town, w.state.Position.Area)
 	}

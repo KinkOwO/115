@@ -1,6 +1,7 @@
 # CHANGELOG
 
 ## 2026-09-29
+- **A Lull（任务12911）Chest Town NPC 无完成选项：实机已确认**。Princess Hyria Grant 位于当前区域的剧情阶段地图，任务本身没有 `[npc visibility]` 规则，原服务端误拒原生 CMD33。仅对源目标匹配、同区域、同配置版本且阶段坐标一致的本任务放行，继续使用现有任务归属与接取状态校验。用户确认成功；日志与存档确认12911完成、后续12930已接取。全量 `go test ./...`、`go vet ./...` 与候选构建通过；SHA-256 `83609DAEB41E4678630345C2E844A6CC0BDD70E2103BEF7A85DC7CDD7474A796`。未改客户端、资源、数据库结构或存档格式。基线：`server/work/dfo-lan/docs/protocol/a-lull-quest12911-chest-town-npc-20260929.md`。
 - **White Land / Evil Justice（任务12920）下方房间拒绝：实机已确认**。用户确认修复后可进入下方房间。地图100004527第四只固定怪物未显式声明阶级，当前客户端按默认 rank 0 普通怪处理；服务端现保留该默认值，其他源行校验不变。确认范围仅为下方房间进入；完整任务、Boss与剧情流程未据此确认。全量 `go test ./...`、`go vet ./...` 和候选构建通过；候选 SHA-256 `99A3F17BA083754B0270E0AA6883CB6CCD85BBA2E34C1F9F8002DD3F5AEDDBFB`。未改客户端、PVF、数据库或存档。基线：`server/work/dfo-lan/docs/protocol/white-land-quest12920-room-move-20260929.md`。
 - **Luke 任务4851实机确认与剧情通关判断注释**：沿用3939修复版，用户确认4851正常完成；日志记录目标地图312147的剧情触发、通关、结算及任务提交，存档确认 completed/progress=0。在 `CompletionNeedsBossCheck` 旁写明旧判断会编码 Boss 编号0并丢弃整批任务刷新/通关通知，要求后续修改保留无 Boss 身份与真实 Boss 两条通知语义及现有回归用例。本轮只补注释和确认记录，未改运行逻辑。
 - **Luke 任务3939剧情收尾无法结算：实机已确认**。末房无可报告的 Boss 编号，原任务剧情触发后尝试编码 NOTI115 的目标 0，导致任务刷新和通关通知整批丢弃。Go 服务端仅在完成目标非零时发送 Boss 确认；无 Boss 身份的已完成剧情直接发送现有 NOTI31。用户确认任务完成，实机日志包含剧情触发、通关通知、结算及3939提交完成。全量测试、vet和构建通过；候选 SHA-256 `61434FE1412A7B1E742742CD9C0ED0721397B3BD7C75912A15F2D487879D969E`。未改客户端或数据库结构。基线：`server/work/dfo-lan/docs/protocol/luke-quest3939-scene-completion-20260929.md`。
