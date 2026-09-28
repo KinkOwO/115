@@ -1,6 +1,7 @@
 # CHANGELOG
 
 ## 2026-09-28
+- **新手教程副本末房首领校验（服务端，实机确认）**：教程副本 7112 的 Maze Boss 坐标是 `(4,0)`，但对应房间源标记为 `boss=false`，此前 `CMD117` 因要求 `Room.Boss` 而被拒，副本未进入通关结算。教程副本现按源 Boss 坐标并匹配当前 Rank 3 首领实体；普通副本校验不变。用户以新角色重跑教程副本确认问题修复。实测候选 SHA-256：`E8B449207BB2950DC58CB407FCAE9CCDD33192BFE8E236CF9AE64D78649B0F6F`；证据与范围见 `server/work/dfo-lan/docs/protocol/tutorial-terminal-boss-20260928.md`。
 - **Roar Ravine（任务 12430）入场拒绝修复（服务端，用户实机确认可进入）**：CMD16 请求副本 400001383 时 Quest=0，源 DGN 只有绑定任务 12430 的唯一迷宫，导致原服务端因找不到 Quest=0 迷宫而拒绝。现仅在没有普通迷宫的副本中，根据角色已有权限且唯一的源任务绑定迷宫；未接任务、歧义路线仍拒绝。用户确认候选服务端现可进入。`go test ./...`、`go vet ./...` 与候选构建通过，SHA-256 `890E5683152888F0AF2B2EE1ABF9C0119524CD2276F3720F66D1FF4236977C6C`。此次确认范围为进入副本；Boss 房、剧情和任务目标推进未据此标为已验收。记录：`work/dfo-lan/docs/protocol/roar-ravine-quest12430-entry-20260928.md`。
 - **增幅券（Amplifying Ticket）不能直接附加到装备上 —— 补齐券路径的二次分流与跳级回包（服务端，待实机验收）**：背包里有增幅券，打开券窗口放入装备、确认后**毫无效果**。两处根因都在服务端自己的代码里，客户端协议没变。
   - **根因 ①：`mode=1` 一律走「材料增幅」**。CMD80 `mode=1` 底下其实有两套东西 —— 在 NPC 处消耗**矛盾结晶体 3242** 的**增幅升级**（每级 +1），和背包里的**增幅券**（跳级）。早期 `reinforce()` 里 `if r.Mode == 1 { branch = reinforcementAmplifyBranch }` 无条件走前者，于是券被 `applyAmplifyUpgrade` 当成材料校验，直接报「增幅材料槽位放的不是矛盾结晶体（槽 N 里是模板 …，需要 3242）」。修法：新增 `amplifyBranch()` 在 `mode=1` 内部**再分流一次** —— 看窗口券位那一格是不是增幅券（`IsAmplifyTicket`），是就走新分支 `amplify_ticket`（`amplifyTicket()`：扣券 → 跳到券的目标等级 → 刷新券行与装备行，穿戴时另发 `WornSpaceUpdate`）。

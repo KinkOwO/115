@@ -23,6 +23,13 @@ func (s *Session) BossCheck(r protocol.BossCheckRequest, actor uint16) error {
 	if s.Definition.Odyssey || s.Definition.ID == 100003126 {
 		found = true
 	} else {
+		bossRoom := s.Room.Boss && position == s.Maze.Boss
+		// Tutorial source data names the terminal coordinate in [boss] but
+		// leaves that room's Boss marker false. Keep the coordinate and source
+		// monster checks, waiving only the redundant room marker for tutorials.
+		if s.Definition.Tutorial {
+			bossRoom = position == s.Maze.Boss
+		}
 		for _, m := range s.Monsters {
 			if m.Entity == r.Target && (m.Rank == 3 || m.APC && m.Rank >= 5 && m.Rank <= 8) {
 				if s.Definition.Odyssey && s.Definition.HuntBoss != 0 {
@@ -30,7 +37,7 @@ func (s *Session) BossCheck(r protocol.BossCheckRequest, actor uint16) error {
 					// boss coordinate. A real owned target/death is still required.
 					found = m.Template == s.Definition.HuntBoss
 				} else {
-					found = s.Room.Boss && position == s.Maze.Boss || s.Room.Map == s.postBossQuestMap()
+					found = bossRoom || s.Room.Map == s.postBossQuestMap()
 				}
 			}
 		}
