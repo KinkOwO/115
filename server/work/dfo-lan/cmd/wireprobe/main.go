@@ -749,6 +749,9 @@ func main() {
 		}
 		// 金币强化（材料 + 金币）的费用/成功率表，同样从 loot 目录旁边解析；
 		// 文件缺失时金币路径整体拒绝，券路径不受影响。
+		if err := inventory.LoadGoldRules(filepath.Join(filepath.Dir(lootPath), "reinforcement-gold.json")); err != nil {
+			log.Fatal(err)
+		}
 		// 增幅书（CMD205 打红字）的加权表，来自 PVF 的 [amplification random value] 段。
 		if err := inventory.LoadAmplifyGrimoires(filepath.Join(filepath.Dir(lootPath), "amplify-grimoire.json")); err != nil {
 			log.Fatal(err)
@@ -756,6 +759,11 @@ func main() {
 		// 增幅（CMD80 mode=1）的材料与金币表，来自 PVF 的 etc/amplifyupgrade.etc；
 		// 文件缺失时增幅整体拒绝，强化与打红字不受影响。
 		if err := inventory.LoadAmplifyUpgradeRules(filepath.Join(filepath.Dir(lootPath), "amplify-upgrade.json")); err != nil {
+			log.Fatal(err)
+		}
+		// 锻造（CMD430 / Refine）的武器限制、成功率表与材料消耗。
+		// 成功率由服主提供（115 版本），材料消耗 PVF 无表、走配置默认值。
+		if err := inventory.LoadRefineRules(filepath.Join(filepath.Dir(lootPath), "refine.json")); err != nil {
 			log.Fatal(err)
 		}
 		c, e := catalog.LoadLoot(lootPath)
@@ -2602,6 +2610,33 @@ func main() {
 					})
 					// 14529B2F0 的失败分支只使用分发器读取的错误码，并清除等待态。
 					if err = sendPayload(1, 80, protocol.Refusal(code)); err != nil {
+						return
+					}
+					continue
+				}
+				for _, packet := range plan {
+					if err = sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
+						return
+					}
+				}
+				continue
+			}
+			if worldState != nil && bootstrapped && frame.ID == 430 {
+				// CMD430 = 锻造（Refine，NPC Kiri）：仅武器、上限 +8、失败等级不变不碎。
+				if !verified {
+					event(map[string]any{"kind": "refine_rejected", "reason": "锻造请求校验失败"})
+					continue
+				}
+				plan, err := worldState.refine(wearService, plaintext, frame.Raw, event)
+				if err != nil {
+					event(map[string]any{
+						"kind": "refine_refused", "character_id": worldState.role.ID,
+						"reason": err.Error(), "request_hex": hex.EncodeToString(plaintext),
+					})
+					// 锻造与其它升级命令共用同一张错误码表（唯一差别是 17 那格：
+					// 锻造是 35076 "The equipment cannot be refined."，CMD80 是 1652）。
+					code := refineRefusalCode(err)
+					if err = sendPayload(1, 430, protocol.Refusal(code)); err != nil {
 						return
 					}
 					continue
