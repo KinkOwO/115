@@ -955,6 +955,9 @@ func (w *worldSession) bossCheck(p []byte) ([]outboundPacket, error) {
 }
 
 func (w *worldSession) completeDungeon() ([]outboundPacket, error) {
+	if w.moon.owner != nil {
+		return nil, nil
+	} // Moon final death owns its completion.
 	if !w.activeDungeon.Completed() || w.completionSent {
 		return nil, nil
 	}

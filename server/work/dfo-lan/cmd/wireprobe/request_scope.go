@@ -16,6 +16,14 @@ func dungeonRequest(id uint16) bool {
 }
 
 func observedGameRequest(id uint16) bool {
+	// 沉月湖（Moon Lake）单人流程的入口命令，必须逐次解密校验：
+	//   2284 = NPC「开始攻坚」；2276 = fever 触发；2277 = 特殊怪逃逸报告；
+	//   2062 = 守门怪死亡后的洞口换层；1426 与 71 共用「选牌」处理器。
+	// 落在 BodySampleLimit(8) 采样门里会让第 9 次起 verified 不再被计算，
+	// 玩家表现为「点开始没反应」，与「这条命令根本没实现」一模一样。
+	if id == 2284 || id == 2276 || id == 2277 || id == 2062 || id == 1426 {
+		return true
+	}
 	// 强化券的重复使用也必须逐次解密，不受未实现指令的八次采样上限影响。
 	if id == 80 {
 		return true
