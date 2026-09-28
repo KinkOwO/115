@@ -737,6 +737,11 @@ func main() {
 		if err := inventory.LoadReinforcementTickets(filepath.Join(filepath.Dir(lootPath), "reinforcement-tickets.json")); err != nil {
 			log.Fatal(err)
 		}
+		// 金币强化（材料 + 金币）的费用/成功率表，同样从 loot 目录旁边解析；
+		// 文件缺失时金币路径整体拒绝，券路径不受影响。
+		if err := inventory.LoadGoldRules(filepath.Join(filepath.Dir(lootPath), "reinforcement-gold.json")); err != nil {
+			log.Fatal(err)
+		}
 		c, e := catalog.LoadLoot(lootPath)
 		if e != nil {
 			log.Fatal(e)
