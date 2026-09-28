@@ -3039,6 +3039,50 @@ if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "am
 					plan, e = worldState.scaleStatus(plaintext, event)
 				case 40:
 					plan, e = worldState.playerDeath(plaintext, frame.Raw)
+					if e == nil {
+						// [MERGE-20260928-DEATH-FAIL-TIMEOUT] 原生「倒计时结束 → 挑战失败」
+						// 由服务端推进：客户端进复活 UI 后只会等，不会发请求。死亡后等待
+						// deathFailTimeout，期间没复活就下发 NOTI33 (FAIL_CLEAR_DUNGEON)，
+						// 驱动失败结算与回城。此前只有 Elvenmere(100003126) 会发，其它副本
+						// 死亡后永远停在 Dead 界面（实机 2026-09-28：倒计时结束不回城，
+						// 剧情叠在死亡界面上卡死）。
+						w := worldState
+						select {
+						case <-done:
+						default:
+							time.AfterFunc(deathFailTimeout, func() {
+								d := w.pilotDeath
+								if d == nil || !d.Dead || w.activeDungeon == nil {
+									return
+								}
+								// reason 100 = timeout（0 是「默认死亡」）。
+								if err := sendPayload(0, 33, protocol.DungeonFailClear(100)); err != nil {
+									return
+								}
+								// 只发 FAIL_CLEAR 不够：客户端收到后只播死亡镜头，不会自己
+								// 离开副本 —— 实机 2026-09-28 客户端 trace 里
+								// `RECV ENUM_NOTIPACKET_FAIL_CLEAR_DUNGEON` 之后 25 秒毫无
+								// 动作，直到玩家手动发 GIVEUP_GAME(42) 才回城。
+								// 这里照「放弃」那条路径把玩家送回城。
+								leave, e := w.leaveDungeon()
+								if e != nil {
+									event(map[string]any{"kind": "death_fail_leave_error", "error": e.Error()})
+									return
+								}
+								for _, p := range leave {
+									if e := sendPayload(p.Kind, p.ID, p.Payload); e != nil {
+										return
+									}
+								}
+								// 主循环在发出 dungeon_leave_ack 时会清掉副本会话
+								// （main.go 的 `p.Name == "dungeon_leave_ack"` 分支），
+								// 这里绕过了那段，必须自己清 —— 否则客户端回城后发来的
+								// 门请求仍会命中一个已离开的会话。
+								w.activeDungeon = nil
+								event(map[string]any{"kind": "death_fail_timeout", "run": d.Run, "steps": len(leave) + 1})
+							})
+						}
+					}
 				case 43:
 					plan, e = worldState.pickup(plaintext)
 				case 117:
@@ -3272,6 +3316,15 @@ if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "am
 					}
 					if p.Name == "dungeon_clear_reward" {
 						worldState.resultSent = true
+					}
+					// [MERGE-20260928-DIAG] 把场景换图的决策路径落进 events，便于实机取证。
+					if p.Name == "dungeon_next_map_sent" && worldState.sceneDiag != "" {
+						event(map[string]any{
+							"kind": "scene_transition_diag", "character_id": worldState.role.ID,
+							"from_map": worldState.sceneDiagFrom, "to_map": worldState.sceneDiagTo,
+							"detail": worldState.sceneDiag,
+						})
+						worldState.sceneDiag = ""
 					}
 				}
 				if frame.ID == 42 {

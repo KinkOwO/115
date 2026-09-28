@@ -4,7 +4,14 @@ import (
 	"crypto/sha256"
 	"dfolan/internal/game/protocol"
 	"fmt"
+	"time"
 )
+
+// [MERGE-20260928-DEATH-FAIL-TIMEOUT] 死亡后的失败倒计时。
+//
+// 客户端进复活 UI 后只会等，不会发请求，所以「倒计时结束 → 挑战失败」只能由服务端
+// 推进（见 main.go 的 case 40）。实机截图显示客户端从 9~10 秒开始倒数，这里取 10 秒。
+const deathFailTimeout = 10 * time.Second
 
 func (w *worldSession) playerDeath(p []byte, frames ...[]byte) ([]outboundPacket, error) {
 	if w == nil || w.role.ID == 0 || w.activeDungeon == nil || !w.activeDungeon.Loaded || w.resultSent {

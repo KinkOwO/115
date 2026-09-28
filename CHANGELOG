@@ -1,6 +1,23 @@
 # CHANGELOG
 
 ## 2026-09-28
+- **奥德赛 / 满级后剧情地图卡点修复（移植 20260928 修复包）**：层图（layer map）出口的判定收敛为**三条互斥规则**，并补齐「场景房出口 / 换图记录 / 剧情副本结算 / 死亡超时」四块缺失的链路。
+  - **两条方向相反的路，别再合并**：客户端在场景房点门（`CMD38`）要**回 base**，而层图序列走完主动换图（`CMD45`）要**前进到相邻格**。此前两者都走 `MoveScene`、判据只能二选一，于是「修好一边必然弄坏另一边」。现在由服务端专用字段 `protocol.DungeonRoomTransition.SceneExit` 区分（**不进 wire 报文**）。
+  - **层图出口三条规则**（`internal/dungeon/scene_transition.go`）：
+    1. `CMD45` + 序列到末尾 → **前进**（`layerSequenceAdvance`，直接 `enterRoom`，**绕开 `Session.Move` 的 `RoomCleared`** —— 剧情层图的怪是布景、永远清不掉）；
+    2. `CMD38` + 层图格**就是迷宫起点** → **前进**（回 base 等于回起点自己，客户端进这一格又会自动播那张层图，形成死循环直到闪退）；
+    3. `CMD38` + 普通场景房 → **回 base**（同位置换 base 地图，走 `ExitSceneRoom`）。
+    前进目标**优先选不带层图的相邻格**，否则落进另一个挂层图的格子等于换个地方继续循环。
+  - **新增 `sceneExitRequest()`**：客户端在场景房里点门只发 `id=38`（`scene_routes` 只声明「进去」、没有「出来」那一条），没有这段就永远出不去。同时用 `LayerRoomIsCinematic()`（房里没有可战斗怪、也没有死亡记录）把「**战斗层图**」排除在外 —— 战斗层图客户端打完会自己走下一步，替它合成出口会把玩家弹回 base，客户端再进、再被弹回，实机症状正是「NPC 反复重新说话」。
+  - **换图记录（`Transition`）三处修正**：① 客户端主动进层图那一包**留存**记录、服务端合成出口时**复用**（晦月湖整条链都不在 `scene_routes` 路由表里，查不到来源）；② 全零记录**回落 `0000ffffffffffffffff000000000000` 默认值**，直接把全零发出去会覆盖客户端的默认落点、表现为「角色不显示」；③ `StartMap.State.Position` 改取**目标房间自己的坐标**（多张序列走完改用 `Move` 前进时，请求里带的还是层图那一格的坐标，用错等于把玩家放在地图外）。
+  - **`[clear map]` 剧情副本**：这类副本的 BOSS 按剧本设计永不死亡（客户端血条显示 Immortal），客户端**不会**发 `CMD117`，副本 `completed` 永远 false ⇒ `completeDungeon()` 直接返回空，表现为「剧情播完不弹结算，但任务栏显示已完成」。现在以**任务触发**作为完成依据（`MarkSceneCompleted`），并在 quest 路径自己置 `completionSent`（主循环只在 `dungeonRequest` 段的发送循环里置位，quest 走另一个 dispatch 段 ⇒ 否则客户端随后的 `CMD46` 被拒成 "result before committed boss completion"）。
+  - **死亡后服务端超时判失败**：客户端进复活 UI 后只会等、不会发请求，此前只有 Elvenmere 会发失败结算，其它副本死亡后永远停在 Dead 界面。现在死亡后等 `deathFailTimeout`（10s，与客户端 9~10 秒倒计时对齐）下发 `NOTI33 (FAIL_CLEAR_DUNGEON, reason=100)`，并照「放弃」那条路径把玩家送回城（只发 FAIL_CLEAR 不够，客户端只播死亡镜头不会离开副本）。
+  - **满级后未完成时仍可走剧情过场**：`Move` 的完成守卫原来一律拒，会把「boss 房之后还有一段过场」的副本（苏醒之森 `(5,0)→(6,0)`）挡在外面；现在目标格是**还没播完的剧情层图**所在格时放行（`adjacentLayerPending`）。
+  - **任务书传送放宽两处**：① 尾部标志**只排除地图选择器**（出现 `5`），不再把任何非零值当非法（实机从魔界回捷尔瓦带的是 `[0,2]`）；② 站点身份只看 `(town, area)`、**不比落点坐标**（客户端从传送门/地图选择器出发时报的是它自己的默认落点，逐像素比对永远匹配不上）。
+  - **奥德赛奖励结算**：不在成长阶梯上的奥德赛副本（`100004984..989`）`ClearLevels` 里没有条目，此前直接报 "missing source clear target" ⇒ 即便判为完成也发不出完成数据、玩家卡在 boss 房；现在 `target==0` **只结算不记录**（它们不在任何站点上，不记也不影响后续传送）。另补「boss 房只摆 `rank=0` 源怪」时的结算路径与 `NOTI115` 身份选择（`reportableRoomActor`）。
+  - **新增排查工具**：场景换图决策诊断事件 `scene_transition_diag`（只写 `events.jsonl`、不影响任何判定，可长期保留），直接给出服务端选了哪条分支、`from_map → to_map` 与各判据的实际取值。
+  - ⚠️ **刻意分歧（不采纳修复包的四处删除，均保留本仓库既有实现）**：① `BossCheck` 的奥德赛分支维持 `found = true`（包内收紧为「必须命中 `[hunt boss]` 模板」，会推翻既有契约 `TestOdysseyBossCheckImmediateCompletion`；本仓库对同一风险已有另一道防护 —— `boss scene sequence has not reached its final map`）；② `BossCheck` 的 Tutorial 特例；③ `session.go` 的 `chooseMaze` / `pickWeightedMaze` / `randomUint64`（`!72` 异空间权重掷骰 —— 包内是回退成「index 最小者」）；④ `quest_flow.go` 的 `questReachNPCAtSourcePlacement`；⑤ `scene_transition.go` 的 `terminalSceneRevisit`（`53ffd56` 的源匹配终末演出，包内以 `AtLayerLastMatch` 系列取代，这里保留作为**前置精确匹配**，两者并存不冲突）。
+  - **未做 / 待实机确认**：修复包自述「换图记录留存」那一项**尚未实机验收**；多人邀请与 UDP 中继、官服周次数与掉落概率不在本包范围。
 - **★★ 保护券「只有一张时扣减后图标不消失」→ 已修（服务端，待实机复核）**：玩家反馈 —— 背包里**只有一张**保护券时，失败扣减后图标还在（服务端其实已经扣掉了），点一次「整理背包」或拖动别的物品触发整包重算后才消失；**多张时看不出问题**。
   - **根因**：行刷新写成 `row, ok := bag.RowAt(slot); if ok { rows = append(rows, row) }`。扣到 0 时那一行**被整行移除** ⇒ `ok == false` ⇒ **什么都不发** ⇒ 客户端那一格永远保留旧状态。多张时 `RowAt` 仍能取到「新数量」的行，所以只有**正好扣掉最后一张**才暴露。
   - **同一函数里的材料行 / 装备行 / 券行都写了 `!exists → EmptyOrdinaryItem` 回退，只有保护券漏了** —— 而且漏在**两处**：金币强化路径（`reinforceWithMaterial`）与材料增幅路径（`amplifyUpgrade`）。（券行 09-28 已由文案注释提醒过「券被扣完时该格已移除」，但同一函数里的保护券行没跟上。）

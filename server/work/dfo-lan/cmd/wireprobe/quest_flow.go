@@ -228,7 +228,26 @@ func (w *worldSession) questInteraction(p []byte) ([]outboundPacket, error) {
 		if e != nil {
 			return nil, e
 		}
-		return []outboundPacket{{"quest_scene_trigger", 0, 291, body}}, nil
+		plan := []outboundPacket{{"quest_scene_trigger", 0, 291, body}}
+		// [MERGE-20260928-SCENE-CLEAR-COMPLETE] 任务结算成功 = 本次攻略收尾。
+		// 这类「[clear map] 剧情副本」没有可击杀的收尾 BOSS（BOSS 设计成不死，
+		// 客户端血条显示 Immortal），客户端不会发 CMD117，副本自身的 tryComplete
+		// 永远等不到信号 —— 实机 100004786「墨色瘟疫之匣」就是剧情播完不弹结算。
+		// 这里以任务触发作为完成依据，补上副本的完成结算。
+		w.activeDungeon.MarkSceneCompleted()
+		done, e := w.completeDungeon()
+		if e != nil {
+			return nil, e
+		}
+		if len(done) > 0 {
+			// 主循环只在 dungeonRequest 段发送 plan 时按 "dungeon_clear_enabled"
+			// 置位 completionSent（main.go:2745），quest 段绕过了那段。而客户端
+			// 收到 clear_enabled 后会立刻发 CMD46 请求结果，dungeonResult 要求
+			// Completed() && completionSent —— 不置位就会被拒成
+			// "result before committed boss completion"（实机 2026-09-28 04:26:51）。
+			w.completionSent = true
+		}
+		return append(plan, done...), nil
 	}
 	d, ok := w.quests.Catalog.Quests[uint32(id)]
 	if !ok {

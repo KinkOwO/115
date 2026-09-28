@@ -309,6 +309,9 @@ type DungeonRoomTransition struct {
 	LayerChange bool
 	Record      [18]byte
 	Dungeon     uint32
+	// SceneExit 只由服务端设置：标记这次 layer 切换是「场景房点门」的出口，
+	// 方向是回该位置的 base。客户端的 CMD45 永远是 SceneExit=false（前进）。
+	SceneExit bool
 }
 
 func DecodeDungeonRoomTransition(p []byte) (r DungeonRoomTransition, err error) {
