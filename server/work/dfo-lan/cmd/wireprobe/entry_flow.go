@@ -35,6 +35,9 @@ type entryPayloads struct {
 	GamepadOptions   []byte
 	// Journal 是装备库完整状态（NOTI2610，恰好 16444B）。
 	Journal []byte
+	// EquipmentSkill 是装备技能栏/冷却提醒/自定义按键的两组快照（S2C2609，168B）。
+	// 客户端一次消费前 160 字节，所以**恒发**（没设过就是全零）。
+	EquipmentSkill []byte
 	// InformNotice / InformNotice2nd are the per-character read-notice sets
 	// (NOTI402 / NOTI426). They ride right after account options: the client
 	// clears its read set from them, and a third-awakened character whose
@@ -159,6 +162,7 @@ func (p entryPayloads) packets() []outboundPacket {
 		{"entry_basic_probe_sent", 0, 2, p.Basic},
 		{"entry_addition_sent", 0, 2, p.Addition},
 		{"entry_skills_sent", 0, 19, p.Skills},
+		{"equipment_skill_restored", 0, 2609, p.EquipmentSkill},
 		{"skill_preset_restored", 0, 2758, p.SkillPreset},
 		{"vault_initialized", 0, 13, p.Vault},
 	}

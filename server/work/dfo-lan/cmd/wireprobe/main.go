@@ -529,6 +529,9 @@ func main() {
 		if e = s.MigrateOathOptions(ctx); e != nil {
 			log.Fatal(e)
 		}
+		if e = s.MigrateEquipmentSkill(ctx); e != nil {
+			log.Fatal(e)
+		}
 		// Per-(character,dungeon) omen save slot. The omen is not an item: it is a
 		// character-save marker the client reads out of NOTI2836 (see omen_state.go).
 		if e = s.MigrateOmenState(ctx); e != nil {
@@ -2304,6 +2307,29 @@ func main() {
 					event(map[string]any{"kind": p.Name, "id": p.ID, "plain_hex": hex.EncodeToString(p.Payload)})
 				}) != nil {
 					return
+				}
+				continue
+			}
+			// 装备技能栏 / 冷却提醒 / 自定义按键（C2S 2254/2256/2257）。
+			// 请求侧的 96B 形状由本机实机帧证实（67 个会话各 1 帧 id=2256，全部 96B、[13]=10）。
+			// 应答沿用同一作者在 C2S2382 上的约定：先落库，成功后再回 <同一 op> 的 1 字节 ack。
+			if equipmentSkillEnabled() && frame.Type == 1 &&
+				(frame.ID == 2254 || frame.ID == 2256 || frame.ID == 2257) &&
+				bootstrapped && verified && worldState != nil && worldState.role.ID == selectedCharacterID {
+				eskCtx, eskCancel := context.WithTimeout(context.Background(), 5*time.Second)
+				plan, eskErr := worldState.equipmentSkillPackets(eskCtx, frame.ID, plaintext)
+				eskCancel()
+				if eskErr != nil {
+					event(map[string]any{"kind": "equipment_skill_rejected", "id": frame.ID,
+						"character_id": selectedCharacterID, "reason": eskErr.Error()})
+					continue
+				}
+				for _, packet := range plan {
+					if e := sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
+						return
+					}
+					event(map[string]any{"kind": packet.Name, "id": packet.ID,
+						"payload_bytes": len(packet.Payload)})
 				}
 				continue
 			}
@@ -4585,6 +4611,20 @@ func main() {
 					if oathErr != nil {
 						event(map[string]any{"kind": "oath_selection_restore_error", "character_id": role.ID, "reason": oathErr.Error()})
 						continue
+					}
+				}
+				// 装备技能栏/冷却提醒/自定义按键：两组快照（S2C2609）。恒发，
+				// 没设过的角色得到全零载荷（等于客户端默认）。
+				if characters != nil && equipmentSkillEnabled() {
+					eskCtx, eskCancel := context.WithTimeout(context.Background(), 5*time.Second)
+					eskSkills, eskCommands, eskErr := characters.Store.EquipmentSkillSnapshots(eskCtx, developmentAccount, role.ID)
+					eskCancel()
+					if eskErr != nil {
+						event(map[string]any{"kind": "equipment_skill_restore_error", "character_id": role.ID, "reason": eskErr.Error()})
+					} else if eskInfo, eskInfoErr := protocol.EquipmentSkillInfo(eskSkills, eskCommands); eskInfoErr != nil {
+						event(map[string]any{"kind": "equipment_skill_restore_error", "character_id": role.ID, "reason": eskInfoErr.Error()})
+					} else {
+						plan.EquipmentSkill = eskInfo
 					}
 				}
 				plan.SecondaryVault = secondaryVaultPayload
