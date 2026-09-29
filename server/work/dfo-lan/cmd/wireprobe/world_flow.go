@@ -20,7 +20,8 @@ import (
 
 type worldSession struct {
 	npcPresenceIndex    *npcpresence.Index
-	npcPresenceIndexErr error	lastFame               uint32
+	npcPresenceIndexErr error
+	lastFame            uint32
 	fameInitialized        bool
 	moonConfig             *moonSoloConfig
 	moon                   moonSoloState
