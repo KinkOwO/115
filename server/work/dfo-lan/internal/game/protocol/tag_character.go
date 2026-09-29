@@ -40,12 +40,36 @@ func TagTeamInfo(members []BleedingMineMember) ([]byte, error) {
 // NOTI1382的mode0路径自动从当前玩家复制首位角色；正文只携带其余成员。
 // 1444FD120/13A/8E0分别读取玩家数、玩家wireID、额外角色数。
 func TagCharacterInfo(owner uint16, companions []TagCharacter) ([]byte, error) {
+	slots := make([]byte, len(companions))
+	for i := range slots {
+		slots[i] = byte(i + 1)
+	}
+	return tagCharacterInfo(owner, slots, companions)
+}
+
+// AdventureEliteCharacterInfo 用账号选角槽位建立类型2的精锐资料容器。
+// 1444FDBB3..1444FDC3A按收到的u8槽位扩展列表；1879的142E5B2B9
+// 再用1754中的账号槽位查找。不能沿用矿区的连续队内序号，也不发清理类型0的1381。
+// 调用方必须确认当前频道会使1444FD014进入精锐分支。
+func AdventureEliteCharacterInfo(owner uint16, slots []byte, companions []TagCharacter) ([]byte, error) {
+	return tagCharacterInfo(owner, slots, companions)
+}
+
+func tagCharacterInfo(owner uint16, slots []byte, companions []TagCharacter) ([]byte, error) {
 	if owner == 0 || owner == 65535 || len(companions) > 3 {
 		return nil, fmt.Errorf("战斗角色所属玩家或队友数量无效")
 	}
+	if len(slots) != len(companions) {
+		return nil, fmt.Errorf("战斗角色槽位数量与资料不一致")
+	}
 	p := append(add16([]byte{1}, owner), byte(len(companions)))
 	seen := map[uint16]bool{owner: true}
+	seenSlots := map[byte]bool{}
 	for i, role := range companions {
+		if slots[i] == 255 || seenSlots[slots[i]] {
+			return nil, fmt.Errorf("战斗角色槽位无效或重复")
+		}
+		seenSlots[slots[i]] = true
 		if role.WireID == 0 || role.WireID == 65535 || seen[role.WireID] || role.Level == 0 {
 			return nil, fmt.Errorf("战斗队友身份无效或重复")
 		}
@@ -66,7 +90,7 @@ func TagCharacterInfo(owner uint16, companions []TagCharacter) ([]byte, error) {
 			return nil, err
 		}
 		// 1444FD93A/958/9C4：队内槽位、名字、角色标识。
-		p = add16(addName(append(p, byte(i+1)), role.Name), role.WireID)
+		p = add16(addName(append(p, slots[i]), role.Name), role.WireID)
 		p = append(p, role.Level, role.Profession, role.Advancement, 0)
 		p = append(add32(p, uint32(len(stats))), stats...)
 		p = append(p, role.ExpandEquipFlags, 0)

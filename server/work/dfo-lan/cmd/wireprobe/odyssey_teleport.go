@@ -15,6 +15,23 @@ func (w *worldSession) areaTransition(r protocol.AreaChangeRequest) (storage.Wor
 	specialWarp := w.specialWarpPending
 	w.specialWarpPending = false
 	old := w.state.Position
+	if w.channelType == 73 && !w.blackPurgatory.prepared &&
+		old.Town == 85 && r.Town == 85 && r.PreviousTown == old.Town && uint32(r.PreviousArea) == old.Area &&
+		(old.Area == 1 && r.Area == 2 && w.blackPurgatory.created ||
+			old.Area == 2 && r.Area == 1 && (w.blackPurgatory.created || w.blackPurgatory.returnToLobby)) {
+		// 原生建队/离队传送使用ETC的招募与等待坐标，不要求先走到地图边缘。
+		entry := storage.WorldPosition{Town: 85, Area: 2, X: 350, Y: 220}
+		if r.Area == 1 {
+			entry = storage.WorldPosition{Town: 85, Area: 1, X: 680, Y: 130}
+		}
+		if r.X == entry.X && r.Y == entry.Y {
+			if err := w.service.ValidatePosition(w.level, w.odyssey, entry); err != nil {
+				return old, err
+			}
+			w.blackPurgatory.returnToLobby = false
+			return entry, nil
+		}
+	}
 	if w.activeDungeon == nil && w.progression != nil && r.PreviousTown == old.Town && uint32(r.PreviousArea) == old.Area && w.progression.OdysseyJournalTeleport(w.role, r) {
 		// The journal route is the source's own progression ladder, but the
 		// destination still has to pass the gate the client applies: Storm Pass

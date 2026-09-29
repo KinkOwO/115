@@ -12,6 +12,7 @@ import (
 )
 
 type Service struct {
+	BlackPurgatory *BlackPurgatoryRewards
 	BleedingMine *BleedingMineRewards
 	Currency    *OdysseyCurrency
 	Store       *storage.Store
@@ -80,6 +81,13 @@ func (s *Service) Pickup(ctx context.Context, role storage.Character, session *S
 	drop, e := session.Owned(d, role.AccountID, role.ID, role.WireID, r.Object)
 	if e != nil {
 		return fail(e)
+	}
+	if drop.BlackPurgatoryIndex != 0 {
+		saved, receipt, applied, err := s.pickBlackPurgatoryBoss(ctx, role, drop.Run, drop.BlackPurgatoryIndex, drop.Award)
+		if err != nil {
+			return fail(err)
+		}
+		return saved, PickupReceipt{drop.Run, drop.Map, drop.Object, receipt.Award, receipt.Destination, s.Catalog.Source.Checksum}, applied, nil
 	}
 	awardCatalog, bagRules := s.Catalog, s.BagRules
 	if d.Definition.Odyssey && session.Currency != nil {

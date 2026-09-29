@@ -11,6 +11,10 @@ import (
 	"time"
 )
 
+// 当前角色属性采用正常状态100%；基础资料与详细属性必须使用同一状态比例。
+// 这不是战斗当前HP/MP，也不通过队伍显示包回复血量或魔法。
+const entryBasePercent byte = 100
+
 // EntryAddition uses persisted source attributes and initial skills in native
 // wire units. Equipment and advancement-specific skill learning are separate.
 func (s *Service) EntryAddition(role storage.Character) ([]byte, error) {
@@ -89,7 +93,7 @@ func entryPackedStats(state State) (protocol.PackedEntryStats, error) {
 		Movement:      scaled("[move speed]", 10, math.MaxUint32),
 		AttackCasting: [2]uint16{uint16(scaled("[attack speed]", 10, math.MaxUint16)), uint16(scaled("[cast speed]", 10, math.MaxUint16))},
 		RecoveryJump:  [2]int16{signed("[hit recovery]", 10), signed("[jump power]", 10)},
-		Weight:        int32(scaled("[weight]", 10, math.MaxInt32)), BasePercent: 100,
+		Weight:        int32(scaled("[weight]", 10, math.MaxInt32)), BasePercent: entryBasePercent,
 	}
 	return stats, failure
 }

@@ -6,6 +6,7 @@ import (
 	"dfolan/internal/character"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/storage"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 )
@@ -17,6 +18,10 @@ func (w *worldSession) adventureElitePayload(ctx context.Context, profile storag
 	if err != nil {
 		return nil, err
 	}
+	return adventureElitePayloadForRoles(profile, roles)
+}
+
+func adventureElitePayloadForRoles(profile storage.AccountAdventure, roles []storage.Character) ([]byte, error) {
 	slots := make(map[int64]int32, len(roles))
 	for slot, role := range roles {
 		slots[role.ID] = int32(slot)
@@ -42,6 +47,9 @@ func (w *worldSession) adventureElitePayload(ctx context.Context, profile storag
 }
 
 func (w *worldSession) setAdventureElite(ctx context.Context, p, raw []byte, prefix string) ([]outboundPacket, error) {
+	if w.blackPurgatory.prepared {
+		return nil, fmt.Errorf("黑鸦挑战已开始，请回到等待区后再修改精锐名单")
+	}
 	req, err := protocol.DecodeAdventureEliteSelection(p)
 	if err != nil {
 		return nil, err
@@ -107,11 +115,102 @@ func (w *worldSession) setAdventureElite(ctx context.Context, p, raw []byte, pre
 	return []outboundPacket{{"精锐角色设置同步", 0, 1754, body}, {"精锐角色保存完成", 1, 1719, []byte{1}}}, nil
 }
 
-func (w *worldSession) loadAdventureElite(p []byte) ([]outboundPacket, error) {
-	if _, err := protocol.DecodeAdventureEliteLoad(p); err != nil {
+// 原生142E60CF0在这些频道选择类型2的精锐容器；普通频道和矿区走类型0。
+// 另一个分支依赖活动662，尚未接入，不伪造活动或临时更改玩家频道身份。
+func adventureEliteChannel(channelType uint32) bool {
+	switch channelType {
+	case 68, 73, 74, 76, 78:
+		return true
+	}
+	return false
+}
+
+func (w *worldSession) loadAdventureElite(ctx context.Context, p []byte) ([]outboundPacket, error) {
+	mode, err := protocol.DecodeAdventureEliteLoad(p)
+	if err != nil {
 		return nil, err
 	}
-	// 142E5A340的失败分支会清除等待标记，不改动已恢复的设置map。
-	// 本次保存偏好不生成战斗APC；不能用1879空完成通知冒充已加载角色战斗数据。
-	return nil, fmt.Errorf("精锐选择已恢复；战斗APC资料尚未接入")
+	if w == nil || !adventureEliteChannel(w.channelType) {
+		return nil, fmt.Errorf("当前频道未启用客户端精锐同伴系统，请在支持精锐的频道加载")
+	}
+	if w.activeDungeon != nil || w.selectingDungeon || w.bleedingMineStart != nil || w.pendingTownArrival != nil {
+		return nil, fmt.Errorf("请在城镇加载精锐资料，不能重建正在出战的同伴")
+	}
+	// 当前原版mycharacters_apc_contents.etc仅保留contents key=2。
+	// 旧模式和活动模式4有不同消费分支，不套用当前账号同伴资料。
+	if mode != 2 {
+		return nil, fmt.Errorf("当前客户端资源未启用此精锐模式：%d", mode)
+	}
+	profile, err := w.prepareAdventure(ctx)
+	if err != nil {
+		return nil, err
+	}
+	roles, err := w.characters.Store.Characters(ctx, w.account)
+	if err != nil {
+		return nil, err
+	}
+	byID := make(map[int64]int, len(roles))
+	for slot, role := range roles {
+		byID[role.ID] = slot
+	}
+	var slots []byte
+	var companions []protocol.TagCharacter
+	seen := map[int64]bool{}
+	for _, id := range profile.Data.EliteSelections[mode] {
+		if id == 0 {
+			continue
+		}
+		slot, exists := byID[id]
+		if !exists {
+			// 已删除角色不再下发，保留其他槽位及账号存档。
+			continue
+		}
+		role := roles[slot]
+		if role.AccountID != w.account || id == w.role.ID || seen[id] || slot >= 255 {
+			return nil, fmt.Errorf("精锐角色归属、槽位或选择已变化，请重新保存名单")
+		}
+		seen[id] = true
+		var state character.State
+		if err = json.Unmarshal(role.State, &state); err != nil {
+			return nil, fmt.Errorf("读取精锐角色%s：%w", role.Name, err)
+		}
+		if state.Level < 100 || state.Awakening < 2 {
+			return nil, fmt.Errorf("精锐角色%s未达到100级二次觉醒条件", role.Name)
+		}
+		_, err := w.characters.AdventureEliteSkillUsage(role, profile.Data.EliteSkillUsage[mode][id])
+		if err != nil {
+			return nil, fmt.Errorf("精锐角色%s的技能设置需要重新保存：%w", role.Name, err)
+		}
+		snapshot, err := w.characters.TagCharacterSnapshot(role)
+		if err != nil {
+			return nil, fmt.Errorf("读取精锐角色%s的装备技能：%w", role.Name, err)
+		}
+		slots = append(slots, byte(slot))
+		companions = append(companions, snapshot)
+	}
+	if len(companions) == 0 {
+		return nil, fmt.Errorf("请先保存至少一个有效精锐角色")
+	}
+	characters, err := protocol.AdventureEliteCharacterInfo(w.role.WireID, slots, companions)
+	if err != nil {
+		return nil, fmt.Errorf("精锐装备技能资料无法完整编码：%w", err)
+	}
+	settings, err := adventureElitePayloadForRoles(profile, roles)
+	if err != nil {
+		return nil, err
+	}
+	done := make([]byte, 2)
+	binary.LittleEndian.PutUint16(done, mode)
+	var packets []outboundPacket
+	// 先确保客户端选择与本次同一份账号角色顺序一致。只在内容变化时发送，
+	// 避免1754自动发出的1811形成循环；本次仍完成资料加载以解除等待状态。
+	if signature := sha256.Sum256(settings); signature != w.adventureEliteSnapshot {
+		w.adventureEliteSnapshot = signature
+		packets = append(packets, outboundPacket{"精锐角色索引变更同步", 0, 1754, settings})
+	}
+	// attempt 1/3：1382建立真实对象，1879克隆为AI同伴并应用技能开关。
+	return append(packets,
+		outboundPacket{"精锐真实装备技能加载（attempt 1/3）", 0, 1382, characters},
+		outboundPacket{"精锐同伴资料加载完成", 0, 1879, done},
+	), nil
 }

@@ -35,6 +35,7 @@ type worldSession struct {
 	bleedingMineReady bool
 	bleedingMineRoster []int64
 	bleedingMineStart *bleedingMineStart
+	blackPurgatory blackPurgatoryState
 	adventureEliteSnapshot [32]byte
 	// odyssey mirrors character.OdysseyRole for this session. It selects which
 	// source level gate the world service applies: an Arad Odyssey character
@@ -132,6 +133,7 @@ type worldSession struct {
 	cardPlan           *loot.CardPlan
 	cardScrolled       bool
 	cardLayoutSent     bool
+	cardAutoPickAt     time.Time
 	cardReceipt        *loot.CardReceipt
 	answeredQuests     map[uint16]bool
 	communicationQuest uint16
@@ -196,6 +198,19 @@ func (w *worldSession) enter(role storage.Character, spawn storage.WorldPosition
 		}
 	}
 	w.role, w.level, w.state, w.odyssey = role, state.Level, saved, odyssey
+	w.blackPurgatory = blackPurgatoryState{}
+	if w.channelType == 73 {
+		// blackpurgatory.etc的85/1招募大厅连回原版85/0房间。
+		// 坐标来自black_purgatory_gate.map的[gate]，不写普通城镇存档。
+		entry := blackPurgatoryEntry()
+		if e := w.service.ValidatePosition(w.level, w.odyssey, entry); e != nil {
+			return fmt.Errorf("黑鸦频道落点无效：%w", e)
+		}
+		w.state.Position = entry
+		if _, _, e := w.blackPurgatoryQuota(ctx, "", "recover", time.Now()); e != nil {
+			return fmt.Errorf("恢复黑鸦入场次数：%w", e)
+		}
+	}
 	w.bleedingMineCreated, w.bleedingMineReady = false, false
 	w.bleedingMineRoster = nil
 	w.bleedingMineStart = nil
@@ -479,6 +494,9 @@ func (w *worldSession) handle(id uint16, p []byte, send func(byte, uint16, []byt
 			return e
 		}
 		if e = w.validateBleedingMineArea(r); e == nil {
+			e = w.validateBlackPurgatoryArea(r)
+		}
+		if e == nil {
 			next, e = w.areaTransition(r)
 		}
 		if e != nil {
@@ -507,7 +525,9 @@ func (w *worldSession) handle(id uint16, p []byte, send func(byte, uint16, []byt
 			}
 			return send(1, 1418, refusal)
 		}
-		next, e = w.areaTransition(r)
+		if e = w.validateBlackPurgatoryArea(r); e == nil {
+			next, e = w.areaTransition(r)
+		}
 		if e != nil {
 			event(map[string]any{"kind": "prev_village_refused", "town": r.Town, "area": r.Area, "reason": e.Error()})
 			refusal, err := protocol.AreaChangeFailure(4, r.Town, r.Area)
@@ -525,6 +545,9 @@ func (w *worldSession) handle(id uint16, p []byte, send func(byte, uint16, []byt
 		// 矿区位置属于当前频道会话，不能覆盖普通频道的城镇落点。
 		w.state.Position = next
 		event(map[string]any{"kind": "赤红铁矿会话位置更新", "character_id": w.role.ID, "position": next, "request": id})
+	} else if w.channelType == 73 && next.Town == 85 {
+		w.state.Position = next
+		event(map[string]any{"kind": "黑鸦会话位置更新", "character_id": w.role.ID, "position": next, "request": id})
 	} else {
 		saved, e := w.service.Store.SaveWorld(ctx, w.account, w.role.ID, old, next)
 		if e != nil {

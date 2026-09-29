@@ -363,6 +363,7 @@ func (s *Service) EntryBasicProbe(role storage.Character, channelContext [2]byte
 	return protocol.UserInfoBasicProbe(protocol.EntryBasicProbe{
 		Fame:          fame,
 		SeasonLevel:   seasonLevel(state.SeasonLevel),
+		BasePercent:   entryBasePercent,
 		ActorServerID: role.WireID, Context: channelContext,
 		Character: protocol.CharacterRow{Name: role.Name, Profession: role.Profession, Advancement: advancement, Level: state.Level, Odyssey: odyssey, Equipment: equipment, CreatureItemID: creatureItemID, CreatureName: creatureName, ContentClearFlags: contentFlags},
 		// The explicit per-slot block must stay empty on the entry path. A
@@ -434,6 +435,7 @@ func (s *Service) AppearanceProbe(role storage.Character, channelContext [2]byte
 	return protocol.UserInfoBasicProbe(protocol.EntryBasicProbe{
 		Fame:          fame,
 		SeasonLevel:   seasonLevel(state.SeasonLevel),
+		BasePercent:   entryBasePercent,
 		ActorServerID: role.WireID, Context: channelContext,
 		Character:  protocol.CharacterRow{Name: role.Name, Profession: role.Profession, Advancement: advancement, Level: state.Level, Odyssey: odyssey, CreatureItemID: creatureItemID, CreatureName: creatureName, ContentClearFlags: contentFlags},
 		Appearance: rows,

@@ -1,0 +1,2720 @@
+{
+  "model": "black-purgatory-card-v1",
+  "source": "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80",
+  "client_pvf_sha256": "2429b15aa4235be32c3f3b49676646a25b6bf42bd45d5d651dae7e6fd9186167",
+  "script": "etc/dungeonspecialreward.etc",
+  "script_sha256": "0294f5864d7abe0c7bf76de2fa0984376620f9a93e3a46740ec99d836d15006e",
+  "dungeon": 100000527,
+  "cards": [
+    {
+      "Template": 10321188,
+      "Weight": 7324,
+      "Count": 1
+    },
+    {
+      "Template": 10321189,
+      "Weight": 500,
+      "Count": 1
+    },
+    {
+      "Template": 10321190,
+      "Weight": 240,
+      "Count": 1
+    },
+    {
+      "Template": 10321191,
+      "Weight": 80,
+      "Count": 1
+    },
+    {
+      "Template": 10321192,
+      "Weight": 1856,
+      "Count": 1
+    }
+  ],
+  "vip_source_only": [
+    {
+      "Template": 10321193,
+      "Weight": 10000,
+      "Count": 1
+    }
+  ],
+  "boss_equipment": {
+    "model": "local-black-purgatory-boss-v1",
+    "status": "装备范围来自PVF；概率为2026-09-29用户确认的本服暂定值，不是官方爆率",
+    "denominator": 1000000,
+    "rates": {
+      "epic": 100000,
+      "mythic": 1000,
+      "corrupt_product": 10000
+    },
+    "selection": "最终领主每次分别抽取，各组内部等概率；同次挑战只生成一次",
+    "group_script": "etc/itemdictionary/customroutingwaygroup.cos",
+    "group_script_sha256": "70a74e0d7e4526d43c2bb222d95dcff758f02860f3fae1d513698df6d69bf82b",
+    "routing_script": "etc/itemdictionary/customroutingway.etc",
+    "routing_script_sha256": "49e29ff7f757a6e87763f1d6a7d697676ed58f0b8f1b17252ce87f1976b46e94",
+    "groups": {
+      "epic": {
+        "source_group": 1010001,
+        "candidates": [
+          {
+            "template": 117020124,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/archer/weapon/cbow/117020124.equ",
+            "sha256": "3658a8f0178a1c04e994c398baaaa3370d131c00ea7138cd4f559f8608f8cb8a"
+          },
+          {
+            "template": 117020125,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/archer/weapon/cbow/117020125.equ",
+            "sha256": "16d035d34b66632cd3ef028992621463bdd9d05f72c5a42bf803d6e3f87947ac"
+          },
+          {
+            "template": 117030124,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/archer/weapon/ebow/117030124.equ",
+            "sha256": "4bd8b1a44c21b16bcd1c8d217450275c430c407d8effac0b4bb62f652410565c"
+          },
+          {
+            "template": 117030125,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/archer/weapon/ebow/117030125.equ",
+            "sha256": "828b68df446b990f0806fbeb4242eff1ebf48bb4ca9bbf4a69dde2f11536adf5"
+          },
+          {
+            "template": 117040135,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/archer/weapon/pbow/117040135.equ",
+            "sha256": "455d97856f74750c2e4509d3271f011344046a86cc29890fabc8525a28b903b2"
+          },
+          {
+            "template": 117040136,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/archer/weapon/pbow/117040136.equ",
+            "sha256": "7ec546a6944992c70f6ded43a4fa8c1c3658268788ec97bb9a0d48ac6cb7f1f5"
+          },
+          {
+            "template": 117010137,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/archer/weapon/lbow/117010137.equ",
+            "sha256": "39410d2c829cd888f09b690b0e77b02b43180e012966e457bf5deb50e43cdfc3"
+          },
+          {
+            "template": 117010138,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/archer/weapon/lbow/117010138.equ",
+            "sha256": "90a1af807ff9b2a94c1d42cdada9533cfeca294e3eef43cd43cee8066cafd7f9"
+          },
+          {
+            "template": 109000565,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/thief/weapon/dagger/109000565.equ",
+            "sha256": "aa3b9eed06c9985a8a267055228f526dae4f8ca02c6715d2e75024864b706810"
+          },
+          {
+            "template": 109010517,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/thief/weapon/twinsword/109010517.equ",
+            "sha256": "e4b2b04e0e968188b9d2b9543fb3e62ceae160b06492cfcd1023a058feb2fed2"
+          },
+          {
+            "template": 109030492,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/thief/weapon/wand/109030492.equ",
+            "sha256": "937d2dd19ad52b13379ffd0c62089080bebdd25194c6c84fa9e0001532e82528"
+          },
+          {
+            "template": 102040638,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/fighter/weapon/tonfa/102040638.equ",
+            "sha256": "70b8bdac43e75b912b564c4ed122fb03c22e5e1c1d86cdc455e9ee8e39f322df"
+          },
+          {
+            "template": 102010681,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/fighter/weapon/gauntlet/102010681.equ",
+            "sha256": "92271a343c8e0dd778f3acac01275c2722f6a8170389b5e881626b011909d0d2"
+          },
+          {
+            "template": 102000626,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/fighter/weapon/knuckle/102000626.equ",
+            "sha256": "71c3c1c43e6d358a960a393c23dfff40ac37571697cfa8e24c8c99025b1c99cb"
+          },
+          {
+            "template": 102030575,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/fighter/weapon/boxglove/102030575.equ",
+            "sha256": "ef91c2c590f88605705fcb4ee6b46fd5cf1a4f597ae0ea4717536aa3ab8560e1"
+          },
+          {
+            "template": 104000656,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/gunner/weapon/revolver/104000656.equ",
+            "sha256": "8ab83863e702dc0d0e3709125b6b1336b137798e8bfbad863ab467cea6d4971e"
+          },
+          {
+            "template": 104040650,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/gunner/weapon/bowgun/104040650.equ",
+            "sha256": "5239ce0a8e6563f4a0b18c11c39e2484649333b1c5b5796342ecf892be0880da"
+          },
+          {
+            "template": 104020626,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/gunner/weapon/musket/104020626.equ",
+            "sha256": "896959468a6b34dd0a5af973f8a2c8e2b28ba68a46bf854ea0fba45a470b00fd"
+          },
+          {
+            "template": 104030639,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/gunner/weapon/hcannon/104030639.equ",
+            "sha256": "182f2f728369e7858866a7cc6bca38a1a27aa7d1158f3161c4f9a1fb76660982"
+          },
+          {
+            "template": 106000606,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/mage/weapon/spear/106000606.equ",
+            "sha256": "2a1f03c04a51679b0192919eb85218044bb9830f0ac536f1bcbc2464564a14c2"
+          },
+          {
+            "template": 106020675,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/mage/weapon/rod/106020675.equ",
+            "sha256": "d01cf6c3e813ffa696bb131bcaf212afe14d2824cb2be00ec0971ec719966fd9"
+          },
+          {
+            "template": 106010631,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/mage/weapon/pole/106010631.equ",
+            "sha256": "2bb801ee6e7e85ef0979bb357ee06833e24e19b6c309601fde9097ea5a8c1ed8"
+          },
+          {
+            "template": 106030707,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/mage/weapon/staff/106030707.equ",
+            "sha256": "f1237e1790db72ac4ae61c93517decb5b722b71443ea6895feba0f7f4a459048"
+          },
+          {
+            "template": 106040579,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/mage/weapon/broom/106040579.equ",
+            "sha256": "12613d7dfdac3a5cef54653978b0efc15089917922b4608c47f44e9fc6d6eaa2"
+          },
+          {
+            "template": 101011025,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/swordman/weapon/katana/101011025.equ",
+            "sha256": "ea5d46f006d94c2c02dc49c35654d3bebbe7e907526bd46d2cf291df1aef543e"
+          },
+          {
+            "template": 101040587,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/swordman/weapon/beamsword/101040587.equ",
+            "sha256": "5d89cbea6bb217803f5494ccc40f3071b2f0a68e5da4fe7ecb6f9bc76498b80a"
+          },
+          {
+            "template": 101020806,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/swordman/weapon/club/101020806.equ",
+            "sha256": "b9559ccd10b59ce140f6bdf48f6b2415bbbdfd6f15300240912d720e1946947d"
+          },
+          {
+            "template": 101030890,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/swordman/weapon/hsword/101030890.equ",
+            "sha256": "4f534f0875550e79472d9f1891ccc149b2d515c20df0899580a2f61c5f8ac237"
+          },
+          {
+            "template": 101000860,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/swordman/weapon/ssword/101000860.equ",
+            "sha256": "ae4463389a1510b1fd2e07e4a092aea8daf5f1082b68b730d7de9a23f9c73ab0"
+          },
+          {
+            "template": 114000304,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/demoniclancer/weapon/pike/114000304.equ",
+            "sha256": "9adcc3482401230c7d6228b88182848c076ba816da6981b607cfe808550b6f7e"
+          },
+          {
+            "template": 114010285,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/demoniclancer/weapon/halberd/114010285.equ",
+            "sha256": "9f36aac4de447f0dc8cfd2f0618a1adc77d754e04c74e4b9929bc21d6bfdf282"
+          },
+          {
+            "template": 108000599,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/priest/weapon/cross/108000599.equ",
+            "sha256": "ab7625dffbbd73959c478b40290477c2219b99da5652d78b8870b96cc84867c1"
+          },
+          {
+            "template": 108010588,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/priest/weapon/rosary/108010588.equ",
+            "sha256": "fd9ef1a1681809a3de43fdd97ae5f3a8ca90c3847a35ba4e5b830d56886eb7c6"
+          },
+          {
+            "template": 108020498,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/priest/weapon/totem/108020498.equ",
+            "sha256": "683f30d22f832a2d066fb742c16b4e68594b0f5efff10d19c504c5999d233318"
+          },
+          {
+            "template": 116010180,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/gunblader/weapon/sblade/116010180.equ",
+            "sha256": "b927950ffc76a7b655f9d92e6a500dd058984d837adc743868551d704fb38110"
+          },
+          {
+            "template": 116000206,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/gunblader/weapon/lblade/116000206.equ",
+            "sha256": "05af784b1d47be8d3a11642a4edb8b90c8b02814a5e891680c55f3ad804849ed"
+          },
+          {
+            "template": 116030220,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/gunblader/weapon/coreswd/116030220.equ",
+            "sha256": "a132a3a7afa925548479bf8a6a0dbf2a4489d0dacfe69d74bcf931db6be435aa"
+          },
+          {
+            "template": 109000566,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/thief/weapon/dagger/109000566.equ",
+            "sha256": "e562cb8dfb98f2912044185f3da8529e31196fde1159c799d67614cfd0991dd8"
+          },
+          {
+            "template": 109010518,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/thief/weapon/twinsword/109010518.equ",
+            "sha256": "315878bc713edb7d12dcfa4cd53a7388fcf243a2a3ca37622fa7c879b3fa2e9d"
+          },
+          {
+            "template": 109030493,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/thief/weapon/wand/109030493.equ",
+            "sha256": "53ea0334ecdd6a0d3f65431f13e6709e3a86d53723bf526f4699e133ab37fd69"
+          },
+          {
+            "template": 102040639,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/fighter/weapon/tonfa/102040639.equ",
+            "sha256": "0fcbb85f8c6bfe12350442da228051b8a66dfd62916341ab4a9e4f0eb9c628f1"
+          },
+          {
+            "template": 102010682,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/fighter/weapon/gauntlet/102010682.equ",
+            "sha256": "ffe4d0e452592df2a76e0fac88d73eed35f97ff66f2b320014001537fde25797"
+          },
+          {
+            "template": 102000627,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/fighter/weapon/knuckle/102000627.equ",
+            "sha256": "89d1aea2c168d81398476a1f8ef3db9a30b221f631cd747f66fb880a98b5b512"
+          },
+          {
+            "template": 104040651,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/gunner/weapon/bowgun/104040651.equ",
+            "sha256": "2007eec49022e770d482565197c7d2fdcd097a1caee08198217e3353193c7626"
+          },
+          {
+            "template": 104020627,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/gunner/weapon/musket/104020627.equ",
+            "sha256": "317246251e81f6970f3db20f9efc90e4df086285d19ff48001b262bc6f898b46"
+          },
+          {
+            "template": 104030640,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/gunner/weapon/hcannon/104030640.equ",
+            "sha256": "95bdfbfd685662a10f1e0a3f0ca1f55130f6c5760d952130399fceaad86ae31e"
+          },
+          {
+            "template": 106000607,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/mage/weapon/spear/106000607.equ",
+            "sha256": "123f9e82b37737c7c200deed34c55a60abbec2843e9418ce979b20c4cd168f9f"
+          },
+          {
+            "template": 106020676,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/mage/weapon/rod/106020676.equ",
+            "sha256": "2780404920380651a4559af36c6f3def698a1c5fac78ecd4f845c59644f7043b"
+          },
+          {
+            "template": 106010632,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/mage/weapon/pole/106010632.equ",
+            "sha256": "9ed7079e22ed987394b4099f6c5779757b6d77b2b0a4d282e1160fc527ef6273"
+          },
+          {
+            "template": 106030708,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/mage/weapon/staff/106030708.equ",
+            "sha256": "15d4628c1cc79531d43d4b6729cfcac1479e2ce9db3b889a16af720b35c5acb6"
+          },
+          {
+            "template": 106040580,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/mage/weapon/broom/106040580.equ",
+            "sha256": "0e0613e24bd256adf378de0c72d101e754786c128a5cda74d091b25518c26e1a"
+          },
+          {
+            "template": 101011026,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/swordman/weapon/katana/101011026.equ",
+            "sha256": "9235e1ab313e9984f8a464520dd8b4966a9e28bcc992a4639c3805387b91b845"
+          },
+          {
+            "template": 101040588,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/swordman/weapon/beamsword/101040588.equ",
+            "sha256": "609837fc53cb4173d2bfa386c02e01f5c3a9fb8095bdf6c5d503870b82c2e9c2"
+          },
+          {
+            "template": 101020807,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/swordman/weapon/club/101020807.equ",
+            "sha256": "a660ea0f6396ccb7a29956619c971a6c8468fdb0948acfa2660779f5695ead24"
+          },
+          {
+            "template": 101030891,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/swordman/weapon/hsword/101030891.equ",
+            "sha256": "b1827fa60e4788b8be3e0a7a35a9ae9caf2b8c69737bfba39c6667daa500531f"
+          },
+          {
+            "template": 101000861,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/swordman/weapon/ssword/101000861.equ",
+            "sha256": "a619d4f5f48b83e5ec7545a876cc338062c6c04e3e17639c81cbb51920ff02f1"
+          },
+          {
+            "template": 114000305,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/demoniclancer/weapon/pike/114000305.equ",
+            "sha256": "5da816789e6777042ff2e3a5c6718f17bb671299b7db316c5e7911c2b2f6931c"
+          },
+          {
+            "template": 114010286,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/demoniclancer/weapon/halberd/114010286.equ",
+            "sha256": "5a700d1437b38965129e62b43bb6320ee12b0aa32cdad5fc8fbb5c145a9f6793"
+          },
+          {
+            "template": 114020188,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/demoniclancer/weapon/beamspear/114020188.equ",
+            "sha256": "2d19126e638f10e47d63e615203e55d2c32012cc975aee43f4859c8002d4371c"
+          },
+          {
+            "template": 108000600,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/priest/weapon/cross/108000600.equ",
+            "sha256": "36666c00675932fe920a9ab31e776b5eed840bc7362bbb436f4cd003f6c342c1"
+          },
+          {
+            "template": 108010589,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/priest/weapon/rosary/108010589.equ",
+            "sha256": "d547a24ab489c3ca44164af2fd422f053b796b83327775d6c03d36e8a3b83d7d"
+          },
+          {
+            "template": 108020499,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/priest/weapon/totem/108020499.equ",
+            "sha256": "fd401334348d77a3282c1d8c93688d89456b46eecb85cc699a178e2c19bc5911"
+          },
+          {
+            "template": 108030613,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/priest/weapon/scythe/108030613.equ",
+            "sha256": "87b98ca222e0b6947776858ffce741f1253eb99af90306d5fbfa2ebf2b094430"
+          },
+          {
+            "template": 116010181,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/gunblader/weapon/sblade/116010181.equ",
+            "sha256": "c65049b510e704cddedc0ece82dad320b93a0891bab91f303fc8562c6324cc9b"
+          },
+          {
+            "template": 116000207,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/gunblader/weapon/lblade/116000207.equ",
+            "sha256": "ebae94e4206fedb9de568c88c824d472166711d64a3e1a93987d7125b647a38c"
+          },
+          {
+            "template": 116030221,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/gunblader/weapon/coreswd/116030221.equ",
+            "sha256": "e46ab6023c0ac52d86c705595516c9c48fc9cbd454c17660360f4b9a191b17a3"
+          },
+          {
+            "template": 117000127,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/archer/weapon/sbow/117000127.equ",
+            "sha256": "f8d81b557f93dcd49b9eecc7514b0eabae6e86ee4155d052532f7588dc37be79"
+          },
+          {
+            "template": 117000128,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/archer/weapon/sbow/117000128.equ",
+            "sha256": "c2a7b58554737d6590e2db7d936bce3d222d1f6a9aad2c672c9b023febb7587a"
+          },
+          {
+            "template": 100050893,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/jacket/cloth/100050893.equ",
+            "sha256": "76a80ad87d55386c8e0c27a107ea26a85856f1d6cd3181486c9aaa5eb6aefa6b"
+          },
+          {
+            "template": 100100794,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/pants/cloth/100100794.equ",
+            "sha256": "407226dcd279454ab69f2c654d2b10d531f1a7693e78a94bf5f890032245a038"
+          },
+          {
+            "template": 100250756,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoes/cloth/100250756.equ",
+            "sha256": "2c77550569de4b109e48e039ae9dfd3f911ecc25c7abc9d0f4f01ed1e107ab74"
+          },
+          {
+            "template": 100060755,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/jacket/leather/100060755.equ",
+            "sha256": "4b0283e94b88038458b6b5c408411f8ae1ae91688f3794e87d4f8f50ad4c8848"
+          },
+          {
+            "template": 100110742,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/pants/leather/100110742.equ",
+            "sha256": "38f813883250a7977a416511c2a6a9cff1efab9f7c85ae353a558470c8ca5ba8"
+          },
+          {
+            "template": 100260722,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoes/leather/100260722.equ",
+            "sha256": "ce437dceb7ac863ef574054fa9dd01f20082e5c70b450f97ffd6f5dc4224c3c8"
+          },
+          {
+            "template": 100070697,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/jacket/larmor/100070697.equ",
+            "sha256": "e2897ec7b8c2472f921a85d3700e0abbe2abf4a6cf428a6b7c504e932d9a00c1"
+          },
+          {
+            "template": 100270661,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoes/larmor/100270661.equ",
+            "sha256": "6d549e128dba1a90ab525d3cbd6ec108a1cc108af176591acb02de5717777c06"
+          },
+          {
+            "template": 100120689,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/pants/larmor/100120689.equ",
+            "sha256": "5bc5c83b9a697e477c94b5a36690f79e0f90ef4591a4ed9442b556077bd310da"
+          },
+          {
+            "template": 100080721,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/jacket/harmor/100080721.equ",
+            "sha256": "00080b48b02e7f67a189d545c1ee305110b48f1b623778b35b3ad72448d25f6a"
+          },
+          {
+            "template": 100130702,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/pants/harmor/100130702.equ",
+            "sha256": "5528a2b4371f799795918c00c1f5be2d8f49e07ce0d4c1c35b0b546cfb73058e"
+          },
+          {
+            "template": 100280665,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoes/harmor/100280665.equ",
+            "sha256": "6ab36e89dafd3c067751c3f9cd41ae982e52e9bdb84ab388a110b747096d9c97"
+          },
+          {
+            "template": 100100783,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/pants/cloth/100100783.equ",
+            "sha256": "eec143bb5183167975c8c9d3aa4f4aef47e68342423034eb1f0c07d5d7a72944"
+          },
+          {
+            "template": 100050882,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/jacket/cloth/100050882.equ",
+            "sha256": "665f1b634bf561ac8fc589465445c3e77432a7421c78e26d895f4a5b723cf04a"
+          },
+          {
+            "template": 100150753,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoulder/cloth/100150753.equ",
+            "sha256": "804a7583668870a093e0a28926c28cf0d232961abc6aff7a26bb3742154314a5"
+          },
+          {
+            "template": 100200727,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/belt/cloth/100200727.equ",
+            "sha256": "6f45625467a63c10124065a7e7874d7bf4d083b6ade49f22acf644668101b7be"
+          },
+          {
+            "template": 100250745,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoes/cloth/100250745.equ",
+            "sha256": "17692a3cfa8cfef58d0ed57b978f42c923f1f05824bc3b3e9bde5f43f647a0d5"
+          },
+          {
+            "template": 100100792,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/pants/cloth/100100792.equ",
+            "sha256": "e66549271cba7795f5b927860fc07d042fbab6e304f5905f07a32ee503ec5945"
+          },
+          {
+            "template": 100050891,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/jacket/cloth/100050891.equ",
+            "sha256": "334ed4cf5d74a98fd8a3cc3a9f30d0ba509b4d8beb8959d2c79d5f6852f7a45a"
+          },
+          {
+            "template": 100150762,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoulder/cloth/100150762.equ",
+            "sha256": "1c5ee622ddfcab69e18cd95eb42d14c4948ab12dad64de9d405e31b9c026944d"
+          },
+          {
+            "template": 100200736,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/belt/cloth/100200736.equ",
+            "sha256": "92bb6899be3a02adc9aa5fc2adf03173e8d8e4a39681788b51ecf519c0954181"
+          },
+          {
+            "template": 100250754,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoes/cloth/100250754.equ",
+            "sha256": "a95f4f3900dd46490290fa049db2b317a7b822560adcaf90ca8b989468d421f0"
+          },
+          {
+            "template": 100100793,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/pants/cloth/100100793.equ",
+            "sha256": "b4b0080eaad9d7a7377d9190406af3e9b8e69436b864a7d491bbce44e2d95a5f"
+          },
+          {
+            "template": 100050892,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/jacket/cloth/100050892.equ",
+            "sha256": "7da8658f167de045cba7ba8600377ee7807207b59b3149a6863ee1293521e60c"
+          },
+          {
+            "template": 100150763,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoulder/cloth/100150763.equ",
+            "sha256": "aad4cbca9b32b592069a20dab3f4b147e141df34575e0f137b589fa3ee8c41c1"
+          },
+          {
+            "template": 100200737,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/belt/cloth/100200737.equ",
+            "sha256": "89036302c8f9b3947c4fc1508134e997ccb567a7a159ba152dc3b7c7cb095c7d"
+          },
+          {
+            "template": 100250755,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoes/cloth/100250755.equ",
+            "sha256": "036ab874ac853d19d9d7464d89bf83cbc193e22a1a4913ee88a1bc1f0044b20a"
+          },
+          {
+            "template": 100110745,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/pants/leather/100110745.equ",
+            "sha256": "e83e1ea59f90537bb89227847a4f9b4d4a20df3f40d2ad1d7b7ae1a87b93be3c"
+          },
+          {
+            "template": 100160681,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoulder/leather/100160681.equ",
+            "sha256": "2fdca8d990861c5e71684c13d3a2ffda96d2becf3ce8cf44a9253cbd0a117012"
+          },
+          {
+            "template": 100260725,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoes/leather/100260725.equ",
+            "sha256": "b61aa137820c2c3cb061411ad4e78c3efa26d5ffbef03e25027ab0784f86943d"
+          },
+          {
+            "template": 100060758,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/jacket/leather/100060758.equ",
+            "sha256": "6fc8a10a7e4e60b4b162966473fa225b2342191fef02178641aa07d3471cc74e"
+          },
+          {
+            "template": 100210705,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/belt/leather/100210705.equ",
+            "sha256": "4b5b5442b05773fc77911932c32f764e327c177dce6439e5e4d02cb2dd8a0a5d"
+          },
+          {
+            "template": 100110746,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/pants/leather/100110746.equ",
+            "sha256": "947d88423bc63e7db42db3cedb44a3db9ee50fc588af73b2b9175fb284719219"
+          },
+          {
+            "template": 100160682,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoulder/leather/100160682.equ",
+            "sha256": "60beebd2c1412b411a97a57893e2cb6ad5d88ff7cfdae08ed13775ee81558934"
+          },
+          {
+            "template": 100260726,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoes/leather/100260726.equ",
+            "sha256": "4601b11af1b89ebf4f1cbc1a73c24f250df18d7d55759e6762939eb8df51d9c6"
+          },
+          {
+            "template": 100060759,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/jacket/leather/100060759.equ",
+            "sha256": "44c2d489913092a16399eebd7c7177c4c15224079e6979e22d1a58fc7c8c9904"
+          },
+          {
+            "template": 100210706,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/belt/leather/100210706.equ",
+            "sha256": "7ada9e4ed5951559b245082daf3ec984fe1576144ddf1c0b4713e9aef5b5b75f"
+          },
+          {
+            "template": 100110747,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/pants/leather/100110747.equ",
+            "sha256": "8bf7917d4c3845a2704583cd17ec487bdffa14fd23e627a8be7ca8d300e87e88"
+          },
+          {
+            "template": 100160683,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoulder/leather/100160683.equ",
+            "sha256": "cc6c6fe1706969490d91327af525cf58c1adb0b210e2554ffcd4e8b1d0ed5866"
+          },
+          {
+            "template": 100260727,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoes/leather/100260727.equ",
+            "sha256": "1e2eef94d11f6cf9fc37ffb14292d0632dff3b83dc04dcccaca8e104396ce6c9"
+          },
+          {
+            "template": 100060760,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/jacket/leather/100060760.equ",
+            "sha256": "edafdef66cc665e2c3492e49552cff2973dc71c8fe9b8c193097c91c0cb55f49"
+          },
+          {
+            "template": 100210707,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/belt/leather/100210707.equ",
+            "sha256": "a70ae24d11a789917bae74d1909870cc64d718623c5775e1bd5c63050373855b"
+          },
+          {
+            "template": 100170665,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoulder/larmor/100170665.equ",
+            "sha256": "9801aed39b9a1fce2b6ab14ffbeba53e717e93d0fd606bcb8d996535af22200a"
+          },
+          {
+            "template": 100220665,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/belt/larmor/100220665.equ",
+            "sha256": "0ae130b8c224cfdb4149f75a050e9c3d52b085f99675562fe095b595e5bca685"
+          },
+          {
+            "template": 100270666,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoes/larmor/100270666.equ",
+            "sha256": "a6e01b3b1bbf9e96f8a7a18600d2574beae35e12308ec597377d96a92b8d743c"
+          },
+          {
+            "template": 100070702,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/jacket/larmor/100070702.equ",
+            "sha256": "608118ccd086e1fe631a0f2b8703d5e5321fddf3f1092e4c637b625ba03a8981"
+          },
+          {
+            "template": 100120694,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/pants/larmor/100120694.equ",
+            "sha256": "755a03b87c39d632a5323adedb4af5c8c8d10c9c240399c2ec2be81f88c4f7c1"
+          },
+          {
+            "template": 100170666,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoulder/larmor/100170666.equ",
+            "sha256": "f8bf0ca3ef31f49cb5a75b2bb05f4fa6c26a99ec5f9c059ff19c8ab7f220a033"
+          },
+          {
+            "template": 100220666,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/belt/larmor/100220666.equ",
+            "sha256": "aed8e2bbcdd1a3ec63cc596cdeaa330df41a37468114525dc2d195dd7a6b1d8c"
+          },
+          {
+            "template": 100270667,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoes/larmor/100270667.equ",
+            "sha256": "f07ec010b24738b1ba2b35f7b6c0a14b2e05a86797510641e1f22229a9b4203f"
+          },
+          {
+            "template": 100070703,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/jacket/larmor/100070703.equ",
+            "sha256": "33f934245658100091af025b22613065e0716b5cde346829b4a6ccb63fa2efed"
+          },
+          {
+            "template": 100120695,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/pants/larmor/100120695.equ",
+            "sha256": "720936199d571137916ebcbc6675f6f571fbb26d2cece1a138786fc856543a28"
+          },
+          {
+            "template": 100170667,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoulder/larmor/100170667.equ",
+            "sha256": "96c2c62d2cfee1f3a520b08002b43c1447f67a6cbc464cd8fb8722757b35a594"
+          },
+          {
+            "template": 100220667,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/belt/larmor/100220667.equ",
+            "sha256": "5f1a56b6281910278f4c5f904045659fc05dd8dd0830d4c5a128a577a5a5b7bf"
+          },
+          {
+            "template": 100270668,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoes/larmor/100270668.equ",
+            "sha256": "8f8ea2c5b0abe5de9c40314e58b1dd20727e1699f0719eeb99fa0ef454b0ca3b"
+          },
+          {
+            "template": 100070704,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/jacket/larmor/100070704.equ",
+            "sha256": "e736305f096e910588173f0e902e938779391752d3f39e59abaac6fa86241c36"
+          },
+          {
+            "template": 100120696,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/pants/larmor/100120696.equ",
+            "sha256": "aba7b0472d9651514ae8826d41a109fcee440dad22d5f751e881b8990cb8d957"
+          },
+          {
+            "template": 100230676,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/belt/harmor/100230676.equ",
+            "sha256": "40efc998fecea32a6e4060c3da941dec825c3c15375066c3a133b26dff5440b5"
+          },
+          {
+            "template": 100130709,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/pants/harmor/100130709.equ",
+            "sha256": "035a795b9216986069427296b1cc6ac0209e6b0862372ede32228150c64e4e1e"
+          },
+          {
+            "template": 100280672,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoes/harmor/100280672.equ",
+            "sha256": "54884242c45cd7b372a58579c72cff8612bf6e3fd772806335410f6cce6d05f8"
+          },
+          {
+            "template": 100080728,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/jacket/harmor/100080728.equ",
+            "sha256": "e4a38eeb40a66f92d7112575c10c04eca1f0cfb07651de0554aa5e45adb80929"
+          },
+          {
+            "template": 100180673,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoulder/harmor/100180673.equ",
+            "sha256": "cb433cc934e9cf404e07480228e9253c315348d6eb466481b7d28d77e79e9d7b"
+          },
+          {
+            "template": 100230677,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/belt/harmor/100230677.equ",
+            "sha256": "9822b09b974f70bd6d35c038ad8c229941b579d9f7083d2e72ff04d2c10e8991"
+          },
+          {
+            "template": 100130710,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/pants/harmor/100130710.equ",
+            "sha256": "c04deaedff34c3dcf3fd2c8f921603df1dd3ef6c474e54b6fcf009a043216019"
+          },
+          {
+            "template": 100280673,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoes/harmor/100280673.equ",
+            "sha256": "0a0235f0fc46f9dbc6e121c96045a9d058197f1a2654d332a8ec4ccc8b700310"
+          },
+          {
+            "template": 100080729,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/jacket/harmor/100080729.equ",
+            "sha256": "45fca3138769de98ac16743a31a2082ff41e209e40d424176e551053e060721a"
+          },
+          {
+            "template": 100180674,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoulder/harmor/100180674.equ",
+            "sha256": "c1ad565010aba01399828b7f1bdd9db1aadaed0f155332db71b9746b3da5738d"
+          },
+          {
+            "template": 100230678,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/belt/harmor/100230678.equ",
+            "sha256": "f5805c496f7a37ede3c77cda18cd851dee87d12d6b64704146b2f323949f8a63"
+          },
+          {
+            "template": 100130711,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/pants/harmor/100130711.equ",
+            "sha256": "efca7e26db5f3151c020a558057d0956d44ee5c5e5c7946333c4b8d3a0ad7e72"
+          },
+          {
+            "template": 100280674,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoes/harmor/100280674.equ",
+            "sha256": "af2ecb042e237e44dc94c2e914c9d2c871b8bf7ae600e46cd1defd34e8e79a05"
+          },
+          {
+            "template": 100080730,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/jacket/harmor/100080730.equ",
+            "sha256": "bdeb63c9e6e56cfeb4ff796864d0d4e3a5e4e33e0202dc5fc9cf5098e11cb179"
+          },
+          {
+            "template": 100180675,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoulder/harmor/100180675.equ",
+            "sha256": "0d1df007375f15f75dd954f6da3b8b7ebf648917d7d25dfec462c1020d81e6a5"
+          },
+          {
+            "template": 100140528,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/pants/plate/100140528.equ",
+            "sha256": "0a959ae4e291a4df8f2c00865250a8f89f3fca7981455f4c729c84b52368f1ec"
+          },
+          {
+            "template": 100190495,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoulder/plate/100190495.equ",
+            "sha256": "bb34597d62d7288816ccfcf8c662c0e8c4810f1e00c4d21b5d48a16df94807de"
+          },
+          {
+            "template": 100240502,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/belt/plate/100240502.equ",
+            "sha256": "38b6968f5468c1974a22c087d5d7c36c69b34a9808f0bb0e392ccd1022efb528"
+          },
+          {
+            "template": 100290519,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoes/plate/100290519.equ",
+            "sha256": "37b7c48a92540f08b7b0eb128a76abbb9cdce8eea8b7ab1bd7baabe747f155bd"
+          },
+          {
+            "template": 100090533,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/jacket/plate/100090533.equ",
+            "sha256": "5f4a2016601b6962e692379f72f6f117588a0876be800d6234fb02ac2cf07713"
+          },
+          {
+            "template": 100140529,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/pants/plate/100140529.equ",
+            "sha256": "0ff5a4eb87ac7ae7c2b0e17d2919c599ace898b3d7a606c0708cd42aef8f6f61"
+          },
+          {
+            "template": 100190496,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoulder/plate/100190496.equ",
+            "sha256": "78e29eda763711ee735d752b3f4450b250179a4c43a8d870708d5ea88016e716"
+          },
+          {
+            "template": 100240503,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/belt/plate/100240503.equ",
+            "sha256": "e6a639023e9ea9f6365af784c88c82ad80822ca37c9377fe81c71bdd8b92503e"
+          },
+          {
+            "template": 100090534,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/jacket/plate/100090534.equ",
+            "sha256": "6864ac2862d36454996e5bb3d5e6d10f7f3706c0369604af4cfe9e90b46ef54d"
+          },
+          {
+            "template": 100290520,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoes/plate/100290520.equ",
+            "sha256": "af15d5293520e9f49c98ea3c4d3ae0892f9a2c330b38a342c7b7d853218a6324"
+          },
+          {
+            "template": 100301124,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/amulet/100301124.equ",
+            "sha256": "eb377cfed25c7947c2e8fa3f02df50cd37566f36e140b44bb6ec5f18550cab47"
+          },
+          {
+            "template": 100312834,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/wrist/100312834.equ",
+            "sha256": "6d2730401aabf513c096881e0f13238cf399f8084b6cf3f1193956f8cc3cd86d"
+          },
+          {
+            "template": 100322713,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/ring/100322713.equ",
+            "sha256": "355fd288e333864580105269c3c05b3fe628c2fc8c5ac5813a9c128391d12c9b"
+          },
+          {
+            "template": 100301125,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/amulet/100301125.equ",
+            "sha256": "dd9e43fd6a9d39cbb60f7c2f44d4e71654afcbc74551cb0cd84d4678440c2217"
+          },
+          {
+            "template": 100312835,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/wrist/100312835.equ",
+            "sha256": "c0231a72232eb135eda48a2a21c625ed95e6ee59f9e667933b522540460609fc"
+          },
+          {
+            "template": 100322714,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/ring/100322714.equ",
+            "sha256": "50df0317c0fb74ad46562fcbc55be8bdc99ca16b5af5c75620cab63211956212"
+          },
+          {
+            "template": 100301126,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/amulet/100301126.equ",
+            "sha256": "6413f45ed3e71d1841ae1b045d5f44841072dbaacc9cbbadb2789ba0dcb0ac7c"
+          },
+          {
+            "template": 100312836,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/wrist/100312836.equ",
+            "sha256": "03d73663705eb51d32a7cbb93d436006ac2bd2dfb11765db972c9e5572fa2459"
+          },
+          {
+            "template": 100322715,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/ring/100322715.equ",
+            "sha256": "5242c0c23422d56ca73d738d84cecfc7458c5c98c80e21a1b9cd88dea4f0c2ab"
+          },
+          {
+            "template": 100301128,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/amulet/100301128.equ",
+            "sha256": "e6cf292ce30f09fa7afc0b594f1e1592f65a88817cf0f7dc4f0f56ac56c03ad0"
+          },
+          {
+            "template": 100312838,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/wrist/100312838.equ",
+            "sha256": "6916c0a9623ed2857c59f336a28a7401eb879070918eb3ae390590b277498d4c"
+          },
+          {
+            "template": 100322717,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/ring/100322717.equ",
+            "sha256": "baccd584c11f3c537675e7cc11c45ca26e89884c36542575e9c06cb4f60aaa42"
+          },
+          {
+            "template": 100301129,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/amulet/100301129.equ",
+            "sha256": "2f501a9b1e1e1f434d41e0ac22cc7dfb4f038e7a90af67a1b46199ee9223a877"
+          },
+          {
+            "template": 100312839,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/wrist/100312839.equ",
+            "sha256": "2f74bfe38f5223797633bcfcbf6ea43bf7b6e8f4205c2bd11b4bed724c7f976d"
+          },
+          {
+            "template": 100322718,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/ring/100322718.equ",
+            "sha256": "e21eb6ce92327900f022794c657a733010da99ad0d83236f3f8c65c288ef86d5"
+          },
+          {
+            "template": 100301130,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/amulet/100301130.equ",
+            "sha256": "47a30a377800c573b73876858f2c46c88f68221a1b09eb31278a29af1da4820a"
+          },
+          {
+            "template": 100312840,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/wrist/100312840.equ",
+            "sha256": "285f2838a92ed07672ab2e548c8b85d278735bbe6e0939d2db05363c0e85dfbe"
+          },
+          {
+            "template": 100322719,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/ring/100322719.equ",
+            "sha256": "d4f2eeadaa8393ba9ac80f1f962085ad7b713446194358417644152d451c2da8"
+          },
+          {
+            "template": 100301131,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/amulet/100301131.equ",
+            "sha256": "219379887acf81a7a1562f97cee1e8354432b8700aa22bf828b532b6b6d43a4a"
+          },
+          {
+            "template": 100312841,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/wrist/100312841.equ",
+            "sha256": "83af0052af336781589f5548b6f214a83e6262057b367a846f53617858e19e63"
+          },
+          {
+            "template": 100322720,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/ring/100322720.equ",
+            "sha256": "f548f6342ff03a0bc9fc5729a331e3517e362729fbf2220b68f47eee57d03351"
+          },
+          {
+            "template": 100345240,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/support/100345240.equ",
+            "sha256": "3ffd48c75f121e0bef5754cb1e95b781428990b49031cebb930898cf3e823662"
+          },
+          {
+            "template": 100353401,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/magicstone/100353401.equ",
+            "sha256": "ebc6d669ff31c53a2b05ef900f4160b5477e9e40b2b85ecb55f5151b35f9de7d"
+          },
+          {
+            "template": 100390328,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/earring/100390328.equ",
+            "sha256": "2c9056e926f8794acd2fbee9719627c9604ca7582e8ac985e215425efb252d7d"
+          },
+          {
+            "template": 100345241,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/support/100345241.equ",
+            "sha256": "c25d1ed7fd085eb7e3161fd6ec710407b4897d87a2c7b54cbca17470eb511c98"
+          },
+          {
+            "template": 100353402,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/magicstone/100353402.equ",
+            "sha256": "4c990222eb6a28220894a81dbefbad1c7366c3862a58070aea0da752e39a0e54"
+          },
+          {
+            "template": 100390329,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/earring/100390329.equ",
+            "sha256": "f132262e9c614d9f9e022b0fc25be0e8e9b99dab69c4c045c03b67a6756efed4"
+          },
+          {
+            "template": 100345242,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/support/100345242.equ",
+            "sha256": "ddab4dde332acc5697d71cc67316bca890481b932b3045cbcc0c52b0ec23f698"
+          },
+          {
+            "template": 100353403,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/magicstone/100353403.equ",
+            "sha256": "289075b1a981f53baa8bbb664f4fc6ef35949b1275ea71280e33f1c866a01f80"
+          },
+          {
+            "template": 100390330,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/earring/100390330.equ",
+            "sha256": "1dc5361dfe9bda389b1a75a8503c901cff736db22a98d3ffc5035ab0be523a21"
+          },
+          {
+            "template": 100345244,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/support/100345244.equ",
+            "sha256": "3965cf36fa266633c43b387be3043cff9eecdaf637c32320f8de0922018a0bab"
+          },
+          {
+            "template": 100353405,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/magicstone/100353405.equ",
+            "sha256": "277745931b958255b955e54c9d5b1a0163c4be16bf4e79f16cb1862bf94cc252"
+          },
+          {
+            "template": 100390332,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/earring/100390332.equ",
+            "sha256": "7b20cca37b28dbc25a0a13549582fc8ed3594dfbd0814b1e2159a57d5259280d"
+          },
+          {
+            "template": 100345245,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/support/100345245.equ",
+            "sha256": "ba755c9323273febf96b09fd4c4858286cb8e57ba14a90e72c5442163fed0c84"
+          },
+          {
+            "template": 100353406,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/magicstone/100353406.equ",
+            "sha256": "93a2f02e27590011c097e70e5cc205f2113e6327dcd4423ffbf630ec5afc1ca9"
+          },
+          {
+            "template": 100390333,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/earring/100390333.equ",
+            "sha256": "5dc603371edd44ac4a45045f9e15e5ef2094a3f3c795e1bb788791e89a720a73"
+          },
+          {
+            "template": 100345246,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/support/100345246.equ",
+            "sha256": "dcbf97856864e05776f5d0d734445833acefb9adac05f1bdcacb541826e64eb3"
+          },
+          {
+            "template": 100353407,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/magicstone/100353407.equ",
+            "sha256": "a0896a165ae732180abb51014a4d5b671447d31cde1bac9da36550bfc557d2f4"
+          },
+          {
+            "template": 100390334,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/earring/100390334.equ",
+            "sha256": "0b51f070dcee75ac7b3b7d6b602de4c2fea6b9a8a7333225630a37e6c5699777"
+          },
+          {
+            "template": 100345247,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/support/100345247.equ",
+            "sha256": "1aa90dabdfc1a32a62b3366e62ce8282c11e97ca9f5e575d3fbd460ecddac1a8"
+          },
+          {
+            "template": 100353408,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/magicstone/100353408.equ",
+            "sha256": "c9ccf4547f417783c8089d580f9442ac4f74511c1aebcfcd6fe735750746270f"
+          },
+          {
+            "template": 100390335,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/earring/100390335.equ",
+            "sha256": "814ee18572f4cd71125453352838505462eb7ce821ada72ae1f1fc512b6db819"
+          },
+          {
+            "template": 102020583,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/fighter/weapon/claw/102020583.equ",
+            "sha256": "14394a92a48b089630fb7ee07fa582a3475689f69eee56b4e82af323c37833fb"
+          },
+          {
+            "template": 104010639,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/gunner/weapon/automatic/104010639.equ",
+            "sha256": "7e7607ac6d41dc8cd3595195d5399f0766587081b5c0ca56439325e132d1fc50"
+          },
+          {
+            "template": 114030187,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/demoniclancer/weapon/javelin/114030187.equ",
+            "sha256": "3a8ec6002c73f2c4fb9cba66682124e9bdb3a35ac3726808613adaca9432dfda"
+          },
+          {
+            "template": 108040562,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/priest/weapon/axe/108040562.equ",
+            "sha256": "cca91447e7f3e8f47c8bdbe89a1067c6371749e796b7822eed45e09020db3523"
+          },
+          {
+            "template": 116020182,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/gunblader/weapon/mswd/116020182.equ",
+            "sha256": "5694160b7b72b7987668b6c39def29244b6e284e13fcf60603232a246e84b5bd"
+          },
+          {
+            "template": 109040374,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/thief/weapon/chakraweapon/109040374.equ",
+            "sha256": "92e75f899668def09d91d0d0546d72efc437d9c703c6071adc24669946ed0169"
+          },
+          {
+            "template": 114030188,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/demoniclancer/weapon/javelin/114030188.equ",
+            "sha256": "75073ca13092cd7b7ad0de559a9b02608df6f2daf6df9933138e5c3a79a71f77"
+          },
+          {
+            "template": 108040563,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/priest/weapon/axe/108040563.equ",
+            "sha256": "3aa9b6388855799c0253f68aec2572ad260b7bd78590ac99ea331c12086446e7"
+          },
+          {
+            "template": 116020183,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/gunblader/weapon/mswd/116020183.equ",
+            "sha256": "60a8b194f0a919817c79edff5ac607618428fb16a7b67cc9af72b038e9992727"
+          },
+          {
+            "template": 114020187,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/demoniclancer/weapon/beamspear/114020187.equ",
+            "sha256": "100ed54ae2eaca6eee12c2609998b4d763f157892cde9c65c33e5b4e5bb71dcf"
+          },
+          {
+            "template": 108030612,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/priest/weapon/scythe/108030612.equ",
+            "sha256": "e102a14750af5fcd7b125e954fce787c827ecd8274bd56c20fd8d419dad76873"
+          },
+          {
+            "template": 102030576,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/fighter/weapon/boxglove/102030576.equ",
+            "sha256": "43d5f59766ee1bd43e0040b0742e9a4d853c24f4faf604481e55a7e04e9f8adf"
+          },
+          {
+            "template": 104000657,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/gunner/weapon/revolver/104000657.equ",
+            "sha256": "c9b35a8fc30b11a41cf309ce43eef324f90944bdce984544c4402a4eb60f896b"
+          },
+          {
+            "template": 109040373,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/thief/weapon/chakraweapon/109040373.equ",
+            "sha256": "aa1650bafb95d55f3c613ad605f26b655db7ac1b27a1edf14dce306682ec8809"
+          },
+          {
+            "template": 102020584,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/fighter/weapon/claw/102020584.equ",
+            "sha256": "583e340675cb13a548892a1b28d0ae492bdfa44465fce1df2260e2fc25f25b41"
+          },
+          {
+            "template": 104010640,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/gunner/weapon/automatic/104010640.equ",
+            "sha256": "e965b354150115074d9d09204d6f23ab64759afa3d32b3879c7e390b6b285f91"
+          }
+        ]
+      },
+      "corrupt_product": {
+        "source_group": 1010007,
+        "candidates": [
+          {
+            "template": 100345576,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/support/100345576.equ",
+            "sha256": "ebc53a0f074d168207b000104e6583ee29e5680e997c42ff6d7d6ec92e8ec67a"
+          },
+          {
+            "template": 100353718,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/magicstone/100353718.equ",
+            "sha256": "559a3d31509216345b8dc9192831ed4d8b6a34d0564eec78a19b99c5e4cdc1a6"
+          },
+          {
+            "template": 100390632,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/earring/100390632.equ",
+            "sha256": "b1eeea9b5b5678e941a83d713c7319da4ee57c6a304d7b2ce17499eccd811d86"
+          },
+          {
+            "template": 100345577,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/support/100345577.equ",
+            "sha256": "db7c5c7cfd1446f0d3ccf5ed5c41777e1adef64d18aae0914a63e8980ce2dcf0"
+          },
+          {
+            "template": 100353719,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/magicstone/100353719.equ",
+            "sha256": "c2d93c478a2ea00da33f258024697d928022b707acf9fa4e25a812ebec8c0a46"
+          },
+          {
+            "template": 100390633,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/earring/100390633.equ",
+            "sha256": "c3f0cc5d06d193df4371e67cfd5a79203f091bccf4566ebd8c81122b7ad1feac"
+          },
+          {
+            "template": 100345578,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/support/100345578.equ",
+            "sha256": "851b6fe37938dc2592b2a821b8be42ab92385345edfbdc01cfb46795652b99aa"
+          },
+          {
+            "template": 100353720,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/magicstone/100353720.equ",
+            "sha256": "22859b2612f4aa335367694fff76750a3a79010f62a7ee3d4927599d806b95ea"
+          },
+          {
+            "template": 100390634,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/earring/100390634.equ",
+            "sha256": "0feec8a00b7c3facafed7425a2ebe46f6347776b9b785813de5ab42315eb49a5"
+          },
+          {
+            "template": 100345579,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/support/100345579.equ",
+            "sha256": "de96d26b969eaaaf62763f69d9ee302020c99eafb61b5dcb5dd936ab97e090c4"
+          },
+          {
+            "template": 100353721,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/magicstone/100353721.equ",
+            "sha256": "09386af59ac493e0eb99b5679130bcccc7467dc8d7c336da3fdb6dfaadefab82"
+          },
+          {
+            "template": 100390635,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/earring/100390635.equ",
+            "sha256": "155e8fc64b45be88bf2b29d1834cd5d09165ffaa2ceaae09b2354e5301520d27"
+          },
+          {
+            "template": 100345580,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/support/100345580.equ",
+            "sha256": "b09cb9b591c0b962d2909eaa2d8a19092dafd8364d152abc5c34d5fab553b1e0"
+          },
+          {
+            "template": 100353722,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/magicstone/100353722.equ",
+            "sha256": "12af8905cba55b83734a10cc039ff0304c392d96e53cb0016344019010b12d0a"
+          },
+          {
+            "template": 100390636,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/earring/100390636.equ",
+            "sha256": "1411ef538cda6c3dd92ebfe820b9d32493b98fd9bb4d2b32c0497e2cd8bd25db"
+          },
+          {
+            "template": 100345581,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/support/100345581.equ",
+            "sha256": "7d3cf137212e8b8ecf2964596c8bc0810e902e250c20731b0db56c1ffe0ce38d"
+          },
+          {
+            "template": 100353723,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/magicstone/100353723.equ",
+            "sha256": "f8d94832823ef466d09ca123cb20ff326c278a96ea7a36380dca1cc5191777c8"
+          },
+          {
+            "template": 100390637,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/earring/100390637.equ",
+            "sha256": "ba855a876610c400e27ef80382e24883718390c4cdf244ac96af5bfb622e2647"
+          },
+          {
+            "template": 100345582,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/support/100345582.equ",
+            "sha256": "a8425565bb23b965cb6ea0a83c2191e47aa617977fbfae5208e971f492e68f29"
+          },
+          {
+            "template": 100353724,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/magicstone/100353724.equ",
+            "sha256": "e2286d0f983a6c0ecff7e79c60a1c80abf26540e5412a0eaeceaf5171b70d7bf"
+          },
+          {
+            "template": 100390638,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/earring/100390638.equ",
+            "sha256": "91857ca079ae5c0b131514f5851d8f69a5e4cd48b28dd88697935095e6714a93"
+          },
+          {
+            "template": 100345583,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/support/100345583.equ",
+            "sha256": "6e0ba1dbdda4c805024f370114952600688fcfafec520d58bccd1023a96f3851"
+          },
+          {
+            "template": 100353725,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/magicstone/100353725.equ",
+            "sha256": "e821d0bce05c64ad70822106e30753ca6d2cc389ffa0bf480468790ea3f12781"
+          },
+          {
+            "template": 100390639,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/earring/100390639.equ",
+            "sha256": "1f340d5f9f4612e76f4b1a6485d75a173d866c0d5c03a5047b1c76d15079a697"
+          },
+          {
+            "template": 100301451,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/amulet/100301451.equ",
+            "sha256": "7d3c47b5297fd09a6b04869714e1e2206342e020a0c5b89db21ce5e38eb55f32"
+          },
+          {
+            "template": 100313164,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/wrist/100313164.equ",
+            "sha256": "24dab2de7d611b1a592de2ccf5b31025b77817ab084c65d8bb3ca898f9be3dd3"
+          },
+          {
+            "template": 100323050,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/ring/100323050.equ",
+            "sha256": "6486a26820a680b6ac1cf6901cf2bcf0bb1f745fe4fdee0dd9f6005f33bde55c"
+          },
+          {
+            "template": 100301452,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/amulet/100301452.equ",
+            "sha256": "46c2ef9ebd9fd81a4620c06e0dcf960d632a6084d8f878830d2d034bc1d78433"
+          },
+          {
+            "template": 100313165,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/wrist/100313165.equ",
+            "sha256": "7bdce7674f1c92d421d60fff305dae6fdcd4a380666db235e6ffaa3feb93594b"
+          },
+          {
+            "template": 100323051,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/ring/100323051.equ",
+            "sha256": "1862f76acd95025fd6e010fc540b9d5ad741d6f4fb4b2f730e2edc9c9e00b4ce"
+          },
+          {
+            "template": 100301453,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/amulet/100301453.equ",
+            "sha256": "66a0702c616621fd87a8a7bd006a6071eb15012d34e9fb45a0b6ac43cc3ad872"
+          },
+          {
+            "template": 100313166,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/wrist/100313166.equ",
+            "sha256": "714930a7313ef559338cb2ac8baec130af549be784c742729919139f360cf907"
+          },
+          {
+            "template": 100323052,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/ring/100323052.equ",
+            "sha256": "77f79c21ca95c094fe91045862613865d6de56221c02f4fb0cd64506f1b84b72"
+          },
+          {
+            "template": 100301454,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/amulet/100301454.equ",
+            "sha256": "db3fcb1fcd600b67bc3f386bb6a42f39a34191b5c4be4df6e0508765bf7425f9"
+          },
+          {
+            "template": 100313167,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/wrist/100313167.equ",
+            "sha256": "d46c13ae78e55d534798ba0ff231ef4c59d3ed1a312a49a4a37d3a040e20bb7a"
+          },
+          {
+            "template": 100323053,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/ring/100323053.equ",
+            "sha256": "d6757504b5cf6e2ad71ba2044fc7bab5a9d6c717390ba7391240cbfd0dc8360b"
+          },
+          {
+            "template": 100301455,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/amulet/100301455.equ",
+            "sha256": "97f92288e3f6962252c2f497ee0690a63a574a51b8683e8ab729b17415cfca27"
+          },
+          {
+            "template": 100313168,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/wrist/100313168.equ",
+            "sha256": "87203af9eb3155fd66aeb93dc538935a4edb0e4c28a4f33e4f7fe2f24c2cab46"
+          },
+          {
+            "template": 100323054,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/ring/100323054.equ",
+            "sha256": "e9ed9eb5e31fd438f7b7707bb57d04658cc8bb7337342117c0d33c1ae41cb60c"
+          },
+          {
+            "template": 100301456,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/amulet/100301456.equ",
+            "sha256": "70907fb8ab075ce060559edb2f1a953ac123b8d7b34ed8a11f396c098d76373d"
+          },
+          {
+            "template": 100313169,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/wrist/100313169.equ",
+            "sha256": "d39eb7b822ae44ab976db7a4288c627a4e889ed819b0b07901c1500046d095a2"
+          },
+          {
+            "template": 100323055,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/ring/100323055.equ",
+            "sha256": "2837bad7388e6c376efc35205dc6f805a67bbdbb96ae0d471e6d531cdceb9a36"
+          },
+          {
+            "template": 100301457,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/amulet/100301457.equ",
+            "sha256": "82c57fcc1f17805afc02abb7cd20eebcb2211e84da8ab645596683182cb861c6"
+          },
+          {
+            "template": 100313170,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/wrist/100313170.equ",
+            "sha256": "fd57917d20a6e0d157e1be8ace0712594ee7e9997e588173060e1557070a6ed5"
+          },
+          {
+            "template": 100323056,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/ring/100323056.equ",
+            "sha256": "19c21636f0db1eac2a17cd39d7e04abcf3eec195dc90897726ccb1520a926009"
+          },
+          {
+            "template": 100301458,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/amulet/100301458.equ",
+            "sha256": "0a973635d4d42a776392c00420dc8142ee3ea595ebf160891c38c517043b7cbb"
+          },
+          {
+            "template": 100313171,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/wrist/100313171.equ",
+            "sha256": "5c91804bfbf91e24984a4f0cf89d9bf91e497c0b5b133f75f882046461b4afea"
+          },
+          {
+            "template": 100323057,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/ring/100323057.equ",
+            "sha256": "8d3562d71a86e09ae088bd01141a3edb3d7e3b3ffffd93b9d492b85b0c2b3177"
+          },
+          {
+            "template": 100051047,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/jacket/cloth/100051047.equ",
+            "sha256": "a9cf5563eeef054258612380ec4a99621f7e2d7ae5b5e85174d61d3546b250ad"
+          },
+          {
+            "template": 100100934,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/pants/cloth/100100934.equ",
+            "sha256": "03587796c9ede6c5a9e4cb086d30471147f16c2807d8ce45be87d34b9c858961"
+          },
+          {
+            "template": 100250886,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoes/cloth/100250886.equ",
+            "sha256": "1a5c5f55e695bfaadb4bb2c948b7a2d1ca21f398ee084f09f8f7d61fb8710412"
+          },
+          {
+            "template": 100100938,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/pants/cloth/100100938.equ",
+            "sha256": "a592b25ffe7448d538984d5ecc9e103fbd045e2a3219348386f2d6ef083535e4"
+          },
+          {
+            "template": 100051051,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/jacket/cloth/100051051.equ",
+            "sha256": "e13b8dab7835ec39de189b3058e7547de7054639e24a966efc93250182dcc7a6"
+          },
+          {
+            "template": 100150886,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoulder/cloth/100150886.equ",
+            "sha256": "5d4e1a6db841663f3ee40c5b6f7f9e899cfe0f353d9c19558ed7cc9e1b558697"
+          },
+          {
+            "template": 100200859,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/belt/cloth/100200859.equ",
+            "sha256": "0571d4f253eff7863022dea26a1d426d99888da9ab60ddbee55531d917f450df"
+          },
+          {
+            "template": 100250890,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoes/cloth/100250890.equ",
+            "sha256": "4b1c4291551e90956e645db72bc834393d6615364b2a52c938429b602e3f4693"
+          },
+          {
+            "template": 100100939,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/pants/cloth/100100939.equ",
+            "sha256": "c6c45c1ffb5e3234eed943bcad5399bcd165a3eb823d00072c852a0eafe651b5"
+          },
+          {
+            "template": 100051052,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/jacket/cloth/100051052.equ",
+            "sha256": "ab1b4a366ddfae0987d86ea4353d7ddbeb780275efd200f87a7dc8c8ca937f58"
+          },
+          {
+            "template": 100150887,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoulder/cloth/100150887.equ",
+            "sha256": "0777e36b49af771155e95beb3ce6d006d85b491a02ca0cea93f9463f3dbb7972"
+          },
+          {
+            "template": 100200860,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/belt/cloth/100200860.equ",
+            "sha256": "078e8855d60b76846e9f2699035a7469cbe435931ee1bc7466bf118d89ded2e5"
+          },
+          {
+            "template": 100250891,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoes/cloth/100250891.equ",
+            "sha256": "b15788f988bcbcd0202d5279abcb1fb521d7ccc0b60d0b36e3bce10bf0df1878"
+          },
+          {
+            "template": 100100940,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/pants/cloth/100100940.equ",
+            "sha256": "fc71ea44034f6ad2282414a2c3ebbe231a9c94a17241e28f73816f597da8608c"
+          },
+          {
+            "template": 100051053,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/jacket/cloth/100051053.equ",
+            "sha256": "cecffa7a48a2308b0a96498513f49f580d94e8a8e958628587b9f0f3a48125ac"
+          },
+          {
+            "template": 100150888,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoulder/cloth/100150888.equ",
+            "sha256": "7d46593e949e336f4ff4b8c5e46dc20451ab7cf4a04a2f14c3ae5c2fa4a0c222"
+          },
+          {
+            "template": 100200861,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/belt/cloth/100200861.equ",
+            "sha256": "7e0a690abbfaa3a22550018229f8c7d6ef297f4ee4aeef88176bdd298dc9d940"
+          },
+          {
+            "template": 100250892,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoes/cloth/100250892.equ",
+            "sha256": "c99ca9aeaa7ee4240c57d7e5207dcd177411097f74d4d36c9767824fe2c5ec42"
+          },
+          {
+            "template": 100060917,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/jacket/leather/100060917.equ",
+            "sha256": "2ebe759e242475e619aa0241cc202c31095fb3030120a0f8d0c926796aefebff"
+          },
+          {
+            "template": 100110889,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/pants/leather/100110889.equ",
+            "sha256": "0af1e4bd99f7982d3e66afb888a27e9fb40a5cdb245680a2dab9373f1fb85ff3"
+          },
+          {
+            "template": 100260861,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoes/leather/100260861.equ",
+            "sha256": "aa88f34072a7cd5646674af8384fb58ffe2a52ba36abd0372aeb5fc2677bf63a"
+          },
+          {
+            "template": 100110895,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/pants/leather/100110895.equ",
+            "sha256": "2fcc5e790d0861c5c57f75de0f5848f7fea8fb7a9dde248057a213f0fbdead59"
+          },
+          {
+            "template": 100160813,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoulder/leather/100160813.equ",
+            "sha256": "0e5bdba3340d5654c0dbd2dac43328615c7cf9bf937b24f3705664ec01914452"
+          },
+          {
+            "template": 100260867,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoes/leather/100260867.equ",
+            "sha256": "9da535791260910a347fa16588c34801be45c009315b0cbf9f0117c5a38686b1"
+          },
+          {
+            "template": 100060923,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/jacket/leather/100060923.equ",
+            "sha256": "b5361554d0ce5cbb884d0f3890970987a181051a74ee72d916cf15db884ea5ae"
+          },
+          {
+            "template": 100210837,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/belt/leather/100210837.equ",
+            "sha256": "2246aa856fe61ce3ad76895ef0870904cdfff5f234c06b4a4f9bea9082da5196"
+          },
+          {
+            "template": 100110896,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/pants/leather/100110896.equ",
+            "sha256": "925d240a3445a59f76404055a5a8348460259fc536a9058171ecc02cda906832"
+          },
+          {
+            "template": 100160814,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoulder/leather/100160814.equ",
+            "sha256": "8b7f3f163f8907c015b7af989dc2a8ca4807175ce226830d2220de8bc57588ed"
+          },
+          {
+            "template": 100260868,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoes/leather/100260868.equ",
+            "sha256": "fe1638b0b21bbab3e4c47e9ca6a57a594dd8843c74ab4c4542317b9c0eb80322"
+          },
+          {
+            "template": 100060924,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/jacket/leather/100060924.equ",
+            "sha256": "ac81f63dd3b2ba56367dc1bceb66fff4008308e43eecad0b1be4ed24dc2b6018"
+          },
+          {
+            "template": 100210838,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/belt/leather/100210838.equ",
+            "sha256": "405080f8e1074f1e23aa0bf2f993d9bc05902aeff29711455a7a0b29ea146741"
+          },
+          {
+            "template": 100110897,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/pants/leather/100110897.equ",
+            "sha256": "1803238ebdbad48de50be341ba93cb5405b8c25949cc45f00ad051c82461c836"
+          },
+          {
+            "template": 100160815,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoulder/leather/100160815.equ",
+            "sha256": "18ed0e6ab64b30e9325913fb73f5f9e17c7635d26a8b2058a4dd09ed76a980b3"
+          },
+          {
+            "template": 100260869,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoes/leather/100260869.equ",
+            "sha256": "dd6469ba89ed2b8f82bb6c8ffd7a8c293cd5992c0a78860437b53586e4600b11"
+          },
+          {
+            "template": 100060925,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/jacket/leather/100060925.equ",
+            "sha256": "de280b5a38a55237ac57702c55e33807fa0fbe185a402af4c63d9b5820c232e0"
+          },
+          {
+            "template": 100210839,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/belt/leather/100210839.equ",
+            "sha256": "2738b146c25e3272bda53c6202993d3d025aab46030a5a9dfaa65529d77dc936"
+          },
+          {
+            "template": 100070846,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/jacket/larmor/100070846.equ",
+            "sha256": "242ac0613cdb0cd6e31c63cbd2a646ceda2bbbc3bffcc0f70e91adb69bfa8923"
+          },
+          {
+            "template": 100270787,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoes/larmor/100270787.equ",
+            "sha256": "4c23b7d685abb59da6d75d9c3281d7bafc4bbcc514ad1aa789b300b863bc15f2"
+          },
+          {
+            "template": 100120824,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/pants/larmor/100120824.equ",
+            "sha256": "8c8034c9141402b7e5ee5189d97366f56f84214373106ced824a19faa307f20f"
+          },
+          {
+            "template": 100170785,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoulder/larmor/100170785.equ",
+            "sha256": "de6349b655813c7b7449d5135057a131571b673a8fc2d8b31a2a96f303bb1211"
+          },
+          {
+            "template": 100220785,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/belt/larmor/100220785.equ",
+            "sha256": "c7e206e298119a538a37ebb57d0237180fddd845d3df4a94d2b53afadc2a59bb"
+          },
+          {
+            "template": 100270795,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoes/larmor/100270795.equ",
+            "sha256": "ccc5a5acda02c89757e3305e91c19f5a62d94ed01c21d3f8375dc0873afa2839"
+          },
+          {
+            "template": 100070854,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/jacket/larmor/100070854.equ",
+            "sha256": "866b7d23c14368d9d7dfe9b79d1d41dfe31512bf088eef47c8e28f580c958322"
+          },
+          {
+            "template": 100120832,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/pants/larmor/100120832.equ",
+            "sha256": "5954c35b7fba7e6eb2795a7ab2802052364139feae93b857e95a86cc84d689f1"
+          },
+          {
+            "template": 100170786,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoulder/larmor/100170786.equ",
+            "sha256": "e92ad0a9b0da09cbab24f7057067da23cc6300964bcfd0256c4de406fa8ef129"
+          },
+          {
+            "template": 100220786,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/belt/larmor/100220786.equ",
+            "sha256": "fc905b5f9078319215ca158274b643cbd8b6ce7071ca649f13625a273b9ecfac"
+          },
+          {
+            "template": 100270796,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoes/larmor/100270796.equ",
+            "sha256": "d52e106a2b1e0ac33b980bba9a84b1ddd80178aa7315d7fac74040a05bf0dcac"
+          },
+          {
+            "template": 100070855,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/jacket/larmor/100070855.equ",
+            "sha256": "7451addd7dbb92ddff8a575ec8d96eb106abf0955eb1d338113a948ff57a07b1"
+          },
+          {
+            "template": 100120833,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/pants/larmor/100120833.equ",
+            "sha256": "3f22d0abe2b38891a8479cc16b49e02c0c97b7ceb2f9dcd9afef7d4c8c0fec00"
+          },
+          {
+            "template": 100170787,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoulder/larmor/100170787.equ",
+            "sha256": "38eae3f9c026924e73938b5e211a76fd512bf16f6dd141142af11f9f25d8fd33"
+          },
+          {
+            "template": 100220787,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/belt/larmor/100220787.equ",
+            "sha256": "3c6117a6eb33e68ab0f61db66c9784c2711afa4ce2e70185f23e63b6c0662a63"
+          },
+          {
+            "template": 100270797,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoes/larmor/100270797.equ",
+            "sha256": "33d784620b6cafea36b0358ab63590ec0999f8d6d81d9c80feaf7ff47188d544"
+          },
+          {
+            "template": 100070856,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/jacket/larmor/100070856.equ",
+            "sha256": "7dc0c55e3849799332fc2630b4e5b02cdbd37537fb7bff33d77b7b9d590516b7"
+          },
+          {
+            "template": 100120834,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/pants/larmor/100120834.equ",
+            "sha256": "14c4e1b55a6335dccf0569f6de4701ff48a02b16b1852acaca0ea446683c7b97"
+          },
+          {
+            "template": 100140658,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/pants/plate/100140658.equ",
+            "sha256": "14418742a2cf9412f014bc535d30ca2d249d1ea1e811db44e9a23ac1ddc655c4"
+          },
+          {
+            "template": 100190608,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoulder/plate/100190608.equ",
+            "sha256": "d45e12283ee26d2baa3b72ab5bb4c9b4fbe2d72b5c994ab48d1b87e43cb474fd"
+          },
+          {
+            "template": 100240613,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/belt/plate/100240613.equ",
+            "sha256": "91e9a2938e8d34d46b9a5852be149ee967f84c9c863a0c2fca0c797e605dbef3"
+          },
+          {
+            "template": 100290641,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoes/plate/100290641.equ",
+            "sha256": "0525d0f6b137a5efe0581a8a66dec8aae016461048004ecb56d60eb876ce252f"
+          },
+          {
+            "template": 100090677,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/jacket/plate/100090677.equ",
+            "sha256": "5c55db5465c7e2c84d1d2ffeb8821e00ac2edbb1e310eed782b29c284620426e"
+          },
+          {
+            "template": 100140659,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/pants/plate/100140659.equ",
+            "sha256": "5ffcd151722e8604bf265fbb93447f51e981751bf8f3b195a1efeba702fd316b"
+          },
+          {
+            "template": 100190609,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoulder/plate/100190609.equ",
+            "sha256": "4832562150282a3d280817e26eb97715cbe6d4c6f34d5206df368d6eb160fe54"
+          },
+          {
+            "template": 100240614,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/belt/plate/100240614.equ",
+            "sha256": "26fee73dd22e5fed031c355e39beddacf5fdba0dbd8a1d6f526c5572cfc21e8a"
+          },
+          {
+            "template": 100290642,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoes/plate/100290642.equ",
+            "sha256": "be1a35d11560a5ba16bf9640046d00b0db1e8587d85a0e73b80279d897986655"
+          },
+          {
+            "template": 100090678,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/jacket/plate/100090678.equ",
+            "sha256": "e8f789149d2c67b98e5173aa1ff4cfb5abe31d36b3ab1546d1d82216e96916e4"
+          },
+          {
+            "template": 100140660,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/pants/plate/100140660.equ",
+            "sha256": "704ed707c9ef2058a11e7e7f47e2ed991a98aba823a7239359e4689884c11551"
+          },
+          {
+            "template": 100190610,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoulder/plate/100190610.equ",
+            "sha256": "2710a26e8b9069e055c35173705e02d5f3d29fdca0371490ef69617c9f48831a"
+          },
+          {
+            "template": 100240615,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/belt/plate/100240615.equ",
+            "sha256": "8c261c9311d91bed44b85c8690580b23afe2bb1f81ac1491b8ee47f2dfcb6021"
+          },
+          {
+            "template": 100290643,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoes/plate/100290643.equ",
+            "sha256": "ea5b4c190d4a72b4dceb6361aae9e6772cd1e6577a9f6fc2dffae9d4eb355649"
+          },
+          {
+            "template": 100090679,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/jacket/plate/100090679.equ",
+            "sha256": "55207e4ad8ed56ae177d9ab48d13eeeb9916eb557ff8bb0a99c8178aa716a40e"
+          },
+          {
+            "template": 100080875,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/jacket/harmor/100080875.equ",
+            "sha256": "757d9cbe664b23443ea6b3fa54cd24a53b667846e5948518e9f3694e9c2efb43"
+          },
+          {
+            "template": 100130841,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/pants/harmor/100130841.equ",
+            "sha256": "de4ecadbfb3c052fb855379d86d4e9f03e9dd4330e44697ec9e60c52af9cedad"
+          },
+          {
+            "template": 100280794,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoes/harmor/100280794.equ",
+            "sha256": "7c5a13879a27653c5d96229a8e40278b011dfaf52aef953ba39c88bfe1320b48"
+          },
+          {
+            "template": 100230799,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/belt/harmor/100230799.equ",
+            "sha256": "bcf12efdc8b93c2fef7942465b7f347f5305248e1811a69c1146f69d4e2a7245"
+          },
+          {
+            "template": 100130851,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/pants/harmor/100130851.equ",
+            "sha256": "b2b98113c9168d14133561cdfec434392226c1f8d1747229de46514972bef52e"
+          },
+          {
+            "template": 100280804,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoes/harmor/100280804.equ",
+            "sha256": "971b1d1d8ca7c86122dc5af79ad81b0f73ecbe33b8b099ff04b5e171bd89af4f"
+          },
+          {
+            "template": 100080885,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/jacket/harmor/100080885.equ",
+            "sha256": "470174a73e96a0586d7b4412be9cd7c00f62ab1de5657cbf1944b058729671be"
+          },
+          {
+            "template": 100180797,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoulder/harmor/100180797.equ",
+            "sha256": "c23133f150761b9e268b022ef984f4515d4af906b585804e307818ddf3d8cebe"
+          },
+          {
+            "template": 100230800,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/belt/harmor/100230800.equ",
+            "sha256": "5c71274e18dd123e0c32e82d7d6a3f029312804ec6a5ae1cc4f96a42e26b736b"
+          },
+          {
+            "template": 100130852,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/pants/harmor/100130852.equ",
+            "sha256": "8456cc53468fe74304355f18b7f6c18d183970407a11268b819786b41abb5954"
+          },
+          {
+            "template": 100280805,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoes/harmor/100280805.equ",
+            "sha256": "e4383bc4a57fbae59e9a83680b64e48036bdec4cf9a7d4116116fab291c9d6df"
+          },
+          {
+            "template": 100080886,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/jacket/harmor/100080886.equ",
+            "sha256": "62b50564fbb19462798c86ba5265ef12a3a64492758066d1ef239527fcb323d0"
+          },
+          {
+            "template": 100180798,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoulder/harmor/100180798.equ",
+            "sha256": "bfe723a6fd7d447d25946974db7a84bcf034fb273ebb19de95bb85297b4623a0"
+          },
+          {
+            "template": 100230801,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/belt/harmor/100230801.equ",
+            "sha256": "6f86192f5b25e2d8b945ed62d000c01205c568020e444adcd73ae507b4a16215"
+          },
+          {
+            "template": 100130853,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/pants/harmor/100130853.equ",
+            "sha256": "51167027568361ca33d674dbc8ecc22f0ff70303bb2162059ae4b270e74892ec"
+          },
+          {
+            "template": 100280806,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoes/harmor/100280806.equ",
+            "sha256": "15626027c63e85d29176fa05bbf018510780e4c0045590e563b4eb47eff20f9f"
+          },
+          {
+            "template": 100080887,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/jacket/harmor/100080887.equ",
+            "sha256": "9302697ce5c054bd646905dde5f78deb2eb7cde1a71e6fc523334307de3b394d"
+          },
+          {
+            "template": 100180799,
+            "minimum_level": 100,
+            "rarity": 4,
+            "path": "equipment/character/common/shoulder/harmor/100180799.equ",
+            "sha256": "88c28b349b9182505fecccfa0b31435a6a8e0890a90edeb432f5e4bae3df66f2"
+          }
+        ]
+      },
+      "mythic": {
+        "source_group": 1010500,
+        "candidates": [
+          {
+            "template": 100050897,
+            "minimum_level": 105,
+            "rarity": 7,
+            "path": "equipment/character/common/jacket/cloth/100050897.equ",
+            "sha256": "b7d8089f4c5ccb45fd26cdf1fb5bf1e1f2034adf7973aab8ee3604e15252257c"
+          },
+          {
+            "template": 100050898,
+            "minimum_level": 105,
+            "rarity": 7,
+            "path": "equipment/character/common/jacket/cloth/100050898.equ",
+            "sha256": "b0e0b2e6a4eae1bff836142379cfe66c76a2f53a9147bc3603076426eb8980e7"
+          },
+          {
+            "template": 100050899,
+            "minimum_level": 105,
+            "rarity": 7,
+            "path": "equipment/character/common/jacket/cloth/100050899.equ",
+            "sha256": "eb180cc2f19ec9ef6ed414c0812439afdd6bd5f7f384fd05dfa037ca69e4d759"
+          },
+          {
+            "template": 100050912,
+            "minimum_level": 105,
+            "rarity": 7,
+            "path": "equipment/character/common/jacket/cloth/100050912.equ",
+            "sha256": "0291fdfcdc4160dc611de681bf68eabe0d1cd527ae529c2786a9951fe0cb0d37"
+          },
+          {
+            "template": 100060773,
+            "minimum_level": 105,
+            "rarity": 7,
+            "path": "equipment/character/common/jacket/leather/100060773.equ",
+            "sha256": "94a4f9530929b61999d173bdad07a90a3402dc5915910de5163df229be169345"
+          },
+          {
+            "template": 100060774,
+            "minimum_level": 105,
+            "rarity": 7,
+            "path": "equipment/character/common/jacket/leather/100060774.equ",
+            "sha256": "73df1b486371bf27c7709030277c1089b682a807e00a72fcc2420e077a9b7098"
+          },
+          {
+            "template": 100060775,
+            "minimum_level": 105,
+            "rarity": 7,
+            "path": "equipment/character/common/jacket/leather/100060775.equ",
+            "sha256": "ebf9ec17e20201f0a0f63552deda368871075791b2cbf8fe6c52601070874ea4"
+          },
+          {
+            "template": 100070717,
+            "minimum_level": 105,
+            "rarity": 7,
+            "path": "equipment/character/common/jacket/larmor/100070717.equ",
+            "sha256": "75f55abe132a1c14f3b4c6ea149295910b85275a609ebba399192e277c3c2985"
+          },
+          {
+            "template": 100070718,
+            "minimum_level": 105,
+            "rarity": 7,
+            "path": "equipment/character/common/jacket/larmor/100070718.equ",
+            "sha256": "5bf19757b9439823a766262cb9bfcc09e362cecd02e628e2e475320e0911441e"
+          },
+          {
+            "template": 100070719,
+            "minimum_level": 105,
+            "rarity": 7,
+            "path": "equipment/character/common/jacket/larmor/100070719.equ",
+            "sha256": "67e7ec5ba883d98d0f3a88c8840e2ae2a03d095cffd169b341df58da57eda0bc"
+          },
+          {
+            "template": 100080743,
+            "minimum_level": 105,
+            "rarity": 7,
+            "path": "equipment/character/common/jacket/harmor/100080743.equ",
+            "sha256": "a0c58a972697e8cc0cfd568f1498a57600eee252d5322d49a6715586e0cffcaf"
+          },
+          {
+            "template": 100080744,
+            "minimum_level": 105,
+            "rarity": 7,
+            "path": "equipment/character/common/jacket/harmor/100080744.equ",
+            "sha256": "80337eb0e3601f1c12107b2fce00dea66045907a4fa0be0b880a69df0525b396"
+          },
+          {
+            "template": 100080745,
+            "minimum_level": 105,
+            "rarity": 7,
+            "path": "equipment/character/common/jacket/harmor/100080745.equ",
+            "sha256": "43b8970b7b5303b02238476f1bd04b4b4960f8129427a27cb07e13ff2b740da4"
+          },
+          {
+            "template": 100090548,
+            "minimum_level": 105,
+            "rarity": 7,
+            "path": "equipment/character/common/jacket/plate/100090548.equ",
+            "sha256": "58eb8b518cb6cbad13b874d5cb47a05cc9d626cb9cdad2a0dc85ddabf89e6414"
+          },
+          {
+            "template": 100090549,
+            "minimum_level": 105,
+            "rarity": 7,
+            "path": "equipment/character/common/jacket/plate/100090549.equ",
+            "sha256": "d413a7e9078b1fb1fc269574b0b964b9c17b82a112b49d02d0b012cb6a82d55e"
+          },
+          {
+            "template": 100090550,
+            "minimum_level": 105,
+            "rarity": 7,
+            "path": "equipment/character/common/jacket/plate/100090550.equ",
+            "sha256": "5c44311be46bd08bcc9d6692f319074ef55174fa85702409b28a481a524660ef"
+          },
+          {
+            "template": 100060786,
+            "minimum_level": 105,
+            "rarity": 7,
+            "path": "equipment/character/common/jacket/leather/100060786.equ",
+            "sha256": "e3bd4836b8ad330b2d807fa10f487b287429f4cbdf1d92ff4897850cc54d7145"
+          },
+          {
+            "template": 100070728,
+            "minimum_level": 105,
+            "rarity": 7,
+            "path": "equipment/character/common/jacket/larmor/100070728.equ",
+            "sha256": "149bac427da38e2371f31310995fc658fbfbc5a6bbee052d4e92f748d7b967f0"
+          },
+          {
+            "template": 100080752,
+            "minimum_level": 105,
+            "rarity": 7,
+            "path": "equipment/character/common/jacket/harmor/100080752.equ",
+            "sha256": "c27dc88cf3c4c2b60fe19e0030ba0b15fdc9ea28d5bd8274368da1da9c251387"
+          },
+          {
+            "template": 100312842,
+            "minimum_level": 105,
+            "rarity": 7,
+            "path": "equipment/character/common/wrist/100312842.equ",
+            "sha256": "7cc2c849882bb518497f4095203632a8e3eaceb4ba60b7cfcd783fa0f87bead8"
+          },
+          {
+            "template": 100312843,
+            "minimum_level": 105,
+            "rarity": 7,
+            "path": "equipment/character/common/wrist/100312843.equ",
+            "sha256": "ac9b67ca74ab095f28c546475ec26dd19c23efd9844206712e61f9cf14689640"
+          },
+          {
+            "template": 100312844,
+            "minimum_level": 105,
+            "rarity": 7,
+            "path": "equipment/character/common/wrist/100312844.equ",
+            "sha256": "86ae232bb6ac2e4075734843772f31c8bc62dc4394e2956bf778a4b33d8c4b51"
+          },
+          {
+            "template": 100312845,
+            "minimum_level": 105,
+            "rarity": 7,
+            "path": "equipment/character/common/wrist/100312845.equ",
+            "sha256": "c560c5df089a639cc786636adf3f577b777b14c54fc67d43b63204bc84a01398"
+          },
+          {
+            "template": 100312846,
+            "minimum_level": 105,
+            "rarity": 7,
+            "path": "equipment/character/common/wrist/100312846.equ",
+            "sha256": "ab79a0309ee4ce1180525e97b0a64ccd3ada1a786dcde7eedfffccdd71c13e74"
+          },
+          {
+            "template": 100312847,
+            "minimum_level": 105,
+            "rarity": 7,
+            "path": "equipment/character/common/wrist/100312847.equ",
+            "sha256": "03865913fed338857d84ac8916ae0f20d254b1d26e6a6e7a452fb00dae5a0924"
+          },
+          {
+            "template": 100312848,
+            "minimum_level": 105,
+            "rarity": 7,
+            "path": "equipment/character/common/wrist/100312848.equ",
+            "sha256": "127202d511b44eaf0c266dd07d06c0d79c31d7e27099820c7185c148f4a1d273"
+          },
+          {
+            "template": 100312849,
+            "minimum_level": 105,
+            "rarity": 7,
+            "path": "equipment/character/common/wrist/100312849.equ",
+            "sha256": "8186c4155137b8fdd799c48a217f738de79096f55e9f09ba17b2a43ec0c53458"
+          },
+          {
+            "template": 100390337,
+            "minimum_level": 105,
+            "rarity": 7,
+            "path": "equipment/character/common/earring/100390337.equ",
+            "sha256": "eb6bbbb06c3160fab1c835c09301ad0837089f4185263858fdc642ab64ed76bd"
+          },
+          {
+            "template": 100390338,
+            "minimum_level": 105,
+            "rarity": 7,
+            "path": "equipment/character/common/earring/100390338.equ",
+            "sha256": "48bfe11dfb153d89869f5b5c8a4c7705eb51545ab9267f9d7c05a29f49fe5b0e"
+          },
+          {
+            "template": 100390339,
+            "minimum_level": 105,
+            "rarity": 7,
+            "path": "equipment/character/common/earring/100390339.equ",
+            "sha256": "1eb8489c7c7141354f9bb6c0885beccba49014107875d8b0d3f988f0b09b5c6a"
+          },
+          {
+            "template": 100390340,
+            "minimum_level": 105,
+            "rarity": 7,
+            "path": "equipment/character/common/earring/100390340.equ",
+            "sha256": "62992f4ec4374af954a4b9acc54c14410f5238221554934a7d9fbdc50abfca2b"
+          },
+          {
+            "template": 100390341,
+            "minimum_level": 105,
+            "rarity": 7,
+            "path": "equipment/character/common/earring/100390341.equ",
+            "sha256": "95aac5fe7d86e2acbad6ffe1ff417bc9240949b8e594d1b726a849babc0d5274"
+          },
+          {
+            "template": 100390342,
+            "minimum_level": 105,
+            "rarity": 7,
+            "path": "equipment/character/common/earring/100390342.equ",
+            "sha256": "ebcea9de7cc3bc771a588f0b4450a366ec8caf878dce05784790632eeb1a9baa"
+          },
+          {
+            "template": 100390343,
+            "minimum_level": 105,
+            "rarity": 7,
+            "path": "equipment/character/common/earring/100390343.equ",
+            "sha256": "b2c4e84076f25708411bf7ab2f965533b75cd7036dea38ee31d0f476f0d91d52"
+          },
+          {
+            "template": 100390336,
+            "minimum_level": 105,
+            "rarity": 7,
+            "path": "equipment/character/common/earring/100390336.equ",
+            "sha256": "d548a6db979f38366ea7a83b8b6996da8eb721be1aba36f049e898a87f0f1d09"
+          }
+        ]
+      }
+    }
+  }
+}

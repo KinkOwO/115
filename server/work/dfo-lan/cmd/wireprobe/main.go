@@ -1364,6 +1364,28 @@ if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "am
 	} else {
 		log.Printf("warning: no attunement reward table; boundary-of-attunement clears pay no exclusive reward")
 	}
+	if lootService != nil && boosterCatalog != nil && *itemIndexFile != "" {
+		path := filepath.Join(filepath.Dir(*itemIndexFile), "black-purgatory-rewards.json")
+		rewards, err := loot.LoadBlackPurgatoryRewards(path, boosterBoxSource{catalog: boosterCatalog}, func(id uint32) (catalog.LootItem, bool) {
+			item, ok := boosterCatalog.Items[id]
+			return catalog.LootItem{ID: id, Kind: item.Kind, StackableType: item.StackableType, StackLimit: item.StackLimit, Script: catalog.ScriptRecord{Path: item.Path}}, ok
+		})
+		if err == nil {
+			err = rewards.ValidateBossEquipment(lootService.Equipment)
+		}
+		if err == nil {
+			lootService.Catalog, err = rewards.StorageCatalog(lootService.Catalog)
+		}
+		if err == nil && vaultService != nil {
+			vaultService.Catalog, err = rewards.StorageCatalog(vaultService.Catalog)
+		}
+		if err != nil {
+			log.Printf("黑鸦奖励加载失败，暂不允许开始挑战：%v", err)
+		} else {
+			lootService.BlackPurgatory = rewards
+			log.Printf("已加载黑鸦小队翻牌及领主装备奖励；装备概率采用配置中的本服暂定规则")
+		}
+	}
 	if *responseFile != "" {
 		b, err := os.ReadFile(*responseFile)
 		if err != nil {
@@ -1632,6 +1654,26 @@ if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "am
 			case incoming = <-frames:
 			case now := <-mineTicker.C:
 				if bootstrapped && selectedCharacterID != 0 && worldState != nil {
+					cardPackets, cardErr := worldState.autoPickBlackPurgatoryCard(now)
+					if cardErr != nil {
+						event(map[string]any{"kind": "黑鸦自动翻牌待重试", "character_id": selectedCharacterID, "error": cardErr.Error()})
+					}
+					for _, packet := range cardPackets {
+						if err := sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
+							return
+						}
+						event(map[string]any{"kind": packet.Name, "id": packet.ID, "character_id": selectedCharacterID, "plain_hex": hex.EncodeToString(packet.Payload)})
+					}
+					quotaPackets, quotaErr := worldState.refreshBlackPurgatoryQuota(now)
+					if quotaErr != nil {
+						event(map[string]any{"kind": "黑鸦次数同步失败", "error": quotaErr.Error()})
+					}
+					for _, packet := range quotaPackets {
+						if err := sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
+							return
+						}
+						event(map[string]any{"kind": packet.Name, "id": packet.ID, "plain_hex": hex.EncodeToString(packet.Payload), "character_id": selectedCharacterID})
+					}
 					packets, err := worldState.bleedingMineTimeout(now)
 					if err != nil {
 						event(map[string]any{"kind": "赤红铁矿超时退出失败", "error": err.Error()})
@@ -1643,6 +1685,16 @@ if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "am
 						event(map[string]any{"kind": packet.Name, "id": packet.ID, "plain_hex": hex.EncodeToString(packet.Payload), "character_id": selectedCharacterID})
 					}
 					// 超时只打开矿区失败选项，保留会话供结束探索或放弃处理。
+					packets, err = worldState.blackPurgatoryTimeout(now)
+					if err != nil {
+						event(map[string]any{"kind": "黑鸦超时退出失败", "error": err.Error()})
+					}
+					for _, packet := range packets {
+						if err := sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
+							return
+						}
+						event(map[string]any{"kind": packet.Name, "id": packet.ID, "character_id": selectedCharacterID})
+					}
 				}
 				continue
 			case now := <-moonTicks:
@@ -1868,7 +1920,29 @@ if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "am
 				continue
 			}
 			if frame.Type == 1 && bootstrapped && verified && worldState != nil && selectedCharacterID != 0 {
-				handled, packets, e := worldState.moonHandle(frame.ID, plaintext, time.Now(), event)
+				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				handled, packets, e := worldState.blackPurgatoryHandle(ctx, frame.ID, plaintext)
+				cancel()
+				if handled {
+					if e != nil {
+						event(map[string]any{"kind": "黑鸦请求被拒绝", "id": frame.ID, "error": e.Error()})
+						packets = []outboundPacket{{"黑鸦请求拒绝应答", 1, frame.ID, protocol.Refusal(8)}}
+					}
+					prepared, err := preparePackets(keys, packets)
+					if err != nil {
+						event(map[string]any{"kind": "黑鸦响应编码失败", "error": err.Error()})
+						return
+					}
+					c.SetWriteDeadline(time.Now().Add(5 * time.Second))
+					if err := writePackets(c, prepared, func(packet preparedPacket) {
+						event(map[string]any{"kind": packet.Name, "id": packet.ID, "character_id": selectedCharacterID,
+							"plain_hex": hex.EncodeToString(packet.Payload)})
+					}); err != nil {
+						return
+					}
+					continue
+				}
+				handled, packets, e = worldState.moonHandle(frame.ID, plaintext, time.Now(), event)
 				if handled {
 					if e != nil {
 						event(map[string]any{"kind": "moon_request_rejected", "id": frame.ID, "error": e.Error()})
@@ -2373,7 +2447,7 @@ if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "am
 				case 1719:
 					packets, err = worldState.setAdventureElite(ctx, plaintext, frame.Raw, purchaseSession.prefix)
 				case 1811:
-					packets, err = worldState.loadAdventureElite(plaintext)
+					packets, err = worldState.loadAdventureElite(ctx, plaintext)
 				default:
 					packets, err = worldState.buyAdventureItem(ctx, plaintext, frame.Raw, purchaseSession.prefix)
 				}
@@ -3519,6 +3593,10 @@ if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "am
 				switch frame.ID {
 				case 16:
 					pending, plan, e = worldState.selectDungeon(plaintext)
+				case 1852:
+					ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+					pending, plan, e = worldState.startBlackPurgatory(ctx, plaintext)
+					cancel()
 				case 37:
 					if worldState.activeDungeon == nil && worldState.pendingTownArrival != nil {
 						scene := worldState.townArrivalScenes[worldState.pendingTownArrival.Definition.ID]
@@ -3685,6 +3763,10 @@ if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "am
 						continue
 					}
 					refusalCode := uint16(4)
+					if frame.ID == 1852 {
+						// 黑鸦原生应答14525C4C0使用错误8表示无法开始，不套用普通选图错误4。
+						refusalCode = 8
+					}
 					if frame.ID >= 2320 && frame.ID <= 2325 {
 						refusalCode = 3
 						// 14073D080的错误8专指未参与探索，不能拿来表示邮箱已满。
@@ -3737,7 +3819,7 @@ if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "am
 					event(map[string]any{"kind": "dungeon_session_started", "dungeon": worldState.activeDungeon.Definition.ID, "maze": worldState.activeDungeon.Maze.Index, "map": worldState.activeDungeon.Room.Map, "monsters": len(worldState.activeDungeon.Monsters), "quests_changed": false, "town_arrival": true})
 				}
 				if pending != nil {
-					if frame.ID == 16 || frame.ID == 72 || frame.ID == 2062 {
+					if frame.ID == 16 || frame.ID == 72 || frame.ID == 1852 || frame.ID == 2062 {
 						worldState.deathSent = map[uint16]bool{}
 						worldState.drops = nil
 						worldState.resetCards()
@@ -3789,6 +3871,10 @@ if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "am
 						worldState.cardScrolled = true
 					}
 					if p.Name == "card_layout_ack" {
+						if !worldState.cardLayoutSent && worldState.cardReceipt == nil && worldState.activeDungeon != nil &&
+							worldState.activeDungeon.Definition.ID == blackPurgatorySquadDungeon {
+							worldState.cardAutoPickAt = time.Now().Add(3 * time.Second)
+						}
 						worldState.cardLayoutSent = true
 					}
 					if p.Name == "dungeon_return_users" {
@@ -4811,6 +4897,13 @@ if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "am
 					}
 				}
 				if lootService != nil {
+					rewardCtx, rewardCancel := context.WithTimeout(context.Background(), 5*time.Second)
+					recovered, rewardErr := lootService.RecoverBlackPurgatoryCards(rewardCtx, role)
+					rewardCancel()
+					role = recovered
+					if rewardErr != nil {
+						event(map[string]any{"kind": "黑鸦未领翻牌或领主奖励保留", "character_id": role.ID, "error": rewardErr.Error()})
+					}
 					// Sweep the seventeen account-shared materials out of the bag
 					// into the account storage before the snapshots are built, then
 					// deliver the list35 storage snapshot ahead of list0 so the

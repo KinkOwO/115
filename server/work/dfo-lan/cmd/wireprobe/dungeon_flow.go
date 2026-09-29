@@ -41,6 +41,15 @@ func (w *worldSession) dungeonGate(p []byte) ([]outboundPacket, error) {
 	if e != nil {
 		return nil, e
 	}
+	if w.channelType == 73 || requested == blackPurgatorySquadDungeon {
+		if err := w.validateBlackPurgatoryDungeon(requested); err != nil {
+			return nil, err
+		}
+		return []outboundPacket{
+			{"黑鸦选图许可", 1, 15, []byte{1}},
+			{"黑鸦选图状态", 0, 27, protocol.EnterDungeonSelection()},
+		}, nil
+	}
 	// The town gate sends zero. The client's own tutorial sender (146cce650)
 	// supplies a source dungeon ID instead; accept that only when it is this
 	// character's own starting route and the route is still owed.
@@ -126,6 +135,15 @@ func (w *worldSession) selectDungeon(p []byte) (*dungeon.Session, []outboundPack
 	r, e := protocol.DecodeDungeonSelection(p)
 	if e != nil {
 		return nil, nil, e
+	}
+	if w.channelType == 73 || r.ID == blackPurgatorySquadDungeon {
+		if !w.selectingDungeon || w.approvedDungeonGate != r.ID || r.Difficulty != 2 {
+			return nil, nil, fmt.Errorf("黑鸦小队缺少本次选图许可或源难度不匹配")
+		}
+		if err := w.validateBlackPurgatoryDungeon(r.ID); err != nil {
+			return nil, nil, err
+		}
+		return w.prepareDungeonEntry(r)
 	}
 	if w.bleedingMineStart != nil {
 		if !w.selectingDungeon || w.approvedDungeonGate != r.ID {
@@ -218,7 +236,11 @@ func (w *worldSession) dungeonEntryPlan(ackName string, ackID uint16, sel protoc
 	}
 	plan := []outboundPacket{{ackName, 1, ackID, []byte{1}}}
 	if w.characters != nil {
-		visual, err := w.characters.EntryBasicProbe(w.role, [2]byte{})
+		channel := [2]byte{}
+		if w.channelType == 73 && w.blackPurgatory.created {
+			channel = w.characters.ChannelContext
+		}
+		visual, err := w.characters.EntryBasicProbe(w.role, channel)
 		if err == nil {
 			plan = append(plan, outboundPacket{"dungeon_actor_appearance_sent", 0, 2, visual})
 		}
@@ -241,7 +263,8 @@ func (w *worldSession) dungeonEntryPlan(ackName string, ackID uint16, sel protoc
 			}
 		}
 	}
-	if w.soloPartyBootstrap {
+	// 黑鸦已在大厅建立原生小队，入图不能用普通队伍通知覆盖模式和开场状态。
+	if w.soloPartyBootstrap && !(w.channelType == 73 && w.blackPurgatory.created) {
 		party, e := protocol.SoloPartyInfo(w.role.WireID)
 		if e != nil {
 			return nil, e
@@ -436,6 +459,11 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 	if w.fatigue != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
+		blackPackets, err := w.blackPurgatoryLoaded(ctx)
+		if err != nil {
+			return nil, err
+		}
+		plan = append(plan, blackPackets...)
 		d := w.activeDungeon
 		fp, _, e := w.fatigue.EnterRoom(ctx, w.account, w.role.ID, d.RunID, d.Room.Map, d.Definition.NoFatigue, time.Now())
 		if e != nil {
@@ -628,6 +656,9 @@ func (w *worldSession) leaveDungeon() ([]outboundPacket, error) {
 	if w == nil || w.role.ID == 0 {
 		return nil, fmt.Errorf("leave dungeon without selected character")
 	}
+	if err := w.finishBlackPurgatoryQuota("refund"); err != nil {
+		return nil, err
+	}
 	// Leaving the starting route settles it, whichever exit is taken, and
 	// lands the character at the town position the source route names.
 	if w.inTutorial {
@@ -653,7 +684,11 @@ func (w *worldSession) leaveDungeon() ([]outboundPacket, error) {
 	}
 	plan := []outboundPacket{{"dungeon_leave_ack", 1, 42, []byte{1}}, {"town_actor_state", 0, 3, state}, {"dungeon_return_area", 0, 23, ua}, {"dungeon_return_users", 0, 24, area}}
 	if w.characters != nil {
-		visual, err := w.characters.EntryBasicProbe(w.role, [2]byte{})
+		channel := [2]byte{}
+		if w.channelType == 73 && w.blackPurgatory.created {
+			channel = w.characters.ChannelContext
+		}
+		visual, err := w.characters.EntryBasicProbe(w.role, channel)
 		if err == nil {
 			plan = append(plan, outboundPacket{"town_actor_appearance_restored", 0, 2, visual})
 		}
@@ -686,6 +721,11 @@ func (w *worldSession) leaveDungeon() ([]outboundPacket, error) {
 		ready := bleedingMinePreparation()
 		ready.Name = "赤红铁矿开战会话结束"
 		plan = append(plan, ready)
+	}
+	if w.channelType == 73 && w.blackPurgatory.prepared {
+		plan = append(plan, outboundPacket{"黑鸦挑战退出", 0, 1994, protocol.BlackPurgatoryEntryInfo(0, 0)})
+		w.blackPurgatory.prepared, w.blackPurgatory.loaded = false, false
+		w.blackPurgatory.deadline = time.Time{}
 	}
 	return plan, nil
 }
@@ -797,10 +837,16 @@ func (w *worldSession) monsterDeath(p []byte, event func(map[string]any)) ([]out
 	// no experience. Both are skipped rather than rolled and discarded, so
 	// nothing is charged against the run's drop budget either.
 	unowned := w.activeDungeon.Unowned[uint16(r.Entity)]
+	blackBoss := loot.BlackPurgatoryBossDeath(w.activeDungeon, uint16(r.Entity))
+	if blackBoss {
+		if err := w.freezeBlackPurgatoryRewards(); err != nil {
+			return nil, err
+		}
+	}
 	plan := []outboundPacket{{"monster_death_ack", 1, 39, []byte{1}}}
 	if !w.deathSent[uint16(r.Entity)] {
 		body := protocol.MonsterDeathConfirmed(uint16(r.Entity))
-		if w.loot != nil && !unowned {
+		if w.loot != nil && (!unowned || blackBoss) {
 			if w.drops == nil || w.drops.Run != w.activeDungeon.RunID {
 				// Drops span every job's gear at every level by design; that
 				// breadth is a feature, not a bug, so the pool is not narrowed
@@ -840,6 +886,8 @@ func (w *worldSession) monsterDeath(p []byte, event func(map[string]any)) ([]out
 					cancel()
 				}
 			}
+			w.drops.BlackPurgatory = w.loot.BlackPurgatory
+			w.drops.BlackPurgatoryPlan = w.cardPlan
 			rows, err := w.drops.Death(w.activeDungeon, uint16(r.Entity))
 			if fatal := fatalDropFailure(err); fatal != nil {
 				return nil, fatal
@@ -992,6 +1040,12 @@ func (w *worldSession) completeDungeon() ([]outboundPacket, error) {
 	if w.bleedingMineStart != nil {
 		return w.completeBleedingMineStage()
 	}
+	if err := w.freezeBlackPurgatoryRewards(); err != nil {
+		return nil, err
+	}
+	if err := w.finishBlackPurgatoryQuota("clear"); err != nil {
+		return nil, err
+	}
 	var plan []outboundPacket
 	if w.progression != nil && w.progression.Odyssey != nil && w.activeDungeon.Definition.Odyssey {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -1105,6 +1159,25 @@ func (w *worldSession) completeDungeon() ([]outboundPacket, error) {
 			cleared, before, after, w.oathProgressClears)
 	}
 	return plan, nil
+}
+
+func (w *worldSession) freezeBlackPurgatoryRewards() error {
+	if w.activeDungeon == nil || w.activeDungeon.Definition.ID != blackPurgatorySquadDungeon || w.cardPlan != nil {
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	var seed uint32
+	if err := binary.Read(rand.Reader, binary.LittleEndian, &seed); err != nil {
+		return err
+	}
+	cards, err := w.loot.FreezeBlackPurgatoryCards(ctx, w.role, w.activeDungeon, seed)
+	if err != nil {
+		return err
+	}
+	w.cardPlan = &cards
+	log.Printf("黑鸦奖单已保存：角色=%d 挑战=%s 翻牌=%v 领主装备=%v 概率规则=%s", w.role.ID, cards.Run, cards.Items, cards.BossItems, cards.BossModel)
+	return nil
 }
 
 func (w *worldSession) interactDoor(p []byte) (*dungeon.Session, []outboundPacket, error) {
