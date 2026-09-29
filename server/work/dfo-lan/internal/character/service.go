@@ -235,6 +235,11 @@ func (s *Service) listRowsWithFatigue(ctx context.Context, account int64, fatigu
 
 func (s *Service) rosterRowsWithFatigue(ctx context.Context, account int64, chars []storage.Character, fatigue *FatigueService, now time.Time) ([]protocol.CharacterRow, error) {
 	rows := make([]protocol.CharacterRow, 0, len(chars))
+	options, e := s.Store.AccountUnifiedOptions(ctx, account)
+	if e != nil {
+		return nil, e
+	}
+	effectFlags := growthEffectFlags(options)
 	// 资格位来自140220030的频道入场分支；任务来自当前PVF。
 	// enterablespecialchannel.etc 中的洞察、希洛克、黑鸦、奥兹玛任务
 	// 保持原生资格位；已撤下流放频道，不重新投影其专用准入标记。
@@ -248,6 +253,7 @@ func (s *Service) rosterRowsWithFatigue(ctx context.Context, account int64, char
 			return nil, e
 		}
 		row := protocol.CharacterRow{Slot: uint16(slot), FixedSlot: c.FixedSlot, Name: c.Name, Profession: c.Profession, Advancement: state.Advancement, Level: state.Level}
+		row.GrowthEffectFlags = effectFlags
 		row.ContentClearFlags = contentClearFlagsForQuests(completed[c.ID])
 		row.Advancement, e = state.WireAdvancement()
 		if e != nil {
@@ -362,12 +368,16 @@ func (s *Service) EntryBasicProbe(role storage.Character, channelContext [2]byte
 	if err != nil {
 		return nil, err
 	}
+	effectFlags, err := s.roleGrowthEffectFlags(role)
+	if err != nil {
+		return nil, err
+	}
 	return protocol.UserInfoBasicProbe(protocol.EntryBasicProbe{
 		Fame:          fame,
 		SeasonLevel:   seasonLevel(state.SeasonLevel),
 		BasePercent:   entryBasePercent,
 		ActorServerID: role.WireID, Context: channelContext,
-		Character: protocol.CharacterRow{Name: role.Name, Profession: role.Profession, Advancement: advancement, Level: state.Level, Odyssey: odyssey, Equipment: equipment, CreatureItemID: creatureItemID, CreatureName: creatureName, ContentClearFlags: contentFlags},
+		Character: protocol.CharacterRow{Name: role.Name, Profession: role.Profession, Advancement: advancement, Level: state.Level, Odyssey: odyssey, Equipment: equipment, CreatureItemID: creatureItemID, CreatureName: creatureName, ContentClearFlags: contentFlags, GrowthEffectFlags: effectFlags},
 		// The explicit per-slot block must stay empty on the entry path. A
 		// block holding a client-rejected slot is worse than an empty one:
 		// the reader replaces the projection wholesale, so a knight wearing
@@ -436,12 +446,16 @@ func (s *Service) AppearanceProbe(role storage.Character, channelContext [2]byte
 	if err != nil {
 		return nil, err
 	}
+	effectFlags, err := s.roleGrowthEffectFlags(role)
+	if err != nil {
+		return nil, err
+	}
 	return protocol.UserInfoBasicProbe(protocol.EntryBasicProbe{
 		Fame:          fame,
 		SeasonLevel:   seasonLevel(state.SeasonLevel),
 		BasePercent:   entryBasePercent,
 		ActorServerID: role.WireID, Context: channelContext,
-		Character:  protocol.CharacterRow{Name: role.Name, Profession: role.Profession, Advancement: advancement, Level: state.Level, Odyssey: odyssey, CreatureItemID: creatureItemID, CreatureName: creatureName, ContentClearFlags: contentFlags},
+		Character:  protocol.CharacterRow{Name: role.Name, Profession: role.Profession, Advancement: advancement, Level: state.Level, Odyssey: odyssey, CreatureItemID: creatureItemID, CreatureName: creatureName, ContentClearFlags: contentFlags, GrowthEffectFlags: effectFlags},
 		Appearance: rows,
 	})
 }
