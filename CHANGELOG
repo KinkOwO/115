@@ -1,6 +1,11 @@
 # CHANGELOG
 
 ## 2026-09-29
+- **誓约战斗效果进图时序（外部施工图，Attempt 1/3，**未实机验证**）**：Nature 誓约在普通副本无战斗效果、修炼场 Buff 出两次（第一次无效）。按施工图假设——地图开始时只收到孤立的 NOTI14，完整穿戴容器与誓约选项要等 C2S37 加载后才补发，导致①穿戴效果被应用两次②对普通副本的开图效果装载太晚——对「穿槽位 47 誓约核心 ∧ 无需 Clone 重挂载」的角色，把 **NOTI13 完整穿戴 + NOTI14 槽位更新 + S2C2839 选项**从"加载后补发"**提前到 NOTI29 开始地图之前**，并在加载后**跳过同组重复**。
+  - 开关 `DFO_OATH_DIRECT_ENTRY`（**默认开**；`=0` 回退旧时序）；判据复用 `EquippedOathSelection.ItemID`（未穿槽位 47 时为 0）。
+  - `dungeonEntryPlan` 加 `ctx` 参数（调用方 `context.Background()`，辅助函数内部 5s 超时）；穿 Clone 的角色沿用已验证的重挂载路径，生物/伤害字体/疲劳结算不动。**不改协议字段、不改存档**。
+  - 验证：`go build ./...` 与 `go vet ./cmd/... ./internal/...` **0 项**；**实机验证未做**（按业主要求本轮只保证编译），玩家按「普通副本 11 看自动 Buff/技能/命中触发 → 修炼场 5000 看 Buff 是否只出现一次」判定。
+  - ⚠️ 施工图**只给描述、无 patch/源码**，代码由我方实现；作者树里的「武器装扮」进图调整**不属本主题、未取**。
 - **誓约切换持久化（来自 `shawang/115` 的 `fix/oath-selection-persistence`，整文件快照包已复刻落地）**：誓约选项此前只有内存态 —— 城镇里切过、进副本就丢。现按「角色 + 誓约核心实例键」落库并在场景恢复。
   - **落库**：新增 `character_oath_options(character_id, core_instance_key, selected_option, revision, updated_at)`，`MigrateOathOptions` 启动期 `CREATE TABLE IF NOT EXISTS` + 索引（**幂等、纯追加**，不改任何角色 JSON 存档；穿戴槽位 47 仍是装备真源）。写库走事务并在事务内复核等级与装备，避免用旧存档覆盖。
   - **协议**：`oath_system.go` 解析客户端 **C2S2382**（选项切换请求）、编码 **S2C2839**（选项状态）；`oath_selection_flow.go` 处理显式切换与场景初始化读取 —— **副本内拒绝切换**，进图时重新下发已保存选项。

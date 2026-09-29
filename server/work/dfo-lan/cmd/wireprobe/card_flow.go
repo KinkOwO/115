@@ -226,7 +226,7 @@ func (w *worldSession) restartDungeon() (*dungeon.Session, []outboundPacket, err
 	if e != nil {
 		return nil, nil, e
 	}
-	entry, e := copy.dungeonEntryPlan("dungeon_select_ack", 16, sel, s)
+	entry, e := copy.dungeonEntryPlan(context.Background(), "dungeon_select_ack", 16, sel, s)
 	if e != nil {
 		return nil, nil, e
 	}
