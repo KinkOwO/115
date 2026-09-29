@@ -2129,9 +2129,12 @@ func main() {
 				continue
 			}
 			if frame.Type == 1 && frame.ID == 806 && bootstrapped && verified && worldState != nil {
+				// CMD806 共用送礼(p[0]=0)与剧情角色染色(p[0]=1)。giveFavor
+				// 内部按 p[0] 分流：送礼扣材料+加点数；染色回 0x01+请求体
+				// 回显，客户端据此本地写角色颜色（不弹好感度窗）。
 				plan, favorErr := worldState.giveFavor(plaintext)
 				if favorErr != nil {
-					event(map[string]any{"kind": "npc_favor_refused", "attempt": "1/3", "character_id": selectedCharacterID, "reason": favorErr.Error(), "plain_hex": hex.EncodeToString(plaintext)})
+					event(map[string]any{"kind": "npc_favor_refused", "character_id": selectedCharacterID, "reason": favorErr.Error(), "plain_hex": hex.EncodeToString(plaintext)})
 					if e := sendPayload(1, 806, protocol.Refusal(4)); e != nil {
 						return
 					}
@@ -2141,7 +2144,7 @@ func main() {
 					if e := sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
 						return
 					}
-					event(map[string]any{"kind": packet.Name, "attempt": "1/3", "character_id": selectedCharacterID, "id": packet.ID, "plain_hex": hex.EncodeToString(packet.Payload)})
+					event(map[string]any{"kind": packet.Name, "character_id": selectedCharacterID, "id": packet.ID, "plain_hex": hex.EncodeToString(packet.Payload)})
 				}
 				continue
 			}
@@ -5037,6 +5040,34 @@ func main() {
 						event(map[string]any{"kind": "area_presence_error", "error": e.Error()})
 					}
 				}
+				// 进城镇好感度全量同步：NOTI733(NPC_FAVOR_POINT_INFO) 是客户端
+				// 唯一的无弹窗全量装载入口（handler 0x1452db190：先清空 favor
+				// map 再逐条装入并刷新，不派发任何 UI 事件）；806 ack 虽也写
+				// 缓存但必弹好感度窗。NOTI124 刚完成时好感度子系统尚未就绪，
+				// 早发会被丢弃，沿用 900ms 延迟（2026-09-29 定案时序）。
+				go func(characterID int64) {
+					time.Sleep(900 * time.Millisecond)
+					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					points, listErr := characters.Store.ListFavor(ctx, characterID)
+					cancel()
+					if listErr != nil {
+						event(map[string]any{"kind": "npc_favor_point_info_skipped", "character_id": characterID, "error": listErr.Error()})
+						return
+					}
+					if len(points) == 0 {
+						return
+					}
+					records := make([]protocol.FavorPointInfoRecord, 0, len(points))
+					for _, fp := range points {
+						records = append(records, protocol.FavorPointInfoRecord{NPCID: fp.NPCID, Point: uint32(fp.Point)})
+					}
+					payload := protocol.FavorPointInfo(records)
+					if err := sendPayload(0, 733, payload); err != nil {
+						event(map[string]any{"kind": "npc_favor_point_info_failed", "character_id": characterID, "error": err.Error()})
+						return
+					}
+					event(map[string]any{"kind": "npc_favor_point_info_sent", "character_id": characterID, "npc_count": len(records), "plain_bytes": len(payload)})
+				}(role.ID)
 				continue
 			}
 			if characters != nil && bootstrapped && frame.ID == 295 {
