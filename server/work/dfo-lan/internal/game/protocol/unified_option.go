@@ -16,7 +16,7 @@ import (
 //	+04 u32                  (0, 1 and 0xFFFFFFFF all observed)
 //	+08 5B                   (context parameter / pointer / marker)
 //	+13 u8  scope            (0 = character, 1 = account)
-//	+14 u8  subtype          (0x01 account, 0x03 hotkeys A, 0x04 hotkeys B, 0x05 settings, 0x07 hotkey UI, 0x13 skill lock)
+//	+14 u8  subtype          (0x01 account, 0x03 hotkeys A, 0x04 hotkeys B, 0x05 settings, 0x07 hotkey UI, 0x12 character effects, 0x13 skill lock)
 //	+15 u32 entry count      (little endian)
 //	+19      count x (u16 position, u16 value)
 //	tail    0..8 bytes of zero padding
@@ -42,6 +42,9 @@ const (
 	UnifiedOptionSettings = 0x05
 	// UnifiedOptionHotkeyUI is the UI state reporting frame.
 	UnifiedOptionHotkeyUI = 0x07
+	// UnifiedOptionCharacterEffects carries the six character effect settings
+	// in the subtype 18 object inside NOTI2827.
+	UnifiedOptionCharacterEffects = 0x12
 	// UnifiedOptionSkillLock is the subtype that carries the skill lock block.
 	UnifiedOptionSkillLock = 0x13
 
@@ -226,15 +229,15 @@ func EncodeSkillLockBlock(ids []uint16) ([]byte, error) {
 
 // NOTI2827 (UNIFIED_OPTION_CHARAC) is a single 3539 byte block made of fixed,
 // subtype ordered objects. The client's own default block is embedded verbatim:
-// the server fills only the two skill lock objects and leaves every other byte
-// at the client default, which the client consumes normally.
+// the server fills the skill lock objects and supported setting objects while
+// leaving every other byte at the client default.
 //
 // The offsets come from the client's "locate object by subtype" switch
 // (sub_14757B0C0 in the 115 US build): subtype 19 at 2736 and subtype 20 at
 // 3122, both 386 bytes and served by the same lock handler. Writing only the
 // first object restores the locks incompletely after a character reselect, so
-// both get the same data. Subtype 18 sits at 2716 and is only 20 bytes wide, so
-// it is not a lock object and must not be written.
+// both get the same data. Subtype 18 at 2716 is a separate six-slot effect
+// setting object and must not be overwritten with lock data.
 //
 //go:embed templates/unified-charac-options-current.bin
 var nativeCharacOptions []byte
@@ -318,6 +321,36 @@ func FillCharacSettings(block []byte, settings map[uint16]uint16) error {
 	return nil
 }
 
+// UnifiedCharacEffectsAt and UnifiedCharacEffectsSlots describe the six-slot
+// subtype 18 object immediately before the two skill-lock objects in NOTI2827.
+const (
+	UnifiedCharacEffectsAt    = 2716
+	UnifiedCharacEffectsSlots = 6
+)
+
+// FillCharacEffects overlays persisted subtype 18 effect settings onto a
+// fresh NOTI2827 block. Out-of-range positions are ignored.
+func FillCharacEffects(block []byte, settings map[uint16]uint16) error {
+	if len(block) != UnifiedCharacOptionSize {
+		return fmt.Errorf("character option block size mismatch")
+	}
+	obj := UnifiedCharacEffectsAt
+	if obj+2+3*UnifiedCharacEffectsSlots > len(block) || obj+2+3*UnifiedCharacEffectsSlots > UnifiedCharacSkillLockAt {
+		return fmt.Errorf("character effect settings object does not fit before skill locks")
+	}
+	for position, value := range settings {
+		if int(position) >= UnifiedCharacEffectsSlots {
+			continue
+		}
+		block[obj] = 1
+		slot := obj + 2 + int(position)*2
+		binary.LittleEndian.PutUint16(block[slot:], value)
+		exist := obj + 2 + 2*UnifiedCharacEffectsSlots + int(position)
+		block[exist] = 1
+	}
+	return nil
+}
+
 // FillHotkeysBlock fills a 473-byte hotkey block (valid + version + 157*u16 + 157*exist)
 // at the destination slice.
 func FillHotkeysBlock(dst []byte, hotkeys map[uint16]uint16) error {
@@ -359,4 +392,3 @@ func FillCharacHotkeys(block []byte, hotkeys, hotkeysExt map[uint16]uint16) erro
 	}
 	return nil
 }
-

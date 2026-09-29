@@ -1,0 +1,20 @@
+{
+  "DungeonCachedRoomDescriptor115": {
+    "map_id": {"type": "uint32", "offset": 0},
+    "spawn_begin": {"type": "void*", "offset": 8},
+    "spawn_end": {"type": "void*", "offset": 16},
+    "spawn_capacity_end": {"type": "void*", "offset": 24},
+    "start_map_mode": {"type": "uint32", "offset": 56},
+    "size": 64,
+    "evidence": "1452b7100; manual Evil Justice room-cache snapshot20260929"
+  },
+  "DungeonLayerRoomCache115": {
+    "descriptors_begin": {"type": "DungeonCachedRoomDescriptor115*", "offset": 0},
+    "descriptors_end": {"type": "DungeonCachedRoomDescriptor115*", "offset": 8},
+    "rooms_begin": {"type": "void**", "offset": 24},
+    "rooms_end": {"type": "void**", "offset": 32},
+    "entity_references_begin": {"type": "void*", "offset": 48},
+    "entity_references_end": {"type": "void*", "offset": 56},
+    "evidence": "145b22f50, 145ea25f0; entity reference stride24"
+  }
+}
