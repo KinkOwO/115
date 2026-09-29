@@ -248,6 +248,11 @@ func (s *Service) rosterRowsWithFatigue(ctx context.Context, account int64, char
 			return nil, e
 		}
 		row := protocol.CharacterRow{Slot: uint16(slot), FixedSlot: c.FixedSlot, Name: c.Name, Profession: c.Profession, Advancement: state.Advancement, Level: state.Level}
+		settings, err := s.Store.CharacterUnifiedOptions(ctx, c.ID)
+		if err != nil {
+			return nil, err
+		}
+		row.AuraVisible = auraEffectVisible(settings)
 		row.ContentClearFlags = contentClearFlagsForQuests(completed[c.ID])
 		row.Advancement, e = state.WireAdvancement()
 		if e != nil {

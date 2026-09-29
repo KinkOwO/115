@@ -160,6 +160,7 @@ type CharacterRow struct {
 	Fame             uint32
 	CreatureItemID   uint32
 	CreatureName     string
+	AuraVisible      bool // 选角光环显示；独立于觉醒特效和装备外观绑定。
 	// 当前115客户端的28字节内容解锁区；只写已核对的资格位，未知位保持0。
 	ContentClearFlags [28]byte
 }
@@ -236,7 +237,14 @@ func appendCharacterListRows(p []byte, capacity uint16, roles []CharacterRow) ([
 		// 14022091E检查+0x63F（第7项）决定流放者山脉前置是否完成。
 		p = append(p, r.ContentClearFlags[:]...)
 		p = add32(p, 0)
-		p = add16(p, 0)
+		// 14563E985读取u16，等于1时写入角色资料+0x65E，并经145BF26A0
+		// 设置显示对象+0x249C；145BDCFD0/145BBB430以此决定是否加载光环。
+		// 原先固定0会让选角隐藏光环，即使装备槽9/11已正确同步。
+		var auraVisible uint16
+		if r.AuraVisible {
+			auraVisible = 1
+		}
+		p = add16(p, auraVisible)
 		// Native 14563e9ee stores this third byte at row-info+672.
 		var mode byte
 		if r.Odyssey {

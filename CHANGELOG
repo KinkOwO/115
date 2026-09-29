@@ -1,6 +1,7 @@
 # CHANGELOG
 
 ## 2026-09-30
+- 修复选角界面光环被固定隐藏：角色列表读取已保存的角色设置98（CAEE），未设置时沿用原版默认开启，主动关闭仍保持关闭；按原生u16显示字段同步，不改装备绑定或客户端资源。现有全量测试及vet通过，尚未编译部署或实机确认。
 - **掉落池准入：`[trade]` / `[trade delete]` 装备实验开关 + 耐久免检部位与发放路径对齐（外部包批 2 · F 项）**。115 深渊的掉落装备（`100345985` `[support]`、`100391038` `[earring]`、`100354160` `[magic stone]`、`100401592` `[primer]`）**全部是 `[trade]`**，而 `EquipmentCatalog.Basic()` 只接受 `[free]` ⇒ 它们**永远进不了掉落池**：`Basic()` 拒绝 → 不进 pool → `Durability()` 查不到 → 掉落记录 `[11] Durability = 0` → 客户端拿不到耐久/扩展字段 → **粉以上装备落地没有闪光特效**。三类在我们自己的 `configs/equipment.current37.json` 里的分布是 `[free]` **2805** / `[trade]` **170** / `[trade delete]` **199**（与作者侧逐项一致，同一份 PVF）。
   - 新增 `acceptableAttach()`：`[free]` 恒可；`[trade]`/`[trade delete]` 由**实验开关 `DFO_ALLOW_TRADE_EQUIPMENT=1`** 放行（默认关 —— 交易属性是否还需要额外的绑定状态尚未证实，见 `Basic` 的原始注释 "requires additional source state"）。
   - 新增 `poolJewelryFor()`：开关打开时用**发放路径同一张** `durabilityOptional`（17 个部位）替代原硬查的 `poolJewelry`（只有 `[amulet]`/`[wrist]`/`[ring]` 三个）—— 两侧不同步正是深渊部位被拒的另一半原因。**默认仍走旧表，行为与改动前逐字节一致**。
