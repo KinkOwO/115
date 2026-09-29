@@ -508,6 +508,11 @@ func main() {
 		if e = s.MigrateCharacterEvents(ctx); e != nil {
 			log.Fatal(e)
 		}
+		// NPC 商店限购流水（`[purchase limit]`）。新表而不是复用 character_events：
+		// 那张表主键是 (character_id, event_key)，同一 key 只能一行，而限购要可累加的行。
+		if e = s.MigrateShopPurchases(ctx); e != nil {
+			log.Fatal(e)
+		}
 		// Per-character read-notice ledger (NOTI402/426) backs the teaching
 		// frame suppression for third-awakened characters.
 		if e = s.MigrateCharacterNotices(ctx); e != nil {

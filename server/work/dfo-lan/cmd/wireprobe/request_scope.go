@@ -97,6 +97,16 @@ func observedGameRequest(id uint16) bool {
 	if id == 2329 {
 		return true
 	}
+	// 469 / 495 = 树 1 / 树 2 的「通知已查看」上报。两者都有持久化处理器
+	// （MarkCharacterNotice，见 main.go 的 `case 469` / `case 495`），但不在这个集合里时会被
+	// BodySampleLimit(8) 截断：第 9 次起 `verified` 不再被计算，请求随即以 `checksum failed` 被
+	// dungeonRequest 拒掉 —— 那是误报，帧本身完全正常，只是我们没解密校验过它。
+	//
+	// 后果：客户端上报的「这条提示我已经看过」丢不掉，于是「点击图标查看可获得奖励」的首次
+	// 提示每次进图都弹。只加进白名单，不改 BodySampleLimit、不改任何 handler 逻辑。
+	if id == 469 || id == 495 {
+		return true
+	}
 	// 1565 是皮肤仓库「应用」按钮的请求，已有处理器：只解密前八次会让第八次之后的
 	// 点击全部分流不进去，实机表现为「第一次能应用，之后换不动字体」。
 	if id == 1565 {

@@ -37,6 +37,31 @@ type row struct {
 	SHA256 string
 }
 
+// normPath 归一化路径用于查表：小写、正斜杠、去首尾空白。
+func normPath(p string) string {
+	return strings.ToLower(strings.ReplaceAll(strings.TrimSpace(p), "\\", "/"))
+}
+
+// equipmentIDByPath 读 list/equipment.lst，返回归一化 path -> template id。
+//
+// 为什么不用文件名：早期装备的文件名不是纯数字（`vest_owool.equ`、`robe_cfiber.equ`…），
+// 从文件名解析 ID 会把它们整条丢掉（作者侧实测 **43,349 条**），而它们的 ID 就在这份索引里。
+func equipmentIDByPath(a *pvf.Archive) (map[string]uint32, error) {
+	rec, err := catalog.ResolveScript(a, "list/equipment.lst")
+	if err != nil {
+		return nil, err
+	}
+	ents, err := catalog.ParseIndex(rec.Cells)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]uint32, len(ents))
+	for _, e := range ents {
+		out[normPath(e.Path)] = e.ID
+	}
+	return out, nil
+}
+
 func main() {
 	source := flag.String("source", "runtime/pvf_source/Script.inner.pvf", "read-only inner archive")
 	out := flag.String("output", "configs/equipment-full.json", "output catalog")
@@ -48,11 +73,24 @@ func main() {
 	if e != nil {
 		log.Fatal(e)
 	}
+	// list/equipment.lst 是**客户端自己的装备索引**，ID 的唯一权威来源。
+	byPath, idxErr := equipmentIDByPath(a)
+	if idxErr != nil {
+		log.Fatalf("读 list/equipment.lst：%v", idxErr)
+	}
+	log.Printf("list/equipment.lst: %d 条 path->id", len(byPath))
+
 	files := a.Files()
 	log.Printf("archive files=%d", len(files))
 
 	counts := map[string]int{}
 	var selected []row
+	// byID 记录已经收下的行，用于同 ID 去重（见下方规则）。
+	type seenRow struct {
+		path      string
+		fromIndex bool
+	}
+	byID := map[uint32]seenRow{}
 	sampled := 0
 	if len(files) > 0 {
 		for i := 0; i < len(files) && i < 12; i++ {
@@ -75,7 +113,9 @@ func main() {
 		if !strings.HasSuffix(p, ".equ") {
 			continue
 		}
-		if strings.Contains(p, "/avatar/") {
+		// 时装判定用「路径含 avatar」而不是 "/avatar/"：还有 `at_avatar` 这种变体
+		// （equipment/character/fighter/at_avatar/...），只匹配前者会漏 10 万条。
+		if strings.Contains(strings.ToLower(p), "avatar") {
 			counts["skip_avatar"]++
 			continue
 		}
@@ -122,19 +162,67 @@ func main() {
 				continue
 			}
 		}
-		// ID 取自文件名（101001153.equ -> 101001153）
-		base := strings.TrimSuffix(path.Base(p), ".equ")
-		id, e := strconv.ParseUint(base, 10, 32)
-		if e != nil {
-			counts["bad_name"]++
-			continue
+		// ID 优先取自 list/equipment.lst（权威）；文件名只在索引查不到时兜底。
+		// 这样 vest_owool.equ 这类非数字文件名也能拿到正确 ID 而不是被丢弃。
+		var id uint32
+		fromIndex := false
+		for _, cand := range tries {
+			if v, ok := byPath[normPath(cand)]; ok {
+				id, fromIndex = v, true
+				break
+			}
 		}
-		selected = append(selected, row{uint32(id), s.Path, fields, s.SHA256})
+		if !fromIndex {
+			base := strings.TrimSuffix(path.Base(p), ".equ")
+			v, pe := strconv.ParseUint(base, 10, 32)
+			if pe != nil {
+				counts["bad_name"]++
+				continue
+			}
+			id = uint32(v)
+			counts["id_from_filename"]++
+		} else {
+			counts["id_from_index"]++
+		}
+		// 同一 ID 可能有多条 `.equ`（实测 100990965 同时存在于 equipment/creature/ 与
+		// equipment/creature/arcadecenter/）。服务端按 index[ID] 存，重复会让「哪条胜出」
+		// 取决于遍历顺序 —— 不确定行为。规则：**list/equipment.lst 认可的那条优先**；
+		// 两条都被认可或都不被认可时取路径字典序较小者，保证结果可复现。
+		if prev, dup := byID[id]; dup {
+			counts["dup_id"]++
+			keepNew := false
+			switch {
+			case fromIndex && !prev.fromIndex:
+				keepNew = true
+			case fromIndex == prev.fromIndex && s.Path < prev.path:
+				keepNew = true
+			}
+			if !keepNew {
+				continue
+			}
+		}
+		byID[id] = seenRow{path: s.Path, fromIndex: fromIndex}
+		selected = append(selected, row{id, s.Path, fields, s.SHA256})
+	}
+	// 二次去重：上面的 byID 只能「跳过后来的」，早收进去的落选行仍在 selected 里，
+	// 所以按 ID 再筛一遍，保留 byID 记录的那条。
+	{
+		final := selected[:0]
+		seen := map[uint32]bool{}
+		for _, r := range selected {
+			keep := byID[r.ID]
+			if keep.path != r.Path || seen[r.ID] {
+				continue
+			}
+			seen[r.ID] = true
+			final = append(final, r)
+		}
+		selected = final
 	}
 	data := map[string]any{
-		"source":  a.Snapshot(),
-		"counts":  counts,
-		"rows":    selected,
+		"source":   a.Snapshot(),
+		"counts":   counts,
+		"rows":     selected,
 		"minLevel": *minLevel,
 	}
 	b, e := json.Marshal(data)

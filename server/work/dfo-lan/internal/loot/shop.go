@@ -13,6 +13,8 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+
+	"github.com/jackc/pgx/v5"
 )
 
 // shopEventSeq 是进程内的请求计数，只用于让事件键可读。
@@ -95,6 +97,43 @@ func (s *Service) shopPrice(template uint32) (catalog.ShopPrice, error) {
 	return catalog.ShopPrice{}, fmt.Errorf("missing current-source shop price for item %d", template)
 }
 
+// checkShopLimit 在**事务内**校验限购并记录本次购买。
+//
+// ⚠️ **本仓取舍（单机化的体验改动，非原版设计）**：原版源里有 `[purchase limit]`，本仓**暂不实施** ——
+// 目录里还没有 `limit_*` 字段（导入器未接），`PurchaseLimit` 因此恒返回 `ok=false`，本函数直接放行。
+// 代码路径保留，接上数据即生效。详见 internal/storage/shop_purchase.go 的头部说明。
+//
+// 规格：物品自身 `.stk` 的 `[purchase limit] <scope> <period> <count>`，由
+// cmd/itemshopimport 导进 itemshop 目录的 offer 字段（catalog.ItemShopOffer）。
+//
+//   - scope：account ⇒ 按账号累计（跨角色共享）；其余按角色。
+//   - period：daily/weekly/monthly ⇒ 按日历窗口；accumulate/version/空 ⇒ 从首次购买起累计。
+//   - 达上限 ⇒ **拒绝**本次购买（不回退到另一种支付方式，回退等于扣错东西）；
+//   - 不限购（Limited=false）⇒ 直接放行，不写流水。
+//
+// 校验与记录都必须与背包变更在同一个事务里：否则会出现「货到手但次数没记」，
+// 或重发请求重复计数（重发的同 key 请求走幂等回执，不会重跑 apply）。
+func (s *Service) checkShopLimit(ctx context.Context, tx pgx.Tx, current storage.Character, shopID, template uint32) error {
+	scope, period, count, limited := s.ItemShops.PurchaseLimit(shopID, template)
+	if !limited {
+		return nil
+	}
+	kind := storage.ShopPurchaseScope(scope)
+	if kind != storage.ShopScopeAccount {
+		kind = storage.ShopScopeCharacter
+	}
+	used, e := s.Store.CountShopPurchases(ctx, kind, current.AccountID, current.ID,
+		shopID, template, storage.PeriodStart(period, time.Now()))
+	if e != nil {
+		return e
+	}
+	if uint32(used) >= count {
+		return fmt.Errorf("shop %d template %d reached its purchase limit (%d/%d, %s %s)",
+			shopID, template, used, count, scope, period)
+	}
+	return storage.RecordShopPurchase(ctx, tx, current.AccountID, current.ID, shopID, template)
+}
+
 func (s *Service) Buy(ctx context.Context, role storage.Character, r protocol.BuyItemRequest) (storage.Character, BuyReceipt, bool, error) {
 	var out BuyReceipt
 	fail := func(e error) (storage.Character, BuyReceipt, bool, error) {
@@ -111,7 +150,16 @@ func (s *Service) Buy(ctx context.Context, role storage.Character, r protocol.Bu
 	//      所以用材料交换的商品，材料成本只写在物品脚本里（3242=1000×3037 等）。
 	// 两者都没有才走金币价；金币价缺 [price] 时按物品基础价值 [value] 兜底
 	// （价格表里 Sell=[value]/5，故用 Sell*5），再没有就是 0。
-	shopMats, _, shopPaid := s.ItemShops.Materials(r.NpcID, r.Template)
+	// CMD21 的 p[8]/p[12] 都是 npc-like id，**哪个是商店取决于客户端从哪个 NPC 打开界面**
+	// （2026-09-29 作者侧 42/42 样本实证，见 catalog.ItemShops.ResolveShop）：
+	//   p8=100000694（场景物·圣诞树） p12=100001774（装备之力魔法书） -> 商店是 p12
+	//   p8=100001019（奥德赛商店）      p12=100003035             -> 商店是 p8
+	// 两个候选都不在商店表里时退回 NpcID，保持历史行为。
+	shopID := r.NpcID
+	if id, ok := s.ItemShops.ResolveShop(r.NpcID, r.ActorID); ok {
+		shopID = id
+	}
+	shopMats, _, shopPaid := s.ItemShops.Materials(shopID, r.Template)
 	itemMats, itemPaid := s.ItemMaterials.Materials(r.Template)
 	var mats []inventory.MaterialCost
 	switch {
@@ -153,9 +201,12 @@ func (s *Service) Buy(ctx context.Context, role storage.Character, r protocol.Bu
 		// （CommitAccountMaterialEvent）。账号材料仓库（space 35）里存着 3033..3037 等
 		// 共享晶块，它们平时不在角色背包里；旧路径只查背包 → 「背包里有晶块，商店却说 have 0」。
 		var e error
-		saved, _, applied, e = s.Store.CommitAccountMaterialEvent(ctx, role.AccountID, role.ID,
+		saved, _, applied, e = s.Store.CommitAccountMaterialEventTx(ctx, role.AccountID, role.ID,
 			s.Catalog.Source.Checksum, key, s.Rules.Model,
-			func(current storage.Character, rawCounts json.RawMessage) (json.RawMessage, json.RawMessage, error) {
+			func(tx pgx.Tx, current storage.Character, rawCounts json.RawMessage) (json.RawMessage, json.RawMessage, error) {
+				if e := s.checkShopLimit(ctx, tx, current, shopID, r.Template); e != nil {
+					return nil, nil, e
+				}
 				b, e := inventory.ReadBag(current.State)
 				if e != nil {
 					return nil, nil, e
@@ -190,9 +241,12 @@ func (s *Service) Buy(ctx context.Context, role storage.Character, r protocol.Bu
 		}
 	} else {
 		var e error
-		saved, applied, e = s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID,
+		saved, applied, e = s.Store.CommitCharacterEventTx(ctx, role.AccountID, role.ID,
 			s.Catalog.Source.Checksum, key, s.Rules.Model,
-			func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+			func(tx pgx.Tx, current storage.Character) (json.RawMessage, json.RawMessage, error) {
+				if e := s.checkShopLimit(ctx, tx, current, shopID, r.Template); e != nil {
+					return nil, nil, e
+				}
 				b, e := inventory.ReadBag(current.State)
 				if e != nil {
 					return nil, nil, e
