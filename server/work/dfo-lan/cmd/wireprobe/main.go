@@ -4187,6 +4187,24 @@ func main() {
 				}
 				event(map[string]any{"kind": "quest_saved_and_sent", "character_id": worldState.role.ID, "quest": qid, "operation": frame.ID, "plain_hex": hex.EncodeToString(response), "client_acceptance": "pending"})
 				if frame.ID == 31 {
+					// Accepting one [collision quest] branch removes its
+					// siblings from the offer list; push the refreshed list so
+					// the unchosen faction quests disappear from the client
+					// immediately instead of at the next level-up/finish/relog.
+					// Must use kind=0 (quest-book update push, same as the
+					// finish/CMD2278 refresh paths). kind=1 would route the
+					// payload to the client's shop-buy response parser (CMD21
+					// is also the buy request opcode) and crash DFO.exe.
+					refreshCtx, refreshCancel := context.WithTimeout(context.Background(), 5*time.Second)
+					refreshBody, refreshErr := worldState.availableQuestPayload(refreshCtx)
+					refreshCancel()
+					if refreshErr != nil {
+						event(map[string]any{"kind": "quest_available_refresh_error", "quest": qid, "error": refreshErr.Error()})
+					} else if e = sendPayload(0, 21, refreshBody); e != nil {
+						return
+					} else {
+						event(map[string]any{"kind": "available_quests_refreshed_after_accept", "character_id": worldState.role.ID, "quest": qid})
+					}
 					// A quest is normally accepted while standing at the
 					// very NPC it names, so its objective can already be
 					// satisfied the moment it is accepted.
