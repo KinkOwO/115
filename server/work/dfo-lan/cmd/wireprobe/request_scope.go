@@ -16,6 +16,10 @@ func dungeonRequest(id uint16) bool {
 }
 
 func observedGameRequest(id uint16) bool {
+	// 图鉴登记需逐次解密并保留证据，不能在重复登记后落入采样上限。
+	if id == 2139 {
+		return true
+	}
 	// 黑鸦每次出发均需解密，不能在第九次点击后失去响应。
 	if id == 1852 {
 		return true

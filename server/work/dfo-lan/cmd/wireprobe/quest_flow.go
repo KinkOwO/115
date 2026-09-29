@@ -87,11 +87,26 @@ func (w *worldSession) finishQuest(r protocol.QuestSubmitRequest) ([]outboundPac
 	// The native terminal ACK mutates a live quest object. After a reconnect,
 	// restore saved state without dereferencing that already-completed object.
 	if result.Applied {
-		ack, err := protocol.QuestFinishedNoItems(r.ID, result.Receipt.Experience)
-		if err != nil {
-			return nil, err
+		// 图鉴后两步引导的源奖励为0号物品、数量0，原生CMD34仍会
+		// 据此打开空奖励窗。仅对已核实的零奖励引导使用原生完成通知；
+		// 若规则变化产生真实奖励，继续走正常结算，不能吞掉奖励展示。
+		quietGuide := (r.ID == 21651 || r.ID == 21652) &&
+			result.Receipt.Experience == 0 && result.Receipt.Gold == 0 &&
+			len(result.Receipt.Items) == 0 && len(result.Receipt.Consumed) == 0 &&
+			result.Receipt.UnlockedEquipment == 0
+		if quietGuide {
+			body, err := protocol.QuestFinishedWithoutRewardWindow(r.ID)
+			if err != nil {
+				return nil, err
+			}
+			plan = append(plan, outboundPacket{"图鉴零奖励任务完成（原生通知候选1/3）", 0, 1668, body})
+		} else {
+			ack, err := protocol.QuestFinishedNoItems(r.ID, result.Receipt.Experience)
+			if err != nil {
+				return nil, err
+			}
+			plan = append(plan, outboundPacket{"quest_finished", 1, 34, ack})
 		}
-		plan = append(plan, outboundPacket{"quest_finished", 1, 34, ack})
 	}
 	// Resend the ordinary bag whenever the reward changed it - items OR gold.
 	// The gold balance rides the bag as the slot-0/template-0 row (Bag.Rows),

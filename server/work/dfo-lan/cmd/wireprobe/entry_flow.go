@@ -38,6 +38,8 @@ type entryPayloads struct {
 	// EquipmentSkill 是装备技能栏/冷却提醒/自定义按键的两组快照（S2C2609，168B）。
 	// 客户端一次消费前 160 字节，所以**恒发**（没设过就是全零）。
 	EquipmentSkill []byte
+	// 冒险图鉴为账号登记集合，登录即恢复，不依赖角色移动上报。
+	AdventureCollection []byte
 	// InformNotice / InformNotice2nd are the per-character read-notice sets
 	// (NOTI402 / NOTI426). They ride right after account options: the client
 	// clears its read set from them, and a third-awakened character whose
@@ -276,6 +278,10 @@ func (p entryPayloads) packets() []outboundPacket {
 	if len(p.Journal) > 0 {
 		// 2610 = protocol.EquipmentJournalOpcode；本文件一律用字面量（与其它帧一致）。
 		out = append(out, outboundPacket{"equipment_journal_restored", 0, 2610, p.Journal})
+	}
+	if len(p.AdventureCollection) > 0 {
+		// NOTI2425先替换集合，窗口531已打开时才重绘；空集合也需恢复，避免换号残留。
+		out = append(out, outboundPacket{"冒险图鉴登录恢复", 0, 2425, p.AdventureCollection})
 	}
 	return append(out,
 		outboundPacket{"actor_appearance_ready", 0, 2, p.Basic},
