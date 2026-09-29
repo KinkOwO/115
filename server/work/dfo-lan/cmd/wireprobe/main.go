@@ -3504,7 +3504,7 @@ func main() {
 					event(map[string]any{"kind": "disjoint_rejected", "id": frame.ID, "reason": "checksum failed"})
 					continue
 				}
-				plan, e := worldState.disjointItem(plaintext)
+				plan, e := worldState.disjointItem(plaintext, event)
 				if e != nil {
 					event(map[string]any{"kind": "disjoint_refused", "id": frame.ID, "character_id": worldState.role.ID, "reason": e.Error()})
 					refusalCode := uint16(19)
