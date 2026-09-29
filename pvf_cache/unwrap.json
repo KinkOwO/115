@@ -1,0 +1,26 @@
+{
+  "source": "D:\\115us\\client\\Script.pvf",
+  "source_sha256": "40553aa4ad71fcda532a3b10bfe6272ee1268f6ccc6bce2f9fbfd81c353d2bcf",
+  "inner": "D:\\115us\\pvf_cache\\Script.inner.pvf",
+  "inner_sha256": "33a32da4c49fd5566708875624d2a76174a099e2cebcb1b5a6b942865511a40c",
+  "source_size": 761337702,
+  "inner_size": 761337702,
+  "segments": 73,
+  "key_count": 73,
+  "header_words": [
+    1768975214,
+    1788252076,
+    532998314,
+    1736913966,
+    231558402,
+    451667566,
+    5650173,
+    233751553,
+    527586149,
+    82571,
+    53780164,
+    43706621
+  ],
+  "elapsed_sec": 2.15,
+  "generated_at": "2026-09-24 23:59:40"
+}

@@ -1,0 +1,1596 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>DFO 115us · GM 管理台</title>
+<style>
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font:14px/1.6 "Microsoft YaHei",system-ui,sans-serif;background:#f0f2f5;color:#1f2430;overflow:hidden}
+button{font:inherit;cursor:pointer}
+input,select,textarea{font:inherit}
+.app{display:flex;height:100vh}
+
+/* ===== 左侧导航 ===== */
+.sidebar{width:210px;background:#1b2536;color:#c8d2e0;display:flex;flex-direction:column;flex:none}
+.brand{padding:18px 18px 14px;font-size:15px;font-weight:700;color:#fff;letter-spacing:.02em;border-bottom:1px solid #263550}
+.brand small{display:block;font-size:11px;color:#7f93b5;font-weight:400;margin-top:2px}
+.nav{flex:1;padding:10px 8px;overflow:auto}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 14px;margin:2px 0;border-radius:8px;cursor:pointer;color:#a8b6cc;font-size:13px;transition:background .12s,color .12s}
+.nav-item:hover{background:#24334d;color:#e6edf7}
+.nav-item.active{background:#2f6fed;color:#fff}
+.nav-item .ico{width:16px;text-align:center;opacity:.85}
+.sidebar .foot{padding:12px 16px;font-size:11px;color:#6b7d9c;border-top:1px solid #263550}
+
+/* ===== 右侧主区 ===== */
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.topbar{height:54px;background:#fff;border-bottom:1px solid #e2e6ee;display:flex;align-items:center;justify-content:space-between;padding:0 20px;flex:none}
+.page-title{font-size:16px;font-weight:700}
+.topbar-right{display:flex;align-items:center;gap:14px}
+.health{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#5b6472;background:#f4f6fa;border:1px solid #e2e6ee;padding:4px 10px;border-radius:20px}
+.health .dot{width:9px;height:9px;border-radius:50%;background:#b9c0cc;display:inline-block}
+.health.ok .dot{background:#21b85b;box-shadow:0 0 6px rgba(33,184,91,.5)}
+.health.bad .dot{background:#e5484d;box-shadow:0 0 6px rgba(229,72,77,.5)}
+.gm-info{font-size:12px;color:#5b6472;background:#f4f6fa;border:1px solid #e2e6ee;padding:4px 10px;border-radius:20px}
+.gm-info b{color:#2f6fed;font-weight:600}
+.btn{background:#2f6fed;color:#fff;border:0;border-radius:6px;padding:7px 14px;font-size:13px}
+.btn:hover{background:#2861d8}
+.btn.ghost{background:#fff;color:#3a4250;border:1px solid #d5dae4}
+.btn.ghost:hover{background:#f2f5fa}
+.btn.danger{background:#e5484d}
+.btn:disabled{opacity:.5;cursor:default}
+.btn.sm{padding:4px 10px;font-size:12px}
+
+/* 搜索条 */
+.searchbar{padding:14px 20px 0;display:flex;gap:8px;position:relative;flex:none}
+.searchbar input{flex:1;max-width:520px;padding:9px 14px;border:1px solid #d5dae4;border-radius:8px;background:#fff;color:#1f2430}
+.searchbar input:focus{outline:none;border-color:#2f6fed;box-shadow:0 0 0 3px rgba(47,111,237,.12)}
+.search-results{position:absolute;top:52px;left:20px;width:520px;max-height:320px;overflow:auto;background:#fff;border:1px solid #e2e6ee;border-radius:8px;box-shadow:0 8px 24px rgba(20,30,60,.12);z-index:50;display:none}
+.search-results .sr{display:flex;justify-content:space-between;gap:8px;padding:9px 14px;cursor:pointer;border-bottom:1px solid #f0f2f7}
+.search-results .sr:hover{background:#f4f7fd}
+.search-results .sr .k{color:#8a93a3;font-size:12px}
+
+/* Tab */
+.tabs{display:flex;gap:4px;padding:14px 20px 0;flex:none;border-bottom:1px solid #e2e6ee}
+.tab{padding:8px 18px;cursor:pointer;color:#5b6472;font-size:13px;border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab:hover{color:#2f6fed}
+.tab.on{color:#2f6fed;font-weight:600;border-bottom-color:#2f6fed}
+
+/* 内容区 */
+.content{flex:1;overflow:auto;padding:20px}
+.card{background:#fff;border:1px solid #e2e6ee;border-radius:10px;padding:18px;margin-bottom:16px}
+.card h3{margin:0 0 12px;font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.card h3 .sub{font-size:12px;color:#8a93a3;font-weight:400}
+label{display:block;color:#5b6472;font-size:12px;margin-bottom:4px}
+input[type=number],input[type=text],select,textarea{width:100%;padding:8px 10px;background:#fff;border:1px solid #d5dae4;border-radius:6px;color:#1f2430}
+input:focus,select:focus{outline:none;border-color:#2f6fed}
+input[disabled]{background:#f2f4f8;color:#9aa3b2}
+.row{display:flex;gap:12px;flex-wrap:wrap}
+.row>div{flex:1;min-width:140px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid #eef1f6}
+th{color:#8a93a3;font-weight:600;font-size:12px;background:#fafbfd}
+tr:hover td{background:#f8fafd}
+.kv{display:grid;grid-template-columns:130px 1fr;gap:4px 14px;font-size:13px}
+.kv div:nth-child(odd){color:#8a93a3}
+.pill{display:inline-block;padding:1px 9px;border-radius:12px;background:#eef1f6;font-size:12px;color:#5b6472;margin-right:6px}
+.pill.blue{background:#e8f0fe;color:#2f6fed}
+.pill.green{background:#e6f7ee;color:#1d9e54}
+.pill.gray{background:#f0f2f7;color:#8a93a3}
+.pill.cat{background:#eef4ff;color:#5b74c8}
+.ok{color:#1d9e54}.err{color:#e5484d}.warn{color:#d97706}
+.hint{color:#8a93a3;font-size:12px;margin-top:8px}
+.hint b{color:#5b6472}
+.warnbox{background:#fff7e8;border:1px solid #f3d9a4;border-radius:8px;padding:10px 12px;margin-top:10px;color:#9a6b00;font-size:12px}
+.errbox{background:#fdf0f0;border:1px solid #f2c4c4;border-radius:8px;padding:10px 12px;margin-top:10px;color:#c22b30;font-size:12px}
+.okbox{background:#eaf8f0;border:1px solid #bfe8d1;border-radius:8px;padding:10px 12px;margin-top:10px;color:#157a44;font-size:12px}
+.kw{display:inline-block;padding:4px 11px;margin:3px 5px 3px 0;border-radius:14px;background:#f2f4f8;border:1px solid #e2e6ee;cursor:pointer;font-size:12px;color:#5b6472}
+.kw:hover{background:#eaf0fb}
+.kw.active{background:#e8f0fe;border-color:#2f6fed;color:#2f6fed}
+.kw .n{color:#9aa3b2;margin-left:4px}
+.kw .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:1px}
+.kw.zero{opacity:.4}
+.filters{margin-top:12px;padding-top:10px;border-top:1px solid #eef1f6}
+.filters .flabel{color:#8a93a3;font-size:12px;margin:10px 0 4px;display:flex;justify-content:space-between;align-items:baseline}
+.filters .flabel b{color:#3a4250;font-weight:600}
+.searchbox{position:relative}
+.result{max-height:300px;overflow:auto;border:1px solid #e2e6ee;border-radius:8px;margin-top:8px}
+.result .row2{display:flex;justify-content:space-between;gap:8px;padding:7px 12px;cursor:pointer;border-bottom:1px solid #f0f2f7}
+.result .row2:hover{background:#f4f7fd}
+.result .row2.blocked{opacity:.55}
+.chosen{display:flex;gap:8px;align-items:center;padding:7px 12px;background:#f4f7fd;border:1px solid #e2e6ee;border-radius:8px;margin-top:6px}
+.chosen input{width:80px}
+.tag{color:#8a93a3;font-size:12px}
+.attrs{display:grid;grid-template-columns:170px 1fr;gap:3px 14px;font-size:13px}
+.attrs div:nth-child(odd){color:#8a93a3}
+table.bag input{width:96px;padding:4px 6px}
+.pill.unknown{background:#fff7e8;color:#9a6b00}
+.pill.worn{background:#e8f0fe;color:#2f6fed}
+.pill.no{background:#fdf0f0;color:#c22b30}
+.pill.raw{background:#f0f2f7;color:#8a93a3}
+.rolebar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.rolebar .role{background:#fff;border:1px solid #e2e6ee;border-radius:8px;padding:7px 14px;cursor:pointer;font-size:13px;color:#3a4250}
+.rolebar .role:hover{border-color:#2f6fed}
+.rolebar .role.active{background:#e8f0fe;border-color:#2f6fed;color:#2f6fed;font-weight:600}
+.empty{padding:40px 20px;text-align:center;color:#9aa3b2;background:#fff;border:1px dashed #d5dae4;border-radius:10px}
+
+/* Toast 反馈区 */
+.toast-area{position:fixed;right:20px;bottom:20px;width:360px;max-height:70vh;overflow:auto;z-index:999;display:flex;flex-direction:column;gap:8px}
+.toast{background:#1f2430;color:#fff;border-radius:8px;padding:11px 14px;font-size:13px;box-shadow:0 6px 20px rgba(10,20,40,.25);animation:tin .18s ease}
+.toast.ok{border-left:4px solid #21b85b}
+.toast.err{border-left:4px solid #e5484d}
+.toast.warn{border-left:4px solid #f0a020}
+.toast.info{border-left:4px solid #2f6fed}
+.toast .t-sub{color:#aab6c8;font-size:12px;margin-top:4px}
+.toast.out{opacity:0;transform:translateY(6px);transition:opacity .3s,transform .3s}
+@keyframes tin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">DFO 115us 管理台<small>GM Console · v1 Dashboard</small></div>
+    <nav class="nav" id="nav">
+      <div class="nav-item" data-view="accounts"><span class="ico">👤</span>账号管理</div>
+      <div class="nav-item" data-view="characters"><span class="ico">⚔️</span>角色管理</div>
+      <div class="nav-item" data-view="bag"><span class="ico">🎒</span>装备栏管理</div>
+      <div class="nav-item" data-view="quests"><span class="ico">📜</span>任务管理</div>
+      <div class="nav-item" data-view="mail"><span class="ico">📧</span>邮件系统</div>
+      <div class="nav-item" data-view="items"><span class="ico">🎒</span>物品管理</div>
+      <div class="nav-item" data-view="server"><span class="ico">🖥️</span>服务器控制</div>
+      <div class="nav-item" data-view="settings"><span class="ico">⚙️</span>系统设置</div>
+    </nav>
+    <div class="foot">全部数据经由本地 gmweb API</div>
+  </aside>
+  <div class="main">
+    <header class="topbar">
+      <div class="page-title" id="pageTitle">工作台</div>
+      <div class="topbar-right">
+        <span class="health" id="health"><span class="dot"></span><span id="healthText">检测中…</span></span>
+        <span class="gm-info" id="gmInfo">GM：未选择账号</span>
+        <button class="btn sm" id="refreshBtn">一键刷新</button>
+      </div>
+    </header>
+    <div class="searchbar">
+      <input id="globalSearch" placeholder="搜索：输入角色名或账号ID，回车查询" autocomplete="off">
+      <button class="btn" id="searchBtn">搜索</button>
+      <div class="search-results" id="searchResults"></div>
+    </div>
+    <div class="tabs" id="tabs"></div>
+    <div class="content" id="content"><div class="empty">正在载入管理台…</div></div>
+  </div>
+</div>
+<div class="toast-area" id="toastArea"></div>
+
+<script>
+var TOKEN = "__TOKEN__";
+var state = {
+  account:0, accountName:"", character:null, cera:0, chars:[],
+  itemType:"", slot:"", levelMin:0, levelMax:0, rarity:"", filters:null,
+  detail:null, bag:[], quests:{}, limits:{},
+  attrOpen:false, grantableOnly:true,
+  types:null, accounts:[], searchIndex:[], overview:null,
+  view:"accounts", subTab:0, health:"checking", bagAuto:true,
+  bagGroup:0, bagSub:0
+};
+
+var RARITY_COLORS = ["#cfd6e4","#6fc3ff","#b07cf5","#ff8fd0","#ffc85c","#ff9d6b","#ff8a3d","#ff5f5f","#7ef9ff"];
+
+function api(path, opts){
+  opts = opts || {};
+  var url = path + (path.indexOf("?")>=0 ? "&" : "?") + "token=" + encodeURIComponent(TOKEN);
+  if (opts.body) { opts.headers = {"Content-Type":"application/json"}; opts.body = JSON.stringify(opts.body); }
+  return fetch(url, opts).then(function(r){
+    return r.json().then(function(j){ if(!r.ok) throw new Error(j.error||("HTTP "+r.status)); return j; });
+  });
+}
+function el(id){ return document.getElementById(id); }
+function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]; }); }
+
+// ================= 操作反馈（右下角 Toast） =================
+function toast(msg, type, sub){
+  var area = el("toastArea");
+  var t = document.createElement("div");
+  t.className = "toast " + (type||"info");
+  t.innerHTML = msg + (sub ? "<div class=\"t-sub\">" + sub + "</div>" : "");
+  area.appendChild(t);
+  setTimeout(function(){ t.classList.add("out"); }, 5200);
+  setTimeout(function(){ if(t.parentNode) t.parentNode.removeChild(t); }, 5600);
+  while(area.children.length > 6) area.removeChild(area.firstChild);
+}
+
+// ================= 服务端连接状态 =================
+function pingServer(){
+  api("/api/overview").then(function(o){
+    state.health = "ok"; state.overview = o;
+    var h = el("health");
+    h.className = "health ok";
+    el("healthText").textContent = "服务端已连接 · 物品索引 " + o.items + " 件";
+    if(!state.accounts.length){ loadAccounts(); }
+    updateGmInfo();
+  }).catch(function(e){
+    state.health = "bad";
+    var h = el("health");
+    h.className = "health bad";
+    el("healthText").textContent = "连接失败：" + (e.message||"");
+  });
+}
+
+function updateGmInfo(){
+  var g = el("gmInfo");
+  if(!g) return;
+  if(state.accountName){
+    g.innerHTML = "GM：<b>" + esc(state.accountName) + "</b> · 点券 " + state.cera;
+  } else {
+    g.innerHTML = "GM：<b>未选择账号</b>";
+  }
+}
+
+// ================= 账号与角色数据 =================
+function loadAccounts(){
+  api("/api/overview").then(function(o){
+    state.overview = o;
+    state.accounts = o.accounts || [];
+    state.searchIndex = [];
+    var tasks = state.accounts.map(function(a){
+      return api("/api/characters?account=" + a.id).then(function(cc){
+        a.cera = cc.cera;
+        a.roleCount = (cc.characters||[]).length;
+        (cc.characters||[]).forEach(function(ch){
+          state.searchIndex.push({type:"character", id:ch.id, accountId:a.id, accountName:a.username, name:ch.name, level:ch.level, className:ch.class_name, gold:ch.gold});
+        });
+        state.searchIndex.push({type:"account", id:a.id, name:a.username});
+      }).catch(function(){ a.cera = null; a.roleCount = 0; });
+    });
+    Promise.all(tasks).then(function(){
+      if(state.view === "accounts") renderView();
+      if(state.view === "items") refreshItemsView();
+      updateGmInfo();
+    });
+  }).catch(function(e){ toast("读取账号列表失败：" + esc(e.message), "err"); });
+}
+
+function selectAccount(id, name, keepView){
+  state.account = id; state.accountName = name;
+  state.character = null; state.detail = null; state.bag = []; state.quests = {}; state.limits = {};
+  api("/api/characters?account=" + id).then(function(o){
+    state.cera = o.cera; state.chars = o.characters || [];
+    updateGmInfo();
+    if(state.view === "characters" || (state.view === "items")) renderView();
+    if(!keepView){ switchView("characters"); }
+  }).catch(function(e){ toast("加载角色失败：" + esc(e.message), "err"); });
+}
+
+function selectCharacter(id){
+  api("/api/character?id=" + id).then(function(o){
+    state.character = o.character; state.cera = o.cera;
+    state.detail = o; state.bag = o.bag || []; state.quests = o.quests || {}; state.limits = o.limits || {};
+    updateGmInfo();
+    if(state.view === "characters" || state.view === "quests" || state.view === "items" || state.view === "bag"){
+      renderView();
+    } else {
+      switchView("characters");
+    }
+    toast("已载入角色「" + esc(o.character.name) + "」Lv." + o.character.level, "info");
+  }).catch(function(e){ toast("载入角色失败：" + esc(e.message), "err"); });
+}
+
+// ================= 全局搜索 =================
+function doGlobalSearch(){
+  var q = el("globalSearch").value.trim();
+  var box = el("searchResults");
+  if(!q){ box.style.display = "none"; return; }
+  var n = parseInt(q, 10);
+  var low = q.toLowerCase();
+  var res = state.searchIndex.filter(function(e){
+    if(e.type === "character"){
+      return (e.name.toLowerCase().indexOf(low) >= 0) || (n && (e.id === n || e.accountId === n));
+    }
+    return (e.name.toLowerCase().indexOf(low) >= 0) || (n && e.id === n);
+  }).slice(0, 40);
+  if(!res.length){
+    box.innerHTML = "<div class=\"sr\"><span>没有匹配的账号或角色</span></div>";
+  } else {
+    box.innerHTML = res.map(function(e){
+      if(e.type === "character"){
+        return "<div class=\"sr\" data-k=\"c" + e.id + "\"><span>⚔️ " + esc(e.name) +
+          " <span class=\"k\">" + esc(e.className) + " · Lv." + e.level + " · 账号 " + esc(e.accountName) + "</span></span>" +
+          "<span class=\"k\">角色ID " + e.id + "</span></div>";
+      }
+      return "<div class=\"sr\" data-k=\"a" + e.id + "\"><span>👤 " + esc(e.name) + "</span><span class=\"k\">账号ID " + e.id + "</span></div>";
+    }).join("");
+  }
+  box.style.display = "block";
+  Array.prototype.forEach.call(box.querySelectorAll(".sr"), function(node){
+    node.onclick = function(){
+      var k = node.dataset.k;
+      box.style.display = "none";
+      if(k.charAt(0) === "a"){
+        var id = parseInt(k.slice(1), 10);
+        var acc = state.accounts.filter(function(a){ return a.id === id; })[0];
+        selectAccount(id, acc ? acc.username : String(id), false);
+      } else {
+        var cid = parseInt(k.slice(1), 10);
+        var hit = state.searchIndex.filter(function(e){ return e.type === "character" && e.id === cid; })[0];
+        if(hit){
+          if(state.account !== hit.accountId){
+            api("/api/characters?account=" + hit.accountId).then(function(o){
+              state.account = hit.accountId; state.accountName = hit.accountName;
+              state.cera = o.cera; state.chars = o.characters || [];
+              selectCharacter(cid);
+              switchView("characters");
+            });
+          } else {
+            selectCharacter(cid);
+            switchView("characters");
+          }
+        }
+      }
+    };
+  });
+}
+
+// ================= 视图切换 =================
+var VIEW_TITLES = {accounts:"账号管理", characters:"角色管理", bag:"背包装备", quests:"任务管理", items:"物品管理", server:"服务器控制", settings:"系统设置"};
+function switchView(v){
+  state.view = v;
+  state.subTab = 0;
+  Array.prototype.forEach.call(document.querySelectorAll(".nav-item"), function(n){
+    n.classList.toggle("active", n.dataset.view === v);
+  });
+  el("pageTitle").textContent = VIEW_TITLES[v] || "工作台";
+  try { if(location.hash !== "#" + v) history.replaceState(null, "", "#" + v); } catch(e){}
+  if(v !== "bag") stopBagAuto();
+  renderView();
+  if(v === "bag" && state.bagAuto) startBagAuto();
+}
+function renderTabs(tabs){
+  var box = el("tabs");
+  if(!tabs || !tabs.length){ box.innerHTML = ""; return; }
+  box.innerHTML = tabs.map(function(t, i){
+    return "<div class=\"tab" + (state.subTab === i ? " on" : "") + "\" data-i=\"" + i + "\">" + esc(t) + "</div>";
+  }).join("");
+  Array.prototype.forEach.call(box.querySelectorAll(".tab"), function(n){
+    n.onclick = function(){ state.subTab = parseInt(n.dataset.i, 10); renderView(); };
+  });
+}
+function renderView(){
+  var v = state.view;
+  if(v === "accounts") renderAccountsView();
+  else if(v === "characters") renderCharactersView();
+  else if(v === "bag") renderBagView();
+  else if(v === "quests") renderQuestsView();
+  else if(v === "mail") renderMailView();
+  else if(v === "items") renderItemsView();
+  else if(v === "server") renderServerView();
+  else if(v === "settings") renderSettingsView();
+}
+
+// ================= 账号管理 =================
+function renderAccountsView(){
+  renderTabs(["账号列表", "账号级发放"]);
+  var c = el("content");
+  if(state.subTab === 1){ renderAccountGrant(c); return; }
+  if(!state.accounts.length){
+    c.innerHTML = "<div class=\"empty\">暂无账号数据，请点击右上角「一键刷新」。</div>";
+    return;
+  }
+  c.innerHTML = "<div class=\"card\"><h3>账号列表 <span class=\"sub\">共 " + state.accounts.length + " 个账号</span></h3>" +
+    "<table><thead><tr><th>ID</th><th>用户名</th><th>点券余额</th><th>角色数</th><th>操作</th></tr></thead><tbody>" +
+    state.accounts.map(function(a){
+      return "<tr data-acc=\"" + a.id + "\"><td>" + a.id + "</td><td><b>" + esc(a.username) + "</b></td>" +
+        "<td>" + (a.cera === null ? "<span class=\"warn\">—</span>" : a.cera) + "</td>" +
+        "<td>" + a.roleCount + "</td>" +
+        "<td><button class=\"btn sm\" data-acc=\"" + a.id + "\">设为当前</button></td></tr>";
+    }).join("") + "</tbody></table>" +
+    "<div class=\"hint\">点「设为当前」进入该账号的角色管理；搜索框可直接搜账号ID或角色名。</div></div>";
+  Array.prototype.forEach.call(c.querySelectorAll("button[data-acc]"), function(b){
+    b.onclick = function(){
+      var id = parseInt(b.dataset.acc, 10);
+      var a = state.accounts.filter(function(x){ return x.id === id; })[0];
+      selectAccount(id, a ? a.username : String(id), false);
+    };
+  });
+}
+
+// 账号级发放：只发点券（账号级）或金币/物品（需角色）—— 复用到物品视图的表单
+function renderAccountGrant(c){
+  c.innerHTML = "<div class=\"card\"><h3>账号/角色资产发放</h3>" +
+    "<div class=\"hint\">金币发放到<b>角色</b>（需先选择目标角色）；点券发放到<b>账号</b>（账号级，可指定角色也可不指定）。金币仅支持增加，点券可正可负。</div></div>" +
+    "<div class=\"card\"><h3>发放资产</h3>" +
+    "<div class=\"row\"><div><label>目标账号</label><select id=\"ag_acc\">" +
+    state.accounts.map(function(a){ return "<option value=\"" + a.id + "\">" + esc(a.username) + " (ID " + a.id + ")</option>"; }).join("") +
+    "</select></div>" +
+    "<div><label>目标角色</label><select id=\"ag_char\"><option value=\"0\">仅账号级（不发金币）</option></select></div>" +
+    "<div><label>金币</label><input id=\"ag_gold\" type=\"number\" min=\"0\" value=\"0\"></div>" +
+    "<div><label>点券（可正可负）</label><input id=\"ag_cera\" type=\"number\" value=\"0\"></div></div>" +
+    "<div style=\"margin-top:12px\"><label>原因（写入审计）</label><input id=\"ag_reason\" value=\"GM 账号级发放\"></div>" +
+    "<div class=\"actions\" style=\"margin-top:14px\"><button id=\"ag_do\" class=\"btn\">执行发放</button> <span id=\"ag_msg\" class=\"hint\"></span></div></div>";
+  var sel = el("ag_acc");
+  var loadChars = function(){
+    var box = el("ag_char");
+    api("/api/characters?account=" + sel.value).then(function(o){
+      box.innerHTML = "<option value=\"0\">仅账号级（不发金币）</option>" +
+        (o.characters||[]).map(function(ch){ return "<option value=\"" + ch.id + "\">" + esc(ch.name) + " (Lv." + ch.level + ")</option>"; }).join("");
+    });
+  };
+  sel.onchange = loadChars;
+  loadChars();
+  el("ag_do").onclick = function(){
+    var gold = parseInt(el("ag_gold").value,10) || 0;
+    var cera = parseInt(el("ag_cera").value,10) || 0;
+    var charId = parseInt(el("ag_char").value,10) || 0;
+    if(gold && !charId){ el("ag_msg").innerHTML = "<span class=\"err\">发放金币必须选择目标角色。</span>"; return; }
+    if(!gold && !cera){ el("ag_msg").innerHTML = "<span class=\"err\">没有可发放的内容（金币或点券至少填一项）。</span>"; return; }
+    var body = {
+      account: parseInt(sel.value,10),
+      character: charId,
+      gold: gold, cera: cera,
+      reason: el("ag_reason").value || "GM 账号级发放", items: []
+    };
+    el("ag_do").disabled = true; el("ag_msg").textContent = "提交中…";
+    api("/api/grant", {method:"POST", body:body}).then(function(o){
+      el("ag_msg").innerHTML = "<span class=\"ok\">" + esc(o.message) + "</span> " + esc(o.note||"");
+      toast("发放成功：" + (gold ? "金币+" + gold + " " : "") + (cera ? "点券" + (cera>0?"+":"") + cera : ""), "ok", "账号 " + sel.value);
+      loadAccounts();
+    }).catch(function(e){ el("ag_msg").innerHTML = "<span class=\"err\">" + esc(e.message) + "</span>"; toast("发放失败：" + e.message, "err"); })
+      .then(function(){ el("ag_do").disabled = false; });
+  };
+}
+
+// ================= 角色管理 =================
+function renderCharactersView(){
+  renderTabs(["角色详情"]);
+  var c = el("content");
+  if(!state.account){
+    c.innerHTML = "<div class=\"empty\">请先在「账号管理」中选择账号，或使用顶部搜索框输入角色名 / 账号ID。<br><br>" +
+      "<button class=\"btn\" id=\"goAccounts\">前往账号管理</button></div>";
+    el("goAccounts").onclick = function(){ switchView("accounts"); };
+    return;
+  }
+  var rolebar = "<div class=\"rolebar\">" + state.chars.map(function(ch){
+    return "<div class=\"role" + (state.character && state.character.id === ch.id ? " active" : "") + "\" data-cid=\"" + ch.id + "\">" +
+      esc(ch.name) + " <span class=\"k\" style=\"color:#8a93a3;font-size:11px\">" + esc(ch.class_name) + " · Lv." + ch.level + "</span></div>";
+  }).join("") + "</div>";
+  if(!state.chars.length){
+    c.innerHTML = rolebar + "<div class=\"empty\">该账号还没有角色。</div>";
+    return;
+  }
+  if(!state.character){
+    c.innerHTML = rolebar + "<div class=\"empty\">点击上方角色卡片查看详情与修改。</div>";
+    Array.prototype.forEach.call(c.querySelectorAll(".role"), function(n){
+      n.onclick = function(){ selectCharacter(parseInt(n.dataset.cid, 10)); };
+    });
+    return;
+  }
+  c.innerHTML = rolebar + charCardsHTML();
+  Array.prototype.forEach.call(c.querySelectorAll(".role"), function(n){
+    n.onclick = function(){ selectCharacter(parseInt(n.dataset.cid, 10)); };
+  });
+  bindCharCards();
+}
+
+// ================= 背包装备管理 =================
+var bagAutoTimer = null;
+function startBagAuto(){
+  stopBagAuto();
+  bagAutoTimer = setInterval(function(){
+    var f = document.activeElement;
+    if(f && /^(INPUT|SELECT|TEXTAREA)$/.test(f.tagName)) return; // 编辑中不打扰
+    if(!state.character || state.view !== "bag") return;
+    api("/api/character?id=" + state.character.id).then(function(o){
+      if(!state.character || o.character.id !== state.character.id) return;
+      state.character = o.character; state.detail = o;
+      state.bag = o.bag || []; state.quests = o.quests || {}; state.limits = o.limits || {};
+      renderBagView();
+    }).catch(function(){});
+  }, 8000);
+}
+function stopBagAuto(){ if(bagAutoTimer){ clearInterval(bagAutoTimer); bagAutoTimer = null; } }
+
+var BAG_GROUPS = [
+  {key:"物品栏", subs:["装备","消耗品","材料","副职业","任务","其它"]},
+  {key:"装扮", subs:["装扮","徽章","其它"]},
+  {key:"宠物", subs:["宠物","宠物装备","消耗品","其它"]}
+];
+function bagRowCat(b){
+  if(b.category) return b.category;
+  return b.section === "items" ? {group:"物品栏", sub:"消耗品"} : {group:"物品栏", sub:"装备"};
+}
+function bagTabsHTML(){
+  var g = BAG_GROUPS[state.bagGroup] || BAG_GROUPS[0];
+  return "<div class=\"tabs\" id=\"bag_g_tabs\">" + BAG_GROUPS.map(function(grp, i){
+    return "<div class=\"tab" + (i === state.bagGroup ? " active" : "") + "\" data-bg=\"" + i + "\">" + grp.key + "</div>";
+  }).join("") + "</div>" +
+  "<div class=\"tabs sub\" id=\"bag_s_tabs\">" + g.subs.map(function(s, i){
+    return "<div class=\"tab" + (i === state.bagSub ? " active" : "") + "\" data-bs=\"" + i + "\">" + s + "</div>";
+  }).join("") + "</div>";
+}
+function bindBagTabs(){
+  Array.prototype.forEach.call(document.querySelectorAll("#bag_g_tabs .tab"), function(t){
+    t.onclick = function(){
+      state.bagGroup = parseInt(t.dataset.bg, 10) || 0;
+      state.bagSub = 0;
+      renderView();
+    };
+  });
+  Array.prototype.forEach.call(document.querySelectorAll("#bag_s_tabs .tab"), function(t){
+    t.onclick = function(){
+      state.bagSub = parseInt(t.dataset.bs, 10) || 0;
+      renderView();
+    };
+  });
+}
+
+function renderBagView(){
+  var c = el("content");
+  if(!state.account){
+    c.innerHTML = "<div class=\"empty\">请先在「账号管理」中选择账号，或使用顶部搜索框定位角色。</div>";
+    return;
+  }
+  var rolebar = "<div class=\"rolebar\">" + state.chars.map(function(ch){
+    return "<div class=\"role" + (state.character && state.character.id === ch.id ? " active" : "") + "\" data-cid=\"" + ch.id + "\">" +
+      esc(ch.name) + " <span class=\"k\" style=\"color:#8a93a3;font-size:11px\">" + esc(ch.class_name) + " · Lv." + ch.level + "</span></div>";
+  }).join("") + "</div>";
+  if(!state.chars.length){
+    c.innerHTML = rolebar + "<div class=\"empty\">该账号还没有角色。</div>";
+    return;
+  }
+  if(!state.character){
+    c.innerHTML = rolebar + "<div class=\"empty\">点击上方角色卡片查看背包与装备。</div>";
+    Array.prototype.forEach.call(c.querySelectorAll(".role"), function(n){
+      n.onclick = function(){ selectCharacter(parseInt(n.dataset.cid, 10)); };
+    });
+    return;
+  }
+  var grpKey = BAG_GROUPS[state.bagGroup].key;
+  var subKey = BAG_GROUPS[state.bagGroup].subs[state.bagSub];
+  var secLabel = {"items":"背包", "worn":"已穿戴", "equipment":"装备"};
+  var rows = state.bag.filter(function(b){
+    var cat = bagRowCat(b);
+    if(subKey === "其它") return cat.sub === "其它";
+    return cat.group === grpKey && cat.sub === subKey;
+  });
+  var stackLike = (subKey === "装备" || subKey === "装扮" || subKey === "宠物" || subKey === "宠物装备" || subKey === "其它")
+    ? false : true;   // 这些分类是不可堆叠的装备行；其余是可堆叠物品行
+
+  var hintText = stackLike
+    ? "本分类是可堆叠物品：同种道具叠加在同一个格子显示数量。每行可直接输入数量后点「设为」，或点 [+1]/[−1] 增减；勾选多行可用底部批量操作；数量填 0 或点「删除」= 删除该行。"
+    : "本分类是不可堆叠物品（装备/装扮/宠物等）：每件单独一行显示。只能改耐久（填 0 = 0 耐久）。新物品用下方「添加道具」发放，服务端会自动放入游戏内对应位置。";
+
+  var header = "<div class=\"card\"><h3>装备栏管理 <span class=\"sub\">" + esc(state.character.name) + " · Lv." + state.character.level + " · " + grpKey + " / " + subKey + " · " + rows.length + " 行</span>" +
+    "<button id=\"bag_refresh\" class=\"btn sm\" style=\"margin-left:auto\">立即刷新</button>" +
+    "<label style=\"font-size:12px;margin-left:12px;font-weight:400\"><input type=\"checkbox\" id=\"bag_auto\"" + (state.bagAuto ? " checked" : "") + " style=\"width:auto\"> 自动刷新(8秒)</label></h3>" +
+    "<div class=\"hint\">" + hintText + "</div></div>";
+
+  var addPanel =
+    "<div class=\"card\"><h3><button id=\"stack_add_toggle\" class=\"btn sm\" style=\"background:#fff;color:#2f6fed;border:1px solid #2f6fed\">＋ 添加道具（发放后自动放入对应分类位置）</button></h3>" +
+    "<div id=\"stack_add_panel\" style=\"display:none\">" +
+      "<div class=\"row\"><div style=\"flex:3\"><label>搜索道具（中文名 / 英文名 / ID）</label><input id=\"stack_q\" placeholder=\"例如：普拉塔尼、史诗碎片、10300000\"></div>" +
+      "<div style=\"flex:0\"><label>&nbsp;</label><button id=\"stack_btn\" class=\"btn\">搜索</button></div></div>" +
+      "<div class=\"hint\" style=\"margin-top:8px\"><label style=\"color:#3a4250\"><input type=\"checkbox\" id=\"stack_only_stackable\" style=\"width:auto\" checked> 只看可堆叠（同种自动合并）</label> <span id=\"stack_count\" class=\"tag\"></span></div>" +
+      "<div class=\"result\" id=\"stack_res\" style=\"max-height:260px\"></div>" +
+      "<div id=\"stack_chosen\"></div>" +
+      "<div class=\"actions\" style=\"margin-top:12px\"><button id=\"stack_do\" class=\"btn\">发放添加</button> <span id=\"stack_msg\" class=\"hint\"></span></div>" +
+      "<div class=\"hint\">点击搜索结果加入待添加列表，可调整数量；发放后自动刷新。可堆叠物品同种合并到同一格；不可堆叠物品（装备/装扮/宠物等）每件单独一行，由服务端放入游戏内对应位置。</div>" +
+    "</div></div>";
+
+  if(!rows.length){
+    c.innerHTML = rolebar + bagTabsHTML() + header + addPanel + "<div class=\"empty\">「" + grpKey + " / " + subKey + "」没有物品" + (stackLike ? "，可用上方「添加道具」发放。" : "。") + "</div>";
+    bindBagTabs(); bindBagHeader(); bindStackAdd();
+    return;
+  }
+
+  c.innerHTML = rolebar + bagTabsHTML() + header + addPanel +
+  "<div class=\"card\"><table class=\"bag\"><thead><tr>" +
+    "<th style=\"width:34px\"><input type=\"checkbox\" id=\"bag_all\" title=\"全选本页\"></th>" +
+    "<th>所在</th><th>槽位</th><th>ID</th><th>名称</th><th>当前值</th><th style=\"min-width:310px\">操作</th>" +
+  "</tr></thead><tbody>" + rows.map(function(b){
+    var sec = b.section;
+    var field = sec === "items" ? "amount" : "durability";
+    var cur = sec === "items" ? (b.amount == null ? 0 : b.amount) : (b.durability == null ? 0 : b.durability);
+    var maxField = sec === "items" ? 4294967295 : 65535;
+    var flag = b.flag === "unknown" ? " <span class=\"pill unknown\">物品库不认识</span>" : "";
+    var worn = b.worn ? " <span class=\"pill worn\">已穿戴</span>" : "";
+    var stack = sec === "items" ? " <span class=\"pill green\">可堆叠</span>" : "";
+    var del = sec === "items" ? "<button class=\"btn ghost sm bag-del\">删除</button>" : "";
+    return "<tr data-sec=\"" + sec + "\" data-slot=\"" + b.slot + "\" data-field=\"" + field + "\" data-cur=\"" + cur + "\">" +
+      "<td><input type=\"checkbox\" class=\"bagpick\"></td>" +
+      "<td>" + esc(secLabel[sec] || sec) + "</td>" +
+      "<td>" + b.slot + "</td>" +
+      "<td>" + b["template"] + "</td>" +
+      "<td>" + esc(b.name) + flag + worn + stack + "</td>" +
+      "<td><b class=\"cur\">" + cur + "</b></td>" +
+      "<td>" +
+        "<button class=\"btn ghost sm bag-dec\" title=\"减少 1（到 0 = 删除）\">−1</button> " +
+        "<input class=\"bag-num\" type=\"number\" min=\"0\" max=\"" + maxField + "\" value=\"" + cur + "\" style=\"width:110px\"> " +
+        "<button class=\"btn ghost sm bag-inc\" title=\"增加 1\">+1</button> " +
+        "<button class=\"btn sm bag-set\">设为</button> " + del +
+      "</td></tr>";
+  }).join("") + "</tbody></table>" +
+  "<div class=\"actions\" style=\"margin-top:12px;border-top:1px solid #eef1f6;padding-top:12px\">" +
+    "<span class=\"tag\">批量（勾选行）</span> " +
+    "<input id=\"bag_batch_n\" type=\"number\" min=\"1\" max=\"999999\" value=\"1\" style=\"width:110px\"> " +
+    "<button id=\"bag_batch_add\" class=\"btn ghost sm\">批量 +N</button> " +
+    "<button id=\"bag_batch_sub\" class=\"btn ghost sm\">批量 −N</button> " +
+    "<button id=\"bag_batch_del\" class=\"btn ghost sm\">批量删除(物品)</button> " +
+    "<span id=\"bag_sel\" class=\"tag\">已选 0 行</span> <span id=\"bag_msg\" class=\"hint\"></span>" +
+  "</div></div>";
+  bindBagTabs(); bindBagHeader(); bindBagRows(); updateBagSel(); bindStackAdd();
+}
+
+// ================= 邮件系统 =================
+var mailSel = null;       // 选中的物品
+var mailTarget = "bag";   // bag / vault / mail
+var mailAmount = 1;
+
+function renderMailView(){
+  renderTabs(["发送道具", "邮件列表"]);
+  var c = el("content");
+  if(state.subTab === 1){ renderMailList(c); return; }
+  renderMailSend(c);
+}
+
+function renderMailSend(c){
+  c.innerHTML =
+    "<div class=\"card\"><h3>发送道具 <span class=\"sub\">搜索并选择物品，可发送到 背包 / 个人仓库 / 邮箱</span></h3>" +
+    "<div class=\"row\"><div style=\"flex:3\"><label>搜索道具（代码 / 中文名 / 英文名）</label><input id=\"mail_q\" placeholder=\"例如：10300000、太初、普拉塔尼\"></div>" +
+    "<div style=\"flex:0\"><label>&nbsp;</label><button id=\"mail_btn\" class=\"btn\">搜索</button></div></div>" +
+    "<div class=\"result\" id=\"mail_res\" style=\"max-height:280px\"></div></div>" +
+    "<div class=\"card\" id=\"mail_selcard\"><h3>发送设置</h3><div class=\"hint\">先在搜索结果中选择一个物品。</div></div>";
+  var b = el("mail_btn");
+  if(b) b.onclick = mailSearch;
+  var q = el("mail_q");
+  if(q) q.onkeydown = function(e){ if(e.key === "Enter") mailSearch(); };
+}
+
+function mailSearch(){
+  var q = el("mail_q"); if(!q) return;
+  var url = "/api/items?q=" + encodeURIComponent(q.value) + "&grantable=1&limit=20";
+  api(url).then(function(o){
+    var res = el("mail_res");
+    if(!res) return;
+    res.innerHTML = o.items.map(function(it){
+      var color = RARITY_COLORS[it.rarity] || "#1f2430";
+      var nm = it.name || it.name_en || "(未命名)";
+      var cat = it.category ? " <span class=\"pill cat\">" + esc(it.category.group) + "/" + esc(it.category.sub) + "</span>" : "";
+      var flags = it.stackable ? " <span class=\"pill green\">可堆叠</span>" : " <span class=\"pill gray\">不可堆叠</span>";
+      var r = it.restrictions || {};
+      if(!r.bag) flags += " <span class=\"pill\" style=\"background:#fde8e8;color:#c0392b\">不可发背包</span>";
+      if(!r.mail) flags += " <span class=\"pill\" style=\"background:#fde8e8;color:#c0392b\">不可发邮箱</span>";
+      if(!r.vault) flags += " <span class=\"pill\" style=\"background:#fde8e8;color:#c0392b\">不可入仓库</span>";
+      var parts = ["ID " + it.id];
+      if(it.level) parts.push("Lv" + it.level);
+      if(it.rarity_label) parts.push(it.rarity_label);
+      return "<div class=\"row2\" data-id=\"" + it.id + "\">" +
+        "<span><span class=\"nm\" style=\"color:" + color + "\">" + esc(nm) + "</span>" + cat + flags +
+        "<div class=\"tag\">" + esc(parts.join(" · ")) + "</div></span>" +
+        "<span class=\"tag\">" + esc(it.type_label || it.slot || "普通") + "</span></div>";
+    }).join("") || "<div class=\"row2\">没有匹配的道具</div>";
+    Array.prototype.forEach.call(res.querySelectorAll(".row2"), function(n){
+      n.onclick = function(){
+        var id = parseInt(n.dataset.id, 10);
+        var it = o.items.filter(function(x){ return x.id === id; })[0];
+        if(it) selectMailItem(it);
+      };
+    });
+  }).catch(function(e){
+    var res = el("mail_res");
+    if(res) res.innerHTML = "<div class=\"row2\"><span class=\"err\">" + esc(e.message) + "</span></div>";
+  });
+}
+
+function selectMailItem(it){
+  mailSel = it;
+  mailAmount = 1;
+  var r = it.restrictions || {};
+  // 当前目标不可用或未设置时，回退到第一个可用目标
+  var okMap = {bag: r.bag, vault: r.vault, mail: r.mail};
+  if(!okMap[mailTarget]) mailTarget = r.bag ? "bag" : (r.vault ? "vault" : "mail");
+  var card = el("mail_selcard");
+  if(!card) return;
+  var color = RARITY_COLORS[it.rarity] || "#1f2430";
+  var rpart = function(k, label){
+    if(r[k]) return label + " ✓";
+    return label + " ✗" + (r.reasons && r.reasons[k] ? "（" + esc(r.reasons[k]) + "）" : "");
+  };
+  card.innerHTML =
+    "<h3>发送设置 <span class=\"sub\">" + esc(it.name || it.name_en) + " · ID " + it.id + (it.category ? " · " + esc(it.category.group) + "/" + esc(it.category.sub) : "") + "</span></h3>" +
+    "<div class=\"hint\"><span style=\"color:" + color + "\">" + esc(it.name || it.name_en) + "</span>" + (it.stackable ? "（可堆叠）" : "（不可堆叠）") + "<br>目标限制：" + rpart("bag", "背包") + " ｜ " + rpart("vault", "个人仓库") + " ｜ " + rpart("mail", "邮箱") + "</div>" +
+    "<div class=\"row\" style=\"margin-top:12px\"><div style=\"flex:1\"><label>发送数量</label><input id=\"mail_amount\" type=\"number\" min=\"1\" max=\"999999\" value=\"1\"></div>" +
+    "<div style=\"flex:2\"><label>发送到</label><div class=\"tabs\" id=\"mail_targets\">" +
+      "<div class=\"tab" + (mailTarget === "bag" ? " active" : "") + "\" data-tg=\"bag\" style=\"" + (r.bag ? "" : "opacity:.45;pointer-events:none") + "\" title=\"" + esc((r.reasons && r.reasons.bag) || "") + "\">背包</div>" +
+      "<div class=\"tab" + (mailTarget === "vault" ? " active" : "") + "\" data-tg=\"vault\" style=\"" + (r.vault ? "" : "opacity:.45;pointer-events:none") + "\" title=\"" + esc((r.reasons && r.reasons.vault) || "") + "\">个人仓库</div>" +
+      "<div class=\"tab" + (mailTarget === "mail" ? " active" : "") + "\" data-tg=\"mail\" style=\"" + (r.mail ? "" : "opacity:.45;pointer-events:none") + "\" title=\"" + esc((r.reasons && r.reasons.mail) || "") + "\">邮箱</div>" +
+    "</div></div></div>" +
+    "<div class=\"hint\" style=\"margin-top:10px\">强化 / 增幅 / 锻造：服务端装备实例协议暂未支持（阶段 2 逆向客户端协议后启用），当前发送为初始装备。</div>" +
+    "<div class=\"actions\" style=\"margin-top:12px\"><button id=\"mail_send\" class=\"btn\">发送</button> <span id=\"mail_msg\" class=\"hint\"></span></div>";
+  var amt = el("mail_amount");
+  if(amt) amt.onchange = function(){ mailAmount = Math.max(1, parseInt(amt.value, 10) || 1); };
+  Array.prototype.forEach.call(document.querySelectorAll("#mail_targets .tab"), function(t){
+    t.onclick = function(){
+      mailTarget = t.dataset.tg;
+      selectMailItem(mailSel);
+    };
+  });
+  var send = el("mail_send");
+  if(send) send.onclick = doMailSend;
+}
+
+function doMailSend(){
+  if(!mailSel){ toast("请先选择物品", "warn"); return; }
+  var msg = el("mail_msg");
+  if(msg) msg.textContent = "发送中…";
+  var body = { account: state.account || 1, template: mailSel.id, amount: mailAmount };
+  var url = mailTarget === "bag" ? "/api/grant" : (mailTarget === "vault" ? "/api/vault/send" : "/api/mail/send");
+  if(mailTarget === "bag"){
+    body.character = state.character ? state.character.id : 1;
+    body.gold = 0; body.cera = 0; body.reason = "GM 邮件系统-背包发放";
+    body.items = [{template: mailSel.id, amount: mailAmount}];
+  } else if(mailTarget === "vault"){
+    body.character = state.character ? state.character.id : 1;
+  } else {
+    body.to_account_id = state.account || 1;
+    body.to_character_id = state.character ? state.character.id : 0;
+    body.title = "GM 发放：" + (mailSel.name || mailSel.id);
+    body.body = "GM 管理台邮件系统发放";
+  }
+  api(url, {method:"POST", body: body}).then(function(o){
+    if(msg) msg.innerHTML = "<span class=\"ok\">" + esc(o.message || "发送成功") + "</span>";
+    toast("发送成功 → " + (mailTarget === "bag" ? "背包" : mailTarget === "vault" ? "个人仓库" : "邮箱"), "ok");
+    mailAmount = 1;
+    var amt = el("mail_amount"); if(amt) amt.value = "1";
+  }).catch(function(e){
+    if(msg) msg.innerHTML = "<span class=\"err\">" + esc(e.message) + "</span>";
+    toast("发送失败：" + e.message, "err");
+  });
+}
+
+function renderMailList(c){
+  api("/api/mail/list?account=" + (state.account || "")).then(function(o){
+    var rows = o.mails || [];
+    c.innerHTML = "<div class=\"card\"><h3>邮件列表 <span class=\"sub\">共 " + rows.length + " 封</span>" +
+      "<button id=\"mail_refresh\" class=\"btn sm\" style=\"margin-left:auto\">刷新</button></h3>" +
+      "<table><thead><tr><th>ID</th><th>收件账号</th><th>收件角色</th><th>物品ID</th><th>数量</th><th>标题</th><th>状态</th><th>时间</th><th>操作</th></tr></thead><tbody>" +
+      rows.map(function(m){
+        return "<tr data-mid=\"" + m.id + "\"><td>" + m.id + "</td><td>" + m.to_account_id + "</td><td>" + (m.to_character_id || "—") + "</td>" +
+          "<td>" + m.template + "</td><td>" + m.amount + "</td><td>" + esc(m.title) + "</td>" +
+          "<td>" + esc(m.status) + "</td><td>" + esc(String(m.created_at).slice(0, 19)) + "</td>" +
+          "<td>" + ((m.status === "unread" || m.status === "read") ? "<button class=\"btn ghost sm mail-revoke\">撤销</button>" : "") + "</td></tr>";
+      }).join("") + "</tbody></table>" +
+      "<div class=\"hint\">状态：unread 未读 / read 已读 / claimed 已领取 / revoked 已撤销。游戏内收信功能待服务端邮件协议支持（阶段 2）。</div></div>";
+    Array.prototype.forEach.call(c.querySelectorAll(".mail-revoke"), function(b){
+      b.onclick = function(){
+        var mid = parseInt(b.closest("tr").dataset.mid, 10);
+        api("/api/mail/revoke", {method:"POST", body:{id: mid}}).then(function(o){
+          toast(o.message || "已撤销", "ok");
+          renderMailList(c);
+        }).catch(function(e){ toast("撤销失败：" + e.message, "err"); });
+      };
+    });
+    var rf = el("mail_refresh");
+    if(rf) rf.onclick = function(){ renderMailList(c); };
+  }).catch(function(e){
+    c.innerHTML = "<div class=\"card\"><div class=\"err\">" + esc(e.message) + "</div></div>";
+  });
+}
+
+// ===== 道具添加（自动堆叠） =====
+var addList = [];
+var lastStackQuery = "";
+function bindStackAdd(){
+  var t = el("stack_add_toggle");
+  if(t) t.onclick = function(){
+    var p = el("stack_add_panel");
+    p.style.display = p.style.display === "none" ? "block" : "none";
+    t.textContent = p.style.display === "none" ? "＋ 添加道具（自动堆叠）" : "－ 收起添加面板";
+  };
+  var b = el("stack_btn");
+  if(b) b.onclick = stackSearch;
+  var q = el("stack_q");
+  if(q) q.onkeydown = function(e){ if(e.key === "Enter") stackSearch(); };
+  var go = el("stack_only_stackable");
+  if(go) go.onchange = stackSearch;
+  var d = el("stack_do");
+  if(d) d.onclick = doStackAdd;
+  // 页面重建（自动刷新/发放后刷新）后恢复搜索结果与待添加列表，避免被重建覆盖
+  if(lastStackQuery) stackSearch();
+  renderAddList();
+}
+function stackSearch(){
+  window.__stackErr = null;
+  var q = el("stack_q"); if(!q){ window.__stackErr = "no-q-element"; return; }
+  lastStackQuery = q.value;
+  var url = "/api/items?q=" + encodeURIComponent(q.value) + "&grantable=1&limit=30";
+  api(url).then(function(o){
+    try {
+      var only = el("stack_only_stackable").checked;
+      var items = o.items.filter(function(it){ return !only || it.stackable; });
+      var res = el("stack_res");
+      if(!res){ window.__stackErr = "no-res-element"; return; }
+      res.innerHTML = items.map(function(it){
+        var color = RARITY_COLORS[it.rarity] || "#1f2430";
+        var nm = it.name || it.name_en || "(未命名)";
+        var stack = it.stackable ? " <span class=\"pill green\">可堆叠</span>" : " <span class=\"pill gray\">不可堆叠</span>";
+        var cat = it.category ? " <span class=\"pill cat\">" + esc(it.category.group) + "/" + esc(it.category.sub) + "</span>" : "";
+        var parts = ["ID " + it.id];
+        if(it.level) parts.push("Lv" + it.level);
+        if(it.rarity_label) parts.push(it.rarity_label);
+        return "<div class=\"row2\" data-id=\"" + it.id + "\" data-name=\"" + esc(nm) + "\" data-stack=\"" + (it.stackable ? "1" : "0") + "\">" +
+          "<span><span class=\"nm\" style=\"color:" + color + "\">" + esc(nm) + "</span>" + stack + cat +
+          "<div class=\"tag\">" + esc(parts.join(" · ")) + "</div>" +
+          (it.stackable ? "" : "<div class=\"tag warn\">服务端按装备发放，不叠加</div>") + "</span>" +
+          "<span class=\"tag\"><span class=\"pill\">" + esc(it.slot || it.type_label || "普通") + "</span></span></div>";
+      }).join("") || "<div class=\"row2\">没有匹配的道具</div>";
+      Array.prototype.forEach.call(res.querySelectorAll(".row2"), function(n){
+        n.onclick = function(){
+          addToList(parseInt(n.dataset.id, 10), n.dataset.name, n.dataset.stack === "1");
+        };
+      });
+      var rc = el("stack_count");
+      if(rc) rc.textContent = "命中 " + (o.count||0) + "，当前显示 " + items.length + " 条";
+    } catch(ex){
+      window.__stackErr = "render:" + String(ex && ex.message || ex);
+    }
+  }).catch(function(e){
+    window.__stackErr = "api:" + String(e && e.message || e);
+    var res = el("stack_res");
+    if(res) res.innerHTML = "<div class=\"row2\"><span class=\"err\">" + esc(e.message) + "</span></div>";
+  });
+}
+function addToList(id, name, stackable){
+  for(var i=0;i<addList.length;i++) if(addList[i].id === id){ addList[i].amount++; renderAddList(); return; }
+  addList.push({id:id, name:name, amount:1, stackable:stackable});
+  renderAddList();
+}
+function renderAddList(){
+  var box = el("stack_chosen"); if(!box) return;
+  box.innerHTML = addList.map(function(a,i){
+    return "<div class=\"chosen\"><span style=\"flex:1\">" + esc(a.name) + " <span class=\"tag\">ID " + a.id + (a.stackable ? " · 可堆叠" : " · 不可堆叠") + "</span></span>" +
+      "<input type=\"number\" min=\"1\" max=\"999999\" value=\"" + a.amount + "\" data-i=\"" + i + "\" style=\"width:90px\">" +
+      "<button class=\"btn ghost sm\" data-del=\"" + i + "\">移除</button></div>";
+  }).join("");
+  Array.prototype.forEach.call(box.querySelectorAll("input"), function(inp){
+    inp.onchange = function(){ addList[parseInt(inp.dataset.i,10)].amount = Math.max(1, parseInt(inp.value,10)||1); };
+  });
+  Array.prototype.forEach.call(box.querySelectorAll("button"), function(b){
+    b.onclick = function(){ addList.splice(parseInt(b.dataset.del,10),1); renderAddList(); };
+  });
+}
+function doStackAdd(){
+  if(!addList.length){ toast("请先选择要添加的道具", "warn"); return; }
+  var msg = el("stack_msg");
+  if(msg) msg.textContent = "提交中…";
+  api("/api/grant", {method:"POST", body:{
+    account: state.account, character: state.character.id, gold: 0, cera: 0,
+    reason: "GM 道具管理添加", items: addList.map(function(a){ return {template:a.id, amount:a.amount}; })
+  }}).then(function(o){
+    if(msg) msg.innerHTML = "<span class=\"ok\">" + esc(o.message) + "</span>";
+    toast("添加成功，同种道具已自动堆叠", "ok", addList.length + " 种");
+    addList = []; lastStackQuery = ""; renderAddList();
+    var q = el("stack_q"); if(q) q.value = "";
+    var res = el("stack_res"); if(res) res.innerHTML = "";
+    selectCharacter(state.character.id);
+  }).catch(function(e){
+    if(msg) msg.innerHTML = "<span class=\"err\">" + esc(e.message) + "</span>";
+    toast("添加失败：" + e.message, "err");
+  });
+}
+
+function bindBagHeader(){
+  var r = el("bag_refresh");
+  if(r) r.onclick = function(){ if(state.character) selectCharacter(state.character.id); toast("背包数据已刷新", "ok"); };
+  var a = el("bag_auto");
+  if(a) a.onchange = function(){
+    state.bagAuto = a.checked;
+    if(state.bagAuto) startBagAuto(); else stopBagAuto();
+    toast(state.bagAuto ? "自动刷新已开启（每 8 秒）" : "自动刷新已关闭", "info");
+  };
+  var all = el("bag_all");
+  if(all) all.onchange = function(){
+    Array.prototype.forEach.call(document.querySelectorAll(".bagpick"), function(p){ p.checked = all.checked; });
+    updateBagSel();
+  };
+  var bn = el("bag_batch_add"), bs = el("bag_batch_sub"), bd = el("bag_batch_del");
+  if(bn) bn.onclick = function(){ batchBag("add"); };
+  if(bs) bs.onclick = function(){ batchBag("sub"); };
+  if(bd) bd.onclick = function(){ batchBag("del"); };
+}
+
+function pickedBagRows(){
+  return Array.prototype.filter.call(document.querySelectorAll(".bagpick"), function(p){ return p.checked; });
+}
+function updateBagSel(){
+  var n = pickedBagRows().length;
+  var s = el("bag_sel");
+  if(s) s.textContent = "已选 " + n + " 行";
+  var all = el("bag_all");
+  if(all) all.checked = n > 0 && n === document.querySelectorAll(".bagpick").length;
+}
+function bindBagRows(){
+  Array.prototype.forEach.call(document.querySelectorAll(".bagpick"), function(p){
+    p.onchange = updateBagSel;
+  });
+  var tbody = document.querySelector("#content table.bag tbody");
+  if(!tbody) return;
+  tbody.onclick = function(ev){
+    var btn = ev.target.closest("button");
+    if(!btn || !btn.closest("tr")) return;
+    var tr = btn.closest("tr");
+    var inp = tr.querySelector(".bag-num");
+    var cur = parseInt(tr.dataset.cur, 10) || 0;
+    var max = parseInt(inp.max, 10);
+    var nv;
+    if(btn.classList.contains("bag-inc")){
+      nv = Math.min(max, cur + 1);
+    } else if(btn.classList.contains("bag-dec")){
+      nv = Math.max(0, cur - 1);
+    } else if(btn.classList.contains("bag-set")){
+      nv = parseInt(inp.value, 10);
+      if(isNaN(nv) || nv < 0 || nv > max){ toast("数值需在 0~" + max + " 之间", "warn"); return; }
+    } else if(btn.classList.contains("bag-del")){
+      nv = 0;
+      var nm = tr.querySelector("td:nth-child(5)");
+      if(!confirm("删除「" + (nm ? nm.textContent.trim() : "该物品") + "」？数量将设为 0。")) return;
+    } else return;
+    applyBagEdit(tr, nv);
+  };
+}
+function applyBagEdit(tr, value){
+  var edits = [{ section: tr.dataset.sec, slot: parseInt(tr.dataset.slot, 10) }];
+  if(tr.dataset.field === "amount") edits[0].amount = value; else edits[0].durability = value;
+  stateEditPost("/api/state/bag", {
+    account: state.account, character: state.character.id, edits: edits,
+    reason: "GM 工具背包装备管理"
+  }, "bag_msg", function(){
+    selectCharacter(state.character.id);
+  });
+}
+function batchBag(mode){
+  var rows = pickedBagRows();
+  if(!rows.length){ toast("请先勾选要操作的行", "warn"); return; }
+  var n = parseInt(el("bag_batch_n").value, 10) || 1;
+  if(mode === "del" && !confirm("批量删除 " + rows.length + " 行物品（数量设为 0）？")) return;
+  var edits = rows.map(function(tr){
+    var e = { section: tr.dataset.sec, slot: parseInt(tr.dataset.slot, 10) };
+    var cur = parseInt(tr.dataset.cur, 10) || 0;
+    var max = parseInt(tr.querySelector(".bag-num").max, 10);
+    var v;
+    if(mode === "add") v = Math.min(max, cur + n);
+    else if(mode === "sub") v = Math.max(0, cur - n);
+    else v = 0;
+    if(tr.dataset.field === "amount") e.amount = v; else e.durability = v;
+    return e;
+  });
+  stateEditPost("/api/state/bag", {
+    account: state.account, character: state.character.id, edits: edits,
+    reason: "GM 工具背包批量操作"
+  }, "bag_msg", function(){
+    toast("批量操作完成：" + edits.length + " 行", "ok");
+    selectCharacter(state.character.id);
+  });
+}
+
+// ================= 角色修改五卡（原功能完整保留） =================
+function charCardsHTML(){
+  var d = state.detail;
+  if(!d){
+    return "<div class=\"card\"><h3>角色修改</h3><div class=\"hint\">在角色卡片中选择一个角色，这里会出现改等级 / 技能点 / 背包数量 / 一键完成任务的表单。</div></div>";
+  }
+  var c = d.character, s = d.summary || {}, lim = d.limits || {};
+  var ag = s.attribute_groups || {core:[], more:[]};
+  var sp = (s.skill_points||[0,0]), tp = (s.technique_points||[0,0]);
+  var serverCap = lim.server_level_cap || 0, clientCap = lim.client_level_cap || 115;
+  var dis = lim.enabled ? "" : " disabled";
+
+  var capNote;
+  if(lim.enabled){
+    capNote =
+      "<div class=\"hint\">服务端经验规则 <b>experience.compat90.json</b> 的 <b>level_cap = " + serverCap + "</b> 是硬上限；" +
+      "本发布包对应客户端等级上限是 <b>" + clientCap + "</b>。等级超过客户端上限（" + clientCap + "）由你决定：" +
+      "公开资料记录过超上限会导致服务端崩溃/假死、物品全红、拿不到 SP。工具只按服务端的 " + serverCap + " 挡住。</div>" +
+      "<div class=\"hint\">等级与经验<b>一定成对写</b>：只改等级会让 experience 与 level 不匹配。这里把 experience 设成该等级的门槛（来自服务端成长目录）。</div>";
+  } else {
+    capNote = "<div class=\"errbox\">改存档功能未启用：" + esc(lim.reason || "未载入成长目录 / 角色目录") + "</div>";
+  }
+
+  return "" +
+  "<div class=\"card\"><h3>" + esc(c.name) + " <span class=\"pill blue\">" + esc(c.class_name) + "</span> <span class=\"pill green\">Lv." + c.level + "</span></h3>" +
+    "<div class=\"kv\">" +
+      "<div>角色 ID</div><div>" + c.id + "</div>" +
+      "<div>账号</div><div>" + esc(state.accountName) + " (ID " + d.account + ")</div>" +
+      "<div>经验</div><div>" + c.experience + "</div>" +
+      "<div>金币</div><div>" + c.gold + "</div>" +
+      "<div>点券</div><div>" + d.cera + "</div>" +
+      "<div>觉醒阶段</div><div>" + s.advancement + "</div>" +
+      "<div>SP</div><div>" + sp.join(" / ") + "</div>" +
+      "<div>TP</div><div>" + tp.join(" / ") + "</div>" +
+    "</div>" + attrBlockHTML(ag) +
+  "</div>" +
+
+  "<div class=\"card\"><h3>1. 改等级</h3>" +
+    "<div class=\"row\">" +
+      "<div><label>目标等级（当前 " + c.level + "）</label><input id=\"lv_target\" type=\"number\" min=\"1\" max=\"" + (serverCap||65535) + "\" value=\"" + c.level + "\"" + dis + "></div>" +
+      "<div><label style=\"color:#3a4250\"><input type=\"checkbox\" id=\"lv_recalc\" style=\"width:auto\"" + dis + "> 同时把技能点按该级重算为满值</label></div>" +
+    "</div>" +
+    "<div class=\"actions\" style=\"margin-top:14px\"><button id=\"lv_do\" class=\"btn\"" + dis + ">执行改等级</button> <span id=\"lv_msg\" class=\"hint\"></span></div>" +
+    capNote +
+    "<div class=\"hint\">属性不随等级改动（不碰 attributes 以免越过服务端 EntryAddition 原生边界校验）。改动前会把当前 state 备份到 <b>" + esc(lim.backup_dir||"") + "</b>。</div>" +
+    "<div class=\"hint err\">角色正在线上时，必须重新选择角色（小退再进）才会看到改动。</div>" +
+  "</div>" +
+
+  "<div class=\"card\"><h3>2. 技能点（SP / TP）</h3>" +
+    "<div class=\"row\">" +
+      "<div><label>SP（第 1 条账本）</label><input id=\"sk_sp0\" type=\"number\" min=\"0\" max=\"65535\" value=\"" + sp[0] + "\"" + dis + "></div>" +
+      "<div><label>SP（第 2 条账本）</label><input id=\"sk_sp1\" type=\"number\" min=\"0\" max=\"65535\" value=\"" + sp[1] + "\"" + dis + "></div>" +
+      "<div><label>TP（第 1 条账本）</label><input id=\"sk_tp0\" type=\"number\" min=\"0\" max=\"65535\" value=\"" + tp[0] + "\"" + dis + "></div>" +
+      "<div><label>TP（第 2 条账本）</label><input id=\"sk_tp1\" type=\"number\" min=\"0\" max=\"65535\" value=\"" + tp[1] + "\"" + dis + "></div>" +
+    "</div>" +
+    "<div class=\"actions\" style=\"margin-top:14px\"><button id=\"sk_do\" class=\"btn\"" + dis + ">按上面的值写入</button> " +
+      "<button id=\"sk_recalc\" class=\"btn ghost\"" + dis + ">按当前 Lv." + c.level + " 重算 SP 为满值</button> <span id=\"sk_msg\" class=\"hint\"></span></div>" +
+    "<div class=\"hint\">两个数组是服务端协议里的两条技能树账本。重算 SP 会把两条都写成该级累计满值；已学技能不会退回。TP 没有服务端来源表，只能手填。</div>" +
+  "</div>" +
+
+  bagCardHTML(lim) +
+  questCardHTML(lim) +
+
+  "<div class=\"card\"><h3>5. 转职 / 觉醒 <span class=\"pill gray\">禁用</span></h3>" +
+    "<div class=\"errbox\">" + esc(lim.advancement_reason || "未调查") + "</div>" +
+    "<div class=\"hint\">这一项在界面上只做说明，不提供按钮。</div>" +
+  "</div>";
+}
+
+function attrRowHTML(r){
+  var label = r.localized ? esc(r.label) : esc(r.label) + " <span class=\"pill raw\">未汉化</span>";
+  return "<div title=\"" + esc(r.key) + "\">" + label + "</div><div>" + r.value + "</div>";
+}
+function attrBlockHTML(ag){
+  var core = ag.core || [], more = ag.more || [];
+  if(!core.length && !more.length) return "";
+  var html = "<div class=\"filters\">" +
+    "<div class=\"flabel\"><b>核心属性</b><span class=\"tag\">存档原值，未换算</span></div>" +
+    "<div class=\"attrs\">" + core.map(attrRowHTML).join("") + "</div>";
+  if(more.length){
+    html += "<div id=\"attr_more\" class=\"attrs\" style=\"display:" + (state.attrOpen ? "grid" : "none") + "\">" +
+      more.map(attrRowHTML).join("") + "</div>" +
+      "<div style=\"margin-top:8px\"><button id=\"attr_toggle\" class=\"btn ghost sm\">" +
+      (state.attrOpen ? "收起其余属性" : "展开全部属性（另有 " + more.length + " 项）") + "</button></div>";
+  }
+  if(ag.note) html += "<div class=\"hint\">" + esc(ag.note) + "</div>";
+  return html + "</div>";
+}
+function bindAttrToggle(){
+  var b = el("attr_toggle"); if(!b) return;
+  b.onclick = function(){ state.attrOpen = !state.attrOpen; if(state.detail) renderView(); };
+}
+
+function bagCardHTML(lim){
+  var rows = state.bag || [];
+  var dis = lim.enabled ? "" : " disabled";
+  var secLabel = {"items":"背包", "worn":"已穿戴(worn)", "equipment":"装备(equipment)"};
+  var body = rows.map(function(b){
+    var field = b.section === "items" ? "amount" : "durability";
+    var val = b.section === "items" ? (b.amount==null?0:b.amount) : (b.durability==null?"":b.durability);
+    var orig = b.section === "items" ? (b.amount==null?0:b.amount) : (b.durability==null?0:b.durability);
+    var flag = b.flag === "unknown" ? " <span class=\"pill unknown\">物品库不认识</span>" : "";
+    var worn = b.worn ? " <span class=\"pill worn\">已穿戴</span>" : "";
+    var cell = b.section === "items"
+      ? "<input class=\"bagedit\" type=\"number\" min=\"0\" max=\"4294967295\" data-section=\"" + b.section + "\" data-slot=\"" + b.slot + "\" data-field=\"amount\" data-orig=\"" + orig + "\" value=\"" + val + "\"" + dis + ">"
+      : "<input class=\"bagedit\" type=\"number\" min=\"0\" max=\"65535\" data-section=\"" + b.section + "\" data-slot=\"" + b.slot + "\" data-field=\"durability\" data-orig=\"" + orig + "\" value=\"" + val + "\"" + dis + ">";
+    return "<tr><td class=\"sec\" style=\"color:#8a93a3;font-size:12px\">" + esc(secLabel[b.section]||b.section) + "</td><td>" + b.slot + "</td><td>" + b["template"] + "</td>" +
+      "<td>" + esc(b.name) + flag + worn + "</td><td>" + cell + "</td></tr>";
+  }).join("");
+  return "<div class=\"card\"><h3>3. 背包与装备</h3>" +
+    (rows.length
+      ? "<table class=\"bag\"><thead><tr><th>所在</th><th>槽位</th><th>ID</th><th>名称</th><th>数量 / 耐久</th></tr></thead><tbody>" + body + "</tbody></table>"
+      : "<div class=\"hint\">这个角色的背包、worn 与 equipment 都是空的。</div>") +
+    "<div class=\"actions\" style=\"margin-top:14px\"><button id=\"bag_do\" class=\"btn\"" + dis + ">保存修改</button> <span id=\"bag_msg\" class=\"hint\"></span></div>" +
+    "<div class=\"hint\">只改已有行：<b>物品行填 0 就是删除该行</b>；装备行只能改 durability，template 与 slot 不给改。</div>" +
+    "<div class=\"hint err\">角色正在线上时，必须重新选择角色（小退再进）才会看到改动。</div>" +
+  "</div>";
+}
+
+function questCardHTML(lim){
+  var q = state.quests || {}, ids = q.accepted_ids || [];
+  var dis = lim.enabled ? "" : " disabled";
+  var list = ids.length ? ids.join(", ") + (q.accepted > ids.length ? " …" : "") : "无";
+  return "<div class=\"card\"><h3>4. 任务一键完成</h3>" +
+    "<div class=\"kv\">" +
+      "<div>已接取</div><div><b>" + (q.accepted||0) + "</b> 条</div>" +
+      "<div>已完成</div><div>" + (q.completed||0) + " 条</div>" +
+      "<div>合计</div><div>" + (q.total||0) + " 条</div>" +
+      "<div>待完成的 ID</div><div class=\"hint\" style=\"margin:0\">" + esc(list) + "</div>" +
+    "</div>" +
+    "<div style=\"margin-top:12px\"><label style=\"color:#3a4250\"><input type=\"checkbox\" id=\"q_confirm\" style=\"width:auto\"" + dis + "> 我确认：把上面这些<b>已接取</b>的任务改成<b>已完成</b>（只改状态，不插入任何新任务）</label></div>" +
+    "<div class=\"actions\" style=\"margin-top:12px\"><button id=\"q_do\" class=\"btn\"" + dis + ">执行一键完成</button> <span id=\"q_msg\" class=\"hint\"></span></div>" +
+    "<div class=\"warnbox\">先把这个角色<b>切换到别的角色</b>（或退回选人界面）再执行：角色在线上时存档可能覆盖掉这次改动。</div>" +
+  "</div>";
+}
+
+function stateEditPost(path, body, msgEl, done){
+  var msg = el(msgEl);
+  if(msg) msg.textContent = "提交中…";
+  api(path, {method:"POST", body:body}).then(function(o){
+    var receipt = o.receipt ? JSON.stringify(o.receipt) : "";
+    if(msg){
+      msg.innerHTML = "<span class=\"ok\">" + esc(o.message || "完成") + "</span> " + esc(o.note || "") +
+        (o.backup ? "<br>备份：" + esc(o.backup) : "") +
+        (receipt ? "<br><span class=\"tag\">回执 " + esc(receipt) + "</span>" : "");
+    }
+    toast(o.message || "已写入", "ok", receipt ? "回执：" + receipt.slice(0, 120) : "");
+    if(done) done(o);
+  }).catch(function(e){
+    if(msg) msg.innerHTML = "<span class=\"err\">" + esc(e.message) + "</span>（没有写入，或已整笔回滚）";
+    toast("操作失败：" + e.message, "err");
+  });
+}
+
+function refreshCharacter(){
+  if(state.character) selectCharacter(state.character.id);
+  else if(state.account) selectAccount(state.account, state.accountName, true);
+}
+
+function bindCharCards(){
+  bindAttrToggle();
+  var lim = state.limits || {};
+  if(!lim.enabled || !state.detail) return;
+  if(el("lv_do")) el("lv_do").onclick = function(){
+    var v = parseInt(el("lv_target").value, 10);
+    if(isNaN(v) || v < 1){ el("lv_msg").innerHTML = "<span class=\"err\">等级要填 1 以上的整数。</span>"; return; }
+    var cap = lim.server_level_cap || 0;
+    if(cap && v > cap){ el("lv_msg").innerHTML = "<span class=\"err\">服务端上限是 " + cap + " 级。</span>"; return; }
+    var note = v > (lim.client_level_cap || 115)
+      ? "\n\n注意：目标等级 " + v + " 超过客户端上限 " + (lim.client_level_cap||115) + "。\n公开资料记录过超过上限会导致服务端崩溃/假死、物品全红、拿不到 SP。\n确定要改吗？"
+      : "";
+    if(note && !confirm("把 " + state.character.name + " 从 Lv." + state.character.level + " 改成 Lv." + v + "？" + note)) return;
+    stateEditPost("/api/state/level", {
+      account: state.account, character: state.character.id,
+      level: v, recalc_skill_points: el("lv_recalc").checked,
+      reason: "GM 工具改等级 -> " + v
+    }, "lv_msg", refreshCharacter);
+  };
+  function skillsBody(recalc){
+    var b = { account: state.account, character: state.character.id,
+      reason: recalc ? "GM 工具按等级重算 SP" : "GM 工具改技能点" };
+    if(recalc){
+      b.recalc_skill_points = true;
+    } else {
+      b.skill_points = [parseInt(el("sk_sp0").value,10)||0, parseInt(el("sk_sp1").value,10)||0];
+      b.technique_points = [parseInt(el("sk_tp0").value,10)||0, parseInt(el("sk_tp1").value,10)||0];
+    }
+    return b;
+  }
+  if(el("sk_do")) el("sk_do").onclick = function(){
+    stateEditPost("/api/state/skills", skillsBody(false), "sk_msg", refreshCharacter);
+  };
+  if(el("sk_recalc")) el("sk_recalc").onclick = function(){
+    stateEditPost("/api/state/skills", skillsBody(true), "sk_msg", refreshCharacter);
+  };
+  if(el("bag_do")) el("bag_do").onclick = function(){
+    var edits = [], bad = "";
+    Array.prototype.forEach.call(document.querySelectorAll("input.bagedit"), function(inp){
+      var raw = inp.value.trim();
+      if(raw === ""){ bad = bad || "有空的数量/耐久没填。"; return; }
+      var v = parseInt(raw, 10);
+      if(isNaN(v) || v < 0){ bad = bad || "数量/耐久要是 0 以上的整数。"; return; }
+      if(v > parseInt(inp.max, 10)){ bad = bad || ("超过上限 " + inp.max + "。"); return; }
+      if(String(v) === inp.dataset.orig) return;
+      var e = { section: inp.dataset.section, slot: parseInt(inp.dataset.slot, 10) };
+      e[inp.dataset.field] = v;
+      if(inp.dataset.field === "amount") e.amount = v; else e.durability = v;
+      edits.push(e);
+    });
+    if(bad){ el("bag_msg").innerHTML = "<span class=\"err\">" + esc(bad) + "</span>"; return; }
+    if(!edits.length){ el("bag_msg").innerHTML = "<span class=\"err\">没有改动。</span>"; return; }
+    var zero = edits.filter(function(e){ return e.amount === 0; }).length;
+    if(zero && !confirm("有 " + zero + " 行数量填了 0，这些行会被删除。确定要保存吗？")) return;
+    stateEditPost("/api/state/bag", {
+      account: state.account, character: state.character.id, edits: edits,
+      reason: "GM 工具改背包数量/耐久"
+    }, "bag_msg", refreshCharacter);
+  };
+  if(el("q_do")) el("q_do").onclick = function(){
+    if(!el("q_confirm").checked){
+      el("q_msg").innerHTML = "<span class=\"err\">先勾选上面的二次确认。</span>";
+      return;
+    }
+    var q = state.quests || {};
+    if(!q.accepted){
+      el("q_msg").innerHTML = "<span class=\"err\">这个角色现在没有已接取的任务。</span>";
+      return;
+    }
+    if(!confirm("把 " + state.character.name + " 的 " + q.accepted + " 条已接取任务改成已完成？\n只改状态，不插入新任务。\n请先确认角色已经切换到别的角色（或退回选人界面）。")) return;
+    stateEditPost("/api/state/quests", {
+      account: state.account, character: state.character.id,
+      confirm: true, expect_accepted: q.accepted,
+      reason: "GM 工具一键完成已接取任务"
+    }, "q_msg", refreshCharacter);
+  };
+}
+
+// ================= 任务管理 =================
+function renderQuestsView(){
+  renderTabs(["任务管理"]);
+  var c = el("content");
+  if(!state.character){
+    c.innerHTML = "<div class=\"empty\">请先在「角色管理」中选择一个角色（或使用搜索框定位），这里会显示该角色的任务与一键完成。</div>";
+    return;
+  }
+  c.innerHTML = questCardHTML(state.limits || {}) +
+    "<div class=\"card\"><h3>说明</h3>" +
+    "<div class=\"hint\">只把 <b>character_quests</b> 里 status='accepted' 的行改成 'completed'，<b>绝不插入新任务</b>。子表 <b>character_quest_rewards</b> 一行都不碰。</div>" +
+    "<div class=\"hint err\">执行后重新选择角色才能看到任务列表变化。</div></div>";
+  bindCharCards();
+}
+
+// ================= 物品管理 =================
+var chosen = [];
+function renderItemsView(){
+  renderTabs(["物品发放", "发放记录"]);
+  var c = el("content");
+  if(!state.account){
+    c.innerHTML = "<div class=\"empty\">请先在「账号管理」中选择账号（或使用搜索框定位），物品发放需要目标账号与角色。</div>";
+    return;
+  }
+  if(state.subTab === 1){ renderHistoryTab(c); return; }
+  var charOpts = "<option value=\"0\">仅点券（账号级，不需要角色）</option>" + (state.chars||[]).map(function(ch){
+    return "<option value=\"" + ch.id + "\"" + (state.character && state.character.id===ch.id ? " selected" : "") + ">" + esc(ch.name) + " (Lv." + ch.level + ")</option>";
+  }).join("");
+  c.innerHTML =
+  "<div class=\"card\"><h3>发放资产 <span class=\"sub\">账号 " + esc(state.accountName) + "</span></h3>" +
+    "<div class=\"row\">" +
+      "<div><label>目标角色</label><select id=\"g_char\">" + charOpts + "</select></div>" +
+      "<div><label>金币</label><input id=\"g_gold\" type=\"number\" min=\"0\" value=\"0\"></div>" +
+      "<div><label>点券（可正可负）</label><input id=\"g_cera\" type=\"number\" value=\"0\"></div>" +
+    "</div>" +
+    "<div class=\"filters\">" +
+      "<div class=\"flabel\"><b>物品筛选</b><span><button id=\"clear\" class=\"btn ghost sm\">清除筛选</button></span></div>" +
+      "<div class=\"flabel\"><b>类型</b><span class=\"tag\">客户端页签 + 装备</span></div>" +
+      "<div id=\"types\" class=\"hint\">载入中…</div>" +
+      "<div class=\"flabel\"><b>部位</b><span class=\"tag\">装备位，来自 [equipment type]</span></div>" +
+      "<div id=\"slots\" class=\"hint\">载入中…</div>" +
+      "<div class=\"flabel\"><b>等级</b><span class=\"tag\">装备最低等级 [minimum level]</span></div>" +
+      "<div id=\"levels\" class=\"hint\">载入中…</div>" +
+      "<div class=\"flabel\"><b>稀有度</b><span class=\"tag\">品级 [rarity]</span></div>" +
+      "<div id=\"rarities\" class=\"hint\">载入中…</div>" +
+      "<div class=\"hint\" id=\"fnote\"></div>" +
+    "</div>" +
+    "<div class=\"searchbox\" style=\"margin-top:12px\"><label>物品搜索（中文名 / 英文名 / ID，可与全部条件叠加）</label>" +
+      "<input id=\"q\" placeholder=\"例如：太初之星、短剑、101001153\">" +
+      "<div class=\"hint\" style=\"margin-top:6px\"><label style=\"color:#3a4250\"><input type=\"checkbox\" id=\"grantable_only\" style=\"width:auto\"" +
+        (state.grantableOnly ? " checked" : "") + "> 只看可发放（服务端真的收得下的）</label>" +
+        "<div id=\"gnote\" class=\"hint\">载入可发放统计…</div></div>" +
+      "<div class=\"result\" id=\"res\"></div>" +
+      "<div class=\"hint\" id=\"rescount\"></div></div>" +
+    "<div id=\"chosen\"></div>" +
+    "<div style=\"margin-top:12px\"><label>原因（写入审计）</label><input id=\"g_reason\" value=\"GM 工具发放\"></div>" +
+    "<div class=\"actions\" style=\"margin-top:14px\"><button id=\"do\" class=\"btn\">执行发放</button> <span id=\"msg\" class=\"hint\"></span></div>" +
+    "<div class=\"hint\">发放走与服务器相同的背包校验和事务；背包满时会整笔拒绝。角色在线上时需要重新选择角色才能看到。</div>" +
+  "</div>";
+
+  var q = el("q"); var timer = null;
+  if(state.presetQ) q.value = state.presetQ;
+  q.oninput = function(){ clearTimeout(timer); timer = setTimeout(doSearch, 220); };
+  el("do").onclick = doGrant;
+  el("clear").onclick = function(){
+    state.itemType = ""; state.slot = ""; state.levelMin = 0; state.levelMax = 0; state.rarity = "";
+    renderTypes(); renderSlots(); renderLevels(); renderRarities(); doSearch();
+  };
+  var go = el("grantable_only");
+  if(go) go.onchange = function(){ state.grantableOnly = go.checked; doSearch(); };
+  loadTypes();
+  loadFilters();
+  doSearch();
+}
+function refreshItemsView(){ if(state.view === "items") renderItemsView(); }
+
+function renderHistoryTab(c){
+  c.innerHTML = "<div class=\"card\"><h3>最近发放记录 <span class=\"sub\">账号 " + esc(state.accountName) + " · 最近 100 条</span></h3><div id=\"hist\" class=\"hint\">载入中…</div></div>";
+  loadHistory();
+}
+
+// ---- 物品筛选（原逻辑） ----
+function loadTypes(){
+  var box = el("types"); if(!box) return;
+  api("/api/types").then(function(o){
+    state.types = o.types || [];
+    renderTypes();
+  }).catch(function(e){ box.innerHTML = "<span class=\"err\">" + esc(e.message) + "</span>"; });
+}
+function renderTypes(){
+  var box = el("types"); if(!box || !state.types) return;
+  var html = kw("type", "", "全部", "", state.itemType, null);
+  state.types.forEach(function(t){ html += kw("type", t.key, t.label, t.count, state.itemType, null); });
+  state.types.forEach(function(t){
+    (t.children||[]).forEach(function(c2){ html += kw("type", c2.key, c2.label, c2.count, state.itemType, null, true); });
+  });
+  box.innerHTML = html;
+  bindKws(box, "type", function(v){ state.itemType = v; renderTypes(); doSearch(); });
+}
+function loadFilters(){
+  api("/api/filters").then(function(f){
+    state.filters = f;
+    if(state.rarity && !/^[0-9]+$/.test(state.rarity)){
+      var found = "";
+      f.rarities.forEach(function(r){ if(r.label === state.rarity) found = r.key; });
+      state.rarity = found;
+    }
+    renderSlots(); renderLevels(); renderRarities();
+    var fn = el("fnote");
+    if(fn) fn.innerHTML = "品级中文名来源：" + esc(f.rarity_source) +
+      " · 装备 " + f.equipment + " 件：已归类 " + f.slot_covered + " 件，其余 " + f.slot_unknown + " 件；有等级 " + f.level_known + " 件，无等级 " + f.level_unknown + " 件";
+    var g = el("gnote");
+    if(g){
+      var notes = (f.grant_notes||[]).map(function(n){ return esc(n.label) + " —— " + n.count + " 件"; }).join("<br>");
+      g.innerHTML = "可发放 <b>" + f.grantable + "</b> 件 / 不可发放 <b>" + f.not_grantable + "</b> 件（装扮类无容器被挡 " + (f.avatar_blocked||0) + " 件）。" +
+        "<br>判定来源：" + esc(f.grant_source) + (notes ? "<br>不可发放原因：<br>" + notes : "");
+    }
+  }).catch(function(e){ var fn = el("fnote"); if(fn) fn.innerHTML = "<span class=\"err\">" + esc(e.message) + "</span>"; });
+}
+function renderSlots(){
+  var box = el("slots"); if(!box || !state.filters) return;
+  var html = kw("slot", "", "全部", state.filters.equipment, state.slot, null);
+  state.filters.slots.forEach(function(s){ html += kw("slot", s.key, s.label, s.count, state.slot, null); });
+  box.innerHTML = html;
+  bindKws(box, "slot", function(v){ state.slot = v; renderSlots(); doSearch(); });
+}
+function renderLevels(){
+  var box = el("levels"); if(!box || !state.filters) return;
+  var activeKey = (state.levelMin||state.levelMax) ? (state.levelMin + "-" + state.levelMax) : "";
+  var html = kw("lv", "", "全部", state.filters.level_known, activeKey, null);
+  state.filters.levels.forEach(function(l){
+    html += kw("lv", l.min + "-" + l.max, l.label, l.count, activeKey, null, false, l.min, l.max);
+  });
+  box.innerHTML = html;
+  bindKws(box, "lv", function(v, n){
+    if(!v){ state.levelMin = 0; state.levelMax = 0; }
+    else { state.levelMin = parseInt(n.dataset.min,10)||0; state.levelMax = parseInt(n.dataset.max,10)||0; }
+    renderLevels(); doSearch();
+  });
+}
+function renderRarities(){
+  var box = el("rarities"); if(!box || !state.filters) return;
+  var total = 0;
+  state.filters.rarities.forEach(function(r){ total += r.count; });
+  var html = kw("rarity", "", "全部", total, state.rarity, null);
+  state.filters.rarities.forEach(function(r){
+    html += kw("rarity", r.key, r.label, r.count, state.rarity, RARITY_COLORS[parseInt(r.key,10)]);
+  });
+  box.innerHTML = html;
+  bindKws(box, "rarity", function(v){ state.rarity = v; renderRarities(); doSearch(); });
+}
+function kw(attr, key, label, count, activeVal, color, sub, min, max){
+  var on = String(activeVal||"") === String(key);
+  var attrs = " data-" + attr + "=\"" + esc(key) + "\"";
+  if(min !== undefined){ attrs += " data-min=\"" + min + "\""; }
+  if(max !== undefined){ attrs += " data-max=\"" + max + "\""; }
+  var dot = color ? "<span class=\"dot\" style=\"background:" + color + "\"></span>" : "";
+  var n = (count === "" || count === undefined || count === null) ? "" : "<span class=\"n\">" + count + "</span>";
+  var cls = "kw" + (on ? " active" : "") + (sub ? " sub" : "") + (count === 0 ? " zero" : "");
+  return "<span class=\"" + cls + "\"" + attrs + ">" + dot + esc(label) + n + "</span>";
+}
+function bindKws(box, attr, onPick){
+  Array.prototype.forEach.call(box.querySelectorAll(".kw"), function(n){
+    n.onclick = function(){ onPick(n.dataset[attr] || "", n); };
+  });
+}
+function slotTag(it){ return it.slot || it.type_label || (it.kind==="equipment" ? "装备" : "普通"); }
+
+function doSearch(){
+  var q = el("q"); if(!q) return;
+  var url = "/api/items?q=" + encodeURIComponent(q.value) +
+    "&type=" + encodeURIComponent(state.itemType) +
+    "&slot=" + encodeURIComponent(state.slot) +
+    "&level_min=" + (state.levelMin||"") +
+    "&level_max=" + (state.levelMax||"") +
+    "&rarity=" + encodeURIComponent(state.rarity) +
+    (state.grantableOnly ? "&grantable=1" : "") +
+    "&limit=60";
+  api(url).then(function(o){
+    var blocked = 0;
+    o.items.forEach(function(it){ if(!it.grantable) blocked++; });
+    var rc = el("rescount");
+    if(rc) rc.innerHTML = "命中 " + (o.count||0) + " 条" +
+      (blocked ? "（其中 <span class=\"warn\">不可发放 " + blocked + " 条</span>）" : "") +
+      ((o.count||0) >= 60 ? "（只显示前 60 条）" : "");
+    var res = el("res");
+    if(!res) return;
+    res.innerHTML = o.items.map(function(it){
+      var zh = it.name || it.name_en || "(未命名)";
+      var color = RARITY_COLORS[it.rarity] || "#1f2430";
+      var en = (it.name_en && it.name_en !== it.name) ? "<span class=\"tag\">" + esc(it.name_en) + "</span>" : "";
+      var parts = ["ID " + it.id];
+      if(it.level) parts.push("Lv" + it.level);
+      if(it.rarity_label) parts.push(it.rarity_label);
+      if(it.grade) parts.push("品级值 " + it.grade);
+      var av = it.avatar ? " <span class=\"pill no\">装扮</span>" : "";
+      var no = it.grantable ? "" : " <span class=\"pill no\" title=\"" + esc(it.grant_note||"") + "\">不可发放</span>";
+      return "<div class=\"row2" + (it.grantable ? "" : " blocked") + "\" data-id=\"" + it.id +
+        "\" data-name=\"" + esc(zh) + "\" data-grantable=\"" + (it.grantable ? "1" : "0") +
+        "\" data-note=\"" + esc(it.grant_note||"") + "\">" +
+        "<span><span class=\"nm\" style=\"color:" + color + "\">" + esc(zh) + "</span> " + en + av + no +
+        "<div class=\"tag\">" + esc(parts.join(" · ")) + "</div>" +
+        (it.grantable ? "" : "<div class=\"tag warn\">" + esc(it.grant_note||"") + "</div>") +
+        "</span><span class=\"tag\"><span class=\"pill\">" + esc(slotTag(it)) + "</span></span></div>";
+    }).join("") || "<div class=\"row2\">没有匹配的物品</div>";
+    Array.prototype.forEach.call(res.querySelectorAll(".row2"), function(n){
+      if(!n.dataset.id) return;
+      n.onclick = function(){
+        if(n.dataset.grantable === "0"){
+          var m = el("msg");
+          if(m) m.innerHTML = "<span class=\"err\">「" + esc(n.dataset.name) + "」发不了：" + esc(n.dataset.note || "服务端发放路径不接受这件物品") + "</span>";
+          toast("「" + n.dataset.name + "」不可发放", "warn", n.dataset.note || "");
+          return;
+        }
+        addChosen(parseInt(n.dataset.id,10), n.dataset.name);
+      };
+    });
+  }).catch(function(e){ var rc = el("rescount"); if(rc) rc.innerHTML = "<span class=\"err\">" + esc(e.message) + "</span>"; });
+}
+function addChosen(id, name){
+  for(var i=0;i<chosen.length;i++) if(chosen[i].id===id) { chosen[i].amount++; renderChosen(); return; }
+  chosen.push({id:id, name:name, amount:1}); renderChosen();
+}
+function renderChosen(){
+  var box = el("chosen"); if(!box) return;
+  box.innerHTML = chosen.map(function(c2,i){
+    return "<div class=\"chosen\"><span style=\"flex:1\">" + esc(c2.name) + " <span class=\"tag\">ID " + c2.id + "</span></span>" +
+      "<input type=\"number\" min=\"1\" value=\"" + c2.amount + "\" data-i=\"" + i + "\">" +
+      "<button class=\"btn ghost sm\" data-del=\"" + i + "\">移除</button></div>";
+  }).join("");
+  Array.prototype.forEach.call(box.querySelectorAll("input"), function(inp){
+    inp.onchange = function(){ chosen[parseInt(inp.dataset.i,10)].amount = Math.max(1, parseInt(inp.value,10)||1); };
+  });
+  Array.prototype.forEach.call(box.querySelectorAll("button"), function(b){
+    b.onclick = function(){ chosen.splice(parseInt(b.dataset.del,10),1); renderChosen(); };
+  });
+}
+function doGrant(){
+  var g = el("g_char"), gold = el("g_gold"), cera = el("g_cera"), reason = el("g_reason"), msg = el("msg");
+  var body = {
+    account: state.account,
+    character: parseInt(g.value,10) || 0,
+    gold: parseInt(gold.value,10) || 0,
+    cera: parseInt(cera.value,10) || 0,
+    reason: reason.value || "GM 工具发放",
+    items: chosen.map(function(c2){ return {template:c2.id, amount:c2.amount}; })
+  };
+  if(!body.character && (body.gold || body.items.length)){ msg.innerHTML = "<span class=\"err\">金币和物品必须指定角色。</span>"; return; }
+  if(!body.gold && !body.cera && !body.items.length){ msg.innerHTML = "<span class=\"err\">没有可发放的内容。</span>"; return; }
+  el("do").disabled = true; msg.textContent = "提交中…";
+  api("/api/grant", {method:"POST", body:body}).then(function(o){
+    msg.innerHTML = "<span class=\"ok\">" + esc(o.message) + "</span> " + esc(o.note||"");
+    toast(o.message, "ok", "发放ID " + o.grant_id);
+    chosen = []; renderChosen();
+    if(state.character) selectCharacter(state.character.id);
+    else { loadHistory(); }
+    loadAccounts();
+  }).catch(function(e){ msg.innerHTML = "<span class=\"err\">" + esc(e.message) + "</span>"; toast("发放失败：" + e.message, "err"); })
+    .then(function(){ el("do").disabled = false; });
+}
+function loadHistory(){
+  if(!state.account) return;
+  api("/api/history?account=" + state.account).then(function(o){
+    var h = el("hist"); if(!h) return;
+    h.innerHTML = (o.history||[]).map(function(r){
+      return "<div style=\"padding:4px 0;border-bottom:1px solid #f0f2f7\">" + esc(r.at) + " · <b>" + esc(r.grant_id) + "</b> · " + esc(r.operator) + " · " + esc(r.reason) + "</div>";
+    }).join("") || "还没有发放记录。";
+  }).catch(function(e){ var h = el("hist"); if(h) h.innerHTML = "<span class=\"err\">" + esc(e.message) + "</span>"; });
+}
+
+// ================= 服务器控制 =================
+function renderServerView(){
+  renderTabs([]);
+  var o = state.overview;
+  var c = el("content");
+  var healthTxt = state.health === "ok" ? "<span class=\"ok\">● 正常</span>" : (state.health === "bad" ? "<span class=\"err\">● 连接失败</span>" : "检测中…");
+  c.innerHTML =
+  "<div class=\"card\"><h3>服务端连接状态</h3>" +
+    "<div class=\"kv\">" +
+      "<div>GM 后端 (gmweb)</div><div>" + healthTxt + " · 127.0.0.1:28080</div>" +
+      "<div>管理台入口</div><div>http://127.0.0.1:28081/</div>" +
+      "<div>最近探测</div><div>" + (state.healthAt || "—") + "</div>" +
+    "</div>" +
+    "<div class=\"actions\" style=\"margin-top:14px\"><button class=\"btn\" id=\"sv_refresh\">立即探测 / 刷新</button></div>" +
+    "<div class=\"hint\">绿灯 = gmweb 与数据库正常；红灯 = 连接失败（请确认 GM 工具已启动、数据库在运行）。</div>" +
+  "</div>" +
+  "<div class=\"card\"><h3>环境信息</h3>" +
+    "<div class=\"kv\">" +
+      "<div>环境根目录</div><div>" + esc(o ? (o.root||"—") : "—") + "</div>" +
+      "<div>物品索引</div><div>" + (o ? o.items : "—") + " 件</div>" +
+      "<div>索引来源</div><div>" + esc(o ? (o.index_source||"—") : "—") + "</div>" +
+      "<div>目录等级上限</div><div>" + (o ? o.grade_cap : "—") + "</div>" +
+      "<div>操作用户</div><div>" + esc(o ? (o.operator||"—") : "—") + "</div>" +
+      "<div>GM 工具启动时间</div><div>" + esc(o ? (o.started||"—") : "—") + "</div>" +
+    "</div></div>" +
+  "<div class=\"card\"><h3>说明</h3>" +
+    "<div class=\"hint\">游戏服务端（7001 端口）由 <b>DFO账号启动器.cmd</b> 启动/停止；本管理台只读地探测 gmweb 后端状态，不直接操作游戏进程。</div>" +
+    "<div class=\"hint\">如需重启游戏服务端：请使用桌面上的「DFO账号启动器」→「停止环境」→ 重新选择账号启动。</div>" +
+  "</div>";
+  el("sv_refresh").onclick = function(){ refreshAll(); };
+}
+
+// ================= 系统设置 =================
+function renderSettingsView(){
+  renderTabs([]);
+  var o = state.overview;
+  var lim = state.limits || {};
+  var c = el("content");
+  c.innerHTML =
+  "<div class=\"card\"><h3>访问令牌（Token）</h3>" +
+    "<div class=\"row\"><div style=\"flex:3\"><input id=\"set_token\" readonly value=\"" + esc(TOKEN) + "\"></div>" +
+    "<div style=\"flex:0\"><button class=\"btn ghost\" id=\"copy_token\">复制</button></div></div>" +
+    "<div class=\"hint\">管理台经由本地代理访问 gmweb，token 由代理自动注入；此令牌即 gmweb 的访问令牌，请勿泄露。</div></div>" +
+  "<div class=\"card\"><h3>数据源</h3>" +
+    "<div class=\"kv\">" +
+      "<div>物品索引来源</div><div>" + esc(o ? (o.index_source||"—") : "—") + "</div>" +
+      "<div>物品索引数</div><div>" + (o ? o.items : "—") + " 件</div>" +
+      "<div>账号数</div><div>" + state.accounts.length + "</div>" +
+      "<div>操作者</div><div>" + esc(o ? (o.operator||"—") : "—") + "</div>" +
+      "<div>备份目录</div><div>" + esc(lim.backup_dir || "—（选中角色后显示）") + "</div>" +
+    "</div></div>" +
+  "<div class=\"card\"><h3>功能约束</h3>" +
+    "<div class=\"hint\">· 改等级：服务端硬上限 " + (lim.server_level_cap || 115) + " 级，客户端上限 " + (lim.client_level_cap || 115) + " 级，等级与经验成对写入。</div>" +
+    "<div class=\"hint\">· 改技能点：SP/TP 两条账本，重算 SP 按当前等级补满。</div>" +
+    "<div class=\"hint\">· 背包：只改已有行（物品行填 0 删除；装备行只改耐久）。</div>" +
+    "<div class=\"hint\">· 任务：只改已接取任务状态，不插入新任务。</div>" +
+    "<div class=\"hint\">· 转职/觉醒：出于存档一致性考虑禁用。</div>" +
+  "</div>";
+  el("copy_token").onclick = function(){
+    el("set_token").select();
+    document.execCommand("copy");
+    toast("Token 已复制", "ok");
+  };
+}
+
+// ================= 一键刷新 =================
+function refreshAll(){
+  toast("正在刷新数据…", "info");
+  state.accounts = [];
+  pingServer();
+  loadAccounts();
+  if(state.account){
+    api("/api/characters?account=" + state.account).then(function(o){
+      state.cera = o.cera; state.chars = o.characters || [];
+      updateGmInfo();
+      if(state.character){
+        api("/api/character?id=" + state.character.id).then(function(d){
+          state.character = d.character; state.detail = d; state.bag = d.bag||[];
+          state.quests = d.quests||{}; state.limits = d.limits||{};
+          if(state.view === "characters" || state.view === "quests") renderView();
+          toast("数据已刷新", "ok");
+        }).catch(function(){});
+      } else {
+        if(state.view === "characters") renderView();
+        toast("数据已刷新", "ok");
+      }
+    });
+  } else {
+    if(state.view === "accounts") renderView();
+  }
+}
+
+// ================= 初始化 =================
+function init(){
+  Array.prototype.forEach.call(document.querySelectorAll(".nav-item"), function(n){
+    n.onclick = function(){ switchView(n.dataset.view); };
+  });
+  el("refreshBtn").onclick = refreshAll;
+  el("searchBtn").onclick = doGlobalSearch;
+  el("globalSearch").addEventListener("keydown", function(e){
+    if(e.key === "Enter") doGlobalSearch();
+  });
+  document.addEventListener("click", function(e){
+    var box = el("searchResults");
+    if(box && !e.target.closest(".searchbar")) box.style.display = "none";
+  });
+  var h = (location.hash||"").replace("#","");
+  if(VIEW_TITLES[h]) switchView(h); else switchView("accounts");
+  pingServer();
+  setInterval(pingServer, 15000);
+}
+init();
+</script>
+</body>
+</html>

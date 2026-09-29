@@ -171,6 +171,26 @@ func (s *Service) Finish(ctx context.Context, role storage.Character, r protocol
 		return out, fmt.Errorf("quest reward receipt mismatch")
 	}
 	out.Role, out.Applied = commit.Character, commit.Applied
+	// Self-heal a pre-fix state: a character who once accepted several
+	// [collision quest] branches still carries the unchosen factions' quests.
+	// Once one branch completes, accepted siblings leave the journal (their
+	// maps would otherwise be cleared again); completed siblings keep their
+	// rewards. Best-effort: a sibling that vanished meanwhile is not an error.
+	if out.Applied && len(d.Collisions) > 0 {
+		if states, e := s.Store.Quests(ctx, role.AccountID, role.ID); e == nil {
+			for _, q := range states {
+				if q.Status != "accepted" {
+					continue
+				}
+				for _, c := range d.Collisions {
+					if uint32(q.ID) == c {
+						_ = s.Store.AbandonQuest(ctx, role.AccountID, role.ID, q.ID)
+						break
+					}
+				}
+			}
+		}
+	}
 	return out, nil
 }
 

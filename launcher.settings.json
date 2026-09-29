@@ -1,0 +1,18 @@
+{
+  "game": {
+    "launch": "native"
+  },
+  "onboarding": {
+    "done": true
+  },
+  "update": {
+    "branch": "main",
+    "enabled": true,
+    "endpoint": "https://gitgud.io/fuckworld/115"
+  },
+  "window": {
+    "height": 898,
+    "maximized": false,
+    "width": 1650
+  }
+}

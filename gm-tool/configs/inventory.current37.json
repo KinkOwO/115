@@ -1,0 +1,23 @@
+{
+  "model": "reference90-bag-v1",
+  "source": "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80",
+  "slots": {
+    "[throw]": [
+      65,
+      120
+    ],
+    "[material]": [
+      121,
+      176
+    ]
+  },
+  "missing_stack_limit": 1000,
+  "equipment_slots": [
+    9,
+    64
+  ],
+  "quick_slots": [
+    0,
+    8
+  ]
+}
