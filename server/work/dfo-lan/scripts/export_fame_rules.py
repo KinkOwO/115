@@ -45,7 +45,9 @@ def compile_rules(archive, raw):
     rows = raw['sections']
     result = {'version': 1, 'source': raw['source'], 'sources': raw['sources'],
               'tables': {}, 'refine': {}, 'refine_115': {}, 'items': {},
-              'sets': {}, 'item_points': {}, 'expanded': []}
+              'sets': {}, 'item_points': {}, 'expanded': [],
+              'awakening': {}, 'memory_restore': {}, 'memory_activate': {},
+              'memory_ruminations': {}, 'sole_quality': {}, 'sole_penalty': {}}
     for b in blocks(rows, '[info]'):
         result['tables'][field(b, '[type]')[0]] = pairs(field(b, '[table]'))
     for b in blocks(rows, '[correspond list]'):
@@ -57,6 +59,21 @@ def compile_rules(archive, raw):
             result['refine_115'] = pairs(conditional[2:])
     for point, fame in pairs(field(rows, '[add value by expand set point]')).items():
         result['expanded'].append({'point': point, 'fame': fame})
+    for name in ('memory_restore', 'memory_activate', 'memory_ruminations'):
+        result[name] = pairs(field(rows, '[' + name.replace('_', ' ') + ' fame value]'))
+    awakening = {}
+    values = field(rows, '[equipment awakening fame value]')
+    assert len(values) % 3 == 0
+    for i in range(0, len(values), 3):
+        group, rank, fame = values[i:i+3]
+        awakening.setdefault(group, {})[rank] = fame
+    for name, tag in (('sole_quality', '[sole equipment quality fame value]'),
+                      ('sole_penalty', '[sole equipment penalty fame value]')):
+        values = field(rows, tag)
+        assert len(values) % 3 == 0
+        for i in range(0, len(values), 3):
+            template, point, fame = values[i:i+3]
+            result[name].setdefault(template, {})[point] = fame
 
     source = 'etc/115lvability/setpointinfo.cos'
     text = raw['point_source_text']
@@ -64,17 +81,23 @@ def compile_rules(archive, raw):
     groups = {}
     for body in re.findall(r'\[info\](.*?)\[/info\]', text.split('[/set point]')[0], re.S):
         v = {k: int(n) for k, n in re.findall(r'\[([^\]]+)\]\s*(-?\d+)', body)}
-        if v.get('awakening') == 0:
-            groups.setdefault(v['group'], []).append({'set': v['part set index'], 'point': v['value']})
+        groups.setdefault(v['group'], []).append({
+            'set': v['part set index'], 'point': v['value'], 'awakening': v['awakening']})
     grouping = 'etc/equipmentgrouping.etc'
     result['sources'][grouping] = hashlib.sha256(archive.read(grouping)).hexdigest()
     for b in blocks(raw['group_sections'], '[ability group]'):
         group = field(b, '[index]')[0]
+        for template in field(b, '[list]'):
+            for rank, fame in awakening.get(group, {}).items():
+                # 原生14739AF20：同一装备属于多个分组时取最高值，不累加。
+                entry = result['awakening'].setdefault(template, {})
+                entry[rank] = max(entry.get(rank, 0), fame)
         for point in groups.get(group, []):
             for template in field(b, '[list]'):
                 entries = result['item_points'].setdefault(template, [])
                 if point not in entries:
-                    assert not any(p['set'] == point['set'] for p in entries), ('套装分数歧义', template)
+                    assert not any(p['set'] == point['set'] and p['awakening'] == point['awakening']
+                                   for p in entries), ('套装分数歧义', template)
                     entries.append(point)
 
     listing = raw['set_sections']['etc/115lvability/equipmentsetpointtable.lst']
