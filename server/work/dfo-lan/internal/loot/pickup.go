@@ -22,6 +22,10 @@ type Service struct {
 	BagRules       inventory.BagRules
 	Tables         Tables
 	Equipment      *inventory.EquipmentCatalog
+	// WearRules 是「装备类型 → 穿戴槽位」的映射（`configs/equipment-wear.*.json` 的 `slots`）。
+	// 装备变换要用它：客户端在「变换前」槽里放的那件**可能还在背包**，请求只带**部位码**，
+	// 所以要能反查"这个部位对应哪个 `[equipment type]`"。nil 时退化为"只认身上穿的"。
+	WearRules inventory.WearRules
 	// Journal 是装备库（装备图鉴）规则表：普通收录上限与"按类型收紧"的上限。nil 表示
 	// **不登记**（保持原行为），与其它可选表一样由启动参数显式装载。
 	Journal *catalog.EquipmentJournalRules

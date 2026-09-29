@@ -2,12 +2,14 @@ package loot
 
 import (
 	"context"
+	"crypto/sha256"
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
+	"sort"
 )
 
 // JournalRegistration 是一次成功的收录：模板 → 收录后的**绝对**份数。
@@ -29,6 +31,37 @@ type JournalSkip struct {
 	Slot     uint16 `json:"slot"`
 	Template uint32 `json:"template,omitempty"`
 	Reason   string `json:"reason"`
+}
+
+// disjointEventKey 让"同一批分解"只应用一次。
+//
+// ⚠️ 键里必须带**整批内容**：旧版只取 `Items[0]`，于是"第一件相同、其余不同"的两批分解会
+// 撞同一个 event_key —— 第二批被 `CommitCharacterEvent` 当成重放、取回上一批的 receipt，
+// 接着 `len(result.DeletedSlots) != len(slots)` 触发 `disjoint receipt conflict`，**整批被拒**
+// （装备没删、图鉴没登记）。实测 2026-09-30 02:36:48 / 02:41:48 各一次。
+//
+// 对 (slot, template) 排序后再哈希 ⇒ 同一批的不同排列也是同一个键，内容变则键变。
+func disjointEventKey(toolSlot uint16, items []protocol.DisjointItemEntry) string {
+	type pair struct {
+		slot uint16
+		tpl  uint32
+	}
+	ps := make([]pair, 0, len(items))
+	for _, it := range items {
+		ps = append(ps, pair{it.Slot, it.Template})
+	}
+	sort.Slice(ps, func(i, j int) bool {
+		if ps[i].slot != ps[j].slot {
+			return ps[i].slot < ps[j].slot
+		}
+		return ps[i].tpl < ps[j].tpl
+	})
+	h := sha256.New()
+	fmt.Fprintf(h, "tool:%d|n:%d|", toolSlot, len(ps))
+	for _, p := range ps {
+		fmt.Fprintf(h, "%d:%d,", p.slot, p.tpl)
+	}
+	return fmt.Sprintf("disjoint:%x", h.Sum(nil)[:12])
 }
 
 type DisjointReceipt struct {
@@ -127,7 +160,14 @@ func (s *Service) Disjoint(
 		defs = s.Equipment
 	}
 
-	key := fmt.Sprintf("disjoint:%d:%d:%d", r.ToolSlot, r.Items[0].Slot, r.Items[0].Template)
+	// [ALIGN-20260930-DISJOINT-KEY] 幂等键必须覆盖**整批**请求。
+	//
+	// 原来只用 `Items[0]`（`disjoint:<tool>:<第一件slot>:<第一件template>`）—— 只要两次分解的
+	// **第一件相同**就会撞同一个 event_key：第二次被 `CommitCharacterEvent` 当作重放，直接取回
+	// 上一次的 receipt ⇒ `len(result.DeletedSlots) != len(slots)` ⇒ `disjoint receipt conflict`
+	// （见下面那个校验）⇒ **整批被拒**（装备没删、图鉴没登记）。
+	// 实测 2026-09-30 02:36:48 / 02:41:48 各一次 —— 用户看到的就是"分解了却没入库"。
+	key := disjointEventKey(r.ToolSlot, r.Items)
 	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID,
 		s.Catalog.Source.Checksum, key, s.Rules.Model,
 		func(current storage.Character) (json.RawMessage, json.RawMessage, error) {

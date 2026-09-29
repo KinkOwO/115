@@ -256,9 +256,55 @@ func ReadBag(state json.RawMessage) (Bag, error) {
 	}
 	return b, nil
 }
+
+// durabilityLimit 由启动期注入：给定模板返回源 `.equ` 里的 `[durability]` 上限。
+// nil 时不做任何修正（行为与修复前一致）。
+var durabilityLimit func(template uint32) (uint16, bool)
+
+// SetDurabilityLimit 安装"装备耐久上限"查询源（cmd/wireprobe 装载完装备目录后调用）。
+//
+// 为什么需要它：每件装备的**耐久上限**写在源 `.equ` 的 `[durability]`（例如 11701025x
+// 武器是 48），而耐久是**服务端权威**的实例字段。一旦有别的写入方把它写成超过上限的值
+// （实机 2026-09-30：存档里出现 `100/48`），客户端会判定这件装备**非法** —— 表现正是
+// "不能在装备库里登记 / 分解点不动 / 装备变换界面卡死"。落库前统一 clamp 是最省事也最
+// 彻底的堵口：无论耐久从哪来（GM 工具、外部脚本、旧数据），写进存档时都合法。
+func SetDurabilityLimit(fn func(template uint32) (uint16, bool)) { durabilityLimit = fn }
+
+// clampDurability 把超出源上限的耐久压回上限。上限查不到、或为 0（该部位本来就无耐久
+// 上限，如首饰/称号）时**不动**，避免把这类部位误改成 0。
+func clampDurability(items []BagEquipment) {
+	if durabilityLimit == nil {
+		return
+	}
+	for i := range items {
+		if items[i].Template == 0 {
+			continue
+		}
+		if max, ok := durabilityLimit(items[i].Template); ok && max > 0 && items[i].Durability > max {
+			items[i].Durability = max
+		}
+	}
+}
+
 func SaveBag(state json.RawMessage, b Bag) (json.RawMessage, error) {
 	if b.Expansion > 2 {
 		return nil, fmt.Errorf("背包扩展档位超出客户端范围")
+	}
+	// [ALIGN-20260930-DURABILITY] 落库前 clamp 耐久（见 SetDurabilityLimit 的说明）。
+	// 先拷贝切片，避免就地改到调用方那份 Bag。
+	b.Worn = append([]BagEquipment(nil), b.Worn...)
+	b.Equipment = append([]BagEquipment(nil), b.Equipment...)
+	if len(b.Special) > 0 {
+		m := make(map[byte][]BagEquipment, len(b.Special))
+		for space, rows := range b.Special {
+			m[space] = append([]BagEquipment(nil), rows...)
+		}
+		b.Special = m
+	}
+	clampDurability(b.Worn)
+	clampDurability(b.Equipment)
+	for _, rows := range b.Special {
+		clampDurability(rows)
 	}
 	var fields map[string]json.RawMessage
 	if e := json.Unmarshal(state, &fields); e != nil {
