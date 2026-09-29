@@ -20,11 +20,11 @@ type QuestDefinition struct {
 	// branches of a single choice (Silent City faction, job change, ...) as
 	// mutually exclusive: once a character accepts or completes one member,
 	// the others must leave the available list and refuse acceptance.
-	Collisions []uint32 `json:"collisions,omitempty"`
-	Kind       string   `json:"kind"`
-	ObjectiveCells     []pvf.Token  `json:"objective_cells"`
-	RewardCells        []pvf.Token  `json:"reward_cells"`
-	Pending            []string     `json:"pending,omitempty"`
+	Collisions     []uint32    `json:"collisions,omitempty"`
+	Kind           string      `json:"kind"`
+	ObjectiveCells []pvf.Token `json:"objective_cells"`
+	RewardCells    []pvf.Token `json:"reward_cells"`
+	Pending        []string    `json:"pending,omitempty"`
 }
 type QuestCatalog struct {
 	Source pvf.ArchiveSnapshot        `json:"source"`

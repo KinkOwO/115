@@ -24,10 +24,9 @@ type Entry struct {
 	// Collisions are the mutually exclusive branch peers: the available list
 	// hides a quest whose collision peer is already accepted or completed,
 	// and Accept refuses it.
-	Collisions []uint32
+	Collisions         []uint32
 	GrowTypes          []int32
 	TargetCharacters   []targetCharacter
-	NonTargetCharacters []targetCharacter
 	TargetUsable       bool
 	NPC                uint32
 	NPCReach           NPCReachObjective
@@ -150,12 +149,6 @@ func BuildIndex(c catalog.QuestCatalog) *Index {
 			Collisions: d.Collisions,
 		}
 		e.TargetCharacters, e.TargetUsable = targetCharacters(d.Script.Cells)
-		nonTargets, nonTargetOK := nonTargetCharacters(d.Script.Cells)
-		if !nonTargetOK {
-			e.TargetUsable = false
-		} else {
-			e.NonTargetCharacters = nonTargets
-		}
 		for _, g := range cells(d.Script.Cells, "[grow type]") {
 			if g.Type != 0 {
 				e.GrowUsable = false

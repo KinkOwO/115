@@ -45,7 +45,7 @@ func (s *Service) Available(ctx context.Context, role storage.Character) ([]uint
 		if uint32(state.Level) < en.MinimumLevel || uint32(state.Level) > en.MaximumLevel {
 			continue
 		}
-		allowed := jobAllowed(en.Jobs, job) && targetCharacterAllowed(en.TargetCharacters, en.NonTargetCharacters, job, state.Advancement, state.Awakening)
+		allowed := jobAllowed(en.Jobs, job) && targetCharacterAllowed(en.TargetCharacters, job, state.Advancement, state.Awakening)
 		if !prerequisitesMet(en.PrerequisiteGroups, status) {
 			allowed = false
 		}

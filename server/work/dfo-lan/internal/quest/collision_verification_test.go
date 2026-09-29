@@ -23,7 +23,7 @@ func simulateOffered(x *Index, status map[uint32]string, id uint32, level uint32
 	if level < en.MinimumLevel || level > en.MaximumLevel {
 		return false
 	}
-	allowed := jobAllowed(en.Jobs, job) && targetCharacterAllowed(en.TargetCharacters, en.NonTargetCharacters, job, advancement, awakening)
+	allowed := jobAllowed(en.Jobs, job) && targetCharacterAllowed(en.TargetCharacters, job, advancement, awakening)
 	if !prerequisitesMet(en.PrerequisiteGroups, status) {
 		allowed = false
 	}
@@ -234,41 +234,6 @@ func TestAcceptGateRejectsSiblingBranches(t *testing.T) {
 	for _, id := range []uint32{3924, 3925} {
 		if !collisionsBlocked(x.Entries[id].Collisions, status) {
 			t.Fatalf("accept gate must reject branch %d after 3923 completed", id)
-		}
-	}
-}
-
-// TestFactionLeadInAlternateLineage: the Silent City faction lead-ins gate the
-// [at swordman] lineage through [non target character] on the base quests
-// (3870/3871/3873) and through [target character] on the *_atS siblings
-// (3872/3874). A character of that lineage must see exactly one spelling of
-// every faction quest — the reported duplicate quest-book entries — while
-// every other profession sees the base quests instead.
-func TestFactionLeadInAlternateLineage(t *testing.T) {
-	x := loadQuestIndex(t)
-	const level uint32 = 100
-	const advancement, awakening byte = 0, 0
-	fresh := map[uint32]string{}
-
-	for _, id := range []uint32{3872, 3874} {
-		if !simulateOffered(x, fresh, id, level, "[at swordman]", advancement, awakening) {
-			t.Fatalf("lead-in %d must be offered to the [at swordman] lineage", id)
-		}
-	}
-	for _, id := range []uint32{3870, 3871, 3873} {
-		if simulateOffered(x, fresh, id, level, "[at swordman]", advancement, awakening) {
-			t.Fatalf("lead-in %d must be excluded for the [at swordman] lineage", id)
-		}
-	}
-
-	for _, id := range []uint32{3870, 3871, 3873} {
-		if !simulateOffered(x, fresh, id, level, "[swordman]", advancement, awakening) {
-			t.Fatalf("lead-in %d must be offered to the [swordman] lineage", id)
-		}
-	}
-	for _, id := range []uint32{3872, 3874} {
-		if simulateOffered(x, fresh, id, level, "[swordman]", advancement, awakening) {
-			t.Fatalf("lead-in %d must be excluded for the [swordman] lineage", id)
 		}
 	}
 }
