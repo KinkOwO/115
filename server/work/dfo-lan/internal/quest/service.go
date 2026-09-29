@@ -88,6 +88,15 @@ func (s *Service) Accept(ctx context.Context, role storage.Character, id uint16)
 	if e != nil {
 		return storage.QuestState{}, e
 	}
+	if template, ok := AdventureCollectionObjective(d); ok {
+		registered, err := s.Store.AdventureEquipmentRegistered(ctx, role.AccountID, role.ID, template)
+		if err != nil {
+			return storage.QuestState{}, err
+		}
+		if registered {
+			initial = 0
+		}
+	}
 	groups := d.PrerequisiteGroups
 	if len(groups) == 0 && len(d.Prerequisites) > 0 {
 		groups = [][]uint32{d.Prerequisites}

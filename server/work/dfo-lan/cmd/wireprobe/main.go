@@ -2432,7 +2432,7 @@ func main() {
 				event(map[string]any{"kind": "adventure_info_sent", "character_id": selectedCharacterID, "id": frame.ID, "attempt": "4（CMD217与原生包尾读取链已核实）", "plain_hex": hex.EncodeToString(payload)})
 				continue
 			}
-			if bootstrapped && selectedCharacterID != 0 && (frame.ID == 1406 || frame.ID == 2331 || frame.ID == 1719 || frame.ID == 1811 || frame.ID == 2419 || frame.ID == 2405) {
+			if bootstrapped && selectedCharacterID != 0 && (frame.ID == 1406 || frame.ID == 2331 || frame.ID == 1719 || frame.ID == 1811 || frame.ID == 2419 || frame.ID == 2405 || frame.ID == 2139) {
 				if !verified {
 					event(map[string]any{"kind": "adventure_request_rejected", "id": frame.ID, "reason": "冒险团命令校验失败"})
 					continue
@@ -2441,6 +2441,9 @@ func main() {
 				var packets []outboundPacket
 				var err error
 				switch frame.ID {
+				case 2139:
+					event(map[string]any{"kind": "图鉴引导登记请求", "attempt": "2/3（按原生CMD33更新单任务进度）", "character_id": selectedCharacterID})
+					packets, err = worldState.registerAdventureCollection(ctx, plaintext, frame.Raw, purchaseSession.prefix)
 				case 2419:
 					packets, err = worldState.claimSeasonReward(ctx, plaintext)
 				case 2405:
@@ -4544,7 +4547,15 @@ func main() {
 				}
 				plan := entryPayloads{Select: payload, Basic: basic, Addition: addition, Vault: vaultPayload, UserArea: userArea, Area: areaPayload, Fatigue: fatiguePayload, AccountOptions: accountOptions}
 				plan.SecondaryVault = secondaryVaultPayload
-				// 装备库完整状态（NOTI2610）：只在**已提交**的角色状态上构建。空账本不发这一帧。
+				collectionCtx, collectionCancel := context.WithTimeout(context.Background(), 5*time.Second)
+				collectionEquipment, collectionErr := characters.Store.AdventureCollectionEquipment(collectionCtx, role.AccountID, role.ID)
+				collectionCancel()
+				if collectionErr != nil {
+					event(map[string]any{"kind": "冒险图鉴登录读取失败", "character_id": role.ID, "error": collectionErr.Error()})
+					continue
+				}
+				plan.AdventureCollection = protocol.AdventureCollectionGuide(collectionEquipment)
+				// 装备图鉴从已提交的角色状态恢复，不覆盖冒险团及快捷键快照。
 				if body, jErr := equipmentJournalEntryPayload(role, journalRules); jErr != nil {
 					event(map[string]any{"kind": "equipment_journal_restore_error", "character_id": role.ID, "error": jErr.Error()})
 				} else if len(body) > 0 {
@@ -5011,7 +5022,7 @@ func main() {
 							entry["town_id"], entry["area_id"] = townCatalog.TownID, townCatalog.AreaID
 						}
 					}
-					if p.ID == 13 || p.ID == 36 {
+					if p.ID == 13 || p.ID == 36 || p.ID == 2425 {
 						entry["plain_hex"] = hex.EncodeToString(p.Payload)
 					}
 					event(entry)

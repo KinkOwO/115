@@ -224,6 +224,9 @@ var ErrRewardPending = errors.New("quest reward application is not implemented")
 // ready to submit. For the supported single map objective, one means pending.
 // Broader condition encodings must be recovered before accepting other types.
 func InitialProgress(d catalog.QuestDefinition) (uint32, string, error) {
+	if _, ok := AdventureCollectionObjective(d); ok {
+		return 1, RegisterAdventureEquipment, nil
+	}
 	if len(d.Pending) == 0 && d.Kind == "[meet npc]" && len(d.ObjectiveCells) == 1 && d.ObjectiveCells[0].Type == 0 && d.ObjectiveCells[0].Value > 0 {
 		return 1, SingleMeetNPC, nil
 	}
@@ -439,6 +442,18 @@ func (s *Service) Active(ctx context.Context, role storage.Character) ([]protoco
 		initial, model, e := InitialProgress(d)
 		if e != nil || q.ProgressModel != model || q.Progress > initial {
 			return nil, fmt.Errorf("quest %d requires progress migration", q.ID)
+		}
+		if template, ok := AdventureCollectionObjective(d); ok && q.Progress != 0 {
+			registered, err := s.Store.AdventureEquipmentRegistered(ctx, role.AccountID, role.ID, template)
+			if err != nil {
+				return nil, err
+			}
+			if registered {
+				if _, err = s.Store.CompleteQuestObjective(ctx, role.AccountID, role.ID, q.ID, q.ConfigVersion, model); err != nil {
+					return nil, err
+				}
+				q.Progress = 0
+			}
 		}
 		out = append(out, protocol.ActiveQuest{ID: q.ID, Progress: q.Progress})
 	}

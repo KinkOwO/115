@@ -19,6 +19,9 @@ var errAdventurePoints = errors.New("冒险团商店积分不足")
 
 // 0x143C6C138 的跳转表分别映射源 DSTR 的等级、限购、积分、背包满提示。
 func adventureFailure(id uint16, err error) []byte {
+	if id == 2139 {
+		return protocol.AdventureCollectionResponse(false)
+	}
 	code := uint16(3)
 	if id == 2419 || id == 2405 {
 		var refusal seasonRefusal

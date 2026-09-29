@@ -38,6 +38,7 @@ func (w *worldSession) refreshAdventure(ctx context.Context) ([]outboundPacket, 
 		}
 		experience := protocol.AdventureExperience(w.role.WireID, profile.Level, profile.Experience, rules.Experience[profile.Level+1])
 		packets = append(packets, outboundPacket{"冒险团经验同步", 0, 1337, experience}, outboundPacket{"冒险团资料同步", 0, 1331, detail})
+		packets = append(packets, outboundPacket{"图鉴装备登记恢复", 0, 2425, protocol.AdventureCollectionGuide(profile.Data.CollectionEquipment)})
 		w.adventureSnapshot = signature
 	}
 	elite, err := w.adventureElitePayload(ctx, profile)
