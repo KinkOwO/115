@@ -6,7 +6,8 @@ import (
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/storage"
 	"testing"
-)
+
+	"context")
 
 // 结算面板的「再次挑战」是 CMD72 option=0，dstr 479 原文 "Restart the dungeon."，
 // 语义是重开刚刚结算的那张图（option=2 才是 dstr 481 "Return to town."）。而进图
@@ -24,7 +25,7 @@ func TestSettlementRetryOpensSelectionBeforeEntry(t *testing.T) {
 		Room:       catalog.DungeonRoom{Map: 100016164},
 	}
 	sel := protocol.DungeonSelection{ID: 100004946, Party: 65535}
-	entry, e := w.dungeonEntryPlan("dungeon_select_ack", 16, sel, s)
+	entry, e := w.dungeonEntryPlan(context.Background(), "dungeon_select_ack", 16, sel, s)
 	if e != nil {
 		t.Fatal(e)
 	}
