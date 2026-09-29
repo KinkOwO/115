@@ -385,3 +385,36 @@ func TestUnifiedCharacOptionsFillsBothLockObjects(t *testing.T) {
 		}
 	}
 }
+
+func TestFillCharacEffectsOnlyTouchesSubtype18Slots(t *testing.T) {
+	block := CharacOptionsTemplate()
+	before := append([]byte(nil), block...)
+	settings := map[uint16]uint16{0: 12, 2: 63, 5: 100}
+	if err := FillCharacEffects(block, settings); err != nil {
+		t.Fatal(err)
+	}
+	obj := UnifiedCharacEffectsAt
+	if block[obj] != 1 {
+		t.Fatal("subtype 18 object was not marked valid")
+	}
+	for position, want := range map[uint16]uint16{0: 12, 2: 63, 5: 100} {
+		slot := obj + 2 + int(position)*2
+		if got := binary.LittleEndian.Uint16(block[slot:]); got != want {
+			t.Errorf("position %d value = %d, want %d", position, got, want)
+		}
+		exist := obj + 2 + 2*UnifiedCharacEffectsSlots + int(position)
+		if block[exist] != 1 {
+			t.Errorf("position %d exist flag was not set", position)
+		}
+	}
+	withOutOfRange := CharacOptionsTemplate()
+	if err := FillCharacEffects(withOutOfRange, map[uint16]uint16{0: 12, 2: 63, 5: 100, 6: 999}); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(block[obj:UnifiedCharacSkillLockAt], withOutOfRange[obj:UnifiedCharacSkillLockAt]) {
+		t.Fatal("out-of-range position changed the subtype 18 object")
+	}
+	if !bytes.Equal(block[:obj], before[:obj]) || !bytes.Equal(block[UnifiedCharacSkillLockAt:], before[UnifiedCharacSkillLockAt:]) {
+		t.Fatal("filling subtype 18 changed unrelated settings or skill locks")
+	}
+}

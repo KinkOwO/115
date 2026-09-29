@@ -22,6 +22,31 @@ type FavorState struct {
 	DailyCount int
 }
 
+// FavorPoint 是角色对单个 NPC 的已存好感度。
+type FavorPoint struct {
+	NPCID uint32
+	Point int64
+}
+
+// ListFavor 返回该角色所有好感度非零的 NPC（按 npc_id 排序）。用于进城镇
+// 时编码 NOTI733 全量好感度同步列表。
+func (s *Store) ListFavor(ctx context.Context, characterID int64) ([]FavorPoint, error) {
+	rows, e := s.DB.Query(ctx, `SELECT npc_id,point FROM npc_favor WHERE character_id=$1 AND point>0 ORDER BY npc_id`, characterID)
+	if e != nil {
+		return nil, e
+	}
+	defer rows.Close()
+	out := []FavorPoint{}
+	for rows.Next() {
+		var npcID, point int64
+		if e = rows.Scan(&npcID, &point); e != nil {
+			return nil, e
+		}
+		out = append(out, FavorPoint{NPCID: uint32(npcID), Point: point})
+	}
+	return out, rows.Err()
+}
+
 // GiveFavor 在同一事务内完成账号材料扣除、好感度加点和每日计数。
 // consume 同时接收角色和账号共享材料存档；任一校验失败都会回滚两边，
 // 防止出现“扣了无色但没有好感度”或反向的损档状态。

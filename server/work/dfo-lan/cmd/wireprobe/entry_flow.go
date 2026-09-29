@@ -33,6 +33,14 @@ type entryPayloads struct {
 	Worn             []byte
 	AccountOptions   []byte
 	GamepadOptions   []byte
+	// Journal 是装备库完整状态（NOTI2610，恰好 16444B）。
+	Journal []byte
+	// EquipmentSkill 是装备技能栏/冷却提醒/自定义按键的两组快照（S2C2609，168B）。
+	// 客户端一次消费前 160 字节，所以**恒发**（没设过就是全零）。
+	// 它在 packets() 里的位置必须晚于 2758，见那里的注释。
+	EquipmentSkill []byte
+	// 冒险图鉴为账号登记集合，登录即恢复，不依赖角色移动上报。
+	AdventureCollection []byte
 	// InformNotice / InformNotice2nd are the per-character read-notice sets
 	// (NOTI402 / NOTI426). They ride right after account options: the client
 	// clears its read set from them, and a third-awakened character whose
@@ -122,9 +130,10 @@ type entryPayloads struct {
 	// player's locked skills. It is sent last: the forwarded evidence for this
 	// client reports a crash on town entry when 2827 arrives early in the frame
 	// sequence, whichever block it contains.
-	SkillLocks   []byte
-	SynopsisRead []byte
-	CubeContract []byte
+	SkillLocks     []byte
+	SynopsisRead   []byte
+	CubeContract   []byte
+	OathSystemInfo []byte
 	// Peers carries the USERINFO of every actor already standing in the scene.
 	// It is emitted after this actor's own placement but before the area list,
 	// because the client only places actors it already knows.
@@ -157,6 +166,9 @@ func (p entryPayloads) packets() []outboundPacket {
 		{"entry_addition_sent", 0, 2, p.Addition},
 		{"entry_skills_sent", 0, 19, p.Skills},
 		{"skill_preset_restored", 0, 2758, p.SkillPreset},
+		// 2609 必须排在 2758 **之后**：TestEntrySkillPresetFollowsSkillTree 钉死
+		// 2758 紧跟 19（技能树之后立刻是技能预设），插在中间会让那条测试变红。
+		{"equipment_skill_restored", 0, 2609, p.EquipmentSkill},
 		{"vault_initialized", 0, 13, p.Vault},
 	}
 	// The newer skin families and the 收藏 push join the same entry window as the two
@@ -239,6 +251,7 @@ func (p entryPayloads) packets() []outboundPacket {
 		outboundPacket{"worn_equipment_window_refreshed_entry", 0, 14, p.WornUpdate},
 		// 原生 NOTI889 会查询晶块库存，须在库存和角色初始化后恢复。
 		outboundPacket{"cube_contract_selection_restored", 0, 889, p.CubeContract},
+		outboundPacket{"oath_system_info_restored", 0, 2839, p.OathSystemInfo},
 	)
 	// 幻化仓库（武器外观页签）的容器内容只在复制时推过一次，客户端把它当会话态，
 	// 重登就空。这里按存档重推 NOTI1545，皮肤才会留在仓库里。
@@ -262,6 +275,16 @@ func (p entryPayloads) packets() []outboundPacket {
 	// above: after the initialization barrier, before the last actor rebuild.
 	if len(p.SkinRecent) > 0 {
 		out = append(out, outboundPacket{"skin_recent_restored", 0, 1547, p.SkinRecent})
+	}
+	// 装备库完整状态。客户端只把它当数据存进映射（handler sub_145304380 不依赖角色对象），
+	// 所以放在 actor 重建之前是安全的；它在 actor_appearance_ready 之前进入同一条有序流。
+	if len(p.Journal) > 0 {
+		// 2610 = protocol.EquipmentJournalOpcode；本文件一律用字面量（与其它帧一致）。
+		out = append(out, outboundPacket{"equipment_journal_restored", 0, 2610, p.Journal})
+	}
+	if len(p.AdventureCollection) > 0 {
+		// NOTI2425先替换集合，窗口531已打开时才重绘；空集合也需恢复，避免换号残留。
+		out = append(out, outboundPacket{"冒险图鉴登录恢复", 0, 2425, p.AdventureCollection})
 	}
 	return append(out,
 		outboundPacket{"actor_appearance_ready", 0, 2, p.Basic},

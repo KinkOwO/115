@@ -1,0 +1,2 @@
+客户端client ，服务端server，环境包tools，统一在 D:\115us目录下面
+单机补丁替换到D:\115us\client替换，右键管理员运行启动游戏.bat启动游戏

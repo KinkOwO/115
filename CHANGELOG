@@ -1,12 +1,68 @@
 # CHANGELOG
 
+## 2026-09-30
+- **装备库收录（「装备库添加」）写侧落地：CMD26 分解即登记 + 成功后补发 NOTI2610**。装备库（装备图鉴）此前**整条写侧缺失**：账本 `Counts` 的唯一写入方法 `EquipmentJournal.Add` **零生产调用点**，入场 2610 因账本恒空而不发 ⇒ 客户端图鉴永远没有条目；连带 `CMD2259` 装备生成/变换被服务端 `Counts[template] == 0` 直接拒绝（`internal/loot/equipment_craft.go` 写明"窗口里列的只有已登记条目"）。规格 `CMD/0026-DISJOINTITEM`、`journalMinimumLevel == 115` 的注释，以及另一棵树的独立实现，三处都指向同一结论：**客户端的 CMD26「分解」同时就是「装备库添加」**。
+  - **落地**：`internal/loot/disjoint.go` 在分解的**同一个 apply 回调**里顺带写账本（收录逻辑抽成纯函数 `journalRegistrations`，与"扣装备 / 发材料"同生共死，不存在半状态）；登记模板一律取**服务端背包里那一行**（`Bag.Disjoint` 只按槽位取行、**不校验请求里客户端上报的模板**，请求值不作依据）；判据复用**唯一口径** `inventory.JournalLimit`（`minimum level == 115` ∧ `rarity ∈ {2,3,4,6,8}`，`[equipment type]` 命中则收紧、否则回落普通上限 99），**不新增第二处"能否登记"判断**。
+  - **达上限只跳过收录、不拒绝分解**（普通 99、`[oath]` 这类按类型收紧的 1）；规则表未装载则**不收录也不报错**；回执新增 `journal_added` / `journal_skipped`（带原因：`cap reached` / `not registrable` / `no bag row`），**不静默放行**。
+  - `cmd/wireprobe/disjoint_flow.go`：收录有变化时**补发一次 NOTI2610 全量快照**（空账本不发），组包失败只记 `event`、**不吞掉已提交的分解**；签名加 `event` 便于记录，`main.go` 的 CMD26 分派同步改。
+  - **测试**：新增 `internal/loot/disjoint_journal_test.go`（正常收录且上限回落 99 / 达上限与"背包无此行"只跳过并留下原因 / 规则表未装载不收录不报错）。
+  - ⚠️ **未实机验证**，按业主节奏交玩家验证（分解一件 115 装备 → 当场看图鉴是否出现条目；日志看 `disjoint_journal_added` 与出站 `2610`）。
+  - ⚠️ **已知未闭环（本次不含）**：2610 尾部 5×3 的**语义**在两棵树里答案不同 —— 我们按 `!103` 的 8 条 2264 实机样本实现为"按类别的收藏分组"；另一棵树实测客户端按 `(0,3,9,12,6)` 分入 5 个**互相独立**的集合、假设为"按稀有度的已登记模板"，并观测"尾部非空才放行制作/兑换窗口"。本次**不动尾部**，该分歧另行用一次实机点击做 A/B 判定。
+
 ## 2026-09-29
 - **A Lull（任务12911）Chest Town NPC 无完成选项：实机已确认**。Princess Hyria Grant 位于当前区域的剧情阶段地图，任务本身没有 `[npc visibility]` 规则，原服务端误拒原生 CMD33。仅对源目标匹配、同区域、同配置版本且阶段坐标一致的本任务放行，继续使用现有任务归属与接取状态校验。用户确认成功；日志与存档确认12911完成、后续12930已接取。全量 `go test ./...`、`go vet ./...` 与候选构建通过；SHA-256 `83609DAEB41E4678630345C2E844A6CC0BDD70E2103BEF7A85DC7CDD7474A796`。未改客户端、资源、数据库结构或存档格式。基线：`server/work/dfo-lan/docs/protocol/a-lull-quest12911-chest-town-npc-20260929.md`。
 - **White Land / Evil Justice（任务12920）下方房间拒绝：实机已确认**。用户确认修复后可进入下方房间。地图100004527第四只固定怪物未显式声明阶级，当前客户端按默认 rank 0 普通怪处理；服务端现保留该默认值，其他源行校验不变。确认范围仅为下方房间进入；完整任务、Boss与剧情流程未据此确认。全量 `go test ./...`、`go vet ./...` 和候选构建通过；候选 SHA-256 `99A3F17BA083754B0270E0AA6883CB6CCD85BBA2E34C1F9F8002DD3F5AEDDBFB`。未改客户端、PVF、数据库或存档。基线：`server/work/dfo-lan/docs/protocol/white-land-quest12920-room-move-20260929.md`。
+- **修复 S2C2609 入场帧位置（`!112` 的回归，已让上游 main 变红）**：`!112` 把「装备技能栏/冷却提醒/自定义按键」的恢复帧 **S2C2609** 插在 **19**（技能树）与 **2758**（技能预设）之间，而 `TestEntrySkillPresetFollowsSkillTree` 钉死 **2758 必须紧跟 19**（技能树之后立刻是技能预设）⇒ `cmd/wireprobe` 整包测试 FAIL。现把 2609 移到 2758 **之后**（仍满足"在 S2C19 之后"的外部文档口径），并在 `entryPayloads` 字段与 `packets()` 两处注释里写明这条位置约束。修复后 `go build ./...` 通过、`go vet` 0 项、全量 `go test -p 1 ./internal/... ./cmd/...` **0 失败**。
+- **装备技能栏 / 冷却提醒 / 自定义按键 持久化（请求侧布局已由本机实机帧独立证实）**：放入装备技能栏或冷却提醒、并设置自定义按键后，重登要再设一遍 —— 本仓此前**完全没有**这一族处理。新增 `character_equipment_skill`（`CREATE TABLE IF NOT EXISTS`，按角色存两组 80B 快照，**不改写任何已有存档**）：C2S **2254**（40×i16 装备技能槽位）/ **2256**（10×8B 自定义指令组）在**角色行锁**下各自更新一侧，**2257** 删除该角色两行；角色进入游戏时在 **S2C19 之后恒发 S2C2609**（80+80+8 = 168B，客户端一次消费前 160B；没设过就是全零，等于客户端默认）。
+  - 正文形状（**请求侧为实测**）：`[0:13]` 零前缀 + `[13]` 计数（2254=40 / 2256=10）+ `[14:94]` 80B 快照 + `[94:96]` 零填充 = **96B**。本机 `runtime/*/events.jsonl` 里 **67 个会话各 1 帧 `client_frame id=2256`，全部 96B、`[13]=10`、前缀与尾填充全零、`checksum_ok=true`、`type=1`**（此前 `unimplemented_sample=true` ⇒ 确实没被处理过）。格式严格校验：前缀 / 计数 / 零填充任一偏离即**拒绝**，不落一份错位快照。
+  - 应答沿用同一作者在 C2S2382 上的约定（`oath_selection_flow.go`）：先落库、成功后再回 `<同一 op>` 的 1B ack；落库失败**不回**应答。**不改**角色存档格式，也不动技能 / 指令的真源（仍是角色 JSON 与技能系统本身）。
+  - 验证：`go build ./...` **通过**、`go vet ./internal/... ./cmd/...` **0 项**；**本仓未实机验证** —— 外部文档称作者侧重登后三处均保留，但其会话目录不在本机、无法复核。若 1B ack 形状有误（崩在开技能栏时），删掉该 ack、只留 2609 恢复即可。
+- 补齐名望漏算：依据当前客户端181字节装备记录，读取套装觉醒档位、336件装备的觉醒名望和三类记忆养成；特殊单件按实例品质加分、按最高套装积分不足扣分。保留逐项明细，避免记忆养成与旧装备默认名望重复计算；规则由当前PVF导出，不修改客户端或存档。现有全量测试与vet通过，尚未实机验收；不扩大为誓约节点/强化、全部融合与徽章名望已覆盖。
+- **誓约战斗效果进图时序（外部施工图，Attempt 1/3，**未实机验证**）**：Nature 誓约在普通副本无战斗效果、修炼场 Buff 出两次（第一次无效）。按施工图假设——地图开始时只收到孤立的 NOTI14，完整穿戴容器与誓约选项要等 C2S37 加载后才补发，导致①穿戴效果被应用两次②对普通副本的开图效果装载太晚——对「穿槽位 47 誓约核心 ∧ 无需 Clone 重挂载」的角色，把 **NOTI13 完整穿戴 + NOTI14 槽位更新 + S2C2839 选项**从"加载后补发"**提前到 NOTI29 开始地图之前**，并在加载后**跳过同组重复**。
+  - 开关 `DFO_OATH_DIRECT_ENTRY`（**默认开**；`=0` 回退旧时序）；判据复用 `EquippedOathSelection.ItemID`（未穿槽位 47 时为 0）。
+  - `dungeonEntryPlan` 加 `ctx` 参数（调用方 `context.Background()`，辅助函数内部 5s 超时）；穿 Clone 的角色沿用已验证的重挂载路径，生物/伤害字体/疲劳结算不动。**不改协议字段、不改存档**。
+  - 验证：`go build ./...` 与 `go vet ./cmd/... ./internal/...` **0 项**；**实机验证未做**（按业主要求本轮只保证编译），玩家按「普通副本 11 看自动 Buff/技能/命中触发 → 修炼场 5000 看 Buff 是否只出现一次」判定。
+  - ⚠️ 施工图**只给描述、无 patch/源码**，代码由我方实现；作者树里的「武器装扮」进图调整**不属本主题、未取**。
+- **誓约切换持久化（来自 `shawang/115` 的 `fix/oath-selection-persistence`，整文件快照包已复刻落地）**：誓约选项此前只有内存态 —— 城镇里切过、进副本就丢。现按「角色 + 誓约核心实例键」落库并在场景恢复。
+  - **落库**：新增 `character_oath_options(character_id, core_instance_key, selected_option, revision, updated_at)`，`MigrateOathOptions` 启动期 `CREATE TABLE IF NOT EXISTS` + 索引（**幂等、纯追加**，不改任何角色 JSON 存档；穿戴槽位 47 仍是装备真源）。写库走事务并在事务内复核等级与装备，避免用旧存档覆盖。
+  - **协议**：`oath_system.go` 解析客户端 **C2S2382**（选项切换请求）、编码 **S2C2839**（选项状态）；`oath_selection_flow.go` 处理显式切换与场景初始化读取 —— **副本内拒绝切换**，进图时重新下发已保存选项。
+  - **三条下发时序**：① 城镇入场包序列末尾追加已保存的 S2C2839（`entry_flow.go`）；② 进入城镇、以及更换槽位 47 装备后刷新 S2C2839（`main.go`）；③ 副本加载后按 **NOTI13 完整穿戴容器 → NOTI14 槽位更新 → S2C2839 已选项** 的顺序恢复（副本 actor 重建的 mode-1 detail 记录**不带槽位 47**，所以必须先补穿戴容器）。
+  - **门槛与校验**（`internal/inventory/wear.go`）：誓约装备与晶体（`[oath]` / `[primer]`）加 **115 级门槛**，并补晶体槽位与品级校验。
+  - 落地：新增 `internal/game/protocol/oath_system.go`、`cmd/wireprobe/oath_selection_flow.go`、`docs/protocol/oath-{dungeon-selection,merge-guide}-20260929.md`；修改 `cmd/wireprobe/{main.go,entry_flow.go,dungeon_flow.go}`、`internal/inventory/wear.go`、`internal/storage/oath_options.go`。包内另有 3 个文件（`internal/character/detail.go`、`internal/inventory/equipment.go`、`internal/storage/store.go`）与本仓**归一后逐字节相同**，未改动、未覆盖。
+  - 复刻口径：`main.go`/`dungeon_flow.go`/`wear.go`/`storage/oath_options.go` 对包均为**严格超集（本仓独有 0 行）**，`entry_flow.go` 仅结构体字段对齐 + 新增 `OathSystemInfo` 字段与 op 2839 出站包；`dfolan/*` 导入齐全性扫描为空；删除列全部有据（3 行对齐 + 另一条线的 `disjoint_*`）。
+  - 测试：`go build ./...`、`go vet ./internal/... ./cmd/...` 0 项；`go test -p 1 -count=1 ./internal/... ./cmd/...` **全绿**。候选 SHA-256 `98a759c280668a4de2276993aa4b5adb8cee95d1b378c9e7fda27bfbfe88e66f`（23240192 B）。
+  - ⚠️ **未独立验证**（包内文档自述，勿夸大）：Oath Points 显示数值、Nature 灾难/增益/主动技能/攻击触发火球等**战斗效果**未获实机确认；已确认的只有「穿戴 Nature 誓约进副本后，誓约窗口显示城镇中选择的选项」。⚠️ 起服前请备份 `pgdata`（启动期会建表）。
+- 接入冒险图鉴“新的开始”引导装备登记：按真实背包槽校验并在同一事务内扣物、保存账号登记与回执；任务21651依据账号登记推进，重登后不重复消耗。登记成功只更新对应任务进度，避免重建任务列表触发无关的频道提示。
+- 修复图鉴登记登录恢复依赖角色移动的问题，入场直接恢复账号集合；21651、21652无实际奖励时采用原生完成通知，避免源零物品奖励占位打开空白结算窗。现有全量测试与vet通过，PVF、EXE、DLL不变；登记及任务完成已有日志证据，最新登录恢复和空奖励窗修正仍待实机确认，不代表全部图鉴分类与奖励已接入。
+- **NPC 好感度收尾：剧情角色染色修复 + 进城镇好感度无弹窗全量同步（服务端，已实机验收）**：
+  - **染色（CMD806 p[0]=1）**：染色与送礼共用 CMD806，请求 `01 npcID u32 count (slot,color)*`；正确应答 = `0x01(result)` + 请求体原样回显（9B）。逆向客户端 CMD806 响应 parser（VA 0x14528f570）定论：byte1=op，1 走染色分支本地写颜色、完全不读好感度字段；此前回 16B 送礼 ack（byte1=0）被当成送礼，误弹「好感度增加了X」。
+  - **进城镇全量同步（NOTI733）**：NOTI733 = `ENUM_NOTIPACKET_NPC_FAVOR_POINT_INFO`，客户端 handler（VA 0x1452db190）先清空 favor 容器（纯释放、无 UI 副作用）再按列表重建，全程不派发任何 UI 事件——天然零弹窗。payload = `count u8 + count×(npcID u32 + point u32 + flag u8 + colorCount u8)`；服务端在 NOTI124 入场帧完成后延迟 900ms 推送全表（过早会被未就绪的好感度子系统丢弃）。
+  - **历史错案纠正**：2026-09-27 曾定论「NOTI733 客户端不认识、永不再发」——真因是当时发的是 8B（npcID+point）试探包，客户端按 count 列表解析，首字节被当成 count 读越界触发 217 冻结，并非不认识该通知。进城静默同步由此解决，重选角色后好感度直接正确，无需再推 806 ack（旧「已知取舍」条目一并作废删除）。
+  - **白名单**：`observedGameRequest` 注释同步更新——806 每帧都必须解密分发（不在白名单时第 9 帧起 `verified=false`，表现为点击送礼/染色无反应）。
+  - **验证**：`go vet` 通过；新增单测：染色应答逐字节回显、NOTI733 精确布局/空表/255 条截断。实机验收：进城镇好感度百分比与染色选项直接正确、零弹窗；送礼与染色均正常。
+- 接入115客户端冒险团信息页、账号经验成长与商店、主力/精锐角色保存恢复、推荐地下城计数，以及迷雾誓约源规则、通关经验、阶段领奖和誓约装备。账号累计、扣款和奖励均沿用事务与幂等回执，兼容既有角色和物品存档。
+- 接入赤红铁矿与黑鸦小队的频道身份、任务资格和独立落点。矿区提供编队、阶段切换、计时扣时复活、退出与源奖励邮件；黑鸦提供建队、次数、通关奖单、自动翻牌、领主装备拾取及未领补发，修正队伍状态条零比例占位。
+- 黑鸦领主史诗10%、神话0.1%、腐蚀产物1%为本服暂定概率，各组独立抽取；奖池取自当前PVF，不视为官方爆率或套用于中途绿名。只读PVF/CTP解析及导出工具随源码提供，不依赖汉化补丁。
+- 本地实机确认黑鸦入场、通关与奖励领取，自动翻牌有三项材料入包记录；精锐随行战斗未完整验收，玩法信息页暂缓，矿区重新探索和图鉴碎片未接入。不包含本地测试账号的等级、结晶和次数调整。
+- **装备继承（CMD1722）+ 商店购买定价/账号材料支付 + 快捷栏装备**：三件独立的服务端修复（来自三个外部修复包，均已复刻落地）。
+  - **装备继承 CMD1722**：这条分派原先**整条缺失** —— 客户端按下确认后直发 1722，服务端既不改状态也不回包，玩家看到「按下继承毫无效果」（与 CMD205 增幅书同类）。请求体 466 B = 14 B 前缀 + 14×32 B 记录 + 尾 `u32`（恒 0，不能当条数）；方向按等级判定，高等级件当材料→低等级件当基础、同级拒绝；搬强化/增幅等级（`offset 10` 低 5 位）、次元红字（`offset 19/20`）、附魔卡（`offset 14`）、锻造四类，材料件本体保留、四类清零；幂等键 = `sha256(原始请求)`。★ **禁止任何方向、任何形态的 1722 出站包**（`kind=1` 的 1722 是客户端自己发出去的命令、无接收 handler；`kind=0` 的 1722 是「小游戏道具使用计数通知」，弹的是道具使用次数）⇒ 成功/失败/拒绝都只落库 + 发 `id14` 槽位增量行（+ `WornSpaceUpdate`），用 `id14` 而非 `id13` 是因为窗口仍持有两件装备的对象引用，整包重建会打断引用。
+  - **商店购买**：客户端把各类失败统一弹成 `Your Inventory is full.`（**与仓库无关**），真实原因是三处定价/扣料缺口 —— ①物品没有 `[price]` 原来直接拒 ②**用材料交换的商品**，材料成本写在**物品脚本**的 `[need material]`（商店表 `itemshop/**.shp` **没有价格字段**）③材料可能在**账号材料仓库**（晶块类 space 35 / 槽 363~379），而 `PayMaterials` 只查背包。修法：支付优先级 = `.shp 的 [need material]` → **物品脚本的 `[need material]`** → 金币价（`[price]`，缺则按 `Sell×5` ≈ `[value]` 兜底，再缺 = 0 免费）；材料支付走 `Store.CommitAccountMaterialEvent`（扣账号材料与改角色存档**同事务 + 幂等键**）；新增 `PayMaterialsWithStore`（**先扣背包、差额扣账号仓库**）；购买后补发 **NOTI13 list35**。新增 `configs/item-materials.json`（**14,211 种**带 `[need material]` 的物品）与只读导出脚本。
+  - **快捷栏装备**：护身符在背包里属**装备区**（槽 29/30，存在 `b.Equipment`），而堆叠物路径 `moveStack` 只认 `b.Items` ⇒ 落到 `MoveOrdinary`，其 `find()` 把列表 0 只当装备区 9..64 ⇒ 快捷槽 2..8 全被拒（`slot outside equipment bag`）。修法：列表 0 的合法槽位扩为「装备区 9..64 ∪ 快捷栏 2..8」（0/1 是金币/点券显示格，不能放物品），并加「**快捷栏同一时间只能放一件装备**」约束（第二件到空槽拒绝 `quick belt already holds an equipment`；拖到已被占用的快捷槽 = 换装放行；栏内调位放行；消耗品不受影响）。
+  - 落地：新增 `internal/game/protocol/inherit.go`(+test)、`internal/inventory/inherit.go`(+test)、`cmd/wireprobe/inherit_flow.go`(+test)、`internal/catalog/item_materials.go`、`scripts/export_item_materials.py`、`configs/item-materials.json`、`internal/inventory/quickslot_equip_test.go`、`docs/protocol/inherit-cmd1722-20260928.md`；修改 `cmd/wireprobe/{main.go,request_scope.go,shop_flow.go}`、`internal/inventory/{shop.go,wear.go}`、`internal/loot/{shop.go,pickup.go}`。
+  - 测试：全量 `go build ./...` / `go vet ./internal/... ./cmd/...` / `go test -p 1 -count=1 ./internal/... ./cmd/...` **22 包全绿**；新增回归含 `TestInheritNeverSendsAnyOutbound1722`、`TestQuickSlotEquipmentOneOnly`、`TestQuickSlotEquipmentMoveRequest`。
+- **装备库（装备图鉴）服务端闭环 + 装备生成/变换（CMD2259）实机打通**：2264 收藏（全量替换语义，每次发整张列表）、NOTI2610 完整状态（恰好 16444 B）、2265 收录请求取证；装备生成按 `[create cost]` 扣料发装备，实机两种付款方式各生成一次均成功。
+  - **三个字段语义由实机反例纠正**（此前都按“实测恒定”写进了契约）：头 `[12]` = 动作（0 = 装备生成 / 1 = 装备变换）；头 `[13]` = **付款方式序号**（1 起，对应 `[cost]` 行的顺序）—— 忽略它会把玩家选的“巡礼之印”那一支错扣成金币；头 `u32@8` 不是常量而是**来源窗口**（变换 `0x46ece836` / 生成 `0x5ff2f9`）。
+  - **付费分仓（“取用金库材料”）**：三档登记证 `10361512`~`10361516` 是**账号共享材料**（灵魂仓库 / 容器 35），走 `AccountMaterials`；其余走背包；金币直减。三步同在 `CommitAccountMaterialEvent` 的同一个 apply 回调内 ⇒ 任何一步失败整批回滚。此前只查背包，于是登记证被开机清扫搬进仓库后永远付不起（实机 `have 0`）。
+  - **幂等键含 `sha256(角色 state)`**：成功一次状态必变 ⇒ 同一件装备可以重复生成；重复帧到达时状态未变 ⇒ 仍然幂等。旧键只有“模板+槽+档”，会把第二次生成当重放**静默吞掉**（还会打出全零回执，日志看起来像“成功了但没生效”）。
+  - **应答不替客户端推 UI 状态**：`payload[5]` 默认只写成功标志、不动窗口状态 —— `setState` 的调用者里客户端自己只传 `0`/`2`，`3`/`4` 只由本回包触发，强行推到状态 3 会让「切换材料」按钮失灵。
+  - 成本严格按玩家选的那一支扣，**付不起就拒绝、不回退**（回退 = 扣错东西）。
+  - 落地：`internal/game/protocol/equipment_journal.go`（2264/2259 编解码）、`internal/catalog/equipment_journal.go`、`internal/catalog/equipment_create_cost.go`（`[create cost]` 导入）、`internal/inventory/equipment_journal.go`（账本，存角色 state）、`internal/loot/equipment_craft.go`（执行侧）、`cmd/wireprobe/equipment_journal_flow.go`、`cmd/equipmentjournalimport`、`configs/equipment-journal.generated.json`、`configs/equipment-create-cost.generated.json`。
+  - 实机样本固化：2264 八条 + 2259 五条（hex 由脚本从 `events.jsonl` 直接生成，不手抄）。
 - **Luke 任务4851实机确认与剧情通关判断注释**：沿用3939修复版，用户确认4851正常完成；日志记录目标地图312147的剧情触发、通关、结算及任务提交，存档确认 completed/progress=0。在 `CompletionNeedsBossCheck` 旁写明旧判断会编码 Boss 编号0并丢弃整批任务刷新/通关通知，要求后续修改保留无 Boss 身份与真实 Boss 两条通知语义及现有回归用例。本轮只补注释和确认记录，未改运行逻辑。
 - **Luke 任务3939剧情收尾无法结算：实机已确认**。末房无可报告的 Boss 编号，原任务剧情触发后尝试编码 NOTI115 的目标 0，导致任务刷新和通关通知整批丢弃。Go 服务端仅在完成目标非零时发送 Boss 确认；无 Boss 身份的已完成剧情直接发送现有 NOTI31。用户确认任务完成，实机日志包含剧情触发、通关通知、结算及3939提交完成。全量测试、vet和构建通过；候选 SHA-256 `61434FE1412A7B1E742742CD9C0ED0721397B3BD7C75912A15F2D487879D969E`。未改客户端或数据库结构。基线：`server/work/dfo-lan/docs/protocol/luke-quest3939-scene-completion-20260929.md`。
+- 补充装备升级与套装名望：按当前客户端和 PVF 规则计入强化、增幅、锻造、附魔、称号、装扮、光环、宠物与 115 套装积分档位；强化与锻造取较高值，副手和幻化槽不重复计分，处理脚本继承、重复字段及等级分段。
+- 登录、换装及升级操作后使用 NOTI2257 刷新当前/最高名望；新增 `characters.max_fame` 兼容迁移，不覆盖角色 JSON 和物品存档。规则数据、来源校验和、只读导出脚本与 `equipmentaudit -fame-state` 明细入口随源码提供。现有本地全量测试与 vet 通过，客户端实机效果待验证，不扩大为所有养成分支完整覆盖。
 - **Evil Justice（任务12893）第二房间过场恢复战斗房：实机已确认**。用户确认第三轮候选在过场后进入正确的战斗房间。客户端原生NOTI29 flag2清除剧情层索引，mode0复用同格战斗房缓存；不重建房间、敌人或演出状态。该行为纳入已确认基线；完整后续房间推进未单独记录验收。取证、回滚与验收范围：`server/work/dfo-lan/docs/protocol/evil-justice-quest12893-layer-revisit-20260929.md`。
-
 
 ## 2026-09-28
 - **幻化栏开启（CMD857 `OPEN_AURA_SKIN_SLOT`）+ 光环幻化槽放行**：修两个叠加的缺陷 ——「点 OK 后光环幻化栏不开启」与「栏开了但光环放不进幻化槽」。交付只有说明文档（无配套 patch），按文档逐文件实现；上游的宠物幻化栏底座已在，故本次只补光环侧 + 857。
@@ -261,16 +317,7 @@
   - 基线文档：`analysis/dumps/CLIENT-MECHANICS.md` §18–§19、dump 目录 `analysis/dumps/skin-noti/`（`df4*.c`）、日志 `analysis/ida-work/df4{0,1,2}.log`。
   - `D:\115us` 不是 git 仓库，本任务改动以文件清单交付，无法 commit。
 
-
 ## 2026-09-27
-- **NPC 好感度送礼落地（服务端，已实机验收）**：CMD806 送礼从「未识别命令」变成完整链路：扣料、加点、持久化、弹窗与进度条驱动。
-  - **白名单**：806 原不在 `observedGameRequest` 白名单里，受每连接前 8 帧的采样保护限制——第 9 次送礼起 `verified=false` 直接不进处理器，实机表现为「点击送礼没有任何反应」。每个 806 必须解密分发。
-  - **礼物识别**：请求 p[6] 编码礼物所在账号材料栏槽位-256（0x6f→367 无色、0x6c→364 白色），按槽位反查模板扣对应小晶块（此前硬编码 3037 导致选白色也扣无色）。
-  - **点数模型（PVF 语义）**：`[favor level point up]` 键是**礼物物品**而非 NPC，两个数值是每次送礼的随机区间——无色 100~300、黑/白/红/蓝 200~600、金色 400~900；非小晶块拒绝。档位来自 `[favor level point down]`：500/1000/1500 累计门槛，1500 满。按业主要求去掉每日送礼次数限制，满值后仍可继续累计（客户端百分比停在 100%）。
-  - **持久化**：新表 `npc_favor(character_id,npc_id,point,daily_count,last_gift_day)`；首次送礼 INSERT 初始点数为 0、结算再加本次增量——防止首礼翻倍。扣料与加点在同一事务内完成，任一失败整体回滚。
-  - **回包布局（黑盒实测定案）**：806 成功回包 16 字节 `[成功@0, 0@1, npcID@2 u32, delta@6 u16, point@8 u32]`——弹窗「好感度增加了X」读偏移 6，好感度百分比/进度条读偏移 8；npcID 必须在偏移 2（放偏移 4 会被客户端按 4 字节对齐读成 65536 满级事故）。短包（8B）触发客户端 CMD217 拒收并冻结，48B 详单整包被忽略；NOTI733 客户端不认识（217+冻结）永不再发。随包发 NOTI195（npcID+总点数）与 NOTI194（npcID+本次增量）。
-  - **已知取舍（业主接受）**：重选角色后好感度窗口显示 0% 直到下次送礼——静默同步实验（进城推 806 ack 会弹「增加了0」、16B NOTI194/195 均无效）已尝试并放弃。
-  - **验证**：`go build ./...`、`go vet` 通过；`go test ./cmd/wireprobe ./internal/storage ./internal/game/protocol ./internal/inventory` 全绿（新增 3 条：槽位解码、礼物区间与档位守卫、按所选颜色扣料）。实机验收：弹窗数值正确、百分比/进度条实时增长、连送无响应问题消失、可正常退出。
 - **小深渊「异空间」落地：按 `[maze chance rate]` 掷骰选图（服务端，待实机验收）**：异空间就是小深渊的 **maze 1**（`100016615_special.map`），源权重 992857 : 7143。此前 `Select()` 恒取「index 最小者」⇒ maze 1 永远走不到；天平掉落表本来就按 maze 分段，所以**不需要新表也不需要新物品**。
   - **判定依据**：两张 maze 的 8 个奖励盒**只差 `pool0`** —— 普通图给 `10362432 ×2`（Merchant Guild Silver Coin），异空间给 **`10415192 ×2`（Splendor Soul Crystal / 光辉灵魂结晶）**；地图上异空间多一个 `[passive object] 109134975`（天平黑洞演出装置）。社区口径「进异空间额外掉 2 个光辉灵魂结晶」逐字吻合。
   - **概率**：官方 0.7143% 对单机端太低（约 171 场一次），按业主定调放大到 **2%**（`rates [980000, 20000]`）；官方原值保留在 `source_rates` 里只作对照，有一条测试守它不被改掉。

@@ -2,11 +2,123 @@ package storage
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
 )
+
+// EquippedOathOption projects the equipped core and its persisted option.
+// The old character JSON needs no migration: its worn slot remains authority.
+type EquippedOathOption struct {
+	Level  int
+	ItemID uint32
+	Option int
+}
+
+func oathEquippedFromState(raw json.RawMessage) (EquippedOathOption, error) {
+	var state struct {
+		Level     int `json:"level"`
+		Inventory struct {
+			Worn []struct {
+				Slot     uint16 `json:"slot"`
+				Template uint32 `json:"template"`
+			} `json:"worn"`
+		} `json:"inventory"`
+	}
+	if err := json.Unmarshal(raw, &state); err != nil {
+		return EquippedOathOption{}, err
+	}
+	if state.Level < 1 || state.Level > 255 {
+		return EquippedOathOption{}, fmt.Errorf("invalid character level for oath")
+	}
+	out := EquippedOathOption{Level: state.Level}
+	for _, worn := range state.Inventory.Worn {
+		if worn.Slot == 47 {
+			if worn.Template == 0 || out.ItemID != 0 {
+				return EquippedOathOption{}, fmt.Errorf("invalid worn oath core")
+			}
+			out.ItemID = worn.Template
+		}
+	}
+	return out, nil
+}
+
+func oathCoreKey(itemID uint32) string { return fmt.Sprintf("oath:%d", itemID) }
+
+// EquippedOathSelection reloads level and slot 47 from the database. A
+// bootstrap C2S2382 must call this instead of trusting its local option 1.
+func (s *Store) EquippedOathSelection(ctx context.Context, accountID, characterID int64) (EquippedOathOption, error) {
+	if accountID <= 0 || characterID <= 0 {
+		return EquippedOathOption{}, errors.New("invalid oath character")
+	}
+	tx, err := s.DB.Begin(ctx)
+	if err != nil {
+		return EquippedOathOption{}, err
+	}
+	defer tx.Rollback(ctx)
+	var raw json.RawMessage
+	if err := tx.QueryRow(ctx, `SELECT state FROM characters WHERE account_id=$1 AND id=$2 AND deleted_at IS NULL FOR SHARE`, accountID, characterID).Scan(&raw); err != nil {
+		return EquippedOathOption{}, err
+	}
+	out, err := oathEquippedFromState(raw)
+	if err != nil || out.Level < 115 || out.ItemID == 0 {
+		if err != nil {
+			return out, err
+		}
+		return out, tx.Commit(ctx)
+	}
+	var selected int
+	err = tx.QueryRow(ctx, `SELECT selected_option FROM character_oath_options WHERE character_id=$1 AND core_instance_key=$2`, characterID, oathCoreKey(out.ItemID)).Scan(&selected)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return EquippedOathOption{}, err
+	}
+	out.Option = 1
+	if err == nil {
+		if selected < 1 || selected > 3 {
+			return EquippedOathOption{}, fmt.Errorf("invalid stored oath selection")
+		}
+		out.Option = selected
+	}
+	return out, tx.Commit(ctx)
+}
+
+// SelectEquippedOathOption validates the selected character, level, and worn
+// core while holding the same character lock used by equipment moves.
+func (s *Store) SelectEquippedOathOption(ctx context.Context, accountID, characterID int64, itemID uint32, option int) (EquippedOathOption, error) {
+	if accountID <= 0 || characterID <= 0 || itemID == 0 || option < 1 || option > 3 {
+		return EquippedOathOption{}, errors.New("invalid oath selection")
+	}
+	tx, err := s.DB.Begin(ctx)
+	if err != nil {
+		return EquippedOathOption{}, err
+	}
+	defer tx.Rollback(ctx)
+	var raw json.RawMessage
+	if err = tx.QueryRow(ctx, `SELECT state FROM characters WHERE account_id=$1 AND id=$2 AND deleted_at IS NULL FOR UPDATE`, accountID, characterID).Scan(&raw); err != nil {
+		return EquippedOathOption{}, err
+	}
+	out, err := oathEquippedFromState(raw)
+	if err != nil {
+		return EquippedOathOption{}, err
+	}
+	if out.Level < 115 || out.ItemID != itemID {
+		return EquippedOathOption{}, fmt.Errorf("oath core is locked or request item is not worn in slot 47")
+	}
+	key := oathCoreKey(itemID)
+	_, err = tx.Exec(ctx, `INSERT INTO character_oath_options(character_id,core_instance_key,selected_option,revision,updated_at)
+ VALUES($1,$2,$3,1,now()) ON CONFLICT(character_id,core_instance_key) DO UPDATE
+ SET selected_option=EXCLUDED.selected_option,revision=character_oath_options.revision+1,updated_at=now()`, characterID, key, option)
+	if err != nil {
+		return EquippedOathOption{}, err
+	}
+	if err = tx.Commit(ctx); err != nil {
+		return EquippedOathOption{}, err
+	}
+	out.Option = option
+	return out, nil
+}
 
 var ErrOathOptionRevisionConflict = errors.New("oath option revision conflict")
 

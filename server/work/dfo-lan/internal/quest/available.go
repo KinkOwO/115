@@ -54,9 +54,22 @@ func (s *Service) Available(ctx context.Context, role storage.Character) ([]uint
 				allowed = false
 			}
 		}
-		if allowed {
+		if allowed && !collisionsBlocked(en.Collisions, status) {
 			ids = append(ids, id)
 		}
 	}
 	return ids, nil
+}
+
+// collisionsBlocked reports whether a mutually exclusive branch peer is
+// already taken: [collision quest] quests (Silent City faction, job change,
+// ...) must disappear from the available list once the character accepted or
+// completed one of them, so the remaining branches cannot be re-chosen.
+func collisionsBlocked(collisions []uint32, status map[uint32]string) bool {
+	for _, c := range collisions {
+		if s, ok := status[c]; ok && (s == "accepted" || s == "completed") {
+			return true
+		}
+	}
+	return false
 }

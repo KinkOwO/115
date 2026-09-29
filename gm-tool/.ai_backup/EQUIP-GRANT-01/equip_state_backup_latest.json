@@ -1,0 +1,164 @@
+{
+  "level": 110,
+  "inventory": {
+    "gold": 123460,
+    "worn": [
+      {
+        "slot": 12,
+        "template": 27605,
+        "durability": 45
+      },
+      {
+        "slot": 0,
+        "template": 512550504,
+        "durability": 0
+      },
+      {
+        "slot": 1,
+        "template": 512560504,
+        "durability": 0
+      },
+      {
+        "slot": 2,
+        "template": 512570504,
+        "durability": 0
+      },
+      {
+        "slot": 3,
+        "template": 512500504,
+        "durability": 0
+      },
+      {
+        "slot": 4,
+        "template": 512510504,
+        "durability": 0
+      },
+      {
+        "slot": 5,
+        "template": 512540504,
+        "durability": 0
+      },
+      {
+        "slot": 6,
+        "template": 512520504,
+        "durability": 0
+      },
+      {
+        "slot": 7,
+        "template": 512530504,
+        "durability": 0
+      }
+    ],
+    "items": [
+      {
+        "slot": 1,
+        "Amount": 1,
+        "Template": 10000
+      }
+    ],
+    "version": "ordinary-bag-v1",
+    "equipment": [
+      {
+        "slot": 9,
+        "template": 27606,
+        "durability": 45
+      },
+      {
+        "slot": 10,
+        "template": 27614,
+        "durability": 10
+      },
+      {
+        "slot": 11,
+        "template": 27648,
+        "durability": 88
+      }
+    ],
+    "special_equipment": {
+      "1": []
+    }
+  },
+  "attributes": {
+    "[hp max]": 510,
+    "[mp max]": 490,
+    "[weight]": 50000,
+    "[cast speed]": 800,
+    "[jump power]": 440,
+    "[jump speed]": 100,
+    "[move speed]": 900,
+    "[attack speed]": 900,
+    "[hit recovery]": 600,
+    "[magical attack]": 99,
+    "[mp regen speed]": 50,
+    "[dark resistance]": 20,
+    "[inventory limit]": 45000,
+    "[magical defense]": 99,
+    "[physical attack]": 101,
+    "[light resistance]": -20,
+    "[physical defense]": 101
+  },
+  "experience": 10785378357,
+  "advancement": 0,
+  "skill_slots": [
+    null,
+    null
+  ],
+  "source_path": "character/swordman/atswordman.chr",
+  "gm_locked_sp": [
+    1234,
+    9999
+  ],
+  "gm_locked_tp": [
+    567,
+    999
+  ],
+  "skill_points": [
+    1234,
+    9999
+  ],
+  "creation_mode": null,
+  "source_sha256": "ddb44f5df377c85a0e3e8f34a57df69c09a5c11751938ce3f83f32569056cdef",
+  "learned_skills": [
+    null,
+    null
+  ],
+  "creation_options": "AAAAAAAA/wAEAAIA",
+  "skill_variations": [
+    {},
+    {}
+  ],
+  "technique_points": [
+    567,
+    999
+  ],
+  "cinematic_skipped": [
+    14923
+  ],
+  "equipment_pending": false,
+  "initial_skill_cells": [
+    179,
+    7,
+    1,
+    96,
+    1,
+    1,
+    174,
+    1,
+    1,
+    169,
+    1,
+    1,
+    8,
+    1,
+    1,
+    190,
+    1,
+    1,
+    511,
+    1,
+    1,
+    452,
+    1,
+    1
+  ]
+}
