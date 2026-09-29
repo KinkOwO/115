@@ -1,6 +1,15 @@
 # CHANGELOG
 
 ## 2026-09-29
+- **誓约切换持久化（来自 `shawang/115` 的 `fix/oath-selection-persistence`，整文件快照包已复刻落地）**：誓约选项此前只有内存态 —— 城镇里切过、进副本就丢。现按「角色 + 誓约核心实例键」落库并在场景恢复。
+  - **落库**：新增 `character_oath_options(character_id, core_instance_key, selected_option, revision, updated_at)`，`MigrateOathOptions` 启动期 `CREATE TABLE IF NOT EXISTS` + 索引（**幂等、纯追加**，不改任何角色 JSON 存档；穿戴槽位 47 仍是装备真源）。写库走事务并在事务内复核等级与装备，避免用旧存档覆盖。
+  - **协议**：`oath_system.go` 解析客户端 **C2S2382**（选项切换请求）、编码 **S2C2839**（选项状态）；`oath_selection_flow.go` 处理显式切换与场景初始化读取 —— **副本内拒绝切换**，进图时重新下发已保存选项。
+  - **三条下发时序**：① 城镇入场包序列末尾追加已保存的 S2C2839（`entry_flow.go`）；② 进入城镇、以及更换槽位 47 装备后刷新 S2C2839（`main.go`）；③ 副本加载后按 **NOTI13 完整穿戴容器 → NOTI14 槽位更新 → S2C2839 已选项** 的顺序恢复（副本 actor 重建的 mode-1 detail 记录**不带槽位 47**，所以必须先补穿戴容器）。
+  - **门槛与校验**（`internal/inventory/wear.go`）：誓约装备与晶体（`[oath]` / `[primer]`）加 **115 级门槛**，并补晶体槽位与品级校验。
+  - 落地：新增 `internal/game/protocol/oath_system.go`、`cmd/wireprobe/oath_selection_flow.go`、`docs/protocol/oath-{dungeon-selection,merge-guide}-20260929.md`；修改 `cmd/wireprobe/{main.go,entry_flow.go,dungeon_flow.go}`、`internal/inventory/wear.go`、`internal/storage/oath_options.go`。包内另有 3 个文件（`internal/character/detail.go`、`internal/inventory/equipment.go`、`internal/storage/store.go`）与本仓**归一后逐字节相同**，未改动、未覆盖。
+  - 复刻口径：`main.go`/`dungeon_flow.go`/`wear.go`/`storage/oath_options.go` 对包均为**严格超集（本仓独有 0 行）**，`entry_flow.go` 仅结构体字段对齐 + 新增 `OathSystemInfo` 字段与 op 2839 出站包；`dfolan/*` 导入齐全性扫描为空；删除列全部有据（3 行对齐 + 另一条线的 `disjoint_*`）。
+  - 测试：`go build ./...`、`go vet ./internal/... ./cmd/...` 0 项；`go test -p 1 -count=1 ./internal/... ./cmd/...` **全绿**。候选 SHA-256 `98a759c280668a4de2276993aa4b5adb8cee95d1b378c9e7fda27bfbfe88e66f`（23240192 B）。
+  - ⚠️ **未独立验证**（包内文档自述，勿夸大）：Oath Points 显示数值、Nature 灾难/增益/主动技能/攻击触发火球等**战斗效果**未获实机确认；已确认的只有「穿戴 Nature 誓约进副本后，誓约窗口显示城镇中选择的选项」。⚠️ 起服前请备份 `pgdata`（启动期会建表）。
 - **NPC 好感度收尾：剧情角色染色修复 + 进城镇好感度无弹窗全量同步（服务端，已实机验收）**：
   - **染色（CMD806 p[0]=1）**：染色与送礼共用 CMD806，请求 `01 npcID u32 count (slot,color)*`；正确应答 = `0x01(result)` + 请求体原样回显（9B）。逆向客户端 CMD806 响应 parser（VA 0x14528f570）定论：byte1=op，1 走染色分支本地写颜色、完全不读好感度字段；此前回 16B 送礼 ack（byte1=0）被当成送礼，误弹「好感度增加了X」。
   - **进城镇全量同步（NOTI733）**：NOTI733 = `ENUM_NOTIPACKET_NPC_FAVOR_POINT_INFO`，客户端 handler（VA 0x1452db190）先清空 favor 容器（纯释放、无 UI 副作用）再按列表重建，全程不派发任何 UI 事件——天然零弹窗。payload = `count u8 + count×(npcID u32 + point u32 + flag u8 + colorCount u8)`；服务端在 NOTI124 入场帧完成后延迟 900ms 推送全表（过早会被未就绪的好感度子系统丢弃）。

@@ -80,6 +80,21 @@ func (s *WearService) wearable(role storage.Character, item BagEquipment, slot u
 	if e := json.Unmarshal(role.State, &state); e != nil {
 		return e
 	}
+	if (kind[0].Text == "[oath]" || kind[0].Text == "[primer]") && state.Level < 115 {
+		return fmt.Errorf("oath equipment requires level 115")
+	}
+	if kind[0].Text == "[primer]" {
+		if slot < 36 || slot > 46 {
+			return fmt.Errorf("oath crystal does not fit destination slot")
+		}
+		rarity := d.Fields["[rarity]"]
+		if len(rarity) != 1 || rarity[0].Type != 0 {
+			return fmt.Errorf("oath crystal rarity unavailable")
+		}
+		if rarity[0].Value == 8 && slot < 44 {
+			return fmt.Errorf("primeval oath crystal requires slot 44..46")
+		}
+	}
 	job, ok := s.Professions.Professions[role.Profession]
 	if !ok {
 		return fmt.Errorf("equipment profession unavailable")

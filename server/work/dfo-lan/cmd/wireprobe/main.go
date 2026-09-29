@@ -526,6 +526,9 @@ func main() {
 		if e = s.MigrateOathProgress(ctx); e != nil {
 			log.Fatal(e)
 		}
+		if e = s.MigrateOathOptions(ctx); e != nil {
+			log.Fatal(e)
+		}
 		// Per-(character,dungeon) omen save slot. The omen is not an item: it is a
 		// character-save marker the client reads out of NOTI2836 (see omen_state.go).
 		if e = s.MigrateOmenState(ctx); e != nil {
@@ -2304,6 +2307,22 @@ func main() {
 				}
 				continue
 			}
+			if frame.Type == 1 && frame.ID == 2382 && bootstrapped && verified && worldState != nil && worldState.role.ID == selectedCharacterID {
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				plan, oathErr := worldState.oathSelectionPackets(ctx, plaintext)
+				cancel()
+				if oathErr != nil {
+					event(map[string]any{"kind": "oath_selection_rejected", "character_id": selectedCharacterID, "reason": oathErr.Error()})
+					continue
+				}
+				for _, packet := range plan {
+					if err = sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
+						return
+					}
+					event(map[string]any{"kind": packet.Name, "character_id": selectedCharacterID, "id": packet.ID, "plain_hex": hex.EncodeToString(packet.Payload)})
+				}
+				continue
+			}
 			if frame.ID == 19 && bootstrapped && verified && wearService != nil {
 				plan, e := equipmentState.handle(wearService, worldState, plaintext, frame.Raw)
 				if e != nil {
@@ -2341,6 +2360,17 @@ func main() {
 					}
 				}
 				plan = worldState.appendFameUpdate(plan, event)
+				if decodeErr == nil && characters != nil && worldState != nil &&
+					((r.SourceList == 3 && r.SourceSlot == 47) || (r.DestinationList == 3 && r.DestinationSlot == 47)) {
+					oathCtx, oathCancel := context.WithTimeout(context.Background(), 5*time.Second)
+					selection, oathErr := characters.Store.EquippedOathSelection(oathCtx, developmentAccount, worldState.role.ID)
+					oathCancel()
+					if oathErr != nil {
+						event(map[string]any{"kind": "oath_selection_refresh_error", "character_id": worldState.role.ID, "reason": oathErr.Error()})
+					} else if info, infoErr := protocol.OathSystemInfo(selection.Level, selection.Option); infoErr == nil {
+						plan = append(plan, outboundPacket{"oath_system_info_after_wear", 0, 2839, info})
+					}
+				}
 				prepared, e := preparePackets(keys, plan)
 				if e != nil {
 					event(map[string]any{"kind": "equipment_encode_error", "error": e.Error()})
@@ -4543,6 +4573,20 @@ func main() {
 					}
 				}
 				plan := entryPayloads{Select: payload, Basic: basic, Addition: addition, Vault: vaultPayload, UserArea: userArea, Area: areaPayload, Fatigue: fatiguePayload, AccountOptions: accountOptions}
+				if characters != nil {
+					oathCtx, oathCancel := context.WithTimeout(context.Background(), 5*time.Second)
+					selection, oathErr := characters.Store.EquippedOathSelection(oathCtx, developmentAccount, role.ID)
+					oathCancel()
+					if oathErr != nil {
+						event(map[string]any{"kind": "oath_selection_restore_error", "character_id": role.ID, "reason": oathErr.Error()})
+						continue
+					}
+					plan.OathSystemInfo, oathErr = protocol.OathSystemInfo(selection.Level, selection.Option)
+					if oathErr != nil {
+						event(map[string]any{"kind": "oath_selection_restore_error", "character_id": role.ID, "reason": oathErr.Error()})
+						continue
+					}
+				}
 				plan.SecondaryVault = secondaryVaultPayload
 				// 装备库完整状态（NOTI2610）：只在**已提交**的角色状态上构建。空账本不发这一帧。
 				if body, jErr := equipmentJournalEntryPayload(role, journalRules); jErr != nil {
