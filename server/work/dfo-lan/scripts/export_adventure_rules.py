@@ -5,7 +5,7 @@ import json
 import struct
 from pathlib import Path
 
-from repair_item_names import Archive
+from pvf_archive import Archive
 
 
 def section(tokens, tag):

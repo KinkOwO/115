@@ -493,7 +493,7 @@ func (w *worldSession) settleBleedingMineStage(p []byte) ([]outboundPacket, erro
 
 func (w *worldSession) advanceBleedingMine(r protocol.DungeonDirectMove) (*dungeon.Session, []outboundPacket, error) {
 	mine := w.bleedingMineStart
-	if mine == nil || w.activeDungeon == nil || !w.activeDungeon.Completed() || len(mine.StageResult) == 0 || mine.Stage >= 3 || mine.Members[mine.Stage+1] == 0 || r.ID != bleedingMineRoutes[mine.Group][mine.Stage+1] || r.Difficulty != mine.Stage+1 {
+	if mine == nil || w.activeDungeon == nil || !w.activeDungeon.Completed() || len(mine.StageResult) == 0 || mine.Stage >= 3 || mine.Members[mine.Stage+1] == 0 || r.ID != bleedingMineRoutes[mine.Group][mine.Stage+1] || uint32(r.Difficulty) != mine.Stage+1 {
 		return nil, nil, fmt.Errorf("矿区后续关卡与已通关阶段不一致")
 	}
 	// 1407417A0把阶段索引放入2062第二个u32；它不是副本难度。
@@ -501,7 +501,7 @@ func (w *worldSession) advanceBleedingMine(r protocol.DungeonDirectMove) (*dunge
 	if err != nil {
 		return nil, nil, err
 	}
-	plan := []outboundPacket{{"dungeon_gate_ack", 1, 15, []byte{1}}, {"dungeon_direct_move_selection_initialized", 0, 27, protocol.EnterDungeonSelection()}, {"dungeon_direct_move_ready", 0, 2281, protocol.DungeonDirectMoveNotice(r)}}
+	plan := []outboundPacket{{"dungeon_gate_ack", 1, 15, []byte{1}}, {"dungeon_direct_move_selection_initialized", 0, 27, protocol.EnterDungeonSelection()}, {"dungeon_direct_move_ready", 0, 2281, protocol.BleedingMineNextNotice(r)}}
 	mine.Stage++
 	mine.Dungeon = r.ID
 	mine.StageResult = nil

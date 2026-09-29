@@ -9,7 +9,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "server/work/dfo-lan/scripts"))
-from repair_item_names import Archive
+from pvf_archive import Archive
 
 
 def records(raw):

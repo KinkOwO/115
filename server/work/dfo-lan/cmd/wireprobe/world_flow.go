@@ -18,24 +18,24 @@ import (
 )
 
 type worldSession struct {
-	lastFame        uint32
-	fameInitialized bool
-	moonConfig      *moonSoloConfig
-	moon            moonSoloState
-	characters      *character.Service
-	pilotDeath      *odysseyDeath
-	service         *world.Service
-	account         int64
-	serverID        uint32
-	role            storage.Character
-	level           byte
-	adventureSnapshot [32]byte
-	channelType uint32
-	bleedingMineCreated bool
-	bleedingMineReady bool
-	bleedingMineRoster []int64
-	bleedingMineStart *bleedingMineStart
-	blackPurgatory blackPurgatoryState
+	lastFame               uint32
+	fameInitialized        bool
+	moonConfig             *moonSoloConfig
+	moon                   moonSoloState
+	characters             *character.Service
+	pilotDeath             *odysseyDeath
+	service                *world.Service
+	account                int64
+	serverID               uint32
+	role                   storage.Character
+	level                  byte
+	adventureSnapshot      [32]byte
+	channelType            uint32
+	bleedingMineCreated    bool
+	bleedingMineReady      bool
+	bleedingMineRoster     []int64
+	bleedingMineStart      *bleedingMineStart
+	blackPurgatory         blackPurgatoryState
 	adventureEliteSnapshot [32]byte
 	// odyssey mirrors character.OdysseyRole for this session. It selects which
 	// source level gate the world service applies: an Arad Odyssey character

@@ -355,7 +355,9 @@ func (s *Service) EntryBasicProbe(role storage.Character, channelContext [2]byte
 	// survives DisableActorAppearance exactly like the native client.
 	creatureItemID, creatureName := wornCreature(role.State)
 	fame, err := s.EquipmentFame(role.State)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	contentFlags, err := s.roleContentClearFlags(role)
 	if err != nil {
 		return nil, err
@@ -427,7 +429,9 @@ func (s *Service) AppearanceProbe(role storage.Character, channelContext [2]byte
 		return nil, err
 	}
 	fame, err := s.EquipmentFame(role.State)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	contentFlags, err := s.roleContentClearFlags(role)
 	if err != nil {
 		return nil, err

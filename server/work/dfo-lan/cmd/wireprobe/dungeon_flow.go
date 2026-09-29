@@ -179,6 +179,11 @@ func (w *worldSession) selectDungeon(p []byte) (*dungeon.Session, []outboundPack
 			return nil, nil, e
 		}
 	}
+	return w.prepareDungeonEntry(r)
+}
+
+// 普通选图与已完成准入校验的特殊副本共用场景准备，不重复触发城镇门校验。
+func (w *worldSession) prepareDungeonEntry(r protocol.DungeonSelection) (*dungeon.Session, []outboundPacket, error) {
 	if w.soloPartyReady && r.Party == 1 {
 		// This connection owns the single-member bootstrap party. The dungeon
 		// domain remains solo; never normalize arbitrary party IDs.
@@ -187,7 +192,8 @@ func (w *worldSession) selectDungeon(p []byte) (*dungeon.Session, []outboundPack
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	var s *dungeon.Session
-	if trainingRoom {
+	var e error
+	if dungeon.IsTrainingRoom(*w.dungeons, r.ID) {
 		s, e = dungeon.SelectTrainingRoom(*w.dungeons, r, w.level)
 	} else {
 		var accepted map[uint16]bool
@@ -327,6 +333,9 @@ func (w *worldSession) directMoveDungeon(p []byte) (*dungeon.Session, []outbound
 	r, e := protocol.DecodeDungeonDirectMove(p)
 	if e != nil {
 		return nil, nil, e
+	}
+	if w.bleedingMineStart != nil {
+		return w.advanceBleedingMine(r)
 	}
 	d, ok := w.dungeons.Dungeons[r.ID]
 	if !ok {

@@ -5,8 +5,8 @@ import json
 from pathlib import Path
 import re
 
-from repair_item_names import Archive
-from export_attunement_rewards import fields
+from pvf_archive import Archive
+from pvf_rule_fields import fields
 
 
 DUNGEON = 100000527

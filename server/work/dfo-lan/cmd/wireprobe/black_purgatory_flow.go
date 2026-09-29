@@ -236,7 +236,7 @@ func (w *worldSession) blackPurgatoryLoaded(ctx context.Context) ([]outboundPack
 		return nil, fmt.Errorf("黑鸦入场疲劳服务不可用")
 	}
 	now := time.Now()
-	limit, err := w.fatigue.DailyLimit(ctx, w.account, now)
+	currentFatigue, err := w.fatigue.State(ctx, w.account, w.role.ID, now)
 	if err != nil {
 		return nil, err
 	}
@@ -245,7 +245,7 @@ func (w *worldSession) blackPurgatoryLoaded(ctx context.Context) ([]outboundPack
 		return nil, err
 	}
 	// 复用存储层RunID+地图幂等回执，首次加载扣8点；重发加载及以后过图不再扣。
-	fp, _, err := w.fatigue.Store.ConsumeRoomFatigue(ctx, w.account, w.role.ID, w.fatigue.Day(now), limit,
+	fp, _, err := w.fatigue.Store.ConsumeRoomFatigue(ctx, w.account, w.role.ID, w.fatigue.Day(now), currentFatigue.Limit,
 		d.RunID, d.Room.Map, blackPurgatoryEntryFatigue)
 	if err != nil {
 		return nil, err

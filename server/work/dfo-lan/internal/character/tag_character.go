@@ -29,10 +29,6 @@ func (s *Service) TagCharacterSnapshot(role storage.Character) (protocol.TagChar
 	if err != nil {
 		return out, err
 	}
-	out.ExpandEquipFlags, err = s.EquipmentSlotFlags(role)
-	if err != nil {
-		return out, err
-	}
 	out.Appearance, err = s.wornAppearance(role.State)
 	if err != nil {
 		return out, err
@@ -41,6 +37,8 @@ func (s *Service) TagCharacterSnapshot(role storage.Character) (protocol.TagChar
 	if err != nil {
 		return out, err
 	}
+	// 与上游当前角色详情一致，使用背包已保存的特殊装备栏开放状态。
+	out.ExpandEquipFlags = bag.ExpandEquipFlags
 	for _, item := range bag.WornBaseItems() {
 		if err := item.ValidateRecord(); err != nil {
 			return out, err

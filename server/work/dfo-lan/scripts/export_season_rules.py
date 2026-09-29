@@ -6,9 +6,9 @@ import re
 import struct
 from pathlib import Path
 
-from repair_item_names import Archive
+from pvf_archive import Archive
 from export_adventure_rules import values
-from export_attunement_rewards import read_reward_ctp
+from pvf_rule_fields import read_reward_ctp
 
 
 def block(text, name):

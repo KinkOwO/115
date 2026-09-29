@@ -15,6 +15,15 @@ type BleedingMineTeam struct {
 	Members [4]BleedingMineMember
 }
 
+// NOTI2281的1452AC200读取38字节；落点模式及矩形来自CMD2062的25..44字节。
+// 仅矿区阶段切换使用，保留上游普通副本的直达应答。
+func BleedingMineNextNotice(r DungeonDirectMove) []byte {
+	p := make([]byte, 38)
+	p[13] = 1
+	copy(p[18:], r.Record[25:45])
+	return p
+}
+
 // NOTI1474：1452AE370读取两个u32；频道106直接以毫秒调用场景虚表+88，
 // 145B3E4E0启动1B98计时器。矿区不使用其它玩法的第二计时参数。
 func BleedingMineTimer(remainingMilliseconds uint32) []byte {

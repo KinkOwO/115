@@ -23,13 +23,13 @@ type Drop struct {
 	BlackPurgatoryIndex byte
 }
 type Session struct {
-	BlackPurgatory *BlackPurgatoryRewards
-	BlackPurgatoryPlan *CardPlan
+	BlackPurgatory       *BlackPurgatoryRewards
+	BlackPurgatoryPlan   *CardPlan
 	blackPurgatoryRolled bool
-	Currency    *OdysseyCurrency
-	ChapterDrop *OdysseyChapterDrop
-	Attunement  *AttunementRewards
-	RewardBoxes RewardBoxSource
+	Currency             *OdysseyCurrency
+	ChapterDrop          *OdysseyChapterDrop
+	Attunement           *AttunementRewards
+	RewardBoxes          RewardBoxSource
 	// Omen 是征兆系统的按角色累积账（见 omen.go）。为 nil 时这条线完全不推进。
 	Omen                  *OmenLedger
 	QuestDropBonusPercent int

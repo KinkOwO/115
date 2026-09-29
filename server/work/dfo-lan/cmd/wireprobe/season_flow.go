@@ -314,10 +314,8 @@ func (w *worldSession) useSeasonCapsule(ctx context.Context, p, raw []byte, pref
 	rows := inventory.ChangedItemRows(before, bag)
 	if !applied {
 		row := protocol.EmptyOrdinaryItem(slot)
-		for _, item := range bag.Items {
-			if item.Slot == slot {
-				row = item.Row()
-			}
+		if current, ok := bag.RowAt(slot); ok {
+			row = current
 		}
 		rows = [][protocol.CurrentItemRecordSize]byte{row}
 	}
