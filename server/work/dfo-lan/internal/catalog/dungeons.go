@@ -62,6 +62,28 @@ type DungeonDefinition struct {
 	// 其余副本的行为一个字节都不变。长度必须等于 Mazes 的长度；权重在候选集
 	// 内归一化，0 表示永不选中。见 internal/catalog/maze_chance.go。
 	MazeChanceRates []uint32 `json:"maze_chance_rates,omitempty"`
+	// TowerGriefFloor is sourced from etc/towerofgrief.etc when the verified
+	// overlay is attached. It is runtime metadata for tower settlement only.
+	TowerGriefFloor uint16 `json:"-"`
+	// Tower is attached only after a tower's source floor/map rules are verified.
+	// Entry and progress are shared; reward packets remain tower specific.
+	Tower *TowerRuntime `json:"-"`
+}
+
+type TowerRuntime struct {
+	Key          string
+	Floor        uint16
+	TopFloor     uint16
+	DailyEntries uint16
+	ResetHourUTC uint8
+	RewardRule   string
+	// Items may be populated only from a verified reward table for this floor.
+	Items []TowerItemReward
+}
+
+type TowerItemReward struct {
+	Template uint32
+	Amount   uint32
 }
 
 // DungeonHellParty retains the original DGN's ordinary Hell Party room.

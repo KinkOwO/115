@@ -724,6 +724,10 @@ func main() {
 			if e = catalog.AttachTournamentQuestMaps(&data, path); e != nil {
 				log.Fatal(e)
 			}
+			path = filepath.Join(filepath.Dir(*dungeonCatalogFile), "dungeons.tower-of-grief-maps.json")
+			if e = catalog.AttachTowerGriefMaps(&data, path); e != nil {
+				log.Fatal(e)
+			}
 			path = filepath.Join(filepath.Dir(*dungeonCatalogFile), "dungeons.tower-of-dazzlement-maps.json")
 			if e = catalog.AttachDazzlementMaps(&data, path); e != nil {
 				log.Fatal(e)
@@ -783,6 +787,9 @@ func main() {
 		}
 		if e == nil {
 			e = characters.Store.MigrateSkillLocks(ctx)
+		}
+		if e == nil {
+			e = characters.Store.MigrateTowerProgress(ctx)
 		}
 		cancel()
 		if e != nil {

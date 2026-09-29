@@ -125,6 +125,33 @@ func (w *worldSession) isTownArrivalOriginSync(id uint16, p []byte) bool {
 		r.PreviousTown == pos.Town && uint32(r.PreviousArea) == pos.Area && r.Flag == 0 && r.TailFlags == [2]byte{}
 }
 
+func towerPolicy(t *catalog.TowerRuntime) storage.TowerPolicy {
+	return storage.TowerPolicy{Key: t.Key, TopFloor: t.TopFloor, DailyEntries: t.DailyEntries, ResetHourUTC: t.ResetHourUTC}
+}
+
+func (w *worldSession) towerProgress(ctx context.Context, tower *catalog.TowerRuntime) (storage.TowerProgress, []uint32, error) {
+	var empty storage.TowerProgress
+	if w == nil || tower == nil || w.dungeons == nil || w.characters == nil || w.characters.Store == nil {
+		return empty, nil, fmt.Errorf("tower progress unavailable")
+	}
+	floors, err := w.dungeons.TowerFloors(tower.Key, tower.TopFloor)
+	if err != nil {
+		return empty, floors, err
+	}
+	var legacyFloor uint16
+	if tower.Key == "grief" {
+		var griefFloors [101]uint32
+		copy(griefFloors[:], floors)
+		legacy, err := w.characters.Store.TowerGriefProgress(ctx, w.account, griefFloors)
+		if err != nil {
+			return empty, floors, err
+		}
+		legacyFloor = legacy.HighestCleared
+	}
+	progress, err := w.characters.Store.ReadTowerProgress(ctx, w.account, towerPolicy(tower), legacyFloor)
+	return progress, floors, err
+}
+
 func (w *worldSession) selectDungeon(p []byte) (*dungeon.Session, []outboundPacket, error) {
 	if w == nil || w.dungeons == nil || w.role.ID == 0 {
 		return nil, nil, fmt.Errorf("dungeon catalog or character unavailable")
@@ -191,6 +218,25 @@ func (w *worldSession) prepareDungeonEntry(r protocol.DungeonSelection) (*dungeo
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+	if definition, ok := w.dungeons.Dungeons[r.ID]; ok && definition.Tower != nil {
+		tower := definition.Tower
+		policy := towerPolicy(tower)
+		progress, floors, err := w.towerProgress(ctx, tower)
+		if err != nil {
+			return nil, nil, err
+		}
+		if progress.HighestCleared >= policy.TopFloor {
+			return nil, nil, fmt.Errorf("%s tower is fully cleared", policy.Key)
+		}
+		next := progress.HighestCleared + 1
+		// The selection UI may still submit its static first-floor ID. The
+		// verified PVF layer table supplies the actual next dungeon ID.
+		if tower.Floor == 1 && next != 1 {
+			r.ID = floors[next]
+		} else if tower.Floor != next {
+			return nil, nil, fmt.Errorf("%s tower floor %d is locked", policy.Key, tower.Floor)
+		}
+	}
 	var s *dungeon.Session
 	var e error
 	if dungeon.IsTrainingRoom(*w.dungeons, r.ID) {
@@ -218,6 +264,11 @@ func (w *worldSession) prepareDungeonEntry(r protocol.DungeonSelection) (*dungeo
 	plan, e := w.dungeonEntryPlan(context.Background(), "dungeon_select_ack", 16, r, s)
 	if e != nil {
 		return nil, nil, e
+	}
+	if tower := s.Definition.Tower; tower != nil {
+		if _, e = w.characters.Store.ReserveTowerEntry(ctx, w.account, towerPolicy(tower), tower.Floor, time.Now()); e != nil {
+			return nil, nil, e
+		}
 	}
 	return s, plan, nil
 }
