@@ -4169,6 +4169,16 @@ func main() {
 			}
 			if questService != nil && bootstrapped && frame.ID == 33 && worldState != nil && verified {
 				plan, e := worldState.questInteraction(plaintext)
+				if diagnostic := worldState.npcPresenceShadow(plaintext); diagnostic != nil {
+					if e != nil {
+						diagnostic["legacy_outcome"] = "refused"
+					} else if len(plan) == 0 {
+						diagnostic["legacy_outcome"] = "no_progress"
+					} else {
+						diagnostic["legacy_outcome"] = "handled"
+					}
+					event(diagnostic)
+				}
 				if e != nil {
 					event(map[string]any{"kind": "quest_interaction_refused", "reason": e.Error()})
 					continue
