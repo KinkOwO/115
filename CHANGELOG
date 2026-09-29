@@ -1,6 +1,14 @@
 # CHANGELOG
 
 ## 2026-09-29
+- **装备库（装备图鉴）服务端闭环 + 装备生成/变换（CMD2259）实机打通**：2264 收藏（全量替换语义，每次发整张列表）、NOTI2610 完整状态（恰好 16444 B）、2265 收录请求取证；装备生成按 `[create cost]` 扣料发装备，实机两种付款方式各生成一次均成功。
+  - **三个字段语义由实机反例纠正**（此前都按“实测恒定”写进了契约）：头 `[12]` = 动作（0 = 装备生成 / 1 = 装备变换）；头 `[13]` = **付款方式序号**（1 起，对应 `[cost]` 行的顺序）—— 忽略它会把玩家选的“巡礼之印”那一支错扣成金币；头 `u32@8` 不是常量而是**来源窗口**（变换 `0x46ece836` / 生成 `0x5ff2f9`）。
+  - **付费分仓（“取用金库材料”）**：三档登记证 `10361512`~`10361516` 是**账号共享材料**（灵魂仓库 / 容器 35），走 `AccountMaterials`；其余走背包；金币直减。三步同在 `CommitAccountMaterialEvent` 的同一个 apply 回调内 ⇒ 任何一步失败整批回滚。此前只查背包，于是登记证被开机清扫搬进仓库后永远付不起（实机 `have 0`）。
+  - **幂等键含 `sha256(角色 state)`**：成功一次状态必变 ⇒ 同一件装备可以重复生成；重复帧到达时状态未变 ⇒ 仍然幂等。旧键只有“模板+槽+档”，会把第二次生成当重放**静默吞掉**（还会打出全零回执，日志看起来像“成功了但没生效”）。
+  - **应答不替客户端推 UI 状态**：`payload[5]` 默认只写成功标志、不动窗口状态 —— `setState` 的调用者里客户端自己只传 `0`/`2`，`3`/`4` 只由本回包触发，强行推到状态 3 会让「切换材料」按钮失灵。
+  - 成本严格按玩家选的那一支扣，**付不起就拒绝、不回退**（回退 = 扣错东西）。
+  - 落地：`internal/game/protocol/equipment_journal.go`（2264/2259 编解码）、`internal/catalog/equipment_journal.go`、`internal/catalog/equipment_create_cost.go`（`[create cost]` 导入）、`internal/inventory/equipment_journal.go`（账本，存角色 state）、`internal/loot/equipment_craft.go`（执行侧）、`cmd/wireprobe/equipment_journal_flow.go`、`cmd/equipmentjournalimport`、`configs/equipment-journal.generated.json`、`configs/equipment-create-cost.generated.json`。
+  - 实机样本固化：2264 八条 + 2259 五条（hex 由脚本从 `events.jsonl` 直接生成，不手抄）。
 - **Luke 任务4851实机确认与剧情通关判断注释**：沿用3939修复版，用户确认4851正常完成；日志记录目标地图312147的剧情触发、通关、结算及任务提交，存档确认 completed/progress=0。在 `CompletionNeedsBossCheck` 旁写明旧判断会编码 Boss 编号0并丢弃整批任务刷新/通关通知，要求后续修改保留无 Boss 身份与真实 Boss 两条通知语义及现有回归用例。本轮只补注释和确认记录，未改运行逻辑。
 - **Luke 任务3939剧情收尾无法结算：实机已确认**。末房无可报告的 Boss 编号，原任务剧情触发后尝试编码 NOTI115 的目标 0，导致任务刷新和通关通知整批丢弃。Go 服务端仅在完成目标非零时发送 Boss 确认；无 Boss 身份的已完成剧情直接发送现有 NOTI31。用户确认任务完成，实机日志包含剧情触发、通关通知、结算及3939提交完成。全量测试、vet和构建通过；候选 SHA-256 `61434FE1412A7B1E742742CD9C0ED0721397B3BD7C75912A15F2D487879D969E`。未改客户端或数据库结构。基线：`server/work/dfo-lan/docs/protocol/luke-quest3939-scene-completion-20260929.md`。
 - **Evil Justice（任务12893）第二房间过场恢复战斗房：实机已确认**。用户确认第三轮候选在过场后进入正确的战斗房间。客户端原生NOTI29 flag2清除剧情层索引，mode0复用同格战斗房缓存；不重建房间、敌人或演出状态。该行为纳入已确认基线；完整后续房间推进未单独记录验收。取证、回滚与验收范围：`server/work/dfo-lan/docs/protocol/evil-justice-quest12893-layer-revisit-20260929.md`。
