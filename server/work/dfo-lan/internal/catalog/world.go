@@ -25,6 +25,18 @@ type PhaseNPC struct {
 	Y         uint16 `json:"y"`
 }
 
+// PhaseMap preserves the root slot and its source graph. Two slots may use
+// the same path; they must retain separate ordinals. Older catalogs omit this
+// projection and remain readable; their flattened PhaseNPCs are insufficient
+// to reconstruct a selected map or conditional placement.
+type PhaseMap struct {
+	Index           int32          `json:"index"`
+	SourcePath      string         `json:"source_path"`
+	Map             ScriptRecord   `json:"map"`
+	ImportedScripts []ScriptRecord `json:"imported_scripts,omitempty"`
+	Pending         []string       `json:"pending,omitempty"`
+}
+
 type WorldArea struct {
 	Town         uint32 `json:"town"`
 	Area         uint32 `json:"area"`
@@ -48,6 +60,7 @@ type WorldArea struct {
 	Map               ScriptRecord   `json:"map"`
 	ImportedScripts   []ScriptRecord `json:"imported_scripts,omitempty"`
 	PhaseNPCs         []PhaseNPC     `json:"phase_npcs,omitempty"`
+	PhaseMaps         []PhaseMap     `json:"phase_maps,omitempty"`
 	SeriaReturnWarp   bool           `json:"seria_return_warp,omitempty"`
 	ReturnWarpBounds  [][4]int32     `json:"return_warp_bounds,omitempty"`
 	Walkable          [][4]int32     `json:"walkable"`
@@ -195,8 +208,11 @@ func ImportWorld(a *pvf.Archive) (WorldCatalog, error) {
 				return w, fmt.Errorf("duplicate area %s", key)
 			}
 			for _, phase := range sectionCells(area.Definition, "[phase]") {
+				projection := PhaseMap{Index: int32(len(area.PhaseMaps)), SourcePath: phase.Text}
 				if phase.Type != 6 {
 					area.Pending = append(area.Pending, "unsupported phase map cell")
+					projection.Pending = append(projection.Pending, "unsupported phase map cell")
+					area.PhaseMaps = append(area.PhaseMaps, projection)
 					continue
 				}
 				name := strings.ToLower(strings.ReplaceAll(phase.Text, "\\", "/"))
@@ -206,17 +222,24 @@ func ImportWorld(a *pvf.Archive) (WorldCatalog, error) {
 				phaseMap, phaseErr := ResolveScript(a, name)
 				if phaseErr != nil {
 					area.Pending = append(area.Pending, phaseErr.Error())
+					projection.Pending = append(projection.Pending, phaseErr.Error())
+					area.PhaseMaps = append(area.PhaseMaps, projection)
 					continue
 				}
 				area.PhaseNPCs = append(area.PhaseNPCs, sourcePhaseNPCs(phaseMap)...)
+				projection.Map = phaseMap
 				phaseImports, importErr := resolveMapImports(a, phaseMap, map[string]bool{}, 0)
 				if importErr != nil {
 					area.Pending = append(area.Pending, importErr.Error())
+					projection.Pending = append(projection.Pending, importErr.Error())
+					area.PhaseMaps = append(area.PhaseMaps, projection)
 					continue
 				}
 				for _, imported := range phaseImports {
 					area.PhaseNPCs = append(area.PhaseNPCs, sourcePhaseNPCs(imported)...)
 				}
+				projection.ImportedScripts = phaseImports
+				area.PhaseMaps = append(area.PhaseMaps, projection)
 			}
 			area.Map, e = ResolveScript(a, area.MapPath)
 			if e != nil {

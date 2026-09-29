@@ -8,6 +8,7 @@ import (
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
+	"dfolan/internal/npcpresence"
 	"dfolan/internal/quest"
 	"dfolan/internal/storage"
 	"dfolan/internal/world"
@@ -17,6 +18,9 @@ import (
 )
 
 type worldSession struct {
+	npcPresenceIndex    *npcpresence.Index
+	npcPresenceIndexErr error
+
 	moonConfig *moonSoloConfig
 	moon       moonSoloState
 	characters *character.Service
