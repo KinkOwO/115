@@ -38,6 +38,28 @@ import (
 	"time"
 )
 
+// envStrOr 读一个字符串环境变量；缺失时返回 fallback。
+func envStrOr(name, fallback string) string {
+	if v := os.Getenv(name); v != "" {
+		return v
+	}
+	return fallback
+}
+
+// envByteOr 读一个 0..255 的环境变量；缺失或非法时返回 fallback。
+// 装备库制作的应答里有几个单字节开关，做成 env 就能不改代码切换。
+func envByteOr(name string, fallback int) int {
+	v := os.Getenv(name)
+	if v == "" {
+		return fallback
+	}
+	n, e := strconv.Atoi(v)
+	if e != nil || n < 0 || n > 255 {
+		return fallback
+	}
+	return n
+}
+
 func main() {
 	moonConfigFile := flag.String("moon-solo-config", os.Getenv("DFO_MOON_SOLO_CONFIG"), "opt-in Moon Lake solo candidate, explicitly validated 2.38.3.25 profile")
 	fixture := flag.String("fixture", "", "verified-format server fixture to send after accept")
@@ -64,6 +86,25 @@ func main() {
 	lootCatalogFile := flag.String("loot-catalog", "", "current gold/ordinary stackable source projection; equipment pending")
 	lootRulesFile := flag.String("loot-rules", "configs/drop.compat90.json", "explicit reference drop formula policy")
 	equipmentCatalogFile := flag.String("equipment-catalog", os.Getenv("DFO_EQUIPMENT_CATALOG"), "source equipment catalog a run selects gear from; required whenever loot is enabled")
+	// 装备库（装备图鉴）规则表：cmd/equipmentjournalimport 的产物。留空 = 不登记装备库，
+	// 分解保持原行为（只扣来源、发材料、写回执）。
+	equipmentJournalRulesFile := flag.String("equipment-journal-rules", os.Getenv("DFO_EQUIPMENT_JOURNAL_RULES"), "装备库规则表（equipmentsetjournal.cos 的导出物）；留空则不登记")
+	// 装备库「装备生成」的成本表（同一份源的 [create cost] 段）。留空 = 不做生成。
+	equipmentCreateCostFile := flag.String("equipment-create-cost", os.Getenv("DFO_EQUIPMENT_CREATE_COST"), "装备生成成本表（[create cost] 的导出物）；留空则第二步只回窗口")
+	// 装备库「制作 / 变换」（CMD2259）应答里的窗口选择字节：非 0 → 打开窗口 3937，
+	// 0 → 打开窗口 2145。哪个才是"制作界面"尚未定案，故做成 flag/env 以便不改代码切换。
+	equipmentCraftWindowFlag := flag.Int("equipment-craft-window", envByteOr("DFO_EQUIPMENT_CRAFT_WINDOW", 1), "CMD2259 应答的窗口选择字节（非 0 → 窗口 3937；0 → 窗口 2145）")
+	equipmentCraftVariantFlag := flag.Int("equipment-craft-variant", envByteOr("DFO_EQUIPMENT_CRAFT_VARIANT", 0), "CMD2259 应答的子分支字节（仅当窗口字节为 0 时生效）")
+	// 第二步（"确定"）用另一组参数：默认 u8@4 = 0 → 窗口 2145。
+	equipmentCraftConfirmWindowFlag := flag.Int("equipment-craft-confirm-window", envByteOr("DFO_EQUIPMENT_CRAFT_CONFIRM_WINDOW", 0), "CMD2259 第二步（确定）应答的窗口选择字节")
+	equipmentCraftConfirmVariantFlag := flag.Int("equipment-craft-confirm-variant", envByteOr("DFO_EQUIPMENT_CRAFT_CONFIRM_VARIANT", 0), "CMD2259 第二步应答的子分支字节")
+	// 装备生成（请求头 [12] == 0）走另一扇窗：u8@4 = 0 → 窗口 2145。
+	equipmentCraftGenerateWindowFlag := flag.Int("equipment-craft-generate-window", envByteOr("DFO_EQUIPMENT_CRAFT_GENERATE_WINDOW", 0), "CMD2259 装备生成（[12]=0）应答的窗口选择字节")
+	equipmentCraftGenerateVariantFlag := flag.Int("equipment-craft-generate-variant", envByteOr("DFO_EQUIPMENT_CRAFT_GENERATE_VARIANT", 1), "CMD2259 装备生成应答的子分支字节（1 = 只落成功标志、不动窗口状态，默认；0 = 强制 setState 到状态 3，会让材料切换按钮失灵）")
+	// 是否**真的执行**装备生成（扣料 + 发装备）。默认开；关掉则只回窗口、不动存档。
+	equipmentCraftExecuteFlag := flag.Bool("equipment-craft-execute", os.Getenv("DFO_EQUIPMENT_CRAFT_EXECUTE") != "0", "CMD2259 是否执行装备生成（扣成本 + 发装备）")
+	// 在哪一次请求上执行：confirm（同指纹第二次）/ first（第一次就执行）/ never。
+	equipmentCraftExecuteOnFlag := flag.String("equipment-craft-execute-on", envStrOr("DFO_EQUIPMENT_CRAFT_EXECUTE_ON", "confirm"), "CMD2259 何时执行装备生成：confirm / first / never")
 	bagRulesFile := flag.String("bag-rules", "configs/inventory.compat90.json", "separate bag slot and missing stack limit policy")
 	boxesFile := flag.String("boxes", "", "imported open-box content tables; empty resolves boxes.json beside the bag rules")
 	cardRulesFile := flag.String("card-rules", "configs/cards.compat90.json", "separate compatible free-card policy")
@@ -128,6 +169,19 @@ func main() {
 	omenState := flag.Bool("omen-state", os.Getenv("DFO_OMEN_STATE") == "1", "征兆的正式状态：持有档数存进角色存档、进本按真实状态下发 noti 2836，并让隐藏 BOSS 由「满档结算」驱动（见 cmd/wireprobe/omen_state.go）。默认关闭")
 	scaleDeathFromHP := flag.Bool("scale-death-from-hp", os.Getenv("DFO_SCALE_DEATH_FROM_HP") == "1", "boundary-of-attunement 定盘机关(109019266)的兜底判死：它血量触底时服务端合成一条死亡上报，不再依赖引擎那两个恒为 72 的 rarity 天花板；默认关闭")
 	flag.Parse()
+	equipmentCraftWindow = byte(*equipmentCraftWindowFlag)
+	equipmentCraftVariant = byte(*equipmentCraftVariantFlag)
+	equipmentCraftConfirmWindow = byte(*equipmentCraftConfirmWindowFlag)
+	equipmentCraftConfirmVariant = byte(*equipmentCraftConfirmVariantFlag)
+	equipmentCraftExecute = *equipmentCraftExecuteFlag
+	equipmentCraftGenerateWindow = byte(*equipmentCraftGenerateWindowFlag)
+	equipmentCraftGenerateVariant = byte(*equipmentCraftGenerateVariantFlag)
+	switch *equipmentCraftExecuteOnFlag {
+	case "confirm", "first", "never":
+		equipmentCraftExecuteOn = *equipmentCraftExecuteOnFlag
+	default:
+		log.Fatalf("invalid -equipment-craft-execute-on %q (want confirm/first/never)", *equipmentCraftExecuteOnFlag)
+	}
 	oathGradePair, oathGradesErr := parseOathGrades(*oathGrades)
 	if oathGradesErr != nil {
 		log.Fatalf("bad -oath-grades: %v", oathGradesErr)
@@ -394,6 +448,11 @@ func main() {
 	var dungeonCatalog *catalog.DungeonCatalog
 	var progressionService *character.ProgressionService
 	var lootService *loot.Service
+	// journalRules 是装备库规则（nil = 不登记）。它同时被 CMD26 的事务与入场 2610 用到，
+	// 所以在这里声明、在 loot 块里装载。
+	var journalRules *catalog.EquipmentJournalRules
+	// equipmentCreateCost 是「装备生成」成本表（nil = 第二步只回窗口、不生成）。
+	var equipmentCreateCost *catalog.EquipmentCreateCost
 	var shopPilot *cashshop.Pilot
 	var unsealService *inventory.UnsealService
 	// skinCatalog maps an `[add skin storage]` stackable template to its PVF
@@ -822,7 +881,29 @@ if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "am
 				log.Printf("supplemented stackable catalog from %s (total items: %d)", itemIndexPath, len(c.Items))
 			}
 		}
-		lootService = &loot.Service{Store: characters.Store, Catalog: c, DropCatalog: dropCatalog, Rules: r, BagRules: bag, Tables: tables, Equipment: gear}
+		if *equipmentJournalRulesFile != "" {
+			jr, e := catalog.LoadEquipmentJournalRules(*equipmentJournalRulesFile, c.Source.Checksum)
+			if e != nil {
+				log.Fatal(e)
+			}
+			journalRules = &jr
+			log.Printf("loaded equipment journal rules: max=%d limits=%d categories=%d groups=%d/%d",
+				jr.Maximum, len(jr.MaximumByType), len(jr.Categories), len(jr.WeaponGroups), len(jr.PeculiarGroups))
+		}
+		if *equipmentCreateCostFile != "" {
+			cc, e := catalog.LoadEquipmentCreateCost(*equipmentCreateCostFile, c.Source.Checksum)
+			if e != nil {
+				log.Fatal(e)
+			}
+			equipmentCreateCost = &cc
+			items := 0
+			for _, g := range cc.Groups {
+				items += len(g.Items)
+			}
+			log.Printf("loaded equipment create cost: groups=%d itemRows=%d templates=%d",
+				len(cc.Groups), items, len(cc.Templates()))
+		}
+		lootService = &loot.Service{Store: characters.Store, Catalog: c, DropCatalog: dropCatalog, Rules: r, BagRules: bag, Tables: tables, Equipment: gear, Journal: journalRules, CreateCost: equipmentCreateCost}
 		pricesPath := *shopPricesFile
 		if pricesPath == "" {
 			pricesPath = filepath.Join(filepath.Dir(lootPath), "shop-prices.json")
@@ -2908,6 +2989,50 @@ if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "am
 					"skin_id": binary.LittleEndian.Uint32(plaintext)})
 				continue
 			}
+			// 装备库（装备图鉴）「制作 / 变换」：CMD2259。
+			// **阶段一：只回 6 字节应答（"打开哪个制作窗口"），不碰存档。**
+			if worldState != nil && bootstrapped && frame.ID == 2259 {
+				if !verified {
+					event(map[string]any{"kind": "equipment_craft_rejected", "id": frame.ID, "reason": "checksum failed"})
+					continue
+				}
+				plan, e := worldState.equipmentCraft(plaintext)
+				if e != nil {
+					event(map[string]any{"kind": "equipment_craft_refused", "id": frame.ID, "character_id": worldState.role.ID, "reason": e.Error()})
+					continue
+				}
+				for _, packet := range plan {
+					if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
+						return
+					}
+					event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID,
+						"id": packet.ID, "bytes": len(packet.Payload)})
+				}
+				continue
+			}
+			// 装备库（装备图鉴）收藏：CMD2264。
+			// 回包顺序 = 先提交账本 → 回 2264（**非空**正文）→ 补发 2610 权威快照。
+			if worldState != nil && bootstrapped && frame.ID == 2264 && lootService != nil && journalRules != nil {
+				if !verified {
+					event(map[string]any{"kind": "equipment_journal_rejected", "id": frame.ID, "reason": "checksum failed"})
+					continue
+				}
+				plan, e := worldState.equipmentFavorite(plaintext)
+				if e != nil {
+					event(map[string]any{"kind": "equipment_journal_refused", "id": frame.ID, "character_id": worldState.role.ID, "reason": e.Error()})
+					if e = sendPayload(1, frame.ID, protocol.Refusal(19)); e != nil {
+						return
+					}
+					continue
+				}
+				for _, packet := range plan {
+					if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
+						return
+					}
+					event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID, "id": packet.ID, "bytes": len(packet.Payload)})
+				}
+				continue
+			}
 			if worldState != nil && bootstrapped && frame.ID == 26 && lootService != nil {
 				if !verified {
 					event(map[string]any{"kind": "disjoint_rejected", "id": frame.ID, "reason": "checksum failed"})
@@ -3962,6 +4087,12 @@ if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "am
 					}
 					plan := entryPayloads{Select: payload, Basic: basic, Addition: addition, Vault: vaultPayload, UserArea: userArea, Area: areaPayload, Fatigue: fatiguePayload, AccountOptions: accountOptions}
 					plan.SecondaryVault = secondaryVaultPayload
+					// 装备库完整状态（NOTI2610）：只在**已提交**的角色状态上构建。空账本不发这一帧。
+					if body, jErr := equipmentJournalEntryPayload(role, journalRules); jErr != nil {
+						event(map[string]any{"kind": "equipment_journal_restore_error", "character_id": role.ID, "error": jErr.Error()})
+					} else if len(body) > 0 {
+						plan.Journal = body
+					}
 					plan.AccountVault = accountVaultPayload
 						if characters != nil {
 							gpCtx, gpCancel := context.WithTimeout(context.Background(), 5*time.Second)

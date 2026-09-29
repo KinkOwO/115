@@ -20,7 +20,13 @@ type Service struct {
 	BagRules    inventory.BagRules
 	Tables      Tables
 	Equipment   *inventory.EquipmentCatalog
-	CardPolicy  *CardRules
+	// Journal 是装备库（装备图鉴）规则表：普通收录上限与"按类型收紧"的上限。nil 表示
+	// **不登记**（保持原行为），与其它可选表一样由启动参数显式装载。
+	Journal    *catalog.EquipmentJournalRules
+	// CreateCost 是装备库「装备生成 / 制作」的成本表（`[create cost]` 段）。
+	// nil 表示**不生成**：CMD2259 的第二步只会回窗口、不动存档。
+	CreateCost *catalog.EquipmentCreateCost
+	CardPolicy *CardRules
 	// Boxes 保存已导出的袖珍罐奖励与进度规则。
 	Boxes *BoxCatalog
 	// ItemShops 是源物品商店表（itemshop/**.shp）。它给出"用物品支付"的商品价格：

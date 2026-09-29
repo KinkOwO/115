@@ -48,6 +48,13 @@ type worldSession struct {
 	townArrivalScenes   map[uint32]catalog.TownArrivalScene
 	approvedDungeonGate uint32
 	pendingTownArrival  *dungeon.Session
+	// craftPending / craftPendingAt 记录上一次装备库制作（CMD2259）请求的指纹与
+	// 时间戳（UnixNano）。**同一个正文客户端会发两次**（"变换" → "确定"），
+	// 而且两次的 plain_hex 逐字节相同 ⇒ 只能由服务端记状态来区分第一步与第二步。
+	// 见 analysis/tasks/next126 §8。
+	craftPending   string
+	craftPendingAt int64
+
 	// skinCatalog maps an `[add skin storage]` template to its PVF skin key; nil
 	// disables the CMD507 action 169 flow.
 	skinCatalog map[uint32]catalog.SkinStorageEntry
