@@ -57,7 +57,7 @@ func (w *worldSession) applyAmplifyGrimoire(service *inventory.WearService, p, r
 		"amplify_type": out.AmplifyType, "amplify_type_name": out.AmplifyTypeName, "amplify_value": out.AmplifyValue,
 		"re_amplified": out.ReAmplified, "golden": out.Golden, "pure": out.Pure,
 		"prev_reinforce_level": out.PrevReinforceLevel, "amplify_level": out.AmplifyLevel})
-	return plan, nil
+	return w.appendFameUpdate(plan, event), nil
 }
 
 // amplifyGrimoireRefusal 是 CMD205（打红字）被拒时发给客户端的错误体。

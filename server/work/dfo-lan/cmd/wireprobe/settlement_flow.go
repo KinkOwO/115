@@ -17,8 +17,11 @@ import (
 // no fatigue cost (or an exhausted fatigue pool) is answered before the
 // player presses anything.
 func (w *worldSession) canRechallenge(ctx context.Context) bool {
+	if w == nil || w.activeDungeon == nil || !w.activeDungeon.Completed() {
+		return false
+	}
 	d := w.activeDungeon
-	if w == nil || d == nil || !d.Completed() {
+	if d.Definition.ID == blackPurgatorySquadDungeon {
 		return false
 	}
 	if w.fatigue == nil || d.Definition.NoFatigue || w.fatigue.Rules.RoomCost <= 0 {
@@ -74,7 +77,14 @@ func (w *worldSession) dungeonResult(p []byte) ([]outboundPacket, error) {
 			w.cardPlan = &p
 		}
 		// Solo participant0: physical card choice is reported separately by71.
-		rewards.Cards[0] = []protocol.CardReward{{Template: 0, Amount: w.cardPlan.Gold}}
+		if w.cardPlan.Gold > 0 {
+			rewards.Cards[0] = append(rewards.Cards[0], protocol.CardReward{Template: 0, Amount: w.cardPlan.Gold})
+		}
+		for _, item := range w.cardPlan.Items {
+			if item.Amount > 0 {
+				rewards.Cards[0] = append(rewards.Cards[0], protocol.CardReward{Template: item.Template, Amount: item.Amount})
+			}
+		}
 	}
 	reward, e := protocol.ClearReward(rewards)
 	if e != nil {

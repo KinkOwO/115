@@ -6,6 +6,7 @@ import (
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/storage"
 	"fmt"
+	"log"
 	"time"
 )
 
@@ -14,6 +15,7 @@ func (w *worldSession) resetCards() {
 	w.cardReceipt = nil
 	w.cardScrolled = false
 	w.cardLayoutSent = false
+	w.cardAutoPickAt = time.Time{}
 }
 func (w *worldSession) cardsReady() error {
 	if w == nil || w.loot == nil || w.activeDungeon == nil || !w.activeDungeon.Completed() || !w.resultSent || w.cardPlan == nil || w.cardPlan.Run != w.activeDungeon.RunID {
@@ -52,12 +54,35 @@ func (w *worldSession) grantFreeCard(index byte) ([]outboundPacket, error) {
 		return nil, e
 	}
 	w.role = role
-	w.cardReceipt = &receipt
 	bag, e := w.loot.Bootstrap(role)
 	if e != nil {
 		return nil, e
 	}
+	w.cardReceipt = &receipt
+	w.cardAutoPickAt = time.Time{}
 	return []outboundPacket{{"card_inventory_committed", 0, 13, bag}, {"card_selection_ack", 1, 71, w.cardSnapshot()}}, nil
+}
+
+// 黑鸦展示翻牌后默认选择第一张免费牌。与手动选牌及退出结算共用
+// 同一领取事务；仅从已发送布局开始计时，重复请求不会延长等待。
+func (w *worldSession) autoPickBlackPurgatoryCard(now time.Time) ([]outboundPacket, error) {
+	if w == nil || w.cardAutoPickAt.IsZero() || now.Before(w.cardAutoPickAt) {
+		return nil, nil
+	}
+	if w.activeDungeon == nil || w.activeDungeon.Definition.ID != blackPurgatorySquadDungeon ||
+		w.cardReceipt != nil || !w.cardLayoutSent || w.cardsReady() != nil {
+		w.cardAutoPickAt = time.Time{}
+		return nil, nil
+	}
+	packets, err := w.grantFreeCard(0)
+	if err != nil {
+		// 未提交则保留奖单，已提交但通知失败则幂等重取；满包不吞奖。
+		w.cardAutoPickAt = now.Add(5 * time.Second)
+		return nil, err
+	}
+	packets[0].Name = "黑鸦自动翻牌背包同步"
+	packets[1].Name = "黑鸦自动翻牌选牌确认"
+	return packets, nil
 }
 func (w *worldSession) cardPick(p []byte) ([]outboundPacket, error) {
 	if e := w.cardsReady(); e != nil {
@@ -136,7 +161,13 @@ func (w *worldSession) settlementExit(p []byte) (*dungeon.Session, []outboundPac
 	if w.cardReceipt == nil {
 		plan, e = w.grantFreeCard(0)
 		if e != nil {
-			return nil, nil, e
+			if w.activeDungeon.Definition.ID != blackPurgatorySquadDungeon || (r.Option != 2 && r.Option != 3) {
+				return nil, nil, e
+			}
+			// 黑鸦奖单已在通关事务落盘，未领取时由重登恢复。满包或暂时
+			// 无法发奖不能阻断回城；不发送领取成功，也不删除待领奖单。
+			log.Printf("黑鸦翻牌暂未领取，保留奖单等待重登补发：角色=%d 挑战=%s 错误=%v", w.role.ID, w.cardPlan.Run, e)
+			plan = nil
 		}
 	}
 	ack.Name = "settlement_exit_ack"
@@ -166,6 +197,9 @@ func (w *worldSession) restartDungeon() (*dungeon.Session, []outboundPacket, err
 	old := w.activeDungeon
 	if old == nil {
 		return nil, nil, fmt.Errorf("retry without an active dungeon")
+	}
+	if old.Definition.ID == blackPurgatorySquadDungeon {
+		return nil, nil, fmt.Errorf("黑鸦挑战结束，请返回大厅重新创建队伍")
 	}
 	copy := *w
 	copy.activeDungeon = nil

@@ -66,6 +66,9 @@ func (s *Store) CommitQuestReward(ctx context.Context, account, id int64, qid ui
 	if _, e = tx.Exec(ctx, `INSERT INTO character_quest_rewards(character_id,quest_id,source_version,model,receipt) VALUES($1,$2,$3,$4,$5)`, id, qid, version, rewardModel, receipt); e != nil {
 		return out, e
 	}
+	if e = s.commitAdventureExperience(ctx, tx, *r, state); e != nil {
+		return out, e
+	}
 	if _, e = tx.Exec(ctx, `UPDATE characters SET state=$2 WHERE id=$1`, id, state); e != nil {
 		return out, e
 	}

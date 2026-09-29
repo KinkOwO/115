@@ -33,6 +33,8 @@ type entryPayloads struct {
 	Worn             []byte
 	AccountOptions   []byte
 	GamepadOptions   []byte
+	// Journal 是装备库完整状态（NOTI2610，恰好 16444B）。
+	Journal []byte
 	// InformNotice / InformNotice2nd are the per-character read-notice sets
 	// (NOTI402 / NOTI426). They ride right after account options: the client
 	// clears its read set from them, and a third-awakened character whose
@@ -262,6 +264,12 @@ func (p entryPayloads) packets() []outboundPacket {
 	// above: after the initialization barrier, before the last actor rebuild.
 	if len(p.SkinRecent) > 0 {
 		out = append(out, outboundPacket{"skin_recent_restored", 0, 1547, p.SkinRecent})
+	}
+	// 装备库完整状态。客户端只把它当数据存进映射（handler sub_145304380 不依赖角色对象），
+	// 所以放在 actor 重建之前是安全的；它在 actor_appearance_ready 之前进入同一条有序流。
+	if len(p.Journal) > 0 {
+		// 2610 = protocol.EquipmentJournalOpcode；本文件一律用字面量（与其它帧一致）。
+		out = append(out, outboundPacket{"equipment_journal_restored", 0, 2610, p.Journal})
 	}
 	return append(out,
 		outboundPacket{"actor_appearance_ready", 0, 2, p.Basic},

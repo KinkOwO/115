@@ -64,13 +64,14 @@ type EntrySkill struct {
 // Source base stats are connected to the detailed probe. Unknown fixed-prefix
 // fields are experimental zeros; optional skill/equipment data remains pending.
 type EntryAdditionProbe struct {
-	Fame          uint32
-	ActorServerID uint16
-	Context       [2]byte
-	Experience    uint64
-	Stats         PackedEntryStats
-	SkillTrees    [2][]EntrySkill
-	Worn          []DetailedWorn
+	Fame           uint32
+	AdventureLevel uint32
+	ActorServerID  uint16
+	Context        [2]byte
+	Experience     uint64
+	Stats          PackedEntryStats
+	SkillTrees     [2][]EntrySkill
+	Worn           []DetailedWorn
 	// ExpandEquipFlags is the saved extended-slot unlock byte (support 1,
 	// magic stone 2, earring 16). Native 14563d692 reads it straight into the
 	// character's +0x198 and 145cf28f0 gates equipment slots 22/23/25 on those
@@ -129,7 +130,8 @@ func UserInfoAdditionProbe(s EntryAdditionProbe) ([]byte, error) {
 		p = append(p, make([]byte, 3*6+5*7)...)
 	}
 	p = append(p, 0, 0, 0, 0) // creature byte, extended skills count, two skill flags
-	p = add32(add32(p, 0), 0) // 14563dba0 count, 14563dbf8 scalar
-	p = append(p, 0, 0)       // 1456395a0 count, 14563dd04 byte
+	// 14563DBF8 读取冒险团等级，145D2C790 保存后由 145C9EA10 按源表重算加成。
+	p = add32(add32(p, 0), s.AdventureLevel)
+	p = append(p, 0, 0) // 1456395a0 count, 14563dd04 byte
 	return p, nil
 }

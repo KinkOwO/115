@@ -4,8 +4,12 @@ package main
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
+	"dfolan/internal/character"
+	"dfolan/internal/inventory"
 	"encoding/json"
 	"flag"
+	"fmt"
+	"io"
 	"log"
 	"os"
 	"strings"
@@ -14,7 +18,15 @@ import (
 func main() {
 	source := flag.String("source", "runtime/pvf_source/Script.inner.pvf", "read-only source")
 	out := flag.String("output", "runtime/equipment_audit.json", "audit output")
+	fameState := flag.String("fame-state", "", "只读核对名望：角色JSON文件或标准输入-，每条含name和state")
+	fullPrefix := flag.String("equipment-full", "configs/equipment-full", "名望核对使用的全量装备目录")
 	flag.Parse()
+	if *fameState != "" {
+		if err := auditFame(*fullPrefix, *fameState); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
 	a, e := pvf.LoadArchive(pvf.Options{Path: *source, MaxBytes: 1024 * 1024 * 1024})
 	if e != nil {
 		log.Fatal(e)
@@ -81,4 +93,52 @@ func main() {
 		log.Fatal(e)
 	}
 	log.Printf("equipment audited=%v low_grade_or_level=%d", counts, len(selected))
+}
+
+// 直接调用游戏服相同的计算器；只读输入与装备目录，不连接或修改玩家数据库。
+func auditFame(prefix, path string) error {
+	raw, err := os.ReadFile(prefix + ".index.json")
+	if err != nil {
+		return err
+	}
+	var header struct{ Source pvf.ArchiveSnapshot }
+	if err = json.Unmarshal(raw, &header); err != nil {
+		return err
+	}
+	full, err := inventory.OpenFullEquipmentCatalog(prefix, header.Source.Checksum)
+	if err != nil {
+		return err
+	}
+	defer full.Close()
+	service := character.Service{Equipment: &inventory.EquipmentCatalog{Full: full}}
+	input := os.Stdin
+	if path != "-" {
+		input, err = os.Open(path)
+		if err != nil {
+			return err
+		}
+		defer input.Close()
+	}
+	decoder, encoder := json.NewDecoder(input), json.NewEncoder(os.Stdout)
+	for {
+		var row struct {
+			Name  string          `json:"name"`
+			State json.RawMessage `json:"state"`
+		}
+		if err = decoder.Decode(&row); err == io.EOF {
+			return nil
+		} else if err != nil {
+			return err
+		}
+		detail, err := service.EquipmentFameBreakdown(row.State)
+		if err != nil {
+			return fmt.Errorf("角色%s名望核对失败：%w", row.Name, err)
+		}
+		if err = encoder.Encode(struct {
+			Name string                  `json:"name"`
+			Fame character.FameBreakdown `json:"fame"`
+		}{row.Name, detail}); err != nil {
+			return err
+		}
+	}
 }

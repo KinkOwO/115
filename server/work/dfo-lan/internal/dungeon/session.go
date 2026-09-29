@@ -68,6 +68,9 @@ type Session struct {
 	// layerRecord 是客户端主动进当前层图时带来的换图记录（见 SceneEntryRecord）。
 	layerRecord    [18]byte
 	hasLayerRecord bool
+	// sceneBaseRooms retains the original combat room after a verified scene
+	// return. Later doorway visits must not select its already-finished layer.
+	sceneBaseRooms map[[2]byte]uint32
 }
 
 func Select(c catalog.DungeonCatalog, r protocol.DungeonSelection, level byte, accepted map[uint16]bool) (*Session, error) {

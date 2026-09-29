@@ -32,9 +32,10 @@ func LoadConfig(path string) (Config, error) {
 }
 
 type Store struct {
-	DB     *pgxpool.Pool
-	Cache  *redis.Client
-	prefix string
+	DB               *pgxpool.Pool
+	Cache            *redis.Client
+	prefix           string
+	adventureEnabled bool
 }
 
 func Open(ctx context.Context, c Config) (*Store, error) {
@@ -56,7 +57,7 @@ func Open(ctx context.Context, c Config) (*Store, error) {
 		return nil, e
 	}
 	cache := redis.NewClient(&redis.Options{Addr: c.RedisAddress, Password: c.RedisPassword, DialTimeout: 3 * time.Second, ReadTimeout: 3 * time.Second, WriteTimeout: 3 * time.Second})
-	s := &Store{db, cache, c.RedisPrefix}
+	s := &Store{DB: db, Cache: cache, prefix: c.RedisPrefix}
 	if e = db.Ping(ctx); e != nil {
 		s.Close()
 		return nil, e
@@ -95,6 +96,7 @@ func (s *Store) Migrate(ctx context.Context) error {
  created_at timestamptz NOT NULL DEFAULT now(),
  UNIQUE(account_id,wire_id));
  ALTER TABLE characters ADD COLUMN IF NOT EXISTS deleted_at timestamptz;
+ ALTER TABLE characters ADD COLUMN IF NOT EXISTS max_fame integer NOT NULL DEFAULT 0 CHECK(max_fame >= 0);
  ALTER TABLE characters ADD COLUMN IF NOT EXISTS roster_order bigint CHECK(roster_order > 0);
  ALTER TABLE characters ADD COLUMN IF NOT EXISTS fixed_slot smallint NOT NULL DEFAULT 0 CHECK(fixed_slot BETWEEN 0 AND 255);
  CREATE UNIQUE INDEX IF NOT EXISTS characters_name_unique ON characters(lower(name));
@@ -162,7 +164,15 @@ func (s *Store) CreateCharacter(ctx context.Context, c Character, maxCharacters 
 	return c, nil
 }
 func (s *Store) Characters(ctx context.Context, account int64) ([]Character, error) {
-	rows, e := s.DB.Query(ctx, `SELECT id,account_id,wire_id,name,profession,create_request,config_version,state,created_at,fixed_slot FROM characters WHERE account_id=$1 AND deleted_at IS NULL ORDER BY coalesce(roster_order,wire_id),wire_id`, account)
+	query := `SELECT id,account_id,wire_id,name,profession,create_request,config_version,state,created_at,fixed_slot FROM characters WHERE account_id=$1 AND deleted_at IS NULL ORDER BY coalesce(roster_order,wire_id),wire_id`
+	if s.adventureEnabled {
+		// 角色列表和重新选角使用最新账号迷雾阶段；历史角色快照不是进度真源。
+		query = `SELECT c.id,c.account_id,c.wire_id,c.name,c.profession,c.create_request,c.config_version,
+ jsonb_set(c.state,'{season_level}',COALESCE(a.data->'season_level','{}'::jsonb),true),c.created_at,c.fixed_slot
+ FROM characters c LEFT JOIN account_adventures a ON a.account_id=c.account_id
+ WHERE c.account_id=$1 AND c.deleted_at IS NULL ORDER BY coalesce(c.roster_order,c.wire_id),c.wire_id`
+	}
+	rows, e := s.DB.Query(ctx, query, account)
 	if e != nil {
 		return nil, e
 	}

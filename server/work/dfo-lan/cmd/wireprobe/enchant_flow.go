@@ -107,5 +107,5 @@ func (w *worldSession) enchantByBead(service *inventory.WearService, p, raw []by
 		"card": out.Card, "prev_enchant": out.PrevCard,
 		"row_before": out.RowBefore, "row_after": out.RowAfter,
 	})
-	return plan, nil
+	return w.appendFameUpdate(plan, event), nil
 }

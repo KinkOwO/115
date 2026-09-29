@@ -122,6 +122,10 @@ func (s *Session) scriptStageReady() bool {
 }
 
 func (s *Session) latestLayer(room catalog.DungeonRoom) catalog.DungeonRoom {
+	if resumed, ok := s.sceneBaseRooms[[2]byte{room.X, room.Y}]; ok {
+		room.Map = resumed
+		return room
+	}
 	for _, layer := range s.Maze.Layers {
 		if layer.Position == [2]byte{room.X, room.Y} {
 			for _, id := range layer.Maps {

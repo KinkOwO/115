@@ -3,6 +3,7 @@ package loot
 import (
 	"context"
 	crand "crypto/rand"
+	"dfolan/internal/adventure"
 	"dfolan/internal/cashshop"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
@@ -15,12 +16,13 @@ import (
 )
 
 type ConsumeReceipt struct {
-	EventKey  string                `json:"-"`
-	Slot      uint16                `json:"slot"`
-	Template  uint32                `json:"template"`
-	Remaining uint32                `json:"remaining"`
-	Source    string                `json:"source"`
-	Premiums  []storage.CashPremium `json:"premiums,omitempty"`
+	SeasonExperience uint32                `json:"season_experience,omitempty"`
+	EventKey         string                `json:"-"`
+	Slot             uint16                `json:"slot"`
+	Template         uint32                `json:"template"`
+	Remaining        uint32                `json:"remaining"`
+	Source           string                `json:"source"`
+	Premiums         []storage.CashPremium `json:"premiums,omitempty"`
 	// Granted records every prize a box handed out, including pity draws, so a
 	// replayed request returns the same prizes instead of drawing new ones.
 	Granted []ConsumeGrant `json:"granted,omitempty"`
@@ -67,6 +69,11 @@ func (s *Service) Consume(ctx context.Context, role storage.Character, r protoco
 	if inventory.IsReinforcementTicket(r.Template) {
 		return fail(fmt.Errorf("强化券必须选择装备后使用，不能作为普通消耗品扣除"))
 	}
+	seasonRules, e := adventure.CurrentSeason()
+	if e != nil {
+		return fail(e)
+	}
+	_, seasonCapsule := seasonRules.Capsules[r.Template]
 	key := fmt.Sprintf("consume:%d:%d:%d", r.Slot, r.Template, r.Instance)
 	if r.List == 7 {
 		key = fmt.Sprintf("consume-pet:%d:%d:%d", r.Slot, r.Template, r.Instance)
@@ -78,10 +85,10 @@ func (s *Service) Consume(ctx context.Context, role storage.Character, r protoco
 			if e != nil {
 				return nil, nil, nil, e
 			}
-			if _, contract := cashshop.ResolveContractItem(r.Template); contract {
+			if _, contract := cashshop.ResolveContractItem(r.Template); contract || seasonCapsule {
 				for _, row := range b.Items {
 					if row.Slot == r.Slot && row.Template == r.Template && protocol.StoredItemExpired(row.ExpireTime, time.Now().Unix()) {
-						return nil, nil, nil, fmt.Errorf("契约物品已过期")
+						return nil, nil, nil, fmt.Errorf("物品已过期")
 					}
 				}
 			}
@@ -156,13 +163,18 @@ func (s *Service) Consume(ctx context.Context, role storage.Character, r protoco
 			if e != nil {
 				return nil, nil, nil, e
 			}
+			var seasonGain uint32
+			updated, seasonGain, e = adventure.ApplySeasonCapsule(updated, r.Template, time.Now())
+			if e != nil {
+				return nil, nil, nil, e
+			}
 			if points != nil {
 				if updated, e = saveBoxPoints(updated, r.Template, points); e != nil {
 					return nil, nil, nil, e
 				}
 			}
 			out = ConsumeReceipt{Slot: r.Slot, Template: r.Template, Remaining: remaining,
-				Source: s.Catalog.Source.Checksum, Granted: granted, Points: points}
+				Source: s.Catalog.Source.Checksum, Granted: granted, Points: points, SeasonExperience: seasonGain}
 			receipt, e := json.Marshal(out)
 			return updated, receipt, premiums, e
 		})
