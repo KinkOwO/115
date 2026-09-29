@@ -105,6 +105,8 @@ func main() {
 	equipmentCraftExecuteFlag := flag.Bool("equipment-craft-execute", os.Getenv("DFO_EQUIPMENT_CRAFT_EXECUTE") != "0", "CMD2259 是否执行装备生成（扣成本 + 发装备）")
 	// 在哪一次请求上执行：confirm（同指纹第二次）/ first（第一次就执行）/ never。
 	equipmentCraftExecuteOnFlag := flag.String("equipment-craft-execute-on", envStrOr("DFO_EQUIPMENT_CRAFT_EXECUTE_ON", "confirm"), "CMD2259 何时执行装备生成：confirm / first / never")
+	// 装备变换（CMD2259 action=1）怎么执行：apply = 真的换装；observe = 只记日志、不动存档。
+	equipmentTransformApplyFlag := flag.String("equipment-transform", envStrOr("DFO_EQUIPMENT_TRANSFORM_APPLY", "apply"), "CMD2259 action=1（装备变换）如何执行：apply（真的换装）/ observe（只记日志）")
 	bagRulesFile := flag.String("bag-rules", "configs/inventory.compat90.json", "separate bag slot and missing stack limit policy")
 	boxesFile := flag.String("boxes", "", "imported open-box content tables; empty resolves boxes.json beside the bag rules")
 	cardRulesFile := flag.String("card-rules", "configs/cards.compat90.json", "separate compatible free-card policy")
@@ -182,6 +184,12 @@ func main() {
 		equipmentCraftExecuteOn = *equipmentCraftExecuteOnFlag
 	default:
 		log.Fatalf("invalid -equipment-craft-execute-on %q (want confirm/first/never)", *equipmentCraftExecuteOnFlag)
+	}
+	switch *equipmentTransformApplyFlag {
+	case "apply", "observe":
+		equipmentTransformApply = *equipmentTransformApplyFlag
+	default:
+		log.Fatalf("invalid -equipment-transform %q (want apply/observe)", *equipmentTransformApplyFlag)
 	}
 	oathGradePair, oathGradesErr := parseOathGrades(*oathGrades)
 	if oathGradesErr != nil {
@@ -1046,6 +1054,9 @@ func main() {
 					log.Fatal(err)
 				}
 				wearService = &inventory.WearService{Store: characters.Store, Catalog: equipment, Professions: characters.Catalog, BagRules: lootService.BagRules, Rules: rules}
+				// 装备变换要用「部位 → 装备类型」映射去**背包**里找源（客户端允许把背包装备放进
+				// 界面「变换前」槽，请求只带部位码），所以把同一份 WearRules 也交给 loot 服务。
+				lootService.WearRules = rules
 				// 创建期的初始装备投影共用同一份装备目录与部位槽映射，避免另立编号。
 				characters.Equipment = equipment
 				characters.WearRules = rules
@@ -1059,6 +1070,21 @@ func main() {
 					wearCatalog.Full = full
 					wearService.Catalog = &wearCatalog
 					equipment.Full = full
+					// [ALIGN-20260930-DURABILITY] 装备的**耐久上限**（源 `.equ` 的 `[durability]`）。
+					// 落库前用它 clamp 超出上限的耐久：实机 2026-09-30 存档里出现过 `100/48`
+					// 的武器（上限 48），客户端判定该装备非法 ⇒ 表现是"装备库登记不上 /
+					// 分解点不动 / 装备变换界面卡死"。堵在写入端最彻底。
+					inventory.SetDurabilityLimit(func(template uint32) (uint16, bool) {
+						d, err := equipment.Definition(template)
+						if err != nil {
+							return 0, false
+						}
+						v, ok := d.Fields["[durability]"]
+						if !ok || len(v) == 0 || v[0].Type != 0 || v[0].Value < 0 {
+							return 0, false
+						}
+						return uint16(v[0].Value), true
+					})
 					// 宠物行的期限（181 字节行的偏移 56）要按脚本真值给「剩余秒数」：
 					// 客户端把它 ÷86400 渲染成「过期时间:N天」，填哨兵值会显示 24856 天。
 					inventory.SetCreaturePeriodSource(func(template uint32) (int32, bool) {
@@ -3478,7 +3504,7 @@ func main() {
 					event(map[string]any{"kind": "equipment_craft_rejected", "id": frame.ID, "reason": "checksum failed"})
 					continue
 				}
-				plan, e := worldState.equipmentCraft(plaintext)
+				plan, e := worldState.equipmentCraft(plaintext, event)
 				if e != nil {
 					event(map[string]any{"kind": "equipment_craft_refused", "id": frame.ID, "character_id": worldState.role.ID, "reason": e.Error()})
 					continue
