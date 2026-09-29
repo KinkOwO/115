@@ -29,6 +29,32 @@ func TestFavorGiftSlotDecodesToAccountMaterialSlot(t *testing.T) {
 	}
 }
 
+// 染色(p[0]=1)应答必须是 0x01(result) + 请求体原样回显（逆向 parser
+// 0x14528f570 定论：byte1=op，1=染色分支，本地写颜色、不弹好感度窗）。
+// 实测染色帧 01 79 eb f5 05 01 00 11（npc=100002681, slot=0,
+// color=0x11），正确应答 9 字节；退回 16B 送礼 ack 会让 byte1=0 误走
+// 送礼分支弹"好感度增加了X"。
+func TestFavorDyeAckEchoesRequestBody(t *testing.T) {
+	req := []byte{0x01, 0x79, 0xeb, 0xf5, 0x05, 0x01, 0x00, 0x11}
+	decoded, err := protocol.DecodeFavorGift(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !decoded.IsDye() || decoded.NPCID != 100002681 {
+		t.Fatalf("decode dye request wrong: %+v", decoded)
+	}
+	ack := protocol.FavorDyeAck(req)
+	want := []byte{0x01, 0x01, 0x79, 0xeb, 0xf5, 0x05, 0x01, 0x00, 0x11}
+	if len(ack) != len(want) {
+		t.Fatalf("dye ack len = %d, want %d", len(ack), len(want))
+	}
+	for i := range want {
+		if ack[i] != want[i] {
+			t.Fatalf("dye ack = %x, want %x", ack, want)
+		}
+	}
+}
+
 // [favor level point up] 的键是礼物物品，数值是每次送礼的随机点数区间
 // [min,max]（[extra favor gift] 的 "物品 1 5000 7000" 条目证实）：
 // 无色 100/300，黑白红蓝 200/600，金色 400/900；未知礼物必须拒绝。

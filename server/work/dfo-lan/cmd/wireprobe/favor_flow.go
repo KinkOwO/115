@@ -52,6 +52,16 @@ func (w *worldSession) giveFavor(p []byte) ([]outboundPacket, error) {
 	if e != nil {
 		return nil, e
 	}
+	// 染色(p[0]=1)：剧情角色染色操作，不扣材料、不动好感度。逆向客户端
+	// CMD806 响应 parser(0x14528f570) 定论：byte0=result(1)，byte1=op，
+	// op=1 走染色分支（npcID u32 + count u8 + count 组 slot/color），本地
+	// 写角色颜色后直接提交，不弹任何好感度窗；op=0 才走送礼分支。
+	// 故应答为 0x01 + 染色请求体原样回显。此前回 16B 送礼格式
+	// FavorGiftAckV5（byte1=0）会被当成送礼，误弹"好感度增加了X"。
+	if req.IsDye() {
+		ack := protocol.FavorDyeAck(p)
+		return []outboundPacket{{"npc_favor_dye_ack", 1, 806, ack}}, nil
+	}
 	template, ok := inventory.StorageRowTemplate(req.GiftSlot())
 	if !ok {
 		return nil, fmt.Errorf("favor gift slot %d is not an account material", req.GiftSlot())
@@ -115,7 +125,8 @@ func (w *worldSession) giveFavor(p []byte) ([]outboundPacket, error) {
 	// noti194：8B（npcID + 总点数），v5 弹窗版语义。
 	// noti195 NPC_MOOD：8B（npcID + 总点数），试探——194 无法更新好感度窗口
 	// 百分比，195 是剩余唯一未尝试的好感度通知，可能负责窗口显示。
-	// noti733 客户端不认识（217 冻结）绝不再发。
+	// noti195 实测不更新好感度窗口；进城镇全量同步走 NOTI733
+	// （FavorPointInfo，见 main.go 入场延迟推送），送礼链路不再发 733。
 	point := uint32(fs.Point)
 	// 194 携带本次增量 delta（弹窗"好感度增加了{delta}"）
 	changed := protocol.FavorChangedLegacy(req.NPCID, uint32(delta))
