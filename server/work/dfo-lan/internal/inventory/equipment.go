@@ -325,14 +325,58 @@ func (c *EquipmentCatalog) Basic(id uint32) (uint16, error) {
 		return 0, e
 	}
 	attach, rarity, kind := r.Fields["[attach type]"], r.Fields["[rarity]"], r.Fields["[equipment type]"]
-	if len(attach) != 1 || attach[0].Text != "[free]" || rarity[0].Value > 2 {
+	if len(attach) != 1 || !acceptableAttach(attach[0].Text) || rarity[0].Value > 2 {
 		return 0, fmt.Errorf("special equipment reward requires additional source state")
 	}
-	if len(r.Fields["[durability]"]) == 0 && !poolJewelry[kind[0].Text] {
+	if len(r.Fields["[durability]"]) == 0 && !poolJewelryFor(kind[0].Text) {
 		return 0, fmt.Errorf("special equipment reward requires additional source state")
 	}
 	return d, nil
 }
+// allowTradeEquipment 报告是否把 `[trade]` / `[trade delete]` 也算作可掉落。
+//
+// 默认**关**：交易属性是否还需要额外的绑定状态尚未证实（见 Basic 的原始注释
+// "requires additional source state"），所以做成可一键切换的实验开关。
+func allowTradeEquipment() bool {
+	return os.Getenv("DFO_ALLOW_TRADE_EQUIPMENT") == "1"
+}
+
+// acceptableAttach 决定一件装备的 `[attach type]` 能否进掉落池。
+//
+// 原实现只接受 `[free]`，把 `[trade]` / `[trade delete]` 一并拒绝。后果（外部包实测，
+// 2026-09-28）：115 深渊的掉落装备（`100345985` `[support]`、`100391038` `[earring]`、
+// `100354160` `[magic stone]`、`100401592` `[primer]`）**全部是 `[trade]`**，于是
+//
+//	Basic() 拒绝 → 不进 pool → Durability() 查不到 → 掉落记录 [11] Durability = 0
+//	→ 客户端拿不到耐久/扩展字段 → 粉以上装备落地没有闪光特效。
+//
+// 三类在我们自己的 `configs/equipment.current37.json` 里的分布是
+// `[free]` 2805 / `[trade]` 170 / `[trade delete]` 199（与作者侧逐项一致），
+// 都来自同一份 PVF，本来就该能发。
+func acceptableAttach(t string) bool {
+	switch t {
+	case "[free]":
+		return true
+	case "[trade]", "[trade delete]":
+		return allowTradeEquipment()
+	}
+	return false
+}
+
+// poolJewelryFor 决定「没有 [durability]」的部位能否进掉落池。
+//
+// 原实现硬查 `poolJewelry`（只有 `[amulet]` `[wrist]` `[ring]` 三个），而 `Reward` 那侧的
+// `durabilityOptional` 早已放宽到 17 个部位。两侧不同步的直接后果：深渊装备的部位
+// （`[support]` / `[earring]` / `[magic stone]` / `[primer]`）虽然 `Reward` 认，`Basic` 却拒
+// ⇒ 永远进不了掉落池。开关打开时改用 `durabilityOptional` 与发放路径对齐；
+// 默认仍走旧表，行为与原先逐字节一致。
+func poolJewelryFor(kind string) bool {
+	if allowTradeEquipment() {
+		return durabilityOptional[kind]
+	}
+	return poolJewelry[kind]
+}
+
 func EquipmentRow(i BagEquipment) [protocol.CurrentItemRecordSize]byte {
 	// Current NOTI13 logs name slot+0, template+2, Data+6, ext_data1+10,
 	// Durability+11, isSealed+13. Fresh free basic gear has zero extensions.

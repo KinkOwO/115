@@ -1,6 +1,11 @@
 # CHANGELOG
 
 ## 2026-09-30
+- **掉落池准入：`[trade]` / `[trade delete]` 装备实验开关 + 耐久免检部位与发放路径对齐（外部包批 2 · F 项）**。115 深渊的掉落装备（`100345985` `[support]`、`100391038` `[earring]`、`100354160` `[magic stone]`、`100401592` `[primer]`）**全部是 `[trade]`**，而 `EquipmentCatalog.Basic()` 只接受 `[free]` ⇒ 它们**永远进不了掉落池**：`Basic()` 拒绝 → 不进 pool → `Durability()` 查不到 → 掉落记录 `[11] Durability = 0` → 客户端拿不到耐久/扩展字段 → **粉以上装备落地没有闪光特效**。三类在我们自己的 `configs/equipment.current37.json` 里的分布是 `[free]` **2805** / `[trade]` **170** / `[trade delete]` **199**（与作者侧逐项一致，同一份 PVF）。
+  - 新增 `acceptableAttach()`：`[free]` 恒可；`[trade]`/`[trade delete]` 由**实验开关 `DFO_ALLOW_TRADE_EQUIPMENT=1`** 放行（默认关 —— 交易属性是否还需要额外的绑定状态尚未证实，见 `Basic` 的原始注释 "requires additional source state"）。
+  - 新增 `poolJewelryFor()`：开关打开时用**发放路径同一张** `durabilityOptional`（17 个部位）替代原硬查的 `poolJewelry`（只有 `[amulet]`/`[wrist]`/`[ring]` 三个）—— 两侧不同步正是深渊部位被拒的另一半原因。**默认仍走旧表，行为与改动前逐字节一致**。
+  - 测试：新增 `internal/inventory/equipment_attach_test.go`（开关关/开双向断言，含"默认不许被改宽"的反向断言）。
+  - ⚠️ **未实机验证**；开关默认关 ⇒ 本提交在默认配置下**不改变任何既有行为**。
 - **外部《服务端更新功能-20260929》包 · 批 1 落地（只取"服务端能力"，不取任何"模式改造"）**：NPC 商店购买失败的根因是 **CMD21 字段解读错误** —— `p[8]` 与 `p[12]` 都是 npc-like id，**哪个是商店取决于客户端从哪个 NPC 打开界面**（作者侧 42/42 样本实证：`p8=100000694` 是场景物圣诞树、`p12=100001774` 才是"装备之力魔法书"；反之 `p8=100001019` 是奥德赛商店）。原实现只用 `NpcID(p[8])` 查商店表 ⇒ 查不到 ⇒ 落进金币价分支 ⇒ 该商品无 `buy` 价 ⇒ 拒绝，客户端弹「你的库存已经满了」。现按"谁在商店表里谁是商店"取 `ResolveShop(NpcID, ActorID)`，都不命中时退回 `NpcID` 保持历史行为。
   - **限购（新增能力）**：源里 `[purchase limit] \\`scope\\` \\`period\\` count`，服务端此前**完全未实现**。新增 `character_shop_purchases` 流水表（**不复用 `character_events`**：那张表主键是 `(character_id, event_key)`，同一 key 只能一行，而限购要可累加的行）+ `PeriodStart`（daily/weekly/monthly 按日历窗口；accumulate/version/空 = 从首次购买起累计）+ `CountShopPurchases`（按 account 或 character 计数）+ `RecordShopPurchase`（**必须与背包变更同一事务**）；`catalog.ItemShopOffer` 加 `LimitScope/LimitPeriod/LimitCount` 与 `PurchaseLimit()`；`loot.Buy` 的**材料路径与金币路径都**在事务内校验并记录，**达上限拒绝**（不回退到另一种支付方式 —— 回退等于扣错东西）。
   - **事务管道**：新增 `Store.CommitCharacterEventTx` 与 `Store.CommitAccountMaterialEventTx`（把 tx 句柄交给 apply）。⚠️ 顺带修掉一个**入口级校验坑**：`commitCharacterEvent` 里老的 `apply == nil` 判断会把"apply 为 nil、txApply 非 nil"的新入口直接判成 `invalid character event`（作者侧实机症状是买任何东西都弹「库存已满」）；新守卫是 `apply == nil && txApply == nil`。
