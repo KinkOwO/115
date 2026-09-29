@@ -13,7 +13,7 @@ type equipmentFameLevel struct {
 
 func fameFieldKey(key string) bool {
 	switch key {
-	case "[fame value]", "[fame table]", "[add fame value]", "[minimum level]", "[maximum level]", "[grade]", "[rarity]", "[part set index]":
+	case "[fame value]", "[fame table]", "[add fame value]", "[minimum level]", "[maximum level]", "[grade]", "[rarity]", "[part set index]", "[sole equipment]":
 		return true
 	}
 	return false
