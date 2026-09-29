@@ -1,6 +1,7 @@
 # CHANGELOG
 
 ## 2026-09-30
+- **融合石穿戴已确认**：`[amalgamation stone]` 在 special 开启时可进入客户端指定的 36–43 八栏；修正槽位表缺项导致受限例外被 `!ok` 短路的问题。沿用已有 CMD19 移动、替换、卸下、事务与存档恢复，保留源等级/职业规则和完整实例数据，拒绝范围外及满栏溢出槽46。新增原生请求回放、八栏、替换/卸下及边界回归；全量 `go test ./...`、`go vet ./...` 通过。`charactercheck` 因临时 schema 缺少 `character_quests` 未通过。用户于 2026-09-30 确认本候选验证通过。取证、SHA-256、测试结果与验证范围：`server/work/dfo-lan/docs/protocol/amalgamation-stone-wear-20260930.md`。
 - **副本内背包移格不再触发 Clone 裸体或卡房间（用户实机确认）**：CMD19 现在按容器列表判断影响范围；纯 list0 背包移动只刷新背包和相应单槽，不会重发整张穿戴表或触发宠物/角色外观重建。list3 实际换装时保留 Clone 重建。用户确认背包移格后外观正常且可进入下一房间。全量 `go test ./...`、`go vet ./...` 通过。确认基线：`server/work/dfo-lan/docs/protocol/avatar-clone-coexistence-candidate.md`。
 - **Crescent Moon Lake（任务22993）中场过场后可进入下一房：用户实机确认**。副本100004779的(2,0)层图结束后，服务端曾按源房间表顺序回到已访问的(1,0)，使客户端重复进入过场并崩溃。现优先选唯一未访问的普通相邻房间；用户确认成功进入下一房。本次验收仅覆盖该房间进入，不代表后续Boss、任务目标或整条流程已验证。全量`go test ./...`、`go vet ./...`通过；候选SHA-256：`C4061CC97F56435A629664FF57D0C5F4E921B52A4C96E70249FFD2234E0C0511`。确认基线：`server/work/dfo-lan/docs/protocol/crescent-moon-layer-exit-20260930.md`。
 - **掉落池准入：`[trade]` / `[trade delete]` 装备实验开关 + 耐久免检部位与发放路径对齐（外部包批 2 · F 项）**。115 深渊的掉落装备（`100345985` `[support]`、`100391038` `[earring]`、`100354160` `[magic stone]`、`100401592` `[primer]`）**全部是 `[trade]`**，而 `EquipmentCatalog.Basic()` 只接受 `[free]` ⇒ 它们**永远进不了掉落池**：`Basic()` 拒绝 → 不进 pool → `Durability()` 查不到 → 掉落记录 `[11] Durability = 0` → 客户端拿不到耐久/扩展字段 → **粉以上装备落地没有闪光特效**。三类在我们自己的 `configs/equipment.current37.json` 里的分布是 `[free]` **2805** / `[trade]` **170** / `[trade delete]` **199**（与作者侧逐项一致，同一份 PVF）。
