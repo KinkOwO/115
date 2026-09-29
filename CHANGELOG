@@ -1,6 +1,11 @@
 # CHANGELOG
 
 ## 2026-09-30
+- **掉落池准入：`[trade]` / `[trade delete]` 装备实验开关 + 耐久免检部位与发放路径对齐（外部包批 2 · F 项）**。115 深渊的掉落装备（`100345985` `[support]`、`100391038` `[earring]`、`100354160` `[magic stone]`、`100401592` `[primer]`）**全部是 `[trade]`**，而 `EquipmentCatalog.Basic()` 只接受 `[free]` ⇒ 它们**永远进不了掉落池**：`Basic()` 拒绝 → 不进 pool → `Durability()` 查不到 → 掉落记录 `[11] Durability = 0` → 客户端拿不到耐久/扩展字段 → **粉以上装备落地没有闪光特效**。三类在我们自己的 `configs/equipment.current37.json` 里的分布是 `[free]` **2805** / `[trade]` **170** / `[trade delete]` **199**（与作者侧逐项一致，同一份 PVF）。
+  - 新增 `acceptableAttach()`：`[free]` 恒可；`[trade]`/`[trade delete]` 由**实验开关 `DFO_ALLOW_TRADE_EQUIPMENT=1`** 放行（默认关 —— 交易属性是否还需要额外的绑定状态尚未证实，见 `Basic` 的原始注释 "requires additional source state"）。
+  - 新增 `poolJewelryFor()`：开关打开时用**发放路径同一张** `durabilityOptional`（17 个部位）替代原硬查的 `poolJewelry`（只有 `[amulet]`/`[wrist]`/`[ring]` 三个）—— 两侧不同步正是深渊部位被拒的另一半原因。**默认仍走旧表，行为与改动前逐字节一致**。
+  - 测试：新增 `internal/inventory/equipment_attach_test.go`（开关关/开双向断言，含"默认不许被改宽"的反向断言）。
+  - ⚠️ **未实机验证**；开关默认关 ⇒ 本提交在默认配置下**不改变任何既有行为**。
 - **装备库收录（「装备库添加」）写侧落地：CMD26 分解即登记 + 成功后补发 NOTI2610**。装备库（装备图鉴）此前**整条写侧缺失**：账本 `Counts` 的唯一写入方法 `EquipmentJournal.Add` **零生产调用点**，入场 2610 因账本恒空而不发 ⇒ 客户端图鉴永远没有条目；连带 `CMD2259` 装备生成/变换被服务端 `Counts[template] == 0` 直接拒绝（`internal/loot/equipment_craft.go` 写明"窗口里列的只有已登记条目"）。规格 `CMD/0026-DISJOINTITEM`、`journalMinimumLevel == 115` 的注释，以及另一棵树的独立实现，三处都指向同一结论：**客户端的 CMD26「分解」同时就是「装备库添加」**。
   - **落地**：`internal/loot/disjoint.go` 在分解的**同一个 apply 回调**里顺带写账本（收录逻辑抽成纯函数 `journalRegistrations`，与"扣装备 / 发材料"同生共死，不存在半状态）；登记模板一律取**服务端背包里那一行**（`Bag.Disjoint` 只按槽位取行、**不校验请求里客户端上报的模板**，请求值不作依据）；判据复用**唯一口径** `inventory.JournalLimit`（`minimum level == 115` ∧ `rarity ∈ {2,3,4,6,8}`，`[equipment type]` 命中则收紧、否则回落普通上限 99），**不新增第二处"能否登记"判断**。
   - **达上限只跳过收录、不拒绝分解**（普通 99、`[oath]` 这类按类型收紧的 1）；规则表未装载则**不收录也不报错**；回执新增 `journal_added` / `journal_skipped`（带原因：`cap reached` / `not registrable` / `no bag row`），**不静默放行**。
