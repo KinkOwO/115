@@ -12,6 +12,7 @@ import (
 )
 
 type Service struct {
+	BleedingMine *BleedingMineRewards
 	Currency    *OdysseyCurrency
 	Store       *storage.Store
 	Catalog     catalog.LootCatalog

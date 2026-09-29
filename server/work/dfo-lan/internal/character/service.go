@@ -166,18 +166,89 @@ func (s *Service) List(ctx context.Context, account int64) ([]byte, error) {
 	return s.ListWithFatigue(ctx, account, nil, time.Time{})
 }
 
+var specialChannelPrerequisites = []uint16{12167, 12312, 12392, 12422}
+
+// 列表、进城及外观刷新使用同一份任务到频道资格映射。
+func contentClearFlagsForQuests(ids []uint16) (flags [28]byte) {
+	for _, id := range ids {
+		switch id {
+		case 12167:
+			flags[5] = 1
+		case 12312:
+			flags[6] = 1
+		case 12392:
+			flags[8] = 1
+		case 12422:
+			flags[9] = 1
+		}
+	}
+	return flags
+}
+
+func (s *Service) roleContentClearFlags(role storage.Character) ([28]byte, error) {
+	// 无存储的离线投影不推断任务完成状态。
+	if s.Store == nil {
+		return [28]byte{}, nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	completed, err := s.Store.CompletedQuestIDs(ctx, role.AccountID, role.ConfigVersion, specialChannelPrerequisites)
+	if err != nil {
+		return [28]byte{}, err
+	}
+	return contentClearFlagsForQuests(completed[role.ID]), nil
+}
+
 func (s *Service) ListWithFatigue(ctx context.Context, account int64, fatigue *FatigueService, now time.Time) ([]byte, error) {
+	rows, err := s.listRowsWithFatigue(ctx, account, fatigue, now)
+	if err != nil {
+		return nil, err
+	}
+	return protocol.CharacterList(uint16(s.Rules.MaxCharacters), rows)
+}
+
+// 复用相同角色顺序及真实属性，数量与详情来自同一次账号角色查询。
+func (s *Service) AllServerRoster(ctx context.Context, account int64, fatigue *FatigueService, now time.Time) ([]byte, []int64, error) {
+	chars, err := s.Store.Characters(ctx, account)
+	if err != nil {
+		return nil, nil, err
+	}
+	rows, err := s.rosterRowsWithFatigue(ctx, account, chars, fatigue, now)
+	if err != nil {
+		return nil, nil, err
+	}
+	ids := make([]int64, len(chars))
+	for i, c := range chars {
+		ids[i] = c.ID
+	}
+	p, err := protocol.AllServerCharacterList(s.ChannelContext[0], uint16(s.Rules.MaxCharacters), rows)
+	return p, ids, err
+}
+
+func (s *Service) listRowsWithFatigue(ctx context.Context, account int64, fatigue *FatigueService, now time.Time) ([]protocol.CharacterRow, error) {
 	chars, e := s.Store.Characters(ctx, account)
 	if e != nil {
 		return nil, e
 	}
+	return s.rosterRowsWithFatigue(ctx, account, chars, fatigue, now)
+}
+
+func (s *Service) rosterRowsWithFatigue(ctx context.Context, account int64, chars []storage.Character, fatigue *FatigueService, now time.Time) ([]protocol.CharacterRow, error) {
 	rows := make([]protocol.CharacterRow, 0, len(chars))
+	// 资格位来自140220030的频道入场分支；任务来自当前PVF。
+	// enterablespecialchannel.etc 中的洞察、希洛克、黑鸦、奥兹玛任务
+	// 保持原生资格位；已撤下流放频道，不重新投影其专用准入标记。
+	completed, e := s.Store.CompletedQuestIDs(ctx, account, s.Catalog.Source.Checksum, specialChannelPrerequisites)
+	if e != nil {
+		return nil, e
+	}
 	for slot, c := range chars {
 		var state State
 		if e = json.Unmarshal(c.State, &state); e != nil {
 			return nil, e
 		}
 		row := protocol.CharacterRow{Slot: uint16(slot), FixedSlot: c.FixedSlot, Name: c.Name, Profession: c.Profession, Advancement: state.Advancement, Level: state.Level}
+		row.ContentClearFlags = contentClearFlagsForQuests(completed[c.ID])
 		row.Advancement, e = state.WireAdvancement()
 		if e != nil {
 			return nil, e
@@ -205,7 +276,7 @@ func (s *Service) ListWithFatigue(ctx context.Context, account int64, fatigue *F
 		}
 		rows = append(rows, row)
 	}
-	return protocol.CharacterList(uint16(s.Rules.MaxCharacters), rows)
+	return rows, nil
 }
 
 // RosterSlot deliberately resolves within the account's ordered roster. The
@@ -284,6 +355,8 @@ func (s *Service) EntryBasicProbe(role storage.Character, channelContext [2]byte
 	// survives DisableActorAppearance exactly like the native client.
 	creatureItemID, creatureName := wornCreature(role.State)
 	fame, err := s.EquipmentFame(role.State)
+	if err != nil { return nil, err }
+	contentFlags, err := s.roleContentClearFlags(role)
 	if err != nil {
 		return nil, err
 	}
@@ -291,7 +364,7 @@ func (s *Service) EntryBasicProbe(role storage.Character, channelContext [2]byte
 		Fame:          fame,
 		SeasonLevel:   seasonLevel(state.SeasonLevel),
 		ActorServerID: role.WireID, Context: channelContext,
-		Character: protocol.CharacterRow{Name: role.Name, Profession: role.Profession, Advancement: advancement, Level: state.Level, Odyssey: odyssey, Equipment: equipment, CreatureItemID: creatureItemID, CreatureName: creatureName},
+		Character: protocol.CharacterRow{Name: role.Name, Profession: role.Profession, Advancement: advancement, Level: state.Level, Odyssey: odyssey, Equipment: equipment, CreatureItemID: creatureItemID, CreatureName: creatureName, ContentClearFlags: contentFlags},
 		// The explicit per-slot block must stay empty on the entry path. A
 		// block holding a client-rejected slot is worse than an empty one:
 		// the reader replaces the projection wholesale, so a knight wearing
@@ -353,6 +426,8 @@ func (s *Service) AppearanceProbe(role storage.Character, channelContext [2]byte
 		return nil, err
 	}
 	fame, err := s.EquipmentFame(role.State)
+	if err != nil { return nil, err }
+	contentFlags, err := s.roleContentClearFlags(role)
 	if err != nil {
 		return nil, err
 	}
@@ -360,7 +435,7 @@ func (s *Service) AppearanceProbe(role storage.Character, channelContext [2]byte
 		Fame:          fame,
 		SeasonLevel:   seasonLevel(state.SeasonLevel),
 		ActorServerID: role.WireID, Context: channelContext,
-		Character:  protocol.CharacterRow{Name: role.Name, Profession: role.Profession, Advancement: advancement, Level: state.Level, Odyssey: odyssey, CreatureItemID: creatureItemID, CreatureName: creatureName},
+		Character:  protocol.CharacterRow{Name: role.Name, Profession: role.Profession, Advancement: advancement, Level: state.Level, Odyssey: odyssey, CreatureItemID: creatureItemID, CreatureName: creatureName, ContentClearFlags: contentFlags},
 		Appearance: rows,
 	})
 }

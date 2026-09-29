@@ -170,6 +170,9 @@ func UserInfoBasicProbe(s EntryBasicProbe) ([]byte, error) {
 	// 0x14563ecd2 consumes all 160 bytes before the actor ID. Two inline
 	// zero-terminated strings start at +0x1b and +0x5f; these remain empty.
 	p = append(p, make([]byte, 160)...)
+	// 145640467从头部+0x34复制28字节至临时角色+0x638；
+	// 145640FFA经14023F600/1401F2380覆盖名单，不能用零值抹掉频道资格。
+	copy(p[5+0x34:5+0x34+28], r.ContentClearFlags[:])
 	// 14563ecd2 读取到 14dc67340；145640f2c 从 +0x80 取名望并调用 145f05f60。
 	binary.LittleEndian.PutUint32(p[5+0x80:], s.Fame)
 	p = addName(add16(p, s.ActorServerID), r.Name)
@@ -208,7 +211,10 @@ func UserInfoBasicProbe(s EntryBasicProbe) ([]byte, error) {
 	p = add32(p, 0)
 	p = append(p, 0)
 	p = add16(p, 0)
-	p = append(p, 0)
+	// 1456401D4读取所属服务器，145F06180写入角色+0x614。
+	// 编队14142BDA0拒绝0，并与账号角色列表的服务器编号比较；
+	// 进城及外观刷新都必须保留此身份，不能以频道号或角色ID代替。
+	p = append(p, s.Context[0])
 	p = append(add16(p, 0), 0) // 0x14563bdc0: u16 + u8
 	p = add16(p, 0)
 	p = append(p, 0xff) // 0x14563a4a0 native unset value

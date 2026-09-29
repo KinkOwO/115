@@ -45,6 +45,15 @@ func (w *worldSession) dungeonGate(p []byte) ([]outboundPacket, error) {
 	// supplies a source dungeon ID instead; accept that only when it is this
 	// character's own starting route and the route is still owed.
 	if requested != 0 {
+		if w.bleedingMineStart != nil {
+			if err := w.validateBleedingMineDungeon(requested); err != nil {
+				return nil, err
+			}
+			return []outboundPacket{
+				{"赤红铁矿选图许可", 1, 15, []byte{1}},
+				{"赤红铁矿选图状态", 0, 27, protocol.EnterDungeonSelection()},
+			}, nil
+		}
 		if scene, ok := w.townArrivalScenes[requested]; ok {
 			if w.state.Position.Town != scene.Town || w.state.Position.Area != scene.Area {
 				return nil, fmt.Errorf("town arrival scene %d requires town area %d/%d", requested, scene.Town, scene.Area)
@@ -117,6 +126,15 @@ func (w *worldSession) selectDungeon(p []byte) (*dungeon.Session, []outboundPack
 	r, e := protocol.DecodeDungeonSelection(p)
 	if e != nil {
 		return nil, nil, e
+	}
+	if w.bleedingMineStart != nil {
+		if !w.selectingDungeon || w.approvedDungeonGate != r.ID {
+			return nil, nil, fmt.Errorf("赤红铁矿缺少本次开战的选图许可")
+		}
+		if err := w.validateBleedingMineDungeon(r.ID); err != nil {
+			return nil, nil, err
+		}
+		return w.prepareDungeonEntry(r)
 	}
 	if scene, ok := w.townArrivalScenes[r.ID]; ok {
 		// A quest's arrival trigger is a town event. A rejected CMD15 must not
@@ -478,6 +496,8 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 		}
 		plan = append(plan, outboundPacket{"elvenmere_info_sent", 0, 2193, protocol.ElvenmereInfo(floor, maxCleared, w.activeDungeon.WeeklyRewards, w.activeDungeon.SeasonRewards)})
 	}
+	// 房间重建会重置原生场景计时器，每次加载均同步同一个挑战期限。
+	plan = append(plan, w.bleedingMineTimer(time.Now())...)
 	return plan, nil
 }
 
@@ -652,12 +672,20 @@ func (w *worldSession) leaveDungeon() ([]outboundPacket, error) {
 			}
 		}
 	}
-	if w.pilotDeath != nil && w.pilotDeath.Dead {
-		w.pilotDeath.Dead = false
+	// 矿区死亡由客户端本地角色处理，不一定有普通CMD40记录。
+	if w.bleedingMineStart != nil || (w.pilotDeath != nil && w.pilotDeath.Dead) {
+		if w.pilotDeath != nil {
+			w.pilotDeath.Dead = false
+		}
 		if reviveState, err := protocol.PlayerDeathState(w.role.WireID); err == nil {
 			reviveState[2] = 1 // state 1: 恢复满血满蓝并解除死亡幽灵（Ghost）状态，使角色在城镇中正常恢复行动
 			plan = append(plan, outboundPacket{"town_actor_revived", 0, 32, reviveState})
 		}
+	}
+	if w.bleedingMineStart != nil {
+		ready := bleedingMinePreparation()
+		ready.Name = "赤红铁矿开战会话结束"
+		plan = append(plan, ready)
 	}
 	return plan, nil
 }
@@ -960,6 +988,9 @@ func (w *worldSession) completeDungeon() ([]outboundPacket, error) {
 	} // Moon final death owns its completion.
 	if !w.activeDungeon.Completed() || w.completionSent {
 		return nil, nil
+	}
+	if w.bleedingMineStart != nil {
+		return w.completeBleedingMineStage()
 	}
 	var plan []outboundPacket
 	if w.progression != nil && w.progression.Odyssey != nil && w.activeDungeon.Definition.Odyssey {

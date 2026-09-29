@@ -119,6 +119,7 @@ func main() {
 	selectionBoxFile := flag.String("selection-boxes", os.Getenv("DFO_SELECTION_BOXES"), "source selection box JSON ([booster select category] boxes)")
 	itemShopFile := flag.String("item-shop", os.Getenv("DFO_ITEM_SHOP"), "source item shop JSON (itemshop/**.shp; prices goods with [need material], e.g. the Odyssey shop's silver coins)")
 	shopPricesFile := flag.String("shop-prices", os.Getenv("DFO_SHOP_PRICES"), "source NPC prices; empty resolves shop-prices.json beside the loot catalog")
+	bleedingMineRewardsFile := flag.String("bleeding-mine-rewards", "", "赤红铁矿原版奖励表；默认读取掉落目录旁的 bleeding-mine-rewards.json")
 	soloPartyBootstrap := flag.Bool("solo-party-bootstrap", false, "initialize the owned actor in the current solo party roster")
 	accountOptionsFile := flag.String("account-options", "", "sparse current-client account option overrides; other defaults remain client-owned")
 	unifiedCharacFile := flag.String("unified-charac-template", "", "override the built-in 3539 byte character option block sent as NOTI2827 (different client build only)")
@@ -480,6 +481,9 @@ func main() {
 			log.Fatal(e)
 		}
 		if e = s.MigrateAdventure(ctx); e != nil {
+			log.Fatal(e)
+		}
+		if e = s.MigrateBleedingMine(ctx); e != nil {
 			log.Fatal(e)
 		}
 		if e = s.MigrateTutorial(ctx); e != nil {
@@ -917,6 +921,22 @@ if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "am
 				len(cc.Groups), items, len(cc.Templates()))
 		}
 		lootService = &loot.Service{Store: characters.Store, Catalog: c, DropCatalog: dropCatalog, Rules: r, BagRules: bag, Tables: tables, Equipment: gear, Journal: journalRules, CreateCost: equipmentCreateCost, ItemMaterials: itemMaterials}
+		minePath := *bleedingMineRewardsFile
+		if minePath == "" {
+			minePath = filepath.Join(filepath.Dir(lootPath), "bleeding-mine-rewards.json")
+		}
+		if _, err := os.Stat(minePath); err == nil {
+			mine, err := loot.LoadBleedingMineRewards(minePath)
+			if err != nil {
+				log.Fatal(err)
+			}
+			if mine.Source != c.Source.Checksum {
+				log.Fatal("赤红铁矿奖励表与当前角色配置版本不一致")
+			}
+			lootService.BleedingMine = mine
+		} else if *bleedingMineRewardsFile != "" {
+			log.Fatal(err)
+		}
 		pricesPath := *shopPricesFile
 		if pricesPath == "" {
 			pricesPath = filepath.Join(filepath.Dir(lootPath), "shop-prices.json")
@@ -1499,7 +1519,7 @@ if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "am
 		peer = c.RemoteAddr().String()
 		characters := characters // isolate context from simultaneous channel sessions
 		var channelNotice []byte
-		if *channelIdentityEnabled {
+		if *channelIdentityEnabled || channelCfg.SynchronizeIdentity {
 			ctx, notice, identityErr := channelIdentity(channelCfg, channel)
 			if identityErr != nil || characters == nil {
 				event(map[string]any{"kind": "channel_identity_error", "error": fmt.Sprint(identityErr), "characters_present": characters != nil})
@@ -1544,6 +1564,7 @@ if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "am
 			}
 			worldState = &worldSession{characters: characters, service: worldService, account: developmentAccount, flags: townPolicy.Flags, dungeons: dungeonCatalog, townArrivalScenes: townArrivalScenes, tutorials: tutorialRoutes, tutorialDungeons: tutorialDungeons, professions: characters.Catalog, fatigue: fatigueService, quests: questService, progression: progressionService, loot: lootService, selectionBoxes: selectionBoxes, vault: vaultService, skinCatalog: skinCatalog, soloPartyBootstrap: *soloPartyBootstrap, hub: hub, scaleDeathFromHP: *scaleDeathFromHP, oathGrades: oathGradePair, oathTable: oathGradeTable, oathFromGear: *oathFromGear, oathProgressClears: *oathProgressClears, oathProgressDungeons: oathProgressSet, oathInject: oathInjectSpecs, omenHold: *omenHold, omenState: *omenState, omenInfo: omenInfoBytes}
 			worldState.serverID = channelCfg.ServerID
+			worldState.channelType = channelTypes[channel]
 			if moonConfig != nil && channel == moonConfig.Channel {
 				worldState.moonConfig = moonConfig
 			}
@@ -1597,6 +1618,8 @@ if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "am
 		var mailAlarmRole, mailDeliveryID int64
 		ticker := time.NewTicker(30 * time.Second)
 		defer ticker.Stop()
+		mineTicker := time.NewTicker(time.Second)
+		defer mineTicker.Stop()
 		var moonTicks <-chan time.Time
 		if worldState != nil && worldState.moonConfig != nil {
 			mt := time.NewTicker(250 * time.Millisecond)
@@ -1607,6 +1630,21 @@ if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "am
 			var incoming clientRead
 			select {
 			case incoming = <-frames:
+			case now := <-mineTicker.C:
+				if bootstrapped && selectedCharacterID != 0 && worldState != nil {
+					packets, err := worldState.bleedingMineTimeout(now)
+					if err != nil {
+						event(map[string]any{"kind": "赤红铁矿超时退出失败", "error": err.Error()})
+					}
+					for _, packet := range packets {
+						if err := sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
+							return
+						}
+						event(map[string]any{"kind": packet.Name, "id": packet.ID, "plain_hex": hex.EncodeToString(packet.Payload), "character_id": selectedCharacterID})
+					}
+					// 超时只打开矿区失败选项，保留会话供结束探索或放弃处理。
+				}
+				continue
 			case now := <-moonTicks:
 				if bootstrapped && selectedCharacterID != 0 {
 					packets, e := worldState.moonTick(now)
@@ -1724,6 +1762,111 @@ if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "am
 				}
 			}
 			event(entry)
+			if frame.Type == 1 && bootstrapped && verified && characters != nil && selectedCharacterID != 0 && frame.ID == 1462 {
+				// 1402359F0发送无正文请求，实机20260929_005313已确认。
+				if len(plaintext) != 0 {
+					event(map[string]any{"kind": "账号角色资料请求被拒绝", "error": "请求正文应为空"})
+					continue
+				}
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				payload, roster, err := characters.AllServerRoster(ctx, developmentAccount, fatigueService, time.Now())
+				cancel()
+				if err != nil {
+					event(map[string]any{"kind": "账号角色资料读取失败", "error": err.Error()})
+					continue
+				}
+				// 1444FCE40读取服务器数量u8及各服务器编号u8、角色数u16。
+				count := len(roster)
+				counts := []byte{1, characters.ChannelContext[0], byte(count), byte(count >> 8)}
+				if err = sendPayload(0, 1396, counts); err != nil {
+					return
+				}
+				if err = sendPayload(0, 2, payload); err != nil {
+					return
+				}
+				if worldState != nil && worldState.channelType == 106 {
+					worldState.bleedingMineRoster = roster
+					// 名单索引与本次下发的账号列表一致，重开编队时也恢复已保存配置。
+					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					profile, err := worldState.bleedingMineProfile(ctx, roster)
+					cancel()
+					if err != nil {
+						event(map[string]any{"kind": "赤红铁矿编队恢复失败", "error": err.Error()})
+					} else if err = sendPayload(profile.Kind, profile.ID, profile.Payload); err != nil {
+						return
+					}
+				}
+				event(map[string]any{"kind": "账号编队角色资料已同步", "server": characters.ChannelContext[0], "characters": count, "plain_bytes": len(payload), "attempt": "1/3，CMD1462实机请求及原生读取链已核对"})
+				continue
+			}
+			if frame.Type == 1 && bootstrapped && verified && worldState != nil && frame.ID == 2316 {
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				packets, err := worldState.createBleedingMine(ctx, plaintext)
+				cancel()
+				if err != nil {
+					event(map[string]any{"kind": "赤红铁矿创建失败", "id": frame.ID, "error": err.Error()})
+					continue
+				}
+				for _, packet := range packets {
+					if err := sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
+						return
+					}
+					event(map[string]any{"kind": packet.Name, "id": packet.ID, "character_id": worldState.role.ID, "plain_hex": hex.EncodeToString(packet.Payload)})
+				}
+				continue
+			}
+			if frame.Type == 1 && bootstrapped && verified && worldState != nil && frame.ID == 2317 {
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				packets, err := worldState.saveBleedingMineTeam(ctx, plaintext)
+				cancel()
+				if err != nil {
+					event(map[string]any{"kind": "赤红铁矿编队保存失败", "id": frame.ID, "error": err.Error()})
+					// 14073D1E0将错误3映射到通用保存失败提示，不读额外正文。
+					if err := sendPayload(1, 2317, []byte{0, 3, 0}); err != nil {
+						return
+					}
+					continue
+				}
+				for _, packet := range packets {
+					if err := sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
+						return
+					}
+					event(map[string]any{"kind": packet.Name, "id": packet.ID, "character_id": worldState.role.ID, "plain_hex": hex.EncodeToString(packet.Payload), "attempt": "1/3，保存请求与原生通知读取链已核对"})
+				}
+				continue
+			}
+			if frame.Type == 1 && bootstrapped && verified && worldState != nil && frame.ID == 2318 {
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				start, plan, err := worldState.prepareBleedingMineStart(ctx, plaintext)
+				cancel()
+				if err != nil {
+					// 14073D500失败分支解除确认框设置的输入锁。
+					event(map[string]any{"kind": "赤红铁矿开战拒绝", "id": frame.ID, "error": err.Error()})
+					if sendPayload(1, 2318, []byte{0, 3, 0}) != nil {
+						return
+					}
+					continue
+				}
+				prepared, err := preparePackets(keys, plan)
+				if err != nil {
+					event(map[string]any{"kind": "赤红铁矿开战编码失败", "error": err.Error()})
+					if sendPayload(1, 2318, []byte{0, 3, 0}) != nil {
+						return
+					}
+					continue
+				}
+				c.SetWriteDeadline(time.Now().Add(5 * time.Second))
+				if err := writePackets(c, prepared, func(packet preparedPacket) {
+					event(map[string]any{"kind": packet.Name, "id": packet.ID, "character_id": worldState.role.ID,
+						"plain_hex": hex.EncodeToString(packet.Payload)})
+				}); err != nil {
+					return
+				}
+				worldState.bleedingMineStart = start
+				event(map[string]any{"kind": "赤红铁矿等待原生选图", "group": start.Group,
+					"dungeon": start.Dungeon, "members": start.Members, "attempt": "1/3，原生开战状态与C15发送链已核对"})
+				continue
+			}
 			if frame.Type == 1 && bootstrapped && verified && worldState != nil && selectedCharacterID != 0 {
 				handled, packets, e := worldState.moonHandle(frame.ID, plaintext, time.Now(), event)
 				if handled {
@@ -3401,7 +3544,7 @@ if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "am
 					plan, e = worldState.scaleStatus(plaintext, event)
 				case 40:
 					plan, e = worldState.playerDeath(plaintext, frame.Raw)
-					if e == nil {
+					if e == nil && worldState.bleedingMineStart == nil {
 						// [MERGE-20260928-DEATH-FAIL-TIMEOUT] 原生「倒计时结束 → 挑战失败」
 						// 由服务端推进：客户端进复活 UI 后只会等，不会发请求。死亡后等待
 						// deathFailTimeout，期间没复活就下发 NOTI33 (FAIL_CLEAR_DUNGEON)，
@@ -3441,6 +3584,7 @@ if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "am
 								// 这里绕过了那段，必须自己清 —— 否则客户端回城后发来的
 								// 门请求仍会命中一个已离开的会话。
 								w.activeDungeon = nil
+								w.bleedingMineStart = nil
 								event(map[string]any{"kind": "death_fail_timeout", "run": d.Run, "steps": len(leave) + 1})
 							})
 						}
@@ -3469,9 +3613,36 @@ if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "am
 					plan, e = worldState.tournamentSelect(plaintext)
 				case 132:
 					plan, e = worldState.returnFromDungeonSelection(plaintext)
+				case 2319:
+					plan, e = worldState.giveUpBleedingMine(plaintext)
+				case 1461:
+					plan, e = worldState.bleedingMineDeath(plaintext)
+				case 2320:
+					plan, e = worldState.settleBleedingMineStage(plaintext)
+				case 2321:
+					plan, e = worldState.finishBleedingMine(plaintext)
+				case 2325:
+					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					plan, e = worldState.composeBleedingMineRewards(ctx, plaintext, frame.Raw)
+					cancel()
+				case 2322, 2323:
+					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					if frame.ID == 2322 {
+						plan, e = worldState.claimBleedingMineRewards(ctx, plaintext)
+					} else {
+						plan, e = worldState.openBleedingMineRewards(ctx, plaintext)
+					}
+					cancel()
+				case 2327:
+					plan, e = worldState.reviveBleedingMine(plaintext, frame.Raw, time.Now())
 				case 42:
 					if len(plaintext) != 0 {
 						e = fmt.Errorf("unexpected give-up body")
+					} else if worldState.bleedingMineStart != nil {
+						plan, e = worldState.endBleedingMine()
+						if e == nil {
+							plan = append([]outboundPacket{{"dungeon_leave_ack", 1, 42, []byte{1}}}, plan...)
+						}
 					} else {
 						plan, e = worldState.leaveDungeon()
 					}
@@ -3510,10 +3681,18 @@ if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "am
 					}
 					// CMD39 failure reads a monster u16; NOTI132 has no generic
 					// command refusal. Never send the generic error shape there.
-					if frame.ID == 39 || frame.ID == 46 || frame.ID == 117 || frame.ID == 132 || frame.ID == 2015 || frame.ID == 2062 {
+					if frame.ID == 39 || frame.ID == 46 || frame.ID == 117 || frame.ID == 132 || frame.ID == 2015 || frame.ID == 2062 || frame.ID == 2319 {
 						continue
 					}
-					if e = sendPayload(1, frame.ID, protocol.Refusal(4)); e != nil {
+					refusalCode := uint16(4)
+					if frame.ID >= 2320 && frame.ID <= 2325 {
+						refusalCode = 3
+						// 14073D080的错误8专指未参与探索，不能拿来表示邮箱已满。
+						if frame.ID == 2322 && e == errBleedingMineClaimActor {
+							refusalCode = 8
+						}
+					}
+					if e = sendPayload(1, frame.ID, protocol.Refusal(refusalCode)); e != nil {
 						return
 					}
 					continue
@@ -3596,7 +3775,7 @@ if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "am
 								return
 							}
 							event(map[string]any{"kind": packet.Name, "id": packet.ID, "plain_hex": hex.EncodeToString(packet.Payload), "character_id": selectedCharacterID})
-							if packet.Name == "dungeon_clear_enabled" {
+							if packet.Name == "dungeon_clear_enabled" || packet.Name == "赤红铁矿领主通关确认" {
 								worldState.completionSent = true
 							}
 						}
@@ -3618,7 +3797,9 @@ if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "am
 							event(map[string]any{"kind": "area_presence_error", "error": e.Error()})
 						}
 					}
-					if (p.Name == "settlement_exit_ack" || p.Name == "dungeon_leave_ack") && pending == nil {
+					mineEnded := p.Name == "赤红铁矿开战会话结束" && worldState.bleedingMineStart != nil
+					if (p.Name == "settlement_exit_ack" || p.Name == "dungeon_leave_ack" || mineEnded) && pending == nil {
+						worldState.bleedingMineStart = nil
 						worldState.activeDungeon = nil
 						loyaltyCtx, loyaltyCancel := context.WithTimeout(context.Background(), 5*time.Second)
 						loyaltyPackets, loyaltyErr := worldState.refreshCreatureLoyalty(loyaltyCtx, time.Now(), false)
@@ -3673,7 +3854,7 @@ if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "am
 							}
 						}
 					}
-					if p.Name == "dungeon_clear_enabled" {
+					if p.Name == "dungeon_clear_enabled" || p.Name == "赤红铁矿领主通关确认" {
 						worldState.completionSent = true
 					}
 					if p.Name == "dungeon_clear_reward" {

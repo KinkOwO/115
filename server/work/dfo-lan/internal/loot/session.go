@@ -80,9 +80,14 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 			return nil, e
 		}
 	}
-	result, e := RollWithBonus(s.Catalog, s.Tables, s.Rules, s.Equipment.DropPool(), seed, monster.Level, monster.Rank, difficultyIndex(s.Rules, d.Difficulty), s.QuestDropBonusPercent)
-	if e != nil {
-		return nil, e
+	result := Outcome{NextSeed: seed}
+	excludeGold, excludeRandom := dungeonDropExclusions(d.Definition)
+	if !excludeGold || !excludeRandom {
+		var e error
+		result, e = RollWithBonus(s.Catalog, s.Tables, s.Rules, s.Equipment.DropPool(), seed, monster.Level, monster.Rank, difficultyIndex(s.Rules, d.Difficulty), s.QuestDropBonusPercent)
+		if e != nil {
+			return nil, e
+		}
 	}
 	result.Awards = filterDungeonAwards(d.Definition, result.Awards)
 	if d.Definition.Odyssey && s.Currency != nil {

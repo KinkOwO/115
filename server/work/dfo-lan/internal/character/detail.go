@@ -50,6 +50,15 @@ func (s *Service) entryAddition(role storage.Character, visualOverrides map[uint
 	if state.SourceSHA256 == "" {
 		return nil, fmt.Errorf("missing source character data")
 	}
+	stats, err := entryPackedStats(state)
+	if err != nil {
+		return nil, err
+	}
+	return s.entryAdditionWithStats(role, state, stats, visualOverrides, omitResolvedClones)
+}
+
+// 玩家和队友使用同一份源属性及单位换算，避免复制成长公式。
+func entryPackedStats(state State) (protocol.PackedEntryStats, error) {
 	v := state.Attributes
 	var failure error
 	scaled := func(name string, multiplier, max float64) uint32 {
@@ -82,9 +91,10 @@ func (s *Service) entryAddition(role storage.Character, visualOverrides map[uint
 		RecoveryJump:  [2]int16{signed("[hit recovery]", 10), signed("[jump power]", 10)},
 		Weight:        int32(scaled("[weight]", 10, math.MaxInt32)), BasePercent: 100,
 	}
-	if failure != nil {
-		return nil, failure
-	}
+	return stats, failure
+}
+
+func (s *Service) entryAdditionWithStats(role storage.Character, state State, stats protocol.PackedEntryStats, visualOverrides map[uint16]uint32, omitResolvedClones bool) ([]byte, error) {
 	var trees [2][]protocol.EntrySkill
 	for i := range trees {
 		known, e := s.knownSkills(role, state, i)

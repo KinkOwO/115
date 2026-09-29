@@ -13,6 +13,7 @@ import (
 	"dfolan/internal/world"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 )
 
@@ -29,6 +30,11 @@ type worldSession struct {
 	role            storage.Character
 	level           byte
 	adventureSnapshot [32]byte
+	channelType uint32
+	bleedingMineCreated bool
+	bleedingMineReady bool
+	bleedingMineRoster []int64
+	bleedingMineStart *bleedingMineStart
 	adventureEliteSnapshot [32]byte
 	// odyssey mirrors character.OdysseyRole for this session. It selects which
 	// source level gate the world service applies: an Arad Odyssey character
@@ -178,7 +184,31 @@ func (w *worldSession) enter(role storage.Character, spawn storage.WorldPosition
 	if e != nil {
 		return e
 	}
+	// 旧入口候选曾把矿区位置写入普通城镇存档；该位置在普通频道
+	// 不具备创建资格。仅修复这类旧位置，使用现有配置的默认落点。
+	if saved.Position.Town == 218 {
+		if spawn.Town == 218 {
+			return fmt.Errorf("普通频道默认落点不能使用赤红铁矿区域")
+		}
+		saved, e = w.service.Store.SaveWorld(ctx, w.account, role.ID, saved, spawn)
+		if e != nil {
+			return e
+		}
+	}
 	w.role, w.level, w.state, w.odyssey = role, state.Level, saved, odyssey
+	w.bleedingMineCreated, w.bleedingMineReady = false, false
+	w.bleedingMineRoster = nil
+	w.bleedingMineStart = nil
+	if w.channelType == 106 {
+		// 当前 clientchannelinfo.etc 指定赤红铁矿赛丽亚房间为218/0；
+		// 坐标取 town/bleedingmine.twn 的[gate]，不复用剧情城镇。
+		// 每次进入先回独立房间，不能恢复没有当前编队的副本准备区。
+		entry := storage.WorldPosition{Town: 218, Area: 0, X: 562, Y: 234}
+		if e := w.service.ValidatePosition(w.level, w.odyssey, entry); e != nil {
+			return fmt.Errorf("赤红铁矿频道落点无效：%w", e)
+		}
+		w.state.Position = entry
+	}
 	w.moon = moonSoloState{}
 	if w.moonConfig != nil {
 		if e := w.service.ValidatePosition(w.level, w.odyssey, w.moonConfig.Entry); e != nil {
@@ -448,7 +478,9 @@ func (w *worldSession) handle(id uint16, p []byte, send func(byte, uint16, []byt
 			w.specialWarpPending = false
 			return e
 		}
-		next, e = w.areaTransition(r)
+		if e = w.validateBleedingMineArea(r); e == nil {
+			next, e = w.areaTransition(r)
+		}
 		if e != nil {
 			event(map[string]any{"kind": "area_refused", "town": r.Town, "area": r.Area, "reason": e.Error()})
 			// Code 8 is the native level refusal; code 4 reaches the generic refusal
@@ -489,17 +521,23 @@ func (w *worldSession) handle(id uint16, p []byte, send func(byte, uint16, []byt
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	saved, e := w.service.Store.SaveWorld(ctx, w.account, w.role.ID, old, next)
-	if e != nil {
-		return e
+	if w.channelType == 106 && next.Town == 218 {
+		// 矿区位置属于当前频道会话，不能覆盖普通频道的城镇落点。
+		w.state.Position = next
+		event(map[string]any{"kind": "赤红铁矿会话位置更新", "character_id": w.role.ID, "position": next, "request": id})
+	} else {
+		saved, e := w.service.Store.SaveWorld(ctx, w.account, w.role.ID, old, next)
+		if e != nil {
+			return e
+		}
+		w.state = saved
+		event(map[string]any{"kind": "world_position_saved", "character_id": w.role.ID, "position": next, "revision": saved.Revision, "request": id})
 	}
-	w.state = saved
-	event(map[string]any{"kind": "world_position_saved", "character_id": w.role.ID, "position": next, "revision": saved.Revision, "request": id})
 	if id == 36 || id == 1418 {
 		// The acknowledgement echoes the request's own opcode: the client is
 		// waiting on the command it sent, and CMD 1418 replays the CMD 36
 		// area-change frame sequence otherwise unchanged.
-		if e = send(1, id, protocol.AreaChangeSuccess()); e != nil {
+		if e := send(1, id, protocol.AreaChangeSuccess()); e != nil {
 			return e
 		}
 		// NOTI23 is a distinct transition stage: its self branch invokes
@@ -534,6 +572,11 @@ func (w *worldSession) handle(id uint16, p []byte, send func(byte, uint16, []byt
 		event(map[string]any{"kind": "area_change_sent", "town": next.Town, "area": next.Area, "map": a.Map.Path, "sha256": a.Map.SHA256, "client_acceptance": "pending"})
 	} else {
 		w.broadcastMove()
+	}
+	if id == 35 {
+		if e := w.syncBleedingMinePreparation(send, event); e != nil {
+			return e
+		}
 	}
 	return w.settleProximityObjectives(ctx, send, event)
 }
