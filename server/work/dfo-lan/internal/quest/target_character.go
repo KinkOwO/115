@@ -1,4 +1,4 @@
-package quest
+﻿package quest
 
 import "dfolan/internal/catalog/pvf"
 
@@ -11,23 +11,9 @@ type targetCharacter struct {
 }
 
 func targetCharacters(script []pvf.Token) ([]targetCharacter, bool) {
-	return targetCharacterRows(script, "[target character]")
-}
-
-// nonTargetCharacters reads every [non target character] section: the
-// professions named there are excluded from the quest (Silent City faction
-// lead-ins mark the [at swordman] alternate lineage this way, while their
-// *_atS sibling quests name the same lineage under [target character]).
-// Ignoring this reverse gate offered both spellings of one faction quest to
-// the same character, which read in the quest book as duplicate entries.
-func nonTargetCharacters(script []pvf.Token) ([]targetCharacter, bool) {
-	return targetCharacterRows(script, "[non target character]")
-}
-
-func targetCharacterRows(script []pvf.Token, section string) ([]targetCharacter, bool) {
 	present := false
 	for _, cell := range script {
-		if cell.Type == 3 && cell.Text == section {
+		if cell.Type == 3 && cell.Text == "[target character]" {
 			present = true
 			break
 		}
@@ -35,7 +21,7 @@ func targetCharacterRows(script []pvf.Token, section string) ([]targetCharacter,
 	if !present {
 		return nil, true
 	}
-	cells := cells(script, section)
+	cells := cells(script, "[target character]")
 	if len(cells) == 0 || len(cells)%3 != 0 {
 		return nil, false
 	}
@@ -50,28 +36,14 @@ func targetCharacterRows(script []pvf.Token, section string) ([]targetCharacter,
 	return rows, true
 }
 
-func targetCharacterMatches(row targetCharacter, job string, advancement, awakening byte) bool {
-	return (row.job == "[all]" || row.job == job) &&
-		(row.advancement == -1 || row.advancement == int32(advancement)) &&
-		(row.awakening == -1 || row.awakening == int32(awakening))
-}
-
-// targetCharacterAllowed applies both gates: a [non target character] row that
-// matches the character excludes the quest outright, and (when present) at
-// least one [target character] row must match. Quest sources use the two
-// sections as the positive and negative faces of one profession filter; only
-// the positive face was honoured until the Silent City faction duplicates.
-func targetCharacterAllowed(targets, nonTargets []targetCharacter, job string, advancement, awakening byte) bool {
-	for _, row := range nonTargets {
-		if targetCharacterMatches(row, job, advancement, awakening) {
-			return false
-		}
-	}
-	if len(targets) == 0 {
+func targetCharacterAllowed(rows []targetCharacter, job string, advancement, awakening byte) bool {
+	if len(rows) == 0 {
 		return true
 	}
-	for _, row := range targets {
-		if targetCharacterMatches(row, job, advancement, awakening) {
+	for _, row := range rows {
+		if (row.job == "[all]" || row.job == job) &&
+			(row.advancement == -1 || row.advancement == int32(advancement)) &&
+			(row.awakening == -1 || row.awakening == int32(awakening)) {
 			return true
 		}
 	}

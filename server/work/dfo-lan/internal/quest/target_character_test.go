@@ -1,4 +1,4 @@
-package quest
+﻿package quest
 
 import (
 	"dfolan/internal/catalog"
@@ -37,51 +37,9 @@ func TestAwakeningQuestTargetCharacter(t *testing.T) {
 		if e == nil || !e.TargetUsable {
 			t.Fatalf("quest %d has invalid target rows: %+v", tc.id, e)
 		}
-		if got := targetCharacterAllowed(e.TargetCharacters, e.NonTargetCharacters, tc.job, tc.advancement, tc.stage); got != tc.want {
+		if got := targetCharacterAllowed(e.TargetCharacters, tc.job, tc.advancement, tc.stage); got != tc.want {
 			t.Errorf("quest %d target (%s, %d, %d): got %v, want %v", tc.id, tc.job, tc.advancement, tc.stage, got, tc.want)
 		}
-	}
-}
-
-// TestNonTargetCharacterGate: a [non target character] row excludes the matched
-// profession outright while leaving every other profession on the quest. This
-// is the reverse face of the [target character] gate and was ignored until the
-// Silent City faction lead-ins offered two spellings of one quest to the same
-// character.
-func TestNonTargetCharacterGate(t *testing.T) {
-	rows, ok := nonTargetCharacters([]pvf.Token{
-		{Type: 3, Text: "[non target character]"},
-		{Type: 6, Text: "[at swordman]"},
-		{Type: 0, Value: -1},
-		{Type: 0, Value: -1},
-		{Type: 3, Text: "[/non target character]"},
-	})
-	if !ok || len(rows) != 1 {
-		t.Fatalf("unexpected non target rows: %+v, %v", rows, ok)
-	}
-	if targetCharacterAllowed(nil, rows, "[at swordman]", 0, 0) {
-		t.Fatal("[non target character] must exclude the named profession")
-	}
-	if !targetCharacterAllowed(nil, rows, "[swordman]", 0, 0) {
-		t.Fatal("an unrelated profession must stay allowed")
-	}
-	if !targetCharacterAllowed(nil, rows, "[all]", 0, 0) {
-		t.Fatal("an unrelated profession must stay allowed")
-	}
-	if targetCharacterAllowed(nil, rows, "[at swordman]", 5, 3) {
-		t.Fatal("the wildcard rows exclude every advancement of the named job")
-	}
-}
-
-func TestNonTargetCharacterMalformedIsUnusable(t *testing.T) {
-	rows, ok := nonTargetCharacters([]pvf.Token{
-		{Type: 3, Text: "[non target character]"},
-		{Type: 6, Text: "[at swordman]"},
-		{Type: 0, Value: 1},
-		{Type: 3, Text: "[/non target character]"},
-	})
-	if ok || len(rows) != 0 {
-		t.Fatalf("malformed non target rows accepted: %+v, %v", rows, ok)
 	}
 }
 
