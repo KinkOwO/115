@@ -622,6 +622,17 @@ with (
  os.environ["DFO_ATTUNEMENT_REWARDS"] = str(
   project / "configs/attunement-rewards.generated.json"
  )
+ # 装备库（装备图鉴）规则表：分解登记（CMD26 事务内写账本）与入场 NOTI2610 都要它。
+ # 与上面的装备目录同一惯例 —— flag 的默认值读 DFO_EQUIPMENT_JOURNAL_RULES，
+ # 网关 cwd 是包根，所以必须给绝对路径。缺这张表只会"不登记"，不会拦启动。
+ os.environ["DFO_EQUIPMENT_JOURNAL_RULES"] = str(
+  project / "configs/equipment-journal.generated.json"
+ )
+ # 装备库「装备生成」的成本表（同一份源的 [create cost] 段）。与上面同一惯例：
+ # flag 默认值读 DFO_EQUIPMENT_CREATE_COST，网关 cwd 是包根，所以必须给绝对路径。
+ os.environ["DFO_EQUIPMENT_CREATE_COST"] = str(
+  project / "configs/equipment-create-cost.generated.json"
+ )
  stdout.write(' '.join(command) + '\n')
  server = subprocess.Popen(command, stdout=stdout, stderr=stderr, creationflags=flags)
  try:
