@@ -1,6 +1,15 @@
 # CHANGELOG
 
 ## 2026-09-29
+- **誓约切换持久化（来自 `shawang/115` 的 `fix/oath-selection-persistence`，整文件快照包已复刻落地）**：誓约选项此前只有内存态 —— 城镇里切过、进副本就丢。现按「角色 + 誓约核心实例键」落库并在场景恢复。
+  - **落库**：新增 `character_oath_options(character_id, core_instance_key, selected_option, revision, updated_at)`，`MigrateOathOptions` 启动期 `CREATE TABLE IF NOT EXISTS` + 索引（**幂等、纯追加**，不改任何角色 JSON 存档；穿戴槽位 47 仍是装备真源）。写库走事务并在事务内复核等级与装备，避免用旧存档覆盖。
+  - **协议**：`oath_system.go` 解析客户端 **C2S2382**（选项切换请求）、编码 **S2C2839**（选项状态）；`oath_selection_flow.go` 处理显式切换与场景初始化读取 —— **副本内拒绝切换**，进图时重新下发已保存选项。
+  - **三条下发时序**：① 城镇入场包序列末尾追加已保存的 S2C2839（`entry_flow.go`）；② 进入城镇、以及更换槽位 47 装备后刷新 S2C2839（`main.go`）；③ 副本加载后按 **NOTI13 完整穿戴容器 → NOTI14 槽位更新 → S2C2839 已选项** 的顺序恢复（副本 actor 重建的 mode-1 detail 记录**不带槽位 47**，所以必须先补穿戴容器）。
+  - **门槛与校验**（`internal/inventory/wear.go`）：誓约装备与晶体（`[oath]` / `[primer]`）加 **115 级门槛**，并补晶体槽位与品级校验。
+  - 落地：新增 `internal/game/protocol/oath_system.go`、`cmd/wireprobe/oath_selection_flow.go`、`docs/protocol/oath-{dungeon-selection,merge-guide}-20260929.md`；修改 `cmd/wireprobe/{main.go,entry_flow.go,dungeon_flow.go}`、`internal/inventory/wear.go`、`internal/storage/oath_options.go`。包内另有 3 个文件（`internal/character/detail.go`、`internal/inventory/equipment.go`、`internal/storage/store.go`）与本仓**归一后逐字节相同**，未改动、未覆盖。
+  - 复刻口径：`main.go`/`dungeon_flow.go`/`wear.go`/`storage/oath_options.go` 对包均为**严格超集（本仓独有 0 行）**，`entry_flow.go` 仅结构体字段对齐 + 新增 `OathSystemInfo` 字段与 op 2839 出站包；`dfolan/*` 导入齐全性扫描为空；删除列全部有据（3 行对齐 + 另一条线的 `disjoint_*`）。
+  - 测试：`go build ./...`、`go vet ./internal/... ./cmd/...` 0 项；`go test -p 1 -count=1 ./internal/... ./cmd/...` **全绿**。候选 SHA-256 `98a759c280668a4de2276993aa4b5adb8cee95d1b378c9e7fda27bfbfe88e66f`（23240192 B）。
+  - ⚠️ **未独立验证**（包内文档自述，勿夸大）：Oath Points 显示数值、Nature 灾难/增益/主动技能/攻击触发火球等**战斗效果**未获实机确认；已确认的只有「穿戴 Nature 誓约进副本后，誓约窗口显示城镇中选择的选项」。⚠️ 起服前请备份 `pgdata`（启动期会建表）。
 - **装备继承（CMD1722）+ 商店购买定价/账号材料支付 + 快捷栏装备**：三件独立的服务端修复（来自三个外部修复包，均已复刻落地）。
   - **装备继承 CMD1722**：这条分派原先**整条缺失** —— 客户端按下确认后直发 1722，服务端既不改状态也不回包，玩家看到「按下继承毫无效果」（与 CMD205 增幅书同类）。请求体 466 B = 14 B 前缀 + 14×32 B 记录 + 尾 `u32`（恒 0，不能当条数）；方向按等级判定，高等级件当材料→低等级件当基础、同级拒绝；搬强化/增幅等级（`offset 10` 低 5 位）、次元红字（`offset 19/20`）、附魔卡（`offset 14`）、锻造四类，材料件本体保留、四类清零；幂等键 = `sha256(原始请求)`。★ **禁止任何方向、任何形态的 1722 出站包**（`kind=1` 的 1722 是客户端自己发出去的命令、无接收 handler；`kind=0` 的 1722 是「小游戏道具使用计数通知」，弹的是道具使用次数）⇒ 成功/失败/拒绝都只落库 + 发 `id14` 槽位增量行（+ `WornSpaceUpdate`），用 `id14` 而非 `id13` 是因为窗口仍持有两件装备的对象引用，整包重建会打断引用。
   - **商店购买**：客户端把各类失败统一弹成 `Your Inventory is full.`（**与仓库无关**），真实原因是三处定价/扣料缺口 —— ①物品没有 `[price]` 原来直接拒 ②**用材料交换的商品**，材料成本写在**物品脚本**的 `[need material]`（商店表 `itemshop/**.shp` **没有价格字段**）③材料可能在**账号材料仓库**（晶块类 space 35 / 槽 363~379），而 `PayMaterials` 只查背包。修法：支付优先级 = `.shp 的 [need material]` → **物品脚本的 `[need material]`** → 金币价（`[price]`，缺则按 `Sell×5` ≈ `[value]` 兜底，再缺 = 0 免费）；材料支付走 `Store.CommitAccountMaterialEvent`（扣账号材料与改角色存档**同事务 + 幂等键**）；新增 `PayMaterialsWithStore`（**先扣背包、差额扣账号仓库**）；购买后补发 **NOTI13 list35**。新增 `configs/item-materials.json`（**14,211 种**带 `[need material]` 的物品）与只读导出脚本。

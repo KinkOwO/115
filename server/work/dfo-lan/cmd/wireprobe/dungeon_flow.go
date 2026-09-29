@@ -430,6 +430,14 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 		plan = append(plan, outboundPacket{"dungeon_fatigue_updated", 0, 36, p})
 	}
 	if w.characters != nil {
+		// Dungeon actor reconstruction does not carry oath slot 47 in the
+		// mode-1 detail record. Restore the authoritative worn container before
+		// applying slot updates and the oath selection, as town entry does.
+		wornSnapshot, err := inventory.WornPayload(w.role.State)
+		if err != nil {
+			return nil, err
+		}
+		plan = append(plan, outboundPacket{"dungeon_worn_equipment_restored", 0, 13, wornSnapshot})
 		wornUpdate, err := inventory.WornSpaceUpdate(w.role.State)
 		if err == nil && len(wornUpdate) > 0 {
 			plan = append(plan, outboundPacket{"dungeon_worn_visuals_restored", 0, 14, wornUpdate})
@@ -465,6 +473,15 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 		// never asks the warehouse for, so the owned page and the selection go
 		// back here the way the worn visuals do.
 		plan = append(plan, w.damageFontRestore()...)
+	}
+	if w.characters != nil && w.characters.Store != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		selection, err := w.dungeonOathSelectionPacket(ctx)
+		if err != nil {
+			return nil, err
+		}
+		plan = append(plan, selection)
 	}
 	if w.activeDungeon.Definition.ID == 100003126 {
 		// Elvenmere 初始化层数：根据进图选取的 Zone（Extra）设置当前层与最高已通关层。
