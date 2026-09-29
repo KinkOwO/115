@@ -508,6 +508,11 @@ func main() {
 		if e = s.MigrateCharacterEvents(ctx); e != nil {
 			log.Fatal(e)
 		}
+		// NPC 商店限购流水（`[purchase limit]`）。新表而不是复用 character_events：
+		// 那张表主键是 (character_id, event_key)，同一 key 只能一行，而限购要可累加的行。
+		if e = s.MigrateShopPurchases(ctx); e != nil {
+			log.Fatal(e)
+		}
 		// Per-character read-notice ledger (NOTI402/426) backs the teaching
 		// frame suppression for third-awakened characters.
 		if e = s.MigrateCharacterNotices(ctx); e != nil {
@@ -724,12 +729,20 @@ func main() {
 			if e = catalog.AttachTournamentQuestMaps(&data, path); e != nil {
 				log.Fatal(e)
 			}
+			path = filepath.Join(filepath.Dir(*dungeonCatalogFile), "dungeons.tower-of-grief-maps.json")
+			if e = catalog.AttachTowerGriefMaps(&data, path); e != nil {
+				log.Fatal(e)
+			}
 			path = filepath.Join(filepath.Dir(*dungeonCatalogFile), "dungeons.tower-of-dazzlement-maps.json")
 			if e = catalog.AttachDazzlementMaps(&data, path); e != nil {
 				log.Fatal(e)
 			}
 			path = filepath.Join(filepath.Dir(*dungeonCatalogFile), "dungeons.maze-chance-rates.json")
 			if e = catalog.AttachMazeChanceRates(&data, path); e != nil {
+				log.Fatal(e)
+			}
+			path = filepath.Join(filepath.Dir(*dungeonCatalogFile), "dungeons.hell-party-maps.json")
+			if e = catalog.AttachHellPartyMaps(&data, path); e != nil {
 				log.Fatal(e)
 			}
 		}
@@ -779,6 +792,9 @@ func main() {
 		}
 		if e == nil {
 			e = characters.Store.MigrateSkillLocks(ctx)
+		}
+		if e == nil {
+			e = characters.Store.MigrateTowerProgress(ctx)
 		}
 		cancel()
 		if e != nil {
@@ -4169,6 +4185,16 @@ func main() {
 			}
 			if questService != nil && bootstrapped && frame.ID == 33 && worldState != nil && verified {
 				plan, e := worldState.questInteraction(plaintext)
+				if diagnostic := worldState.npcPresenceShadow(plaintext); diagnostic != nil {
+					if e != nil {
+						diagnostic["legacy_outcome"] = "refused"
+					} else if len(plan) == 0 {
+						diagnostic["legacy_outcome"] = "no_progress"
+					} else {
+						diagnostic["legacy_outcome"] = "handled"
+					}
+					event(diagnostic)
+				}
 				if e != nil {
 					event(map[string]any{"kind": "quest_interaction_refused", "reason": e.Error()})
 					continue

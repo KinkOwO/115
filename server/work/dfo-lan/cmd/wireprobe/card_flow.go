@@ -201,6 +201,9 @@ func (w *worldSession) restartDungeon() (*dungeon.Session, []outboundPacket, err
 	if old.Definition.ID == blackPurgatorySquadDungeon {
 		return nil, nil, fmt.Errorf("黑鸦挑战结束，请返回大厅重新创建队伍")
 	}
+	if old.Definition.Tower != nil {
+		return nil, nil, fmt.Errorf("%s tower does not allow settlement retry", old.Definition.Tower.Key)
+	}
 	copy := *w
 	copy.activeDungeon = nil
 	sel := protocol.DungeonSelection{ID: old.Definition.ID, Party: 65535, Quest: uint32(old.Maze.Quest)}

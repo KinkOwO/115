@@ -20,6 +20,9 @@ type Session struct {
 	// （1=普通 2=专家 3=达人 4=王者 5=英雄；奥德赛恒等于副本的
 	// [designated difficulty]）。掉落按它取难度加成，见 loot.Session.Death。
 	Difficulty byte
+	// HellPosition is the current DGN's sealed Hell Party room, advertised in
+	// NOTI28. Nil retains the native absent sentinel (255,255).
+	HellPosition *[2]byte
 	Definition catalog.DungeonDefinition
 	Maze       catalog.DungeonMaze
 	Room       catalog.DungeonRoom
@@ -95,8 +98,21 @@ func Select(c catalog.DungeonCatalog, r protocol.DungeonSelection, level byte, a
 	if d.ID == 100003126 && r.Extra <= 100 {
 		extraValid = true
 	}
-	if d.Tutorial || !extraValid || r.Mode != 0 || r.Flag != 0 || r.Party != 65535 || r.Reserved != 0 || r.Tail != 0 || r.Options != [2]byte{} || r.Event != 0 {
+	if d.Tutorial || !extraValid || r.Mode > 1 || r.Flag != 0 || r.Party != 65535 || r.Reserved != 0 || r.Tail != 0 || r.Options != [2]byte{} || r.Event != 0 {
 		return nil, fmt.Errorf("unsupported dungeon option")
+	}
+	if r.Mode == 1 {
+		// Attempt 1/3 is a native-vector probe for Trombe (CMD16 ID 103).
+		// Other DGN seal positions have not yet been exercised on this client.
+		if r.ID != 103 {
+			return nil, fmt.Errorf("Hell Party entry is not yet verified for this dungeon")
+		}
+		if d.HellParty == nil || d.HellParty.SealMap == 0 {
+			return nil, fmt.Errorf("Hell Party is absent from this dungeon source")
+		}
+		if _, ok := c.Maps[d.HellParty.SealMap]; !ok {
+			return nil, fmt.Errorf("Hell Party seal map is not imported")
+		}
 	}
 	if r.Quest > 65535 || r.Quest != 0 && !accepted[uint16(r.Quest)] {
 		return nil, fmt.Errorf("quest is not accepted by this character")
@@ -109,12 +125,42 @@ func Select(c catalog.DungeonCatalog, r protocol.DungeonSelection, level byte, a
 	if err != nil {
 		return nil, err
 	}
-	s, err := newSession(c, d, chosen)
+	selected := chosen
+	if r.Mode == 1 {
+		position := d.HellParty.SealPosition
+		if position == selected.Start || position == selected.Boss {
+			return nil, fmt.Errorf("Hell Party seal room conflicts with source start or boss")
+		}
+		selected.Rooms = append([]catalog.DungeonRoom(nil), selected.Rooms...)
+		seal := catalog.DungeonRoom{X: position[0], Y: position[1], Map: d.HellParty.SealMap}
+		found := false
+		for i, room := range selected.Rooms {
+			if [2]byte{room.X, room.Y} == position {
+				selected.Rooms[i] = seal
+				found = true
+				break
+			}
+		}
+		if !found {
+			selected.Rooms = append(selected.Rooms, seal)
+		}
+		if selected.Size[0] <= position[0] {
+			selected.Size[0] = position[0] + 1
+		}
+		if selected.Size[1] <= position[1] {
+			selected.Size[1] = position[1] + 1
+		}
+	}
+	s, err := newSession(c, d, selected)
 	if err != nil {
 		return nil, err
 	}
 	s.Extra = r.Extra
 	s.Difficulty = r.Difficulty
+	if r.Mode == 1 {
+		position := d.HellParty.SealPosition
+		s.HellPosition = &position
+	}
 	if tournamentDungeon(d) {
 		run, actors, err := newTournamentRun(d, c.Maps[s.Room.Map], r.Difficulty)
 		if err != nil {
@@ -719,7 +765,12 @@ func fixedMonsters(script catalog.ScriptRecord, basis uint32) ([]protocol.Dungeo
 			i++
 		}
 		i--
-		if !fixed || !rankSeen || v[0] <= 0 || v[6] < 0 || v[7] < 0 || len(out) >= 255 {
+		// The native constructor sub_1471C18C0 zeros the rank at +0x24.
+		// sub_1471E9060 leaves it unchanged when no rank option matches.
+		// White Land map 100004527 row 3 is [fixed] without a rank tag;
+		// requiring rankSeen rejects a valid ordinary monster and its room.
+		// Keep rankSeen for duplicate-option validation, not as a requirement.
+		if !fixed || v[0] <= 0 || v[6] < 0 || v[7] < 0 || len(out) >= 255 {
 			return nil, fmt.Errorf("unsupported random monster placement or invalid source row")
 		}
 		level := int64(v[2])

@@ -27,9 +27,16 @@ type ClearReceipt struct {
 	RecommendedDungeonClear  bool   `json:"recommended_dungeon_clear,omitempty"`
 	DungeonID                uint32 `json:"dungeon_id,omitempty"`
 	CharacterLevel           byte   `json:"character_level,omitempty"`
+	TowerRewards             []inventory.AwardReceipt
 }
 
 func (s *ProgressionService) Clear(ctx context.Context, role storage.Character, run *dungeon.Session, rank byte, now time.Time) (storage.Character, ClearReceipt, bool, error) {
+	return s.ClearWithTowerRewards(ctx, role, run, rank, now, nil)
+}
+
+// ClearWithTowerRewards commits sourced tower items in the same idempotent
+// clear event as experience and the dungeon record.
+func (s *ProgressionService) ClearWithTowerRewards(ctx context.Context, role storage.Character, run *dungeon.Session, rank byte, now time.Time, awarder *inventory.Awarder) (storage.Character, ClearReceipt, bool, error) {
 	var receipt ClearReceipt
 	fail := func(e error) (storage.Character, ClearReceipt, bool, error) { return role, receipt, false, e }
 	if run == nil || !run.Completed() || run.StartedAt.IsZero() || now.Before(run.StartedAt) {
@@ -101,6 +108,20 @@ func (s *ProgressionService) Clear(ctx context.Context, role storage.Character, 
 		if e != nil {
 			return nil, nil, e
 		}
+		var towerRewards []inventory.AwardReceipt
+		if tower := run.Definition.Tower; tower != nil {
+			for _, item := range tower.Items {
+				if awarder == nil || item.Template == 0 || item.Amount == 0 {
+					return nil, nil, fmt.Errorf("tower item reward has no verified grant source")
+				}
+				updated, granted, grantErr := awarder.Grant(next.State, item.Template, item.Amount)
+				if grantErr != nil {
+					return nil, nil, grantErr
+				}
+				next.State = updated
+				towerRewards = append(towerRewards, granted)
+			}
+		}
 		all := true
 		for _, room := range run.Maze.Rooms {
 			monsters, visited := run.Visited[room.Map]
@@ -114,7 +135,7 @@ func (s *ProgressionService) Clear(ctx context.Context, role storage.Character, 
 			}
 		}
 		outcome, e := json.Marshal(ClearReceipt{ClearGain: gain, Source: s.Catalog.Source.Checksum, Run: run.RunID, Elapsed: uint32(elapsed), BestElapsed: best, NewRecord: improved, AllClear: all, MonsterExperience: uint32(monsterTotal), CreatureExperienceGained: creatureAwarded, SeasonExperienceGained: seasonAwarded,
-			RecommendedDungeonClear: recommended, DungeonID: run.Definition.ID, CharacterLevel: before.Level})
+			RecommendedDungeonClear: recommended, DungeonID: run.Definition.ID, CharacterLevel: before.Level, TowerRewards: towerRewards})
 		return next.State, outcome, e
 	})
 	if e != nil {

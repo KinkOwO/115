@@ -23,10 +23,28 @@ import (
 // The returned bool reports whether the change was applied (false on an
 // idempotent replay). The returned counts are always the post-commit storage
 // content, so a replay can still answer the client authoritatively.
+// CommitAccountMaterialEventTx 与 CommitAccountMaterialEvent 相同，但把事务句柄交给 apply。
+//
+// 与 CommitCharacterEventTx 同一动机：NPC 商店的**材料支付**路径也要在同一事务里
+// 校验并记录限购（多数限购商品是 account/accumulate 的材料货）。
+func (s *Store) CommitAccountMaterialEventTx(ctx context.Context, account, id int64, version, key, model string,
+	apply func(pgx.Tx, Character, json.RawMessage) (json.RawMessage, json.RawMessage, error)) (Character, json.RawMessage, bool, error) {
+	if apply == nil {
+		return Character{}, nil, false, fmt.Errorf("account material event 缺少处理函数")
+	}
+	return s.commitAccountMaterialEvent(ctx, account, id, version, key, model, apply, nil)
+}
+
 func (s *Store) CommitAccountMaterialEvent(ctx context.Context, account, id int64, version, key, model string, apply func(Character, json.RawMessage) (json.RawMessage, json.RawMessage, error)) (Character, json.RawMessage, bool, error) {
+	return s.commitAccountMaterialEvent(ctx, account, id, version, key, model, nil, apply)
+}
+
+func (s *Store) commitAccountMaterialEvent(ctx context.Context, account, id int64, version, key, model string,
+	txApply func(pgx.Tx, Character, json.RawMessage) (json.RawMessage, json.RawMessage, error),
+	apply func(Character, json.RawMessage) (json.RawMessage, json.RawMessage, error)) (Character, json.RawMessage, bool, error) {
 	var role Character
 	decoded, e := hex.DecodeString(version)
-	if e != nil || len(decoded) != 32 || key == "" || len(key) > 200 || model == "" || len(model) > 100 || apply == nil {
+	if e != nil || len(decoded) != 32 || key == "" || len(key) > 200 || model == "" || len(model) > 100 || (apply == nil && txApply == nil) {
 		return role, nil, false, fmt.Errorf("invalid account material event")
 	}
 	tx, e := s.DB.Begin(ctx)
@@ -61,7 +79,12 @@ func (s *Store) CommitAccountMaterialEvent(ctx context.Context, account, id int6
 	if !errors.Is(e, pgx.ErrNoRows) {
 		return role, nil, false, e
 	}
-	state, updated, e := apply(role, counts)
+	var state, updated json.RawMessage
+	if txApply != nil {
+		state, updated, e = txApply(tx, role, counts)
+	} else {
+		state, updated, e = apply(role, counts)
+	}
 	if e != nil {
 		return role, nil, false, e
 	}

@@ -40,6 +40,10 @@ type DungeonDefinition struct {
 	Odyssey                  bool
 	DesignatedDifficulty     byte
 	HuntBoss                 uint32 // Source Odyssey [hunt boss] single-target completion.
+	// AttunementBoss 是「调律之边界」玩法（[dungeon type] boundary of attunement）的源领主模板。
+	// 该玩法单人、不发 CMD117，所以只有这只领主的死亡确认能结束本次挑战 ——
+	// 见 internal/dungeon/completion.go 的 tryComplete。
+	AttunementBoss uint32
 	// SourceBoss 是副本脚本自己用 [clear condition] [hunt boss] <模板> <数量> 声明的
 	// 通关领主：杀掉它就算通关。这是**源对通关条件的声明**，对所有副本成立，
 	// 不是某个玩法的特例。
@@ -47,6 +51,7 @@ type DungeonDefinition struct {
 	// 只有「客户端不发 CMD117」的副本才走得到它，见 internal/dungeon/completion.go
 	// 的 tryComplete —— 客户端会发 CMD117 的副本由那条路径负责，这里不会重复结算。
 	SourceBoss uint32
+	HellParty  *DungeonHellParty `json:"hell_party,omitempty"`
 	Mazes      []DungeonMaze `json:"mazes"`
 	// MazeChanceRates 非空表示这张副本按源里的 [maze chance rate] 掷骰选图，
 	// 而不是「同 quest 里 index 最小者」。
@@ -57,7 +62,39 @@ type DungeonDefinition struct {
 	// 其余副本的行为一个字节都不变。长度必须等于 Mazes 的长度；权重在候选集
 	// 内归一化，0 表示永不选中。见 internal/catalog/maze_chance.go。
 	MazeChanceRates []uint32 `json:"maze_chance_rates,omitempty"`
+	// TowerGriefFloor is sourced from etc/towerofgrief.etc when the verified
+	// overlay is attached. It is runtime metadata for tower settlement only.
+	TowerGriefFloor uint16 `json:"-"`
+	// Tower is attached only after a tower's source floor/map rules are verified.
+	// Entry and progress are shared; reward packets remain tower specific.
+	Tower *TowerRuntime `json:"-"`
 }
+
+type TowerRuntime struct {
+	Key          string
+	Floor        uint16
+	TopFloor     uint16
+	DailyEntries uint16
+	ResetHourUTC uint8
+	RewardRule   string
+	// Items may be populated only from a verified reward table for this floor.
+	Items []TowerItemReward
+}
+
+type TowerItemReward struct {
+	Template uint32
+	Amount   uint32
+}
+
+// DungeonHellParty retains the original DGN's ordinary Hell Party room.
+// These values come from the current client resource, not legacy server data.
+type DungeonHellParty struct {
+	SealMap            uint32  `json:"seal_map"`
+	SealPosition       [2]byte `json:"seal_position"`
+	SeasonSealMap      uint32  `json:"season_seal_map,omitempty"`
+	SeasonSealPosition [2]byte `json:"season_seal_position,omitempty"`
+}
+
 type DungeonCatalog struct {
 	Source         pvf.ArchiveSnapshot          `json:"source"`
 	Dungeons       map[uint32]DungeonDefinition `json:"dungeons"`
@@ -195,6 +232,23 @@ func sourceBoss(cells []pvf.Token) uint32 {
 
 func ParseDungeon(id uint32, s ScriptRecord) (DungeonDefinition, error) {
 	d := DungeonDefinition{ID: id, Script: s}
+	if enabled := sectionCells(s.Cells, "[hell dungeon]"); len(enabled) == 1 && enabled[0].Type == 0 && enabled[0].Value == 1 {
+		mapIndex := sectionCells(s.Cells, "[seal door map index]")
+		position := sectionCells(s.Cells, "[seal door pos]")
+		if len(mapIndex) == 1 && mapIndex[0].Type == 0 && mapIndex[0].Value > 0 {
+			if xy, err := dungeonPair(position); err == nil {
+				d.HellParty = &DungeonHellParty{SealMap: uint32(mapIndex[0].Value), SealPosition: xy}
+				seasonIndex := sectionCells(s.Cells, "[season seal door map index]")
+				seasonPosition := sectionCells(s.Cells, "[season seal door pos]")
+				if len(seasonIndex) == 1 && seasonIndex[0].Type == 0 && seasonIndex[0].Value > 0 {
+					if xy, err := dungeonPair(seasonPosition); err == nil {
+						d.HellParty.SeasonSealMap = uint32(seasonIndex[0].Value)
+						d.HellParty.SeasonSealPosition = xy
+					}
+				}
+			}
+		}
+	}
 	mode := sectionCells(s.Cells, "[dungeon mode script]")
 	d.Odyssey = len(mode) == 1 && mode[0].Type == 6 && mode[0].Text == "arad odyssey"
 	if d.Odyssey {
