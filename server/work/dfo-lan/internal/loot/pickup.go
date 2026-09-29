@@ -34,6 +34,10 @@ type Service struct {
 	// 金币单价去扣，等于白送（实机 2026-09-23 玩家报告"银币没有扣减"）。
 	ItemShops *catalog.ItemShops
 	Prices    *catalog.ShopPrices
+	// ItemMaterials 是「物品脚本自带 [need material]」表：商店表 itemshop/**.shp **没有价格字段**，
+	// 用材料交换的商品其材料成本写在物品脚本里（见 internal/catalog/item_materials.go）。
+	// 为 nil 时这些商品退化成金币价（再缺 [price] 时按物品基础价值兜底）。
+	ItemMaterials *catalog.ItemMaterials
 	// ChapterDrop 是章节最终领主的章节盒掉落（手册 P3 子项 3）。默认整表
 	// enabled=false，禁用行连掷骰种子都不消耗；由 profile 显式开启。
 	ChapterDrop *OdysseyChapterDrop

@@ -221,6 +221,88 @@ func (b Bag) BuyWithMaterials(r BagRules, template, count uint32, materials []Ma
 	return paid.addStackable(r, template, count, st)
 }
 
+// PayMaterialsWithStore 与 PayMaterials 相同，但材料可以从**账号材料仓库**补足：
+// 账号共享材料（3033..3037 等，见 accountMaterialSlotByTemplate）平时不在角色背包里，
+// 每个模板先扣角色背包，背包不够的差额再扣账号仓库（space 35）。两处的总量都不足才拒绝。
+//
+// 商店里「用材料交换」的商品走的正是这条 —— 技能无色消耗早已能用账号仓库里的晶块，
+// 商店以前只查背包，于是「包里有晶块但商店说 have 0」。
+func PayMaterialsWithStore(b Bag, m AccountMaterials, materials []MaterialCost, multiplier uint32) (Bag, AccountMaterials, error) {
+	if len(materials) == 0 {
+		return b, m, nil
+	}
+	if multiplier == 0 {
+		multiplier = 1
+	}
+	for _, mt := range materials {
+		need := uint64(mt.Count) * uint64(multiplier)
+		var have uint64
+		for _, it := range b.Items {
+			if it.Template == mt.Template {
+				have += uint64(it.Amount)
+			}
+		}
+		have += uint64(m.Count(mt.Template))
+		if have < need {
+			return b, m, fmt.Errorf("need %d of item %d to pay, have %d", need, mt.Template, have)
+		}
+	}
+	b.Items = append([]BagItem(nil), b.Items...)
+	for _, mt := range materials {
+		need := uint64(mt.Count) * uint64(multiplier)
+		for i := range b.Items {
+			if need == 0 {
+				break
+			}
+			if b.Items[i].Template != mt.Template {
+				continue
+			}
+			take := uint64(b.Items[i].Amount)
+			if take > need {
+				take = need
+			}
+			b.Items[i].Amount -= uint32(take)
+			need -= take
+		}
+		if need > 0 {
+			next, _, e := m.Spend(mt.Template, uint32(need))
+			if e != nil {
+				return b, m, e
+			}
+			m = next
+		}
+	}
+	kept := make([]BagItem, 0, len(b.Items))
+	for _, it := range b.Items {
+		if it.Amount > 0 {
+			kept = append(kept, it)
+		}
+	}
+	b.Items = kept
+	return b, m, nil
+}
+
+// BuyWithMaterialsWithStore places a purchase paid with materials that may be
+// drawn from the account-shared store as well as the character bag.
+func (b Bag) BuyWithMaterialsWithStore(r BagRules, m AccountMaterials, template, count uint32, materials []MaterialCost, stackableType ...string) (Bag, AccountMaterials, uint16, error) {
+	if template == 0 || count == 0 {
+		return b, m, 0, fmt.Errorf("invalid buy parameters")
+	}
+	paid, store, err := PayMaterialsWithStore(b, m, materials, count)
+	if err != nil {
+		return b, m, 0, err
+	}
+	st := ""
+	if len(stackableType) > 0 {
+		st = stackableType[0]
+	}
+	out, slot, err := paid.addStackable(r, template, count, st)
+	if err != nil {
+		return b, m, 0, err
+	}
+	return out, store, slot, nil
+}
+
 // Sell sells an item from the bag by its slot and inventory list type.
 // Dispatch rules:
 // - equipment_slots [9,64] -> b.Equipment (unworn equipment in bag)

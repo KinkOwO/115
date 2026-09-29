@@ -9,7 +9,7 @@ func dungeonRequest(id uint16) bool {
 	switch id {
 	// 2329 = ENUM_CMDPACKET_MONSTER_HISTORY_LOG：定盘机关每秒上报一次自己的
 	// 血量与模板号，scale_death.go 用它判断「玩家已经把它打到血底」。
-	case 16, 37, 38, 39, 40, 42, 43, 45, 46, 69, 70, 71, 72, 117, 132, 449, 450, 2015, 2062, 2329:
+	case 16, 37, 38, 39, 40, 42, 43, 45, 46, 69, 70, 71, 72, 117, 132, 449, 450, 2015, 2062, 2329, 1722:
 		return true
 	}
 	return false
@@ -32,6 +32,12 @@ func observedGameRequest(id uint16) bool {
 	// 漏登记 205 的后果是：玩家用满 BodySampleLimit(8) 次增幅书之后，服务端不再解密该命令，
 	// 请求直接以「明文为空」失败 —— 表现就是增幅书前几次能用、之后毫无反应。
 	if id == 205 || id == 272 || id == 430 {
+		return true
+	}
+	// 1722 = 装备继承：已有处理器（见 inherit_flow.go），同样必须每次请求都解密校验。
+	// 漏登记的后果与 205 完全相同 —— 玩家用满 BodySampleLimit(8) 次继承之后，服务端
+	// 不再解密该命令，请求直接以「明文为空」失败，表现就是「前几次能继承、之后毫无反应」。
+	if id == 1722 {
 		return true
 	}
 	// 857 = ENUM_CMDPACKET_OPEN_AURA_SKIN_SLOT（幻化栏窗口点 OK 开启光环/宠物幻化栏）。
