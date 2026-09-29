@@ -2083,6 +2083,7 @@ if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "am
 						plan = append(plan, outboundPacket{"equipment_avatar_addition_refreshed", 0, 2, addition})
 					}
 				}
+				plan = worldState.appendFameUpdate(plan, event)
 				prepared, e := preparePackets(keys, plan)
 				if e != nil {
 					event(map[string]any{"kind": "equipment_encode_error", "error": e.Error()})
@@ -4575,6 +4576,14 @@ if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "am
 					return
 				}
 				selectedCharacterID = role.ID
+				if worldState != nil {
+					worldState.fameInitialized = false
+					for _, packet := range worldState.appendFameUpdate(nil, event) {
+						if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
+							return
+						}
+					}
+				}
 				selectedBasic, selectedAddition = basic, addition
 				mailAlarmRole, mailDeliveryID = 0, 0
 				select {

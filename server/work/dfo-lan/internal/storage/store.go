@@ -95,6 +95,7 @@ func (s *Store) Migrate(ctx context.Context) error {
  created_at timestamptz NOT NULL DEFAULT now(),
  UNIQUE(account_id,wire_id));
  ALTER TABLE characters ADD COLUMN IF NOT EXISTS deleted_at timestamptz;
+ ALTER TABLE characters ADD COLUMN IF NOT EXISTS max_fame integer NOT NULL DEFAULT 0 CHECK(max_fame >= 0);
  ALTER TABLE characters ADD COLUMN IF NOT EXISTS roster_order bigint CHECK(roster_order > 0);
  ALTER TABLE characters ADD COLUMN IF NOT EXISTS fixed_slot smallint NOT NULL DEFAULT 0 CHECK(fixed_slot BETWEEN 0 AND 255);
  CREATE UNIQUE INDEX IF NOT EXISTS characters_name_unique ON characters(lower(name));

@@ -201,7 +201,7 @@ func (s *equipmentSession) reinforceWithTicket(ctx context.Context, service *inv
 	event(map[string]any{"kind": "reinforcement_ticket_committed", "character_id": saved.ID,
 		"ticket": out.Ticket, "remaining": out.Remaining, "equipment": r.EquipmentTemplate,
 		"space": r.EquipmentSpace, "slot": r.EquipmentSlot, "before": out.Old, "after": out.Level, "result": out.Result})
-	return plan, nil
+	return w.appendFameUpdate(plan, event), nil
 }
 
 // reinforceWithMaterial 金币强化（材料 + 金币）。材料在账号共享仓库时，
@@ -278,7 +278,7 @@ func (s *equipmentSession) reinforceWithMaterial(ctx context.Context, service *i
 		"rate": out.Rate, "streak": out.Streak, "destroyed": out.Destroyed,
 		"protected": out.Protected, "protection_slot": out.ProtectionSlot,
 		"request_protection_slot": r.ProtectionSlot})
-	return plan, nil
+	return w.appendFameUpdate(plan, event), nil
 }
 
 // amplifyUpgrade 增幅（CMD80 mode=1）：扣矛盾结晶体 3242 与金币，按官方成功率判定，
@@ -358,7 +358,7 @@ func (s *equipmentSession) amplifyUpgrade(ctx context.Context, service *inventor
 		"safe": out.Safe, "rate": out.SuccessPercent,
 		"protected": out.Protected, "protection_slot": out.ProtectionSlot,
 		"request_protection_slot": r.ProtectionSlot})
-	return plan, nil
+	return w.appendFameUpdate(plan, event), nil
 }
 
 // amplifyBranch 在 mode=1（增幅）内部再分一次流：看窗口「券位」里放的是
@@ -430,7 +430,7 @@ func (s *equipmentSession) amplifyTicket(ctx context.Context, service *inventory
 		"equipment": r.EquipmentTemplate, "space": out.EquipmentSpace, "slot": r.EquipmentSlot,
 		"amplify_type": out.AmplifyType, "before": out.Old, "after": out.Level,
 		"result": out.Result, "rate": out.SuccessPercent})
-	return plan, nil
+	return w.appendFameUpdate(plan, event), nil
 }
 
 // amplifyRowSummary 把增量刷新包里的行压成可读摘要，便于抓包定位（槽位/模板/数量）。
