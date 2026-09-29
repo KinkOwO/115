@@ -37,6 +37,7 @@ type entryPayloads struct {
 	Journal []byte
 	// EquipmentSkill 是装备技能栏/冷却提醒/自定义按键的两组快照（S2C2609，168B）。
 	// 客户端一次消费前 160 字节，所以**恒发**（没设过就是全零）。
+	// 它在 packets() 里的位置必须晚于 2758，见那里的注释。
 	EquipmentSkill []byte
 	// 冒险图鉴为账号登记集合，登录即恢复，不依赖角色移动上报。
 	AdventureCollection []byte
@@ -164,8 +165,10 @@ func (p entryPayloads) packets() []outboundPacket {
 		{"entry_basic_probe_sent", 0, 2, p.Basic},
 		{"entry_addition_sent", 0, 2, p.Addition},
 		{"entry_skills_sent", 0, 19, p.Skills},
-		{"equipment_skill_restored", 0, 2609, p.EquipmentSkill},
 		{"skill_preset_restored", 0, 2758, p.SkillPreset},
+		// 2609 必须排在 2758 **之后**：TestEntrySkillPresetFollowsSkillTree 钉死
+		// 2758 紧跟 19（技能树之后立刻是技能预设），插在中间会让那条测试变红。
+		{"equipment_skill_restored", 0, 2609, p.EquipmentSkill},
 		{"vault_initialized", 0, 13, p.Vault},
 	}
 	// The newer skin families and the 收藏 push join the same entry window as the two
