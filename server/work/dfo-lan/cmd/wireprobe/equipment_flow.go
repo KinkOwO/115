@@ -119,12 +119,14 @@ func (s *equipmentSession) handle(service *inventory.WearService, w *worldSessio
 		return nil, e
 	}
 	plan = append(plan, outboundPacket{"equipment_bag_resynced", 0, 13, bagBody})
-	wornBody, e := inventory.WornPayload(saved.State)
-	if e != nil {
-		return nil, e
-	}
-	if len(wornBody) > 0 {
-		plan = append(plan, outboundPacket{"equipment_worn_resynced", 0, 13, wornBody})
+	if moveTouchesWorn(r) {
+		wornBody, e := inventory.WornPayload(saved.State)
+		if e != nil {
+			return nil, e
+		}
+		if len(wornBody) > 0 {
+			plan = append(plan, outboundPacket{"equipment_worn_resynced", 0, 13, wornBody})
+		}
 	}
 	for _, space := range []byte{0, 1, 3, 7} {
 		var rows []inventory.BagEquipment
@@ -159,7 +161,7 @@ func (s *equipmentSession) handle(service *inventory.WearService, w *worldSessio
 			plan = append(plan, outboundPacket{"equipment_slots_updated", 0, 14, body})
 		}
 	}
-	if r.SourceList == 7 || r.DestinationList == 7 || r.SourceSlot == 26 || r.DestinationSlot == 26 {
+	if moveTouchesCreature(r) {
 		clPayload, err := inventory.CreatureListPayload(saved.State)
 		if err == nil {
 			plan = append(plan, outboundPacket{"creature_list_updated", 0, 105, clPayload})
@@ -173,12 +175,14 @@ func (s *equipmentSession) handle(service *inventory.WearService, w *worldSessio
 			}
 		}
 	}
-	wornUpdate, e := inventory.WornSpaceUpdate(saved.State)
-	if e != nil {
-		return nil, e
-	}
-	if len(wornUpdate) > 0 {
-		plan = append(plan, outboundPacket{"equipment_worn_window_refreshed", 0, 14, wornUpdate})
+	if moveTouchesWorn(r) {
+		wornUpdate, e := inventory.WornSpaceUpdate(saved.State)
+		if e != nil {
+			return nil, e
+		}
+		if len(wornUpdate) > 0 {
+			plan = append(plan, outboundPacket{"equipment_worn_window_refreshed", 0, 14, wornUpdate})
+		}
 	}
 	// Appearance refresh (C9): when the move touched the worn set, re-send the
 	// mode0 userinfo with the equipped-appearance block bound to the new state.
@@ -213,7 +217,22 @@ func (s *equipmentSession) handle(service *inventory.WearService, w *worldSessio
 // (CMD38) but stopped issuing the room transition (CMD45). Before that move,
 // the same run had advanced rooms normally.
 func shouldSendEquipmentAppearanceRebuild(inDungeon bool, r protocol.ItemMoveRequest) bool {
-	return !inDungeon && (r.SourceList == 3 || r.DestinationList == 3)
+	return !inDungeon && moveTouchesWorn(r)
+}
+
+func moveTouchesWorn(r protocol.ItemMoveRequest) bool {
+	return r.SourceList == 3 || r.DestinationList == 3
+}
+
+func moveTouchesCreature(r protocol.ItemMoveRequest) bool {
+	return r.SourceList == 7 || r.DestinationList == 7 ||
+		(r.SourceList == 3 && r.SourceSlot == 26) ||
+		(r.DestinationList == 3 && r.DestinationSlot == 26)
+}
+
+func moveNeedsCreatureActorAppearance(r protocol.ItemMoveRequest) bool {
+	return !moveTouchesWorn(r) && moveTouchesCreature(r) &&
+		(r.SourceSlot == 26 || r.DestinationSlot == 26)
 }
 
 // The confirmed CMD37 repair must run again after a successful in-dungeon
@@ -222,8 +241,7 @@ func shouldSendEquipmentAppearanceRebuild(inDungeon bool, r protocol.ItemMoveReq
 // does not touch those objects. Keep the same detach/reattach/ordinary-gear
 // order as finishDungeonLoading; this is a new live timing to verify manually.
 func dungeonCloneEquipmentRefresh(w *worldSession, r protocol.ItemMoveRequest) ([]outboundPacket, bool, error) {
-	if w == nil || w.activeDungeon == nil || w.characters == nil ||
-		(r.SourceList != 3 && r.DestinationList != 3) {
+	if w == nil || w.activeDungeon == nil || w.characters == nil || !moveTouchesWorn(r) {
 		return nil, false, nil
 	}
 	reset, full, enabled, err := w.characters.CloneReattachPackets(w.role)
