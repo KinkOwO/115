@@ -99,6 +99,10 @@ func (s *Service) shopPrice(template uint32) (catalog.ShopPrice, error) {
 
 // checkShopLimit 在**事务内**校验限购并记录本次购买。
 //
+// ⚠️ **本仓取舍（单机化的体验改动，非原版设计）**：原版源里有 `[purchase limit]`，本仓**暂不实施** ——
+// 目录里还没有 `limit_*` 字段（导入器未接），`PurchaseLimit` 因此恒返回 `ok=false`，本函数直接放行。
+// 代码路径保留，接上数据即生效。详见 internal/storage/shop_purchase.go 的头部说明。
+//
 // 规格：物品自身 `.stk` 的 `[purchase limit] <scope> <period> <count>`，由
 // cmd/itemshopimport 导进 itemshop 目录的 offer 字段（catalog.ItemShopOffer）。
 //

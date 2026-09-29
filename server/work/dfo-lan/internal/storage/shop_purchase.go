@@ -10,6 +10,12 @@ import (
 
 // NPC 商店限购。
 //
+// ⚠️ **本仓取舍（单机化的体验改动，非原版设计）**：原版源里确实有 `[purchase limit]`
+// （全库 account/accumulate 1215、weekly 652、daily 270、monthly 121 …），但本仓**暂不实施限购** ——
+// `configs/itemshop-candidate.json` 目前不含 `limit_*` 字段（`cmd/itemshopimport` 还没解析物品 `.stk` 的
+// `[purchase limit]`），于是 `catalog.ItemShops.PurchaseLimit` 恒返回 `ok=false`、每条购买都放行。
+// 这是**我们为单机体验做的取舍**，不是原版行为；代码路径完整保留，接上数据即生效，不必改业务逻辑。
+//
 // 来源：物品自身 `.stk` 的 `[purchase limit] <scope> <period> <count>`，
 // 由 cmd/itemshopimport 导进 configs/itemshop-candidate.json 的 offer 字段，
 // 运行时由 internal/loot 的 Buy 校验。
