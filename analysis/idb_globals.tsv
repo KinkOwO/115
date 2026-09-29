@@ -1,1 +1,6 @@
 address	name	description
+0x14E682A58	CurrentServerIdentity	当前客户端受保护的服务器编号；NOTI2435首个u32赋值，冒险团回复以u8比较
+0x14E682A60	CurrentChannelIdentity	当前客户端受保护的频道编号；NOTI2435第二个u32赋值，冒险团回复以u32比较
+0x14E682A80	ServerClockEpoch	1400531F0启动构造明确置零的受保护u32；145257F70或NOTI1处理器1452C7CD0同步服务器秒数，145A11A50读取
+0x14E682A88	ServerClockLocalEpoch	时间同步时同时记录的本机time32，145257FCD读取；不是服务端应发送的字段
+0x14E682A90	ServerClockSyncTick	受保护的u32本机同步tick；145257FFE与服务器epoch同步更新；客户端自行生成，不从包中读取

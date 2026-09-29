@@ -2,6 +2,7 @@ package character
 
 import (
 	"context"
+	"dfolan/internal/adventure"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/inventory"
 	"dfolan/internal/progression"
@@ -22,6 +23,10 @@ type ClearReceipt struct {
 	AllClear                 bool
 	MonsterExperience        uint32
 	CreatureExperienceGained uint32
+	SeasonExperienceGained   uint32 `json:"season_experience_gained,omitempty"`
+	RecommendedDungeonClear  bool   `json:"recommended_dungeon_clear,omitempty"`
+	DungeonID                uint32 `json:"dungeon_id,omitempty"`
+	CharacterLevel           byte   `json:"character_level,omitempty"`
 }
 
 func (s *ProgressionService) Clear(ctx context.Context, role storage.Character, run *dungeon.Session, rank byte, now time.Time) (storage.Character, ClearReceipt, bool, error) {
@@ -55,6 +60,14 @@ func (s *ProgressionService) Clear(ctx context.Context, role storage.Character, 
 		return fail(fmt.Errorf("creature experience gain out of range"))
 	}
 	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, s.Catalog.Source.Checksum, key, s.Rules.Model, func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+		var before State
+		if e := json.Unmarshal(current.State, &before); e != nil {
+			return nil, nil, e
+		}
+		recommended, e := adventure.RecommendedDungeonClear(run.Definition.ID, before.Level)
+		if e != nil {
+			return nil, nil, e
+		}
 		gain, e := progression.DungeonClear(s.Catalog, run.Definition, 0, rank)
 		if e != nil {
 			return nil, nil, e
@@ -78,6 +91,11 @@ func (s *ProgressionService) Clear(ctx context.Context, role storage.Character, 
 			return nil, nil, e
 		}
 		next.State = state
+		var seasonAwarded uint32
+		next.State, seasonAwarded, e = awardSeasonClear(next.State, run.Definition.ID, run.Difficulty, now)
+		if e != nil {
+			return nil, nil, e
+		}
 		var creatureAwarded uint32
 		next.State, creatureAwarded, e = inventory.AwardEquippedCreatureExperience(next.State, creatureGain)
 		if e != nil {
@@ -95,7 +113,8 @@ func (s *ProgressionService) Clear(ctx context.Context, role storage.Character, 
 				}
 			}
 		}
-		outcome, e := json.Marshal(ClearReceipt{ClearGain: gain, Source: s.Catalog.Source.Checksum, Run: run.RunID, Elapsed: uint32(elapsed), BestElapsed: best, NewRecord: improved, AllClear: all, MonsterExperience: uint32(monsterTotal), CreatureExperienceGained: creatureAwarded})
+		outcome, e := json.Marshal(ClearReceipt{ClearGain: gain, Source: s.Catalog.Source.Checksum, Run: run.RunID, Elapsed: uint32(elapsed), BestElapsed: best, NewRecord: improved, AllClear: all, MonsterExperience: uint32(monsterTotal), CreatureExperienceGained: creatureAwarded, SeasonExperienceGained: seasonAwarded,
+			RecommendedDungeonClear: recommended, DungeonID: run.Definition.ID, CharacterLevel: before.Level})
 		return next.State, outcome, e
 	})
 	if e != nil {

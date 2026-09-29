@@ -12,17 +12,19 @@ import (
 )
 
 type Service struct {
-	Currency    *OdysseyCurrency
-	Store       *storage.Store
-	Catalog     catalog.LootCatalog
-	DropCatalog catalog.LootCatalog
-	Rules       Rules
-	BagRules    inventory.BagRules
-	Tables      Tables
-	Equipment   *inventory.EquipmentCatalog
+	BlackPurgatory *BlackPurgatoryRewards
+	BleedingMine   *BleedingMineRewards
+	Currency       *OdysseyCurrency
+	Store          *storage.Store
+	Catalog        catalog.LootCatalog
+	DropCatalog    catalog.LootCatalog
+	Rules          Rules
+	BagRules       inventory.BagRules
+	Tables         Tables
+	Equipment      *inventory.EquipmentCatalog
 	// Journal 是装备库（装备图鉴）规则表：普通收录上限与"按类型收紧"的上限。nil 表示
 	// **不登记**（保持原行为），与其它可选表一样由启动参数显式装载。
-	Journal    *catalog.EquipmentJournalRules
+	Journal *catalog.EquipmentJournalRules
 	// CreateCost 是装备库「装备生成 / 制作」的成本表（`[create cost]` 段）。
 	// nil 表示**不生成**：CMD2259 的第二步只会回窗口、不动存档。
 	CreateCost *catalog.EquipmentCreateCost
@@ -79,6 +81,13 @@ func (s *Service) Pickup(ctx context.Context, role storage.Character, session *S
 	drop, e := session.Owned(d, role.AccountID, role.ID, role.WireID, r.Object)
 	if e != nil {
 		return fail(e)
+	}
+	if drop.BlackPurgatoryIndex != 0 {
+		saved, receipt, applied, err := s.pickBlackPurgatoryBoss(ctx, role, drop.Run, drop.BlackPurgatoryIndex, drop.Award)
+		if err != nil {
+			return fail(err)
+		}
+		return saved, PickupReceipt{drop.Run, drop.Map, drop.Object, receipt.Award, receipt.Destination, s.Catalog.Source.Checksum}, applied, nil
 	}
 	awardCatalog, bagRules := s.Catalog, s.BagRules
 	if d.Definition.Odyssey && session.Currency != nil {

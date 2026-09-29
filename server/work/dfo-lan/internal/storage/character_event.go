@@ -1,13 +1,16 @@
 package storage
 
 import (
+	"bytes"
 	"context"
+	"dfolan/internal/adventure"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/jackc/pgx/v5"
 	"math"
+	"strings"
 	"time"
 )
 
@@ -73,6 +76,19 @@ func (s *Store) commitCharacterEvent(ctx context.Context, account, id int64, ver
 	if role.ConfigVersion != version {
 		return role, false, fmt.Errorf("character event source mismatch")
 	}
+	// 迷雾誓约按账号共享。沿用角色→账号的既有锁顺序，在业务回调前
+	// 取同账号最新状态，避免两个角色同时通关/领奖造成经验覆盖或重复领奖。
+	var accountProfile AccountAdventure
+	if s.adventureEnabled {
+		accountProfile, e = lockAdventure(ctx, tx, role)
+		if e != nil {
+			return role, false, e
+		}
+		role.State, e = adventure.SaveSeason(role.State, accountProfile.Data.SeasonLevel)
+		if e != nil {
+			return role, false, e
+		}
+	}
 	var prior string
 	e = tx.QueryRow(ctx, `SELECT model FROM character_events WHERE character_id=$1 AND event_key=$2`, id, key).Scan(&prior)
 	if e == nil {
@@ -130,6 +146,49 @@ func (s *Store) commitCharacterEvent(ctx context.Context, account, id int64, ver
 	}
 	_, e = tx.Exec(ctx, `INSERT INTO character_events(character_id,event_key,config_version,model,outcome) VALUES($1,$2,$3,$4,$5)`, id, key, version, model, outcome)
 	if e != nil {
+		return role, false, e
+	}
+	if s.adventureEnabled {
+		profileChanged := false
+		if strings.HasPrefix(key, "clear:") {
+			// 只消费服务端通关回调生成的判定；回执重放在上面已经返回，不能重复计数。
+			var clear struct {
+				Recommended bool `json:"recommended_dungeon_clear"`
+			}
+			if e = json.Unmarshal(outcome, &clear); e != nil {
+				return role, false, e
+			}
+			if clear.Recommended && accountProfile.Data.RecommendedDungeonClears < math.MaxUint32 {
+				accountProfile.Data.RecommendedDungeonClears++
+				profileChanged = true
+			}
+		}
+		// 换装等旧回调可能重新组织角色JSON；不能让缺省字段清空账号共享进度。
+		mutatesSeason := model == "season-level-v1" || strings.HasPrefix(key, "clear:") || strings.HasPrefix(key, "consume:")
+		if mutatesSeason {
+			previous, _ := json.Marshal(accountProfile.Data.SeasonLevel)
+			nextSeason, err := adventure.ReadSeason(state)
+			if err != nil {
+				return role, false, err
+			}
+			updated, _ := json.Marshal(nextSeason)
+			if !bytes.Equal(previous, updated) {
+				accountProfile.Data.SeasonLevel = nextSeason
+				profileChanged = true
+			}
+		} else {
+			state, e = adventure.SaveSeason(state, accountProfile.Data.SeasonLevel)
+			if e != nil {
+				return role, false, e
+			}
+		}
+		if profileChanged {
+			if e = saveAdventure(ctx, tx, account, accountProfile); e != nil {
+				return role, false, e
+			}
+		}
+	}
+	if e = s.commitAdventureExperience(ctx, tx, role, state); e != nil {
 		return role, false, e
 	}
 	_, e = tx.Exec(ctx, `UPDATE characters SET state=$2 WHERE id=$1`, id, state)

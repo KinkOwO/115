@@ -62,6 +62,11 @@ func (s *ProgressionService) ApplyGain(current storage.Character, gain uint64) (
 		state.SkillPoints[i] = uint16(next)
 	}
 	state.Level, state.Experience = result.Level, result.Experience
+	// 只统计真实经验增量，不把 GM 设置等级或旧存档总经验反算成奖励。
+	if state.AdventureEarnedExperience > math.MaxInt64 || gain > math.MaxInt64-state.AdventureEarnedExperience {
+		return fail(fmt.Errorf("冒险团经验累计溢出"))
+	}
+	state.AdventureEarnedExperience += gain
 	updated, e := json.Marshal(state)
 	if e != nil {
 		return fail(e)
