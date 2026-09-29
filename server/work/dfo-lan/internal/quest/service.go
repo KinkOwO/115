@@ -76,7 +76,8 @@ func (s *Service) Accept(ctx context.Context, role storage.Character, id uint16)
 		return storage.QuestState{}, e
 	}
 	targets, usable := targetCharacters(d.Script.Cells)
-	if !usable || !targetCharacterAllowed(targets, job, charState.Advancement, charState.Awakening) {
+	nonTargets, nonTargetOK := nonTargetCharacters(d.Script.Cells)
+	if !usable || !nonTargetOK || !targetCharacterAllowed(targets, nonTargets, job, charState.Advancement, charState.Awakening) {
 		return storage.QuestState{}, errors.New("quest target character requirement not met")
 	}
 	for _, g := range cells(d.Script.Cells, "[grow type]") {

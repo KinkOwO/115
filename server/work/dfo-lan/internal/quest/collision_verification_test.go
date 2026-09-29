@@ -23,7 +23,7 @@ func simulateOffered(x *Index, status map[uint32]string, id uint32, level uint32
 	if level < en.MinimumLevel || level > en.MaximumLevel {
 		return false
 	}
-	allowed := jobAllowed(en.Jobs, job) && targetCharacterAllowed(en.TargetCharacters, job, advancement, awakening)
+	allowed := jobAllowed(en.Jobs, job) && targetCharacterAllowed(en.TargetCharacters, en.NonTargetCharacters, job, advancement, awakening)
 	if !prerequisitesMet(en.PrerequisiteGroups, status) {
 		allowed = false
 	}
@@ -82,15 +82,17 @@ func TestCollisionSymmetryAcrossCatalog(t *testing.T) {
 //	3871 ⇄ 3872 (branch B)          → the cross-branch      → per-branch epics
 //	3873 / 3874 (branch C)             exclusivity lives       (Luke_02_xx)
 //
-// The lead-ins are only alternatives within a branch. The three branches stay
-// open until the player picks one of 3923/3924/3925; the reported bug let a
-// character pick all three. The collision filter must hide the unchosen
-// siblings once a branch is accepted or completed.
+// Source gates each lead-in on an answer to the [question] quests 3868/3869,
+// which this build does not settle; catalog/quests.go therefore merges
+// cross-branch collision edges so accepting one branch lead-in hides the
+// siblings. Choosing a faction is committing to exactly one branch: only the
+// matching Luke_01 quest is offered, and accepting one branch hides (and
+// Accept refuses) the siblings of the other branches.
 var factionBranch = []uint32{3923, 3924, 3925}
 
-// factionLeadInChoice is one completed lead-in per branch plus the shared 3883.
+// factionLeadInChoice is one completed branch-A lead-in plus the shared 3883.
 var factionLeadInChoice = map[uint32]string{
-	3870: "completed", 3871: "completed", 3873: "completed", 3883: "completed",
+	3870: "completed", 3883: "completed",
 }
 
 func TestSilentCityFactionChoiceMutuallyExclusive(t *testing.T) {
@@ -99,14 +101,19 @@ func TestSilentCityFactionChoiceMutuallyExclusive(t *testing.T) {
 	const advancement, awakening byte = 1, 0
 	job := "" // Luke faction quests carry no [job] restriction → every profession
 
-	// Stage 1 — the choice moment: all three branches are offered.
-	for _, id := range factionBranch {
-		if !simulateOffered(x, factionLeadInChoice, id, level, job, advancement, awakening) {
-			t.Fatalf("stage1: faction branch %d must be offered at the choice moment", id)
+	// Stage 1 — branch A chosen (3870 done): only 3923 is offered. The other
+	// branches' Luke quests are blocked both by their unmet lead-in and by the
+	// cross-branch collision edge on the completed 3870.
+	if !simulateOffered(x, factionLeadInChoice, 3923, level, job, advancement, awakening) {
+		t.Fatal("stage1: the chosen branch's Luke quest must be offered")
+	}
+	for _, id := range []uint32{3924, 3925} {
+		if simulateOffered(x, factionLeadInChoice, id, level, job, advancement, awakening) {
+			t.Fatalf("stage1: branch %d must not be offered once branch A is taken", id)
 		}
 	}
 
-	// Stage 2 — branch 3923 chosen: its siblings leave the offer list.
+	// Stage 2 — 3923 accepted: the chosen branch stays active, siblings hidden.
 	chosen := cloneStatus(factionLeadInChoice)
 	chosen[3923] = "accepted"
 	for _, id := range []uint32{3924, 3925} {
@@ -137,6 +144,51 @@ func TestSilentCityFactionChoiceMutuallyExclusive(t *testing.T) {
 	}
 }
 
+// TestFactionLeadInBranchesMutuallyExclusive: the branch lead-ins are a
+// one-time choice. All three are offered to a fresh character; accepting one
+// hides the lead-ins of the other branches (and their alternatives).
+func TestFactionLeadInBranchesMutuallyExclusive(t *testing.T) {
+	x := loadQuestIndex(t)
+	const level uint32 = 100
+	const advancement, awakening byte = 1, 0
+	job := ""
+
+	// Fresh character: every branch lead-in is offered (the choice moment).
+	fresh := map[uint32]string{}
+	for _, id := range []uint32{3870, 3871, 3873} {
+		if !simulateOffered(x, fresh, id, level, job, advancement, awakening) {
+			t.Fatalf("lead-in %d must be offered before any branch is chosen", id)
+		}
+	}
+
+	// Branch A taken: B and C lead-ins (and their alternatives) vanish.
+	a := map[uint32]string{3870: "accepted"}
+	for _, id := range []uint32{3871, 3872, 3873, 3874} {
+		if simulateOffered(x, a, id, level, job, advancement, awakening) {
+			t.Fatalf("lead-in %d must vanish once 3870 is accepted", id)
+		}
+	}
+	if !simulateOffered(x, a, 3870, level, job, advancement, awakening) {
+		t.Fatal("the chosen lead-in stays active")
+	}
+
+	// Branch C alternative taken: A and B vanish, C keeps 3874 on offer.
+	c := map[uint32]string{3873: "accepted"}
+	for _, id := range []uint32{3870, 3871, 3872} {
+		if simulateOffered(x, c, id, level, job, advancement, awakening) {
+			t.Fatalf("lead-in %d must vanish once 3873 is accepted", id)
+		}
+	}
+
+	// Completed lead-in blocks the other branches permanently.
+	done := map[uint32]string{3871: "completed"}
+	for _, id := range []uint32{3870, 3872, 3873, 3874} {
+		if simulateOffered(x, done, id, level, job, advancement, awakening) {
+			t.Fatalf("lead-in %d must stay hidden after 3871 completes", id)
+		}
+	}
+}
+
 // TestIntraBranchLeadInAlternatives: the branch B lead-ins 3871/3872 and the
 // branch C lead-ins 3873/3874 are alternatives that the fix also keeps
 // mutually exclusive (they carry [collision quest] in source).
@@ -147,22 +199,22 @@ func TestIntraBranchLeadInAlternatives(t *testing.T) {
 	job := ""
 
 	// Branch B: taking 3871 hides 3872.
-	b := map[uint32]string{3870: "completed", 3871: "completed", 3883: "completed"}
+	b := map[uint32]string{3871: "completed"}
 	if simulateOffered(x, b, 3872, level, job, advancement, awakening) {
 		t.Fatal("branch B: 3872 must vanish once alternative 3871 is taken")
 	}
-	b2 := map[uint32]string{3870: "completed", 3872: "completed", 3883: "completed"}
+	b2 := map[uint32]string{3872: "completed"}
 	if simulateOffered(x, b2, 3871, level, job, advancement, awakening) {
 		t.Fatal("branch B: 3871 must vanish once alternative 3872 is taken")
 	}
 
 	// Branch C: source carries only the forward edge 3874 -> 3873, so taking
 	// 3873 hides 3874, while 3873 stays offerable after 3874.
-	c := map[uint32]string{3870: "completed", 3873: "completed", 3883: "completed"}
+	c := map[uint32]string{3873: "completed"}
 	if simulateOffered(x, c, 3874, level, job, advancement, awakening) {
 		t.Fatal("branch C: 3874 must vanish once 3873 is taken (forward edge)")
 	}
-	c2 := map[uint32]string{3870: "completed", 3874: "completed", 3883: "completed"}
+	c2 := map[uint32]string{3874: "completed"}
 	if !simulateOffered(x, c2, 3873, level, job, advancement, awakening) {
 		t.Fatal("branch C: 3873 stays offerable after 3874 (source has no back edge)")
 	}
@@ -182,6 +234,41 @@ func TestAcceptGateRejectsSiblingBranches(t *testing.T) {
 	for _, id := range []uint32{3924, 3925} {
 		if !collisionsBlocked(x.Entries[id].Collisions, status) {
 			t.Fatalf("accept gate must reject branch %d after 3923 completed", id)
+		}
+	}
+}
+
+// TestFactionLeadInAlternateLineage: the Silent City faction lead-ins gate the
+// [at swordman] lineage through [non target character] on the base quests
+// (3870/3871/3873) and through [target character] on the *_atS siblings
+// (3872/3874). A character of that lineage must see exactly one spelling of
+// every faction quest — the reported duplicate quest-book entries — while
+// every other profession sees the base quests instead.
+func TestFactionLeadInAlternateLineage(t *testing.T) {
+	x := loadQuestIndex(t)
+	const level uint32 = 100
+	const advancement, awakening byte = 0, 0
+	fresh := map[uint32]string{}
+
+	for _, id := range []uint32{3872, 3874} {
+		if !simulateOffered(x, fresh, id, level, "[at swordman]", advancement, awakening) {
+			t.Fatalf("lead-in %d must be offered to the [at swordman] lineage", id)
+		}
+	}
+	for _, id := range []uint32{3870, 3871, 3873} {
+		if simulateOffered(x, fresh, id, level, "[at swordman]", advancement, awakening) {
+			t.Fatalf("lead-in %d must be excluded for the [at swordman] lineage", id)
+		}
+	}
+
+	for _, id := range []uint32{3870, 3871, 3873} {
+		if !simulateOffered(x, fresh, id, level, "[swordman]", advancement, awakening) {
+			t.Fatalf("lead-in %d must be offered to the [swordman] lineage", id)
+		}
+	}
+	for _, id := range []uint32{3872, 3874} {
+		if simulateOffered(x, fresh, id, level, "[swordman]", advancement, awakening) {
+			t.Fatalf("lead-in %d must be excluded for the [swordman] lineage", id)
 		}
 	}
 }
