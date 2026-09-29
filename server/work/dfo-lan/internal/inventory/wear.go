@@ -204,8 +204,13 @@ func (s *WearService) MoveOrdinary(role storage.Character, r protocol.ItemMoveRe
 	find := func(list byte, slot uint16, group byte) (*BagEquipment, error) {
 		rows := b.Worn
 		if list == 0 {
-			if slot < s.BagRules.EquipmentSlots[0] || slot > s.BagRules.EquipmentSlots[1] {
-				return nil, fmt.Errorf("slot outside equipment bag")
+			// 快捷栏（quick_slots [0,8]）里的装备行存在 b.Equipment 里，槽位与
+			// 装备区共用同一张表。0/1 是金币/点券显示格（Rows() 恒占槽 0/1，
+			// ReadBag 也拒绝这两格放物品），所以装备只能进 2..8。
+			bagSlot := slot >= s.BagRules.EquipmentSlots[0] && slot <= s.BagRules.EquipmentSlots[1]
+			quickSlot := s.BagRules.Quick(slot) && slot >= 2
+			if !bagSlot && !quickSlot {
+				return nil, fmt.Errorf("slot outside equipment bag or quick belt")
 			}
 			rows = b.Equipment
 			for _, v := range b.Items {
@@ -278,6 +283,18 @@ func (s *WearService) MoveOrdinary(role storage.Character, r protocol.ItemMoveRe
 	}
 	if (a == nil && r.SourceItem != 0) || (a != nil && r.SourceItem != 0 && r.SourceItem != a.Template) || staleDestination {
 		return nil, fmt.Errorf("stale equipment identity")
+	}
+	// 快捷栏装备约束（2026-09-29）：快捷栏同一时间只能放一件装备。只有「从背包往
+	// 空快捷槽新增装备」会抬升数量，拖到已被装备占用的快捷槽（换装）与快捷槽之间
+	// 互拖（栏内调位）都不改变数量，照常放行；0/1 是金币/点券格不算快捷栏，堆叠物
+	// 由堆叠路径负责、不在此列。仅作用于列表 0（快捷栏只存在于背包列表）。
+	if z != nil && r.SourceList == 0 && r.DestinationList == 0 &&
+		s.BagRules.Quick(r.SourceSlot) && r.SourceSlot >= 2 && !s.BagRules.Quick(r.DestinationSlot) {
+		for _, v := range b.Equipment {
+			if v.Slot != r.SourceSlot && s.BagRules.Quick(v.Slot) && v.Slot >= 2 {
+				return nil, fmt.Errorf("quick belt already holds an equipment")
+			}
+		}
 	}
 	if a != nil && r.DestinationList == 3 {
 		if r.DestinationSlot == 26 {

@@ -840,6 +840,12 @@ if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "am
 		if err := inventory.LoadEnchantBeads(filepath.Join(filepath.Dir(lootPath), "enchant-beads.json")); err != nil {
 			log.Fatal(err)
 		}
+		// 物品脚本自带的 [need material]（商店表 itemshop/**.shp 没有价格字段）：
+		// 商店里「用材料交换」的商品，材料成本只写在物品脚本里（3242=1000×3037 等）。
+		itemMaterials, matErr := catalog.LoadItemMaterials(filepath.Join(filepath.Dir(lootPath), "item-materials.json"))
+		if matErr != nil {
+			log.Fatal(matErr)
+		}
 		c, e := catalog.LoadLoot(lootPath)
 		if e != nil {
 			log.Fatal(e)
@@ -907,7 +913,7 @@ if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "am
 			log.Printf("loaded equipment create cost: groups=%d itemRows=%d templates=%d",
 				len(cc.Groups), items, len(cc.Templates()))
 		}
-		lootService = &loot.Service{Store: characters.Store, Catalog: c, DropCatalog: dropCatalog, Rules: r, BagRules: bag, Tables: tables, Equipment: gear, Journal: journalRules, CreateCost: equipmentCreateCost}
+		lootService = &loot.Service{Store: characters.Store, Catalog: c, DropCatalog: dropCatalog, Rules: r, BagRules: bag, Tables: tables, Equipment: gear, Journal: journalRules, CreateCost: equipmentCreateCost, ItemMaterials: itemMaterials}
 		pricesPath := *shopPricesFile
 		if pricesPath == "" {
 			pricesPath = filepath.Join(filepath.Dir(lootPath), "shop-prices.json")
@@ -2894,6 +2900,44 @@ if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "am
 					if err = sendPayload(1, 272, protocol.Refusal(enchantRefusalCode(err))); err != nil {
 						return
 					}
+					continue
+				}
+				for _, packet := range plan {
+					if err = sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
+						return
+					}
+				}
+				continue
+			}
+			// CMD1722 = 装备继承：把材料件的强化 / 增幅 / 锻造 / 附魔转移到基础件，
+			// 材料件清零保留。一次请求可带多条记录（多对装备同时轮换继承）。
+			//
+			// ★ 2026-09-28：这条分派以前**整条缺失**。客户端按下确认后直发 1722，
+			// 服务端既不改状态也不回包，客户端就一直停在等待态 —— 玩家看到的就是
+			// 「按下继承毫无效果」。与 CMD205（增幅书）那次是同一类缺陷。
+			//
+			// ⚠️⚠️ **任何方向、任何形态的 1722 出站包都禁止**。客户端的 opcode 表是
+			// 两套独立命名空间：kind=1 → CMD 表，1722 在那一侧是客户端自己发出去的
+			// 命令、没有接收 handler，回了会被当成「自己发的继承命令」解析、格式不符；
+			// kind=0 → NOTI 表，1722 在那一侧的 handler 是**小游戏道具使用计数通知**
+			// （sub_143348A90），与继承结果无关。所以成功 / 失败 / 拒绝都
+			// **只落库 + 发 id14 行刷新，不回任何 1722 包**。取证见
+			// internal/game/protocol/inherit.go 末尾的注释块。
+			if worldState != nil && bootstrapped && frame.ID == 1722 {
+				if !verified {
+					event(map[string]any{"kind": "inherit_rejected", "reason": "继承请求校验失败"})
+					continue
+				}
+				plan, err := worldState.inherit(wearService, plaintext, frame.Raw, event)
+				if err != nil {
+					event(map[string]any{
+						"kind":         "inherit_refused",
+						"character_id": worldState.role.ID,
+						"reason":       err.Error(),
+						"request_hex":  hex.EncodeToString(plaintext),
+					})
+					// 拒绝只记日志：1722 没有任何合法的回包通道（见上方注释），
+					// 存档也没变所以无需刷新包。
 					continue
 				}
 				for _, packet := range plan {
