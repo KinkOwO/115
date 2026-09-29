@@ -95,6 +95,8 @@ type EntryBasicProbe struct {
 	Context       [2]byte
 	Character     CharacterRow
 	Fame          uint32
+	SeasonLevel   uint32
+	BasePercent   byte // 城镇队伍面板的状态比例；战斗血蓝另从场景角色读取。
 
 	// Appearance is the per-slot state the native 0x145639840 block carries,
 	// one entry per slot the packet speaks about. Slots the packet does not
@@ -146,6 +148,9 @@ func UserInfoBasicProbe(s EntryBasicProbe) ([]byte, error) {
 	if s.ActorServerID == 0 || s.ActorServerID == 0xffff || r.Level == 0 {
 		return nil, fmt.Errorf("invalid entry actor identity or level")
 	}
+	if s.BasePercent > 100 {
+		return nil, fmt.Errorf("角色状态比例不能超过100")
+	}
 	if _, _, err := parseName(addName(nil, r.Name)); err != nil {
 		return nil, err
 	}
@@ -169,6 +174,9 @@ func UserInfoBasicProbe(s EntryBasicProbe) ([]byte, error) {
 	// 0x14563ecd2 consumes all 160 bytes before the actor ID. Two inline
 	// zero-terminated strings start at +0x1b and +0x5f; these remain empty.
 	p = append(p, make([]byte, 160)...)
+	// 145640467从头部+0x34复制28字节至临时角色+0x638；
+	// 145640FFA经14023F600/1401F2380覆盖名单，不能用零值抹掉频道资格。
+	copy(p[5+0x34:5+0x34+28], r.ContentClearFlags[:])
 	// 14563ecd2 读取到 14dc67340；145640f2c 从 +0x80 取名望并调用 145f05f60。
 	binary.LittleEndian.PutUint32(p[5+0x80:], s.Fame)
 	p = addName(add16(p, s.ActorServerID), r.Name)
@@ -205,9 +213,14 @@ func UserInfoBasicProbe(s EntryBasicProbe) ([]byte, error) {
 	p = append(add32(p, 0), make([]byte, 8)...) // 0x14563a240: u32 + raw8
 	p = append(p, nativeGrowthStateFlags)       // 0x14563fc24: bit0 + growth-appearance bit1
 	p = add32(p, 0)
-	p = append(p, 0)
+	// 145640183读取此字节到角色资料+0x534；145556506将其用于城镇队伍的两条状态条。
+	// 旧零占位会在进城、建队及换装刷新时把状态条清空，不能当成无用字段。
+	p = append(p, s.BasePercent)
 	p = add16(p, 0)
-	p = append(p, 0)
+	// 1456401D4读取所属服务器，145F06180写入角色+0x614。
+	// 编队14142BDA0拒绝0，并与账号角色列表的服务器编号比较；
+	// 进城及外观刷新都必须保留此身份，不能以频道号或角色ID代替。
+	p = append(p, s.Context[0])
 	p = append(add16(p, 0), 0) // 0x14563bdc0: u16 + u8
 	p = add16(p, 0)
 	p = append(p, 0xff) // 0x14563a4a0 native unset value
@@ -221,7 +234,9 @@ func UserInfoBasicProbe(s EntryBasicProbe) ([]byte, error) {
 		mode = 5
 	}
 	p = append(p, 0, 0, 0, 0, 0, mode)
-	p = add32(add32(add32(p, 0), 0), 0)
+	// 145640965读取尾部第三个u32到info+0x674，145640F44应用到角色。
+	// 阶段0没有源定义，会令迷雾誓约页面保留XUI的99及9999999占位。
+	p = add32(add32(add32(p, 0), 0), s.SeasonLevel)
 	return p, nil
 }
 
