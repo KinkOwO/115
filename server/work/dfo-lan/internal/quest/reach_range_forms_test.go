@@ -78,3 +78,33 @@ func TestReachGeometryAndUnsupportedShapes(t *testing.T) {
 		t.Fatal("negative-origin map rectangle does not match source area")
 	}
 }
+
+func TestNPCDistanceMultiplierExpandsOnlyNPCGeometry(t *testing.T) {
+	locate := func(npc uint32) ([2]uint16, bool) {
+		if npc == 100000374 {
+			return [2]uint16{515, 114}, true
+		}
+		return [2]uint16{}, false
+	}
+	point := storage.WorldPosition{Town: 40, Area: 3, X: 630, Y: 160}
+	reach := NPCReachObjective{NPC: 100000374, W: 200, H: 100}
+	t.Setenv("DFO_QUEST_NPC_DISTANCE_MULTIPLIER", "")
+	if nearNPCReach(reach, point, locate) {
+		t.Fatal("default NPC range unexpectedly reaches beyond its source width")
+	}
+	t.Setenv("DFO_QUEST_NPC_DISTANCE_MULTIPLIER", "2")
+	if !nearNPCReach(reach, point, locate) || !nearNPC(100000374, storage.WorldPosition{X: 850, Y: 114}, locate) {
+		t.Fatal("double NPC distance did not expand range and dialogue proximity")
+	}
+	for _, invalid := range []string{"0", "-2", "NaN", "+Inf", "bad"} {
+		t.Setenv("DFO_QUEST_NPC_DISTANCE_MULTIPLIER", invalid)
+		if NPCDistanceMultiplier() != 1 || nearNPCReach(reach, point, locate) {
+			t.Fatalf("invalid multiplier %q changed the source range", invalid)
+		}
+	}
+	mapRect := RangeObjective{Town: 40, Area: 3, X: 0, Y: 0, W: 100, H: 100}
+	t.Setenv("DFO_QUEST_NPC_DISTANCE_MULTIPLIER", "2")
+	if mapRect.Contains(point) {
+		t.Fatal("NPC multiplier changed the independent map rectangle")
+	}
+}

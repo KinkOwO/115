@@ -7,11 +7,9 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// Unified options: CMD2377 subtype 0x01 carries the account-scoped option
-// block (restored through NOTI2826), subtype 0x05 the character-scoped system
-// settings block. Both are durable here. The account block has a known restore
-// channel; the character settings block's offset inside NOTI2827 is not yet
-// reversed, so it is stored for a later restore path.
+// Unified options: CMD2377 subtype 0x01 carries account options restored
+// through NOTI2826, subtype 0x05 carries character settings, and subtype 0x12
+// carries a separate six-slot character effect group in NOTI2827.
 const maxUnifiedOption = 286
 
 type UnifiedOptionEntry struct {
@@ -28,12 +26,39 @@ func (s *Store) MigrateUnifiedOptions(ctx context.Context) error {
  PRIMARY KEY(account_id,opt_index));`); e != nil {
 		return e
 	}
-	_, e := s.DB.Exec(ctx, `CREATE TABLE IF NOT EXISTS character_unified_options(
+	if _, e := s.DB.Exec(ctx, `CREATE TABLE IF NOT EXISTS character_unified_options(
  character_id bigint NOT NULL REFERENCES characters(id),
  opt_index integer NOT NULL CHECK(opt_index BETWEEN 0 AND 285),
  value integer NOT NULL,
  updated_at timestamptz NOT NULL DEFAULT now(),
- PRIMARY KEY(character_id,opt_index));`)
+ PRIMARY KEY(character_id,opt_index));`); e != nil {
+		return e
+	}
+	if _, e := s.DB.Exec(ctx, `CREATE TABLE IF NOT EXISTS account_hotkeys(
+ account_id bigint NOT NULL REFERENCES accounts(id),
+ subtype smallint NOT NULL CHECK(subtype IN (3, 4)),
+ slot_index smallint NOT NULL CHECK(slot_index BETWEEN 0 AND 156),
+ keycode integer NOT NULL,
+ updated_at timestamptz NOT NULL DEFAULT now(),
+ PRIMARY KEY(account_id,subtype,slot_index));`); e != nil {
+		return e
+	}
+	if _, e := s.DB.Exec(ctx, `CREATE TABLE IF NOT EXISTS character_hotkeys(
+ character_id bigint NOT NULL REFERENCES characters(id),
+ subtype smallint NOT NULL CHECK(subtype IN (3, 4)),
+ slot_index smallint NOT NULL CHECK(slot_index BETWEEN 0 AND 156),
+ keycode integer NOT NULL,
+ updated_at timestamptz NOT NULL DEFAULT now(),
+	 PRIMARY KEY(character_id,subtype,slot_index));`); e != nil {
+		return e
+	}
+	_, e := s.DB.Exec(ctx, `CREATE TABLE IF NOT EXISTS character_unified_option_groups(
+ character_id bigint NOT NULL REFERENCES characters(id),
+ subtype smallint NOT NULL CHECK(subtype = 18),
+ opt_index integer NOT NULL CHECK(opt_index BETWEEN 0 AND 5),
+ value integer NOT NULL CHECK(value BETWEEN 0 AND 65535),
+ updated_at timestamptz NOT NULL DEFAULT now(),
+ PRIMARY KEY(character_id,subtype,opt_index));`)
 	return e
 }
 
@@ -152,4 +177,230 @@ func (s *Store) CharacterUnifiedOptions(ctx context.Context, characterID int64) 
 		out[uint16(idx)] = uint16(value)
 	}
 	return out, rows.Err()
+}
+
+// SaveCharacterUnifiedOptionGroup persists a subtype-specific character
+// option group without colliding with the ordinary subtype 5 settings indices.
+func (s *Store) SaveCharacterUnifiedOptionGroup(ctx context.Context, account, characterID int64, subtype byte, entries []UnifiedOptionEntry) error {
+	if subtype != 18 {
+		return fmt.Errorf("unsupported character option group subtype %d", subtype)
+	}
+	if len(entries) == 0 {
+		return nil
+	}
+	for _, entry := range entries {
+		if entry.Position >= 6 {
+			return fmt.Errorf("character option group index out of range")
+		}
+	}
+	tx, err := s.DB.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	var one int
+	if err = tx.QueryRow(ctx, `SELECT 1 FROM characters WHERE account_id=$1 AND id=$2 AND deleted_at IS NULL FOR UPDATE`, account, characterID).Scan(&one); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return fmt.Errorf("character option group: character is not owned")
+		}
+		return err
+	}
+	for _, entry := range entries {
+		if _, err = tx.Exec(ctx, `INSERT INTO character_unified_option_groups(character_id,subtype,opt_index,value) VALUES($1,$2,$3,$4)
+ON CONFLICT(character_id,subtype,opt_index) DO UPDATE SET value=EXCLUDED.value,updated_at=now()`, characterID, int(subtype), int(entry.Position), int(entry.Value)); err != nil {
+			return err
+		}
+	}
+	return tx.Commit(ctx)
+}
+
+// CharacterUnifiedOptionGroup returns the persisted values for one supported
+// subtype-specific character option group.
+func (s *Store) CharacterUnifiedOptionGroup(ctx context.Context, characterID int64, subtype byte) (map[uint16]uint16, error) {
+	if subtype != 18 {
+		return nil, fmt.Errorf("unsupported character option group subtype %d", subtype)
+	}
+	out := map[uint16]uint16{}
+	if characterID == 0 {
+		return out, nil
+	}
+	rows, err := s.DB.Query(ctx, `SELECT opt_index,value FROM character_unified_option_groups WHERE character_id=$1 AND subtype=$2`, characterID, int(subtype))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var index, value int
+		if err = rows.Scan(&index, &value); err != nil {
+			return nil, err
+		}
+		out[uint16(index)] = uint16(value)
+	}
+	return out, rows.Err()
+}
+
+// SaveAccountHotkeys upserts account-scoped keyboard hotkeys (Subtype 3 Scheme A, Subtype 4 Scheme B).
+func (s *Store) SaveAccountHotkeys(ctx context.Context, account int64, subtype byte, entries []UnifiedOptionEntry) error {
+	if account == 0 {
+		return fmt.Errorf("account hotkeys require an account")
+	}
+	if subtype != 3 && subtype != 4 {
+		return fmt.Errorf("unsupported hotkey subtype %d", subtype)
+	}
+	if len(entries) == 0 {
+		return nil
+	}
+	tx, err := s.DB.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	if err = tx.QueryRow(ctx, `SELECT 1 FROM accounts WHERE id=$1 FOR UPDATE`, account).Scan(new(int)); err != nil {
+		return err
+	}
+	for _, en := range entries {
+		if en.Position > 156 {
+			continue
+		}
+		if _, err = tx.Exec(ctx, `INSERT INTO account_hotkeys(account_id, subtype, slot_index, keycode)
+VALUES($1, $2, $3, $4)
+ON CONFLICT(account_id, subtype, slot_index) DO UPDATE SET keycode=EXCLUDED.keycode, updated_at=now()`,
+			account, int(subtype), int(en.Position), int(en.Value)); err != nil {
+			return err
+		}
+	}
+	return tx.Commit(ctx)
+}
+
+// SaveCharacterHotkeys upserts character-scoped keyboard hotkeys (Subtype 3 Scheme A, Subtype 4 Scheme B).
+func (s *Store) SaveCharacterHotkeys(ctx context.Context, account, characterID int64, subtype byte, entries []UnifiedOptionEntry) error {
+	if subtype != 3 && subtype != 4 {
+		return fmt.Errorf("unsupported hotkey subtype %d", subtype)
+	}
+	if len(entries) == 0 {
+		return nil
+	}
+	tx, err := s.DB.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	var one int
+	if err = tx.QueryRow(ctx, `SELECT 1 FROM characters WHERE account_id=$1 AND id=$2 AND deleted_at IS NULL FOR UPDATE`, account, characterID).Scan(&one); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return fmt.Errorf("character hotkeys: character is not owned")
+		}
+		return err
+	}
+	for _, en := range entries {
+		if en.Position > 156 {
+			continue
+		}
+		if _, err = tx.Exec(ctx, `INSERT INTO character_hotkeys(character_id, subtype, slot_index, keycode)
+VALUES($1, $2, $3, $4)
+ON CONFLICT(character_id, subtype, slot_index) DO UPDATE SET keycode=EXCLUDED.keycode, updated_at=now()`,
+			characterID, int(subtype), int(en.Position), int(en.Value)); err != nil {
+			return err
+		}
+	}
+	return tx.Commit(ctx)
+}
+
+// AccountHotkeys returns stored account-wide keyboard hotkeys for the requested subtype (3 or 4).
+func (s *Store) AccountHotkeys(ctx context.Context, account int64, subtype byte) (map[uint16]uint16, error) {
+	out := map[uint16]uint16{}
+	if account == 0 {
+		return out, nil
+	}
+	rows, err := s.DB.Query(ctx, `SELECT slot_index, keycode FROM account_hotkeys WHERE account_id=$1 AND subtype=$2`, account, int(subtype))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var slot, keycode int
+		if err = rows.Scan(&slot, &keycode); err != nil {
+			return nil, err
+		}
+		out[uint16(slot)] = uint16(keycode)
+	}
+	return out, rows.Err()
+}
+
+// CharacterHotkeys returns stored character-specific keyboard hotkeys for the requested subtype (3 or 4).
+func (s *Store) CharacterHotkeys(ctx context.Context, characterID int64, subtype byte) (map[uint16]uint16, error) {
+	out := map[uint16]uint16{}
+	if characterID == 0 {
+		return out, nil
+	}
+	rows, err := s.DB.Query(ctx, `SELECT slot_index, keycode FROM character_hotkeys WHERE character_id=$1 AND subtype=$2`, characterID, int(subtype))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var slot, keycode int
+		if err = rows.Scan(&slot, &keycode); err != nil {
+			return nil, err
+		}
+		out[uint16(slot)] = uint16(keycode)
+	}
+	return out, rows.Err()
+}
+
+// PromoteCharacterHotkeysToAccount copies a character's custom hotkeys to the account level.
+// This is used when saving with account scope from a character that has custom hotkeys,
+// ensuring the active key mapping becomes the account baseline.
+func (s *Store) PromoteCharacterHotkeysToAccount(ctx context.Context, account, characterID int64, subtype byte) error {
+	if account == 0 || characterID == 0 {
+		return nil
+	}
+	if subtype != 3 && subtype != 4 {
+		return fmt.Errorf("unsupported hotkey subtype %d", subtype)
+	}
+	_, err := s.DB.Exec(ctx, `
+INSERT INTO account_hotkeys (account_id, subtype, slot_index, keycode, updated_at)
+SELECT $1, subtype, slot_index, keycode, now()
+FROM character_hotkeys
+WHERE character_id = $2 AND subtype = $3
+ON CONFLICT (account_id, subtype, slot_index)
+DO UPDATE SET keycode = EXCLUDED.keycode, updated_at = now()`,
+		account, characterID, int(subtype))
+	return err
+}
+
+// ClearAccountCharacterHotkeys removes character-specific keyboard hotkeys for all characters of the account
+// (for the given subtype) so all characters fall back to account hotkeys.
+func (s *Store) ClearAccountCharacterHotkeys(ctx context.Context, accountID int64, subtype byte) error {
+	if accountID == 0 {
+		return nil
+	}
+	if subtype != 3 && subtype != 4 {
+		return fmt.Errorf("unsupported hotkey subtype %d", subtype)
+	}
+	_, err := s.DB.Exec(ctx, `
+DELETE FROM character_hotkeys
+WHERE character_id IN (SELECT id FROM characters WHERE account_id = $1)
+  AND subtype = $2`,
+		accountID, int(subtype))
+	return err
+}
+
+// CopyAccountHotkeysToCharacter copies account-wide hotkeys to a character as a baseline
+// if the character does not already have custom hotkeys for those slots.
+func (s *Store) CopyAccountHotkeysToCharacter(ctx context.Context, account, characterID int64, subtype byte) error {
+	if account == 0 || characterID == 0 {
+		return nil
+	}
+	if subtype != 3 && subtype != 4 {
+		return fmt.Errorf("unsupported hotkey subtype %d", subtype)
+	}
+	_, err := s.DB.Exec(ctx, `
+INSERT INTO character_hotkeys (character_id, subtype, slot_index, keycode, updated_at)
+SELECT $2, subtype, slot_index, keycode, now()
+FROM account_hotkeys
+WHERE account_id = $1 AND subtype = $3
+ON CONFLICT (character_id, subtype, slot_index) DO NOTHING`,
+		account, characterID, int(subtype))
+	return err
 }

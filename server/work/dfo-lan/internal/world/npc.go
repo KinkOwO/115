@@ -57,3 +57,25 @@ func (s *Service) NPCPosition(p storage.WorldPosition, id uint32) ([2]uint16, bo
 	}
 	return [2]uint16{}, false
 }
+
+// PhaseNPCPosition uses source phase-map placements only when every matching
+// phase agrees on the coordinates. It does not imply that the NPC is visible.
+func (s *Service) PhaseNPCPosition(p storage.WorldPosition, id uint32) ([2]uint16, bool) {
+	a, ok := s.Catalog.Areas[catalog.AreaKey(p.Town, p.Area)]
+	if !ok || id == 0 {
+		return [2]uint16{}, false
+	}
+	var position [2]uint16
+	found := false
+	for _, row := range a.PhaseNPCs {
+		if row.ID != id {
+			continue
+		}
+		next := [2]uint16{row.X, row.Y}
+		if found && next != position {
+			return [2]uint16{}, false
+		}
+		position, found = next, true
+	}
+	return position, found
+}

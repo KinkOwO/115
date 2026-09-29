@@ -59,11 +59,40 @@ type DungeonDefinition struct {
 	MazeChanceRates []uint32 `json:"maze_chance_rates,omitempty"`
 }
 type DungeonCatalog struct {
-	Source      pvf.ArchiveSnapshot          `json:"source"`
-	Dungeons    map[uint32]DungeonDefinition `json:"dungeons"`
-	Maps        map[uint32]ScriptRecord      `json:"maps"`
-	Skipped     []string                     `json:"skipped,omitempty"`
-	SceneRoutes []DungeonSceneRoute          `json:"scene_routes,omitempty"`
+	Source         pvf.ArchiveSnapshot          `json:"source"`
+	Dungeons       map[uint32]DungeonDefinition `json:"dungeons"`
+	Maps           map[uint32]ScriptRecord      `json:"maps"`
+	Skipped        []string                     `json:"skipped,omitempty"`
+	SceneRoutes    []DungeonSceneRoute          `json:"scene_routes,omitempty"`
+	TerminalScenes []DungeonTerminalScene       `json:"terminal_scenes,omitempty"`
+	LayerRevisits  []DungeonLayerRevisit        `json:"layer_revisits,omitempty"`
+}
+
+// DungeonTerminalScene records a source CMT [CHANGE MAP] on a quest maze's
+// final layer. The quest's single [clear map] objective is its boss room.
+// This metadata is generated from the current PVF, not inferred from a CMD45.
+type DungeonTerminalScene struct {
+	Source          string  `json:"source"`
+	Dungeon         uint32  `json:"dungeon"`
+	Maze            byte    `json:"maze"`
+	Quest           uint16  `json:"quest"`
+	Position        [2]byte `json:"position"`
+	ObjectiveMap    uint32  `json:"objective_map"`
+	FinalMap        uint32  `json:"final_map"`
+	XMin            uint16  `json:"x_min"`
+	XMax            uint16  `json:"x_max"`
+	YMin            uint16  `json:"y_min"`
+	YMax            uint16  `json:"y_max"`
+	DungeonSHA256   string  `json:"dungeon_sha256"`
+	MapSHA256       string  `json:"map_sha256"`
+	ActionSHA256    string  `json:"action_sha256"`
+	CinematicSHA256 string  `json:"cinematic_sha256"`
+	CinematicPath   string  `json:"cinematic_path"`
+
+	// Some objective bosses are destroyed by the map's own cinematic instead
+	// of a separate monster-death report. The importer records the sole boss
+	// template only when the source action and cinematic prove that sequence.
+	ObjectiveCinematicDestroyTemplate uint32 `json:"objective_cinematic_destroy_template,omitempty"`
 }
 
 // DungeonSceneRoute is generated from the maze order and original CMT/ACT landing area.

@@ -112,6 +112,10 @@ func Refusal(code uint16) []byte                    { return add16([]byte{0}, co
 type Equipment struct {
 	Slot byte
 	Item uint32
+	// Model 是该槽的模型索引，在外观块里以「Len + 载荷」的形式携带。
+	// 宠物幻化栏（穿戴槽 32）用它指向要画的生物实例 key；其余槽位留 0，
+	// 客户端对 Len=0 的处理是「保留该槽原有的模型索引」。
+	Model uint32
 }
 
 // 145639840 calls 1459a0220 with list46 for EVERY row, including weapons.
@@ -128,7 +132,15 @@ func EquipmentAppearance(rows []Equipment) ([]byte, error) {
 		}
 		seen[row.Slot] = true
 		p = add32(append(p, row.Slot), row.Item)
-		p = add32(p, 0)
+		// Len 与载荷必须成对出现：Len=0 表示「这个槽的模型索引不动」，
+		// Len=4 表示后面跟一个索引（1459a0220 读 Len 再读 Len 字节，客户端把
+		// 它存到 [actor + slot*4 + 0x405]）。
+		if row.Model == 0 {
+			p = add32(p, 0)
+		} else {
+			p = add32(p, equippedAppearanceModelSize)
+			p = add32(p, row.Model)
+		}
 		p = append(p, make([]byte, 26)...)
 	}
 	return p, nil
@@ -148,20 +160,43 @@ type CharacterRow struct {
 	Fame             uint32
 	CreatureItemID   uint32
 	CreatureName     string
+	// 当前115客户端的28字节内容解锁区；只写已核对的资格位，未知位保持0。
+	ContentClearFlags [28]byte
 }
 
 // Native list parser 0x145637a20, row parser 0x14563e280. Unknown scalar
 // fields are zero in this experimental baseline, recorded as such in evidence.
 func CharacterList(capacity uint16, roles []CharacterRow) ([]byte, error) {
-	if capacity == 0 || len(roles) > int(capacity) {
-		return nil, fmt.Errorf("invalid character capacity")
-	}
 	p := []byte{2, 0, 0}
 	p = add16(p, capacity)
 	p = add16(p, 0)
 	p = add16(p, 0)
 	p = add32(p, 0)
 	p = add16(p, uint16(len(roles)))
+	p, err := appendCharacterListRows(p, capacity, roles)
+	if err != nil {
+		return nil, err
+	}
+	p = append(p, 1, 0)
+	p = add32(p, 0)
+	p = add32(p, 0)
+	return p, nil
+}
+
+// 14563850E的NOTI2模式13：服务器u8、数量u16，然后复用14563E280。
+// 与选角列表不同，不带容量头和选角尾；1396的数量应先发送，
+// 1401FA800核对各服务器实际条数后，才解除CMD1462的等待状态。
+func AllServerCharacterList(server byte, capacity uint16, roles []CharacterRow) ([]byte, error) {
+	if server == 0 {
+		return nil, fmt.Errorf("账号角色资料缺少服务器编号")
+	}
+	return appendCharacterListRows(add16([]byte{13, server}, uint16(len(roles))), capacity, roles)
+}
+
+func appendCharacterListRows(p []byte, capacity uint16, roles []CharacterRow) ([]byte, error) {
+	if capacity == 0 || len(roles) > int(capacity) {
+		return nil, fmt.Errorf("invalid character capacity")
+	}
 	fixed := map[byte]bool{}
 	for index, r := range roles {
 		// 0x1401f64d8 builds the native lookup from insertion positions. The
@@ -196,7 +231,10 @@ func CharacterList(capacity uint16, roles []CharacterRow) ([]byte, error) {
 		p = append(p, 0) // premium PC room helper 0x14563be50
 		p = add32(p, 0)
 		p = append(p, nativeGrowthStateFlags) // native growth-state bit field
-		p = append(p, make([]byte, 8+28)...)
+		p = append(p, make([]byte, 8)...)
+		// 14563E95E整块读取到临时角色资料+0x638，随后复制进角色列表。
+		// 14022091E检查+0x63F（第7项）决定流放者山脉前置是否完成。
+		p = append(p, r.ContentClearFlags[:]...)
 		p = add32(p, 0)
 		p = add16(p, 0)
 		// Native 14563e9ee stores this third byte at row-info+672.
@@ -221,8 +259,5 @@ func CharacterList(capacity uint16, roles []CharacterRow) ([]byte, error) {
 		p = add16(p, r.FatigueBonus)
 		p = add32(p, 0)
 	}
-	p = append(p, 1, 0)
-	p = add32(p, 0)
-	p = add32(p, 0)
 	return p, nil
 }

@@ -54,10 +54,20 @@ func (w *worldSession) buyItem(p []byte) ([]outboundPacket, error) {
 		return nil, e
 	}
 	w.role = saved
-	return []outboundPacket{
+	plan := []outboundPacket{
 		{"shop_buy_ack", 1, 21, ack},
 		{"shop_buy_inventory_updated", 0, 14, update},
-	}, nil
+	}
+	// ★ 材料支付可能扣的是**账号材料仓库**（space 35）里的共享晶块（3033..3037 等），
+	// 它们不在角色背包里 —— 补发 list35 面板，否则客户端晶块数量不会减少。
+	if raw, e := w.loot.Store.AccountMaterials(ctx, w.role.AccountID); e == nil {
+		if m, e := inventory.ReadAccountMaterials(raw); e == nil {
+			if body, e := protocol.InventoryRestoreSpace(inventory.AccountMaterialSpace, m.Rows(inventory.AccountMaterialSpace)); e == nil {
+				plan = append(plan, outboundPacket{"shop_buy_account_materials", 0, 13, body})
+			}
+		}
+	}
+	return plan, nil
 }
 
 func (w *worldSession) sellItem(p []byte) ([]outboundPacket, error) {
@@ -81,11 +91,11 @@ func (w *worldSession) sellItem(p []byte) ([]outboundPacket, error) {
 	if !applied {
 		return nil, fmt.Errorf("duplicate shop sale request")
 	}
-	ack, e := protocol.SellItemSuccess(receipt.NewGold, []protocol.SoldItem{{
-		List:  r.List,
-		Slot:  r.Slot,
-		Count: receipt.Count,
-	}})
+	sold := make([]protocol.SoldItem, 0, len(receipt.Rows))
+	for _, row := range receipt.Rows {
+		sold = append(sold, protocol.SoldItem{List: row.List, Slot: row.Slot, Count: row.Count})
+	}
+	ack, e := protocol.SellItemSuccess(receipt.NewGold, sold)
 	if e != nil {
 		return nil, e
 	}

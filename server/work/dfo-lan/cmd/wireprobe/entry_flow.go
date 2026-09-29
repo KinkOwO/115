@@ -32,6 +32,9 @@ type entryPayloads struct {
 	AvailableQuests  []byte
 	Worn             []byte
 	AccountOptions   []byte
+	GamepadOptions   []byte
+	// Journal 是装备库完整状态（NOTI2610，恰好 16444B）。
+	Journal []byte
 	// InformNotice / InformNotice2nd are the per-character read-notice sets
 	// (NOTI402 / NOTI426). They ride right after account options: the client
 	// clears its read set from them, and a third-awakened character whose
@@ -51,6 +54,23 @@ type entryPayloads struct {
 	// follow its own owned page above.
 	SkinSelectionDamageFontNormal     []byte
 	SkinSelectionDamageFontCumulative []byte
+	// SkinCargoPartyFrame / SkinCargoSkillCutscene are the 边框 and 觉醒插图 owned
+	// pages. The border page is also the profile-decoration feature's page, so these
+	// arrive after its own pair below: a NOTI1545 frame rebuilds the page it names,
+	// and the later frame is the one the client keeps.
+	SkinCargoPartyFrame    []byte
+	SkinCargoSkillCutscene []byte
+	// SkinSelectionPartyFrame / SkinSelectionSkillCutscene re-apply what this
+	// character has selected in those two panels. Both are sets, not single ids:
+	// the cutscene renderer draws a random member of the vector.
+	SkinSelectionPartyFrame    []byte
+	SkinSelectionSkillCutscene []byte
+	// SkinFamilyRestores carries the entry frames of the skin families added after
+	// those two — 表情 / 涂鸦 / 飞空艇特效 owned pages and selections, plus the
+	// NOTI2641 收藏 push. They sit in the same window as the pair above (after the
+	// profile-decoration pages, before the town refresh) and each is emitted only when
+	// it has something to say, so preparePackets drops the empty ones.
+	SkinFamilyRestores []outboundPacket
 	// WornSlots is the id-14 per-slot update frame for the full worn set
 	// (space 3), same builder the equipment-move path uses. The live
 	// 20260921 probe timeline showed the equip-change heal always carries
@@ -59,12 +79,34 @@ type entryPayloads struct {
 	// Since 20260923 the frame is emitted TWICE per entry: once before
 	// NOTI24 when a weapon is worn, and once after the entry barrier for
 	// the equipment upgrade arrows.
-	WornSlots                                                     []byte
-	WornUpdate                                                    []byte
-	WeaponEquipped                                                bool
-	WeaponAppearance                                              []byte
+	WornSlots        []byte
+	WornUpdate       []byte
+	WeaponEquipped   bool
+	WeaponAppearance []byte
+	// SkinCargo is the NOTI1545 body that refills the skin storage (weapon
+	// appearance tab). The client keeps that container as session state and only
+	// ever received a push alongside a replication confirmation, so a relog left
+	// the storage empty while the applied skin still drove the real model (live
+	// 2026-09-26). Empty when nothing was replicated, and preparePackets then
+	// skips it.
+	SkinCargo []byte
+	// SkinSelection is the NOTI1546 body naming the skin currently worn on the
+	// weapon. The storage window frames that row from the client's own per-page
+	// selection table, which nothing ever fed - Apply only paints a window-local
+	// cell - so the frame disappeared as soon as the window was closed and
+	// reopened (live 2026-09-27). It rides immediately after the container push
+	// that fills the same page, and a character with no skin applied leaves it
+	// empty so preparePackets drops the frame.
+	SkinSelection                                                 []byte
 	Avatars, AvatarReady, Creatures, CreatureList, CreatureGrowth []byte
 	CinematicSkips                                                []byte
+	// SkinRecent is the NOTI1547 body the storage window's 最近获得 strip rebuilds from
+	// its own five cells. The frame is absolute state - the reader clears the manager
+	// vector before its loop - so the entry push carries the whole list: every skin the
+	// account registered plus this character's replicated weapon shapes, oldest first.
+	// Empty when nothing is visible to the client, which leaves the strip as the client
+	// itself ships it.
+	SkinRecent []byte
 	// StoryDigest is the NOTI1370 4-byte little-endian story digest level.
 	// It must follow NOTI1352 inside the same entry group: the client asks on
 	// every town entry "how far has this character seen", and without an answer
@@ -95,6 +137,7 @@ func (p entryPayloads) packets() []outboundPacket {
 	out := []outboundPacket{
 		{"select_parser_response", 1, 4, p.Select},
 		{"account_options_restored", 0, 2826, p.AccountOptions},
+		{"gamepad_options_restored", 0, 2128, p.GamepadOptions},
 		{"inform_notice_restored", 0, 402, p.InformNotice},
 		{"inform_notice_2nd_restored", 0, 426, p.InformNotice2nd},
 		{"skin_cargo_damage_font_restored", 0, 1545, p.SkinCargoDamageFont},
@@ -102,6 +145,14 @@ func (p entryPayloads) packets() []outboundPacket {
 		{"skin_selection_damage_font_restored", 0, 1546, p.SkinSelectionDamageFontCumulative},
 		{"profile_skin_cargo_restored", 0, 1545, p.ProfileSkinCargo},
 		{"profile_skin_selection_restored", 0, 1546, p.ProfileSkinSelection},
+		// Both list families follow the profile pair above on purpose: the border
+		// page is the same page that feature rebuilds, and the last page frame for a
+		// page is the state the client keeps. A page rebuild is absolute, so these
+		// payloads already carry the profile feature's built-in rows.
+		{"skin_cargo_party_frame_restored", 0, 1545, p.SkinCargoPartyFrame},
+		{"skin_selection_party_frame_restored", 0, 1546, p.SkinSelectionPartyFrame},
+		{"skin_cargo_skill_cutscene_restored", 0, 1545, p.SkinCargoSkillCutscene},
+		{"skin_selection_skill_cutscene_restored", 0, 1546, p.SkinSelectionSkillCutscene},
 		{"cinematic_skips_restored", 0, 1352, p.CinematicSkips},
 		{"story_digest_restored", 0, 1370, p.StoryDigest},
 		{"entry_basic_probe_sent", 0, 2, p.Basic},
@@ -110,6 +161,11 @@ func (p entryPayloads) packets() []outboundPacket {
 		{"skill_preset_restored", 0, 2758, p.SkillPreset},
 		{"vault_initialized", 0, 13, p.Vault},
 	}
+	// The newer skin families and the 收藏 push join the same entry window as the two
+	// list families above: an owned-page frame rebuilds its page from scratch, so it has
+	// to arrive before the selection frame that names ids from it, and both have to
+	// precede the town refresh.
+	out = append(out, p.SkinFamilyRestores...)
 	if len(p.SecondaryVault) > 0 {
 		out = append(out, outboundPacket{"secondary_vault_initialized", 0, 13, p.SecondaryVault})
 	}
@@ -143,7 +199,7 @@ func (p entryPayloads) packets() []outboundPacket {
 	for _, info := range p.Peers {
 		out = append(out, outboundPacket{"entry_peer_info_sent", 0, 2, info})
 	}
-	return append(out,
+	out = append(out,
 		outboundPacket{"town_entry_probe_sent", 0, 24, p.Area},
 		outboundPacket{"fatigue_sent", 0, 36, p.Fatigue},
 		outboundPacket{"enter_gameworld_complete_sent", 0, 124, p.Complete},
@@ -185,6 +241,37 @@ func (p entryPayloads) packets() []outboundPacket {
 		outboundPacket{"worn_equipment_window_refreshed_entry", 0, 14, p.WornUpdate},
 		// 原生 NOTI889 会查询晶块库存，须在库存和角色初始化后恢复。
 		outboundPacket{"cube_contract_selection_restored", 0, 889, p.CubeContract},
+	)
+	// 幻化仓库（武器外观页签）的容器内容只在复制时推过一次，客户端把它当会话态，
+	// 重登就空。这里按存档重推 NOTI1545，皮肤才会留在仓库里。
+	//
+	// 必须排在 actor_appearance_ready 之前：下面那条 id-2 帧要作为最后一个数据帧，
+	// 客户端的 actor 重建才会看到前面所有刚装好的行。空列表不建帧（与
+	// SecondaryVault/AccountVault 同），没有复制的角色与改动前完全一致。
+	if len(p.SkinCargo) > 0 {
+		out = append(out, outboundPacket{"skin_cargo_restored", 0, 1545, p.SkinCargo})
+	}
+	// 幻化仓库里"正在佩戴的那一行"的金色边框由客户端自己的页签选择表决定，而那张表
+	// 从来没有被喂过（Apply 只写窗口本地格），窗口一关一开就没了（实机 2026-09-27）。
+	// 紧跟着上面那条容器帧补一次 NOTI1546，重开时客户端才能按同一个 id 重新高亮。
+	if len(p.SkinSelection) > 0 {
+		out = append(out, outboundPacket{"skin_cargo_selected", 0, 1546, p.SkinSelection})
+	}
+	// The 最近获得 strip is the window's own five-cell row list, fed only by NOTI1547,
+	// and that frame is a whole-list rebuild (sub_1444ED400 clears the vector before its
+	// loop). Nothing re-sent it since replication, so a relog left the strip empty even
+	// with skins registered. It joins the same place as the two weapon-shape frames
+	// above: after the initialization barrier, before the last actor rebuild.
+	if len(p.SkinRecent) > 0 {
+		out = append(out, outboundPacket{"skin_recent_restored", 0, 1547, p.SkinRecent})
+	}
+	// 装备库完整状态。客户端只把它当数据存进映射（handler sub_145304380 不依赖角色对象），
+	// 所以放在 actor 重建之前是安全的；它在 actor_appearance_ready 之前进入同一条有序流。
+	if len(p.Journal) > 0 {
+		// 2610 = protocol.EquipmentJournalOpcode；本文件一律用字面量（与其它帧一致）。
+		out = append(out, outboundPacket{"equipment_journal_restored", 0, 2610, p.Journal})
+	}
+	return append(out,
 		outboundPacket{"actor_appearance_ready", 0, 2, p.Basic},
 		// The character option block goes after every other entry frame: this
 		// client crashes on town entry when NOTI2827 arrives early.

@@ -43,6 +43,11 @@ type CardPlan struct {
 	Run, Source, Model string
 	Gold               uint32
 	Level              byte
+	// 固定长度保持旧回执可比较；旧存档缺省为空，不改变普通翻牌。
+	Items [8]Award `json:",omitempty"`
+	// 独立领主奖励与翻牌同事务冻结，但分别领取，不能在翻牌时再次发放。
+	BossItems [3]Award `json:",omitempty"`
+	BossModel string   `json:",omitempty"`
 }
 type CardReceipt struct {
 	Plan  CardPlan
@@ -94,6 +99,9 @@ func (s *Service) FreezeCards(ctx context.Context, role storage.Character, d *du
 	if d == nil || !d.Completed() || role.ConfigVersion != s.Catalog.Source.Checksum {
 		return p, fmt.Errorf("card plan before owned completion")
 	}
+	if d.Definition.ID == BlackPurgatorySquadDungeon {
+		return s.FreezeBlackPurgatoryCards(ctx, role, d, seed)
+	}
 	level := byte(0)
 	for _, m := range d.Monsters {
 		if !m.NonCombat && m.Level > level {
@@ -119,7 +127,7 @@ func (s *Service) FreezeCards(ctx context.Context, role storage.Character, d *du
 	if e != nil {
 		return p, e
 	}
-	p = CardPlan{d.RunID, s.Catalog.Source.Checksum, r.Model, gold, level}
+	p = CardPlan{Run: d.RunID, Source: s.Catalog.Source.Checksum, Model: r.Model, Gold: gold, Level: level}
 	key := "cardplan:" + d.RunID
 	_, _, e = s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, p.Source, key, r.Model, func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
 		b, e := json.Marshal(p)
@@ -145,6 +153,14 @@ func (s *Service) PickCard(ctx context.Context, role storage.Character, d *dunge
 	if index > 3 || d == nil || !d.Completed() || p.Run != d.RunID || p.Source != s.Catalog.Source.Checksum {
 		return role, receipt, false, fmt.Errorf("invalid owned card selection")
 	}
+	return s.pickFrozenCard(ctx, role, p, index)
+}
+
+func (s *Service) pickFrozenCard(ctx context.Context, role storage.Character, p CardPlan, index byte) (storage.Character, CardReceipt, bool, error) {
+	var receipt CardReceipt
+	if index > 3 || p.Source != s.Catalog.Source.Checksum || role.ConfigVersion != p.Source || p.Run == "" {
+		return role, receipt, false, fmt.Errorf("翻牌奖励归属无效")
+	}
 	// Re-read frozen server plan; values received from the transport never
 	// choose an item, amount or reward formula.
 	b, e := s.Store.CharacterEventReceipt(ctx, role.AccountID, role.ID, "cardplan:"+p.Run)
@@ -164,9 +180,23 @@ func (s *Service) PickCard(ctx context.Context, role storage.Character, d *dunge
 		if e != nil {
 			return nil, nil, e
 		}
-		bag, _, e = bag.Add(s.Catalog, s.BagRules, 0, p.Gold)
-		if e != nil {
-			return nil, nil, e
+		if p.Gold > 0 {
+			bag, _, e = bag.Add(s.Catalog, s.BagRules, 0, p.Gold)
+			if e != nil {
+				return nil, nil, e
+			}
+		}
+		for _, item := range p.Items {
+			if item == (Award{}) {
+				continue
+			}
+			if item.Template == 0 || item.Amount == 0 {
+				return nil, nil, fmt.Errorf("冻结翻牌物品无效")
+			}
+			bag, _, e = bag.Add(s.Catalog, s.BagRules, item.Template, item.Amount, inventory.GrantExpireTime)
+			if e != nil {
+				return nil, nil, e
+			}
 		}
 		state, e := inventory.SaveBag(current.State, bag)
 		if e != nil {

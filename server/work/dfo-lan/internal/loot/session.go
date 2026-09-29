@@ -7,6 +7,7 @@ import (
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"sync"
 )
@@ -18,12 +19,17 @@ type Drop struct {
 	Object uint32
 	Slot   uint16
 	Award  Award
+	// 1至3对应已冻结的黑鸦装备分支；0沿用普通地面拾取回执。
+	BlackPurgatoryIndex byte
 }
 type Session struct {
-	Currency    *OdysseyCurrency
-	ChapterDrop *OdysseyChapterDrop
-	Attunement  *AttunementRewards
-	RewardBoxes RewardBoxSource
+	BlackPurgatory       *BlackPurgatoryRewards
+	BlackPurgatoryPlan   *CardPlan
+	blackPurgatoryRolled bool
+	Currency             *OdysseyCurrency
+	ChapterDrop          *OdysseyChapterDrop
+	Attunement           *AttunementRewards
+	RewardBoxes          RewardBoxSource
 	// Omen 是征兆系统的按角色累积账（见 omen.go）。为 nil 时这条线完全不推进。
 	Omen                  *OmenLedger
 	QuestDropBonusPercent int
@@ -70,7 +76,8 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 	if p, ok := s.deaths[entity]; ok {
 		return append([]protocol.SceneDrop(nil), p...), nil
 	}
-	if monster.NonCombat || monster.APC || monster.Level == 0 || d.Unowned[entity] {
+	blackBoss := s.BlackPurgatory != nil && s.BlackPurgatoryPlan != nil && BlackPurgatoryBossDeath(d, entity)
+	if monster.NonCombat || monster.APC || monster.Level == 0 || d.Unowned[entity] && !blackBoss {
 		s.deaths[entity] = nil
 		return nil, nil
 	}
@@ -80,9 +87,17 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 			return nil, e
 		}
 	}
-	result, e := RollWithBonus(s.Catalog, s.Tables, s.Rules, s.Equipment.DropPool(), seed, monster.Level, monster.Rank, difficultyIndex(s.Rules, d.Difficulty), s.QuestDropBonusPercent)
-	if e != nil {
-		return nil, e
+	result := Outcome{NextSeed: seed}
+	excludeGold, excludeRandom := dungeonDropExclusions(d.Definition)
+	if (!excludeGold || !excludeRandom) && !d.Unowned[entity] {
+		var e error
+		result, e = RollWithBonus(s.Catalog, s.Tables, s.Rules, s.Equipment.DropPool(), seed, monster.Level, monster.Rank, difficultyIndex(s.Rules, d.Difficulty), s.QuestDropBonusPercent)
+		if errors.Is(e, ErrOutOfDropRange) && blackBoss {
+			// 通用旧掉落表的等级上限不能阻断已冻结的黑鸦专属奖励。
+			result = Outcome{NextSeed: seed, SkippedKinds: []string{"黑鸦通用掉落超出导入等级"}}
+		} else if e != nil {
+			return nil, e
+		}
 	}
 	result.Awards = filterDungeonAwards(d.Definition, result.Awards)
 	if d.Definition.Odyssey && s.Currency != nil {
@@ -157,18 +172,39 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 			result.SkippedKinds = append(result.SkippedKinds, unresolved...)
 		}
 	}
+	bossStart := len(result.Awards)
+	var bossIndices []byte
+	if blackBoss && !s.blackPurgatoryRolled {
+		p := s.BlackPurgatoryPlan
+		if p.Run != d.RunID || p.Source != s.Catalog.Source.Checksum || p.Model != blackPurgatoryCardModel || p.BossModel != blackPurgatoryBossModel {
+			return nil, fmt.Errorf("黑鸦地面奖励缺少匹配的冻结奖单")
+		}
+		for i, award := range p.BossItems {
+			if award == (Award{}) {
+				continue
+			}
+			if _, ok := s.BlackPurgatory.bossDurability[award.Template]; !ok || award.Amount != 1 {
+				return nil, fmt.Errorf("黑鸦地面奖励不在已校验的装备组内")
+			}
+			result.Awards = append(result.Awards, award)
+			bossIndices = append(bossIndices, byte(i+1))
+		}
+	}
 	if d.NextEntity == 0 || uint64(d.NextEntity)+uint64(len(result.Awards)) >= 65535 || uint64(s.next)+uint64(len(result.Awards)) >= 65535 {
 		return nil, fmt.Errorf("drop identity exhausted")
 	}
 	var rows []protocol.SceneDrop
-	for _, a := range result.Awards {
+	for awardIndex, a := range result.Awards {
 		// Scene drops and monsters share the native object namespace. Consume
 		// the run's allocator so a later room cannot reuse a drop identity.
 		object := uint32(d.NextEntity)
 		d.NextEntity++
 		slot := uint16(s.next)
 		s.next++
-		drop := Drop{s.Run, d.Room.Map, s.Actor, object, slot, a}
+		drop := Drop{Run: s.Run, Map: d.Room.Map, Owner: s.Actor, Object: object, Slot: slot, Award: a}
+		if awardIndex >= bossStart {
+			drop.BlackPurgatoryIndex = bossIndices[awardIndex-bossStart]
+		}
 		s.Objects[object] = drop
 		// Gear carries its source durability in the scene row, exactly as it
 		// does in a bag row; a stackable carries its amount instead.
@@ -176,10 +212,14 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 		if durability, ok := s.Equipment.Durability(a.Template); ok && !s.stackable(a.Template) {
 			item = inventory.EquipmentRow(inventory.BagEquipment{Slot: slot, Template: a.Template, Durability: durability})
 		}
+		if drop.BlackPurgatoryIndex != 0 {
+			item = inventory.EquipmentRow(inventory.BagEquipment{Slot: slot, Template: a.Template, Durability: s.BlackPurgatory.bossDurability[a.Template]})
+		}
 		rows = append(rows, protocol.SceneDrop{Object: object, Item: item, Sentinel: 65535, Owner: s.Actor})
 	}
 	s.seeds[d.Room.Map] = result.NextSeed
 	s.deaths[entity] = rows
+	s.blackPurgatoryRolled = s.blackPurgatoryRolled || blackBoss
 	s.Skipped[entity] = result.SkippedKinds
 	return append([]protocol.SceneDrop(nil), rows...), nil
 }

@@ -13,17 +13,30 @@ import (
 	"dfolan/internal/world"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 )
 
 type worldSession struct {
-	characters *character.Service
-	pilotDeath *odysseyDeath
-	service    *world.Service
-	account    int64
-	serverID   uint32
-	role       storage.Character
-	level      byte
+	lastFame               uint32
+	fameInitialized        bool
+	moonConfig             *moonSoloConfig
+	moon                   moonSoloState
+	characters             *character.Service
+	pilotDeath             *odysseyDeath
+	service                *world.Service
+	account                int64
+	serverID               uint32
+	role                   storage.Character
+	level                  byte
+	adventureSnapshot      [32]byte
+	channelType            uint32
+	bleedingMineCreated    bool
+	bleedingMineReady      bool
+	bleedingMineRoster     []int64
+	bleedingMineStart      *bleedingMineStart
+	blackPurgatory         blackPurgatoryState
+	adventureEliteSnapshot [32]byte
 	// odyssey mirrors character.OdysseyRole for this session. It selects which
 	// source level gate the world service applies: an Arad Odyssey character
 	// follows the client's [odyssey enter level] instead of [need level].
@@ -42,6 +55,17 @@ type worldSession struct {
 	loot             *loot.Service
 	selectionBoxes   *catalog.SelectionBoxes
 	vault            *inventory.VaultService
+
+	townArrivalScenes   map[uint32]catalog.TownArrivalScene
+	approvedDungeonGate uint32
+	pendingTownArrival  *dungeon.Session
+	// craftPending / craftPendingAt 记录上一次装备库制作（CMD2259）请求的指纹与
+	// 时间戳（UnixNano）。**同一个正文客户端会发两次**（"变换" → "确定"），
+	// 而且两次的 plain_hex 逐字节相同 ⇒ 只能由服务端记状态来区分第一步与第二步。
+	// 见 analysis/tasks/next126 §8。
+	craftPending   string
+	craftPendingAt int64
+
 	// skinCatalog maps an `[add skin storage]` template to its PVF skin key; nil
 	// disables the CMD507 action 169 flow.
 	skinCatalog map[uint32]catalog.SkinStorageEntry
@@ -96,15 +120,20 @@ type worldSession struct {
 	// scaleRun 是上面两张表所归属的副本运行号。同一会话里重进副本会把 entity 从
 	// 0x1000 重新发一遍，只按 entity 去重会让第二场之后再也不可能判死（实战踩过），
 	// 所以换 RunID 时必须整表清空。
-	scaleRun           string
-	activeDungeon      *dungeon.Session
-	selectingDungeon   bool
-	completionSent     bool
-	completionErr      error
+	scaleRun         string
+	activeDungeon    *dungeon.Session
+	selectingDungeon bool
+	completionSent   bool
+	completionErr    error
+	// [MERGE-20260928-DIAG] 最近一次场景换图的决策路径，由 dispatch 落进 events。
+	sceneDiag          string
+	sceneDiagFrom      uint32
+	sceneDiagTo        uint32
 	resultSent         bool
 	cardPlan           *loot.CardPlan
 	cardScrolled       bool
 	cardLayoutSent     bool
+	cardAutoPickAt     time.Time
 	cardReceipt        *loot.CardReceipt
 	answeredQuests     map[uint16]bool
 	communicationQuest uint16
@@ -135,7 +164,10 @@ type worldSession struct {
 	// loading the scene - it comes after the whole entry command burst, or after
 	// a CMD 36 area change - so the first one is already a safe moment. It is not
 	// sent during the entry sequence itself: doing that crashes the client.
-	poseRefreshAfter int
+	poseRefreshAfter    int
+	adventureReady      bool
+	seasonLevelSnapshot [32]byte
+	seasonOathSnapshot  [32]byte
 }
 
 func (w *worldSession) enter(role storage.Character, spawn storage.WorldPosition) error {
@@ -154,13 +186,68 @@ func (w *worldSession) enter(role storage.Character, spawn storage.WorldPosition
 	if e != nil {
 		return e
 	}
+	// 旧入口候选曾把矿区位置写入普通城镇存档；该位置在普通频道
+	// 不具备创建资格。仅修复这类旧位置，使用现有配置的默认落点。
+	if saved.Position.Town == 218 {
+		if spawn.Town == 218 {
+			return fmt.Errorf("普通频道默认落点不能使用赤红铁矿区域")
+		}
+		saved, e = w.service.Store.SaveWorld(ctx, w.account, role.ID, saved, spawn)
+		if e != nil {
+			return e
+		}
+	}
 	w.role, w.level, w.state, w.odyssey = role, state.Level, saved, odyssey
+	w.blackPurgatory = blackPurgatoryState{}
+	if w.channelType == 73 {
+		// blackpurgatory.etc的85/1招募大厅连回原版85/0房间。
+		// 坐标来自black_purgatory_gate.map的[gate]，不写普通城镇存档。
+		entry := blackPurgatoryEntry()
+		if e := w.service.ValidatePosition(w.level, w.odyssey, entry); e != nil {
+			return fmt.Errorf("黑鸦频道落点无效：%w", e)
+		}
+		w.state.Position = entry
+		if _, _, e := w.blackPurgatoryQuota(ctx, "", "recover", time.Now()); e != nil {
+			return fmt.Errorf("恢复黑鸦入场次数：%w", e)
+		}
+	}
+	w.bleedingMineCreated, w.bleedingMineReady = false, false
+	w.bleedingMineRoster = nil
+	w.bleedingMineStart = nil
+	if w.channelType == 106 {
+		// 当前 clientchannelinfo.etc 指定赤红铁矿赛丽亚房间为218/0；
+		// 坐标取 town/bleedingmine.twn 的[gate]，不复用剧情城镇。
+		// 每次进入先回独立房间，不能恢复没有当前编队的副本准备区。
+		entry := storage.WorldPosition{Town: 218, Area: 0, X: 562, Y: 234}
+		if e := w.service.ValidatePosition(w.level, w.odyssey, entry); e != nil {
+			return fmt.Errorf("赤红铁矿频道落点无效：%w", e)
+		}
+		w.state.Position = entry
+	}
+	w.moon = moonSoloState{}
+	if w.moonConfig != nil {
+		if e := w.service.ValidatePosition(w.level, w.odyssey, w.moonConfig.Entry); e != nil {
+			return e
+		}
+		// Explicit contribution test-channel spawn only; never write a dungeon
+		// coordinate into the ordinary world-position store.
+		if w.state.Position.Town != 215 {
+			w.state.Position = w.moonConfig.Entry
+		}
+	}
 	w.lastFatigueDay = ""
+	w.adventureSnapshot = [32]byte{}
+	w.adventureEliteSnapshot = [32]byte{}
+	w.adventureReady = false
+	w.seasonLevelSnapshot = [32]byte{}
+	w.seasonOathSnapshot = [32]byte{}
 	w.activeDungeon = nil
 	w.pilotDeath = nil
 	w.soloPartyReady = false
 	w.specialWarpPending = false
 	w.selectingDungeon = false
+	w.approvedDungeonGate = 0
+	w.pendingTownArrival = nil
 	w.completionSent = false
 	w.completionErr = nil
 	w.resultSent = false
@@ -296,6 +383,7 @@ func (w *worldSession) broadcastMove() {
 // sees the others standing in the default facing regardless of where they
 // actually face.
 func (w *worldSession) notePositionReport(event func(map[string]any)) {
+	w.adventureReady = true
 	if w.poseRefreshAfter <= 0 {
 		return
 	}
@@ -405,7 +493,12 @@ func (w *worldSession) handle(id uint16, p []byte, send func(byte, uint16, []byt
 			w.specialWarpPending = false
 			return e
 		}
-		next, e = w.areaTransition(r)
+		if e = w.validateBleedingMineArea(r); e == nil {
+			e = w.validateBlackPurgatoryArea(r)
+		}
+		if e == nil {
+			next, e = w.areaTransition(r)
+		}
 		if e != nil {
 			event(map[string]any{"kind": "area_refused", "town": r.Town, "area": r.Area, "reason": e.Error()})
 			// Code 8 is the native level refusal; code 4 reaches the generic refusal
@@ -432,7 +525,9 @@ func (w *worldSession) handle(id uint16, p []byte, send func(byte, uint16, []byt
 			}
 			return send(1, 1418, refusal)
 		}
-		next, e = w.areaTransition(r)
+		if e = w.validateBlackPurgatoryArea(r); e == nil {
+			next, e = w.areaTransition(r)
+		}
 		if e != nil {
 			event(map[string]any{"kind": "prev_village_refused", "town": r.Town, "area": r.Area, "reason": e.Error()})
 			refusal, err := protocol.AreaChangeFailure(4, r.Town, r.Area)
@@ -446,17 +541,26 @@ func (w *worldSession) handle(id uint16, p []byte, send func(byte, uint16, []byt
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	saved, e := w.service.Store.SaveWorld(ctx, w.account, w.role.ID, old, next)
-	if e != nil {
-		return e
+	if w.channelType == 106 && next.Town == 218 {
+		// 矿区位置属于当前频道会话，不能覆盖普通频道的城镇落点。
+		w.state.Position = next
+		event(map[string]any{"kind": "赤红铁矿会话位置更新", "character_id": w.role.ID, "position": next, "request": id})
+	} else if w.channelType == 73 && next.Town == 85 {
+		w.state.Position = next
+		event(map[string]any{"kind": "黑鸦会话位置更新", "character_id": w.role.ID, "position": next, "request": id})
+	} else {
+		saved, e := w.service.Store.SaveWorld(ctx, w.account, w.role.ID, old, next)
+		if e != nil {
+			return e
+		}
+		w.state = saved
+		event(map[string]any{"kind": "world_position_saved", "character_id": w.role.ID, "position": next, "revision": saved.Revision, "request": id})
 	}
-	w.state = saved
-	event(map[string]any{"kind": "world_position_saved", "character_id": w.role.ID, "position": next, "revision": saved.Revision, "request": id})
 	if id == 36 || id == 1418 {
 		// The acknowledgement echoes the request's own opcode: the client is
 		// waiting on the command it sent, and CMD 1418 replays the CMD 36
 		// area-change frame sequence otherwise unchanged.
-		if e = send(1, id, protocol.AreaChangeSuccess()); e != nil {
+		if e := send(1, id, protocol.AreaChangeSuccess()); e != nil {
 			return e
 		}
 		// NOTI23 is a distinct transition stage: its self branch invokes
@@ -492,6 +596,11 @@ func (w *worldSession) handle(id uint16, p []byte, send func(byte, uint16, []byt
 	} else {
 		w.broadcastMove()
 	}
+	if id == 35 {
+		if e := w.syncBleedingMinePreparation(send, event); e != nil {
+			return e
+		}
+	}
 	return w.settleProximityObjectives(ctx, send, event)
 }
 
@@ -506,6 +615,8 @@ func (w *worldSession) settleProximityObjectives(ctx context.Context, send func(
 	}
 	advanced, e := w.quests.ProximityProgress(ctx, w.role, w.state.Position, func(npc uint32) ([2]uint16, bool) {
 		return w.service.NPCPosition(w.state.Position, npc)
+	}, func(npc uint32) ([2]uint16, bool) {
+		return w.service.PhaseNPCPosition(w.state.Position, npc)
 	})
 	if e != nil {
 		event(map[string]any{"kind": "quest_proximity_error", "character_id": w.role.ID, "error": e.Error()})

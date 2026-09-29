@@ -31,6 +31,35 @@ func (s *Store) Quests(ctx context.Context, account, id int64) ([]QuestState, er
 	return out, rows.Err()
 }
 
+// CompletedQuestIDs 批量读取本账号各角色的指定已完成任务，不将账号内其他角色的进度串给当前角色。
+func (s *Store) CompletedQuestIDs(ctx context.Context, account int64, version string, ids []uint16) (map[int64][]uint16, error) {
+	out := make(map[int64][]uint16)
+	if len(ids) == 0 {
+		return out, nil
+	}
+	questIDs := make([]int32, len(ids))
+	for i, id := range ids {
+		questIDs[i] = int32(id)
+	}
+	rows, err := s.DB.Query(ctx, `SELECT q.character_id,q.quest_id
+FROM character_quests q JOIN characters c ON c.id=q.character_id
+WHERE c.account_id=$1 AND c.deleted_at IS NULL
+  AND q.status='completed' AND q.config_version=$2 AND q.quest_id=ANY($3::int[])`, account, version, questIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var characterID int64
+		var questID uint16
+		if err = rows.Scan(&characterID, &questID); err != nil {
+			return nil, err
+		}
+		out[characterID] = append(out[characterID], questID)
+	}
+	return out, rows.Err()
+}
+
 // Repair only the accepted, zero-valued records produced by the initial
 // incomplete codec. A persisted before/after audit and compare-and-swap keep
 // this operation idempotent and prevent overwriting newer objective progress.

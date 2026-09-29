@@ -29,8 +29,10 @@ type Config struct {
 	Listen, ServerKey, SourceSHA256 string
 	ServerID                        uint32
 	MaxUsers                        uint32
-	Dungeons                        map[string][]uint32
-	Channels                        []Channel
+	// 当前客户端目录显式启用，确保登录和角色刷新使用所选频道身份。
+	SynchronizeIdentity bool
+	Dungeons            map[string][]uint32
+	Channels            []Channel
 }
 
 func Load(path string) (Config, error) {
@@ -50,9 +52,20 @@ func Load(path string) (Config, error) {
 	if e != nil || (h != "" && net.ParseIP(h) == nil) || len(c.SourceSHA256) != 64 || len(c.Channels) == 0 || len(c.Channels) > 128 || len(c.ServerKey) > 19 || c.MaxUsers == 0 {
 		return c, fmt.Errorf("invalid local channel configuration")
 	}
+	if c.SynchronizeIdentity && (c.ServerID == 0 || c.ServerID > 255) {
+		return c, fmt.Errorf("频道身份同步要求服务器编号在 1～255 之间")
+	}
+	seen := make(map[uint32]bool, len(c.Channels))
 	for _, ch := range c.Channels {
 		if ch.ID == 0 || len(ch.Name) == 0 || len(ch.Name) > 18 || strings.ContainsAny(ch.Name, "`\r\n\x00") || len(ch.SourceValues) != 11 {
 			return c, fmt.Errorf("invalid source channel row")
+		}
+		if seen[ch.ID] {
+			return c, fmt.Errorf("频道编号重复：%d", ch.ID)
+		}
+		seen[ch.ID] = true
+		if c.SynchronizeIdentity && (ch.ID > 255 || ch.Type > 255) {
+			return c, fmt.Errorf("频道 %d 的编号或类型超出身份字段范围", ch.ID)
 		}
 	}
 	return c, nil

@@ -109,9 +109,16 @@ func EquipmentPayload(space byte, items []BagEquipment, restore bool) ([]byte, e
 		}
 		seen[i.Slot] = true
 		row := EquipmentRow(i)
-		if (space == 3 && i.Slot == 26) || (space == 7 && i.Slot < 140) {
+		// 幻化槽（穿戴槽 32）与槽 26 一样是**生物行**：行里的实例 key 必须与
+		// CreatureListPayload 里那条生物条目一致，客户端才按 key 把 F6 的 Skin
+		// 框画出来（小退重登后图标丢失就是这个 key 在生物列表里解析不到）。
+		creatureSkinRow := space == 3 && i.Slot == CreatureSkinSlot
+		if (space == 3 && i.Slot == 26) || creatureSkinRow || (space == 7 && i.Slot < 140) {
 			key := uint32(1)
-			if space == 7 {
+			switch {
+			case creatureSkinRow:
+				key = CreatureSkinFallbackKey
+			case space == 7:
 				key = uint32(i.Slot + 2)
 			}
 			if k := binary.LittleEndian.Uint32(row[6:10]); k != 0 {
@@ -122,7 +129,9 @@ func EquipmentPayload(space byte, items []BagEquipment, restore bool) ([]byte, e
 		}
 		// 宠物行的期限（见 creatureRowPeriod）。只动宠物行：装扮的期限走行尾那个
 		// u32、普通装备没有期限语义，两者都不在这次修复范围内。
-		if space == 7 || (space == 3 && i.Slot >= 26 && i.Slot <= 29) {
+		// 幻化槽（穿戴槽 32）同样是生物行，同样要补期限：漏掉它时这一格恒为 0，
+		// 客户端按「剩余期限已过」处理，与槽 26 那行唯一的差别就在这里。
+		if space == 7 || (space == 3 && ((i.Slot >= 26 && i.Slot <= 29) || i.Slot == CreatureSkinSlot)) {
 			expiry := creatureRowPeriod(i.Template, i.Period, binary.LittleEndian.Uint32(row[56:60]))
 			binary.LittleEndian.PutUint32(row[56:], protocol.ItemPeriodForWire(i.Template, expiry))
 		}

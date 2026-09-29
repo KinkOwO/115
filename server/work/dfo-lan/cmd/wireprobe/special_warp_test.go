@@ -60,10 +60,17 @@ func TestSpecialWarpPreparationAndDarkelfDestination(t *testing.T) {
 	if e != nil || next.Town != 41 || next.Area != 2 {
 		t.Fatal(next, e)
 	}
-	r.X = 1
+	// [MERGE-20260928-JOURNAL-LANDING] 原来这里是 `r.X = 1`（篡改落点坐标）。
+	// 41/2 正是奥德赛日志的第 3 站（fixture 的 State 已通关前两站 934..938），
+	// 而落点坐标不是站点的身份 —— 客户端从传送门/地图选择器出发时报的是它自己的
+	// 默认落点（实机 2026-09-28「前往天界」即如此）。X=1 落在 41/2 的 walkable
+	// 矩形 [17,170,800,110] 加 WalkableTolerance=128 之内，是合法落点。
+	// 所以这里改为篡改**站点**，那才是必须被拒的东西。
+	r.Town = 99
 	if _, e = w.areaTransition(r); e == nil {
 		t.Fatal("altered target admitted")
 	}
+	r.Town = 41
 	r.X = 569
 	w.role.State = json.RawMessage(`{"odyssey_completed_dungeons":[100004934,100004935,100004936,100004937]}`)
 	if _, e = w.areaTransition(r); e == nil {

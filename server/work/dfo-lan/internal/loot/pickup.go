@@ -12,15 +12,23 @@ import (
 )
 
 type Service struct {
-	Currency    *OdysseyCurrency
-	Store       *storage.Store
-	Catalog     catalog.LootCatalog
-	DropCatalog catalog.LootCatalog
-	Rules       Rules
-	BagRules    inventory.BagRules
-	Tables      Tables
-	Equipment   *inventory.EquipmentCatalog
-	CardPolicy  *CardRules
+	BlackPurgatory *BlackPurgatoryRewards
+	BleedingMine   *BleedingMineRewards
+	Currency       *OdysseyCurrency
+	Store          *storage.Store
+	Catalog        catalog.LootCatalog
+	DropCatalog    catalog.LootCatalog
+	Rules          Rules
+	BagRules       inventory.BagRules
+	Tables         Tables
+	Equipment      *inventory.EquipmentCatalog
+	// Journal 是装备库（装备图鉴）规则表：普通收录上限与"按类型收紧"的上限。nil 表示
+	// **不登记**（保持原行为），与其它可选表一样由启动参数显式装载。
+	Journal *catalog.EquipmentJournalRules
+	// CreateCost 是装备库「装备生成 / 制作」的成本表（`[create cost]` 段）。
+	// nil 表示**不生成**：CMD2259 的第二步只会回窗口、不动存档。
+	CreateCost *catalog.EquipmentCreateCost
+	CardPolicy *CardRules
 	// Boxes 保存已导出的袖珍罐奖励与进度规则。
 	Boxes *BoxCatalog
 	// ItemShops 是源物品商店表（itemshop/**.shp）。它给出"用物品支付"的商品价格：
@@ -28,6 +36,10 @@ type Service struct {
 	// 金币单价去扣，等于白送（实机 2026-09-23 玩家报告"银币没有扣减"）。
 	ItemShops *catalog.ItemShops
 	Prices    *catalog.ShopPrices
+	// ItemMaterials 是「物品脚本自带 [need material]」表：商店表 itemshop/**.shp **没有价格字段**，
+	// 用材料交换的商品其材料成本写在物品脚本里（见 internal/catalog/item_materials.go）。
+	// 为 nil 时这些商品退化成金币价（再缺 [price] 时按物品基础价值兜底）。
+	ItemMaterials *catalog.ItemMaterials
 	// ChapterDrop 是章节最终领主的章节盒掉落（手册 P3 子项 3）。默认整表
 	// enabled=false，禁用行连掷骰种子都不消耗；由 profile 显式开启。
 	ChapterDrop *OdysseyChapterDrop
@@ -69,6 +81,13 @@ func (s *Service) Pickup(ctx context.Context, role storage.Character, session *S
 	drop, e := session.Owned(d, role.AccountID, role.ID, role.WireID, r.Object)
 	if e != nil {
 		return fail(e)
+	}
+	if drop.BlackPurgatoryIndex != 0 {
+		saved, receipt, applied, err := s.pickBlackPurgatoryBoss(ctx, role, drop.Run, drop.BlackPurgatoryIndex, drop.Award)
+		if err != nil {
+			return fail(err)
+		}
+		return saved, PickupReceipt{drop.Run, drop.Map, drop.Object, receipt.Award, receipt.Destination, s.Catalog.Source.Checksum}, applied, nil
 	}
 	awardCatalog, bagRules := s.Catalog, s.BagRules
 	if d.Definition.Odyssey && session.Currency != nil {

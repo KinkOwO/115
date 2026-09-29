@@ -113,6 +113,52 @@ type Bag struct {
 	// and gates equipment slots 22/23/25 on bits 1/2/16. Absent in saves
 	// written before 2026-09-22, which reads back as 0 (nothing unlocked).
 	ExpandEquipFlags byte `json:"expand_equip_flags,omitempty"`
+	// WeaponSkin 是幻化仓库（Skin Storage）里应用的武器外观：皮肤 id，实机就是被
+	// 幻化那把武器的模板。0 表示没有应用，装备外观投影照旧使用穿戴中的武器模板，
+	// 因此缺席（老存档）与 0 同义。
+	//
+	// 它只改外观：穿戴容器（list 3）里的武器对象、金库与背包里的物品都不动，
+	// 所以脱装/换装的身份校验（stale equipment identity）不受影响。
+	WeaponSkin uint32 `json:"weapon_skin,omitempty"`
+	// WeaponSkins 是幻化仓库武器外观页签（NOTI1545 subtype 4）里已复制的皮肤 id，
+	// 按复制顺序排列。
+	//
+	// 客户端把这个容器当会话态：NOTI1545 只在复制（CMD1592）时推过一次，重登后
+	// 容器是空的，所以列表必须落库，入场时再按它重推一次。WeaponSkin（已应用的那
+	// 一个）正常是它的成员；老存档没有本字段，见 WeaponSkinStorage 的兜底。
+	WeaponSkins []uint32 `json:"weapon_skins,omitempty"`
+	// WeaponSkinSeq 是幻化应用/解除的单调序号，每真正改一次外观加一。
+	//
+	// 它只服务于幂等键：CMD1565 的 Apply 与「浏览选中」是同一个帧，服务端按
+	// 「角色 + 上一个皮肤 + 新皮肤」落事务，于是 A→B→A 的第三次和第一次键完全相同，
+	// CommitCharacterEvent 会当成重放命中旧 receipt、闭包根本不执行，
+	// 玩家看到的就是「替换不生效、状态停在 B」（实机 2026-09-27）。
+	// 把序号一起编进键，每次真实切换都是新键；序号本身不参与任何投影。
+	WeaponSkinSeq uint32 `json:"weapon_skin_seq,omitempty"`
+}
+
+// WeaponSlot 是穿戴容器（list 3）里的武器槽。[equipment type] 的序号空间里
+// weapon = 12，装备外观块（0x145639840）与主副手互换都用同一个槽号。
+const WeaponSlot uint16 = 12
+
+// WeaponSkinStorage 给出幻化仓库武器页签要显示的皮肤 id 列表。
+//
+// 已应用的 WeaponSkin 一定也在里面（它本来就是从这个仓库里选出来应用的），所以
+// 即使列表里没有它也要补进去 —— 老存档更是只有这一个可用。重复 id 只保留第一次：
+// 客户端仓库行的身份就是皮肤 id，重复行会让选择/应用指到同一格。
+func (b Bag) WeaponSkinStorage() []uint32 {
+	seen := make(map[uint32]bool, len(b.WeaponSkins)+1)
+	out := make([]uint32, 0, len(b.WeaponSkins)+1)
+	for _, id := range b.WeaponSkins {
+		if id != 0 && !seen[id] {
+			seen[id] = true
+			out = append(out, id)
+		}
+	}
+	if b.WeaponSkin != 0 && !seen[b.WeaponSkin] {
+		out = append(out, b.WeaponSkin)
+	}
+	return out
 }
 
 func ReadBag(state json.RawMessage) (Bag, error) {

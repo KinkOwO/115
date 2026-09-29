@@ -36,16 +36,22 @@ type BuyReceipt struct {
 	Seq      uint64 `json:"seq"`
 }
 
+// SoldRowReceipt records one row of a completed sale.
+type SoldRowReceipt struct {
+	List      byte   `json:"list"`
+	Slot      uint16 `json:"slot"`
+	Template  uint32 `json:"template"`
+	Count     uint32 `json:"count"`
+	UnitPrice uint32 `json:"unit_price"`
+}
+
 type SellReceipt struct {
-	NpcID      uint32 `json:"npc_id"`
-	Slot       uint16 `json:"slot"`
-	Template   uint32 `json:"template"`
-	Count      uint32 `json:"count"`
-	UnitPrice  uint32 `json:"unit_price"`
-	GoldGained uint32 `json:"gold_gained"`
-	NewGold    uint32 `json:"new_gold"`
-	Source     string `json:"source"`
-	Seq        uint64 `json:"seq"`
+	NpcID      uint32           `json:"npc_id"`
+	Rows       []SoldRowReceipt `json:"rows"`
+	GoldGained uint32           `json:"gold_gained"`
+	NewGold    uint32           `json:"new_gold"`
+	Source     string           `json:"source"`
+	Seq        uint64           `json:"seq"`
 }
 
 // Buy processes an NPC shop purchase transaction durably.
@@ -99,16 +105,40 @@ func (s *Service) Buy(ctx context.Context, role storage.Character, r protocol.Bu
 	}
 	seq := atomic.AddUint64(&shopEventSeq, 1)
 	key := shopEventKey("buy", seq, r.Template, r.Count)
+	// 商店的支付方式有两个「材料」来源：
+	//   1. .shp 里店主写死的 [need material]（如奥德赛商店要银币）；
+	//   2. ★ 物品脚本自带的 [need material] —— 商店表 .shp **没有价格字段**，
+	//      所以用材料交换的商品，材料成本只写在物品脚本里（3242=1000×3037 等）。
+	// 两者都没有才走金币价；金币价缺 [price] 时按物品基础价值 [value] 兜底
+	// （价格表里 Sell=[value]/5，故用 Sell*5），再没有就是 0。
+	shopMats, _, shopPaid := s.ItemShops.Materials(r.NpcID, r.Template)
+	itemMats, itemPaid := s.ItemMaterials.Materials(r.Template)
+	var mats []inventory.MaterialCost
+	switch {
+	case shopPaid:
+		for _, m := range shopMats {
+			mats = append(mats, inventory.MaterialCost{Template: m.Template, Count: m.Count})
+		}
+	case itemPaid:
+		for _, m := range itemMats {
+			mats = append(mats, inventory.MaterialCost{Template: m.Template, Count: m.Count})
+		}
+	}
 	var cost uint32
-	if _, _, paid := s.ItemShops.Materials(r.NpcID, r.Template); !paid {
+	if len(mats) == 0 {
 		p, err := s.shopPrice(r.Template)
 		if err != nil {
 			return fail(err)
 		}
-		if p.Buy == nil || r.Count == 0 || uint64(*p.Buy)*uint64(r.Count) > math.MaxUint32 {
+		buy := p.Buy
+		if buy == nil {
+			fallback := p.Sell * 5
+			buy = &fallback
+		}
+		if r.Count == 0 || uint64(*buy)*uint64(r.Count) > math.MaxUint32 {
 			return fail(fmt.Errorf("missing or overflowing source purchase price"))
 		}
-		cost = *p.Buy * r.Count
+		cost = *buy * r.Count
 	}
 
 	var stackableType string
@@ -116,63 +146,94 @@ func (s *Service) Buy(ctx context.Context, role storage.Character, r protocol.Bu
 		stackableType = item.StackableType
 	}
 
-	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID,
-		s.Catalog.Source.Checksum, key, s.Rules.Model,
-		func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
-			b, e := inventory.ReadBag(current.State)
-			if e != nil {
-				return nil, nil, e
-			}
-			var slot uint16
-			if mats, _, paid := s.ItemShops.Materials(r.NpcID, r.Template); paid {
-				// 源用 [need material] 定价的商品（奥德赛商店的银币/金币）：按材料
-				// 支付，不再扣金币。数量不足时 PayMaterials 整笔拒绝。
-				costs := make([]inventory.MaterialCost, 0, len(mats))
-				for _, m := range mats {
-					costs = append(costs, inventory.MaterialCost{Template: m.Template, Count: m.Count})
+	var saved storage.Character
+	var applied bool
+	if len(mats) > 0 {
+		// ★ 材料支付：把「扣账号材料」与「改角色存档」放进**同一事务**
+		// （CommitAccountMaterialEvent）。账号材料仓库（space 35）里存着 3033..3037 等
+		// 共享晶块，它们平时不在角色背包里；旧路径只查背包 → 「背包里有晶块，商店却说 have 0」。
+		var e error
+		saved, _, applied, e = s.Store.CommitAccountMaterialEvent(ctx, role.AccountID, role.ID,
+			s.Catalog.Source.Checksum, key, s.Rules.Model,
+			func(current storage.Character, rawCounts json.RawMessage) (json.RawMessage, json.RawMessage, error) {
+				b, e := inventory.ReadBag(current.State)
+				if e != nil {
+					return nil, nil, e
 				}
-				b, slot, e = b.BuyWithMaterials(s.BagRules, r.Template, r.Count, costs, stackableType)
-			} else {
-				b, slot, e = b.Buy(s.BagRules, r.Template, r.Count, cost, stackableType)
-			}
-			if e != nil {
-				return nil, nil, e
-			}
-			updated, e := inventory.SaveBag(current.State, b)
-			if e != nil {
-				return nil, nil, e
-			}
-			out = BuyReceipt{
-				NpcID:    r.NpcID,
-				Template: r.Template,
-				Count:    r.Count,
-				Slot:     slot,
-				Cost:     cost,
-				NewGold:  b.Gold,
-				Source:   s.Catalog.Source.Checksum,
-				Seq:      seq,
-			}
-			receipt, e := json.Marshal(out)
-			return updated, receipt, e
-		})
-	if e != nil {
-		return fail(e)
-	}
-	receipt, e := s.Store.CharacterEventReceipt(ctx, role.AccountID, role.ID, key)
-	if e != nil {
-		return fail(e)
-	}
-	if e = json.Unmarshal(receipt, &out); e != nil {
-		return fail(e)
-	}
-	if out.Source != s.Catalog.Source.Checksum || out.Template != r.Template || out.Count != r.Count {
-		return fail(fmt.Errorf("buy receipt conflict"))
+				m, e := inventory.ReadAccountMaterials(rawCounts)
+				if e != nil {
+					return nil, nil, e
+				}
+				b, m, slot, e := b.BuyWithMaterialsWithStore(s.BagRules, m, r.Template, r.Count, mats, stackableType)
+				if e != nil {
+					return nil, nil, e
+				}
+				state, e := inventory.SaveBag(current.State, b)
+				if e != nil {
+					return nil, nil, e
+				}
+				updated, e := m.Save()
+				if e != nil {
+					return nil, nil, e
+				}
+				out = BuyReceipt{
+					NpcID: r.NpcID, Template: r.Template, Count: r.Count, Slot: slot,
+					Cost: cost, NewGold: b.Gold, Source: s.Catalog.Source.Checksum, Seq: seq,
+				}
+				return state, updated, nil
+			})
+		if e != nil {
+			return fail(e)
+		}
+		if applied && (out.Source != s.Catalog.Source.Checksum || out.Template != r.Template || out.Count != r.Count) {
+			return fail(fmt.Errorf("buy receipt conflict"))
+		}
+	} else {
+		var e error
+		saved, applied, e = s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID,
+			s.Catalog.Source.Checksum, key, s.Rules.Model,
+			func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+				b, e := inventory.ReadBag(current.State)
+				if e != nil {
+					return nil, nil, e
+				}
+				b, slot, e := b.Buy(s.BagRules, r.Template, r.Count, cost, stackableType)
+				if e != nil {
+					return nil, nil, e
+				}
+				updated, e := inventory.SaveBag(current.State, b)
+				if e != nil {
+					return nil, nil, e
+				}
+				out = BuyReceipt{
+					NpcID: r.NpcID, Template: r.Template, Count: r.Count, Slot: slot,
+					Cost: cost, NewGold: b.Gold, Source: s.Catalog.Source.Checksum, Seq: seq,
+				}
+				receipt, e := json.Marshal(out)
+				return updated, receipt, e
+			})
+		if e != nil {
+			return fail(e)
+		}
+		receipt, e := s.Store.CharacterEventReceipt(ctx, role.AccountID, role.ID, key)
+		if e != nil {
+			return fail(e)
+		}
+		if e = json.Unmarshal(receipt, &out); e != nil {
+			return fail(e)
+		}
+		if out.Source != s.Catalog.Source.Checksum || out.Template != r.Template || out.Count != r.Count {
+			return fail(fmt.Errorf("buy receipt conflict"))
+		}
 	}
 	saved.WireID = role.WireID
 	return saved, out, applied, nil
 }
 
-// Sell processes an NPC shop item sale transaction durably.
+// Sell processes an NPC shop item sale transaction durably. One request may
+// carry several rows (the "Sell All" panel registers multiple stacks and
+// confirms with a single CMD22), so every row is removed in the same
+// transaction: the sale either applies in full or not at all.
 func (s *Service) Sell(ctx context.Context, role storage.Character, r protocol.SellItemRequest) (storage.Character, SellReceipt, bool, error) {
 	var out SellReceipt
 	fail := func(e error) (storage.Character, SellReceipt, bool, error) {
@@ -181,8 +242,11 @@ func (s *Service) Sell(ctx context.Context, role storage.Character, r protocol.S
 	if role.ConfigVersion != s.Catalog.Source.Checksum {
 		return fail(fmt.Errorf("sell source mismatch"))
 	}
+	if len(r.Rows) == 0 {
+		return fail(fmt.Errorf("sell requires at least one row"))
+	}
 	seq := atomic.AddUint64(&shopEventSeq, 1)
-	key := shopEventKey("sell", seq, uint32(r.List), uint32(r.Slot))
+	key := shopEventKey("sell", seq, uint32(len(r.Rows)), uint32(r.Rows[0].Slot), uint32(r.Rows[len(r.Rows)-1].Slot))
 
 	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID,
 		s.Catalog.Source.Checksum, key, s.Rules.Model,
@@ -191,19 +255,32 @@ func (s *Service) Sell(ctx context.Context, role storage.Character, r protocol.S
 			if e != nil {
 				return nil, nil, e
 			}
-			// Resolve the identity from the transaction's current owned bag, never
-			// from request metadata or a potentially stale session snapshot.
-			_, template, _, e := b.Sell(s.BagRules, r.List, r.Slot, r.Count, 0)
-			if e != nil {
-				return nil, nil, e
-			}
-			price, e := s.shopPrice(template)
-			if e != nil {
-				return nil, nil, e
-			}
-			b, template, goldGained, e := b.Sell(s.BagRules, r.List, r.Slot, r.Count, price.Sell)
-			if e != nil {
-				return nil, nil, e
+			rows := make([]SoldRowReceipt, 0, len(r.Rows))
+			var gained uint32
+			for _, row := range r.Rows {
+				// Resolve the identity from the transaction's current owned bag, never
+				// from request metadata or a potentially stale session snapshot.
+				_, template, _, e := b.Sell(s.BagRules, row.List, row.Slot, row.Count, 0)
+				if e != nil {
+					return nil, nil, e
+				}
+				price, e := s.shopPrice(template)
+				if e != nil {
+					return nil, nil, e
+				}
+				next, template, goldGained, e := b.Sell(s.BagRules, row.List, row.Slot, row.Count, price.Sell)
+				if e != nil {
+					return nil, nil, e
+				}
+				b = next
+				gained += goldGained
+				rows = append(rows, SoldRowReceipt{
+					List:      row.List,
+					Slot:      row.Slot,
+					Template:  template,
+					Count:     row.Count,
+					UnitPrice: price.Sell,
+				})
 			}
 			updated, e := inventory.SaveBag(current.State, b)
 			if e != nil {
@@ -211,11 +288,8 @@ func (s *Service) Sell(ctx context.Context, role storage.Character, r protocol.S
 			}
 			out = SellReceipt{
 				NpcID:      r.NpcID,
-				Slot:       r.Slot,
-				Template:   template,
-				Count:      r.Count,
-				UnitPrice:  price.Sell,
-				GoldGained: goldGained,
+				Rows:       rows,
+				GoldGained: gained,
 				NewGold:    b.Gold,
 				Source:     s.Catalog.Source.Checksum,
 				Seq:        seq,
@@ -233,7 +307,7 @@ func (s *Service) Sell(ctx context.Context, role storage.Character, r protocol.S
 	if e = json.Unmarshal(receipt, &out); e != nil {
 		return fail(e)
 	}
-	if out.Source != s.Catalog.Source.Checksum || out.Slot != r.Slot || out.Count != r.Count {
+	if out.Source != s.Catalog.Source.Checksum || len(out.Rows) != len(r.Rows) {
 		return fail(fmt.Errorf("sell receipt conflict"))
 	}
 	saved.WireID = role.WireID

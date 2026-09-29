@@ -27,6 +27,25 @@ type Session struct {
 	Tournament *TournamentRun
 	Loaded     bool
 	Dead       map[uint16]bool
+	// 沉月湖（Moon Lake）单人攻坚状态。只有该频道启用了 moonConfig 时才会被写入，
+	// 普通副本与军团全程保持零值。
+	MoonFirstGrid                     [5]byte
+	MoonZermioSpawnedAt               time.Time
+	MoonZermioReportRoom              uint64
+	MoonZermioHealth                  uint64
+	MoonZermioMeter                   uint32
+	MoonRetired                       map[uint16]bool
+	MoonFeverUntil, MoonFeverCooldown time.Time
+	MoonDynamic                       map[uint16]protocol.UnassignedMonster115
+	MoonGridReady                     bool
+	MoonGrid                          [5][3]byte
+	MoonZermioGrid                    [2]int32
+	MoonZermioDefeated                bool
+	MoonNamed                         map[uint32]MoonNamedState
+	MoonCleared                       [5]bool
+	MoonScored                        map[uint16]bool
+	MoonTroopScore, MoonFeverScore    uint32
+	PhaseHistory                      []MoonCompletedPhase
 	// Unowned marks a monster this character did not kill. It dies and the
 	// room clears, but it pays no loot and no experience.
 	Unowned       map[uint16]bool
@@ -39,10 +58,19 @@ type Session struct {
 	// companions are friendly map-native APCs already encountered in this
 	// run. A later room that does not declare the same AIC receives a dynamic
 	// NOTI29 row through the client's native SourceIndex=10000 branch.
-	companions          []protocol.DungeonMonster
-	completionTarget    uint16
-	completed           bool
-	lotusClosingReached bool
+	companions                  []protocol.DungeonMonster
+	completionTarget            uint16
+	completed                   bool
+	lotusClosingReached         bool
+	terminalSceneClosingReached bool
+	// sceneDiagnostic 记录最近一次场景换图走了哪条判定分支，仅供排查（见 SceneDiagnostic）。
+	sceneDiagnostic string
+	// layerRecord 是客户端主动进当前层图时带来的换图记录（见 SceneEntryRecord）。
+	layerRecord    [18]byte
+	hasLayerRecord bool
+	// sceneBaseRooms retains the original combat room after a verified scene
+	// return. Later doorway visits must not select its already-finished layer.
+	sceneBaseRooms map[[2]byte]uint32
 }
 
 func Select(c catalog.DungeonCatalog, r protocol.DungeonSelection, level byte, accepted map[uint16]bool) (*Session, error) {
@@ -73,7 +101,11 @@ func Select(c catalog.DungeonCatalog, r protocol.DungeonSelection, level byte, a
 	if r.Quest > 65535 || r.Quest != 0 && !accepted[uint16(r.Quest)] {
 		return nil, fmt.Errorf("quest is not accepted by this character")
 	}
-	chosen, err := chooseMaze(d, r.Quest)
+	mazeQuest, err := selectionMazeQuest(d, r.Quest, accepted)
+	if err != nil {
+		return nil, err
+	}
+	chosen, err := chooseMaze(d, mazeQuest)
 	if err != nil {
 		return nil, err
 	}
@@ -355,7 +387,14 @@ func (s *Session) RoomCleared() bool {
 }
 func (s *Session) Move(c catalog.DungeonCatalog, target [2]byte) (*Session, error) {
 	if s.Completed() || s.completionTarget != 0 {
-		return nil, fmt.Errorf("boss completion is pending or already accepted")
+		// [MERGE-20260928-POSTBOSS-SCENE] 完成之后仍允许走向「还有剧情层图的相邻格」。
+		// 苏醒之森 100004977 在 boss 房 (5,0) 就判完成，但后面还有 (6,0) 的过场
+		// （层图 100017263，scene_route 100017262→100017263）。一律拒会把这最后一段
+		// 挡在外面 —— 实机 2026-09-28 玩家打完 boss、点地图上的传送阵，服务端回
+		// "boss completion is pending or already accepted"，传送阵过不去。
+		if !s.adjacentLayerPending(c, target) {
+			return nil, fmt.Errorf("boss completion is pending or already accepted")
+		}
 	}
 	if !s.RoomCleared() {
 		return nil, fmt.Errorf("current room not loaded or still has live enemies")
@@ -379,6 +418,28 @@ func (s *Session) Move(c catalog.DungeonCatalog, target [2]byte) (*Session, erro
 	return s.enterRoom(c, s.latestLayer(*room))
 }
 
+// [MERGE-20260928-POSTBOSS-SCENE] adjacentLayerPending 报告目标格是否是「还没播完的
+// 剧情层图」所在格：该格在 maze 里、位于当前房间的相邻位、且挂有 layer 地图。
+//
+// boss 房之后还接一段过场的副本（苏醒之森 100004977：(5,0) → (6,0) 的 100017263）
+// 需要它 —— 否则 Move 的完成守卫会把这段挡在外面。
+func (s *Session) adjacentLayerPending(c catalog.DungeonCatalog, target [2]byte) bool {
+	if s == nil {
+		return false
+	}
+	dx := int(target[0]) - int(s.Room.X)
+	dy := int(target[1]) - int(s.Room.Y)
+	if dx*dx+dy*dy != 1 {
+		return false
+	}
+	for _, layer := range s.Maze.Layers {
+		if layer.Position == target && len(layer.Maps) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *Session) enterRoom(c catalog.DungeonCatalog, room catalog.DungeonRoom) (*Session, error) {
 	next := *s
 	next.Room = room
@@ -400,6 +461,9 @@ func (s *Session) enterRoom(c catalog.DungeonCatalog, room catalog.DungeonRoom) 
 		}
 		if triggeredSpawnsSuppressed() {
 			monsters = dropTriggeredMonsters(script, monsters)
+		}
+		if gate, ok := s.MoonNamed[room.Map]; s.Definition.ID == 100004136 && ok && gate.Slot == 0 && gate.Planned {
+			monsters = nil
 		}
 		for i := range monsters {
 			if next.NextEntity >= 65535 {
@@ -680,7 +744,18 @@ func fixedMonsters(script catalog.ScriptRecord, basis uint32) ([]protocol.Dungeo
 			v[0] == 1 && v[3] == 424 && v[4] == -364 {
 			continue
 		}
-		out = append(out, protocol.DungeonMonster{Entity: uint16(4096 + len(out)), SourceIndex: uint32(len(out)), Level: byte(level), Template: uint32(v[0]), Rank: rank, Team: 100, NonCombat: nonCombat, SourceTail: [2]int32{v[6], v[7]}, CreateTrigger: createTriggerAt(ordinals, len(out))})
+		team := uint32(100)
+		// The archer and gunblader tutorial maps place this normal-rank actor
+		// below the playable area. Keep its source row/entity index for map
+		// scripts, but don't let the unreachable actor keep the exit closed.
+		offMapTutorialActor :=
+			(script.Path == "map/cataclysm/newtutorial/archer_f_tutorial/100008880.map" && v[0] == 70216 && v[3] == 893 && v[4] == -333) ||
+				(script.Path == "map/cataclysm/newtutorial/gunblader_m/70577.map" && v[0] == 70216 && v[3] == 1014 && v[4] == -311)
+		if offMapTutorialActor {
+			team = 0
+			nonCombat = true
+		}
+		out = append(out, protocol.DungeonMonster{Entity: uint16(4096 + len(out)), SourceIndex: uint32(len(out)), Level: byte(level), Template: uint32(v[0]), Rank: rank, Team: team, NonCombat: nonCombat, SourceTail: [2]int32{v[6], v[7]}, CreateTrigger: createTriggerAt(ordinals, len(out))})
 	}
 	// Source teams are parallel to monster rows. Team0 supplies friendly
 	// cinematic actors in this route; team100 supplies enemies. Never remove

@@ -4,6 +4,7 @@
   "ServerID": 1,
   "SourceSHA256": "aecc92480ccd469fa2b33bf9c189496a0c4e31c20eb2fef7e1623642c23a687f",
   "MaxUsers": 30,
+  "SynchronizeIdentity": true,
   "Dungeons": {
     "[elven_guard]": [
       1,
@@ -137,8 +138,72 @@
         0,
         0
       ],
-      "Note": "Apocalypse content channel. Type is the clientChannelInfo channelType: 119 carries isLegion=1 and seriaRoomTown=239. No counterpart in the source channel_info.etc, whose largest Type is 6 - special channels are supplied by the server. Area [none] on purpose: the entry runs through CMD2043, not the town gate list, so there is no [dungeon] block."
+      "Note": "末世录军团频道。当前 clientchannelinfo.etc 的类型119对应军团及赛丽亚房间城镇239；通过内容入口进入，不复用旧版低号地下城分组。"
+    },
+    {
+      "ID": 106,
+      "Name": "Bleeding Mines",
+      "Type": 106,
+      "Area": "[none]",
+      "SourceValues": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "Note": "赤红铁矿。当前客户端147ABABF4注册CHANNEL_BLEEDING_MINE=106，clientchannelinfo.etc保留其特殊区域属性及218/0落点，channelslotinfo.etc将其放入weeklyDungeonPanel。沿用当前版本的频道类型分类，不冒用旧流放分类。入口候选attempt 1/3，编队、战斗与奖励仍需各自协议闭环。"
+    },
+    {
+      "ID": 63,
+      "Name": "Oculus",
+      "Type": 63,
+      "Area": "[oculus]",
+      "SourceValues": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "Note": "洞察之眼。原生类型63；144DA9020按[oculus]识别特殊分类，144D991D0的返回值使频道进入组1。channelslotinfo.etc的oldDungeonPanel将入口放入110级前玩法频道。仅设置类型而保留[none]会误入区域频道。"
+    },
+    {
+      "ID": 73,
+      "Name": "Purgatory",
+      "Type": 73,
+      "Area": "[black_purgatory]",
+      "SourceValues": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "Note": "黑鸦之境。原生类型73；144DAAA0D注册[black_purgatory]特殊分类键，channelslotinfo.etc将其附着到oldDungeonPanel。保留客户端源任务门槛。"
+    },
+    {
+      "ID": 74,
+      "Name": "Revelation",
+      "Type": 74,
+      "Area": "[impossible]",
+      "SourceValues": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "Note": "启示之夜。保留原生类型74；当前144DA9020没有同名区域键，本地目录使用该函数已支持的通用特殊分类键[impossible]，不借用其他副本类型。channelslotinfo.etc保留其独立槽位且未设置attach panel，14447244A之后走默认specialChannelPanel。此键仅为本地分类兼容选择，不宣称来自原服频道行；保留源任务门槛。"
+    },
+    {
+      "ID": 67,
+      "Name": "Sirocco",
+      "Type": 67,
+      "Area": "[none]",
+      "SourceValues": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "Note": "希洛克团队频道。当前客户端147AB9C8E注册CHANNEL_SIROCO_RAID=67；clientchannelinfo.etc关联子频道类型68。"
+    },
+    {
+      "ID": 68,
+      "Name": "Sirocco Guide",
+      "Type": 68,
+      "Area": "[none]",
+      "SourceValues": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "Note": "希洛克引导频道。当前客户端147AB9D27注册CHANNEL_GUIDE_SIROCO_RAID=68。仅恢复频道目录，不代表团队副本或精锐战斗已实现。"
+    },
+    {
+      "ID": 76,
+      "Name": "Ozma",
+      "Type": 76,
+      "Area": "[none]",
+      "SourceValues": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "Note": "奥兹玛团队频道。当前客户端147AB9E59注册CHANNEL_OZMA_RAID=76；clientchannelinfo.etc关联子频道类型78。"
+    },
+    {
+      "ID": 78,
+      "Name": "Ozma Guide",
+      "Type": 78,
+      "Area": "[none]",
+      "SourceValues": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "Note": "奥兹玛引导频道。当前客户端147AB9EF2注册CHANNEL_GUIDE_OZMA_RAID=78。仅恢复频道目录，不代表团队副本或精锐战斗已实现。"
     }
   ],
-  "CompatibilityNote": "Current native144d998b0 type eligibility: legacy0/2/3 rejected; ordinary auto-entry22 accepted. Original source IDs/area/rule scalars retained. Channel 119 was added for the apocalypse/legion content: native144d998b0 only grants AUTO-SELECT to 22/28/33, and 119 is deliberately outside that set because a content channel is reached through its own screen - next31 already showed an ineligible type:2 channel still being listed, so auto-select and listing are separate gates. If 119 turns out to be filtered from the list as well, the two other accepted kinds (28, 33) are the next values to try; 22 is not an option because that is the ordinary auto-entry channel."
+  "CompatibilityNote": "已撤回本轮误加的流放频道72及其城镇落点逻辑：官方115更新已移除此玩法，原版城镇索引未登记其93号城镇，普通钱特利92号城镇属于剧情路线。其余频道与通用修复保留：洞察、黑鸦使用原生特殊分类键，启示之夜保留本轮既有的通用特殊分类键；SynchronizeIdentity同步登录类型、NOTI2435及角色频道上下文。频道显示不代表精锐随行战斗、团队创建或副本结算已完成；不修改客户端资源及角色存档。"
 }

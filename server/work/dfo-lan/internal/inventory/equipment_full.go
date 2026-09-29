@@ -96,6 +96,7 @@ func (c *FullEquipmentCatalog) Definition(id uint32) (EquipmentDefinition, error
 		return EquipmentDefinition{}, fmt.Errorf("invalid equipment provenance")
 	}
 	d := EquipmentDefinition{ID: id, Path: s.Path, SHA256: s.SHA256, Fields: map[string][]pvf.Token{}}
+	d.fameFields, d.fameLevels = equipmentFameSections(s.Cells)
 	tag := ""
 	for _, t := range s.Cells {
 		if t.Type == 3 {

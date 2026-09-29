@@ -1,0 +1,454 @@
+{
+  "max_level": 50,
+  "exp_rate": 0.30000001192092896,
+  "experience": {
+    "1": 0,
+    "2": 500000000,
+    "3": 530000000,
+    "4": 561800000,
+    "5": 595508000,
+    "6": 631238480,
+    "7": 669112788,
+    "8": 709259556,
+    "9": 751815129,
+    "10": 796924037,
+    "11": 844739479,
+    "12": 895423848,
+    "13": 949149279,
+    "14": 1006098235,
+    "15": 1066464130,
+    "16": 1130451977,
+    "17": 1198279096,
+    "18": 1270175842,
+    "19": 1346386392,
+    "20": 1427169576,
+    "21": 1512799751,
+    "22": 1603567736,
+    "23": 1699781800,
+    "24": 1801768708,
+    "25": 1909874830,
+    "26": 2024467320,
+    "27": 2145935359,
+    "28": 2274691481,
+    "29": 2411172970,
+    "30": 2555843348,
+    "31": 2709193949,
+    "32": 2871745586,
+    "33": 3044050321,
+    "34": 3226693340,
+    "35": 3420294941,
+    "36": 9616082053,
+    "37": 17603507941,
+    "38": 27587790301,
+    "39": 39568929133,
+    "40": 51550067965,
+    "41": 63531206797,
+    "42": 75512345629,
+    "43": 87493484461,
+    "44": 99474623293,
+    "45": 111455762125,
+    "46": 123436900957,
+    "47": 135418039789,
+    "48": 147399178621,
+    "49": 159380317453,
+    "50": 171361456285,
+    "51": 185070372788,
+    "52": 199876002611,
+    "53": 215866082820,
+    "54": 233135369445,
+    "55": 251786199001,
+    "56": 271929094921,
+    "57": 293683422515,
+    "58": 317178096316,
+    "59": 342552344021,
+    "60": 369956531543
+  },
+  "shops": {
+    "0": {
+      "max_points": 250,
+      "exp_points": [
+        15000000,
+        1
+      ],
+      "reset_points": false,
+      "items": [
+        {
+          "template": 10327304,
+          "level": 2,
+          "price": 1,
+          "limit": 20,
+          "reset": 3
+        },
+        {
+          "template": 10327296,
+          "level": 2,
+          "price": 2,
+          "limit": 17,
+          "reset": 3
+        },
+        {
+          "template": 10327297,
+          "level": 2,
+          "price": 5,
+          "limit": 12,
+          "reset": 3
+        },
+        {
+          "template": 10327298,
+          "level": 2,
+          "price": 8,
+          "limit": 10,
+          "reset": 3
+        },
+        {
+          "template": 10327299,
+          "level": 2,
+          "price": 15,
+          "limit": 10,
+          "reset": 3
+        },
+        {
+          "template": 10327300,
+          "level": 5,
+          "price": 30,
+          "limit": 5,
+          "reset": 3
+        },
+        {
+          "template": 590007116,
+          "level": 5,
+          "price": 50,
+          "limit": 5,
+          "reset": 3
+        },
+        {
+          "template": 10327301,
+          "level": 5,
+          "price": 50,
+          "limit": 1,
+          "reset": 3
+        },
+        {
+          "template": 10327302,
+          "level": 5,
+          "price": 70,
+          "limit": 1,
+          "reset": 3
+        },
+        {
+          "template": 10327303,
+          "level": 5,
+          "price": 100,
+          "limit": 1,
+          "reset": 3
+        },
+        {
+          "template": 10332975,
+          "level": 10,
+          "price": 25,
+          "limit": 10,
+          "reset": 3
+        }
+      ]
+    },
+    "2": {
+      "max_points": 10000,
+      "exp_points": [],
+      "reset_points": true,
+      "items": []
+    },
+    "3": {
+      "max_points": 10000,
+      "exp_points": [],
+      "reset_points": true,
+      "items": [
+        {
+          "template": 10316361,
+          "level": 1,
+          "price": 100,
+          "limit": 150,
+          "reset": 3
+        },
+        {
+          "template": 10355156,
+          "level": 10,
+          "price": 3000,
+          "limit": 2,
+          "reset": 3
+        },
+        {
+          "template": 10355155,
+          "level": 1,
+          "price": 900,
+          "limit": 1,
+          "reset": 3
+        },
+        {
+          "template": 10348514,
+          "level": 10,
+          "price": 100,
+          "limit": 6,
+          "reset": 3
+        },
+        {
+          "template": 10348582,
+          "level": 10,
+          "price": 200,
+          "limit": 10,
+          "reset": 3
+        },
+        {
+          "template": 10348507,
+          "level": 1,
+          "price": 60,
+          "limit": 12,
+          "reset": 3
+        },
+        {
+          "template": 10319284,
+          "level": 10,
+          "price": 100,
+          "limit": 5,
+          "reset": 3
+        },
+        {
+          "template": 10327351,
+          "level": 1,
+          "price": 250,
+          "limit": 12,
+          "reset": 3
+        },
+        {
+          "template": 590007124,
+          "level": 3,
+          "price": 600,
+          "limit": 5,
+          "reset": 3
+        },
+        {
+          "template": 590007125,
+          "level": 3,
+          "price": 105,
+          "limit": 30,
+          "reset": 3
+        },
+        {
+          "template": 10332973,
+          "level": 15,
+          "price": 400,
+          "limit": 3,
+          "reset": 3
+        },
+        {
+          "template": 10332975,
+          "level": 10,
+          "price": 100,
+          "limit": 10,
+          "reset": 3
+        },
+        {
+          "template": 10099775,
+          "level": 15,
+          "price": 250,
+          "limit": 3,
+          "reset": 3
+        },
+        {
+          "template": 10332977,
+          "level": 10,
+          "price": 250,
+          "limit": 2,
+          "reset": 3
+        },
+        {
+          "template": 590007128,
+          "level": 3,
+          "price": 100,
+          "limit": 5,
+          "reset": 3
+        }
+      ]
+    }
+  },
+  "sources": {
+    "etc/adventurersystem/adventurersystem2018.etc": "e384922be2984d838e1a5284ba92fdacf98c52cd17ef65b5fcba49be7371a1fb"
+  },
+  "pvf_sha256": "2429b15aa4235be32c3f3b49676646a25b6bf42bd45d5d651dae7e6fd9186167",
+  "items": {
+    "10327304": {
+      "path": "stackable/10327001/10327304.stk",
+      "sha256": "a868721d2dca4586c315cc93947e75be4a873d877d9e749f2292dc133ad904ae",
+      "type": "[waste]",
+      "limit": 0,
+      "usage_period": []
+    },
+    "10327296": {
+      "path": "stackable/10327001/10327296.stk",
+      "sha256": "65502cb5be781fe71a7477871ed466d94b7fe6b3182cfc371fc88dab60f628cf",
+      "type": "[etc]",
+      "limit": 0,
+      "usage_period": []
+    },
+    "10327297": {
+      "path": "stackable/10327001/10327297.stk",
+      "sha256": "4c179adca2cdb30bb37dbbb5684c4790a8b88c10924e4a38e4541e5d0240d3bf",
+      "type": "[etc]",
+      "limit": 0,
+      "usage_period": []
+    },
+    "10327298": {
+      "path": "stackable/10327001/10327298.stk",
+      "sha256": "128a5091eeed23cab968c4df8129a0c8a478ada7d85668f99d101deacdd745af",
+      "type": "[etc]",
+      "limit": 0,
+      "usage_period": []
+    },
+    "10327299": {
+      "path": "stackable/10327001/10327299.stk",
+      "sha256": "852ff5f0b5ae419ce03e7ca876540098957222c04701e7e601d67ea22fd0b3da",
+      "type": "[etc]",
+      "limit": 0,
+      "usage_period": []
+    },
+    "10327300": {
+      "path": "stackable/10327001/10327300.stk",
+      "sha256": "624f9a8aabb4294cf7776efcdb9da0cdf49f8a0d1e6c60027ea073d8ace81695",
+      "type": "[etc]",
+      "limit": 0,
+      "usage_period": []
+    },
+    "590007116": {
+      "path": "stackable/590007001/590007116.stk",
+      "sha256": "78d027ef0ff6a421c90c66add426cbe043e87a278bc0e9107524d2968d92f7c7",
+      "type": "[etc]",
+      "limit": 0,
+      "usage_period": []
+    },
+    "10327301": {
+      "path": "stackable/10327001/10327301.stk",
+      "sha256": "3ebc022701df1fbf1fb5cf20f81c333df48a8b9a452ab3143f38b356ad4518ff",
+      "type": "[etc]",
+      "limit": 0,
+      "usage_period": []
+    },
+    "10327302": {
+      "path": "stackable/10327001/10327302.stk",
+      "sha256": "2b558332bfcbfeac83d056c080965445870fbfd42b642284f735c2416122366b",
+      "type": "[etc]",
+      "limit": 0,
+      "usage_period": []
+    },
+    "10327303": {
+      "path": "stackable/10327001/10327303.stk",
+      "sha256": "92675378376861c4fb3b099fa2e447559608fc51f09f3f80226554e92e91f7d3",
+      "type": "[etc]",
+      "limit": 0,
+      "usage_period": []
+    },
+    "10332975": {
+      "path": "stackable/10332001/10332975.stk",
+      "sha256": "7a0fef4f02ee32a029a1f9732ffbd23ccc322d9d75f23664fe56aa4e01d19e7e",
+      "type": "[etc]",
+      "limit": 0,
+      "usage_period": []
+    },
+    "10316361": {
+      "path": "stackable/10316001/10316361.stk",
+      "sha256": "2bef8add4db40b3f3ee726021ca1fc7fce5934f54c94484b12462f0d987cafb4",
+      "type": "[material]",
+      "limit": 0,
+      "usage_period": []
+    },
+    "10355156": {
+      "path": "stackable/10355001/10355156.stk",
+      "sha256": "c42782f4b8eb11908e9f852e8c61afa8ecdcb021dda4952c09ef927088c60a5e",
+      "type": "[booster selection]",
+      "limit": 0,
+      "usage_period": []
+    },
+    "10355155": {
+      "path": "stackable/10355001/10355155.stk",
+      "sha256": "08d2e86c7f129d322b6ba52b929002a868091f573fbd2647d8ed40537e6e6db6",
+      "type": "[booster selection]",
+      "limit": 0,
+      "usage_period": []
+    },
+    "10348514": {
+      "path": "stackable/10348001/10348514.stk",
+      "sha256": "f41ea20653dafaf63aa6f472ada8799e27684d9b69e0b6288e4d759d9eb74d47",
+      "type": "[booster]",
+      "limit": 0,
+      "usage_period": []
+    },
+    "10348582": {
+      "path": "stackable/10348001/10348582.stk",
+      "sha256": "bb66cc1d14951c299eb29e9b272a68b7448830a3e8c998c00cf8ed66feeb3398",
+      "type": "[booster]",
+      "limit": 0,
+      "usage_period": []
+    },
+    "10348507": {
+      "path": "stackable/10348001/10348507.stk",
+      "sha256": "56d62309e5d92f5381efa28452b7d2ba16c4e2f7cd7f9e614cd5a1b8bcfdfc9d",
+      "type": "[booster selection]",
+      "limit": 0,
+      "usage_period": []
+    },
+    "10319284": {
+      "path": "stackable/10319001/10319284.stk",
+      "sha256": "962898de2d707beb25b88253bbf7842eac15e87c13b9c1c5e3ffe963ed16d1d5",
+      "type": "[booster]",
+      "limit": 0,
+      "usage_period": []
+    },
+    "10327351": {
+      "path": "stackable/10327001/10327351.stk",
+      "sha256": "d84bfddbb761e8aa915389e935ef1c43130c1c2010f656be9850cd1798b5f9ac",
+      "type": "[booster selection]",
+      "limit": 0,
+      "usage_period": []
+    },
+    "590007124": {
+      "path": "stackable/590007001/590007124.stk",
+      "sha256": "b4dabbd291d008daa3336fbe6022dfbf7da7db750261ddedc0797388ab0b3f0f",
+      "type": "[legacy]",
+      "limit": 0,
+      "usage_period": []
+    },
+    "590007125": {
+      "path": "stackable/590007001/590007125.stk",
+      "sha256": "a7e375cf02bd9beb9f21195a92f0106486532a0d8d90401aa04105e69096fc51",
+      "type": "[legacy]",
+      "limit": 0,
+      "usage_period": []
+    },
+    "10332973": {
+      "path": "stackable/10332001/10332973.stk",
+      "sha256": "556e682388c73ba5dac5c5ccbffab5f066043664588a232867e2f921add130dd",
+      "type": "[booster]",
+      "limit": 0,
+      "usage_period": []
+    },
+    "10099775": {
+      "path": "stackable/10099001/10099775.stk",
+      "sha256": "0f94f0b6ebdb3528de381701483b7157dadafb0f2b617164b3640beeec5d6f4a",
+      "type": "[material]",
+      "limit": 0,
+      "usage_period": []
+    },
+    "10332977": {
+      "path": "stackable/10332001/10332977.stk",
+      "sha256": "89f450c6278403aa9d0585b3ff1c81d469984311648d31aef114b522800a383a",
+      "type": "[booster]",
+      "limit": 0,
+      "usage_period": []
+    },
+    "590007128": {
+      "path": "stackable/590007001/590007128.stk",
+      "sha256": "61896131e0fcb83d8169a6b2b66e0bc197437c419d226675dd0d75f4e515fcdc",
+      "type": "[booster]",
+      "limit": 0,
+      "usage_period": []
+    }
+  }
+}
