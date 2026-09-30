@@ -128,6 +128,20 @@ func (s *Store) AbandonQuest(ctx context.Context, account, characterID int64, qi
 	return nil
 }
 
+// MarkMeetNPCQuest records the native meet-NPC progress transition for an
+// owned accepted quest. SQL ownership stays here so quest rules do not need to
+// know the character_quests table shape or its ownership predicates.
+func (s *Store) MarkMeetNPCQuest(ctx context.Context, account, characterID int64, qid uint16, version, model string) error {
+	tag, err := s.DB.Exec(ctx, `UPDATE character_quests q SET progress=0 FROM characters c WHERE c.id=q.character_id AND c.account_id=$1 AND c.id=$2 AND c.deleted_at IS NULL AND q.quest_id=$3 AND q.status='accepted' AND q.config_version=$4 AND q.progress_model=$5 AND q.progress IN (0,1)`, account, characterID, qid, version, model)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() != 1 {
+		return errors.New("NPC quest is not active for this owner")
+	}
+	return nil
+}
+
 // ClearQuests marks the given story quests as already completed for the
 // character, without ever touching rows that exist (a quest the player truly
 // has in progress or finished keeps its state). Rows are auditable and
