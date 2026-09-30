@@ -4,6 +4,7 @@ import "testing"
 
 func TestConnectionSessionOwnsLifecycle(t *testing.T) {
 	plain := newConnectionSession(false)
+	t.Cleanup(plain.close)
 	if plain.moonTicks() != nil {
 		t.Fatal("disabled moon timer must not create a channel")
 	}
@@ -21,6 +22,7 @@ func TestConnectionSessionOwnsLifecycle(t *testing.T) {
 	}
 
 	moon := newConnectionSession(true)
+	t.Cleanup(moon.close)
 	if moon.moonTicks() == nil {
 		t.Fatal("enabled moon timer must expose a channel")
 	}
