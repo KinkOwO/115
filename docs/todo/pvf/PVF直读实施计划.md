@@ -50,7 +50,7 @@ PVF 提供物品、职业、技能、任务、地图和源规则表；服主倍�
 | 普通掉落 `loot.*` | `etc/itemdropinfo_monseter.etc`、`etc/itemdropinfo_common.etc`、物品源脚本 | 已接`loot`离线候选，1022种物品、1221组和281个副本索引完整一致；等级上限及排除6013为原策略，兼容公式不改变 |
 | NPC 价格 `shop-prices`、材料商店 `itemshop-*` | 物品价格字段、`list/itemshop.lst` / `itemshop/**/*.shp` 与 `[need material]` | `prices` 599682条、`materials` 14211条已接候选并完整一致；商店绑定遇到同ID多`.shp`冲突，保留JSON，须闭环NPC/客户端开店引用 |
 | 商城 `cerashop`、`shop-purchase-pilot`、`shop-vault-release` 等 | `etc/(r)cerashop.etc`、商品关联 `.stk` / `.equ` | `cashshop.ImportPilot` 已存在；源商品、价格、条件直读；已开放商品、特殊交付与购买试验开关独立 |
-| Booster、抽奖、选择箱 `booster-catalog`、`lottery-item-pools`、`lottery-equipment-pools`、`selection-boxes-*` | `.stk` 的 booster/select/lottery 字段，`etc/dungeondroptablebygroup.etc` 及装备组 | `boosters`已提取共享解析并接候选，42504条奖励池完整一致，未知项不扩大执行；抽奖和选择箱仍待提取与核对 |
+| Booster、抽奖、选择箱 `booster-catalog`、`lottery-item-pools`、`lottery-equipment-pools`、`selection-boxes-*` | `.stk` 的 booster/select/lottery 字段，`etc/dungeondroptablebygroup.etc` 及装备组 | `boosters`已提取共享解析并接候选，42504条奖励池完整一致，未知项不扩大执行；selection-boxes已接候选，2975自选/2固定/1未解析及派生查询完整一致，2978模板加载范围为独立策略；抽奖仍待提取与核对 |
 | 独立礼盒 `boxes` | `radianttreasurebox.cos` 等 COS 表 | 可迁移但待绑定完整源路径：当前 JSON 只有 `.cos.txt` 文件名，当前 PVF 有两个同名版本；须按物品脚本引用/内容指纹确认，不按 basename 任选 |
 | 强化/增幅券、增幅书、附魔 `reinforcement-tickets`、`amplify-tickets`、`amplify-grimoire`、`enchant-beads` | 对应 `.stk` 类型、作用条件、等级、成功率或附魔能力字段 | 第三批`enhancements`已由用户确认，1196/1629/433/4846种；普通券保留源补充的926个期限头，原实例期限边界保持 |
 | 强化费用 `reinforcement-gold` | `etc/upgrade.etc` | 第三批已确认，255级源费用直读；成功率、失败、安全补正和材料选择独立策略保留 |
@@ -318,3 +318,9 @@ GM 包内另有 `set_items*.json`、`avatar_sets.json`、`set_display_names.json
 新增dungeon-terminal与dungeon-tournament直读选择项，7条任务终端场景和2张武斗大会任务地图完整源对照一致。终端场景复用导出器的任务目标/末层/ACT/CMT解析链；竞技场依原MAP的[dungeon]所属关系及DGN任务迷宫绑定，重复所属拒绝。末层范围、脚本哈希、剧情销毁目标和地图Token均从PVF读取；现有结算与协议记录保持。运行附加不修改准备好的源副本目录。合计40选择项/46类有效源投影，缺失所有所选JSON联合准备约55.08秒（与全量测试并发）、独立场景审计、全量Go测试/vet、8项Python测试及只读依赖检查通过。profile为`pvf-closing-candidate.json`，隔离程序SHA256 `5be230e05298100700957c8eb9559930be35a04bd0710db2e8afed89f809fb0c`。确认范围仍为第四批28项；第五批新增候选未实机。
 
 分层重访配置仍含服务端已验证的18字节记录；未将该记录当作PVF原值。通用选择箱、抽奖、内嵌目录、GM查询和职业源/策略拆分继续实施。
+
+## 2026-10-01：通用自选箱迁移
+
+新增selection-boxes直读选择项，原2978个加载模板仅以ID保留在独立`pvf-selection-policy.json`；PVF按原索引精确路径解析2975个自选箱、2个固定箱和1个未解析模板。所有类别、数量、推荐项、未建模段标识和脚本哈希与原导出完整一致；逐类别Resolve派生查询核对通过。保持既有未知选择项观察策略及发放事务，不扩大为全PVF自选箱范围。合计41选择项/47类有效源投影，缺失所有所选JSON联合准备、完整选择箱审计、全量Go测试/vet、8项Python测试和只读启动依赖检查通过。profile为`pvf-selection-candidate.json`，隔离程序SHA256 `4e42eac7d702b01fc9acd430862220072ca3e2a72691d74deed6daa4e222c353`；确认范围仍为第四批28项，第五批新增候选未实机。
+
+只保留原服务端配置/源码引用扫描形成的加载ID集合；策略不包含路径、哈希、类别或奖励内容。未知段沿用原解析能力，未解析10358468仍拒绝假造选项。抽奖、分层重访、职业源/策略拆分、商品绑定、内嵌目录和GM查询继续实施。

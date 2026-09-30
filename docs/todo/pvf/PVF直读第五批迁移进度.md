@@ -72,3 +72,9 @@ SHA256：`fcefe7737c198e1425a4d87c03affc7122f7828d1615412835751ed1beafcf2d`。
 新增dungeon-terminal与dungeon-tournament直读选择项，7条任务终端场景和2张武斗大会任务地图完整源对照一致。终端场景复用导出器的任务目标/末层/ACT/CMT解析链；竞技场依原MAP的[dungeon]所属关系及DGN任务迷宫绑定，重复所属拒绝。末层范围、脚本哈希、剧情销毁目标和地图Token均从PVF读取；现有结算与协议记录保持。运行附加不修改准备好的源副本目录。合计40选择项/46类有效源投影，缺失所有所选JSON联合准备约55.08秒（与全量测试并发）、独立场景审计、全量Go测试/vet、8项Python测试及只读依赖检查通过。profile为`pvf-closing-candidate.json`，隔离程序SHA256 `5be230e05298100700957c8eb9559930be35a04bd0710db2e8afed89f809fb0c`。确认范围仍为第四批28项；第五批新增候选未实机。
 
 独立程序路径为`server/work/dfo-lan/.tmp/pvf-closing/bin/wireprobe-handoff-source.exe`，复用38项的不可变`pvf-mine-policy.json`，无需新策略字段。原38项及所有旧profile/程序保持可回退。场景准备在打开存储之前完成；未启动服务、客户端或连接玩家数据库。JSON附件验证器与原离线导出命令复用同一终端场景投影。
+
+## 后续通用自选箱（离线候选）
+
+新增selection-boxes直读选择项，原2978个加载模板仅以ID保留在独立`pvf-selection-policy.json`；PVF按原索引精确路径解析2975个自选箱、2个固定箱和1个未解析模板。所有类别、数量、推荐项、未建模段标识和脚本哈希与原导出完整一致；逐类别Resolve派生查询核对通过。保持既有未知选择项观察策略及发放事务，不扩大为全PVF自选箱范围。合计41选择项/47类有效源投影，缺失所有所选JSON联合准备、完整选择箱审计、全量Go测试/vet、8项Python测试和只读启动依赖检查通过。profile为`pvf-selection-candidate.json`，隔离程序SHA256 `4e42eac7d702b01fc9acd430862220072ca3e2a72691d74deed6daa4e222c353`；确认范围仍为第四批28项，第五批新增候选未实机。
+
+策略文件严格拒绝源字段、重复模板、零模板和尾随内容。原10307659/490022952固定箱及未解析10358468保持；原解析器同时由自选箱导出命令、奥德赛武器选项和原生自选箱使用。候选程序路径`server/work/dfo-lan/.tmp/pvf-selection/bin/wireprobe-handoff-source.exe`，额外profile路径键为`DFO_PVF_SELECTION_POLICY`。完整源对照及逐类别查找约16.39秒通过；所有旧策略/profile/程序保持可回退。未启动服务或客户端，未更改角色存档、协议或数据库。

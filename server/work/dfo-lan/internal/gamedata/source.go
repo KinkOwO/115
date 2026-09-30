@@ -35,6 +35,10 @@ type Source struct {
 	archive *pvf.Archive
 }
 
+func (s *Source) SelectionBoxes(index catalog.ItemIndex, policy catalog.SelectionBoxPolicy) (*catalog.SelectionBoxes, error) {
+	return catalog.ImportSelectionBoxes(s.archive, index, policy)
+}
+
 func (s *Source) TerminalScenes(d catalog.DungeonCatalog, q catalog.QuestCatalog) (catalog.TerminalSceneOverlay, error) {
 	return catalog.ImportTerminalScenes(s.archive, d, q)
 }
