@@ -305,7 +305,7 @@ func (w *worldSession) introducePeers(send func(byte, uint16, []byte) error) err
 		return nil
 	}
 	for _, o := range w.joinedPeers {
-		if e := send(0, 2, o.info); e != nil {
+		if e := send(0, 2, w.hub.basicInfo(o)); e != nil {
 			return e
 		}
 		if len(o.addition) > 0 {
@@ -339,7 +339,7 @@ func (w *worldSession) announceSelf(event func(map[string]any)) error {
 		if o.send == nil {
 			continue
 		}
-		if e := o.send(0, 2, w.peer.info); e != nil {
+		if e := o.send(0, 2, w.hub.basicInfo(w.peer)); e != nil {
 			continue
 		}
 		if len(w.peer.addition) > 0 {

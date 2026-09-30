@@ -8,8 +8,10 @@ import (
 )
 
 // 14563eee3 extracts growtype from the low nibble and stage from bits4..6.
+// Branchless professions keep advancement 0 after awakening. Eligibility is
+// checked by ApplyAwakening against the profession's growtype-0 source grants.
 func (s State) WireAdvancement() (byte, error) {
-	if s.Advancement > 15 || s.Awakening > 3 || s.Awakening != 0 && s.Advancement == 0 {
+	if s.Advancement > 15 || s.Awakening > 3 {
 		return 0, fmt.Errorf("invalid advancement/stage")
 	}
 	return s.Advancement | s.Awakening<<4, nil
@@ -105,7 +107,15 @@ func (s *Service) ApplyAwakening(role storage.Character, stage byte) (json.RawMe
 	if _, err := state.WireAdvancement(); err != nil {
 		return nil, err
 	}
-	if stage < 1 || stage > 3 || stage > state.Awakening+1 || state.Advancement == 0 {
+	// The sole [growtype 1] block of demonic swordman and creator mage
+	// carries [awakening 1..3]. Absence of branches alone is insufficient:
+	// require source grants in column 0 so an incomplete catalog stays refused.
+	// CMD2177 stage 1 at advancement 0 was captured in the 2026-09-26 handoff.
+	branchlessAwakening := false
+	if prof, ok := s.Catalog.Professions[role.Profession]; ok {
+		branchlessAwakening = len(prof.AdvancementGrowth) == 0 && len(prof.AwakeningSkills[0]) > 0
+	}
+	if stage < 1 || stage > 3 || stage > state.Awakening+1 || (state.Advancement == 0 && !branchlessAwakening) {
 		return nil, fmt.Errorf("awakening must progress sequentially")
 	}
 	if stage <= state.Awakening {

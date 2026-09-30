@@ -87,6 +87,34 @@ func newLanHub() *lanHub {
 	return &lanHub{peers: map[*lanPeer]struct{}{}}
 }
 
+// 外观设置会替换基础资料；读写均持锁，返回的载荷不再原地修改。
+func (h *lanHub) basicInfo(p *lanPeer) []byte {
+	if p == nil {
+		return nil
+	}
+	if h == nil {
+		return p.info
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return p.info
+}
+
+func (h *lanHub) updateGrowthEffect(p *lanPeer, basic, effect []byte) {
+	if h == nil || p == nil {
+		return
+	}
+	h.mu.Lock()
+	p.info = basic
+	others := h.sharedLocked(p)
+	h.mu.Unlock()
+	for _, other := range others {
+		if other.send != nil {
+			other.send(0, 343, effect)
+		}
+	}
+}
+
 func (h *lanHub) notifyMailbox(roleID int64) {
 	if h == nil {
 		return

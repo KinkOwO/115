@@ -94,6 +94,9 @@ type Bag struct {
 	Equipment []BagEquipment          `json:"equipment,omitempty"`
 	Worn      []BagEquipment          `json:"worn,omitempty"`
 	Special   map[byte][]BagEquipment `json:"special_equipment,omitempty"`
+	// Missing in legacy saves. Socket zero is projected from Worn slot 24;
+	// the other four entries are the client's Reserved shield positions.
+	KnightShieldDeck []uint32 `json:"knight_shield_deck,omitempty"`
 	// CreatureExperience is keyed by the creature instance key stored in its
 	// equipment record. Older saves omit it and start at zero experience.
 	CreatureExperience map[uint32]uint32 `json:"creature_experience,omitempty"`
@@ -290,6 +293,7 @@ func SaveBag(state json.RawMessage, b Bag) (json.RawMessage, error) {
 	if b.Expansion > 2 {
 		return nil, fmt.Errorf("背包扩展档位超出客户端范围")
 	}
+
 	// [ALIGN-20260930-DURABILITY] 落库前 clamp 耐久（见 SetDurabilityLimit 的说明）。
 	// 先拷贝切片，避免就地改到调用方那份 Bag。
 	b.Worn = append([]BagEquipment(nil), b.Worn...)
@@ -305,6 +309,13 @@ func SaveBag(state json.RawMessage, b Bag) (json.RawMessage, error) {
 	clampDurability(b.Equipment)
 	for _, rows := range b.Special {
 		clampDurability(rows)
+	}
+	if len(b.KnightShieldDeck) > 0 {
+		if len(b.KnightShieldDeck) > protocol.KnightDeckSize {
+			return nil, fmt.Errorf("saved knight deck exceeds five slots")
+		}
+		deck := b.KnightDeck()
+		b.KnightShieldDeck = append([]uint32(nil), deck[:]...)
 	}
 	var fields map[string]json.RawMessage
 	if e := json.Unmarshal(state, &fields); e != nil {

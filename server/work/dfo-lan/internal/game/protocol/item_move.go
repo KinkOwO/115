@@ -44,7 +44,7 @@ func ItemMoveSuccess(r ItemMoveRequest, count uint32) []byte {
 	return append(add16(append(p, r.DestinationList), r.DestinationSlot), 0)
 }
 
-func ItemMoveRefused(r ItemMoveRequest) []byte {
-	p := append(Refusal(4), r.SourceList, r.DestinationList)
+func ItemMoveRefused(r ItemMoveRequest, code uint16) []byte {
+	p := append(Refusal(code), r.SourceList, r.DestinationList)
 	return append(add32(p, 0), 0)
 }

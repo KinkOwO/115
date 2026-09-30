@@ -25,6 +25,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -115,6 +116,7 @@ func main() {
 	channelIdentityEnabled := flag.Bool("channel-identity", false, "candidate: synchronize NOTI2435 and all actor contexts with the connected channel")
 	equipmentRewardFile := flag.String("quest-equipment-catalog", "", "source basic-equipment metadata for atomic quest rewards")
 	wearRulesFile := flag.String("equipment-wear-rules", "", "current-client equipment slots and persistent wear handling")
+	knightShieldFile := flag.String("knight-shield-catalog", "equipment-knight-shield.full-candidate.json", "optional source-verified shield window side-car; relative to wear rules directory, empty disables")
 	fullEquipmentFile := flag.String("equipment-full-catalog", os.Getenv("DFO_EQUIPMENT_FULL_CATALOG"), "separate indexed wear catalog prefix; does not widen drops")
 	itemIndexFile := flag.String("item-index", os.Getenv("DFO_ITEM_INDEX"), "full stackable item index JSON (e.g. configs/items.index.json)")
 	boosterCatalogFile := flag.String("booster-catalog", os.Getenv("DFO_BOOSTER_CATALOG"), "booster definitions JSON")
@@ -529,6 +531,9 @@ func main() {
 		// Per-character profile skin snapshot (NOTI1545/1546) backs the
 		// category-0 owned/selected state sent on character entry.
 		if e = s.MigrateProfileSkins(ctx); e != nil {
+			log.Fatal(e)
+		}
+		if e = s.MigrateRosterBackgrounds(ctx); e != nil {
 			log.Fatal(e)
 		}
 		if e = s.MigrateMailbox(ctx); e != nil {
@@ -1054,9 +1059,25 @@ func main() {
 					log.Fatal(err)
 				}
 				wearService = &inventory.WearService{Store: characters.Store, Catalog: equipment, Professions: characters.Catalog, BagRules: lootService.BagRules, Rules: rules}
+
 				// 装备变换要用「部位 → 装备类型」映射去**背包**里找源（客户端允许把背包装备放进
 				// 界面「变换前」槽，请求只带部位码），所以把同一份 WearRules 也交给 loot 服务。
 				lootService.WearRules = rules
+
+				if *knightShieldFile != "" {
+					shieldPath := knightShieldCatalogPath(*knightShieldFile, rulesPath)
+					shields, shieldErr := inventory.LoadKnightShields(shieldPath, data.Source.Checksum)
+					if shieldErr != nil && !errors.Is(shieldErr, os.ErrNotExist) {
+						log.Fatal(shieldErr)
+					}
+					wearService.Shields = shields
+					if shields == nil {
+						log.Printf("knight shield window disabled: catalog absent at %s", shieldPath)
+					} else {
+						log.Printf("knight shield window enabled: %d source-verified shields from %s", len(shields.Rows), shieldPath)
+					}
+				}
+
 				// 创建期的初始装备投影共用同一份装备目录与部位槽映射，避免另立编号。
 				characters.Equipment = equipment
 				characters.WearRules = rules
@@ -1620,6 +1641,7 @@ func main() {
 		var selectedBasic []byte
 		var selectedAddition []byte
 		var worldState *worldSession
+		var comboState comboSkillSession
 		var skillState skillSession
 		var cubeContractState cubeContractSession
 		var equipmentState equipmentSession
@@ -1669,6 +1691,27 @@ func main() {
 				return err
 			}
 			event(map[string]any{"kind": "server_time_sent", "id": 1960, "reason": reason, "unix_seconds": now.Unix(), "plain_hex": hex.EncodeToString(payload)})
+			return nil
+		}
+		sendRosterBackgrounds := func() error {
+			if characters == nil {
+				return nil
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			state, e := characters.Store.RosterBackgrounds(ctx, developmentAccount)
+			if e != nil {
+				event(map[string]any{"kind": "roster_background_restore_error", "error": e.Error()})
+				return e
+			}
+			payload, e := protocol.RosterBackgroundRestore(state)
+			if e != nil {
+				return e
+			}
+			if e = sendPayload(0, 1759, payload); e != nil {
+				return e
+			}
+			event(map[string]any{"kind": "roster_background_restored", "selected": state.Selected, "owned_count": len(state.Owned)})
 			return nil
 		}
 		event(map[string]any{"kind": "accept", "peer": peer})
@@ -2391,31 +2434,70 @@ func main() {
 				}
 				continue
 			}
+			if frame.Type == 1 && frame.ID == 649 && bootstrapped && verified {
+				var oldShield uint32
+				if worldState != nil {
+					if b, err := inventory.ReadBag(worldState.role.State); err == nil {
+						oldShield = b.KnightDeck()[0]
+					}
+				}
+				plan, deckErr := equipmentState.handleKnightDeck(wearService, worldState, plaintext, frame.Raw)
+				event(knightShieldObservation(worldState, 649, plaintext, oldShield, deckErr))
+				if sendErr := sendPayload(1, 649, protocol.KnightDeckAck()); sendErr != nil {
+					return
+				}
+				event(map[string]any{"kind": "knight_deck_acknowledged", "type": 1, "id": 649, "payload_bytes": 3})
+				if deckErr == nil {
+					for _, packet := range plan {
+						if sendErr := sendPayload(packet.Kind, packet.ID, packet.Payload); sendErr != nil {
+							return
+						}
+						event(map[string]any{"kind": packet.Name, "type": packet.Kind, "id": packet.ID, "payload_bytes": len(packet.Payload), "plain_hex": hex.EncodeToString(packet.Payload)})
+					}
+				}
+				continue
+			}
 			if frame.ID == 19 && bootstrapped && verified && wearService != nil {
+				shieldRequest, shieldDecodeErr := protocol.DecodeItemMove(plaintext)
+				shieldMove := shieldDecodeErr == nil && inventory.IsKnightShieldMove(shieldRequest)
+				var oldShield uint32
+				if shieldMove && worldState != nil {
+					if b, err := inventory.ReadBag(worldState.role.State); err == nil {
+						oldShield = b.KnightDeck()[0]
+					}
+				}
 				plan, e := equipmentState.handle(wearService, worldState, plaintext, frame.Raw)
+				if shieldMove {
+					event(knightShieldObservation(worldState, 19, plaintext, oldShield, e))
+				}
 				if e != nil {
 					event(map[string]any{"kind": "equipment_move_refused", "reason": e.Error()})
 					r, _ := protocol.DecodeItemMove(plaintext)
-					if e = sendPayload(1, 19, protocol.ItemMoveRefused(r)); e != nil {
+					if e = sendPayload(1, 19, protocol.ItemMoveRefused(r, inventory.MoveRefusalCode(e))); e != nil {
 						return
 					}
 					continue
 				}
 				r, decodeErr := protocol.DecodeItemMove(plaintext)
-				// Ordinary worn-set moves already append AppearanceProbe and
-				// WornSpaceUpdate in equipmentSession.handle. Re-sending an entry
-				// user-info and the same worn-window refresh here rebuilds the actor
-				// twice mid-dungeon and can strand the client before its next room
-				// request. Keep the separate actor refresh only for slot-26 moves
-				// that did not pass through the worn list.
-				if decodeErr == nil && characters != nil && (r.SourceSlot == 26 || r.DestinationSlot == 26) && r.SourceList != 3 && r.DestinationList != 3 {
+				var cloneRefresh []outboundPacket
+				var cloneRefreshed bool
+				if decodeErr == nil && len(plan) > 0 {
+					cloneRefresh, cloneRefreshed, e = dungeonCloneEquipmentRefresh(worldState, r)
+					if e != nil {
+						event(map[string]any{"kind": "equipment_dungeon_clone_refresh_error", "error": e.Error()})
+						cloneRefreshed = false
+					}
+				}
+				// Mode-0 actor rebuilds can strand the next dungeon room request.
+				// Only an actual creature-list move may use this separate refresh.
+				if decodeErr == nil && characters != nil && moveNeedsCreatureActorAppearance(r) {
 					var visual []byte
 					visual, e = characters.EntryBasicProbe(worldState.role, [2]byte{})
 					if e == nil {
 						plan = append(plan, outboundPacket{"creature_actor_appearance_updated", 0, 2, visual})
 					}
 				}
-				if decodeErr == nil && characters != nil && cloneAvatarRemoval(r, wearService.Catalog) {
+				if decodeErr == nil && characters != nil && !cloneRefreshed && cloneAvatarRemoval(r, wearService.Catalog) {
 					// attempt 3/3: entry's known mode-1 reader restores the ordinary
 					// Avatar association on relog. Send it only after every CMD19
 					// NOTI13/14 and mode-0 refresh, so later slot reconstruction
@@ -2439,13 +2521,16 @@ func main() {
 						plan = append(plan, outboundPacket{"oath_system_info_after_wear", 0, 2839, info})
 					}
 				}
+				if cloneRefreshed {
+					plan = append(plan, cloneRefresh...)
+				}
 				prepared, e := preparePackets(keys, plan)
 				if e != nil {
 					event(map[string]any{"kind": "equipment_encode_error", "error": e.Error()})
 					return
 				}
 				if e = writePackets(c, prepared, func(p preparedPacket) {
-					event(map[string]any{"kind": p.Name, "character_id": worldState.role.ID, "id": p.ID, "plain_hex": hex.EncodeToString(p.Payload)})
+					event(map[string]any{"kind": p.Name, "character_id": worldState.role.ID, "type": p.Kind, "id": p.ID, "payload_bytes": len(p.Payload), "plain_hex": hex.EncodeToString(p.Payload)})
 				}); e != nil {
 					event(map[string]any{"kind": "equipment_write_error", "error": e.Error()})
 					return
@@ -2723,18 +2808,52 @@ func main() {
 					}
 					event(map[string]any{"kind": "character_effect_options_saved", "character_id": selectedCharacterID, "entries": len(opt.Entries), "options": opt.Entries})
 				case protocol.UnifiedOptionAccount:
-					if characters == nil {
-						event(map[string]any{"kind": "account_settings_rejected", "reason": "storage unavailable"})
+					if characters == nil || opt.Scope != protocol.UnifiedOptionScopeAccount {
+						event(map[string]any{"kind": "account_settings_rejected", "reason": "账号设置存储不可用或作用域无效"})
+						continue
+					}
+					accountID := developmentAccount
+					ownedRole := worldState != nil && worldState.role.ID != 0 && worldState.role.ID == selectedCharacterID
+					if ownedRole {
+						accountID = worldState.role.AccountID
+					}
+					var effectFlags byte
+					for _, entry := range opt.Entries {
+						if entry.Position == protocol.GrowthEffectOption && entry.Value != 65535 {
+							effectFlags, e = protocol.GrowthEffectFlags(entry.Value)
+							if e != nil {
+								break
+							}
+						}
+					}
+					if e != nil {
+						event(map[string]any{"kind": "account_settings_rejected", "reason": e.Error()})
 						continue
 					}
 					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-					e = characters.Store.SaveAccountUnifiedOptions(ctx, developmentAccount, unifiedEntries(opt.Entries))
+					e = characters.Store.SaveAccountUnifiedOptions(ctx, accountID, unifiedEntries(opt.Entries))
 					cancel()
 					if e != nil {
 						event(map[string]any{"kind": "account_settings_rejected", "reason": e.Error()})
 						continue
 					}
 					event(map[string]any{"kind": "account_settings_saved", "entries": len(opt.Entries)})
+					if effectFlags != 0 && ownedRole {
+						// attempt 1/3：按1452FA194注册及1452C9940读取发送NOTI343。
+						// 只更新显示阶段；不发送会重建装备、技能的全量USERINFO。
+						effect := protocol.CharacterGrowthEffect(worldState.role.WireID, effectFlags)
+						if e = sendPayload(0, 343, effect); e != nil {
+							return
+						}
+						basic, refreshErr := characters.EntryBasicProbe(worldState.role, [2]byte{})
+						if refreshErr != nil {
+							event(map[string]any{"kind": "growth_effect_cache_error", "reason": refreshErr.Error()})
+						} else {
+							selectedBasic = basic
+							worldState.hub.updateGrowthEffect(worldState.peer, basic, effect)
+						}
+						event(map[string]any{"kind": "growth_effect_updated", "character_id": selectedCharacterID, "flags": effectFlags})
+					}
 				case protocol.UnifiedOptionHotkeys, protocol.UnifiedOptionHotkeysExt:
 					if characters == nil {
 						event(map[string]any{"kind": "hotkeys_rejected", "reason": "storage unavailable"})
@@ -2968,6 +3087,42 @@ func main() {
 							}
 							event(map[string]any{"kind": "skill_preset_restored_after_commands", "character_id": selectedCharacterID, "id": 2758})
 						}
+						combo, comboErr := characters.ComboSkillInfoNotify(worldState.role)
+						if comboErr != nil {
+							event(map[string]any{"kind": "combo_skill_info_refresh_failed", "character_id": selectedCharacterID, "error": comboErr.Error()})
+						} else if len(combo) > 0 {
+							if e = sendPayload(0, 433, combo); e != nil {
+								return
+							}
+							event(map[string]any{"kind": "combo_skill_info_restored_after_commands", "character_id": selectedCharacterID, "type": 0, "id": 433, "plain_hex": hex.EncodeToString(combo)})
+						}
+					}
+				}
+				continue
+			}
+			if characters != nil && bootstrapped && (frame.ID == 500 || frame.ID == 502) {
+				if !verified || worldState == nil || worldState.role.ID != selectedCharacterID {
+					event(map[string]any{"kind": "combo_skill_info_rejected", "id": frame.ID, "character_id": selectedCharacterID, "reason": "checksum or character selection mismatch"})
+					continue
+				}
+				req, saveErr := comboState.save(characters, worldState, frame.ID, plaintext)
+				if saveErr != nil {
+					event(map[string]any{"kind": "combo_skill_info_rejected", "id": frame.ID, "character_id": selectedCharacterID, "reason": saveErr.Error()})
+					continue
+				}
+				event(map[string]any{"kind": "combo_skill_info_saved", "id": frame.ID, "character_id": selectedCharacterID, "cells": req.Cells, "plain_hex": hex.EncodeToString(plaintext)})
+				if frame.ID == 500 {
+					notify, encodeErr := protocol.EncodeComboSkillInfoNotify(req)
+					if encodeErr != nil {
+						event(map[string]any{"kind": "combo_skill_info_reply_failed", "character_id": selectedCharacterID, "error": encodeErr.Error()})
+						continue
+					}
+					if !bytes.Equal(notify, comboState.lastNotify) {
+						if sendErr := sendPayload(0, 433, notify); sendErr != nil {
+							return
+						}
+						comboState.lastNotify = notify
+						event(map[string]any{"kind": "combo_skill_info_replied", "character_id": selectedCharacterID, "type": 0, "id": 433, "plain_hex": hex.EncodeToString(notify)})
 					}
 				}
 				continue
@@ -3148,6 +3303,22 @@ func main() {
 				// the fatigue potion (54) and `[add skin storage]` (169, damage font)
 				// paths never collide; the fatigue path keeps its exact prior shape.
 				_, action, actionErr := protocol.DecodeStackableAction(plaintext)
+				if actionErr == nil && action == protocol.RosterBackgroundTicketAction {
+					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					packets, e := worldState.useRosterBackgroundTicket(ctx, plaintext, frame.Raw, purchaseSession.prefix, event)
+					cancel()
+					if e != nil {
+						event(map[string]any{"kind": "背景券使用被拒绝", "character_id": worldState.role.ID, "reason": e.Error()})
+						continue
+					}
+					for _, packet := range packets {
+						if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
+							return
+						}
+						event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID, "id": packet.ID, "plain_hex": hex.EncodeToString(packet.Payload)})
+					}
+					continue
+				}
 				if actionErr == nil && action == protocol.AddSkinStorageAction {
 					plan, e := worldState.useAddSkinStorage(plaintext, event)
 					if e != nil {
@@ -4844,7 +5015,7 @@ func main() {
 				// places them: the client only places actors it already knows.
 				if worldState != nil {
 					for _, o := range worldState.joinedPeers {
-						plan.Peers = append(plan.Peers, o.info)
+						plan.Peers = append(plan.Peers, worldState.hub.basicInfo(o))
 						if len(o.addition) > 0 {
 							plan.Peers = append(plan.Peers, o.addition)
 						}
@@ -5024,6 +5195,11 @@ func main() {
 					role = loyaltyRole
 				}
 				if wearService != nil {
+					plan.KnightDeck, e = wearService.KnightDeckPayload(role)
+					if e != nil {
+						event(map[string]any{"kind": "entry_knight_deck_error", "character_id": role.ID, "error": e.Error()})
+						plan.KnightDeck = nil
+					}
 					plan.Worn, e = inventory.WornPayload(role.State)
 					if e == nil {
 						plan.WornUpdate, e = inventory.WornSpaceUpdate(role.State)
@@ -5142,6 +5318,11 @@ func main() {
 						event(map[string]any{"kind": "entry_skills_error", "error": e.Error()})
 						continue
 					}
+					plan.ComboSkillInfo, e = characters.ComboSkillInfoNotify(role)
+					if e != nil {
+						event(map[string]any{"kind": "entry_combo_skill_info_error", "error": e.Error()})
+						continue
+					}
 					plan.SkillPreset, e = characters.SkillPresetInfo(role)
 					if e != nil {
 						event(map[string]any{"kind": "entry_skill_preset_error", "error": e.Error()})
@@ -5176,7 +5357,7 @@ func main() {
 							entry["town_id"], entry["area_id"] = townCatalog.TownID, townCatalog.AreaID
 						}
 					}
-					if p.ID == 13 || p.ID == 36 || p.ID == 2425 {
+					if p.ID == 13 || p.ID == 36 || p.ID == 2425 || (p.Kind == 0 && p.ID == 433) {
 						entry["plain_hex"] = hex.EncodeToString(p.Payload)
 					}
 					event(entry)
@@ -5185,6 +5366,7 @@ func main() {
 					event(map[string]any{"kind": "entry_write_error", "character_id": role.ID, "error": e.Error()})
 					return
 				}
+				comboState.lastNotify = nil
 				selectedCharacterID = role.ID
 				if worldState != nil {
 					worldState.fameInitialized = false
@@ -5304,6 +5486,28 @@ func main() {
 				event(map[string]any{"kind": "roster_followup_response", "id": frame.ID, "hex": hex.EncodeToString(response)})
 				continue
 			}
+			if characters != nil && bootstrapped && frame.ID == 1725 {
+				if !verified || selectedCharacterID != 0 {
+					event(map[string]any{"kind": "roster_background_rejected", "error": "背景选择需要有效校验及选角状态"})
+					continue
+				}
+				req, e := protocol.DecodeSelectRosterBackground(plaintext)
+				if e == nil {
+					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					_, e = characters.Store.SelectRosterBackground(ctx, developmentAccount, req.Page, req.Background)
+					cancel()
+				}
+				if e != nil {
+					event(map[string]any{"kind": "roster_background_rejected", "error": e.Error()})
+				} else {
+					event(map[string]any{"kind": "roster_background_selected", "page": req.Page, "category": req.Background.Category, "background_id": req.Background.ID})
+				}
+				// 原生按钮会乐观应用选择；拒绝时也恢复账号的权威状态，不编造未知 ACK。
+				if e = sendRosterBackgrounds(); e != nil {
+					return
+				}
+				continue
+			}
 			if characters != nil && bootstrapped && (frame.ID == 5 || frame.ID == 6 || frame.ID == 684 || frame.ID == 8) {
 				if !verified {
 					event(map[string]any{"kind": "character_rejected", "id": frame.ID, "error": "request checksum or cipher unsupported"})
@@ -5407,6 +5611,12 @@ func main() {
 					return
 				}
 				event(map[string]any{"kind": "character_response", "id": id, "bytes": len(response), "hex": hex.EncodeToString(response)})
+				// NOTI2 先建立选角管理器，再由 NOTI1759 初始化背景列表和五页选择。
+				if frame.ID == 8 && userInfoMode == 2 && kind == 0 && id == 2 {
+					if err = sendRosterBackgrounds(); err != nil {
+						return
+					}
+				}
 				if created {
 					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 					list, e := characters.ListWithFatigue(ctx, developmentAccount, fatigueService, time.Now())
@@ -5428,6 +5638,9 @@ func main() {
 						return
 					}
 					event(map[string]any{"kind": "character_list_after_mutation", "request": frame.ID, "id": 2, "bytes": len(notification)})
+					if e = sendRosterBackgrounds(); e != nil {
+						return
+					}
 				}
 				continue
 			}

@@ -31,6 +31,7 @@ type entryPayloads struct {
 	AccountVault     []byte
 	AvailableQuests  []byte
 	Worn             []byte
+	KnightDeck       []byte
 	AccountOptions   []byte
 	GamepadOptions   []byte
 	// Journal 是装备库完整状态（NOTI2610，恰好 16444B）。
@@ -130,6 +131,7 @@ type entryPayloads struct {
 	// player's locked skills. It is sent last: the forwarded evidence for this
 	// client reports a crash on town entry when 2827 arrives early in the frame
 	// sequence, whichever block it contains.
+	ComboSkillInfo []byte
 	SkillLocks     []byte
 	SynopsisRead   []byte
 	CubeContract   []byte
@@ -169,6 +171,8 @@ func (p entryPayloads) packets() []outboundPacket {
 		// 2609 必须排在 2758 **之后**：TestEntrySkillPresetFollowsSkillTree 钉死
 		// 2758 紧跟 19（技能树之后立刻是技能预设），插在中间会让那条测试变红。
 		{"equipment_skill_restored", 0, 2609, p.EquipmentSkill},
+		// NOTI19 rebuilds the skills first; restore the combo cells afterwards.
+		{"combo_skill_info_restored", 0, 433, p.ComboSkillInfo},
 		{"vault_initialized", 0, 13, p.Vault},
 	}
 	// The newer skin families and the 收藏 push join the same entry window as the two
@@ -190,6 +194,7 @@ func (p entryPayloads) packets() []outboundPacket {
 		// only after the town actor/UserInfo graph has been installed.
 		{"avatar_inventory_initialized", 0, 13, p.Avatars},
 		{"worn_equipment_restored", 0, 13, p.Worn},
+		{"knight_deck_restored", 0, 567, p.KnightDeck},
 	}...)
 	// The NOTI24 town refresh checks worn slot 12. A weapon needs its explicit
 	// appearance binding and NOTI14 rows installed before that check. Sending

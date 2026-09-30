@@ -16,6 +16,18 @@ func dungeonRequest(id uint16) bool {
 }
 
 func observedGameRequest(id uint16) bool {
+	// Combo editing and reset must still be decoded after the eighth request.
+	if id == 500 || id == 502 {
+		return true
+	}
+	// Shield deck uploads must never fall through the eight-body sample cap.
+	if id == 649 {
+		return true
+	}
+	// 每次选择背景均须解密和保存，不能在第九次点击时落入采样限制。
+	if id == 1725 {
+		return true
+	}
 	// 图鉴登记需逐次解密并保留证据，不能在重复登记后落入采样上限。
 	if id == 2139 {
 		return true
@@ -83,7 +95,7 @@ func observedGameRequest(id uint16) bool {
 	if id == 2259 {
 		return true
 	}
-// 送礼(806 p[0]=0)和剧情角色染色(806 p[0]=1)共用 CMD806，已有处理器。
+	// 送礼(806 p[0]=0)和剧情角色染色(806 p[0]=1)共用 CMD806，已有处理器。
 	// 不在白名单时只解密前 8 帧，第 9 次起 verified=false 直接不进处理器，
 	// 客户端表现为"点击送礼/染色没有任何反应"。每个 806 都必须解密分发。
 	if id == 806 {

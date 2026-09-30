@@ -44,6 +44,7 @@ type WearService struct {
 	Professions catalog.Characters
 	BagRules    BagRules
 	Rules       WearRules
+	Shields     *KnightShields
 }
 
 func (s *WearService) EggHatchTarget(template uint32) uint32 {
@@ -102,6 +103,10 @@ func (s *WearService) wearable(role storage.Character, item BagEquipment, slot u
 	expected, ok := s.Rules.Slots[kind[0].Text]
 	talismanSlot := s.Rules.Special && kind[0].Text == "[talisman]" && slot >= 33 && slot <= 35
 	primerSlot := s.Rules.Special && kind[0].Text == "[primer]" && slot >= 36 && slot <= 46
+	// 融合石使用客户端 CMD19 指定的八栏，不按 [amalgamation part] 换算普通部位。
+	// 36..43 为候选范围；44..46 保留给太初晶体，47 为誓约核心。
+	// 取证及当前实机验收边界见 docs/protocol/amalgamation-stone-wear-20260930.md。
+	amalgamationSlot := s.Rules.Special && kind[0].Text == "[amalgamation stone]" && slot >= 36 && slot <= 43
 	// 2026-09-25 实机 CMD19：光剑 28240 请求穿戴槽 24。
 	// 源 dualweapon.skl 限定女鬼剑转职 4；光剑源 [sub type] 为 5。
 	// 仅增加副手例外，之后仍执行武器自身的职业、转职及等级校验。
@@ -123,7 +128,9 @@ func (s *WearService) wearable(role storage.Character, item BagEquipment, slot u
 	// 武器装扮塞进幻化栏。
 	auraSkin := s.Rules.Special && kind[0].Text == "[aurora avatar]" &&
 		slot == AuraSkinSlot && s.auraSkinUnlocked(role)
-	if !ok || (expected != slot && !talismanSlot && !primerSlot && !offhandLightsabre && !creatureSkin && !auraSkin) {
+	// 先判断受限例外；表外类型也可以命中例外，但仍须通过后续源规则校验。
+	if !talismanSlot && !primerSlot && !amalgamationSlot && !offhandLightsabre && !creatureSkin && !auraSkin &&
+		(!ok || expected != slot) {
 		return fmt.Errorf("equipment does not fit destination slot")
 	}
 	if kind[0].Text == "[creature]" {
@@ -194,6 +201,9 @@ func (s *WearService) itemGroup(item *BagEquipment, flagGroup byte) byte {
 // MoveOrdinary validates both directions before swapping one physical item.
 // Equipped items retain identity and durability; no reward or copy is created.
 func (s *WearService) MoveOrdinary(role storage.Character, r protocol.ItemMoveRequest) (json.RawMessage, error) {
+	if IsKnightShieldMove(r) {
+		return s.moveKnightShield(role, r)
+	}
 	if s == nil || s.Catalog == nil || s.Catalog.Source.Checksum != role.ConfigVersion || s.Rules.Source != role.ConfigVersion || s.Professions.Source.Checksum != role.ConfigVersion {
 		return nil, fmt.Errorf("wear service source mismatch")
 	}

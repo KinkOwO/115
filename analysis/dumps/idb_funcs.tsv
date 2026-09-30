@@ -1,4 +1,9 @@
 address	name	description
+0x14505dab0	KnightShieldWindow_SendMoveOrDeck	Mode 1 sends CMD19; otherwise CMD649 writes exactly five u32 map values at byte zero.
+0x14524fca0	Handler_CmdKnightShieldDeck	CMD649 status-zero is inert; success reads one byte before five u32 writes (not five repeated bytes).
+0x145310a90	Handler_NotiKnightShieldDeck	NOTI567 reads five u32 and writes map plus UI, no status prefix.
+0x145057bb0	KnightShieldWindow_SetSocket	Rejects socket >4, writes native map; socket zero affects pending move flag.
+0x145a0e8c0	InventoryContainer_FromSpace	Spaces31/32 fall through to null; neither has a physical bag container.
 0x140ced7f0	ActBehavior_KickOutMapCharacter_Execute	KICK OUT MAP CHARACTER execution, validates current room and delegates scripted map move to 145ea1ca0
 0x145ea2f90	DungeonTransition_DecodeNative18	NOTI29 native 18-byte transition decode, type/direction/position/random-range
 0x1452b7100	Handler_NotiStartMap	NOTI29; flag0 leaves layer ordinal unchanged, flag2 clears ordinal at1452b7876; mode0 preserves cached room. Evil Justice live20260929 confirms flag0 left active layer.

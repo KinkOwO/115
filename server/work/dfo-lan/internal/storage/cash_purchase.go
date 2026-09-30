@@ -181,7 +181,7 @@ func (s *Store) migrateCoinItems(ctx context.Context) error {
 		}
 		b.Items = newItems
 
-		newInvRaw, err := json.Marshal(b)
+		newInvRaw, err := mergeCashInventoryProjection(invRaw, b)
 		if err != nil {
 			return err
 		}
@@ -309,7 +309,7 @@ func (s *Store) migratePackagePlaceholders(ctx context.Context) error {
 		}
 
 		b.Items = newItems
-		newInvRaw, err := json.Marshal(b)
+		newInvRaw, err := mergeCashInventoryProjection(invRaw, b)
 		if err != nil {
 			return err
 		}

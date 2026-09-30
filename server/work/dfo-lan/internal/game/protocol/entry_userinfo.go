@@ -211,7 +211,7 @@ func UserInfoBasicProbe(s EntryBasicProbe) ([]byte, error) {
 	p = add32(append(p, 0), 0)
 	p = add16(add32(p, 0), 0)
 	p = append(add32(p, 0), make([]byte, 8)...) // 0x14563a240: u32 + raw8
-	p = append(p, nativeGrowthStateFlags)       // 0x14563fc24: bit0 + growth-appearance bit1
+	p = append(p, r.growthStateFlags())         // 0x14563fc24：独立状态及转职觉醒显示位
 	p = add32(p, 0)
 	// 145640183读取此字节到角色资料+0x534；145556506将其用于城镇队伍的两条状态条。
 	// 旧零占位会在进城、建队及换装刷新时把状态条清空，不能当成无用字段。
