@@ -39,28 +39,6 @@ import (
 	"time"
 )
 
-// envStrOr 读一个字符串环境变量；缺失时返回 fallback。
-func envStrOr(name, fallback string) string {
-	if v := os.Getenv(name); v != "" {
-		return v
-	}
-	return fallback
-}
-
-// envByteOr 读一个 0..255 的环境变量；缺失或非法时返回 fallback。
-// 装备库制作的应答里有几个单字节开关，做成 env 就能不改代码切换。
-func envByteOr(name string, fallback int) int {
-	v := os.Getenv(name)
-	if v == "" {
-		return fallback
-	}
-	n, e := strconv.Atoi(v)
-	if e != nil || n < 0 || n > 255 {
-		return fallback
-	}
-	return n
-}
-
 func main() {
 	moonConfigFile := flag.String("moon-solo-config", os.Getenv("DFO_MOON_SOLO_CONFIG"), "opt-in Moon Lake solo candidate, explicitly validated 2.38.3.25 profile")
 	fixture := flag.String("fixture", "", "verified-format server fixture to send after accept")
@@ -138,36 +116,18 @@ func main() {
 	apocalypseCatalogFile := flag.String("apocalypse-catalog", "configs/apocalypse.generated.json", "compiled apocalypse.ctp table (phase clock, operations, gates, rewards, duty skills)")
 	attunementRewardsFile := flag.String("attunement-rewards", os.Getenv("DFO_ATTUNEMENT_REWARDS"), "boundary-of-attunement reward table generated from the source rewardboostinfo CTPs")
 	attunementRebalanceOn := flag.Bool("attunement-rebalance", os.Getenv("DFO_ATTUNEMENT_REBALANCE") == "1", "本私服的掉落调参（**与官服的显式差异**）：征兆「无事发生」减半、fixed 池低档按比例向高档倾斜。见 internal/loot/attunement_rebalance.go")
-	attunementFixedTiltDefault := 25
-	if v := os.Getenv("DFO_ATTUNEMENT_FIXED_TILT"); v != "" {
-		if n, convErr := strconv.Atoi(v); convErr == nil {
-			attunementFixedTiltDefault = n
-		}
-	}
+	attunementFixedTiltDefault := envIntOr("DFO_ATTUNEMENT_FIXED_TILT", 25)
 	attunementFixedTilt := flag.Int("attunement-fixed-tilt", attunementFixedTiltDefault, "固定池倾斜幅度：普通/稀有各减这么多百分比权重，减掉的按高档现有比例补（1..99）。0 = 不动固定池；只在 -attunement-rebalance 打开时生效")
 	boosterGageHide := flag.Bool("booster-gage-hide", os.Getenv("DFO_BOOSTER_GAGE") != "0", "send NOTI398 booster-gage with displayValue=0 on town entry to hide the top-left Liberation Trace panel; disable with -booster-gage-hide=false or DFO_BOOSTER_GAGE=0")
 	oathGrades := flag.String("oath-grades", os.Getenv("DFO_OATH_GRADES"), "诊断覆盖：固定下发的引子/誓约档位 primer,oath（见 oath_info.go）。留空 = 按角色穿戴的誓约/引子装备算，这是正常路径")
 	oathGradesTable := flag.String("oath-grades-table", os.Getenv("DFO_OATH_GRADES_TABLE"), "誓约/引子装备稀有度表（cmd/oathgradeimport 生成）；只在 -oath-grades-from-gear 打开时用")
 	oathFromGear := flag.Bool("oath-grades-from-gear", os.Getenv("DFO_OATH_GRADES_FROM_GEAR") == "1", "诊断：按角色穿戴的誓约/引子装备算档位（旧规则）。默认关 —— 客户端脱不下誓约槽，穿上 primeval 就永久 oath=45")
-	oathProgressClearsDefault := oathDefaultProgressClears
-	if v := os.Getenv("DFO_OATH_PROGRESS_CLEARS"); v != "" {
-		if n, convErr := strconv.Atoi(v); convErr == nil {
-			oathProgressClearsDefault = n
-		}
-	}
-	oathProgressDungeonSpec := os.Getenv("DFO_OATH_PROGRESS_DUNGEONS")
-	if oathProgressDungeonSpec == "" {
-		oathProgressDungeonSpec = oathDefaultProgressDungeons
-	}
+	oathProgressClearsDefault := envIntOr("DFO_OATH_PROGRESS_CLEARS", oathDefaultProgressClears)
+	oathProgressDungeonSpec := envStrOr("DFO_OATH_PROGRESS_DUNGEONS", oathDefaultProgressDungeons)
 	oathProgressClears := flag.Int("oath-progress-clears", oathProgressClearsDefault, "隐藏 BOSS 的保底场次：-oath-progress-dungeons 里的副本通关这么多场后，下一场下发 oath=45（必出一次）并在通关时归零；<=0 关闭保底")
 	oathProgressDungeons := flag.String("oath-progress-dungeons", oathProgressDungeonSpec, "计入保底的副本号，逗号分隔（默认只有小深渊 100005014）")
 	oathInject := flag.String("oath-inject", os.Getenv("DFO_OATH_INJECT"), "诊断用：向客户端注入任意 noti 的候选列表，形式 id:size:fill;off:val,...（见 oath_probe.go）；默认空 = 关闭")
-	omenHoldDefault := -1
-	if v := os.Getenv("DFO_OMEN_HOLD"); v != "" {
-		if n, convErr := strconv.Atoi(v); convErr == nil {
-			omenHoldDefault = n
-		}
-	}
+	omenHoldDefault := envIntOr("DFO_OMEN_HOLD", -1)
 	omenHold := flag.Int("omen-hold", omenHoldDefault, "诊断：把玩家直接放到指定征兆阶段(0-4)，-1 = 不动；-omen-state 打开时会写回角色存档")
 	omenRewards := flag.Bool("omen-rewards", os.Getenv("DFO_OMEN_REWARDS") == "1", "千海之空深渊的征兆系统：通关时按 [coupon drop table] 的阶段表累积并结算（见 internal/loot/omen.go）。默认关闭")
 	omenInfo := flag.String("omen-info", os.Getenv("DFO_OMEN_INFO"), "诊断：直接指定 noti 2836「征兆队伍状态」的 69 字节载荷，用来点亮征兆 UI 并实测字段语义。写法见 cmd/wireprobe/omen_info.go；留空 = 按角色存档里的真实档数生成（需 -omen-state）")

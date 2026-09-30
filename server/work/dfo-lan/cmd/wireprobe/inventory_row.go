@@ -3,6 +3,7 @@ package main
 import (
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
+	"encoding/json"
 )
 
 // bagRowOrEmpty 取背包里某一格的行；**该格已经被用光（整行移除）时返回空行**
@@ -21,4 +22,24 @@ func bagRowOrEmpty(bag inventory.Bag, slot uint16) [protocol.CurrentItemRecordSi
 		return row
 	}
 	return protocol.EmptyOrdinaryItem(slot)
+}
+
+// appendEquipmentUpdates keeps caller-provided row order and ACK placement.
+// It emits incremental bag rows first, then a worn-space update when needed.
+func appendEquipmentUpdates(plan []outboundPacket, state json.RawMessage, rows [][protocol.CurrentItemRecordSize]byte, space byte, bagLabel, wornLabel string) ([]outboundPacket, error) {
+	body, err := protocol.InventoryUpdate(rows)
+	if err != nil {
+		return nil, err
+	}
+	plan = append(plan, outboundPacket{bagLabel, 0, 14, body})
+	if space == 3 {
+		body, err = inventory.WornSpaceUpdate(state)
+		if err != nil {
+			return nil, err
+		}
+		if len(body) > 0 {
+			plan = append(plan, outboundPacket{wornLabel, 0, 14, body})
+		}
+	}
+	return plan, nil
 }

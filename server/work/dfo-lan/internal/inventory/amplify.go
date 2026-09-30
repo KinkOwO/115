@@ -8,7 +8,6 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 )
 
@@ -107,17 +106,11 @@ var amplifyRandomInt = func(n int) (int, error) {
 
 // LoadAmplifyGrimoires 读取增幅书清单；文件缺失时该功能整体拒绝（不影响强化）。
 func LoadAmplifyGrimoires(path string) error {
-	b, err := os.ReadFile(path)
-	if os.IsNotExist(err) {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
 	var rules amplifyGrimoireRules
-	if err = json.Unmarshal(b, &rules); err != nil {
+	if loaded, err := loadOptionalJSON(path, &rules); !loaded || err != nil {
 		return err
 	}
+
 	if rules.Version != 1 || len(rules.Source) != 64 || len(rules.Grimoires) == 0 {
 		return fmt.Errorf("增幅书规则源定义不完整")
 	}
@@ -392,25 +385,7 @@ func (s *WearService) applyAmplifyGrimoire(role storage.Character, r protocol.Am
 		return nil, out, err
 	}
 	// 目标装备：先按背包装备区找，再按已穿戴空间找（窗口两种都能点）。
-	space := byte(0)
-	items := bag.Equipment
-	index := -1
-	for i, gear := range items {
-		if gear.Slot == r.EquipmentSlot && gear.Template == r.EquipmentTemplate {
-			index = i
-			break
-		}
-	}
-	if index < 0 {
-		space = 3
-		items = bag.Worn
-		for i, gear := range items {
-			if gear.Slot == r.EquipmentSlot && gear.Template == r.EquipmentTemplate {
-				index = i
-				break
-			}
-		}
-	}
+	space, items, index := bag.findEquipment(0, r.EquipmentSlot, r.EquipmentTemplate)
 	if index < 0 {
 		return nil, out, fmt.Errorf("目标装备不在背包或已穿戴槽位里")
 	}

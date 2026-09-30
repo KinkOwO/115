@@ -24,7 +24,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"time"
 
 	"dfolan/internal/game/protocol"
@@ -47,21 +46,15 @@ func IsAmplifyTicket(template uint32) bool {
 // LoadAmplifyTickets 读取增幅券规则（scripts/export_amplify_tickets.py 的导出产物）。
 // 文件缺失时该功能整体不可用（不影响普通强化券、增幅升级与打红字）。
 func LoadAmplifyTickets(path string) error {
-	b, err := os.ReadFile(path)
-	if os.IsNotExist(err) {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
 	var c struct {
 		Version      int                            `json:"version"`
 		ClientSHA256 string                         `json:"client_sha256"`
 		Items        map[uint32]reinforcementTicket `json:"items"`
 	}
-	if err = json.Unmarshal(b, &c); err != nil {
+	if loaded, err := loadOptionalJSON(path, &c); !loaded || err != nil {
 		return err
 	}
+
 	if c.Version != 1 || len(c.ClientSHA256) != 64 || len(c.Items) == 0 {
 		return fmt.Errorf("增幅券源目录无效")
 	}
@@ -149,8 +142,8 @@ func (s *WearService) ApplyAmplifyTicket(ctx context.Context, role storage.Chara
 
 func (s *WearService) applyAmplifyTicket(role storage.Character, r protocol.ReinforcementRequest) (json.RawMessage, AmplifyTicketReceipt, error) {
 	var out AmplifyTicketReceipt
-	fail := func(reason string) (json.RawMessage, AmplifyTicketReceipt, error) {
-		return nil, out, fmt.Errorf("%s", reason)
+	fail := func(kind RefusalKind, reason string) (json.RawMessage, AmplifyTicketReceipt, error) {
+		return nil, out, Refuse(kind, "%s", reason)
 	}
 	bag, err := ReadBag(role.State)
 	if err != nil {
@@ -165,26 +158,26 @@ func (s *WearService) applyAmplifyTicket(role storage.Character, r protocol.Rein
 		}
 	}
 	if ticketIndex < 0 || bag.Items[ticketIndex].Amount == 0 {
-		return fail("增幅券不在所属角色背包")
+		return fail(RefusalItems, "增幅券不在所属角色背包")
 	}
 	item := bag.Items[ticketIndex]
 	target, percent, ok := amplifyTicketSpec(item.Template)
 	if !ok {
-		return fail(fmt.Sprintf("窗口里放的不是可用的增幅券（模板 %d，目标等级需在 1..15 内）", item.Template))
+		return fail(RefusalGeneric, fmt.Sprintf("窗口里放的不是可用的增幅券（模板 %d，目标等级需在 1..15 内）", item.Template))
 	}
 	rule, hasRule := amplifyTickets[item.Template]
 	if !hasRule {
-		return fail("未找到这张物品的增幅券规则")
+		return fail(RefusalUnsupported, "未找到这张物品的增幅券规则")
 	}
 	// 尚未核实的专用券限制不能静默忽略；拒绝时事务不扣除任何物品。
 	for _, tag := range []string{"[need material]", "[used trade type]", "[mod attr available level]", "[advanced enchant item by ticket window type]", "[action usable place]"} {
 		if len(rule.Fields[tag]) > 0 {
-			return fail("该专用增幅券包含尚未支持的限制：" + tag)
+			return fail(RefusalGeneric, "该专用增幅券包含尚未支持的限制："+tag)
 		}
 	}
 	if item.ExpireTime >= 946684800 && item.ExpireTime != 2147483647 && protocol.StoredItemExpired(item.ExpireTime, time.Now().Unix()) {
 		if _, usable := rule.Fields["[usable expired item]"]; !usable {
-			return fail("增幅券已经过期")
+			return fail(RefusalGeneric, "增幅券已经过期")
 		}
 	}
 	var state struct {
@@ -194,7 +187,7 @@ func (s *WearService) applyAmplifyTicket(role storage.Character, r protocol.Rein
 		return nil, out, err
 	}
 	if min := rule.Fields["[minimum level]"]; len(min) > 0 && (len(min) != 1 || min[0].Type != 0 || int32(state.Level) < min[0].Value) {
-		return fail("角色等级不符合增幅券要求")
+		return fail(RefusalGeneric, "角色等级不符合增幅券要求")
 	}
 	// 没有 [usable job] 段视为不限制职业（强化券那边缺段会误拒，这里不照抄）。
 	if jobs := rule.Fields["[usable job]"]; len(jobs) > 0 {
@@ -206,39 +199,14 @@ func (s *WearService) applyAmplifyTicket(role storage.Character, r protocol.Rein
 			}
 		}
 		if !allowedJob {
-			return fail("角色职业不符合增幅券要求")
+			return fail(RefusalGeneric, "角色职业不符合增幅券要求")
 		}
 	}
 
 	// 2) 目标装备：先按请求里的空间找（0 背包 / 3 已穿戴），找不到再退回另一侧。
-	space := r.EquipmentSpace
-	items := bag.Equipment
-	if space == 3 {
-		items = bag.Worn
-	}
-	gearIndex := -1
-	for i, gear := range items {
-		if gear.Slot == r.EquipmentSlot && gear.Template == r.EquipmentTemplate {
-			gearIndex = i
-			break
-		}
-	}
+	space, items, gearIndex := bag.findEquipment(r.EquipmentSpace, r.EquipmentSlot, r.EquipmentTemplate)
 	if gearIndex < 0 {
-		space = 0
-		items = bag.Equipment
-		if r.EquipmentSpace != 3 {
-			space = 3
-			items = bag.Worn
-		}
-		for i, gear := range items {
-			if gear.Slot == r.EquipmentSlot && gear.Template == r.EquipmentTemplate {
-				gearIndex = i
-				break
-			}
-		}
-	}
-	if gearIndex < 0 {
-		return fail("目标装备不在背包或已穿戴槽位里")
+		return fail(RefusalItems, "目标装备不在背包或已穿戴槽位里")
 	}
 	gear := items[gearIndex]
 	if err = gear.ValidateRecord(); err != nil {
@@ -250,12 +218,12 @@ func (s *WearService) applyAmplifyTicket(role storage.Character, r protocol.Rein
 	}
 	kind := d.Fields["[equipment type]"]
 	if len(kind) == 0 || kind[0].Type != 6 {
-		return fail("目标装备类型无效")
+		return fail(RefusalGeneric, "目标装备类型无效")
 	}
 	switch kind[0].Text {
 	case "[weapon]", "[coat]", "[pants]", "[shoulder]", "[waist]", "[shoes]", "[amulet]", "[wrist]", "[ring]", "[support]", "[magic stone]", "[earring]":
 	default:
-		return fail("此类物品不能使用增幅券")
+		return fail(RefusalGeneric, "此类物品不能使用增幅券")
 	}
 	if ids := rule.Fields["[reinforcement usable item list]"]; len(ids) > 0 {
 		matched := false
@@ -265,7 +233,7 @@ func (s *WearService) applyAmplifyTicket(role storage.Character, r protocol.Rein
 			}
 		}
 		if !matched {
-			return fail("目标装备不在增幅券允许列表")
+			return fail(RefusalGeneric, "目标装备不在增幅券允许列表")
 		}
 	}
 
@@ -273,16 +241,16 @@ func (s *WearService) applyAmplifyTicket(role storage.Character, r protocol.Rein
 	// 3) 前置：必须有次元属性（打过红字），否则等级会被渲染成「强化 +N」。
 	ampType := row[amplifyTypeOffset]
 	if ampType == 0 {
-		return fail("该装备没有次元属性，不能增幅（先用增幅书打红字）")
+		return fail(RefusalUnsupported, "该装备没有次元属性，不能增幅（先用增幅书打红字）")
 	}
 	// 已封装的装备不给用（offset 13 是 isSealed）。注意不能套用强化券那条
 	// 「row[19]/row[20] 必须为 0」的检查 —— 那两位正是增幅必需的次元属性类型与数值。
 	if row[13] != 0 {
-		return fail("已封装的装备不能使用增幅券")
+		return fail(RefusalGeneric, "已封装的装备不能使用增幅券")
 	}
 	old := byte(amplifyLevel(row[:]))
 	if int(old) >= int(target) {
-		return fail(fmt.Sprintf("当前增幅等级 +%d 已达到或超过券的目标等级 +%d", old, target))
+		return fail(RefusalGeneric, fmt.Sprintf("当前增幅等级 +%d 已达到或超过券的目标等级 +%d", old, target))
 	}
 
 	// 4) 判定：固定券失败只消耗券，不降级也不摧毁。

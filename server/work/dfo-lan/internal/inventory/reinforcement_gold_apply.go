@@ -96,8 +96,8 @@ func (s *WearService) ReinforceWithMaterial(ctx context.Context, role storage.Ch
 
 func (s *WearService) applyGoldReinforcement(role storage.Character, counts json.RawMessage, key string, r protocol.ReinforcementRequest) (json.RawMessage, json.RawMessage, GoldReinforcementReceipt, error) {
 	var out GoldReinforcementReceipt
-	fail := func(reason string) (json.RawMessage, json.RawMessage, GoldReinforcementReceipt, error) {
-		return nil, nil, out, fmt.Errorf("%s", reason)
+	fail := func(kind RefusalKind, reason string) (json.RawMessage, json.RawMessage, GoldReinforcementReceipt, error) {
+		return nil, nil, out, Refuse(kind, "%s", reason)
 	}
 	// 形状检查与券路径一致：单次；@9 是材料槽位。
 	// tail[4]（Multiple）左侧普通强化为 0、右侧安全强化为 1，所以这里不判断，改到材料解析之后。
@@ -105,10 +105,10 @@ func (s *WearService) applyGoldReinforcement(role storage.Character, counts json
 	// 原版语义是「背包持有保护券、失败到会碎区间自动消耗」，服务端自己全背包查找。
 	if r.Mode != 0 || (r.EquipmentSpace != 0 && r.EquipmentSpace != 3) || r.TicketSpace != 0 ||
 		r.TicketSlot == 0xffff || r.MaterialSlot != 0xffff {
-		return fail("强化只支持单次普通/安全强化，不支持增幅")
+		return fail(RefusalUnsupported, "强化只支持单次普通/安全强化，不支持增幅")
 	}
 	if r.Multiple > 1 {
-		return fail("不支持批量强化")
+		return fail(RefusalUnsupported, "不支持批量强化")
 	}
 	bag, err := ReadBag(role.State)
 	if err != nil {
@@ -130,7 +130,7 @@ func (s *WearService) applyGoldReinforcement(role storage.Character, counts json
 	if slot >= AccountMaterialSlotBase && slot < AccountMaterialSlotBase+accountMaterialCells {
 		template, ok := StorageRowTemplate(slot)
 		if !ok {
-			return fail("材料槽不是账号材料仓库的格子")
+			return fail(RefusalGeneric, "材料槽不是账号材料仓库的格子")
 		}
 		materialTemplate, materialAmount, fromStorage = template, materials.Count(template), true
 	} else {
@@ -141,19 +141,19 @@ func (s *WearService) applyGoldReinforcement(role storage.Character, counts json
 			}
 		}
 		if bagIndex < 0 {
-			return fail("材料不在所属角色背包")
+			return fail(RefusalItems, "材料不在所属角色背包")
 		}
 	}
 	if !IsGoldMaterial(materialTemplate) && !IsSafeMaterial(materialTemplate) {
-		return fail("窗口里的物品不是强化的消耗材料")
+		return fail(RefusalGeneric, "窗口里的物品不是强化的消耗材料")
 	}
 	// 实机判据：左侧普通强化 tail[4]=0 + @9=367（无色小晶块）；右侧安全强化 tail[4]=1 + @9=136（安全材料）。
 	safe := r.Multiple == 1
 	if safe && !IsSafeMaterial(materialTemplate) {
-		return fail("安全强化需要安全强化材料（10327281 / 10327284）")
+		return fail(RefusalGeneric, "安全强化需要安全强化材料（10327281 / 10327284）")
 	}
 	if !safe && !IsGoldMaterial(materialTemplate) {
-		return fail("普通强化只收无色小晶块；安全强化材料请放到另一侧")
+		return fail(RefusalGeneric, "普通强化只收无色小晶块；安全强化材料请放到另一侧")
 	}
 
 	// 目标装备
@@ -169,7 +169,7 @@ func (s *WearService) applyGoldReinforcement(role storage.Character, counts json
 		}
 	}
 	if gearIndex < 0 {
-		return fail("目标装备不在指定的所属角色槽位")
+		return fail(RefusalGeneric, "目标装备不在指定的所属角色槽位")
 	}
 	gear := items[gearIndex]
 	if err = gear.ValidateRecord(); err != nil {
@@ -181,12 +181,12 @@ func (s *WearService) applyGoldReinforcement(role storage.Character, counts json
 	}
 	kind := d.Fields["[equipment type]"]
 	if len(kind) == 0 || kind[0].Type != 6 {
-		return fail("目标装备类型无效")
+		return fail(RefusalGeneric, "目标装备类型无效")
 	}
 	switch kind[0].Text {
 	case "[weapon]", "[coat]", "[pants]", "[shoulder]", "[waist]", "[shoes]", "[amulet]", "[wrist]", "[ring]", "[support]", "[magic stone]", "[earring]":
 	default:
-		return fail("此类物品不能强化")
+		return fail(RefusalGeneric, "此类物品不能强化")
 	}
 	row := EquipmentRow(gear)
 	old := row[10] & goldLevelFieldMask
@@ -194,11 +194,11 @@ func (s *WearService) applyGoldReinforcement(role storage.Character, counts json
 	equipLevel, levelOK := singleInt(d, "[minimum level]")
 	rarity, rarityOK := singleInt(d, "[rarity]")
 	if !levelOK || !rarityOK {
-		return fail("无法核对装备等级或品质")
+		return fail(RefusalUnsupported, "无法核对装备等级或品质")
 	}
 	weapon := kind[0].Text == "[weapon]"
 	if safe && SafePathWeaponOnly() && !weapon {
-		return fail("安全强化只对武器开放")
+		return fail(RefusalGeneric, "安全强化只对武器开放")
 	}
 
 	// 需求：普通强化的材料数量只看强化等级、金币吃装备等级/品质/部位；
@@ -206,23 +206,23 @@ func (s *WearService) applyGoldReinforcement(role storage.Character, counts json
 	var needed, gold uint32
 	if safe {
 		if int(old) >= SafePathMaxLevel() {
-			return fail("安全强化最高到 +" + fmt.Sprint(SafePathMaxLevel()-1) + "：请改用无色小晶块")
+			return fail(RefusalLimit, "安全强化最高到 +"+fmt.Sprint(SafePathMaxLevel()-1)+"：请改用无色小晶块")
 		}
 		if !SafeUpgradeEligible(int(equipLevel), int(rarity)) {
-			return fail("该装备不符合安全强化条件（100 级以上 + rare..primeval）")
+			return fail(RefusalGeneric, "该装备不符合安全强化条件（100 级以上 + rare..primeval）")
 		}
 		_, count, cost, ok := SafeUpgradeCost(int(old))
 		if !ok {
-			return fail("当前强化等级不在安全强化表内")
+			return fail(RefusalGeneric, "当前强化等级不在安全强化表内")
 		}
 		needed, gold = count, cost
 	} else {
 		if int(old) >= GoldMaxUpgradeLevel() {
-			return fail("强化已达到客户端上限 +" + fmt.Sprint(GoldMaxUpgradeLevel()) + "：更高的结果等级会让客户端判定异常并锁死强化面板")
+			return fail(RefusalLimit, "强化已达到客户端上限 +"+fmt.Sprint(GoldMaxUpgradeLevel())+"：更高的结果等级会让客户端判定异常并锁死强化面板")
 		}
 		count, ok := GoldMaterialCount(int(old))
 		if !ok {
-			return fail("当前强化等级不在金币强化表内")
+			return fail(RefusalGeneric, "当前强化等级不在金币强化表内")
 		}
 		cost, e := GoldCost(int(equipLevel), int(rarity), int(old), weapon)
 		if e != nil {
@@ -231,10 +231,10 @@ func (s *WearService) applyGoldReinforcement(role storage.Character, counts json
 		needed, gold = count, cost
 	}
 	if materialAmount < needed {
-		return fail("强化材料数量不足（需要 " + fmt.Sprint(needed) + " 个）")
+		return fail(RefusalGeneric, "强化材料数量不足（需要 "+fmt.Sprint(needed)+" 个）")
 	}
 	if bag.Gold < gold {
-		return fail("金币不足（需要 " + fmt.Sprint(gold) + "）")
+		return fail(RefusalGold, "金币不足（需要 "+fmt.Sprint(gold)+"）")
 	}
 
 	// 掷骰：普通强化用实测表；安全强化 0-9 同表、10→11 与 11→12 另有失败补正。
@@ -251,7 +251,7 @@ func (s *WearService) applyGoldReinforcement(role storage.Character, counts json
 		rate, ok = GoldSuccessPercent(int(old))
 	}
 	if !ok {
-		return fail("当前强化等级没有成功率")
+		return fail(RefusalGeneric, "当前强化等级没有成功率")
 	}
 	roll, err := rand.Int(rand.Reader, big.NewInt(100))
 	if err != nil {
@@ -411,7 +411,7 @@ func consumeBagAmount(b Bag, slot uint16, template, amount uint32) (Bag, uint32,
 		b.Items = rows
 		return b, remaining, nil
 	}
-	return b, 0, fmt.Errorf("材料不在所属角色背包")
+	return b, 0, Refuse(RefusalItems, "材料不在所属角色背包")
 }
 
 // 安全强化的失败补正计数：键 = 空间:槽位:尝试前等级，值 = 连续失败次数（成功清零）。
@@ -482,7 +482,7 @@ func readGoldReinforcementReceipt(state json.RawMessage, key string) (GoldReinfo
 	}
 	raw, ok := fields[goldReinforcementStateField]
 	if !ok {
-		return out, fmt.Errorf("找不到金币强化回执")
+		return out, Refuse(RefusalUnsupported, "找不到金币强化回执")
 	}
 	var stored storedGoldReinforcement
 	if err := json.Unmarshal(raw, &stored); err != nil {
