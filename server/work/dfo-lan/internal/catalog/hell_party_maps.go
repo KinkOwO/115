@@ -1,11 +1,66 @@
 package catalog
 
 import (
+	"dfolan/internal/catalog/pvf"
 	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
 )
+
+type SourceMapOverlay struct {
+	SourceChecksum string                  `json:"source_checksum"`
+	Maps           map[uint32]ScriptRecord `json:"maps"`
+}
+
+// ImportHellPartyMaps follows only the catalog's native seal-map references.
+// Missing source maps remain unavailable, as in the existing export.
+func ImportHellPartyMaps(a *pvf.Archive, c DungeonCatalog) (SourceMapOverlay, []uint32, error) {
+	var out SourceMapOverlay
+	if a == nil || a.Snapshot().Checksum != c.Source.Checksum {
+		return out, nil, fmt.Errorf("Hell Party source mismatch")
+	}
+	out.SourceChecksum = c.Source.Checksum
+	out.Maps = map[uint32]ScriptRecord{}
+	index, err := ReadScript(a, "list/map.lst")
+	if err != nil {
+		return out, nil, err
+	}
+	rows, err := ParseIndex(index.Cells)
+	if err != nil {
+		return out, nil, err
+	}
+	paths := map[uint32]string{}
+	for _, row := range rows {
+		paths[row.ID] = row.Path
+	}
+	need := map[uint32]bool{}
+	for _, d := range c.Dungeons {
+		if d.HellParty != nil {
+			need[d.HellParty.SealMap] = true
+			if d.HellParty.SeasonSealMap != 0 {
+				need[d.HellParty.SeasonSealMap] = true
+			}
+		}
+	}
+	var unavailable []uint32
+	for id := range need {
+		if _, exists := c.Maps[id]; exists {
+			continue
+		}
+		if paths[id] == "" {
+			unavailable = append(unavailable, id)
+			continue
+		}
+		script, err := ResolveScript(a, paths[id])
+		if err != nil {
+			unavailable = append(unavailable, id)
+			continue
+		}
+		out.Maps[id] = script
+	}
+	return out, unavailable, nil
+}
 
 // AttachHellPartyMaps adds map scripts referenced by DGN [seal door map index]
 // and [season seal door map index]. The archive checksum stays unchanged so
@@ -14,16 +69,20 @@ func AttachHellPartyMaps(c *DungeonCatalog, path string) error {
 	if c == nil {
 		return fmt.Errorf("nil dungeon catalog")
 	}
-	var overlay struct {
-		SourceChecksum string                  `json:"source_checksum"`
-		Maps           map[uint32]ScriptRecord `json:"maps"`
-	}
+	var overlay SourceMapOverlay
 	b, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}
 	if err := json.Unmarshal(b, &overlay); err != nil {
 		return err
+	}
+	return ApplyHellPartyMaps(c, overlay)
+}
+
+func ApplyHellPartyMaps(c *DungeonCatalog, overlay SourceMapOverlay) error {
+	if c == nil {
+		return fmt.Errorf("nil dungeon catalog")
 	}
 	if overlay.SourceChecksum != c.Source.Checksum || len(overlay.Maps) == 0 {
 		return fmt.Errorf("Hell Party map overlay source mismatch or empty")

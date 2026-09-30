@@ -61,6 +61,17 @@ class RepairProfileTests(unittest.TestCase):
         self.assertEqual(env['DFO_PVF_ENHANCEMENT_POLICY'], str(project / 'configs/pvf-enhancement-policy.json'))
         self.assertEqual(set(required), {binary, pathlib.Path(env['DFO_PVF_ARCHIVE']), pathlib.Path(env['DFO_PVF_ENHANCEMENT_POLICY'])})
 
+    def test_migration_profile_retains_independent_policies(self):
+        project = pathlib.Path(__file__).resolve().parent.parent
+        binary, required, env = load_profile(project / 'configs/pvf-migration-candidate.json', project)
+        self.assertEqual(binary, project / '.tmp/pvf-migration/bin/wireprobe-handoff-source.exe')
+        self.assertEqual(env['DFO_PVF_VERIFY_BASELINES'], '0')
+        self.assertEqual(len(env['DFO_PVF_CATALOGS'].split(',')), 28)
+        expected = {binary, pathlib.Path(env['DFO_PVF_ARCHIVE'])}
+        for key in ['DFO_PVF_ENHANCEMENT_POLICY', 'DFO_PVF_VAULT_POLICY', 'DFO_PVF_DROP_POLICY', 'DFO_PVF_SCENE_POLICY']:
+            expected.add(pathlib.Path(env[key]))
+        self.assertEqual(set(required), expected)
+
 
 if __name__ == '__main__':
     unittest.main()

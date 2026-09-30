@@ -35,31 +35,31 @@ PVF 提供物品、职业、技能、任务、地图和源规则表；服主倍�
 | 数据族 / 现有 JSON | PVF 真源或导出依据 | 迁移范围与当前工作 |
 | --- | --- | --- |
 | 职业 `characters.*` | 职业脚本及关联技能表；`catalog.ImportCharacters` | 有库导入器；先解释默认快捷栏、命令和成长投影差异；创建策略独立 |
-| 世界、城镇 `world.*`、`town.*` | 世界/城镇/NPC/地图列表；`ImportWorldRuntime`、`ImportTownArea` | 世界已接同源候选，补齐 NPCMoves、NPCPlaces、EpisodeReturns；PVF 候选阻止 JSON shadow-world 覆盖；独立 town 入口仍待接线 |
+| 世界、城镇 `world.*`、`town.*` | 世界/城镇/NPC/地图列表；`ImportWorldRuntime`、`ImportTownArea` | 世界已确认；城镇已接`town`离线候选，38/0及7个可走矩形完整一致，出生点独立策略保留 |
 | NPC 传送 `npc-teleport.generated` | `ImportNPCMoves` 读取原版移动表 | 已随世界候选直读；启动基线仍读取该 JSON 供迁移审计，业务使用 PVF 结果 |
 | 任务 `quests.*` | 原版任务列表及脚本；`ImportQuests` | 已接同源候选；还需取消过渡期 JSON 门禁依赖 |
 | 经验 `progression.*` | 原版经验阈值、怪物经验及源倍率表；`ImportProgression` | 已接同源候选；`experience.compat90` 的兼容计算策略单独保留 |
 | 技能 `skills.*` | `skill/<职业>skill.lst`，部分职业回退 `<职业>.lst`，关联 `.skl` | 已提取共享学习导入器并接入 `skills` 候选；3224条与生效next27完整一致；组合/预设/保存业务保持；不存在 `list/skill.lst` |
 | 物品索引 `items.index`、材料 `item-materials` | `list/equipment.lst`、`list/stackable.lst` 及 `.stk` | 共享索引已接 `items` 同源候选，599771条完整比对零差异；背包补充、箱子奖励分类、商城分类复用；材料规则和管理工具消费者待迁移 |
 | 时限和外观 `item-period-tags`、`skin-storage-items` | 物品期限、外观登记与 skin 列表/脚本 | 已接 `periods`、`skins` 同源候选，完整目录比对零差异；保留现有永不过期策略及127条缺失skin的拒绝边界 |
-| 装备 `equipment.*`、`equipment-full.index` + `.data` | `list/equipment.lst` 及 `.equ` | 全量按ID读取已接 `equipment` 同源候选，424216条定义逐项完全一致；压缩只读目录与有界缓存已实现；普通/任务3174行目录的选择投影仍待迁移，掉落池不扩大 |
-| 骑士盾牌 `equipment-knight-shield.*` | `etc/character/knight/shieldwindownewdata.etc`、盾牌 `.equ` | 提取 `cmd/shieldaudit`；位置、等级和任务解锁可迁移；客户端穿戴槽/容器映射保持已验证逻辑 |
-| 随机词条 `randomoption.*` | `etc/randomoption/` 的编号、数量、分组、组选与 overall 表 | 提取 `cmd/randomoptionimport`；保留现有可执行范围 |
+| 装备 `equipment.*`、`equipment-full.index` + `.data` | `list/equipment.lst` 及 `.equ` | 全量424216条已确认；普通/任务选择已接`equipment-selection`候选，3174行/2794行掉落池完整一致；基础1536个ID白名单为独立策略，1638项任务新增装备由PVF推导 |
+| 骑士盾牌 `equipment-knight-shield.*` | `etc/character/knight/shieldwindownewdata.etc`、盾牌 `.equ` | 已接`shields`离线候选，25面盾及窗口行完整一致；职业、槽位和6面任务盾拒绝边界保持 |
+| 随机词条 `randomoption.*` | `etc/randomoption/` 的编号、数量、分组、组选与 overall 表 | 已接`random-options`离线候选，4档、246数量行、17组、438选择及246成本行完整一致，6份源脚本哈希也参与核对 |
 | 装备图鉴与生成成本 `equipment-journal.generated`、`equipment-create-cost.generated` | `contents/2025/equipmentsetjournal/etc/equipmentsetjournal.cos` | 已接 `journal`、`create-cost` 同源候选，5个分类/9组成本完整比对零差异；执行开关保持独立 |
-| 誓约档位 `oath-grades` | `.equ` 中的誓约/引子等级与稀有度 | 提取 `cmd/oathgradeimport`；诊断指定档位和本服进度范围不由 PVF 替代 |
-| 普通掉落 `loot.*` | `etc/itemdropinfo_monseter.etc`、`etc/itemdropinfo_common.etc`、物品源脚本 | `ImportLoot` 已存在；源表直读，`drop.compat90` 的兼容公式/允许物品范围独立 |
+| 誓约档位 `oath-grades` | `.equ` 中的誓约/引子等级与稀有度 | 已接`oath-grades`离线候选，189件完整一致；诊断启用开关和指定档位不随迁移改变 |
+| 普通掉落 `loot.*` | `etc/itemdropinfo_monseter.etc`、`etc/itemdropinfo_common.etc`、物品源脚本 | 已接`loot`离线候选，1022种物品、1221组和281个副本索引完整一致；等级上限及排除6013为原策略，兼容公式不改变 |
 | NPC 价格 `shop-prices`、材料商店 `itemshop-*` | 物品价格字段、`list/itemshop.lst` / `itemshop/**/*.shp` 与 `[need material]` | `prices` 599682条、`materials` 14211条已接候选并完整一致；商店绑定遇到同ID多`.shp`冲突，保留JSON，须闭环NPC/客户端开店引用 |
 | 商城 `cerashop`、`shop-purchase-pilot`、`shop-vault-release` 等 | `etc/(r)cerashop.etc`、商品关联 `.stk` / `.equ` | `cashshop.ImportPilot` 已存在；源商品、价格、条件直读；已开放商品、特殊交付与购买试验开关独立 |
 | Booster、抽奖、选择箱 `booster-catalog`、`lottery-item-pools`、`lottery-equipment-pools`、`selection-boxes-*` | `.stk` 的 booster/select/lottery 字段，`etc/dungeondroptablebygroup.etc` 及装备组 | `boosters`已提取共享解析并接候选，42504条奖励池完整一致，未知项不扩大执行；抽奖和选择箱仍待提取与核对 |
 | 独立礼盒 `boxes` | `radianttreasurebox.cos` 等 COS 表 | 可迁移但待绑定完整源路径：当前 JSON 只有 `.cos.txt` 文件名，当前 PVF 有两个同名版本；须按物品脚本引用/内容指纹确认，不按 basename 任选 |
-| 强化/增幅券、增幅书、附魔 `reinforcement-tickets`、`amplify-tickets`、`amplify-grimoire`、`enchant-beads` | 对应 `.stk` 类型、作用条件、等级、成功率或附魔能力字段 | 已接第三批`enhancements`候选，1196/1629/433/4846种；普通券保留源补充的926个期限头，其余有效字段一致；待实机 |
-| 强化费用 `reinforcement-gold` | `etc/upgrade.etc` | 255级材料、费用、权重及源安全表已接第三批候选；材料路径直读索引，原概率/失败/材料选择与容器策略拆入`pvf-enhancement-policy.json`；待实机 |
-| 增幅费用 `amplify-upgrade` | `etc/amplifyupgrade.etc` | 255级普通表、安全费用和源条件已接第三批候选；外部成功率/失败行为作为独立策略；待实机 |
-| 金库 `vault.generated` | 账号金库 `etc/accountcargo.etc`；角色金库容量来自客户端分析 | 账号 `required_level` 与 40 行 `upgrade info` 可直读；个人金库初始容量/已验证容量与源版本不能改用 PVF checksum 覆盖 |
-| 副本主目录 `dungeons.*` | `list/dungeon.lst`、`list/map.lst` 及 `.dgn` / `.map` | `ImportDungeons` 已存在；导入普通副本全集及实际引用资源，不能用教程子集代替 |
-| 教程 `tutorial-routes.*`、`tutorial-dungeons.*`、训练场 | 职业起始路线及源副本/地图 | 教程路线已接 `tutorial` 候选，16条完整一致；教程副本/训练场仍待 `ImportDungeons` 接入，入口/spawn 选择独立保留 |
-| 副本覆盖 `terminal-scenes`、`layer-revisits`、`tournament-quest-maps`、两座塔、`hell-party-maps` | 原 `.dgn` / `.map` 引用、`list/cinematic.lst` 与源场景 | 两座塔有库导入器，其余提取导出/装配逻辑；分层重访和剧情条件仍按已确认执行语义保留 |
-| 迷宫概率 `dungeons.maze-chance-rates` | `.dgn` 的 `[maze chance rate]` | `source_rates` 迁移；当前 `[992857,7143] → [980000,20000]` 是实际覆盖值，作为独立策略保留 |
+| 强化/增幅券、增幅书、附魔 `reinforcement-tickets`、`amplify-tickets`、`amplify-grimoire`、`enchant-beads` | 对应 `.stk` 类型、作用条件、等级、成功率或附魔能力字段 | 第三批`enhancements`已由用户确认，1196/1629/433/4846种；普通券保留源补充的926个期限头，原实例期限边界保持 |
+| 强化费用 `reinforcement-gold` | `etc/upgrade.etc` | 第三批已确认，255级源费用直读；成功率、失败、安全补正和材料选择独立策略保留 |
+| 增幅费用 `amplify-upgrade` | `etc/amplifyupgrade.etc` | 第三批已确认，255级普通/安全费用直读，概率和失败策略保留 |
+| 金库 `vault.generated` | 账号金库 `etc/accountcargo.etc`；角色金库容量来自客户端分析 | 已接`vault`离线候选，账号60级门槛和40档费用完整一致；角色金库容量与客户端存档来源保留在独立策略 |
+| 副本主目录 `dungeons.*` | `list/dungeon.lst`、`list/map.lst` 及 `.dgn` / `.map` | 已接`dungeons`离线候选，3200副本/18387地图完整一致；10个当前解析器新增接受的副本按策略禁用，4个训练场独立合并 |
+| 教程 `tutorial-routes.*`、`tutorial-dungeons.*`、训练场 | 职业起始路线及源副本/地图 | 16条起始路线已确认；`tutorial-dungeons`15副本/65地图、`training-dungeons`4副本/7地图离线完整一致 |
+| 副本覆盖 `terminal-scenes`、`layer-revisits`、`tournament-quest-maps`、两座塔、`hell-party-maps` | 原 `.dgn` / `.map` 引用、`list/cinematic.lst` 与源场景 | `dungeon-towers`悲叹100层/100地图、眩惑33副本/56地图及`dungeon-hell`55张地图已接候选并完整一致；1个缺失深渊源引用仍拒绝。终场/分层重访/武斗大会仍待迁移 |
+| 迷宫概率 `dungeons.maze-chance-rates` | `.dgn` 的 `[maze chance rate]` | 已接`dungeon-maze`离线候选；源概率和脚本哈希直读，原`[992857,7143] → [980000,20000]`覆盖写入独立场景策略 |
 | Odyssey 成长、章节、武器箱 `odyssey-growth-*`、`odyssey-chapters-*`、`odyssey-weapon-box-*` | `contents/2026/aradodyssey/etc/aradodyssey.etc`、`aradodysseyjournal.cos`、关联礼盒脚本 | 提取成长/章节导出与现有解析；保留毕业主线、赠品与地图顺序，运行派生索引参与核对 |
 | Odyssey 掉落 `odyssey-chapter-drop-*`、`odyssey-currency` | 章节最后副本、奖励模板与货币 `.stk` | 源定义迁移；章节启用/概率与已由用户确认的货币自定义概率独立；不能借直读恢复为另一套概率 |
 | 天启与军团 `apocalypse.generated`、`legion-contents.generated` | `contents/2026/apocalypse/etc/apocalypse.ctp`、`dungeonskillinfo.ctp`、`contents/system/legionsystem/legionsystem.cos` | 提取 `cmd/apocalypseimport`；`ImportLegionContents` 已存在，需核对实际消费入口，未启用功能不随迁移开启 |
@@ -274,3 +274,11 @@ GM 包内另有 `set_items*.json`、`avatar_sets.json`、`set_display_names.json
 后续六项已完成源码接线和完整离线核对，仍属候选：随机词条17组、骑士盾牌25面、誓约/引子189件、账号金库40档、掉落1022种及装备选择3174行/2794行掉落池。金库客户端容量及存档来源保留，装备基础白名单1536个ID和掉落排除6013保留为原策略；任务新增装备从PVF任务推导。尚未为这六项部署或确认实机。
 
 完整迁移目标继续有效。下一项为城镇/主副本及其源覆盖数据，随后继续特殊玩法、嵌入目录、商品绑定和GM查询。未完成项不得据文件名缺失判定PVF没有。
+
+### 2026-10-01继续迁移：场景与副本源覆盖
+
+第三批确认与后续六类目录源码提交为`17a8c2b`。新增城镇、主副本、训练场、教程副本、两座塔、普通深渊地图和迷宫源概率。合计28个选择项/34类源数据，全部所选导出JSON路径不存在的联合准备通过（并发全量测试时49.03秒）；独立策略及角色来源锚点继续保留。新数据均为离线候选，尚未实机，不覆盖第三批已确认程序。
+
+旧主副本导出有14条`invalid [basis level]`诊断：4个训练场现在由独立源目录接入，另10个当前解析器新增接受的副本维持禁用策略。仅归一化这14条已失效诊断，剩余1699条诊断仍完整核对；3200个副本和18387张地图全部有效字段无差异。源数据未被补猜或重写。
+
+运行入口保留JSON模式回退，PVF主副本按完整目录应用覆盖，不依赖旧导出文件basename启用。候选目录见[第四批进度](PVF直读第四批迁移进度.md)。剩余终场/重访/武斗大会、特殊玩法、职业、商品绑定、抽奖/COS礼盒、嵌入目录和GM查询仍继续实施，不能称全项目迁移完成。

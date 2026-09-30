@@ -247,3 +247,49 @@ func (s *Source) EquipmentSelection(index catalog.ItemIndex, quests catalog.Ques
 	}
 	return inventory.ImportEquipmentSelection(s.archive, index, quests, policy)
 }
+
+func (s *Source) Town(town, area uint32) (catalog.TownArea, error) {
+	if s.archive == nil {
+		return catalog.TownArea{}, fmt.Errorf("town import requires PVF")
+	}
+	return catalog.ImportTownArea(s.archive, town, area)
+}
+
+func (s *Source) FullDungeons(world catalog.WorldCatalog, excluded []uint32) (catalog.DungeonCatalog, error) {
+	if s.archive == nil {
+		return catalog.DungeonCatalog{}, fmt.Errorf("dungeon import requires PVF")
+	}
+	return catalog.ImportFullDungeons(s.archive, world, excluded)
+}
+
+func (s *Source) Dungeons(ids []uint32) (catalog.DungeonCatalog, error) {
+	if s.archive == nil {
+		return catalog.DungeonCatalog{}, fmt.Errorf("dungeon import requires PVF")
+	}
+	c, err := catalog.ImportDungeons(s.archive, ids)
+	if err != nil {
+		return c, err
+	}
+	return catalog.ValidateDungeons(c)
+}
+
+func (s *Source) TowerGrief() (catalog.TowerGriefOverlay, error) {
+	if s.archive == nil {
+		return catalog.TowerGriefOverlay{}, fmt.Errorf("tower import requires PVF")
+	}
+	return catalog.ImportTowerGriefOverlay(s.archive)
+}
+
+func (s *Source) TowerDazzlement() (catalog.DazzlementOverlay, error) {
+	if s.archive == nil {
+		return catalog.DazzlementOverlay{}, fmt.Errorf("tower import requires PVF")
+	}
+	return catalog.ImportDazzlementOverlay(s.archive)
+}
+
+func (s *Source) HellPartyMaps(c catalog.DungeonCatalog) (catalog.SourceMapOverlay, []uint32, error) {
+	if s.archive == nil {
+		return catalog.SourceMapOverlay{}, nil, fmt.Errorf("Hell Party maps require PVF")
+	}
+	return catalog.ImportHellPartyMaps(s.archive, c)
+}

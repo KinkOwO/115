@@ -74,6 +74,7 @@ func main() {
 	pvfVerifyBaselines := flag.Bool("pvf-verify-baselines", os.Getenv("DFO_PVF_VERIFY_BASELINES") != "0", "compare selected PVF domains with JSON baselines before storage; false removes the selected JSON startup dependency")
 	pvfEnhancementPolicy := flag.String("pvf-enhancement-policy", envStrOr("DFO_PVF_ENHANCEMENT_POLICY", "configs/pvf-enhancement-policy.json"), "independent enhancement server policies; required only for PVF enhancements")
 	pvfVaultPolicy := flag.String("pvf-vault-policy", envStrOr("DFO_PVF_VAULT_POLICY", "configs/pvf-vault-policy.json"), "client capacity/save policy independent of PVF account vault table")
+	pvfScenePolicyPath := flag.String("pvf-scene-policy", envStrOr("DFO_PVF_SCENE_POLICY", "configs/pvf-scene-policy.json"), "independent entry town and training dungeon selection; source rules from PVF")
 	pvfDropPolicy := flag.String("pvf-drop-policy", envStrOr("DFO_PVF_DROP_POLICY", "configs/pvf-drop-policy.json"), "existing basic equipment allowlist and maximum loot grade; source rules from PVF")
 	pvfArchivePath := flag.String("pvf-archive", os.Getenv("DFO_PVF_ARCHIVE"), "explicit inner PVF path for candidate domains")
 	pvfArchiveChecksum := flag.String("pvf-sha256", os.Getenv("DFO_PVF_SHA256"), "expected inner PVF SHA256; must match existing character source")
@@ -181,7 +182,7 @@ func main() {
 	omenState := flag.Bool("omen-state", os.Getenv("DFO_OMEN_STATE") == "1", "征兆的正式状态：持有档数存进角色存档、进本按真实状态下发 noti 2836，并让隐藏 BOSS 由「满档结算」驱动（见 cmd/wireprobe/omen_state.go）。默认关闭")
 	scaleDeathFromHP := flag.Bool("scale-death-from-hp", os.Getenv("DFO_SCALE_DEATH_FROM_HP") == "1", "boundary-of-attunement 定盘机关(109019266)的兜底判死：它血量触底时服务端合成一条死亡上报，不再依赖引擎那两个恒为 72 的 rarity 天花板；默认关闭")
 	flag.Parse()
-	pvfCatalogs, pvfCatalogErr := preparePVFCoreCatalogs(*pvfCatalogSelection, *pvfArchivePath, *pvfArchiveChecksum, *characterCatalog, *questCatalogFile, *progressionCatalogFile, *worldCatalogFile, pvfItemInputs{indexPath: *itemIndexFile, fullPrefix: *fullEquipmentFile, journalPath: *equipmentJournalRulesFile, createCostPath: *equipmentCreateCostFile, learningPath: *learningFile, pricesPath: *shopPricesFile, boosterPath: *boosterCatalogFile, tutorialPath: *tutorialRoutesFile, verifyBaselines: pvfVerifyBaselines, enhancementPolicyPath: *pvfEnhancementPolicy, randomOptionPath: *randomOptionFile, shieldPath: *knightShieldFile, wearRulesPath: *wearRulesFile, oathPath: *oathGradesTable, vaultPath: *vaultRulesFile, vaultPolicyPath: *pvfVaultPolicy, lootPath: *lootCatalogFile, equipmentPath: *equipmentCatalogFile, questEquipmentPath: *equipmentRewardFile, dropPolicyPath: *pvfDropPolicy})
+	pvfCatalogs, pvfCatalogErr := preparePVFCoreCatalogs(*pvfCatalogSelection, *pvfArchivePath, *pvfArchiveChecksum, *characterCatalog, *questCatalogFile, *progressionCatalogFile, *worldCatalogFile, pvfItemInputs{indexPath: *itemIndexFile, fullPrefix: *fullEquipmentFile, journalPath: *equipmentJournalRulesFile, createCostPath: *equipmentCreateCostFile, learningPath: *learningFile, pricesPath: *shopPricesFile, boosterPath: *boosterCatalogFile, tutorialPath: *tutorialRoutesFile, verifyBaselines: pvfVerifyBaselines, enhancementPolicyPath: *pvfEnhancementPolicy, randomOptionPath: *randomOptionFile, shieldPath: *knightShieldFile, wearRulesPath: *wearRulesFile, oathPath: *oathGradesTable, vaultPath: *vaultRulesFile, vaultPolicyPath: *pvfVaultPolicy, lootPath: *lootCatalogFile, equipmentPath: *equipmentCatalogFile, questEquipmentPath: *equipmentRewardFile, dropPolicyPath: *pvfDropPolicy, townPath: *townCatalogFile, dungeonPath: *dungeonCatalogFile, tutorialDungeonPath: *tutorialDungeonsFile, scenePolicyPath: *pvfScenePolicyPath})
 	if pvfCatalogErr != nil {
 		log.Fatalf("PVF candidate catalogs: %v", pvfCatalogErr)
 	}
@@ -427,11 +428,11 @@ func main() {
 		Flags [3]byte `json:"flags"`
 	}
 	if *townProbeFile != "" {
-		if !*entryBasicProbe || *townCatalogFile == "" {
+		if !*entryBasicProbe || (*townCatalogFile == "" && pvfCatalogs.town == nil) {
 			log.Fatal("town probe requires basic actor and town catalog")
 		}
 		var e error
-		townCatalog, e = catalog.LoadTownArea(*townCatalogFile)
+		townCatalog, e = pvfCatalogs.loadTown(*townCatalogFile)
 		if e != nil {
 			log.Fatal(e)
 		}
@@ -722,14 +723,14 @@ func main() {
 			log.Fatal(e)
 		}
 	}
-	if *dungeonCatalogFile != "" {
+	if *dungeonCatalogFile != "" || pvfCatalogs.dungeons != nil {
 		if candidate := os.Getenv("DFO_ODYSSEY_DUNGEON_CATALOG"); candidate != "" {
 			*dungeonCatalogFile = candidate
 		}
 		if worldService == nil {
 			log.Fatal("dungeons require world sessions")
 		}
-		data, e := catalog.LoadDungeons(*dungeonCatalogFile)
+		data, e := pvfCatalogs.loadDungeons(*dungeonCatalogFile)
 		if e != nil {
 			log.Fatal(e)
 		}
@@ -737,40 +738,44 @@ func main() {
 		if trainingRoomPath == "" {
 			trainingRoomPath = filepath.Join(filepath.Dir(*dungeonCatalogFile), "dungeons.training-room.json")
 		}
-		trainingRooms, e := catalog.LoadDungeons(trainingRoomPath)
+		trainingRooms, e := pvfCatalogs.loadTrainingDungeons(trainingRoomPath)
 		if e != nil {
 			log.Fatal(e)
 		}
 		if e = catalog.MergeDungeonCatalog(&data, trainingRooms); e != nil {
 			log.Fatal(e)
 		}
-		if filepath.Base(*dungeonCatalogFile) == "dungeons.full.json" {
-			path := filepath.Join(filepath.Dir(*dungeonCatalogFile), "dungeons.terminal-scenes.json")
+		if filepath.Base(*dungeonCatalogFile) == "dungeons.full.json" || pvfCatalogs.dungeons != nil {
+			overlayDirectory := filepath.Dir(*dungeonCatalogFile)
+			if pvfCatalogs.dungeons != nil {
+				overlayDirectory = filepath.Dir(*characterCatalog)
+			}
+			path := filepath.Join(overlayDirectory, "dungeons.terminal-scenes.json")
 			if e = catalog.AttachTerminalScenes(&data, path); e != nil {
 				log.Fatal(e)
 			}
-			path = filepath.Join(filepath.Dir(*dungeonCatalogFile), "dungeons.layer-revisits.json")
+			path = filepath.Join(overlayDirectory, "dungeons.layer-revisits.json")
 			if e = catalog.AttachLayerRevisits(&data, path); e != nil {
 				log.Fatal(e)
 			}
-			path = filepath.Join(filepath.Dir(*dungeonCatalogFile), "dungeons.tournament-quest-maps.json")
+			path = filepath.Join(overlayDirectory, "dungeons.tournament-quest-maps.json")
 			if e = catalog.AttachTournamentQuestMaps(&data, path); e != nil {
 				log.Fatal(e)
 			}
-			path = filepath.Join(filepath.Dir(*dungeonCatalogFile), "dungeons.tower-of-grief-maps.json")
-			if e = catalog.AttachTowerGriefMaps(&data, path); e != nil {
+			path = filepath.Join(overlayDirectory, "dungeons.tower-of-grief-maps.json")
+			if e = pvfCatalogs.attachTowerGrief(&data, path); e != nil {
 				log.Fatal(e)
 			}
-			path = filepath.Join(filepath.Dir(*dungeonCatalogFile), "dungeons.tower-of-dazzlement-maps.json")
-			if e = catalog.AttachDazzlementMaps(&data, path); e != nil {
+			path = filepath.Join(overlayDirectory, "dungeons.tower-of-dazzlement-maps.json")
+			if e = pvfCatalogs.attachTowerDazzlement(&data, path); e != nil {
 				log.Fatal(e)
 			}
-			path = filepath.Join(filepath.Dir(*dungeonCatalogFile), "dungeons.maze-chance-rates.json")
-			if e = catalog.AttachMazeChanceRates(&data, path); e != nil {
+			path = filepath.Join(overlayDirectory, "dungeons.maze-chance-rates.json")
+			if e = pvfCatalogs.attachMazeRates(&data, path); e != nil {
 				log.Fatal(e)
 			}
-			path = filepath.Join(filepath.Dir(*dungeonCatalogFile), "dungeons.hell-party-maps.json")
-			if e = catalog.AttachHellPartyMaps(&data, path); e != nil {
+			path = filepath.Join(overlayDirectory, "dungeons.hell-party-maps.json")
+			if e = pvfCatalogs.attachHellMaps(&data, path); e != nil {
 				log.Fatal(e)
 			}
 		}
@@ -835,14 +840,14 @@ func main() {
 		if dungeonCatalog == nil || characters == nil {
 			log.Fatal("starting routes require source dungeons and persisted characters")
 		}
-		if *tutorialDungeonsFile == "" {
+		if *tutorialDungeonsFile == "" && pvfCatalogs.tutorialDungeons == nil {
 			log.Fatal("starting routes require their own dungeon catalog")
 		}
 		routes, e := pvfCatalogs.loadTutorialRoutes(*tutorialRoutesFile, characters.Catalog.Source.Checksum)
 		if e != nil {
 			log.Fatal(e)
 		}
-		data, e := catalog.LoadDungeons(*tutorialDungeonsFile)
+		data, e := pvfCatalogs.loadTutorialDungeons(*tutorialDungeonsFile)
 		if e != nil {
 			log.Fatal(e)
 		}

@@ -160,6 +160,14 @@ func AttachTowerGriefMaps(c *DungeonCatalog, path string) error {
 	if err := json.Unmarshal(b, &overlay); err != nil {
 		return err
 	}
+	return ApplyTowerGriefMaps(c, overlay)
+}
+
+// ApplyTowerGriefMaps validates and attaches a native or audited source table.
+func ApplyTowerGriefMaps(c *DungeonCatalog, overlay TowerGriefOverlay) error {
+	if c == nil {
+		return fmt.Errorf("nil dungeon catalog")
+	}
 	if overlay.SourceChecksum != c.Source.Checksum || overlay.DailyEntries == 0 || len(overlay.Layers) != towerGriefTopLayer || len(overlay.Maps) != towerGriefTopLayer {
 		return fmt.Errorf("Tower of Grief overlay source mismatch or incomplete")
 	}

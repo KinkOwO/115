@@ -18,27 +18,33 @@ import (
 // verifies complete effective projections; source checks remain mandatory in
 // normal direct mode as well as audit mode.
 type pvfCoreCatalogs struct {
-	quests        *catalog.QuestCatalog
-	progression   *catalog.Progression
-	world         *catalog.WorldCatalog
-	items         *catalog.ItemIndex
-	equipment     *inventory.FullEquipmentCatalog
-	periods       []uint32
-	skins         map[uint32]catalog.SkinStorageEntry
-	journal       *catalog.EquipmentJournalRules
-	createCost    *catalog.EquipmentCreateCost
-	learning      *character.LearningCatalog
-	prices        *catalog.ShopPrices
-	materials     *catalog.ItemMaterials
-	boosters      map[uint32]catalog.BoosterDefinition
-	tutorial      *catalog.TutorialCatalog
-	enhancements  *inventory.EnhancementCatalog
-	randomOptions *inventory.RandomOptionCatalog
-	shields       *inventory.KnightShields
-	oath          *inventory.OathGradeTable
-	loot          *catalog.LootCatalog
-	selection     *inventory.EquipmentCatalog
-	vault         *inventory.VaultRules
+	mazeRates                                    *catalog.MazeChanceOverlay
+	hellMaps                                     *catalog.SourceMapOverlay
+	grief                                        *catalog.TowerGriefOverlay
+	dazzlement                                   *catalog.DazzlementOverlay
+	quests                                       *catalog.QuestCatalog
+	progression                                  *catalog.Progression
+	world                                        *catalog.WorldCatalog
+	items                                        *catalog.ItemIndex
+	equipment                                    *inventory.FullEquipmentCatalog
+	periods                                      []uint32
+	skins                                        map[uint32]catalog.SkinStorageEntry
+	journal                                      *catalog.EquipmentJournalRules
+	createCost                                   *catalog.EquipmentCreateCost
+	learning                                     *character.LearningCatalog
+	prices                                       *catalog.ShopPrices
+	materials                                    *catalog.ItemMaterials
+	boosters                                     map[uint32]catalog.BoosterDefinition
+	tutorial                                     *catalog.TutorialCatalog
+	enhancements                                 *inventory.EnhancementCatalog
+	randomOptions                                *inventory.RandomOptionCatalog
+	shields                                      *inventory.KnightShields
+	oath                                         *inventory.OathGradeTable
+	loot                                         *catalog.LootCatalog
+	selection                                    *inventory.EquipmentCatalog
+	town                                         *catalog.TownArea
+	dungeons, trainingDungeons, tutorialDungeons *catalog.DungeonCatalog
+	vault                                        *inventory.VaultRules
 }
 
 type pvfItemInputs struct {
@@ -46,20 +52,27 @@ type pvfItemInputs struct {
 	verifyBaselines                                                                                                        *bool
 	lootPath, equipmentPath, questEquipmentPath, dropPolicyPath                                                            string
 	randomOptionPath, shieldPath, wearRulesPath, oathPath, vaultPath, vaultPolicyPath                                      string
+	townPath, dungeonPath, trainingDungeonPath, tutorialDungeonPath, scenePolicyPath                                       string
 	enhancementPolicyPath                                                                                                  string
 }
 
 func (i pvfItemInputs) checksBaselines() bool { return i.verifyBaselines == nil || *i.verifyBaselines }
 
+const pvfSupportedDomains = "world,quests,progression,items,equipment,periods,skins,journal,create-cost,skills,prices,materials,boosters,tutorial,enhancements,random-options,shields,oath-grades,vault,loot,equipment-selection,town,dungeons,training-dungeons,tutorial-dungeons,dungeon-towers,dungeon-hell,dungeon-maze"
+
 func parsePVFCatalogSelection(value string) (map[string]bool, error) {
+	supported := map[string]bool{}
+	for _, domain := range strings.Split(pvfSupportedDomains, ",") {
+		supported[domain] = true
+	}
 	selected := map[string]bool{}
 	if strings.TrimSpace(value) == "" {
 		return selected, nil
 	}
 	for _, domain := range strings.Split(value, ",") {
 		domain = strings.TrimSpace(domain)
-		if domain != "quests" && domain != "progression" && domain != "world" && domain != "items" && domain != "equipment" && domain != "periods" && domain != "skins" && domain != "journal" && domain != "create-cost" && domain != "skills" && domain != "prices" && domain != "materials" && domain != "boosters" && domain != "tutorial" && domain != "enhancements" && domain != "random-options" && domain != "shields" && domain != "oath-grades" && domain != "vault" && domain != "loot" && domain != "equipment-selection" {
-			return nil, fmt.Errorf("PVF candidate domain %q is not enabled; supported: quests,progression,world,items,equipment,periods,skins,journal,create-cost,skills,prices,materials,boosters,tutorial,enhancements,random-options,shields,oath-grades,vault,loot,equipment-selection (character parity is pending)", domain)
+		if !supported[domain] {
+			return nil, fmt.Errorf("PVF candidate domain %q is not enabled; supported: %s (character parity is pending)", domain, pvfSupportedDomains)
 		}
 		if selected[domain] {
 			return nil, fmt.Errorf("duplicate PVF candidate domain %q", domain)
@@ -262,6 +275,18 @@ func preparePVFCoreCatalogs(selection, path, checksum, characterPath, questPath,
 			log.Printf("PVF lazy equipment prepared: %d source bindings; expanded chunks bounded to 64 MiB", len(candidate.Records))
 		}
 	}
+	if err := preparePVFScenes(&result, source, selected, inputs); err != nil {
+		return result, err
+	}
+	if err := preparePVFTowers(&result, source, selected, inputs); err != nil {
+		return result, err
+	}
+	if err := preparePVFHellMaps(&result, source, selected, inputs); err != nil {
+		return result, err
+	}
+	if err := preparePVFMazeRates(&result, selected, inputs); err != nil {
+		return result, err
+	}
 	log.Printf("PVF candidate catalogs prepared in %s; full directory can be collected before opening storage", time.Since(started))
 	return result, nil
 }
@@ -281,7 +306,7 @@ func (c pvfCoreCatalogs) loadProgression(path string) (catalog.Progression, erro
 }
 
 func collectPVFImportMemory(c pvfCoreCatalogs) {
-	if c.quests != nil || c.progression != nil || c.world != nil || c.items != nil || c.periods != nil || c.skins != nil || c.journal != nil || c.createCost != nil || c.learning != nil || c.tutorial != nil {
+	if c.town != nil || c.dungeons != nil || c.trainingDungeons != nil || c.tutorialDungeons != nil || c.quests != nil || c.progression != nil || c.world != nil || c.items != nil || c.periods != nil || c.skins != nil || c.journal != nil || c.createCost != nil || c.learning != nil || c.tutorial != nil {
 		runtime.GC()
 	}
 }
