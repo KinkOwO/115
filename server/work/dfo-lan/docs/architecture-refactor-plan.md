@@ -1,6 +1,6 @@
 # 服务端架构简化实施计划
 
-状态：批次 1 已完成；批次 2 代码改动已完成，等待用户实机验收。
+状态：批次 1、2 已完成；批次 3 的连接资源收敛已完成，等待用户实机验收。
 
 基线提交：`9fc9a0617d3fc16fa43f8bb4bc1fcd31be4c7990`（2026-09-30）
 
@@ -141,7 +141,46 @@ CMD295
 
 自动化验证在本批提交前完成；实机验收由用户手动执行后再更新本节和 CHANGELOG。若实机发现协议或客户端消费差异，下一次提交只记录一个新的证据和假设，不回退到增加转发接口。
 
-## 5. 后续批次
+## 5. 第三批：连接资源生命周期
+
+状态：**代码已完成，等待用户实机验收**。
+
+当前路径：
+
+```text
+handleClient
+  -> done channel + clientFrames
+  -> mailChanges / mailTicker
+  -> daily ticker
+  -> mine ticker
+  -> optional Moon ticker
+  -> 多个分散的 defer
+```
+
+目标路径：
+
+```text
+handleClient
+  -> connectionSession
+       -> reader stop signal
+       -> mail change trigger and ticker
+       -> daily / mine / optional Moon ticker
+       -> idempotent close
+```
+
+本批新增 `connectionSession`，只拥有连接级资源的创建、停止和 reader 退出信号；`worldSession` 继续拥有副本、城镇、角色玩法状态。删除连接时需要理解的清理路径从多个局部 `defer` 收敛为一个所有者，重复关闭也不会 panic。
+
+保持的行为：邮件 2 秒、日切 30 秒、矿区 1 秒、月湖 250 毫秒的触发间隔不变；发送顺序、世界状态退出和客户端帧读取协议不变。
+
+批次 3 验收：
+
+- [x] `done`、连接级 channel 和 ticker 由 `connectionSession` 创建及关闭。
+- [x] 连接关闭重复调用安全，未启用月湖时不创建月湖 ticker。
+- [x] `go test ./...` 通过。
+- [x] `go vet ./...` 通过。
+- [ ] 实机验证连接正常退出、异常断连和月湖开关两条路径。
+
+## 6. 后续批次
 
 每批合并前都要更新本文件；下表中的“完成”只有在代码、自动化检查和必要的实机证据齐全后才能勾选。
 
@@ -156,7 +195,7 @@ CMD295
 | 09 | 删除无用 oath 骨架、PVF 无调用中间层和重复启动装配 | 06–08 | 直接 GM 启动路径和外部 pgdata 策略保持不变 |
 | 10 | 全量回归和长期依赖检查 | 01–09 | 行为、存档、协议和依赖规则都有可重复检查 |
 
-## 6. 每批 MR 模板
+## 7. 每批 MR 模板
 
 ```text
 标题：refactor(server): <一个批次的单一架构目标>

@@ -1681,29 +1681,16 @@ func main() {
 			return
 		}
 		event(map[string]any{"kind": "server_frame", "peer": peer, "hex": hex.EncodeToString(raw)})
-		done := make(chan struct{})
-		defer close(done)
-		frames := clientFrames(c, done)
-		mailChanges := make(chan struct{}, 1)
-		// GM 为独立进程，无法调用本进程的 lanHub；定期从已提交邮件补齐提醒。
-		mailTicker := time.NewTicker(2 * time.Second)
-		defer mailTicker.Stop()
+		connection := newConnectionSession(worldState != nil && worldState.moonConfig != nil)
+		defer connection.close()
+		frames := clientFrames(c, connection.done)
+		mailChanges := connection.mailChanges
 		var mailAlarmRole, mailDeliveryID int64
-		ticker := time.NewTicker(30 * time.Second)
-		defer ticker.Stop()
-		mineTicker := time.NewTicker(time.Second)
-		defer mineTicker.Stop()
-		var moonTicks <-chan time.Time
-		if worldState != nil && worldState.moonConfig != nil {
-			mt := time.NewTicker(250 * time.Millisecond)
-			defer mt.Stop()
-			moonTicks = mt.C
-		}
 		for {
 			var incoming clientRead
 			select {
 			case incoming = <-frames:
-			case now := <-mineTicker.C:
+			case now := <-connection.mineTicker.C:
 				if bootstrapped && selectedCharacterID != 0 && worldState != nil {
 					cardPackets, cardErr := worldState.autoPickBlackPurgatoryCard(now)
 					if cardErr != nil {
@@ -1748,7 +1735,7 @@ func main() {
 					}
 				}
 				continue
-			case now := <-moonTicks:
+			case now := <-connection.moonTicks():
 				if bootstrapped && selectedCharacterID != 0 {
 					packets, e := worldState.moonTick(now)
 					if e != nil {
@@ -1762,7 +1749,7 @@ func main() {
 					}
 				}
 				continue
-			case <-mailTicker.C:
+			case <-connection.mailTicker.C:
 				select {
 				case mailChanges <- struct{}{}:
 				default:
@@ -1800,7 +1787,7 @@ func main() {
 					}
 				}
 				continue
-			case now := <-ticker.C:
+			case now := <-connection.dailyTicker.C:
 				if bootstrapped && selectedCharacterID != 0 && worldState != nil {
 					p, e := worldState.refreshDailyFatigue(now)
 					if e != nil {
@@ -3866,7 +3853,7 @@ func main() {
 						// 剧情叠在死亡界面上卡死）。
 						w := worldState
 						select {
-						case <-done:
+						case <-connection.done:
 						default:
 							time.AfterFunc(deathFailTimeout, func() {
 								d := w.pilotDeath
