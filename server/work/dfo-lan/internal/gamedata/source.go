@@ -3,6 +3,7 @@
 package gamedata
 
 import (
+	"dfolan/internal/adventure"
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/character"
@@ -33,6 +34,10 @@ type Options struct {
 type Source struct {
 	mode    Mode
 	archive *pvf.Archive
+}
+
+func (s *Source) Adventure(index catalog.ItemIndex) (*adventure.Rules, error) {
+	return adventure.ImportRules(s.archive, index)
 }
 
 func (s *Source) Lottery(index catalog.ItemIndex, policy catalog.LotteryPolicy) (catalog.LotteryTables, error) {

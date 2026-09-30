@@ -51,7 +51,7 @@ def load_profile(path, project):
             env[key] = value.lower()
         elif key == 'DFO_PVF_CATALOGS' and isinstance(value, str):
             domains = [part.strip() for part in value.split(',')]
-            allowed = {'world', 'quests', 'progression', 'items', 'equipment', 'periods', 'skins', 'journal', 'create-cost', 'skills', 'prices', 'materials', 'boosters', 'tutorial', 'enhancements', 'random-options', 'shields', 'oath-grades', 'vault', 'loot', 'equipment-selection', 'town', 'dungeons', 'training-dungeons', 'tutorial-dungeons', 'dungeon-towers', 'dungeon-hell', 'dungeon-maze', 'apocalypse', 'attunement', 'odyssey-growth', 'odyssey-chapters', 'odyssey-weapons', 'odyssey-drop', 'odyssey-currency', 'clear-cube', 'black-purgatory', 'bleeding-mine', 'dungeon-terminal', 'dungeon-tournament', 'selection-boxes', 'lottery'}
+            allowed = {'world', 'quests', 'progression', 'items', 'equipment', 'periods', 'skins', 'journal', 'create-cost', 'skills', 'prices', 'materials', 'boosters', 'tutorial', 'enhancements', 'random-options', 'shields', 'oath-grades', 'vault', 'loot', 'equipment-selection', 'town', 'dungeons', 'training-dungeons', 'tutorial-dungeons', 'dungeon-towers', 'dungeon-hell', 'dungeon-maze', 'apocalypse', 'attunement', 'odyssey-growth', 'odyssey-chapters', 'odyssey-weapons', 'odyssey-drop', 'odyssey-currency', 'clear-cube', 'black-purgatory', 'bleeding-mine', 'dungeon-terminal', 'dungeon-tournament', 'selection-boxes', 'lottery', 'adventure'}
             if not domains or len(set(domains)) != len(domains) or any(part not in allowed for part in domains):
                 raise ValueError('Invalid PVF candidate domains')
             env[key] = ','.join(domains)

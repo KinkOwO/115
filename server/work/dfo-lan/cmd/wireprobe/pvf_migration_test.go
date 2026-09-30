@@ -1,6 +1,7 @@
 package main
 
 import (
+	"dfolan/internal/adventure"
 	"os"
 	"testing"
 )
@@ -63,5 +64,14 @@ func TestPVFMigrationSourceOnlyLocalArchive(t *testing.T) {
 	if count, err := c.loadLotteryEquipment("missing-equipment-lottery.json", c.items.Items, lottery); err != nil || count != 2477 || len(lottery.byTemplate) != 2753 {
 		t.Fatal("lottery scope changed", err)
 	}
-	t.Log("42 selectors / 49 source families prepared with all selected export JSON paths absent")
+	restore, err := c.installAdventureRules()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer restore()
+	rules, err := adventure.Current()
+	if err != nil || len(rules.Experience) != 60 || len(rules.Shops) != 3 {
+		t.Fatal("native embedded adventure rules missing", err)
+	}
+	t.Log("43 selectors / 50 source families prepared with all selected export JSON paths absent")
 }

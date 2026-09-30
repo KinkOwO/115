@@ -189,6 +189,9 @@ func main() {
 	if pvfCatalogErr != nil {
 		log.Fatalf("PVF candidate catalogs: %v", pvfCatalogErr)
 	}
+	if _, err := pvfCatalogs.installAdventureRules(); err != nil {
+		log.Fatalf("PVF adventure runtime rules: %v", err)
+	}
 	collectPVFImportMemory(pvfCatalogs)
 	equipmentCraftWindow = byte(*equipmentCraftWindowFlag)
 	equipmentCraftVariant = byte(*equipmentCraftVariantFlag)
