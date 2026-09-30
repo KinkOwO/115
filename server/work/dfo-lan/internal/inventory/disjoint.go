@@ -75,11 +75,24 @@ func (b Bag) Disjoint(
 
 		eqItem := b.Equipment[foundIndex]
 		var info DisjointEquipmentInfo
+		// [ALIGN-20260930-OATH-DISJOINT] 誓约类分解**不产出通用材料**（官方规则）：
+		//   · 光之誓约（誓约核心，`[equipment type] [oath]`）—— 分解后**自动登记装备库**，
+		//     但**分解本身不产出材料**，且不可通过商店出售 / 丢弃 / 赠送删除；
+		//   · 星蕴石（`[primer]`）—— 分解产出的是**对应套装的星蕴石碎片**（角色绑定，
+		//     1000 个→自选史诗星蕴石 / 1500 个→自选太初星蕴石），属于**另一套产物**，
+		//     不走这里的 rarity 材料表；
+		//   · 从装备库生成的誓约装备同样无材料产出。
+		// 所以这两类跳过 `CalculateDisjointRewards`。（碎片系统待实现。）
+		oathLike := false
 		if eq != nil {
 			if def, err := eq.Definition(eqItem.Template); err == nil {
 				info = ExtractDisjointEquipmentInfo(def)
 				if info.Impossible {
 					return b, zeroResult, fmt.Errorf("item at slot %d cannot be disassembled", reqSlot)
+				}
+				switch equipmentTypeKind(def) {
+				case "[oath]", "[primer]":
+					oathLike = true
 				}
 			} else {
 				info = DisjointEquipmentInfo{
@@ -98,15 +111,17 @@ func (b Bag) Disjoint(
 			}
 		}
 
-		itemRewards := CalculateDisjointRewards(info, nil)
-		for _, rw := range itemRewards {
-			if rw.Count == 0 {
-				continue
+		if !oathLike {
+			itemRewards := CalculateDisjointRewards(info, nil)
+			for _, rw := range itemRewards {
+				if rw.Count == 0 {
+					continue
+				}
+				if accumulatedRewards[rw.Template] == 0 {
+					rewardOrder = append(rewardOrder, rw.Template)
+				}
+				accumulatedRewards[rw.Template] += rw.Count
 			}
-			if accumulatedRewards[rw.Template] == 0 {
-				rewardOrder = append(rewardOrder, rw.Template)
-			}
-			accumulatedRewards[rw.Template] += rw.Count
 		}
 
 		deletedSlots = append(deletedSlots, reqSlot)
