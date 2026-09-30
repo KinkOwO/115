@@ -25,6 +25,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -115,6 +116,7 @@ func main() {
 	channelIdentityEnabled := flag.Bool("channel-identity", false, "candidate: synchronize NOTI2435 and all actor contexts with the connected channel")
 	equipmentRewardFile := flag.String("quest-equipment-catalog", "", "source basic-equipment metadata for atomic quest rewards")
 	wearRulesFile := flag.String("equipment-wear-rules", "", "current-client equipment slots and persistent wear handling")
+	knightShieldFile := flag.String("knight-shield-catalog", "equipment-knight-shield.full-candidate.json", "optional source-verified shield window side-car; relative to wear rules directory, empty disables")
 	fullEquipmentFile := flag.String("equipment-full-catalog", os.Getenv("DFO_EQUIPMENT_FULL_CATALOG"), "separate indexed wear catalog prefix; does not widen drops")
 	itemIndexFile := flag.String("item-index", os.Getenv("DFO_ITEM_INDEX"), "full stackable item index JSON (e.g. configs/items.index.json)")
 	boosterCatalogFile := flag.String("booster-catalog", os.Getenv("DFO_BOOSTER_CATALOG"), "booster definitions JSON")
@@ -1054,9 +1056,25 @@ func main() {
 					log.Fatal(err)
 				}
 				wearService = &inventory.WearService{Store: characters.Store, Catalog: equipment, Professions: characters.Catalog, BagRules: lootService.BagRules, Rules: rules}
+
 				// 装备变换要用「部位 → 装备类型」映射去**背包**里找源（客户端允许把背包装备放进
 				// 界面「变换前」槽，请求只带部位码），所以把同一份 WearRules 也交给 loot 服务。
 				lootService.WearRules = rules
+
+				if *knightShieldFile != "" {
+					shieldPath := knightShieldCatalogPath(*knightShieldFile, rulesPath)
+					shields, shieldErr := inventory.LoadKnightShields(shieldPath, data.Source.Checksum)
+					if shieldErr != nil && !errors.Is(shieldErr, os.ErrNotExist) {
+						log.Fatal(shieldErr)
+					}
+					wearService.Shields = shields
+					if shields == nil {
+						log.Printf("knight shield window disabled: catalog absent at %s", shieldPath)
+					} else {
+						log.Printf("knight shield window enabled: %d source-verified shields from %s", len(shields.Rows), shieldPath)
+					}
+				}
+
 				// 创建期的初始装备投影共用同一份装备目录与部位槽映射，避免另立编号。
 				characters.Equipment = equipment
 				characters.WearRules = rules
@@ -2391,12 +2409,46 @@ func main() {
 				}
 				continue
 			}
+			if frame.Type == 1 && frame.ID == 649 && bootstrapped && verified {
+				var oldShield uint32
+				if worldState != nil {
+					if b, err := inventory.ReadBag(worldState.role.State); err == nil {
+						oldShield = b.KnightDeck()[0]
+					}
+				}
+				plan, deckErr := equipmentState.handleKnightDeck(wearService, worldState, plaintext, frame.Raw)
+				event(knightShieldObservation(worldState, 649, plaintext, oldShield, deckErr))
+				if sendErr := sendPayload(1, 649, protocol.KnightDeckAck()); sendErr != nil {
+					return
+				}
+				event(map[string]any{"kind": "knight_deck_acknowledged", "type": 1, "id": 649, "payload_bytes": 3})
+				if deckErr == nil {
+					for _, packet := range plan {
+						if sendErr := sendPayload(packet.Kind, packet.ID, packet.Payload); sendErr != nil {
+							return
+						}
+						event(map[string]any{"kind": packet.Name, "type": packet.Kind, "id": packet.ID, "payload_bytes": len(packet.Payload), "plain_hex": hex.EncodeToString(packet.Payload)})
+					}
+				}
+				continue
+			}
 			if frame.ID == 19 && bootstrapped && verified && wearService != nil {
+				shieldRequest, shieldDecodeErr := protocol.DecodeItemMove(plaintext)
+				shieldMove := shieldDecodeErr == nil && inventory.IsKnightShieldMove(shieldRequest)
+				var oldShield uint32
+				if shieldMove && worldState != nil {
+					if b, err := inventory.ReadBag(worldState.role.State); err == nil {
+						oldShield = b.KnightDeck()[0]
+					}
+				}
 				plan, e := equipmentState.handle(wearService, worldState, plaintext, frame.Raw)
+				if shieldMove {
+					event(knightShieldObservation(worldState, 19, plaintext, oldShield, e))
+				}
 				if e != nil {
 					event(map[string]any{"kind": "equipment_move_refused", "reason": e.Error()})
 					r, _ := protocol.DecodeItemMove(plaintext)
-					if e = sendPayload(1, 19, protocol.ItemMoveRefused(r)); e != nil {
+					if e = sendPayload(1, 19, protocol.ItemMoveRefused(r, inventory.MoveRefusalCode(e))); e != nil {
 						return
 					}
 					continue
@@ -2453,7 +2505,7 @@ func main() {
 					return
 				}
 				if e = writePackets(c, prepared, func(p preparedPacket) {
-					event(map[string]any{"kind": p.Name, "character_id": worldState.role.ID, "id": p.ID, "plain_hex": hex.EncodeToString(p.Payload)})
+					event(map[string]any{"kind": p.Name, "character_id": worldState.role.ID, "type": p.Kind, "id": p.ID, "payload_bytes": len(p.Payload), "plain_hex": hex.EncodeToString(p.Payload)})
 				}); e != nil {
 					event(map[string]any{"kind": "equipment_write_error", "error": e.Error()})
 					return
@@ -5032,6 +5084,11 @@ func main() {
 					role = loyaltyRole
 				}
 				if wearService != nil {
+					plan.KnightDeck, e = wearService.KnightDeckPayload(role)
+					if e != nil {
+						event(map[string]any{"kind": "entry_knight_deck_error", "character_id": role.ID, "error": e.Error()})
+						plan.KnightDeck = nil
+					}
 					plan.Worn, e = inventory.WornPayload(role.State)
 					if e == nil {
 						plan.WornUpdate, e = inventory.WornSpaceUpdate(role.State)

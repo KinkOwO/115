@@ -44,6 +44,7 @@ type WearService struct {
 	Professions catalog.Characters
 	BagRules    BagRules
 	Rules       WearRules
+	Shields     *KnightShields
 }
 
 func (s *WearService) EggHatchTarget(template uint32) uint32 {
@@ -200,6 +201,9 @@ func (s *WearService) itemGroup(item *BagEquipment, flagGroup byte) byte {
 // MoveOrdinary validates both directions before swapping one physical item.
 // Equipped items retain identity and durability; no reward or copy is created.
 func (s *WearService) MoveOrdinary(role storage.Character, r protocol.ItemMoveRequest) (json.RawMessage, error) {
+	if IsKnightShieldMove(r) {
+		return s.moveKnightShield(role, r)
+	}
 	if s == nil || s.Catalog == nil || s.Catalog.Source.Checksum != role.ConfigVersion || s.Rules.Source != role.ConfigVersion || s.Professions.Source.Checksum != role.ConfigVersion {
 		return nil, fmt.Errorf("wear service source mismatch")
 	}

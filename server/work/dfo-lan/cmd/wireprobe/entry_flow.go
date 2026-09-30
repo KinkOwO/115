@@ -31,6 +31,7 @@ type entryPayloads struct {
 	AccountVault     []byte
 	AvailableQuests  []byte
 	Worn             []byte
+	KnightDeck       []byte
 	AccountOptions   []byte
 	GamepadOptions   []byte
 	// Journal 是装备库完整状态（NOTI2610，恰好 16444B）。
@@ -190,6 +191,7 @@ func (p entryPayloads) packets() []outboundPacket {
 		// only after the town actor/UserInfo graph has been installed.
 		{"avatar_inventory_initialized", 0, 13, p.Avatars},
 		{"worn_equipment_restored", 0, 13, p.Worn},
+		{"knight_deck_restored", 0, 567, p.KnightDeck},
 	}...)
 	// The NOTI24 town refresh checks worn slot 12. A weapon needs its explicit
 	// appearance binding and NOTI14 rows installed before that check. Sending

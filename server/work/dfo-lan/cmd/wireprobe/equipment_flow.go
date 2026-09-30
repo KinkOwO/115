@@ -39,6 +39,9 @@ func (s *equipmentSession) handle(service *inventory.WearService, w *worldSessio
 	if e != nil {
 		return nil, e
 	}
+	if inventory.IsKnightShieldMove(r) {
+		return s.handleKnightShieldMove(service, w, r, raw)
+	}
 	if r.SourceList == 12 || r.DestinationList == 12 {
 		if !s.initialized {
 			if _, e = rand.Read(s.nonce[:]); e != nil {
