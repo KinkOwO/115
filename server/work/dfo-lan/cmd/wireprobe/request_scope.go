@@ -16,6 +16,10 @@ func dungeonRequest(id uint16) bool {
 }
 
 func observedGameRequest(id uint16) bool {
+	// 每次选择背景均须解密和保存，不能在第九次点击时落入采样限制。
+	if id == 1725 {
+		return true
+	}
 	// 图鉴登记需逐次解密并保留证据，不能在重复登记后落入采样上限。
 	if id == 2139 {
 		return true
