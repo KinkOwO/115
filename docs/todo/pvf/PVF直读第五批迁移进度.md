@@ -37,3 +37,10 @@ SHA256：`fcefe7737c198e1425a4d87c03affc7122f7828d1615412835751ed1beafcf2d`。
 新增 `pvf-odyssey-policy.json` 保存章节启用/概率、已确认货币概率与按怪物rank选币策略，以及原成长证据目录的额外2个物品ID（10418028、10418036）。赠品、毕业物品、章节最终副本及选择箱模板不保存在策略中；所有脚本路径/哈希/属性从PVF读取。货币rank选币是现有服务器策略，未据此宣称源官方掉率已恢复。原 `pvf-content-policy.json` 没有加入新字段，因此旧30项程序的严格策略解析仍可使用。
 
 新的35项profile为 `server/work/dfo-lan/configs/pvf-odyssey-candidate.json`，对应程序 `.tmp/pvf-odyssey/bin/wireprobe-handoff-source.exe`；旧30项profile和程序仍保留。35项源装配耗时约49.94秒；完整奥德赛对照约15.63秒。两个离线导出器共享运行源解析。只读启动依赖检查通过，未启动客户端、服务或修改玩家数据库。本批尚未实机确认，剩余特殊奖励、副本覆盖及其它目录继续迁移。
+
+
+## 无色小晶块源覆盖候选
+
+新增clear-cube选择项，3037无色小晶块从共享PVF索引及原始脚本直读，完整源Token/哈希对照一致。保留原存储覆盖中Grade/Rarity/Weight为0的最小投影，原源值仍在ScriptRecord中；不进入普通掉落池，不改变分解或技能消耗公式。总计36选择项/42类有效源投影，缺失所有所选导出JSON联合准备约42.10秒通过，混用存储来源拒绝。全量Go测试/vet、8项Python测试及只读依赖检查通过。新profile为`pvf-cube-candidate.json`，隔离程序SHA256 `c6e29f3cc4c8b375ee9ecbc7781553134b005c6b1d03cc94980b83ffddd1261b`；第五批尚未实机，确认范围仍为第四批28项。
+
+新增选择项`clear-cube`只替换原`clear-cube-source.json`的来源。源脚本`stackable/material/cubepiece_clear.stk`中Grade=5/Rarity=1完整保留；现有业务投影仍为0/0，不因迁移将其纳入随机候选。源哈希仍由原覆盖验证器强制校验。新程序位于`.tmp/pvf-cube/bin/wireprobe-handoff-source.exe`，所有原profile/程序/策略文件保持。特殊奖励与其它剩余目录继续实施。

@@ -1225,9 +1225,9 @@ func main() {
 			vaultService.Catalog.Items = items
 		}
 	}
-	if path := os.Getenv("DFO_CLEAR_CUBE_SOURCE"); path != "" && vaultService != nil {
+	if path := os.Getenv("DFO_CLEAR_CUBE_SOURCE"); (path != "" || pvfCatalogs.clearCube != nil) && vaultService != nil {
 		var e error
-		vaultService.Catalog, e = inventory.WithClearCube(vaultService.Catalog, path)
+		vaultService.Catalog, e = pvfCatalogs.withClearCube(vaultService.Catalog, path)
 		if e != nil {
 			log.Fatal(e)
 		}

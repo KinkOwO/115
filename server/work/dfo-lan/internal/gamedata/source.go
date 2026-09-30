@@ -333,3 +333,10 @@ func (s *Source) OdysseyCurrency(index catalog.ItemIndex, policy loot.OdysseyCur
 	}
 	return loot.ImportOdysseyCurrency(s.archive, index, policy)
 }
+
+func (s *Source) ClearCube(index catalog.ItemIndex) (catalog.LootItem, error) {
+	if s.archive == nil {
+		return catalog.LootItem{}, fmt.Errorf("clear cube requires PVF")
+	}
+	return catalog.ImportClearCube(s.archive, index)
+}
