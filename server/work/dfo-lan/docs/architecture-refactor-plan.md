@@ -1,6 +1,6 @@
 # 服务端架构简化实施计划
 
-状态：批次 1、2、3、4、5、6 的代码改动已完成，等待用户实机验收。
+状态：批次 1、2、3、4、5、6、7 的代码改动已完成，等待用户实机验收。
 
 基线提交：`9fc9a0617d3fc16fa43f8bb4bc1fcd31be4c7990`（2026-09-30）
 
@@ -280,7 +280,40 @@ quest.Service.MeetNPC
 - [x] `go vet ./...` 通过。
 - [ ] 实机验证远程 NPC 任务和普通位置 NPC 任务的推进与拒绝路径。
 
-## 9. 后续批次
+## 9. 第七批：通用背包移动归 inventory
+
+当前路径：
+
+```text
+CMD19 quickslot_flow.go
+  -> 复制 loot.Service
+  -> loot.Service.MoveStack
+  -> inventory.Bag.MoveStackRequest
+  -> storage.Store.CommitCharacterEvent
+```
+
+目标路径：
+
+```text
+CMD19 quickslot_flow.go
+  -> inventory.MoveStack
+       -> inventory.Bag.MoveStackRequest
+       -> storage.Store.CommitCharacterEvent
+```
+
+本批将普通背包堆叠移动的持久化操作归入 `inventory`。它不负责掉落来源、掉落会话或副本奖励；`loot` 继续拥有拾取和掉落规则。删除的复杂度是 `loot.Service` 不再为了一个通用背包操作被复制到调用方，也不再把背包目录、事件幂等和存档写入隐藏在掉落服务中。槽位校验、事件模型、回执内容、`InventoryRestore` 校验和 quickslot 回包保持不变。
+
+批次 7 验收：
+
+- [x] 删除 `loot.Service.MoveStack` 及其旧文件。
+- [x] `inventory.MoveStack` 直接拥有普通背包移动的事件提交和回执。
+- [x] quickslot 流程只负责识别请求、准备目录/规则和组装客户端回包。
+- [x] 背包移动集成回归测试随操作移动到 `internal/inventory`。
+- [x] `go test ./...` 通过。
+- [x] `go vet ./...` 通过。
+- [ ] 实机验证快捷栏放入、移出、堆叠合并和旧客户端重试行为。
+
+## 10. 后续批次
 
 每批合并前都要更新本文件；下表中的“完成”只有在代码、自动化检查和必要的实机证据齐全后才能勾选。
 
@@ -290,12 +323,12 @@ quest.Service.MeetNPC
 | 04 | 整理连接输出、协议与编码组合 | 03 | 保留逐包流式发送和整组预编码两种已验证行为 |
 | 05 | 整理分发和功能入口，缩小 `main.go` 的协调范围 | 03、04 | 规则回到真实领域所有者，`game` 只做运行协调 |
 | 06 | 明确 SQL、锁和事务意图 | 01，顺序上晚于 05 | 不破坏账户/角色锁顺序、收据和存档兼容 |
-| 07 | 将通用物品操作从 `loot` 收回 `inventory` | 05、06 | 不形成 `inventory -> cashshop -> inventory` 循环 |
+| 07 | 将通用物品操作从 `loot` 收回 `inventory` | 05、06 | 代码已完成；待实机确认不形成 `inventory -> cashshop -> inventory` 循环 |
 | 08 | 明确 NPC/Cera/商城交易所有者 | 04、06、07 | 报价、扣款、交付和提交前编码在一个可理解的交易路径中 |
 | 09 | 删除无用 oath 骨架、PVF 无调用中间层和重复启动装配 | 06–08 | 直接 GM 启动路径和外部 pgdata 策略保持不变 |
 | 10 | 全量回归和长期依赖检查 | 01–09 | 行为、存档、协议和依赖规则都有可重复检查 |
 
-## 10. 每批 MR 模板
+## 11. 每批 MR 模板
 
 ```text
 标题：refactor(server): <一个批次的单一架构目标>

@@ -1,10 +1,10 @@
-package loot
+package inventory
 
 import (
 	"context"
 	"crypto/sha256"
+	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/inventory"
 	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
@@ -26,13 +26,16 @@ type MoveStackReceipt struct {
 //
 // Like every other bag write it goes through the character event log, so a
 // drag the client retries moves the stack once.
-func (s *Service) MoveStack(ctx context.Context, role storage.Character, rules inventory.BagRules,
+func MoveStack(ctx context.Context, store *storage.Store, role storage.Character, c catalog.LootCatalog, rules BagRules,
 	r protocol.ItemMoveRequest, key string) (storage.Character, MoveStackReceipt, bool, error) {
 	var out MoveStackReceipt
 	fail := func(e error) (storage.Character, MoveStackReceipt, bool, error) {
 		return role, out, false, e
 	}
-	if role.ConfigVersion != s.Catalog.Source.Checksum {
+	if store == nil {
+		return fail(fmt.Errorf("stack move store missing"))
+	}
+	if role.ConfigVersion != c.Source.Checksum {
 		return fail(fmt.Errorf("stack move source mismatch"))
 	}
 	if r.SourceList != 0 || r.DestinationList != 0 {
@@ -43,10 +46,10 @@ func (s *Service) MoveStack(ctx context.Context, role storage.Character, rules i
 		return fail(e)
 	}
 	model := fmt.Sprintf("bag-move-v2:%x", sha256.Sum256(request))
-	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID,
-		s.Catalog.Source.Checksum, key, model,
+	saved, applied, e := store.CommitCharacterEvent(ctx, role.AccountID, role.ID,
+		c.Source.Checksum, key, model,
 		func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
-			b, e := inventory.ReadBag(current.State)
+			b, e := ReadBag(current.State)
 			if e != nil {
 				return nil, nil, e
 			}
@@ -57,18 +60,18 @@ func (s *Service) MoveStack(ctx context.Context, role storage.Character, rules i
 			if r.Count != 0 {
 				from, to, template = r.SourceSlot, r.DestinationSlot, r.SourceItem
 			}
-			b, e = b.MoveStackRequest(s.Catalog, rules, r)
+			b, e = b.MoveStackRequest(c, rules, r)
 			if e != nil {
 				return nil, nil, e
 			}
-			updated, e := inventory.SaveBag(current.State, b)
+			updated, e := SaveBag(current.State, b)
 			if e != nil {
 				return nil, nil, e
 			}
 			if _, e = protocol.InventoryRestore(b.Rows(), b.Expansion); e != nil {
 				return nil, nil, e
 			}
-			out = MoveStackReceipt{from, to, template, s.Catalog.Source.Checksum}
+			out = MoveStackReceipt{from, to, template, c.Source.Checksum}
 			receipt, e := json.Marshal(out)
 			return updated, receipt, e
 		})

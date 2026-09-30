@@ -1,11 +1,10 @@
-package loot
+package inventory
 
 import (
 	"context"
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/inventory"
 	"dfolan/internal/storage"
 	"encoding/hex"
 	"encoding/json"
@@ -57,8 +56,8 @@ func TestBagMoveRoundtripReplayIntegration(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	service := Service{Store: s, Catalog: catalog.LootCatalog{Source: pvf.ArchiveSnapshot{Checksum: h}, Items: map[uint32]catalog.LootItem{14: {Kind: "stackable", StackableType: "[etc]", StackLimit: 1000}}}}
-	rules := inventory.BagRules{Source: h, MissingStackLimit: 1000}
+	c := catalog.LootCatalog{Source: pvf.ArchiveSnapshot{Checksum: h}, Items: map[uint32]catalog.LootItem{14: {Kind: "stackable", StackableType: "[etc]", StackLimit: 1000}}}
+	rules := BagRules{Source: h, MissingStackLimit: 1000}
 	raw, _ := hex.DecodeString("004c0000000000000000000044000e00000000000000ffffffff000000000000")
 	out, e := protocol.DecodeItemMove(raw)
 	if e != nil {
@@ -68,20 +67,20 @@ func TestBagMoveRoundtripReplayIntegration(t *testing.T) {
 	back.SourceSlot, back.DestinationSlot = out.DestinationSlot, out.SourceSlot
 	for i, r := range []protocol.ItemMoveRequest{out, back, out, back, out} {
 		key := fmt.Sprintf("bagmove:fixture:frame%d", i)
-		saved, _, applied, e := service.MoveStack(ctx, role, rules, r, key)
+		saved, _, applied, e := MoveStack(ctx, s, role, c, rules, r, key)
 		if e != nil || !applied {
 			t.Fatal("new frame ignored", i, e, applied)
 		}
-		b, e := inventory.ReadBag(saved.State)
+		b, e := ReadBag(saved.State)
 		if e != nil || len(b.Items) != 1 || b.Items[0].Amount != 5 || b.Items[0].Slot != r.SourceSlot {
 			t.Fatal("duplicate/lost item", i, b, e)
 		}
-		replay, _, yes, e := service.MoveStack(ctx, role, rules, r, key)
+		replay, _, yes, e := MoveStack(ctx, s, role, c, rules, r, key)
 		if e != nil || yes {
 			t.Fatal("duplicate frame applied", e, yes)
 		}
 		if string(replay.State) != string(saved.State) {
-			a, _ := inventory.ReadBag(replay.State)
+			a, _ := ReadBag(replay.State)
 			if len(a.Items) != 1 || a.Items[0] != b.Items[0] {
 				t.Fatal("replay changed state")
 			}
@@ -89,17 +88,17 @@ func TestBagMoveRoundtripReplayIntegration(t *testing.T) {
 		role = saved
 	}
 	// Replay the first event after later moves: never reinstall its old state.
-	saved, _, yes, e := service.MoveStack(ctx, role, rules, out, "bagmove:fixture:frame0")
+	saved, _, yes, e := MoveStack(ctx, s, role, c, rules, out, "bagmove:fixture:frame0")
 	if e != nil || yes {
 		t.Fatal(e, yes)
 	}
-	b, _ := inventory.ReadBag(saved.State)
+	b, _ := ReadBag(saved.State)
 	if len(b.Items) != 1 || b.Items[0].Amount != 5 {
 		t.Fatal(b)
 	}
 	stale := out
 	stale.SourceItem = 14
-	if _, _, _, e = service.MoveStack(ctx, role, rules, stale, "bagmove:fixture:stale"); e == nil {
+	if _, _, _, e = MoveStack(ctx, s, role, c, rules, stale, "bagmove:fixture:stale"); e == nil {
 		t.Fatal("phantom source accepted")
 	}
 	t.Log("PASS five real alternating drags; each new frame applies; exact replay no-op; one stack of5 preserved; stale icon rejected")
