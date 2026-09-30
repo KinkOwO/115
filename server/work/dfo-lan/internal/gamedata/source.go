@@ -5,6 +5,7 @@ package gamedata
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
+	"dfolan/internal/character"
 	"dfolan/internal/inventory"
 	"encoding/hex"
 	"fmt"
@@ -131,6 +132,34 @@ func (s *Source) Equipment(index catalog.ItemIndex) (*inventory.FullEquipmentCat
 	return inventory.OpenPVFEquipmentCatalog(s.archive, index)
 }
 
+func (s *Source) Learning(c catalog.Characters) (*character.LearningCatalog, error) {
+	if s.archive == nil {
+		return nil, fmt.Errorf("learning import requires PVF")
+	}
+	return character.ImportLearningCatalog(s.archive, c)
+}
+
+func (s *Source) ShopPrices(index catalog.ItemIndex) (*catalog.ShopPrices, error) {
+	if s.archive == nil {
+		return nil, fmt.Errorf("price import requires PVF")
+	}
+	return catalog.ImportShopPrices(s.archive, index)
+}
+
+func (s *Source) ItemMaterials(index catalog.ItemIndex) (*catalog.ItemMaterials, error) {
+	if s.archive == nil {
+		return nil, fmt.Errorf("material import requires PVF")
+	}
+	return catalog.ImportItemMaterials(s.archive, index)
+}
+
+func (s *Source) Boosters(index catalog.ItemIndex) (map[uint32]catalog.BoosterDefinition, error) {
+	if s.archive == nil {
+		return nil, fmt.Errorf("booster import requires PVF")
+	}
+	return catalog.ImportBoosters(s.archive, index)
+}
+
 func (s *Source) ItemPeriods() (catalog.ItemPeriodCatalog, error) {
 	if s.archive == nil {
 		return catalog.ItemPeriodCatalog{}, fmt.Errorf("item periods import requires PVF")
@@ -157,4 +186,11 @@ func (s *Source) EquipmentCreateCost() (catalog.EquipmentCreateCost, error) {
 		return catalog.EquipmentCreateCost{}, fmt.Errorf("create cost import requires PVF")
 	}
 	return catalog.ImportEquipmentCreateCost(s.archive)
+}
+
+func (s *Source) Tutorials() (catalog.TutorialCatalog, error) {
+	if s.archive == nil {
+		return catalog.TutorialCatalog{}, fmt.Errorf("tutorial import requires PVF")
+	}
+	return catalog.ImportTutorials(s.archive)
 }

@@ -17,7 +17,7 @@ FLAGS = {
     'DFO_CHANNEL_IDENTITY',
     'DFO_DETAIL_WORN', 'DFO_SHOP_RELEASE', 'DFO_VAULT_PURCHASE_RELEASE',
     'DFO_ODYSSEY_REWARDS_RELEASE', 'DFO_ODYSSEY_TEMPORARY_CREDITS',
-    'DFO_SHOP_OPEN_ALL',
+    'DFO_SHOP_OPEN_ALL', 'DFO_PVF_VERIFY_BASELINES',
 }
 
 
@@ -51,7 +51,7 @@ def load_profile(path, project):
             env[key] = value.lower()
         elif key == 'DFO_PVF_CATALOGS' and isinstance(value, str):
             domains = [part.strip() for part in value.split(',')]
-            allowed = {'world', 'quests', 'progression', 'items', 'equipment', 'periods', 'skins', 'journal', 'create-cost'}
+            allowed = {'world', 'quests', 'progression', 'items', 'equipment', 'periods', 'skins', 'journal', 'create-cost', 'skills', 'prices', 'materials', 'boosters', 'tutorial'}
             if not domains or len(set(domains)) != len(domains) or any(part not in allowed for part in domains):
                 raise ValueError('Invalid PVF candidate domains')
             env[key] = ','.join(domains)

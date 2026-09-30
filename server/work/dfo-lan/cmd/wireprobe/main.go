@@ -70,7 +70,8 @@ func main() {
 	responseFile := flag.String("responses", "", "JSON mapping command IDs to response fixture paths")
 	characterStorage := flag.String("character-storage", "", "enable experimental persisted character handling with this local storage config")
 	characterCatalog := flag.String("character-catalog", "configs/characters.generated.json", "PVF-derived profession catalog")
-	pvfCatalogSelection := flag.String("pvf-catalogs", os.Getenv("DFO_PVF_CATALOGS"), "candidate direct-read domains: quests,progression,world,items,equipment,periods,skins,journal,create-cost; empty keeps JSON; startup verifies current baselines")
+	pvfCatalogSelection := flag.String("pvf-catalogs", os.Getenv("DFO_PVF_CATALOGS"), "candidate direct-read domains: quests,progression,world,items,equipment,periods,skins,journal,create-cost,skills,prices,materials,boosters,tutorial; empty keeps JSON")
+	pvfVerifyBaselines := flag.Bool("pvf-verify-baselines", os.Getenv("DFO_PVF_VERIFY_BASELINES") != "0", "compare selected PVF domains with JSON baselines before storage; false removes the selected JSON startup dependency")
 	pvfArchivePath := flag.String("pvf-archive", os.Getenv("DFO_PVF_ARCHIVE"), "explicit inner PVF path for candidate domains")
 	pvfArchiveChecksum := flag.String("pvf-sha256", os.Getenv("DFO_PVF_SHA256"), "expected inner PVF SHA256; must match existing character source")
 	characterRules := flag.String("character-rules", "configs/character-probe.json", "explicit local bootstrap settings")
@@ -177,7 +178,7 @@ func main() {
 	omenState := flag.Bool("omen-state", os.Getenv("DFO_OMEN_STATE") == "1", "征兆的正式状态：持有档数存进角色存档、进本按真实状态下发 noti 2836，并让隐藏 BOSS 由「满档结算」驱动（见 cmd/wireprobe/omen_state.go）。默认关闭")
 	scaleDeathFromHP := flag.Bool("scale-death-from-hp", os.Getenv("DFO_SCALE_DEATH_FROM_HP") == "1", "boundary-of-attunement 定盘机关(109019266)的兜底判死：它血量触底时服务端合成一条死亡上报，不再依赖引擎那两个恒为 72 的 rarity 天花板；默认关闭")
 	flag.Parse()
-	pvfCatalogs, pvfCatalogErr := preparePVFCoreCatalogs(*pvfCatalogSelection, *pvfArchivePath, *pvfArchiveChecksum, *characterCatalog, *questCatalogFile, *progressionCatalogFile, *worldCatalogFile, pvfItemInputs{indexPath: *itemIndexFile, fullPrefix: *fullEquipmentFile, journalPath: *equipmentJournalRulesFile, createCostPath: *equipmentCreateCostFile})
+	pvfCatalogs, pvfCatalogErr := preparePVFCoreCatalogs(*pvfCatalogSelection, *pvfArchivePath, *pvfArchiveChecksum, *characterCatalog, *questCatalogFile, *progressionCatalogFile, *worldCatalogFile, pvfItemInputs{indexPath: *itemIndexFile, fullPrefix: *fullEquipmentFile, journalPath: *equipmentJournalRulesFile, createCostPath: *equipmentCreateCostFile, learningPath: *learningFile, pricesPath: *shopPricesFile, boosterPath: *boosterCatalogFile, tutorialPath: *tutorialRoutesFile, verifyBaselines: pvfVerifyBaselines})
 	if pvfCatalogErr != nil {
 		log.Fatalf("PVF candidate catalogs: %v", pvfCatalogErr)
 	}
@@ -648,8 +649,8 @@ func main() {
 			log.Printf("PVF shop enabled: %d ordinary products", shopPilot.EnabledCount())
 			log.Printf("商城配置：%s，发布模式：%t", *shopPilotFile, shopPilot.Config.Release)
 		}
-		if *learningFile != "" {
-			characters.Learning, e = character.LoadLearningCatalog(*learningFile, data.Source.Checksum)
+		if *learningFile != "" || pvfCatalogs.learning != nil {
+			characters.Learning, e = pvfCatalogs.loadLearning(*learningFile, data.Source.Checksum)
 			if e != nil {
 				log.Fatal(e)
 			}
@@ -691,7 +692,7 @@ func main() {
 			log.Fatal(e)
 		}
 	}
-	if *worldCatalogFile != "" {
+	if *worldCatalogFile != "" || pvfCatalogs.world != nil {
 		if characters == nil || *townProbeFile == "" {
 			log.Fatal("world requires persisted characters and a spawn policy")
 		}
@@ -781,7 +782,7 @@ func main() {
 		}
 		dungeonCatalog = &data
 	}
-	if *progressionCatalogFile != "" {
+	if *progressionCatalogFile != "" || pvfCatalogs.progression != nil {
 		if characters == nil || dungeonCatalog == nil {
 			log.Fatal("progression requires source characters and dungeon sessions")
 		}
@@ -834,7 +835,7 @@ func main() {
 		if *tutorialDungeonsFile == "" {
 			log.Fatal("starting routes require their own dungeon catalog")
 		}
-		routes, e := catalog.LoadTutorialRoutes(*tutorialRoutesFile, characters.Catalog.Source.Checksum)
+		routes, e := pvfCatalogs.loadTutorialRoutes(*tutorialRoutesFile, characters.Catalog.Source.Checksum)
 		if e != nil {
 			log.Fatal(e)
 		}
@@ -895,7 +896,7 @@ func main() {
 		}
 		// 物品脚本自带的 [need material]（商店表 itemshop/**.shp 没有价格字段）：
 		// 商店里「用材料交换」的商品，材料成本只写在物品脚本里（3242=1000×3037 等）。
-		itemMaterials, matErr := catalog.LoadItemMaterials(filepath.Join(filepath.Dir(lootPath), "item-materials.json"))
+		itemMaterials, matErr := pvfCatalogs.loadItemMaterials(filepath.Join(filepath.Dir(lootPath), "item-materials.json"))
 		if matErr != nil {
 			log.Fatal(matErr)
 		}
@@ -990,8 +991,8 @@ func main() {
 		if pricesPath == "" {
 			pricesPath = filepath.Join(filepath.Dir(lootPath), "shop-prices.json")
 		}
-		if _, err := os.Stat(pricesPath); err == nil || *shopPricesFile != "" {
-			lootService.Prices, e = catalog.LoadShopPrices(pricesPath, c.Source.Checksum)
+		if _, err := os.Stat(pricesPath); err == nil || *shopPricesFile != "" || pvfCatalogs.prices != nil {
+			lootService.Prices, e = pvfCatalogs.loadShopPrices(pricesPath, c.Source.Checksum)
 			if e != nil {
 				log.Fatal(e)
 			}
@@ -1032,7 +1033,7 @@ func main() {
 		}
 	}
 	responses := map[uint16][]byte{}
-	if *questCatalogFile != "" {
+	if *questCatalogFile != "" || pvfCatalogs.quests != nil {
 		if worldService == nil {
 			log.Fatal("quests require world character sessions")
 		}

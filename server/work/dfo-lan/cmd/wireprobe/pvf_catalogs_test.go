@@ -13,7 +13,7 @@ func TestPVFCatalogCandidateSelectionPreservesDefaultAndBlocksUnverifiedDomains(
 	if err != nil || result.quests != nil || result.progression != nil || result.world != nil {
 		t.Fatalf("default changed: %+v %v", result, err)
 	}
-	for _, selection := range []string{"characters", "all", "quests,quests", "quests,"} {
+	for _, selection := range []string{"characters", "shops", "all", "quests,quests", "quests,"} {
 		if _, err := parsePVFCatalogSelection(selection); err == nil {
 			t.Fatalf("unverified selection accepted: %s", selection)
 		}

@@ -44,6 +44,14 @@ class RepairProfileTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     load_profile(p, pathlib.Path(directory))
 
+    def test_next_pvf_profile_is_isolated_and_does_not_require_exported_data(self):
+        project = pathlib.Path(__file__).resolve().parent.parent
+        binary, required, env = load_profile(project / 'configs/pvf-next-candidate.json', project)
+        self.assertEqual(binary, project / '.tmp/pvf-next/bin/wireprobe-handoff-source.exe')
+        self.assertEqual(env['DFO_PVF_VERIFY_BASELINES'], '0')
+        self.assertEqual(len(env['DFO_PVF_CATALOGS'].split(',')), 14)
+        self.assertEqual(set(required), {binary, pathlib.Path(env['DFO_PVF_ARCHIVE'])})
+
 
 if __name__ == '__main__':
     unittest.main()

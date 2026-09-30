@@ -32,79 +32,105 @@ func readPVFRuleBaseline(path, checksum string, out any) error {
 func preparePVFRules(c *pvfCoreCatalogs, s *gamedata.Source, selected map[string]bool, inputs pvfItemInputs) error {
 	checksum := s.Snapshot().Checksum
 	dir := filepath.Dir(inputs.indexPath)
+	if selected["tutorial"] {
+		direct, err := s.Tutorials()
+		if err != nil {
+			return err
+		}
+		if inputs.checksBaselines() {
+			legacy, err := catalog.LoadTutorialRoutes(inputs.tutorialPath, checksum)
+			if err != nil {
+				return err
+			}
+			if err = verifyPVFCatalog(*legacy, direct); err != nil {
+				return fmt.Errorf("tutorial: %w", err)
+			}
+		}
+		c.tutorial = &direct
+		log.Printf("PVF tutorial prepared: %d source flows", len(direct.Flows))
+		s.ReleaseReadCaches()
+	}
 	if selected["periods"] {
 		path := filepath.Join(dir, "item-period-tags.json")
-		var legacy catalog.ItemPeriodCatalog
-		if err := readPVFRuleBaseline(path, checksum, &legacy); err != nil {
-			return err
-		}
-		if _, err := catalog.LoadItemPeriods(path, checksum); err != nil {
-			return err
-		}
 		direct, err := s.ItemPeriods()
 		if err != nil {
 			return err
 		}
-		if err = verifyPVFCatalog(legacy, direct); err != nil {
-			return fmt.Errorf("periods: %w", err)
+		if inputs.checksBaselines() {
+			var legacy catalog.ItemPeriodCatalog
+			if err := readPVFRuleBaseline(path, checksum, &legacy); err != nil {
+				return err
+			}
+			if _, err := catalog.LoadItemPeriods(path, checksum); err != nil {
+				return err
+			}
+			if err = verifyPVFCatalog(legacy, direct); err != nil {
+				return fmt.Errorf("periods: %w", err)
+			}
 		}
 		c.periods = direct.Templates
-		log.Printf("PVF candidate item periods verified: %d templates", len(c.periods))
+		log.Printf("PVF item periods prepared: %d templates", len(c.periods))
 		s.ReleaseReadCaches()
 	}
 	if selected["skins"] {
 		path := filepath.Join(dir, "skin-storage-items.json")
-		var legacy catalog.SkinStorageCatalog
-		if err := readPVFRuleBaseline(path, checksum, &legacy); err != nil {
-			return err
-		}
-		if _, err := catalog.LoadSkinStorage(path, checksum); err != nil {
-			return err
-		}
 		direct, err := s.SkinStorage()
 		if err != nil {
 			return err
 		}
-		if err = verifyPVFCatalog(legacy, direct); err != nil {
-			return fmt.Errorf("skins: %w", err)
+		if inputs.checksBaselines() {
+			var legacy catalog.SkinStorageCatalog
+			if err := readPVFRuleBaseline(path, checksum, &legacy); err != nil {
+				return err
+			}
+			if _, err := catalog.LoadSkinStorage(path, checksum); err != nil {
+				return err
+			}
+			if err = verifyPVFCatalog(legacy, direct); err != nil {
+				return fmt.Errorf("skins: %w", err)
+			}
 		}
 		c.skins = make(map[uint32]catalog.SkinStorageEntry, len(direct.Entries))
 		for _, e := range direct.Entries {
 			c.skins[e.Template] = e
 		}
-		log.Printf("PVF candidate skin storage verified: %d templates, %d unresolved source skins", len(c.skins), len(direct.MissingSkins))
+		log.Printf("PVF skin storage prepared: %d templates, %d unresolved source skins", len(c.skins), len(direct.MissingSkins))
 		s.ReleaseReadCaches()
 	}
 	if selected["journal"] {
-		legacy, err := catalog.LoadEquipmentJournalRules(inputs.journalPath, checksum)
-		if err != nil {
-			return err
-		}
 		direct, err := s.EquipmentJournal()
 		if err != nil {
 			return err
 		}
-		if err = verifyPVFCatalog(legacy, direct); err != nil {
-			return fmt.Errorf("journal: %w", err)
+		if inputs.checksBaselines() {
+			legacy, err := catalog.LoadEquipmentJournalRules(inputs.journalPath, checksum)
+			if err != nil {
+				return err
+			}
+			if err = verifyPVFCatalog(legacy, direct); err != nil {
+				return fmt.Errorf("journal: %w", err)
+			}
 		}
 		c.journal = &direct
-		log.Printf("PVF candidate equipment journal verified: %d categories", len(direct.Categories))
+		log.Printf("PVF equipment journal prepared: %d categories", len(direct.Categories))
 		s.ReleaseReadCaches()
 	}
 	if selected["create-cost"] {
-		legacy, err := catalog.LoadEquipmentCreateCost(inputs.createCostPath, checksum)
-		if err != nil {
-			return err
-		}
 		direct, err := s.EquipmentCreateCost()
 		if err != nil {
 			return err
 		}
-		if err = verifyPVFCatalog(legacy, direct); err != nil {
-			return fmt.Errorf("create-cost: %w", err)
+		if inputs.checksBaselines() {
+			legacy, err := catalog.LoadEquipmentCreateCost(inputs.createCostPath, checksum)
+			if err != nil {
+				return err
+			}
+			if err = verifyPVFCatalog(legacy, direct); err != nil {
+				return fmt.Errorf("create-cost: %w", err)
+			}
 		}
 		c.createCost = &direct
-		log.Printf("PVF candidate equipment creation costs verified: %d groups", len(direct.Groups))
+		log.Printf("PVF equipment creation costs prepared: %d groups", len(direct.Groups))
 		s.ReleaseReadCaches()
 	}
 	return nil
@@ -133,4 +159,14 @@ func (c pvfCoreCatalogs) loadEquipmentCreateCost(path, checksum string) (catalog
 		return *c.createCost, nil
 	}
 	return catalog.LoadEquipmentCreateCost(path, checksum)
+}
+
+func (c pvfCoreCatalogs) loadTutorialRoutes(path, checksum string) (*catalog.TutorialCatalog, error) {
+	if c.tutorial != nil {
+		if c.tutorial.Source.Checksum != checksum {
+			return nil, fmt.Errorf("prepared tutorial source mismatch")
+		}
+		return c.tutorial, nil
+	}
+	return catalog.LoadTutorialRoutes(path, checksum)
 }

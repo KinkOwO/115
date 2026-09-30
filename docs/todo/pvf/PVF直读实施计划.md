@@ -39,7 +39,7 @@ PVF 提供物品、职业、技能、任务、地图和源规则表；服主倍�
 | NPC 传送 `npc-teleport.generated` | `ImportNPCMoves` 读取原版移动表 | 已随世界候选直读；启动基线仍读取该 JSON 供迁移审计，业务使用 PVF 结果 |
 | 任务 `quests.*` | 原版任务列表及脚本；`ImportQuests` | 已接同源候选；还需取消过渡期 JSON 门禁依赖 |
 | 经验 `progression.*` | 原版经验阈值、怪物经验及源倍率表；`ImportProgression` | 已接同源候选；`experience.compat90` 的兼容计算策略单独保留 |
-| 技能 `skills.*` | `skill/<职业>skill.lst`，部分职业回退 `<职业>.lst`，关联 `.skl` | 提取 `cmd/skillaudit` 为学习目录导入器；保留黑暗武士组合、预设和技能保存行为；不得假定存在 `list/skill.lst` |
+| 技能 `skills.*` | `skill/<职业>skill.lst`，部分职业回退 `<职业>.lst`，关联 `.skl` | 已提取共享学习导入器并接入 `skills` 候选；3224条与生效next27完整一致；组合/预设/保存业务保持；不存在 `list/skill.lst` |
 | 物品索引 `items.index`、材料 `item-materials` | `list/equipment.lst`、`list/stackable.lst` 及 `.stk` | 共享索引已接 `items` 同源候选，599771条完整比对零差异；背包补充、箱子奖励分类、商城分类复用；材料规则和管理工具消费者待迁移 |
 | 时限和外观 `item-period-tags`、`skin-storage-items` | 物品期限、外观登记与 skin 列表/脚本 | 已接 `periods`、`skins` 同源候选，完整目录比对零差异；保留现有永不过期策略及127条缺失skin的拒绝边界 |
 | 装备 `equipment.*`、`equipment-full.index` + `.data` | `list/equipment.lst` 及 `.equ` | 全量按ID读取已接 `equipment` 同源候选，424216条定义逐项完全一致；压缩只读目录与有界缓存已实现；普通/任务3174行目录的选择投影仍待迁移，掉落池不扩大 |
@@ -48,16 +48,16 @@ PVF 提供物品、职业、技能、任务、地图和源规则表；服主倍�
 | 装备图鉴与生成成本 `equipment-journal.generated`、`equipment-create-cost.generated` | `contents/2025/equipmentsetjournal/etc/equipmentsetjournal.cos` | 已接 `journal`、`create-cost` 同源候选，5个分类/9组成本完整比对零差异；执行开关保持独立 |
 | 誓约档位 `oath-grades` | `.equ` 中的誓约/引子等级与稀有度 | 提取 `cmd/oathgradeimport`；诊断指定档位和本服进度范围不由 PVF 替代 |
 | 普通掉落 `loot.*` | `etc/itemdropinfo_monseter.etc`、`etc/itemdropinfo_common.etc`、物品源脚本 | `ImportLoot` 已存在；源表直读，`drop.compat90` 的兼容公式/允许物品范围独立 |
-| NPC 价格 `shop-prices`、材料商店 `itemshop-*` | 物品价格字段、`list/itemshop.lst` / `itemshop/**/*.shp` 与 `[need material]` | 提取 `cmd/shopprices`、`cmd/itemshopimport`；补核对限购与材料消费字段，不能仅替换价格表 |
+| NPC 价格 `shop-prices`、材料商店 `itemshop-*` | 物品价格字段、`list/itemshop.lst` / `itemshop/**/*.shp` 与 `[need material]` | `prices` 599682条、`materials` 14211条已接候选并完整一致；商店绑定遇到同ID多`.shp`冲突，保留JSON，须闭环NPC/客户端开店引用 |
 | 商城 `cerashop`、`shop-purchase-pilot`、`shop-vault-release` 等 | `etc/(r)cerashop.etc`、商品关联 `.stk` / `.equ` | `cashshop.ImportPilot` 已存在；源商品、价格、条件直读；已开放商品、特殊交付与购买试验开关独立 |
-| Booster、抽奖、选择箱 `booster-catalog`、`lottery-item-pools`、`lottery-equipment-pools`、`selection-boxes-*` | `.stk` 的 booster/select/lottery 字段，`etc/dungeondroptablebygroup.etc` 及装备组 | 提取 `cmd/boosterexport`、`cmd/lotterycatalog`、`cmd/selectionboximport`；完整保留权重、空结果、抽数与物品引用，未知项不扩大执行 |
+| Booster、抽奖、选择箱 `booster-catalog`、`lottery-item-pools`、`lottery-equipment-pools`、`selection-boxes-*` | `.stk` 的 booster/select/lottery 字段，`etc/dungeondroptablebygroup.etc` 及装备组 | `boosters`已提取共享解析并接候选，42504条奖励池完整一致，未知项不扩大执行；抽奖和选择箱仍待提取与核对 |
 | 独立礼盒 `boxes` | `radianttreasurebox.cos` 等 COS 表 | 可迁移但待绑定完整源路径：当前 JSON 只有 `.cos.txt` 文件名，当前 PVF 有两个同名版本；须按物品脚本引用/内容指纹确认，不按 basename 任选 |
 | 强化/增幅券、净化书、附魔 `reinforcement-tickets`、`amplify-tickets`、`amplify-grimoire`、`enchant-beads` | 对应 `.stk` 类型、作用条件、等级、成功率或附魔能力字段 | 移植现有 `scripts/export_*` 到共享导入器；券自带的概率也属于 PVF 字段，不能与普通强化概率一起排除 |
 | 强化费用 `reinforcement-gold` | `etc/upgrade.etc`、`etc/(r)serverparameter.etc` | 费用、材料、等级/稀有度权重及源保护表迁移；玩家实测概率、额外保护/失败规则及可互换材料策略按字段保留 |
 | 增幅费用 `amplify-upgrade` | `etc/amplifyupgrade.etc` | 普通/安全增幅的材料与金币源表迁移；外部提供的成功率/失败行为作为独立策略 |
 | 金库 `vault.generated` | 账号金库 `etc/accountcargo.etc`；角色金库容量来自客户端分析 | 账号 `required_level` 与 40 行 `upgrade info` 可直读；个人金库初始容量/已验证容量与源版本不能改用 PVF checksum 覆盖 |
 | 副本主目录 `dungeons.*` | `list/dungeon.lst`、`list/map.lst` 及 `.dgn` / `.map` | `ImportDungeons` 已存在；导入普通副本全集及实际引用资源，不能用教程子集代替 |
-| 教程 `tutorial-routes.*`、`tutorial-dungeons.*`、训练场 | 职业起始路线及源副本/地图 | `ImportTutorials` 与 `ImportDungeons` 复用；训练入口/spawn 等本服选择独立核对 |
+| 教程 `tutorial-routes.*`、`tutorial-dungeons.*`、训练场 | 职业起始路线及源副本/地图 | 教程路线已接 `tutorial` 候选，16条完整一致；教程副本/训练场仍待 `ImportDungeons` 接入，入口/spawn 选择独立保留 |
 | 副本覆盖 `terminal-scenes`、`layer-revisits`、`tournament-quest-maps`、两座塔、`hell-party-maps` | 原 `.dgn` / `.map` 引用、`list/cinematic.lst` 与源场景 | 两座塔有库导入器，其余提取导出/装配逻辑；分层重访和剧情条件仍按已确认执行语义保留 |
 | 迷宫概率 `dungeons.maze-chance-rates` | `.dgn` 的 `[maze chance rate]` | `source_rates` 迁移；当前 `[992857,7143] → [980000,20000]` 是实际覆盖值，作为独立策略保留 |
 | Odyssey 成长、章节、武器箱 `odyssey-growth-*`、`odyssey-chapters-*`、`odyssey-weapon-box-*` | `contents/2026/aradodyssey/etc/aradodyssey.etc`、`aradodysseyjournal.cos`、关联礼盒脚本 | 提取成长/章节导出与现有解析；保留毕业主线、赠品与地图顺序，运行派生索引参与核对 |
@@ -236,3 +236,23 @@ GM 包内另有 `set_items*.json`、`avatar_sets.json`、`set_display_names.json
 游戏服务新增参数为 `-pvf-catalogs world,quests,progression -pvf-archive <历史inner绝对路径> -pvf-sha256 7ef2db59…`，SHA需填完整值。仍要求原 `-character-catalog` 和所选领域的 `-world-catalog`、`-quest-catalog`、`-progression-catalog` 作为启动核对基线；核对完成后业务消费 PVF 导入的内存目录。移除启动时基线 JSON 依赖是后续默认切换阶段的工作，不将本候选称为全量直读已完成。
 
 候选源码没有部署、重启或实机验收；默认启动方式保持原行为。回退本候选只需不传 `-pvf-catalogs`，不修改存档与历史来源。
+
+
+### 2026-10-01继续实施：十四领域候选与JSON门禁分离
+
+新增`skills,prices,materials,boosters,tutorial`五领域，联合十四领域完成完整对照。技能按职业/技能ID比较以消除旧导出器map遍历造成的职业行顺序差异；Token及全部学习字段保持严格比较，未忽略技能类型差异。生效next27的3224条一致，旧release的12条技能差异没有覆盖进本批。
+
+`-pvf-verify-baselines`/`DFO_PVF_VERIFY_BASELINES`将导出JSON对照限定为可选审计。默认仍开启审计；新`pvf-next-candidate.json`设为0，全部所选领域仅从同源PVF准备。预期SHA、角色来源锚点和存档版本继续强制校验。十四领域缺失JSON路径测试通过；职业锚点、本服策略和未迁移目录仍保留现有文件。
+
+价格599682条、材料14211条、Booster42504条、教程16条完整一致；88条非法价格继续拒绝交易，材料金币模板0保留。材料JSON旧外层来源2429b15a与inner来源7ef2db59仅在该投影全部成本/路径一致后替换元数据，不作为通用来源别名。礼盒有226次智能组替换，6159个既有未解析body和掉落组21469仍明确报告，不猜奖励。
+
+商店读源核对发现`100000375`绑定两份周年`.shp`，旧导出器以覆盖选定一份，源itemshop列表未提供两者引用。尚缺开店引用/当前客户端消费闭环，`shops`保持禁止选择并保留现有JSON；这不是认定商店数据PVF没有。普通物品价格及自身材料成本已先迁移，商店绑定单独补证据。
+
+十四领域完整对照准备41.42秒，GC后heap约1.53GiB；不读所选JSON的准备35.02秒。全量Go测试/vet、7项Python准备/profile测试通过。新增隔离程序`.tmp/pvf-next/bin/wireprobe-handoff-source.exe`，SHA256 `b8668e5ef9e56ed37f3ba313fb9349625aa64e0cf16dd41b67e13192a85f0db9`；九领域已确认程序保留原哈希。详细启动、回退和手动检查见[第二批实机验证](PVF直读第二批实机验证.md)。本批等待用户实机，不升级confirmed baseline，未修改默认启动、客户端资源、数据库结构或玩家存档。
+
+剩余可迁移项继续覆盖：职业源字段/策略拆分、普通装备选择/掉落、盾牌和随机词条、强化/增幅券与费用、附魔、金库PVF字段、主副本和覆盖、Odyssey/军团/调律/矿区/黑鸦源奖励、抽奖/选择箱/COS礼盒、嵌入数据及GM源查询；详见上方清单。下一批优先强化/增幅与附魔等已有导出器的直接规则，商店和同名礼盒并行补只读取证，不因一处绑定缺口停止其它目录迁移。
+
+
+### 2026-10-01十四领域确认收口
+
+用户确认正常，十四领域及所选JSON启动对照分离升级confirmed baseline。实际会话`roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261001_042311_786667_next37`运行第二批隔离程序，准备32.157秒；有4次材料购买、1次开箱、9次装备移动提交及技能恢复日志，客户端正常退出。完整范围见第二批实机验证文档；后续迁移另立候选，不覆盖本已确认程序。

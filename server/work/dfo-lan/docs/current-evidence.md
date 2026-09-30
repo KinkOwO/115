@@ -1,5 +1,10 @@
 # 当前构建与第一阶段证据
 
+## 2026-10-01补充：PVF第二批候选，未实机确认
+
+新增技能3224条、NPC价格599682条、材料14211条、礼盒42504条和教程16条路线，十四领域完整对照与所选JSON路径全部不存在的准备测试通过。新profile `pvf-next-candidate.json`设`DFO_PVF_VERIFY_BASELINES=0`，来源与角色存档锚点仍强制一致；职业/策略及其它领域仍读原配置。全量Go测试/vet、7项Python测试通过，隔离程序SHA256为`b8668e5ef9e56ed37f3ba313fb9349625aa64e0cf16dd41b67e13192a85f0db9`。商店同ID多源文件绑定未闭环，仍保留JSON；未知礼盒不扩大执行。本批待用户手动验证，九领域confirmed baseline及原隔离程序保持。未启动客户端、重启服务或修改玩家数据库。启动与回退见[第二批验证](../../../../docs/todo/pvf/PVF直读第二批实机验证.md)。
+
+
 ## 2026-10-01补充：PVF直读九领域已确认
 
 用户确认“经过确认，都是正常的”。本批世界、任务、经验、物品索引、全量装备、期限、外观登记、装备图鉴和生成成本的PVF直读成为confirmed baseline。实际会话`roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261001_031044_836440_next37`运行隔离程序，九领域门禁全通过，准备37.989秒；角色11/19/20有装备、名望和任务奖励记录，副本3/5推进并产生两次结算奖励，客户端正常退出。已确认程序SHA256为`95b009aa41e830a70aa1fc76e150b186b7caef49a02842b8e9ffd07a5255e44e`，源版本仍为`7ef2db59…`。全量Go测试/vet与Python准备/profile测试通过。
@@ -106,3 +111,8 @@ PostgreSQL 17.10 使用项目独立数据目录，回环端口 25438；Redis 8.1
 ## 画面验证限制
 
 Computer Use 截图接口报 `SetIsBorderRequired failed: 不支持此接口 (0x80004002)`，游戏亦没有可用控件树；后续读窗口还出现句柄变化和 foreground process id 读取失败。不能据此猜点击位置或宣称看到角色进入城镇。需要一次真实界面操作或可读取的画面来继续确认建角/选角流程。
+
+
+### 2026-10-01十四领域确认收口
+
+用户确认正常，十四领域及所选JSON启动对照分离升级confirmed baseline。实际会话`roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261001_042311_786667_next37`运行第二批隔离程序，准备32.157秒；有4次材料购买、1次开箱、9次装备移动提交及技能恢复日志，客户端正常退出。完整范围见第二批实机验证文档；后续迁移另立候选，不覆盖本已确认程序。
