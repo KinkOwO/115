@@ -37,5 +37,18 @@ func TestPVFMigrationSourceOnlyLocalArchive(t *testing.T) {
 	if c.grief == nil || c.dazzlement == nil || c.hellMaps == nil || c.mazeRates == nil {
 		t.Fatal("source overlays missing")
 	}
-	t.Log("38 selectors / 44 source families prepared with all selected export JSON paths absent")
+	base, err := c.loadDungeons("missing-dungeons.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := c.attachTerminalScenes(&base, "missing-terminal.json"); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.attachTournamentMaps(&base, "missing-tournament.json"); err != nil {
+		t.Fatal(err)
+	}
+	if len(base.TerminalScenes) != 7 || len(c.tournamentMaps.Maps) != 2 {
+		t.Fatal("closing scene source scope changed")
+	}
+	t.Log("40 selectors / 46 source families prepared with all selected export JSON paths absent")
 }

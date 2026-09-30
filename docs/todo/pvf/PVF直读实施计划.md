@@ -58,7 +58,7 @@ PVF 提供物品、职业、技能、任务、地图和源规则表；服主倍�
 | 金库 `vault.generated` | 账号金库 `etc/accountcargo.etc`；角色金库容量来自客户端分析 | 已接`vault`离线候选，账号60级门槛和40档费用完整一致；角色金库容量与客户端存档来源保留在独立策略 |
 | 副本主目录 `dungeons.*` | `list/dungeon.lst`、`list/map.lst` 及 `.dgn` / `.map` | 已接`dungeons`离线候选，3200副本/18387地图完整一致；10个当前解析器新增接受的副本按策略禁用，4个训练场独立合并 |
 | 教程 `tutorial-routes.*`、`tutorial-dungeons.*`、训练场 | 职业起始路线及源副本/地图 | 16条起始路线已确认；`tutorial-dungeons`15副本/65地图、`training-dungeons`4副本/7地图离线完整一致 |
-| 副本覆盖 `terminal-scenes`、`layer-revisits`、`tournament-quest-maps`、两座塔、`hell-party-maps` | 原 `.dgn` / `.map` 引用、`list/cinematic.lst` 与源场景 | `dungeon-towers`悲叹100层/100地图、眩惑33副本/56地图及`dungeon-hell`55张地图已接候选并完整一致；1个缺失深渊源引用仍拒绝。终场/分层重访/武斗大会仍待迁移 |
+| 副本覆盖 `terminal-scenes`、`layer-revisits`、`tournament-quest-maps`、两座塔、`hell-party-maps` | 原 `.dgn` / `.map` 引用、`list/cinematic.lst` 与源场景 | `dungeon-towers`悲叹100层/100地图、眩惑33副本/56地图及`dungeon-hell`55张地图已接候选并完整一致；1个缺失深渊源引用仍拒绝。终场7条与武斗大会2图已接dungeon-terminal/dungeon-tournament候选并完整一致；分层重访含已验证协议记录，仍待源/策略拆分 |
 | 迷宫概率 `dungeons.maze-chance-rates` | `.dgn` 的 `[maze chance rate]` | 已接`dungeon-maze`离线候选；源概率和脚本哈希直读，原`[992857,7143] → [980000,20000]`覆盖写入独立场景策略 |
 | Odyssey 成长、章节、武器箱 `odyssey-growth-*`、`odyssey-chapters-*`、`odyssey-weapon-box-*` | `contents/2026/aradodyssey/etc/aradodyssey.etc`、`aradodysseyjournal.cos`、关联礼盒脚本 | 已接5项奥德赛离线候选中的成长/章节/武器项，50副本、3赠品及毕业礼盒、7章15奖励模板、85组武器选项及运行派生索引完整一致；毕业主线与源顺序保持 |
 | Odyssey 掉落 `odyssey-chapter-drop-*`、`odyssey-currency` | 章节最后副本、奖励模板与货币 `.stk` | 已接odyssey-drop与odyssey-currency候选，7行章节掉落及2种币完整一致；章节2/7停用、概率及rank选币为独立策略，未恢复为另一套概率 |
@@ -312,3 +312,9 @@ GM 包内另有 `set_items*.json`、`avatar_sets.json`、`set_display_names.json
 新增bleeding-mine直读选择项，12阶段/12领主入口/3难度奖励、117容器、1782物品及全部合成列表/权重完整一致；35个负数空奖签保留，合成机会[1,3,5]和最大5次保持，源失败占位物10330673继续强制禁止发放。修正共享CTP标签池定位：矿区列索引90024包含0x5b，真实池始于90481，改按头部trailer边界跳过NUL垫字节；已加入索引91含左括号的回归用例，天启/调律再次完整核对通过。合计38选择项/44类有效源投影，缺失所选JSON联合准备约42.11秒、全量Go测试/vet、8项Python测试及只读启动检查通过。最新profile为`pvf-mine-candidate.json`，隔离程序SHA256 `3df13ff8b310f634b09308dcf6e5faa3558e8ccc679b3814a79953a812024571`；确认范围仍为第四批28项，第五批新增候选未实机。
 
 第五批已累计新增10选择项，源范围和回退身份见[第五批进度](PVF直读第五批迁移进度.md)。其它剩余项继续实施，本段不宣称全部完成。
+
+## 2026-10-01：任务终端场景与武斗大会地图迁移
+
+新增dungeon-terminal与dungeon-tournament直读选择项，7条任务终端场景和2张武斗大会任务地图完整源对照一致。终端场景复用导出器的任务目标/末层/ACT/CMT解析链；竞技场依原MAP的[dungeon]所属关系及DGN任务迷宫绑定，重复所属拒绝。末层范围、脚本哈希、剧情销毁目标和地图Token均从PVF读取；现有结算与协议记录保持。运行附加不修改准备好的源副本目录。合计40选择项/46类有效源投影，缺失所有所选JSON联合准备约55.08秒（与全量测试并发）、独立场景审计、全量Go测试/vet、8项Python测试及只读依赖检查通过。profile为`pvf-closing-candidate.json`，隔离程序SHA256 `5be230e05298100700957c8eb9559930be35a04bd0710db2e8afed89f809fb0c`。确认范围仍为第四批28项；第五批新增候选未实机。
+
+分层重访配置仍含服务端已验证的18字节记录；未将该记录当作PVF原值。通用选择箱、抽奖、内嵌目录、GM查询和职业源/策略拆分继续实施。

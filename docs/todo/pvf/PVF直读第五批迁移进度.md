@@ -66,3 +66,9 @@ SHA256：`fcefe7737c198e1425a4d87c03affc7122f7828d1615412835751ed1beafcf2d`。
 原 `inspect_bleeding_mine.py` 已按头部offset28的trailer边界定位pool，而共享Go解析器此前从cellEnd搜索首个 `[`；矿区列索引出现0x5b暴露该差异。只读原始字节确认cellEnd=88648、trailerEnd=90480、错误首括号=90024、实际pool=90481。修正使用已有头部字段，未猜测新的编码格式；新的合法92记录回归样本包含列索引91，以及错误trailer边界拒绝用例。天启和调律完整源核对再次通过。
 
 新增 `pvf-mine-policy.json` 仅在上一批独立策略基础上保留失败占位物排除ID。源机会/概率/合成范围不进入策略；缺失该排除也拒绝启动，避免将Drop Failure Dummy当作奖励发放。最新程序为 `.tmp/pvf-mine/bin/wireprobe-handoff-source.exe`，profile为 `configs/pvf-mine-candidate.json`。其它已确认及候选程序/策略继续保持，未启动客户端、服务或改写玩家数据库。剩余副本覆盖、商品绑定、抽奖/选择箱、嵌入目录、职业源与策略拆分及GM查询继续实施。
+
+## 后续任务终端场景与武斗大会地图（离线候选）
+
+新增dungeon-terminal与dungeon-tournament直读选择项，7条任务终端场景和2张武斗大会任务地图完整源对照一致。终端场景复用导出器的任务目标/末层/ACT/CMT解析链；竞技场依原MAP的[dungeon]所属关系及DGN任务迷宫绑定，重复所属拒绝。末层范围、脚本哈希、剧情销毁目标和地图Token均从PVF读取；现有结算与协议记录保持。运行附加不修改准备好的源副本目录。合计40选择项/46类有效源投影，缺失所有所选JSON联合准备约55.08秒（与全量测试并发）、独立场景审计、全量Go测试/vet、8项Python测试及只读依赖检查通过。profile为`pvf-closing-candidate.json`，隔离程序SHA256 `5be230e05298100700957c8eb9559930be35a04bd0710db2e8afed89f809fb0c`。确认范围仍为第四批28项；第五批新增候选未实机。
+
+独立程序路径为`server/work/dfo-lan/.tmp/pvf-closing/bin/wireprobe-handoff-source.exe`，复用38项的不可变`pvf-mine-policy.json`，无需新策略字段。原38项及所有旧profile/程序保持可回退。场景准备在打开存储之前完成；未启动服务、客户端或连接玩家数据库。JSON附件验证器与原离线导出命令复用同一终端场景投影。

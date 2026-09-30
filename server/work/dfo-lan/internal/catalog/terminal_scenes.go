@@ -16,14 +16,16 @@ func AttachTerminalScenes(c *DungeonCatalog, file string) error {
 	if err != nil {
 		return err
 	}
-	var overlay struct {
-		Source struct {
-			Checksum string `json:"checksum"`
-		} `json:"source"`
-		Scenes []DungeonTerminalScene `json:"terminal_scenes"`
-	}
+	var overlay TerminalSceneOverlay
 	if err := json.Unmarshal(data, &overlay); err != nil {
 		return err
+	}
+	return ApplyTerminalScenes(c, overlay)
+}
+
+func ApplyTerminalScenes(c *DungeonCatalog, overlay TerminalSceneOverlay) error {
+	if c == nil {
+		return fmt.Errorf("terminal scenes require a dungeon catalog")
 	}
 	if overlay.Source.Checksum == "" || overlay.Source.Checksum != c.Source.Checksum || len(overlay.Scenes) == 0 {
 		return fmt.Errorf("terminal scene source mismatch or empty export")
@@ -61,6 +63,6 @@ func AttachTerminalScenes(c *DungeonCatalog, file string) error {
 			return fmt.Errorf("terminal scene differs from quest boss layer %v", key)
 		}
 	}
-	c.TerminalScenes = overlay.Scenes
+	c.TerminalScenes = append([]DungeonTerminalScene(nil), overlay.Scenes...)
 	return nil
 }

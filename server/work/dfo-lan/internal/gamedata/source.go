@@ -35,6 +35,14 @@ type Source struct {
 	archive *pvf.Archive
 }
 
+func (s *Source) TerminalScenes(d catalog.DungeonCatalog, q catalog.QuestCatalog) (catalog.TerminalSceneOverlay, error) {
+	return catalog.ImportTerminalScenes(s.archive, d, q)
+}
+
+func (s *Source) TournamentQuestMaps(d catalog.DungeonCatalog) (catalog.SourceMapOverlay, error) {
+	return catalog.ImportTournamentQuestMaps(s.archive, d)
+}
+
 func Open(options Options) (*Source, error) {
 	if options.Mode == "" {
 		options.Mode = JSON

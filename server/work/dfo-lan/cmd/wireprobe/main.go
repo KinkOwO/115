@@ -752,7 +752,7 @@ func main() {
 				overlayDirectory = filepath.Dir(*characterCatalog)
 			}
 			path := filepath.Join(overlayDirectory, "dungeons.terminal-scenes.json")
-			if e = catalog.AttachTerminalScenes(&data, path); e != nil {
+			if e = pvfCatalogs.attachTerminalScenes(&data, path); e != nil {
 				log.Fatal(e)
 			}
 			path = filepath.Join(overlayDirectory, "dungeons.layer-revisits.json")
@@ -760,7 +760,7 @@ func main() {
 				log.Fatal(e)
 			}
 			path = filepath.Join(overlayDirectory, "dungeons.tournament-quest-maps.json")
-			if e = catalog.AttachTournamentQuestMaps(&data, path); e != nil {
+			if e = pvfCatalogs.attachTournamentMaps(&data, path); e != nil {
 				log.Fatal(e)
 			}
 			path = filepath.Join(overlayDirectory, "dungeons.tower-of-grief-maps.json")
