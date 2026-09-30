@@ -5383,7 +5383,12 @@ func main() {
 					return
 				}
 				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-				err := changeRosterSlot(ctx, characters, developmentAccount, selectedCharacterID, plaintext)
+				var err error
+				if selectedCharacterID != 0 {
+					err = errors.New("character slot change requires character selection screen")
+				} else {
+					err = characters.ChangeSlot(ctx, developmentAccount, plaintext)
+				}
 				cancel()
 				payload := protocol.CharacterSlotSuccess()
 				if err != nil {
