@@ -177,26 +177,11 @@ func (s *equipmentSession) reinforceWithTicket(ctx context.Context, service *inv
 	if err != nil {
 		return nil, err
 	}
-	// 即使重放旧回执，也发送当前槽位；采用增量更新保留强化动画引用的装备对象。
-	ticketRow := bagRowOrEmpty(bag, r.TicketSlot)
-	rows := [][protocol.CurrentItemRecordSize]byte{ticketRow}
-	if r.EquipmentSpace == 0 {
-		gearRow := bagRowOrEmpty(bag, r.EquipmentSlot)
-		rows = append(rows, gearRow)
-	}
-	body, err := protocol.InventoryUpdate(rows)
+	// Even a replay refreshes the current slots without rebuilding inventory objects.
+	rows := equipmentRows(bag, r.EquipmentSpace, r.EquipmentSlot, r.TicketSlot)
+	plan, err = appendEquipmentRefresh(plan, saved.State, rows, r.EquipmentSpace, "reinforcement_ticket_inventory", "reinforcement_equipment_updated")
 	if err != nil {
 		return nil, err
-	}
-	plan = append(plan, outboundPacket{"reinforcement_ticket_inventory", 0, 14, body})
-	if r.EquipmentSpace == 3 {
-		body, err = inventory.WornSpaceUpdate(saved.State)
-		if err != nil {
-			return nil, err
-		}
-		if len(body) > 0 {
-			plan = append(plan, outboundPacket{"reinforcement_equipment_updated", 0, 14, body})
-		}
 	}
 	event(map[string]any{"kind": "reinforcement_ticket_committed", "character_id": saved.ID,
 		"ticket": out.Ticket, "remaining": out.Remaining, "equipment": r.EquipmentTemplate,
@@ -242,23 +227,10 @@ func (s *equipmentSession) reinforceWithMaterial(ctx context.Context, service *i
 	}
 	goldRow, _ := bag.RowAt(0)
 	rows = append(rows, goldRow)
-	if r.EquipmentSpace == 0 {
-		gearRow := bagRowOrEmpty(bag, r.EquipmentSlot)
-		rows = append(rows, gearRow)
-	}
-	body, err := protocol.InventoryUpdate(rows)
+	rows = append(rows, equipmentRows(bag, r.EquipmentSpace, r.EquipmentSlot)...)
+	plan, err = appendEquipmentRefresh(plan, saved.State, rows, r.EquipmentSpace, "reinforcement_gold_inventory", "reinforcement_equipment_updated")
 	if err != nil {
 		return nil, err
-	}
-	plan = append(plan, outboundPacket{"reinforcement_gold_inventory", 0, 14, body})
-	if r.EquipmentSpace == 3 {
-		body, err = inventory.WornSpaceUpdate(saved.State)
-		if err != nil {
-			return nil, err
-		}
-		if len(body) > 0 {
-			plan = append(plan, outboundPacket{"reinforcement_equipment_updated", 0, 14, body})
-		}
 	}
 	if out.MaterialFromStorage {
 		// 只同步材料仓库面板（list35），不发整包 list0 快照 —— 整包重建会打断强化动画引用的装备对象。
@@ -301,33 +273,14 @@ func (s *equipmentSession) amplifyUpgrade(ctx context.Context, service *inventor
 	if err != nil {
 		return nil, err
 	}
-	rows := [][protocol.CurrentItemRecordSize]byte{}
-	// 材料行：材料被扣完时该格已移除，用空行让客户端同步移除。
-	matRow := bagRowOrEmpty(bag, out.MaterialSlot)
-	rows = append(rows, matRow)
-	// 保护券触发时刷新保护券行，让客户端立即看到扣减。
+	slots := []uint16{out.MaterialSlot}
 	if out.Protected {
-		// ⚠️ 必须走 bagRowOrEmpty：只有一张保护券时这一行会被整行移除，
-		// 那时若什么都不发，客户端会把图标留在原地（实机 2026-09-28）。
-		rows = append(rows, bagRowOrEmpty(bag, out.ProtectionSlot))
+		slots = append(slots, out.ProtectionSlot)
 	}
-	if out.EquipmentSpace == 0 {
-		gearRow := bagRowOrEmpty(bag, out.EquipmentSlot)
-		rows = append(rows, gearRow)
-	}
-	body, err := protocol.InventoryUpdate(rows)
+	rows := equipmentRows(bag, out.EquipmentSpace, out.EquipmentSlot, slots...)
+	plan, err = appendEquipmentRefresh(plan, saved.State, rows, out.EquipmentSpace, "amplify_upgrade_inventory", "amplify_upgrade_worn")
 	if err != nil {
 		return nil, err
-	}
-	plan = append(plan, outboundPacket{"amplify_upgrade_inventory", 0, 14, body})
-	if out.EquipmentSpace == 3 {
-		wornBody, werr := inventory.WornSpaceUpdate(saved.State)
-		if werr != nil {
-			return nil, werr
-		}
-		if len(wornBody) > 0 {
-			plan = append(plan, outboundPacket{"amplify_upgrade_worn", 0, 14, wornBody})
-		}
 	}
 	// ★ 金币行单独一包、放在最后发。
 	// 实机：+10 以上增幅失败摧毁装备时，客户端会把金币显示清成 0
@@ -403,27 +356,10 @@ func (s *equipmentSession) amplifyTicket(ctx context.Context, service *inventory
 	if err != nil {
 		return nil, err
 	}
-	rows := [][protocol.CurrentItemRecordSize]byte{}
-	// 券行：券被扣完时该格已移除，用空行让客户端同步移除。
-	ticketRow := bagRowOrEmpty(bag, r.TicketSlot)
-	rows = append(rows, ticketRow)
-	if out.EquipmentSpace == 0 {
-		gearRow := bagRowOrEmpty(bag, r.EquipmentSlot)
-		rows = append(rows, gearRow)
-	}
-	body, err := protocol.InventoryUpdate(rows)
+	rows := equipmentRows(bag, out.EquipmentSpace, r.EquipmentSlot, r.TicketSlot)
+	plan, err = appendEquipmentRefresh(plan, saved.State, rows, out.EquipmentSpace, "amplify_ticket_inventory", "amplify_ticket_worn")
 	if err != nil {
 		return nil, err
-	}
-	plan = append(plan, outboundPacket{"amplify_ticket_inventory", 0, 14, body})
-	if out.EquipmentSpace == 3 {
-		wornBody, werr := inventory.WornSpaceUpdate(saved.State)
-		if werr != nil {
-			return nil, werr
-		}
-		if len(wornBody) > 0 {
-			plan = append(plan, outboundPacket{"amplify_ticket_worn", 0, 14, wornBody})
-		}
 	}
 	event(map[string]any{"kind": "amplify_ticket_committed", "character_id": saved.ID,
 		"mode": r.Mode, "ticket": out.Ticket, "ticket_slot": r.TicketSlot, "remaining": out.Remaining,

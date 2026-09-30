@@ -128,26 +128,9 @@ func (s *WearService) ApplyEnchantByBead(ctx context.Context, role storage.Chara
 	if r.BeadSpace != 0 {
 		return role, out, fmt.Errorf("附魔宝珠容器 %d 不支持（仅背包）", r.BeadSpace)
 	}
-	saved, _, err := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, enchantModel, func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
-		next, receipt, e := s.applyEnchantByBead(current, r)
-		if e != nil {
-			return nil, nil, e
-		}
-		encoded, e := json.Marshal(receipt)
-		if e != nil {
-			return nil, nil, e
-		}
-		return next, encoded, nil
+	return commitEquipmentEvent(ctx, s.Store, role, key, enchantModel, func(current storage.Character) (json.RawMessage, EnchantReceipt, error) {
+		return s.applyEnchantByBead(current, r)
 	})
-	if err != nil {
-		return role, out, err
-	}
-	receipt, err := s.Store.CharacterEventReceipt(ctx, role.AccountID, role.ID, key)
-	if err == nil {
-		err = json.Unmarshal(receipt, &out)
-	}
-	saved.WireID = role.WireID
-	return saved, out, err
 }
 
 func (s *WearService) applyEnchantByBead(role storage.Character, r protocol.EnchantByBeadRequest) (json.RawMessage, EnchantReceipt, error) {

@@ -125,26 +125,9 @@ func (s *WearService) ApplyAmplifyTicket(ctx context.Context, role storage.Chara
 	if len(amplifyTickets) == 0 {
 		return role, out, fmt.Errorf("增幅券规则未装载")
 	}
-	saved, _, err := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, amplifyTicketModel, func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
-		next, receipt, e := s.applyAmplifyTicket(current, r)
-		if e != nil {
-			return nil, nil, e
-		}
-		encoded, e := json.Marshal(receipt)
-		if e != nil {
-			return nil, nil, e
-		}
-		return next, encoded, nil
+	return commitEquipmentEvent(ctx, s.Store, role, key, amplifyTicketModel, func(current storage.Character) (json.RawMessage, AmplifyTicketReceipt, error) {
+		return s.applyAmplifyTicket(current, r)
 	})
-	if err != nil {
-		return role, out, err
-	}
-	receipt, err := s.Store.CharacterEventReceipt(ctx, role.AccountID, role.ID, key)
-	if err == nil {
-		err = json.Unmarshal(receipt, &out)
-	}
-	saved.WireID = role.WireID
-	return saved, out, err
 }
 
 func (s *WearService) applyAmplifyTicket(role storage.Character, r protocol.ReinforcementRequest) (json.RawMessage, AmplifyTicketReceipt, error) {

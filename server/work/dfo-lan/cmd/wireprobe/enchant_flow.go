@@ -68,33 +68,10 @@ func (w *worldSession) enchantByBead(service *inventory.WearService, p, raw []by
 	if err != nil {
 		return nil, err
 	}
-	rows := [][protocol.CurrentItemRecordSize]byte{}
-	// 宝珠行：被扣完时该格已移除，用空行让客户端同步移除。
-	beadRow, exists := bag.RowAt(out.BeadSlot)
-	if !exists {
-		beadRow = protocol.EmptyOrdinaryItem(out.BeadSlot)
-	}
-	rows = append(rows, beadRow)
-	if out.EquipmentSpace == 0 {
-		gearRow, ok := bag.RowAt(out.EquipmentSlot)
-		if !ok {
-			gearRow = protocol.EmptyOrdinaryItem(out.EquipmentSlot)
-		}
-		rows = append(rows, gearRow)
-	}
-	body, err := protocol.InventoryUpdate(rows)
+	rows := equipmentRows(bag, out.EquipmentSpace, out.EquipmentSlot, out.BeadSlot)
+	plan, err = appendEquipmentRefresh(plan, saved.State, rows, out.EquipmentSpace, "enchant_inventory", "enchant_worn")
 	if err != nil {
 		return nil, err
-	}
-	plan = append(plan, outboundPacket{"enchant_inventory", 0, 14, body})
-	if out.EquipmentSpace == 3 {
-		wornBody, werr := inventory.WornSpaceUpdate(saved.State)
-		if werr != nil {
-			return nil, werr
-		}
-		if len(wornBody) > 0 {
-			plan = append(plan, outboundPacket{"enchant_worn", 0, 14, wornBody})
-		}
 	}
 	// ★ 回包放在物品行刷新之后：客户端是收到回包才去读那件装备并刷新附魔窗口的，
 	// 若回包先到，窗口会拿到还没更新的旧装备 —— 表现就是「附魔成功了，但预览窗口还是旧的」。

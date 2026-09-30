@@ -3,6 +3,7 @@ package main
 import (
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
+	"encoding/json"
 )
 
 // bagRowOrEmpty 取背包里某一格的行；**该格已经被用光（整行移除）时返回空行**
@@ -15,10 +16,40 @@ import (
 //
 // 凡是「这次结算可能把这一格用光」的行刷新，都必须走这个函数 ——
 // 别再手写 `row, ok := bag.RowAt(slot); if ok { ... }`，那一定会漏掉整行移除这一支。
-// cmd/wireprobe 的强化/增幅/锻造三个流程文件里有守卫用例禁止直接调用 bag.RowAt。
+// 强化、增幅、锻造和附魔通过 equipmentRows 复用此规则。
 func bagRowOrEmpty(bag inventory.Bag, slot uint16) [protocol.CurrentItemRecordSize]byte {
 	if row, ok := bag.RowAt(slot); ok {
 		return row
 	}
 	return protocol.EmptyOrdinaryItem(slot)
+}
+
+func equipmentRows(bag inventory.Bag, space byte, equipmentSlot uint16, slots ...uint16) [][protocol.CurrentItemRecordSize]byte {
+	rows := make([][protocol.CurrentItemRecordSize]byte, 0, len(slots)+1)
+	for _, slot := range slots {
+		rows = append(rows, bagRowOrEmpty(bag, slot))
+	}
+	if space == 0 {
+		rows = append(rows, bagRowOrEmpty(bag, equipmentSlot))
+	}
+	return rows
+}
+
+// Callers place the result acknowledgement before or after these updates.
+func appendEquipmentRefresh(plan []outboundPacket, state json.RawMessage, rows [][protocol.CurrentItemRecordSize]byte, space byte, inventoryName, wornName string) ([]outboundPacket, error) {
+	body, err := protocol.InventoryUpdate(rows)
+	if err != nil {
+		return nil, err
+	}
+	plan = append(plan, outboundPacket{inventoryName, 0, 14, body})
+	if space == 3 {
+		body, err = inventory.WornSpaceUpdate(state)
+		if err != nil {
+			return nil, err
+		}
+		if len(body) > 0 {
+			plan = append(plan, outboundPacket{wornName, 0, 14, body})
+		}
+	}
+	return plan, nil
 }

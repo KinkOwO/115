@@ -216,26 +216,9 @@ func (s *WearService) ApplyRefine(ctx context.Context, role storage.Character, k
 	if !RefineRulesLoaded() {
 		return role, out, fmt.Errorf("锻造规则未装载")
 	}
-	saved, _, err := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, refineModel, func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
-		next, receipt, e := s.applyRefine(current, r)
-		if e != nil {
-			return nil, nil, e
-		}
-		encoded, e := json.Marshal(receipt)
-		if e != nil {
-			return nil, nil, e
-		}
-		return next, encoded, nil
+	return commitEquipmentEvent(ctx, s.Store, role, key, refineModel, func(current storage.Character) (json.RawMessage, RefineReceipt, error) {
+		return s.applyRefine(current, r)
 	})
-	if err != nil {
-		return role, out, err
-	}
-	receipt, err := s.Store.CharacterEventReceipt(ctx, role.AccountID, role.ID, key)
-	if err == nil {
-		err = json.Unmarshal(receipt, &out)
-	}
-	saved.WireID = role.WireID
-	return saved, out, err
 }
 
 func (s *WearService) applyRefine(role storage.Character, r protocol.RefineRequest) (json.RawMessage, RefineReceipt, error) {
