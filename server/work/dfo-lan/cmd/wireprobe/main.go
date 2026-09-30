@@ -1641,6 +1641,7 @@ func main() {
 		var selectedBasic []byte
 		var selectedAddition []byte
 		var worldState *worldSession
+		var comboState comboSkillSession
 		var skillState skillSession
 		var cubeContractState cubeContractSession
 		var equipmentState equipmentSession
@@ -3086,6 +3087,42 @@ func main() {
 							}
 							event(map[string]any{"kind": "skill_preset_restored_after_commands", "character_id": selectedCharacterID, "id": 2758})
 						}
+						combo, comboErr := characters.ComboSkillInfoNotify(worldState.role)
+						if comboErr != nil {
+							event(map[string]any{"kind": "combo_skill_info_refresh_failed", "character_id": selectedCharacterID, "error": comboErr.Error()})
+						} else if len(combo) > 0 {
+							if e = sendPayload(0, 433, combo); e != nil {
+								return
+							}
+							event(map[string]any{"kind": "combo_skill_info_restored_after_commands", "character_id": selectedCharacterID, "type": 0, "id": 433, "plain_hex": hex.EncodeToString(combo)})
+						}
+					}
+				}
+				continue
+			}
+			if characters != nil && bootstrapped && (frame.ID == 500 || frame.ID == 502) {
+				if !verified || worldState == nil || worldState.role.ID != selectedCharacterID {
+					event(map[string]any{"kind": "combo_skill_info_rejected", "id": frame.ID, "character_id": selectedCharacterID, "reason": "checksum or character selection mismatch"})
+					continue
+				}
+				req, saveErr := comboState.save(characters, worldState, frame.ID, plaintext)
+				if saveErr != nil {
+					event(map[string]any{"kind": "combo_skill_info_rejected", "id": frame.ID, "character_id": selectedCharacterID, "reason": saveErr.Error()})
+					continue
+				}
+				event(map[string]any{"kind": "combo_skill_info_saved", "id": frame.ID, "character_id": selectedCharacterID, "cells": req.Cells, "plain_hex": hex.EncodeToString(plaintext)})
+				if frame.ID == 500 {
+					notify, encodeErr := protocol.EncodeComboSkillInfoNotify(req)
+					if encodeErr != nil {
+						event(map[string]any{"kind": "combo_skill_info_reply_failed", "character_id": selectedCharacterID, "error": encodeErr.Error()})
+						continue
+					}
+					if !bytes.Equal(notify, comboState.lastNotify) {
+						if sendErr := sendPayload(0, 433, notify); sendErr != nil {
+							return
+						}
+						comboState.lastNotify = notify
+						event(map[string]any{"kind": "combo_skill_info_replied", "character_id": selectedCharacterID, "type": 0, "id": 433, "plain_hex": hex.EncodeToString(notify)})
 					}
 				}
 				continue
@@ -5281,6 +5318,11 @@ func main() {
 						event(map[string]any{"kind": "entry_skills_error", "error": e.Error()})
 						continue
 					}
+					plan.ComboSkillInfo, e = characters.ComboSkillInfoNotify(role)
+					if e != nil {
+						event(map[string]any{"kind": "entry_combo_skill_info_error", "error": e.Error()})
+						continue
+					}
 					plan.SkillPreset, e = characters.SkillPresetInfo(role)
 					if e != nil {
 						event(map[string]any{"kind": "entry_skill_preset_error", "error": e.Error()})
@@ -5315,7 +5357,7 @@ func main() {
 							entry["town_id"], entry["area_id"] = townCatalog.TownID, townCatalog.AreaID
 						}
 					}
-					if p.ID == 13 || p.ID == 36 || p.ID == 2425 {
+					if p.ID == 13 || p.ID == 36 || p.ID == 2425 || (p.Kind == 0 && p.ID == 433) {
 						entry["plain_hex"] = hex.EncodeToString(p.Payload)
 					}
 					event(entry)
@@ -5324,6 +5366,7 @@ func main() {
 					event(map[string]any{"kind": "entry_write_error", "character_id": role.ID, "error": e.Error()})
 					return
 				}
+				comboState.lastNotify = nil
 				selectedCharacterID = role.ID
 				if worldState != nil {
 					worldState.fameInitialized = false

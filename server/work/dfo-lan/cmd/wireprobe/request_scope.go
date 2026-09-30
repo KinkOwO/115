@@ -16,6 +16,10 @@ func dungeonRequest(id uint16) bool {
 }
 
 func observedGameRequest(id uint16) bool {
+	// Combo editing and reset must still be decoded after the eighth request.
+	if id == 500 || id == 502 {
+		return true
+	}
 	// Shield deck uploads must never fall through the eight-body sample cap.
 	if id == 649 {
 		return true
