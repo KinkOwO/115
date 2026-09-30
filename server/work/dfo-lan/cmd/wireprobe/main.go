@@ -533,6 +533,9 @@ func main() {
 		if e = s.MigrateProfileSkins(ctx); e != nil {
 			log.Fatal(e)
 		}
+		if e = s.MigrateRosterBackgrounds(ctx); e != nil {
+			log.Fatal(e)
+		}
 		if e = s.MigrateMailbox(ctx); e != nil {
 			log.Fatal(e)
 		}
@@ -1687,6 +1690,27 @@ func main() {
 				return err
 			}
 			event(map[string]any{"kind": "server_time_sent", "id": 1960, "reason": reason, "unix_seconds": now.Unix(), "plain_hex": hex.EncodeToString(payload)})
+			return nil
+		}
+		sendRosterBackgrounds := func() error {
+			if characters == nil {
+				return nil
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			state, e := characters.Store.RosterBackgrounds(ctx, developmentAccount)
+			if e != nil {
+				event(map[string]any{"kind": "roster_background_restore_error", "error": e.Error()})
+				return e
+			}
+			payload, e := protocol.RosterBackgroundRestore(state)
+			if e != nil {
+				return e
+			}
+			if e = sendPayload(0, 1759, payload); e != nil {
+				return e
+			}
+			event(map[string]any{"kind": "roster_background_restored", "selected": state.Selected, "owned_count": len(state.Owned)})
 			return nil
 		}
 		event(map[string]any{"kind": "accept", "peer": peer})
@@ -3208,6 +3232,22 @@ func main() {
 				// the fatigue potion (54) and `[add skin storage]` (169, damage font)
 				// paths never collide; the fatigue path keeps its exact prior shape.
 				_, action, actionErr := protocol.DecodeStackableAction(plaintext)
+				if actionErr == nil && action == protocol.RosterBackgroundTicketAction {
+					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					packets, e := worldState.useRosterBackgroundTicket(ctx, plaintext, frame.Raw, purchaseSession.prefix, event)
+					cancel()
+					if e != nil {
+						event(map[string]any{"kind": "背景券使用被拒绝", "character_id": worldState.role.ID, "reason": e.Error()})
+						continue
+					}
+					for _, packet := range packets {
+						if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
+							return
+						}
+						event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID, "id": packet.ID, "plain_hex": hex.EncodeToString(packet.Payload)})
+					}
+					continue
+				}
 				if actionErr == nil && action == protocol.AddSkinStorageAction {
 					plan, e := worldState.useAddSkinStorage(plaintext, event)
 					if e != nil {
@@ -5369,6 +5409,28 @@ func main() {
 				event(map[string]any{"kind": "roster_followup_response", "id": frame.ID, "hex": hex.EncodeToString(response)})
 				continue
 			}
+			if characters != nil && bootstrapped && frame.ID == 1725 {
+				if !verified || selectedCharacterID != 0 {
+					event(map[string]any{"kind": "roster_background_rejected", "error": "背景选择需要有效校验及选角状态"})
+					continue
+				}
+				req, e := protocol.DecodeSelectRosterBackground(plaintext)
+				if e == nil {
+					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					_, e = characters.Store.SelectRosterBackground(ctx, developmentAccount, req.Page, req.Background)
+					cancel()
+				}
+				if e != nil {
+					event(map[string]any{"kind": "roster_background_rejected", "error": e.Error()})
+				} else {
+					event(map[string]any{"kind": "roster_background_selected", "page": req.Page, "category": req.Background.Category, "background_id": req.Background.ID})
+				}
+				// 原生按钮会乐观应用选择；拒绝时也恢复账号的权威状态，不编造未知 ACK。
+				if e = sendRosterBackgrounds(); e != nil {
+					return
+				}
+				continue
+			}
 			if characters != nil && bootstrapped && (frame.ID == 5 || frame.ID == 6 || frame.ID == 684 || frame.ID == 8) {
 				if !verified {
 					event(map[string]any{"kind": "character_rejected", "id": frame.ID, "error": "request checksum or cipher unsupported"})
@@ -5472,6 +5534,12 @@ func main() {
 					return
 				}
 				event(map[string]any{"kind": "character_response", "id": id, "bytes": len(response), "hex": hex.EncodeToString(response)})
+				// NOTI2 先建立选角管理器，再由 NOTI1759 初始化背景列表和五页选择。
+				if frame.ID == 8 && userInfoMode == 2 && kind == 0 && id == 2 {
+					if err = sendRosterBackgrounds(); err != nil {
+						return
+					}
+				}
 				if created {
 					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 					list, e := characters.ListWithFatigue(ctx, developmentAccount, fatigueService, time.Now())
@@ -5493,6 +5561,9 @@ func main() {
 						return
 					}
 					event(map[string]any{"kind": "character_list_after_mutation", "request": frame.ID, "id": 2, "bytes": len(notification)})
+					if e = sendRosterBackgrounds(); e != nil {
+						return
+					}
 				}
 				continue
 			}
