@@ -166,6 +166,30 @@ func mergeSkillState(raw json.RawMessage, state State) (json.RawMessage, error) 
 	}
 	return json.Marshal(old)
 }
+
+// Source awakening grants may precede a player's prerequisite purchases (for
+// example demonic swordman 255 -> 81). Check this request's skills and reject
+// refunds that break dependencies, without requiring unrelated old gaps to be
+// repaired before any ordinary purchase can succeed.
+func (s *Service) validateLearningPrerequisites(job byte, known, changes map[uint16]byte, reduced map[uint16]bool) error {
+	for id, level := range known {
+		if level == 0 {
+			continue
+		}
+		pre := s.Learning.index[job][id].Ints("[pre required skill]")
+		if len(pre)%2 != 0 {
+			return fmt.Errorf("invalid skill prerequisite")
+		}
+		for i := 0; i < len(pre); i += 2 {
+			_, changed := changes[id]
+			if int(known[uint16(pre[i])]) < pre[i+1] && (changed || reduced[uint16(pre[i])]) {
+				return fmt.Errorf("skill change would invalidate learned skill prerequisite")
+			}
+		}
+	}
+	return nil
+}
+
 func (s *Service) Learn(ctx context.Context, role storage.Character, key string, req protocol.SkillPurchase) (storage.Character, bool, error) {
 	if s.Learning == nil || req.Tree != 0 {
 		return role, false, fmt.Errorf("learning service/source unavailable")
@@ -205,6 +229,7 @@ func (s *Service) Learn(ctx context.Context, role storage.Character, key string,
 		}
 		points := int(state.SkillPoints[req.Tree])
 		changes := map[uint16]byte{}
+		reduced := map[uint16]bool{}
 		var newlyLearned []uint16
 		effectiveLevel := int(state.Level)
 		if s.Store != nil {
@@ -248,22 +273,12 @@ func (s *Service) Learn(ctx context.Context, role storage.Character, key string,
 			if known[v.ID] == 0 && target > 0 {
 				newlyLearned = append(newlyLearned, v.ID)
 			}
+			reduced[v.ID] = target < int(known[v.ID])
 			known[v.ID] = byte(target)
 			changes[v.ID] = byte(target)
 		}
-		for id, level := range known {
-			if level == 0 {
-				continue
-			}
-			pre := s.Learning.index[current.Profession][id].Ints("[pre required skill]")
-			if len(pre)%2 != 0 {
-				return nil, nil, fmt.Errorf("invalid skill prerequisite")
-			}
-			for i := 0; i < len(pre); i += 2 {
-				if int(known[uint16(pre[i])]) < pre[i+1] {
-					return nil, nil, fmt.Errorf("refund would invalidate learned skill prerequisite")
-				}
-			}
+		if e := s.validateLearningPrerequisites(current.Profession, known, changes, reduced); e != nil {
+			return nil, nil, e
 		}
 		if len(changes) == 0 && req.Intensions == nil && req.Options == nil {
 			return nil, nil, fmt.Errorf("empty learning request")
