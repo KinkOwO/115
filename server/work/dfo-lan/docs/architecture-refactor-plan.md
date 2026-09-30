@@ -1,6 +1,6 @@
 # 服务端架构简化实施计划
 
-状态：批次 1、2、3、4、5、6、7、8 的代码改动已完成，等待用户实机验收。
+状态：批次 1、2、3、4、5、6、7、8、9 的代码改动已完成，等待用户实机验收。
 
 基线提交：`9fc9a0617d3fc16fa43f8bb4bc1fcd31be4c7990`（2026-09-30）
 
@@ -346,7 +346,39 @@ CMD21/CMD22 shop_flow.go
 - [x] `go vet ./...` 通过。
 - [ ] 实机验证 NPC 商店买入、卖出、材料支付和重复请求回放。
 
-## 11. 后续批次
+## 11. 第九批：删除未接线骨架和 PVF 空包装
+
+当前路径：
+
+```text
+未接线的 internal/oath
+  -> 只有包内测试，没有生产调用
+
+pvf.Open / pvf.OpenBytes
+  -> pvf.LoadArchive / pvf.OpenArchive
+```
+
+目标路径：
+
+```text
+已删除 internal/oath
+
+所有 PVF 读取方
+  -> pvf.LoadArchive
+```
+
+本批删除没有生产引用的 `internal/oath` 骨架，以及没有仓内调用的 `pvf.Open`、`pvf.OpenBytes` 包装函数。保留 `internal/storage` 中已经接入的 oath 选项/进度存储、`internal/inventory` 的装备规则和 `cmd/wireprobe` 的实际协议流程；保留 `pvf.LoadArchive`、`ReadScript`、`ResolveScript` 和 `pvfpatch` 的独立输出能力。删除后包图少一个未接线模块和两个重复入口，不改变服务端启动、协议、存档或 PVF 导入结果。
+
+批次 9 验收：
+
+- [x] `internal/oath` 没有生产调用，已整体删除。
+- [x] `pvf.Open`、`pvf.OpenBytes` 没有仓内调用，已删除。
+- [x] PVF 解析、catalog 导入和 `cmd/pvfpatch` 仍使用 `LoadArchive` 路径。
+- [x] `go test ./...` 通过。
+- [x] `go vet ./...` 通过。
+- [ ] 实机验证不涉及本批删除；需在最终全量回归中确认启动和导入命令。
+
+## 12. 后续批次
 
 每批合并前都要更新本文件；下表中的“完成”只有在代码、自动化检查和必要的实机证据齐全后才能勾选。
 
@@ -358,10 +390,10 @@ CMD21/CMD22 shop_flow.go
 | 06 | 明确 SQL、锁和事务意图 | 01，顺序上晚于 05 | 不破坏账户/角色锁顺序、收据和存档兼容 |
 | 07 | 将通用物品操作从 `loot` 收回 `inventory` | 05、06 | 代码已完成；待实机确认不形成 `inventory -> cashshop -> inventory` 循环 |
 | 08 | 明确 NPC/Cera/商城交易所有者 | 04、06、07 | NPC 交易代码已归 inventory；Cera 交易仍由 cashshop 负责，待实机确认 |
-| 09 | 删除无用 oath 骨架、PVF 无调用中间层和重复启动装配 | 06–08 | 直接 GM 启动路径和外部 pgdata 策略保持不变 |
+| 09 | 删除无用 oath 骨架、PVF 无调用中间层和重复启动装配 | 06–08 | oath/PVF 空包装已删除；启动装配与外部 pgdata 待最终回归 |
 | 10 | 全量回归和长期依赖检查 | 01–09 | 行为、存档、协议和依赖规则都有可重复检查 |
 
-## 12. 每批 MR 模板
+## 13. 每批 MR 模板
 
 ```text
 标题：refactor(server): <一个批次的单一架构目标>

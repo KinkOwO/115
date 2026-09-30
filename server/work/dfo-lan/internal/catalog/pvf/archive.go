@@ -2,12 +2,9 @@ package pvf
 
 import (
 	"bytes"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"sync"
-	"time"
 )
 
 const (
@@ -80,26 +77,6 @@ type Archive struct {
 	// chunks 缓存已解密解压的 body chunk，texts 缓存已解码的脚本文本。
 	chunks sync.Map
 	texts  sync.Map
-}
-
-func Open(path string) (*Archive, error) {
-	return LoadArchive(Options{Path: path})
-}
-
-func OpenBytes(data []byte) (*Archive, error) {
-	if len(data) == 0 {
-		return nil, fmt.Errorf("%w: empty pvf data", ErrInvalidArchive)
-	}
-	copied := append([]byte(nil), data...)
-	sum := sha256.Sum256(copied)
-	return OpenArchive(&Bundle{
-		snapshot: Snapshot{
-			Size:     int64(len(copied)),
-			Checksum: hex.EncodeToString(sum[:]),
-			LoadedAt: time.Now().UTC(),
-		},
-		data: copied,
-	})
 }
 
 func LoadArchive(options Options) (*Archive, error) {
