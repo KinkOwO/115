@@ -1,6 +1,6 @@
 # next52 — 无转职分支职业的觉醒缺口：`demonicswordman` / `creator mage` 的 36 个觉醒技能不可学
 
-> 日期：2026-09-22 · 状态：**取证完成；§5 的第 1、2 层已落地并验证，第 3 层（协议）待实机证据**
+> 日期：2026-09-22 · 更新：2026-09-30 · 状态：**三层及生效配置均已接入当前本地树；attempt 1/3 候选，待用户实机验证，未升级 confirmed baseline**
 > 触发来源：用户提供的第三方补丁包 `50级以上技能修复以及源码`（`learning_catalog.go` + README）
 > 相关：`internal/character/learning_catalog.go`（本次已落地的双价 `[purchase cost]` 修复）
 
@@ -116,7 +116,7 @@ TestAutoSetSourceLearningAndVariation                   (cross-job variation acc
 矩阵由 `forState` 精确写回后，cap 才是唯一权威上限）。放宽它会让跨职业、跨 growtype、
 未觉醒角色全部泄漏。因此本仓库保留 `cap = 0` 语义，改为按 §2 精确放开"无转职职业的 adv=0 觉醒"。
 
-## 5. 修复顺序（第 1、2 层已落地，第 3 层待定）
+## 5. 修复顺序（2026-09-22 原始进度；当前接入见 §5.3）
 
 1. **（已落地，纯数据层）** `catalog.AwakeningSkillGrants`：`grow < 2` → `grow < 1`
    （允许 `[growtype 1]` → `adv = 0`）。已核对：普通职业的 `[growtype 1]` 段内**没有**
@@ -149,12 +149,26 @@ go run ./cmd/catalogimport -source ..\client-build\Script.inner.pvf -output <临
 段前授权仍拒）；`internal/character/learning_adv0_awakening_test.go`（growtype 0 列可学、
 stage 0 与负 advancement 仍拒、影响面收敛在 job 6/9/10）。
 
-### 5.2 尚未生效的部分（重要）
+### 5.2 尚未生效的部分（2026-09-22 历史状态，当前已处理）
 
 - **仓库内 `configs/characters.*.json` 尚未重新导出**：运行时的 `awakening_skills` 表仍是旧的空值，
   所以第 1 层要等下次按各自参数重新生成这些配置后才在服务端生效。
 - **实机行为不变**：第 3 层未放开前，角色状态不可能出现 `adv=0 + stage>0`，
   因此这两个职业仍无法觉醒，36 个技能仍不可学。第 1、2 层是第 3 层的前置。
+
+### 5.3 当前本地树接入（2026-09-30）
+
+核对发现，`docs/todo/DNF115US-觉醒修复-交接-20260926/` 的候选没有进入当前 Go 源码树：两处 adv=0 拒绝仍在，生效配置 job9/10 授权为空。本次选择性接入该方案，保留当前主线的组合技能栏、VP、选角显示等已有改动，不整包覆盖。
+
+重新用 `cmd/pvfinspect` 只读提取本机 `server/work/client-build/Script.inner.pvf` 的两份 `.chr` 和 typed tokens。归档 SHA-256 为 `7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80`，与实际角色/技能配置的 source checksum 一致；两份原始条目的 SHA-256 与 job9/10 配置 RawSHA256 一致，授予值与 §5.1 逐值相同。提取证据位于模块 `.tmp/awakening-source-20260930/`，不纳入 Git。
+
+- `WireAdvancement` 保留范围检查，允许 adv=0 与 stage1/2/3 编码为 `0x10/0x20/0x30`。
+- `ApplyAwakening` 仅在职业无转职分支且有 growtype-0 源授权时放行 adv=0；等级、顺序、源版本和授权校验继续生效。
+- 仅补齐实际生效的 `characters.skycastle-release.json` 两个职业授权；source、其它职业、黑暗武士六个组合槽位均保持原值。
+- 同时修复二觉后的加点阻塞：源授予255的前置81可以尚未购买。学习校验只拒绝本次技能自身的前置缺口以及本次降级造成的依赖缺口，旧缺口不再阻塞无关学习；不额外赠送前置技能或 SP。
+- 新增实际配置的一至三觉、入场投影、未知存档字段保留、前置/退款保护测试，真实 PG 临时 schema 验证两职业觉醒存档及黑暗武士普通加点、重放幂等和重读恢复。无玩家库迁移、无客户端资源或 DLL 改动。
+
+沿用交接的 attempt 1/3；本次没有改包体布局、codec 或新增客户端试包假设。当前用户尚未验证此本机候选，不升级 confirmed baseline。测试、部署及回退详见 `server/work/dfo-lan/docs/protocol/branchless-awakening-candidate-20260930.md`。
 
 ## 6. 待验证 / 未闭环
 
