@@ -40,6 +40,10 @@ func (s *Source) Adventure(index catalog.ItemIndex) (*adventure.Rules, error) {
 	return adventure.ImportRules(s.archive, index)
 }
 
+func (s *Source) RecommendedDungeons() (*adventure.RecommendedRules, error) {
+	return adventure.ImportRecommendedRules(s.archive)
+}
+
 func (s *Source) Lottery(index catalog.ItemIndex, policy catalog.LotteryPolicy) (catalog.LotteryTables, error) {
 	return catalog.ImportLotteryTables(s.archive, index, policy)
 }

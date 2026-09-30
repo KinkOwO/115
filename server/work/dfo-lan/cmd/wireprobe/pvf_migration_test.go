@@ -73,5 +73,14 @@ func TestPVFMigrationSourceOnlyLocalArchive(t *testing.T) {
 	if err != nil || len(rules.Experience) != 60 || len(rules.Shops) != 3 {
 		t.Fatal("native embedded adventure rules missing", err)
 	}
-	t.Log("43 selectors / 50 source families prepared with all selected export JSON paths absent")
+	restoreRecommended, err := c.installRecommendedRules()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer restoreRecommended()
+	recommended, err := adventure.CurrentRecommendedRules()
+	if err != nil || len(recommended.Ranges) == 0 {
+		t.Fatal("native embedded recommended rules missing", err)
+	}
+	t.Log("44 selectors / 51 source families prepared with all selected export JSON paths absent")
 }
