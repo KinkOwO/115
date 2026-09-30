@@ -98,6 +98,63 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 		} else if e != nil {
 			return nil, e
 		}
+		// [MERGE-20260928-DUNGEON-GROUP-DROP] 副本自带掉落组时的分支。
+		//
+		// 两条组来源，**优先用带率的那条**：
+		//
+		//  1. etc/dungeondropinfo.cos —— 全局索引，带品级与率，但只有 281 个副本有。
+		//     RollDungeonGroups 自己 roll 率，命中才发组里的物品。
+		//  2. 副本脚本 [normal group index] —— 副本自选，3200 个副本都有，但不带率。
+		//     率和品级已经由上面 RollWithBonus 的全局表定完了，这条只负责把「出什么
+		//     物品」换成副本自选的池子。
+		//
+		// 实机刷的「深渊：最终调律者」100005014 落在第 2 条：它不在 dungeondropinfo 里，
+		// 但带 `[normal group index] 1 21251 1 21476`（21251 是深渊 epic 组）。这正是此前
+		// 服务端拿不到它的原因 —— 全局表给普通怪的装备率只有 0.37%（135×0.2×1.4/10000），
+		// 11 只杂兵期望出 0.04 件，看起来就是「装备不爆」。
+		//
+		// 两条都命中时只走第 1 条：dungeondropinfo 带率，语义更完整。
+		//
+		// ⚠️ 与外部包的一处**有意收窄**：这两条只在「该副本不排除掉落、且这只怪属于本次
+		// 战斗」时启用（即仍在本 `if` 内）。排除标记是副本作者写下的意图，宁可不发。
+		groupTaken := false
+		if entries, has := s.Catalog.DropInfoByID(d.Definition.ID); has && len(entries) > 0 {
+			grpOut, _, gerr := RollDungeonGroups(s.Catalog, s.Rules, result.NextSeed, DungeonGroupDropRequest{
+				DungeonID:   d.Definition.ID,
+				MonsterKind: monsterKindName(monster.Rank),
+				Difficulty:  int(difficultyIndex(s.Rules, d.Difficulty)),
+				Rarity:      -1,
+			})
+			if gerr != nil {
+				return nil, gerr
+			}
+			groupTaken = true
+			result.Awards = replaceItemAwards(result.Awards, grpOut.Awards)
+			result.SkippedKinds = append(result.SkippedKinds, grpOut.SkippedKinds...)
+			result.NextSeed = grpOut.NextSeed
+		} else if ids, ok, gerr := DungeonGroupIndices(d.Definition, int(difficultyIndex(s.Rules, d.Difficulty))); gerr != nil {
+			return nil, gerr
+		} else if ok && len(ids) > 0 {
+			// 件数由全局表先定：「掉不掉、掉几件」是怪物侧的判断，组只决定「掉什么」。
+			// 没有这层约束时每只小怪都会把每个声明组各抽一件 —— 100005014 声明 2 组，
+			// 实机就变成每只小怪必掉 2 件、13 只小怪 26 件/把（「普通小怪爆了一地」）。
+			budget := 0
+			for _, a := range result.Awards {
+				if a.Template != 0 {
+					budget += int(a.Amount)
+				}
+			}
+			grpOut, _, gerr := RollDeclaredGroups(s.Catalog, ids, budget, result.NextSeed)
+			if gerr != nil {
+				return nil, gerr
+			}
+			groupTaken = true
+			result.Awards = replaceItemAwards(result.Awards, grpOut.Awards)
+			result.SkippedKinds = append(result.SkippedKinds, grpOut.SkippedKinds...)
+			result.NextSeed = grpOut.NextSeed
+		}
+		// 没有声明组的副本保持全局表结果不动，groupTaken 只用于排查。
+		_ = groupTaken
 	}
 	result.Awards = filterDungeonAwards(d.Definition, result.Awards)
 	if d.Definition.Odyssey && s.Currency != nil {
@@ -222,6 +279,27 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 	s.blackPurgatoryRolled = s.blackPurgatoryRolled || blackBoss
 	s.Skipped[entity] = result.SkippedKinds
 	return append([]protocol.SceneDrop(nil), rows...), nil
+}
+
+// monsterKindName 把怪物的 rank 映射到 dungeondropinfo [rate list] 的类别键。
+//
+// 映射依据（只读观察，不做发明）：
+//   - [rate list] 里实际出现的键只有 `boss` / `named` / `normal`
+//   - 服务端 DungeonMonster.Rank 的取值 0..3 对应 normal0 / champion1 / super2 / boss3
+//     （见 protocol.DungeonMonster 的注释）
+//   - 所以 rank3 唯一对应 boss，rank0 对应 normal，rank1/2（champion/super）落在
+//     named 上 —— 这是三档对四档的唯一无损映射。
+//
+// 未在 [rate list] 里出现的键一律由 RollDungeonGroups 记进 SkippedKinds，不发物品。
+func monsterKindName(rank byte) string {
+	switch rank {
+	case 3:
+		return "boss"
+	case 0:
+		return "normal"
+	default:
+		return "named"
+	}
 }
 
 // difficultyIndex maps a run's client difficulty onto the bonus table. The

@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"dfolan/internal/catalog/pvf"
@@ -564,17 +566,44 @@ func loadDungeon(t *testing.T, id uint32) DungeonDefinition {
 }
 
 // Catalogs written before the projection existed carry neither key and must keep
-// loading; the shipped next25 catalog is exactly that case.
+// loading. next25 used to be exactly that case, but it now ships the projection
+// (2026-09-28: [normal group index] needs the groups), so the legacy shape is
+// built here instead of being read from the shipped file.
 func TestLoadLootAcceptsCatalogWithoutDropGroups(t *testing.T) {
-	c, e := LoadLoot("../../configs/loot.next25.json")
+	// 只留 items：既没有 drop_group_source，也没有 drop_groups。
+	legacy := `{"source":{"checksum":"` + strings.Repeat("0", 64) + `"},"maximum_grade":130,
+		"rules":{"a":{"path":"etc/a.etc","sha256":"` + strings.Repeat("0", 64) + `","cells":[]},
+		         "b":{"path":"etc/b.etc","sha256":"` + strings.Repeat("0", 64) + `","cells":[]},
+		         "c":{"path":"etc/c.etc","sha256":"` + strings.Repeat("0", 64) + `","cells":[]},
+		         "d":{"path":"etc/d.etc","sha256":"` + strings.Repeat("0", 64) + `","cells":[]}},
+		"items":{"1":{"id":1,"kind":"stackable","grade":1,"rarity":1,"weight":1,
+			"script":{"path":"etc/i.etc","sha256":"` + strings.Repeat("0", 64) + `","cells":[]}}}}`
+	p := filepath.Join(t.TempDir(), "legacy.json")
+	if e := os.WriteFile(p, []byte(legacy), 0o600); e != nil {
+		t.Fatal(e)
+	}
+	c, e := LoadLoot(p)
 	if e != nil {
 		t.Fatal(e)
 	}
 	if len(c.DropGroups) != 0 {
-		t.Fatalf("catalog unexpectedly carries %d drop groups", len(c.DropGroups))
+		t.Fatalf("legacy catalog unexpectedly carries %d drop groups", len(c.DropGroups))
 	}
 	if _, ok := c.DropGroupByID(21600); ok {
 		t.Fatal("empty projection answered a lookup")
+	}
+	// 随包发布的 next25/level150 现在**带**组表，这是组索引消费的前提。
+	for _, f := range []string{"loot.next25.json", "loot.level150.json"} {
+		shipped, e := LoadLoot(filepath.Join("../../configs", f))
+		if e != nil {
+			t.Fatalf("%s: %v", f, e)
+		}
+		if len(shipped.DropGroups) == 0 {
+			t.Fatalf("%s 应带掉落组（[normal group index] 消费的前提）", f)
+		}
+		if _, ok := shipped.DropGroupByID(21251); !ok {
+			t.Fatalf("%s 应能读到深渊组 21251", f)
+		}
 	}
 }
 
