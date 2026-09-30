@@ -65,6 +65,11 @@ func LoadOdysseyChapters(path string) (*OdysseyChapters, error) {
 	if e = json.Unmarshal(b, &c); e != nil {
 		return nil, e
 	}
+	return NewOdysseyChapters(c)
+}
+
+// NewOdysseyChapters shares validation and runtime index construction across native and JSON sources.
+func NewOdysseyChapters(c OdysseyChapters) (*OdysseyChapters, error) {
 	if c.Model != OdysseyChaptersModel || c.Source.Checksum != OdysseySource || c.DefinitionSHA != OdysseyChaptersJournalSHA {
 		return nil, fmt.Errorf("Odyssey chapter source mismatch")
 	}

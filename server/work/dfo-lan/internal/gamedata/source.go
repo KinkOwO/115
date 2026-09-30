@@ -308,3 +308,28 @@ func (s *Source) Attunement(selected []uint32) (*loot.AttunementRewards, error) 
 	}
 	return loot.ImportAttunementRewards(s.archive, selected)
 }
+
+func (s *Source) OdysseyGrowth(index catalog.ItemIndex, supplemental []uint32) (*catalog.OdysseyGrowth, error) {
+	if s.archive == nil {
+		return nil, fmt.Errorf("Odyssey requires PVF")
+	}
+	return catalog.ImportOdysseyGrowth(s.archive, index, supplemental)
+}
+func (s *Source) OdysseyChapters() (*catalog.OdysseyChapters, error) {
+	if s.archive == nil {
+		return nil, fmt.Errorf("Odyssey requires PVF")
+	}
+	return catalog.ImportOdysseyChapters(s.archive)
+}
+func (s *Source) OdysseyWeapons(index catalog.ItemIndex) (catalog.OdysseyWeaponChoices, error) {
+	if s.archive == nil {
+		return catalog.OdysseyWeaponChoices{}, fmt.Errorf("Odyssey requires PVF")
+	}
+	return catalog.ImportOdysseyWeaponChoices(s.archive, index)
+}
+func (s *Source) OdysseyCurrency(index catalog.ItemIndex, policy loot.OdysseyCurrencyPolicy) (*loot.OdysseyCurrency, error) {
+	if s.archive == nil {
+		return nil, fmt.Errorf("Odyssey requires PVF")
+	}
+	return loot.ImportOdysseyCurrency(s.archive, index, policy)
+}

@@ -19,6 +19,11 @@ import (
 // verifies complete effective projections; source checks remain mandatory in
 // normal direct mode as well as audit mode.
 type pvfCoreCatalogs struct {
+	odysseyGrowth                                *catalog.OdysseyGrowth
+	odysseyChapters                              *catalog.OdysseyChapters
+	odysseyWeapons                               *catalog.OdysseyWeaponChoices
+	odysseyDrop                                  *loot.OdysseyChapterDrop
+	odysseyCurrency                              *loot.OdysseyCurrency
 	attunement                                   *loot.AttunementRewards
 	apocalypse                                   *catalog.ApocalypseCatalog
 	mazeRates                                    *catalog.MazeChanceOverlay
@@ -51,6 +56,7 @@ type pvfCoreCatalogs struct {
 }
 
 type pvfItemInputs struct {
+	odysseyGrowthPath, odysseyChapterPath, odysseyDropPath, odysseyCurrencyPath, odysseyWeaponPath                         string
 	attunementPath, contentPolicyPath                                                                                      string
 	apocalypsePath                                                                                                         string
 	indexPath, fullPrefix, journalPath, createCostPath, learningPath, pricesPath, materialsPath, boosterPath, tutorialPath string
@@ -63,7 +69,7 @@ type pvfItemInputs struct {
 
 func (i pvfItemInputs) checksBaselines() bool { return i.verifyBaselines == nil || *i.verifyBaselines }
 
-const pvfSupportedDomains = "world,quests,progression,items,equipment,periods,skins,journal,create-cost,skills,prices,materials,boosters,tutorial,enhancements,random-options,shields,oath-grades,vault,loot,equipment-selection,town,dungeons,training-dungeons,tutorial-dungeons,dungeon-towers,dungeon-hell,dungeon-maze,apocalypse,attunement"
+const pvfSupportedDomains = "world,quests,progression,items,equipment,periods,skins,journal,create-cost,skills,prices,materials,boosters,tutorial,enhancements,random-options,shields,oath-grades,vault,loot,equipment-selection,town,dungeons,training-dungeons,tutorial-dungeons,dungeon-towers,dungeon-hell,dungeon-maze,apocalypse,attunement,odyssey-growth,odyssey-chapters,odyssey-weapons,odyssey-drop,odyssey-currency"
 
 func parsePVFCatalogSelection(value string) (map[string]bool, error) {
 	supported := map[string]bool{}
@@ -213,7 +219,7 @@ func preparePVFCoreCatalogs(selection, path, checksum, characterPath, questPath,
 			return result, err
 		}
 	}
-	if selected["items"] || selected["equipment"] || selected["prices"] || selected["materials"] || selected["boosters"] || selected["enhancements"] || selected["shields"] || selected["equipment-selection"] {
+	if selected["odyssey-growth"] || selected["odyssey-weapons"] || selected["odyssey-drop"] || selected["odyssey-currency"] || selected["items"] || selected["equipment"] || selected["prices"] || selected["materials"] || selected["boosters"] || selected["enhancements"] || selected["shields"] || selected["equipment-selection"] {
 
 		direct, e := source.ItemIndex("")
 		if e != nil {
@@ -290,6 +296,9 @@ func preparePVFCoreCatalogs(selection, path, checksum, characterPath, questPath,
 		return result, err
 	}
 	if err := preparePVFMazeRates(&result, selected, inputs); err != nil {
+		return result, err
+	}
+	if err := preparePVFOdyssey(&result, source, selected, inputs); err != nil {
 		return result, err
 	}
 	if err := preparePVFSpecial(&result, source, selected, inputs); err != nil {

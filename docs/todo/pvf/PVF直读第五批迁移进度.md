@@ -20,3 +20,20 @@
 SHA256：`fcefe7737c198e1425a4d87c03affc7122f7828d1615412835751ed1beafcf2d`。
 
 只读 `launch_local.py --repair-profile configs/pvf-content-candidate.json --check` 通过；未启动客户端、服务或连接玩家数据库。第四批及之前回退程序保持。Odyssey、其它副本覆盖、特殊奖励、嵌入目录、商品绑定、职业源/策略拆分和GM查询继续按实施计划推进。
+
+
+## 后续奥德赛五项（离线候选）
+
+奥德赛五项直读已完成离线候选，合计35选择项/41类有效源投影。成长源50通关/50准入副本、3赠品及毕业礼盒10420561与毕业主线完整一致；章节7章/50副本/15奖励模板、7行章节掉落、2种货币及85组创建武器选项完整一致。章节2/7禁用、章节概率和货币概率 `[1000,10000,10000,10000]` 保留为独立策略，奖励模板与最终副本由PVF推导。35项缺失所选JSON联合准备、完整源对照、全量Go测试/vet及8项Python测试通过。profile为`pvf-odyssey-candidate.json`，隔离程序SHA256 `9c1b9722733ef93db5f57d11fc25fa415dfd01e5f16c36b6bdea89c97ff26f3a`。确认范围仍为第四批28项；所有旧候选程序/策略保持可回退。
+
+| 选择项 | 源字段与核对 |
+| --- | --- |
+| `odyssey-growth` | `contents/2026/aradodyssey/etc/aradodyssey.etc`：50成长/50准入副本、3级别赠品、毕业礼盒10420561、毕业任务计划及6份关联源脚本全部一致 |
+| `odyssey-chapters` | `aradodysseyjournal.cos`：7章、50副本、15奖励模板，原顺序和最终副本一致 |
+| `odyssey-drop` | 从源章节奖励及共享物品索引推导首个选择箱和最终副本；7行一致，章节2及7继续停用 |
+| `odyssey-currency` | 两种币的 `.stk` 全部原始Token、源哈希、Grade/Rarity/StackLimit一致；权重0，不进入普通随机掉落池 |
+| `odyssey-weapons` | 10417789脚本的85组类别及装备选项；共享选择箱源解析器，沿用原武器奖励启用开关 |
+
+新增 `pvf-odyssey-policy.json` 保存章节启用/概率、已确认货币概率与按怪物rank选币策略，以及原成长证据目录的额外2个物品ID（10418028、10418036）。赠品、毕业物品、章节最终副本及选择箱模板不保存在策略中；所有脚本路径/哈希/属性从PVF读取。货币rank选币是现有服务器策略，未据此宣称源官方掉率已恢复。原 `pvf-content-policy.json` 没有加入新字段，因此旧30项程序的严格策略解析仍可使用。
+
+新的35项profile为 `server/work/dfo-lan/configs/pvf-odyssey-candidate.json`，对应程序 `.tmp/pvf-odyssey/bin/wireprobe-handoff-source.exe`；旧30项profile和程序仍保留。35项源装配耗时约49.94秒；完整奥德赛对照约15.63秒。两个离线导出器共享运行源解析。只读启动依赖检查通过，未启动客户端、服务或修改玩家数据库。本批尚未实机确认，剩余特殊奖励、副本覆盖及其它目录继续迁移。

@@ -48,6 +48,11 @@ func LoadOdysseyChapterDrop(path string) (*OdysseyChapterDrop, error) {
 	if e = json.Unmarshal(b, &d); e != nil {
 		return nil, e
 	}
+	return NewOdysseyChapterDrop(d)
+}
+
+// NewOdysseyChapterDrop shares validation and runtime index construction across native and JSON sources.
+func NewOdysseyChapterDrop(d OdysseyChapterDrop) (*OdysseyChapterDrop, error) {
 	if d.Model != OdysseyChapterDropModel || d.Source.Checksum != catalog.OdysseySource || d.DefinitionSHA != catalog.OdysseyChaptersJournalSHA {
 		return nil, fmt.Errorf("Odyssey chapter drop source mismatch")
 	}

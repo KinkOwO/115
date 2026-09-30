@@ -807,14 +807,14 @@ func main() {
 			log.Fatal("progression source version mismatch")
 		}
 		progressionService = &character.ProgressionService{Store: characters.Store, Catalog: data, Professions: characters.Catalog, Rules: rules}
-		if path := os.Getenv("DFO_ODYSSEY_GROWTH"); path != "" {
-			progressionService.Odyssey, e = catalog.LoadOdysseyGrowth(path)
+		if path := os.Getenv("DFO_ODYSSEY_GROWTH"); path != "" || pvfCatalogs.odysseyGrowth != nil {
+			progressionService.Odyssey, e = pvfCatalogs.loadOdysseyGrowth(path)
 			if e != nil {
 				log.Fatal(e)
 			}
 		}
-		if path := os.Getenv("DFO_ODYSSEY_CHAPTERS"); path != "" {
-			progressionService.Chapters, e = catalog.LoadOdysseyChapters(path)
+		if path := os.Getenv("DFO_ODYSSEY_CHAPTERS"); path != "" || pvfCatalogs.odysseyChapters != nil {
+			progressionService.Chapters, e = pvfCatalogs.loadOdysseyChapters(path)
 			if e != nil {
 				log.Fatal(e)
 			}
@@ -985,8 +985,8 @@ func main() {
 		} else {
 			log.Printf("warning: no source NPC prices (%s); gold purchases and sales are refused", pricesPath)
 		}
-		if path := os.Getenv("DFO_ODYSSEY_COIN_RULES"); path != "" {
-			lootService.Currency, e = loot.LoadOdysseyCurrency(path)
+		if path := os.Getenv("DFO_ODYSSEY_COIN_RULES"); path != "" || pvfCatalogs.odysseyCurrency != nil {
+			lootService.Currency, e = pvfCatalogs.loadOdysseyCurrency(path)
 			if e != nil {
 				log.Fatal(e)
 			}
@@ -1212,7 +1212,7 @@ func main() {
 	}
 	if odysseyRewardsEnabled() {
 		var e error
-		odysseyChoices, e = loadOdysseyWeaponChoices(os.Getenv("DFO_ODYSSEY_WEAPON_BOX"))
+		odysseyChoices, e = pvfCatalogs.loadOdysseyWeapons(os.Getenv("DFO_ODYSSEY_WEAPON_BOX"))
 		if e != nil {
 			log.Fatal(e)
 		}
@@ -1337,8 +1337,8 @@ func main() {
 	}
 	// 章节盒掉落（手册 P3 子项 3）。整表默认 enabled=false；只有 profile 显式开启
 	// 才会叠加目录与槽位，未开启时连掷骰种子都不消耗。
-	if path := os.Getenv("DFO_ODYSSEY_CHAPTER_DROP"); path != "" {
-		chapterDrop, e := loot.LoadOdysseyChapterDrop(path)
+	if path := os.Getenv("DFO_ODYSSEY_CHAPTER_DROP"); path != "" || pvfCatalogs.odysseyDrop != nil {
+		chapterDrop, e := pvfCatalogs.loadOdysseyDrop(path)
 		if e != nil {
 			log.Fatal(e)
 		}

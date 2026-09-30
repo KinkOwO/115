@@ -16,6 +16,18 @@ class RepairProfileTests(unittest.TestCase):
         self.assertTrue(all(p.is_absolute() for p in required))
         self.assertNotIn('DFO_CHARACTER_STORAGE', env)
 
+    def test_odyssey_candidate_keeps_prior_content_policy_compatible(self):
+        project = pathlib.Path(__file__).resolve().parent.parent
+        binary, required, env = load_profile(project / 'configs/pvf-odyssey-candidate.json', project)
+        self.assertEqual(len(env['DFO_PVF_CATALOGS'].split(',')), 35)
+        self.assertEqual(binary, project / '.tmp/pvf-odyssey/bin/wireprobe-handoff-source.exe')
+        self.assertEqual(pathlib.Path(env['DFO_PVF_CONTENT_POLICY']), project / 'configs/pvf-odyssey-policy.json')
+        old_policy = json.loads((project / 'configs/pvf-content-policy.json').read_text(encoding='utf-8'))
+        self.assertEqual(set(old_policy), {'version', 'attunement_dungeons'})
+        old_binary, _, old_env = load_profile(project / 'configs/pvf-content-candidate.json', project)
+        self.assertEqual(len(old_env['DFO_PVF_CATALOGS'].split(',')), 30)
+        self.assertNotEqual(old_binary, binary)
+
     def test_rejects_unknown_keys(self):
         with tempfile.TemporaryDirectory() as directory:
             p = pathlib.Path(directory) / 'profile.json'

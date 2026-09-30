@@ -37,6 +37,11 @@ func LoadOdysseyGrowth(path string) (*OdysseyGrowth, error) {
 	if e = json.Unmarshal(b, &r); e != nil {
 		return nil, e
 	}
+	return NewOdysseyGrowth(r)
+}
+
+// NewOdysseyGrowth shares validation and runtime index construction across native and JSON sources.
+func NewOdysseyGrowth(r OdysseyGrowth) (*OdysseyGrowth, error) {
 	if r.Source != OdysseySource || r.Definition.SHA256 != "638e71ab8fdc84b4be28db8ca3302fd1dfe689a9b771907514297edee4b8c8e8" {
 		return nil, fmt.Errorf("Odyssey source mismatch")
 	}

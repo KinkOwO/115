@@ -13,8 +13,11 @@ import (
 )
 
 type pvfContentPolicy struct {
-	Version    int      `json:"version"`
-	Attunement []uint32 `json:"attunement_dungeons"`
+	OdysseySupplemental []uint32                        `json:"odyssey_supplemental_items"`
+	OdysseyDrops        []loot.OdysseyChapterDropPolicy `json:"odyssey_chapter_drops"`
+	OdysseyCurrency     loot.OdysseyCurrencyPolicy      `json:"odyssey_currency"`
+	Version             int                             `json:"version"`
+	Attunement          []uint32                        `json:"attunement_dungeons"`
 }
 
 func readPVFContentPolicy(path string) (pvfContentPolicy, error) {
