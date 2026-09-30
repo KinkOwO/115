@@ -1624,22 +1624,8 @@ func main() {
 		if worldState != nil {
 			defer worldState.departArea()
 		}
-		var writeMu sync.Mutex
-		sendPayload := func(kind byte, id uint16, payload []byte) error {
-			writeMu.Lock()
-			defer writeMu.Unlock()
-			prepared, e := preparePackets(keys, []outboundPacket{{"response", kind, id, payload}})
-			if e != nil {
-				event(map[string]any{"kind": "response_encode_error", "peer": peer, "error": e.Error()})
-				return e
-			}
-			c.SetWriteDeadline(time.Now().Add(5 * time.Second))
-			e = writePackets(c, prepared, nil)
-			if e != nil {
-				event(map[string]any{"kind": "response_write_error", "peer": peer, "error": e.Error()})
-			}
-			return e
-		}
+		output := newConnectionOutput(c, keys, peer, event)
+		sendPayload := output.send
 		sendServerTime := func(reason string) error {
 			now := time.Now()
 			payload, err := protocol.ServerTimeSuccess(now)
@@ -5432,7 +5418,7 @@ func main() {
 					return
 				}
 				c.SetWriteDeadline(time.Now().Add(5 * time.Second))
-				if _, e = io.Copy(c, bytes.NewReader(response)); e != nil {
+				if e = output.writeRaw(response); e != nil {
 					return
 				}
 				event(map[string]any{"kind": "roster_followup_response", "id": frame.ID, "hex": hex.EncodeToString(response)})
