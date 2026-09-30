@@ -3,6 +3,7 @@ package main
 
 import (
 	"crypto/sha256"
+	sourcecatalog "dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/inventory"
 	"encoding/json"
@@ -94,24 +95,7 @@ func main() {
 			counts["read error"]++
 			continue
 		}
-		var values []int32
-		inside := false
-		for _, token := range tokens {
-			if token.Type == 3 && token.Text == "[int data]" {
-				inside = true
-				continue
-			}
-			if token.Type == 3 && token.Text == "[/int data]" {
-				break
-			}
-			if inside {
-				if token.Type != 0 {
-					values = nil
-					break
-				}
-				values = append(values, token.Value)
-			}
-		}
+		values := sourcecatalog.ParseLotteryCells(tokens)
 		if len(values) == 0 || len(values)%3 != 0 {
 			counts["invalid triples"]++
 			continue

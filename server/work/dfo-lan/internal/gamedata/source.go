@@ -35,6 +35,10 @@ type Source struct {
 	archive *pvf.Archive
 }
 
+func (s *Source) Lottery(index catalog.ItemIndex, policy catalog.LotteryPolicy) (catalog.LotteryTables, error) {
+	return catalog.ImportLotteryTables(s.archive, index, policy)
+}
+
 func (s *Source) SelectionBoxes(index catalog.ItemIndex, policy catalog.SelectionBoxPolicy) (*catalog.SelectionBoxes, error) {
 	return catalog.ImportSelectionBoxes(s.archive, index, policy)
 }

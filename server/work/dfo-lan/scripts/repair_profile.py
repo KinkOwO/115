@@ -11,7 +11,7 @@ PATH_KEYS = {
     'DFO_ODYSSEY_WEAPON_BOX', 'DFO_ODYSSEY_GROWTH', 'DFO_LOOT_CATALOG',
     'DFO_ODYSSEY_COIN_RULES', 'DFO_FATIGUE_RULES', 'DFO_CLEAR_CUBE_SOURCE',
     'DFO_ODYSSEY_CHAPTER_DROP',
-    'DFO_PVF_ARCHIVE', 'DFO_PVF_ENHANCEMENT_POLICY', 'DFO_PVF_VAULT_POLICY', 'DFO_PVF_DROP_POLICY', 'DFO_PVF_SCENE_POLICY', 'DFO_PVF_CONTENT_POLICY', 'DFO_PVF_SELECTION_POLICY',
+    'DFO_PVF_ARCHIVE', 'DFO_PVF_ENHANCEMENT_POLICY', 'DFO_PVF_VAULT_POLICY', 'DFO_PVF_DROP_POLICY', 'DFO_PVF_SCENE_POLICY', 'DFO_PVF_CONTENT_POLICY', 'DFO_PVF_SELECTION_POLICY', 'DFO_PVF_LOTTERY_POLICY',
 }
 FLAGS = {
     'DFO_CHANNEL_IDENTITY',
@@ -51,7 +51,7 @@ def load_profile(path, project):
             env[key] = value.lower()
         elif key == 'DFO_PVF_CATALOGS' and isinstance(value, str):
             domains = [part.strip() for part in value.split(',')]
-            allowed = {'world', 'quests', 'progression', 'items', 'equipment', 'periods', 'skins', 'journal', 'create-cost', 'skills', 'prices', 'materials', 'boosters', 'tutorial', 'enhancements', 'random-options', 'shields', 'oath-grades', 'vault', 'loot', 'equipment-selection', 'town', 'dungeons', 'training-dungeons', 'tutorial-dungeons', 'dungeon-towers', 'dungeon-hell', 'dungeon-maze', 'apocalypse', 'attunement', 'odyssey-growth', 'odyssey-chapters', 'odyssey-weapons', 'odyssey-drop', 'odyssey-currency', 'clear-cube', 'black-purgatory', 'bleeding-mine', 'dungeon-terminal', 'dungeon-tournament', 'selection-boxes'}
+            allowed = {'world', 'quests', 'progression', 'items', 'equipment', 'periods', 'skins', 'journal', 'create-cost', 'skills', 'prices', 'materials', 'boosters', 'tutorial', 'enhancements', 'random-options', 'shields', 'oath-grades', 'vault', 'loot', 'equipment-selection', 'town', 'dungeons', 'training-dungeons', 'tutorial-dungeons', 'dungeon-towers', 'dungeon-hell', 'dungeon-maze', 'apocalypse', 'attunement', 'odyssey-growth', 'odyssey-chapters', 'odyssey-weapons', 'odyssey-drop', 'odyssey-currency', 'clear-cube', 'black-purgatory', 'bleeding-mine', 'dungeon-terminal', 'dungeon-tournament', 'selection-boxes', 'lottery'}
             if not domains or len(set(domains)) != len(domains) or any(part not in allowed for part in domains):
                 raise ValueError('Invalid PVF candidate domains')
             env[key] = ','.join(domains)
