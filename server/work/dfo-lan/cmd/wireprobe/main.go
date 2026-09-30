@@ -2807,18 +2807,52 @@ func main() {
 					}
 					event(map[string]any{"kind": "character_effect_options_saved", "character_id": selectedCharacterID, "entries": len(opt.Entries), "options": opt.Entries})
 				case protocol.UnifiedOptionAccount:
-					if characters == nil {
-						event(map[string]any{"kind": "account_settings_rejected", "reason": "storage unavailable"})
+					if characters == nil || opt.Scope != protocol.UnifiedOptionScopeAccount {
+						event(map[string]any{"kind": "account_settings_rejected", "reason": "账号设置存储不可用或作用域无效"})
+						continue
+					}
+					accountID := developmentAccount
+					ownedRole := worldState != nil && worldState.role.ID != 0 && worldState.role.ID == selectedCharacterID
+					if ownedRole {
+						accountID = worldState.role.AccountID
+					}
+					var effectFlags byte
+					for _, entry := range opt.Entries {
+						if entry.Position == protocol.GrowthEffectOption && entry.Value != 65535 {
+							effectFlags, e = protocol.GrowthEffectFlags(entry.Value)
+							if e != nil {
+								break
+							}
+						}
+					}
+					if e != nil {
+						event(map[string]any{"kind": "account_settings_rejected", "reason": e.Error()})
 						continue
 					}
 					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-					e = characters.Store.SaveAccountUnifiedOptions(ctx, developmentAccount, unifiedEntries(opt.Entries))
+					e = characters.Store.SaveAccountUnifiedOptions(ctx, accountID, unifiedEntries(opt.Entries))
 					cancel()
 					if e != nil {
 						event(map[string]any{"kind": "account_settings_rejected", "reason": e.Error()})
 						continue
 					}
 					event(map[string]any{"kind": "account_settings_saved", "entries": len(opt.Entries)})
+					if effectFlags != 0 && ownedRole {
+						// attempt 1/3：按1452FA194注册及1452C9940读取发送NOTI343。
+						// 只更新显示阶段；不发送会重建装备、技能的全量USERINFO。
+						effect := protocol.CharacterGrowthEffect(worldState.role.WireID, effectFlags)
+						if e = sendPayload(0, 343, effect); e != nil {
+							return
+						}
+						basic, refreshErr := characters.EntryBasicProbe(worldState.role, [2]byte{})
+						if refreshErr != nil {
+							event(map[string]any{"kind": "growth_effect_cache_error", "reason": refreshErr.Error()})
+						} else {
+							selectedBasic = basic
+							worldState.hub.updateGrowthEffect(worldState.peer, basic, effect)
+						}
+						event(map[string]any{"kind": "growth_effect_updated", "character_id": selectedCharacterID, "flags": effectFlags})
+					}
 				case protocol.UnifiedOptionHotkeys, protocol.UnifiedOptionHotkeysExt:
 					if characters == nil {
 						event(map[string]any{"kind": "hotkeys_rejected", "reason": "storage unavailable"})
@@ -4944,7 +4978,7 @@ func main() {
 				// places them: the client only places actors it already knows.
 				if worldState != nil {
 					for _, o := range worldState.joinedPeers {
-						plan.Peers = append(plan.Peers, o.info)
+						plan.Peers = append(plan.Peers, worldState.hub.basicInfo(o))
 						if len(o.addition) > 0 {
 							plan.Peers = append(plan.Peers, o.addition)
 						}

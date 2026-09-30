@@ -98,11 +98,41 @@ func add16(p []byte, v uint16) []byte   { return binary.LittleEndian.AppendUint1
 func add32(p []byte, v uint32) []byte   { return binary.LittleEndian.AppendUint32(p, v) }
 func addName(p []byte, s string) []byte { return append(add32(p, uint32(len(s))), []byte(s)...) }
 
-// Native mode0/mode2 readers consume this as a bit field. Native execution
-// confirms bit 1 is the growth-appearance state in both modes; bit 0 preserves
-// the existing serializer value. Three CN mode0 captures carry 0x03, so both
-// serializers use the same generic value without profession-specific logic.
+// 未保存显示偏好的旧角色沿用原始向量0x03；bit0是独立状态，必须保留。
 const nativeGrowthStateFlags byte = 1<<0 | 1<<1
+
+// GrowthEffectOption 来自141154C50及CMD2377实机请求：账号标量选项1。
+const GrowthEffectOption uint16 = 1
+
+// GrowthEffectFlags 对应14563EC60/14563E280及NOTI343的显示位。
+// 真实觉醒阶段仍由Advancement携带，145F06E10按角色资格限制显示阶段。
+func GrowthEffectFlags(value uint16) (byte, error) {
+	switch value {
+	case 0:
+		return 1, nil
+	case 1:
+		return nativeGrowthStateFlags, nil
+	case 2:
+		return 1 | 1<<4, nil
+	case 3:
+		return 1 | 1<<5, nil
+	default:
+		return 0, fmt.Errorf("转职觉醒特效选项无效：%d", value)
+	}
+}
+
+func (r CharacterRow) growthStateFlags() byte {
+	if r.GrowthEffectFlags != 0 {
+		return r.GrowthEffectFlags
+	}
+	return nativeGrowthStateFlags
+}
+
+// CharacterGrowthEffect 的注册点1452FA194指定NOTI343；1452C9940
+// 依次读取u16角色编号和u8标志，只刷新特效，不重建背包或技能。
+func CharacterGrowthEffect(actor uint16, flags byte) []byte {
+	return append(add16(nil, actor), flags)
+}
 
 // The native create callback feeds this value into the roster-position lookup
 // (0x1401f8a30 -> 0x14021adf0), not into a persistent character-ID lookup.
@@ -147,19 +177,20 @@ func EquipmentAppearance(rows []Equipment) ([]byte, error) {
 }
 
 type CharacterRow struct {
-	Odyssey          bool
-	Slot             uint16
-	FixedSlot        byte // zero: normal list; otherwise one-based fixed grid cell
-	Name             string
-	Profession       byte
-	Advancement      byte
-	Level            byte
-	Equipment        []Equipment
-	FatigueRemaining uint16
-	FatigueBonus     uint16
-	Fame             uint32
-	CreatureItemID   uint32
-	CreatureName     string
+	Odyssey           bool
+	Slot              uint16
+	FixedSlot         byte // zero: normal list; otherwise one-based fixed grid cell
+	Name              string
+	Profession        byte
+	Advancement       byte
+	Level             byte
+	Equipment         []Equipment
+	FatigueRemaining  uint16
+	FatigueBonus      uint16
+	Fame              uint32
+	CreatureItemID    uint32
+	CreatureName      string
+	GrowthEffectFlags byte // 0沿用旧默认；显式关闭为1，保留独立bit0。
 	// 当前115客户端的28字节内容解锁区；只写已核对的资格位，未知位保持0。
 	ContentClearFlags [28]byte
 }
@@ -230,7 +261,7 @@ func appendCharacterListRows(p []byte, capacity uint16, roles []CharacterRow) ([
 		p = append(p, 0)
 		p = append(p, 0) // premium PC room helper 0x14563be50
 		p = add32(p, 0)
-		p = append(p, nativeGrowthStateFlags) // native growth-state bit field
+		p = append(p, r.growthStateFlags())
 		p = append(p, make([]byte, 8)...)
 		// 14563E95E整块读取到临时角色资料+0x638，随后复制进角色列表。
 		// 14022091E检查+0x63F（第7项）决定流放者山脉前置是否完成。

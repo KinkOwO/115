@@ -5,7 +5,31 @@ import (
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/storage"
 	"fmt"
+	"time"
 )
+
+// 账号没有保存此选项时返回0，让协议层保留原有默认显示。
+func growthEffectFlags(options map[uint16]uint16) byte {
+	value, ok := options[protocol.GrowthEffectOption]
+	if !ok {
+		return 0
+	}
+	flags, _ := protocol.GrowthEffectFlags(value)
+	return flags
+}
+
+func (s *Service) roleGrowthEffectFlags(role storage.Character) (byte, error) {
+	if s.Store == nil {
+		return 0, nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	options, err := s.Store.AccountUnifiedOptions(ctx, role.AccountID)
+	if err != nil {
+		return 0, err
+	}
+	return growthEffectFlags(options), nil
+}
 
 // SaveSkillLocks merges one CMD2377 skill lock frame (subtype 0x13) into the
 // character's stored set.
