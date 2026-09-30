@@ -347,3 +347,10 @@ func (s *Source) BlackPurgatory(index catalog.ItemIndex, policy loot.BlackPurgat
 	}
 	return loot.ReadBlackPurgatoryRewards(s.archive, index, policy)
 }
+
+func (s *Source) BleedingMine(index catalog.ItemIndex, policy loot.BleedingMinePolicy) (*loot.BleedingMineRewards, error) {
+	if s.archive == nil {
+		return nil, fmt.Errorf("mine requires PVF")
+	}
+	return loot.ImportBleedingMineRewards(s.archive, index, policy)
+}

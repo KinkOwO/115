@@ -13,6 +13,7 @@ import (
 )
 
 type pvfContentPolicy struct {
+	BleedingMine        loot.BleedingMinePolicy         `json:"bleeding_mine"`
 	BlackPurgatory      loot.BlackPurgatoryPolicy       `json:"black_purgatory"`
 	OdysseySupplemental []uint32                        `json:"odyssey_supplemental_items"`
 	OdysseyDrops        []loot.OdysseyChapterDropPolicy `json:"odyssey_chapter_drops"`

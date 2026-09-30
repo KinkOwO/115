@@ -64,7 +64,7 @@ PVF 提供物品、职业、技能、任务、地图和源规则表；服主倍�
 | Odyssey 掉落 `odyssey-chapter-drop-*`、`odyssey-currency` | 章节最后副本、奖励模板与货币 `.stk` | 已接odyssey-drop与odyssey-currency候选，7行章节掉落及2种币完整一致；章节2/7停用、概率及rank选币为独立策略，未恢复为另一套概率 |
 | 天启与军团 `apocalypse.generated`、`legion-contents.generated` | `contents/2026/apocalypse/etc/apocalypse.ctp`、`dungeonskillinfo.ctp`、`contents/system/legionsystem/legionsystem.cos` | 天启apocalypse候选已接，65主记录/14职责/6阶段2190秒完整一致；军团ImportLegionContents已存在，核查无生产消费入口，不随迁移新增玩法启用 |
 | 调律 `attunement-rewards.generated` | `etc/rewardboostinfo/skyofathousandseasofborder/{unique,legendary,epic}.ctp` 等 | attunement候选已接，4副本/126奖励模板/5优惠券行完整一致；源CTP按dungeon声明绑定，调参深复制，未知隐藏中间字段与Omen边界保持 |
-| 赤红铁矿 `bleeding-mine-rewards` | `contents/2025/bleedingmine/etc/bleedingmine*.ctp`，奖励袋/智能掉落组/合成字段 | 补共享导入器，保留奖励引用图校验、空结果与单层展开边界 |
+| 赤红铁矿 `bleeding-mine-rewards` | `contents/2025/bleedingmine/etc/bleedingmine*.ctp`，奖励袋/智能掉落组/合成字段 | bleeding-mine候选已接，12阶段/12领主/3难度、117容器及1782物品完整一致；35负数空奖签、合成机会与失败dummy排除保持，CTP trailer池边界回归已验证 |
 | 黑鸦 `black-purgatory-rewards` | `etc/dungeonspecialreward.etc`、`etc/itemdictionary/customroutingwaygroup.cos`、`customroutingway.etc` | black-purgatory候选已接，5普通/1仅记录VIP分支、208史诗/35神话/135腐蚀产物完整一致；10%/0.1%/1%本服策略独立，来源元数据边界见第五批文档 |
 | 旁路无色小晶块及单物品 JSON | `DFO_CLEAR_CUBE_SOURCE` 的物品3037和其他已引用 `.stk` | clear-cube候选已接，3037完整源Token/哈希及原存储零值投影一致，无所选导出JSON依赖；其它单物品继续随对应源领域审计 |
 | GM 名称与筛选 `gm-tool/configs/names.client`、`equipment.slots`、重复职业/经验/物品目录 | `string/*.uv.str` 的名称/品级/职业文本，`.equ` 的部位和最低等级 | 提取 `cmd/gmtool/names.go` 的文本读取及现有装备解析；GM 与游戏共用源目录，不再复制一套导出 JSON；固定界面属性键的中文对照仍是工具映射 |
@@ -306,3 +306,9 @@ GM 包内另有 `set_items*.json`、`avatar_sets.json`、`set_display_names.json
 新增black-purgatory直读选择项，普通翻牌5分支、仅记录的VIP1分支、三组装备源范围完整一致（史诗208、神话35、腐蚀产物135件）；现有奖励包装展开、装备验证与事务链保持。10%/0.1%/1%本服独立概率迁入`pvf-reward-policy.json`；源脚本路径/哈希、八列奖励及装备ID/等级/稀有度全部从PVF读取。合计37选择项/43类有效源投影；37项缺失所选JSON联合准备约42.10秒、完整黑鸦源审计、全量Go测试/vet、8项Python测试和只读依赖检查通过。最新profile为`pvf-rewards-candidate.json`，隔离程序SHA256 `a044d143c38924931675929bd2bc768fcbcd551c1f002a91ef6176d9520bf5b1`。确认范围仍为第四批28项；第五批候选未实机。
 
 来源身份、保留概率与回退见[第五批进度](PVF直读第五批迁移进度.md)。矿区奖励及其它剩余目录继续推进，不宣称项目已全部无JSON。
+
+## 2026-10-01：赤红铁矿源奖励图迁移
+
+新增bleeding-mine直读选择项，12阶段/12领主入口/3难度奖励、117容器、1782物品及全部合成列表/权重完整一致；35个负数空奖签保留，合成机会[1,3,5]和最大5次保持，源失败占位物10330673继续强制禁止发放。修正共享CTP标签池定位：矿区列索引90024包含0x5b，真实池始于90481，改按头部trailer边界跳过NUL垫字节；已加入索引91含左括号的回归用例，天启/调律再次完整核对通过。合计38选择项/44类有效源投影，缺失所选JSON联合准备约42.11秒、全量Go测试/vet、8项Python测试及只读启动检查通过。最新profile为`pvf-mine-candidate.json`，隔离程序SHA256 `3df13ff8b310f634b09308dcf6e5faa3558e8ccc679b3814a79953a812024571`；确认范围仍为第四批28项，第五批新增候选未实机。
+
+第五批已累计新增10选择项，源范围和回退身份见[第五批进度](PVF直读第五批迁移进度.md)。其它剩余项继续实施，本段不宣称全部完成。

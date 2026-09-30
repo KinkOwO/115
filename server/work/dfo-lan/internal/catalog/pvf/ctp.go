@@ -182,15 +182,19 @@ func ReadCTP(path string, raw []byte) (*CTPTable, error) {
 	version := readUint32(raw[0x00:0x04])
 	recordCount := readUint32(raw[0x04:0x08])
 	cellEnd := int(readUint32(raw[0x14:0x18])) + ctpHeaderSlack
+	trailerEnd := int(readUint32(raw[0x1c:0x20])) + ctpHeaderSlack
 	if version != 1 {
 		return nil, fmt.Errorf("table %s has unsupported version %d", path, version)
 	}
 	if cellEnd <= ctpHeaderSize || cellEnd > len(raw) {
 		return nil, fmt.Errorf("table %s declares a cell region ending at %#x of %d bytes", path, cellEnd, len(raw))
 	}
-	poolStart, ok := ctpPoolStart(raw, cellEnd)
+	if trailerEnd < cellEnd || trailerEnd >= len(raw) {
+		return nil, fmt.Errorf("table %s declares a trailer ending at %#x after cells %#x in %d bytes", path, trailerEnd, cellEnd, len(raw))
+	}
+	poolStart, ok := ctpPoolStart(raw, trailerEnd)
 	if !ok {
-		return nil, fmt.Errorf("table %s has no string pool after %#x", path, cellEnd)
+		return nil, fmt.Errorf("table %s has no string pool after trailer %#x", path, trailerEnd)
 	}
 	pool := string(raw[poolStart:])
 
@@ -231,13 +235,15 @@ func ReadCTP(path string, raw []byte) (*CTPTable, error) {
 	return table, nil
 }
 
-// ctpPoolStart locates character 0 of the pool: the first '[' at or after the
-// declared cell-region end.
+// ctpPoolStart starts at the declared trailer boundary and skips NUL padding.
+// Trailer row indices can contain 0x5b, so a bracket search from the cell end
+// would mistake an index byte for the beginning of the string pool.
 func ctpPoolStart(raw []byte, from int) (int, bool) {
-	for i := from; i < len(raw); i++ {
-		if raw[i] == '[' {
-			return i, true
-		}
+	for from < len(raw) && raw[from] == 0 {
+		from++
+	}
+	if from < len(raw) && raw[from] == '[' {
+		return from, true
 	}
 	return 0, false
 }

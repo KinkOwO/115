@@ -1,4 +1,4 @@
-# PVF直读第五批：天启与调律源表候选（2026-10-01）
+# PVF直读第五批：特殊内容与奖励候选（2026-10-01）
 
 第四批28个选择项/34类源数据已由用户确认正常。confirmed baseline 为 `pvf-migration-candidate.json`，程序SHA256 `5475dbccdf316f4c582cc2742b22e1f66b5512f22e04997ccb23a031f6e36609`。本批新增两项仅为离线候选，继续实施其余迁移。
 
@@ -55,3 +55,14 @@ SHA256：`fcefe7737c198e1425a4d87c03affc7122f7828d1615412835751ed1beafcf2d`。
 旧JSON的`client_pvf_sha256`为历史外层`2429b15a…`，角色来源`source`仍为inner `7ef2db59…`。直读记录实际读取归档的inner哈希。审计只在角色inner来源严格一致、翻牌/分组/routing三份原始文件哈希全部一致时，允许归一化这一明确的旧导出来源元数据；未知外层来源或任一源定义变化拒绝。这不是存档版本迁移，也没有为归档checksum建立别名。其它有效字段（含旧运行类型未接收的VIP和两份routing来源哈希）全部参与比较。
 
 新profile为`configs/pvf-rewards-candidate.json`，使用独立`pvf-reward-policy.json`，程序位于`.tmp/pvf-rewards/bin/wireprobe-handoff-source.exe`。旧35/36项策略和程序继续可回退；运行仍使用同源inner `7ef2db59…`，没有启动客户端、重启服务或修改玩家数据库。矿区奖励、剩余副本覆盖、抽奖/选择箱、嵌入目录、商品源绑定、职业源/策略和GM查询继续实施。
+
+
+## 赤红铁矿源奖励图候选
+
+新增bleeding-mine直读选择项，12阶段/12领主入口/3难度奖励、117容器、1782物品及全部合成列表/权重完整一致；35个负数空奖签保留，合成机会[1,3,5]和最大5次保持，源失败占位物10330673继续强制禁止发放。修正共享CTP标签池定位：矿区列索引90024包含0x5b，真实池始于90481，改按头部trailer边界跳过NUL垫字节；已加入索引91含左括号的回归用例，天启/调律再次完整核对通过。合计38选择项/44类有效源投影，缺失所选JSON联合准备约42.11秒、全量Go测试/vet、8项Python测试及只读启动检查通过。最新profile为`pvf-mine-candidate.json`，隔离程序SHA256 `3df13ff8b310f634b09308dcf6e5faa3558e8ccc679b3814a79953a812024571`；确认范围仍为第四批28项，第五批新增候选未实机。
+
+源为 `contents/2025/bleedingmine/etc/bleedingmine.ctp`（841记录）与 `bleedingminerewardscript.ctp`（21记录），复用已取证的CTP格式，不新增协议包。难度键按源 `easy/medium/hard` 顺序投影；阶段和领主奖励、奖励袋 `[booster info]`、装备罐 `[int data]`、智能掉落组与两类合成表递归从源读取。不存在的源物品、未能展开的智能组、循环、零奖签或无效权重拒绝发布。负数-1/-2保持空奖，禁止取绝对值。运行物品保留原索引投影，未因迁移加入Script/Grade/随机Weight，原Rarity投影一致。规则整图验证复用原构造器，奖励冻结、领取、邮件及合成事务沿用原流程。
+
+原 `inspect_bleeding_mine.py` 已按头部offset28的trailer边界定位pool，而共享Go解析器此前从cellEnd搜索首个 `[`；矿区列索引出现0x5b暴露该差异。只读原始字节确认cellEnd=88648、trailerEnd=90480、错误首括号=90024、实际pool=90481。修正使用已有头部字段，未猜测新的编码格式；新的合法92记录回归样本包含列索引91，以及错误trailer边界拒绝用例。天启和调律完整源核对再次通过。
+
+新增 `pvf-mine-policy.json` 仅在上一批独立策略基础上保留失败占位物排除ID。源机会/概率/合成范围不进入策略；缺失该排除也拒绝启动，避免将Drop Failure Dummy当作奖励发放。最新程序为 `.tmp/pvf-mine/bin/wireprobe-handoff-source.exe`，profile为 `configs/pvf-mine-candidate.json`。其它已确认及候选程序/策略继续保持，未启动客户端、服务或改写玩家数据库。剩余副本覆盖、商品绑定、抽奖/选择箱、嵌入目录、职业源与策略拆分及GM查询继续实施。

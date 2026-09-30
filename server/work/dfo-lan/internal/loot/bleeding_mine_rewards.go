@@ -50,6 +50,12 @@ func LoadBleedingMineRewards(path string) (*BleedingMineRewards, error) {
 	if err = json.Unmarshal(raw, &r); err != nil {
 		return nil, err
 	}
+	return NewBleedingMineRewards(r)
+}
+
+// NewBleedingMineRewards validates the complete source reference graph before
+// runtime rewards can be published, for both native and exported inputs.
+func NewBleedingMineRewards(r BleedingMineRewards) (*BleedingMineRewards, error) {
 	hash, err := hex.DecodeString(r.Source)
 	if err != nil || len(hash) != 32 || len(r.StageBoxes) != 12 || len(r.GroupBoxes) != 3 || len(r.BossBoxes) != 12 || len(r.Undefined) != 0 || len(r.Combine.Chances) != 3 || r.Combine.Maximum != 5 {
 		return nil, fmt.Errorf("矿区奖励源不完整")
