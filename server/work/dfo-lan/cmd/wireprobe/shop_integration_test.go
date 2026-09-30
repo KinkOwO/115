@@ -6,7 +6,6 @@ import (
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/loot"
 	"dfolan/internal/storage"
 	"encoding/binary"
 	"encoding/hex"
@@ -83,8 +82,8 @@ func TestShopQuantityDatabaseAndWire(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	service := &loot.Service{Store: store, Catalog: catalog.LootCatalog{Source: pvf.ArchiveSnapshot{Checksum: source}, Items: map[uint32]catalog.LootItem{1150: {ID: 1150, Kind: "stackable", StackableType: "[waste]"}}}, Rules: loot.Rules{Model: "reference90-gold-stack-v1"}, BagRules: inventory.BagRules{MissingStackLimit: 1000, EquipmentSlots: [2]uint16{9, 64}}, Prices: prices}
-	w := worldSession{role: role, loot: service}
+	service := &inventory.ShopService{Store: store, Catalog: catalog.LootCatalog{Source: pvf.ArchiveSnapshot{Checksum: source}, Items: map[uint32]catalog.LootItem{1150: {ID: 1150, Kind: "stackable", StackableType: "[waste]"}}}, EventModel: "reference90-gold-stack-v1", BagRules: inventory.BagRules{MissingStackLimit: 1000, EquipmentSlots: [2]uint16{9, 64}}, Prices: prices}
+	w := worldSession{role: role, shop: service}
 	payload, _ := hex.DecodeString("d20100009400000001007c00e8030000c908000000000000")
 	binary.LittleEndian.PutUint32(payload[12:], 200)
 	binary.LittleEndian.PutUint32(payload[16:], 649)

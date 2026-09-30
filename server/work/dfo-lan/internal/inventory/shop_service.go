@@ -1,10 +1,9 @@
-package loot
+package inventory
 
 import (
 	"context"
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/inventory"
 	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
@@ -56,6 +55,19 @@ type SellReceipt struct {
 	Seq        uint64           `json:"seq"`
 }
 
+// ShopService owns NPC shop transactions: price/material resolution, purchase
+// limits, atomic payment, and the resulting bag/gold update. Cera purchases
+// remain in cashshop because they use the account currency ledger instead.
+type ShopService struct {
+	Store         *storage.Store
+	Catalog       catalog.LootCatalog
+	EventModel    string
+	BagRules      BagRules
+	ItemShops     *catalog.ItemShops
+	Prices        *catalog.ShopPrices
+	ItemMaterials *catalog.ItemMaterials
+}
+
 // Buy processes an NPC shop purchase transaction durably.
 // Uses a process-level monotonic sequence to prevent idempotency key collision
 // during rapid burst purchases.
@@ -88,7 +100,7 @@ func shopEventKeyAt(boot int64, op string, seq uint64, fields ...uint32) string 
 	return sb.String()
 }
 
-func (s *Service) shopPrice(template uint32) (catalog.ShopPrice, error) {
+func (s *ShopService) shopPrice(template uint32) (catalog.ShopPrice, error) {
 	if s.Prices != nil && s.Prices.Source == s.Catalog.Source.Checksum {
 		if price, ok := s.Prices.Items[template]; ok {
 			return price, nil
@@ -113,7 +125,7 @@ func (s *Service) shopPrice(template uint32) (catalog.ShopPrice, error) {
 //
 // 校验与记录都必须与背包变更在同一个事务里：否则会出现「货到手但次数没记」，
 // 或重发请求重复计数（重发的同 key 请求走幂等回执，不会重跑 apply）。
-func (s *Service) checkShopLimit(ctx context.Context, tx pgx.Tx, current storage.Character, shopID, template uint32) error {
+func (s *ShopService) checkShopLimit(ctx context.Context, tx pgx.Tx, current storage.Character, shopID, template uint32) error {
 	scope, period, count, limited := s.ItemShops.PurchaseLimit(shopID, template)
 	if !limited {
 		return nil
@@ -134,7 +146,7 @@ func (s *Service) checkShopLimit(ctx context.Context, tx pgx.Tx, current storage
 	return storage.RecordShopPurchase(ctx, tx, current.AccountID, current.ID, shopID, template)
 }
 
-func (s *Service) Buy(ctx context.Context, role storage.Character, r protocol.BuyItemRequest) (storage.Character, BuyReceipt, bool, error) {
+func (s *ShopService) Buy(ctx context.Context, role storage.Character, r protocol.BuyItemRequest) (storage.Character, BuyReceipt, bool, error) {
 	var out BuyReceipt
 	fail := func(e error) (storage.Character, BuyReceipt, bool, error) {
 		return role, out, false, e
@@ -161,15 +173,15 @@ func (s *Service) Buy(ctx context.Context, role storage.Character, r protocol.Bu
 	}
 	shopMats, _, shopPaid := s.ItemShops.Materials(shopID, r.Template)
 	itemMats, itemPaid := s.ItemMaterials.Materials(r.Template)
-	var mats []inventory.MaterialCost
+	var mats []MaterialCost
 	switch {
 	case shopPaid:
 		for _, m := range shopMats {
-			mats = append(mats, inventory.MaterialCost{Template: m.Template, Count: m.Count})
+			mats = append(mats, MaterialCost{Template: m.Template, Count: m.Count})
 		}
 	case itemPaid:
 		for _, m := range itemMats {
-			mats = append(mats, inventory.MaterialCost{Template: m.Template, Count: m.Count})
+			mats = append(mats, MaterialCost{Template: m.Template, Count: m.Count})
 		}
 	}
 	var cost uint32
@@ -202,16 +214,16 @@ func (s *Service) Buy(ctx context.Context, role storage.Character, r protocol.Bu
 		// 共享晶块，它们平时不在角色背包里；旧路径只查背包 → 「背包里有晶块，商店却说 have 0」。
 		var e error
 		saved, _, applied, e = s.Store.CommitAccountMaterialEventTx(ctx, role.AccountID, role.ID,
-			s.Catalog.Source.Checksum, key, s.Rules.Model,
+			s.Catalog.Source.Checksum, key, s.EventModel,
 			func(tx pgx.Tx, current storage.Character, rawCounts json.RawMessage) (json.RawMessage, json.RawMessage, error) {
 				if e := s.checkShopLimit(ctx, tx, current, shopID, r.Template); e != nil {
 					return nil, nil, e
 				}
-				b, e := inventory.ReadBag(current.State)
+				b, e := ReadBag(current.State)
 				if e != nil {
 					return nil, nil, e
 				}
-				m, e := inventory.ReadAccountMaterials(rawCounts)
+				m, e := ReadAccountMaterials(rawCounts)
 				if e != nil {
 					return nil, nil, e
 				}
@@ -219,7 +231,7 @@ func (s *Service) Buy(ctx context.Context, role storage.Character, r protocol.Bu
 				if e != nil {
 					return nil, nil, e
 				}
-				state, e := inventory.SaveBag(current.State, b)
+				state, e := SaveBag(current.State, b)
 				if e != nil {
 					return nil, nil, e
 				}
@@ -242,12 +254,12 @@ func (s *Service) Buy(ctx context.Context, role storage.Character, r protocol.Bu
 	} else {
 		var e error
 		saved, applied, e = s.Store.CommitCharacterEventTx(ctx, role.AccountID, role.ID,
-			s.Catalog.Source.Checksum, key, s.Rules.Model,
+			s.Catalog.Source.Checksum, key, s.EventModel,
 			func(tx pgx.Tx, current storage.Character) (json.RawMessage, json.RawMessage, error) {
 				if e := s.checkShopLimit(ctx, tx, current, shopID, r.Template); e != nil {
 					return nil, nil, e
 				}
-				b, e := inventory.ReadBag(current.State)
+				b, e := ReadBag(current.State)
 				if e != nil {
 					return nil, nil, e
 				}
@@ -255,7 +267,7 @@ func (s *Service) Buy(ctx context.Context, role storage.Character, r protocol.Bu
 				if e != nil {
 					return nil, nil, e
 				}
-				updated, e := inventory.SaveBag(current.State, b)
+				updated, e := SaveBag(current.State, b)
 				if e != nil {
 					return nil, nil, e
 				}
@@ -288,7 +300,7 @@ func (s *Service) Buy(ctx context.Context, role storage.Character, r protocol.Bu
 // carry several rows (the "Sell All" panel registers multiple stacks and
 // confirms with a single CMD22), so every row is removed in the same
 // transaction: the sale either applies in full or not at all.
-func (s *Service) Sell(ctx context.Context, role storage.Character, r protocol.SellItemRequest) (storage.Character, SellReceipt, bool, error) {
+func (s *ShopService) Sell(ctx context.Context, role storage.Character, r protocol.SellItemRequest) (storage.Character, SellReceipt, bool, error) {
 	var out SellReceipt
 	fail := func(e error) (storage.Character, SellReceipt, bool, error) {
 		return role, out, false, e
@@ -303,9 +315,9 @@ func (s *Service) Sell(ctx context.Context, role storage.Character, r protocol.S
 	key := shopEventKey("sell", seq, uint32(len(r.Rows)), uint32(r.Rows[0].Slot), uint32(r.Rows[len(r.Rows)-1].Slot))
 
 	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID,
-		s.Catalog.Source.Checksum, key, s.Rules.Model,
+		s.Catalog.Source.Checksum, key, s.EventModel,
 		func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
-			b, e := inventory.ReadBag(current.State)
+			b, e := ReadBag(current.State)
 			if e != nil {
 				return nil, nil, e
 			}
@@ -336,7 +348,7 @@ func (s *Service) Sell(ctx context.Context, role storage.Character, r protocol.S
 					UnitPrice: price.Sell,
 				})
 			}
-			updated, e := inventory.SaveBag(current.State, b)
+			updated, e := SaveBag(current.State, b)
 			if e != nil {
 				return nil, nil, e
 			}

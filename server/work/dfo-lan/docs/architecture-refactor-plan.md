@@ -1,6 +1,6 @@
 # 服务端架构简化实施计划
 
-状态：批次 1、2、3、4、5、6、7 的代码改动已完成，等待用户实机验收。
+状态：批次 1、2、3、4、5、6、7、8 的代码改动已完成，等待用户实机验收。
 
 基线提交：`9fc9a0617d3fc16fa43f8bb4bc1fcd31be4c7990`（2026-09-30）
 
@@ -313,7 +313,40 @@ CMD19 quickslot_flow.go
 - [x] `go vet ./...` 通过。
 - [ ] 实机验证快捷栏放入、移出、堆叠合并和旧客户端重试行为。
 
-## 10. 后续批次
+## 10. 第八批：NPC 商店交易归 inventory
+
+当前路径：
+
+```text
+CMD21/CMD22 shop_flow.go
+  -> worldSession.loot
+  -> loot.Service.Buy/Sell
+  -> inventory.Bag.Buy/Sell + storage.Store
+```
+
+目标路径：
+
+```text
+CMD21/CMD22 shop_flow.go
+  -> worldSession.shop
+  -> inventory.ShopService.Buy/Sell
+       -> inventory.Bag.Buy/Sell
+       -> storage.Store
+```
+
+本批把 NPC 金币/材料商店的报价解析、限购记录、支付、背包变更和幂等收据统一交给 `inventory.ShopService`。`loot` 不再持有商店目录、价格目录或材料目录，因此不会同时解释掉落和商店交易。Cera 购买继续由 `cashshop` 负责，因为它使用账号点券账本和独立的商品交付协议；两条支付路径不互相调用。
+
+批次 8 验收：
+
+- [x] 删除 `loot.Service.Buy/Sell` 及其旧商店文件。
+- [x] `inventory.ShopService` 直接拥有 NPC 商店交易和事件模型。
+- [x] `worldSession` 只保存专用的 NPC 商店服务，`loot.Service` 不再携带商店配置。
+- [x] 买入、卖出、材料支付、并发超卖和跨重启事件键回归测试随商店所有者移动。
+- [x] `go test ./...` 通过。
+- [x] `go vet ./...` 通过。
+- [ ] 实机验证 NPC 商店买入、卖出、材料支付和重复请求回放。
+
+## 11. 后续批次
 
 每批合并前都要更新本文件；下表中的“完成”只有在代码、自动化检查和必要的实机证据齐全后才能勾选。
 
@@ -324,11 +357,11 @@ CMD19 quickslot_flow.go
 | 05 | 整理分发和功能入口，缩小 `main.go` 的协调范围 | 03、04 | 规则回到真实领域所有者，`game` 只做运行协调 |
 | 06 | 明确 SQL、锁和事务意图 | 01，顺序上晚于 05 | 不破坏账户/角色锁顺序、收据和存档兼容 |
 | 07 | 将通用物品操作从 `loot` 收回 `inventory` | 05、06 | 代码已完成；待实机确认不形成 `inventory -> cashshop -> inventory` 循环 |
-| 08 | 明确 NPC/Cera/商城交易所有者 | 04、06、07 | 报价、扣款、交付和提交前编码在一个可理解的交易路径中 |
+| 08 | 明确 NPC/Cera/商城交易所有者 | 04、06、07 | NPC 交易代码已归 inventory；Cera 交易仍由 cashshop 负责，待实机确认 |
 | 09 | 删除无用 oath 骨架、PVF 无调用中间层和重复启动装配 | 06–08 | 直接 GM 启动路径和外部 pgdata 策略保持不变 |
 | 10 | 全量回归和长期依赖检查 | 01–09 | 行为、存档、协议和依赖规则都有可重复检查 |
 
-## 11. 每批 MR 模板
+## 12. 每批 MR 模板
 
 ```text
 标题：refactor(server): <一个批次的单一架构目标>

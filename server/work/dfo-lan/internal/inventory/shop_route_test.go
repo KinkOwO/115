@@ -1,4 +1,4 @@
-package loot
+package inventory
 
 import (
 	"encoding/hex"
@@ -58,7 +58,7 @@ func TestBuyItemRequestResolvesEnchantBookShop(t *testing.T) {
 	// ⚠️ 与作者树的**刻意分歧**：他那边把物品脚本的 [need material] **烘焙进**
 	// itemshop-candidate.json（`paid=true`），本仓的材料来自**运行时**解析
 	// `configs/item-materials.json`（internal/catalog/item_materials.go），
-	// `loot.Buy` 会把两条来源合起来用（先看 .shp 再看物品脚本）。
+	// `inventory.ShopService.Buy` 会把两条来源合起来用（先看 .shp 再看物品脚本）。
 	// 所以这里按本仓的链路断言：两条来源合起来必须给出实机那 2 个材料。
 	mats, _, _ := shops.Materials(id, r.Template) // .shp 侧（本仓通常为空）
 	if !paid {

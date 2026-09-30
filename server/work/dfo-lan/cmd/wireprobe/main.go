@@ -419,6 +419,7 @@ func main() {
 	var dungeonCatalog *catalog.DungeonCatalog
 	var progressionService *character.ProgressionService
 	var lootService *loot.Service
+	var shopService *inventory.ShopService
 	// journalRules 是装备库规则（nil = 不登记）。它同时被 CMD26 的事务与入场 2610 用到，
 	// 所以在这里声明、在 loot 块里装载。
 	var journalRules *catalog.EquipmentJournalRules
@@ -915,7 +916,8 @@ func main() {
 			log.Printf("loaded equipment create cost: groups=%d itemRows=%d templates=%d",
 				len(cc.Groups), items, len(cc.Templates()))
 		}
-		lootService = &loot.Service{Store: characters.Store, Catalog: c, DropCatalog: dropCatalog, Rules: r, BagRules: bag, Tables: tables, Equipment: gear, Journal: journalRules, CreateCost: equipmentCreateCost, ItemMaterials: itemMaterials}
+		lootService = &loot.Service{Store: characters.Store, Catalog: c, DropCatalog: dropCatalog, Rules: r, BagRules: bag, Tables: tables, Equipment: gear, Journal: journalRules, CreateCost: equipmentCreateCost}
+		shopService = &inventory.ShopService{Store: characters.Store, Catalog: c, EventModel: r.Model, BagRules: bag, ItemMaterials: itemMaterials}
 		minePath := *bleedingMineRewardsFile
 		if minePath == "" {
 			minePath = filepath.Join(filepath.Dir(lootPath), "bleeding-mine-rewards.json")
@@ -937,11 +939,11 @@ func main() {
 			pricesPath = filepath.Join(filepath.Dir(lootPath), "shop-prices.json")
 		}
 		if _, err := os.Stat(pricesPath); err == nil || *shopPricesFile != "" {
-			lootService.Prices, e = catalog.LoadShopPrices(pricesPath, c.Source.Checksum)
+			shopService.Prices, e = catalog.LoadShopPrices(pricesPath, c.Source.Checksum)
 			if e != nil {
 				log.Fatal(e)
 			}
-			log.Printf("loaded %d source NPC prices from %s", len(lootService.Prices.Items), pricesPath)
+			log.Printf("loaded %d source NPC prices from %s", len(shopService.Prices.Items), pricesPath)
 		} else {
 			log.Printf("warning: no source NPC prices (%s); gold purchases and sales are refused", pricesPath)
 		}
@@ -1292,8 +1294,8 @@ func main() {
 	}
 	if itemShops == nil {
 		log.Printf("warning: no item shop catalog; material-priced purchases cannot be resolved")
-	} else if lootService != nil {
-		lootService.ItemShops = itemShops
+	} else if shopService != nil {
+		shopService.ItemShops = itemShops
 	}
 	// 章节盒掉落（手册 P3 子项 3）。整表默认 enabled=false；只有 profile 显式开启
 	// 才会叠加目录与槽位，未开启时连掷骰种子都不消耗。
@@ -1614,7 +1616,7 @@ func main() {
 			if questService != nil && townArrivalScenes == nil {
 				log.Fatal("town arrival scene whitelist was not passed to world sessions")
 			}
-			worldState = &worldSession{characters: characters, service: worldService, account: developmentAccount, flags: townPolicy.Flags, dungeons: dungeonCatalog, townArrivalScenes: townArrivalScenes, tutorials: tutorialRoutes, tutorialDungeons: tutorialDungeons, professions: characters.Catalog, fatigue: fatigueService, quests: questService, progression: progressionService, loot: lootService, selectionBoxes: selectionBoxes, vault: vaultService, skinCatalog: skinCatalog, soloPartyBootstrap: *soloPartyBootstrap, hub: hub, scaleDeathFromHP: *scaleDeathFromHP, oathGrades: oathGradePair, oathTable: oathGradeTable, oathFromGear: *oathFromGear, oathProgressClears: *oathProgressClears, oathProgressDungeons: oathProgressSet, oathInject: oathInjectSpecs, omenHold: *omenHold, omenState: *omenState, omenInfo: omenInfoBytes}
+			worldState = &worldSession{characters: characters, service: worldService, account: developmentAccount, flags: townPolicy.Flags, dungeons: dungeonCatalog, townArrivalScenes: townArrivalScenes, tutorials: tutorialRoutes, tutorialDungeons: tutorialDungeons, professions: characters.Catalog, fatigue: fatigueService, quests: questService, progression: progressionService, loot: lootService, shop: shopService, selectionBoxes: selectionBoxes, vault: vaultService, skinCatalog: skinCatalog, soloPartyBootstrap: *soloPartyBootstrap, hub: hub, scaleDeathFromHP: *scaleDeathFromHP, oathGrades: oathGradePair, oathTable: oathGradeTable, oathFromGear: *oathFromGear, oathProgressClears: *oathProgressClears, oathProgressDungeons: oathProgressSet, oathInject: oathInjectSpecs, omenHold: *omenHold, omenState: *omenState, omenInfo: omenInfoBytes}
 			worldState.serverID = channelCfg.ServerID
 			worldState.channelType = channelTypes[channel]
 			if moonConfig != nil && channel == moonConfig.Channel {
