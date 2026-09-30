@@ -70,6 +70,9 @@ func main() {
 	responseFile := flag.String("responses", "", "JSON mapping command IDs to response fixture paths")
 	characterStorage := flag.String("character-storage", "", "enable experimental persisted character handling with this local storage config")
 	characterCatalog := flag.String("character-catalog", "configs/characters.generated.json", "PVF-derived profession catalog")
+	pvfCatalogSelection := flag.String("pvf-catalogs", os.Getenv("DFO_PVF_CATALOGS"), "candidate direct-read domains: quests,progression,world,items,equipment,periods,skins,journal,create-cost; empty keeps JSON; startup verifies current baselines")
+	pvfArchivePath := flag.String("pvf-archive", os.Getenv("DFO_PVF_ARCHIVE"), "explicit inner PVF path for candidate domains")
+	pvfArchiveChecksum := flag.String("pvf-sha256", os.Getenv("DFO_PVF_SHA256"), "expected inner PVF SHA256; must match existing character source")
 	characterRules := flag.String("character-rules", "configs/character-probe.json", "explicit local bootstrap settings")
 	selectProbeConfig := flag.String("select-probe-config", "", "opt in to current-build SELECT parser experiment; does not initialize a town")
 	entryBasicProbe := flag.Bool("entry-basic-probe", false, "send experimental current-build minimum actor info after SELECT; does not initialize a town")
@@ -174,6 +177,11 @@ func main() {
 	omenState := flag.Bool("omen-state", os.Getenv("DFO_OMEN_STATE") == "1", "征兆的正式状态：持有档数存进角色存档、进本按真实状态下发 noti 2836，并让隐藏 BOSS 由「满档结算」驱动（见 cmd/wireprobe/omen_state.go）。默认关闭")
 	scaleDeathFromHP := flag.Bool("scale-death-from-hp", os.Getenv("DFO_SCALE_DEATH_FROM_HP") == "1", "boundary-of-attunement 定盘机关(109019266)的兜底判死：它血量触底时服务端合成一条死亡上报，不再依赖引擎那两个恒为 72 的 rarity 天花板；默认关闭")
 	flag.Parse()
+	pvfCatalogs, pvfCatalogErr := preparePVFCoreCatalogs(*pvfCatalogSelection, *pvfArchivePath, *pvfArchiveChecksum, *characterCatalog, *questCatalogFile, *progressionCatalogFile, *worldCatalogFile, pvfItemInputs{indexPath: *itemIndexFile, fullPrefix: *fullEquipmentFile, journalPath: *equipmentJournalRulesFile, createCostPath: *equipmentCreateCostFile})
+	if pvfCatalogErr != nil {
+		log.Fatalf("PVF candidate catalogs: %v", pvfCatalogErr)
+	}
+	collectPVFImportMemory(pvfCatalogs)
 	equipmentCraftWindow = byte(*equipmentCraftWindowFlag)
 	equipmentCraftVariant = byte(*equipmentCraftVariantFlag)
 	equipmentCraftConfirmWindow = byte(*equipmentCraftConfirmWindowFlag)
@@ -582,12 +590,15 @@ func main() {
 		// 「剩余期限已过」并拒绝使用（错误码 31730）。
 		if os.Getenv("DFO_MAX_ITEM_PERIOD") != "0" {
 			protocol.ConfigureStoredPeriodLifting(true)
-			if *itemIndexFile == "" {
+			if *itemIndexFile == "" && pvfCatalogs.periods == nil {
 				log.Printf("maximum item period: no item index (-item-index), lifting stored periods only")
 			} else {
 				periodFile := filepath.Join(filepath.Dir(*itemIndexFile), "item-period-tags.json")
-				templates, periodErr := catalog.LoadItemPeriods(periodFile, data.Source.Checksum)
+				templates, periodErr := pvfCatalogs.loadItemPeriods(periodFile, data.Source.Checksum)
 				if periodErr != nil {
+					if pvfCatalogs.periods != nil {
+						log.Fatal(periodErr)
+					}
 					// 表读不到不再致命：退化为「存档里已有的非零期限一律抬到最大值」，
 					// 至少不会把已过期的旧道具重新判成过期。
 					log.Printf("maximum item period table unavailable (%v), lifting stored periods only", periodErr)
@@ -599,9 +610,9 @@ func main() {
 		}
 		// Skin-cargo registration (CMD507 action 169, `[add skin storage]`) reads
 		// the skin key straight from PVF and persists the unlock per account.
-		if *itemIndexFile != "" {
+		if *itemIndexFile != "" || pvfCatalogs.skins != nil {
 			skinFile := filepath.Join(filepath.Dir(*itemIndexFile), "skin-storage-items.json")
-			entries, skinErr := catalog.LoadSkinStorage(skinFile, data.Source.Checksum)
+			entries, skinErr := pvfCatalogs.loadSkinStorage(skinFile, data.Source.Checksum)
 			if skinErr != nil {
 				log.Printf("skin storage registration disabled: %v", skinErr)
 			} else if e = s.MigrateSkinCargo(ctx); e != nil {
@@ -684,7 +695,7 @@ func main() {
 		if characters == nil || *townProbeFile == "" {
 			log.Fatal("world requires persisted characters and a spawn policy")
 		}
-		data, e := catalog.LoadWorld(*worldCatalogFile)
+		data, e := pvfCatalogs.loadWorld(*worldCatalogFile)
 		if e != nil {
 			log.Fatal(e)
 		}
@@ -774,7 +785,7 @@ func main() {
 		if characters == nil || dungeonCatalog == nil {
 			log.Fatal("progression requires source characters and dungeon sessions")
 		}
-		data, e := catalog.LoadProgression(*progressionCatalogFile)
+		data, e := pvfCatalogs.loadProgression(*progressionCatalogFile)
 		if e != nil {
 			log.Fatal(e)
 		}
@@ -926,15 +937,18 @@ func main() {
 				itemIndexPath = "configs/items.index.json"
 			}
 		}
-		if itemIndexPath != "" {
-			if err := c.SupplementStackables(itemIndexPath); err != nil {
+		if itemIndexPath != "" || pvfCatalogs.items != nil {
+			if err := pvfCatalogs.supplementStackables(&c, itemIndexPath); err != nil {
+				if pvfCatalogs.items != nil {
+					log.Fatal(err)
+				}
 				log.Printf("warning: supplement stackables from %s: %v", itemIndexPath, err)
 			} else {
 				log.Printf("supplemented stackable catalog from %s (total items: %d)", itemIndexPath, len(c.Items))
 			}
 		}
-		if *equipmentJournalRulesFile != "" {
-			jr, e := catalog.LoadEquipmentJournalRules(*equipmentJournalRulesFile, c.Source.Checksum)
+		if *equipmentJournalRulesFile != "" || pvfCatalogs.journal != nil {
+			jr, e := pvfCatalogs.loadEquipmentJournal(*equipmentJournalRulesFile, c.Source.Checksum)
 			if e != nil {
 				log.Fatal(e)
 			}
@@ -942,8 +956,8 @@ func main() {
 			log.Printf("loaded equipment journal rules: max=%d limits=%d categories=%d groups=%d/%d",
 				jr.Maximum, len(jr.MaximumByType), len(jr.Categories), len(jr.WeaponGroups), len(jr.PeculiarGroups))
 		}
-		if *equipmentCreateCostFile != "" {
-			cc, e := catalog.LoadEquipmentCreateCost(*equipmentCreateCostFile, c.Source.Checksum)
+		if *equipmentCreateCostFile != "" || pvfCatalogs.createCost != nil {
+			cc, e := pvfCatalogs.loadEquipmentCreateCost(*equipmentCreateCostFile, c.Source.Checksum)
 			if e != nil {
 				log.Fatal(e)
 			}
@@ -1022,7 +1036,7 @@ func main() {
 		if worldService == nil {
 			log.Fatal("quests require world character sessions")
 		}
-		data, e := catalog.LoadQuests(*questCatalogFile)
+		data, e := pvfCatalogs.loadQuests(*questCatalogFile)
 		if e != nil {
 			log.Fatal(e)
 		}
@@ -1081,8 +1095,8 @@ func main() {
 				// 创建期的初始装备投影共用同一份装备目录与部位槽映射，避免另立编号。
 				characters.Equipment = equipment
 				characters.WearRules = rules
-				if *fullEquipmentFile != "" {
-					full, err := inventory.OpenFullEquipmentCatalog(*fullEquipmentFile, data.Source.Checksum)
+				if *fullEquipmentFile != "" || pvfCatalogs.equipment != nil {
+					full, err := pvfCatalogs.openFullEquipment(*fullEquipmentFile, data.Source.Checksum)
 					if err != nil {
 						log.Fatal(err)
 					}
@@ -1233,9 +1247,9 @@ func main() {
 		}
 	}
 	var boosterCatalog *BoosterCatalog
-	if *boosterCatalogFile != "" || *itemIndexFile != "" {
+	if *boosterCatalogFile != "" || *itemIndexFile != "" || pvfCatalogs.items != nil {
 		var err error
-		boosterCatalog, err = LoadBoosterCatalog(*boosterCatalogFile, *itemIndexFile)
+		boosterCatalog, err = pvfCatalogs.loadBooster(*boosterCatalogFile, *itemIndexFile)
 		if err != nil {
 			log.Printf("warning: load booster catalog: %v", err)
 		} else {

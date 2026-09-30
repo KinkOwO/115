@@ -2,6 +2,7 @@
 
 import json
 import pathlib
+import re
 
 PATH_KEYS = {
     'DFO_CHARACTER_CATALOG', 'DFO_CHARACTER_RULES', 'DFO_LOGIN_RESPONSE',
@@ -10,6 +11,7 @@ PATH_KEYS = {
     'DFO_ODYSSEY_WEAPON_BOX', 'DFO_ODYSSEY_GROWTH', 'DFO_LOOT_CATALOG',
     'DFO_ODYSSEY_COIN_RULES', 'DFO_FATIGUE_RULES', 'DFO_CLEAR_CUBE_SOURCE',
     'DFO_ODYSSEY_CHAPTER_DROP',
+    'DFO_PVF_ARCHIVE',
 }
 FLAGS = {
     'DFO_CHANNEL_IDENTITY',
@@ -45,6 +47,14 @@ def load_profile(path, project):
             env[key] = str(p)
         elif key in FLAGS and value in ('0', '1'):
             env[key] = value
+        elif key == 'DFO_PVF_SHA256' and isinstance(value, str) and re.fullmatch(r'[0-9a-fA-F]{64}', value):
+            env[key] = value.lower()
+        elif key == 'DFO_PVF_CATALOGS' and isinstance(value, str):
+            domains = [part.strip() for part in value.split(',')]
+            allowed = {'world', 'quests', 'progression', 'items', 'equipment', 'periods', 'skins', 'journal', 'create-cost'}
+            if not domains or len(set(domains)) != len(domains) or any(part not in allowed for part in domains):
+                raise ValueError('Invalid PVF candidate domains')
+            env[key] = ','.join(domains)
         else:
             raise ValueError('Unknown profile key or invalid value: ' + key)
     return binary, required, env

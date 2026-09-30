@@ -140,6 +140,7 @@ func parseWorldAreas(town uint32, cells []pvf.Token) ([]WorldArea, error) {
 			a.Pending = append(a.Pending, "conditional odyssey level rule requires interpretation")
 		} else if hasOdyssey {
 			a.OdysseyMinimumLevel = odyssey
+			a.OdysseyEnterLevel = odyssey // legacy serialization alias of the same source value
 		}
 		for _, c := range def {
 			if c.Type == 6 && (c.Text == "[normal]" || c.Text == "[gate]" || c.Text == "[dungeon gate]") {
@@ -336,6 +337,12 @@ func sourcePhaseNPCs(script ScriptRecord) []PhaseNPC {
 	return result
 }
 
+// PhaseNPCsFromScript projects source NPC rows for phase-graph consistency
+// checks using the same parser as the world importer and teleport index.
+func PhaseNPCsFromScript(script ScriptRecord) []PhaseNPC {
+	return sourcePhaseNPCs(script)
+}
+
 func resolveMapImports(a *pvf.Archive, script ScriptRecord, visiting map[string]bool, depth int) ([]ScriptRecord, error) {
 	if visiting[script.Path] || depth > 16 {
 		return nil, fmt.Errorf("cyclic or excessive map imports at %s", script.Path)
@@ -396,6 +403,22 @@ func LoadWorld(file string) (WorldCatalog, error) {
 	if e != nil {
 		return w, e
 	}
+	w.indexNPCTeleports()
+	return w, nil
+}
+
+// ImportWorldRuntime assembles the same runtime dependencies as LoadWorld,
+// without loading npc-teleport.generated.json beside an exported catalog.
+func ImportWorldRuntime(a *pvf.Archive) (WorldCatalog, error) {
+	w, err := ImportWorld(a)
+	if err != nil {
+		return w, err
+	}
+	moves, err := ImportNPCMoves(a)
+	if err != nil {
+		return w, fmt.Errorf("world NPC moves: %w", err)
+	}
+	w.NPCMoves = moves.Moves
 	w.indexNPCTeleports()
 	return w, nil
 }

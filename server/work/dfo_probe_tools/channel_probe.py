@@ -637,7 +637,10 @@ with (
  server = subprocess.Popen(command, stdout=stdout, stderr=stderr, creationflags=flags)
  try:
   ready = out / "ready.json"
-  for _ in range(1000):
+  # Direct PVF startup verifies source/parity before opening storage. Allow its
+  # larger import stage without changing the default JSON startup timeout.
+  startup_checks = 3600 if os.environ.get("DFO_PVF_CATALOGS") else 1000
+  for _ in range(startup_checks):
    if server.poll() is not None:
     raise RuntimeError(f"gateway exited on {command}")
    if ready.exists():

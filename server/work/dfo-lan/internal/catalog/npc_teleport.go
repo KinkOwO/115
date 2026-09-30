@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 )
 
 // NPCMove records the native [role] [move town] target from one .npc script.
@@ -38,6 +39,17 @@ func (w *WorldCatalog) indexNPCTeleports() {
 		for _, npc := range area.PhaseNPCs {
 			w.addNPCPlace(npc.ID, place)
 		}
+	}
+	// Areas is a map. Place membership has no priority; stabilize its slices
+	// so repeated loads and source comparisons cannot depend on map iteration.
+	for id, places := range w.NPCPlaces {
+		sort.Slice(places, func(i, j int) bool {
+			if places[i].Town != places[j].Town {
+				return places[i].Town < places[j].Town
+			}
+			return places[i].Area < places[j].Area
+		})
+		w.NPCPlaces[id] = places
 	}
 	rows, err := ParseIndex(w.TownIndex.Cells)
 	if err != nil || len(rows) != len(w.Towns) {

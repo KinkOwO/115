@@ -182,13 +182,13 @@ func (a *Archive) SampleTokenStrings(limit int) ([]TokenSample, error) {
 
 // DistinctString 是所有被引用的池内字符串及其引用次数。
 type DistinctString struct {
-	Text    string `json:"text"`
-	Refs    int    `json:"refs"`
-	Tok3    int    `json:"tok3"`
-	Tok6    int    `json:"tok6"`
-	Tok8    int    `json:"tok8"`
-	Wide    bool   `json:"wide"`
-	Sample  string `json:"sample"`
+	Text   string `json:"text"`
+	Refs   int    `json:"refs"`
+	Tok3   int    `json:"tok3"`
+	Tok6   int    `json:"tok6"`
+	Tok8   int    `json:"tok8"`
+	Wide   bool   `json:"wide"`
+	Sample string `json:"sample"`
 }
 
 // DistinctStrings 汇总全部被引用字符串（按引用次数降序）。
@@ -251,7 +251,7 @@ type Translator func(text string) (string, bool)
 // Localize 生成一个经过字符串替换的新内层归档。
 func (a *Archive) Localize(out string, tr Translator) (LocalizeStats, error) {
 	var stats LocalizeStats
-	if a == nil || a.format != FormatDFO20260901 {
+	if a == nil || a.readOnlyView || a.format != FormatDFO20260901 {
 		return stats, fmt.Errorf("localize requires a dfo inner archive")
 	}
 	type pending struct {

@@ -185,8 +185,11 @@ def main():
  out.mkdir(parents=True)
  env = os.environ.copy()
  if args.repair_profile:
-  env.pop("DFO_SKILL_RELEASE", None)
-  env.pop("DFO_ODYSSEY_REWARDS_PILOT", None)
+  # A PVF migration profile changes data sources while preserving the user's
+  # existing gameplay switches. Ordinary repair profiles keep their isolation.
+  if "DFO_PVF_CATALOGS" not in profile_env:
+   env.pop("DFO_SKILL_RELEASE", None)
+   env.pop("DFO_ODYSSEY_REWARDS_PILOT", None)
   env.update(profile_env)
  env["DFO_CLIENT_DIR"] = str(client)
  env["DFO_SERVER_BINARY"] = str(binary)

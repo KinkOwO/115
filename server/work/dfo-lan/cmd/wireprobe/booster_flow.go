@@ -95,13 +95,7 @@ type BoosterDefinition struct {
 	Pools    []BoosterRewardPool `json:"pools,omitempty"`
 }
 
-type ItemIndexInfo struct {
-	ID            uint32 `json:"id"`
-	Path          string `json:"path"`
-	Kind          string `json:"kind"`
-	StackableType string `json:"stackable_type"`
-	StackLimit    uint32 `json:"stack_limit"`
-}
+type ItemIndexInfo = catalog.ItemIndexEntry
 
 type BoosterCatalog struct {
 	Definitions map[uint32]BoosterDefinition
