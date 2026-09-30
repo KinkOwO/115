@@ -31,13 +31,18 @@ type blackPurgatoryBossGroup struct {
 }
 
 type blackPurgatoryBossRules struct {
-	Model       string                             `json:"model"`
-	Denominator uint32                             `json:"denominator"`
-	Rates       map[string]uint32                  `json:"rates"`
-	Groups      map[string]blackPurgatoryBossGroup `json:"groups"`
+	GroupScript   string                             `json:"group_script"`
+	GroupHash     string                             `json:"group_script_sha256"`
+	RoutingScript string                             `json:"routing_script"`
+	RoutingHash   string                             `json:"routing_script_sha256"`
+	Model         string                             `json:"model"`
+	Denominator   uint32                             `json:"denominator"`
+	Rates         map[string]uint32                  `json:"rates"`
+	Groups        map[string]blackPurgatoryBossGroup `json:"groups"`
 }
 
 type BlackPurgatoryRewards struct {
+	VIPSourceOnly  []RewardBoxCandidate    `json:"vip_source_only"`
 	Model          string                  `json:"model"`
 	Source         string                  `json:"source"`
 	ClientSource   string                  `json:"client_pvf_sha256"`
@@ -130,6 +135,12 @@ func LoadBlackPurgatoryRewards(path string, boxes RewardBoxSource, itemLookup fu
 	if err = json.Unmarshal(raw, &r); err != nil {
 		return nil, err
 	}
+	return NewBlackPurgatoryRewards(r, boxes, itemLookup)
+}
+
+// NewBlackPurgatoryRewards binds validated source tables to the existing reward
+// expansion and storage projection, regardless of their input format.
+func NewBlackPurgatoryRewards(r BlackPurgatoryRewards, boxes RewardBoxSource, itemLookup func(uint32) (catalog.LootItem, bool)) (*BlackPurgatoryRewards, error) {
 	if r.Model != blackPurgatoryCardModel || r.Dungeon != BlackPurgatorySquadDungeon ||
 		r.Script != "etc/dungeonspecialreward.etc" || len(r.Cards) != 5 || boxes == nil || itemLookup == nil {
 		return nil, fmt.Errorf("黑鸦奖励配置或礼包目录不完整")

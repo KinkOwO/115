@@ -1433,9 +1433,9 @@ func main() {
 	} else {
 		log.Printf("warning: no attunement reward table; boundary-of-attunement clears pay no exclusive reward")
 	}
-	if lootService != nil && boosterCatalog != nil && *itemIndexFile != "" {
+	if lootService != nil && boosterCatalog != nil && (*itemIndexFile != "" || pvfCatalogs.blackPurgatory != nil) {
 		path := filepath.Join(filepath.Dir(*itemIndexFile), "black-purgatory-rewards.json")
-		rewards, err := loot.LoadBlackPurgatoryRewards(path, boosterBoxSource{catalog: boosterCatalog}, func(id uint32) (catalog.LootItem, bool) {
+		rewards, err := pvfCatalogs.loadBlackPurgatory(path, boosterBoxSource{catalog: boosterCatalog}, func(id uint32) (catalog.LootItem, bool) {
 			item, ok := boosterCatalog.Items[id]
 			return catalog.LootItem{ID: id, Kind: item.Kind, StackableType: item.StackableType, StackLimit: item.StackLimit, Script: catalog.ScriptRecord{Path: item.Path}}, ok
 		})

@@ -340,3 +340,10 @@ func (s *Source) ClearCube(index catalog.ItemIndex) (catalog.LootItem, error) {
 	}
 	return catalog.ImportClearCube(s.archive, index)
 }
+
+func (s *Source) BlackPurgatory(index catalog.ItemIndex, policy loot.BlackPurgatoryPolicy) (*loot.BlackPurgatoryRewards, error) {
+	if s.archive == nil {
+		return nil, fmt.Errorf("Black Purgatory requires PVF")
+	}
+	return loot.ReadBlackPurgatoryRewards(s.archive, index, policy)
+}

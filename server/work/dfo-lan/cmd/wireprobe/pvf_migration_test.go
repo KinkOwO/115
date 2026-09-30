@@ -12,7 +12,7 @@ func TestPVFMigrationSourceOnlyLocalArchive(t *testing.T) {
 	}
 	verify := false
 	c, err := preparePVFCoreCatalogs(pvfSupportedDomains, path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "../../configs/characters.skycastle-release.json", "missing-quests.json", "missing-progression.json", "missing-world.json", pvfItemInputs{
-		verifyBaselines: &verify, clearCubePath: "missing-cube.json", odysseyGrowthPath: "missing-growth.json", odysseyChapterPath: "missing-chapters.json", odysseyDropPath: "missing-odyssey-drop.json", odysseyCurrencyPath: "missing-coins.json", odysseyWeaponPath: "missing-weapons.json", apocalypsePath: "missing-apocalypse.json", attunementPath: "missing-attunement.json", contentPolicyPath: "../../configs/pvf-odyssey-policy.json", indexPath: "missing/items.index.json", fullPrefix: "missing/equipment-full", journalPath: "missing-journal.json", createCostPath: "missing-create-cost.json", learningPath: "missing-skills.json", pricesPath: "missing-prices.json", materialsPath: "missing-materials.json", boosterPath: "missing-boosters.json", tutorialPath: "missing-tutorial.json", enhancementPolicyPath: "../../configs/pvf-enhancement-policy.json",
+		verifyBaselines: &verify, blackPurgatoryPath: "missing-black-purgatory.json", clearCubePath: "missing-cube.json", odysseyGrowthPath: "missing-growth.json", odysseyChapterPath: "missing-chapters.json", odysseyDropPath: "missing-odyssey-drop.json", odysseyCurrencyPath: "missing-coins.json", odysseyWeaponPath: "missing-weapons.json", apocalypsePath: "missing-apocalypse.json", attunementPath: "missing-attunement.json", contentPolicyPath: "../../configs/pvf-reward-policy.json", indexPath: "missing/items.index.json", fullPrefix: "missing/equipment-full", journalPath: "missing-journal.json", createCostPath: "missing-create-cost.json", learningPath: "missing-skills.json", pricesPath: "missing-prices.json", materialsPath: "missing-materials.json", boosterPath: "missing-boosters.json", tutorialPath: "missing-tutorial.json", enhancementPolicyPath: "../../configs/pvf-enhancement-policy.json",
 		randomOptionPath: "missing-options.json", shieldPath: "missing-shields.json", oathPath: "missing-oath.json", vaultPath: "missing-vault.json", wearRulesPath: "../../configs/equipment-wear.current35.json", vaultPolicyPath: "../../configs/pvf-vault-policy.json", lootPath: "missing-loot.json", equipmentPath: "missing-equipment.json", questEquipmentPath: "missing-quest-equipment.json", dropPolicyPath: "../../configs/pvf-drop-policy.json",
 		townPath: "missing-town.json", dungeonPath: "missing-dungeons.json", trainingDungeonPath: "missing-training.json", tutorialDungeonPath: "missing-tutorial-dungeons.json", scenePolicyPath: "../../configs/pvf-scene-policy.json",
 	})
@@ -37,5 +37,5 @@ func TestPVFMigrationSourceOnlyLocalArchive(t *testing.T) {
 	if c.grief == nil || c.dazzlement == nil || c.hellMaps == nil || c.mazeRates == nil {
 		t.Fatal("source overlays missing")
 	}
-	t.Log("36 selectors / 42 source families prepared with all selected export JSON paths absent")
+	t.Log("37 selectors / 43 source families prepared with all selected export JSON paths absent")
 }

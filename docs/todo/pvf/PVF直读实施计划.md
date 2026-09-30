@@ -60,13 +60,13 @@ PVF 提供物品、职业、技能、任务、地图和源规则表；服主倍�
 | 教程 `tutorial-routes.*`、`tutorial-dungeons.*`、训练场 | 职业起始路线及源副本/地图 | 16条起始路线已确认；`tutorial-dungeons`15副本/65地图、`training-dungeons`4副本/7地图离线完整一致 |
 | 副本覆盖 `terminal-scenes`、`layer-revisits`、`tournament-quest-maps`、两座塔、`hell-party-maps` | 原 `.dgn` / `.map` 引用、`list/cinematic.lst` 与源场景 | `dungeon-towers`悲叹100层/100地图、眩惑33副本/56地图及`dungeon-hell`55张地图已接候选并完整一致；1个缺失深渊源引用仍拒绝。终场/分层重访/武斗大会仍待迁移 |
 | 迷宫概率 `dungeons.maze-chance-rates` | `.dgn` 的 `[maze chance rate]` | 已接`dungeon-maze`离线候选；源概率和脚本哈希直读，原`[992857,7143] → [980000,20000]`覆盖写入独立场景策略 |
-| Odyssey 成长、章节、武器箱 `odyssey-growth-*`、`odyssey-chapters-*`、`odyssey-weapon-box-*` | `contents/2026/aradodyssey/etc/aradodyssey.etc`、`aradodysseyjournal.cos`、关联礼盒脚本 | 提取成长/章节导出与现有解析；保留毕业主线、赠品与地图顺序，运行派生索引参与核对 |
-| Odyssey 掉落 `odyssey-chapter-drop-*`、`odyssey-currency` | 章节最后副本、奖励模板与货币 `.stk` | 源定义迁移；章节启用/概率与已由用户确认的货币自定义概率独立；不能借直读恢复为另一套概率 |
-| 天启与军团 `apocalypse.generated`、`legion-contents.generated` | `contents/2026/apocalypse/etc/apocalypse.ctp`、`dungeonskillinfo.ctp`、`contents/system/legionsystem/legionsystem.cos` | 提取 `cmd/apocalypseimport`；`ImportLegionContents` 已存在，需核对实际消费入口，未启用功能不随迁移开启 |
-| 调律 `attunement-rewards.generated` | `etc/rewardboostinfo/skyofathousandseasofborder/{unique,legendary,epic}.ctp` 等 | 提取 `cmd/attunementimport`；未知隐藏表中间字段、优惠券概率维持记录而不解释的边界 |
+| Odyssey 成长、章节、武器箱 `odyssey-growth-*`、`odyssey-chapters-*`、`odyssey-weapon-box-*` | `contents/2026/aradodyssey/etc/aradodyssey.etc`、`aradodysseyjournal.cos`、关联礼盒脚本 | 已接5项奥德赛离线候选中的成长/章节/武器项，50副本、3赠品及毕业礼盒、7章15奖励模板、85组武器选项及运行派生索引完整一致；毕业主线与源顺序保持 |
+| Odyssey 掉落 `odyssey-chapter-drop-*`、`odyssey-currency` | 章节最后副本、奖励模板与货币 `.stk` | 已接odyssey-drop与odyssey-currency候选，7行章节掉落及2种币完整一致；章节2/7停用、概率及rank选币为独立策略，未恢复为另一套概率 |
+| 天启与军团 `apocalypse.generated`、`legion-contents.generated` | `contents/2026/apocalypse/etc/apocalypse.ctp`、`dungeonskillinfo.ctp`、`contents/system/legionsystem/legionsystem.cos` | 天启apocalypse候选已接，65主记录/14职责/6阶段2190秒完整一致；军团ImportLegionContents已存在，核查无生产消费入口，不随迁移新增玩法启用 |
+| 调律 `attunement-rewards.generated` | `etc/rewardboostinfo/skyofathousandseasofborder/{unique,legendary,epic}.ctp` 等 | attunement候选已接，4副本/126奖励模板/5优惠券行完整一致；源CTP按dungeon声明绑定，调参深复制，未知隐藏中间字段与Omen边界保持 |
 | 赤红铁矿 `bleeding-mine-rewards` | `contents/2025/bleedingmine/etc/bleedingmine*.ctp`，奖励袋/智能掉落组/合成字段 | 补共享导入器，保留奖励引用图校验、空结果与单层展开边界 |
-| 黑鸦 `black-purgatory-rewards` | `etc/dungeonspecialreward.etc`、`etc/itemdictionary/customroutingwaygroup.cos`、`customroutingway.etc` | 翻牌和源装备候选组迁移；本服领主顶层概率和组内等概率策略独立 |
-| 旁路无色小晶块及单物品 JSON | `DFO_CLEAR_CUBE_SOURCE` 的物品3037和其他已引用 `.stk` | 直接通过物品索引取定义，移除证据目录 JSON 的运行依赖；证据样本继续归档 |
+| 黑鸦 `black-purgatory-rewards` | `etc/dungeonspecialreward.etc`、`etc/itemdictionary/customroutingwaygroup.cos`、`customroutingway.etc` | black-purgatory候选已接，5普通/1仅记录VIP分支、208史诗/35神话/135腐蚀产物完整一致；10%/0.1%/1%本服策略独立，来源元数据边界见第五批文档 |
+| 旁路无色小晶块及单物品 JSON | `DFO_CLEAR_CUBE_SOURCE` 的物品3037和其他已引用 `.stk` | clear-cube候选已接，3037完整源Token/哈希及原存储零值投影一致，无所选导出JSON依赖；其它单物品继续随对应源领域审计 |
 | GM 名称与筛选 `gm-tool/configs/names.client`、`equipment.slots`、重复职业/经验/物品目录 | `string/*.uv.str` 的名称/品级/职业文本，`.equ` 的部位和最低等级 | 提取 `cmd/gmtool/names.go` 的文本读取及现有装备解析；GM 与游戏共用源目录，不再复制一套导出 JSON；固定界面属性键的中文对照仍是工具映射 |
 
 GM 包内另有 `set_items*.json`、`avatar_sets.json`、`set_display_names.json`、`equip_whitelist.json`，列入补充审计：套装/装扮成员如来自 PVF，应合并到装备与分组导入器；精选套装范围、搜索别名、显示名覆盖和发放白名单属于工具选择。现有文件缺少统一源路径/指纹，本次不将其整体宣称为已确认可直读，也不整体认定为“PVF 没有”。需逐字段核对前端消费入口与原脚本。`gm-tool/backups/` 是玩家操作备份，应保留，不作源规则迁移。
@@ -299,3 +299,10 @@ GM 包内另有 `set_items*.json`、`avatar_sets.json`、`set_display_names.json
 ## 2026-10-01：无色晶块存储源覆盖
 
 新增clear-cube选择项，3037无色小晶块从共享PVF索引及原始脚本直读，完整源Token/哈希对照一致。保留原存储覆盖中Grade/Rarity/Weight为0的最小投影，原源值仍在ScriptRecord中；不进入普通掉落池，不改变分解或技能消耗公式。总计36选择项/42类有效源投影，缺失所有所选导出JSON联合准备约42.10秒通过，混用存储来源拒绝。全量Go测试/vet、8项Python测试及只读依赖检查通过。新profile为`pvf-cube-candidate.json`，隔离程序SHA256 `c6e29f3cc4c8b375ee9ecbc7781553134b005c6b1d03cc94980b83ffddd1261b`；第五批尚未实机，确认范围仍为第四批28项。
+
+
+## 2026-10-01：黑鸦源奖励范围迁移
+
+新增black-purgatory直读选择项，普通翻牌5分支、仅记录的VIP1分支、三组装备源范围完整一致（史诗208、神话35、腐蚀产物135件）；现有奖励包装展开、装备验证与事务链保持。10%/0.1%/1%本服独立概率迁入`pvf-reward-policy.json`；源脚本路径/哈希、八列奖励及装备ID/等级/稀有度全部从PVF读取。合计37选择项/43类有效源投影；37项缺失所选JSON联合准备约42.10秒、完整黑鸦源审计、全量Go测试/vet、8项Python测试和只读依赖检查通过。最新profile为`pvf-rewards-candidate.json`，隔离程序SHA256 `a044d143c38924931675929bd2bc768fcbcd551c1f002a91ef6176d9520bf5b1`。确认范围仍为第四批28项；第五批候选未实机。
+
+来源身份、保留概率与回退见[第五批进度](PVF直读第五批迁移进度.md)。矿区奖励及其它剩余目录继续推进，不宣称项目已全部无JSON。

@@ -44,3 +44,14 @@ SHA256：`fcefe7737c198e1425a4d87c03affc7122f7828d1615412835751ed1beafcf2d`。
 新增clear-cube选择项，3037无色小晶块从共享PVF索引及原始脚本直读，完整源Token/哈希对照一致。保留原存储覆盖中Grade/Rarity/Weight为0的最小投影，原源值仍在ScriptRecord中；不进入普通掉落池，不改变分解或技能消耗公式。总计36选择项/42类有效源投影，缺失所有所选导出JSON联合准备约42.10秒通过，混用存储来源拒绝。全量Go测试/vet、8项Python测试及只读依赖检查通过。新profile为`pvf-cube-candidate.json`，隔离程序SHA256 `c6e29f3cc4c8b375ee9ecbc7781553134b005c6b1d03cc94980b83ffddd1261b`；第五批尚未实机，确认范围仍为第四批28项。
 
 新增选择项`clear-cube`只替换原`clear-cube-source.json`的来源。源脚本`stackable/material/cubepiece_clear.stk`中Grade=5/Rarity=1完整保留；现有业务投影仍为0/0，不因迁移将其纳入随机候选。源哈希仍由原覆盖验证器强制校验。新程序位于`.tmp/pvf-cube/bin/wireprobe-handoff-source.exe`，所有原profile/程序/策略文件保持。特殊奖励与其它剩余目录继续实施。
+
+
+## 黑鸦源奖励与装备范围候选
+
+新增black-purgatory直读选择项，普通翻牌5分支、仅记录的VIP1分支、三组装备源范围完整一致（史诗208、神话35、腐蚀产物135件）；现有奖励包装展开、装备验证与事务链保持。10%/0.1%/1%本服独立概率迁入`pvf-reward-policy.json`；源脚本路径/哈希、八列奖励及装备ID/等级/稀有度全部从PVF读取。合计37选择项/43类有效源投影；37项缺失所选JSON联合准备约42.10秒、完整黑鸦源审计、全量Go测试/vet、8项Python测试和只读依赖检查通过。最新profile为`pvf-rewards-candidate.json`，隔离程序SHA256 `a044d143c38924931675929bd2bc768fcbcd551c1f002a91ef6176d9520bf5b1`。确认范围仍为第四批28项；第五批候选未实机。
+
+`etc/dungeonspecialreward.etc` 的八列翻牌表按已取证的记录顺序解析：每个普通/VIP奖励分支的五档条件逐行一致，概率各合计10000；VIP数据只记录，未混入普通奖励池。装备三组由 `etc/itemdictionary/customroutingwaygroup.cos` 的group1010001、1010500、1010007及共享源装备索引推导。各装备脚本的ID/路径/哈希、等级与稀有度核对一致；`customroutingway.etc`整份哈希一并参与审计。包装全图校验在源准备阶段执行，运行再次通过原构造器与装备验证器，未扩大玩法实现。
+
+旧JSON的`client_pvf_sha256`为历史外层`2429b15a…`，角色来源`source`仍为inner `7ef2db59…`。直读记录实际读取归档的inner哈希。审计只在角色inner来源严格一致、翻牌/分组/routing三份原始文件哈希全部一致时，允许归一化这一明确的旧导出来源元数据；未知外层来源或任一源定义变化拒绝。这不是存档版本迁移，也没有为归档checksum建立别名。其它有效字段（含旧运行类型未接收的VIP和两份routing来源哈希）全部参与比较。
+
+新profile为`configs/pvf-rewards-candidate.json`，使用独立`pvf-reward-policy.json`，程序位于`.tmp/pvf-rewards/bin/wireprobe-handoff-source.exe`。旧35/36项策略和程序继续可回退；运行仍使用同源inner `7ef2db59…`，没有启动客户端、重启服务或修改玩家数据库。矿区奖励、剩余副本覆盖、抽奖/选择箱、嵌入目录、商品源绑定、职业源/策略和GM查询继续实施。
