@@ -178,6 +178,20 @@ func (a *Archive) Files() []File {
 	return out
 }
 
+// IterateFiles visits immutable directory values without copying the complete
+// multi-million-entry file slice. The callback cannot mutate archive entries.
+func (a *Archive) IterateFiles(fn func(File) error) error {
+	if a == nil || fn == nil {
+		return fmt.Errorf("invalid archive file iterator")
+	}
+	for _, file := range a.files {
+		if err := fn(file); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (a *Archive) FileCount() int {
 	if a == nil {
 		return 0

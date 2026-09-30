@@ -5,6 +5,7 @@ import (
 	"dfolan/internal/character"
 	"dfolan/internal/gamedata"
 	"dfolan/internal/inventory"
+	"dfolan/internal/loot"
 	"fmt"
 	"log"
 	"os"
@@ -18,6 +19,8 @@ import (
 // verifies complete effective projections; source checks remain mandatory in
 // normal direct mode as well as audit mode.
 type pvfCoreCatalogs struct {
+	attunement                                   *loot.AttunementRewards
+	apocalypse                                   *catalog.ApocalypseCatalog
 	mazeRates                                    *catalog.MazeChanceOverlay
 	hellMaps                                     *catalog.SourceMapOverlay
 	grief                                        *catalog.TowerGriefOverlay
@@ -48,6 +51,8 @@ type pvfCoreCatalogs struct {
 }
 
 type pvfItemInputs struct {
+	attunementPath, contentPolicyPath                                                                                      string
+	apocalypsePath                                                                                                         string
 	indexPath, fullPrefix, journalPath, createCostPath, learningPath, pricesPath, materialsPath, boosterPath, tutorialPath string
 	verifyBaselines                                                                                                        *bool
 	lootPath, equipmentPath, questEquipmentPath, dropPolicyPath                                                            string
@@ -58,7 +63,7 @@ type pvfItemInputs struct {
 
 func (i pvfItemInputs) checksBaselines() bool { return i.verifyBaselines == nil || *i.verifyBaselines }
 
-const pvfSupportedDomains = "world,quests,progression,items,equipment,periods,skins,journal,create-cost,skills,prices,materials,boosters,tutorial,enhancements,random-options,shields,oath-grades,vault,loot,equipment-selection,town,dungeons,training-dungeons,tutorial-dungeons,dungeon-towers,dungeon-hell,dungeon-maze"
+const pvfSupportedDomains = "world,quests,progression,items,equipment,periods,skins,journal,create-cost,skills,prices,materials,boosters,tutorial,enhancements,random-options,shields,oath-grades,vault,loot,equipment-selection,town,dungeons,training-dungeons,tutorial-dungeons,dungeon-towers,dungeon-hell,dungeon-maze,apocalypse,attunement"
 
 func parsePVFCatalogSelection(value string) (map[string]bool, error) {
 	supported := map[string]bool{}
@@ -285,6 +290,9 @@ func preparePVFCoreCatalogs(selection, path, checksum, characterPath, questPath,
 		return result, err
 	}
 	if err := preparePVFMazeRates(&result, selected, inputs); err != nil {
+		return result, err
+	}
+	if err := preparePVFSpecial(&result, source, selected, inputs); err != nil {
 		return result, err
 	}
 	log.Printf("PVF candidate catalogs prepared in %s; full directory can be collected before opening storage", time.Since(started))

@@ -109,6 +109,11 @@ func LoadAttunementRewards(path string) (*AttunementRewards, error) {
 	if err := json.Unmarshal(b, &a); err != nil {
 		return nil, err
 	}
+	return NewAttunementRewards(a)
+}
+
+// NewAttunementRewards builds the same validated runtime indexes for either source.
+func NewAttunementRewards(a AttunementRewards) (*AttunementRewards, error) {
 	if a.Model != AttunementModel {
 		return nil, fmt.Errorf("attunement rewards model %q, want %q", a.Model, AttunementModel)
 	}

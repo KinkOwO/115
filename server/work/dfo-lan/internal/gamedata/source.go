@@ -7,6 +7,7 @@ import (
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/character"
 	"dfolan/internal/inventory"
+	"dfolan/internal/loot"
 	"encoding/hex"
 	"fmt"
 	"path/filepath"
@@ -292,4 +293,18 @@ func (s *Source) HellPartyMaps(c catalog.DungeonCatalog) (catalog.SourceMapOverl
 		return catalog.SourceMapOverlay{}, nil, fmt.Errorf("Hell Party maps require PVF")
 	}
 	return catalog.ImportHellPartyMaps(s.archive, c)
+}
+
+func (s *Source) Apocalypse() (*catalog.ApocalypseCatalog, error) {
+	if s.archive == nil {
+		return nil, fmt.Errorf("apocalypse import requires PVF")
+	}
+	return catalog.ImportApocalypse(s.archive)
+}
+
+func (s *Source) Attunement(selected []uint32) (*loot.AttunementRewards, error) {
+	if s.archive == nil {
+		return nil, fmt.Errorf("attunement import requires PVF")
+	}
+	return loot.ImportAttunementRewards(s.archive, selected)
 }
