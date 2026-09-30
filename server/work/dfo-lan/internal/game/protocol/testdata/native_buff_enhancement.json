@@ -1,0 +1,14 @@
+{
+  "client_sha256": "235f6281aebdfaff40d85fc46308bb1aaac151346d4c07ebd8117f92bb875ccd",
+  "scope": "Original client sender/reader byte vectors. Inventory, actor allocation, UI and effects were stubbed during offline extraction; these vectors do not prove combat effects.",
+  "vectors": [
+    {"name": "register", "direction": "C2S", "payload_hex": "32010d003900", "request": {"skill": 306, "kind": 13, "list": 0, "slot": 57}},
+    {"name": "select-skill", "direction": "C2S", "payload_hex": "3201302effff", "request": {"skill": 306, "kind": 48, "list": 46, "slot": 65535}},
+    {"name": "deselect-skill", "direction": "C2S", "payload_hex": "0000302effff", "request": {"skill": 0, "kind": 48, "list": 46, "slot": 65535}},
+    {"name": "clear-item", "direction": "C2S", "payload_hex": "32010d2effff", "request": {"skill": 306, "kind": 13, "list": 46, "slot": 65535}},
+    {"name": "restore-one", "direction": "S2C", "payload_hex": "320101010d003900", "skill": 306, "items": [{"exists": true, "kind": 13, "list": 0, "slot": 57}]},
+    {"name": "restore-empty", "direction": "S2C", "payload_hex": "000000", "skill": 0, "items": []},
+    {"name": "restore-multiple", "direction": "S2C", "payload_hex": "320102010d003900011a070500", "skill": 306, "items": [{"exists": true, "kind": 13, "list": 0, "slot": 57}, {"exists": true, "kind": 26, "list": 7, "slot": 5}]},
+    {"name": "restore-current-actor", "direction": "S2C", "payload_hex": "190101010d000900", "skill": 281, "items": [{"exists": true, "kind": 13, "list": 0, "slot": 9}]}
+  ]
+}

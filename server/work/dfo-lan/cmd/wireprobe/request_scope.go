@@ -16,6 +16,9 @@ func dungeonRequest(id uint16) bool {
 }
 
 func observedGameRequest(id uint16) bool {
+	if id == 1421 {
+		return true
+	} // Every Buff Enhancement edit must be persisted.
 	// Combo editing and reset must still be decoded after the eighth request.
 	if id == 500 || id == 502 {
 		return true

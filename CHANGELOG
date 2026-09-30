@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 2026-10-01
+- 修复Buff登记在重新选择角色、进入地下城、重启游戏后丢失或失效的问题，已验证登记保留与Buff加成正常。
+  - 接入`CMD1421`，校验并通过既有角色事务保存登记、技能选择与取消操作；角色存档新增可选`buff_enhancement`字段，无数据库表结构变更。
+  - 登录、进图和回城时，在角色及装备数据更新完成后通过`NOTI1361`恢复完整登记，避免场景重建清空登记；按忽略位置的物品指纹匹配，防止背包移位或槽位复用后误绑。
+  - 协议布局、存档兼容性与恢复顺序见[`Buff Enhancement 登记保存与恢复`](server/work/dfo-lan/docs/protocol/buff-enhancement-persistence-20261001.md)。
+
 ## 2026-09-30
 - **深渊 / 副本掉落组链落地 · 外部《20260929 更新及整合》的 G 项**：此前服务端拿不到副本自己声明的物品池 —— 实机「深渊：最终调律者」只掉紫装 / 装备干脆不爆（全局表给普通怪的装备率 0.37%，11 只杂兵期望 0.04 件）。本次把「副本 → 掉落组 → 物品」这条链补齐。
   - **新增 `internal/catalog/dungeondropinfo.go`**：解析 `etc/dungeondropinfo.cos`（DataType=3 的 **UTF-16LE 文本**，不能走 Tokens）。它是「副本 → [(品级, 副本类型, 掉落组, 率)]」的权威索引，**[dungeon type] 只有 `dgn_normal` / `dgn_hell` 两种取值** —— 这正是「深渊按深渊要求掉落」的判据，不靠副本名或段标记猜。配套 `DropInfoByID` / `IsAbyssDungeon` 两个查询（`IsAbyssDungeon` 曾缺失，是本次之前编译不过的缺口）。

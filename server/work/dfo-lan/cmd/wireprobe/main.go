@@ -1642,6 +1642,7 @@ func main() {
 		var selectedAddition []byte
 		var worldState *worldSession
 		var comboState comboSkillSession
+		var buffEnhancementState buffEnhancementSession
 		var skillState skillSession
 		var cubeContractState cubeContractSession
 		var equipmentState equipmentSession
@@ -3100,6 +3101,36 @@ func main() {
 				}
 				continue
 			}
+			if characters != nil && bootstrapped && frame.ID == 1421 {
+				if !verified || worldState == nil || worldState.role.ID != selectedCharacterID {
+					event(map[string]any{"kind": "buff_enhancement_rejected", "character_id": selectedCharacterID, "reason": "checksum or character selection mismatch"})
+					continue
+				}
+				notify, saveErr := buffEnhancementState.save(characters, worldState, plaintext)
+				if saveErr != nil {
+					event(map[string]any{"kind": "buff_enhancement_rejected", "character_id": selectedCharacterID, "reason": saveErr.Error()})
+					if e := sendPayload(1, 1421, protocol.Refusal(0)); e != nil {
+						return
+					}
+					// CMD1421 failure rolls back the optimistic item edit; restore
+					// the authoritative complete selection after that rollback.
+					var restoreErr error
+					notify, restoreErr = characters.BuffEnhancementRestore(worldState.role)
+					if restoreErr != nil {
+						continue
+					}
+				} else {
+					event(map[string]any{"kind": "buff_enhancement_saved", "character_id": selectedCharacterID, "plain_hex": hex.EncodeToString(plaintext)})
+					if e := sendPayload(1, 1421, []byte{1}); e != nil {
+						return
+					}
+				}
+				if e := sendPayload(0, 1361, notify); e != nil {
+					return
+				}
+				event(map[string]any{"kind": "buff_enhancement_replied", "character_id": selectedCharacterID, "type": 0, "id": 1361, "plain_hex": hex.EncodeToString(notify)})
+				continue
+			}
 			if characters != nil && bootstrapped && (frame.ID == 500 || frame.ID == 502) {
 				if !verified || worldState == nil || worldState.role.ID != selectedCharacterID {
 					event(map[string]any{"kind": "combo_skill_info_rejected", "id": frame.ID, "character_id": selectedCharacterID, "reason": "checksum or character selection mismatch"})
@@ -3930,6 +3961,9 @@ func main() {
 								for _, p := range leave {
 									if e := sendPayload(p.Kind, p.ID, p.Payload); e != nil {
 										return
+									}
+									if p.ID == 1361 {
+										event(map[string]any{"kind": p.Name, "character_id": w.role.ID, "id": p.ID, "type": p.Kind, "plain_hex": hex.EncodeToString(p.Payload), "path": "death_timeout"})
 									}
 								}
 								// 主循环在发出 dungeon_leave_ack 时会清掉副本会话
@@ -5337,6 +5371,13 @@ func main() {
 					// panel; preparePackets skips empty payloads, so the flag-off path
 					// equals the pre-fix behavior.
 					plan.BoosterGage = protocol.BoosterGage(0)
+				}
+				plan.BuffEnhancement, e = characters.BuffEnhancementRestore(role)
+				if e != nil {
+					event(map[string]any{"kind": "entry_buff_enhancement_error", "character_id": role.ID, "error": e.Error()})
+					// A damaged optional registration must not prevent entry or
+					// rewrite the player's saved data. Clear only the client cache.
+					plan.BuffEnhancement, _ = protocol.BuffEnhancementAllData(0, nil)
 				}
 				prepared, e := preparePackets(keys, plan.packets())
 				if e != nil {

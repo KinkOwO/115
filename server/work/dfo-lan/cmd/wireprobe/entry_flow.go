@@ -131,11 +131,12 @@ type entryPayloads struct {
 	// player's locked skills. It is sent last: the forwarded evidence for this
 	// client reports a crash on town entry when 2827 arrives early in the frame
 	// sequence, whichever block it contains.
-	ComboSkillInfo []byte
-	SkillLocks     []byte
-	SynopsisRead   []byte
-	CubeContract   []byte
-	OathSystemInfo []byte
+	ComboSkillInfo  []byte
+	BuffEnhancement []byte
+	SkillLocks      []byte
+	SynopsisRead    []byte
+	CubeContract    []byte
+	OathSystemInfo  []byte
 	// Peers carries the USERINFO of every actor already standing in the scene.
 	// It is emitted after this actor's own placement but before the area list,
 	// because the client only places actors it already knows.
@@ -257,6 +258,9 @@ func (p entryPayloads) packets() []outboundPacket {
 		// 原生 NOTI889 会查询晶块库存，须在库存和角色初始化后恢复。
 		outboundPacket{"cube_contract_selection_restored", 0, 889, p.CubeContract},
 		outboundPacket{"oath_system_info_restored", 0, 2839, p.OathSystemInfo},
+		// 1361 resolves items immediately: all inventory families and skill
+		// trees must already exist, after the final NOTI13/14 resynchronization.
+		outboundPacket{"buff_enhancement_restored", 0, 1361, p.BuffEnhancement},
 	)
 	// 幻化仓库（武器外观页签）的容器内容只在复制时推过一次，客户端把它当会话态，
 	// 重登就空。这里按存档重推 NOTI1545，皮肤才会留在仓库里。

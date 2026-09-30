@@ -62,7 +62,7 @@ func TestDungeonCloneReattachRestoresOrdinaryGearLast(t *testing.T) {
 			t.Fatalf("Clone loading order %v, want %v", actual, want)
 		}
 	}
-	if plan[len(plan)-1].ID != 14 {
-		t.Fatal("ordinary equipment restoration must follow both mode-1 packets")
+	if plan[len(plan)-2].ID != 14 || plan[len(plan)-1].ID != 1361 {
+		t.Fatal("ordinary equipment must follow both mode-1 packets, then buff registration must bind the new actor")
 	}
 }
