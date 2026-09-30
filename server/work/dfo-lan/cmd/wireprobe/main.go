@@ -1639,27 +1639,6 @@ func main() {
 			event(map[string]any{"kind": "server_time_sent", "id": 1960, "reason": reason, "unix_seconds": now.Unix(), "plain_hex": hex.EncodeToString(payload)})
 			return nil
 		}
-		sendRosterBackgrounds := func() error {
-			if characters == nil {
-				return nil
-			}
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			state, e := characters.Store.RosterBackgrounds(ctx, developmentAccount)
-			if e != nil {
-				event(map[string]any{"kind": "roster_background_restore_error", "error": e.Error()})
-				return e
-			}
-			payload, e := protocol.RosterBackgroundRestore(state)
-			if e != nil {
-				return e
-			}
-			if e = sendPayload(0, 1759, payload); e != nil {
-				return e
-			}
-			event(map[string]any{"kind": "roster_background_restored", "selected": state.Selected, "owned_count": len(state.Owned)})
-			return nil
-		}
 		event(map[string]any{"kind": "accept", "peer": peer})
 		c.SetWriteDeadline(time.Now().Add(5 * time.Second))
 		if _, err := io.Copy(c, bytes.NewReader(raw)); err != nil {
@@ -5441,7 +5420,7 @@ func main() {
 					event(map[string]any{"kind": "roster_background_selected", "page": req.Page, "category": req.Background.Category, "background_id": req.Background.ID})
 				}
 				// 原生按钮会乐观应用选择；拒绝时也恢复账号的权威状态，不编造未知 ACK。
-				if e = sendRosterBackgrounds(); e != nil {
+				if e = restoreRosterBackgrounds(characters, developmentAccount, sendPayload, event); e != nil {
 					return
 				}
 				continue
@@ -5551,7 +5530,7 @@ func main() {
 				event(map[string]any{"kind": "character_response", "id": id, "bytes": len(response), "hex": hex.EncodeToString(response)})
 				// NOTI2 先建立选角管理器，再由 NOTI1759 初始化背景列表和五页选择。
 				if frame.ID == 8 && userInfoMode == 2 && kind == 0 && id == 2 {
-					if err = sendRosterBackgrounds(); err != nil {
+					if err = restoreRosterBackgrounds(characters, developmentAccount, sendPayload, event); err != nil {
 						return
 					}
 				}
@@ -5576,7 +5555,7 @@ func main() {
 						return
 					}
 					event(map[string]any{"kind": "character_list_after_mutation", "request": frame.ID, "id": 2, "bytes": len(notification)})
-					if e = sendRosterBackgrounds(); e != nil {
+					if e = restoreRosterBackgrounds(characters, developmentAccount, sendPayload, event); e != nil {
 						return
 					}
 				}

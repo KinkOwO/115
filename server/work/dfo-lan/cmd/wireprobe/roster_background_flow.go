@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/sha256"
+	"dfolan/internal/character"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/rosterbg"
@@ -13,6 +14,31 @@ import (
 
 	"github.com/jackc/pgx/v5"
 )
+
+// restoreRosterBackgrounds owns the complete account-level background restore
+// operation. The connection loop supplies only its character owner, account,
+// output path, and event sink.
+func restoreRosterBackgrounds(characters *character.Service, account int64, send func(byte, uint16, []byte) error, event func(map[string]any)) error {
+	if characters == nil {
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	state, err := characters.Store.RosterBackgrounds(ctx, account)
+	if err != nil {
+		event(map[string]any{"kind": "roster_background_restore_error", "error": err.Error()})
+		return err
+	}
+	payload, err := protocol.RosterBackgroundRestore(state)
+	if err != nil {
+		return err
+	}
+	if err = send(0, 1759, payload); err != nil {
+		return err
+	}
+	event(map[string]any{"kind": "roster_background_restored", "selected": state.Selected, "owned_count": len(state.Owned)})
+	return nil
+}
 
 // useRosterBackgroundTicket 将真实背包扣券、账号授权和请求回执放在同一事务中。
 func (w *worldSession) useRosterBackgroundTicket(ctx context.Context, p, raw []byte, prefix string, event func(map[string]any)) ([]outboundPacket, error) {
