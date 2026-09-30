@@ -227,33 +227,7 @@ func (s *WearService) applyRefine(role storage.Character, r protocol.RefineReque
 	if err != nil {
 		return nil, out, err
 	}
-	// 目标装备：按请求里的空间找（0 背包 / 3 已穿戴），找不到再退回另一侧。
-	space := r.EquipmentSpace
-	items := bag.Equipment
-	index := -1
-	if space == 3 {
-		items = bag.Worn
-	}
-	for i, gear := range items {
-		if gear.Slot == r.EquipmentSlot && gear.Template == r.EquipmentTemplate {
-			index = i
-			break
-		}
-	}
-	if index < 0 {
-		space = 0
-		items = bag.Equipment
-		if r.EquipmentSpace != 3 {
-			space = 3
-			items = bag.Worn
-		}
-		for i, gear := range items {
-			if gear.Slot == r.EquipmentSlot && gear.Template == r.EquipmentTemplate {
-				index = i
-				break
-			}
-		}
-	}
+	space, items, index := bag.locateUpgradeEquipment(r.EquipmentSpace, r.EquipmentSlot, r.EquipmentTemplate)
 	if index < 0 {
 		return nil, out, fmt.Errorf("目标装备不在背包或已穿戴槽位里")
 	}

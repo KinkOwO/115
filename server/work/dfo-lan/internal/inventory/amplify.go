@@ -374,26 +374,7 @@ func (s *WearService) applyAmplifyGrimoire(role storage.Character, r protocol.Am
 	if err != nil {
 		return nil, out, err
 	}
-	// 目标装备：先按背包装备区找，再按已穿戴空间找（窗口两种都能点）。
-	space := byte(0)
-	items := bag.Equipment
-	index := -1
-	for i, gear := range items {
-		if gear.Slot == r.EquipmentSlot && gear.Template == r.EquipmentTemplate {
-			index = i
-			break
-		}
-	}
-	if index < 0 {
-		space = 3
-		items = bag.Worn
-		for i, gear := range items {
-			if gear.Slot == r.EquipmentSlot && gear.Template == r.EquipmentTemplate {
-				index = i
-				break
-			}
-		}
-	}
+	space, items, index := bag.locateUpgradeEquipment(0, r.EquipmentSlot, r.EquipmentTemplate)
 	if index < 0 {
 		return nil, out, fmt.Errorf("目标装备不在背包或已穿戴槽位里")
 	}

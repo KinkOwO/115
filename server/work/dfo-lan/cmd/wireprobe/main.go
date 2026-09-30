@@ -1770,21 +1770,15 @@ func main() {
 					if cardErr != nil {
 						event(map[string]any{"kind": "黑鸦自动翻牌待重试", "character_id": selectedCharacterID, "error": cardErr.Error()})
 					}
-					for _, packet := range cardPackets {
-						if err := sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
-							return
-						}
-						event(map[string]any{"kind": packet.Name, "id": packet.ID, "character_id": selectedCharacterID, "plain_hex": hex.EncodeToString(packet.Payload)})
+					if sendPlan(cardPackets, logCharacterResponseBody) != nil {
+						return
 					}
 					quotaPackets, quotaErr := worldState.refreshBlackPurgatoryQuota(now)
 					if quotaErr != nil {
 						event(map[string]any{"kind": "黑鸦次数同步失败", "error": quotaErr.Error()})
 					}
-					for _, packet := range quotaPackets {
-						if err := sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
-							return
-						}
-						event(map[string]any{"kind": packet.Name, "id": packet.ID, "plain_hex": hex.EncodeToString(packet.Payload), "character_id": selectedCharacterID})
+					if sendPlan(quotaPackets, logCharacterResponseBody) != nil {
+						return
 					}
 					packets, err := worldState.bleedingMineTimeout(now)
 					if err != nil {
@@ -1830,13 +1824,12 @@ func main() {
 					if adventureErr != nil {
 						event(map[string]any{"kind": "adventure_refresh_error", "reason": adventureErr.Error()})
 					} else {
-						for _, packet := range adventurePackets {
-							if err := sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
-								return
-							}
+						if sendPlan(adventurePackets, func(packet outboundPacket) {
 							if packet.ID == 2799 {
 								event(map[string]any{"kind": "season_level_synced", "character_id": selectedCharacterID, "attempt": "2/3（源阶段及领奖reader已核实）", "id": packet.ID, "plain_hex": hex.EncodeToString(packet.Payload)})
 							}
+						}) != nil {
+							return
 						}
 					}
 					mailCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -1872,10 +1865,8 @@ func main() {
 					if loyaltyErr != nil {
 						event(map[string]any{"kind": "creature_loyalty_error", "character_id": selectedCharacterID, "error": loyaltyErr.Error()})
 					} else {
-						for _, packet := range loyaltyPackets {
-							if e := sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
-								return
-							}
+						if sendPlan(loyaltyPackets, nil) != nil {
+							return
 						}
 					}
 				}
@@ -2333,11 +2324,10 @@ func main() {
 					note["request_hex"] = legionHex
 					event(note)
 				}
-				for _, packet := range legionPlan.Packets {
-					if err := sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
-						return
-					}
+				if sendPlan(legionPlan.Packets, func(packet outboundPacket) {
 					event(map[string]any{"kind": packet.Name, "id": packet.ID, "character_id": worldState.role.ID, "request_bytes": legionBytes, "request_hex": legionHex, "plain_hex": hex.EncodeToString(packet.Payload)})
+				}) != nil {
+					return
 				}
 				continue
 			}
@@ -3846,10 +3836,8 @@ func main() {
 									event(map[string]any{"kind": "death_fail_leave_error", "error": e.Error()})
 									return
 								}
-								for _, p := range leave {
-									if e := sendPayload(p.Kind, p.ID, p.Payload); e != nil {
-										return
-									}
+								if sendPlan(leave, nil) != nil {
+									return
 								}
 								// 主循环在发出 dungeon_leave_ack 时会清掉副本会话
 								// （main.go 的 `p.Name == "dungeon_leave_ack"` 分支），
@@ -4025,10 +4013,8 @@ func main() {
 					if loyaltyErr != nil {
 						event(map[string]any{"kind": "creature_loyalty_error", "character_id": selectedCharacterID, "error": loyaltyErr.Error()})
 					} else {
-						for _, packet := range loyaltyPackets {
-							if e := sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
-								return
-							}
+						if sendPlan(loyaltyPackets, nil) != nil {
+							return
 						}
 					}
 					// A dungeon is a private instance: this actor leaves the shared town.
@@ -4046,14 +4032,13 @@ func main() {
 					if completed, err := worldState.completeDungeon(); err != nil {
 						event(map[string]any{"kind": "dungeon_completion_error", "map": worldState.activeDungeon.Room.Map, "error": err.Error()})
 					} else if len(completed) > 0 {
-						for _, packet := range completed {
-							if err = sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
-								return
-							}
+						if sendPlan(completed, func(packet outboundPacket) {
 							event(map[string]any{"kind": packet.Name, "id": packet.ID, "plain_hex": hex.EncodeToString(packet.Payload), "character_id": selectedCharacterID})
 							if packet.Name == "dungeon_clear_enabled" || packet.Name == "赤红铁矿领主通关确认" {
 								worldState.completionSent = true
 							}
+						}) != nil {
+							return
 						}
 					}
 				}
@@ -4087,10 +4072,8 @@ func main() {
 						if loyaltyErr != nil {
 							event(map[string]any{"kind": "creature_loyalty_error", "character_id": selectedCharacterID, "error": loyaltyErr.Error()})
 						} else {
-							for _, packet := range loyaltyPackets {
-								if e := sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
-									return
-								}
+							if sendPlan(loyaltyPackets, nil) != nil {
+								return
 							}
 						}
 						worldState.drops = nil
@@ -4158,10 +4141,8 @@ func main() {
 					if loyaltyErr != nil {
 						event(map[string]any{"kind": "creature_loyalty_error", "character_id": selectedCharacterID, "error": loyaltyErr.Error()})
 					} else {
-						for _, packet := range loyaltyPackets {
-							if e := sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
-								return
-							}
+						if sendPlan(loyaltyPackets, nil) != nil {
+							return
 						}
 					}
 					if note, closed := legionState.abandonOnLeave("CMD42 dungeon leave", worldState.role.ID); closed {
@@ -4179,11 +4160,8 @@ func main() {
 						event(map[string]any{"kind": "odyssey_graduation_error", "character_id": selectedCharacterID, "reason": err.Error()})
 						return
 					}
-					for _, packet := range refresh {
-						if err = sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
-							return
-						}
-						event(map[string]any{"kind": packet.Name, "character_id": selectedCharacterID, "id": packet.ID})
+					if sendPlan(refresh, logCharacterResponse) != nil {
+						return
 					}
 					if len(refresh) > 0 {
 						if err = worldState.announceSelf(event); err != nil {
@@ -5283,10 +5261,8 @@ func main() {
 				selectedCharacterID = role.ID
 				if worldState != nil {
 					worldState.fameInitialized = false
-					for _, packet := range worldState.appendFameUpdate(nil, event) {
-						if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
-							return
-						}
+					if sendPlan(worldState.appendFameUpdate(nil, event), nil) != nil {
+						return
 					}
 				}
 				selectedBasic, selectedAddition = basic, addition

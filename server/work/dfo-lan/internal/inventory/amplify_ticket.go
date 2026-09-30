@@ -193,33 +193,7 @@ func (s *WearService) applyAmplifyTicket(role storage.Character, r protocol.Rein
 		}
 	}
 
-	// 2) 目标装备：先按请求里的空间找（0 背包 / 3 已穿戴），找不到再退回另一侧。
-	space := r.EquipmentSpace
-	items := bag.Equipment
-	if space == 3 {
-		items = bag.Worn
-	}
-	gearIndex := -1
-	for i, gear := range items {
-		if gear.Slot == r.EquipmentSlot && gear.Template == r.EquipmentTemplate {
-			gearIndex = i
-			break
-		}
-	}
-	if gearIndex < 0 {
-		space = 0
-		items = bag.Equipment
-		if r.EquipmentSpace != 3 {
-			space = 3
-			items = bag.Worn
-		}
-		for i, gear := range items {
-			if gear.Slot == r.EquipmentSlot && gear.Template == r.EquipmentTemplate {
-				gearIndex = i
-				break
-			}
-		}
-	}
+	space, items, gearIndex := bag.locateUpgradeEquipment(r.EquipmentSpace, r.EquipmentSlot, r.EquipmentTemplate)
 	if gearIndex < 0 {
 		return fail("目标装备不在背包或已穿戴槽位里")
 	}

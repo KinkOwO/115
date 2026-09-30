@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/sha256"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/storage"
@@ -118,11 +116,9 @@ func (s *equipmentSession) reinforce(service *inventory.WearService, w *worldSes
 	if err != nil {
 		return nil, err
 	}
-	if !s.initialized {
-		if _, err = rand.Read(s.nonce[:]); err != nil {
-			return nil, err
-		}
-		s.initialized = true
+	key, err := s.requestKey(raw)
+	if err != nil {
+		return nil, err
 	}
 	// 增幅（mode=1）先判定：它与强化共用同一个请求结构，但材料、规则、等级偏移都不同，
 	// 所以不能靠「窗口里放了什么东西」来区分，必须先看 mode。
@@ -147,7 +143,7 @@ func (s *equipmentSession) reinforce(service *inventory.WearService, w *worldSes
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	key := fmt.Sprintf("reinforcement-%s:%x:%x", branch, s.nonce, sha256.Sum256(raw))
+	key = "reinforcement-" + branch + ":" + key
 	if branch == reinforcementAmplifyTicketBranch {
 		return s.amplifyTicket(ctx, service, w, r, key, event)
 	}
