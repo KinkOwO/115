@@ -30,11 +30,12 @@ const (
 	MagicSealedOffset         = 13
 )
 
-type randomOptionConfig struct {
+type RandomOptionData struct {
 	Model  string `json:"model"`
 	Source struct {
 		Checksum string `json:"checksum"`
 	} `json:"source"`
+	TableSHA256 map[string]string `json:"table_sha256"`
 	ValueRatios []struct {
 		Low, High float32
 		Weight    int32
@@ -60,6 +61,15 @@ type randomOptionConfig struct {
 	BreakSealCosts []struct {
 		Rarity, Level, Part, Cost int32
 	} `json:"break_seal_costs"`
+}
+
+type randomOptionConfig = RandomOptionData
+
+func (c *RandomOptionCatalog) ValidateSource(source string) error {
+	if c == nil || len(source) != 64 || c.source != source {
+		return fmt.Errorf("random option source mismatch")
+	}
+	return nil
 }
 
 // RandomOptionCatalog is the source-pinned projection of the client's seven
@@ -100,15 +110,25 @@ type RandomOptionRoll struct {
 	Gold       uint32
 }
 
-func LoadRandomOptionCatalog(p, source string) (*RandomOptionCatalog, error) {
-	b, e := os.ReadFile(p)
-	if e != nil {
-		return nil, e
+func ReadRandomOptionData(path string) (RandomOptionData, error) {
+	var c RandomOptionData
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return c, err
 	}
-	var c randomOptionConfig
-	if e = json.Unmarshal(b, &c); e != nil {
-		return nil, e
+	err = json.Unmarshal(b, &c)
+	return c, err
+}
+
+func LoadRandomOptionCatalog(path, source string) (*RandomOptionCatalog, error) {
+	c, err := ReadRandomOptionData(path)
+	if err != nil {
+		return nil, err
 	}
+	return NewRandomOptionCatalog(c, source)
+}
+
+func NewRandomOptionCatalog(c RandomOptionData, source string) (*RandomOptionCatalog, error) {
 	if c.Model != "current115-randomoption-v1" || c.Source.Checksum != source {
 		return nil, fmt.Errorf("random option source mismatch")
 	}

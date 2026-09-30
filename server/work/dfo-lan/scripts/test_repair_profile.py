@@ -52,6 +52,15 @@ class RepairProfileTests(unittest.TestCase):
         self.assertEqual(len(env['DFO_PVF_CATALOGS'].split(',')), 14)
         self.assertEqual(set(required), {binary, pathlib.Path(env['DFO_PVF_ARCHIVE'])})
 
+    def test_enhancement_pvf_profile_keeps_only_separate_policy(self):
+        project = pathlib.Path(__file__).resolve().parent.parent
+        binary, required, env = load_profile(project / 'configs/pvf-enhancement-candidate.json', project)
+        self.assertEqual(binary, project / '.tmp/pvf-enhancement/bin/wireprobe-handoff-source.exe')
+        self.assertEqual(env['DFO_PVF_VERIFY_BASELINES'], '0')
+        self.assertEqual(len(env['DFO_PVF_CATALOGS'].split(',')), 15)
+        self.assertEqual(env['DFO_PVF_ENHANCEMENT_POLICY'], str(project / 'configs/pvf-enhancement-policy.json'))
+        self.assertEqual(set(required), {binary, pathlib.Path(env['DFO_PVF_ARCHIVE']), pathlib.Path(env['DFO_PVF_ENHANCEMENT_POLICY'])})
+
 
 if __name__ == '__main__':
     unittest.main()

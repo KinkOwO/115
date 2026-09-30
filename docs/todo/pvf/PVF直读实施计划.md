@@ -52,9 +52,9 @@ PVF 提供物品、职业、技能、任务、地图和源规则表；服主倍�
 | 商城 `cerashop`、`shop-purchase-pilot`、`shop-vault-release` 等 | `etc/(r)cerashop.etc`、商品关联 `.stk` / `.equ` | `cashshop.ImportPilot` 已存在；源商品、价格、条件直读；已开放商品、特殊交付与购买试验开关独立 |
 | Booster、抽奖、选择箱 `booster-catalog`、`lottery-item-pools`、`lottery-equipment-pools`、`selection-boxes-*` | `.stk` 的 booster/select/lottery 字段，`etc/dungeondroptablebygroup.etc` 及装备组 | `boosters`已提取共享解析并接候选，42504条奖励池完整一致，未知项不扩大执行；抽奖和选择箱仍待提取与核对 |
 | 独立礼盒 `boxes` | `radianttreasurebox.cos` 等 COS 表 | 可迁移但待绑定完整源路径：当前 JSON 只有 `.cos.txt` 文件名，当前 PVF 有两个同名版本；须按物品脚本引用/内容指纹确认，不按 basename 任选 |
-| 强化/增幅券、净化书、附魔 `reinforcement-tickets`、`amplify-tickets`、`amplify-grimoire`、`enchant-beads` | 对应 `.stk` 类型、作用条件、等级、成功率或附魔能力字段 | 移植现有 `scripts/export_*` 到共享导入器；券自带的概率也属于 PVF 字段，不能与普通强化概率一起排除 |
-| 强化费用 `reinforcement-gold` | `etc/upgrade.etc`、`etc/(r)serverparameter.etc` | 费用、材料、等级/稀有度权重及源保护表迁移；玩家实测概率、额外保护/失败规则及可互换材料策略按字段保留 |
-| 增幅费用 `amplify-upgrade` | `etc/amplifyupgrade.etc` | 普通/安全增幅的材料与金币源表迁移；外部提供的成功率/失败行为作为独立策略 |
+| 强化/增幅券、增幅书、附魔 `reinforcement-tickets`、`amplify-tickets`、`amplify-grimoire`、`enchant-beads` | 对应 `.stk` 类型、作用条件、等级、成功率或附魔能力字段 | 已接第三批`enhancements`候选，1196/1629/433/4846种；普通券保留源补充的926个期限头，其余有效字段一致；待实机 |
+| 强化费用 `reinforcement-gold` | `etc/upgrade.etc` | 255级材料、费用、权重及源安全表已接第三批候选；材料路径直读索引，原概率/失败/材料选择与容器策略拆入`pvf-enhancement-policy.json`；待实机 |
+| 增幅费用 `amplify-upgrade` | `etc/amplifyupgrade.etc` | 255级普通表、安全费用和源条件已接第三批候选；外部成功率/失败行为作为独立策略；待实机 |
 | 金库 `vault.generated` | 账号金库 `etc/accountcargo.etc`；角色金库容量来自客户端分析 | 账号 `required_level` 与 40 行 `upgrade info` 可直读；个人金库初始容量/已验证容量与源版本不能改用 PVF checksum 覆盖 |
 | 副本主目录 `dungeons.*` | `list/dungeon.lst`、`list/map.lst` 及 `.dgn` / `.map` | `ImportDungeons` 已存在；导入普通副本全集及实际引用资源，不能用教程子集代替 |
 | 教程 `tutorial-routes.*`、`tutorial-dungeons.*`、训练场 | 职业起始路线及源副本/地图 | 教程路线已接 `tutorial` 候选，16条完整一致；教程副本/训练场仍待 `ImportDungeons` 接入，入口/spawn 选择独立保留 |
@@ -256,3 +256,21 @@ GM 包内另有 `set_items*.json`、`avatar_sets.json`、`set_display_names.json
 ### 2026-10-01十四领域确认收口
 
 用户确认正常，十四领域及所选JSON启动对照分离升级confirmed baseline。实际会话`roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261001_042311_786667_next37`运行第二批隔离程序，准备32.157秒；有4次材料购买、1次开箱、9次装备移动提交及技能恢复日志，客户端正常退出。完整范围见第二批实机验证文档；后续迁移另立候选，不覆盖本已确认程序。
+
+
+### 2026-10-01第三批强化、增幅与附魔候选
+
+第二批十四领域已确认并提交为`28c866b`。第三批新增`enhancements`选择项，接入强化券1196种、增幅券1629种、增幅书433种、附魔宝珠4846种，以及强化/增幅各255级费用源表；合计15个选择项、20类源数据。材料路径来自PVF索引，原有纯净书白名单、材料选择/容器、成功率、失败和安全强化补正策略分离到`pvf-enhancement-policy.json`。
+
+原始审计仅有926处普通强化券期限头差异，旧JSON缺少而PVF存在；直读保留源字段，实例期限校验逻辑不变。仅允许该缺失头补充，其余有效字段完整一致，不添加来源别名或改存档版本。缺失全部所选JSON路径的联合准备与现有金币费用锚点通过。第三批使用独立profile和程序，待用户实机；第二批confirmed baseline继续保留。启动、核对与回退见[第三批实机验证](PVF直读第三批实机验证.md)。
+
+下一步继续随机词条、骑士盾牌、普通装备选择/掉落、副本与特殊奖励、嵌入目录及GM源查询；职业策略差异、商店绑定、同名COS礼盒仍按各自证据闭环，不把尚未完成的项归为PVF没有。
+
+
+### 2026-10-01第三批确认与继续迁移
+
+用户于2026-10-01确认正常并要求提交。第三批15个选择项/20类源数据升级confirmed baseline，程序SHA256继续为`9372b04936353219a0aa1c428cf61c4f30ef463e7d282022f20229fc322005db`，使用`pvf-enhancement-candidate.json`。本次确认依据用户反馈；没有新增会话日志可引用，不扩展为逐职业或全部特殊券验收。
+
+后续六项已完成源码接线和完整离线核对，仍属候选：随机词条17组、骑士盾牌25面、誓约/引子189件、账号金库40档、掉落1022种及装备选择3174行/2794行掉落池。金库客户端容量及存档来源保留，装备基础白名单1536个ID和掉落排除6013保留为原策略；任务新增装备从PVF任务推导。尚未为这六项部署或确认实机。
+
+完整迁移目标继续有效。下一项为城镇/主副本及其源覆盖数据，随后继续特殊玩法、嵌入目录、商品绑定和GM查询。未完成项不得据文件名缺失判定PVF没有。

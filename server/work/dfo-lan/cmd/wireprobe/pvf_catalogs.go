@@ -18,25 +18,35 @@ import (
 // verifies complete effective projections; source checks remain mandatory in
 // normal direct mode as well as audit mode.
 type pvfCoreCatalogs struct {
-	quests      *catalog.QuestCatalog
-	progression *catalog.Progression
-	world       *catalog.WorldCatalog
-	items       *catalog.ItemIndex
-	equipment   *inventory.FullEquipmentCatalog
-	periods     []uint32
-	skins       map[uint32]catalog.SkinStorageEntry
-	journal     *catalog.EquipmentJournalRules
-	createCost  *catalog.EquipmentCreateCost
-	learning    *character.LearningCatalog
-	prices      *catalog.ShopPrices
-	materials   *catalog.ItemMaterials
-	boosters    map[uint32]catalog.BoosterDefinition
-	tutorial    *catalog.TutorialCatalog
+	quests        *catalog.QuestCatalog
+	progression   *catalog.Progression
+	world         *catalog.WorldCatalog
+	items         *catalog.ItemIndex
+	equipment     *inventory.FullEquipmentCatalog
+	periods       []uint32
+	skins         map[uint32]catalog.SkinStorageEntry
+	journal       *catalog.EquipmentJournalRules
+	createCost    *catalog.EquipmentCreateCost
+	learning      *character.LearningCatalog
+	prices        *catalog.ShopPrices
+	materials     *catalog.ItemMaterials
+	boosters      map[uint32]catalog.BoosterDefinition
+	tutorial      *catalog.TutorialCatalog
+	enhancements  *inventory.EnhancementCatalog
+	randomOptions *inventory.RandomOptionCatalog
+	shields       *inventory.KnightShields
+	oath          *inventory.OathGradeTable
+	loot          *catalog.LootCatalog
+	selection     *inventory.EquipmentCatalog
+	vault         *inventory.VaultRules
 }
 
 type pvfItemInputs struct {
 	indexPath, fullPrefix, journalPath, createCostPath, learningPath, pricesPath, materialsPath, boosterPath, tutorialPath string
 	verifyBaselines                                                                                                        *bool
+	lootPath, equipmentPath, questEquipmentPath, dropPolicyPath                                                            string
+	randomOptionPath, shieldPath, wearRulesPath, oathPath, vaultPath, vaultPolicyPath                                      string
+	enhancementPolicyPath                                                                                                  string
 }
 
 func (i pvfItemInputs) checksBaselines() bool { return i.verifyBaselines == nil || *i.verifyBaselines }
@@ -48,8 +58,8 @@ func parsePVFCatalogSelection(value string) (map[string]bool, error) {
 	}
 	for _, domain := range strings.Split(value, ",") {
 		domain = strings.TrimSpace(domain)
-		if domain != "quests" && domain != "progression" && domain != "world" && domain != "items" && domain != "equipment" && domain != "periods" && domain != "skins" && domain != "journal" && domain != "create-cost" && domain != "skills" && domain != "prices" && domain != "materials" && domain != "boosters" && domain != "tutorial" {
-			return nil, fmt.Errorf("PVF candidate domain %q is not enabled; supported: quests,progression,world,items,equipment,periods,skins,journal,create-cost,skills,prices,materials,boosters,tutorial (character parity is pending)", domain)
+		if domain != "quests" && domain != "progression" && domain != "world" && domain != "items" && domain != "equipment" && domain != "periods" && domain != "skins" && domain != "journal" && domain != "create-cost" && domain != "skills" && domain != "prices" && domain != "materials" && domain != "boosters" && domain != "tutorial" && domain != "enhancements" && domain != "random-options" && domain != "shields" && domain != "oath-grades" && domain != "vault" && domain != "loot" && domain != "equipment-selection" {
+			return nil, fmt.Errorf("PVF candidate domain %q is not enabled; supported: quests,progression,world,items,equipment,periods,skins,journal,create-cost,skills,prices,materials,boosters,tutorial,enhancements,random-options,shields,oath-grades,vault,loot,equipment-selection (character parity is pending)", domain)
 		}
 		if selected[domain] {
 			return nil, fmt.Errorf("duplicate PVF candidate domain %q", domain)
@@ -177,7 +187,15 @@ func preparePVFCoreCatalogs(selection, path, checksum, characterPath, questPath,
 			return result, e
 		}
 	}
-	if selected["items"] || selected["equipment"] || selected["prices"] || selected["materials"] || selected["boosters"] {
+	if err := preparePVFEquipmentRules(&result, source, selected, inputs); err != nil {
+		return result, err
+	}
+	if selected["loot"] {
+		if err := preparePVFLoot(&result, source, inputs); err != nil {
+			return result, err
+		}
+	}
+	if selected["items"] || selected["equipment"] || selected["prices"] || selected["materials"] || selected["boosters"] || selected["enhancements"] || selected["shields"] || selected["equipment-selection"] {
 
 		direct, e := source.ItemIndex("")
 		if e != nil {
@@ -202,6 +220,21 @@ func preparePVFCoreCatalogs(selection, path, checksum, characterPath, questPath,
 			return result, e
 		}
 
+		if selected["enhancements"] {
+			if err := preparePVFEnhancements(&result, source, inputs); err != nil {
+				return result, err
+			}
+		}
+		if selected["shields"] {
+			if err := preparePVFShields(&result, source, characters, inputs); err != nil {
+				return result, err
+			}
+		}
+		if selected["equipment-selection"] {
+			if err := preparePVFEquipmentSelection(&result, source, inputs); err != nil {
+				return result, err
+			}
+		}
 		if selected["equipment"] {
 			candidate, e := source.Equipment(direct)
 			if e != nil {

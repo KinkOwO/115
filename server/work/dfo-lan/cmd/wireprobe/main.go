@@ -70,8 +70,11 @@ func main() {
 	responseFile := flag.String("responses", "", "JSON mapping command IDs to response fixture paths")
 	characterStorage := flag.String("character-storage", "", "enable experimental persisted character handling with this local storage config")
 	characterCatalog := flag.String("character-catalog", "configs/characters.generated.json", "PVF-derived profession catalog")
-	pvfCatalogSelection := flag.String("pvf-catalogs", os.Getenv("DFO_PVF_CATALOGS"), "candidate direct-read domains: quests,progression,world,items,equipment,periods,skins,journal,create-cost,skills,prices,materials,boosters,tutorial; empty keeps JSON")
+	pvfCatalogSelection := flag.String("pvf-catalogs", os.Getenv("DFO_PVF_CATALOGS"), "candidate direct-read domains: quests,progression,world,items,equipment,periods,skins,journal,create-cost,skills,prices,materials,boosters,tutorial,enhancements,random-options,shields,oath-grades,vault,loot,equipment-selection; empty keeps JSON")
 	pvfVerifyBaselines := flag.Bool("pvf-verify-baselines", os.Getenv("DFO_PVF_VERIFY_BASELINES") != "0", "compare selected PVF domains with JSON baselines before storage; false removes the selected JSON startup dependency")
+	pvfEnhancementPolicy := flag.String("pvf-enhancement-policy", envStrOr("DFO_PVF_ENHANCEMENT_POLICY", "configs/pvf-enhancement-policy.json"), "independent enhancement server policies; required only for PVF enhancements")
+	pvfVaultPolicy := flag.String("pvf-vault-policy", envStrOr("DFO_PVF_VAULT_POLICY", "configs/pvf-vault-policy.json"), "client capacity/save policy independent of PVF account vault table")
+	pvfDropPolicy := flag.String("pvf-drop-policy", envStrOr("DFO_PVF_DROP_POLICY", "configs/pvf-drop-policy.json"), "existing basic equipment allowlist and maximum loot grade; source rules from PVF")
 	pvfArchivePath := flag.String("pvf-archive", os.Getenv("DFO_PVF_ARCHIVE"), "explicit inner PVF path for candidate domains")
 	pvfArchiveChecksum := flag.String("pvf-sha256", os.Getenv("DFO_PVF_SHA256"), "expected inner PVF SHA256; must match existing character source")
 	characterRules := flag.String("character-rules", "configs/character-probe.json", "explicit local bootstrap settings")
@@ -178,7 +181,7 @@ func main() {
 	omenState := flag.Bool("omen-state", os.Getenv("DFO_OMEN_STATE") == "1", "征兆的正式状态：持有档数存进角色存档、进本按真实状态下发 noti 2836，并让隐藏 BOSS 由「满档结算」驱动（见 cmd/wireprobe/omen_state.go）。默认关闭")
 	scaleDeathFromHP := flag.Bool("scale-death-from-hp", os.Getenv("DFO_SCALE_DEATH_FROM_HP") == "1", "boundary-of-attunement 定盘机关(109019266)的兜底判死：它血量触底时服务端合成一条死亡上报，不再依赖引擎那两个恒为 72 的 rarity 天花板；默认关闭")
 	flag.Parse()
-	pvfCatalogs, pvfCatalogErr := preparePVFCoreCatalogs(*pvfCatalogSelection, *pvfArchivePath, *pvfArchiveChecksum, *characterCatalog, *questCatalogFile, *progressionCatalogFile, *worldCatalogFile, pvfItemInputs{indexPath: *itemIndexFile, fullPrefix: *fullEquipmentFile, journalPath: *equipmentJournalRulesFile, createCostPath: *equipmentCreateCostFile, learningPath: *learningFile, pricesPath: *shopPricesFile, boosterPath: *boosterCatalogFile, tutorialPath: *tutorialRoutesFile, verifyBaselines: pvfVerifyBaselines})
+	pvfCatalogs, pvfCatalogErr := preparePVFCoreCatalogs(*pvfCatalogSelection, *pvfArchivePath, *pvfArchiveChecksum, *characterCatalog, *questCatalogFile, *progressionCatalogFile, *worldCatalogFile, pvfItemInputs{indexPath: *itemIndexFile, fullPrefix: *fullEquipmentFile, journalPath: *equipmentJournalRulesFile, createCostPath: *equipmentCreateCostFile, learningPath: *learningFile, pricesPath: *shopPricesFile, boosterPath: *boosterCatalogFile, tutorialPath: *tutorialRoutesFile, verifyBaselines: pvfVerifyBaselines, enhancementPolicyPath: *pvfEnhancementPolicy, randomOptionPath: *randomOptionFile, shieldPath: *knightShieldFile, wearRulesPath: *wearRulesFile, oathPath: *oathGradesTable, vaultPath: *vaultRulesFile, vaultPolicyPath: *pvfVaultPolicy, lootPath: *lootCatalogFile, equipmentPath: *equipmentCatalogFile, questEquipmentPath: *equipmentRewardFile, dropPolicyPath: *pvfDropPolicy})
 	if pvfCatalogErr != nil {
 		log.Fatalf("PVF candidate catalogs: %v", pvfCatalogErr)
 	}
@@ -210,7 +213,7 @@ func main() {
 	// 默认的保底路径不需要它，所以默认配置下**不加载、也不会因为缺表拒绝启动**。
 	var oathGradeTable *inventory.OathGradeTable
 	if *oathFromGear {
-		table, tableErr := loadOathGradeTable(*oathGradesTable)
+		table, tableErr := pvfCatalogs.loadOathGrades(*oathGradesTable)
 		if tableErr != nil {
 			log.Fatalf("bad -oath-grades-table: %v", tableErr)
 		}
@@ -280,7 +283,7 @@ func main() {
 			}
 		}
 	}
-	if *randomOptionFile == "" {
+	if *randomOptionFile == "" && pvfCatalogs.randomOptions == nil {
 		if _, err := os.Stat("configs/randomoption.current37.json"); err == nil {
 			*randomOptionFile = "configs/randomoption.current37.json"
 		}
@@ -862,36 +865,12 @@ func main() {
 		if path := os.Getenv("DFO_LOOT_CATALOG"); path != "" {
 			lootPath = path
 		}
-		if err := inventory.LoadReinforcementTickets(filepath.Join(filepath.Dir(lootPath), "reinforcement-tickets.json")); err != nil {
-			log.Fatal(err)
-		}
-		// 金币强化（材料 + 金币）的费用/成功率表，同样从 loot 目录旁边解析；
-		// 文件缺失时金币路径整体拒绝，券路径不受影响。
-		if err := inventory.LoadGoldRules(filepath.Join(filepath.Dir(lootPath), "reinforcement-gold.json")); err != nil {
-			log.Fatal(err)
-		}
-		// 增幅书（CMD205 打红字）的加权表，来自 PVF 的 [amplification random value] 段。
-		if err := inventory.LoadAmplifyGrimoires(filepath.Join(filepath.Dir(lootPath), "amplify-grimoire.json")); err != nil {
-			log.Fatal(err)
-		}
-		// 增幅（CMD80 mode=1）的材料与金币表，来自 PVF 的 etc/amplifyupgrade.etc；
-		// 文件缺失时增幅整体拒绝，强化与打红字不受影响。
-		if err := inventory.LoadAmplifyUpgradeRules(filepath.Join(filepath.Dir(lootPath), "amplify-upgrade.json")); err != nil {
-			log.Fatal(err)
-		}
-		// 增幅券（把装备直接增幅到券上写死的等级）：识别方式是物品脚本含
-		// [equipment amplify reinforcement ticket]。与上面的「增幅升级」是两套东西 ——
-		// 前者是背包里的券道具（跳级），后者是 NPC 处消耗矛盾结晶体（每级 +1）。
-		if err := inventory.LoadAmplifyTickets(filepath.Join(filepath.Dir(lootPath), "amplify-tickets.json")); err != nil {
+		if err := pvfCatalogs.loadEnhancements(filepath.Dir(lootPath)); err != nil {
 			log.Fatal(err)
 		}
 		// 锻造（CMD430 / Refine）的武器限制、成功率表与材料消耗。
 		// 成功率由服主提供（115 版本），材料消耗 PVF 无表、走配置默认值。
 		if err := inventory.LoadRefineRules(filepath.Join(filepath.Dir(lootPath), "refine.json")); err != nil {
-			log.Fatal(err)
-		}
-		// 附魔宝珠（CMD272 / ENCHANT_BY_BEAD）：宝珠模板 → 附魔卡（怪物卡）对照表。
-		if err := inventory.LoadEnchantBeads(filepath.Join(filepath.Dir(lootPath), "enchant-beads.json")); err != nil {
 			log.Fatal(err)
 		}
 		// 物品脚本自带的 [need material]（商店表 itemshop/**.shp 没有价格字段）：
@@ -900,7 +879,7 @@ func main() {
 		if matErr != nil {
 			log.Fatal(matErr)
 		}
-		c, e := catalog.LoadLoot(lootPath)
+		c, e := pvfCatalogs.loadLoot(lootPath)
 		if e != nil {
 			log.Fatal(e)
 		}
@@ -922,7 +901,7 @@ func main() {
 		if *equipmentCatalogFile == "" {
 			log.Fatal("loot requires -equipment-catalog or DFO_EQUIPMENT_CATALOG: without it every equipment award is silently dropped")
 		}
-		gear, e := inventory.LoadEquipmentCatalog(*equipmentCatalogFile, c.Source.Checksum)
+		gear, e := pvfCatalogs.loadEquipmentSelection(*equipmentCatalogFile, c.Source.Checksum)
 		if e != nil {
 			log.Fatal(e)
 		}
@@ -1059,7 +1038,7 @@ func main() {
 			if lootService == nil {
 				log.Fatal("quest inventory requires the shared bag catalog")
 			}
-			equipment, e := inventory.LoadEquipmentCatalog(*equipmentRewardFile, data.Source.Checksum)
+			equipment, e := pvfCatalogs.loadEquipmentSelection(*equipmentRewardFile, data.Source.Checksum)
 			if e != nil {
 				log.Fatal(e)
 			}
@@ -1081,7 +1060,7 @@ func main() {
 
 				if *knightShieldFile != "" {
 					shieldPath := knightShieldCatalogPath(*knightShieldFile, rulesPath)
-					shields, shieldErr := inventory.LoadKnightShields(shieldPath, data.Source.Checksum)
+					shields, shieldErr := pvfCatalogs.loadShields(shieldPath, data.Source.Checksum)
 					if shieldErr != nil && !errors.Is(shieldErr, os.ErrNotExist) {
 						log.Fatal(shieldErr)
 					}
@@ -1144,8 +1123,8 @@ func main() {
 			// option tables and reads each item's [random option] flag from
 			// the full equipment catalog; without the full definitions the
 			// sealed state cannot be proven, so the command stays unanswered.
-			if equipment.Full != nil && *randomOptionFile != "" {
-				options, err := inventory.LoadRandomOptionCatalog(*randomOptionFile, data.Source.Checksum)
+			if equipment.Full != nil && (*randomOptionFile != "" || pvfCatalogs.randomOptions != nil) {
+				options, err := pvfCatalogs.loadRandomOptions(*randomOptionFile, data.Source.Checksum)
 				if err != nil {
 					log.Fatal(err)
 				}
@@ -1170,7 +1149,7 @@ func main() {
 		if characters == nil {
 			log.Fatal("vault initialization requires characters")
 		}
-		rules, e := inventory.LoadVaultRules(*vaultRulesFile)
+		rules, e := pvfCatalogs.loadVaultRules(*vaultRulesFile)
 		if e != nil {
 			log.Fatal(e)
 		}

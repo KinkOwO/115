@@ -194,3 +194,56 @@ func (s *Source) Tutorials() (catalog.TutorialCatalog, error) {
 	}
 	return catalog.ImportTutorials(s.archive)
 }
+
+func (s *Source) Enhancements(index catalog.ItemIndex, policyPath string) (*inventory.EnhancementCatalog, error) {
+	if s.archive == nil {
+		return nil, fmt.Errorf("enhancement import requires PVF")
+	}
+	return inventory.ImportEnhancements(s.archive, index, policyPath)
+}
+
+func (s *Source) RandomOptions() (inventory.RandomOptionData, error) {
+	if s.archive == nil {
+		return inventory.RandomOptionData{}, fmt.Errorf("random options require PVF")
+	}
+	return inventory.ImportRandomOptionData(s.archive)
+}
+
+func (s *Source) KnightShields(index catalog.ItemIndex, jobs catalog.Characters, rules inventory.WearRules) (*inventory.KnightShields, error) {
+	if s.archive == nil {
+		return nil, fmt.Errorf("knight shields require PVF")
+	}
+	return inventory.ImportKnightShields(s.archive, index, jobs, rules)
+}
+
+func (s *Source) OathGrades() (*inventory.OathGradeTable, error) {
+	if s.archive == nil {
+		return nil, fmt.Errorf("oath grades require PVF")
+	}
+	return inventory.ImportOathGrades(s.archive)
+}
+
+func (s *Source) VaultRules(policyPath string) (inventory.VaultRules, error) {
+	if s.archive == nil {
+		return inventory.VaultRules{}, fmt.Errorf("vault rules require PVF")
+	}
+	return inventory.ImportVaultRules(s.archive, policyPath)
+}
+
+func (s *Source) Loot(maximumGrade uint32) (catalog.LootCatalog, error) {
+	if s.archive == nil {
+		return catalog.LootCatalog{}, fmt.Errorf("loot requires PVF")
+	}
+	direct, err := catalog.ImportLoot(s.archive, maximumGrade)
+	if err != nil {
+		return direct, err
+	}
+	return catalog.ValidateLoot(direct)
+}
+
+func (s *Source) EquipmentSelection(index catalog.ItemIndex, quests catalog.QuestCatalog, policy inventory.DropPolicy) (*inventory.EquipmentCatalog, error) {
+	if s.archive == nil {
+		return nil, fmt.Errorf("equipment selection requires PVF")
+	}
+	return inventory.ImportEquipmentSelection(s.archive, index, quests, policy)
+}
