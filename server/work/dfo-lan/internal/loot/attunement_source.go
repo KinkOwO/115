@@ -7,19 +7,13 @@ import (
 	"strings"
 )
 
-// ImportAttunementRewards binds tables by their native dungeon declaration.
-// The selected IDs are the existing server's enabled scope; filenames, hashes,
-// probabilities and item pools are never retained in that policy.
-func ImportAttunementRewards(a *pvf.Archive, selected []uint32) (*AttunementRewards, error) {
-	if a == nil || len(selected) == 0 {
-		return nil, fmt.Errorf("missing attunement archive or selection")
-	}
-	wanted := map[uint32]bool{}
-	for _, id := range selected {
-		if id == 0 || wanted[id] {
-			return nil, fmt.Errorf("invalid or duplicate attunement selection %d", id)
-		}
-		wanted[id] = true
+// ImportAttunementRewards binds tables by their native dungeon declaration:
+// every etc/rewardboostinfo/**.ctp names its own dungeon ([dungeon index]),
+// so the payable scope comes straight from the source. No external selection
+// list is accepted — 单一内容真源铁律（server/AGENTS.md §0）。
+func ImportAttunementRewards(a *pvf.Archive) (*AttunementRewards, error) {
+	if a == nil {
+		return nil, fmt.Errorf("attunement import requires PVF")
 	}
 	var paths []string
 	seenPaths := map[string]bool{}
@@ -54,18 +48,23 @@ func ImportAttunementRewards(a *pvf.Archive, selected []uint32) (*AttunementRewa
 			}
 			id = v
 		}
-		if wanted[id] {
-			if old := bindings[id]; old != "" {
-				return nil, fmt.Errorf("ambiguous reward table for dungeon %d: %s and %s", id, old, path)
-			}
-			bindings[id] = path
+		if id == 0 {
+			// A reward table that names no dungeon cannot be paid anywhere, so it
+			// is refused rather than silently skipped.
+			return nil, fmt.Errorf("reward table %s declares no dungeon index", path)
 		}
+		if old := bindings[id]; old != "" {
+			return nil, fmt.Errorf("ambiguous reward table for dungeon %d: %s and %s", id, old, path)
+		}
+		bindings[id] = path
 	}
+	ids := make([]uint32, 0, len(bindings))
+	for id := range bindings {
+		ids = append(ids, id)
+	}
+	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
 	doc := AttunementRewards{Model: AttunementModel, Archive: a.Snapshot()}
-	for _, id := range selected {
-		if bindings[id] == "" {
-			return nil, fmt.Errorf("attunement dungeon %d has no source table", id)
-		}
+	for _, id := range ids {
 		table, err := ReadAttunementTable(a, bindings[id])
 		if err != nil {
 			return nil, err

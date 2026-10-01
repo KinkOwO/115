@@ -34,12 +34,14 @@
 
 **已有违规项的收敛方向**（逐项销账，路径与依据写进 `../docs/todo/pvf/PVF单一内容真源改造计划.md`）：
 
-- `pvf-content-policy.json` 与 `pvf-mine-policy.json` 的 `attunement_dungeons`
-  → 从副本脚本 `[dungeon type]` = `boundary of attunement` 自动发现；
-- `pvf-mine-policy.json` 的 `dungeon_enter_fatigue`
-  → 从 `[use fatigue only start dungeon]` 自动发现（该段解析已实现：`DungeonDefinition.EnterFatigue`）；
-- `pvf-drop-policy.json` 的 `basic_equipment_ids` / `maximum_loot_grade`
+- ✅ **已销账（2026-10-01）**：`attunement_dungeons` 已从 `pvf-content-policy.json` 与
+  `pvf-mine-policy.json` 删除——副本范围改由源决定（`etc/rewardboostinfo/**.ctp` 各自声明
+  `[dungeon index]`，`loot.ImportAttunementRewards` 自动发现，`Source.Attunement()` 不再收清单）；
+  同一批也删掉了 `dungeon_enter_fatigue`（改由 `[use fatigue only start dungeon]` 决定）。
+- ⏳ **待收敛**：`pvf-drop-policy.json` 的 `basic_equipment_ids` / `maximum_loot_grade`
   → 从 PVF 装备表自动发现，JSON 只保留排除项（`excluded_loot_ids`）。
+  **注意（业主判断，2026-10-01）**：深渊本身是**特殊掉落池**，不能简单套用「PVF 全量装备表」；
+  放开范围前必须先弄清深渊自己的池子边界，**不要**为了「走 PVF」而改变掉落行为。
 
 ## 0.1 当前确认边界（历史确认记录）
 

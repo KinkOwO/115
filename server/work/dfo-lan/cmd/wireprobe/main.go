@@ -1490,8 +1490,14 @@ func main() {
 		// 空槽是源的合法面（CTP 用一个没有脚本的保留 id 表示"本次没有"），但
 		// "本次没有"和"目录缺了这个物品"在这里长得一模一样，所以把它打出来。
 		log.Printf("attunement reward wrappers open one layer; %d empty-face templates: %v", len(empties), empties)
+		// 数据源是 PVF 直读（etc/rewardboostinfo/**.ctp 各自声明 [dungeon index]）；
+		// 只有非直读的 JSON 模式才会走到文件。日志按真实来源打，别让人误以为在读 JSON。
+		source := "PVF direct (etc/rewardboostinfo/**.ctp)"
+		if pvfCatalogs.attunement == nil {
+			source = *attunementRewardsFile
+		}
 		log.Printf("loaded attunement rewards (%d dungeons %v, %d reward templates) from %s",
-			len(attunement.Dungeons()), attunement.Dungeons(), len(attunement.Templates()), *attunementRewardsFile)
+			len(attunement.Dungeons()), attunement.Dungeons(), len(attunement.Templates()), source)
 
 		// 幸运事件（小幸运 ×15 / 大幸运 ×50）：它没有任何服务端代码 —— 两个档就落在
 		// fixed 池里，倍数写在盒子的 pool 里。这里只是把它念出来，免得它一直是

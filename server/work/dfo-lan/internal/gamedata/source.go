@@ -554,11 +554,13 @@ func (s *Source) Apocalypse() (*catalog.ApocalypseCatalog, error) {
 	return catalog.ImportApocalypse(s.archive)
 }
 
-func (s *Source) Attunement(selected []uint32) (*loot.AttunementRewards, error) {
+// Attunement 的副本范围由源决定：etc/rewardboostinfo/**.ctp 各自声明 [dungeon index]。
+// 不再接受外部清单（单一内容真源铁律，server/AGENTS.md §0）。
+func (s *Source) Attunement() (*loot.AttunementRewards, error) {
 	if s.archive == nil {
 		return nil, fmt.Errorf("attunement import requires PVF")
 	}
-	return loot.ImportAttunementRewards(s.archive, selected)
+	return loot.ImportAttunementRewards(s.archive)
 }
 
 func (s *Source) OdysseyGrowth(index catalog.ItemIndex, supplemental []uint32) (*catalog.OdysseyGrowth, error) {

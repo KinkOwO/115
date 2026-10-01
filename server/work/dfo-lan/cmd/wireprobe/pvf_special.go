@@ -19,7 +19,6 @@ type pvfContentPolicy struct {
 	OdysseyDrops        []loot.OdysseyChapterDropPolicy `json:"odyssey_chapter_drops"`
 	OdysseyCurrency     loot.OdysseyCurrencyPolicy      `json:"odyssey_currency"`
 	Version             int                             `json:"version"`
-	Attunement          []uint32                        `json:"attunement_dungeons"`
 }
 
 func readPVFContentPolicy(path string) (pvfContentPolicy, error) {
@@ -37,7 +36,7 @@ func readPVFContentPolicy(path string) (pvfContentPolicy, error) {
 	if err := d.Decode(new(any)); err != io.EOF {
 		return p, fmt.Errorf("content policy has trailing data")
 	}
-	if p.Version != 1 || len(p.Attunement) == 0 {
+	if p.Version != 1 {
 		return p, fmt.Errorf("invalid content selection policy")
 	}
 	return p, nil
@@ -67,11 +66,9 @@ func preparePVFSpecial(c *pvfCoreCatalogs, s *gamedata.Source, selected map[stri
 		s.ReleaseReadCaches()
 	}
 	if selected["attunement"] {
-		policy, err := readPVFContentPolicy(inputs.contentPolicyPath)
-		if err != nil {
-			return err
-		}
-		direct, err := s.Attunement(policy.Attunement)
+		// 副本范围来自源：etc/rewardboostinfo/**.ctp 各自声明 [dungeon index]，
+		// 不再读 configs 的 attunement_dungeons（单一内容真源铁律，server/AGENTS.md §0）。
+		direct, err := s.Attunement()
 		if err != nil {
 			return err
 		}
