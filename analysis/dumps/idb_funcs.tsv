@@ -88,3 +88,9 @@ address	name	description
 0x1414928D0	EquipmentAwakeningWindow_RefreshMaterials	Re-reads material counts and refreshes the panel buttons/material rows.
 0x14148BF80	EquipmentAwakeningWindow_Get	Window singleton getter: sub_14667BB90(qword_14E683C78, 3580, 0).
 0x14667BB90	UIManager_GetWindowByID	Fetches a window object by (manager, id, index); out-of-range index returns 0.
+0x1459A1BB0	PacketDispatch_Receive	CMD kind=1 consumes common success u8 at 1459A1CA2; failure consumes error u16 at 1459A1D1B before command dispatch. PE/IDB bytes verified 20261001.
+0x14599D200	PacketDispatch_Command	Dispatches opcode from packet+1 with already-consumed success/error arguments; invokes handler table at 14599D357.
+0x1459A2D70	PacketDispatch_InvokeCommandHandler	Invokes registered opcode handler with command/status/error/context; does not re-read common status.
+0x14524C580	PacketDispatch_RegisterHandlers_14524C580	Registers command handlers including CMD72 -> 145244570 at 14524C65E. Registration bytes match current PE.
+0x145244570	Handler_CmdSettlementExit	CMD72 success handler reads state u8 at 1452445AD, option u8 at 1452445B9 after common success; applies option/state to normal reward window at 145244973.
+0x146ABAF50	ClearRewardWindow_ApplySettlementExit	Stores option at +4108 and state at +4112; state!=1 returns at 146ABB201. Option 0 restart, 1 dungeon selection, 2 town, 5 seamless.

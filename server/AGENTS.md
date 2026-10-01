@@ -1,5 +1,11 @@
 # AGENTS.md — server/
 
+## 2026-10-01：副本结算后回城/进入下个副本已确认
+
+- 用户确认“能离开副本/进入下一个副本了”。CMD72 成功 ACK 恢复公共成功字节，格式为 `01 state option`；客户端先消费成功字节，再由 CMD72 handler 读取 state/option。覆盖反馈异常的部分副本和任务3189关联副本验收，不代表所有副本逐一实测。
+- 23:48 手动会话 `roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261001_234806_594272_next37`：任务3189完成后，CMD72选择副本 ACK `010101`，随后服务端回复 CMD15 gate ACK；CMD16 请求任务3190，服务端于33ms后返回成功 ACK `01`。用户另确认回城和进入下个副本正常。
+- 源码候选 SHA256 `9594b7440046e106337bc5de66277d5931bf3a08202f40bb9d3b6671148cb75b` 纳入本项 confirmed baseline；收口时源码与 PVF 默认入口二进制均为该哈希。专项回归和 `go vet ./...` 通过；全量 Go 测试5项失败在 HEAD overlay 对照中同样复现。存档、schema 与客户端资源未改。协议与 IDA 证据见 `work/dfo-lan/docs/protocol/settlement-exit-envelope-20261001.md`。
+
 
 ## 2026-10-01：弓箭手星座时装礼包漏发已确认
 

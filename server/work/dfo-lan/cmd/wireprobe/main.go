@@ -4195,10 +4195,7 @@ func main() {
 						worldState.resetCards()
 						if p.Name == "settlement_exit_ack" {
 							// selectingDungeon was already set by settlementExit from
-							// the decoded request. Never index the outbound
-							// acknowledgement again: its width is a protocol detail and
-							// reading byte 2 of the native two-byte body is an
-							// out-of-range panic.
+							// the decoded request, independently of the ACK envelope.
 							event(map[string]any{"kind": "settlement_exit_flag", "character_id": worldState.role.ID, "selecting_dungeon": worldState.selectingDungeon, "payload_len": len(p.Payload)})
 						} else {
 							worldState.selectingDungeon = false

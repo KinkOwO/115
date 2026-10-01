@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 2026-10-01：副本结算后回城/进入下个副本已确认
+
+- 用户确认“能离开副本/进入下一个副本了”。根因是 CMD72 成功回包漏掉客户端公共分发器先消费的成功字节，导致回城/下一任务状态和选项错位；现恢复完整 `01 state option` 包络。验收覆盖任务3189关联副本，不外推为所有副本均逐一实测。
+- 权威 IDB 接收链、CMD72 handler/UI setter 已闭环，并与当前 `DFO.exe` 相关字节逐字节核验。加密传输 cursor 回归覆盖状态/选项，修正前 overlay 对照会失败；用户手动实机确认可离开副本并进入下个副本。详见 `server/work/dfo-lan/docs/protocol/settlement-exit-envelope-20261001.md`。
+- 源码候选 `wireprobe-handoff-source.exe` SHA256 `9594b7440046e106337bc5de66277d5931bf3a08202f40bb9d3b6671148cb75b` 纳入本项 confirmed baseline；确认时默认 `wireprobe-pvf.exe` 也为同一哈希。`go vet ./...` 与专项测试通过；全量测试5项在还原修复前代码的 overlay 对照中同样失败。本次不改数据库 schema、角色存档或客户端资源。
+
 ## 2026-10-01：装备调适（CMD2258）直读 PVF 落地并实机确认
 
 - 用户确认修复：左侧 Tune/Promote 面板按成功刷新，并出现调适过程的动画。新增 `cmd 2258 ENUM_CMDPACKET_EQUIPMENT_AWAKENING` 服务端闭环，规则数据**全部直读内层 PVF**（`etc/115lvability/equipmentawakeningoptionsystem.cos` 的 `[max awakening]`/`[condition]`/`[need materials]`/`[refund materials]`/`[rates]`/`[upgrade result]` 与 `equipmentawakeningoption.lst` 的 263 条选项），不新增也不依赖任何导出 JSON。
