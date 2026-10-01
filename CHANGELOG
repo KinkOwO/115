@@ -1,6 +1,7 @@
 # CHANGELOG
 
 ## 2026-10-01
+- **边界收敛：workflow 第三切片——魔法封印解封（CMD393）**：`inventory.UnsealService`/`Unseal`/`UnsealReceipt` 移入 `workflow`（`workflow.UnsealService.Unseal`），由 workflow 持有 `storage` 句柄并读写持久化回执；inventory 只保留纯变换 `Bag.UnsealRandomOption`/`EquipmentRow`（其单测不变）。cmd 改用具 workflow 服务。`go build`/`go vet` 及 `workflow`/`inventory`/`archtest` 测试通过；wireprobe 仅剩上游既有 3 项失败；无 schema/存档/协议字节改动。
 - **边界收敛：workflow 第二切片——背包排序（CMD20）**：把 `inventory.WearService.SortBag` 移入 `workflow.SortBag`，由 workflow 持有 `storage` 句柄与事务，inventory 只保留纯变换 `SortItems`/`BagRules.Modelled`；cmd 排序流程改调 workflow。继续把「inventory 自己提交角色事务」的职责移出领域。`go build`/`go vet` 及 `workflow`/`inventory`/`archtest` 测试通过；wireprobe 仅剩上游既有 3 项失败；无 schema/存档/协议字节改动。
 - **边界收敛：引入 internal/workflow 编排层（首个切片：快捷栏堆叠移动）**：新增 L4 编排层 `internal/workflow`，由它持有 `internal/storage` 句柄、提交事务并调用领域纯逻辑；把 `inventory.MoveStack`/`MoveStackReceipt` 移入 `workflow.MoveStack`，`inventory` 只保留 `Bag.MoveStackRequest` 纯变换，cmd 快捷栏改调 workflow。守卫把 `internal/workflow` 登记为 L4（领域不得反向依赖），契约 §1/§4/§5 同步。`go build`/`go vet` 及 `workflow`/`inventory`/`archtest` 测试通过；无 schema/存档/协议字节改动。这是「跨领域流程移入编排层」方向的开端。
 - **撤销共享内核 internal/model（角色聚合不入 model 包）**：按维护者决定，删除 `internal/model` 包，不再用中立共享内核承载跨领域聚合；`Character` 由角色领域拥有，但在 character 领域完成 Store 倒置（E11，移除 `character → storage`）之前，暂以 `internal/storage` 自身的持久化行类型定义（`storage.Character`），调用点零改动。契约删除 LC 层与 R7，守卫同步移除 `internal/model` 基础设施项与 R7 断言。`go build`/`go vet` 及 `storage`/`character`/`inventory`/`archtest` 测试通过；无 schema/存档/协议字节改动。后续 character 完成倒置后再把该类型移入 character。

@@ -24,6 +24,7 @@ import (
 	"dfolan/internal/rosterbg"
 	"dfolan/internal/storage"
 	"dfolan/internal/world"
+	"dfolan/internal/workflow"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
@@ -524,7 +525,7 @@ func main() {
 	// equipmentCreateCost 是「装备生成」成本表（nil = 第二步只回窗口、不生成）。
 	var equipmentCreateCost *catalog.EquipmentCreateCost
 	var shopPilot *cashshop.Pilot
-	var unsealService *inventory.UnsealService
+	var unsealService *workflow.UnsealService
 	// skinCatalog maps an `[add skin storage]` stackable template to its PVF
 	// facts, driving CMD507 action 169 (damage font) registration. Nil when no
 	// item index is configured, which disables the skin flow.
@@ -1208,7 +1209,7 @@ func main() {
 				if err != nil {
 					log.Fatal(err)
 				}
-				unsealService = &inventory.UnsealService{Store: characters.Store, Equipment: equipment, RandomOptions: options, Model: "current115-randomoption-v1"}
+				unsealService = &workflow.UnsealService{Store: characters.Store, Equipment: equipment, RandomOptions: options, Model: "current115-randomoption-v1"}
 				log.Printf("magic-seal unsealing enabled: %d option groups", options.GroupCount())
 			}
 		}

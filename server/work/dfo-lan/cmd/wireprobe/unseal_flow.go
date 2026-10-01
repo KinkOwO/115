@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/inventory"
+	"dfolan/internal/workflow"
 	"fmt"
 	"strings"
 	"time"
@@ -14,7 +14,7 @@ import (
 // existed the request met silence and the item stayed sealed. The durable roll
 // commits first, then the acknowledgement and the authoritative single-row
 // inventory update the client's sealed overlay clears on.
-func (w *worldSession) unsealRandomOption(s *inventory.UnsealService, version string, p []byte) ([]outboundPacket, protocol.UnsealRequest, error) {
+func (w *worldSession) unsealRandomOption(s *workflow.UnsealService, version string, p []byte) ([]outboundPacket, protocol.UnsealRequest, error) {
 	var none protocol.UnsealRequest
 	if w == nil || w.role.ID == 0 || s == nil {
 		return nil, none, fmt.Errorf("unseal before character selection")
