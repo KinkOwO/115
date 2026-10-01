@@ -8,6 +8,7 @@ import (
 	"dfolan/internal/gamedata"
 	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
+	"dfolan/internal/quest"
 	"dfolan/internal/rosterbg"
 	"fmt"
 	"log"
@@ -57,6 +58,7 @@ type pvfCoreCatalogs struct {
 	progression                                  *catalog.Progression
 	world                                        *catalog.WorldCatalog
 	items                                        *catalog.ItemIndex
+	itemBasics                                   *catalog.ItemBasics
 	equipment                                    *inventory.FullEquipmentCatalog
 	periods                                      []uint32
 	skins                                        map[uint32]catalog.SkinStorageEntry
@@ -178,10 +180,47 @@ func preparePVFCoreCatalogs(selection, path, checksum, characterPath, questPath,
 	if err != nil {
 		return result, err
 	}
+
+	defer source.Close()
+	logPVFMemory("source-open", time.Since(started))
 	if source.Snapshot().Checksum != anchorChecksum {
 		return result, fmt.Errorf("PVF/character source mismatch: %s versus %s", source.Snapshot().Checksum, anchorChecksum)
 	}
 	result.sourceChecksum = source.Snapshot().Checksum
+	if selected["periods"] && selected["prices"] {
+		basicStarted := time.Now()
+		joint, err := source.ItemCatalogs(catalog.ItemBasicOptions{Periods: true, Prices: true, Materials: selected["materials"], Skins: selected["skins"], Boosters: selected["boosters"]}, selected["enhancements"], inputs.enhancementPolicyPath, selected["fame"])
+		if err != nil {
+			return result, err
+		}
+		result.itemBasics = &joint.Basics
+		result.enhancements, result.fameRules = joint.Enhancements, joint.Fame
+		source.ReleaseReadCaches()
+		log.Printf("PVF joint item catalogs prepared in %s: %d source templates, %d item script reads; periods/prices/materials/selected skins/boosters/enhancements/fame share one scan", time.Since(basicStarted), len(joint.Basics.Index.Items), joint.Basics.ScriptsRead)
+	}
+
+	// 第二道门禁：character/JSON 基线所记录的源哈希必须与内层归档一致。
+	// 自动派生模式下锚点可能为空（基线没钉版本），此时以内层实际哈希为准 ——
+	// 否则「内层自愈成功」会在这里被一个手写常量再次拦下（next142）。
+	if anchorChecksum != "" && source.Snapshot().Checksum != anchorChecksum {
+		return result, fmt.Errorf("PVF/character source mismatch: %s versus %s", source.Snapshot().Checksum, anchorChecksum)
+	}
+	result.sourceChecksum = source.Snapshot().Checksum
+	// 2026-10-01（next146）：奥德赛系目录（成长/章节/路线/兑换/黑鸦/赤红铁矿…）与角色存档
+	// 都用同一份「源身份」令牌 catalog.OdysseySource。直读模式下它必须等于当次内层 checksum
+	// （角色 ConfigVersion 也正是此值），否则整族在直读启动时全被门禁拦下（首个撞墙点 =
+	// `Odyssey journal routes source mismatch`）。这里在目录准备完成后统一切换。
+	catalog.SetOdysseySource(result.sourceChecksum)
+	// 2026-10-01（next146）：抽奖系目录（item pools / equipment pools）的来源身份令牌
+	// 同样是编译期写死的内层哈希，直读模式下必须切到当次 checksum，
+	// 否则会在 `PVF candidate catalogs: lottery catalog source identity or pool count mismatch`
+	// 处被拦下（紧随 Odyssey 之后的撞墙点）。
+	SetLotterySource(result.sourceChecksum)
+	// 2026-10-01（next146）：无色小晶块叠加目录与图像通信任务目录的来源身份同样是
+	// 编译期写死的内层哈希，直读模式下必须切到当次 checksum，否则会在
+	// `clear cube source mismatch` / 图像通信任务处被拦下。
+	inventory.SetClearCubeSource(result.sourceChecksum)
+	quest.SetImageCommunicationSource(result.sourceChecksum)
 
 	if selected["characters"] {
 		if err := preparePVFCharacters(&result, source, characterPolicy, characterPath, inputs); err != nil {
@@ -268,6 +307,7 @@ func preparePVFCoreCatalogs(selection, path, checksum, characterPath, questPath,
 	if e := preparePVFRules(&result, source, selected, inputs); e != nil {
 		return result, e
 	}
+	logPVFMemory("base-rules", time.Since(started))
 	if selected["skills"] {
 		if e := preparePVFLearning(&result, source, characters, inputs); e != nil {
 			return result, e
@@ -276,6 +316,7 @@ func preparePVFCoreCatalogs(selection, path, checksum, characterPath, questPath,
 	if err := preparePVFEquipmentRules(&result, source, selected, inputs); err != nil {
 		return result, err
 	}
+	logPVFMemory("equipment-rules", time.Since(started))
 	if selected["loot"] {
 		if err := preparePVFLoot(&result, source, inputs); err != nil {
 			return result, err
@@ -283,7 +324,13 @@ func preparePVFCoreCatalogs(selection, path, checksum, characterPath, questPath,
 	}
 	if selected["boxes"] || selected["fame"] || selected["roster-backgrounds"] || selected["season"] || selected["adventure"] || selected["lottery"] || selected["selection-boxes"] || selected["bleeding-mine"] || selected["black-purgatory"] || selected["clear-cube"] || selected["odyssey-growth"] || selected["odyssey-weapons"] || selected["odyssey-drop"] || selected["odyssey-currency"] || selected["items"] || selected["equipment"] || selected["prices"] || selected["materials"] || selected["boosters"] || selected["enhancements"] || selected["shields"] || selected["equipment-selection"] {
 
-		direct, e := source.ItemIndex("")
+		var direct catalog.ItemIndex
+		var e error
+		if result.itemBasics != nil {
+			direct = result.itemBasics.Index
+		} else {
+			direct, e = source.ItemIndex("")
+		}
 		if e != nil {
 			return result, e
 		}
@@ -305,6 +352,7 @@ func preparePVFCoreCatalogs(selection, path, checksum, characterPath, questPath,
 		if e := preparePVFCommerce(&result, source, selected, inputs); e != nil {
 			return result, e
 		}
+		logPVFMemory("item-commerce", time.Since(started))
 
 		if selected["enhancements"] {
 			if err := preparePVFEnhancements(&result, source, inputs); err != nil {
@@ -351,6 +399,7 @@ func preparePVFCoreCatalogs(selection, path, checksum, characterPath, questPath,
 	if err := preparePVFScenes(&result, source, selected, inputs); err != nil {
 		return result, err
 	}
+	logPVFMemory("scenes", time.Since(started))
 	if err := preparePVFAdventure(&result, source, selected, inputs); err != nil {
 		return result, err
 	}
@@ -415,6 +464,7 @@ func preparePVFCoreCatalogs(selection, path, checksum, characterPath, questPath,
 		return result, err
 	}
 	log.Printf("PVF candidate catalogs prepared in %s; full directory can be collected before opening storage", time.Since(started))
+	logPVFMemory("catalogs-prepared", time.Since(started))
 	return result, nil
 }
 
@@ -435,6 +485,7 @@ func (c pvfCoreCatalogs) loadProgression(path string) (catalog.Progression, erro
 func collectPVFImportMemory(c pvfCoreCatalogs) {
 	if c.town != nil || c.dungeons != nil || c.trainingDungeons != nil || c.tutorialDungeons != nil || c.quests != nil || c.progression != nil || c.world != nil || c.items != nil || c.periods != nil || c.skins != nil || c.journal != nil || c.createCost != nil || c.learning != nil || c.tutorial != nil {
 		runtime.GC()
+		logPVFMemory("import-collected", 0)
 	}
 }
 

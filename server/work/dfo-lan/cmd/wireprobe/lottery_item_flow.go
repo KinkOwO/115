@@ -28,7 +28,36 @@ type lotteryItemPool struct {
 	total              int64
 }
 
-const lotterySourcePVFSHA256 = "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80"
+// lotterySourcePVFSHA256 是抽奖目录的来源身份令牌。
+//
+// 2026-10-01（next146）：直读模式下这些目录由当次内层 PVF 直接派生，
+// SourcePVFSHA256 自然等于当次内层 checksum，而不再是编译期写死的
+// "7ef2db59…"（那是旧 client-build/Script.inner.pvf 的哈希）。它**不是**
+// 运行时不变量（不像 WearRules.Source / OdysseySource 会被写进存档），
+// 因此策略与其它来源身份门禁一致：留空 = 接受并派生为当次值；非空且
+// 不一致 = 仍硬拒绝（保留手工钉版本的意图）。
+var lotterySourcePVFSHA256 = "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80"
+
+// SetLotterySource 由直读目录准备阶段调用，把来源身份令牌切到当次内层 checksum。
+// 只接受 64 位十六进制，否则忽略（避免把垃圾值灌进来源令牌）。
+func SetLotterySource(checksum string) {
+	if len(checksum) != 64 {
+		return
+	}
+	for i := 0; i < len(checksum); i++ {
+		c := checksum[i]
+		if (c < '0' || c > '9') && (c < 'a' || c > 'f') && (c < 'A' || c > 'F') {
+			return
+		}
+	}
+	lotterySourcePVFSHA256 = checksum
+}
+
+// lotterySourceAccepts 判定一份目录的来源身份是否可接受。
+// 留空或与当前令牌一致 = 接受；其它一概拒绝。
+func lotterySourceAccepts(source string) bool {
+	return source == "" || source == lotterySourcePVFSHA256
+}
 
 type lotteryItemCatalog struct {
 	SourcePVFSHA256 string             `json:"source_pvf_sha256"`
@@ -49,8 +78,18 @@ func loadLotteryItemCatalog(path string, index map[uint32]ItemIndexInfo) (*lotte
 }
 
 func newLotteryItemCatalog(c lotteryItemCatalog, index map[uint32]ItemIndexInfo) (*lotteryItemCatalog, error) {
-	if c.SourcePVFSHA256 != lotterySourcePVFSHA256 || len(c.Pools) != 276 {
+	// 来源身份：留空（直读派生）或等于当次令牌均接受；显式钉了别的版本才拒绝。
+	// 池数量 276 是「当前客户端」的实测量，直读模式下由 PVF 决定，
+	// 因此这里只在**显式钉版本**（非空来源）时才校验数量，避免把
+	// 「客户端版本前进了」误判为目录损坏。
+	if !lotterySourceAccepts(c.SourcePVFSHA256) {
 		return nil, fmt.Errorf("lottery catalog source identity or pool count mismatch")
+	}
+	if c.SourcePVFSHA256 != "" && len(c.Pools) != 276 {
+		return nil, fmt.Errorf("lottery catalog source identity or pool count mismatch")
+	}
+	if c.SourcePVFSHA256 == "" {
+		c.SourcePVFSHA256 = lotterySourcePVFSHA256
 	}
 	c.byTemplate = make(map[uint32]*lotteryItemPool, len(c.Pools))
 	original := c.Pools
@@ -100,7 +139,7 @@ func newLotteryItemCatalog(c lotteryItemCatalog, index map[uint32]ItemIndexInfo)
 // PVF export reviewable. Import the whole pool or none of it: removing a row
 // would change the source lottery odds.
 func loadLotteryEquipmentPools(path string, index map[uint32]ItemIndexInfo, catalog *lotteryItemCatalog) (int, error) {
-	if catalog == nil || catalog.SourcePVFSHA256 != lotterySourcePVFSHA256 {
+	if catalog == nil || !lotterySourceAccepts(catalog.SourcePVFSHA256) {
 		return 0, fmt.Errorf("lottery base catalog unavailable")
 	}
 	data, err := os.ReadFile(path)
@@ -117,10 +156,13 @@ func loadLotteryEquipmentPools(path string, index map[uint32]ItemIndexInfo, cata
 type lotteryEquipmentSource = catalog.LotteryPoolCatalog
 
 func applyLotteryEquipmentPools(source lotteryEquipmentSource, index map[uint32]ItemIndexInfo, catalog *lotteryItemCatalog) (int, error) {
-	if catalog == nil || catalog.SourcePVFSHA256 != lotterySourcePVFSHA256 {
+	if catalog == nil || !lotterySourceAccepts(catalog.SourcePVFSHA256) {
 		return 0, fmt.Errorf("lottery base catalog unavailable")
 	}
-	if source.SourcePVFSHA256 != lotterySourcePVFSHA256 || len(source.Pools) != 2477 {
+	if !lotterySourceAccepts(source.SourcePVFSHA256) {
+		return 0, fmt.Errorf("equipment lottery source identity or pool count mismatch")
+	}
+	if source.SourcePVFSHA256 != "" && len(source.Pools) != 2477 {
 		return 0, fmt.Errorf("equipment lottery source identity or pool count mismatch")
 	}
 	additions := make(map[uint32]*lotteryItemPool, len(source.Pools))

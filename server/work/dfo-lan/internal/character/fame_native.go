@@ -13,6 +13,10 @@ import (
 )
 
 func ImportFameRules(a *pvf.Archive, index catalog.ItemIndex) (*FameRules, error) {
+	return importFameRules(a, index, true)
+}
+
+func importFameRules(a *pvf.Archive, index catalog.ItemIndex, withItems bool) (*FameRules, error) {
 	if a == nil || index.Source.Checksum == "" || a.Snapshot().Checksum != index.Source.Checksum {
 		return nil, fmt.Errorf("fame PVF/index source mismatch")
 	}
@@ -229,8 +233,10 @@ func ImportFameRules(a *pvf.Archive, index catalog.ItemIndex) (*FameRules, error
 			r.Sources[path] = script.SHA256
 		}
 	}
-	if err := readFameSourceItems(a, index, &r); err != nil {
-		return nil, err
+	if withItems {
+		if err := readFameSourceItems(a, index, &r); err != nil {
+			return nil, err
+		}
 	}
 	return NewFameRules(r)
 }

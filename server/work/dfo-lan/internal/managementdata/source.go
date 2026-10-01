@@ -110,7 +110,7 @@ func Awarder(s *gamedata.Source, dropPolicyPath, bagRulesPath string) (*inventor
 	if err != nil {
 		return nil, err
 	}
-	rules, err := inventory.LoadBagRules(bagRulesPath)
+	rules, err := inventory.LoadBagRules(bagRulesPath, s.Snapshot().Checksum)
 	if err != nil {
 		gear.Full.Close()
 		return nil, err

@@ -27,7 +27,30 @@ func LoadWearRules(path, source string) (WearRules, error) {
 	if e = json.Unmarshal(b, &r); e != nil {
 		return r, e
 	}
-	if r.Source != source || len(r.Slots) == 0 {
+	// 2026-10-01（next145 续）：与 gamedata/pvf_catalogs/characters_runtime 三处哈希门禁
+	// 同一口径 —— 文件的 `source` 留空 = 不钉来源，**自动派生**为当次内层实际哈希；非空仍强校验。
+	// 原因：这份 wear 规则表是**按语义手写的槽位映射**（不是 PVF 导出目录），它不随客户端
+	// 三件套换代而变；把它钉在某个历史内层哈希上，会让"内层重建成功"再次变成"启动失败"。
+	//
+	// 两件事必须一起做，否则会从"启动失败"变成"运行时失败"：
+	//  1) 门禁放开（下面这行）；
+	//  2) **回填** r.Source = source —— 因为 WearRules.Source 同时是运行时不变量：
+	//     wear.go 的 MoveOrdinary、knight_deck.go、creation_equipment.go 都拿它跟
+	//     role.ConfigVersion 比对。只留空不回填，装备穿戴会在运行时全被拒。
+	//
+	// 之所以必须放开：preparePVFShields 对 LoadWearRules 的调用**不受 checksBaselines 保护**
+	// （pvf_catalogs.go:318），是直读启动的必由之路；前一轮（next142）只改了另外三处门禁，
+	// 所以在这里撞墙（报 "wear rules source mismatch"）。
+	if r.Source != "" && r.Source != source {
+		return r, fmt.Errorf("wear rules source mismatch")
+	}
+	if r.Source == "" {
+		if len(source) != 64 {
+			return r, fmt.Errorf("wear rules source mismatch")
+		}
+		r.Source = source
+	}
+	if len(r.Slots) == 0 {
 		return r, fmt.Errorf("wear rules source mismatch")
 	}
 	for _, slot := range r.Slots {

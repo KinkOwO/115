@@ -22,6 +22,7 @@ func prepareNativeGMData(p paths, f managementdata.Flags) (*preparedGMData, erro
 	if s == nil {
 		return nil, fmt.Errorf("native GM data requires catalog-source=pvf")
 	}
+	defer s.Close()
 	a, err := managementdata.Awarder(s, f.DropPolicy, p.bagRules)
 	if err != nil {
 		return nil, err

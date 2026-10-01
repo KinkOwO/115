@@ -94,9 +94,23 @@ class RepairProfileTests(unittest.TestCase):
         binary, required, env = load_profile(project / 'configs/pvf-direct-candidate.json', project)
         self.assertEqual(binary, project / '.tmp/bin/wireprobe-handoff-source.exe')
         self.assertIn('DFO_PVF_ARCHIVE', env)
-        self.assertEqual(len(env['DFO_PVF_SHA256']), 64)
+        # 方案 C（next142）：默认不钉版本，锁由内层归档实际哈希派生。
+        # 空串是合法值，表示"接受内层实际哈希"；显式 64 位 hex 仍被接受（见下一条测试）。
+        self.assertEqual(env['DFO_PVF_SHA256'], '')
         self.assertEqual(set(env), {'DFO_PVF_ARCHIVE', 'DFO_PVF_SHA256', 'DFO_PVF_CATALOGS'})
         self.assertIn(pathlib.Path(env['DFO_PVF_ARCHIVE']), required)
+
+    def test_explicit_pvf_checksum_pin_is_still_honoured(self):
+        # 自动派生是"默认值"，不是"唯一值"：发布/审计要钉死某一版时仍然写 64 位 hex。
+        project = pathlib.Path(__file__).resolve().parent.parent
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            pinned = 'a' * 64
+            p = root / 'profile.json'
+            p.write_text(json.dumps({'binary': 'server.exe', 'environment': {
+                'DFO_PVF_ARCHIVE': 'inner.pvf', 'DFO_PVF_SHA256': pinned.upper()}}))
+            _, _, env = load_profile(p, root)
+            self.assertEqual(env['DFO_PVF_SHA256'], pinned)
 
     def test_invalid_pvf_domains_and_checksums_rejected(self):
         for key, value in [('DFO_PVF_CATALOGS', 'items,items'),

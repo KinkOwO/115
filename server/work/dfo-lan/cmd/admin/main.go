@@ -90,6 +90,7 @@ func main() {
 			log.Fatal(err)
 		}
 		if native != nil {
+			defer native.Close()
 			prepared, err = managementdata.Awarder(native, sourceFlags.DropPolicy, *bagRules)
 		} else {
 			prepared, err = buildAwarder(*lootCatalog, *itemIndex, *bagRules, *equipCatalog, *fullEquipment)

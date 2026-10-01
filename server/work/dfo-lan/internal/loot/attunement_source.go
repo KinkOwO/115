@@ -23,7 +23,7 @@ func ImportAttunementRewards(a *pvf.Archive, selected []uint32) (*AttunementRewa
 	}
 	var paths []string
 	seenPaths := map[string]bool{}
-	if err := a.IterateFiles(func(f pvf.File) error {
+	if err := a.IterateFilesUnder("etc/rewardboostinfo", func(f pvf.File) error {
 		path := strings.ToLower(strings.ReplaceAll(f.ArchivePath, "\\", "/"))
 		if strings.HasPrefix(path, "etc/rewardboostinfo/") && strings.HasSuffix(path, ".ctp") && !seenPaths[path] {
 			paths = append(paths, path)

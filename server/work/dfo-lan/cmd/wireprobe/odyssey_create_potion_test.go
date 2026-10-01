@@ -12,7 +12,7 @@ func odysseyCreatePotionCatalog() catalog.LootCatalog {
 	c := catalog.LootCatalog{Items: map[uint32]catalog.LootItem{
 		odysseyCreatePotion: {ID: odysseyCreatePotion, Kind: "stackable", StackableType: "[waste]"},
 	}}
-	c.Source.Checksum = odysseySource
+	c.Source.Checksum = odysseySource()
 	return c
 }
 

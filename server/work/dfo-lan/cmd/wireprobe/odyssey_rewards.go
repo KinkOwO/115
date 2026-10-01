@@ -10,7 +10,13 @@ import (
 	"fmt"
 )
 
-const odysseySource = "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80"
+// odysseySource 是奥德赛创造奖励链（护甲/武器箱/药剂）所用角色与目录的源身份。
+//
+// 2026-10-01（next146）：直读模式下角色 ConfigVersion、护甲/武器目录的 source
+// 全都等于当次内层 checksum，而不是编译期写死的 "7ef2db59…"。这里改为从
+// catalog.OdysseySource（由直读目录准备阶段 SetOdysseySource 切好）**读取**，
+// 保持与整族令牌一致；用函数而不是 const，避免包初始化顺序把旧值固化。
+func odysseySource() string { return catalog.OdysseySource }
 const odysseyArmorEvent = "odyssey-create-10417791-armor-10417790-v1"
 const odysseyWeaponBoxEvent = "odyssey-create-10417791-weapon-box-10417789-v1"
 const odysseyCreatePotionEvent = "odyssey-create-10417791-potion-10418028-v1"
@@ -26,7 +32,7 @@ func isOdysseyRewardRole(role storage.Character) bool {
 }
 
 func applyOdysseyArmor(role storage.Character, wear *inventory.WearService) (json.RawMessage, json.RawMessage, error) {
-	if !isOdysseyRewardRole(role) || role.ConfigVersion != odysseySource || wear == nil || wear.Catalog == nil || wear.Catalog.Source.Checksum != odysseySource || wear.BagRules.Source != odysseySource {
+	if !isOdysseyRewardRole(role) || role.ConfigVersion != odysseySource() || wear == nil || wear.Catalog == nil || wear.Catalog.Source.Checksum != odysseySource() || wear.BagRules.Source != odysseySource() {
 		return nil, nil, fmt.Errorf("Odyssey armor requires matching character and source catalogs")
 	}
 	b, e := inventory.ReadBag(role.State)
@@ -57,7 +63,7 @@ func grantOdysseyArmor(ctx context.Context, store *storage.Store, wear *inventor
 }
 
 func applyOdysseyWeaponBox(role storage.Character) (json.RawMessage, json.RawMessage, error) {
-	if !isOdysseyRewardRole(role) || role.ConfigVersion != odysseySource {
+	if !isOdysseyRewardRole(role) || role.ConfigVersion != odysseySource() {
 		return nil, nil, fmt.Errorf("Odyssey weapon box requires source mode")
 	}
 	b, e := inventory.ReadBag(role.State)
@@ -114,10 +120,10 @@ const (
 // 角色包里往往已经有几十瓶（初始补给一路发到 73 个），必须并进同一叠；手写
 // "找一个空格"会在每次重试时多占一格，30 个也只落一格。
 func applyOdysseyCreatePotion(role storage.Character, cat catalog.LootCatalog, rules inventory.BagRules) (json.RawMessage, json.RawMessage, error) {
-	if !isOdysseyRewardRole(role) || role.ConfigVersion != odysseySource {
+	if !isOdysseyRewardRole(role) || role.ConfigVersion != odysseySource() {
 		return nil, nil, fmt.Errorf("Odyssey create potion requires source mode")
 	}
-	if cat.Source.Checksum != odysseySource || rules.Source != odysseySource {
+	if cat.Source.Checksum != odysseySource() || rules.Source != odysseySource() {
 		return nil, nil, fmt.Errorf("Odyssey create potion requires matching source catalogs")
 	}
 	b, e := inventory.ReadBag(role.State)

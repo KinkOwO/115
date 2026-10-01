@@ -25,7 +25,7 @@ const odysseyCreditField = "odyssey_pilot_revive_credits"
 const odysseyCreditGrant = "odyssey-pilot-revive-10-user-approved-20260917-v1"
 
 func changeOdysseyCredits(role storage.Character, grant bool) (json.RawMessage, json.RawMessage, error) {
-	if !isOdysseyRewardRole(role) || role.ConfigVersion != odysseySource {
+	if !isOdysseyRewardRole(role) || role.ConfigVersion != odysseySource() {
 		return nil, nil, fmt.Errorf("test revive credits require Odyssey source role")
 	}
 	var fields map[string]json.RawMessage

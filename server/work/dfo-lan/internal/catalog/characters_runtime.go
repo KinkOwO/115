@@ -38,8 +38,15 @@ func characterCloneNested[K, L comparable, V any](src map[K]map[L]V) map[K]map[L
 // advancement grants/growth are already represented by their dedicated fields.
 func ProjectCharacterRuntime(source Characters, policy CharacterRuntimePolicy) (Characters, error) {
 	var out Characters
-	b, err := hex.DecodeString(policy.SourceChecksum)
-	if err != nil || len(b) != 32 || policy.Version != 1 || policy.SourceChecksum != source.Source.Checksum || len(policy.InitialSkillSlots) != len(source.Professions) || len(source.Professions) == 0 {
+	// source_checksum 为空 = 接受内层归档的实际哈希（自动派生模式，见 next142）。
+	// 非空则必须是合法的 32 字节 SHA256 且与源一致 —— 保留"钉死某一版"的能力。
+	if policy.SourceChecksum != "" {
+		b, err := hex.DecodeString(policy.SourceChecksum)
+		if err != nil || len(b) != 32 || policy.SourceChecksum != source.Source.Checksum {
+			return out, fmt.Errorf("character runtime policy/source mismatch")
+		}
+	}
+	if policy.Version != 1 || len(policy.InitialSkillSlots) != len(source.Professions) || len(source.Professions) == 0 {
 		return out, fmt.Errorf("character runtime policy/source mismatch")
 	}
 	out.Source = source.Source

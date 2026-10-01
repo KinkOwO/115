@@ -3,7 +3,10 @@ package main
 import (
 	"encoding/hex"
 	"fmt"
+	"log"
+	"runtime"
 	"strings"
+	"time"
 )
 
 // checkReport is called only after source preparation and before installing
@@ -24,6 +27,9 @@ func (c pvfCoreCatalogs) checkReport(selection string) (map[string]any, error) {
 		}
 	}
 	r := map[string]any{"source": c.sourceChecksum, "domain_count": len(domains), "domains": ordered, "storage_accessed": false, "runtime_started": false}
+	var memory runtime.MemStats
+	runtime.ReadMemStats(&memory)
+	r["memory"] = map[string]any{"heap_alloc_bytes": memory.HeapAlloc, "heap_inuse_bytes": memory.HeapInuse, "heap_sys_bytes": memory.HeapSys, "total_alloc_bytes": memory.TotalAlloc, "gc_count": memory.NumGC}
 	if c.characters != nil {
 		r["professions"] = len(c.characters.Professions)
 	}
@@ -52,4 +58,10 @@ func (c pvfCoreCatalogs) checkReport(selection string) (map[string]any, error) {
 		r["item_shops"] = len(c.itemShops.Shops)
 	}
 	return r, nil
+}
+
+func logPVFMemory(stage string, elapsed time.Duration) {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	log.Printf("PVF memory stage=%s elapsed=%s heap=%.1fMiB inuse=%.1fMiB reserved=%.1fMiB total_alloc=%.1fMiB gc=%d", stage, elapsed, float64(m.HeapAlloc)/(1<<20), float64(m.HeapInuse)/(1<<20), float64(m.HeapSys)/(1<<20), float64(m.TotalAlloc)/(1<<20), m.NumGC)
 }

@@ -43,6 +43,7 @@ func main() {
 	}
 	var chars catalog.Characters
 	if native != nil {
+		defer native.Close()
 		chars, e = managementdata.Characters(native, sourceFlags.CharacterPolicy)
 	} else {
 		chars, e = catalog.LoadCharacters(*characterCatalog)
