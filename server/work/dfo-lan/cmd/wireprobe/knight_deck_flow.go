@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/sha256"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/storage"
@@ -22,16 +20,6 @@ func knightShieldCatalogPath(configured, wearRulesPath string) string {
 	return filepath.Join(filepath.Dir(wearRulesPath), configured)
 }
 
-func (s *equipmentSession) knightKey(raw []byte, kind string) (string, error) {
-	if !s.initialized {
-		if _, e := rand.Read(s.nonce[:]); e != nil {
-			return "", e
-		}
-		s.initialized = true
-	}
-	return fmt.Sprintf("%s:%x:%x", kind, s.nonce, sha256.Sum256(raw)), nil
-}
-
 func (s *equipmentSession) handleKnightDeck(service *inventory.WearService, w *worldSession, p, raw []byte) ([]outboundPacket, error) {
 	deck, e := protocol.DecodeKnightDeck(p)
 	if e != nil {
@@ -40,7 +28,7 @@ func (s *equipmentSession) handleKnightDeck(service *inventory.WearService, w *w
 	if service == nil || w == nil || w.role.ID == 0 {
 		return nil, fmt.Errorf("knight deck requires owned character")
 	}
-	key, e := s.knightKey(raw, "knight-deck")
+	key, e := s.requestKey(raw)
 	if e != nil {
 		return nil, e
 	}
@@ -50,7 +38,7 @@ func (s *equipmentSession) handleKnightDeck(service *inventory.WearService, w *w
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	saved, applied, e := service.CommitKnightDeck(ctx, w.role, key, deck)
+	saved, applied, e := service.CommitKnightDeck(ctx, w.role, "knight-deck:"+key, deck)
 	if e != nil {
 		return nil, e
 	}
@@ -69,7 +57,7 @@ func (s *equipmentSession) handleKnightDeck(service *inventory.WearService, w *w
 }
 
 func (s *equipmentSession) handleKnightShieldMove(service *inventory.WearService, w *worldSession, r protocol.ItemMoveRequest, raw []byte) ([]outboundPacket, error) {
-	key, e := s.knightKey(raw, "equipment")
+	key, e := s.requestKey(raw)
 	if e != nil {
 		return nil, e
 	}
@@ -79,7 +67,7 @@ func (s *equipmentSession) handleKnightShieldMove(service *inventory.WearService
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	saved, _, e := service.Move(ctx, w.role, key, r)
+	saved, _, e := service.Move(ctx, w.role, "equipment:"+key, r)
 	if e != nil {
 		return nil, e
 	}
