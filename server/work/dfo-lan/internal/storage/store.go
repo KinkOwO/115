@@ -8,7 +8,6 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
-	"dfolan/internal/model"
 	"os"
 	"time"
 )
@@ -117,8 +116,21 @@ func (s *Store) DevelopmentAccount(ctx context.Context, name string) (int64, err
 	return id, e
 }
 
-// 跨领域共享聚合归 internal/model（共享内核）；这里保留别名（迁移期）避免调用点一次性改动。
-type Character = model.Character
+// Character 是账号下的角色聚合。它由角色领域拥有；在 character 领域完成
+// Store 倒置（E11）之前，暂时保留在 storage 中作为持久化行类型，避免
+// character <-> inventory 的双向依赖。
+type Character struct {
+	ID            int64
+	AccountID     int64
+	WireID        uint16
+	FixedSlot     byte
+	Name          string
+	Profession    byte
+	Request       []byte
+	ConfigVersion string
+	State         json.RawMessage
+	CreatedAt     time.Time
+}
 
 func (s *Store) CreateCharacter(ctx context.Context, c Character, maxCharacters int) (Character, error) {
 	if maxCharacters < 1 || maxCharacters > 65534 || c.Name == "" || c.ConfigVersion == "" || !json.Valid(c.State) {
