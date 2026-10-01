@@ -56,7 +56,7 @@ func (w *worldSession) oathProgressDue(dungeonID uint32) (bool, error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	clears, err := w.service.Store.OathProgressClears(ctx, w.role.ID, int64(dungeonID))
+	clears, err := w.store.OathProgressClears(ctx, w.role.ID, int64(dungeonID))
 	if err != nil {
 		return false, fmt.Errorf("oath progress read: %w", err)
 	}
@@ -72,7 +72,7 @@ func (w *worldSession) noteOathProgressClear(dungeonID uint32) (int, int, error)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	before, after, err := w.service.Store.BumpOathProgress(ctx, w.role.ID, int64(dungeonID), w.oathProgressClears)
+	before, after, err := w.store.BumpOathProgress(ctx, w.role.ID, int64(dungeonID), w.oathProgressClears)
 	if err != nil {
 		return 0, 0, fmt.Errorf("oath progress bump: %w", err)
 	}

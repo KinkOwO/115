@@ -11,6 +11,7 @@ import (
 	"dfolan/internal/npcpresence"
 	"dfolan/internal/quest"
 	"dfolan/internal/storage"
+	"dfolan/internal/workflow"
 	"dfolan/internal/world"
 	"encoding/json"
 	"errors"
@@ -28,6 +29,7 @@ type worldSession struct {
 	characters             *character.Service
 	pilotDeath             *odysseyDeath
 	service                *world.Service
+	store                  *storage.Store
 	account                int64
 	serverID               uint32
 	role                   storage.Character
@@ -56,9 +58,9 @@ type worldSession struct {
 	quests           *quest.Service
 	progression      *character.ProgressionService
 	loot             *loot.Service
-	shop             *inventory.ShopService
+	shop             *workflow.ShopService
 	selectionBoxes   *catalog.SelectionBoxes
-	vault            *inventory.VaultService
+	vault            *workflow.VaultService
 
 	townArrivalScenes   map[uint32]catalog.TownArrivalScene
 	approvedDungeonGate uint32
@@ -203,7 +205,7 @@ func (w *worldSession) enter(role storage.Character, spawn storage.WorldPosition
 		if spawn.Town == 218 {
 			return fmt.Errorf("普通频道默认落点不能使用赤红铁矿区域")
 		}
-		saved, e = w.service.Store.SaveWorld(ctx, w.account, role.ID, saved, spawn)
+		saved, e = w.store.SaveWorld(ctx, w.account, role.ID, saved, spawn)
 		if e != nil {
 			return e
 		}
@@ -560,7 +562,7 @@ func (w *worldSession) handle(id uint16, p []byte, send func(byte, uint16, []byt
 		w.state.Position = next
 		event(map[string]any{"kind": "黑鸦会话位置更新", "character_id": w.role.ID, "position": next, "request": id})
 	} else {
-		saved, e := w.service.Store.SaveWorld(ctx, w.account, w.role.ID, old, next)
+		saved, e := w.store.SaveWorld(ctx, w.account, w.role.ID, old, next)
 		if e != nil {
 			return e
 		}
@@ -624,7 +626,8 @@ func (w *worldSession) settleProximityObjectives(ctx context.Context, send func(
 	if w.quests == nil || w.role.ID == 0 {
 		return nil
 	}
-	advanced, e := w.quests.ProximityProgress(ctx, w.role, w.state.Position, func(npc uint32) ([2]uint16, bool) {
+	at := w.state.Position
+	advanced, e := w.quests.ProximityProgress(ctx, w.role, quest.Position{Town: at.Town, Area: at.Area, X: at.X, Y: at.Y}, func(npc uint32) ([2]uint16, bool) {
 		return w.service.NPCPosition(w.state.Position, npc)
 	}, func(npc uint32) ([2]uint16, bool) {
 		return w.service.PhaseNPCPosition(w.state.Position, npc)

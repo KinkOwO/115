@@ -1,11 +1,11 @@
 package main
 
 import (
-	"dfolan/internal/savecontract"
 	"context"
 	"dfolan/internal/catalog"
 	"dfolan/internal/npcpresence"
 	"dfolan/internal/quest"
+	"dfolan/internal/savecontract"
 	"encoding/binary"
 	"os"
 	"time"

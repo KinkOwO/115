@@ -3,12 +3,11 @@ package quest
 import (
 	"context"
 	"dfolan/internal/character"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 )
 
-func (s *Service) Available(ctx context.Context, role storage.Character) ([]uint32, error) {
+func (s *Service) Available(ctx context.Context, role character.Character) ([]uint32, error) {
 	var state character.State
 	if e := json.Unmarshal(role.State, &state); e != nil {
 		return nil, e

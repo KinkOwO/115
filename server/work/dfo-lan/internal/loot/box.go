@@ -1,12 +1,9 @@
 package loot
 
 import (
-	"context"
-	"dfolan/internal/cashshop"
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -316,7 +313,7 @@ func saveBoxPoints(state json.RawMessage, box uint32, points map[string]uint32) 
 // character transaction that spent the box. Placement comes from the imported
 // family band, never from a guess: an unknown family refuses the whole open
 // rather than dropping the prize somewhere the client does not expect.
-func (s *Service) grantBoxPrize(bag inventory.Bag, prize ConsumeGrant) (inventory.Bag, *storage.CashPremiumActivation, error) {
+func (s *Service) grantBoxPrize(bag inventory.Bag, prize ConsumeGrant, resolveContract ContractResolver) (inventory.Bag, *PremiumActivation, error) {
 	reward, ok := s.Boxes.Rewards[strconv.FormatUint(uint64(prize.Template), 10)]
 	if !ok {
 		return bag, nil, fmt.Errorf("box prize %d has no imported item family", prize.Template)
@@ -329,11 +326,11 @@ func (s *Service) grantBoxPrize(bag inventory.Bag, prize ConsumeGrant) (inventor
 		amount = 1
 	}
 	// 契约直接累计账号时长，不临时占用背包，也不与旧的过期堆叠合并。
-	if contract, ok := cashshop.ResolveContractItem(prize.Template); ok {
+	if contract, ok := resolveContract(prize.Template); ok {
 		if contract.DurationSecond <= 0 || int64(amount) > math.MaxInt64/contract.DurationSecond {
 			return bag, nil, fmt.Errorf("土罐契约时长溢出：%d", prize.Template)
 		}
-		return bag, &storage.CashPremiumActivation{Type: contract.Type, DurationSecond: contract.DurationSecond * int64(amount)}, nil
+		return bag, &PremiumActivation{Type: contract.Type, DurationSecond: contract.DurationSecond * int64(amount)}, nil
 	}
 	item := catalog.LootCatalog{
 		Source: s.Catalog.Source,
@@ -350,32 +347,32 @@ func (s *Service) grantBoxPrize(bag inventory.Bag, prize ConsumeGrant) (inventor
 		MissingStackLimit: 1000,
 	}
 	// 与商城发货保持一致，显式填写可表示的远期时间，避免限时模板将零值判为过期。
-	updated, _, e := bag.Add(item, rules, prize.Template, amount, cashshop.MaxExpireTime)
+	updated, _, e := bag.Add(item, rules, prize.Template, amount, protocol.MaxItemPeriod)
 	return updated, nil, e
 }
 
 // settleBoxRewardBag 补齐旧奖励的零期限，并将源契约别名兑换为账号时长。
 // 契约占位物品与效果必须由调用者在同一事务提交，不能只删物品再单独续期。
-func (s *Service) settleBoxRewardBag(bag inventory.Bag) (inventory.Bag, []storage.CashPremiumActivation, error) {
+func (s *Service) settleBoxRewardBag(bag inventory.Bag, resolveContract ContractResolver) (inventory.Bag, []PremiumActivation, error) {
 	if s.Boxes == nil {
 		return bag, nil, nil
 	}
-	var premiums []storage.CashPremiumActivation
+	var premiums []PremiumActivation
 	items := make([]inventory.BagItem, 0, len(bag.Items))
 	for _, row := range bag.Items {
 		if _, ok := s.Boxes.Rewards[strconv.FormatUint(uint64(row.Template), 10)]; !ok {
 			items = append(items, row)
 			continue
 		}
-		if contract, ok := cashshop.ResolveContractItem(row.Template); ok && row.Amount > 0 && !protocol.StoredItemExpired(row.ExpireTime, time.Now().Unix()) {
+		if contract, ok := resolveContract(row.Template); ok && row.Amount > 0 && !protocol.StoredItemExpired(row.ExpireTime, time.Now().Unix()) {
 			if contract.DurationSecond <= 0 || int64(row.Amount) > math.MaxInt64/contract.DurationSecond {
 				return bag, nil, fmt.Errorf("土罐契约时长溢出：%d", row.Template)
 			}
-			premiums = append(premiums, storage.CashPremiumActivation{Type: contract.Type, DurationSecond: contract.DurationSecond * int64(row.Amount)})
+			premiums = append(premiums, PremiumActivation{Type: contract.Type, DurationSecond: contract.DurationSecond * int64(row.Amount)})
 			continue
 		}
 		if row.ExpireTime == 0 {
-			row.ExpireTime = cashshop.MaxExpireTime
+			row.ExpireTime = protocol.MaxItemPeriod
 		}
 		items = append(items, row)
 	}
@@ -383,49 +380,43 @@ func (s *Service) settleBoxRewardBag(bag inventory.Bag) (inventory.Bag, []storag
 	return bag, premiums, nil
 }
 
-// RepairBoxRewards 在登录背包还原前修复遗留奖励，重复登录不重复续期。
-func (s *Service) RepairBoxRewards(ctx context.Context, role storage.Character) (storage.Character, bool, error) {
+func (s *Service) NeedsBoxRewardRepair(role Role, resolveContract ContractResolver) (bool, error) {
 	if s.Boxes == nil {
-		return role, false, nil
+		return false, nil
 	}
 	bag, err := inventory.ReadBag(role.State)
 	if err != nil {
-		return role, false, err
+		return false, err
 	}
 	needed := false
 	for _, row := range bag.Items {
 		if _, ok := s.Boxes.Rewards[strconv.FormatUint(uint64(row.Template), 10)]; ok {
-			_, contract := cashshop.ResolveContractItem(row.Template)
+			_, contract := resolveContract(row.Template)
 			if row.ExpireTime == 0 || (contract && row.Amount > 0 && !protocol.StoredItemExpired(row.ExpireTime, time.Now().Unix())) {
 				needed = true
 				break
 			}
 		}
 	}
-	if !needed {
-		return role, false, nil
+	return needed, nil
+}
+func (s *Service) PrepareBoxRewardRepair(current Role, resolveContract ContractResolver) (json.RawMessage, json.RawMessage, []PremiumActivation, error) {
+	bag, err := inventory.ReadBag(current.State)
+	if err != nil {
+		return nil, nil, nil, err
 	}
-	saved, applied, err := s.Store.CommitCharacterPremiumEvent(ctx, role.AccountID, role.ID, s.Catalog.Source.SaveIdentity(), "box-reward-repair-v1", s.Rules.Model,
-		func(current storage.Character) (json.RawMessage, json.RawMessage, []storage.CashPremiumActivation, error) {
-			bag, err := inventory.ReadBag(current.State)
-			if err != nil {
-				return nil, nil, nil, err
-			}
-			before, err := json.Marshal(bag.Items)
-			if err != nil {
-				return nil, nil, nil, err
-			}
-			bag, premiums, err := s.settleBoxRewardBag(bag)
-			if err != nil {
-				return nil, nil, nil, err
-			}
-			state, err := inventory.SaveBag(current.State, bag)
-			if err != nil {
-				return nil, nil, nil, err
-			}
-			outcome, err := json.Marshal(map[string]any{"previous_items": json.RawMessage(before), "items": bag.Items})
-			return state, outcome, premiums, err
-		})
-	saved.WireID = role.WireID
-	return saved, applied, err
+	before, err := json.Marshal(bag.Items)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	bag, premiums, err := s.settleBoxRewardBag(bag, resolveContract)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	state, err := inventory.SaveBag(current.State, bag)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	outcome, err := json.Marshal(map[string]any{"previous_items": json.RawMessage(before), "items": bag.Items})
+	return state, outcome, premiums, err
 }

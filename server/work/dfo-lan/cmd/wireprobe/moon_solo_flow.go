@@ -8,6 +8,7 @@ import (
 	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
 	"dfolan/internal/storage"
+	"dfolan/internal/workflow"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
@@ -225,7 +226,7 @@ func (w *worldSession) moonTick(now time.Time) ([]outboundPacket, error) {
 	if !w.moon.recovered {
 		w.moon.recovered = true
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		saved, e := w.loot.RecoverMoonRewards(ctx, w.role)
+		saved, e := (&workflow.LootService{Store: w.store, Loot: w.loot}).RecoverMoonRewards(ctx, w.role)
 		cancel()
 		if saved.ID != 0 {
 			w.role = saved
@@ -233,7 +234,7 @@ func (w *worldSession) moonTick(now time.Time) ([]outboundPacket, error) {
 		if e != nil && !errors.Is(e, loot.ErrMoonBagFull) {
 			return nil, e
 		}
-		body, err := w.loot.Bootstrap(w.role)
+		body, err := w.loot.Bootstrap(workflow.LootRole(w.role))
 		if err != nil {
 			return nil, err
 		}
@@ -546,7 +547,7 @@ func (w *worldSession) moonHandle(id uint16, p []byte, now time.Time, event func
 		}
 		if w.moon.plan == nil {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			plan, e := w.loot.FreezeMoonReward(ctx, w.role, s, w.moonConfig.Rewards)
+			plan, e := (&workflow.LootService{Store: w.store, Loot: w.loot}).FreezeMoonReward(ctx, w.role, s, w.moonConfig.Rewards)
 			cancel()
 			if e != nil {
 				return fail(e)
@@ -644,13 +645,13 @@ func (w *worldSession) moonClaim(index byte) ([]outboundPacket, error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	saved, _, e := w.loot.ClaimMoonReward(ctx, w.role, w.moon.plan.Run)
+	saved, _, e := (&workflow.LootService{Store: w.store, Loot: w.loot}).ClaimMoonReward(ctx, w.role, w.moon.plan.Run)
 	if e != nil {
 		return nil, e
 	}
 	w.role = saved
 	w.moon.claimed = true
-	body, e := w.loot.Bootstrap(saved)
+	body, e := w.loot.Bootstrap(workflow.LootRole(saved))
 	if e != nil {
 		return nil, e
 	}

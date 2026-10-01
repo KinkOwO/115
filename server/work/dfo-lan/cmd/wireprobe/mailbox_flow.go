@@ -169,15 +169,15 @@ func mailClaimBagPackets(state json.RawMessage, packets ...outboundPacket) ([]ou
 }
 
 func (w *worldSession) mailboxAlarm(ctx context.Context) ([]byte, int64, error) {
-	latest, n, err := w.characters.Store.MailboxDeliveryState(ctx, w.account, w.role.ID)
+	latest, n, err := w.store.MailboxDeliveryState(ctx, w.account, w.role.ID)
 	return protocol.MailboxAlarm(n), latest, err
 }
 
 func (w *worldSession) handleMailbox(ctx context.Context, selected int64, id uint16, p, raw, keys []byte, prefix string) ([]outboundPacket, int64, error) {
-	if w == nil || w.characters == nil || w.characters.Store == nil || selected == 0 || w.role.ID != selected || w.role.AccountID != w.account {
+	if w == nil || w.characters == nil || w.store == nil || selected == 0 || w.role.ID != selected || w.role.AccountID != w.account {
 		return nil, 0, fmt.Errorf("邮件请求缺少当前账号所属的已选角色")
 	}
-	store := w.characters.Store
+	store := w.store
 	key := fmt.Sprintf("mail:%s:%d:%x", prefix, id, sha256.Sum256(raw))
 	switch id {
 	case 781:
@@ -262,7 +262,7 @@ func (w *worldSession) sendMail(ctx context.Context, id uint16, p, keys []byte, 
 	if (len(r.Items) != 0 && w.loot == nil) || r.Special != 0 {
 		return nil, 0, fmt.Errorf("邮件物品目录不可用或请求了特殊付费发送模式")
 	}
-	saved, receipt, _, err := w.characters.Store.SendMail(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, r.Recipient, r.Text,
+	saved, receipt, _, err := w.store.SendMail(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, r.Recipient, r.Text,
 		func(current storage.Character) (json.RawMessage, []storage.MailAsset, error) {
 			bag, err := inventory.ReadBag(current.State)
 			if err != nil {
@@ -329,7 +329,7 @@ func (w *worldSession) claimMail(ctx context.Context, p, keys []byte, key string
 	if r.Kind != 0 {
 		return nil, 0, fmt.Errorf("邮件领取类型无效")
 	}
-	saved, receipt, _, err := w.characters.Store.MutateMailbox(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, "mail-claim-v1", nil,
+	saved, receipt, _, err := w.store.MutateMailbox(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, "mail-claim-v1", nil,
 		func(current storage.Character, messages []storage.MailMessage) (json.RawMessage, []storage.MailMessage, json.RawMessage, error) {
 			bag, err := inventory.ReadBag(current.State)
 			if err != nil {
@@ -422,7 +422,7 @@ func (w *worldSession) claimMail(ctx context.Context, p, keys []byte, key string
 	if w.loot != nil {
 		var materials inventory.AccountMaterials
 		var swept storage.Character
-		swept, materials, err = sweepAccountMaterials(ctx, w.characters.Store, saved)
+		swept, materials, err = sweepAccountMaterials(ctx, w.store, saved)
 		if err == nil {
 			saved = swept
 			updates, err = accountMaterialRefreshPackets(materials, saved)
@@ -463,7 +463,7 @@ func (w *worldSession) changeMailStatus(ctx context.Context, p, keys []byte, key
 	for i, id := range r.IDs {
 		messageIDs[i] = int64(id)
 	}
-	saved, _, _, err := w.characters.Store.MutateMailbox(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, "mail-status-v1", messageIDs,
+	saved, _, _, err := w.store.MutateMailbox(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, "mail-status-v1", messageIDs,
 		func(current storage.Character, messages []storage.MailMessage) (json.RawMessage, []storage.MailMessage, json.RawMessage, error) {
 			index := map[uint64]storage.MailMessage{}
 			for _, m := range messages {

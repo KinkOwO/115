@@ -1,11 +1,9 @@
 package inventory
 
 import (
-	"context"
 	"crypto/rand"
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -95,46 +93,28 @@ func EquipmentAwakeningRulesSource() string {
 	return awakeningRules.Source.Checksum
 }
 
-// ApplyEquipmentAwakening 执行一次装备调适（CMD2258 mode=0）。
-//
-// 幂等：同一 (角色, key) 的重放不会二次扣料，回执从存档字段取回。
-func (s *WearService) ApplyEquipmentAwakening(ctx context.Context, role storage.Character, key string, r protocol.EquipmentAwakeningRequest) (storage.Character, AwakeningReceipt, error) {
-	var out AwakeningReceipt
-	if s == nil || s.Store == nil || s.Catalog == nil {
-		return role, out, fmt.Errorf("装备调适需要有效装备目录及角色存档")
+// ValidateEquipmentAwakening checks the runtime prerequisites before workflow
+// starts the account-material transaction.
+func (s *WearService) ValidateEquipmentAwakening(role Role) error {
+	if s == nil || s.Catalog == nil {
+		return fmt.Errorf("装备调适需要有效装备目录及角色存档")
 	}
 	if awakeningRules == nil {
-		return role, out, fmt.Errorf("装备调适规则未装载")
+		return fmt.Errorf("装备调适规则未装载")
 	}
 	if role.ConfigVersion != s.Catalog.Source.SaveIdentity() && role.ConfigVersion != s.Catalog.Source.Checksum {
-		return role, out, fmt.Errorf("装备调适需要有效装备目录及角色存档")
+		return fmt.Errorf("装备调适需要有效装备目录及角色存档")
 	}
-	applied := false
-	saved, _, _, err := s.Store.CommitAccountMaterialEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, "equipment-awakening-v1",
-		func(current storage.Character, counts json.RawMessage) (json.RawMessage, json.RawMessage, error) {
-			next, nextCounts, receipt, e := s.applyAwakening(current, counts, key, r)
-			if e != nil {
-				return nil, nil, e
-			}
-			out = receipt
-			applied = true
-			return next, nextCounts, nil
-		})
-	if err != nil {
-		return role, out, err
-	}
-	if !applied {
-		stored, e := readAwakeningReceipt(saved.State, key)
-		if e != nil {
-			return role, out, e
-		}
-		out = stored
-	}
-	saved.WireID = role.WireID
-	return saved, out, nil
+	return nil
 }
 
-func (s *WearService) applyAwakening(role storage.Character, counts json.RawMessage, key string, r protocol.EquipmentAwakeningRequest) (json.RawMessage, json.RawMessage, AwakeningReceipt, error) {
+// PrepareEquipmentAwakening computes the updated character and account-material
+// states. The workflow owns persistence and replay handling.
+func (s *WearService) PrepareEquipmentAwakening(role Role, counts json.RawMessage, key string, r protocol.EquipmentAwakeningRequest) (json.RawMessage, json.RawMessage, AwakeningReceipt, error) {
+	return s.applyAwakening(role, counts, key, r)
+}
+
+func (s *WearService) applyAwakening(role Role, counts json.RawMessage, key string, r protocol.EquipmentAwakeningRequest) (json.RawMessage, json.RawMessage, AwakeningReceipt, error) {
 	var out AwakeningReceipt
 	fail := func(kind RefusalKind, format string, args ...any) (json.RawMessage, json.RawMessage, AwakeningReceipt, error) {
 		return nil, nil, out, Refuse(kind, format, args...)
@@ -367,7 +347,7 @@ func consumeBagTemplate(b Bag, template, amount uint32) (Bag, uint32, error) {
 	return b, amount - remaining, nil
 }
 
-func readAwakeningReceipt(state json.RawMessage, key string) (AwakeningReceipt, error) {
+func ReadAwakeningReceipt(state json.RawMessage, key string) (AwakeningReceipt, error) {
 	var out AwakeningReceipt
 	if len(state) == 0 {
 		return out, fmt.Errorf("装备调适回执丢失（存档为空）")

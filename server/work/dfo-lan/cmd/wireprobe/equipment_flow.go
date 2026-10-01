@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
+	"dfolan/internal/workflow"
 	"fmt"
 	"time"
 )
@@ -42,7 +43,7 @@ func (s *equipmentSession) takePendingGold(now time.Time) []byte {
 	return body
 }
 
-func (s *equipmentSession) handle(service *inventory.WearService, w *worldSession, p, raw []byte) ([]outboundPacket, error) {
+func (s *equipmentSession) handle(service *workflow.WearService, w *worldSession, p, raw []byte) ([]outboundPacket, error) {
 	if service == nil || w == nil || w.role.ID == 0 {
 		return nil, fmt.Errorf("equipment move requires owned character")
 	}

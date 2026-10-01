@@ -3,14 +3,14 @@ package quest
 import (
 	"context"
 	"dfolan/internal/catalog"
+	"dfolan/internal/character"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"fmt"
 )
 
-func (s *Service) MapClear(ctx context.Context, role storage.Character, run *dungeon.Session, source string) ([]protocol.ActiveQuest, error) {
+func (s *Service) MapClear(ctx context.Context, role character.Character, run *dungeon.Session, source string) ([]protocol.ActiveQuest, error) {
 	if run == nil || !run.Completed() || source != s.Catalog.Source.SaveIdentity() {
 		return nil, fmt.Errorf("map clear requires confirmed owned source dungeon completion")
 	}
@@ -41,7 +41,7 @@ func (s *Service) MapClear(ctx context.Context, role storage.Character, run *dun
 // seekMeetBossClearMatch covers the source shape where a quest-specific maze
 // ends in a boss map that declares the quest's meeting NPC. MapClear has
 // already required confirmed completion; a client CMD33 is never proof here.
-func (s *Service) seekMeetBossClearMatch(en *Entry, role storage.Character, run *dungeon.Session) bool {
+func (s *Service) seekMeetBossClearMatch(en *Entry, role character.Character, run *dungeon.Session) bool {
 	if en == nil || !en.Implemented || en.Model != SeekAndMeetNPC ||
 		run == nil || run.Maze.Quest == 0 || en.ID != uint32(run.Maze.Quest) ||
 		!run.Room.Boss || en.NPC == 0 || s.Dungeons == nil ||

@@ -63,6 +63,10 @@ type pvfCoreCatalogs struct {
 	items                                        *catalog.ItemIndex
 	itemBasics                                   *catalog.ItemBasics
 	equipment                                    *inventory.FullEquipmentCatalog
+	avatarDisjoint                               *inventory.AvatarDisjointRules
+	avatarSockets                                *inventory.AvatarSocketRules
+	avatarRecast                                 *inventory.AvatarRecastRules
+	emblemCompound                               *inventory.EmblemCompoundRules
 	periods                                      []uint32
 	skins                                        map[uint32]catalog.SkinStorageEntry
 	journal                                      *catalog.EquipmentJournalRules
@@ -355,6 +359,30 @@ func preparePVFCoreCatalogs(selection, path, checksum, characterPath, questPath,
 		}
 		result.items = &direct
 		log.Printf("PVF item index prepared: %d templates source=%s", len(direct.Items), direct.Source.Checksum)
+		if selected["loot"] {
+			result.emblemCompound, e = source.EmblemCompound(direct)
+			if e != nil {
+				return result, fmt.Errorf("PVF emblem compound: %w", e)
+			}
+			log.Printf("PVF emblem compound prepared: %d combinations, %d emblem grades source=%s", len(result.emblemCompound.Rolls), len(result.emblemCompound.Pools), result.emblemCompound.Source)
+		}
+		if selected["equipment"] && selected["loot"] {
+			result.avatarDisjoint, e = source.AvatarDisjoint(direct)
+			if e != nil {
+				return result, fmt.Errorf("PVF avatar disjoint: %w", e)
+			}
+			log.Printf("PVF avatar disjoint prepared: %d avatar grades, %d emblem grades source=%s", len(result.avatarDisjoint.Rolls), len(result.avatarDisjoint.Pools), result.avatarDisjoint.Source)
+			result.avatarSockets, e = source.AvatarSockets(direct)
+			if e != nil {
+				return result, fmt.Errorf("PVF avatar sockets: %w", e)
+			}
+			log.Printf("PVF avatar socket devices prepared: %d templates source=%s", len(result.avatarSockets.Devices), result.avatarSockets.Source)
+			result.avatarRecast, e = source.AvatarRecast(direct)
+			if e != nil {
+				return result, fmt.Errorf("PVF avatar recast: %w", e)
+			}
+			log.Printf("PVF avatar recast prepared: %d jobs source=%s", len(result.avatarRecast.Jobs), result.avatarRecast.Source)
+		}
 		source.ReleaseReadCaches()
 		if e := preparePVFCommerce(&result, source, selected, inputs); e != nil {
 			return result, e

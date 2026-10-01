@@ -1,10 +1,8 @@
 package inventory
 
 import (
-	"context"
 	"crypto/rand"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 	"math/big"
@@ -16,7 +14,7 @@ const accountMaterialCells = 17
 // 金币强化（普通强化）：材料 + 金币 → 掷骰 → 成功升级 / 失败按实测表降级或破坏。
 //
 // 与固定等级强化券是两条并列路径：
-//   - 券路径（applyReinforcement）在背包里找券，事务只动角色；
+//   - 券路径（ApplyReinforcement）在背包里找券，事务只动角色；
 //   - 金币路径在这里，材料可能在账号共享材料仓库（无色小晶块固定格 367）或背包材料格，
 //     所以必须走 CommitAccountMaterialEvent —— 它把「扣账号材料」和「改角色存档」放进同一事务，
 //     并按 (character, event_key) 幂等，重放不会二次扣料。
@@ -58,43 +56,8 @@ type storedGoldReinforcement struct {
 
 // ReinforceWithMaterial 执行一次金币强化。材料引用为请求里的 (list, slot)：
 // 363..379 = 账号材料仓库格，其它 = 角色背包槽位。
-func (s *WearService) ReinforceWithMaterial(ctx context.Context, role storage.Character, key string, r protocol.ReinforcementRequest) (storage.Character, GoldReinforcementReceipt, error) {
-	var out GoldReinforcementReceipt
-	if s == nil || s.Store == nil || s.Catalog == nil || s.Catalog.Source.SaveIdentity() != role.ConfigVersion {
-		return role, out, fmt.Errorf("金币强化需要有效装备目录及角色存档")
-	}
-	if !GoldRulesLoaded() {
-		return role, out, fmt.Errorf("金币强化规则未装载")
-	}
-	applied := false
-	saved, _, _, err := s.Store.CommitAccountMaterialEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, "gold-reinforcement-v1", func(current storage.Character, counts json.RawMessage) (json.RawMessage, json.RawMessage, error) {
-		next, nextCounts, receipt, err := s.applyGoldReinforcement(current, counts, key, r)
-		if err != nil {
-			return nil, nil, err
-		}
-		out = receipt
-		applied = true
-		return next, nextCounts, nil
-	})
-	if err != nil {
-		return role, out, err
-	}
-	if !applied {
-		// 重放：事务里没有再次执行，回执从存档字段取回。
-		stored, e := readGoldReinforcementReceipt(saved.State, key)
-		if e != nil {
-			return role, out, e
-		}
-		out = stored
-	}
-	saved.WireID = role.WireID
-	if _, err = protocol.ReinforcementGoldReply(r, out.MaterialRemaining, out.Old, out.Level, out.Result); err != nil {
-		return role, out, err
-	}
-	return saved, out, nil
-}
 
-func (s *WearService) applyGoldReinforcement(role storage.Character, counts json.RawMessage, key string, r protocol.ReinforcementRequest) (json.RawMessage, json.RawMessage, GoldReinforcementReceipt, error) {
+func (s *WearService) ApplyGoldReinforcement(role Role, counts json.RawMessage, key string, r protocol.ReinforcementRequest) (json.RawMessage, json.RawMessage, GoldReinforcementReceipt, error) {
 	var out GoldReinforcementReceipt
 	fail := func(kind RefusalKind, reason string) (json.RawMessage, json.RawMessage, GoldReinforcementReceipt, error) {
 		return nil, nil, out, Refuse(kind, "%s", reason)
@@ -474,7 +437,7 @@ func writeGoldReinforcementReceipt(state json.RawMessage, key string, receipt Go
 	return json.Marshal(fields)
 }
 
-func readGoldReinforcementReceipt(state json.RawMessage, key string) (GoldReinforcementReceipt, error) {
+func ReadGoldReinforcementReceipt(state json.RawMessage, key string) (GoldReinforcementReceipt, error) {
 	var fields map[string]json.RawMessage
 	var out GoldReinforcementReceipt
 	if err := json.Unmarshal(state, &fields); err != nil {

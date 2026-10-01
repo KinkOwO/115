@@ -61,6 +61,22 @@ func (s *Source) Boxes(index catalog.ItemIndex, policy loot.BoxSourcePolicy) (*l
 	return loot.ImportBoxes(s.archive, index, policy)
 }
 
+func (s *Source) AvatarDisjoint(index catalog.ItemIndex) (*inventory.AvatarDisjointRules, error) {
+	return inventory.ImportAvatarDisjointRules(s.archive, index)
+}
+
+func (s *Source) AvatarSockets(index catalog.ItemIndex) (*inventory.AvatarSocketRules, error) {
+	return inventory.ImportAvatarSocketRules(s.archive, index)
+}
+
+func (s *Source) AvatarRecast(index catalog.ItemIndex) (*inventory.AvatarRecastRules, error) {
+	return inventory.ImportAvatarRecastRules(s.archive, index)
+}
+
+func (s *Source) EmblemCompound(index catalog.ItemIndex) (*inventory.EmblemCompoundRules, error) {
+	return inventory.ImportEmblemCompoundRules(s.archive, index)
+}
+
 func (s *Source) CashShop() (cashshop.PilotConfig, error) {
 	return cashshop.ImportPilot(s.archive)
 }
@@ -88,7 +104,7 @@ func (s *Source) OdysseyJournalRoutes() (*catalog.OdysseyJournalRoutes, error) {
 
 func (s *Source) RosterBackgrounds(index catalog.ItemIndex) (*rosterbg.TicketCatalog, error) {
 	return cachedProjection(s, "roster", itemIndexIdentity(index), func() (*rosterbg.TicketCatalog, error) {
-		return catalog.ImportRosterBackgroundTickets(s.archive, index)
+		return rosterbg.ImportTickets(s.archive, index)
 	}, func(r *rosterbg.TicketCatalog) (*rosterbg.TicketCatalog, error) {
 		if r == nil || r.Source != s.Snapshot().Checksum {
 			return nil, fmt.Errorf("background cache source mismatch")

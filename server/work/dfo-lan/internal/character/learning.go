@@ -3,7 +3,6 @@ package character
 import (
 	"context"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -48,7 +47,7 @@ func skillOrder(state State, known map[uint16]byte) []int {
 	sort.Ints(added)
 	return append(ids, added...)
 }
-func (s *Service) skillRows(role storage.Character, state State, tree int) ([]protocol.LearnedSkill, error) {
+func (s *Service) skillRows(role Character, state State, tree int) ([]protocol.LearnedSkill, error) {
 	known, e := s.knownSkills(role, state, tree)
 	if e != nil {
 		return nil, e
@@ -197,11 +196,11 @@ func (s *Service) validateLearningPrerequisites(job byte, known, changes map[uin
 	return nil
 }
 
-func (s *Service) Learn(ctx context.Context, role storage.Character, key string, req protocol.SkillPurchase) (storage.Character, bool, error) {
+func (s *Service) Learn(ctx context.Context, role Character, key string, req protocol.SkillPurchase) (Character, bool, error) {
 	if s.Learning == nil || req.Tree != 0 {
 		return role, false, fmt.Errorf("learning service/source unavailable")
 	}
-	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, "source-skill-learning-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, "source-skill-learning-v1", func(current Character) (json.RawMessage, json.RawMessage, error) {
 		var state State
 		if e := json.Unmarshal(current.State, &state); e != nil {
 			return nil, nil, e
@@ -240,7 +239,7 @@ func (s *Service) Learn(ctx context.Context, role storage.Character, key string,
 		var newlyLearned []uint16
 		effectiveLevel := int(state.Level)
 		if s.Store != nil {
-			if hasTactician, _ := s.Store.HasActivePremium(ctx, role.AccountID, storage.PremiumTactician, time.Now()); hasTactician {
+			if hasTactician, _ := s.Store.HasTacticianPremium(ctx, role.AccountID, time.Now()); hasTactician {
 				effectiveLevel += 5
 			}
 		}
@@ -368,11 +367,11 @@ func (s *Service) placeNewShortcuts(job byte, rows []protocol.LearnedSkill, fres
 		}
 	}
 }
-func (s *Service) MoveSkill(ctx context.Context, role storage.Character, key string, req protocol.SkillMove) (storage.Character, bool, error) {
+func (s *Service) MoveSkill(ctx context.Context, role Character, key string, req protocol.SkillMove) (Character, bool, error) {
 	if s.Learning == nil || req.Tree != 0 || req.From == 255 || req.To == 255 || req.From == req.To {
 		return role, false, fmt.Errorf("invalid ordinary skill move")
 	}
-	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, "source-skill-slots-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, "source-skill-slots-v1", func(current Character) (json.RawMessage, json.RawMessage, error) {
 		var state State
 		if e := json.Unmarshal(current.State, &state); e != nil {
 			return nil, nil, e
@@ -427,11 +426,11 @@ func (s *Service) MoveSkill(ctx context.Context, role storage.Character, key str
 //
 // Sources name the state the previous pair produced, so the pairs are applied
 // in order; an empty target receives the source skill outright.
-func (s *Service) MoveSkillTotal(ctx context.Context, role storage.Character, key string, req protocol.SkillSlotTotal) (storage.Character, bool, error) {
+func (s *Service) MoveSkillTotal(ctx context.Context, role Character, key string, req protocol.SkillSlotTotal) (Character, bool, error) {
 	if s.Learning == nil || req.Tree != 0 || len(req.Pairs) == 0 {
 		return role, false, fmt.Errorf("invalid skill slot total")
 	}
-	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, "source-skill-slots-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, "source-skill-slots-v1", func(current Character) (json.RawMessage, json.RawMessage, error) {
 		var state State
 		if e := json.Unmarshal(current.State, &state); e != nil {
 			return nil, nil, e
@@ -503,7 +502,7 @@ func (s *Service) applySkillSlotSwaps(profession byte, rows []protocol.LearnedSk
 	return nil
 }
 
-func (s *Service) LearningResponse(role storage.Character, req protocol.SkillPurchase) ([]byte, error) {
+func (s *Service) LearningResponse(role Character, req protocol.SkillPurchase) ([]byte, error) {
 	var state State
 	if e := json.Unmarshal(role.State, &state); e != nil {
 		return nil, e

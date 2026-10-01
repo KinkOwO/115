@@ -30,7 +30,7 @@ func (w *worldSession) stackableAction(p []byte) ([]outboundPacket, error) {
 // 里带了券的真实槽位，所以券源可以直接核对，再由券的模板反查出要开的那一位（光环券
 // bit3、宠物券 bit5）。动作号是跟着券走的，不能按槽位猜。
 func (w *worldSession) expandSkinSlot(p []byte, slot uint16) ([]outboundPacket, error) {
-	if w == nil || w.role.ID == 0 || w.characters == nil || w.characters.Store == nil {
+	if w == nil || w.role.ID == 0 || w.characters == nil || w.store == nil {
 		return nil, fmt.Errorf("skin slot expansion before character selection")
 	}
 	before, e := inventory.ReadBag(w.role.State)
@@ -59,7 +59,7 @@ func (w *worldSession) expandSkinSlot(p []byte, slot uint16) ([]outboundPacket, 
 // 请求体只有前四个字节有意义：第一个 u16 恒为 0xffff（客户端不报券在哪一格），第二个
 // u16 才是窗口类型 —— 11 光环、32 宠物，也就是要开哪一栏。券由模板反查。
 func (w *worldSession) openSkinSlot(p []byte) ([]outboundPacket, error) {
-	if w == nil || w.role.ID == 0 || w.characters == nil || w.characters.Store == nil {
+	if w == nil || w.role.ID == 0 || w.characters == nil || w.store == nil {
 		return nil, fmt.Errorf("skin slot open before character selection")
 	}
 	req, e := protocol.DecodeOpenSkinSlot(p)

@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"dfolan/internal/cashshop"
 	"errors"
 	"fmt"
 	"time"
@@ -10,13 +11,13 @@ import (
 )
 
 const (
-	PremiumConqueror uint8 = 22
-	PremiumTactician uint8 = 27
-	PremiumGabriel   uint8 = 73
-	PremiumGrowth    uint8 = 79
-	PremiumCube      uint8 = 92
-	PremiumNeoBasic  uint8 = 117
-	PremiumNeoPlus   uint8 = 118
+	PremiumConqueror = cashshop.PremiumConqueror
+	PremiumTactician = cashshop.PremiumTactician
+	PremiumGabriel   = cashshop.PremiumGabriel
+	PremiumGrowth    = cashshop.PremiumGrowth
+	PremiumCube      = cashshop.PremiumCube
+	PremiumNeoBasic  = cashshop.PremiumNeoBasic
+	PremiumNeoPlus   = cashshop.PremiumNeoPlus
 )
 
 func (s *Store) MigratePremiums(ctx context.Context) error {
@@ -115,4 +116,14 @@ func (s *Store) ActivatePremium(ctx context.Context, account int64, premiumType 
 		return 0, err
 	}
 	return end, nil
+}
+
+// HasGrowthPremium implements the character consumer's growth capability.
+func (s *Store) HasGrowthPremium(ctx context.Context, account int64, now time.Time) (bool, error) {
+	return s.HasActivePremium(ctx, account, PremiumGrowth, now)
+}
+
+// HasTacticianPremium implements the character consumer's skill-cost capability.
+func (s *Store) HasTacticianPremium(ctx context.Context, account int64, now time.Time) (bool, error) {
+	return s.HasActivePremium(ctx, account, PremiumTactician, now)
 }

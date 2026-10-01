@@ -16,10 +16,8 @@ package inventory
 // 金币列。成功率与失败惩罚 **PVF 里没有**，以官方页数据为准（同强化：PVF 无成功率表）。
 
 import (
-	"context"
 	"crypto/rand"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -240,23 +238,8 @@ type AmplifyUpgradeReceipt struct {
 }
 
 // ApplyAmplifyUpgrade 处理 CMD80 mode=1：校验次元属性与材料、扣费、按官方成功率判定。
-func (s *WearService) ApplyAmplifyUpgrade(ctx context.Context, role storage.Character, key string, r protocol.ReinforcementRequest) (storage.Character, AmplifyUpgradeReceipt, error) {
-	var out AmplifyUpgradeReceipt
-	if s == nil || s.Store == nil || s.Catalog == nil {
-		return role, out, fmt.Errorf("增幅需要有效装备目录及角色存档")
-	}
-	if r.Mode != 1 {
-		return role, out, fmt.Errorf("增幅请求的 mode 必须是 1，收到 %d", r.Mode)
-	}
-	if !AmplifyUpgradeRulesLoaded() {
-		return role, out, fmt.Errorf("增幅规则未装载")
-	}
-	return commitEquipmentEvent(ctx, s.Store, role, key, amplifyUpgradeModel, func(current storage.Character) (json.RawMessage, AmplifyUpgradeReceipt, error) {
-		return s.applyAmplifyUpgrade(current, r)
-	})
-}
 
-func (s *WearService) applyAmplifyUpgrade(role storage.Character, r protocol.ReinforcementRequest) (json.RawMessage, AmplifyUpgradeReceipt, error) {
+func (s *WearService) ApplyAmplifyUpgrade(role Role, r protocol.ReinforcementRequest) (json.RawMessage, AmplifyUpgradeReceipt, error) {
 	var out AmplifyUpgradeReceipt
 	bag, err := ReadBag(role.State)
 	if err != nil {

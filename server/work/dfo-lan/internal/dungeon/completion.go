@@ -109,6 +109,37 @@ func (s *Session) atLayerFinalMap() bool {
 	return final
 }
 
+// atBossLayerMap reports whether the current room is a layered sequence entry
+// sitting on the source maze's declared boss coordinate. Only that entry can be
+// the run's closing scene: a layer entry elsewhere in the maze is a scene the
+// client plays while the run continues - 100004944's (1,0) plays the
+// 100016083_scene_0 interlude and then walks on to the boss room (3,2).
+func (s *Session) atBossLayerMap() bool {
+	if [2]byte{s.Room.X, s.Room.Y} != s.Maze.Boss {
+		return false
+	}
+	return s.hasLayerEntry()
+}
+
+// huntTargetAbsent reports whether the dungeon declares a [hunt boss] completion
+// target that is not standing in the current room. The declaration is the source's
+// own clear condition ("kill it and the run is done"), so such a dungeon cannot be
+// settled by a room clear while the target waits somewhere else - 100004944 marks
+// (3,2) as its boss coordinate but leaves only a rank-0 monster there, and parks
+// the declared 109019257 in the last cell's scene map 100016094. Dungeons with no
+// declaration (HuntBoss == 0) are never affected.
+func (s *Session) huntTargetAbsent() bool {
+	if s.Definition.HuntBoss == 0 {
+		return false
+	}
+	for _, m := range s.Monsters {
+		if m.Template == s.Definition.HuntBoss {
+			return false
+		}
+	}
+	return true
+}
+
 // A source boss death clears its own room: the client removes the remaining
 // ordinary monsters with the boss and never reports them individually, so a
 // completion must not wait for those reports. Every source boss in the room
@@ -163,7 +194,20 @@ func (s *Session) tryComplete() {
 		// 能结算的入口。限定在 Odyssey，普通副本不因为「刚好有只敌怪」而多出结算路径
 		// （TestSourceBossCompletionRequiresTheSourceBoss 守着这一点）。两道守卫与上一条
 		// 同形（**在脚本声明的 boss 房间**、**房里可击杀目标已清空**）。
-		if s.Definition.Odyssey && s.Loaded && s.atSourceBossMap() && s.roomEnemiesDead() && s.reportableRoomActor() != 0 {
+		//
+		// [MERGE-20261001-ODYSSEY-HUNT-LAST-ROOM] 但它不看这只源怪是不是脚本声明的通关
+		// 目标。奥德赛 100004944「向混乱的时空进发」的 boss 坐标 (3,2) 在源数据里标了
+		// [boss]，那张地图 (100016091) 却是 [type] [normal]、房里只有一只 rank0 的
+		// 109019087；脚本声明的 [hunt boss] 109019257 摆在最后一格 (4,2) 的 boss 演出图
+		// 100016094 里（rank3/team100 可击杀）。玩家在 (3,2) 杀完那只 rank0 怪，这条兜底
+		// 成立，副本当场结算：实机 2026-10-01 玩家收到「您已通关地下城」，而地图上还剩
+		// 最后一格没打。
+		//
+		// 脚本的 [hunt boss] 就是它对通关条件的声明（"杀掉它就算通关"），所以声明了 hunt
+		// 目标的副本不允许在「目标根本不在场」的房间里靠房间清空结算；目标所在的那一格
+		// 照常结算（客户端为 rank3 目标发 CMD117，那条路先到）。没有声明 hunt 目标的
+		// 奥德赛副本（100004984..989）行为不变。
+		if s.Definition.Odyssey && s.Loaded && s.atSourceBossMap() && s.roomEnemiesDead() && s.reportableRoomActor() != 0 && !s.huntTargetAbsent() {
 			s.completed = true
 			return
 		}
@@ -180,7 +224,16 @@ func (s *Session) tryComplete() {
 		// counterpart of the source-boss room above: that one matches the boss
 		// coordinate outside every layer entry, this one matches a layer's own
 		// last map, and the two never both hold.
-		if s.Loaded && s.atLayerFinalMap() && !s.hasFightableBoss() && s.roomEnemiesDead() && s.reportableDisplayBoss() != 0 {
+		//
+		// [MERGE-20261001-ODYSSEY-SCENE-EARLY-CLEAR] 但**层图必须坐在源 maze 声明的
+		// boss 坐标上**才算这一趟的收尾，中途的过场层图不算。奥德赛 100004944
+		// 「向混乱的时空进发」的 (1,0) 也挂着一张单张层图 —— 演出过场
+		// 100016083_scene_0，房里只有 1 只 rank3/team100 的 [displayhuntdummy]
+		// （63821，NonCombat）。客户端进这张图、发 CMD37（加载完成）后，四项判据
+		// 全成立，于是副本在**第二个房间**就结算了：实机 2026-10-01 玩家杀完 (1,0)
+		// 的怪、过场一开就直接收到「您已通关地下城」。真正的地图终点是 maze.Boss
+		// (3,2)，层图只是途中的剧情，要靠过场播完/点门继续往后走。
+		if s.Loaded && s.atLayerFinalMap() && s.atBossLayerMap() && !s.hasFightableBoss() && s.roomEnemiesDead() && s.reportableDisplayBoss() != 0 {
 			s.completed = true
 			return
 		}

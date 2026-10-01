@@ -9,6 +9,7 @@ import (
 	"dfolan/internal/game/wire"
 	"dfolan/internal/inventory"
 	"dfolan/internal/storage"
+	"dfolan/internal/workflow"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -161,11 +162,11 @@ func (s *shopPilotSession) purchase(ctx context.Context, p *cashshop.Pilot, stor
 			if _, ok := upgrades[item.Product]; !ok {
 				continue
 			}
-			ledger, ok := store.(cashshop.VaultLedger)
+			ledger, ok := store.(workflow.VaultLedger)
 			if !ok {
 				return r, false, fmt.Errorf("vault purchase ledger missing")
 			}
-			return p.PurchaseVault(ctx, ledger, *s.vaultRules, account, character, key, cart, func(receipt storage.CashReceipt) error {
+			return workflow.PurchaseCashVault(p, ctx, ledger, *s.vaultRules, account, character, key, cart, func(receipt storage.CashReceipt) error {
 				packets, err := shopPilotPackets(receipt, 0, true)
 				if err != nil {
 					return err

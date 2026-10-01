@@ -4,6 +4,7 @@ import (
 	"context"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
+	"dfolan/internal/workflow"
 	"encoding/hex"
 	"time"
 )
@@ -21,7 +22,7 @@ import (
 // 成功后按既有约定补发增量行（装备行 + 金币行 + 被扣材料行），
 // 若材料在账号共享材料仓库则再补一帧 list35 快照；穿戴装备升品会改名望，
 // 所以统一走 appendFameUpdate。
-func (s *equipmentSession) awakenEquipment(service *inventory.WearService, w *worldSession, p, raw []byte, event func(map[string]any)) ([]outboundPacket, error) {
+func (s *equipmentSession) awakenEquipment(service *workflow.WearService, w *worldSession, p, raw []byte, event func(map[string]any)) ([]outboundPacket, error) {
 	if service == nil || w == nil || w.role.ID == 0 || w.activeDungeon != nil {
 		return nil, inventory.Refuse(inventory.RefusalItems, "装备调适需要已选角色且位于城镇")
 	}
@@ -94,8 +95,8 @@ func (s *equipmentSession) awakenEquipment(service *inventory.WearService, w *wo
 		"equipment": out.TemplateBefore, "target": out.TemplateAfter,
 		"stage_before": out.StageBefore, "stage_after": out.StageAfter, "upgraded": out.Upgraded,
 		"level": out.Level, "rarity": out.Rarity, "rate": out.Rate, "gold": out.Gold,
-		"record_healed": out.RecordHealed,
-		"spent":         spentDetail,
+		"record_healed":  out.RecordHealed,
+		"spent":          spentDetail,
 		"payload_offset": r.PayloadOffset, "request_hex": hex.EncodeToString(p)})
 	return w.appendFameUpdate(plan, event), nil
 }

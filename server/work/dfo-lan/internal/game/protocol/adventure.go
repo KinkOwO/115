@@ -1,7 +1,6 @@
 package protocol
 
 import (
-	"dfolan/internal/adventure"
 	"encoding/binary"
 	"fmt"
 	"sort"
@@ -326,27 +325,6 @@ func DecodeAdventureEliteLoad(p []byte) (uint16, error) {
 	return mode, padding(p[2:], 8)
 }
 
-// NOTI2799：0x1405674C0读取28字节记录；0x140458072/0x1404580D0消费次数/经验。
-// +0、+20和末尾填充不参与当前reader的展示，保留零，不借用为其它业务字段。
-func SeasonLevelHistory(s adventure.SeasonState) []byte {
-	p := make([]byte, 12+28*len(s.History))
-	binary.LittleEndian.PutUint32(p, uint32(len(s.History)))
-	for i, h := range s.History {
-		row := p[4+i*28:]
-		binary.LittleEndian.PutUint32(row[4:], h.ID)
-		binary.LittleEndian.PutUint32(row[8:], h.Category)
-		binary.LittleEndian.PutUint32(row[12:], h.Count)
-		binary.LittleEndian.PutUint32(row[16:], h.Experience)
-		if h.CSOnly {
-			row[24] = 1
-		}
-	}
-	tail := p[4+28*len(s.History):]
-	binary.LittleEndian.PutUint32(tail, s.Experience)
-	binary.LittleEndian.PutUint32(tail[4:], s.RewardMask)
-	return p
-}
-
 // 0x14052F19F写u32阶段到17字节原生请求的+13；前13字节不是奖励参数。
 func DecodeSeasonReward(p []byte) (uint32, error) {
 	if len(p) < 17 {
@@ -385,28 +363,6 @@ func SeasonCapsuleReply(slot uint16, success bool) []byte {
 	binary.LittleEndian.PutUint16(tail, slot)
 	binary.LittleEndian.PutUint32(tail[3:], SeasonCapsuleAction)
 	return append(p, tail...)
-}
-
-// NOTI2858：0x1402889B0读取数量、长度前缀角色名、模板和Unix时间。
-// 即使从未兑换也要发送0数量，让原生经理把可兑换阶段初始化为100。
-func SeasonOathHistory(rows []adventure.OathAcquisition) ([]byte, error) {
-	p := make([]byte, 4)
-	binary.LittleEndian.PutUint32(p, uint32(len(rows)))
-	for _, row := range rows {
-		name, err := simplifiedchinese.GBK.NewEncoder().Bytes([]byte(row.Name))
-		if err != nil || len(name) >= 30 || row.Time < 0 || row.Time > 0x7fffd27f {
-			return nil, fmt.Errorf("誓约获取记录名称或时间超出客户端范围")
-		}
-		prefix := make([]byte, 4)
-		binary.LittleEndian.PutUint32(prefix, uint32(len(name)))
-		p = append(p, prefix...)
-		p = append(p, name...)
-		tail := make([]byte, 8)
-		binary.LittleEndian.PutUint32(tail, row.Template)
-		binary.LittleEndian.PutUint32(tail[4:], uint32(row.Time))
-		p = append(p, tail...)
-	}
-	return p, nil
 }
 
 // 0x14028D1A0：u32保留值0和u8选择索引。

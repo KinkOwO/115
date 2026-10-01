@@ -1,10 +1,7 @@
 package inventory
 
 import (
-	"context"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
-	"encoding/json"
 	"fmt"
 )
 
@@ -88,31 +85,4 @@ func sortSlot(slot *uint16, perm []uint16, rules BagRules) error {
 	}
 	*slot = uint16(next)
 	return nil
-}
-
-// SortBag adopts one CMD20 arrangement into the stored bag under the owning
-// character's lock. The receipt key makes a replayed frame a no-op instead of
-// applying the same permutation twice.
-func (s *WearService) SortBag(ctx context.Context, role storage.Character, key string, r protocol.SortItemRequest) (storage.Character, bool, error) {
-	if s == nil || s.Store == nil {
-		return role, false, fmt.Errorf("wear storage unavailable")
-	}
-	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, "ordinary-item-sort-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
-		b, e := ReadBag(current.State)
-		if e != nil {
-			return nil, nil, e
-		}
-		b, e = SortItems(b, s.BagRules, r)
-		if e != nil {
-			return nil, nil, e
-		}
-		raw, e := SaveBag(current.State, b)
-		if e != nil {
-			return nil, nil, e
-		}
-		receipt, e := json.Marshal(map[string]any{"list": r.List, "slots": len(r.Slots)})
-		return raw, receipt, e
-	})
-	saved.WireID = role.WireID
-	return saved, applied, e
 }

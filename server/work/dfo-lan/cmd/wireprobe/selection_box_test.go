@@ -5,6 +5,7 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/inventory"
 	"dfolan/internal/storage"
+	"dfolan/internal/workflow"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -32,7 +33,7 @@ func loadSelectionBoxesForTest(t *testing.T) *catalog.SelectionBoxes {
 	return boxes
 }
 
-func equipmentFixtureFor(t *testing.T, picked uint32) *inventory.WearService {
+func equipmentFixtureFor(t *testing.T, picked uint32) *workflow.WearService {
 	t.Helper()
 	body := fmt.Sprintf(`{
 	  "source": {"format":"test","path":"test","size":1,"checksum":"test","file_count":1,"group_count":1},
@@ -56,7 +57,7 @@ func equipmentFixtureFor(t *testing.T, picked uint32) *inventory.WearService {
 		MissingStackLimit: 1000,
 		EquipmentSlots:    [2]uint16{9, 64},
 	}
-	return &inventory.WearService{Catalog: gear, BagRules: rules}
+	return &workflow.WearService{WearService: inventory.WearService{Catalog: gear, BagRules: rules}}
 }
 
 func selectionBoxRequest(slot uint16, category uint16, picks ...uint32) []byte {

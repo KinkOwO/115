@@ -491,3 +491,41 @@ git diff --check
 ## 16. MR !123 整合至 !126
 
 2026-10-01 将 `refactor/server-flow-simplification` 合入精简候选，保留两个分支历史。重叠装备查找、刷新与事务收据采用 !126 实现；纳入 !123 的逐包发送、公共行构造、会话事件键和解密白名单整理，保留双方回归测试。单包、预编码批量、原始帧继续使用 !126 的统一连接锁。全量 `go test ./...`、`go vet ./...` 通过；未部署、未启动客户端、未操作玩家数据库，confirmed baseline 不扩大。
+
+## 17. 2026-10-02：MR !127 消除领域到持久化的依赖
+
+本批起点为 `5b6a868`，已包含上游 `c80c432`。目标是改变所有权和调用方向，保持现有功能行为。
+
+- E11：Character、栏位、疲劳状态归 character；角色、进度、疲劳服务使用领域消费接口，SQL 查询移入 storage 原样适配。typed nil 接口仍按旧构造函数返回 nil。
+- E12：装备操作、NPC 买卖和金库事务归 workflow；inventory 保留纯规则、角色消费投影、金库状态。PremiumReader 保留原查询、两秒超时和忽略查询错误的行为。
+- E13：拾取、翻牌、黑鸦/月湖奖励恢复、分解、装备制作/变换、物品使用及礼盒修复的持久化编排归 workflow；loot 保留 Plan/Prepare/Apply 规则和角色投影。恢复查询原样移入 storage，事务键、model、收据校验和错误回滚顺序保留。
+- E14：任务状态和 Store 接口归 quest；完成、清任务、主线、寻物与库存进度事务归 workflow，奖励公式经消费回调接入原实现。Premium 回调仍在原奖励计算阶段调用。
+- E16：现金订单/回执类型归 cashshop，storage 保留类型别名；现金金库购买跨领域编排归 workflow。
+- E24：legion 入口消费校验函数，不再直接引用 dungeon。
+- 另消除 quest→progression、loot→adventure/cashshop。守卫允许清单只减不增；剩余 E21 的 4 条、E22 的 3 条、E23 的 2 条和 E25 的 1 条，共 10 条领域间依赖。这些包含实际背包计算、场景状态和角色规则，仍需逐条拆分，不能据此宣称 MR 的全部目标完成。
+
+验证使用 `GOTOOLCHAIN=go1.26.0`：全仓编译、`go vet ./...`、依赖守卫和相关领域测试通过。全量 `go test ./...` 保留以下 5 项既有失败；本批此前以起点源码隔离复现相同断言，仅补齐起点未声明的库存接口类型以使其可编译：
+
+- `cmd/wireprobe.TestAdventureAuditProvenanceAllowanceIsNarrow`
+- `cmd/wireprobe.TestPVFCatalogGateRefusesRewardChangesAndDoesNotFallback`
+- `cmd/wireprobe.TestEnhancementAuditAllowsOnlyMissingOrdinaryTicketExpirationHeader`
+- `internal/loot.TestOdysseyChapterFinalLordDrop`
+- `internal/loot.TestOdysseyCurrencySceneRetryAndPoolIsolation`
+
+未修改这些测试断言或对应业务实现。数据库集成测试沿用已有显式启用门禁，本批没有连接玩家 PostgreSQL。实机仍待用户手动验收：装备操作及重复请求、NPC 买卖与金库转移、任务完成/奖励、拾取和翻牌、黑鸦/月湖重选角色恢复。没有部署二进制或启动客户端，不升级 confirmed baseline。
+
+用户原有 `.gitignore`、PostgreSQL/Redis 配置与 `scripts/launch_local.py` 内容保持不变，不纳入本批提交。
+
+## 18. 合入最新上游并保持边界
+
+完成第 17 节后保存重构提交 `e5784cf`，再次 fetch 发现上游已推进到 `9fa5bfe`。本批合入其完整历史，保留结算 ACK、商城 CERA/金币与身份修复、魔法封印解除、装备调适、时装分解/徽章重铸和对应测试；只适配调用与所有权，不另外修改上游功能行为。
+
+新增的装备调适、时装徽章重铸与分解事务仍归 workflow，领域保持 storage-free。校验、随机调用、事务、收据读取和响应构造的先后顺序按上游保留；商城订单新增的金币字段和校验保留，上游存档身份修复同步应用到此前迁移的工作流。
+
+合并后 Go 1.26 全仓编译、`go vet ./...`、架构守卫、身份口径守卫通过。最终 `go test ./...` 仅剩第 17 节中的 3 项 wireprobe 既有失败，其他包通过；上游修复使原来的 2 项 loot Odyssey 测试恢复通过。装备迁移收尾后另跑 inventory/workflow 定向测试与全仓 vet，均通过；最终删除一处未使用的中间 helper 后再通过 vet。`git diff --check` 通过。
+
+本分支未部署或启动客户端，未操作玩家数据库。上游已有 confirmed 记录随合并保留，不把本批边界重构扩大为实机已验收。仍剩 10 条领域间依赖，后续范围见第 17 节。
+
+最终远端复核又发现上游新增 `7d4f5c0`（时装皮肤开孔修复），继续合入该 11 文件更新。开孔事务按同样边界迁至 workflow，原协议、道具规则、时间戳位置、事件 key/model、收据与回包顺序保留。最后一次全仓编译、vet、架构/身份守卫通过；全量测试仍仅上述 3 项 wireprobe 既有失败，其余通过。四个用户原有改动再次核对内容哈希一致，未纳入提交。
+
+上游持续更新，本轮同步最终截止 `647c3fd`（徽章合成修复），合入其完整历史并将新增合成事务适配进 workflow。领域、道具规则及协议与上游一致；随机调用仍只发生在事务回调，事件键的 JSON 字段顺序、摘要、model、收据 DeepEqual 检查和 ACK/NOTI13 顺序保留。适配完成后再次全仓编译、vet、架构/身份守卫及全量测试，仍仅上述 3 项 wireprobe 既有失败，其余包通过；差异检查通过。继续保留 10 条领域间例外，本 MR 整体尚未完成。

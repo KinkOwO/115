@@ -25,7 +25,27 @@
 - 未做（业主决定）：`GET_USERINFO` 的"单件坏装备 ⇒ 拒整个角色"**暂不加逐件降级**（属既有门禁行为）；`mode=1` 初始化/返还。**非 100% 成功率经全量排查确认源里没有依据**（2026-10-02）：调适 `[rates]` 84 条（21 组 × 4 阶段）**全 = 100%**、秘宝源搜 `rate`/`prob`/`success` **零命中**、强化/增幅源本就无成功率表（`amplify_upgrade.go` 注释与测试已证实，唯一带成功率的是增幅券自身段值）⇒ 业主决定**保持"每次必成功"**，不给这些系统凭空引入失败概率（失败时扣料/掉级没有任何客户端证据，属禁止猜包范围）；秘宝的随机性只在**单次增量 5..20**（含两端，已加覆盖性守护测试）。详见 `analysis/tasks/next149-装备调适升品语义与缺陷修复.md`。
 
 ## 2026-10-01：奥德赛清怪不结算修复 + 身份口径二次审计
+## 2026-10-02
+- **边界收敛：领域持久化依赖全部消除（MR !127 候选）**：角色、疲劳、栏位、任务、金库与现金订单/回执类型归对应领域，`storage` 以类型别名和适配方法保留兼容；装备、商店、金库、任务奖励、拾取、翻牌、黑鸦/月湖奖励恢复、分解、装备制作/变换、物品使用和礼盒修复的事务编排归 `internal/workflow`。依赖守卫删除 E11/E12/E13/E14/E16/E24，另删除 quest→progression、loot→adventure/cashshop，剩余 10 条领域间依赖；未改业务规则、协议、SQL、JSON 字段、事务键或回执模型。Go 1.26 编译、vet、架构守卫通过；同步上游至本轮截止 647c3fd 后，两项 loot 既有失败恢复通过，最终全量测试仅剩 3 项 wireprobe 既有失败，详见架构重构计划第 17–18 节。未部署或操作玩家数据库，待用户手动回归，不升级 confirmed baseline。
 
+魔法封印装备解除已确认
+- 用户确认普通装备现可正常解除魔法封印。根因是存档身份重构后 CMD393 解封事件仍传入 PVF 目录哈希；改用角色契约身份后，随机属性正常写入并保留。
+- 手动会话角色21/槽37的 CMD393 曾因 `character event source mismatch` 被拒。修复后用户确认解封成功；独立 PostgreSQL 回归验证成功 ACK/NOTI14、属性重登保留、旧存档身份兼容及重复请求幂等。
+- 源码与 PVF 默认入口现均核对为 SHA256 `2e00530babeb9b6ed4e357efce6a663fefc6c1d9b7da31843e383c0f945e9c7d`，纳入本项 confirmed baseline。`go vet ./...` 及专项回归通过；全量 Go 测试5项在 HEAD overlay 对照中同样失败。未改 schema、客户端资源或玩家存档。详见 `server/work/dfo-lan/docs/protocol/magic-seal-save-identity-20261002.md`。
+
+
+## 2026-10-01
+- **边界收敛：workflow 第三切片——魔法封印解封（CMD393）**：`inventory.UnsealService`/`Unseal`/`UnsealReceipt` 移入 `workflow`（`workflow.UnsealService.Unseal`），由 workflow 持有 `storage` 句柄并读写持久化回执；inventory 只保留纯变换 `Bag.UnsealRandomOption`/`EquipmentRow`（其单测不变）。cmd 改用具 workflow 服务。`go build`/`go vet` 及 `workflow`/`inventory`/`archtest` 测试通过；wireprobe 仅剩上游既有 3 项失败；无 schema/存档/协议字节改动。
+- **边界收敛：workflow 第二切片——背包排序（CMD20）**：把 `inventory.WearService.SortBag` 移入 `workflow.SortBag`，由 workflow 持有 `storage` 句柄与事务，inventory 只保留纯变换 `SortItems`/`BagRules.Modelled`；cmd 排序流程改调 workflow。继续把「inventory 自己提交角色事务」的职责移出领域。`go build`/`go vet` 及 `workflow`/`inventory`/`archtest` 测试通过；wireprobe 仅剩上游既有 3 项失败；无 schema/存档/协议字节改动。
+- **边界收敛：引入 internal/workflow 编排层（首个切片：快捷栏堆叠移动）**：新增 L4 编排层 `internal/workflow`，由它持有 `internal/storage` 句柄、提交事务并调用领域纯逻辑；把 `inventory.MoveStack`/`MoveStackReceipt` 移入 `workflow.MoveStack`，`inventory` 只保留 `Bag.MoveStackRequest` 纯变换，cmd 快捷栏改调 workflow。守卫把 `internal/workflow` 登记为 L4（领域不得反向依赖），契约 §1/§4/§5 同步。`go build`/`go vet` 及 `workflow`/`inventory`/`archtest` 测试通过；无 schema/存档/协议字节改动。这是「跨领域流程移入编排层」方向的开端。
+- **撤销共享内核 internal/model（角色聚合不入 model 包）**：按维护者决定，删除 `internal/model` 包，不再用中立共享内核承载跨领域聚合；`Character` 由角色领域拥有，但在 character 领域完成 Store 倒置（E11，移除 `character → storage`）之前，暂以 `internal/storage` 自身的持久化行类型定义（`storage.Character`），调用点零改动。契约删除 LC 层与 R7，守卫同步移除 `internal/model` 基础设施项与 R7 断言。`go build`/`go vet` 及 `storage`/`character`/`inventory`/`archtest` 测试通过；无 schema/存档/协议字节改动。后续 character 完成倒置后再把该类型移入 character。
+- **边界收敛：同步上游并解耦 cmd 的 inventory 服务句柄（E12 准备）**：合入 `upstream/main 577ebf4`（领先 11 个提交），解决 4 处冲突（`CHANGELOG`、`cmd/wireprobe/main.go`、`internal/gamedata/source.go`、`internal/inventory/shop_service.go`），保留双方意图：`worldSession.store` 与上游值类型 `omenState` 并存、上游投影缓存壳改调 `rosterbg.ImportTickets`、`shop_service` 合并 `SaveIdentity()` 与 `db.Tx`。cmd 的 vault/wear 流程改用 `worldSession.store`（或组合根 `characters.Store`）提交存储事件，不再经 `VaultService.Store`/`WearService.Store`，为下一步 inventory 声明领域 `Store` 接口解耦。依赖守卫 `internal/archtest`、`go vet ./...` 通过；`go test ./...` 仅有 5 个上游在 `577ebf4` 即失败（由上游 `4171f55` 引入、测试未同步）的用例，非本次合并引入。无 schema/存档/协议字节改动，未部署、未升级 confirmed baseline；inventory.Store 倒置（移动 `VaultState`/`AccountVaultState`、删 E12）未开始。
+- **边界收敛第四批：中立事务层 internal/db（移除驱动类型泄漏）**：新增 `internal/db`（`Tx`/`Row`/`Result` 中立原语），`storage` 用适配器把 `pgx.Tx` 包成 `db.Tx`；`CommitCharacterEventTx`/`CommitAccountMaterialEventTx`/`UnlockRosterBackground`/`RecordShopPurchase` 的事务回调参数由 `pgx.Tx` 改为 `db.Tx`，调用方（`inventory`、`cmd/wireprobe`）同步。领域声明 `Store` 接口时不再需要 import 数据库驱动。全量 `go test ./...`（32 包）、`go vet ./...` 通过；无 SQL/schema/存档/协议行为改动。
+- **边界收敛第三批：共享内核 internal/model（路线 A）**：为解开剩余 R2 倒置的 `character ↔ inventory` 环，新增中立纯数据包 `internal/model`，`Character` 聚合移入其中；`storage` 用类型别名兼容（调用点零改动）。契约新增 LC 共享内核层与 R7（只放纯数据、不 import 任何 internal 包），守卫对 `internal/model` 强制 R7。全量 `go test ./...`（32 包）、`go vet ./...` 通过；无运行时行为/schema/存档/协议改动。
+- **边界收敛第二批：world 存储倒置（E15）**：`internal/world` 声明自己的 `Store` 接口（`LoadWorld`），由 `internal/storage` 实现并在 bootstrap 注入；`WorldPosition`/`WorldState`/`WorldReturn` 类型改由 `world` 拥有，`storage` 以类型别名复用（迁移期，调用点零改动）。同时把 cmd 中把 `world.Service.Store` 当通用 storage 句柄的越权用法收回为独立的 `worldSession.store`。收益：`world` 不再依赖 `storage`，新增内存假 `Store` 单测证明领域可脱离 PostgreSQL 测试；换库时 world 持久化只动 `storage` 一处。守卫允许清单删除 E15，契约 §7.2 标记消除。全量 `go test ./...`（32 包）、`go vet ./...` 通过；无存储/schema/存档/协议字节改动，未部署。
+- **边界收敛第一批：消除基础设施→领域反依赖（E01–E04）**：把 `game/protocol` 与 `catalog` 中领域耦合的编解码/投影移回领域：`SeasonLevelHistory`/`SeasonOathHistory`→`internal/adventure/season_wire.go`，`ProfileSkinRestore`→`internal/profileskin/restore.go`，选角背景选择/恢复/解码→`internal/rosterbg/wire.go`，`ImportRosterBackgroundTickets`→`internal/rosterbg/import.go`；字节布局原样搬移，调用点（均在 `cmd/wireprobe`）与测试随之迁移。依赖守卫允许清单删除 E01–E04，契约 §7.1 标记消除。全量 `go test ./...`（32 包）、`go vet ./...` 通过；无存储/schema/存档/协议字节改动，未部署、未升级 confirmed baseline。
+- **服务端依赖边守卫（archtest）**：新增 `server/work/dfo-lan/internal/archtest/contract_test.go` 的 `TestDependencyContract`，把依赖契约 §2 的规则变成可执行断言：R1 纯基础设施不得依赖领域、R2 领域不得依赖 `storage`、R4 领域间协作必须显式、R6 领域不得依赖组合/工具层；允许清单 = 契约 §7 例外清单，并带"过期条目"检查强制只减不增。守卫复核时补齐一条此前遗漏的真实例外 `cashshop → inventory`，并同步契约（新增 `derivedcache`/`savecontract` 基础设施包、基线更新为 `8e627f5`）。全量 `go test ./...`（31 包）、`go vet ./...` 通过。仅新增测试与文档，不改运行时代码、schema、存档、协议或客户端资源，未部署、未升级 confirmed baseline。
+奥德赛清怪不结算修复 + 身份口径二次审计
 - 用户实机确认：奥德赛第一图（`Streaming Forest` / dungeon 100004934）清完小怪正常结算、传送门开启；装备/武器箱/药水发放正常。
 - **根因是身份口径误用**（不是清场逻辑）：`internal/loot/session.go` 的 `Death()`（每只怪死亡结算入口）把运行期目录对象 `s.Currency.Source`（内层真哈希 `be95d64e…`）与契约身份 `SaveIdentity()`（`c638346f…`）比较，**恒不相等** ⇒ 奥德赛副本每只小怪死亡结算第一步就返回错误：掉落/经验/奥德赛币全丢、客户端拿不到结算 ⇒ 清完怪不开门。实机日志每秒刷 `dungeon_request_refused: Odyssey currency source mismatch`。同一形态还有 `internal/loot/pickup.go` 的奥德赛币拾取检查（`currency pickup policy mismatch`）。
 - 该行来自**两次批量替换**：`4171f55` 把 `session.go` 那处由 `Checksum` 改成 `SaveIdentity()`；`pickup.go` 那处来自更早的 `07e1551`。判据以 `internal/savecontract` 的三级分级为准：L1 存档身份 = `Identity()`/`SaveIdentity()`，L3 运行时校验 = 内层哈希 `Checksum`（**仅启动期自检**）；两个运行期目录对象之间比的是 L3，必须用 `.Checksum`。
@@ -34,33 +54,26 @@
 - 清理 3 处**恒假冗余检查**（`odyssey_rewards.go` 的 `applyOdysseyArmor` / `applyOdysseyCreatePotion`、`odyssey_weapon_box.go` 的 `applyOdysseyWeaponChoice`）：`X.Source.SaveIdentity() != savecontract.Identity()` 两侧恒等、等于不写；用户实机确认这三条发放路径本就正常。同时把 `odyssey_create_potion_test.go` 里"名不副实"的目录校验断言改成显式钉住真实行为。
 - 验证：`go build`/`go vet` 全量通过；`internal/loot`（此前 2 项 Odyssey 失败转绿）、`internal/quest`、`internal/savecontract`、`cmd/wireprobe -run Odyssey` 全绿；全量 `go test -p 1` 仅剩 3 项 `cmd/wireprobe` 陈旧门禁期望（4171f55 把 `verifyPVFCatalog` 由熔断降级为警告后未同步，与本次改动无关）。
 
-## 2026-10-01：副本结算后回城/进入下个副本已确认
-
+副本结算后回城/进入下个副本已确认
 - 用户确认“能离开副本/进入下一个副本了”。根因是 CMD72 成功回包漏掉客户端公共分发器先消费的成功字节，导致回城/下一任务状态和选项错位；现恢复完整 `01 state option` 包络。验收覆盖任务3189关联副本，不外推为所有副本均逐一实测。
 - 权威 IDB 接收链、CMD72 handler/UI setter 已闭环，并与当前 `DFO.exe` 相关字节逐字节核验。加密传输 cursor 回归覆盖状态/选项，修正前 overlay 对照会失败；用户手动实机确认可离开副本并进入下个副本。详见 `server/work/dfo-lan/docs/protocol/settlement-exit-envelope-20261001.md`。
 - 源码候选 `wireprobe-handoff-source.exe` SHA256 `9594b7440046e106337bc5de66277d5931bf3a08202f40bb9d3b6671148cb75b` 纳入本项 confirmed baseline；确认时默认 `wireprobe-pvf.exe` 也为同一哈希。`go vet ./...` 与专项测试通过；全量测试5项在还原修复前代码的 overlay 对照中同样失败。本次不改数据库 schema、角色存档或客户端资源。
 
-## 2026-10-01：装备调适（CMD2258）直读 PVF 落地并实机确认
-
+装备调适（CMD2258）直读 PVF 落地并实机确认
 - 用户确认修复：左侧 Tune/Promote 面板按成功刷新，并出现调适过程的动画。新增 `cmd 2258 ENUM_CMDPACKET_EQUIPMENT_AWAKENING` 服务端闭环，规则数据**全部直读内层 PVF**（`etc/115lvability/equipmentawakeningoptionsystem.cos` 的 `[max awakening]`/`[condition]`/`[need materials]`/`[refund materials]`/`[rates]`/`[upgrade result]` 与 `equipmentawakeningoption.lst` 的 263 条选项），不新增也不依赖任何导出 JSON。
 - 协议按权威 IDB 闭环：请求体 25 字节（`+13` 模式、`+14..17` 材料组、`+18` 空间、`+19..20` 槽位、`+21..24` 目标模板），应答体 = `u8 状态 + u16 结果码`，**状态 1 = 成功**。客户端 handler 在状态 0 时会连面板一起复位（`sub_1414921F0(window,4)`），这正是实机最初"面板不刷新、无反馈"的根因；状态 1 走 `(window,3)`，只做 `sub_1414928D0` 的材料重查与面板刷新。
 - 调适阶段落在装备实例行 `+170`（与名望侧 `internal/character/fame.go` 同一映射），升品换模板并把该字节清零，其余实例字节与存档未知字段一律保留；材料 + 金币走同一个 PostgreSQL 事务（账号材料仓库优先、背包兜底），按 `(角色, 幂等键)` 防重放。
 - 实机（角色 11 / 模板 100261128）连续三次调适 `0→1→2→3` 成功，请求 hex `0000803f00000000d0fae94601000100000003110008ddf90500000000000000` 与实现逐字节一致（`payload_offset=13`）；纳入本轮 confirmed baseline。取证脚本与产物 `analysis/dumps/ida_awakening_2258{,b,c,d,e}.py`、`analysis/dumps/awakening-2258*/`，实现与验证清单见 `analysis/tasks/next148-装备调适-直读PVF实现.md`。
 - 本轮未做：`mode=1`（初始化/返还，源 `[refund materials]` 已读齐但缺客户端表现证据）、非 100% 成功率、套装积分（附件文档引用的 `internal/inventory/set_points.go` 在本仓库不存在）、CMD2259 装备转换里的调适联动。没有修改 schema、玩家存档结构或客户端资源。
 
-## 2026-10-01：弓箭手星座时装礼包漏发已确认
-
+弓箭手星座时装礼包漏发已确认
 - 用户确认修复。根因是 CMD160 客户端请求含8个选中时装模板；弓箭手第4模板小端首字节 `04` 被旧解析器误当成时装属性条数，ACK和入袋只处理前三件。依据权威 IDB 的原生 writer，为属性段增加模板属于所选列表的边界检查。两职业真实请求端到端回归均为8件，时装背包刷新及 ACK160一致，既有时装和角色存档其他字段保持。
 - 源码入口 `server/work/dfo-lan/bin/wireprobe-handoff-source.exe` SHA256 `6b15b723263f28ee50137046529b50d5605f38cdd9797533be88f7b4895ed8ab` 纳入本轮确认。默认 `wireprobe-pvf.exe` 也核对为SHA256 `6b15b723263f28ee50137046529b50d5605f38cdd9797533be88f7b4895ed8ab`；确认范围仅为该礼包弓箭手漏发修复及其它职业回归。
 - 全量专项测试和 `go vet ./...` 通过。全量 Go 测试仍有5项失败，修复前代码的 overlay 复核确认同样失败，未新增失败。没有修改 schema、玩家存档数据库或客户端资源；22:37:24实机会话 `roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261001_223606_846403_next37` 的角色1 ACK160记录 count=8，8个模板与弓箭手CMD160请求一致，随后角色10第44帧入场预检通过。确认范围限于该礼包的弓箭手漏发及其他职业的专项回归；以前已消耗礼包漏发的5件不自动补发。
 - 本次源码文件、协议原生向量、端到端回归、IDB函数索引及交接记录已收口；见 `server/work/dfo-lan/docs/protocol/archer-avatar-package-20261001.md`。
 
-
-
 ## 2026-10-01
-
 - **Cera 商城 Cera/金币购买已确认**：用户确认“能购买”。21:53:40 会话 roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261001_213843_140102_next37 记录 SKU3400476 金币订单 applied=true、扣100金币、Cera前后均921780，模板590721400×1到账；同一毫秒记录CMD64响应帧。此前普通Cera SKU3000127 已有扣10及模板10000540×1到账记录。金币修复源码SHA256 c518e50af555178018e85604eb45c814d77f0d108175b8c5170196b5f3e468b5 纳入商城购买confirmed baseline，通过启动游戏.cmd --source-build 使用；默认程序SHA256 ffda6686159700d293a1e9395190f218ce8f094a25208ed84fc7220b94e72263 保持。本次限定普通14列商品购买，扩容、特殊货币及所有商品未逐项验收。go vet通过；全量Go测试仍有改动前已存在的5项失败。无schema、玩家存档或客户端资源修改。详见 work/dfo-lan/docs/protocol/cera-shop-gold-purchase-20261001.md。
-
 - **Cera 普通购买身份修复已确认**：用户反馈 Cera 点券商品能买。20:51 会话的 20:53:26 日志记录角色13购买SKU3000127，Cera921790→921780，扣10点，模板10000540×1落袋，NOTI14/53及CMD64成功回执发出。商城订单改用存档契约身份，保留PVF目录校验及原子交易；候选源码入口SHA256 ffda6686159700d293a1e9395190f218ce8f094a25208ed84fc7220b94e72263纳入本次普通Cera购买confirmed baseline。背包/金库扩容和全部商城商品未逐项实机确认；金币商品后续修复及确认记录见cera-shop-gold-purchase-20261001.md。原生PVF独立库购买回归和vet通过，全量5项既有失败已在未修改HEAD复现。默认程序实际bc9ce992保持，未操作玩家数据库或客户端资源。详见work/dfo-lan/docs/protocol/cera-shop-save-identity-20261001.md。
 
 - **MR !125 换装登记适配并合并**：修复Buff登记在重新选择角色、进入地下城、重启游戏后丢失或失效的问题；登记保留与Buff加成的实机结果沿用原 MR 记录，本轮主线适配待手动回归。

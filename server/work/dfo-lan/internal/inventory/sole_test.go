@@ -124,7 +124,7 @@ func TestSoleQualityReceiptRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("write: %v", err)
 	}
-	got, err := readSoleQualityReceipt(state, "key-1")
+	got, err := ReadSoleQualityReceipt(state, "key-1")
 	if err != nil {
 		t.Fatalf("read: %v", err)
 	}
@@ -140,7 +140,7 @@ func TestSoleQualityReceiptRoundTrip(t *testing.T) {
 	if string(fields["level"]) != "115" {
 		t.Fatalf("unrelated field lost: %s", fields["level"])
 	}
-	if _, err := readSoleQualityReceipt(state, "key-2"); err == nil {
+	if _, err := ReadSoleQualityReceipt(state, "key-2"); err == nil {
 		t.Fatal("a mismatched key must not replay")
 	}
 }

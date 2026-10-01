@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/sha256"
+	"dfolan/internal/workflow"
 	"fmt"
 	"time"
 
@@ -21,7 +22,7 @@ import (
 // 继承结果的接收通道：kind=1 是客户端自己发的命令（没有接收 handler），
 // kind=0 那一侧的 handler 是小游戏道具计数通知，都与继承结果无关。
 // 取证见 internal/game/protocol/inherit.go 末尾的注释块。
-func (w *worldSession) inherit(service *inventory.WearService, p, raw []byte, event func(map[string]any)) ([]outboundPacket, error) {
+func (w *worldSession) inherit(service *workflow.WearService, p, raw []byte, event func(map[string]any)) ([]outboundPacket, error) {
 	if service == nil || w == nil || w.role.ID == 0 || w.activeDungeon != nil {
 		return nil, fmt.Errorf("装备继承需要已选角色且位于城镇")
 	}

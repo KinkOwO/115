@@ -3,7 +3,6 @@ package inventory
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"reflect"
 	"testing"
@@ -31,7 +30,7 @@ func knightDeckTestService(t *testing.T) *WearService {
 	return &WearService{Catalog: &EquipmentCatalog{Source: jobs.Source, Full: full}, Professions: jobs, Rules: rules, Shields: shields}
 }
 
-func knightRole(t *testing.T, s *WearService, deck [5]uint32) storage.Character {
+func knightRole(t *testing.T, s *WearService, deck [5]uint32) Role {
 	t.Helper()
 	b := Bag{Version: "ordinary-bag-v1", KnightShieldDeck: append([]uint32(nil), deck[:]...)}
 	if deck[0] != 0 {
@@ -41,7 +40,7 @@ func knightRole(t *testing.T, s *WearService, deck [5]uint32) storage.Character 
 	if e != nil {
 		t.Fatal(e)
 	}
-	return storage.Character{Profession: s.Shields.Profession, ConfigVersion: s.Catalog.Source.SaveIdentity(), State: raw}
+	return Role{Profession: s.Shields.Profession, ConfigVersion: s.Catalog.Source.SaveIdentity(), State: raw}
 }
 
 func TestKnightShieldDeck(t *testing.T) {

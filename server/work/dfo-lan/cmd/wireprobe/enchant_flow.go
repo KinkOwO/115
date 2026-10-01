@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
+	"dfolan/internal/workflow"
 	"fmt"
 	"time"
 )
@@ -42,7 +43,7 @@ const (
 // 请求 16 字节：u8 宝珠空间 + u16 宝珠槽 + u8 装备空间 + u16 装备槽。
 // 成功回包 4 字节：status(1) + u8 装备空间 + u16 装备槽（客户端 handler 只读这两个字段）。
 // 成功后照既有约定补发宝珠行/装备行刷新 —— 附魔属性靠刷新行重新反序列化后显示。
-func (w *worldSession) enchantByBead(service *inventory.WearService, p, raw []byte, event func(map[string]any)) ([]outboundPacket, error) {
+func (w *worldSession) enchantByBead(service *workflow.WearService, p, raw []byte, event func(map[string]any)) ([]outboundPacket, error) {
 	if service == nil || w == nil || w.role.ID == 0 || w.activeDungeon != nil {
 		return nil, fmt.Errorf("附魔需要已选角色且位于城镇")
 	}

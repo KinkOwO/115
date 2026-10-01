@@ -12,7 +12,7 @@ func (p *Pilot) StorageCatalog(base catalog.LootCatalog) (catalog.LootCatalog, e
 	if p == nil || base.Source.Checksum != p.Config.Source.Checksum {
 		return base, fmt.Errorf("storage catalog source mismatch")
 	}
-	if e := p.Config.validate(); e != nil {
+	if e := p.Config.Validate(); e != nil {
 		return base, e
 	}
 	out := base

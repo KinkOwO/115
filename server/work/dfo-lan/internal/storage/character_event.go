@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"dfolan/internal/adventure"
+	"dfolan/internal/db"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -45,7 +46,7 @@ func (s *Store) CommitCharacterEvent(ctx context.Context, account, id int64, ver
 // apply 在角色行已被 FOR UPDATE 锁住时执行，且只在**首次**应用时调用
 // （重发的同 key 请求走幂等回执路径，不会重跑 apply）。
 func (s *Store) CommitCharacterEventTx(ctx context.Context, account, id int64, version, key, model string,
-	apply func(pgx.Tx, Character) (json.RawMessage, json.RawMessage, error)) (Character, bool, error) {
+	apply func(db.Tx, Character) (json.RawMessage, json.RawMessage, error)) (Character, bool, error) {
 	if apply == nil {
 		return Character{}, false, fmt.Errorf("character event 缺少处理函数")
 	}
@@ -66,7 +67,7 @@ func (s *Store) CommitCharacterPremiumEvent(ctx context.Context, account, id int
 
 func (s *Store) commitCharacterEvent(ctx context.Context, account, id int64, version, key, model string,
 	apply func(Character) (json.RawMessage, json.RawMessage, error),
-	txApply func(pgx.Tx, Character) (json.RawMessage, json.RawMessage, error),
+	txApply func(db.Tx, Character) (json.RawMessage, json.RawMessage, error),
 	premiums func() []CashPremiumActivation) (Character, bool, error) {
 	var role Character
 	decoded, e := hex.DecodeString(version)
@@ -124,7 +125,7 @@ func (s *Store) commitCharacterEvent(ctx context.Context, account, id int64, ver
 	}
 	var state, outcome json.RawMessage
 	if txApply != nil {
-		state, outcome, e = txApply(tx, role)
+		state, outcome, e = txApply(pgxTx{tx}, role)
 	} else {
 		state, outcome, e = apply(role)
 	}

@@ -6,6 +6,7 @@ import (
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/storage"
+	"dfolan/internal/workflow"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -214,7 +215,7 @@ func (w *worldSession) equipmentCraft(p []byte, event func(map[string]any)) ([]o
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		saved, receipt, applied, e := w.loot.TransformEquipment(ctx, w.role, slots, templates, int(r.PayOption))
+		saved, receipt, applied, e := (&workflow.LootService{Store: w.store, Loot: w.loot}).TransformEquipment(ctx, w.role, slots, templates, int(r.PayOption))
 		if e != nil {
 			log.Printf("equipment craft TRANSFORM-REFUSED: requested=%d: %v", len(templates), e)
 			if event != nil {
@@ -272,7 +273,7 @@ func (w *worldSession) equipmentCraft(p []byte, event func(map[string]any)) ([]o
 	// 第二步 = 执行「装备生成」：模板必须已在账本登记，成本来自 [create cost] 表。
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	saved, receipt, applied, e := w.loot.CreateEquipment(ctx, w.role, templates[0], slots[0], int(r.PayOption))
+	saved, receipt, applied, e := (&workflow.LootService{Store: w.store, Loot: w.loot}).CreateEquipment(ctx, w.role, templates[0], slots[0], int(r.PayOption))
 	if e != nil {
 		// [ALIGN-20260930-CRAFT-VISIBLE] 拒绝**不能吞** —— 但**也不能瞎回包**。
 		//
@@ -325,7 +326,7 @@ func (w *worldSession) equipmentCraft(p []byte, event func(map[string]any)) ([]o
 	// ★ 刷新要同时覆盖**两个仓**：背包（新装备 + 金币）与**账号共享材料库**
 	// （三档登记证就在那里扣的）。`accountMaterialRefreshPackets` 正好按
 	// list35 → list42 → list0 的顺序发，客户端靠最后那包做结算。
-	accountRaw, e := w.loot.Store.AccountMaterials(ctx, saved.AccountID)
+	accountRaw, e := w.store.AccountMaterials(ctx, saved.AccountID)
 	if e != nil {
 		log.Printf("equipment craft: read account materials after craft: %v", e)
 		return plan, nil
@@ -384,7 +385,7 @@ func (w *worldSession) journalRules() *catalog.EquipmentJournalRules {
 //
 // 幂等：同一个请求重放时 CommitCharacterEvent 命中回执，不再重复写账本；应答照发。
 func (w *worldSession) equipmentFavorite(p []byte) ([]outboundPacket, error) {
-	if w == nil || w.loot == nil || w.loot.Store == nil {
+	if w == nil || w.loot == nil || w.store == nil {
 		return nil, fmt.Errorf("equipment journal unavailable")
 	}
 	if w.role.ID <= 0 || w.account <= 0 || w.role.AccountID != w.account {
@@ -402,7 +403,7 @@ func (w *worldSession) equipmentFavorite(p []byte) ([]outboundPacket, error) {
 	key := fmt.Sprintf("journal-favorite:%d:%d:%d:%d", r.Category, slots[0], slots[1], slots[2])
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	saved, _, e := w.loot.Store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID,
+	saved, _, e := w.store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID,
 		w.role.ConfigVersion, key, "equipment-journal-v1",
 		func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
 			ledger, e := inventory.ReadEquipmentJournal(current.State)

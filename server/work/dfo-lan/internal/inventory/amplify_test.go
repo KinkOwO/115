@@ -53,14 +53,14 @@ func TestAmplifyGrimoireRecognition(t *testing.T) {
 	}
 }
 
-// classifyAmplifyBook：客户端只会对「增幅书」发 CMD205，所以「不在 433 加权表里」
+// ClassifyAmplifyBook：客户端只会对「增幅书」发 CMD205，所以「不在 433 加权表里」
 // （脚本没有 [amplification random value] 段）的模板一律按**纯净增幅书**兜底，而不是拒绝。
 // 回归：除 1286 外，玩家实测用过的其它纯书（590704000 等）也要能识别。
 func TestClassifyAmplifyBookFallsBackToPure(t *testing.T) {
 	loadGrimoiresForTest(t)
 
 	// 普通 / 白银书：不是 golden / pure，value 落在 3..6。
-	g, p, v := classifyAmplifyBook(10356325)
+	g, p, v := ClassifyAmplifyBook(10356325)
 	if g || p {
 		t.Errorf("白银书 10356325 不该是 golden/pure（g=%v p=%v）", g, p)
 	}
@@ -70,18 +70,18 @@ func TestClassifyAmplifyBookFallsBackToPure(t *testing.T) {
 
 	// 已登记的纯书（1286）与实测用过的其它纯书（590704000、10356261…）→ pure。
 	for _, tpl := range []uint32{1286, 590704000, 10356261, 10354248, 10360807, 10000605} {
-		if _, pure, _ := classifyAmplifyBook(tpl); !pure {
+		if _, pure, _ := ClassifyAmplifyBook(tpl); !pure {
 			t.Errorf("纯书 %d 应判为 pure", tpl)
 		}
 	}
 
 	// 黄金书 → golden；★ 它**不是** pure（本服按摇值即等级处理，不并入纯净）。
-	if golden, pure, _ := classifyAmplifyBook(50002538); !golden || pure {
+	if golden, pure, _ := ClassifyAmplifyBook(50002538); !golden || pure {
 		t.Error("50002538（golden）应判为 golden")
 	}
 
 	// ★ 兜底：完全不在清单、也没有增幅段的模板 → pure（不拒绝）。
-	g, p, v = classifyAmplifyBook(999999)
+	g, p, v = ClassifyAmplifyBook(999999)
 	if !p || g {
 		t.Errorf("未知模板 999999 应兜底判为 pure（g=%v p=%v v=%d）", g, p, v)
 	}

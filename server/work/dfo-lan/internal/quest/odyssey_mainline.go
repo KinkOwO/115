@@ -1,11 +1,8 @@
 package quest
 
 import (
-	"context"
 	"dfolan/internal/catalog"
 	"dfolan/internal/character"
-	"dfolan/internal/savecontract"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 )
@@ -38,29 +35,19 @@ func OdysseyMainlinePlan(g *catalog.OdysseyGrowth, profession byte, level byte) 
 	return clear, branches, nil
 }
 
-// OdysseyMainline applies the plan: it writes the cleared rows (idempotent,
-// existing rows untouched, progress_model='odyssey-skip-v1') and returns the
-// branch quests that remain reachable. Branch quests are not written; they are
-// reported so the operator can audit that the level 115 abyss guide survived.
-func (s *Service) OdysseyMainline(ctx context.Context, role storage.Character) (int, []uint16, error) {
-	if s.Odyssey == nil || s.Store == nil || !character.CreatedAsOdyssey(role) {
-		return 0, nil, nil
+// RoleMainlinePlan returns the quests to clear and the branch quests that must
+// remain reachable. Persistence belongs to workflow.
+func (s *Service) RoleMainlinePlan(role character.Character) ([]uint16, []uint16, bool, error) {
+	if s.Odyssey == nil || !character.CreatedAsOdyssey(role) {
+		return nil, nil, false, nil
 	}
 	var state character.State
 	if e := json.Unmarshal(role.State, &state); e != nil {
-		return 0, nil, e
+		return nil, nil, false, e
 	}
 	clear, branches, e := OdysseyMainlinePlan(s.Odyssey, role.Profession, state.Level)
 	if e != nil {
-		return 0, nil, e
+		return nil, nil, false, e
 	}
-	// ⚠️ `ClearQuests` 的 version 是 **L1 存档身份**：它去匹配 `character_quests.config_version`，
-	// 而该列在存里是契约身份（`savecontract.Identity()`）。`OdysseyGrowth.Source` 存的是
-	// **内层真哈希**（`ImportOdysseyGrowth` 按 `a.Snapshot().Checksum` 赋值）⇒ 直接传它
-	// **恒不匹配**，主线清任务会静默清 0 行（返回 0 且不报错）。
-	cleared, e := s.Store.ClearQuests(ctx, role.AccountID, role.ID, savecontract.Identity(), clear)
-	if e != nil {
-		return 0, nil, e
-	}
-	return cleared, branches, nil
+	return clear, branches, true, nil
 }

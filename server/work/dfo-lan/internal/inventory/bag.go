@@ -117,6 +117,10 @@ type BagItem struct {
 	ExpireTime       uint32 `json:"expire_time,omitempty"`
 }
 type Bag struct {
+	// Old inventories omit the sequence and start at zero. It distinguishes
+	// repeated compounds using stacks that keep the same slots and templates.
+	EmblemCompoundSeq uint64 `json:"emblem_compound_seq,omitempty"`
+
 	Expansion byte                    `json:"expansion,omitempty"`
 	Version   string                  `json:"version"`
 	Gold      uint32                  `json:"gold"`
@@ -170,6 +174,12 @@ type Bag struct {
 	// 玩家看到的就是「替换不生效、状态停在 B」（实机 2026-09-27）。
 	// 把序号一起编进键，每次真实切换都是新键；序号本身不参与任何投影。
 	WeaponSkinSeq uint32 `json:"weapon_skin_seq,omitempty"`
+	// AvatarDisjointSeq separates successive instances of the same avatar in
+	// the same slot. Old saves begin at zero; it is not sent to the client.
+	AvatarDisjointSeq uint64 `json:"avatar_disjoint_seq,omitempty"`
+	// Old saves start at zero. Successive opening operations get distinct receipts.
+	AvatarSocketSeq uint64 `json:"avatar_socket_seq,omitempty"`
+	AvatarRecastSeq uint64 `json:"avatar_recast_seq,omitempty"`
 }
 
 // WeaponSlot 是穿戴容器（list 3）里的武器槽。[equipment type] 的序号空间里

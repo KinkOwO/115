@@ -18,7 +18,7 @@ func (w *worldSession) registerAdventureCollection(ctx context.Context, p, raw [
 	if err != nil {
 		return nil, err
 	}
-	if w.characters == nil || w.characters.Store == nil || w.quests == nil || w.role.ID == 0 || w.role.AccountID != w.account {
+	if w.characters == nil || w.store == nil || w.quests == nil || w.role.ID == 0 || w.role.AccountID != w.account {
 		return nil, fmt.Errorf("图鉴登记缺少当前账号角色或任务目录")
 	}
 	if r.Category != 1 {
@@ -45,7 +45,7 @@ func (w *worldSession) registerAdventureCollection(ctx context.Context, p, raw [
 		return nil, err
 	}
 	key := fmt.Sprintf("adventure-collection-guide:%s:%x", prefix, sha256.Sum256(raw))
-	saved, profile, _, err := w.characters.Store.CommitAdventure(ctx, w.account, w.role.ID, key,
+	saved, profile, _, err := w.store.CommitAdventure(ctx, w.account, w.role.ID, key,
 		func(role storage.Character, profile *storage.AccountAdventure) (json.RawMessage, json.RawMessage, error) {
 			receipt, e := json.Marshal(map[string]any{"category": r.Category, "slot": r.Slot, "template": template})
 			if e != nil {

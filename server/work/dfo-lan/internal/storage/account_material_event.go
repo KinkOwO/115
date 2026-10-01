@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"dfolan/internal/db"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -28,7 +29,7 @@ import (
 // 与 CommitCharacterEventTx 同一动机：NPC 商店的**材料支付**路径也要在同一事务里
 // 校验并记录限购（多数限购商品是 account/accumulate 的材料货）。
 func (s *Store) CommitAccountMaterialEventTx(ctx context.Context, account, id int64, version, key, model string,
-	apply func(pgx.Tx, Character, json.RawMessage) (json.RawMessage, json.RawMessage, error)) (Character, json.RawMessage, bool, error) {
+	apply func(db.Tx, Character, json.RawMessage) (json.RawMessage, json.RawMessage, error)) (Character, json.RawMessage, bool, error) {
 	if apply == nil {
 		return Character{}, nil, false, fmt.Errorf("account material event 缺少处理函数")
 	}
@@ -40,7 +41,7 @@ func (s *Store) CommitAccountMaterialEvent(ctx context.Context, account, id int6
 }
 
 func (s *Store) commitAccountMaterialEvent(ctx context.Context, account, id int64, version, key, model string,
-	txApply func(pgx.Tx, Character, json.RawMessage) (json.RawMessage, json.RawMessage, error),
+	txApply func(db.Tx, Character, json.RawMessage) (json.RawMessage, json.RawMessage, error),
 	apply func(Character, json.RawMessage) (json.RawMessage, json.RawMessage, error)) (Character, json.RawMessage, bool, error) {
 	var role Character
 	decoded, e := hex.DecodeString(version)
@@ -81,7 +82,7 @@ func (s *Store) commitAccountMaterialEvent(ctx context.Context, account, id int6
 	}
 	var state, updated json.RawMessage
 	if txApply != nil {
-		state, updated, e = txApply(tx, role, counts)
+		state, updated, e = txApply(pgxTx{tx}, role, counts)
 	} else {
 		state, updated, e = apply(role, counts)
 	}

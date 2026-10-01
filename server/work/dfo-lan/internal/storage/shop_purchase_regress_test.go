@@ -2,13 +2,12 @@ package storage
 
 import (
 	"context"
+	"dfolan/internal/db"
 	"encoding/json"
 	"fmt"
 	"os"
 	"testing"
 	"time"
-
-	"github.com/jackc/pgx/v5"
 )
 
 // CommitCharacterEventTx 必须能工作：它的 apply 为 nil、txApply 非 nil。
@@ -52,7 +51,7 @@ func TestCommitCharacterEventTxAcceptsNilApply(t *testing.T) {
 	// 只是走到「校验参数」那一步就会暴露问题：apply 为 nil 时不该提前返回。
 	// 用不存在的账号，预期失败于「查不到角色」而非「invalid character event」。
 	_, _, e := s.CommitCharacterEventTx(ctx, 1, 1, "0000000000000000000000000000000000000000000000000000000000000000", "probe", "probe-model",
-		func(tx pgx.Tx, c Character) (json.RawMessage, json.RawMessage, error) {
+		func(tx db.Tx, c Character) (json.RawMessage, json.RawMessage, error) {
 			return json.RawMessage(`{}`), json.RawMessage(`{}`), nil
 		})
 	if e == nil {

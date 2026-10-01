@@ -687,13 +687,13 @@ func skinFavoriteAnswer(echo, favorites []byte) []outboundPacket {
 func (w *worldSession) skinFamilyRestoreFrames(ctx context.Context) []outboundPacket {
 	var out []outboundPacket
 	for _, frame := range skinFamilyTable {
-		cargo, push, e := skinFamilyCargo(ctx, w.characters.Store, w.role.AccountID, w.role.ID,
+		cargo, push, e := skinFamilyCargo(ctx, w.store, w.role.AccountID, w.role.ID,
 			w.skinCatalog, frame)
 		if e != nil || !push {
 			continue
 		}
 		out = append(out, outboundPacket{"dungeon_skin_cargo_family_restored", 0, 1545, cargo})
-		selection, e := restoreSkinFamilySelection(ctx, w.characters.Store, w.role.ID, w.role.AccountID,
+		selection, e := restoreSkinFamilySelection(ctx, w.store, w.role.ID, w.role.AccountID,
 			w.skinCatalog, frame)
 		if e != nil || selection == nil {
 			continue

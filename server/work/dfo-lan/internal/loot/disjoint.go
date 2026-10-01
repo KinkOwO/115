@@ -1,12 +1,10 @@
 package loot
 
 import (
-	"context"
 	"crypto/sha256"
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -133,20 +131,18 @@ func journalRegistrations(
 	return ledger, added, skipped, nil
 }
 
-func (s *Service) Disjoint(
-	ctx context.Context,
-	role storage.Character,
-	r protocol.DisjointItemRequest,
-) (storage.Character, DisjointReceipt, bool, error) {
-	var result DisjointReceipt
-	fail := func(e error) (storage.Character, DisjointReceipt, bool, error) {
-		return role, result, false, e
-	}
+type DisjointPlan struct {
+	Key         string
+	Slots       []uint16
+	Definitions inventory.EquipmentDefinitioner
+}
+
+func (s *Service) PlanDisjoint(role Role, r protocol.DisjointItemRequest) (DisjointPlan, error) {
 	if role.ConfigVersion != s.Catalog.Source.SaveIdentity() {
-		return fail(fmt.Errorf("inventory source mismatch"))
+		return DisjointPlan{}, (fmt.Errorf("inventory source mismatch"))
 	}
 	if len(r.Items) == 0 {
-		return fail(fmt.Errorf("empty disjoint request"))
+		return DisjointPlan{}, (fmt.Errorf("empty disjoint request"))
 	}
 
 	slots := make([]uint16, len(r.Items))
@@ -168,76 +164,62 @@ func (s *Service) Disjoint(
 	// （见下面那个校验）⇒ **整批被拒**（装备没删、图鉴没登记）。
 	// 实测 2026-09-30 02:36:48 / 02:41:48 各一次 —— 用户看到的就是"分解了却没入库"。
 	key := disjointEventKey(r.ToolSlot, r.Items)
-	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID,
-		s.Catalog.Source.SaveIdentity(), key, s.Rules.Model,
-		func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
-			b, e := inventory.ReadBag(current.State)
-			if e != nil {
-				return nil, nil, e
-			}
-			// 登记用的是**背包里那一行**的模板（见 journalRegistrations 的纪律 1）。
-			// 删除之后这一行就没了，所以必须在 Disjoint 之前先按槽位记下来。
-			bySlot := make(map[uint16]uint32, len(b.Equipment))
-			for _, row := range b.Equipment {
-				bySlot[row.Slot] = row.Template
-			}
-			b, res, e := b.Disjoint(s.Catalog, s.BagRules, s.Equipment, slots, r.ToolSlot)
-			if e != nil {
-				return nil, nil, e
-			}
-			updated, e := inventory.SaveBag(current.State, b)
-			if e != nil {
-				return nil, nil, e
-			}
-			// 收录与"扣装备 / 发材料"在**同一个 apply 回调**里 ⇒ 同生共死，不存在
-			// "装备扣了、收录没写"或"收录写了、材料没发"的半状态。
-			ledger, e := inventory.ReadEquipmentJournal(updated)
-			if e != nil {
-				return nil, nil, e
-			}
-			ledger, added, skipped, e := journalRegistrations(ledger, bySlot, res.DeletedSlots, defs, s.Journal)
-			if e != nil {
-				return nil, nil, e
-			}
-			if len(added) > 0 {
-				raw, e := inventory.SaveEquipmentJournal(updated, ledger)
-				if e != nil {
-					return nil, nil, e
-				}
-				updated = raw
-			}
-			var rewards []protocol.DisjointRewardEntry
-			for _, rw := range res.Rewards {
-				rewards = append(rewards, protocol.DisjointRewardEntry{
-					Slot:     rw.Slot,
-					Template: rw.Template,
-					Count:    rw.Count,
-				})
-			}
-			result = DisjointReceipt{
-				DeletedSlots:   res.DeletedSlots,
-				ToolSlot:       res.ToolSlot,
-				Rewards:        rewards,
-				Source:         s.Catalog.Source.SaveIdentity(),
-				JournalAdded:   added,
-				JournalSkipped: skipped,
-			}
-			receipt, e := json.Marshal(result)
-			return updated, receipt, e
+	return DisjointPlan{Key: key, Slots: slots, Definitions: defs}, nil
+}
+func (s *Service) PrepareDisjoint(current Role, r protocol.DisjointItemRequest, plan DisjointPlan) (json.RawMessage, json.RawMessage, error) {
+	var result DisjointReceipt
+	slots, defs := plan.Slots, plan.Definitions
+	b, e := inventory.ReadBag(current.State)
+	if e != nil {
+		return nil, nil, e
+	}
+	// 登记用的是**背包里那一行**的模板（见 journalRegistrations 的纪律 1）。
+	// 删除之后这一行就没了，所以必须在 Disjoint 之前先按槽位记下来。
+	bySlot := make(map[uint16]uint32, len(b.Equipment))
+	for _, row := range b.Equipment {
+		bySlot[row.Slot] = row.Template
+	}
+	b, res, e := b.Disjoint(s.Catalog, s.BagRules, s.Equipment, slots, r.ToolSlot)
+	if e != nil {
+		return nil, nil, e
+	}
+	updated, e := inventory.SaveBag(current.State, b)
+	if e != nil {
+		return nil, nil, e
+	}
+	// 收录与"扣装备 / 发材料"在**同一个 apply 回调**里 ⇒ 同生共死，不存在
+	// "装备扣了、收录没写"或"收录写了、材料没发"的半状态。
+	ledger, e := inventory.ReadEquipmentJournal(updated)
+	if e != nil {
+		return nil, nil, e
+	}
+	ledger, added, skipped, e := journalRegistrations(ledger, bySlot, res.DeletedSlots, defs, s.Journal)
+	if e != nil {
+		return nil, nil, e
+	}
+	if len(added) > 0 {
+		raw, e := inventory.SaveEquipmentJournal(updated, ledger)
+		if e != nil {
+			return nil, nil, e
+		}
+		updated = raw
+	}
+	var rewards []protocol.DisjointRewardEntry
+	for _, rw := range res.Rewards {
+		rewards = append(rewards, protocol.DisjointRewardEntry{
+			Slot:     rw.Slot,
+			Template: rw.Template,
+			Count:    rw.Count,
 		})
-	if e != nil {
-		return fail(e)
 	}
-	receipt, e := s.Store.CharacterEventReceipt(ctx, role.AccountID, role.ID, key)
-	if e != nil {
-		return fail(e)
+	result = DisjointReceipt{
+		DeletedSlots:   res.DeletedSlots,
+		ToolSlot:       res.ToolSlot,
+		Rewards:        rewards,
+		Source:         s.Catalog.Source.SaveIdentity(),
+		JournalAdded:   added,
+		JournalSkipped: skipped,
 	}
-	if e = json.Unmarshal(receipt, &result); e != nil {
-		return fail(e)
-	}
-	if result.Source != s.Catalog.Source.SaveIdentity() || len(result.DeletedSlots) != len(slots) {
-		return fail(fmt.Errorf("disjoint receipt conflict"))
-	}
-	saved.WireID = role.WireID
-	return saved, result, applied, nil
+	receipt, e := json.Marshal(result)
+	return updated, receipt, e
 }

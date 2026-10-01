@@ -4,6 +4,7 @@ import (
 	"context"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
+	"dfolan/internal/workflow"
 	"fmt"
 	"time"
 )
@@ -27,7 +28,7 @@ func (w *worldSession) useStackable(p []byte, event func(map[string]any)) ([]out
 	if e != nil {
 		return nil, e
 	}
-	saved, receipt, _, e := w.loot.Consume(ctx, w.role, r)
+	saved, receipt, _, e := (&workflow.LootService{Store: w.store, Loot: w.loot}).Consume(ctx, w.role, r)
 	if e != nil {
 		return nil, e
 	}

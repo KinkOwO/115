@@ -3,7 +3,7 @@ package character
 import (
 	"bytes"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
+
 	"encoding/hex"
 	"encoding/json"
 	"testing"
@@ -90,7 +90,7 @@ func TestCreationOptionsLegacyAndUnknown(t *testing.T) {
 }
 
 func TestDualModeProjection(t *testing.T) {
-	role := storage.Character{
+	role := Character{
 		Request: []byte{0, 4, 0, 0, 0, 't', 'e', 's', 't', 0, 0, 0, 0, 0, 0, 255, 0, 1, 0, 2, 0, 0, 0, 0},
 	}
 	s := Service{}

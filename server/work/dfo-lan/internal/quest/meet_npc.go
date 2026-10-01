@@ -3,7 +3,7 @@ package quest
 import (
 	"context"
 	"dfolan/internal/catalog"
-	"dfolan/internal/storage"
+	"dfolan/internal/character"
 	"fmt"
 )
 
@@ -43,7 +43,7 @@ func AllowsRemoteNPCInteraction(d catalog.QuestDefinition) bool {
 
 // The world handler supplies a source NPC present in the owned town area.
 // A request never chooses its own progress, reward, or arbitrary NPC identity.
-func (s *Service) MeetNPC(ctx context.Context, role storage.Character, id uint16, npc uint32) error {
+func (s *Service) MeetNPC(ctx context.Context, role character.Character, id uint16, npc uint32) error {
 	d, ok := s.Catalog.Quests[uint32(id)]
 	if !ok {
 		return fmt.Errorf("unknown quest")

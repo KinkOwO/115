@@ -3,7 +3,6 @@ package character
 import (
 	"context"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 )
 
 func (s *Service) ChangeSlot(ctx context.Context, account int64, p []byte) error {
@@ -11,7 +10,7 @@ func (s *Service) ChangeSlot(ctx context.Context, account int64, p []byte) error
 	if err != nil {
 		return err
 	}
-	return s.Store.ChangeCharacterSlots(ctx, account, storage.CharacterSlotChange{
+	return s.Store.ChangeCharacterSlots(ctx, account, CharacterSlotChange{
 		Swap: r.Swap, Before: r.Before, FromFixed: r.FromFixed, ToFixed: r.ToFixed, From: r.From, To: r.To,
 	}, s.Rules.MaxCharacters)
 }

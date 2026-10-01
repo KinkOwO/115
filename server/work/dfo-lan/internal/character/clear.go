@@ -6,7 +6,6 @@ import (
 	"dfolan/internal/dungeon"
 	"dfolan/internal/inventory"
 	"dfolan/internal/progression"
-	"dfolan/internal/storage"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -30,15 +29,15 @@ type ClearReceipt struct {
 	TowerRewards             []inventory.AwardReceipt
 }
 
-func (s *ProgressionService) Clear(ctx context.Context, role storage.Character, run *dungeon.Session, rank byte, now time.Time) (storage.Character, ClearReceipt, bool, error) {
+func (s *ProgressionService) Clear(ctx context.Context, role Character, run *dungeon.Session, rank byte, now time.Time) (Character, ClearReceipt, bool, error) {
 	return s.ClearWithTowerRewards(ctx, role, run, rank, now, nil)
 }
 
 // ClearWithTowerRewards commits sourced tower items in the same idempotent
 // clear event as experience and the dungeon record.
-func (s *ProgressionService) ClearWithTowerRewards(ctx context.Context, role storage.Character, run *dungeon.Session, rank byte, now time.Time, awarder *inventory.Awarder) (storage.Character, ClearReceipt, bool, error) {
+func (s *ProgressionService) ClearWithTowerRewards(ctx context.Context, role Character, run *dungeon.Session, rank byte, now time.Time, awarder *inventory.Awarder) (Character, ClearReceipt, bool, error) {
 	var receipt ClearReceipt
-	fail := func(e error) (storage.Character, ClearReceipt, bool, error) { return role, receipt, false, e }
+	fail := func(e error) (Character, ClearReceipt, bool, error) { return role, receipt, false, e }
 	if run == nil || !run.Completed() || run.StartedAt.IsZero() || now.Before(run.StartedAt) {
 		return fail(fmt.Errorf("clear reward requires completed owned run"))
 	}
@@ -47,8 +46,7 @@ func (s *ProgressionService) ClearWithTowerRewards(ctx context.Context, role sto
 		return fail(fmt.Errorf("invalid clear run identity"))
 	}
 	key := "clear:" + run.RunID
-	var monsterTotal uint64
-	e = s.Store.DB.QueryRow(ctx, `SELECT COALESCE(SUM((e.outcome->>'gain')::bigint),0)::bigint FROM character_events e JOIN characters c ON c.id=e.character_id WHERE c.account_id=$1 AND c.id=$2 AND e.event_key LIKE $3`, role.AccountID, role.ID, "monster:"+run.RunID+":%").Scan(&monsterTotal)
+	monsterTotal, e := s.Store.RunMonsterExperience(ctx, role.AccountID, role.ID, run.RunID)
 	if e != nil {
 		return fail(e)
 	}
@@ -57,8 +55,7 @@ func (s *ProgressionService) ClearWithTowerRewards(ctx context.Context, role sto
 	}
 	// The room ledger records each first loaded map once. In the local free
 	// fatigue policy, these receipts still give the pet a progression measure.
-	var chargedFatigue, loadedRooms int64
-	e = s.Store.DB.QueryRow(ctx, `SELECT COALESCE(SUM(f.cost),0)::bigint,COUNT(*)::bigint FROM character_fatigue_rooms f JOIN characters c ON c.id=f.character_id WHERE c.account_id=$1 AND c.id=$2 AND f.run_id=$3`, role.AccountID, role.ID, run.RunID).Scan(&chargedFatigue, &loadedRooms)
+	chargedFatigue, loadedRooms, e := s.Store.RunFatigueLedger(ctx, role.AccountID, role.ID, run.RunID)
 	if e != nil {
 		return fail(e)
 	}
@@ -66,7 +63,7 @@ func (s *ProgressionService) ClearWithTowerRewards(ctx context.Context, role sto
 	if e != nil {
 		return fail(fmt.Errorf("creature experience gain out of range"))
 	}
-	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, s.Catalog.Source.SaveIdentity(), key, s.Rules.Model, func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, s.Catalog.Source.SaveIdentity(), key, s.Rules.Model, func(current Character) (json.RawMessage, json.RawMessage, error) {
 		var before State
 		if e := json.Unmarshal(current.State, &before); e != nil {
 			return nil, nil, e
@@ -80,7 +77,7 @@ func (s *ProgressionService) ClearWithTowerRewards(ctx context.Context, role sto
 			return nil, nil, e
 		}
 		if s.Store != nil {
-			if hasGrowth, _ := s.Store.HasActivePremium(ctx, role.AccountID, storage.PremiumGrowth, now); hasGrowth {
+			if hasGrowth, _ := s.Store.HasGrowthPremium(ctx, role.AccountID, now); hasGrowth {
 				gain.Base = gain.Base + gain.Base*20/100
 				gain.Score = gain.Score + gain.Score*20/100
 			}

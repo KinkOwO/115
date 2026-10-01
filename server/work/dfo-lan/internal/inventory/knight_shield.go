@@ -111,7 +111,7 @@ type MoveRefusal struct {
 }
 
 func (e *MoveRefusal) Error() string { return e.Msg }
-func shieldRefusal(msg string) error { return &MoveRefusal{Code: 5, Msg: msg} }
+func ShieldRefusal(msg string) error { return &MoveRefusal{Code: 5, Msg: msg} }
 func MoveRefusalCode(err error) uint16 {
 	var refusal *MoveRefusal
 	if errors.As(err, &refusal) {

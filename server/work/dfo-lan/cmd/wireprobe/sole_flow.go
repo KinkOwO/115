@@ -4,6 +4,7 @@ import (
 	"context"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
+	"dfolan/internal/workflow"
 	"encoding/hex"
 	"time"
 )
@@ -16,21 +17,21 @@ import (
 //
 // 回包顺序（照 AI 交接书 §2.3 的硬约束）：
 //
-//	1. {sole_quality_ack, kind=1, 2288, 01|container|slot}   ← **必须首包**
-//	   客户端在「期望回包树」里登记了 2288，收不到同 id 包就清不掉等待态 ⇒ 精度窗口卡死
-//	   （交接书症状 1：提升一次后窗口无响应、需关窗重开）。
-//	2. 账号共享材料被扣 → accountMaterialRefreshPackets（list35 → list42 → list0，
-//	   **list35 必须早于 list0**：list0 的读者会把 363..379 重新收进账号仓库管线）。
-//	3. 背包材料 / 装备本体行 → id14 增量行（appendEquipmentUpdates 按容器分流：
-//	   容器 0 用背包行、容器 3 整体刷新穿戴空间）。
-//	4. 名望（精度直接进名望结算）→ appendFameUpdate。
+//  1. {sole_quality_ack, kind=1, 2288, 01|container|slot}   ← **必须首包**
+//     客户端在「期望回包树」里登记了 2288，收不到同 id 包就清不掉等待态 ⇒ 精度窗口卡死
+//     （交接书症状 1：提升一次后窗口无响应、需关窗重开）。
+//  2. 账号共享材料被扣 → accountMaterialRefreshPackets（list35 → list42 → list0，
+//     **list35 必须早于 list0**：list0 的读者会把 363..379 重新收进账号仓库管线）。
+//  3. 背包材料 / 装备本体行 → id14 增量行（appendEquipmentUpdates 按容器分流：
+//     容器 0 用背包行、容器 3 整体刷新穿戴空间）。
+//  4. 名望（精度直接进名望结算）→ appendFameUpdate。
 //
 // 失败分支：**仍然发同一个 2288 回包**（状态 1、回显客户端报的 container/slot）。
 // 理由：客户端不发回包就卡在等待态，而 2288 的失败语义（状态 0 + u16 错误码）**没有任何
 // 反编译依据**（交接书 §8）—— 发一个"无依据的失败码"风险更大；发回显包后客户端会刷新
 // 精度条，玩家看到的是"数值没变"，与失败观感一致。真实原因写在服务端
 // `sole_quality_refused` 事件里。
-func (s *equipmentSession) raiseSoleQuality(service *inventory.WearService, w *worldSession, p, raw []byte, event func(map[string]any)) ([]outboundPacket, error) {
+func (s *equipmentSession) raiseSoleQuality(service *workflow.WearService, w *worldSession, p, raw []byte, event func(map[string]any)) ([]outboundPacket, error) {
 	if service == nil || w == nil || w.role.ID == 0 || w.activeDungeon != nil {
 		return nil, inventory.Refuse(inventory.RefusalItems, "秘宝精度提升需要已选角色且位于城镇")
 	}

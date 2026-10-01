@@ -1,11 +1,9 @@
 package inventory
 
 import (
-	"context"
 	"crypto/rand"
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -182,46 +180,28 @@ func PlanSoleQuality(rules *catalog.SoleEquipmentRules, template uint32, quality
 		QualityBefore: quality, QualityAfter: after, Gain: after - quality}, nil
 }
 
-// ApplySoleQuality 执行一次秘宝精度提升（CMD2288）。
-//
-// 幂等：同一 (角色, key) 的重放不会二次扣料，回执从存档字段取回。
-func (s *WearService) ApplySoleQuality(ctx context.Context, role storage.Character, key string, r protocol.SoleQualityRequest) (storage.Character, SoleQualityReceipt, error) {
-	var out SoleQualityReceipt
-	if s == nil || s.Store == nil || s.Catalog == nil {
-		return role, out, fmt.Errorf("秘宝精度需要有效装备目录及角色存档")
+// ValidateSoleQuality checks the runtime prerequisites before workflow
+// starts the account-material transaction.
+func (s *WearService) ValidateSoleQuality(role Role) error {
+	if s == nil || s.Catalog == nil {
+		return fmt.Errorf("秘宝精度需要有效装备目录及角色存档")
 	}
 	if soleEquipmentRules == nil {
-		return role, out, fmt.Errorf("秘宝精度规则未装载")
+		return fmt.Errorf("秘宝精度规则未装载")
 	}
 	if role.ConfigVersion != s.Catalog.Source.SaveIdentity() && role.ConfigVersion != s.Catalog.Source.Checksum {
-		return role, out, fmt.Errorf("秘宝精度需要有效装备目录及角色存档")
+		return fmt.Errorf("秘宝精度需要有效装备目录及角色存档")
 	}
-	applied := false
-	saved, _, _, err := s.Store.CommitAccountMaterialEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, "sole-quality-v1",
-		func(current storage.Character, counts json.RawMessage) (json.RawMessage, json.RawMessage, error) {
-			next, nextCounts, receipt, e := s.applySoleQuality(current, counts, key, r)
-			if e != nil {
-				return nil, nil, e
-			}
-			out = receipt
-			applied = true
-			return next, nextCounts, nil
-		})
-	if err != nil {
-		return role, out, err
-	}
-	if !applied {
-		stored, e := readSoleQualityReceipt(saved.State, key)
-		if e != nil {
-			return role, out, e
-		}
-		out = stored
-	}
-	saved.WireID = role.WireID
-	return saved, out, nil
+	return nil
 }
 
-func (s *WearService) applySoleQuality(role storage.Character, counts json.RawMessage, key string, r protocol.SoleQualityRequest) (json.RawMessage, json.RawMessage, SoleQualityReceipt, error) {
+// PrepareSoleQuality computes the updated character and account-material
+// states. The workflow owns persistence and replay handling.
+func (s *WearService) PrepareSoleQuality(role Role, counts json.RawMessage, key string, r protocol.SoleQualityRequest) (json.RawMessage, json.RawMessage, SoleQualityReceipt, error) {
+	return s.applySoleQuality(role, counts, key, r)
+}
+
+func (s *WearService) applySoleQuality(role Role, counts json.RawMessage, key string, r protocol.SoleQualityRequest) (json.RawMessage, json.RawMessage, SoleQualityReceipt, error) {
 	var out SoleQualityReceipt
 	fail := func(kind RefusalKind, format string, args ...any) (json.RawMessage, json.RawMessage, SoleQualityReceipt, error) {
 		return nil, nil, out, Refuse(kind, format, args...)
@@ -374,7 +354,8 @@ func (s *WearService) applySoleQuality(role storage.Character, counts json.RawMe
 	return next, nextCounts, out, nil
 }
 
-func readSoleQualityReceipt(state json.RawMessage, key string) (SoleQualityReceipt, error) {
+// ReadSoleQualityReceipt 取回存在存档里的回执（workflow 重放路径用）。
+func ReadSoleQualityReceipt(state json.RawMessage, key string) (SoleQualityReceipt, error) {
 	var out SoleQualityReceipt
 	if len(state) == 0 {
 		return out, fmt.Errorf("秘宝精度回执丢失（存档为空）")

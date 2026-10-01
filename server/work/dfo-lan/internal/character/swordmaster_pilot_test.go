@@ -4,13 +4,13 @@ import (
 	"bytes"
 	"dfolan/internal/catalog"
 	"dfolan/internal/progression"
-	"dfolan/internal/storage"
+
 	"encoding/hex"
 	"encoding/json"
 	"testing"
 )
 
-func pilotFixture(t *testing.T) (*Service, storage.Character) {
+func pilotFixture(t *testing.T) (*Service, Character) {
 	t.Helper()
 	c, err := catalog.LoadCharacters("../../configs/characters.swordmaster-pilot.json")
 	if err != nil {
@@ -27,7 +27,7 @@ func pilotFixture(t *testing.T) (*Service, storage.Character) {
 	fields["future_field"] = json.RawMessage(`{"keep":true}`)
 	state, _ = json.Marshal(fields)
 	req, _ := hex.DecodeString("000b0000006e6f726d616c5f74657374000000000000ff000100000000000000")
-	return &Service{Catalog: c, Learning: l, Rules: Rules{SwordmasterPilot: true}}, storage.Character{Name: "normal_test", WireID: 1, Profession: 0, Request: req, State: state, ConfigVersion: c.Source.SaveIdentity()}
+	return &Service{Catalog: c, Learning: l, Rules: Rules{SwordmasterPilot: true}}, Character{Name: "normal_test", WireID: 1, Profession: 0, Request: req, State: state, ConfigVersion: c.Source.SaveIdentity()}
 }
 
 func TestSwordmasterPilotRoundTripAndGrowth(t *testing.T) {

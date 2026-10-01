@@ -1,11 +1,10 @@
 package character
 
 import (
-	"dfolan/internal/savecontract"
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
+	"dfolan/internal/savecontract"
 	_ "embed"
 	"encoding/json"
 	"sync"
@@ -32,7 +31,7 @@ func EmbeddedOdysseyJournalRoutes() (*catalog.OdysseyJournalRoutes, error) {
 	return loadEmbeddedOdysseyJournalRoutes()
 }
 
-func (s *ProgressionService) OdysseyJournalTeleport(role storage.Character, r protocol.AreaChangeRequest) bool {
+func (s *ProgressionService) OdysseyJournalTeleport(role Character, r protocol.AreaChangeRequest) bool {
 	// [MERGE-20260928-JOURNAL-TAILFLAGS] 原来这里是 `r.TailFlags != [2]byte{}`，只接受
 	// 全零的尾部标志。但客户端报的尾部标志并非只有全零一种：实机 2026-09-28 从魔界
 	// (31,2) 回捷尔瓦的请求带的是 [0,2]（TailFlags[1]=2），不是地图选择器（那一位是

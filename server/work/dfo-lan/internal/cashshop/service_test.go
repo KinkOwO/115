@@ -3,7 +3,6 @@ package cashshop
 import (
 	"context"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/hex"
 	"encoding/json"
 	"os"
@@ -14,13 +13,13 @@ import (
 
 type fakeLedger struct {
 	calls int
-	order storage.CashOrder
+	order CashOrder
 }
 
-func (f *fakeLedger) PurchaseCash(_ context.Context, o storage.CashOrder) (storage.CashReceipt, bool, error) {
+func (f *fakeLedger) PurchaseCash(_ context.Context, o CashOrder) (CashReceipt, bool, error) {
 	f.calls++
 	f.order = o
-	return storage.CashReceipt{}, true, nil
+	return CashReceipt{}, true, nil
 }
 func TestPurchasePricesServerCatalog(t *testing.T) {
 	ledger := &fakeLedger{}

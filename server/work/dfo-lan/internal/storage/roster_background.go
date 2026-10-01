@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"dfolan/internal/db"
 	"dfolan/internal/rosterbg"
 	"fmt"
 	"math"
@@ -123,7 +124,7 @@ func (s *Store) SelectRosterBackground(ctx context.Context, account int64, page 
 
 // UnlockRosterBackground 必须在扣券的同一角色事件事务中调用。
 // 与背景选择共用账号行锁；已有永久或未到期授权不覆盖，防止跨角色重复扣券。
-func (s *Store) UnlockRosterBackground(ctx context.Context, tx pgx.Tx, account int64, grant rosterbg.Unlock, now time.Time) error {
+func (s *Store) UnlockRosterBackground(ctx context.Context, tx db.Tx, account int64, grant rosterbg.Unlock, now time.Time) error {
 	if account <= 0 || grant.Category != 1 || !grant.Valid() || grant.ExpiresAt > math.MaxInt32 ||
 		grant.ExpiresAt != 0 && int64(grant.ExpiresAt) <= now.Unix() {
 		return fmt.Errorf("背景授权或到期时间无效")

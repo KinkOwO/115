@@ -3,7 +3,7 @@ package character
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
+
 	"errors"
 	"testing"
 )
@@ -20,7 +20,7 @@ func TestNativeOdysseyRoutesAvoidEmbeddedReadForEveryProgressPrefix(t *testing.T
 		t.Fatal(err)
 	}
 	type query struct {
-		role    storage.Character
+		role    Character
 		request protocol.AreaChangeRequest
 		want    bool
 	}

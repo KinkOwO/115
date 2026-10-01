@@ -3,7 +3,7 @@ package character
 import (
 	"bytes"
 	"dfolan/internal/catalog"
-	"dfolan/internal/storage"
+
 	"encoding/hex"
 	"encoding/json"
 	"os"
@@ -21,7 +21,7 @@ func TestStagedSlayerInitialSkillsAgainstNativeReader(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := Service{Catalog: c}
-	got, err := s.EntrySkills(storage.Character{Profession: 0, State: raw})
+	got, err := s.EntrySkills(Character{Profession: 0, State: raw})
 	if err != nil {
 		t.Fatal(err)
 	}

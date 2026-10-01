@@ -3,7 +3,6 @@ package world
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/hex"
 	"errors"
 	"testing"
@@ -15,14 +14,14 @@ func TestSiroccoCentralTentPhaseNPCPlacement(t *testing.T) {
 		t.Fatal(err)
 	}
 	svc := &Service{Catalog: cat}
-	at := storage.WorldPosition{Town: 40, Area: 3, X: 515, Y: 160}
+	at := WorldPosition{Town: 40, Area: 3, X: 515, Y: 160}
 	if _, found := svc.NPCPosition(at, 100000374); found {
 		t.Fatal("Sirocco target unexpectedly became a base-map NPC")
 	}
 	if position, found := svc.PhaseNPCPosition(at, 100000374); !found || position != [2]uint16{515, 114} {
 		t.Fatalf("Sirocco phase NPC placement changed: %v, %v", position, found)
 	}
-	if _, found := svc.PhaseNPCPosition(storage.WorldPosition{Town: 40, Area: 2}, 100000374); found {
+	if _, found := svc.PhaseNPCPosition(WorldPosition{Town: 40, Area: 2}, 100000374); found {
 		t.Fatal("phase NPC leaked into another area")
 	}
 }
@@ -32,7 +31,7 @@ func TestPandemoniumJunctionNativeZeroLanding(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	from := storage.WorldPosition{Town: 35, Area: 0, X: 903, Y: 353}
+	from := WorldPosition{Town: 35, Area: 0, X: 903, Y: 353}
 	portal := cat.Areas["35/0"].Portals
 	found := false
 	for _, p := range portal {
@@ -75,7 +74,7 @@ func TestPandemoniumJunctionNativeZeroLanding(t *testing.T) {
 }
 
 func TestNativeZeroLandingUsesDestinationGeometryAcrossAreas(t *testing.T) {
-	from := storage.WorldPosition{Town: 70, Area: 3, X: 240, Y: 210}
+	from := WorldPosition{Town: 70, Area: 3, X: 240, Y: 210}
 	req := protocol.AreaChangeRequest{Town: 91, Area: 4, PreviousTown: 70, PreviousArea: 3, Flag: 5}
 	areas := map[string]catalog.WorldArea{
 		"70/3": {Town: 70, Area: 3, Walkable: [][4]int32{{100, 100, 300, 300}}, Portals: []catalog.Portal{{Bounds: [4]int32{200, 200, 80, 80}, Town: 91, Area: 4}}},
@@ -109,7 +108,7 @@ func TestTransitionAuthority(t *testing.T) {
 		"38/1": {Town: 38, Area: 1, MinimumLevel: 1, Walkable: [][4]int32{{400, 100, 250, 300}}, SeriaReturnWarp: true, ReturnWarpBounds: [][4]int32{{470, 320, 150, 40}}},
 		"38/3": {Town: 38, Area: 3, MinimumLevel: 14, Walkable: [][4]int32{{0, 0, 1000, 500}}},
 	}}, Rules: Rules{RequirePortalProximity: true, PortalMargin: 10}}
-	old := storage.WorldPosition{Town: 38, Area: 0, X: 550, Y: 230}
+	old := WorldPosition{Town: 38, Area: 0, X: 550, Y: 230}
 	req := protocol.AreaChangeRequest{Town: 38, Area: 1, X: 544, Y: 311, PreviousTown: 38, PreviousArea: 0}
 	next, e := s.Transition(1, false, old, req)
 	if e != nil || next.Return == nil {
@@ -156,8 +155,8 @@ func TestSeriaLeaveIgnoresClientDestination(t *testing.T) {
 		"38/1": {Town: 38, Area: 1, MinimumLevel: 1, Walkable: [][4]int32{{400, 100, 250, 300}}, SeriaReturnWarp: true, ReturnWarpBounds: [][4]int32{{470, 320, 150, 40}}},
 		"41/1": {Town: 41, Area: 1, MinimumLevel: 1, Walkable: [][4]int32{{350, 150, 100, 100}}},
 	}}, Rules: Rules{RequirePortalProximity: true, PortalMargin: 10}}
-	stamp := &storage.WorldReturn{Town: 41, Area: 1, X: 404, Y: 197}
-	inside := storage.WorldPosition{Town: 38, Area: 1, X: 550, Y: 340, Return: stamp}
+	stamp := &WorldReturn{Town: 41, Area: 1, X: 404, Y: 197}
+	inside := WorldPosition{Town: 38, Area: 1, X: 550, Y: 340, Return: stamp}
 	for _, requested := range []protocol.AreaChangeRequest{
 		{Town: 38, Area: 0, X: 746, Y: 157, PreviousTown: 38, PreviousArea: 1},
 		{Town: 999, Area: 999, X: 1, Y: 1, PreviousTown: 38, PreviousArea: 1},
@@ -182,8 +181,8 @@ func TestSameAreaRepositionKeepsReturnStamp(t *testing.T) {
 	s := Service{Catalog: catalog.WorldCatalog{Areas: map[string]catalog.WorldArea{
 		"38/1": {Town: 38, Area: 1, MinimumLevel: 1, Walkable: [][4]int32{{400, 100, 250, 300}}, SeriaReturnWarp: true, ReturnWarpBounds: [][4]int32{{470, 320, 150, 40}}},
 	}}, Rules: Rules{RequirePortalProximity: true}}
-	stamp := &storage.WorldReturn{Town: 41, Area: 1, X: 404, Y: 197}
-	inside := storage.WorldPosition{Town: 38, Area: 1, X: 520, Y: 200, Return: stamp}
+	stamp := &WorldReturn{Town: 41, Area: 1, X: 404, Y: 197}
+	inside := WorldPosition{Town: 38, Area: 1, X: 520, Y: 200, Return: stamp}
 	out, err := s.Transition(1, false, inside, protocol.AreaChangeRequest{Town: 38, Area: 1, X: 540, Y: 210, PreviousTown: 38, PreviousArea: 1})
 	if err != nil || out.Town != 38 || out.Area != 1 || out.X != 540 || out.Y != 210 || out.Return != stamp {
 		t.Fatalf("in-room reposition changed return stamp: %+v %v", out, err)
@@ -196,7 +195,7 @@ func TestSourceSeriaRoundTrip(t *testing.T) {
 		t.Fatal(e)
 	}
 	s := Service{Catalog: cat, Rules: Rules{RequirePortalProximity: true, PortalMargin: 10}}
-	start := storage.WorldPosition{Town: 38, Area: 0, X: 622, Y: 196}
+	start := WorldPosition{Town: 38, Area: 0, X: 622, Y: 196}
 	inside, e := s.Transition(1, false, start, protocol.AreaChangeRequest{Town: 38, Area: 1, X: 544, Y: 311, PreviousTown: 38, PreviousArea: 0})
 	if e != nil {
 		t.Fatal(e)
@@ -228,13 +227,13 @@ func TestQuestGatedPortalToElvenmere(t *testing.T) {
 		t.Fatal(e)
 	}
 	s := Service{Catalog: cat, Rules: Rules{RequirePortalProximity: true, PortalMargin: 10}}
-	at := storage.WorldPosition{Town: 38, Area: 3, X: 60, Y: 260}
+	at := WorldPosition{Town: 38, Area: 3, X: 60, Y: 260}
 	req := protocol.AreaChangeRequest{Town: 38, Area: 7, X: 100, Y: 260, PreviousTown: 38, PreviousArea: 3}
 	next, e := s.Transition(20, false, at, req)
 	if e != nil || next.Town != 38 || next.Area != 7 {
 		t.Fatalf("quest-gated Elvenmere portal refused: %+v %v", next, e)
 	}
-	if _, e = s.Transition(20, false, storage.WorldPosition{Town: 38, Area: 3, X: 900, Y: 300}, req); e == nil {
+	if _, e = s.Transition(20, false, WorldPosition{Town: 38, Area: 3, X: 900, Y: 300}, req); e == nil {
 		t.Fatal("remote portal bypass")
 	}
 	if _, e = s.Transition(16, false, at, req); e == nil {
@@ -248,7 +247,7 @@ func TestWestCoastTownOriginSync(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := Service{Catalog: cat, Rules: Rules{RequirePortalProximity: true, PortalMargin: 10}}
-	old := storage.WorldPosition{Town: 40, Area: 0, X: 412, Y: 181}
+	old := WorldPosition{Town: 40, Area: 0, X: 412, Y: 181}
 	actual, err := hex.DecodeString("28000000000000009c01b500002800000000000000000000")
 	if err != nil {
 		t.Fatal(err)
@@ -278,7 +277,7 @@ func TestNegativeCoordinateAreaTransition(t *testing.T) {
 		t.Fatal(e)
 	}
 	s := Service{Catalog: cat, Rules: Rules{RequirePortalProximity: false, PortalMargin: 32}}
-	at := storage.WorldPosition{Town: 89, Area: 0, X: 985, Y: 416}
+	at := WorldPosition{Town: 89, Area: 0, X: 985, Y: 416}
 	req := protocol.AreaChangeRequest{
 		Town: 89, Area: 2, X: 65534, Y: 309, // X = -2
 		PreviousTown: 89, PreviousArea: 0,
@@ -289,7 +288,7 @@ func TestNegativeCoordinateAreaTransition(t *testing.T) {
 	}
 
 	// 验证从 89/2 返回 89/0：89/2 的门户矩形为 [-22, 249, 40, 120]（负 X 边界）
-	at2 := storage.WorldPosition{Town: 89, Area: 2, X: 65534, Y: 300} // X = -2
+	at2 := WorldPosition{Town: 89, Area: 2, X: 65534, Y: 300} // X = -2
 	reqReturn := protocol.AreaChangeRequest{
 		Town: 89, Area: 0, X: 950, Y: 400,
 		PreviousTown: 89, PreviousArea: 2,
@@ -337,7 +336,7 @@ func TestOdysseyEnterLevelGateAtStormPass(t *testing.T) {
 		}
 	}
 	s := Service{Catalog: cat}
-	p := storage.WorldPosition{Town: 43, Area: 1, X: 396, Y: 403} // Odyssey journal node 6
+	p := WorldPosition{Town: 43, Area: 1, X: 396, Y: 403} // Odyssey journal node 6
 	if e := s.ValidatePosition(44, true, p); !errors.Is(e, ErrLevel) {
 		t.Fatalf("odyssey level 44 admitted: %v", e)
 	}
@@ -382,7 +381,7 @@ func TestOdysseyGateNeverRaisesEntry(t *testing.T) {
 		t.Fatalf("ordinary gate %d", got)
 	}
 	s := Service{Catalog: cat}
-	p := storage.WorldPosition{Town: 40, Area: 0, X: 388, Y: 180}
+	p := WorldPosition{Town: 40, Area: 0, X: 388, Y: 180}
 	if e := s.ValidatePosition(20, true, p); e != nil {
 		t.Fatalf("odyssey level 20 refused West Coast: %v", e)
 	}
@@ -424,7 +423,7 @@ func TestSeriaLeaveReturnsToStampedOrigin(t *testing.T) {
 
 	// 从阿法利亚（41/1）进来，戳 = 41/1 (404,197)；客户端报的是同镇通用落点 38/0
 	// (746,157)。旧的「请求目的地 == 戳」守卫在这里不进分支。
-	inside := storage.WorldPosition{Town: 38, Area: 1, X: 550, Y: 340, Return: &storage.WorldReturn{Town: 41, Area: 1, X: 404, Y: 197}}
+	inside := WorldPosition{Town: 38, Area: 1, X: 550, Y: 340, Return: &WorldReturn{Town: 41, Area: 1, X: 404, Y: 197}}
 	out, e := s.Transition(30, false, inside, protocol.AreaChangeRequest{
 		Town: 38, Area: 0, X: 746, Y: 157, PreviousTown: 38, PreviousArea: 1,
 	})
@@ -439,7 +438,7 @@ func TestSeriaLeaveReturnsToStampedOrigin(t *testing.T) {
 	}
 
 	// 客户端报另一个镇也一样：目的地仍然是戳，不是请求里的镇。
-	inside = storage.WorldPosition{Town: 38, Area: 1, X: 550, Y: 340, Return: &storage.WorldReturn{Town: 41, Area: 1, X: 404, Y: 197}}
+	inside = WorldPosition{Town: 38, Area: 1, X: 550, Y: 340, Return: &WorldReturn{Town: 41, Area: 1, X: 404, Y: 197}}
 	out, e = s.Transition(30, false, inside, protocol.AreaChangeRequest{
 		Town: 40, Area: 0, X: 388, Y: 180, PreviousTown: 38, PreviousArea: 1,
 	})
@@ -451,7 +450,7 @@ func TestSeriaLeaveReturnsToStampedOrigin(t *testing.T) {
 	}
 
 	// 站在出门光圈之外仍然不放行：ReturnWarpBounds 的站位判定没有被放宽。
-	far := storage.WorldPosition{Town: 38, Area: 1, X: 410, Y: 200, Return: &storage.WorldReturn{Town: 41, Area: 1, X: 404, Y: 197}}
+	far := WorldPosition{Town: 38, Area: 1, X: 410, Y: 200, Return: &WorldReturn{Town: 41, Area: 1, X: 404, Y: 197}}
 	if _, e = s.Transition(30, false, far, protocol.AreaChangeRequest{
 		Town: 38, Area: 0, X: 746, Y: 157, PreviousTown: 38, PreviousArea: 1,
 	}); e == nil {
@@ -462,7 +461,7 @@ func TestSeriaLeaveReturnsToStampedOrigin(t *testing.T) {
 // Return 戳机制不区分来源镇：西海岸 / 阿法利亚 / 亨顿 / 艾尔文各来一例，出门都回
 // 各自来图；而且改写的必须是 Town/Area/X/Y 四元组，不能只改坐标。
 func TestSeriaReturnIsSourceAgnostic(t *testing.T) {
-	origins := []storage.WorldReturn{
+	origins := []WorldReturn{
 		{Town: 40, Area: 0, X: 400, Y: 200},
 		{Town: 41, Area: 1, X: 404, Y: 197},
 		{Town: 38, Area: 3, X: 500, Y: 250},
@@ -483,7 +482,7 @@ func TestSeriaReturnIsSourceAgnostic(t *testing.T) {
 	s := Service{Catalog: catalog.WorldCatalog{Areas: areas}, Rules: Rules{RequirePortalProximity: true, PortalMargin: 10}}
 	for _, o := range origins {
 		stamp := o
-		inside := storage.WorldPosition{Town: 38, Area: 1, X: 550, Y: 340, Return: &stamp}
+		inside := WorldPosition{Town: 38, Area: 1, X: 550, Y: 340, Return: &stamp}
 		// 客户端报的永远是"本镇通用落点"，与戳无关。
 		out, e := s.Transition(30, false, inside, protocol.AreaChangeRequest{
 			Town: 38, Area: 0, X: 746, Y: 157, PreviousTown: 38, PreviousArea: 1,

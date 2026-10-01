@@ -9,6 +9,7 @@ import (
 	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
 	"dfolan/internal/storage"
+	"dfolan/internal/workflow"
 	"encoding/json"
 	"fmt"
 	"sync"
@@ -31,7 +32,8 @@ func cardCheck(ctx context.Context, s, reopened *storage.Store, role storage.Cha
 	if e != nil {
 		return e
 	}
-	service := loot.Service{Store: s, Catalog: c, Tables: tables, BagRules: bag, CardPolicy: &policy}
+	domain := loot.Service{Catalog: c, Tables: tables, BagRules: bag, CardPolicy: &policy}
+	service := workflow.LootService{Store: s, Loot: &domain}
 	dc, e := catalog.LoadDungeons("configs/dungeons.generated.json")
 	if e != nil {
 		return e

@@ -2,12 +2,11 @@ package inventory
 
 import (
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 )
 
-func (s *WearService) SelectAvatarOption(role storage.Character, r protocol.AvatarOptionRequest) (json.RawMessage, error) {
+func (s *WearService) SelectAvatarOption(role Role, r protocol.AvatarOptionRequest) (json.RawMessage, error) {
 	if s == nil || s.Catalog == nil || !s.Rules.Special || s.Catalog.Source.SaveIdentity() != role.ConfigVersion || r.Location != 2 || r.Option == 0 || r.Option == 255 {
 		return nil, fmt.Errorf("invalid avatar selection context")
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
+	"dfolan/internal/workflow"
 	"fmt"
 	"time"
 )
@@ -18,7 +19,7 @@ func (w *worldSession) pickup(p []byte) ([]outboundPacket, error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	saved, receipt, applied, e := w.loot.Pickup(ctx, w.role, w.drops, w.activeDungeon, r)
+	saved, receipt, applied, e := (&workflow.LootService{Store: w.store, Loot: w.loot}).Pickup(ctx, w.role, w.drops, w.activeDungeon, r)
 	if e != nil {
 		return nil, e
 	}
@@ -28,7 +29,7 @@ func (w *worldSession) pickup(p []byte) ([]outboundPacket, error) {
 	_, isAccountMaterial := inventory.AccountMaterialSlot(receipt.Award.Template)
 	var materials inventory.AccountMaterials
 	if isAccountMaterial {
-		saved, materials, e = sweepAccountMaterials(ctx, w.loot.Store, saved)
+		saved, materials, e = sweepAccountMaterials(ctx, w.store, saved)
 		if e != nil {
 			return nil, e
 		}
@@ -95,7 +96,7 @@ func (w *worldSession) pickup(p []byte) ([]outboundPacket, error) {
 	}
 	w.role = saved
 	if w.quests != nil {
-		advanced, err := w.quests.InventoryProgress(ctx, w.role)
+		advanced, err := (&workflow.QuestService{Store: w.store, Quest: w.quests}).InventoryProgress(ctx, w.role)
 		if err != nil {
 			return nil, err
 		}

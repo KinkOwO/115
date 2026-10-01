@@ -2,7 +2,7 @@ package character
 
 import (
 	"dfolan/internal/catalog"
-	"dfolan/internal/storage"
+
 	"testing"
 )
 
@@ -73,7 +73,7 @@ func TestSecondAwakeningLateGrantFollowsLevel(t *testing.T) {
 		t.Fatal("目录里没有 75 级以上门槛的二觉授予样本")
 	}
 	for _, g := range samples {
-		role := storage.Character{Profession: g.job, ConfigVersion: c.Source.SaveIdentity()}
+		role := Character{Profession: g.job, ConfigVersion: c.Source.SaveIdentity()}
 		early := State{Level: 75, Advancement: g.adv, Awakening: 2, SourceSHA256: g.prof.RawSHA256, InitialSkills: g.prof.InitialSkills}
 		granted, e := s.awakeningSkills(role, early)
 		if e != nil {
@@ -119,7 +119,7 @@ func TestSecondAwakeningLateGrantReachesKnownSkills(t *testing.T) {
 		t.Fatal("目录里没有 75 级以上门槛的二觉授予样本")
 	}
 	g := samples[0]
-	role := storage.Character{Profession: g.job, ConfigVersion: c.Source.SaveIdentity()}
+	role := Character{Profession: g.job, ConfigVersion: c.Source.SaveIdentity()}
 	st := State{Level: 75, Advancement: g.adv, Awakening: 2, SourceSHA256: g.prof.RawSHA256, InitialSkills: g.prof.InitialSkills}
 	known, e := s.knownSkills(role, st, 0)
 	if e != nil {
@@ -144,7 +144,7 @@ func TestAwakeningGrantsCoverTheWholeSource(t *testing.T) {
 	s, c := loadAwakeningGrantFixture(t)
 	checked := 0
 	for job, prof := range c.Professions {
-		role := storage.Character{Profession: job, ConfigVersion: c.Source.SaveIdentity()}
+		role := Character{Profession: job, ConfigVersion: c.Source.SaveIdentity()}
 		st := State{Level: 115, Awakening: 3, SourceSHA256: prof.RawSHA256, InitialSkills: prof.InitialSkills}
 		for adv, stages := range prof.AwakeningSkills {
 			if len(stages[1]) == 0 || len(stages[2]) == 0 || len(stages[3]) == 0 {
@@ -185,7 +185,7 @@ func TestAwakeningGrantStaysOnReset(t *testing.T) {
 		t.Fatal("目录里没有 75 级以上门槛的二觉授予样本")
 	}
 	g := samples[0]
-	role := storage.Character{Profession: g.job, ConfigVersion: c.Source.SaveIdentity()}
+	role := Character{Profession: g.job, ConfigVersion: c.Source.SaveIdentity()}
 	st := State{
 		Level:         byte(g.level),
 		Advancement:   g.adv,

@@ -2,7 +2,6 @@ package inventory
 
 import (
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"testing"
 )
 
@@ -160,7 +159,7 @@ func TestVaultSerialization(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SaveVault error: %v", err)
 	}
-	readBack, err := ReadVault(storage.VaultState{Slots: 8, Items: raw})
+	readBack, err := ReadVault(VaultState{Slots: 8, Items: raw})
 	if err != nil {
 		t.Fatalf("ReadVault error: %v", err)
 	}

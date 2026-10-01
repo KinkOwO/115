@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"dfolan/internal/catalog"
 	"dfolan/internal/progression"
-	"dfolan/internal/storage"
+
 	"encoding/json"
 	"fmt"
 	"maps"
@@ -25,7 +25,7 @@ func advancementProgressionService(t *testing.T) *ProgressionService {
 	return &ProgressionService{Catalog: pc, Professions: professions, Rules: progression.Rules{LevelCap: 115}}
 }
 
-func ordinaryAdvancedRole(t *testing.T, s *ProgressionService, job, advancement byte) storage.Character {
+func ordinaryAdvancedRole(t *testing.T, s *ProgressionService, job, advancement byte) Character {
 	t.Helper()
 	p := s.Professions.Professions[job]
 	state := State{
@@ -50,7 +50,7 @@ func ordinaryAdvancedRole(t *testing.T, s *ProgressionService, job, advancement 
 	if err != nil {
 		t.Fatal(err)
 	}
-	role := storage.Character{Name: "GrowthTest", WireID: 10, Profession: job, ConfigVersion: s.Professions.Source.SaveIdentity(), State: raw}
+	role := Character{Name: "GrowthTest", WireID: 10, Profession: job, ConfigVersion: s.Professions.Source.SaveIdentity(), State: raw}
 	if advancement != 0 {
 		// This is the normal CMD1881/CMD777 domain path, not a pilot repair.
 		role.State, err = (&Service{Catalog: s.Professions}).ApplyAdvancement(role, advancement)

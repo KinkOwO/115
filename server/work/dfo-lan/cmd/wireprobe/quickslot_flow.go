@@ -5,6 +5,7 @@ import (
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/storage"
+	"dfolan/internal/workflow"
 	"encoding/json"
 	"time"
 )
@@ -26,7 +27,7 @@ func (w *worldSession) movePetStack(rules inventory.BagRules, r protocol.ItemMov
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	saved, applied, err := w.loot.Store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, "pet-move-v1",
+	saved, applied, err := w.store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, "pet-move-v1",
 		func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
 			currentBag, e := inventory.ReadBag(current.State)
 			if e != nil {
@@ -118,7 +119,7 @@ func (w *worldSession) moveStack(rules inventory.BagRules,
 		}
 		rules.Slots = slots
 	}
-	saved, _, applied, e := inventory.MoveStack(ctx, w.loot.Store, w.role, bagCatalog, rules, r, key)
+	saved, _, applied, e := workflow.MoveStack(ctx, w.store, w.role, bagCatalog, rules, r, key)
 	if e != nil {
 		return nil, true, e
 	}
