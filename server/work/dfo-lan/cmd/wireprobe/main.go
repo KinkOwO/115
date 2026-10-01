@@ -823,21 +823,19 @@ func main() {
 		}
 		dungeonCatalog = &data
 	}
-	// 疲劳的**进本消耗**来自源（[use fatigue only start dungeon]）；当前客户端脚本里已查不到该段，
-	// 所以内容策略给实测值兜底。进本准入与记费共用这一口径（character.FatigueService.EnterCostFor）。
+	// 疲劳的**进本消耗**完全来自源：`[use fatigue only start dungeon] <N>`（only start = 进本只收一次）。
+	// 源未声明该段的副本由 EnterFatigueOf 返回 0，走 FatigueService 原有的「按房间计费」路径。
+	//
+	// 2026-10-01：本地策略里的 `dungeon_enter_fatigue` 兜底表已删除——源解析已覆盖全部声明副本
+	// （启动日志 `PVF dungeons declaring [use fatigue only start dungeon]: …`），
+	// JSON 兜底违反「单一内容真源铁律」（server/AGENTS.md §0）：PVF 里读得到，就不许写 JSON。
 	if fatigueService != nil && dungeonCatalog != nil {
 		dc := dungeonCatalog
-		var enterOverrides map[uint32]uint16
-		if policy, e := readPVFContentPolicy(*pvfContentPolicyPath); e == nil {
-			enterOverrides = policy.DungeonEnterFatigue
-		} else {
-			log.Printf("warning: dungeon enter-fatigue policy unavailable (%v)", e)
-		}
 		fatigueService.EnterFatigueOf = func(dungeonID uint32) uint16 {
 			if d, ok := dc.Dungeons[dungeonID]; ok && d.EnterFatigue > 0 {
 				return d.EnterFatigue
 			}
-			return enterOverrides[dungeonID]
+			return 0
 		}
 	}
 	if *progressionCatalogFile != "" || pvfCatalogs.progression != nil {
