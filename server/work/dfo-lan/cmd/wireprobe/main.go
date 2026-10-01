@@ -862,6 +862,23 @@ func main() {
 		}
 		dungeonCatalog = &data
 	}
+	// 疲劳的**进本消耗**来自源（[use fatigue only start dungeon]）；当前客户端脚本里已查不到该段，
+	// 所以内容策略给实测值兜底。进本准入与记费共用这一口径（character.FatigueService.EnterCostFor）。
+	if fatigueService != nil && dungeonCatalog != nil {
+		dc := dungeonCatalog
+		var enterOverrides map[uint32]uint16
+		if policy, e := readPVFContentPolicy(*pvfContentPolicyPath); e == nil {
+			enterOverrides = policy.DungeonEnterFatigue
+		} else {
+			log.Printf("warning: dungeon enter-fatigue policy unavailable (%v)", e)
+		}
+		fatigueService.EnterFatigueOf = func(dungeonID uint32) uint16 {
+			if d, ok := dc.Dungeons[dungeonID]; ok && d.EnterFatigue > 0 {
+				return d.EnterFatigue
+			}
+			return enterOverrides[dungeonID]
+		}
+	}
 	if *progressionCatalogFile != "" || pvfCatalogs.progression != nil {
 		if characters == nil || dungeonCatalog == nil {
 			log.Fatal("progression requires source characters and dungeon sessions")

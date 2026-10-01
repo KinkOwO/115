@@ -20,6 +20,9 @@ type pvfContentPolicy struct {
 	OdysseyCurrency     loot.OdysseyCurrencyPolicy      `json:"odyssey_currency"`
 	Version             int                             `json:"version"`
 	Attunement          []uint32                        `json:"attunement_dungeons"`
+	// DungeonEnterFatigue 是**进本消耗**的本地兜底：源里 [use fatigue only start dungeon] 优先，
+	// 源未声明该段的副本用这里的值（当前客户端脚本里已查不到该段，依据 analysis 文档实测）。键=副本号。
+	DungeonEnterFatigue map[uint32]uint16            `json:"dungeon_enter_fatigue"`
 }
 
 func readPVFContentPolicy(path string) (pvfContentPolicy, error) {

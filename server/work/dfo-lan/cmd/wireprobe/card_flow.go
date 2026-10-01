@@ -212,7 +212,7 @@ func (w *worldSession) restartDungeon() (*dungeon.Session, []outboundPacket, err
 	// The same entry gate the ordinary selection applies, minus its town-only
 	// check: the character is inside a run, so there is no PVF [dungeon gate]
 	// area under its feet to stand on.
-	if w.fatigue != nil && !old.Definition.NoFatigue && w.fatigue.Rules.RoomCost > 0 {
+	if w.fatigue != nil && !old.Definition.NoFatigue && w.fatigue.EnterCostFor(old.Definition.ID) > 0 {
 		fp, err := w.fatigue.State(ctx, w.account, w.role.ID, time.Now())
 		if err != nil {
 			return nil, nil, err
