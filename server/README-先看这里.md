@@ -8,14 +8,16 @@
 
 | 文件 | 用途与验证边界 |
 |---|---|
-| `work/dfo-lan/bin/wireprobe-pvf.exe` | c6b2bace第三批及选角兼容修复已确认，三个根入口默认使用；保持54选择项/63投影、历史存档准入及来源自动派生。 |
+| `work/dfo-lan/bin/wireprobe-pvf.exe` | 8d6f979a联合物品磁盘缓存已确认，三个根入口默认使用；保持54选择项/63投影、历史存档准入及来源自动派生。 |
 | `work/dfo-lan/bin/wireprobe-dungeon39.exe` | 原39版归档程序。前一任务的对接记录记载装备显示、重登保留和不崩已经用户确认；本次打包没有重做该实机验收。保留作历史回退。 |
-| `work/dfo-lan/bin/wireprobe-handoff-source.exe` | c6b2bace已确认，与默认一致。按需详情/预热/装备LRU及历史未知背包兼容通过离线与用户选角回归；第四批后续候选另行验证。 |
+| `work/dfo-lan/bin/wireprobe-handoff-source.exe` | 8d6f979a已确认，与默认一致；完整字段及54/63冷/热启动和Go测试/vet通过，用户确认运行正常且二次启动加快。 |
 | `work/dfo-lan/bin/wireprobe-dungeon37.exe` | 历史回退参考；使用它时必须同时选择相匹配的配置。 |
 
 **没有附会导致入城崩溃的38版EXE。** 文件名 `next38-equipment-display.md` 记载的是修复到39版的结果，不代表应该启动38版。
 
-当前确认c6b2bace支持来源自动派生，选角回归已确认，日常使用根入口即可。旧2e4bd343不支持空校验配置，仅保留历史匹配组合回退。启动脚本缺少内层manifest时可能重建资源，当前用户已生成be95d64e内层及manifest；原7ef离线采样不扩展为新归档性能数据。
+当前确认8d6f979a支持来源自动派生及联合物品缓存，选角/二次启动已确认，日常使用根入口即可。旧2e4bd343不支持空校验配置，仅保留历史匹配组合回退。启动脚本缺少内层manifest时可能重建资源，当前用户已生成be95d64e内层及manifest；原7ef离线采样不扩展为新归档性能数据。
+
+第四批候选首次启动建立runtime/pvf-cache，第二次同源同程序命中；本机单次目录准备40.49→31.15秒，首次建缓存42.23秒，保留堆基本持平。用户手动关闭会话后用--source-build连续两次检查选角及物品/任务/进房。DFO_PVF_CACHE_DIR可指定目录，-禁用；缓存可删除后重建，程序/源/强化策略变化会失效。源码c6b2bace备份于work/dfo-lan/.tmp/pvf-phase4/bin/wireprobe-handoff-source.confirmed-before.exe；其余投影缓存未完成，详见../docs/todo/pvf/PVF启动与内存优化实施计划.md。
 
 ## 首次启动
 
