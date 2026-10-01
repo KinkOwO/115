@@ -62,12 +62,14 @@ func LoadWearRules(path, source string) (WearRules, error) {
 }
 
 type WearService struct {
-	Store       *storage.Store
-	Catalog     *EquipmentCatalog
-	Professions catalog.Characters
-	BagRules    BagRules
-	Rules       WearRules
-	Shields     *KnightShields
+	Store            *storage.Store
+	Catalog          *EquipmentCatalog
+	Professions      catalog.Characters
+	BagRules         BagRules
+	Rules            WearRules
+	Shields          *KnightShields
+	AvatarRecast     *AvatarRecastRules
+	AvatarRecastLoot *catalog.LootCatalog
 }
 
 func (s *WearService) EggHatchTarget(template uint32) uint32 {

@@ -63,6 +63,7 @@ type pvfCoreCatalogs struct {
 	itemBasics                                   *catalog.ItemBasics
 	equipment                                    *inventory.FullEquipmentCatalog
 	avatarDisjoint                               *inventory.AvatarDisjointRules
+	avatarRecast                                 *inventory.AvatarRecastRules
 	periods                                      []uint32
 	skins                                        map[uint32]catalog.SkinStorageEntry
 	journal                                      *catalog.EquipmentJournalRules
@@ -361,6 +362,11 @@ func preparePVFCoreCatalogs(selection, path, checksum, characterPath, questPath,
 				return result, fmt.Errorf("PVF avatar disjoint: %w", e)
 			}
 			log.Printf("PVF avatar disjoint prepared: %d avatar grades, %d emblem grades source=%s", len(result.avatarDisjoint.Rolls), len(result.avatarDisjoint.Pools), result.avatarDisjoint.Source)
+			result.avatarRecast, e = source.AvatarRecast(direct)
+			if e != nil {
+				return result, fmt.Errorf("PVF avatar recast: %w", e)
+			}
+			log.Printf("PVF avatar recast prepared: %d jobs source=%s", len(result.avatarRecast.Jobs), result.avatarRecast.Source)
 		}
 		source.ReleaseReadCaches()
 		if e := preparePVFCommerce(&result, source, selected, inputs); e != nil {

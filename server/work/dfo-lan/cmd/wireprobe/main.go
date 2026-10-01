@@ -1133,7 +1133,7 @@ func main() {
 				if err != nil {
 					log.Fatal(err)
 				}
-				wearService = &inventory.WearService{Store: characters.Store, Catalog: equipment, Professions: characters.Catalog, BagRules: lootService.BagRules, Rules: rules}
+				wearService = &inventory.WearService{Store: characters.Store, Catalog: equipment, Professions: characters.Catalog, BagRules: lootService.BagRules, Rules: rules, AvatarRecast: pvfCatalogs.avatarRecast, AvatarRecastLoot: &lootService.Catalog}
 
 				// 装备变换要用「部位 → 装备类型」映射去**背包**里找源（客户端允许把背包装备放进
 				// 界面「变换前」槽，请求只带部位码），所以把同一份 WearRules 也交给 loot 服务。
@@ -3737,6 +3737,25 @@ func main() {
 				if sendPlan(plan, func(packet outboundPacket) {
 					event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID, "id": packet.ID, "bytes": len(packet.Payload)})
 				}) != nil {
+					return
+				}
+				continue
+			}
+			if worldState != nil && bootstrapped && frame.Type == 1 && frame.ID == 795 {
+				if !verified {
+					event(map[string]any{"kind": "avatar_recast_rejected", "id": frame.ID, "reason": "checksum failed"})
+					continue
+				}
+				plan, e := worldState.recastAvatar(wearService, plaintext, event)
+				if e != nil {
+					event(map[string]any{"kind": "avatar_recast_refused", "id": frame.ID, "character_id": worldState.role.ID, "reason": e.Error()})
+					// Native CMD795 displays a refusal popup for error 127.
+					if sendPayload(1, frame.ID, protocol.Refusal(127)) != nil {
+						return
+					}
+					continue
+				}
+				if sendPlan(plan, logWorldResponseBody) != nil {
 					return
 				}
 				continue
