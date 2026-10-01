@@ -402,3 +402,15 @@ CMT原始SHA256为1cf7200d226b99dea7425ea76cf59bf47a259f25b3c18efac27585e61cfbb9
 新增item-shops直读选择项，527个现有服务端商店的全部7025条SHP商品、原始路径/哈希、源NPC/type、tab/index、purchase amount和材料支付完整一致；逐商品核对实际Materials/Listed/PurchaseAmount/PurchaseLimit查找也全部一致。独立pvf-item-shop-policy.json只保留既有服务端路由：202个同ID原生列表绑定、30个明确原生列表ID兼容映射、295个既有明确源路径；不把旧服务端ID解释为客户端原生ID，不按文件名或遍历顺序选冲突表，不扩大路由范围，当前295个未列入原生列表的服务端路径未重新证明为原生客户端路由。源价格/材料/商品/哈希不保存在策略内。purchase_limit_mode=disabled保留本服当前不限购行为，未直接将STK源限购自动接入交易。Odruz源100000607第三tab缺少[sell item list]起始标记，原导入器排除其4个item；新读取保持该准入边界，非法材料/未闭合条目拒绝。NewItemShops深拷贝offers/materials并复用首个可支付报价优先；正常读取不访问itemshop-candidate.json，源或运行目录不匹配时拒绝。54选择项/63类源投影缺失JSON联合准备67.68秒，完整商店审计10.92秒，全量Go测试/vet、14项Python测试及只读依赖检查通过。profile为pvf-item-shops-candidate.json，程序SHA256 c29f2d7134988d986b993af4bc33163e9b995f48663ccbdeb2ccf4c6f2f3ec63。确认范围仍为第四批28项，第五批新增候选未实机。
 
 原生list/itemshop.lst原SHA256 a0c1f809772ec56a68f5243b14567f24465701deceb5b748eb4b558a358fbe08。源scope与服务路由明确分开，未来改原生路由/补Odruz第3tab/启用源限购均属于另外的行为变更，本项不实施。GM查询、管理/修复工具共享目录及默认切换门禁继续处理。
+
+## 2026-10-01：管理与修复命令共享源入口
+
+admin、initialrepair、questrepair已接入显式catalog-source=pvf入口，共享internal/managementdata和原生gamedata；管理查询/发放的源目录、建号修复的职业及装备、旧任务修复的任务目录可完全不读取导出JSON。新增check-catalogs在读取存储配置前退出，无需角色ID；只读准备不启动数据库、服务或客户端。来源必须显式提供inner归档路径及精确7ef SHA256，不转换存档来源。袋位、穿戴/建号规则、默认技能栏与装备选取仍用现有独立策略；运行修复的development-only、幂等键、事务、审计和apply门禁保持。真实归档管理审计19.37秒通过，17职业、175554个补充后物品和3174行基础装备完整typed parity，424216完整装备绑定可用；奥德赛币和import-script薄壳装备仍通过原发放验证。全量Go测试/vet通过。三个隔离程序将导出JSON与storage路径均设为不存在仍完成只读准备；未访问玩家库。网关候选维持54选择项/63类源投影，confirmed baseline仍为第四批28项。
+
+候选程序置于server/work/dfo-lan/.tmp/pvf-management/bin/，未覆盖gm-tool发布程序。示例（模块根目录执行，仅目录检查）：
+
+```powershell
+./.tmp/pvf-management/bin/admin.exe -catalog-source pvf -pvf-archive ../../client-build/Script.inner.pvf -pvf-source-checksum 7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80 -check-catalogs
+```
+
+initialrepair/questrepair同样支持这些参数。check-catalogs只准备目录；默认修复预览仍会连接数据库和迁移既有表，当前迁移验证未执行普通预览或apply。GM名称核对发现当前客户端uv为英文、translate/kor主要为韩文，与旧中文译名不同；继续处理可迁移元数据并保留无法在当前源表取得的外部译名。

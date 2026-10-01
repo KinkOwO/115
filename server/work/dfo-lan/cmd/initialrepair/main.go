@@ -14,6 +14,7 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/character"
 	"dfolan/internal/inventory"
+	"dfolan/internal/managementdata"
 	"dfolan/internal/storage"
 	"encoding/json"
 	"flag"
@@ -27,6 +28,7 @@ import (
 const repairEventKey = "creation-equipment-repair-v1"
 
 func main() {
+	sourceFlags := managementdata.Register(flag.CommandLine)
 	storageConfig := flag.String("storage", "runtime/storage/local.json", "storage configuration")
 	characterCatalog := flag.String("character-catalog", "configs/characters.skycastle-release.json", "profession catalog（必须带 growtype 分段数据）")
 	equipmentCatalog := flag.String("quest-equipment-catalog", "configs/equipment.current37.json", "source equipment metadata")
@@ -35,6 +37,60 @@ func main() {
 	id := flag.Int64("character", 0, "exact development character ID")
 	apply := flag.Bool("apply", false, "apply the previewed repair; default only previews")
 	flag.Parse()
+	native, e := sourceFlags.Open()
+	if e != nil {
+		log.Fatal(e)
+	}
+	var chars catalog.Characters
+	if native != nil {
+		chars, e = managementdata.Characters(native, sourceFlags.CharacterPolicy)
+	} else {
+		chars, e = catalog.LoadCharacters(*characterCatalog)
+	}
+	if e != nil {
+		log.Fatal(e)
+	}
+	var equipment *inventory.EquipmentCatalog
+	if native != nil {
+		policy, err := inventory.ReadDropPolicy(sourceFlags.DropPolicy)
+		if err != nil {
+			log.Fatal(err)
+		}
+		index, err := native.ItemIndex("")
+		if err != nil {
+			log.Fatal(err)
+		}
+		native.ReleaseReadCaches()
+		equipment, e = managementdata.Equipment(native, index, policy)
+	} else {
+		equipment, e = inventory.LoadEquipmentCatalog(*equipmentCatalog, chars.Source.Checksum)
+	}
+	if e != nil {
+		log.Fatal(e)
+	}
+	rules, e := inventory.LoadWearRules(*wearRules, chars.Source.Checksum)
+	if e != nil {
+		log.Fatal(e)
+	}
+	rawRules, e := os.ReadFile(*characterRules)
+	if e != nil {
+		log.Fatal(e)
+	}
+	var creationRules character.Rules
+	if e = json.Unmarshal(rawRules, &creationRules); e != nil {
+		log.Fatal(e)
+	}
+	service := &character.Service{Catalog: chars, Rules: creationRules, Equipment: equipment, WearRules: rules}
+
+	if equipment.Full != nil {
+		defer equipment.Full.Close()
+	}
+	if sourceFlags.CheckOnly {
+		if e := managementdata.Report(map[string]any{"source": chars.Source.Checksum, "professions": len(chars.Professions), "equipment_rows": len(equipment.Rows), "storage_accessed": false}); e != nil {
+			log.Fatal(e)
+		}
+		return
+	}
 	if *id <= 0 {
 		log.Fatal("an exact character ID is required")
 	}
@@ -55,27 +111,6 @@ func main() {
 	if e = s.MigrateCharacterNotices(ctx); e != nil {
 		log.Fatal(e)
 	}
-	chars, e := catalog.LoadCharacters(*characterCatalog)
-	if e != nil {
-		log.Fatal(e)
-	}
-	equipment, e := inventory.LoadEquipmentCatalog(*equipmentCatalog, chars.Source.Checksum)
-	if e != nil {
-		log.Fatal(e)
-	}
-	rules, e := inventory.LoadWearRules(*wearRules, chars.Source.Checksum)
-	if e != nil {
-		log.Fatal(e)
-	}
-	rawRules, e := os.ReadFile(*characterRules)
-	if e != nil {
-		log.Fatal(e)
-	}
-	var creationRules character.Rules
-	if e = json.Unmarshal(rawRules, &creationRules); e != nil {
-		log.Fatal(e)
-	}
-	service := &character.Service{Catalog: chars, Rules: creationRules, Equipment: equipment, WearRules: rules}
 
 	// 只允许显式选定的开发账号角色：拒绝在别的账号或正式存档上误用。
 	var account int64
