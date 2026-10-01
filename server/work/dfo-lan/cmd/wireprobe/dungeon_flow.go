@@ -977,6 +977,9 @@ func (w *worldSession) monsterDeath(p []byte, event func(map[string]any)) ([]out
 				w.drops.Attunement = w.loot.Attunement
 				w.drops.RewardBoxes = w.loot.RewardBoxes
 				w.drops.Omen = w.loot.Omen
+				// 天平档位：本场进本时由 oathInfoPackets 算好（见 oath_info.go 的
+				// oathTierRun）。它与征兆是两条平行线，各自发放互不抑制。
+				w.drops.OathTier = w.oathTierRun
 				if w.loot.Omen != nil && w.omenHeldReady {
 					// 本场开始时的持有数：-omen-state 时来自角色存档
 					// （loadOmenRunState），否则来自 -omen-hold 诊断。账本本身是内存的，

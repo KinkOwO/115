@@ -167,7 +167,9 @@
    这类「不补就没功能」的东西一律**直接默认生效**，代码里不留 flag/env 入口
    （需要临时关闭时改代码，而不是加开关）。
 2. **只有「玩家体验上的数值差异」才保留入口。** 例如掉落调参
-   （`DFO_ATTUNEMENT_REBALANCE` / `-attunement-fixed-tilt`）、`DFO_SHOP_RELEASE` ——
+   （`DFO_ATTUNEMENT_REBALANCE` / `-attunement-fixed-tilt`）、`DFO_SHOP_RELEASE`、
+   **`DFO_FATIGUE_FREE`（疲劳消耗总开关，业主 2026-10-01 按玩家反馈要求；默认关 = 保留消耗，
+   打开后进本与房间两处一起归零 —— 只关一处会卡在加载界面）** ——
    这类开合属于业主的经营决策，开关留在 profile（`configs/pvf-default.json`）里。
 3. **诊断入口可以留。** `-omen-hold` / `-omen-info` / `-maze-force` 这类**只用于复现与取证**的入口保留，
    但帮助文本里必须写明是诊断用。

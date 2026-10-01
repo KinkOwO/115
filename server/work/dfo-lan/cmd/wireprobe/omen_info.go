@@ -55,6 +55,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 )
@@ -266,9 +267,15 @@ func (w *worldSession) omenInfoPackets() ([]outboundPacket, error) {
 	// 两条保底由此**叠加**（max）而不是互相覆盖 —— 客户端的 make_omen_gem.act 按
 	// `getEOOPartyOmenGrade >= N` 逐级判定，档位（=非零 u32 个数）就是它唯一的输入。
 	grade := held
-	if floor := omenGradeForOathTier(w.oathTierRun); floor > grade {
+	floor := omenGradeForOathTier(w.oathTierRun)
+	if floor > grade {
 		grade = floor
 	}
+	// 诊断：把「持有档数 / 天平档位 / 最终 grade」打出来。这一行是 2026-10-01 排查
+	// 「固定 oath=45 却掉 Unique 档箱子」时加的判据 —— 星蕴石品质只由这个 grade 决定，
+	// 而它是客户端本地消费的（服务端不发掉落），除了这里没有别处能看到它。
+	log.Printf("omen party info: held=%d oathTier=%d floor=%d grade=%d preview=%v",
+		held, w.oathTierRun, floor, grade, omenActiveIDs(ids, grade))
 	return []outboundPacket{{"omen_of_order_party_info", 0, omenInfoPacketID,
 		omenInfoPayloadForHeld(omenActiveIDs(ids, grade))}}, nil
 }

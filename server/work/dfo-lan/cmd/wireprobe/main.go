@@ -84,6 +84,10 @@ func main() {
 	//（2026-10-01 实测：直读默认档没传它 ⇒ fatigueService == nil ⇒ 所有疲劳检查被跳过）。
 	// 仍可用 -fatigue-rules / DFO_FATIGUE_RULES 覆盖，供本地调试。
 	fatigueRulesFile := flag.String("fatigue-rules", "configs/fatigue-probe.json", "separate persisted fatigue and rollover policy (default: configs/fatigue-probe.json)")
+	// 疲劳消耗总开关（业主 2026-10-01 按玩家反馈要求，属「玩家体验上的数值差异」入口）。
+	// 默认关 = 保留疲劳消耗；打开后进本消耗与房间消耗**一起**归零
+	// （见 character.FatigueService.Free —— 只关一处会卡在加载界面）。
+	fatigueFree := flag.Bool("fatigue-free", os.Getenv("DFO_FATIGUE_FREE") == "1", "关闭疲劳消耗（进本与房间一起归零）；默认关")
 	dungeonCatalogFile := flag.String("dungeon-catalog", "", "source dungeon layouts and first-room loading experiment")
 	progressionCatalogFile := flag.String("progression-catalog", "", "current-source experience and growth catalog")
 	progressionRulesFile := flag.String("progression-rules", "configs/experience.compat90.json", "separate reference compatibility formula settings")
@@ -728,6 +732,11 @@ func main() {
 		fatigueService, e = character.LoadFatigueService(characters.Store, fatiguePath)
 		if e != nil {
 			log.Fatal(e)
+		}
+		// 疲劳消耗总开关：进本与房间两处一起归零（业主 2026-10-01 按玩家反馈要求）。
+		fatigueService.Free = *fatigueFree
+		if *fatigueFree {
+			log.Printf("fatigue consumption OFF — 进本消耗与房间消耗都按 0 记（-fatigue-free / DFO_FATIGUE_FREE）")
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		e = characters.Store.MigrateFatigue(ctx)
