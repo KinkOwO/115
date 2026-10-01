@@ -134,7 +134,10 @@ func (s *Service) ApplyAwakening(role storage.Character, stage byte) (json.RawMe
 	}
 	for i := 0; i < len(grants); i += 2 {
 		id, rank := grants[i], grants[i+1]
-		d, ok := s.Learning.index[role.Profession][uint16(id)]
+		d, ok, sourceErr := s.Learning.Definition(role.Profession, uint16(id))
+		if sourceErr != nil {
+			return nil, sourceErr
+		}
 		// Membership in the profession's .chr awakening block authorizes this
 		// grant; awakened skills deliberately have zero base-growtype caps.
 		if id <= 0 || id > 65535 || rank <= 0 || rank > 255 || !ok {

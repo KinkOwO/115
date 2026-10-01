@@ -57,9 +57,9 @@ func (s *Service) Finish(ctx context.Context, role storage.Character, r protocol
 	if r.RewardSelection != 65535 || r.Option != 1 {
 		return out, fmt.Errorf("quest reward selection requires inventory settlement")
 	}
-	d, ok := s.Catalog.Quests[uint32(r.ID)]
-	if !ok {
-		return out, fmt.Errorf("quest source missing")
+	d, sourceErr := s.Catalog.Definition(uint32(r.ID))
+	if sourceErr != nil {
+		return out, sourceErr
 	}
 	_, model, e := InitialProgress(d)
 	if e != nil {

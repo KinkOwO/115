@@ -183,7 +183,7 @@ func preparePVFCoreCatalogs(selection, path, checksum, characterPath, questPath,
 
 	defer source.Close()
 	logPVFMemory("source-open", time.Since(started))
-	if source.Snapshot().Checksum != anchorChecksum {
+	if anchorChecksum != "" && source.Snapshot().Checksum != anchorChecksum {
 		return result, fmt.Errorf("PVF/character source mismatch: %s versus %s", source.Snapshot().Checksum, anchorChecksum)
 	}
 	result.sourceChecksum = source.Snapshot().Checksum
@@ -383,17 +383,17 @@ func preparePVFCoreCatalogs(selection, path, checksum, characterPath, questPath,
 					return result, e
 				}
 				defer full.Close()
-				if full.IndexSHA256 != candidate.IndexSHA256 || len(full.Records) != len(candidate.Records) || len(full.Errors) != 0 {
+				if full.IndexSHA256 != candidate.IndexSHA256 || full.RecordCount() != candidate.RecordCount() || len(full.Errors) != 0 {
 					return result, fmt.Errorf("full equipment baseline/PVF index differs")
 				}
 				for id := range full.Records {
-					if _, ok := candidate.Records[id]; !ok {
+					if !candidate.HasDefinition(id) {
 						return result, fmt.Errorf("equipment %d absent from PVF index", id)
 					}
 				}
 			}
 			result.equipment = candidate
-			log.Printf("PVF lazy equipment prepared: %d source bindings; expanded chunks bounded to 64 MiB", len(candidate.Records))
+			log.Printf("PVF lazy equipment prepared: %d compact source bindings; expanded chunks bounded to 64 MiB", candidate.RecordCount())
 		}
 	}
 	if err := preparePVFScenes(&result, source, selected, inputs); err != nil {
@@ -462,6 +462,17 @@ func preparePVFCoreCatalogs(selection, path, checksum, characterPath, questPath,
 	}
 	if err := preparePVFSpecial(&result, source, selected, inputs); err != nil {
 		return result, err
+	}
+	if result.dungeons != nil {
+		result.dungeons.ReleaseMapReadCache()
+	}
+	if err := source.EnableRuntimeDetails(result.quests, result.learning, result.loot, result.items); err != nil {
+		return result, fmt.Errorf("PVF runtime details: %w", err)
+	}
+	if result.equipment != nil || result.dungeons != nil || result.quests != nil || result.learning != nil || result.loot != nil {
+		if err := source.CompactRuntimeStrings(); err != nil {
+			return result, fmt.Errorf("compact PVF runtime strings: %w", err)
+		}
 	}
 	log.Printf("PVF candidate catalogs prepared in %s; full directory can be collected before opening storage", time.Since(started))
 	logPVFMemory("catalogs-prepared", time.Since(started))

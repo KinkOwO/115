@@ -323,7 +323,11 @@ func ImportScriptWarpRoutes(a *pvf.Archive, d DungeonCatalog, policy ScriptWarpP
 				return nil, fmt.Errorf("selected cinematic lacks a unique native list binding")
 			}
 			var obj ScriptRecord
-			act, obj, err = scriptWarpCinematicAction(a, cmt, d.Maps[r.From])
+			from, err := d.MapScript(r.From)
+			if err != nil {
+				return nil, err
+			}
+			act, obj, err = scriptWarpCinematicAction(a, cmt, from)
 			if err != nil {
 				return nil, fmt.Errorf("%s: %w", cmt.Path, err)
 			}
@@ -378,7 +382,14 @@ func ImportScriptWarpRoutes(a *pvf.Archive, d DungeonCatalog, policy ScriptWarpP
 			}
 			random = append(rangeCells, 0)
 			for _, room := range maze.Rooms {
-				for _, monster := range scriptWarpBlocks(d.Maps[room.Map].Cells, "[monster]") {
+				if _, ok := d.Maps[room.Map]; !ok {
+					continue
+				}
+				script, err := d.MapScript(room.Map)
+				if err != nil {
+					return nil, err
+				}
+				for _, monster := range scriptWarpBlocks(script.Cells, "[monster]") {
 					if len(monster) > 0 && monster[0].Type == 0 && uint32(monster[0].Value) == p.Monster {
 						if r.From != 0 && r.From != room.Map {
 							return nil, fmt.Errorf("multiple forced actor map owners")

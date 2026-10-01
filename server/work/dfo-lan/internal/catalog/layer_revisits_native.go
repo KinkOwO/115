@@ -55,9 +55,9 @@ func ImportLayerRevisits(a *pvf.Archive, d DungeonCatalog, p LayerRevisitPolicy)
 			return out, fmt.Errorf("invalid layer revisit cinematic map")
 		}
 		id := uint32(ids[0])
-		m, ok := d.Maps[id]
-		if !ok {
-			return out, fmt.Errorf("missing layer revisit map")
+		m, err := d.MapScript(id)
+		if err != nil {
+			return out, fmt.Errorf("layer revisit map: %w", err)
 		}
 		if err := scriptWarpMapCinematic(a, m, cmt); err != nil {
 			return out, err

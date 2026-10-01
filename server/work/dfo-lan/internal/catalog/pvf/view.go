@@ -30,6 +30,7 @@ func (a *Archive) ReadOnlyView(paths []string) (*Archive, error) {
 	sort.Ints(order)
 	v := &Archive{snapshot: a.snapshot, format: a.format, header: a.header,
 		data: a.data, groups: a.groups, bodyOff: a.bodyOff, strA: a.strA, strW: a.strW,
+		stringPools:   a.stringPools,
 		readOnlyView:  true,
 		maxChunkBytes: 64 * 1024 * 1024, maxTexts: 2048}
 	if a.compactDirectory {

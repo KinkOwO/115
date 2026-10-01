@@ -43,7 +43,7 @@ func TestPVFEquipmentLocalArchive(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer legacy.Close()
-	if len(legacy.Records) != len(direct.Records) || legacy.IndexSHA256 != direct.IndexSHA256 {
+	if legacy.RecordCount() != direct.RecordCount() || legacy.IndexSHA256 != direct.IndexSHA256 {
 		t.Fatal("equipment index changed")
 	}
 	ids := make([]uint32, 0, len(legacy.Records))

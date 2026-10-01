@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"sync"
 )
 
@@ -20,6 +21,7 @@ type equipmentLocation struct {
 	Path   string `json:",omitempty"`
 }
 type FullEquipmentCatalog struct {
+	bindings    []equipmentBinding
 	Source      pvf.ArchiveSnapshot
 	IndexSHA256 string
 	Records     map[uint32]equipmentLocation
@@ -27,7 +29,24 @@ type FullEquipmentCatalog struct {
 	file        *os.File
 	archive     *pvf.Archive
 	mu          sync.Mutex
-	cache       map[uint32]EquipmentDefinition
+	cache       catalog.SizedCache[uint32, EquipmentDefinition]
+	closed      bool
+}
+type equipmentBinding struct{ ID, File uint32 }
+
+func (c *FullEquipmentCatalog) RecordCount() int {
+	if c.archive != nil {
+		return len(c.bindings)
+	}
+	return len(c.Records)
+}
+func (c *FullEquipmentCatalog) HasDefinition(id uint32) bool {
+	if c.archive != nil {
+		i := sort.Search(len(c.bindings), func(i int) bool { return c.bindings[i].ID >= id })
+		return i < len(c.bindings) && c.bindings[i].ID == id
+	}
+	_, ok := c.Records[id]
+	return ok
 }
 
 func OpenFullEquipmentCatalog(prefix, source string) (*FullEquipmentCatalog, error) {
@@ -57,10 +76,16 @@ func OpenFullEquipmentCatalog(prefix, source string) (*FullEquipmentCatalog, err
 			return nil, fmt.Errorf("invalid equipment record location")
 		}
 	}
-	c.cache = map[uint32]EquipmentDefinition{}
 	return c, nil
 }
 func (c *FullEquipmentCatalog) Close() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.closed {
+		return nil
+	}
+	c.closed = true
+	c.cache.Clear()
 	if c.archive != nil {
 		return c.archive.Close()
 	}
@@ -81,7 +106,7 @@ func OpenPVFEquipmentCatalog(a *pvf.Archive, index catalog.ItemIndex) (*FullEqui
 		return nil, fmt.Errorf("missing equipment source index hash")
 	}
 	c := &FullEquipmentCatalog{Source: a.Snapshot(), IndexSHA256: hash,
-		Records: map[uint32]equipmentLocation{}, Errors: map[uint32]string{}, cache: map[uint32]EquipmentDefinition{}}
+		Records: map[uint32]equipmentLocation{}, Errors: map[uint32]string{}}
 	paths := make([]string, 0, len(index.Items))
 	for id, entry := range index.Items {
 		if entry.Kind != "equipment" && entry.Kind != "avatar" {
@@ -103,27 +128,54 @@ func OpenPVFEquipmentCatalog(a *pvf.Archive, index catalog.ItemIndex) (*FullEqui
 		return nil, err
 	}
 	c.archive = v
+	c.bindings = make([]equipmentBinding, 0, len(c.Records))
+	for id, r := range c.Records {
+		index := v.FindFileIndex(r.Path)
+		if index < 0 {
+			v.Close()
+			return nil, fmt.Errorf("equipment view binding missing: %d", id)
+		}
+		c.bindings = append(c.bindings, equipmentBinding{id, uint32(index)})
+	}
+	sort.Slice(c.bindings, func(i, j int) bool { return c.bindings[i].ID < c.bindings[j].ID })
+	c.Records = nil // Runtime keeps 8-byte native bindings, not JSON record locations.
 	return c, nil
 }
 
 func (c *FullEquipmentCatalog) Definition(id uint32) (EquipmentDefinition, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if d, ok := c.cache[id]; ok {
-		return d, nil
-	}
-	loc, ok := c.Records[id]
-	if !ok {
-		return EquipmentDefinition{}, fmt.Errorf("equipment%d definition missing: %s", id, c.Errors[id])
+	if c.closed {
+		return EquipmentDefinition{}, fmt.Errorf("equipment source closed")
 	}
 	if c.archive != nil {
-		s, err := catalog.ReadScript(c.archive, loc.Path)
+		if err := c.archive.ReadError(); err != nil {
+			return EquipmentDefinition{}, err
+		}
+	}
+	if d, ok := c.cache.Get(id); ok {
+		return d, nil
+	}
+	if c.archive != nil {
+		i := sort.Search(len(c.bindings), func(i int) bool { return c.bindings[i].ID >= id })
+		if i >= len(c.bindings) || c.bindings[i].ID != id {
+			return EquipmentDefinition{}, fmt.Errorf("equipment %d absent from source index", id)
+		}
+		file, err := c.archive.FileInfo(int(c.bindings[i].File))
+		if err != nil {
+			return EquipmentDefinition{}, err
+		}
+		s, err := catalog.ReadScript(c.archive, file.ArchivePath)
 		if err != nil {
 			return EquipmentDefinition{}, err
 		}
 		d := equipmentDefinitionFromScript(id, s)
 		c.cacheDefinition(id, d)
 		return d, nil
+	}
+	loc, ok := c.Records[id]
+	if !ok {
+		return EquipmentDefinition{}, fmt.Errorf("equipment%d definition missing: %s", id, c.Errors[id])
 	}
 	packed := make([]byte, loc.Size)
 	if _, e := c.file.ReadAt(packed, loc.Offset); e != nil {
@@ -171,11 +223,21 @@ func equipmentDefinitionFromScript(id uint32, s catalog.ScriptRecord) EquipmentD
 }
 
 func (c *FullEquipmentCatalog) cacheDefinition(id uint32, d EquipmentDefinition) {
-	// Bound cache growth; a catalog may contain hundreds of thousands of avatars.
-	if len(c.cache) >= 2048 {
-		c.cache = map[uint32]EquipmentDefinition{}
+	n := len(d.Path) + len(d.SHA256)
+	for tag, ts := range d.Fields {
+		n += len(tag) + 64 + 48*len(ts)
+		for _, t := range ts {
+			n += len(t.Text)
+		}
 	}
-	c.cache[id] = d
+	for tag, ts := range d.fameFields {
+		n += len(tag) + 64 + 48*len(ts)
+		for _, t := range ts {
+			n += len(t.Text)
+		}
+	}
+	n += len(d.fameLevels) * 64
+	c.cache.Put(id, d, n, 32*1024*1024, 2048)
 }
 
 func (c *EquipmentCatalog) Definition(id uint32) (EquipmentDefinition, error) {

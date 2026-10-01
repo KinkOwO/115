@@ -154,6 +154,11 @@ func (s *ShopService) Buy(ctx context.Context, role storage.Character, r protoco
 	if role.ConfigVersion != s.Catalog.Source.Checksum {
 		return fail(fmt.Errorf("buy source mismatch"))
 	}
+	if s.Catalog.HasRuntimeDetails() && s.Catalog.Items[r.Template].Kind == "stackable" {
+		if _, err := s.Catalog.ItemScript(r.Template); err != nil {
+			return fail(err)
+		}
+	}
 	seq := atomic.AddUint64(&shopEventSeq, 1)
 	key := shopEventKey("buy", seq, r.Template, r.Count)
 	// 商店的支付方式有两个「材料」来源：

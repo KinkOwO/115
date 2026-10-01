@@ -232,6 +232,13 @@ func (a *Archive) DistinctStrings() ([]DistinctString, error) {
 
 // PoolBytes 返回解密后的 ANSI / UTF-16 字符串池副本。
 func (a *Archive) PoolBytes() (strA, strW []byte) {
+	if a.stringPools != nil {
+		first, second, err := a.stringPools.expanded()
+		if err != nil {
+			panic(err)
+		} // Legacy audit API cannot return an error; never publish partial pools.
+		return first, second
+	}
 	return append([]byte(nil), a.strA...), append([]byte(nil), a.strW...)
 }
 

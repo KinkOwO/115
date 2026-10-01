@@ -66,8 +66,9 @@ func (f *archiveFile) release() error {
 	return nil
 }
 
-// OpenReadOnly verifies the complete file before parsing metadata. Only the
-// directory and string pools stay in memory; compressed bodies use ReadAt on
+// OpenReadOnly hashes the complete file before parsing metadata. A nonempty
+// expectedChecksum pins the source; empty derives identity from the held file.
+// Only the directory and string pools stay in memory; compressed bodies use ReadAt on
 // the same open file. Views own independent leases on this immutable source.
 func OpenReadOnly(options Options, expectedChecksum string) (*Archive, error) {
 	if strings.TrimSpace(options.Path) == "" {
@@ -158,6 +159,8 @@ func OpenReadOnly(options Options, expectedChecksum string) (*Archive, error) {
 	// The original metadata buffer also contains compressed pools/hash tables.
 	// Keep just the original packed file records after parsing.
 	a.data = nil
+	a.stringPools = newRuntimeStringPools(a.strA, a.strW)
+	a.strA, a.strW = nil, nil
 	a.attachCleanup()
 	success = true
 	return a, nil
@@ -249,6 +252,9 @@ func (a *Archive) IterateFilesUnder(prefix string, visit func(File) error) error
 	if a == nil || visit == nil {
 		return fmt.Errorf("invalid archive file iterator")
 	}
+	if err := a.poolError(); err != nil {
+		return err
+	}
 	prefix = pathKey(prefix)
 	if prefix == "" {
 		return a.IterateFiles(visit)
@@ -274,28 +280,39 @@ func (a *Archive) IterateFilesUnder(prefix string, visit func(File) error) error
 			continue
 		}
 		f := a.fileAt(i)
+		if err := a.poolError(); err != nil {
+			return err
+		}
 		if strings.HasPrefix(pathKey(f.ArchivePath), prefix) {
 			if err := visit(f); err != nil {
 				return err
 			}
 		}
 	}
-	return nil
+	return a.poolError()
 }
 
 func (a *Archive) nameHasSeparator(offset int) bool {
 	if offset < 0 {
 		return false
 	}
+	strA, strW := a.strA, a.strW
+	if a.stringPools != nil {
+		state := a.stringPools.state.Load()
+		if state.compressedA != nil || state.compressedW != nil {
+			return strings.ContainsAny(a.resolveString(offset), "/\\")
+		}
+		strA, strW = state.a, state.w
+	}
 	if offset&1 == 0 {
-		for i := offset >> 1; i < len(a.strA) && a.strA[i] != 0; i++ {
-			if a.strA[i] == '/' || a.strA[i] == '\\' {
+		for i := offset >> 1; i < len(strA) && strA[i] != 0; i++ {
+			if strA[i] == '/' || strA[i] == '\\' {
 				return true
 			}
 		}
 	} else {
-		for i := (offset >> 1) * 2; i+1 < len(a.strW); i += 2 {
-			lo, hi := a.strW[i], a.strW[i+1]
+		for i := (offset >> 1) * 2; i+1 < len(strW); i += 2 {
+			lo, hi := strW[i], strW[i+1]
 			if lo == 0 && hi == 0 {
 				break
 			}

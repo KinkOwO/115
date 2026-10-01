@@ -28,6 +28,7 @@ def main():
     parser.add_argument("--profile", default="configs/pvf-default.json")
     parser.add_argument("--output", help="new directory for logs and measurements")
     parser.add_argument("--timeout", type=float, default=180)
+    parser.add_argument("--heap-profile", action="store_true", help="write an isolated post-GC Go heap profile")
     args = parser.parse_args()
     if os.name != "nt":
         parser.error("process memory sampling requires Windows")
@@ -52,10 +53,13 @@ def main():
     begin = time.monotonic()
     with (output / "report.json").open("w", encoding="utf-8") as out, (
             output / "prepare.log").open("w", encoding="utf-8") as err:
-        process = subprocess.Popen([
+        command = [
             str(binary), "-pvf-check-catalogs", "-equipment-wear-rules",
             "configs/equipment-wear.current35.json",
-        ], cwd=root, env=env, stdout=out, stderr=err, creationflags=subprocess.CREATE_NO_WINDOW)
+        ]
+        if args.heap_profile:
+            command.extend(["-pvf-check-heap-profile", str(output / "heap.pprof")])
+        process = subprocess.Popen(command, cwd=root, env=env, stdout=out, stderr=err, creationflags=subprocess.CREATE_NO_WINDOW)
         handle = kernel.OpenProcess(0x0400 | 0x0010, False, process.pid)
         try:
             if not handle:

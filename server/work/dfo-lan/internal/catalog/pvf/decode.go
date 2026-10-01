@@ -53,6 +53,9 @@ func (a *Archive) resolveString(magicOffset int) string {
 	if magicOffset < 0 {
 		return ""
 	}
+	if a.stringPools != nil {
+		return a.stringPools.resolve(magicOffset)
+	}
 	if magicOffset&1 != 0 {
 		return readUTF16String(a.strW, (magicOffset>>1)*2)
 	}

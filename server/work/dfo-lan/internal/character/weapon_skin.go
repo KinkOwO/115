@@ -233,7 +233,10 @@ func (s *Service) canLearnSkill(profession byte, advancement, awakening int) fun
 		return nil
 	}
 	return func(skill uint16) bool {
-		d, ok := s.Learning.index[profession][skill]
+		d, ok, sourceErr := s.Learning.Definition(profession, skill)
+		if sourceErr != nil {
+			return false
+		}
 		if !ok {
 			return true
 		}

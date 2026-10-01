@@ -22,7 +22,10 @@ func (s *Service) automaticSkills(role storage.Character, state State) (map[uint
 	}
 	for i := 0; i < len(grants); i += 3 {
 		id, rank, threshold := grants[i], grants[i+1], grants[i+2]
-		d, exists := s.Learning.index[role.Profession][uint16(id)]
+		d, exists, sourceErr := s.Learning.Definition(role.Profession, uint16(id))
+		if sourceErr != nil {
+			return nil, sourceErr
+		}
 		if id < 1 || id > 65535 || rank < 1 || rank > 255 || threshold < 1 || threshold > 255 || !exists {
 			return nil, fmt.Errorf("invalid automatic skill definition")
 		}
@@ -69,7 +72,10 @@ func (s *Service) awakeningSkills(role storage.Character, state State) (map[uint
 		}
 		for i := 0; i < len(grants); i += 2 {
 			id, rank := grants[i], grants[i+1]
-			d, exists := s.Learning.index[role.Profession][uint16(id)]
+			d, exists, sourceErr := s.Learning.Definition(role.Profession, uint16(id))
+			if sourceErr != nil {
+				return nil, sourceErr
+			}
 			// Membership in the profession's .chr awakening block authorizes
 			// this grant; awakened skills deliberately have zero base-growtype
 			// caps, so the source definition is only read for its level gate.
@@ -128,7 +134,10 @@ func (s *Service) knownSkills(role storage.Character, state State, tree int) (ma
 			if initial[id] || grants[id] > 0 {
 				continue
 			}
-			d, ok := s.Learning.index[role.Profession][id]
+			d, ok, sourceErr := s.Learning.Definition(role.Profession, id)
+			if sourceErr != nil {
+				return nil, sourceErr
+			}
 			if !ok || (!d.ForAdvancement(int(state.Advancement)) && !d.ForAwakening(int(state.Advancement), int(state.Awakening))) {
 				delete(known, id)
 			}

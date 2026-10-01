@@ -32,7 +32,7 @@ type Options struct {
 	// 非空 = 显式校验（发布 / 审计场景钉死某一版）。
 	// 为什么允许为空：内层 PVF 是本地按需生成的产物（见 scripts/ensure_inner_pvf.py），
 	// 手写常量会与文件脱钩 —— 自愈更新了文件、常量没更新就启动失败（next142 的事故）。
-	// 自动派生不额外读一遍归档：pvf.Load 本来就要算这个 SHA256，直接复用它。
+	// 自动派生不额外读一遍归档：OpenReadOnly完整流式计算一次SHA256并复用它。
 	ExpectedChecksum string
 	MaxBytes         int64
 }
@@ -133,7 +133,6 @@ func Open(options Options) (*Source, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open inner PVF: %w", err)
 	}
-
 	s.archive = a
 	return s, nil
 }
@@ -143,6 +142,45 @@ func (s *Source) Close() error {
 		return nil
 	}
 	return s.archive.Close()
+}
+
+func (s *Source) CompactRuntimeStrings() error {
+	if s == nil || s.archive == nil {
+		return nil
+	}
+	return s.archive.CompactRuntimeStrings()
+}
+
+func (s *Source) EnableRuntimeDetails(q *catalog.QuestCatalog, l *character.LearningCatalog, items *catalog.LootCatalog, index *catalog.ItemIndex) (err error) {
+	defer func() {
+		if err != nil {
+			if q != nil {
+				q.Close()
+			}
+			if l != nil {
+				l.Close()
+			}
+			if items != nil {
+				items.CloseDetails()
+			}
+		}
+	}()
+	if q != nil {
+		if err := q.EnableRuntimeDetails(s.archive); err != nil {
+			return err
+		}
+	}
+	if l != nil {
+		if err := l.EnableRuntimeDetails(s.archive); err != nil {
+			return err
+		}
+	}
+	if items != nil && index != nil {
+		if err := items.EnableRuntimeDetails(s.archive, *index); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *Source) Snapshot() pvf.ArchiveSnapshot {
@@ -386,6 +424,13 @@ func (s *Source) FullDungeons(world catalog.WorldCatalog, excluded []uint32) (ca
 		return catalog.DungeonCatalog{}, fmt.Errorf("dungeon import requires PVF")
 	}
 	return catalog.ImportFullDungeons(s.archive, world, excluded)
+}
+
+func (s *Source) RuntimeFullDungeons(world catalog.WorldCatalog, excluded []uint32) (catalog.DungeonCatalog, error) {
+	if s.archive == nil {
+		return catalog.DungeonCatalog{}, fmt.Errorf("dungeon import requires PVF")
+	}
+	return catalog.ImportRuntimeFullDungeons(s.archive, world, excluded)
 }
 
 func (s *Source) Dungeons(ids []uint32) (catalog.DungeonCatalog, error) {

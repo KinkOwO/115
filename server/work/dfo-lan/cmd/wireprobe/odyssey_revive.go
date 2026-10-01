@@ -87,9 +87,9 @@ func (w *worldSession) pilotReviveAllowed(p []byte) error {
 	if w.dungeons == nil {
 		return fmt.Errorf("missing map revive rules")
 	}
-	script, ok := w.dungeons.Maps[w.activeDungeon.Room.Map]
-	if !ok {
-		return fmt.Errorf("missing current map source")
+	script, err := w.dungeons.MapScript(w.activeDungeon.Room.Map)
+	if err != nil {
+		return err
 	}
 	for _, v := range script.Cells {
 		if v.Type == 3 && v.Text == "[cannot use coin map]" {

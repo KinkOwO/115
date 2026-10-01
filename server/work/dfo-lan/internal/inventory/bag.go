@@ -435,6 +435,11 @@ func (b Bag) Add(c catalog.LootCatalog, r BagRules, id, amount uint32, expireTim
 	if !ok || item.Kind != "stackable" {
 		return b, 0, fmt.Errorf("unsupported source item")
 	}
+	if c.HasRuntimeDetails() {
+		if _, err := c.ItemScript(id); err != nil {
+			return b, 0, err
+		}
+	}
 	if IsPetConsumable(item.StackableType) {
 		return b.addPetStack(r, id, amount, exp, item.StackLimit)
 	}
