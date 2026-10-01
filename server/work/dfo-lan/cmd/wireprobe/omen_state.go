@@ -39,8 +39,8 @@ func (w *worldSession) omenStore() *storage.Store {
 	if w == nil {
 		return nil
 	}
-	if w.service != nil && w.service.Store != nil {
-		return w.service.Store
+	if w.service != nil && w.store != nil {
+		return w.store
 	}
 	if w.characters != nil {
 		return w.characters.Store

@@ -89,9 +89,6 @@ var allowedEdges = map[string]map[string]bool{
 		"internal/inventory":   true, // R4
 		"internal/progression": true, // R4
 	},
-	"internal/world": {
-		"internal/storage": true, // R2
-	},
 	"internal/cashshop": {
 		"internal/storage":   true, // R2
 		"internal/inventory": true, // R4

@@ -373,7 +373,7 @@ func (w *worldSession) dungeonEntryPlan(ctx context.Context, ackName string, ack
 // so completed ones count too; only accepted would lock out a dungeon whose
 // quest the character already finished.
 func (w *worldSession) acceptedQuestIDs(ctx context.Context) (map[uint16]bool, error) {
-	quests, e := w.service.Store.Quests(ctx, w.account, w.role.ID)
+	quests, e := w.store.Quests(ctx, w.account, w.role.ID)
 	if e != nil {
 		return nil, e
 	}
@@ -689,7 +689,7 @@ func (w *worldSession) elvenmereTeleport(p []byte) ([]outboundPacket, error) {
 			before, _ := inventory.ReadBag(w.role.State)
 			if updated, _, err := awarder.Grant(w.role.State, itemTemplate, itemCount); err == nil {
 				w.role.State = updated
-				if store := w.service.Store; store != nil {
+				if store := w.store; store != nil {
 					key := fmt.Sprintf("elvenmere-weekly:%s:%d", w.activeDungeon.RunID, clearedFloor)
 					_, _, _ = store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, "elvenmere-reward-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
 						proof, _ := json.Marshal(map[string]any{"template": itemTemplate, "amount": itemCount, "floor": clearedFloor})
@@ -718,7 +718,7 @@ func (w *worldSession) elvenmereTeleport(p []byte) ([]outboundPacket, error) {
 			before, _ := inventory.ReadBag(w.role.State)
 			if updated, _, err := awarder.Grant(w.role.State, sTemplate, sCount); err == nil {
 				w.role.State = updated
-				if store := w.service.Store; store != nil {
+				if store := w.store; store != nil {
 					key := fmt.Sprintf("elvenmere-season:%s:%d", w.activeDungeon.RunID, clearedFloor)
 					_, _, _ = store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, "elvenmere-reward-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
 						proof, _ := json.Marshal(map[string]any{"template": sTemplate, "amount": sCount, "floor": clearedFloor})
@@ -741,7 +741,7 @@ func (w *worldSession) elvenmereTeleport(p []byte) ([]outboundPacket, error) {
 		if updatedRole, _, err := w.progression.ApplyGain(w.role, expGain); err == nil {
 			updatedRole.WireID = w.role.WireID
 			w.role = updatedRole
-			if store := w.service.Store; store != nil {
+			if store := w.store; store != nil {
 				key := fmt.Sprintf("elvenmere-exp:%s:%d", w.activeDungeon.RunID, clearedFloor)
 				_, _, _ = store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, "elvenmere-exp-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
 					proof, _ := json.Marshal(map[string]any{"exp": expGain, "floor": clearedFloor})
@@ -988,7 +988,7 @@ func (w *worldSession) monsterDeath(p []byte, event func(map[string]any)) ([]out
 					w.loot.Omen.Set(w.role.ID, uint32(w.omenHold))
 					w.omenHoldApplied = true
 				}
-				store := w.service.Store
+				store := w.store
 				if store == nil && w.characters != nil {
 					store = w.characters.Store
 				}

@@ -148,10 +148,10 @@ L3 领域之间 **默认禁止**互相 import。需要另一领域能力时，�
 | E12 | `inventory` → `storage` | 同上 |
 | E13 | `loot` → `storage` | 同上 |
 | E14 | `quest` → `storage` | 同上 |
-| E15 | `world` → `storage` | 同上 |
+| E15 | `world` → `storage` | **已消除（2026-10-01）**：`world` 声明 `Store` 接口（`LoadWorld`），`storage` 实现并注入；`WorldPosition`/`WorldState`/`WorldReturn` 类型归 `world`，`storage` 以类型别名复用（迁移期）。见提交"world Store 倒置" |
 | E16 | `cashshop` → `storage` | 同上 |
 
-> 说明：`internal/storage` 当前 import `adventure/profileskin/rosterbg/savecontract` 属于 R3 允许方向（实现方依赖被实现方），保留在例外之外；但需确认 `storage` 未定义游戏事实。`cmd/*` 工具 import `storage`（`gmtool`/`charactercheck`/`storagecheck`/`initialrepair`/`questrepair`/`avatarrestorecheck`）属 R6 工具层，允许。
+> 说明：`internal/storage` 当前 import `adventure/profileskin/rosterbg/savecontract/world` 属于 R3 允许方向（实现方依赖被实现方），保留在例外之外；但需确认 `storage` 未定义游戏事实。`cmd/*` 工具 import `storage`（`gmtool`/`charactercheck`/`storagecheck`/`initialrepair`/`questrepair`/`avatarrestorecheck`）属 R6 工具层，允许。
 
 ### 7.3 领域 ↔ 领域（违反 R4）
 

@@ -28,6 +28,7 @@ type worldSession struct {
 	characters             *character.Service
 	pilotDeath             *odysseyDeath
 	service                *world.Service
+	store                  *storage.Store
 	account                int64
 	serverID               uint32
 	role                   storage.Character
@@ -196,7 +197,7 @@ func (w *worldSession) enter(role storage.Character, spawn storage.WorldPosition
 		if spawn.Town == 218 {
 			return fmt.Errorf("普通频道默认落点不能使用赤红铁矿区域")
 		}
-		saved, e = w.service.Store.SaveWorld(ctx, w.account, role.ID, saved, spawn)
+		saved, e = w.store.SaveWorld(ctx, w.account, role.ID, saved, spawn)
 		if e != nil {
 			return e
 		}
@@ -553,7 +554,7 @@ func (w *worldSession) handle(id uint16, p []byte, send func(byte, uint16, []byt
 		w.state.Position = next
 		event(map[string]any{"kind": "黑鸦会话位置更新", "character_id": w.role.ID, "position": next, "request": id})
 	} else {
-		saved, e := w.service.Store.SaveWorld(ctx, w.account, w.role.ID, old, next)
+		saved, e := w.store.SaveWorld(ctx, w.account, w.role.ID, old, next)
 		if e != nil {
 			return e
 		}
