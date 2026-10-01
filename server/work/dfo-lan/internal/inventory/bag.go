@@ -117,6 +117,10 @@ type BagItem struct {
 	ExpireTime       uint32 `json:"expire_time,omitempty"`
 }
 type Bag struct {
+	// Old inventories omit the sequence and start at zero. It distinguishes
+	// repeated compounds using stacks that keep the same slots and templates.
+	EmblemCompoundSeq uint64 `json:"emblem_compound_seq,omitempty"`
+
 	Expansion byte                    `json:"expansion,omitempty"`
 	Version   string                  `json:"version"`
 	Gold      uint32                  `json:"gold"`
