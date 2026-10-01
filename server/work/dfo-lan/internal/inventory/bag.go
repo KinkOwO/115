@@ -173,7 +173,9 @@ type Bag struct {
 	// AvatarDisjointSeq separates successive instances of the same avatar in
 	// the same slot. Old saves begin at zero; it is not sent to the client.
 	AvatarDisjointSeq uint64 `json:"avatar_disjoint_seq,omitempty"`
-	AvatarRecastSeq   uint64 `json:"avatar_recast_seq,omitempty"`
+	// Old saves start at zero. Successive opening operations get distinct receipts.
+	AvatarSocketSeq uint64 `json:"avatar_socket_seq,omitempty"`
+	AvatarRecastSeq uint64 `json:"avatar_recast_seq,omitempty"`
 }
 
 // WeaponSlot 是穿戴容器（list 3）里的武器槽。[equipment type] 的序号空间里

@@ -1024,7 +1024,7 @@ func main() {
 			log.Printf("loaded equipment create cost: groups=%d itemRows=%d templates=%d",
 				len(cc.Groups), items, len(cc.Templates()))
 		}
-		lootService = &loot.Service{Store: characters.Store, Catalog: c, DropCatalog: dropCatalog, Rules: r, BagRules: bag, Tables: tables, Equipment: gear, AvatarDisjoint: pvfCatalogs.avatarDisjoint, Journal: journalRules, CreateCost: equipmentCreateCost}
+		lootService = &loot.Service{Store: characters.Store, Catalog: c, DropCatalog: dropCatalog, Rules: r, BagRules: bag, Tables: tables, Equipment: gear, AvatarDisjoint: pvfCatalogs.avatarDisjoint, AvatarSockets: pvfCatalogs.avatarSockets, Journal: journalRules, CreateCost: equipmentCreateCost}
 		shopService = &inventory.ShopService{Store: characters.Store, Catalog: c, EventModel: r.Model, BagRules: bag, ItemMaterials: itemMaterials}
 		minePath := *bleedingMineRewardsFile
 		if minePath == "" {
@@ -3751,6 +3751,24 @@ func main() {
 					event(map[string]any{"kind": "avatar_recast_refused", "id": frame.ID, "character_id": worldState.role.ID, "reason": e.Error()})
 					// Native CMD795 displays a refusal popup for error 127.
 					if sendPayload(1, frame.ID, protocol.Refusal(127)) != nil {
+						return
+					}
+					continue
+				}
+				if sendPlan(plan, logWorldResponseBody) != nil {
+					return
+				}
+				continue
+			}
+			if worldState != nil && bootstrapped && frame.Type == 1 && frame.ID == 206 {
+				if !verified {
+					event(map[string]any{"kind": "avatar_socket_rejected", "id": frame.ID, "reason": "checksum failed"})
+					continue
+				}
+				plan, e := worldState.addAvatarSocket(plaintext, event)
+				if e != nil {
+					event(map[string]any{"kind": "avatar_socket_refused", "id": frame.ID, "character_id": worldState.role.ID, "reason": e.Error()})
+					if e = sendPayload(1, frame.ID, protocol.Refusal(19)); e != nil {
 						return
 					}
 					continue
