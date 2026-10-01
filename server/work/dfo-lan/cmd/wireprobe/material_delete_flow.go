@@ -31,7 +31,7 @@ func (w *worldSession) deleteSkillMaterial(p, raw []byte) ([]outboundPacket, err
 			return nil, fmt.Errorf("晶体契约存储不可用")
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		active, err := w.vault.Store.HasActivePremium(ctx, w.role.AccountID, storage.PremiumCube, time.Now())
+		active, err := w.store.HasActivePremium(ctx, w.role.AccountID, storage.PremiumCube, time.Now())
 		cancel()
 		if err != nil {
 			return nil, err

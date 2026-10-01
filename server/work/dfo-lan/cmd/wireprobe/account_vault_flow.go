@@ -75,7 +75,7 @@ func (w *worldSession) upgradeAccountVault(ctx context.Context, opcode uint16, p
 	}
 	rules := *w.vault.Rules.Account
 	key := fmt.Sprintf("account-vault:%s:%x", prefix, sha256.Sum256(raw))
-	saved, materials, vault, applied, err := w.vault.Store.CommitAccountVault(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, opcode,
+	saved, materials, vault, applied, err := w.store.CommitAccountVault(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, opcode,
 		func(role storage.Character, materials json.RawMessage, vault storage.AccountVaultState) (json.RawMessage, json.RawMessage, storage.AccountVaultState, error) {
 			state, counts, next, err := inventory.UpgradeAccountVault(role, materials, vault, rules, opcode == 305)
 			if err != nil {
@@ -106,7 +106,7 @@ func (w *worldSession) moveAccountVault(service *inventory.WearService, r protoc
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	var count uint32
-	saved, _, savedVault, _, err := w.vault.Store.CommitAccountVault(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, 19,
+	saved, _, savedVault, _, err := w.store.CommitAccountVault(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, 19,
 		func(role storage.Character, materials json.RawMessage, vault storage.AccountVaultState) (json.RawMessage, json.RawMessage, storage.AccountVaultState, error) {
 			state, next, moved, err := inventory.MoveAccountVault(role, vault, service.BagRules, w.vault.Catalog, service.Catalog, r, *w.vault.Rules.Account)
 			if err != nil {
@@ -154,7 +154,7 @@ func (w *worldSession) sortAccountVaultCmd() ([]outboundPacket, error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	v, err := w.vault.Store.CommitAccountVaultSort(ctx, w.account, w.role.ID, inventory.SortAccountVaultItems)
+	v, err := w.store.CommitAccountVaultSort(ctx, w.account, w.role.ID, inventory.SortAccountVaultItems)
 	if err != nil {
 		return nil, err
 	}
@@ -176,7 +176,7 @@ func (w *worldSession) moveAccountVaultCross(service *inventory.WearService, r p
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	var moved uint32
-	saved, shared, personal, _, err := w.vault.Store.CommitAccountVaultCrossMove(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, space, func(role storage.Character, a storage.AccountVaultState, p storage.VaultState) (json.RawMessage, storage.AccountVaultState, json.RawMessage, error) {
+	saved, shared, personal, _, err := w.store.CommitAccountVaultCrossMove(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, space, func(role storage.Character, a storage.AccountVaultState, p storage.VaultState) (json.RawMessage, storage.AccountVaultState, json.RawMessage, error) {
 		if p.ConfigVersion != w.vault.Rules.SourceSHA256 {
 			return nil, a, nil, fmt.Errorf("个人金库存档版本不匹配")
 		}
@@ -300,7 +300,7 @@ func (w *worldSession) changeAccountVaultGold(ctx context.Context, opcode uint16
 	}
 	key := fmt.Sprintf("account-vault-gold:%s:%x", prefix, sha256.Sum256(raw))
 	var plan []outboundPacket
-	saved, _, _, applied, err := w.vault.Store.CommitAccountVault(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, opcode, func(role storage.Character, materials json.RawMessage, v storage.AccountVaultState) (json.RawMessage, json.RawMessage, storage.AccountVaultState, error) {
+	saved, _, _, applied, err := w.store.CommitAccountVault(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, opcode, func(role storage.Character, materials json.RawMessage, v storage.AccountVaultState) (json.RawMessage, json.RawMessage, storage.AccountVaultState, error) {
 		var state json.RawMessage
 		var next storage.AccountVaultState
 		var e error

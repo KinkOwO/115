@@ -4694,7 +4694,7 @@ func main() {
 					}
 					if e == nil && vaultService.Rules.Account != nil {
 						var accountVault storage.AccountVaultState
-						accountVault, e = vaultService.Store.LoadAccountVault(ctx, role.AccountID, role.ID)
+						accountVault, e = characters.Store.LoadAccountVault(ctx, role.AccountID, role.ID)
 						if e == nil {
 							accountVaultPayload, e = inventory.AccountVaultPayload(accountVault, *vaultService.Rules.Account)
 						}

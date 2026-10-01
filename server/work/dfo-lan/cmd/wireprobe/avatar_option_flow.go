@@ -27,7 +27,7 @@ func avatarOption(service *inventory.WearService, w *worldSession, p, keys []byt
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	hash := sha256.Sum256(p)
-	saved, _, e := service.Store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, fmt.Sprintf("avatar-option:%x", hash), "avatar-option-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+	saved, _, e := w.store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, fmt.Sprintf("avatar-option:%x", hash), "avatar-option-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
 		raw, e := service.SelectAvatarOption(current, r)
 		if e != nil {
 			return nil, nil, e
