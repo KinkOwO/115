@@ -61,6 +61,10 @@ func (s *Source) Boxes(index catalog.ItemIndex, policy loot.BoxSourcePolicy) (*l
 	return loot.ImportBoxes(s.archive, index, policy)
 }
 
+func (s *Source) AvatarDisjoint(index catalog.ItemIndex) (*inventory.AvatarDisjointRules, error) {
+	return inventory.ImportAvatarDisjointRules(s.archive, index)
+}
+
 func (s *Source) CashShop() (cashshop.PilotConfig, error) {
 	return cashshop.ImportPilot(s.archive)
 }
