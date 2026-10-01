@@ -59,7 +59,10 @@ func (s *Store) MigrateUnifiedOptions(ctx context.Context) error {
  value integer NOT NULL CHECK(value BETWEEN 0 AND 65535),
  updated_at timestamptz NOT NULL DEFAULT now(),
  PRIMARY KEY(character_id,subtype,opt_index));`)
-	return e
+	if e != nil {
+		return e
+	}
+	return s.migrateWarpFavorites(ctx)
 }
 
 func validateUnifiedEntries(entries []UnifiedOptionEntry) error {

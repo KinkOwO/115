@@ -2801,14 +2801,29 @@ func main() {
 				}
 				// CMD2377 SET_UNIFIED_OPTION carries one option block per frame:
 				// subtype 0x13 is the skill lock, 0x12 character effects, 0x05
-				// ordinary settings, and 0x01 the account block restored by NOTI2826.
+				// ordinary settings, 0x0b warp favorite deltas, and 0x01 the
+				// account settings. Account options restore through NOTI2826.
 				opt, e := protocol.DecodeUnifiedOption(plaintext)
 				if e != nil {
 					event(map[string]any{"kind": "unified_option_rejected", "reason": e.Error(), "bytes": len(plaintext)})
 					continue
 				}
-				event(map[string]any{"kind": "unified_option_accepted", "character_id": selectedCharacterID, "scope": opt.Scope, "subtype": opt.Subtype, "entries": len(opt.Entries)})
+				event(map[string]any{"kind": "unified_option_accepted", "character_id": selectedCharacterID, "scope": opt.Scope, "subtype": opt.Subtype, "entries": len(opt.Entries) + len(opt.WarpFavorites)})
 				switch opt.Subtype {
+				case protocol.UnifiedOptionWarpFavorites:
+					if gameStore == nil || characters == nil || worldState == nil || worldState.role.ID == 0 || worldState.role.ID != selectedCharacterID || worldState.role.AccountID != developmentAccount {
+						event(map[string]any{"kind": "warp_favorites_rejected", "reason": "requires the owned selected character", "character_id": selectedCharacterID})
+						continue
+					}
+					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					e = gameStore.SaveAccountWarpFavorites(ctx, worldState.role.AccountID, opt.WarpFavorites)
+					cancel()
+					if e != nil {
+						event(map[string]any{"kind": "warp_favorites_rejected", "reason": e.Error(), "character_id": selectedCharacterID})
+						continue
+					}
+					// This means the transaction committed, not that the client displayed it.
+					event(map[string]any{"kind": "warp_favorites_saved", "account_id": worldState.role.AccountID, "character_id": selectedCharacterID, "changed_slots": len(opt.WarpFavorites)})
 				case protocol.UnifiedOptionSkillLock:
 					if characters == nil || worldState == nil || worldState.role.ID == 0 || worldState.role.ID != selectedCharacterID {
 						event(map[string]any{"kind": "skill_lock_rejected", "reason": "skill lock requires the owned selected character", "character_id": selectedCharacterID})
@@ -4989,6 +5004,28 @@ func main() {
 								event(map[string]any{"kind": "account_hotkeys_restored", "count_a": len(accHkA), "count_b": len(accHkB)})
 							}
 						}
+					}
+				}
+				if characters != nil {
+					favCtx, favCancel := context.WithTimeout(context.Background(), 5*time.Second)
+					favorites, favErr := gameStore.AccountWarpFavorites(favCtx, developmentAccount)
+					favCancel()
+					if favErr != nil {
+						event(map[string]any{"kind": "warp_favorites_restore_error", "account_id": developmentAccount, "error": favErr.Error()})
+						continue
+					}
+					if len(favorites) > 0 {
+						if len(accountOptions) == 0 {
+							accountOptions, favErr = protocol.AccountOptions(nil)
+						}
+						if favErr == nil {
+							favErr = protocol.FillAccountWarpFavorites(accountOptions, favorites)
+						}
+						if favErr != nil {
+							event(map[string]any{"kind": "warp_favorites_restore_error", "account_id": developmentAccount, "error": favErr.Error()})
+							continue
+						}
+						event(map[string]any{"kind": "warp_favorites_restore_prepared", "account_id": developmentAccount, "stored_slots": len(favorites), "notification": 2826})
 					}
 				}
 				plan := entryPayloads{Select: payload, Basic: basic, Addition: addition, Vault: vaultPayload, UserArea: userArea, Area: areaPayload, Fatigue: fatiguePayload, AccountOptions: accountOptions}

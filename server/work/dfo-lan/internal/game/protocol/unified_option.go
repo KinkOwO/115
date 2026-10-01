@@ -71,6 +71,8 @@ type UnifiedOption struct {
 	Scope   byte
 	Subtype byte
 	Entries []UnifiedOptionEntry
+	// Subtype 11 uses 12-byte records instead of the ordinary u16 values.
+	WarpFavorites []WarpFavoriteEntry
 	// Tail counts the zero padding after the last entry.
 	Tail int
 }
@@ -81,6 +83,11 @@ func DecodeUnifiedOption(p []byte) (UnifiedOption, error) {
 		return r, fmt.Errorf("short unified option frame")
 	}
 	r.Scope, r.Subtype = p[13], p[14]
+	if r.Subtype == UnifiedOptionWarpFavorites {
+		var err error
+		r.WarpFavorites, r.Tail, err = decodeWarpFavorites(p)
+		return r, err
+	}
 	count := int(binary.LittleEndian.Uint32(p[15:19]))
 	if count > 512 {
 		return r, fmt.Errorf("unsupported unified option entry count %d", count)
