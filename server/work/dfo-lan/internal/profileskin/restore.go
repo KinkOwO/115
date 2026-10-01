@@ -1,14 +1,15 @@
-package protocol
+package profileskin
 
-import (
-	"dfolan/internal/profileskin"
-	"encoding/binary"
-)
+import "encoding/binary"
 
-// ProfileSkinRestore emits category 0, not the newer official-client full-list
-// marker 11 which the current US readers reject. Cargo must precede selection:
-// 0x1444eeca0 drops any selected ID absent from the owned map.
-func ProfileSkinRestore(state profileskin.State) (cargo, selected []byte, err error) {
+// Restore emits cargo (NOTI1545) and selection (NOTI1546) for category 0, not
+// the newer official-client full-list marker 11 which the current US readers
+// reject. Cargo must precede selection: 0x1444eeca0 drops any selected ID
+// absent from the owned map.
+//
+// 归属：本体例由 profileskin 拥有（曾经的 protocol.ProfileSkinRestore），
+// protocol 只保留与领域无关的布局原语，避免 protocol 反向依赖领域。
+func Restore(state State) (cargo, selected []byte, err error) {
 	if err = state.Validate(); err != nil {
 		return nil, nil, err
 	}

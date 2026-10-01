@@ -18,8 +18,10 @@ import (
 	"dfolan/internal/inventory"
 	"dfolan/internal/legion"
 	"dfolan/internal/loot"
+	"dfolan/internal/profileskin"
 	"dfolan/internal/progression"
 	"dfolan/internal/quest"
+	"dfolan/internal/rosterbg"
 	"dfolan/internal/storage"
 	"dfolan/internal/world"
 	"encoding/binary"
@@ -4831,7 +4833,7 @@ func main() {
 					skinState, skinErr := characters.Store.RestoreProfileSkins(skinCtx, developmentAccount, role.ID)
 					skinCancel()
 					if skinErr == nil {
-						plan.ProfileSkinCargo, plan.ProfileSkinSelection, skinErr = protocol.ProfileSkinRestore(skinState)
+						plan.ProfileSkinCargo, plan.ProfileSkinSelection, skinErr = profileskin.Restore(skinState)
 					}
 					if skinErr != nil {
 						event(map[string]any{"kind": "profile_skin_restore_error", "character_id": role.ID, "error": skinErr.Error()})
@@ -5417,7 +5419,7 @@ func main() {
 					event(map[string]any{"kind": "roster_background_rejected", "error": "背景选择需要有效校验及选角状态"})
 					continue
 				}
-				req, e := protocol.DecodeSelectRosterBackground(plaintext)
+				req, e := rosterbg.DecodeSelect(plaintext)
 				if e == nil {
 					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 					_, e = characters.Store.SelectRosterBackground(ctx, developmentAccount, req.Page, req.Background)

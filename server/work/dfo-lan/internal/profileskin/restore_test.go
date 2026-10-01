@@ -1,14 +1,13 @@
-package protocol
+package profileskin
 
 import (
 	"bytes"
-	"dfolan/internal/profileskin"
 	"encoding/hex"
 	"testing"
 )
 
-func TestProfileSkinRestoreCurrentUSReader(t *testing.T) {
-	cargo, selected, err := ProfileSkinRestore(profileskin.Defaults())
+func TestRestoreCurrentUSReader(t *testing.T) {
+	cargo, selected, err := Restore(Defaults())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -19,18 +18,18 @@ func TestProfileSkinRestoreCurrentUSReader(t *testing.T) {
 	if !bytes.Equal(cargo, wantCargo) || !bytes.Equal(selected, wantSelection) {
 		t.Fatalf("cargo=%x selected=%x", cargo, selected)
 	}
-	state := profileskin.Defaults()
+	state := Defaults()
 	state.Selected[2] = 60001
-	if _, _, err = ProfileSkinRestore(state); err == nil {
+	if _, _, err = Restore(state); err == nil {
 		t.Fatal("unowned selection serialized")
 	}
-	state.Owned = append(state.Owned, profileskin.Owned{ID: 60001})
-	_, selected, err = ProfileSkinRestore(state)
+	state.Owned = append(state.Owned, Owned{ID: 60001})
+	_, selected, err = Restore(state)
 	if err != nil || selected[9] != 0x61 {
 		t.Fatalf("stored selection not consumed: %x %v", selected, err)
 	}
 	state.Owned[0].Expires = 1
-	if _, _, err = ProfileSkinRestore(state); err == nil {
+	if _, _, err = Restore(state); err == nil {
 		t.Fatal("unsupported timed entitlement serialized")
 	}
 }

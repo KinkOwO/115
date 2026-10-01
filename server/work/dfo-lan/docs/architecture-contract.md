@@ -131,12 +131,14 @@ L3 领域之间 **默认禁止**互相 import。需要另一领域能力时，�
 
 ### 7.1 纯基础设施 → 领域（违反 R1）
 
-| # | 边 | 目标 |
+**已全部消除（2026-10-01，本分支）**：E01–E04 已按下列目标移回领域，`internal/game/protocol` 与 `internal/catalog` 不再 import 任何 L3 领域；`archtest` 允许清单中的对应条目已删除。
+
+| # | 边 | 处理 |
 |---|---|---|
-| E01 | `game/protocol` → `adventure` | 编码移回 `adventure` handler；protocol 只收纯布局 |
-| E02 | `game/protocol` → `profileskin` | 同上 |
-| E03 | `game/protocol` → `rosterbg` | 同上 |
-| E04 | `catalog` → `rosterbg` | 选角背景的领域语义移到 `rosterbg` |
+| E01 | `game/protocol` → `adventure` | `SeasonLevelHistory`/`SeasonOathHistory` 移入 `internal/adventure/season_wire.go` |
+| E02 | `game/protocol` → `profileskin` | `ProfileSkinRestore` 移入 `internal/profileskin/restore.go`（`profileskin.Restore`） |
+| E03 | `game/protocol` → `rosterbg` | 选择/恢复/解码移入 `internal/rosterbg/wire.go`（`rosterbg.DecodeSelect`/`Restore`） |
+| E04 | `catalog` → `rosterbg` | PVF 投影移入 `internal/rosterbg/import.go`（`rosterbg.ImportTickets`） |
 
 ### 7.2 领域 → 持久化（违反 R2）
 

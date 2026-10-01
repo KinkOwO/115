@@ -81,7 +81,7 @@ func (s *Source) OdysseyJournalRoutes() (*catalog.OdysseyJournalRoutes, error) {
 }
 
 func (s *Source) RosterBackgrounds(index catalog.ItemIndex) (*rosterbg.TicketCatalog, error) {
-	return catalog.ImportRosterBackgroundTickets(s.archive, index)
+	return rosterbg.ImportTickets(s.archive, index)
 }
 
 func (s *Source) Fame(index catalog.ItemIndex) (*character.FameRules, error) {

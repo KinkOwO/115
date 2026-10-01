@@ -64,15 +64,6 @@ var layer4Packages = map[string]bool{
 
 // allowedEdges 是契约 §7 例外清单，只减不增。键为 import 方，值为被允许的例外目标。
 var allowedEdges = map[string]map[string]bool{
-	// R1 例外：纯基础设施 -> 领域
-	"internal/game/protocol": {
-		"internal/adventure":   true,
-		"internal/profileskin": true,
-		"internal/rosterbg":    true,
-	},
-	"internal/catalog": {
-		"internal/rosterbg": true,
-	},
 	// R2 + R4 例外：领域 -> storage / 领域 -> 领域
 	"internal/character": {
 		"internal/storage":     true, // R2
@@ -85,10 +76,10 @@ var allowedEdges = map[string]map[string]bool{
 		"internal/storage": true, // R2
 	},
 	"internal/loot": {
-		"internal/storage":  true, // R2
+		"internal/storage":   true, // R2
 		"internal/adventure": true, // R4
-		"internal/cashshop": true, // R4
-		"internal/dungeon":  true, // R4
+		"internal/cashshop":  true, // R4
+		"internal/dungeon":   true, // R4
 		"internal/inventory": true, // R4
 	},
 	"internal/quest": {

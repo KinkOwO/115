@@ -78,9 +78,9 @@ func (w *worldSession) refreshSeason(ctx context.Context) ([]outboundPacket, err
 			return nil, err
 		}
 	}
-	body := protocol.SeasonLevelHistory(state)
+	body := adventure.SeasonLevelHistory(state)
 	signature := sha256.Sum256(body)
-	oath, err := protocol.SeasonOathHistory(state.Acquisitions)
+	oath, err := adventure.SeasonOathHistory(state.Acquisitions)
 	if err != nil {
 		return nil, err
 	}
@@ -242,7 +242,7 @@ func (w *worldSession) claimSeasonReward(ctx context.Context, p []byte) ([]outbo
 	if err != nil {
 		return nil, err
 	}
-	history := protocol.SeasonLevelHistory(state)
+	history := adventure.SeasonLevelHistory(state)
 	w.seasonLevelSnapshot = sha256.Sum256(history)
 	// CMD2419成功回调0x14052E740不读取额外正文，只根据经理的已领取标记刷新按钮。
 	return []outboundPacket{{"迷雾誓约奖励入包", 0, 13, body}, {"迷雾誓约领奖状态", 0, 2799, history}, {"迷雾誓约领奖完成", 1, 2419, []byte{1}}}, nil
@@ -327,7 +327,7 @@ func (w *worldSession) useSeasonCapsule(ctx context.Context, p, raw []byte, pref
 	if err != nil {
 		return nil, err
 	}
-	history := protocol.SeasonLevelHistory(state)
+	history := adventure.SeasonLevelHistory(state)
 	w.seasonLevelSnapshot = sha256.Sum256(history)
 	packets = append(packets, outboundPacket{"迷雾经验道具库存同步", 0, 14, update}, outboundPacket{"迷雾经验更新", 0, 2799, history})
 	return packets, nil
@@ -393,7 +393,7 @@ func (w *worldSession) acquireSeasonOath(ctx context.Context, p, raw []byte, pre
 		entry := adventure.OathAcquisition{Template: template, Time: now.Unix(), Name: current.Name}
 		state.SeasonLevel.Acquisitions = append(state.SeasonLevel.Acquisitions, entry)
 		// 先校验原生历史编码，防止入包成功后才发现记录不能同步。
-		if _, e = protocol.SeasonOathHistory(state.SeasonLevel.Acquisitions); e != nil {
+		if _, e = adventure.SeasonOathHistory(state.SeasonLevel.Acquisitions); e != nil {
 			return nil, nil, e
 		}
 		next, e := inventory.SaveBag(current.State, bag)
@@ -424,11 +424,11 @@ func (w *worldSession) acquireSeasonOath(ctx context.Context, p, raw []byte, pre
 	if err != nil {
 		return nil, err
 	}
-	oath, err := protocol.SeasonOathHistory(state.Acquisitions)
+	oath, err := adventure.SeasonOathHistory(state.Acquisitions)
 	if err != nil {
 		return nil, err
 	}
-	history := protocol.SeasonLevelHistory(state)
+	history := adventure.SeasonLevelHistory(state)
 	w.seasonOathSnapshot = sha256.Sum256(oath)
 	w.seasonLevelSnapshot = sha256.Sum256(history)
 	return []outboundPacket{{"誓约装备及费用同步", 0, 13, items}, {"誓约获取记录同步", 0, 2858, oath}, {"迷雾誓约进度同步", 0, 2799, history}, {"誓约装备获取完成", 1, 2405, []byte{1}}}, nil

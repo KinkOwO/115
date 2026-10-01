@@ -1,19 +1,23 @@
-package catalog
+package rosterbg
 
 import (
+	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
-	"dfolan/internal/rosterbg"
 	"fmt"
 	"math"
 	"slices"
 )
 
-func ImportRosterBackgroundTickets(a *pvf.Archive, index ItemIndex) (*rosterbg.TicketCatalog, error) {
+// ImportTickets 从当前 PVF 归档读取选角背景券与背景类别表。
+//
+// 归属：选角背景的 PVF 投影由 rosterbg 拥有（曾经的 catalog.ImportRosterBackgroundTickets），
+// 使纯基础设施 catalog 不再反向依赖领域。
+func ImportTickets(a *pvf.Archive, index catalog.ItemIndex) (*TicketCatalog, error) {
 	if a == nil || index.Source.Checksum == "" || a.Snapshot().Checksum != index.Source.Checksum {
 		return nil, fmt.Errorf("roster background PVF/index source mismatch")
 	}
 	const resourcePath = "etc/selectcharacterver2/selectcharacterver2.etc"
-	resource, err := ReadScript(a, resourcePath)
+	resource, err := catalog.ReadScript(a, resourcePath)
 	if err != nil {
 		return nil, err
 	}
@@ -21,9 +25,9 @@ func ImportRosterBackgroundTickets(a *pvf.Archive, index ItemIndex) (*rosterbg.T
 	if err != nil {
 		return nil, err
 	}
-	c := rosterbg.TicketCatalog{Source: a.Snapshot().Checksum, Items: map[uint32]rosterbg.Ticket{}, BackgroundPath: resourcePath, BackgroundSHA256: resource.SHA256, Backgrounds: backgrounds}
+	c := TicketCatalog{Source: a.Snapshot().Checksum, Items: map[uint32]Ticket{}, BackgroundPath: resourcePath, BackgroundSHA256: resource.SHA256, Backgrounds: backgrounds}
 	type entry struct {
-		item ItemIndexEntry
+		item catalog.ItemIndexEntry
 		file int
 	}
 	entries := []entry{}
@@ -54,14 +58,14 @@ func ImportRosterBackgroundTickets(a *pvf.Archive, index ItemIndex) (*rosterbg.T
 		if err != nil {
 			return nil, fmt.Errorf("background ticket %d: %w", row.item.ID, err)
 		}
-		script, err := ReadScript(a, row.item.Path)
+		script, err := catalog.ReadScript(a, row.item.Path)
 		if err != nil {
 			return nil, err
 		}
 		ticket.Path, ticket.SHA256 = script.Path, script.SHA256
 		c.Items[row.item.ID] = ticket
 	}
-	return rosterbg.NewTicketCatalog(c)
+	return NewTicketCatalog(c)
 }
 
 func rosterFirstSection(cells []pvf.Token, tag string) []pvf.Token {
@@ -77,13 +81,13 @@ func rosterFirstSection(cells []pvf.Token, tag string) []pvf.Token {
 	return nil
 }
 
-func parseRosterTicket(cells []pvf.Token) (rosterbg.Ticket, error) {
-	var ticket rosterbg.Ticket
+func parseRosterTicket(cells []pvf.Token) (Ticket, error) {
+	var ticket Ticket
 	action := rosterFirstSection(cells, "[action type]")
 	if len(action) != 3 || action[0].Type != 6 || action[0].Text != "[change bg select character]" || action[1].Type != 0 || action[1].Value != 1 || action[2].Type != 0 || action[2].Value < 0 || action[2].Value > math.MaxUint16 {
 		return ticket, fmt.Errorf("invalid background ticket action")
 	}
-	ticket.Background = rosterbg.Background{Category: 1, ID: uint16(action[2].Value)}
+	ticket.Background = Background{Category: 1, ID: uint16(action[2].Value)}
 	expiration := rosterFirstSection(cells, "[action expiration info]")
 	if len(expiration) == 0 || expiration[0].Type != 6 {
 		return ticket, fmt.Errorf("missing background authorization expiration")
@@ -110,12 +114,12 @@ func parseRosterTicket(cells []pvf.Token) (rosterbg.Ticket, error) {
 	return ticket, nil
 }
 
-func parseRosterBackgrounds(cells []pvf.Token) ([]rosterbg.Background, error) {
-	var out []rosterbg.Background
+func parseRosterBackgrounds(cells []pvf.Token) ([]Background, error) {
+	var out []Background
 	inside := false
 	group := -1
 	imageOpen := false
-	seen := map[rosterbg.Background]bool{}
+	seen := map[Background]bool{}
 	for i, t := range cells {
 		if t.Type != 3 {
 			continue
@@ -159,7 +163,7 @@ func parseRosterBackgrounds(cells []pvf.Token) ([]rosterbg.Background, error) {
 			if group < 0 || imageOpen || i+1 >= len(cells) || cells[i+1].Type != 0 || cells[i+1].Value < 0 || cells[i+1].Value > math.MaxUint16 {
 				return nil, fmt.Errorf("invalid native background image")
 			}
-			b := rosterbg.Background{Category: uint8(group), ID: uint16(cells[i+1].Value)}
+			b := Background{Category: uint8(group), ID: uint16(cells[i+1].Value)}
 			if seen[b] {
 				return nil, fmt.Errorf("duplicate native background")
 			}

@@ -29,7 +29,7 @@ func restoreRosterBackgrounds(characters *character.Service, account int64, send
 		event(map[string]any{"kind": "roster_background_restore_error", "error": err.Error()})
 		return err
 	}
-	payload, err := protocol.RosterBackgroundRestore(state)
+	payload, err := rosterbg.Restore(state)
 	if err != nil {
 		return err
 	}
@@ -136,7 +136,7 @@ func (w *worldSession) useRosterBackgroundTicket(ctx context.Context, p, raw []b
 	if err != nil {
 		return nil, err
 	}
-	backgrounds, err := protocol.RosterBackgroundRestore(state)
+	backgrounds, err := rosterbg.Restore(state)
 	if err != nil {
 		return nil, err
 	}
