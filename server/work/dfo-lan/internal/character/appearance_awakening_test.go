@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"dfolan/internal/catalog"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
+
 	"encoding/json"
 	"testing"
 )
@@ -32,7 +32,7 @@ func TestAppearanceProbeKeepsAwakeningStage(t *testing.T) {
 		t.Fatal(e)
 	}
 	s := &Service{Catalog: professions}
-	got, e := s.AppearanceProbe(storage.Character{
+	got, e := s.AppearanceProbe(Character{
 		WireID: 1, Name: "LanTest01", Profession: 0, State: state,
 	}, [2]byte{})
 	if e != nil {
@@ -50,7 +50,7 @@ func TestAppearanceProbeKeepsAwakeningStage(t *testing.T) {
 
 func TestAppearanceProbePreservesCharacterMode(t *testing.T) {
 	state := json.RawMessage(`{"level":90,"advancement":1}`)
-	role := storage.Character{WireID: 1, Name: "LanTest01", Profession: 0, State: state}
+	role := Character{WireID: 1, Name: "LanTest01", Profession: 0, State: state}
 	s := &Service{}
 	for _, tc := range []struct {
 		name, setting string

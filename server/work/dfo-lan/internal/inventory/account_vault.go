@@ -2,7 +2,6 @@ package inventory
 
 import (
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 )
@@ -43,7 +42,7 @@ func (r AccountVaultRules) GoldLimit(slots uint16) (uint32, error) {
 	return uint32(r.Upgrades[slots/8-1][1]), nil
 }
 
-func AccountVaultPayload(v storage.AccountVaultState, rules AccountVaultRules) ([]byte, error) {
+func AccountVaultPayload(v AccountVaultState, rules AccountVaultRules) ([]byte, error) {
 	limit, err := rules.GoldLimit(v.Slots)
 	if err != nil || v.Gold > limit {
 		return nil, fmt.Errorf("账号金库容量或金币超过源上限")
@@ -55,18 +54,18 @@ func AccountVaultPayload(v storage.AccountVaultState, rules AccountVaultRules) (
 		}
 		return protocol.AccountVaultRestore(0, 0, nil)
 	}
-	items, err := ReadExtendedVault(storage.VaultState{Slots: v.Slots, Items: v.Items})
+	items, err := ReadExtendedVault(VaultState{Slots: v.Slots, Items: v.Items})
 	if err != nil {
 		return nil, err
 	}
 	return protocol.AccountVaultRestore(v.Slots, v.Gold, items.Rows())
 }
 
-func SortAccountVaultItems(v storage.AccountVaultState) (json.RawMessage, error) {
+func SortAccountVaultItems(v AccountVaultState) (json.RawMessage, error) {
 	if v.Slots == 0 {
 		return json.RawMessage("[]"), nil
 	}
-	items, err := ReadExtendedVault(storage.VaultState{Slots: v.Slots, Items: v.Items})
+	items, err := ReadExtendedVault(VaultState{Slots: v.Slots, Items: v.Items})
 	if err != nil {
 		return nil, err
 	}
@@ -75,8 +74,8 @@ func SortAccountVaultItems(v storage.AccountVaultState) (json.RawMessage, error)
 
 // 仅按源表处理 CMD305 材料开通与 CMD306 金币升级。负材料编号的商城
 // 档位绝不能作为零费用档位处理；服务端不信任客户端显示的材料数量。
-func UpgradeAccountVault(role storage.Character, raw json.RawMessage, vault storage.AccountVaultState, rules AccountVaultRules, create bool) (json.RawMessage, json.RawMessage, storage.AccountVaultState, error) {
-	fail := func(code uint16, reason string) (json.RawMessage, json.RawMessage, storage.AccountVaultState, error) {
+func UpgradeAccountVault(role Role, raw json.RawMessage, vault AccountVaultState, rules AccountVaultRules, create bool) (json.RawMessage, json.RawMessage, AccountVaultState, error) {
+	fail := func(code uint16, reason string) (json.RawMessage, json.RawMessage, AccountVaultState, error) {
 		return nil, nil, vault, &AccountVaultError{code, reason}
 	}
 	if err := rules.Validate(); err != nil {

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"dfolan/internal/catalog"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
+
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
@@ -35,7 +35,7 @@ func TestSourceAttributesMatchNativeLoader(t *testing.T) {
 			t.Fatal("fixture source changed")
 		}
 		state, _ := json.Marshal(State{Level: 1, Attributes: p.InitialAttributes, InitialSkills: p.InitialSkills, SourceSHA256: p.RawSHA256})
-		got, e := (&Service{Catalog: c}).EntryAddition(storage.Character{WireID: 3, Profession: r.Profession, State: state})
+		got, e := (&Service{Catalog: c}).EntryAddition(Character{WireID: 3, Profession: r.Profession, State: state})
 		if e != nil {
 			t.Fatal(e)
 		}
@@ -60,12 +60,12 @@ func TestEntryAdditionProjectsCreatureSkinWornSlot(t *testing.T) {
 		t.Fatal(e)
 	}
 	s := &Service{Catalog: c, DetailedWornCandidate: true}
-	role := func(bag inventory.Bag) storage.Character {
+	role := func(bag inventory.Bag) Character {
 		state, e := inventory.SaveBag(raw, bag)
 		if e != nil {
 			t.Fatal(e)
 		}
-		return storage.Character{WireID: 3, Profession: 0, State: state}
+		return Character{WireID: 3, Profession: 0, State: state}
 	}
 	empty, e := s.EntryAddition(role(inventory.Bag{Version: "ordinary-bag-v1"}))
 	if e != nil {

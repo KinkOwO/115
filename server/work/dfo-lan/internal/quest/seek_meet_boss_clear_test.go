@@ -2,8 +2,8 @@ package quest
 
 import (
 	"dfolan/internal/catalog"
+	"dfolan/internal/character"
 	"dfolan/internal/dungeon"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"testing"
 )
@@ -35,7 +35,7 @@ func TestSeekMeetBossClearRequiresOwnedSourceAndItems(t *testing.T) {
 			run.Room = room
 		}
 	}
-	role := storage.Character{State: json.RawMessage(`{"inventory":{"version":"ordinary-bag-v1","items":[{"slot":95,"Template":10164777,"Amount":1}]}}`)}
+	role := character.Character{State: json.RawMessage(`{"inventory":{"version":"ordinary-bag-v1","items":[{"slot":95,"Template":10164777,"Amount":1}]}}`)}
 	if !s.seekMeetBossClearMatch(en, role, run) {
 		t.Fatal("owned quest boss with cure and source NPC did not match")
 	}

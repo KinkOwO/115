@@ -18,13 +18,13 @@ func cashFixture() CashOrder {
 }
 func TestCashOrderValidation(t *testing.T) {
 	o := cashFixture()
-	if n, e := o.total(); e != nil || n != 3180 {
+	if n, e := o.Total(); e != nil || n != 3180 {
 		t.Fatal(n, e)
 	}
 	for _, f := range []func(*CashOrder){func(o *CashOrder) { o.Account = 0 }, func(o *CashOrder) { o.Source = "bad" }, func(o *CashOrder) { o.Key = "" }, func(o *CashOrder) { o.Lines[0].Quantity = 0 }, func(o *CashOrder) { o.Lines[0].UnitPrice = 0 }, func(o *CashOrder) { o.Lines[0].UnitPrice = 4294967295 }, func(o *CashOrder) { o.Lines[0].Units = 4294967295; o.Lines[0].Quantity = 2 }} {
 		q := cashFixture()
 		f(&q)
-		if _, e := q.total(); e == nil {
+		if _, e := q.Total(); e == nil {
 			t.Fatal("invalid order accepted")
 		}
 	}

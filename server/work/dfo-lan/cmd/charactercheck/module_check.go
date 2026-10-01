@@ -7,6 +7,7 @@ import (
 	"dfolan/internal/inventory"
 	"dfolan/internal/quest"
 	"dfolan/internal/storage"
+	"dfolan/internal/workflow"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -22,7 +23,7 @@ func moduleCheck(ctx context.Context, s, reopened *storage.Store, role storage.C
 	if e != nil {
 		return e
 	}
-	v := inventory.VaultService{Store: s, Rules: vr}
+	v := workflow.VaultService{Store: s, VaultService: inventory.VaultService{Rules: vr}}
 	if _, e = v.Bootstrap(ctx, role); e != nil {
 		return e
 	}

@@ -2,14 +2,13 @@ package character
 
 import (
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 )
 
 // RepairSwordmasterPilot projects only the captured, level-one Swordmaster
 // request shape. The caller must select an isolated database explicitly.
-func (s *Service) RepairSwordmasterPilot(role storage.Character) (storage.Character, error) {
+func (s *Service) RepairSwordmasterPilot(role Character) (Character, error) {
 	if !s.Rules.SwordmasterPilot || role.Profession != 0 || role.ConfigVersion != s.Catalog.Source.SaveIdentity() {
 		return role, fmt.Errorf("not a swordmaster pilot character")
 	}

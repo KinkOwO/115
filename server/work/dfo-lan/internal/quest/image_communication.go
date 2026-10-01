@@ -3,7 +3,7 @@ package quest
 import (
 	"context"
 	"dfolan/internal/catalog"
-	"dfolan/internal/storage"
+	"dfolan/internal/character"
 	"fmt"
 )
 
@@ -47,7 +47,7 @@ var imageCommunicationTargets = []struct {
 // ImageCommunicationTarget selects only a pending, accepted meet-NPC quest
 // whose objective agrees with the native PVF device configuration. Using the
 // device does not itself complete the objective; conversation does that later.
-func (s *Service) ImageCommunicationTarget(ctx context.Context, role storage.Character) (uint16, uint32, error) {
+func (s *Service) ImageCommunicationTarget(ctx context.Context, role character.Character) (uint16, uint32, error) {
 	if s == nil || s.Store == nil || role.ID == 0 || role.AccountID == 0 {
 		return 0, 0, fmt.Errorf("image communication requires an owned character")
 	}
@@ -58,7 +58,7 @@ func (s *Service) ImageCommunicationTarget(ctx context.Context, role storage.Cha
 	return imageCommunicationTarget(s.Catalog, states)
 }
 
-func imageCommunicationTarget(c catalog.QuestCatalog, states []storage.QuestState) (uint16, uint32, error) {
+func imageCommunicationTarget(c catalog.QuestCatalog, states []QuestState) (uint16, uint32, error) {
 	if c.Source.Checksum != imageCommunicationSourceChecksum {
 		return 0, 0, fmt.Errorf("image communication resource and quest catalog versions differ")
 	}

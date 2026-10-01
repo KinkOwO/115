@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 )
 
 // 宠物幻化栏（穿戴槽 32）里的宠物顶替槽 26 的模板，名字仍是槽 26 宠物的名字：
@@ -45,7 +44,7 @@ func TestMode0ProbesCarrySkinCreatureSegment(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	role := storage.Character{WireID: 1, Name: "LanTest01", Profession: 0, State: state}
+	role := Character{WireID: 1, Name: "LanTest01", Profession: 0, State: state}
 	s := &Service{}
 	want := append(binary.LittleEndian.AppendUint32(nil, 63003), 5, 0, 0, 0)
 	want = append(want, []byte("Botis")...)
@@ -86,7 +85,7 @@ func TestMode0ProbesCarryWornCreatureSegment(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	role := storage.Character{WireID: 1, Name: "LanTest01", Profession: 0, State: state}
+	role := Character{WireID: 1, Name: "LanTest01", Profession: 0, State: state}
 	s := &Service{}
 	want := append(binary.LittleEndian.AppendUint32(nil, 63000), 5, 0, 0, 0)
 	want = append(want, []byte("Faras")...)
@@ -109,7 +108,7 @@ func TestMode0ProbesCarryWornCreatureSegment(t *testing.T) {
 // byte (official no-pet sample shape).
 func TestMode0ProbeWithoutCreatureHasZeroSegment(t *testing.T) {
 	state := json.RawMessage(`{"level":1,"advancement":0}`)
-	role := storage.Character{WireID: 1, Name: "LanTest01", Profession: 0, State: state}
+	role := Character{WireID: 1, Name: "LanTest01", Profession: 0, State: state}
 	s := &Service{}
 	got, e := s.EntryBasicProbe(role, [2]byte{})
 	if e != nil {

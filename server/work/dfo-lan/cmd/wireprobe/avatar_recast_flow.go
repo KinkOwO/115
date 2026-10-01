@@ -3,12 +3,12 @@ package main
 import (
 	"context"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/inventory"
+	"dfolan/internal/workflow"
 	"fmt"
 	"time"
 )
 
-func (w *worldSession) recastAvatar(service *inventory.WearService, p []byte, event func(map[string]any)) ([]outboundPacket, error) {
+func (w *worldSession) recastAvatar(service *workflow.WearService, p []byte, event func(map[string]any)) ([]outboundPacket, error) {
 	if w == nil || w.role.ID == 0 || service == nil {
 		return nil, fmt.Errorf("avatar recast service unavailable")
 	}

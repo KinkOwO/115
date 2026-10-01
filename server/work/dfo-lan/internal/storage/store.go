@@ -2,12 +2,15 @@ package storage
 
 import (
 	"context"
+	"dfolan/internal/character"
 	"encoding/json"
 	"errors"
 	"fmt"
+
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
+
 	"os"
 	"time"
 )
@@ -116,18 +119,8 @@ func (s *Store) DevelopmentAccount(ctx context.Context, name string) (int64, err
 	return id, e
 }
 
-type Character struct {
-	ID            int64
-	AccountID     int64
-	WireID        uint16
-	FixedSlot     byte
-	Name          string
-	Profession    byte
-	Request       []byte
-	ConfigVersion string
-	State         json.RawMessage
-	CreatedAt     time.Time
-}
+// Character aliases the character-owned aggregate during migration.
+type Character = character.Character
 
 func (s *Store) CreateCharacter(ctx context.Context, c Character, maxCharacters int) (Character, error) {
 	if maxCharacters < 1 || maxCharacters > 65534 || c.Name == "" || c.ConfigVersion == "" || !json.Valid(c.State) {

@@ -1,12 +1,10 @@
 package loot
 
 import (
-	"context"
 	"dfolan/internal/catalog"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 )
@@ -15,7 +13,6 @@ type Service struct {
 	BlackPurgatory *BlackPurgatoryRewards
 	BleedingMine   *BleedingMineRewards
 	Currency       *OdysseyCurrency
-	Store          *storage.Store
 	Catalog        catalog.LootCatalog
 	DropCatalog    catalog.LootCatalog
 	Rules          Rules
@@ -60,7 +57,7 @@ type PickupReceipt struct {
 	Source      string
 }
 
-func (s *Service) Bootstrap(role storage.Character) ([]byte, error) {
+func (s *Service) Bootstrap(role Role) ([]byte, error) {
 	if role.ConfigVersion != s.Catalog.Source.SaveIdentity() {
 		return nil, fmt.Errorf("inventory source mismatch")
 	}
@@ -70,29 +67,30 @@ func (s *Service) Bootstrap(role storage.Character) ([]byte, error) {
 	}
 	return protocol.InventoryRestore(b.Rows(), b.Expansion)
 }
-func (s *Service) Pickup(ctx context.Context, role storage.Character, session *Session, d *dungeon.Session, r protocol.PickupRequest) (storage.Character, PickupReceipt, bool, error) {
-	var result PickupReceipt
-	fail := func(e error) (storage.Character, PickupReceipt, bool, error) { return role, result, false, e }
+
+type PickupPlan struct {
+	Drop     Drop
+	Catalog  catalog.LootCatalog
+	BagRules inventory.BagRules
+}
+
+func (s *Service) PlanPickup(role Role, session *Session, d *dungeon.Session, r protocol.PickupRequest) (PickupPlan, error) {
 	if session == nil || session.Catalog.Source.Checksum != s.Catalog.Source.Checksum || session.Rules.Model != s.Rules.Model {
-		return fail(fmt.Errorf("pickup without loot session"))
+		return PickupPlan{}, (fmt.Errorf("pickup without loot session"))
 	}
 	drop, e := session.Owned(d, role.AccountID, role.ID, role.WireID, r.Object)
 	if e != nil {
-		return fail(e)
+		return PickupPlan{}, (e)
 	}
 	if drop.BlackPurgatoryIndex != 0 {
-		saved, receipt, applied, err := s.pickBlackPurgatoryBoss(ctx, role, drop.Run, drop.BlackPurgatoryIndex, drop.Award)
-		if err != nil {
-			return fail(err)
-		}
-		return saved, PickupReceipt{drop.Run, drop.Map, drop.Object, receipt.Award, receipt.Destination, s.Catalog.Source.SaveIdentity()}, applied, nil
+		return PickupPlan{Drop: drop}, nil
 	}
 	awardCatalog, bagRules := s.Catalog, s.BagRules
 	if d.Definition.Odyssey && session.Currency != nil {
 		// 与 Death 里的同一判据：`session.Currency.Source` 是内层真哈希，
 		// 运行期对象之间比 Checksum（比 SaveIdentity() 会恒不等，见 session.go 的注释）。
 		if s.Currency == nil || session.Currency.Source != s.Catalog.Source.Checksum || session.Currency.Model != s.Currency.Model {
-			return fail(fmt.Errorf("currency pickup policy mismatch"))
+			return PickupPlan{}, fmt.Errorf("currency pickup policy mismatch")
 		}
 		awardCatalog, bagRules = session.Currency.StorageCatalog(s.Catalog), session.Currency.BagRules(s.BagRules)
 	}
@@ -104,48 +102,35 @@ func (s *Service) Pickup(ctx context.Context, role storage.Character, session *S
 		return n
 	}
 	if distance(r.ActorX, r.DropX) > int(s.Rules.MaximumPickupX) || distance(r.ActorY, r.DropY) > int(s.Rules.MaximumPickupY) {
-		return fail(fmt.Errorf("pickup request coordinates are too far apart"))
+		return PickupPlan{}, (fmt.Errorf("pickup request coordinates are too far apart"))
 	}
-	key := fmt.Sprintf("pickup:%s:%d", drop.Run, drop.Object)
-	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, s.Catalog.Source.SaveIdentity(), key, s.Rules.Model, func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
-		b, e := inventory.ReadBag(current.State)
+	return PickupPlan{Drop: drop, Catalog: awardCatalog, BagRules: bagRules}, nil
+}
+func (s *Service) PreparePickup(current Role, plan PickupPlan) (json.RawMessage, json.RawMessage, error) {
+	var result PickupReceipt
+	drop, awardCatalog, bagRules := plan.Drop, plan.Catalog, plan.BagRules
+	b, e := inventory.ReadBag(current.State)
+	if e != nil {
+		return nil, nil, e
+	}
+	var slot uint16
+	if drop.Award.Template != 0 && awardCatalog.Items[drop.Award.Template].Kind != "stackable" {
+		// Gear goes to the bag's equipment range with its own durability,
+		// not into a stackable category slot.
+		var slots []uint16
+		b, slots, e = b.AddEquipment(s.Equipment, s.BagRules.EquipmentSlots, drop.Award.Template, drop.Award.Amount)
 		if e != nil {
 			return nil, nil, e
 		}
-		var slot uint16
-		if drop.Award.Template != 0 && awardCatalog.Items[drop.Award.Template].Kind != "stackable" {
-			// Gear goes to the bag's equipment range with its own durability,
-			// not into a stackable category slot.
-			var slots []uint16
-			b, slots, e = b.AddEquipment(s.Equipment, s.BagRules.EquipmentSlots, drop.Award.Template, drop.Award.Amount)
-			if e != nil {
-				return nil, nil, e
-			}
-			slot = slots[0]
-		} else if b, slot, e = b.Add(awardCatalog, bagRules, drop.Award.Template, drop.Award.Amount); e != nil {
-			return nil, nil, e
-		}
-		updated, e := inventory.SaveBag(current.State, b)
-		if e != nil {
-			return nil, nil, e
-		}
-		result = PickupReceipt{drop.Run, drop.Map, drop.Object, drop.Award, slot, s.Catalog.Source.SaveIdentity()}
-		receipt, e := json.Marshal(result)
-		return updated, receipt, e
-	})
+		slot = slots[0]
+	} else if b, slot, e = b.Add(awardCatalog, bagRules, drop.Award.Template, drop.Award.Amount); e != nil {
+		return nil, nil, e
+	}
+	updated, e := inventory.SaveBag(current.State, b)
 	if e != nil {
-		return fail(e)
+		return nil, nil, e
 	}
-	receipt, e := s.Store.CharacterEventReceipt(ctx, role.AccountID, role.ID, key)
-	if e != nil {
-		return fail(e)
-	}
-	if e = json.Unmarshal(receipt, &result); e != nil {
-		return fail(e)
-	}
-	if result.Source != s.Catalog.Source.SaveIdentity() || result.Run != drop.Run || result.Object != drop.Object || result.Award != drop.Award {
-		return fail(fmt.Errorf("pickup receipt conflict"))
-	}
-	saved.WireID = role.WireID
-	return saved, result, applied, nil
+	result = PickupReceipt{drop.Run, drop.Map, drop.Object, drop.Award, slot, s.Catalog.Source.SaveIdentity()}
+	receipt, e := json.Marshal(result)
+	return updated, receipt, e
 }

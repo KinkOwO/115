@@ -6,7 +6,6 @@ import (
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"testing"
 )
@@ -46,20 +45,6 @@ func TestCashPurchaseSaveIdentity(t *testing.T) {
 		bag, bagErr := inventory.ReadBag(ledger.state)
 		if err != nil || bagErr != nil || bag.Expansion != 1 || ledger.order.Source != identity {
 			t.Fatalf("order=%+v bag=%+v error=%v/%v", ledger.order, bag, err, bagErr)
-		}
-	})
-	t.Run("account vault", func(t *testing.T) {
-		accountConfig := config
-		accountConfig.Policies = make(map[string][]pvf.Token, len(config.Policies)+1)
-		for name, cells := range config.Policies {
-			accountConfig.Policies[name] = cells
-		}
-		accountConfig.Policies["[cargo account]"] = []pvf.Token{{Value: 3999999}, {Value: 2660296}, {Value: 1}, {Value: 3999999}}
-		rules := inventory.VaultRules{Account: &inventory.AccountVaultRules{RequiredLevel: 1, Upgrades: [][6]int64{{8, 100000, -1, 0, 0, -1}, {16, 100000, -1, 0, 0, 2660296}}}}
-		ledger := &vaultTestLedger{state: storage.VaultState{Slots: 8, Items: json.RawMessage(`[]`), ConfigVersion: identity}}
-		_, applied, err := (&Pilot{Config: accountConfig}).PurchaseVault(context.Background(), ledger, rules, 1, 1, "source-account-vault-0001", []protocol.CeraCartItem{{Product: 3999999, Quantity: 1}}, func(storage.CashReceipt) error { return nil })
-		if err != nil || !applied || ledger.order.Source != identity || ledger.order.VaultSpace != 12 || ledger.state.Slots != 16 || ledger.state.ConfigVersion != identity {
-			t.Fatalf("order=%+v vault=%+v error=%v", ledger.order, ledger.state, err)
 		}
 	})
 }

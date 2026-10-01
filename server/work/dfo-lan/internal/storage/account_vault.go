@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"dfolan/internal/inventory"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,11 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-type AccountVaultState struct {
-	Slots uint16
-	Gold  uint32
-	Items json.RawMessage
-}
+type AccountVaultState = inventory.AccountVaultState
 
 func (s *Store) MigrateAccountVault(ctx context.Context) error {
 	_, err := s.DB.Exec(ctx, `CREATE TABLE IF NOT EXISTS account_vaults (

@@ -2,10 +2,8 @@ package inventory
 
 import (
 	"bytes"
-	"context"
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -80,7 +78,7 @@ type Vault struct {
 	Items []VaultItem `json:"items"`
 }
 
-func ReadVault(v storage.VaultState) (Vault, error) {
+func ReadVault(v VaultState) (Vault, error) {
 	var vault Vault
 	vault.Slots = v.Slots
 	if len(v.Items) == 0 || string(v.Items) == "[]" {
@@ -93,7 +91,7 @@ func ReadVault(v storage.VaultState) (Vault, error) {
 	return vault, nil
 }
 
-func ReadExtendedVault(v storage.VaultState) (Vault, error) {
+func ReadExtendedVault(v VaultState) (Vault, error) {
 	var vault Vault
 	vault.Slots = v.Slots
 	d := json.NewDecoder(bytes.NewReader(v.Items))
@@ -118,7 +116,7 @@ func ReadExtendedVault(v storage.VaultState) (Vault, error) {
 	return vault, nil
 }
 
-func ReadVaultBagItems(v storage.VaultState) ([]BagItem, error) {
+func ReadVaultBagItems(v VaultState) ([]BagItem, error) {
 	var items []BagItem
 	d := json.NewDecoder(bytes.NewReader(v.Items))
 	d.DisallowUnknownFields()
@@ -190,38 +188,15 @@ func SortVaultSpace(v Vault) Vault {
 }
 
 type VaultService struct {
-	Store     *storage.Store
 	Rules     VaultRules
 	Catalog   catalog.LootCatalog
 	BagRules  BagRules
 	Equipment *EquipmentCatalog
 }
 
-func (s *VaultService) Bootstrap(ctx context.Context, role storage.Character) ([]byte, error) {
-	return s.BootstrapSpace(ctx, role, 2)
-}
-
 // 两个个人金库各自初始化，使用同一容量档位规则，不复制另一金库的物品或升级。
-func (s *VaultService) BootstrapSpace(ctx context.Context, role storage.Character, space byte) ([]byte, error) {
-	initial := s.Rules.InitialSlots
-	if space == 45 && s.Rules.InitialSecondarySlots != 0 {
-		initial = s.Rules.InitialSecondarySlots
-	}
-	v, e := s.Store.LoadVault(ctx, role.AccountID, role.ID, initial, s.Rules.SourceSHA256, space)
-	if e != nil {
-		return nil, e
-	}
-	if v.ConfigVersion != s.Rules.SourceSHA256 || !s.Rules.allows(v.Slots) {
-		return nil, fmt.Errorf("vault requires configuration migration")
-	}
-	vault, e := ReadExtendedVault(v)
-	if e != nil {
-		return nil, e
-	}
-	return protocol.PersonalVaultSpace(space, vault.Slots, vault.Rows())
-}
 
-func VaultPayload(v storage.VaultState, space ...byte) ([]byte, error) {
+func VaultPayload(v VaultState, space ...byte) ([]byte, error) {
 	list := byte(2)
 	if len(space) > 1 {
 		return nil, fmt.Errorf("个人金库快照容器参数重复")
@@ -655,3 +630,6 @@ func MoveVaultItem(b Bag, v Vault, rules BagRules, r protocol.ItemMoveRequest, e
 
 	return b, v, 0, fmt.Errorf("unsupported vault move combination: source=%d dest=%d", r.SourceList, r.DestinationList)
 }
+
+// Allows reports whether a capacity is in the verified vault configuration.
+func (r VaultRules) Allows(n uint16) bool { return r.allows(n) }

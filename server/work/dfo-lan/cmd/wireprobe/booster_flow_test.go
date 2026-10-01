@@ -8,6 +8,7 @@ import (
 	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
 	"dfolan/internal/storage"
+	"dfolan/internal/workflow"
 	"encoding/binary"
 	"encoding/json"
 	"os"
@@ -917,7 +918,7 @@ func TestBoosterEquipmentGrantUsesSourceDurability(t *testing.T) {
 			}},
 		},
 	}
-	wear := &inventory.WearService{Catalog: gear}
+	wear := &workflow.WearService{WearService: inventory.WearService{Catalog: gear}}
 	w := &worldSession{role: store.character, loot: lootSvc}
 
 	reqBytes := make([]byte, 8)

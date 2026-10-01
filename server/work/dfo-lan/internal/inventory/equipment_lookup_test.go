@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"testing"
 )
@@ -28,22 +27,22 @@ func TestEquipmentUpgradesPreserveContainerSelection(t *testing.T) {
 	}}}}
 	operations := []struct {
 		name  string
-		apply func(storage.Character, byte, uint32) (json.RawMessage, byte, error)
+		apply func(Role, byte, uint32) (json.RawMessage, byte, error)
 	}{
-		{"refine", func(role storage.Character, space byte, target uint32) (json.RawMessage, byte, error) {
-			next, out, err := s.applyRefine(role, protocol.RefineRequest{EquipmentSpace: space, EquipmentSlot: 12, EquipmentTemplate: target, MaterialSlot: 79})
+		{"refine", func(role Role, space byte, target uint32) (json.RawMessage, byte, error) {
+			next, out, err := s.ApplyRefine(role, protocol.RefineRequest{EquipmentSpace: space, EquipmentSlot: 12, EquipmentTemplate: target, MaterialSlot: 79})
 			return next, out.EquipmentSpace, err
 		}},
-		{"amplify", func(role storage.Character, space byte, target uint32) (json.RawMessage, byte, error) {
-			next, out, err := s.applyAmplifyUpgrade(role, protocol.ReinforcementRequest{EquipmentSpace: space, EquipmentSlot: 12, EquipmentTemplate: target, TicketSlot: 78})
+		{"amplify", func(role Role, space byte, target uint32) (json.RawMessage, byte, error) {
+			next, out, err := s.ApplyAmplifyUpgrade(role, protocol.ReinforcementRequest{EquipmentSpace: space, EquipmentSlot: 12, EquipmentTemplate: target, TicketSlot: 78})
 			return next, out.EquipmentSpace, err
 		}},
-		{"ticket", func(role storage.Character, space byte, target uint32) (json.RawMessage, byte, error) {
-			next, out, err := s.applyAmplifyTicket(role, protocol.ReinforcementRequest{EquipmentSpace: space, EquipmentSlot: 12, EquipmentTemplate: target, TicketSlot: 77})
+		{"ticket", func(role Role, space byte, target uint32) (json.RawMessage, byte, error) {
+			next, out, err := s.ApplyAmplifyTicket(role, protocol.ReinforcementRequest{EquipmentSpace: space, EquipmentSlot: 12, EquipmentTemplate: target, TicketSlot: 77})
 			return next, out.EquipmentSpace, err
 		}},
-		{"grimoire", func(role storage.Character, _ byte, target uint32) (json.RawMessage, byte, error) {
-			next, out, err := s.applyAmplifyGrimoire(role, protocol.AmplifyOptionRequest{EquipmentSlot: 12, EquipmentTemplate: target, BookSlot: 77, BookTemplate: 50024309, Type: 3}, 5, false, false)
+		{"grimoire", func(role Role, _ byte, target uint32) (json.RawMessage, byte, error) {
+			next, out, err := s.ApplyAmplifyGrimoire(role, protocol.AmplifyOptionRequest{EquipmentSlot: 12, EquipmentTemplate: target, BookSlot: 77, BookTemplate: 50024309, Type: 3}, 5, false, false)
 			return next, out.EquipmentSpace, err
 		}},
 	}
@@ -77,7 +76,7 @@ func TestEquipmentUpgradesPreserveContainerSelection(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				role := storage.Character{State: state}
+				role := Role{State: state}
 				if next, _, err := operation.apply(role, location.requested, template+1); err == nil || next != nil {
 					t.Fatalf("mismatched template accepted: err=%v", err)
 				}

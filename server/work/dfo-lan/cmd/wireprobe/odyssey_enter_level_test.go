@@ -1,10 +1,10 @@
 package main
 
 import (
-	"dfolan/internal/savecontract"
 	"dfolan/internal/catalog"
 	"dfolan/internal/character"
 	"dfolan/internal/game/protocol"
+	"dfolan/internal/savecontract"
 	"dfolan/internal/storage"
 	"dfolan/internal/world"
 	"encoding/json"

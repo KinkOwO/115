@@ -6,7 +6,6 @@ import (
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -18,34 +17,34 @@ import (
 type contractCartLedger struct {
 	state         json.RawMessage
 	mixedCalls    int
-	mixedOrder    storage.CashOrder
-	mixedPremiums map[int]storage.CashPremiumActivation
+	mixedOrder    CashOrder
+	mixedPremiums map[int]CashPremiumActivation
 }
 
-func (l *contractCartLedger) PurchaseCashToBag(_ context.Context, o storage.CashOrder, fn func(json.RawMessage) (json.RawMessage, error)) (storage.CashReceipt, bool, error) {
+func (l *contractCartLedger) PurchaseCashToBag(_ context.Context, o CashOrder, fn func(json.RawMessage) (json.RawMessage, error)) (CashReceipt, bool, error) {
 	state, e := fn(l.state)
 	if e != nil {
-		return storage.CashReceipt{}, false, e
+		return CashReceipt{}, false, e
 	}
 	l.state = state
-	return storage.CashReceipt{}, true, nil
+	return CashReceipt{}, true, nil
 }
 
-func (l *contractCartLedger) PurchaseCashMixed(_ context.Context, o storage.CashOrder, fn func(json.RawMessage) (json.RawMessage, error), premiums map[int]storage.CashPremiumActivation) (storage.CashReceipt, bool, error) {
+func (l *contractCartLedger) PurchaseCashMixed(_ context.Context, o CashOrder, fn func(json.RawMessage) (json.RawMessage, error), premiums map[int]CashPremiumActivation) (CashReceipt, bool, error) {
 	state, e := fn(l.state)
 	if e != nil {
-		return storage.CashReceipt{}, false, e
+		return CashReceipt{}, false, e
 	}
 	l.state = state
 	l.mixedCalls++
 	l.mixedOrder = o
 	l.mixedPremiums = premiums
 	end := time.Now().Unix() + 3600
-	var out []storage.CashPremium
+	var out []CashPremium
 	for _, act := range premiums {
-		out = append(out, storage.CashPremium{Type: act.Type, EndTime: end})
+		out = append(out, CashPremium{Type: act.Type, EndTime: end})
 	}
-	return storage.CashReceipt{Order: o.Key, Premiums: out}, true, nil
+	return CashReceipt{Order: o.Key, Premiums: out}, true, nil
 }
 
 // contractCartCatalog mirrors the live [item period or contract] rows

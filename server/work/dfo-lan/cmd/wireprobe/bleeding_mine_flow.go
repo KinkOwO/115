@@ -156,7 +156,7 @@ func (w *worldSession) prepareBleedingMineStart(ctx context.Context, p []byte) (
 	if w == nil || w.channelType != 106 || !w.bleedingMineCreated || !w.bleedingMineReady ||
 		w.role.ID == 0 || w.role.AccountID != w.account ||
 		w.state.Position.Town != 218 || w.state.Position.Area != 2 ||
-		w.characters == nil || w.characters.Store == nil || w.dungeons == nil ||
+		w.characters == nil || w.store == nil || w.dungeons == nil ||
 		w.activeDungeon != nil || w.selectingDungeon || w.inTutorial || w.specialWarpPending {
 		return nil, nil, fmt.Errorf("请在赤红铁矿准备区完成编队后开始")
 	}
@@ -174,7 +174,7 @@ func (w *worldSession) prepareBleedingMineStart(ctx context.Context, p []byte) (
 		// 重复确认只应答，不能重建客户端角色、重播淡出或重置会话。
 		return w.bleedingMineStart, []outboundPacket{{"赤红铁矿重复开战确认", 1, 2318, []byte{1}}}, nil
 	}
-	saved, err := w.characters.Store.BleedingMineTeams(ctx, w.account)
+	saved, err := w.store.BleedingMineTeams(ctx, w.account)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -190,7 +190,7 @@ func (w *worldSession) prepareBleedingMineStart(ctx context.Context, p []byte) (
 	if !ok || !strings.HasPrefix(strings.ToLower(definition.Script.Path), "contents/2025/bleedingmine/dungeon/") || !definition.NoFatigue {
 		return nil, nil, fmt.Errorf("赤红铁矿源副本配置缺失或不匹配")
 	}
-	roles, err := w.characters.Store.Characters(ctx, w.account)
+	roles, err := w.store.Characters(ctx, w.account)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -285,7 +285,7 @@ func (w *worldSession) createBleedingMine(ctx context.Context, p []byte) ([]outb
 	// 重复请求保留同一会话，不重置后续准备状态。
 	var packets []outboundPacket
 	if !w.bleedingMineCreated {
-		if w.characters == nil || w.characters.Store == nil {
+		if w.characters == nil || w.store == nil {
 			return nil, fmt.Errorf("赤红铁矿编队存储不可用")
 		}
 		roster := w.bleedingMineRoster
@@ -319,13 +319,13 @@ func (w *worldSession) createBleedingMine(ctx context.Context, p []byte) ([]outb
 
 // 按这次实际发给客户端的账号列表投影；删除的角色恢复为空槽，不挪动其他成员。
 func (w *worldSession) bleedingMineProfile(ctx context.Context, roster []int64) (outboundPacket, error) {
-	if w.characters == nil || w.characters.Store == nil {
+	if w.characters == nil || w.store == nil {
 		return outboundPacket{}, fmt.Errorf("赤红铁矿编队存储不可用")
 	}
 	if roster == nil {
 		return outboundPacket{}, fmt.Errorf("恢复赤红铁矿编队需要已同步的账号角色名单")
 	}
-	roles, err := w.characters.Store.Characters(ctx, w.account)
+	roles, err := w.store.Characters(ctx, w.account)
 	if err != nil {
 		return outboundPacket{}, err
 	}
@@ -339,7 +339,7 @@ func (w *worldSession) bleedingMineProfile(ctx context.Context, roster []int64) 
 			slots[id] = int32(i)
 		}
 	}
-	saved, err := w.characters.Store.BleedingMineTeams(ctx, w.account)
+	saved, err := w.store.BleedingMineTeams(ctx, w.account)
 	if err != nil {
 		return outboundPacket{}, err
 	}
@@ -385,7 +385,7 @@ func (w *worldSession) saveBleedingMineTeam(ctx context.Context, p []byte) ([]ou
 		}
 		ids[i] = w.bleedingMineRoster[member.Slot]
 	}
-	if err = w.characters.Store.SaveBleedingMineTeam(ctx, w.account, w.role.ID, team.Group, ids); err != nil {
+	if err = w.store.SaveBleedingMineTeam(ctx, w.account, w.role.ID, team.Group, ids); err != nil {
 		return nil, err
 	}
 	// 14073D1E0成功分支不更新名单；必须先由1444FB350恢复队员，再由

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"dfolan/internal/game/protocol"
+	"dfolan/internal/workflow"
 	"fmt"
 	"time"
 )
@@ -17,7 +18,7 @@ func (w *worldSession) addAvatarSocket(p []byte, event func(map[string]any)) ([]
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	saved, receipt, applied, e := w.loot.AddAvatarSocket(ctx, w.role, r)
+	saved, receipt, applied, e := (&workflow.LootService{Store: w.store, Loot: w.loot}).AddAvatarSocket(ctx, w.role, r)
 	if e != nil {
 		return nil, e
 	}

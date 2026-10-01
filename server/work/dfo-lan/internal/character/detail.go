@@ -4,7 +4,6 @@ import (
 	"context"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -17,13 +16,13 @@ const entryBasePercent byte = 100
 
 // EntryAddition uses persisted source attributes and initial skills in native
 // wire units. Equipment and advancement-specific skill learning are separate.
-func (s *Service) EntryAddition(role storage.Character) ([]byte, error) {
+func (s *Service) EntryAddition(role Character) ([]byte, error) {
 	return s.entryAddition(role, nil, false)
 }
 
 // AdventureEliteSkillUsage 只接受该角色已掌握的技能使用偏好。
 // 设置不会授予技能或改变等级；实际技能资料仍必须由角色存档生成。
-func (s *Service) AdventureEliteSkillUsage(role storage.Character, requested [30]int32) ([30]int32, error) {
+func (s *Service) AdventureEliteSkillUsage(role Character, requested [30]int32) ([30]int32, error) {
 	var state State
 	if err := json.Unmarshal(role.State, &state); err != nil {
 		return [30]int32{}, err
@@ -46,7 +45,7 @@ func (s *Service) AdventureEliteSkillUsage(role storage.Character, requested [30
 
 // visualOverrides is used by the Clone reattach sequence. The ordinary entry
 // packet keeps its confirmed projection unchanged.
-func (s *Service) entryAddition(role storage.Character, visualOverrides map[uint16]uint32, omitResolvedClones bool) ([]byte, error) {
+func (s *Service) entryAddition(role Character, visualOverrides map[uint16]uint32, omitResolvedClones bool) ([]byte, error) {
 	var state State
 	if e := json.Unmarshal(role.State, &state); e != nil {
 		return nil, e
@@ -98,7 +97,7 @@ func entryPackedStats(state State) (protocol.PackedEntryStats, error) {
 	return stats, failure
 }
 
-func (s *Service) entryAdditionWithStats(role storage.Character, state State, stats protocol.PackedEntryStats, visualOverrides map[uint16]uint32, omitResolvedClones bool) ([]byte, error) {
+func (s *Service) entryAdditionWithStats(role Character, state State, stats protocol.PackedEntryStats, visualOverrides map[uint16]uint32, omitResolvedClones bool) ([]byte, error) {
 	var trees [2][]protocol.EntrySkill
 	for i := range trees {
 		known, e := s.knownSkills(role, state, i)
@@ -229,7 +228,7 @@ func initialSkills(s State) []protocol.EntrySkill {
 	return out
 }
 
-func (s *Service) EntrySkills(role storage.Character) ([]byte, error) {
+func (s *Service) EntrySkills(role Character) ([]byte, error) {
 	var state State
 	if e := json.Unmarshal(role.State, &state); e != nil {
 		return nil, e

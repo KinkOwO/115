@@ -1,14 +1,13 @@
 package character
 
 import (
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 )
 
 // PrepareRoleDetails warms the actual skill floors and learned dependencies,
 // never every profession. It does not change a save or spend skill points.
-func (s *Service) PrepareRoleDetails(role storage.Character) error {
+func (s *Service) PrepareRoleDetails(role Character) error {
 	if s.Learning == nil {
 		return nil
 	}

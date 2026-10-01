@@ -4,7 +4,6 @@ import (
 	"context"
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -61,8 +60,12 @@ func LoadWearRules(path, source string) (WearRules, error) {
 	return r, nil
 }
 
+type PremiumStore interface {
+	HasConquerorPremium(context.Context, int64, time.Time) (bool, error)
+}
+
 type WearService struct {
-	Store            *storage.Store
+	PremiumStore     PremiumStore
 	Catalog          *EquipmentCatalog
 	Professions      catalog.Characters
 	BagRules         BagRules
@@ -86,7 +89,7 @@ func (s *WearService) EggHatchTarget(template uint32) uint32 {
 	return EggHatchOutputs[template]
 }
 
-func (s *WearService) wearable(role storage.Character, item BagEquipment, slot uint16) error {
+func (s *WearService) wearable(role Role, item BagEquipment, slot uint16) error {
 	d, err := s.Catalog.Definition(item.Template)
 	if err != nil {
 		return err
@@ -170,9 +173,9 @@ func (s *WearService) wearable(role storage.Character, item BagEquipment, slot u
 		}
 	}
 	level := state.Level
-	if s.Store != nil {
+	if s.PremiumStore != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		hasConqueror, _ := s.Store.HasActivePremium(ctx, role.AccountID, storage.PremiumConqueror, time.Now())
+		hasConqueror, _ := s.PremiumStore.HasConquerorPremium(ctx, role.AccountID, time.Now())
 		cancel()
 		if hasConqueror {
 			if int(level)+10 <= 255 {
@@ -187,7 +190,7 @@ func (s *WearService) wearable(role storage.Character, item BagEquipment, slot u
 
 // creatureSkinUnlocked 读存档里 USERINFO1 解锁字节的宠物幻化栏位（bit5）。
 // 读不到存档时按未开启处理：宁可不放行，也不要把宠物塞进客户端没打开的栏。
-func (s *WearService) creatureSkinUnlocked(role storage.Character) bool {
+func (s *WearService) creatureSkinUnlocked(role Role) bool {
 	b, e := ReadBag(role.State)
 	if e != nil {
 		return false
@@ -198,7 +201,7 @@ func (s *WearService) creatureSkinUnlocked(role storage.Character) bool {
 // auraSkinUnlocked 读存档里 USERINFO1 解锁字节的光环幻化栏位（bit3）。与
 // creatureSkinUnlocked 同一道理：客户端 UI 的挂锁读同一位，未开栏时服务端也不该
 // 放行，否则界面还锁着、东西却进去了，客户端/服务端状态就不一致了。
-func (s *WearService) auraSkinUnlocked(role storage.Character) bool {
+func (s *WearService) auraSkinUnlocked(role Role) bool {
 	b, e := ReadBag(role.State)
 	if e != nil {
 		return false
@@ -225,7 +228,7 @@ func (s *WearService) itemGroup(item *BagEquipment, flagGroup byte) byte {
 
 // MoveOrdinary validates both directions before swapping one physical item.
 // Equipped items retain identity and durability; no reward or copy is created.
-func (s *WearService) MoveOrdinary(role storage.Character, r protocol.ItemMoveRequest) (json.RawMessage, error) {
+func (s *WearService) MoveOrdinary(role Role, r protocol.ItemMoveRequest) (json.RawMessage, error) {
 	if IsKnightShieldMove(r) {
 		return s.moveKnightShield(role, r)
 	}
@@ -458,22 +461,6 @@ func (s *WearService) MoveOrdinary(role storage.Character, r protocol.ItemMoveRe
 		return nil, e
 	}
 	return SaveBag(role.State, b)
-}
-
-func (s *WearService) Move(ctx context.Context, role storage.Character, key string, r protocol.ItemMoveRequest) (storage.Character, bool, error) {
-	if s == nil || s.Store == nil {
-		return role, false, fmt.Errorf("wear storage unavailable")
-	}
-	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, "ordinary-equipment-move-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
-		raw, e := s.MoveOrdinary(current, r)
-		if e != nil {
-			return nil, nil, e
-		}
-		receipt, e := json.Marshal(r)
-		return raw, receipt, e
-	})
-	saved.WireID = role.WireID
-	return saved, applied, e
 }
 
 // HasWornWeapon checks the native weapon slot in the persisted worn set.

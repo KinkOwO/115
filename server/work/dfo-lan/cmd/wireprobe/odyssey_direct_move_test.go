@@ -9,7 +9,8 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"context")
+	"context"
+)
 
 // 实机缺陷（2026-09-21，角色 test-jh）：奥德赛清关后场上出现两道门——"返回城镇"
 // 与"下一个剧情关卡"。点后者时客户端发出 CMD 2062

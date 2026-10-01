@@ -1,7 +1,6 @@
 package loot
 
 import (
-	"context"
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/json"
@@ -11,7 +10,6 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 )
 
 // EquipmentTransformPair 是一件成功的「装备变换」：部位 `slot` 上的 `from` 换成了 `to`。
@@ -53,49 +51,47 @@ type EquipmentTransformReceipt struct {
 // 不满足条件的**单件**只跳过、不整体拒绝：客户端一次会把整屏（实测 11 件）都报上来，
 // 其中本来就只有一部分是"能换的"。一件都换不了时返回 error，**上层只记日志、绝不回包**
 // —— 客户端在 2259 上没有失败分支（两次实测收到 Error 都 `exit=0xC0000005`）。
-func (s *Service) TransformEquipment(
-	ctx context.Context,
-	role storage.Character,
-	slots []uint32,
-	templates []uint32,
-	payOption int,
-) (storage.Character, EquipmentTransformReceipt, bool, error) {
+
+type transformStep struct {
+	slot    uint16
+	from    uint32
+	to      uint32
+	bagSlot uint16 // 0 = 源在身上；非 0 = 源在背包装备区的这个槽
+}
+
+type EquipmentTransformPlan struct {
+	Key     string
+	Steps   []transformStep
+	Receipt EquipmentTransformReceipt
+}
+
+func (s *Service) PlanEquipmentTransform(role Role, slots, templates []uint32, payOption int) (EquipmentTransformPlan, error) {
 	var result EquipmentTransformReceipt
-	fail := func(e error) (storage.Character, EquipmentTransformReceipt, bool, error) {
-		return role, result, false, e
-	}
 	if role.ConfigVersion != s.Catalog.Source.SaveIdentity() {
-		return fail(fmt.Errorf("equipment transform: inventory source mismatch"))
+		return EquipmentTransformPlan{Receipt: result}, (fmt.Errorf("equipment transform: inventory source mismatch"))
 	}
 	if s.CreateCost == nil {
-		return fail(fmt.Errorf("equipment transform: create-cost table is not loaded"))
+		return EquipmentTransformPlan{Receipt: result}, (fmt.Errorf("equipment transform: create-cost table is not loaded"))
 	}
 	if s.Journal == nil {
-		return fail(fmt.Errorf("equipment transform: journal rules are not loaded"))
+		return EquipmentTransformPlan{Receipt: result}, (fmt.Errorf("equipment transform: journal rules are not loaded"))
 	}
 	if s.Equipment == nil {
-		return fail(fmt.Errorf("equipment transform: equipment catalog is not loaded"))
+		return EquipmentTransformPlan{Receipt: result}, (fmt.Errorf("equipment transform: equipment catalog is not loaded"))
 	}
 	if len(slots) == 0 || len(templates) == 0 {
-		return fail(fmt.Errorf("equipment transform: empty request"))
-	}
-
-	type plan struct {
-		slot    uint16
-		from    uint32
-		to      uint32
-		bagSlot uint16 // 0 = 源在身上；非 0 = 源在背包装备区的这个槽
+		return EquipmentTransformPlan{Receipt: result}, (fmt.Errorf("equipment transform: empty request"))
 	}
 
 	bag, e := inventory.ReadBag(role.State)
 	if e != nil {
-		return fail(e)
+		return EquipmentTransformPlan{Receipt: result}, (e)
 	}
 	ledger, e := inventory.ReadEquipmentJournal(role.State)
 	if e != nil {
-		return fail(e)
+		return EquipmentTransformPlan{Receipt: result}, (e)
 	}
-	var plans []plan
+	var plans []transformStep
 	n := len(slots)
 	if len(templates) < n {
 		n = len(templates)
@@ -127,123 +123,119 @@ func (s *Service) TransformEquipment(
 			result.Skipped = append(result.Skipped, target)
 			continue
 		}
-		plans = append(plans, plan{slot: slot, from: from, to: target, bagSlot: bagSlot})
+		plans = append(plans, transformStep{slot: slot, from: from, to: target, bagSlot: bagSlot})
 	}
 	if len(plans) == 0 {
 		// 把逐件判定写进错误串：2026-09-30 03:06 那次日志只说了 "nothing transformable"，
 		// 而四个条件看起来都满足 —— 继续靠猜会浪费一轮。现在一次就能看清卡在哪条。
-		return fail(fmt.Errorf("equipment transform: nothing transformable in %d requested slots (%s)",
+		return EquipmentTransformPlan{Receipt: result}, (fmt.Errorf("equipment transform: nothing transformable in %d requested slots (%s)",
 			len(templates), strings.Join(notes, "; ")))
 	}
 
 	key := transformKey(slots, templates, role.State)
-	saved, _, applied, e := s.Store.CommitAccountMaterialEvent(ctx, role.AccountID, role.ID,
-		s.Catalog.Source.SaveIdentity(), key, s.Rules.Model,
-		func(current storage.Character, accountRaw json.RawMessage) (json.RawMessage, json.RawMessage, error) {
-			live, e := inventory.ReadBag(current.State)
-			if e != nil {
-				return nil, nil, e
-			}
-			liveLedger, e := inventory.ReadEquipmentJournal(current.State)
-			if e != nil {
-				return nil, nil, e
-			}
-			account, e := inventory.ReadAccountMaterials(accountRaw)
-			if e != nil {
-				return nil, nil, e
-			}
-
-			var bagMats, accountMats []inventory.MaterialCost
-			var gold uint32
-			option := 0
-			var done []EquipmentTransformPair
-			next := live
-			for _, p := range plans {
-				// 事务内重校验：状态可能已被别的请求改过。
-				if liveLedger.Counts[p.to] == 0 {
-					result.Skipped = append(result.Skipped, p.to)
-					continue
-				}
-				if from, bs, held := s.transformSource(next, p.slot); !held || from != p.from || bs != p.bagSlot {
-					result.Skipped = append(result.Skipped, p.to)
-					continue
-				}
-				// 成本：**目标稀有度对应的灵魂 ×1 + 固定金币**（客户端「变换确认」界面的口径，
-				// 不走 [create cost] —— 那张表没有太初档，武器永远匹配不到）。
-				soul, g, e := s.transformCost(p.to)
-				if e != nil {
-					result.Skipped = append(result.Skipped, p.to)
-					continue
-				}
-				mat := inventory.MaterialCost{Template: soul, Count: 1}
-				if _, isAccount := inventory.AccountMaterialSlot(soul); isAccount {
-					if have := account.Count(soul); have < mat.Count {
-						result.Skipped = append(result.Skipped, p.to)
-						continue
-					}
-					accountMats = append(accountMats, mat)
-				} else {
-					bagMats = append(bagMats, mat)
-				}
-				option = 1
-				gold += g
-				done = append(done, EquipmentTransformPair{
-					Slot: p.slot, From: p.from, To: p.to, Group: 0,
-					FromBag: p.bagSlot != 0, BagSlot: p.bagSlot,
-				})
-			}
-			if len(done) == 0 {
-				return nil, nil, fmt.Errorf("equipment transform: none of the %d pairs is affordable", len(plans))
-			}
-			if gold > next.Gold {
-				return nil, nil, fmt.Errorf("equipment transform: need %d gold, have %d", gold, next.Gold)
-			}
-			paid, e := next.PayMaterials(bagMats, 1)
-			if e != nil {
-				return nil, nil, e
-			}
-			paid.Gold -= gold
-			out := account
-			for _, m := range accountMats {
-				nxt, _, e := out.Spend(m.Template, m.Count)
-				if e != nil {
-					return nil, nil, e
-				}
-				out = nxt
-			}
-			replaced, e := s.applyTransform(paid, done)
-			if e != nil {
-				return nil, nil, e
-			}
-			updated, e := inventory.SaveBag(current.State, replaced)
-			if e != nil {
-				return nil, nil, e
-			}
-			// 方案「甲」：把换下去的源装备也登记进图鉴，否则它"换出去即消失"、再也选不回来。
-			ledgerNext := registerTransformedSources(s.Equipment, s.Journal, liveLedger, done)
-			if updated, e = inventory.SaveEquipmentJournal(updated, ledgerNext); e != nil {
-				return nil, nil, e
-			}
-			accountNext, e := out.Save()
-			if e != nil {
-				return nil, nil, e
-			}
-			result.Source = s.Catalog.Source.SaveIdentity()
-			result.Option = option
-			result.Gold = gold
-			result.Pairs = done
-			for _, m := range bagMats {
-				result.Materials = append(result.Materials, CraftMaterial{Template: m.Template, Amount: m.Count})
-			}
-			for _, m := range accountMats {
-				result.Materials = append(result.Materials, CraftMaterial{Template: m.Template, Amount: m.Count, FromAccount: true})
-			}
-			return updated, accountNext, nil
-		})
+	return EquipmentTransformPlan{Key: key, Steps: plans, Receipt: result}, nil
+}
+func (s *Service) PrepareEquipmentTransform(current Role, accountRaw json.RawMessage, plan EquipmentTransformPlan) (json.RawMessage, json.RawMessage, EquipmentTransformReceipt, error) {
+	result, plans := plan.Receipt, plan.Steps
+	live, e := inventory.ReadBag(current.State)
 	if e != nil {
-		return fail(e)
+		return nil, nil, result, e
 	}
-	return saved, result, applied, nil
+	liveLedger, e := inventory.ReadEquipmentJournal(current.State)
+	if e != nil {
+		return nil, nil, result, e
+	}
+	account, e := inventory.ReadAccountMaterials(accountRaw)
+	if e != nil {
+		return nil, nil, result, e
+	}
+
+	var bagMats, accountMats []inventory.MaterialCost
+	var gold uint32
+	option := 0
+	var done []EquipmentTransformPair
+	next := live
+	for _, p := range plans {
+		// 事务内重校验：状态可能已被别的请求改过。
+		if liveLedger.Counts[p.to] == 0 {
+			result.Skipped = append(result.Skipped, p.to)
+			continue
+		}
+		if from, bs, held := s.transformSource(next, p.slot); !held || from != p.from || bs != p.bagSlot {
+			result.Skipped = append(result.Skipped, p.to)
+			continue
+		}
+		// 成本：**目标稀有度对应的灵魂 ×1 + 固定金币**（客户端「变换确认」界面的口径，
+		// 不走 [create cost] —— 那张表没有太初档，武器永远匹配不到）。
+		soul, g, e := s.transformCost(p.to)
+		if e != nil {
+			result.Skipped = append(result.Skipped, p.to)
+			continue
+		}
+		mat := inventory.MaterialCost{Template: soul, Count: 1}
+		if _, isAccount := inventory.AccountMaterialSlot(soul); isAccount {
+			if have := account.Count(soul); have < mat.Count {
+				result.Skipped = append(result.Skipped, p.to)
+				continue
+			}
+			accountMats = append(accountMats, mat)
+		} else {
+			bagMats = append(bagMats, mat)
+		}
+		option = 1
+		gold += g
+		done = append(done, EquipmentTransformPair{
+			Slot: p.slot, From: p.from, To: p.to, Group: 0,
+			FromBag: p.bagSlot != 0, BagSlot: p.bagSlot,
+		})
+	}
+	if len(done) == 0 {
+		return nil, nil, result, fmt.Errorf("equipment transform: none of the %d pairs is affordable", len(plans))
+	}
+	if gold > next.Gold {
+		return nil, nil, result, fmt.Errorf("equipment transform: need %d gold, have %d", gold, next.Gold)
+	}
+	paid, e := next.PayMaterials(bagMats, 1)
+	if e != nil {
+		return nil, nil, result, e
+	}
+	paid.Gold -= gold
+	out := account
+	for _, m := range accountMats {
+		nxt, _, e := out.Spend(m.Template, m.Count)
+		if e != nil {
+			return nil, nil, result, e
+		}
+		out = nxt
+	}
+	replaced, e := s.applyTransform(paid, done)
+	if e != nil {
+		return nil, nil, result, e
+	}
+	updated, e := inventory.SaveBag(current.State, replaced)
+	if e != nil {
+		return nil, nil, result, e
+	}
+	// 方案「甲」：把换下去的源装备也登记进图鉴，否则它"换出去即消失"、再也选不回来。
+	ledgerNext := registerTransformedSources(s.Equipment, s.Journal, liveLedger, done)
+	if updated, e = inventory.SaveEquipmentJournal(updated, ledgerNext); e != nil {
+		return nil, nil, result, e
+	}
+	accountNext, e := out.Save()
+	if e != nil {
+		return nil, nil, result, e
+	}
+	result.Source = s.Catalog.Source.SaveIdentity()
+	result.Option = option
+	result.Gold = gold
+	result.Pairs = done
+	for _, m := range bagMats {
+		result.Materials = append(result.Materials, CraftMaterial{Template: m.Template, Amount: m.Count})
+	}
+	for _, m := range accountMats {
+		result.Materials = append(result.Materials, CraftMaterial{Template: m.Template, Amount: m.Count, FromAccount: true})
+	}
+	return updated, accountNext, result, nil
 }
 
 // applyTransform 把 worn 里这些槽的模板换成目标。

@@ -5,6 +5,7 @@ import (
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/storage"
+	"dfolan/internal/workflow"
 	"encoding/binary"
 	"encoding/hex"
 	"time"
@@ -92,7 +93,7 @@ func reinforcementBranch(role storage.Character, r protocol.ReinforcementRequest
 	return "", inventory.Refuse(inventory.RefusalMaterials, "窗口里的物品既不是强化券也不是强化材料（槽 %d 里没有物品）", r.TicketSlot)
 }
 
-func (s *equipmentSession) reinforce(service *inventory.WearService, w *worldSession, p, raw []byte, event func(map[string]any)) ([]outboundPacket, error) {
+func (s *equipmentSession) reinforce(service *workflow.WearService, w *worldSession, p, raw []byte, event func(map[string]any)) ([]outboundPacket, error) {
 	if service == nil || w == nil || w.role.ID == 0 || w.activeDungeon != nil {
 		return nil, inventory.Refuse(inventory.RefusalItems, "强化需要已选角色且位于城镇")
 	}
@@ -141,7 +142,7 @@ func (s *equipmentSession) reinforce(service *inventory.WearService, w *worldSes
 }
 
 // reinforceWithTicket 固定等级强化券：扣券、写等级、刷新券与装备两行。
-func (s *equipmentSession) reinforceWithTicket(ctx context.Context, service *inventory.WearService, w *worldSession, r protocol.ReinforcementRequest, key string, event func(map[string]any)) ([]outboundPacket, error) {
+func (s *equipmentSession) reinforceWithTicket(ctx context.Context, service *workflow.WearService, w *worldSession, r protocol.ReinforcementRequest, key string, event func(map[string]any)) ([]outboundPacket, error) {
 	saved, out, err := service.ReinforceWithTicket(ctx, w.role, key, r)
 	if err != nil {
 		return nil, err
@@ -171,7 +172,7 @@ func (s *equipmentSession) reinforceWithTicket(ctx context.Context, service *inv
 
 // reinforceWithMaterial 金币强化（材料 + 金币）。材料在账号共享仓库时，
 // 除了 CMD80 应答，还要按既有约定补发 list35/list42/list0 三连快照，让客户端重新收割。
-func (s *equipmentSession) reinforceWithMaterial(ctx context.Context, service *inventory.WearService, w *worldSession, r protocol.ReinforcementRequest, key string, event func(map[string]any)) ([]outboundPacket, error) {
+func (s *equipmentSession) reinforceWithMaterial(ctx context.Context, service *workflow.WearService, w *worldSession, r protocol.ReinforcementRequest, key string, event func(map[string]any)) ([]outboundPacket, error) {
 	saved, out, err := service.ReinforceWithMaterial(ctx, w.role, key, r)
 	if err != nil {
 		return nil, err
@@ -238,7 +239,7 @@ func (s *equipmentSession) reinforceWithMaterial(ctx context.Context, service *i
 //
 // 回包沿用强化那套 35 字节布局（客户端处理 CMD80 回包的 handler 只有一个
 // sub_14529B2F0），只把 mode 写成 1；随后照既有约定补发装备行刷新。
-func (s *equipmentSession) amplifyUpgrade(ctx context.Context, service *inventory.WearService, w *worldSession, r protocol.ReinforcementRequest, key string, event func(map[string]any)) ([]outboundPacket, error) {
+func (s *equipmentSession) amplifyUpgrade(ctx context.Context, service *workflow.WearService, w *worldSession, r protocol.ReinforcementRequest, key string, event func(map[string]any)) ([]outboundPacket, error) {
 	saved, out, err := service.ApplyAmplifyUpgrade(ctx, w.role, key, r)
 	if err != nil {
 		return nil, err
@@ -321,7 +322,7 @@ func amplifyBranch(role storage.Character, r protocol.ReinforcementRequest) (str
 //
 // 与 reinforceWithTicket（普通强化券）同套路：先用权威回包让客户端播结果动画，
 // 再以增量行刷新，避免整包重建打断动画引用的装备对象。
-func (s *equipmentSession) amplifyTicket(ctx context.Context, service *inventory.WearService, w *worldSession, r protocol.ReinforcementRequest, key string, event func(map[string]any)) ([]outboundPacket, error) {
+func (s *equipmentSession) amplifyTicket(ctx context.Context, service *workflow.WearService, w *worldSession, r protocol.ReinforcementRequest, key string, event func(map[string]any)) ([]outboundPacket, error) {
 	saved, out, err := service.ApplyAmplifyTicket(ctx, w.role, key, r)
 	if err != nil {
 		return nil, err

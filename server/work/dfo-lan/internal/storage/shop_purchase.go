@@ -2,10 +2,9 @@ package storage
 
 import (
 	"context"
+	"dfolan/internal/db"
 	"fmt"
 	"time"
-
-	"github.com/jackc/pgx/v5"
 )
 
 // NPC 商店限购。
@@ -98,7 +97,7 @@ func (s *Store) CountShopPurchases(ctx context.Context, scope ShopPurchaseScope,
 
 // RecordShopPurchase 记一次购买。必须与背包变更在**同一事务**里，
 // 否则会出现「货到手但次数没记」或反之。
-func RecordShopPurchase(ctx context.Context, tx pgx.Tx, accountID, characterID int64, npcID, template uint32) error {
+func RecordShopPurchase(ctx context.Context, tx db.Tx, accountID, characterID int64, npcID, template uint32) error {
 	_, e := tx.Exec(ctx, `INSERT INTO character_shop_purchases(account_id, character_id, npc_id, template)
  VALUES($1,$2,$3,$4)`, accountID, characterID, int32(npcID), int32(template))
 	if e != nil {

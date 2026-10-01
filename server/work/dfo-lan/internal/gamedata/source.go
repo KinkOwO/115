@@ -104,7 +104,7 @@ func (s *Source) OdysseyJournalRoutes() (*catalog.OdysseyJournalRoutes, error) {
 
 func (s *Source) RosterBackgrounds(index catalog.ItemIndex) (*rosterbg.TicketCatalog, error) {
 	return cachedProjection(s, "roster", itemIndexIdentity(index), func() (*rosterbg.TicketCatalog, error) {
-		return catalog.ImportRosterBackgroundTickets(s.archive, index)
+		return rosterbg.ImportTickets(s.archive, index)
 	}, func(r *rosterbg.TicketCatalog) (*rosterbg.TicketCatalog, error) {
 		if r == nil || r.Source != s.Snapshot().Checksum {
 			return nil, fmt.Errorf("background cache source mismatch")

@@ -14,7 +14,7 @@ import (
 // 角色选择列表按Store.Characters的顺序下发。精锐页14021ADF0从该列表
 // 查询界面索引；存档保存稳定ID，重登时重新投影，不能持久化易变的索引。
 func (w *worldSession) adventureElitePayload(ctx context.Context, profile storage.AccountAdventure) ([]byte, error) {
-	roles, err := w.characters.Store.Characters(ctx, w.account)
+	roles, err := w.store.Characters(ctx, w.account)
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +57,7 @@ func (w *worldSession) setAdventureElite(ctx context.Context, p, raw []byte, pre
 	if _, err = w.prepareAdventure(ctx); err != nil {
 		return nil, err
 	}
-	roles, err := w.characters.Store.Characters(ctx, w.account)
+	roles, err := w.store.Characters(ctx, w.account)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +90,7 @@ func (w *worldSession) setAdventureElite(ctx context.Context, p, raw []byte, pre
 		seen[role.ID] = true
 	}
 	key := fmt.Sprintf("adventure-elite:%s:%x", prefix, sha256.Sum256(raw))
-	_, profile, _, err := w.characters.Store.CommitAdventure(ctx, w.account, w.role.ID, key,
+	_, profile, _, err := w.store.CommitAdventure(ctx, w.account, w.role.ID, key,
 		func(role storage.Character, profile *storage.AccountAdventure) (json.RawMessage, json.RawMessage, error) {
 			if profile.Data.EliteSelections == nil {
 				profile.Data.EliteSelections = map[uint16][3]int64{}
@@ -145,7 +145,7 @@ func (w *worldSession) loadAdventureElite(ctx context.Context, p []byte) ([]outb
 	if err != nil {
 		return nil, err
 	}
-	roles, err := w.characters.Store.Characters(ctx, w.account)
+	roles, err := w.store.Characters(ctx, w.account)
 	if err != nil {
 		return nil, err
 	}

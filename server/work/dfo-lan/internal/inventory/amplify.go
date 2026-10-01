@@ -1,10 +1,8 @@
 package inventory
 
 import (
-	"context"
 	"crypto/rand"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -172,7 +170,7 @@ func IsPureGrimoire(template uint32) bool {
 	return false
 }
 
-// classifyAmplifyBook 判定 CMD205 请求里的增幅书属于哪一类，并给出普通书摇出的红字数值。
+// ClassifyAmplifyBook 判定 CMD205 请求里的增幅书属于哪一类，并给出普通书摇出的红字数值。
 //
 //	golden=true → 黄金增幅书（脚本路径含 golden）：**仍走摇值即等级**（8..12），
 //	              与纯净增幅书是两个不同产物，不并入；
@@ -184,7 +182,7 @@ func IsPureGrimoire(template uint32) bool {
 // 本服除 1286 外，实测玩家用过的还有 stackable/.../pure.stk(590704000)、
 // 10356261、10354248、10360807、10000605。以前这里直接拒绝「窗口里的物品不是增幅书」，
 // 导致玩家背包里除 1286 外的纯书全都用不了。
-func classifyAmplifyBook(template uint32) (golden, pure bool, value byte) {
+func ClassifyAmplifyBook(template uint32) (golden, pure bool, value byte) {
 	golden = IsGoldenGrimoire(template)
 	pure = IsPureGrimoire(template)
 	if pure {
@@ -343,25 +341,8 @@ type AmplifyGrimoireReceipt struct {
 const amplifyGrimoireModel = "amplify-grimoire-v1"
 
 // ApplyAmplifyGrimoire 处理 CMD 205：校验增幅书与目标装备，写入次元属性类型，扣掉一本书。
-func (s *WearService) ApplyAmplifyGrimoire(ctx context.Context, role storage.Character, key string, r protocol.AmplifyOptionRequest) (storage.Character, AmplifyGrimoireReceipt, error) {
-	var out AmplifyGrimoireReceipt
-	if s == nil || s.Store == nil || s.Catalog == nil {
-		return role, out, fmt.Errorf("打红字需要有效装备目录及角色存档")
-	}
-	if !AmplifyGrimoiresLoaded() {
-		return role, out, fmt.Errorf("增幅书规则未装载")
-	}
-	if r.Type < amplifyTypeVitality || r.Type > amplifyTypeIntelligence {
-		return role, out, fmt.Errorf("次元属性类型 %d 不在 1..4 范围内", r.Type)
-	}
-	golden, pure, value := classifyAmplifyBook(r.BookTemplate)
 
-	return commitEquipmentEvent(ctx, s.Store, role, key, amplifyGrimoireModel, func(current storage.Character) (json.RawMessage, AmplifyGrimoireReceipt, error) {
-		return s.applyAmplifyGrimoire(current, r, value, golden, pure)
-	})
-}
-
-func (s *WearService) applyAmplifyGrimoire(role storage.Character, r protocol.AmplifyOptionRequest, value byte, golden, pure bool) (json.RawMessage, AmplifyGrimoireReceipt, error) {
+func (s *WearService) ApplyAmplifyGrimoire(role Role, r protocol.AmplifyOptionRequest, value byte, golden, pure bool) (json.RawMessage, AmplifyGrimoireReceipt, error) {
 	var out AmplifyGrimoireReceipt
 	bag, err := ReadBag(role.State)
 	if err != nil {

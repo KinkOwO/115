@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"dfolan/internal/game/protocol"
+	"dfolan/internal/workflow"
 	"fmt"
 	"time"
 )
@@ -29,13 +30,13 @@ func (w *worldSession) disjointItem(p []byte, event func(map[string]any)) ([]out
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	saved, receipt, _, e := w.loot.Disjoint(ctx, w.role, r)
+	saved, receipt, _, e := (&workflow.LootService{Store: w.store, Loot: w.loot}).Disjoint(ctx, w.role, r)
 	if e != nil {
 		return nil, e
 	}
 	// The disjoint reward templates are account-shared materials; move them
 	// out of the bag into the account storage before any snapshot is built.
-	saved, materials, e := sweepAccountMaterials(ctx, w.loot.Store, saved)
+	saved, materials, e := sweepAccountMaterials(ctx, w.store, saved)
 	if e != nil {
 		return nil, e
 	}

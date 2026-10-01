@@ -1,15 +1,15 @@
 package loot
 
 import (
-	"context"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 	"math"
 	"time"
 )
+
+const AvatarSocketModel = "avatar-socket-v1"
 
 type AvatarSocketReceipt struct {
 	Request        protocol.AddAvatarSocketRequest `json:"request"`
@@ -22,91 +22,74 @@ type AvatarSocketReceipt struct {
 }
 
 func (r *AvatarSocketReceipt) prepare(state json.RawMessage) error {
-	var e error
-	r.Ack, e = protocol.AddAvatarSocketSuccess(r.Request)
-	if e != nil {
-		return e
+	var err error
+	r.Ack, err = protocol.AddAvatarSocketSuccess(r.Request)
+	if err != nil {
+		return err
 	}
-	b, e := inventory.ReadBag(state)
-	if e != nil {
-		return e
+	b, err := inventory.ReadBag(state)
+	if err != nil {
+		return err
 	}
 	for _, row := range b.Special[1] {
 		if row.Slot == r.Request.AvatarSlot && row.Template == r.Request.Template {
-			r.Avatar, e = inventory.EquipmentPayload(1, []inventory.BagEquipment{row}, false)
-			if e != nil {
-				return e
+			r.Avatar, err = inventory.EquipmentPayload(1, []inventory.BagEquipment{row}, false)
+			if err != nil {
+				return err
 			}
-			r.Inventory, e = protocol.InventoryRestore(b.Rows(), b.Expansion)
-			return e
+			r.Inventory, err = protocol.InventoryRestore(b.Rows(), b.Expansion)
+			return err
 		}
 	}
 	return fmt.Errorf("avatar socket receipt target missing")
 }
 
-// Opening and consuming the device commit together under the character lock.
-// A transaction retry returns the saved receipt without consuming another unit.
-func (s *Service) AddAvatarSocket(ctx context.Context, role storage.Character, r protocol.AddAvatarSocketRequest) (storage.Character, AvatarSocketReceipt, bool, error) {
-	var result AvatarSocketReceipt
-	fail := func(e error) (storage.Character, AvatarSocketReceipt, bool, error) {
-		return role, AvatarSocketReceipt{}, false, e
-	}
-	if s == nil || s.Store == nil || s.AvatarSockets == nil || s.Equipment == nil {
-		return fail(fmt.Errorf("avatar socket service unavailable"))
+// AvatarSocketSequence validates the save identity and returns the sequence
+// used to fence the workflow transaction.
+func (s *Service) AvatarSocketSequence(role Role) (uint64, error) {
+	if s == nil || s.AvatarSockets == nil || s.Equipment == nil {
+		return 0, fmt.Errorf("avatar socket service unavailable")
 	}
 	if role.ConfigVersion != s.Catalog.Source.SaveIdentity() {
-		return fail(fmt.Errorf("avatar socket inventory source mismatch"))
+		return 0, fmt.Errorf("avatar socket inventory source mismatch")
 	}
-	before, e := inventory.ReadBag(role.State)
-	if e != nil {
-		return fail(e)
+	b, err := inventory.ReadBag(role.State)
+	if err != nil {
+		return 0, err
 	}
-	if before.AvatarSocketSeq == math.MaxUint64 {
-		return fail(fmt.Errorf("avatar socket sequence exhausted"))
+	if b.AvatarSocketSeq == math.MaxUint64 {
+		return 0, fmt.Errorf("avatar socket sequence exhausted")
 	}
-	sequence := before.AvatarSocketSeq
-	key := fmt.Sprintf("avatar-socket:%d:%d:%d:%d", sequence, r.AvatarSlot, r.Template, r.DeviceSlot)
-	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, s.Catalog.Source.SaveIdentity(), key, "avatar-socket-v1",
-		func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
-			b, e := inventory.ReadBag(current.State)
-			if e != nil {
-				return nil, nil, e
-			}
-			if b.AvatarSocketSeq != sequence {
-				return nil, nil, fmt.Errorf("stale avatar socket sequence")
-			}
-			b, device, e := b.AddAvatarSocket(s.Catalog, s.Equipment, s.AvatarSockets, r, uint32(time.Now().Unix()))
-			if e != nil {
-				return nil, nil, e
-			}
-			b.AvatarSocketSeq++
-			updated, e := inventory.SaveBag(current.State, b)
-			if e != nil {
-				return nil, nil, e
-			}
-			result = AvatarSocketReceipt{Request: r, DeviceTemplate: device, Sequence: sequence, Source: s.Catalog.Source.SaveIdentity()}
-			if e := result.prepare(updated); e != nil {
-				return nil, nil, e
-			}
-			receipt, e := json.Marshal(result)
-			return updated, receipt, e
-		})
-	if e != nil {
-		return fail(e)
+	return b.AvatarSocketSeq, nil
+}
+
+// PrepareAvatarSocket performs the loot-domain state change. The workflow owns
+// persistence and receipt replay.
+func (s *Service) PrepareAvatarSocket(current Role, req protocol.AddAvatarSocketRequest, sequence uint64) (json.RawMessage, json.RawMessage, error) {
+	b, err := inventory.ReadBag(current.State)
+	if err != nil {
+		return nil, nil, err
 	}
-	raw, e := s.Store.CharacterEventReceipt(ctx, role.AccountID, role.ID, key)
-	if e != nil {
-		return fail(e)
+	if b.AvatarSocketSeq != sequence {
+		return nil, nil, fmt.Errorf("stale avatar socket sequence")
 	}
-	if e := json.Unmarshal(raw, &result); e != nil {
-		return fail(e)
+	b, device, err := b.AddAvatarSocket(s.Catalog, s.Equipment, s.AvatarSockets, req, uint32(time.Now().Unix()))
+	if err != nil {
+		return nil, nil, err
 	}
-	if result.Request != r || result.Sequence != sequence || result.Source != s.Catalog.Source.SaveIdentity() {
-		return fail(fmt.Errorf("avatar socket receipt conflict"))
+	b.AvatarSocketSeq++
+	updated, err := inventory.SaveBag(current.State, b)
+	if err != nil {
+		return nil, nil, err
 	}
-	if e := result.prepare(saved.State); e != nil {
-		return fail(e)
+	receipt := AvatarSocketReceipt{Request: req, DeviceTemplate: device, Sequence: sequence, Source: s.Catalog.Source.SaveIdentity()}
+	if err := receipt.prepare(updated); err != nil {
+		return nil, nil, err
 	}
-	saved.WireID = role.WireID
-	return saved, result, applied, nil
+	data, err := json.Marshal(receipt)
+	return updated, data, err
+}
+
+func (s *Service) PrepareAvatarSocketReceipt(receipt *AvatarSocketReceipt, state json.RawMessage) error {
+	return receipt.prepare(state)
 }

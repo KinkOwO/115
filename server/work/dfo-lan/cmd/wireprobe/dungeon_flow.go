@@ -10,6 +10,7 @@ import (
 	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
 	"dfolan/internal/storage"
+	"dfolan/internal/workflow"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
@@ -131,7 +132,7 @@ func towerPolicy(t *catalog.TowerRuntime) storage.TowerPolicy {
 
 func (w *worldSession) towerProgress(ctx context.Context, tower *catalog.TowerRuntime) (storage.TowerProgress, []uint32, error) {
 	var empty storage.TowerProgress
-	if w == nil || tower == nil || w.dungeons == nil || w.characters == nil || w.characters.Store == nil {
+	if w == nil || tower == nil || w.dungeons == nil || w.characters == nil || w.store == nil {
 		return empty, nil, fmt.Errorf("tower progress unavailable")
 	}
 	floors, err := w.dungeons.TowerFloors(tower.Key, tower.TopFloor)
@@ -142,13 +143,13 @@ func (w *worldSession) towerProgress(ctx context.Context, tower *catalog.TowerRu
 	if tower.Key == "grief" {
 		var griefFloors [101]uint32
 		copy(griefFloors[:], floors)
-		legacy, err := w.characters.Store.TowerGriefProgress(ctx, w.account, griefFloors)
+		legacy, err := w.store.TowerGriefProgress(ctx, w.account, griefFloors)
 		if err != nil {
 			return empty, floors, err
 		}
 		legacyFloor = legacy.HighestCleared
 	}
-	progress, err := w.characters.Store.ReadTowerProgress(ctx, w.account, towerPolicy(tower), legacyFloor)
+	progress, err := w.store.ReadTowerProgress(ctx, w.account, towerPolicy(tower), legacyFloor)
 	return progress, floors, err
 }
 
@@ -266,7 +267,7 @@ func (w *worldSession) prepareDungeonEntry(r protocol.DungeonSelection) (*dungeo
 		return nil, nil, e
 	}
 	if tower := s.Definition.Tower; tower != nil {
-		if _, e = w.characters.Store.ReserveTowerEntry(ctx, w.account, towerPolicy(tower), tower.Floor, time.Now()); e != nil {
+		if _, e = w.store.ReserveTowerEntry(ctx, w.account, towerPolicy(tower), tower.Floor, time.Now()); e != nil {
 			return nil, nil, e
 		}
 	}
@@ -373,7 +374,7 @@ func (w *worldSession) dungeonEntryPlan(ctx context.Context, ackName string, ack
 // so completed ones count too; only accepted would lock out a dungeon whose
 // quest the character already finished.
 func (w *worldSession) acceptedQuestIDs(ctx context.Context) (map[uint16]bool, error) {
-	quests, e := w.service.Store.Quests(ctx, w.account, w.role.ID)
+	quests, e := w.store.Quests(ctx, w.account, w.role.ID)
 	if e != nil {
 		return nil, e
 	}
@@ -610,7 +611,7 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 		// back here the way the worn visuals do.
 		plan = append(plan, w.damageFontRestore()...)
 	}
-	if w.characters != nil && w.characters.Store != nil {
+	if w.characters != nil && w.store != nil {
 		// 誓约进图直发命中时，S2C2839 已在 NOTI29 之前发过 ⇒ 此处不再重复。
 		directOathHere, oathHereErr := w.oathDirectEntryActive(context.Background())
 		if oathHereErr != nil {
@@ -689,7 +690,7 @@ func (w *worldSession) elvenmereTeleport(p []byte) ([]outboundPacket, error) {
 			before, _ := inventory.ReadBag(w.role.State)
 			if updated, _, err := awarder.Grant(w.role.State, itemTemplate, itemCount); err == nil {
 				w.role.State = updated
-				if store := w.service.Store; store != nil {
+				if store := w.store; store != nil {
 					key := fmt.Sprintf("elvenmere-weekly:%s:%d", w.activeDungeon.RunID, clearedFloor)
 					_, _, _ = store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, "elvenmere-reward-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
 						proof, _ := json.Marshal(map[string]any{"template": itemTemplate, "amount": itemCount, "floor": clearedFloor})
@@ -718,7 +719,7 @@ func (w *worldSession) elvenmereTeleport(p []byte) ([]outboundPacket, error) {
 			before, _ := inventory.ReadBag(w.role.State)
 			if updated, _, err := awarder.Grant(w.role.State, sTemplate, sCount); err == nil {
 				w.role.State = updated
-				if store := w.service.Store; store != nil {
+				if store := w.store; store != nil {
 					key := fmt.Sprintf("elvenmere-season:%s:%d", w.activeDungeon.RunID, clearedFloor)
 					_, _, _ = store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, "elvenmere-reward-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
 						proof, _ := json.Marshal(map[string]any{"template": sTemplate, "amount": sCount, "floor": clearedFloor})
@@ -741,7 +742,7 @@ func (w *worldSession) elvenmereTeleport(p []byte) ([]outboundPacket, error) {
 		if updatedRole, _, err := w.progression.ApplyGain(w.role, expGain); err == nil {
 			updatedRole.WireID = w.role.WireID
 			w.role = updatedRole
-			if store := w.service.Store; store != nil {
+			if store := w.store; store != nil {
 				key := fmt.Sprintf("elvenmere-exp:%s:%d", w.activeDungeon.RunID, clearedFloor)
 				_, _, _ = store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, "elvenmere-exp-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
 					proof, _ := json.Marshal(map[string]any{"exp": expGain, "floor": clearedFloor})
@@ -991,9 +992,9 @@ func (w *worldSession) monsterDeath(p []byte, event func(map[string]any)) ([]out
 					w.loot.Omen.Set(w.role.ID, uint32(w.omenHold))
 					w.omenHoldApplied = true
 				}
-				store := w.service.Store
+				store := w.store
 				if store == nil && w.characters != nil {
-					store = w.characters.Store
+					store = w.store
 				}
 				if store != nil {
 					ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -1028,7 +1029,7 @@ func (w *worldSession) monsterDeath(p []byte, event func(map[string]any)) ([]out
 	if confirmed && w.quests != nil && !unowned {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		grant, err := w.quests.GrantSeekingMonsterItems(ctx, w.role, w.activeDungeon, uint16(r.Entity))
+		grant, err := (&workflow.QuestService{Store: w.store, Quest: w.quests}).GrantSeekingMonsterItems(ctx, w.role, w.activeDungeon, uint16(r.Entity))
 		if err != nil {
 			return nil, err
 		}
@@ -1288,7 +1289,7 @@ func (w *worldSession) freezeBlackPurgatoryRewards() error {
 	if err := binary.Read(rand.Reader, binary.LittleEndian, &seed); err != nil {
 		return err
 	}
-	cards, err := w.loot.FreezeBlackPurgatoryCards(ctx, w.role, w.activeDungeon, seed)
+	cards, err := (&workflow.LootService{Store: w.store, Loot: w.loot}).FreezeBlackPurgatoryCards(ctx, w.role, w.activeDungeon, seed)
 	if err != nil {
 		return err
 	}
@@ -1536,7 +1537,7 @@ func (w *worldSession) oathDirectEntryActive(ctx context.Context) (bool, error) 
 	}
 	oathCtx, oathCancel := context.WithTimeout(ctx, 5*time.Second)
 	defer oathCancel()
-	selected, err := w.characters.Store.EquippedOathSelection(oathCtx, w.account, w.role.ID)
+	selected, err := w.store.EquippedOathSelection(oathCtx, w.account, w.role.ID)
 	if err != nil {
 		return false, err
 	}

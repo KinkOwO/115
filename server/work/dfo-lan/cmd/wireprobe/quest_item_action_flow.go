@@ -4,6 +4,7 @@ import (
 	"context"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
+	"dfolan/internal/workflow"
 	"fmt"
 	"time"
 )
@@ -60,7 +61,7 @@ func (w *worldSession) useQuestAirshipItem(p []byte, event func(map[string]any))
 	if !pending {
 		return nil, fmt.Errorf("no accepted quest requires this item")
 	}
-	saved, receipt, _, err := w.loot.Consume(ctx, w.role,
+	saved, receipt, _, err := (&workflow.LootService{Store: w.store, Loot: w.loot}).Consume(ctx, w.role,
 		protocol.UseStackableRequest{Slot: slot, List: 0, Template: template})
 	if err != nil {
 		return nil, err

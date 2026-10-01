@@ -5,6 +5,7 @@ import (
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/storage"
+	"dfolan/internal/workflow"
 	"fmt"
 	"log"
 	"time"
@@ -49,12 +50,12 @@ func (w *worldSession) cardStage(id uint16, p []byte) ([]outboundPacket, error) 
 func (w *worldSession) grantFreeCard(index byte) ([]outboundPacket, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	role, receipt, _, e := w.loot.PickCard(ctx, w.role, w.activeDungeon, *w.cardPlan, index)
+	role, receipt, _, e := (&workflow.LootService{Store: w.store, Loot: w.loot}).PickCard(ctx, w.role, w.activeDungeon, *w.cardPlan, index)
 	if e != nil {
 		return nil, e
 	}
 	w.role = role
-	bag, e := w.loot.Bootstrap(role)
+	bag, e := w.loot.Bootstrap(workflow.LootRole(role))
 	if e != nil {
 		return nil, e
 	}

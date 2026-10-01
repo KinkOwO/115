@@ -9,7 +9,7 @@ import (
 // oathSelectionPackets handles the current client's two C2S2382 forms.
 // Player clicks mutate the option ledger; scene bootstrap only reads it.
 func (w *worldSession) oathSelectionPackets(ctx context.Context, body []byte) ([]outboundPacket, error) {
-	if w == nil || w.characters == nil || w.characters.Store == nil || w.role.ID == 0 {
+	if w == nil || w.characters == nil || w.store == nil || w.role.ID == 0 {
 		return nil, fmt.Errorf("oath selection requires a selected character")
 	}
 	r, err := protocol.DecodeOathSystemRequest(body)
@@ -25,13 +25,13 @@ func (w *worldSession) oathSelectionPackets(ctx context.Context, body []byte) ([
 		Option int
 	}
 	if r.ExplicitSelection {
-		selected, err := w.characters.Store.SelectEquippedOathOption(ctx, w.account, w.role.ID, r.ItemID, int(r.Option))
+		selected, err := w.store.SelectEquippedOathOption(ctx, w.account, w.role.ID, r.ItemID, int(r.Option))
 		if err != nil {
 			return nil, err
 		}
 		current.Level, current.ItemID, current.Option = selected.Level, selected.ItemID, selected.Option
 	} else {
-		selected, err := w.characters.Store.EquippedOathSelection(ctx, w.account, w.role.ID)
+		selected, err := w.store.EquippedOathSelection(ctx, w.account, w.role.ID)
 		if err != nil {
 			return nil, err
 		}
@@ -56,7 +56,7 @@ func (w *worldSession) oathSelectionPackets(ctx context.Context, body []byte) ([
 // dungeon actor and its worn items have been rebuilt. Scene bootstrap requests
 // are not guaranteed to arrive, so the loading sequence must publish it too.
 func (w *worldSession) dungeonOathSelectionPacket(ctx context.Context) (outboundPacket, error) {
-	selected, err := w.characters.Store.EquippedOathSelection(ctx, w.account, w.role.ID)
+	selected, err := w.store.EquippedOathSelection(ctx, w.account, w.role.ID)
 	if err != nil {
 		return outboundPacket{}, err
 	}

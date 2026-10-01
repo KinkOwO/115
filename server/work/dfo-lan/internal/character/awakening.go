@@ -2,7 +2,6 @@ package character
 
 import (
 	"dfolan/internal/catalog/pvf"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 )
@@ -99,7 +98,7 @@ func (d LearningDefinition) costForState(state State, target int, known map[uint
 	return d.costForLevel(state, int(state.Level), target, known)
 }
 
-func (s *Service) ApplyAwakening(role storage.Character, stage byte) (json.RawMessage, error) {
+func (s *Service) ApplyAwakening(role Character, stage byte) (json.RawMessage, error) {
 	var state State
 	if err := json.Unmarshal(role.State, &state); err != nil {
 		return nil, err

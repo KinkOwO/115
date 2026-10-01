@@ -1,11 +1,9 @@
 package inventory
 
 import (
-	"context"
 	"crypto/rand"
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 	"math/big"
@@ -56,7 +54,7 @@ type ReinforcementReceipt struct {
 }
 
 // 普通强化与增幅是不同系统。本入口只处理普通固定等级券，不代替金币强化。
-func (s *WearService) applyReinforcement(role storage.Character, r protocol.ReinforcementRequest) (json.RawMessage, ReinforcementReceipt, error) {
+func (s *WearService) ApplyReinforcement(role Role, r protocol.ReinforcementRequest) (json.RawMessage, ReinforcementReceipt, error) {
 	var out ReinforcementReceipt
 	fail := func(kind RefusalKind, reason string) (json.RawMessage, ReinforcementReceipt, error) {
 		return nil, out, Refuse(kind, "%s", reason)
@@ -240,19 +238,4 @@ func (s *WearService) applyReinforcement(role storage.Character, r protocol.Rein
 		_, err = WornSpaceUpdate(next)
 	}
 	return next, out, err
-}
-
-func (s *WearService) ReinforceWithTicket(ctx context.Context, role storage.Character, key string, r protocol.ReinforcementRequest) (storage.Character, ReinforcementReceipt, error) {
-	var out ReinforcementReceipt
-	if s == nil || s.Store == nil || s.Catalog == nil || s.Catalog.Source.SaveIdentity() != role.ConfigVersion {
-		return role, out, fmt.Errorf("强化需要有效装备目录及角色存档")
-	}
-	saved, out, err := commitEquipmentEvent(ctx, s.Store, role, key, "fixed-reinforcement-ticket-v1", func(current storage.Character) (json.RawMessage, ReinforcementReceipt, error) {
-		return s.applyReinforcement(current, r)
-	})
-
-	if err == nil && out.Request != r {
-		err = fmt.Errorf("强化回执与请求不符")
-	}
-	return saved, out, err
 }

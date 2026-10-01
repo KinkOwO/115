@@ -1,11 +1,8 @@
 package inventory
 
 import (
-	"context"
 	"crypto/rand"
-	"crypto/sha256"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -23,7 +20,7 @@ func recastAvatarDraw(limit uint32) (uint32, error) {
 	return uint32(n.Uint64()), nil
 }
 
-func (s *WearService) recastAvatarBag(role storage.Character, r protocol.RecastAvatarRequest, draw func(uint32) (uint32, error)) (Bag, []protocol.DisjointRewardEntry, []string, error) {
+func (s *WearService) RecastAvatarBag(role Role, r protocol.RecastAvatarRequest, draw func(uint32) (uint32, error)) (Bag, []protocol.DisjointRewardEntry, []string, error) {
 	b, e := ReadBag(role.State)
 	if e != nil {
 		return b, nil, nil, e
@@ -188,7 +185,7 @@ type AvatarRecastReceipt struct {
 	Updates   [][protocol.CurrentItemRecordSize]byte `json:"updates"`
 }
 
-func (r *AvatarRecastReceipt) prepare(state json.RawMessage) error {
+func (r *AvatarRecastReceipt) Prepare(state json.RawMessage) error {
 	var e error
 	r.Ack, e = protocol.RecastAvatarConsumed(r.Request)
 	if e != nil {
@@ -206,68 +203,5 @@ func (r *AvatarRecastReceipt) prepare(state json.RawMessage) error {
 	return e
 }
 
-func (s *WearService) RecastAvatar(ctx context.Context, role storage.Character, r protocol.RecastAvatarRequest) (storage.Character, AvatarRecastReceipt, bool, error) {
-	var receipt AvatarRecastReceipt
-	fail := func(e error) (storage.Character, AvatarRecastReceipt, bool, error) {
-		return role, AvatarRecastReceipt{}, false, e
-	}
-	if s == nil || s.Store == nil || s.Catalog == nil || s.AvatarRecast == nil || s.AvatarRecastLoot == nil || s.Catalog.Source.Checksum != s.AvatarRecast.Source || s.AvatarRecastLoot.Source.Checksum != s.AvatarRecast.Source || s.BagRules.Source != s.AvatarRecast.Source || role.ConfigVersion != s.Catalog.Source.SaveIdentity() {
-		return fail(fmt.Errorf("avatar recast service/source unavailable"))
-	}
-	before, e := ReadBag(role.State)
-	if e != nil {
-		return fail(e)
-	}
-	if before.AvatarRecastSeq == math.MaxUint64 {
-		return fail(fmt.Errorf("avatar recast sequence exhausted"))
-	}
-	sequence := before.AvatarRecastSeq
-	request, e := json.Marshal(r)
-	if e != nil {
-		return fail(e)
-	}
-	key := fmt.Sprintf("avatar-recast-emblem:%d:%x", sequence, sha256.Sum256(request))
-	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, s.Catalog.Source.SaveIdentity(), key, "avatar-recast-emblem-v2", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
-		prior, e := ReadBag(current.State)
-		if e != nil {
-			return nil, nil, e
-		}
-		b, rewards, matches, e := s.recastAvatarBag(current, r, recastAvatarDraw)
-		if e != nil {
-			return nil, nil, e
-		}
-		if b.AvatarRecastSeq != sequence+1 {
-			return nil, nil, fmt.Errorf("stale avatar recast sequence")
-		}
-		state, e := SaveBag(current.State, b)
-		if e != nil {
-			return nil, nil, e
-		}
-		receipt = AvatarRecastReceipt{Request: r, Rewards: rewards, Matches: matches, Sequence: sequence, Source: s.Catalog.Source.SaveIdentity(), Updates: ChangedItemRows(prior, b)}
-		// All client payloads must be serializable before any asset is consumed.
-		if e := receipt.prepare(state); e != nil {
-			return nil, nil, e
-		}
-		raw, e := json.Marshal(receipt)
-		return state, raw, e
-	})
-	if e != nil {
-		return fail(e)
-	}
-	raw, e := s.Store.CharacterEventReceipt(ctx, role.AccountID, role.ID, key)
-	if e != nil {
-		return fail(e)
-	}
-	if e := json.Unmarshal(raw, &receipt); e != nil {
-		return fail(e)
-	}
-	storedRequest, e := json.Marshal(receipt.Request)
-	if e != nil || string(storedRequest) != string(request) || receipt.Source != s.Catalog.Source.SaveIdentity() || receipt.Sequence != sequence {
-		return fail(fmt.Errorf("avatar recast receipt conflict"))
-	}
-	if e := receipt.prepare(saved.State); e != nil {
-		return fail(e)
-	}
-	saved.WireID = role.WireID
-	return saved, receipt, applied, nil
-}
+// DrawRecastAvatar supplies the random draw used by the workflow transaction.
+func DrawRecastAvatar(limit uint32) (uint32, error) { return recastAvatarDraw(limit) }

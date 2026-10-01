@@ -44,7 +44,7 @@ func ImportPilot(a *pvf.Archive) (PilotConfig, error) {
 	if e = c.resolveEquipmentEntries(equipment, resolve); e != nil {
 		return c, e
 	}
-	return c, c.validate()
+	return c, c.Validate()
 }
 
 // Single avatar pieces and creature eggs live in equipment.lst, not
@@ -218,7 +218,7 @@ func importShopScripts(source pvf.ArchiveSnapshot, shop, index catalog.ScriptRec
 			c.Entries = append(c.Entries, entry)
 		}
 	}
-	return c, c.validate()
+	return c, c.Validate()
 }
 
 func isCreatureEgg(v OrdinaryProduct) bool {

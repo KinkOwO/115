@@ -45,7 +45,7 @@ const favorMaxPoint int64 = 1500
 // （0x6f=无色367，0x6c=白色364），据此扣对应材料并按 [favor level point up]
 // 结算点数；此前硬编码 3037×100 导致选白色也扣无色。
 func (w *worldSession) giveFavor(p []byte) ([]outboundPacket, error) {
-	if w == nil || w.role.ID == 0 || w.loot == nil || w.loot.Store == nil {
+	if w == nil || w.role.ID == 0 || w.loot == nil || w.store == nil {
 		return nil, fmt.Errorf("favor gift before selection")
 	}
 	req, e := protocol.DecodeFavorGift(p)
@@ -86,7 +86,7 @@ func (w *worldSession) giveFavor(p []byte) ([]outboundPacket, error) {
 	if favorNoDailyLimit {
 		dailyLimit = 99999999
 	}
-	saved, fs, rawMaterials, e := w.loot.Store.GiveFavor(ctx, w.account, w.role.ID, w.role.ConfigVersion, req.NPCID, storage.FavorGift{
+	saved, fs, rawMaterials, e := w.store.GiveFavor(ctx, w.account, w.role.ID, w.role.ConfigVersion, req.NPCID, storage.FavorGift{
 		Day:      time.Now().Format("2006-01-02"),
 		Limit:    dailyLimit,
 		Levels:   favorLevels,

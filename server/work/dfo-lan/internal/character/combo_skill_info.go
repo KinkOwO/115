@@ -3,7 +3,6 @@ package character
 import (
 	"context"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 )
@@ -18,7 +17,7 @@ import (
 // in-process character cache and was gone the moment the client rebuilt the
 // character from NOTI19 - which is exactly the reported "the ASDFGH row I set
 // up in the learn page comes back empty after I re-select the character".
-func (s *Service) SaveComboSkillInfo(ctx context.Context, role storage.Character, key string, req protocol.ComboSkillInfo) (storage.Character, bool, error) {
+func (s *Service) SaveComboSkillInfo(ctx context.Context, role Character, key string, req protocol.ComboSkillInfo) (Character, bool, error) {
 	if s.Store == nil || role.ID == 0 || role.AccountID == 0 || role.Profession != 9 {
 		return role, false, fmt.Errorf("combo skill info requires an owned selected character")
 	}
@@ -33,7 +32,7 @@ func (s *Service) SaveComboSkillInfo(ctx context.Context, role storage.Character
 	if _, err := protocol.DecodeComboSkillInfo(raw); err != nil {
 		return role, false, err
 	}
-	return s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, "combo-skill-info-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+	return s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, "combo-skill-info-v1", func(current Character) (json.RawMessage, json.RawMessage, error) {
 		if current.Profession != 9 {
 			return nil, nil, fmt.Errorf("combo skill info requires dark knight")
 		}
@@ -54,11 +53,11 @@ func (s *Service) SaveComboSkillInfo(ctx context.Context, role storage.Character
 // ENUM_CMDPACKET_COMBO_SKILL_EXTENSION_QUICK_SLOT_RESET: the parameterless
 // frame the client sends from the skill window to drop every combo-extension
 // assignment. It writes an empty body, which entry then skips.
-func (s *Service) ClearComboSkillInfo(ctx context.Context, role storage.Character, key string) (storage.Character, bool, error) {
+func (s *Service) ClearComboSkillInfo(ctx context.Context, role Character, key string) (Character, bool, error) {
 	if s.Store == nil || role.ID == 0 || role.AccountID == 0 || role.Profession != 9 {
 		return role, false, fmt.Errorf("combo skill info requires an owned selected character")
 	}
-	return s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, "combo-skill-info-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+	return s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, "combo-skill-info-v1", func(current Character) (json.RawMessage, json.RawMessage, error) {
 		if current.Profession != 9 {
 			return nil, nil, fmt.Errorf("combo skill info requires dark knight")
 		}
@@ -78,7 +77,7 @@ func (s *Service) ClearComboSkillInfo(ctx context.Context, role storage.Characte
 // EntryComboSkillInfo returns the stored CMD500 body. The caller must convert
 // it with ComboSkillInfoNotify before sending NOTI433. Missing or undecodable
 // snapshots are skipped so older saves can still enter the world.
-func (s *Service) EntryComboSkillInfo(role storage.Character) ([]byte, error) {
+func (s *Service) EntryComboSkillInfo(role Character) ([]byte, error) {
 	if role.Profession != 9 || len(role.State) == 0 {
 		return nil, nil
 	}
@@ -99,7 +98,7 @@ func (s *Service) EntryComboSkillInfo(role storage.Character) ([]byte, error) {
 
 // ComboSkillInfoNotify converts stored C2S cells to the independent NOTI433
 // layout. Never replay a CMD500 body verbatim as a notification.
-func (s *Service) ComboSkillInfoNotify(role storage.Character) ([]byte, error) {
+func (s *Service) ComboSkillInfoNotify(role Character) ([]byte, error) {
 	raw, err := s.EntryComboSkillInfo(role)
 	if err != nil || len(raw) == 0 {
 		return nil, err

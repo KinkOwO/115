@@ -1,18 +1,17 @@
 package loot
 
 import (
-	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 	"math"
 	"math/big"
-	"reflect"
 )
+
+const EmblemCompoundModel = "emblem-compound-v1"
 
 type EmblemCompoundReceipt struct {
 	Inputs    []protocol.CompoundEmblemInput  `json:"inputs"`
@@ -49,74 +48,61 @@ func (r *EmblemCompoundReceipt) prepare(state json.RawMessage) error {
 	return e
 }
 
-func (s *Service) CompoundEmblems(ctx context.Context, role storage.Character, r protocol.CompoundEmblemRequest) (storage.Character, EmblemCompoundReceipt, bool, error) {
-	var result EmblemCompoundReceipt
-	fail := func(e error) (storage.Character, EmblemCompoundReceipt, bool, error) {
-		return role, EmblemCompoundReceipt{}, false, e
-	}
-	if s == nil || s.Store == nil || s.EmblemCompound == nil {
-		return fail(fmt.Errorf("emblem compound service unavailable"))
+func (s *Service) EmblemCompoundSequence(role Role) (uint64, error) {
+	if s == nil || s.EmblemCompound == nil {
+		return 0, fmt.Errorf("emblem compound service unavailable")
 	}
 	if role.ConfigVersion != s.Catalog.Source.SaveIdentity() {
-		return fail(fmt.Errorf("emblem compound inventory source mismatch"))
+		return 0, fmt.Errorf("emblem compound inventory source mismatch")
 	}
-	before, e := inventory.ReadBag(role.State)
-	if e != nil {
-		return fail(e)
+	b, err := inventory.ReadBag(role.State)
+	if err != nil {
+		return 0, err
 	}
-	if before.EmblemCompoundSeq == math.MaxUint64 {
-		return fail(fmt.Errorf("emblem compound sequence exhausted"))
+	if b.EmblemCompoundSeq == math.MaxUint64 {
+		return 0, fmt.Errorf("emblem compound sequence exhausted")
 	}
-	sequence := before.EmblemCompoundSeq
-	identity, e := json.Marshal(struct {
+	return b.EmblemCompoundSeq, nil
+}
+
+func EmblemCompoundEventKey(sequence uint64, req protocol.CompoundEmblemRequest) (string, error) {
+	identity, err := json.Marshal(struct {
 		Inputs []protocol.CompoundEmblemInput
 		Mode   byte
-	}{r.Inputs, r.Mode})
-	if e != nil {
-		return fail(e)
+	}{req.Inputs, req.Mode})
+	if err != nil {
+		return "", err
 	}
-	key := fmt.Sprintf("emblem-compound:%d:%x", sequence, sha256.Sum256(identity))
-	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, s.Catalog.Source.SaveIdentity(), key, "emblem-compound-v1",
-		func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
-			b, e := inventory.ReadBag(current.State)
-			if e != nil {
-				return nil, nil, e
-			}
-			if b.EmblemCompoundSeq != sequence {
-				return nil, nil, fmt.Errorf("stale emblem compound sequence")
-			}
-			b, rewards, e := b.CompoundEmblems(s.Catalog, s.BagRules, s.EmblemCompound, r, emblemCompoundDraw)
-			if e != nil {
-				return nil, nil, e
-			}
-			b.EmblemCompoundSeq++
-			updated, e := inventory.SaveBag(current.State, b)
-			if e != nil {
-				return nil, nil, e
-			}
-			result = EmblemCompoundReceipt{Inputs: append([]protocol.CompoundEmblemInput(nil), r.Inputs...), Mode: r.Mode, Sequence: sequence, Rewards: rewards, Source: s.Catalog.Source.SaveIdentity()}
-			if e := result.prepare(updated); e != nil {
-				return nil, nil, e
-			}
-			receipt, e := json.Marshal(result)
-			return updated, receipt, e
-		})
-	if e != nil {
-		return fail(e)
+	return fmt.Sprintf("emblem-compound:%d:%x", sequence, sha256.Sum256(identity)), nil
+}
+
+// PrepareEmblemCompound applies the loot-domain state transition. The workflow
+// owns persistence and receipt replay.
+func (s *Service) PrepareEmblemCompound(current Role, req protocol.CompoundEmblemRequest, sequence uint64) (json.RawMessage, json.RawMessage, error) {
+	b, err := inventory.ReadBag(current.State)
+	if err != nil {
+		return nil, nil, err
 	}
-	raw, e := s.Store.CharacterEventReceipt(ctx, role.AccountID, role.ID, key)
-	if e != nil {
-		return fail(e)
+	if b.EmblemCompoundSeq != sequence {
+		return nil, nil, fmt.Errorf("stale emblem compound sequence")
 	}
-	if e := json.Unmarshal(raw, &result); e != nil {
-		return fail(e)
+	b, rewards, err := b.CompoundEmblems(s.Catalog, s.BagRules, s.EmblemCompound, req, emblemCompoundDraw)
+	if err != nil {
+		return nil, nil, err
 	}
-	if result.Sequence != sequence || result.Mode != r.Mode || result.Source != s.Catalog.Source.SaveIdentity() || !reflect.DeepEqual(result.Inputs, r.Inputs) {
-		return fail(fmt.Errorf("emblem compound receipt conflict"))
+	b.EmblemCompoundSeq++
+	updated, err := inventory.SaveBag(current.State, b)
+	if err != nil {
+		return nil, nil, err
 	}
-	if e := result.prepare(saved.State); e != nil {
-		return fail(e)
+	receipt := EmblemCompoundReceipt{Inputs: append([]protocol.CompoundEmblemInput(nil), req.Inputs...), Mode: req.Mode, Sequence: sequence, Rewards: rewards, Source: s.Catalog.Source.SaveIdentity()}
+	if err := receipt.prepare(updated); err != nil {
+		return nil, nil, err
 	}
-	saved.WireID = role.WireID
-	return saved, result, applied, nil
+	data, err := json.Marshal(receipt)
+	return updated, data, err
+}
+
+func (s *Service) PrepareEmblemCompoundReceipt(receipt *EmblemCompoundReceipt, state json.RawMessage) error {
+	return receipt.prepare(state)
 }

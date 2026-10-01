@@ -1,16 +1,16 @@
 package loot
 
 import (
-	"context"
 	"crypto/rand"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 	"math"
 	"math/big"
 )
+
+const AvatarDisjointModel = "avatar-disjoint-v1"
 
 type AvatarDisjointReceipt struct {
 	Slot      uint16                         `json:"slot"`
@@ -52,70 +52,52 @@ func (r *AvatarDisjointReceipt) prepare(state json.RawMessage) error {
 	return e
 }
 
-// One character-row transaction removes the avatar, places all rewards and
-// saves the random result. Retrying that transaction returns its receipt.
-func (s *Service) DisjointAvatar(ctx context.Context, role storage.Character, r protocol.DisjointAvatarRequest) (storage.Character, AvatarDisjointReceipt, bool, error) {
-	var result AvatarDisjointReceipt
-	fail := func(e error) (storage.Character, AvatarDisjointReceipt, bool, error) {
-		return role, AvatarDisjointReceipt{}, false, e
-	}
-	if s == nil || s.Store == nil || s.AvatarDisjoint == nil || s.Equipment == nil {
-		return fail(fmt.Errorf("avatar disjoint service unavailable"))
+// AvatarDisjointSequence validates the caller's save identity and provides the
+// sequence used to fence the following character-event transaction.
+func (s *Service) AvatarDisjointSequence(role Role) (uint64, error) {
+	if s == nil || s.AvatarDisjoint == nil || s.Equipment == nil {
+		return 0, fmt.Errorf("avatar disjoint service unavailable")
 	}
 	if role.ConfigVersion != s.Catalog.Source.SaveIdentity() {
-		return fail(fmt.Errorf("avatar disjoint inventory source mismatch"))
+		return 0, fmt.Errorf("avatar disjoint inventory source mismatch")
 	}
-	before, e := inventory.ReadBag(role.State)
-	if e != nil {
-		return fail(e)
+	b, err := inventory.ReadBag(role.State)
+	if err != nil {
+		return 0, err
 	}
-	if before.AvatarDisjointSeq == math.MaxUint64 {
-		return fail(fmt.Errorf("avatar disjoint sequence exhausted"))
+	if b.AvatarDisjointSeq == math.MaxUint64 {
+		return 0, fmt.Errorf("avatar disjoint sequence exhausted")
 	}
-	sequence := before.AvatarDisjointSeq
-	key := fmt.Sprintf("avatar-disjoint:%d:%d:%d", sequence, r.Slot, r.Template)
-	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, s.Catalog.Source.SaveIdentity(), key, "avatar-disjoint-v1",
-		func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
-			b, e := inventory.ReadBag(current.State)
-			if e != nil {
-				return nil, nil, e
-			}
-			if b.AvatarDisjointSeq != sequence {
-				return nil, nil, fmt.Errorf("stale avatar disjoint sequence")
-			}
-			b, rewards, e := b.DisjointAvatar(s.Catalog, s.BagRules, s.Equipment, s.AvatarDisjoint, r, avatarDisjointDraw)
-			if e != nil {
-				return nil, nil, e
-			}
-			b.AvatarDisjointSeq++
-			updated, e := inventory.SaveBag(current.State, b)
-			if e != nil {
-				return nil, nil, e
-			}
-			result = AvatarDisjointReceipt{Slot: r.Slot, Template: r.Template, Sequence: sequence, Rewards: rewards, Source: s.Catalog.Source.SaveIdentity()}
-			// Reject unserializable state before committing any player inventory.
-			if e := result.prepare(updated); e != nil {
-				return nil, nil, e
-			}
-			receipt, e := json.Marshal(result)
-			return updated, receipt, e
-		})
-	if e != nil {
-		return fail(e)
+	return b.AvatarDisjointSeq, nil
+}
+
+// PrepareAvatarDisjoint applies only the loot-domain state transition. The
+// workflow owns persistence and replays the saved receipt on retries.
+func (s *Service) PrepareAvatarDisjoint(current Role, req protocol.DisjointAvatarRequest, sequence uint64) (json.RawMessage, json.RawMessage, error) {
+	b, err := inventory.ReadBag(current.State)
+	if err != nil {
+		return nil, nil, err
 	}
-	raw, e := s.Store.CharacterEventReceipt(ctx, role.AccountID, role.ID, key)
-	if e != nil {
-		return fail(e)
+	if b.AvatarDisjointSeq != sequence {
+		return nil, nil, fmt.Errorf("stale avatar disjoint sequence")
 	}
-	if e := json.Unmarshal(raw, &result); e != nil {
-		return fail(e)
+	b, rewards, err := b.DisjointAvatar(s.Catalog, s.BagRules, s.Equipment, s.AvatarDisjoint, req, avatarDisjointDraw)
+	if err != nil {
+		return nil, nil, err
 	}
-	if result.Slot != r.Slot || result.Template != r.Template || result.Sequence != sequence || result.Source != s.Catalog.Source.SaveIdentity() {
-		return fail(fmt.Errorf("avatar disjoint receipt conflict"))
+	b.AvatarDisjointSeq++
+	updated, err := inventory.SaveBag(current.State, b)
+	if err != nil {
+		return nil, nil, err
 	}
-	if e := result.prepare(saved.State); e != nil {
-		return fail(e)
+	receipt := AvatarDisjointReceipt{Slot: req.Slot, Template: req.Template, Sequence: sequence, Rewards: rewards, Source: s.Catalog.Source.SaveIdentity()}
+	if err := receipt.prepare(updated); err != nil {
+		return nil, nil, err
 	}
-	saved.WireID = role.WireID
-	return saved, result, applied, nil
+	data, err := json.Marshal(receipt)
+	return updated, data, err
+}
+
+func (s *Service) PrepareAvatarDisjointReceipt(receipt *AvatarDisjointReceipt, state json.RawMessage) error {
+	return receipt.prepare(state)
 }

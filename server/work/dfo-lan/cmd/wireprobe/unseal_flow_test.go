@@ -7,6 +7,7 @@ import (
 	"dfolan/internal/gamedata"
 	"dfolan/internal/inventory"
 	"dfolan/internal/storage"
+	"dfolan/internal/workflow"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -81,7 +82,7 @@ func TestUnsealNativeSaveIdentity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	service := &inventory.UnsealService{Store: store, Equipment: &inventory.EquipmentCatalog{Full: full}, RandomOptions: options, Model: "current115-randomoption-v1"}
+	service := &workflow.UnsealService{Store: store, Equipment: &inventory.EquipmentCatalog{Full: full}, RandomOptions: options, Model: "current115-randomoption-v1"}
 	request := []byte{10, 0, 255, 255, 0, 0, 0, 0} // Native/live slot-10 CMD393 vector.
 	for i, version := range []string{source.Snapshot().SaveIdentity(), source.Snapshot().Checksum} {
 		t.Run(fmt.Sprintf("identity_%d", i), func(t *testing.T) {

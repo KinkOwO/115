@@ -3,7 +3,7 @@ package character
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
+
 	"encoding/json"
 	"strings"
 	"testing"
@@ -28,8 +28,8 @@ func TestEntryAdditionProjectsSavedUnlockByte(t *testing.T) {
 		t.Fatal(e)
 	}
 	s := &Service{Catalog: professions}
-	role := func(flags byte) storage.Character {
-		return storage.Character{WireID: 3, Name: "LanTest01", Profession: 0, State: unlockState(t, flags)}
+	role := func(flags byte) Character {
+		return Character{WireID: 3, Name: "LanTest01", Profession: 0, State: unlockState(t, flags)}
 	}
 
 	locked, e := s.EntryAddition(role(0))

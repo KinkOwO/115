@@ -2,7 +2,7 @@ package character
 
 import (
 	"dfolan/internal/catalog"
-	"dfolan/internal/storage"
+
 	"testing"
 )
 
@@ -12,7 +12,7 @@ func TestConnectionContextAcrossActorRefreshes(t *testing.T) {
 		t.Fatal(err)
 	}
 	shared := Service{Catalog: cat}
-	role := storage.Character{WireID: 3, Name: "LanTest01", Profession: 0, State: unlockState(t, 1)}
+	role := Character{WireID: 3, Name: "LanTest01", Profession: 0, State: unlockState(t, 1)}
 	for _, ctx := range [][2]byte{{1, 10}, {1, 6}, {0, 0}} {
 		local := shared
 		local.ChannelContext = ctx

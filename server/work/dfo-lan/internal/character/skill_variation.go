@@ -3,7 +3,6 @@ package character
 import (
 	"context"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -120,7 +119,7 @@ func (s *Service) applyVariations(job byte, state *State, known map[uint16]byte,
 	return nil
 }
 
-func (s *Service) VariationRestore(role storage.Character) ([]byte, error) {
+func (s *Service) VariationRestore(role Character) ([]byte, error) {
 	var st State
 	if e := json.Unmarshal(role.State, &st); e != nil {
 		return nil, e
@@ -148,8 +147,8 @@ func (s *Service) VariationRestore(role storage.Character) ([]byte, error) {
 // and Evolve allocations. Clearing the persisted SkillSlots matters as much as
 // clearing the ranks: skillRows prefers them, so stale rows would keep the
 // quickbar occupied and push the recommended skills into the 14+ palette.
-func (s *Service) ResetAutoSet(ctx context.Context, role storage.Character, key string, tree, mask byte) (storage.Character, error) {
-	saved, _, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, "source-skill-reset-v1", func(cur storage.Character) (json.RawMessage, json.RawMessage, error) {
+func (s *Service) ResetAutoSet(ctx context.Context, role Character, key string, tree, mask byte) (Character, error) {
+	saved, _, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, "source-skill-reset-v1", func(cur Character) (json.RawMessage, json.RawMessage, error) {
 		var st State
 		if e := json.Unmarshal(cur.State, &st); e != nil {
 			return nil, nil, e
@@ -173,7 +172,7 @@ func (s *Service) ResetAutoSet(ctx context.Context, role storage.Character, key 
 
 // resetAutoState mutates a decoded State in place. It is split out so the
 // refund arithmetic can be exercised without a database.
-func (s *Service) resetAutoState(ctx context.Context, cur storage.Character, st *State, tree, mask byte) error {
+func (s *Service) resetAutoState(ctx context.Context, cur Character, st *State, tree, mask byte) error {
 	if tree > 1 {
 		return fmt.Errorf("invalid skill tree")
 	}
@@ -188,7 +187,7 @@ func (s *Service) resetAutoState(ctx context.Context, cur storage.Character, st 
 		}
 		effectiveLevel := int(st.Level)
 		if s.Store != nil {
-			if has, e := s.Store.HasActivePremium(ctx, cur.AccountID, storage.PremiumTactician, time.Now()); e == nil && has {
+			if has, e := s.Store.HasTacticianPremium(ctx, cur.AccountID, time.Now()); e == nil && has {
 				effectiveLevel += 5
 			}
 		}
@@ -275,7 +274,7 @@ func (s *Service) resetAutoState(ctx context.Context, cur storage.Character, st 
 // It mirrors the floor Learn enforces, so a reset refunds only what the player
 // actually paid. Reading the awakening grants alone would refund the rank-1
 // (and automatic) portion of every starter skill.
-func (s *Service) skillFloor(role storage.Character, st State, tree int) (map[uint16]byte, error) {
+func (s *Service) skillFloor(role Character, st State, tree int) (map[uint16]byte, error) {
 	floor := map[uint16]byte{}
 	for _, v := range initialSkills(st) {
 		floor[v.ID] = v.Level
@@ -305,7 +304,7 @@ func (s *Service) skillFloor(role storage.Character, st State, tree int) (map[ui
 // clears the panel. This is the login-time repair: balance = 5 − Evolve
 // selections, and it is a no-op (never touches any other field) when the
 // ledger already matches.
-func (s *Service) ReconcileTechniquePoints(ctx context.Context, role storage.Character) (storage.Character, bool, error) {
+func (s *Service) ReconcileTechniquePoints(ctx context.Context, role Character) (Character, bool, error) {
 	var state State
 	if e := json.Unmarshal(role.State, &state); e != nil {
 		return role, false, e
@@ -323,7 +322,7 @@ func (s *Service) ReconcileTechniquePoints(ctx context.Context, role storage.Cha
 	// The event key carries the target balance so a pre-awakening login can
 	// never poison the key that a later awakening still needs.
 	key := fmt.Sprintf("technique-points-reconcile-v1:%d:want-%d", role.ID, want)
-	saved, backfilled, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, "technique-points-reconcile-v1", func(cur storage.Character) (json.RawMessage, json.RawMessage, error) {
+	saved, backfilled, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, "technique-points-reconcile-v1", func(cur Character) (json.RawMessage, json.RawMessage, error) {
 		var st State
 		if e := json.Unmarshal(cur.State, &st); e != nil {
 			return nil, nil, e

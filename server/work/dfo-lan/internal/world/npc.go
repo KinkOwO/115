@@ -2,10 +2,9 @@ package world
 
 import (
 	"dfolan/internal/catalog"
-	"dfolan/internal/storage"
 )
 
-func (s *Service) HasNPC(p storage.WorldPosition, id uint32) bool {
+func (s *Service) HasNPC(p WorldPosition, id uint32) bool {
 	_, ok := s.NPCPosition(p, id)
 	return ok
 }
@@ -13,7 +12,7 @@ func (s *Service) HasNPC(p storage.WorldPosition, id uint32) bool {
 // HasPhaseNPC checks NPC rows exported from source [phase] maps of this area.
 // Quest-state visibility is checked separately before such a row can authorize
 // an interaction; a phase row alone does not mean that phase is active.
-func (s *Service) HasPhaseNPC(p storage.WorldPosition, id uint32) bool {
+func (s *Service) HasPhaseNPC(p WorldPosition, id uint32) bool {
 	area, ok := s.Catalog.Areas[catalog.AreaKey(p.Town, p.Area)]
 	if !ok || id == 0 {
 		return false
@@ -30,7 +29,7 @@ func (s *Service) HasPhaseNPC(p storage.WorldPosition, id uint32) bool {
 // row is five cells: identity, facing tag, x, y and a trailing flag — read
 // against town38/area0 NPC1 "[left] 1227 164 0" and town40/area0 NPC358
 // "[left] 2249 148 0". Only complete, well-formed rows are accepted.
-func (s *Service) NPCPosition(p storage.WorldPosition, id uint32) ([2]uint16, bool) {
+func (s *Service) NPCPosition(p WorldPosition, id uint32) ([2]uint16, bool) {
 	a, ok := s.Catalog.Areas[catalog.AreaKey(p.Town, p.Area)]
 	if !ok || id == 0 {
 		return [2]uint16{}, false
@@ -60,7 +59,7 @@ func (s *Service) NPCPosition(p storage.WorldPosition, id uint32) ([2]uint16, bo
 
 // PhaseNPCPosition uses source phase-map placements only when every matching
 // phase agrees on the coordinates. It does not imply that the NPC is visible.
-func (s *Service) PhaseNPCPosition(p storage.WorldPosition, id uint32) ([2]uint16, bool) {
+func (s *Service) PhaseNPCPosition(p WorldPosition, id uint32) ([2]uint16, bool) {
 	a, ok := s.Catalog.Areas[catalog.AreaKey(p.Town, p.Area)]
 	if !ok || id == 0 {
 		return [2]uint16{}, false

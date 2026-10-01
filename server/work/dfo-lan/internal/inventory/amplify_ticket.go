@@ -18,16 +18,13 @@ package inventory
 //
 // 前置条件：装备必须**已经有次元属性**（record[19] != 0，即先用增幅书打过红字）。
 // 没有次元属性时等级字节会被客户端渲染成「强化 +N」而不是「增幅 +N」，
-// 增幅券对它没有意义 —— 这与增幅升级（applyAmplifyUpgrade）保持一致的判定。
+// 增幅券对它没有意义 —— 这与增幅升级（ApplyAmplifyUpgrade）保持一致的判定。
 
 import (
-	"context"
+	"dfolan/internal/game/protocol"
 	"encoding/json"
 	"fmt"
 	"time"
-
-	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 )
 
 const (
@@ -107,23 +104,8 @@ type AmplifyTicketReceipt struct {
 }
 
 // ApplyAmplifyTicket 处理 CMD80 mode=1 且窗口里放的是增幅券的情况。
-func (s *WearService) ApplyAmplifyTicket(ctx context.Context, role storage.Character, key string, r protocol.ReinforcementRequest) (storage.Character, AmplifyTicketReceipt, error) {
-	var out AmplifyTicketReceipt
-	if s == nil || s.Store == nil || s.Catalog == nil {
-		return role, out, fmt.Errorf("增幅券需要有效装备目录及角色存档")
-	}
-	if r.Mode != 1 {
-		return role, out, fmt.Errorf("增幅券请求的 mode 必须是 1，收到 %d", r.Mode)
-	}
-	if len(amplifyTickets) == 0 {
-		return role, out, fmt.Errorf("增幅券规则未装载")
-	}
-	return commitEquipmentEvent(ctx, s.Store, role, key, amplifyTicketModel, func(current storage.Character) (json.RawMessage, AmplifyTicketReceipt, error) {
-		return s.applyAmplifyTicket(current, r)
-	})
-}
 
-func (s *WearService) applyAmplifyTicket(role storage.Character, r protocol.ReinforcementRequest) (json.RawMessage, AmplifyTicketReceipt, error) {
+func (s *WearService) ApplyAmplifyTicket(role Role, r protocol.ReinforcementRequest) (json.RawMessage, AmplifyTicketReceipt, error) {
 	var out AmplifyTicketReceipt
 	fail := func(kind RefusalKind, reason string) (json.RawMessage, AmplifyTicketReceipt, error) {
 		return nil, out, Refuse(kind, "%s", reason)
@@ -274,3 +256,5 @@ func (s *WearService) applyAmplifyTicket(role storage.Character, r protocol.Rein
 	}
 	return next, out, nil
 }
+
+func AmplifyTicketsLoaded() bool { return len(amplifyTickets) != 0 }

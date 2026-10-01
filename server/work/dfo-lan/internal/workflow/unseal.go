@@ -1,10 +1,11 @@
-package inventory
+package workflow
 
 import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"dfolan/internal/game/protocol"
+	"dfolan/internal/inventory"
 	"dfolan/internal/storage"
 	"encoding/binary"
 	"encoding/hex"
@@ -19,22 +20,25 @@ import (
 // consume/pickup character-event pattern: the roll, the gold charge and the
 // receipt commit in one PostgreSQL character transaction, so a retried
 // right-click replays the original outcome instead of rolling twice.
+//
+// The bag transform stays in inventory (Bag.UnsealRandomOption); this workflow
+// owns the transaction and the persisted receipt.
 type UnsealService struct {
 	Store         *storage.Store
-	Equipment     *EquipmentCatalog
-	RandomOptions *RandomOptionCatalog
+	Equipment     *inventory.EquipmentCatalog
+	RandomOptions *inventory.RandomOptionCatalog
 	Model         string
 }
 
 type UnsealReceipt struct {
-	Slot       uint16          `json:"slot"`
-	Template   uint32          `json:"template"`
-	OptionType byte            `json:"option_type"`
-	Options    [3]RolledOption `json:"options"`
-	Count      byte            `json:"count"`
-	Gold       uint32          `json:"gold"`
-	Record     []byte          `json:"record"`
-	Source     string          `json:"source"`
+	Slot       uint16                    `json:"slot"`
+	Template   uint32                    `json:"template"`
+	OptionType byte                      `json:"option_type"`
+	Options    [3]inventory.RolledOption `json:"options"`
+	Count      byte                      `json:"count"`
+	Gold       uint32                    `json:"gold"`
+	Record     []byte                    `json:"record"`
+	Source     string                    `json:"source"`
 }
 
 func newUnsealRand() (*mrand.Rand, error) {
@@ -59,7 +63,7 @@ func (s *UnsealService) Unseal(ctx context.Context, role storage.Character, vers
 	if r.ScrollSlot != protocol.UnsealNoScrollSlot {
 		return fail(fmt.Errorf("unseal scroll slot %d is not proven", r.ScrollSlot))
 	}
-	b, e := ReadBag(role.State)
+	b, e := inventory.ReadBag(role.State)
 	if e != nil {
 		return fail(e)
 	}
@@ -67,7 +71,7 @@ func (s *UnsealService) Unseal(ctx context.Context, role storage.Character, vers
 	found := false
 	for _, item := range b.Equipment {
 		if item.Slot == r.TargetSlot {
-			sealed, found = EquipmentRow(item), true
+			sealed, found = inventory.EquipmentRow(item), true
 			break
 		}
 	}
@@ -85,7 +89,7 @@ func (s *UnsealService) Unseal(ctx context.Context, role storage.Character, vers
 	}
 	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, version, key, s.Model,
 		func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
-			bag, e := ReadBag(current.State)
+			bag, e := inventory.ReadBag(current.State)
 			if e != nil {
 				return nil, nil, e
 			}
@@ -93,7 +97,7 @@ func (s *UnsealService) Unseal(ctx context.Context, role storage.Character, vers
 			if e != nil {
 				return nil, nil, e
 			}
-			updated, e := SaveBag(current.State, bag)
+			updated, e := inventory.SaveBag(current.State, bag)
 			if e != nil {
 				return nil, nil, e
 			}
@@ -126,14 +130,14 @@ func (s *UnsealService) Unseal(ctx context.Context, role storage.Character, vers
 	// A replay must describe the item the bag actually holds now; a stale key
 	// from a different sealed pre-image at the same slot fails loudly rather
 	// than acknowledging an unseal that never happened.
-	current, e := ReadBag(saved.State)
+	current, e := inventory.ReadBag(saved.State)
 	if e != nil {
 		return fail(e)
 	}
 	verified := false
 	for _, item := range current.Equipment {
 		if item.Slot == r.TargetSlot {
-			row := EquipmentRow(item)
+			row := inventory.EquipmentRow(item)
 			verified = string(row[:]) == string(out.Record)
 			break
 		}

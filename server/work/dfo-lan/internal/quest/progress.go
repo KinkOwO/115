@@ -3,8 +3,8 @@ package quest
 import (
 	"context"
 	"dfolan/internal/catalog"
+	"dfolan/internal/character"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"errors"
 	"fmt"
 )
@@ -80,7 +80,7 @@ func ReachNPCObjective(d catalog.QuestDefinition) (NPCReachObjective, bool) {
 	return NPCReachObjective{uint32(c[0].Value), c[1].Value, c[2].Value}, true
 }
 
-func (r RangeObjective) Contains(p storage.WorldPosition) bool {
+func (r RangeObjective) Contains(p Position) bool {
 	px, py := int32(p.X), int32(p.Y)
 	if r.X < 0 && p.X >= 0x8000 {
 		px = int32(int16(p.X))
@@ -425,7 +425,7 @@ func LegionContentClearShape(d catalog.QuestDefinition) bool {
 	}
 	return true
 }
-func (s *Service) Active(ctx context.Context, role storage.Character) ([]protocol.ActiveQuest, error) {
+func (s *Service) Active(ctx context.Context, role character.Character) ([]protocol.ActiveQuest, error) {
 	states, e := s.Store.Quests(ctx, role.AccountID, role.ID)
 	if e != nil {
 		return nil, e
@@ -462,7 +462,7 @@ func (s *Service) Active(ctx context.Context, role storage.Character) ([]protoco
 
 // A completion request is not evidence of a map clear. No client-provided
 // counter or submit option can mint rewards or alter persistent objectives.
-func (s *Service) Submit(ctx context.Context, role storage.Character, id uint16) error {
+func (s *Service) Submit(ctx context.Context, role character.Character, id uint16) error {
 	active, e := s.Active(ctx, role)
 	if e != nil {
 		return e

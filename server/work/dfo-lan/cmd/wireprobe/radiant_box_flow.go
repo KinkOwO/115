@@ -6,6 +6,7 @@ import (
 	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
 	"dfolan/internal/storage"
+	"dfolan/internal/workflow"
 	"fmt"
 	"sort"
 	"time"
@@ -91,7 +92,7 @@ func (w *worldSession) openRadiantBox(ctx context.Context, box, count uint32) ([
 	if e != nil {
 		return nil, e
 	}
-	saved, receipt, _, e := w.loot.OpenBoxes(ctx, w.role, box, count)
+	saved, receipt, _, e := (&workflow.LootService{Store: w.store, Loot: w.loot}).OpenBoxes(ctx, w.role, box, count)
 	if e != nil {
 		return nil, e
 	}

@@ -1,10 +1,8 @@
 package loot
 
 import (
-	"context"
 	"dfolan/internal/catalog"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 	"math/rand"
@@ -14,15 +12,15 @@ import (
 
 // BoxOpenReceipt records one settled radiant box open.
 type BoxOpenReceipt struct {
-	Premiums   []storage.CashPremium `json:"premiums,omitempty"`
-	Box        uint32                `json:"box"`
-	Opened     uint32                `json:"opened"`
-	Granted    []ConsumeGrant        `json:"granted"`
-	Results    []ConsumeGrant        `json:"results"`
-	Bonus      []ConsumeGrant        `json:"bonus,omitempty"`
-	Milestones []ConsumeGrant        `json:"milestones,omitempty"`
-	Points     map[string]uint32     `json:"points,omitempty"`
-	Source     string                `json:"source"`
+	Premiums   []Premium         `json:"premiums,omitempty"`
+	Box        uint32            `json:"box"`
+	Opened     uint32            `json:"opened"`
+	Granted    []ConsumeGrant    `json:"granted"`
+	Results    []ConsumeGrant    `json:"results"`
+	Bonus      []ConsumeGrant    `json:"bonus,omitempty"`
+	Milestones []ConsumeGrant    `json:"milestones,omitempty"`
+	Points     map[string]uint32 `json:"points,omitempty"`
+	Source     string            `json:"source"`
 }
 
 // boxOpensKey is the reserved counter inside box_points. It gives every open its
@@ -170,126 +168,109 @@ func BoxNoticeEntries(t BoxTable, points map[string]uint32, grants []ConsumeGran
 	return entries
 }
 
-// OpenBoxes settles one radiant box request: it spends the material and hands out
-// every rolled prize inside the same character transaction, so a retried request
-// cannot spend a second stack or advance pity twice.
-func (s *Service) OpenBoxes(ctx context.Context, role storage.Character, box, count uint32) (storage.Character, BoxOpenReceipt, bool, error) {
-	var out BoxOpenReceipt
-	fail := func(e error) (storage.Character, BoxOpenReceipt, bool, error) {
-		return role, out, false, e
-	}
+type BoxOpenPlan struct {
+	Table BoxTable
+	Opens uint32
+}
+
+func (s *Service) PlanBoxOpen(role Role, box, count uint32) (BoxOpenPlan, error) {
 	if role.ConfigVersion != s.Catalog.Source.SaveIdentity() {
-		return fail(fmt.Errorf("box open source mismatch"))
+		return BoxOpenPlan{}, fmt.Errorf("box open source mismatch")
 	}
 	table, known := s.Boxes.Table(box)
 	if !known {
-		return fail(fmt.Errorf("box %d has no imported content table", box))
+		return BoxOpenPlan{}, fmt.Errorf("box %d has no imported content table", box)
 	}
 	if count == 0 || count > 100 {
-		return fail(fmt.Errorf("box open count %d is out of range", count))
+		return BoxOpenPlan{}, fmt.Errorf("box open count %d is out of range", count)
 	}
 	opens, e := readBoxCounter(role.State, box, boxOpensKey)
 	if e != nil {
-		return fail(e)
+		return BoxOpenPlan{}, e
 	}
-	key := fmt.Sprintf("boxopen:%d:%d:%d", box, count, opens)
-	saved, applied, e := s.Store.CommitCharacterPremiumEvent(ctx, role.AccountID, role.ID,
-		s.Catalog.Source.SaveIdentity(), key, s.Rules.Model,
-		func(current storage.Character) (json.RawMessage, json.RawMessage, []storage.CashPremiumActivation, error) {
-			bag, e := inventory.ReadBag(current.State)
-			if e != nil {
-				return nil, nil, nil, e
-			}
-			slot, held, ok := BoxOpenMaterial(bag, box)
-			if !ok {
-				return nil, nil, nil, fmt.Errorf("no owned %d to open", box)
-			}
-			if held < count {
-				return nil, nil, nil, fmt.Errorf("only %d of %d owned", held, box)
-			}
-			material := catalog.LootCatalog{
-				Source: s.Catalog.Source,
-				Items: map[uint32]catalog.LootItem{
-					box: {ID: box, Kind: "stackable", StackLimit: 1000},
-				},
-			}
-			for i := uint32(0); i < count; i++ {
-				if bag, _, e = bag.Consume(material, slot, box); e != nil {
-					return nil, nil, nil, e
-				}
-			}
-			counters, e := readBoxPoints(current.State, box)
-			if e != nil {
-				return nil, nil, nil, e
-			}
-			seed, e := boxSeed()
-			if e != nil {
-				return nil, nil, nil, e
-			}
-			rng := rand.New(rand.NewSource(seed))
-			var granted []ConsumeGrant
-			var results []ConsumeGrant
-			var bonus []ConsumeGrant
-			var milestones []ConsumeGrant
-			var grantedPremiums []storage.CashPremiumActivation
-			for i := uint32(0); i < count; i++ {
-				var roll BoxRoll
-				roll, counters, e = table.Open(rng, counters)
-				if e != nil {
-					return nil, nil, nil, e
-				}
-				prizes := []ConsumeGrant{roll.Main}
-				prizes = append(prizes, roll.Bonus...)
-				prizes = append(prizes, roll.Section...)
-				for _, prize := range prizes {
-					var premium *storage.CashPremiumActivation
-					if bag, premium, e = s.grantBoxPrize(bag, prize); e != nil {
-						return nil, nil, nil, e
-					}
-					if premium != nil {
-						grantedPremiums = append(grantedPremiums, *premium)
-					}
-				}
-				granted = append(granted, prizes...)
-				results = append(results, roll.Main)
-				bonus = append(bonus, roll.Bonus...)
-				milestones = append(milestones, roll.Section...)
-			}
-			bag, premiums, e := s.settleBoxRewardBag(bag)
-			if e != nil {
-				return nil, nil, nil, e
-			}
-			premiums = append(premiums, grantedPremiums...)
-			updated, e := inventory.SaveBag(current.State, bag)
-			if e != nil {
-				return nil, nil, nil, e
-			}
-			counters[boxOpensKey] = opens + 1
-			if updated, e = saveBoxPoints(updated, box, counters); e != nil {
-				return nil, nil, nil, e
-			}
-			delete(counters, boxOpensKey)
-			out = BoxOpenReceipt{Box: box, Opened: count, Granted: granted,
-				Results: results, Bonus: bonus, Milestones: milestones,
-				Points: counters, Source: s.Catalog.Source.SaveIdentity()}
-			receipt, e := json.Marshal(out)
-			return updated, receipt, premiums, e
-		})
+	return BoxOpenPlan{Table: table, Opens: opens}, nil
+}
+func (s *Service) PrepareBoxOpen(current Role, box, count uint32, plan BoxOpenPlan, resolveContract ContractResolver) (json.RawMessage, json.RawMessage, []PremiumActivation, error) {
+	var out BoxOpenReceipt
+	table, opens := plan.Table, plan.Opens
+	bag, e := inventory.ReadBag(current.State)
 	if e != nil {
-		return fail(e)
+		return nil, nil, nil, e
 	}
-	receipt, e := s.Store.CharacterEventReceipt(ctx, role.AccountID, role.ID, key)
+	slot, held, ok := BoxOpenMaterial(bag, box)
+	if !ok {
+		return nil, nil, nil, fmt.Errorf("no owned %d to open", box)
+	}
+	if held < count {
+		return nil, nil, nil, fmt.Errorf("only %d of %d owned", held, box)
+	}
+	material := catalog.LootCatalog{
+		Source: s.Catalog.Source,
+		Items: map[uint32]catalog.LootItem{
+			box: {ID: box, Kind: "stackable", StackLimit: 1000},
+		},
+	}
+	for i := uint32(0); i < count; i++ {
+		if bag, _, e = bag.Consume(material, slot, box); e != nil {
+			return nil, nil, nil, e
+		}
+	}
+	counters, e := readBoxPoints(current.State, box)
 	if e != nil {
-		return fail(e)
+		return nil, nil, nil, e
 	}
-	if e = json.Unmarshal(receipt, &out); e != nil {
-		return fail(e)
+	seed, e := boxSeed()
+	if e != nil {
+		return nil, nil, nil, e
 	}
-	if out.Box != box || out.Source != s.Catalog.Source.SaveIdentity() {
-		return fail(fmt.Errorf("box open receipt conflict"))
+	rng := rand.New(rand.NewSource(seed))
+	var granted []ConsumeGrant
+	var results []ConsumeGrant
+	var bonus []ConsumeGrant
+	var milestones []ConsumeGrant
+	var grantedPremiums []PremiumActivation
+	for i := uint32(0); i < count; i++ {
+		var roll BoxRoll
+		roll, counters, e = table.Open(rng, counters)
+		if e != nil {
+			return nil, nil, nil, e
+		}
+		prizes := []ConsumeGrant{roll.Main}
+		prizes = append(prizes, roll.Bonus...)
+		prizes = append(prizes, roll.Section...)
+		for _, prize := range prizes {
+			var premium *PremiumActivation
+			if bag, premium, e = s.grantBoxPrize(bag, prize, resolveContract); e != nil {
+				return nil, nil, nil, e
+			}
+			if premium != nil {
+				grantedPremiums = append(grantedPremiums, *premium)
+			}
+		}
+		granted = append(granted, prizes...)
+		results = append(results, roll.Main)
+		bonus = append(bonus, roll.Bonus...)
+		milestones = append(milestones, roll.Section...)
 	}
-	saved.WireID = role.WireID
-	return saved, out, applied, nil
+	bag, premiums, e := s.settleBoxRewardBag(bag, resolveContract)
+	if e != nil {
+		return nil, nil, nil, e
+	}
+	premiums = append(premiums, grantedPremiums...)
+	updated, e := inventory.SaveBag(current.State, bag)
+	if e != nil {
+		return nil, nil, nil, e
+	}
+	counters[boxOpensKey] = opens + 1
+	if updated, e = saveBoxPoints(updated, box, counters); e != nil {
+		return nil, nil, nil, e
+	}
+	delete(counters, boxOpensKey)
+	out = BoxOpenReceipt{Box: box, Opened: count, Granted: granted,
+		Results: results, Bonus: bonus, Milestones: milestones,
+		Points: counters, Source: s.Catalog.Source.SaveIdentity()}
+	receipt, e := json.Marshal(out)
+	return updated, receipt, premiums, e
 }
 
 // readBoxCounter reads one reserved counter from a box's point state.

@@ -2,7 +2,6 @@ package quest
 
 import (
 	"dfolan/internal/catalog"
-	"dfolan/internal/storage"
 	"testing"
 )
 
@@ -68,13 +67,13 @@ func TestReachGeometryAndUnsupportedShapes(t *testing.T) {
 	}{
 		{821, 799, true}, {946, 849, true}, {947, 799, false}, {821, 850, false},
 	} {
-		if got := nearNPCReach(r, storage.WorldPosition{Town: 43, Area: 0, X: tc.x, Y: tc.y}, locate); got != tc.want {
+		if got := nearNPCReach(r, Position{Town: 43, Area: 0, X: tc.x, Y: tc.y}, locate); got != tc.want {
 			t.Errorf("NPC rectangle (%d,%d): got %v want %v", tc.x, tc.y, got, tc.want)
 		}
 	}
 	mapRect := RangeObjective{Town: 139, Area: 0, X: 0, Y: -240, W: 2000, H: 640}
-	if !mapRect.Contains(storage.WorldPosition{Town: 139, Area: 0, X: 700, Y: 220}) ||
-		mapRect.Contains(storage.WorldPosition{Town: 139, Area: 1, X: 700, Y: 220}) {
+	if !mapRect.Contains(Position{Town: 139, Area: 0, X: 700, Y: 220}) ||
+		mapRect.Contains(Position{Town: 139, Area: 1, X: 700, Y: 220}) {
 		t.Fatal("negative-origin map rectangle does not match source area")
 	}
 }
@@ -86,14 +85,14 @@ func TestNPCDistanceMultiplierExpandsOnlyNPCGeometry(t *testing.T) {
 		}
 		return [2]uint16{}, false
 	}
-	point := storage.WorldPosition{Town: 40, Area: 3, X: 630, Y: 160}
+	point := Position{Town: 40, Area: 3, X: 630, Y: 160}
 	reach := NPCReachObjective{NPC: 100000374, W: 200, H: 100}
 	t.Setenv("DFO_QUEST_NPC_DISTANCE_MULTIPLIER", "")
 	if nearNPCReach(reach, point, locate) {
 		t.Fatal("default NPC range unexpectedly reaches beyond its source width")
 	}
 	t.Setenv("DFO_QUEST_NPC_DISTANCE_MULTIPLIER", "2")
-	if !nearNPCReach(reach, point, locate) || !nearNPC(100000374, storage.WorldPosition{X: 850, Y: 114}, locate) {
+	if !nearNPCReach(reach, point, locate) || !nearNPC(100000374, Position{X: 850, Y: 114}, locate) {
 		t.Fatal("double NPC distance did not expand range and dialogue proximity")
 	}
 	for _, invalid := range []string{"0", "-2", "NaN", "+Inf", "bad"} {

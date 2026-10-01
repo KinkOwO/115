@@ -1,11 +1,9 @@
 package loot
 
 import (
-	"context"
 	"crypto/sha256"
 	"dfolan/internal/catalog"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 )
@@ -69,107 +67,99 @@ func craftEventKey(template, slot uint32, group int, state json.RawMessage) stri
 // `slot` 是客户端报的槽位（留证用），真正落包位置由 `BagRules.EquipmentSlots` 决定。
 // `payOption` 是玩家在窗口里点的那一支付法（请求头 `[13]`，1 起）——**必须照它扣**，
 // 不许回退到别支（见 pickCraftCost 的说明）。
-func (s *Service) CreateEquipment(
-	ctx context.Context,
-	role storage.Character,
-	template uint32,
-	slot uint32,
-	payOption int,
-) (storage.Character, EquipmentCraftReceipt, bool, error) {
-	var result EquipmentCraftReceipt
-	fail := func(e error) (storage.Character, EquipmentCraftReceipt, bool, error) {
-		return role, result, false, e
-	}
+type EquipmentCraftPlan struct {
+	Key   string
+	Group catalog.CreateCostGroup
+}
+
+func (s *Service) PlanEquipmentCraft(role Role, template, slot uint32, payOption int) (EquipmentCraftPlan, error) {
 	if role.ConfigVersion != s.Catalog.Source.SaveIdentity() {
-		return fail(fmt.Errorf("equipment craft: inventory source mismatch"))
+		return EquipmentCraftPlan{}, (fmt.Errorf("equipment craft: inventory source mismatch"))
 	}
 	if template == 0 || template == 0xFFFFFFFF {
-		return fail(fmt.Errorf("equipment craft: invalid template %d", template))
+		return EquipmentCraftPlan{}, (fmt.Errorf("equipment craft: invalid template %d", template))
 	}
 	if s.CreateCost == nil {
-		return fail(fmt.Errorf("equipment craft: create-cost table is not loaded"))
+		return EquipmentCraftPlan{}, (fmt.Errorf("equipment craft: create-cost table is not loaded"))
 	}
 	if s.Journal == nil {
-		return fail(fmt.Errorf("equipment craft: journal rules are not loaded"))
+		return EquipmentCraftPlan{}, (fmt.Errorf("equipment craft: journal rules are not loaded"))
 	}
 	group, ok := s.CreateCost.GroupFor(template)
 	if !ok {
-		return fail(fmt.Errorf("equipment craft: template %d is in no create-cost group", template))
+		return EquipmentCraftPlan{}, (fmt.Errorf("equipment craft: template %d is in no create-cost group", template))
 	}
 
 	key := craftEventKey(template, slot, group.Index, role.State)
-	saved, _, applied, e := s.Store.CommitAccountMaterialEvent(ctx, role.AccountID, role.ID,
-		s.Catalog.Source.SaveIdentity(), key, s.Rules.Model,
-		func(current storage.Character, accountRaw json.RawMessage) (json.RawMessage, json.RawMessage, error) {
-			ledger, e := inventory.ReadEquipmentJournal(current.State)
-			if e != nil {
-				return nil, nil, e
-			}
-			if ledger.Counts[template] == 0 {
-				// 未登记 ⇒ 拒绝。这是**规格**不是兜底：窗口列的只有已登记条目。
-				return nil, nil, fmt.Errorf("equipment craft: template %d is not registered in the journal", template)
-			}
-			bag, e := inventory.ReadBag(current.State)
-			if e != nil {
-				return nil, nil, e
-			}
-			account, e := inventory.ReadAccountMaterials(accountRaw)
-			if e != nil {
-				return nil, nil, e
-			}
-
-			option, gold, bagMats, accountMats, e := pickCraftCost(bag, account, group, payOption)
-			if e != nil {
-				return nil, nil, e
-			}
-			paid, e := bag.PayMaterials(bagMats, 1)
-			if e != nil {
-				return nil, nil, e
-			}
-			if gold > paid.Gold {
-				return nil, nil, fmt.Errorf("equipment craft: need %d gold, have %d", gold, paid.Gold)
-			}
-			paid.Gold -= gold
-			out := account
-			for _, m := range accountMats {
-				next, _, e := out.Spend(m.Template, m.Count)
-				if e != nil {
-					return nil, nil, e
-				}
-				out = next
-			}
-			paid, placed, e := paid.AddEquipment(s.Equipment, s.BagRules.EquipmentSlots, template, 1)
-			if e != nil {
-				return nil, nil, e
-			}
-			updated, e := inventory.SaveBag(current.State, paid)
-			if e != nil {
-				return nil, nil, e
-			}
-			accountNext, e := out.Save()
-			if e != nil {
-				return nil, nil, e
-			}
-			result.Template = template
-			result.Group = group.Index
-			result.Cost = option
-			result.Gold = gold
-			for _, m := range bagMats {
-				result.Materials = append(result.Materials, CraftMaterial{Template: m.Template, Amount: m.Count})
-			}
-			for _, m := range accountMats {
-				result.Materials = append(result.Materials, CraftMaterial{Template: m.Template, Amount: m.Count, FromAccount: true})
-			}
-			result.Source = s.Catalog.Source.SaveIdentity()
-			if len(placed) > 0 {
-				result.Slot = placed[0]
-			}
-			return updated, accountNext, nil
-		})
+	return EquipmentCraftPlan{Key: key, Group: group}, nil
+}
+func (s *Service) PrepareEquipmentCraft(current Role, accountRaw json.RawMessage, template uint32, payOption int, plan EquipmentCraftPlan) (json.RawMessage, json.RawMessage, EquipmentCraftReceipt, error) {
+	var result EquipmentCraftReceipt
+	group := plan.Group
+	ledger, e := inventory.ReadEquipmentJournal(current.State)
 	if e != nil {
-		return fail(e)
+		return nil, nil, result, e
 	}
-	return saved, result, applied, nil
+	if ledger.Counts[template] == 0 {
+		// 未登记 ⇒ 拒绝。这是**规格**不是兜底：窗口列的只有已登记条目。
+		return nil, nil, result, fmt.Errorf("equipment craft: template %d is not registered in the journal", template)
+	}
+	bag, e := inventory.ReadBag(current.State)
+	if e != nil {
+		return nil, nil, result, e
+	}
+	account, e := inventory.ReadAccountMaterials(accountRaw)
+	if e != nil {
+		return nil, nil, result, e
+	}
+
+	option, gold, bagMats, accountMats, e := pickCraftCost(bag, account, group, payOption)
+	if e != nil {
+		return nil, nil, result, e
+	}
+	paid, e := bag.PayMaterials(bagMats, 1)
+	if e != nil {
+		return nil, nil, result, e
+	}
+	if gold > paid.Gold {
+		return nil, nil, result, fmt.Errorf("equipment craft: need %d gold, have %d", gold, paid.Gold)
+	}
+	paid.Gold -= gold
+	out := account
+	for _, m := range accountMats {
+		next, _, e := out.Spend(m.Template, m.Count)
+		if e != nil {
+			return nil, nil, result, e
+		}
+		out = next
+	}
+	paid, placed, e := paid.AddEquipment(s.Equipment, s.BagRules.EquipmentSlots, template, 1)
+	if e != nil {
+		return nil, nil, result, e
+	}
+	updated, e := inventory.SaveBag(current.State, paid)
+	if e != nil {
+		return nil, nil, result, e
+	}
+	accountNext, e := out.Save()
+	if e != nil {
+		return nil, nil, result, e
+	}
+	result.Template = template
+	result.Group = group.Index
+	result.Cost = option
+	result.Gold = gold
+	for _, m := range bagMats {
+		result.Materials = append(result.Materials, CraftMaterial{Template: m.Template, Amount: m.Count})
+	}
+	for _, m := range accountMats {
+		result.Materials = append(result.Materials, CraftMaterial{Template: m.Template, Amount: m.Count, FromAccount: true})
+	}
+	result.Source = s.Catalog.Source.SaveIdentity()
+	if len(placed) > 0 {
+		result.Slot = placed[0]
+	}
+	return updated, accountNext, result, nil
 }
 
 // pickCraftCost 取出玩家**在窗口里指定的那一支**付法，并校验付得起。

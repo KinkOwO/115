@@ -3,7 +3,6 @@ package character
 import (
 	"context"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"fmt"
 	"time"
 )
@@ -18,7 +17,7 @@ func growthEffectFlags(options map[uint16]uint16) byte {
 	return flags
 }
 
-func (s *Service) roleGrowthEffectFlags(role storage.Character) (byte, error) {
+func (s *Service) roleGrowthEffectFlags(role Character) (byte, error) {
 	if s.Store == nil {
 		return 0, nil
 	}
@@ -47,7 +46,7 @@ func auraEffectVisible(options map[uint16]uint16) bool {
 // compact pages from it. That is also why a frame whose first position is a page
 // boundary rebuilds that page - the client re-states the page it owns instead of
 // sending an incremental delta.
-func (s *Service) SaveSkillLocks(ctx context.Context, role storage.Character, key string, opt protocol.UnifiedOption) ([]uint16, bool, error) {
+func (s *Service) SaveSkillLocks(ctx context.Context, role Character, key string, opt protocol.UnifiedOption) ([]uint16, bool, error) {
 	if s.Store == nil {
 		return nil, false, fmt.Errorf("skill lock storage unavailable")
 	}
