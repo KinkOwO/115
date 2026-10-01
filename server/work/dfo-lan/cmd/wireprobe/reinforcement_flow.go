@@ -2,14 +2,11 @@ package main
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/sha256"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/storage"
 	"encoding/binary"
 	"encoding/hex"
-	"fmt"
 	"time"
 )
 
@@ -103,11 +100,9 @@ func (s *equipmentSession) reinforce(service *inventory.WearService, w *worldSes
 	if err != nil {
 		return nil, err
 	}
-	if !s.initialized {
-		if _, err = rand.Read(s.nonce[:]); err != nil {
-			return nil, err
-		}
-		s.initialized = true
+	key, err := s.requestKey(raw)
+	if err != nil {
+		return nil, err
 	}
 	// 增幅（mode=1）先判定：它与强化共用同一个请求结构，但材料、规则、等级偏移都不同，
 	// 所以不能靠「窗口里放了什么东西」来区分，必须先看 mode。
@@ -132,7 +127,7 @@ func (s *equipmentSession) reinforce(service *inventory.WearService, w *worldSes
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	key := fmt.Sprintf("reinforcement-%s:%x:%x", branch, s.nonce, sha256.Sum256(raw))
+	key = "reinforcement-" + branch + ":" + key
 	if branch == reinforcementAmplifyTicketBranch {
 		return s.amplifyTicket(ctx, service, w, r, key, event)
 	}
@@ -162,13 +157,8 @@ func (s *equipmentSession) reinforceWithTicket(ctx context.Context, service *inv
 	if err != nil {
 		return nil, err
 	}
-	// 即使重放旧回执，也发送当前槽位；采用增量更新保留强化动画引用的装备对象。
-	ticketRow := bagRowOrEmpty(bag, r.TicketSlot)
-	rows := [][protocol.CurrentItemRecordSize]byte{ticketRow}
-	if r.EquipmentSpace == 0 {
-		gearRow := bagRowOrEmpty(bag, r.EquipmentSlot)
-		rows = append(rows, gearRow)
-	}
+	// Even a replay refreshes the current slots without rebuilding inventory objects.
+	rows := equipmentRows(bag, r.EquipmentSpace, r.EquipmentSlot, r.TicketSlot)
 	plan, err = appendEquipmentUpdates(plan, saved.State, rows, r.EquipmentSpace, "reinforcement_ticket_inventory", "reinforcement_equipment_updated")
 	if err != nil {
 		return nil, err
@@ -217,10 +207,7 @@ func (s *equipmentSession) reinforceWithMaterial(ctx context.Context, service *i
 	}
 	goldRow, _ := bag.RowAt(0)
 	rows = append(rows, goldRow)
-	if r.EquipmentSpace == 0 {
-		gearRow := bagRowOrEmpty(bag, r.EquipmentSlot)
-		rows = append(rows, gearRow)
-	}
+	rows = append(rows, equipmentRows(bag, r.EquipmentSpace, r.EquipmentSlot)...)
 	plan, err = appendEquipmentUpdates(plan, saved.State, rows, r.EquipmentSpace, "reinforcement_gold_inventory", "reinforcement_equipment_updated")
 	if err != nil {
 		return nil, err
@@ -266,20 +253,11 @@ func (s *equipmentSession) amplifyUpgrade(ctx context.Context, service *inventor
 	if err != nil {
 		return nil, err
 	}
-	rows := [][protocol.CurrentItemRecordSize]byte{}
-	// 材料行：材料被扣完时该格已移除，用空行让客户端同步移除。
-	matRow := bagRowOrEmpty(bag, out.MaterialSlot)
-	rows = append(rows, matRow)
-	// 保护券触发时刷新保护券行，让客户端立即看到扣减。
+	slots := []uint16{out.MaterialSlot}
 	if out.Protected {
-		// ⚠️ 必须走 bagRowOrEmpty：只有一张保护券时这一行会被整行移除，
-		// 那时若什么都不发，客户端会把图标留在原地（实机 2026-09-28）。
-		rows = append(rows, bagRowOrEmpty(bag, out.ProtectionSlot))
+		slots = append(slots, out.ProtectionSlot)
 	}
-	if out.EquipmentSpace == 0 {
-		gearRow := bagRowOrEmpty(bag, out.EquipmentSlot)
-		rows = append(rows, gearRow)
-	}
+	rows := equipmentRows(bag, out.EquipmentSpace, out.EquipmentSlot, slots...)
 	plan, err = appendEquipmentUpdates(plan, saved.State, rows, out.EquipmentSpace, "amplify_upgrade_inventory", "amplify_upgrade_worn")
 	if err != nil {
 		return nil, err
@@ -358,14 +336,7 @@ func (s *equipmentSession) amplifyTicket(ctx context.Context, service *inventory
 	if err != nil {
 		return nil, err
 	}
-	rows := [][protocol.CurrentItemRecordSize]byte{}
-	// 券行：券被扣完时该格已移除，用空行让客户端同步移除。
-	ticketRow := bagRowOrEmpty(bag, r.TicketSlot)
-	rows = append(rows, ticketRow)
-	if out.EquipmentSpace == 0 {
-		gearRow := bagRowOrEmpty(bag, r.EquipmentSlot)
-		rows = append(rows, gearRow)
-	}
+	rows := equipmentRows(bag, out.EquipmentSpace, r.EquipmentSlot, r.TicketSlot)
 	plan, err = appendEquipmentUpdates(plan, saved.State, rows, out.EquipmentSpace, "amplify_ticket_inventory", "amplify_ticket_worn")
 	if err != nil {
 		return nil, err

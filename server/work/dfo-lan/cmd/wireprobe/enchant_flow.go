@@ -64,12 +64,7 @@ func (w *worldSession) enchantByBead(service *inventory.WearService, p, raw []by
 	if err != nil {
 		return nil, err
 	}
-	rows := [][protocol.CurrentItemRecordSize]byte{}
-	// 宝珠行：被扣完时该格已移除，用空行让客户端同步移除。
-	rows = append(rows, bagRowOrEmpty(bag, out.BeadSlot))
-	if out.EquipmentSpace == 0 {
-		rows = append(rows, bagRowOrEmpty(bag, out.EquipmentSlot))
-	}
+	rows := equipmentRows(bag, out.EquipmentSpace, out.EquipmentSlot, out.BeadSlot)
 	plan, err = appendEquipmentUpdates(plan, saved.State, rows, out.EquipmentSpace, "enchant_inventory", "enchant_worn")
 	if err != nil {
 		return nil, err
