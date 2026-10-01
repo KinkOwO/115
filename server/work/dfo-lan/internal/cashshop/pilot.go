@@ -600,6 +600,9 @@ func (p *Pilot) Purchase(ctx context.Context, ledger BagLedger, account, charact
 	if p == nil || ledger == nil || len(cart) == 0 || len(cart) > 32 {
 		return CashReceipt{}, false, fmt.Errorf("purchase requires1..32 supported products")
 	}
+	if receipt, applied, handled, err := p.TryPurchaseAvatarInventoryExpansion(ctx, ledger, account, character, key, cart); handled || err != nil {
+		return receipt, applied, err
+	}
 	if receipt, applied, handled, err := p.TryPurchaseInventoryExpansion(ctx, ledger, account, character, key, cart); handled || err != nil {
 		return receipt, applied, err
 	}
@@ -747,7 +750,7 @@ func (p *Pilot) deliverAmount(raw json.RawMessage, template, amount uint32, expi
 		}
 		for i := uint32(0); i < amount; i++ {
 			found := false
-			for s := uint16(0); s < 210; s++ {
+			for s := uint16(0); s < protocol.AvatarInventorySlots(b.AvatarExpansion); s++ {
 				if !occupied[s] {
 					occupied[s] = true
 					if b.Special == nil {

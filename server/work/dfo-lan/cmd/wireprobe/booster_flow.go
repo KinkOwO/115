@@ -565,7 +565,7 @@ func (w *worldSession) openBoosterItem(
 				}
 				for cnt := uint32(0); cnt < g.Count; cnt++ {
 					foundSlot := false
-					for s := uint16(0); s < 210; s++ {
+					for s := uint16(0); s < protocol.AvatarInventorySlots(b.AvatarExpansion); s++ {
 						if !occupied[s] {
 							occupied[s] = true
 							if b.Special == nil {

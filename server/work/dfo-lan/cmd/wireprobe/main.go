@@ -3368,6 +3368,28 @@ func main() {
 				// the fatigue potion (54) and `[add skin storage]` (169, damage font)
 				// paths never collide; the fatigue path keeps its exact prior shape.
 				_, action, actionErr := protocol.DecodeStackableAction(plaintext)
+				if len(plaintext) >= 11 && binary.LittleEndian.Uint32(plaintext[7:11]) == protocol.AvatarInventoryExpansionAction {
+					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					var plan []outboundPacket
+					var e error
+					if characters == nil || gameStore == nil || purchaseSession == nil {
+						e = fmt.Errorf("avatar inventory expansion storage unavailable")
+					} else {
+						plan, e = worldState.useAvatarInventoryExpansion(ctx, gameStore, shopPilot, plaintext, frame.Raw, purchaseSession.prefix, event)
+					}
+					cancel()
+					if e != nil {
+						event(map[string]any{"kind": "avatar_inventory_expansion_refused", "character_id": worldState.role.ID, "reason": e.Error()})
+						if sendPayload(1, 507, protocol.AvatarInventoryExpansionRefused(binary.LittleEndian.Uint16(plaintext), strings.Contains(e.Error(), "fully expanded"))) != nil {
+							return
+						}
+						continue
+					}
+					if sendPlan(plan, logWorldResponseBody) != nil {
+						return
+					}
+					continue
+				}
 				if actionErr == nil && action == protocol.RosterBackgroundTicketAction {
 					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 					packets, e := worldState.useRosterBackgroundTicket(ctx, plaintext, frame.Raw, purchaseSession.prefix, event)
