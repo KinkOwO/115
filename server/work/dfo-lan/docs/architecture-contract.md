@@ -1,0 +1,170 @@
+# 服务端依赖契约（Architecture Contract）
+
+状态：生效中（契约基线）
+建立日期：2026-10-01
+基线提交：`939c749`（`refactor/go-server-dedup-20260930`）
+适用范围：`server/work/dfo-lan/**` 的全部 Go 包
+
+---
+
+## 0. 本文的地位
+
+- 本文是**依赖方向与所有权**的可判定真源。
+- `docs/architecture-refactor-plan.md` 是历史进度与逐批交接记录，不是规则真源；两者冲突时以本文为准。
+- 本文的规则必须能被自动化检查，见 §6「强制机制」。任何新增的反向依赖都应让检查失败，而不是靠评审记忆。
+
+> 背景：在本文生效前，依赖规则只是口头约定（"消除没有业务含义的转发"），其中 `domain -> storage`、`storage -> domain`、`protocol -> domain` 都被当作可接受的现状。规则不可判定，导致历次精简后依赖形状仍然收敛不了。本文把规则改成**可机械判定**的版本。
+
+---
+
+## 1. 分层
+
+| 层 | 名称 | 包 | 特征 |
+|---|---|---|---|
+| L0 | 传输原语 | `internal/game/wire` | 帧、加解密、校验和；不含任何游戏事实 |
+| L1 | 协议与静态数据 | `internal/game/protocol`、`internal/catalog`、`internal/catalog/pvf` | 字节布局、PVF 归档原语、规则驱动静态目录 |
+| L2 | 持久化 | `internal/storage` | SQL、事务、存档读写；游戏事实的搬运者和实现者，不是拥有者 |
+| L3 | 业务领域 | `internal/{character,inventory,loot,quest,dungeon,world,cashshop,progression,adventure,legion,npcpresence,profileskin,rosterbg}` | 拥有各自的游戏规则与状态 |
+| L4 | 组合与工具 | `cmd/**`、`internal/{gamedata,managementdata,admin,channelrefresh}` | 组合根、只读投影、管理、离线工具 |
+
+---
+
+## 2. 依赖规则
+
+### R1 纯基础设施不得依赖领域
+`internal/game/wire`、`internal/game/protocol`、`internal/catalog`、`internal/catalog/pvf` **禁止** import 任何 L3 领域包。
+理由：协议只描述字节布局，PVF 只描述归档与静态数据原语；一旦它们认识业务类型，布局就会随玩法漂移。
+
+### R2 领域不得依赖持久化实现
+L3 领域 **禁止** import `internal/storage`。领域需要的存储能力，由**领域自己声明接口**（如 `character.Store`），由 `storage` 实现，并在 `bootstrap` 注入。
+理由：依赖倒置。领域认识具体持久化实现，等于把存储引擎锁死进业务层（也是换库时爆炸半径失控的根因）。
+
+### R3 持久化可实现领域接口，但不得定义游戏事实
+`internal/storage` **允许** import 领域包以**实现**领域声明的接口、映射领域类型；但**不得**解释玩法规则、不得成为某条游戏规则的拥有者。
+理由：适配器方向是允许的（实现方依赖被实现方），但事实的定义权必须留在领域。
+
+### R4 领域之间的协作必须显式
+L3 领域之间 **默认禁止**互相 import。需要另一领域能力时，二选一：
+1. **消费者声明小接口**，由提供者在 `bootstrap` 注入；或
+2. 把流程放入跨领域编排层（目标 `internal/workflow`，见 §5）。
+
+例外必须登记进 §7 并按计划消除。纯计算函数（如 `progression` 的经验公式）可在评审后合法化为接口。
+
+### R5 禁止依赖环
+任意两包之间不得存在互相 import 的环。
+
+### R6 组合与工具层不承载游戏规则
+`cmd/**`、`gamedata`、`managementdata`、`admin`、`channelrefresh` 可以 import 任意包；但**不得**成为某条游戏规则的唯一实现。离线导入/审计工具可以依赖领域，领域不得反向依赖它们。
+
+---
+
+## 3. 判断新代码落位的唯一标准
+
+> **这段代码是否需要知道"某个具体游戏事实"？**
+> 是 → 属于对应 L3 领域。
+> 否（只是字节、文件格式、SQL、事务、装配、投影）→ 属于对应的基础设施或组合层。
+
+不得按 opcode、调用方或临时实现文件名建目录。
+
+---
+
+## 4. 包所有权表
+
+| 包 | 层 | 拥有者（职责） | 允许 import | 禁止 import |
+|---|---|---|---|---|
+| `internal/game/wire` | L0 | 帧、加解密、校验和 | 仅标准库 | 任何 `internal/*` |
+| `internal/game/protocol` | L1 | 协议请求/通知的字段编解码 | `game/wire`（如需） | 任何 L3 领域 |
+| `internal/catalog/pvf` | L1 | PVF 归档、token、列表、路径原语 | 仅标准库 | 任何 `internal/*` |
+| `internal/catalog` | L1 | 规则驱动静态目录与索引 | `catalog/pvf` | 任何 L3 领域 |
+| `internal/storage` | L2 | SQL、事务、锁、存档；实现领域声明的接口 | L3 领域（仅为实现接口）、`catalog`、`catalog/pvf` | 定义游戏规则 |
+| `internal/character` | L3 | 建角、列表、角色状态、技能、成长 | `game/protocol`、`catalog`、`catalog/pvf`、自声明接口 | `storage`、其他领域（§7 例外除外） |
+| `internal/inventory` | L3 | 背包、穿戴、通用物品状态与装备操作 | 同上 | 同上 |
+| `internal/loot` | L3 | 掉落生成、掉落实例、拾取、去重 | 同上 | 同上 |
+| `internal/quest` | L3 | 任务链、目标推进、任务奖励 | 同上 | 同上 |
+| `internal/dungeon` | L3 | 副本会话、房间、门、清场、结算 | 同上 | 同上 |
+| `internal/world` | L3 | 城镇、区域跳转、传送、位置保存 | 同上 | 同上 |
+| `internal/cashshop` | L3 | 商城报价、购买、账号点券账本 | 同上 | 同上 |
+| `internal/progression` | L3 | 经验、等级、纯计算规则 | 同上 | 同上 |
+| `internal/adventure` | L3 | 冒险团/成长规则 | 同上 | 同上 |
+| `internal/legion` | L3 | 冒险团小队/编队规则 | 同上 | 同上 |
+| `internal/npcpresence` | L3 | NPC 相位/可见性规则 | 同上 | 同上 |
+| `internal/profileskin` | L3 | 分流皮肤状态读模型 | 同上 | 同上 |
+| `internal/rosterbg` | L3 | 选角背景状态读模型 | 同上 | 同上 |
+| `internal/gamedata` | L4 | 全量静态数据只读投影/装配 | L1–L3 | 被 L3 依赖 |
+| `internal/managementdata` | L4 | 管理端只读目录投影 | L1–L3 | 被 L3 依赖 |
+| `internal/admin` | L4 | GM/管理操作 | L1–L3 | 被 L3 依赖 |
+| `internal/channelrefresh` | L4 | 频道目录刷新 | L1–L3 | 被 L3 依赖 |
+| `cmd/wireprobe` | L4 | 组合根 + 请求分发（目标；当前仍含运行编排） | 全部 | 承载游戏规则 |
+| 其余 `cmd/*` | L4 | 离线导入/审计/修复/检查工具 | 全部 | 成为运行时依赖 |
+
+---
+
+## 5. 目标形态（阶段性）
+
+1. `cmd/wireprobe` 的 65 个 `*_flow.go` 中的跨领域编排，收敛到目标 `internal/workflow`；`main.go` 收敛为组合根 + 分发。
+2. 领域存储能力全部改为「领域声明接口 + bootstrap 注入」。
+3. `game/protocol` 与 `catalog` 不再认识任何领域类型。
+
+以上均为目标，未完成前按 §7 例外清单管理，不得写成已完成。
+
+---
+
+## 6. 强制机制
+
+在 `internal/archtest` 增加依赖边守卫测试，纳入 `go test ./...`：
+
+- **数据源**：用标准库 `go/build` 遍历 `internal/` 与 `cmd/`，解析每个包的非测试 import；不引入新依赖。
+- **规则**：
+  - 对 §2 R1 的每个包，断言其 import 中不含任何 L3 领域包。
+  - 对每个 L3 领域包，断言其 import 中不含 `internal/storage`。
+  - 对每个 L3 领域包，断言其与其他 L3 领域的 import 边全部出现在**允许清单**中。
+  - 断言不存在 import 环（由各规则组合保证）。
+- **允许清单 = §7 的例外清单**。测试对每条例外 fail；例外消除后必须同步删除对应条目。**只减不增**：新增例外必须改本文并留评审记录。
+
+---
+
+## 7. 例外清单（baseline，只减不增）
+
+以下为 `939c749` 时点的现存违例。它们当前**允许存在**，但必须按「目标」列逐步消除。任何**新增**违例不得加入本表，应直接按 §2 修正。
+
+### 7.1 纯基础设施 → 领域（违反 R1）
+
+| # | 边 | 目标 |
+|---|---|---|
+| E01 | `game/protocol` → `adventure` | 编码移回 `adventure` handler；protocol 只收纯布局 |
+| E02 | `game/protocol` → `profileskin` | 同上 |
+| E03 | `game/protocol` → `rosterbg` | 同上 |
+| E04 | `catalog` → `rosterbg` | 选角背景的领域语义移到 `rosterbg` |
+
+### 7.2 领域 → 持久化（违反 R2）
+
+| # | 边 | 目标 |
+|---|---|---|
+| E11 | `character` → `storage` | `character` 声明 `Store`，`storage` 实现，bootstrap 注入 |
+| E12 | `inventory` → `storage` | 同上 |
+| E13 | `loot` → `storage` | 同上 |
+| E14 | `quest` → `storage` | 同上 |
+| E15 | `world` → `storage` | 同上 |
+| E16 | `cashshop` → `storage` | 同上 |
+
+> 说明：`internal/storage` 当前 import `adventure/profileskin/rosterbg` 属于 R3 允许方向（实现方依赖被实现方），保留在例外之外；但需确认 `storage` 未定义游戏事实。`cmd/*` 工具 import `storage`（`gmtool`/`charactercheck`/`storagecheck`/`initialrepair`/`questrepair`/`avatarrestorecheck`）属 R6 工具层，允许。
+
+### 7.3 领域 ↔ 领域（违反 R4）
+
+| # | 边 | 目标 |
+|---|---|---|
+| E21 | `character` → `adventure`、`dungeon`、`inventory`、`progression` | 中带事务的移入 `workflow` 或改为消费者接口 |
+| E22 | `quest` → `character`、`dungeon`、`inventory`、`progression` | 同上 |
+| E23 | `loot` → `adventure`、`cashshop`、`dungeon`、`inventory` | 同上 |
+| E24 | `legion` → `dungeon` | 同上 |
+
+> `progress`（纯计算）可在评审后把对应接口合法化；不得用「允许协作」把带状态的领域依赖一起放开。
+
+---
+
+## 8. 变更流程
+
+1. 新增/修改依赖关系前，先按 §3 判断落位，再对照 §2 与 §4。
+2. 若确需新增例外，必须：改本文 §7、说明目标与消除计划、在提交信息中标注。
+3. 消除例外时，同步从 §7 和 `archtest` 允许清单删除。
+4. 每次改动后运行 `go test ./...`（守卫测试会强制校验）。
