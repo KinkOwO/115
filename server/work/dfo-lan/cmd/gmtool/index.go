@@ -338,6 +338,8 @@ type IndexItem struct {
 	StackType  string `json:"stack_type,omitempty"`
 	StackLimit uint32 `json:"stack_limit,omitempty"`
 	Durability uint32 `json:"durability,omitempty"`
+	NameKey    string `json:"-"`
+	NativeName bool   `json:"-"`
 }
 
 func nameKey(ref string) string {
@@ -582,7 +584,11 @@ func (ix *ItemIndex) push(it IndexItem) {
 		RarityLabel: ix.rarityLabel(it.Rarity),
 		Grantable:   true, Stackable: it.Kind == "stackable",
 	}
-	if zh, _ := ix.display(ix.nameKeyFor(it.ID)); zh != "" {
+	key := it.NameKey
+	if !it.NativeName {
+		key = ix.nameKeyFor(it.ID)
+	}
+	if zh, _ := ix.display(key); zh != "" {
 		e.Name = zh
 	} else {
 		e.Name = it.Name

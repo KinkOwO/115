@@ -1,5 +1,18 @@
 # DFO GM 工具（独立网页版）
 
+## 2026-10-01 PVF查询候选
+
+源码`server/work/dfo-lan/cmd/gmtool`新增原生源入口；独立程序放在模块的`.tmp/pvf-management/bin/gmweb.exe`，现有发布程序和默认启动参数保持。模块根目录下只检查候选目录（不需要数据库）：
+
+```powershell
+../../../tools/python/python.exe ../../../gm-tool/scripts/gmweb.py --check --catalog-source pvf --gmweb-binary .tmp/pvf-management/bin/gmweb.exe --pvf-archive ../client-build/Script.inner.pvf --pvf-source-checksum 7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80
+```
+
+候选索引599771个原生LIST绑定，旧386230个ID、kind/grade/rarity全部一致。部位/最低等级直接读EQU；旧缓存包含过期字段，候选不继续用它决定筛选。名称按脚本实际引用定位，不拼ID；旧中文译名作为外部显示覆盖，当前PVF原文多数为英文。具体663处名称和旧部位/等级差异见`docs/todo/pvf/PVF直读第五批迁移进度.md`，这批还未实机验收。
+
+代理从认证`/api/catalog-metadata`获取后端分类和实际可堆叠集合；PVF路径不依赖items.index、equipment.slots、equipment.current37或loot导出JSON。角色数据、背包/穿戴策略、译名覆盖、操作备份继续保留。当前源码未提供套装/装扮分组JSON消费入口，不扩大历史套装管理功能。
+
+
 本地兼容服的 GM 操作工具，网页界面，用于**改角色等级、发金币/点券/物品**。
 自包含：内含编译好的程序、**38 万件物品库**、**与游戏完全一致的物品中文名**、精简 Python，
 拿到包的人**不需要装任何东西**。

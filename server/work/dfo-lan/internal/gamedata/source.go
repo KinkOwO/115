@@ -38,6 +38,10 @@ type Source struct {
 	archive *pvf.Archive
 }
 
+func (s *Source) VisitItemDisplay(index catalog.ItemIndex, visit func(catalog.ItemDisplay) error) error {
+	return catalog.VisitItemDisplay(s.archive, index, visit)
+}
+
 func (s *Source) ItemShops(policy catalog.ItemShopSourcePolicy) (catalog.NativeItemShops, error) {
 	return catalog.ImportItemShops(s.archive, policy)
 }

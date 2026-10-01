@@ -164,7 +164,13 @@ admin、initialrepair、questrepair已接入显式catalog-source=pvf入口，共
 候选程序置于server/work/dfo-lan/.tmp/pvf-management/bin/，未覆盖gm-tool发布程序。示例（模块根目录执行，仅目录检查）：
 
 ```powershell
-./.tmp/pvf-management/bin/admin.exe -catalog-source pvf -pvf-archive ../../client-build/Script.inner.pvf -pvf-source-checksum 7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80 -check-catalogs
+./.tmp/pvf-management/bin/admin.exe -catalog-source pvf -pvf-archive ../client-build/Script.inner.pvf -pvf-source-checksum 7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80 -check-catalogs
 ```
 
 initialrepair/questrepair同样支持这些参数。check-catalogs只准备目录；默认修复预览仍会连接数据库和迁移既有表，当前迁移验证未执行普通预览或apply。GM名称核对发现当前客户端uv为英文、translate/kor主要为韩文，与旧中文译名不同；继续处理可迁移元数据并保留无法在当前源表取得的外部译名。
+
+## 2026-10-01：GM原生管理查询与外部译名边界
+
+GM新增显式PVF候选入口，管理索引、装备部位/最低等级、原生显示文本及发放目录共用gamedata/managementdata；599771个原生LIST绑定的源脚本全部完成读取。旧386230个GM物品ID全部可达，kind/grade/rarity完整比对零差异；重复grade/rarity出现在嵌套条件块时，显示投影沿用旧导入器首字段行为，不用通用单值验证将其置0。实际[name]引用替代name_<ID>拼键，旧ID拼键显示有663处差异，保留原生别名/chn引用与纯文本。旧equipment.slots有392575条，其中6561无当前LIST绑定、12条为原生堆叠物，416个部位和244403个最低等级字段与当前源不同（大量旧装扮最低等级为0，当前源为1）；候选显示使用源值，旧缓存不再参与筛选，未将这些差异宣称等价。当前实际客户端uv主要英文，translate/kor主要韩文，旧中文译名多数无法据当前名称表还原，names.client/names.zh仅作可选外部显示覆盖，不能提供ID、属性、槽位或存档来源。GM发放补充目录与网关一致为175554种物品并挂原生424216完整装备绑定，仍由原发放验证、事务、幂等及审计决定实际可发放，不因索引存在自动放行未知特殊状态。新增认证只读/api/catalog-metadata，Python代理使用后端类型/可堆叠集合，原生模式不再读取重复物品/装备/loot导出JSON；仅旧后端明确404时保留兼容路径，401/5xx及错误响应拒绝。gmweb.py支持显式候选程序、源SHA256和只读check；候选准备在自动存储启动和数据库读取之前结束。源审计34.08秒、全量Go测试/vet、14项原Python测试及5项GM只读测试通过；实际候选check在storage不存在时成功，未启动服务或客户端/数据库。隔离gmweb程序SHA256为6a04bf5e11ee676527fd76b74028f9ace7874b6892e47f964ee114f577cac7d1；未覆盖GM发布程序，网关候选仍54项/63投影，确认范围仍第四批28项。
+
+当前Go后端/代理/前端未消费set_items、avatar_sets、set_display_names、equip_whitelist源文件；这些文件继续保留为未启用资产/工具选择数据，不因历史归档中的引用而新增功能。历史备份和数据导出命令可继续生成JSON作为审计样本，不作为PVF候选运行前提。
