@@ -1,8 +1,9 @@
-// pvfaudit compares PVF imports with the effective JSON catalogs without
+// pvfaudit compares PVF imports with JSON catalogs or audits native parser scope without
 // starting the gateway, opening PostgreSQL, or changing client resources.
 package main
 
 import (
+	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/gamedata"
 	"encoding/json"
@@ -22,6 +23,14 @@ type report struct {
 	DurationMS int64                  `json:"duration_ms"`
 }
 
+type selectionScopeReport struct {
+	Archive         pvf.ArchiveSnapshot         `json:"archive"`
+	SelectionScope  catalog.SelectionScopeAudit `json:"selection_scope"`
+	StorageAccessed bool                        `json:"storage_accessed"`
+	RuntimeStarted  bool                        `json:"runtime_started"`
+	DurationMS      int64                       `json:"duration_ms"`
+}
+
 func main() { os.Exit(run(os.Args[1:], os.Stdout, os.Stderr)) }
 
 func run(args []string, stdout, stderr io.Writer) int {
@@ -32,6 +41,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	maxBytes := flags.Int64("pvf-max-bytes", gamedata.DefaultMaxBytes, "maximum allowed archive size")
 	domains := flags.String("domains", "characters,world,quests,progression", "catalog domains to compare sequentially")
 	limit := flags.Int("difference-limit", 100, "maximum field differences retained per domain; total count is not capped")
+	selectionScope := flags.Bool("selection-scope", false, "audit all native selection-box scripts without a JSON baseline or template policy; difference-limit caps issue details")
 	output := flags.String("output", "", "new report JSON path; empty writes to stdout; existing files are refused")
 	paths := map[string]*string{
 		"characters":  flags.String("character-catalog", "configs/characters.skycastle-release.json", "effective profession JSON baseline"),
@@ -46,10 +56,25 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "unexpected arguments or negative difference limit")
 		return 1
 	}
-	selected, err := selectDomains(*domains, paths)
-	if err != nil {
-		fmt.Fprintln(stderr, err)
-		return 1
+	var selected []string
+	var err error
+	if !*selectionScope {
+		selected, err = selectDomains(*domains, paths)
+		if err != nil {
+			fmt.Fprintln(stderr, err)
+			return 1
+		}
+	} else {
+		conflicting := false
+		flags.Visit(func(f *flag.Flag) {
+			if f.Name == "domains" || strings.HasSuffix(f.Name, "-catalog") {
+				conflicting = true
+			}
+		})
+		if conflicting {
+			fmt.Fprintln(stderr, "selection-scope cannot be combined with JSON catalog comparison flags")
+			return 1
+		}
 	}
 	var target *os.File
 	if *output != "" {
@@ -79,6 +104,9 @@ func run(args []string, stdout, stderr io.Writer) int {
 		stdout = target
 	}
 	defer source.Close()
+	if *selectionScope {
+		return writeSelectionScopeReport(source, *limit, started, stdout, stderr)
+	}
 	r := report{Archive: source.Snapshot(), Equivalent: true}
 	for _, domain := range selected {
 		fmt.Fprintf(stderr, "auditing %s against %s\n", domain, *paths[domain])
@@ -103,6 +131,31 @@ func run(args []string, stdout, stderr io.Writer) int {
 		}
 	}
 	if !r.Equivalent {
+		return 2
+	}
+	return 0
+}
+
+func writeSelectionScopeReport(source *gamedata.Source, limit int, started time.Time, stdout, stderr io.Writer) int {
+	index, err := source.ItemIndex("")
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return 1
+	}
+	audit, err := source.AuditSelectionScope(index, limit)
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return 1
+	}
+	r := selectionScopeReport{Archive: source.Snapshot(), SelectionScope: audit, DurationMS: time.Since(started).Milliseconds()}
+	encoder := json.NewEncoder(stdout)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(r); err != nil {
+		fmt.Fprintln(stderr, err)
+		return 1
+	}
+	fmt.Fprintf(stderr, "native selection scope: candidates=%d parsed=%d fixed=%d unparsed=%d rejected=%d\n", audit.Candidates, audit.Parsed, audit.Fixed, audit.Unparsed, audit.Rejected)
+	if audit.Rejected > 0 || audit.Unparsed > 0 {
 		return 2
 	}
 	return 0

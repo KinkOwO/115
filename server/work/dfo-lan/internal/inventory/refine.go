@@ -28,7 +28,6 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"os"
 )
 
 const refineModel = "refine-v1"
@@ -59,17 +58,11 @@ var refineRules *refineConfig
 
 // LoadRefineRules 读取锻造规则；文件缺失时锻造整体拒绝（不影响强化/增幅/打红字）。
 func LoadRefineRules(path string) error {
-	b, err := os.ReadFile(path)
-	if os.IsNotExist(err) {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
 	var c refineConfig
-	if err = json.Unmarshal(b, &c); err != nil {
+	if loaded, err := loadOptionalJSON(path, &c); !loaded || err != nil {
 		return err
 	}
+
 	if c.Version != 1 || c.MaterialTemplate == 0 || len(c.SuccessRatePercentByLevel) == 0 {
 		return fmt.Errorf("锻造规则源定义不完整")
 	}
@@ -216,26 +209,9 @@ func (s *WearService) ApplyRefine(ctx context.Context, role storage.Character, k
 	if !RefineRulesLoaded() {
 		return role, out, fmt.Errorf("锻造规则未装载")
 	}
-	saved, _, err := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, refineModel, func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
-		next, receipt, e := s.applyRefine(current, r)
-		if e != nil {
-			return nil, nil, e
-		}
-		encoded, e := json.Marshal(receipt)
-		if e != nil {
-			return nil, nil, e
-		}
-		return next, encoded, nil
+	return commitEquipmentEvent(ctx, s.Store, role, key, refineModel, func(current storage.Character) (json.RawMessage, RefineReceipt, error) {
+		return s.applyRefine(current, r)
 	})
-	if err != nil {
-		return role, out, err
-	}
-	receipt, err := s.Store.CharacterEventReceipt(ctx, role.AccountID, role.ID, key)
-	if err == nil {
-		err = json.Unmarshal(receipt, &out)
-	}
-	saved.WireID = role.WireID
-	return saved, out, err
 }
 
 func (s *WearService) applyRefine(role storage.Character, r protocol.RefineRequest) (json.RawMessage, RefineReceipt, error) {
@@ -245,34 +221,9 @@ func (s *WearService) applyRefine(role storage.Character, r protocol.RefineReque
 		return nil, out, err
 	}
 	// 目标装备：按请求里的空间找（0 背包 / 3 已穿戴），找不到再退回另一侧。
-	space := r.EquipmentSpace
-	items := bag.Equipment
-	index := -1
-	if space == 3 {
-		items = bag.Worn
-	}
-	for i, gear := range items {
-		if gear.Slot == r.EquipmentSlot && gear.Template == r.EquipmentTemplate {
-			index = i
-			break
-		}
-	}
+	space, items, index := bag.findEquipment(r.EquipmentSpace, r.EquipmentSlot, r.EquipmentTemplate)
 	if index < 0 {
-		space = 0
-		items = bag.Equipment
-		if r.EquipmentSpace != 3 {
-			space = 3
-			items = bag.Worn
-		}
-		for i, gear := range items {
-			if gear.Slot == r.EquipmentSlot && gear.Template == r.EquipmentTemplate {
-				index = i
-				break
-			}
-		}
-	}
-	if index < 0 {
-		return nil, out, fmt.Errorf("目标装备不在背包或已穿戴槽位里")
+		return nil, out, Refuse(RefusalItems, "目标装备不在背包或已穿戴槽位里")
 	}
 	gear := items[index]
 	if err = gear.ValidateRecord(); err != nil {
@@ -284,22 +235,22 @@ func (s *WearService) applyRefine(role storage.Character, r protocol.RefineReque
 	}
 	kind, ok := d.Fields["[equipment type]"]
 	if !ok || len(kind) == 0 {
-		return nil, out, fmt.Errorf("目标不是装备")
+		return nil, out, Refuse(RefusalEquipment, "目标不是装备")
 	}
 	// ★ 官方：只有武器能锻造（dstr 35128 "Items that are not weapons cannot be refined."）。
 	if kind[0].Text != "[weapon]" {
-		return nil, out, fmt.Errorf("只有武器可以锻造（当前是 %s）", kind[0].Text)
+		return nil, out, Refuse(RefusalLimit, "只有武器可以锻造（当前是 %s）", kind[0].Text)
 	}
 
 	row := EquipmentRow(gear)
 	rowBefore := fmt.Sprintf("%x", row[:])
 	level := int(refineLevel(gear, row[:]))
 	if level >= RefineMaxLevel() {
-		return nil, out, fmt.Errorf("锻造等级已达上限 +%d", RefineMaxLevel())
+		return nil, out, Refuse(RefusalLimit, "锻造等级已达上限 +%d", RefineMaxLevel())
 	}
 	count, ok := RefineMaterialCount(level)
 	if !ok {
-		return nil, out, fmt.Errorf("锻造等级 %d 取不到材料消耗", level)
+		return nil, out, Refuse(RefusalMaterials, "锻造等级 %d 取不到材料消耗", level)
 	}
 
 	// 扣材料：请求里只带一个材料槽。
@@ -311,11 +262,11 @@ func (s *WearService) applyRefine(role storage.Character, r protocol.RefineReque
 			continue
 		}
 		if !IsRefineMaterial(item.Template) {
-			return nil, out, fmt.Errorf("锻造材料槽位放的不是 %s（槽 %d 里是模板 %d，需要 %d）",
+			return nil, out, Refuse(RefusalMaterials, "锻造材料槽位放的不是 %s（槽 %d 里是模板 %d，需要 %d）",
 				refineRules.MaterialName, r.MaterialSlot, item.Template, refineRules.MaterialTemplate)
 		}
 		if item.Amount < count {
-			return nil, out, fmt.Errorf("锻造材料不足：需要 %d，持有 %d", count, item.Amount)
+			return nil, out, Refuse(RefusalMaterials, "锻造材料不足：需要 %d，持有 %d", count, item.Amount)
 		}
 		remaining = item.Amount - count
 		if remaining == 0 {
@@ -327,7 +278,7 @@ func (s *WearService) applyRefine(role storage.Character, r protocol.RefineReque
 		break
 	}
 	if !found {
-		return nil, out, fmt.Errorf("锻造材料不在背包里")
+		return nil, out, Refuse(RefusalItems, "锻造材料不在背包里")
 	}
 
 	// 判定成功率。

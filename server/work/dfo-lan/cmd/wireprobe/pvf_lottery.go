@@ -27,19 +27,15 @@ func preparePVFLottery(c *pvfCoreCatalogs, s *gamedata.Source, selected map[stri
 	if c.items == nil {
 		return fmt.Errorf("native lotteries require native item index")
 	}
-	p, err := catalog.ReadLotteryPolicy(i.lotteryPolicyPath)
+	direct, scope, err := s.DiscoverLottery(*c.items)
 	if err != nil {
 		return err
 	}
-	direct, err := s.Lottery(*c.items, p)
+	bound, err := buildLotteryItemCatalog(lotteryItemsFromSource(direct.Items), c.items.Items, false)
 	if err != nil {
 		return err
 	}
-	bound, err := newLotteryItemCatalog(lotteryItemsFromSource(direct.Items), c.items.Items)
-	if err != nil {
-		return err
-	}
-	if _, err := applyLotteryEquipmentPools(direct.Equipment, c.items.Items, bound); err != nil {
+	if _, err := bindLotteryEquipmentPools(direct.Equipment, c.items.Items, bound, false); err != nil {
 		return err
 	}
 	if i.checksBaselines() {
@@ -64,21 +60,24 @@ func preparePVFLottery(c *pvfCoreCatalogs, s *gamedata.Source, selected map[stri
 		}
 	}
 	c.lotteryTables = &direct
+	for _, issue := range scope.Issues {
+		log.Printf("PVF lottery unavailable: template=%d path=%s sha256=%s reason=%s", issue.Template, issue.Path, issue.SHA256, issue.Reason)
+	}
 	s.ReleaseReadCaches()
-	log.Printf("PVF lotteries prepared: item pools=%d equipment pools=%d; source odds and grantable server scope retained", len(direct.Items.Pools), len(direct.Equipment.Pools))
+	log.Printf("PVF lotteries discovered: candidates=%d item pools=%d equipment pools=%d unavailable=%d; complete source odds retained", scope.Candidates, len(direct.Items.Pools), len(direct.Equipment.Pools), len(scope.Issues))
 	return nil
 }
 
 func (c pvfCoreCatalogs) loadLotteryItems(path string, index map[uint32]ItemIndexInfo) (*lotteryItemCatalog, error) {
 	if c.lotteryTables != nil {
-		return newLotteryItemCatalog(lotteryItemsFromSource(c.lotteryTables.Items), index)
+		return buildLotteryItemCatalog(lotteryItemsFromSource(c.lotteryTables.Items), index, false)
 	}
 	return loadLotteryItemCatalog(path, index)
 }
 
 func (c pvfCoreCatalogs) loadLotteryEquipment(path string, index map[uint32]ItemIndexInfo, base *lotteryItemCatalog) (int, error) {
 	if c.lotteryTables != nil {
-		return applyLotteryEquipmentPools(c.lotteryTables.Equipment, index, base)
+		return bindLotteryEquipmentPools(c.lotteryTables.Equipment, index, base, false)
 	}
 	return loadLotteryEquipmentPools(path, index, base)
 }

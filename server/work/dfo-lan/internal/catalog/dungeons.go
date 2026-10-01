@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 )
 
@@ -37,6 +38,10 @@ type DungeonDefinition struct {
 	Script                   ScriptRecord `json:"script"`
 	MinimumLevel, BasisLevel uint32
 	Tutorial, NoFatigue      bool
+	// EnterFatigue 是源 [use fatigue only start dungeon] <N> 声明的**进本消耗**（only start = 进本只收一次）
+	// 0 表示源未声明该段，服务端回退本地策略或在策略里查 dungeon_enter_fatigue 兜底。
+	// 注意 [minimum enter fatigue] 是**门槛**而非消耗，不读它。
+	EnterFatigue uint16
 	Odyssey                  bool
 	DesignatedDifficulty     byte
 	HuntBoss                 uint32 // Source Odyssey [hunt boss] single-target completion.
@@ -95,6 +100,21 @@ type DungeonHellParty struct {
 	SeasonSealPosition [2]byte `json:"season_seal_position,omitempty"`
 }
 
+// DeclaredEnterFatigue 汇总源里声明了 [use fatigue only start dungeon] 的副本及其值，
+// 供启动日志与审计逐条核对。返回按副本号排序的 "id=值" 串；没有声明时返回空串。
+func (c *DungeonCatalog) DeclaredEnterFatigue() string {
+	if c == nil || len(c.Dungeons) == 0 {
+		return ""
+	}
+	parts := make([]string, 0, 8)
+	for id, d := range c.Dungeons {
+		if d.EnterFatigue > 0 {
+			parts = append(parts, fmt.Sprintf("%d=%d", id, d.EnterFatigue))
+		}
+	}
+	sort.Strings(parts)
+	return strings.Join(parts, " ")
+}
 type DungeonCatalog struct {
 	Source   pvf.ArchiveSnapshot          `json:"source"`
 	Dungeons map[uint32]DungeonDefinition `json:"dungeons"`
@@ -298,6 +318,12 @@ func ParseDungeon(id uint32, s ScriptRecord) (DungeonDefinition, error) {
 	}
 	if strings.Contains(strings.ToLower(strings.ReplaceAll(s.Path, "\\", "/")), "/poongjintrainingroom/") {
 		d.NoFatigue = true
+	}
+	// 进本消耗：源里 [use fatigue only start dungeon] N —— 该段紧随其后的闭标签，
+	// 所以 sectionCells 恰好只收到那一个数（实测容器的 [use fatigue start dungeon] 是另一种语义，不读）。
+	if enter := sectionCells(s.Cells, "[use fatigue only start dungeon]"); len(enter) == 1 &&
+		enter[0].Type == 0 && enter[0].Value > 0 && enter[0].Value <= 65535 {
+		d.EnterFatigue = uint16(enter[0].Value)
 	}
 	for i := 0; i < len(s.Cells); i++ {
 		if s.Cells[i].Type != 3 || s.Cells[i].Text != "[maze info]" {

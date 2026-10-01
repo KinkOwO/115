@@ -20,6 +20,17 @@ type equipmentSession struct {
 	pendingGoldDue  time.Time
 }
 
+// requestKey shares the session nonce; callers retain their operation prefixes.
+func (s *equipmentSession) requestKey(raw []byte) (string, error) {
+	if !s.initialized {
+		if _, e := rand.Read(s.nonce[:]); e != nil {
+			return "", e
+		}
+		s.initialized = true
+	}
+	return fmt.Sprintf("%x:%x", s.nonce, sha256.Sum256(raw)), nil
+}
+
 // takePendingGold 到点则取出待补发的金币包（未到点或没有则返回 nil）。
 func (s *equipmentSession) takePendingGold(now time.Time) []byte {
 	if len(s.pendingGoldBody) == 0 || now.Before(s.pendingGoldDue) {
@@ -43,13 +54,11 @@ func (s *equipmentSession) handle(service *inventory.WearService, w *worldSessio
 		return s.handleKnightShieldMove(service, w, r, raw)
 	}
 	if r.SourceList == 12 || r.DestinationList == 12 {
-		if !s.initialized {
-			if _, e = rand.Read(s.nonce[:]); e != nil {
-				return nil, e
-			}
-			s.initialized = true
+		key, e := s.requestKey(raw)
+		if e != nil {
+			return nil, e
 		}
-		return w.moveAccountVault(service, r, fmt.Sprintf("account-vault-move:%x:%x", s.nonce, sha256.Sum256(raw)))
+		return w.moveAccountVault(service, r, "account-vault-move:"+key)
 	}
 	// CMD19 carries every bag move, not only equipment. A move involving
 	// the personal vault (list 2) belongs to the vault path. A stack going onto
@@ -58,28 +67,24 @@ func (s *equipmentSession) handle(service *inventory.WearService, w *worldSessio
 	if plan, handled, e := w.moveVault(service.BagRules, r); handled {
 		return plan, e
 	}
-	if !s.initialized {
-		if _, e = rand.Read(s.nonce[:]); e != nil {
-			return nil, e
-		}
-		s.initialized = true
+	key, e := s.requestKey(raw)
+	if e != nil {
+		return nil, e
 	}
-	hash := sha256.Sum256(raw)
-	if plan, handled, e := w.movePetStack(service.BagRules, r, fmt.Sprintf("petmove:%x:%x", s.nonce, hash)); handled {
+	if plan, handled, e := w.movePetStack(service.BagRules, r, "petmove:"+key); handled {
 		return plan, e
 	}
 	// A stack going onto the quick-use belt belongs to the stackable path; anything it does not
 	// recognise falls through to the equipment move unchanged.
-	if plan, handled, e := w.moveStack(service.BagRules, r, fmt.Sprintf("bagmove:%x:%x", s.nonce, hash)); handled {
+	if plan, handled, e := w.moveStack(service.BagRules, r, "bagmove:"+key); handled {
 		return plan, e
 	}
 	// (20260918: the live-catalog warm block was removed together with the
 	// move-path PVF validation itself - the move no longer reads the gear
 	// catalog, so there is nothing to preheat.)
-	key := fmt.Sprintf("equipment:%x:%x", s.nonce, hash)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	saved, applied, e := service.Move(ctx, w.role, key, r)
+	saved, applied, e := service.Move(ctx, w.role, "equipment:"+key, r)
 	if e != nil {
 		return nil, e
 	}

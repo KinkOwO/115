@@ -9,7 +9,7 @@ import (
 )
 
 func (w *worldSession) buyItem(p []byte) ([]outboundPacket, error) {
-	if w == nil || w.role.ID == 0 || w.loot == nil {
+	if w == nil || w.role.ID == 0 || w.shop == nil {
 		return nil, fmt.Errorf("buy item before character selection")
 	}
 	r, e := protocol.DecodeBuyItem(p)
@@ -22,7 +22,7 @@ func (w *worldSession) buyItem(p []byte) ([]outboundPacket, error) {
 	if e != nil {
 		return nil, e
 	}
-	saved, receipt, applied, e := w.loot.Buy(ctx, w.role, r)
+	saved, receipt, applied, e := w.shop.Buy(ctx, w.role, r)
 	if e != nil {
 		return nil, e
 	}
@@ -60,7 +60,7 @@ func (w *worldSession) buyItem(p []byte) ([]outboundPacket, error) {
 	}
 	// ★ 材料支付可能扣的是**账号材料仓库**（space 35）里的共享晶块（3033..3037 等），
 	// 它们不在角色背包里 —— 补发 list35 面板，否则客户端晶块数量不会减少。
-	if raw, e := w.loot.Store.AccountMaterials(ctx, w.role.AccountID); e == nil {
+	if raw, e := w.shop.Store.AccountMaterials(ctx, w.role.AccountID); e == nil {
 		if m, e := inventory.ReadAccountMaterials(raw); e == nil {
 			if body, e := protocol.InventoryRestoreSpace(inventory.AccountMaterialSpace, m.Rows(inventory.AccountMaterialSpace)); e == nil {
 				plan = append(plan, outboundPacket{"shop_buy_account_materials", 0, 13, body})
@@ -71,7 +71,7 @@ func (w *worldSession) buyItem(p []byte) ([]outboundPacket, error) {
 }
 
 func (w *worldSession) sellItem(p []byte) ([]outboundPacket, error) {
-	if w == nil || w.role.ID == 0 || w.loot == nil {
+	if w == nil || w.role.ID == 0 || w.shop == nil {
 		return nil, fmt.Errorf("sell item before character selection")
 	}
 	r, e := protocol.DecodeSellItem(p)
@@ -84,7 +84,7 @@ func (w *worldSession) sellItem(p []byte) ([]outboundPacket, error) {
 	if e != nil {
 		return nil, e
 	}
-	saved, receipt, applied, e := w.loot.Sell(ctx, w.role, r)
+	saved, receipt, applied, e := w.shop.Sell(ctx, w.role, r)
 	if e != nil {
 		return nil, e
 	}

@@ -19,9 +19,9 @@ import (
 )
 
 type worldSession struct {
-	npcPresenceIndex    *npcpresence.Index
-	npcPresenceIndexErr error
-	lastFame            uint32
+	npcPresenceIndex       *npcpresence.Index
+	npcPresenceIndexErr    error
+	lastFame               uint32
 	fameInitialized        bool
 	moonConfig             *moonSoloConfig
 	moon                   moonSoloState
@@ -56,6 +56,7 @@ type worldSession struct {
 	quests           *quest.Service
 	progression      *character.ProgressionService
 	loot             *loot.Service
+	shop             *inventory.ShopService
 	selectionBoxes   *catalog.SelectionBoxes
 	vault            *inventory.VaultService
 

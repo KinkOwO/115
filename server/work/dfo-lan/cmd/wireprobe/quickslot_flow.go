@@ -98,16 +98,16 @@ func (w *worldSession) moveStack(rules inventory.BagRules,
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	service := *w.loot
+	bagCatalog := w.loot.Catalog
 	if w.vault != nil {
-		service.Catalog = w.vault.Catalog
+		bagCatalog = w.vault.Catalog
 	}
 	if w.loot.Currency != nil {
 		rules = w.loot.Currency.BagRules(rules)
 	}
 	// The candidate carries only the source-backed creation box in this
 	// extra category; do not widen the monster drop catalog to move it.
-	if service.Catalog.Items[10417789].StackableType == "[booster selection]" {
+	if bagCatalog.Items[10417789].StackableType == "[booster selection]" {
 		slots := make(map[string][2]uint16, len(rules.Slots)+1)
 		for k, v := range rules.Slots {
 			slots[k] = v
@@ -118,7 +118,7 @@ func (w *worldSession) moveStack(rules inventory.BagRules,
 		}
 		rules.Slots = slots
 	}
-	saved, _, applied, e := service.MoveStack(ctx, w.role, rules, r, key)
+	saved, _, applied, e := inventory.MoveStack(ctx, w.loot.Store, w.role, bagCatalog, rules, r, key)
 	if e != nil {
 		return nil, true, e
 	}

@@ -28,7 +28,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"log"
 	"net"
 	"os"
@@ -38,28 +37,6 @@ import (
 	"sync"
 	"time"
 )
-
-// envStrOr 读一个字符串环境变量；缺失时返回 fallback。
-func envStrOr(name, fallback string) string {
-	if v := os.Getenv(name); v != "" {
-		return v
-	}
-	return fallback
-}
-
-// envByteOr 读一个 0..255 的环境变量；缺失或非法时返回 fallback。
-// 装备库制作的应答里有几个单字节开关，做成 env 就能不改代码切换。
-func envByteOr(name string, fallback int) int {
-	v := os.Getenv(name)
-	if v == "" {
-		return fallback
-	}
-	n, e := strconv.Atoi(v)
-	if e != nil || n < 0 || n > 255 {
-		return fallback
-	}
-	return n
-}
 
 func main() {
 	moonConfigFile := flag.String("moon-solo-config", os.Getenv("DFO_MOON_SOLO_CONFIG"), "opt-in Moon Lake solo candidate, explicitly validated 2.38.3.25 profile")
@@ -83,7 +60,7 @@ func main() {
 	pvfCharacterPolicyPath := flag.String("pvf-character-policy", envStrOr("DFO_PVF_CHARACTER_POLICY", "configs/pvf-character-policy.json"), "saved source identity and default shortcut behavior; profession source fields from PVF")
 	pvfLayerRevisitPolicyPath := flag.String("pvf-layer-revisit-policy", envStrOr("DFO_PVF_LAYER_REVISIT_POLICY", "configs/pvf-layer-revisit-policy.json"), "verified layer revisit scope, record and cache restoration; source maps and landing from PVF")
 	pvfScriptWarpPolicyPath := flag.String("pvf-script-warp-policy", envStrOr("DFO_PVF_SCRIPT_WARP_POLICY", "configs/pvf-script-warp-policy.json"), "verified script warp scope and witnessed transition records; source routes from PVF")
-	pvfLotteryPolicyPath := flag.String("pvf-lottery-policy", envStrOr("DFO_PVF_LOTTERY_POLICY", "configs/pvf-lottery-policy.json"), "enabled and grantable lottery pool templates; source odds from PVF")
+	pvfLotteryPolicyPath := flag.String("pvf-lottery-policy", "", "deprecated compatibility flag; PVF lottery scope is discovered from source and this path is ignored")
 	pvfScenePolicyPath := flag.String("pvf-scene-policy", envStrOr("DFO_PVF_SCENE_POLICY", "configs/pvf-scene-policy.json"), "independent entry town and training dungeon selection; source rules from PVF")
 	pvfDropPolicy := flag.String("pvf-drop-policy", envStrOr("DFO_PVF_DROP_POLICY", "configs/pvf-drop-policy.json"), "existing basic equipment allowlist and maximum loot grade; source rules from PVF")
 	pvfCacheDefault := os.Getenv("DFO_PVF_CACHE_DIR")
@@ -161,36 +138,18 @@ func main() {
 	apocalypseCatalogFile := flag.String("apocalypse-catalog", "configs/apocalypse.generated.json", "compiled apocalypse.ctp table (phase clock, operations, gates, rewards, duty skills)")
 	attunementRewardsFile := flag.String("attunement-rewards", os.Getenv("DFO_ATTUNEMENT_REWARDS"), "boundary-of-attunement reward table generated from the source rewardboostinfo CTPs")
 	attunementRebalanceOn := flag.Bool("attunement-rebalance", os.Getenv("DFO_ATTUNEMENT_REBALANCE") == "1", "本私服的掉落调参（**与官服的显式差异**）：征兆「无事发生」减半、fixed 池低档按比例向高档倾斜。见 internal/loot/attunement_rebalance.go")
-	attunementFixedTiltDefault := 25
-	if v := os.Getenv("DFO_ATTUNEMENT_FIXED_TILT"); v != "" {
-		if n, convErr := strconv.Atoi(v); convErr == nil {
-			attunementFixedTiltDefault = n
-		}
-	}
+	attunementFixedTiltDefault := envIntOr("DFO_ATTUNEMENT_FIXED_TILT", 25)
 	attunementFixedTilt := flag.Int("attunement-fixed-tilt", attunementFixedTiltDefault, "固定池倾斜幅度：普通/稀有各减这么多百分比权重，减掉的按高档现有比例补（1..99）。0 = 不动固定池；只在 -attunement-rebalance 打开时生效")
 	boosterGageHide := flag.Bool("booster-gage-hide", os.Getenv("DFO_BOOSTER_GAGE") != "0", "send NOTI398 booster-gage with displayValue=0 on town entry to hide the top-left Liberation Trace panel; disable with -booster-gage-hide=false or DFO_BOOSTER_GAGE=0")
 	oathGrades := flag.String("oath-grades", os.Getenv("DFO_OATH_GRADES"), "诊断覆盖：固定下发的引子/誓约档位 primer,oath（见 oath_info.go）。留空 = 按角色穿戴的誓约/引子装备算，这是正常路径")
 	oathGradesTable := flag.String("oath-grades-table", os.Getenv("DFO_OATH_GRADES_TABLE"), "誓约/引子装备稀有度表（cmd/oathgradeimport 生成）；只在 -oath-grades-from-gear 打开时用")
 	oathFromGear := flag.Bool("oath-grades-from-gear", os.Getenv("DFO_OATH_GRADES_FROM_GEAR") == "1", "诊断：按角色穿戴的誓约/引子装备算档位（旧规则）。默认关 —— 客户端脱不下誓约槽，穿上 primeval 就永久 oath=45")
-	oathProgressClearsDefault := oathDefaultProgressClears
-	if v := os.Getenv("DFO_OATH_PROGRESS_CLEARS"); v != "" {
-		if n, convErr := strconv.Atoi(v); convErr == nil {
-			oathProgressClearsDefault = n
-		}
-	}
-	oathProgressDungeonSpec := os.Getenv("DFO_OATH_PROGRESS_DUNGEONS")
-	if oathProgressDungeonSpec == "" {
-		oathProgressDungeonSpec = oathDefaultProgressDungeons
-	}
+	oathProgressClearsDefault := envIntOr("DFO_OATH_PROGRESS_CLEARS", oathDefaultProgressClears)
+	oathProgressDungeonSpec := envStrOr("DFO_OATH_PROGRESS_DUNGEONS", oathDefaultProgressDungeons)
 	oathProgressClears := flag.Int("oath-progress-clears", oathProgressClearsDefault, "隐藏 BOSS 的保底场次：-oath-progress-dungeons 里的副本通关这么多场后，下一场下发 oath=45（必出一次）并在通关时归零；<=0 关闭保底")
 	oathProgressDungeons := flag.String("oath-progress-dungeons", oathProgressDungeonSpec, "计入保底的副本号，逗号分隔（默认只有小深渊 100005014）")
 	oathInject := flag.String("oath-inject", os.Getenv("DFO_OATH_INJECT"), "诊断用：向客户端注入任意 noti 的候选列表，形式 id:size:fill;off:val,...（见 oath_probe.go）；默认空 = 关闭")
-	omenHoldDefault := -1
-	if v := os.Getenv("DFO_OMEN_HOLD"); v != "" {
-		if n, convErr := strconv.Atoi(v); convErr == nil {
-			omenHoldDefault = n
-		}
-	}
+	omenHoldDefault := envIntOr("DFO_OMEN_HOLD", -1)
 	omenHold := flag.Int("omen-hold", omenHoldDefault, "诊断：把玩家直接放到指定征兆阶段(0-4)，-1 = 不动；-omen-state 打开时会写回角色存档")
 	omenRewards := flag.Bool("omen-rewards", os.Getenv("DFO_OMEN_REWARDS") == "1", "千海之空深渊的征兆系统：通关时按 [coupon drop table] 的阶段表累积并结算（见 internal/loot/omen.go）。默认关闭")
 	omenInfo := flag.String("omen-info", os.Getenv("DFO_OMEN_INFO"), "诊断：直接指定 noti 2836「征兆队伍状态」的 69 字节载荷，用来点亮征兆 UI 并实测字段语义。写法见 cmd/wireprobe/omen_info.go；留空 = 按角色存档里的真实档数生成（需 -omen-state）")
@@ -544,6 +503,7 @@ func main() {
 	var dungeonCatalog *catalog.DungeonCatalog
 	var progressionService *character.ProgressionService
 	var lootService *loot.Service
+	var shopService *inventory.ShopService
 	// journalRules 是装备库规则（nil = 不登记）。它同时被 CMD26 的事务与入场 2610 用到，
 	// 所以在这里声明、在 loot 块里装载。
 	var journalRules *catalog.EquipmentJournalRules
@@ -862,6 +822,23 @@ func main() {
 		}
 		dungeonCatalog = &data
 	}
+	// 疲劳的**进本消耗**来自源（[use fatigue only start dungeon]）；当前客户端脚本里已查不到该段，
+	// 所以内容策略给实测值兜底。进本准入与记费共用这一口径（character.FatigueService.EnterCostFor）。
+	if fatigueService != nil && dungeonCatalog != nil {
+		dc := dungeonCatalog
+		var enterOverrides map[uint32]uint16
+		if policy, e := readPVFContentPolicy(*pvfContentPolicyPath); e == nil {
+			enterOverrides = policy.DungeonEnterFatigue
+		} else {
+			log.Printf("warning: dungeon enter-fatigue policy unavailable (%v)", e)
+		}
+		fatigueService.EnterFatigueOf = func(dungeonID uint32) uint16 {
+			if d, ok := dc.Dungeons[dungeonID]; ok && d.EnterFatigue > 0 {
+				return d.EnterFatigue
+			}
+			return enterOverrides[dungeonID]
+		}
+	}
 	if *progressionCatalogFile != "" || pvfCatalogs.progression != nil {
 		if characters == nil || dungeonCatalog == nil {
 			log.Fatal("progression requires source characters and dungeon sessions")
@@ -1029,7 +1006,8 @@ func main() {
 			log.Printf("loaded equipment create cost: groups=%d itemRows=%d templates=%d",
 				len(cc.Groups), items, len(cc.Templates()))
 		}
-		lootService = &loot.Service{Store: characters.Store, Catalog: c, DropCatalog: dropCatalog, Rules: r, BagRules: bag, Tables: tables, Equipment: gear, Journal: journalRules, CreateCost: equipmentCreateCost, ItemMaterials: itemMaterials}
+		lootService = &loot.Service{Store: characters.Store, Catalog: c, DropCatalog: dropCatalog, Rules: r, BagRules: bag, Tables: tables, Equipment: gear, Journal: journalRules, CreateCost: equipmentCreateCost}
+		shopService = &inventory.ShopService{Store: characters.Store, Catalog: c, EventModel: r.Model, BagRules: bag, ItemMaterials: itemMaterials}
 		minePath := *bleedingMineRewardsFile
 		if minePath == "" {
 			minePath = filepath.Join(filepath.Dir(lootPath), "bleeding-mine-rewards.json")
@@ -1051,11 +1029,11 @@ func main() {
 			pricesPath = filepath.Join(filepath.Dir(lootPath), "shop-prices.json")
 		}
 		if _, err := os.Stat(pricesPath); err == nil || *shopPricesFile != "" || pvfCatalogs.prices != nil {
-			lootService.Prices, e = pvfCatalogs.loadShopPrices(pricesPath, c.Source.Checksum)
+			shopService.Prices, e = pvfCatalogs.loadShopPrices(pricesPath, c.Source.Checksum)
 			if e != nil {
 				log.Fatal(e)
 			}
-			log.Printf("loaded %d source NPC prices from %s", len(lootService.Prices.Items), pricesPath)
+			log.Printf("loaded %d source NPC prices from %s", len(shopService.Prices.Items), pricesPath)
 		} else {
 			log.Printf("warning: no source NPC prices (%s); gold purchases and sales are refused", pricesPath)
 		}
@@ -1438,8 +1416,8 @@ func main() {
 	}
 	if itemShops == nil {
 		log.Printf("warning: no item shop catalog; material-priced purchases cannot be resolved")
-	} else if lootService != nil {
-		lootService.ItemShops = itemShops
+	} else if shopService != nil {
+		shopService.ItemShops = itemShops
 	}
 	// 章节盒掉落（手册 P3 子项 3）。整表默认 enabled=false；只有 profile 显式开启
 	// 才会叠加目录与槽位，未开启时连掷骰种子都不消耗。
@@ -1760,7 +1738,7 @@ func main() {
 			if questService != nil && townArrivalScenes == nil {
 				log.Fatal("town arrival scene whitelist was not passed to world sessions")
 			}
-			worldState = &worldSession{characters: characters, service: worldService, account: developmentAccount, flags: townPolicy.Flags, dungeons: dungeonCatalog, townArrivalScenes: townArrivalScenes, tutorials: tutorialRoutes, tutorialDungeons: tutorialDungeons, professions: characters.Catalog, fatigue: fatigueService, quests: questService, progression: progressionService, loot: lootService, selectionBoxes: selectionBoxes, vault: vaultService, skinCatalog: skinCatalog, soloPartyBootstrap: *soloPartyBootstrap, hub: hub, scaleDeathFromHP: *scaleDeathFromHP, oathGrades: oathGradePair, oathTable: oathGradeTable, oathFromGear: *oathFromGear, oathProgressClears: *oathProgressClears, oathProgressDungeons: oathProgressSet, oathInject: oathInjectSpecs, omenHold: *omenHold, omenState: *omenState, omenInfo: omenInfoBytes}
+			worldState = &worldSession{characters: characters, service: worldService, account: developmentAccount, flags: townPolicy.Flags, dungeons: dungeonCatalog, townArrivalScenes: townArrivalScenes, tutorials: tutorialRoutes, tutorialDungeons: tutorialDungeons, professions: characters.Catalog, fatigue: fatigueService, quests: questService, progression: progressionService, loot: lootService, shop: shopService, selectionBoxes: selectionBoxes, vault: vaultService, skinCatalog: skinCatalog, soloPartyBootstrap: *soloPartyBootstrap, hub: hub, scaleDeathFromHP: *scaleDeathFromHP, oathGrades: oathGradePair, oathTable: oathGradeTable, oathFromGear: *oathFromGear, oathProgressClears: *oathProgressClears, oathProgressDungeons: oathProgressSet, oathInject: oathInjectSpecs, omenHold: *omenHold, omenState: *omenState, omenInfo: omenInfoBytes}
 			worldState.serverID = channelCfg.ServerID
 			worldState.channelType = channelTypes[channel]
 			if moonConfig != nil && channel == moonConfig.Channel {
@@ -1770,21 +1748,28 @@ func main() {
 		if worldState != nil {
 			defer worldState.departArea()
 		}
-		var writeMu sync.Mutex
-		sendPayload := func(kind byte, id uint16, payload []byte) error {
-			writeMu.Lock()
-			defer writeMu.Unlock()
-			prepared, e := preparePackets(keys, []outboundPacket{{"response", kind, id, payload}})
-			if e != nil {
-				event(map[string]any{"kind": "response_encode_error", "peer": peer, "error": e.Error()})
-				return e
-			}
-			c.SetWriteDeadline(time.Now().Add(5 * time.Second))
-			e = writePackets(c, prepared, nil)
-			if e != nil {
-				event(map[string]any{"kind": "response_write_error", "peer": peer, "error": e.Error()})
-			}
-			return e
+		output := newConnectionOutput(c, keys, peer, event)
+		sendPayload := output.send
+		sendPlan := func(plan []outboundPacket, sent func(outboundPacket)) error {
+			return sendPacketPlan(plan, sendPayload, sent)
+		}
+		logCharacterResponseBody := func(p outboundPacket) {
+			event(map[string]any{"kind": p.Name, "id": p.ID, "plain_hex": hex.EncodeToString(p.Payload), "character_id": selectedCharacterID})
+		}
+		logCharacterResponse := func(p outboundPacket) {
+			event(map[string]any{"kind": p.Name, "id": p.ID, "character_id": selectedCharacterID})
+		}
+		logWorldResponseBody := func(p outboundPacket) {
+			event(map[string]any{"kind": p.Name, "id": p.ID, "character_id": worldState.role.ID, "plain_hex": hex.EncodeToString(p.Payload)})
+		}
+		logResponseBody := func(p outboundPacket) {
+			event(map[string]any{"kind": p.Name, "id": p.ID, "plain_hex": hex.EncodeToString(p.Payload)})
+		}
+		logWorldResponse := func(p outboundPacket) {
+			event(map[string]any{"kind": p.Name, "character_id": worldState.role.ID, "id": p.ID})
+		}
+		logWorldAction := func(p outboundPacket) {
+			event(map[string]any{"kind": p.Name, "character_id": worldState.role.ID})
 		}
 		sendServerTime := func(reason string) error {
 			now := time.Now()
@@ -1799,116 +1784,68 @@ func main() {
 			event(map[string]any{"kind": "server_time_sent", "id": 1960, "reason": reason, "unix_seconds": now.Unix(), "plain_hex": hex.EncodeToString(payload)})
 			return nil
 		}
-		sendRosterBackgrounds := func() error {
-			if characters == nil {
-				return nil
-			}
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			state, e := characters.Store.RosterBackgrounds(ctx, developmentAccount)
-			if e != nil {
-				event(map[string]any{"kind": "roster_background_restore_error", "error": e.Error()})
-				return e
-			}
-			payload, e := protocol.RosterBackgroundRestore(state)
-			if e != nil {
-				return e
-			}
-			if e = sendPayload(0, 1759, payload); e != nil {
-				return e
-			}
-			event(map[string]any{"kind": "roster_background_restored", "selected": state.Selected, "owned_count": len(state.Owned)})
-			return nil
-		}
 		event(map[string]any{"kind": "accept", "peer": peer})
-		c.SetWriteDeadline(time.Now().Add(5 * time.Second))
-		if _, err := io.Copy(c, bytes.NewReader(raw)); err != nil {
+		if err := output.writeRaw(raw); err != nil {
 			event(map[string]any{"kind": "write_error", "error": err.Error()})
 			return
 		}
 		event(map[string]any{"kind": "server_frame", "peer": peer, "hex": hex.EncodeToString(raw)})
-		done := make(chan struct{})
-		defer close(done)
-		frames := clientFrames(c, done)
-		mailChanges := make(chan struct{}, 1)
-		// GM 为独立进程，无法调用本进程的 lanHub；定期从已提交邮件补齐提醒。
-		mailTicker := time.NewTicker(2 * time.Second)
-		defer mailTicker.Stop()
+		connection := newConnectionSession(worldState != nil && worldState.moonConfig != nil)
+		defer connection.close()
+		frames := clientFrames(c, connection.done)
+		mailChanges := connection.mailChanges
 		var mailAlarmRole, mailDeliveryID int64
-		ticker := time.NewTicker(30 * time.Second)
-		defer ticker.Stop()
-		mineTicker := time.NewTicker(time.Second)
-		defer mineTicker.Stop()
-		var moonTicks <-chan time.Time
-		if worldState != nil && worldState.moonConfig != nil {
-			mt := time.NewTicker(250 * time.Millisecond)
-			defer mt.Stop()
-			moonTicks = mt.C
-		}
 		for {
 			var incoming clientRead
 			select {
 			case incoming = <-frames:
-			case now := <-mineTicker.C:
+			case now := <-connection.mineTicker.C:
 				if bootstrapped && selectedCharacterID != 0 && worldState != nil {
 					cardPackets, cardErr := worldState.autoPickBlackPurgatoryCard(now)
 					if cardErr != nil {
 						event(map[string]any{"kind": "黑鸦自动翻牌待重试", "character_id": selectedCharacterID, "error": cardErr.Error()})
 					}
-					for _, packet := range cardPackets {
-						if err := sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
-							return
-						}
-						event(map[string]any{"kind": packet.Name, "id": packet.ID, "character_id": selectedCharacterID, "plain_hex": hex.EncodeToString(packet.Payload)})
+					if sendPlan(cardPackets, logCharacterResponseBody) != nil {
+						return
 					}
 					quotaPackets, quotaErr := worldState.refreshBlackPurgatoryQuota(now)
 					if quotaErr != nil {
 						event(map[string]any{"kind": "黑鸦次数同步失败", "error": quotaErr.Error()})
 					}
-					for _, packet := range quotaPackets {
-						if err := sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
-							return
-						}
-						event(map[string]any{"kind": packet.Name, "id": packet.ID, "plain_hex": hex.EncodeToString(packet.Payload), "character_id": selectedCharacterID})
+					if sendPlan(quotaPackets, logCharacterResponseBody) != nil {
+						return
 					}
 					packets, err := worldState.bleedingMineTimeout(now)
 					if err != nil {
 						event(map[string]any{"kind": "赤红铁矿超时退出失败", "error": err.Error()})
 					}
-					for _, packet := range packets {
-						if err := sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
-							return
-						}
-						event(map[string]any{"kind": packet.Name, "id": packet.ID, "plain_hex": hex.EncodeToString(packet.Payload), "character_id": selectedCharacterID})
+					if sendPlan(packets, logCharacterResponseBody) != nil {
+						return
 					}
 					// 超时只打开矿区失败选项，保留会话供结束探索或放弃处理。
 					packets, err = worldState.blackPurgatoryTimeout(now)
 					if err != nil {
 						event(map[string]any{"kind": "黑鸦超时退出失败", "error": err.Error()})
 					}
-					for _, packet := range packets {
-						if err := sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
-							return
-						}
-						event(map[string]any{"kind": packet.Name, "id": packet.ID, "character_id": selectedCharacterID})
+					if sendPlan(packets, logCharacterResponse) != nil {
+						return
 					}
 				}
 				continue
-			case now := <-moonTicks:
+			case now := <-connection.moonTicks():
 				if bootstrapped && selectedCharacterID != 0 {
 					packets, e := worldState.moonTick(now)
 					if e != nil {
 						event(map[string]any{"kind": "moon_tick_error", "error": e.Error()})
 					}
-					for _, packet := range packets {
-						if e := sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
-							return
-						}
+					if sendPlan(packets, func(packet outboundPacket) {
 						event(map[string]any{"kind": packet.Name, "id": packet.ID})
+					}) != nil {
+						return
 					}
 				}
 				continue
-			case <-mailTicker.C:
+			case <-connection.mailTicker.C:
 				select {
 				case mailChanges <- struct{}{}:
 				default:
@@ -1922,13 +1859,12 @@ func main() {
 					if adventureErr != nil {
 						event(map[string]any{"kind": "adventure_refresh_error", "reason": adventureErr.Error()})
 					} else {
-						for _, packet := range adventurePackets {
-							if err := sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
-								return
-							}
+						if sendPlan(adventurePackets, func(packet outboundPacket) {
 							if packet.ID == 2799 {
 								event(map[string]any{"kind": "season_level_synced", "character_id": selectedCharacterID, "attempt": "2/3（源阶段及领奖reader已核实）", "id": packet.ID, "plain_hex": hex.EncodeToString(packet.Payload)})
 							}
+						}) != nil {
+							return
 						}
 					}
 					mailCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -1946,7 +1882,7 @@ func main() {
 					}
 				}
 				continue
-			case now := <-ticker.C:
+			case now := <-connection.dailyTicker.C:
 				if bootstrapped && selectedCharacterID != 0 && worldState != nil {
 					p, e := worldState.refreshDailyFatigue(now)
 					if e != nil {
@@ -1964,10 +1900,8 @@ func main() {
 					if loyaltyErr != nil {
 						event(map[string]any{"kind": "creature_loyalty_error", "character_id": selectedCharacterID, "error": loyaltyErr.Error()})
 					} else {
-						for _, packet := range loyaltyPackets {
-							if e := sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
-								return
-							}
+						if sendPlan(loyaltyPackets, nil) != nil {
+							return
 						}
 					}
 				}
@@ -2056,11 +1990,8 @@ func main() {
 					event(map[string]any{"kind": "赤红铁矿创建失败", "id": frame.ID, "error": err.Error()})
 					continue
 				}
-				for _, packet := range packets {
-					if err := sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
-						return
-					}
-					event(map[string]any{"kind": packet.Name, "id": packet.ID, "character_id": worldState.role.ID, "plain_hex": hex.EncodeToString(packet.Payload)})
+				if sendPlan(packets, logWorldResponseBody) != nil {
+					return
 				}
 				continue
 			}
@@ -2076,11 +2007,10 @@ func main() {
 					}
 					continue
 				}
-				for _, packet := range packets {
-					if err := sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
-						return
-					}
+				if sendPlan(packets, func(packet outboundPacket) {
 					event(map[string]any{"kind": packet.Name, "id": packet.ID, "character_id": worldState.role.ID, "plain_hex": hex.EncodeToString(packet.Payload), "attempt": "1/3，保存请求与原生通知读取链已核对"})
+				}) != nil {
+					return
 				}
 				continue
 			}
@@ -2104,8 +2034,7 @@ func main() {
 					}
 					continue
 				}
-				c.SetWriteDeadline(time.Now().Add(5 * time.Second))
-				if err := writePackets(c, prepared, func(packet preparedPacket) {
+				if err := output.writePrepared(prepared, func(packet preparedPacket) {
 					event(map[string]any{"kind": packet.Name, "id": packet.ID, "character_id": worldState.role.ID,
 						"plain_hex": hex.EncodeToString(packet.Payload)})
 				}); err != nil {
@@ -2130,8 +2059,7 @@ func main() {
 						event(map[string]any{"kind": "黑鸦响应编码失败", "error": err.Error()})
 						return
 					}
-					c.SetWriteDeadline(time.Now().Add(5 * time.Second))
-					if err := writePackets(c, prepared, func(packet preparedPacket) {
+					if err := output.writePrepared(prepared, func(packet preparedPacket) {
 						event(map[string]any{"kind": packet.Name, "id": packet.ID, "character_id": selectedCharacterID,
 							"plain_hex": hex.EncodeToString(packet.Payload)})
 					}); err != nil {
@@ -2145,11 +2073,10 @@ func main() {
 						event(map[string]any{"kind": "moon_request_rejected", "id": frame.ID, "error": e.Error()})
 						packets = moonRefusal(frame.ID, plaintext)
 					}
-					for _, packet := range packets {
-						if e := sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
-							return
-						}
+					if sendPlan(packets, func(packet outboundPacket) {
 						event(map[string]any{"kind": packet.Name, "id": packet.ID})
+					}) != nil {
+						return
 					}
 					continue
 				}
@@ -2188,11 +2115,8 @@ func main() {
 							return
 						}
 						event(map[string]any{"kind": "cera_purchase_committed", "order": receipt.Order, "character_id": selectedCharacterID, "applied": applied, "charged": receipt.Charged, "before": receipt.Before, "after": receipt.After, "deliveries": receipt.Deliveries})
-						for _, p := range packets {
-							if err := sendPayload(p.Kind, p.ID, p.Payload); err != nil {
-								return
-							}
-							event(map[string]any{"kind": p.Name, "id": p.ID, "plain_hex": hex.EncodeToString(p.Payload)})
+						if sendPlan(packets, logResponseBody) != nil {
+							return
 						}
 						continue
 					}
@@ -2252,11 +2176,8 @@ func main() {
 					continue
 				}
 				event(map[string]any{"kind": "radiant_box_opened", "character_id": selectedCharacterID, "box": box, "mode": request.Mode, "opened": count})
-				for _, p := range packets {
-					if err := sendPayload(p.Kind, p.ID, p.Payload); err != nil {
-						return
-					}
-					event(map[string]any{"kind": p.Name, "id": p.ID, "plain_hex": hex.EncodeToString(p.Payload)})
+				if sendPlan(packets, logResponseBody) != nil {
+					return
 				}
 				continue
 			}
@@ -2269,11 +2190,8 @@ func main() {
 					_ = sendPayload(1, frame.ID, []byte{0})
 					continue
 				}
-				for _, p := range packets {
-					if err := sendPayload(p.Kind, p.ID, p.Payload); err != nil {
-						return
-					}
-					event(map[string]any{"kind": p.Name, "id": p.ID, "plain_hex": hex.EncodeToString(p.Payload)})
+				if sendPlan(packets, logResponseBody) != nil {
+					return
 				}
 				event(map[string]any{"kind": "creature_hatch_success", "character_id": selectedCharacterID})
 				continue
@@ -2295,11 +2213,8 @@ func main() {
 					event(map[string]any{"kind": "booster_action_refused", "id": frame.ID, "reason": e.Error()})
 					plan = []outboundPacket{{"booster_action_refused_ack", 1, frame.ID, boosterActionRefusal(frame.ID)}}
 				}
-				for _, packet := range plan {
-					if sendPayload(packet.Kind, packet.ID, packet.Payload) != nil {
-						return
-					}
-					event(map[string]any{"kind": packet.Name, "id": packet.ID, "character_id": selectedCharacterID, "plain_hex": hex.EncodeToString(packet.Payload)})
+				if sendPlan(plan, logCharacterResponseBody) != nil {
+					return
 				}
 				continue
 			}
@@ -2317,11 +2232,8 @@ func main() {
 					event(map[string]any{"kind": "lottery_item_refused", "character_id": selectedCharacterID, "reason": e.Error()})
 					plan = []outboundPacket{{"lottery_item_refused_ack", 1, 27, protocol.Refusal(4)}}
 				}
-				for _, packet := range plan {
-					if sendPayload(packet.Kind, packet.ID, packet.Payload) != nil {
-						return
-					}
-					event(map[string]any{"kind": packet.Name, "id": packet.ID, "character_id": selectedCharacterID, "plain_hex": hex.EncodeToString(packet.Payload)})
+				if sendPlan(plan, logCharacterResponseBody) != nil {
+					return
 				}
 				continue
 			}
@@ -2337,11 +2249,8 @@ func main() {
 					}
 					continue
 				}
-				for _, packet := range plan {
-					if e := sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
-						return
-					}
-					event(map[string]any{"kind": packet.Name, "character_id": selectedCharacterID, "id": packet.ID, "plain_hex": hex.EncodeToString(packet.Payload)})
+				if sendPlan(plan, logCharacterResponseBody) != nil {
+					return
 				}
 				continue
 			}
@@ -2389,7 +2298,7 @@ func main() {
 					if err = sendPayload(1, 2177, protocol.Refusal(4)); err != nil {
 						return
 					}
-				} else if err = writePackets(c, packets, func(p preparedPacket) {
+				} else if err = output.writePrepared(packets, func(p preparedPacket) {
 					event(map[string]any{"kind": p.Name, "id": p.ID, "plain_hex": hex.EncodeToString(p.Payload)})
 				}); err != nil {
 					return
@@ -2405,7 +2314,7 @@ func main() {
 					if err = sendPayload(1, frame.ID, protocol.Refusal(advancementRefusalCode(err))); err != nil {
 						return
 					}
-				} else if err = writePackets(c, packets, func(p preparedPacket) {
+				} else if err = output.writePrepared(packets, func(p preparedPacket) {
 					event(map[string]any{"kind": p.Name, "id": p.ID, "plain_hex": hex.EncodeToString(p.Payload)})
 				}); err != nil {
 					return
@@ -2419,7 +2328,7 @@ func main() {
 					if err = sendPayload(1, 451, protocol.Refusal(4)); err != nil {
 						return
 					}
-				} else if err = writePackets(c, packets, func(p preparedPacket) {
+				} else if err = output.writePrepared(packets, func(p preparedPacket) {
 					event(map[string]any{"kind": p.Name, "id": p.ID, "plain_hex": hex.EncodeToString(p.Payload)})
 				}); err != nil {
 					return
@@ -2448,11 +2357,10 @@ func main() {
 					note["request_hex"] = legionHex
 					event(note)
 				}
-				for _, packet := range legionPlan.Packets {
-					if err := sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
-						return
-					}
+				if sendPlan(legionPlan.Packets, func(packet outboundPacket) {
 					event(map[string]any{"kind": packet.Name, "id": packet.ID, "character_id": worldState.role.ID, "request_bytes": legionBytes, "request_hex": legionHex, "plain_hex": hex.EncodeToString(packet.Payload)})
+				}) != nil {
+					return
 				}
 				continue
 			}
@@ -2472,7 +2380,7 @@ func main() {
 					event(map[string]any{"kind": "账号金库回包编码失败", "reason": err.Error()})
 					return
 				}
-				if err = writePackets(c, prepared, func(p preparedPacket) {
+				if err = output.writePrepared(prepared, func(p preparedPacket) {
 					event(map[string]any{"kind": p.Name, "id": p.ID, "character_id": selectedCharacterID, "plain_hex": hex.EncodeToString(p.Payload)})
 				}); err != nil {
 					return
@@ -2494,7 +2402,7 @@ func main() {
 				if err != nil {
 					return
 				}
-				if writePackets(c, prepared, func(p preparedPacket) {
+				if output.writePrepared(prepared, func(p preparedPacket) {
 					event(map[string]any{"kind": p.Name, "id": p.ID, "plain_hex": hex.EncodeToString(p.Payload)})
 				}) != nil {
 					return
@@ -2515,12 +2423,11 @@ func main() {
 						"character_id": selectedCharacterID, "reason": eskErr.Error()})
 					continue
 				}
-				for _, packet := range plan {
-					if e := sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
-						return
-					}
+				if sendPlan(plan, func(packet outboundPacket) {
 					event(map[string]any{"kind": packet.Name, "id": packet.ID,
 						"payload_bytes": len(packet.Payload)})
+				}) != nil {
+					return
 				}
 				continue
 			}
@@ -2532,11 +2439,8 @@ func main() {
 					event(map[string]any{"kind": "oath_selection_rejected", "character_id": selectedCharacterID, "reason": oathErr.Error()})
 					continue
 				}
-				for _, packet := range plan {
-					if err = sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
-						return
-					}
-					event(map[string]any{"kind": packet.Name, "character_id": selectedCharacterID, "id": packet.ID, "plain_hex": hex.EncodeToString(packet.Payload)})
+				if sendPlan(plan, logCharacterResponseBody) != nil {
+					return
 				}
 				continue
 			}
@@ -2554,11 +2458,10 @@ func main() {
 				}
 				event(map[string]any{"kind": "knight_deck_acknowledged", "type": 1, "id": 649, "payload_bytes": 3})
 				if deckErr == nil {
-					for _, packet := range plan {
-						if sendErr := sendPayload(packet.Kind, packet.ID, packet.Payload); sendErr != nil {
-							return
-						}
+					if sendPlan(plan, func(packet outboundPacket) {
 						event(map[string]any{"kind": packet.Name, "type": packet.Kind, "id": packet.ID, "payload_bytes": len(packet.Payload), "plain_hex": hex.EncodeToString(packet.Payload)})
+					}) != nil {
+						return
 					}
 				}
 				continue
@@ -2635,7 +2538,7 @@ func main() {
 					event(map[string]any{"kind": "equipment_encode_error", "error": e.Error()})
 					return
 				}
-				if e = writePackets(c, prepared, func(p preparedPacket) {
+				if e = output.writePrepared(prepared, func(p preparedPacket) {
 					event(map[string]any{"kind": p.Name, "character_id": worldState.role.ID, "type": p.Kind, "id": p.ID, "payload_bytes": len(p.Payload), "plain_hex": hex.EncodeToString(p.Payload)})
 				}); e != nil {
 					event(map[string]any{"kind": "equipment_write_error", "error": e.Error()})
@@ -2675,7 +2578,7 @@ func main() {
 					event(map[string]any{"kind": "item_sort_encode_error", "error": e.Error()})
 					return
 				}
-				if e = writePackets(c, prepared, func(p preparedPacket) {
+				if e = output.writePrepared(prepared, func(p preparedPacket) {
 					event(map[string]any{"kind": p.Name, "character_id": worldState.role.ID, "id": p.ID, "plain_hex": hex.EncodeToString(p.Payload)})
 				}); e != nil {
 					event(map[string]any{"kind": "item_sort_write_error", "error": e.Error()})
@@ -2754,11 +2657,8 @@ func main() {
 					}
 					continue
 				}
-				for _, packet := range packets {
-					if err = sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
-						return
-					}
-					event(map[string]any{"kind": packet.Name, "id": packet.ID, "character_id": selectedCharacterID})
+				if sendPlan(packets, logCharacterResponse) != nil {
+					return
 				}
 				continue
 			}
@@ -2785,11 +2685,8 @@ func main() {
 				if recipient != 0 && hub != nil {
 					hub.notifyMailbox(recipient)
 				}
-				for _, packet := range packets {
-					if err := sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
-						return
-					}
-					event(map[string]any{"kind": packet.Name, "character_id": selectedCharacterID, "id": packet.ID, "plain_hex": hex.EncodeToString(packet.Payload)})
+				if sendPlan(packets, logCharacterResponseBody) != nil {
+					return
 				}
 				// CMD95/134 原生回调会更新附件与已读/删除状态，不再发送 NOTI99。
 				// NOTI99 会重新请求 CMD96；NOTI97 全量恢复经 0x145FCF970 销毁旧
@@ -2807,11 +2704,8 @@ func main() {
 					event(map[string]any{"kind": "special_warp_rejected", "reason": err.Error()})
 					continue
 				}
-				for _, packet := range plan {
-					if err := sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
-						return
-					}
-					event(map[string]any{"kind": packet.Name, "character_id": selectedCharacterID, "id": packet.ID, "plain_hex": hex.EncodeToString(packet.Payload)})
+				if sendPlan(plan, logCharacterResponseBody) != nil {
+					return
 				}
 				continue
 			}
@@ -3259,11 +3153,8 @@ func main() {
 					event(map[string]any{"kind": "skill_refused", "id": frame.ID, "reason": e.Error()})
 					plan = []outboundPacket{{"skill_refused_response", 1, frame.ID, protocol.Refusal(4)}}
 				}
-				for _, packet := range plan {
-					if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
-						return
-					}
-					event(map[string]any{"kind": packet.Name, "id": packet.ID, "character_id": selectedCharacterID, "plain_hex": hex.EncodeToString(packet.Payload)})
+				if sendPlan(plan, logCharacterResponseBody) != nil {
+					return
 				}
 				continue
 			}
@@ -3349,11 +3240,10 @@ func main() {
 				// 城镇丢弃、非材料物品等请求继续由通用删除路径处理。
 				plan, e := worldState.deleteSkillMaterial(plaintext, frame.Raw)
 				if e == nil {
-					for _, packet := range plan {
-						if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
-							return
-						}
+					if sendPlan(plan, func(packet outboundPacket) {
 						event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID, "plain_hex": hex.EncodeToString(packet.Payload)})
+					}) != nil {
+						return
 					}
 					continue
 				}
@@ -3372,11 +3262,10 @@ func main() {
 					event(map[string]any{"kind": "item_delete_refusal_sent", "character_id": worldState.role.ID, "plain_hex": hex.EncodeToString(reply)})
 					continue
 				}
-				for _, packet := range plan {
-					if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
-						return
-					}
+				if sendPlan(plan, func(packet outboundPacket) {
 					event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID, "plain_hex": hex.EncodeToString(packet.Payload)})
+				}) != nil {
+					return
 				}
 				continue
 			}
@@ -3397,11 +3286,8 @@ func main() {
 						}
 						continue
 					}
-					for _, packet := range packets {
-						if err = sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
-							return
-						}
-						event(map[string]any{"kind": packet.Name, "character_id": selectedCharacterID, "id": packet.ID})
+					if sendPlan(packets, logCharacterResponse) != nil {
+						return
 					}
 					continue
 				}
@@ -3417,11 +3303,8 @@ func main() {
 						event(map[string]any{"kind": "背景券使用被拒绝", "character_id": worldState.role.ID, "reason": e.Error()})
 						continue
 					}
-					for _, packet := range packets {
-						if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
-							return
-						}
-						event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID, "id": packet.ID, "plain_hex": hex.EncodeToString(packet.Payload)})
+					if sendPlan(packets, logWorldResponseBody) != nil {
+						return
 					}
 					continue
 				}
@@ -3431,11 +3314,8 @@ func main() {
 						event(map[string]any{"kind": "add_skin_storage_refused", "character_id": worldState.role.ID, "reason": e.Error()})
 						continue
 					}
-					for _, packet := range plan {
-						if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
-							return
-						}
-						event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID, "id": packet.ID})
+					if sendPlan(plan, logWorldResponse) != nil {
+						return
 					}
 					continue
 				}
@@ -3445,11 +3325,8 @@ func main() {
 						event(map[string]any{"kind": "quest_item_action_refused", "character_id": worldState.role.ID, "reason": e.Error()})
 						continue
 					}
-					for _, packet := range plan {
-						if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
-							return
-						}
-						event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID})
+					if sendPlan(plan, logWorldAction) != nil {
+						return
 					}
 					continue
 				}
@@ -3461,11 +3338,8 @@ func main() {
 						event(map[string]any{"kind": "skin_slot_expand_refused", "character_id": worldState.role.ID, "reason": e.Error()})
 						continue
 					}
-					for _, packet := range plan {
-						if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
-							return
-						}
-						event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID})
+					if sendPlan(plan, logWorldAction) != nil {
+						return
 					}
 					continue
 				}
@@ -3478,11 +3352,8 @@ func main() {
 					event(map[string]any{"kind": "fatigue_potion_refused", "character_id": worldState.role.ID, "reason": e.Error()})
 					continue
 				}
-				for _, packet := range plan {
-					if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
-						return
-					}
-					event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID})
+				if sendPlan(plan, logWorldAction) != nil {
+					return
 				}
 				continue
 			}
@@ -3500,11 +3371,8 @@ func main() {
 						"reason": e.Error(), "request_hex": hex.EncodeToString(plaintext)})
 					continue
 				}
-				for _, packet := range plan {
-					if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
-						return
-					}
-					event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID, "id": packet.ID})
+				if sendPlan(plan, logWorldResponse) != nil {
+					return
 				}
 				continue
 			}
@@ -3541,10 +3409,8 @@ func main() {
 					}
 					continue
 				}
-				for _, packet := range plan {
-					if err = sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
-						return
-					}
+				if sendPlan(plan, nil) != nil {
+					return
 				}
 				continue
 			}
@@ -3573,10 +3439,8 @@ func main() {
 					}
 					continue
 				}
-				for _, packet := range plan {
-					if err = sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
-						return
-					}
+				if sendPlan(plan, nil) != nil {
+					return
 				}
 				continue
 			}
@@ -3600,10 +3464,8 @@ func main() {
 					}
 					continue
 				}
-				for _, packet := range plan {
-					if err = sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
-						return
-					}
+				if sendPlan(plan, nil) != nil {
+					return
 				}
 				continue
 			}
@@ -3624,10 +3486,8 @@ func main() {
 					}
 					continue
 				}
-				for _, packet := range plan {
-					if err = sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
-						return
-					}
+				if sendPlan(plan, nil) != nil {
+					return
 				}
 				continue
 			}
@@ -3662,10 +3522,8 @@ func main() {
 					// 存档也没变所以无需刷新包。
 					continue
 				}
-				for _, packet := range plan {
-					if err = sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
-						return
-					}
+				if sendPlan(plan, nil) != nil {
+					return
 				}
 				continue
 			}
@@ -3681,12 +3539,11 @@ func main() {
 					event(map[string]any{"kind": "skin_selection_failed", "character_id": worldState.role.ID, "reason": e.Error()})
 					continue
 				}
-				for _, packet := range plan {
-					if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
-						return
-					}
+				if sendPlan(plan, func(packet outboundPacket) {
 					event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID, "id": packet.ID,
 						"plain_hex": hex.EncodeToString(packet.Payload)})
+				}) != nil {
+					return
 				}
 				continue
 			}
@@ -3702,11 +3559,8 @@ func main() {
 					event(map[string]any{"kind": "make_skin_refused", "character_id": worldState.role.ID, "reason": e.Error()})
 					continue
 				}
-				for _, packet := range plan {
-					if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
-						return
-					}
-					event(map[string]any{"kind": packet.Name, "id": packet.ID, "character_id": worldState.role.ID, "plain_hex": hex.EncodeToString(packet.Payload)})
+				if sendPlan(plan, logWorldResponseBody) != nil {
+					return
 				}
 				continue
 			}
@@ -3724,11 +3578,8 @@ func main() {
 					event(map[string]any{"kind": "skin_cargo_sync_refused", "character_id": worldState.role.ID, "reason": e.Error()})
 					continue
 				}
-				for _, packet := range plan {
-					if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
-						return
-					}
-					event(map[string]any{"kind": packet.Name, "id": packet.ID, "character_id": worldState.role.ID, "plain_hex": hex.EncodeToString(packet.Payload)})
+				if sendPlan(plan, logWorldResponseBody) != nil {
+					return
 				}
 				continue
 			}
@@ -3747,11 +3598,8 @@ func main() {
 					}
 					continue
 				}
-				for _, packet := range plan {
-					if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
-						return
-					}
-					event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID, "id": packet.ID})
+				if sendPlan(plan, logWorldResponse) != nil {
+					return
 				}
 				continue
 			}
@@ -3786,12 +3634,11 @@ func main() {
 					event(map[string]any{"kind": "equipment_craft_refused", "id": frame.ID, "character_id": worldState.role.ID, "reason": e.Error()})
 					continue
 				}
-				for _, packet := range plan {
-					if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
-						return
-					}
+				if sendPlan(plan, func(packet outboundPacket) {
 					event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID,
 						"id": packet.ID, "bytes": len(packet.Payload)})
+				}) != nil {
+					return
 				}
 				continue
 			}
@@ -3810,11 +3657,10 @@ func main() {
 					}
 					continue
 				}
-				for _, packet := range plan {
-					if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
-						return
-					}
+				if sendPlan(plan, func(packet outboundPacket) {
 					event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID, "id": packet.ID, "bytes": len(packet.Payload)})
+				}) != nil {
+					return
 				}
 				continue
 			}
@@ -3835,11 +3681,8 @@ func main() {
 					}
 					continue
 				}
-				for _, packet := range plan {
-					if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
-						return
-					}
-					event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID, "id": packet.ID})
+				if sendPlan(plan, logWorldResponse) != nil {
+					return
 				}
 				continue
 			}
@@ -3856,11 +3699,10 @@ func main() {
 					}
 					continue
 				}
-				for _, packet := range plan {
-					if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
-						return
-					}
+				if sendPlan(plan, func(packet outboundPacket) {
 					event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID, "id": packet.ID, "slot": request.TargetSlot})
+				}) != nil {
+					return
 				}
 				continue
 			}
@@ -3878,11 +3720,8 @@ func main() {
 					}
 					continue
 				}
-				for _, packet := range plan {
-					if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
-						return
-					}
-					event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID, "id": packet.ID, "plain_hex": hex.EncodeToString(packet.Payload)})
+				if sendPlan(plan, logWorldResponseBody) != nil {
+					return
 				}
 				continue
 			}
@@ -3900,11 +3739,8 @@ func main() {
 					}
 					continue
 				}
-				for _, packet := range plan {
-					if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
-						return
-					}
-					event(map[string]any{"kind": packet.Name, "character_id": worldState.role.ID, "id": packet.ID, "plain_hex": hex.EncodeToString(packet.Payload)})
+				if sendPlan(plan, logWorldResponseBody) != nil {
+					return
 				}
 				continue
 			}
@@ -3950,8 +3786,7 @@ func main() {
 					event(map[string]any{"kind": "dungeon_encode_error", "error": e.Error()})
 					continue
 				}
-				c.SetWriteDeadline(time.Now().Add(5 * time.Second))
-				if e = writePackets(c, prepared, func(p preparedPacket) {
+				if e = output.writePrepared(prepared, func(p preparedPacket) {
 					event(map[string]any{"kind": p.Name, "id": p.ID, "character_id": selectedCharacterID, "plain_hex": hex.EncodeToString(p.Payload)})
 				}); e != nil {
 					event(map[string]any{"kind": "dungeon_write_error", "error": e.Error()})
@@ -4012,7 +3847,7 @@ func main() {
 						// 剧情叠在死亡界面上卡死）。
 						w := worldState
 						select {
-						case <-done:
+						case <-connection.done:
 						default:
 							time.AfterFunc(deathFailTimeout, func() {
 								d := w.pilotDeath
@@ -4033,10 +3868,8 @@ func main() {
 									event(map[string]any{"kind": "death_fail_leave_error", "error": e.Error()})
 									return
 								}
-								for _, p := range leave {
-									if e := sendPayload(p.Kind, p.ID, p.Payload); e != nil {
-										return
-									}
+								if sendPlan(leave, nil) != nil {
+									return
 								}
 								// 主循环在发出 dungeon_leave_ack 时会清掉副本会话
 								// （main.go 的 `p.Name == "dungeon_leave_ack"` 分支），
@@ -4167,8 +4000,7 @@ func main() {
 					// transport and restore from storage on reconnect.
 					return
 				}
-				c.SetWriteDeadline(time.Now().Add(5 * time.Second))
-				if e = writePackets(c, prepared, func(p preparedPacket) {
+				if e = output.writePrepared(prepared, func(p preparedPacket) {
 					event(map[string]any{"kind": p.Name, "id": p.ID, "character_id": selectedCharacterID, "plain_hex": hex.EncodeToString(p.Payload)})
 				}); e != nil {
 					return
@@ -4212,10 +4044,8 @@ func main() {
 					if loyaltyErr != nil {
 						event(map[string]any{"kind": "creature_loyalty_error", "character_id": selectedCharacterID, "error": loyaltyErr.Error()})
 					} else {
-						for _, packet := range loyaltyPackets {
-							if e := sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
-								return
-							}
+						if sendPlan(loyaltyPackets, nil) != nil {
+							return
 						}
 					}
 					// A dungeon is a private instance: this actor leaves the shared town.
@@ -4233,14 +4063,13 @@ func main() {
 					if completed, err := worldState.completeDungeon(); err != nil {
 						event(map[string]any{"kind": "dungeon_completion_error", "map": worldState.activeDungeon.Room.Map, "error": err.Error()})
 					} else if len(completed) > 0 {
-						for _, packet := range completed {
-							if err = sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
-								return
-							}
+						if sendPlan(completed, func(packet outboundPacket) {
 							event(map[string]any{"kind": packet.Name, "id": packet.ID, "plain_hex": hex.EncodeToString(packet.Payload), "character_id": selectedCharacterID})
 							if packet.Name == "dungeon_clear_enabled" || packet.Name == "赤红铁矿领主通关确认" {
 								worldState.completionSent = true
 							}
+						}) != nil {
+							return
 						}
 					}
 				}
@@ -4274,10 +4103,8 @@ func main() {
 						if loyaltyErr != nil {
 							event(map[string]any{"kind": "creature_loyalty_error", "character_id": selectedCharacterID, "error": loyaltyErr.Error()})
 						} else {
-							for _, packet := range loyaltyPackets {
-								if e := sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
-									return
-								}
+							if sendPlan(loyaltyPackets, nil) != nil {
+								return
 							}
 						}
 						worldState.drops = nil
@@ -4345,10 +4172,8 @@ func main() {
 					if loyaltyErr != nil {
 						event(map[string]any{"kind": "creature_loyalty_error", "character_id": selectedCharacterID, "error": loyaltyErr.Error()})
 					} else {
-						for _, packet := range loyaltyPackets {
-							if e := sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
-								return
-							}
+						if sendPlan(loyaltyPackets, nil) != nil {
+							return
 						}
 					}
 					if note, closed := legionState.abandonOnLeave("CMD42 dungeon leave", worldState.role.ID); closed {
@@ -4366,11 +4191,8 @@ func main() {
 						event(map[string]any{"kind": "odyssey_graduation_error", "character_id": selectedCharacterID, "reason": err.Error()})
 						return
 					}
-					for _, packet := range refresh {
-						if err = sendPayload(packet.Kind, packet.ID, packet.Payload); err != nil {
-							return
-						}
-						event(map[string]any{"kind": packet.Name, "character_id": selectedCharacterID, "id": packet.ID})
+					if sendPlan(refresh, logCharacterResponse) != nil {
+						return
 					}
 					if len(refresh) > 0 {
 						if err = worldState.announceSelf(event); err != nil {
@@ -4453,11 +4275,8 @@ func main() {
 						event(map[string]any{"kind": "act_quest_refresh_refused", "reason": e.Error()})
 						continue
 					}
-					for _, p := range plan {
-						if e = sendPayload(p.Kind, p.ID, p.Payload); e != nil {
-							return
-						}
-						event(map[string]any{"kind": p.Name, "character_id": worldState.role.ID})
+					if sendPlan(plan, logWorldAction) != nil {
+						return
 					}
 				}
 				continue
@@ -4502,11 +4321,8 @@ func main() {
 					event(map[string]any{"kind": "quest_interaction_refused", "reason": e.Error()})
 					continue
 				}
-				for _, p := range plan {
-					if e = sendPayload(p.Kind, p.ID, p.Payload); e != nil {
-						return
-					}
-					event(map[string]any{"kind": p.Name, "character_id": worldState.role.ID})
+				if sendPlan(plan, logWorldAction) != nil {
+					return
 				}
 				continue
 			}
@@ -4533,7 +4349,7 @@ func main() {
 					event(map[string]any{"kind": "quest_submit_encode_error", "error": e.Error()})
 					return
 				}
-				if e = writePackets(c, prepared, func(p preparedPacket) {
+				if e = output.writePrepared(prepared, func(p preparedPacket) {
 					event(map[string]any{"kind": p.Name, "character_id": worldState.role.ID, "quest": r.ID})
 				}); e != nil {
 					event(map[string]any{"kind": "quest_submit_write_error", "quest": r.ID, "error": e.Error()})
@@ -5453,8 +5269,7 @@ func main() {
 					continue
 				}
 				event(map[string]any{"kind": "entry_preflight_passed", "character_id": role.ID, "frame_count": len(prepared)})
-				c.SetWriteDeadline(time.Now().Add(5 * time.Second))
-				e = writePackets(c, prepared, func(p preparedPacket) {
+				e = output.writePrepared(prepared, func(p preparedPacket) {
 					entry := map[string]any{"kind": p.Name, "character_id": role.ID, "actor_server_id": role.WireID, "type": p.Kind, "id": p.ID, "plain_bytes": len(p.Payload), "client_acceptance": "pending"}
 					if p.ID == 4 {
 						entry["name"] = role.Name
@@ -5479,10 +5294,8 @@ func main() {
 				selectedCharacterID = role.ID
 				if worldState != nil {
 					worldState.fameInitialized = false
-					for _, packet := range worldState.appendFameUpdate(nil, event) {
-						if e = sendPayload(packet.Kind, packet.ID, packet.Payload); e != nil {
-							return
-						}
+					if sendPlan(worldState.appendFameUpdate(nil, event), nil) != nil {
+						return
 					}
 				}
 				selectedBasic, selectedAddition = basic, addition
@@ -5532,7 +5345,12 @@ func main() {
 					return
 				}
 				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-				err := changeRosterSlot(ctx, characters, developmentAccount, selectedCharacterID, plaintext)
+				var err error
+				if selectedCharacterID != 0 {
+					err = errors.New("character slot change requires character selection screen")
+				} else {
+					err = characters.ChangeSlot(ctx, developmentAccount, plaintext)
+				}
 				cancel()
 				payload := protocol.CharacterSlotSuccess()
 				if err != nil {
@@ -5588,8 +5406,7 @@ func main() {
 				if e != nil {
 					return
 				}
-				c.SetWriteDeadline(time.Now().Add(5 * time.Second))
-				if _, e = io.Copy(c, bytes.NewReader(response)); e != nil {
+				if e = output.writeRaw(response); e != nil {
 					return
 				}
 				event(map[string]any{"kind": "roster_followup_response", "id": frame.ID, "hex": hex.EncodeToString(response)})
@@ -5612,7 +5429,7 @@ func main() {
 					event(map[string]any{"kind": "roster_background_selected", "page": req.Page, "category": req.Background.Category, "background_id": req.Background.ID})
 				}
 				// 原生按钮会乐观应用选择；拒绝时也恢复账号的权威状态，不编造未知 ACK。
-				if e = sendRosterBackgrounds(); e != nil {
+				if e = restoreRosterBackgrounds(characters, developmentAccount, sendPayload, event); e != nil {
 					return
 				}
 				continue
@@ -5715,14 +5532,13 @@ func main() {
 				if err != nil {
 					return
 				}
-				c.SetWriteDeadline(time.Now().Add(5 * time.Second))
-				if _, err = io.Copy(c, bytes.NewReader(response)); err != nil {
+				if err = output.writeRaw(response); err != nil {
 					return
 				}
 				event(map[string]any{"kind": "character_response", "id": id, "bytes": len(response), "hex": hex.EncodeToString(response)})
 				// NOTI2 先建立选角管理器，再由 NOTI1759 初始化背景列表和五页选择。
 				if frame.ID == 8 && userInfoMode == 2 && kind == 0 && id == 2 {
-					if err = sendRosterBackgrounds(); err != nil {
+					if err = restoreRosterBackgrounds(characters, developmentAccount, sendPayload, event); err != nil {
 						return
 					}
 				}
@@ -5742,12 +5558,11 @@ func main() {
 					if e != nil {
 						return
 					}
-					c.SetWriteDeadline(time.Now().Add(5 * time.Second))
-					if _, e = io.Copy(c, bytes.NewReader(notification)); e != nil {
+					if e = output.writeRaw(notification); e != nil {
 						return
 					}
 					event(map[string]any{"kind": "character_list_after_mutation", "request": frame.ID, "id": 2, "bytes": len(notification)})
-					if e = sendRosterBackgrounds(); e != nil {
+					if e = restoreRosterBackgrounds(characters, developmentAccount, sendPayload, event); e != nil {
 						return
 					}
 				}
@@ -5769,8 +5584,7 @@ func main() {
 						return
 					}
 				}
-				c.SetWriteDeadline(time.Now().Add(5 * time.Second))
-				if _, err := io.Copy(c, bytes.NewReader(response)); err != nil {
+				if err := output.writeRaw(response); err != nil {
 					event(map[string]any{"kind": "write_error", "error": err.Error()})
 					return
 				}

@@ -2,15 +2,11 @@ package main
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/sha256"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/storage"
 	"encoding/binary"
 	"encoding/hex"
-	"fmt"
-	"strings"
 	"time"
 )
 
@@ -40,36 +36,22 @@ const (
 
 // reinforcementRefusalCode 把拒绝原因映射成客户端能正确显示的错误码。
 func reinforcementRefusalCode(err error) uint16 {
-	if err == nil {
+	switch inventory.RefusalOf(err) {
+	case inventory.RefusalGold:
+		return cmd80ErrNoGold
+	case inventory.RefusalMaterials:
+		return cmd80ErrNoMaterials
+	case inventory.RefusalLimit:
+		return cmd80ErrNoFurther
+	case inventory.RefusalEquipment:
+		return cmd80ErrNotEquipment
+	case inventory.RefusalUnsupported:
+		return cmd80ErrNotUpgradable
+	case inventory.RefusalItems:
+		return cmd80ErrNoItems
+	default:
 		return cmd80ErrGeneric
 	}
-	msg := err.Error()
-	switch {
-	case strings.Contains(msg, "金币不足"):
-		return cmd80ErrNoGold
-	// 「材料位放的东西不对」跟「材料不够」一样都是材料问题，不能归到「没有物品」：
-	// 分流到 4 会弹 1658「No items are available.」，玩家根本看不出是材料位放错了；
-	// 22 弹 1661「You do not have enough materials.」，至少把人引到材料位上去。
-	case strings.Contains(msg, "材料不足"), strings.Contains(msg, "不是矛盾结晶体"),
-		strings.Contains(msg, "不是安全增幅材料"), strings.Contains(msg, "既不是强化券"):
-		return cmd80ErrNoMaterials
-	case strings.Contains(msg, "上限"), strings.Contains(msg, "最高到"),
-		strings.Contains(msg, "无法继续强化"), strings.Contains(msg, "超出规则表范围"),
-		strings.Contains(msg, "不在安全增幅表内"), strings.Contains(msg, "不支持该固定强化券"):
-		return cmd80ErrNoFurther
-	case strings.Contains(msg, "不是装备"), strings.Contains(msg, "目标不是装备"):
-		return cmd80ErrNotEquipment
-	case strings.Contains(msg, "没有次元属性"), strings.Contains(msg, "不符合安全增幅条件"),
-		strings.Contains(msg, "找不到"), strings.Contains(msg, "未找到"),
-		strings.Contains(msg, "不支持"), strings.Contains(msg, "无法核对"),
-		strings.Contains(msg, "保护券不能用于"):
-		return cmd80ErrNotUpgradable
-	case strings.Contains(msg, "不在背包"), strings.Contains(msg, "不在所属角色背包"),
-		strings.Contains(msg, "不在背包或已穿戴槽位"), strings.Contains(msg, "需要已选角色"),
-		strings.Contains(msg, "保护券槽位放的不是保护券"):
-		return cmd80ErrNoItems
-	}
-	return cmd80ErrGeneric
 }
 
 // 强化的两条并列路径：
@@ -105,24 +87,22 @@ func reinforcementBranch(role storage.Character, r protocol.ReinforcementRequest
 			return reinforcementGoldBranch, nil
 		}
 		// 槽位里确实有东西、只是不是券也不是材料：把模板带出来，便于定位玩家放错了什么。
-		return "", fmt.Errorf("窗口里的物品既不是强化券也不是强化材料（槽 %d 里是模板 %d）", r.TicketSlot, item.Template)
+		return "", inventory.Refuse(inventory.RefusalMaterials, "窗口里的物品既不是强化券也不是强化材料（槽 %d 里是模板 %d）", r.TicketSlot, item.Template)
 	}
-	return "", fmt.Errorf("窗口里的物品既不是强化券也不是强化材料（槽 %d 里没有物品）", r.TicketSlot)
+	return "", inventory.Refuse(inventory.RefusalMaterials, "窗口里的物品既不是强化券也不是强化材料（槽 %d 里没有物品）", r.TicketSlot)
 }
 
 func (s *equipmentSession) reinforce(service *inventory.WearService, w *worldSession, p, raw []byte, event func(map[string]any)) ([]outboundPacket, error) {
 	if service == nil || w == nil || w.role.ID == 0 || w.activeDungeon != nil {
-		return nil, fmt.Errorf("强化需要已选角色且位于城镇")
+		return nil, inventory.Refuse(inventory.RefusalItems, "强化需要已选角色且位于城镇")
 	}
 	r, err := protocol.DecodeReinforcement(p)
 	if err != nil {
 		return nil, err
 	}
-	if !s.initialized {
-		if _, err = rand.Read(s.nonce[:]); err != nil {
-			return nil, err
-		}
-		s.initialized = true
+	key, err := s.requestKey(raw)
+	if err != nil {
+		return nil, err
 	}
 	// 增幅（mode=1）先判定：它与强化共用同一个请求结构，但材料、规则、等级偏移都不同，
 	// 所以不能靠「窗口里放了什么东西」来区分，必须先看 mode。
@@ -147,7 +127,7 @@ func (s *equipmentSession) reinforce(service *inventory.WearService, w *worldSes
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	key := fmt.Sprintf("reinforcement-%s:%x:%x", branch, s.nonce, sha256.Sum256(raw))
+	key = "reinforcement-" + branch + ":" + key
 	if branch == reinforcementAmplifyTicketBranch {
 		return s.amplifyTicket(ctx, service, w, r, key, event)
 	}
@@ -177,26 +157,11 @@ func (s *equipmentSession) reinforceWithTicket(ctx context.Context, service *inv
 	if err != nil {
 		return nil, err
 	}
-	// 即使重放旧回执，也发送当前槽位；采用增量更新保留强化动画引用的装备对象。
-	ticketRow := bagRowOrEmpty(bag, r.TicketSlot)
-	rows := [][protocol.CurrentItemRecordSize]byte{ticketRow}
-	if r.EquipmentSpace == 0 {
-		gearRow := bagRowOrEmpty(bag, r.EquipmentSlot)
-		rows = append(rows, gearRow)
-	}
-	body, err := protocol.InventoryUpdate(rows)
+	// Even a replay refreshes the current slots without rebuilding inventory objects.
+	rows := equipmentRows(bag, r.EquipmentSpace, r.EquipmentSlot, r.TicketSlot)
+	plan, err = appendEquipmentUpdates(plan, saved.State, rows, r.EquipmentSpace, "reinforcement_ticket_inventory", "reinforcement_equipment_updated")
 	if err != nil {
 		return nil, err
-	}
-	plan = append(plan, outboundPacket{"reinforcement_ticket_inventory", 0, 14, body})
-	if r.EquipmentSpace == 3 {
-		body, err = inventory.WornSpaceUpdate(saved.State)
-		if err != nil {
-			return nil, err
-		}
-		if len(body) > 0 {
-			plan = append(plan, outboundPacket{"reinforcement_equipment_updated", 0, 14, body})
-		}
 	}
 	event(map[string]any{"kind": "reinforcement_ticket_committed", "character_id": saved.ID,
 		"ticket": out.Ticket, "remaining": out.Remaining, "equipment": r.EquipmentTemplate,
@@ -242,23 +207,10 @@ func (s *equipmentSession) reinforceWithMaterial(ctx context.Context, service *i
 	}
 	goldRow, _ := bag.RowAt(0)
 	rows = append(rows, goldRow)
-	if r.EquipmentSpace == 0 {
-		gearRow := bagRowOrEmpty(bag, r.EquipmentSlot)
-		rows = append(rows, gearRow)
-	}
-	body, err := protocol.InventoryUpdate(rows)
+	rows = append(rows, equipmentRows(bag, r.EquipmentSpace, r.EquipmentSlot)...)
+	plan, err = appendEquipmentUpdates(plan, saved.State, rows, r.EquipmentSpace, "reinforcement_gold_inventory", "reinforcement_equipment_updated")
 	if err != nil {
 		return nil, err
-	}
-	plan = append(plan, outboundPacket{"reinforcement_gold_inventory", 0, 14, body})
-	if r.EquipmentSpace == 3 {
-		body, err = inventory.WornSpaceUpdate(saved.State)
-		if err != nil {
-			return nil, err
-		}
-		if len(body) > 0 {
-			plan = append(plan, outboundPacket{"reinforcement_equipment_updated", 0, 14, body})
-		}
 	}
 	if out.MaterialFromStorage {
 		// 只同步材料仓库面板（list35），不发整包 list0 快照 —— 整包重建会打断强化动画引用的装备对象。
@@ -301,33 +253,14 @@ func (s *equipmentSession) amplifyUpgrade(ctx context.Context, service *inventor
 	if err != nil {
 		return nil, err
 	}
-	rows := [][protocol.CurrentItemRecordSize]byte{}
-	// 材料行：材料被扣完时该格已移除，用空行让客户端同步移除。
-	matRow := bagRowOrEmpty(bag, out.MaterialSlot)
-	rows = append(rows, matRow)
-	// 保护券触发时刷新保护券行，让客户端立即看到扣减。
+	slots := []uint16{out.MaterialSlot}
 	if out.Protected {
-		// ⚠️ 必须走 bagRowOrEmpty：只有一张保护券时这一行会被整行移除，
-		// 那时若什么都不发，客户端会把图标留在原地（实机 2026-09-28）。
-		rows = append(rows, bagRowOrEmpty(bag, out.ProtectionSlot))
+		slots = append(slots, out.ProtectionSlot)
 	}
-	if out.EquipmentSpace == 0 {
-		gearRow := bagRowOrEmpty(bag, out.EquipmentSlot)
-		rows = append(rows, gearRow)
-	}
-	body, err := protocol.InventoryUpdate(rows)
+	rows := equipmentRows(bag, out.EquipmentSpace, out.EquipmentSlot, slots...)
+	plan, err = appendEquipmentUpdates(plan, saved.State, rows, out.EquipmentSpace, "amplify_upgrade_inventory", "amplify_upgrade_worn")
 	if err != nil {
 		return nil, err
-	}
-	plan = append(plan, outboundPacket{"amplify_upgrade_inventory", 0, 14, body})
-	if out.EquipmentSpace == 3 {
-		wornBody, werr := inventory.WornSpaceUpdate(saved.State)
-		if werr != nil {
-			return nil, werr
-		}
-		if len(wornBody) > 0 {
-			plan = append(plan, outboundPacket{"amplify_upgrade_worn", 0, 14, wornBody})
-		}
 	}
 	// ★ 金币行单独一包、放在最后发。
 	// 实机：+10 以上增幅失败摧毁装备时，客户端会把金币显示清成 0
@@ -380,7 +313,7 @@ func amplifyBranch(role storage.Character, r protocol.ReinforcementRequest) (str
 		}
 		return reinforcementAmplifyBranch, nil
 	}
-	return "", fmt.Errorf("增幅窗口里的物品不在背包里（槽 %d 里没有物品）", r.TicketSlot)
+	return "", inventory.Refuse(inventory.RefusalItems, "增幅窗口里的物品不在背包里（槽 %d 里没有物品）", r.TicketSlot)
 }
 
 // amplifyTicket 增幅券（CMD80 mode=1，窗口里放的是券）：扣券、把装备增幅到券的
@@ -403,27 +336,10 @@ func (s *equipmentSession) amplifyTicket(ctx context.Context, service *inventory
 	if err != nil {
 		return nil, err
 	}
-	rows := [][protocol.CurrentItemRecordSize]byte{}
-	// 券行：券被扣完时该格已移除，用空行让客户端同步移除。
-	ticketRow := bagRowOrEmpty(bag, r.TicketSlot)
-	rows = append(rows, ticketRow)
-	if out.EquipmentSpace == 0 {
-		gearRow := bagRowOrEmpty(bag, r.EquipmentSlot)
-		rows = append(rows, gearRow)
-	}
-	body, err := protocol.InventoryUpdate(rows)
+	rows := equipmentRows(bag, out.EquipmentSpace, r.EquipmentSlot, r.TicketSlot)
+	plan, err = appendEquipmentUpdates(plan, saved.State, rows, out.EquipmentSpace, "amplify_ticket_inventory", "amplify_ticket_worn")
 	if err != nil {
 		return nil, err
-	}
-	plan = append(plan, outboundPacket{"amplify_ticket_inventory", 0, 14, body})
-	if out.EquipmentSpace == 3 {
-		wornBody, werr := inventory.WornSpaceUpdate(saved.State)
-		if werr != nil {
-			return nil, werr
-		}
-		if len(wornBody) > 0 {
-			plan = append(plan, outboundPacket{"amplify_ticket_worn", 0, 14, wornBody})
-		}
 	}
 	event(map[string]any{"kind": "amplify_ticket_committed", "character_id": saved.ID,
 		"mode": r.Mode, "ticket": out.Ticket, "ticket_slot": r.TicketSlot, "remaining": out.Remaining,

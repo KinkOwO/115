@@ -1,10 +1,8 @@
 package inventory
 
 import (
-	"encoding/json"
 	"fmt"
 	"math"
-	"os"
 )
 
 // 金币强化（普通强化）的服务端规则。数据来自 configs/reinforcement-gold.json，
@@ -101,17 +99,11 @@ var goldRules *goldRulesConfig
 
 // LoadGoldRules 读取金币强化规则；文件不存在时保持未加载状态，金币路径整体拒绝。
 func LoadGoldRules(path string) error {
-	b, err := os.ReadFile(path)
-	if os.IsNotExist(err) {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
 	var c goldRulesConfig
-	if err = json.Unmarshal(b, &c); err != nil {
+	if loaded, err := loadOptionalJSON(path, &c); !loaded || err != nil {
 		return err
 	}
+
 	if c.Version != 1 || len(c.Source) != 64 || len(c.Levels) == 0 || len(c.Gold.BaseByEquipLevel) == 0 ||
 		len(c.Gold.RarityWeight) == 0 || len(c.Gold.RarityWeight100Lv) == 0 || len(c.Gold.LevelWeight) == 0 ||
 		len(c.Materials) == 0 || c.MaxUpgradeLevel <= 0 {
