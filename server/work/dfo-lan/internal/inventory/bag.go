@@ -117,6 +117,9 @@ type BagItem struct {
 	ExpireTime       uint32 `json:"expire_time,omitempty"`
 }
 type Bag struct {
+	// Missing in legacy saves; fences atomic emblem insertion/replacement.
+	EmblemInlaySeq uint64 `json:"emblem_inlay_seq,omitempty"`
+
 	// Old inventories omit the sequence and start at zero. It distinguishes
 	// repeated compounds using stacks that keep the same slots and templates.
 	EmblemCompoundSeq uint64 `json:"emblem_compound_seq,omitempty"`

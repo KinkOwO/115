@@ -21,6 +21,7 @@ type Service struct {
 	Equipment      *inventory.EquipmentCatalog
 	AvatarDisjoint *inventory.AvatarDisjointRules
 	AvatarSockets  *inventory.AvatarSocketRules
+	EmblemInlay    *inventory.EmblemInlayRules
 	EmblemCompound *inventory.EmblemCompoundRules
 	// WearRules 是「装备类型 → 穿戴槽位」的映射（`configs/equipment-wear.*.json` 的 `slots`）。
 	// 装备变换要用它：客户端在「变换前」槽里放的那件**可能还在背包**，请求只带**部位码**，
