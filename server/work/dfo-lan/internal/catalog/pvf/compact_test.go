@@ -16,6 +16,28 @@ import (
 	"time"
 )
 
+func TestCompactDerivesSourceIdentityWhenExpectedIsEmpty(t *testing.T) {
+	raw := compactFixture(t)
+	p := filepath.Join(t.TempDir(), "auto.pvf")
+	if err := os.WriteFile(p, raw, 0600); err != nil {
+		t.Fatal(err)
+	}
+	a, err := OpenReadOnly(Options{Path: p}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer a.Close()
+	if got, want := a.Snapshot().Checksum, fmt.Sprintf("%x", sha256.Sum256(raw)); got != want {
+		t.Fatal(got, want)
+	}
+	if a.backing == nil || a.data != nil {
+		t.Fatal("auto identity restored a full memory archive")
+	}
+	if _, err := a.Tokens("dir/entry.stk"); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func compactFixture(t *testing.T) []byte {
 	t.Helper()
 	pool := []byte{0}

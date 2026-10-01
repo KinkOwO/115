@@ -57,9 +57,12 @@ func ImportTerminalScenes(a *pvf.Archive, d DungeonCatalog, quests QuestCatalog)
 					continue
 				}
 				final := layer.Maps[len(layer.Maps)-1]
-				m, ok := d.Maps[final]
-				if !ok {
+				if _, ok := d.Maps[final]; !ok {
 					continue
+				}
+				m, err := d.MapScript(final)
+				if err != nil {
+					return out, err
 				}
 				var actionPath string
 				for i, t := range m.Cells {
@@ -98,10 +101,17 @@ func ImportTerminalScenes(a *pvf.Archive, d DungeonCatalog, quests QuestCatalog)
 						return out, fmt.Errorf("multiple closing scenes for %v", key)
 					}
 					seen[key] = true
+					var objectiveScript ScriptRecord
+					if _, present := d.Maps[objective]; present {
+						objectiveScript, err = d.MapScript(objective)
+						if err != nil {
+							return out, err
+						}
+					}
 					scenes = append(scenes, DungeonTerminalScene{
 						Source: d.Source.Checksum, Dungeon: def.ID, Maze: maze.Index, Quest: maze.Quest, Position: layer.Position,
 						ObjectiveMap: objective, FinalMap: final, XMin: xmin, XMax: xmax, YMin: ymin, YMax: ymax,
-						ObjectiveCinematicDestroyTemplate: cinematicDestroyedObjective(a, paths, d.Maps[objective], objective),
+						ObjectiveCinematicDestroyTemplate: cinematicDestroyedObjective(a, paths, objectiveScript, objective),
 						DungeonSHA256:                     def.Script.SHA256, MapSHA256: m.SHA256, ActionSHA256: action.SHA256,
 						CinematicSHA256: cmt.SHA256, CinematicPath: cmt.Path,
 					})

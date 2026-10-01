@@ -66,8 +66,9 @@ func (f *archiveFile) release() error {
 	return nil
 }
 
-// OpenReadOnly verifies the complete file before parsing metadata. Only the
-// directory and string pools stay in memory; compressed bodies use ReadAt on
+// OpenReadOnly hashes the complete file before parsing metadata. A nonempty
+// expectedChecksum pins the source; empty derives identity from the held file.
+// Only the directory and string pools stay in memory; compressed bodies use ReadAt on
 // the same open file. Views own independent leases on this immutable source.
 func OpenReadOnly(options Options, expectedChecksum string) (*Archive, error) {
 	if strings.TrimSpace(options.Path) == "" {
@@ -109,7 +110,7 @@ func OpenReadOnly(options Options, expectedChecksum string) (*Archive, error) {
 	if n != info.Size() {
 		return nil, fmt.Errorf("PVF size changed during verification")
 	}
-	if checksum != strings.ToLower(expectedChecksum) {
+	if expectedChecksum != "" && checksum != strings.ToLower(expectedChecksum) {
 		return nil, fmt.Errorf("inner PVF source mismatch: got %s expected %s", checksum, expectedChecksum)
 	}
 	header := make([]byte, headerSize)

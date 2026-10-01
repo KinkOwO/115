@@ -72,7 +72,11 @@ func preparePVFScenes(c *pvfCoreCatalogs, s *gamedata.Source, selected map[strin
 		if path == fullDungeonAuditPath(inputs) {
 			legacy = normalizeOldDungeonBasisDiagnostics(legacy, policy)
 		}
-		if err := verifyPVFCatalog(legacy, direct); err != nil {
+		expanded, err := direct.ExpandedMaps()
+		if err != nil {
+			return err
+		}
+		if err := verifyPVFCatalog(legacy, expanded); err != nil {
 			return fmt.Errorf("dungeons %s: %w", path, err)
 		}
 		return nil
@@ -112,7 +116,7 @@ func preparePVFScenes(c *pvfCoreCatalogs, s *gamedata.Source, selected map[strin
 			world = &x
 		}
 		excluded := append(append([]uint32(nil), policy.Training...), policy.Disabled...)
-		direct, err := s.FullDungeons(*world, excluded)
+		direct, err := s.RuntimeFullDungeons(*world, excluded)
 		if err != nil {
 			return err
 		}

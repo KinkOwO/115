@@ -72,6 +72,7 @@ func main() {
 	characterCatalog := flag.String("character-catalog", "configs/characters.generated.json", "PVF-derived profession catalog")
 	pvfCatalogSelection := flag.String("pvf-catalogs", os.Getenv("DFO_PVF_CATALOGS"), "candidate direct-read domains: "+pvfSupportedDomains+"; empty keeps JSON")
 	pvfCheckCatalogs := flag.Bool("pvf-check-catalogs", false, "prepare explicitly selected PVF catalogs and exit before storage, listeners or runtime setup")
+	pvfCheckHeap := flag.String("pvf-check-heap-profile", "", "write a new post-GC heap profile only with pvf-check-catalogs")
 	pvfVerifyBaselines := flag.Bool("pvf-verify-baselines", os.Getenv("DFO_PVF_VERIFY_BASELINES") != "0", "compare selected PVF domains with JSON baselines before storage; false removes the selected JSON startup dependency")
 	pvfEnhancementPolicy := flag.String("pvf-enhancement-policy", envStrOr("DFO_PVF_ENHANCEMENT_POLICY", "configs/pvf-enhancement-policy.json"), "independent enhancement server policies; required only for PVF enhancements")
 	pvfVaultPolicy := flag.String("pvf-vault-policy", envStrOr("DFO_PVF_VAULT_POLICY", "configs/pvf-vault-policy.json"), "client capacity/save policy independent of PVF account vault table")
@@ -191,6 +192,9 @@ func main() {
 	omenState := flag.Bool("omen-state", os.Getenv("DFO_OMEN_STATE") == "1", "征兆的正式状态：持有档数存进角色存档、进本按真实状态下发 noti 2836，并让隐藏 BOSS 由「满档结算」驱动（见 cmd/wireprobe/omen_state.go）。默认关闭")
 	scaleDeathFromHP := flag.Bool("scale-death-from-hp", os.Getenv("DFO_SCALE_DEATH_FROM_HP") == "1", "boundary-of-attunement 定盘机关(109019266)的兜底判死：它血量触底时服务端合成一条死亡上报，不再依赖引擎那两个恒为 72 的 rarity 天花板；默认关闭")
 	flag.Parse()
+	if *pvfCheckHeap != "" && !*pvfCheckCatalogs {
+		log.Fatal("pvf-check-heap-profile requires pvf-check-catalogs")
+	}
 	if *pvfCheckCatalogs && strings.TrimSpace(*pvfCatalogSelection) == "" {
 		log.Fatal("pvf-check-catalogs requires explicit pvf-catalogs")
 	}
@@ -198,8 +202,16 @@ func main() {
 	if pvfCatalogErr != nil {
 		log.Fatalf("PVF candidate catalogs: %v", pvfCatalogErr)
 	}
+	if pvfCatalogs.dungeons != nil {
+		defer pvfCatalogs.dungeons.CloseMapSource()
+	}
 	if *pvfCheckCatalogs {
 		collectPVFImportMemory(pvfCatalogs)
+		if *pvfCheckHeap != "" {
+			if err := writePVFHeapProfile(*pvfCheckHeap, pvfCatalogs); err != nil {
+				log.Fatal(err)
+			}
+		}
 		if pvfCatalogs.equipment != nil {
 			defer pvfCatalogs.equipment.Close()
 		}

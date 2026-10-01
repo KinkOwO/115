@@ -96,13 +96,15 @@ type DungeonHellParty struct {
 }
 
 type DungeonCatalog struct {
-	Source         pvf.ArchiveSnapshot          `json:"source"`
-	Dungeons       map[uint32]DungeonDefinition `json:"dungeons"`
-	Maps           map[uint32]ScriptRecord      `json:"maps"`
-	Skipped        []string                     `json:"skipped,omitempty"`
-	SceneRoutes    []DungeonSceneRoute          `json:"scene_routes,omitempty"`
-	TerminalScenes []DungeonTerminalScene       `json:"terminal_scenes,omitempty"`
-	LayerRevisits  []DungeonLayerRevisit        `json:"layer_revisits,omitempty"`
+	Source   pvf.ArchiveSnapshot          `json:"source"`
+	Dungeons map[uint32]DungeonDefinition `json:"dungeons"`
+	// Runtime imports retain map identity here; use MapScript to obtain cells.
+	Maps           map[uint32]ScriptRecord `json:"maps"`
+	Skipped        []string                `json:"skipped,omitempty"`
+	SceneRoutes    []DungeonSceneRoute     `json:"scene_routes,omitempty"`
+	TerminalScenes []DungeonTerminalScene  `json:"terminal_scenes,omitempty"`
+	LayerRevisits  []DungeonLayerRevisit   `json:"layer_revisits,omitempty"`
+	mapScripts     *mapScriptCache
 }
 
 // DungeonTerminalScene records a source CMT [CHANGE MAP] on a quest maze's
@@ -451,6 +453,16 @@ func ParseDungeon(id uint32, s ScriptRecord) (DungeonDefinition, error) {
 	return d, nil
 }
 func ImportDungeons(a *pvf.Archive, ids []uint32) (DungeonCatalog, error) {
+	return importDungeons(a, ids, false)
+}
+
+// ImportRuntimeDungeons validates each source script, then retains map metadata
+// and an independent archive view instead of every map's expanded token tree.
+func ImportRuntimeDungeons(a *pvf.Archive, ids []uint32) (DungeonCatalog, error) {
+	return importDungeons(a, ids, true)
+}
+
+func importDungeons(a *pvf.Archive, ids []uint32, lazyMaps bool) (DungeonCatalog, error) {
 	out := DungeonCatalog{Source: a.Snapshot(), Dungeons: map[uint32]DungeonDefinition{}, Maps: map[uint32]ScriptRecord{}}
 	var skipped []string
 	indices := make([]map[uint32]string, 2)
@@ -504,6 +516,9 @@ func ImportDungeons(a *pvf.Archive, ids []uint32) (DungeonCatalog, error) {
 				skipped = append(skipped, fmt.Sprintf("map %d: %v", mapID, e))
 				return
 			}
+			if lazyMaps {
+				s.Cells = nil
+			}
 			out.Maps[mapID] = s
 		}
 		for _, m := range d.Mazes {
@@ -523,6 +538,11 @@ func ImportDungeons(a *pvf.Archive, ids []uint32) (DungeonCatalog, error) {
 		}
 	}
 	out.Skipped = skipped
+	if lazyMaps {
+		if err := out.attachMapScripts(a); err != nil {
+			return DungeonCatalog{}, err
+		}
+	}
 	return out, nil
 }
 func LoadDungeons(path string) (DungeonCatalog, error) {

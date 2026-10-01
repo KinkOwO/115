@@ -23,13 +23,13 @@ type Session struct {
 	// HellPosition is the current DGN's sealed Hell Party room, advertised in
 	// NOTI28. Nil retains the native absent sentinel (255,255).
 	HellPosition *[2]byte
-	Definition catalog.DungeonDefinition
-	Maze       catalog.DungeonMaze
-	Room       catalog.DungeonRoom
-	Monsters   []protocol.DungeonMonster
-	Tournament *TournamentRun
-	Loaded     bool
-	Dead       map[uint16]bool
+	Definition   catalog.DungeonDefinition
+	Maze         catalog.DungeonMaze
+	Room         catalog.DungeonRoom
+	Monsters     []protocol.DungeonMonster
+	Tournament   *TournamentRun
+	Loaded       bool
+	Dead         map[uint16]bool
 	// 沉月湖（Moon Lake）单人攻坚状态。只有该频道启用了 moonConfig 时才会被写入，
 	// 普通副本与军团全程保持零值。
 	MoonFirstGrid                     [5]byte
@@ -162,7 +162,11 @@ func Select(c catalog.DungeonCatalog, r protocol.DungeonSelection, level byte, a
 		s.HellPosition = &position
 	}
 	if tournamentDungeon(d) {
-		run, actors, err := newTournamentRun(d, c.Maps[s.Room.Map], r.Difficulty)
+		script, err := c.MapScript(s.Room.Map)
+		if err != nil {
+			return nil, err
+		}
+		run, actors, err := newTournamentRun(d, script, r.Difficulty)
 		if err != nil {
 			return nil, err
 		}
@@ -255,17 +259,19 @@ func randomUint64() (uint64, error) {
 // resolveRoomMap 取该房间可用的地图脚本：先用主地图，主地图不在目录里时
 // 按源里给出的顺序退到备选地图。源列出多张候选地图表示这张房可以是其中任意
 // 一张（零售端按权重随机），因此选到任意一张已导入的都是合法结果。
-func resolveRoomMap(c catalog.DungeonCatalog, r catalog.DungeonRoom) (catalog.DungeonRoom, catalog.ScriptRecord, bool) {
-	if s, ok := c.Maps[r.Map]; ok {
-		return r, s, true
+func resolveRoomMap(c catalog.DungeonCatalog, r catalog.DungeonRoom) (catalog.DungeonRoom, catalog.ScriptRecord, bool, error) {
+	if _, ok := c.Maps[r.Map]; ok {
+		s, err := c.MapScript(r.Map)
+		return r, s, err == nil, err
 	}
 	for _, alt := range r.Alternates {
-		if s, ok := c.Maps[alt]; ok {
+		if _, ok := c.Maps[alt]; ok {
 			r.Map = alt
-			return r, s, true
+			s, err := c.MapScript(alt)
+			return r, s, err == nil, err
 		}
 	}
-	return r, catalog.ScriptRecord{}, false
+	return r, catalog.ScriptRecord{}, false, nil
 }
 
 // newSession builds the owned run for an already-resolved maze. Both the
@@ -290,7 +296,10 @@ func newSession(c catalog.DungeonCatalog, d catalog.DungeonDefinition, chosen ca
 		if [2]byte{room.X, room.Y} != chosen.Start {
 			continue
 		}
-		resolved, sc, ok := resolveRoomMap(c, room)
+		resolved, sc, ok, err := resolveRoomMap(c, room)
+		if err != nil {
+			return nil, err
+		}
 		if !ok {
 			if start.Map == 0 {
 				start = room
@@ -496,9 +505,9 @@ func (s *Session) enterRoom(c catalog.DungeonCatalog, room catalog.DungeonRoom) 
 	}
 	monsters, seen := next.Visited[room.Map]
 	if !seen {
-		script, ok := c.Maps[room.Map]
-		if !ok {
-			return nil, fmt.Errorf("target map not imported")
+		script, err := c.MapScript(room.Map)
+		if err != nil {
+			return nil, err
 		}
 		var e error
 		monsters, e = fixedMonsters(script, s.Definition.BasisLevel)

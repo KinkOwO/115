@@ -183,7 +183,7 @@ func preparePVFCoreCatalogs(selection, path, checksum, characterPath, questPath,
 
 	defer source.Close()
 	logPVFMemory("source-open", time.Since(started))
-	if source.Snapshot().Checksum != anchorChecksum {
+	if anchorChecksum != "" && source.Snapshot().Checksum != anchorChecksum {
 		return result, fmt.Errorf("PVF/character source mismatch: %s versus %s", source.Snapshot().Checksum, anchorChecksum)
 	}
 	result.sourceChecksum = source.Snapshot().Checksum
@@ -462,6 +462,9 @@ func preparePVFCoreCatalogs(selection, path, checksum, characterPath, questPath,
 	}
 	if err := preparePVFSpecial(&result, source, selected, inputs); err != nil {
 		return result, err
+	}
+	if result.dungeons != nil {
+		result.dungeons.ReleaseMapReadCache()
 	}
 	log.Printf("PVF candidate catalogs prepared in %s; full directory can be collected before opening storage", time.Since(started))
 	logPVFMemory("catalogs-prepared", time.Since(started))

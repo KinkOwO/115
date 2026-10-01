@@ -76,8 +76,8 @@ func (s *Service) seekMeetBossClearMatch(en *Entry, role storage.Character, run 
 	if !sourceBoss {
 		return false
 	}
-	script, ok := s.Dungeons.Maps[run.Room.Map]
-	if !ok || !mapContainsNPC(script, en.NPC) {
+	script, err := s.Dungeons.MapScript(run.Room.Map)
+	if err != nil || !mapContainsNPC(script, en.NPC) {
 		return false
 	}
 	bag, err := inventory.ReadBag(role.State)

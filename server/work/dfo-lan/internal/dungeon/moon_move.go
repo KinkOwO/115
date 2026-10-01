@@ -84,7 +84,11 @@ func (s *Session) moveMoonSecondFloor(c catalog.DungeonCatalog, target [2]byte) 
 	for _, m := range carried {
 		row, ok := s.MoonDynamic[m.Entity]
 		if !ok {
-			x, y, err := moonSourcePlacement(c.Maps[s.Room.Map], m.SourceIndex)
+			script, err := c.MapScript(s.Room.Map)
+			if err != nil {
+				return nil, err
+			}
+			x, y, err := moonSourcePlacement(script, m.SourceIndex)
 			if err != nil {
 				return nil, err
 			}

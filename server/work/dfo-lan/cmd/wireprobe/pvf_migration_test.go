@@ -32,6 +32,7 @@ func TestPVFMigrationSourceOnlyLocalArchive(t *testing.T) {
 		t.Fatal("native item shops unavailable", err)
 	}
 	defer c.equipment.Close()
+	defer c.dungeons.CloseMapSource()
 	collectPVFImportMemory(c)
 	verifyEquipmentRuleReuse(t, c)
 	if len(c.loot.Items) != 1022 || len(c.selection.Rows) != 3174 || len(c.selection.DropPool()) != 2794 {

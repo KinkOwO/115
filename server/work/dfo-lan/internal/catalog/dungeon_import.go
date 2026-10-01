@@ -9,6 +9,14 @@ import (
 // ImportFullDungeons selects the archive's dungeon list and the world's source
 // gate references. Exclusions keep separately loaded training rooms separate.
 func ImportFullDungeons(a *pvf.Archive, world WorldCatalog, excluded []uint32) (DungeonCatalog, error) {
+	return importFullDungeons(a, world, excluded, false)
+}
+
+func ImportRuntimeFullDungeons(a *pvf.Archive, world WorldCatalog, excluded []uint32) (DungeonCatalog, error) {
+	return importFullDungeons(a, world, excluded, true)
+}
+
+func importFullDungeons(a *pvf.Archive, world WorldCatalog, excluded []uint32, lazyMaps bool) (DungeonCatalog, error) {
 	if a == nil || world.Source.Checksum != a.Snapshot().Checksum {
 		return DungeonCatalog{}, fmt.Errorf("full dungeon/world source mismatch")
 	}
@@ -38,7 +46,7 @@ func ImportFullDungeons(a *pvf.Archive, world WorldCatalog, excluded []uint32) (
 		ordered = append(ordered, id)
 	}
 	sort.Slice(ordered, func(i, j int) bool { return ordered[i] < ordered[j] })
-	c, err := ImportDungeons(a, ordered)
+	c, err := importDungeons(a, ordered, lazyMaps)
 	if err != nil {
 		return c, err
 	}

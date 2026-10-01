@@ -32,7 +32,7 @@ type Options struct {
 	// 非空 = 显式校验（发布 / 审计场景钉死某一版）。
 	// 为什么允许为空：内层 PVF 是本地按需生成的产物（见 scripts/ensure_inner_pvf.py），
 	// 手写常量会与文件脱钩 —— 自愈更新了文件、常量没更新就启动失败（next142 的事故）。
-	// 自动派生不额外读一遍归档：pvf.Load 本来就要算这个 SHA256，直接复用它。
+	// 自动派生不额外读一遍归档：OpenReadOnly完整流式计算一次SHA256并复用它。
 	ExpectedChecksum string
 	MaxBytes         int64
 }
@@ -129,19 +129,9 @@ func Open(options Options) (*Source, error) {
 	if options.MaxBytes == 0 {
 		options.MaxBytes = DefaultMaxBytes
 	}
-	a, err := pvf.OpenReadOnly(pvf.Options{Path: path, MaxBytes: options.MaxBytes}, checksum)
+	a, err := pvf.OpenReadOnly(pvf.Options{Path: path, MaxBytes: options.MaxBytes}, expected)
 	if err != nil {
 		return nil, fmt.Errorf("open inner PVF: %w", err)
-	}
-
-	// 这是全流程唯一一次对 760MB 归档算 SHA256（pvf.Load 内部 ReadFile + Sum256）。
-	// 自动派生直接采用它，显式模式则要求与之相等。
-	if actual := bundle.Snapshot().Checksum; expected != "" && actual != expected {
-		return nil, fmt.Errorf("inner PVF source mismatch: got %s expected %s", actual, expected)
-	}
-	a, err := pvf.OpenArchive(bundle)
-	if err != nil {
-		return nil, fmt.Errorf("parse inner PVF: %w", err)
 	}
 	s.archive = a
 	return s, nil
@@ -395,6 +385,13 @@ func (s *Source) FullDungeons(world catalog.WorldCatalog, excluded []uint32) (ca
 		return catalog.DungeonCatalog{}, fmt.Errorf("dungeon import requires PVF")
 	}
 	return catalog.ImportFullDungeons(s.archive, world, excluded)
+}
+
+func (s *Source) RuntimeFullDungeons(world catalog.WorldCatalog, excluded []uint32) (catalog.DungeonCatalog, error) {
+	if s.archive == nil {
+		return catalog.DungeonCatalog{}, fmt.Errorf("dungeon import requires PVF")
+	}
+	return catalog.ImportRuntimeFullDungeons(s.archive, world, excluded)
 }
 
 func (s *Source) Dungeons(ids []uint32) (catalog.DungeonCatalog, error) {

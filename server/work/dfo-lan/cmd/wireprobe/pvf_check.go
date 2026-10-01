@@ -4,10 +4,26 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
+	"os"
 	"runtime"
+	"runtime/pprof"
 	"strings"
 	"time"
 )
+
+func writePVFHeapProfile(path string, catalogs pvfCoreCatalogs) error {
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+	if err != nil {
+		return err
+	}
+	err = pprof.WriteHeapProfile(f)
+	closeErr := f.Close()
+	runtime.KeepAlive(catalogs)
+	if err != nil {
+		return err
+	}
+	return closeErr
+}
 
 // checkReport is called only after source preparation and before installing
 // runtime globals, opening storage, creating capture files or listeners.
