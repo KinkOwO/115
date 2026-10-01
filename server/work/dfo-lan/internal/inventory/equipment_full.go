@@ -97,49 +97,88 @@ func (c *FullEquipmentCatalog) Close() error {
 
 // OpenPVFEquipmentCatalog keeps a compact immutable view for lazy definitions.
 // It does not alter the smaller drop/quest catalog or its allowed item pool.
-func OpenPVFEquipmentCatalog(a *pvf.Archive, index catalog.ItemIndex) (*FullEquipmentCatalog, error) {
+// PVFEquipmentProjection contains original archive record indices, not handles.
+// Its cache key must bind the exact archive, parser and effective ItemIndex.
+type PVFEquipmentProjection struct {
+	Source      pvf.ArchiveSnapshot
+	IndexSHA256 string
+	Bindings    []PVFEquipmentBinding
+}
+type PVFEquipmentBinding struct{ ID, File uint32 }
+
+func ProjectPVFEquipment(a *pvf.Archive, index catalog.ItemIndex) (PVFEquipmentProjection, error) {
+	var p PVFEquipmentProjection
 	if a == nil || index.Source.Checksum != a.Snapshot().Checksum {
-		return nil, fmt.Errorf("PVF equipment source mismatch")
+		return p, fmt.Errorf("PVF equipment source mismatch")
 	}
-	hash := index.IndexHashes["list/equipment.lst"]
-	if len(hash) != 64 {
-		return nil, fmt.Errorf("missing equipment source index hash")
+	p.Source = a.Snapshot()
+	p.IndexSHA256 = index.IndexHashes["list/equipment.lst"]
+	if len(p.IndexSHA256) != 64 {
+		return p, fmt.Errorf("missing equipment source index hash")
 	}
-	c := &FullEquipmentCatalog{Source: a.Snapshot(), IndexSHA256: hash,
-		Records: map[uint32]equipmentLocation{}, Errors: map[uint32]string{}}
-	paths := make([]string, 0, len(index.Items))
 	for id, entry := range index.Items {
 		if entry.Kind != "equipment" && entry.Kind != "avatar" {
 			continue
 		}
-		p := catalog.ResolveScriptPath(a, entry.Path)
-		f, ok := a.FindFile(p)
+		path := catalog.ResolveScriptPath(a, entry.Path)
+		f, ok := a.FindFile(path)
 		if !ok || f.DataType != 1 {
-			return nil, fmt.Errorf("equipment %d source script missing: %s", id, p)
+			return p, fmt.Errorf("equipment %d source script missing: %s", id, path)
 		}
-		c.Records[id] = equipmentLocation{Path: p}
-		paths = append(paths, p)
+		p.Bindings = append(p.Bindings, PVFEquipmentBinding{id, uint32(f.Index)})
 	}
-	if len(paths) == 0 {
-		return nil, fmt.Errorf("empty PVF equipment index")
+	sort.Slice(p.Bindings, func(i, j int) bool { return p.Bindings[i].ID < p.Bindings[j].ID })
+	return p, nil
+}
+
+func ValidatePVFEquipmentProjection(a *pvf.Archive, p PVFEquipmentProjection) error {
+	if a == nil || p.Source.Checksum != a.Snapshot().Checksum || len(p.IndexSHA256) != 64 || len(p.Bindings) == 0 {
+		return fmt.Errorf("equipment projection source mismatch")
 	}
-	v, err := a.ReadOnlyView(paths)
+	for i, b := range p.Bindings {
+		if b.ID == 0 || i > 0 && p.Bindings[i-1].ID >= b.ID {
+			return fmt.Errorf("invalid equipment binding order")
+		}
+		f, err := a.FileInfo(int(b.File))
+		if err != nil || f.DataType != 1 {
+			return fmt.Errorf("invalid equipment native binding %d", b.ID)
+		}
+	}
+	return nil
+}
+
+func RestorePVFEquipment(a *pvf.Archive, p PVFEquipmentProjection) (*FullEquipmentCatalog, error) {
+	if err := ValidatePVFEquipmentProjection(a, p); err != nil {
+		return nil, err
+	}
+	order := make([]int, len(p.Bindings))
+	for i, b := range p.Bindings {
+		order[i] = int(b.File)
+	}
+	v, err := a.ReadOnlyViewIndices(order)
 	if err != nil {
 		return nil, err
 	}
-	c.archive = v
-	c.bindings = make([]equipmentBinding, 0, len(c.Records))
-	for id, r := range c.Records {
-		index := v.FindFileIndex(r.Path)
-		if index < 0 {
-			v.Close()
-			return nil, fmt.Errorf("equipment view binding missing: %d", id)
+	sort.Ints(order)
+	unique := order[:0]
+	for _, i := range order {
+		if len(unique) == 0 || unique[len(unique)-1] != i {
+			unique = append(unique, i)
 		}
-		c.bindings = append(c.bindings, equipmentBinding{id, uint32(index)})
 	}
-	sort.Slice(c.bindings, func(i, j int) bool { return c.bindings[i].ID < c.bindings[j].ID })
-	c.Records = nil // Runtime keeps 8-byte native bindings, not JSON record locations.
+	c := &FullEquipmentCatalog{Source: a.Snapshot(), IndexSHA256: p.IndexSHA256, Errors: map[uint32]string{}, archive: v, bindings: make([]equipmentBinding, len(p.Bindings))}
+	for i, b := range p.Bindings {
+		c.bindings[i] = equipmentBinding{b.ID, uint32(sort.SearchInts(unique, int(b.File)))}
+	}
 	return c, nil
+}
+
+func OpenPVFEquipmentCatalog(a *pvf.Archive, index catalog.ItemIndex) (*FullEquipmentCatalog, error) {
+	p, err := ProjectPVFEquipment(a, index)
+	if err != nil {
+		return nil, err
+	}
+	return RestorePVFEquipment(a, p)
 }
 
 func (c *FullEquipmentCatalog) Definition(id uint32) (EquipmentDefinition, error) {

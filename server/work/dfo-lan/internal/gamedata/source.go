@@ -46,6 +46,7 @@ type Source struct {
 	archive    *pvf.Archive
 	cacheDir   string
 	cacheStats derivedCacheCounters
+	cacheFiles map[string]bool
 }
 
 func (s *Source) VisitItemDisplay(index catalog.ItemIndex, visit func(catalog.ItemDisplay) error) error {
@@ -73,7 +74,12 @@ func (s *Source) RecommendedDungeons() (*adventure.RecommendedRules, error) {
 }
 
 func (s *Source) Season(index catalog.ItemIndex) (*adventure.SeasonRules, error) {
-	return adventure.ImportSeasonRules(s.archive, index)
+	return cachedProjection(s, "season", itemIndexIdentity(index), func() (*adventure.SeasonRules, error) { return adventure.ImportSeasonRules(s.archive, index) }, func(r *adventure.SeasonRules) (*adventure.SeasonRules, error) {
+		if r == nil || r.SourceChecksum != s.Snapshot().Checksum {
+			return nil, fmt.Errorf("season cache source mismatch")
+		}
+		return adventure.NewSeasonRules(*r)
+	})
 }
 
 func (s *Source) OdysseyJournalRoutes() (*catalog.OdysseyJournalRoutes, error) {
@@ -81,7 +87,14 @@ func (s *Source) OdysseyJournalRoutes() (*catalog.OdysseyJournalRoutes, error) {
 }
 
 func (s *Source) RosterBackgrounds(index catalog.ItemIndex) (*rosterbg.TicketCatalog, error) {
-	return catalog.ImportRosterBackgroundTickets(s.archive, index)
+	return cachedProjection(s, "roster", itemIndexIdentity(index), func() (*rosterbg.TicketCatalog, error) {
+		return catalog.ImportRosterBackgroundTickets(s.archive, index)
+	}, func(r *rosterbg.TicketCatalog) (*rosterbg.TicketCatalog, error) {
+		if r == nil || r.Source != s.Snapshot().Checksum {
+			return nil, fmt.Errorf("background cache source mismatch")
+		}
+		return rosterbg.NewTicketCatalog(*r)
+	})
 }
 
 func (s *Source) Fame(index catalog.ItemIndex) (*character.FameRules, error) {
@@ -97,7 +110,17 @@ func (s *Source) SelectionBoxes(index catalog.ItemIndex, policy catalog.Selectio
 }
 
 func (s *Source) TerminalScenes(d catalog.DungeonCatalog, q catalog.QuestCatalog) (catalog.TerminalSceneOverlay, error) {
-	return catalog.ImportTerminalScenes(s.archive, d, q)
+	return cachedProjection(s, "terminal", struct {
+		D catalog.DungeonCatalog
+		Q catalog.QuestCatalog
+	}{stableDungeonInput(d), stableQuestInput(q)}, func() (catalog.TerminalSceneOverlay, error) { return catalog.ImportTerminalScenes(s.archive, d, q) }, func(r catalog.TerminalSceneOverlay) (catalog.TerminalSceneOverlay, error) {
+		copy := d
+		if err := catalog.ApplyTerminalScenes(&copy, r); err != nil {
+			return r, err
+		}
+		r.Source.Checksum = s.Snapshot().Checksum
+		return r, nil
+	})
 }
 
 func (s *Source) TournamentQuestMaps(d catalog.DungeonCatalog) (catalog.SourceMapOverlay, error) {
@@ -160,7 +183,11 @@ func (s *Source) CompactRuntimeStrings() error {
 	if s == nil || s.archive == nil {
 		return nil
 	}
-	return s.archive.CompactRuntimeStrings()
+	if err := s.archive.CompactRuntimeStrings(); err != nil {
+		return err
+	}
+	s.pruneDerivedCaches()
+	return nil
 }
 
 func (s *Source) EnableRuntimeDetails(q *catalog.QuestCatalog, l *character.LearningCatalog, items *catalog.LootCatalog, index *catalog.ItemIndex) (err error) {
@@ -309,7 +336,15 @@ func (s *Source) Equipment(index catalog.ItemIndex) (*inventory.FullEquipmentCat
 	if s.mode != PVF {
 		return nil, fmt.Errorf("lazy PVF equipment requires a PVF source")
 	}
-	return inventory.OpenPVFEquipmentCatalog(s.archive, index)
+	p, err := cachedProjection(s, "equipment", itemIndexIdentity(index), func() (inventory.PVFEquipmentProjection, error) {
+		return inventory.ProjectPVFEquipment(s.archive, index)
+	}, func(p inventory.PVFEquipmentProjection) (inventory.PVFEquipmentProjection, error) {
+		return p, inventory.ValidatePVFEquipmentProjection(s.archive, p)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return inventory.RestorePVFEquipment(s.archive, p)
 }
 
 func (s *Source) Learning(c catalog.Characters) (*character.LearningCatalog, error) {
@@ -414,11 +449,23 @@ func (s *Source) Loot(maximumGrade uint32) (catalog.LootCatalog, error) {
 	if s.archive == nil {
 		return catalog.LootCatalog{}, fmt.Errorf("loot requires PVF")
 	}
-	direct, err := catalog.ImportLoot(s.archive, maximumGrade)
-	if err != nil {
-		return direct, err
-	}
-	return catalog.ValidateLoot(direct)
+	return cachedProjection(s, "loot", maximumGrade, func() (catalog.LootCatalog, error) {
+		direct, err := catalog.ImportLoot(s.archive, maximumGrade)
+		if err != nil {
+			return direct, err
+		}
+		return catalog.ValidateLoot(direct)
+	}, func(r catalog.LootCatalog) (catalog.LootCatalog, error) {
+		if r.Source.Checksum != s.Snapshot().Checksum || r.MaximumGrade != maximumGrade {
+			return r, fmt.Errorf("loot cache source mismatch")
+		}
+		r.Source = s.Snapshot()
+		// ValidateLoot appends diagnostics; keep serialized diagnostics unchanged.
+		checked := r
+		checked.Skipped = append([]string(nil), r.Skipped...)
+		_, err := catalog.ValidateLoot(checked)
+		return r, err
+	})
 }
 
 func (s *Source) EquipmentSelection(index catalog.ItemIndex, quests catalog.QuestCatalog, policy inventory.DropPolicy) (*inventory.EquipmentCatalog, error) {
@@ -446,7 +493,18 @@ func (s *Source) RuntimeFullDungeons(world catalog.WorldCatalog, excluded []uint
 	if s.archive == nil {
 		return catalog.DungeonCatalog{}, fmt.Errorf("dungeon import requires PVF")
 	}
-	return catalog.ImportRuntimeFullDungeons(s.archive, world, excluded)
+	return cachedProjection(s, "dungeons", struct {
+		World    catalog.WorldCatalog
+		Excluded []uint32
+	}{stableWorldInput(world), excluded}, func() (catalog.DungeonCatalog, error) {
+		return catalog.ImportRuntimeFullDungeons(s.archive, world, excluded)
+	}, func(r catalog.DungeonCatalog) (catalog.DungeonCatalog, error) {
+		if r.Source.Checksum != s.Snapshot().Checksum {
+			return r, fmt.Errorf("dungeon cache source mismatch")
+		}
+		r.Source = s.Snapshot()
+		return catalog.RestoreRuntimeDungeons(s.archive, r)
+	})
 }
 
 func (s *Source) Dungeons(ids []uint32) (catalog.DungeonCatalog, error) {
@@ -542,7 +600,20 @@ func (s *Source) BleedingMine(index catalog.ItemIndex, policy loot.BleedingMineP
 }
 
 func (s *Source) ScriptWarpRoutes(d catalog.DungeonCatalog, p catalog.ScriptWarpPolicy) ([]catalog.ScriptWarpRoute, error) {
-	return catalog.ImportScriptWarpRoutes(s.archive, d, p)
+	return cachedProjection(s, "warps", struct {
+		D catalog.DungeonCatalog
+		P catalog.ScriptWarpPolicy
+	}{stableDungeonInput(d), p}, func() ([]catalog.ScriptWarpRoute, error) { return catalog.ImportScriptWarpRoutes(s.archive, d, p) }, func(r []catalog.ScriptWarpRoute) ([]catalog.ScriptWarpRoute, error) {
+		if len(r) != len(p.Routes) {
+			return nil, fmt.Errorf("warp cache count mismatch")
+		}
+		for _, route := range r {
+			if route.Source != s.Snapshot().Checksum || route.DungeonSHA256 != d.Dungeons[route.Dungeon].Script.SHA256 || route.MapSHA256 != d.Maps[route.From].SHA256 || len(route.ActionSHA256) != 64 {
+				return nil, fmt.Errorf("warp cache source mismatch")
+			}
+		}
+		return r, nil
+	})
 }
 
 func (s *Source) LayerRevisits(d catalog.DungeonCatalog, p catalog.LayerRevisitPolicy) (catalog.LayerRevisitOverlay, error) {

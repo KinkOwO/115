@@ -8,18 +8,22 @@
 
 | 文件 | 用途与验证边界 |
 |---|---|
-| `work/dfo-lan/bin/wireprobe-pvf.exe` | 46c349cd归档元数据及联合物品磁盘缓存已确认，三个根入口默认使用；保持54选择项/63投影、历史存档准入及来源自动派生。 |
+| `work/dfo-lan/bin/wireprobe-pvf.exe` | SHA256 bc6211802e361f1407a14fd62d7a5730be9ed5250851a7f4c6c48aea6d32310e，第四批剩余投影缓存已确认，三个根入口默认使用；保持54选择项/63投影、历史存档准入及来源自动派生。 |
 | `work/dfo-lan/bin/wireprobe-dungeon39.exe` | 原39版归档程序。前一任务的对接记录记载装备显示、重登保留和不崩已经用户确认；本次打包没有重做该实机验收。保留作历史回退。 |
-| `work/dfo-lan/bin/wireprobe-handoff-source.exe` | 46c349cd归档元数据及联合物品缓存已确认；与默认入口相同，完整目录/池/组合启动及Go测试/vet通过。 |
+| `work/dfo-lan/bin/wireprobe-handoff-source.exe` | SHA256 bc6211802e361f1407a14fd62d7a5730be9ed5250851a7f4c6c48aea6d32310e，与默认入口相同，含上游SHA身份修复及已确认的第四批剩余优化。 |
 | `work/dfo-lan/bin/wireprobe-dungeon37.exe` | 历史回退参考；使用它时必须同时选择相匹配的配置。 |
 
 **没有附会导致入城崩溃的38版EXE。** 文件名 `next38-equipment-display.md` 记载的是修复到39版的结果，不代表应该启动38版。
 
-当前确认46c349cd支持来源自动派生及归档元数据/联合物品缓存，选角/二次启动已确认，日常使用根入口即可。旧2e4bd343不支持空校验配置，仅保留历史匹配组合回退。启动脚本缺少内层manifest时可能重建资源，当前用户已生成be95d64e内层及manifest；原7ef离线采样不扩展为新归档性能数据。
+当前确认bc6211802e361f1407a14fd62d7a5730be9ed5250851a7f4c6c48aea6d32310e支持来源自动派生、归档元数据/联合物品缓存及七类投影缓存，用户已连续两轮手动启动并通过角色1第46帧入场预检；日常使用根入口即可。旧2e4bd343不支持空校验配置，仅保留历史匹配组合回退。启动脚本缺少内层manifest时可能重建资源，当前用户已生成be95d64e内层及manifest；原7ef离线采样不扩展为新归档性能数据。
 
-第四批候选首次启动建立runtime/pvf-cache，第二次同源同程序命中；本机单次目录准备40.49→31.15秒，首次建缓存42.23秒，保留堆基本持平。用户手动关闭会话后用--source-build连续两次检查选角及物品/任务/进房。DFO_PVF_CACHE_DIR可指定目录，-禁用；缓存可删除后重建，程序/源/强化策略变化会失效。源码c6b2bace备份于work/dfo-lan/.tmp/pvf-phase4/bin/wireprobe-handoff-source.confirmed-before.exe；其余投影缓存未完成，详见../docs/todo/pvf/PVF启动与内存优化实施计划.md。
+第四批联合物品缓存阶段的历史样本为准备40.49→31.15秒，首次建缓存42.23秒，保留堆基本持平；源码c6b2bace备份于work/dfo-lan/.tmp/pvf-phase4/bin/wireprobe-handoff-source.confirmed-before.exe。当前其余投影缓存也已确认，完整阶段记录见../docs/todo/pvf/PVF启动与内存优化实施计划.md。
 
 归档元数据缓存已确认：用户确认速度提升。17:50会话两类缓存miss/stored，准备50.244秒，角色4的45帧入场预检通过；17:53会话两类缓存hit，元数据2.361秒、联合物品2.647秒、全部准备25.704秒，角色11的49帧预检通过。正式/源码程序均核对为46c349cd8151ea66b9f056ce32f1c9f63368ee4ec6cc448205fbd713a062f7d8，无需替换，纳入confirmed baseline。确认依据用户反馈及上述日志，不扩大为所有玩法逐项验收；不改schema、存档准入/profile/客户端资源。按授权提交本段，再拉取合并上游SHA相关更新，继续其它投影及缓存保留策略。下文候选状态为历史记录。
+
+第四批剩余项已确认：七类确定性投影缓存（装备绑定/掉落/副本/赛季/背景券/传送/终场剧情）及旧缓存保留策略，绑定实际PVF/完整程序/实际输入策略，损坏重建、不可写回退及私有查询索引恢复。424216条装备、18387张地图、七类全部字段和54/63冷热启动一致；全量Go测试/vet、独立PostgreSQL16存档身份迁移回归通过。已提交确认段3def161并以2c24faa合并上游07e1551。用户手动连续两轮启动源码入口并确认：18:21:24冷轮准备48.0247秒，九类缓存miss/stored，角色1第46帧entry_preflight_passed；18:23:49热轮准备14.4253秒，九类缓存hit，角色1第46帧entry_preflight_passed。正式入口与源码入口均核对为SHA256 bc6211802e361f1407a14fd62d7a5730be9ed5250851a7f4c6c48aea6d32310e，现纳入confirmed baseline。热轮相较此前确认热轮23.9059秒快39.44%、累计分配降低61.84%；首次建九文件48.51秒，热堆527.47→536.01MiB，缓存合计约191MiB。实机确认范围为连续两次启动及选角进入前置检查，未扩大为所有玩法逐项验收。
+
+上游包含存档身份契约迁移：新源码启动后旧46c349cd默认程序不能直接作为回退。优先保持源码入口并设置DFO_PVF_CACHE_DIR='-'恢复原生导入；若需撤回本批实现，关闭会话后将.tmp/pvf-phase4c/bin/wireprobe-metadata-sha-compatible.exe复制到源码入口，再继续--source-build。该185ae7e99853d2b4d96a1043c47eb046279cfb6d777e536e7e1df6c1d46ba92f程序来自合并提交2c24faa，含上游身份修复及已确认元数据/物品缓存，不含本批七类投影；54/63离线完整报告与候选一致，未操作玩家数据库。46c349cd精确备份.tmp/pvf-phase4c/bin/wireprobe-handoff-source.confirmed-before.exe仅作迁移前历史快照。用户已手动关闭会话后启动游戏.cmd --source-build连续两轮并确认；默认入口与源码入口均已核对为当前SHA。
 
 ## 首次启动
 

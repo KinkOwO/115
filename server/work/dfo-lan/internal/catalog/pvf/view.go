@@ -27,7 +27,27 @@ func (a *Archive) ReadOnlyView(paths []string) (*Archive, error) {
 	for i := range indices {
 		order = append(order, i)
 	}
+	return a.ReadOnlyViewIndices(order)
+}
+
+// ReadOnlyViewIndices retains verified native record indices without resolving
+// each path again. The view remaps indices in sorted native record order.
+func (a *Archive) ReadOnlyViewIndices(indices []int) (*Archive, error) {
+	if a == nil || a.closed.Load() {
+		return nil, fmt.Errorf("nil PVF archive")
+	}
+	order := append([]int(nil), indices...)
 	sort.Ints(order)
+	unique := order[:0]
+	for _, i := range order {
+		if i < 0 || i >= a.FileCount() {
+			return nil, fmt.Errorf("PVF view index out of range: %d", i)
+		}
+		if len(unique) == 0 || unique[len(unique)-1] != i {
+			unique = append(unique, i)
+		}
+	}
+	order = unique
 	v := &Archive{snapshot: a.snapshot, format: a.format, header: a.header,
 		data: a.data, groups: a.groups, bodyOff: a.bodyOff, strA: a.strA, strW: a.strW,
 		stringPools:   a.stringPools,

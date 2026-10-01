@@ -155,3 +155,5 @@ func decodeMetadata(reader io.Reader, a *Archive, h pvfHeader) error {
 	a.stringPools = newRuntimeStringPools(poolA, poolW)
 	return nil
 }
+
+func (a *Archive) MetadataCacheFile() string { return a.metadataCacheFile }
