@@ -29,6 +29,9 @@ func TestSeekMeetBossClearLazyLocalArchive(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer dungeons.CloseMapSource()
+	if err = a.CompactRuntimeStrings(); err != nil {
+		t.Fatal(err)
+	}
 	if err = a.Close(); err != nil {
 		t.Fatal(err)
 	}

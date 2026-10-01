@@ -3,6 +3,9 @@ package pvf
 import "fmt"
 
 func (a *Archive) readTextIndex(idx int) (string, error) {
+	if err := a.poolError(); err != nil {
+		return "", err
+	}
 	if a.closed.Load() {
 		return "", fmt.Errorf("%w: archive is closed", ErrInvalidArchive)
 	}
@@ -22,10 +25,16 @@ func (a *Archive) readTextIndex(idx int) (string, error) {
 	default:
 		text = ""
 	}
+	if err := a.poolError(); err != nil {
+		return "", err
+	}
 	return a.cacheText(idx, text), nil
 }
 
 func (a *Archive) readRawIndex(idx int) ([]byte, error) {
+	if err := a.poolError(); err != nil {
+		return nil, err
+	}
 	count := len(a.items)
 	if a.compactDirectory {
 		count = a.FileCount()

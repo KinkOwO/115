@@ -51,6 +51,9 @@ func TestRuntimeDungeonsLocalArchiveParity(t *testing.T) {
 	if !reflect.DeepEqual(eager.Dungeons, lazy.Dungeons) || !reflect.DeepEqual(eager.Skipped, lazy.Skipped) || len(eager.Maps) != len(lazy.Maps) {
 		t.Fatal("changed dungeon admission, layouts or skipped order")
 	}
+	if err = s.CompactRuntimeStrings(); err != nil {
+		t.Fatal(err)
+	}
 	if err = s.Close(); err != nil {
 		t.Fatal(err)
 	}

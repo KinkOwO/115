@@ -129,6 +129,9 @@ func (a *Archive) ItemNameRef(scriptPath string) (NameRef, bool, error) {
 		}
 		if raw == "" && v.Type != 0 && v.Type != 2 {
 			raw = a.ResolveString(int(v.Value))
+			if err := a.poolError(); err != nil {
+				return NameRef{}, false, err
+			}
 		}
 		ref, isRef := ParseLocalizedRef(raw)
 		return NameRef{

@@ -8,9 +8,9 @@
 
 | 文件 | 用途与验证边界 |
 |---|---|
-| `work/dfo-lan/bin/wireprobe-pvf.exe` | 2026-10-01已确认第三批首段地图按需读取，54选择项/63类源投影；当前45084387支持configs/pvf-default.json的来源自动派生。三个根启动入口默认使用它，当前完整SHA256见PVF直读默认启动确认文档。 |
+| `work/dfo-lan/bin/wireprobe-pvf.exe` | 2026-10-01共享字符串池优化已确认，54选择项/63类源投影；当前72f040e5支持来源自动派生，三个根入口默认使用它。完整身份及验证边界见PVF直读默认启动确认。 |
 | `work/dfo-lan/bin/wireprobe-dungeon39.exe` | 原39版归档程序。前一任务的对接记录记载装备显示、重登保留和不崩已经用户确认；本次打包没有重做该实机验收。保留作历史回退。 |
-| `work/dfo-lan/bin/wireprobe-handoff-source.exe` | 第三批首段45084387已获用户确认，与默认程序相同；原生完整/进房/NPC/沉月湖对照及全量测试/vet通过。原7ef只读样本准备36.80秒、GC堆约0.93GiB；当前用户生成内层be95d64e，确认依据用户反馈。后续源码候选另行验收，详见实施计划。 |
+| `work/dfo-lan/bin/wireprobe-handoff-source.exe` | 共享字符串池优化72f040e5已确认，与默认程序相同；当前be95完整池/目录/地图和54/63检查、全量测试/vet通过。GC堆545.78MiB、准备38.54秒，峰值约2.6GiB。第三批余项后续候选另行验收。 |
 | `work/dfo-lan/bin/wireprobe-dungeon37.exe` | 历史回退参考；使用它时必须同时选择相匹配的配置。 |
 
 **没有附会导致入城崩溃的38版EXE。** 文件名 `next38-equipment-display.md` 记载的是修复到39版的结果，不代表应该启动38版。

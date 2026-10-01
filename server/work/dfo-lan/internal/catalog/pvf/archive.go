@@ -79,6 +79,7 @@ type Archive struct {
 	bodyOff          int
 	strA             []byte
 	strW             []byte
+	stringPools      *runtimeStringPools
 	compactDirectory bool
 	compactTable     []byte
 	compactIndex     []directoryEntry
@@ -201,8 +202,15 @@ func (a *Archive) IterateFiles(fn func(File) error) error {
 	if a == nil || fn == nil {
 		return fmt.Errorf("invalid archive file iterator")
 	}
+	if err := a.poolError(); err != nil {
+		return err
+	}
 	for i := 0; i < a.FileCount(); i++ {
-		if err := fn(a.fileAt(i)); err != nil {
+		file := a.fileAt(i)
+		if err := a.poolError(); err != nil {
+			return err
+		}
+		if err := fn(file); err != nil {
 			return err
 		}
 	}
@@ -245,22 +253,23 @@ func (a *Archive) CanReadFileData() bool {
 }
 
 func (a *Archive) FindFile(relativePath string) (File, bool) {
-	if a == nil {
+	if a == nil || a.poolError() != nil {
 		return File{}, false
 	}
 	idx, ok := a.lookupPath(relativePath)
 	if !ok {
 		return File{}, false
 	}
-	return a.fileAt(idx), true
+	file := a.fileAt(idx)
+	return file, a.poolError() == nil
 }
 
 func (a *Archive) FindFileIndex(relativePath string) int {
-	if a == nil {
+	if a == nil || a.poolError() != nil {
 		return -1
 	}
 	idx, ok := a.lookupPath(relativePath)
-	if !ok {
+	if !ok || a.poolError() != nil {
 		return -1
 	}
 	return idx
@@ -271,6 +280,9 @@ func (a *Archive) ReadText(relativePath string) (string, error) {
 		return "", fmt.Errorf("%w: archive is nil", ErrInvalidArchive)
 	}
 	idx, ok := a.lookupPath(relativePath)
+	if err := a.poolError(); err != nil {
+		return "", err
+	}
 	if !ok {
 		return "", fmt.Errorf("%w: %s", ErrFileNotFound, relativePath)
 	}
@@ -282,6 +294,9 @@ func (a *Archive) ReadRaw(relativePath string) ([]byte, error) {
 		return nil, fmt.Errorf("%w: archive is nil", ErrInvalidArchive)
 	}
 	idx, ok := a.lookupPath(relativePath)
+	if err := a.poolError(); err != nil {
+		return nil, err
+	}
 	if !ok {
 		return nil, fmt.Errorf("%w: %s", ErrFileNotFound, relativePath)
 	}

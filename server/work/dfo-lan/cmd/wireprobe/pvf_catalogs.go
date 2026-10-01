@@ -466,6 +466,11 @@ func preparePVFCoreCatalogs(selection, path, checksum, characterPath, questPath,
 	if result.dungeons != nil {
 		result.dungeons.ReleaseMapReadCache()
 	}
+	if result.equipment != nil || result.dungeons != nil {
+		if err := source.CompactRuntimeStrings(); err != nil {
+			return result, fmt.Errorf("compact PVF runtime strings: %w", err)
+		}
+	}
 	log.Printf("PVF candidate catalogs prepared in %s; full directory can be collected before opening storage", time.Since(started))
 	logPVFMemory("catalogs-prepared", time.Since(started))
 	return result, nil

@@ -29,6 +29,9 @@ func TestLazyMapEntryAndRoomLocalArchiveParity(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer lazy.CloseMapSource()
+	if err = a.CompactRuntimeStrings(); err != nil {
+		t.Fatal(err)
+	}
 	if err = a.Close(); err != nil {
 		t.Fatal(err)
 	}

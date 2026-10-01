@@ -144,6 +144,13 @@ func (s *Source) Close() error {
 	return s.archive.Close()
 }
 
+func (s *Source) CompactRuntimeStrings() error {
+	if s == nil || s.archive == nil {
+		return nil
+	}
+	return s.archive.CompactRuntimeStrings()
+}
+
 func (s *Source) Snapshot() pvf.ArchiveSnapshot {
 	if s.archive == nil {
 		return pvf.ArchiveSnapshot{}
