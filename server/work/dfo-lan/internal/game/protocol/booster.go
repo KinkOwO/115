@@ -123,6 +123,27 @@ func DecodeBoosterUseRequest(p []byte) (BoosterUseRequest, error) {
 						break
 					}
 				}
+				// Native 14573DC60 writes ability options for the selected avatar
+				// templates. Validate that identity before accepting a boundary:
+				// a template's low byte can also look like an option count (the
+				// captured archer package's fourth template starts with 04).
+				if allZero && s > 0 {
+					for i := 0; i < a; i++ {
+						entryOff := off + 1 + i*5
+						tpl := binary.LittleEndian.Uint32(data[entryOff : entryOff+4])
+						selected := false
+						for j := 0; j < s; j++ {
+							if tpl != 0 && tpl == binary.LittleEndian.Uint32(data[j*4:j*4+4]) {
+								selected = true
+								break
+							}
+						}
+						if !selected {
+							allZero = false
+							break
+						}
+					}
+				}
 				if allZero {
 					for i := 0; i < s; i++ {
 						tpl := binary.LittleEndian.Uint32(data[i*4 : (i+1)*4])

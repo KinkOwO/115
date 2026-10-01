@@ -78,3 +78,5 @@ address	name	description
 0x14563c1f0	BuffEnhancement_ReadUserInfoBlock	USERINFO switching block reads skill u16/count u8, clears actor map via143642610 then binds supplied items; empty service block erases registrations
 0x143642610	BuffEnhancement_ClearActorRegistration	Erases actor+48 map binding via14363ff90 and refreshes windows740/741; USERINFO caller confirmed
 0x143643910	BuffEnhancement_CopyActorRegistration	Copies old actor registration to new actor in145961b80/145c6fe60; registrations are keyed by actor+48
+0x14573dc60	BoosterSelectWindow_SendWithAvatarOptions	CMD160: u16 slot, u32 amount, two u8 category bytes, all selected u32 templates, u8 option count, template-u32/option-u8 rows and trailing zero. Archer package captured 2026-10-01 has 8 templates and 0 options.
+0x14573e120	BoosterSelectWindow_SendSelection	CMD160 normal branch writes all selected u32 templates then two zero bytes at 14573E776/14573E785. Native archer and dark-knight package vectors captured 2026-10-01.
