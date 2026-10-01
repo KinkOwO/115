@@ -632,7 +632,9 @@ func (p *Pilot) Purchase(ctx context.Context, ledger BagLedger, account, charact
 			}
 		}
 	}
-	s := Service{Catalog: Catalog{Source: p.Config.Source.Checksum, Products: products}}
+	// The ledger compares order.Source with characters.config_version, not
+	// the archive checksum used to validate this catalog's native provenance.
+	s := Service{Catalog: Catalog{Source: p.Config.Source.SaveIdentity(), Products: products}}
 	o, e := s.Quote(account, character, key, cart, time.Now())
 	if e != nil {
 		return storage.CashReceipt{}, false, e

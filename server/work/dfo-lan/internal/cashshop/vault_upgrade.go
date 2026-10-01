@@ -212,12 +212,14 @@ func (p *Pilot) PurchaseVault(ctx context.Context, ledger VaultLedger, rules inv
 			return storage.CashReceipt{}, false, fmt.Errorf("unsupported vault upgrade product")
 		}
 	}
-	o := storage.CashOrder{Key: key, Account: account, Character: character, Source: p.Config.Source.Checksum, Lines: []storage.CashOrderLine{{Product: u.Product, Template: u.Template, Quantity: 1, Units: 1, UnitPrice: u.Price}}}
+	o := storage.CashOrder{Key: key, Account: account, Character: character, Source: p.Config.Source.SaveIdentity(), Lines: []storage.CashOrderLine{{Product: u.Product, Template: u.Template, Quantity: 1, Units: 1, UnitPrice: u.Price}}}
 	o.VaultSpace = u.Space
 	return ledger.PurchaseCashVault(ctx, o, func(v storage.VaultState) (storage.VaultState, error) {
 		source := rules.SourceSHA256
 		if u.Space == 12 {
-			source = p.Config.Source.Checksum
+			// Account vault identity comes from its owning character; personal
+			// vaults keep the separate identity from the vault rules.
+			source = p.Config.Source.SaveIdentity()
 		}
 		if v.ConfigVersion != source || v.Slots != u.Before {
 			return v, fmt.Errorf("vault upgrade requires %d current slots", u.Before)

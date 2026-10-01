@@ -44,7 +44,7 @@ func TestVaultSourcePurchase(t *testing.T) {
 		cart := []protocol.CeraCartItem{{Product: id, Quantity: 1}}
 		prepare := func(r storage.CashReceipt) error { _, e := inventory.VaultPayload(*r.Vault); return e }
 		_, ok, e := p.PurchaseVault(context.Background(), l, rules, 1, 1, "vault-test-000001", cart, prepare)
-		if e != nil || !ok || l.state.Slots != u.After || l.order.Lines[0].UnitPrice != u.Price {
+		if e != nil || !ok || l.state.Slots != u.After || l.order.Lines[0].UnitPrice != u.Price || l.order.Source != p.Config.Source.SaveIdentity() || l.state.ConfigVersion != rules.SourceSHA256 {
 			t.Fatal(id, e)
 		}
 		if _, _, e = p.PurchaseVault(context.Background(), l, rules, 1, 1, "vault-test-000002", cart, prepare); e == nil {

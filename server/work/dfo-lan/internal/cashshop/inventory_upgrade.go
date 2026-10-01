@@ -67,7 +67,7 @@ func (p *Pilot) TryPurchaseInventoryExpansion(ctx context.Context, ledger BagLed
 		if product.Units != 1 {
 			return fail(fmt.Errorf("背包扩展券数量配置无效"))
 		}
-		quote := Service{Catalog: Catalog{Source: p.Config.Source.Checksum, Products: map[uint32]Product{product.ID: product}}}
+		quote := Service{Catalog: Catalog{Source: p.Config.Source.SaveIdentity(), Products: map[uint32]Product{product.ID: product}}}
 		order, err := quote.Quote(account, character, key, cart, time.Now())
 		if err != nil {
 			return fail(err)

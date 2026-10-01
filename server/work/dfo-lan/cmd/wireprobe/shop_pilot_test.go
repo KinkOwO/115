@@ -294,7 +294,11 @@ func TestShopPilotDatabasePurchase(t *testing.T) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	cfg, e := storage.LoadConfig("../../runtime/storage/local.json")
+	configPath := os.Getenv("DFO_TEST_STORAGE_CONFIG")
+	if configPath == "" {
+		configPath = "../../runtime/storage/local.json"
+	}
+	cfg, e := storage.LoadConfig(configPath)
 	if e != nil {
 		t.Fatal(e)
 	}
