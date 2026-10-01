@@ -32,6 +32,7 @@ var infraPackages = map[string]bool{
 	"internal/catalog/pvf":   true,
 	"internal/derivedcache":  true,
 	"internal/savecontract":  true,
+	"internal/model":         true,
 }
 
 // L2 持久化：领域不得直接依赖（R2）。
@@ -162,6 +163,8 @@ func TestDependencyContract(t *testing.T) {
 			}
 			var rule string
 			switch {
+			case from == "internal/model":
+				rule = "R7 共享内核不得依赖任何 internal 包"
 			case infraPackages[from] && domainPackages[to]:
 				rule = "R1 基础设施不得依赖领域"
 			case domainPackages[from] && to == persistencePackage:

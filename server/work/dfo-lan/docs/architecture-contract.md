@@ -22,6 +22,7 @@
 | 层 | 名称 | 包 | 特征 |
 |---|---|---|---|
 | L0 | 传输原语 | `internal/game/wire` | 帧、加解密、校验和；不含任何游戏事实 |
+| LC | 共享内核（纯数据） | `internal/model` | 跨领域共享聚合；只放数据结构，不 import 任何 internal 包 |
 | L1 | 协议与静态数据 | `internal/game/protocol`、`internal/catalog`、`internal/catalog/pvf`、`internal/derivedcache`、`internal/savecontract` | 字节布局、PVF 归档原语、规则驱动静态目录、磁盘缓存与存档契约原语 |
 | L2 | 持久化 | `internal/storage` | SQL、事务、存档读写；游戏事实的搬运者和实现者，不是拥有者 |
 | L3 | 业务领域 | `internal/{character,inventory,loot,quest,dungeon,world,cashshop,progression,adventure,legion,npcpresence,profileskin,rosterbg}` | 拥有各自的游戏规则与状态 |
@@ -56,6 +57,9 @@ L3 领域之间 **默认禁止**互相 import。需要另一领域能力时，�
 ### R6 组合与工具层不承载游戏规则
 `cmd/**`、`gamedata`、`managementdata`、`admin`、`channelrefresh` 可以 import 任意包；但**不得**成为某条游戏规则的唯一实现。离线导入/审计工具可以依赖领域，领域不得反向依赖它们。
 
+### R7 共享内核只放纯数据
+`internal/model` 存放被多个领域共同引用的聚合（如 `Character`），用来打破 `character ↔ inventory` 这类双向依赖。它**只放数据结构**、不含游戏规则，且**不得 import 任何 internal 包**。领域与 `storage` 都可依赖它。领域拥有类型的原则在这里的例外是：当一个聚合被两个互相依赖的领域共享时，放中立 `model` 而不是任一领域内。
+
 ---
 
 ## 3. 判断新代码落位的唯一标准
@@ -76,6 +80,7 @@ L3 领域之间 **默认禁止**互相 import。需要另一领域能力时，�
 | `internal/game/protocol` | L1 | 协议请求/通知的字段编解码 | `game/wire`（如需） | 任何 L3 领域 |
 | `internal/catalog/pvf` | L1 | PVF 归档、token、列表、路径原语 | 仅标准库 | 任何 `internal/*` |
 | `internal/catalog` | L1 | 规则驱动静态目录与索引 | `catalog/pvf` | 任何 L3 领域 |
+| `internal/model` | LC | 跨领域共享的纯数据聚合 | 仅标准库 | 任何 `internal/*` |
 | `internal/derivedcache` | L1 | 磁盘派生缓存原语（哈希/失效/读写） | 仅标准库 | 任何 `internal/*` |
 | `internal/savecontract` | L1 | 存档契约版本与身份（与客户端资源解耦） | 仅标准库 | 任何 `internal/*` |
 | `internal/storage` | L2 | SQL、事务、锁、存档；实现领域声明的接口 | L3 领域（仅为实现接口）、`catalog`、`catalog/pvf` | 定义游戏规则 |
