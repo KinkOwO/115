@@ -26,8 +26,13 @@ const (
 )
 
 type Options struct {
-	Mode             Mode
-	ArchivePath      string
+	Mode        Mode
+	ArchivePath string
+	// ExpectedChecksum 为空 = 自动派生：信任内层归档自身算出的 SHA256。
+	// 非空 = 显式校验（发布 / 审计场景钉死某一版）。
+	// 为什么允许为空：内层 PVF 是本地按需生成的产物（见 scripts/ensure_inner_pvf.py），
+	// 手写常量会与文件脱钩 —— 自愈更新了文件、常量没更新就启动失败（next142 的事故）。
+	// 自动派生不额外读一遍归档：pvf.Load 本来就要算这个 SHA256，直接复用它。
 	ExpectedChecksum string
 	MaxBytes         int64
 }
@@ -108,10 +113,14 @@ func Open(options Options) (*Source, error) {
 	if strings.TrimSpace(options.ArchivePath) == "" {
 		return nil, fmt.Errorf("PVF source requires an explicit inner archive path")
 	}
-	checksum := strings.ToLower(options.ExpectedChecksum)
-	decoded, err := hex.DecodeString(checksum)
-	if err != nil || len(decoded) != 32 {
-		return nil, fmt.Errorf("PVF source requires the expected SHA256 of the inner archive")
+	// 空 ExpectedChecksum = 自动派生（见 Options 注释）。显式给出时必须是一个
+	// 合法的 32 字节 SHA256，避免把拼错的常量静默当作"没给"。
+	expected := strings.ToLower(strings.TrimSpace(options.ExpectedChecksum))
+	if expected != "" {
+		decoded, err := hex.DecodeString(expected)
+		if err != nil || len(decoded) != 32 {
+			return nil, fmt.Errorf("PVF source requires the expected SHA256 of the inner archive")
+		}
 	}
 	path, err := filepath.Abs(options.ArchivePath)
 	if err != nil {
@@ -123,6 +132,16 @@ func Open(options Options) (*Source, error) {
 	a, err := pvf.OpenReadOnly(pvf.Options{Path: path, MaxBytes: options.MaxBytes}, checksum)
 	if err != nil {
 		return nil, fmt.Errorf("open inner PVF: %w", err)
+	}
+
+	// 这是全流程唯一一次对 760MB 归档算 SHA256（pvf.Load 内部 ReadFile + Sum256）。
+	// 自动派生直接采用它，显式模式则要求与之相等。
+	if actual := bundle.Snapshot().Checksum; expected != "" && actual != expected {
+		return nil, fmt.Errorf("inner PVF source mismatch: got %s expected %s", actual, expected)
+	}
+	a, err := pvf.OpenArchive(bundle)
+	if err != nil {
+		return nil, fmt.Errorf("parse inner PVF: %w", err)
 	}
 	s.archive = a
 	return s, nil

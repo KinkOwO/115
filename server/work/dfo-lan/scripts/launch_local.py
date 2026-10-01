@@ -10,6 +10,8 @@ import subprocess
 import sys
 import time
 from urllib.parse import urlparse
+from ensure_inner_pvf import ensure as ensure_inner_pvf
+from prepare_inner_pvf import prepare as prepare_inner_pvf
 from repair_profile import load_profile
 
 PROJECT = pathlib.Path(__file__).resolve().parent.parent
@@ -17,6 +19,13 @@ ROOT = PROJECT.parent.parent
 STORAGE = PROJECT / "runtime/storage"
 FLAGS = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 DEFAULT_PVF_PROFILE = PROJECT / "configs/pvf-default.json"
+# 内层 PVF（PVF 直读模式的输入）的落地位置。
+# ⚠️ 注意 ROOT 在本文件里是 `server/`（= PROJECT.parent.parent），不是整合包根；
+# client-build 与 dfo-lan 同级，都在 server/work 下，所以是 PROJECT.parent 而非 ROOT。
+# `configs/pvf-default.json` 的 `DFO_PVF_ARCHIVE: ../client-build/Script.inner.pvf` 也是
+# 以 dfo-lan 为基准（PROJECT）解析的，这里必须与其对齐。
+INNER_PVF = PROJECT.parent / "client-build/Script.inner.pvf"
+INNER_MANIFEST = PROJECT.parent / "client-build/Script.inner.manifest.json"
 
 
 def resolved(value):
@@ -113,8 +122,43 @@ def gateway_configuration(args, local):
   if args.source_build and not args.repair_profile:
    required = [binary if p == profile_binary else p for p in required]
   else:
+   # profile 的 binary 是权威：默认档就是官方 `启动游戏.cmd` / `启动服务端.cmd`
+   # 走的那条路径（两者都直接调本脚本、不带任何 binary 参数），必须与官方一致。
    binary = profile_binary
  return binary, required, environment
+
+
+def _ensure_inner_pvf(client, args):
+ """按需生成/刷新内层 PVF（PVF 直读模式的输入数据）。
+
+ 与启动器侧 internal/pvfprep 的四态门禁同语义：无 → 生成；有但无清单 → 重建
+ （不可信）；有且清单与客户端三件套一致 → 复用；不一致 → 重建。
+
+ 为什么放在服务端侧：玩家可能不经启动器、直接用 `启动服务端.cmd` 起服，那条路径
+ 不会经过启动器的更新检查点。放在这里保证"任何起服方式都能自愈"。
+
+ `--json-mode` 不走直读，由调用点按 profile_env 判定后跳过，这里不再自判。
+ """
+ # --client-only 只起客户端、连别的机器上的服务端，本机不需要内层归档。
+ if args.client_only:
+  return
+ try:
+  result = ensure_inner_pvf(
+   client,
+   INNER_PVF,
+   INNER_MANIFEST,
+   prepare_inner_pvf,
+   log=print,
+  )
+ except Exception as exc:
+  # 不阻断：内层归档只影响直读模式，玩家仍可显式 --json-mode 回退；
+  # 且这里的失败多为"客户端没配好"这类可恢复情形，如实报错更有用。
+  print("WARNING: 内层 PVF 未就绪：%s" % exc)
+  return
+ if result["generated"]:
+  print("内层 PVF 已生成（耗时 %.1fs）" % result["elapsed"])
+ else:
+  print("内层 PVF 无需重建：%s" % result["reason"])
 
 
 def launch_environment(args, profile_env):
@@ -184,6 +228,11 @@ def main():
  for path in required:
   if not path.is_file():
    raise RuntimeError("Missing dependency: " + str(path))
+ # PVF 直读模式的内层归档是按需生成的本地产物（不随包发布、上游也没有自动生成入口）。
+ # 这里在"校验 profile 依赖"之前自愈：默认 profile 就把它列进 required，
+ # 不先补齐的话下一步就是 `open inner PVF` 失败。
+ if profile_env.get("DFO_PVF_CATALOGS"):
+  _ensure_inner_pvf(client, args)
  for path in profile_required:
   if not path.is_file():
    raise RuntimeError("Missing repair profile dependency: " + str(path))

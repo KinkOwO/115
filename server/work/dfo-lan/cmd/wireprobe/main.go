@@ -941,7 +941,7 @@ func main() {
 		if e != nil {
 			log.Fatal(e)
 		}
-		bag, e := inventory.LoadBagRules(*bagRulesFile)
+		bag, e := inventory.LoadBagRules(*bagRulesFile, pvfCatalogs.sourceChecksum)
 		if e != nil {
 			log.Fatal(e)
 		}
@@ -1202,6 +1202,21 @@ func main() {
 		cancel()
 		if e != nil {
 			log.Fatal(e)
+		}
+	}
+	// 存档来源身份重钉（2026-10-01，next146）。内层归档重新生成后哈希必变，而存档里
+	// 每一行都把它当身份钉着 ⇒ 不重钉就整体进不去角色（quest %d requires source migration）。
+	// 放在这里是因为前面的 Migrate* 才建出 character_quests/character_map_clears 等表。
+	// 白名单式：只重钉已知历史内层哈希，绝不碰 vault 等别的来源身份。
+	if characters != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		n, rebaseErr := characters.Store.MigrateSourceIdentity(ctx, characters.Catalog.Source.Checksum)
+		cancel()
+		if rebaseErr != nil {
+			log.Fatalf("source identity rebaseline: %v", rebaseErr)
+		}
+		if n > 0 {
+			log.Printf("source identity rebaselined: %d stored row(s) re-pinned to the current inner archive", n)
 		}
 	}
 	if *vaultRulesFile != "" {

@@ -31,7 +31,25 @@ func (r BagRules) Quick(slot uint16) bool {
 	return r.QuickSlots != [2]uint16{} && slot >= r.QuickSlots[0] && slot <= r.QuickSlots[1]
 }
 
-func LoadBagRules(p string) (BagRules, error) {
+// LoadBagRules 读取背包槽位策略。
+//
+// 可选 source 参数（2026-10-01，next146）：直读模式下调用方传入当次内层 checksum。
+//
+// 与 LoadWearRules 的差别，以及为什么这里用**覆盖**而不是拒绝：背包规则表的
+// `source` 不是"某个 PVF 的实时指纹"，而是**整批 configs/*.json 导出族的批次标记** ——
+// loot.next25 / inventory.next29 / compat90 / equipment.current37 等全部写着同一个
+// 历史值，`Bag.Disjoint` 只拿它断言"规则表和掉落目录来自同一批导出"。
+// 直读模式下服务端是**现场从内层 PVF 推导**目录的，调用方传进来的 checksum 就是权威身份，
+// 文件里那个历史批次值必须被它取代；若在这里硬拒，内层一重建（哈希必变）启动就又断了。
+//
+// 覆盖/回填是**必需的**：BagRules.Source 同时是运行时不变量（amplify / enchant /
+// inherit / refine / reinforcement / vault_transfer / stack_request / pet_move 都拿它比
+// role.ConfigVersion，main.go 也拿它比掉落目录的 checksum），只在文件里留空而不回填
+// 会让这些操作在运行时全被拒。
+//
+// 不传 source（cmd/admin、cmd/gmtool、cmd/charactercheck 等旧调用方）→ 保持旧契约：
+// 文件里必须写死 64 位哈希。
+func LoadBagRules(p string, source ...string) (BagRules, error) {
 	var r BagRules
 	b, e := os.ReadFile(p)
 	if e != nil {
@@ -40,7 +58,21 @@ func LoadBagRules(p string) (BagRules, error) {
 	if e = json.Unmarshal(b, &r); e != nil {
 		return r, e
 	}
-	if r.Model != "reference90-bag-v1" || len(r.Source) != 64 || r.MissingStackLimit == 0 {
+	derived := ""
+	if len(source) > 0 {
+		derived = source[0]
+	}
+	if r.Model != "reference90-bag-v1" || r.MissingStackLimit == 0 {
+		return r, fmt.Errorf("invalid bag policy")
+	}
+	if derived != "" {
+		// 直读模式：调用方的实时 checksum 权威，覆盖文件里的历史批次标记（含留空）。
+		if len(derived) != 64 {
+			return r, fmt.Errorf("bag rules source mismatch")
+		}
+		r.Source = derived
+	} else if len(r.Source) != 64 {
+		// 旧调用方：文件必须自带 64 位批次标记。
 		return r, fmt.Errorf("invalid bag policy")
 	}
 	seen := map[uint16]bool{}
