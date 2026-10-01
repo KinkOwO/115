@@ -5,6 +5,7 @@ import (
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/storage"
+	"dfolan/internal/workflow"
 	"encoding/json"
 	"time"
 )
@@ -118,7 +119,7 @@ func (w *worldSession) moveStack(rules inventory.BagRules,
 		}
 		rules.Slots = slots
 	}
-	saved, _, applied, e := inventory.MoveStack(ctx, w.loot.Store, w.role, bagCatalog, rules, r, key)
+	saved, _, applied, e := workflow.MoveStack(ctx, w.loot.Store, w.role, bagCatalog, rules, r, key)
 	if e != nil {
 		return nil, true, e
 	}

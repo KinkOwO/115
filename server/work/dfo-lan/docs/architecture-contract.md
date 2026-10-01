@@ -25,7 +25,7 @@
 | L1 | 协议与静态数据 | `internal/game/protocol`、`internal/catalog`、`internal/catalog/pvf`、`internal/derivedcache`、`internal/savecontract` | 字节布局、PVF 归档原语、规则驱动静态目录、磁盘缓存与存档契约原语 |
 | L2 | 持久化 | `internal/storage` | SQL、事务、存档读写；游戏事实的搬运者和实现者，不是拥有者 |
 | L3 | 业务领域 | `internal/{character,inventory,loot,quest,dungeon,world,cashshop,progression,adventure,legion,npcpresence,profileskin,rosterbg}` | 拥有各自的游戏规则与状态 |
-| L4 | 组合与工具 | `cmd/**`、`internal/{gamedata,managementdata,admin,channelrefresh}` | 组合根、只读投影、管理、离线工具 |
+| L4 | 组合与工具 | `cmd/**`、`internal/{gamedata,managementdata,admin,channelrefresh,workflow}` | 组合根、只读投影、管理、离线工具；`workflow` 承载跨领域编排与事务 |
 
 ---
 
@@ -96,6 +96,7 @@ L3 领域之间 **默认禁止**互相 import。需要另一领域能力时，�
 | `internal/managementdata` | L4 | 管理端只读目录投影 | L1–L3 | 被 L3 依赖 |
 | `internal/admin` | L4 | GM/管理操作 | L1–L3 | 被 L3 依赖 |
 | `internal/channelrefresh` | L4 | 频道目录刷新 | L1–L3 | 被 L3 依赖 |
+| `internal/workflow` | L4 | 跨领域编排与事务（持有 storage 句柄，调用领域纯逻辑） | L1–L3、`storage` | 被 L3 依赖；承载游戏规则（只编排，不定事实） |
 | `cmd/wireprobe` | L4 | 组合根 + 请求分发（目标；当前仍含运行编排） | 全部 | 承载游戏规则 |
 | 其余 `cmd/*` | L4 | 离线导入/审计/修复/检查工具 | 全部 | 成为运行时依赖 |
 
@@ -103,7 +104,7 @@ L3 领域之间 **默认禁止**互相 import。需要另一领域能力时，�
 
 ## 5. 目标形态（阶段性）
 
-1. `cmd/wireprobe` 的 65 个 `*_flow.go` 中的跨领域编排，收敛到目标 `internal/workflow`；`main.go` 收敛为组合根 + 分发。
+1. `cmd/wireprobe` 的 65 个 `*_flow.go` 中的跨领域编排，收敛到目标 `internal/workflow`；`main.go` 收敛为组合根 + 分发。**已起步（2026-10-01）**：新增 `internal/workflow`，首个切片为快捷栏堆叠移动（`workflow.MoveStack`），由 workflow 持有事务、调用 inventory 的纯背包变换。
 2. 领域存储能力全部改为「领域声明接口 + bootstrap 注入」。
 3. `game/protocol` 与 `catalog` 不再认识任何领域类型。
 

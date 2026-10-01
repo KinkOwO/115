@@ -60,6 +60,7 @@ var layer4Packages = map[string]bool{
 	"internal/managementdata": true,
 	"internal/admin":          true,
 	"internal/channelrefresh": true,
+	"internal/workflow":       true,
 }
 
 // allowedEdges 是契约 §7 例外清单，只减不增。键为 import 方，值为被允许的例外目标。

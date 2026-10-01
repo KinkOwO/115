@@ -1,10 +1,11 @@
-package inventory
+package workflow
 
 import (
 	"context"
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/game/protocol"
+	"dfolan/internal/inventory"
 	"dfolan/internal/storage"
 	"encoding/hex"
 	"encoding/json"
@@ -57,7 +58,7 @@ func TestBagMoveRoundtripReplayIntegration(t *testing.T) {
 		t.Fatal(e)
 	}
 	c := catalog.LootCatalog{Source: pvf.ArchiveSnapshot{Checksum: h}, Items: map[uint32]catalog.LootItem{14: {Kind: "stackable", StackableType: "[etc]", StackLimit: 1000}}}
-	rules := BagRules{Source: h, MissingStackLimit: 1000}
+	rules := inventory.BagRules{Source: h, MissingStackLimit: 1000}
 	raw, _ := hex.DecodeString("004c0000000000000000000044000e00000000000000ffffffff000000000000")
 	out, e := protocol.DecodeItemMove(raw)
 	if e != nil {
@@ -71,7 +72,7 @@ func TestBagMoveRoundtripReplayIntegration(t *testing.T) {
 		if e != nil || !applied {
 			t.Fatal("new frame ignored", i, e, applied)
 		}
-		b, e := ReadBag(saved.State)
+		b, e := inventory.ReadBag(saved.State)
 		if e != nil || len(b.Items) != 1 || b.Items[0].Amount != 5 || b.Items[0].Slot != r.SourceSlot {
 			t.Fatal("duplicate/lost item", i, b, e)
 		}
@@ -80,7 +81,7 @@ func TestBagMoveRoundtripReplayIntegration(t *testing.T) {
 			t.Fatal("duplicate frame applied", e, yes)
 		}
 		if string(replay.State) != string(saved.State) {
-			a, _ := ReadBag(replay.State)
+			a, _ := inventory.ReadBag(replay.State)
 			if len(a.Items) != 1 || a.Items[0] != b.Items[0] {
 				t.Fatal("replay changed state")
 			}
@@ -92,7 +93,7 @@ func TestBagMoveRoundtripReplayIntegration(t *testing.T) {
 	if e != nil || yes {
 		t.Fatal(e, yes)
 	}
-	b, _ := ReadBag(saved.State)
+	b, _ := inventory.ReadBag(saved.State)
 	if len(b.Items) != 1 || b.Items[0].Amount != 5 {
 		t.Fatal(b)
 	}
