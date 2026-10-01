@@ -3,7 +3,7 @@ package character
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
+
 	"encoding/binary"
 	"encoding/json"
 	"errors"
@@ -52,7 +52,7 @@ func TestAppearanceProbeOverridesWeaponSlotWithSkin(t *testing.T) {
 		},
 	}
 	s := &Service{Catalog: professions}
-	got, e := s.AppearanceProbe(storage.Character{
+	got, e := s.AppearanceProbe(Character{
 		WireID: 1, Name: "LanSkin01", Profession: 0,
 		State: weaponSkinState(t, bag),
 	}, [2]byte{})
@@ -97,7 +97,7 @@ func TestEntryBasicProbeOverridesWeaponSlotWithSkin(t *testing.T) {
 		},
 	}
 	s := &Service{Catalog: professions}
-	got, e := s.EntryBasicProbe(storage.Character{
+	got, e := s.EntryBasicProbe(Character{
 		WireID: 1, Name: "LanSkin02", Profession: 0,
 		State: weaponSkinState(t, bag),
 	}, [2]byte{})
@@ -159,23 +159,23 @@ func TestWeaponSkinUsableReadsTheSave(t *testing.T) {
 	if !ok {
 		t.Skip("the catalog has no swordman profession")
 	}
-	if err := s.weaponSkinUsable(storage.Character{Profession: own, State: state}, beamsword); err != nil {
+	if err := s.weaponSkinUsable(Character{Profession: own, State: state}, beamsword); err != nil {
 		t.Fatalf("the weapon's own job was refused: %v", err)
 	}
 	foreign, ok := byJob("[gunner]")
 	if !ok {
 		t.Skip("the catalog has no gunner profession")
 	}
-	err := s.weaponSkinUsable(storage.Character{Profession: foreign, State: state}, beamsword)
+	err := s.weaponSkinUsable(Character{Profession: foreign, State: state}, beamsword)
 	if !errors.Is(err, inventory.ErrWeaponSkinNotUsable) {
 		t.Fatalf("gunner wearing a beamsword: %v, want ErrWeaponSkinNotUsable", err)
 	}
-	if err := s.weaponSkinUsable(storage.Character{Profession: foreign, State: state}, 0); err != nil {
+	if err := s.weaponSkinUsable(Character{Profession: foreign, State: state}, 0); err != nil {
 		t.Fatalf("unapply was refused: %v", err)
 	}
 	// 目录缺失时跳过这道门：不能让缺目录变成"所有佩戴都失败"。
 	bare := &Service{Catalog: professions}
-	if err := bare.weaponSkinUsable(storage.Character{Profession: foreign, State: state}, beamsword); err != nil {
+	if err := bare.weaponSkinUsable(Character{Profession: foreign, State: state}, beamsword); err != nil {
 		t.Fatalf("a missing equipment catalog refused: %v", err)
 	}
 }
@@ -195,7 +195,7 @@ func TestAppearanceProbeSkipsSkinWithoutWeapon(t *testing.T) {
 		},
 	}
 	s := &Service{Catalog: professions}
-	got, e := s.AppearanceProbe(storage.Character{
+	got, e := s.AppearanceProbe(Character{
 		WireID: 1, Name: "LanSkin03", Profession: 0,
 		State: weaponSkinState(t, bag),
 	}, [2]byte{})

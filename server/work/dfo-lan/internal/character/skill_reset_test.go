@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 )
 
 func emptyRows(n int) []protocol.SkillVariation {
@@ -282,12 +281,12 @@ func TestVariationAcceptsSkillWithoutSourcePointBlock(t *testing.T) {
 // VariationRestore 要把空块补满宽度，且二觉以下不下发 VP 块。
 func TestVariationRestoreFillsSlotsForThirdAwakening(t *testing.T) {
 	s := &Service{}
-	role := func(st State) storage.Character {
+	role := func(st State) Character {
 		raw, e := json.Marshal(st)
 		if e != nil {
 			t.Fatal(e)
 		}
-		return storage.Character{State: raw}
+		return Character{State: raw}
 	}
 	blank := role(State{Awakening: 3, Level: 100})
 	out, e := s.VariationRestore(blank)

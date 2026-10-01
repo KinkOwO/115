@@ -2,16 +2,13 @@ package storage
 
 import (
 	"context"
+	"dfolan/internal/inventory"
 	"encoding/json"
 	"errors"
 	"fmt"
 )
 
-type VaultState struct {
-	Slots         uint16
-	Items         json.RawMessage
-	ConfigVersion string
-}
+type VaultState = inventory.VaultState
 
 func (s *Store) MigrateVault(ctx context.Context) error {
 	_, e := s.DB.Exec(ctx, `CREATE TABLE IF NOT EXISTS character_vaults (

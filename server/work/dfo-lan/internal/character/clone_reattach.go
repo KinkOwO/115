@@ -2,7 +2,6 @@ package character
 
 import (
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 )
 
 // CloneReattachPackets makes the native mode-1 reader remove the old Clone
@@ -10,7 +9,7 @@ import (
 // Neither packet changes persisted equipment. The caller must restore
 // non-avatar worn rows after it:
 // mode-1 clears every omitted slot in the client's 48-slot equipment table.
-func (s *Service) CloneReattachPackets(role storage.Character) (reset, full []byte, ok bool, err error) {
+func (s *Service) CloneReattachPackets(role Character) (reset, full []byte, ok bool, err error) {
 	if s == nil || !s.DetailedWornCandidate || s.Equipment == nil {
 		return nil, nil, false, nil
 	}

@@ -6,6 +6,7 @@ import (
 	"dfolan/internal/character"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
+	"dfolan/internal/workflow"
 	"encoding/binary"
 	"fmt"
 	"time"
@@ -71,7 +72,7 @@ func (w *worldSession) dungeonResult(p []byte) ([]outboundPacket, error) {
 		return nil, e
 	}
 	if tower != nil {
-		if _, err := w.characters.Store.AdvanceTowerFloor(ctx, w.account, towerPolicy(tower), tower.Floor, w.activeDungeon.RunID); err != nil {
+		if _, err := w.store.AdvanceTowerFloor(ctx, w.account, towerPolicy(tower), tower.Floor, w.activeDungeon.RunID); err != nil {
 			return nil, err
 		}
 	}
@@ -91,7 +92,7 @@ func (w *worldSession) dungeonResult(p []byte) ([]outboundPacket, error) {
 			if e = binary.Read(rand.Reader, binary.LittleEndian, &seed); e != nil {
 				return nil, e
 			}
-			p, err := w.loot.FreezeCards(ctx, role, w.activeDungeon, *w.loot.CardPolicy, seed)
+			p, err := (&workflow.LootService{Store: w.store, Loot: w.loot}).FreezeCards(ctx, role, w.activeDungeon, *w.loot.CardPolicy, seed)
 			if err != nil {
 				return nil, err
 			}

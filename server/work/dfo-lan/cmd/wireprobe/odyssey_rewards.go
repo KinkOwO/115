@@ -1,12 +1,13 @@
 package main
 
 import (
-	"dfolan/internal/savecontract"
 	"context"
 	"dfolan/internal/catalog"
 	"dfolan/internal/character"
 	"dfolan/internal/inventory"
+	"dfolan/internal/savecontract"
 	"dfolan/internal/storage"
+	"dfolan/internal/workflow"
 	"encoding/json"
 	"fmt"
 )
@@ -18,6 +19,7 @@ import (
 // catalog.OdysseySource（由直读目录准备阶段 SetOdysseySource 切好）**读取**，
 // 保持与整族令牌一致；用函数而不是 const，避免包初始化顺序把旧值固化。
 func odysseySource() string { return catalog.OdysseySource }
+
 const odysseyArmorEvent = "odyssey-create-10417791-armor-10417790-v1"
 const odysseyWeaponBoxEvent = "odyssey-create-10417791-weapon-box-10417789-v1"
 const odysseyCreatePotionEvent = "odyssey-create-10417791-potion-10418028-v1"
@@ -32,7 +34,7 @@ func isOdysseyRewardRole(role storage.Character) bool {
 	return character.OdysseyRole(role)
 }
 
-func applyOdysseyArmor(role storage.Character, wear *inventory.WearService) (json.RawMessage, json.RawMessage, error) {
+func applyOdysseyArmor(role storage.Character, wear *workflow.WearService) (json.RawMessage, json.RawMessage, error) {
 	if !isOdysseyRewardRole(role) || role.ConfigVersion != savecontract.Identity() || wear == nil || wear.Catalog == nil || wear.Catalog.Source.SaveIdentity() != savecontract.Identity() {
 		return nil, nil, fmt.Errorf("Odyssey armor requires matching character and source catalogs")
 	}
@@ -54,7 +56,7 @@ func applyOdysseyArmor(role storage.Character, wear *inventory.WearService) (jso
 	return raw, receipt, e
 }
 
-func grantOdysseyArmor(ctx context.Context, store *storage.Store, wear *inventory.WearService, role storage.Character) (storage.Character, bool, error) {
+func grantOdysseyArmor(ctx context.Context, store *storage.Store, wear *workflow.WearService, role storage.Character) (storage.Character, bool, error) {
 	if !isOdysseyRewardRole(role) {
 		return role, false, nil
 	}

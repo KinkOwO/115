@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"crypto/sha256"
-	"dfolan/internal/character"
 	"dfolan/internal/db"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
@@ -17,13 +16,13 @@ import (
 // restoreRosterBackgrounds owns the complete account-level background restore
 // operation. The connection loop supplies only its character owner, account,
 // output path, and event sink.
-func restoreRosterBackgrounds(characters *character.Service, account int64, send func(byte, uint16, []byte) error, event func(map[string]any)) error {
-	if characters == nil {
+func restoreRosterBackgrounds(store *storage.Store, account int64, send func(byte, uint16, []byte) error, event func(map[string]any)) error {
+	if store == nil {
 		return nil
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	state, err := characters.Store.RosterBackgrounds(ctx, account)
+	state, err := store.RosterBackgrounds(ctx, account)
 	if err != nil {
 		event(map[string]any{"kind": "roster_background_restore_error", "error": err.Error()})
 		return err
@@ -45,7 +44,7 @@ func (w *worldSession) useRosterBackgroundTicket(ctx context.Context, p, raw []b
 	if err != nil {
 		return nil, err
 	}
-	if w == nil || w.characters == nil || w.characters.Store == nil || w.loot == nil ||
+	if w == nil || w.characters == nil || w.store == nil || w.loot == nil ||
 		w.role.ID == 0 || w.role.AccountID != w.account {
 		return nil, fmt.Errorf("背景券使用缺少当前账号角色或背包")
 	}
@@ -62,7 +61,7 @@ func (w *worldSession) useRosterBackgroundTicket(ctx context.Context, p, raw []b
 		Remaining uint32          `json:"remaining"`
 		Unlock    rosterbg.Unlock `json:"unlock"`
 	}
-	store := w.characters.Store
+	store := w.store
 	saved, applied, err := store.CommitCharacterEventTx(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, "roster-background-ticket-v1",
 		func(tx db.Tx, current storage.Character) (json.RawMessage, json.RawMessage, error) {
 			bag, e := inventory.ReadBag(current.State)

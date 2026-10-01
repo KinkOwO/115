@@ -8,6 +8,7 @@ import (
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/storage"
+	"dfolan/internal/workflow"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -241,7 +242,7 @@ type lotteryItemReceipt struct {
 	SpecialRefresh []byte                                 `json:"special_refresh,omitempty"`
 }
 
-func (w *worldSession) openLotteryItem(ctx context.Context, store lotteryItemStore, pools *lotteryItemCatalog, index map[uint32]ItemIndexInfo, request, raw []byte, wear ...*inventory.WearService) ([]outboundPacket, error) {
+func (w *worldSession) openLotteryItem(ctx context.Context, store lotteryItemStore, pools *lotteryItemCatalog, index map[uint32]ItemIndexInfo, request, raw []byte, wear ...*workflow.WearService) ([]outboundPacket, error) {
 	if w == nil || w.role.ID == 0 || w.activeDungeon != nil || w.loot == nil || pools == nil {
 		return nil, fmt.Errorf("lottery item requires selected character in town and loaded catalog")
 	}

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
@@ -13,7 +12,7 @@ import (
 	"testing"
 )
 
-func amalgamationWearFixture(t *testing.T) (*WearService, storage.Character) {
+func amalgamationWearFixture(t *testing.T) (*WearService, Role) {
 	t.Helper()
 	s, role := wearFixture(t)
 	s.Rules.Special = true

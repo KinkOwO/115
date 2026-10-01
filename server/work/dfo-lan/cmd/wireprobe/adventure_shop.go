@@ -51,7 +51,7 @@ func (w *worldSession) buyAdventureItem(ctx context.Context, p, raw []byte, pref
 	if err != nil {
 		return nil, err
 	}
-	if w.characters == nil || w.characters.Store == nil || w.loot == nil || w.role.ID == 0 || w.role.AccountID != w.account {
+	if w.characters == nil || w.store == nil || w.loot == nil || w.role.ID == 0 || w.role.AccountID != w.account {
 		return nil, fmt.Errorf("冒险团购买缺少当前角色或背包目录")
 	}
 	if _, err = w.prepareAdventure(ctx); err != nil {
@@ -80,7 +80,7 @@ func (w *worldSession) buyAdventureItem(ctx context.Context, p, raw []byte, pref
 	itemCatalog := catalog.LootCatalog{Source: w.loot.Catalog.Source, Items: map[uint32]catalog.LootItem{
 		template: {ID: template, Kind: "stackable", StackableType: definition.Type, StackLimit: definition.Limit}}}
 	key := fmt.Sprintf("adventure-shop:%s:%x", prefix, sha256.Sum256(raw))
-	saved, _, _, err := w.characters.Store.CommitAdventure(ctx, w.account, w.role.ID, key, func(role storage.Character, profile *storage.AccountAdventure) (json.RawMessage, json.RawMessage, error) {
+	saved, _, _, err := w.store.CommitAdventure(ctx, w.account, w.role.ID, key, func(role storage.Character, profile *storage.AccountAdventure) (json.RawMessage, json.RawMessage, error) {
 		if profile.Level < product.Level {
 			return nil, nil, errAdventureLevel
 		}

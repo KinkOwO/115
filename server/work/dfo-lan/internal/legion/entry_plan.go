@@ -2,7 +2,6 @@ package legion
 
 import (
 	"dfolan/internal/catalog"
-	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
 	"fmt"
 	"time"
@@ -26,14 +25,17 @@ type EntryPlan struct {
 	PhaseSeconds     [6]time.Duration
 }
 
-func BuildEntryPlan(contents catalog.LegionContents, operations *catalog.ApocalypseCatalog, dungeons catalog.DungeonCatalog) (EntryPlan, error) {
+// SelectionValidator is supplied by the composition layer's dungeon owner.
+type SelectionValidator func(catalog.DungeonCatalog, protocol.DungeonSelection, byte, map[uint16]bool) error
+
+func BuildEntryPlan(contents catalog.LegionContents, operations *catalog.ApocalypseCatalog, dungeons catalog.DungeonCatalog, validate SelectionValidator) (EntryPlan, error) {
 	var out EntryPlan
 	c, ok := contents.Contents["Apocalypse"]
 	// 生成物与副本目录必须同代。原实现（捐赠者主线）在这里调自己的 resources.AcceptsGeneration
 	// 做「代次等价放行」；本仓库没有 resources 包，按本仓库既有口径改为严格同一 checksum。
 	// 若你的部署用「汉化 PVF + 另一代导出配置」的组合，请把这一行换成你自己的等价判定，
 	// 不要删掉这道检查：军团入场计划里的目标/坐标/时钟全部来自这两份数据。
-	if !ok || !c.Complete || contents.Source.Checksum == "" || contents.Source.Checksum != dungeons.Source.Checksum || operations == nil {
+	if !ok || !c.Complete || contents.Source.Checksum == "" || contents.Source.Checksum != dungeons.Source.Checksum || operations == nil || validate == nil {
 		return out, fmt.Errorf("apocalypse source content/dungeon generation unavailable")
 	}
 	if c.LimitLevel != 115 || c.LastPhase != 5 || len(c.Dungeons) != 6 || c.Waiting.Town != 239 || c.Waiting.Area != 2 || c.Recruiting.Town != 239 || c.Recruiting.Area != 1 || c.SelectLimit <= 0 || c.SelectLimit > 300 {
@@ -47,7 +49,7 @@ func BuildEntryPlan(contents catalog.LegionContents, operations *catalog.Apocaly
 		if row.Dungeon == 0 {
 			return EntryPlan{}, fmt.Errorf("apocalypse phase%d lacks its source dungeon", i)
 		}
-		if err := dungeon.ValidateSelection(dungeons, protocol.DungeonSelection{ID: row.Dungeon, Party: 65535}, out.MinimumLevel, nil); err != nil {
+		if err := validate(dungeons, protocol.DungeonSelection{ID: row.Dungeon, Party: 65535}, out.MinimumLevel, nil); err != nil {
 			return EntryPlan{}, fmt.Errorf("apocalypse phase%d: %w", i, err)
 		}
 		out.Destinations[i] = row.Dungeon

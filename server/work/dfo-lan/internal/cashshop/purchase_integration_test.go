@@ -1,7 +1,8 @@
-package cashshop
+package cashshop_test
 
 import (
 	"context"
+	"dfolan/internal/cashshop"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/storage"
 	"encoding/hex"
@@ -69,8 +70,8 @@ func TestPurchasePipelineIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p := Product{ID: 3400489, Template: 590722921, Units: 1, Cera: 3180, Enabled: true}
-	svc := Service{Catalog: Catalog{Source: source, Products: map[uint32]Product{p.ID: p}}, Ledger: store}
+	p := cashshop.Product{ID: 3400489, Template: 590722921, Units: 1, Cera: 3180, Enabled: true}
+	svc := cashshop.Service{Catalog: cashshop.Catalog{Source: source, Products: map[uint32]cashshop.Product{p.ID: p}}, Ledger: store}
 	now := time.Date(2026, 9, 16, 0, 0, 0, 0, time.UTC)
 	r, applied, err := svc.Purchase(ctx, account, role.ID, "pipeline-order-0001", cart, now)
 	if err != nil || !applied || r.Before != 10000 || r.After != 6820 || r.Charged != 3180 || len(r.Deliveries) != 1 {

@@ -3,7 +3,6 @@ package inventory
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"fmt"
 )
 
@@ -40,6 +39,6 @@ func MoveAccountVaultCross(account, personal Vault, limit uint32, r protocol.Ite
 	return MoveVaultCross(account, personal, limit, move)
 }
 
-func ReadAccountVault(v storage.AccountVaultState) (Vault, error) {
-	return ReadExtendedVault(storage.VaultState{Slots: v.Slots, Items: v.Items})
+func ReadAccountVault(v AccountVaultState) (Vault, error) {
+	return ReadExtendedVault(VaultState{Slots: v.Slots, Items: v.Items})
 }

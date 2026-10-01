@@ -32,7 +32,7 @@ func equipmentSkillEnabled() bool {
 }
 
 func (w *worldSession) equipmentSkillPackets(ctx context.Context, id uint16, body []byte) ([]outboundPacket, error) {
-	if w == nil || w.characters == nil || w.characters.Store == nil || w.role.ID == 0 {
+	if w == nil || w.characters == nil || w.store == nil || w.role.ID == 0 {
 		return nil, fmt.Errorf("equipment skill requires a selected character")
 	}
 	switch id {
@@ -49,12 +49,12 @@ func (w *worldSession) equipmentSkillPackets(ctx context.Context, id uint16, bod
 		if err != nil {
 			return nil, err
 		}
-		if err := w.characters.Store.SaveEquipmentSkillSnapshot(ctx, w.account, w.role.ID, which, snapshot); err != nil {
+		if err := w.store.SaveEquipmentSkillSnapshot(ctx, w.account, w.role.ID, which, snapshot); err != nil {
 			return nil, err
 		}
 		return []outboundPacket{{name, 1, id, []byte{1}}}, nil
 	case 2257:
-		if err := w.characters.Store.ClearEquipmentSkill(ctx, w.account, w.role.ID); err != nil {
+		if err := w.store.ClearEquipmentSkill(ctx, w.account, w.role.ID); err != nil {
 			return nil, err
 		}
 		return []outboundPacket{{"equipment_skill_cleared", 1, id, []byte{1}}}, nil

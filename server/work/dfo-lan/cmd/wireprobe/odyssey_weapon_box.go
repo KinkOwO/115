@@ -1,12 +1,13 @@
 package main
 
 import (
-	"dfolan/internal/savecontract"
 	"context"
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
+	"dfolan/internal/savecontract"
 	"dfolan/internal/storage"
+	"dfolan/internal/workflow"
 	"encoding/json"
 	"fmt"
 )
@@ -40,7 +41,7 @@ type odysseyWeaponReceipt struct {
 
 const odysseyWeaponChoiceEvent = "odyssey-create-weapon-choice-10417789-v1"
 
-func applyOdysseyWeaponChoice(role storage.Character, wear *inventory.WearService, choices odysseyWeaponChoices, r protocol.WeaponBoxSelection) (json.RawMessage, json.RawMessage, error) {
+func applyOdysseyWeaponChoice(role storage.Character, wear *workflow.WearService, choices odysseyWeaponChoices, r protocol.WeaponBoxSelection) (json.RawMessage, json.RawMessage, error) {
 	if !isOdysseyRewardRole(role) || role.ConfigVersion != savecontract.Identity() || !choices.allows(r) || wear == nil || wear.Catalog == nil || wear.Catalog.Source.SaveIdentity() != savecontract.Identity() {
 		return nil, nil, fmt.Errorf("selection not in source Odyssey category")
 	}
@@ -77,7 +78,7 @@ func applyOdysseyWeaponChoice(role storage.Character, wear *inventory.WearServic
 	return raw, receipt, e
 }
 
-func selectOdysseyWeapon(ctx context.Context, store *storage.Store, wear *inventory.WearService, role storage.Character, choices odysseyWeaponChoices, r protocol.WeaponBoxSelection) (storage.Character, []outboundPacket, error) {
+func selectOdysseyWeapon(ctx context.Context, store *storage.Store, wear *workflow.WearService, role storage.Character, choices odysseyWeaponChoices, r protocol.WeaponBoxSelection) (storage.Character, []outboundPacket, error) {
 	saved, applied, e := store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, odysseyWeaponChoiceEvent, "odyssey-weapon-selection-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
 		return applyOdysseyWeaponChoice(current, wear, choices, r)
 	})

@@ -67,35 +67,22 @@ var layer4Packages = map[string]bool{
 var allowedEdges = map[string]map[string]bool{
 	// R2 + R4 例外：领域 -> storage / 领域 -> 领域
 	"internal/character": {
-		"internal/storage":     true, // R2
 		"internal/adventure":   true, // R4
 		"internal/dungeon":     true, // R4
 		"internal/inventory":   true, // R4
 		"internal/progression": true, // R4
 	},
-	"internal/inventory": {
-		"internal/storage": true, // R2
-	},
 	"internal/loot": {
-		"internal/storage":   true, // R2
-		"internal/adventure": true, // R4
-		"internal/cashshop":  true, // R4
 		"internal/dungeon":   true, // R4
 		"internal/inventory": true, // R4
 	},
 	"internal/quest": {
-		"internal/storage":     true, // R2
-		"internal/character":   true, // R4
-		"internal/dungeon":     true, // R4
-		"internal/inventory":   true, // R4
-		"internal/progression": true, // R4
-	},
-	"internal/cashshop": {
-		"internal/storage":   true, // R2
+		"internal/character": true, // R4
+		"internal/dungeon":   true, // R4
 		"internal/inventory": true, // R4
 	},
-	"internal/legion": {
-		"internal/dungeon": true, // R4
+	"internal/cashshop": {
+		"internal/inventory": true, // R4
 	},
 }
 

@@ -1,7 +1,8 @@
-package cashshop
+package workflow
 
 import (
 	"context"
+	"dfolan/internal/cashshop"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/storage"
@@ -24,7 +25,7 @@ func (l *vaultTestLedger) PurchaseCashVault(_ context.Context, o storage.CashOrd
 	return storage.CashReceipt{Vault: &next}, true, nil
 }
 func TestVaultSourcePurchase(t *testing.T) {
-	p, e := LoadPilot("../../configs/shop-special-candidate.json", "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80")
+	p, e := cashshop.LoadPilot("../../configs/shop-special-candidate.json", "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80")
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -43,24 +44,24 @@ func TestVaultSourcePurchase(t *testing.T) {
 		l := &vaultTestLedger{state: storage.VaultState{Slots: u.Before, Items: []byte(`[{"slot":0,"template":14,"amount":5}]`), ConfigVersion: rules.SourceSHA256}}
 		cart := []protocol.CeraCartItem{{Product: id, Quantity: 1}}
 		prepare := func(r storage.CashReceipt) error { _, e := inventory.VaultPayload(*r.Vault); return e }
-		_, ok, e := p.PurchaseVault(context.Background(), l, rules, 1, 1, "vault-test-000001", cart, prepare)
+		_, ok, e := PurchaseCashVault(p, context.Background(), l, rules, 1, 1, "vault-test-000001", cart, prepare)
 		if e != nil || !ok || l.state.Slots != u.After || l.order.Lines[0].UnitPrice != u.Price {
 			t.Fatal(id, e)
 		}
-		if _, _, e = p.PurchaseVault(context.Background(), l, rules, 1, 1, "vault-test-000002", cart, prepare); e == nil {
+		if _, _, e = PurchaseCashVault(p, context.Background(), l, rules, 1, 1, "vault-test-000002", cart, prepare); e == nil {
 			t.Fatal("wrong tier accepted")
 		}
 		l.state.Slots = u.Before
-		if _, _, e = p.PurchaseVault(context.Background(), l, rules, 1, 1, "vault-test-000003", cart, func(storage.CashReceipt) error { return fmt.Errorf("encoding failed") }); e == nil || l.state.Slots != u.Before {
+		if _, _, e = PurchaseCashVault(p, context.Background(), l, rules, 1, 1, "vault-test-000003", cart, func(storage.CashReceipt) error { return fmt.Errorf("encoding failed") }); e == nil || l.state.Slots != u.Before {
 			t.Fatal("encoding failure mutated vault")
 		}
 		cart[0].Quantity = 2
-		if _, _, e = p.PurchaseVault(context.Background(), l, rules, 1, 1, "vault-test-000004", cart, prepare); e == nil {
+		if _, _, e = PurchaseCashVault(p, context.Background(), l, rules, 1, 1, "vault-test-000004", cart, prepare); e == nil {
 			t.Fatal("quantity two accepted")
 		}
 		cart[0].Quantity = 1
 		cart = append(cart, protocol.CeraCartItem{Product: 3000118, Quantity: 1})
-		if _, _, e = p.PurchaseVault(context.Background(), l, rules, 1, 1, "vault-test-000005", cart, prepare); e == nil {
+		if _, _, e = PurchaseCashVault(p, context.Background(), l, rules, 1, 1, "vault-test-000005", cart, prepare); e == nil {
 			t.Fatal("mixed cart accepted")
 		}
 	}

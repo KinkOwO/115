@@ -3,7 +3,7 @@ package character
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
+
 	"encoding/binary"
 	"encoding/json"
 	"testing"
@@ -99,7 +99,7 @@ func TestAllProfessionsKeepStarterRanksAndBookSlots(t *testing.T) {
 	for job, p := range c.Professions {
 		state := State{Level: 1, SourceSHA256: p.RawSHA256, InitialSkills: p.InitialSkills}
 		raw, _ := json.Marshal(state)
-		b, e := s.EntrySkills(storage.Character{Profession: job, ConfigVersion: c.Source.SaveIdentity(), State: raw})
+		b, e := s.EntrySkills(Character{Profession: job, ConfigVersion: c.Source.SaveIdentity(), State: raw})
 		if e != nil {
 			t.Fatalf("profession%d: %v", job, e)
 		}

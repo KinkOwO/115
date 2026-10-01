@@ -16,13 +16,13 @@ import (
 )
 
 func (w *worldSession) prepareAdventure(ctx context.Context) (storage.AccountAdventure, error) {
-	if w == nil || w.characters == nil || w.characters.Store == nil || w.role.ID == 0 || w.role.AccountID != w.account {
+	if w == nil || w.characters == nil || w.store == nil || w.role.ID == 0 || w.role.AccountID != w.account {
 		return storage.AccountAdventure{}, fmt.Errorf("冒险团请求缺少所属角色")
 	}
 	if w.fatigue == nil {
 		return storage.AccountAdventure{}, fmt.Errorf("冒险团游戏日历尚未加载")
 	}
-	return w.characters.Store.PrepareAdventure(ctx, w.role, w.fatigue.Day(time.Now()))
+	return w.store.PrepareAdventure(ctx, w.role, w.fatigue.Day(time.Now()))
 }
 
 // 首次建立团资料时用首个角色的名字；编码长度按客户端 16 字节上限截取，
@@ -44,7 +44,7 @@ func adventureDefaultName(name string) string {
 }
 
 func (w *worldSession) handleAdventure(ctx context.Context, selected int64, p []byte) ([]byte, error) {
-	if w == nil || w.characters == nil || w.characters.Store == nil || selected == 0 || w.role.ID != selected || w.role.AccountID != w.account {
+	if w == nil || w.characters == nil || w.store == nil || selected == 0 || w.role.ID != selected || w.role.AccountID != w.account {
 		return nil, fmt.Errorf("冒险团查询缺少当前账号所属的已选角色")
 	}
 	req, err := protocol.DecodeAdventureRequest(p)
@@ -64,10 +64,10 @@ func (w *worldSession) handleAdventure(ctx context.Context, selected int64, p []
 
 func (w *worldSession) adventureInfo(ctx context.Context, selected int64) (protocol.AdventureInfo, error) {
 	var info protocol.AdventureInfo
-	if w == nil || w.characters == nil || w.characters.Store == nil || selected == 0 || w.role.ID != selected || w.role.AccountID != w.account {
+	if w == nil || w.characters == nil || w.store == nil || selected == 0 || w.role.ID != selected || w.role.AccountID != w.account {
 		return info, fmt.Errorf("冒险团资料缺少当前账号所属的已选角色")
 	}
-	roles, err := w.characters.Store.Characters(ctx, w.account)
+	roles, err := w.store.Characters(ctx, w.account)
 	if err != nil {
 		return info, err
 	}
@@ -79,7 +79,7 @@ func (w *worldSession) adventureInfo(ctx context.Context, selected int64) (proto
 	}
 	// 固定首个创建的角色，不受角色选择页拖拽排序影响。
 	sort.Slice(roles, func(i, j int) bool { return roles[i].ID < roles[j].ID })
-	profile, err := w.characters.Store.LoadAdventure(ctx, w.account, selected, adventureDefaultName(roles[0].Name))
+	profile, err := w.store.LoadAdventure(ctx, w.account, selected, adventureDefaultName(roles[0].Name))
 	if err != nil {
 		return info, err
 	}
@@ -172,7 +172,7 @@ func (w *worldSession) setAdventureBestHonor(ctx context.Context, p, raw []byte,
 		}
 	}
 	key := fmt.Sprintf("adventure-best-honor:%s:%x", prefix, sha256.Sum256(raw))
-	_, _, _, err = w.characters.Store.CommitAdventure(ctx, w.account, w.role.ID, key,
+	_, _, _, err = w.store.CommitAdventure(ctx, w.account, w.role.ID, key,
 		func(role storage.Character, profile *storage.AccountAdventure) (json.RawMessage, json.RawMessage, error) {
 			profile.Data.BestHonorCharacter = selected
 			receipt, e := json.Marshal(map[string]any{"character_id": selected, "automatic": automatic})

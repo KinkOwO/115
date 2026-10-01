@@ -7,6 +7,7 @@ import (
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/storage"
+	"dfolan/internal/workflow"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
@@ -77,7 +78,7 @@ func (w *worldSession) upgradeAccountVault(ctx context.Context, opcode uint16, p
 	key := fmt.Sprintf("account-vault:%s:%x", prefix, sha256.Sum256(raw))
 	saved, materials, vault, applied, err := w.store.CommitAccountVault(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, opcode,
 		func(role storage.Character, materials json.RawMessage, vault storage.AccountVaultState) (json.RawMessage, json.RawMessage, storage.AccountVaultState, error) {
-			state, counts, next, err := inventory.UpgradeAccountVault(role, materials, vault, rules, opcode == 305)
+			state, counts, next, err := inventory.UpgradeAccountVault(workflow.InventoryRole(role), materials, vault, rules, opcode == 305)
 			if err != nil {
 				return nil, nil, vault, err
 			}
@@ -96,7 +97,7 @@ func (w *worldSession) upgradeAccountVault(ctx context.Context, opcode uint16, p
 	return accountVaultUpgradePackets(saved, materials, vault, rules, opcode, applied)
 }
 
-func (w *worldSession) moveAccountVault(service *inventory.WearService, r protocol.ItemMoveRequest, key string) ([]outboundPacket, error) {
+func (w *worldSession) moveAccountVault(service *workflow.WearService, r protocol.ItemMoveRequest, key string) ([]outboundPacket, error) {
 	if w.vault == nil || w.vault.Store == nil || w.vault.Rules.Account == nil || w.activeDungeon != nil {
 		return nil, fmt.Errorf("当前不能操作账号金库")
 	}
@@ -108,7 +109,7 @@ func (w *worldSession) moveAccountVault(service *inventory.WearService, r protoc
 	var count uint32
 	saved, _, savedVault, _, err := w.store.CommitAccountVault(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, 19,
 		func(role storage.Character, materials json.RawMessage, vault storage.AccountVaultState) (json.RawMessage, json.RawMessage, storage.AccountVaultState, error) {
-			state, next, moved, err := inventory.MoveAccountVault(role, vault, service.BagRules, w.vault.Catalog, service.Catalog, r, *w.vault.Rules.Account)
+			state, next, moved, err := inventory.MoveAccountVault(workflow.InventoryRole(role), vault, service.BagRules, w.vault.Catalog, service.Catalog, r, *w.vault.Rules.Account)
 			if err != nil {
 				return nil, nil, vault, err
 			}
@@ -165,7 +166,7 @@ func (w *worldSession) sortAccountVaultCmd() ([]outboundPacket, error) {
 	return []outboundPacket{{"account_vault_sorted", 1, 20, []byte{}}, {"account_vault_list", 0, 13, body}}, nil
 }
 
-func (w *worldSession) moveAccountVaultCross(service *inventory.WearService, r protocol.ItemMoveRequest, key string) ([]outboundPacket, error) {
+func (w *worldSession) moveAccountVaultCross(service *workflow.WearService, r protocol.ItemMoveRequest, key string) ([]outboundPacket, error) {
 	space := r.SourceList
 	if space == 12 {
 		space = r.DestinationList
@@ -305,9 +306,9 @@ func (w *worldSession) changeAccountVaultGold(ctx context.Context, opcode uint16
 		var next storage.AccountVaultState
 		var e error
 		if opcode == 307 {
-			state, next, e = inventory.DepositAccountVaultGold(role, v, *w.vault.Rules.Account, amount)
+			state, next, e = inventory.DepositAccountVaultGold(workflow.InventoryRole(role), v, *w.vault.Rules.Account, amount)
 		} else {
-			state, next, e = inventory.WithdrawAccountVaultGold(role, v, *w.vault.Rules.Account, amount)
+			state, next, e = inventory.WithdrawAccountVaultGold(workflow.InventoryRole(role), v, *w.vault.Rules.Account, amount)
 		}
 		if e != nil {
 			return nil, nil, v, e

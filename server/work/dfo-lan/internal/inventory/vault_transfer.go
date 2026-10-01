@@ -1,10 +1,8 @@
 package inventory
 
 import (
-	"context"
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -13,7 +11,7 @@ import (
 // TransferStacks follows the live 20260916T130209 vault CMD19: Source is the
 // dragged item, Destination is its target. It supports split/merge, not implicit
 // swaps with other templates or gear. Both saved states are copied first.
-func (s *VaultService) TransferStacks(role storage.Character, v storage.VaultState, r protocol.ItemMoveRequest) (json.RawMessage, json.RawMessage, error) {
+func (s *VaultService) TransferStacks(role Role, v VaultState, r protocol.ItemMoveRequest) (json.RawMessage, json.RawMessage, error) {
 	fail := func(reason string) (json.RawMessage, json.RawMessage, error) {
 		return nil, nil, fmt.Errorf("%s", reason)
 	}
@@ -204,19 +202,4 @@ func (s *VaultService) TransferStacks(role storage.Character, v storage.VaultSta
 		return nil, nil, e
 	}
 	return state, items, nil
-}
-
-func (s *VaultService) Move(ctx context.Context, role storage.Character, key string, r protocol.ItemMoveRequest) (storage.Character, storage.VaultState, bool, error) {
-	if s == nil || s.Store == nil {
-		return role, storage.VaultState{}, false, fmt.Errorf("vault service unavailable")
-	}
-	request, e := json.Marshal(r)
-	if e != nil {
-		return role, storage.VaultState{}, false, e
-	}
-	saved, v, applied, e := s.Store.CommitVaultTransfer(ctx, role.AccountID, role.ID, role.ConfigVersion, s.Rules.SourceSHA256, key, request, func(current storage.Character, v storage.VaultState) (json.RawMessage, json.RawMessage, error) {
-		return s.TransferCombined(current, v, r)
-	})
-	saved.WireID = role.WireID
-	return saved, v, applied, e
 }

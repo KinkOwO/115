@@ -2,7 +2,6 @@ package character
 
 import (
 	"context"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -18,7 +17,7 @@ type FatigueRules struct {
 	Source     string `json:"source"`
 }
 type FatigueService struct {
-	Store    *storage.Store
+	Store    FatigueStore
 	Rules    FatigueRules
 	Location *time.Location
 	// Free 关闭疲劳消耗（业主 2026-10-01 按玩家反馈要求；入口是 DFO_FATIGUE_FREE / -fatigue-free）。
@@ -31,7 +30,7 @@ type FatigueService struct {
 	EnterFatigueOf func(dungeonID uint32) uint16
 }
 
-func LoadFatigueService(s *storage.Store, path string) (*FatigueService, error) {
+func LoadFatigueService(s FatigueStore, path string) (*FatigueService, error) {
 	b, e := os.ReadFile(path)
 	if e != nil {
 		return nil, e
@@ -47,7 +46,11 @@ func LoadFatigueService(s *storage.Store, path string) (*FatigueService, error) 
 	if e != nil {
 		return nil, e
 	}
-	return &FatigueService{Store: s, Rules: r, Location: l}, nil
+	var store FatigueStore
+	if !nilPersistence(s) {
+		store = s
+	}
+	return &FatigueService{Store: store, Rules: r, Location: l}, nil
 }
 func (s *FatigueService) day(now time.Time) string {
 	local := now.In(s.Location)
@@ -57,15 +60,15 @@ func (s *FatigueService) day(now time.Time) string {
 	return local.Format("2006-01-02")
 }
 func (s *FatigueService) Day(now time.Time) string { return s.day(now) }
-func (s *FatigueService) State(ctx context.Context, account, id int64, now time.Time) (storage.FatigueState, error) {
+func (s *FatigueService) State(ctx context.Context, account, id int64, now time.Time) (FatigueState, error) {
 	return s.Store.LoadFatigue(ctx, account, id, s.day(now), s.Rules.DailyLimit)
 }
-func (s *FatigueService) EnterRoom(ctx context.Context, account, id int64, run string, room uint32, exempt bool, now time.Time) (storage.FatigueState, bool, error) {
+func (s *FatigueService) EnterRoom(ctx context.Context, account, id int64, run string, room uint32, exempt bool, now time.Time) (FatigueState, bool, error) {
 	cost := s.Rules.RoomCost
 	if exempt {
 		cost = 0
 	} else if s.Store != nil && cost > 0 {
-		if hasGrowth, _ := s.Store.HasActivePremium(ctx, account, storage.PremiumGrowth, now); hasGrowth {
+		if hasGrowth, _ := s.Store.HasGrowthPremium(ctx, account, now); hasGrowth {
 			cost--
 		}
 	}
@@ -98,7 +101,7 @@ func (s *FatigueService) EnterCostFor(dungeonID uint32) uint16 {
 //   - 未声明的副本：保持原有「每房间收 Rules.RoomCost」的行为，一个字节不变。
 //
 // 成长契约的减免对两种口径一视同仁（实机：官方 8 点 − 契约 1 = 每本 +7）。
-func (s *FatigueService) EnterRoomForDungeon(ctx context.Context, account, id int64, run string, room, dungeonID uint32, exempt bool, now time.Time) (storage.FatigueState, bool, error) {
+func (s *FatigueService) EnterRoomForDungeon(ctx context.Context, account, id int64, run string, room, dungeonID uint32, exempt bool, now time.Time) (FatigueState, bool, error) {
 	var cost uint16
 	switch {
 	case s.Free:
@@ -106,7 +109,7 @@ func (s *FatigueService) EnterRoomForDungeon(ctx context.Context, account, id in
 	case s.EnterFatigueOf != nil && s.EnterFatigueOf(dungeonID) > 0:
 		paid, e := s.Store.RunPaidFatigue(ctx, id, run)
 		if e != nil {
-			return storage.FatigueState{}, false, e
+			return FatigueState{}, false, e
 		}
 		if !paid {
 			cost = s.EnterFatigueOf(dungeonID)
@@ -115,7 +118,7 @@ func (s *FatigueService) EnterRoomForDungeon(ctx context.Context, account, id in
 		cost = s.Rules.RoomCost
 	}
 	if cost > 0 && s.Store != nil {
-		if hasGrowth, _ := s.Store.HasActivePremium(ctx, account, storage.PremiumGrowth, now); hasGrowth {
+		if hasGrowth, _ := s.Store.HasGrowthPremium(ctx, account, now); hasGrowth {
 			cost--
 		}
 	}

@@ -9,6 +9,7 @@ import (
 	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
 	"dfolan/internal/storage"
+	"dfolan/internal/workflow"
 	"encoding/hex"
 	"fmt"
 	"sync"
@@ -105,7 +106,7 @@ func testFatigueItems(t *testing.T, s *storage.Store, role storage.Character) {
 	if _, _, e = f.RecoverPotion(ctx, role, use, 66, now); e == nil {
 		t.Fatal("clock rollback admitted")
 	}
-	w := &worldSession{role: saved, loot: &loot.Service{Store: s}, vault: &inventory.VaultService{Catalog: use}, activeDungeon: &dungeon.Session{RunID: "01234567890123456789012345678901", Loaded: true}}
+	w := &worldSession{role: saved, store: s, loot: &loot.Service{}, vault: &workflow.VaultService{VaultService: inventory.VaultService{Catalog: use}}, activeDungeon: &dungeon.Session{RunID: "01234567890123456789012345678901", Loaded: true}}
 	p, _ := hex.DecodeString("0f00000010001a090802107918dd17200120000000000000000000000000000000")
 	for i := 0; i < 3; i++ {
 		raw := []byte(fmt.Sprintf("wire-unique-%d", i))

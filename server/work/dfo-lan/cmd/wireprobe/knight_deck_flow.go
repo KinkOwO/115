@@ -5,6 +5,7 @@ import (
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/storage"
+	"dfolan/internal/workflow"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -20,7 +21,7 @@ func knightShieldCatalogPath(configured, wearRulesPath string) string {
 	return filepath.Join(filepath.Dir(wearRulesPath), configured)
 }
 
-func (s *equipmentSession) handleKnightDeck(service *inventory.WearService, w *worldSession, p, raw []byte) ([]outboundPacket, error) {
+func (s *equipmentSession) handleKnightDeck(service *workflow.WearService, w *worldSession, p, raw []byte) ([]outboundPacket, error) {
 	deck, e := protocol.DecodeKnightDeck(p)
 	if e != nil {
 		return nil, e
@@ -56,7 +57,7 @@ func (s *equipmentSession) handleKnightDeck(service *inventory.WearService, w *w
 	return knightShieldUpdates(w, saved, true)
 }
 
-func (s *equipmentSession) handleKnightShieldMove(service *inventory.WearService, w *worldSession, r protocol.ItemMoveRequest, raw []byte) ([]outboundPacket, error) {
+func (s *equipmentSession) handleKnightShieldMove(service *workflow.WearService, w *worldSession, r protocol.ItemMoveRequest, raw []byte) ([]outboundPacket, error) {
 	key, e := s.requestKey(raw)
 	if e != nil {
 		return nil, e

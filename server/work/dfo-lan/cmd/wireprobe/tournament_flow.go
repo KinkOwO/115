@@ -7,6 +7,7 @@ import (
 	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
 	"dfolan/internal/storage"
+	"dfolan/internal/workflow"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -81,13 +82,13 @@ func (w *worldSession) tournamentSelect(p []byte) ([]outboundPacket, error) {
 		return []outboundPacket{{"tournament_select_ack", 1, 450, protocol.TournamentSelection(run.Selected)}}, nil
 	}
 	card := run.Rewards[cardType][cardIndex]
-	if w.loot == nil || w.loot.Store == nil {
+	if w.loot == nil || w.store == nil {
 		return nil, fmt.Errorf("tournament award storage unavailable")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	key := fmt.Sprintf("tournament-card:%s:%d", w.activeDungeon.RunID, cardType)
-	saved, _, err := w.loot.Store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, "tournament-card-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+	saved, _, err := w.store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, "tournament-card-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
 		award := inventory.Awarder{Catalog: w.loot.Catalog, Rules: w.loot.BagRules}
 		state, _, err := award.Grant(current.State, card.Template, card.Amount)
 		if err != nil {
@@ -107,7 +108,7 @@ func (w *worldSession) tournamentSelect(p []byte) ([]outboundPacket, error) {
 	saved.WireID = w.role.WireID
 	w.role = saved
 	run.Selected[cardType] = cardIndex
-	bag, err := w.loot.Bootstrap(saved)
+	bag, err := w.loot.Bootstrap(workflow.LootRole(saved))
 	if err != nil {
 		return nil, err
 	}

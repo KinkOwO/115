@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -102,7 +101,7 @@ func (s *Service) resolveBuffItem(b inventory.Bag, reg buffRegistration) (protoc
 	return result, matches == 1
 }
 
-func (s *Service) applyBuffEnhancement(current storage.Character, req protocol.BuffEnhancementRequest) (json.RawMessage, error) {
+func (s *Service) applyBuffEnhancement(current Character, req protocol.BuffEnhancementRequest) (json.RawMessage, error) {
 	state, err := readBuffEnhancement(current.State)
 	if err != nil {
 		return nil, err
@@ -168,17 +167,17 @@ func (s *Service) applyBuffEnhancement(current storage.Character, req protocol.B
 	return json.Marshal(fields)
 }
 
-func (s *Service) SaveBuffEnhancement(ctx context.Context, role storage.Character, key string, req protocol.BuffEnhancementRequest) (storage.Character, bool, error) {
+func (s *Service) SaveBuffEnhancement(ctx context.Context, role Character, key string, req protocol.BuffEnhancementRequest) (Character, bool, error) {
 	if s.Store == nil || role.ID == 0 || role.AccountID == 0 {
 		return role, false, fmt.Errorf("buff enhancement requires owned selected character")
 	}
-	return s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, "buff-enhancement-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+	return s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, "buff-enhancement-v1", func(current Character) (json.RawMessage, json.RawMessage, error) {
 		next, err := s.applyBuffEnhancement(current, req)
 		return next, json.RawMessage(`{}`), err
 	})
 }
 
-func (s *Service) BuffEnhancementRestore(role storage.Character) ([]byte, error) {
+func (s *Service) BuffEnhancementRestore(role Character) ([]byte, error) {
 	state, err := readBuffEnhancement(role.State)
 	if err != nil {
 		return nil, err

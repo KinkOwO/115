@@ -24,7 +24,7 @@ type sortSession struct {
 // action, equipment disassembly included, was then refused locally with DSTR
 // 1659 ("The Inventory is currently in use."). Answering it is what clears the
 // latch, so a replayed frame is answered too.
-func (s *sortSession) handle(service *inventory.WearService, w *worldSession, p, raw []byte) ([]outboundPacket, error) {
+func (s *sortSession) handle(service *workflow.WearService, w *worldSession, p, raw []byte) ([]outboundPacket, error) {
 	if service == nil || w == nil || w.role.ID == 0 {
 		return nil, fmt.Errorf("item sort requires the owned character")
 	}

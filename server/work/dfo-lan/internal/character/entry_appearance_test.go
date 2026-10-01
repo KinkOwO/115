@@ -3,7 +3,7 @@ package character
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
+
 	"encoding/binary"
 	"encoding/json"
 	"testing"
@@ -39,7 +39,7 @@ func TestAppearanceProbeBindsTemplateIDPerWornSlot(t *testing.T) {
 		t.Fatal(e)
 	}
 	s := &Service{Catalog: professions}
-	got, e := s.AppearanceProbe(storage.Character{
+	got, e := s.AppearanceProbe(Character{
 		WireID: 1, Name: "LanTest01", Profession: 0,
 		State: append(state[:len(state)-1], []byte(`,"advancement":0}`)...),
 	}, [2]byte{})
@@ -94,7 +94,7 @@ func TestEntryBasicProbeCarriesWornAppearance(t *testing.T) {
 		t.Fatal(e)
 	}
 	s := &Service{Catalog: professions}
-	got, e := s.EntryBasicProbe(storage.Character{
+	got, e := s.EntryBasicProbe(Character{
 		WireID: 1, Name: "LanTest01", Profession: 0,
 		State: append(state[:len(state)-1], []byte(`,"advancement":0}`)...),
 	}, [2]byte{})
@@ -140,7 +140,7 @@ func TestEntryBasicProbeCarriesKnightShieldRow(t *testing.T) {
 		t.Fatal(e)
 	}
 	s := &Service{Catalog: professions}
-	got, e := s.EntryBasicProbe(storage.Character{
+	got, e := s.EntryBasicProbe(Character{
 		WireID: 1, Name: "LanTest01", Profession: 9,
 		State: append(state[:len(state)-1], []byte(`,"advancement":0}`)...),
 	}, [2]byte{})
@@ -195,7 +195,7 @@ func TestAppearanceProbeSkipsCreatureSlot(t *testing.T) {
 		t.Fatal(e)
 	}
 	s := &Service{Catalog: professions}
-	got, e := s.AppearanceProbe(storage.Character{
+	got, e := s.AppearanceProbe(Character{
 		WireID: 1, Name: "LanTest02", Profession: 0,
 		State: append(state[:len(state)-1], []byte(`,"advancement":0}`)...),
 	}, [2]byte{})
@@ -229,7 +229,7 @@ func TestAppearanceProbeCarriesCloneAndLookAvatars(t *testing.T) {
 		t.Fatal(e)
 	}
 	s := &Service{Catalog: professions}
-	got, e := s.AppearanceProbe(storage.Character{
+	got, e := s.AppearanceProbe(Character{
 		WireID: 1, Name: "LanTest03", Profession: 0,
 		State: append(state[:len(state)-1], []byte(`,"advancement":0}`)...),
 	}, [2]byte{})

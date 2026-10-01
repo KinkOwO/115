@@ -6,7 +6,6 @@ import (
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -220,7 +219,9 @@ func ordinaryHandler(item catalog.ScriptRecord, release bool) (deliveryType, err
 	return h, nil
 }
 func digestValid(s string) bool { b, e := hex.DecodeString(s); return e == nil && len(b) == 32 }
-func (c PilotConfig) validate() error {
+
+// Validate checks the imported shop source and product policy shape.
+func (c PilotConfig) Validate() error {
 	if c.Schema != shopSchema || !digestValid(c.Source.Checksum) || !digestValid(c.PriceScriptHash) || !digestValid(c.IndexHash) || len(c.Entries) == 0 {
 		return fmt.Errorf("invalid PVF shop catalog; reimport required")
 	}
@@ -498,7 +499,7 @@ func NewPilot(c PilotConfig, source string, release ...bool) (*Pilot, error) {
 		c.Release = true
 	}
 	c.immediateTemplates = c.deriveImmediateTemplates()
-	if e := c.validate(); e != nil {
+	if e := c.Validate(); e != nil {
 		return nil, e
 	}
 	if c.Source.Checksum != source {
@@ -521,7 +522,7 @@ func (p *Pilot) products() (map[uint32]Product, error) {
 	if p.cacheProducts != nil && p.cacheOpenAll == openAll {
 		return p.cacheProducts, nil
 	}
-	if e := p.Config.validate(); e != nil {
+	if e := p.Config.Validate(); e != nil {
 		return nil, e
 	}
 	out := map[uint32]Product{}
@@ -552,7 +553,7 @@ func (p *Pilot) ProductSnapshot() (map[uint32]Product, error) {
 }
 
 type BagLedger interface {
-	PurchaseCashToBag(context.Context, storage.CashOrder, func(json.RawMessage) (json.RawMessage, error)) (storage.CashReceipt, bool, error)
+	PurchaseCashToBag(context.Context, CashOrder, func(json.RawMessage) (json.RawMessage, error)) (CashReceipt, bool, error)
 }
 
 // ContractCartLedger activates every named contract line and delivers the
@@ -560,15 +561,15 @@ type BagLedger interface {
 // contracts with ordinary merchandise (实机 2026-09-23:合并购买契约被旧的
 // "separate order" 限制整单拒绝)。
 type ContractCartLedger interface {
-	PurchaseCashMixed(context.Context, storage.CashOrder, func(json.RawMessage) (json.RawMessage, error), map[int]storage.CashPremiumActivation) (storage.CashReceipt, bool, error)
+	PurchaseCashMixed(context.Context, CashOrder, func(json.RawMessage) (json.RawMessage, error), map[int]CashPremiumActivation) (CashReceipt, bool, error)
 }
 
 // contractActivations partitions the cart: every line whose source row
 // resolves to a premium contract (direct alias or single-child wrapper)
 // becomes an activation keyed by its cart index, and joins a synthetic
 // catalog product so the shared Quote can price the whole cart.
-func (p *Pilot) contractActivations(cart []protocol.CeraCartItem, products map[uint32]Product) (map[int]storage.CashPremiumActivation, error) {
-	activations := map[int]storage.CashPremiumActivation{}
+func (p *Pilot) contractActivations(cart []protocol.CeraCartItem, products map[uint32]Product) (map[int]CashPremiumActivation, error) {
+	activations := map[int]CashPremiumActivation{}
 	for i, line := range cart {
 		entry, ok := p.findEntry(line.Product, 0)
 		if !ok {
@@ -590,26 +591,26 @@ func (p *Pilot) contractActivations(cart []protocol.CeraCartItem, products map[u
 		if duration <= 0 {
 			return nil, fmt.Errorf("premium duration overflow")
 		}
-		activations[i] = storage.CashPremiumActivation{Type: c.Type, DurationSecond: duration}
+		activations[i] = CashPremiumActivation{Type: c.Type, DurationSecond: duration}
 	}
 	return activations, nil
 }
 
-func (p *Pilot) Purchase(ctx context.Context, ledger BagLedger, account, character int64, key string, cart []protocol.CeraCartItem) (storage.CashReceipt, bool, error) {
+func (p *Pilot) Purchase(ctx context.Context, ledger BagLedger, account, character int64, key string, cart []protocol.CeraCartItem) (CashReceipt, bool, error) {
 	if p == nil || ledger == nil || len(cart) == 0 || len(cart) > 32 {
-		return storage.CashReceipt{}, false, fmt.Errorf("purchase requires1..32 supported products")
+		return CashReceipt{}, false, fmt.Errorf("purchase requires1..32 supported products")
 	}
 	if receipt, applied, handled, err := p.TryPurchaseInventoryExpansion(ctx, ledger, account, character, key, cart); handled || err != nil {
 		return receipt, applied, err
 	}
 	for _, item := range cart {
 		if item.Quantity == 0 || item.Quantity > 56 {
-			return storage.CashReceipt{}, false, fmt.Errorf("purchase quantity must be1..56 per line")
+			return CashReceipt{}, false, fmt.Errorf("purchase quantity must be1..56 per line")
 		}
 	}
 	products, e := p.products()
 	if e != nil {
-		return storage.CashReceipt{}, false, e
+		return CashReceipt{}, false, e
 	}
 	products = func() map[uint32]Product {
 		out := make(map[uint32]Product, len(products)+len(cart))
@@ -620,14 +621,14 @@ func (p *Pilot) Purchase(ctx context.Context, ledger BagLedger, account, charact
 	}()
 	activations, e := p.contractActivations(cart, products)
 	if e != nil {
-		return storage.CashReceipt{}, false, e
+		return CashReceipt{}, false, e
 	}
 	for _, line := range cart {
 		if _, ok := products[line.Product]; !ok {
 			for _, entry := range p.Config.Entries {
 				if uint32(entry.Row[0].Value) == line.Product {
 					_, _, reason := p.Config.classify(entry)
-					return storage.CashReceipt{}, false, fmt.Errorf("product%d: %v", line.Product, reason)
+					return CashReceipt{}, false, fmt.Errorf("product%d: %v", line.Product, reason)
 				}
 			}
 		}
@@ -635,14 +636,14 @@ func (p *Pilot) Purchase(ctx context.Context, ledger BagLedger, account, charact
 	s := Service{Catalog: Catalog{Source: p.Config.Source.Checksum, Products: products}}
 	o, e := s.Quote(account, character, key, cart, time.Now())
 	if e != nil {
-		return storage.CashReceipt{}, false, e
+		return CashReceipt{}, false, e
 	}
 	var total uint64
 	for _, line := range o.Lines {
 		total += uint64(line.Units) * uint64(line.Quantity)
 	}
 	if total > 112000 {
-		return storage.CashReceipt{}, false, fmt.Errorf("purchase exceeds delivery budget")
+		return CashReceipt{}, false, fmt.Errorf("purchase exceeds delivery budget")
 	}
 	deliver := func(raw json.RawMessage) (json.RawMessage, error) {
 		for i, line := range o.Lines {
@@ -683,7 +684,7 @@ func (p *Pilot) Purchase(ctx context.Context, ledger BagLedger, account, charact
 	}
 	mixed, ok := ledger.(ContractCartLedger)
 	if !ok {
-		return storage.CashReceipt{}, false, fmt.Errorf("contract cart ledger missing")
+		return CashReceipt{}, false, fmt.Errorf("contract cart ledger missing")
 	}
 	return mixed.PurchaseCashMixed(ctx, o, deliver, activations)
 }
@@ -870,7 +871,7 @@ func (p *Pilot) deliverAmount(raw json.RawMessage, template, amount uint32, expi
 // and the creature tab (space 7) alongside the ordinary bag. Package lines
 // resolve through their [package data] children because only those reach a
 // bag.
-func (p *Pilot) DeliverySpaces(receipt storage.CashReceipt) (avatar, creature bool) {
+func (p *Pilot) DeliverySpaces(receipt CashReceipt) (avatar, creature bool) {
 	if p == nil {
 		return false, false
 	}

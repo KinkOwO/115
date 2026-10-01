@@ -9,6 +9,7 @@ import (
 	"dfolan/internal/progression"
 	"dfolan/internal/quest"
 	"dfolan/internal/storage"
+	"dfolan/internal/workflow"
 	"dfolan/internal/world"
 	"encoding/json"
 	"fmt"
@@ -108,7 +109,7 @@ func questChainCheck(ctx context.Context, s *storage.Store, other int64) error {
 	if e = qs.MeetNPC(ctx, r, 4873, 1); e != nil {
 		return e
 	}
-	result, e := qs.Finish(ctx, r, protocol.QuestSubmitRequest{ID: 4873, RewardSelection: 65535, Option: 1})
+	result, e := (&workflow.QuestService{Store: s, Quest: &qs}).Finish(ctx, r, protocol.QuestSubmitRequest{ID: 4873, RewardSelection: 65535, Option: 1})
 	if e != nil {
 		return e
 	}
@@ -152,7 +153,7 @@ func questChainCheck(ctx context.Context, s *storage.Store, other int64) error {
 		return e
 	}
 	finish := protocol.QuestSubmitRequest{ID: 3146, RewardSelection: 65535, Option: 1}
-	if _, e = qs.Finish(ctx, r, finish); e == nil {
+	if _, e = (&workflow.QuestService{Store: s, Quest: &qs}).Finish(ctx, r, finish); e == nil {
 		return fmt.Errorf("full bag accepted a partial quest reward")
 	}
 	var receipts int
@@ -184,14 +185,14 @@ func questChainCheck(ctx context.Context, s *storage.Store, other int64) error {
 	if _, e = s.DB.Exec(ctx, `UPDATE characters SET state=$2 WHERE id=$1`, r.ID, emptyState); e != nil {
 		return e
 	}
-	result, e = qs.Finish(ctx, r, finish)
+	result, e = (&workflow.QuestService{Store: s, Quest: &qs}).Finish(ctx, r, finish)
 	if e != nil {
 		return e
 	}
 	if !result.Applied || len(result.Receipt.Items) != 3 {
 		return fmt.Errorf("source equipment rewards missing")
 	}
-	result, e = qs.Finish(ctx, result.Role, finish)
+	result, e = (&workflow.QuestService{Store: s, Quest: &qs}).Finish(ctx, result.Role, finish)
 	if e != nil || result.Applied {
 		return fmt.Errorf("equipment quest replay failed: %v", e)
 	}

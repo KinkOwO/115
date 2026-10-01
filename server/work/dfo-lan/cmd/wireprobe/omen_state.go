@@ -33,19 +33,12 @@ import (
 // 不该把玩家的进本流程一起拖住，但绝不能静默吞掉。
 const omenStateTimeout = 5 * time.Second
 
-// omenStore 取可用的存储。loot.Service 与 character.Service 共用同一个 storage.Store，
-// 所以两条路任取其一。都没有时返回 nil（调用方据此判定这条线没接线）。
+// omenStore returns the persistence handle injected by the composition root.
 func (w *worldSession) omenStore() *storage.Store {
 	if w == nil {
 		return nil
 	}
-	if w.service != nil && w.store != nil {
-		return w.store
-	}
-	if w.characters != nil {
-		return w.characters.Store
-	}
-	return nil
+	return w.store
 }
 
 // omenStagesCount 报告这个副本的征兆阶段行数（0 = 这个副本没有征兆系统）。

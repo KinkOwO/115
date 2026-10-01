@@ -21,10 +21,8 @@ package inventory
 // 材料消耗 PVF 里没有表（etc/ 下 15022 个文件全列举无 refine*.etc）。
 
 import (
-	"context"
 	"crypto/rand"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -201,20 +199,8 @@ type RefineReceipt struct {
 }
 
 // ApplyRefine 处理 CMD430：校验武器与材料、扣料、按成功率判定，失败等级不变。
-func (s *WearService) ApplyRefine(ctx context.Context, role storage.Character, key string, r protocol.RefineRequest) (storage.Character, RefineReceipt, error) {
-	var out RefineReceipt
-	if s == nil || s.Store == nil || s.Catalog == nil {
-		return role, out, fmt.Errorf("锻造需要有效装备目录及角色存档")
-	}
-	if !RefineRulesLoaded() {
-		return role, out, fmt.Errorf("锻造规则未装载")
-	}
-	return commitEquipmentEvent(ctx, s.Store, role, key, refineModel, func(current storage.Character) (json.RawMessage, RefineReceipt, error) {
-		return s.applyRefine(current, r)
-	})
-}
 
-func (s *WearService) applyRefine(role storage.Character, r protocol.RefineRequest) (json.RawMessage, RefineReceipt, error) {
+func (s *WearService) ApplyRefine(role Role, r protocol.RefineRequest) (json.RawMessage, RefineReceipt, error) {
 	var out RefineReceipt
 	bag, err := ReadBag(role.State)
 	if err != nil {

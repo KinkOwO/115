@@ -2,7 +2,6 @@ package character
 
 import (
 	"dfolan/internal/progression"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -10,10 +9,10 @@ import (
 
 // ApplyGain is pure: monster/quest transaction owners use the same current
 // source growth and wire bounds before committing their own durable receipt.
-func (s *ProgressionService) ApplyGain(current storage.Character, gain uint64) (storage.Character, progression.Advance, error) {
+func (s *ProgressionService) ApplyGain(current Character, gain uint64) (Character, progression.Advance, error) {
 	var state State
 	var result progression.Advance
-	fail := func(e error) (storage.Character, progression.Advance, error) { return current, result, e }
+	fail := func(e error) (Character, progression.Advance, error) { return current, result, e }
 	if current.ConfigVersion != s.Catalog.Source.SaveIdentity() || s.Professions.Source.Checksum != s.Catalog.Source.Checksum {
 		return fail(fmt.Errorf("progression source mismatch"))
 	}

@@ -491,3 +491,27 @@ git diff --check
 ## 16. MR !123 整合至 !126
 
 2026-10-01 将 `refactor/server-flow-simplification` 合入精简候选，保留两个分支历史。重叠装备查找、刷新与事务收据采用 !126 实现；纳入 !123 的逐包发送、公共行构造、会话事件键和解密白名单整理，保留双方回归测试。单包、预编码批量、原始帧继续使用 !126 的统一连接锁。全量 `go test ./...`、`go vet ./...` 通过；未部署、未启动客户端、未操作玩家数据库，confirmed baseline 不扩大。
+
+## 17. 2026-10-02：MR !127 消除领域到持久化的依赖
+
+本批起点为 `5b6a868`，已包含上游 `c80c432`。目标是改变所有权和调用方向，保持现有功能行为。
+
+- E11：Character、栏位、疲劳状态归 character；角色、进度、疲劳服务使用领域消费接口，SQL 查询移入 storage 原样适配。typed nil 接口仍按旧构造函数返回 nil。
+- E12：装备操作、NPC 买卖和金库事务归 workflow；inventory 保留纯规则、角色消费投影、金库状态。PremiumReader 保留原查询、两秒超时和忽略查询错误的行为。
+- E13：拾取、翻牌、黑鸦/月湖奖励恢复、分解、装备制作/变换、物品使用及礼盒修复的持久化编排归 workflow；loot 保留 Plan/Prepare/Apply 规则和角色投影。恢复查询原样移入 storage，事务键、model、收据校验和错误回滚顺序保留。
+- E14：任务状态和 Store 接口归 quest；完成、清任务、主线、寻物与库存进度事务归 workflow，奖励公式经消费回调接入原实现。Premium 回调仍在原奖励计算阶段调用。
+- E16：现金订单/回执类型归 cashshop，storage 保留类型别名；现金金库购买跨领域编排归 workflow。
+- E24：legion 入口消费校验函数，不再直接引用 dungeon。
+- 另消除 quest→progression、loot→adventure/cashshop。守卫允许清单只减不增；剩余 E21 的 4 条、E22 的 3 条、E23 的 2 条和 E25 的 1 条，共 10 条领域间依赖。这些包含实际背包计算、场景状态和角色规则，仍需逐条拆分，不能据此宣称 MR 的全部目标完成。
+
+验证使用 `GOTOOLCHAIN=go1.26.0`：全仓编译、`go vet ./...`、依赖守卫和相关领域测试通过。全量 `go test ./...` 保留以下 5 项既有失败；本批此前以起点源码隔离复现相同断言，仅补齐起点未声明的库存接口类型以使其可编译：
+
+- `cmd/wireprobe.TestAdventureAuditProvenanceAllowanceIsNarrow`
+- `cmd/wireprobe.TestPVFCatalogGateRefusesRewardChangesAndDoesNotFallback`
+- `cmd/wireprobe.TestEnhancementAuditAllowsOnlyMissingOrdinaryTicketExpirationHeader`
+- `internal/loot.TestOdysseyChapterFinalLordDrop`
+- `internal/loot.TestOdysseyCurrencySceneRetryAndPoolIsolation`
+
+未修改这些测试断言或对应业务实现。数据库集成测试沿用已有显式启用门禁，本批没有连接玩家 PostgreSQL。实机仍待用户手动验收：装备操作及重复请求、NPC 买卖与金库转移、任务完成/奖励、拾取和翻牌、黑鸦/月湖重选角色恢复。没有部署二进制或启动客户端，不升级 confirmed baseline。
+
+用户原有 `.gitignore`、PostgreSQL/Redis 配置与 `scripts/launch_local.py` 内容保持不变，不纳入本批提交。

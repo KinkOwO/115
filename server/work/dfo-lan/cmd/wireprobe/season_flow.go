@@ -23,7 +23,7 @@ type seasonRefusal struct {
 func (e seasonRefusal) Error() string { return e.reason }
 
 func (w *worldSession) refreshSeason(ctx context.Context) ([]outboundPacket, error) {
-	if !w.adventureReady || w.characters == nil || w.characters.Store == nil || w.role.ID == 0 {
+	if !w.adventureReady || w.characters == nil || w.store == nil || w.role.ID == 0 {
 		return nil, nil
 	}
 	rules, err := adventure.CurrentSeason()
@@ -32,7 +32,7 @@ func (w *worldSession) refreshSeason(ctx context.Context) ([]outboundPacket, err
 	}
 	// 账号资料是迷雾进度真源；角色JSON只作属性刷新时的快照。
 	var raw json.RawMessage
-	err = w.characters.Store.DB.QueryRow(ctx, `SELECT jsonb_build_object('season_level',COALESCE(a.data->'season_level','{}'::jsonb))
+	err = w.store.DB.QueryRow(ctx, `SELECT jsonb_build_object('season_level',COALESCE(a.data->'season_level','{}'::jsonb))
  FROM characters c LEFT JOIN account_adventures a ON a.account_id=c.account_id
  WHERE c.account_id=$1 AND c.id=$2 AND c.deleted_at IS NULL`, w.account, w.role.ID).Scan(&raw)
 	if err != nil {
@@ -45,7 +45,7 @@ func (w *worldSession) refreshSeason(ctx context.Context) ([]outboundPacket, err
 	now := time.Now()
 	if state.Season == 0 || state.Week < adventure.SeasonWeek(now) {
 		key := fmt.Sprintf("season-week:%d:%s", rules.Season, adventure.SeasonWeek(now))
-		saved, _, e := w.characters.Store.CommitCharacterEvent(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, "season-level-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+		saved, _, e := w.store.CommitCharacterEvent(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, "season-level-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
 			s, e := adventure.ReadSeason(current.State)
 			if e != nil {
 				return nil, nil, e
@@ -110,7 +110,7 @@ func (w *worldSession) grantSeasonSpecial(ctx context.Context, previous adventur
 	definition := rules.Items[template]
 	items := catalog.LootCatalog{Source: w.loot.Catalog.Source, Items: map[uint32]catalog.LootItem{template: {ID: template, Kind: "stackable", StackableType: definition.Type, StackLimit: definition.Limit}}}
 	key := fmt.Sprintf("season-special:%d:%d", rules.Season, template)
-	saved, _, err := w.characters.Store.CommitCharacterEvent(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, "season-level-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+	saved, _, err := w.store.CommitCharacterEvent(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, "season-level-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
 		var role character.State
 		if e := json.Unmarshal(current.State, &role); e != nil {
 			return nil, nil, e
@@ -169,7 +169,7 @@ func (w *worldSession) claimSeasonReward(ctx context.Context, p []byte) ([]outbo
 	if err != nil {
 		return nil, err
 	}
-	if w.characters == nil || w.characters.Store == nil || w.loot == nil || w.role.ID == 0 || w.role.AccountID != w.account {
+	if w.characters == nil || w.store == nil || w.loot == nil || w.role.ID == 0 || w.role.AccountID != w.account {
 		return nil, fmt.Errorf("迷雾誓约领奖缺少角色或物品目录")
 	}
 	rules, err := adventure.CurrentSeason()
@@ -191,7 +191,7 @@ func (w *worldSession) claimSeasonReward(ctx context.Context, p []byte) ([]outbo
 		reward.Template: {ID: reward.Template, Kind: "stackable", StackableType: definition.Type, StackLimit: definition.Limit},
 	}}
 	key := fmt.Sprintf("season-reward:%d:%d", rules.Season, level)
-	saved, _, err := w.characters.Store.CommitCharacterEvent(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, "season-level-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+	saved, _, err := w.store.CommitCharacterEvent(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, "season-level-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
 		var state character.State
 		if e := json.Unmarshal(current.State, &state); e != nil {
 			return nil, nil, e
@@ -253,7 +253,7 @@ func (w *worldSession) useSeasonCapsule(ctx context.Context, p, raw []byte, pref
 	if err != nil {
 		return nil, err
 	}
-	if w.characters == nil || w.characters.Store == nil || w.loot == nil || w.role.ID == 0 {
+	if w.characters == nil || w.store == nil || w.loot == nil || w.role.ID == 0 {
 		return nil, fmt.Errorf("迷雾经验道具缺少角色或背包")
 	}
 	rules, err := adventure.CurrentSeason()
@@ -262,7 +262,7 @@ func (w *worldSession) useSeasonCapsule(ctx context.Context, p, raw []byte, pref
 	}
 	key := fmt.Sprintf("season-capsule:%s:%x", prefix, sha256.Sum256(raw))
 	var before inventory.Bag
-	saved, applied, err := w.characters.Store.CommitCharacterEvent(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, "season-level-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+	saved, applied, err := w.store.CommitCharacterEvent(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, "season-level-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
 		bag, e := inventory.ReadBag(current.State)
 		if e != nil {
 			return nil, nil, e
@@ -338,7 +338,7 @@ func (w *worldSession) acquireSeasonOath(ctx context.Context, p, raw []byte, pre
 	if err != nil {
 		return nil, err
 	}
-	if w.characters == nil || w.characters.Store == nil || w.loot == nil || w.loot.Equipment == nil || w.role.ID == 0 {
+	if w.characters == nil || w.store == nil || w.loot == nil || w.loot.Equipment == nil || w.role.ID == 0 {
 		return nil, fmt.Errorf("誓约装备获取缺少角色或装备目录")
 	}
 	rules, err := adventure.CurrentSeason()
@@ -350,7 +350,7 @@ func (w *worldSession) acquireSeasonOath(ctx context.Context, p, raw []byte, pre
 	}
 	template := rules.OathEquipment[choice]
 	key := fmt.Sprintf("season-oath:%s:%x", prefix, sha256.Sum256(raw))
-	saved, _, err := w.characters.Store.CommitCharacterEvent(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, "season-level-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+	saved, _, err := w.store.CommitCharacterEvent(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, "season-level-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
 		var state character.State
 		if e := json.Unmarshal(current.State, &state); e != nil {
 			return nil, nil, e

@@ -1,10 +1,10 @@
 package main
 
 import (
-	"dfolan/internal/savecontract"
 	"context"
 	"crypto/sha256"
 	"dfolan/internal/game/protocol"
+	"dfolan/internal/savecontract"
 	"dfolan/internal/storage"
 	"encoding/binary"
 	"encoding/json"

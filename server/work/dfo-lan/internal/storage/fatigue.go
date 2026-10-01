@@ -2,16 +2,12 @@ package storage
 
 import (
 	"context"
+	"dfolan/internal/character"
 	"errors"
 	"fmt"
 )
 
-type FatigueState struct {
-	Day     string `json:"day"`
-	Used    uint16 `json:"used"`
-	Limit   uint16 `json:"limit"`
-	UsedMax uint16 `json:"used_max"`
-}
+type FatigueState = character.FatigueState
 
 func (s *Store) MigrateFatigue(ctx context.Context) error {
 	_, e := s.DB.Exec(ctx, `CREATE TABLE IF NOT EXISTS character_fatigue (

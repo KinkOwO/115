@@ -2,19 +2,17 @@ package storage
 
 import (
 	"context"
+	"dfolan/internal/quest"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/jackc/pgx/v5"
 )
 
-type QuestState struct {
-	ID            uint16 `json:"id"`
-	Status        string `json:"status"`
-	Progress      uint32 `json:"progress"`
-	ConfigVersion string `json:"config_version"`
-	ProgressModel string `json:"progress_model"`
-}
+// QuestState retains the storage API while the quest domain owns its schema.
+type QuestState = quest.QuestState
+
+var _ quest.Store = (*Store)(nil)
 
 func (s *Store) MigrateQuests(ctx context.Context) error {
 	_, e := s.DB.Exec(ctx, `CREATE TABLE IF NOT EXISTS character_quests (

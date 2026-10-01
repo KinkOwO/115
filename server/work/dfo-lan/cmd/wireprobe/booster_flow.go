@@ -9,6 +9,7 @@ import (
 	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
 	"dfolan/internal/storage"
+	"dfolan/internal/workflow"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -29,7 +30,7 @@ const MaxExpireTime = math.MaxInt32
 // durabilityOptional（首饰、称号、辅助装备、魔法石、耳环……）时返回 0 且无错，
 // 那本来就是 0；其余情况解析不出来时返回错误，由调用方记日志后按 0 发放——
 // 不能因此拒绝开箱，否则"拿不到东西"比"拿到 0 耐久"更糟。
-func boosterEquipmentDurability(wear *inventory.WearService, id uint32) (uint16, error) {
+func boosterEquipmentDurability(wear *workflow.WearService, id uint32) (uint16, error) {
 	if wear == nil || wear.Catalog == nil {
 		return 0, fmt.Errorf("no equipment catalog loaded")
 	}
@@ -239,7 +240,7 @@ func commitBoosterEvent(ctx context.Context, store boosterEventStore, role stora
 func (w *worldSession) openBoosterItem(
 	ctx context.Context,
 	store boosterEventStore,
-	wear *inventory.WearService,
+	wear *workflow.WearService,
 	lootSvc *loot.Service,
 	boosterCat *BoosterCatalog,
 	choices odysseyWeaponChoices,

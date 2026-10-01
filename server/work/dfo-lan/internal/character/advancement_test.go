@@ -2,12 +2,12 @@ package character
 
 import (
 	"dfolan/internal/catalog"
-	"dfolan/internal/storage"
+
 	"encoding/json"
 	"testing"
 )
 
-func advancementFixture(t *testing.T, advancement, awakening byte) (*Service, storage.Character) {
+func advancementFixture(t *testing.T, advancement, awakening byte) (*Service, Character) {
 	t.Helper()
 	c, err := catalog.LoadCharacters("../../configs/characters.auto-skills-candidate.json")
 	if err != nil {
@@ -19,7 +19,7 @@ func advancementFixture(t *testing.T, advancement, awakening byte) (*Service, st
 	if err != nil {
 		t.Fatal(err)
 	}
-	role := storage.Character{Profession: 12, ConfigVersion: c.Source.SaveIdentity(), State: raw}
+	role := Character{Profession: 12, ConfigVersion: c.Source.SaveIdentity(), State: raw}
 	return &Service{Catalog: c}, role
 }
 

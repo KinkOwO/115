@@ -9,6 +9,7 @@ import (
 	"dfolan/internal/inventory"
 	"dfolan/internal/quest"
 	"dfolan/internal/storage"
+	"dfolan/internal/workflow"
 	"dfolan/internal/world"
 	"encoding/binary"
 	"fmt"
@@ -58,7 +59,7 @@ func (w *worldSession) finishQuest(r protocol.QuestSubmitRequest) ([]outboundPac
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	result, e := w.quests.Finish(ctx, w.role, r)
+	result, e := (&workflow.QuestService{Store: w.store, Quest: w.quests}).Finish(ctx, w.role, r)
 	if e != nil {
 		return nil, e
 	}
@@ -128,7 +129,7 @@ func (w *worldSession) finishQuest(r protocol.QuestSubmitRequest) ([]outboundPac
 			// the account storage and precede the list0 snapshot with the
 			// list35 storage snapshot so the client harvest adopts them.
 			var materials inventory.AccountMaterials
-			result.Role, materials, e = sweepAccountMaterials(ctx, w.quests.Store, result.Role)
+			result.Role, materials, e = sweepAccountMaterials(ctx, w.store, result.Role)
 			if e != nil {
 				return nil, e
 			}

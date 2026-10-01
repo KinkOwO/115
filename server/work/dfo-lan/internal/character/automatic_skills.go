@@ -1,13 +1,12 @@
 package character
 
 import (
-	"dfolan/internal/storage"
 	"fmt"
 )
 
 // Free ranks are a source-derived floor, not purchases. Computing them from
 // persisted level/advancement also repairs older roles without SP or DB edits.
-func (s *Service) automaticSkills(role storage.Character, state State) (map[uint16]byte, error) {
+func (s *Service) automaticSkills(role Character, state State) (map[uint16]byte, error) {
 	out := map[uint16]byte{}
 	if s.Learning == nil {
 		return out, nil
@@ -56,7 +55,7 @@ func (s *Service) automaticSkills(role storage.Character, state State) (map[uint
 // that awakened at 75 never receives the 85-level ones. Deriving them from the
 // persisted level/awakening (exactly like automaticSkills) repairs those roles
 // without a DB edit - the client sees the grant as soon as the level is met.
-func (s *Service) awakeningSkills(role storage.Character, state State) (map[uint16]byte, error) {
+func (s *Service) awakeningSkills(role Character, state State) (map[uint16]byte, error) {
 	out := map[uint16]byte{}
 	if s.Learning == nil || state.Awakening == 0 {
 		return out, nil
@@ -99,7 +98,7 @@ func (s *Service) awakeningSkills(role storage.Character, state State) (map[uint
 	return out, nil
 }
 
-func (s *Service) knownSkills(role storage.Character, state State, tree int) (map[uint16]byte, error) {
+func (s *Service) knownSkills(role Character, state State, tree int) (map[uint16]byte, error) {
 	known, err := knownSkills(state, tree)
 	if err != nil {
 		return nil, err

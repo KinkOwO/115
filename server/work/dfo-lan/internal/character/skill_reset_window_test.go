@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 )
 
 // The single VP-panel gate is the third awakening alone; level never
@@ -150,7 +149,7 @@ func TestResetWindowClearsVariationsByMask(t *testing.T) {
 // ResetSkills 的 mask==0 在触碰数据库之前就必须拒绝。
 func TestResetWindowRefusesEmptyMask(t *testing.T) {
 	s := &Service{} // no Store: the mask gate fires first
-	role := storage.Character{AccountID: 1, ID: 2, ConfigVersion: "a"}
+	role := Character{AccountID: 1, ID: 2, ConfigVersion: "a"}
 	if _, _, e := s.ResetSkills(context.Background(), role, "k", 0, 0); e == nil {
 		t.Fatal("mask=0 必须拒绝")
 	}
@@ -162,12 +161,12 @@ func TestResetWindowRefusesEmptyMask(t *testing.T) {
 // Reset 窗口响应帧：三觉角色带满宽度空槽（TP 头=5）；未三觉无变体块。
 func TestResetWindowResponseCarriesFilledBlocks(t *testing.T) {
 	s := &Service{}
-	role := func(st State) storage.Character {
+	role := func(st State) Character {
 		raw, e := json.Marshal(st)
 		if e != nil {
 			t.Fatal(e)
 		}
-		return storage.Character{State: raw}
+		return Character{State: raw}
 	}
 	awakened := State{Awakening: 3, Level: 100, SkillPoints: [2]uint16{120, 120}, TechniquePoints: [2]uint16{5, 5}}
 	out, e := s.ResetResponse(role(awakened), 0)

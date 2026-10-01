@@ -5,7 +5,6 @@ import (
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -22,7 +21,7 @@ func InventoryExpansionTier(template uint32) byte {
 	return 0
 }
 
-func (p *Pilot) TryPurchaseInventoryExpansion(ctx context.Context, ledger BagLedger, account, character int64, key string, cart []protocol.CeraCartItem) (storage.CashReceipt, bool, bool, error) {
+func (p *Pilot) TryPurchaseInventoryExpansion(ctx context.Context, ledger BagLedger, account, character int64, key string, cart []protocol.CeraCartItem) (CashReceipt, bool, bool, error) {
 	for _, line := range cart {
 		entry, found := p.findEntry(line.Product, 0)
 		if !found {
@@ -32,13 +31,13 @@ func (p *Pilot) TryPurchaseInventoryExpansion(ctx context.Context, ledger BagLed
 		if tier == 0 {
 			continue
 		}
-		fail := func(err error) (storage.CashReceipt, bool, bool, error) {
-			return storage.CashReceipt{}, false, true, err
+		fail := func(err error) (CashReceipt, bool, bool, error) {
+			return CashReceipt{}, false, true, err
 		}
 		if len(cart) != 1 || line.Quantity != 1 || ledger == nil {
 			return fail(fmt.Errorf("背包扩展券必须单独购买一张"))
 		}
-		if err := p.Config.validate(); err != nil {
+		if err := p.Config.Validate(); err != nil {
 			return fail(err)
 		}
 		expected := fmt.Sprintf("stackable/cash/inven_upgradekit%d.stk", tier)
@@ -85,5 +84,5 @@ func (p *Pilot) TryPurchaseInventoryExpansion(ctx context.Context, ledger BagLed
 		})
 		return receipt, applied, true, err
 	}
-	return storage.CashReceipt{}, false, false, nil
+	return CashReceipt{}, false, false, nil
 }

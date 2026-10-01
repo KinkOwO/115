@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
+	"dfolan/internal/workflow"
 	"fmt"
 	"time"
 )
@@ -14,7 +15,7 @@ import (
 // 实机抓包（三次）显示请求是「装备槽 + 装备模板 + 书槽 + 书模板 + 属性类型」；
 // 成功后就地刷新书那一行与装备那一行 —— 不重建整包，避免打断窗口引用的对象
 // （强化路径已经吃过一次亏，见 reinforcement_flow.go 的注释）。
-func (w *worldSession) applyAmplifyGrimoire(service *inventory.WearService, p, raw []byte, event func(map[string]any)) ([]outboundPacket, error) {
+func (w *worldSession) applyAmplifyGrimoire(service *workflow.WearService, p, raw []byte, event func(map[string]any)) ([]outboundPacket, error) {
 	if service == nil || w == nil || w.role.ID == 0 || w.activeDungeon != nil {
 		return nil, fmt.Errorf("打红字需要已选角色且位于城镇")
 	}

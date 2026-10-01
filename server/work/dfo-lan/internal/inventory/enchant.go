@@ -14,9 +14,7 @@ package inventory
 // 规则数据来自 configs/enchant-beads.json（scripts/export_enchant_beads.py 只读 PVF 导出）。
 
 import (
-	"context"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -110,23 +108,8 @@ type EnchantReceipt struct {
 }
 
 // ApplyEnchantByBead 处理 CMD272：把宝珠对应的附魔卡写进装备行，扣掉一颗宝珠。
-func (s *WearService) ApplyEnchantByBead(ctx context.Context, role storage.Character, key string, r protocol.EnchantByBeadRequest) (storage.Character, EnchantReceipt, error) {
-	var out EnchantReceipt
-	if s == nil || s.Store == nil || s.Catalog == nil {
-		return role, out, fmt.Errorf("附魔需要有效装备目录及角色存档")
-	}
-	if !EnchantBeadsLoaded() {
-		return role, out, fmt.Errorf("附魔宝珠规则未装载")
-	}
-	if r.BeadSpace != 0 {
-		return role, out, Refuse(RefusalItems, "附魔宝珠容器 %d 不支持（仅背包）", r.BeadSpace)
-	}
-	return commitEquipmentEvent(ctx, s.Store, role, key, enchantModel, func(current storage.Character) (json.RawMessage, EnchantReceipt, error) {
-		return s.applyEnchantByBead(current, r)
-	})
-}
 
-func (s *WearService) applyEnchantByBead(role storage.Character, r protocol.EnchantByBeadRequest) (json.RawMessage, EnchantReceipt, error) {
+func (s *WearService) ApplyEnchantByBead(role Role, r protocol.EnchantByBeadRequest) (json.RawMessage, EnchantReceipt, error) {
 	var out EnchantReceipt
 	bag, err := ReadBag(role.State)
 	if err != nil {

@@ -4,7 +4,7 @@ import (
 	"context"
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
+
 	"encoding/hex"
 	"encoding/json"
 	"testing"
@@ -85,7 +85,7 @@ func TestEntryComboSkillInfoReplaysTheStoredBody(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := Service{}
-	got, err := s.EntryComboSkillInfo(storage.Character{ID: 1, Profession: 9, State: raw})
+	got, err := s.EntryComboSkillInfo(Character{ID: 1, Profession: 9, State: raw})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,7 +106,7 @@ func TestEntryComboSkillInfoIsEmptyWhenNothingIsStored(t *testing.T) {
 		"undecodable": json.RawMessage(`{"combo_skill_info":"AQID"}`),
 	} {
 		t.Run(name, func(t *testing.T) {
-			got, err := s.EntryComboSkillInfo(storage.Character{ID: 1, Profession: 9, State: raw})
+			got, err := s.EntryComboSkillInfo(Character{ID: 1, Profession: 9, State: raw})
 			if err != nil {
 				t.Fatalf("entry: %v", err)
 			}
@@ -123,10 +123,10 @@ func TestSaveComboSkillInfoRequiresAnOwnedCharacter(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := s.SaveComboSkillInfo(context.Background(), storage.Character{ID: 1, AccountID: 1}, "key", req); err == nil {
+	if _, _, err := s.SaveComboSkillInfo(context.Background(), Character{ID: 1, AccountID: 1}, "key", req); err == nil {
 		t.Fatal("save without a store succeeded")
 	}
-	if _, _, err := s.ClearComboSkillInfo(context.Background(), storage.Character{ID: 1, AccountID: 1}, "key"); err == nil {
+	if _, _, err := s.ClearComboSkillInfo(context.Background(), Character{ID: 1, AccountID: 1}, "key"); err == nil {
 		t.Fatal("clear without a store succeeded")
 	}
 }
@@ -139,7 +139,7 @@ func TestDarkKnightDefaultSkillRowsKeepAllSixComboSlots(t *testing.T) {
 	prof := c.Professions[9]
 	s := Service{Catalog: c}
 	state := State{Level: 1, SourceSHA256: prof.RawSHA256, InitialSkills: prof.InitialSkills}
-	rows, err := s.skillRows(storage.Character{Profession: 9}, state, 0)
+	rows, err := s.skillRows(Character{Profession: 9}, state, 0)
 	if err != nil {
 		t.Fatal(err)
 	}

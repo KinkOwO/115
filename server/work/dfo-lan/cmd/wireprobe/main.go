@@ -23,8 +23,8 @@ import (
 	"dfolan/internal/quest"
 	"dfolan/internal/rosterbg"
 	"dfolan/internal/storage"
-	"dfolan/internal/world"
 	"dfolan/internal/workflow"
+	"dfolan/internal/world"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
@@ -508,17 +508,18 @@ func main() {
 		}
 	}
 	var characters *character.Service
+	var gameStore *storage.Store
 	var worldService *world.Service
-	var wearService *inventory.WearService
+	var wearService *workflow.WearService
 	var questService *quest.Service
 	var townArrivalScenes map[uint32]catalog.TownArrivalScene
-	var vaultService *inventory.VaultService
+	var vaultService *workflow.VaultService
 	var fatigueService *character.FatigueService
 	var developmentAccount int64
 	var dungeonCatalog *catalog.DungeonCatalog
 	var progressionService *character.ProgressionService
 	var lootService *loot.Service
-	var shopService *inventory.ShopService
+	var shopService *workflow.ShopService
 	// journalRules 是装备库规则（nil = 不登记）。它同时被 CMD26 的事务与入场 2610 用到，
 	// 所以在这里声明、在 loot 块里装载。
 	var journalRules *catalog.EquipmentJournalRules
@@ -542,6 +543,7 @@ func main() {
 			log.Fatal(e)
 		}
 		defer s.Close()
+		gameStore = s
 		releaseAdminGuard, e := s.HoldAdminGuard(ctx)
 		if e != nil {
 			log.Fatal(e)
@@ -732,7 +734,7 @@ func main() {
 		if path := os.Getenv("DFO_FATIGUE_RULES"); path != "" {
 			fatiguePath = path
 		}
-		fatigueService, e = character.LoadFatigueService(characters.Store, fatiguePath)
+		fatigueService, e = character.LoadFatigueService(gameStore, fatiguePath)
 		if e != nil {
 			log.Fatal(e)
 		}
@@ -742,7 +744,7 @@ func main() {
 			log.Printf("fatigue consumption OFF — 进本消耗与房间消耗都按 0 记（-fatigue-free / DFO_FATIGUE_FREE）")
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		e = characters.Store.MigrateFatigue(ctx)
+		e = gameStore.MigrateFatigue(ctx)
 		cancel()
 		if e != nil {
 			log.Fatal(e)
@@ -767,9 +769,9 @@ func main() {
 		if data.Source.Checksum != characters.Catalog.Source.Checksum {
 			log.Fatal("world/character source versions differ")
 		}
-		worldService = &world.Service{Store: characters.Store, Catalog: data, Rules: rules}
+		worldService = &world.Service{Store: gameStore, Catalog: data, Rules: rules}
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		e = characters.Store.MigrateWorld(ctx)
+		e = gameStore.MigrateWorld(ctx)
 		cancel()
 		if e != nil {
 			log.Fatal(e)
@@ -872,7 +874,7 @@ func main() {
 		if data.Source.Checksum != characters.Catalog.Source.Checksum || data.Source.Checksum != dungeonCatalog.Source.Checksum {
 			log.Fatal("progression source version mismatch")
 		}
-		progressionService = &character.ProgressionService{Store: characters.Store, Catalog: data, Professions: characters.Catalog, Rules: rules}
+		progressionService = &character.ProgressionService{Store: gameStore, Catalog: data, Professions: characters.Catalog, Rules: rules}
 		if path := os.Getenv("DFO_ODYSSEY_GROWTH"); path != "" || pvfCatalogs.odysseyGrowth != nil {
 			progressionService.Odyssey, e = pvfCatalogs.loadOdysseyGrowth(path)
 			if e != nil {
@@ -889,15 +891,15 @@ func main() {
 			log.Fatal(e)
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		e = characters.Store.MigrateCharacterEvents(ctx)
+		e = gameStore.MigrateCharacterEvents(ctx)
 		if e == nil {
-			e = characters.Store.MigrateCharacterNotices(ctx)
+			e = gameStore.MigrateCharacterNotices(ctx)
 		}
 		if e == nil {
-			e = characters.Store.MigrateSkillLocks(ctx)
+			e = gameStore.MigrateSkillLocks(ctx)
 		}
 		if e == nil {
-			e = characters.Store.MigrateTowerProgress(ctx)
+			e = gameStore.MigrateTowerProgress(ctx)
 		}
 		cancel()
 		if e != nil {
@@ -926,7 +928,7 @@ func main() {
 		}
 		tutorialRoutes, tutorialDungeons = routes, &data
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		e = characters.Store.MigrateBirth(ctx)
+		e = gameStore.MigrateBirth(ctx)
 		cancel()
 		if e != nil {
 			log.Fatal(e)
@@ -1024,8 +1026,8 @@ func main() {
 			log.Printf("loaded equipment create cost: groups=%d itemRows=%d templates=%d",
 				len(cc.Groups), items, len(cc.Templates()))
 		}
-		lootService = &loot.Service{Store: characters.Store, Catalog: c, DropCatalog: dropCatalog, Rules: r, BagRules: bag, Tables: tables, Equipment: gear, Journal: journalRules, CreateCost: equipmentCreateCost}
-		shopService = &inventory.ShopService{Store: characters.Store, Catalog: c, EventModel: r.Model, BagRules: bag, ItemMaterials: itemMaterials}
+		lootService = &loot.Service{Catalog: c, DropCatalog: dropCatalog, Rules: r, BagRules: bag, Tables: tables, Equipment: gear, Journal: journalRules, CreateCost: equipmentCreateCost}
+		shopService = &workflow.ShopService{Store: gameStore, ShopService: inventory.ShopService{Catalog: c, EventModel: r.Model, BagRules: bag, ItemMaterials: itemMaterials}}
 		minePath := *bleedingMineRewardsFile
 		if minePath == "" {
 			minePath = filepath.Join(filepath.Dir(lootPath), "bleeding-mine-rewards.json")
@@ -1108,7 +1110,7 @@ func main() {
 		if progressionService != nil {
 			odysseyGrowth = progressionService.Odyssey
 		}
-		questService = &quest.Service{Store: characters.Store, Catalog: data, Professions: characters.Catalog, Progression: progressionService, Odyssey: odysseyGrowth, Dungeons: dungeonCatalog}
+		questService = &quest.Service{Store: gameStore, Catalog: data, Professions: characters.Catalog, Progression: progressionService, Odyssey: odysseyGrowth, Dungeons: dungeonCatalog}
 		var sceneIssues []string
 		townArrivalScenes, sceneIssues = catalog.TownArrivalSceneWhitelist(data, worldService.Catalog)
 		for _, issue := range sceneIssues {
@@ -1133,7 +1135,7 @@ func main() {
 				if err != nil {
 					log.Fatal(err)
 				}
-				wearService = &inventory.WearService{Store: characters.Store, Catalog: equipment, Professions: characters.Catalog, BagRules: lootService.BagRules, Rules: rules}
+				wearService = &workflow.WearService{Store: gameStore, WearService: inventory.WearService{PremiumStore: workflow.PremiumReader{Store: gameStore}, Catalog: equipment, Professions: characters.Catalog, BagRules: lootService.BagRules, Rules: rules}}
 
 				// 装备变换要用「部位 → 装备类型」映射去**背包**里找源（客户端允许把背包装备放进
 				// 界面「变换前」槽，请求只带部位码），所以把同一份 WearRules 也交给 loot 服务。
@@ -1209,17 +1211,17 @@ func main() {
 				if err != nil {
 					log.Fatal(err)
 				}
-				unsealService = &workflow.UnsealService{Store: characters.Store, Equipment: equipment, RandomOptions: options, Model: "current115-randomoption-v1"}
+				unsealService = &workflow.UnsealService{Store: gameStore, Equipment: equipment, RandomOptions: options, Model: "current115-randomoption-v1"}
 				log.Printf("magic-seal unsealing enabled: %d option groups", options.GroupCount())
 			}
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		e = characters.Store.MigrateQuests(ctx)
+		e = gameStore.MigrateQuests(ctx)
 		if e == nil {
-			e = characters.Store.MigrateQuestObjectives(ctx)
+			e = gameStore.MigrateQuestObjectives(ctx)
 		}
 		if e == nil && progressionService != nil {
-			e = characters.Store.MigrateQuestRewards(ctx)
+			e = gameStore.MigrateQuestRewards(ctx)
 		}
 		cancel()
 		if e != nil {
@@ -1234,7 +1236,7 @@ func main() {
 	if characters != nil {
 		identity := characters.Catalog.Source.SaveIdentity()
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		n, rebaseErr := characters.Store.MigrateSaveIdentity(ctx, identity)
+		n, rebaseErr := gameStore.MigrateSaveIdentity(ctx, identity)
 		cancel()
 		if rebaseErr != nil {
 			log.Fatalf("save identity normalization: %v", rebaseErr)
@@ -1251,7 +1253,7 @@ func main() {
 		if e != nil {
 			log.Fatal(e)
 		}
-		vaultService = &inventory.VaultService{Store: characters.Store, Rules: rules}
+		vaultService = &workflow.VaultService{Store: gameStore, VaultService: inventory.VaultService{Rules: rules}}
 		if wearService != nil {
 			vaultService.Equipment = wearService.Catalog
 		}
@@ -1272,15 +1274,15 @@ func main() {
 			}
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		e = characters.Store.MigrateVault(ctx)
+		e = gameStore.MigrateVault(ctx)
 		if e == nil {
-			e = characters.Store.UpgradeSecondaryVaultCapacity(ctx)
+			e = gameStore.UpgradeSecondaryVaultCapacity(ctx)
 		}
 		if e == nil {
-			e = characters.Store.MigrateAccountMaterials(ctx)
+			e = gameStore.MigrateAccountMaterials(ctx)
 		}
 		if e == nil && rules.Account != nil {
-			e = characters.Store.MigrateAccountVault(ctx)
+			e = gameStore.MigrateAccountVault(ctx)
 		}
 		cancel()
 		if e != nil {
@@ -1607,7 +1609,7 @@ func main() {
 		if worldService == nil || characters == nil || dungeonCatalog == nil || *channelRefreshFile == "" || !*entryBasicProbe || !*entryAdditionProbe {
 			log.Fatal("Moon requires complete persisted world/entry/dungeon/channel services")
 		}
-		if err = validateMoonResources(dungeonCatalog, lootService); err != nil {
+		if err = validateMoonResources(dungeonCatalog, lootService, gameStore); err != nil {
 			log.Fatal(err)
 		}
 		if err = worldService.ValidatePosition(255, false, moonConfig.Entry); err != nil {
@@ -1763,7 +1765,7 @@ func main() {
 			if questService != nil && townArrivalScenes == nil {
 				log.Fatal("town arrival scene whitelist was not passed to world sessions")
 			}
-			worldState = &worldSession{characters: characters, service: worldService, store: characters.Store, account: developmentAccount, flags: townPolicy.Flags, dungeons: dungeonCatalog, townArrivalScenes: townArrivalScenes, tutorials: tutorialRoutes, tutorialDungeons: tutorialDungeons, professions: characters.Catalog, fatigue: fatigueService, quests: questService, progression: progressionService, loot: lootService, shop: shopService, selectionBoxes: selectionBoxes, vault: vaultService, skinCatalog: skinCatalog, soloPartyBootstrap: *soloPartyBootstrap, hub: hub, scaleDeathFromHP: *scaleDeathFromHP, oathGrades: oathGradePair, oathTable: oathGradeTable, oathFromGear: *oathFromGear, oathProgressClears: *oathProgressClears, oathProgressDungeons: oathProgressSet, oathInject: oathInjectSpecs, omenHold: *omenHold, omenState: omenState, omenInfo: omenInfoBytes}
+			worldState = &worldSession{characters: characters, service: worldService, store: gameStore, account: developmentAccount, flags: townPolicy.Flags, dungeons: dungeonCatalog, townArrivalScenes: townArrivalScenes, tutorials: tutorialRoutes, tutorialDungeons: tutorialDungeons, professions: characters.Catalog, fatigue: fatigueService, quests: questService, progression: progressionService, loot: lootService, shop: shopService, selectionBoxes: selectionBoxes, vault: vaultService, skinCatalog: skinCatalog, soloPartyBootstrap: *soloPartyBootstrap, hub: hub, scaleDeathFromHP: *scaleDeathFromHP, oathGrades: oathGradePair, oathTable: oathGradeTable, oathFromGear: *oathFromGear, oathProgressClears: *oathProgressClears, oathProgressDungeons: oathProgressSet, oathInject: oathInjectSpecs, omenHold: *omenHold, omenState: omenState, omenInfo: omenInfoBytes}
 			worldState.serverID = channelCfg.ServerID
 			worldState.channelType = channelTypes[channel]
 			if moonConfig != nil && channel == moonConfig.Channel {
@@ -2108,7 +2110,7 @@ func main() {
 			}
 			if frame.Type == 1 && bootstrapped && verified && characters != nil && frame.ID == 63 {
 				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-				payload, e := ceraQuery(ctx, characters.Store, developmentAccount, plaintext)
+				payload, e := ceraQuery(ctx, gameStore, developmentAccount, plaintext)
 				cancel()
 				if e != nil {
 					event(map[string]any{"kind": "cera_query_error", "error": e.Error()})
@@ -2123,12 +2125,12 @@ func main() {
 			if frame.Type == 1 && bootstrapped && verified && frame.ID == 64 {
 				if shopPilot != nil && characters != nil && worldState != nil && selectedCharacterID != 0 && worldState.activeDungeon == nil {
 					ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-					receipt, applied, buyErr := purchaseSession.purchase(ctx, shopPilot, characters.Store, developmentAccount, selectedCharacterID, plaintext, frame.Raw)
+					receipt, applied, buyErr := purchaseSession.purchase(ctx, shopPilot, gameStore, developmentAccount, selectedCharacterID, plaintext, frame.Raw)
 					cancel()
 					if buyErr == nil {
 						worldState.role.State = receipt.CharacterState
 						ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
-						balance, readErr := characters.Store.AccountCera(ctx, developmentAccount)
+						balance, readErr := gameStore.AccountCera(ctx, developmentAccount)
 						cancel()
 						if readErr != nil {
 							event(map[string]any{"kind": "cera_committed_sync_error", "order": receipt.Order, "error": readErr.Error()})
@@ -2208,7 +2210,7 @@ func main() {
 			}
 			if frame.Type == 1 && bootstrapped && verified && characters != nil && worldState != nil && (frame.ID == 102 || frame.ID == 173) {
 				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-				packets, e := worldState.hatchCreature(ctx, characters.Store, frame.ID, plaintext, frame.Raw)
+				packets, e := worldState.hatchCreature(ctx, gameStore, frame.ID, plaintext, frame.Raw)
 				cancel()
 				if e != nil {
 					event(map[string]any{"kind": "creature_hatch_error", "error": e.Error(), "character_id": selectedCharacterID})
@@ -2227,11 +2229,11 @@ func main() {
 				var e error
 				if frame.ID == 41 {
 					pilotEnabled := odysseyTemporaryCreditsEnabled() && isOdysseyRewardRole(worldState.role) && worldState.activeDungeon != nil && worldState.activeDungeon.Definition.Odyssey
-					plan, e = worldState.useCoinRevive(ctx, characters.Store, plaintext, frame.Raw, pilotEnabled)
+					plan, e = worldState.useCoinRevive(ctx, gameStore, plaintext, frame.Raw, pilotEnabled)
 				} else if worldState.activeDungeon != nil || worldState.role.ID == 0 {
 					e = fmt.Errorf("booster box use requires selected character in town")
 				} else {
-					plan, e = worldState.openBoosterItem(ctx, characters.Store, wearService, lootService, boosterCatalog, odysseyChoices, plaintext, frame.Raw)
+					plan, e = worldState.openBoosterItem(ctx, gameStore, wearService, lootService, boosterCatalog, odysseyChoices, plaintext, frame.Raw)
 				}
 				cancel()
 				if e != nil {
@@ -2250,7 +2252,7 @@ func main() {
 				if lotteryPools == nil || boosterCatalog == nil {
 					e = fmt.Errorf("lottery item catalog unavailable")
 				} else {
-					plan, e = worldState.openLotteryItem(ctx, characters.Store, lotteryPools, boosterCatalog.Items, plaintext, frame.Raw, wearService)
+					plan, e = worldState.openLotteryItem(ctx, gameStore, lotteryPools, boosterCatalog.Items, plaintext, frame.Raw, wearService)
 				}
 				cancel()
 				if e != nil {
@@ -2283,7 +2285,7 @@ func main() {
 				id, err := protocol.DecodeSynopsisRead(plaintext)
 				var payload []byte
 				if err == nil {
-					payload, err = saveSynopsisRead(characters.Store, worldState, id)
+					payload, err = saveSynopsisRead(gameStore, worldState, id)
 				}
 				if err != nil {
 					event(map[string]any{"kind": "synopsis_read_refused", "error": err.Error()})
@@ -2301,7 +2303,7 @@ func main() {
 				// the 1417 branch: it shares the same request family, and a
 				// later placement would let 1417 swallow the report so the
 				// digest level never advances.
-				if err := saveStoryDigest(characters.Store, worldState, plaintext); err != nil {
+				if err := saveStoryDigest(gameStore, worldState, plaintext); err != nil {
 					event(map[string]any{"kind": "story_digest_save_error", "error": err.Error()})
 				} else {
 					event(map[string]any{"kind": "story_digest_saved", "character_id": worldState.role.ID, "level": worldState.level})
@@ -2309,7 +2311,7 @@ func main() {
 				continue
 			}
 			if frame.Type == 1 && frame.ID == 1417 && bootstrapped && verified && characters != nil {
-				if err := cinematicSkip(characters.Store, worldState, plaintext); err != nil {
+				if err := cinematicSkip(gameStore, worldState, plaintext); err != nil {
 					event(map[string]any{"kind": "cinematic_skip_refused", "error": err.Error()})
 				} else {
 					event(map[string]any{"kind": "cinematic_skip_saved", "character_id": worldState.role.ID})
@@ -2547,7 +2549,7 @@ func main() {
 				if decodeErr == nil && characters != nil && worldState != nil &&
 					((r.SourceList == 3 && r.SourceSlot == 47) || (r.DestinationList == 3 && r.DestinationSlot == 47)) {
 					oathCtx, oathCancel := context.WithTimeout(context.Background(), 5*time.Second)
-					selection, oathErr := characters.Store.EquippedOathSelection(oathCtx, developmentAccount, worldState.role.ID)
+					selection, oathErr := gameStore.EquippedOathSelection(oathCtx, developmentAccount, worldState.role.ID)
 					oathCancel()
 					if oathErr != nil {
 						event(map[string]any{"kind": "oath_selection_refresh_error", "character_id": worldState.role.ID, "reason": oathErr.Error()})
@@ -2812,7 +2814,7 @@ func main() {
 						continue
 					}
 					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-					e = characters.Store.SaveCharacterUnifiedOptions(ctx, worldState.role.AccountID, worldState.role.ID, unifiedEntries(opt.Entries))
+					e = gameStore.SaveCharacterUnifiedOptions(ctx, worldState.role.AccountID, worldState.role.ID, unifiedEntries(opt.Entries))
 					cancel()
 					if e != nil {
 						event(map[string]any{"kind": "character_settings_rejected", "reason": e.Error(), "character_id": selectedCharacterID})
@@ -2825,7 +2827,7 @@ func main() {
 						continue
 					}
 					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-					e = characters.Store.SaveCharacterUnifiedOptionGroup(ctx, worldState.role.AccountID, worldState.role.ID, opt.Subtype, unifiedEntries(opt.Entries))
+					e = gameStore.SaveCharacterUnifiedOptionGroup(ctx, worldState.role.AccountID, worldState.role.ID, opt.Subtype, unifiedEntries(opt.Entries))
 					cancel()
 					if e != nil {
 						event(map[string]any{"kind": "character_effect_options_rejected", "reason": e.Error(), "character_id": selectedCharacterID})
@@ -2856,7 +2858,7 @@ func main() {
 						continue
 					}
 					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-					e = characters.Store.SaveAccountUnifiedOptions(ctx, accountID, unifiedEntries(opt.Entries))
+					e = gameStore.SaveAccountUnifiedOptions(ctx, accountID, unifiedEntries(opt.Entries))
 					cancel()
 					if e != nil {
 						event(map[string]any{"kind": "account_settings_rejected", "reason": e.Error()})
@@ -2895,13 +2897,13 @@ func main() {
 					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 					if opt.Scope == protocol.UnifiedOptionScopeAccount {
 						if charID != 0 {
-							_ = characters.Store.PromoteCharacterHotkeysToAccount(ctx, accountID, charID, opt.Subtype)
+							_ = gameStore.PromoteCharacterHotkeysToAccount(ctx, accountID, charID, opt.Subtype)
 						}
 						if len(opt.Entries) > 0 {
-							e = characters.Store.SaveAccountHotkeys(ctx, accountID, opt.Subtype, unifiedEntries(opt.Entries))
+							e = gameStore.SaveAccountHotkeys(ctx, accountID, opt.Subtype, unifiedEntries(opt.Entries))
 						}
 						if e == nil {
-							_ = characters.Store.ClearAccountCharacterHotkeys(ctx, accountID, opt.Subtype)
+							_ = gameStore.ClearAccountCharacterHotkeys(ctx, accountID, opt.Subtype)
 						}
 						cancel()
 						if e != nil {
@@ -2915,8 +2917,8 @@ func main() {
 							event(map[string]any{"kind": "character_hotkeys_rejected", "reason": "requires the owned selected character", "character_id": selectedCharacterID})
 							continue
 						}
-						_ = characters.Store.CopyAccountHotkeysToCharacter(ctx, accountID, charID, opt.Subtype)
-						e = characters.Store.SaveCharacterHotkeys(ctx, accountID, charID, opt.Subtype, unifiedEntries(opt.Entries))
+						_ = gameStore.CopyAccountHotkeysToCharacter(ctx, accountID, charID, opt.Subtype)
+						e = gameStore.SaveCharacterHotkeys(ctx, accountID, charID, opt.Subtype, unifiedEntries(opt.Entries))
 						cancel()
 						if e != nil {
 							event(map[string]any{"kind": "character_hotkeys_rejected", "reason": e.Error(), "character_id": charID, "subtype": opt.Subtype})
@@ -2954,10 +2956,10 @@ func main() {
 					var err error
 					var hotPayload []byte
 					if scope == 1 {
-						err = characters.Store.SaveAccountGamepadKeys(ctx, developmentAccount, tsv)
+						err = gameStore.SaveAccountGamepadKeys(ctx, developmentAccount, tsv)
 						if err == nil {
-							_ = characters.Store.ClearAccountCharacterGamepadSettings(ctx, developmentAccount)
-							hotPayload, _ = characters.Store.AccountGamepadPayload(ctx, developmentAccount)
+							_ = gameStore.ClearAccountCharacterGamepadSettings(ctx, developmentAccount)
+							hotPayload, _ = gameStore.AccountGamepadPayload(ctx, developmentAccount)
 						}
 					} else {
 						if charID == 0 {
@@ -2965,9 +2967,9 @@ func main() {
 							event(map[string]any{"kind": "gamepad_keys_rejected", "reason": "requires selected character", "bytes": len(plaintext)})
 							continue
 						}
-						err = characters.Store.SaveCharacterGamepadKeys(ctx, developmentAccount, charID, tsv)
+						err = gameStore.SaveCharacterGamepadKeys(ctx, developmentAccount, charID, tsv)
 						if err == nil {
-							hotPayload, _ = characters.Store.ResolveGamepadPayload(ctx, developmentAccount, charID)
+							hotPayload, _ = gameStore.ResolveGamepadPayload(ctx, developmentAccount, charID)
 						}
 					}
 					cancel()
@@ -2999,9 +3001,9 @@ func main() {
 					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 					var err error
 					if scope == 1 {
-						err = characters.Store.SaveAccountGamepadOptions(ctx, developmentAccount, opts)
+						err = gameStore.SaveAccountGamepadOptions(ctx, developmentAccount, opts)
 						if err == nil {
-							_ = characters.Store.ClearAccountCharacterGamepadSettings(ctx, developmentAccount)
+							_ = gameStore.ClearAccountCharacterGamepadSettings(ctx, developmentAccount)
 						}
 					} else {
 						if charID == 0 {
@@ -3009,7 +3011,7 @@ func main() {
 							event(map[string]any{"kind": "gamepad_options_rejected", "reason": "requires selected character", "bytes": len(plaintext)})
 							continue
 						}
-						err = characters.Store.SaveCharacterGamepadOptions(ctx, developmentAccount, charID, opts)
+						err = gameStore.SaveCharacterGamepadOptions(ctx, developmentAccount, charID, opts)
 					}
 					cancel()
 					if err != nil {
@@ -3241,7 +3243,7 @@ func main() {
 						persistErr = fmt.Errorf("notice id out of wire range")
 						break
 					}
-					persistErr = characters.Store.MarkCharacterNotice(ctx, developmentAccount, selectedCharacterID, 1, uint16(nid), true)
+					persistErr = gameStore.MarkCharacterNotice(ctx, developmentAccount, selectedCharacterID, 1, uint16(nid), true)
 					if persistErr == nil {
 						event(map[string]any{"kind": "notice_seen_persisted", "character_id": selectedCharacterID, "tree": 1, "notice_id": nid})
 					}
@@ -3251,7 +3253,7 @@ func main() {
 						// also covers the Manual Setup teaching mark; the
 						// season-5 Anton quest chain (pre-req 3223 -> NPC15
 						// 3226) is a separate flow and is not implemented here.
-						persistErr = characters.Store.MarkCharacterNotice(ctx, developmentAccount, selectedCharacterID, 2, 62, true)
+						persistErr = gameStore.MarkCharacterNotice(ctx, developmentAccount, selectedCharacterID, 2, 62, true)
 						if persistErr == nil {
 							event(map[string]any{"kind": "notice_2nd_persisted", "character_id": selectedCharacterID, "notice_id": 62})
 						}
@@ -3267,7 +3269,7 @@ func main() {
 						persistErr = fmt.Errorf("notice id out of wire range")
 						break
 					}
-					persistErr = characters.Store.MarkCharacterNotice(ctx, developmentAccount, selectedCharacterID, 2, uint16(nid), value != 0)
+					persistErr = gameStore.MarkCharacterNotice(ctx, developmentAccount, selectedCharacterID, 2, uint16(nid), value != 0)
 					if persistErr == nil {
 						if value != 0 {
 							event(map[string]any{"kind": "notice_2nd_seen_persisted", "character_id": selectedCharacterID, "notice_id": nid})
@@ -3810,7 +3812,7 @@ func main() {
 					continue
 				}
 				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-				e = characters.Store.SaveTutorialFlag(ctx, developmentAccount, selectedCharacterID, r.Index, r.Completed)
+				e = gameStore.SaveTutorialFlag(ctx, developmentAccount, selectedCharacterID, r.Index, r.Completed)
 				cancel()
 				if e != nil {
 					event(map[string]any{"kind": "tutorial_save_error", "error": e.Error()})
@@ -4310,7 +4312,7 @@ func main() {
 						continue
 					}
 					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-					count, e := questService.ClearActQuests(ctx, worldState.role)
+					count, e := (&workflow.QuestService{Store: gameStore, Quest: questService}).ClearActQuests(ctx, worldState.role)
 					cancel()
 					if e != nil {
 						event(map[string]any{"kind": "act_quest_clear_refused", "id": frame.ID, "reason": e.Error()})
@@ -4437,7 +4439,7 @@ func main() {
 					state, e = questService.Accept(ctx, worldState.role, qid)
 					response = protocol.QuestAccepted(qid, state.Progress)
 				} else {
-					e = characters.Store.AbandonQuest(ctx, developmentAccount, worldState.role.ID, qid)
+					e = gameStore.AbandonQuest(ctx, developmentAccount, worldState.role.ID, qid)
 					response = protocol.QuestAbandoned(qid)
 				}
 				cancel()
@@ -4514,7 +4516,7 @@ func main() {
 				}
 				if odysseyRewardsEnabled() {
 					ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
-					updated, applied, rewardErr := grantOdysseyArmor(ctx, characters.Store, wearService, role)
+					updated, applied, rewardErr := grantOdysseyArmor(ctx, gameStore, wearService, role)
 					cancel()
 					if rewardErr != nil {
 						event(map[string]any{"kind": "odyssey_armor_pending", "character_id": role.ID, "reason": rewardErr.Error()})
@@ -4527,7 +4529,7 @@ func main() {
 				}
 				if odysseyRewardsEnabled() {
 					ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
-					updated, applied, rewardErr := grantOdysseyWeaponBox(ctx, characters.Store, role)
+					updated, applied, rewardErr := grantOdysseyWeaponBox(ctx, gameStore, role)
 					cancel()
 					if rewardErr != nil {
 						event(map[string]any{"kind": "odyssey_weapon_box_pending", "character_id": role.ID, "reason": rewardErr.Error()})
@@ -4546,7 +4548,7 @@ func main() {
 						event(map[string]any{"kind": "odyssey_create_potion_pending", "character_id": role.ID, "reason": "loot catalog unavailable"})
 					} else {
 						ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
-						updated, applied, rewardErr := grantOdysseyCreatePotion(ctx, characters.Store, lootService.Catalog, lootService.BagRules, role)
+						updated, applied, rewardErr := grantOdysseyCreatePotion(ctx, gameStore, lootService.Catalog, lootService.BagRules, role)
 						cancel()
 						if rewardErr != nil {
 							event(map[string]any{"kind": "odyssey_create_potion_pending", "character_id": role.ID, "reason": rewardErr.Error()})
@@ -4560,7 +4562,7 @@ func main() {
 				}
 				if odysseyTemporaryCreditsEnabled() {
 					ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
-					updated, applied, creditErr := grantOdysseyCredits(ctx, characters.Store, role)
+					updated, applied, creditErr := grantOdysseyCredits(ctx, gameStore, role)
 					cancel()
 					if creditErr != nil {
 						event(map[string]any{"kind": "odyssey_test_credits_pending", "reason": creditErr.Error()})
@@ -4622,7 +4624,7 @@ func main() {
 				profile := *selectProbe
 				if lootService != nil && lootService.Boxes != nil {
 					ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
-					updated, applied, repairErr := lootService.RepairBoxRewards(ctx, role)
+					updated, applied, repairErr := (&workflow.LootService{Store: gameStore, Loot: lootService}).RepairBoxRewards(ctx, role)
 					cancel()
 					if repairErr != nil {
 						event(map[string]any{"kind": "box_reward_repair_error", "character_id": role.ID, "error": repairErr.Error()})
@@ -4634,7 +4636,7 @@ func main() {
 					}
 				}
 				ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
-				profile.TutorialCompleted, e = characters.Store.TutorialFlags(ctx, developmentAccount, role.ID)
+				profile.TutorialCompleted, e = gameStore.TutorialFlags(ctx, developmentAccount, role.ID)
 				cancel()
 				if e != nil {
 					event(map[string]any{"kind": "tutorial_restore_error", "error": e.Error()})
@@ -4651,7 +4653,7 @@ func main() {
 				// response. Without this it stayed at the configured zero,
 				// so an operator top-up could never be seen in game.
 				ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
-				cera, ce := characters.Store.AccountCera(ctx, developmentAccount)
+				cera, ce := gameStore.AccountCera(ctx, developmentAccount)
 				cancel()
 				if ce != nil {
 					event(map[string]any{"kind": "cera_restore_error", "error": ce.Error()})
@@ -4704,7 +4706,7 @@ func main() {
 					}
 					if e == nil && vaultService.Rules.Account != nil {
 						var accountVault storage.AccountVaultState
-						accountVault, e = characters.Store.LoadAccountVault(ctx, role.AccountID, role.ID)
+						accountVault, e = gameStore.LoadAccountVault(ctx, role.AccountID, role.ID)
 						if e == nil {
 							accountVaultPayload, e = inventory.AccountVaultPayload(accountVault, *vaultService.Rules.Account)
 						}
@@ -4718,7 +4720,7 @@ func main() {
 				var areaPayload []byte
 				if *townProbeFile != "" || contractPurchaseCrashFixEnabled() {
 					premiumCtx, premiumCancel := context.WithTimeout(context.Background(), 5*time.Second)
-					premiums, pe := characters.Store.ActivePremiums(premiumCtx, developmentAccount, time.Now())
+					premiums, pe := gameStore.ActivePremiums(premiumCtx, developmentAccount, time.Now())
 					premiumCancel()
 					if pe != nil {
 						event(map[string]any{"kind": "premium_restore_error", "error": pe.Error()})
@@ -4793,7 +4795,7 @@ func main() {
 				accountOptions := append([]byte(nil), accountOptionsPayload...)
 				if characters != nil {
 					optCtx, optCancel := context.WithTimeout(context.Background(), 5*time.Second)
-					overrides, optErr := characters.Store.AccountUnifiedOptions(optCtx, developmentAccount)
+					overrides, optErr := gameStore.AccountUnifiedOptions(optCtx, developmentAccount)
 					optCancel()
 					if optErr != nil {
 						event(map[string]any{"kind": "account_options_restore_error", "error": optErr.Error()})
@@ -4804,8 +4806,8 @@ func main() {
 						}
 					}
 					hkCtx, hkCancel := context.WithTimeout(context.Background(), 5*time.Second)
-					accHkA, errA := characters.Store.AccountHotkeys(hkCtx, developmentAccount, protocol.UnifiedOptionHotkeys)
-					accHkB, errB := characters.Store.AccountHotkeys(hkCtx, developmentAccount, protocol.UnifiedOptionHotkeysExt)
+					accHkA, errA := gameStore.AccountHotkeys(hkCtx, developmentAccount, protocol.UnifiedOptionHotkeys)
+					accHkB, errB := gameStore.AccountHotkeys(hkCtx, developmentAccount, protocol.UnifiedOptionHotkeysExt)
 					hkCancel()
 					if errA != nil || errB != nil {
 						event(map[string]any{"kind": "account_hotkeys_restore_error", "error_a": fmt.Sprint(errA), "error_b": fmt.Sprint(errB)})
@@ -4829,7 +4831,7 @@ func main() {
 				plan := entryPayloads{Select: payload, Basic: basic, Addition: addition, Vault: vaultPayload, UserArea: userArea, Area: areaPayload, Fatigue: fatiguePayload, AccountOptions: accountOptions}
 				if characters != nil {
 					oathCtx, oathCancel := context.WithTimeout(context.Background(), 5*time.Second)
-					selection, oathErr := characters.Store.EquippedOathSelection(oathCtx, developmentAccount, role.ID)
+					selection, oathErr := gameStore.EquippedOathSelection(oathCtx, developmentAccount, role.ID)
 					oathCancel()
 					if oathErr != nil {
 						event(map[string]any{"kind": "oath_selection_restore_error", "character_id": role.ID, "reason": oathErr.Error()})
@@ -4845,7 +4847,7 @@ func main() {
 				// 没设过的角色得到全零载荷（等于客户端默认）。
 				if characters != nil && equipmentSkillEnabled() {
 					eskCtx, eskCancel := context.WithTimeout(context.Background(), 5*time.Second)
-					eskSkills, eskCommands, eskErr := characters.Store.EquipmentSkillSnapshots(eskCtx, developmentAccount, role.ID)
+					eskSkills, eskCommands, eskErr := gameStore.EquipmentSkillSnapshots(eskCtx, developmentAccount, role.ID)
 					eskCancel()
 					if eskErr != nil {
 						event(map[string]any{"kind": "equipment_skill_restore_error", "character_id": role.ID, "reason": eskErr.Error()})
@@ -4857,7 +4859,7 @@ func main() {
 				}
 				plan.SecondaryVault = secondaryVaultPayload
 				collectionCtx, collectionCancel := context.WithTimeout(context.Background(), 5*time.Second)
-				collectionEquipment, collectionErr := characters.Store.AdventureCollectionEquipment(collectionCtx, role.AccountID, role.ID)
+				collectionEquipment, collectionErr := gameStore.AdventureCollectionEquipment(collectionCtx, role.AccountID, role.ID)
 				collectionCancel()
 				if collectionErr != nil {
 					event(map[string]any{"kind": "冒险图鉴登录读取失败", "character_id": role.ID, "error": collectionErr.Error()})
@@ -4873,7 +4875,7 @@ func main() {
 				plan.AccountVault = accountVaultPayload
 				if characters != nil {
 					gpCtx, gpCancel := context.WithTimeout(context.Background(), 5*time.Second)
-					gpPayload, gpErr := characters.Store.ResolveGamepadPayload(gpCtx, developmentAccount, role.ID)
+					gpPayload, gpErr := gameStore.ResolveGamepadPayload(gpCtx, developmentAccount, role.ID)
 					gpCancel()
 					if gpErr != nil {
 						event(map[string]any{"kind": "gamepad_options_restore_error", "character_id": role.ID, "error": gpErr.Error()})
@@ -4887,7 +4889,7 @@ func main() {
 				// sending a fabricated success state.
 				if characters != nil {
 					skinCtx, skinCancel := context.WithTimeout(context.Background(), 5*time.Second)
-					skinState, skinErr := characters.Store.RestoreProfileSkins(skinCtx, developmentAccount, role.ID)
+					skinState, skinErr := gameStore.RestoreProfileSkins(skinCtx, developmentAccount, role.ID)
 					skinCancel()
 					if skinErr == nil {
 						plan.ProfileSkinCargo, plan.ProfileSkinSelection, skinErr = profileskin.Restore(skinState)
@@ -4903,17 +4905,17 @@ func main() {
 				// decoration state does.
 				if characters != nil && skinCatalog != nil {
 					cargoCtx, cargoCancel := context.WithTimeout(context.Background(), 5*time.Second)
-					cargo, cargoErr := damageFontCargo(cargoCtx, characters.Store, developmentAccount, skinCatalog)
+					cargo, cargoErr := damageFontCargo(cargoCtx, gameStore, developmentAccount, skinCatalog)
 					if cargoErr == nil {
 						plan.SkinCargoDamageFont = cargo
 						// The chosen fonts are per character and per panel tab, and
 						// only these frames put them back on the damage numbers.
 						plan.SkinSelectionDamageFontNormal, cargoErr = restoreDamageFontSelection(cargoCtx,
-							characters.Store, role.ID, developmentAccount, skinCatalog,
+							gameStore, role.ID, developmentAccount, skinCatalog,
 							protocol.SkinSelectionDamageFontNormal)
 						if cargoErr == nil {
 							plan.SkinSelectionDamageFontCumulative, cargoErr = restoreDamageFontSelection(cargoCtx,
-								characters.Store, role.ID, developmentAccount, skinCatalog,
+								gameStore, role.ID, developmentAccount, skinCatalog,
 								protocol.SkinSelectionDamageFontCumulative)
 						}
 					}
@@ -4929,7 +4931,7 @@ func main() {
 				// frame is only sent when this character actually stores one.
 				if characters != nil && skinCatalog != nil {
 					familyCtx, familyCancel := context.WithTimeout(context.Background(), 5*time.Second)
-					plan.restoreSkinFamilies(familyCtx, characters.Store, developmentAccount, role.ID,
+					plan.restoreSkinFamilies(familyCtx, gameStore, developmentAccount, role.ID,
 						skinCatalog, event)
 					familyCancel()
 				}
@@ -4960,7 +4962,7 @@ func main() {
 				// 不发帧：仓库少一栏条不能把进城卡住。
 				if characters != nil && skinCatalog != nil {
 					recentCtx, recentCancel := context.WithTimeout(context.Background(), 5*time.Second)
-					recent, re := skinRecentRestore(recentCtx, characters.Store, developmentAccount,
+					recent, re := skinRecentRestore(recentCtx, gameStore, developmentAccount,
 						role.State, skinCatalog, weaponSkinUsable)
 					recentCancel()
 					if re != nil {
@@ -4981,8 +4983,8 @@ func main() {
 				// matching the pre-fix behavior.
 				if characters != nil {
 					noticeCtx, noticeCancel := context.WithTimeout(context.Background(), 5*time.Second)
-					noticeTree1, t1Err := characters.Store.CharacterNoticeSeen(noticeCtx, developmentAccount, role.ID, 1)
-					noticeTree2, t2Err := characters.Store.CharacterNoticeSeen(noticeCtx, developmentAccount, role.ID, 2)
+					noticeTree1, t1Err := gameStore.CharacterNoticeSeen(noticeCtx, developmentAccount, role.ID, 1)
+					noticeTree2, t2Err := gameStore.CharacterNoticeSeen(noticeCtx, developmentAccount, role.ID, 2)
 					noticeCancel()
 					if t1Err == nil {
 						plan.InformNotice = protocol.InformNoticeSeen(noticeTree1)
@@ -5026,7 +5028,7 @@ func main() {
 				// which entryPayloads.packets() puts last: this client crashes
 				// about 0.3~1s after town entry when 2827 arrives early.
 				lockCtx, lockCancel := context.WithTimeout(context.Background(), 5*time.Second)
-				locks, lockErr := characters.Store.SkillLocks(lockCtx, role.ID)
+				locks, lockErr := gameStore.SkillLocks(lockCtx, role.ID)
 				lockCancel()
 				if lockErr != nil {
 					event(map[string]any{"kind": "entry_skill_lock_error", "error": lockErr.Error()})
@@ -5041,7 +5043,7 @@ func main() {
 				// onto the fresh NOTI2827 block so toggles survive relog/char switch.
 				{
 					restoreCtx, restoreCancel := context.WithTimeout(context.Background(), 3*time.Second)
-					settings, sErr := characters.Store.CharacterUnifiedOptions(restoreCtx, role.ID)
+					settings, sErr := gameStore.CharacterUnifiedOptions(restoreCtx, role.ID)
 					restoreCancel()
 					if sErr != nil {
 						event(map[string]any{"kind": "charac_settings_restore_error", "error": sErr.Error()})
@@ -5057,7 +5059,7 @@ func main() {
 				// subtype 0x12 into their own object in NOTI2827.
 				{
 					effectCtx, effectCancel := context.WithTimeout(context.Background(), 3*time.Second)
-					effects, effectErr := characters.Store.CharacterUnifiedOptionGroup(effectCtx, role.ID, protocol.UnifiedOptionCharacterEffects)
+					effects, effectErr := gameStore.CharacterUnifiedOptionGroup(effectCtx, role.ID, protocol.UnifiedOptionCharacterEffects)
 					effectCancel()
 					if effectErr != nil {
 						event(map[string]any{"kind": "charac_effect_options_restore_error", "character_id": role.ID, "error": effectErr.Error()})
@@ -5073,8 +5075,8 @@ func main() {
 				// onto the fresh NOTI2827 block.
 				if characters != nil && len(plan.SkillLocks) == protocol.UnifiedCharacOptionSize {
 					chkCtx, chkCancel := context.WithTimeout(context.Background(), 3*time.Second)
-					charHkA, errA := characters.Store.CharacterHotkeys(chkCtx, role.ID, protocol.UnifiedOptionHotkeys)
-					charHkB, errB := characters.Store.CharacterHotkeys(chkCtx, role.ID, protocol.UnifiedOptionHotkeysExt)
+					charHkA, errA := gameStore.CharacterHotkeys(chkCtx, role.ID, protocol.UnifiedOptionHotkeys)
+					charHkB, errB := gameStore.CharacterHotkeys(chkCtx, role.ID, protocol.UnifiedOptionHotkeysExt)
 					chkCancel()
 					if errA != nil || errB != nil {
 						event(map[string]any{"kind": "charac_hotkeys_restore_error", "character_id": role.ID, "error_a": fmt.Sprint(errA), "error_b": fmt.Sprint(errB)})
@@ -5094,7 +5096,7 @@ func main() {
 					var applied bool
 					var sweepErr error
 					var sweptRole storage.Character
-					sweptRole, applied, sweepErr = characters.Store.CommitCharacterEvent(sweepCtx, role.AccountID, role.ID, role.ConfigVersion,
+					sweptRole, applied, sweepErr = gameStore.CommitCharacterEvent(sweepCtx, role.AccountID, role.ID, role.ConfigVersion,
 						"stack-slot-resweep", "stack-slot-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
 							bag, err := inventory.ReadBag(current.State)
 							if err != nil {
@@ -5121,7 +5123,7 @@ func main() {
 						}
 					}
 					petCtx, petCancel := context.WithTimeout(context.Background(), 5*time.Second)
-					petRole, _, petErr := characters.Store.CommitCharacterEvent(petCtx, role.AccountID, role.ID, role.ConfigVersion,
+					petRole, _, petErr := gameStore.CommitCharacterEvent(petCtx, role.AccountID, role.ID, role.ConfigVersion,
 						"pet-container-resweep", "pet-container-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
 							bag, err := inventory.ReadBag(current.State)
 							if err != nil {
@@ -5143,7 +5145,7 @@ func main() {
 				}
 				if wearService != nil && wearService.Catalog != nil {
 					gearCtx, gearCancel := context.WithTimeout(context.Background(), 5*time.Second)
-					gearRole, applied, gearErr := characters.Store.CommitCharacterEvent(gearCtx, role.AccountID, role.ID, role.ConfigVersion,
+					gearRole, applied, gearErr := gameStore.CommitCharacterEvent(gearCtx, role.AccountID, role.ID, role.ConfigVersion,
 						"pet-gear-resweep", "pet-gear-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
 							bag, err := inventory.ReadBag(current.State)
 							if err != nil {
@@ -5167,7 +5169,7 @@ func main() {
 					}
 				}
 				loyaltyCtx, loyaltyCancel := context.WithTimeout(context.Background(), 5*time.Second)
-				loyaltyRole, _, loyaltyErr := characters.Store.CommitCharacterEvent(loyaltyCtx, role.AccountID, role.ID, role.ConfigVersion,
+				loyaltyRole, _, loyaltyErr := gameStore.CommitCharacterEvent(loyaltyCtx, role.AccountID, role.ID, role.ConfigVersion,
 					fmt.Sprintf("creature-loyalty-login:%d", time.Now().UnixNano()), "creature-loyalty-login-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
 						state, err := inventory.BeginCreatureLoyaltySession(current.State, time.Now().Unix())
 						return state, json.RawMessage(`{}`), err
@@ -5179,7 +5181,7 @@ func main() {
 					role = loyaltyRole
 				}
 				if wearService != nil {
-					plan.KnightDeck, e = wearService.KnightDeckPayload(role)
+					plan.KnightDeck, e = wearService.KnightDeckPayload(workflow.InventoryRole(role))
 					if e != nil {
 						event(map[string]any{"kind": "entry_knight_deck_error", "character_id": role.ID, "error": e.Error()})
 						plan.KnightDeck = nil
@@ -5226,7 +5228,7 @@ func main() {
 				}
 				if lootService != nil {
 					rewardCtx, rewardCancel := context.WithTimeout(context.Background(), 5*time.Second)
-					recovered, rewardErr := lootService.RecoverBlackPurgatoryCards(rewardCtx, role)
+					recovered, rewardErr := (&workflow.LootService{Store: gameStore, Loot: lootService}).RecoverBlackPurgatoryCards(rewardCtx, role)
 					rewardCancel()
 					role = recovered
 					if rewardErr != nil {
@@ -5238,13 +5240,13 @@ func main() {
 					// client harvest (sub_145ADC2A0) adopts the fixed slots.
 					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 					var materials inventory.AccountMaterials
-					role, materials, e = sweepAccountMaterials(ctx, characters.Store, role)
+					role, materials, e = sweepAccountMaterials(ctx, gameStore, role)
 					cancel()
 					if e != nil {
 						event(map[string]any{"kind": "entry_account_materials_error", "error": e.Error()})
 						materials = inventory.NewAccountMaterials()
 						fallbackCtx, fallbackCancel := context.WithTimeout(context.Background(), 5*time.Second)
-						if raw, readErr := characters.Store.AccountMaterials(fallbackCtx, role.AccountID); readErr == nil {
+						if raw, readErr := gameStore.AccountMaterials(fallbackCtx, role.AccountID); readErr == nil {
 							if savedMaterials, parseErr := inventory.ReadAccountMaterials(raw); parseErr == nil {
 								materials = savedMaterials
 							}
@@ -5257,7 +5259,7 @@ func main() {
 						plan.RadiantSouls, e = radiantSoulSnapshot(materials)
 					}
 					if e == nil {
-						plan.Inventory, e = lootService.Bootstrap(role)
+						plan.Inventory, e = lootService.Bootstrap(workflow.LootRole(role))
 					}
 					if e != nil {
 						event(map[string]any{"kind": "entry_inventory_error", "error": e.Error()})
@@ -5383,7 +5385,7 @@ func main() {
 				go func(characterID int64) {
 					time.Sleep(900 * time.Millisecond)
 					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-					points, listErr := characters.Store.ListFavor(ctx, characterID)
+					points, listErr := gameStore.ListFavor(ctx, characterID)
 					cancel()
 					if listErr != nil {
 						event(map[string]any{"kind": "npc_favor_point_info_skipped", "character_id": characterID, "error": listErr.Error()})
@@ -5486,7 +5488,7 @@ func main() {
 				req, e := rosterbg.DecodeSelect(plaintext)
 				if e == nil {
 					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-					_, e = characters.Store.SelectRosterBackground(ctx, developmentAccount, req.Page, req.Background)
+					_, e = gameStore.SelectRosterBackground(ctx, developmentAccount, req.Page, req.Background)
 					cancel()
 				}
 				if e != nil {
@@ -5495,7 +5497,7 @@ func main() {
 					event(map[string]any{"kind": "roster_background_selected", "page": req.Page, "category": req.Background.Category, "background_id": req.Background.ID})
 				}
 				// 原生按钮会乐观应用选择；拒绝时也恢复账号的权威状态，不编造未知 ACK。
-				if e = restoreRosterBackgrounds(characters, developmentAccount, sendPayload, event); e != nil {
+				if e = restoreRosterBackgrounds(gameStore, developmentAccount, sendPayload, event); e != nil {
 					return
 				}
 				continue
@@ -5532,7 +5534,7 @@ func main() {
 						err = fmt.Errorf("delete requires character selection screen")
 					}
 					if err == nil {
-						deletedID, err = characters.Store.DeleteCharacter(ctx, developmentAccount, req.Slot, req.Name)
+						deletedID, err = gameStore.DeleteCharacter(ctx, developmentAccount, req.Slot, req.Name)
 					}
 					if err == nil {
 						created = true // refresh complete roster after the native removal callback
@@ -5555,7 +5557,7 @@ func main() {
 							// backfilled as already finished.
 							owed := "not tracked"
 							if tutorialRoutes != nil {
-								if e := characters.Store.StartBirth(ctx, developmentAccount, role.ID); e != nil {
+								if e := gameStore.StartBirth(ctx, developmentAccount, role.ID); e != nil {
 									owed = "record failed: " + e.Error()
 								} else {
 									owed = "pending"
@@ -5604,7 +5606,7 @@ func main() {
 				event(map[string]any{"kind": "character_response", "id": id, "bytes": len(response), "hex": hex.EncodeToString(response)})
 				// NOTI2 先建立选角管理器，再由 NOTI1759 初始化背景列表和五页选择。
 				if frame.ID == 8 && userInfoMode == 2 && kind == 0 && id == 2 {
-					if err = restoreRosterBackgrounds(characters, developmentAccount, sendPayload, event); err != nil {
+					if err = restoreRosterBackgrounds(gameStore, developmentAccount, sendPayload, event); err != nil {
 						return
 					}
 				}
@@ -5628,7 +5630,7 @@ func main() {
 						return
 					}
 					event(map[string]any{"kind": "character_list_after_mutation", "request": frame.ID, "id": 2, "bytes": len(notification)})
-					if e = restoreRosterBackgrounds(characters, developmentAccount, sendPayload, event); e != nil {
+					if e = restoreRosterBackgrounds(gameStore, developmentAccount, sendPayload, event); e != nil {
 						return
 					}
 				}

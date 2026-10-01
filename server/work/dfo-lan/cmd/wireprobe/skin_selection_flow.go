@@ -45,7 +45,7 @@ func (w *worldSession) selectSkin(p []byte, event func(map[string]any)) ([]outbo
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		return skinFavoriteFrames(ctx, w.characters.Store, w.role.ID, request, p, record, event)
+		return skinFavoriteFrames(ctx, w.store, w.role.ID, request, p, record, event)
 	}
 	if protocol.IsSkinSelectionDamageFontCategory(request.Category) {
 		if w.skinCatalog == nil {
@@ -53,7 +53,7 @@ func (w *worldSession) selectSkin(p []byte, event func(map[string]any)) ([]outbo
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		return damageFontSelectionFrame(ctx, w.characters.Store, w.role.ID, w.role.AccountID,
+		return damageFontSelectionFrame(ctx, w.store, w.role.ID, w.role.AccountID,
 			w.skinCatalog, request.Category, request.SkinID, record, event)
 	}
 	// The 边框 and 觉醒插图 panels carry a whole selection in one click instead of a
@@ -66,7 +66,7 @@ func (w *worldSession) selectSkin(p []byte, event func(map[string]any)) ([]outbo
 		record["skin_keys"] = request.SkinIDs
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		return skinFamilySelectionFrame(ctx, w.characters.Store, w.role.ID, w.role.AccountID,
+		return skinFamilySelectionFrame(ctx, w.store, w.role.ID, w.role.AccountID,
 			w.skinCatalog, request, p, record, event)
 	}
 	// The 武器外观 tab belongs to the replication path, not to this one. Its 应用 is
@@ -179,11 +179,11 @@ func (w *worldSession) damageFontRestore() []outboundPacket {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	var out []outboundPacket
-	cargo, e := damageFontCargo(ctx, w.characters.Store, w.role.AccountID, w.skinCatalog)
+	cargo, e := damageFontCargo(ctx, w.store, w.role.AccountID, w.skinCatalog)
 	if e == nil {
 		out = append(out, outboundPacket{"dungeon_skin_cargo_damage_font_restored", 0, 1545, cargo})
 		for _, category := range damageFontSelectionCategories {
-			sel, e := restoreDamageFontSelection(ctx, w.characters.Store, w.role.ID, w.role.AccountID,
+			sel, e := restoreDamageFontSelection(ctx, w.store, w.role.ID, w.role.AccountID,
 				w.skinCatalog, category)
 			if e != nil || sel == nil {
 				continue

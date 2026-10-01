@@ -2,8 +2,8 @@ package quest
 
 import (
 	"context"
+	"dfolan/internal/character"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"math"
 	"os"
 	"strconv"
@@ -38,7 +38,7 @@ func nearRadius(a, b uint16, radius int) bool {
 	return d <= radius
 }
 
-func nearNPCWithin(npc uint32, at storage.WorldPosition, locate NPCLocator, radius int) bool {
+func nearNPCWithin(npc uint32, at Position, locate NPCLocator, radius int) bool {
 	if npc == 0 || locate == nil {
 		return false
 	}
@@ -47,14 +47,14 @@ func nearNPCWithin(npc uint32, at storage.WorldPosition, locate NPCLocator, radi
 	return ok && nearRadius(at.X, p[0], int(limit)) && nearRadius(at.Y, p[1], int(limit))
 }
 
-func nearNPC(npc uint32, at storage.WorldPosition, locate NPCLocator) bool {
+func nearNPC(npc uint32, at Position, locate NPCLocator) bool {
 	return nearNPCWithin(npc, at, locate, ProximityRadius)
 }
 
 // Local interpretation of the three-cell reach form: full width and height
 // centered on the source NPC. The native client's boundary predicate has not
 // yet been recovered; keep both source dimensions instead of a fixed radius.
-func nearNPCReach(r NPCReachObjective, at storage.WorldPosition, locate NPCLocator) bool {
+func nearNPCReach(r NPCReachObjective, at Position, locate NPCLocator) bool {
 	if r.NPC == 0 || locate == nil || r.W <= 0 || r.H <= 0 {
 		return false
 	}
@@ -105,7 +105,7 @@ func holds(b inventory.Bag, need []ItemNeed) bool {
 // the primary path for [meet npc]; this walk is what keeps a chain moving
 // when that request is not observed, and it never invents a completion — the
 // character has to actually be at the source coordinates.
-func (s *Service) ProximityProgress(ctx context.Context, role storage.Character, at storage.WorldPosition, locate, phaseLocate NPCLocator) ([]uint16, error) {
+func (s *Service) ProximityProgress(ctx context.Context, role character.Character, at Position, locate, phaseLocate NPCLocator) ([]uint16, error) {
 	states, e := s.Store.Quests(ctx, role.AccountID, role.ID)
 	if e != nil {
 		return nil, e

@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
+	"dfolan/internal/workflow"
 	"fmt"
 	"time"
 )
@@ -41,7 +42,7 @@ func refineRefusalCode(err error) uint16 {
 //
 // 成功后照既有约定补发装备行/材料行刷新 —— 客户端不会用回包里的等级去改物品对象，
 // 它只在结果面板上显示 [7]/[9]，真正的等级靠刷新行重新反序列化。
-func (w *worldSession) refine(service *inventory.WearService, p, raw []byte, event func(map[string]any)) ([]outboundPacket, error) {
+func (w *worldSession) refine(service *workflow.WearService, p, raw []byte, event func(map[string]any)) ([]outboundPacket, error) {
 	if service == nil || w == nil || w.role.ID == 0 || w.activeDungeon != nil {
 		return nil, fmt.Errorf("锻造需要已选角色且位于城镇")
 	}

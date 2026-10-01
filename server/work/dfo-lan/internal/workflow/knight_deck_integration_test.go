@@ -1,7 +1,10 @@
-package inventory
+package workflow
 
 import (
 	"context"
+	"dfolan/internal/catalog"
+
+	"dfolan/internal/inventory"
 	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
@@ -52,20 +55,20 @@ func TestKnightShieldTransactionsIntegration(t *testing.T) {
 		}
 	}
 	s := knightDeckTestService(t)
-	s.Store = store
+	w := &WearService{WearService: *s, Store: store}
 	account, e := store.DevelopmentAccount(ctx, "knight-fixture")
 	if e != nil {
 		t.Fatal(e)
 	}
 	role := knightRole(t, s, [5]uint32{113370003, 113370008})
-	bag, _ := ReadBag(role.State)
+	bag, _ := inventory.ReadBag(role.State)
 	bag.Gold = 122
 	bag.Coin = 9
 	bag.ExpandEquipFlags = 63
 	bag.CreatureExperience = map[uint32]uint32{3: 42}
 	// Exercise the old coin/package migrations after deck persistence too.
-	bag.Items = []BagItem{{Slot: 65, Template: 1, Amount: 3}, {Slot: 66, Template: 590722921, Amount: 1}}
-	role.State, e = SaveBag(role.State, bag)
+	bag.Items = []inventory.BagItem{{Slot: 65, Template: 1, Amount: 3}, {Slot: 66, Template: 590722921, Amount: 1}}
+	role.State, e = inventory.SaveBag(role.State, bag)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -77,19 +80,19 @@ func TestKnightShieldTransactionsIntegration(t *testing.T) {
 		t.Fatal(e)
 	}
 	deck := [5]uint32{113370008, 113370003}
-	saved, applied, e := s.CommitKnightDeck(ctx, role, "knight-fixture-upload-1", deck)
+	saved, applied, e := w.CommitKnightDeck(ctx, role, "knight-fixture-upload-1", deck)
 	if e != nil || !applied {
 		t.Fatal(applied, e)
 	}
-	again, applied, e := s.CommitKnightDeck(ctx, role, "knight-fixture-upload-1", deck)
+	again, applied, e := w.CommitKnightDeck(ctx, role, "knight-fixture-upload-1", deck)
 	if e != nil || applied {
 		t.Fatal("replay applied twice", e)
 	}
-	b, _ := ReadBag(again.State)
+	b, _ := inventory.ReadBag(again.State)
 	if b.KnightDeck() != deck {
 		t.Fatal("replay changed deck")
 	}
-	if _, _, e = s.CommitKnightDeck(ctx, role, "knight-fixture-invalid-1", [5]uint32{113370007}); e == nil {
+	if _, _, e = w.CommitKnightDeck(ctx, role, "knight-fixture-invalid-1", [5]uint32{113370007}); e == nil {
 		t.Fatal("quest upload was accepted")
 	}
 	var events int
@@ -118,11 +121,46 @@ func TestKnightShieldTransactionsIntegration(t *testing.T) {
 	if e = store.DB.QueryRow(ctx, "SELECT state FROM characters WHERE id=$1", role.ID).Scan(&migrated); e != nil {
 		t.Fatal(e)
 	}
-	b, e = ReadBag(migrated)
+	b, e = inventory.ReadBag(migrated)
 	if e != nil {
 		t.Fatal(e)
 	}
 	if b.KnightDeck() != deck || b.Coin != 15 || b.ExpandEquipFlags != 63 || b.CreatureExperience[3] != 42 || b.Gold != 122 {
 		t.Fatal("cash migrations lost shield/pet/expansion assets", b)
 	}
+}
+
+func knightDeckTestService(t *testing.T) *inventory.WearService {
+	t.Helper()
+	jobs, e := catalog.LoadCharacters("../../configs/characters.generated.json")
+	if e != nil {
+		t.Fatal(e)
+	}
+	shields, e := inventory.LoadKnightShields("../../configs/equipment-knight-shield.full-candidate.json", jobs.Source.Checksum)
+	if e != nil {
+		t.Fatal(e)
+	}
+	full, e := inventory.OpenFullEquipmentCatalog("../../configs/equipment-full", jobs.Source.Checksum)
+	if e != nil {
+		t.Fatal(e)
+	}
+	t.Cleanup(func() { full.Close() })
+	rules, e := inventory.LoadWearRules("../../configs/equipment-wear.current35.json", jobs.Source.Checksum)
+	if e != nil {
+		t.Fatal(e)
+	}
+	return &inventory.WearService{Catalog: &inventory.EquipmentCatalog{Source: jobs.Source, Full: full}, Professions: jobs, Rules: rules, Shields: shields}
+}
+
+func knightRole(t *testing.T, s *inventory.WearService, deck [5]uint32) storage.Character {
+	t.Helper()
+	b := inventory.Bag{Version: "ordinary-bag-v1", KnightShieldDeck: append([]uint32(nil), deck[:]...)}
+	if deck[0] != 0 {
+		b.Worn = []inventory.BagEquipment{{Slot: 24, Template: deck[0]}}
+	}
+	raw, e := inventory.SaveBag(json.RawMessage(`{"level":90,"advancement":1}`), b)
+	if e != nil {
+		t.Fatal(e)
+	}
+	return storage.Character{Profession: s.Shields.Profession, ConfigVersion: s.Catalog.Source.SaveIdentity(), State: raw}
 }

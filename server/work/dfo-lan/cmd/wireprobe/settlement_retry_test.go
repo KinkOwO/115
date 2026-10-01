@@ -7,7 +7,8 @@ import (
 	"dfolan/internal/storage"
 	"testing"
 
-	"context")
+	"context"
+)
 
 // 结算面板的「再次挑战」是 CMD72 option=0，dstr 479 原文 "Restart the dungeon."，
 // 语义是重开刚刚结算的那张图（option=2 才是 dstr 481 "Return to town."）。而进图

@@ -6,7 +6,6 @@ import (
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -344,7 +343,7 @@ func TestAvatarAndPackageCurrentCatalog(t *testing.T) {
 			t.Fatal("package placeholder delivered")
 		}
 	}
-	if avatar, creature := p.DeliverySpaces(storage.CashReceipt{Deliveries: []storage.CashDelivery{{Product: 3107733, Template: 515540507}}}); !avatar || creature {
+	if avatar, creature := p.DeliverySpaces(CashReceipt{Deliveries: []CashDelivery{{Product: 3107733, Template: 515540507}}}); !avatar || creature {
 		t.Fatal("avatar space detection")
 	}
 }

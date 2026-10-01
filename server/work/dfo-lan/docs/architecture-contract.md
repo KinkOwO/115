@@ -143,25 +143,27 @@ L3 领域之间 **默认禁止**互相 import。需要另一领域能力时，�
 
 ### 7.2 领域 → 持久化（违反 R2）
 
+**已全部消除（2026-10-02，本分支）**：五个领域的生产代码均不再 import `internal/storage`，对应守卫允许条目全部删除。领域声明自己的消费接口或状态投影；跨领域事务由 `workflow` 持有持久化实现，`storage` 通过类型别名和适配器实现领域契约，不引入共享 model 包。
+
 | # | 边 | 目标 |
 |---|---|---|
-| E11 | `character` → `storage` | `character` 声明 `Store`，`storage` 实现，bootstrap 注入 |
-| E12 | `inventory` → `storage` | 同上 |
-| E13 | `loot` → `storage` | 同上 |
-| E14 | `quest` → `storage` | 同上 |
+| E11 | `character` → `storage` | **已消除（2026-10-01，本分支）**：角色、疲劳和栏位类型归 `character`，领域声明窄 `Store` 接口，`storage` 以别名和适配方法实现 |
+| E12 | `inventory` → `storage` | **已消除（2026-10-01，本分支）**：装备、商店和金库事务迁入 `workflow`；inventory 只接收消费投影，金库状态归 inventory、storage 以别名兼容 |
+| E13 | `loot` → `storage` | 已消除：事务、收据与恢复编排迁入 `workflow`；掉落领域只保留规则和角色投影 |
+| E14 | `quest` → `storage` | **已消除（2026-10-01，本分支）**：quest 声明 Store 接口并拥有任务状态类型；storage 以别名实现，位置检查使用 quest 自有消费投影 |
 | E15 | `world` → `storage` | **已消除（2026-10-01）**：`world` 声明 `Store` 接口（`LoadWorld`），`storage` 实现并注入；`WorldPosition`/`WorldState`/`WorldReturn` 类型归 `world`，`storage` 以类型别名复用（迁移期）。见提交"world Store 倒置" |
-| E16 | `cashshop` → `storage` | 同上 |
+| E16 | `cashshop` → `storage` | **已消除（2026-10-01，本分支）**：现金订单/回执类型归 cashshop，storage 以别名实现持久化；金库购买编排迁入 workflow |
 
-> 说明：`internal/storage` 当前 import `adventure/profileskin/rosterbg/savecontract/world` 属于 R3 允许方向（实现方依赖被实现方），保留在例外之外；但需确认 `storage` 未定义游戏事实。`cmd/*` 工具 import `storage`（`gmtool`/`charactercheck`/`storagecheck`/`initialrepair`/`questrepair`/`avatarrestorecheck`）属 R6 工具层，允许。
+> 说明：`internal/storage` 依赖领域类型和消费接口属于 R3 允许方向（实现方依赖被实现方），保留在例外之外；但不得解释玩法规则。`cmd/*` 工具 import `storage`（`gmtool`/`charactercheck`/`storagecheck`/`initialrepair`/`questrepair`/`avatarrestorecheck`）属 R6 工具层，允许。
 
 ### 7.3 领域 ↔ 领域（违反 R4）
 
 | # | 边 | 目标 |
 |---|---|---|
 | E21 | `character` → `adventure`、`dungeon`、`inventory`、`progression` | 中带事务的移入 `workflow` 或改为消费者接口 |
-| E22 | `quest` → `character`、`dungeon`、`inventory`、`progression` | 同上 |
-| E23 | `loot` → `adventure`、`cashshop`、`dungeon`、`inventory` | 同上 |
-| E24 | `legion` → `dungeon` | 同上 |
+| E22 | `quest` → `character`、`dungeon`、`inventory` | `progression` 依赖已由奖励消费者接口消除；其余同上 |
+| E23 | `loot` → `dungeon`、`inventory` | `adventure`/`cashshop` 依赖已迁入 workflow 或消费者接口；其余同上 |
+| E24 | `legion` → `dungeon` | **已消除（2026-10-01，本分支）**：legion 接收选择校验器，由组合层注入 dungeon 校验 |
 | E25 | `cashshop` → `inventory` | 商城发货写背包；改为消费者接口或移入 `workflow` |
 
 > `progress`（纯计算）可在评审后把对应接口合法化；不得用「允许协作」把带状态的领域依赖一起放开。

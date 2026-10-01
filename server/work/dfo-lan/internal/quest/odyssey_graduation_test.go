@@ -1,10 +1,11 @@
-package quest
+package quest_test
 
 import (
-	"dfolan/internal/savecontract"
 	"context"
 	"dfolan/internal/catalog"
 	"dfolan/internal/character"
+	"dfolan/internal/quest"
+	"dfolan/internal/savecontract"
 	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
@@ -14,9 +15,12 @@ import (
 	"time"
 )
 
-func graduationFixture(t *testing.T) (*Service, storage.Character) {
+func graduationFixture(t *testing.T) (*quest.Service, storage.Character) {
 	t.Helper()
-	g := odysseyQuestFixture(t)
+	g, err := catalog.LoadOdysseyGrowth("../../configs/odyssey-growth-candidate.json")
+	if err != nil {
+		t.Fatal(err)
+	}
 	q, err := catalog.LoadQuests("../../configs/quests.generated.json")
 	if err != nil {
 		t.Fatal(err)
@@ -30,14 +34,14 @@ func graduationFixture(t *testing.T) (*Service, storage.Character) {
 	for len(req)%8 != 0 {
 		req = append(req, 0)
 	}
-	s := &Service{Catalog: q, Professions: p, Odyssey: g, Progression: &character.ProgressionService{Odyssey: g}}
+	s := &quest.Service{Catalog: q, Professions: p, Odyssey: g, Progression: &character.ProgressionService{Odyssey: g}}
 	r := storage.Character{Profession: 0, Request: req, Name: "GradFixture", ConfigVersion: savecontract.Identity(), State: json.RawMessage(`{"level":115,"advancement":1,"creation_mode":2,"inventory":{"sentinel":[1,2,3]},"equipment_unlock_mask":7,"unrelated_saved_field":"keep"}`)}
 	return s, r
 }
 
 func TestGraduationSourcePlanAndPreservedState(t *testing.T) {
 	s, role := graduationFixture(t)
-	raw, _, ids, err := s.applyOdysseyGraduation(role, false)
+	raw, _, ids, err := s.ApplyOdysseyGraduation(role, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -68,7 +72,7 @@ func TestGraduationSourcePlanAndPreservedState(t *testing.T) {
 		t.Fatal("graduation lost source or projected Odyssey mode")
 	}
 	// Migrate an old paid graduate without owing or granting a duplicate box.
-	paid, _, _, err := s.applyOdysseyGraduation(role, true)
+	paid, _, _, err := s.ApplyOdysseyGraduation(role, true)
 	if err != nil {
 		t.Fatal(err)
 	}

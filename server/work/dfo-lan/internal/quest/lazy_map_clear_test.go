@@ -3,8 +3,8 @@ package quest
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
+	"dfolan/internal/character"
 	"dfolan/internal/dungeon"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"os"
 	"testing"
@@ -48,7 +48,7 @@ func TestSeekMeetBossClearLazyLocalArchive(t *testing.T) {
 			}
 		}
 	}
-	role := storage.Character{State: json.RawMessage(`{"inventory":{"version":"ordinary-bag-v1","items":[{"slot":95,"Template":10164777,"Amount":1}]}}`)}
+	role := character.Character{State: json.RawMessage(`{"inventory":{"version":"ordinary-bag-v1","items":[{"slot":95,"Template":10164777,"Amount":1}]}}`)}
 	if !s.seekMeetBossClearMatch(s.Index().Entries[3634], role, run) {
 		t.Fatal("cold map read lost source NPC quest completion")
 	}

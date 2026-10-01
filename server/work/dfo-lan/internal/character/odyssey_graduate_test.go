@@ -3,13 +3,13 @@ package character
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
+
 	"encoding/json"
 	"testing"
 )
 
 // 奥德赛创建角色 + 满级 115 的 state（Options[10]=2, CreationMode=2）。
-func graduateFixture(t *testing.T) (*ProgressionService, storage.Character) {
+func graduateFixture(t *testing.T) (*ProgressionService, Character) {
 	t.Helper()
 	s, member := odysseyGrowthFixture(t)
 	var options [12]byte

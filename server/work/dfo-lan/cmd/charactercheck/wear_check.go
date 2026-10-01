@@ -7,6 +7,7 @@ import (
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/storage"
+	"dfolan/internal/workflow"
 	"encoding/json"
 	"fmt"
 	"sync"
@@ -54,7 +55,7 @@ func wearCheck(ctx context.Context, s, reopened *storage.Store, account, foreign
 	if e != nil {
 		return e
 	}
-	service := inventory.WearService{Store: s, Catalog: eq, Professions: c, BagRules: bagRules, Rules: rules}
+	service := workflow.WearService{Store: s, WearService: inventory.WearService{Catalog: eq, Professions: c, BagRules: bagRules, Rules: rules}}
 	r := protocol.ItemMoveRequest{SourceSlot: 9, SourceItem: 20002, DestinationList: 3, DestinationSlot: 19, Count: 1, Selection: 0xffffffff}
 	wrongOwner := role
 	wrongOwner.AccountID = foreign

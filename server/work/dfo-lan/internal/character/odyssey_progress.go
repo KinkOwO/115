@@ -1,15 +1,14 @@
 package character
 
 import (
-	"dfolan/internal/savecontract"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
+	"dfolan/internal/savecontract"
 	"encoding/json"
 	"fmt"
 	"sort"
 )
 
-func (s *ProgressionService) odysseyCompleted(role storage.Character) ([]uint32, error) {
+func (s *ProgressionService) odysseyCompleted(role Character) ([]uint32, error) {
 	var state struct {
 		Completed []uint32          `json:"odyssey_completed_dungeons"`
 		Times     map[string]uint32 `json:"dungeon_best_times"`
@@ -38,7 +37,7 @@ func (s *ProgressionService) odysseyCompleted(role storage.Character) ([]uint32,
 	return ids, nil
 }
 
-func (s *ProgressionService) OdysseyProgressPayload(role storage.Character) ([]byte, error) {
+func (s *ProgressionService) OdysseyProgressPayload(role Character) ([]byte, error) {
 	if s.Odyssey == nil || !OdysseyRole(role) {
 		return nil, nil
 	}
@@ -52,7 +51,7 @@ func (s *ProgressionService) OdysseyProgressPayload(role storage.Character) ([]b
 	return protocol.OdysseyCharacterProgress(ids)
 }
 
-func (s *ProgressionService) saveOdysseyCompletion(role storage.Character, id uint32) (json.RawMessage, error) {
+func (s *ProgressionService) saveOdysseyCompletion(role Character, id uint32) (json.RawMessage, error) {
 	if s.Odyssey.ClearLevels[id] == 0 {
 		return nil, fmt.Errorf("unknown Odyssey completion")
 	}
