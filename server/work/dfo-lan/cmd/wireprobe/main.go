@@ -201,6 +201,9 @@ func main() {
 	if _, err := pvfCatalogs.installRosterBackgrounds(); err != nil {
 		log.Fatalf("PVF roster background runtime rules: %v", err)
 	}
+	if _, err := pvfCatalogs.installFameRules(); err != nil {
+		log.Fatalf("PVF fame runtime rules: %v", err)
+	}
 	collectPVFImportMemory(pvfCatalogs)
 	equipmentCraftWindow = byte(*equipmentCraftWindowFlag)
 	equipmentCraftVariant = byte(*equipmentCraftVariantFlag)

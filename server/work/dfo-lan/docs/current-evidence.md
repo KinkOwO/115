@@ -1,5 +1,10 @@
 # 当前构建与第一阶段证据
 
+## 2026-10-01 PVF名望内嵌规则候选
+
+新增fame直读选择项，读取etc/famevalueinfo.etc、equipmentgrouping.etc、equipmentpartset.etc、115lvability/setpointinfo.cos、原生套装阈值列表及全部stackable脚本。9张名望表、8100个物品、13组套装阈值、1054个物品积分、336个觉醒模板及8411个源路径/原始哈希完整一致；保留字段最后出现值、同组最大觉醒值、积分去重、part set index=-1以及源列表中的旧缺失引用处理。规则在存储前深拷贝安装，正常直读名望入口不解析fame_rules.json，原生单精度计算公式、锻造/强化取高、记忆和独立装备惩罚行为保持。验证全部8100物品附魔计算、全部可变规则副本隔离、非法安装不覆盖有效规则。旧2429外层仅作已知7ef内层的审计来源，不改真实7ef运行或存档身份。合计48选择项/56类有效源投影；缺失所选JSON联合准备48.32秒、完整源审计17.84秒、全量Go测试/vet、10项Python测试和只读依赖检查通过。profile为pvf-fame-candidate.json，程序SHA256 836d1f050b4662e19591a3c464f2fb977a720cf32df6b2e4e3dee35bc585cb9d。确认范围仍为第四批28项，第五批新增候选未实机。
+
+
 ## 2026-10-01 PVF选角背景券与资源候选
 
 新增roster-backgrounds直读选择项，从原生索引遍历所有stackable脚本，以[action type]的[change bg select character]定位95张选角背景券，读取类别/编号、[action expiration info]的永久/按天/固定日期、源路径和哈希，72永久、2按天、21日期完整一致。63个背景类别/编号由etc/selectcharacterver2/selectcharacterver2.etc的[group]/[image]闭合块读取，原始SHA256 5ef228e9f72658cefd402227e8f6f33972609b61c59ce89c334bdbf0caaaba27，全部16777216个uint8类别/uint16编号组合与原有效性边界一致。图片中的同名[background image]字段按所有者区分。158次授权时间边界一致，物品删除日期与背景授权日期保持独立。规则和资源索引在存储前深拷贝安装，TicketFor及Background.Valid正常直读不解析tickets.json或使用旧编号范围；特殊背景仍需账号拥有，五页选择、原生32位时间和交易流程保持。旧2429外层只作已知完整审计来源，不改7ef运行或存档身份。合计47选择项/55类有效源投影；缺失所选JSON联合准备60.31秒、完整源审计17.46秒、全量Go测试/vet、8项Python测试及只读依赖检查通过。profile为pvf-roster-backgrounds-candidate.json，程序SHA256 b5530fa668bf0a54c3e0c4cc2651e253402d2ac423528c65c168b7c4a7ef2799。确认范围仍为第四批28项，第五批新增候选未实机。

@@ -109,5 +109,14 @@ func TestPVFMigrationSourceOnlyLocalArchive(t *testing.T) {
 	if err != nil || len(backgrounds.Items) != 95 || len(backgrounds.Backgrounds) != 63 {
 		t.Fatal("native background tickets or resources missing", err)
 	}
-	t.Log("47 selectors / 55 source families prepared with all selected export JSON paths absent")
+	restoreFame, err := c.installFameRules()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer restoreFame()
+	fame, err := character.CurrentFameRules()
+	if err != nil || len(fame.Tables) != 9 || len(fame.Items) != 8100 || len(fame.Sources) != 8411 {
+		t.Fatal("native fame rules missing", err)
+	}
+	t.Log("48 selectors / 56 source families prepared with all selected export JSON paths absent")
 }

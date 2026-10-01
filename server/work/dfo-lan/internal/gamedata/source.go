@@ -57,6 +57,10 @@ func (s *Source) RosterBackgrounds(index catalog.ItemIndex) (*rosterbg.TicketCat
 	return catalog.ImportRosterBackgroundTickets(s.archive, index)
 }
 
+func (s *Source) Fame(index catalog.ItemIndex) (*character.FameRules, error) {
+	return character.ImportFameRules(s.archive, index)
+}
+
 func (s *Source) Lottery(index catalog.ItemIndex, policy catalog.LotteryPolicy) (catalog.LotteryTables, error) {
 	return catalog.ImportLotteryTables(s.archive, index, policy)
 }
