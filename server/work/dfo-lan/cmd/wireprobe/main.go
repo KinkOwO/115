@@ -28,7 +28,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"log"
 	"net"
 	"os"
@@ -1642,8 +1641,7 @@ func main() {
 			return nil
 		}
 		event(map[string]any{"kind": "accept", "peer": peer})
-		c.SetWriteDeadline(time.Now().Add(5 * time.Second))
-		if _, err := io.Copy(c, bytes.NewReader(raw)); err != nil {
+		if err := output.writeRaw(raw); err != nil {
 			event(map[string]any{"kind": "write_error", "error": err.Error()})
 			return
 		}
@@ -1912,8 +1910,7 @@ func main() {
 					}
 					continue
 				}
-				c.SetWriteDeadline(time.Now().Add(5 * time.Second))
-				if err := writePackets(c, prepared, func(packet preparedPacket) {
+				if err := output.writePrepared(prepared, func(packet preparedPacket) {
 					event(map[string]any{"kind": packet.Name, "id": packet.ID, "character_id": worldState.role.ID,
 						"plain_hex": hex.EncodeToString(packet.Payload)})
 				}); err != nil {
@@ -1938,8 +1935,7 @@ func main() {
 						event(map[string]any{"kind": "黑鸦响应编码失败", "error": err.Error()})
 						return
 					}
-					c.SetWriteDeadline(time.Now().Add(5 * time.Second))
-					if err := writePackets(c, prepared, func(packet preparedPacket) {
+					if err := output.writePrepared(prepared, func(packet preparedPacket) {
 						event(map[string]any{"kind": packet.Name, "id": packet.ID, "character_id": selectedCharacterID,
 							"plain_hex": hex.EncodeToString(packet.Payload)})
 					}); err != nil {
@@ -2197,7 +2193,7 @@ func main() {
 					if err = sendPayload(1, 2177, protocol.Refusal(4)); err != nil {
 						return
 					}
-				} else if err = writePackets(c, packets, func(p preparedPacket) {
+				} else if err = output.writePrepared(packets, func(p preparedPacket) {
 					event(map[string]any{"kind": p.Name, "id": p.ID, "plain_hex": hex.EncodeToString(p.Payload)})
 				}); err != nil {
 					return
@@ -2213,7 +2209,7 @@ func main() {
 					if err = sendPayload(1, frame.ID, protocol.Refusal(advancementRefusalCode(err))); err != nil {
 						return
 					}
-				} else if err = writePackets(c, packets, func(p preparedPacket) {
+				} else if err = output.writePrepared(packets, func(p preparedPacket) {
 					event(map[string]any{"kind": p.Name, "id": p.ID, "plain_hex": hex.EncodeToString(p.Payload)})
 				}); err != nil {
 					return
@@ -2227,7 +2223,7 @@ func main() {
 					if err = sendPayload(1, 451, protocol.Refusal(4)); err != nil {
 						return
 					}
-				} else if err = writePackets(c, packets, func(p preparedPacket) {
+				} else if err = output.writePrepared(packets, func(p preparedPacket) {
 					event(map[string]any{"kind": p.Name, "id": p.ID, "plain_hex": hex.EncodeToString(p.Payload)})
 				}); err != nil {
 					return
@@ -2280,7 +2276,7 @@ func main() {
 					event(map[string]any{"kind": "账号金库回包编码失败", "reason": err.Error()})
 					return
 				}
-				if err = writePackets(c, prepared, func(p preparedPacket) {
+				if err = output.writePrepared(prepared, func(p preparedPacket) {
 					event(map[string]any{"kind": p.Name, "id": p.ID, "character_id": selectedCharacterID, "plain_hex": hex.EncodeToString(p.Payload)})
 				}); err != nil {
 					return
@@ -2302,7 +2298,7 @@ func main() {
 				if err != nil {
 					return
 				}
-				if writePackets(c, prepared, func(p preparedPacket) {
+				if output.writePrepared(prepared, func(p preparedPacket) {
 					event(map[string]any{"kind": p.Name, "id": p.ID, "plain_hex": hex.EncodeToString(p.Payload)})
 				}) != nil {
 					return
@@ -2443,7 +2439,7 @@ func main() {
 					event(map[string]any{"kind": "equipment_encode_error", "error": e.Error()})
 					return
 				}
-				if e = writePackets(c, prepared, func(p preparedPacket) {
+				if e = output.writePrepared(prepared, func(p preparedPacket) {
 					event(map[string]any{"kind": p.Name, "character_id": worldState.role.ID, "type": p.Kind, "id": p.ID, "payload_bytes": len(p.Payload), "plain_hex": hex.EncodeToString(p.Payload)})
 				}); e != nil {
 					event(map[string]any{"kind": "equipment_write_error", "error": e.Error()})
@@ -2483,7 +2479,7 @@ func main() {
 					event(map[string]any{"kind": "item_sort_encode_error", "error": e.Error()})
 					return
 				}
-				if e = writePackets(c, prepared, func(p preparedPacket) {
+				if e = output.writePrepared(prepared, func(p preparedPacket) {
 					event(map[string]any{"kind": p.Name, "character_id": worldState.role.ID, "id": p.ID, "plain_hex": hex.EncodeToString(p.Payload)})
 				}); e != nil {
 					event(map[string]any{"kind": "item_sort_write_error", "error": e.Error()})
@@ -3758,8 +3754,7 @@ func main() {
 					event(map[string]any{"kind": "dungeon_encode_error", "error": e.Error()})
 					continue
 				}
-				c.SetWriteDeadline(time.Now().Add(5 * time.Second))
-				if e = writePackets(c, prepared, func(p preparedPacket) {
+				if e = output.writePrepared(prepared, func(p preparedPacket) {
 					event(map[string]any{"kind": p.Name, "id": p.ID, "character_id": selectedCharacterID, "plain_hex": hex.EncodeToString(p.Payload)})
 				}); e != nil {
 					event(map[string]any{"kind": "dungeon_write_error", "error": e.Error()})
@@ -3975,8 +3970,7 @@ func main() {
 					// transport and restore from storage on reconnect.
 					return
 				}
-				c.SetWriteDeadline(time.Now().Add(5 * time.Second))
-				if e = writePackets(c, prepared, func(p preparedPacket) {
+				if e = output.writePrepared(prepared, func(p preparedPacket) {
 					event(map[string]any{"kind": p.Name, "id": p.ID, "character_id": selectedCharacterID, "plain_hex": hex.EncodeToString(p.Payload)})
 				}); e != nil {
 					return
@@ -4341,7 +4335,7 @@ func main() {
 					event(map[string]any{"kind": "quest_submit_encode_error", "error": e.Error()})
 					return
 				}
-				if e = writePackets(c, prepared, func(p preparedPacket) {
+				if e = output.writePrepared(prepared, func(p preparedPacket) {
 					event(map[string]any{"kind": p.Name, "character_id": worldState.role.ID, "quest": r.ID})
 				}); e != nil {
 					event(map[string]any{"kind": "quest_submit_write_error", "quest": r.ID, "error": e.Error()})
@@ -5258,8 +5252,7 @@ func main() {
 					continue
 				}
 				event(map[string]any{"kind": "entry_preflight_passed", "character_id": role.ID, "frame_count": len(prepared)})
-				c.SetWriteDeadline(time.Now().Add(5 * time.Second))
-				e = writePackets(c, prepared, func(p preparedPacket) {
+				e = output.writePrepared(prepared, func(p preparedPacket) {
 					entry := map[string]any{"kind": p.Name, "character_id": role.ID, "actor_server_id": role.WireID, "type": p.Kind, "id": p.ID, "plain_bytes": len(p.Payload), "client_acceptance": "pending"}
 					if p.ID == 4 {
 						entry["name"] = role.Name
@@ -5398,7 +5391,6 @@ func main() {
 				if e != nil {
 					return
 				}
-				c.SetWriteDeadline(time.Now().Add(5 * time.Second))
 				if e = output.writeRaw(response); e != nil {
 					return
 				}
@@ -5525,8 +5517,7 @@ func main() {
 				if err != nil {
 					return
 				}
-				c.SetWriteDeadline(time.Now().Add(5 * time.Second))
-				if _, err = io.Copy(c, bytes.NewReader(response)); err != nil {
+				if err = output.writeRaw(response); err != nil {
 					return
 				}
 				event(map[string]any{"kind": "character_response", "id": id, "bytes": len(response), "hex": hex.EncodeToString(response)})
@@ -5552,8 +5543,7 @@ func main() {
 					if e != nil {
 						return
 					}
-					c.SetWriteDeadline(time.Now().Add(5 * time.Second))
-					if _, e = io.Copy(c, bytes.NewReader(notification)); e != nil {
+					if e = output.writeRaw(notification); e != nil {
 						return
 					}
 					event(map[string]any{"kind": "character_list_after_mutation", "request": frame.ID, "id": 2, "bytes": len(notification)})
@@ -5579,8 +5569,7 @@ func main() {
 						return
 					}
 				}
-				c.SetWriteDeadline(time.Now().Add(5 * time.Second))
-				if _, err := io.Copy(c, bytes.NewReader(response)); err != nil {
+				if err := output.writeRaw(response); err != nil {
 					event(map[string]any{"kind": "write_error", "error": err.Error()})
 					return
 				}

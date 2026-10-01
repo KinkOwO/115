@@ -247,24 +247,12 @@ func (s *WearService) ReinforceWithTicket(ctx context.Context, role storage.Char
 	if s == nil || s.Store == nil || s.Catalog == nil || s.Catalog.Source.Checksum != role.ConfigVersion || s.BagRules.Source != role.ConfigVersion {
 		return role, out, fmt.Errorf("强化需要有效装备目录及角色存档")
 	}
-	saved, _, err := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, "fixed-reinforcement-ticket-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
-		next, result, err := s.applyReinforcement(current, r)
-		if err != nil {
-			return nil, nil, err
-		}
-		receipt, err := json.Marshal(result)
-		return next, receipt, err
+	saved, out, err := commitEquipmentEvent(ctx, s.Store, role, key, "fixed-reinforcement-ticket-v1", func(current storage.Character) (json.RawMessage, ReinforcementReceipt, error) {
+		return s.applyReinforcement(current, r)
 	})
-	if err != nil {
-		return role, out, err
-	}
-	receipt, err := s.Store.CharacterEventReceipt(ctx, role.AccountID, role.ID, key)
-	if err == nil {
-		err = json.Unmarshal(receipt, &out)
-	}
+
 	if err == nil && out.Request != r {
 		err = fmt.Errorf("强化回执与请求不符")
 	}
-	saved.WireID = role.WireID
 	return saved, out, err
 }

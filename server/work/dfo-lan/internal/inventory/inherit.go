@@ -80,27 +80,9 @@ func (s *WearService) ApplyInherit(ctx context.Context, role storage.Character, 
 	if len(r.Entries) == 0 {
 		return role, nil, fmt.Errorf("装备继承请求里没有有效的继承记录")
 	}
-	var out []InheritReceipt
-	saved, _, err := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, inheritModel, func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
-		next, receipts, e := s.applyInherit(current, r.Entries)
-		if e != nil {
-			return nil, nil, e
-		}
-		encoded, e := json.Marshal(receipts)
-		if e != nil {
-			return nil, nil, e
-		}
-		return next, encoded, nil
+	return commitEquipmentEvent(ctx, s.Store, role, key, inheritModel, func(current storage.Character) (json.RawMessage, []InheritReceipt, error) {
+		return s.applyInherit(current, r.Entries)
 	})
-	if err != nil {
-		return role, out, err
-	}
-	receipt, err := s.Store.CharacterEventReceipt(ctx, role.AccountID, role.ID, key)
-	if err == nil {
-		err = json.Unmarshal(receipt, &out)
-	}
-	saved.WireID = role.WireID
-	return saved, out, err
 }
 
 // applyInherit 逐条记录继承：共用一次 ReadBag / SaveBag，后面的记录能看到前面

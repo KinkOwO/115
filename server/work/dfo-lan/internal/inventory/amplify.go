@@ -356,26 +356,9 @@ func (s *WearService) ApplyAmplifyGrimoire(ctx context.Context, role storage.Cha
 	}
 	golden, pure, value := classifyAmplifyBook(r.BookTemplate)
 
-	saved, _, err := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, amplifyGrimoireModel, func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
-		next, receipt, e := s.applyAmplifyGrimoire(current, r, value, golden, pure)
-		if e != nil {
-			return nil, nil, e
-		}
-		encoded, e := json.Marshal(receipt)
-		if e != nil {
-			return nil, nil, e
-		}
-		return next, encoded, nil
+	return commitEquipmentEvent(ctx, s.Store, role, key, amplifyGrimoireModel, func(current storage.Character) (json.RawMessage, AmplifyGrimoireReceipt, error) {
+		return s.applyAmplifyGrimoire(current, r, value, golden, pure)
 	})
-	if err != nil {
-		return role, out, err
-	}
-	receipt, err := s.Store.CharacterEventReceipt(ctx, role.AccountID, role.ID, key)
-	if err == nil {
-		err = json.Unmarshal(receipt, &out)
-	}
-	saved.WireID = role.WireID
-	return saved, out, err
 }
 
 func (s *WearService) applyAmplifyGrimoire(role storage.Character, r protocol.AmplifyOptionRequest, value byte, golden, pure bool) (json.RawMessage, AmplifyGrimoireReceipt, error) {

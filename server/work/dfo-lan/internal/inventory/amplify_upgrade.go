@@ -251,26 +251,9 @@ func (s *WearService) ApplyAmplifyUpgrade(ctx context.Context, role storage.Char
 	if !AmplifyUpgradeRulesLoaded() {
 		return role, out, fmt.Errorf("增幅规则未装载")
 	}
-	saved, _, err := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, amplifyUpgradeModel, func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
-		next, receipt, e := s.applyAmplifyUpgrade(current, r)
-		if e != nil {
-			return nil, nil, e
-		}
-		encoded, e := json.Marshal(receipt)
-		if e != nil {
-			return nil, nil, e
-		}
-		return next, encoded, nil
+	return commitEquipmentEvent(ctx, s.Store, role, key, amplifyUpgradeModel, func(current storage.Character) (json.RawMessage, AmplifyUpgradeReceipt, error) {
+		return s.applyAmplifyUpgrade(current, r)
 	})
-	if err != nil {
-		return role, out, err
-	}
-	receipt, err := s.Store.CharacterEventReceipt(ctx, role.AccountID, role.ID, key)
-	if err == nil {
-		err = json.Unmarshal(receipt, &out)
-	}
-	saved.WireID = role.WireID
-	return saved, out, err
 }
 
 func (s *WearService) applyAmplifyUpgrade(role storage.Character, r protocol.ReinforcementRequest) (json.RawMessage, AmplifyUpgradeReceipt, error) {

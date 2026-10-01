@@ -9,10 +9,8 @@ import (
 	"time"
 )
 
-// connectionOutput owns the serialized single-packet response path for one
-// connection. Grouped entry plans still use preparePackets/writePackets
-// directly because their pre-encoding and packet order are part of the client
-// contract.
+// connectionOutput serializes every write for one connection. Callers retain
+// control of grouped pre-encoding, streaming, packet order and diagnostics.
 type connectionOutput struct {
 	conn  net.Conn
 	keys  []byte
@@ -52,4 +50,12 @@ func (o *connectionOutput) writeRaw(raw []byte) error {
 		return fmt.Errorf("raw response write: %w", err)
 	}
 	return nil
+}
+
+// writePrepared sends an already encoded batch without changing its order or
+// callbacks. It shares the same lock as single replies and raw frames.
+func (o *connectionOutput) writePrepared(packets []preparedPacket, sent func(preparedPacket)) error {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	return writePackets(o.conn, packets, sent)
 }
