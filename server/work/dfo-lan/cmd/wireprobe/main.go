@@ -233,6 +233,9 @@ func main() {
 	if _, err := pvfCatalogs.installFameRules(); err != nil {
 		log.Fatalf("PVF fame runtime rules: %v", err)
 	}
+	if _, err := pvfCatalogs.installEquipmentAwakening(); err != nil {
+		log.Fatalf("PVF equipment awakening runtime rules: %v", err)
+	}
 	if _, err := pvfCatalogs.installScriptWarps(); err != nil {
 		log.Fatalf("PVF script warp runtime routes: %v", err)
 	}
@@ -3457,6 +3460,28 @@ func main() {
 					})
 					// 14529B2F0 的失败分支只使用分发器读取的错误码，并清除等待态。
 					if err = sendPayload(1, 80, protocol.Refusal(code)); err != nil {
+						return
+					}
+					continue
+				}
+				if sendPlan(plan, nil) != nil {
+					return
+				}
+				continue
+			}
+			// CMD2258 = ENUM_CMDPACKET_EQUIPMENT_AWAKENING：装备调适。
+			// 规则全部来自直读的 etc/115lvability/equipmentawakeningoptionsystem.cos；
+			// 回包体 = u8 状态（0 = 成功）+ u16 结果码（客户端 sub_140B899B0）。
+			if worldState != nil && bootstrapped && frame.ID == protocol.EquipmentAwakeningOpcode {
+				if !verified {
+					event(map[string]any{"kind": "equipment_awakening_rejected", "reason": "装备调适请求校验失败"})
+					continue
+				}
+				plan, err := equipmentState.awakenEquipment(wearService, worldState, plaintext, frame.Raw, event)
+				if err != nil {
+					event(map[string]any{"kind": "equipment_awakening_refused", "character_id": worldState.role.ID,
+						"reason": err.Error(), "request_hex": hex.EncodeToString(plaintext)})
+					if err = sendPayload(1, protocol.EquipmentAwakeningOpcode, protocol.EquipmentAwakeningFailure()); err != nil {
 						return
 					}
 					continue

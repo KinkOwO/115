@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## 2026-10-01：装备调适（CMD2258）直读 PVF 落地并实机确认
+
+- 用户确认修复：左侧 Tune/Promote 面板按成功刷新，并出现调适过程的动画。新增 `cmd 2258 ENUM_CMDPACKET_EQUIPMENT_AWAKENING` 服务端闭环，规则数据**全部直读内层 PVF**（`etc/115lvability/equipmentawakeningoptionsystem.cos` 的 `[max awakening]`/`[condition]`/`[need materials]`/`[refund materials]`/`[rates]`/`[upgrade result]` 与 `equipmentawakeningoption.lst` 的 263 条选项），不新增也不依赖任何导出 JSON。
+- 协议按权威 IDB 闭环：请求体 25 字节（`+13` 模式、`+14..17` 材料组、`+18` 空间、`+19..20` 槽位、`+21..24` 目标模板），应答体 = `u8 状态 + u16 结果码`，**状态 1 = 成功**。客户端 handler 在状态 0 时会连面板一起复位（`sub_1414921F0(window,4)`），这正是实机最初"面板不刷新、无反馈"的根因；状态 1 走 `(window,3)`，只做 `sub_1414928D0` 的材料重查与面板刷新。
+- 调适阶段落在装备实例行 `+170`（与名望侧 `internal/character/fame.go` 同一映射），升品换模板并把该字节清零，其余实例字节与存档未知字段一律保留；材料 + 金币走同一个 PostgreSQL 事务（账号材料仓库优先、背包兜底），按 `(角色, 幂等键)` 防重放。
+- 实机（角色 11 / 模板 100261128）连续三次调适 `0→1→2→3` 成功，请求 hex `0000803f00000000d0fae94601000100000003110008ddf90500000000000000` 与实现逐字节一致（`payload_offset=13`）；纳入本轮 confirmed baseline。取证脚本与产物 `analysis/dumps/ida_awakening_2258{,b,c,d,e}.py`、`analysis/dumps/awakening-2258*/`，实现与验证清单见 `analysis/tasks/next148-装备调适-直读PVF实现.md`。
+- 本轮未做：`mode=1`（初始化/返还，源 `[refund materials]` 已读齐但缺客户端表现证据）、非 100% 成功率、套装积分（附件文档引用的 `internal/inventory/set_points.go` 在本仓库不存在）、CMD2259 装备转换里的调适联动。没有修改 schema、玩家存档结构或客户端资源。
+
 ## 2026-10-01：弓箭手星座时装礼包漏发已确认
 
 - 用户确认修复。根因是 CMD160 客户端请求含8个选中时装模板；弓箭手第4模板小端首字节 `04` 被旧解析器误当成时装属性条数，ACK和入袋只处理前三件。依据权威 IDB 的原生 writer，为属性段增加模板属于所选列表的边界检查。两职业真实请求端到端回归均为8件，时装背包刷新及 ACK160一致，既有时装和角色存档其他字段保持。

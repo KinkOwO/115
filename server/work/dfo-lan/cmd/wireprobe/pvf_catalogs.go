@@ -31,6 +31,8 @@ type pvfCoreCatalogs struct {
 	layerRevisits                                *catalog.LayerRevisitOverlay
 	scriptWarps                                  []catalog.ScriptWarpRoute
 	fameRules                                    *character.FameRules
+	awakeningRules                               *catalog.EquipmentAwakeningRules
+	awakeningOptions                             *catalog.EquipmentAwakeningOptions
 	rosterBackgrounds                            *rosterbg.TicketCatalog
 	odysseyRoutes                                *catalog.OdysseyJournalRoutes
 	seasonRules                                  *adventure.SeasonRules
@@ -420,6 +422,9 @@ func preparePVFCoreCatalogs(selection, path, checksum, characterPath, questPath,
 		return result, err
 	}
 	if err := preparePVFFame(&result, source, selected, inputs); err != nil {
+		return result, err
+	}
+	if err := preparePVFEquipmentAwakening(&result, source); err != nil {
 		return result, err
 	}
 	if err := preparePVFItemShops(&result, source, selected, inputs); err != nil {

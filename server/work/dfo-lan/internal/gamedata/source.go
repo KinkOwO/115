@@ -411,6 +411,31 @@ func (s *Source) EquipmentCreateCost() (catalog.EquipmentCreateCost, error) {
 	return catalog.ImportEquipmentCreateCost(s.archive)
 }
 
+// EquipmentAwakening 直读装备调适规则（CMD2258）。
+// 源 = etc/115lvability/equipmentawakeningoptionsystem.cos，不经过任何导出 JSON。
+func (s *Source) EquipmentAwakening() (*catalog.EquipmentAwakeningRules, error) {
+	if s.archive == nil {
+		return nil, fmt.Errorf("equipment awakening import requires PVF")
+	}
+	rules, err := catalog.ImportEquipmentAwakeningRules(s.archive)
+	if err != nil {
+		return nil, err
+	}
+	return &rules, nil
+}
+
+// EquipmentAwakeningOptions 直读调适选项索引表（`[equipment awakening option]` 的 ID → 加成表）。
+func (s *Source) EquipmentAwakeningOptions() (*catalog.EquipmentAwakeningOptions, error) {
+	if s.archive == nil {
+		return nil, fmt.Errorf("equipment awakening options import requires PVF")
+	}
+	options, err := catalog.ImportEquipmentAwakeningOptions(s.archive)
+	if err != nil {
+		return nil, err
+	}
+	return &options, nil
+}
+
 func (s *Source) Tutorials() (catalog.TutorialCatalog, error) {
 	if s.archive == nil {
 		return catalog.TutorialCatalog{}, fmt.Errorf("tutorial import requires PVF")
