@@ -1,5 +1,10 @@
 # AGENTS.md — server/
 
+## 2026-10-02：魔法封印装备解除已确认
+
+- 用户确认普通装备可正常解除魔法封印。重构后 CMD393 曾以 PVF 哈希提交角色事件，身份门禁拒绝请求；现改用角色存档契约身份。解封随机属性存库并在重读后保持，原生目录身份校验和存档兼容保留。
+- 源码与 PVF 默认入口纳入 confirmed baseline，收口时均核对 SHA256 `2e00530babeb9b6ed4e357efce6a663fefc6c1d9b7da31843e383c0f945e9c7d`。专项独立数据库回归、`go vet ./...` 通过；全量测试5项在 HEAD overlay 对照中同样失败。无schema/玩家存档/客户端资源改动。详见 `work/dfo-lan/docs/protocol/magic-seal-save-identity-20261002.md`。
+
 ## 2026-10-01：副本结算后回城/进入下个副本已确认
 
 - 用户确认“能离开副本/进入下一个副本了”。CMD72 成功 ACK 恢复公共成功字节，格式为 `01 state option`；客户端先消费成功字节，再由 CMD72 handler 读取 state/option。覆盖反馈异常的部分副本和任务3189关联副本验收，不代表所有副本逐一实测。

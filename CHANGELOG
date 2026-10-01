@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 2026-10-02：魔法封印装备解除已确认
+
+- 用户确认普通装备现可正常解除魔法封印。根因是存档身份重构后 CMD393 解封事件仍传入 PVF 目录哈希；改用角色契约身份后，随机属性正常写入并保留。
+- 手动会话角色21/槽37的 CMD393 曾因 `character event source mismatch` 被拒。修复后用户确认解封成功；独立 PostgreSQL 回归验证成功 ACK/NOTI14、属性重登保留、旧存档身份兼容及重复请求幂等。
+- 源码与 PVF 默认入口现均核对为 SHA256 `2e00530babeb9b6ed4e357efce6a663fefc6c1d9b7da31843e383c0f945e9c7d`，纳入本项 confirmed baseline。`go vet ./...` 及专项回归通过；全量 Go 测试5项在 HEAD overlay 对照中同样失败。未改 schema、客户端资源或玩家存档。详见 `server/work/dfo-lan/docs/protocol/magic-seal-save-identity-20261002.md`。
+
 ## 2026-10-01：副本结算后回城/进入下个副本已确认
 
 - 用户确认“能离开副本/进入下一个副本了”。根因是 CMD72 成功回包漏掉客户端公共分发器先消费的成功字节，导致回城/下一任务状态和选项错位；现恢复完整 `01 state option` 包络。验收覆盖任务3189关联副本，不外推为所有副本均逐一实测。

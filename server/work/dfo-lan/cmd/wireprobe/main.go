@@ -3768,7 +3768,7 @@ func main() {
 					event(map[string]any{"kind": "unseal_rejected", "reason": "checksum failed"})
 					continue
 				}
-				plan, request, e := worldState.unsealRandomOption(unsealService, lootService.Catalog.Source.Checksum, plaintext)
+				plan, request, e := worldState.unsealRandomOption(unsealService, plaintext)
 				if e != nil {
 					event(map[string]any{"kind": "unseal_refused", "id": frame.ID, "character_id": worldState.role.ID, "reason": e.Error()})
 					if e = sendPayload(1, frame.ID, protocol.UnsealRefused(unsealRefusalCode(e))); e != nil {

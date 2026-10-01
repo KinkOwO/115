@@ -14,7 +14,7 @@ import (
 // existed the request met silence and the item stayed sealed. The durable roll
 // commits first, then the acknowledgement and the authoritative single-row
 // inventory update the client's sealed overlay clears on.
-func (w *worldSession) unsealRandomOption(s *inventory.UnsealService, version string, p []byte) ([]outboundPacket, protocol.UnsealRequest, error) {
+func (w *worldSession) unsealRandomOption(s *inventory.UnsealService, p []byte) ([]outboundPacket, protocol.UnsealRequest, error) {
 	var none protocol.UnsealRequest
 	if w == nil || w.role.ID == 0 || s == nil {
 		return nil, none, fmt.Errorf("unseal before character selection")
@@ -25,7 +25,9 @@ func (w *worldSession) unsealRandomOption(s *inventory.UnsealService, version st
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	saved, receipt, _, e := s.Unseal(ctx, w.role, version, r)
+	// Character events use the durable save identity; the native PVF checksum
+	// remains the separate identity of the equipment and random-option catalogs.
+	saved, receipt, _, e := s.Unseal(ctx, w.role, w.role.ConfigVersion, r)
 	if e != nil {
 		return nil, r, e
 	}
