@@ -194,7 +194,7 @@ func (s *Service) OpenBoxes(ctx context.Context, role storage.Character, box, co
 	}
 	key := fmt.Sprintf("boxopen:%d:%d:%d", box, count, opens)
 	saved, applied, e := s.Store.CommitCharacterPremiumEvent(ctx, role.AccountID, role.ID,
-		s.Catalog.Source.Checksum, key, s.Rules.Model,
+		s.Catalog.Source.SaveIdentity(), key, s.Rules.Model,
 		func(current storage.Character) (json.RawMessage, json.RawMessage, []storage.CashPremiumActivation, error) {
 			bag, e := inventory.ReadBag(current.State)
 			if e != nil {

@@ -114,3 +114,25 @@
    - 严禁提交 `server/work/dfo-lan/runtime/storage/*.log`、`local.json`
    - 严禁提交动态会话目录 `server/work/dfo-lan/runtime/roles_*/`
    - 严禁提交本地编译的中间文件或未授权的大型二进制
+
+## 6. 开关原则（2026-10-01 业主定调）
+
+> **开关只用于本地调试；一旦确认有效，就移除开关、变成默认行为。**
+
+1. **「玩法是否开启」不是开关。** 征兆系统、隐藏 BOSS 门禁、定盘机关兜底判死、疲劳规则……
+   这类「不补就没功能」的东西一律**直接默认生效**，代码里不留 flag/env 入口
+   （需要临时关闭时改代码，而不是加开关）。
+2. **只有「玩家体验上的数值差异」才保留入口。** 例如掉落调参
+   （`DFO_ATTUNEMENT_REBALANCE` / `-attunement-fixed-tilt`）、`DFO_SHOP_RELEASE` ——
+   这类开合属于业主的经营决策，开关留在 profile（`configs/pvf-default.json`）里。
+3. **诊断入口可以留。** `-omen-hold` / `-omen-info` / `-maze-force` 这类**只用于复现与取证**的入口保留，
+   但帮助文本里必须写明是诊断用。
+
+**为什么**（2026-10-01 深渊失效排查的教训）：那批深渊 MR 的功能全靠
+`DFO_OMEN_REWARDS=1` / `DFO_OMEN_STATE=1` / `DFO_SCALE_DEATH_FROM_HP=1` / `-fatigue-rules` 开启，
+而直读默认档 `configs/pvf-default.json`（17 个键）与 `启动服务端.cmd` 里**一个都没有**
+⇒ 玩家走默认入口时**整套玩法静默不生效**：征兆不掷骰（日志 `-omen-rewards is off`）、
+隐藏 BOSS 无门禁来源、定盘机关可能打不死（"既不放结束动画也不 DESTROY"）、
+**疲劳服务根本没加载**（`if *fatigueRulesFile != ""` 不成立 ⇒ `fatigueService == nil` ⇒ 所有疲劳检查被跳过）。
+
+**教训**：开关的代价不是多打一个 flag，而是「**默认路径悄悄坏掉**，且没有任何人会发现」。

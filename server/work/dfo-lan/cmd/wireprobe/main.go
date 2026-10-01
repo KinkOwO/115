@@ -80,7 +80,10 @@ func main() {
 	entryAdditionProbe := flag.Bool("entry-addition-probe", false, "send current-build source attributes; optional inventory and skills remain pending")
 	questCatalogFile := flag.String("quest-catalog", "", "enable source quest accept/abandon persistence; objectives and rewards are separate")
 	vaultRulesFile := flag.String("vault-rules", "", "source vault capacity and empty-state initialization")
-	fatigueRulesFile := flag.String("fatigue-rules", "", "separate persisted fatigue and rollover policy")
+	// 疲劳规则**有默认路径**：疲劳是玩法本身，不该因为「没传 env」就整条消失
+	//（2026-10-01 实测：直读默认档没传它 ⇒ fatigueService == nil ⇒ 所有疲劳检查被跳过）。
+	// 仍可用 -fatigue-rules / DFO_FATIGUE_RULES 覆盖，供本地调试。
+	fatigueRulesFile := flag.String("fatigue-rules", "configs/fatigue-probe.json", "separate persisted fatigue and rollover policy (default: configs/fatigue-probe.json)")
 	dungeonCatalogFile := flag.String("dungeon-catalog", "", "source dungeon layouts and first-room loading experiment")
 	progressionCatalogFile := flag.String("progression-catalog", "", "current-source experience and growth catalog")
 	progressionRulesFile := flag.String("progression-rules", "configs/experience.compat90.json", "separate reference compatibility formula settings")
@@ -150,11 +153,16 @@ func main() {
 	oathProgressDungeons := flag.String("oath-progress-dungeons", oathProgressDungeonSpec, "计入保底的副本号，逗号分隔（默认只有小深渊 100005014）")
 	oathInject := flag.String("oath-inject", os.Getenv("DFO_OATH_INJECT"), "诊断用：向客户端注入任意 noti 的候选列表，形式 id:size:fill;off:val,...（见 oath_probe.go）；默认空 = 关闭")
 	omenHoldDefault := envIntOr("DFO_OMEN_HOLD", -1)
-	omenHold := flag.Int("omen-hold", omenHoldDefault, "诊断：把玩家直接放到指定征兆阶段(0-4)，-1 = 不动；-omen-state 打开时会写回角色存档")
-	omenRewards := flag.Bool("omen-rewards", os.Getenv("DFO_OMEN_REWARDS") == "1", "千海之空深渊的征兆系统：通关时按 [coupon drop table] 的阶段表累积并结算（见 internal/loot/omen.go）。默认关闭")
-	omenInfo := flag.String("omen-info", os.Getenv("DFO_OMEN_INFO"), "诊断：直接指定 noti 2836「征兆队伍状态」的 69 字节载荷，用来点亮征兆 UI 并实测字段语义。写法见 cmd/wireprobe/omen_info.go；留空 = 按角色存档里的真实档数生成（需 -omen-state）")
-	omenState := flag.Bool("omen-state", os.Getenv("DFO_OMEN_STATE") == "1", "征兆的正式状态：持有档数存进角色存档、进本按真实状态下发 noti 2836，并让隐藏 BOSS 由「满档结算」驱动（见 cmd/wireprobe/omen_state.go）。默认关闭")
-	scaleDeathFromHP := flag.Bool("scale-death-from-hp", os.Getenv("DFO_SCALE_DEATH_FROM_HP") == "1", "boundary-of-attunement 定盘机关(109019266)的兜底判死：它血量触底时服务端合成一条死亡上报，不再依赖引擎那两个恒为 72 的 rarity 天花板；默认关闭")
+	omenHold := flag.Int("omen-hold", omenHoldDefault, "诊断：把玩家直接放到指定征兆阶段(0-4)，-1 = 不动；会写回角色存档")
+	omenInfo := flag.String("omen-info", os.Getenv("DFO_OMEN_INFO"), "诊断：直接指定 noti 2836「征兆队伍状态」的 69 字节载荷，用来点亮征兆 UI 并实测字段语义。写法见 cmd/wireprobe/omen_info.go；留空 = 按角色存档里的真实档数生成")
+	// ⚠️ 下面三项**没有开关**：它们是玩法本身，不是可选项。
+	// 2026-10-01 业主定调（见 server/AGENTS.md「开关原则」）：开关只用于本地调试，
+	// 确认有效即移除并变成默认行为；只有「玩家体验上的数值差异」（如掉落调参）才留入口。
+	// 此前它们默认关闭 ⇒ 直读默认档下整套深渊玩法静默不生效（征兆不掷骰、隐藏 BOSS 无门禁、
+	// 定盘机关可能打不死），是本轮失效排查的核心结论。
+	omenRewards := true      // 征兆系统：通关按 [coupon drop table] 的阶段表累积并结算（internal/loot/omen.go）
+	omenState := true        // 征兆 = 角色存档级状态；隐藏 BOSS 由「满档结算」驱动（cmd/wireprobe/omen_state.go）
+	scaleDeathFromHP := true // 定盘机关(109019266)血量触底时由服务端兜底宣布死亡（cmd/wireprobe/scale_death.go）
 	flag.Parse()
 	if *pvfCheckHeap != "" && !*pvfCheckCatalogs {
 		log.Fatal("pvf-check-heap-profile requires pvf-check-catalogs")
@@ -260,7 +268,7 @@ func main() {
 		log.Printf("oath grades: overridden to primer=%d oath=%d (diagnostic)", oathGradePair[0], oathGradePair[1])
 	case *oathFromGear:
 		log.Printf("oath grades: derived from worn oath/primer gear (%d known items, diagnostic)", oathGradeTable.Len())
-	case *omenState:
+	case omenState:
 		log.Printf("oath grades: hidden boss driven by an omen full settlement on %s", *oathProgressDungeons)
 	case *oathProgressClears > 0:
 		log.Printf("oath grades: hidden-boss pity every %d clear(s) of %s", *oathProgressClears, *oathProgressDungeons)
@@ -284,14 +292,7 @@ func main() {
 	if len(omenInfoBytes) > 0 {
 		log.Printf("omen info (noti 2836): injecting %d bytes: %s", len(omenInfoBytes), hex.EncodeToString(omenInfoBytes))
 	}
-	// -omen-state 单独打开是**静默坏掉**的配置：征兆阶段表才是推进持有数的那台机器，
-	// 关掉它之后存档会永远停在 0（既不涨、也永远不会满档结算），而 UI 会一直显示
-	// 空格子 —— 现象是「征兆系统上线了但什么都没发生」。宁可启动就报错。
-	if *omenState && !*omenRewards {
-		log.Fatal("-omen-state needs -omen-rewards: the [coupon drop table] roll is what advances the omen, " +
-			"so a state-only run would sit at stage 0 forever")
-	}
-	// 掉落调参（与官服的显式差异）。开关关着时两个参数都不参与，表保持官方原值。
+	// 掉落调参（与官服的显式差异）。这里是**保留入口**的数值差异：关掉时表保持官方原值。
 	attunementRebalance := loot.Rebalance{}
 	if *attunementRebalanceOn {
 		if *attunementFixedTilt < 0 || *attunementFixedTilt >= 100 {
@@ -1475,9 +1476,9 @@ func main() {
 		}
 		lootService.Attunement = attunement
 		lootService.RewardBoxes = boxes
-		// 征兆系统（omen）。默认关闭：它改变通关的产出，而首次实机验证还没做，
-		// 所以打开它必须是显式的一步，而不是跟着奖励表悄悄上线。
-		if *omenRewards {
+		// 征兆系统（omen）：**默认生效**，无开关 —— 它是玩法本身。
+		// 见 cmd/wireprobe/main.go 顶部「开关原则」注释。
+		if omenRewards {
 			if e := attunement.ValidateOmen(); e != nil {
 				log.Fatal(e)
 			}
@@ -1511,8 +1512,8 @@ func main() {
 		// [coupon drop table] 就是征兆系统的阶段表（见 internal/loot/omen.go）。
 		// 开关关着时把它明确打出来，让「导入了但没接线」保持可见，而不是让玩家
 		// 以为那几行已经在出货。
-		if n := attunement.Coupons(); n > 0 && !*omenRewards {
-			log.Printf("attunement reward tables carry %d [coupon drop table] row(s) = omen stages; -omen-rewards is off, so no roll uses them", n)
+		if n := attunement.Coupons(); n > 0 {
+			log.Printf("omen system live: %d [coupon drop table] row(s) = omen stages drive the accumulation and settlement", n)
 		}
 	} else {
 		log.Printf("warning: no attunement reward table; boundary-of-attunement clears pay no exclusive reward")
@@ -1739,7 +1740,7 @@ func main() {
 			if questService != nil && townArrivalScenes == nil {
 				log.Fatal("town arrival scene whitelist was not passed to world sessions")
 			}
-			worldState = &worldSession{characters: characters, service: worldService, account: developmentAccount, flags: townPolicy.Flags, dungeons: dungeonCatalog, townArrivalScenes: townArrivalScenes, tutorials: tutorialRoutes, tutorialDungeons: tutorialDungeons, professions: characters.Catalog, fatigue: fatigueService, quests: questService, progression: progressionService, loot: lootService, shop: shopService, selectionBoxes: selectionBoxes, vault: vaultService, skinCatalog: skinCatalog, soloPartyBootstrap: *soloPartyBootstrap, hub: hub, scaleDeathFromHP: *scaleDeathFromHP, oathGrades: oathGradePair, oathTable: oathGradeTable, oathFromGear: *oathFromGear, oathProgressClears: *oathProgressClears, oathProgressDungeons: oathProgressSet, oathInject: oathInjectSpecs, omenHold: *omenHold, omenState: *omenState, omenInfo: omenInfoBytes}
+			worldState = &worldSession{characters: characters, service: worldService, account: developmentAccount, flags: townPolicy.Flags, dungeons: dungeonCatalog, townArrivalScenes: townArrivalScenes, tutorials: tutorialRoutes, tutorialDungeons: tutorialDungeons, professions: characters.Catalog, fatigue: fatigueService, quests: questService, progression: progressionService, loot: lootService, shop: shopService, selectionBoxes: selectionBoxes, vault: vaultService, skinCatalog: skinCatalog, soloPartyBootstrap: *soloPartyBootstrap, hub: hub, scaleDeathFromHP: scaleDeathFromHP, oathGrades: oathGradePair, oathTable: oathGradeTable, oathFromGear: *oathFromGear, oathProgressClears: *oathProgressClears, oathProgressDungeons: oathProgressSet, oathInject: oathInjectSpecs, omenHold: *omenHold, omenState: omenState, omenInfo: omenInfoBytes}
 			worldState.serverID = channelCfg.ServerID
 			worldState.channelType = channelTypes[channel]
 			if moonConfig != nil && channel == moonConfig.Channel {

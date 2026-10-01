@@ -158,7 +158,7 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 	}
 	result.Awards = filterDungeonAwards(d.Definition, result.Awards)
 	if d.Definition.Odyssey && s.Currency != nil {
-		if s.Currency.Source != s.Catalog.Source.Checksum {
+		if s.Currency.Source != s.Catalog.Source.SaveIdentity() {
 			return nil, fmt.Errorf("Odyssey currency source mismatch")
 		}
 		coins, next, err := s.Currency.Roll(result.NextSeed, monster.Rank)

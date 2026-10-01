@@ -2,7 +2,7 @@
   "version": 1,
   "provenance": "既有基础装备白名单；任务奖励新增项由PVF任务推导。6013不进入普通掉落池，沿用CHANGELOG中2026-09-30掉落组整合的明确边界。策略不保存脚本路径、Token或费用。",
   "excluded_loot_ids": [6013],
-  "maximum_loot_grade": 130,
+  "maximum_loot_grade": 150,
   "basic_equipment_ids": [
     10018,
     10019,

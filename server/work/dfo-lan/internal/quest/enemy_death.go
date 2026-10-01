@@ -31,7 +31,7 @@ func (s *Service) EnemyDeath(ctx context.Context, role storage.Character, run *d
 	if !singleKillMatch(en, run, entity, target) {
 		return false, nil
 	}
-	return s.Store.CompleteQuestObjective(ctx, role.AccountID, role.ID, qid, s.Catalog.Source.Checksum, en.Model)
+	return s.Store.CompleteQuestObjective(ctx, role.AccountID, role.ID, qid, s.Catalog.Source.SaveIdentity(), en.Model)
 }
 
 func singleHuntMatch(en *Entry, run *dungeon.Session, entity uint16) bool {

@@ -335,7 +335,7 @@ func (s *Service) Learn(ctx context.Context, role storage.Character, key string,
 		if e != nil {
 			return nil, nil, e
 		}
-		receipt, e := json.Marshal(map[string]any{"skills": changes, "sp": points, "source": s.Learning.Source.Checksum})
+		receipt, e := json.Marshal(map[string]any{"skills": changes, "sp": points, "source": s.Learning.Source.SaveIdentity()})
 		return p, receipt, e
 	})
 	saved.WireID = role.WireID

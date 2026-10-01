@@ -27,7 +27,7 @@ func ReadBlackPurgatoryRewards(a *pvf.Archive, index catalog.ItemIndex, policy B
 	if a == nil || a.Snapshot().Checksum != catalog.OdysseySource || index.Source.Checksum != catalog.OdysseySource || policy.Denominator != 1000000 || len(policy.Rates) != 3 {
 		return nil, fmt.Errorf("invalid Black Purgatory source/policy")
 	}
-	c := BlackPurgatoryRewards{Model: blackPurgatoryCardModel, Source: a.Snapshot().Checksum, ClientSource: a.Snapshot().SaveIdentity(), Script: blackCardScript, Dungeon: BlackPurgatorySquadDungeon}
+	c := BlackPurgatoryRewards{Model: blackPurgatoryCardModel, Source: a.Snapshot().Checksum, ClientSource: a.Snapshot().Checksum, Script: blackCardScript, Dungeon: BlackPurgatorySquadDungeon}
 	script, err := catalog.ReadScript(a, blackCardScript)
 	if err != nil {
 		return nil, err

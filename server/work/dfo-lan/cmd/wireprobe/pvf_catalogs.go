@@ -131,11 +131,21 @@ func parsePVFCatalogSelection(value string) (map[string]bool, error) {
 	return selected, nil
 }
 
+// verifyPVFCatalog 在直读模式下**只警告、不熔断**（2026-10-01 定调）。
+//
+// 理由：直读的数据来自 PVF（唯一真源），而这些 JSON 是**历史快照** —— 它们的
+// source 字段普遍还写着旧内层哈希（`7ef2db59…`，当前是 `be95d64e…`），于是
+// 「JSON vs PVF」**必然**存在差异。把它当 error 意味着**误开一次基线校验就熔断启动**
+// （实测：78 个配置、181 处历史来源标记都会失配，见 next147 的排查）。
+//
+// 差异本身仍有价值 —— 打出来交给判断即可。需要**严格**审计时请用
+// `cmd/pvfaudit` / `cmd/audit36`，不要把启动路径变成熔断器。
 func verifyPVFCatalog(legacy, direct any) error {
 	comparison := gamedata.Compare(legacy, direct, 1)
 	if comparison.Count != 0 {
 		first := comparison.Differences[0]
-		return fmt.Errorf("PVF candidate has %d effective field differences; first %s: JSON=%s PVF=%s", comparison.Count, first.Path, first.JSON, first.PVF)
+		log.Printf("baseline vs PVF direct: %d effective field difference(s); first %s: JSON=%s PVF=%s (expected in direct mode: the JSON is a historical snapshot; not fatal)",
+			comparison.Count, first.Path, first.JSON, first.PVF)
 	}
 	return nil
 }

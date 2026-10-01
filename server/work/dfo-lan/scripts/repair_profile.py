@@ -18,6 +18,9 @@ FLAGS = {
     'DFO_DETAIL_WORN', 'DFO_SHOP_RELEASE', 'DFO_VAULT_PURCHASE_RELEASE',
     'DFO_ODYSSEY_REWARDS_RELEASE', 'DFO_ODYSSEY_TEMPORARY_CREDITS',
     'DFO_SHOP_OPEN_ALL', 'DFO_PVF_VERIFY_BASELINES',
+    # 掉落调参：属于「玩家体验上的数值差异」，是少数**允许保留入口**的开关
+    # （见 server/AGENTS.md §6 开关原则；其余玩法类开关一律默认生效、不留入口）。
+    'DFO_ATTUNEMENT_REBALANCE',
 }
 
 

@@ -47,7 +47,7 @@ func MoveStack(ctx context.Context, store *storage.Store, role storage.Character
 	}
 	model := fmt.Sprintf("bag-move-v2:%x", sha256.Sum256(request))
 	saved, applied, e := store.CommitCharacterEvent(ctx, role.AccountID, role.ID,
-		c.Source.Checksum, key, model,
+		c.Source.SaveIdentity(), key, model,
 		func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
 			b, e := ReadBag(current.State)
 			if e != nil {
@@ -71,7 +71,7 @@ func MoveStack(ctx context.Context, store *storage.Store, role storage.Character
 			if _, e = protocol.InventoryRestore(b.Rows(), b.Expansion); e != nil {
 				return nil, nil, e
 			}
-			out = MoveStackReceipt{from, to, template, c.Source.Checksum}
+			out = MoveStackReceipt{from, to, template, c.Source.SaveIdentity()}
 			receipt, e := json.Marshal(out)
 			return updated, receipt, e
 		})

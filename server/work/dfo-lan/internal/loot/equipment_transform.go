@@ -138,7 +138,7 @@ func (s *Service) TransformEquipment(
 
 	key := transformKey(slots, templates, role.State)
 	saved, _, applied, e := s.Store.CommitAccountMaterialEvent(ctx, role.AccountID, role.ID,
-		s.Catalog.Source.Checksum, key, s.Rules.Model,
+		s.Catalog.Source.SaveIdentity(), key, s.Rules.Model,
 		func(current storage.Character, accountRaw json.RawMessage) (json.RawMessage, json.RawMessage, error) {
 			live, e := inventory.ReadBag(current.State)
 			if e != nil {
@@ -228,7 +228,7 @@ func (s *Service) TransformEquipment(
 			if e != nil {
 				return nil, nil, e
 			}
-			result.Source = s.Catalog.Source.Checksum
+			result.Source = s.Catalog.Source.SaveIdentity()
 			result.Option = option
 			result.Gold = gold
 			result.Pairs = done

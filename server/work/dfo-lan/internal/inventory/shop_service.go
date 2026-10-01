@@ -219,7 +219,7 @@ func (s *ShopService) Buy(ctx context.Context, role storage.Character, r protoco
 		// 共享晶块，它们平时不在角色背包里；旧路径只查背包 → 「背包里有晶块，商店却说 have 0」。
 		var e error
 		saved, _, applied, e = s.Store.CommitAccountMaterialEventTx(ctx, role.AccountID, role.ID,
-			s.Catalog.Source.Checksum, key, s.EventModel,
+			s.Catalog.Source.SaveIdentity(), key, s.EventModel,
 			func(tx pgx.Tx, current storage.Character, rawCounts json.RawMessage) (json.RawMessage, json.RawMessage, error) {
 				if e := s.checkShopLimit(ctx, tx, current, shopID, r.Template); e != nil {
 					return nil, nil, e
@@ -259,7 +259,7 @@ func (s *ShopService) Buy(ctx context.Context, role storage.Character, r protoco
 	} else {
 		var e error
 		saved, applied, e = s.Store.CommitCharacterEventTx(ctx, role.AccountID, role.ID,
-			s.Catalog.Source.Checksum, key, s.EventModel,
+			s.Catalog.Source.SaveIdentity(), key, s.EventModel,
 			func(tx pgx.Tx, current storage.Character) (json.RawMessage, json.RawMessage, error) {
 				if e := s.checkShopLimit(ctx, tx, current, shopID, r.Template); e != nil {
 					return nil, nil, e
@@ -320,7 +320,7 @@ func (s *ShopService) Sell(ctx context.Context, role storage.Character, r protoc
 	key := shopEventKey("sell", seq, uint32(len(r.Rows)), uint32(r.Rows[0].Slot), uint32(r.Rows[len(r.Rows)-1].Slot))
 
 	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID,
-		s.Catalog.Source.Checksum, key, s.EventModel,
+		s.Catalog.Source.SaveIdentity(), key, s.EventModel,
 		func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
 			b, e := ReadBag(current.State)
 			if e != nil {
