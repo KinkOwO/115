@@ -33,7 +33,11 @@ func isOdysseyRewardRole(role storage.Character) bool {
 }
 
 func applyOdysseyArmor(role storage.Character, wear *inventory.WearService) (json.RawMessage, json.RawMessage, error) {
-	if !isOdysseyRewardRole(role) || role.ConfigVersion != savecontract.Identity() || wear == nil || wear.Catalog == nil || wear.Catalog.Source.SaveIdentity() != savecontract.Identity() {
+	// ⚠️ 别再往这里加「目录身份」子句：`X.Source.SaveIdentity()` 是**常量**
+	// （`pvf.ArchiveSnapshot.SaveIdentity()` 直接返回 `savecontract.Identity()`），
+	// 与 `savecontract.Identity()` 比较恒相等 ⇒ 那种子句恒假、等于不写（2026-10-01 清理）。
+	// 真要校验目录来源（L3）必须比内层哈希 `.Source.Checksum` —— 见 internal/savecontract 的分级说明。
+	if !isOdysseyRewardRole(role) || role.ConfigVersion != savecontract.Identity() || wear == nil || wear.Catalog == nil {
 		return nil, nil, fmt.Errorf("Odyssey armor requires matching character and source catalogs")
 	}
 	b, e := inventory.ReadBag(role.State)
@@ -123,9 +127,6 @@ const (
 func applyOdysseyCreatePotion(role storage.Character, cat catalog.LootCatalog, rules inventory.BagRules) (json.RawMessage, json.RawMessage, error) {
 	if !isOdysseyRewardRole(role) || role.ConfigVersion != savecontract.Identity() {
 		return nil, nil, fmt.Errorf("Odyssey create potion requires source mode")
-	}
-	if cat.Source.SaveIdentity() != savecontract.Identity() {
-		return nil, nil, fmt.Errorf("Odyssey create potion requires matching source catalogs")
 	}
 	b, e := inventory.ReadBag(role.State)
 	if e != nil {
