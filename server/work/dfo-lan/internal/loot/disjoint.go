@@ -169,7 +169,7 @@ func (s *Service) Disjoint(
 	// 实测 2026-09-30 02:36:48 / 02:41:48 各一次 —— 用户看到的就是"分解了却没入库"。
 	key := disjointEventKey(r.ToolSlot, r.Items)
 	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID,
-		s.Catalog.Source.Checksum, key, s.Rules.Model,
+		s.Catalog.Source.SaveIdentity(), key, s.Rules.Model,
 		func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
 			b, e := inventory.ReadBag(current.State)
 			if e != nil {

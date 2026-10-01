@@ -172,6 +172,16 @@ func (s boosterBoxSource) Container(template uint32) bool {
 	if !ok {
 		return false
 	}
+	// `[booster selection]` 是**选择箱**，不是「打不开的盒子」：模板自带
+	// [booster select category] / [equipment] 候选表，玩家在客户端自己打开并从中挑一件，
+	// 服务端既不展开也不该拦它 —— 它在 index.go 里是 typeConsumable，能正常落地进背包。
+	// 判成容器会让整条奖励分支被判「unopenable」而**静默不发**
+	// （2026-10-01 实测：千海天深渊奖励表里 10401416/10401429/10417539/10417540/
+	// 10417548/10417549/10420581/10420594 这 8 个选择箱就是这样被丢掉的）。
+	// 只按类型字符串排除：带 [booster info] 的真礼包已在上面按 Definitions 返回 true。
+	if item.StackableType == "[booster selection]" {
+		return false
+	}
 	return strings.Contains(strings.ToLower(item.StackableType), "booster")
 }
 

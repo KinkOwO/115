@@ -27,6 +27,15 @@ func TestReadOnlyViewRemapsEntriesAndPreservesReads(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	indexed, err := a.ReadOnlyViewIndices([]int{1, 1})
+	if err != nil || indexed.FileCount() != 1 || indexed.FindFileIndex("second.txt") != 0 {
+		t.Fatal("indexed view remap", err)
+	}
+	for _, indices := range [][]int{{-1}, {2}} {
+		if _, err = a.ReadOnlyViewIndices(indices); err == nil {
+			t.Fatal("invalid native index accepted")
+		}
+	}
 	if v.FileCount() != 1 || v.FindFileIndex("second.txt") != 0 || v.FindFileIndex("first.txt") != -1 {
 		t.Fatal("view metadata was not compacted")
 	}

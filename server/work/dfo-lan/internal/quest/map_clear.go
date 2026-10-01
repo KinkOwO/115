@@ -11,7 +11,7 @@ import (
 )
 
 func (s *Service) MapClear(ctx context.Context, role storage.Character, run *dungeon.Session, source string) ([]protocol.ActiveQuest, error) {
-	if run == nil || !run.Completed() || source != s.Catalog.Source.Checksum {
+	if run == nil || !run.Completed() || source != s.Catalog.Source.SaveIdentity() {
 		return nil, fmt.Errorf("map clear requires confirmed owned source dungeon completion")
 	}
 	// A room transition requires the previous room to be cleared, so by the

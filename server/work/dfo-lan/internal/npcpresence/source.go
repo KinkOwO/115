@@ -146,7 +146,7 @@ func NewIndex(world catalog.WorldCatalog, quests catalog.QuestCatalog) (*Index, 
 	if len(world.Source.Checksum) != 64 || world.Source.Checksum != quests.Source.Checksum {
 		return nil, fmt.Errorf("NPC catalogs do not share a verified PVF source identity")
 	}
-	index := &Index{Source: world.Source.Checksum, Areas: world.Areas, Quests: make(map[uint32]QuestProjection), TownRules: make(map[uint32][]PhaseRule), TownGaps: make(map[uint32][]string)}
+	index := &Index{Source: world.Source.SaveIdentity(), Areas: world.Areas, Quests: make(map[uint32]QuestProjection), TownRules: make(map[uint32][]PhaseRule), TownGaps: make(map[uint32][]string)}
 	bindings, err := catalog.ParseIndex(world.TownIndex.Cells)
 	if err != nil {
 		return nil, err

@@ -82,7 +82,7 @@ func (s *Service) Pickup(ctx context.Context, role storage.Character, session *S
 		if err != nil {
 			return fail(err)
 		}
-		return saved, PickupReceipt{drop.Run, drop.Map, drop.Object, receipt.Award, receipt.Destination, s.Catalog.Source.Checksum}, applied, nil
+		return saved, PickupReceipt{drop.Run, drop.Map, drop.Object, receipt.Award, receipt.Destination, s.Catalog.Source.SaveIdentity()}, applied, nil
 	}
 	awardCatalog, bagRules := s.Catalog, s.BagRules
 	if d.Definition.Odyssey && session.Currency != nil {
@@ -124,7 +124,7 @@ func (s *Service) Pickup(ctx context.Context, role storage.Character, session *S
 		if e != nil {
 			return nil, nil, e
 		}
-		result = PickupReceipt{drop.Run, drop.Map, drop.Object, drop.Award, slot, s.Catalog.Source.Checksum}
+		result = PickupReceipt{drop.Run, drop.Map, drop.Object, drop.Award, slot, s.Catalog.Source.SaveIdentity()}
 		receipt, e := json.Marshal(result)
 		return updated, receipt, e
 	})

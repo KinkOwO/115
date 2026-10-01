@@ -296,3 +296,55 @@ func TestOrthaierDuePrefersOmenState(t *testing.T) {
 		t.Fatalf("pending omen session: due=%v err=%v", due, err)
 	}
 }
+
+// 天平档位 → 星蕴石档位的映射（2026-10-01 业主拍板补的链路）。
+//
+// 名字逐档对齐（§6 取证）：109137366 Unique / 367 Legendary / 368 Epic / 369 Primeval。
+// 之所以要有这条映射：源里星蕴石品质只由 getEOOPartyOmenGrade() 决定，而 noti 2836 的
+// grade 按 §36 只是「记录里非零 u32 的个数」，与天平档位无关 —— 实机验证固定 oath=45
+// 时掉出的仍是 Unique 档箱子。
+func TestOmenGradeForOathTierFollowsTheStoneNames(t *testing.T) {
+	cases := map[uint16]int{
+		0:  0, // 本场还没下发过档位：不设下限，保持原行为
+		40: 1, // normal    → 最低档石头
+		41: 1, // rare      → 同上（四颗石头里没有 rare 专属档）
+		42: 1, // unique    → 109137366
+		43: 2, // legendary → 109137367
+		44: 3, // epic      → 109137368
+		45: 4, // primeval  → 109137369
+		70: 4, // rainbow1  也是最高档
+		71: 4, // rainbow2
+	}
+	for tier, want := range cases {
+		if got := omenGradeForOathTier(tier); got != want {
+			t.Errorf("omenGradeForOathTier(%d) = %d, want %d", tier, got, want)
+		}
+	}
+}
+
+// 两条保底取 max：档位给下限、征兆持有档数给更多 —— 互不覆盖。
+func TestOmenGradeIsTheMaxOfHeldAndOathTier(t *testing.T) {
+	combine := func(held int, tier uint16) int {
+		grade := held
+		if floor := omenGradeForOathTier(tier); floor > grade {
+			grade = floor
+		}
+		return grade
+	}
+	cases := []struct {
+		held int
+		tier uint16
+		want int
+	}{
+		{0, 45, 4}, // 没带征兆、天平太初 ⇒ 出太初石
+		{0, 43, 2}, // 没带征兆、天平传说 ⇒ 出传说石
+		{3, 42, 3}, // 带 3 颗、天平最低档 ⇒ 仍出 3 颗（持有数更大）
+		{2, 45, 4}, // 带 2 颗、天平太初 ⇒ 取太初档
+		{0, 0, 0},  // 都没算过 ⇒ 保持原行为（不发）
+	}
+	for _, c := range cases {
+		if got := combine(c.held, c.tier); got != c.want {
+			t.Errorf("held=%d tier=%d: grade = %d, want %d", c.held, c.tier, got, c.want)
+		}
+	}
+}

@@ -18,6 +18,9 @@ FLAGS = {
     'DFO_DETAIL_WORN', 'DFO_SHOP_RELEASE', 'DFO_VAULT_PURCHASE_RELEASE',
     'DFO_ODYSSEY_REWARDS_RELEASE', 'DFO_ODYSSEY_TEMPORARY_CREDITS',
     'DFO_SHOP_OPEN_ALL', 'DFO_PVF_VERIFY_BASELINES',
+    # 掉落调参：属于「玩家体验上的数值差异」，是少数**允许保留入口**的开关
+    # （见 server/AGENTS.md §6 开关原则；其余玩法类开关一律默认生效、不留入口）。
+    'DFO_ATTUNEMENT_REBALANCE',
 }
 
 
@@ -51,6 +54,11 @@ def load_profile(path, project):
             # 空串 = 自动派生（信任内层归档自身哈希，见 analysis/tasks/next142）。
             # 非空必须是 64 位 hex，保持显式钉版本的能力。
             env[key] = value.lower()
+        elif key == 'DFO_OATH_GRADES' and (value == '' or isinstance(value, str) and re.fullmatch(r'\d{1,3}(,\d{1,3})?', value)):
+            # 诊断：固定下发的「引子/誓约」档位，形如 "45" 或 "45,45"（见 cmd/wireprobe/oath_info.go）。
+            # 空串 = 正常路径（保底 + 国服爆率随机）。只接受空或两个十进制数。
+            # ⚠️ 临时诊断入口：用于验证「天平档位 → 誓约掉落模板」的对应关系，验完清空。
+            env[key] = value
         elif key == 'DFO_PVF_CATALOGS' and isinstance(value, str):
             domains = [part.strip() for part in value.split(',')]
             allowed = {'world', 'quests', 'progression', 'items', 'equipment', 'periods', 'skins', 'journal', 'create-cost', 'skills', 'prices', 'materials', 'boosters', 'tutorial', 'enhancements', 'random-options', 'shields', 'oath-grades', 'vault', 'loot', 'equipment-selection', 'town', 'dungeons', 'training-dungeons', 'tutorial-dungeons', 'dungeon-towers', 'dungeon-hell', 'dungeon-maze', 'apocalypse', 'attunement', 'odyssey-growth', 'odyssey-chapters', 'odyssey-weapons', 'odyssey-drop', 'odyssey-currency', 'clear-cube', 'black-purgatory', 'bleeding-mine', 'dungeon-terminal', 'dungeon-tournament', 'selection-boxes', 'lottery', 'adventure', 'adventure-recommended', 'season', 'odyssey-routes', 'roster-backgrounds', 'fame', 'script-warps', 'layer-revisits', 'characters', 'cashshop', 'boxes', 'item-shops'}

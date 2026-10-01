@@ -1,5 +1,3 @@
-- **归档元数据缓存已确认**：用户确认速度提升。17:50会话两类缓存miss/stored，准备50.244秒，角色4的45帧入场预检通过；17:53会话两类缓存hit，元数据2.361秒、联合物品2.647秒、全部准备25.704秒，角色11的49帧预检通过。正式/源码程序均核对为46c349cd8151ea66b9f056ce32f1c9f63368ee4ec6cc448205fbd713a062f7d8，无需替换，纳入confirmed baseline。确认依据用户反馈及上述日志，不扩大为所有玩法逐项验收；不改schema、存档准入/profile/客户端资源。按授权提交本段，再拉取合并上游SHA相关更新，继续其它投影及缓存保留策略。下文候选状态为历史记录。
-
 # CHANGELOG
 
 ## 2026-10-01
@@ -8,6 +6,16 @@
 - **边界收敛第二批：world 存储倒置（E15）**：`internal/world` 声明自己的 `Store` 接口（`LoadWorld`），由 `internal/storage` 实现并在 bootstrap 注入；`WorldPosition`/`WorldState`/`WorldReturn` 类型改由 `world` 拥有，`storage` 以类型别名复用（迁移期，调用点零改动）。同时把 cmd 中把 `world.Service.Store` 当通用 storage 句柄的越权用法收回为独立的 `worldSession.store`。收益：`world` 不再依赖 `storage`，新增内存假 `Store` 单测证明领域可脱离 PostgreSQL 测试；换库时 world 持久化只动 `storage` 一处。守卫允许清单删除 E15，契约 §7.2 标记消除。全量 `go test ./...`（32 包）、`go vet ./...` 通过；无存储/schema/存档/协议字节改动，未部署。
 - **边界收敛第一批：消除基础设施→领域反依赖（E01–E04）**：把 `game/protocol` 与 `catalog` 中领域耦合的编解码/投影移回领域：`SeasonLevelHistory`/`SeasonOathHistory`→`internal/adventure/season_wire.go`，`ProfileSkinRestore`→`internal/profileskin/restore.go`，选角背景选择/恢复/解码→`internal/rosterbg/wire.go`，`ImportRosterBackgroundTickets`→`internal/rosterbg/import.go`；字节布局原样搬移，调用点（均在 `cmd/wireprobe`）与测试随之迁移。依赖守卫允许清单删除 E01–E04，契约 §7.1 标记消除。全量 `go test ./...`（32 包）、`go vet ./...` 通过；无存储/schema/存档/协议字节改动，未部署、未升级 confirmed baseline。
 - **服务端依赖边守卫（archtest）**：新增 `server/work/dfo-lan/internal/archtest/contract_test.go` 的 `TestDependencyContract`，把依赖契约 §2 的规则变成可执行断言：R1 纯基础设施不得依赖领域、R2 领域不得依赖 `storage`、R4 领域间协作必须显式、R6 领域不得依赖组合/工具层；允许清单 = 契约 §7 例外清单，并带"过期条目"检查强制只减不增。守卫复核时补齐一条此前遗漏的真实例外 `cashshop → inventory`，并同步契约（新增 `derivedcache`/`savecontract` 基础设施包、基线更新为 `8e627f5`）。全量 `go test ./...`（31 包）、`go vet ./...` 通过。仅新增测试与文档，不改运行时代码、schema、存档、协议或客户端资源，未部署、未升级 confirmed baseline。
+- **MR !125 换装登记适配并合并**：修复Buff登记在重新选择角色、进入地下城、重启游戏后丢失或失效的问题；登记保留与Buff加成的实机结果沿用原 MR 记录，本轮主线适配待手动回归。
+  - 接入`CMD1421`，校验并通过既有角色事务保存登记、技能选择与取消操作；角色存档新增可选`buff_enhancement`字段，无数据库表结构变更。
+  - 登录、进图和回城时，在角色及装备数据更新完成后通过`NOTI1361`恢复完整登记，避免场景重建清空登记；按忽略位置的物品指纹匹配，防止背包移位或槽位复用后误绑。
+  - 协议布局、存档兼容性与恢复顺序见[`Buff Enhancement 登记保存与恢复`](server/work/dfo-lan/docs/protocol/buff-enhancement-persistence-20261001.md)。
+  - 适配当前集中请求白名单和连接发送锁；装备校验复用 PVF 按需完整目录与导入链，损坏可选登记不阻断进图/回城。当前原生 PVF 登记回归、独立 PostgreSQL 持久化回归及全量 Go test/vet 通过；玩家数据库、客户端资源、默认程序与 confirmed baseline 保持原确认范围。
+
+
+- **第四批剩余优化已确认**：第四批剩余项已确认：七类确定性投影缓存（装备绑定/掉落/副本/赛季/背景券/传送/终场剧情）及旧缓存保留策略，绑定实际PVF/完整程序/实际输入策略，损坏重建、不可写回退及私有查询索引恢复。424216条装备、18387张地图、七类全部字段和54/63冷热启动一致；全量Go测试/vet、独立PostgreSQL16存档身份迁移回归通过。已提交确认段3def161并以2c24faa合并上游07e1551。用户手动连续两轮启动源码入口并确认：18:21:24冷轮准备48.0247秒，九类缓存miss/stored，角色1第46帧entry_preflight_passed；18:23:49热轮准备14.4253秒，九类缓存hit，角色1第46帧entry_preflight_passed。正式入口与源码入口均核对为SHA256 bc6211802e361f1407a14fd62d7a5730be9ed5250851a7f4c6c48aea6d32310e，现纳入confirmed baseline。热轮相较此前确认热轮23.9059秒快39.44%、累计分配降低61.84%；首次建九文件48.51秒，热堆527.47→536.01MiB，缓存合计约191MiB。实机确认范围为连续两次启动及选角进入前置检查，未扩大为所有玩法逐项验收。 上游包含存档身份契约迁移：新源码启动后旧46c349cd默认程序不能直接作为回退。优先保持源码入口并设置DFO_PVF_CACHE_DIR='-'恢复原生导入；若需撤回本批实现，关闭会话后将.tmp/pvf-phase4c/bin/wireprobe-metadata-sha-compatible.exe复制到源码入口，再继续--source-build。该185ae7e99853d2b4d96a1043c47eb046279cfb6d777e536e7e1df6c1d46ba92f程序来自合并提交2c24faa，含上游身份修复及已确认元数据/物品缓存，不含本批七类投影；54/63离线完整报告与候选一致，未操作玩家数据库。46c349cd精确备份.tmp/pvf-phase4c/bin/wireprobe-handoff-source.confirmed-before.exe仅作迁移前历史快照。 详见docs/todo/pvf/PVF启动与内存优化实施计划.md。
+- **归档元数据缓存已确认**：用户确认速度提升。17:50会话两类缓存miss/stored，准备50.244秒，角色4的45帧入场预检通过；17:53会话两类缓存hit，元数据2.361秒、联合物品2.647秒、全部准备25.704秒，角色11的49帧预检通过。正式/源码程序均核对为46c349cd8151ea66b9f056ce32f1c9f63368ee4ec6cc448205fbd713a062f7d8，无需替换，纳入confirmed baseline。确认依据用户反馈及上述日志，不扩大为所有玩法逐项验收；不改schema、存档准入/profile/客户端资源。按授权提交本段，再拉取合并上游SHA相关更新，继续其它投影及缓存保留策略。下文候选状态为历史记录。
+
 - **MR !123 整合至 !126**：保留 !126 的连接输出锁、装备事件收据恢复和原生拒绝码；纳入 !123 的逐包发送、装备行构造、会话事件键、解密白名单与回归测试。全量 go test ./... 和 go vet ./... 通过；无部署、schema 或存档格式改动，confirmed baseline 保持原确认范围。
 - **服务端依赖契约（架构契约基线）**：新增 `server/work/dfo-lan/docs/architecture-contract.md`，把原先口头、不可判定的依赖约定（"只消除无业务含义的转发"）升级为可机械判定的契约：分层（L0 传输/L1 协议与静态数据/L2 持久化/L3 领域/L4 组合工具）、六条依赖规则、22 个内部包的所有权表、落位判断标准，以及 `939c749` 时点的例外清单基线（协议→领域 4 条、领域→storage 6 条、领域↔领域 4 组，只减不增）。契约以 `architecture-refactor-plan.md` 为历史记录、本文为规则真源。本批仅新增文档，不改任何 Go 代码、schema、存档、协议或客户端资源；依赖边守卫测试（`internal/archtest`）列为下一批，未在本批实施。全量实机状态不变。
 - **本轮同步验证**：合并后Go1.26.0全量test/vet通过（含旧背包预热兼容测试）；当前PVF抽奖/自选原生回归和14项profile检查通过。提交范围检查排除运行时库、日志、临时产物及四份用户改动，新增实机验收状态保持待回归。

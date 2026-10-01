@@ -120,6 +120,13 @@ type worldSession struct {
 	// omenOrthaierDue 表示这一场会下发 oath=45（召唤隐藏 BOSS）。它由存档里的
 	// orthaire_pending 得出，noti 2838 与 noti 2836 共用这一份判断。
 	omenOrthaierDue bool
+	// oathTierRun 是本场**实际下发**的天平 oath 档位（40..45），由 oathInfoPackets 算完后写入。
+	// omenInfoPackets 用它把「天平颜色」映射成星蕴石档位（见 omen_info.go 的
+	// omenGradeForOathTier）—— 这是**我们一起补的映射**：源里星蕴石品质只由
+	// noti 2836 的 grade 决定，而 grade 原本只是征兆持有档数，与天平档位无关
+	// （2026-10-01 实机验证：固定 oath=45 仍掉 Unique 档箱子）。
+	// 0 = 本场还没算过，omenInfoPackets 会回落到 grade 1。
+	oathTierRun uint16
 	// omenReported 是本会话已经记过事件的征兆结算序号（见 noteOmenClear）。
 	omenReported uint64
 	// scaleRun 是上面两张表所归属的副本运行号。同一会话里重进副本会把 entity 从

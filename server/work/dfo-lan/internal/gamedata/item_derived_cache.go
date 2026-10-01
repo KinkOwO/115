@@ -41,6 +41,7 @@ func (s *Source) cachedItemCatalogs(o catalog.ItemBasicOptions, enhancements boo
 	}
 	key := itemDerivedKey(parser, s.Snapshot().Checksum, o, enhancements, policyPath, policy, fame)
 	path := derivedPath(s.cacheDir, key)
+	s.protectCache(path)
 	started := time.Now()
 	var cached JointItemCatalogs
 	hit, readErr := loadDerived(path, key, func(d *json.Decoder) error { return decodeJointItems(d, &cached) })

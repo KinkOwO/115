@@ -79,7 +79,7 @@ func (s *Service) Consume(ctx context.Context, role storage.Character, r protoco
 		key = fmt.Sprintf("consume-pet:%d:%d:%d", r.Slot, r.Template, r.Instance)
 	}
 	saved, applied, e := s.Store.CommitCharacterPremiumEvent(ctx, role.AccountID, role.ID,
-		s.Catalog.Source.Checksum, key, s.Rules.Model,
+		s.Catalog.Source.SaveIdentity(), key, s.Rules.Model,
 		func(current storage.Character) (json.RawMessage, json.RawMessage, []storage.CashPremiumActivation, error) {
 			b, e := inventory.ReadBag(current.State)
 			if e != nil {

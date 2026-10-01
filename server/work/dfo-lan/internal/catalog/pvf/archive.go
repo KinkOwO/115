@@ -89,20 +89,21 @@ type Archive struct {
 	groups []groupItem
 
 	// pathIdx 保存归一化路径到文件表下标的映射，查询时避免扫描目录。
-	pathIdx          map[string]int
-	bodyOff          int
-	strA             []byte
-	strW             []byte
-	stringPools      *runtimeStringPools
-	compactDirectory bool
-	compactTable     []byte
-	compactIndex     []directoryEntry
-	backing          *archiveFile
-	lease            *archiveLease
-	cleanup          runtime.Cleanup
-	closeOnce        sync.Once
-	closed           atomic.Bool
-	metadataCache    MetadataCacheStats
+	pathIdx           map[string]int
+	bodyOff           int
+	strA              []byte
+	strW              []byte
+	stringPools       *runtimeStringPools
+	compactDirectory  bool
+	compactTable      []byte
+	compactIndex      []directoryEntry
+	backing           *archiveFile
+	lease             *archiveLease
+	cleanup           runtime.Cleanup
+	closeOnce         sync.Once
+	closed            atomic.Bool
+	metadataCache     MetadataCacheStats
+	metadataCacheFile string
 
 	// chunks 缓存已解密解压的 body chunk，texts 缓存已解码的脚本文本。
 	chunks           sync.Map

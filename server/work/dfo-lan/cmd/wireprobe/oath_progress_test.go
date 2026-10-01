@@ -1,13 +1,83 @@
 package main
 
 import (
+	"dfolan/internal/inventory"
 	"encoding/binary"
+	"math"
+	"math/rand"
 	"testing"
 )
 
+// 档位随机：业主 2026-10-01 拍板采用**国服 1710 场实测爆率**
+// （稀有 27.7 / 神器 32.3 / 传说 5.7 / 史诗 1.9 / 太初 0.35，其余 normal）。
+// 守四件事：① 不越界；② 大样本下占比与权重对齐；③ 六档齐全（primeval 也在表内）；
+// ④ 忠实于实测形状 —— **神器(unique) 略高于稀有(rare)**，不要被"递减"直觉改掉。
+func TestRollOathGradeFollowsTheMeasuredRates(t *testing.T) {
+	for _, w := range oathGradeWeights {
+		if _, ok := oathGradeTiers[w.Grade]; !ok {
+			t.Fatalf("weight table names %d, outside the eight tiers the script accepts", w.Grade)
+		}
+	}
+	if len(oathGradeWeights) != 6 {
+		t.Fatalf("weight table has %d rows, want 6 (normal + 稀有/神器/传说/史诗/太初)", len(oathGradeWeights))
+	}
+	// 实测形状：神器(42) 略高于稀有(41)，其后逐级下降；normal 最大。
+	byGrade := map[uint16]int{}
+	for _, w := range oathGradeWeights {
+		byGrade[w.Grade] = w.Weight
+	}
+	if byGrade[42] <= byGrade[41] {
+		t.Fatalf("unique(%d) must stay above rare(%d): that is the measured shape", byGrade[42], byGrade[41])
+	}
+	for _, pair := range [][2]uint16{{42, 43}, {43, 44}, {44, 45}} {
+		if byGrade[pair[1]] >= byGrade[pair[0]] {
+			t.Fatalf("grade %d weight %d should be below grade %d weight %d",
+				pair[1], byGrade[pair[1]], pair[0], byGrade[pair[0]])
+		}
+	}
+	if byGrade[41] <= byGrade[43] {
+		t.Fatalf("rare(%d) must stay above legendary(%d)", byGrade[41], byGrade[43])
+	}
+	// 国服数据里「不变色(normal)」与「神器(unique)」是最高且不相上下的两档
+	// （32.05% vs 32.3%）—— 别把 normal 写成"必然最大"，实测就不是。
+	if byGrade[inventory.OathGradeNormal] <= byGrade[41] {
+		t.Fatalf("normal(%d) must stay above rare(%d)", byGrade[inventory.OathGradeNormal], byGrade[41])
+	}
+	if byGrade[42] <= byGrade[43] {
+		t.Fatalf("unique(%d) must stay above legendary(%d)", byGrade[42], byGrade[43])
+	}
+	if _, ok := byGrade[oathGradePrimeval]; !ok {
+		t.Fatal("primeval must be in the table: it is a 0.35% roll in the national-server data, not pity-only")
+	}
+	if got := rollOathGrade(nil); got != inventory.OathGradeNormal {
+		t.Fatalf("nil rng = %d, want normal(%d)", got, inventory.OathGradeNormal)
+	}
+	const draws = 2000000
+	rng := rand.New(rand.NewSource(20261001))
+	count := map[uint16]int{}
+	total := 0
+	for _, w := range oathGradeWeights {
+		total += w.Weight
+	}
+	for i := 0; i < draws; i++ {
+		g := rollOathGrade(rng)
+		if _, ok := oathGradeTiers[g]; !ok {
+			t.Fatalf("draw %d produced %d, outside the eight tiers", i, g)
+		}
+		count[g]++
+	}
+	for _, w := range oathGradeWeights {
+		want := float64(w.Weight) / float64(total)
+		got := float64(count[w.Grade]) / float64(draws)
+		if math.Abs(got-want) > want*0.15 {
+			t.Fatalf("grade %d share = %.4f, want %.4f (within 15%%)", w.Grade, got, want)
+		}
+	}
+}
+
 // 保底档位的纯决策：到期给 45（唯一召唤奥尔泰尔的档），否则两边 normal。
 func TestOathGradesForPity(t *testing.T) {
-	primer, oath := oathGradesForPity(true)
+	primer, oath := oathGradesForPity(true, nil)
 	if _, ok := oathGradeTiers[oath]; !ok {
 		t.Fatalf("oath %d is outside the eight tiers the script accepts", oath)
 	}
@@ -20,7 +90,7 @@ func TestOathGradesForPity(t *testing.T) {
 		t.Fatalf("primer = %d, want 40 (the watcher branch needs primer 45; we never trigger it)", primer)
 	}
 
-	primer, oath = oathGradesForPity(false)
+	primer, oath = oathGradesForPity(false, nil)
 	if primer != 40 || oath != 40 {
 		t.Fatalf("not due = %d/%d, want 40/40", primer, oath)
 	}
@@ -96,7 +166,7 @@ func TestOathProgressDefaults(t *testing.T) {
 
 // 端到端：保底到期时，2838 载荷的 [4:8) 必须正好是 45。
 func TestOathInfoPayloadCarriesThePityTier(t *testing.T) {
-	primer, oath := oathGradesForPity(true)
+	primer, oath := oathGradesForPity(true, nil)
 	p := oathInfoPayload(primer, oath)
 	if len(p) != 8 {
 		t.Fatalf("payload = %d bytes, want 8", len(p))

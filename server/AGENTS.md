@@ -5,7 +5,47 @@
 > 本文件是 `server/` 目录的规则真源与子索引。先读仓库根 `AGENTS.md`，再读本文件。
 > 服务端源码位于 `server/work/dfo-lan/`，探针与隔离工具位于 `server/work/dfo_probe_tools/`。
 
-## 0. 当前候选边界
+## 0. 单一内容真源铁律（2026-10-01 业主定调，最高优先级）
+
+> **所有游戏内容数据只有一个来源：内层 PVF**（`server/work/client-build/Script.inner.pvf`）。
+> 服务端已切换为 **PVF 直读**（`configs/pvf-default.json` + `bin/wireprobe-pvf.exe`）；
+> `configs/*.json` 导出物**只是历史基线**，不再是运行期数据源。
+
+**禁止**（无业主明确指令不得触犯）：
+
+1. **禁止新增「导出 JSON → 服务端读取」的链路。** 新内容（奖励表、掉落组、装备、任务、
+   商店、副本参数、玩法定义…）一律从 PVF 现场解析；需要新解析器就在 `internal/catalog/`
+   或对应包内写 PVF 解析，**不要**新增 `configs/*.generated.json` 或类似导入器
+   （`cmd/*import` 只保留给历史基线，不再扩写）。
+2. **禁止把 PVF 已能提供的数据搬进 JSON 再读回来。** 判据很简单：**PVF 里读得到 ⇒ 不许写 JSON。**
+3. **禁止新增「JSON 回落」。** `pvfCoreCatalogs.load*()` 里除 `if c.x != nil` 之外不得引入
+   新数据源；已有回落随任务逐步删除——直读失败要**显式报错**，不要静默换源（静默换源正是
+   此前「直读模式下玩法整片失效」却查不出来的原因）。
+4. **禁止把开关当数据。** 玩法行为不留开关（见根 `AGENTS.md` §6 开关原则）；数值差异入口
+   必须能追溯到一条明确策略文件，且该文件**不得承载「有哪些内容」的清单**。
+
+**允许保留的 JSON**（仅此三类）：
+
+| 类别 | 例子 | 约束 |
+| --- | --- | --- |
+| 运维 / 策略 | `pvf-drop-policy.json` 的排除项、各 `pvf-*-policy.json` 的开关与上限 | 不得承载「有哪些内容」的清单；**能自动发现的一律自动发现** |
+| 历史基线 | `configs/*.json` 导出物 | 仅在 `DFO_PVF_VERIFY_BASELINES=1` 时作对照，**默认关闭**；不得作为运行期输入 |
+| 本地运行配置 | `launcher.local.json`、`pvf-default.json`、`storage/local.json` | 端口 / 路径 / 环境变量，不含游戏内容 |
+
+**已有违规项的收敛方向**（逐项销账，路径与依据写进 `../docs/todo/pvf/PVF单一内容真源改造计划.md`）：
+
+- ✅ **已销账（2026-10-01）**：`attunement_dungeons` 已从 `pvf-content-policy.json` 与
+  `pvf-mine-policy.json` 删除——副本范围改由源决定（`etc/rewardboostinfo/**.ctp` 各自声明
+  `[dungeon index]`，`loot.ImportAttunementRewards` 自动发现，`Source.Attunement()` 不再收清单）；
+  同一批也删掉了 `dungeon_enter_fatigue`（改由 `[use fatigue only start dungeon]` 决定）。
+- ⏳ **待收敛**：`pvf-drop-policy.json` 的 `basic_equipment_ids` / `maximum_loot_grade`
+  → 从 PVF 装备表自动发现，JSON 只保留排除项（`excluded_loot_ids`）。
+  **注意（业主判断，2026-10-01）**：深渊本身是**特殊掉落池**，不能简单套用「PVF 全量装备表」；
+  放开范围前必须先弄清深渊自己的池子边界，**不要**为了「走 PVF」而改变掉落行为。
+
+## 0.1 当前确认边界（历史确认记录）
+
+- **2026-10-01 第四批剩余优化已确认**：第四批剩余项已确认：七类确定性投影缓存（装备绑定/掉落/副本/赛季/背景券/传送/终场剧情）及旧缓存保留策略，绑定实际PVF/完整程序/实际输入策略，损坏重建、不可写回退及私有查询索引恢复。424216条装备、18387张地图、七类全部字段和54/63冷热启动一致；全量Go测试/vet、独立PostgreSQL16存档身份迁移回归通过。已提交确认段3def161并以2c24faa合并上游07e1551。用户手动连续两轮启动源码入口并确认：18:21:24冷轮准备48.0247秒，九类缓存miss/stored，角色1第46帧entry_preflight_passed；18:23:49热轮准备14.4253秒，九类缓存hit，角色1第46帧entry_preflight_passed。正式入口与源码入口均核对为SHA256 bc6211802e361f1407a14fd62d7a5730be9ed5250851a7f4c6c48aea6d32310e，现纳入confirmed baseline。热轮相较此前确认热轮23.9059秒快39.44%、累计分配降低61.84%；首次建九文件48.51秒，热堆527.47→536.01MiB，缓存合计约191MiB。实机确认范围为连续两次启动及选角进入前置检查，未扩大为所有玩法逐项验收。 上游包含存档身份契约迁移：新源码启动后旧46c349cd默认程序不能直接作为回退。优先保持源码入口并设置DFO_PVF_CACHE_DIR='-'恢复原生导入；若需撤回本批实现，关闭会话后将.tmp/pvf-phase4c/bin/wireprobe-metadata-sha-compatible.exe复制到源码入口，再继续--source-build。该185ae7e99853d2b4d96a1043c47eb046279cfb6d777e536e7e1df6c1d46ba92f程序来自合并提交2c24faa，含上游身份修复及已确认元数据/物品缓存，不含本批七类投影；54/63离线完整报告与候选一致，未操作玩家数据库。46c349cd精确备份.tmp/pvf-phase4c/bin/wireprobe-handoff-source.confirmed-before.exe仅作迁移前历史快照。 详见../docs/todo/pvf/PVF启动与内存优化实施计划.md。
 
 - 本轮上游同步后的Go1.26全量test/vet（含旧背包兼容）、当前源抽奖/自选原生回归及14项profile检查通过。源码提交不替代新增实机验收。
 
@@ -112,3 +152,25 @@
    - 严禁提交 `server/work/dfo-lan/runtime/storage/*.log`、`local.json`
    - 严禁提交动态会话目录 `server/work/dfo-lan/runtime/roles_*/`
    - 严禁提交本地编译的中间文件或未授权的大型二进制
+
+## 6. 开关原则（2026-10-01 业主定调）
+
+> **开关只用于本地调试；一旦确认有效，就移除开关、变成默认行为。**
+
+1. **「玩法是否开启」不是开关。** 征兆系统、隐藏 BOSS 门禁、定盘机关兜底判死、疲劳规则……
+   这类「不补就没功能」的东西一律**直接默认生效**，代码里不留 flag/env 入口
+   （需要临时关闭时改代码，而不是加开关）。
+2. **只有「玩家体验上的数值差异」才保留入口。** 例如掉落调参
+   （`DFO_ATTUNEMENT_REBALANCE` / `-attunement-fixed-tilt`）、`DFO_SHOP_RELEASE` ——
+   这类开合属于业主的经营决策，开关留在 profile（`configs/pvf-default.json`）里。
+3. **诊断入口可以留。** `-omen-hold` / `-omen-info` / `-maze-force` 这类**只用于复现与取证**的入口保留，
+   但帮助文本里必须写明是诊断用。
+
+**为什么**（2026-10-01 深渊失效排查的教训）：那批深渊 MR 的功能全靠
+`DFO_OMEN_REWARDS=1` / `DFO_OMEN_STATE=1` / `DFO_SCALE_DEATH_FROM_HP=1` / `-fatigue-rules` 开启，
+而直读默认档 `configs/pvf-default.json`（17 个键）与 `启动服务端.cmd` 里**一个都没有**
+⇒ 玩家走默认入口时**整套玩法静默不生效**：征兆不掷骰（日志 `-omen-rewards is off`）、
+隐藏 BOSS 无门禁来源、定盘机关可能打不死（"既不放结束动画也不 DESTROY"）、
+**疲劳服务根本没加载**（`if *fatigueRulesFile != ""` 不成立 ⇒ `fatigueService == nil` ⇒ 所有疲劳检查被跳过）。
+
+**教训**：开关的代价不是多打一个 flag，而是「**默认路径悄悄坏掉**，且没有任何人会发现」。

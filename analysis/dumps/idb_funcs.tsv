@@ -71,3 +71,10 @@ address	name	description
 0x147c99ac0	SourceToken_MatchesKind	Compares one native kind byte with supplied integer kind
 0x147c99090	SourceInteger_CopyDirectValue	Copies input integer to output and returns success1
 0x142c9c6c0	SourceToken_GetKind	Returns native cell kind byte
+0x1436436d0	BuffEnhancement_SendRegistration	CMD1421 writes skill u16, equipment kind u8, inventory list u8, slot u16; 20260930 live samples match
+0x14363df50	BuffEnhancement_CommandResult	CMD1421 status success closes popup; failure restores optimistic item edit; 20261001 IDB and EXE byte equality
+0x14363e4b0	BuffEnhancement_ReadItems	NOTI1360 reads count u8 and exists/kind/list u8 plus slot u16; resolves items before updating manager and UI
+0x14363eed0	BuffEnhancement_ReadAllData	NOTI1361 clears manager map, reads skill u16, invokes 14363e4b0; item containers must exist first
+0x14563c1f0	BuffEnhancement_ReadUserInfoBlock	USERINFO switching block reads skill u16/count u8, clears actor map via143642610 then binds supplied items; empty service block erases registrations
+0x143642610	BuffEnhancement_ClearActorRegistration	Erases actor+48 map binding via14363ff90 and refreshes windows740/741; USERINFO caller confirmed
+0x143643910	BuffEnhancement_CopyActorRegistration	Copies old actor registration to new actor in145961b80/145c6fe60; registrations are keyed by actor+48

@@ -171,6 +171,7 @@ func OpenReadOnlyCached(options Options, expectedChecksum, cacheDir, parserIdent
 		hit, cacheErr := derivedcache.Load(cachePath, key, metadataCacheFormat, func(r io.Reader) error { return decodeMetadata(r, a, h) })
 		if hit {
 			a.metadataCache.Hits = 1
+			a.metadataCacheFile = cachePath
 			a.attachCleanup()
 			success = true
 			log.Printf("PVF archive metadata cache hit key=%x elapsed=%s files=%d", key[:8], time.Since(started), a.FileCount())
@@ -208,6 +209,9 @@ func OpenReadOnlyCached(options Options, expectedChecksum, cacheDir, parserIdent
 		}
 	}
 	a.metadataCache = stats
+	if cacheEnabled {
+		a.metadataCacheFile = cachePath
+	}
 	a.attachCleanup()
 	success = true
 	return a, nil

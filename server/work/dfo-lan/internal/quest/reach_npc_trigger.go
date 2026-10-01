@@ -17,5 +17,5 @@ func (s *Service) ReachNPCFromClient(ctx context.Context, role storage.Character
 	if !valid || r.NPC != npc {
 		return false, fmt.Errorf("NPC does not match range objective")
 	}
-	return s.Store.CompleteQuestObjective(ctx, role.AccountID, role.ID, id, s.Catalog.Source.Checksum, ReachNPC)
+	return s.Store.CompleteQuestObjective(ctx, role.AccountID, role.ID, id, s.Catalog.Source.SaveIdentity(), ReachNPC)
 }

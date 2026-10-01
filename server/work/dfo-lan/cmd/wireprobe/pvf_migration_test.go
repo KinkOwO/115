@@ -20,7 +20,7 @@ func TestPVFDerivedCacheCombinedLocalArchive(t *testing.T) {
 	dir := t.TempDir()
 	t.Run("cold", func(t *testing.T) { verifyPVFMigrationSourceOnly(t, dir) })
 	files, err := filepath.Glob(filepath.Join(dir, "*.pvfc"))
-	if err != nil || len(files) != 2 {
+	if err != nil || len(files) != 9 {
 		t.Fatal("cold combined startup did not store its cache", files, err)
 	}
 	before := make([]os.FileInfo, len(files))

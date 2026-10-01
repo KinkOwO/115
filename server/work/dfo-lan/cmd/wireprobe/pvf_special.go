@@ -19,10 +19,6 @@ type pvfContentPolicy struct {
 	OdysseyDrops        []loot.OdysseyChapterDropPolicy `json:"odyssey_chapter_drops"`
 	OdysseyCurrency     loot.OdysseyCurrencyPolicy      `json:"odyssey_currency"`
 	Version             int                             `json:"version"`
-	Attunement          []uint32                        `json:"attunement_dungeons"`
-	// DungeonEnterFatigue 是**进本消耗**的本地兜底：源里 [use fatigue only start dungeon] 优先，
-	// 源未声明该段的副本用这里的值（当前客户端脚本里已查不到该段，依据 analysis 文档实测）。键=副本号。
-	DungeonEnterFatigue map[uint32]uint16            `json:"dungeon_enter_fatigue"`
 }
 
 func readPVFContentPolicy(path string) (pvfContentPolicy, error) {
@@ -40,7 +36,7 @@ func readPVFContentPolicy(path string) (pvfContentPolicy, error) {
 	if err := d.Decode(new(any)); err != io.EOF {
 		return p, fmt.Errorf("content policy has trailing data")
 	}
-	if p.Version != 1 || len(p.Attunement) == 0 {
+	if p.Version != 1 {
 		return p, fmt.Errorf("invalid content selection policy")
 	}
 	return p, nil
@@ -70,11 +66,9 @@ func preparePVFSpecial(c *pvfCoreCatalogs, s *gamedata.Source, selected map[stri
 		s.ReleaseReadCaches()
 	}
 	if selected["attunement"] {
-		policy, err := readPVFContentPolicy(inputs.contentPolicyPath)
-		if err != nil {
-			return err
-		}
-		direct, err := s.Attunement(policy.Attunement)
+		// 副本范围来自源：etc/rewardboostinfo/**.ctp 各自声明 [dungeon index]，
+		// 不再读 configs 的 attunement_dungeons（单一内容真源铁律，server/AGENTS.md §0）。
+		direct, err := s.Attunement()
 		if err != nil {
 			return err
 		}

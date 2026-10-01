@@ -26,6 +26,28 @@ type mapScriptCache struct {
 	closed  bool
 }
 
+// RestoreRuntimeDungeons reconnects a verified base projection to a fresh
+// independent native map view. Runtime overlays are applied afterwards.
+func RestoreRuntimeDungeons(a *pvf.Archive, c DungeonCatalog) (DungeonCatalog, error) {
+	if a == nil || c.Source.Checksum != a.Snapshot().Checksum {
+		return c, fmt.Errorf("cached dungeon source mismatch")
+	}
+	for _, r := range c.Maps {
+		if r.Path == "" || len(r.SHA256) != 64 || r.Cells != nil {
+			return c, fmt.Errorf("invalid cached map metadata")
+		}
+	}
+	var err error
+	c, err = ValidateDungeons(c)
+	if err != nil {
+		return c, err
+	}
+	if err = c.attachMapScripts(a); err != nil {
+		return c, err
+	}
+	return c, nil
+}
+
 func (c *DungeonCatalog) attachMapScripts(a *pvf.Archive) error {
 	paths := make([]string, 0, len(c.Maps))
 	for _, script := range c.Maps {

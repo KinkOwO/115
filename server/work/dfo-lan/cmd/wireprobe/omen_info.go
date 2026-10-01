@@ -86,6 +86,34 @@ func omenInfoPayload(seats [omenInfoSeats][4]uint32, states [omenInfoSeats]uint8
 	return append(out, flag)
 }
 
+// omenGradeForOathTier 把天平档位（40..45）映射成星蕴石档位（1..4）。
+//
+// 名字逐档对齐（§6 取证）：109137366 Unique / 367 Legendary / 368 Epic / 369 Primeval，
+// 所以 42 unique → 1、43 legendary → 2、44 epic → 3、45 primeval → 4；
+// normal(40)/rare(41) 在这四个石头里没有专属档，一律取最低档 1。
+//
+// ⚠️ 这条映射是**我们一起补的**（业主 2026-10-01 拍板）：源里星蕴石品质只由
+// getEOOPartyOmenGrade() 决定，而 noti 2836 的 grade 按 §36 只是「记录里非零 u32 的个数」
+// （= 征兆持有档数），与天平档位无关。实机验证：固定 oath=45（primeval、隐藏 BOSS 正常登场）
+// 时掉出的仍是 Unique 档箱子 ⇒ 源里确实没有这条链路。
+//
+// tier == 0 表示本场还没下发过档位（独立调用 / 测试路径），返回 0 = 不设下限，保持原行为。
+func omenGradeForOathTier(tier uint16) int {
+	if tier == 0 {
+		return 0
+	}
+	switch {
+	case tier >= oathGradePrimeval:
+		return 4 // 45 primeval → 109137369
+	case tier >= 44:
+		return 3 // 44 epic → 109137368
+	case tier >= 43:
+		return 2 // 43 legendary → 109137367
+	default:
+		return 1 // 42 unique 及以下 → 109137366
+	}
+}
+
 // omenInfoPayloadForHeld 把**真实**的已激活征兆编成 69 字节载荷。
 //
 // 档位 = 记录里非零 u32 的个数（§36 实机两端验证：1 档一颗石头、亮第一格；4 档四颗、
@@ -233,8 +261,16 @@ func (w *worldSession) omenInfoPackets() ([]outboundPacket, error) {
 	if held > stages-1 {
 		held = stages - 1
 	}
+	// 「天平颜色」给的下限（业主 2026-10-01 拍板）：档位高时即使一颗征兆都没带，
+	// 也出对应品质的星蕴石；带着征兆时仍按持有档数出更多颗。
+	// 两条保底由此**叠加**（max）而不是互相覆盖 —— 客户端的 make_omen_gem.act 按
+	// `getEOOPartyOmenGrade >= N` 逐级判定，档位（=非零 u32 个数）就是它唯一的输入。
+	grade := held
+	if floor := omenGradeForOathTier(w.oathTierRun); floor > grade {
+		grade = floor
+	}
 	return []outboundPacket{{"omen_of_order_party_info", 0, omenInfoPacketID,
-		omenInfoPayloadForHeld(omenActiveIDs(ids, held))}}, nil
+		omenInfoPayloadForHeld(omenActiveIDs(ids, grade))}}, nil
 }
 
 // omenActiveIDs 从整张阶段表里摘出「当前持有档数」对应的那几个预览模板。

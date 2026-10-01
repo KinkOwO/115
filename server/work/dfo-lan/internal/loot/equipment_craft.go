@@ -99,7 +99,7 @@ func (s *Service) CreateEquipment(
 
 	key := craftEventKey(template, slot, group.Index, role.State)
 	saved, _, applied, e := s.Store.CommitAccountMaterialEvent(ctx, role.AccountID, role.ID,
-		s.Catalog.Source.Checksum, key, s.Rules.Model,
+		s.Catalog.Source.SaveIdentity(), key, s.Rules.Model,
 		func(current storage.Character, accountRaw json.RawMessage) (json.RawMessage, json.RawMessage, error) {
 			ledger, e := inventory.ReadEquipmentJournal(current.State)
 			if e != nil {
@@ -160,7 +160,7 @@ func (s *Service) CreateEquipment(
 			for _, m := range accountMats {
 				result.Materials = append(result.Materials, CraftMaterial{Template: m.Template, Amount: m.Count, FromAccount: true})
 			}
-			result.Source = s.Catalog.Source.Checksum
+			result.Source = s.Catalog.Source.SaveIdentity()
 			if len(placed) > 0 {
 				result.Slot = placed[0]
 			}

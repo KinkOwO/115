@@ -47,10 +47,12 @@ package main
 import (
 	"encoding/binary"
 	"fmt"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"dfolan/internal/inventory"
 )
@@ -160,6 +162,10 @@ func (w *worldSession) oathInfoPackets() ([]outboundPacket, error) {
 			return nil, err
 		}
 	}
+	// 记下本场**实际下发**的 oath 档位：omenInfoPackets 紧接着要用它把「天平颜色」
+	// 映射成星蕴石档位（见 omen_info.go 的 omenGradeForOathTier 与 oathTierRun 注释）。
+	// 下发顺序由 dungeon_flow.go 保证：先 oathInfoPackets，再 omenInfoPackets。
+	w.oathTierRun = oath
 	return []outboundPacket{{"oath_system_grades", 0, 2838, oathInfoPayload(primer, oath)}}, nil
 }
 
@@ -173,7 +179,7 @@ func (w *worldSession) derivedOathGrades() (uint16, uint16, error) {
 	if err != nil {
 		return 0, 0, err
 	}
-	primer, oath := oathGradesForPity(due)
+	primer, oath := oathGradesForPity(due, rand.New(rand.NewSource(time.Now().UnixNano())))
 	return primer, oath, nil
 }
 
@@ -197,11 +203,72 @@ func (w *worldSession) orthaireDue() (bool, error) {
 // oathGradesForPity 是保底档位的纯决策：到期给 oath=45（唯一召唤奥尔泰尔的档），
 // 否则两边都是 normal。primer 恒 normal 也意味着第二个隐藏 BOSS「守望者」
 // （`oath_max < 45 && primer_max == 45`）暂时不会出现 —— 它要另有一条保底。
-func oathGradesForPity(due bool) (uint16, uint16) {
+// oathGradeWeights 是六档的抽取权重（业主 2026-10-01 拍板：采用国服 1710 场实测爆率）。
+//
+// 为什么需要这张表：`[ON DAMAGE]` 阶梯能爬到哪一档**完全由 noti 2838 的 `*_max` 决定**
+// （§4b：整条链全在客户端本地，PVF 文本里没有服务端参与点），所以「这一场天平是哪一档」
+// 只能由服务端定 —— 而 PVF 里**没有**这张概率表（已逐处核对 oathsystemscript.cos 的
+// [base rarity section]/[rarity ui infos]/[seasonlevel oath item]、primer_00..07_*_loop.act
+// 的 [ON DAMAGE] 阶梯、scale_primer.mob 的 [create var]；唯一出现的概率是
+// c:fake_end_prob_prob=30「假结束」，与本表无关）。
+//
+// 权重取自业主提供的国服实测（1710 次深渊的星蕴石出现率）：
+//
+//	稀有 27.7% · 神器 32.3% · 传说 5.7% · 史诗 1.9% · 太初 0.35%（其余 32.05% = 不变色/normal）
+//
+// 按 10000 分整数化以保持确定性。注意 **神器（unique, 3230）略高于稀有（rare, 2770）**
+// 是实测形状，不要"顺手修正"成单调递减。
+//
+// primeval(45) **也在表内**（0.35%）：国服它本来就是概率掉落，不是保底专属；
+// 服务端另有「通关 N 场保底」叠加在上面（见 oathGradesForPity 的 due 分支）——
+// 到期那场必然 45，其余场按本表掷骰，两者互不覆盖。
+var oathGradeWeights = []struct {
+	Grade  uint16
+	Weight int
+}{
+	{inventory.OathGradeNormal, 3205}, // 40 normal    其余 32.05%
+	{41, 2770},                        // rare         稀有 27.7%
+	{42, 3230},                        // unique       神器 32.3%
+	{43, 570},                         // legendary    传说  5.7%
+	{44, 190},                         // epic         史诗  1.9%
+	{oathGradePrimeval, 35},           // 45 primeval  太初 0.35%
+}
+
+// rollOathGrade 按 oathGradeWeights 抽一档。rng 为 nil ⇒ normal（零值路径与测试用）。
+func rollOathGrade(rng *rand.Rand) uint16 {
+	if rng == nil {
+		return inventory.OathGradeNormal
+	}
+	total := 0
+	for _, w := range oathGradeWeights {
+		total += w.Weight
+	}
+	pick := rng.Intn(total)
+	for _, w := range oathGradeWeights {
+		if pick < w.Weight {
+			return w.Grade
+		}
+		pick -= w.Weight
+	}
+	return inventory.OathGradeNormal
+}
+
+// oathGradesForPity 决策 (primer, oath)：
+//   - 保底到期 ⇒ oath = primeval（隐藏 BOSS「奥尔泰尔」登场，唯一召唤档）；
+//   - 否则按国服实测爆率掷骰 —— 天平因此**每场可能不同颜色**，
+//     这正是源里 [rarity ui infos] 给每档配 [color] / symbol 动画的用法。
+//
+// 两条保底线**互不覆盖**：这里只决定 noti 2838 的档位；征兆的结算走 omen.go 的
+// AdvanceOmen / payOmenStages（读 [coupon drop table]），是**另一个独立来源**，
+// 同一场里两者可以同时兑现（业主 2026-10-01 明确：变色 + 征兆 = 双份保底）。
+//
+// `primer` 恒为 normal：第二个隐藏 BOSS「守望者」需要 primer=45 && oath<45，
+// 它要另有一条保底（§32.8 已记「暂不出现」），不在本轮范围。
+func oathGradesForPity(due bool, rng *rand.Rand) (uint16, uint16) {
 	if due {
 		return inventory.OathGradeNormal, oathGradePrimeval
 	}
-	return inventory.OathGradeNormal, inventory.OathGradeNormal
+	return inventory.OathGradeNormal, rollOathGrade(rng)
 }
 
 // wornOathGrades 是**诊断**路径（-oath-grades-from-gear）：按角色实际穿戴的
