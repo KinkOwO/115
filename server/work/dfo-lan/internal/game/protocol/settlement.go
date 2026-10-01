@@ -68,7 +68,14 @@ type ClearRewardState struct {
 }
 
 func ClearReward(p ClearRewardState) ([]byte, error) {
-	if p.BaseExperience == 0 || uint64(p.BaseExperience)+uint64(p.ScoreExperience) > 0xffffffff {
+	// [MERGE-20261001-ZERO-CLEAR-REWARD] 通关经验为 0 是源数据允许的取值，不是「未结算」：
+	// 奥德赛「大陆漂移」组（100004984..989）的 [experience increasing point] 就写着 0，
+	// 该图的通关经验与怪物经验都是 0（实机 2026-10-01 06:31 会话：进图与清完最后一格后
+	// 角色经验快照完全一致）。原来把 BaseExperience==0 当无效，CMD46 被拒
+	// （"invalid committed clear reward"），结算批次 34/37/35/261 一条都发不出，
+	// 客户端本地播完「前往天界」传送动画后仍停在副本里，只能靠「撤退」离开。
+	// 真正非法的只有总和溢出。
+	if uint64(p.BaseExperience)+uint64(p.ScoreExperience) > 0xffffffff {
 		return nil, fmt.Errorf("invalid committed clear reward")
 	}
 	// Current NOTI35 full empty-group path is281B. Kept separate from the
