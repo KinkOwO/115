@@ -33,11 +33,19 @@ type Session struct {
 	// Omen 是征兆系统的按角色累积账（见 omen.go）。为 nil 时这条线完全不推进。
 	Omen                  *OmenLedger
 	QuestDropBonusPercent int
+	// OathTier 是本场天平下发的 oath 档位（40..45；0 = 未知/非深渊）。
+	//
+	// 天平档位与征兆是**两条平行的线**（业主 2026-10-01 定调）：这里按档位发对应的
+	// 「星蕴石自选套装罐子」，而 omen.go 的结算各发各的 —— 同一场里两条都触发就各自
+	// 发自己那份，互不覆盖、也不互相抑制。
+	OathTier uint16
 	// attunementRolled 保证一轮只抽一次专属奖励：同一只源领主再被确认死亡
 	// （或同模板的第二只 rank3）都不会重复发奖。
 	attunementRolled bool
 	// omenRolled 与 attunementRolled 同理：同一场只推进一次征兆。
-	omenRolled         bool
+	omenRolled bool
+	// oathTierRolled 与上面两个同理：同一场只按天平档位发一次罐子。
+	oathTierRolled     bool
 	mu                 sync.Mutex
 	Catalog            catalog.LootCatalog
 	Tables             Tables
@@ -203,6 +211,14 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 			next = outcome.Seed
 			s.omenRolled = true
 		}
+		// 天平档位（业主 2026-10-01 定调）：与征兆**平行**的一条线 —— 变色就发对应的
+		// 「星蕴石自选套装罐子」，与上面那条各发各的，同一场都触发就拿两份。
+		// 罐子同样交给下面统一的 OpenRewardBoxes 展开（源写着「以开封状态发放」），
+		// 所以玩家拿到的是里面的装备而不是盒子。
+		if coffer := oathTierCoffer(s.OathTier); coffer != 0 && !s.oathTierRolled {
+			awards = append(awards, Award{Template: coffer, Amount: 1})
+			s.oathTierRolled = true
+		}
 		s.attunementRolled = true
 		result.Awards = append(result.Awards, awards...)
 		result.NextSeed = next
@@ -342,4 +358,34 @@ func (s *Session) Owned(d *dungeon.Session, account, character int64, actor uint
 		return Drop{}, fmt.Errorf("pickup object is not owned in current room")
 	}
 	return v, nil
+}
+
+// oathTierCoffer 把天平档位（40..45）映射成「星蕴石自选套装罐子」。
+//
+// 四档对四个罐子，内容是**实测展开**的（见 docs/protocol/endkeeper-of-order-primer-20260926.md
+// §38.2，与业主提供的官方奖励表逐位吻合）：
+//
+//	unique(42)    → 10416150 → 12 × rarity 3（神器）
+//	legendary(43) → 10417545 → 12 × rarity 6（传说）
+//	epic(44)      → 10417552 → 12 × rarity 4（史诗）
+//	primeval(45)  → 10417571 → 12 × rarity 8（太初）
+//
+// normal(40) / rare(41) **不发**：官方奖励表里没有 rarity 2 的罐子（行 0 的条目数就是 0），
+// 而国服 1710 场实测里 32.05% 正是「不变色、不出东西」。
+//
+// 这条线与征兆（omen.go 的 [coupon drop table] 结算）**平行**：各发各的，同一场都触发
+// 就各自兑现一份（业主 2026-10-01 定调）。
+func oathTierCoffer(tier uint16) uint32 {
+	switch {
+	case tier >= 45:
+		return 10417571
+	case tier >= 44:
+		return 10417552
+	case tier >= 43:
+		return 10417545
+	case tier >= 42:
+		return 10416150
+	default:
+		return 0
+	}
 }
