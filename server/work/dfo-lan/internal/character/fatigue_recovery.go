@@ -31,7 +31,7 @@ func (s *FatigueService) RecoverPotion(ctx context.Context, role storage.Charact
 		return role, fp, fmt.Errorf("fatigue potion slot empty")
 	}
 	item, ok := c.Items[template]
-	if !ok || c.Source.Checksum != role.ConfigVersion {
+	if !ok || c.Source.SaveIdentity() != role.ConfigVersion {
 		return role, fp, fmt.Errorf("fatigue potion source missing")
 	}
 	if item.StackableType != "[expert town potion]" && !strings.Contains(item.Script.Path, "nostrum_recovery") {

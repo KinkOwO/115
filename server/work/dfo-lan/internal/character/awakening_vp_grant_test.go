@@ -33,7 +33,7 @@ func findThirdAwakeningSample(t *testing.T, c catalog.Characters) (byte, byte, c
 func TestAwakeningProgressionGrantsPoolOnlyAtStage3(t *testing.T) {
 	s, c := loadAwakeningGrantFixture(t)
 	job, adv, prof := findThirdAwakeningSample(t, c)
-	role := storage.Character{Profession: job, ConfigVersion: c.Source.Checksum}
+	role := storage.Character{Profession: job, ConfigVersion: c.Source.SaveIdentity()}
 	mk := func(level, aw byte) storage.Character {
 		st := State{Level: level, Advancement: byte(adv), Awakening: aw, SourceSHA256: prof.RawSHA256, InitialSkills: prof.InitialSkills, SkillPoints: [2]uint16{50, 50}}
 		raw, e := json.Marshal(st)
@@ -98,7 +98,7 @@ func TestLearningResponseKeepsVariationBlocksForThirdAwakening(t *testing.T) {
 		if e != nil {
 			t.Fatal(e)
 		}
-		return storage.Character{Profession: job, ConfigVersion: c.Source.Checksum, State: raw}
+		return storage.Character{Profession: job, ConfigVersion: c.Source.SaveIdentity(), State: raw}
 	}
 	req := protocol.SkillPurchase{Tree: 0, Mode: 0}
 
@@ -186,7 +186,7 @@ func TestReconcileTechniquePointsBackfillsLegacyThirdAwakening(t *testing.T) {
 	}
 	legacy := State{Level: 100, Advancement: 1, Awakening: 3, SourceSHA256: "legacy", SkillPoints: [2]uint16{10, 10}, SkillVariations: [2]SkillVariationState{{}}}
 	raw, _ := json.Marshal(legacy)
-	role, e := store.CreateCharacter(ctx, storage.Character{AccountID: a, Name: "ReconcileFixture", Profession: 0, ConfigVersion: c.Source.Checksum, State: raw, Request: []byte{0}}, 24)
+	role, e := store.CreateCharacter(ctx, storage.Character{AccountID: a, Name: "ReconcileFixture", Profession: 0, ConfigVersion: c.Source.SaveIdentity(), State: raw, Request: []byte{0}}, 24)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -213,7 +213,7 @@ func TestReconcileTechniquePointsBackfillsLegacyThirdAwakening(t *testing.T) {
 	// 未三觉：no-op。
 	below := State{Level: 115, Advancement: 1, Awakening: 2, SourceSHA256: "legacy", SkillPoints: [2]uint16{10, 10}}
 	raw2, _ := json.Marshal(below)
-	role2, e := store.CreateCharacter(ctx, storage.Character{AccountID: a, Name: "ReconcileBelow", Profession: 0, ConfigVersion: c.Source.Checksum, State: raw2, Request: []byte{0}}, 24)
+	role2, e := store.CreateCharacter(ctx, storage.Character{AccountID: a, Name: "ReconcileBelow", Profession: 0, ConfigVersion: c.Source.SaveIdentity(), State: raw2, Request: []byte{0}}, 24)
 	if e != nil {
 		t.Fatal(e)
 	}

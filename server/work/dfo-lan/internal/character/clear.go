@@ -66,7 +66,7 @@ func (s *ProgressionService) ClearWithTowerRewards(ctx context.Context, role sto
 	if e != nil {
 		return fail(fmt.Errorf("creature experience gain out of range"))
 	}
-	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, s.Catalog.Source.Checksum, key, s.Rules.Model, func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, s.Catalog.Source.SaveIdentity(), key, s.Rules.Model, func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
 		var before State
 		if e := json.Unmarshal(current.State, &before); e != nil {
 			return nil, nil, e
@@ -134,7 +134,7 @@ func (s *ProgressionService) ClearWithTowerRewards(ctx context.Context, role sto
 				}
 			}
 		}
-		outcome, e := json.Marshal(ClearReceipt{ClearGain: gain, Source: s.Catalog.Source.Checksum, Run: run.RunID, Elapsed: uint32(elapsed), BestElapsed: best, NewRecord: improved, AllClear: all, MonsterExperience: uint32(monsterTotal), CreatureExperienceGained: creatureAwarded, SeasonExperienceGained: seasonAwarded,
+		outcome, e := json.Marshal(ClearReceipt{ClearGain: gain, Source: s.Catalog.Source.SaveIdentity(), Run: run.RunID, Elapsed: uint32(elapsed), BestElapsed: best, NewRecord: improved, AllClear: all, MonsterExperience: uint32(monsterTotal), CreatureExperienceGained: creatureAwarded, SeasonExperienceGained: seasonAwarded,
 			RecommendedDungeonClear: recommended, DungeonID: run.Definition.ID, CharacterLevel: before.Level, TowerRewards: towerRewards})
 		return next.State, outcome, e
 	})
@@ -148,7 +148,7 @@ func (s *ProgressionService) ClearWithTowerRewards(ctx context.Context, role sto
 	if e = json.Unmarshal(raw, &receipt); e != nil {
 		return fail(e)
 	}
-	if receipt.Source != s.Catalog.Source.Checksum || receipt.Run != run.RunID || receipt.Rank != rank {
+	if receipt.Source != s.Catalog.Source.SaveIdentity() || receipt.Run != run.RunID || receipt.Rank != rank {
 		return fail(fmt.Errorf("clear retry conflicts with saved result"))
 	}
 	return saved, receipt, applied, nil

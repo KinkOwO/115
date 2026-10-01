@@ -142,7 +142,7 @@ func (s *Service) Disjoint(
 	fail := func(e error) (storage.Character, DisjointReceipt, bool, error) {
 		return role, result, false, e
 	}
-	if role.ConfigVersion != s.Catalog.Source.Checksum {
+	if role.ConfigVersion != s.Catalog.Source.SaveIdentity() {
 		return fail(fmt.Errorf("inventory source mismatch"))
 	}
 	if len(r.Items) == 0 {
@@ -218,7 +218,7 @@ func (s *Service) Disjoint(
 				DeletedSlots:   res.DeletedSlots,
 				ToolSlot:       res.ToolSlot,
 				Rewards:        rewards,
-				Source:         s.Catalog.Source.Checksum,
+				Source:         s.Catalog.Source.SaveIdentity(),
 				JournalAdded:   added,
 				JournalSkipped: skipped,
 			}
@@ -235,7 +235,7 @@ func (s *Service) Disjoint(
 	if e = json.Unmarshal(receipt, &result); e != nil {
 		return fail(e)
 	}
-	if result.Source != s.Catalog.Source.Checksum || len(result.DeletedSlots) != len(slots) {
+	if result.Source != s.Catalog.Source.SaveIdentity() || len(result.DeletedSlots) != len(slots) {
 		return fail(fmt.Errorf("disjoint receipt conflict"))
 	}
 	saved.WireID = role.WireID

@@ -118,5 +118,5 @@ func (s *Service) Accept(ctx context.Context, role storage.Character, id uint16)
 	if len(groups) == 0 && len(d.Prerequisites) > 0 {
 		groups = [][]uint32{d.Prerequisites}
 	}
-	return s.Store.AcceptQuestGroups(ctx, role.AccountID, role.ID, id, s.Catalog.Source.Checksum, d.MinimumLevel, d.MaximumLevel, groups, initial, model)
+	return s.Store.AcceptQuestGroups(ctx, role.AccountID, role.ID, id, s.Catalog.Source.SaveIdentity(), d.MinimumLevel, d.MaximumLevel, groups, initial, model)
 }

@@ -1,6 +1,7 @@
 package character
 
 import (
+	"dfolan/internal/savecontract"
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/inventory"
@@ -41,7 +42,7 @@ func repairRole(t *testing.T, advancement byte, worn []inventory.BagEquipment) s
 			t.Fatal(e)
 		}
 	}
-	return storage.Character{ID: 6, Name: "cezz", Profession: 0, Request: req, ConfigVersion: creationSum, State: raw}
+	return storage.Character{ID: 6, Name: "cezz", Profession: 0, Request: req, ConfigVersion: savecontract.Identity(), State: raw}
 }
 
 // 老角色：当时目录没有 growtype 数据，advancement 停在 0、身上也没装备。

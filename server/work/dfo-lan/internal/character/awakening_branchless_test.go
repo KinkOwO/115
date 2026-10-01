@@ -1,6 +1,7 @@
 package character
 
 import (
+	"dfolan/internal/savecontract"
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/storage"
@@ -52,7 +53,7 @@ func TestBranchlessProfessionAwakensFromGrowtypeZeroColumn(t *testing.T) {
 		t.Fatal("stage 4 accepted")
 	}
 
-	role := storage.Character{Name: "DarkSword", WireID: 501, Profession: 9, ConfigVersion: "version", State: json.RawMessage(`{"level":110,"advancement":0,"source_sha256":"hash"}`)}
+	role := storage.Character{Name: "DarkSword", WireID: 501, Profession: 9, ConfigVersion: savecontract.Identity(), State: json.RawMessage(`{"level":110,"advancement":0,"source_sha256":"hash"}`)}
 	for stage := byte(1); stage <= 3; stage++ {
 		raw, err := s.ApplyAwakening(role, stage)
 		if err != nil {
@@ -72,23 +73,23 @@ func TestBranchlessProfessionAwakensFromGrowtypeZeroColumn(t *testing.T) {
 	}
 
 	// The level gate still applies.
-	low := storage.Character{Name: "Low", Profession: 9, ConfigVersion: "version", State: json.RawMessage(`{"level":49,"advancement":0,"source_sha256":"hash"}`)}
+	low := storage.Character{Name: "Low", Profession: 9, ConfigVersion: savecontract.Identity(), State: json.RawMessage(`{"level":49,"advancement":0,"source_sha256":"hash"}`)}
 	if _, err := s.ApplyAwakening(low, 1); err == nil {
 		t.Fatal("stage 1 accepted below level 50")
 	}
 	// Skipping a stage is still refused.
-	skip := storage.Character{Name: "Skip", Profession: 9, ConfigVersion: "version", State: json.RawMessage(`{"level":115,"advancement":0,"source_sha256":"hash"}`)}
+	skip := storage.Character{Name: "Skip", Profession: 9, ConfigVersion: savecontract.Identity(), State: json.RawMessage(`{"level":115,"advancement":0,"source_sha256":"hash"}`)}
 	if _, err := s.ApplyAwakening(skip, 2); err == nil {
 		t.Fatal("stage 2 accepted before stage 1")
 	}
 	// Source mismatch is still refused.
-	stale := storage.Character{Name: "Stale", Profession: 9, ConfigVersion: "version", State: json.RawMessage(`{"level":115,"advancement":0,"source_sha256":"other"}`)}
+	stale := storage.Character{Name: "Stale", Profession: 9, ConfigVersion: savecontract.Identity(), State: json.RawMessage(`{"level":115,"advancement":0,"source_sha256":"other"}`)}
 	if _, err := s.ApplyAwakening(stale, 1); err == nil {
 		t.Fatal("source mismatch accepted")
 	}
 
 	// A branched profession at advancement 0 must still refuse awakening.
-	unadvanced := storage.Character{Name: "Unadvanced", Profession: 0, ConfigVersion: "version", State: json.RawMessage(`{"level":115,"advancement":0,"source_sha256":"hash"}`)}
+	unadvanced := storage.Character{Name: "Unadvanced", Profession: 0, ConfigVersion: savecontract.Identity(), State: json.RawMessage(`{"level":115,"advancement":0,"source_sha256":"hash"}`)}
 	if _, err := s.ApplyAwakening(unadvanced, 1); err == nil {
 		t.Fatal("unadvanced branched profession awakened")
 	}
@@ -104,7 +105,7 @@ func TestBranchlessGateRequiresGrowtypeZeroGrants(t *testing.T) {
 		Catalog:  catalog.Characters{Source: pvf.ArchiveSnapshot{Checksum: "version"}, Professions: map[byte]catalog.Profession{9: noGrants}},
 		Learning: &LearningCatalog{index: map[byte]map[uint16]LearningDefinition{9: {}}},
 	}
-	role := storage.Character{Name: "NoGrants", Profession: 9, ConfigVersion: "version", State: json.RawMessage(`{"level":115,"advancement":0,"source_sha256":"hash"}`)}
+	role := storage.Character{Name: "NoGrants", Profession: 9, ConfigVersion: savecontract.Identity(), State: json.RawMessage(`{"level":115,"advancement":0,"source_sha256":"hash"}`)}
 	if _, err := s.ApplyAwakening(role, 1); err == nil {
 		t.Fatal("awakening accepted without growtype-0 grants")
 	}
@@ -171,7 +172,7 @@ func TestBranchlessReleaseAwakeningPreservesSaveAndBuildsEntry(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			role := storage.Character{Name: "BranchlessTest", WireID: 503, Profession: job, ConfigVersion: c.Source.Checksum, State: raw}
+			role := storage.Character{Name: "BranchlessTest", WireID: 503, Profession: job, ConfigVersion: c.Source.SaveIdentity(), State: raw}
 			for stage := byte(1); stage <= 3; stage++ {
 				role.State, err = s.ApplyAwakening(role, stage)
 				if err != nil {

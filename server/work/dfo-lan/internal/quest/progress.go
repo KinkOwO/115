@@ -436,7 +436,7 @@ func (s *Service) Active(ctx context.Context, role storage.Character) ([]protoco
 			continue
 		}
 		d, ok := s.Catalog.Quests[uint32(q.ID)]
-		if !ok || q.ConfigVersion != s.Catalog.Source.Checksum {
+		if !ok || q.ConfigVersion != s.Catalog.Source.SaveIdentity() {
 			return nil, fmt.Errorf("quest %d requires source migration", q.ID)
 		}
 		initial, model, e := InitialProgress(d)

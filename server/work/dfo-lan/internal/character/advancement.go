@@ -29,7 +29,7 @@ func (s *Service) ApplyAdvancement(role storage.Character, advancement byte) (js
 		return role.State, nil
 	}
 	prof, ok := s.Catalog.Professions[role.Profession]
-	if !ok || prof.RawSHA256 != state.SourceSHA256 || role.ConfigVersion != s.Catalog.Source.Checksum {
+	if !ok || prof.RawSHA256 != state.SourceSHA256 || role.ConfigVersion != s.Catalog.Source.SaveIdentity() {
 		return nil, fmt.Errorf("advancement source mismatch")
 	}
 	if len(prof.AdvancementGrowth[advancement]) == 0 {

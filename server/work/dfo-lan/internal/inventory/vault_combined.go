@@ -18,7 +18,7 @@ func (s *VaultService) TransferCombined(role storage.Character, state storage.Va
 	if err != nil {
 		return nil, nil, err
 	}
-	if role.ConfigVersion != s.Rules.SourceSHA256 || state.ConfigVersion != s.Rules.SourceSHA256 || !s.Rules.allows(state.Slots) || r.Extra != 0 || r.Selection != 0xffffffff || r.Flags != [3]byte{} {
+	if state.ConfigVersion != s.Rules.SourceSHA256 || !s.Rules.allows(state.Slots) || r.Extra != 0 || r.Selection != 0xffffffff || r.Flags != [3]byte{} {
 		return nil, nil, fmt.Errorf("vault source or request mismatch")
 	}
 	var equipment bool

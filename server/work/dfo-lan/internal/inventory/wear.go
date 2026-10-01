@@ -227,7 +227,7 @@ func (s *WearService) MoveOrdinary(role storage.Character, r protocol.ItemMoveRe
 	if IsKnightShieldMove(r) {
 		return s.moveKnightShield(role, r)
 	}
-	if s == nil || s.Catalog == nil || s.Catalog.Source.Checksum != role.ConfigVersion || s.Rules.Source != role.ConfigVersion || s.Professions.Source.Checksum != role.ConfigVersion {
+	if s == nil || s.Catalog == nil || s.Catalog.Source.SaveIdentity() != role.ConfigVersion || s.Professions.Source.SaveIdentity() != role.ConfigVersion {
 		return nil, fmt.Errorf("wear service source mismatch")
 	}
 	validSpace := func(v byte) bool { return v == 0 || v == 3 || (s.Rules.Special && (v == 1 || v == 7)) }

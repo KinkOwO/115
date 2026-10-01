@@ -34,7 +34,7 @@ func wearFixture(t *testing.T) (*WearService, storage.Character) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	return &WearService{Catalog: eq, Professions: c, BagRules: bagRules, Rules: rules}, storage.Character{Profession: 0, ConfigVersion: c.Source.Checksum, State: raw}
+	return &WearService{Catalog: eq, Professions: c, BagRules: bagRules, Rules: rules}, storage.Character{Profession: 0, ConfigVersion: c.Source.SaveIdentity(), State: raw}
 }
 
 func TestWearUnequipPreservesAssetsAndOtherModules(t *testing.T) {

@@ -1,6 +1,7 @@
 package quest
 
 import (
+	"dfolan/internal/savecontract"
 	"context"
 	"dfolan/internal/catalog"
 	"dfolan/internal/character"
@@ -30,7 +31,7 @@ func graduationFixture(t *testing.T) (*Service, storage.Character) {
 		req = append(req, 0)
 	}
 	s := &Service{Catalog: q, Professions: p, Odyssey: g, Progression: &character.ProgressionService{Odyssey: g}}
-	r := storage.Character{Profession: 0, Request: req, Name: "GradFixture", ConfigVersion: g.Source, State: json.RawMessage(`{"level":115,"advancement":1,"creation_mode":2,"inventory":{"sentinel":[1,2,3]},"equipment_unlock_mask":7,"unrelated_saved_field":"keep"}`)}
+	r := storage.Character{Profession: 0, Request: req, Name: "GradFixture", ConfigVersion: savecontract.Identity(), State: json.RawMessage(`{"level":115,"advancement":1,"creation_mode":2,"inventory":{"sentinel":[1,2,3]},"equipment_unlock_mask":7,"unrelated_saved_field":"keep"}`)}
 	return s, r
 }
 

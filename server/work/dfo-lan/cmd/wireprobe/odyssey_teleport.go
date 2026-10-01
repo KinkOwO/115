@@ -112,7 +112,7 @@ func (w *worldSession) npcMoveQuestAccepted(quests []uint32) bool {
 	accepted := make(map[uint32]bool, len(states))
 	for _, state := range states {
 		status[uint32(state.ID)] = state.Status
-		accepted[uint32(state.ID)] = state.Status == "accepted" && state.ConfigVersion == w.quests.Catalog.Source.Checksum
+		accepted[uint32(state.ID)] = state.Status == "accepted" && state.ConfigVersion == w.quests.Catalog.Source.SaveIdentity()
 	}
 	for _, id := range quests {
 		if !accepted[id] {

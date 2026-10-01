@@ -13,7 +13,7 @@ func (s *Service) Available(ctx context.Context, role storage.Character) ([]uint
 	if e := json.Unmarshal(role.State, &state); e != nil {
 		return nil, e
 	}
-	if role.ConfigVersion != s.Catalog.Source.Checksum {
+	if role.ConfigVersion != s.Catalog.Source.SaveIdentity() {
 		return nil, fmt.Errorf("quest availability source mismatch")
 	}
 	states, e := s.Store.Quests(ctx, role.AccountID, role.ID)

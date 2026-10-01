@@ -53,7 +53,7 @@ func (s *Service) SceneTrigger(ctx context.Context, role storage.Character, run 
 		return nil, err
 	}
 	x := s.Index()
-	if _, err := s.Store.RecordQuestMapClear(ctx, role.AccountID, role.ID, run.RunID, objective, s.Catalog.Source.Checksum, SingleClearMap, x.ByClearMap[objective]); err != nil {
+	if _, err := s.Store.RecordQuestMapClear(ctx, role.AccountID, role.ID, run.RunID, objective, s.Catalog.Source.SaveIdentity(), SingleClearMap, x.ByClearMap[objective]); err != nil {
 		return nil, err
 	}
 	return s.Active(ctx, role)

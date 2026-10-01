@@ -67,7 +67,7 @@ type PickupReceipt struct {
 }
 
 func (s *Service) Bootstrap(role storage.Character) ([]byte, error) {
-	if role.ConfigVersion != s.Catalog.Source.Checksum {
+	if role.ConfigVersion != s.Catalog.Source.SaveIdentity() {
 		return nil, fmt.Errorf("inventory source mismatch")
 	}
 	b, e := inventory.ReadBag(role.State)
@@ -95,7 +95,7 @@ func (s *Service) Pickup(ctx context.Context, role storage.Character, session *S
 	}
 	awardCatalog, bagRules := s.Catalog, s.BagRules
 	if d.Definition.Odyssey && session.Currency != nil {
-		if s.Currency == nil || session.Currency.Source != s.Catalog.Source.Checksum || session.Currency.Model != s.Currency.Model {
+		if s.Currency == nil || session.Currency.Source != s.Catalog.Source.SaveIdentity() || session.Currency.Model != s.Currency.Model {
 			return fail(fmt.Errorf("currency pickup policy mismatch"))
 		}
 		awardCatalog, bagRules = session.Currency.StorageCatalog(s.Catalog), session.Currency.BagRules(s.BagRules)
@@ -111,7 +111,7 @@ func (s *Service) Pickup(ctx context.Context, role storage.Character, session *S
 		return fail(fmt.Errorf("pickup request coordinates are too far apart"))
 	}
 	key := fmt.Sprintf("pickup:%s:%d", drop.Run, drop.Object)
-	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, s.Catalog.Source.Checksum, key, s.Rules.Model, func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, s.Catalog.Source.SaveIdentity(), key, s.Rules.Model, func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
 		b, e := inventory.ReadBag(current.State)
 		if e != nil {
 			return nil, nil, e
@@ -147,7 +147,7 @@ func (s *Service) Pickup(ctx context.Context, role storage.Character, session *S
 	if e = json.Unmarshal(receipt, &result); e != nil {
 		return fail(e)
 	}
-	if result.Source != s.Catalog.Source.Checksum || result.Run != drop.Run || result.Object != drop.Object || result.Award != drop.Award {
+	if result.Source != s.Catalog.Source.SaveIdentity() || result.Run != drop.Run || result.Object != drop.Object || result.Award != drop.Award {
 		return fail(fmt.Errorf("pickup receipt conflict"))
 	}
 	saved.WireID = role.WireID

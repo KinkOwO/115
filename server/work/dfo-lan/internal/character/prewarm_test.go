@@ -1,6 +1,7 @@
 package character
 
 import (
+	"dfolan/internal/savecontract"
 	"bytes"
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
@@ -25,7 +26,7 @@ func TestRoleDetailsPrewarmLeavesSaveUnchangedAndRefusesMissingLearnedSkill(t *t
 	if err != nil {
 		t.Fatal(err)
 	}
-	role := storage.Character{Profession: 1, ConfigVersion: sha, State: raw}
+	role := storage.Character{Profession: 1, ConfigVersion: savecontract.Identity(), State: raw}
 	original := append([]byte(nil), raw...)
 	if err = s.PrepareRoleDetails(role); err != nil {
 		t.Fatal(err)

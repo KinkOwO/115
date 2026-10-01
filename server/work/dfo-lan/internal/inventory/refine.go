@@ -210,7 +210,7 @@ type RefineReceipt struct {
 // ApplyRefine 处理 CMD430：校验武器与材料、扣料、按成功率判定，失败等级不变。
 func (s *WearService) ApplyRefine(ctx context.Context, role storage.Character, key string, r protocol.RefineRequest) (storage.Character, RefineReceipt, error) {
 	var out RefineReceipt
-	if s == nil || s.Store == nil || s.Catalog == nil || s.BagRules.Source != role.ConfigVersion {
+	if s == nil || s.Store == nil || s.Catalog == nil {
 		return role, out, fmt.Errorf("锻造需要有效装备目录及角色存档")
 	}
 	if !RefineRulesLoaded() {

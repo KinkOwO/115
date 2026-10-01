@@ -17,7 +17,7 @@ func (s *VaultService) TransferStacks(role storage.Character, v storage.VaultSta
 	fail := func(reason string) (json.RawMessage, json.RawMessage, error) {
 		return nil, nil, fmt.Errorf("%s", reason)
 	}
-	if s.Catalog.Source.Checksum != role.ConfigVersion || s.BagRules.Source != role.ConfigVersion || v.ConfigVersion != s.Rules.SourceSHA256 || !s.Rules.allows(v.Slots) {
+	if s.Catalog.Source.SaveIdentity() != role.ConfigVersion || v.ConfigVersion != s.Rules.SourceSHA256 || !s.Rules.allows(v.Slots) {
 		return fail("vault transfer source/capacity mismatch")
 	}
 	if !((r.DestinationList == 2 && (r.SourceList == 0 || r.SourceList == 2)) || (r.DestinationList == 0 && r.SourceList == 2)) || r.Extra != 0 || r.Selection != 0xffffffff || r.Flags != [3]byte{} {

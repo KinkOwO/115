@@ -253,11 +253,11 @@ func (s *Service) Enter(ctx context.Context, account, id int64, level byte, odys
 	if e := s.ValidateRestoredPosition(level, odyssey, spawn); e != nil {
 		return storage.WorldState{}, e
 	}
-	state, e := s.Store.LoadWorld(ctx, account, id, spawn, s.Catalog.Source.Checksum)
+	state, e := s.Store.LoadWorld(ctx, account, id, spawn, s.Catalog.Source.SaveIdentity())
 	if e != nil {
 		return state, e
 	}
-	if state.ConfigVersion != s.Catalog.Source.Checksum {
+	if state.ConfigVersion != s.Catalog.Source.SaveIdentity() {
 		return state, errors.New("saved position requires catalog migration")
 	}
 	return state, s.ValidateRestoredPosition(level, odyssey, state.Position)

@@ -379,7 +379,7 @@ func (w *worldSession) acceptedQuestIDs(ctx context.Context) (map[uint16]bool, e
 	}
 	accepted := map[uint16]bool{}
 	for _, q := range quests {
-		if (q.Status == "accepted" || q.Status == "completed") && q.ConfigVersion == w.dungeons.Source.Checksum {
+		if (q.Status == "accepted" || q.Status == "completed") && q.ConfigVersion == w.dungeons.Source.SaveIdentity() {
 			accepted[q.ID] = true
 		}
 	}
@@ -1222,7 +1222,7 @@ func (w *worldSession) completeDungeon() ([]outboundPacket, error) {
 	if w.quests != nil && w.dungeons != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		active, err := w.quests.MapClear(ctx, w.role, w.activeDungeon, w.dungeons.Source.Checksum)
+		active, err := w.quests.MapClear(ctx, w.role, w.activeDungeon, w.dungeons.Source.SaveIdentity())
 		if err != nil {
 			return nil, err
 		}

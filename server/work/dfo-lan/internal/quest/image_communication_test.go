@@ -13,7 +13,7 @@ func TestImageCommunicationSelectsOnlyMatchingPendingQuest(t *testing.T) {
 	}}
 	c.Source.Checksum = imageCommunicationSourceChecksum
 	state := storage.QuestState{ID: 3741, Status: "accepted", Progress: 1,
-		ConfigVersion: c.Source.Checksum, ProgressModel: SingleMeetNPC}
+		ConfigVersion: c.Source.SaveIdentity(), ProgressModel: SingleMeetNPC}
 	check := func(states []storage.QuestState, wantNPC uint32) {
 		t.Helper()
 		qid, npc, err := imageCommunicationTarget(c, states)

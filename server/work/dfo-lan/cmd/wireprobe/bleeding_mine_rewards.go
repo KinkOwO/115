@@ -1,6 +1,7 @@
 package main
 
 import (
+	"dfolan/internal/savecontract"
 	"context"
 	"crypto/sha256"
 	"dfolan/internal/adventure"
@@ -62,7 +63,7 @@ func (s *bleedingMineRewardState) addCard(card bleedingMineRewardCard) error {
 }
 
 func (w *worldSession) updateBleedingMineRewards(ctx context.Context, apply func(*bleedingMineRewardState) ([]storage.MailAsset, error)) (*bleedingMineRewardState, error) {
-	if w == nil || w.characters == nil || w.characters.Store == nil || w.loot == nil || w.loot.BleedingMine == nil || w.role.ConfigVersion != w.loot.BleedingMine.Source {
+	if w == nil || w.characters == nil || w.characters.Store == nil || w.loot == nil || w.loot.BleedingMine == nil || w.role.ConfigVersion != savecontract.Identity() {
 		return nil, fmt.Errorf("赤红铁矿原版奖励配置或存储未加载")
 	}
 	var result bleedingMineRewardState

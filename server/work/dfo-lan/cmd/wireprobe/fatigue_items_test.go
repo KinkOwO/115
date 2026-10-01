@@ -39,7 +39,7 @@ func testFatigueItems(t *testing.T, s *storage.Store, role storage.Character) {
 	if _, ok := c.Items[3037]; ok {
 		t.Fatal("material polluted drop pool")
 	}
-	role.ConfigVersion = c.Source.Checksum
+	role.ConfigVersion = c.Source.SaveIdentity()
 	role.State = []byte(`{"inventory":{"version":"ordinary-bag-v1","items":[{"slot":66,"Template":10000541,"Amount":3},{"slot":121,"Template":3037,"Amount":3},{"slot":122,"Template":3037,"Amount":1000}]}}`)
 	if _, e = s.DB.Exec(ctx, `UPDATE characters SET state=$2,config_version=$3 WHERE id=$1`, role.ID, role.State, role.ConfigVersion); e != nil {
 		t.Fatal(e)

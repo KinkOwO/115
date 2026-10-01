@@ -178,7 +178,7 @@ func (s *Service) OpenBoxes(ctx context.Context, role storage.Character, box, co
 	fail := func(e error) (storage.Character, BoxOpenReceipt, bool, error) {
 		return role, out, false, e
 	}
-	if role.ConfigVersion != s.Catalog.Source.Checksum {
+	if role.ConfigVersion != s.Catalog.Source.SaveIdentity() {
 		return fail(fmt.Errorf("box open source mismatch"))
 	}
 	table, known := s.Boxes.Table(box)
@@ -271,7 +271,7 @@ func (s *Service) OpenBoxes(ctx context.Context, role storage.Character, box, co
 			delete(counters, boxOpensKey)
 			out = BoxOpenReceipt{Box: box, Opened: count, Granted: granted,
 				Results: results, Bonus: bonus, Milestones: milestones,
-				Points: counters, Source: s.Catalog.Source.Checksum}
+				Points: counters, Source: s.Catalog.Source.SaveIdentity()}
 			receipt, e := json.Marshal(out)
 			return updated, receipt, premiums, e
 		})
@@ -285,7 +285,7 @@ func (s *Service) OpenBoxes(ctx context.Context, role storage.Character, box, co
 	if e = json.Unmarshal(receipt, &out); e != nil {
 		return fail(e)
 	}
-	if out.Box != box || out.Source != s.Catalog.Source.Checksum {
+	if out.Box != box || out.Source != s.Catalog.Source.SaveIdentity() {
 		return fail(fmt.Errorf("box open receipt conflict"))
 	}
 	saved.WireID = role.WireID

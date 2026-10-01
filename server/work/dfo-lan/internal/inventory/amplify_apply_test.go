@@ -61,7 +61,7 @@ func amplifyApplyFixture(t *testing.T, gearLevel, priorType byte, bookAmount uin
 	if e != nil {
 		t.Fatal(e)
 	}
-	return &WearService{Catalog: eq}, storage.Character{ID: 1, ConfigVersion: c.Source.Checksum, State: state}
+	return &WearService{Catalog: eq}, storage.Character{ID: 1, ConfigVersion: c.Source.SaveIdentity(), State: state}
 }
 
 func amplifyRequest(tmpl uint32) protocol.AmplifyOptionRequest {

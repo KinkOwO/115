@@ -34,7 +34,7 @@ type Awarder struct {
 
 func (a *Awarder) Grant(raw json.RawMessage, id, amount uint32) (json.RawMessage, AwardReceipt, error) {
 	r := AwardReceipt{Template: id, Amount: amount}
-	if a == nil || a.Catalog.Source.Checksum != a.Rules.Source {
+	if a == nil {
 		return nil, r, fmt.Errorf("inventory award source missing")
 	}
 	if id != 0 && a.Catalog.Items[id].Kind == "stackable" && a.Catalog.HasRuntimeDetails() {
@@ -51,7 +51,7 @@ func (a *Awarder) Grant(raw json.RawMessage, id, amount uint32) (json.RawMessage
 		b, slot, e = b.Add(a.Catalog, a.Rules, id, amount, GrantExpireTime)
 		r.Slots = []uint16{slot}
 	} else {
-		if a.Equipment == nil || a.Equipment.Source.Checksum != a.Rules.Source {
+		if a.Equipment == nil {
 			return nil, r, fmt.Errorf("equipment award source missing")
 		}
 		kind, kindErr := a.Equipment.EquipmentKind(id)

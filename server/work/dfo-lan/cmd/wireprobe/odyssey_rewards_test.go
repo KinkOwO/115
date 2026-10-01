@@ -1,6 +1,7 @@
 package main
 
 import (
+	"dfolan/internal/savecontract"
 	"bytes"
 	"context"
 	"dfolan/internal/catalog"
@@ -35,7 +36,7 @@ func odysseyRewardFixture(t *testing.T) (storage.Character, *inventory.WearServi
 	}
 	wear := &inventory.WearService{Catalog: &inventory.EquipmentCatalog{Full: full}, BagRules: rules}
 	wear.Catalog.Source.Checksum = odysseySource()
-	return storage.Character{ID: 9, WireID: 9, Request: req, ConfigVersion: odysseySource(), State: json.RawMessage(`{"level":1,"custom_marker":42}`)}, wear
+	return storage.Character{ID: 9, WireID: 9, Request: req, ConfigVersion: savecontract.Identity(), State: json.RawMessage(`{"level":1,"custom_marker":42}`)}, wear
 }
 
 func TestOdysseyArmorSourceAndAtomicGrant(t *testing.T) {

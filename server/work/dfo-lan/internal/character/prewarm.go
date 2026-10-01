@@ -12,7 +12,7 @@ func (s *Service) PrepareRoleDetails(role storage.Character) error {
 	if s.Learning == nil {
 		return nil
 	}
-	if role.ConfigVersion != s.Learning.Source.Checksum {
+	if role.ConfigVersion != s.Learning.Source.SaveIdentity() {
 		return fmt.Errorf("role/skill source mismatch")
 	}
 	var state State

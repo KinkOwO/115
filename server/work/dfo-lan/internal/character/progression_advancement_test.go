@@ -50,7 +50,7 @@ func ordinaryAdvancedRole(t *testing.T, s *ProgressionService, job, advancement 
 	if err != nil {
 		t.Fatal(err)
 	}
-	role := storage.Character{Name: "GrowthTest", WireID: 10, Profession: job, ConfigVersion: s.Professions.Source.Checksum, State: raw}
+	role := storage.Character{Name: "GrowthTest", WireID: 10, Profession: job, ConfigVersion: s.Professions.Source.SaveIdentity(), State: raw}
 	if advancement != 0 {
 		// This is the normal CMD1881/CMD777 domain path, not a pilot repair.
 		role.State, err = (&Service{Catalog: s.Professions}).ApplyAdvancement(role, advancement)

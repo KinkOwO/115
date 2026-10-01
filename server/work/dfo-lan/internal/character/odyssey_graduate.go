@@ -1,6 +1,7 @@
 package character
 
 import (
+	"dfolan/internal/savecontract"
 	"context"
 	"dfolan/internal/catalog"
 	"dfolan/internal/inventory"
@@ -50,7 +51,7 @@ func OdysseyGraduateBoxCatalog(r *catalog.OdysseyGrowth) catalog.LootCatalog {
 // create request packet stays untouched history) and the graduation mark is
 // recorded. Persisted-mode rewrite + mark land atomically in one receipt.
 func (s *ProgressionService) ApplyOdysseyGraduation(role storage.Character) (json.RawMessage, json.RawMessage, error) {
-	if s.Odyssey == nil || !CreatedAsOdyssey(role) || role.ConfigVersion != s.Odyssey.Source {
+	if s.Odyssey == nil || !CreatedAsOdyssey(role) || role.ConfigVersion != savecontract.Identity() {
 		return nil, nil, fmt.Errorf("invalid Odyssey graduation role")
 	}
 	var state State
@@ -82,7 +83,7 @@ func (s *ProgressionService) ApplyOdysseyGraduation(role storage.Character) (jso
 	if e != nil {
 		return nil, nil, e
 	}
-	proof, e := json.Marshal(map[string]any{"level": state.Level, "reward_template": s.Odyssey.GraduateReward, "source": s.Odyssey.Source})
+	proof, e := json.Marshal(map[string]any{"level": state.Level, "reward_template": s.Odyssey.GraduateReward, "source": savecontract.Identity()})
 	return raw, proof, e
 }
 
@@ -91,7 +92,7 @@ func (s *ProgressionService) OdysseyGraduate(ctx context.Context, role storage.C
 	if s.Odyssey == nil {
 		return role, false, nil
 	}
-	return s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, s.Odyssey.Source, "odyssey-graduate-v1", "odyssey-graduate-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+	return s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, savecontract.Identity(), "odyssey-graduate-v1", "odyssey-graduate-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
 		return s.ApplyOdysseyGraduation(current)
 	})
 }
@@ -100,14 +101,14 @@ func (s *ProgressionService) OdysseyGraduate(ctx context.Context, role storage.C
 // is keyed by the graduation mark instead of the Odyssey membership, so a full
 // bag only owes the box; it can never block the graduation itself.
 func (s *ProgressionService) ApplyOdysseyGraduationReward(role storage.Character) (json.RawMessage, json.RawMessage, error) {
-	if s.Odyssey == nil || !OdysseyGraduated(role) || role.ConfigVersion != s.Odyssey.Source {
+	if s.Odyssey == nil || !OdysseyGraduated(role) || role.ConfigVersion != savecontract.Identity() {
 		return nil, nil, fmt.Errorf("invalid Odyssey graduation reward role")
 	}
 	id := s.Odyssey.GraduateReward
 	if id == 0 {
 		return nil, nil, fmt.Errorf("missing Odyssey graduation reward template")
 	}
-	a := inventory.Awarder{Catalog: OdysseyGraduateBoxCatalog(s.Odyssey), Rules: inventory.BagRules{Source: s.Odyssey.Source, Slots: map[string][2]uint16{"[booster]": {65, 120}}, MissingStackLimit: 1}}
+	a := inventory.Awarder{Catalog: OdysseyGraduateBoxCatalog(s.Odyssey), Rules: inventory.BagRules{Source: savecontract.Identity(), Slots: map[string][2]uint16{"[booster]": {65, 120}}, MissingStackLimit: 1}}
 	raw, receipt, e := a.Grant(role.State, id, 1)
 	if e != nil {
 		return nil, nil, e
@@ -121,7 +122,7 @@ func (s *ProgressionService) OdysseyGraduationReward(ctx context.Context, role s
 	if s.Odyssey == nil {
 		return role, false, nil
 	}
-	return s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, s.Odyssey.Source, "odyssey-graduate-reward-v1", "odyssey-graduate-reward-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+	return s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, savecontract.Identity(), "odyssey-graduate-reward-v1", "odyssey-graduate-reward-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
 		return s.ApplyOdysseyGraduationReward(current)
 	})
 }

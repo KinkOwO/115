@@ -1,6 +1,7 @@
 package inventory
 
 import (
+	"dfolan/internal/savecontract"
 	"bytes"
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
@@ -15,7 +16,7 @@ import (
 func vaultFixture() (*VaultService, storage.Character, storage.VaultState) {
 	h := strings.Repeat("a", 64)
 	s := &VaultService{Rules: VaultRules{SourceSHA256: h, InitialSlots: 8, VerifiedSlots: []uint16{8, 24}}, BagRules: BagRules{Source: h, Slots: map[string][2]uint16{"[material]": {121, 176}}, MissingStackLimit: 1000, QuickSlots: [2]uint16{0, 8}}, Catalog: catalog.LootCatalog{Source: pvf.ArchiveSnapshot{Checksum: h}, Items: map[uint32]catalog.LootItem{15: {ID: 15, Kind: "stackable", StackableType: "[etc]", StackLimit: 1000}, 16: {ID: 16, Kind: "stackable", StackableType: "[material]", StackLimit: 100}}}}
-	role := storage.Character{ID: 1, AccountID: 1, ConfigVersion: h, State: json.RawMessage(`{"level":55,"inventory":{"version":"ordinary-bag-v1","gold":100,"items":[{"slot":65,"Template":15,"Amount":10}]}}`)}
+	role := storage.Character{ID: 1, AccountID: 1, ConfigVersion: savecontract.Identity(), State: json.RawMessage(`{"level":55,"inventory":{"version":"ordinary-bag-v1","gold":100,"items":[{"slot":65,"Template":15,"Amount":10}]}}`)}
 	v := storage.VaultState{Slots: 8, ConfigVersion: h, Items: json.RawMessage(`[]`)}
 	return s, role, v
 }

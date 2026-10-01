@@ -1,6 +1,7 @@
 package character
 
 import (
+	"dfolan/internal/savecontract"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/storage"
 	"encoding/json"
@@ -41,7 +42,7 @@ func (s *ProgressionService) OdysseyProgressPayload(role storage.Character) ([]b
 	if s.Odyssey == nil || !OdysseyRole(role) {
 		return nil, nil
 	}
-	if role.ConfigVersion != s.Odyssey.Source {
+	if role.ConfigVersion != savecontract.Identity() {
 		return nil, fmt.Errorf("Odyssey journal source mismatch")
 	}
 	ids, err := s.odysseyCompleted(role)
