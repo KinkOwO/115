@@ -151,6 +151,38 @@ func (s *Source) CompactRuntimeStrings() error {
 	return s.archive.CompactRuntimeStrings()
 }
 
+func (s *Source) EnableRuntimeDetails(q *catalog.QuestCatalog, l *character.LearningCatalog, items *catalog.LootCatalog, index *catalog.ItemIndex) (err error) {
+	defer func() {
+		if err != nil {
+			if q != nil {
+				q.Close()
+			}
+			if l != nil {
+				l.Close()
+			}
+			if items != nil {
+				items.CloseDetails()
+			}
+		}
+	}()
+	if q != nil {
+		if err := q.EnableRuntimeDetails(s.archive); err != nil {
+			return err
+		}
+	}
+	if l != nil {
+		if err := l.EnableRuntimeDetails(s.archive); err != nil {
+			return err
+		}
+	}
+	if items != nil && index != nil {
+		if err := items.EnableRuntimeDetails(s.archive, *index); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (s *Source) Snapshot() pvf.ArchiveSnapshot {
 	if s.archive == nil {
 		return pvf.ArchiveSnapshot{}

@@ -37,6 +37,12 @@ func (s *FatigueService) RecoverPotion(ctx context.Context, role storage.Charact
 	if item.StackableType != "[expert town potion]" && !strings.Contains(item.Script.Path, "nostrum_recovery") {
 		return role, fp, fmt.Errorf("fatigue potion policy mismatch")
 	}
+	if c.HasRuntimeDetails() {
+		_, err := c.ItemScript(template)
+		if err != nil {
+			return role, fp, err
+		}
+	}
 	amount := uint16(30)
 	values := map[string]int32{}
 	for i, t := range item.Script.Cells {

@@ -22,6 +22,7 @@ type LootItem struct {
 	Script        ScriptRecord
 }
 type LootCatalog struct {
+	details      *ScriptDetails[uint32, ScriptRecord]
 	Source       pvf.ArchiveSnapshot     `json:"source"`
 	MaximumGrade uint32                  `json:"maximum_grade"`
 	Rules        map[string]ScriptRecord `json:"rules"`

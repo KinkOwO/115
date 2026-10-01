@@ -205,6 +205,15 @@ func main() {
 	if pvfCatalogs.dungeons != nil {
 		defer pvfCatalogs.dungeons.CloseMapSource()
 	}
+	if pvfCatalogs.learning != nil {
+		defer pvfCatalogs.learning.Close()
+	}
+	if pvfCatalogs.quests != nil {
+		defer pvfCatalogs.quests.Close()
+	}
+	if pvfCatalogs.loot != nil {
+		defer pvfCatalogs.loot.CloseDetails()
+	}
 	if *pvfCheckCatalogs {
 		collectPVFImportMemory(pvfCatalogs)
 		if *pvfCheckHeap != "" {
@@ -1184,7 +1193,7 @@ func main() {
 						}
 						return v[0].Value, true
 					})
-					log.Printf("separate wear catalog: %d records; original reward/drop catalog: %d", len(full.Records), len(equipment.Rows))
+					log.Printf("separate wear catalog: %d records; original reward/drop catalog: %d", full.RecordCount(), len(equipment.Rows))
 				}
 			}
 			// The same source equipment catalog backs quest rewards and
@@ -4596,12 +4605,15 @@ func main() {
 				}
 				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 				role, e := characters.Select(ctx, developmentAccount, plaintext)
+				if e == nil {
+					e = prepareRolePVFDetails(ctx, characters, questService, lootService, role)
+				}
 				cancel()
 				// Legacy third-awakened saves predate the 5-point VP grant: the
 				// panel may show 5 points while the ledger still reads zero, and
 				// one ordinary Learn response then clears it. Reconcile on
 				// selection; the repair is a no-op once the ledger matches.
-				if characters != nil {
+				if characters != nil && e == nil {
 					ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
 					reconciled, backfilled, reconcileErr := characters.ReconcileTechniquePoints(ctx, role)
 					cancel()

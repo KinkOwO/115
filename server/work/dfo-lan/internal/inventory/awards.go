@@ -37,6 +37,11 @@ func (a *Awarder) Grant(raw json.RawMessage, id, amount uint32) (json.RawMessage
 	if a == nil || a.Catalog.Source.Checksum != a.Rules.Source {
 		return nil, r, fmt.Errorf("inventory award source missing")
 	}
+	if id != 0 && a.Catalog.Items[id].Kind == "stackable" && a.Catalog.HasRuntimeDetails() {
+		if _, err := a.Catalog.ItemScript(id); err != nil {
+			return nil, r, err
+		}
+	}
 	b, e := ReadBag(raw)
 	if e != nil {
 		return nil, r, e

@@ -32,6 +32,9 @@ func TestPVFMigrationSourceOnlyLocalArchive(t *testing.T) {
 		t.Fatal("native item shops unavailable", err)
 	}
 	defer c.equipment.Close()
+	defer c.learning.Close()
+	defer c.quests.Close()
+	defer c.loot.CloseDetails()
 	defer c.dungeons.CloseMapSource()
 	collectPVFImportMemory(c)
 	verifyEquipmentRuleReuse(t, c)

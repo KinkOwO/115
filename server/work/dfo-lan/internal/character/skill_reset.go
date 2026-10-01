@@ -103,7 +103,10 @@ func (s *Service) resetOrdinarySkills(ctx context.Context, cur storage.Character
 			if floor[id] >= rank {
 				continue
 			}
-			d, ok := s.Learning.index[cur.Profession][id]
+			d, ok, sourceErr := s.Learning.Definition(cur.Profession, id)
+			if sourceErr != nil {
+				return sourceErr
+			}
 			if !ok {
 				continue
 			}

@@ -56,7 +56,7 @@ func (c pvfCoreCatalogs) checkReport(selection string) (map[string]any, error) {
 		r["items"] = len(c.items.Items)
 	}
 	if c.equipment != nil {
-		r["equipment_bindings"] = len(c.equipment.Records)
+		r["equipment_bindings"] = c.equipment.RecordCount()
 	}
 	if c.selection != nil {
 		r["equipment_selection"] = len(c.selection.Rows)

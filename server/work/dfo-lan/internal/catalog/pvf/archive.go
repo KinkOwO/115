@@ -227,6 +227,17 @@ func (a *Archive) FileCount() int {
 	return len(a.files)
 }
 
+func (a *Archive) FileInfo(index int) (File, error) {
+	if err := a.ReadError(); err != nil {
+		return File{}, err
+	}
+	if index < 0 || index >= a.FileCount() {
+		return File{}, fmt.Errorf("%w: file index %d", ErrInvalidArchive, index)
+	}
+	f := a.fileAt(index)
+	return f, a.poolError()
+}
+
 // ReleaseReadCaches discards temporary decoded chunks and text. Archive bytes,
 // paths and string pools remain intact, so subsequent reads are still valid.
 // A concurrent reader may repopulate an entry; this is not an archive close.
@@ -250,6 +261,13 @@ func (a *Archive) CanReadFileData() bool {
 		return false
 	}
 	return a.format == FormatNKPI || a.format == FormatProtectedNKPI || a.format == FormatDFO20260901
+}
+
+func (a *Archive) ReadError() error {
+	if a == nil || a.closed.Load() {
+		return fmt.Errorf("%w: source is closed", ErrInvalidArchive)
+	}
+	return a.poolError()
 }
 
 func (a *Archive) FindFile(relativePath string) (File, bool) {

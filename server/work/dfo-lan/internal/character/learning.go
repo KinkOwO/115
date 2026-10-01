@@ -108,7 +108,10 @@ func (s *Service) skillRows(role storage.Character, state State, tree int) ([]pr
 	if s.Learning != nil {
 		for _, raw := range ids {
 			id := uint16(raw)
-			_, ok := s.Learning.index[role.Profession][id]
+			_, ok, sourceErr := s.Learning.Definition(role.Profession, id)
+			if sourceErr != nil {
+				return nil, sourceErr
+			}
 			if !ok {
 				return nil, fmt.Errorf("learned skill missing from profession")
 			}
@@ -176,7 +179,11 @@ func (s *Service) validateLearningPrerequisites(job byte, known, changes map[uin
 		if level == 0 {
 			continue
 		}
-		pre := s.Learning.index[job][id].Ints("[pre required skill]")
+		definition, _, sourceErr := s.Learning.Definition(job, id)
+		if sourceErr != nil {
+			return sourceErr
+		}
+		pre := definition.Ints("[pre required skill]")
 		if len(pre)%2 != 0 {
 			return fmt.Errorf("invalid skill prerequisite")
 		}
@@ -238,7 +245,10 @@ func (s *Service) Learn(ctx context.Context, role storage.Character, key string,
 			}
 		}
 		for _, v := range req.Entries {
-			d, ok := s.Learning.index[current.Profession][v.ID]
+			d, ok, sourceErr := s.Learning.Definition(current.Profession, v.ID)
+			if sourceErr != nil {
+				return nil, nil, sourceErr
+			}
 			if !ok || seen[v.ID] || v.Delta == 0 || v.Refund > 1 {
 				return nil, nil, fmt.Errorf("invalid job skill learning request")
 			}
@@ -299,7 +309,11 @@ func (s *Service) Learn(ctx context.Context, role storage.Character, key string,
 		}
 		if state.Advancement > 0 {
 			for id := range state.LearnedSkills[req.Tree] {
-				if d, ok := s.Learning.index[current.Profession][id]; ok {
+				d, ok, sourceErr := s.Learning.Definition(current.Profession, id)
+				if sourceErr != nil {
+					return nil, nil, sourceErr
+				}
+				if ok {
 					if !d.ForAdvancement(int(state.Advancement)) && !d.ForAwakening(int(state.Advancement), int(state.Awakening)) {
 						delete(state.LearnedSkills[req.Tree], id)
 						delete(state.SkillSlots[req.Tree], id)

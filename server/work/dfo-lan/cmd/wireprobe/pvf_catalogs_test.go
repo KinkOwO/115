@@ -120,5 +120,5 @@ func TestPVFItemCatalogsLocalArchive(t *testing.T) {
 	}
 	var memory runtime.MemStats
 	runtime.ReadMemStats(&memory)
-	t.Logf("items=%d equipment=%d periods=%d skins=%d costs=%d retained_heap_bytes=%d", len(index.Items), len(full.Records), len(periods), len(skins), len(cost.Groups), memory.HeapAlloc)
+	t.Logf("items=%d equipment=%d periods=%d skins=%d costs=%d retained_heap_bytes=%d", len(index.Items), full.RecordCount(), len(periods), len(skins), len(cost.Groups), memory.HeapAlloc)
 }

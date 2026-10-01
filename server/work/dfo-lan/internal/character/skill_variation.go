@@ -85,7 +85,10 @@ func (s *Service) applyVariations(job byte, state *State, known map[uint16]byte,
 			if r.Choice < 1 || r.Choice > 2 {
 				return fmt.Errorf("invalid active variation choice")
 			}
-			d, ok := s.Learning.index[job][r.ID]
+			d, ok, sourceErr := s.Learning.Definition(job, r.ID)
+			if sourceErr != nil {
+				return sourceErr
+			}
 			if !ok || !(d.ForAdvancement(int(state.Advancement)) || d.ForAwakening(int(state.Advancement), int(state.Awakening))) {
 				return fmt.Errorf("variation skill belongs to another profession")
 			}
@@ -195,7 +198,10 @@ func (s *Service) resetAutoState(ctx context.Context, cur storage.Character, st 
 				if floor[id] >= rank {
 					continue
 				}
-				d, ok := s.Learning.index[cur.Profession][id]
+				d, ok, sourceErr := s.Learning.Definition(cur.Profession, id)
+				if sourceErr != nil {
+					return sourceErr
+				}
 				if !ok {
 					continue
 				}

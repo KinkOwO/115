@@ -60,9 +60,9 @@ func prerequisitesMet(groups [][]uint32, status map[uint32]string) bool {
 }
 
 func (s *Service) Accept(ctx context.Context, role storage.Character, id uint16) (storage.QuestState, error) {
-	d, ok := s.Catalog.Quests[uint32(id)]
-	if !ok {
-		return storage.QuestState{}, errors.New("quest absent from source index")
+	d, sourceErr := s.Catalog.Definition(uint32(id))
+	if sourceErr != nil {
+		return storage.QuestState{}, sourceErr
 	}
 	if len(d.Pending) > 0 {
 		return storage.QuestState{}, fmt.Errorf("quest data unresolved: %s", d.Pending[0])
