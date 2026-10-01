@@ -44,6 +44,10 @@ func (s *Source) RecommendedDungeons() (*adventure.RecommendedRules, error) {
 	return adventure.ImportRecommendedRules(s.archive)
 }
 
+func (s *Source) Season(index catalog.ItemIndex) (*adventure.SeasonRules, error) {
+	return adventure.ImportSeasonRules(s.archive, index)
+}
+
 func (s *Source) Lottery(index catalog.ItemIndex, policy catalog.LotteryPolicy) (catalog.LotteryTables, error) {
 	return catalog.ImportLotteryTables(s.archive, index, policy)
 }

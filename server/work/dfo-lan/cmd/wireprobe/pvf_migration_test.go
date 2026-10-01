@@ -82,5 +82,14 @@ func TestPVFMigrationSourceOnlyLocalArchive(t *testing.T) {
 	if err != nil || len(recommended.Ranges) == 0 {
 		t.Fatal("native embedded recommended rules missing", err)
 	}
-	t.Log("44 selectors / 51 source families prepared with all selected export JSON paths absent")
+	restoreSeason, err := c.installSeasonRules()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer restoreSeason()
+	season, err := adventure.CurrentSeason()
+	if err != nil || len(season.Levels) != 120 || len(season.Capsules) != 40 {
+		t.Fatal("native embedded season rules missing", err)
+	}
+	t.Log("45 selectors / 52 source families prepared with all selected export JSON paths absent")
 }

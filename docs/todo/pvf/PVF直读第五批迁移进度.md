@@ -96,3 +96,9 @@ SHA256：`fcefe7737c198e1425a4d87c03affc7122f7828d1615412835751ed1beafcf2d`。
 新增adventure-recommended直读选择项，按event/conditioneventchkdungeon.evt及list/worldmap.lst的精确WDM引用展开1446个推荐等级范围、337个排除副本，保留2个歧义副本和7个失效区域引用诊断。WDM按副本/任务条件配对读取，专属范围覆盖区域范围，跨区域冲突不任选一份。51份原始脚本哈希及完整规则一致，全部相关副本在0～255级的444160次运行时资格对比通过；实际推荐计数仍走原业务调用。启动在存储前安装深拷贝及私有排除索引，正常直读不解析内嵌recommended_rules.json。旧2429外层身份只在完整源审计中对齐已知7ef内层，源哈希和诊断不豁免，不改玩家存档身份。合计44选择项/51类有效源投影；缺失所选JSON联合准备46.67秒、完整源审计11.68秒、全量Go测试/vet、8项Python测试和只读依赖检查通过。profile为pvf-recommended-candidate.json，程序SHA256 816a50dd39251cc88f887a2389984fbb9c7327e4fb4b86e0498bffc866b0e1c6。确认范围仍为第四批28项，第五批新增候选未实机。
 
 独立程序路径server/work/dfo-lan/.tmp/pvf-recommended/bin/wireprobe-handoff-source.exe。没有新增策略文件；旧43项及全部旧profile保持。额外验证未知选图条件和缺失任务配对拒绝、关闭内嵌读取后仍可查询、规则副本不污染源，以及安装无效规则不覆盖当前有效索引。未启动客户端或服务，未连接玩家数据库，不改协议、schema、存档和业务事务。
+
+## 后续迷雾誓约内嵌规则（离线候选）
+
+新增season直读选择项，从contents/system/seasonlevel/main.cos、精确cost key及etc/costs.ctp、原生物品索引读取120阶经验/名望、59条玩法规则、8组衰减、40个经验道具、4个奖励物品、12件誓约装备及限时奖励。COS原始哈希172bb1119834f8d891be071c7defe4e71deb5a690efeba79e6596a05bd435175，CTP哈希ae67348fad62643a341cd308955544edcc3b5269391749e805efb6783f940bdb；全部有效字段、费用键及40道具原始哈希完整一致。key16的源金币-1仍投影为0，材料10403609数量10；其他分支、分数成本、所有者/引用异常拒绝。360个等级边界及活动起止两端一致。规则在存储前深拷贝安装，正常直读不解析season_rules.json；旧2429外层仅在完整源审计中对齐已知7ef内层。最高显示100级、20次获取、原存档赛季校验、周边界、奖励和交易流程保持。合计45选择项/52类有效源投影；缺失所选JSON联合准备51.06秒、完整源审计17.07秒、全量Go测试/vet、8项Python测试和只读依赖检查通过。profile为pvf-season-candidate.json，程序SHA256 dbad515d612fcf7e10217677ba5f3b8d912ebeea2feb77d5fd714cac8f641349。确认范围仍为第四批28项，第五批新增候选未实机。
+
+独立程序路径server/work/dfo-lan/.tmp/pvf-season/bin/wireprobe-handoff-source.exe。旧44项及全部旧profile保持。额外验证关闭内嵌读取、等级和材料切片深拷贝、安装失败不覆盖有效规则；费用引用按父子所有者及唯一key校验，不允许optional或未解释子树。未启动客户端或服务，未连接玩家数据库，不改协议、schema和存档。
