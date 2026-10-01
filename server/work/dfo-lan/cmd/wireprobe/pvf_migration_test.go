@@ -150,4 +150,5 @@ func TestPVFMigrationSourceOnlyLocalArchive(t *testing.T) {
 		t.Fatal("native character source or runtime projection missing", err)
 	}
 	t.Log("54 selectors / 63 source families prepared with all selected export JSON paths absent")
+	verifyRolePVFPrewarmNative(t, c)
 }
