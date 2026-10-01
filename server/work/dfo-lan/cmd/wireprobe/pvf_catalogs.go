@@ -65,6 +65,7 @@ type pvfCoreCatalogs struct {
 	avatarDisjoint                               *inventory.AvatarDisjointRules
 	avatarSockets                                *inventory.AvatarSocketRules
 	avatarRecast                                 *inventory.AvatarRecastRules
+	emblemCompound                               *inventory.EmblemCompoundRules
 	periods                                      []uint32
 	skins                                        map[uint32]catalog.SkinStorageEntry
 	journal                                      *catalog.EquipmentJournalRules
@@ -357,6 +358,13 @@ func preparePVFCoreCatalogs(selection, path, checksum, characterPath, questPath,
 		}
 		result.items = &direct
 		log.Printf("PVF item index prepared: %d templates source=%s", len(direct.Items), direct.Source.Checksum)
+		if selected["loot"] {
+			result.emblemCompound, e = source.EmblemCompound(direct)
+			if e != nil {
+				return result, fmt.Errorf("PVF emblem compound: %w", e)
+			}
+			log.Printf("PVF emblem compound prepared: %d combinations, %d emblem grades source=%s", len(result.emblemCompound.Rolls), len(result.emblemCompound.Pools), result.emblemCompound.Source)
+		}
 		if selected["equipment"] && selected["loot"] {
 			result.avatarDisjoint, e = source.AvatarDisjoint(direct)
 			if e != nil {

@@ -1024,7 +1024,7 @@ func main() {
 			log.Printf("loaded equipment create cost: groups=%d itemRows=%d templates=%d",
 				len(cc.Groups), items, len(cc.Templates()))
 		}
-		lootService = &loot.Service{Store: characters.Store, Catalog: c, DropCatalog: dropCatalog, Rules: r, BagRules: bag, Tables: tables, Equipment: gear, AvatarDisjoint: pvfCatalogs.avatarDisjoint, AvatarSockets: pvfCatalogs.avatarSockets, Journal: journalRules, CreateCost: equipmentCreateCost}
+		lootService = &loot.Service{Store: characters.Store, Catalog: c, DropCatalog: dropCatalog, Rules: r, BagRules: bag, Tables: tables, Equipment: gear, AvatarDisjoint: pvfCatalogs.avatarDisjoint, EmblemCompound: pvfCatalogs.emblemCompound, AvatarSockets: pvfCatalogs.avatarSockets, Journal: journalRules, CreateCost: equipmentCreateCost}
 		shopService = &inventory.ShopService{Store: characters.Store, Catalog: c, EventModel: r.Model, BagRules: bag, ItemMaterials: itemMaterials}
 		minePath := *bleedingMineRewardsFile
 		if minePath == "" {
@@ -3769,6 +3769,28 @@ func main() {
 				if e != nil {
 					event(map[string]any{"kind": "avatar_socket_refused", "id": frame.ID, "character_id": worldState.role.ID, "reason": e.Error()})
 					if e = sendPayload(1, frame.ID, protocol.Refusal(19)); e != nil {
+						return
+					}
+					continue
+				}
+				if sendPlan(plan, logWorldResponseBody) != nil {
+					return
+				}
+				continue
+			}
+			if worldState != nil && bootstrapped && frame.Type == 1 && frame.ID == 256 {
+				if !verified {
+					event(map[string]any{"kind": "emblem_compound_rejected", "id": frame.ID, "reason": "checksum failed"})
+					continue
+				}
+				plan, e := worldState.compoundEmblems(plaintext, event)
+				if e != nil {
+					event(map[string]any{"kind": "emblem_compound_refused", "id": frame.ID, "character_id": worldState.role.ID, "reason": e.Error()})
+					refusalCode := uint16(19)
+					if strings.Contains(e.Error(), "bag category is full") {
+						refusalCode = 4
+					}
+					if e = sendPayload(1, frame.ID, protocol.Refusal(refusalCode)); e != nil {
 						return
 					}
 					continue
