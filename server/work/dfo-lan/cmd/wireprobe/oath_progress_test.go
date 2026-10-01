@@ -8,27 +8,51 @@ import (
 	"testing"
 )
 
-// 中间四档的随机：业主 2026-10-01 拍板「按稀有度递减」。
-// 守四件事：① 不越界；② primeval(45) 只能来自保底分支；③ 大样本下占比与权重对齐；
-// ④ 权重确实严格递减。
-func TestRollOathGradeFollowsTheDecliningWeights(t *testing.T) {
+// 档位随机：业主 2026-10-01 拍板采用**国服 1710 场实测爆率**
+// （稀有 27.7 / 神器 32.3 / 传说 5.7 / 史诗 1.9 / 太初 0.35，其余 normal）。
+// 守四件事：① 不越界；② 大样本下占比与权重对齐；③ 六档齐全（primeval 也在表内）；
+// ④ 忠实于实测形状 —— **神器(unique) 略高于稀有(rare)**，不要被"递减"直觉改掉。
+func TestRollOathGradeFollowsTheMeasuredRates(t *testing.T) {
 	for _, w := range oathGradeWeights {
 		if _, ok := oathGradeTiers[w.Grade]; !ok {
 			t.Fatalf("weight table names %d, outside the eight tiers the script accepts", w.Grade)
 		}
-		if w.Grade == oathGradePrimeval {
-			t.Fatal("primeval must stay pity-only and never join the random table")
+	}
+	if len(oathGradeWeights) != 6 {
+		t.Fatalf("weight table has %d rows, want 6 (normal + 稀有/神器/传说/史诗/太初)", len(oathGradeWeights))
+	}
+	// 实测形状：神器(42) 略高于稀有(41)，其后逐级下降；normal 最大。
+	byGrade := map[uint16]int{}
+	for _, w := range oathGradeWeights {
+		byGrade[w.Grade] = w.Weight
+	}
+	if byGrade[42] <= byGrade[41] {
+		t.Fatalf("unique(%d) must stay above rare(%d): that is the measured shape", byGrade[42], byGrade[41])
+	}
+	for _, pair := range [][2]uint16{{42, 43}, {43, 44}, {44, 45}} {
+		if byGrade[pair[1]] >= byGrade[pair[0]] {
+			t.Fatalf("grade %d weight %d should be below grade %d weight %d",
+				pair[1], byGrade[pair[1]], pair[0], byGrade[pair[0]])
 		}
 	}
-	for i := 1; i < len(oathGradeWeights); i++ {
-		if oathGradeWeights[i-1].Weight <= oathGradeWeights[i].Weight {
-			t.Fatalf("weights are not strictly declining at index %d", i)
-		}
+	if byGrade[41] <= byGrade[43] {
+		t.Fatalf("rare(%d) must stay above legendary(%d)", byGrade[41], byGrade[43])
+	}
+	// 国服数据里「不变色(normal)」与「神器(unique)」是最高且不相上下的两档
+	// （32.05% vs 32.3%）—— 别把 normal 写成"必然最大"，实测就不是。
+	if byGrade[inventory.OathGradeNormal] <= byGrade[41] {
+		t.Fatalf("normal(%d) must stay above rare(%d)", byGrade[inventory.OathGradeNormal], byGrade[41])
+	}
+	if byGrade[42] <= byGrade[43] {
+		t.Fatalf("unique(%d) must stay above legendary(%d)", byGrade[42], byGrade[43])
+	}
+	if _, ok := byGrade[oathGradePrimeval]; !ok {
+		t.Fatal("primeval must be in the table: it is a 0.35% roll in the national-server data, not pity-only")
 	}
 	if got := rollOathGrade(nil); got != inventory.OathGradeNormal {
 		t.Fatalf("nil rng = %d, want normal(%d)", got, inventory.OathGradeNormal)
 	}
-	const draws = 200000
+	const draws = 2000000
 	rng := rand.New(rand.NewSource(20261001))
 	count := map[uint16]int{}
 	total := 0
@@ -39,9 +63,6 @@ func TestRollOathGradeFollowsTheDecliningWeights(t *testing.T) {
 		g := rollOathGrade(rng)
 		if _, ok := oathGradeTiers[g]; !ok {
 			t.Fatalf("draw %d produced %d, outside the eight tiers", i, g)
-		}
-		if g == oathGradePrimeval {
-			t.Fatalf("draw %d produced primeval(%d) from the random table", i, g)
 		}
 		count[g]++
 	}
