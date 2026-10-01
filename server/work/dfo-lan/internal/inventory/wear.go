@@ -246,6 +246,11 @@ func (s *WearService) MoveOrdinary(role Role, r protocol.ItemMoveRequest) (json.
 	if e != nil {
 		return nil, e
 	}
+	if r.DestinationList == 1 && r.DestinationSlot >= protocol.AvatarInventorySlots(b.AvatarExpansion) {
+		// Existing legacy rows stay in the save and can still move out; new
+		// placements must fit the capacity the native client can display.
+		return nil, fmt.Errorf("destination outside avatar inventory capacity")
+	}
 	// Migrate legacy worn appearance avatars that were saved with Group 0
 	for idx := range b.Worn {
 		if b.Worn[idx].Slot <= 11 && b.Worn[idx].Group == 0 {

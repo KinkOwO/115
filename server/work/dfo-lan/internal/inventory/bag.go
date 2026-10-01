@@ -121,15 +121,17 @@ type Bag struct {
 	// repeated compounds using stacks that keep the same slots and templates.
 	EmblemCompoundSeq uint64 `json:"emblem_compound_seq,omitempty"`
 
-	Expansion byte                    `json:"expansion,omitempty"`
-	Version   string                  `json:"version"`
-	Gold      uint32                  `json:"gold"`
-	Coin      uint32                  `json:"coin,omitempty"`
-	Items     []BagItem               `json:"items"`
-	PetItems  []BagItem               `json:"pet_items,omitempty"`
-	Equipment []BagEquipment          `json:"equipment,omitempty"`
-	Worn      []BagEquipment          `json:"worn,omitempty"`
-	Special   map[byte][]BagEquipment `json:"special_equipment,omitempty"`
+	// Legacy inventories omit this field and keep their original avatar capacity.
+	AvatarExpansion byte                    `json:"avatar_expansion,omitempty"`
+	Expansion       byte                    `json:"expansion,omitempty"`
+	Version         string                  `json:"version"`
+	Gold            uint32                  `json:"gold"`
+	Coin            uint32                  `json:"coin,omitempty"`
+	Items           []BagItem               `json:"items"`
+	PetItems        []BagItem               `json:"pet_items,omitempty"`
+	Equipment       []BagEquipment          `json:"equipment,omitempty"`
+	Worn            []BagEquipment          `json:"worn,omitempty"`
+	Special         map[byte][]BagEquipment `json:"special_equipment,omitempty"`
 	// Missing in legacy saves. Socket zero is projected from Worn slot 24;
 	// the other four entries are the client's Reserved shield positions.
 	KnightShieldDeck []uint32 `json:"knight_shield_deck,omitempty"`
@@ -228,6 +230,9 @@ func ReadBag(state json.RawMessage) (Bag, error) {
 	filtered := make([]BagItem, 0, len(b.Items))
 	if b.Expansion > 2 {
 		return b, fmt.Errorf("背包扩展档位超出客户端范围")
+	}
+	if b.AvatarExpansion > protocol.MaxAvatarInventoryExpansion {
+		return b, fmt.Errorf("时装栏扩展档位超出客户端范围")
 	}
 	for _, i := range b.Items {
 		if i.Template == 1 {
@@ -332,6 +337,9 @@ func clampDurability(items []BagEquipment) {
 }
 
 func SaveBag(state json.RawMessage, b Bag) (json.RawMessage, error) {
+	if b.AvatarExpansion > protocol.MaxAvatarInventoryExpansion {
+		return nil, fmt.Errorf("时装栏扩展档位超出客户端范围")
+	}
 	if b.Expansion > 2 {
 		return nil, fmt.Errorf("背包扩展档位超出客户端范围")
 	}

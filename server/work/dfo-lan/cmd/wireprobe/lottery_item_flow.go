@@ -346,7 +346,7 @@ func (w *worldSession) openLotteryItem(ctx context.Context, store lotteryItemSto
 					used[item.Slot] = true
 				}
 				found := false
-				for slot := uint16(0); slot < 210; slot++ {
+				for slot := uint16(0); slot < protocol.AvatarInventorySlots(bag.AvatarExpansion); slot++ {
 					if !used[slot] {
 						rewardSlot = slot
 						found = true
