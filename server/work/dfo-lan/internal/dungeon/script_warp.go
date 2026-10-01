@@ -4,8 +4,10 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
 	_ "embed"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"sync/atomic"
 )
 
 // Source-linked CMT -> passive-object custom action -> dungeon warp condition.
@@ -15,10 +17,18 @@ var scriptWarpData []byte
 
 // Source-backed forced moves outside Odyssey. These routes still require an
 // exact dungeon/map source identity and the native transition record.
+//
 //go:embed forced_script_warp_routes.json
 var forcedScriptWarpData []byte
 
 func scriptWarpRoutes() ([]scriptWarpRoute, error) {
+	if installed := installedScriptWarps.Load(); installed != nil {
+		return installed.routes, nil
+	}
+	return EmbeddedScriptWarpRoutes()
+}
+
+func EmbeddedScriptWarpRoutes() ([]catalog.ScriptWarpRoute, error) {
 	var routes, forced []scriptWarpRoute
 	if err := json.Unmarshal(scriptWarpData, &routes); err != nil {
 		return nil, err
@@ -29,18 +39,29 @@ func scriptWarpRoutes() ([]scriptWarpRoute, error) {
 	return append(routes, forced...), nil
 }
 
-type scriptWarpRoute struct {
-	Source          string   `json:"source"`
-	Dungeon         uint32   `json:"dungeon"`
-	Maze            byte     `json:"maze"`
-	From            uint32   `json:"from_map"`
-	To              uint32   `json:"to_map"`
-	Position        [2]byte  `json:"position"`
-	Target          [2]byte  `json:"target"`
-	Record          [18]byte `json:"record"`
-	DungeonSHA256   string   `json:"dungeon_sha256"`
-	MapSHA256       string   `json:"map_sha256"`
-	RequiredKeyMaps []uint32 `json:"required_key_maps"`
+type scriptWarpRoute = catalog.ScriptWarpRoute
+
+type scriptWarpSnapshot struct{ routes []scriptWarpRoute }
+
+var installedScriptWarps atomic.Pointer[scriptWarpSnapshot]
+
+func InstallScriptWarpRoutes(routes []catalog.ScriptWarpRoute) (func(), error) {
+	if len(routes) == 0 {
+		return nil, fmt.Errorf("empty native script warp routes")
+	}
+	owned := append([]scriptWarpRoute(nil), routes...)
+	seen := map[[3]uint32]bool{}
+	for i, r := range owned {
+		key := [3]uint32{r.Dungeon, uint32(r.Maze), r.From}
+		validHash := func(s string) bool { b, e := hex.DecodeString(s); return e == nil && len(b) == 32 }
+		if seen[key] || !validHash(r.Source) || r.Source != owned[0].Source || r.Dungeon == 0 || r.From == 0 || r.To == 0 || r.From == r.To || !validHash(r.MapSHA256) || !validHash(r.DungeonSHA256) || !validHash(r.ActionSHA256) || r.ActionPath == "" || r.Record[0] != 1 || r.Record[1] != 0 || r.Record[2] != 0 || r.Record[3] != 0 || r.Record[4] != 5 || r.Record[5] != 5 || (r.CinematicPath != "" && (!validHash(r.CinematicSHA256) || !validHash(r.ObjectSHA256))) {
+			return nil, fmt.Errorf("invalid native script warp %v", key)
+		}
+		seen[key] = true
+		owned[i].RequiredKeyMaps = append([]uint32{}, r.RequiredKeyMaps...)
+	}
+	previous := installedScriptWarps.Swap(&scriptWarpSnapshot{owned})
+	return func() { installedScriptWarps.Store(previous) }, nil
 }
 
 func (s *Session) MoveScript(c catalog.DungeonCatalog, r protocol.DungeonRoomTransition) (*Session, error) {

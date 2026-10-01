@@ -396,3 +396,7 @@ func (s *Source) BleedingMine(index catalog.ItemIndex, policy loot.BleedingMineP
 	}
 	return loot.ImportBleedingMineRewards(s.archive, index, policy)
 }
+
+func (s *Source) ScriptWarpRoutes(d catalog.DungeonCatalog, p catalog.ScriptWarpPolicy) ([]catalog.ScriptWarpRoute, error) {
+	return catalog.ImportScriptWarpRoutes(s.archive, d, p)
+}

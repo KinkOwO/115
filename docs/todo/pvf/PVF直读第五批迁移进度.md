@@ -1,6 +1,6 @@
 # PVF直读第五批：特殊内容与奖励候选（2026-10-01）
 
-第四批28个选择项/34类源数据已由用户确认正常。confirmed baseline 为 `pvf-migration-candidate.json`，程序SHA256 `5475dbccdf316f4c582cc2742b22e1f66b5512f22e04997ccb23a031f6e36609`。第五批新增内容均为离线候选，下文按各次迁移记录；最新48选择项/56类源投影，继续实施其余迁移。
+第四批28个选择项/34类源数据已由用户确认正常。confirmed baseline 为 `pvf-migration-candidate.json`，程序SHA256 `5475dbccdf316f4c582cc2742b22e1f66b5512f22e04997ccb23a031f6e36609`。第五批新增内容均为离线候选，下文按各次迁移记录；最新49选择项/58类源投影，继续实施其余迁移。
 
 | 选择项 | PVF来源与完整核对 |
 | --- | --- |
@@ -120,3 +120,9 @@ SHA256：`fcefe7737c198e1425a4d87c03affc7122f7828d1615412835751ed1beafcf2d`。
 新增fame直读选择项，读取etc/famevalueinfo.etc、equipmentgrouping.etc、equipmentpartset.etc、115lvability/setpointinfo.cos、原生套装阈值列表及全部stackable脚本。9张名望表、8100个物品、13组套装阈值、1054个物品积分、336个觉醒模板及8411个源路径/原始哈希完整一致；保留字段最后出现值、同组最大觉醒值、积分去重、part set index=-1以及源列表中的旧缺失引用处理。规则在存储前深拷贝安装，正常直读名望入口不解析fame_rules.json，原生单精度计算公式、锻造/强化取高、记忆和独立装备惩罚行为保持。验证全部8100物品附魔计算、全部可变规则副本隔离、非法安装不覆盖有效规则。旧2429外层仅作已知7ef内层的审计来源，不改真实7ef运行或存档身份。合计48选择项/56类有效源投影；缺失所选JSON联合准备48.32秒、完整源审计17.84秒、全量Go测试/vet、10项Python测试和只读依赖检查通过。profile为pvf-fame-candidate.json，程序SHA256 836d1f050b4662e19591a3c464f2fb977a720cf32df6b2e4e3dee35bc585cb9d。确认范围仍为第四批28项，第五批新增候选未实机。
 
 独立程序路径server/work/dfo-lan/.tmp/pvf-fame/bin/wireprobe-handoff-source.exe。全部旧profile和第四批确认程序保持；未启动客户端或服务，未连接玩家数据库，不改协议、schema、账号/角色存档。
+
+## 后续两类脚本传送内嵌规则（离线候选）
+
+新增script-warps直读选择项，覆盖11条CMT传送和1条怪物动作强制切房。源CMT的[MAP]及原生cinematic列表绑定确定地图身份，[BEHAVIOR]内对象模板/地图对象序号、OBJ自定义动作索引、ACT的[MOVE MAP]或[KICK OUT MAP CHARACTER]确定目标格及落点；DGN/maze决定网格所属与目标地图，已声明的warp条件必须一致，源ACT强制/忽略状态路线允许没有重复DGN声明。怪物路线由原生monster列表、maze内实际怪物及其etc action定位。全部原始DGN/MAP/CMT/ACT/OBJ哈希、12条有效路线和落点字段完整一致。独立pvf-script-warp-policy.json只保留已启用源标识、实测18字节record及关键房准入，不保存导出地图/坐标/哈希。正常模式不解析两份内嵌script warp JSON；关闭内嵌数据后12条移动仍通过，源切片隔离、无效安装和逐字节篡改拒绝均通过。合计49选择项/58类有效源投影；缺失所选JSON联合准备53.76秒、完整源审计33.36秒、全量Go测试/vet、10项Python测试和只读依赖检查通过。profile为pvf-script-warps-candidate.json，程序SHA256 410ed509de6a125e01156e988d5d5cb17f444341c437d6c23622353811cb40d0。确认范围仍为第四批28项，第五批新增候选未实机。
+
+独立程序路径server/work/dfo-lan/.tmp/pvf-script-warps/bin/wireprobe-handoff-source.exe。全部旧profile及第四批确认程序保持；未启动客户端或服务，未连接玩家数据库，不改协议、schema、账号/角色存档。

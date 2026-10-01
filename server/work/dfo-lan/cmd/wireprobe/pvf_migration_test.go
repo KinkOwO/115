@@ -15,7 +15,7 @@ func TestPVFMigrationSourceOnlyLocalArchive(t *testing.T) {
 	}
 	verify := false
 	c, err := preparePVFCoreCatalogs(pvfSupportedDomains, path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "../../configs/characters.skycastle-release.json", "missing-quests.json", "missing-progression.json", "missing-world.json", pvfItemInputs{
-		lotteryPolicyPath: "../../configs/pvf-lottery-policy.json", selectionBoxesPath: "missing-selection-boxes.json", selectionPolicyPath: "../../configs/pvf-selection-policy.json", verifyBaselines: &verify, minePath: "missing-mine.json", blackPurgatoryPath: "missing-black-purgatory.json", clearCubePath: "missing-cube.json", odysseyGrowthPath: "missing-growth.json", odysseyChapterPath: "missing-chapters.json", odysseyDropPath: "missing-odyssey-drop.json", odysseyCurrencyPath: "missing-coins.json", odysseyWeaponPath: "missing-weapons.json", apocalypsePath: "missing-apocalypse.json", attunementPath: "missing-attunement.json", contentPolicyPath: "../../configs/pvf-mine-policy.json", indexPath: "missing/items.index.json", fullPrefix: "missing/equipment-full", journalPath: "missing-journal.json", createCostPath: "missing-create-cost.json", learningPath: "missing-skills.json", pricesPath: "missing-prices.json", materialsPath: "missing-materials.json", boosterPath: "missing-boosters.json", tutorialPath: "missing-tutorial.json", enhancementPolicyPath: "../../configs/pvf-enhancement-policy.json",
+		scriptWarpPolicyPath: "../../configs/pvf-script-warp-policy.json", lotteryPolicyPath: "../../configs/pvf-lottery-policy.json", selectionBoxesPath: "missing-selection-boxes.json", selectionPolicyPath: "../../configs/pvf-selection-policy.json", verifyBaselines: &verify, minePath: "missing-mine.json", blackPurgatoryPath: "missing-black-purgatory.json", clearCubePath: "missing-cube.json", odysseyGrowthPath: "missing-growth.json", odysseyChapterPath: "missing-chapters.json", odysseyDropPath: "missing-odyssey-drop.json", odysseyCurrencyPath: "missing-coins.json", odysseyWeaponPath: "missing-weapons.json", apocalypsePath: "missing-apocalypse.json", attunementPath: "missing-attunement.json", contentPolicyPath: "../../configs/pvf-mine-policy.json", indexPath: "missing/items.index.json", fullPrefix: "missing/equipment-full", journalPath: "missing-journal.json", createCostPath: "missing-create-cost.json", learningPath: "missing-skills.json", pricesPath: "missing-prices.json", materialsPath: "missing-materials.json", boosterPath: "missing-boosters.json", tutorialPath: "missing-tutorial.json", enhancementPolicyPath: "../../configs/pvf-enhancement-policy.json",
 		randomOptionPath: "missing-options.json", shieldPath: "missing-shields.json", oathPath: "missing-oath.json", vaultPath: "missing-vault.json", wearRulesPath: "../../configs/equipment-wear.current35.json", vaultPolicyPath: "../../configs/pvf-vault-policy.json", lootPath: "missing-loot.json", equipmentPath: "missing-equipment.json", questEquipmentPath: "missing-quest-equipment.json", dropPolicyPath: "../../configs/pvf-drop-policy.json",
 		townPath: "missing-town.json", dungeonPath: "missing-dungeons.json", trainingDungeonPath: "missing-training.json", tutorialDungeonPath: "missing-tutorial-dungeons.json", scenePolicyPath: "../../configs/pvf-scene-policy.json",
 	})
@@ -118,5 +118,13 @@ func TestPVFMigrationSourceOnlyLocalArchive(t *testing.T) {
 	if err != nil || len(fame.Tables) != 9 || len(fame.Items) != 8100 || len(fame.Sources) != 8411 {
 		t.Fatal("native fame rules missing", err)
 	}
-	t.Log("48 selectors / 56 source families prepared with all selected export JSON paths absent")
+	restoreWarps, err := c.installScriptWarps()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer restoreWarps()
+	if len(c.scriptWarps) != 12 {
+		t.Fatal("native script warp scope missing")
+	}
+	t.Log("49 selectors / 58 source families prepared with all selected export JSON paths absent")
 }
