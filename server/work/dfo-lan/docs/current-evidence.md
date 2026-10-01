@@ -1,5 +1,10 @@
 # 当前构建与第一阶段证据
 
+## 2026-10-01 PVF职业源与运行策略拆分候选
+
+新增characters直读选择项，17个职业属性、初始/转职/觉醒技能授予、成长及默认装备/外观从原生CHR读取。完整运行字段审计通过，旧JSON与原始导入的341处差异已逐项归因：175处源命令、61处转职快捷栏、54处初始快捷栏和各17处重复成长/预设/栏位视图。独立pvf-character-policy.json只保留已确认源身份、17职业默认快捷栏及源命令/转职快捷栏启用策略；运行保持原有快捷栏和默认命令行为，完整原始成长视图另行保留，不改源导入器。17个CHR哈希不变，存档源仍严格绑定7ef，不加source alias、不迁移或改写账号/角色存档。正常读取连characters.skycastle-release.json源锚点也可缺失；所有51选择项/60类投影缺失JSON联合准备62.34秒，17职业完整审计10.57秒，全量Go测试/vet、11项Python测试和只读依赖检查通过。profile为pvf-characters-candidate.json，程序SHA256 576d41bc830a18aea83f9af0eb322b475540809e7f3abd02f67228ef138438b6。确认范围仍为第四批28项，第五批新增候选未实机。
+
+
 ## 2026-10-01 PVF剧情层回访源目录候选
 
 新增layer-revisits直读选择项，任务12893末层回访由CMT的[MAP]、MAP basic action至原生cinematic列表的精确引用、唯一[CHANGE MAP]、DGN任务maze及末层/同格base地图读取。剧情地图100004546、恢复地图100004325、任务/网格、原始DGN/MAP/base MAP/ACT/CMT哈希及全部有效字段完整一致；源落点(165,289)与已实测record一致。独立pvf-layer-revisit-policy.json仅保留启用DGN/maze/CMT标识、实测18字节记录和resume_base缓存恢复策略，不保存导出地图、坐标、任务或哈希。正常选择项不读dungeons.layer-revisits.json，应用目录深拷贝，不改准备源副本；无效/异源/base不在同格及每个篡改record字节均拒绝。现有剧情结束回同格原战斗房、12个实体、死亡缓存与NOTI29 flag2/mode0测试通过，玩家仍需实际清怪开门。合计50选择项/59类有效源投影；缺失所选JSON联合准备65.72秒、完整源审计26.86秒、全量Go测试/vet、10项Python测试和只读依赖检查通过。profile为pvf-layer-revisits-candidate.json，程序SHA256 ebdbf6a17b045494c0569bcd1c852a2126f98d776416bd2320977f213b1f01d9。确认范围仍为第四批28项，第五批新增候选未实机。

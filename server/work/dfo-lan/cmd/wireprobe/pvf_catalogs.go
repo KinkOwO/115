@@ -21,6 +21,7 @@ import (
 // verifies complete effective projections; source checks remain mandatory in
 // normal direct mode as well as audit mode.
 type pvfCoreCatalogs struct {
+	characters, sourceCharacters                 *catalog.Characters
 	layerRevisits                                *catalog.LayerRevisitOverlay
 	scriptWarps                                  []catalog.ScriptWarpRoute
 	fameRules                                    *character.FameRules
@@ -73,6 +74,7 @@ type pvfCoreCatalogs struct {
 }
 
 type pvfItemInputs struct {
+	characterPolicyPath                                                                                                    string
 	layerRevisitPolicyPath                                                                                                 string
 	scriptWarpPolicyPath                                                                                                   string
 	lotteryPolicyPath                                                                                                      string
@@ -93,7 +95,7 @@ type pvfItemInputs struct {
 
 func (i pvfItemInputs) checksBaselines() bool { return i.verifyBaselines == nil || *i.verifyBaselines }
 
-const pvfSupportedDomains = "world,quests,progression,items,equipment,periods,skins,journal,create-cost,skills,prices,materials,boosters,tutorial,enhancements,random-options,shields,oath-grades,vault,loot,equipment-selection,town,dungeons,training-dungeons,tutorial-dungeons,dungeon-towers,dungeon-hell,dungeon-maze,apocalypse,attunement,odyssey-growth,odyssey-chapters,odyssey-weapons,odyssey-drop,odyssey-currency,clear-cube,black-purgatory,bleeding-mine,dungeon-terminal,dungeon-tournament,selection-boxes,lottery,adventure,adventure-recommended,season,odyssey-routes,roster-backgrounds,fame,script-warps,layer-revisits"
+const pvfSupportedDomains = "world,quests,progression,items,equipment,periods,skins,journal,create-cost,skills,prices,materials,boosters,tutorial,enhancements,random-options,shields,oath-grades,vault,loot,equipment-selection,town,dungeons,training-dungeons,tutorial-dungeons,dungeon-towers,dungeon-hell,dungeon-maze,apocalypse,attunement,odyssey-growth,odyssey-chapters,odyssey-weapons,odyssey-drop,odyssey-currency,clear-cube,black-purgatory,bleeding-mine,dungeon-terminal,dungeon-tournament,selection-boxes,lottery,adventure,adventure-recommended,season,odyssey-routes,roster-backgrounds,fame,script-warps,layer-revisits,characters"
 
 func parsePVFCatalogSelection(value string) (map[string]bool, error) {
 	supported := map[string]bool{}
@@ -107,7 +109,7 @@ func parsePVFCatalogSelection(value string) (map[string]bool, error) {
 	for _, domain := range strings.Split(value, ",") {
 		domain = strings.TrimSpace(domain)
 		if !supported[domain] {
-			return nil, fmt.Errorf("PVF candidate domain %q is not enabled; supported: %s (character parity is pending)", domain, pvfSupportedDomains)
+			return nil, fmt.Errorf("PVF candidate domain %q is not enabled; supported: %s", domain, pvfSupportedDomains)
 		}
 		if selected[domain] {
 			return nil, fmt.Errorf("duplicate PVF candidate domain %q", domain)
@@ -145,17 +147,37 @@ func preparePVFCoreCatalogs(selection, path, checksum, characterPath, questPath,
 	if selected["world"] && os.Getenv("DFO_NPC_PRESENCE_WORLD") != "" {
 		return result, fmt.Errorf("PVF world uses its source phase graph for NPC diagnostics; clear DFO_NPC_PRESENCE_WORLD to avoid a JSON shadow-world override")
 	}
-	characters, err := catalog.LoadCharacters(characterPath)
-	if err != nil {
-		return result, fmt.Errorf("PVF character source anchor: %w", err)
+	var anchorChecksum string
+	var characters catalog.Characters
+	var characterPolicy catalog.CharacterRuntimePolicy
+	if selected["characters"] {
+		characterPolicy, err = readPVFCharacterPolicy(inputs.characterPolicyPath)
+		if err != nil {
+			return result, err
+		}
+		anchorChecksum = characterPolicy.SourceChecksum
+	} else {
+		var e error
+		characters, e = catalog.LoadCharacters(characterPath)
+		if e != nil {
+			return result, fmt.Errorf("PVF character source anchor: %w", e)
+		}
+		anchorChecksum = characters.Source.Checksum
 	}
 	started := time.Now()
 	source, err := gamedata.Open(gamedata.Options{Mode: gamedata.PVF, ArchivePath: path, ExpectedChecksum: checksum})
 	if err != nil {
 		return result, err
 	}
-	if source.Snapshot().Checksum != characters.Source.Checksum {
-		return result, fmt.Errorf("PVF/character source mismatch: %s versus %s", source.Snapshot().Checksum, characters.Source.Checksum)
+	if source.Snapshot().Checksum != anchorChecksum {
+		return result, fmt.Errorf("PVF/character source mismatch: %s versus %s", source.Snapshot().Checksum, anchorChecksum)
+	}
+
+	if selected["characters"] {
+		if err := preparePVFCharacters(&result, source, characterPolicy, characterPath, inputs); err != nil {
+			return result, err
+		}
+		characters = *result.characters
 	}
 
 	if selected["world"] {

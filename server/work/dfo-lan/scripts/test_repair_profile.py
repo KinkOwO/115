@@ -6,6 +6,19 @@ from repair_profile import load_profile
 
 
 class RepairProfileTests(unittest.TestCase):
+    def test_native_character_profile_preserves_save_source_and_policy_only_paths(self):
+        project = pathlib.Path(__file__).resolve().parent.parent
+        binary, required, env = load_profile(project / 'configs/pvf-characters-candidate.json', project)
+        self.assertEqual(len(env['DFO_PVF_CATALOGS'].split(',')), 51)
+        self.assertEqual(binary, project / '.tmp/pvf-characters/bin/wireprobe-handoff-source.exe')
+        policy = json.loads(pathlib.Path(env['DFO_PVF_CHARACTER_POLICY']).read_text(encoding='utf-8'))
+        self.assertEqual(policy['source_checksum'], env['DFO_PVF_SHA256'])
+        self.assertEqual(len(policy['initial_skill_slots']), 17)
+        self.assertFalse(policy['enable_source_commands'])
+        self.assertFalse(policy['enable_advancement_shortcuts'])
+        self.assertTrue(all(p.suffix != '.json' or 'policy' in p.name for p in required))
+        self.assertNotIn('DFO_CHARACTER_CATALOG', env)
+
     def test_example_is_portable_and_policies_are_opt_in(self):
         project = pathlib.Path(__file__).resolve().parent.parent
         binary, required, env = load_profile(project / 'configs/repair-profile.example.json', project)
@@ -46,7 +59,7 @@ class RepairProfileTests(unittest.TestCase):
 
     def test_invalid_pvf_domains_and_checksums_rejected(self):
         for key, value in [('DFO_PVF_CATALOGS', 'items,items'),
-                           ('DFO_PVF_CATALOGS', 'characters'),
+                           ('DFO_PVF_CATALOGS', 'characterz'),
                            ('DFO_PVF_CATALOGS', 'items,'),
                            ('DFO_PVF_CATALOGS', ''),
                            ('DFO_PVF_SHA256', 'not-a-checksum')]:
