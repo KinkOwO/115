@@ -54,6 +54,12 @@ def load_profile(path, project):
             # 空串 = 自动派生（信任内层归档自身哈希，见 analysis/tasks/next142）。
             # 非空必须是 64 位 hex，保持显式钉版本的能力。
             env[key] = value.lower()
+        elif key == 'DFO_OMEN_INFO' and (value == '' or (isinstance(value, str) and re.fullmatch(r'[0-9a-fA-Fx,;\- ]+', value))):
+            # 诊断：直接指定 noti 2836 的 69 字节载荷（可读写法见 cmd/wireprobe/omen_info.go
+            # 的 parseOmenInfo：4 个座位段 "u32,u32,u32,u32,u8" 用 ; 分隔，可再跟 1 个尾标志段）。
+            # 空串 = 正常路径。只接受十六进制/数字/逗号/分号/短横/空格。
+            # ⚠️ 临时诊断入口：用于隔离「征兆持有档数」与「天平档位」各自对掉落的影响，验完清空。
+            env[key] = value
         elif key == 'DFO_OATH_GRADES' and (value == '' or isinstance(value, str) and re.fullmatch(r'\d{1,3}(,\d{1,3})?', value)):
             # 诊断：固定下发的「引子/誓约」档位，形如 "45" 或 "45,45"（见 cmd/wireprobe/oath_info.go）。
             # 空串 = 正常路径（保底 + 国服爆率随机）。只接受空或两个十进制数。
