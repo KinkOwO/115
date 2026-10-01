@@ -78,14 +78,16 @@ func loadLotteryItemCatalog(path string, index map[uint32]ItemIndexInfo) (*lotte
 }
 
 func newLotteryItemCatalog(c lotteryItemCatalog, index map[uint32]ItemIndexInfo) (*lotteryItemCatalog, error) {
-	// 来源身份：留空（直读派生）或等于当次令牌均接受；显式钉了别的版本才拒绝。
-	// 池数量 276 是「当前客户端」的实测量，直读模式下由 PVF 决定，
-	// 因此这里只在**显式钉版本**（非空来源）时才校验数量，避免把
-	// 「客户端版本前进了」误判为目录损坏。
+	return buildLotteryItemCatalog(c, index, true)
+}
+
+func buildLotteryItemCatalog(c lotteryItemCatalog, index map[uint32]ItemIndexInfo, historicalBaseline bool) (*lotteryItemCatalog, error) {
+	// PVF catalogs keep their actual source hash; pool counts and particular
+	// historical content vectors only apply to the old JSON baseline loader.
 	if !lotterySourceAccepts(c.SourcePVFSHA256) {
 		return nil, fmt.Errorf("lottery catalog source identity or pool count mismatch")
 	}
-	if c.SourcePVFSHA256 != "" && len(c.Pools) != 276 {
+	if historicalBaseline && c.SourcePVFSHA256 != "" && len(c.Pools) != 276 {
 		return nil, fmt.Errorf("lottery catalog source identity or pool count mismatch")
 	}
 	if c.SourcePVFSHA256 == "" {
@@ -103,7 +105,8 @@ func newLotteryItemCatalog(c lotteryItemCatalog, index map[uint32]ItemIndexInfo)
 		p.Candidates = append([]BoosterRewardCandidate(nil), source.Candidates...)
 		p.total = 0
 		c.Pools[i] = p
-		if p == nil || p.SourceItem == 0 || len(p.SourceScriptSHA256) != 64 || len(p.Candidates) == 0 {
+		hash, hashErr := hex.DecodeString(p.SourceScriptSHA256)
+		if p.SourceItem == 0 || hashErr != nil || len(hash) != 32 || len(p.Candidates) == 0 {
 			return nil, fmt.Errorf("invalid lottery pool identity")
 		}
 		if source, ok := index[p.SourceItem]; !ok || source.Path != p.SourceScript || source.Kind != "stackable" || source.StackableType != "[upgradable legacy]" {
@@ -126,10 +129,10 @@ func newLotteryItemCatalog(c lotteryItemCatalog, index map[uint32]ItemIndexInfo)
 		}
 		c.byTemplate[p.SourceItem] = p
 	}
-	if p := c.byTemplate[7772]; p == nil || p.SourceScriptSHA256 != "b6f59a8a3193ae4f6c0796e156f90d48317cbf2e16af2c309bacbdc63322e54c" || len(p.Candidates) != 209 || p.total != 98904 {
+	if p := c.byTemplate[7772]; historicalBaseline && (p == nil || p.SourceScriptSHA256 != "b6f59a8a3193ae4f6c0796e156f90d48317cbf2e16af2c309bacbdc63322e54c" || len(p.Candidates) != 209 || p.total != 98904) {
 		return nil, fmt.Errorf("lottery item 7772 regression")
 	}
-	if p := c.byTemplate[10306598]; p == nil || p.SourceScriptSHA256 != "a97094b202704c3cfb0f1e1e53a86bc9986813cddf071acc078c98b937414063" || len(p.Candidates) != 1 || p.Candidates[0] != (BoosterRewardCandidate{Template: 0, Weight: 10000, Count: 1000000}) {
+	if p := c.byTemplate[10306598]; historicalBaseline && (p == nil || p.SourceScriptSHA256 != "a97094b202704c3cfb0f1e1e53a86bc9986813cddf071acc078c98b937414063" || len(p.Candidates) != 1 || p.Candidates[0] != (BoosterRewardCandidate{Template: 0, Weight: 10000, Count: 1000000})) {
 		return nil, fmt.Errorf("lottery gold pot 10306598 regression")
 	}
 	return &c, nil
@@ -156,13 +159,17 @@ func loadLotteryEquipmentPools(path string, index map[uint32]ItemIndexInfo, cata
 type lotteryEquipmentSource = catalog.LotteryPoolCatalog
 
 func applyLotteryEquipmentPools(source lotteryEquipmentSource, index map[uint32]ItemIndexInfo, catalog *lotteryItemCatalog) (int, error) {
+	return bindLotteryEquipmentPools(source, index, catalog, true)
+}
+
+func bindLotteryEquipmentPools(source lotteryEquipmentSource, index map[uint32]ItemIndexInfo, catalog *lotteryItemCatalog, historicalBaseline bool) (int, error) {
 	if catalog == nil || !lotterySourceAccepts(catalog.SourcePVFSHA256) {
 		return 0, fmt.Errorf("lottery base catalog unavailable")
 	}
 	if !lotterySourceAccepts(source.SourcePVFSHA256) {
 		return 0, fmt.Errorf("equipment lottery source identity or pool count mismatch")
 	}
-	if source.SourcePVFSHA256 != "" && len(source.Pools) != 2477 {
+	if historicalBaseline && source.SourcePVFSHA256 != "" && len(source.Pools) != 2477 {
 		return 0, fmt.Errorf("equipment lottery source identity or pool count mismatch")
 	}
 	additions := make(map[uint32]*lotteryItemPool, len(source.Pools))
@@ -196,7 +203,7 @@ func applyLotteryEquipmentPools(source lotteryEquipmentSource, index map[uint32]
 		}
 		additions[row.SourceItem] = p
 	}
-	if p := additions[7213]; p == nil || p.SourceScriptSHA256 != "995df495602d0ede8df426e8ae3f3b200ef0a740ee9e2411a8794b4c24dd01ee" || len(p.Candidates) != 78 {
+	if p := additions[7213]; historicalBaseline && (p == nil || p.SourceScriptSHA256 != "995df495602d0ede8df426e8ae3f3b200ef0a740ee9e2411a8794b4c24dd01ee" || len(p.Candidates) != 78) {
 		return 0, fmt.Errorf("Pokin armor pot 7213 regression")
 	}
 	for id, p := range additions {

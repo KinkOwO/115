@@ -53,7 +53,7 @@ func TestResolveShopSkipsZero(t *testing.T) {
 	}
 }
 
-// nil 接收者不能 panic（lootService.ItemShops 未配置时就是这个状态）。
+// nil 接收者不能 panic（inventory.ShopService.ItemShops 未配置时就是这个状态）。
 func TestResolveShopNilSafe(t *testing.T) {
 	var shops *ItemShops
 	if _, ok := shops.ResolveShop(1, 2); ok {

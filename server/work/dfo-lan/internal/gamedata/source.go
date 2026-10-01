@@ -92,8 +92,16 @@ func (s *Source) Lottery(index catalog.ItemIndex, policy catalog.LotteryPolicy) 
 	return catalog.ImportLotteryTables(s.archive, index, policy)
 }
 
+func (s *Source) DiscoverLottery(index catalog.ItemIndex) (catalog.LotteryTables, catalog.LotteryScope, error) {
+	return catalog.DiscoverLotteryTables(s.archive, index)
+}
+
 func (s *Source) SelectionBoxes(index catalog.ItemIndex, policy catalog.SelectionBoxPolicy) (*catalog.SelectionBoxes, error) {
 	return catalog.ImportSelectionBoxes(s.archive, index, policy)
+}
+
+func (s *Source) AuditSelectionScope(index catalog.ItemIndex, issueLimit int) (catalog.SelectionScopeAudit, error) {
+	return catalog.AuditSelectionScope(s.archive, index, issueLimit)
 }
 
 func (s *Source) TerminalScenes(d catalog.DungeonCatalog, q catalog.QuestCatalog) (catalog.TerminalSceneOverlay, error) {

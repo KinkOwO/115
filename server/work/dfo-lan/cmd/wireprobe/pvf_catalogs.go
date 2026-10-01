@@ -200,13 +200,6 @@ func preparePVFCoreCatalogs(selection, path, checksum, characterPath, questPath,
 		log.Printf("PVF joint item catalogs prepared in %s: %d source templates, %d original item scan projections; periods/prices/materials/selected skins/boosters/enhancements/fame share one scan", time.Since(basicStarted), len(joint.Basics.Index.Items), joint.Basics.ScriptsRead)
 	}
 
-	// 第二道门禁：character/JSON 基线所记录的源哈希必须与内层归档一致。
-	// 自动派生模式下锚点可能为空（基线没钉版本），此时以内层实际哈希为准 ——
-	// 否则「内层自愈成功」会在这里被一个手写常量再次拦下（next142）。
-	if anchorChecksum != "" && source.Snapshot().Checksum != anchorChecksum {
-		return result, fmt.Errorf("PVF/character source mismatch: %s versus %s", source.Snapshot().Checksum, anchorChecksum)
-	}
-	result.sourceChecksum = source.Snapshot().Checksum
 	// 2026-10-01（next146）：奥德赛系目录（成长/章节/路线/兑换/黑鸦/赤红铁矿…）与角色存档
 	// 都用同一份「源身份」令牌 catalog.OdysseySource。直读模式下它必须等于当次内层 checksum
 	// （角色 ConfigVersion 也正是此值），否则整族在直读启动时全被门禁拦下（首个撞墙点 =

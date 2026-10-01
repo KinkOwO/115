@@ -168,6 +168,22 @@ func TestCompactFileArchiveParityAndViewLifetime(t *testing.T) {
 	}
 }
 
+func TestCompactFileArchiveDerivedChecksum(t *testing.T) {
+	raw := compactFixture(t)
+	path := filepath.Join(t.TempDir(), "source.pvf")
+	if err := os.WriteFile(path, raw, 0600); err != nil {
+		t.Fatal(err)
+	}
+	a, err := OpenReadOnly(Options{Path: path}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer a.Close()
+	if got, want := a.Snapshot().Checksum, fmt.Sprintf("%x", sha256.Sum256(raw)); got != want {
+		t.Fatalf("derived checksum = %s, want %s", got, want)
+	}
+}
+
 func TestCompactPathHashCollisionChecksFullPath(t *testing.T) {
 	raw := compactFixture(t)
 	a, err := OpenBytes(raw)
