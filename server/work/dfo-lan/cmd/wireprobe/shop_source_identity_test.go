@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"dfolan/internal/cashshop"
+	"dfolan/internal/game/protocol"
 	"dfolan/internal/game/wire"
 	"dfolan/internal/gamedata"
 	"dfolan/internal/inventory"
@@ -21,6 +22,12 @@ import (
 // reproduces the live CMD64 rejection with the current native shop, without
 // editing player saves or loading a historical JSON content catalog.
 func TestShopPilotNativeSaveIdentityPurchase(t *testing.T) {
+	runNativeShopPurchase(t, false)
+}
+func TestShopPilotNativeGoldPurchase(t *testing.T) {
+	runNativeShopPurchase(t, true)
+}
+func runNativeShopPurchase(t *testing.T, goldPurchase bool) {
 	configPath, archive := os.Getenv("DFO_TEST_STORAGE_CONFIG"), os.Getenv("DFO_PVF_CORE_TEST_ARCHIVE")
 	if configPath == "" || archive == "" {
 		t.Skip("set DFO_TEST_STORAGE_CONFIG and DFO_PVF_CORE_TEST_ARCHIVE for isolated native purchase regression")
@@ -45,7 +52,14 @@ func TestShopPilotNativeSaveIdentityPurchase(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	product, found := products[3400232]
+	sku := uint32(3400232)
+	if goldPurchase {
+		sku = 3400315
+	}
+	product, found := products[sku]
+	if goldPurchase && (!found || product.Gold != 100 || product.Cera != 0 || product.Template != 590715403 || product.Units != 1) {
+		t.Fatalf("native live Gold row mismatch: %+v", product)
+	}
 	if !found {
 		t.Fatal("live rejected SKU absent from native catalog")
 	}
@@ -87,16 +101,23 @@ func TestShopPilotNativeSaveIdentityPurchase(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Match a normalized existing character, including unrelated saved data.
-	original := json.RawMessage(`{"unrelated":{"keep":true},"inventory":{"version":"ordinary-bag-v1","items":[{"slot":65,"Template":14,"Amount":3}]}}`)
+	original := json.RawMessage(`{"unrelated":{"keep":true},"inventory":{"version":"ordinary-bag-v1","gold":1000,"items":[{"slot":65,"Template":14,"Amount":3}]}}`)
 	role, err := store.CreateCharacter(ctx, storage.Character{AccountID: account, Name: "NativeCashFixture", Request: []byte{0}, ConfigVersion: pilot.Config.Source.SaveIdentity(), State: original}, 24)
 	if err != nil {
 		t.Fatal(err)
 	}
 	initialBalance := uint64(product.Cera) * 2
+	if goldPurchase {
+		initialBalance = 20000
+	}
 	if _, err = store.DB.Exec(ctx, `INSERT INTO account_currency(account_id,cera) VALUES($1,$2)`, account, initialBalance); err != nil {
 		t.Fatal(err)
 	}
-	body, err := hex.DecodeString("000001000028e2330001000000000000")
+	bodyHex := "000001000028e2330001000000000000"
+	if goldPurchase {
+		bodyHex = "00000100007be2330001000000000000"
+	}
+	body, err := hex.DecodeString(bodyHex)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -107,12 +128,23 @@ func TestShopPilotNativeSaveIdentityPurchase(t *testing.T) {
 	}
 	session.keys = make([]byte, wire.SessionKeyBytes)
 	// The old archive-hash order still fails the unchanged ledger guard.
-	old := storage.CashOrder{Key: "old-native-source-0001", Account: account, Character: role.ID, Source: pilot.Config.Source.Checksum, Lines: []storage.CashOrderLine{{Product: product.ID, Template: product.Template, Quantity: 1, Units: product.Units, UnitPrice: product.Cera}}}
+	old := storage.CashOrder{Key: "old-native-source-0001", Account: account, Character: role.ID, Source: pilot.Config.Source.Checksum, Lines: []storage.CashOrderLine{{Product: product.ID, Template: product.Template, Quantity: 1, Units: product.Units, UnitPrice: product.Cera, GoldUnitPrice: product.Gold}}}
 	if _, _, err = store.PurchaseCashToBag(ctx, old, func(raw json.RawMessage) (json.RawMessage, error) {
 		t.Fatal("wrong-source delivery executed")
 		return nil, nil
 	}); err == nil || !strings.Contains(err.Error(), "does not match character source") {
 		t.Fatalf("old order: %v", err)
+	}
+	if goldPurchase {
+		if _, err := store.DB.Exec(ctx, `UPDATE characters SET state=jsonb_set(state,'{inventory,gold}','99') WHERE id=$1`, role.ID); err != nil {
+			t.Fatal(err)
+		}
+		if _, _, err := session.purchase(ctx, pilot, store, account, role.ID, body, frame); err == nil || !strings.Contains(err.Error(), "insufficient Gold") {
+			t.Fatalf("insufficient Gold: %v", err)
+		}
+		if _, err := store.DB.Exec(ctx, `UPDATE characters SET state=jsonb_set(state,'{inventory,gold}','1000') WHERE id=$1`, role.ID); err != nil {
+			t.Fatal(err)
+		}
 	}
 	// Encode failure must also leave balance and state unchanged.
 	badSession := *session
@@ -120,12 +152,20 @@ func TestShopPilotNativeSaveIdentityPurchase(t *testing.T) {
 	if _, _, err = badSession.purchase(ctx, pilot, store, account, role.ID, body, frame); err == nil || !strings.Contains(err.Error(), "cipher") {
 		t.Fatalf("encode failure: %v", err)
 	}
+	var failedState json.RawMessage
+	if err := store.DB.QueryRow(ctx, `SELECT state FROM characters WHERE id=$1`, role.ID).Scan(&failedState); err != nil {
+		t.Fatal(err)
+	}
+	failedBag, err := inventory.ReadBag(failedState)
+	if err != nil || failedBag.Gold != 1000 || len(failedBag.Items) != 1 {
+		t.Fatalf("failed request changed bag: %+v %v", failedBag, err)
+	}
 	balance, err := store.AccountCera(ctx, account)
 	if err != nil || balance != initialBalance {
 		t.Fatalf("failed requests charged: %d %v", balance, err)
 	}
 	receipt, applied, err := session.purchase(ctx, pilot, store, account, role.ID, body, frame)
-	if err != nil || !applied || receipt.Charged != uint64(product.Cera) || receipt.After != initialBalance-uint64(product.Cera) {
+	if err != nil || !applied || receipt.Charged != uint64(product.Cera) || receipt.After != initialBalance-uint64(product.Cera) || receipt.GoldCharged != uint64(product.Gold) {
 		t.Fatalf("native receipt=%+v applied=%t error=%v", receipt, applied, err)
 	}
 	bag, bagErr := inventory.ReadBag(receipt.CharacterState)
@@ -139,15 +179,26 @@ func TestShopPilotNativeSaveIdentityPurchase(t *testing.T) {
 			retained = true
 		}
 	}
-	if bagErr != nil || !retained || delivered != product.Units {
+	if bagErr != nil || !retained || delivered != product.Units || bag.Gold != 1000-product.Gold {
 		t.Fatalf("native bag=%+v error=%v", bag, bagErr)
 	}
 	if len(receipt.Deliveries) != 1 || receipt.Deliveries[0].Template != product.Template || receipt.Deliveries[0].Amount != product.Units {
 		t.Fatalf("wrong native delivery: %+v", receipt.Deliveries)
 	}
 	packets, err := shopPilotSpaces(pilot, receipt, receipt.After, true)
-	if err != nil || len(packets) != 3 {
+	expectedPackets := 3
+	if goldPurchase {
+		expectedPackets = 4
+	}
+	if err != nil || len(packets) != expectedPackets {
 		t.Fatalf("native packets=%+v error=%v", packets, err)
+	}
+	if goldPurchase {
+		restore, err := protocol.InventoryRestore(bag.Rows(), bag.Expansion)
+		last := packets[len(packets)-1]
+		if err != nil || last.Kind != 0 || last.ID != 13 || !bytes.Equal(last.Payload, restore) {
+			t.Fatalf("Gold balance snapshot after ACK: %+v %v", last, err)
+		}
 	}
 	if _, err = preparePackets(session.keys, packets); err != nil {
 		t.Fatal(err)
@@ -165,12 +216,23 @@ func TestShopPilotNativeSaveIdentityPurchase(t *testing.T) {
 		t.Fatalf("audit identity=%s error=%v", orderSource, err)
 	}
 	// A retry must not debit twice or overwrite a newer saved state.
+	if goldPurchase {
+		if _, err := store.DB.Exec(ctx, `UPDATE characters SET state=jsonb_set(state,'{inventory,gold}','777') WHERE id=$1`, role.ID); err != nil {
+			t.Fatal(err)
+		}
+	}
 	if _, err = store.DB.Exec(ctx, `UPDATE characters SET state=state||'{"newer":true}'::jsonb WHERE id=$1`, role.ID); err != nil {
 		t.Fatal(err)
 	}
 	replay, applied, err := session.purchase(ctx, pilot, store, account, role.ID, body, frame)
 	if err != nil || applied || !bytes.Contains(replay.CharacterState, []byte("newer")) {
 		t.Fatalf("native replay: applied=%t error=%v", applied, err)
+	}
+	if goldPurchase {
+		replayBag, err := inventory.ReadBag(replay.CharacterState)
+		if err != nil || replayBag.Gold != 777 {
+			t.Fatalf("replay overwrote newer Gold: %+v %v", replayBag, err)
+		}
 	}
 	balance, err = store.AccountCera(ctx, account)
 	if err != nil || balance != receipt.After {
@@ -183,5 +245,8 @@ func TestShopPilotNativeSaveIdentityPurchase(t *testing.T) {
 	if err = store.DB.QueryRow(ctx, `SELECT count(*) FROM cash_inventory WHERE claimed_at IS NULL`).Scan(&pending); err != nil || pending != 0 {
 		t.Fatalf("duplicate pending delivery=%d error=%v", pending, err)
 	}
-	t.Logf("PASS current native SKU=%d template=%d units=%d price=%d; wrong source/encoding failures rolled back, debit+delivery+audit committed once, replay preserved newer state", product.ID, product.Template, product.Units, product.Cera)
+	if goldPurchase {
+		testNativeMixedGoldCart(t, ctx, store, pilot, session.keys, account, role.ID, initialBalance)
+	}
+	t.Logf("PASS current native SKU=%d template=%d units=%d Cera=%d Gold=%d; wrong source/encoding failures rolled back, debit+delivery+audit committed once, replay preserved newer state", product.ID, product.Template, product.Units, product.Cera, product.Gold)
 }

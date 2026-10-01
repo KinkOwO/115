@@ -153,7 +153,7 @@ func TestShopPilotPVFCurrentCatalog(t *testing.T) {
 	}
 	// Every admitted row can be delivered and acknowledged, not just chosen SKUs.
 	for id, product := range products {
-		l := &packLedger{state: json.RawMessage(`{}`)}
+		l := &packLedger{state: json.RawMessage(`{"inventory":{"version":"ordinary-bag-v1","gold":4294967295}}`)}
 		if _, _, e = p.Purchase(context.Background(), l, 1, 1, fmt.Sprintf("catalog-all-%d-0001", id), []protocol.CeraCartItem{{Product: id, Quantity: 1}}); e != nil {
 			t.Fatal(id, e)
 		}

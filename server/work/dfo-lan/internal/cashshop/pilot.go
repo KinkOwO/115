@@ -646,7 +646,25 @@ func (p *Pilot) Purchase(ctx context.Context, ledger BagLedger, account, charact
 	if total > 112000 {
 		return storage.CashReceipt{}, false, fmt.Errorf("purchase exceeds delivery budget")
 	}
+	goldCost, e := o.GoldTotal()
+	if e != nil {
+		return storage.CashReceipt{}, false, e
+	}
 	deliver := func(raw json.RawMessage) (json.RawMessage, error) {
+		if goldCost > 0 {
+			bag, err := inventory.ReadBag(raw)
+			if err != nil {
+				return nil, err
+			}
+			if uint64(bag.Gold) < goldCost {
+				return nil, fmt.Errorf("insufficient Gold")
+			}
+			bag.Gold -= uint32(goldCost)
+			raw, err = inventory.SaveBag(raw, bag)
+			if err != nil {
+				return nil, err
+			}
+		}
 		for i, line := range o.Lines {
 			if _, isContract := activations[i]; isContract {
 				continue

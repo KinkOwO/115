@@ -26,11 +26,12 @@ type CashOrder struct {
 	VaultSpace byte `json:"vault_space,omitempty"`
 }
 type CashOrderLine struct {
-	Product   uint32 `json:"product"`
-	Template  uint32 `json:"template"`
-	Quantity  uint32 `json:"quantity"`
-	Units     uint32 `json:"units"`
-	UnitPrice uint32 `json:"unit_price"`
+	Product       uint32 `json:"product"`
+	Template      uint32 `json:"template"`
+	Quantity      uint32 `json:"quantity"`
+	Units         uint32 `json:"units"`
+	GoldUnitPrice uint32 `json:"gold_unit_price,omitempty"`
+	UnitPrice     uint32 `json:"unit_price"`
 }
 type CashDelivery struct {
 	ID       int64  `json:"id"`
@@ -49,6 +50,7 @@ type CashReceipt struct {
 	Before         uint64          `json:"before"`
 	After          uint64          `json:"after"`
 	Charged        uint64          `json:"charged"`
+	GoldCharged    uint64          `json:"gold_charged,omitempty"`
 	Deliveries     []CashDelivery  `json:"deliveries"`
 	Premiums       []CashPremium   `json:"premiums,omitempty"`
 	CharacterState json.RawMessage `json:"character_state,omitempty"`
@@ -58,24 +60,36 @@ type CashReceipt struct {
 }
 
 func (o CashOrder) total() (uint64, error) {
+	cera, _, err := o.totals()
+	return cera, err
+}
+
+// GoldTotal validates the catalog order and returns its authoritative Gold cost.
+func (o CashOrder) GoldTotal() (uint64, error) {
+	_, gold, err := o.totals()
+	return gold, err
+}
+
+func (o CashOrder) totals() (uint64, uint64, error) {
 	source, e := hex.DecodeString(o.Source)
 	if e != nil || len(source) != 32 || o.Account <= 0 || o.Character <= 0 || len(o.Key) < 16 || len(o.Key) > 128 || len(o.Lines) == 0 || len(o.Lines) > 32 {
-		return 0, fmt.Errorf("invalid cash order")
+		return 0, 0, fmt.Errorf("invalid cash order")
 	}
-	var total uint64
+	var cera, gold uint64
 	for _, l := range o.Lines {
-		if l.Product == 0 || l.Template == 0 || l.Quantity == 0 || l.Quantity > 1000 || l.Units == 0 || l.UnitPrice == 0 {
-			return 0, fmt.Errorf("invalid cash order line")
+		if l.Product == 0 || l.Template == 0 || l.Quantity == 0 || l.Quantity > 1000 || l.Units == 0 || (l.UnitPrice == 0) == (l.GoldUnitPrice == 0) {
+			return 0, 0, fmt.Errorf("invalid cash order line")
 		}
 		if uint64(l.Quantity)*uint64(l.Units) > math.MaxUint32 {
-			return 0, fmt.Errorf("cash delivery amount overflow")
+			return 0, 0, fmt.Errorf("cash delivery amount overflow")
 		}
-		total += uint64(l.Quantity) * uint64(l.UnitPrice)
-		if total > math.MaxInt32 {
-			return 0, fmt.Errorf("cash order price overflow")
+		cera += uint64(l.Quantity) * uint64(l.UnitPrice)
+		gold += uint64(l.Quantity) * uint64(l.GoldUnitPrice)
+		if cera > math.MaxInt32 || gold > math.MaxUint32 {
+			return 0, 0, fmt.Errorf("cash order price overflow")
 		}
 	}
-	return total, nil
+	return cera, gold, nil
 }
 
 func (s *Store) MigrateCashShop(ctx context.Context) error {
@@ -416,9 +430,12 @@ type CashPremiumActivation struct {
 // reaches cash_inventory, an ordinary line never activates a contract.
 func (s *Store) purchaseCash(ctx context.Context, o CashOrder, deliver func(json.RawMessage) (json.RawMessage, error), premiums map[int]CashPremiumActivation, upgrades ...func(VaultState) (VaultState, error)) (CashReceipt, bool, error) {
 	var receipt CashReceipt
-	cost, e := o.total()
+	cost, goldCost, e := o.totals()
 	if e != nil {
 		return receipt, false, e
+	}
+	if goldCost > 0 && (deliver == nil || len(upgrades) > 0) {
+		return receipt, false, fmt.Errorf("Gold purchase requires atomic bag delivery")
 	}
 	raw, e := json.Marshal(o)
 	if e != nil {
@@ -503,7 +520,7 @@ func (s *Store) purchaseCash(ctx context.Context, o CashOrder, deliver func(json
 	if balance > math.MaxInt32 {
 		return receipt, false, fmt.Errorf("CERA balance exceeds native range")
 	}
-	receipt = CashReceipt{Order: o.Key, Before: uint64(balance), After: uint64(balance) - cost, Charged: cost}
+	receipt = CashReceipt{Order: o.Key, Before: uint64(balance), After: uint64(balance) - cost, Charged: cost, GoldCharged: goldCost}
 	if len(premiums) > 0 {
 		now := time.Now().Unix()
 		indexes := make([]int, 0, len(premiums))

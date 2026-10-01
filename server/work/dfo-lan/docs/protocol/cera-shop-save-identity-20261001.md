@@ -1,8 +1,8 @@
-# Cera 商城购买的存档身份回归（2026-10-01，候选）
+# Cera 商城购买的存档身份回归（2026-10-01，普通 Cera 购买已确认）
 
 ## 状态与唯一假设
 
-attempt 1/3：修正订单与角色存档比较时的身份取值；不改变 CMD64 reader、codec、包字段或等待态。尚待用户手动实机购买确认，confirmed baseline 不升级。本次未启动客户端，也未连接玩家 PostgreSQL/Redis；独立测试实例已关闭。
+attempt 1/3：修正订单与角色存档比较时的身份取值；不改变 CMD64 reader、codec、包字段或等待态。普通 Cera 购买已经用户确认并有20:53:26日志支持，确认范围详见文末；扩容等其他路径仍待逐项验证。本次未启动客户端，也未连接玩家 PostgreSQL/Redis；独立测试实例已关闭。
 
 ## 证据闭环
 
@@ -42,11 +42,11 @@ attempt 1/3：修正订单与角色存档比较时的身份取值；不改变 CM
 
 ## 手动验收与回退
 
-关闭现有会话后，从根目录手动运行 `启动游戏.cmd --source-build --pvf-mode`。购买原失败商品，确认扣款一次、物品数量正确、界面结束等待；重选角色确认物品和余额保留。必要时再检查契约、背包扩容与账号金库扩容，不将普通商品通过扩大为全商城逐项验收。
+普通Cera购买已由用户确认；后续金币购买的实机确认和源码入口回退方式见 cera-shop-gold-purchase-20261001.md。身份修复提交为9bba6d6。该变更没有数据库迁移。
+## 20:53 Cera普通购买确认（历史记录）
 
-候选仅发布到 `bin/wireprobe-handoff-source.exe`，默认 `bin/wireprobe-pvf.exe` 保留。本次候选旧文件备份位于根 `.tmp/cera-identity-20261001/wireprobe-handoff-source.before.exe`；关闭会话后可复制回源码入口。代码撤回仅逐项撤回本任务的身份取值改动，不能 reset 工作区或恢复整份用户文件。协议布局未变，无数据库迁移需要撤回。
-## 20:53 用户确认与收口
+用户先确认普通Cera商品可购买。会话 roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261001_205110_953979_next37 记录SKU3000127扣10点、模板10000540×1到账；该身份修复已提交9bba6d6。
 
-用户反馈“用cera点的能买，但是用金币的买不了”。确认边界为普通Cera购买：最新20:51会话的events.jsonl:183–187记录SKU3000127，角色13，扣10点（921790→921780），模板10000540×1落袋及CMD64成功回执。源码入口ffda6686…纳入该范围的confirmed baseline；默认程序未替换，不扩大为全商城/扩容逐项验收。本次身份修复按根规则更新CHANGELOG和交接记录并独立提交。
+## 21:53 金币购买确认
 
-金币SKU3400315的两次请求（179–181、188–190）解码通过，但`product 3400315 not enabled for cash delivery`拒绝，未扣点。该商品历史源行cell3=100、cell5=0，需另行确认当前原生金币价格与扣款、刷新路径；不能把金币价当Cera价，也不把本次Cera确认扩大为金币购买恢复。上文“候选待确认”叙述为当时状态。
+用户后确认金币商品可购买。会话 roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261001_213843_140102_next37 记录SKU3400476扣100金币、Cera不变、模板590721400×1到账；源码候选SHA256 c518e50af555178018e85604eb45c814d77f0d108175b8c5170196b5f3e468b5纳入商城普通商品购买confirmed baseline。扩容和特殊货币仍未逐项确认；回归细节见 cera-shop-gold-purchase-20261001.md。
