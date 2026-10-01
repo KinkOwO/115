@@ -1,0 +1,223 @@
+{
+ "generated": "2026-10-01T22:20:09",
+ "records": [
+  {
+   "va": "0x140B899B0",
+   "name": "sub_140B899B0",
+   "size": 248,
+   "file": "cmd2258_s2c_handler_140B899B0_sub_140B899B0.c",
+   "callers": []
+  },
+  {
+   "va": "0x140B8AD40",
+   "name": "sub_140B8AD40",
+   "size": 74,
+   "file": "cmd2258_c2s_sender_140B8AD40_sub_140B8AD40.c",
+   "callers": [
+    {
+     "func": "0x141491BE0",
+     "site": "0x141491CC0"
+    },
+    {
+     "func": "0x141491D10",
+     "site": "0x141491E22"
+    },
+    {
+     "func": "0x14503EB70",
+     "site": "0x14503F022"
+    },
+    {
+     "func": "0x14511D7D0",
+     "site": "0x14511E36E"
+    },
+    {
+     "func": "0x146831A50",
+     "site": "0x14683207D"
+    }
+   ]
+  },
+  {
+   "va": "0x140B915D0",
+   "name": "sub_140B915D0",
+   "size": 66,
+   "file": "after_send_ui_a_140B915D0_sub_140B915D0.c",
+   "callers": [
+    {
+     "func": "0x1402579A0",
+     "site": "0x1402579B4"
+    },
+    {
+     "func": "0x140257A80",
+     "site": "0x140257A94"
+    },
+    {
+     "func": "0x140257B60",
+     "site": "0x140257B7C"
+    },
+    {
+     "func": "0x140257B60",
+     "site": "0x140257C35"
+    },
+    {
+     "func": "0x14028BFA0",
+     "site": "0x14028BFDC"
+    },
+    {
+     "func": "0x14028BFA0",
+     "site": "0x14028C0AC"
+    },
+    {
+     "func": "0x1403B7F40",
+     "site": "0x1403B805E"
+    },
+    {
+     "func": "0x140425170",
+     "site": "0x1404251B4"
+    },
+    {
+     "func": "0x140425170",
+     "site": "0x1404251C1"
+    },
+    {
+     "func": "0x140425170",
+     "site": "0x140425204"
+    },
+    {
+     "func": "0x140425170",
+     "site": "0x140425263"
+    },
+    {
+     "func": "0x14048DCA0",
+     "site": "0x14048DDBC"
+    },
+    {
+     "func": "0x1404A59A0",
+     "site": "0x1404A5E45"
+    },
+    {
+     "func": "0x1404AA320",
+     "site": "0x1404AA391"
+    },
+    {
+     "func": "0x1404D52C0",
+     "site": "0x1404D532B"
+    },
+    {
+     "func": "0x1404D52C0",
+     "site": "0x1404D556C"
+    },
+    {
+     "func": "0x1404D52C0",
+     "site": "0x1404D55E7"
+    },
+    {
+     "func": "0x1404D52C0",
+     "site": "0x1404D5925"
+    },
+    {
+     "func": "0x1404D52C0",
+     "site": "0x1404D599A"
+    },
+    {
+     "func": "0x1404D52C0",
+     "site": "0x1404D61EB"
+    }
+   ]
+  },
+  {
+   "va": "0x140B96DB0",
+   "name": "sub_140B96DB0",
+   "size": 7,
+   "file": "after_send_ui_b_140B96DB0_sub_140B96DB0.c",
+   "callers": [
+    {
+     "func": "0x140B899B0",
+     "site": "0x140B89AA3"
+    },
+    {
+     "func": "0x140B8AD40",
+     "site": "0x140B8AD85"
+    },
+    {
+     "func": "0x144B814C0",
+     "site": "0x144B81581"
+    },
+    {
+     "func": "0x145301370",
+     "site": "0x14530312B"
+    }
+   ]
+  },
+  {
+   "va": "0x141491BE0",
+   "name": "sub_141491BE0",
+   "size": 293,
+   "file": "caller_141491BE0_sub_141491BE0.c",
+   "callers": [],
+   "call_site": "0x141491CC0"
+  },
+  {
+   "va": "0x141491D10",
+   "name": "sub_141491D10",
+   "size": 348,
+   "file": "caller_141491D10_sub_141491D10.c",
+   "callers": [],
+   "call_site": "0x141491E22"
+  },
+  {
+   "va": "0x14503EB70",
+   "name": "sub_14503EB70",
+   "size": 1694,
+   "file": "caller_14503EB70_sub_14503EB70.c",
+   "callers": [
+    {
+     "func": "0x14503B8B0",
+     "site": "0x14503B8D6"
+    }
+   ],
+   "call_site": "0x14503F022"
+  },
+  {
+   "va": "0x14511D7D0",
+   "name": "sub_14511D7D0",
+   "size": 3534,
+   "file": "caller_14511D7D0_sub_14511D7D0.c",
+   "callers": [
+    {
+     "func": "0x1430EEE70",
+     "site": "0x1430EEEFD"
+    },
+    {
+     "func": "0x1430EEFA0",
+     "site": "0x1430EEFFA"
+    },
+    {
+     "func": "0x1451193F0",
+     "site": "0x14511945D"
+    },
+    {
+     "func": "0x145119510",
+     "site": "0x14511953D"
+    }
+   ],
+   "call_site": "0x14511E36E"
+  },
+  {
+   "va": "0x146831A50",
+   "name": "sub_146831A50",
+   "size": 1828,
+   "file": "caller_146831A50_sub_146831A50.c",
+   "callers": [
+    {
+     "func": "0x14682E750",
+     "site": "0x14682E79B"
+    },
+    {
+     "func": "0x146831250",
+     "site": "0x146831307"
+    }
+   ],
+   "call_site": "0x14683207D"
+  }
+ ]
+}

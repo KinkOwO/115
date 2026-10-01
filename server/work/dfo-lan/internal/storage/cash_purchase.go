@@ -355,9 +355,12 @@ type CashPremiumActivation = cashshop.CashPremiumActivation
 // reaches cash_inventory, an ordinary line never activates a contract.
 func (s *Store) purchaseCash(ctx context.Context, o CashOrder, deliver func(json.RawMessage) (json.RawMessage, error), premiums map[int]CashPremiumActivation, upgrades ...func(VaultState) (VaultState, error)) (CashReceipt, bool, error) {
 	var receipt CashReceipt
-	cost, e := o.Total()
+	cost, goldCost, e := o.Totals()
 	if e != nil {
 		return receipt, false, e
+	}
+	if goldCost > 0 && (deliver == nil || len(upgrades) > 0) {
+		return receipt, false, fmt.Errorf("Gold purchase requires atomic bag delivery")
 	}
 	raw, e := json.Marshal(o)
 	if e != nil {
@@ -442,7 +445,7 @@ func (s *Store) purchaseCash(ctx context.Context, o CashOrder, deliver func(json
 	if balance > math.MaxInt32 {
 		return receipt, false, fmt.Errorf("CERA balance exceeds native range")
 	}
-	receipt = CashReceipt{Order: o.Key, Before: uint64(balance), After: uint64(balance) - cost, Charged: cost}
+	receipt = CashReceipt{Order: o.Key, Before: uint64(balance), After: uint64(balance) - cost, Charged: cost, GoldCharged: goldCost}
 	if len(premiums) > 0 {
 		now := time.Now().Unix()
 		indexes := make([]int, 0, len(premiums))

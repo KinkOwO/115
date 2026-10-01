@@ -8,14 +8,13 @@ import (
 	"testing"
 )
 
-// 出站 ACK 的合法形状就是原生 reader 消费的两个 u8 (state, option)；旧的三字节
-// {1, state, option} 多出来的那个前导 1 是入站请求体才有的 literal。
+// 公共 CMD 分发器先读成功字节，CMD72 handler 再读 state/option。
 func TestSettlementExitAckWidth(t *testing.T) {
 	for s := byte(1); s <= 2; s++ {
-		for o := byte(0); o <= 3; o++ {
+		for _, o := range []byte{0, 1, 2, 3, SettlementExitSeamless} {
 			got := SettlementExitSuccess(SettlementExit{State: s, Option: o})
-			if len(got) != 2 || got[0] != s || got[1] != o {
-				t.Fatalf("ack %d/%d not the native two-byte body: %v", s, o, got)
+			if len(got) != 3 || got[0] != 1 || got[1] != s || got[2] != o {
+				t.Fatalf("ack %d/%d missing CMD envelope or handler bytes: %v", s, o, got)
 			}
 		}
 	}
@@ -66,7 +65,7 @@ func TestCurrentNativeCardPackets(t *testing.T) {
 	}
 	for s := byte(1); s <= 2; s++ {
 		for o := byte(0); o <= 2; o++ {
-			check(fmt.Sprintf("card_exit_%d_%d", s, o), SettlementExitSuccess(SettlementExit{State: s, Option: o}))
+			check(fmt.Sprintf("card_exit_%d_%d", s, o), SettlementExitSuccess(SettlementExit{State: s, Option: o})[1:])
 		}
 	}
 	r := ClearRewardState{BaseExperience: 500, ScoreExperience: 50, MonsterExperience: 1234}

@@ -78,3 +78,19 @@ address	name	description
 0x14563c1f0	BuffEnhancement_ReadUserInfoBlock	USERINFO switching block reads skill u16/count u8, clears actor map via143642610 then binds supplied items; empty service block erases registrations
 0x143642610	BuffEnhancement_ClearActorRegistration	Erases actor+48 map binding via14363ff90 and refreshes windows740/741; USERINFO caller confirmed
 0x143643910	BuffEnhancement_CopyActorRegistration	Copies old actor registration to new actor in145961b80/145c6fe60; registrations are keyed by actor+48
+0x14573dc60	BoosterSelectWindow_SendWithAvatarOptions	CMD160: u16 slot, u32 amount, two u8 category bytes, all selected u32 templates, u8 option count, template-u32/option-u8 rows and trailing zero. Archer package captured 2026-10-01 has 8 templates and 0 options.
+0x14573e120	BoosterSelectWindow_SendSelection	CMD160 normal branch writes all selected u32 templates then two zero bytes at 14573E776/14573E785. Native archer and dark-knight package vectors captured 2026-10-01.
+0x140B899B0	Handler_CmdEquipmentAwakening	CMD2258 equipment-awakening handler(obj, status, code): status != 0 refreshes panel 3580 only; status 0 pops a message by code then refreshes and resets. Status 1 = success.
+0x140B8AD40	Sender_CmdEquipmentAwakening	CMD2258 sender: writes opcode then a fixed 25-byte request body.
+0x141491D10	EquipmentAwakeningWindow_SendTune	Tune request: +13=0 mode, +14..17 material group, +18 space, +19..20 slot, +21..24 target template.
+0x141491BE0	EquipmentAwakeningWindow_SendInit	Init/refund request: +13=1 mode, +14..17 and +21..24 are both 0xFFFFFFFF.
+0x1414921F0	EquipmentAwakeningWindow_ApplyResultState	state 3 calls the refresh only; state 4 refreshes then clears +1512 and calls sub_141494520 to reset.
+0x1414928D0	EquipmentAwakeningWindow_RefreshMaterials	Re-reads material counts and refreshes the panel buttons/material rows.
+0x14148BF80	EquipmentAwakeningWindow_Get	Window singleton getter: sub_14667BB90(qword_14E683C78, 3580, 0).
+0x14667BB90	UIManager_GetWindowByID	Fetches a window object by (manager, id, index); out-of-range index returns 0.
+0x1459A1BB0	PacketDispatch_Receive	CMD kind=1 consumes common success u8 at 1459A1CA2; failure consumes error u16 at 1459A1D1B before command dispatch. PE/IDB bytes verified 20261001.
+0x14599D200	PacketDispatch_Command	Dispatches opcode from packet+1 with already-consumed success/error arguments; invokes handler table at 14599D357.
+0x1459A2D70	PacketDispatch_InvokeCommandHandler	Invokes registered opcode handler with command/status/error/context; does not re-read common status.
+0x14524C580	PacketDispatch_RegisterHandlers_14524C580	Registers command handlers including CMD72 -> 145244570 at 14524C65E. Registration bytes match current PE.
+0x145244570	Handler_CmdSettlementExit	CMD72 success handler reads state u8 at 1452445AD, option u8 at 1452445B9 after common success; applies option/state to normal reward window at 145244973.
+0x146ABAF50	ClearRewardWindow_ApplySettlementExit	Stores option at +4108 and state at +4112; state!=1 returns at 146ABB201. Option 0 restart, 1 dungeon selection, 2 town, 5 seamless.

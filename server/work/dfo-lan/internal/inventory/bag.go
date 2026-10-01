@@ -170,6 +170,10 @@ type Bag struct {
 	// 玩家看到的就是「替换不生效、状态停在 B」（实机 2026-09-27）。
 	// 把序号一起编进键，每次真实切换都是新键；序号本身不参与任何投影。
 	WeaponSkinSeq uint32 `json:"weapon_skin_seq,omitempty"`
+	// AvatarDisjointSeq separates successive instances of the same avatar in
+	// the same slot. Old saves begin at zero; it is not sent to the client.
+	AvatarDisjointSeq uint64 `json:"avatar_disjoint_seq,omitempty"`
+	AvatarRecastSeq   uint64 `json:"avatar_recast_seq,omitempty"`
 }
 
 // WeaponSlot 是穿戴容器（list 3）里的武器槽。[equipment type] 的序号空间里

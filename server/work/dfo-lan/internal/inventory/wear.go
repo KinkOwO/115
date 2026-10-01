@@ -65,12 +65,14 @@ type PremiumStore interface {
 }
 
 type WearService struct {
-	PremiumStore PremiumStore
-	Catalog      *EquipmentCatalog
-	Professions  catalog.Characters
-	BagRules     BagRules
-	Rules        WearRules
-	Shields      *KnightShields
+	PremiumStore     PremiumStore
+	Catalog          *EquipmentCatalog
+	Professions      catalog.Characters
+	BagRules         BagRules
+	Rules            WearRules
+	Shields          *KnightShields
+	AvatarRecast     *AvatarRecastRules
+	AvatarRecastLoot *catalog.LootCatalog
 }
 
 func (s *WearService) EggHatchTarget(template uint32) uint32 {

@@ -1,0 +1,225 @@
+{
+ "generated": "2026-10-01T22:50:59",
+ "records": [
+  {
+   "va": "0x1414928D0",
+   "name": "sub_1414928D0",
+   "size": 405,
+   "file": "ui_refresh_action_1414928D0_sub_1414928D0.c",
+   "callers": [
+    {
+     "func": "0x14148F5B0",
+     "site": "0x14148F5D7"
+    },
+    {
+     "func": "0x14148FEA0",
+     "site": "0x14148FF7C"
+    },
+    {
+     "func": "0x14148FEA0",
+     "site": "0x14148FF8B"
+    },
+    {
+     "func": "0x141490030",
+     "site": "0x141490232"
+    },
+    {
+     "func": "0x141490BD0",
+     "site": "0x141490CEF"
+    },
+    {
+     "func": "0x141490BD0",
+     "site": "0x141490CFC"
+    },
+    {
+     "func": "0x141490D20",
+     "site": "0x141490E27"
+    },
+    {
+     "func": "0x141491370",
+     "site": "0x14149138F"
+    },
+    {
+     "func": "0x141491E70",
+     "site": "0x141491EF0"
+    },
+    {
+     "func": "0x141491E70",
+     "site": "0x141491EFF"
+    },
+    {
+     "func": "0x1414921F0",
+     "site": "0x141492237"
+    },
+    {
+     "func": "0x1414921F0",
+     "site": "0x14149228B"
+    }
+   ]
+  },
+  {
+   "va": "0x141494520",
+   "name": "sub_141494520",
+   "size": 254,
+   "file": "ui_state_reset_141494520_sub_141494520.c",
+   "callers": [
+    {
+     "func": "0x141489660",
+     "site": "0x141489686"
+    },
+    {
+     "func": "0x14148A900",
+     "site": "0x14148AD3E"
+    },
+    {
+     "func": "0x14148F680",
+     "site": "0x14148F6A7"
+    },
+    {
+     "func": "0x14148FEA0",
+     "site": "0x14148FF68"
+    },
+    {
+     "func": "0x141490030",
+     "site": "0x14149016E"
+    },
+    {
+     "func": "0x141490450",
+     "site": "0x14149070B"
+    },
+    {
+     "func": "0x141490BD0",
+     "site": "0x141490CD3"
+    },
+    {
+     "func": "0x141491E70",
+     "site": "0x141491EDC"
+    },
+    {
+     "func": "0x1414921F0",
+     "site": "0x141492264"
+    }
+   ]
+  },
+  {
+   "va": "0x14667BB90",
+   "name": "sub_14667BB90",
+   "size": 72,
+   "file": "ui_window_lookup_14667BB90_sub_14667BB90.c",
+   "callers": [
+    {
+     "func": "0x1401E51D0",
+     "site": "0x1401E5209"
+    },
+    {
+     "func": "0x1401E5230",
+     "site": "0x1401E526D"
+    },
+    {
+     "func": "0x1401E52A0",
+     "site": "0x1401E536B"
+    },
+    {
+     "func": "0x1401E62A0",
+     "site": "0x1401E630A"
+    },
+    {
+     "func": "0x1401F6B10",
+     "site": "0x1401F6B6D"
+    },
+    {
+     "func": "0x1401F6B10",
+     "site": "0x1401F6B86"
+    },
+    {
+     "func": "0x1401F6B10",
+     "site": "0x1401F6BD9"
+    },
+    {
+     "func": "0x1401F6B10",
+     "site": "0x1401F6BF6"
+    },
+    {
+     "func": "0x1401F8B60",
+     "site": "0x1401FA0F2"
+    },
+    {
+     "func": "0x1401F8B60",
+     "site": "0x1401FA10F"
+    },
+    {
+     "func": "0x1401F8B60",
+     "site": "0x1401FA12C"
+    },
+    {
+     "func": "0x1401F8B60",
+     "site": "0x1401FA149"
+    }
+   ]
+  },
+  {
+   "va": "0x14668C520",
+   "name": "sub_14668C520",
+   "size": 5024,
+   "file": "ui_popup_14668C520_sub_14668C520.c",
+   "callers": [
+    {
+     "func": "0x1401F4900",
+     "site": "0x1401F4C68"
+    },
+    {
+     "func": "0x1401F4900",
+     "site": "0x1401F4D44"
+    },
+    {
+     "func": "0x1401F6B10",
+     "site": "0x1401F6D80"
+    },
+    {
+     "func": "0x1401F7480",
+     "site": "0x1401F76D9"
+    },
+    {
+     "func": "0x1401F7480",
+     "site": "0x1401F7D8B"
+    },
+    {
+     "func": "0x1401F7480",
+     "site": "0x1401F7E47"
+    },
+    {
+     "func": "0x1401F7480",
+     "site": "0x1401F7E60"
+    },
+    {
+     "func": "0x1401F8B60",
+     "site": "0x1401FA23B"
+    },
+    {
+     "func": "0x1401FAAD0",
+     "site": "0x1401FAB1A"
+    },
+    {
+     "func": "0x1401FAAD0",
+     "site": "0x1401FAE6A"
+    },
+    {
+     "func": "0x140205820",
+     "site": "0x14020591C"
+    },
+    {
+     "func": "0x140228640",
+     "site": "0x14022875A"
+    }
+   ]
+  },
+  {
+   "va": "0x140B899B0",
+   "name": "sub_140B899B0",
+   "size": 248,
+   "file": "getter_caller_140B899B0_sub_140B899B0.c",
+   "callers": [],
+   "call_site": "0x140B899C6"
+  }
+ ]
+}

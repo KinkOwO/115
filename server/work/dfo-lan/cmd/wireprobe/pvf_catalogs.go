@@ -31,6 +31,8 @@ type pvfCoreCatalogs struct {
 	layerRevisits                                *catalog.LayerRevisitOverlay
 	scriptWarps                                  []catalog.ScriptWarpRoute
 	fameRules                                    *character.FameRules
+	awakeningRules                               *catalog.EquipmentAwakeningRules
+	awakeningOptions                             *catalog.EquipmentAwakeningOptions
 	rosterBackgrounds                            *rosterbg.TicketCatalog
 	odysseyRoutes                                *catalog.OdysseyJournalRoutes
 	seasonRules                                  *adventure.SeasonRules
@@ -60,6 +62,8 @@ type pvfCoreCatalogs struct {
 	items                                        *catalog.ItemIndex
 	itemBasics                                   *catalog.ItemBasics
 	equipment                                    *inventory.FullEquipmentCatalog
+	avatarDisjoint                               *inventory.AvatarDisjointRules
+	avatarRecast                                 *inventory.AvatarRecastRules
 	periods                                      []uint32
 	skins                                        map[uint32]catalog.SkinStorageEntry
 	journal                                      *catalog.EquipmentJournalRules
@@ -352,6 +356,18 @@ func preparePVFCoreCatalogs(selection, path, checksum, characterPath, questPath,
 		}
 		result.items = &direct
 		log.Printf("PVF item index prepared: %d templates source=%s", len(direct.Items), direct.Source.Checksum)
+		if selected["equipment"] && selected["loot"] {
+			result.avatarDisjoint, e = source.AvatarDisjoint(direct)
+			if e != nil {
+				return result, fmt.Errorf("PVF avatar disjoint: %w", e)
+			}
+			log.Printf("PVF avatar disjoint prepared: %d avatar grades, %d emblem grades source=%s", len(result.avatarDisjoint.Rolls), len(result.avatarDisjoint.Pools), result.avatarDisjoint.Source)
+			result.avatarRecast, e = source.AvatarRecast(direct)
+			if e != nil {
+				return result, fmt.Errorf("PVF avatar recast: %w", e)
+			}
+			log.Printf("PVF avatar recast prepared: %d jobs source=%s", len(result.avatarRecast.Jobs), result.avatarRecast.Source)
+		}
 		source.ReleaseReadCaches()
 		if e := preparePVFCommerce(&result, source, selected, inputs); e != nil {
 			return result, e
@@ -420,6 +436,9 @@ func preparePVFCoreCatalogs(selection, path, checksum, characterPath, questPath,
 		return result, err
 	}
 	if err := preparePVFFame(&result, source, selected, inputs); err != nil {
+		return result, err
+	}
+	if err := preparePVFEquipmentAwakening(&result, source); err != nil {
 		return result, err
 	}
 	if err := preparePVFItemShops(&result, source, selected, inputs); err != nil {

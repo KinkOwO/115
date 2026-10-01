@@ -54,7 +54,11 @@ func (l preparedBagLedger) PurchaseCashMixed(ctx context.Context, o storage.Cash
 		for _, line := range o.Lines {
 			lines = append(lines, storage.CashDelivery{Product: line.Product, Template: line.Template, Amount: line.Quantity * line.Units, Quantity: line.Quantity})
 		}
-		packets, e := shopPilotSpaces(l.pilot, storage.CashReceipt{CharacterState: state, Deliveries: lines, Premiums: receiptPremiumsFor(premiums)}, 0, true)
+		goldCost, e := o.GoldTotal()
+		if e != nil {
+			return nil, e
+		}
+		packets, e := shopPilotSpaces(l.pilot, storage.CashReceipt{CharacterState: state, GoldCharged: goldCost, Deliveries: lines, Premiums: receiptPremiumsFor(premiums)}, 0, true)
 		if e != nil {
 			return nil, e
 		}
@@ -92,7 +96,11 @@ func (l preparedBagLedger) PurchaseCashToBag(ctx context.Context, o storage.Cash
 		for _, line := range o.Lines {
 			lines = append(lines, storage.CashDelivery{Product: line.Product, Template: line.Template, Amount: line.Quantity * line.Units, Quantity: line.Quantity})
 		}
-		packets, e := shopPilotSpaces(l.pilot, storage.CashReceipt{CharacterState: state, Deliveries: lines}, 0, true)
+		goldCost, e := o.GoldTotal()
+		if e != nil {
+			return nil, e
+		}
+		packets, e := shopPilotSpaces(l.pilot, storage.CashReceipt{CharacterState: state, GoldCharged: goldCost, Deliveries: lines}, 0, true)
 		if e != nil {
 			return nil, e
 		}
@@ -347,6 +355,13 @@ func shopPilotSpaces(p *cashshop.Pilot, receipt storage.CashReceipt, balance uin
 				packets = append(packets, outboundPacket{"cera_purchase_premium_activated", 0, 66, notice})
 			}
 		}
+	}
+	if receipt.GoldCharged > 0 {
+		body, err := protocol.InventoryRestore(b.Rows(), b.Expansion)
+		if err != nil {
+			return nil, err
+		}
+		packets = append(packets, outboundPacket{"cera_purchase_gold_restored", 0, 13, body})
 	}
 	return packets, nil
 }

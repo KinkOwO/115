@@ -19,6 +19,7 @@ type Service struct {
 	BagRules       inventory.BagRules
 	Tables         Tables
 	Equipment      *inventory.EquipmentCatalog
+	AvatarDisjoint *inventory.AvatarDisjointRules
 	// WearRules 是「装备类型 → 穿戴槽位」的映射（`configs/equipment-wear.*.json` 的 `slots`）。
 	// 装备变换要用它：客户端在「变换前」槽里放的那件**可能还在背包**，请求只带**部位码**，
 	// 所以要能反查"这个部位对应哪个 `[equipment type]`"。nil 时退化为"只认身上穿的"。
@@ -84,8 +85,10 @@ func (s *Service) PlanPickup(role Role, session *Session, d *dungeon.Session, r 
 	}
 	awardCatalog, bagRules := s.Catalog, s.BagRules
 	if d.Definition.Odyssey && session.Currency != nil {
-		if s.Currency == nil || session.Currency.Source != s.Catalog.Source.SaveIdentity() || session.Currency.Model != s.Currency.Model {
-			return PickupPlan{}, (fmt.Errorf("currency pickup policy mismatch"))
+		// 与 Death 里的同一判据：`session.Currency.Source` 是内层真哈希，
+		// 运行期对象之间比 Checksum（比 SaveIdentity() 会恒不等，见 session.go 的注释）。
+		if s.Currency == nil || session.Currency.Source != s.Catalog.Source.Checksum || session.Currency.Model != s.Currency.Model {
+			return PickupPlan{}, fmt.Errorf("currency pickup policy mismatch")
 		}
 		awardCatalog, bagRules = session.Currency.StorageCatalog(s.Catalog), session.Currency.BagRules(s.BagRules)
 	}

@@ -1,5 +1,30 @@
 # AGENTS.md — server/
 
+## 2026-10-02：魔法封印装备解除已确认
+
+- 用户确认普通装备可正常解除魔法封印。重构后 CMD393 曾以 PVF 哈希提交角色事件，身份门禁拒绝请求；现改用角色存档契约身份。解封随机属性存库并在重读后保持，原生目录身份校验和存档兼容保留。
+- 源码与 PVF 默认入口纳入 confirmed baseline，收口时均核对 SHA256 `2e00530babeb9b6ed4e357efce6a663fefc6c1d9b7da31843e383c0f945e9c7d`。专项独立数据库回归、`go vet ./...` 通过；全量测试5项在 HEAD overlay 对照中同样失败。无schema/玩家存档/客户端资源改动。详见 `work/dfo-lan/docs/protocol/magic-seal-save-identity-20261002.md`。
+
+## 2026-10-01：副本结算后回城/进入下个副本已确认
+
+- 用户确认“能离开副本/进入下一个副本了”。CMD72 成功 ACK 恢复公共成功字节，格式为 `01 state option`；客户端先消费成功字节，再由 CMD72 handler 读取 state/option。覆盖反馈异常的部分副本和任务3189关联副本验收，不代表所有副本逐一实测。
+- 23:48 手动会话 `roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261001_234806_594272_next37`：任务3189完成后，CMD72选择副本 ACK `010101`，随后服务端回复 CMD15 gate ACK；CMD16 请求任务3190，服务端于33ms后返回成功 ACK `01`。用户另确认回城和进入下个副本正常。
+- 源码候选 SHA256 `9594b7440046e106337bc5de66277d5931bf3a08202f40bb9d3b6671148cb75b` 纳入本项 confirmed baseline；收口时源码与 PVF 默认入口二进制均为该哈希。专项回归和 `go vet ./...` 通过；全量 Go 测试5项失败在 HEAD overlay 对照中同样复现。存档、schema 与客户端资源未改。协议与 IDA 证据见 `work/dfo-lan/docs/protocol/settlement-exit-envelope-20261001.md`。
+
+
+## 2026-10-01：弓箭手星座时装礼包漏发已确认
+
+- 用户确认修复。根因是 CMD160 客户端请求含8个选中时装模板；弓箭手第4模板小端首字节 `04` 被旧解析器误当成时装属性条数，ACK和入袋只处理前三件。依据权威 IDB 的原生 writer，为属性段增加模板属于所选列表的边界检查。两职业真实请求端到端回归均为8件，时装背包刷新及 ACK160一致，既有时装和角色存档其他字段保持。
+- 源码入口 `server/work/dfo-lan/bin/wireprobe-handoff-source.exe` SHA256 `6b15b723263f28ee50137046529b50d5605f38cdd9797533be88f7b4895ed8ab` 纳入本轮确认。默认 `wireprobe-pvf.exe` 也核对为SHA256 `6b15b723263f28ee50137046529b50d5605f38cdd9797533be88f7b4895ed8ab`；确认范围仅为该礼包弓箭手漏发修复及其它职业回归。
+- 全量专项测试和 `go vet ./...` 通过。全量 Go 测试仍有5项失败，修复前代码的 overlay 复核确认同样失败，未新增失败。没有修改 schema、玩家存档数据库或客户端资源；22:37:24实机会话 `roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261001_223606_846403_next37` 的角色1 ACK160记录 count=8，8个模板与弓箭手CMD160请求一致，随后角色10第44帧入场预检通过。确认范围限于该礼包的弓箭手漏发及其他职业的专项回归；以前已消耗礼包漏发的5件不自动补发。
+- 本次源码文件、协议原生向量、端到端回归、IDB函数索引及交接记录已收口；见 `work/dfo-lan/docs/protocol/archer-avatar-package-20261001.md`。
+
+
+- **Cera 商城 Cera/金币购买已确认**：用户确认“能购买”。21:53:40 会话 roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261001_213843_140102_next37 记录 SKU3400476 金币订单 applied=true、扣100金币、Cera前后均921780，模板590721400×1到账；同一毫秒记录CMD64响应帧。此前普通Cera SKU3000127 已有扣10及模板10000540×1到账记录。金币修复源码SHA256 c518e50af555178018e85604eb45c814d77f0d108175b8c5170196b5f3e468b5 纳入商城购买confirmed baseline，通过启动游戏.cmd --source-build 使用；默认程序SHA256 ffda6686159700d293a1e9395190f218ce8f094a25208ed84fc7220b94e72263 保持。本次限定普通14列商品购买，扩容、特殊货币及所有商品未逐项验收。go vet通过；全量Go测试仍有改动前已存在的5项失败。无schema、玩家存档或客户端资源修改。详见 work/dfo-lan/docs/protocol/cera-shop-gold-purchase-20261001.md。
+
+- **Cera 普通购买身份修复已确认**：用户反馈 Cera 点券商品能买。20:51 会话的 20:53:26 日志记录角色13购买SKU3000127，Cera921790→921780，扣10点，模板10000540×1落袋，NOTI14/53及CMD64成功回执发出。商城订单改用存档契约身份，保留PVF目录校验及原子交易；候选源码入口SHA256 ffda6686159700d293a1e9395190f218ce8f094a25208ed84fc7220b94e72263纳入本次普通Cera购买confirmed baseline。背包/金库扩容和全部商城商品未逐项实机确认；金币商品后续修复及确认记录见cera-shop-gold-purchase-20261001.md。原生PVF独立库购买回归和vet通过，全量5项既有失败已在未修改HEAD复现。默认程序实际bc9ce992保持，未操作玩家数据库或客户端资源。详见work/dfo-lan/docs/protocol/cera-shop-save-identity-20261001.md。
+
+
 - **归档元数据缓存已确认**：用户确认速度提升。17:50会话两类缓存miss/stored，准备50.244秒，角色4的45帧入场预检通过；17:53会话两类缓存hit，元数据2.361秒、联合物品2.647秒、全部准备25.704秒，角色11的49帧预检通过。正式/源码程序均核对为46c349cd8151ea66b9f056ce32f1c9f63368ee4ec6cc448205fbd713a062f7d8，无需替换，纳入confirmed baseline。确认依据用户反馈及上述日志，不扩大为所有玩法逐项验收；不改schema、存档准入/profile/客户端资源。按授权提交本段，再拉取合并上游SHA相关更新，继续其它投影及缓存保留策略。下文候选状态为历史记录。
 
 > 本文件是 `server/` 目录的规则真源与子索引。先读仓库根 `AGENTS.md`，再读本文件。
@@ -45,6 +70,7 @@
 
 ## 0.1 当前确认边界（历史确认记录）
 
+- **2026-10-01 装备调适（CMD2258）已确认**：用户实机确认调适可用（左侧 Tune/Promote 面板按成功刷新并播放调适动画），纳入confirmed baseline。实现为**唯一内容真源 = 内层 PVF**：规则直读 `etc/115lvability/equipmentawakeningoptionsystem.cos`（`[max awakening]`/`[condition]`/`[need materials]`/`[refund materials]`/`[rates]`/`[upgrade result]`）与 `equipmentawakeningoption.lst`（263 条选项），**未新增任何 JSON 链路**。协议按 IDA 闭环：请求体 25 字节（`+13` 模式、`+14..17` 材料组、`+18` 空间、`+19..20` 槽位、`+21..24` 目标模板），应答体 `u8 状态 + u16 结果码`，**状态 1 = 成功**（状态 0 会连面板一起复位——这正是"面板不刷新、无反馈"的根因）。调适阶段落在装备实例行 `+170`（与 `fame.go` 同一映射），升品换模板并清零该字节，其余实例字节与存档未知字段保留；材料 + 金币走同一 PostgreSQL 事务（账号材料仓库优先、背包兜底），按 `(角色, 幂等键)` 防重放。实机（角色 11 / 模板 100261128）连续三次 `0→1→2→3` 成功、`payload_offset=13`，请求 hex 逐字节与实现一致。本轮未做：`mode=1` 初始化/返还、非 100% 成功率、套装积分、CMD2259 转换里的调适联动。取证与清单见 `../analysis/tasks/next148-装备调适-直读PVF实现.md`。
 - **2026-10-01 第四批剩余优化已确认**：第四批剩余项已确认：七类确定性投影缓存（装备绑定/掉落/副本/赛季/背景券/传送/终场剧情）及旧缓存保留策略，绑定实际PVF/完整程序/实际输入策略，损坏重建、不可写回退及私有查询索引恢复。424216条装备、18387张地图、七类全部字段和54/63冷热启动一致；全量Go测试/vet、独立PostgreSQL16存档身份迁移回归通过。已提交确认段3def161并以2c24faa合并上游07e1551。用户手动连续两轮启动源码入口并确认：18:21:24冷轮准备48.0247秒，九类缓存miss/stored，角色1第46帧entry_preflight_passed；18:23:49热轮准备14.4253秒，九类缓存hit，角色1第46帧entry_preflight_passed。正式入口与源码入口均核对为SHA256 bc6211802e361f1407a14fd62d7a5730be9ed5250851a7f4c6c48aea6d32310e，现纳入confirmed baseline。热轮相较此前确认热轮23.9059秒快39.44%、累计分配降低61.84%；首次建九文件48.51秒，热堆527.47→536.01MiB，缓存合计约191MiB。实机确认范围为连续两次启动及选角进入前置检查，未扩大为所有玩法逐项验收。 上游包含存档身份契约迁移：新源码启动后旧46c349cd默认程序不能直接作为回退。优先保持源码入口并设置DFO_PVF_CACHE_DIR='-'恢复原生导入；若需撤回本批实现，关闭会话后将.tmp/pvf-phase4c/bin/wireprobe-metadata-sha-compatible.exe复制到源码入口，再继续--source-build。该185ae7e99853d2b4d96a1043c47eb046279cfb6d777e536e7e1df6c1d46ba92f程序来自合并提交2c24faa，含上游身份修复及已确认元数据/物品缓存，不含本批七类投影；54/63离线完整报告与候选一致，未操作玩家数据库。46c349cd精确备份.tmp/pvf-phase4c/bin/wireprobe-handoff-source.confirmed-before.exe仅作迁移前历史快照。 详见../docs/todo/pvf/PVF启动与内存优化实施计划.md。
 
 - 本轮上游同步后的Go1.26全量test/vet（含旧背包兼容）、当前源抽奖/自选原生回归及14项profile检查通过。源码提交不替代新增实机验收。

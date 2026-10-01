@@ -1,0 +1,199 @@
+{
+ "generated": "2026-10-01T22:18:39",
+ "opcode": 2258,
+ "immediate_scan": {
+  "raw_bytes_hits": 71,
+  "by_func": {
+   "0x14000A060 sub_14000A060": [
+    {
+     "ea": "0x14000A0A0",
+     "mn": "mov",
+     "asm": "mov     edx, 8D2h"
+    }
+   ],
+   "0x140B8AD40 sub_140B8AD40": [
+    {
+     "ea": "0x140B8AD4E",
+     "mn": "mov",
+     "asm": "mov     edx, 8D2h"
+    }
+   ],
+   "0x141192BC0 sub_141192BC0": [
+    {
+     "ea": "0x1411C4EF1",
+     "mn": "mov",
+     "asm": "mov     cs:dword_14E644A98, 8D2h"
+    }
+   ],
+   "0x1412327C0 sub_1412327C0": [
+    {
+     "ea": "0x14128AB74",
+     "mn": "mov",
+     "asm": "mov     [rsp+351F8h+var_32E90], 8D2h"
+    }
+   ],
+   "0x142FBB290 sub_142FBB290": [
+    {
+     "ea": "0x142FBB2C3",
+     "mn": "cmp",
+     "asm": "cmp     rax, 8D2h"
+    }
+   ],
+   "0x142FBB560 sub_142FBB560": [
+    {
+     "ea": "0x142FBB5C7",
+     "mn": "mov",
+     "asm": "mov     edx, 8D2h"
+    }
+   ],
+   "0x142FBBEC0 sub_142FBBEC0": [
+    {
+     "ea": "0x142FBC08F",
+     "mn": "mov",
+     "asm": "mov     [rsp+78h+var_50], 8D2h"
+    }
+   ],
+   "0x142FC0770 sub_142FC0770": [
+    {
+     "ea": "0x142FC084D",
+     "mn": "mov",
+     "asm": "mov     r8d, 8D2h"
+    }
+   ],
+   "0x1457A7110 sub_1457A7110": [
+    {
+     "ea": "0x1457FF4C4",
+     "mn": "mov",
+     "asm": "mov     [rsp+351F8h+var_32E90], 8D2h"
+    }
+   ],
+   "0x145B7EC00 sub_145B7EC00": [
+    {
+     "ea": "0x145B7F264",
+     "mn": "mov",
+     "asm": "mov     dword ptr [rax+28h], 8D2h"
+    }
+   ],
+   "0x145B9F870 sub_145B9F870": [
+    {
+     "ea": "0x145BA29CC",
+     "mn": "",
+     "asm": "cmp     byte ptr [r15+8D2h], 0"
+    }
+   ],
+   "0x14620CF30 sub_14620CF30": [
+    {
+     "ea": "0x14620D3F8",
+     "mn": "",
+     "asm": "mov     cs:dword_14EF2E988, 3F800000h"
+    }
+   ],
+   "0x1471C2FD0 sub_1471C2FD0": [
+    {
+     "ea": "0x1471D8856",
+     "mn": "mov",
+     "asm": "mov     dword ptr [rsp+5040h+var_5000], 8D2h"
+    }
+   ],
+   "0x147695320 sub_147695320": [
+    {
+     "ea": "0x147697334",
+     "mn": "mov",
+     "asm": "mov     dword ptr [rbp+420h+arg_8], 8D2h"
+    }
+   ]
+  }
+ },
+ "registration_scan": {
+  "CMD register (id, handler)": {
+   "calls_total": 636,
+   "with_opcode": [
+    {
+     "call_site": "0x14000A0A9",
+     "func": "0x14000A060 sub_14000A060",
+     "asm": "jmp     sub_14599D450",
+     "imm_hits": [
+      {
+       "ea": "0x14000A0A0",
+       "asm": "mov     edx, 8D2h"
+      }
+     ]
+    }
+   ]
+  },
+  "CMD table insert (table, id, handler)": {
+   "calls_total": 475,
+   "with_opcode": []
+  },
+  "NOTI register (id, handler, flags)": {
+   "calls_total": 1166,
+   "with_opcode": []
+  },
+  "NOTI table insert (table, id, handler, flags)": {
+   "calls_total": 596,
+   "with_opcode": []
+  }
+ },
+ "decompiled": [
+  {
+   "func": "0x14000A060",
+   "name": "sub_14000A060",
+   "bytes": 78,
+   "file": "00_14000A060_sub_14000A060.c"
+  },
+  {
+   "func": "0x140B8AD40",
+   "name": "sub_140B8AD40",
+   "bytes": 74,
+   "file": "01_140B8AD40_sub_140B8AD40.c"
+  },
+  {
+   "func": "0x142FBB290",
+   "name": "sub_142FBB290",
+   "bytes": 378,
+   "file": "04_142FBB290_sub_142FBB290.c"
+  },
+  {
+   "func": "0x142FBB560",
+   "name": "sub_142FBB560",
+   "bytes": 148,
+   "file": "05_142FBB560_sub_142FBB560.c"
+  },
+  {
+   "func": "0x142FBBEC0",
+   "name": "sub_142FBBEC0",
+   "bytes": 522,
+   "file": "06_142FBBEC0_sub_142FBBEC0.c"
+  },
+  {
+   "func": "0x142FC0770",
+   "name": "sub_142FC0770",
+   "bytes": 826,
+   "file": "07_142FC0770_sub_142FC0770.c"
+  },
+  {
+   "func": "0x145B7EC00",
+   "name": "sub_145B7EC00",
+   "bytes": 4953,
+   "file": "09_145B7EC00_sub_145B7EC00.c"
+  },
+  {
+   "func": "0x145B9F870",
+   "name": "sub_145B9F870",
+   "bytes": 13575,
+   "file": "10_145B9F870_sub_145B9F870.c"
+  },
+  {
+   "func": "0x14620CF30",
+   "name": "sub_14620CF30",
+   "bytes": 1267,
+   "file": "11_14620CF30_sub_14620CF30.c"
+  },
+  {
+   "func": "0x147695320",
+   "name": "sub_147695320",
+   "bytes": 10746,
+   "file": "13_147695320_sub_147695320.c"
+  }
+ ]
+}

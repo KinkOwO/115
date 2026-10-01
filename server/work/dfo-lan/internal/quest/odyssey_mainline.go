@@ -35,12 +35,10 @@ func OdysseyMainlinePlan(g *catalog.OdysseyGrowth, profession byte, level byte) 
 	return clear, branches, nil
 }
 
-// OdysseyMainline applies the plan: it writes the cleared rows (idempotent,
-// existing rows untouched, progress_model='odyssey-skip-v1') and returns the
-// branch quests that remain reachable. Branch quests are not written; they are
-// reported so the operator can audit that the level 115 abyss guide survived.
+// RoleMainlinePlan returns the quests to clear and the branch quests that must
+// remain reachable. Persistence belongs to workflow.
 func (s *Service) RoleMainlinePlan(role character.Character) ([]uint16, []uint16, bool, error) {
-	if s.Odyssey == nil || s.Store == nil || !character.CreatedAsOdyssey(role) {
+	if s.Odyssey == nil || !character.CreatedAsOdyssey(role) {
 		return nil, nil, false, nil
 	}
 	var state character.State

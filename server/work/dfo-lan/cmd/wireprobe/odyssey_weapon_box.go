@@ -42,7 +42,9 @@ type odysseyWeaponReceipt struct {
 const odysseyWeaponChoiceEvent = "odyssey-create-weapon-choice-10417789-v1"
 
 func applyOdysseyWeaponChoice(role storage.Character, wear *workflow.WearService, choices odysseyWeaponChoices, r protocol.WeaponBoxSelection) (json.RawMessage, json.RawMessage, error) {
-	if !isOdysseyRewardRole(role) || role.ConfigVersion != savecontract.Identity() || !choices.allows(r) || wear == nil || wear.Catalog == nil || wear.Catalog.Source.SaveIdentity() != savecontract.Identity() {
+	// 与 applyOdysseyArmor 同一口径：不写「X.Source.SaveIdentity() != savecontract.Identity()」
+	// 那种恒假子句（SaveIdentity() 是常量）。目录来源的 L3 校验要在别处比 `.Source.Checksum`。
+	if !isOdysseyRewardRole(role) || role.ConfigVersion != savecontract.Identity() || !choices.allows(r) || wear == nil || wear.Catalog == nil {
 		return nil, nil, fmt.Errorf("selection not in source Odyssey category")
 	}
 	b, e := inventory.ReadBag(role.State)

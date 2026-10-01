@@ -15,6 +15,7 @@ type Product struct {
 	Template uint32
 	Units    uint32
 	Cera     uint32
+	Gold     uint32
 	Kind     byte
 	Option   byte
 	Enabled  bool
@@ -44,10 +45,10 @@ func (s *Service) Quote(account, character int64, key string, cart []protocol.Ce
 	if err != nil || len(source) != 32 || account <= 0 || character <= 0 || len(key) < 16 || len(key) > 128 || len(cart) == 0 || len(cart) > 32 {
 		return order, fmt.Errorf("invalid purchase context")
 	}
-	var total uint64
+	var total, gold uint64
 	for _, item := range cart {
 		p, ok := s.Catalog.Products[item.Product]
-		if !ok || !p.Enabled || p.ID != item.Product || p.Template == 0 || p.Cera == 0 || p.Units == 0 {
+		if !ok || !p.Enabled || p.ID != item.Product || p.Template == 0 || (p.Cera == 0) == (p.Gold == 0) || p.Units == 0 {
 			return order, fmt.Errorf("product %d not enabled for cash delivery", item.Product)
 		}
 		if item.Kind != p.Kind || item.Option != p.Option {
@@ -60,10 +61,11 @@ func (s *Service) Quote(account, character int64, key string, cart []protocol.Ce
 			return order, fmt.Errorf("product not on sale")
 		}
 		total += uint64(item.Quantity) * uint64(p.Cera)
-		if total > math.MaxInt32 {
+		gold += uint64(item.Quantity) * uint64(p.Gold)
+		if total > math.MaxInt32 || gold > math.MaxUint32 {
 			return order, fmt.Errorf("purchase exceeds native currency range")
 		}
-		order.Lines = append(order.Lines, CashOrderLine{Product: p.ID, Template: p.Template, Quantity: item.Quantity, Units: p.Units, UnitPrice: p.Cera})
+		order.Lines = append(order.Lines, CashOrderLine{Product: p.ID, Template: p.Template, Quantity: item.Quantity, Units: p.Units, UnitPrice: p.Cera, GoldUnitPrice: p.Gold})
 	}
 	return order, nil
 }

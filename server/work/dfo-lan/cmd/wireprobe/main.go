@@ -236,6 +236,9 @@ func main() {
 	if _, err := pvfCatalogs.installFameRules(); err != nil {
 		log.Fatalf("PVF fame runtime rules: %v", err)
 	}
+	if _, err := pvfCatalogs.installEquipmentAwakening(); err != nil {
+		log.Fatalf("PVF equipment awakening runtime rules: %v", err)
+	}
 	if _, err := pvfCatalogs.installScriptWarps(); err != nil {
 		log.Fatalf("PVF script warp runtime routes: %v", err)
 	}
@@ -1026,7 +1029,7 @@ func main() {
 			log.Printf("loaded equipment create cost: groups=%d itemRows=%d templates=%d",
 				len(cc.Groups), items, len(cc.Templates()))
 		}
-		lootService = &loot.Service{Catalog: c, DropCatalog: dropCatalog, Rules: r, BagRules: bag, Tables: tables, Equipment: gear, Journal: journalRules, CreateCost: equipmentCreateCost}
+		lootService = &loot.Service{Catalog: c, DropCatalog: dropCatalog, Rules: r, BagRules: bag, Tables: tables, Equipment: gear, AvatarDisjoint: pvfCatalogs.avatarDisjoint, Journal: journalRules, CreateCost: equipmentCreateCost}
 		shopService = &workflow.ShopService{Store: gameStore, ShopService: inventory.ShopService{Catalog: c, EventModel: r.Model, BagRules: bag, ItemMaterials: itemMaterials}}
 		minePath := *bleedingMineRewardsFile
 		if minePath == "" {
@@ -1135,7 +1138,7 @@ func main() {
 				if err != nil {
 					log.Fatal(err)
 				}
-				wearService = &workflow.WearService{Store: gameStore, WearService: inventory.WearService{PremiumStore: workflow.PremiumReader{Store: gameStore}, Catalog: equipment, Professions: characters.Catalog, BagRules: lootService.BagRules, Rules: rules}}
+				wearService = &workflow.WearService{Store: gameStore, WearService: inventory.WearService{PremiumStore: workflow.PremiumReader{Store: gameStore}, Catalog: equipment, Professions: characters.Catalog, BagRules: lootService.BagRules, Rules: rules, AvatarRecast: pvfCatalogs.avatarRecast, AvatarRecastLoot: &lootService.Catalog}}
 
 				// 装备变换要用「部位 → 装备类型」映射去**背包**里找源（客户端允许把背包装备放进
 				// 界面「变换前」槽，请求只带部位码），所以把同一份 WearRules 也交给 loot 服务。
@@ -2141,7 +2144,7 @@ func main() {
 							event(map[string]any{"kind": "cera_committed_sync_error", "order": receipt.Order, "error": encodeErr.Error()})
 							return
 						}
-						event(map[string]any{"kind": "cera_purchase_committed", "order": receipt.Order, "character_id": selectedCharacterID, "applied": applied, "charged": receipt.Charged, "before": receipt.Before, "after": receipt.After, "deliveries": receipt.Deliveries})
+						event(map[string]any{"kind": "cera_purchase_committed", "order": receipt.Order, "character_id": selectedCharacterID, "applied": applied, "charged": receipt.Charged, "gold_charged": receipt.GoldCharged, "before": receipt.Before, "after": receipt.After, "deliveries": receipt.Deliveries})
 						if sendPlan(packets, logResponseBody) != nil {
 							return
 						}
@@ -3471,6 +3474,28 @@ func main() {
 				}
 				continue
 			}
+			// CMD2258 = ENUM_CMDPACKET_EQUIPMENT_AWAKENING：装备调适。
+			// 规则全部来自直读的 etc/115lvability/equipmentawakeningoptionsystem.cos；
+			// 回包体 = u8 状态（0 = 成功）+ u16 结果码（客户端 sub_140B899B0）。
+			if worldState != nil && bootstrapped && frame.ID == protocol.EquipmentAwakeningOpcode {
+				if !verified {
+					event(map[string]any{"kind": "equipment_awakening_rejected", "reason": "装备调适请求校验失败"})
+					continue
+				}
+				plan, err := equipmentState.awakenEquipment(wearService, worldState, plaintext, frame.Raw, event)
+				if err != nil {
+					event(map[string]any{"kind": "equipment_awakening_refused", "character_id": worldState.role.ID,
+						"reason": err.Error(), "request_hex": hex.EncodeToString(plaintext)})
+					if err = sendPayload(1, protocol.EquipmentAwakeningOpcode, protocol.EquipmentAwakeningFailure()); err != nil {
+						return
+					}
+					continue
+				}
+				if sendPlan(plan, nil) != nil {
+					return
+				}
+				continue
+			}
 			if worldState != nil && bootstrapped && frame.ID == 205 {
 				// CMD205 = ENUM_CMDPACKET_INVEST_ITEM_AMPLIFY_OPTION：用增幅书（红字书）
 				// 给装备打次元属性。
@@ -3721,6 +3746,47 @@ func main() {
 				}
 				continue
 			}
+			if worldState != nil && bootstrapped && frame.Type == 1 && frame.ID == 795 {
+				if !verified {
+					event(map[string]any{"kind": "avatar_recast_rejected", "id": frame.ID, "reason": "checksum failed"})
+					continue
+				}
+				plan, e := worldState.recastAvatar(wearService, plaintext, event)
+				if e != nil {
+					event(map[string]any{"kind": "avatar_recast_refused", "id": frame.ID, "character_id": worldState.role.ID, "reason": e.Error()})
+					// Native CMD795 displays a refusal popup for error 127.
+					if sendPayload(1, frame.ID, protocol.Refusal(127)) != nil {
+						return
+					}
+					continue
+				}
+				if sendPlan(plan, logWorldResponseBody) != nil {
+					return
+				}
+				continue
+			}
+			if worldState != nil && bootstrapped && frame.Type == 1 && frame.ID == 202 && lootService != nil {
+				if !verified {
+					event(map[string]any{"kind": "avatar_disjoint_rejected", "id": frame.ID, "reason": "checksum failed"})
+					continue
+				}
+				plan, e := worldState.disjointAvatar(plaintext, event)
+				if e != nil {
+					event(map[string]any{"kind": "avatar_disjoint_refused", "id": frame.ID, "character_id": worldState.role.ID, "reason": e.Error()})
+					refusalCode := uint16(19)
+					if strings.Contains(e.Error(), "bag category is full") {
+						refusalCode = 4
+					}
+					if e = sendPayload(1, frame.ID, protocol.Refusal(refusalCode)); e != nil {
+						return
+					}
+					continue
+				}
+				if sendPlan(plan, logWorldResponseBody) != nil {
+					return
+				}
+				continue
+			}
 			if worldState != nil && bootstrapped && frame.ID == 26 && lootService != nil {
 				if !verified {
 					event(map[string]any{"kind": "disjoint_rejected", "id": frame.ID, "reason": "checksum failed"})
@@ -3748,7 +3814,7 @@ func main() {
 					event(map[string]any{"kind": "unseal_rejected", "reason": "checksum failed"})
 					continue
 				}
-				plan, request, e := worldState.unsealRandomOption(unsealService, lootService.Catalog.Source.Checksum, plaintext)
+				plan, request, e := worldState.unsealRandomOption(unsealService, plaintext)
 				if e != nil {
 					event(map[string]any{"kind": "unseal_refused", "id": frame.ID, "character_id": worldState.role.ID, "reason": e.Error()})
 					if e = sendPayload(1, frame.ID, protocol.UnsealRefused(unsealRefusalCode(e))); e != nil {
@@ -4175,10 +4241,7 @@ func main() {
 						worldState.resetCards()
 						if p.Name == "settlement_exit_ack" {
 							// selectingDungeon was already set by settlementExit from
-							// the decoded request. Never index the outbound
-							// acknowledgement again: its width is a protocol detail and
-							// reading byte 2 of the native two-byte body is an
-							// out-of-range panic.
+							// the decoded request, independently of the ACK envelope.
 							event(map[string]any{"kind": "settlement_exit_flag", "character_id": worldState.role.ID, "selecting_dungeon": worldState.selectingDungeon, "payload_len": len(p.Payload)})
 						} else {
 							worldState.selectingDungeon = false
