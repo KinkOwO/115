@@ -4,7 +4,7 @@
     "DFO_PVF_CATALOGS": "world,quests,progression,items,equipment,periods,skins,journal,create-cost,skills,prices,materials,boosters,tutorial,enhancements,random-options,shields,oath-grades,vault,loot,equipment-selection,town,dungeons,training-dungeons,tutorial-dungeons,dungeon-towers,dungeon-hell,dungeon-maze",
     "DFO_PVF_VERIFY_BASELINES": "0",
     "DFO_PVF_ARCHIVE": "../client-build/Script.inner.pvf",
-    "DFO_PVF_SHA256": "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80",
+    "DFO_PVF_SHA256": "",
     "DFO_PVF_ENHANCEMENT_POLICY": "configs/pvf-enhancement-policy.json",
     "DFO_PVF_VAULT_POLICY": "configs/pvf-vault-policy.json",
     "DFO_PVF_DROP_POLICY": "configs/pvf-drop-policy.json",

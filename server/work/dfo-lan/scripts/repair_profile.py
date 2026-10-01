@@ -47,7 +47,9 @@ def load_profile(path, project):
             env[key] = str(p)
         elif key in FLAGS and value in ('0', '1'):
             env[key] = value
-        elif key == 'DFO_PVF_SHA256' and isinstance(value, str) and re.fullmatch(r'[0-9a-fA-F]{64}', value):
+        elif key == 'DFO_PVF_SHA256' and (value == '' or (isinstance(value, str) and re.fullmatch(r'[0-9a-fA-F]{64}', value))):
+            # 空串 = 自动派生（信任内层归档自身哈希，见 analysis/tasks/next142）。
+            # 非空必须是 64 位 hex，保持显式钉版本的能力。
             env[key] = value.lower()
         elif key == 'DFO_PVF_CATALOGS' and isinstance(value, str):
             domains = [part.strip() for part in value.split(',')]
