@@ -109,6 +109,18 @@ func (s *Session) atLayerFinalMap() bool {
 	return final
 }
 
+// atBossLayerMap reports whether the current room is a layered sequence entry
+// sitting on the source maze's declared boss coordinate. Only that entry can be
+// the run's closing scene: a layer entry elsewhere in the maze is a scene the
+// client plays while the run continues - 100004944's (1,0) plays the
+// 100016083_scene_0 interlude and then walks on to the boss room (3,2).
+func (s *Session) atBossLayerMap() bool {
+	if [2]byte{s.Room.X, s.Room.Y} != s.Maze.Boss {
+		return false
+	}
+	return s.hasLayerEntry()
+}
+
 // A source boss death clears its own room: the client removes the remaining
 // ordinary monsters with the boss and never reports them individually, so a
 // completion must not wait for those reports. Every source boss in the room
@@ -180,7 +192,16 @@ func (s *Session) tryComplete() {
 		// counterpart of the source-boss room above: that one matches the boss
 		// coordinate outside every layer entry, this one matches a layer's own
 		// last map, and the two never both hold.
-		if s.Loaded && s.atLayerFinalMap() && !s.hasFightableBoss() && s.roomEnemiesDead() && s.reportableDisplayBoss() != 0 {
+		//
+		// [MERGE-20261001-ODYSSEY-SCENE-EARLY-CLEAR] 但**层图必须坐在源 maze 声明的
+		// boss 坐标上**才算这一趟的收尾，中途的过场层图不算。奥德赛 100004944
+		// 「向混乱的时空进发」的 (1,0) 也挂着一张单张层图 —— 演出过场
+		// 100016083_scene_0，房里只有 1 只 rank3/team100 的 [displayhuntdummy]
+		// （63821，NonCombat）。客户端进这张图、发 CMD37（加载完成）后，四项判据
+		// 全成立，于是副本在**第二个房间**就结算了：实机 2026-10-01 玩家杀完 (1,0)
+		// 的怪、过场一开就直接收到「您已通关地下城」。真正的地图终点是 maze.Boss
+		// (3,2)，层图只是途中的剧情，要靠过场播完/点门继续往后走。
+		if s.Loaded && s.atLayerFinalMap() && s.atBossLayerMap() && !s.hasFightableBoss() && s.roomEnemiesDead() && s.reportableDisplayBoss() != 0 {
 			s.completed = true
 			return
 		}
