@@ -65,6 +65,10 @@ func (s *Source) AvatarDisjoint(index catalog.ItemIndex) (*inventory.AvatarDisjo
 	return inventory.ImportAvatarDisjointRules(s.archive, index)
 }
 
+func (s *Source) EmblemInlay(index catalog.ItemIndex) (*inventory.EmblemInlayRules, error) {
+	return inventory.ImportEmblemInlayRules(s.archive, index)
+}
+
 func (s *Source) AvatarSockets(index catalog.ItemIndex) (*inventory.AvatarSocketRules, error) {
 	return inventory.ImportAvatarSocketRules(s.archive, index)
 }

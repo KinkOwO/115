@@ -65,6 +65,7 @@ type pvfCoreCatalogs struct {
 	equipment                                    *inventory.FullEquipmentCatalog
 	avatarDisjoint                               *inventory.AvatarDisjointRules
 	avatarSockets                                *inventory.AvatarSocketRules
+	emblemInlay                                  *inventory.EmblemInlayRules
 	avatarRecast                                 *inventory.AvatarRecastRules
 	emblemCompound                               *inventory.EmblemCompoundRules
 	periods                                      []uint32
@@ -372,6 +373,11 @@ func preparePVFCoreCatalogs(selection, path, checksum, characterPath, questPath,
 				return result, fmt.Errorf("PVF avatar disjoint: %w", e)
 			}
 			log.Printf("PVF avatar disjoint prepared: %d avatar grades, %d emblem grades source=%s", len(result.avatarDisjoint.Rolls), len(result.avatarDisjoint.Pools), result.avatarDisjoint.Source)
+			result.emblemInlay, e = source.EmblemInlay(direct)
+			if e != nil {
+				return result, fmt.Errorf("PVF avatar emblem rules: %w", e)
+			}
+			log.Printf("PVF avatar emblem rules prepared: %d templates source=%s", len(result.emblemInlay.Masks), result.emblemInlay.Source)
 			result.avatarSockets, e = source.AvatarSockets(direct)
 			if e != nil {
 				return result, fmt.Errorf("PVF avatar sockets: %w", e)
