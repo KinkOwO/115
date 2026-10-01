@@ -88,6 +88,7 @@ type Archive struct {
 	cleanup          runtime.Cleanup
 	closeOnce        sync.Once
 	closed           atomic.Bool
+	metadataCache    MetadataCacheStats
 
 	// chunks 缓存已解密解压的 body chunk，texts 缓存已解码的脚本文本。
 	chunks           sync.Map

@@ -1,6 +1,6 @@
 # PVF 启动与内存优化实施计划
 
-日期：2026-10-01。状态：第一、二、三批及第四批首段联合物品缓存已确认，confirmed baseline为8d6f979a；其它启动缓存后续实施。
+日期：2026-10-01。状态：第一、二、三批及第四批联合物品和归档元数据缓存已确认，confirmed baseline为46c349cd。用户授权提交、拉取合并上游SHA更新并实施剩余项。其它投影和缓存保留策略继续实施。
 
 ## 目标与基线
 
@@ -63,6 +63,8 @@
 - [x] 第三批完整候选用户手动回归及默认基线升级。
 - [x] 第四批首段：联合物品派生缓存、完整字段/启动回归、独立采样与源码候选发布。
 - [x] 第四批首段用户手动回归及确认收口。
+- [x] 第四批归档元数据：实现、全目录/池对照、组合启动、全量Go检查与独立采样。
+- [x] 归档元数据缓存用户手动回归及确认收口。
 - [ ] 第四批其它投影缓存及旧缓存保留策略。
 - [x] 用户确认“确认没有问题”；默认程序身份核对与基线更新。
 
@@ -377,7 +379,7 @@ GC后HeapAlloc 545.46→524.29MiB，减少3.88%。本段释放技能/任务展�
 
 bin/wireprobe-handoff-source.exe发布-trimpath候选8d6f979a189eadd96d1e2c45462439d7ecbdd7c85c53ede12aa57720a32b6527；已确认c6b2bace精确备份至.tmp/pvf-phase4/bin/wireprobe-handoff-source.confirmed-before.exe。默认bin/wireprobe-pvf.exe仍为c6b2bace，confirmed不升级。未改变schema、存档身份/准入、现行profile或客户端资源，本批候选尚未提交及实机确认。
 
-用户结束已有会话后，手动执行根启动游戏.cmd --source-build，首次等待缓存建立；结束会话后同入口再次启动，检查选角/重选、装备与背包、购买发货/开盒/强化及任务/进房。第二轮helper.err应出现PVF derived item cache hit；首次为miss/stored。若需临时禁用，在启动前设置$env:DFO_PVF_CACHE_DIR='-'；清除此环境变量后恢复默认缓存。回到根默认入口即使用已确认c6b2bace。用户实机确认后提交首段并升级默认，再按收益审查其它目录投影和缓存保留策略，不把第四批整体标为完成。
+用户结束已有会话后，手动执行根启动游戏.cmd --source-build，首次等待缓存建立；结束会话后同入口再次启动，检查选角/重选、装备与背包、购买发货/开盒/强化及任务/进房。第二轮gateway.err应出现PVF derived item cache hit；首次为miss/stored。若需临时禁用，在启动前设置$env:DFO_PVF_CACHE_DIR='-'；清除此环境变量后恢复默认缓存。回到根默认入口即使用已确认c6b2bace。用户实机确认后提交首段并升级默认，再按收益审查其它目录投影和缓存保留策略，不把第四批整体标为完成。
 
 证据（相对模块根，均不提交）：.tmp/pvf-phase4-native-cache.log、pvf-phase4-native-combined.log、pvf-phase4-go-test-final.log、pvf-phase4-go-vet-final.log；pvf-phase4-before/、pvf-phase4-cold/、pvf-phase4-hot/及pvf-phase4/comparison.json。
 
@@ -391,3 +393,47 @@ bin/wireprobe-handoff-source.exe发布-trimpath候选8d6f979a189eadd96d1e2c45462
 ### 联合物品缓存确认收口
 
 用户确认运行正常且第二次启动变快。17:21会话miss/stored、准备42.705秒，17:24会话hit、联合物品2.430秒、全部准备30.792秒；两轮均有角色1的46帧入场预检及CMD4回执，进城正常依据用户反馈，不扩展为逐项玩法验收。正式/源码程序均已核对8d6f979a189eadd96d1e2c45462439d7ecbdd7c85c53ede12aa57720a32b6527，无需替换，纳入confirmed baseline。按授权提交本任务文件，再继续剩余启动缓存；上文待确认状态为历史记录。不改schema、存档准入/profile/客户端资源。
+
+## 第四批下一项：归档元数据派生缓存
+
+联合物品缓存以9611942提交后，按用户继续指令处理剩余约9秒的源打开阶段。新增当前DFO内层归档的元数据缓存：原24字节文件记录、排序路径哈希/文件序号、分组边界及原始ANSI/UTF-16字符串池。缓存键绑定格式、完整程序SHA与完整源SHA；每次先以固定只读句柄验证完整原生文件，再解码缓存。旧格式及禁用设置保持原解析。正文、已展开脚本、读缓存、句柄和玩家数据不入缓存。
+
+缓存恢复保留准备阶段的原始池访问方式，结束后仍使用既有共享分块压缩及16MiB解压LRU；不将启动期间565万条路径遍历改为逐块解压。共享文件封装统一承载JSON物品投影与二进制元数据，验证完整长度/摘要、zlib CRC、展开预算及尾随内容；同目录临时文件同步后发布，失败回原生解析，写失败仍可使用原生结果。元数据额外校验原始头部、分组覆盖、排序/重复文件序号及声明长度。单文件压缩/展开预算512MiB/1GiB；与联合物品缓存共享DFO_PVF_CACHE_DIR和-pvf-cache-dir，-同时禁用两者。
+
+完整5650173目录记录、紧凑文件表、路径索引、分组及全部池字节对照通过；LIST正文和父源关闭后视图读取保持。合成归档覆盖重复路径第一项、错误SHA/超限源拒绝、同路径换源/解析版本失效、格式/摘要/长度/索引异常重建、不可写回退和关闭生命周期。初次原生测试漏传1GiB源预算，被默认512MiB门禁拒绝；修正测试参数后完整对照通过，不改原生门禁。完整54/63组合冷/热回归、联合物品全字段/私有索引/损坏重建及不可写回退复测、go test -p 1 ./...及go vet ./...全部通过。测试中的并行准备耗时不作为性能样本；本段候选未实机确认，默认confirmed保持8d6f979a。其余投影缓存和旧文件保留策略仍未完成。
+
+### 元数据缓存独立采样与发布
+
+三轮使用相同be95归档和configs/pvf-default.json的54领域，全部测试结束后逐轮采样，均写GC堆文件；所选领域、来源及全部有效报告相等，storage_accessed=false/runtime_started=false。对照8d6f979a已命中既有联合物品缓存，新候选热轮命中元数据及物品两种缓存；文件系统已热。“首次建缓存”是两类派生文件缺失，不是冷盘。未启动客户端、游戏服务或访问玩家库。
+
+| 54领域只读采样 | 已确认8d6f979a（物品命中） | 46c349cd首次建两类缓存 | 46c349cd两类命中 |
+|---|---:|---:|---:|
+| 归档打开 | 10.1430169s | 16.1673183s | 2.9065766s |
+| 全部目录准备 | 33.1353834s | 51.0969874s | 26.1823898s |
+| 进程总耗时（含堆文件） | 33.609s | 53.016s | 26.750s |
+| 峰值工作集 MiB | 2531.02 | 2571.30 | 2485.55 |
+| 峰值私有内存 MiB | 2522.60 | 2562.28 | 2528.59 |
+| GC后HeapAlloc B | 553076680 | 549939680 | 553013576 |
+| HeapSys B | 2541486080 | 2583429120 | 2545680384 |
+| 累计分配TotalAlloc B | 18751566808 | 33294889720 | 13524112824 |
+
+物品缓存已命中的基础上，准备减少20.98%，累计分配减少27.88%；保留堆527.46→527.39MiB，基本持平，峰值仍约2.5GiB。本段主要收益是避免重新构建565万路径索引及解密展开元数据；完整源SHA验证仍必做。首次51.10秒同时含两类缓存的重建，不能把它与33.14秒的热基线差值全部算作元数据写入开销；源打开冷建相对原解析增加约6秒为本轮样本。程序更换会使两种缓存均冷建，后续无变更启动可命中。本机单次热文件样本不作为进城内存、冷盘或稳定延迟保证。
+
+本组合元数据文件170190485字节（约162.3MiB），物品文件24114382字节（约23MiB），两者合计约185.3MiB；旧版本仍按键隔离，本段未自动清理。正文始终来自当次固定原生文件，缓存文件没有玩家数据或源版本迁移。磁盘派生文件目录仍没有总量上限，保留策略待后续单独处理。
+
+bin/wireprobe-handoff-source.exe已发布-trimpath候选46c349cd8151ea66b9f056ce32f1c9f63368ee4ec6cc448205fbd713a062f7d8；已确认源码8d6f979a精确备份.tmp/pvf-phase4b/bin/wireprobe-handoff-source.confirmed-before.exe。默认bin/wireprobe-pvf.exe保持8d6f979a，未升级confirmed；本段尚未提交及实机确认。无schema、存档身份/准入、profile或客户端资源更改。
+
+用户关闭已有会话后，手动启动游戏.cmd --source-build，首次等待两类缓存建立；结束会话后同入口再启动一轮，gateway.err应同时出现PVF archive metadata cache hit和PVF derived item cache hit。检查选角/重选、物品/装备名称、技能/任务恢复及进图换房；可设置DFO_PVF_CACHE_DIR='-'同时禁用两类缓存，回到根默认入口使用已确认8d6f979a。用户确认后提交本段并升级默认，再推进其余投影及旧文件保留策略。
+
+证据（相对模块根，均不提交）：.tmp/pvf-phase4b-native-metadata-final.log、pvf-phase4b-native-combined.log、pvf-phase4b-native-items.log、pvf-phase4b-go-test.log、pvf-phase4b-go-vet.log；pvf-phase4b-before/、pvf-phase4b-cold/、pvf-phase4b-hot/及pvf-phase4b/comparison.json。
+
+只读复测（输出目录须尚未存在，连续两轮同程序/同缓存目录）：
+
+```powershell
+../../../tools/python/python.exe scripts/profile_pvf_startup.py --binary bin/wireprobe-handoff-source.exe --output .tmp/pvf-phase4b-recheck-cold --cache-dir .tmp/pvf-phase4b-recheck-cache --heap-profile
+../../../tools/python/python.exe scripts/profile_pvf_startup.py --binary bin/wireprobe-handoff-source.exe --output .tmp/pvf-phase4b-recheck-hot --cache-dir .tmp/pvf-phase4b-recheck-cache --heap-profile
+```
+
+## 归档元数据缓存确认收口（2026-10-01）
+
+用户确认速度提升。17:50会话两类缓存miss/stored，准备50.244秒，角色4的45帧入场预检通过；17:53会话两类缓存hit，元数据2.361秒、联合物品2.647秒、全部准备25.704秒，角色11的49帧预检通过。正式/源码程序均核对为46c349cd8151ea66b9f056ce32f1c9f63368ee4ec6cc448205fbd713a062f7d8，无需替换，纳入confirmed baseline。确认依据用户反馈及上述日志，不扩大为所有玩法逐项验收；不改schema、存档准入/profile/客户端资源。按授权提交本段，再拉取合并上游SHA相关更新，继续其它投影及缓存保留策略。下文候选状态为历史记录。

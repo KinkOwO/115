@@ -66,7 +66,7 @@ func TestDerivedCacheConcurrentPublish(t *testing.T) {
 	if hit, err := loadDerived(p, key, decode); !hit || err != nil {
 		t.Fatal("no valid final cache", hit, err)
 	}
-	files, _ := filepath.Glob(filepath.Join(filepath.Dir(p), ".joint-items-*.tmp"))
+	files, _ := filepath.Glob(filepath.Join(filepath.Dir(p), ".pvfc-*.tmp"))
 	if len(files) != 0 {
 		t.Fatal("concurrent writers leaked temporary files", files)
 	}
@@ -121,7 +121,7 @@ func TestDerivedCacheIntegrityAndIdentity(t *testing.T) {
 	if hit, err := loadDerived(p, key, decode); !hit || err != nil {
 		t.Fatal("failed writer replaced valid cache", hit, err)
 	}
-	files, _ := filepath.Glob(filepath.Join(filepath.Dir(p), ".joint-items-*.tmp"))
+	files, _ := filepath.Glob(filepath.Join(filepath.Dir(p), ".pvfc-*.tmp"))
 	if len(files) != 0 {
 		t.Fatal("temporary files leaked", files)
 	}

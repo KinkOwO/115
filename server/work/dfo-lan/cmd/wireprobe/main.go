@@ -90,7 +90,7 @@ func main() {
 	if pvfCacheDefault == "" {
 		pvfCacheDefault = "runtime/pvf-cache"
 	}
-	pvfCacheDir := flag.String("pvf-cache-dir", pvfCacheDefault, "derived item cache directory; - disables caching")
+	pvfCacheDir := flag.String("pvf-cache-dir", pvfCacheDefault, "derived PVF cache directory; - disables caching")
 	pvfArchivePath := flag.String("pvf-archive", os.Getenv("DFO_PVF_ARCHIVE"), "explicit inner PVF path for candidate domains")
 	pvfArchiveChecksum := flag.String("pvf-sha256", os.Getenv("DFO_PVF_SHA256"), "expected inner PVF SHA256; must match existing character source")
 	characterRules := flag.String("character-rules", "configs/character-probe.json", "explicit local bootstrap settings")

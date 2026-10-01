@@ -73,7 +73,7 @@ func TestDerivedItemCacheLocalArchiveParity(t *testing.T) {
 	if _, err := second.ItemCatalogs(o, true, policy, true); err == nil {
 		t.Fatal("cache bypassed closed native source")
 	}
-	files, err := filepath.Glob(filepath.Join(dir, "*.pvfc"))
+	files, err := filepath.Glob(filepath.Join(dir, "joint-items-*.pvfc"))
 	if err != nil || len(files) != 1 {
 		t.Fatal(files, err)
 	}

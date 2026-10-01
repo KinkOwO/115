@@ -2,9 +2,11 @@ package pvf
 
 import (
 	"crypto/sha256"
+	"dfolan/internal/derivedcache"
 	"encoding/hex"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"runtime"
 	"sort"
@@ -71,6 +73,12 @@ func (f *archiveFile) release() error {
 // Only the directory and string pools stay in memory; compressed bodies use ReadAt on
 // the same open file. Views own independent leases on this immutable source.
 func OpenReadOnly(options Options, expectedChecksum string) (*Archive, error) {
+	return OpenReadOnlyCached(options, expectedChecksum, "", "")
+}
+
+// OpenReadOnlyCached verifies the held native file before consulting disposable
+// metadata. Empty/disabled cache settings preserve the original parser path.
+func OpenReadOnlyCached(options Options, expectedChecksum, cacheDir, parserIdentity string) (*Archive, error) {
 	if strings.TrimSpace(options.Path) == "" {
 		return nil, ErrPathRequired
 	}
@@ -119,6 +127,7 @@ func OpenReadOnly(options Options, expectedChecksum string) (*Archive, error) {
 	}
 	plain := append([]byte(nil), header...)
 	decryptProtected("iNfO", plain)
+	currentFormat := readInt32(plain[:4]) == magicSignature
 	if readInt32(plain[:4]) != magicSignature {
 		plain = append(plain[:0], header...)
 		decryptGuard(plain)
@@ -147,9 +156,37 @@ func OpenReadOnly(options Options, expectedChecksum string) (*Archive, error) {
 	if metadataSize > info.Size() || metadataSize > int64(int(^uint(0)>>1)) {
 		return nil, fmt.Errorf("%w: metadata boundaries", ErrInvalidArchive)
 	}
-	a := &Archive{snapshot: Snapshot{Path: options.Path, Size: info.Size(), Checksum: checksum, LoadedAt: time.Now().UTC()},
-		data: make([]byte, int(metadataSize)), compactDirectory: true, readOnlyView: true,
-		backing: &archiveFile{file: f, refs: 1}, maxChunkBytes: 64 * 1024 * 1024, maxTexts: 2048}
+	snapshot := Snapshot{Path: options.Path, Size: info.Size(), Checksum: checksum, LoadedAt: time.Now().UTC()}
+	newArchive := func() *Archive {
+		return &Archive{snapshot: snapshot, compactDirectory: true, readOnlyView: true, bodyOff: int(metadataSize),
+			backing: &archiveFile{file: f, refs: 1}, maxChunkBytes: 64 * 1024 * 1024, maxTexts: 2048}
+	}
+	a := newArchive()
+	cacheEnabled := currentFormat && cacheDir != "" && cacheDir != "-" && parserIdentity != ""
+	key := metadataCacheKey(parserIdentity, checksum)
+	cachePath := metadataCachePath(cacheDir, key)
+	var stats MetadataCacheStats
+	if cacheEnabled {
+		started := time.Now()
+		hit, cacheErr := derivedcache.Load(cachePath, key, metadataCacheFormat, func(r io.Reader) error { return decodeMetadata(r, a, h) })
+		if hit {
+			a.metadataCache.Hits = 1
+			a.attachCleanup()
+			success = true
+			log.Printf("PVF archive metadata cache hit key=%x elapsed=%s files=%d", key[:8], time.Since(started), a.FileCount())
+			return a, nil
+		}
+		stats.Misses = 1
+		if cacheErr != nil {
+			stats.Invalid = 1
+			log.Printf("PVF archive metadata cache rejected key=%x; native parse: %v", key[:8], cacheErr)
+		} else {
+			log.Printf("PVF archive metadata cache miss key=%x", key[:8])
+		}
+		// Do not reuse any partial decoded state or lease on fallback.
+		a = newArchive()
+	}
+	a.data = make([]byte, int(metadataSize))
 	if _, err = f.ReadAt(a.data, 0); err != nil {
 		return nil, err
 	}
@@ -161,6 +198,16 @@ func OpenReadOnly(options Options, expectedChecksum string) (*Archive, error) {
 	a.data = nil
 	a.stringPools = newRuntimeStringPools(a.strA, a.strW)
 	a.strA, a.strW = nil, nil
+	if cacheEnabled {
+		if err := derivedcache.Save(cachePath, key, metadataCacheFormat, func(w io.Writer) error { return encodeMetadata(w, a) }); err != nil {
+			stats.WriteErrors = 1
+			log.Printf("PVF archive metadata cache write skipped; native archive remains usable: %v", err)
+		} else {
+			stats.Writes = 1
+			log.Printf("PVF archive metadata cache stored key=%x", key[:8])
+		}
+	}
+	a.metadataCache = stats
 	a.attachCleanup()
 	success = true
 	return a, nil

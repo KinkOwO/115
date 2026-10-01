@@ -13,6 +13,7 @@ import (
 	"dfolan/internal/rosterbg"
 	"encoding/hex"
 	"fmt"
+	"log"
 	"path/filepath"
 	"strings"
 )
@@ -133,7 +134,14 @@ func Open(options Options) (*Source, error) {
 	if options.MaxBytes == 0 {
 		options.MaxBytes = DefaultMaxBytes
 	}
-	a, err := pvf.OpenReadOnly(pvf.Options{Path: path, MaxBytes: options.MaxBytes}, expected)
+	parser := ""
+	if options.DerivedCacheDir != "" && options.DerivedCacheDir != "-" {
+		parser, err = derivedParserIdentity()
+		if err != nil {
+			log.Printf("PVF metadata cache unavailable; native parse: %v", err)
+		}
+	}
+	a, err := pvf.OpenReadOnlyCached(pvf.Options{Path: path, MaxBytes: options.MaxBytes}, expected, options.DerivedCacheDir, parser)
 	if err != nil {
 		return nil, fmt.Errorf("open inner PVF: %w", err)
 	}

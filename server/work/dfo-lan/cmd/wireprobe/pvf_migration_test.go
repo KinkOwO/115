@@ -20,17 +20,22 @@ func TestPVFDerivedCacheCombinedLocalArchive(t *testing.T) {
 	dir := t.TempDir()
 	t.Run("cold", func(t *testing.T) { verifyPVFMigrationSourceOnly(t, dir) })
 	files, err := filepath.Glob(filepath.Join(dir, "*.pvfc"))
-	if err != nil || len(files) != 1 {
+	if err != nil || len(files) != 2 {
 		t.Fatal("cold combined startup did not store its cache", files, err)
 	}
-	before, err := os.Stat(files[0])
-	if err != nil {
-		t.Fatal(err)
+	before := make([]os.FileInfo, len(files))
+	for i, file := range files {
+		before[i], err = os.Stat(file)
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 	t.Run("hot", func(t *testing.T) { verifyPVFMigrationSourceOnly(t, dir) })
-	after, err := os.Stat(files[0])
-	if err != nil || !before.ModTime().Equal(after.ModTime()) {
-		t.Fatal("hot combined startup rebuilt instead of using its cache", err)
+	for i, file := range files {
+		after, err := os.Stat(file)
+		if err != nil || !before[i].ModTime().Equal(after.ModTime()) {
+			t.Fatal("hot combined startup rebuilt instead of using its cache", file, err)
+		}
 	}
 }
 
