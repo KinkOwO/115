@@ -65,6 +65,10 @@ func (s *Source) AvatarDisjoint(index catalog.ItemIndex) (*inventory.AvatarDisjo
 	return inventory.ImportAvatarDisjointRules(s.archive, index)
 }
 
+func (s *Source) AvatarRecast(index catalog.ItemIndex) (*inventory.AvatarRecastRules, error) {
+	return inventory.ImportAvatarRecastRules(s.archive, index)
+}
+
 func (s *Source) CashShop() (cashshop.PilotConfig, error) {
 	return cashshop.ImportPilot(s.archive)
 }
