@@ -436,6 +436,19 @@ func (s *Source) EquipmentAwakeningOptions() (*catalog.EquipmentAwakeningOptions
 	return &options, nil
 }
 
+// SoleEquipment 直读秘宝精度提升规则（CMD2288）。
+// 源 = etc/115lvability/soleequipmentsystem.cos，不经过任何导出 JSON。
+func (s *Source) SoleEquipment() (*catalog.SoleEquipmentRules, error) {
+	if s.archive == nil {
+		return nil, fmt.Errorf("sole equipment import requires PVF")
+	}
+	rules, err := catalog.ImportSoleEquipmentRules(s.archive)
+	if err != nil {
+		return nil, err
+	}
+	return &rules, nil
+}
+
 func (s *Source) Tutorials() (catalog.TutorialCatalog, error) {
 	if s.archive == nil {
 		return catalog.TutorialCatalog{}, fmt.Errorf("tutorial import requires PVF")

@@ -33,6 +33,7 @@ type pvfCoreCatalogs struct {
 	fameRules                                    *character.FameRules
 	awakeningRules                               *catalog.EquipmentAwakeningRules
 	awakeningOptions                             *catalog.EquipmentAwakeningOptions
+	soleRules                                    *catalog.SoleEquipmentRules
 	rosterBackgrounds                            *rosterbg.TicketCatalog
 	odysseyRoutes                                *catalog.OdysseyJournalRoutes
 	seasonRules                                  *adventure.SeasonRules
@@ -425,6 +426,9 @@ func preparePVFCoreCatalogs(selection, path, checksum, characterPath, questPath,
 		return result, err
 	}
 	if err := preparePVFEquipmentAwakening(&result, source); err != nil {
+		return result, err
+	}
+	if err := preparePVFSoleEquipment(&result, source); err != nil {
 		return result, err
 	}
 	if err := preparePVFItemShops(&result, source, selected, inputs); err != nil {

@@ -236,6 +236,9 @@ func main() {
 	if _, err := pvfCatalogs.installEquipmentAwakening(); err != nil {
 		log.Fatalf("PVF equipment awakening runtime rules: %v", err)
 	}
+	if _, err := pvfCatalogs.installSoleEquipment(); err != nil {
+		log.Fatalf("PVF sole equipment runtime rules: %v", err)
+	}
 	if _, err := pvfCatalogs.installScriptWarps(); err != nil {
 		log.Fatalf("PVF script warp runtime routes: %v", err)
 	}
@@ -3492,6 +3495,31 @@ func main() {
 					event(map[string]any{"kind": "equipment_awakening_refused", "character_id": worldState.role.ID,
 						"reason": err.Error(), "request_hex": hex.EncodeToString(plaintext)})
 					if err = sendPayload(1, protocol.EquipmentAwakeningOpcode, protocol.EquipmentAwakeningFailure()); err != nil {
+						return
+					}
+					continue
+				}
+				if sendPlan(plan, nil) != nil {
+					return
+				}
+				continue
+			}
+			if worldState != nil && bootstrapped && frame.ID == protocol.SoleQualityOpcode {
+				// CMD2288 = ENUM_CMDPACKET_SOLE_EQUIPMENT_QUALITY：秘宝精度提升。
+				// 规则全部来自直读的 etc/115lvability/soleequipmentsystem.cos；精度落在
+				// 装备实例行 +172（internal/character/fame.go 消费的同一格）。
+				// 回包 = kind 1、体 = u8 1 + u8 容器 + u16 槽位（**必须发**，否则客户端
+				// 精度窗口卡在等待态；见 cmd/wireprobe/sole_flow.go 的文件头注释）。
+				if !verified {
+					event(map[string]any{"kind": "sole_quality_rejected", "reason": "秘宝精度请求校验失败"})
+					continue
+				}
+				plan, err := equipmentState.raiseSoleQuality(wearService, worldState, plaintext, frame.Raw, event)
+				if err != nil {
+					event(map[string]any{"kind": "sole_quality_refused", "character_id": worldState.role.ID,
+						"reason": err.Error(), "request_hex": hex.EncodeToString(plaintext)})
+					// 失败也把 ack 发掉（计划里已经带了），否则客户端窗口会卡住。
+					if sendPlan(plan, nil) != nil {
 						return
 					}
 					continue

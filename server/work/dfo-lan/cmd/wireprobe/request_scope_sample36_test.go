@@ -82,4 +82,9 @@ func TestAwakeningPromoteIsExemptFromTheBodySampleCap(t *testing.T) {
 	if !retainRequestBody(2259, nil) {
 		t.Fatal("CMD2259 必须在 observedGameRequest 豁免列表里")
 	}
+	// 2288 = 秘宝精度提升（SOLE_EQUIPMENT_QUALITY）：同样必须豁免 —— 它 2026-10-02 才实现，
+	// 而它的姊妹命令 2259 早就在列表里；漏登记的症状与"该命令没实现"完全一样。
+	if !retainRequestBody(2288, nil) {
+		t.Fatal("CMD2288 必须在 observedGameRequest 豁免列表里")
+	}
 }
