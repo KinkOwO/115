@@ -75,8 +75,13 @@ type Archive struct {
 	strW    []byte
 
 	// chunks 缓存已解密解压的 body chunk，texts 缓存已解码的脚本文本。
-	chunks sync.Map
-	texts  sync.Map
+	chunks           sync.Map
+	texts            sync.Map
+	readOnlyView     bool
+	cacheMu          sync.Mutex
+	maxChunkBytes    int64
+	cachedChunkBytes int64
+	maxTexts         int
 }
 
 func LoadArchive(options Options) (*Archive, error) {
@@ -150,11 +155,39 @@ func (a *Archive) Files() []File {
 	return out
 }
 
+// IterateFiles visits immutable directory values without copying the complete
+// multi-million-entry file slice. The callback cannot mutate archive entries.
+func (a *Archive) IterateFiles(fn func(File) error) error {
+	if a == nil || fn == nil {
+		return fmt.Errorf("invalid archive file iterator")
+	}
+	for _, file := range a.files {
+		if err := fn(file); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (a *Archive) FileCount() int {
 	if a == nil {
 		return 0
 	}
 	return len(a.files)
+}
+
+// ReleaseReadCaches discards temporary decoded chunks and text. Archive bytes,
+// paths and string pools remain intact, so subsequent reads are still valid.
+// A concurrent reader may repopulate an entry; this is not an archive close.
+func (a *Archive) ReleaseReadCaches() {
+	if a == nil {
+		return
+	}
+	a.cacheMu.Lock()
+	defer a.cacheMu.Unlock()
+	a.chunks.Range(func(key, _ any) bool { a.chunks.Delete(key); return true })
+	a.texts.Range(func(key, _ any) bool { a.texts.Delete(key); return true })
+	a.cachedChunkBytes = 0
 }
 
 func (a *Archive) CanReadFileData() bool {

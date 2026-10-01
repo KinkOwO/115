@@ -34,14 +34,16 @@ func AttachLayerRevisits(c *DungeonCatalog, file string) error {
 	if err != nil {
 		return err
 	}
-	var overlay struct {
-		Source struct {
-			Checksum string `json:"checksum"`
-		} `json:"source"`
-		Scenes []DungeonLayerRevisit `json:"layer_revisits"`
-	}
+	var overlay LayerRevisitOverlay
 	if err := json.Unmarshal(b, &overlay); err != nil {
 		return err
+	}
+	return ApplyLayerRevisits(c, overlay)
+}
+
+func ApplyLayerRevisits(c *DungeonCatalog, overlay LayerRevisitOverlay) error {
+	if c == nil {
+		return fmt.Errorf("layer revisits require a dungeon catalog")
 	}
 	if overlay.Source.Checksum == "" || overlay.Source.Checksum != c.Source.Checksum || len(overlay.Scenes) == 0 {
 		return fmt.Errorf("layer revisit source mismatch or empty export")
@@ -81,6 +83,6 @@ func AttachLayerRevisits(c *DungeonCatalog, file string) error {
 		}
 		seen[key] = true
 	}
-	c.LayerRevisits = overlay.Scenes
+	c.LayerRevisits = append([]DungeonLayerRevisit(nil), overlay.Scenes...)
 	return nil
 }

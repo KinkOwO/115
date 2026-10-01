@@ -16,6 +16,7 @@ PROJECT = pathlib.Path(__file__).resolve().parent.parent
 ROOT = PROJECT.parent.parent
 STORAGE = PROJECT / "runtime/storage"
 FLAGS = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+DEFAULT_PVF_PROFILE = PROJECT / "configs/pvf-default.json"
 
 
 def resolved(value):
@@ -98,13 +99,48 @@ def start_storage(cfg, pg, rh, rp):
   raise RuntimeError("Redis did not start; inspect redis.log.")
 
 
+def gateway_configuration(args, local):
+ binary = resolved(
+  "work/dfo-lan/bin/wireprobe-handoff-source.exe"
+  if args.source_build else local["server_binary"]
+ )
+ profile = args.repair_profile
+ if not profile and not args.json_mode and not args.client_only and not args.storage_only:
+  profile = DEFAULT_PVF_PROFILE
+ required, environment = [], {}
+ if profile:
+  profile_binary, required, environment = load_profile(profile, PROJECT)
+  if args.source_build and not args.repair_profile:
+   required = [binary if p == profile_binary else p for p in required]
+  else:
+   binary = profile_binary
+ return binary, required, environment
+
+
+def launch_environment(args, profile_env):
+ env = os.environ.copy()
+ if args.json_mode:
+  for key in list(env):
+   if key.startswith("DFO_PVF_"):
+    del env[key]
+ if profile_env:
+  # Native profiles preserve scenario/Odyssey and other gameplay switches.
+  if "DFO_PVF_CATALOGS" not in profile_env:
+   env.pop("DFO_SKILL_RELEASE", None)
+   env.pop("DFO_ODYSSEY_REWARDS_PILOT", None)
+  env.update(profile_env)
+ return env
+
+
 def main():
  parser = argparse.ArgumentParser()
  parser.add_argument(
   "--check", action="store_true", help="Read-only dependency check; starts nothing"
  )
  parser.add_argument("--storage-only", action="store_true")
- parser.add_argument("--repair-profile", help="Explicit repair JSON; paths relative to dfo-lan")
+ sources = parser.add_mutually_exclusive_group()
+ sources.add_argument("--repair-profile", help="Override the default PVF profile; paths relative to dfo-lan")
+ sources.add_argument("--json-mode", action="store_true", help="Explicit legacy JSON mode using launcher.local.json server_binary")
  parser.add_argument(
   "--server-only",
   action="store_true",
@@ -113,7 +149,7 @@ def main():
  parser.add_argument(
   "--source-build",
   action="store_true",
-  help="Use restored source build instead of archived39",
+  help="Use bin/wireprobe-handoff-source.exe with the selected data mode",
  )
  parser.add_argument(
   "--client-only",
@@ -126,15 +162,8 @@ def main():
  if type(channel_identity) is not bool:
   raise ValueError("channel_identity must be a JSON boolean")
  client = resolved(local["client_dir"])
- binary = resolved(
-  "work/dfo-lan/bin/wireprobe-handoff-source.exe"
-  if args.source_build
-  else local["server_binary"]
- )
+ binary, profile_required, profile_env = gateway_configuration(args, local)
  helper = PROJECT.parent / "dfo_probe_tools/channel_probe.py"
- profile_required, profile_env = [], {}
- if args.repair_profile:
-  binary, profile_required, profile_env = load_profile(args.repair_profile, PROJECT)
  required = (
   [helper, helper.parent / "probe.exe", client / "DFO.exe", client / "Script.pvf", client / "sk.dat"]
   if args.client_only
@@ -151,6 +180,7 @@ def main():
    ]
   )
  )
+ required.append(helper.parent / "catalog_startup.py")
  for path in required:
   if not path.is_file():
    raise RuntimeError("Missing dependency: " + str(path))
@@ -162,6 +192,7 @@ def main():
    "Paths OK. PostgreSQL:", listening(pg.hostname, pg.port), "Redis:", listening(rh, rp)
   )
   print("Binary:", binary)
+  print("Data mode:", "PVF direct" if profile_env.get("DFO_PVF_CATALOGS") else "JSON / explicit profile")
   print("Client:", client)
   return
  if os.name != "nt":
@@ -183,11 +214,7 @@ def main():
  )
  out = PROJECT / "runtime" / tag
  out.mkdir(parents=True)
- env = os.environ.copy()
- if args.repair_profile:
-  env.pop("DFO_SKILL_RELEASE", None)
-  env.pop("DFO_ODYSSEY_REWARDS_PILOT", None)
-  env.update(profile_env)
+ env = launch_environment(args, profile_env)
  env["DFO_CLIENT_DIR"] = str(client)
  env["DFO_SERVER_BINARY"] = str(binary)
  env["DFO_CHANNEL_IDENTITY"] = "1" if channel_identity else "0"
@@ -206,7 +233,10 @@ def main():
    stderr=stderr,
    creationflags=FLAGS,
   )
- for _ in range(300):
+ # The helper already permits 180 seconds for PVF source preparation.
+ # Wait longer here so the outer launcher cannot time out first.
+ startup_checks = 2100 if profile_env.get("DFO_PVF_CATALOGS") else 300
+ for _ in range(startup_checks):
   if (out / "run.json").exists():
    if args.server_only:
     run_info = json.loads((out / "run.json").read_text())

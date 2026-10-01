@@ -24,6 +24,31 @@ type MazeChanceOverlay struct {
 	Dungeons       []MazeChanceDungeon `json:"dungeons"`
 }
 
+// MazeChancePolicy contains only the previously enabled server selection and
+// weight override. Source rates and script identity always come from PVF.
+type MazeChancePolicy struct {
+	Dungeon uint32   `json:"dungeon"`
+	Weights []uint32 `json:"weights"`
+}
+
+func ImportMazeChanceOverlay(c DungeonCatalog, policy []MazeChancePolicy) (MazeChanceOverlay, error) {
+	out := MazeChanceOverlay{SourceChecksum: c.Source.Checksum}
+	seen := map[uint32]bool{}
+	for _, row := range policy {
+		d, ok := c.Dungeons[row.Dungeon]
+		if !ok || seen[row.Dungeon] {
+			return out, fmt.Errorf("invalid or duplicate maze policy dungeon %d", row.Dungeon)
+		}
+		seen[row.Dungeon] = true
+		rates, ok := ReadMazeChanceRates(d.Script)
+		if !ok {
+			return out, fmt.Errorf("maze policy dungeon %d lacks complete source rates", row.Dungeon)
+		}
+		out.Dungeons = append(out.Dungeons, MazeChanceDungeon{ID: row.Dungeon, DungeonSHA256: d.Script.SHA256, SourceRates: rates, Rates: append([]uint32(nil), row.Weights...)})
+	}
+	return out, nil
+}
+
 // ReadMazeChanceRates 按 [maze info] 段出现顺序读出每张 maze 的
 // [maze chance rate] 第一个值。任何一张 maze 缺这一段就返回 ok=false ——
 // 半张表不能拿来归一化，那样会静默改变其余部分的相对概率。
@@ -65,6 +90,13 @@ func AttachMazeChanceRates(c *DungeonCatalog, path string) error {
 	var overlay MazeChanceOverlay
 	if err := json.Unmarshal(raw, &overlay); err != nil {
 		return err
+	}
+	return ApplyMazeChanceRates(c, overlay)
+}
+
+func ApplyMazeChanceRates(c *DungeonCatalog, overlay MazeChanceOverlay) error {
+	if c == nil {
+		return fmt.Errorf("nil dungeon catalog")
 	}
 	if overlay.SourceChecksum != c.Source.Checksum {
 		return fmt.Errorf("maze chance overlay source mismatch")

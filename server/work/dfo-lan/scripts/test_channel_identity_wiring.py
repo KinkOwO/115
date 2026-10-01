@@ -37,6 +37,7 @@ class ChannelIdentityWiring(unittest.TestCase):
         stop()
         self.assertIn('wireprobe-channel-identity-candidate.exe', calls)
         self.assertIn('wireprobe-handoff-source.exe', calls)
+        self.assertIn('wireprobe-pvf.exe', calls)
 
 
 if __name__ == '__main__':

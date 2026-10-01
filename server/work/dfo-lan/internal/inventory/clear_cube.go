@@ -16,6 +16,12 @@ func WithClearCube(base catalog.LootCatalog, path string) (catalog.LootCatalog, 
 	if e = json.Unmarshal(raw, &item); e != nil {
 		return base, e
 	}
+	return WithClearCubeItem(base, item)
+}
+
+// WithClearCubeItem applies the same source gate and storage-only projection
+// regardless of whether its complete script came from PVF or an audit export.
+func WithClearCubeItem(base catalog.LootCatalog, item catalog.LootItem) (catalog.LootCatalog, error) {
 	if base.Source.Checksum != "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80" || item.ID != 3037 || item.Kind != "stackable" || item.StackableType != "[material]" || item.Script.SHA256 != "c6b47f4db2c1ba08b809aa54e6a512becba560199699c95cd9a264caf07077d5" {
 		return base, fmt.Errorf("clear cube source mismatch")
 	}

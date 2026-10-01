@@ -30,6 +30,10 @@ func LoadLearningCatalog(path string, source string) (*LearningCatalog, error) {
 	if e = json.Unmarshal(p, &c); e != nil {
 		return nil, e
 	}
+	return newLearningCatalog(c, source)
+}
+
+func newLearningCatalog(c LearningCatalog, source string) (*LearningCatalog, error) {
 	if c.Source.Checksum != source || len(c.Rows) == 0 {
 		return nil, fmt.Errorf("learning source mismatch")
 	}

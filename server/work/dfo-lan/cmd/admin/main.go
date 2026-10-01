@@ -18,6 +18,7 @@ import (
 	"dfolan/internal/admin"
 	"dfolan/internal/catalog"
 	"dfolan/internal/inventory"
+	"dfolan/internal/managementdata"
 	"dfolan/internal/storage"
 	"encoding/json"
 	"flag"
@@ -58,6 +59,7 @@ func (l *itemList) Set(v string) error {
 }
 
 func main() {
+	sourceFlags := managementdata.Register(flag.CommandLine)
 	storageConfig := flag.String("storage", "runtime/storage/local.json", "local storage configuration")
 	accountName := flag.String("account", "probe", "development account name")
 	grantID := flag.String("grant-id", "", "idempotency key; re-running the same id pays out once")
@@ -79,6 +81,33 @@ func main() {
 
 	if *gold > 0xffffffff {
 		log.Fatal("gold exceeds the wire field")
+	}
+	// Catalog checks and native preparation finish before any storage access.
+	var prepared *inventory.Awarder
+	if sourceFlags.CheckOnly || (!*balance && !*history && (*gold != 0 || len(items) > 0)) {
+		native, err := sourceFlags.Open()
+		if err != nil {
+			log.Fatal(err)
+		}
+		if native != nil {
+			prepared, err = managementdata.Awarder(native, sourceFlags.DropPolicy, *bagRules)
+		} else {
+			prepared, err = buildAwarder(*lootCatalog, *itemIndex, *bagRules, *equipCatalog, *fullEquipment)
+		}
+		if err != nil {
+			log.Fatal(err)
+		}
+		if prepared.Equipment.Full != nil {
+			defer prepared.Equipment.Full.Close()
+		}
+		if sourceFlags.CheckOnly {
+			if err := managementdata.Report(map[string]any{"source": prepared.Catalog.Source.Checksum, "items": len(prepared.Catalog.Items), "equipment_rows": len(prepared.Equipment.Rows), "storage_accessed": false}); err != nil {
+				log.Fatal(err)
+			}
+			return
+		}
+	} else if sourceFlags.Mode != "json" && sourceFlags.Mode != "pvf" {
+		log.Fatal("catalog-source must be json or pvf")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -132,11 +161,7 @@ func main() {
 		if *character == 0 {
 			log.Fatal("gold and items need -character")
 		}
-		awarder, e := buildAwarder(*lootCatalog, *itemIndex, *bagRules, *equipCatalog, *fullEquipment)
-		if e != nil {
-			log.Fatal(e)
-		}
-		service.Awarder = awarder
+		service.Awarder = prepared
 	}
 
 	receipt, applied, e := service.Apply(ctx, storage.Grant{

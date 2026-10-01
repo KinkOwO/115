@@ -28,12 +28,13 @@ PAGE_MTIME = None    # 页面文件修改时间（热更新检测）
 PAGE_PATH = None
 TOKEN = None
 TOKEN_LOCK = threading.Lock()
-STACKABLE_IDS = set()   # 服务端 loot 目录中可堆叠的物品 id（发放走堆叠路径）
+STACKABLE_IDS = set()   # 后端实际发放目录中的可堆叠模板
+CATALOG_METADATA_LOADED = None
 
 # ============ 物品分类体系（装备栏管理：物品栏/装扮/宠物） ============
 # 数据源：
-#   items.index.json      id -> (kind, stack_type)      全量 386K
-#   equipment.current37   id -> [equipment type]        装备 67K（含宠物/宠物装备）
+#   gmweb /api/catalog-metadata  后端准备好的源类型与可堆叠集合
+#   旧程序404时兼容本地items.index/equipment/loot JSON
 #   gmweb /api/items      懒加载补查（时装等不在本地文件中的装备）
 INDEX_MAP = {}       # id(str) -> (kind, stack_type)
 EQ_MAP = {}          # id(str) -> equipment type
@@ -252,9 +253,44 @@ def vault_send(payload):
             "merged": merged, "slots": slots, "message": "已发放到个人仓库"}
 
 
+def load_catalog_metadata():
+    """从后端只读目录取得分类；只有旧程序明确404时使用兼容JSON。"""
+    global CATALOG_METADATA_LOADED, INDEX_MAP, EQ_MAP, STACKABLE_IDS
+    if CATALOG_METADATA_LOADED is not None:
+        return CATALOG_METADATA_LOADED
+    url = BACKEND + "/api/catalog-metadata?token=" + urllib.parse.quote(TOKEN or "")
+    try:
+        with urllib.request.urlopen(url, timeout=30) as response:
+            data = _json.load(response)
+    except urllib.error.HTTPError as exc:
+        if exc.code == 404:
+            CATALOG_METADATA_LOADED = False
+            return False
+        raise
+    # Validate the complete response before replacing classification maps.
+    items = data["items"]
+    stackables = data["stackables"]
+    if not isinstance(items, dict) or not isinstance(stackables, list):
+        raise ValueError("后端目录元数据格式无效")
+    index, equipment = {}, {}
+    for key, row in items.items():
+        if not isinstance(row, list) or len(row) != 2 or row[0] not in ("stackable", "equipment"):
+            raise ValueError("后端物品分类记录无效")
+        index[str(key)] = (row[0], row[1] if row[0] == "stackable" else None)
+        if row[0] == "equipment" and row[1]:
+            equipment[str(key)] = row[1]
+    INDEX_MAP, EQ_MAP = index, equipment
+    STACKABLE_IDS = {str(key) for key in stackables}
+    CATALOG_METADATA_LOADED = True
+    print("后端源目录：分类 %d 条，可堆叠 %d 种，source %s" % (len(index), len(STACKABLE_IDS), data.get("source", "")))
+    return True
+
+
 def load_category_maps():
     """启动时加载本地分类映射（index + equipment），全部 id 覆盖。"""
     global INDEX_MAP, EQ_MAP
+    if load_catalog_metadata():
+        return
     try:
         base = __import__("pathlib").Path(__file__).resolve().parent
         idx_path = base.parent / "configs" / "items.index.json"
@@ -352,6 +388,8 @@ def load_stackable_ids():
     """读取服务端 loot.next25.json，得到可堆叠物品 id 集合（这些物品发放时
     服务端会放进背包 items 分区并自动堆叠合并）。"""
     global STACKABLE_IDS
+    if load_catalog_metadata():
+        return
     try:
         base = __import__("pathlib").Path(__file__).resolve().parent
         loot_path = base.parent / "configs" / "loot.next25.json"

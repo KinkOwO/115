@@ -65,6 +65,11 @@ func LoadEquipmentCatalog(path, source string) (*EquipmentCatalog, error) {
 	if e = json.Unmarshal(b, &c); e != nil {
 		return nil, e
 	}
+	return NewEquipmentCatalog(c, source)
+}
+
+func NewEquipmentCatalog(c EquipmentCatalog, source string) (*EquipmentCatalog, error) {
+	c.pool = nil
 	if c.Source.Checksum != source || len(c.Rows) == 0 {
 		return nil, fmt.Errorf("equipment source mismatch")
 	}
@@ -333,6 +338,7 @@ func (c *EquipmentCatalog) Basic(id uint32) (uint16, error) {
 	}
 	return d, nil
 }
+
 // allowTradeEquipment 报告是否把 `[trade]` / `[trade delete]` 也算作可掉落。
 //
 // 默认**关**：交易属性是否还需要额外的绑定状态尚未证实（见 Basic 的原始注释

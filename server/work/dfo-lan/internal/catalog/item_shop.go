@@ -72,6 +72,21 @@ func LoadItemShops(path string) (*ItemShops, error) {
 	if err := json.Unmarshal(raw, &s); err != nil {
 		return nil, err
 	}
+	return NewItemShops(s)
+}
+
+// NewItemShops owns the source offers and builds the historical first-payable
+// lookup for both PVF imports and legacy audit artifacts.
+func NewItemShops(s ItemShops) (*ItemShops, error) {
+	shops := make(map[string]ItemShop, len(s.Shops))
+	for key, shop := range s.Shops {
+		shop.Offers = append([]ItemShopOffer(nil), shop.Offers...)
+		for n := range shop.Offers {
+			shop.Offers[n].Materials = append([]ItemShopMaterial(nil), shop.Offers[n].Materials...)
+		}
+		shops[key] = shop
+	}
+	s.Shops = shops
 	if s.Model != ItemShopModel {
 		return nil, fmt.Errorf("unexpected item shop model %q", s.Model)
 	}

@@ -8,30 +8,13 @@ import (
 	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
-	"os"
 )
 
-type odysseyWeaponChoices struct {
-	Definition catalog.ScriptRecord `json:"definition"`
-	Source     string               `json:"source"`
-	Template   uint32               `json:"template"`
-	Categories []struct {
-		Category [2]byte  `json:"category"`
-		Items    []uint32 `json:"items"`
-	} `json:"categories"`
-}
+type odysseyWeaponChoices catalog.OdysseyWeaponChoices
 
 func loadOdysseyWeaponChoices(path string) (odysseyWeaponChoices, error) {
-	var c odysseyWeaponChoices
-	p, e := os.ReadFile(path)
-	if e != nil {
-		return c, e
-	}
-	e = json.Unmarshal(p, &c)
-	if e == nil && (c.Source != odysseySource || c.Template != 10417789 || len(c.Categories) != 85 || c.Definition.SHA256 != "d67f5042a5e17ef30581e297f030561de39f92ad5e215d742ec067aeaad96bec") {
-		e = fmt.Errorf("invalid Odyssey weapon source")
-	}
-	return c, e
+	c, err := catalog.LoadOdysseyWeaponChoices(path)
+	return odysseyWeaponChoices(c), err
 }
 func (c odysseyWeaponChoices) allows(r protocol.WeaponBoxSelection) bool {
 	if c.Source != odysseySource || c.Template != 10417789 {

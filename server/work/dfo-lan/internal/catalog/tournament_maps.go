@@ -15,16 +15,20 @@ func AttachTournamentQuestMaps(c *DungeonCatalog, path string) error {
 	if c == nil {
 		return fmt.Errorf("nil dungeon catalog")
 	}
-	var overlay struct {
-		SourceChecksum string                  `json:"source_checksum"`
-		Maps           map[uint32]ScriptRecord `json:"maps"`
-	}
+	var overlay SourceMapOverlay
 	b, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}
 	if err := json.Unmarshal(b, &overlay); err != nil {
 		return err
+	}
+	return ApplyTournamentQuestMaps(c, overlay)
+}
+
+func ApplyTournamentQuestMaps(c *DungeonCatalog, overlay SourceMapOverlay) error {
+	if c == nil {
+		return fmt.Errorf("nil dungeon catalog")
 	}
 	if overlay.SourceChecksum != c.Source.Checksum || len(overlay.Maps) == 0 {
 		return fmt.Errorf("tournament map overlay source mismatch or empty")

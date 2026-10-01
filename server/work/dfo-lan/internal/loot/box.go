@@ -66,6 +66,7 @@ type BoxPointStack struct {
 
 // BoxTable is one imported .cos content script.
 type BoxTable struct {
+	PostalTag     []string              `json:"postal_tag,omitempty"`
 	Table         string                `json:"table"`
 	Rate          uint32                `json:"rate"`
 	MaterialCount uint32                `json:"material_count"`
@@ -83,6 +84,7 @@ type BoxTable struct {
 // BoxCatalog maps a box template to its source table and to every prize
 // template those tables can hand out.
 type BoxCatalog struct {
+	Sources map[string]string    `json:"sources,omitempty"`
 	Source  string               `json:"source"`
 	Tables  map[string]BoxTable  `json:"tables"`
 	Rewards map[string]BoxReward `json:"rewards"`
@@ -105,6 +107,12 @@ func LoadBoxes(path string) (*BoxCatalog, error) {
 	if e = json.Unmarshal(b, &c); e != nil {
 		return nil, e
 	}
+	return NewBoxCatalog(c)
+}
+
+// NewBoxCatalog validates either an imported catalog or the legacy audit
+// artifact without changing draw order, point counters or grant behavior.
+func NewBoxCatalog(c BoxCatalog) (*BoxCatalog, error) {
 	if len(c.Tables) == 0 {
 		return nil, fmt.Errorf("box catalog has no tables")
 	}

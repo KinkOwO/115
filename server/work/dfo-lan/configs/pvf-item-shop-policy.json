@@ -1,0 +1,2114 @@
+{
+  "version": 1,
+  "purchase_limit_mode": "disabled",
+  "routes": [
+    {
+      "server_shop_id": 100000303,
+      "native_shop_id": 100000909
+    },
+    {
+      "server_shop_id": 100000322,
+      "script_path": "itemshop/100000322_lobato_alliance_camp.shp"
+    },
+    {
+      "server_shop_id": 100000332,
+      "native_shop_id": 100000332
+    },
+    {
+      "server_shop_id": 100000341,
+      "script_path": "itemshop/100000341_event_npc_sdft.shp"
+    },
+    {
+      "server_shop_id": 100000344,
+      "script_path": "itemshop/100000344_event_npc_newbie.shp"
+    },
+    {
+      "server_shop_id": 100000353,
+      "native_shop_id": 100000353
+    },
+    {
+      "server_shop_id": 100000357,
+      "script_path": "itemshop/100000357_workman.shp"
+    },
+    {
+      "server_shop_id": 100000361,
+      "script_path": "itemshop/100000361_event_npc_21_cube.shp"
+    },
+    {
+      "server_shop_id": 100000373,
+      "script_path": "itemshop/100000373_event_nowhere.shp"
+    },
+    {
+      "server_shop_id": 100000375,
+      "script_path": "itemshop/100000375_global_6th_seria.shp"
+    },
+    {
+      "server_shop_id": 100000380,
+      "script_path": "itemshop/100000380_21_bingo.shp"
+    },
+    {
+      "server_shop_id": 100000386,
+      "script_path": "itemshop/100000386_lobato_theoculus.npc.shp"
+    },
+    {
+      "server_shop_id": 100000392,
+      "script_path": "itemshop/100000392_event_npc_newbie.shp"
+    },
+    {
+      "server_shop_id": 100000400,
+      "script_path": "itemshop/100000400_16th_shop.shp"
+    },
+    {
+      "server_shop_id": 100000401,
+      "script_path": "itemshop/100000401_lia_lab.shp"
+    },
+    {
+      "server_shop_id": 100000402,
+      "script_path": "itemshop/100000402_saint.shp"
+    },
+    {
+      "server_shop_id": 100000403,
+      "script_path": "itemshop/100000403_brokenpot_shop.shp"
+    },
+    {
+      "server_shop_id": 100000404,
+      "script_path": "itemshop/100000404_danjin_event.shp"
+    },
+    {
+      "server_shop_id": 100000507,
+      "script_path": "itemshop/100000507_legendofbits.shp"
+    },
+    {
+      "server_shop_id": 100000509,
+      "script_path": "itemshop/100000509_miho_shop.shp"
+    },
+    {
+      "server_shop_id": 100000510,
+      "script_path": "itemshop/100000510_lotusgame.shp"
+    },
+    {
+      "server_shop_id": 100000511,
+      "script_path": "itemshop/100000511_refundshop.shp"
+    },
+    {
+      "server_shop_id": 100000512,
+      "native_shop_id": 100000512
+    },
+    {
+      "server_shop_id": 100000513,
+      "native_shop_id": 100000513
+    },
+    {
+      "server_shop_id": 100000514,
+      "native_shop_id": 100000514
+    },
+    {
+      "server_shop_id": 100000515,
+      "native_shop_id": 100000515
+    },
+    {
+      "server_shop_id": 100000516,
+      "native_shop_id": 100000516
+    },
+    {
+      "server_shop_id": 100000517,
+      "native_shop_id": 100000517
+    },
+    {
+      "server_shop_id": 100000518,
+      "native_shop_id": 100000518
+    },
+    {
+      "server_shop_id": 100000519,
+      "native_shop_id": 100000519
+    },
+    {
+      "server_shop_id": 100000520,
+      "native_shop_id": 100000520
+    },
+    {
+      "server_shop_id": 100000521,
+      "native_shop_id": 100000521
+    },
+    {
+      "server_shop_id": 100000522,
+      "native_shop_id": 100000522
+    },
+    {
+      "server_shop_id": 100000523,
+      "native_shop_id": 100000523
+    },
+    {
+      "server_shop_id": 100000524,
+      "native_shop_id": 100000524
+    },
+    {
+      "server_shop_id": 100000525,
+      "native_shop_id": 100000525
+    },
+    {
+      "server_shop_id": 100000526,
+      "script_path": "contents/2022/dungeonandlife/itemshop/100000526_fine.shp"
+    },
+    {
+      "server_shop_id": 100000527,
+      "script_path": "contents/2022/dungeonandlife/itemshop/100000527_fire_bird.shp"
+    },
+    {
+      "server_shop_id": 100000528,
+      "native_shop_id": 100000528
+    },
+    {
+      "server_shop_id": 100000529,
+      "native_shop_id": 100000529
+    },
+    {
+      "server_shop_id": 100000530,
+      "script_path": "contents/2022/dungeonandlife/itemshop/100000530_guikimi.shp"
+    },
+    {
+      "server_shop_id": 100000531,
+      "native_shop_id": 100000531
+    },
+    {
+      "server_shop_id": 100000532,
+      "script_path": "contents/2022/dungeonandlife/itemshop/100000532_heartnyang.shp"
+    },
+    {
+      "server_shop_id": 100000533,
+      "script_path": "contents/2022/dungeonandlife/itemshop/100000533_icehone.shp"
+    },
+    {
+      "server_shop_id": 100000534,
+      "native_shop_id": 100000534
+    },
+    {
+      "server_shop_id": 100000535,
+      "script_path": "contents/2022/dungeonandlife/itemshop/100000535_july.shp"
+    },
+    {
+      "server_shop_id": 100000536,
+      "script_path": "contents/2022/dungeonandlife/itemshop/100000536_lovely_gombling.shp"
+    },
+    {
+      "server_shop_id": 100000537,
+      "native_shop_id": 100000537
+    },
+    {
+      "server_shop_id": 100000538,
+      "native_shop_id": 100000538
+    },
+    {
+      "server_shop_id": 100000539,
+      "native_shop_id": 100000539
+    },
+    {
+      "server_shop_id": 100000540,
+      "native_shop_id": 100000540
+    },
+    {
+      "server_shop_id": 100000541,
+      "native_shop_id": 100000541
+    },
+    {
+      "server_shop_id": 100000542,
+      "native_shop_id": 100000542
+    },
+    {
+      "server_shop_id": 100000543,
+      "native_shop_id": 100000543
+    },
+    {
+      "server_shop_id": 100000544,
+      "script_path": "contents/2022/dungeonandlife/itemshop/100000544_tember.shp"
+    },
+    {
+      "server_shop_id": 100000545,
+      "script_path": "contents/2022/dungeonandlife/itemshop/100000545_tony.shp"
+    },
+    {
+      "server_shop_id": 100000546,
+      "native_shop_id": 100000546
+    },
+    {
+      "server_shop_id": 100000547,
+      "script_path": "contents/2022/dungeonandlife/itemshop/100000547_wedding_goblin.shp"
+    },
+    {
+      "server_shop_id": 100000548,
+      "script_path": "contents/2022/dungeonandlife/itemshop/100000548_yeowol.shp"
+    },
+    {
+      "server_shop_id": 100000569,
+      "native_shop_id": 100000569
+    },
+    {
+      "server_shop_id": 100000570,
+      "native_shop_id": 100000570
+    },
+    {
+      "server_shop_id": 100000571,
+      "native_shop_id": 100000571
+    },
+    {
+      "server_shop_id": 100000572,
+      "native_shop_id": 100000572
+    },
+    {
+      "server_shop_id": 100000575,
+      "script_path": "contents/2022/dungeonandlife/itemshop/100000575_fine.shp"
+    },
+    {
+      "server_shop_id": 100000576,
+      "script_path": "contents/2022/dungeonandlife/itemshop/100000576_fine.shp"
+    },
+    {
+      "server_shop_id": 100000577,
+      "script_path": "contents/2022/dungeonandlife/itemshop/100000577_fine.shp"
+    },
+    {
+      "server_shop_id": 100000581,
+      "script_path": "itemshop/100000581_samdasoo.shp"
+    },
+    {
+      "server_shop_id": 100000582,
+      "script_path": "contents/2022/dungeonandlife/itemshop/100000582_alan.shp"
+    },
+    {
+      "server_shop_id": 100000583,
+      "script_path": "contents/2022/dungeonandlife/itemshop/100000583_blancheneige.shp"
+    },
+    {
+      "server_shop_id": 100000584,
+      "script_path": "contents/2022/dungeonandlife/itemshop/100000584_chaos.shp"
+    },
+    {
+      "server_shop_id": 100000585,
+      "script_path": "contents/2022/dungeonandlife/itemshop/100000585_chef_of_war.shp"
+    },
+    {
+      "server_shop_id": 100000586,
+      "script_path": "contents/2022/dungeonandlife/itemshop/100000586_doris.shp"
+    },
+    {
+      "server_shop_id": 100000587,
+      "script_path": "contents/2022/dungeonandlife/itemshop/100000587_escape_slave.shp"
+    },
+    {
+      "server_shop_id": 100000588,
+      "script_path": "contents/2022/dungeonandlife/itemshop/100000588_fire_bird.shp"
+    },
+    {
+      "server_shop_id": 100000589,
+      "script_path": "contents/2022/dungeonandlife/itemshop/100000589_gaon.shp"
+    },
+    {
+      "server_shop_id": 100000590,
+      "script_path": "contents/2022/dungeonandlife/itemshop/100000590_guikimi.shp"
+    },
+    {
+      "server_shop_id": 100000591,
+      "script_path": "contents/2022/dungeonandlife/itemshop/100000591_icehone.shp"
+    },
+    {
+      "server_shop_id": 100000592,
+      "script_path": "contents/2022/dungeonandlife/itemshop/100000592_madelen.shp"
+    },
+    {
+      "server_shop_id": 100000593,
+      "script_path": "contents/2022/dungeonandlife/itemshop/100000593_mr_valentine.shp"
+    },
+    {
+      "server_shop_id": 100000594,
+      "script_path": "contents/2022/dungeonandlife/itemshop/100000594_mrs_rich.shp"
+    },
+    {
+      "server_shop_id": 100000595,
+      "script_path": "contents/2022/dungeonandlife/itemshop/100000595_paleveil.shp"
+    },
+    {
+      "server_shop_id": 100000596,
+      "script_path": "contents/2022/dungeonandlife/itemshop/100000596_rabbit_master.shp"
+    },
+    {
+      "server_shop_id": 100000597,
+      "script_path": "contents/2022/dungeonandlife/itemshop/100000597_red_frog.shp"
+    },
+    {
+      "server_shop_id": 100000598,
+      "script_path": "contents/2022/dungeonandlife/itemshop/100000598_secret_scholar.shp"
+    },
+    {
+      "server_shop_id": 100000599,
+      "script_path": "contents/2022/dungeonandlife/itemshop/100000599_tony.shp"
+    },
+    {
+      "server_shop_id": 100000600,
+      "script_path": "contents/2022/dungeonandlife/itemshop/100000600_truth_scholar.shp"
+    },
+    {
+      "server_shop_id": 100000601,
+      "script_path": "contents/2022/dungeonandlife/itemshop/100000601_wedding_goblin.shp"
+    },
+    {
+      "server_shop_id": 100000602,
+      "native_shop_id": 100000348
+    },
+    {
+      "server_shop_id": 100000604,
+      "native_shop_id": 100000604
+    },
+    {
+      "server_shop_id": 100000605,
+      "native_shop_id": 100000605
+    },
+    {
+      "server_shop_id": 100000606,
+      "native_shop_id": 100000350
+    },
+    {
+      "server_shop_id": 100000607,
+      "native_shop_id": 100000607
+    },
+    {
+      "server_shop_id": 100000608,
+      "native_shop_id": 100000349
+    },
+    {
+      "server_shop_id": 100000609,
+      "native_shop_id": 100000609
+    },
+    {
+      "server_shop_id": 100000610,
+      "script_path": "itemshop/100000610_event_npc_newbie.shp"
+    },
+    {
+      "server_shop_id": 100000611,
+      "script_path": "itemshop/100000611_event_npc_lakesis.shp"
+    },
+    {
+      "server_shop_id": 100000612,
+      "native_shop_id": 100000356
+    },
+    {
+      "server_shop_id": 100000613,
+      "script_path": "itemshop/100000613_lindsay_rossum.shp"
+    },
+    {
+      "server_shop_id": 100000619,
+      "native_shop_id": 100000619
+    },
+    {
+      "server_shop_id": 100000620,
+      "script_path": "itemshop/100000620_story_dev.shp"
+    },
+    {
+      "server_shop_id": 100000621,
+      "script_path": "itemshop/100000621_event_himan_roadmap.shp"
+    },
+    {
+      "server_shop_id": 100000623,
+      "script_path": "itemshop/100000623_sale_indian.shp"
+    },
+    {
+      "server_shop_id": 100000624,
+      "native_shop_id": 100000624
+    },
+    {
+      "server_shop_id": 100000625,
+      "native_shop_id": 100000625
+    },
+    {
+      "server_shop_id": 100000626,
+      "native_shop_id": 100000626
+    },
+    {
+      "server_shop_id": 100000627,
+      "native_shop_id": 100000627
+    },
+    {
+      "server_shop_id": 100000628,
+      "native_shop_id": 100000628
+    },
+    {
+      "server_shop_id": 100000629,
+      "native_shop_id": 100000629
+    },
+    {
+      "server_shop_id": 100000630,
+      "native_shop_id": 100000630
+    },
+    {
+      "server_shop_id": 100000631,
+      "native_shop_id": 100000631
+    },
+    {
+      "server_shop_id": 100000632,
+      "native_shop_id": 100000632
+    },
+    {
+      "server_shop_id": 100000633,
+      "native_shop_id": 100000633
+    },
+    {
+      "server_shop_id": 100000634,
+      "native_shop_id": 100000634
+    },
+    {
+      "server_shop_id": 100000635,
+      "native_shop_id": 100000635
+    },
+    {
+      "server_shop_id": 100000636,
+      "native_shop_id": 100000636
+    },
+    {
+      "server_shop_id": 100000637,
+      "native_shop_id": 100000637
+    },
+    {
+      "server_shop_id": 100000638,
+      "native_shop_id": 100000638
+    },
+    {
+      "server_shop_id": 100000639,
+      "native_shop_id": 100000639
+    },
+    {
+      "server_shop_id": 100000640,
+      "native_shop_id": 100000640
+    },
+    {
+      "server_shop_id": 100000641,
+      "native_shop_id": 100000641
+    },
+    {
+      "server_shop_id": 100000642,
+      "native_shop_id": 100000642
+    },
+    {
+      "server_shop_id": 100000643,
+      "native_shop_id": 100000643
+    },
+    {
+      "server_shop_id": 100000644,
+      "native_shop_id": 100000644
+    },
+    {
+      "server_shop_id": 100000645,
+      "native_shop_id": 100000645
+    },
+    {
+      "server_shop_id": 100000646,
+      "native_shop_id": 100000646
+    },
+    {
+      "server_shop_id": 100000647,
+      "native_shop_id": 100000647
+    },
+    {
+      "server_shop_id": 100000648,
+      "native_shop_id": 100000648
+    },
+    {
+      "server_shop_id": 100000649,
+      "native_shop_id": 100000649
+    },
+    {
+      "server_shop_id": 100000650,
+      "native_shop_id": 100000650
+    },
+    {
+      "server_shop_id": 100000651,
+      "native_shop_id": 100000651
+    },
+    {
+      "server_shop_id": 100000652,
+      "native_shop_id": 100000652
+    },
+    {
+      "server_shop_id": 100000653,
+      "native_shop_id": 100000653
+    },
+    {
+      "server_shop_id": 100000654,
+      "native_shop_id": 100000654
+    },
+    {
+      "server_shop_id": 100000655,
+      "native_shop_id": 100000655
+    },
+    {
+      "server_shop_id": 100000656,
+      "native_shop_id": 100000656
+    },
+    {
+      "server_shop_id": 100000657,
+      "native_shop_id": 100000657
+    },
+    {
+      "server_shop_id": 100000658,
+      "native_shop_id": 100000658
+    },
+    {
+      "server_shop_id": 100000659,
+      "native_shop_id": 100000659
+    },
+    {
+      "server_shop_id": 100000660,
+      "native_shop_id": 100000660
+    },
+    {
+      "server_shop_id": 100000661,
+      "native_shop_id": 100000661
+    },
+    {
+      "server_shop_id": 100000662,
+      "native_shop_id": 100000662
+    },
+    {
+      "server_shop_id": 100000663,
+      "native_shop_id": 100000663
+    },
+    {
+      "server_shop_id": 100000664,
+      "native_shop_id": 100000664
+    },
+    {
+      "server_shop_id": 100000666,
+      "native_shop_id": 100000666
+    },
+    {
+      "server_shop_id": 100000667,
+      "script_path": "itemshop/100000667_event_npc_22_elf_tree.shp"
+    },
+    {
+      "server_shop_id": 100000670,
+      "native_shop_id": 100000670
+    },
+    {
+      "server_shop_id": 100000671,
+      "native_shop_id": 100000671
+    },
+    {
+      "server_shop_id": 100000672,
+      "native_shop_id": 100000362
+    },
+    {
+      "server_shop_id": 100000673,
+      "native_shop_id": 100000673
+    },
+    {
+      "server_shop_id": 100000684,
+      "script_path": "itemshop/100000684_sinjang_black_purgatory_shop.shp"
+    },
+    {
+      "server_shop_id": 100000690,
+      "native_shop_id": 100000690
+    },
+    {
+      "server_shop_id": 100000691,
+      "native_shop_id": 100000691
+    },
+    {
+      "server_shop_id": 100000692,
+      "native_shop_id": 100000692
+    },
+    {
+      "server_shop_id": 100000695,
+      "native_shop_id": 100000695
+    },
+    {
+      "server_shop_id": 100000703,
+      "script_path": "itemshop/100000703_limittrading_flo_shop.shp"
+    },
+    {
+      "server_shop_id": 100000704,
+      "script_path": "itemshop/100000704_limittrading_losayulrgent_shop.shp"
+    },
+    {
+      "server_shop_id": 100000705,
+      "script_path": "itemshop/100000705_event_randy.shp"
+    },
+    {
+      "server_shop_id": 100000706,
+      "script_path": "itemshop/100000706_event_npc_nano.shp"
+    },
+    {
+      "server_shop_id": 100000707,
+      "native_shop_id": 100000707
+    },
+    {
+      "server_shop_id": 100000708,
+      "native_shop_id": 100000708
+    },
+    {
+      "server_shop_id": 100000709,
+      "native_shop_id": 100000709
+    },
+    {
+      "server_shop_id": 100000710,
+      "script_path": "itemshop/100000710.shp"
+    },
+    {
+      "server_shop_id": 100000712,
+      "native_shop_id": 100000712
+    },
+    {
+      "server_shop_id": 100000713,
+      "native_shop_id": 100000713
+    },
+    {
+      "server_shop_id": 100000714,
+      "script_path": "itemshop/100000714_limittrading_librarian_shop.shp"
+    },
+    {
+      "server_shop_id": 100000716,
+      "script_path": "itemshop/100000716_event_npc_22_snowmage.shp"
+    },
+    {
+      "server_shop_id": 100000717,
+      "native_shop_id": 100000717
+    },
+    {
+      "server_shop_id": 100000718,
+      "script_path": "itemshop/100000718_event_danin.shp"
+    },
+    {
+      "server_shop_id": 100000719,
+      "script_path": "itemshop/100000719_event_danin.shp"
+    },
+    {
+      "server_shop_id": 100000720,
+      "script_path": "itemshop/100000720_event_danin_seria.shp"
+    },
+    {
+      "server_shop_id": 100000721,
+      "script_path": "itemshop/100000721_event_danin_seria.shp"
+    },
+    {
+      "server_shop_id": 100000723,
+      "script_path": "itemshop/100000723_npc_22_danjin.shp"
+    },
+    {
+      "server_shop_id": 100000724,
+      "script_path": "itemshop/100000724_equipmentshop5.shp"
+    },
+    {
+      "server_shop_id": 100000725,
+      "script_path": "itemshop/100000725_recipe3.shp"
+    },
+    {
+      "server_shop_id": 100000729,
+      "script_path": "itemshop/100000729_dawningseria.shp"
+    },
+    {
+      "server_shop_id": 100000730,
+      "script_path": "itemshop/100000730_event_newbie.shp"
+    },
+    {
+      "server_shop_id": 100000731,
+      "script_path": "itemshop/100000731_event_fan_no1.shp"
+    },
+    {
+      "server_shop_id": 100000732,
+      "script_path": "itemshop/100000732_event_fan_no2.shp"
+    },
+    {
+      "server_shop_id": 100000733,
+      "script_path": "itemshop/100000733_event_fan_no3.shp"
+    },
+    {
+      "server_shop_id": 100000734,
+      "script_path": "itemshop/100000734_event_fan_no4.shp"
+    },
+    {
+      "server_shop_id": 100000735,
+      "script_path": "itemshop/100000735_event_fan_no5.shp"
+    },
+    {
+      "server_shop_id": 100000736,
+      "script_path": "itemshop/100000736_event_himan.shp"
+    },
+    {
+      "server_shop_id": 100000737,
+      "script_path": "itemshop/100000737_dongsan.shp"
+    },
+    {
+      "server_shop_id": 100000738,
+      "script_path": "itemshop/100000738_event_fan_no6.shp"
+    },
+    {
+      "server_shop_id": 100000739,
+      "script_path": "itemshop/100000739_event_fan_no7.shp"
+    },
+    {
+      "server_shop_id": 100000740,
+      "script_path": "itemshop/100000740_event_fan_no8.shp"
+    },
+    {
+      "server_shop_id": 100000741,
+      "script_path": "itemshop/100000741_event_fan_no9.shp"
+    },
+    {
+      "server_shop_id": 100000742,
+      "script_path": "itemshop/100000742_event_fan_no10.shp"
+    },
+    {
+      "server_shop_id": 100000743,
+      "script_path": "itemshop/100000743_event_fan_no11.shp"
+    },
+    {
+      "server_shop_id": 100000744,
+      "script_path": "itemshop/100000744_event_fan_no12.shp"
+    },
+    {
+      "server_shop_id": 100000745,
+      "script_path": "itemshop/100000745_event_fan_no13.shp"
+    },
+    {
+      "server_shop_id": 100000746,
+      "script_path": "itemshop/100000746_event_fan_no14.shp"
+    },
+    {
+      "server_shop_id": 100000747,
+      "script_path": "itemshop/100000747_event_fan_no15.shp"
+    },
+    {
+      "server_shop_id": 100000748,
+      "script_path": "itemshop/100000748_event_fan_no16.shp"
+    },
+    {
+      "server_shop_id": 100000749,
+      "script_path": "itemshop/100000749_event_fan_no17.shp"
+    },
+    {
+      "server_shop_id": 100000750,
+      "script_path": "itemshop/100000750_event_fan_no18.shp"
+    },
+    {
+      "server_shop_id": 100000751,
+      "script_path": "itemshop/100000751_event_fan_no19.shp"
+    },
+    {
+      "server_shop_id": 100000752,
+      "script_path": "itemshop/100000752_event_fan_no20.shp"
+    },
+    {
+      "server_shop_id": 100000753,
+      "script_path": "itemshop/100000753_event_fan_no21.shp"
+    },
+    {
+      "server_shop_id": 100000754,
+      "script_path": "itemshop/100000754_event_fan_no22.shp"
+    },
+    {
+      "server_shop_id": 100000755,
+      "script_path": "itemshop/100000755_event_fan_no23.shp"
+    },
+    {
+      "server_shop_id": 100000756,
+      "script_path": "itemshop/100000756_event_fan_no24.shp"
+    },
+    {
+      "server_shop_id": 100000757,
+      "script_path": "itemshop/100000757_event_fan_no25.shp"
+    },
+    {
+      "server_shop_id": 100000758,
+      "script_path": "itemshop/100000758_event_fan_no26.shp"
+    },
+    {
+      "server_shop_id": 100000759,
+      "script_path": "itemshop/100000759_event_fan_no27.shp"
+    },
+    {
+      "server_shop_id": 100000760,
+      "script_path": "itemshop/100000760_event_fan_no28.shp"
+    },
+    {
+      "server_shop_id": 100000761,
+      "script_path": "itemshop/100000761_event_fan_no29.shp"
+    },
+    {
+      "server_shop_id": 100000762,
+      "script_path": "itemshop/100000762_event_fan_no30.shp"
+    },
+    {
+      "server_shop_id": 100000763,
+      "script_path": "itemshop/100000763_event_fan_no31.shp"
+    },
+    {
+      "server_shop_id": 100000764,
+      "script_path": "itemshop/100000764_event_fan_no32.shp"
+    },
+    {
+      "server_shop_id": 100000765,
+      "script_path": "itemshop/100000765_event_fan_no33.shp"
+    },
+    {
+      "server_shop_id": 100000766,
+      "script_path": "itemshop/100000766_event_fan_no34.shp"
+    },
+    {
+      "server_shop_id": 100000767,
+      "script_path": "itemshop/100000767_event_fan_no35.shp"
+    },
+    {
+      "server_shop_id": 100000768,
+      "native_shop_id": 100000768
+    },
+    {
+      "server_shop_id": 100000769,
+      "native_shop_id": 100000769
+    },
+    {
+      "server_shop_id": 100000770,
+      "script_path": "itemshop/100000770_event_cherryblossom.shp"
+    },
+    {
+      "server_shop_id": 100000771,
+      "script_path": "itemshop/100000771_event_sixthman.shp"
+    },
+    {
+      "server_shop_id": 100000772,
+      "script_path": "itemshop/100000772_event_8bitarcher.shp"
+    },
+    {
+      "server_shop_id": 100000773,
+      "script_path": "itemshop/100000773_event_wedding.shp"
+    },
+    {
+      "server_shop_id": 100000775,
+      "script_path": "itemshop/100000775_event_guidehiman_1.shp"
+    },
+    {
+      "server_shop_id": 100000776,
+      "script_path": "itemshop/100000776_event_guidehiman_2.shp"
+    },
+    {
+      "server_shop_id": 100000777,
+      "script_path": "itemshop/100000777_event_matna_1.shp"
+    },
+    {
+      "server_shop_id": 100000778,
+      "script_path": "itemshop/100000778_event_matna_2.shp"
+    },
+    {
+      "server_shop_id": 100000779,
+      "script_path": "itemshop/100000779_event_matna_3.shp"
+    },
+    {
+      "server_shop_id": 100000780,
+      "script_path": "itemshop/100000780_event_matna_4.shp"
+    },
+    {
+      "server_shop_id": 100000781,
+      "script_path": "itemshop/100000781_event_matna_5.shp"
+    },
+    {
+      "server_shop_id": 100000782,
+      "script_path": "itemshop/100000782_event_matna_6.shp"
+    },
+    {
+      "server_shop_id": 100000783,
+      "script_path": "itemshop/100000783_emart24.shp"
+    },
+    {
+      "server_shop_id": 100000785,
+      "script_path": "itemshop/100000785_seon_ludmila.shp"
+    },
+    {
+      "server_shop_id": 100000786,
+      "native_shop_id": 100000786
+    },
+    {
+      "server_shop_id": 100000787,
+      "native_shop_id": 100000787
+    },
+    {
+      "server_shop_id": 100000788,
+      "script_path": "itemshop/100000788_event_jin_normalchannel.shp"
+    },
+    {
+      "server_shop_id": 100000789,
+      "script_path": "itemshop/100000789_event_jin_eventchannel.shp"
+    },
+    {
+      "server_shop_id": 100000791,
+      "script_path": "itemshop/100000791_peria.shp"
+    },
+    {
+      "server_shop_id": 100000792,
+      "native_shop_id": 100000792
+    },
+    {
+      "server_shop_id": 100000793,
+      "native_shop_id": 100000793
+    },
+    {
+      "server_shop_id": 100000794,
+      "script_path": "itemshop/100000794_danjin_seria.shp"
+    },
+    {
+      "server_shop_id": 100000795,
+      "script_path": "itemshop/100000795_danjin_peace.shp"
+    },
+    {
+      "server_shop_id": 100000796,
+      "native_shop_id": 100000796
+    },
+    {
+      "server_shop_id": 100000797,
+      "native_shop_id": 100000797
+    },
+    {
+      "server_shop_id": 100000798,
+      "native_shop_id": 100000798
+    },
+    {
+      "server_shop_id": 100000799,
+      "native_shop_id": 100000799
+    },
+    {
+      "server_shop_id": 100000800,
+      "native_shop_id": 100000800
+    },
+    {
+      "server_shop_id": 100000804,
+      "script_path": "itemshop/100000804_dapharah_seria_0.shp"
+    },
+    {
+      "server_shop_id": 100000805,
+      "script_path": "itemshop/100000805_dapharah_seria_1.shp"
+    },
+    {
+      "server_shop_id": 100000806,
+      "script_path": "itemshop/100000806_dapharah_seria_2.shp"
+    },
+    {
+      "server_shop_id": 100000807,
+      "script_path": "itemshop/100000807_qlipha_seria.shp"
+    },
+    {
+      "server_shop_id": 100000808,
+      "script_path": "itemshop/100000808_qlipha_town.shp"
+    },
+    {
+      "server_shop_id": 100000809,
+      "script_path": "itemshop/100000809_qlipha_seria_special.shp"
+    },
+    {
+      "server_shop_id": 100000810,
+      "script_path": "itemshop/100000810_qlipha_town_special.shp"
+    },
+    {
+      "server_shop_id": 100000811,
+      "script_path": "itemshop/100000811_event_unknown.shp"
+    },
+    {
+      "server_shop_id": 100000812,
+      "script_path": "itemshop/100000812_event_unknown.shp"
+    },
+    {
+      "server_shop_id": 100000813,
+      "script_path": "itemshop/100000813_event_unknown.shp"
+    },
+    {
+      "server_shop_id": 100000814,
+      "script_path": "itemshop/100000814_event_newbie.shp"
+    },
+    {
+      "server_shop_id": 100000815,
+      "script_path": "itemshop/100000815_bread_seria_special.shp"
+    },
+    {
+      "server_shop_id": 100000816,
+      "script_path": "itemshop/100000816_bread_seria_shop.shp"
+    },
+    {
+      "server_shop_id": 100000817,
+      "script_path": "itemshop/100000817_bread_dungeon_shop.shp"
+    },
+    {
+      "server_shop_id": 100000818,
+      "script_path": "itemshop/100000818_leopard_dungeon_shop.shp"
+    },
+    {
+      "server_shop_id": 100000819,
+      "script_path": "itemshop/100000819_renia.shp"
+    },
+    {
+      "server_shop_id": 100000820,
+      "script_path": "itemshop/100000820_renia_bindcube.shp"
+    },
+    {
+      "server_shop_id": 100000827,
+      "script_path": "itemshop/100000827_event_newbie.shp"
+    },
+    {
+      "server_shop_id": 100000828,
+      "script_path": "itemshop/100000828_danjin_seria.shp"
+    },
+    {
+      "server_shop_id": 100000829,
+      "script_path": "itemshop/100000829_danjin.shp"
+    },
+    {
+      "server_shop_id": 100000830,
+      "native_shop_id": 100000830
+    },
+    {
+      "server_shop_id": 100000831,
+      "script_path": "itemshop/100000831_rod_seriaroom.shp"
+    },
+    {
+      "server_shop_id": 100000832,
+      "script_path": "itemshop/100000832_rod_normal.shp"
+    },
+    {
+      "server_shop_id": 100000833,
+      "script_path": "itemshop/100000833_rod_control.shp"
+    },
+    {
+      "server_shop_id": 100000834,
+      "native_shop_id": 100000834
+    },
+    {
+      "server_shop_id": 100000835,
+      "native_shop_id": 100000835
+    },
+    {
+      "server_shop_id": 100000836,
+      "script_path": "itemshop/100000836_event_inventorsweetietehiti.shp"
+    },
+    {
+      "server_shop_id": 100000837,
+      "native_shop_id": 100000837
+    },
+    {
+      "server_shop_id": 100000838,
+      "script_path": "itemshop/100000838_sdcelestial.shp"
+    },
+    {
+      "server_shop_id": 100000839,
+      "script_path": "itemshop/100000839_24_newyear_dragon.shp"
+    },
+    {
+      "server_shop_id": 100000842,
+      "script_path": "itemshop/100000842_sdshume.shp"
+    },
+    {
+      "server_shop_id": 100000843,
+      "script_path": "itemshop/100000843_sdshume_bindcube.shp"
+    },
+    {
+      "server_shop_id": 100000844,
+      "native_shop_id": 100000844
+    },
+    {
+      "server_shop_id": 100000845,
+      "script_path": "itemshop/100000845_event_miracle_1.shp"
+    },
+    {
+      "server_shop_id": 100000846,
+      "script_path": "itemshop/100000846_event_miracle_2.shp"
+    },
+    {
+      "server_shop_id": 100000847,
+      "script_path": "itemshop/100000847_event_oracle_1.shp"
+    },
+    {
+      "server_shop_id": 100000848,
+      "native_shop_id": 100000848
+    },
+    {
+      "server_shop_id": 100000851,
+      "script_path": "itemshop/100000851_event_shop_meringue.shp"
+    },
+    {
+      "server_shop_id": 100000852,
+      "native_shop_id": 100000852
+    },
+    {
+      "server_shop_id": 100000853,
+      "script_path": "itemshop/100000853_snk_shop.shp"
+    },
+    {
+      "server_shop_id": 100000854,
+      "script_path": "itemshop/100000854_sdmai.shp"
+    },
+    {
+      "server_shop_id": 100000855,
+      "script_path": "itemshop/100000855_sdmai_bindcube.shp"
+    },
+    {
+      "server_shop_id": 100000856,
+      "script_path": "itemshop/100000856_aradpass.shp"
+    },
+    {
+      "server_shop_id": 100000857,
+      "native_shop_id": 100000857
+    },
+    {
+      "server_shop_id": 100000858,
+      "script_path": "itemshop/100000858_shop_arcadecenter.shp"
+    },
+    {
+      "server_shop_id": 100000860,
+      "script_path": "itemshop/100000860_summer.shp"
+    },
+    {
+      "server_shop_id": 100000861,
+      "script_path": "itemshop/100000861_event_summer_oracle_1.shp"
+    },
+    {
+      "server_shop_id": 100000862,
+      "script_path": "itemshop/100000862_event_danjin_summer.shp"
+    },
+    {
+      "server_shop_id": 100000863,
+      "script_path": "itemshop/100000863_event_danjin_summer_special.shp"
+    },
+    {
+      "server_shop_id": 100000864,
+      "script_path": "itemshop/100000864_nexonfriends_no01_1.shp"
+    },
+    {
+      "server_shop_id": 100000865,
+      "script_path": "itemshop/100000865_nexonfriends_no02_1.shp"
+    },
+    {
+      "server_shop_id": 100000866,
+      "script_path": "itemshop/100000866_nexonfriends_no03.shp"
+    },
+    {
+      "server_shop_id": 100000867,
+      "script_path": "itemshop/100000867_nexonfriends_no04.shp"
+    },
+    {
+      "server_shop_id": 100000868,
+      "script_path": "itemshop/100000868_nexonfriends_no05.shp"
+    },
+    {
+      "server_shop_id": 100000869,
+      "script_path": "itemshop/100000869_nexonfriends_no06.shp"
+    },
+    {
+      "server_shop_id": 100000870,
+      "script_path": "itemshop/100000870_nexonfriends_no07.shp"
+    },
+    {
+      "server_shop_id": 100000871,
+      "script_path": "itemshop/100000871_nexonfriends_no08.shp"
+    },
+    {
+      "server_shop_id": 100000872,
+      "script_path": "itemshop/100000872_nexonfriends_no09.shp"
+    },
+    {
+      "server_shop_id": 100000873,
+      "script_path": "itemshop/100000873_nexonfriends_no10.shp"
+    },
+    {
+      "server_shop_id": 100000874,
+      "script_path": "itemshop/100000874_nexonfriends_no11.shp"
+    },
+    {
+      "server_shop_id": 100000875,
+      "script_path": "itemshop/100000875_nexonfriends_no12.shp"
+    },
+    {
+      "server_shop_id": 100000876,
+      "script_path": "itemshop/100000876_nexonfriends_no13_1.shp"
+    },
+    {
+      "server_shop_id": 100000877,
+      "script_path": "itemshop/100000877_nexonfriends_no14_1.shp"
+    },
+    {
+      "server_shop_id": 100000878,
+      "script_path": "itemshop/100000878_nexonfriends_no15_1.shp"
+    },
+    {
+      "server_shop_id": 100000879,
+      "script_path": "itemshop/100000879_nexonfriends_no16.shp"
+    },
+    {
+      "server_shop_id": 100000880,
+      "script_path": "itemshop/100000880_nexonfriends_no17.shp"
+    },
+    {
+      "server_shop_id": 100000881,
+      "script_path": "itemshop/100000881_nexonfriends_no18.shp"
+    },
+    {
+      "server_shop_id": 100000882,
+      "script_path": "itemshop/100000882_nexonfriends_no19.shp"
+    },
+    {
+      "server_shop_id": 100000883,
+      "script_path": "itemshop/100000883_nexonfriends_no20.shp"
+    },
+    {
+      "server_shop_id": 100000884,
+      "script_path": "itemshop/100000884_nexonfriends_no01_2.shp"
+    },
+    {
+      "server_shop_id": 100000885,
+      "script_path": "itemshop/100000885_nexonfriends_no02_2.shp"
+    },
+    {
+      "server_shop_id": 100000886,
+      "script_path": "itemshop/100000886_nexonfriends_no02_3.shp"
+    },
+    {
+      "server_shop_id": 100000887,
+      "script_path": "itemshop/100000887_nexonfriends_no13_2.shp"
+    },
+    {
+      "server_shop_id": 100000888,
+      "script_path": "itemshop/100000888_nexonfriends_no14_2.shp"
+    },
+    {
+      "server_shop_id": 100000889,
+      "script_path": "itemshop/100000889_nexonfriends_no15_2.shp"
+    },
+    {
+      "server_shop_id": 100000890,
+      "script_path": "itemshop/100000890_anotherworld.shp"
+    },
+    {
+      "server_shop_id": 100000891,
+      "script_path": "itemshop/100000891_limittrading_forest.shp"
+    },
+    {
+      "server_shop_id": 100000896,
+      "script_path": "itemshop/100000896_event_dnfmichelin.shp"
+    },
+    {
+      "server_shop_id": 100000897,
+      "script_path": "itemshop/100000897_event_dnfmichelin.shp"
+    },
+    {
+      "server_shop_id": 100000899,
+      "script_path": "itemshop/100000899_24phantomcity_main.shp"
+    },
+    {
+      "server_shop_id": 100000900,
+      "script_path": "itemshop/100000900_24phantomcity_bindcube.shp"
+    },
+    {
+      "server_shop_id": 100000901,
+      "script_path": "itemshop/100000901_event_trainingmage.shp"
+    },
+    {
+      "server_shop_id": 100000902,
+      "script_path": "itemshop/100000902_newrandomoptionlevelreward.shp"
+    },
+    {
+      "server_shop_id": 100000903,
+      "script_path": "itemshop/100000903_25oriental_main.shp"
+    },
+    {
+      "server_shop_id": 100000904,
+      "script_path": "itemshop/100000904_the_book_of_nightmares_seria.shp"
+    },
+    {
+      "server_shop_id": 100000905,
+      "script_path": "itemshop/100000905_the_book_of_nightmares_town.shp"
+    },
+    {
+      "server_shop_id": 100000906,
+      "native_shop_id": 100000906
+    },
+    {
+      "server_shop_id": 100000907,
+      "script_path": "live/event/kor/2024/1017_togethermu/itemshop/100000907_event_newbie.shp"
+    },
+    {
+      "server_shop_id": 100000910,
+      "native_shop_id": 100000910
+    },
+    {
+      "server_shop_id": 100000911,
+      "native_shop_id": 100000911
+    },
+    {
+      "server_shop_id": 100000912,
+      "native_shop_id": 100000912
+    },
+    {
+      "server_shop_id": 100000915,
+      "script_path": "itemshop/100000915_event_npc_24_snowmage.shp"
+    },
+    {
+      "server_shop_id": 100000916,
+      "script_path": "itemshop/100000916_fatezero.shp"
+    },
+    {
+      "server_shop_id": 100000917,
+      "native_shop_id": 100000917
+    },
+    {
+      "server_shop_id": 100000919,
+      "script_path": "itemshop/100000919_event_oracle.shp"
+    },
+    {
+      "server_shop_id": 100000920,
+      "script_path": "itemshop/100000920_event_oracle_dungeon_n.shp"
+    },
+    {
+      "server_shop_id": 100000921,
+      "script_path": "itemshop/100000921_event_oracle_dungeon_s.shp"
+    },
+    {
+      "server_shop_id": 100000922,
+      "native_shop_id": 500000211
+    },
+    {
+      "server_shop_id": 100000923,
+      "script_path": "itemshop/100000923_event_miracle.shp"
+    },
+    {
+      "server_shop_id": 100000926,
+      "script_path": "itemshop/100000926_knightstemplar.shp"
+    },
+    {
+      "server_shop_id": 100000927,
+      "native_shop_id": 100000927
+    },
+    {
+      "server_shop_id": 100000928,
+      "native_shop_id": 100000928
+    },
+    {
+      "server_shop_id": 100000929,
+      "native_shop_id": 100000929
+    },
+    {
+      "server_shop_id": 100000936,
+      "native_shop_id": 100000936
+    },
+    {
+      "server_shop_id": 100000937,
+      "native_shop_id": 100000937
+    },
+    {
+      "server_shop_id": 100000938,
+      "script_path": "itemshop/100000938_25frostkingdom_main.shp"
+    },
+    {
+      "server_shop_id": 100000939,
+      "script_path": "itemshop/100000939_25frostkingdom_bindcube.shp"
+    },
+    {
+      "server_shop_id": 100000940,
+      "native_shop_id": 100000940
+    },
+    {
+      "server_shop_id": 100000953,
+      "script_path": "itemshop/100000953_npc_25_blossom.shp"
+    },
+    {
+      "server_shop_id": 100000954,
+      "script_path": "itemshop/100000954_event_bunny.shp"
+    },
+    {
+      "server_shop_id": 100000955,
+      "script_path": "itemshop/100000955_25bunnybunnyarad.shp"
+    },
+    {
+      "server_shop_id": 100000958,
+      "script_path": "itemshop/100000958_inuyasha_no01.shp"
+    },
+    {
+      "server_shop_id": 100000959,
+      "script_path": "itemshop/100000959_inuyasha_no02.shp"
+    },
+    {
+      "server_shop_id": 100000960,
+      "script_path": "itemshop/100000960_inuyasha_no03.shp"
+    },
+    {
+      "server_shop_id": 100000961,
+      "script_path": "itemshop/100000961_inuyasha_no04.shp"
+    },
+    {
+      "server_shop_id": 100000962,
+      "script_path": "itemshop/100000962_inuyasha_no05.shp"
+    },
+    {
+      "server_shop_id": 100000963,
+      "script_path": "itemshop/100000963_inuyasha_no06.shp"
+    },
+    {
+      "server_shop_id": 100000964,
+      "script_path": "itemshop/100000964_inuyasha_no07.shp"
+    },
+    {
+      "server_shop_id": 100000965,
+      "script_path": "itemshop/100000965_inuyasha_no08.shp"
+    },
+    {
+      "server_shop_id": 100000966,
+      "script_path": "itemshop/100000966_inuyasha_no09.shp"
+    },
+    {
+      "server_shop_id": 100000967,
+      "script_path": "itemshop/100000967_inuyasha_no10.shp"
+    },
+    {
+      "server_shop_id": 100000968,
+      "script_path": "itemshop/100000968_inuyasha_no11.shp"
+    },
+    {
+      "server_shop_id": 100000969,
+      "script_path": "itemshop/100000969_25_inuyasha_main.shp"
+    },
+    {
+      "server_shop_id": 100000970,
+      "script_path": "itemshop/100000970_25_inuyasha_bindcube.shp"
+    },
+    {
+      "server_shop_id": 100000972,
+      "native_shop_id": 100000972
+    },
+    {
+      "server_shop_id": 100000973,
+      "native_shop_id": 100000973
+    },
+    {
+      "server_shop_id": 100000974,
+      "script_path": "itemshop/100000974_25summer.shp"
+    },
+    {
+      "server_shop_id": 100000976,
+      "script_path": "itemshop/100000976_event_oracle.shp"
+    },
+    {
+      "server_shop_id": 100000977,
+      "script_path": "itemshop/100000977_event_oracle_dungeon_n.shp"
+    },
+    {
+      "server_shop_id": 100000978,
+      "script_path": "itemshop/100000978_event_oracle_dungeon_s.shp"
+    },
+    {
+      "server_shop_id": 100000979,
+      "script_path": "itemshop/100000979_event_miracle.shp"
+    },
+    {
+      "server_shop_id": 100000980,
+      "native_shop_id": 100000980
+    },
+    {
+      "server_shop_id": 100000981,
+      "native_shop_id": 100000981
+    },
+    {
+      "server_shop_id": 100000982,
+      "script_path": "itemshop/100000982_25_sao.shp"
+    },
+    {
+      "server_shop_id": 100000987,
+      "script_path": "itemshop/100000987_20th_himanstella.shp"
+    },
+    {
+      "server_shop_id": 100000988,
+      "script_path": "itemshop/100000988_event_asuna.shp"
+    },
+    {
+      "server_shop_id": 100000989,
+      "script_path": "itemshop/100000989_20thmission_seria.shp"
+    },
+    {
+      "server_shop_id": 100000990,
+      "script_path": "itemshop/100000990_25oriental_bindcube.shp"
+    },
+    {
+      "server_shop_id": 100000991,
+      "script_path": "itemshop/100000991_event_strange_bonoz.shp"
+    },
+    {
+      "server_shop_id": 100000993,
+      "script_path": "itemshop/100000993_event_npc_juice_make_season6.shp"
+    },
+    {
+      "server_shop_id": 100000994,
+      "script_path": "itemshop/100000994_event_trainingmage.shp"
+    },
+    {
+      "server_shop_id": 100000995,
+      "native_shop_id": 100000995
+    },
+    {
+      "server_shop_id": 100000998,
+      "native_shop_id": 100000998
+    },
+    {
+      "server_shop_id": 100000999,
+      "native_shop_id": 100000999
+    },
+    {
+      "server_shop_id": 100001000,
+      "native_shop_id": 100001000
+    },
+    {
+      "server_shop_id": 100001001,
+      "script_path": "itemshop/100001001_event_oracle.shp"
+    },
+    {
+      "server_shop_id": 100001002,
+      "script_path": "itemshop/100001002_event_oracle_dungeon_n.shp"
+    },
+    {
+      "server_shop_id": 100001003,
+      "script_path": "itemshop/100001003_event_oracle_dungeon_s.shp"
+    },
+    {
+      "server_shop_id": 100001004,
+      "native_shop_id": 100001004
+    },
+    {
+      "server_shop_id": 100001005,
+      "native_shop_id": 100001005
+    },
+    {
+      "server_shop_id": 100001006,
+      "native_shop_id": 100001006
+    },
+    {
+      "server_shop_id": 100001008,
+      "native_shop_id": 100001008
+    },
+    {
+      "server_shop_id": 100001009,
+      "script_path": "itemshop/100001009_event_jun.shp"
+    },
+    {
+      "server_shop_id": 100001011,
+      "native_shop_id": 100001011
+    },
+    {
+      "server_shop_id": 100001012,
+      "native_shop_id": 100001012
+    },
+    {
+      "server_shop_id": 100001013,
+      "native_shop_id": 100001013
+    },
+    {
+      "server_shop_id": 100001014,
+      "native_shop_id": 100001014
+    },
+    {
+      "server_shop_id": 100001015,
+      "native_shop_id": 100001015
+    },
+    {
+      "server_shop_id": 100001017,
+      "native_shop_id": 100001017
+    },
+    {
+      "server_shop_id": 100001019,
+      "native_shop_id": 100001019
+    },
+    {
+      "server_shop_id": 100001020,
+      "native_shop_id": 100001020
+    },
+    {
+      "server_shop_id": 100001021,
+      "native_shop_id": 100001021
+    },
+    {
+      "server_shop_id": 100001022,
+      "native_shop_id": 100001022
+    },
+    {
+      "server_shop_id": 100001023,
+      "native_shop_id": 100001023
+    },
+    {
+      "server_shop_id": 100001024,
+      "native_shop_id": 100001024
+    },
+    {
+      "server_shop_id": 100001025,
+      "native_shop_id": 100001025
+    },
+    {
+      "server_shop_id": 100001026,
+      "script_path": "itemshop/100001026_springwinds.shp"
+    },
+    {
+      "server_shop_id": 100001504,
+      "script_path": "itemshop/100001504_snowman.shp"
+    },
+    {
+      "server_shop_id": 100001562,
+      "native_shop_id": 100000684
+    },
+    {
+      "server_shop_id": 100001563,
+      "native_shop_id": 100000689
+    },
+    {
+      "server_shop_id": 100001571,
+      "native_shop_id": 100000685
+    },
+    {
+      "server_shop_id": 100001753,
+      "native_shop_id": 100000686
+    },
+    {
+      "server_shop_id": 100001754,
+      "native_shop_id": 100000687
+    },
+    {
+      "server_shop_id": 100001755,
+      "native_shop_id": 100000688
+    },
+    {
+      "server_shop_id": 100001756,
+      "native_shop_id": 100000696
+    },
+    {
+      "server_shop_id": 100001757,
+      "native_shop_id": 100000697
+    },
+    {
+      "server_shop_id": 100001774,
+      "native_shop_id": 100000694
+    },
+    {
+      "server_shop_id": 100001877,
+      "native_shop_id": 100000801
+    },
+    {
+      "server_shop_id": 100001878,
+      "native_shop_id": 100000803
+    },
+    {
+      "server_shop_id": 100001951,
+      "native_shop_id": 100000823
+    },
+    {
+      "server_shop_id": 100002552,
+      "native_shop_id": 100000850
+    },
+    {
+      "server_shop_id": 100002860,
+      "native_shop_id": 100000956
+    },
+    {
+      "server_shop_id": 100002861,
+      "native_shop_id": 100000957
+    },
+    {
+      "server_shop_id": 101,
+      "native_shop_id": 101
+    },
+    {
+      "server_shop_id": 1025,
+      "native_shop_id": 500000127
+    },
+    {
+      "server_shop_id": 103,
+      "native_shop_id": 500000130
+    },
+    {
+      "server_shop_id": 106,
+      "native_shop_id": 106
+    },
+    {
+      "server_shop_id": 112,
+      "script_path": "itemshop/112_shaphron.shp.shp"
+    },
+    {
+      "server_shop_id": 1122,
+      "native_shop_id": 500000128
+    },
+    {
+      "server_shop_id": 117,
+      "native_shop_id": 500000131
+    },
+    {
+      "server_shop_id": 1171,
+      "script_path": "itemshop/1171_circus_6.shp"
+    },
+    {
+      "server_shop_id": 1206,
+      "native_shop_id": 500000129
+    },
+    {
+      "server_shop_id": 131,
+      "native_shop_id": 131
+    },
+    {
+      "server_shop_id": 132,
+      "native_shop_id": 132
+    },
+    {
+      "server_shop_id": 133,
+      "native_shop_id": 133
+    },
+    {
+      "server_shop_id": 134,
+      "native_shop_id": 134
+    },
+    {
+      "server_shop_id": 14,
+      "script_path": "itemshop/14_priest_studyevent_small.shp"
+    },
+    {
+      "server_shop_id": 180,
+      "native_shop_id": 180
+    },
+    {
+      "server_shop_id": 181,
+      "native_shop_id": 181
+    },
+    {
+      "server_shop_id": 2016,
+      "script_path": "itemshop/2016_knight_adventure.shp"
+    },
+    {
+      "server_shop_id": 2019,
+      "script_path": "itemshop/2019_dpl_fiendwar_npc.shp"
+    },
+    {
+      "server_shop_id": 21,
+      "script_path": "itemshop/21_kittykingdom.shp"
+    },
+    {
+      "server_shop_id": 210128,
+      "script_path": "itemshop/210128_ilrustrea_10.shp"
+    },
+    {
+      "server_shop_id": 210415,
+      "script_path": "itemshop/210415_pvp.shp"
+    },
+    {
+      "server_shop_id": 210422,
+      "script_path": "itemshop/210422_qliphavoyage.shp"
+    },
+    {
+      "server_shop_id": 220127,
+      "script_path": "itemshop/220127_dimensiontravelpackage.shp"
+    },
+    {
+      "server_shop_id": 220210,
+      "script_path": "itemshop/220210_valenteinseria.shp"
+    },
+    {
+      "server_shop_id": 220616,
+      "script_path": "itemshop/220616_forestelfpackage_1.shp"
+    },
+    {
+      "server_shop_id": 220825,
+      "script_path": "itemshop/220825_butterflydancepackage_1.shp"
+    },
+    {
+      "server_shop_id": 221027,
+      "script_path": "itemshop/221027_npcdoppelpackage.shp"
+    },
+    {
+      "server_shop_id": 221124,
+      "script_path": "itemshop/221124_awards.shp"
+    },
+    {
+      "server_shop_id": 3143,
+      "script_path": "itemshop/3143_ribe_darkelftemple_troubled_areas.shp"
+    },
+    {
+      "server_shop_id": 400000183,
+      "native_shop_id": 400000183
+    },
+    {
+      "server_shop_id": 400000190,
+      "script_path": "itemshop/400000190_fatigue_mileage.shp"
+    },
+    {
+      "server_shop_id": 400001033,
+      "script_path": "itemshop/400001033_event_mini.shp"
+    },
+    {
+      "server_shop_id": 400001034,
+      "script_path": "itemshop/400001034_event_mini.shp"
+    },
+    {
+      "server_shop_id": 400001045,
+      "script_path": "itemshop/400001045_event_mini.shp"
+    },
+    {
+      "server_shop_id": 400001046,
+      "script_path": "itemshop/400001046_event_mini.shp"
+    },
+    {
+      "server_shop_id": 500000000,
+      "native_shop_id": 500000000
+    },
+    {
+      "server_shop_id": 500000006,
+      "native_shop_id": 500000006
+    },
+    {
+      "server_shop_id": 500000007,
+      "native_shop_id": 500000007
+    },
+    {
+      "server_shop_id": 500000021,
+      "native_shop_id": 500000021
+    },
+    {
+      "server_shop_id": 500000022,
+      "native_shop_id": 500000022
+    },
+    {
+      "server_shop_id": 500000023,
+      "native_shop_id": 500000023
+    },
+    {
+      "server_shop_id": 500000025,
+      "native_shop_id": 500000025
+    },
+    {
+      "server_shop_id": 500000026,
+      "native_shop_id": 500000026
+    },
+    {
+      "server_shop_id": 500000027,
+      "native_shop_id": 500000027
+    },
+    {
+      "server_shop_id": 500000031,
+      "native_shop_id": 500000031
+    },
+    {
+      "server_shop_id": 500000033,
+      "native_shop_id": 500000033
+    },
+    {
+      "server_shop_id": 500000034,
+      "native_shop_id": 500000034
+    },
+    {
+      "server_shop_id": 500000035,
+      "native_shop_id": 500000035
+    },
+    {
+      "server_shop_id": 500000039,
+      "native_shop_id": 500000039
+    },
+    {
+      "server_shop_id": 500000040,
+      "native_shop_id": 500000040
+    },
+    {
+      "server_shop_id": 500000041,
+      "native_shop_id": 500000041
+    },
+    {
+      "server_shop_id": 500000042,
+      "native_shop_id": 500000042
+    },
+    {
+      "server_shop_id": 500000043,
+      "script_path": "itemshop/500000043_ikki_the_vikki.shp"
+    },
+    {
+      "server_shop_id": 500000044,
+      "native_shop_id": 500000044
+    },
+    {
+      "server_shop_id": 500000046,
+      "native_shop_id": 500000046
+    },
+    {
+      "server_shop_id": 500000048,
+      "native_shop_id": 500000048
+    },
+    {
+      "server_shop_id": 500000081,
+      "native_shop_id": 500000032
+    },
+    {
+      "server_shop_id": 500000084,
+      "native_shop_id": 500000084
+    },
+    {
+      "server_shop_id": 500000086,
+      "native_shop_id": 500000086
+    },
+    {
+      "server_shop_id": 500000087,
+      "native_shop_id": 500000087
+    },
+    {
+      "server_shop_id": 500000088,
+      "native_shop_id": 500000088
+    },
+    {
+      "server_shop_id": 500000097,
+      "native_shop_id": 500000097
+    },
+    {
+      "server_shop_id": 500000102,
+      "native_shop_id": 500000102
+    },
+    {
+      "server_shop_id": 500000103,
+      "native_shop_id": 500000103
+    },
+    {
+      "server_shop_id": 500000107,
+      "native_shop_id": 500000107
+    },
+    {
+      "server_shop_id": 500000109,
+      "native_shop_id": 500000109
+    },
+    {
+      "server_shop_id": 500000110,
+      "native_shop_id": 500000110
+    },
+    {
+      "server_shop_id": 500000122,
+      "native_shop_id": 500000122
+    },
+    {
+      "server_shop_id": 500000123,
+      "native_shop_id": 500000123
+    },
+    {
+      "server_shop_id": 500000124,
+      "native_shop_id": 500000124
+    },
+    {
+      "server_shop_id": 500000125,
+      "native_shop_id": 500000125
+    },
+    {
+      "server_shop_id": 500000185,
+      "script_path": "live/event/univ/2023/1205_thiefofdimension/itemshop/500000185.shp"
+    },
+    {
+      "server_shop_id": 500000186,
+      "script_path": "live/event/univ/2024/0109_epicroadreturns/itemshop/500000186.shp"
+    },
+    {
+      "server_shop_id": 500000187,
+      "script_path": "live/event/univ/2024/0109_epicroadreturns/itemshop/500000187.shp"
+    },
+    {
+      "server_shop_id": 500000188,
+      "script_path": "itemshop/500000188_event_newbie.shp"
+    },
+    {
+      "server_shop_id": 500000189,
+      "script_path": "live/event/univ/2024/0220_cattreat/itemshop/500000189_bread_seria_special.shp"
+    },
+    {
+      "server_shop_id": 500000190,
+      "script_path": "live/event/univ/2024/0220_cattreat/itemshop/500000190_bread_seria_shop.shp"
+    },
+    {
+      "server_shop_id": 500000191,
+      "script_path": "live/event/univ/2024/0220_cattreat/itemshop/500000191_bread_dungeon_shop.shp"
+    },
+    {
+      "server_shop_id": 500000192,
+      "script_path": "live/event/univ/2024/0220_cattreat/itemshop/500000192_leopard_dungeon_shop.shp"
+    },
+    {
+      "server_shop_id": 500000193,
+      "script_path": "live/event/univ/2024/0220_windmerchant/itemshop/500000193_merchant.shp"
+    },
+    {
+      "server_shop_id": 500000195,
+      "script_path": "live/event/univ/2024/0403_songkran/itemshop/500000195_songkran.shp"
+    },
+    {
+      "server_shop_id": 500000198,
+      "native_shop_id": 500000198
+    },
+    {
+      "server_shop_id": 500000199,
+      "native_shop_id": 500000199
+    },
+    {
+      "server_shop_id": 500000200,
+      "native_shop_id": 500000200
+    },
+    {
+      "server_shop_id": 500000201,
+      "native_shop_id": 500000201
+    },
+    {
+      "server_shop_id": 500000202,
+      "native_shop_id": 500000202
+    },
+    {
+      "server_shop_id": 500000203,
+      "native_shop_id": 500000126
+    },
+    {
+      "server_shop_id": 500000205,
+      "native_shop_id": 500000205
+    },
+    {
+      "server_shop_id": 500000216,
+      "script_path": "live/else/univ/2026/0310_galacticvoyager/itemshop/500000216_26galacticvoyager.shp"
+    },
+    {
+      "server_shop_id": 500000217,
+      "script_path": "live/event/univ/2026/0310_11th_shop/itemshop/500000217_11th_shop.shp"
+    },
+    {
+      "server_shop_id": 500000218,
+      "native_shop_id": 500000218
+    },
+    {
+      "server_shop_id": 500000219,
+      "native_shop_id": 500000219
+    },
+    {
+      "server_shop_id": 500000220,
+      "native_shop_id": 500000220
+    },
+    {
+      "server_shop_id": 500000221,
+      "script_path": "live/else/univ/2026/0707_returnbunny/itemshop/500000221_returnbunny.shp"
+    },
+    {
+      "server_shop_id": 500000222,
+      "native_shop_id": 500000222
+    },
+    {
+      "server_shop_id": 500000223,
+      "script_path": "live/event/univ/2026/0804_miraclethousandseasnote/itemshop/500000223_miracle_shop.shp"
+    },
+    {
+      "server_shop_id": 500000224,
+      "script_path": "live/else/univ/2026/0804_tropical/itemshop/500000224.shp"
+    },
+    {
+      "server_shop_id": 82,
+      "native_shop_id": 82
+    },
+    {
+      "server_shop_id": 84,
+      "native_shop_id": 84
+    },
+    {
+      "server_shop_id": 86,
+      "script_path": "itemshop/86_mintai.shp"
+    },
+    {
+      "server_shop_id": 906,
+      "native_shop_id": 500000114
+    }
+  ]
+}

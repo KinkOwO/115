@@ -475,11 +475,30 @@ func LoadPilot(path, source string, release ...bool) (*Pilot, error) {
 	if e = json.Unmarshal(b, &c); e != nil {
 		return nil, e
 	}
+	return NewPilot(c, source, release...)
+}
+
+// NewPilot accepts an already imported source catalog. It owns all token
+// slices and uses the same validation and delivery classification as LoadPilot.
+func NewPilot(c PilotConfig, source string, release ...bool) (*Pilot, error) {
+	if len(release) > 1 {
+		return nil, fmt.Errorf("商城发布模式参数重复")
+	}
+	c.Entries = append([]OrdinaryProduct(nil), c.Entries...)
+	for n := range c.Entries {
+		c.Entries[n].Row = append([]pvf.Token(nil), c.Entries[n].Row...)
+		c.Entries[n].Item.Cells = append([]pvf.Token(nil), c.Entries[n].Item.Cells...)
+	}
+	policies := make(map[string][]pvf.Token, len(c.Policies))
+	for name, cells := range c.Policies {
+		policies[name] = append([]pvf.Token(nil), cells...)
+	}
+	c.Policies = policies
 	if len(release) == 1 && release[0] {
 		c.Release = true
 	}
 	c.immediateTemplates = c.deriveImmediateTemplates()
-	if e = c.validate(); e != nil {
+	if e := c.validate(); e != nil {
 		return nil, e
 	}
 	if c.Source.Checksum != source {
@@ -517,6 +536,20 @@ func (p *Pilot) products() (map[uint32]Product, error) {
 	return out, nil
 }
 func (p *Pilot) EnabledCount() int { m, _ := p.products(); return len(m) }
+
+// ProductSnapshot permits a complete audit of the effective purchase catalog
+// without exposing the mutable cache used by orders.
+func (p *Pilot) ProductSnapshot() (map[uint32]Product, error) {
+	products, err := p.products()
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[uint32]Product, len(products))
+	for id, product := range products {
+		out[id] = product
+	}
+	return out, nil
+}
 
 type BagLedger interface {
 	PurchaseCashToBag(context.Context, storage.CashOrder, func(json.RawMessage) (json.RawMessage, error)) (storage.CashReceipt, bool, error)

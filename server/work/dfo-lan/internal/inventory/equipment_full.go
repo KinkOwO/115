@@ -17,6 +17,7 @@ type equipmentLocation struct {
 	Offset int64
 	Size   int
 	SHA256 string
+	Path   string `json:",omitempty"`
 }
 type FullEquipmentCatalog struct {
 	Source      pvf.ArchiveSnapshot
@@ -24,6 +25,7 @@ type FullEquipmentCatalog struct {
 	Records     map[uint32]equipmentLocation
 	Errors      map[uint32]string
 	file        *os.File
+	archive     *pvf.Archive
 	mu          sync.Mutex
 	cache       map[uint32]EquipmentDefinition
 }
@@ -58,7 +60,52 @@ func OpenFullEquipmentCatalog(prefix, source string) (*FullEquipmentCatalog, err
 	c.cache = map[uint32]EquipmentDefinition{}
 	return c, nil
 }
-func (c *FullEquipmentCatalog) Close() error { return c.file.Close() }
+func (c *FullEquipmentCatalog) Close() error {
+	if c.archive != nil {
+		c.archive.ReleaseReadCaches()
+	}
+	if c.file != nil {
+		return c.file.Close()
+	}
+	return nil
+}
+
+// OpenPVFEquipmentCatalog keeps a compact immutable view for lazy definitions.
+// It does not alter the smaller drop/quest catalog or its allowed item pool.
+func OpenPVFEquipmentCatalog(a *pvf.Archive, index catalog.ItemIndex) (*FullEquipmentCatalog, error) {
+	if a == nil || index.Source.Checksum != a.Snapshot().Checksum {
+		return nil, fmt.Errorf("PVF equipment source mismatch")
+	}
+	hash := index.IndexHashes["list/equipment.lst"]
+	if len(hash) != 64 {
+		return nil, fmt.Errorf("missing equipment source index hash")
+	}
+	c := &FullEquipmentCatalog{Source: a.Snapshot(), IndexSHA256: hash,
+		Records: map[uint32]equipmentLocation{}, Errors: map[uint32]string{}, cache: map[uint32]EquipmentDefinition{}}
+	paths := make([]string, 0, len(index.Items))
+	for id, entry := range index.Items {
+		if entry.Kind != "equipment" && entry.Kind != "avatar" {
+			continue
+		}
+		p := catalog.ResolveScriptPath(a, entry.Path)
+		f, ok := a.FindFile(p)
+		if !ok || f.DataType != 1 {
+			return nil, fmt.Errorf("equipment %d source script missing: %s", id, p)
+		}
+		c.Records[id] = equipmentLocation{Path: p}
+		paths = append(paths, p)
+	}
+	if len(paths) == 0 {
+		return nil, fmt.Errorf("empty PVF equipment index")
+	}
+	v, err := a.ReadOnlyView(paths)
+	if err != nil {
+		return nil, err
+	}
+	c.archive = v
+	return c, nil
+}
+
 func (c *FullEquipmentCatalog) Definition(id uint32) (EquipmentDefinition, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -68,6 +115,15 @@ func (c *FullEquipmentCatalog) Definition(id uint32) (EquipmentDefinition, error
 	loc, ok := c.Records[id]
 	if !ok {
 		return EquipmentDefinition{}, fmt.Errorf("equipment%d definition missing: %s", id, c.Errors[id])
+	}
+	if c.archive != nil {
+		s, err := catalog.ReadScript(c.archive, loc.Path)
+		if err != nil {
+			return EquipmentDefinition{}, err
+		}
+		d := equipmentDefinitionFromScript(id, s)
+		c.cacheDefinition(id, d)
+		return d, nil
 	}
 	packed := make([]byte, loc.Size)
 	if _, e := c.file.ReadAt(packed, loc.Offset); e != nil {
@@ -95,6 +151,12 @@ func (c *FullEquipmentCatalog) Definition(id uint32) (EquipmentDefinition, error
 	if len(s.SHA256) != 64 || s.Path == "" {
 		return EquipmentDefinition{}, fmt.Errorf("invalid equipment provenance")
 	}
+	d := equipmentDefinitionFromScript(id, s)
+	c.cacheDefinition(id, d)
+	return d, nil
+}
+
+func equipmentDefinitionFromScript(id uint32, s catalog.ScriptRecord) EquipmentDefinition {
 	d := EquipmentDefinition{ID: id, Path: s.Path, SHA256: s.SHA256, Fields: map[string][]pvf.Token{}}
 	d.fameFields, d.fameLevels = equipmentFameSections(s.Cells)
 	tag := ""
@@ -105,12 +167,15 @@ func (c *FullEquipmentCatalog) Definition(id uint32) (EquipmentDefinition, error
 		}
 		d.Fields[tag] = append(d.Fields[tag], t)
 	}
+	return d
+}
+
+func (c *FullEquipmentCatalog) cacheDefinition(id uint32, d EquipmentDefinition) {
 	// Bound cache growth; a catalog may contain hundreds of thousands of avatars.
 	if len(c.cache) >= 2048 {
 		c.cache = map[uint32]EquipmentDefinition{}
 	}
 	c.cache[id] = d
-	return d, nil
 }
 
 func (c *EquipmentCatalog) Definition(id uint32) (EquipmentDefinition, error) {

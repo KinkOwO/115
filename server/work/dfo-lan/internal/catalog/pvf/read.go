@@ -19,10 +19,7 @@ func (a *Archive) readTextIndex(idx int) (string, error) {
 	default:
 		text = ""
 	}
-	if stored, loaded := a.texts.LoadOrStore(idx, text); loaded {
-		return stored.(string), nil
-	}
-	return text, nil
+	return a.cacheText(idx, text), nil
 }
 
 func (a *Archive) readRawIndex(idx int) ([]byte, error) {
@@ -78,8 +75,5 @@ func (a *Archive) chunk(idx int) ([]byte, error) {
 	if want := a.groups[idx].originalSize; want >= 0 && want != len(chunk) {
 		return nil, fmt.Errorf("%w: chunk %d original size mismatch: want %d got %d", ErrInvalidArchive, idx, want, len(chunk))
 	}
-	if stored, loaded := a.chunks.LoadOrStore(idx, chunk); loaded {
-		return stored.([]byte), nil
-	}
-	return chunk, nil
+	return a.cacheChunk(idx, chunk), nil
 }

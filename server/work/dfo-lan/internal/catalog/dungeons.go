@@ -52,7 +52,7 @@ type DungeonDefinition struct {
 	// 的 tryComplete —— 客户端会发 CMD117 的副本由那条路径负责，这里不会重复结算。
 	SourceBoss uint32
 	HellParty  *DungeonHellParty `json:"hell_party,omitempty"`
-	Mazes      []DungeonMaze `json:"mazes"`
+	Mazes      []DungeonMaze     `json:"mazes"`
 	// MazeChanceRates 非空表示这张副本按源里的 [maze chance rate] 掷骰选图，
 	// 而不是「同 quest 里 index 最小者」。
 	//
@@ -468,7 +468,10 @@ func ImportDungeons(a *pvf.Archive, ids []uint32) (DungeonCatalog, error) {
 			indices[i][r.ID] = r.Path
 		}
 	}
-	for _, id := range ids {
+	for n, id := range ids {
+		if n%64 == 0 {
+			a.ReleaseReadCaches()
+		}
 		name, ok := indices[0][id]
 		if !ok {
 			// 世界目录里有 3000 多个副本 ID，其中一部分在 list/dungeon.lst 里已不存在。
@@ -531,6 +534,12 @@ func LoadDungeons(path string) (DungeonCatalog, error) {
 	if e = json.Unmarshal(b, &c); e != nil {
 		return c, e
 	}
+	return ValidateDungeons(c)
+}
+
+// ValidateDungeons applies the same runtime parsing and graph checks to native
+// imports and saved audit catalogs.
+func ValidateDungeons(c DungeonCatalog) (DungeonCatalog, error) {
 	if len(c.Source.Checksum) != 64 || len(c.Dungeons) == 0 {
 		return c, fmt.Errorf("invalid dungeon catalog")
 	}

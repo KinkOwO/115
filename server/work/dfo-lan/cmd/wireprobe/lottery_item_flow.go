@@ -45,11 +45,25 @@ func loadLotteryItemCatalog(path string, index map[uint32]ItemIndexInfo) (*lotte
 	if err := json.Unmarshal(data, &c); err != nil {
 		return nil, err
 	}
+	return newLotteryItemCatalog(c, index)
+}
+
+func newLotteryItemCatalog(c lotteryItemCatalog, index map[uint32]ItemIndexInfo) (*lotteryItemCatalog, error) {
 	if c.SourcePVFSHA256 != lotterySourcePVFSHA256 || len(c.Pools) != 276 {
 		return nil, fmt.Errorf("lottery catalog source identity or pool count mismatch")
 	}
 	c.byTemplate = make(map[uint32]*lotteryItemPool, len(c.Pools))
-	for _, p := range c.Pools {
+	original := c.Pools
+	c.Pools = make([]*lotteryItemPool, len(original))
+	for i, source := range original {
+		if source == nil {
+			return nil, fmt.Errorf("nil lottery pool")
+		}
+		p := new(lotteryItemPool)
+		*p = *source
+		p.Candidates = append([]BoosterRewardCandidate(nil), source.Candidates...)
+		p.total = 0
+		c.Pools[i] = p
 		if p == nil || p.SourceItem == 0 || len(p.SourceScriptSHA256) != 64 || len(p.Candidates) == 0 {
 			return nil, fmt.Errorf("invalid lottery pool identity")
 		}
@@ -93,17 +107,18 @@ func loadLotteryEquipmentPools(path string, index map[uint32]ItemIndexInfo, cata
 	if err != nil {
 		return 0, err
 	}
-	var source struct {
-		SourcePVFSHA256 string `json:"source_pvf_sha256"`
-		Pools           []struct {
-			SourceItem         uint32      `json:"source_item"`
-			SourceScript       string      `json:"source_script"`
-			SourceScriptSHA256 string      `json:"source_script_sha256"`
-			Candidates         [][3]uint32 `json:"candidates"`
-		} `json:"pools"`
-	}
+	var source lotteryEquipmentSource
 	if err := json.Unmarshal(data, &source); err != nil {
 		return 0, err
+	}
+	return applyLotteryEquipmentPools(source, index, catalog)
+}
+
+type lotteryEquipmentSource = catalog.LotteryPoolCatalog
+
+func applyLotteryEquipmentPools(source lotteryEquipmentSource, index map[uint32]ItemIndexInfo, catalog *lotteryItemCatalog) (int, error) {
+	if catalog == nil || catalog.SourcePVFSHA256 != lotterySourcePVFSHA256 {
+		return 0, fmt.Errorf("lottery base catalog unavailable")
 	}
 	if source.SourcePVFSHA256 != lotterySourcePVFSHA256 || len(source.Pools) != 2477 {
 		return 0, fmt.Errorf("equipment lottery source identity or pool count mismatch")

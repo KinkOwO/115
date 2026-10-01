@@ -68,24 +68,31 @@ func LoadOathGradeTable(path string) (*OathGradeTable, error) {
 	if err := json.Unmarshal(b, &t); err != nil {
 		return nil, fmt.Errorf("%s: %w", path, err)
 	}
-	if len(t.Entries) == 0 {
-		return nil, fmt.Errorf("%s: table has no entries", path)
+	if err := t.Validate(); err != nil {
+		return nil, err
+	}
+	return &t, nil
+}
+
+func (t *OathGradeTable) Validate() error {
+	if t == nil || len(t.Entries) == 0 {
+		return fmt.Errorf("oath table: table has no entries")
 	}
 	t.byID = make(map[uint32]OathGradeEntry, len(t.Entries))
 	for k, e := range t.Entries {
 		id, err := strconv.ParseUint(k, 10, 32)
 		if err != nil {
-			return nil, fmt.Errorf("%s: entry key %q is not a decimal item id", path, k)
+			return fmt.Errorf("oath table: entry key %q is not a decimal item id", k)
 		}
 		if e.Family != "oath" && e.Family != "primer" {
-			return nil, fmt.Errorf("%s: id %s has unknown family %q", path, k, e.Family)
+			return fmt.Errorf("oath table: id %s has unknown family %q", k, e.Family)
 		}
 		if _, ok := oathGradeByRarity[e.Rarity]; !ok {
-			return nil, fmt.Errorf("%s: id %s has rarity %d, which maps to no tier", path, k, e.Rarity)
+			return fmt.Errorf("oath table: id %s has rarity %d, which maps to no tier", k, e.Rarity)
 		}
 		t.byID[uint32(id)] = e
 	}
-	return &t, nil
+	return nil
 }
 
 // Len 是表里的装备件数。

@@ -2,7 +2,8 @@
 chcp 65001 >nul
 cd /d "%~dp0"
 title DFO 115us Server Gateway
-echo Starting DFO 115us Local Server (Storage + Game Gateway)...
+rem 默认使用 configs/pvf-default.json；--repair-profile 可选其它配置，--json-mode 显式回退。
+echo Starting DFO 115us Local Server (PVF Direct + Storage + Game Gateway)...
 set DFO_SHOP_OPEN_ALL=1
 set DFO_MAX_ITEM_PERIOD=1
 set DFO_QUEST_VISIBLE_NPC_RELAX=1

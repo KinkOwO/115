@@ -14,6 +14,9 @@ import (
 // owning chunk, retaining every other entry's original bytes and offsets.
 // It never overwrites a file and never mutates the loaded source archive.
 func (a *Archive) WriteEntryCopy(output, path string, replacement []byte) error {
+	if a == nil || a.readOnlyView {
+		return fmt.Errorf("cannot rewrite a read-only PVF view")
+	}
 	if a.format != FormatDFO20260901 || len(replacement) == 0 || len(replacement)%5 != 0 || len(replacement) > 1024*1024 {
 		return fmt.Errorf("unsupported script replacement")
 	}

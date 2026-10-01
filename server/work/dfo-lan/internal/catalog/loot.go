@@ -155,7 +155,10 @@ func ImportLoot(a *pvf.Archive, maxGrade uint32) (LootCatalog, error) {
 		ids = append(ids, id)
 	}
 	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
-	for _, id := range ids {
+	for n, id := range ids {
+		if n%1024 == 0 {
+			a.ReleaseReadCaches()
+		}
 		p := strings.TrimPrefix(refs["stackable"][id], "stackable/")
 		excluded := false
 		for _, prefix := range []string{"cash/", "quest/", "recipe/", "temp/", "event/", "emblem/", "monstercard/"} {
@@ -213,6 +216,10 @@ func LoadLoot(path string) (LootCatalog, error) {
 	if e = json.Unmarshal(b, &c); e != nil {
 		return c, e
 	}
+	return ValidateLoot(c)
+}
+
+func ValidateLoot(c LootCatalog) (LootCatalog, error) {
 	// [MERGE-20260928-ABYSS-HELL-TABLE] 原来是 len(c.Rules) != 4：加入深渊专用的
 	// etc/itemdropinfo_monster_hell.etc 后变成 5 张。放宽为「至少 4 张」，这样旧快照
 	// （没有 hell 表）与新快照都能装载，不会因为多导一张支持表就拒绝整份目录。

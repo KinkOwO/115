@@ -2,11 +2,13 @@ package adventure
 
 import (
 	_ "embed"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"sort"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -40,6 +42,7 @@ type SeasonReward struct {
 	Count    uint32 `json:"count"`
 }
 type SeasonCapsule struct {
+	SHA256       string `json:"sha256"`
 	ID           uint32 `json:"id"`
 	Category     uint32 `json:"category"`
 	Difficulty   uint32 `json:"difficulty"`
@@ -47,16 +50,14 @@ type SeasonCapsule struct {
 	Path         string `json:"path"`
 }
 type SeasonRules struct {
+	SourcePath      string `json:"source"`
+	SourceChecksum  string `json:"pvf_sha256"`
+	CostSHA256      string `json:"cost_sha256"`
+	OathCostKey     uint32 `json:"oath_cost_key"`
 	specialStart    time.Time
 	specialEnd      time.Time
 	specialTemplate uint32
-	OathCost        struct {
-		Gold      uint32 `json:"gold"`
-		Materials []struct {
-			Template uint32 `json:"template"`
-			Count    uint32 `json:"count"`
-		} `json:"materials"`
-	} `json:"oath_cost"`
+	OathCost        SeasonCost               `json:"oath_cost"`
 	Capsules        map[uint32]SeasonCapsule `json:"capsules"`
 	Season          uint32                   `json:"season"`
 	MinimumLevel    byte                     `json:"minimum_level"`
@@ -72,10 +73,27 @@ type SeasonRules struct {
 	SHA256          string                   `json:"sha256"`
 }
 
+type SeasonCost struct {
+	Gold      uint32               `json:"gold"`
+	Materials []SeasonCostMaterial `json:"materials"`
+}
+
+type SeasonCostMaterial struct {
+	Template uint32 `json:"template"`
+	Count    uint32 `json:"count"`
+}
+
 var loadSeason = sync.OnceValues(func() (*SeasonRules, error) {
 	var r SeasonRules
 	if err := json.Unmarshal(seasonRulesJSON, &r); err != nil {
 		return nil, err
+	}
+	return NewSeasonRules(r)
+})
+
+func NewSeasonRules(r SeasonRules) (*SeasonRules, error) {
+	if b, err := hex.DecodeString(r.SourceChecksum); err != nil || len(b) != 32 {
+		return nil, fmt.Errorf("invalid season source identity")
 	}
 	if r.Season == 0 || r.MinimumLevel == 0 || len(r.Levels) == 0 || r.DisplayMaxLevel == 0 || int(r.DisplayMaxLevel+r.MaxAcquisitions) != len(r.Levels) {
 		return nil, fmt.Errorf("迷雾誓约等级源不完整")
@@ -116,9 +134,56 @@ var loadSeason = sync.OnceValues(func() (*SeasonRules, error) {
 		return nil, fmt.Errorf("迷雾30阶活动奖励无效")
 	}
 	return &r, nil
-})
+}
 
-func CurrentSeason() (*SeasonRules, error) { return loadSeason() }
+var currentSeason atomic.Pointer[SeasonRules]
+
+func EmbeddedSeasonRules() (*SeasonRules, error) { return loadSeason() }
+
+func CurrentSeason() (*SeasonRules, error) {
+	if r := currentSeason.Load(); r != nil {
+		return r, nil
+	}
+	return loadSeason()
+}
+
+func InstallSeasonRules(source *SeasonRules) (func(), error) {
+	if source == nil {
+		return nil, fmt.Errorf("nil season rules")
+	}
+	r := *source
+	r.Levels = append([]SeasonLevel(nil), source.Levels...)
+	r.Penalties = append([]SeasonPenalty(nil), source.Penalties...)
+	for i := range r.Penalties {
+		r.Penalties[i].Ranges = append([][3]uint32(nil), source.Penalties[i].Ranges...)
+	}
+	r.Contents = append([]SeasonContent(nil), source.Contents...)
+	for i := range r.Contents {
+		r.Contents[i].Difficulties = make(map[uint32]uint32, len(source.Contents[i].Difficulties))
+		for k, v := range source.Contents[i].Difficulties {
+			r.Contents[i].Difficulties[k] = v
+		}
+	}
+	r.Rewards = append([]SeasonReward(nil), source.Rewards...)
+	r.OathEquipment = append([]uint32(nil), source.OathEquipment...)
+	r.SpecialReward = append([]string(nil), source.SpecialReward...)
+	r.OathCost.Materials = append(r.OathCost.Materials[:0:0], source.OathCost.Materials...)
+	r.Capsules = make(map[uint32]SeasonCapsule, len(source.Capsules))
+	for k, v := range source.Capsules {
+		r.Capsules[k] = v
+	}
+	r.Items = make(map[uint32]Item, len(source.Items))
+	for k, v := range source.Items {
+		v.UsagePeriod = append([]int64(nil), v.UsagePeriod...)
+		r.Items[k] = v
+	}
+	validated, err := NewSeasonRules(r)
+	if err != nil {
+		return nil, err
+	}
+	previous := currentSeason.Swap(validated)
+	return func() { currentSeason.Store(previous) }, nil
+}
 
 func (r *SeasonRules) SpecialRewardAt(s SeasonState, now time.Time) (uint32, bool) {
 	return r.specialTemplate, !s.SpecialClaimed && r.DisplayLevel(s) >= 30 && !now.Before(r.specialStart) && now.Before(r.specialEnd)

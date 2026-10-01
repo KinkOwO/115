@@ -476,3 +476,14 @@ git diff --check
 验证：`go test ./...`、`go vet ./...`、`git diff --check`。实机仍待用户手动验证，未部署二进制，未升级 confirmed baseline。无数据库 schema、存档格式、协议布局、客户端或 DLL 改动。
 
 后续候选：快捷栏的背包依赖仍借用 loot，需结合真实装配及目录覆盖关系单独整理；booster/皮肤流程暂未证明可共用同一事务和回包语义，不强行合并。本批先落实重复已确认的前两项。
+
+
+## 16. 与原生 PVF 主干合并
+
+目标主干：`b1c9d32`。两处文本冲突已按职责合并：
+
+- `main.go` 保留主干 `pvfCatalogs.prices != nil` 启用条件和 `pvfCatalogs.loadShopPrices`，价格写入本分支的 `inventory.ShopService`，不恢复已删除的 `loot.Service.Prices`。
+- `CHANGELOG` 同时保留原生 PVF 默认启动确认记录与本分支精简候选记录。
+- 自动合并的 PVF archive 保留主干迭代/缓存管理能力，继续使用 `LoadArchive`，不恢复无调用旧包装。
+
+合并不发布或替换已确认的默认程序，不新增玩家存档迁移；主干已有 PVF confirmed baseline 沿用，精简候选不据源码合并升级为实机确认。验证包括全量 Go test/vet、默认启动及频道身份10项Python测试和暂存差异检查。

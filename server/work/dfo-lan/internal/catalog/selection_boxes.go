@@ -67,6 +67,12 @@ func LoadSelectionBoxes(path string) (*SelectionBoxes, error) {
 	if err := json.Unmarshal(raw, &s); err != nil {
 		return nil, err
 	}
+	return NewSelectionBoxes(s)
+}
+
+// NewSelectionBoxes validates and binds the same runtime indexes for either
+// a native source projection or an exported baseline.
+func NewSelectionBoxes(s SelectionBoxes) (*SelectionBoxes, error) {
 	if s.Model != SelectionBoxModel {
 		return nil, fmt.Errorf("unexpected selection box model %q", s.Model)
 	}

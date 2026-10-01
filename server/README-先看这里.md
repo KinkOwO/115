@@ -4,11 +4,12 @@
 
 这个包用于继续开发本地兼容服。包含 **Go 源码、完整导出配置、启动脚本、原39版服务端程序、补齐后重新编译的源码版、探针程序及源码、开发记录**。不是完整游戏安装包，不包含玩家数据库、密码、运行抓包、Go/Python/PostgreSQL/Redis 安装包，也不包含完整客户端。
 
-## 两个可运行版本
+## 默认PVF与历史运行版本
 
 | 文件 | 用途与验证边界 |
 |---|---|
-| `work/dfo-lan/bin/wireprobe-dungeon39.exe` | 原39版归档程序。前一任务的对接记录记载装备显示、重登保留和不崩已经用户确认；本次打包没有重做该实机验收。默认启动这个。 |
+| `work/dfo-lan/bin/wireprobe-pvf.exe` | 2026-10-01用户确认的全量PVF默认程序；54选择项/63类源投影，configs/pvf-default.json固定7ef源身份。三个根启动入口默认使用它。 |
+| `work/dfo-lan/bin/wireprobe-dungeon39.exe` | 原39版归档程序。前一任务的对接记录记载装备显示、重登保留和不崩已经用户确认；本次打包没有重做该实机验收。保留作历史回退。 |
 | `work/dfo-lan/bin/wireprobe-handoff-source.exe` | 交付源码重新编译版。补回当前工作区缺失的入城 NOTI14 装备外观刷新，代码测试/静态检查/编译通过，**尚未实机验收**。它不是找回的原39版完整源码，也不能保证与39版行为全部相同。 |
 | `work/dfo-lan/bin/wireprobe-dungeon37.exe` | 历史回退参考；使用它时必须同时选择相匹配的配置。 |
 
@@ -33,7 +34,7 @@ py -3 work/dfo-lan/scripts/bootstrap_local.py --postgres-bin 'D:/tools/pgsql/bin
 py -3 work/dfo-lan/scripts/launch_local.py --check
 ```
 
-检查通过后，右键根目录 `Start-DFO.cmd`，以管理员身份运行。脚本启动已有本地存储和39版服务端，然后打开客户端。服务端启动时迁移表结构并建立开发账号 `probe`；角色由客户端创建。不会带入原机6666或LanTest01的存档。
+检查通过后，右键根目录 `Start-DFO.cmd`，以管理员身份运行。脚本启动已有本地存储和默认PVF服务端，然后打开客户端。服务端启动时迁移表结构并建立开发账号 `probe`；角色由客户端创建。不会带入原机6666或LanTest01的存档。
 
 若 `py` 不在PATH，可用 `python` 替代上述命令。双击入口支持 `DFO_PYTHON` 环境变量指向Python.exe；否则依次尝试 `py -3`、`python`。
 
@@ -45,7 +46,7 @@ py -3 work/dfo-lan/scripts/launch_local.py --check
 powershell -NoProfile -ExecutionPolicy Bypass -File ./Build-Server.ps1
 ```
 
-若Go不在PATH，给脚本加 `-Go 'D:/tools/go/bin/go.exe'`。脚本依次执行 `go test ./...`、`go vet ./...`、编译源码候选版，**不覆盖原39版**。首次编译可能需要下载 `go.mod/go.sum` 中的依赖，包中没有vendor。
+若Go不在PATH，给脚本加 `-Go 'D:/tools/go/bin/go.exe'`。脚本依次执行 `go test ./...`、`go vet ./...`、编译源码版；首次构建补齐bin/wireprobe-pvf.exe，已有确认PVF程序默认保留。后续已验收构建使用-UpdatePVFDefault更新默认PVF；**不覆盖原39版**。首次编译可能需要下载 `go.mod/go.sum` 中的依赖，包中没有vendor。
 
 测试源码候选版：关闭同一个测试会话后，在管理员PowerShell运行：
 
@@ -58,7 +59,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File ./Build-Server.ps1
 ## 限制与排障
 
 - 目前仍是**回环地址开发服**：频道目录127.0.0.1:7001，游戏监听127.0.0.2的动态端口，固定开发账号。多人局域网账号登录器、共享战斗同步等还不是完成品，不能只把监听改成0.0.0.0就当多人完成。
-- 7001占用时检查是否已有会话。每次启动在 `work/dfo-lan/runtime/roles_..._next37/` 下记录 `run.json`、`events.jsonl`、`helper.err`；tag仍叫next37但默认EXE是39。
+- 7001占用时检查是否已有会话。每次启动在 `work/dfo-lan/runtime/roles_..._next37/` 下记录 `run.json`、`events.jsonl`、`helper.err`；tag仍叫next37，默认EXE为wireprobe-pvf。
 - 请解压后再启动，不要从压缩包内部运行。初始化新库后若移动目录，需更新自己 `runtime/storage/local.json` 的 `postgres_data` 和工具路径。
 - 默认关闭内存观察器。日常启动只需要Python标准库；`reference/analysis-tools` 的历史分析脚本可能需要pefile/capstone/unicorn/cryptography，且含原机路径，**不能直接批量执行**。
 - 原机启动脚本只作对照，位于 `reference/original-launcher`，不要用它代替本包根目录的新入口。

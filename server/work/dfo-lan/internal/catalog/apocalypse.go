@@ -111,6 +111,13 @@ func LoadApocalypseCatalog(path string) (*ApocalypseCatalog, error) {
 	if e = json.Unmarshal(b, &c); e != nil {
 		return nil, e
 	}
+	return ValidateApocalypseCatalog(&c)
+}
+
+func ValidateApocalypseCatalog(c *ApocalypseCatalog) (*ApocalypseCatalog, error) {
+	if c == nil {
+		return nil, fmt.Errorf("nil apocalypse catalog")
+	}
 	if c.Source != ApocalypseSource || c.SHA256 != ApocalypseChecksum {
 		return nil, fmt.Errorf("apocalypse source mismatch: %s %s", c.Source, c.SHA256)
 	}
@@ -140,7 +147,7 @@ func LoadApocalypseCatalog(path string) (*ApocalypseCatalog, error) {
 	if c.Duties.Source != ApocalypseDutySource || c.Duties.SHA256 != ApocalypseDutyChecksum {
 		return nil, fmt.Errorf("duty source mismatch: %s %s", c.Duties.Source, c.Duties.SHA256)
 	}
-	return &c, nil
+	return c, nil
 }
 
 // PhaseDurations returns the phase durations in phase order.

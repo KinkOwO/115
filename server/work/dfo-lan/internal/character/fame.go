@@ -5,10 +5,12 @@ import (
 	"dfolan/internal/inventory"
 	_ "embed"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math"
 	"sync"
+	"sync/atomic"
 )
 
 //go:embed fame_rules.json
@@ -33,6 +35,7 @@ type fameSetPoint struct {
 }
 
 type fameRules struct {
+	Sources           map[string]string          `json:"sources"`
 	Version           int                        `json:"version"`
 	Source            string                     `json:"source"`
 	Tables            map[string]map[int]int64   `json:"tables"`
@@ -50,10 +53,19 @@ type fameRules struct {
 	SolePenalty       map[uint32]map[int]int64   `json:"sole_penalty"`
 }
 
-var currentFameRules = sync.OnceValues(func() (*fameRules, error) {
+type FameRules = fameRules
+
+var loadEmbeddedFameRules = sync.OnceValues(func() (*fameRules, error) {
 	var r fameRules
 	if err := json.Unmarshal(fameRulesJSON, &r); err != nil {
 		return nil, err
+	}
+	return NewFameRules(r)
+})
+
+func NewFameRules(r FameRules) (*FameRules, error) {
+	if b, err := hex.DecodeString(r.Source); err != nil || len(b) != 32 {
+		return nil, fmt.Errorf("invalid fame source identity")
 	}
 	if r.Version != 1 || len(r.Source) != 64 || len(r.Tables) == 0 || len(r.Refine115) != 8 ||
 		len(r.Awakening) == 0 || len(r.MemoryRestore) == 0 || len(r.MemoryActivate) == 0 ||
@@ -61,7 +73,20 @@ var currentFameRules = sync.OnceValues(func() (*fameRules, error) {
 		return nil, fmt.Errorf("内置名望规则不完整")
 	}
 	return &r, nil
-})
+}
+
+var installedFameRules atomic.Pointer[FameRules]
+
+func EmbeddedFameRules() (*FameRules, error) { return loadEmbeddedFameRules() }
+
+func currentFameRules() (*FameRules, error) {
+	if r := installedFameRules.Load(); r != nil {
+		return r, nil
+	}
+	return loadEmbeddedFameRules()
+}
+
+func CurrentFameRules() (*FameRules, error) { return currentFameRules() }
 
 // FameItem保留每个实际穿戴物品的计算来源，便于核对而不向角色存档写缓存值。
 type FameItem struct {

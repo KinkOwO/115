@@ -1,0 +1,174 @@
+{
+  "version": 1,
+  "provenance": "沿用现有已确认的服务端策略。费用表、物品定义及材料脚本路径从PVF读取；名称为原配置的显示别名。",
+  "pure_templates": [
+    1286,
+    590704000,
+    10356261,
+    10354248,
+    10360807,
+    10000605
+  ],
+  "gold": {
+    "materials": [
+      {
+        "template": 3037,
+        "name": "Clear Cube",
+        "where": [
+          "account material storage 363..379",
+          "bag material cells 121..176"
+        ]
+      }
+    ],
+    "materials_pending_safe_path": [
+      {
+        "template": 3171,
+        "name": "Ryan Core / 炉岩核",
+        "note": "窗口另一侧（安全强化）的材料候选；等实机读数确认它到底对应哪一侧"
+      }
+    ],
+    "safe_path_materials": [
+      10327281,
+      10327284,
+      3171
+    ],
+    "safe_path_rules": {
+      "weapon_only": true,
+      "max_level": 12,
+      "cost": "Leiern Core + Gold（安全强化表 [safe upgrade]），不消耗无色 Clear Cube",
+      "client_conditions": "官方：武器 + 装备等级 ≥100 + Unique 或更高 + 强化 ≤ +11；客户端 [safe upgrade item condition] 的可用品质为 rare..primeval",
+      "rate_same_as_normal_through": 3,
+      "stage_rate": {
+        "4": {
+          "base": 80,
+          "step": 5,
+          "cap": 100
+        },
+        "5": {
+          "base": 70,
+          "step": 5,
+          "cap": 100
+        },
+        "6": {
+          "base": 60,
+          "step": 5,
+          "cap": 100
+        },
+        "7": {
+          "base": 50,
+          "step": 5,
+          "cap": 100
+        },
+        "8": {
+          "base": 40,
+          "step": 5,
+          "cap": 100
+        },
+        "9": {
+          "base": 30,
+          "step": 5,
+          "cap": 100
+        },
+        "10": {
+          "base": 8,
+          "step": 2,
+          "cap": 40
+        },
+        "11": {
+          "base": 3,
+          "step": 1,
+          "cap": 25
+        }
+      },
+      "reset_on_success": true
+    },
+    "max_upgrade_level": 15,
+    "material_count_semantics": "count = matrix[current_level].material_count；两种材料共用同一数量（待实机读数确认）",
+    "failure": {
+      "destroy_enabled": true,
+      "player_measured": {
+        "source": "player-measured 2026-09-27 (US server, epic gear, weapon protection rule)",
+        "success_rate_percent_by_level": {
+          "0": 100,
+          "1": 100,
+          "2": 100,
+          "3": 100,
+          "4": 80,
+          "5": 70,
+          "6": 60,
+          "7": 50,
+          "8": 40,
+          "9": 30,
+          "10": 25,
+          "11": 20,
+          "12": 14,
+          "13": 13,
+          "14": 12,
+          "15": 11,
+          "default": 10
+        },
+        "failure_penalty_by_level": {
+          "0-3": {
+            "penalty": "none"
+          },
+          "4-9": {
+            "penalty": "level_down_1_for_non_weapon",
+            "weapon": "level_keep",
+            "other": "level_down_1"
+          },
+          "10-11": {
+            "penalty": "weapon_level_down_3_or_other_destroy",
+            "weapon": "level_down_3",
+            "other": "destroy"
+          },
+          "12+": {
+            "penalty": "destroy_all"
+          }
+        }
+      }
+    }
+  },
+  "amplify": {
+    "official": {
+      "source": "official page 2026-09-27 (amplify: NPC Klonter, material Crystallized Chaos)",
+      "success_rate_percent_by_level": {
+        "0": 100,
+        "1": 100,
+        "2": 100,
+        "3": 100,
+        "4": 70,
+        "5": 60,
+        "6": 50,
+        "7": 50,
+        "8": 40,
+        "9": 30,
+        "default": 30
+      },
+      "failure_penalty": {
+        "0-6": "none",
+        "7-9": "level_down_1",
+        "10+": "destroy"
+      },
+      "failure_bonus_percent_point": {
+        "4-6": 10,
+        "7-9": 5
+      },
+      "protection_ticket": "不碎，但增幅等级归零",
+      "safe_amplify": {
+        "material": "Harmonious Crystals（模板见 safe_material_templates，PVF 段 [safe upgrade]）",
+        "condition": "装备等级 >= 100 且品质在 safe_upgrade_usable_rarity 内，且当前增幅 <= +9",
+        "max_level": 9,
+        "cost": "材料数量与金币取 [safe upgrade] 中该等级对应的一行（武器/非武器不同）",
+        "success_rate": "与普通增幅同一张表",
+        "failure_penalty": "none（不掉级、不摧毁）",
+        "failure_bonus_percent_point": {
+          "4-6": 10,
+          "7-9": 5
+        },
+        "note": "★ 官方条件为「当前增幅 <= +9」，即可安全增幅到 +10；早期实现误判为「当前 >= +9 拒绝」，把 +9→10 这一档挡掉了。失败补正（连续失败累加 10%p(4-6)/5%p(7-9)，成功清零）仍未实现。",
+        "source": "官方页 dfoneople Reinforce/Amplify/Refine（Safe Amplification 表，2025-03-18 更新）；PVF [safe upgrade] 与官方表逐格吻合",
+        "max_reachable": 10
+      }
+    }
+  }
+}

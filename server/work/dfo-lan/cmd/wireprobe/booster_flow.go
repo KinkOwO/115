@@ -36,72 +36,11 @@ func boosterEquipmentDurability(wear *inventory.WearService, id uint32) (uint16,
 	return wear.Catalog.Reward(id)
 }
 
-type BoosterRewardCandidate struct {
-	Template uint32 `json:"template"`
-	Weight   uint32 `json:"weight"`
-	Count    uint32 `json:"count"`
-}
+type BoosterRewardCandidate = catalog.BoosterRewardCandidate
+type BoosterRewardPool = catalog.BoosterRewardPool
+type BoosterDefinition = catalog.BoosterDefinition
 
-type BoosterRewardPool struct {
-	DrawCount  uint32                   `json:"draw_count"`
-	Candidates []BoosterRewardCandidate `json:"candidates"`
-}
-
-func (p BoosterRewardPool) Pick(r *rand.Rand) []BoosterRewardCandidate {
-	if len(p.Candidates) == 0 {
-		return nil
-	}
-	if len(p.Candidates) == 1 {
-		return []BoosterRewardCandidate{p.Candidates[0]}
-	}
-	var totalWeight uint32
-	for _, c := range p.Candidates {
-		totalWeight += c.Weight
-	}
-	if totalWeight == 0 {
-		totalWeight = uint32(len(p.Candidates))
-	}
-	draws := p.DrawCount
-	if draws == 0 {
-		draws = 1
-	}
-	var results []BoosterRewardCandidate
-	for d := uint32(0); d < draws; d++ {
-		roll := r.Uint32() % totalWeight
-		var acc uint32
-		picked := false
-		for _, c := range p.Candidates {
-			w := c.Weight
-			if c.Weight == 0 {
-				w = 1
-			}
-			acc += w
-			if roll < acc {
-				results = append(results, c)
-				picked = true
-				break
-			}
-		}
-		if !picked {
-			results = append(results, p.Candidates[len(p.Candidates)-1])
-		}
-	}
-	return results
-}
-
-type BoosterDefinition struct {
-	Template uint32              `json:"template"`
-	Type     string              `json:"type"`
-	Pools    []BoosterRewardPool `json:"pools,omitempty"`
-}
-
-type ItemIndexInfo struct {
-	ID            uint32 `json:"id"`
-	Path          string `json:"path"`
-	Kind          string `json:"kind"`
-	StackableType string `json:"stackable_type"`
-	StackLimit    uint32 `json:"stack_limit"`
-}
+type ItemIndexInfo = catalog.ItemIndexEntry
 
 type BoosterCatalog struct {
 	Definitions map[uint32]BoosterDefinition

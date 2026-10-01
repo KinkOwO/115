@@ -1,10 +1,13 @@
 package character
 
 import (
+	"dfolan/internal/catalog"
+	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/storage"
 	_ "embed"
 	"encoding/json"
+	"sync"
 )
 
 // Source COS hash d4654fa9a50ddd582077f5f7a0a19835ec4fb6b777f032d1a66be7f288eff67e.
@@ -14,9 +17,18 @@ import (
 //go:embed odyssey_journal_routes.json
 var odysseyJournalRoutes []byte
 
-type odysseyJournalNode struct {
-	Destination [4]uint32 `json:"destination"`
-	Dungeons    []uint32  `json:"dungeons"`
+type odysseyJournalNode = catalog.OdysseyJournalNode
+
+var loadEmbeddedOdysseyJournalRoutes = sync.OnceValues(func() (*catalog.OdysseyJournalRoutes, error) {
+	var nodes []odysseyJournalNode
+	if err := json.Unmarshal(odysseyJournalRoutes, &nodes); err != nil {
+		return nil, err
+	}
+	return catalog.NewOdysseyJournalRoutes(catalog.OdysseyJournalRoutes{Source: pvf.ArchiveSnapshot{Checksum: catalog.OdysseySource}, Path: catalog.OdysseyJournalPath, SHA256: catalog.OdysseyChaptersJournalSHA, Nodes: nodes})
+})
+
+func EmbeddedOdysseyJournalRoutes() (*catalog.OdysseyJournalRoutes, error) {
+	return loadEmbeddedOdysseyJournalRoutes()
 }
 
 func (s *ProgressionService) OdysseyJournalTeleport(role storage.Character, r protocol.AreaChangeRequest) bool {
@@ -39,8 +51,15 @@ func (s *ProgressionService) OdysseyJournalTeleport(role storage.Character, r pr
 	for _, id := range ids {
 		completed[id] = true
 	}
-	var nodes []odysseyJournalNode
-	if json.Unmarshal(odysseyJournalRoutes, &nodes) != nil {
+	routes := s.JournalRoutes
+	if routes == nil {
+		var err error
+		routes, err = loadEmbeddedOdysseyJournalRoutes()
+		if err != nil {
+			return false
+		}
+	}
+	if routes.Source.Checksum != s.Odyssey.Source {
 		return false
 	}
 	// [MERGE-20260928-JOURNAL-LANDING] 原来这里是 `node.Destination == target`，把落点
@@ -50,7 +69,7 @@ func (s *ProgressionService) OdysseyJournalTeleport(role storage.Character, r pr
 	// 请求于是掉到 strict 的门户检查，客户端收到 area_refused 后卡在门上。
 	// 站点的身份是 (town, area)，落点由服务端自己决定，所以只比城镇与区域。
 	target := [2]uint32{r.Town, r.Area}
-	for _, node := range nodes {
+	for _, node := range routes.Nodes {
 		if node.Destination[0] == target[0] && node.Destination[1] == target[1] {
 			return true
 		}
