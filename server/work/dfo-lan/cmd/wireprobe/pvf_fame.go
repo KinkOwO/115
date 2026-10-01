@@ -14,7 +14,11 @@ func preparePVFFame(c *pvfCoreCatalogs, s *gamedata.Source, selected map[string]
 	if c.items == nil {
 		return fmt.Errorf("native fame requires native item index")
 	}
-	direct, err := s.Fame(*c.items)
+	direct := c.fameRules
+	var err error
+	if direct == nil {
+		direct, err = s.Fame(*c.items)
+	}
 	if err != nil {
 		return err
 	}

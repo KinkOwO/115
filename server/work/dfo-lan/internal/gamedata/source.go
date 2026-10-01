@@ -192,6 +192,55 @@ func (s *Source) ItemBasics(options catalog.ItemBasicOptions) (catalog.ItemBasic
 	return catalog.ImportItemBasics(s.archive, options)
 }
 
+type JointItemCatalogs struct {
+	Basics       catalog.ItemBasics
+	Enhancements *inventory.EnhancementCatalog
+	Fame         *character.FameRules
+}
+
+// ItemCatalogs streams common script bytes into selected domain consumers.
+// It publishes nothing globally and returns no partial catalog on failure.
+func (s *Source) ItemCatalogs(options catalog.ItemBasicOptions, enhancements bool, policyPath string, fame bool) (JointItemCatalogs, error) {
+	var out JointItemCatalogs
+	if s.mode != PVF {
+		return out, fmt.Errorf("joint item import requires PVF")
+	}
+	var enhancementImport *inventory.EnhancementItemImport
+	var fameImport *character.FameItemImport
+	var err error
+	if enhancements {
+		enhancementImport, err = inventory.NewEnhancementItemImport(s.archive, policyPath)
+		if err != nil {
+			return out, err
+		}
+		options.Consumers = append(options.Consumers, enhancementImport.Consume)
+	}
+	if fame {
+		fameImport, err = character.NewFameItemImport(s.archive)
+		if err != nil {
+			return out, err
+		}
+		options.Consumers = append(options.Consumers, fameImport.Consume)
+	}
+	out.Basics, err = s.ItemBasics(options)
+	if err != nil {
+		return JointItemCatalogs{}, err
+	}
+	if enhancementImport != nil {
+		out.Enhancements, err = enhancementImport.Finish(out.Basics.Index)
+		if err != nil {
+			return JointItemCatalogs{}, err
+		}
+	}
+	if fameImport != nil {
+		out.Fame, err = fameImport.Finish()
+		if err != nil {
+			return JointItemCatalogs{}, err
+		}
+	}
+	return out, nil
+}
+
 func (s *Source) Equipment(index catalog.ItemIndex) (*inventory.FullEquipmentCatalog, error) {
 	if s.mode != PVF {
 		return nil, fmt.Errorf("lazy PVF equipment requires a PVF source")

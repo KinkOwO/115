@@ -150,7 +150,13 @@ func preparePVFCommerce(c *pvfCoreCatalogs, s *gamedata.Source, selected map[str
 		if path == "" {
 			path = filepath.Join(dir, "booster-catalog.json")
 		}
-		direct, err := s.Boosters(*c.items)
+		var direct map[uint32]catalog.BoosterDefinition
+		var err error
+		if c.itemBasics != nil && c.itemBasics.Boosters != nil {
+			direct = c.itemBasics.Boosters
+		} else {
+			direct, err = s.Boosters(*c.items)
+		}
 		if err != nil {
 			return err
 		}

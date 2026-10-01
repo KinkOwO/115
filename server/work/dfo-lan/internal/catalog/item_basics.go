@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"crypto/sha256"
 	"dfolan/internal/catalog/pvf"
 	"fmt"
 	"log"
@@ -9,12 +10,31 @@ import (
 	"strings"
 )
 
-type ItemBasicOptions struct{ Periods, Prices, Materials bool }
+// ItemScript is valid only during its consumer call. Consumers retain their
+// typed projections, not Raw or the entire Cells slice. Exact distinguishes a
+// listed path from native (r) fallback; each domain keeps its own admission rule.
+type ItemScript struct {
+	Item  ItemIndexEntry
+	Cells []pvf.Token
+	Raw   []byte
+	Exact bool
+}
+
+func (s ItemScript) SHA256() string { return fmt.Sprintf("%x", sha256.Sum256(s.Raw)) }
+
+type ItemScriptConsumer func(ItemScript) error
+type ItemBasicOptions struct {
+	Periods, Prices, Materials, Skins, Boosters bool
+	Consumers                                   []ItemScriptConsumer
+}
 type ItemBasics struct {
-	Index     ItemIndex
-	Periods   *ItemPeriodCatalog
-	Prices    *ShopPrices
-	Materials *ItemMaterials
+	Index       ItemIndex
+	Periods     *ItemPeriodCatalog
+	Prices      *ShopPrices
+	Materials   *ItemMaterials
+	Skins       *SkinStorageCatalog
+	Boosters    map[uint32]BoosterDefinition
+	ScriptsRead uint64
 }
 
 // ImportItemBasics visits native LIST bindings once. It keeps typed projections,
@@ -32,6 +52,21 @@ func ImportItemBasics(a *pvf.Archive, options ItemBasicOptions) (ItemBasics, err
 		out.Prices = &ShopPrices{Source: a.Snapshot().Checksum, Items: map[uint32]ShopPrice{}}
 	}
 	materials := itemMaterialsDoc{Version: 1, Source: a.Snapshot().Checksum}
+	var skinImport *jointSkinImport
+	var boosterImport *jointBoosterImport
+	var err error
+	if options.Skins {
+		skinImport, err = newJointSkinImport(a)
+		if err != nil {
+			return ItemBasics{}, err
+		}
+	}
+	if options.Boosters {
+		boosterImport, err = newJointBoosterImport(a)
+		if err != nil {
+			return ItemBasics{}, err
+		}
+	}
 	excluded := map[string]int{}
 	for _, kind := range []string{"equipment", "stackable"} {
 		list, err := ResolveScript(a, "list/"+kind+".lst")
@@ -56,10 +91,20 @@ func ImportItemBasics(a *pvf.Archive, options ItemBasicOptions) (ItemBasics, err
 				entry.Kind = "avatar"
 			}
 			if kind == "stackable" || options.Periods || options.Prices {
-				cells, err := a.Tokens(ResolveScriptPath(a, p))
+				resolved := ResolveScriptPath(a, p)
+				file, found := a.FindFile(resolved)
+				if !found || file.DataType != 1 {
+					return ItemBasics{}, fmt.Errorf("item %d: missing source script %s", row.ID, resolved)
+				}
+				raw, err := a.ReadRaw(resolved)
 				if err != nil {
 					return ItemBasics{}, fmt.Errorf("item %d: %w", row.ID, err)
 				}
+				cells, err := a.TokensFromRaw(raw)
+				if err != nil {
+					return ItemBasics{}, fmt.Errorf("item %d: %w", row.ID, err)
+				}
+				out.ScriptsRead++
 				if kind == "stackable" {
 					types := sectionCells(cells, "[stackable type]")
 					if len(types) > 0 {
@@ -71,6 +116,25 @@ func ImportItemBasics(a *pvf.Archive, options ItemBasicOptions) (ItemBasics, err
 				}
 				if options.Periods && hasItemPeriod(cells) {
 					out.Periods.Templates = append(out.Periods.Templates, row.ID)
+				}
+				if kind == "stackable" {
+					_, exact := a.FindFile(p)
+					script := ItemScript{Item: entry, Cells: cells, Raw: raw, Exact: exact}
+					if skinImport != nil {
+						if err := skinImport.consume(script); err != nil {
+							return ItemBasics{}, err
+						}
+					}
+					if boosterImport != nil {
+						if err := boosterImport.consume(script); err != nil {
+							return ItemBasics{}, err
+						}
+					}
+					for _, consume := range options.Consumers {
+						if err := consume(script); err != nil {
+							return ItemBasics{}, err
+						}
+					}
 				}
 				if options.Prices && row.ID != 0 {
 					price, err := ShopPriceFromScript(cells)
@@ -116,6 +180,12 @@ func ImportItemBasics(a *pvf.Archive, options ItemBasicOptions) (ItemBasics, err
 		if err != nil {
 			return ItemBasics{}, err
 		}
+	}
+	if skinImport != nil {
+		out.Skins = skinImport.finish()
+	}
+	if boosterImport != nil {
+		out.Boosters = boosterImport.finish()
 	}
 	return out, nil
 }

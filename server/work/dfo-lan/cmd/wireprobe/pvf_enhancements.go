@@ -11,7 +11,11 @@ import (
 )
 
 func preparePVFEnhancements(c *pvfCoreCatalogs, s *gamedata.Source, inputs pvfItemInputs) error {
-	direct, err := s.Enhancements(*c.items, inputs.enhancementPolicyPath)
+	direct := c.enhancements
+	var err error
+	if direct == nil {
+		direct, err = s.Enhancements(*c.items, inputs.enhancementPolicyPath)
+	}
 	if err != nil {
 		return err
 	}

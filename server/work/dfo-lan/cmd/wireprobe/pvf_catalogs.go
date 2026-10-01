@@ -187,13 +187,14 @@ func preparePVFCoreCatalogs(selection, path, checksum, characterPath, questPath,
 	result.sourceChecksum = source.Snapshot().Checksum
 	if selected["periods"] && selected["prices"] {
 		basicStarted := time.Now()
-		basics, err := source.ItemBasics(catalog.ItemBasicOptions{Periods: true, Prices: true, Materials: selected["materials"]})
+		joint, err := source.ItemCatalogs(catalog.ItemBasicOptions{Periods: true, Prices: true, Materials: selected["materials"], Skins: selected["skins"], Boosters: selected["boosters"]}, selected["enhancements"], inputs.enhancementPolicyPath, selected["fame"])
 		if err != nil {
 			return result, err
 		}
-		result.itemBasics = &basics
+		result.itemBasics = &joint.Basics
+		result.enhancements, result.fameRules = joint.Enhancements, joint.Fame
 		source.ReleaseReadCaches()
-		log.Printf("PVF joint item basics prepared in %s: %d source templates; periods/prices/materials share one script read", time.Since(basicStarted), len(basics.Index.Items))
+		log.Printf("PVF joint item catalogs prepared in %s: %d source templates, %d item script reads; periods/prices/materials/selected skins/boosters/enhancements/fame share one scan", time.Since(basicStarted), len(joint.Basics.Index.Items), joint.Basics.ScriptsRead)
 	}
 
 	if selected["characters"] {

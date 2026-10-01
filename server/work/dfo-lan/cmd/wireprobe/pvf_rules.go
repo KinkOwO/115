@@ -80,7 +80,13 @@ func preparePVFRules(c *pvfCoreCatalogs, s *gamedata.Source, selected map[string
 	}
 	if selected["skins"] {
 		path := filepath.Join(dir, "skin-storage-items.json")
-		direct, err := s.SkinStorage()
+		var direct catalog.SkinStorageCatalog
+		var err error
+		if c.itemBasics != nil && c.itemBasics.Skins != nil {
+			direct = *c.itemBasics.Skins
+		} else {
+			direct, err = s.SkinStorage()
+		}
 		if err != nil {
 			return err
 		}

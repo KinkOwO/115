@@ -10,7 +10,7 @@
 |---|---|
 | `work/dfo-lan/bin/wireprobe-pvf.exe` | 2026-10-01用户确认的全量PVF及性能优化默认程序；54选择项/63类源投影，configs/pvf-default.json固定7ef源身份。三个根启动入口默认使用它，当前程序SHA256见PVF直读默认启动确认文档。 |
 | `work/dfo-lan/bin/wireprobe-dungeon39.exe` | 原39版归档程序。前一任务的对接记录记载装备显示、重登保留和不崩已经用户确认；本次打包没有重做该实机验收。保留作历史回退。 |
-| `work/dfo-lan/bin/wireprobe-handoff-source.exe` | 当前源码重新编译版，与已确认PVF性能优化默认程序逐字节相同。后续源码候选仍需单独验收；原39版完整源码未找回，不保证与39版行为全部相同。 |
+| `work/dfo-lan/bin/wireprobe-handoff-source.exe` | 第二批后段复杂物品联合扫描已获用户确认，当前与默认PVF程序相同。性能样本准备约37.02秒，原生完整对照及代码测试/vet通过；后续源码候选需另行验证。发布身份与历史回退见PVF启动与内存优化实施计划。原39版完整源码未找回，不保证与39版行为全部相同。 |
 | `work/dfo-lan/bin/wireprobe-dungeon37.exe` | 历史回退参考；使用它时必须同时选择相匹配的配置。 |
 
 **没有附会导致入城崩溃的38版EXE。** 文件名 `next38-equipment-display.md` 记载的是修复到39版的结果，不代表应该启动38版。
