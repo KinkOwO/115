@@ -60,7 +60,7 @@ func main() {
 	pvfCharacterPolicyPath := flag.String("pvf-character-policy", envStrOr("DFO_PVF_CHARACTER_POLICY", "configs/pvf-character-policy.json"), "saved source identity and default shortcut behavior; profession source fields from PVF")
 	pvfLayerRevisitPolicyPath := flag.String("pvf-layer-revisit-policy", envStrOr("DFO_PVF_LAYER_REVISIT_POLICY", "configs/pvf-layer-revisit-policy.json"), "verified layer revisit scope, record and cache restoration; source maps and landing from PVF")
 	pvfScriptWarpPolicyPath := flag.String("pvf-script-warp-policy", envStrOr("DFO_PVF_SCRIPT_WARP_POLICY", "configs/pvf-script-warp-policy.json"), "verified script warp scope and witnessed transition records; source routes from PVF")
-	pvfLotteryPolicyPath := flag.String("pvf-lottery-policy", envStrOr("DFO_PVF_LOTTERY_POLICY", "configs/pvf-lottery-policy.json"), "enabled and grantable lottery pool templates; source odds from PVF")
+	pvfLotteryPolicyPath := flag.String("pvf-lottery-policy", "", "deprecated compatibility flag; PVF lottery scope is discovered from source and this path is ignored")
 	pvfScenePolicyPath := flag.String("pvf-scene-policy", envStrOr("DFO_PVF_SCENE_POLICY", "configs/pvf-scene-policy.json"), "independent entry town and training dungeon selection; source rules from PVF")
 	pvfDropPolicy := flag.String("pvf-drop-policy", envStrOr("DFO_PVF_DROP_POLICY", "configs/pvf-drop-policy.json"), "existing basic equipment allowlist and maximum loot grade; source rules from PVF")
 	pvfArchivePath := flag.String("pvf-archive", os.Getenv("DFO_PVF_ARCHIVE"), "explicit inner PVF path for candidate domains")
