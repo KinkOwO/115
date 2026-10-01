@@ -73,6 +73,10 @@ func (s *Source) AvatarRecast(index catalog.ItemIndex) (*inventory.AvatarRecastR
 	return inventory.ImportAvatarRecastRules(s.archive, index)
 }
 
+func (s *Source) EmblemCompound(index catalog.ItemIndex) (*inventory.EmblemCompoundRules, error) {
+	return inventory.ImportEmblemCompoundRules(s.archive, index)
+}
+
 func (s *Source) CashShop() (cashshop.PilotConfig, error) {
 	return cashshop.ImportPilot(s.archive)
 }
