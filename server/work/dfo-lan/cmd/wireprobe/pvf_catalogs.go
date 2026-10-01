@@ -22,6 +22,7 @@ import (
 // verifies complete effective projections; source checks remain mandatory in
 // normal direct mode as well as audit mode.
 type pvfCoreCatalogs struct {
+	sourceChecksum                               string
 	itemShops                                    *catalog.ItemShops
 	boxes                                        *loot.BoxCatalog
 	cashshop                                     *cashshop.Pilot
@@ -180,6 +181,7 @@ func preparePVFCoreCatalogs(selection, path, checksum, characterPath, questPath,
 	if source.Snapshot().Checksum != anchorChecksum {
 		return result, fmt.Errorf("PVF/character source mismatch: %s versus %s", source.Snapshot().Checksum, anchorChecksum)
 	}
+	result.sourceChecksum = source.Snapshot().Checksum
 
 	if selected["characters"] {
 		if err := preparePVFCharacters(&result, source, characterPolicy, characterPath, inputs); err != nil {
@@ -279,7 +281,7 @@ func preparePVFCoreCatalogs(selection, path, checksum, characterPath, questPath,
 			return result, err
 		}
 	}
-	if selected["fame"] || selected["roster-backgrounds"] || selected["season"] || selected["adventure"] || selected["lottery"] || selected["selection-boxes"] || selected["bleeding-mine"] || selected["black-purgatory"] || selected["clear-cube"] || selected["odyssey-growth"] || selected["odyssey-weapons"] || selected["odyssey-drop"] || selected["odyssey-currency"] || selected["items"] || selected["equipment"] || selected["prices"] || selected["materials"] || selected["boosters"] || selected["enhancements"] || selected["shields"] || selected["equipment-selection"] {
+	if selected["boxes"] || selected["fame"] || selected["roster-backgrounds"] || selected["season"] || selected["adventure"] || selected["lottery"] || selected["selection-boxes"] || selected["bleeding-mine"] || selected["black-purgatory"] || selected["clear-cube"] || selected["odyssey-growth"] || selected["odyssey-weapons"] || selected["odyssey-drop"] || selected["odyssey-currency"] || selected["items"] || selected["equipment"] || selected["prices"] || selected["materials"] || selected["boosters"] || selected["enhancements"] || selected["shields"] || selected["equipment-selection"] {
 
 		direct, e := source.ItemIndex("")
 		if e != nil {

@@ -6,6 +6,16 @@ from repair_profile import load_profile
 
 
 class RepairProfileTests(unittest.TestCase):
+    def test_all_source_candidate_keeps_latest_scope_and_isolated_binary(self):
+        project = pathlib.Path(__file__).resolve().parent.parent
+        binary, required, env = load_profile(project / 'configs/pvf-all-candidate.json', project)
+        _, _, previous = load_profile(project / 'configs/pvf-item-shops-candidate.json', project)
+        self.assertEqual(env, previous)
+        self.assertEqual(len(env['DFO_PVF_CATALOGS'].split(',')), 54)
+        self.assertEqual(env['DFO_PVF_VERIFY_BASELINES'], '0')
+        self.assertEqual(binary, project / '.tmp/pvf-all/bin/wireprobe-handoff-source.exe')
+        self.assertTrue(all(p.suffix != '.json' or 'policy' in p.name for p in required))
+
     def test_native_character_profile_preserves_save_source_and_policy_only_paths(self):
         project = pathlib.Path(__file__).resolve().parent.parent
         binary, required, env = load_profile(project / 'configs/pvf-characters-candidate.json', project)

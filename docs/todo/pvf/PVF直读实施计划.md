@@ -34,13 +34,13 @@ PVF 提供物品、职业、技能、任务、地图和源规则表；服主倍�
 
 | 数据族 / 现有 JSON | PVF 真源或导出依据 | 迁移范围与当前工作 |
 | --- | --- | --- |
-| 职业 `characters.*` | 职业脚本及关联技能表；`catalog.ImportCharacters` | 有库导入器；先解释默认快捷栏、命令和成长投影差异；创建策略独立 |
+| 职业 `characters.*` | 职业脚本及关联技能表；`catalog.ImportCharacters` | 已接characters候选；17职业有效字段完整一致，默认快捷栏/命令和重复诊断成长视图由独立策略保留；raw源成长视图单独保存 |
 | 世界、城镇 `world.*`、`town.*` | 世界/城镇/NPC/地图列表；`ImportWorldRuntime`、`ImportTownArea` | 世界已确认；城镇已接`town`离线候选，38/0及7个可走矩形完整一致，出生点独立策略保留 |
-| NPC 传送 `npc-teleport.generated` | `ImportNPCMoves` 读取原版移动表 | 已随世界候选直读；启动基线仍读取该 JSON 供迁移审计，业务使用 PVF 结果 |
-| 任务 `quests.*` | 原版任务列表及脚本；`ImportQuests` | 已接同源候选；还需取消过渡期 JSON 门禁依赖 |
+| NPC 传送 `npc-teleport.generated` | `ImportNPCMoves` 读取原版移动表 | 已随world直读；verify-baselines=0时不依赖NPC传送导出JSON，迁移审计可单独启用 |
+| 任务 `quests.*` | 原版任务列表及脚本；`ImportQuests` | 已接quests同源候选；全量profile关闭导出JSON门禁，2844定义直读 |
 | 经验 `progression.*` | 原版经验阈值、怪物经验及源倍率表；`ImportProgression` | 已接同源候选；`experience.compat90` 的兼容计算策略单独保留 |
 | 技能 `skills.*` | `skill/<职业>skill.lst`，部分职业回退 `<职业>.lst`，关联 `.skl` | 已提取共享学习导入器并接入 `skills` 候选；3224条与生效next27完整一致；组合/预设/保存业务保持；不存在 `list/skill.lst` |
-| 物品索引 `items.index`、材料 `item-materials` | `list/equipment.lst`、`list/stackable.lst` 及 `.stk` | 共享索引已接 `items` 同源候选，599771条完整比对零差异；背包补充、箱子奖励分类、商城分类复用；材料规则和管理工具消费者待迁移 |
+| 物品索引 `items.index`、材料 `item-materials` | `list/equipment.lst`、`list/stackable.lst` 及 `.stk` | 共享索引已接 `items` 同源候选，599771条完整比对零差异；背包补充、箱子奖励分类、商城分类复用；materials规则、admin及GM查询/发放消费者已迁移 |
 | 时限和外观 `item-period-tags`、`skin-storage-items` | 物品期限、外观登记与 skin 列表/脚本 | 已接 `periods`、`skins` 同源候选，完整目录比对零差异；保留现有永不过期策略及127条缺失skin的拒绝边界 |
 | 装备 `equipment.*`、`equipment-full.index` + `.data` | `list/equipment.lst` 及 `.equ` | 全量424216条已确认；普通/任务选择已接`equipment-selection`候选，3174行/2794行掉落池完整一致；基础1536个ID白名单为独立策略，1638项任务新增装备由PVF推导 |
 | 骑士盾牌 `equipment-knight-shield.*` | `etc/character/knight/shieldwindownewdata.etc`、盾牌 `.equ` | 已接`shields`离线候选，25面盾及窗口行完整一致；职业、槽位和6面任务盾拒绝边界保持 |
@@ -48,17 +48,17 @@ PVF 提供物品、职业、技能、任务、地图和源规则表；服主倍�
 | 装备图鉴与生成成本 `equipment-journal.generated`、`equipment-create-cost.generated` | `contents/2025/equipmentsetjournal/etc/equipmentsetjournal.cos` | 已接 `journal`、`create-cost` 同源候选，5个分类/9组成本完整比对零差异；执行开关保持独立 |
 | 誓约档位 `oath-grades` | `.equ` 中的誓约/引子等级与稀有度 | 已接`oath-grades`离线候选，189件完整一致；诊断启用开关和指定档位不随迁移改变 |
 | 普通掉落 `loot.*` | `etc/itemdropinfo_monseter.etc`、`etc/itemdropinfo_common.etc`、物品源脚本 | 已接`loot`离线候选，1022种物品、1221组和281个副本索引完整一致；等级上限及排除6013为原策略，兼容公式不改变 |
-| NPC 价格 `shop-prices`、材料商店 `itemshop-*` | 物品价格字段、`list/itemshop.lst` / `itemshop/**/*.shp` 与 `[need material]` | `prices` 599682条、`materials` 14211条已接候选并完整一致；商店绑定遇到同ID多`.shp`冲突，保留JSON，须闭环NPC/客户端开店引用 |
-| 商城 `cerashop`、`shop-purchase-pilot`、`shop-vault-release` 等 | `etc/(r)cerashop.etc`、商品关联 `.stk` / `.equ` | `cashshop.ImportPilot` 已存在；源商品、价格、条件直读；已开放商品、特殊交付与购买试验开关独立 |
+| NPC 价格 `shop-prices`、材料商店 `itemshop-*` | 物品价格字段、`list/itemshop.lst` / `itemshop/**/*.shp` 与 `[need material]` | `prices` 599682条、`materials` 14211条已接候选并完整一致；item-shops已按原服务端路由策略接线，527商店/7025商品源字段一致；202原生同ID、30明确原生ID兼容映射、295既有路径继续保留，未声称295条已重新确认客户端路由 |
+| 商城 `cerashop`、`shop-purchase-pilot`、`shop-vault-release` 等 | `etc/(r)cerashop.etc`、商品关联 `.stk` / `.equ` | cashshop已接直读候选；17245记录、8源购买策略及16606实际Product完整一致，发布/交付开关独立 |
 | Booster、抽奖、选择箱 `booster-catalog`、`lottery-item-pools`、`lottery-equipment-pools`、`selection-boxes-*` | `.stk` 的 booster/select/lottery 字段，`etc/dungeondroptablebygroup.etc` 及装备组 | `boosters`已提取共享解析并接候选，42504条奖励池完整一致，未知项不扩大执行；selection-boxes已接候选，2975自选/2固定/1未解析及派生查询完整一致，2978模板加载范围为独立策略；lottery已接候选，276材料/金币池与2477装备池完整一致，权重/数量/哈希由PVF读取，启用池ID为独立策略 |
-| 独立礼盒 `boxes` | `radianttreasurebox.cos` 等 COS 表 | 可迁移但待绑定完整源路径：当前 JSON 只有 `.cos.txt` 文件名，当前 PVF 有两个同名版本；须按物品脚本引用/内容指纹确认，不按 basename 任选 |
+| 独立礼盒 `boxes` | `radianttreasurebox.cos` 等 COS 表 | boxes已接候选；两个同名COS用原生material唯一关联普通/增强箱，54奖励及全部抽取/计数/变形字段一致；启用范围和槽位默认独立 |
 | 强化/增幅券、增幅书、附魔 `reinforcement-tickets`、`amplify-tickets`、`amplify-grimoire`、`enchant-beads` | 对应 `.stk` 类型、作用条件、等级、成功率或附魔能力字段 | 第三批`enhancements`已由用户确认，1196/1629/433/4846种；普通券保留源补充的926个期限头，原实例期限边界保持 |
 | 强化费用 `reinforcement-gold` | `etc/upgrade.etc` | 第三批已确认，255级源费用直读；成功率、失败、安全补正和材料选择独立策略保留 |
 | 增幅费用 `amplify-upgrade` | `etc/amplifyupgrade.etc` | 第三批已确认，255级普通/安全费用直读，概率和失败策略保留 |
 | 金库 `vault.generated` | 账号金库 `etc/accountcargo.etc`；角色金库容量来自客户端分析 | 已接`vault`离线候选，账号60级门槛和40档费用完整一致；角色金库容量与客户端存档来源保留在独立策略 |
 | 副本主目录 `dungeons.*` | `list/dungeon.lst`、`list/map.lst` 及 `.dgn` / `.map` | 已接`dungeons`离线候选，3200副本/18387地图完整一致；10个当前解析器新增接受的副本按策略禁用，4个训练场独立合并 |
 | 教程 `tutorial-routes.*`、`tutorial-dungeons.*`、训练场 | 职业起始路线及源副本/地图 | 16条起始路线已确认；`tutorial-dungeons`15副本/65地图、`training-dungeons`4副本/7地图离线完整一致 |
-| 副本覆盖 `terminal-scenes`、`layer-revisits`、`tournament-quest-maps`、两座塔、`hell-party-maps` | 原 `.dgn` / `.map` 引用、`list/cinematic.lst` 与源场景 | `dungeon-towers`悲叹100层/100地图、眩惑33副本/56地图及`dungeon-hell`55张地图已接候选并完整一致；1个缺失深渊源引用仍拒绝。终场7条与武斗大会2图已接dungeon-terminal/dungeon-tournament候选并完整一致；分层重访含已验证协议记录，仍待源/策略拆分 |
+| 副本覆盖 `terminal-scenes`、`layer-revisits`、`tournament-quest-maps`、两座塔、`hell-party-maps` | 原 `.dgn` / `.map` 引用、`list/cinematic.lst` 与源场景 | `dungeon-towers`悲叹100层/100地图、眩惑33副本/56地图及`dungeon-hell`55张地图已接候选并完整一致；1个缺失深渊源引用仍拒绝。终场7条与武斗大会2图已接dungeon-terminal/dungeon-tournament候选并完整一致；layer-revisits已完成源/策略拆分，1条末层恢复路线的源链一致，已验证18字节协议记录独立保存 |
 | 迷宫概率 `dungeons.maze-chance-rates` | `.dgn` 的 `[maze chance rate]` | 已接`dungeon-maze`离线候选；源概率和脚本哈希直读，原`[992857,7143] → [980000,20000]`覆盖写入独立场景策略 |
 | Odyssey 成长、章节、武器箱 `odyssey-growth-*`、`odyssey-chapters-*`、`odyssey-weapon-box-*` | `contents/2026/aradodyssey/etc/aradodyssey.etc`、`aradodysseyjournal.cos`、关联礼盒脚本 | 已接5项奥德赛离线候选中的成长/章节/武器项，50副本、3赠品及毕业礼盒、7章15奖励模板、85组武器选项及运行派生索引完整一致；毕业主线与源顺序保持 |
 | Odyssey 掉落 `odyssey-chapter-drop-*`、`odyssey-currency` | 章节最后副本、奖励模板与货币 `.stk` | 已接odyssey-drop与odyssey-currency候选，7行章节掉落及2种币完整一致；章节2/7停用、概率及rank选币为独立策略，未恢复为另一套概率 |
@@ -67,13 +67,13 @@ PVF 提供物品、职业、技能、任务、地图和源规则表；服主倍�
 | 赤红铁矿 `bleeding-mine-rewards` | `contents/2025/bleedingmine/etc/bleedingmine*.ctp`，奖励袋/智能掉落组/合成字段 | bleeding-mine候选已接，12阶段/12领主/3难度、117容器及1782物品完整一致；35负数空奖签、合成机会与失败dummy排除保持，CTP trailer池边界回归已验证 |
 | 黑鸦 `black-purgatory-rewards` | `etc/dungeonspecialreward.etc`、`etc/itemdictionary/customroutingwaygroup.cos`、`customroutingway.etc` | black-purgatory候选已接，5普通/1仅记录VIP分支、208史诗/35神话/135腐蚀产物完整一致；10%/0.1%/1%本服策略独立，来源元数据边界见第五批文档 |
 | 旁路无色小晶块及单物品 JSON | `DFO_CLEAR_CUBE_SOURCE` 的物品3037和其他已引用 `.stk` | clear-cube候选已接，3037完整源Token/哈希及原存储零值投影一致，无所选导出JSON依赖；其它单物品继续随对应源领域审计 |
-| GM 名称与筛选 `gm-tool/configs/names.client`、`equipment.slots`、重复职业/经验/物品目录 | `string/*.uv.str` 的名称/品级/职业文本，`.equ` 的部位和最低等级 | 提取 `cmd/gmtool/names.go` 的文本读取及现有装备解析；GM 与游戏共用源目录，不再复制一套导出 JSON；固定界面属性键的中文对照仍是工具映射 |
+| GM 名称与筛选 `gm-tool/configs/names.client`、`equipment.slots`、重复职业/经验/物品目录 | `string/*.uv.str` 的名称/品级/职业文本，`.equ` 的部位和最低等级 | GM已复用原生599771个LIST绑定、EQU属性、实际name引用及共享发放目录；代理从认证后端元数据读取分类。旧中文译名无法由当前uv/kor/translate等价还原，保留为显示覆盖，旧部位缓存差异明确记录 |
 
-GM 包内另有 `set_items*.json`、`avatar_sets.json`、`set_display_names.json`、`equip_whitelist.json`，列入补充审计：套装/装扮成员如来自 PVF，应合并到装备与分组导入器；精选套装范围、搜索别名、显示名覆盖和发放白名单属于工具选择。现有文件缺少统一源路径/指纹，本次不将其整体宣称为已确认可直读，也不整体认定为“PVF 没有”。需逐字段核对前端消费入口与原脚本。`gm-tool/backups/` 是玩家操作备份，应保留，不作源规则迁移。
+GM 包内另有 `set_items*.json`、`avatar_sets.json`、`set_display_names.json`、`equip_whitelist.json`，列入补充审计：套装/装扮成员如来自 PVF，应合并到装备与分组导入器；精选套装范围、搜索别名、显示名覆盖和发放白名单属于工具选择。现有文件缺少统一源路径/指纹，本次不将其整体宣称为已确认可直读，也不整体认定为“PVF 没有”。已复核当前前端、Go后端和代理，没有这些JSON的生产消费入口；保留为未启用资产/工具选择，未新增历史归档功能。`gm-tool/backups/` 是玩家操作备份，应保留，不作源规则迁移。
 
 ### 嵌入 Go 程序的源 JSON 也必须迁移
 
-当前生产代码有以下 8 个嵌入 JSON；它们不会随 `configs/` 入口切换而自动消失。
+以下8种源嵌入目录已由第五批候选接入原生读取；旧JSON保留为默认兼容路径/回归样本，不能仅因文件仍在源码中就判断原生候选仍依赖它。
 
 | 文件 | PVF 来源与实施边界 |
 | --- | --- |
@@ -147,8 +147,12 @@ GM 包内另有 `set_items*.json`、`avatar_sets.json`、`set_display_names.json
 - [x] 共享物品索引、按ID装备直读、时限/外观/图鉴/成本候选；599771个索引与424216个完整装备定义全量同源核对通过。
 - [x] 准备隔离的9领域实机候选及启动profile，不替换日常程序和默认启动入口。
 - [x] 用户确认九领域实机正常，核对实际启动/业务日志并更新CHANGELOG及confirmed baseline；本批按任务范围提交收口。
-- [ ] 处理职业投影差异；区分本服默认技能栏与源技能定义后开放。
-- [ ] 将实际客户端资源来源与旧存档版本安全对接，再开展存档和实机回归。
+- [x] 处理职业投影差异；characters原生源与默认技能栏/命令策略分开，51项候选完成。
+- [x] 完成当前已启用、可定位PVF真源的54选择项/63投影、旁路和8种嵌入源数据的候选迁移。
+- [x] admin、initialrepair、questrepair及GM查询/发放共享原生目录，新增无存储目录检查入口。
+- [x] 整理保留策略、外部译名、历史测试/导出工具及未启用资产；见PVF直读迁移清单.md。
+- [ ] 用户手动验收第五批全量候选和GM筛选差异后，再升级默认启动/confirmed baseline。
+- [ ] 当前客户端be95与旧存档7ef资源版本对接为独立事项；不以别名或重写存档实现本次迁移。
 
 此文档记录实施候选进度，不将尚未实机确认的行为标为 confirmed baseline。
 
@@ -420,3 +424,13 @@ initialrepair/questrepair同样支持这些参数。check-catalogs只准备目�
 GM新增显式PVF候选入口，管理索引、装备部位/最低等级、原生显示文本及发放目录共用gamedata/managementdata；599771个原生LIST绑定的源脚本全部完成读取。旧386230个GM物品ID全部可达，kind/grade/rarity完整比对零差异；重复grade/rarity出现在嵌套条件块时，显示投影沿用旧导入器首字段行为，不用通用单值验证将其置0。实际[name]引用替代name_<ID>拼键，旧ID拼键显示有663处差异，保留原生别名/chn引用与纯文本。旧equipment.slots有392575条，其中6561无当前LIST绑定、12条为原生堆叠物，416个部位和244403个最低等级字段与当前源不同（大量旧装扮最低等级为0，当前源为1）；候选显示使用源值，旧缓存不再参与筛选，未将这些差异宣称等价。当前实际客户端uv主要英文，translate/kor主要韩文，旧中文译名多数无法据当前名称表还原，names.client/names.zh仅作可选外部显示覆盖，不能提供ID、属性、槽位或存档来源。GM发放补充目录与网关一致为175554种物品并挂原生424216完整装备绑定，仍由原发放验证、事务、幂等及审计决定实际可发放，不因索引存在自动放行未知特殊状态。新增认证只读/api/catalog-metadata，Python代理使用后端类型/可堆叠集合，原生模式不再读取重复物品/装备/loot导出JSON；仅旧后端明确404时保留兼容路径，401/5xx及错误响应拒绝。gmweb.py支持显式候选程序、源SHA256和只读check；候选准备在自动存储启动和数据库读取之前结束。源审计34.08秒、全量Go测试/vet、14项原Python测试及5项GM只读测试通过；实际候选check在storage不存在时成功，未启动服务或客户端/数据库。隔离gmweb程序SHA256为6a04bf5e11ee676527fd76b74028f9ace7874b6892e47f964ee114f577cac7d1；未覆盖GM发布程序，网关候选仍54项/63投影，确认范围仍第四批28项。
 
 当前Go后端/代理/前端未消费set_items、avatar_sets、set_display_names、equip_whitelist源文件；这些文件继续保留为未启用资产/工具选择数据，不因历史归档中的引用而新增功能。历史备份和数据导出命令可继续生成JSON作为审计样本，不作为PVF候选运行前提。
+
+## 2026-10-01：全量PVF候选与无数据库准备检查
+
+当前生产入口中已定位PVF真源的数据完成候选接线：网关54个选择项/63类源投影，以及admin、initialrepair、questrepair和GM查询/发放。新增configs/pvf-all-candidate.json汇总之前逐批范围，使用隔离程序.tmp/pvf-all/bin/wireprobe-handoff-source.exe；环境和独立策略与上一商店候选一致，不改变用户客户端路径、存档来源或既有玩法开关。程序SHA256为a3ea388ac9a2966f0368e6ede552f3d8559fc10bfba08f24f5158bb583e2d98c。
+
+新增-pvf-check-catalogs，必须显式选择PVF领域，在源身份及目录准备成功后、安装运行全局/访问存储/创建捕获目录/监听端口之前输出报告并退出。实际全量检查将26个导出JSON参数、存储配置和输出目录设为不存在，53.26秒完成：17职业、2844任务、599771物品、424216完整装备绑定、3174装备选择行、3200副本、16606商城商品、2个COS礼盒和527商店；storage_accessed=false、runtime_started=false，未创建指定输出目录。源仍为精确7ef2db59…，不建立source别名。修正boxes独立选择时漏装原生item索引的依赖，characters,boxes缺失JSON独立准备实测通过。
+
+最后一轮go test ./...与go vet ./...通过，13项profile、2项inner-PVF和5项GM Python检查共20项通过；全量profile的launch_local --check --server-only路径/端口检查通过。该检查未启动服务、数据库或客户端，也未执行普通数据库修复预览/apply或历史charactercheck。
+
+详细完成项及保留理由见docs/todo/pvf/PVF直读迁移清单.md。剩余配置为独立运维/服务端或客户端布局策略、外部中文显示覆盖、历史样本与未启用资产；锻造公式尚缺可靠源定位，不将检索未命中宣称为PVF没有。confirmed baseline保持用户已确认的第四批28项/34类源数据，隔离程序SHA256仍为5475dbccdf316f4c582cc2742b22e1f66b5512f22e04997ccb23a031f6e36609，已重新核对。第五批及GM候选需用户手动实机验收，默认入口未据离线通过自动升级。
