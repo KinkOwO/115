@@ -233,7 +233,7 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 	var bossIndices []byte
 	if blackBoss && !s.blackPurgatoryRolled {
 		p := s.BlackPurgatoryPlan
-		if p.Run != d.RunID || p.Source != s.Catalog.Source.Checksum || p.Model != blackPurgatoryCardModel || p.BossModel != blackPurgatoryBossModel {
+		if p.Run != d.RunID || p.Source != s.Catalog.Source.SaveIdentity() || p.Model != blackPurgatoryCardModel || p.BossModel != blackPurgatoryBossModel {
 			return nil, fmt.Errorf("黑鸦地面奖励缺少匹配的冻结奖单")
 		}
 		for i, award := range p.BossItems {

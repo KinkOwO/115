@@ -332,7 +332,7 @@ func TestShopPilotDatabasePurchase(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	role, e := store.CreateCharacter(ctx, storage.Character{AccountID: account, Name: "ShopWireTest", Request: []byte{0}, ConfigVersion: p.Config.Source.Checksum, State: json.RawMessage(`{}`)}, 24)
+	role, e := store.CreateCharacter(ctx, storage.Character{AccountID: account, Name: "ShopWireTest", Request: []byte{0}, ConfigVersion: p.Config.Source.SaveIdentity(), State: json.RawMessage(`{}`)}, 24)
 	if e != nil {
 		t.Fatal(e)
 	}

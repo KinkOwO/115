@@ -1,6 +1,7 @@
 package inventory
 
 import (
+	"dfolan/internal/savecontract"
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/game/protocol"
@@ -49,7 +50,7 @@ func TestQuickSlotEquipmentMoveRequest(t *testing.T) {
 		if e != nil {
 			t.Fatal(e)
 		}
-		return storage.Character{Profession: 0, ConfigVersion: sum, State: state}
+		return storage.Character{Profession: 0, ConfigVersion: savecontract.Identity(), State: state}
 	}
 
 	// Case 1: 护身符从装备区槽 29 拖进快捷槽 8（实机 01:51:30 / 02:41:37 的报文形状）。
@@ -187,7 +188,7 @@ func TestQuickSlotEquipmentOneOnly(t *testing.T) {
 		if e != nil {
 			t.Fatal(e)
 		}
-		return storage.Character{Profession: 0, ConfigVersion: sum, State: state}
+		return storage.Character{Profession: 0, ConfigVersion: savecontract.Identity(), State: state}
 	}
 	dragIn := func(bag Bag, targetSlot, bagSlot uint16, id uint32) error {
 		_, e := svc.MoveOrdinary(role(bag),

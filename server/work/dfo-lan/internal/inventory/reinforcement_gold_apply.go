@@ -60,7 +60,7 @@ type storedGoldReinforcement struct {
 // 363..379 = 账号材料仓库格，其它 = 角色背包槽位。
 func (s *WearService) ReinforceWithMaterial(ctx context.Context, role storage.Character, key string, r protocol.ReinforcementRequest) (storage.Character, GoldReinforcementReceipt, error) {
 	var out GoldReinforcementReceipt
-	if s == nil || s.Store == nil || s.Catalog == nil || s.Catalog.Source.Checksum != role.ConfigVersion || s.BagRules.Source != role.ConfigVersion {
+	if s == nil || s.Store == nil || s.Catalog == nil || s.Catalog.Source.SaveIdentity() != role.ConfigVersion {
 		return role, out, fmt.Errorf("金币强化需要有效装备目录及角色存档")
 	}
 	if !GoldRulesLoaded() {

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"dfolan/internal/savecontract"
 	"context"
 	"dfolan/internal/catalog"
 	"dfolan/internal/npcpresence"
@@ -70,7 +71,7 @@ func (w *worldSession) npcPresenceShadow(p []byte) map[string]any {
 			if s.Status != "accepted" && s.Status != "completed" {
 				continue
 			}
-			if s.ConfigVersion != w.npcPresenceIndex.Source {
+			if s.ConfigVersion != savecontract.Identity() {
 				accepted, completed = npcpresence.QuestSet{}, npcpresence.QuestSet{}
 				entry["snapshot_error"] = "quest persistence source mismatch"
 				break

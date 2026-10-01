@@ -13,10 +13,10 @@ func TestActClearPlanOnlyIncludesAlreadyAcceptedEpicQuests(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := &Service{Catalog: quests}
-	role := storage.Character{ConfigVersion: quests.Source.Checksum}
+	role := storage.Character{ConfigVersion: quests.Source.SaveIdentity()}
 	states := []storage.QuestState{
-		{ID: 3330, Status: "accepted", ConfigVersion: quests.Source.Checksum},
-		{ID: 3331, Status: "completed", ConfigVersion: quests.Source.Checksum},
+		{ID: 3330, Status: "accepted", ConfigVersion: quests.Source.SaveIdentity()},
+		{ID: 3331, Status: "completed", ConfigVersion: quests.Source.SaveIdentity()},
 	}
 	ids, err := s.ActClearPlan(role, states)
 	if err != nil {

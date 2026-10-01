@@ -74,7 +74,7 @@ func imageCommunicationTarget(c catalog.QuestCatalog, states []storage.QuestStat
 		}
 		for _, state := range states {
 			if state.ID == target.quest && state.Status == "accepted" && state.Progress != 0 &&
-				state.ConfigVersion == c.Source.Checksum && state.ProgressModel == model {
+				state.ConfigVersion == c.Source.SaveIdentity() && state.ProgressModel == model {
 				return target.quest, target.npc, nil
 			}
 		}

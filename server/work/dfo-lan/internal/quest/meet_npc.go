@@ -52,7 +52,7 @@ func (s *Service) MeetNPC(ctx context.Context, role storage.Character, id uint16
 	if e != nil || model != SingleMeetNPC || uint32(d.ObjectiveCells[0].Value) != npc {
 		return fmt.Errorf("NPC does not match quest objective")
 	}
-	tag, e := s.Store.DB.Exec(ctx, `UPDATE character_quests q SET progress=0 FROM characters c WHERE c.id=q.character_id AND c.account_id=$1 AND c.id=$2 AND c.deleted_at IS NULL AND q.quest_id=$3 AND q.status='accepted' AND q.config_version=$4 AND q.progress_model=$5 AND q.progress IN (0,1)`, role.AccountID, role.ID, id, s.Catalog.Source.Checksum, model)
+	tag, e := s.Store.DB.Exec(ctx, `UPDATE character_quests q SET progress=0 FROM characters c WHERE c.id=q.character_id AND c.account_id=$1 AND c.id=$2 AND c.deleted_at IS NULL AND q.quest_id=$3 AND q.status='accepted' AND q.config_version=$4 AND q.progress_model=$5 AND q.progress IN (0,1)`, role.AccountID, role.ID, id, s.Catalog.Source.SaveIdentity(), model)
 	if e != nil {
 		return e
 	}

@@ -80,7 +80,7 @@ func (s *Service) CreateEquipment(
 	fail := func(e error) (storage.Character, EquipmentCraftReceipt, bool, error) {
 		return role, result, false, e
 	}
-	if role.ConfigVersion != s.Catalog.Source.Checksum {
+	if role.ConfigVersion != s.Catalog.Source.SaveIdentity() {
 		return fail(fmt.Errorf("equipment craft: inventory source mismatch"))
 	}
 	if template == 0 || template == 0xFFFFFFFF {

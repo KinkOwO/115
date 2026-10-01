@@ -27,7 +27,7 @@ func (w *worldSession) useRosterBackgroundTicket(ctx context.Context, p, raw []b
 	if w.activeDungeon != nil || w.state.Position.Town == 0 {
 		return nil, fmt.Errorf("背景券只能在城镇使用")
 	}
-	if w.role.ConfigVersion != w.loot.Catalog.Source.Checksum {
+	if w.role.ConfigVersion != w.loot.Catalog.Source.SaveIdentity() {
 		return nil, fmt.Errorf("背景券使用的角色与物品目录版本不一致")
 	}
 	key := fmt.Sprintf("roster-background-ticket:%s:%x", prefix, sha256.Sum256(raw))

@@ -40,7 +40,7 @@ func TestKnightShieldRepaintOrderAndDungeonBoundary(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	role := storage.Character{WireID: 1, Name: "ShieldTest", Profession: 12, ConfigVersion: jobs.Source.Checksum}
+	role := storage.Character{WireID: 1, Name: "ShieldTest", Profession: 12, ConfigVersion: jobs.Source.SaveIdentity()}
 	role.State, e = inventory.SaveBag(json.RawMessage(`{"level":90,"advancement":1}`), inventory.Bag{Version: "ordinary-bag-v1", Worn: []inventory.BagEquipment{{Slot: 24, Template: 113370008}}})
 	if e != nil {
 		t.Fatal(e)

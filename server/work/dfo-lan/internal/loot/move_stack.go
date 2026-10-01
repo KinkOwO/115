@@ -32,7 +32,7 @@ func (s *Service) MoveStack(ctx context.Context, role storage.Character, rules i
 	fail := func(e error) (storage.Character, MoveStackReceipt, bool, error) {
 		return role, out, false, e
 	}
-	if role.ConfigVersion != s.Catalog.Source.Checksum {
+	if role.ConfigVersion != s.Catalog.Source.SaveIdentity() {
 		return fail(fmt.Errorf("stack move source mismatch"))
 	}
 	if r.SourceList != 0 || r.DestinationList != 0 {

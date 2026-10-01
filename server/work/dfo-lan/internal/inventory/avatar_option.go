@@ -8,7 +8,7 @@ import (
 )
 
 func (s *WearService) SelectAvatarOption(role storage.Character, r protocol.AvatarOptionRequest) (json.RawMessage, error) {
-	if s == nil || s.Catalog == nil || !s.Rules.Special || s.Catalog.Source.Checksum != role.ConfigVersion || r.Location != 2 || r.Option == 0 || r.Option == 255 {
+	if s == nil || s.Catalog == nil || !s.Rules.Special || s.Catalog.Source.SaveIdentity() != role.ConfigVersion || r.Location != 2 || r.Option == 0 || r.Option == 255 {
 		return nil, fmt.Errorf("invalid avatar selection context")
 	}
 	b, e := ReadBag(role.State)

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"dfolan/internal/savecontract"
 	"context"
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
@@ -17,7 +18,7 @@ func loadOdysseyWeaponChoices(path string) (odysseyWeaponChoices, error) {
 	return odysseyWeaponChoices(c), err
 }
 func (c odysseyWeaponChoices) allows(r protocol.WeaponBoxSelection) bool {
-	if c.Source != odysseySource() || c.Template != 10417789 {
+	if c.Template != 10417789 {
 		return false
 	}
 	for _, cat := range c.Categories {
@@ -40,7 +41,7 @@ type odysseyWeaponReceipt struct {
 const odysseyWeaponChoiceEvent = "odyssey-create-weapon-choice-10417789-v1"
 
 func applyOdysseyWeaponChoice(role storage.Character, wear *inventory.WearService, choices odysseyWeaponChoices, r protocol.WeaponBoxSelection) (json.RawMessage, json.RawMessage, error) {
-	if !isOdysseyRewardRole(role) || role.ConfigVersion != odysseySource() || !choices.allows(r) || wear == nil || wear.Catalog == nil || wear.Catalog.Source.Checksum != odysseySource() || wear.BagRules.Source != odysseySource() {
+	if !isOdysseyRewardRole(role) || role.ConfigVersion != savecontract.Identity() || !choices.allows(r) || wear == nil || wear.Catalog == nil || wear.Catalog.Source.SaveIdentity() != savecontract.Identity() {
 		return nil, nil, fmt.Errorf("selection not in source Odyssey category")
 	}
 	b, e := inventory.ReadBag(role.State)

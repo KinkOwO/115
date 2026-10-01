@@ -251,7 +251,7 @@ func (s *WearService) applyReinforcement(role storage.Character, r protocol.Rein
 
 func (s *WearService) ReinforceWithTicket(ctx context.Context, role storage.Character, key string, r protocol.ReinforcementRequest) (storage.Character, ReinforcementReceipt, error) {
 	var out ReinforcementReceipt
-	if s == nil || s.Store == nil || s.Catalog == nil || s.Catalog.Source.Checksum != role.ConfigVersion || s.BagRules.Source != role.ConfigVersion {
+	if s == nil || s.Store == nil || s.Catalog == nil || s.Catalog.Source.SaveIdentity() != role.ConfigVersion {
 		return role, out, fmt.Errorf("强化需要有效装备目录及角色存档")
 	}
 	saved, _, err := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, "fixed-reinforcement-ticket-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {

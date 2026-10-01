@@ -1,6 +1,7 @@
 package character
 
 import (
+	"dfolan/internal/savecontract"
 	"context"
 	"dfolan/internal/catalog"
 	"dfolan/internal/inventory"
@@ -17,7 +18,7 @@ import (
 // do not invent a stack limit: every chapter reward template has no explicit
 // [stackable limit] in the source, so a "x2" line lands in one row.
 func (s *ProgressionService) ApplyOdysseyChapterReward(role storage.Character, chapter uint8, line int, r catalog.ChapterReward) (json.RawMessage, json.RawMessage, error) {
-	if s.Chapters == nil || !OdysseyRole(role) || role.ConfigVersion != catalog.OdysseySource {
+	if s.Chapters == nil || !OdysseyRole(role) || role.ConfigVersion != savecontract.Identity() {
 		return nil, nil, fmt.Errorf("invalid Odyssey chapter reward")
 	}
 	ch, ok := s.Chapters.At(chapter)
@@ -46,7 +47,7 @@ func (s *ProgressionService) ApplyOdysseyChapterReward(role storage.Character, c
 // so a full bag only leaves that one line owed — the next login or dungeon
 // clear retries it, and nothing already paid is paid twice.
 func (s *ProgressionService) OdysseyChapterRewards(ctx context.Context, role storage.Character) (storage.Character, bool, []error) {
-	if s.Chapters == nil || s.Odyssey == nil || !OdysseyRole(role) || role.ConfigVersion != catalog.OdysseySource {
+	if s.Chapters == nil || s.Odyssey == nil || !OdysseyRole(role) || role.ConfigVersion != savecontract.Identity() {
 		return role, false, nil
 	}
 	completed, e := s.odysseyCompleted(role)
@@ -72,7 +73,7 @@ func (s *ProgressionService) OdysseyChapterRewards(ctx context.Context, role sto
 		for line, r := range ch.Rewards {
 			key := fmt.Sprintf("odyssey-chapter-reward:%d:%d:%d", ch.Number, line, r.Template)
 			reward, idx := r, line
-			next, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, catalog.OdysseySource, key, "odyssey-source-chapter-reward-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+			next, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, savecontract.Identity(), key, "odyssey-source-chapter-reward-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
 				return s.ApplyOdysseyChapterReward(current, ch.Number, idx, reward)
 			})
 			if e != nil {

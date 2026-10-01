@@ -1,6 +1,7 @@
 package loot
 
 import (
+	"dfolan/internal/savecontract"
 	"context"
 	"dfolan/internal/catalog"
 	"dfolan/internal/dungeon"
@@ -246,7 +247,7 @@ func (r *BlackPurgatoryRewards) StorageCatalog(c catalog.LootCatalog) (catalog.L
 func (s *Service) FreezeBlackPurgatoryCards(ctx context.Context, role storage.Character, d *dungeon.Session, seed uint32) (CardPlan, error) {
 	p := CardPlan{}
 	if s == nil || s.BlackPurgatory == nil || len(s.BlackPurgatory.bossDurability) == 0 || s.Store == nil || !blackPurgatoryFinalBossDead(d) ||
-		d.Definition.ID != BlackPurgatorySquadDungeon || role.ConfigVersion != s.BlackPurgatory.Source {
+		d.Definition.ID != BlackPurgatorySquadDungeon || role.ConfigVersion != savecontract.Identity() {
 		return p, fmt.Errorf("黑鸦奖励尚未加载或挑战未通关")
 	}
 	r := s.BlackPurgatory
@@ -294,7 +295,7 @@ type blackPurgatoryBossReceipt struct {
 // 地面拾取和掉线补领共用分支回执，不依赖重登后已失效的场景物体编号。
 func (s *Service) pickBlackPurgatoryBoss(ctx context.Context, role storage.Character, run string, index byte, expected Award) (storage.Character, blackPurgatoryBossReceipt, bool, error) {
 	var receipt blackPurgatoryBossReceipt
-	if s == nil || s.Store == nil || index < 1 || index > 3 || role.ConfigVersion != s.Catalog.Source.Checksum {
+	if s == nil || s.Store == nil || index < 1 || index > 3 || role.ConfigVersion != s.Catalog.Source.SaveIdentity() {
 		return role, receipt, false, fmt.Errorf("黑鸦领主奖励归属无效")
 	}
 	raw, err := s.Store.CharacterEventReceipt(ctx, role.AccountID, role.ID, "cardplan:"+run)

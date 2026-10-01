@@ -352,7 +352,7 @@ const amplifyGrimoireModel = "amplify-grimoire-v1"
 // ApplyAmplifyGrimoire 处理 CMD 205：校验增幅书与目标装备，写入次元属性类型，扣掉一本书。
 func (s *WearService) ApplyAmplifyGrimoire(ctx context.Context, role storage.Character, key string, r protocol.AmplifyOptionRequest) (storage.Character, AmplifyGrimoireReceipt, error) {
 	var out AmplifyGrimoireReceipt
-	if s == nil || s.Store == nil || s.Catalog == nil || s.BagRules.Source != role.ConfigVersion {
+	if s == nil || s.Store == nil || s.Catalog == nil {
 		return role, out, fmt.Errorf("打红字需要有效装备目录及角色存档")
 	}
 	if !AmplifyGrimoiresLoaded() {

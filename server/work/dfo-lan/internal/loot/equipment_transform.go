@@ -64,7 +64,7 @@ func (s *Service) TransformEquipment(
 	fail := func(e error) (storage.Character, EquipmentTransformReceipt, bool, error) {
 		return role, result, false, e
 	}
-	if role.ConfigVersion != s.Catalog.Source.Checksum {
+	if role.ConfigVersion != s.Catalog.Source.SaveIdentity() {
 		return fail(fmt.Errorf("equipment transform: inventory source mismatch"))
 	}
 	if s.CreateCost == nil {

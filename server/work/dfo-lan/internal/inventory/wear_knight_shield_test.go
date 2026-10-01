@@ -1,6 +1,7 @@
 package inventory
 
 import (
+	"dfolan/internal/savecontract"
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/game/protocol"
@@ -69,7 +70,7 @@ func TestWearAcceptsKnightShield(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	role := storage.Character{Profession: 9, State: state}
+	role := storage.Character{Profession: 9, ConfigVersion: savecontract.Identity(), State: state}
 	r := protocol.ItemMoveRequest{SourceSlot: 9, SourceItem: 113370002, DestinationList: 3, DestinationSlot: 24, Count: 1, Selection: 0xffffffff}
 	raw, e := svc.MoveOrdinary(role, r)
 	if e != nil {

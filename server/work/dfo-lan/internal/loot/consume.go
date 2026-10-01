@@ -58,7 +58,7 @@ func (s *Service) Consume(ctx context.Context, role storage.Character, r protoco
 	fail := func(e error) (storage.Character, ConsumeReceipt, bool, error) {
 		return role, out, false, e
 	}
-	if role.ConfigVersion != s.Catalog.Source.Checksum {
+	if role.ConfigVersion != s.Catalog.Source.SaveIdentity() {
 		return fail(fmt.Errorf("consume source mismatch"))
 	}
 	if r.List != 0 && r.List != 7 {
@@ -174,7 +174,7 @@ func (s *Service) Consume(ctx context.Context, role storage.Character, r protoco
 				}
 			}
 			out = ConsumeReceipt{Slot: r.Slot, Template: r.Template, Remaining: remaining,
-				Source: s.Catalog.Source.Checksum, Granted: granted, Points: points, SeasonExperience: seasonGain}
+				Source: s.Catalog.Source.SaveIdentity(), Granted: granted, Points: points, SeasonExperience: seasonGain}
 			receipt, e := json.Marshal(out)
 			return updated, receipt, premiums, e
 		})
@@ -188,7 +188,7 @@ func (s *Service) Consume(ctx context.Context, role storage.Character, r protoco
 	if e = json.Unmarshal(receipt, &out); e != nil {
 		return fail(e)
 	}
-	if out.Source != s.Catalog.Source.Checksum || out.Template != r.Template || out.Slot != r.Slot {
+	if out.Source != s.Catalog.Source.SaveIdentity() || out.Template != r.Template || out.Slot != r.Slot {
 		return fail(fmt.Errorf("consume receipt conflict"))
 	}
 	out.EventKey = key

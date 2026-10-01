@@ -41,7 +41,7 @@ func knightRole(t *testing.T, s *WearService, deck [5]uint32) storage.Character 
 	if e != nil {
 		t.Fatal(e)
 	}
-	return storage.Character{Profession: s.Shields.Profession, ConfigVersion: s.Catalog.Source.Checksum, State: raw}
+	return storage.Character{Profession: s.Shields.Profession, ConfigVersion: s.Catalog.Source.SaveIdentity(), State: raw}
 }
 
 func TestKnightShieldDeck(t *testing.T) {

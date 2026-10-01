@@ -87,7 +87,7 @@ func inheritFixture(t *testing.T, matLevel, matType, matValue, baseSeal byte, wo
 	if e != nil {
 		t.Fatal(e)
 	}
-	return &WearService{Catalog: eq}, storage.Character{ID: 1, ConfigVersion: c.Source.Checksum, State: state}
+	return &WearService{Catalog: eq}, storage.Character{ID: 1, ConfigVersion: c.Source.SaveIdentity(), State: state}
 }
 
 // inheritEntry 造一条继承记录：A 侧 = 材料件，B 侧 = 基础件（方向由服务层按等级定，
@@ -518,7 +518,7 @@ func TestApplyInheritMultipleEntries(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	role := storage.Character{ID: 1, ConfigVersion: c.Source.Checksum, State: state}
+	role := storage.Character{ID: 1, ConfigVersion: c.Source.SaveIdentity(), State: state}
 	svc := &WearService{Catalog: eq}
 
 	entries := []protocol.InheritEntry{

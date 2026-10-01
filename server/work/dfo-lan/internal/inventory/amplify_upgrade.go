@@ -249,7 +249,7 @@ type AmplifyUpgradeReceipt struct {
 // ApplyAmplifyUpgrade 处理 CMD80 mode=1：校验次元属性与材料、扣费、按官方成功率判定。
 func (s *WearService) ApplyAmplifyUpgrade(ctx context.Context, role storage.Character, key string, r protocol.ReinforcementRequest) (storage.Character, AmplifyUpgradeReceipt, error) {
 	var out AmplifyUpgradeReceipt
-	if s == nil || s.Store == nil || s.Catalog == nil || s.BagRules.Source != role.ConfigVersion {
+	if s == nil || s.Store == nil || s.Catalog == nil {
 		return role, out, fmt.Errorf("增幅需要有效装备目录及角色存档")
 	}
 	if r.Mode != 1 {

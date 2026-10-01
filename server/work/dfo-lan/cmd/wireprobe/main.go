@@ -1230,20 +1230,22 @@ func main() {
 			log.Fatal(e)
 		}
 	}
-	// 存档来源身份重钉（2026-10-01，next146）。内层归档重新生成后哈希必变，而存档里
-	// 每一行都把它当身份钉着 ⇒ 不重钉就整体进不去角色（quest %d requires source migration）。
+	// 存档身份归一（2026-10-01，next146 结构性根治）。过去这行身份被钉在**内层归档哈希**上
+	// （每次重建都变），换一次客户端就全体进不去角色（quest %d requires source migration）。
+	// 现在身份由**服务端契约**定义（internal/savecontract），本迁移把盘上**任何历史 64-hex 身份**
+	// 一次归一 —— 形状判据，不再是「手工白名单」（那版换客户端就要改代码，且命中 0 行时静默无声）。
 	// 放在这里是因为前面的 Migrate* 才建出 character_quests/character_map_clears 等表。
-	// 白名单式：只重钉已知历史内层哈希，绝不碰 vault 等别的来源身份。
 	if characters != nil {
+		identity := characters.Catalog.Source.SaveIdentity()
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		n, rebaseErr := characters.Store.MigrateSourceIdentity(ctx, characters.Catalog.Source.Checksum)
+		n, rebaseErr := characters.Store.MigrateSaveIdentity(ctx, identity)
 		cancel()
 		if rebaseErr != nil {
-			log.Fatalf("source identity rebaseline: %v", rebaseErr)
+			log.Fatalf("save identity normalization: %v", rebaseErr)
 		}
-		if n > 0 {
-			log.Printf("source identity rebaselined: %d stored row(s) re-pinned to the current inner archive", n)
-		}
+		// 无论 n 是否为 0 都要打：首版失败正是「命中 0 行时完全无声」，排查只能靠翻库。
+		log.Printf("save identity normalized: %d stored row(s) -> contract %s (inner archive %s)",
+			n, identity, characters.Catalog.Source.Checksum)
 	}
 	if *vaultRulesFile != "" {
 		if characters == nil {
