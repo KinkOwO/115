@@ -3,6 +3,7 @@ package main
 import (
 	"dfolan/internal/adventure"
 	"dfolan/internal/character"
+	"dfolan/internal/rosterbg"
 	"os"
 	"testing"
 )
@@ -99,5 +100,14 @@ func TestPVFMigrationSourceOnlyLocalArchive(t *testing.T) {
 	if progression.JournalRoutes == nil || len(progression.JournalRoutes.Nodes) != 29 {
 		t.Fatal("native embedded journal routes missing")
 	}
-	t.Log("46 selectors / 53 source families prepared with all selected export JSON paths absent")
+	restoreBackgrounds, err := c.installRosterBackgrounds()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer restoreBackgrounds()
+	backgrounds, err := rosterbg.CurrentTickets()
+	if err != nil || len(backgrounds.Items) != 95 || len(backgrounds.Backgrounds) != 63 {
+		t.Fatal("native background tickets or resources missing", err)
+	}
+	t.Log("47 selectors / 55 source families prepared with all selected export JSON paths absent")
 }

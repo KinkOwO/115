@@ -28,6 +28,13 @@ type State struct {
 // 资源 SHA256：2429b15aa4235be32c3f3b49676646a25b6bf42bd45d5d651dae7e6fd9186167。
 // 仅证明资源存在；特殊背景仍须账号拥有，不能由编号范围自动授予。
 func (b Background) Valid() bool {
+	if catalog := currentTicketCatalog.Load(); catalog != nil {
+		return catalog.ValidBackground(b)
+	}
+	return legacyBackgroundValid(b)
+}
+
+func legacyBackgroundValid(b Background) bool {
 	return b.Category == 0 && b.ID <= 5 || b.Category == 1 && (b.ID <= 51 || b.ID >= 500 && b.ID <= 504)
 }
 

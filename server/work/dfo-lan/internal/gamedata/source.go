@@ -9,6 +9,7 @@ import (
 	"dfolan/internal/character"
 	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
+	"dfolan/internal/rosterbg"
 	"encoding/hex"
 	"fmt"
 	"path/filepath"
@@ -50,6 +51,10 @@ func (s *Source) Season(index catalog.ItemIndex) (*adventure.SeasonRules, error)
 
 func (s *Source) OdysseyJournalRoutes() (*catalog.OdysseyJournalRoutes, error) {
 	return catalog.ImportOdysseyJournalRoutes(s.archive)
+}
+
+func (s *Source) RosterBackgrounds(index catalog.ItemIndex) (*rosterbg.TicketCatalog, error) {
+	return catalog.ImportRosterBackgroundTickets(s.archive, index)
 }
 
 func (s *Source) Lottery(index catalog.ItemIndex, policy catalog.LotteryPolicy) (catalog.LotteryTables, error) {

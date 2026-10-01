@@ -1,6 +1,6 @@
 # PVF直读第五批：特殊内容与奖励候选（2026-10-01）
 
-第四批28个选择项/34类源数据已由用户确认正常。confirmed baseline 为 `pvf-migration-candidate.json`，程序SHA256 `5475dbccdf316f4c582cc2742b22e1f66b5512f22e04997ccb23a031f6e36609`。本批新增两项仅为离线候选，继续实施其余迁移。
+第四批28个选择项/34类源数据已由用户确认正常。confirmed baseline 为 `pvf-migration-candidate.json`，程序SHA256 `5475dbccdf316f4c582cc2742b22e1f66b5512f22e04997ccb23a031f6e36609`。第五批新增内容均为离线候选，下文按各次迁移记录；最新47选择项/55类源投影，继续实施其余迁移。
 
 | 选择项 | PVF来源与完整核对 |
 | --- | --- |
@@ -108,3 +108,9 @@ SHA256：`fcefe7737c198e1425a4d87c03affc7122f7828d1615412835751ed1beafcf2d`。
 新增odyssey-routes直读选择项，从contents/2026/aradodyssey/etc/aradodysseyjournal.cos的[node]/[teleport info]/[dungeon]有序块读取29个日志传送节点、50个副本引用和原生目的地区域/坐标。原始SHA256 d4654fa9a50ddd582077f5f7a0a19835ec4fb6b777f032d1a66be7f288eff67e及7ef归档身份必须一致，全部节点完整匹配内嵌目录。准备阶段完成来源验证，运行服务绑定独立深拷贝；正常直读不解析odyssey_journal_routes.json。全部50个进度前缀下2958次传送资格对比通过，保留按先前节点已确认通关解锁、仅比较目的地town/area、允许客户端不同合法落点及尾标志[0,2]、排除地图选择器标志5的现有行为；不改区域变更封包或世界落点校验。合计46选择项/53类有效源投影；缺失所选JSON联合准备48.22秒、完整源审计10.37秒、全量Go测试/vet、8项Python测试和只读依赖检查通过。profile为pvf-odyssey-routes-candidate.json，程序SHA256 d05244375fb6e98af0356259a598bb43f7d8bb6fec1527eba34cef89959dbdef。确认范围仍为第四批28项，第五批新增候选未实机。
 
 独立程序路径server/work/dfo-lan/.tmp/pvf-odyssey-routes/bin/wireprobe-handoff-source.exe；旧45项及全部旧profile保持。重放已有魔界(31,2)和天界(12,0)入口单元案例通过；跨来源角色与地图选择器尾标志拒绝。关闭内嵌读取后所有进度前缀仍可查询，绑定切片改动不影响准备源。未启动客户端或服务，未连接玩家数据库，不改schema和存档。
+
+## 后续选角背景券与原生资源（离线候选）
+
+新增roster-backgrounds直读选择项，从原生索引遍历所有stackable脚本，以[action type]的[change bg select character]定位95张选角背景券，读取类别/编号、[action expiration info]的永久/按天/固定日期、源路径和哈希，72永久、2按天、21日期完整一致。63个背景类别/编号由etc/selectcharacterver2/selectcharacterver2.etc的[group]/[image]闭合块读取，原始SHA256 5ef228e9f72658cefd402227e8f6f33972609b61c59ce89c334bdbf0caaaba27，全部16777216个uint8类别/uint16编号组合与原有效性边界一致。图片中的同名[background image]字段按所有者区分。158次授权时间边界一致，物品删除日期与背景授权日期保持独立。规则和资源索引在存储前深拷贝安装，TicketFor及Background.Valid正常直读不解析tickets.json或使用旧编号范围；特殊背景仍需账号拥有，五页选择、原生32位时间和交易流程保持。旧2429外层只作已知完整审计来源，不改7ef运行或存档身份。合计47选择项/55类有效源投影；缺失所选JSON联合准备60.31秒、完整源审计17.46秒、全量Go测试/vet、8项Python测试及只读依赖检查通过。profile为pvf-roster-backgrounds-candidate.json，程序SHA256 b5530fa668bf0a54c3e0c4cc2651e253402d2ac423528c65c168b7c4a7ef2799。确认范围仍为第四批28项，第五批新增候选未实机。
+
+独立程序路径server/work/dfo-lan/.tmp/pvf-roster-backgrounds/bin/wireprobe-handoff-source.exe。旧46项及全部旧profile保持，没有新增策略文件或账号自动授予。未启动客户端或服务，未连接玩家数据库，不改封包、schema或账号/角色存档。

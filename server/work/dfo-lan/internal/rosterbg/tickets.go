@@ -2,10 +2,12 @@ package rosterbg
 
 import (
 	_ "embed"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -22,19 +24,58 @@ type Ticket struct {
 	SHA256     string     `json:"sha256"`
 }
 
-var loadTickets = sync.OnceValues(func() (map[uint32]Ticket, error) {
-	var data struct {
-		Source string            `json:"source"`
-		Items  map[uint32]Ticket `json:"items"`
+type TicketCatalog struct {
+	Source           string            `json:"source"`
+	Items            map[uint32]Ticket `json:"items"`
+	BackgroundPath   string            `json:"background_path,omitempty"`
+	BackgroundSHA256 string            `json:"background_sha256,omitempty"`
+	Backgrounds      []Background      `json:"backgrounds,omitempty"`
+	valid            map[Background]bool
+}
+
+func (c *TicketCatalog) ValidBackground(b Background) bool {
+	if c == nil {
+		return false
 	}
+	if len(c.Backgrounds) == 0 {
+		return legacyBackgroundValid(b)
+	}
+	return c.valid[b]
+}
+
+var loadTickets = sync.OnceValues(func() (*TicketCatalog, error) {
+	var data TicketCatalog
 	if err := json.Unmarshal(ticketData, &data); err != nil {
 		return nil, err
 	}
-	if len(data.Source) != 64 || len(data.Items) == 0 {
+	return NewTicketCatalog(data)
+})
+
+func NewTicketCatalog(data TicketCatalog) (*TicketCatalog, error) {
+	if b, err := hex.DecodeString(data.Source); err != nil || len(b) != 32 || len(data.Items) == 0 {
 		return nil, fmt.Errorf("背景券源规则不完整")
 	}
+	data.valid = map[Background]bool{}
+	if len(data.Backgrounds) > 0 {
+		if data.BackgroundPath != "etc/selectcharacterver2/selectcharacterver2.etc" {
+			return nil, fmt.Errorf("invalid background resource path")
+		}
+		if b, err := hex.DecodeString(data.BackgroundSHA256); err != nil || len(b) != 32 {
+			return nil, fmt.Errorf("invalid background resource hash")
+		}
+		for _, background := range data.Backgrounds {
+			if background.Category > 1 || data.valid[background] {
+				return nil, fmt.Errorf("invalid or duplicate native background")
+			}
+			data.valid[background] = true
+		}
+	}
 	for id, ticket := range data.Items {
-		if id == 0 || ticket.Background.Category != 1 || !ticket.Background.Valid() || ticket.Path == "" || len(ticket.SHA256) != 64 {
+		valid := legacyBackgroundValid(ticket.Background)
+		if len(data.Backgrounds) > 0 {
+			valid = data.valid[ticket.Background]
+		}
+		if id == 0 || ticket.Background.Category != 1 || !valid || ticket.Path == "" || len(ticket.SHA256) != 64 {
 			return nil, fmt.Errorf("背景券%d的源规则无效", id)
 		}
 		switch ticket.Expiration {
@@ -54,15 +95,44 @@ var loadTickets = sync.OnceValues(func() (map[uint32]Ticket, error) {
 			return nil, fmt.Errorf("背景券%d的期限类型尚未支持", id)
 		}
 	}
-	return data.Items, nil
-})
+	return &data, nil
+}
+
+var currentTicketCatalog atomic.Pointer[TicketCatalog]
+
+func EmbeddedTickets() (*TicketCatalog, error) { return loadTickets() }
+
+func CurrentTickets() (*TicketCatalog, error) {
+	if c := currentTicketCatalog.Load(); c != nil {
+		return c, nil
+	}
+	return loadTickets()
+}
+
+func InstallTickets(source *TicketCatalog) (func(), error) {
+	if source == nil || len(source.Backgrounds) == 0 {
+		return nil, fmt.Errorf("missing native background resources")
+	}
+	c := *source
+	c.Items = make(map[uint32]Ticket, len(source.Items))
+	for k, v := range source.Items {
+		c.Items[k] = v
+	}
+	c.Backgrounds = append([]Background(nil), source.Backgrounds...)
+	validated, err := NewTicketCatalog(c)
+	if err != nil {
+		return nil, err
+	}
+	previous := currentTicketCatalog.Swap(validated)
+	return func() { currentTicketCatalog.Store(previous) }, nil
+}
 
 func TicketFor(template uint32) (Ticket, error) {
-	tickets, err := loadTickets()
+	tickets, err := CurrentTickets()
 	if err != nil {
 		return Ticket{}, err
 	}
-	ticket, ok := tickets[template]
+	ticket, ok := tickets.Items[template]
 	if !ok {
 		return Ticket{}, fmt.Errorf("物品%d不是源定义的选角背景券", template)
 	}
