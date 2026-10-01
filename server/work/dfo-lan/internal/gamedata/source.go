@@ -4,6 +4,7 @@ package gamedata
 
 import (
 	"dfolan/internal/adventure"
+	"dfolan/internal/cashshop"
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/character"
@@ -35,6 +36,10 @@ type Options struct {
 type Source struct {
 	mode    Mode
 	archive *pvf.Archive
+}
+
+func (s *Source) CashShop() (cashshop.PilotConfig, error) {
+	return cashshop.ImportPilot(s.archive)
 }
 
 func (s *Source) Adventure(index catalog.ItemIndex) (*adventure.Rules, error) {

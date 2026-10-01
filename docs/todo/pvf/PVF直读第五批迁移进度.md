@@ -1,6 +1,6 @@
 # PVF直读第五批：特殊内容与奖励候选（2026-10-01）
 
-第四批28个选择项/34类源数据已由用户确认正常。confirmed baseline 为 `pvf-migration-candidate.json`，程序SHA256 `5475dbccdf316f4c582cc2742b22e1f66b5512f22e04997ccb23a031f6e36609`。第五批新增内容均为离线候选，下文按各次迁移记录；最新51选择项/60类源投影，继续实施其余迁移。
+第四批28个选择项/34类源数据已由用户确认正常。confirmed baseline 为 `pvf-migration-candidate.json`，程序SHA256 `5475dbccdf316f4c582cc2742b22e1f66b5512f22e04997ccb23a031f6e36609`。第五批新增内容均为离线候选，下文按各次迁移记录；最新52选择项/61类源投影，继续实施其余迁移。
 
 | 选择项 | PVF来源与完整核对 |
 | --- | --- |
@@ -138,3 +138,9 @@ SHA256：`fcefe7737c198e1425a4d87c03affc7122f7828d1615412835751ed1beafcf2d`。
 新增characters直读选择项，17个职业属性、初始/转职/觉醒技能授予、成长及默认装备/外观从原生CHR读取。完整运行字段审计通过，旧JSON与原始导入的341处差异已逐项归因：175处源命令、61处转职快捷栏、54处初始快捷栏和各17处重复成长/预设/栏位视图。独立pvf-character-policy.json只保留已确认源身份、17职业默认快捷栏及源命令/转职快捷栏启用策略；运行保持原有快捷栏和默认命令行为，完整原始成长视图另行保留，不改源导入器。17个CHR哈希不变，存档源仍严格绑定7ef，不加source alias、不迁移或改写账号/角色存档。正常读取连characters.skycastle-release.json源锚点也可缺失；所有51选择项/60类投影缺失JSON联合准备62.34秒，17职业完整审计10.57秒，全量Go测试/vet、11项Python测试和只读依赖检查通过。profile为pvf-characters-candidate.json，程序SHA256 576d41bc830a18aea83f9af0eb322b475540809e7f3abd02f67228ef138438b6。确认范围仍为第四批28项，第五批新增候选未实机。
 
 独立程序路径server/work/dfo-lan/.tmp/pvf-characters/bin/wireprobe-handoff-source.exe。第四批已确认程序SHA256仍为5475dbccdf316f4c582cc2742b22e1f66b5512f22e04997ccb23a031f6e36609。未启动客户端或服务、不接入玩家数据库；只读检查只探测已有依赖端口。
+
+## 后续现金商城原生目录（离线候选）
+
+新增cashshop直读选择项，从etc/(r)cerashop.etc、stackable/equipment原生列表及全部关联STK/EQU读取价格、商品与购买策略。17245条商品记录的全部typed cells、索引路径、原始脚本哈希、原有导入拒绝原因及8组源策略完整一致；实际16606项可购买Product投影完整一致。发布模式保留为既有DFO_SHOP_RELEASE独立服务端开关，候选显式为1；不改变扣款、事务、发货、契约、限购或仓库容量行为。NewPilot复用原LoadPilot验证和分类，深拷贝导入行/脚本/策略，ProductSnapshot不暴露购买缓存；正常读取及准备复用不访问shop-vault-release.json。52选择项/61类源投影缺失JSON联合准备50.05秒，完整商城审计15.05秒，全量Go测试/vet、12项Python测试和只读依赖检查通过。profile为pvf-cashshop-candidate.json，程序SHA256 a126d896a55ca75628a28574747f3130484e5cb50205773ce53a7d44db175c45。确认范围仍为第四批28项，第五批新增候选未实机。
+
+独立程序路径server/work/dfo-lan/.tmp/pvf-cashshop/bin/wireprobe-handoff-source.exe。第四批确认程序、旧profile和玩家数据库保持，未启动客户端或服务。

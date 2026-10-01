@@ -48,6 +48,15 @@ class RepairProfileTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 load_profile(p, pathlib.Path(directory))
 
+    def test_cashshop_native_profile_retains_release_policy_without_export(self):
+        project = pathlib.Path(__file__).resolve().parent.parent
+        binary, required, env = load_profile(project / 'configs/pvf-cashshop-candidate.json', project)
+        self.assertEqual(len(env['DFO_PVF_CATALOGS'].split(',')), 52)
+        self.assertEqual(binary, project / '.tmp/pvf-cashshop/bin/wireprobe-handoff-source.exe')
+        self.assertEqual(env['DFO_SHOP_RELEASE'], '1')
+        self.assertNotIn('DFO_SHOP_PURCHASE_PILOT', env)
+        self.assertTrue(all(p.suffix != '.json' or 'policy' in p.name for p in required))
+
     def test_pvf_candidate_is_explicit_and_source_bound(self):
         project = pathlib.Path(__file__).resolve().parent.parent
         binary, required, env = load_profile(project / 'configs/pvf-direct-candidate.json', project)
