@@ -3,6 +3,7 @@ package inventory
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
+	"encoding/binary"
 	"encoding/json"
 	"testing"
 )
@@ -170,5 +171,55 @@ func TestAwakeningReceiptRoundTrip(t *testing.T) {
 	}
 	if _, err := readAwakeningReceipt(state, "key-2"); err == nil {
 		t.Fatal("a mismatched key must not replay")
+	}
+}
+
+// 升品的落库顺序 bug（2026-10-02 实机）：写反了"先改 Template 再生成行"这一步，会让实例行
+// `+2` 停在旧模板、而 `BagEquipment.Template` 已是新模板 ⇒ `ValidateRecord` 从此挡住该装备的
+// 每一次操作（现象："升品没有成功"，之后点都点不动）。本测试钉住自愈与"顺序正确性"。
+func TestHealAwakeningRecordSyncsTemplateField(t *testing.T) {
+	gear := BagEquipment{Slot: 24, Template: 100051275, Record: make([]byte, protocol.CurrentItemRecordSize)}
+	binary.LittleEndian.PutUint16(gear.Record[0:], 24)
+	binary.LittleEndian.PutUint32(gear.Record[2:], 100051304) // 旧模板（写坏的样子）
+	gear.Record[10] = 7                                       // 强化等级之类的实例字节
+	gear.Record[170] = 3                                      // 调适阶段
+	if err := gear.ValidateRecord(); err == nil {
+		t.Fatal("夹具必须是一致性被破坏的状态")
+	}
+	healed, changed := healAwakeningRecord(gear)
+	if !changed {
+		t.Fatal("heal must report a change")
+	}
+	if err := healed.ValidateRecord(); err != nil {
+		t.Fatalf("healed record is still invalid: %v", err)
+	}
+	if got := binary.LittleEndian.Uint32(healed.Record[2:]); got != 100051275 {
+		t.Fatalf("template field = %d, want 100051275", got)
+	}
+	if healed.Record[10] != 7 || healed.Record[170] != 3 {
+		t.Fatal("heal must not touch other instance bytes")
+	}
+	// 已经一致 ⇒ 不改、不报告改动。
+	if _, changed := healAwakeningRecord(healed); changed {
+		t.Fatal("a consistent record must not be rewritten")
+	}
+	// 长度不对（畸形记录）⇒ 原样返回，交给 ValidateRecord 报错。
+	if _, changed := healAwakeningRecord(BagEquipment{Slot: 1, Template: 7, Record: []byte{1, 2, 3}}); changed {
+		t.Fatal("a malformed record must not be reported as healed")
+	}
+}
+
+// EquipmentRow 生成的行 `+2` 必须等于 gear.Template —— 升品落库顺序正确性的最小回归网。
+func TestEquipmentRowCarriesTemplate(t *testing.T) {
+	gear := BagEquipment{Slot: 18, Template: 100211088, Record: make([]byte, protocol.CurrentItemRecordSize)}
+	row := EquipmentRow(gear)
+	if got := binary.LittleEndian.Uint32(row[2:]); got != 100211088 {
+		t.Fatalf("row template = %d, want 100211088", got)
+	}
+	// 升品场景：先把 Template 换成新模板再生成行 —— 行里必须是新模板。
+	gear.Template = 100211089
+	row = EquipmentRow(gear)
+	if got := binary.LittleEndian.Uint32(row[2:]); got != 100211089 {
+		t.Fatalf("row template after upgrade = %d, want 100211089", got)
 	}
 }

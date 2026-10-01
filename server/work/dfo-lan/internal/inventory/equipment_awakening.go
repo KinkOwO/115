@@ -6,6 +6,7 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/storage"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -57,6 +58,10 @@ type AwakeningReceipt struct {
 	Equipment      BagEquipment `json:"equipment"`
 	EquipmentSpace byte         `json:"equipment_space"`
 	EquipmentSlot  uint16       `json:"equipment_slot"`
+
+	// RecordHealed：本次读装备时发现实例行 `+2` 的模板字段与 `Template` 不一致，
+	// 已按 `Template` 自愈（见 applyAwakening 的注释）。只为诊断留痕。
+	RecordHealed bool `json:"record_healed,omitempty"`
 }
 
 // AwakeningSpend 是本次消耗的一项（Template 0 = 金币）。
@@ -162,6 +167,10 @@ func (s *WearService) applyAwakening(role storage.Character, counts json.RawMess
 		return fail(RefusalItems, "调适目标不在指定的所属角色槽位（空间 %d 槽 %d）", r.Space, r.Slot)
 	}
 	gear := items[gearIndex]
+	healedRecord := false
+	if healed, changed := healAwakeningRecord(gear); changed {
+		gear, healedRecord = healed, true
+	}
 	if err := gear.ValidateRecord(); err != nil {
 		return nil, nil, out, err
 	}
@@ -253,10 +262,21 @@ func (s *WearService) applyAwakening(role storage.Character, counts json.RawMess
 	}
 
 	// 落库：只动必要字段（阶段字节；升品时连模板一起换），其余实例字节原样保留。
+	//
+	// ⚠️ 顺序要紧：`EquipmentRow` 会把 `gear.Template` 写进行内 `+2` 的模板字段，
+	// 所以**必须先改 Template、再生成行**。反过来写（2026-10-02 的实机 bug）会让
+	// 行的模板停在旧值、而 `BagEquipment.Template` 已是新值 ⇒ 此后 `ValidateRecord`
+	// 的 `equipment instance template mismatch` 会挡住这件装备的每一次操作
+	// （现象：「升品没有成功」，且之后连点都没反应 —— 因为连读装备那步就报错了）。
+	if upgraded {
+		gear.Template = newTemplate
+	}
 	row := EquipmentRow(gear)
 	row[awakeningStageOffset] = byte(newStage)
-	gear.Template = newTemplate
 	gear.Record = append([]byte(nil), row[:]...)
+	if err := gear.ValidateRecord(); err != nil {
+		return nil, nil, out, err
+	}
 	items = append([]BagEquipment(nil), items...)
 	items[gearIndex] = gear
 	if r.Space == 3 {
@@ -272,6 +292,7 @@ func (s *WearService) applyAwakening(role storage.Character, counts json.RawMess
 		TemplateBefore: beforeTemplate, TemplateAfter: newTemplate, Upgraded: upgraded,
 		Spent: spent, Gold: bag.Gold,
 		Equipment: gear, EquipmentSpace: r.Space, EquipmentSlot: r.Slot,
+		RecordHealed: healedRecord,
 	}
 
 	next, err := SaveBag(role.State, bag)
@@ -291,6 +312,28 @@ func (s *WearService) applyAwakening(role storage.Character, counts json.RawMess
 
 // awakeningStageOffset 是装备实例行里的调适阶段字节（0xAA = 170）。
 const awakeningStageOffset = 170
+
+// healAwakeningRecord 以 `Template` 为准修正实例行 `+2` 的模板字段，返回修正后的装备与
+// "是否真的修过"。
+//
+// 为什么需要它：升品会同时改 `BagEquipment.Template` 与实例行 —— 而生成行（`EquipmentRow`）
+// 用的就是 `Template`，所以**必须先改 Template 再生成行**。2026-10-02 的实机 bug 正是写反了
+// 这一步：行的模板停在旧值、`Template` 已是新值，此后 `ValidateRecord` 的
+// `equipment instance template mismatch` 会挡住该装备的**每一次**操作（现象："升品没有
+// 成功"，且之后点都点不动、重启也一样）。这里做最小自愈：只改行内 `+2`，其余实例字节
+//（强化/增幅/附魔/品级/融合…）原样保留。长度不对时原样返回，交给 `ValidateRecord` 报错。
+func healAwakeningRecord(gear BagEquipment) (BagEquipment, bool) {
+	if len(gear.Record) != protocol.CurrentItemRecordSize {
+		return gear, false
+	}
+	if binary.LittleEndian.Uint32(gear.Record[2:]) == gear.Template {
+		return gear, false
+	}
+	rec := append([]byte(nil), gear.Record...)
+	binary.LittleEndian.PutUint32(rec[2:], gear.Template)
+	gear.Record = rec
+	return gear, true
+}
 
 // consumeBagTemplate 从背包里按模板扣 amount 个（跨多个堆叠槽，扣空即移除该行）。
 func consumeBagTemplate(b Bag, template, amount uint32) (Bag, uint32, error) {
@@ -461,9 +504,9 @@ func PlanAwakening(rules *catalog.EquipmentAwakeningRules, template uint32, leve
 		plan.StageAfter, plan.TemplateAfter = stage+1, template
 		return plan, nil
 	}
-	upgrade, ok := info.Upgrade(template)
+	upgrade, ok := rules.UpgradeSource(template)
 	if !ok {
-		return plan, Refuse(RefusalLimit, "该装备在阶段 %d 没有升品目标（源 [upgrade result] 无此模板）", stage)
+		return plan, Refuse(RefusalLimit, "该装备在阶段 %d 没有升品目标（源 [upgrade result] 全表无此模板）", stage)
 	}
 	if len(upgrade.Targets) == 0 {
 		return plan, Refuse(RefusalLimit, "该装备在阶段 %d 的升品候选为空", stage)

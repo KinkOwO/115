@@ -78,6 +78,49 @@ func TestEquipmentAwakeningRulesNative(t *testing.T) {
 	if !ok {
 		t.Fatal("missing (115, primeval, 0)")
 	}
+
+	// 跨块升品（实机 2026-10-02 的根因）：`100051304`（稀有防具）的升品条目写在
+	// `[condition] 115 rare 1` 块里，而升品动作发生在**阶 3** ⇒ 只按当前档的块查会
+	// 永远查不到、每次升品都被拒（现象："1–3 次成功，第 4 次无法升品"）。
+	crossBlock, ok := rules.UpgradeSource(100051304)
+	if !ok {
+		t.Fatal("100051304 must be resolvable through the cross-block upgrade table")
+	}
+	if len(crossBlock.Targets) != 12 {
+		t.Fatalf("100051304 candidates = %d (%v), want 12", len(crossBlock.Targets), crossBlock.Targets)
+	}
+	// 反证：它**不在** rare 3 块里 —— 若哪天源改了、它出现在同一块，本注释与实现都要重看。
+	if rare3, ok := rules.Info(115, "rare", 3); ok {
+		if _, exists := rare3.Upgrade(100051304); exists {
+			t.Fatal("100051304 unexpectedly lives in the rare 3 block; the cross-block merge comment is stale")
+		}
+	}
+	// 阶 3 的成本行必须是实机截图那一行：100000 金币 + 10361513×40 + 10400396×1。
+	rare3, ok := rules.Info(115, "rare", 3)
+	if !ok {
+		t.Fatal("missing (115, rare, 3)")
+	}
+	rareGroup, ok := rare3.Group(1)
+	if !ok {
+		t.Fatal("missing rare 3 group 1")
+	}
+	rareRow, ok := rareGroup.Row(3)
+	if !ok {
+		t.Fatal("missing rare stage 3 row")
+	}
+	wantRare3 := []EquipmentAwakeningItem{
+		{Template: EquipmentAwakeningGoldTemplate, Amount: 100000},
+		{Template: 10361513, Amount: 40},
+		{Template: 10400396, Amount: 1},
+	}
+	if len(rareRow.Items) != len(wantRare3) {
+		t.Fatalf("rare stage 3 items = %v, want %v", rareRow.Items, wantRare3)
+	}
+	for i := range wantRare3 {
+		if rareRow.Items[i] != wantRare3[i] {
+			t.Fatalf("rare stage 3 item %d = %v, want %v", i, rareRow.Items[i], wantRare3[i])
+		}
+	}
 	// epic 阶段 0 的成本行（实机 100261128 走的就是这块）：金币 1,500,000 + 10361515×15。
 	epic, ok := rules.Info(115, "epic", 0)
 	if !ok {

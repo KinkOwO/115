@@ -94,7 +94,8 @@ func (s *equipmentSession) awakenEquipment(service *inventory.WearService, w *wo
 		"equipment": out.TemplateBefore, "target": out.TemplateAfter,
 		"stage_before": out.StageBefore, "stage_after": out.StageAfter, "upgraded": out.Upgraded,
 		"level": out.Level, "rarity": out.Rarity, "rate": out.Rate, "gold": out.Gold,
-		"spent": spentDetail,
+		"record_healed": out.RecordHealed,
+		"spent":         spentDetail,
 		"payload_offset": r.PayloadOffset, "request_hex": hex.EncodeToString(p)})
 	return w.appendFameUpdate(plan, event), nil
 }

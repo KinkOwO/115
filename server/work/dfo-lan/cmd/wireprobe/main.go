@@ -1955,17 +1955,27 @@ func main() {
 			// the escape menu did nothing: the frame is complete, its
 			// payload is simply empty, and the checksum then covers only
 			// the two header bytes.
-			if len(frame.Raw) >= wire.ClientHeaderSize && retainRequestBody(frame.ID, bodySamples) {
-				entry["hex"] = hex.EncodeToString(frame.Raw)
+			// **判定与采样必须解耦**：`verified` 是业务前提（下面 frame.Type==1 的分发都靠它），
+			// 而 `retainRequestBody` 只决定"要不要把正文写进诊断日志"、且有 BodySampleLimit(8)
+			// 上限。2026-10-02 实机踩过：CMD2258 当时没列入 observedGameRequest ⇒ 走采样分支
+			// ⇒ 同一会话第 8 次之后每帧 `verified=false` ⇒ 客户端表现"调适 8 次后无法继续、
+			// 重进客户端又能再来 8 次"。这里始终解密并校验，只把正文记录压在采样上限内。
+			if len(frame.Raw) >= wire.ClientHeaderSize {
 				if p, e := wire.DecryptPayload(keys, frame.ID, frame.Raw[13:]); e == nil {
 					plaintext = p
-					entry["plain_hex"] = hex.EncodeToString(p)
 					verified = wire.Checksum(append(append([]byte{}, frame.Raw[11:13]...), p...)) == frame.Raw[7]
-					entry["checksum_ok"] = verified
-					if !observedGameRequest(frame.ID) {
-						entry["unimplemented_sample"] = true
+					if retainRequestBody(frame.ID, bodySamples) {
+						entry["hex"] = hex.EncodeToString(frame.Raw)
+						entry["plain_hex"] = hex.EncodeToString(p)
+						entry["checksum_ok"] = verified
+						if !observedGameRequest(frame.ID) {
+							entry["unimplemented_sample"] = true
+						}
 					}
 				} else {
+					if retainRequestBody(frame.ID, bodySamples) {
+						entry["hex"] = hex.EncodeToString(frame.Raw)
+					}
 					entry["decode_error"] = e.Error()
 				}
 			}

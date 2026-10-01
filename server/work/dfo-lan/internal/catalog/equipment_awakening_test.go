@@ -118,6 +118,17 @@ func TestParseEquipmentAwakeningRules(t *testing.T) {
 	if refund, ok := info.Refund(2); !ok || len(refund.Items) != 1 || refund.Items[0].Amount != 150 {
 		t.Fatalf("refund(2) = %+v/%v", refund, ok)
 	}
+	// 跨块升品：第二条 `[condition]`（primeval 5）里的条目也必须能被全表查到 ——
+	// 升品动作发生在阶 3，而源把不同来源的候选分散写在任意块里（见 Rules.Upgrades）。
+	if up, ok := rules.UpgradeSource(100401592); !ok || len(up.Targets) != 2 {
+		t.Fatalf("cross-block upgrade(100401592) = %+v/%v, want 2 candidates", up, ok)
+	}
+	if up, ok := rules.UpgradeSource(101001149); !ok || len(up.Targets) != 1 || up.Targets[0] != 101001150 {
+		t.Fatalf("cross-block upgrade(101001149) = %+v/%v", up, ok)
+	}
+	if _, ok := rules.UpgradeSource(99999999); ok {
+		t.Fatal("an unknown template must not resolve to an upgrade")
+	}
 
 	if _, ok := rules.Info(115, "rare", 5); ok {
 		t.Fatal("(115, rare, 5) must not exist")

@@ -180,8 +180,32 @@ type EquipmentAwakeningRules struct {
 	Bytes  int                 `json:"bytes"`
 
 	// MaxLevel = 源里 `[max awakening]`，本版本 3。
-	MaxLevel int                     `json:"max_level"`
+	MaxLevel int                      `json:"max_level"`
 	Infos    []EquipmentAwakeningInfo `json:"infos"`
+
+	// Upgrades 是**跨块合并**的升品表：源模板 → 候选目标。
+	//
+	// 为什么必须合并：`[upgrade result]` 的表**不按当前档分块**。实测 2026-10-02：
+	// `100051304`（稀有防具）的升品条目写在 `[condition] 115 rare 1` 块里，而升品动作
+	// 发生在**阶 3**（客户端第 4 次请求时面板显示的成本 = `rare 3` 的行 3：
+	// `100000 金币 + 10361513×40 + 10400396×1`，实机截图与源逐字段一致）。
+	// 只按当前档的块查会永远查不到 ⇒ 每次升品都被拒（现象："1–3 次成功，第 4 次无法升品"）。
+	Upgrades map[uint32]EquipmentAwakeningUpgrade `json:"upgrades"`
+}
+
+// UpgradeSource 在**全表**里查某个源模板的升品候选（升品动作必须用它，理由见 Upgrades）。
+//
+// 全局表为空时（例如单元测试手工构造的规则只填了分块表）回退到逐块查找。
+func (r EquipmentAwakeningRules) UpgradeSource(template uint32) (EquipmentAwakeningUpgrade, bool) {
+	if u, ok := r.Upgrades[template]; ok {
+		return u, true
+	}
+	for _, info := range r.Infos {
+		if u, ok := info.Upgrades[template]; ok {
+			return u, true
+		}
+	}
+	return EquipmentAwakeningUpgrade{}, false
 }
 
 // Info 按 (等级, 稀有度, 阶段) 取规则。
@@ -294,6 +318,45 @@ func ParseEquipmentAwakeningRules(text string) (EquipmentAwakeningRules, error) 
 			return out, fmt.Errorf("equipment awakening: duplicate [condition] %d `%s` %d", i.Level, i.Rarity, i.Stage)
 		}
 		seen[key] = true
+	}
+	// 合并出**跨块**的升品表：升品动作发生在阶 3，而 `[upgrade result]` 的源模板可能
+	// 被写在任意一个 `[condition]` 块里（见 EquipmentAwakeningRules.Upgrades 的说明）。
+	out.Upgrades = map[uint32]EquipmentAwakeningUpgrade{}
+	for _, info := range out.Infos {
+		for src, up := range info.Upgrades {
+			prev, ok := out.Upgrades[src]
+			if !ok {
+				out.Upgrades[src] = up
+				continue
+			}
+			merged := prev
+			switch {
+			case len(merged.Targets) == 0:
+				// 空候选（源里 `模板 0`）不能盖掉有候选的那条。
+				merged = up
+			case len(up.Targets) > 0:
+				// 两块都给了候选：取并集（源的语义未定，宁可放宽；去重保序）。
+				for _, t := range up.Targets {
+					dup := false
+					for _, have := range merged.Targets {
+						if have == t {
+							dup = true
+							break
+						}
+					}
+					if !dup {
+						merged.Targets = append(merged.Targets, t)
+					}
+				}
+				if up.Count > merged.Count {
+					merged.Count = up.Count
+				}
+			}
+			out.Upgrades[src] = merged
+		}
+	}
+	if len(out.Upgrades) == 0 {
+		return out, fmt.Errorf("equipment awakening: [upgrade result] is empty across every [condition]")
 	}
 	return out, nil
 }

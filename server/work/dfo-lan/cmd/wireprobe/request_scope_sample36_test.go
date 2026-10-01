@@ -60,3 +60,26 @@ func TestMonsterHistoryLogIsExemptFromTheBodySampleCap(t *testing.T) {
 		t.Fatalf("the exemption consumed samples: %d", seen[2329])
 	}
 }
+
+// 2026-10-02 回归：CMD2258（装备调适）漏了 `observedGameRequest` 豁免，于是同一会话第 8 次
+// 之后（恰好 BodySampleLimit）`verified` 不再被计算，之后所有调适请求都在 wire 层被判
+// "请求校验失败" → 客户端表现「调适 8 次后无法继续、重进客户端又能再来 8 次」，而同族的
+// CMD2259 当时已在豁免列表里。
+//
+// 除了补豁免，`main.go` 里 `verified` 的计算已与 `retainRequestBody` **解耦**（业务判定不再
+// 依赖日志采样配额），所以这类"漏登记就静默失效"的问题不会再出现；本测试锁住豁免本身。
+func TestAwakeningPromoteIsExemptFromTheBodySampleCap(t *testing.T) {
+	seen := map[uint16]int{2258: BodySampleLimit}
+	for i := 0; i < BodySampleLimit+5; i++ {
+		if !retainRequestBody(2258, seen) {
+			t.Fatal("装备调适请求在采样上限之后必须仍然被保留并校验")
+		}
+	}
+	if seen[2258] != BodySampleLimit {
+		t.Fatalf("the exemption consumed samples: %d", seen[2258])
+	}
+	// 同族命令（CMD2259 装备转换）本来就在豁免里，钉住它别被顺手改掉。
+	if !retainRequestBody(2259, nil) {
+		t.Fatal("CMD2259 必须在 observedGameRequest 豁免列表里")
+	}
+}
