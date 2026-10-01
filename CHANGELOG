@@ -3,6 +3,7 @@
 # CHANGELOG
 
 ## 2026-10-01
+- **服务端依赖边守卫（archtest）**：新增 `server/work/dfo-lan/internal/archtest/contract_test.go` 的 `TestDependencyContract`，把依赖契约 §2 的规则变成可执行断言：R1 纯基础设施不得依赖领域、R2 领域不得依赖 `storage`、R4 领域间协作必须显式、R6 领域不得依赖组合/工具层；允许清单 = 契约 §7 例外清单，并带"过期条目"检查强制只减不增。守卫复核时补齐一条此前遗漏的真实例外 `cashshop → inventory`，并同步契约（新增 `derivedcache`/`savecontract` 基础设施包、基线更新为 `8e627f5`）。全量 `go test ./...`（31 包）、`go vet ./...` 通过。仅新增测试与文档，不改运行时代码、schema、存档、协议或客户端资源，未部署、未升级 confirmed baseline。
 - **MR !123 整合至 !126**：保留 !126 的连接输出锁、装备事件收据恢复和原生拒绝码；纳入 !123 的逐包发送、装备行构造、会话事件键、解密白名单与回归测试。全量 go test ./... 和 go vet ./... 通过；无部署、schema 或存档格式改动，confirmed baseline 保持原确认范围。
 - **服务端依赖契约（架构契约基线）**：新增 `server/work/dfo-lan/docs/architecture-contract.md`，把原先口头、不可判定的依赖约定（"只消除无业务含义的转发"）升级为可机械判定的契约：分层（L0 传输/L1 协议与静态数据/L2 持久化/L3 领域/L4 组合工具）、六条依赖规则、22 个内部包的所有权表、落位判断标准，以及 `939c749` 时点的例外清单基线（协议→领域 4 条、领域→storage 6 条、领域↔领域 4 组，只减不增）。契约以 `architecture-refactor-plan.md` 为历史记录、本文为规则真源。本批仅新增文档，不改任何 Go 代码、schema、存档、协议或客户端资源；依赖边守卫测试（`internal/archtest`）列为下一批，未在本批实施。全量实机状态不变。
 - **本轮同步验证**：合并后Go1.26.0全量test/vet通过（含旧背包预热兼容测试）；当前PVF抽奖/自选原生回归和14项profile检查通过。提交范围检查排除运行时库、日志、临时产物及四份用户改动，新增实机验收状态保持待回归。
