@@ -1,5 +1,10 @@
 # 当前构建与第一阶段证据
 
+## 2026-10-01 PVF剧情层回访源目录候选
+
+新增layer-revisits直读选择项，任务12893末层回访由CMT的[MAP]、MAP basic action至原生cinematic列表的精确引用、唯一[CHANGE MAP]、DGN任务maze及末层/同格base地图读取。剧情地图100004546、恢复地图100004325、任务/网格、原始DGN/MAP/base MAP/ACT/CMT哈希及全部有效字段完整一致；源落点(165,289)与已实测record一致。独立pvf-layer-revisit-policy.json仅保留启用DGN/maze/CMT标识、实测18字节记录和resume_base缓存恢复策略，不保存导出地图、坐标、任务或哈希。正常选择项不读dungeons.layer-revisits.json，应用目录深拷贝，不改准备源副本；无效/异源/base不在同格及每个篡改record字节均拒绝。现有剧情结束回同格原战斗房、12个实体、死亡缓存与NOTI29 flag2/mode0测试通过，玩家仍需实际清怪开门。合计50选择项/59类有效源投影；缺失所选JSON联合准备65.72秒、完整源审计26.86秒、全量Go测试/vet、10项Python测试和只读依赖检查通过。profile为pvf-layer-revisits-candidate.json，程序SHA256 ebdbf6a17b045494c0569bcd1c852a2126f98d776416bd2320977f213b1f01d9。确认范围仍为第四批28项，第五批新增候选未实机。
+
+
 ## 2026-10-01 PVF脚本传送内嵌目录候选
 
 新增script-warps直读选择项，覆盖11条CMT传送和1条怪物动作强制切房。源CMT的[MAP]及原生cinematic列表绑定确定地图身份，[BEHAVIOR]内对象模板/地图对象序号、OBJ自定义动作索引、ACT的[MOVE MAP]或[KICK OUT MAP CHARACTER]确定目标格及落点；DGN/maze决定网格所属与目标地图，已声明的warp条件必须一致，源ACT强制/忽略状态路线允许没有重复DGN声明。怪物路线由原生monster列表、maze内实际怪物及其etc action定位。全部原始DGN/MAP/CMT/ACT/OBJ哈希、12条有效路线和落点字段完整一致。独立pvf-script-warp-policy.json只保留已启用源标识、实测18字节record及关键房准入，不保存导出地图/坐标/哈希。正常模式不解析两份内嵌script warp JSON；关闭内嵌数据后12条移动仍通过，源切片隔离、无效安装和逐字节篡改拒绝均通过。合计49选择项/58类有效源投影；缺失所选JSON联合准备53.76秒、完整源审计33.36秒、全量Go测试/vet、10项Python测试和只读依赖检查通过。profile为pvf-script-warps-candidate.json，程序SHA256 410ed509de6a125e01156e988d5d5cb17f444341c437d6c23622353811cb40d0。确认范围仍为第四批28项，第五批新增候选未实机。

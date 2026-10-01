@@ -400,3 +400,7 @@ func (s *Source) BleedingMine(index catalog.ItemIndex, policy loot.BleedingMineP
 func (s *Source) ScriptWarpRoutes(d catalog.DungeonCatalog, p catalog.ScriptWarpPolicy) ([]catalog.ScriptWarpRoute, error) {
 	return catalog.ImportScriptWarpRoutes(s.archive, d, p)
 }
+
+func (s *Source) LayerRevisits(d catalog.DungeonCatalog, p catalog.LayerRevisitPolicy) (catalog.LayerRevisitOverlay, error) {
+	return catalog.ImportLayerRevisits(s.archive, d, p)
+}

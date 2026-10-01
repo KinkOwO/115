@@ -21,6 +21,7 @@ import (
 // verifies complete effective projections; source checks remain mandatory in
 // normal direct mode as well as audit mode.
 type pvfCoreCatalogs struct {
+	layerRevisits                                *catalog.LayerRevisitOverlay
 	scriptWarps                                  []catalog.ScriptWarpRoute
 	fameRules                                    *character.FameRules
 	rosterBackgrounds                            *rosterbg.TicketCatalog
@@ -72,6 +73,7 @@ type pvfCoreCatalogs struct {
 }
 
 type pvfItemInputs struct {
+	layerRevisitPolicyPath                                                                                                 string
 	scriptWarpPolicyPath                                                                                                   string
 	lotteryPolicyPath                                                                                                      string
 	selectionBoxesPath, selectionPolicyPath                                                                                string
@@ -91,7 +93,7 @@ type pvfItemInputs struct {
 
 func (i pvfItemInputs) checksBaselines() bool { return i.verifyBaselines == nil || *i.verifyBaselines }
 
-const pvfSupportedDomains = "world,quests,progression,items,equipment,periods,skins,journal,create-cost,skills,prices,materials,boosters,tutorial,enhancements,random-options,shields,oath-grades,vault,loot,equipment-selection,town,dungeons,training-dungeons,tutorial-dungeons,dungeon-towers,dungeon-hell,dungeon-maze,apocalypse,attunement,odyssey-growth,odyssey-chapters,odyssey-weapons,odyssey-drop,odyssey-currency,clear-cube,black-purgatory,bleeding-mine,dungeon-terminal,dungeon-tournament,selection-boxes,lottery,adventure,adventure-recommended,season,odyssey-routes,roster-backgrounds,fame,script-warps"
+const pvfSupportedDomains = "world,quests,progression,items,equipment,periods,skins,journal,create-cost,skills,prices,materials,boosters,tutorial,enhancements,random-options,shields,oath-grades,vault,loot,equipment-selection,town,dungeons,training-dungeons,tutorial-dungeons,dungeon-towers,dungeon-hell,dungeon-maze,apocalypse,attunement,odyssey-growth,odyssey-chapters,odyssey-weapons,odyssey-drop,odyssey-currency,clear-cube,black-purgatory,bleeding-mine,dungeon-terminal,dungeon-tournament,selection-boxes,lottery,adventure,adventure-recommended,season,odyssey-routes,roster-backgrounds,fame,script-warps,layer-revisits"
 
 func parsePVFCatalogSelection(value string) (map[string]bool, error) {
 	supported := map[string]bool{}
@@ -333,6 +335,9 @@ func preparePVFCoreCatalogs(selection, path, checksum, characterPath, questPath,
 		return result, err
 	}
 	if err := preparePVFLottery(&result, source, selected, inputs); err != nil {
+		return result, err
+	}
+	if err := preparePVFLayerRevisits(&result, source, selected, inputs); err != nil {
 		return result, err
 	}
 	if err := preparePVFScriptWarps(&result, source, selected, inputs); err != nil {
