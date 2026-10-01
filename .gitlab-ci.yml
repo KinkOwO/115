@@ -1,0 +1,62 @@
+# .gitlab-ci.yml
+# 用于 server/Build-Server.ps1 的自动构建
+#
+# 前置要求：
+#   1. 注册一个 Windows Runner，并给它打上 tag: windows
+#   2. 该 Runner 的 executor shell 建议为 pwsh / powershell
+#   3. Runner 机器上已安装 Go（且 go 在 PATH 中），或者用变量 GO_BIN 指定绝对路径
+
+stages:
+  - build
+
+variables:
+  # 若 go 不在 PATH 里，可改成绝对路径，例如 "C:\\Go\\bin\\go.exe"
+  GO_BIN: "go"
+  # 如果 server/work/dfo-lan 是 git submodule，需要拉取
+  GIT_SUBMODULE_STRATEGY: recursive
+  GIT_DEPTH: "20"
+
+default:
+  tags:
+    - windows
+
+# ---------------------------------------------------------------------------
+# 常规构建：跑 test / vet / build，产出候选二进制
+# ---------------------------------------------------------------------------
+build:server:
+  stage: build
+  script:
+    - pwsh -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ./server/Build-Server.ps1 -Go "$env:GO_BIN"
+  artifacts:
+    name: "wireprobe-$CI_COMMIT_SHORT_SHA"
+    when: on_success
+    expire_in: 2 weeks
+    paths:
+      - server/work/dfo-lan/bin/wireprobe-handoff-source.exe
+      - server/work/dfo-lan/bin/wireprobe-pvf.exe
+  rules:
+    # MR、默认分支、tag 都触发
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_TAG
+
+# ---------------------------------------------------------------------------
+# 手动发布：带上 -UpdatePVFDefault，把候选版本发布为默认 PVF 网关
+# 只允许在 tag 上手动点击执行，避免误覆盖已验收的 wireprobe-pvf.exe
+# ---------------------------------------------------------------------------
+publish:pvf-default:
+  stage: build
+  script:
+    - pwsh -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ./server/Build-Server.ps1 -Go "$env:GO_BIN" -UpdatePVFDefault
+  artifacts:
+    name: "wireprobe-pvf-$CI_COMMIT_TAG"
+    when: on_success
+    expire_in: 1 month
+    paths:
+      - server/work/dfo-lan/bin/wireprobe-handoff-source.exe
+      - server/work/dfo-lan/bin/wireprobe-pvf.exe
+  rules:
+    - if: $CI_COMMIT_TAG
+      when: manual
+      allow_failure: false
+    - when: never
