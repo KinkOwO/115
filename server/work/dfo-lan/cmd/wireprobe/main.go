@@ -3768,7 +3768,11 @@ func main() {
 					event(map[string]any{"kind": "unseal_rejected", "reason": "checksum failed"})
 					continue
 				}
-				plan, request, e := worldState.unsealRandomOption(unsealService, lootService.Catalog.Source.Checksum, plaintext)
+				// ⚠️ 这里传的是**存档身份**（L1），必须用契约身份：`unseal.go` 把它写进
+				// `character_events.config_version` 并用于回执读回比较（`out.Source != version`）。
+				// 传 `Catalog.Source.Checksum`（内层真哈希）会让这些行在下一次内层重建后
+				// 与当次身份失配 —— 与 4171f55 统一掉的那 18 处写入侧同一口径（见 internal/savecontract）。
+				plan, request, e := worldState.unsealRandomOption(unsealService, lootService.Catalog.Source.SaveIdentity(), plaintext)
 				if e != nil {
 					event(map[string]any{"kind": "unseal_refused", "id": frame.ID, "character_id": worldState.role.ID, "reason": e.Error()})
 					if e = sendPayload(1, frame.ID, protocol.UnsealRefused(unsealRefusalCode(e))); e != nil {

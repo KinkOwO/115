@@ -86,7 +86,9 @@ func (s *Service) Pickup(ctx context.Context, role storage.Character, session *S
 	}
 	awardCatalog, bagRules := s.Catalog, s.BagRules
 	if d.Definition.Odyssey && session.Currency != nil {
-		if s.Currency == nil || session.Currency.Source != s.Catalog.Source.SaveIdentity() || session.Currency.Model != s.Currency.Model {
+		// 与 Death 里的同一判据：`session.Currency.Source` 是内层真哈希，
+		// 运行期对象之间比 Checksum（比 SaveIdentity() 会恒不等，见 session.go 的注释）。
+		if s.Currency == nil || session.Currency.Source != s.Catalog.Source.Checksum || session.Currency.Model != s.Currency.Model {
 			return fail(fmt.Errorf("currency pickup policy mismatch"))
 		}
 		awardCatalog, bagRules = session.Currency.StorageCatalog(s.Catalog), session.Currency.BagRules(s.BagRules)

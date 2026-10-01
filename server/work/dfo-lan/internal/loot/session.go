@@ -166,7 +166,14 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 	}
 	result.Awards = filterDungeonAwards(d.Definition, result.Awards)
 	if d.Definition.Odyssey && s.Currency != nil {
-		if s.Currency.Source != s.Catalog.Source.SaveIdentity() {
+		// ⚠️ 这里必须比**内层真哈希**（`Checksum`），不能比契约身份（`SaveIdentity()`）：
+		// `s.Currency.Source` 是 `ImportOdysseyCurrency` 里按 `a.Snapshot().Checksum` 赋的值，
+		// 两个运行期目录对象之间比的是"这一份源"，与存档身份无关。
+		// 2026-10-01 上游 4171f55「身份口径统一」把这一行批量改成了 SaveIdentity() ⇒
+		// 恒不相等 ⇒ **奥德赛副本每只小怪的死亡结算（Death）直接返回错误**：
+		// 掉落/经验/货币全丢、客户端拿不到结算 ⇒ 清完怪不开门（实机 23:26 每秒刷
+		// `dungeon_request_refused: Odyssey currency source mismatch`）。
+		if s.Currency.Source != s.Catalog.Source.Checksum {
 			return nil, fmt.Errorf("Odyssey currency source mismatch")
 		}
 		coins, next, err := s.Currency.Roll(result.NextSeed, monster.Rank)

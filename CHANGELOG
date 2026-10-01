@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## 2026-10-01：奥德赛清怪不结算修复 + 身份口径二次审计
+
+- 用户实机确认：奥德赛第一图（`Streaming Forest` / dungeon 100004934）清完小怪正常结算、传送门开启；装备/武器箱/药水发放正常。
+- **根因是身份口径误用**（不是清场逻辑）：`internal/loot/session.go` 的 `Death()`（每只怪死亡结算入口）把运行期目录对象 `s.Currency.Source`（内层真哈希 `be95d64e…`）与契约身份 `SaveIdentity()`（`c638346f…`）比较，**恒不相等** ⇒ 奥德赛副本每只小怪死亡结算第一步就返回错误：掉落/经验/奥德赛币全丢、客户端拿不到结算 ⇒ 清完怪不开门。实机日志每秒刷 `dungeon_request_refused: Odyssey currency source mismatch`。同一形态还有 `internal/loot/pickup.go` 的奥德赛币拾取检查（`currency pickup policy mismatch`）。
+- 该行来自**两次批量替换**：`4171f55` 把 `session.go` 那处由 `Checksum` 改成 `SaveIdentity()`；`pickup.go` 那处来自更早的 `07e1551`。判据以 `internal/savecontract` 的三级分级为准：L1 存档身份 = `Identity()`/`SaveIdentity()`，L3 运行时校验 = 内层哈希 `Checksum`（**仅启动期自检**）；两个运行期目录对象之间比的是 L3，必须用 `.Checksum`。
+- **逐点审计**两次批量替换的每一个身份比较/写入点（07e1551 约 40 处比较、4171f55 3 处比较与 18 处写入侧，另加全仓 `SaveIdentity()` 比较 ~90 处、`Source.Checksum` ~250 处、身份参数函数实参全量）。除上面两处外，另修掉两处 **L1 遗漏**：`cmd/wireprobe/main.go` 的 unseal version 实参、`internal/quest/odyssey_mainline.go` 的 `ClearQuests` version（后者传 `OdysseyGrowth.Source` 真哈希 ⇒ 恒匹配 0 行、主线清任务静默不生效）。
+- 新增守卫测试 `internal/savecontract/identity_usage_test.go`（AST 扫源码，三条规则：真哈希对象不得与契约身份比；身份参数函数不得收 `.Checksum`；不得写 `SaveIdentity()` 与 `Identity()` 的恒等式）。已用「注入错误」验证可精确捕获同类回归。
+- 清理 3 处**恒假冗余检查**（`odyssey_rewards.go` 的 `applyOdysseyArmor` / `applyOdysseyCreatePotion`、`odyssey_weapon_box.go` 的 `applyOdysseyWeaponChoice`）：`X.Source.SaveIdentity() != savecontract.Identity()` 两侧恒等、等于不写；用户实机确认这三条发放路径本就正常。同时把 `odyssey_create_potion_test.go` 里"名不副实"的目录校验断言改成显式钉住真实行为。
+- 验证：`go build`/`go vet` 全量通过；`internal/loot`（此前 2 项 Odyssey 失败转绿）、`internal/quest`、`internal/savecontract`、`cmd/wireprobe -run Odyssey` 全绿；全量 `go test -p 1` 仅剩 3 项 `cmd/wireprobe` 陈旧门禁期望（4171f55 把 `verifyPVFCatalog` 由熔断降级为警告后未同步，与本次改动无关）。
+
 ## 2026-10-01：副本结算后回城/进入下个副本已确认
 
 - 用户确认“能离开副本/进入下一个副本了”。根因是 CMD72 成功回包漏掉客户端公共分发器先消费的成功字节，导致回城/下一任务状态和选项错位；现恢复完整 `01 state option` 包络。验收覆盖任务3189关联副本，不外推为所有副本均逐一实测。
