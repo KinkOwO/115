@@ -396,3 +396,9 @@ CMT原始SHA256为1cf7200d226b99dea7425ea76cf59bf47a259f25b3c18efac27585e61cfbb9
 新增boxes直读选择项，两个同名radianttreasurebox.cos由原生[material]唯一关联：2024/0514属于590712474普通箱，2025/0318属于590719043增强箱。两个表的rate、材料数量、普通/特殊池、逐行tier/模板/数量/权重、bonus/section计数器、75次变形点及原postal tag全部一致；54个奖励的原生STK类型/堆叠/槽位完整一致，新增记录58条原始源哈希。旧boxes.json仅有描述来源且未记录原哈希，审计明确校验原描述并比较全部有效字段，不声称旧哈希可比；运行源严格为7ef。独立pvf-box-policy.json仅保留两个启用模板/COS候选路径、原有槽位及缺失stack limit默认1000；不保存奖励池、概率、节点或哈希，不按basename/日期/遍历顺序选择。正常直读不读/探测boxes.json；既有抽取、逐抽行、保底计数、契约和事务不变。53选择项/62类源投影缺失JSON联合准备51.87秒，完整礼盒审计15.79秒，全量Go测试/vet、13项Python测试及只读依赖检查通过。profile为pvf-boxes-candidate.json，程序SHA256 654540902348dc4bb713d283f5b7fa6b36fa26faab11b6e6ac428aaa33270c06。确认范围仍为第四批28项，第五批新增候选未实机。
 
 2024 COS原SHA256 a945a0ba5031d4b247c59afe43eb9e2790e2c1e44d94b846778e70842c8ec5b9；2025 COS原SHA256 6f0c21ab42caa55cc4a16d19260ce1dd0ae8a903931ee11e6746d12a069c7dc5。源动作类型分别为[radiant treasure box]/[enhanced radiant treasure box]；原material已闭环并非客户端脚本直接包含COS路径。NPC商店路由与源数据拆分、GM查询和最后默认切换继续实施。
+
+## 2026-10-01：物品商店源与服务端路由拆分
+
+新增item-shops直读选择项，527个现有服务端商店的全部7025条SHP商品、原始路径/哈希、源NPC/type、tab/index、purchase amount和材料支付完整一致；逐商品核对实际Materials/Listed/PurchaseAmount/PurchaseLimit查找也全部一致。独立pvf-item-shop-policy.json只保留既有服务端路由：202个同ID原生列表绑定、30个明确原生列表ID兼容映射、295个既有明确源路径；不把旧服务端ID解释为客户端原生ID，不按文件名或遍历顺序选冲突表，不扩大路由范围，当前295个未列入原生列表的服务端路径未重新证明为原生客户端路由。源价格/材料/商品/哈希不保存在策略内。purchase_limit_mode=disabled保留本服当前不限购行为，未直接将STK源限购自动接入交易。Odruz源100000607第三tab缺少[sell item list]起始标记，原导入器排除其4个item；新读取保持该准入边界，非法材料/未闭合条目拒绝。NewItemShops深拷贝offers/materials并复用首个可支付报价优先；正常读取不访问itemshop-candidate.json，源或运行目录不匹配时拒绝。54选择项/63类源投影缺失JSON联合准备67.68秒，完整商店审计10.92秒，全量Go测试/vet、14项Python测试及只读依赖检查通过。profile为pvf-item-shops-candidate.json，程序SHA256 c29f2d7134988d986b993af4bc33163e9b995f48663ccbdeb2ccf4c6f2f3ec63。确认范围仍为第四批28项，第五批新增候选未实机。
+
+原生list/itemshop.lst原SHA256 a0c1f809772ec56a68f5243b14567f24465701deceb5b748eb4b558a358fbe08。源scope与服务路由明确分开，未来改原生路由/补Odruz第3tab/启用源限购均属于另外的行为变更，本项不实施。GM查询、管理/修复工具共享目录及默认切换门禁继续处理。

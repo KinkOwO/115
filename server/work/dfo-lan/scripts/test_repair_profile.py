@@ -68,6 +68,17 @@ class RepairProfileTests(unittest.TestCase):
         self.assertNotIn('tables', policy)
         self.assertTrue(all(p.suffix != '.json' or 'policy' in p.name for p in required))
 
+    def test_item_shop_profile_preserves_route_policy_without_offers(self):
+        project = pathlib.Path(__file__).resolve().parent.parent
+        binary, required, env = load_profile(project / 'configs/pvf-item-shops-candidate.json', project)
+        self.assertEqual(len(env['DFO_PVF_CATALOGS'].split(',')), 54)
+        self.assertEqual(binary, project / '.tmp/pvf-item-shops/bin/wireprobe-handoff-source.exe')
+        policy = json.loads(pathlib.Path(env['DFO_PVF_ITEM_SHOP_POLICY']).read_text(encoding='utf-8'))
+        self.assertEqual(len(policy['routes']), 527)
+        self.assertEqual(policy['purchase_limit_mode'], 'disabled')
+        self.assertTrue(all(set(r) <= {'server_shop_id', 'native_shop_id', 'script_path'} for r in policy['routes']))
+        self.assertTrue(all(p.suffix != '.json' or 'policy' in p.name for p in required))
+
     def test_pvf_candidate_is_explicit_and_source_bound(self):
         project = pathlib.Path(__file__).resolve().parent.parent
         binary, required, env = load_profile(project / 'configs/pvf-direct-candidate.json', project)

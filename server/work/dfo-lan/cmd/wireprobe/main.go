@@ -76,6 +76,7 @@ func main() {
 	pvfVaultPolicy := flag.String("pvf-vault-policy", envStrOr("DFO_PVF_VAULT_POLICY", "configs/pvf-vault-policy.json"), "client capacity/save policy independent of PVF account vault table")
 	pvfContentPolicyPath := flag.String("pvf-content-policy", envStrOr("DFO_PVF_CONTENT_POLICY", "configs/pvf-content-policy.json"), "independent enabled special-content selection; source tables from PVF")
 	pvfSelectionPolicyPath := flag.String("pvf-selection-policy", envStrOr("DFO_PVF_SELECTION_POLICY", "configs/pvf-selection-policy.json"), "bounded selection box templates; source categories from PVF")
+	pvfItemShopPolicyPath := flag.String("pvf-item-shop-policy", envStrOr("DFO_PVF_ITEM_SHOP_POLICY", "configs/pvf-item-shop-policy.json"), "existing service shop routes and purchase-limit policy; offers from native SHP")
 	pvfBoxPolicyPath := flag.String("pvf-box-policy", envStrOr("DFO_PVF_BOX_POLICY", "configs/pvf-box-policy.json"), "enabled COS/box scope and existing placement defaults; rewards from native material bindings")
 	pvfCharacterPolicyPath := flag.String("pvf-character-policy", envStrOr("DFO_PVF_CHARACTER_POLICY", "configs/pvf-character-policy.json"), "saved source identity and default shortcut behavior; profession source fields from PVF")
 	pvfLayerRevisitPolicyPath := flag.String("pvf-layer-revisit-policy", envStrOr("DFO_PVF_LAYER_REVISIT_POLICY", "configs/pvf-layer-revisit-policy.json"), "verified layer revisit scope, record and cache restoration; source maps and landing from PVF")
@@ -189,7 +190,7 @@ func main() {
 	omenState := flag.Bool("omen-state", os.Getenv("DFO_OMEN_STATE") == "1", "征兆的正式状态：持有档数存进角色存档、进本按真实状态下发 noti 2836，并让隐藏 BOSS 由「满档结算」驱动（见 cmd/wireprobe/omen_state.go）。默认关闭")
 	scaleDeathFromHP := flag.Bool("scale-death-from-hp", os.Getenv("DFO_SCALE_DEATH_FROM_HP") == "1", "boundary-of-attunement 定盘机关(109019266)的兜底判死：它血量触底时服务端合成一条死亡上报，不再依赖引擎那两个恒为 72 的 rarity 天花板；默认关闭")
 	flag.Parse()
-	pvfCatalogs, pvfCatalogErr := preparePVFCoreCatalogs(*pvfCatalogSelection, *pvfArchivePath, *pvfArchiveChecksum, *characterCatalog, *questCatalogFile, *progressionCatalogFile, *worldCatalogFile, pvfItemInputs{boxesPath: *boxesFile, boxPolicyPath: *pvfBoxPolicyPath, cashshopPath: *shopPilotFile, cashshopRelease: *shopRelease, characterPolicyPath: *pvfCharacterPolicyPath, layerRevisitPolicyPath: *pvfLayerRevisitPolicyPath, scriptWarpPolicyPath: *pvfScriptWarpPolicyPath, lotteryPolicyPath: *pvfLotteryPolicyPath, selectionBoxesPath: *selectionBoxFile, selectionPolicyPath: *pvfSelectionPolicyPath, minePath: *bleedingMineRewardsFile, indexPath: *itemIndexFile, fullPrefix: *fullEquipmentFile, journalPath: *equipmentJournalRulesFile, createCostPath: *equipmentCreateCostFile, learningPath: *learningFile, pricesPath: *shopPricesFile, boosterPath: *boosterCatalogFile, tutorialPath: *tutorialRoutesFile, verifyBaselines: pvfVerifyBaselines, enhancementPolicyPath: *pvfEnhancementPolicy, randomOptionPath: *randomOptionFile, shieldPath: *knightShieldFile, wearRulesPath: *wearRulesFile, oathPath: *oathGradesTable, vaultPath: *vaultRulesFile, vaultPolicyPath: *pvfVaultPolicy, lootPath: *lootCatalogFile, equipmentPath: *equipmentCatalogFile, questEquipmentPath: *equipmentRewardFile, dropPolicyPath: *pvfDropPolicy, townPath: *townCatalogFile, dungeonPath: *dungeonCatalogFile, tutorialDungeonPath: *tutorialDungeonsFile, scenePolicyPath: *pvfScenePolicyPath, apocalypsePath: *apocalypseCatalogFile, attunementPath: *attunementRewardsFile, contentPolicyPath: *pvfContentPolicyPath})
+	pvfCatalogs, pvfCatalogErr := preparePVFCoreCatalogs(*pvfCatalogSelection, *pvfArchivePath, *pvfArchiveChecksum, *characterCatalog, *questCatalogFile, *progressionCatalogFile, *worldCatalogFile, pvfItemInputs{itemShopPath: *itemShopFile, itemShopPolicyPath: *pvfItemShopPolicyPath, boxesPath: *boxesFile, boxPolicyPath: *pvfBoxPolicyPath, cashshopPath: *shopPilotFile, cashshopRelease: *shopRelease, characterPolicyPath: *pvfCharacterPolicyPath, layerRevisitPolicyPath: *pvfLayerRevisitPolicyPath, scriptWarpPolicyPath: *pvfScriptWarpPolicyPath, lotteryPolicyPath: *pvfLotteryPolicyPath, selectionBoxesPath: *selectionBoxFile, selectionPolicyPath: *pvfSelectionPolicyPath, minePath: *bleedingMineRewardsFile, indexPath: *itemIndexFile, fullPrefix: *fullEquipmentFile, journalPath: *equipmentJournalRulesFile, createCostPath: *equipmentCreateCostFile, learningPath: *learningFile, pricesPath: *shopPricesFile, boosterPath: *boosterCatalogFile, tutorialPath: *tutorialRoutesFile, verifyBaselines: pvfVerifyBaselines, enhancementPolicyPath: *pvfEnhancementPolicy, randomOptionPath: *randomOptionFile, shieldPath: *knightShieldFile, wearRulesPath: *wearRulesFile, oathPath: *oathGradesTable, vaultPath: *vaultRulesFile, vaultPolicyPath: *pvfVaultPolicy, lootPath: *lootCatalogFile, equipmentPath: *equipmentCatalogFile, questEquipmentPath: *equipmentRewardFile, dropPolicyPath: *pvfDropPolicy, townPath: *townCatalogFile, dungeonPath: *dungeonCatalogFile, tutorialDungeonPath: *tutorialDungeonsFile, scenePolicyPath: *pvfScenePolicyPath, apocalypsePath: *apocalypseCatalogFile, attunementPath: *attunementRewardsFile, contentPolicyPath: *pvfContentPolicyPath})
 	if pvfCatalogErr != nil {
 		log.Fatalf("PVF candidate catalogs: %v", pvfCatalogErr)
 	}
@@ -361,7 +362,7 @@ func main() {
 			}
 		}
 	}
-	if *itemShopFile == "" {
+	if *itemShopFile == "" && pvfCatalogs.itemShops == nil {
 		candidates := []string{
 			"configs/itemshop-release.json",
 			"configs/itemshop-candidate.json",
@@ -1353,10 +1354,20 @@ func main() {
 	// 物品商店表：源用 [need material] 定价的商品（奥德赛商店的盒子要 100 个银币）
 	// 必须按材料扣，否则一律按写死的金币单价白送。
 	var itemShops *catalog.ItemShops
-	if *itemShopFile != "" {
+	if *itemShopFile != "" || pvfCatalogs.itemShops != nil {
 		var err error
-		itemShops, err = catalog.LoadItemShops(*itemShopFile)
+		shopSource := ""
+		if pvfCatalogs.itemShops != nil {
+			shopSource = pvfCatalogs.itemShops.Source.Checksum
+		}
+		if lootService != nil {
+			shopSource = lootService.Catalog.Source.Checksum
+		}
+		itemShops, err = pvfCatalogs.loadItemShops(*itemShopFile, shopSource)
 		if err != nil {
+			if pvfCatalogs.itemShops != nil {
+				log.Fatal(err)
+			}
 			log.Printf("warning: load item shops (%s): %v", *itemShopFile, err)
 		} else {
 			log.Printf("loaded item shops (%d shops) from %s", len(itemShops.Shops), *itemShopFile)

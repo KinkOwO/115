@@ -1,6 +1,6 @@
 # PVF直读第五批：特殊内容与奖励候选（2026-10-01）
 
-第四批28个选择项/34类源数据已由用户确认正常。confirmed baseline 为 `pvf-migration-candidate.json`，程序SHA256 `5475dbccdf316f4c582cc2742b22e1f66b5512f22e04997ccb23a031f6e36609`。第五批新增内容均为离线候选，下文按各次迁移记录；最新53选择项/62类源投影，继续实施其余迁移。
+第四批28个选择项/34类源数据已由用户确认正常。confirmed baseline 为 `pvf-migration-candidate.json`，程序SHA256 `5475dbccdf316f4c582cc2742b22e1f66b5512f22e04997ccb23a031f6e36609`。第五批新增内容均为离线候选，下文按各次迁移记录；最新54选择项/63类源投影，继续实施其余迁移。
 
 | 选择项 | PVF来源与完整核对 |
 | --- | --- |
@@ -150,3 +150,9 @@ SHA256：`fcefe7737c198e1425a4d87c03affc7122f7828d1615412835751ed1beafcf2d`。
 新增boxes直读选择项，两个同名radianttreasurebox.cos由原生[material]唯一关联：2024/0514属于590712474普通箱，2025/0318属于590719043增强箱。两个表的rate、材料数量、普通/特殊池、逐行tier/模板/数量/权重、bonus/section计数器、75次变形点及原postal tag全部一致；54个奖励的原生STK类型/堆叠/槽位完整一致，新增记录58条原始源哈希。旧boxes.json仅有描述来源且未记录原哈希，审计明确校验原描述并比较全部有效字段，不声称旧哈希可比；运行源严格为7ef。独立pvf-box-policy.json仅保留两个启用模板/COS候选路径、原有槽位及缺失stack limit默认1000；不保存奖励池、概率、节点或哈希，不按basename/日期/遍历顺序选择。正常直读不读/探测boxes.json；既有抽取、逐抽行、保底计数、契约和事务不变。53选择项/62类源投影缺失JSON联合准备51.87秒，完整礼盒审计15.79秒，全量Go测试/vet、13项Python测试及只读依赖检查通过。profile为pvf-boxes-candidate.json，程序SHA256 654540902348dc4bb713d283f5b7fa6b36fa26faab11b6e6ac428aaa33270c06。确认范围仍为第四批28项，第五批新增候选未实机。
 
 独立程序路径server/work/dfo-lan/.tmp/pvf-boxes/bin/wireprobe-handoff-source.exe。原接口对可变缓存的访问不变，重复reward行保留原顺序，错误/重复material、未闭合块、负数、行数及权重溢出拒绝。未启动客户端或服务、不接入玩家数据库。
+
+## 后续物品商店源与服务端路由拆分（离线候选）
+
+新增item-shops直读选择项，527个现有服务端商店的全部7025条SHP商品、原始路径/哈希、源NPC/type、tab/index、purchase amount和材料支付完整一致；逐商品核对实际Materials/Listed/PurchaseAmount/PurchaseLimit查找也全部一致。独立pvf-item-shop-policy.json只保留既有服务端路由：202个同ID原生列表绑定、30个明确原生列表ID兼容映射、295个既有明确源路径；不把旧服务端ID解释为客户端原生ID，不按文件名或遍历顺序选冲突表，不扩大路由范围，当前295个未列入原生列表的服务端路径未重新证明为原生客户端路由。源价格/材料/商品/哈希不保存在策略内。purchase_limit_mode=disabled保留本服当前不限购行为，未直接将STK源限购自动接入交易。Odruz源100000607第三tab缺少[sell item list]起始标记，原导入器排除其4个item；新读取保持该准入边界，非法材料/未闭合条目拒绝。NewItemShops深拷贝offers/materials并复用首个可支付报价优先；正常读取不访问itemshop-candidate.json，源或运行目录不匹配时拒绝。54选择项/63类源投影缺失JSON联合准备67.68秒，完整商店审计10.92秒，全量Go测试/vet、14项Python测试及只读依赖检查通过。profile为pvf-item-shops-candidate.json，程序SHA256 c29f2d7134988d986b993af4bc33163e9b995f48663ccbdeb2ccf4c6f2f3ec63。确认范围仍为第四批28项，第五批新增候选未实机。
+
+独立程序路径server/work/dfo-lan/.tmp/pvf-item-shops/bin/wireprobe-handoff-source.exe。未修改其它物品导入命令、客户端、数据库schema或存档，未启动客户端/服务；原已确认程序与所有旧候选保持。
