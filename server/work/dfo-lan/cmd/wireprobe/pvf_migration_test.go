@@ -2,6 +2,7 @@ package main
 
 import (
 	"dfolan/internal/adventure"
+	"dfolan/internal/character"
 	"os"
 	"testing"
 )
@@ -91,5 +92,12 @@ func TestPVFMigrationSourceOnlyLocalArchive(t *testing.T) {
 	if err != nil || len(season.Levels) != 120 || len(season.Capsules) != 40 {
 		t.Fatal("native embedded season rules missing", err)
 	}
-	t.Log("45 selectors / 52 source families prepared with all selected export JSON paths absent")
+	var progression character.ProgressionService
+	if err := c.bindOdysseyRoutes(&progression); err != nil {
+		t.Fatal(err)
+	}
+	if progression.JournalRoutes == nil || len(progression.JournalRoutes.Nodes) != 29 {
+		t.Fatal("native embedded journal routes missing")
+	}
+	t.Log("46 selectors / 53 source families prepared with all selected export JSON paths absent")
 }

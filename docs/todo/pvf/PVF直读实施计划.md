@@ -348,3 +348,9 @@ ETC原始SHA256 e384922be2984d838e1a5284ba92fdacf98c52cd17ef65b5fcba49be7371a1fb
 新增season直读选择项，从contents/system/seasonlevel/main.cos、精确cost key及etc/costs.ctp、原生物品索引读取120阶经验/名望、59条玩法规则、8组衰减、40个经验道具、4个奖励物品、12件誓约装备及限时奖励。COS原始哈希172bb1119834f8d891be071c7defe4e71deb5a690efeba79e6596a05bd435175，CTP哈希ae67348fad62643a341cd308955544edcc3b5269391749e805efb6783f940bdb；全部有效字段、费用键及40道具原始哈希完整一致。key16的源金币-1仍投影为0，材料10403609数量10；其他分支、分数成本、所有者/引用异常拒绝。360个等级边界及活动起止两端一致。规则在存储前深拷贝安装，正常直读不解析season_rules.json；旧2429外层仅在完整源审计中对齐已知7ef内层。最高显示100级、20次获取、原存档赛季校验、周边界、奖励和交易流程保持。合计45选择项/52类有效源投影；缺失所选JSON联合准备51.06秒、完整源审计17.07秒、全量Go测试/vet、8项Python测试和只读依赖检查通过。profile为pvf-season-candidate.json，程序SHA256 dbad515d612fcf7e10217677ba5f3b8d912ebeea2feb77d5fd714cac8f641349。确认范围仍为第四批28项，第五批新增候选未实机。
 
 经验道具遍历原生索引的全部stackable脚本，依[action type]精确判定，保留minimum level的-1值，不依文件名或旧JSON列举范围。12件誓约装备和4件奖励来自COS引用。没有新策略文件或存档源别名；剩余内嵌名望、选角背景、奥德赛回城、脚本传送及职业、商店、GM数据继续实施。
+
+## 2026-10-01：奥德赛日志传送内嵌目录迁移
+
+新增odyssey-routes直读选择项，从contents/2026/aradodyssey/etc/aradodysseyjournal.cos的[node]/[teleport info]/[dungeon]有序块读取29个日志传送节点、50个副本引用和原生目的地区域/坐标。原始SHA256 d4654fa9a50ddd582077f5f7a0a19835ec4fb6b777f032d1a66be7f288eff67e及7ef归档身份必须一致，全部节点完整匹配内嵌目录。准备阶段完成来源验证，运行服务绑定独立深拷贝；正常直读不解析odyssey_journal_routes.json。全部50个进度前缀下2958次传送资格对比通过，保留按先前节点已确认通关解锁、仅比较目的地town/area、允许客户端不同合法落点及尾标志[0,2]、排除地图选择器标志5的现有行为；不改区域变更封包或世界落点校验。合计46选择项/53类有效源投影；缺失所选JSON联合准备48.22秒、完整源审计10.37秒、全量Go测试/vet、8项Python测试和只读依赖检查通过。profile为pvf-odyssey-routes-candidate.json，程序SHA256 d05244375fb6e98af0356259a598bb43f7d8bb6fec1527eba34cef89959dbdef。确认范围仍为第四批28项，第五批新增候选未实机。
+
+运行使用ProgressionService注入，未配置native选择项时保留旧内嵌读取；基线缓存仅用于兼容或显式审计。来源、节点数、唯一副本数和16位坐标边界拒绝校验共用构造器。剩余内嵌选角背景、名望和两类脚本传送以及职业、商店、GM继续实施。

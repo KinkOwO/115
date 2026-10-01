@@ -14,12 +14,13 @@ import (
 )
 
 type ProgressionService struct {
-	Odyssey     *catalog.OdysseyGrowth
-	Chapters    *catalog.OdysseyChapters
-	Store       *storage.Store
-	Catalog     catalog.Progression
-	Professions catalog.Characters
-	Rules       progression.Rules
+	JournalRoutes *catalog.OdysseyJournalRoutes
+	Odyssey       *catalog.OdysseyGrowth
+	Chapters      *catalog.OdysseyChapters
+	Store         *storage.Store
+	Catalog       catalog.Progression
+	Professions   catalog.Characters
+	Rules         progression.Rules
 }
 
 func (s *ProgressionService) Monster(ctx context.Context, role storage.Character, run *dungeon.Session, entity uint16) (storage.Character, bool, error) {

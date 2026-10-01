@@ -830,6 +830,9 @@ func main() {
 				log.Fatal(e)
 			}
 		}
+		if e = pvfCatalogs.bindOdysseyRoutes(progressionService); e != nil {
+			log.Fatal(e)
+		}
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		e = characters.Store.MigrateCharacterEvents(ctx)
 		if e == nil {

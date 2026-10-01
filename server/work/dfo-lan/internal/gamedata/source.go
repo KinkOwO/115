@@ -48,6 +48,10 @@ func (s *Source) Season(index catalog.ItemIndex) (*adventure.SeasonRules, error)
 	return adventure.ImportSeasonRules(s.archive, index)
 }
 
+func (s *Source) OdysseyJournalRoutes() (*catalog.OdysseyJournalRoutes, error) {
+	return catalog.ImportOdysseyJournalRoutes(s.archive)
+}
+
 func (s *Source) Lottery(index catalog.ItemIndex, policy catalog.LotteryPolicy) (catalog.LotteryTables, error) {
 	return catalog.ImportLotteryTables(s.archive, index, policy)
 }

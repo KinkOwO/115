@@ -20,6 +20,7 @@ import (
 // verifies complete effective projections; source checks remain mandatory in
 // normal direct mode as well as audit mode.
 type pvfCoreCatalogs struct {
+	odysseyRoutes                                *catalog.OdysseyJournalRoutes
 	seasonRules                                  *adventure.SeasonRules
 	recommendedRules                             *adventure.RecommendedRules
 	adventureRules                               *adventure.Rules
@@ -85,7 +86,7 @@ type pvfItemInputs struct {
 
 func (i pvfItemInputs) checksBaselines() bool { return i.verifyBaselines == nil || *i.verifyBaselines }
 
-const pvfSupportedDomains = "world,quests,progression,items,equipment,periods,skins,journal,create-cost,skills,prices,materials,boosters,tutorial,enhancements,random-options,shields,oath-grades,vault,loot,equipment-selection,town,dungeons,training-dungeons,tutorial-dungeons,dungeon-towers,dungeon-hell,dungeon-maze,apocalypse,attunement,odyssey-growth,odyssey-chapters,odyssey-weapons,odyssey-drop,odyssey-currency,clear-cube,black-purgatory,bleeding-mine,dungeon-terminal,dungeon-tournament,selection-boxes,lottery,adventure,adventure-recommended,season"
+const pvfSupportedDomains = "world,quests,progression,items,equipment,periods,skins,journal,create-cost,skills,prices,materials,boosters,tutorial,enhancements,random-options,shields,oath-grades,vault,loot,equipment-selection,town,dungeons,training-dungeons,tutorial-dungeons,dungeon-towers,dungeon-hell,dungeon-maze,apocalypse,attunement,odyssey-growth,odyssey-chapters,odyssey-weapons,odyssey-drop,odyssey-currency,clear-cube,black-purgatory,bleeding-mine,dungeon-terminal,dungeon-tournament,selection-boxes,lottery,adventure,adventure-recommended,season,odyssey-routes"
 
 func parsePVFCatalogSelection(value string) (map[string]bool, error) {
 	supported := map[string]bool{}
@@ -312,6 +313,9 @@ func preparePVFCoreCatalogs(selection, path, checksum, characterPath, questPath,
 		return result, err
 	}
 	if err := preparePVFSeason(&result, source, selected, inputs); err != nil {
+		return result, err
+	}
+	if err := preparePVFOdysseyRoutes(&result, source, selected, inputs); err != nil {
 		return result, err
 	}
 	if err := preparePVFSelectionBoxes(&result, source, selected, inputs); err != nil {
