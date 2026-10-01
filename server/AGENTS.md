@@ -5,6 +5,8 @@
 
 ## 0. 当前候选边界
 
+- **2026-10-01 PVF性能优化已确认**：用户反馈“确认没有问题”，归档紧凑目录/固定文件读取/有界缓存与四类物品联合扫描纳入当前默认基线。wireprobe-pvf.exe及源码程序SHA256均为59e14ec18f498f07004b9a797c73e2cdba5f3f8af2245e1401d1953b3105dad3；保持54选择项/63投影及原存档source。业务按需加载、复杂投影合并及磁盘缓存尚未实施，本批已收口。详见../docs/todo/pvf/PVF启动与内存优化实施计划.md。
+
 - **2026-10-01 全量PVF已确认并默认启动**：用户确认54选择项/63源投影，三个根启动入口默认加载configs/pvf-default.json及bin/wireprobe-pvf.exe；源固定为client-build/Script.inner.pvf的7ef校验，存档来源不别名/不改写。源码普通构建保留已确认默认程序，-UpdatePVFDefault显式更新；JSON回退用--json-mode，旧39及逐批程序保留。详见../docs/todo/pvf/PVF直读默认启动确认.md。
 
 - **2026-09-30 黑暗武士组合技能栏已确认**：用户实机确认编辑及重选恢复生效；日志有10次CMD500保存、9次type0/NOTI433回放和两次入场恢复，角色20存档保留最后排列。默认prof9组合技能118～123绑定0～5，六槽只调平存量角色20，无schema或客户端改动。CMD502实机捕获16个零填充字节，已修正并通过PG临时库集成测试；修正后的清空操作尚待再看一条实机日志。旧charactercheck有既有依赖/疲劳检查问题。H格PVF空宏未修。详见work/dfo-lan/docs/protocol/dark-knight-comboset-quickbar-20260930.md。

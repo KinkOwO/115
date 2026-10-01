@@ -57,6 +57,7 @@ type pvfCoreCatalogs struct {
 	progression                                  *catalog.Progression
 	world                                        *catalog.WorldCatalog
 	items                                        *catalog.ItemIndex
+	itemBasics                                   *catalog.ItemBasics
 	equipment                                    *inventory.FullEquipmentCatalog
 	periods                                      []uint32
 	skins                                        map[uint32]catalog.SkinStorageEntry
@@ -178,10 +179,22 @@ func preparePVFCoreCatalogs(selection, path, checksum, characterPath, questPath,
 	if err != nil {
 		return result, err
 	}
+	defer source.Close()
+	logPVFMemory("source-open", time.Since(started))
 	if source.Snapshot().Checksum != anchorChecksum {
 		return result, fmt.Errorf("PVF/character source mismatch: %s versus %s", source.Snapshot().Checksum, anchorChecksum)
 	}
 	result.sourceChecksum = source.Snapshot().Checksum
+	if selected["periods"] && selected["prices"] {
+		basicStarted := time.Now()
+		basics, err := source.ItemBasics(catalog.ItemBasicOptions{Periods: true, Prices: true, Materials: selected["materials"]})
+		if err != nil {
+			return result, err
+		}
+		result.itemBasics = &basics
+		source.ReleaseReadCaches()
+		log.Printf("PVF joint item basics prepared in %s: %d source templates; periods/prices/materials share one script read", time.Since(basicStarted), len(basics.Index.Items))
+	}
 
 	if selected["characters"] {
 		if err := preparePVFCharacters(&result, source, characterPolicy, characterPath, inputs); err != nil {
@@ -268,6 +281,7 @@ func preparePVFCoreCatalogs(selection, path, checksum, characterPath, questPath,
 	if e := preparePVFRules(&result, source, selected, inputs); e != nil {
 		return result, e
 	}
+	logPVFMemory("base-rules", time.Since(started))
 	if selected["skills"] {
 		if e := preparePVFLearning(&result, source, characters, inputs); e != nil {
 			return result, e
@@ -276,6 +290,7 @@ func preparePVFCoreCatalogs(selection, path, checksum, characterPath, questPath,
 	if err := preparePVFEquipmentRules(&result, source, selected, inputs); err != nil {
 		return result, err
 	}
+	logPVFMemory("equipment-rules", time.Since(started))
 	if selected["loot"] {
 		if err := preparePVFLoot(&result, source, inputs); err != nil {
 			return result, err
@@ -283,7 +298,13 @@ func preparePVFCoreCatalogs(selection, path, checksum, characterPath, questPath,
 	}
 	if selected["boxes"] || selected["fame"] || selected["roster-backgrounds"] || selected["season"] || selected["adventure"] || selected["lottery"] || selected["selection-boxes"] || selected["bleeding-mine"] || selected["black-purgatory"] || selected["clear-cube"] || selected["odyssey-growth"] || selected["odyssey-weapons"] || selected["odyssey-drop"] || selected["odyssey-currency"] || selected["items"] || selected["equipment"] || selected["prices"] || selected["materials"] || selected["boosters"] || selected["enhancements"] || selected["shields"] || selected["equipment-selection"] {
 
-		direct, e := source.ItemIndex("")
+		var direct catalog.ItemIndex
+		var e error
+		if result.itemBasics != nil {
+			direct = result.itemBasics.Index
+		} else {
+			direct, e = source.ItemIndex("")
+		}
 		if e != nil {
 			return result, e
 		}
@@ -305,6 +326,7 @@ func preparePVFCoreCatalogs(selection, path, checksum, characterPath, questPath,
 		if e := preparePVFCommerce(&result, source, selected, inputs); e != nil {
 			return result, e
 		}
+		logPVFMemory("item-commerce", time.Since(started))
 
 		if selected["enhancements"] {
 			if err := preparePVFEnhancements(&result, source, inputs); err != nil {
@@ -351,6 +373,7 @@ func preparePVFCoreCatalogs(selection, path, checksum, characterPath, questPath,
 	if err := preparePVFScenes(&result, source, selected, inputs); err != nil {
 		return result, err
 	}
+	logPVFMemory("scenes", time.Since(started))
 	if err := preparePVFAdventure(&result, source, selected, inputs); err != nil {
 		return result, err
 	}
@@ -415,6 +438,7 @@ func preparePVFCoreCatalogs(selection, path, checksum, characterPath, questPath,
 		return result, err
 	}
 	log.Printf("PVF candidate catalogs prepared in %s; full directory can be collected before opening storage", time.Since(started))
+	logPVFMemory("catalogs-prepared", time.Since(started))
 	return result, nil
 }
 
@@ -435,6 +459,7 @@ func (c pvfCoreCatalogs) loadProgression(path string) (catalog.Progression, erro
 func collectPVFImportMemory(c pvfCoreCatalogs) {
 	if c.town != nil || c.dungeons != nil || c.trainingDungeons != nil || c.tutorialDungeons != nil || c.quests != nil || c.progression != nil || c.world != nil || c.items != nil || c.periods != nil || c.skins != nil || c.journal != nil || c.createCost != nil || c.learning != nil || c.tutorial != nil {
 		runtime.GC()
+		logPVFMemory("import-collected", 0)
 	}
 }
 

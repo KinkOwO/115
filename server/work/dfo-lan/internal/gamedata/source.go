@@ -120,19 +120,19 @@ func Open(options Options) (*Source, error) {
 	if options.MaxBytes == 0 {
 		options.MaxBytes = DefaultMaxBytes
 	}
-	bundle, err := pvf.Load(pvf.Options{Path: path, MaxBytes: options.MaxBytes})
+	a, err := pvf.OpenReadOnly(pvf.Options{Path: path, MaxBytes: options.MaxBytes}, checksum)
 	if err != nil {
 		return nil, fmt.Errorf("open inner PVF: %w", err)
 	}
-	if actual := bundle.Snapshot().Checksum; actual != checksum {
-		return nil, fmt.Errorf("inner PVF source mismatch: got %s expected %s", actual, checksum)
-	}
-	a, err := pvf.OpenArchive(bundle)
-	if err != nil {
-		return nil, fmt.Errorf("parse inner PVF: %w", err)
-	}
 	s.archive = a
 	return s, nil
+}
+
+func (s *Source) Close() error {
+	if s == nil || s.archive == nil {
+		return nil
+	}
+	return s.archive.Close()
 }
 
 func (s *Source) Snapshot() pvf.ArchiveSnapshot {
@@ -183,6 +183,13 @@ func (s *Source) ItemIndex(path string) (catalog.ItemIndex, error) {
 		return catalog.LoadItemIndex(path)
 	}
 	return catalog.ImportItemIndex(s.archive)
+}
+
+func (s *Source) ItemBasics(options catalog.ItemBasicOptions) (catalog.ItemBasics, error) {
+	if s.mode != PVF {
+		return catalog.ItemBasics{}, fmt.Errorf("joint item import requires PVF")
+	}
+	return catalog.ImportItemBasics(s.archive, options)
 }
 
 func (s *Source) Equipment(index catalog.ItemIndex) (*inventory.FullEquipmentCatalog, error) {

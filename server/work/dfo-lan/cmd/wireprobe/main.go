@@ -199,6 +199,7 @@ func main() {
 		log.Fatalf("PVF candidate catalogs: %v", pvfCatalogErr)
 	}
 	if *pvfCheckCatalogs {
+		collectPVFImportMemory(pvfCatalogs)
 		if pvfCatalogs.equipment != nil {
 			defer pvfCatalogs.equipment.Close()
 		}

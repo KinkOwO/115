@@ -66,7 +66,7 @@ func (a *Archive) parseDFO20260901(plain []byte) error {
 	nameOffset := hashOffset + h.hashSize
 	groupOffset := nameOffset + h.nameSize
 	bodyOffset := groupOffset + groupSize
-	if hashOffset < headerSize || nameOffset < hashOffset || groupOffset < nameOffset || bodyOffset < groupOffset || bodyOffset > len(a.data) || h.bodySize != len(a.data)-bodyOffset {
+	if hashOffset < headerSize || nameOffset < hashOffset || groupOffset < nameOffset || bodyOffset < groupOffset || bodyOffset > len(a.data) || int64(h.bodySize) != a.sourceSize()-int64(bodyOffset) {
 		return fmt.Errorf("%w: current archive section sizes", ErrInvalidArchive)
 	}
 	// The native hash loader consumes a count of qword path/name pairs,
@@ -160,7 +160,7 @@ func (a *Archive) parseNKPITables(header pvfHeader, protected bool) error {
 		return err
 	}
 	pos += groupSize
-	if pos < 0 || pos > len(a.data) || header.bodySize > len(a.data)-pos {
+	if pos < 0 || pos > len(a.data) || int64(header.bodySize) > a.sourceSize()-int64(pos) {
 		return fmt.Errorf("%w: section sizes exceed archive", ErrInvalidArchive)
 	}
 	a.header = header
@@ -196,6 +196,8 @@ func (a *Archive) resetParseState() {
 	a.groups = nil
 	a.header = pvfHeader{}
 	a.pathIdx = make(map[string]int)
+	a.compactTable = nil
+	a.compactIndex = nil
 	a.bodyOff = 0
 	a.strA = nil
 	a.strW = nil
@@ -239,6 +241,18 @@ func (a *Archive) parseGroups(data []byte, count int) error {
 }
 
 func (a *Archive) parseFiles(offset, count int) error {
+	if a.compactDirectory {
+		size, err := checkedMul(count, fileItemSize)
+		if err != nil {
+			return err
+		}
+		if offset < 0 || offset > len(a.data)-size {
+			return fmt.Errorf("%w: file table exceeds archive", ErrInvalidArchive)
+		}
+		a.compactTable = append([]byte(nil), a.data[offset:offset+size]...)
+		a.buildCompactIndex()
+		return nil
+	}
 	a.items = make([]fileItem, 0, count)
 	a.files = make([]File, 0, count)
 	for idx := 0; idx < count; idx++ {

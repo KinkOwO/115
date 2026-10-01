@@ -52,7 +52,13 @@ func preparePVFRules(c *pvfCoreCatalogs, s *gamedata.Source, selected map[string
 	}
 	if selected["periods"] {
 		path := filepath.Join(dir, "item-period-tags.json")
-		direct, err := s.ItemPeriods()
+		var direct catalog.ItemPeriodCatalog
+		var err error
+		if c.itemBasics != nil {
+			direct = *c.itemBasics.Periods
+		} else {
+			direct, err = s.ItemPeriods()
+		}
 		if err != nil {
 			return err
 		}

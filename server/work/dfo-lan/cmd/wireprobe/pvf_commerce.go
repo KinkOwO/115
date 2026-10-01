@@ -84,7 +84,13 @@ func preparePVFCommerce(c *pvfCoreCatalogs, s *gamedata.Source, selected map[str
 		if path == "" {
 			path = filepath.Join(dir, "shop-prices.json")
 		}
-		direct, err := s.ShopPrices(*c.items)
+		var direct *catalog.ShopPrices
+		var err error
+		if c.itemBasics != nil {
+			direct = c.itemBasics.Prices
+		} else {
+			direct, err = s.ShopPrices(*c.items)
+		}
 		if err != nil {
 			return err
 		}
@@ -106,7 +112,13 @@ func preparePVFCommerce(c *pvfCoreCatalogs, s *gamedata.Source, selected map[str
 		if path == "" {
 			path = filepath.Join(dir, "item-materials.json")
 		}
-		direct, err := s.ItemMaterials(*c.items)
+		var direct *catalog.ItemMaterials
+		var err error
+		if c.itemBasics != nil && c.itemBasics.Materials != nil {
+			direct = c.itemBasics.Materials
+		} else {
+			direct, err = s.ItemMaterials(*c.items)
+		}
 		if err != nil {
 			return err
 		}

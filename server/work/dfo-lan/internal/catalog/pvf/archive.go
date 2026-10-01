@@ -2,11 +2,14 @@ package pvf
 
 import (
 	"bytes"
+	"container/list"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"runtime"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -65,17 +68,25 @@ type Archive struct {
 	format   ArchiveFormat
 	header   pvfHeader
 
-	// data 是启动期读入的完整 PVF 字节，后续查询不再访问磁盘。
+	// Memory archives retain all bytes; runtime archives retain packed metadata.
 	data   []byte
 	files  []File
 	items  []fileItem
 	groups []groupItem
 
 	// pathIdx 保存归一化路径到文件表下标的映射，查询时避免扫描目录。
-	pathIdx map[string]int
-	bodyOff int
-	strA    []byte
-	strW    []byte
+	pathIdx          map[string]int
+	bodyOff          int
+	strA             []byte
+	strW             []byte
+	compactDirectory bool
+	compactTable     []byte
+	compactIndex     []directoryEntry
+	backing          *archiveFile
+	lease            *archiveLease
+	cleanup          runtime.Cleanup
+	closeOnce        sync.Once
+	closed           atomic.Bool
 
 	// chunks 缓存已解密解压的 body chunk，texts 缓存已解码的脚本文本。
 	chunks           sync.Map
@@ -85,6 +96,10 @@ type Archive struct {
 	maxChunkBytes    int64
 	cachedChunkBytes int64
 	maxTexts         int
+	chunkOrder       list.List
+	chunkPositions   map[int]*list.Element
+	textOrder        list.List
+	textPositions    map[int]*list.Element
 }
 
 func Open(path string) (*Archive, error) {
@@ -154,7 +169,7 @@ func (a *Archive) Snapshot() ArchiveSnapshot {
 		Size:         a.snapshot.Size,
 		Checksum:     a.snapshot.Checksum,
 		LoadedAt:     a.snapshot.LoadedAt.Format(rfc3339Nano),
-		FileCount:    len(a.files),
+		FileCount:    a.FileCount(),
 		GroupCount:   len(a.groups),
 		CachedChunks: cachedChunks,
 		CachedTexts:  cachedTexts,
@@ -170,11 +185,13 @@ func (a *Archive) Format() ArchiveFormat {
 }
 
 func (a *Archive) Files() []File {
-	if a == nil || len(a.files) == 0 {
+	if a == nil || a.FileCount() == 0 {
 		return nil
 	}
-	out := make([]File, len(a.files))
-	copy(out, a.files)
+	out := make([]File, a.FileCount())
+	for i := range out {
+		out[i] = a.fileAt(i)
+	}
 	return out
 }
 
@@ -184,8 +201,8 @@ func (a *Archive) IterateFiles(fn func(File) error) error {
 	if a == nil || fn == nil {
 		return fmt.Errorf("invalid archive file iterator")
 	}
-	for _, file := range a.files {
-		if err := fn(file); err != nil {
+	for i := 0; i < a.FileCount(); i++ {
+		if err := fn(a.fileAt(i)); err != nil {
 			return err
 		}
 	}
@@ -195,6 +212,9 @@ func (a *Archive) IterateFiles(fn func(File) error) error {
 func (a *Archive) FileCount() int {
 	if a == nil {
 		return 0
+	}
+	if a.compactDirectory {
+		return len(a.compactTable) / fileItemSize
 	}
 	return len(a.files)
 }
@@ -208,8 +228,12 @@ func (a *Archive) ReleaseReadCaches() {
 	}
 	a.cacheMu.Lock()
 	defer a.cacheMu.Unlock()
-	a.chunks.Range(func(key, _ any) bool { a.chunks.Delete(key); return true })
-	a.texts.Range(func(key, _ any) bool { a.texts.Delete(key); return true })
+	a.chunks.Clear()
+	a.texts.Clear()
+	a.chunkOrder.Init()
+	a.textOrder.Init()
+	a.chunkPositions = nil
+	a.textPositions = nil
 	a.cachedChunkBytes = 0
 }
 
@@ -224,18 +248,18 @@ func (a *Archive) FindFile(relativePath string) (File, bool) {
 	if a == nil {
 		return File{}, false
 	}
-	idx, ok := a.pathIdx[pathKey(relativePath)]
+	idx, ok := a.lookupPath(relativePath)
 	if !ok {
 		return File{}, false
 	}
-	return a.files[idx], true
+	return a.fileAt(idx), true
 }
 
 func (a *Archive) FindFileIndex(relativePath string) int {
 	if a == nil {
 		return -1
 	}
-	idx, ok := a.pathIdx[pathKey(relativePath)]
+	idx, ok := a.lookupPath(relativePath)
 	if !ok {
 		return -1
 	}
@@ -246,7 +270,7 @@ func (a *Archive) ReadText(relativePath string) (string, error) {
 	if a == nil {
 		return "", fmt.Errorf("%w: archive is nil", ErrInvalidArchive)
 	}
-	idx, ok := a.pathIdx[pathKey(relativePath)]
+	idx, ok := a.lookupPath(relativePath)
 	if !ok {
 		return "", fmt.Errorf("%w: %s", ErrFileNotFound, relativePath)
 	}
@@ -257,7 +281,7 @@ func (a *Archive) ReadRaw(relativePath string) ([]byte, error) {
 	if a == nil {
 		return nil, fmt.Errorf("%w: archive is nil", ErrInvalidArchive)
 	}
-	idx, ok := a.pathIdx[pathKey(relativePath)]
+	idx, ok := a.lookupPath(relativePath)
 	if !ok {
 		return nil, fmt.Errorf("%w: %s", ErrFileNotFound, relativePath)
 	}
@@ -307,6 +331,18 @@ func (a *Archive) Bytes() []byte {
 	if a == nil {
 		return nil
 	}
+	if a.backing != nil {
+		if a.closed.Load() {
+			return nil
+		}
+		out := make([]byte, int(a.sourceSize()))
+		if _, err := a.backing.file.ReadAt(out, 0); err != nil {
+			runtime.KeepAlive(a)
+			return nil
+		}
+		runtime.KeepAlive(a)
+		return out
+	}
 	out := make([]byte, len(a.data))
 	copy(out, a.data)
 	return out
@@ -315,6 +351,9 @@ func (a *Archive) Bytes() []byte {
 func (a *Archive) Reader() *bytes.Reader {
 	if a == nil {
 		return bytes.NewReader(nil)
+	}
+	if a.backing != nil {
+		return bytes.NewReader(a.Bytes())
 	}
 	return bytes.NewReader(a.data)
 }

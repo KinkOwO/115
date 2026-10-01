@@ -27,6 +27,7 @@ func main() {
 	}
 	var cat catalog.QuestCatalog
 	if native != nil {
+		defer native.Close()
 		cat, e = native.Quests("")
 	} else {
 		cat, e = catalog.LoadQuests(*source)

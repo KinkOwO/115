@@ -53,6 +53,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 	var target *os.File
 	if *output != "" {
+		// Output is opened only after the source has passed verification.
 		if _, err = os.Stat(*output); err == nil {
 			fmt.Fprintf(stderr, "refusing existing report: %s\n", *output)
 			return 1
@@ -77,6 +78,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		defer target.Close()
 		stdout = target
 	}
+	defer source.Close()
 	r := report{Archive: source.Snapshot(), Equivalent: true}
 	for _, domain := range selected {
 		fmt.Fprintf(stderr, "auditing %s against %s\n", domain, *paths[domain])

@@ -1,5 +1,13 @@
 # PVF直读默认启动确认
 
+## 当前确认基线：启动与内存优化（2026-10-01）
+
+用户对优化候选反馈“确认没有问题”。正式server/work/dfo-lan/bin/wireprobe-pvf.exe与源码程序均已核对为SHA256 59e14ec18f498f07004b9a797c73e2cdba5f3f8af2245e1401d1953b3105dad3，默认三个根入口直接使用该优化版。54选择项/63类源投影、精确7ef来源、存档source及启动模式保持。
+
+本次确认覆盖紧凑归档索引、固定文件按块读取、有界缓存、目录筛选和四类物品联合扫描。全量Go测试/vet及真实原生对照通过；本机单次只读准备约44.52秒、峰值工作集约3.40GiB。确认依据用户反馈，未新增实机会话日志；采样不作为严格冷盘或进城稳定内存。实施和剩余计划见PVF启动与内存优化实施计划.md。
+
+## 历史记录：全量PVF成为默认入口
+
 用户确认“已确认，将pvf模式作为默认启动项”，本批54选择项/63类源投影升级为confirmed baseline。默认profile为server/work/dfo-lan/configs/pvf-default.json，正式程序为server/work/dfo-lan/bin/wireprobe-pvf.exe，SHA256 a3ea388ac9a2966f0368e6ede552f3d8559fc10bfba08f24f5158bb583e2d98c，与已确认的全量隔离程序逐字节相同。来源仍为server/work/client-build/Script.inner.pvf及精确7ef SHA256，不别名、不改写玩家存档。确认依据用户反馈，本轮未新增实机会话日志，不扩大为逐项客户端动态命中。
 
 启动服务端.cmd、启动游戏.cmd、启动游戏-奥德赛.cmd通过共用launch_local默认加载全量PVF配置；分别保留仅服务端、剧情模式0及奥德赛模式1。默认JSON基线审计关闭，源身份/策略校验仍强制。独立profile显式保持既有奥德赛武器奖励发布值1，使挂载不依赖旧武器盒导出JSON是否存在。客户端路径、channel identity、存储配置及其它玩法开关保持；客户端/存储单独模式不要求本地PVF。

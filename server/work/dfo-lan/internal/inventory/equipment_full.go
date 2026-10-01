@@ -62,7 +62,7 @@ func OpenFullEquipmentCatalog(prefix, source string) (*FullEquipmentCatalog, err
 }
 func (c *FullEquipmentCatalog) Close() error {
 	if c.archive != nil {
-		c.archive.ReleaseReadCaches()
+		return c.archive.Close()
 	}
 	if c.file != nil {
 		return c.file.Close()

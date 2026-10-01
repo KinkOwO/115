@@ -49,8 +49,8 @@ func (a *Archive) IterateStringRefs(fn func(StringRef) error) error {
 	if a == nil {
 		return fmt.Errorf("%w: archive is nil", ErrInvalidArchive)
 	}
-	for idx := range a.items {
-		item := a.items[idx]
+	for idx := 0; idx < a.FileCount(); idx++ {
+		item := a.itemAt(idx)
 		base := headerSize + idx*fileItemSize
 		for _, f := range []struct {
 			kind StringRefKind
@@ -73,8 +73,8 @@ func (a *Archive) IterateStringRefs(fn func(StringRef) error) error {
 			}
 		}
 	}
-	for idx := range a.files {
-		item := a.items[idx]
+	for idx := 0; idx < a.FileCount(); idx++ {
+		item := a.itemAt(idx)
 		if item.dataType != 1 {
 			continue
 		}
@@ -115,8 +115,8 @@ func (a *Archive) IterateStringRefs(fn func(StringRef) error) error {
 // TokenTypeHistogram 统计全部脚本 token 的类型分布。
 func (a *Archive) TokenTypeHistogram() (map[int]int, error) {
 	hist := map[int]int{}
-	for idx := range a.files {
-		if a.items[idx].dataType != 1 {
+	for idx := 0; idx < a.FileCount(); idx++ {
+		if a.itemAt(idx).dataType != 1 {
 			continue
 		}
 		raw, err := a.readRawIndex(idx)
@@ -142,8 +142,8 @@ type TokenSample struct {
 func (a *Archive) SampleTokenStrings(limit int) ([]TokenSample, error) {
 	per := map[int][]string{}
 	paths := map[int]string{}
-	for idx := range a.files {
-		if a.items[idx].dataType != 1 {
+	for idx := 0; idx < a.FileCount(); idx++ {
+		if a.itemAt(idx).dataType != 1 {
 			continue
 		}
 		raw, err := a.readRawIndex(idx)
@@ -160,11 +160,11 @@ func (a *Archive) SampleTokenStrings(limit int) ([]TokenSample, error) {
 			case 3, 6, 8:
 				if s := a.resolveString(value); s != "" {
 					per[typ] = append(per[typ], s)
-					paths[typ] = a.files[idx].ArchivePath
+					paths[typ] = a.fileAt(idx).ArchivePath
 				}
 			default:
 				per[typ] = append(per[typ], fmt.Sprintf("%d", value))
-				paths[typ] = a.files[idx].ArchivePath
+				paths[typ] = a.fileAt(idx).ArchivePath
 			}
 		}
 	}
@@ -209,8 +209,8 @@ func (a *Archive) DistinctStrings() ([]DistinctString, error) {
 		case 8:
 			d.Tok8++
 		}
-		if d.Sample == "" && a.files[ref.FileIdx].ArchivePath != "" {
-			d.Sample = a.files[ref.FileIdx].ArchivePath
+		if d.Sample == "" && a.fileAt(ref.FileIdx).ArchivePath != "" {
+			d.Sample = a.fileAt(ref.FileIdx).ArchivePath
 		}
 		return nil
 	})

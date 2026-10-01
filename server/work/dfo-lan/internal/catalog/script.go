@@ -44,12 +44,19 @@ type IndexEntry struct {
 func ReadScript(a *pvf.Archive, name string) (ScriptRecord, error) {
 	name = strings.ToLower(strings.ReplaceAll(name, "\\", "/"))
 	s := ScriptRecord{Path: name}
+	f, ok := a.FindFile(name)
+	if !ok {
+		return s, fmt.Errorf("%w: %s", pvf.ErrFileNotFound, name)
+	}
+	if f.DataType != 1 {
+		return s, fmt.Errorf("entry %s is not a script", name)
+	}
 	raw, e := a.ReadRaw(name)
 	if e != nil {
 		return s, e
 	}
 	s.SHA256 = fmt.Sprintf("%x", sha256.Sum256(raw))
-	s.Cells, e = a.Tokens(name)
+	s.Cells, e = a.TokensFromRaw(raw)
 	return s, e
 }
 

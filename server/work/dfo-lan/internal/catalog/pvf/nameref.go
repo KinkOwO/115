@@ -168,8 +168,8 @@ func (a *Archive) ItemNameRefsByIDs(ids []uint32) (map[uint32]NameRef, error) {
 		want[id] = struct{}{}
 	}
 	paths := make(map[uint32]string, len(ids))
-	for i := range a.files {
-		f := a.files[i]
+	for i := 0; i < a.FileCount(); i++ {
+		f := a.fileAt(i)
 		id, ok := ItemIDFromScriptName(f.Name)
 		if !ok {
 			continue
