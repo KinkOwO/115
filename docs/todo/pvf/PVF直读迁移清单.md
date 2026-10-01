@@ -1,6 +1,6 @@
 # PVF直读迁移清单
 
-更新：2026-10-01。当前已启用、能定位PVF真源的数据已完成候选接线：网关54个选择项、63类源投影，以及admin、initialrepair、questrepair和GM查询/发放。这里的“完成”指源码、源目录核对、缺失导出JSON准备及离线检查通过；第五批实机验收和默认版本升级尚未完成。
+更新：2026-10-01。当前已启用、能定位PVF真源的数据已完成候选接线：网关54个选择项、63类源投影，以及admin、initialrepair、questrepair和GM查询/发放。用户已确认全量PVF并要求默认启动，54项/63投影升级confirmed baseline；源目录核对、缺失导出JSON准备及离线检查通过，确认依据用户反馈。
 
 游戏源固定为`server/work/client-build/Script.inner.pvf`，SHA256 `7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80`。已有存档继续使用同一来源，不建立checksum别名，不改写角色/任务/物品存档或数据库结构。仓库当前客户端inner `be95d64e…`是另一资源版本，其对接不属于本次同源读取迁移。
 
@@ -35,7 +35,7 @@
 | refine锻造公式 | 现有规则继续保留；仅同名表检索未命中不能证明PVF绝对没有该公式。新源规则须补充取证后再实施，不能猜表替换 |
 | 527个服务端商店路由 | 202同ID原生绑定、30明确原生ID兼容映射、295既有明确路径。商品/材料/价格来自SHP；295条路径未重新确认为当前客户端原生开店路由，不能在本次迁移中改写ID |
 | GM中文译名与固定界面分类标签 | 当前仓库客户端uv多数英文、translate/kor主要韩文，不能等价还原旧中文表；仅作显示覆盖，不能提供物品身份、属性、槽位或存档source |
-| GM旧部位缓存与ID拼接名称 | 候选不再使用该缓存。旧392575条部位记录中6561无LIST绑定、12为堆叠物，416部位/244403等级字段不同；663处名称随实际引用修正。这些是明确的查询显示差异，待GM手动验收 |
+| GM旧部位缓存与ID拼接名称 | 候选不再使用该缓存。旧392575条部位记录中6561无LIST绑定、12为堆叠物，416部位/244403等级字段不同；663处名称随实际引用修正。这些是明确的查询显示差异；本轮默认切换不更改GM启动入口 |
 | 未启用军团/skycastle_scene_routes与GM set/avatar/whitelist资产 | 当前生产入口不消费这些JSON；现成源导入器或资产存在不等于启用功能，本次不新增玩法/历史管理功能 |
 | JSONB存档、事务回执、操作备份、测试样本 | 玩家状态或验证证据，不能当成PVF导出规则删除 |
 | 离线导出/对照命令与历史数据库验收工具 | 可继续读取旧JSON以复现历史向量或比较输出；全量PVF运行不调用它们。charactercheck等普通数据库命令本次未执行，不声称旧集成检查问题已解决 |
@@ -46,7 +46,7 @@
 
 最终全量程序SHA256为`a3ea388ac9a2966f0368e6ede552f3d8559fc10bfba08f24f5158bb583e2d98c`。实际将26个导出JSON参数、存储配置和输出目录均设为不存在，53.26秒完成源准备，报告54项、storage_accessed=false、runtime_started=false，指定输出目录未创建。全量Go测试/vet和20项Python检查通过；时间仅为本次离线准备数据。
 
-confirmed baseline仍是第四批28选择项/34类源数据：`pvf-migration-candidate.json`，程序SHA256 `5475dbccdf316f4c582cc2742b22e1f66b5512f22e04997ccb23a031f6e36609`。第五批未据离线通过自动升级默认入口。所有原确认程序及逐批候选仍保留。
+之前确认的第四批28选择项/34类源数据保留回退：`pvf-migration-candidate.json`，程序SHA256 `5475dbccdf316f4c582cc2742b22e1f66b5512f22e04997ccb23a031f6e36609`。第五批现已依据用户确认升级默认入口，使用pvf-default.json及bin/wireprobe-pvf.exe。所有原确认程序及逐批候选仍保留。
 
 管理候选程序位于`.tmp/pvf-management/bin/`；admin/initialrepair/questrepair使用`-catalog-source pvf -pvf-archive <inner路径> -pvf-source-checksum <精确SHA256> -check-catalogs`。GM启动准备脚本支持对应参数及`--gmweb-binary`；`--check`只运行候选目录检查，退出前不加载存储。
 
@@ -69,3 +69,15 @@ foreach ($entry in $profile.environment.PSObject.Properties) {
 ```
 
 上述环境设置仅作用于当前PowerShell进程，需在独立检查终端执行。正式候选启动仍使用现有launch_local及用户既有客户端/存储配置；只读目录准备不代替用户手动登录、穿戴、技能、副本、奖励、商店、存档重选和GM筛选验收。详细逐域源哈希与差异见《PVF直读第五批迁移进度》及实施计划。
+
+## 2026-10-01：全量PVF已确认并作为默认启动
+
+用户确认“已确认，将pvf模式作为默认启动项”，本批54选择项/63类源投影升级为confirmed baseline。默认profile为server/work/dfo-lan/configs/pvf-default.json，正式程序为server/work/dfo-lan/bin/wireprobe-pvf.exe，SHA256 a3ea388ac9a2966f0368e6ede552f3d8559fc10bfba08f24f5158bb583e2d98c，与已确认的全量隔离程序逐字节相同。来源仍为server/work/client-build/Script.inner.pvf及精确7ef SHA256，不别名、不改写玩家存档。确认依据用户反馈，本轮未新增实机会话日志，不扩大为逐项客户端动态命中。
+
+启动服务端.cmd、启动游戏.cmd、启动游戏-奥德赛.cmd通过共用launch_local默认加载全量PVF配置；分别保留仅服务端、剧情模式0及奥德赛模式1。默认JSON基线审计关闭，源身份/策略校验仍强制。独立profile显式保持既有奥德赛武器奖励发布值1，使挂载不依赖旧武器盒导出JSON是否存在。客户端路径、channel identity、存储配置及其它玩法开关保持；客户端/存储单独模式不要求本地PVF。
+
+编排按选中的characters/dungeons领域跳过旧JSON告警或副本文件门禁，其余JSON模式/未选领域继续原检查。PVF选中而程序不自报pvf-catalogs能力时拒绝启动，不能静默退回JSON。外层等待从30秒调整为PVF 210秒，覆盖内层180秒源准备；JSON等待仍30秒。停止环境识别wireprobe-pvf.exe。Build-Server首次构建补齐默认PVF程序，已有确认程序在普通构建时保留；-UpdatePVFDefault显式发布后续已验收构建。
+
+显式--repair-profile仍可选择逐批隔离/修复配置；--json-mode使用launcher.local.json原server_binary并清除继承的DFO_PVF_*，与repair-profile互斥。--source-build在默认PVF模式下改用源码程序并保留源配置，需要重建有全部选择项的版本；--source-build --json-mode为旧JSON源码路径。旧39程序、原源码程序、各批隔离程序和JSON文件均保留。GM启动入口仍保持独立选择，不在本次三个入口切换范围。
+
+全量go test ./...及go vet ./...通过；启动/profile/inner-PVF/channel identity共25项Python检查与5项GM检查通过。模拟就绪在40秒到达仍成功，缺失旧JSON与不支持PVF程序拒绝/跳过边界均验证。默认服务端、剧情、奥德赛及显式JSON四组实际--check均通过，均不启动服务或客户端、不操作玩家数据库。

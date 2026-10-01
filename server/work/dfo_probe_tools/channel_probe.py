@@ -8,6 +8,7 @@ import struct
 import subprocess
 import sys
 import time
+from catalog_startup import validate_json_catalogs
 
 p = pathlib.Path(__file__).parent
 project = p.parent / "dfo-lan"
@@ -182,6 +183,8 @@ def prune_unsupported(command):
  '-' 开头）。
  """
  supported = exe_flags(command[0])
+ if os.environ.get("DFO_PVF_CATALOGS") and (not supported or "pvf-catalogs" not in supported):
+  raise RuntimeError("Selected gateway does not advertise PVF direct support; rebuild it or explicitly select --json-mode.")
  if not supported:
   return command
  kept = [command[0]]
@@ -501,22 +504,6 @@ with (
  # next25 那代导出于 growtype 解析之前：用它时建号请求 option[8] 选定的转职槽位
  # 无处落账，角色停在 advancement 0（全局按基础职业渲染、技能面板缺该分支起始技能），
  # 而且全程没有报错 —— 2026-09-20 的"新角色不转职"就是这么来的。这里显式告警。
- if "-character-catalog" in command:
-  _catalog = pathlib.Path(command[command.index("-character-catalog") + 1])
-  if not _catalog.is_file():
-   print("WARNING: 角色目录不存在：%s" % _catalog, file=sys.stderr)
-  else:
-   try:
-    _professions = json.loads(_catalog.read_text(encoding="utf-8-sig")).get("professions") or {}
-    if not any((p or {}).get("advancement_growth") for p in _professions.values()):
-     print(
-      "WARNING: 角色目录 %s 不含 growtype 分段数据（advancement_growth/advancement_skills）："
-      "建号选定的转职分支不会落账，角色会停在基础职业。"
-      "请改用带该数据的目录（例如 configs/characters.skycastle-release.json）。" % _catalog,
-      file=sys.stderr,
-     )
-   except Exception as exc:
-    print("WARNING: 无法解析角色目录 %s：%s" % (_catalog, exc), file=sys.stderr)
  # 允许用环境变量覆盖副本目录（本机用 dungeons.full.json：3200 副本/16042 地图，
  # 而默认的 dungeons.generated.json 只有 11 个）。
  if os.environ.get("DFO_DUNGEON_CATALOG") and "-dungeon-catalog" in command:
@@ -525,16 +512,7 @@ with (
  # 2026-09-18 事故：这里曾被指向 configs/dungeons.full.json，而那个 294MB 文件从没进仓库，
  # 于是服务端起不来、探针一直等不到 ready.json —— 正常玩家表现为"下载后启动不了游戏"。
  # 不要再让"文件不存在"静默落回默认值（那条 tag 降级链最终是只有 11 个副本的 dungeons.generated.json）。
- if "-dungeon-catalog" in command:
-  dungeon_catalog = pathlib.Path(command[command.index("-dungeon-catalog") + 1])
-  if not dungeon_catalog.is_file() or dungeon_catalog.stat().st_size == 0:
-   raise RuntimeError(
-    "副本目录不存在或为空：%s\n"
-    "  当前 -dungeon-catalog 指向它，服务端会启动失败/超时。\n"
-    "  生成：go run ./cmd/dungeonfull -output %s\n"
-    "  或设 DFO_DUNGEON_CATALOG 指向已有目录；确实要用 11 个副本的默认表请显式指过去。"
-    % (dungeon_catalog, dungeon_catalog)
-   )
+ validate_json_catalogs(command, os.environ)
  # 奥德赛组件常驻挂载（不再看 DFO_ODYSSEY_MODE）：服务端只在环境变量存在时才挂载
  # 成长/货币/武器盒（cmd/wireprobe/main.go:369/455/579），而"按角色"要求同一进程同时
  # 服务两种角色 —— 少了这些，奥德赛角色进城后没有成长/货币/武器盒。挂载本身对所有
