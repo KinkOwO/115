@@ -57,6 +57,17 @@ class RepairProfileTests(unittest.TestCase):
         self.assertNotIn('DFO_SHOP_PURCHASE_PILOT', env)
         self.assertTrue(all(p.suffix != '.json' or 'policy' in p.name for p in required))
 
+    def test_box_native_profile_keeps_only_scope_and_placement_policy(self):
+        project = pathlib.Path(__file__).resolve().parent.parent
+        binary, required, env = load_profile(project / 'configs/pvf-boxes-candidate.json', project)
+        self.assertEqual(len(env['DFO_PVF_CATALOGS'].split(',')), 53)
+        self.assertEqual(binary, project / '.tmp/pvf-boxes/bin/wireprobe-handoff-source.exe')
+        policy = json.loads(pathlib.Path(env['DFO_PVF_BOX_POLICY']).read_text(encoding='utf-8'))
+        self.assertEqual(policy['templates'], [590712474, 590719043])
+        self.assertNotIn('rewards', policy)
+        self.assertNotIn('tables', policy)
+        self.assertTrue(all(p.suffix != '.json' or 'policy' in p.name for p in required))
+
     def test_pvf_candidate_is_explicit_and_source_bound(self):
         project = pathlib.Path(__file__).resolve().parent.parent
         binary, required, env = load_profile(project / 'configs/pvf-direct-candidate.json', project)

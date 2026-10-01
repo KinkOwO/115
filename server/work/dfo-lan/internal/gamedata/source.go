@@ -38,6 +38,10 @@ type Source struct {
 	archive *pvf.Archive
 }
 
+func (s *Source) Boxes(index catalog.ItemIndex, policy loot.BoxSourcePolicy) (*loot.BoxCatalog, error) {
+	return loot.ImportBoxes(s.archive, index, policy)
+}
+
 func (s *Source) CashShop() (cashshop.PilotConfig, error) {
 	return cashshop.ImportPilot(s.archive)
 }

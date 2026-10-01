@@ -1,5 +1,10 @@
 # 当前构建与第一阶段证据
 
+## 2026-10-01 PVF光辉宝箱COS材料绑定候选
+
+新增boxes直读选择项，两个同名radianttreasurebox.cos由原生[material]唯一关联：2024/0514属于590712474普通箱，2025/0318属于590719043增强箱。两个表的rate、材料数量、普通/特殊池、逐行tier/模板/数量/权重、bonus/section计数器、75次变形点及原postal tag全部一致；54个奖励的原生STK类型/堆叠/槽位完整一致，新增记录58条原始源哈希。旧boxes.json仅有描述来源且未记录原哈希，审计明确校验原描述并比较全部有效字段，不声称旧哈希可比；运行源严格为7ef。独立pvf-box-policy.json仅保留两个启用模板/COS候选路径、原有槽位及缺失stack limit默认1000；不保存奖励池、概率、节点或哈希，不按basename/日期/遍历顺序选择。正常直读不读/探测boxes.json；既有抽取、逐抽行、保底计数、契约和事务不变。53选择项/62类源投影缺失JSON联合准备51.87秒，完整礼盒审计15.79秒，全量Go测试/vet、13项Python测试及只读依赖检查通过。profile为pvf-boxes-candidate.json，程序SHA256 654540902348dc4bb713d283f5b7fa6b36fa26faab11b6e6ac428aaa33270c06。确认范围仍为第四批28项，第五批新增候选未实机。
+
+
 ## 2026-10-01 PVF现金商城原生目录候选
 
 新增cashshop直读选择项，从etc/(r)cerashop.etc、stackable/equipment原生列表及全部关联STK/EQU读取价格、商品与购买策略。17245条商品记录的全部typed cells、索引路径、原始脚本哈希、原有导入拒绝原因及8组源策略完整一致；实际16606项可购买Product投影完整一致。发布模式保留为既有DFO_SHOP_RELEASE独立服务端开关，候选显式为1；不改变扣款、事务、发货、契约、限购或仓库容量行为。NewPilot复用原LoadPilot验证和分类，深拷贝导入行/脚本/策略，ProductSnapshot不暴露购买缓存；正常读取及准备复用不访问shop-vault-release.json。52选择项/61类源投影缺失JSON联合准备50.05秒，完整商城审计15.05秒，全量Go测试/vet、12项Python测试和只读依赖检查通过。profile为pvf-cashshop-candidate.json，程序SHA256 a126d896a55ca75628a28574747f3130484e5cb50205773ce53a7d44db175c45。确认范围仍为第四批28项，第五批新增候选未实机。

@@ -76,6 +76,7 @@ func main() {
 	pvfVaultPolicy := flag.String("pvf-vault-policy", envStrOr("DFO_PVF_VAULT_POLICY", "configs/pvf-vault-policy.json"), "client capacity/save policy independent of PVF account vault table")
 	pvfContentPolicyPath := flag.String("pvf-content-policy", envStrOr("DFO_PVF_CONTENT_POLICY", "configs/pvf-content-policy.json"), "independent enabled special-content selection; source tables from PVF")
 	pvfSelectionPolicyPath := flag.String("pvf-selection-policy", envStrOr("DFO_PVF_SELECTION_POLICY", "configs/pvf-selection-policy.json"), "bounded selection box templates; source categories from PVF")
+	pvfBoxPolicyPath := flag.String("pvf-box-policy", envStrOr("DFO_PVF_BOX_POLICY", "configs/pvf-box-policy.json"), "enabled COS/box scope and existing placement defaults; rewards from native material bindings")
 	pvfCharacterPolicyPath := flag.String("pvf-character-policy", envStrOr("DFO_PVF_CHARACTER_POLICY", "configs/pvf-character-policy.json"), "saved source identity and default shortcut behavior; profession source fields from PVF")
 	pvfLayerRevisitPolicyPath := flag.String("pvf-layer-revisit-policy", envStrOr("DFO_PVF_LAYER_REVISIT_POLICY", "configs/pvf-layer-revisit-policy.json"), "verified layer revisit scope, record and cache restoration; source maps and landing from PVF")
 	pvfScriptWarpPolicyPath := flag.String("pvf-script-warp-policy", envStrOr("DFO_PVF_SCRIPT_WARP_POLICY", "configs/pvf-script-warp-policy.json"), "verified script warp scope and witnessed transition records; source routes from PVF")
@@ -188,7 +189,7 @@ func main() {
 	omenState := flag.Bool("omen-state", os.Getenv("DFO_OMEN_STATE") == "1", "征兆的正式状态：持有档数存进角色存档、进本按真实状态下发 noti 2836，并让隐藏 BOSS 由「满档结算」驱动（见 cmd/wireprobe/omen_state.go）。默认关闭")
 	scaleDeathFromHP := flag.Bool("scale-death-from-hp", os.Getenv("DFO_SCALE_DEATH_FROM_HP") == "1", "boundary-of-attunement 定盘机关(109019266)的兜底判死：它血量触底时服务端合成一条死亡上报，不再依赖引擎那两个恒为 72 的 rarity 天花板；默认关闭")
 	flag.Parse()
-	pvfCatalogs, pvfCatalogErr := preparePVFCoreCatalogs(*pvfCatalogSelection, *pvfArchivePath, *pvfArchiveChecksum, *characterCatalog, *questCatalogFile, *progressionCatalogFile, *worldCatalogFile, pvfItemInputs{cashshopPath: *shopPilotFile, cashshopRelease: *shopRelease, characterPolicyPath: *pvfCharacterPolicyPath, layerRevisitPolicyPath: *pvfLayerRevisitPolicyPath, scriptWarpPolicyPath: *pvfScriptWarpPolicyPath, lotteryPolicyPath: *pvfLotteryPolicyPath, selectionBoxesPath: *selectionBoxFile, selectionPolicyPath: *pvfSelectionPolicyPath, minePath: *bleedingMineRewardsFile, indexPath: *itemIndexFile, fullPrefix: *fullEquipmentFile, journalPath: *equipmentJournalRulesFile, createCostPath: *equipmentCreateCostFile, learningPath: *learningFile, pricesPath: *shopPricesFile, boosterPath: *boosterCatalogFile, tutorialPath: *tutorialRoutesFile, verifyBaselines: pvfVerifyBaselines, enhancementPolicyPath: *pvfEnhancementPolicy, randomOptionPath: *randomOptionFile, shieldPath: *knightShieldFile, wearRulesPath: *wearRulesFile, oathPath: *oathGradesTable, vaultPath: *vaultRulesFile, vaultPolicyPath: *pvfVaultPolicy, lootPath: *lootCatalogFile, equipmentPath: *equipmentCatalogFile, questEquipmentPath: *equipmentRewardFile, dropPolicyPath: *pvfDropPolicy, townPath: *townCatalogFile, dungeonPath: *dungeonCatalogFile, tutorialDungeonPath: *tutorialDungeonsFile, scenePolicyPath: *pvfScenePolicyPath, apocalypsePath: *apocalypseCatalogFile, attunementPath: *attunementRewardsFile, contentPolicyPath: *pvfContentPolicyPath})
+	pvfCatalogs, pvfCatalogErr := preparePVFCoreCatalogs(*pvfCatalogSelection, *pvfArchivePath, *pvfArchiveChecksum, *characterCatalog, *questCatalogFile, *progressionCatalogFile, *worldCatalogFile, pvfItemInputs{boxesPath: *boxesFile, boxPolicyPath: *pvfBoxPolicyPath, cashshopPath: *shopPilotFile, cashshopRelease: *shopRelease, characterPolicyPath: *pvfCharacterPolicyPath, layerRevisitPolicyPath: *pvfLayerRevisitPolicyPath, scriptWarpPolicyPath: *pvfScriptWarpPolicyPath, lotteryPolicyPath: *pvfLotteryPolicyPath, selectionBoxesPath: *selectionBoxFile, selectionPolicyPath: *pvfSelectionPolicyPath, minePath: *bleedingMineRewardsFile, indexPath: *itemIndexFile, fullPrefix: *fullEquipmentFile, journalPath: *equipmentJournalRulesFile, createCostPath: *equipmentCreateCostFile, learningPath: *learningFile, pricesPath: *shopPricesFile, boosterPath: *boosterCatalogFile, tutorialPath: *tutorialRoutesFile, verifyBaselines: pvfVerifyBaselines, enhancementPolicyPath: *pvfEnhancementPolicy, randomOptionPath: *randomOptionFile, shieldPath: *knightShieldFile, wearRulesPath: *wearRulesFile, oathPath: *oathGradesTable, vaultPath: *vaultRulesFile, vaultPolicyPath: *pvfVaultPolicy, lootPath: *lootCatalogFile, equipmentPath: *equipmentCatalogFile, questEquipmentPath: *equipmentRewardFile, dropPolicyPath: *pvfDropPolicy, townPath: *townCatalogFile, dungeonPath: *dungeonCatalogFile, tutorialDungeonPath: *tutorialDungeonsFile, scenePolicyPath: *pvfScenePolicyPath, apocalypsePath: *apocalypseCatalogFile, attunementPath: *attunementRewardsFile, contentPolicyPath: *pvfContentPolicyPath})
 	if pvfCatalogErr != nil {
 		log.Fatalf("PVF candidate catalogs: %v", pvfCatalogErr)
 	}
@@ -1030,8 +1031,13 @@ func main() {
 		if boxesPath == "" {
 			boxesPath = filepath.Join(filepath.Dir(*bagRulesFile), "boxes.json")
 		}
-		if _, statErr := os.Stat(boxesPath); statErr == nil {
-			boxes, boxErr := loot.LoadBoxes(boxesPath)
+		boxesAvailable := pvfCatalogs.boxes != nil
+		if !boxesAvailable {
+			_, statErr := os.Stat(boxesPath)
+			boxesAvailable = statErr == nil
+		}
+		if boxesAvailable {
+			boxes, boxErr := pvfCatalogs.loadBoxes(boxesPath, lootService.Catalog.Source.Checksum)
 			if boxErr != nil {
 				log.Fatal(boxErr)
 			}
