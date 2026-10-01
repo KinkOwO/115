@@ -1,13 +1,62 @@
 package main
 
 import (
+	"dfolan/internal/inventory"
 	"encoding/binary"
+	"math"
+	"math/rand"
 	"testing"
 )
 
+// 中间四档的随机：业主 2026-10-01 拍板「按稀有度递减」。
+// 守四件事：① 不越界；② primeval(45) 只能来自保底分支；③ 大样本下占比与权重对齐；
+// ④ 权重确实严格递减。
+func TestRollOathGradeFollowsTheDecliningWeights(t *testing.T) {
+	for _, w := range oathGradeWeights {
+		if _, ok := oathGradeTiers[w.Grade]; !ok {
+			t.Fatalf("weight table names %d, outside the eight tiers the script accepts", w.Grade)
+		}
+		if w.Grade == oathGradePrimeval {
+			t.Fatal("primeval must stay pity-only and never join the random table")
+		}
+	}
+	for i := 1; i < len(oathGradeWeights); i++ {
+		if oathGradeWeights[i-1].Weight <= oathGradeWeights[i].Weight {
+			t.Fatalf("weights are not strictly declining at index %d", i)
+		}
+	}
+	if got := rollOathGrade(nil); got != inventory.OathGradeNormal {
+		t.Fatalf("nil rng = %d, want normal(%d)", got, inventory.OathGradeNormal)
+	}
+	const draws = 200000
+	rng := rand.New(rand.NewSource(20261001))
+	count := map[uint16]int{}
+	total := 0
+	for _, w := range oathGradeWeights {
+		total += w.Weight
+	}
+	for i := 0; i < draws; i++ {
+		g := rollOathGrade(rng)
+		if _, ok := oathGradeTiers[g]; !ok {
+			t.Fatalf("draw %d produced %d, outside the eight tiers", i, g)
+		}
+		if g == oathGradePrimeval {
+			t.Fatalf("draw %d produced primeval(%d) from the random table", i, g)
+		}
+		count[g]++
+	}
+	for _, w := range oathGradeWeights {
+		want := float64(w.Weight) / float64(total)
+		got := float64(count[w.Grade]) / float64(draws)
+		if math.Abs(got-want) > want*0.15 {
+			t.Fatalf("grade %d share = %.4f, want %.4f (within 15%%)", w.Grade, got, want)
+		}
+	}
+}
+
 // 保底档位的纯决策：到期给 45（唯一召唤奥尔泰尔的档），否则两边 normal。
 func TestOathGradesForPity(t *testing.T) {
-	primer, oath := oathGradesForPity(true)
+	primer, oath := oathGradesForPity(true, nil)
 	if _, ok := oathGradeTiers[oath]; !ok {
 		t.Fatalf("oath %d is outside the eight tiers the script accepts", oath)
 	}
@@ -20,7 +69,7 @@ func TestOathGradesForPity(t *testing.T) {
 		t.Fatalf("primer = %d, want 40 (the watcher branch needs primer 45; we never trigger it)", primer)
 	}
 
-	primer, oath = oathGradesForPity(false)
+	primer, oath = oathGradesForPity(false, nil)
 	if primer != 40 || oath != 40 {
 		t.Fatalf("not due = %d/%d, want 40/40", primer, oath)
 	}
@@ -96,7 +145,7 @@ func TestOathProgressDefaults(t *testing.T) {
 
 // 端到端：保底到期时，2838 载荷的 [4:8) 必须正好是 45。
 func TestOathInfoPayloadCarriesThePityTier(t *testing.T) {
-	primer, oath := oathGradesForPity(true)
+	primer, oath := oathGradesForPity(true, nil)
 	p := oathInfoPayload(primer, oath)
 	if len(p) != 8 {
 		t.Fatalf("payload = %d bytes, want 8", len(p))

@@ -160,9 +160,16 @@ func main() {
 	// 确认有效即移除并变成默认行为；只有「玩家体验上的数值差异」（如掉落调参）才留入口。
 	// 此前它们默认关闭 ⇒ 直读默认档下整套深渊玩法静默不生效（征兆不掷骰、隐藏 BOSS 无门禁、
 	// 定盘机关可能打不死），是本轮失效排查的核心结论。
-	omenRewards := true      // 征兆系统：通关按 [coupon drop table] 的阶段表累积并结算（internal/loot/omen.go）
-	omenState := true        // 征兆 = 角色存档级状态；隐藏 BOSS 由「满档结算」驱动（cmd/wireprobe/omen_state.go）
-	scaleDeathFromHP := true // 定盘机关(109019266)血量触底时由服务端兜底宣布死亡（cmd/wireprobe/scale_death.go）
+	omenRewards := true // 征兆系统：通关按 [coupon drop table] 的阶段表累积并结算（internal/loot/omen.go）
+	omenState := true   // 征兆 = 角色存档级状态；隐藏 BOSS 由「满档结算」驱动（cmd/wireprobe/omen_state.go）
+	// 定盘机关 (109019266) 的兜底判死：血量触底时由服务端合成一条死亡上报。
+	//
+	// **默认关**（2026-10-01 回调）：它是「绕过」而不是玩法。72 哨兵修掉后 —— noti 2838
+	// 由 oathInfoPackets 在进本时下发，天平已能按脚本设计自己死，实机验证兜底一次都没触发
+	// （docs/protocol/endkeeper-of-order-primer-20260926.md §22.1）。默认开着会**掩盖真路径**：
+	// 天平若又打不死，日志里会先出现 scale_death_forced，而那不是根因。
+	// 只作诊断入口，排查时临时打开：-scale-death-from-hp / DFO_SCALE_DEATH_FROM_HP=1。
+	scaleDeathFromHP := flag.Bool("scale-death-from-hp", os.Getenv("DFO_SCALE_DEATH_FROM_HP") == "1", "诊断：定盘机关血量触底时由服务端兜底宣布死亡（默认关；noti 2838 修好后天平会自己死）")
 	flag.Parse()
 	if *pvfCheckHeap != "" && !*pvfCheckCatalogs {
 		log.Fatal("pvf-check-heap-profile requires pvf-check-catalogs")
@@ -1744,7 +1751,7 @@ func main() {
 			if questService != nil && townArrivalScenes == nil {
 				log.Fatal("town arrival scene whitelist was not passed to world sessions")
 			}
-			worldState = &worldSession{characters: characters, service: worldService, account: developmentAccount, flags: townPolicy.Flags, dungeons: dungeonCatalog, townArrivalScenes: townArrivalScenes, tutorials: tutorialRoutes, tutorialDungeons: tutorialDungeons, professions: characters.Catalog, fatigue: fatigueService, quests: questService, progression: progressionService, loot: lootService, shop: shopService, selectionBoxes: selectionBoxes, vault: vaultService, skinCatalog: skinCatalog, soloPartyBootstrap: *soloPartyBootstrap, hub: hub, scaleDeathFromHP: scaleDeathFromHP, oathGrades: oathGradePair, oathTable: oathGradeTable, oathFromGear: *oathFromGear, oathProgressClears: *oathProgressClears, oathProgressDungeons: oathProgressSet, oathInject: oathInjectSpecs, omenHold: *omenHold, omenState: omenState, omenInfo: omenInfoBytes}
+			worldState = &worldSession{characters: characters, service: worldService, account: developmentAccount, flags: townPolicy.Flags, dungeons: dungeonCatalog, townArrivalScenes: townArrivalScenes, tutorials: tutorialRoutes, tutorialDungeons: tutorialDungeons, professions: characters.Catalog, fatigue: fatigueService, quests: questService, progression: progressionService, loot: lootService, shop: shopService, selectionBoxes: selectionBoxes, vault: vaultService, skinCatalog: skinCatalog, soloPartyBootstrap: *soloPartyBootstrap, hub: hub, scaleDeathFromHP: *scaleDeathFromHP, oathGrades: oathGradePair, oathTable: oathGradeTable, oathFromGear: *oathFromGear, oathProgressClears: *oathProgressClears, oathProgressDungeons: oathProgressSet, oathInject: oathInjectSpecs, omenHold: *omenHold, omenState: omenState, omenInfo: omenInfoBytes}
 			worldState.serverID = channelCfg.ServerID
 			worldState.channelType = channelTypes[channel]
 			if moonConfig != nil && channel == moonConfig.Channel {

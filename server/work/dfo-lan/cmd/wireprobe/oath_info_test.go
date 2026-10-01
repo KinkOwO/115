@@ -71,6 +71,9 @@ func TestParseOathGrades(t *testing.T) {
 // 没配保底（或没进计入保底的副本）时档位必须落回 normal —— 那才是「隐藏 BOSS 稀有」
 // 的落点。恒发 45 会让 state machine 在 oath_now == 44 时必然 summon_orthaire
 // （实机确认过 c:nox_index 变成 109019264），也就是场场登场。
+//
+// 2026-10-01 起 oath 不再固定 normal：中间四档按稀有度递减随机（业主拍板），
+// 所以这里守的是「合法 + primer 恒 normal + 不随机出 primeval」，不再是固定 40/40。
 func TestOathInfoPacketsFallsBackToNormalWithoutPity(t *testing.T) {
 	w := &worldSession{} // 零值覆盖 + 保底场次 0（关闭）
 	plan, err := w.oathInfoPackets()
@@ -83,11 +86,17 @@ func TestOathInfoPacketsFallsBackToNormalWithoutPity(t *testing.T) {
 	p := plan[0].Payload
 	primer := binary.LittleEndian.Uint32(p[0:4])
 	oath := binary.LittleEndian.Uint32(p[4:8])
-	if primer != uint32(inventory.OathGradeNormal) || oath != uint32(inventory.OathGradeNormal) {
-		t.Fatalf("payload = %d/%d, want normal(%d) for both", primer, oath, inventory.OathGradeNormal)
+	if primer != uint32(inventory.OathGradeNormal) {
+		t.Fatalf("primer = %d, want normal(%d) always", primer, inventory.OathGradeNormal)
 	}
 	if _, ok := oathGradeTiers[uint16(oath)]; !ok {
 		t.Fatalf("oath %d is outside the eight tiers the script accepts", oath)
+	}
+	if oath == uint32(oathGradePrimeval) {
+		t.Fatalf("oath = %d without an expired pity — primeval must stay pity-only", oath)
+	}
+	if oath < 40 || oath > 44 {
+		t.Fatalf("oath = %d, want one of the four middle tiers (41..44) or normal(40)", oath)
 	}
 }
 

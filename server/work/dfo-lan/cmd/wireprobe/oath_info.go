@@ -47,10 +47,12 @@ package main
 import (
 	"encoding/binary"
 	"fmt"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"dfolan/internal/inventory"
 )
@@ -173,7 +175,7 @@ func (w *worldSession) derivedOathGrades() (uint16, uint16, error) {
 	if err != nil {
 		return 0, 0, err
 	}
-	primer, oath := oathGradesForPity(due)
+	primer, oath := oathGradesForPity(due, rand.New(rand.NewSource(time.Now().UnixNano())))
 	return primer, oath, nil
 }
 
@@ -197,11 +199,60 @@ func (w *worldSession) orthaireDue() (bool, error) {
 // oathGradesForPity 是保底档位的纯决策：到期给 oath=45（唯一召唤奥尔泰尔的档），
 // 否则两边都是 normal。primer 恒 normal 也意味着第二个隐藏 BOSS「守望者」
 // （`oath_max < 45 && primer_max == 45`）暂时不会出现 —— 它要另有一条保底。
-func oathGradesForPity(due bool) (uint16, uint16) {
+// oathGradeWeights 是**中间五档**的抽取权重（业主 2026-10-01 拍板：按稀有度递减）。
+//
+// 为什么需要这张表：`[ON DAMAGE]` 阶梯能爬到哪一档**完全由 noti 2838 的 `*_max` 决定**
+// （§4b：整条链全在客户端本地，PVF 文本里没有服务端参与点），所以「这一场天平是哪一档」
+// 只能由服务端定 —— 而 PVF 里**没有**这张概率表（已逐处核对 oathsystemscript.cos 的
+// [base rarity section]/[rarity ui infos]/[seasonlevel oath item]、primer_00..07_*_loop.act
+// 的 [ON DAMAGE] 阶梯、scale_primer.mob 的 [create var]；唯一出现的概率是
+// c:fake_end_prob_prob=30「假结束」，与本表无关）。
+//
+// 形状：normal 仍占大头（普通场次不该每场都变色），rare/unique/legendary/epic 依次变少。
+// **primeval(45) 刻意不在表内** —— 它由「通关 N 场保底」独占（见 oathGradesForPity 的 due 分支），
+// 混进随机会让隐藏 BOSS 从「保底」退化成「随机」。
+var oathGradeWeights = []struct {
+	Grade  uint16
+	Weight int
+}{
+	{inventory.OathGradeNormal, 55}, // 40 normal
+	{41, 22},                        // rare
+	{42, 13},                        // unique
+	{43, 7},                         // legendary
+	{44, 3},                         // epic
+}
+
+// rollOathGrade 按 oathGradeWeights 抽一档。rng 为 nil ⇒ normal（零值路径与测试用）。
+func rollOathGrade(rng *rand.Rand) uint16 {
+	if rng == nil {
+		return inventory.OathGradeNormal
+	}
+	total := 0
+	for _, w := range oathGradeWeights {
+		total += w.Weight
+	}
+	pick := rng.Intn(total)
+	for _, w := range oathGradeWeights {
+		if pick < w.Weight {
+			return w.Grade
+		}
+		pick -= w.Weight
+	}
+	return inventory.OathGradeNormal
+}
+
+// oathGradesForPity 决策 (primer, oath)：
+//   - 保底到期 ⇒ oath = primeval（隐藏 BOSS「奥尔泰尔」登场，唯一召唤档）；
+//   - 否则按稀有度递减随机抽中间四档 —— 天平因此**每场可能不同颜色**，
+//     这正是源里 [rarity ui infos] 给每档配 [color] / symbol 动画的用法。
+//
+// `primer` 恒为 normal：第二个隐藏 BOSS「守望者」需要 primer=45 && oath<45，
+// 它要另有一条保底（§32.8 已记「暂不出现」），不在本轮范围。
+func oathGradesForPity(due bool, rng *rand.Rand) (uint16, uint16) {
 	if due {
 		return inventory.OathGradeNormal, oathGradePrimeval
 	}
-	return inventory.OathGradeNormal, inventory.OathGradeNormal
+	return inventory.OathGradeNormal, rollOathGrade(rng)
 }
 
 // wornOathGrades 是**诊断**路径（-oath-grades-from-gear）：按角色实际穿戴的
