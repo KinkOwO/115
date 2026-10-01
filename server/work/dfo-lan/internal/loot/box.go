@@ -345,7 +345,7 @@ func (s *Service) grantBoxPrize(bag inventory.Bag, prize ConsumeGrant) (inventor
 		},
 	}
 	rules := inventory.BagRules{
-		Source:            s.Catalog.Source.Checksum,
+		Source:            s.Catalog.Source.SaveIdentity(),
 		Slots:             map[string][2]uint16{reward.StackableType: *reward.Slots},
 		MissingStackLimit: 1000,
 	}
@@ -405,7 +405,7 @@ func (s *Service) RepairBoxRewards(ctx context.Context, role storage.Character) 
 	if !needed {
 		return role, false, nil
 	}
-	saved, applied, err := s.Store.CommitCharacterPremiumEvent(ctx, role.AccountID, role.ID, s.Catalog.Source.Checksum, "box-reward-repair-v1", s.Rules.Model,
+	saved, applied, err := s.Store.CommitCharacterPremiumEvent(ctx, role.AccountID, role.ID, s.Catalog.Source.SaveIdentity(), "box-reward-repair-v1", s.Rules.Model,
 		func(current storage.Character) (json.RawMessage, json.RawMessage, []storage.CashPremiumActivation, error) {
 			bag, err := inventory.ReadBag(current.State)
 			if err != nil {

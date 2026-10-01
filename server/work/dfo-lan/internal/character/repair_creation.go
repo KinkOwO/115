@@ -42,7 +42,7 @@ func (s *Service) applyCreationAdvancement(initial *State, req protocol.CreateRe
 // 返回新的 state JSON（无变化时为 nil）与人类可读的变更说明。技能不需要落库：
 // 转职段起始技能与退点下限由 automaticSkills/knownSkills 在运行时按 advancement 现算。
 func (s *Service) CreationPreview(role storage.Character) (json.RawMessage, []string, error) {
-	if role.ConfigVersion != s.Catalog.Source.Checksum {
+	if role.ConfigVersion != s.Catalog.Source.SaveIdentity() {
 		return nil, nil, fmt.Errorf("角色配置版本与当前目录不一致：%s", role.ConfigVersion)
 	}
 	var state State

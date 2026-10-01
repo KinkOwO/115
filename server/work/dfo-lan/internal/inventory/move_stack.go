@@ -35,7 +35,7 @@ func MoveStack(ctx context.Context, store *storage.Store, role storage.Character
 	if store == nil {
 		return fail(fmt.Errorf("stack move store missing"))
 	}
-	if role.ConfigVersion != c.Source.Checksum {
+	if role.ConfigVersion != c.Source.SaveIdentity() {
 		return fail(fmt.Errorf("stack move source mismatch"))
 	}
 	if r.SourceList != 0 || r.DestinationList != 0 {

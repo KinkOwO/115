@@ -125,7 +125,7 @@ func (s *Service) ApplyAwakening(role storage.Character, stage byte) (json.RawMe
 		return nil, fmt.Errorf("awakening level requirement not met")
 	}
 	prof, ok := s.Catalog.Professions[role.Profession]
-	if !ok || prof.RawSHA256 != state.SourceSHA256 || role.ConfigVersion != s.Catalog.Source.Checksum {
+	if !ok || prof.RawSHA256 != state.SourceSHA256 || role.ConfigVersion != s.Catalog.Source.SaveIdentity() {
 		return nil, fmt.Errorf("awakening source mismatch")
 	}
 	grants := prof.AwakeningSkills[state.Advancement][stage]

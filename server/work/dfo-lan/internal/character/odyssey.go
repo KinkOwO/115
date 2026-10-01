@@ -1,6 +1,7 @@
 package character
 
 import (
+	"dfolan/internal/savecontract"
 	"context"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
@@ -36,7 +37,7 @@ func CreatedAsOdyssey(role storage.Character) bool {
 }
 
 func (s *ProgressionService) ApplyOdysseyTarget(role storage.Character, target byte) (storage.Character, error) {
-	if s.Odyssey == nil || !OdysseyRole(role) || role.ConfigVersion != s.Odyssey.Source || target < 2 || target > 115 || target > s.Rules.LevelCap || int(target)-2 >= len(s.Catalog.Thresholds) {
+	if s.Odyssey == nil || !OdysseyRole(role) || role.ConfigVersion != savecontract.Identity() || target < 2 || target > 115 || target > s.Rules.LevelCap || int(target)-2 >= len(s.Catalog.Thresholds) {
 		return role, fmt.Errorf("invalid Odyssey target/source/role")
 	}
 	var state State
@@ -103,7 +104,7 @@ func (s *ProgressionService) OdysseyClear(ctx context.Context, role storage.Char
 	// 未知 id，odysseyCompleted 读回来也会报 "unknown Odyssey journal dungeon"，
 	// 而「已通关列表」本来就只服务成长阶梯（journal 顺序门槛 / NOTI2856 进度）。
 	// 它们不在任何站点上，不记也不影响后续传送。
-	return s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, s.Odyssey.Source, "odyssey-growth:"+run.RunID, "odyssey-source-growth-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+	return s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, savecontract.Identity(), "odyssey-growth:"+run.RunID, "odyssey-source-growth-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
 		next := current
 		if target != 0 {
 			var e error
@@ -124,13 +125,13 @@ func (s *ProgressionService) OdysseyClear(ctx context.Context, role storage.Char
 				return nil, nil, e
 			}
 		}
-		proof, e := json.Marshal(map[string]any{"dungeon": run.Definition.ID, "target_level": target, "source": s.Odyssey.Source})
+		proof, e := json.Marshal(map[string]any{"dungeon": run.Definition.ID, "target_level": target, "source": savecontract.Identity()})
 		return next.State, proof, e
 	})
 }
 
 func (s *ProgressionService) odysseyRecordedTarget(role storage.Character) (byte, error) {
-	if s.Odyssey == nil || !OdysseyRole(role) || role.ConfigVersion != s.Odyssey.Source {
+	if s.Odyssey == nil || !OdysseyRole(role) || role.ConfigVersion != savecontract.Identity() {
 		return 0, nil
 	}
 	var saved struct {
@@ -159,7 +160,7 @@ func (s *ProgressionService) OdysseyCatchup(ctx context.Context, role storage.Ch
 	if e != nil || target == 0 {
 		return role, false, e
 	}
-	return s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, s.Odyssey.Source, fmt.Sprintf("odyssey-clear-catchup-v1:%d", target), "odyssey-source-growth-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+	return s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, savecontract.Identity(), fmt.Sprintf("odyssey-clear-catchup-v1:%d", target), "odyssey-source-growth-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
 		actual, e := s.odysseyRecordedTarget(current)
 		if e != nil {
 			return nil, nil, e

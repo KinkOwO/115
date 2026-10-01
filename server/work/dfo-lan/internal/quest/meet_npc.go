@@ -52,5 +52,5 @@ func (s *Service) MeetNPC(ctx context.Context, role storage.Character, id uint16
 	if e != nil || model != SingleMeetNPC || uint32(d.ObjectiveCells[0].Value) != npc {
 		return fmt.Errorf("NPC does not match quest objective")
 	}
-	return s.Store.MarkMeetNPCQuest(ctx, role.AccountID, role.ID, id, s.Catalog.Source.Checksum, model)
+	return s.Store.MarkMeetNPCQuest(ctx, role.AccountID, role.ID, id, s.Catalog.Source.SaveIdentity(), model)
 }

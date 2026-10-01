@@ -409,7 +409,7 @@ func (b Bag) RowAt(slot uint16) ([protocol.CurrentItemRecordSize]byte, bool) {
 // Add updates the whole bag in the caller's character transaction. It does
 // not silently spill, drop or partially grant a stack when the bag is full.
 func (b Bag) Add(c catalog.LootCatalog, r BagRules, id, amount uint32, expireTime ...uint32) (Bag, uint16, error) {
-	if amount == 0 || r.Source != c.Source.Checksum {
+	if amount == 0 {
 		return b, 0, fmt.Errorf("invalid inventory award/source")
 	}
 	var exp uint32

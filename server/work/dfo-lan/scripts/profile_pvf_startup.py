@@ -29,6 +29,7 @@ def main():
     parser.add_argument("--output", help="new directory for logs and measurements")
     parser.add_argument("--timeout", type=float, default=180)
     parser.add_argument("--heap-profile", action="store_true", help="write an isolated post-GC Go heap profile")
+    parser.add_argument("--cache-dir", help="explicit derived cache directory; '-' disables caching")
     args = parser.parse_args()
     if os.name != "nt":
         parser.error("process memory sampling requires Windows")
@@ -59,6 +60,8 @@ def main():
         ]
         if args.heap_profile:
             command.extend(["-pvf-check-heap-profile", str(output / "heap.pprof")])
+        if args.cache_dir is not None:
+            command.extend(["-pvf-cache-dir", args.cache_dir])
         process = subprocess.Popen(command, cwd=root, env=env, stdout=out, stderr=err, creationflags=subprocess.CREATE_NO_WINDOW)
         handle = kernel.OpenProcess(0x0400 | 0x0010, False, process.pid)
         try:
@@ -84,6 +87,7 @@ def main():
                 process.kill()
                 process.wait()
     summary = {"binary": str(binary), "profile": args.profile, "exit_code": process.returncode,
+               "cache_dir": args.cache_dir,
                "seconds": round(time.monotonic() - begin, 3),
                "peak_working_mib": max((v["os_peak_working_mib"] for v in samples), default=0),
                "peak_private_mib": max((v["private_mib"] for v in samples), default=0),

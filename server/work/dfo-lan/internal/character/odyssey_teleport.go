@@ -1,6 +1,7 @@
 package character
 
 import (
+	"dfolan/internal/savecontract"
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/game/protocol"
@@ -39,7 +40,7 @@ func (s *ProgressionService) OdysseyJournalTeleport(role storage.Character, r pr
 	// "no authorized source portal to destination" 拒绝，客户端卡在传送门上。
 	// 该排除的是地图选择器（TailFlags 里出现 5，见 world.service 与 areaTransition
 	// 的 isMapTeleport），不是任何非零值。
-	if s.Odyssey == nil || !OdysseyRole(role) || role.ConfigVersion != s.Odyssey.Source || r.Flag != 5 ||
+	if s.Odyssey == nil || !OdysseyRole(role) || role.ConfigVersion != savecontract.Identity() || r.Flag != 5 ||
 		r.TailFlags[0] == 5 || r.TailFlags[1] == 5 {
 		return false
 	}

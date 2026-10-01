@@ -20,7 +20,7 @@ func TestBranchlessAwakeningGrantDoesNotDeadlockLearning(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	role := storage.Character{Profession: 9, ConfigVersion: c.Source.Checksum, State: raw}
+	role := storage.Character{Profession: 9, ConfigVersion: c.Source.SaveIdentity(), State: raw}
 	for stage := byte(1); stage <= 2; stage++ {
 		role.State, err = s.ApplyAwakening(role, stage)
 		if err != nil {
@@ -108,7 +108,7 @@ func TestBranchlessAwakeningAndLearningPersistence(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		role, err := store.CreateCharacter(ctx, storage.Character{AccountID: account, Name: fmt.Sprintf("Branchless%d", job), Profession: job, ConfigVersion: c.Source.Checksum, State: raw, Request: []byte{0}}, 24)
+		role, err := store.CreateCharacter(ctx, storage.Character{AccountID: account, Name: fmt.Sprintf("Branchless%d", job), Profession: job, ConfigVersion: c.Source.SaveIdentity(), State: raw, Request: []byte{0}}, 24)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -162,7 +162,7 @@ func TestBranchlessAwakeningAndLearningPersistence(t *testing.T) {
 		if err = json.Unmarshal(fields["future_save_field"], &retained); err != nil || retained.Value != 123 {
 			t.Fatal("unknown save field lost", err)
 		}
-		if state.Advancement != 0 || state.Awakening != 3 || state.TechniquePoints[0] != 5 || role.ConfigVersion != c.Source.Checksum {
+		if state.Advancement != 0 || state.Awakening != 3 || state.TechniquePoints[0] != 5 || role.ConfigVersion != c.Source.SaveIdentity() {
 			t.Fatal("saved awakening or source changed", role.Profession)
 		}
 		if role.Profession == 9 && (state.LearnedSkills[0][64] != 1 || state.SkillPoints[0] >= 5000) {

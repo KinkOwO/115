@@ -31,7 +31,7 @@ func (s *WearService) knightGate(role storage.Character) error {
 	if s == nil || s.Shields == nil {
 		return shieldRefusal("knight shield catalog unavailable")
 	}
-	if s.Catalog == nil || s.Catalog.Source.Checksum != role.ConfigVersion || s.Rules.Source != role.ConfigVersion || s.Professions.Source.Checksum != role.ConfigVersion || s.Shields.Source.Checksum != role.ConfigVersion {
+	if s.Catalog == nil || s.Catalog.Source.SaveIdentity() != role.ConfigVersion || s.Professions.Source.SaveIdentity() != role.ConfigVersion || s.Shields.Source.SaveIdentity() != role.ConfigVersion {
 		return shieldRefusal("knight shield source mismatch")
 	}
 	if job, ok := s.Professions.Professions[role.Profession]; !ok || job.Job != "[knight]" || role.Profession != s.Shields.Profession {

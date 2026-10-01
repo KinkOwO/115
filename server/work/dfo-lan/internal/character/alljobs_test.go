@@ -31,7 +31,7 @@ func TestAllSourceAdvancementsEntryAndGrowth(t *testing.T) {
 			t.Run(fmt.Sprintf("job%d_adv%d", job, adv), func(t *testing.T) {
 				st := State{Level: 1, Advancement: adv, AllJobsPilot: true, Attributes: p.InitialAttributes, InitialSkills: p.InitialSkills, SourceSHA256: p.RawSHA256}
 				raw, _ := json.Marshal(st)
-				r := storage.Character{Name: "JobTest", WireID: 1, Profession: job, State: raw, ConfigVersion: c.Source.Checksum}
+				r := storage.Character{Name: "JobTest", WireID: 1, Profession: job, State: raw, ConfigVersion: c.Source.SaveIdentity()}
 				if _, e := s.EntryBasicProbe(r, [2]byte{}); e != nil {
 					t.Fatal(e)
 				}

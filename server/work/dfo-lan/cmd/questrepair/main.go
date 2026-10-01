@@ -72,7 +72,7 @@ func main() {
 			continue
 		}
 		d, ok := cat.Quests[uint32(q.ID)]
-		if !ok || q.ConfigVersion != cat.Source.Checksum {
+		if !ok || q.ConfigVersion != cat.Source.SaveIdentity() {
 			log.Fatal("quest source mismatch")
 		}
 		initial, model, e := quest.InitialProgress(d)

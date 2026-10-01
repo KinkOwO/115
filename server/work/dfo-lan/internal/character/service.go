@@ -151,7 +151,7 @@ func (s *Service) Create(ctx context.Context, account int64, p []byte) (storage.
 			return storage.Character{}, e
 		}
 	}
-	return s.Store.CreateCharacter(ctx, storage.Character{AccountID: account, Name: req.Name, Profession: req.Profession, Request: append([]byte(nil), p...), ConfigVersion: s.Catalog.Source.Checksum, State: state}, s.Rules.MaxCharacters)
+	return s.Store.CreateCharacter(ctx, storage.Character{AccountID: account, Name: req.Name, Profession: req.Profession, Request: append([]byte(nil), p...), ConfigVersion: s.Catalog.Source.SaveIdentity(), State: state}, s.Rules.MaxCharacters)
 }
 
 func (s *State) setCreationOptions(options []byte) {
@@ -245,7 +245,7 @@ func (s *Service) rosterRowsWithFatigue(ctx context.Context, account int64, char
 	// 资格位来自140220030的频道入场分支；任务来自当前PVF。
 	// enterablespecialchannel.etc 中的洞察、希洛克、黑鸦、奥兹玛任务
 	// 保持原生资格位；已撤下流放频道，不重新投影其专用准入标记。
-	completed, e := s.Store.CompletedQuestIDs(ctx, account, s.Catalog.Source.Checksum, specialChannelPrerequisites)
+	completed, e := s.Store.CompletedQuestIDs(ctx, account, s.Catalog.Source.SaveIdentity(), specialChannelPrerequisites)
 	if e != nil {
 		return nil, e
 	}

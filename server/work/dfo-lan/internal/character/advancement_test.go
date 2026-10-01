@@ -19,7 +19,7 @@ func advancementFixture(t *testing.T, advancement, awakening byte) (*Service, st
 	if err != nil {
 		t.Fatal(err)
 	}
-	role := storage.Character{Profession: 12, ConfigVersion: c.Source.Checksum, State: raw}
+	role := storage.Character{Profession: 12, ConfigVersion: c.Source.SaveIdentity(), State: raw}
 	return &Service{Catalog: c}, role
 }
 

@@ -74,7 +74,7 @@ type InheritReceipt struct {
 // ApplyInherit 处理 CMD 1722：逐条记录把材料件的强化/增幅/锻造/附魔转移到基础件，
 // 材料件清零保留。一次请求可以带多条记录，全部成功才落库。
 func (s *WearService) ApplyInherit(ctx context.Context, role storage.Character, key string, r protocol.InheritRequest) (storage.Character, []InheritReceipt, error) {
-	if s == nil || s.Store == nil || s.Catalog == nil || s.BagRules.Source != role.ConfigVersion {
+	if s == nil || s.Store == nil || s.Catalog == nil {
 		return role, nil, fmt.Errorf("装备继承需要有效装备目录及角色存档")
 	}
 	if len(r.Entries) == 0 {

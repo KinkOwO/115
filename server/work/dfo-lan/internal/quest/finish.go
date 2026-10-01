@@ -73,7 +73,7 @@ func (s *Service) Finish(ctx context.Context, role storage.Character, r protocol
 	if !rewardUsable(d) {
 		return out, ErrRewardPending
 	}
-	commit, e := s.Store.CommitQuestReward(ctx, role.AccountID, role.ID, r.ID, s.Catalog.Source.Checksum, model, s.Progression.Rules.Model, func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+	commit, e := s.Store.CommitQuestReward(ctx, role.AccountID, role.ID, r.ID, s.Catalog.Source.SaveIdentity(), model, s.Progression.Rules.Model, func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
 		var state character.State
 		if e := json.Unmarshal(current.State, &state); e != nil {
 			return nil, nil, e
@@ -158,7 +158,7 @@ func (s *Service) Finish(ctx context.Context, role storage.Character, r protocol
 			}
 			items = append(items, item)
 		}
-		receipt, e := json.Marshal(FinishReceipt{Quest: r.ID, Experience: gain, Gold: gold, Source: s.Catalog.Source.Checksum, Model: s.Progression.Rules.Model, Items: items, Consumed: consumed, UnlockedEquipment: unlock})
+		receipt, e := json.Marshal(FinishReceipt{Quest: r.ID, Experience: gain, Gold: gold, Source: s.Catalog.Source.SaveIdentity(), Model: s.Progression.Rules.Model, Items: items, Consumed: consumed, UnlockedEquipment: unlock})
 		return saved.State, receipt, e
 	})
 	if e != nil {
@@ -167,7 +167,7 @@ func (s *Service) Finish(ctx context.Context, role storage.Character, r protocol
 	if e = json.Unmarshal(commit.Receipt, &out.Receipt); e != nil {
 		return out, e
 	}
-	if out.Receipt.Quest != r.ID || out.Receipt.Source != s.Catalog.Source.Checksum {
+	if out.Receipt.Quest != r.ID || out.Receipt.Source != s.Catalog.Source.SaveIdentity() {
 		return out, fmt.Errorf("quest reward receipt mismatch")
 	}
 	out.Role, out.Applied = commit.Character, commit.Applied
@@ -202,7 +202,7 @@ func (s *Service) Completed(ctx context.Context, role storage.Character) ([]uint
 	var ids []uint32
 	for _, q := range states {
 		if q.Status == "completed" {
-			if q.ConfigVersion != s.Catalog.Source.Checksum {
+			if q.ConfigVersion != s.Catalog.Source.SaveIdentity() {
 				return nil, fmt.Errorf("completed quest source mismatch")
 			}
 			ids = append(ids, uint32(q.ID))

@@ -10,7 +10,7 @@ import (
 // RepairSwordmasterPilot projects only the captured, level-one Swordmaster
 // request shape. The caller must select an isolated database explicitly.
 func (s *Service) RepairSwordmasterPilot(role storage.Character) (storage.Character, error) {
-	if !s.Rules.SwordmasterPilot || role.Profession != 0 || role.ConfigVersion != s.Catalog.Source.Checksum {
+	if !s.Rules.SwordmasterPilot || role.Profession != 0 || role.ConfigVersion != s.Catalog.Source.SaveIdentity() {
 		return role, fmt.Errorf("not a swordmaster pilot character")
 	}
 	req, err := protocol.DecodeCreateRequest(role.Request)

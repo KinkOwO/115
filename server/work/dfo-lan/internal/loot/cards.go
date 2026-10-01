@@ -96,7 +96,7 @@ func CardGold(t Tables, r CardRules, seed uint32, level, difficulty byte) (uint3
 // Freeze is a durable plan, not an award. No reward is granted until PickCard.
 func (s *Service) FreezeCards(ctx context.Context, role storage.Character, d *dungeon.Session, r CardRules, seed uint32) (CardPlan, error) {
 	var p CardPlan
-	if d == nil || !d.Completed() || role.ConfigVersion != s.Catalog.Source.Checksum {
+	if d == nil || !d.Completed() || role.ConfigVersion != s.Catalog.Source.SaveIdentity() {
 		return p, fmt.Errorf("card plan before owned completion")
 	}
 	if d.Definition.ID == BlackPurgatorySquadDungeon {
@@ -127,7 +127,7 @@ func (s *Service) FreezeCards(ctx context.Context, role storage.Character, d *du
 	if e != nil {
 		return p, e
 	}
-	p = CardPlan{Run: d.RunID, Source: s.Catalog.Source.Checksum, Model: r.Model, Gold: gold, Level: level}
+	p = CardPlan{Run: d.RunID, Source: s.Catalog.Source.SaveIdentity(), Model: r.Model, Gold: gold, Level: level}
 	key := "cardplan:" + d.RunID
 	_, _, e = s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, p.Source, key, r.Model, func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
 		b, e := json.Marshal(p)
@@ -143,14 +143,14 @@ func (s *Service) FreezeCards(ctx context.Context, role storage.Character, d *du
 	if e = json.Unmarshal(b, &p); e != nil {
 		return p, e
 	}
-	if p.Run != d.RunID || p.Source != s.Catalog.Source.Checksum || p.Model != r.Model || p.Gold == 0 {
+	if p.Run != d.RunID || p.Source != s.Catalog.Source.SaveIdentity() || p.Model != r.Model || p.Gold == 0 {
 		return p, fmt.Errorf("card plan source conflict")
 	}
 	return p, nil
 }
 func (s *Service) PickCard(ctx context.Context, role storage.Character, d *dungeon.Session, p CardPlan, index byte) (storage.Character, CardReceipt, bool, error) {
 	var receipt CardReceipt
-	if index > 3 || d == nil || !d.Completed() || p.Run != d.RunID || p.Source != s.Catalog.Source.Checksum {
+	if index > 3 || d == nil || !d.Completed() || p.Run != d.RunID || p.Source != s.Catalog.Source.SaveIdentity() {
 		return role, receipt, false, fmt.Errorf("invalid owned card selection")
 	}
 	return s.pickFrozenCard(ctx, role, p, index)
@@ -158,7 +158,7 @@ func (s *Service) PickCard(ctx context.Context, role storage.Character, d *dunge
 
 func (s *Service) pickFrozenCard(ctx context.Context, role storage.Character, p CardPlan, index byte) (storage.Character, CardReceipt, bool, error) {
 	var receipt CardReceipt
-	if index > 3 || p.Source != s.Catalog.Source.Checksum || role.ConfigVersion != p.Source || p.Run == "" {
+	if index > 3 || p.Source != s.Catalog.Source.SaveIdentity() || role.ConfigVersion != p.Source || p.Run == "" {
 		return role, receipt, false, fmt.Errorf("翻牌奖励归属无效")
 	}
 	// Re-read frozen server plan; values received from the transport never

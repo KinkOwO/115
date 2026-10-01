@@ -252,7 +252,7 @@ func (w *worldSession) prepareDungeonEntry(r protocol.DungeonSelection) (*dungeo
 		return nil, nil, e
 	}
 	noteMazeEntry(s)
-	if w.fatigue != nil && !s.Definition.NoFatigue && w.fatigue.Rules.RoomCost > 0 {
+	if w.fatigue != nil && !s.Definition.NoFatigue && w.fatigue.EnterCostFor(s.Definition.ID) > 0 {
 		fp, err := w.fatigue.State(ctx, w.account, w.role.ID, time.Now())
 		if err != nil {
 			return nil, nil, err
@@ -379,7 +379,7 @@ func (w *worldSession) acceptedQuestIDs(ctx context.Context) (map[uint16]bool, e
 	}
 	accepted := map[uint16]bool{}
 	for _, q := range quests {
-		if (q.Status == "accepted" || q.Status == "completed") && q.ConfigVersion == w.dungeons.Source.Checksum {
+		if (q.Status == "accepted" || q.Status == "completed") && q.ConfigVersion == w.dungeons.Source.SaveIdentity() {
 			accepted[q.ID] = true
 		}
 	}
@@ -409,7 +409,7 @@ func (w *worldSession) directMoveDungeon(p []byte) (*dungeon.Session, []outbound
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	if w.fatigue != nil && !d.NoFatigue && w.fatigue.Rules.RoomCost > 0 {
+	if w.fatigue != nil && !d.NoFatigue && w.fatigue.EnterCostFor(d.ID) > 0 {
 		fp, err := w.fatigue.State(ctx, w.account, w.role.ID, time.Now())
 		if err != nil {
 			return nil, nil, err
@@ -537,9 +537,19 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 		}
 		plan = append(plan, blackPackets...)
 		d := w.activeDungeon
-		fp, _, e := w.fatigue.EnterRoom(ctx, w.account, w.role.ID, d.RunID, d.Room.Map, d.Definition.NoFatigue, time.Now())
+		fp, _, e := w.fatigue.EnterRoomForDungeon(ctx, w.account, w.role.ID, d.RunID, d.Room.Map, d.Definition.ID, d.Definition.NoFatigue, time.Now())
 		if e != nil {
-			return nil, e
+			// 「限制」必须在进入之前生效，绝不能发生在副本里面：客户端已经进本、
+			// 正在等这条加载应答，回一个它不认识的拒绝形状就等于让它卡在加载界面
+			//（2026-10-01 实测过一次，见分析文档 §九）。这里把加载应答发完，
+			// 再立刻把角色完整送回城镇。
+			log.Printf("dungeon %d 进本记费失败（%v）：已放行加载并立即退回城镇，避免卡死", d.Definition.ID, e)
+			w.activeDungeon = nil
+			leave, le := w.leaveDungeon()
+			if le != nil {
+				return nil, le
+			}
+			return append(plan, leave...), nil
 		}
 		p, e := protocol.Fatigue(fp.Used, fp.Limit, fp.UsedMax)
 		if e != nil {
@@ -1222,7 +1232,7 @@ func (w *worldSession) completeDungeon() ([]outboundPacket, error) {
 	if w.quests != nil && w.dungeons != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		active, err := w.quests.MapClear(ctx, w.role, w.activeDungeon, w.dungeons.Source.Checksum)
+		active, err := w.quests.MapClear(ctx, w.role, w.activeDungeon, w.dungeons.Source.SaveIdentity())
 		if err != nil {
 			return nil, err
 		}

@@ -8,7 +8,7 @@ import (
 // UseItem advances only accepted objectives matching an item that the owned
 // character has actually used through a committed item consume event.
 func (s *Service) UseItem(ctx context.Context, role storage.Character, template uint32, eventKey string) ([]uint16, error) {
-	if template == 0 || eventKey == "" || role.ConfigVersion != s.Catalog.Source.Checksum {
+	if template == 0 || eventKey == "" || role.ConfigVersion != s.Catalog.Source.SaveIdentity() {
 		return nil, nil
 	}
 	var advanced []uint16

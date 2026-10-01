@@ -14,7 +14,7 @@ func (s *ProgressionService) ApplyGain(current storage.Character, gain uint64) (
 	var state State
 	var result progression.Advance
 	fail := func(e error) (storage.Character, progression.Advance, error) { return current, result, e }
-	if current.ConfigVersion != s.Catalog.Source.Checksum || s.Professions.Source.Checksum != s.Catalog.Source.Checksum {
+	if current.ConfigVersion != s.Catalog.Source.SaveIdentity() || s.Professions.Source.Checksum != s.Catalog.Source.Checksum {
 		return fail(fmt.Errorf("progression source mismatch"))
 	}
 	if e := json.Unmarshal(current.State, &state); e != nil {

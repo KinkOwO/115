@@ -13,6 +13,7 @@ import (
 	"dfolan/internal/rosterbg"
 	"encoding/hex"
 	"fmt"
+	"log"
 	"path/filepath"
 	"strings"
 )
@@ -35,12 +36,16 @@ type Options struct {
 	// 自动派生不额外读一遍归档：OpenReadOnly完整流式计算一次SHA256并复用它。
 	ExpectedChecksum string
 	MaxBytes         int64
+	// Empty or "-" disables derived files. The archive is verified even on hits.
+	DerivedCacheDir string
 }
 
 // Source owns one read-only archive shared by sequential catalog imports.
 type Source struct {
-	mode    Mode
-	archive *pvf.Archive
+	mode       Mode
+	archive    *pvf.Archive
+	cacheDir   string
+	cacheStats derivedCacheCounters
 }
 
 func (s *Source) VisitItemDisplay(index catalog.ItemIndex, visit func(catalog.ItemDisplay) error) error {
@@ -114,7 +119,7 @@ func Open(options Options) (*Source, error) {
 	if options.Mode != JSON && options.Mode != PVF {
 		return nil, fmt.Errorf("unknown catalog source %q; expected json or pvf", options.Mode)
 	}
-	s := &Source{mode: options.Mode}
+	s := &Source{mode: options.Mode, cacheDir: options.DerivedCacheDir}
 	if options.Mode == JSON {
 		return s, nil
 	}
@@ -137,7 +142,14 @@ func Open(options Options) (*Source, error) {
 	if options.MaxBytes == 0 {
 		options.MaxBytes = DefaultMaxBytes
 	}
-	a, err := pvf.OpenReadOnly(pvf.Options{Path: path, MaxBytes: options.MaxBytes}, expected)
+	parser := ""
+	if options.DerivedCacheDir != "" && options.DerivedCacheDir != "-" {
+		parser, err = derivedParserIdentity()
+		if err != nil {
+			log.Printf("PVF metadata cache unavailable; native parse: %v", err)
+		}
+	}
+	a, err := pvf.OpenReadOnlyCached(pvf.Options{Path: path, MaxBytes: options.MaxBytes}, expected, options.DerivedCacheDir, parser)
 	if err != nil {
 		return nil, fmt.Errorf("open inner PVF: %w", err)
 	}
@@ -257,6 +269,10 @@ type JointItemCatalogs struct {
 // ItemCatalogs streams common script bytes into selected domain consumers.
 // It publishes nothing globally and returns no partial catalog on failure.
 func (s *Source) ItemCatalogs(options catalog.ItemBasicOptions, enhancements bool, policyPath string, fame bool) (JointItemCatalogs, error) {
+	return s.cachedItemCatalogs(options, enhancements, policyPath, fame)
+}
+
+func (s *Source) importItemCatalogs(options catalog.ItemBasicOptions, enhancements bool, policyPath string, fame bool) (JointItemCatalogs, error) {
 	var out JointItemCatalogs
 	if s.mode != PVF {
 		return out, fmt.Errorf("joint item import requires PVF")

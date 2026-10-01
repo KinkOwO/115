@@ -126,6 +126,9 @@ func preparePVFScenes(c *pvfCoreCatalogs, s *gamedata.Source, selected map[strin
 		}
 		c.dungeons = &direct
 		log.Printf("PVF full dungeons prepared: dungeons=%d maps=%d skipped=%d", len(direct.Dungeons), len(direct.Maps), len(direct.Skipped))
+	if declared := direct.DeclaredEnterFatigue(); declared != "" {
+		log.Printf("PVF dungeons declaring [use fatigue only start dungeon]: %s", declared)
+	}
 		s.ReleaseReadCaches()
 	}
 	if selected["training-dungeons"] {

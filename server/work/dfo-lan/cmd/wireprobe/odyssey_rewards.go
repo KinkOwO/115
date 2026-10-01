@@ -1,6 +1,7 @@
 package main
 
 import (
+	"dfolan/internal/savecontract"
 	"context"
 	"dfolan/internal/catalog"
 	"dfolan/internal/character"
@@ -32,7 +33,7 @@ func isOdysseyRewardRole(role storage.Character) bool {
 }
 
 func applyOdysseyArmor(role storage.Character, wear *inventory.WearService) (json.RawMessage, json.RawMessage, error) {
-	if !isOdysseyRewardRole(role) || role.ConfigVersion != odysseySource() || wear == nil || wear.Catalog == nil || wear.Catalog.Source.Checksum != odysseySource() || wear.BagRules.Source != odysseySource() {
+	if !isOdysseyRewardRole(role) || role.ConfigVersion != savecontract.Identity() || wear == nil || wear.Catalog == nil || wear.Catalog.Source.SaveIdentity() != savecontract.Identity() {
 		return nil, nil, fmt.Errorf("Odyssey armor requires matching character and source catalogs")
 	}
 	b, e := inventory.ReadBag(role.State)
@@ -63,7 +64,7 @@ func grantOdysseyArmor(ctx context.Context, store *storage.Store, wear *inventor
 }
 
 func applyOdysseyWeaponBox(role storage.Character) (json.RawMessage, json.RawMessage, error) {
-	if !isOdysseyRewardRole(role) || role.ConfigVersion != odysseySource() {
+	if !isOdysseyRewardRole(role) || role.ConfigVersion != savecontract.Identity() {
 		return nil, nil, fmt.Errorf("Odyssey weapon box requires source mode")
 	}
 	b, e := inventory.ReadBag(role.State)
@@ -120,10 +121,10 @@ const (
 // 角色包里往往已经有几十瓶（初始补给一路发到 73 个），必须并进同一叠；手写
 // "找一个空格"会在每次重试时多占一格，30 个也只落一格。
 func applyOdysseyCreatePotion(role storage.Character, cat catalog.LootCatalog, rules inventory.BagRules) (json.RawMessage, json.RawMessage, error) {
-	if !isOdysseyRewardRole(role) || role.ConfigVersion != odysseySource() {
+	if !isOdysseyRewardRole(role) || role.ConfigVersion != savecontract.Identity() {
 		return nil, nil, fmt.Errorf("Odyssey create potion requires source mode")
 	}
-	if cat.Source.Checksum != odysseySource() || rules.Source != odysseySource() {
+	if cat.Source.SaveIdentity() != savecontract.Identity() {
 		return nil, nil, fmt.Errorf("Odyssey create potion requires matching source catalogs")
 	}
 	b, e := inventory.ReadBag(role.State)

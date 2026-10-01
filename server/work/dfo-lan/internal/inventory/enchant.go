@@ -112,7 +112,7 @@ type EnchantReceipt struct {
 // ApplyEnchantByBead 处理 CMD272：把宝珠对应的附魔卡写进装备行，扣掉一颗宝珠。
 func (s *WearService) ApplyEnchantByBead(ctx context.Context, role storage.Character, key string, r protocol.EnchantByBeadRequest) (storage.Character, EnchantReceipt, error) {
 	var out EnchantReceipt
-	if s == nil || s.Store == nil || s.Catalog == nil || s.BagRules.Source != role.ConfigVersion {
+	if s == nil || s.Store == nil || s.Catalog == nil {
 		return role, out, fmt.Errorf("附魔需要有效装备目录及角色存档")
 	}
 	if !EnchantBeadsLoaded() {

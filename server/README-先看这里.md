@@ -8,16 +8,22 @@
 
 | 文件 | 用途与验证边界 |
 |---|---|
-| `work/dfo-lan/bin/wireprobe-pvf.exe` | c6b2bace第三批及选角兼容修复已确认，三个根入口默认使用；保持54选择项/63投影、历史存档准入及来源自动派生。 |
+| `work/dfo-lan/bin/wireprobe-pvf.exe` | 46c349cd归档元数据及联合物品磁盘缓存已确认，三个根入口默认使用；保持54选择项/63投影、历史存档准入及来源自动派生。 |
 | `work/dfo-lan/bin/wireprobe-dungeon39.exe` | 原39版归档程序。前一任务的对接记录记载装备显示、重登保留和不崩已经用户确认；本次打包没有重做该实机验收。保留作历史回退。 |
-| `work/dfo-lan/bin/wireprobe-handoff-source.exe` | c6b2bace已确认，与默认一致。按需详情/预热/装备LRU及历史未知背包兼容通过离线与用户选角回归；第四批后续候选另行验证。 |
+| `work/dfo-lan/bin/wireprobe-handoff-source.exe` | 46c349cd归档元数据及联合物品缓存已确认；与默认入口相同，完整目录/池/组合启动及Go测试/vet通过。 |
 | `work/dfo-lan/bin/wireprobe-dungeon37.exe` | 历史回退参考；使用它时必须同时选择相匹配的配置。 |
 
 **没有附会导致入城崩溃的38版EXE。** 文件名 `next38-equipment-display.md` 记载的是修复到39版的结果，不代表应该启动38版。
 
-当前确认c6b2bace支持来源自动派生，选角回归已确认，日常使用根入口即可。旧2e4bd343不支持空校验配置，仅保留历史匹配组合回退。启动脚本缺少内层manifest时可能重建资源，当前用户已生成be95d64e内层及manifest；原7ef离线采样不扩展为新归档性能数据。
+当前确认46c349cd支持来源自动派生及归档元数据/联合物品缓存，选角/二次启动已确认，日常使用根入口即可。旧2e4bd343不支持空校验配置，仅保留历史匹配组合回退。启动脚本缺少内层manifest时可能重建资源，当前用户已生成be95d64e内层及manifest；原7ef离线采样不扩展为新归档性能数据。
+
+第四批候选首次启动建立runtime/pvf-cache，第二次同源同程序命中；本机单次目录准备40.49→31.15秒，首次建缓存42.23秒，保留堆基本持平。用户手动关闭会话后用--source-build连续两次检查选角及物品/任务/进房。DFO_PVF_CACHE_DIR可指定目录，-禁用；缓存可删除后重建，程序/源/强化策略变化会失效。源码c6b2bace备份于work/dfo-lan/.tmp/pvf-phase4/bin/wireprobe-handoff-source.confirmed-before.exe；其余投影缓存未完成，详见../docs/todo/pvf/PVF启动与内存优化实施计划.md。
+
+归档元数据缓存已确认：用户确认速度提升。17:50会话两类缓存miss/stored，准备50.244秒，角色4的45帧入场预检通过；17:53会话两类缓存hit，元数据2.361秒、联合物品2.647秒、全部准备25.704秒，角色11的49帧预检通过。正式/源码程序均核对为46c349cd8151ea66b9f056ce32f1c9f63368ee4ec6cc448205fbd713a062f7d8，无需替换，纳入confirmed baseline。确认依据用户反馈及上述日志，不扩大为所有玩法逐项验收；不改schema、存档准入/profile/客户端资源。按授权提交本段，再拉取合并上游SHA相关更新，继续其它投影及缓存保留策略。下文候选状态为历史记录。
 
 ## 首次启动
+
+归档元数据候选在已确认物品缓存基础上，本机单次准备33.14→26.18秒，保留堆基本持平；首次建立两类缓存51.10秒，元数据文件约162MiB。关闭会话后用--source-build两轮验证，gateway.err热轮同时出现archive metadata cache hit及derived item cache hit；DFO_PVF_CACHE_DIR='-'同时禁用两种缓存。旧源码8d6f979a备份work/dfo-lan/.tmp/pvf-phase4b/bin/wireprobe-handoff-source.confirmed-before.exe，详细证据及剩余范围见../docs/todo/pvf/PVF启动与内存优化实施计划.md。上文第四批首段记录为历史验证轮次。
 
 1. 解压到固定目录，如 `D:/DFO-dev`。准备 Windows x64 上可用的 Python 3.10+、PostgreSQL 和 Redis。继续编译还需要 Go 1.26（本包用1.26.5验证）。数据库工具需包含 `initdb.exe`、`pg_ctl.exe`、`createdb.exe`；Redis需有 `redis-server.exe` 及其配套依赖。
 2. 向项目提供者取得**完整的、当前能运行的隔离客户端目录**：原工作区 `work/dfo_probe_client`，包括资源和配套文件。可以放到解压目录的同名位置，也可放在其他磁盘。仅复制DFO.exe、PVF、sk.dat三个文件不够。配套校验值见 `client-requirements.json`。

@@ -109,7 +109,7 @@ type AmplifyTicketReceipt struct {
 // ApplyAmplifyTicket 处理 CMD80 mode=1 且窗口里放的是增幅券的情况。
 func (s *WearService) ApplyAmplifyTicket(ctx context.Context, role storage.Character, key string, r protocol.ReinforcementRequest) (storage.Character, AmplifyTicketReceipt, error) {
 	var out AmplifyTicketReceipt
-	if s == nil || s.Store == nil || s.Catalog == nil || s.BagRules.Source != role.ConfigVersion {
+	if s == nil || s.Store == nil || s.Catalog == nil {
 		return role, out, fmt.Errorf("增幅券需要有效装备目录及角色存档")
 	}
 	if r.Mode != 1 {

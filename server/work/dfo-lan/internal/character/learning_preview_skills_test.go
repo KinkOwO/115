@@ -70,7 +70,7 @@ func TestKnightPreviewSkillsEligibilityAndLearning(t *testing.T) {
 	// 3. Post-advancement skill filtering in knownSkills:
 	// A character who learned skill 61 as unadvanced (advancement 0)
 	svc := &Service{Catalog: c, Learning: l}
-	role := storage.Character{Profession: 12, ConfigVersion: c.Source.Checksum}
+	role := storage.Character{Profession: 12, ConfigVersion: c.Source.SaveIdentity()}
 	prof := c.Professions[12]
 
 	baseState := State{

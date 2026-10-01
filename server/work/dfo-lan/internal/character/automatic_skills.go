@@ -13,7 +13,7 @@ func (s *Service) automaticSkills(role storage.Character, state State) (map[uint
 		return out, nil
 	}
 	p, ok := s.Catalog.Professions[role.Profession]
-	if !ok || p.RawSHA256 != state.SourceSHA256 || s.Learning.Source.Checksum != role.ConfigVersion {
+	if !ok || p.RawSHA256 != state.SourceSHA256 || s.Learning.Source.SaveIdentity() != role.ConfigVersion {
 		return nil, fmt.Errorf("automatic skill source mismatch")
 	}
 	grants := p.AdvancementSkills[state.Advancement]
@@ -62,7 +62,7 @@ func (s *Service) awakeningSkills(role storage.Character, state State) (map[uint
 		return out, nil
 	}
 	p, ok := s.Catalog.Professions[role.Profession]
-	if !ok || p.RawSHA256 != state.SourceSHA256 || s.Learning.Source.Checksum != role.ConfigVersion {
+	if !ok || p.RawSHA256 != state.SourceSHA256 || s.Learning.Source.SaveIdentity() != role.ConfigVersion {
 		return nil, fmt.Errorf("awakening skill source mismatch")
 	}
 	for stage := byte(1); stage <= state.Awakening; stage++ {

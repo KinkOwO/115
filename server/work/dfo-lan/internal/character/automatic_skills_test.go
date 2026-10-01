@@ -24,7 +24,7 @@ func autoSkillFixture(t *testing.T) (*Service, storage.Character, State) {
 		t.Fatal(e)
 	}
 	p := c.Professions[11]
-	return &Service{Catalog: c, Learning: l}, storage.Character{Profession: 11, ConfigVersion: c.Source.Checksum}, State{Level: 35, Advancement: 2, AllJobsPilot: true, SourceSHA256: p.RawSHA256, InitialSkills: p.InitialSkills}
+	return &Service{Catalog: c, Learning: l}, storage.Character{Profession: 11, ConfigVersion: c.Source.SaveIdentity()}, State{Level: 35, Advancement: 2, AllJobsPilot: true, SourceSHA256: p.RawSHA256, InitialSkills: p.InitialSkills}
 }
 
 func TestAutomaticSpathaNoctis(t *testing.T) {

@@ -81,6 +81,7 @@ type pvfCoreCatalogs struct {
 }
 
 type pvfItemInputs struct {
+	derivedCacheDir                                                                                                        string
 	itemShopPath, itemShopPolicyPath                                                                                       string
 	boxesPath, boxPolicyPath                                                                                               string
 	cashshopPath                                                                                                           string
@@ -176,7 +177,7 @@ func preparePVFCoreCatalogs(selection, path, checksum, characterPath, questPath,
 		anchorChecksum = characters.Source.Checksum
 	}
 	started := time.Now()
-	source, err := gamedata.Open(gamedata.Options{Mode: gamedata.PVF, ArchivePath: path, ExpectedChecksum: checksum})
+	source, err := gamedata.Open(gamedata.Options{Mode: gamedata.PVF, ArchivePath: path, ExpectedChecksum: checksum, DerivedCacheDir: inputs.derivedCacheDir})
 	if err != nil {
 		return result, err
 	}
@@ -196,7 +197,7 @@ func preparePVFCoreCatalogs(selection, path, checksum, characterPath, questPath,
 		result.itemBasics = &joint.Basics
 		result.enhancements, result.fameRules = joint.Enhancements, joint.Fame
 		source.ReleaseReadCaches()
-		log.Printf("PVF joint item catalogs prepared in %s: %d source templates, %d item script reads; periods/prices/materials/selected skins/boosters/enhancements/fame share one scan", time.Since(basicStarted), len(joint.Basics.Index.Items), joint.Basics.ScriptsRead)
+		log.Printf("PVF joint item catalogs prepared in %s: %d source templates, %d original item scan projections; periods/prices/materials/selected skins/boosters/enhancements/fame share one scan", time.Since(basicStarted), len(joint.Basics.Index.Items), joint.Basics.ScriptsRead)
 	}
 
 	// 2026-10-01（next146）：奥德赛系目录（成长/章节/路线/兑换/黑鸦/赤红铁矿…）与角色存档

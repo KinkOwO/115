@@ -27,7 +27,7 @@ func pilotFixture(t *testing.T) (*Service, storage.Character) {
 	fields["future_field"] = json.RawMessage(`{"keep":true}`)
 	state, _ = json.Marshal(fields)
 	req, _ := hex.DecodeString("000b0000006e6f726d616c5f74657374000000000000ff000100000000000000")
-	return &Service{Catalog: c, Learning: l, Rules: Rules{SwordmasterPilot: true}}, storage.Character{Name: "normal_test", WireID: 1, Profession: 0, Request: req, State: state, ConfigVersion: c.Source.Checksum}
+	return &Service{Catalog: c, Learning: l, Rules: Rules{SwordmasterPilot: true}}, storage.Character{Name: "normal_test", WireID: 1, Profession: 0, Request: req, State: state, ConfigVersion: c.Source.SaveIdentity()}
 }
 
 func TestSwordmasterPilotRoundTripAndGrowth(t *testing.T) {

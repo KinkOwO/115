@@ -38,6 +38,12 @@ type ItemMaterials struct {
 	byTemplate map[uint32][]ItemMaterialCost
 }
 
+// RestoreItemMaterials rebuilds the private lookup index after decoding a
+// deterministic projection; order and duplicate override behavior stay native.
+func RestoreItemMaterials(source string, entries []ItemMaterialEntry) (*ItemMaterials, error) {
+	return newItemMaterials(itemMaterialsDoc{Version: 1, Source: source, Items: entries})
+}
+
 // LoadItemMaterials reads the item [need material] catalog. A missing file yields
 // a nil catalog (the shop falls back to gold pricing).
 func LoadItemMaterials(path string) (*ItemMaterials, error) {

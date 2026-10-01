@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"container/list"
 	"crypto/sha256"
+	"dfolan/internal/savecontract"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -49,6 +50,19 @@ type ArchiveSnapshot struct {
 	CachedTexts  int           `json:"cached_texts"`
 }
 
+// SaveIdentity 返回本快照对应的**存档身份**（服务端契约版本，见 internal/savecontract）。
+//
+// 2026-10-01（next146 结构性根治）：Checksum 是**内层归档的 SHA256**，即一个本地构建
+// 产物的哈希 —— 同一份客户端三件套（DFO.exe + sk.dat + Script.pvf）重新解包一次就会变
+// （实测 7ef2db59… → b2b503b5… → be95d64e…），换客户端更是必变。它只配做
+// **L3 目录自校**（`a.Snapshot().Checksum != index.Source.Checksum`），**不配做存档身份**：
+// 拿它当身份 ⇒ 重打包/换客户端一次，全体存档就因「身份不符」被硬拒
+// （`quest %d requires source migration`）。
+//
+// 因此：凡是「拿存档行里的版本号跟目录快照比」或「把目录身份写进存档」的地方，
+// 一律用本方法取值，绝不用 Checksum。
+func (a ArchiveSnapshot) SaveIdentity() string { return savecontract.Identity() }
+
 type PreloadResult struct {
 	Groups int `json:"groups"`
 	Cached int `json:"cached"`
@@ -88,6 +102,7 @@ type Archive struct {
 	cleanup          runtime.Cleanup
 	closeOnce        sync.Once
 	closed           atomic.Bool
+	metadataCache    MetadataCacheStats
 
 	// chunks 缓存已解密解压的 body chunk，texts 缓存已解码的脚本文本。
 	chunks           sync.Map

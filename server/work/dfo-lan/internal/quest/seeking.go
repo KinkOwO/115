@@ -41,7 +41,7 @@ func (s *Service) seekingMonsterItemGrants(ctx context.Context, role storage.Cha
 	}
 	accepted := false
 	for _, q := range states {
-		if q.ID == run.Maze.Quest && q.Status == "accepted" && q.Progress > 0 && q.ConfigVersion == s.Catalog.Source.Checksum && q.ProgressModel == en.Model {
+		if q.ID == run.Maze.Quest && q.Status == "accepted" && q.Progress > 0 && q.ConfigVersion == s.Catalog.Source.SaveIdentity() && q.ProgressModel == en.Model {
 			accepted = true
 			break
 		}
@@ -103,7 +103,7 @@ func (s *Service) GrantSeekingMonsterItems(ctx context.Context, role storage.Cha
 		return out, ErrRewardPending
 	}
 	key := fmt.Sprintf("quest-monster-item:%s:%d", run.RunID, entity)
-	saved, applied, err := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, s.Catalog.Source.Checksum, key, SeekingItems, func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+	saved, applied, err := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, s.Catalog.Source.SaveIdentity(), key, SeekingItems, func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
 		var items []inventory.AwardReceipt
 		for _, award := range awards {
 			var receipt inventory.AwardReceipt
@@ -113,7 +113,7 @@ func (s *Service) GrantSeekingMonsterItems(ctx context.Context, role storage.Cha
 			}
 			items = append(items, receipt)
 		}
-		receipt, e := json.Marshal(seekingGrantReceipt{Run: run.RunID, Entity: entity, Source: s.Catalog.Source.Checksum, Items: items})
+		receipt, e := json.Marshal(seekingGrantReceipt{Run: run.RunID, Entity: entity, Source: s.Catalog.Source.SaveIdentity(), Items: items})
 		return current.State, receipt, e
 	})
 	if err != nil {
@@ -127,7 +127,7 @@ func (s *Service) GrantSeekingMonsterItems(ctx context.Context, role storage.Cha
 	if err = json.Unmarshal(receiptJSON, &receipt); err != nil {
 		return out, err
 	}
-	if receipt.Run != run.RunID || receipt.Entity != entity || receipt.Source != s.Catalog.Source.Checksum {
+	if receipt.Run != run.RunID || receipt.Entity != entity || receipt.Source != s.Catalog.Source.SaveIdentity() {
 		return out, fmt.Errorf("quest monster item receipt mismatch")
 	}
 	saved.WireID = role.WireID

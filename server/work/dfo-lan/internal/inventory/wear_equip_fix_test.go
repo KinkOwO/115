@@ -1,6 +1,7 @@
 package inventory
 
 import (
+	"dfolan/internal/savecontract"
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/game/protocol"
@@ -80,7 +81,7 @@ func TestWearAcceptsBoundAndUncommonGear(t *testing.T) {
 		if e != nil {
 			t.Fatal(e)
 		}
-		role := storage.Character{Profession: 16, ConfigVersion: sum, State: state}
+		role := storage.Character{Profession: 16, ConfigVersion: savecontract.Identity(), State: state}
 		r := protocol.ItemMoveRequest{SourceSlot: 9, SourceItem: id, DestinationList: 3, DestinationSlot: 19, Count: 1, Selection: 0xffffffff}
 		raw, e := svc.MoveOrdinary(role, r)
 		if e != nil {
@@ -135,7 +136,7 @@ func TestWearAcceptsCreatureIntoUnlockedSkinSlot(t *testing.T) {
 		if e != nil {
 			t.Fatal(e)
 		}
-		return svc.MoveOrdinary(storage.Character{Profession: 0, ConfigVersion: sum, State: state},
+		return svc.MoveOrdinary(storage.Character{Profession: 0, ConfigVersion: savecontract.Identity(), State: state},
 			protocol.ItemMoveRequest{SourceList: 7, SourceSlot: 8, SourceItem: 63003,
 				DestinationList: 3, DestinationSlot: 32, Count: 1, Selection: 0xffffffff})
 	}
@@ -193,7 +194,7 @@ func TestWearAcceptsAuraIntoUnlockedSkinSlot(t *testing.T) {
 		if e != nil {
 			t.Fatal(e)
 		}
-		return svc.MoveOrdinary(storage.Character{Profession: 0, ConfigVersion: sum, State: state},
+		return svc.MoveOrdinary(storage.Character{Profession: 0, ConfigVersion: savecontract.Identity(), State: state},
 			protocol.ItemMoveRequest{SourceList: 1, SourceSlot: 0, SourceItem: 101009001,
 				DestinationList: 3, DestinationSlot: 11, Count: 1, Selection: 0xffffffff})
 	}

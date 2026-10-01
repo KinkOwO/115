@@ -36,7 +36,7 @@ var ErrMoonBagFull = errors.New("Moon reward pending: bag full")
 
 func (s *Service) ValidateMoonRewards(p MoonRewardPolicy) error {
 	hash, e := hex.DecodeString(p.Source)
-	if e != nil || len(hash) != 32 || s == nil || p.Source != s.Catalog.Source.Checksum || p.Source != s.BagRules.Source || p.Draws == 0 || p.Draws > 16 || len(p.Choices) == 0 || len(p.Choices) > 4096 {
+	if e != nil || len(hash) != 32 || s == nil || p.Source != s.Catalog.Source.SaveIdentity() || p.Draws == 0 || p.Draws > 16 || len(p.Choices) == 0 || len(p.Choices) > 4096 {
 		return fmt.Errorf("invalid Moon reward policy/source")
 	}
 	var total uint64
@@ -143,7 +143,7 @@ func (s *Service) ReadMoonReward(ctx context.Context, role storage.Character, ru
 	if e = json.Unmarshal(raw, &p); e != nil {
 		return p, e
 	}
-	if p.Run != run || p.Source != role.ConfigVersion || p.Source != s.Catalog.Source.Checksum || p.Account != role.AccountID || p.Character != role.ID || len(p.Grants) == 0 || len(p.Grants) > 16 {
+	if p.Run != run || p.Source != role.ConfigVersion || p.Source != s.Catalog.Source.SaveIdentity() || p.Account != role.AccountID || p.Character != role.ID || len(p.Grants) == 0 || len(p.Grants) > 16 {
 		return p, fmt.Errorf("foreign/corrupt Moon reward proof")
 	}
 	return p, nil

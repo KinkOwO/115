@@ -63,6 +63,11 @@ func main() {
 	pvfLotteryPolicyPath := flag.String("pvf-lottery-policy", "", "deprecated compatibility flag; PVF lottery scope is discovered from source and this path is ignored")
 	pvfScenePolicyPath := flag.String("pvf-scene-policy", envStrOr("DFO_PVF_SCENE_POLICY", "configs/pvf-scene-policy.json"), "independent entry town and training dungeon selection; source rules from PVF")
 	pvfDropPolicy := flag.String("pvf-drop-policy", envStrOr("DFO_PVF_DROP_POLICY", "configs/pvf-drop-policy.json"), "existing basic equipment allowlist and maximum loot grade; source rules from PVF")
+	pvfCacheDefault := os.Getenv("DFO_PVF_CACHE_DIR")
+	if pvfCacheDefault == "" {
+		pvfCacheDefault = "runtime/pvf-cache"
+	}
+	pvfCacheDir := flag.String("pvf-cache-dir", pvfCacheDefault, "derived PVF cache directory; - disables caching")
 	pvfArchivePath := flag.String("pvf-archive", os.Getenv("DFO_PVF_ARCHIVE"), "explicit inner PVF path for candidate domains")
 	pvfArchiveChecksum := flag.String("pvf-sha256", os.Getenv("DFO_PVF_SHA256"), "expected inner PVF SHA256; must match existing character source")
 	characterRules := flag.String("character-rules", "configs/character-probe.json", "explicit local bootstrap settings")
@@ -157,7 +162,7 @@ func main() {
 	if *pvfCheckCatalogs && strings.TrimSpace(*pvfCatalogSelection) == "" {
 		log.Fatal("pvf-check-catalogs requires explicit pvf-catalogs")
 	}
-	pvfCatalogs, pvfCatalogErr := preparePVFCoreCatalogs(*pvfCatalogSelection, *pvfArchivePath, *pvfArchiveChecksum, *characterCatalog, *questCatalogFile, *progressionCatalogFile, *worldCatalogFile, pvfItemInputs{itemShopPath: *itemShopFile, itemShopPolicyPath: *pvfItemShopPolicyPath, boxesPath: *boxesFile, boxPolicyPath: *pvfBoxPolicyPath, cashshopPath: *shopPilotFile, cashshopRelease: *shopRelease, characterPolicyPath: *pvfCharacterPolicyPath, layerRevisitPolicyPath: *pvfLayerRevisitPolicyPath, scriptWarpPolicyPath: *pvfScriptWarpPolicyPath, lotteryPolicyPath: *pvfLotteryPolicyPath, selectionBoxesPath: *selectionBoxFile, selectionPolicyPath: *pvfSelectionPolicyPath, minePath: *bleedingMineRewardsFile, indexPath: *itemIndexFile, fullPrefix: *fullEquipmentFile, journalPath: *equipmentJournalRulesFile, createCostPath: *equipmentCreateCostFile, learningPath: *learningFile, pricesPath: *shopPricesFile, boosterPath: *boosterCatalogFile, tutorialPath: *tutorialRoutesFile, verifyBaselines: pvfVerifyBaselines, enhancementPolicyPath: *pvfEnhancementPolicy, randomOptionPath: *randomOptionFile, shieldPath: *knightShieldFile, wearRulesPath: *wearRulesFile, oathPath: *oathGradesTable, vaultPath: *vaultRulesFile, vaultPolicyPath: *pvfVaultPolicy, lootPath: *lootCatalogFile, equipmentPath: *equipmentCatalogFile, questEquipmentPath: *equipmentRewardFile, dropPolicyPath: *pvfDropPolicy, townPath: *townCatalogFile, dungeonPath: *dungeonCatalogFile, tutorialDungeonPath: *tutorialDungeonsFile, scenePolicyPath: *pvfScenePolicyPath, apocalypsePath: *apocalypseCatalogFile, attunementPath: *attunementRewardsFile, contentPolicyPath: *pvfContentPolicyPath})
+	pvfCatalogs, pvfCatalogErr := preparePVFCoreCatalogs(*pvfCatalogSelection, *pvfArchivePath, *pvfArchiveChecksum, *characterCatalog, *questCatalogFile, *progressionCatalogFile, *worldCatalogFile, pvfItemInputs{derivedCacheDir: *pvfCacheDir, itemShopPath: *itemShopFile, itemShopPolicyPath: *pvfItemShopPolicyPath, boxesPath: *boxesFile, boxPolicyPath: *pvfBoxPolicyPath, cashshopPath: *shopPilotFile, cashshopRelease: *shopRelease, characterPolicyPath: *pvfCharacterPolicyPath, layerRevisitPolicyPath: *pvfLayerRevisitPolicyPath, scriptWarpPolicyPath: *pvfScriptWarpPolicyPath, lotteryPolicyPath: *pvfLotteryPolicyPath, selectionBoxesPath: *selectionBoxFile, selectionPolicyPath: *pvfSelectionPolicyPath, minePath: *bleedingMineRewardsFile, indexPath: *itemIndexFile, fullPrefix: *fullEquipmentFile, journalPath: *equipmentJournalRulesFile, createCostPath: *equipmentCreateCostFile, learningPath: *learningFile, pricesPath: *shopPricesFile, boosterPath: *boosterCatalogFile, tutorialPath: *tutorialRoutesFile, verifyBaselines: pvfVerifyBaselines, enhancementPolicyPath: *pvfEnhancementPolicy, randomOptionPath: *randomOptionFile, shieldPath: *knightShieldFile, wearRulesPath: *wearRulesFile, oathPath: *oathGradesTable, vaultPath: *vaultRulesFile, vaultPolicyPath: *pvfVaultPolicy, lootPath: *lootCatalogFile, equipmentPath: *equipmentCatalogFile, questEquipmentPath: *equipmentRewardFile, dropPolicyPath: *pvfDropPolicy, townPath: *townCatalogFile, dungeonPath: *dungeonCatalogFile, tutorialDungeonPath: *tutorialDungeonsFile, scenePolicyPath: *pvfScenePolicyPath, apocalypsePath: *apocalypseCatalogFile, attunementPath: *attunementRewardsFile, contentPolicyPath: *pvfContentPolicyPath})
 	if pvfCatalogErr != nil {
 		log.Fatalf("PVF candidate catalogs: %v", pvfCatalogErr)
 	}
@@ -817,6 +822,23 @@ func main() {
 		}
 		dungeonCatalog = &data
 	}
+	// 疲劳的**进本消耗**来自源（[use fatigue only start dungeon]）；当前客户端脚本里已查不到该段，
+	// 所以内容策略给实测值兜底。进本准入与记费共用这一口径（character.FatigueService.EnterCostFor）。
+	if fatigueService != nil && dungeonCatalog != nil {
+		dc := dungeonCatalog
+		var enterOverrides map[uint32]uint16
+		if policy, e := readPVFContentPolicy(*pvfContentPolicyPath); e == nil {
+			enterOverrides = policy.DungeonEnterFatigue
+		} else {
+			log.Printf("warning: dungeon enter-fatigue policy unavailable (%v)", e)
+		}
+		fatigueService.EnterFatigueOf = func(dungeonID uint32) uint16 {
+			if d, ok := dc.Dungeons[dungeonID]; ok && d.EnterFatigue > 0 {
+				return d.EnterFatigue
+			}
+			return enterOverrides[dungeonID]
+		}
+	}
 	if *progressionCatalogFile != "" || pvfCatalogs.progression != nil {
 		if characters == nil || dungeonCatalog == nil {
 			log.Fatal("progression requires source characters and dungeon sessions")
@@ -1186,20 +1208,22 @@ func main() {
 			log.Fatal(e)
 		}
 	}
-	// 存档来源身份重钉（2026-10-01，next146）。内层归档重新生成后哈希必变，而存档里
-	// 每一行都把它当身份钉着 ⇒ 不重钉就整体进不去角色（quest %d requires source migration）。
+	// 存档身份归一（2026-10-01，next146 结构性根治）。过去这行身份被钉在**内层归档哈希**上
+	// （每次重建都变），换一次客户端就全体进不去角色（quest %d requires source migration）。
+	// 现在身份由**服务端契约**定义（internal/savecontract），本迁移把盘上**任何历史 64-hex 身份**
+	// 一次归一 —— 形状判据，不再是「手工白名单」（那版换客户端就要改代码，且命中 0 行时静默无声）。
 	// 放在这里是因为前面的 Migrate* 才建出 character_quests/character_map_clears 等表。
-	// 白名单式：只重钉已知历史内层哈希，绝不碰 vault 等别的来源身份。
 	if characters != nil {
+		identity := characters.Catalog.Source.SaveIdentity()
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		n, rebaseErr := characters.Store.MigrateSourceIdentity(ctx, characters.Catalog.Source.Checksum)
+		n, rebaseErr := characters.Store.MigrateSaveIdentity(ctx, identity)
 		cancel()
 		if rebaseErr != nil {
-			log.Fatalf("source identity rebaseline: %v", rebaseErr)
+			log.Fatalf("save identity normalization: %v", rebaseErr)
 		}
-		if n > 0 {
-			log.Printf("source identity rebaselined: %d stored row(s) re-pinned to the current inner archive", n)
-		}
+		// 无论 n 是否为 0 都要打：首版失败正是「命中 0 行时完全无声」，排查只能靠翻库。
+		log.Printf("save identity normalized: %d stored row(s) -> contract %s (inner archive %s)",
+			n, identity, characters.Catalog.Source.Checksum)
 	}
 	if *vaultRulesFile != "" {
 		if characters == nil {

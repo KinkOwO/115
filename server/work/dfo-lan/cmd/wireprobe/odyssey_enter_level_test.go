@@ -1,6 +1,7 @@
 package main
 
 import (
+	"dfolan/internal/savecontract"
 	"dfolan/internal/catalog"
 	"dfolan/internal/character"
 	"dfolan/internal/game/protocol"
@@ -42,7 +43,7 @@ func TestOdysseyStormPassJournalTeleportGate(t *testing.T) {
 		t.Fatal(err)
 	}
 	session := func(level byte, odysseyRole bool) *worldSession {
-		role := storage.Character{ConfigVersion: growth.Source, State: state}
+		role := storage.Character{ConfigVersion: savecontract.Identity(), State: state}
 		if odysseyRole {
 			role.Request = req
 		}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"dfolan/internal/savecontract"
 	"dfolan/internal/catalog"
 	"dfolan/internal/character"
 	"dfolan/internal/dungeon"
@@ -29,7 +30,7 @@ func specialWarpFixture(t *testing.T) *worldSession {
 		req = append(req, 0)
 	}
 	return &worldSession{account: 7, level: 38, service: &world.Service{Catalog: c}, progression: &character.ProgressionService{Odyssey: g},
-		role:  storage.Character{ID: 14, AccountID: 7, WireID: 14, Request: req, ConfigVersion: g.Source, State: json.RawMessage(`{"odyssey_completed_dungeons":[100004934,100004935,100004936,100004937,100004938]}`)},
+		role:  storage.Character{ID: 14, AccountID: 7, WireID: 14, Request: req, ConfigVersion: savecontract.Identity(), State: json.RawMessage(`{"odyssey_completed_dungeons":[100004934,100004935,100004936,100004937,100004938]}`)},
 		state: storage.WorldState{Position: storage.WorldPosition{Town: 40, Area: 4, X: 849, Y: 263}}}
 }
 

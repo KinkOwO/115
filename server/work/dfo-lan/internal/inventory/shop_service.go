@@ -151,7 +151,7 @@ func (s *ShopService) Buy(ctx context.Context, role storage.Character, r protoco
 	fail := func(e error) (storage.Character, BuyReceipt, bool, error) {
 		return role, out, false, e
 	}
-	if role.ConfigVersion != s.Catalog.Source.Checksum {
+	if role.ConfigVersion != s.Catalog.Source.SaveIdentity() {
 		return fail(fmt.Errorf("buy source mismatch"))
 	}
 	if s.Catalog.HasRuntimeDetails() && s.Catalog.Items[r.Template].Kind == "stackable" {
@@ -246,14 +246,14 @@ func (s *ShopService) Buy(ctx context.Context, role storage.Character, r protoco
 				}
 				out = BuyReceipt{
 					NpcID: r.NpcID, Template: r.Template, Count: r.Count, Slot: slot,
-					Cost: cost, NewGold: b.Gold, Source: s.Catalog.Source.Checksum, Seq: seq,
+					Cost: cost, NewGold: b.Gold, Source: s.Catalog.Source.SaveIdentity(), Seq: seq,
 				}
 				return state, updated, nil
 			})
 		if e != nil {
 			return fail(e)
 		}
-		if applied && (out.Source != s.Catalog.Source.Checksum || out.Template != r.Template || out.Count != r.Count) {
+		if applied && (out.Source != s.Catalog.Source.SaveIdentity() || out.Template != r.Template || out.Count != r.Count) {
 			return fail(fmt.Errorf("buy receipt conflict"))
 		}
 	} else {
@@ -278,7 +278,7 @@ func (s *ShopService) Buy(ctx context.Context, role storage.Character, r protoco
 				}
 				out = BuyReceipt{
 					NpcID: r.NpcID, Template: r.Template, Count: r.Count, Slot: slot,
-					Cost: cost, NewGold: b.Gold, Source: s.Catalog.Source.Checksum, Seq: seq,
+					Cost: cost, NewGold: b.Gold, Source: s.Catalog.Source.SaveIdentity(), Seq: seq,
 				}
 				receipt, e := json.Marshal(out)
 				return updated, receipt, e
@@ -293,7 +293,7 @@ func (s *ShopService) Buy(ctx context.Context, role storage.Character, r protoco
 		if e = json.Unmarshal(receipt, &out); e != nil {
 			return fail(e)
 		}
-		if out.Source != s.Catalog.Source.Checksum || out.Template != r.Template || out.Count != r.Count {
+		if out.Source != s.Catalog.Source.SaveIdentity() || out.Template != r.Template || out.Count != r.Count {
 			return fail(fmt.Errorf("buy receipt conflict"))
 		}
 	}
@@ -310,7 +310,7 @@ func (s *ShopService) Sell(ctx context.Context, role storage.Character, r protoc
 	fail := func(e error) (storage.Character, SellReceipt, bool, error) {
 		return role, out, false, e
 	}
-	if role.ConfigVersion != s.Catalog.Source.Checksum {
+	if role.ConfigVersion != s.Catalog.Source.SaveIdentity() {
 		return fail(fmt.Errorf("sell source mismatch"))
 	}
 	if len(r.Rows) == 0 {
@@ -362,7 +362,7 @@ func (s *ShopService) Sell(ctx context.Context, role storage.Character, r protoc
 				Rows:       rows,
 				GoldGained: gained,
 				NewGold:    b.Gold,
-				Source:     s.Catalog.Source.Checksum,
+				Source:     s.Catalog.Source.SaveIdentity(),
 				Seq:        seq,
 			}
 			receipt, e := json.Marshal(out)
@@ -378,7 +378,7 @@ func (s *ShopService) Sell(ctx context.Context, role storage.Character, r protoc
 	if e = json.Unmarshal(receipt, &out); e != nil {
 		return fail(e)
 	}
-	if out.Source != s.Catalog.Source.Checksum || len(out.Rows) != len(r.Rows) {
+	if out.Source != s.Catalog.Source.SaveIdentity() || len(out.Rows) != len(r.Rows) {
 		return fail(fmt.Errorf("sell receipt conflict"))
 	}
 	saved.WireID = role.WireID

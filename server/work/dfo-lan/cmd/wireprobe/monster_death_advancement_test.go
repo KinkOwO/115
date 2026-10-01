@@ -83,7 +83,7 @@ func TestMonsterDeathAfterAdvancementIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	role := storage.Character{AccountID: account, Name: "DeathAfterAdvance", WireID: 10, Profession: 12, State: raw, Request: []byte{0}, ConfigVersion: professions.Source.Checksum}
+	role := storage.Character{AccountID: account, Name: "DeathAfterAdvance", WireID: 10, Profession: 12, State: raw, Request: []byte{0}, ConfigVersion: professions.Source.SaveIdentity()}
 	role, _, err = ps.ApplyGain(role, pc.Thresholds[13])
 	if err != nil {
 		t.Fatal(err)
