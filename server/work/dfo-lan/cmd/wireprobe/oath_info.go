@@ -162,6 +162,10 @@ func (w *worldSession) oathInfoPackets() ([]outboundPacket, error) {
 			return nil, err
 		}
 	}
+	// 记下本场**实际下发**的 oath 档位：omenInfoPackets 紧接着要用它把「天平颜色」
+	// 映射成星蕴石档位（见 omen_info.go 的 omenGradeForOathTier 与 oathTierRun 注释）。
+	// 下发顺序由 dungeon_flow.go 保证：先 oathInfoPackets，再 omenInfoPackets。
+	w.oathTierRun = oath
 	return []outboundPacket{{"oath_system_grades", 0, 2838, oathInfoPayload(primer, oath)}}, nil
 }
 
