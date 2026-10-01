@@ -3,6 +3,7 @@ package inventory
 import (
 	"context"
 	"dfolan/internal/catalog"
+	"dfolan/internal/db"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/storage"
 	"encoding/json"
@@ -12,8 +13,6 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
-
-	"github.com/jackc/pgx/v5"
 )
 
 // shopEventSeq 是进程内的请求计数，只用于让事件键可读。
@@ -125,7 +124,7 @@ func (s *ShopService) shopPrice(template uint32) (catalog.ShopPrice, error) {
 //
 // 校验与记录都必须与背包变更在同一个事务里：否则会出现「货到手但次数没记」，
 // 或重发请求重复计数（重发的同 key 请求走幂等回执，不会重跑 apply）。
-func (s *ShopService) checkShopLimit(ctx context.Context, tx pgx.Tx, current storage.Character, shopID, template uint32) error {
+func (s *ShopService) checkShopLimit(ctx context.Context, tx db.Tx, current storage.Character, shopID, template uint32) error {
 	scope, period, count, limited := s.ItemShops.PurchaseLimit(shopID, template)
 	if !limited {
 		return nil
@@ -220,7 +219,7 @@ func (s *ShopService) Buy(ctx context.Context, role storage.Character, r protoco
 		var e error
 		saved, _, applied, e = s.Store.CommitAccountMaterialEventTx(ctx, role.AccountID, role.ID,
 			s.Catalog.Source.Checksum, key, s.EventModel,
-			func(tx pgx.Tx, current storage.Character, rawCounts json.RawMessage) (json.RawMessage, json.RawMessage, error) {
+			func(tx db.Tx, current storage.Character, rawCounts json.RawMessage) (json.RawMessage, json.RawMessage, error) {
 				if e := s.checkShopLimit(ctx, tx, current, shopID, r.Template); e != nil {
 					return nil, nil, e
 				}
@@ -260,7 +259,7 @@ func (s *ShopService) Buy(ctx context.Context, role storage.Character, r protoco
 		var e error
 		saved, applied, e = s.Store.CommitCharacterEventTx(ctx, role.AccountID, role.ID,
 			s.Catalog.Source.Checksum, key, s.EventModel,
-			func(tx pgx.Tx, current storage.Character) (json.RawMessage, json.RawMessage, error) {
+			func(tx db.Tx, current storage.Character) (json.RawMessage, json.RawMessage, error) {
 				if e := s.checkShopLimit(ctx, tx, current, shopID, r.Template); e != nil {
 					return nil, nil, e
 				}

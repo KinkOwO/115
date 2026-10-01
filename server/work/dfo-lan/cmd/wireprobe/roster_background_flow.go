@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"dfolan/internal/character"
+	"dfolan/internal/db"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/rosterbg"
@@ -11,8 +12,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
-
-	"github.com/jackc/pgx/v5"
 )
 
 // restoreRosterBackgrounds owns the complete account-level background restore
@@ -65,7 +64,7 @@ func (w *worldSession) useRosterBackgroundTicket(ctx context.Context, p, raw []b
 	}
 	store := w.characters.Store
 	saved, applied, err := store.CommitCharacterEventTx(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, "roster-background-ticket-v1",
-		func(tx pgx.Tx, current storage.Character) (json.RawMessage, json.RawMessage, error) {
+		func(tx db.Tx, current storage.Character) (json.RawMessage, json.RawMessage, error) {
 			bag, e := inventory.ReadBag(current.State)
 			if e != nil {
 				return nil, nil, e
