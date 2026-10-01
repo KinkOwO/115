@@ -640,7 +640,7 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 	}
 	// 房间重建会重置原生场景计时器，每次加载均同步同一个挑战期限。
 	plan = append(plan, w.bleedingMineTimer(time.Now())...)
-	return plan, nil
+	return appendBuffEnhancementRestore(plan, w.characters, w.role, "dungeon_buff_enhancement_restored")
 }
 
 func (w *worldSession) elvenmereTeleport(p []byte) ([]outboundPacket, error) {
@@ -841,7 +841,7 @@ func (w *worldSession) leaveDungeon() ([]outboundPacket, error) {
 		w.blackPurgatory.prepared, w.blackPurgatory.loaded = false, false
 		w.blackPurgatory.deadline = time.Time{}
 	}
-	return plan, nil
+	return appendBuffEnhancementRestore(plan, w.characters, w.role, "town_buff_enhancement_restored")
 }
 
 func (w *worldSession) returnFromDungeonSelection(p []byte) ([]outboundPacket, error) {
