@@ -6,11 +6,9 @@
 flowchart LR
     L[Windows 登录器] -->|HTTPS 账号密码| A[Go 账号与启动服务]
     A --> P[(PostgreSQL 持久存储)]
-    A --> R[(Redis 会话与缓存)]
     L --> C[原版 DFO 客户端]
     C -.待恢复的原生协议.-> G[Go 游戏接入与玩法模块]
     G --> P
-    G --> R
     G --> D[版本化玩法配置目录]
     V[原始 PVF / 已提取脚本] --> I[导入器与格式适配器]
     I --> D
@@ -19,9 +17,9 @@ flowchart LR
 
 ## ADR-001：一个 Go 模块，少量进程，按领域分包
 
-选择独立登录器、账号服务与游戏接入边界。账号、会话、持久层、缓存、配置导入、客户端启动分别拥有自己的包。后续角色、背包、场景、队伍、战斗作为游戏层内部领域包；有明确的独立扩容或故障隔离需求再拆进程。不为每个玩法启动一个微服务，避免维护复杂度。
+选择独立登录器、账号服务与游戏接入边界。账号、会话、持久层、配置导入、客户端启动分别拥有自己的包。后续角色、背包、场景、队伍、战斗作为游戏层内部领域包；有明确的独立扩容或故障隔离需求再拆进程。不为每个玩法启动一个微服务，避免维护复杂度。
 
-## ADR-002：PostgreSQL 为持久数据唯一权威，Redis 保存可失效数据
+## ADR-002：PostgreSQL 为持久数据唯一权威
 
 装备操作共享 `internal/inventory/event_receipt.go` 的提交与持久收据解码流程，仍由 storage 原有事务管理归属、锁和幂等；金币强化的账号材料事务独立保留。网关的 `inventory_row.go` 统一增量行和穿戴刷新，各命令自行决定回执顺序；增幅书继续保留原有穿戴刷新容错。`packet_plan.go` 逐包发送，失败时立即停止，仅在成功发送后记录该包，不替换需要整组预编码的发送路径。
 
@@ -29,7 +27,7 @@ flowchart LR
 
 账号唯一性、角色归属、道具与货币变更需要数据库约束和事务。PostgreSQL 与 MySQL 都适用；选择 PostgreSQL 的关系约束和 JSONB 扩展能力，避免同时引入两个业务数据库。SQLite 适合工具与小型单机，这里不作为多人服主库。
 
-账号和密码摘要持久保存到 PostgreSQL；Redis 保存有 TTL 的登录会话、短期票据和限流计数。Redis 丢失后重新登录，不能丢失账号和角色存档。Redis 不可用时认证明确返回暂不可用，不伪造成功或静默改成无鉴权。
+账号和密码摘要持久保存到 PostgreSQL；角色与物品读取以 PostgreSQL 为准。连接生命周期和限流沿用 Go 服务端现有实现；独立账号登录器仍按 ADR-004 单独实现与验收，不新增存储服务依赖。
 
 ## ADR-003：玩法数值与代码机制分离
 
@@ -49,11 +47,11 @@ PVF 是游戏内容真源，对于 Go 服务端是只读资源。服务端负责
 
 ## 非功能要求和失败行为
 
-- 所有监听与人数上限、超时、密码参数、缓存前缀、连接池、资源路径来自配置。
-- 独立数据目录和端口；不覆盖其他项目的账号、缓存和运行服务。
+- 所有监听与人数上限、超时、密码参数、连接池、资源路径来自配置。
+- 独立数据目录和端口；不覆盖其他项目的账号和运行服务。
 - 注册重名依靠数据库唯一约束；并发请求应只有一次成功。
 - 认证并发受限，防止大量密码哈希耗尽内存。
 - 账号 API 与数据库使用有限超时；日志不记录密码、明文会话或数据库密钥。
 - 完整多人验收仍需要至少两个真实客户端登录、建角、互见、移动及退出重进存档。
 
-技术依据：[PostgreSQL 约束](https://www.postgresql.org/docs/current/ddl-constraints.html)、[pgxpool](https://pkg.go.dev/github.com/jackc/pgx/v5/pgxpool)、[Redis Go 客户端](https://redis.io/docs/latest/develop/clients/go/)、[Argon2](https://pkg.go.dev/golang.org/x/crypto/argon2)。
+技术依据：[PostgreSQL 约束](https://www.postgresql.org/docs/current/ddl-constraints.html)、[pgxpool](https://pkg.go.dev/github.com/jackc/pgx/v5/pgxpool)、[Argon2](https://pkg.go.dev/golang.org/x/crypto/argon2)。

@@ -4,7 +4,6 @@ import (
 	"context"
 	"dfolan/internal/character"
 	"errors"
-	"fmt"
 )
 
 type CharacterSlotChange = character.CharacterSlotChange
@@ -126,6 +125,5 @@ func (s *Store) ChangeCharacterSlots(ctx context.Context, account int64, r Chara
 	if err = tx.Commit(ctx); err != nil {
 		return err
 	}
-	s.Cache.Del(ctx, fmt.Sprintf("%scharacters:%d", s.prefix, account))
 	return nil
 }

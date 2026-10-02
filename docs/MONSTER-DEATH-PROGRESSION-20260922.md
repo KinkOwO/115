@@ -63,7 +63,7 @@ CMD39
 | `go test ./...` | 全绿 |
 | `go vet ./...` | 全绿 |
 | 源码候选版编译 | 通过，`bin/wireprobe-handoff-source.exe`，18,048,000 字节，sha256 `3cee1d2dc2aa13e8bf29cee61a5a2f1589b009d4ee0620973d2917791acf48e7` |
-| `launch_local.py --check` | Paths OK；PostgreSQL/Redis 已在监听；启动将使用上述候选版 |
+| `launch_local.py --check` | Paths OK；PostgreSQL 已在监听；启动将使用上述候选版 |
 
 过程中的两类非业务失败（均已修正，不计入运行路径尝试）：
 

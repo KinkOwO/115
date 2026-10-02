@@ -83,9 +83,6 @@ func (s *Store) CommitAdventure(ctx context.Context, account, id int64, key stri
 		return role, p, nil, err
 	}
 	role.State = state
-	if s.Cache != nil {
-		s.Cache.Del(ctx, fmt.Sprintf("%scharacters:%d", s.prefix, account))
-	}
 	return role, p, receipt, nil
 }
 

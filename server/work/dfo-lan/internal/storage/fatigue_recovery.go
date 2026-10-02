@@ -83,6 +83,5 @@ func (s *Store) RecoverFatigue(ctx context.Context, account, id int64, version s
 		return role, fp, e
 	}
 	role.State = state
-	s.Cache.Del(ctx, fmt.Sprintf("%scharacters:%d", s.prefix, account))
 	return role, fp, nil
 }

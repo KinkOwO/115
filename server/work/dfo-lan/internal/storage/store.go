@@ -5,21 +5,15 @@ import (
 	"dfolan/internal/character"
 	"encoding/json"
 	"errors"
-	"fmt"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/redis/go-redis/v9"
 
 	"os"
-	"time"
 )
 
 type Config struct {
 	PostgresDSN    string `json:"postgres_dsn"`
-	RedisAddress   string `json:"redis_address"`
-	RedisPassword  string `json:"redis_password"`
-	RedisPrefix    string `json:"redis_prefix"`
 	MaxConnections int32  `json:"max_connections"`
 	PostgresSchema string `json:"postgres_schema,omitempty"`
 }
@@ -36,13 +30,11 @@ func LoadConfig(path string) (Config, error) {
 
 type Store struct {
 	DB               *pgxpool.Pool
-	Cache            *redis.Client
-	prefix           string
 	adventureEnabled bool
 }
 
 func Open(ctx context.Context, c Config) (*Store, error) {
-	if c.PostgresDSN == "" || c.RedisAddress == "" || c.RedisPassword == "" || c.RedisPrefix == "" {
+	if c.PostgresDSN == "" {
 		return nil, errors.New("storage configuration incomplete")
 	}
 	cfg, e := pgxpool.ParseConfig(c.PostgresDSN)
@@ -59,13 +51,8 @@ func Open(ctx context.Context, c Config) (*Store, error) {
 	if e != nil {
 		return nil, e
 	}
-	cache := redis.NewClient(&redis.Options{Addr: c.RedisAddress, Password: c.RedisPassword, DialTimeout: 3 * time.Second, ReadTimeout: 3 * time.Second, WriteTimeout: 3 * time.Second})
-	s := &Store{DB: db, Cache: cache, prefix: c.RedisPrefix}
+	s := &Store{DB: db}
 	if e = db.Ping(ctx); e != nil {
-		s.Close()
-		return nil, e
-	}
-	if e = cache.Ping(ctx).Err(); e != nil {
 		s.Close()
 		return nil, e
 	}
@@ -77,7 +64,7 @@ func (s *Store) NameExists(ctx context.Context, name string) (bool, error) {
 	err := s.DB.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM characters WHERE lower(name)=lower($1))`, name).Scan(&exists)
 	return exists, err
 }
-func (s *Store) Close() { s.Cache.Close(); s.DB.Close() }
+func (s *Store) Close() { s.DB.Close() }
 func (s *Store) Migrate(ctx context.Context) error {
 	_, e := s.DB.Exec(ctx, `CREATE TABLE IF NOT EXISTS accounts (
  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -152,8 +139,6 @@ func (s *Store) CreateCharacter(ctx context.Context, c Character, maxCharacters 
 	if e = tx.Commit(ctx); e != nil {
 		return c, e
 	}
-	// Cache is disposable. A cache failure after commit cannot undo a saved role.
-	s.Cache.Del(ctx, fmt.Sprintf("%scharacters:%d", s.prefix, account))
 	return c, nil
 }
 func (s *Store) Characters(ctx context.Context, account int64) ([]Character, error) {

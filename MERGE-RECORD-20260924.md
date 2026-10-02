@@ -40,7 +40,6 @@
 - `D:\115us\server\work\dfo_probe_tools\probe.exe`（584,704 字节，SHA256 未变）
 - `D:\115us\server\work\dfo-lan\runtime\storage\pgdata\`（存档未动）
 - `D:\115us\server\work\dfo-lan\runtime\storage\local.json`
-- `D:\115us\server\work\dfo-lan\runtime\storage\redis.conf`
 - `D:\115us\server\launcher.local.json`
 - `D:\115us\tools\`
 - `D:\115us\启动游戏.cmd` / `停止游戏环境.cmd`

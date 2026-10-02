@@ -264,16 +264,16 @@ live_06 23:40:30 收到 LanTest01 slot=2，客户端记录 SELECT_CHARACTER (Siz
 
 不丢弃未知脚本单元，也不把未知单元解释成数值。创建装备里的转职列选择、装备槽映射、出生点与剧情初始状态还需恢复；目前只保留原始配置单元。`configs/character-probe.json` 中的角色数量和初始等级属于显式本地测试策略，未冒充从 PVF 恢复的规则。
 
-## 存储与测试
+## 存储与测试（第一阶段历史记录）
 
-PostgreSQL 17.10 使用项目独立数据目录，回环端口 25438；Redis 8.10.1 使用回环端口 26388、独立密码和前缀。连接配置位于被忽略的 `runtime/storage/local.json`，不要复制到报告或提交。
+PostgreSQL 17.10 使用项目独立数据目录，回环端口 25438。连接配置位于被忽略的 `runtime/storage/local.json`，不要复制到报告或提交。
 
 - `go test ./...` 通过，涵盖协议畸形输入、空列表原生样本、原生加密向量。
 - `go run ./cmd/charactercheck` 在独立临时 schema 验证并发最后一个角色位只有一次成功、跨账号重名约束、重新连接后的持久化及 PVF 数值/来源保存。临时 schema 验证后清理。
 - `runtime/character_validation.json` 明确标记 `real_client_character_created=false`。该测试不会创建 LanTest01。
 - `go run ./cmd/storagecheck` 在 23:18 UTC 确认四个存档；23:20 UTC live_04 再创建 nvgui，当前已有五个用户角色。只读核查应以最新数据库为准。
 
-后续账号密码登录器、Redis 登录会话和账号缓存、多客户端同城及移动仍未验收。当前 Redis 是连通性与存储基础，尚不能声称完整多人缓存链路已经实现。
+后续账号密码登录器、多客户端同城及移动仍未验收。本节存储环境和测试结果为当时的历史记录，当前部署要求以根目录 `使用教程.md` 为准。
 
 ## 画面验证限制
 

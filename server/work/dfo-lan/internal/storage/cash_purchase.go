@@ -550,9 +550,6 @@ func (s *Store) purchaseCash(ctx context.Context, o CashOrder, deliver func(json
 	if e = tx.Commit(ctx); e != nil {
 		return CashReceipt{}, false, e
 	}
-	if deliver != nil {
-		s.Cache.Del(ctx, fmt.Sprintf("%scharacters:%d", s.prefix, o.Account))
-	}
 	return receipt, true, nil
 }
 

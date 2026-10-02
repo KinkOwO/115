@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 2026-10-02：移除 Redis 运行依赖（源码候选）
+
+- 存储只依赖 PostgreSQL：删除 Redis 客户端、配置必填/PING 门禁和全部事务后的缓存 DEL；现有业务没有缓存读取或 Redis 会话消费者。PostgreSQL SQL、schema、事务与玩家存档格式保持。
+- 启动器、首次初始化、环境配置、停止脚本、GM Go/Python 和发布打包移除 Redis；删除 redis.conf 与模板字段，旧 local.json 的遗留字段仍可兼容读取，重新配置时移除遗留字段并保留 PostgreSQL 凭据。同步删除相关文档、安装步骤、端口约定和技术栈门禁。
+- Go 1.26.5 的 go vet ./... 通过；go test ./... 与未修改 HEAD 对照均为相同 4 项既有失败。独立 PostgreSQL16.4 回归通过仅 PG 配置、旧配置兼容、建角/事务提交、未知背包及扩展字段保留、重开恢复和幂等重放；storage/loot/quest 集成通过。额外 character/workflow 集成分别受缺失历史 fixture、旧身份用例限制；cashshop 失败在 HEAD 同样复现。
+- 新增启动/GM Python 8 项与根环境迁移/停止 2 项测试通过，GM Python 全套 8 项通过、GM Go 检查通过；服务端 Python 全套仍有 2 项既有配置断言失败。发布脚本语法检查与 git diff --check 通过。
+- 使用独立工作树及测试数据库，没有操作玩家库、启动客户端或替换确认 EXE；部署需从新源码重建服务端与 GM。现有 confirmed baseline 保持原实机验收范围，本轮不新增实机确认。
 ## 2026-10-02：领域归并与文件收口（源码候选）
 
 - 装备图鉴制作/变换/分解与时装、徽章操作归 inventory，事务归 workflow.ItemService；原事件 key/model、随机调用位置、回执字段与协议响应顺序保留。

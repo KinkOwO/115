@@ -123,7 +123,7 @@ CMD33 对话仍是 `[meet npc]` 的首选路径，这条只是兜底：不站到
 
 回退后端到 35：`channel_probe.py` 的 tag 后缀改回 `_next35`，`launch_local.py` 同改；36 的新参数 35 二进制不认识，必须一起回退。新表 `character_birth` 对 35 无害，可保留。
 
-原始客户端 `F:/dnfop/DFO` 未改。PostgreSQL/Redis 未清空，现有角色未重置。35 的二进制与配置原样保留。
+原始客户端 `F:/dnfop/DFO` 未改。PostgreSQL 未清空，现有角色未重置。35 的二进制与配置原样保留。
 
 ## 5. 实机验收清单
 

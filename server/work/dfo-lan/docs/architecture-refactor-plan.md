@@ -64,7 +64,7 @@
 | `internal/dungeon` | 副本会话、房间、门、清场和结算 | 保留副本状态机和时序 |
 | `internal/world` | 城镇、区域跳转、传送和位置保存 | 保留场景几何和转移规则 |
 | `internal/quest` | 任务链、目标推进、任务奖励 | 保留任务规则；事务意图后续显式化 |
-| `internal/storage` | PostgreSQL/Redis、存档、锁、事务和缓存 | 保存数据与原子性所有者，不解释玩法字符串 |
+| `internal/storage` | PostgreSQL、存档、锁和事务 | 保存数据与原子性所有者，不解释玩法字符串 |
 | `internal/catalog` / `catalog/pvf` | 规则目录和 PVF 解析 | 保留来源、解析和快照边界 |
 | `internal/cashshop` | 商城报价/购买试点和支付账本 | 后续明确是否扩展为交易所有者，避免万能支付层 |
 | `internal/game/profileskin` 等小模块 | 共享协议/存储数据或诊断读模型 | 只有删除后依赖更清楚才合并，不做按数量清理 |
@@ -514,7 +514,7 @@ git diff --check
 
 未修改这些测试断言或对应业务实现。数据库集成测试沿用已有显式启用门禁，本批没有连接玩家 PostgreSQL。实机仍待用户手动验收：装备操作及重复请求、NPC 买卖与金库转移、任务完成/奖励、拾取和翻牌、黑鸦/月湖重选角色恢复。没有部署二进制或启动客户端，不升级 confirmed baseline。
 
-用户原有 `.gitignore`、PostgreSQL/Redis 配置与 `scripts/launch_local.py` 内容保持不变，不纳入本批提交。
+用户原有 `.gitignore`、PostgreSQL 配置与 `scripts/launch_local.py` 内容保持不变，不纳入本批提交。
 
 ## 18. 合入最新上游并保持边界
 

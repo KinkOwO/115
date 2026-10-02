@@ -31,9 +31,6 @@ func (s *Store) AdvanceStoryDigest(ctx context.Context, account, id int64, level
 	if err = tx.Commit(ctx); err != nil {
 		return role, false, err
 	}
-	if advanced {
-		s.Cache.Del(ctx, fmt.Sprintf("%scharacters:%d", s.prefix, account))
-	}
 	return role, advanced, nil
 }
 

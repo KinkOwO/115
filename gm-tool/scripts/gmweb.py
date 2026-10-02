@@ -29,7 +29,6 @@ def load_storage(path):
 def start_storage(storage_file, cfg):
     storage_dir = storage_file.resolve().parent
     pg = urlparse(cfg['postgres_dsn'])
-    rh, rp = cfg['redis_address'].rsplit(':', 1)
     if not listening(pg.hostname, pg.port):
         data = pathlib.Path(cfg.get('postgres_data', '')).resolve()
         pgctl = pathlib.Path(cfg.get('postgres_bin', '')) / 'pg_ctl.exe'
@@ -40,20 +39,6 @@ def start_storage(storage_file, cfg):
                                 '-w', '-t', '30', 'start'], stdout=log, stderr=log, creationflags=FLAGS, timeout=40)
         if r.returncode or not listening(pg.hostname, pg.port):
             raise RuntimeError('PostgreSQL did not start; inspect launcher-postgres.log.')
-    if not listening(rh, rp):
-        redis = pathlib.Path(cfg.get('redis_bin', '')) / 'redis-server.exe'
-        conf = storage_dir / 'redis.conf'
-        if not redis.exists() or not conf.exists():
-            raise RuntimeError('Redis offline and no usable redis_bin/redis.conf; start the DFO server first.')
-        with (storage_dir / 'redis.log').open('ab') as log:
-            child = subprocess.Popen([str(redis), str(conf)], cwd=storage_dir, stdout=log, stderr=log, creationflags=FLAGS)
-        for _ in range(100):
-            if listening(rh, rp):
-                return
-            if child.poll() is not None:
-                break
-            time.sleep(.1)
-        raise RuntimeError('Redis did not start; inspect redis.log.')
 
 
 def catalog_args(args=None):
@@ -119,9 +104,8 @@ def main():
             return
         cfg = load_storage(storage_file)
         pg = urlparse(cfg['postgres_dsn'])
-        rh, rp = cfg['redis_address'].rsplit(':', 1)
         print('storage:', storage_file.resolve())
-        print('PostgreSQL:', listening(pg.hostname, pg.port), 'Redis:', listening(rh, rp))
+        print('PostgreSQL:', listening(pg.hostname, pg.port))
         return
 
     cfg = load_storage(storage_file)

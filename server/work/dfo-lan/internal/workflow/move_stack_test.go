@@ -37,7 +37,6 @@ func TestBagMoveRoundtripReplayIntegration(t *testing.T) {
 	}
 	defer live.DB.Exec(context.Background(), "DROP SCHEMA "+schema+" CASCADE")
 	cfg.PostgresSchema = schema
-	cfg.RedisPrefix = schema + ":"
 	s, e := storage.Open(ctx, cfg)
 	if e != nil {
 		t.Fatal(e)

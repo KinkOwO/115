@@ -21,7 +21,7 @@
 
 ## 一、前提
 
-- 对方电脑已有 `D:\115us` 环境（游戏 + 服务端 + 数据库），**或**至少有一套能连的 PostgreSQL(25438) / Redis(26388)。
+- 对方电脑已有 `D:\115us` 环境（游戏 + 服务端 + 数据库），**或**至少有一套能连的 PostgreSQL(25438)。
 - 数据库位置默认 `D:\115us\server\work\dfo-lan\runtime\storage\local.json`；路径不同就用 `--storage` 指定。
 - 首次使用前先启动一次游戏环境（或数据库已在后台运行）。
 
@@ -29,7 +29,7 @@
 
 1. 把整个 `gm-tool` 文件夹解压到任意位置（例如 `D:\gm-tool`）。
 2. 双击 `Start-GMWeb.cmd`。
-3. 脚本自动：拉起 PG/Redis（若未运行）→ 启动网页服务 → 打开浏览器 `http://127.0.0.1:28080`。
+3. 脚本自动：拉起 PostgreSQL（若未运行）→ 启动网页服务 → 打开浏览器 `http://127.0.0.1:28080`。
 
 ```bat
 Start-GMWeb.cmd --storage D:\对方的\路径\local.json
