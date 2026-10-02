@@ -337,7 +337,12 @@ func PrepareCatalogs(inputs CatalogInputs, adapters CatalogAdapters) (*Catalogs,
 			return &result, err
 		}
 		anchorChecksum = characterPolicy.SourceChecksum
-	} else {
+	} else if strings.TrimSpace(characterPath) != "" {
+		// Native non-character domains do not need the JSON character baseline as
+		// an anchor: the archive identity is already enforced by
+		// Open(ExpectedChecksum). Dropping the path leaves anchorChecksum empty so
+		// the source-mismatch guard below is skipped instead of comparing a stale
+		// historical anchor against the current inner archive.
 		var e error
 		characters, e = catalog.LoadCharacters(characterPath)
 		if e != nil {

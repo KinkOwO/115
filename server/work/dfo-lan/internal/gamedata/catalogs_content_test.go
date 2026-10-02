@@ -72,7 +72,10 @@ func TestPVFBlackPurgatoryLocalArchive(t *testing.T) {
 		t.Fatal(err)
 	}
 	boxes := testRewardBoxSource{definitions: c.Boosters, items: c.Items.Items}
-	r, err := c.LoadBlackPurgatory("missing-rewards.json", boxes, func(id uint32) (catalog.LootItem, bool) { item, ok := c.Loot.Items[id]; return item, ok })
+	// "black-purgatory" prepares the item index, not the loot domain: reuse the
+	// same item lookup production passes so the fixture never dereferences an
+	// unprepared c.Loot.
+	r, err := c.LoadBlackPurgatory("missing-rewards.json", boxes, blackPurgatoryLookup(c.Items))
 	if err != nil {
 		t.Fatal(err)
 	}

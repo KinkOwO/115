@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -19,11 +20,14 @@ import (
 // exercising the public preparation facade and its adapter hooks.
 func prepareCatalogsForTest(t *testing.T, selection, archive, checksum, characters, quests, progression, world string, itemInputs ...CatalogInputs) (*Catalogs, error) {
 	t.Helper()
-	const historicalIdentity = "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80"
+	// Restore the runtime source identity to the checksum actually used by this
+	// preparation, never the stale historical 7ef2 constant: writing that back
+	// would poison the source gate for the next test.
+	usedIdentity := ""
 	t.Cleanup(func() {
-		catalog.SetOdysseySource(historicalIdentity)
-		inventory.SetClearCubeSource(historicalIdentity)
-		quest.SetImageCommunicationSource(historicalIdentity)
+		catalog.SetOdysseySource(usedIdentity)
+		inventory.SetClearCubeSource(usedIdentity)
+		quest.SetImageCommunicationSource(usedIdentity)
 	})
 	inputs := CatalogInputs{
 		Selection: selection, ArchivePath: archive, ArchiveChecksum: checksum,
@@ -35,7 +39,66 @@ func prepareCatalogsForTest(t *testing.T, selection, archive, checksum, characte
 		provided.CharacterPath, provided.QuestPath, provided.ProgressionPath, provided.WorldPath = characters, quests, progression, world
 		inputs = provided
 	}
-	return PrepareCatalogs(inputs, testCatalogAdapters())
+	// Native PVF domains other than characters ignore the JSON character anchor:
+	// the archive identity is already enforced by Open(ExpectedChecksum). Drop the
+	// anchor path so the historical 7ef2 baseline cannot fail the source gate,
+	// while preserving the IndexPath inference production derives from it.
+	if selected, err := parsePVFCatalogSelection(selection); err == nil && !selected["characters"] {
+		if inputs.IndexPath == "" && strings.TrimSpace(inputs.CharacterPath) != "" {
+			inputs.IndexPath = filepath.Join(filepath.Dir(inputs.CharacterPath), "items.index.json")
+		}
+		inputs.CharacterPath = ""
+	}
+	// Default all domains onto the shared derived-projection cache so repeated
+	// imports of the same archive inside this package reuse one projection
+	// instead of recomputing it per test. Callers that pass DerivedCacheDir keep
+	// their explicit directory (for example the cold/hot cache regression).
+	if inputs.DerivedCacheDir == "" {
+		inputs.DerivedCacheDir = testPVFCacheDir()
+	}
+	result, err := PrepareCatalogs(inputs, testCatalogAdapters())
+	if result != nil {
+		usedIdentity = result.SourceChecksum
+	}
+	return result, err
+}
+
+// testModuleRoot locates the module root by walking up from the test working
+// directory until go.mod is found, so relative cache paths resolve to one
+// shared directory regardless of which package is running.
+var testModuleRoot = sync.OnceValues(func() (string, error) {
+	dir, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	for {
+		if _, statErr := os.Stat(filepath.Join(dir, "go.mod")); statErr == nil {
+			return dir, nil
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return "", fmt.Errorf("go.mod not found above %s", dir)
+		}
+		dir = parent
+	}
+})
+
+// testPVFCacheDir resolves the shared derived-projection cache, mirroring the
+// production DFO_PVF_CACHE_DIR behavior: default runtime/pvf-cache, "-"
+// disables caching, and relative paths resolve against the module root.
+func testPVFCacheDir() string {
+	dir := strings.TrimSpace(os.Getenv("DFO_PVF_CACHE_DIR"))
+	if dir == "" {
+		dir = "runtime/pvf-cache"
+	}
+	if dir == "-" || filepath.IsAbs(dir) {
+		return dir
+	}
+	root, err := testModuleRoot()
+	if err != nil {
+		return dir
+	}
+	return filepath.Join(root, dir)
 }
 
 func testCatalogAdapters() CatalogAdapters {
