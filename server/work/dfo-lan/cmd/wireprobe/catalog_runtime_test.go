@@ -3,6 +3,8 @@ package main
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/gamedata"
+	"dfolan/internal/inventory"
+	"dfolan/internal/quest"
 	"os"
 	"os/exec"
 	"reflect"
@@ -10,9 +12,64 @@ import (
 	"testing"
 )
 
+func TestPVFLotteryLocalArchive(t *testing.T) {
+	path := os.Getenv("DFO_PVF_CORE_TEST_ARCHIVE")
+	if path == "" {
+		t.Skip("set DFO_PVF_CORE_TEST_ARCHIVE for complete lottery source and weighted boundary parity")
+	}
+	c, err := prepareCatalogsForRuntimeTest(t, "characters,lottery", path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "missing-characters.json", "", "", "", gamedata.CatalogInputs{CharacterPolicyPath: "../../configs/pvf-character-policy.json", IndexPath: "missing-index.json", LotteryPolicyPath: "../../configs/pvf-lottery-policy.json"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	direct, err := loadRuntimeLotteryItems(c, "missing-items.json", c.Items.Items)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count, err := loadRuntimeLotteryEquipment(c, "missing-equipment.json", c.Items.Items, direct); err != nil || count != 2477 {
+		t.Fatal(count, err)
+	}
+	old, err := loadLotteryItemCatalog("../../configs/lottery-item-pools.json", c.Items.Items)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := loadLotteryEquipmentPools("../../configs/lottery-equipment-pools.json", c.Items.Items, old); err != nil {
+		t.Fatal(err)
+	}
+	boundaries := 0
+	for id, p := range direct.byTemplate {
+		before := old.byTemplate[id]
+		if p.total != before.total {
+			t.Fatal("total changed", id)
+		}
+		var offset int64
+		for _, row := range p.Candidates {
+			for _, draw := range []int64{offset, offset + int64(row.Weight) - 1} {
+				a, ea := p.pick(draw)
+				b, eb := before.pick(draw)
+				if ea != nil || eb != nil || a != b {
+					t.Fatal("weighted boundary changed", id, draw, ea, eb)
+				}
+				boundaries++
+			}
+			offset += int64(row.Weight)
+		}
+	}
+	direct.byTemplate[7772].Candidates[0].Count++
+	again, err := loadRuntimeLotteryItems(c, "missing-items.json", c.Items.Items)
+	if err != nil || again.byTemplate[7772].Candidates[0] != old.byTemplate[7772].Candidates[0] {
+		t.Fatal("prepared source was mutated", err)
+	}
+	t.Log("complete 276/2477 source pool parity; weighted boundaries checked", boundaries)
+}
+
+func prepareCatalogsForRuntimeTest(t *testing.T, selection, archive, checksum, characters, quests, progression, world string, provided gamedata.CatalogInputs) (*gamedata.Catalogs, error) {
+	provided.Selection, provided.ArchivePath, provided.ArchiveChecksum = selection, archive, checksum
+	provided.CharacterPath, provided.QuestPath, provided.ProgressionPath, provided.WorldPath = characters, quests, progression, world
+	return gamedata.PrepareCatalogs(provided, runtimeCatalogAdaptersForTest(t))
+}
 func TestNativeLotteryContentCanChange(t *testing.T) {
-	original := lotterySourcePVFSHA256
-	t.Cleanup(func() { lotterySourcePVFSHA256 = original })
+	before := lotterySourcePVFSHA256
+	t.Cleanup(func() { lotterySourcePVFSHA256 = before })
 	source := strings.Repeat("a", 64)
 	SetLotterySource(source)
 	index := map[uint32]ItemIndexInfo{
@@ -24,12 +81,12 @@ func TestNativeLotteryContentCanChange(t *testing.T) {
 		Items:     catalog.LotteryPoolCatalog{SourcePVFSHA256: source, Pools: []catalog.LotterySourcePool{{SourceItem: 10, SourceScript: "stackable/new.stk", SourceScriptSHA256: strings.Repeat("b", 64), Candidates: [][3]uint32{{20, 4, 3}, {0, 6, 1234}}}}},
 		Equipment: catalog.LotteryPoolCatalog{SourcePVFSHA256: source, Pools: []catalog.LotterySourcePool{{SourceItem: 11, SourceScript: "stackable/gear.stk", SourceScriptSHA256: strings.Repeat("c", 64), Candidates: [][3]uint32{{21, 9, 1}, {20, 1, 2}}}}},
 	}
-	c := pvfCoreCatalogs{lotteryTables: &tables}
-	bound, err := c.loadLotteryItems("missing.json", index)
+	c := &gamedata.Catalogs{LotteryTables: &tables}
+	bound, err := loadRuntimeLotteryItems(c, "missing.json", index)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if n, err := c.loadLotteryEquipment("missing.json", index, bound); err != nil || n != 1 {
+	if n, err := loadRuntimeLotteryEquipment(c, "missing.json", index, bound); err != nil || n != 1 {
 		t.Fatal(n, err)
 	}
 	if bound.SourcePVFSHA256 != source || bound.byTemplate[10].total != 10 || bound.byTemplate[11].total != 10 {
@@ -47,12 +104,12 @@ func TestNativeLotteryContentCanChange(t *testing.T) {
 		}
 	}
 	bound.byTemplate[10].Candidates[0].Count++
-	again, err := c.loadLotteryItems("missing.json", index)
+	again, err := loadRuntimeLotteryItems(c, "missing.json", index)
 	if err != nil || again.byTemplate[10].Candidates[0].Count != 3 {
 		t.Fatal("prepared source mutated", err)
 	}
 	tables.Items.SourcePVFSHA256 = strings.Repeat("d", 64)
-	if _, err := c.loadLotteryItems("missing.json", index); err == nil {
+	if _, err := loadRuntimeLotteryItems(c, "missing.json", index); err == nil {
 		t.Fatal("foreign source accepted")
 	}
 }
@@ -62,6 +119,8 @@ func TestNativeLotteryDiscoveryCurrentArchive(t *testing.T) {
 	if path == "" {
 		t.Skip("set DFO_PVF_SCOPE_TEST_ARCHIVE for full native lottery discovery")
 	}
+	before := lotterySourcePVFSHA256
+	t.Cleanup(func() { lotterySourcePVFSHA256 = before })
 	s, err := gamedata.Open(gamedata.Options{Mode: gamedata.PVF, ArchivePath: path, ExpectedChecksum: os.Getenv("DFO_PVF_SCOPE_TEST_SHA256")})
 	if err != nil {
 		t.Fatal(err)
@@ -94,19 +153,18 @@ func TestNativeLotteryDiscoveryCurrentArchive(t *testing.T) {
 			t.Fatal("untraceable or unordered issue", issue)
 		}
 	}
-	original := lotterySourcePVFSHA256
-	t.Cleanup(func() { lotterySourcePVFSHA256 = original })
-	SetLotterySource(index.Source.Checksum)
-	verify := false
-	c := pvfCoreCatalogs{items: &index}
-	if err := preparePVFLottery(&c, s, map[string]bool{"lottery": true}, pvfItemInputs{lotteryPolicyPath: "missing-policy.json", indexPath: "missing-index.json", verifyBaselines: &verify}); err != nil {
-		t.Fatal(err)
-	}
-	bound, err := c.loadLotteryItems("missing-items.json", index.Items)
+	c, err := gamedata.PrepareCatalogs(gamedata.CatalogInputs{
+		Selection: "characters,lottery", ArchivePath: path, ArchiveChecksum: os.Getenv("DFO_PVF_SCOPE_TEST_SHA256"),
+		CharacterPath: "missing-characters.json", CharacterPolicyPath: "../../configs/pvf-character-policy.json", LotteryPolicyPath: "missing-policy.json", IndexPath: "missing-index.json",
+	}, runtimeCatalogAdaptersForTest(t))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := c.loadLotteryEquipment("missing-equipment.json", index.Items, bound); err != nil {
+	bound, err := loadRuntimeLotteryItems(c, "missing-items.json", index.Items)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := loadRuntimeLotteryEquipment(c, "missing-equipment.json", index.Items, bound); err != nil {
 		t.Fatal(err)
 	}
 	for _, issue := range scope.Issues {
@@ -150,25 +208,36 @@ func TestNativeLotteryStartupWithoutExportedCatalogs(t *testing.T) {
 		t.Log(string(output))
 		return
 	}
-	original := lotterySourcePVFSHA256
-	t.Cleanup(func() { lotterySourcePVFSHA256 = original })
-	verify := false
-	c, err := preparePVFCoreCatalogs("characters,lottery", path, os.Getenv("DFO_PVF_SCOPE_TEST_SHA256"), "missing-characters.json", "", "", "", pvfItemInputs{
-		characterPolicyPath: "../../configs/pvf-character-policy.json",
-		lotteryPolicyPath:   "missing-policy.json", indexPath: "missing-index.json", verifyBaselines: &verify,
+
+	c, err := prepareCatalogsForRuntimeTest(t, "characters,lottery", path, os.Getenv("DFO_PVF_SCOPE_TEST_SHA256"), "missing-characters.json", "", "", "", gamedata.CatalogInputs{
+		CharacterPolicyPath: "../../configs/pvf-character-policy.json",
+		LotteryPolicyPath:   "missing-policy.json", IndexPath: "missing-index.json", VerifyBaselines: false,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.characters == nil || c.items == nil || c.lotteryTables == nil || c.sourceChecksum != c.characters.Source.Checksum || c.sourceChecksum != c.lotteryTables.Items.SourcePVFSHA256 {
+	if c.Characters == nil || c.Items == nil || c.LotteryTables == nil || c.SourceChecksum != c.Characters.Source.Checksum || c.SourceChecksum != c.LotteryTables.Items.SourcePVFSHA256 {
 		t.Fatal("source preparation lost identity or catalog")
 	}
-	bound, err := c.loadLotteryItems("missing-items.json", c.items.Items)
+	bound, err := loadRuntimeLotteryItems(c, "missing-items.json", c.Items.Items)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := c.loadLotteryEquipment("missing-equipment.json", c.items.Items, bound); err != nil {
+	if _, err := loadRuntimeLotteryEquipment(c, "missing-equipment.json", c.Items.Items, bound); err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("native preparation without exported catalogs: source=%s pools=%d", c.sourceChecksum, len(bound.byTemplate))
+	t.Logf("native preparation without exported catalogs: source=%s pools=%d", c.SourceChecksum, len(bound.byTemplate))
+}
+
+// Restore the source identities changed by startup so archive tests remain isolated.
+func runtimeCatalogAdaptersForTest(t *testing.T) gamedata.CatalogAdapters {
+	t.Helper()
+	previousLottery, previousOdyssey := lotterySourcePVFSHA256, catalog.OdysseySource
+	t.Cleanup(func() {
+		lotterySourcePVFSHA256 = previousLottery
+		catalog.SetOdysseySource(previousOdyssey)
+		inventory.SetClearCubeSource(previousOdyssey)
+		quest.SetImageCommunicationSource(previousOdyssey)
+	})
+	return runtimeCatalogAdapters()
 }

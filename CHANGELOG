@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 2026-10-02：PVF 读取入口收拢（源码候选）
+
+- 删除 wireprobe 的 32 个 PVF 读取/准备生产文件，集中到 internal/gamedata 的 5 个 catalogs 文件，通过 Catalogs / PrepareCatalogs 统一获取数据；底层解析与文件读取归 catalog，入口保留装配及原有运行期适配。
+- 角色预热改名 role_detail_prewarm；原 46 个测试名称保留，按数据准备与运行职责合并，cmd/wireprobe 中 pvf_* 文件清零。选中目录缺失显式报错，合法空数据不回读 JSON；历史基线校验默认关闭。
+- Go 1.26.5 编译、vet、架构守卫和 Python 3.11 启动器 10 项检查通过；全量 Go 测试只剩与 HEAD b7a5692 相同的 4 项既有失败。当前 8b 内层源的 54 域报告与迁移前一致，抽奖 271,492 个权重边界、无导出 JSON 准备及关闭父源后的角色预热通过。
+- 本批仅提交源码、测试和依赖审计记录；未替换运行程序或操作玩家数据库、客户端，无 SQL/schema/存档格式改动。confirmed baseline 保持既有实机确认范围；configs 剩余内容依赖继续按 docs/todo/pvf 台账收口。
+
 ## 2026-10-02：消耗品与光辉礼盒继续收口（源码候选）
 
 - 普通消耗品、宠物喂养、光辉礼盒目录/PVF 投影、抽取/进度、奖励落袋与旧奖励修复归现有 inventory.ItemService；消费/开箱/修复事务合并为 workflow/item_consumables.go，删除 loot 的对应入口和短文件，不保留转发门面。

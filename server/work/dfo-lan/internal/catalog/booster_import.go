@@ -2,9 +2,11 @@ package catalog
 
 import (
 	"dfolan/internal/catalog/pvf"
+	"encoding/json"
 	"fmt"
 	"log"
 	"math/rand"
+	"os"
 	"strings"
 )
 
@@ -320,4 +322,45 @@ func ImportBoosters(a *pvf.Archive, index ItemIndex) (map[uint32]BoosterDefiniti
 	}
 	log.Printf("PVF booster projection: %d definitions, %d smart substitutions, %d sealed markers, %d unparsed booster bodies", len(result), substituted, sealed, unresolved)
 	return result, nil
+}
+
+// BoosterCatalog holds box definitions and their item metadata.
+type BoosterCatalog struct {
+	Definitions map[uint32]BoosterDefinition
+	Items       map[uint32]ItemIndexEntry
+}
+
+func LoadBoosterCatalog(catPath, indexPath string) (*BoosterCatalog, error) {
+	cat := &BoosterCatalog{
+		Definitions: make(map[uint32]BoosterDefinition),
+		Items:       make(map[uint32]ItemIndexEntry),
+	}
+
+	if catPath != "" {
+		data, err := os.ReadFile(catPath)
+		if err == nil {
+			var raw map[string]BoosterDefinition
+			if err = json.Unmarshal(data, &raw); err == nil {
+				for _, def := range raw {
+					cat.Definitions[def.Template] = def
+				}
+			}
+		}
+	}
+
+	if indexPath != "" {
+		data, err := os.ReadFile(indexPath)
+		if err == nil {
+			var raw struct {
+				Items map[string]ItemIndexEntry `json:"items"`
+			}
+			if err = json.Unmarshal(data, &raw); err == nil {
+				for _, it := range raw.Items {
+					cat.Items[it.ID] = it
+				}
+			}
+		}
+	}
+
+	return cat, nil
 }

@@ -15,6 +15,7 @@ import (
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/game/wire"
+	"dfolan/internal/gamedata"
 	"dfolan/internal/inventory"
 	"dfolan/internal/legion"
 	"dfolan/internal/loot"
@@ -47,10 +48,10 @@ func main() {
 	responseFile := flag.String("responses", "", "JSON mapping command IDs to response fixture paths")
 	characterStorage := flag.String("character-storage", "", "enable experimental persisted character handling with this local storage config")
 	characterCatalog := flag.String("character-catalog", "configs/characters.generated.json", "PVF-derived profession catalog")
-	pvfCatalogSelection := flag.String("pvf-catalogs", os.Getenv("DFO_PVF_CATALOGS"), "candidate direct-read domains: "+pvfSupportedDomains+"; empty keeps JSON")
+	pvfCatalogSelection := flag.String("pvf-catalogs", os.Getenv("DFO_PVF_CATALOGS"), "candidate direct-read domains: "+gamedata.SupportedDomains+"; empty keeps JSON")
 	pvfCheckCatalogs := flag.Bool("pvf-check-catalogs", false, "prepare explicitly selected PVF catalogs and exit before storage, listeners or runtime setup")
 	pvfCheckHeap := flag.String("pvf-check-heap-profile", "", "write a new post-GC heap profile only with pvf-check-catalogs")
-	pvfVerifyBaselines := flag.Bool("pvf-verify-baselines", os.Getenv("DFO_PVF_VERIFY_BASELINES") != "0", "compare selected PVF domains with JSON baselines before storage; false removes the selected JSON startup dependency")
+	pvfVerifyBaselines := flag.Bool("pvf-verify-baselines", os.Getenv("DFO_PVF_VERIFY_BASELINES") == "1", "compare selected PVF domains with JSON baselines before storage; false removes the selected JSON startup dependency")
 	pvfEnhancementPolicy := flag.String("pvf-enhancement-policy", envStrOr("DFO_PVF_ENHANCEMENT_POLICY", "configs/pvf-enhancement-policy.json"), "independent enhancement server policies; required only for PVF enhancements")
 	pvfVaultPolicy := flag.String("pvf-vault-policy", envStrOr("DFO_PVF_VAULT_POLICY", "configs/pvf-vault-policy.json"), "client capacity/save policy independent of PVF account vault table")
 	pvfContentPolicyPath := flag.String("pvf-content-policy", envStrOr("DFO_PVF_CONTENT_POLICY", "configs/pvf-content-policy.json"), "independent enabled special-content selection; source tables from PVF")
@@ -181,33 +182,82 @@ func main() {
 	if *pvfCheckCatalogs && strings.TrimSpace(*pvfCatalogSelection) == "" {
 		log.Fatal("pvf-check-catalogs requires explicit pvf-catalogs")
 	}
-	pvfCatalogs, pvfCatalogErr := preparePVFCoreCatalogs(*pvfCatalogSelection, *pvfArchivePath, *pvfArchiveChecksum, *characterCatalog, *questCatalogFile, *progressionCatalogFile, *worldCatalogFile, pvfItemInputs{derivedCacheDir: *pvfCacheDir, itemShopPath: *itemShopFile, itemShopPolicyPath: *pvfItemShopPolicyPath, boxesPath: *boxesFile, boxPolicyPath: *pvfBoxPolicyPath, cashshopPath: *shopPilotFile, cashshopRelease: *shopRelease, characterPolicyPath: *pvfCharacterPolicyPath, layerRevisitPolicyPath: *pvfLayerRevisitPolicyPath, scriptWarpPolicyPath: *pvfScriptWarpPolicyPath, lotteryPolicyPath: *pvfLotteryPolicyPath, selectionBoxesPath: *selectionBoxFile, selectionPolicyPath: *pvfSelectionPolicyPath, minePath: *bleedingMineRewardsFile, indexPath: *itemIndexFile, fullPrefix: *fullEquipmentFile, journalPath: *equipmentJournalRulesFile, createCostPath: *equipmentCreateCostFile, learningPath: *learningFile, pricesPath: *shopPricesFile, boosterPath: *boosterCatalogFile, tutorialPath: *tutorialRoutesFile, verifyBaselines: pvfVerifyBaselines, enhancementPolicyPath: *pvfEnhancementPolicy, randomOptionPath: *randomOptionFile, shieldPath: *knightShieldFile, wearRulesPath: *wearRulesFile, oathPath: *oathGradesTable, vaultPath: *vaultRulesFile, vaultPolicyPath: *pvfVaultPolicy, lootPath: *lootCatalogFile, equipmentPath: *equipmentCatalogFile, questEquipmentPath: *equipmentRewardFile, dropPolicyPath: *pvfDropPolicy, townPath: *townCatalogFile, dungeonPath: *dungeonCatalogFile, tutorialDungeonPath: *tutorialDungeonsFile, scenePolicyPath: *pvfScenePolicyPath, apocalypsePath: *apocalypseCatalogFile, attunementPath: *attunementRewardsFile, contentPolicyPath: *pvfContentPolicyPath})
+	pvfCatalogs, pvfCatalogErr := gamedata.PrepareCatalogs(gamedata.CatalogInputs{
+		Selection:              *pvfCatalogSelection,
+		ArchivePath:            *pvfArchivePath,
+		ArchiveChecksum:        *pvfArchiveChecksum,
+		CharacterPath:          *characterCatalog,
+		QuestPath:              *questCatalogFile,
+		ProgressionPath:        *progressionCatalogFile,
+		WorldPath:              *worldCatalogFile,
+		DerivedCacheDir:        *pvfCacheDir,
+		ItemShopPath:           *itemShopFile,
+		ItemShopPolicyPath:     *pvfItemShopPolicyPath,
+		BoxesPath:              *boxesFile,
+		BoxPolicyPath:          *pvfBoxPolicyPath,
+		CashshopPath:           *shopPilotFile,
+		CashshopRelease:        *shopRelease,
+		CharacterPolicyPath:    *pvfCharacterPolicyPath,
+		LayerRevisitPolicyPath: *pvfLayerRevisitPolicyPath,
+		ScriptWarpPolicyPath:   *pvfScriptWarpPolicyPath,
+		LotteryPolicyPath:      *pvfLotteryPolicyPath,
+		SelectionBoxesPath:     *selectionBoxFile,
+		SelectionPolicyPath:    *pvfSelectionPolicyPath,
+		MinePath:               *bleedingMineRewardsFile,
+		IndexPath:              *itemIndexFile,
+		FullPrefix:             *fullEquipmentFile,
+		JournalPath:            *equipmentJournalRulesFile,
+		CreateCostPath:         *equipmentCreateCostFile,
+		LearningPath:           *learningFile,
+		PricesPath:             *shopPricesFile,
+		BoosterPath:            *boosterCatalogFile,
+		TutorialPath:           *tutorialRoutesFile,
+		VerifyBaselines:        *pvfVerifyBaselines,
+		EnhancementPolicyPath:  *pvfEnhancementPolicy,
+		RandomOptionPath:       *randomOptionFile,
+		ShieldPath:             *knightShieldFile,
+		WearRulesPath:          *wearRulesFile,
+		OathPath:               *oathGradesTable,
+		VaultPath:              *vaultRulesFile,
+		VaultPolicyPath:        *pvfVaultPolicy,
+		LootPath:               *lootCatalogFile,
+		EquipmentPath:          *equipmentCatalogFile,
+		QuestEquipmentPath:     *equipmentRewardFile,
+		DropPolicyPath:         *pvfDropPolicy,
+		TownPath:               *townCatalogFile,
+		DungeonPath:            *dungeonCatalogFile,
+		TutorialDungeonPath:    *tutorialDungeonsFile,
+		ScenePolicyPath:        *pvfScenePolicyPath,
+		ApocalypsePath:         *apocalypseCatalogFile,
+		AttunementPath:         *attunementRewardsFile,
+		ContentPolicyPath:      *pvfContentPolicyPath,
+	}, runtimeCatalogAdapters())
 	if pvfCatalogErr != nil {
 		log.Fatalf("PVF candidate catalogs: %v", pvfCatalogErr)
 	}
-	if pvfCatalogs.dungeons != nil {
-		defer pvfCatalogs.dungeons.CloseMapSource()
+	if pvfCatalogs.Dungeons != nil {
+		defer pvfCatalogs.Dungeons.CloseMapSource()
 	}
-	if pvfCatalogs.learning != nil {
-		defer pvfCatalogs.learning.Close()
+	if pvfCatalogs.Learning != nil {
+		defer pvfCatalogs.Learning.Close()
 	}
-	if pvfCatalogs.quests != nil {
-		defer pvfCatalogs.quests.Close()
+	if pvfCatalogs.Quests != nil {
+		defer pvfCatalogs.Quests.Close()
 	}
-	if pvfCatalogs.loot != nil {
-		defer pvfCatalogs.loot.CloseDetails()
+	if pvfCatalogs.Loot != nil {
+		defer pvfCatalogs.Loot.CloseDetails()
 	}
 	if *pvfCheckCatalogs {
-		collectPVFImportMemory(pvfCatalogs)
+		pvfCatalogs.CollectImportMemory()
 		if *pvfCheckHeap != "" {
-			if err := writePVFHeapProfile(*pvfCheckHeap, pvfCatalogs); err != nil {
+			if err := pvfCatalogs.WriteHeapProfile(*pvfCheckHeap); err != nil {
 				log.Fatal(err)
 			}
 		}
-		if pvfCatalogs.equipment != nil {
-			defer pvfCatalogs.equipment.Close()
+		if pvfCatalogs.Equipment != nil {
+			defer pvfCatalogs.Equipment.Close()
 		}
-		report, err := pvfCatalogs.checkReport(*pvfCatalogSelection)
+		report, err := pvfCatalogs.CheckReport(*pvfCatalogSelection)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -218,31 +268,31 @@ func main() {
 		fmt.Println(string(b))
 		return
 	}
-	if _, err := pvfCatalogs.installAdventureRules(); err != nil {
+	if _, err := pvfCatalogs.InstallAdventureRules(); err != nil {
 		log.Fatalf("PVF adventure runtime rules: %v", err)
 	}
-	if _, err := pvfCatalogs.installRecommendedRules(); err != nil {
+	if _, err := pvfCatalogs.InstallRecommendedRules(); err != nil {
 		log.Fatalf("PVF recommended dungeon runtime rules: %v", err)
 	}
-	if _, err := pvfCatalogs.installSeasonRules(); err != nil {
+	if _, err := pvfCatalogs.InstallSeasonRules(); err != nil {
 		log.Fatalf("PVF season runtime rules: %v", err)
 	}
-	if _, err := pvfCatalogs.installRosterBackgrounds(); err != nil {
+	if _, err := pvfCatalogs.InstallRosterBackgrounds(); err != nil {
 		log.Fatalf("PVF roster background runtime rules: %v", err)
 	}
-	if _, err := pvfCatalogs.installFameRules(); err != nil {
+	if _, err := pvfCatalogs.InstallFameRules(); err != nil {
 		log.Fatalf("PVF fame runtime rules: %v", err)
 	}
-	if _, err := pvfCatalogs.installEquipmentAwakening(); err != nil {
+	if _, err := pvfCatalogs.InstallEquipmentAwakening(); err != nil {
 		log.Fatalf("PVF equipment awakening runtime rules: %v", err)
 	}
-	if _, err := pvfCatalogs.installSoleEquipment(); err != nil {
+	if _, err := pvfCatalogs.InstallSoleEquipment(); err != nil {
 		log.Fatalf("PVF sole equipment runtime rules: %v", err)
 	}
-	if _, err := pvfCatalogs.installScriptWarps(); err != nil {
+	if _, err := pvfCatalogs.InstallScriptWarps(); err != nil {
 		log.Fatalf("PVF script warp runtime routes: %v", err)
 	}
-	collectPVFImportMemory(pvfCatalogs)
+	pvfCatalogs.CollectImportMemory()
 	equipmentCraftWindow = byte(*equipmentCraftWindowFlag)
 	equipmentCraftVariant = byte(*equipmentCraftVariantFlag)
 	equipmentCraftConfirmWindow = byte(*equipmentCraftConfirmWindowFlag)
@@ -270,7 +320,7 @@ func main() {
 	// 默认的保底路径不需要它，所以默认配置下**不加载、也不会因为缺表拒绝启动**。
 	var oathGradeTable *inventory.OathGradeTable
 	if *oathFromGear {
-		table, tableErr := pvfCatalogs.loadOathGrades(*oathGradesTable)
+		table, tableErr := pvfCatalogs.LoadOathGrades(*oathGradesTable)
 		if tableErr != nil {
 			log.Fatalf("bad -oath-grades-table: %v", tableErr)
 		}
@@ -333,12 +383,12 @@ func main() {
 			}
 		}
 	}
-	if *randomOptionFile == "" && pvfCatalogs.randomOptions == nil {
+	if *randomOptionFile == "" && pvfCatalogs.RandomOptions == nil {
 		if _, err := os.Stat("configs/randomoption.current37.json"); err == nil {
 			*randomOptionFile = "configs/randomoption.current37.json"
 		}
 	}
-	if *shopPilotFile == "" && pvfCatalogs.cashshop == nil {
+	if *shopPilotFile == "" && pvfCatalogs.CashShop == nil {
 		for _, cand := range []string{
 			"configs/shop-vault-release.json",
 			"configs/shop-purchase-pilot.json",
@@ -385,7 +435,7 @@ func main() {
 			}
 		}
 	}
-	if *itemShopFile == "" && pvfCatalogs.itemShops == nil {
+	if *itemShopFile == "" && pvfCatalogs.ItemShops == nil {
 		candidates := []string{
 			"configs/itemshop-release.json",
 			"configs/itemshop-candidate.json",
@@ -477,11 +527,11 @@ func main() {
 		Flags [3]byte `json:"flags"`
 	}
 	if *townProbeFile != "" {
-		if !*entryBasicProbe || (*townCatalogFile == "" && pvfCatalogs.town == nil) {
+		if !*entryBasicProbe || (*townCatalogFile == "" && pvfCatalogs.Town == nil) {
 			log.Fatal("town probe requires basic actor and town catalog")
 		}
 		var e error
-		townCatalog, e = pvfCatalogs.loadTown(*townCatalogFile)
+		townCatalog, e = pvfCatalogs.LoadTown(*townCatalogFile)
 		if e != nil {
 			log.Fatal(e)
 		}
@@ -621,7 +671,7 @@ func main() {
 		if e = s.MigrateOmenState(ctx); e != nil {
 			log.Fatal(e)
 		}
-		data, e := pvfCatalogs.loadCharacters(*characterCatalog)
+		data, e := pvfCatalogs.LoadCharacters(*characterCatalog)
 		if e != nil {
 			log.Fatal(e)
 		}
@@ -648,13 +698,13 @@ func main() {
 		// 「剩余期限已过」并拒绝使用（错误码 31730）。
 		if os.Getenv("DFO_MAX_ITEM_PERIOD") != "0" {
 			protocol.ConfigureStoredPeriodLifting(true)
-			if *itemIndexFile == "" && pvfCatalogs.periods == nil {
+			if *itemIndexFile == "" && pvfCatalogs.Periods == nil && !pvfCatalogs.Prepared("periods") {
 				log.Printf("maximum item period: no item index (-item-index), lifting stored periods only")
 			} else {
 				periodFile := filepath.Join(filepath.Dir(*itemIndexFile), "item-period-tags.json")
-				templates, periodErr := pvfCatalogs.loadItemPeriods(periodFile, data.Source.Checksum)
+				templates, periodErr := pvfCatalogs.LoadItemPeriods(periodFile, data.Source.Checksum)
 				if periodErr != nil {
-					if pvfCatalogs.periods != nil {
+					if pvfCatalogs.Selected("periods") || pvfCatalogs.Periods != nil {
 						log.Fatal(periodErr)
 					}
 					// 表读不到不再致命：退化为「存档里已有的非零期限一律抬到最大值」，
@@ -668,10 +718,13 @@ func main() {
 		}
 		// Skin-cargo registration (CMD507 action 169, `[add skin storage]`) reads
 		// the skin key straight from PVF and persists the unlock per account.
-		if *itemIndexFile != "" || pvfCatalogs.skins != nil {
+		if *itemIndexFile != "" || pvfCatalogs.Skins != nil || pvfCatalogs.Prepared("skins") {
 			skinFile := filepath.Join(filepath.Dir(*itemIndexFile), "skin-storage-items.json")
-			entries, skinErr := pvfCatalogs.loadSkinStorage(skinFile, data.Source.Checksum)
+			entries, skinErr := pvfCatalogs.LoadSkinStorage(skinFile, data.Source.Checksum)
 			if skinErr != nil {
+				if pvfCatalogs.Selected("skins") {
+					log.Fatal(skinErr)
+				}
 				log.Printf("skin storage registration disabled: %v", skinErr)
 			} else if e = s.MigrateSkinCargo(ctx); e != nil {
 				log.Fatal(e)
@@ -689,14 +742,14 @@ func main() {
 				log.Printf("skin storage registration armed for %d PVF templates", len(entries))
 			}
 		}
-		if *shopPilotFile != "" || pvfCatalogs.cashshop != nil {
+		if *shopPilotFile != "" || pvfCatalogs.CashShop != nil {
 			var database string
 			if e = s.DB.QueryRow(ctx, "SELECT current_database()").Scan(&database); e == nil {
 				if database != "dfo_swordmaster_pilot_20260916" && !*shopRelease {
 					log.Printf("shop purchase pilot running on database: %s", database)
 				}
 			}
-			shopPilot, e = pvfCatalogs.loadCashShop(*shopPilotFile, data.Source.Checksum, *shopRelease)
+			shopPilot, e = pvfCatalogs.LoadCashShop(*shopPilotFile, data.Source.Checksum, *shopRelease)
 			if e != nil {
 				log.Fatal(e)
 			}
@@ -706,8 +759,8 @@ func main() {
 			log.Printf("PVF shop enabled: %d ordinary products", shopPilot.EnabledCount())
 			log.Printf("商城配置：%s，发布模式：%t", *shopPilotFile, shopPilot.Config.Release)
 		}
-		if *learningFile != "" || pvfCatalogs.learning != nil {
-			characters.Learning, e = pvfCatalogs.loadLearning(*learningFile, data.Source.Checksum)
+		if *learningFile != "" || pvfCatalogs.Learning != nil {
+			characters.Learning, e = pvfCatalogs.LoadLearning(*learningFile, data.Source.Checksum)
 			if e != nil {
 				log.Fatal(e)
 			}
@@ -754,11 +807,11 @@ func main() {
 			log.Fatal(e)
 		}
 	}
-	if *worldCatalogFile != "" || pvfCatalogs.world != nil {
+	if *worldCatalogFile != "" || pvfCatalogs.World != nil {
 		if characters == nil || *townProbeFile == "" {
 			log.Fatal("world requires persisted characters and a spawn policy")
 		}
-		data, e := pvfCatalogs.loadWorld(*worldCatalogFile)
+		data, e := pvfCatalogs.LoadWorld(*worldCatalogFile)
 		if e != nil {
 			log.Fatal(e)
 		}
@@ -781,14 +834,14 @@ func main() {
 			log.Fatal(e)
 		}
 	}
-	if *dungeonCatalogFile != "" || pvfCatalogs.dungeons != nil {
+	if *dungeonCatalogFile != "" || pvfCatalogs.Dungeons != nil {
 		if candidate := os.Getenv("DFO_ODYSSEY_DUNGEON_CATALOG"); candidate != "" {
 			*dungeonCatalogFile = candidate
 		}
 		if worldService == nil {
 			log.Fatal("dungeons require world sessions")
 		}
-		data, e := pvfCatalogs.loadDungeons(*dungeonCatalogFile)
+		data, e := pvfCatalogs.LoadDungeons(*dungeonCatalogFile)
 		if e != nil {
 			log.Fatal(e)
 		}
@@ -796,44 +849,44 @@ func main() {
 		if trainingRoomPath == "" {
 			trainingRoomPath = filepath.Join(filepath.Dir(*dungeonCatalogFile), "dungeons.training-room.json")
 		}
-		trainingRooms, e := pvfCatalogs.loadTrainingDungeons(trainingRoomPath)
+		trainingRooms, e := pvfCatalogs.LoadTrainingDungeons(trainingRoomPath)
 		if e != nil {
 			log.Fatal(e)
 		}
 		if e = catalog.MergeDungeonCatalog(&data, trainingRooms); e != nil {
 			log.Fatal(e)
 		}
-		if filepath.Base(*dungeonCatalogFile) == "dungeons.full.json" || pvfCatalogs.dungeons != nil {
+		if filepath.Base(*dungeonCatalogFile) == "dungeons.full.json" || pvfCatalogs.Dungeons != nil {
 			overlayDirectory := filepath.Dir(*dungeonCatalogFile)
-			if pvfCatalogs.dungeons != nil {
+			if pvfCatalogs.Dungeons != nil {
 				overlayDirectory = filepath.Dir(*characterCatalog)
 			}
 			path := filepath.Join(overlayDirectory, "dungeons.terminal-scenes.json")
-			if e = pvfCatalogs.attachTerminalScenes(&data, path); e != nil {
+			if e = pvfCatalogs.AttachTerminalScenes(&data, path); e != nil {
 				log.Fatal(e)
 			}
 			path = filepath.Join(overlayDirectory, "dungeons.layer-revisits.json")
-			if e = pvfCatalogs.attachLayerRevisits(&data, path); e != nil {
+			if e = pvfCatalogs.AttachLayerRevisits(&data, path); e != nil {
 				log.Fatal(e)
 			}
 			path = filepath.Join(overlayDirectory, "dungeons.tournament-quest-maps.json")
-			if e = pvfCatalogs.attachTournamentMaps(&data, path); e != nil {
+			if e = pvfCatalogs.AttachTournamentMaps(&data, path); e != nil {
 				log.Fatal(e)
 			}
 			path = filepath.Join(overlayDirectory, "dungeons.tower-of-grief-maps.json")
-			if e = pvfCatalogs.attachTowerGrief(&data, path); e != nil {
+			if e = pvfCatalogs.AttachTowerGrief(&data, path); e != nil {
 				log.Fatal(e)
 			}
 			path = filepath.Join(overlayDirectory, "dungeons.tower-of-dazzlement-maps.json")
-			if e = pvfCatalogs.attachTowerDazzlement(&data, path); e != nil {
+			if e = pvfCatalogs.AttachTowerDazzlement(&data, path); e != nil {
 				log.Fatal(e)
 			}
 			path = filepath.Join(overlayDirectory, "dungeons.maze-chance-rates.json")
-			if e = pvfCatalogs.attachMazeRates(&data, path); e != nil {
+			if e = pvfCatalogs.AttachMazeRates(&data, path); e != nil {
 				log.Fatal(e)
 			}
 			path = filepath.Join(overlayDirectory, "dungeons.hell-party-maps.json")
-			if e = pvfCatalogs.attachHellMaps(&data, path); e != nil {
+			if e = pvfCatalogs.AttachHellMaps(&data, path); e != nil {
 				log.Fatal(e)
 			}
 		}
@@ -863,11 +916,11 @@ func main() {
 			return 0
 		}
 	}
-	if *progressionCatalogFile != "" || pvfCatalogs.progression != nil {
+	if *progressionCatalogFile != "" || pvfCatalogs.Progression != nil {
 		if characters == nil || dungeonCatalog == nil {
 			log.Fatal("progression requires source characters and dungeon sessions")
 		}
-		data, e := pvfCatalogs.loadProgression(*progressionCatalogFile)
+		data, e := pvfCatalogs.LoadProgression(*progressionCatalogFile)
 		if e != nil {
 			log.Fatal(e)
 		}
@@ -879,19 +932,19 @@ func main() {
 			log.Fatal("progression source version mismatch")
 		}
 		progressionService = &character.ProgressionService{Store: gameStore, Catalog: data, Professions: characters.Catalog, Rules: rules}
-		if path := os.Getenv("DFO_ODYSSEY_GROWTH"); path != "" || pvfCatalogs.odysseyGrowth != nil {
-			progressionService.Odyssey, e = pvfCatalogs.loadOdysseyGrowth(path)
+		if path := os.Getenv("DFO_ODYSSEY_GROWTH"); path != "" || pvfCatalogs.OdysseyGrowth != nil {
+			progressionService.Odyssey, e = pvfCatalogs.LoadOdysseyGrowth(path)
 			if e != nil {
 				log.Fatal(e)
 			}
 		}
-		if path := os.Getenv("DFO_ODYSSEY_CHAPTERS"); path != "" || pvfCatalogs.odysseyChapters != nil {
-			progressionService.Chapters, e = pvfCatalogs.loadOdysseyChapters(path)
+		if path := os.Getenv("DFO_ODYSSEY_CHAPTERS"); path != "" || pvfCatalogs.OdysseyChapters != nil {
+			progressionService.Chapters, e = pvfCatalogs.LoadOdysseyChapters(path)
 			if e != nil {
 				log.Fatal(e)
 			}
 		}
-		if e = pvfCatalogs.bindOdysseyRoutes(progressionService); e != nil {
+		if e = pvfCatalogs.BindOdysseyRoutes(progressionService); e != nil {
 			log.Fatal(e)
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -916,14 +969,14 @@ func main() {
 		if dungeonCatalog == nil || characters == nil {
 			log.Fatal("starting routes require source dungeons and persisted characters")
 		}
-		if *tutorialDungeonsFile == "" && pvfCatalogs.tutorialDungeons == nil {
+		if *tutorialDungeonsFile == "" && pvfCatalogs.TutorialDungeons == nil {
 			log.Fatal("starting routes require their own dungeon catalog")
 		}
-		routes, e := pvfCatalogs.loadTutorialRoutes(*tutorialRoutesFile, characters.Catalog.Source.Checksum)
+		routes, e := pvfCatalogs.LoadTutorialRoutes(*tutorialRoutesFile, characters.Catalog.Source.Checksum)
 		if e != nil {
 			log.Fatal(e)
 		}
-		data, e := pvfCatalogs.loadTutorialDungeons(*tutorialDungeonsFile)
+		data, e := pvfCatalogs.LoadTutorialDungeons(*tutorialDungeonsFile)
 		if e != nil {
 			log.Fatal(e)
 		}
@@ -946,7 +999,7 @@ func main() {
 		if path := os.Getenv("DFO_LOOT_CATALOG"); path != "" {
 			lootPath = path
 		}
-		if err := pvfCatalogs.loadEnhancements(filepath.Dir(lootPath)); err != nil {
+		if err := pvfCatalogs.LoadEnhancements(filepath.Dir(lootPath)); err != nil {
 			log.Fatal(err)
 		}
 		// 锻造（CMD430 / Refine）的武器限制、成功率表与材料消耗。
@@ -956,11 +1009,11 @@ func main() {
 		}
 		// 物品脚本自带的 [need material]（商店表 itemshop/**.shp 没有价格字段）：
 		// 商店里「用材料交换」的商品，材料成本只写在物品脚本里（3242=1000×3037 等）。
-		itemMaterials, matErr := pvfCatalogs.loadItemMaterials(filepath.Join(filepath.Dir(lootPath), "item-materials.json"))
+		itemMaterials, matErr := pvfCatalogs.LoadItemMaterials(filepath.Join(filepath.Dir(lootPath), "item-materials.json"))
 		if matErr != nil {
 			log.Fatal(matErr)
 		}
-		c, e := pvfCatalogs.loadLoot(lootPath)
+		c, e := pvfCatalogs.LoadLoot(lootPath)
 		if e != nil {
 			log.Fatal(e)
 		}
@@ -968,7 +1021,7 @@ func main() {
 		if e != nil {
 			log.Fatal(e)
 		}
-		bag, e := inventory.LoadBagRules(*bagRulesFile, pvfCatalogs.sourceChecksum)
+		bag, e := inventory.LoadBagRules(*bagRulesFile, pvfCatalogs.SourceChecksum)
 		if e != nil {
 			log.Fatal(e)
 		}
@@ -982,7 +1035,7 @@ func main() {
 		if *equipmentCatalogFile == "" {
 			log.Fatal("loot requires -equipment-catalog or DFO_EQUIPMENT_CATALOG: without it every equipment award is silently dropped")
 		}
-		gear, e := pvfCatalogs.loadEquipmentSelection(*equipmentCatalogFile, c.Source.Checksum)
+		gear, e := pvfCatalogs.LoadEquipmentSelection(*equipmentCatalogFile, c.Source.Checksum)
 		if e != nil {
 			log.Fatal(e)
 		}
@@ -998,9 +1051,9 @@ func main() {
 				itemIndexPath = "configs/items.index.json"
 			}
 		}
-		if itemIndexPath != "" || pvfCatalogs.items != nil {
-			if err := pvfCatalogs.supplementStackables(&c, itemIndexPath); err != nil {
-				if pvfCatalogs.items != nil {
+		if itemIndexPath != "" || pvfCatalogs.Items != nil {
+			if err := pvfCatalogs.SupplementStackables(&c, itemIndexPath); err != nil {
+				if pvfCatalogs.Items != nil {
 					log.Fatal(err)
 				}
 				log.Printf("warning: supplement stackables from %s: %v", itemIndexPath, err)
@@ -1008,8 +1061,8 @@ func main() {
 				log.Printf("supplemented stackable catalog from %s (total items: %d)", itemIndexPath, len(c.Items))
 			}
 		}
-		if *equipmentJournalRulesFile != "" || pvfCatalogs.journal != nil {
-			jr, e := pvfCatalogs.loadEquipmentJournal(*equipmentJournalRulesFile, c.Source.Checksum)
+		if *equipmentJournalRulesFile != "" || pvfCatalogs.Journal != nil {
+			jr, e := pvfCatalogs.LoadEquipmentJournal(*equipmentJournalRulesFile, c.Source.Checksum)
 			if e != nil {
 				log.Fatal(e)
 			}
@@ -1017,8 +1070,8 @@ func main() {
 			log.Printf("loaded equipment journal rules: max=%d limits=%d categories=%d groups=%d/%d",
 				jr.Maximum, len(jr.MaximumByType), len(jr.Categories), len(jr.WeaponGroups), len(jr.PeculiarGroups))
 		}
-		if *equipmentCreateCostFile != "" || pvfCatalogs.createCost != nil {
-			cc, e := pvfCatalogs.loadEquipmentCreateCost(*equipmentCreateCostFile, c.Source.Checksum)
+		if *equipmentCreateCostFile != "" || pvfCatalogs.CreateCost != nil {
+			cc, e := pvfCatalogs.LoadEquipmentCreateCost(*equipmentCreateCostFile, c.Source.Checksum)
 			if e != nil {
 				log.Fatal(e)
 			}
@@ -1031,14 +1084,14 @@ func main() {
 				len(cc.Groups), items, len(cc.Templates()))
 		}
 		lootService = &loot.Service{Catalog: c, DropCatalog: dropCatalog, Rules: r, BagRules: bag, Tables: tables, Equipment: gear}
-		itemService = &inventory.ItemService{Model: r.Model, Catalog: c, BagRules: bag, Equipment: gear, AvatarDisjoint: pvfCatalogs.avatarDisjoint, EmblemCompound: pvfCatalogs.emblemCompound, AvatarSockets: pvfCatalogs.avatarSockets, EmblemInlay: pvfCatalogs.emblemInlay, Journal: journalRules, CreateCost: equipmentCreateCost}
+		itemService = &inventory.ItemService{Model: r.Model, Catalog: c, BagRules: bag, Equipment: gear, AvatarDisjoint: pvfCatalogs.AvatarDisjoint, EmblemCompound: pvfCatalogs.EmblemCompound, AvatarSockets: pvfCatalogs.AvatarSockets, EmblemInlay: pvfCatalogs.EmblemInlay, Journal: journalRules, CreateCost: equipmentCreateCost}
 		shopService = &workflow.ShopService{Store: gameStore, ShopService: inventory.ShopService{Catalog: c, EventModel: r.Model, BagRules: bag, ItemMaterials: itemMaterials}}
 		minePath := *bleedingMineRewardsFile
 		if minePath == "" {
 			minePath = filepath.Join(filepath.Dir(lootPath), "bleeding-mine-rewards.json")
 		}
-		if _, err := os.Stat(minePath); err == nil || pvfCatalogs.mine != nil {
-			mine, err := pvfCatalogs.loadMine(minePath)
+		if _, err := os.Stat(minePath); err == nil || pvfCatalogs.Mine != nil {
+			mine, err := pvfCatalogs.LoadMine(minePath)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -1053,8 +1106,8 @@ func main() {
 		if pricesPath == "" {
 			pricesPath = filepath.Join(filepath.Dir(lootPath), "shop-prices.json")
 		}
-		if _, err := os.Stat(pricesPath); err == nil || *shopPricesFile != "" || pvfCatalogs.prices != nil {
-			shopService.Prices, e = pvfCatalogs.loadShopPrices(pricesPath, c.Source.Checksum)
+		if _, err := os.Stat(pricesPath); err == nil || *shopPricesFile != "" || pvfCatalogs.Prices != nil {
+			shopService.Prices, e = pvfCatalogs.LoadShopPrices(pricesPath, c.Source.Checksum)
 			if e != nil {
 				log.Fatal(e)
 			}
@@ -1062,8 +1115,8 @@ func main() {
 		} else {
 			log.Printf("warning: no source NPC prices (%s); gold purchases and sales are refused", pricesPath)
 		}
-		if path := os.Getenv("DFO_ODYSSEY_COIN_RULES"); path != "" || pvfCatalogs.odysseyCurrency != nil {
-			lootService.Currency, e = pvfCatalogs.loadOdysseyCurrency(path)
+		if path := os.Getenv("DFO_ODYSSEY_COIN_RULES"); path != "" || pvfCatalogs.OdysseyCurrency != nil {
+			lootService.Currency, e = pvfCatalogs.LoadOdysseyCurrency(path)
 			if e != nil {
 				log.Fatal(e)
 			}
@@ -1081,13 +1134,13 @@ func main() {
 		if boxesPath == "" {
 			boxesPath = filepath.Join(filepath.Dir(*bagRulesFile), "boxes.json")
 		}
-		boxesAvailable := pvfCatalogs.boxes != nil
+		boxesAvailable := pvfCatalogs.Boxes != nil
 		if !boxesAvailable {
 			_, statErr := os.Stat(boxesPath)
 			boxesAvailable = statErr == nil
 		}
 		if boxesAvailable {
-			boxes, boxErr := pvfCatalogs.loadBoxes(boxesPath, lootService.Catalog.Source.Checksum)
+			boxes, boxErr := pvfCatalogs.LoadBoxes(boxesPath, lootService.Catalog.Source.Checksum)
 			if boxErr != nil {
 				log.Fatal(boxErr)
 			}
@@ -1100,11 +1153,11 @@ func main() {
 		}
 	}
 	responses := map[uint16][]byte{}
-	if *questCatalogFile != "" || pvfCatalogs.quests != nil {
+	if *questCatalogFile != "" || pvfCatalogs.Quests != nil {
 		if worldService == nil {
 			log.Fatal("quests require world character sessions")
 		}
-		data, e := pvfCatalogs.loadQuests(*questCatalogFile)
+		data, e := pvfCatalogs.LoadQuests(*questCatalogFile)
 		if e != nil {
 			log.Fatal(e)
 		}
@@ -1126,7 +1179,7 @@ func main() {
 			if lootService == nil {
 				log.Fatal("quest inventory requires the shared bag catalog")
 			}
-			equipment, e := pvfCatalogs.loadEquipmentSelection(*equipmentRewardFile, data.Source.Checksum)
+			equipment, e := pvfCatalogs.LoadEquipmentSelection(*equipmentRewardFile, data.Source.Checksum)
 			if e != nil {
 				log.Fatal(e)
 			}
@@ -1140,7 +1193,7 @@ func main() {
 				if err != nil {
 					log.Fatal(err)
 				}
-				wearService = &workflow.WearService{Store: gameStore, WearService: inventory.WearService{PremiumStore: workflow.PremiumReader{Store: gameStore}, Catalog: equipment, Professions: characters.Catalog, BagRules: lootService.BagRules, Rules: rules, AvatarRecast: pvfCatalogs.avatarRecast, AvatarRecastLoot: &lootService.Catalog}}
+				wearService = &workflow.WearService{Store: gameStore, WearService: inventory.WearService{PremiumStore: workflow.PremiumReader{Store: gameStore}, Catalog: equipment, Professions: characters.Catalog, BagRules: lootService.BagRules, Rules: rules, AvatarRecast: pvfCatalogs.AvatarRecast, AvatarRecastLoot: &lootService.Catalog}}
 
 				// 装备变换要用「部位 → 装备类型」映射去**背包**里找源（客户端允许把背包装备放进
 				// 界面「变换前」槽，请求只带部位码），所以把同一份 WearRules 也交给 inventory 物品服务。
@@ -1148,7 +1201,7 @@ func main() {
 
 				if *knightShieldFile != "" {
 					shieldPath := knightShieldCatalogPath(*knightShieldFile, rulesPath)
-					shields, shieldErr := pvfCatalogs.loadShields(shieldPath, data.Source.Checksum)
+					shields, shieldErr := pvfCatalogs.LoadShields(shieldPath, data.Source.Checksum)
 					if shieldErr != nil && !errors.Is(shieldErr, os.ErrNotExist) {
 						log.Fatal(shieldErr)
 					}
@@ -1163,8 +1216,8 @@ func main() {
 				// 创建期的初始装备投影共用同一份装备目录与部位槽映射，避免另立编号。
 				characters.Equipment = equipment
 				characters.WearRules = rules
-				if *fullEquipmentFile != "" || pvfCatalogs.equipment != nil {
-					full, err := pvfCatalogs.openFullEquipment(*fullEquipmentFile, data.Source.Checksum)
+				if *fullEquipmentFile != "" || pvfCatalogs.Equipment != nil {
+					full, err := pvfCatalogs.OpenFullEquipment(*fullEquipmentFile, data.Source.Checksum)
 					if err != nil {
 						log.Fatal(err)
 					}
@@ -1211,8 +1264,8 @@ func main() {
 			// option tables and reads each item's [random option] flag from
 			// the full equipment catalog; without the full definitions the
 			// sealed state cannot be proven, so the command stays unanswered.
-			if equipment.Full != nil && (*randomOptionFile != "" || pvfCatalogs.randomOptions != nil) {
-				options, err := pvfCatalogs.loadRandomOptions(*randomOptionFile, data.Source.Checksum)
+			if equipment.Full != nil && (*randomOptionFile != "" || pvfCatalogs.RandomOptions != nil) {
+				options, err := pvfCatalogs.LoadRandomOptions(*randomOptionFile, data.Source.Checksum)
 				if err != nil {
 					log.Fatal(err)
 				}
@@ -1254,7 +1307,7 @@ func main() {
 		if characters == nil {
 			log.Fatal("vault initialization requires characters")
 		}
-		rules, e := pvfCatalogs.loadVaultRules(*vaultRulesFile)
+		rules, e := pvfCatalogs.LoadVaultRules(*vaultRulesFile)
 		if e != nil {
 			log.Fatal(e)
 		}
@@ -1310,8 +1363,8 @@ func main() {
 		vaultService.Catalog.Items = items
 	}
 	if odysseyRewardsEnabled() {
-		var e error
-		odysseyChoices, e = pvfCatalogs.loadOdysseyWeapons(os.Getenv("DFO_ODYSSEY_WEAPON_BOX"))
+		choices, e := pvfCatalogs.LoadOdysseyWeapons(os.Getenv("DFO_ODYSSEY_WEAPON_BOX"))
+		odysseyChoices = odysseyWeaponChoices(choices)
 		if e != nil {
 			log.Fatal(e)
 		}
@@ -1324,17 +1377,17 @@ func main() {
 			vaultService.Catalog.Items = items
 		}
 	}
-	if path := os.Getenv("DFO_CLEAR_CUBE_SOURCE"); (path != "" || pvfCatalogs.clearCube != nil) && vaultService != nil {
+	if path := os.Getenv("DFO_CLEAR_CUBE_SOURCE"); (path != "" || pvfCatalogs.ClearCube != nil) && vaultService != nil {
 		var e error
-		vaultService.Catalog, e = pvfCatalogs.withClearCube(vaultService.Catalog, path)
+		vaultService.Catalog, e = pvfCatalogs.WithClearCube(vaultService.Catalog, path)
 		if e != nil {
 			log.Fatal(e)
 		}
 	}
 	var boosterCatalog *BoosterCatalog
-	if *boosterCatalogFile != "" || *itemIndexFile != "" || pvfCatalogs.items != nil {
+	if *boosterCatalogFile != "" || *itemIndexFile != "" || pvfCatalogs.Items != nil {
 		var err error
-		boosterCatalog, err = pvfCatalogs.loadBooster(*boosterCatalogFile, *itemIndexFile)
+		boosterCatalog, err = pvfCatalogs.LoadBooster(*boosterCatalogFile, *itemIndexFile)
 		if err != nil {
 			log.Printf("warning: load booster catalog: %v", err)
 		} else {
@@ -1362,17 +1415,17 @@ func main() {
 		})
 	}
 	var lotteryPools *lotteryItemCatalog
-	if boosterCatalog != nil && (*itemIndexFile != "" || pvfCatalogs.lotteryTables != nil) {
+	if boosterCatalog != nil && (*itemIndexFile != "" || pvfCatalogs.LotteryTables != nil) {
 		lotteryPath := filepath.Join(filepath.Dir(*itemIndexFile), "lottery-item-pools.json")
 		var err error
-		lotteryPools, err = pvfCatalogs.loadLotteryItems(lotteryPath, boosterCatalog.Items)
+		lotteryPools, err = loadRuntimeLotteryItems(pvfCatalogs, lotteryPath, boosterCatalog.Items)
 		if err != nil {
 			log.Printf("warning: lottery item catalog disabled: %v", err)
 		} else {
 			log.Printf("loaded lottery item catalog (%d verified pools)", len(lotteryPools.Pools))
 			if wearService != nil && wearService.Catalog != nil {
 				equipmentPath := filepath.Join(filepath.Dir(*itemIndexFile), "lottery-equipment-pools.json")
-				if count, loadErr := pvfCatalogs.loadLotteryEquipment(equipmentPath, boosterCatalog.Items, lotteryPools); loadErr != nil {
+				if count, loadErr := loadRuntimeLotteryEquipment(pvfCatalogs, equipmentPath, boosterCatalog.Items, lotteryPools); loadErr != nil {
 					log.Printf("warning: equipment lottery pools disabled: %v", loadErr)
 				} else {
 					log.Printf("loaded equipment lottery pools (%d verified pools)", count)
@@ -1385,9 +1438,9 @@ func main() {
 	// item box falls through to the random-pool branch and the client only ever
 	// sees its generic "target inventory is full" notice.
 	var selectionBoxes *catalog.SelectionBoxes
-	if *selectionBoxFile != "" || pvfCatalogs.selectionBoxes != nil {
+	if *selectionBoxFile != "" || pvfCatalogs.SelectionBoxes != nil {
 		var err error
-		selectionBoxes, err = pvfCatalogs.loadSelectionBoxes(*selectionBoxFile)
+		selectionBoxes, err = pvfCatalogs.LoadSelectionBoxes(*selectionBoxFile)
 		if err != nil {
 			log.Printf("warning: load selection boxes (%s): %v", *selectionBoxFile, err)
 		} else {
@@ -1402,8 +1455,8 @@ func main() {
 	// `legion_catalog_missing` 事件，而不是假装校验通过。
 	var apocalypseCatalog *catalog.ApocalypseCatalog
 	var apocalypseClock *legion.ApocalypseClock
-	if *apocalypseCatalogFile != "" || pvfCatalogs.apocalypse != nil {
-		loaded, err := pvfCatalogs.loadApocalypse(*apocalypseCatalogFile)
+	if *apocalypseCatalogFile != "" || pvfCatalogs.Apocalypse != nil {
+		loaded, err := pvfCatalogs.LoadApocalypse(*apocalypseCatalogFile)
 		if err != nil {
 			log.Printf("warning: load apocalypse catalog (%s): %v", *apocalypseCatalogFile, err)
 		} else if clock, err := legion.NewApocalypseClock(loaded); err != nil {
@@ -1420,18 +1473,18 @@ func main() {
 	// 物品商店表：源用 [need material] 定价的商品（奥德赛商店的盒子要 100 个银币）
 	// 必须按材料扣，否则一律按写死的金币单价白送。
 	var itemShops *catalog.ItemShops
-	if *itemShopFile != "" || pvfCatalogs.itemShops != nil {
+	if *itemShopFile != "" || pvfCatalogs.ItemShops != nil {
 		var err error
 		shopSource := ""
-		if pvfCatalogs.itemShops != nil {
-			shopSource = pvfCatalogs.itemShops.Source.Checksum
+		if pvfCatalogs.ItemShops != nil {
+			shopSource = pvfCatalogs.ItemShops.Source.Checksum
 		}
 		if lootService != nil {
 			shopSource = lootService.Catalog.Source.Checksum
 		}
-		itemShops, err = pvfCatalogs.loadItemShops(*itemShopFile, shopSource)
+		itemShops, err = pvfCatalogs.LoadItemShops(*itemShopFile, shopSource)
 		if err != nil {
-			if pvfCatalogs.itemShops != nil {
+			if pvfCatalogs.ItemShops != nil {
 				log.Fatal(err)
 			}
 			log.Printf("warning: load item shops (%s): %v", *itemShopFile, err)
@@ -1446,8 +1499,8 @@ func main() {
 	}
 	// 章节盒掉落（手册 P3 子项 3）。整表默认 enabled=false；只有 profile 显式开启
 	// 才会叠加目录与槽位，未开启时连掷骰种子都不消耗。
-	if path := os.Getenv("DFO_ODYSSEY_CHAPTER_DROP"); path != "" || pvfCatalogs.odysseyDrop != nil {
-		chapterDrop, e := pvfCatalogs.loadOdysseyDrop(path)
+	if path := os.Getenv("DFO_ODYSSEY_CHAPTER_DROP"); path != "" || pvfCatalogs.OdysseyDrop != nil {
+		chapterDrop, e := pvfCatalogs.LoadOdysseyDrop(path)
 		if e != nil {
 			log.Fatal(e)
 		}
@@ -1467,8 +1520,8 @@ func main() {
 	// rewardboostinfo CTP。奖励物全是 [booster] 礼盒，落袋走背包对未知 stackable
 	// 类型的既有兜底槽位，开盒走既有的 booster 目录 —— 所以这里只校验、不覆盖
 	// 任何目录条目。
-	if *attunementRewardsFile != "" || pvfCatalogs.attunement != nil {
-		attunement, e := pvfCatalogs.loadAttunement(*attunementRewardsFile)
+	if *attunementRewardsFile != "" || pvfCatalogs.Attunement != nil {
+		attunement, e := pvfCatalogs.LoadAttunement(*attunementRewardsFile)
 		if e != nil {
 			log.Fatal(e)
 		}
@@ -1519,7 +1572,7 @@ func main() {
 		// 数据源是 PVF 直读（etc/rewardboostinfo/**.ctp 各自声明 [dungeon index]）；
 		// 只有非直读的 JSON 模式才会走到文件。日志按真实来源打，别让人误以为在读 JSON。
 		source := "PVF direct (etc/rewardboostinfo/**.ctp)"
-		if pvfCatalogs.attunement == nil {
+		if pvfCatalogs.Attunement == nil {
 			source = *attunementRewardsFile
 		}
 		log.Printf("loaded attunement rewards (%d dungeons %v, %d reward templates) from %s",
@@ -1548,9 +1601,9 @@ func main() {
 	} else {
 		log.Printf("warning: no attunement reward table; boundary-of-attunement clears pay no exclusive reward")
 	}
-	if lootService != nil && boosterCatalog != nil && (*itemIndexFile != "" || pvfCatalogs.blackPurgatory != nil) {
+	if lootService != nil && boosterCatalog != nil && (*itemIndexFile != "" || pvfCatalogs.BlackPurgatory != nil) {
 		path := filepath.Join(filepath.Dir(*itemIndexFile), "black-purgatory-rewards.json")
-		rewards, err := pvfCatalogs.loadBlackPurgatory(path, boosterBoxSource{catalog: boosterCatalog}, func(id uint32) (catalog.LootItem, bool) {
+		rewards, err := pvfCatalogs.LoadBlackPurgatory(path, boosterBoxSource{catalog: boosterCatalog}, func(id uint32) (catalog.LootItem, bool) {
 			item, ok := boosterCatalog.Items[id]
 			return catalog.LootItem{ID: id, Kind: item.Kind, StackableType: item.StackableType, StackLimit: item.StackLimit, Script: catalog.ScriptRecord{Path: item.Path}}, ok
 		})

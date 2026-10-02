@@ -20,7 +20,7 @@ import (
 )
 
 func TestLotteryCatalogMatchesCurrentIndex(t *testing.T) {
-	index, err := LoadBoosterCatalog("", "../../configs/items.index.json")
+	index, err := catalog.LoadBoosterCatalog("", "../../configs/items.index.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,7 +45,7 @@ func TestLotteryCatalogMatchesCurrentIndex(t *testing.T) {
 }
 
 func TestLotteryEquipmentCatalogMatchesCurrentIndex(t *testing.T) {
-	index, err := LoadBoosterCatalog("", "../../configs/items.index.json")
+	index, err := catalog.LoadBoosterCatalog("", "../../configs/items.index.json")
 	if err != nil {
 		t.Fatal(err)
 	}
