@@ -1,4 +1,4 @@
-package profileskin
+package character
 
 import (
 	"bytes"
@@ -7,7 +7,7 @@ import (
 )
 
 func TestRestoreCurrentUSReader(t *testing.T) {
-	cargo, selected, err := Restore(Defaults())
+	cargo, selected, err := RestoreProfileSkin(ProfileSkinDefaults())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -18,18 +18,18 @@ func TestRestoreCurrentUSReader(t *testing.T) {
 	if !bytes.Equal(cargo, wantCargo) || !bytes.Equal(selected, wantSelection) {
 		t.Fatalf("cargo=%x selected=%x", cargo, selected)
 	}
-	state := Defaults()
+	state := ProfileSkinDefaults()
 	state.Selected[2] = 60001
-	if _, _, err = Restore(state); err == nil {
+	if _, _, err = RestoreProfileSkin(state); err == nil {
 		t.Fatal("unowned selection serialized")
 	}
-	state.Owned = append(state.Owned, Owned{ID: 60001})
-	_, selected, err = Restore(state)
+	state.Owned = append(state.Owned, ProfileSkinOwned{ID: 60001})
+	_, selected, err = RestoreProfileSkin(state)
 	if err != nil || selected[9] != 0x61 {
 		t.Fatalf("stored selection not consumed: %x %v", selected, err)
 	}
 	state.Owned[0].Expires = 1
-	if _, _, err = Restore(state); err == nil {
+	if _, _, err = RestoreProfileSkin(state); err == nil {
 		t.Fatal("unsupported timed entitlement serialized")
 	}
 }

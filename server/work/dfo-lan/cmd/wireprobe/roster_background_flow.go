@@ -3,10 +3,10 @@ package main
 import (
 	"context"
 	"crypto/sha256"
+	"dfolan/internal/character"
 	"dfolan/internal/db"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/rosterbg"
 	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
@@ -27,7 +27,7 @@ func restoreRosterBackgrounds(store *storage.Store, account int64, send func(byt
 		event(map[string]any{"kind": "roster_background_restore_error", "error": err.Error()})
 		return err
 	}
-	payload, err := rosterbg.Restore(state)
+	payload, err := character.RestoreRosterBackground(state)
 	if err != nil {
 		return err
 	}
@@ -56,10 +56,10 @@ func (w *worldSession) useRosterBackgroundTicket(ctx context.Context, p, raw []b
 	}
 	key := fmt.Sprintf("roster-background-ticket:%s:%x", prefix, sha256.Sum256(raw))
 	var receipt struct {
-		Template  uint32          `json:"template"`
-		Slot      uint16          `json:"slot"`
-		Remaining uint32          `json:"remaining"`
-		Unlock    rosterbg.Unlock `json:"unlock"`
+		Template  uint32                           `json:"template"`
+		Slot      uint16                           `json:"slot"`
+		Remaining uint32                           `json:"remaining"`
+		Unlock    character.RosterBackgroundUnlock `json:"unlock"`
 	}
 	store := w.store
 	saved, applied, err := store.CommitCharacterEventTx(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, "roster-background-ticket-v1",
@@ -80,7 +80,7 @@ func (w *worldSession) useRosterBackgroundTicket(ctx context.Context, p, raw []b
 				template = item.Template
 				break
 			}
-			ticket, e := rosterbg.TicketFor(template)
+			ticket, e := character.RosterBackgroundTicketFor(template)
 			if e != nil {
 				return nil, nil, e
 			}
@@ -134,7 +134,7 @@ func (w *worldSession) useRosterBackgroundTicket(ctx context.Context, p, raw []b
 	if err != nil {
 		return nil, err
 	}
-	backgrounds, err := rosterbg.Restore(state)
+	backgrounds, err := character.RestoreRosterBackground(state)
 	if err != nil {
 		return nil, err
 	}

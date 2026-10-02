@@ -3,7 +3,6 @@ package character
 import (
 	"bytes"
 	"dfolan/internal/catalog"
-	"dfolan/internal/progression"
 
 	"encoding/hex"
 	"encoding/json"
@@ -57,7 +56,7 @@ func TestSwordmasterPilotRoundTripAndGrowth(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ps := ProgressionService{Catalog: pc, Professions: s.Catalog, Rules: progression.Rules{LevelCap: 115}}
+	ps := ProgressionService{Catalog: pc, Professions: s.Catalog, Rules: GrowthRules{LevelCap: 115}}
 	next, result, err := ps.ApplyGain(updated, pc.Thresholds[13])
 	if err != nil || result.Level != 15 {
 		t.Fatal(result, err)

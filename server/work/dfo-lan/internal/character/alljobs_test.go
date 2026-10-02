@@ -2,7 +2,6 @@ package character
 
 import (
 	"dfolan/internal/catalog"
-	"dfolan/internal/progression"
 
 	"encoding/json"
 	"fmt"
@@ -23,7 +22,7 @@ func TestAllSourceAdvancementsEntryAndGrowth(t *testing.T) {
 		t.Fatal(e)
 	}
 	s := Service{Catalog: c, Learning: l}
-	ps := ProgressionService{Catalog: pc, Professions: c, Rules: progression.Rules{LevelCap: 115}}
+	ps := ProgressionService{Catalog: pc, Professions: c, Rules: GrowthRules{LevelCap: 115}}
 	count := 0
 	for job, p := range c.Professions {
 		for adv, growth := range p.AdvancementGrowth {

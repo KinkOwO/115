@@ -18,10 +18,7 @@ import (
 	"dfolan/internal/inventory"
 	"dfolan/internal/legion"
 	"dfolan/internal/loot"
-	"dfolan/internal/profileskin"
-	"dfolan/internal/progression"
 	"dfolan/internal/quest"
-	"dfolan/internal/rosterbg"
 	"dfolan/internal/storage"
 	"dfolan/internal/workflow"
 	"dfolan/internal/world"
@@ -525,6 +522,7 @@ func main() {
 	var dungeonCatalog *catalog.DungeonCatalog
 	var progressionService *character.ProgressionService
 	var lootService *loot.Service
+	var itemService *inventory.ItemService
 	var shopService *workflow.ShopService
 	// journalRules 是装备库规则（nil = 不登记）。它同时被 CMD26 的事务与入场 2610 用到，
 	// 所以在这里声明、在 loot 块里装载。
@@ -873,7 +871,7 @@ func main() {
 		if e != nil {
 			log.Fatal(e)
 		}
-		rules, e := progression.LoadRules(*progressionRulesFile)
+		rules, e := character.LoadGrowthRules(*progressionRulesFile)
 		if e != nil {
 			log.Fatal(e)
 		}
@@ -1032,7 +1030,8 @@ func main() {
 			log.Printf("loaded equipment create cost: groups=%d itemRows=%d templates=%d",
 				len(cc.Groups), items, len(cc.Templates()))
 		}
-		lootService = &loot.Service{Catalog: c, DropCatalog: dropCatalog, Rules: r, BagRules: bag, Tables: tables, Equipment: gear, AvatarDisjoint: pvfCatalogs.avatarDisjoint, EmblemCompound: pvfCatalogs.emblemCompound, AvatarSockets: pvfCatalogs.avatarSockets, EmblemInlay: pvfCatalogs.emblemInlay, Journal: journalRules, CreateCost: equipmentCreateCost}
+		lootService = &loot.Service{Catalog: c, DropCatalog: dropCatalog, Rules: r, BagRules: bag, Tables: tables, Equipment: gear}
+		itemService = &inventory.ItemService{Model: r.Model, Catalog: c, BagRules: bag, Equipment: gear, AvatarDisjoint: pvfCatalogs.avatarDisjoint, EmblemCompound: pvfCatalogs.emblemCompound, AvatarSockets: pvfCatalogs.avatarSockets, EmblemInlay: pvfCatalogs.emblemInlay, Journal: journalRules, CreateCost: equipmentCreateCost}
 		shopService = &workflow.ShopService{Store: gameStore, ShopService: inventory.ShopService{Catalog: c, EventModel: r.Model, BagRules: bag, ItemMaterials: itemMaterials}}
 		minePath := *bleedingMineRewardsFile
 		if minePath == "" {
@@ -1144,8 +1143,8 @@ func main() {
 				wearService = &workflow.WearService{Store: gameStore, WearService: inventory.WearService{PremiumStore: workflow.PremiumReader{Store: gameStore}, Catalog: equipment, Professions: characters.Catalog, BagRules: lootService.BagRules, Rules: rules, AvatarRecast: pvfCatalogs.avatarRecast, AvatarRecastLoot: &lootService.Catalog}}
 
 				// 装备变换要用「部位 → 装备类型」映射去**背包**里找源（客户端允许把背包装备放进
-				// 界面「变换前」槽，请求只带部位码），所以把同一份 WearRules 也交给 loot 服务。
-				lootService.WearRules = rules
+				// 界面「变换前」槽，请求只带部位码），所以把同一份 WearRules 也交给 inventory 物品服务。
+				itemService.WearRules = rules
 
 				if *knightShieldFile != "" {
 					shieldPath := knightShieldCatalogPath(*knightShieldFile, rulesPath)
@@ -1622,6 +1621,12 @@ func main() {
 			log.Fatal("Moon source entry: ", err)
 		}
 	}
+	if itemService != nil {
+		itemService.Catalog = lootService.Catalog
+		itemService.BagRules = lootService.BagRules
+		itemService.Equipment = lootService.Equipment
+	}
+
 	l, err := net.Listen("tcp4", *gameListen)
 	if err != nil {
 		log.Fatal(err)
@@ -1771,7 +1776,7 @@ func main() {
 			if questService != nil && townArrivalScenes == nil {
 				log.Fatal("town arrival scene whitelist was not passed to world sessions")
 			}
-			worldState = &worldSession{characters: characters, service: worldService, store: gameStore, account: developmentAccount, flags: townPolicy.Flags, dungeons: dungeonCatalog, townArrivalScenes: townArrivalScenes, tutorials: tutorialRoutes, tutorialDungeons: tutorialDungeons, professions: characters.Catalog, fatigue: fatigueService, quests: questService, progression: progressionService, loot: lootService, shop: shopService, selectionBoxes: selectionBoxes, vault: vaultService, skinCatalog: skinCatalog, soloPartyBootstrap: *soloPartyBootstrap, hub: hub, scaleDeathFromHP: *scaleDeathFromHP, oathGrades: oathGradePair, oathTable: oathGradeTable, oathFromGear: *oathFromGear, oathProgressClears: *oathProgressClears, oathProgressDungeons: oathProgressSet, oathInject: oathInjectSpecs, omenHold: *omenHold, omenState: omenState, omenInfo: omenInfoBytes}
+			worldState = &worldSession{characters: characters, service: worldService, store: gameStore, account: developmentAccount, flags: townPolicy.Flags, dungeons: dungeonCatalog, townArrivalScenes: townArrivalScenes, tutorials: tutorialRoutes, tutorialDungeons: tutorialDungeons, professions: characters.Catalog, fatigue: fatigueService, quests: questService, progression: progressionService, loot: lootService, items: itemService, shop: shopService, selectionBoxes: selectionBoxes, vault: vaultService, skinCatalog: skinCatalog, soloPartyBootstrap: *soloPartyBootstrap, hub: hub, scaleDeathFromHP: *scaleDeathFromHP, oathGrades: oathGradePair, oathTable: oathGradeTable, oathFromGear: *oathFromGear, oathProgressClears: *oathProgressClears, oathProgressDungeons: oathProgressSet, oathInject: oathInjectSpecs, omenHold: *omenHold, omenState: omenState, omenInfo: omenInfoBytes}
 			worldState.serverID = channelCfg.ServerID
 			worldState.channelType = channelTypes[channel]
 			if moonConfig != nil && channel == moonConfig.Channel {
@@ -5110,7 +5115,7 @@ func main() {
 					skinState, skinErr := gameStore.RestoreProfileSkins(skinCtx, developmentAccount, role.ID)
 					skinCancel()
 					if skinErr == nil {
-						plan.ProfileSkinCargo, plan.ProfileSkinSelection, skinErr = profileskin.Restore(skinState)
+						plan.ProfileSkinCargo, plan.ProfileSkinSelection, skinErr = character.RestoreProfileSkin(skinState)
 					}
 					if skinErr != nil {
 						event(map[string]any{"kind": "profile_skin_restore_error", "character_id": role.ID, "error": skinErr.Error()})
@@ -5703,7 +5708,7 @@ func main() {
 					event(map[string]any{"kind": "roster_background_rejected", "error": "背景选择需要有效校验及选角状态"})
 					continue
 				}
-				req, e := rosterbg.DecodeSelect(plaintext)
+				req, e := character.DecodeRosterBackgroundSelect(plaintext)
 				if e == nil {
 					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 					_, e = gameStore.SelectRosterBackground(ctx, developmentAccount, req.Page, req.Background)

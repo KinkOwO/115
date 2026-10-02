@@ -5,7 +5,6 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/character"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/progression"
 	"dfolan/internal/quest"
 	"dfolan/internal/storage"
 	"dfolan/internal/workflow"
@@ -26,7 +25,7 @@ func questRewardCheck(ctx context.Context, s, reopened *storage.Store, role stor
 	if e != nil {
 		return e
 	}
-	rules, e := progression.LoadRules("configs/experience.compat90.json")
+	rules, e := character.LoadGrowthRules("configs/experience.compat90.json")
 	if e != nil {
 		return e
 	}

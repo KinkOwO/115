@@ -2,7 +2,7 @@ package storage
 
 import (
 	"context"
-	"dfolan/internal/profileskin"
+	charstate "dfolan/internal/character"
 	"encoding/json"
 )
 
@@ -17,8 +17,8 @@ func (s *Store) MigrateProfileSkins(ctx context.Context) error {
 // RestoreProfileSkins initializes a missing character snapshot, then reads it
 // back in the same transaction. Existing selections are never reset on login.
 // The role lock also serializes bootstrap with character deletion/mutations.
-func (s *Store) RestoreProfileSkins(ctx context.Context, account, character int64) (profileskin.State, error) {
-	var result profileskin.State
+func (s *Store) RestoreProfileSkins(ctx context.Context, account, character int64) (charstate.ProfileSkinState, error) {
+	var result charstate.ProfileSkinState
 	tx, err := s.DB.Begin(ctx)
 	if err != nil {
 		return result, err
@@ -28,7 +28,7 @@ func (s *Store) RestoreProfileSkins(ctx context.Context, account, character int6
 	if err = tx.QueryRow(ctx, `SELECT id FROM characters WHERE account_id=$1 AND id=$2 AND deleted_at IS NULL FOR UPDATE`, account, character).Scan(&owned); err != nil {
 		return result, err
 	}
-	seed, err := json.Marshal(profileskin.Defaults())
+	seed, err := json.Marshal(charstate.ProfileSkinDefaults())
 	if err != nil {
 		return result, err
 	}
@@ -40,13 +40,13 @@ func (s *Store) RestoreProfileSkins(ctx context.Context, account, character int6
 		return result, err
 	}
 	if err = json.Unmarshal(raw, &result); err != nil {
-		return profileskin.State{}, err
+		return charstate.ProfileSkinState{}, err
 	}
 	if err = result.Validate(); err != nil {
-		return profileskin.State{}, err
+		return charstate.ProfileSkinState{}, err
 	}
 	if err = tx.Commit(ctx); err != nil {
-		return profileskin.State{}, err
+		return charstate.ProfileSkinState{}, err
 	}
 	return result, nil
 }

@@ -19,21 +19,7 @@ type Service struct {
 	BagRules       inventory.BagRules
 	Tables         Tables
 	Equipment      *inventory.EquipmentCatalog
-	AvatarDisjoint *inventory.AvatarDisjointRules
-	AvatarSockets  *inventory.AvatarSocketRules
-	EmblemInlay    *inventory.EmblemInlayRules
-	EmblemCompound *inventory.EmblemCompoundRules
-	// WearRules 是「装备类型 → 穿戴槽位」的映射（`configs/equipment-wear.*.json` 的 `slots`）。
-	// 装备变换要用它：客户端在「变换前」槽里放的那件**可能还在背包**，请求只带**部位码**，
-	// 所以要能反查"这个部位对应哪个 `[equipment type]`"。nil 时退化为"只认身上穿的"。
-	WearRules inventory.WearRules
-	// Journal 是装备库（装备图鉴）规则表：普通收录上限与"按类型收紧"的上限。nil 表示
-	// **不登记**（保持原行为），与其它可选表一样由启动参数显式装载。
-	Journal *catalog.EquipmentJournalRules
-	// CreateCost 是装备库「装备生成 / 制作」的成本表（`[create cost]` 段）。
-	// nil 表示**不生成**：CMD2259 的第二步只会回窗口、不动存档。
-	CreateCost *catalog.EquipmentCreateCost
-	CardPolicy *CardRules
+	CardPolicy     *CardRules
 	// Boxes 保存已导出的袖珍罐奖励与进度规则。
 	Boxes *BoxCatalog
 	// ChapterDrop 是章节最终领主的章节盒掉落（手册 P3 子项 3）。默认整表

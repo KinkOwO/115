@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## 2026-10-02：领域归并与文件收口（源码候选）
+
+- 装备图鉴制作/变换/分解与时装、徽章操作归 inventory，事务归 workflow.ItemService；原事件 key/model、随机调用位置、回执字段与协议响应顺序保留。
+- 经验与奖励成长、资料皮肤及账号选角背景归 character，删除 progression/profileskin/rosterbg 三个小领域目录与兼容门面；背景券嵌入数据保持同字节。
+- 合并装备操作、奖励事务、礼盒事务、背包移动/排序与时装分发文件；生产 Go 文件减少 23 个，含测试共减少 29 个。架构允许边由 10 条减至 9 条。
+- Go 1.26 vet、架构与身份守卫通过；全量测试保留 4 项既有失败（3 项 wireprobe、1 项商城，商城项已用起点源码隔离复现），其余包通过。
+- 不改业务规则、SQL/schema 或存档结构；未部署、启动客户端或访问玩家数据库，不扩展 confirmed baseline。验证记录见 server/work/dfo-lan/docs/architecture-refactor-plan.md 第 19 节。
+
 ## 2026-10-02（二）：秘宝精度提升（CMD2288）直读 PVF 落地
 
 - 秘宝（sole）精度提升按项目现行规则实现：**Go 直读内层 PVF** `etc/115lvability/soleequipmentsystem.cos`，**未新增任何 `configs/*.json`**（业主提供的 AI 交接书里的 `sole.json` 数据与直读结果逐字段一致）。

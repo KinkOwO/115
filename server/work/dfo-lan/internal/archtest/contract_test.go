@@ -46,12 +46,9 @@ var domainPackages = map[string]bool{
 	"internal/dungeon":     true,
 	"internal/world":       true,
 	"internal/cashshop":    true,
-	"internal/progression": true,
 	"internal/adventure":   true,
 	"internal/legion":      true,
 	"internal/npcpresence": true,
-	"internal/profileskin": true,
-	"internal/rosterbg":    true,
 }
 
 // L4 组合与工具层：领域不得反向依赖（R6）。
@@ -67,10 +64,9 @@ var layer4Packages = map[string]bool{
 var allowedEdges = map[string]map[string]bool{
 	// R2 + R4 例外：领域 -> storage / 领域 -> 领域
 	"internal/character": {
-		"internal/adventure":   true, // R4
-		"internal/dungeon":     true, // R4
-		"internal/inventory":   true, // R4
-		"internal/progression": true, // R4
+		"internal/adventure": true, // R4
+		"internal/dungeon":   true, // R4
+		"internal/inventory": true, // R4
 	},
 	"internal/loot": {
 		"internal/dungeon":   true, // R4

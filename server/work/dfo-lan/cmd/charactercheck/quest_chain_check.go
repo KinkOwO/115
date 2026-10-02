@@ -6,7 +6,6 @@ import (
 	"dfolan/internal/character"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/progression"
 	"dfolan/internal/quest"
 	"dfolan/internal/storage"
 	"dfolan/internal/workflow"
@@ -40,7 +39,7 @@ func questChainCheck(ctx context.Context, s *storage.Store, other int64) error {
 	if e != nil {
 		return e
 	}
-	rules, e := progression.LoadRules("configs/experience.compat90.json")
+	rules, e := character.LoadGrowthRules("configs/experience.compat90.json")
 	if e != nil {
 		return e
 	}

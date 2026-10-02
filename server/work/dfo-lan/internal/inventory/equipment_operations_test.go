@@ -1,16 +1,168 @@
-package loot
+package inventory
 
 import (
+	"dfolan/internal/catalog"
+	"dfolan/internal/catalog/pvf"
+	"dfolan/internal/game/protocol"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"sync"
 	"testing"
-
-	"dfolan/internal/catalog"
-	"dfolan/internal/game/protocol"
-	"dfolan/internal/inventory"
 )
+
+// 「装备生成」的成本挑选：**玩家在窗口里点的是哪一支，就扣哪一支**。
+//
+// ★ 分仓：三档登记证 `10361512`~`10361515` 是**账号共享材料（灵魂仓库 / 容器 35）**，
+// 必须从 `AccountMaterials` 扣、而不是从背包 —— 实机 `have 0` 之谜就是没做这件事。
+// ★ 不回退：`payOption` 来自请求头 `[13]`。实机 2026-09-29 13:52 那笔（`[13]=2`，
+// 玩家选的是**巡礼之印**）被旧实现"挑第一支付得起的"错扣成了 35,000 金币。
+func TestPickCraftCost(t *testing.T) {
+	// 组 2 的真实两支（源自 configs/equipment-create-cost.generated.json）：
+	//   1 = 登记证 10361514×1 + 金币 35000；2 = 登记证 10361514×1 + 巡礼之印 10401346×7
+	group := catalog.CreateCostGroup{
+		Index: 2,
+		Items: []uint32{100391056},
+		Costs: []catalog.CreateCostOption{
+			{Number: 1, Pairs: []catalog.CreateCostItem{
+				{Template: 10361514, Amount: 1},
+				{Template: 0, Amount: 35000},
+			}},
+			{Number: 2, Pairs: []catalog.CreateCostItem{
+				{Template: 10361514, Amount: 1},
+				{Template: 10401346, Amount: 7},
+			}},
+		},
+	}
+	empty := NewAccountMaterials()
+	acct := empty
+	var e error
+	if acct, _, e = acct.Add(10361514, 5); e != nil {
+		t.Fatal(e)
+	}
+
+	// 1) 选 cost 1（登记证 + 金币）：登记证在**账号仓库**、金币也够 ⇒ 材料标记 FromAccount。
+	rich := Bag{Gold: 40000}
+	opt, gold, bagMats, acctMats, e := pickCraftCost(rich, acct, group, 1)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if opt != 1 || gold != 35000 {
+		t.Fatalf("rich: option=%d gold=%d, want 1/35000", opt, gold)
+	}
+	if len(bagMats) != 0 {
+		t.Fatalf("rich: bag materials should be empty, got %+v", bagMats)
+	}
+	if len(acctMats) != 1 || acctMats[0].Template != 10361514 || acctMats[0].Count != 1 {
+		t.Fatalf("rich: account materials = %+v", acctMats)
+	}
+
+	// 2) ★ 选 cost 2（登记证 + 巡礼之印）：必须扣背包里的 `10401346`×7，**不碰金币**。
+	seals := Bag{Gold: 40000, Items: []BagItem{
+		{Slot: 127, Template: 10401346, Amount: 120},
+	}}
+	opt, gold, bagMats, acctMats, e = pickCraftCost(seals, acct, group, 2)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if opt != 2 || gold != 0 {
+		t.Fatalf("seals: option=%d gold=%d, want 2/0", opt, gold)
+	}
+	if len(bagMats) != 1 || bagMats[0].Template != 10401346 || bagMats[0].Count != 7 {
+		t.Fatalf("seals: bag materials = %+v", bagMats)
+	}
+	if len(acctMats) != 1 || acctMats[0].Template != 10361514 {
+		t.Fatalf("seals: account materials = %+v", acctMats)
+	}
+
+	// 3) ★ 选了 cost 2、金币管够但巡礼之印不够 ⇒ **必须拒绝，不许回退 cost 1**。
+	poorSeals := Bag{Gold: 999999, Items: []BagItem{
+		{Slot: 127, Template: 10401346, Amount: 3},
+	}}
+	if _, _, _, _, e = pickCraftCost(poorSeals, acct, group, 2); e == nil {
+		t.Fatalf("cost 2 with only 3 seals must be refused, not silently downgraded to cost 1")
+	}
+
+	// 4) ★ 选了 cost 1、巡礼之印管够但金币不够 ⇒ 也必须拒绝（不许自动换 cost 2）。
+	//    这正是实机 13:52 的错扣形态反过来：不许用"另一支付得起"来顶替玩家的选择。
+	poorGold := Bag{Gold: 100, Items: []BagItem{
+		{Slot: 127, Template: 10401346, Amount: 120},
+	}}
+	if _, _, _, _, e = pickCraftCost(poorGold, acct, group, 1); e == nil {
+		t.Fatalf("cost 1 with 100 gold must be refused, not silently downgraded to cost 2")
+	}
+
+	// 5) ★ 登记证**只在背包里**（旧实机的情形）：必须拒绝 —— 背包里那份其实属于账号仓库，
+	//    客户端不会拿背包那份去付（`SweepAccountMaterials` 迟早把它搬走）。
+	bagOnly := Bag{Gold: 40000, Items: []BagItem{
+		{Slot: 124, Template: 10361514, Amount: 5},
+	}}
+	if _, _, _, _, e := pickCraftCost(bagOnly, empty, group, 1); e == nil {
+		t.Fatalf("bag-only ticket must be refused (regression: 实机 have 0)")
+	}
+
+	// 6) 付法序号不存在 ⇒ 拒绝，并点名可用的序号（不许猜一支扣下去）。
+	if _, _, _, _, e = pickCraftCost(rich, acct, group, 3); e == nil {
+		t.Fatalf("unknown pay option must be refused")
+	} else if !contains(e.Error(), "no cost option 3") {
+		t.Fatalf("refusal should name the requested option, got %v", e)
+	}
+}
+
+// 金币行必须被识别成金币（模板 0），别当成物品 0 去扣。
+func TestCreateCostGoldRow(t *testing.T) {
+	if !(catalog.CreateCostItem{Template: 0, Amount: 1}).Gold() {
+		t.Fatalf("template 0 must be gold")
+	}
+	if (catalog.CreateCostItem{Template: 10361513, Amount: 1}).Gold() {
+		t.Fatalf("material must not be gold")
+	}
+}
+
+// 三档登记证必须被认成账号共享材料 —— 这是分仓的判据本身。
+func TestCraftTicketsAreAccountMaterials(t *testing.T) {
+	for _, tpl := range []uint32{10361512, 10361513, 10361514, 10361515, 10361516} {
+		if _, ok := AccountMaterialSlot(tpl); !ok {
+			t.Fatalf("template %d must be an account-shared material", tpl)
+		}
+	}
+	// 反过来：10401346 不是（它留在背包里扣）。
+	if _, ok := AccountMaterialSlot(10401346); ok {
+		t.Fatalf("10401346 must stay in the ordinary bag")
+	}
+}
+
+func contains(hay, needle string) bool {
+	return indexOf(hay, needle) >= 0
+}
+
+func indexOf(hay, needle string) int {
+	for i := 0; i+len(needle) <= len(hay); i++ {
+		if hay[i:i+len(needle)] == needle {
+			return i
+		}
+	}
+	return -1
+}
+
+// ★ 幂等键必须在**每次成功之后都变** —— 否则同物二次生成会被当成重放静默吞掉
+// （实机 2026-09-29 14:21：两笔全被吞，日志却是 DONE + 全零回执）。
+func TestCraftEventKeyChangesPerAttempt(t *testing.T) {
+	before := json.RawMessage(`{"bag":{"gold":100}}`)
+	after := json.RawMessage(`{"bag":{"gold":65}}`)
+
+	if craftEventKey(100391056, 25, 2, before) == craftEventKey(100391056, 25, 2, after) {
+		t.Fatalf("key must differ when the character state differs, else the 2nd craft is swallowed")
+	}
+	// 同状态同请求 ⇒ 同键：重复帧仍然是幂等的（不会扣两次）。
+	if craftEventKey(100391056, 25, 2, before) != craftEventKey(100391056, 25, 2, before) {
+		t.Fatalf("key must be stable for the same state, else a duplicate frame double-charges")
+	}
+	// 不同物/槽/档必须分开。
+	if craftEventKey(100391056, 25, 2, before) == craftEventKey(100354178, 23, 2, before) {
+		t.Fatalf("key must include template and slot")
+	}
+}
 
 // transformEquipmentCatalog 载入一份**全量**装备目录，整个测试进程只载一次。
 //
@@ -24,23 +176,23 @@ import (
 // 变换的每个用例都要 115 级装备，只有全量目录里才有。
 var (
 	transformGearOnce sync.Once
-	transformGear     *inventory.EquipmentCatalog
+	transformGear     *EquipmentCatalog
 	transformGearErr  error
 )
 
-func transformEquipmentCatalog() (*inventory.EquipmentCatalog, error) {
+func transformEquipmentCatalog() (*EquipmentCatalog, error) {
 	transformGearOnce.Do(func() {
 		cat, e := catalog.LoadLoot("../../configs/loot.level150.json")
 		if e != nil {
 			transformGearErr = fmt.Errorf("load loot catalog: %w", e)
 			return
 		}
-		base, e := inventory.LoadEquipmentCatalog("../../configs/equipment.current37.json", cat.Source.Checksum)
+		base, e := LoadEquipmentCatalog("../../configs/equipment.current37.json", cat.Source.Checksum)
 		if e != nil {
 			transformGearErr = fmt.Errorf("load base equipment catalog: %w", e)
 			return
 		}
-		full, e := inventory.OpenFullEquipmentCatalog("../../configs/equipment-full", cat.Source.Checksum)
+		full, e := OpenFullEquipmentCatalog("../../configs/equipment-full", cat.Source.Checksum)
 		if e != nil {
 			transformGearErr = fmt.Errorf("open full equipment catalog (configs/equipment-full.data): %w", e)
 			return
@@ -53,7 +205,7 @@ func transformEquipmentCatalog() (*inventory.EquipmentCatalog, error) {
 }
 
 // loadTransformFixtures 载入变换用到的三张真实表。
-func loadTransformFixtures(t *testing.T) (*Service, *catalog.EquipmentCreateCost) {
+func loadTransformFixtures(t *testing.T) (*ItemService, *catalog.EquipmentCreateCost) {
 	t.Helper()
 	cat, e := catalog.LoadLoot("../../configs/loot.level150.json")
 	if e != nil {
@@ -67,7 +219,7 @@ func loadTransformFixtures(t *testing.T) (*Service, *catalog.EquipmentCreateCost
 	if e != nil {
 		t.Fatalf("load create cost: %v", e)
 	}
-	return &Service{CreateCost: &cc, Equipment: gear}, &cc
+	return &ItemService{CreateCost: &cc, Equipment: gear}, &cc
 }
 
 // costGroupFor 必须能靠**档位**找到组：实测请求里的目标模板一个都不在
@@ -229,8 +381,8 @@ func TestApplyTransformKeepsBuildEffects(t *testing.T) {
 	rec[19] = 1                                  // 次元属性类型（红字）
 	rec[20] = 42                                 // 次元属性数值
 
-	bag := inventory.Bag{
-		Worn: []inventory.BagEquipment{
+	bag := Bag{
+		Worn: []BagEquipment{
 			{Slot: 14, Template: from, Durability: 60, Refine: 7,
 				Record: rec, AvatarOptions: []byte{9, 9}, AvatarSockets: []byte{8}},
 			{Slot: 19, Template: 100301825, Durability: 0},
@@ -246,7 +398,7 @@ func TestApplyTransformKeepsBuildEffects(t *testing.T) {
 		t.Fatalf("Reward(%d): %v", to, e)
 	}
 
-	var got inventory.BagEquipment
+	var got BagEquipment
 	for _, w := range out.Worn {
 		if w.Slot == 14 {
 			got = w
@@ -307,7 +459,7 @@ func TestRegisterTransformedSourcesAddsSource(t *testing.T) {
 	if e != nil {
 		t.Fatalf("load journal rules: %v", e)
 	}
-	ledger, e := inventory.ReadEquipmentJournal(json.RawMessage(`{}`))
+	ledger, e := ReadEquipmentJournal(json.RawMessage(`{}`))
 	if e != nil {
 		t.Fatalf("empty journal: %v", e)
 	}
@@ -339,7 +491,7 @@ func TestRegisterTransformedSourcesAddsSource(t *testing.T) {
 // 实机 2026-09-30 03:24 的失败就是这条没实现 —— 源在 backpack，旧代码只查 worn。
 func TestApplyTransformWithBagSource(t *testing.T) {
 	s, _ := loadTransformFixtures(t)
-	s.WearRules = inventory.WearRules{Slots: map[string]uint16{
+	s.WearRules = WearRules{Slots: map[string]uint16{
 		"[weapon]": 12, "[coat]": 14, "[amulet]": 19,
 	}}
 
@@ -350,9 +502,9 @@ func TestApplyTransformWithBagSource(t *testing.T) {
 	)
 
 	// 情形 A：该部位（12）本来空着 ⇒ 源直接穿上，背包那一格腾出。
-	bagA := inventory.Bag{
-		Worn:      []inventory.BagEquipment{{Slot: 14, Template: wornCoat, Durability: 60}},
-		Equipment: []inventory.BagEquipment{{Slot: 11, Template: bagWeapon, Durability: 100}},
+	bagA := Bag{
+		Worn:      []BagEquipment{{Slot: 14, Template: wornCoat, Durability: 60}},
+		Equipment: []BagEquipment{{Slot: 11, Template: bagWeapon, Durability: 100}},
 	}
 	outA, e := s.applyTransform(bagA, []EquipmentTransformPair{
 		{Slot: 12, From: bagWeapon, To: target, Group: 2, FromBag: true, BagSlot: 11},
@@ -382,9 +534,9 @@ func TestApplyTransformWithBagSource(t *testing.T) {
 	}
 
 	// 情形 B：该部位已被占用 ⇒ 目标穿上、原件退回源那一格（交换）。
-	bagB := inventory.Bag{
-		Worn:      []inventory.BagEquipment{{Slot: 12, Template: 117010280, Durability: 50}},
-		Equipment: []inventory.BagEquipment{{Slot: 11, Template: bagWeapon, Durability: 100}},
+	bagB := Bag{
+		Worn:      []BagEquipment{{Slot: 12, Template: 117010280, Durability: 50}},
+		Equipment: []BagEquipment{{Slot: 11, Template: bagWeapon, Durability: 100}},
 	}
 	outB, e := s.applyTransform(bagB, []EquipmentTransformPair{
 		{Slot: 12, From: bagWeapon, To: target, Group: 2, FromBag: true, BagSlot: 11},
@@ -414,25 +566,25 @@ func TestApplyTransformWithBagSource(t *testing.T) {
 // transformSource 的三条路径：身上 → 背包（按部位类型）→ 同部位多件时放弃。
 func TestTransformSourcePrefersWornThenBag(t *testing.T) {
 	s, _ := loadTransformFixtures(t)
-	s.WearRules = inventory.WearRules{Slots: map[string]uint16{"[weapon]": 12, "[coat]": 14}}
+	s.WearRules = WearRules{Slots: map[string]uint16{"[weapon]": 12, "[coat]": 14}}
 
 	// 身上有 ⇒ 用它，且 bagSlot=0。
-	onBody := inventory.Bag{
-		Worn:      []inventory.BagEquipment{{Slot: 12, Template: 117010280}},
-		Equipment: []inventory.BagEquipment{{Slot: 11, Template: 117010253}},
+	onBody := Bag{
+		Worn:      []BagEquipment{{Slot: 12, Template: 117010280}},
+		Equipment: []BagEquipment{{Slot: 11, Template: 117010253}},
 	}
 	if tpl, bagSlot, ok := s.transformSource(onBody, 12); !ok || tpl != 117010280 || bagSlot != 0 {
 		t.Fatalf("身上有装备时应优先用它：tpl=%d bagSlot=%d ok=%v", tpl, bagSlot, ok)
 	}
 
 	// 身上没有 ⇒ 从背包按部位类型找（[weapon] → 槽 12）。
-	inBag := inventory.Bag{Equipment: []inventory.BagEquipment{{Slot: 11, Template: 117010280}}}
+	inBag := Bag{Equipment: []BagEquipment{{Slot: 11, Template: 117010280}}}
 	if tpl, bagSlot, ok := s.transformSource(inBag, 12); !ok || tpl != 117010280 || bagSlot != 11 {
 		t.Fatalf("身上没有时应从背包找：tpl=%d bagSlot=%d ok=%v", tpl, bagSlot, ok)
 	}
 
 	// 背包里同部位有两件 ⇒ 无法确定，放弃。
-	ambiguous := inventory.Bag{Equipment: []inventory.BagEquipment{
+	ambiguous := Bag{Equipment: []BagEquipment{
 		{Slot: 11, Template: 117010280}, {Slot: 20, Template: 117010253},
 	}}
 	if _, _, ok := s.transformSource(ambiguous, 12); ok {
@@ -470,8 +622,139 @@ func TestTransformCostByRarity(t *testing.T) {
 	}
 	// 灵魂必须都在**账号材料槽**里（否则变换扣不到）。
 	for _, tpl := range []uint32{10361512, 10361513, 10361514, 10361515, 10361516} {
-		if _, ok := inventory.AccountMaterialSlot(tpl); !ok {
+		if _, ok := AccountMaterialSlot(tpl); !ok {
 			t.Fatalf("灵魂 %d 不在账号材料槽里，变换会扣不到", tpl)
 		}
+	}
+}
+
+// fakeEquipmentCatalog 以**接口**形式注入装备定义。
+//
+// 本测试在 loot 包内，够不到 EquipmentCatalog 的未导出索引（index 是小写），
+// 而 JournalLimit 只要求 EquipmentDefinitioner —— 正好可以用最小实现顶上。
+// 生产路径传的是服务端真实目录（Service.Equipment），同一套判据。
+type fakeEquipmentCatalog map[uint32]EquipmentDefinition
+
+func (f fakeEquipmentCatalog) Definition(id uint32) (EquipmentDefinition, error) {
+	d, ok := f[id]
+	if !ok {
+		return d, fmt.Errorf("equipment definition missing: %d", id)
+	}
+	return d, nil
+}
+
+// journalDef 造一条装备定义。收录判据只读三个字段：
+// [minimum level]（必须 == 115）、[rarity]（必须在 {2,3,4,6,8}）、[equipment type]（收紧上限用）。
+func journalDef(id uint32, minimumLevel, rarity int32, kind string) EquipmentDefinition {
+	fields := map[string][]pvf.Token{
+		"[minimum level]": {{Type: 0, Value: minimumLevel}},
+		"[rarity]":        {{Type: 0, Value: rarity}},
+	}
+	if kind != "" {
+		fields["[equipment type]"] = []pvf.Token{{Type: 3, Text: kind}}
+	}
+	return EquipmentDefinition{ID: id, Fields: fields}
+}
+
+// 规格 CMD/0026-DISJOINTITEM：CMD26「分解」同时就是客户端的「装备库添加」。
+// 玩家 2026-09-30 报告里那只耳环 100391006（minimum level 115 / rarity 6）正是该被收录的那类。
+func TestJournalRegistrationsAddsDeletedEquipment(t *testing.T) {
+	rules := catalog.EquipmentJournalRules{Maximum: 99}
+	cat := fakeEquipmentCatalog{
+		100391006: journalDef(100391006, 115, 6, "[earring]"),
+		100051285: journalDef(100051285, 115, 2, ""),
+	}
+	// 登记用的模板来自**服务端背包**那一行（bySlot 由 Disjoint 之前的背包快照构建），
+	// 不是请求里客户端上报的 Template。
+	bySlot := map[uint16]uint32{12: 100391006, 13: 100051285}
+
+	ledger, added, skipped, e := journalRegistrations(
+		EquipmentJournal{}, bySlot, []uint16{12, 13}, cat, &rules)
+	if e != nil {
+		t.Fatalf("registrations: %v", e)
+	}
+	if len(skipped) != 0 {
+		t.Fatalf("unexpected skips: %+v", skipped)
+	}
+	if len(added) != 2 {
+		t.Fatalf("added = %+v, want 2", added)
+	}
+	if ledger.Counts[100391006] != 1 || ledger.Counts[100051285] != 1 {
+		t.Fatalf("counts = %+v, want both 1", ledger.Counts)
+	}
+	// 上限回落：[max equipment count by equipment type] 在源里只显式声明了 `[oath]`，
+	// 所以 `[earring]` 这类走普通上限 99（一度被"过度收紧"成拒绝，见 catalog 的注释）。
+	for _, r := range added {
+		if r.Limit != 99 || r.After != 1 {
+			t.Fatalf("registration = %+v, want limit 99 after 1", r)
+		}
+	}
+}
+
+// 达上限**只跳过收录、不拒绝分解**；背包里查不到那一行也必须有可见原因（不静默放行）。
+func TestJournalRegistrationsSkipsWithoutFailing(t *testing.T) {
+	rules := catalog.EquipmentJournalRules{
+		Maximum:       99,
+		MaximumByType: []catalog.JournalTypeLimit{{Kind: "[oath]", Rarity: 2, Maximum: 1}},
+	}
+	cat := fakeEquipmentCatalog{
+		100051285: journalDef(100051285, 115, 2, ""),       // 普通 ⇒ 上限 99
+		900000001: journalDef(900000001, 115, 2, "[oath]"), // 誓约 ⇒ 按类型收紧到 1
+		100401610: journalDef(100401610, 110, 2, ""),       // 等级不是 115 ⇒ 不可登记
+	}
+	ledger := EquipmentJournal{Counts: map[uint32]uint32{
+		100051285: 99, // 已满
+		900000001: 1,  // 誓约上限 1，已满
+	}}
+	bySlot := map[uint16]uint32{10: 100051285, 20: 900000001, 30: 100401610}
+	// 31 号槽故意不在 bySlot 里：模拟"背包快照与删除结果对不上"。
+	slots := []uint16{10, 20, 30, 31}
+
+	next, added, skipped, e := journalRegistrations(ledger, bySlot, slots, cat, &rules)
+	if e != nil {
+		t.Fatalf("cap must not fail the disassembly: %v", e)
+	}
+	if len(added) != 0 {
+		t.Fatalf("added = %+v, want none", added)
+	}
+	want := []struct {
+		slot   uint16
+		reason string
+	}{
+		{10, "cap reached"},
+		{20, "cap reached"},
+		{30, "not registrable"},
+		{31, "no bag row"},
+	}
+	if len(skipped) != len(want) {
+		t.Fatalf("skipped = %+v, want %d entries", skipped, len(want))
+	}
+	for i, w := range want {
+		if skipped[i].Slot != w.slot || skipped[i].Reason != w.reason {
+			t.Fatalf("skip[%d] = %+v, want slot %d reason %q", i, skipped[i], w.slot, w.reason)
+		}
+	}
+	if next.Counts[100051285] != 99 || next.Counts[900000001] != 1 || len(next.Counts) != 2 {
+		t.Fatalf("ledger must be untouched: %+v", next.Counts)
+	}
+}
+
+// 规则表 / 装备目录没装 ⇒ 不收录、不报错、也**不记 skip**：整条特性是关的，
+// 不是"这一件被跳过"（否则回执里会刷满假的跳过原因）。
+func TestJournalRegistrationsDisabledWithoutRulesOrCatalog(t *testing.T) {
+	bySlot := map[uint16]uint32{12: 100391006}
+	cat := fakeEquipmentCatalog{100391006: journalDef(100391006, 115, 6, "[earring]")}
+	slots := []uint16{12}
+
+	next, added, skipped, e := journalRegistrations(
+		EquipmentJournal{}, bySlot, slots, cat, nil)
+	if e != nil || len(added) != 0 || len(skipped) != 0 || len(next.Counts) != 0 {
+		t.Fatalf("nil rules: next=%+v added=%+v skipped=%+v err=%v", next, added, skipped, e)
+	}
+
+	next, added, skipped, e = journalRegistrations(
+		EquipmentJournal{}, bySlot, slots, nil, &catalog.EquipmentJournalRules{Maximum: 99})
+	if e != nil || len(added) != 0 || len(skipped) != 0 || len(next.Counts) != 0 {
+		t.Fatalf("nil catalog: next=%+v added=%+v skipped=%+v err=%v", next, added, skipped, e)
 	}
 }
