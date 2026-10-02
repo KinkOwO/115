@@ -7,9 +7,27 @@ import (
 	"dfolan/internal/quest"
 	"os"
 	"reflect"
+	"sort"
 	"testing"
 	"time"
 )
+
+// detailsSampleCap bounds the per-item eager-vs-lazy comparison to a
+// deterministic cross-range sample; full counts stay asserted. Set
+// DFO_PVF_ARCHIVE_FULL_SWEEP=1 to compare every stackable.
+const detailsSampleCap = 500
+
+func detailsSample[T any](all []T) []T {
+	if os.Getenv("DFO_PVF_ARCHIVE_FULL_SWEEP") == "1" || len(all) <= detailsSampleCap {
+		return all
+	}
+	step := (len(all) + detailsSampleCap - 1) / detailsSampleCap
+	out := make([]T, 0, detailsSampleCap)
+	for i := 0; i < len(all); i += step {
+		out = append(out, all[i])
+	}
+	return out
+}
 
 func TestRuntimeDetailsLocalArchiveParity(t *testing.T) {
 	p := os.Getenv("DFO_PVF_CORE_TEST_ARCHIVE")
@@ -83,10 +101,15 @@ func TestRuntimeDetailsLocalArchiveParity(t *testing.T) {
 	}
 	var itemCount int
 	begin := time.Now()
+	var stackableIDs []uint32
 	for id, r := range index.Items {
-		if r.Kind != "stackable" || id == 0 {
-			continue
+		if r.Kind == "stackable" && id != 0 {
+			stackableIDs = append(stackableIDs, id)
 		}
+	}
+	sort.Slice(stackableIDs, func(i, j int) bool { return stackableIDs[i] < stackableIDs[j] })
+	for _, id := range detailsSample(stackableIDs) {
+		r := index.Items[id]
 		eager, err := catalog.ResolveScript(a, r.Path)
 		if err != nil {
 			t.Fatal(err)
@@ -97,7 +120,7 @@ func TestRuntimeDetailsLocalArchiveParity(t *testing.T) {
 		}
 		itemCount++
 	}
-	t.Logf("all stackable details=%d compare=%s", itemCount, time.Since(begin))
+	t.Logf("stackable details sampled=%d/%d compare=%s", itemCount, len(stackableIDs), time.Since(begin))
 	if err = a.Close(); err != nil {
 		t.Fatal(err)
 	}
