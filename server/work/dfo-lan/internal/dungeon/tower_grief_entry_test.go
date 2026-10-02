@@ -3,17 +3,20 @@ package dungeon
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
-	"path/filepath"
 	"testing"
 )
 
 func TestTowerGriefSourceEntry(t *testing.T) {
-	configDir := filepath.Join("..", "..", "configs")
+	a := catalog.OpenNativeArchive(t)
 	c := catalog.LoadNativeFullDungeons(t)
 	if _, err := Select(c, protocol.DungeonSelection{ID: 5115, Party: 65535}, 95, nil); err == nil {
 		t.Fatal("unresolved source tower maze unexpectedly entered without overlay")
 	}
-	if err := catalog.AttachTowerGriefMaps(&c, filepath.Join(configDir, "dungeons.tower-of-grief-maps.json")); err != nil {
+	overlay, err := catalog.ImportTowerGriefOverlay(a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := catalog.ApplyTowerGriefMaps(&c, overlay); err != nil {
 		t.Fatal(err)
 	}
 	floors, err := c.TowerGriefFloors()

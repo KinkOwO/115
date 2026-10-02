@@ -3,18 +3,21 @@ package dungeon
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
-	"path/filepath"
 	"strings"
 	"testing"
 )
 
 func TestDazzlementSourceEntry(t *testing.T) {
-	configDir := filepath.Join("..", "..", "configs")
+	a := catalog.OpenNativeArchive(t)
 	c := catalog.LoadNativeFullDungeons(t)
 	if _, err := Select(c, protocol.DungeonSelection{ID: 7601, Party: 65535}, 95, nil); err == nil {
 		t.Fatal("unresolved Dazzlement maze entered without source maps")
 	}
-	if err := catalog.AttachDazzlementMaps(&c, filepath.Join(configDir, "dungeons.tower-of-dazzlement-maps.json")); err != nil {
+	overlay, err := catalog.ImportDazzlementOverlay(a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := catalog.ApplyDazzlementMaps(&c, overlay); err != nil {
 		t.Fatal(err)
 	}
 	parsedMaps := 0
