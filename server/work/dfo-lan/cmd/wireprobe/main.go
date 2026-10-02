@@ -40,193 +40,67 @@ import (
 )
 
 func main() {
-	moonConfigFile := flag.String("moon-solo-config", os.Getenv("DFO_MOON_SOLO_CONFIG"), "opt-in Moon Lake solo candidate, explicitly validated 2.38.3.25 profile")
-	fixture := flag.String("fixture", "", "verified-format server fixture to send after accept")
-	dir := flag.String("output", "runtime/wireprobe", "capture directory")
-	gameListen := flag.String("game-listen", "127.0.0.1:0", "game endpoint; use 0.0.0.0:PORT to accept clients from other machines")
-	advertiseHost := flag.String("advertise-host", os.Getenv("DFO_ADVERTISE_HOST"), "host the client dials for the game and channel directory; empty reuses the bound address, or auto-detects the LAN IPv4 when game-listen is a wildcard")
-	responseFile := flag.String("responses", "", "JSON mapping command IDs to response fixture paths")
-	characterStorage := flag.String("character-storage", "", "enable experimental persisted character handling with this local storage config")
-	characterCatalog := flag.String("character-catalog", "configs/characters.generated.json", "PVF-derived profession catalog")
-	pvfCatalogSelection := flag.String("pvf-catalogs", os.Getenv("DFO_PVF_CATALOGS"), "candidate direct-read domains: "+gamedata.SupportedDomains+"; empty keeps JSON")
-	pvfCheckCatalogs := flag.Bool("pvf-check-catalogs", false, "prepare explicitly selected PVF catalogs and exit before storage, listeners or runtime setup")
-	pvfCheckHeap := flag.String("pvf-check-heap-profile", "", "write a new post-GC heap profile only with pvf-check-catalogs")
-	pvfVerifyBaselines := flag.Bool("pvf-verify-baselines", os.Getenv("DFO_PVF_VERIFY_BASELINES") == "1", "compare selected PVF domains with JSON baselines before storage; false removes the selected JSON startup dependency")
-	pvfEnhancementPolicy := flag.String("pvf-enhancement-policy", envStrOr("DFO_PVF_ENHANCEMENT_POLICY", "configs/pvf-enhancement-policy.json"), "independent enhancement server policies; required only for PVF enhancements")
-	pvfVaultPolicy := flag.String("pvf-vault-policy", envStrOr("DFO_PVF_VAULT_POLICY", "configs/pvf-vault-policy.json"), "client capacity/save policy independent of PVF account vault table")
-	pvfContentPolicyPath := flag.String("pvf-content-policy", envStrOr("DFO_PVF_CONTENT_POLICY", "configs/pvf-content-policy.json"), "independent enabled special-content selection; source tables from PVF")
-	pvfSelectionPolicyPath := flag.String("pvf-selection-policy", envStrOr("DFO_PVF_SELECTION_POLICY", "configs/pvf-selection-policy.json"), "bounded selection box templates; source categories from PVF")
-	pvfItemShopPolicyPath := flag.String("pvf-item-shop-policy", envStrOr("DFO_PVF_ITEM_SHOP_POLICY", "configs/pvf-item-shop-policy.json"), "existing service shop routes and purchase-limit policy; offers from native SHP")
-	pvfBoxPolicyPath := flag.String("pvf-box-policy", envStrOr("DFO_PVF_BOX_POLICY", "configs/pvf-box-policy.json"), "enabled COS/box scope and existing placement defaults; rewards from native material bindings")
-	pvfCharacterPolicyPath := flag.String("pvf-character-policy", envStrOr("DFO_PVF_CHARACTER_POLICY", "configs/pvf-character-policy.json"), "saved source identity and default shortcut behavior; profession source fields from PVF")
-	pvfLayerRevisitPolicyPath := flag.String("pvf-layer-revisit-policy", envStrOr("DFO_PVF_LAYER_REVISIT_POLICY", "configs/pvf-layer-revisit-policy.json"), "verified layer revisit scope, record and cache restoration; source maps and landing from PVF")
-	pvfScriptWarpPolicyPath := flag.String("pvf-script-warp-policy", envStrOr("DFO_PVF_SCRIPT_WARP_POLICY", "configs/pvf-script-warp-policy.json"), "verified script warp scope and witnessed transition records; source routes from PVF")
-	pvfLotteryPolicyPath := flag.String("pvf-lottery-policy", "", "deprecated compatibility flag; PVF lottery scope is discovered from source and this path is ignored")
-	pvfScenePolicyPath := flag.String("pvf-scene-policy", envStrOr("DFO_PVF_SCENE_POLICY", "configs/pvf-scene-policy.json"), "independent entry town and training dungeon selection; source rules from PVF")
-	pvfDropPolicy := flag.String("pvf-drop-policy", envStrOr("DFO_PVF_DROP_POLICY", "configs/pvf-drop-policy.json"), "existing basic equipment allowlist and maximum loot grade; source rules from PVF")
-	pvfCacheDefault := os.Getenv("DFO_PVF_CACHE_DIR")
-	if pvfCacheDefault == "" {
-		pvfCacheDefault = "runtime/pvf-cache"
+	startup, configErr := loadConfig(os.Args[1:], os.Getenv, os.Stderr)
+	if configErr != nil {
+		if errors.Is(configErr, flag.ErrHelp) {
+			return
+		}
+		// The private FlagSet already prints usage for malformed CLI input.
+		os.Exit(2)
 	}
-	pvfCacheDir := flag.String("pvf-cache-dir", pvfCacheDefault, "derived PVF cache directory; - disables caching")
-	pvfArchivePath := flag.String("pvf-archive", os.Getenv("DFO_PVF_ARCHIVE"), "explicit inner PVF path for candidate domains")
-	pvfArchiveChecksum := flag.String("pvf-sha256", os.Getenv("DFO_PVF_SHA256"), "expected inner PVF SHA256; must match existing character source")
-	characterRules := flag.String("character-rules", "configs/character-probe.json", "explicit local bootstrap settings")
-	selectProbeConfig := flag.String("select-probe-config", "", "opt in to current-build SELECT parser experiment; does not initialize a town")
-	entryBasicProbe := flag.Bool("entry-basic-probe", false, "send experimental current-build minimum actor info after SELECT; does not initialize a town")
-	townCatalogFile := flag.String("town-catalog", "", "PVF-derived town-area catalog for the entry experiment")
-	townProbeFile := flag.String("town-entry-probe", "", "opt in to experimental town entry using this separate spawn policy")
-	worldCatalogFile := flag.String("world-catalog", "", "enable source-backed town transitions and saved positions")
-	worldRulesFile := flag.String("world-rules", "configs/world-probe.json", "separate world movement policy")
-	entryAdditionProbe := flag.Bool("entry-addition-probe", false, "send current-build source attributes; optional inventory and skills remain pending")
-	questCatalogFile := flag.String("quest-catalog", "", "enable source quest accept/abandon persistence; objectives and rewards are separate")
-	vaultRulesFile := flag.String("vault-rules", "", "source vault capacity and empty-state initialization")
-	// 疲劳规则**有默认路径**：疲劳是玩法本身，不该因为「没传 env」就整条消失
-	//（2026-10-01 实测：直读默认档没传它 ⇒ fatigueService == nil ⇒ 所有疲劳检查被跳过）。
-	// 仍可用 -fatigue-rules / DFO_FATIGUE_RULES 覆盖，供本地调试。
-	fatigueRulesFile := flag.String("fatigue-rules", "configs/fatigue-probe.json", "separate persisted fatigue and rollover policy (default: configs/fatigue-probe.json)")
-	// 疲劳消耗总开关（业主 2026-10-01 按玩家反馈要求，属「玩家体验上的数值差异」入口）。
-	// 默认关 = 保留疲劳消耗；打开后进本消耗与房间消耗**一起**归零
-	// （见 character.FatigueService.Free —— 只关一处会卡在加载界面）。
-	fatigueFree := flag.Bool("fatigue-free", os.Getenv("DFO_FATIGUE_FREE") == "1", "关闭疲劳消耗（进本与房间一起归零）；默认关")
-	progressionCatalogFile := flag.String("progression-catalog", "", "current-source experience and growth catalog")
-	progressionRulesFile := flag.String("progression-rules", "configs/experience.compat90.json", "separate reference compatibility formula settings")
-	lootCatalogFile := flag.String("loot-catalog", "", "current gold/ordinary stackable source projection; equipment pending")
-	lootRulesFile := flag.String("loot-rules", "configs/drop.compat90.json", "explicit reference drop formula policy")
-	equipmentCatalogFile := flag.String("equipment-catalog", os.Getenv("DFO_EQUIPMENT_CATALOG"), "source equipment catalog a run selects gear from; required whenever loot is enabled")
-	// 装备库（装备图鉴）规则表：cmd/equipmentjournalimport 的产物。留空 = 不登记装备库，
-	// 分解保持原行为（只扣来源、发材料、写回执）。
-	equipmentJournalRulesFile := flag.String("equipment-journal-rules", os.Getenv("DFO_EQUIPMENT_JOURNAL_RULES"), "装备库规则表（equipmentsetjournal.cos 的导出物）；留空则不登记")
-	// 装备库「装备生成」的成本表（同一份源的 [create cost] 段）。留空 = 不做生成。
-	equipmentCreateCostFile := flag.String("equipment-create-cost", os.Getenv("DFO_EQUIPMENT_CREATE_COST"), "装备生成成本表（[create cost] 的导出物）；留空则第二步只回窗口")
-	// 装备库「制作 / 变换」（CMD2259）应答里的窗口选择字节：非 0 → 打开窗口 3937，
-	// 0 → 打开窗口 2145。哪个才是"制作界面"尚未定案，故做成 flag/env 以便不改代码切换。
-	equipmentCraftWindowFlag := flag.Int("equipment-craft-window", envByteOr("DFO_EQUIPMENT_CRAFT_WINDOW", 1), "CMD2259 应答的窗口选择字节（非 0 → 窗口 3937；0 → 窗口 2145）")
-	equipmentCraftVariantFlag := flag.Int("equipment-craft-variant", envByteOr("DFO_EQUIPMENT_CRAFT_VARIANT", 0), "CMD2259 应答的子分支字节（仅当窗口字节为 0 时生效）")
-	// 第二步（"确定"）用另一组参数：默认 u8@4 = 0 → 窗口 2145。
-	equipmentCraftConfirmWindowFlag := flag.Int("equipment-craft-confirm-window", envByteOr("DFO_EQUIPMENT_CRAFT_CONFIRM_WINDOW", 0), "CMD2259 第二步（确定）应答的窗口选择字节")
-	equipmentCraftConfirmVariantFlag := flag.Int("equipment-craft-confirm-variant", envByteOr("DFO_EQUIPMENT_CRAFT_CONFIRM_VARIANT", 0), "CMD2259 第二步应答的子分支字节")
-	// 装备生成（请求头 [12] == 0）走另一扇窗：u8@4 = 0 → 窗口 2145。
-	equipmentCraftGenerateWindowFlag := flag.Int("equipment-craft-generate-window", envByteOr("DFO_EQUIPMENT_CRAFT_GENERATE_WINDOW", 0), "CMD2259 装备生成（[12]=0）应答的窗口选择字节")
-	equipmentCraftGenerateVariantFlag := flag.Int("equipment-craft-generate-variant", envByteOr("DFO_EQUIPMENT_CRAFT_GENERATE_VARIANT", 1), "CMD2259 装备生成应答的子分支字节（1 = 只落成功标志、不动窗口状态，默认；0 = 强制 setState 到状态 3，会让材料切换按钮失灵）")
-	// 是否**真的执行**装备生成（扣料 + 发装备）。默认开；关掉则只回窗口、不动存档。
-	equipmentCraftExecuteFlag := flag.Bool("equipment-craft-execute", os.Getenv("DFO_EQUIPMENT_CRAFT_EXECUTE") != "0", "CMD2259 是否执行装备生成（扣成本 + 发装备）")
-	// 在哪一次请求上执行：confirm（同指纹第二次）/ first（第一次就执行）/ never。
-	equipmentCraftExecuteOnFlag := flag.String("equipment-craft-execute-on", envStrOr("DFO_EQUIPMENT_CRAFT_EXECUTE_ON", "confirm"), "CMD2259 何时执行装备生成：confirm / first / never")
-	// 装备变换（CMD2259 action=1）怎么执行：apply = 真的换装；observe = 只记日志、不动存档。
-	equipmentTransformApplyFlag := flag.String("equipment-transform", envStrOr("DFO_EQUIPMENT_TRANSFORM_APPLY", "apply"), "CMD2259 action=1（装备变换）如何执行：apply（真的换装）/ observe（只记日志）")
-	bagRulesFile := flag.String("bag-rules", "configs/inventory.compat90.json", "separate bag slot and missing stack limit policy")
-	boxesFile := flag.String("boxes", "", "imported open-box content tables; empty resolves boxes.json beside the bag rules")
-	cardRulesFile := flag.String("card-rules", "configs/cards.compat90.json", "separate compatible free-card policy")
-	learningFile := flag.String("skill-catalog", "", "current PVF learning metadata; enables manual learning and persisted skill slots")
-	channelRefreshFile := flag.String("channel-refresh-config", "", "separate local channel directory service for native refresh")
-	channelIdentityEnabled := flag.Bool("channel-identity", false, "candidate: synchronize NOTI2435 and all actor contexts with the connected channel")
-	equipmentRewardFile := flag.String("quest-equipment-catalog", "", "source basic-equipment metadata for atomic quest rewards")
-	wearRulesFile := flag.String("equipment-wear-rules", "", "current-client equipment slots and persistent wear handling")
-	knightShieldFile := flag.String("knight-shield-catalog", "equipment-knight-shield.full-candidate.json", "optional source-verified shield window side-car; relative to wear rules directory, empty disables")
-	fullEquipmentFile := flag.String("equipment-full-catalog", os.Getenv("DFO_EQUIPMENT_FULL_CATALOG"), "separate indexed wear catalog prefix; does not widen drops")
-	itemIndexFile := flag.String("item-index", os.Getenv("DFO_ITEM_INDEX"), "full stackable item index JSON (e.g. configs/items.index.json)")
-	boosterCatalogFile := flag.String("booster-catalog", os.Getenv("DFO_BOOSTER_CATALOG"), "booster definitions JSON")
-	selectionBoxFile := flag.String("selection-boxes", os.Getenv("DFO_SELECTION_BOXES"), "source selection box JSON ([booster select category] boxes)")
-	itemShopFile := flag.String("item-shop", os.Getenv("DFO_ITEM_SHOP"), "source item shop JSON (itemshop/**.shp; prices goods with [need material], e.g. the Odyssey shop's silver coins)")
-	shopPricesFile := flag.String("shop-prices", os.Getenv("DFO_SHOP_PRICES"), "source NPC prices; empty resolves shop-prices.json beside the loot catalog")
-	bleedingMineRewardsFile := flag.String("bleeding-mine-rewards", "", "赤红铁矿原版奖励表；默认读取掉落目录旁的 bleeding-mine-rewards.json")
-	soloPartyBootstrap := flag.Bool("solo-party-bootstrap", false, "initialize the owned actor in the current solo party roster")
-	accountOptionsFile := flag.String("account-options", "", "sparse current-client account option overrides; other defaults remain client-owned")
-	unifiedCharacFile := flag.String("unified-charac-template", "", "override the built-in 3539 byte character option block sent as NOTI2827 (different client build only)")
-	skillLockOffset := flag.Int("skill-lock-offset", -1, "override the subtype 19 skill lock offset inside the character option block (default 2736)")
-	tutorialRoutesFile := flag.String("tutorial-routes", "", "source per-job starting route table")
-	tutorialDungeonsFile := flag.String("tutorial-dungeons", "", "source starting-route dungeon catalog")
-	shopRelease := flag.Bool("shop-release", os.Getenv("DFO_SHOP_RELEASE") == "1", "enable accepted ordinary shop in release profile")
-	vaultPurchase := flag.Bool("vault-purchase-candidate", os.Getenv("DFO_VAULT_PURCHASE_CANDIDATE") == "1", "enable isolated vault purchase candidate")
-	vaultRelease := flag.Bool("vault-purchase-release", os.Getenv("DFO_VAULT_PURCHASE_RELEASE") == "1", "enable accepted personal vault purchases in release profile")
-	randomOptionFile := flag.String("random-option-catalog", os.Getenv("DFO_RANDOM_OPTION_CATALOG"), "current-client magic-seal random option rules; enables CMD393 unsealing")
-	apocalypseCatalogFile := flag.String("apocalypse-catalog", "configs/apocalypse.generated.json", "compiled apocalypse.ctp table (phase clock, operations, gates, rewards, duty skills)")
-	attunementRewardsFile := flag.String("attunement-rewards", os.Getenv("DFO_ATTUNEMENT_REWARDS"), "boundary-of-attunement reward table generated from the source rewardboostinfo CTPs")
-	attunementRebalanceOn := flag.Bool("attunement-rebalance", os.Getenv("DFO_ATTUNEMENT_REBALANCE") == "1", "本私服的掉落调参（**与官服的显式差异**）：征兆「无事发生」减半、fixed 池低档按比例向高档倾斜。见 internal/loot/attunement_rebalance.go")
-	attunementFixedTiltDefault := envIntOr("DFO_ATTUNEMENT_FIXED_TILT", 25)
-	attunementFixedTilt := flag.Int("attunement-fixed-tilt", attunementFixedTiltDefault, "固定池倾斜幅度：普通/稀有各减这么多百分比权重，减掉的按高档现有比例补（1..99）。0 = 不动固定池；只在 -attunement-rebalance 打开时生效")
-	boosterGageHide := flag.Bool("booster-gage-hide", os.Getenv("DFO_BOOSTER_GAGE") != "0", "send NOTI398 booster-gage with displayValue=0 on town entry to hide the top-left Liberation Trace panel; disable with -booster-gage-hide=false or DFO_BOOSTER_GAGE=0")
-	oathGrades := flag.String("oath-grades", os.Getenv("DFO_OATH_GRADES"), "诊断覆盖：固定下发的引子/誓约档位 primer,oath（见 oath_info.go）。留空 = 按角色穿戴的誓约/引子装备算，这是正常路径")
-	oathGradesTable := flag.String("oath-grades-table", os.Getenv("DFO_OATH_GRADES_TABLE"), "誓约/引子装备稀有度表（cmd/oathgradeimport 生成）；只在 -oath-grades-from-gear 打开时用")
-	oathFromGear := flag.Bool("oath-grades-from-gear", os.Getenv("DFO_OATH_GRADES_FROM_GEAR") == "1", "诊断：按角色穿戴的誓约/引子装备算档位（旧规则）。默认关 —— 客户端脱不下誓约槽，穿上 primeval 就永久 oath=45")
-	oathProgressClearsDefault := envIntOr("DFO_OATH_PROGRESS_CLEARS", oathDefaultProgressClears)
-	oathProgressDungeonSpec := envStrOr("DFO_OATH_PROGRESS_DUNGEONS", oathDefaultProgressDungeons)
-	oathProgressClears := flag.Int("oath-progress-clears", oathProgressClearsDefault, "隐藏 BOSS 的保底场次：-oath-progress-dungeons 里的副本通关这么多场后，下一场下发 oath=45（必出一次）并在通关时归零；<=0 关闭保底")
-	oathProgressDungeons := flag.String("oath-progress-dungeons", oathProgressDungeonSpec, "计入保底的副本号，逗号分隔（默认只有小深渊 100005014）")
-	oathInject := flag.String("oath-inject", os.Getenv("DFO_OATH_INJECT"), "诊断用：向客户端注入任意 noti 的候选列表，形式 id:size:fill;off:val,...（见 oath_probe.go）；默认空 = 关闭")
-	omenHoldDefault := envIntOr("DFO_OMEN_HOLD", -1)
-	omenHold := flag.Int("omen-hold", omenHoldDefault, "诊断：把玩家直接放到指定征兆阶段(0-4)，-1 = 不动；会写回角色存档")
-	omenInfo := flag.String("omen-info", os.Getenv("DFO_OMEN_INFO"), "诊断：直接指定 noti 2836「征兆队伍状态」的 69 字节载荷，用来点亮征兆 UI 并实测字段语义。写法见 cmd/wireprobe/omen_info.go；留空 = 按角色存档里的真实档数生成")
-	// ⚠️ 下面三项**没有开关**：它们是玩法本身，不是可选项。
-	// 2026-10-01 业主定调（见 server/AGENTS.md「开关原则」）：开关只用于本地调试，
-	// 确认有效即移除并变成默认行为；只有「玩家体验上的数值差异」（如掉落调参）才留入口。
-	// 此前它们默认关闭 ⇒ 直读默认档下整套深渊玩法静默不生效（征兆不掷骰、隐藏 BOSS 无门禁、
-	// 定盘机关可能打不死），是本轮失效排查的核心结论。
-	omenRewards := true // 征兆系统：通关按 [coupon drop table] 的阶段表累积并结算（internal/loot/omen.go）
-	omenState := true   // 征兆 = 角色存档级状态；隐藏 BOSS 由「满档结算」驱动（cmd/wireprobe/omen_state.go）
-	// 定盘机关 (109019266) 的兜底判死：血量触底时由服务端合成一条死亡上报。
-	//
-	// **默认关**（2026-10-01 回调）：它是「绕过」而不是玩法。72 哨兵修掉后 —— noti 2838
-	// 由 oathInfoPackets 在进本时下发，天平已能按脚本设计自己死，实机验证兜底一次都没触发
-	// （docs/protocol/endkeeper-of-order-primer-20260926.md §22.1）。默认开着会**掩盖真路径**：
-	// 天平若又打不死，日志里会先出现 scale_death_forced，而那不是根因。
-	// 只作诊断入口，排查时临时打开：-scale-death-from-hp / DFO_SCALE_DEATH_FROM_HP=1。
-	scaleDeathFromHP := flag.Bool("scale-death-from-hp", os.Getenv("DFO_SCALE_DEATH_FROM_HP") == "1", "诊断：定盘机关血量触底时由服务端兜底宣布死亡（默认关；noti 2838 修好后天平会自己死）")
-	flag.Parse()
-	if *pvfCheckHeap != "" && !*pvfCheckCatalogs {
-		log.Fatal("pvf-check-heap-profile requires pvf-check-catalogs")
+	if err := startup.validate(); err != nil {
+		log.Fatal(err)
 	}
-	if *pvfCheckCatalogs && strings.TrimSpace(*pvfCatalogSelection) == "" {
-		log.Fatal("pvf-check-catalogs requires explicit pvf-catalogs")
-	}
+	// Confirmed gameplay behavior is not configurable.
+	omenRewards := true
+	omenState := true
 	pvfCatalogs, pvfCatalogErr := gamedata.PrepareCatalogs(gamedata.CatalogInputs{
-		Selection:              *pvfCatalogSelection,
-		ArchivePath:            *pvfArchivePath,
-		ArchiveChecksum:        *pvfArchiveChecksum,
-		CharacterPath:          *characterCatalog,
-		QuestPath:              *questCatalogFile,
-		ProgressionPath:        *progressionCatalogFile,
-		WorldPath:              *worldCatalogFile,
-		DerivedCacheDir:        *pvfCacheDir,
-		ItemShopPath:           *itemShopFile,
-		ItemShopPolicyPath:     *pvfItemShopPolicyPath,
-		BoxesPath:              *boxesFile,
-		BoxPolicyPath:          *pvfBoxPolicyPath,
-		CashshopRelease:        *shopRelease,
-		CharacterPolicyPath:    *pvfCharacterPolicyPath,
-		LayerRevisitPolicyPath: *pvfLayerRevisitPolicyPath,
-		ScriptWarpPolicyPath:   *pvfScriptWarpPolicyPath,
-		LotteryPolicyPath:      *pvfLotteryPolicyPath,
-		SelectionBoxesPath:     *selectionBoxFile,
-		SelectionPolicyPath:    *pvfSelectionPolicyPath,
-		MinePath:               *bleedingMineRewardsFile,
-		IndexPath:              *itemIndexFile,
-		FullPrefix:             *fullEquipmentFile,
-		JournalPath:            *equipmentJournalRulesFile,
-		CreateCostPath:         *equipmentCreateCostFile,
-		LearningPath:           *learningFile,
-		PricesPath:             *shopPricesFile,
-		BoosterPath:            *boosterCatalogFile,
-		TutorialPath:           *tutorialRoutesFile,
-		VerifyBaselines:        *pvfVerifyBaselines,
-		EnhancementPolicyPath:  *pvfEnhancementPolicy,
-		RandomOptionPath:       *randomOptionFile,
-		ShieldPath:             *knightShieldFile,
-		WearRulesPath:          *wearRulesFile,
-		OathPath:               *oathGradesTable,
-		VaultPath:              *vaultRulesFile,
-		VaultPolicyPath:        *pvfVaultPolicy,
-		LootPath:               *lootCatalogFile,
-		EquipmentPath:          *equipmentCatalogFile,
-		QuestEquipmentPath:     *equipmentRewardFile,
-		DropPolicyPath:         *pvfDropPolicy,
-		TownPath:               *townCatalogFile,
-		TutorialDungeonPath:    *tutorialDungeonsFile,
-		ScenePolicyPath:        *pvfScenePolicyPath,
-		ApocalypsePath:         *apocalypseCatalogFile,
-		AttunementPath:         *attunementRewardsFile,
-		ContentPolicyPath:      *pvfContentPolicyPath,
+		Selection:              startup.PVFCatalogs,
+		ArchivePath:            startup.PVFArchive,
+		ArchiveChecksum:        startup.PVFSHA256,
+		CharacterPath:          startup.CharacterCatalog,
+		QuestPath:              startup.QuestCatalog,
+		ProgressionPath:        startup.ProgressionCatalog,
+		WorldPath:              startup.WorldCatalog,
+		DerivedCacheDir:        startup.PVFCacheDir,
+		ItemShopPath:           startup.ItemShop,
+		ItemShopPolicyPath:     startup.PVFItemShopPolicy,
+		BoxesPath:              startup.Boxes,
+		BoxPolicyPath:          startup.PVFBoxPolicy,
+		CashshopRelease:        startup.ShopRelease,
+		CharacterPolicyPath:    startup.PVFCharacterPolicy,
+		LayerRevisitPolicyPath: startup.PVFLayerRevisitPolicy,
+		ScriptWarpPolicyPath:   startup.PVFScriptWarpPolicy,
+		LotteryPolicyPath:      startup.PVFLotteryPolicy,
+		SelectionBoxesPath:     startup.SelectionBoxes,
+		SelectionPolicyPath:    startup.PVFSelectionPolicy,
+		MinePath:               startup.BleedingMineRewards,
+		IndexPath:              startup.ItemIndex,
+		FullPrefix:             startup.EquipmentFullCatalog,
+		JournalPath:            startup.EquipmentJournalRules,
+		CreateCostPath:         startup.EquipmentCreateCost,
+		LearningPath:           startup.SkillCatalog,
+		PricesPath:             startup.ShopPrices,
+		BoosterPath:            startup.BoosterCatalog,
+		TutorialPath:           startup.TutorialRoutes,
+		VerifyBaselines:        startup.PVFVerifyBaselines,
+		EnhancementPolicyPath:  startup.PVFEnhancementPolicy,
+		RandomOptionPath:       startup.RandomOptionCatalog,
+		ShieldPath:             startup.KnightShieldCatalog,
+		WearRulesPath:          startup.EquipmentWearRules,
+		OathPath:               startup.OathGradesTable,
+		VaultPath:              startup.VaultRules,
+		VaultPolicyPath:        startup.PVFVaultPolicy,
+		LootPath:               startup.LootCatalog,
+		EquipmentPath:          startup.EquipmentCatalog,
+		QuestEquipmentPath:     startup.QuestEquipmentCatalog,
+		DropPolicyPath:         startup.PVFDropPolicy,
+		TownPath:               startup.TownCatalog,
+		TutorialDungeonPath:    startup.TutorialDungeons,
+		ScenePolicyPath:        startup.PVFScenePolicy,
+		ApocalypsePath:         startup.ApocalypseCatalog,
+		AttunementPath:         startup.AttunementRewards,
+		ContentPolicyPath:      startup.PVFContentPolicy,
 	}, runtimeCatalogAdapters())
 	if pvfCatalogErr != nil {
 		log.Fatalf("PVF candidate catalogs: %v", pvfCatalogErr)
@@ -243,17 +117,17 @@ func main() {
 	if pvfCatalogs.Loot != nil {
 		defer pvfCatalogs.Loot.CloseDetails()
 	}
-	if *pvfCheckCatalogs {
+	if startup.PVFCheckCatalogs {
 		pvfCatalogs.CollectImportMemory()
-		if *pvfCheckHeap != "" {
-			if err := pvfCatalogs.WriteHeapProfile(*pvfCheckHeap); err != nil {
+		if startup.PVFCheckHeapProfile != "" {
+			if err := pvfCatalogs.WriteHeapProfile(startup.PVFCheckHeapProfile); err != nil {
 				log.Fatal(err)
 			}
 		}
 		if pvfCatalogs.Equipment != nil {
 			defer pvfCatalogs.Equipment.Close()
 		}
-		report, err := pvfCatalogs.CheckReport(*pvfCatalogSelection)
+		report, err := pvfCatalogs.CheckReport(startup.PVFCatalogs)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -289,56 +163,56 @@ func main() {
 		log.Fatalf("PVF script warp runtime routes: %v", err)
 	}
 	pvfCatalogs.CollectImportMemory()
-	equipmentCraftWindow = byte(*equipmentCraftWindowFlag)
-	equipmentCraftVariant = byte(*equipmentCraftVariantFlag)
-	equipmentCraftConfirmWindow = byte(*equipmentCraftConfirmWindowFlag)
-	equipmentCraftConfirmVariant = byte(*equipmentCraftConfirmVariantFlag)
-	equipmentCraftExecute = *equipmentCraftExecuteFlag
-	equipmentCraftGenerateWindow = byte(*equipmentCraftGenerateWindowFlag)
-	equipmentCraftGenerateVariant = byte(*equipmentCraftGenerateVariantFlag)
-	switch *equipmentCraftExecuteOnFlag {
+	equipmentCraftWindow = byte(startup.EquipmentCraftWindow)
+	equipmentCraftVariant = byte(startup.EquipmentCraftVariant)
+	equipmentCraftConfirmWindow = byte(startup.EquipmentCraftConfirmWindow)
+	equipmentCraftConfirmVariant = byte(startup.EquipmentCraftConfirmVariant)
+	equipmentCraftExecute = startup.EquipmentCraftExecute
+	equipmentCraftGenerateWindow = byte(startup.EquipmentCraftGenerateWindow)
+	equipmentCraftGenerateVariant = byte(startup.EquipmentCraftGenerateVariant)
+	switch startup.EquipmentCraftExecuteOn {
 	case "confirm", "first", "never":
-		equipmentCraftExecuteOn = *equipmentCraftExecuteOnFlag
+		equipmentCraftExecuteOn = startup.EquipmentCraftExecuteOn
 	default:
-		log.Fatalf("invalid -equipment-craft-execute-on %q (want confirm/first/never)", *equipmentCraftExecuteOnFlag)
+		log.Fatalf("invalid -equipment-craft-execute-on %q (want confirm/first/never)", startup.EquipmentCraftExecuteOn)
 	}
-	switch *equipmentTransformApplyFlag {
+	switch startup.EquipmentTransform {
 	case "apply", "observe":
-		equipmentTransformApply = *equipmentTransformApplyFlag
+		equipmentTransformApply = startup.EquipmentTransform
 	default:
-		log.Fatalf("invalid -equipment-transform %q (want apply/observe)", *equipmentTransformApplyFlag)
+		log.Fatalf("invalid -equipment-transform %q (want apply/observe)", startup.EquipmentTransform)
 	}
-	oathGradePair, oathGradesErr := parseOathGrades(*oathGrades)
+	oathGradePair, oathGradesErr := parseOathGrades(startup.OathGrades)
 	if oathGradesErr != nil {
 		log.Fatalf("bad -oath-grades: %v", oathGradesErr)
 	}
 	// 档位表只服务「按穿戴装备算档位」这条诊断路径（-oath-grades-from-gear）。
 	// 默认的保底路径不需要它，所以默认配置下**不加载、也不会因为缺表拒绝启动**。
 	var oathGradeTable *inventory.OathGradeTable
-	if *oathFromGear {
-		table, tableErr := pvfCatalogs.LoadOathGrades(*oathGradesTable)
+	if startup.OathGradesFromGear {
+		table, tableErr := pvfCatalogs.LoadOathGrades(startup.OathGradesTable)
 		if tableErr != nil {
 			log.Fatalf("bad -oath-grades-table: %v", tableErr)
 		}
 		oathGradeTable = table
 	}
-	oathProgressSet, oathProgressErr := parseOathProgressDungeons(*oathProgressDungeons)
+	oathProgressSet, oathProgressErr := parseOathProgressDungeons(startup.OathProgressDungeons)
 	if oathProgressErr != nil {
 		log.Fatalf("bad -oath-progress-dungeons: %v", oathProgressErr)
 	}
 	switch {
 	case len(oathGradePair) == 2 && (oathGradePair[0] != 0 || oathGradePair[1] != 0):
 		log.Printf("oath grades: overridden to primer=%d oath=%d (diagnostic)", oathGradePair[0], oathGradePair[1])
-	case *oathFromGear:
+	case startup.OathGradesFromGear:
 		log.Printf("oath grades: derived from worn oath/primer gear (%d known items, diagnostic)", oathGradeTable.Len())
 	case omenState:
-		log.Printf("oath grades: hidden boss driven by an omen full settlement on %s", *oathProgressDungeons)
-	case *oathProgressClears > 0:
-		log.Printf("oath grades: hidden-boss pity every %d clear(s) of %s", *oathProgressClears, *oathProgressDungeons)
+		log.Printf("oath grades: hidden boss driven by an omen full settlement on %s", startup.OathProgressDungeons)
+	case startup.OathProgressClears > 0:
+		log.Printf("oath grades: hidden-boss pity every %d clear(s) of %s", startup.OathProgressClears, startup.OathProgressDungeons)
 	default:
 		log.Printf("oath grades: always normal (pity disabled)")
 	}
-	oathInjectSpecs, oathInjectErr := parseOathInject(*oathInject)
+	oathInjectSpecs, oathInjectErr := parseOathInject(startup.OathInject)
 	if oathInjectErr != nil {
 		log.Fatalf("bad -oath-inject: %v", oathInjectErr)
 	}
@@ -348,7 +222,7 @@ func main() {
 	// 征兆队伍状态（noti 2836）的载荷。**在启动期校验**：以前这段在频道会话建立时
 	// （每个频道一次）才解析，写错一个字符就会在玩家"进频道"的那一刻 log.Fatalf，
 	// 现象是"启动游戏进不去频道"，而且加载日志已经刷完、错误行在最底下，极难定位。
-	omenInfoBytes, omenInfoErr := parseOmenInfo(*omenInfo)
+	omenInfoBytes, omenInfoErr := parseOmenInfo(startup.OmenInfo)
 	if omenInfoErr != nil {
 		log.Fatalf("bad -omen-info: %v", omenInfoErr)
 	}
@@ -357,45 +231,45 @@ func main() {
 	}
 	// 掉落调参（与官服的显式差异）。这里是**保留入口**的数值差异：关掉时表保持官方原值。
 	attunementRebalance := loot.Rebalance{}
-	if *attunementRebalanceOn {
-		if *attunementFixedTilt < 0 || *attunementFixedTilt >= 100 {
-			log.Fatalf("bad -attunement-fixed-tilt: %d is outside 0..99 (100 would empty the common tiers)", *attunementFixedTilt)
+	if startup.AttunementRebalance {
+		if startup.AttunementFixedTilt < 0 || startup.AttunementFixedTilt >= 100 {
+			log.Fatalf("bad -attunement-fixed-tilt: %d is outside 0..99 (100 would empty the common tiers)", startup.AttunementFixedTilt)
 		}
 		attunementRebalance = loot.Rebalance{
 			OmenHalveIdle:    true,
-			FixedTiltPercent: uint32(*attunementFixedTilt),
+			FixedTiltPercent: uint32(startup.AttunementFixedTilt),
 		}
 	}
-	if *fullEquipmentFile == "" {
+	if startup.EquipmentFullCatalog == "" {
 		for _, cand := range []string{
 			"configs/equipment-full",
 			"cmd/wireprobe/testdata/odyssey-equipment",
 		} {
 			if _, err := os.Stat(cand + ".index.json"); err == nil {
 				if _, err := os.Stat(cand + ".data"); err == nil {
-					*fullEquipmentFile = cand
+					startup.EquipmentFullCatalog = cand
 					break
 				}
 			}
 		}
 	}
-	if *randomOptionFile == "" && pvfCatalogs.RandomOptions == nil {
+	if startup.RandomOptionCatalog == "" && pvfCatalogs.RandomOptions == nil {
 		if _, err := os.Stat("configs/randomoption.current37.json"); err == nil {
-			*randomOptionFile = "configs/randomoption.current37.json"
+			startup.RandomOptionCatalog = "configs/randomoption.current37.json"
 		}
 	}
-	if *boosterCatalogFile == "" {
+	if startup.BoosterCatalog == "" {
 		for _, cand := range []string{
 			"configs/booster-catalog.json",
 			"server/work/dfo-lan/configs/booster-catalog.json",
 		} {
 			if _, err := os.Stat(cand); err == nil {
-				*boosterCatalogFile = cand
+				startup.BoosterCatalog = cand
 				break
 			}
 		}
 	}
-	if *selectionBoxFile == "" {
+	if startup.SelectionBoxes == "" {
 		candidates := []string{
 			"configs/selection-boxes-release.json",
 			"configs/selection-boxes-candidate.json",
@@ -403,7 +277,7 @@ func main() {
 		}
 		// 网关通常不是从模块根启动的（启动器的工作目录是 server/），所以再按
 		// "与已经显式给出的目录同目录"推导一次——那些路径是绝对路径。
-		for _, base := range []string{*boosterCatalogFile, *itemIndexFile} {
+		for _, base := range []string{startup.BoosterCatalog, startup.ItemIndex} {
 			if base == "" {
 				continue
 			}
@@ -414,18 +288,18 @@ func main() {
 		}
 		for _, cand := range candidates {
 			if _, err := os.Stat(cand); err == nil {
-				*selectionBoxFile = cand
+				startup.SelectionBoxes = cand
 				break
 			}
 		}
 	}
-	if *itemShopFile == "" && pvfCatalogs.ItemShops == nil {
+	if startup.ItemShop == "" && pvfCatalogs.ItemShops == nil {
 		candidates := []string{
 			"configs/itemshop-release.json",
 			"configs/itemshop-candidate.json",
 			"server/work/dfo-lan/configs/itemshop-candidate.json",
 		}
-		for _, base := range []string{*boosterCatalogFile, *itemIndexFile} {
+		for _, base := range []string{startup.BoosterCatalog, startup.ItemIndex} {
 			if base == "" {
 				continue
 			}
@@ -436,38 +310,38 @@ func main() {
 		}
 		for _, cand := range candidates {
 			if _, err := os.Stat(cand); err == nil {
-				*itemShopFile = cand
+				startup.ItemShop = cand
 				break
 			}
 		}
 	}
-	if *itemIndexFile == "" {
+	if startup.ItemIndex == "" {
 		for _, cand := range []string{
 			"configs/items.index.json",
 			"server/work/dfo-lan/configs/items.index.json",
 		} {
 			if _, err := os.Stat(cand); err == nil {
-				*itemIndexFile = cand
+				startup.ItemIndex = cand
 				break
 			}
 		}
 	}
-	if *boosterCatalogFile == "" && *itemIndexFile != "" {
-		cand := filepath.Join(filepath.Dir(*itemIndexFile), "booster-catalog.json")
+	if startup.BoosterCatalog == "" && startup.ItemIndex != "" {
+		cand := filepath.Join(filepath.Dir(startup.ItemIndex), "booster-catalog.json")
 		if _, err := os.Stat(cand); err == nil {
-			*boosterCatalogFile = cand
+			startup.BoosterCatalog = cand
 		}
 	}
 	skillRelease := os.Getenv("DFO_SKILL_RELEASE") == "1"
 	if candidateSkills := os.Getenv("DFO_SKILL_CATALOG"); candidateSkills != "" {
-		*learningFile = candidateSkills
+		startup.SkillCatalog = candidateSkills
 	}
 	// NOTI2827 restores locked skills from the client's own character option
 	// block. The built-in block is the same version as this client, so the
 	// template file and the offset override are escapes for a different build.
 	var unifiedCharacTemplate []byte
-	if *unifiedCharacFile != "" {
-		data, err := os.ReadFile(*unifiedCharacFile)
+	if startup.UnifiedCharacTemplate != "" {
+		data, err := os.ReadFile(startup.UnifiedCharacTemplate)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -475,14 +349,14 @@ func main() {
 			log.Fatal("empty character option template")
 		}
 		unifiedCharacTemplate = data
-		log.Printf("NOTI2827 character option block overridden by %s (%d bytes)", *unifiedCharacFile, len(data))
+		log.Printf("NOTI2827 character option block overridden by %s (%d bytes)", startup.UnifiedCharacTemplate, len(data))
 	}
-	if *skillLockOffset >= 0 {
-		log.Printf("NOTI2827 skill lock offset overridden to %d", *skillLockOffset)
+	if startup.SkillLockOffset >= 0 {
+		log.Printf("NOTI2827 skill lock offset overridden to %d", startup.SkillLockOffset)
 	}
 	var accountOptionsPayload []byte
-	if *accountOptionsFile != "" {
-		data, err := os.ReadFile(*accountOptionsFile)
+	if startup.AccountOptions != "" {
+		data, err := os.ReadFile(startup.AccountOptions)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -495,13 +369,13 @@ func main() {
 			log.Fatal(err)
 		}
 	}
-	gameHost, _, gameListenError := net.SplitHostPort(*gameListen)
+	gameHost, _, gameListenError := net.SplitHostPort(startup.GameListen)
 	// A wildcard bind is what makes the gateway reachable from other machines;
 	// an explicit host still has to be a numeric address rather than a name.
 	if gameListenError != nil || (gameHost != "" && net.ParseIP(gameHost) == nil) {
 		log.Fatal("game-listen must be host:port with a numeric IP host")
 	}
-	if *entryBasicProbe && (*selectProbeConfig == "" || *characterStorage == "") {
+	if startup.EntryBasicProbe && (startup.SelectProbeConfig == "" || startup.CharacterStorage == "") {
 		log.Fatal("entry basic probe requires persisted characters and SELECT probe configuration")
 	}
 	var townCatalog catalog.TownArea
@@ -510,16 +384,16 @@ func main() {
 		Y     uint16  `json:"y"`
 		Flags [3]byte `json:"flags"`
 	}
-	if *townProbeFile != "" {
-		if !*entryBasicProbe || (*townCatalogFile == "" && pvfCatalogs.Town == nil) {
+	if startup.TownEntryProbe != "" {
+		if !startup.EntryBasicProbe || (startup.TownCatalog == "" && pvfCatalogs.Town == nil) {
 			log.Fatal("town probe requires basic actor and town catalog")
 		}
 		var e error
-		townCatalog, e = pvfCatalogs.LoadTown(*townCatalogFile)
+		townCatalog, e = pvfCatalogs.LoadTown(startup.TownCatalog)
 		if e != nil {
 			log.Fatal(e)
 		}
-		b, e := os.ReadFile(*townProbeFile)
+		b, e := os.ReadFile(startup.TownEntryProbe)
 		if e != nil {
 			log.Fatal(e)
 		}
@@ -531,8 +405,8 @@ func main() {
 		}
 	}
 	var selectProbe *protocol.SelectProbeState
-	if *selectProbeConfig != "" {
-		b, e := os.ReadFile(*selectProbeConfig)
+	if startup.SelectProbeConfig != "" {
+		b, e := os.ReadFile(startup.SelectProbeConfig)
 		if e != nil {
 			log.Fatal(e)
 		}
@@ -569,10 +443,10 @@ func main() {
 	// facts, driving CMD507 action 169 (damage font) registration. Nil when no
 	// item index is configured, which disables the skin flow.
 	var skinCatalog map[uint32]catalog.SkinStorageEntry
-	if *characterStorage != "" {
+	if startup.CharacterStorage != "" {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		cfg, e := storage.LoadConfig(*characterStorage)
+		cfg, e := storage.LoadConfig(startup.CharacterStorage)
 		if e != nil {
 			log.Fatal(e)
 		}
@@ -655,11 +529,11 @@ func main() {
 		if e = s.MigrateOmenState(ctx); e != nil {
 			log.Fatal(e)
 		}
-		data, e := pvfCatalogs.LoadCharacters(*characterCatalog)
+		data, e := pvfCatalogs.LoadCharacters(startup.CharacterCatalog)
 		if e != nil {
 			log.Fatal(e)
 		}
-		b, e := os.ReadFile(*characterRules)
+		b, e := os.ReadFile(startup.CharacterRules)
 		if e != nil {
 			log.Fatal(e)
 		}
@@ -682,10 +556,10 @@ func main() {
 		// 「剩余期限已过」并拒绝使用（错误码 31730）。
 		if os.Getenv("DFO_MAX_ITEM_PERIOD") != "0" {
 			protocol.ConfigureStoredPeriodLifting(true)
-			if *itemIndexFile == "" && pvfCatalogs.Periods == nil && !pvfCatalogs.Prepared("periods") {
+			if startup.ItemIndex == "" && pvfCatalogs.Periods == nil && !pvfCatalogs.Prepared("periods") {
 				log.Printf("maximum item period: no item index (-item-index), lifting stored periods only")
 			} else {
-				periodFile := filepath.Join(filepath.Dir(*itemIndexFile), "item-period-tags.json")
+				periodFile := filepath.Join(filepath.Dir(startup.ItemIndex), "item-period-tags.json")
 				templates, periodErr := pvfCatalogs.LoadItemPeriods(periodFile, data.Source.Checksum)
 				if periodErr != nil {
 					if pvfCatalogs.Selected("periods") || pvfCatalogs.Periods != nil {
@@ -702,8 +576,8 @@ func main() {
 		}
 		// Skin-cargo registration (CMD507 action 169, `[add skin storage]`) reads
 		// the skin key straight from PVF and persists the unlock per account.
-		if *itemIndexFile != "" || pvfCatalogs.Skins != nil || pvfCatalogs.Prepared("skins") {
-			skinFile := filepath.Join(filepath.Dir(*itemIndexFile), "skin-storage-items.json")
+		if startup.ItemIndex != "" || pvfCatalogs.Skins != nil || pvfCatalogs.Prepared("skins") {
+			skinFile := filepath.Join(filepath.Dir(startup.ItemIndex), "skin-storage-items.json")
 			entries, skinErr := pvfCatalogs.LoadSkinStorage(skinFile, data.Source.Checksum)
 			if skinErr != nil {
 				if pvfCatalogs.Selected("skins") {
@@ -729,11 +603,11 @@ func main() {
 		if pvfCatalogs.CashShop != nil {
 			var database string
 			if e = s.DB.QueryRow(ctx, "SELECT current_database()").Scan(&database); e == nil {
-				if database != "dfo_swordmaster_pilot_20260916" && !*shopRelease {
+				if database != "dfo_swordmaster_pilot_20260916" && !startup.ShopRelease {
 					log.Printf("shop purchase pilot running on database: %s", database)
 				}
 			}
-			shopPilot, e = pvfCatalogs.LoadCashShop(data.Source.Checksum, *shopRelease)
+			shopPilot, e = pvfCatalogs.LoadCashShop(data.Source.Checksum, startup.ShopRelease)
 			if e != nil {
 				log.Fatal(e)
 			}
@@ -743,8 +617,8 @@ func main() {
 			log.Printf("PVF shop enabled: %d ordinary products", shopPilot.EnabledCount())
 			log.Printf("商城发布模式：%t", shopPilot.Config.Release)
 		}
-		if *learningFile != "" || pvfCatalogs.Learning != nil {
-			characters.Learning, e = pvfCatalogs.LoadLearning(*learningFile, data.Source.Checksum)
+		if startup.SkillCatalog != "" || pvfCatalogs.Learning != nil {
+			characters.Learning, e = pvfCatalogs.LoadLearning(startup.SkillCatalog, data.Source.Checksum)
 			if e != nil {
 				log.Fatal(e)
 			}
@@ -763,15 +637,15 @@ func main() {
 			log.Fatal(e)
 		}
 	}
-	if *entryAdditionProbe && !*entryBasicProbe {
+	if startup.EntryAdditionProbe && !startup.EntryBasicProbe {
 		log.Fatal("addition requires a basic actor")
 	}
-	if *fatigueRulesFile != "" {
+	if startup.FatigueRules != "" {
 		if characters == nil || selectProbe == nil {
 			log.Fatal("fatigue requires persisted characters and SELECT")
 		}
 		var e error
-		fatiguePath := *fatigueRulesFile
+		fatiguePath := startup.FatigueRules
 		if path := os.Getenv("DFO_FATIGUE_RULES"); path != "" {
 			fatiguePath = path
 		}
@@ -780,8 +654,8 @@ func main() {
 			log.Fatal(e)
 		}
 		// 疲劳消耗总开关：进本与房间两处一起归零（业主 2026-10-01 按玩家反馈要求）。
-		fatigueService.Free = *fatigueFree
-		if *fatigueFree {
+		fatigueService.Free = startup.FatigueFree
+		if startup.FatigueFree {
 			log.Printf("fatigue consumption OFF — 进本消耗与房间消耗都按 0 记（-fatigue-free / DFO_FATIGUE_FREE）")
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -791,15 +665,15 @@ func main() {
 			log.Fatal(e)
 		}
 	}
-	if *worldCatalogFile != "" || pvfCatalogs.World != nil {
-		if characters == nil || *townProbeFile == "" {
+	if startup.WorldCatalog != "" || pvfCatalogs.World != nil {
+		if characters == nil || startup.TownEntryProbe == "" {
 			log.Fatal("world requires persisted characters and a spawn policy")
 		}
-		data, e := pvfCatalogs.LoadWorld(*worldCatalogFile)
+		data, e := pvfCatalogs.LoadWorld(startup.WorldCatalog)
 		if e != nil {
 			log.Fatal(e)
 		}
-		b, e := os.ReadFile(*worldRulesFile)
+		b, e := os.ReadFile(startup.WorldRules)
 		if e != nil {
 			log.Fatal(e)
 		}
@@ -825,7 +699,7 @@ func main() {
 		data := *pvfCatalogs.Dungeons
 		trainingRoomPath := os.Getenv("DFO_TRAINING_ROOM_CATALOG")
 		if trainingRoomPath == "" {
-			trainingRoomPath = filepath.Join(filepath.Dir(*characterCatalog), "dungeons.training-room.json")
+			trainingRoomPath = filepath.Join(filepath.Dir(startup.CharacterCatalog), "dungeons.training-room.json")
 		}
 		trainingRooms, e := pvfCatalogs.LoadTrainingDungeons(trainingRoomPath)
 		if e != nil {
@@ -834,7 +708,7 @@ func main() {
 		if e = catalog.MergeDungeonCatalog(&data, trainingRooms); e != nil {
 			log.Fatal(e)
 		}
-		overlayDirectory := filepath.Dir(*characterCatalog)
+		overlayDirectory := filepath.Dir(startup.CharacterCatalog)
 		path := filepath.Join(overlayDirectory, "dungeons.terminal-scenes.json")
 		if e = pvfCatalogs.AttachTerminalScenes(&data, path); e != nil {
 			log.Fatal(e)
@@ -889,15 +763,15 @@ func main() {
 			return 0
 		}
 	}
-	if *progressionCatalogFile != "" || pvfCatalogs.Progression != nil {
+	if startup.ProgressionCatalog != "" || pvfCatalogs.Progression != nil {
 		if characters == nil || dungeonCatalog == nil {
 			log.Fatal("progression requires source characters and dungeon sessions")
 		}
-		data, e := pvfCatalogs.LoadProgression(*progressionCatalogFile)
+		data, e := pvfCatalogs.LoadProgression(startup.ProgressionCatalog)
 		if e != nil {
 			log.Fatal(e)
 		}
-		rules, e := character.LoadGrowthRules(*progressionRulesFile)
+		rules, e := character.LoadGrowthRules(startup.ProgressionRules)
 		if e != nil {
 			log.Fatal(e)
 		}
@@ -938,18 +812,18 @@ func main() {
 	}
 	var tutorialRoutes *catalog.TutorialCatalog
 	var tutorialDungeons *catalog.DungeonCatalog
-	if *tutorialRoutesFile != "" {
+	if startup.TutorialRoutes != "" {
 		if dungeonCatalog == nil || characters == nil {
 			log.Fatal("starting routes require source dungeons and persisted characters")
 		}
-		if *tutorialDungeonsFile == "" && pvfCatalogs.TutorialDungeons == nil {
+		if startup.TutorialDungeons == "" && pvfCatalogs.TutorialDungeons == nil {
 			log.Fatal("starting routes require their own dungeon catalog")
 		}
-		routes, e := pvfCatalogs.LoadTutorialRoutes(*tutorialRoutesFile, characters.Catalog.Source.Checksum)
+		routes, e := pvfCatalogs.LoadTutorialRoutes(startup.TutorialRoutes, characters.Catalog.Source.Checksum)
 		if e != nil {
 			log.Fatal(e)
 		}
-		data, e := pvfCatalogs.LoadTutorialDungeons(*tutorialDungeonsFile)
+		data, e := pvfCatalogs.LoadTutorialDungeons(startup.TutorialDungeons)
 		if e != nil {
 			log.Fatal(e)
 		}
@@ -964,11 +838,11 @@ func main() {
 			log.Fatal(e)
 		}
 	}
-	if *lootCatalogFile != "" {
+	if startup.LootCatalog != "" {
 		if progressionService == nil {
 			log.Fatal("loot requires progression and owned dungeon sessions")
 		}
-		lootPath := *lootCatalogFile
+		lootPath := startup.LootCatalog
 		if path := os.Getenv("DFO_LOOT_CATALOG"); path != "" {
 			lootPath = path
 		}
@@ -990,11 +864,11 @@ func main() {
 		if e != nil {
 			log.Fatal(e)
 		}
-		r, e := loot.LoadRules(*lootRulesFile)
+		r, e := loot.LoadRules(startup.LootRules)
 		if e != nil {
 			log.Fatal(e)
 		}
-		bag, e := inventory.LoadBagRules(*bagRulesFile, pvfCatalogs.SourceChecksum)
+		bag, e := inventory.LoadBagRules(startup.BagRules, pvfCatalogs.SourceChecksum)
 		if e != nil {
 			log.Fatal(e)
 		}
@@ -1005,17 +879,17 @@ func main() {
 		if c.Source.Checksum != characters.Catalog.Source.Checksum || bag.Source != c.Source.Checksum {
 			log.Fatal("loot source mismatch")
 		}
-		if *equipmentCatalogFile == "" {
+		if startup.EquipmentCatalog == "" {
 			log.Fatal("loot requires -equipment-catalog or DFO_EQUIPMENT_CATALOG: without it every equipment award is silently dropped")
 		}
-		gear, e := pvfCatalogs.LoadEquipmentSelection(*equipmentCatalogFile, c.Source.Checksum)
+		gear, e := pvfCatalogs.LoadEquipmentSelection(startup.EquipmentCatalog, c.Source.Checksum)
 		if e != nil {
 			log.Fatal(e)
 		}
 		log.Printf("loaded equipment catalog: %d rows, %d droppable, from %s",
-			len(gear.Rows), len(gear.DropPool()), *equipmentCatalogFile)
+			len(gear.Rows), len(gear.DropPool()), startup.EquipmentCatalog)
 		dropCatalog := c
-		itemIndexPath := *itemIndexFile
+		itemIndexPath := startup.ItemIndex
 		if itemIndexPath == "" {
 			cand := filepath.Join(filepath.Dir(lootPath), "items.index.json")
 			if _, err := os.Stat(cand); err == nil {
@@ -1034,8 +908,8 @@ func main() {
 				log.Printf("supplemented stackable catalog from %s (total items: %d)", itemIndexPath, len(c.Items))
 			}
 		}
-		if *equipmentJournalRulesFile != "" || pvfCatalogs.Journal != nil {
-			jr, e := pvfCatalogs.LoadEquipmentJournal(*equipmentJournalRulesFile, c.Source.Checksum)
+		if startup.EquipmentJournalRules != "" || pvfCatalogs.Journal != nil {
+			jr, e := pvfCatalogs.LoadEquipmentJournal(startup.EquipmentJournalRules, c.Source.Checksum)
 			if e != nil {
 				log.Fatal(e)
 			}
@@ -1043,8 +917,8 @@ func main() {
 			log.Printf("loaded equipment journal rules: max=%d limits=%d categories=%d groups=%d/%d",
 				jr.Maximum, len(jr.MaximumByType), len(jr.Categories), len(jr.WeaponGroups), len(jr.PeculiarGroups))
 		}
-		if *equipmentCreateCostFile != "" || pvfCatalogs.CreateCost != nil {
-			cc, e := pvfCatalogs.LoadEquipmentCreateCost(*equipmentCreateCostFile, c.Source.Checksum)
+		if startup.EquipmentCreateCost != "" || pvfCatalogs.CreateCost != nil {
+			cc, e := pvfCatalogs.LoadEquipmentCreateCost(startup.EquipmentCreateCost, c.Source.Checksum)
 			if e != nil {
 				log.Fatal(e)
 			}
@@ -1059,7 +933,7 @@ func main() {
 		lootService = &loot.Service{Catalog: c, DropCatalog: dropCatalog, Rules: r, BagRules: bag, Tables: tables, Equipment: gear}
 		itemService = &inventory.ItemService{Model: r.Model, Catalog: c, BagRules: bag, Equipment: gear, AvatarDisjoint: pvfCatalogs.AvatarDisjoint, EmblemCompound: pvfCatalogs.EmblemCompound, AvatarSockets: pvfCatalogs.AvatarSockets, EmblemInlay: pvfCatalogs.EmblemInlay, Journal: journalRules, CreateCost: equipmentCreateCost}
 		shopService = &workflow.ShopService{Store: gameStore, ShopService: inventory.ShopService{Catalog: c, EventModel: r.Model, BagRules: bag, ItemMaterials: itemMaterials}}
-		minePath := *bleedingMineRewardsFile
+		minePath := startup.BleedingMineRewards
 		if minePath == "" {
 			minePath = filepath.Join(filepath.Dir(lootPath), "bleeding-mine-rewards.json")
 		}
@@ -1072,14 +946,14 @@ func main() {
 				log.Fatal("赤红铁矿奖励表与当前角色配置版本不一致")
 			}
 			lootService.BleedingMine = mine
-		} else if *bleedingMineRewardsFile != "" {
+		} else if startup.BleedingMineRewards != "" {
 			log.Fatal(err)
 		}
-		pricesPath := *shopPricesFile
+		pricesPath := startup.ShopPrices
 		if pricesPath == "" {
 			pricesPath = filepath.Join(filepath.Dir(lootPath), "shop-prices.json")
 		}
-		if _, err := os.Stat(pricesPath); err == nil || *shopPricesFile != "" || pvfCatalogs.Prices != nil {
+		if _, err := os.Stat(pricesPath); err == nil || startup.ShopPrices != "" || pvfCatalogs.Prices != nil {
 			shopService.Prices, e = pvfCatalogs.LoadShopPrices(pricesPath, c.Source.Checksum)
 			if e != nil {
 				log.Fatal(e)
@@ -1094,7 +968,7 @@ func main() {
 				log.Fatal(e)
 			}
 		}
-		cards, e := loot.LoadCardRules(*cardRulesFile)
+		cards, e := loot.LoadCardRules(startup.CardRules)
 		if e != nil {
 			log.Fatal(e)
 		}
@@ -1103,9 +977,9 @@ func main() {
 		// just cannot hand out a prize. The launcher passes every config path
 		// absolutely, so an unset -boxes resolves beside the bag rules rather
 		// than against the working directory, which is not the project directory.
-		boxesPath := *boxesFile
+		boxesPath := startup.Boxes
 		if boxesPath == "" {
-			boxesPath = filepath.Join(filepath.Dir(*bagRulesFile), "boxes.json")
+			boxesPath = filepath.Join(filepath.Dir(startup.BagRules), "boxes.json")
 		}
 		boxesAvailable := pvfCatalogs.Boxes != nil
 		if !boxesAvailable {
@@ -1119,18 +993,18 @@ func main() {
 			}
 			itemService.Boxes = boxes
 			log.Printf("PVF boxes: %d tables, %d prize templates", boxes.TableCount(), boxes.RewardCount())
-		} else if *boxesFile != "" {
+		} else if startup.Boxes != "" {
 			log.Fatal("boxes file missing: " + boxesPath)
 		} else {
 			log.Printf("boxes: %s absent, open-box prizes disabled", boxesPath)
 		}
 	}
 	responses := map[uint16][]byte{}
-	if *questCatalogFile != "" || pvfCatalogs.Quests != nil {
+	if startup.QuestCatalog != "" || pvfCatalogs.Quests != nil {
 		if worldService == nil {
 			log.Fatal("quests require world character sessions")
 		}
-		data, e := pvfCatalogs.LoadQuests(*questCatalogFile)
+		data, e := pvfCatalogs.LoadQuests(startup.QuestCatalog)
 		if e != nil {
 			log.Fatal(e)
 		}
@@ -1148,17 +1022,17 @@ func main() {
 			log.Printf("town arrival scene excluded: %s", issue)
 		}
 		log.Printf("PVF town arrival scene whitelist: %d entries", len(townArrivalScenes))
-		if *equipmentRewardFile != "" {
+		if startup.QuestEquipmentCatalog != "" {
 			if lootService == nil {
 				log.Fatal("quest inventory requires the shared bag catalog")
 			}
-			equipment, e := pvfCatalogs.LoadEquipmentSelection(*equipmentRewardFile, data.Source.Checksum)
+			equipment, e := pvfCatalogs.LoadEquipmentSelection(startup.QuestEquipmentCatalog, data.Source.Checksum)
 			if e != nil {
 				log.Fatal(e)
 			}
 			questService.Inventory = &inventory.Awarder{Catalog: lootService.Catalog, Rules: lootService.BagRules, Equipment: equipment}
-			if *wearRulesFile != "" {
-				rulesPath := *wearRulesFile
+			if startup.EquipmentWearRules != "" {
+				rulesPath := startup.EquipmentWearRules
 				if override := os.Getenv("DFO_EQUIPMENT_WEAR_RULES"); override != "" {
 					rulesPath = override
 				}
@@ -1172,8 +1046,8 @@ func main() {
 				// 界面「变换前」槽，请求只带部位码），所以把同一份 WearRules 也交给 inventory 物品服务。
 				itemService.WearRules = rules
 
-				if *knightShieldFile != "" {
-					shieldPath := knightShieldCatalogPath(*knightShieldFile, rulesPath)
+				if startup.KnightShieldCatalog != "" {
+					shieldPath := knightShieldCatalogPath(startup.KnightShieldCatalog, rulesPath)
 					shields, shieldErr := pvfCatalogs.LoadShields(shieldPath, data.Source.Checksum)
 					if shieldErr != nil && !errors.Is(shieldErr, os.ErrNotExist) {
 						log.Fatal(shieldErr)
@@ -1189,8 +1063,8 @@ func main() {
 				// 创建期的初始装备投影共用同一份装备目录与部位槽映射，避免另立编号。
 				characters.Equipment = equipment
 				characters.WearRules = rules
-				if *fullEquipmentFile != "" || pvfCatalogs.Equipment != nil {
-					full, err := pvfCatalogs.OpenFullEquipment(*fullEquipmentFile, data.Source.Checksum)
+				if startup.EquipmentFullCatalog != "" || pvfCatalogs.Equipment != nil {
+					full, err := pvfCatalogs.OpenFullEquipment(startup.EquipmentFullCatalog, data.Source.Checksum)
 					if err != nil {
 						log.Fatal(err)
 					}
@@ -1237,8 +1111,8 @@ func main() {
 			// option tables and reads each item's [random option] flag from
 			// the full equipment catalog; without the full definitions the
 			// sealed state cannot be proven, so the command stays unanswered.
-			if equipment.Full != nil && (*randomOptionFile != "" || pvfCatalogs.RandomOptions != nil) {
-				options, err := pvfCatalogs.LoadRandomOptions(*randomOptionFile, data.Source.Checksum)
+			if equipment.Full != nil && (startup.RandomOptionCatalog != "" || pvfCatalogs.RandomOptions != nil) {
+				options, err := pvfCatalogs.LoadRandomOptions(startup.RandomOptionCatalog, data.Source.Checksum)
 				if err != nil {
 					log.Fatal(err)
 				}
@@ -1276,11 +1150,11 @@ func main() {
 		log.Printf("save identity normalized: %d stored row(s) -> contract %s (inner archive %s)",
 			n, identity, characters.Catalog.Source.Checksum)
 	}
-	if *vaultRulesFile != "" {
+	if startup.VaultRules != "" {
 		if characters == nil {
 			log.Fatal("vault initialization requires characters")
 		}
-		rules, e := pvfCatalogs.LoadVaultRules(*vaultRulesFile)
+		rules, e := pvfCatalogs.LoadVaultRules(startup.VaultRules)
 		if e != nil {
 			log.Fatal(e)
 		}
@@ -1288,7 +1162,7 @@ func main() {
 		if wearService != nil {
 			vaultService.Equipment = wearService.Catalog
 		}
-		if *vaultPurchase || *vaultRelease || *shopRelease {
+		if startup.VaultPurchaseCandidate || startup.VaultPurchaseRelease || startup.ShopRelease {
 			for n := uint16(24); n <= 264; n += 16 {
 				vaultService.Rules.VerifiedSlots = append(vaultService.Rules.VerifiedSlots, n)
 			}
@@ -1358,9 +1232,9 @@ func main() {
 		}
 	}
 	var boosterCatalog *BoosterCatalog
-	if *boosterCatalogFile != "" || *itemIndexFile != "" || pvfCatalogs.Items != nil {
+	if startup.BoosterCatalog != "" || startup.ItemIndex != "" || pvfCatalogs.Items != nil {
 		var err error
-		boosterCatalog, err = pvfCatalogs.LoadBooster(*boosterCatalogFile, *itemIndexFile)
+		boosterCatalog, err = pvfCatalogs.LoadBooster(startup.BoosterCatalog, startup.ItemIndex)
 		if err != nil {
 			log.Printf("warning: load booster catalog: %v", err)
 		} else {
@@ -1388,8 +1262,8 @@ func main() {
 		})
 	}
 	var lotteryPools *lotteryItemCatalog
-	if boosterCatalog != nil && (*itemIndexFile != "" || pvfCatalogs.LotteryTables != nil) {
-		lotteryPath := filepath.Join(filepath.Dir(*itemIndexFile), "lottery-item-pools.json")
+	if boosterCatalog != nil && (startup.ItemIndex != "" || pvfCatalogs.LotteryTables != nil) {
+		lotteryPath := filepath.Join(filepath.Dir(startup.ItemIndex), "lottery-item-pools.json")
 		var err error
 		lotteryPools, err = loadRuntimeLotteryItems(pvfCatalogs, lotteryPath, boosterCatalog.Items)
 		if err != nil {
@@ -1397,7 +1271,7 @@ func main() {
 		} else {
 			log.Printf("loaded lottery item catalog (%d verified pools)", len(lotteryPools.Pools))
 			if wearService != nil && wearService.Catalog != nil {
-				equipmentPath := filepath.Join(filepath.Dir(*itemIndexFile), "lottery-equipment-pools.json")
+				equipmentPath := filepath.Join(filepath.Dir(startup.ItemIndex), "lottery-equipment-pools.json")
 				if count, loadErr := loadRuntimeLotteryEquipment(pvfCatalogs, equipmentPath, boosterCatalog.Items, lotteryPools); loadErr != nil {
 					log.Printf("warning: equipment lottery pools disabled: %v", loadErr)
 				} else {
@@ -1411,13 +1285,13 @@ func main() {
 	// item box falls through to the random-pool branch and the client only ever
 	// sees its generic "target inventory is full" notice.
 	var selectionBoxes *catalog.SelectionBoxes
-	if *selectionBoxFile != "" || pvfCatalogs.SelectionBoxes != nil {
+	if startup.SelectionBoxes != "" || pvfCatalogs.SelectionBoxes != nil {
 		var err error
-		selectionBoxes, err = pvfCatalogs.LoadSelectionBoxes(*selectionBoxFile)
+		selectionBoxes, err = pvfCatalogs.LoadSelectionBoxes(startup.SelectionBoxes)
 		if err != nil {
-			log.Printf("warning: load selection boxes (%s): %v", *selectionBoxFile, err)
+			log.Printf("warning: load selection boxes (%s): %v", startup.SelectionBoxes, err)
 		} else {
-			log.Printf("loaded selection boxes (%d boxes, %d mislabeled fixed) from %s", len(selectionBoxes.Boxes), len(selectionBoxes.Fixed), *selectionBoxFile)
+			log.Printf("loaded selection boxes (%d boxes, %d mislabeled fixed) from %s", len(selectionBoxes.Boxes), len(selectionBoxes.Fixed), startup.SelectionBoxes)
 		}
 	}
 	if selectionBoxes == nil {
@@ -1428,16 +1302,16 @@ func main() {
 	// `legion_catalog_missing` 事件，而不是假装校验通过。
 	var apocalypseCatalog *catalog.ApocalypseCatalog
 	var apocalypseClock *legion.ApocalypseClock
-	if *apocalypseCatalogFile != "" || pvfCatalogs.Apocalypse != nil {
-		loaded, err := pvfCatalogs.LoadApocalypse(*apocalypseCatalogFile)
+	if startup.ApocalypseCatalog != "" || pvfCatalogs.Apocalypse != nil {
+		loaded, err := pvfCatalogs.LoadApocalypse(startup.ApocalypseCatalog)
 		if err != nil {
-			log.Printf("warning: load apocalypse catalog (%s): %v", *apocalypseCatalogFile, err)
+			log.Printf("warning: load apocalypse catalog (%s): %v", startup.ApocalypseCatalog, err)
 		} else if clock, err := legion.NewApocalypseClock(loaded); err != nil {
-			log.Printf("warning: apocalypse clock (%s): %v", *apocalypseCatalogFile, err)
+			log.Printf("warning: apocalypse clock (%s): %v", startup.ApocalypseCatalog, err)
 		} else {
 			apocalypseCatalog, apocalypseClock = loaded, clock
 			log.Printf("loaded apocalypse table (%d records, %d operations, %d phases, %gs total) from %s",
-				loaded.RecordCount, len(loaded.Operations), clock.Len(), clock.TotalSeconds(), *apocalypseCatalogFile)
+				loaded.RecordCount, len(loaded.Operations), clock.Len(), clock.TotalSeconds(), startup.ApocalypseCatalog)
 		}
 	}
 	if apocalypseCatalog == nil {
@@ -1446,7 +1320,7 @@ func main() {
 	// 物品商店表：源用 [need material] 定价的商品（奥德赛商店的盒子要 100 个银币）
 	// 必须按材料扣，否则一律按写死的金币单价白送。
 	var itemShops *catalog.ItemShops
-	if *itemShopFile != "" || pvfCatalogs.ItemShops != nil {
+	if startup.ItemShop != "" || pvfCatalogs.ItemShops != nil {
 		var err error
 		shopSource := ""
 		if pvfCatalogs.ItemShops != nil {
@@ -1455,14 +1329,14 @@ func main() {
 		if lootService != nil {
 			shopSource = lootService.Catalog.Source.Checksum
 		}
-		itemShops, err = pvfCatalogs.LoadItemShops(*itemShopFile, shopSource)
+		itemShops, err = pvfCatalogs.LoadItemShops(startup.ItemShop, shopSource)
 		if err != nil {
 			if pvfCatalogs.ItemShops != nil {
 				log.Fatal(err)
 			}
-			log.Printf("warning: load item shops (%s): %v", *itemShopFile, err)
+			log.Printf("warning: load item shops (%s): %v", startup.ItemShop, err)
 		} else {
-			log.Printf("loaded item shops (%d shops) from %s", len(itemShops.Shops), *itemShopFile)
+			log.Printf("loaded item shops (%d shops) from %s", len(itemShops.Shops), startup.ItemShop)
 		}
 	}
 	if itemShops == nil {
@@ -1493,8 +1367,8 @@ func main() {
 	// rewardboostinfo CTP。奖励物全是 [booster] 礼盒，落袋走背包对未知 stackable
 	// 类型的既有兜底槽位，开盒走既有的 booster 目录 —— 所以这里只校验、不覆盖
 	// 任何目录条目。
-	if *attunementRewardsFile != "" || pvfCatalogs.Attunement != nil {
-		attunement, e := pvfCatalogs.LoadAttunement(*attunementRewardsFile)
+	if startup.AttunementRewards != "" || pvfCatalogs.Attunement != nil {
+		attunement, e := pvfCatalogs.LoadAttunement(startup.AttunementRewards)
 		if e != nil {
 			log.Fatal(e)
 		}
@@ -1546,7 +1420,7 @@ func main() {
 		// 只有非直读的 JSON 模式才会走到文件。日志按真实来源打，别让人误以为在读 JSON。
 		source := "PVF direct (etc/rewardboostinfo/**.ctp)"
 		if pvfCatalogs.Attunement == nil {
-			source = *attunementRewardsFile
+			source = startup.AttunementRewards
 		}
 		log.Printf("loaded attunement rewards (%d dungeons %v, %d reward templates) from %s",
 			len(attunement.Dungeons()), attunement.Dungeons(), len(attunement.Templates()), source)
@@ -1574,8 +1448,8 @@ func main() {
 	} else {
 		log.Printf("warning: no attunement reward table; boundary-of-attunement clears pay no exclusive reward")
 	}
-	if lootService != nil && boosterCatalog != nil && (*itemIndexFile != "" || pvfCatalogs.BlackPurgatory != nil) {
-		path := filepath.Join(filepath.Dir(*itemIndexFile), "black-purgatory-rewards.json")
+	if lootService != nil && boosterCatalog != nil && (startup.ItemIndex != "" || pvfCatalogs.BlackPurgatory != nil) {
+		path := filepath.Join(filepath.Dir(startup.ItemIndex), "black-purgatory-rewards.json")
 		rewards, err := pvfCatalogs.LoadBlackPurgatory(path, boosterBoxSource{catalog: boosterCatalog}, func(id uint32) (catalog.LootItem, bool) {
 			item, ok := boosterCatalog.Items[id]
 			return catalog.LootItem{ID: id, Kind: item.Kind, StackableType: item.StackableType, StackLimit: item.StackLimit, Script: catalog.ScriptRecord{Path: item.Path}}, ok
@@ -1596,8 +1470,8 @@ func main() {
 			log.Printf("已加载黑鸦小队翻牌及领主装备奖励；装备概率采用配置中的本服暂定规则")
 		}
 	}
-	if *responseFile != "" {
-		b, err := os.ReadFile(*responseFile)
+	if startup.Responses != "" {
+		b, err := os.ReadFile(startup.Responses)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -1616,28 +1490,28 @@ func main() {
 			responses[id] = b
 		}
 	}
-	if err := os.MkdirAll(*dir, 0700); err != nil {
+	if err := os.MkdirAll(startup.Output, 0700); err != nil {
 		log.Fatal(err)
 	}
 	var raw []byte
 	var err error
-	if *fixture != "" {
-		raw, err = os.ReadFile(*fixture)
+	if startup.Fixture != "" {
+		raw, err = os.ReadFile(startup.Fixture)
 		if err != nil {
-			log.Fatalf("read fixture %q: %v", *fixture, err)
+			log.Fatalf("read fixture %q: %v", startup.Fixture, err)
 		}
 		if err = wire.ValidateServer(raw); err != nil {
-			log.Fatalf("validate fixture %q: %v", *fixture, err)
+			log.Fatalf("validate fixture %q: %v", startup.Fixture, err)
 		}
 	}
 	hub := newLanHub()
 	var moonConfig *moonSoloConfig
-	if *moonConfigFile != "" {
-		moonConfig, err = loadMoonSoloConfig(*moonConfigFile, lootService)
+	if startup.MoonSoloConfig != "" {
+		moonConfig, err = loadMoonSoloConfig(startup.MoonSoloConfig, lootService)
 		if err != nil {
 			log.Fatal(err)
 		}
-		if worldService == nil || characters == nil || dungeonCatalog == nil || *channelRefreshFile == "" || !*entryBasicProbe || !*entryAdditionProbe {
+		if worldService == nil || characters == nil || dungeonCatalog == nil || startup.ChannelRefreshConfig == "" || !startup.EntryBasicProbe || !startup.EntryAdditionProbe {
 			log.Fatal("Moon requires complete persisted world/entry/dungeon/channel services")
 		}
 		if err = validateMoonResources(dungeonCatalog, lootService, gameStore); err != nil {
@@ -1653,12 +1527,12 @@ func main() {
 		itemService.Equipment = lootService.Equipment
 	}
 
-	l, err := net.Listen("tcp4", *gameListen)
+	l, err := net.Listen("tcp4", startup.GameListen)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer l.Close()
-	advertised, err := advertisedGameAddress(*advertiseHost, gameHost, l.Addr())
+	advertised, err := advertisedGameAddress(startup.AdvertiseHost, gameHost, l.Addr())
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -1677,8 +1551,8 @@ func main() {
 	// only channel identity a session has (see the listeners below); this map
 	// turns that identity back into the script value handlers report.
 	channelTypes := map[uint32]uint32{}
-	if *channelRefreshFile != "" {
-		channelCfg, err = channelrefresh.Load(*channelRefreshFile)
+	if startup.ChannelRefreshConfig != "" {
+		channelCfg, err = channelrefresh.Load(startup.ChannelRefreshConfig)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -1696,7 +1570,7 @@ func main() {
 				log.Fatal("Moon channel must exist with source online type 101")
 			}
 		}
-		bindHost, _, _ := net.SplitHostPort(*gameListen)
+		bindHost, _, _ := net.SplitHostPort(startup.GameListen)
 		_, portText, _ := net.SplitHostPort(l.Addr().String())
 		basePort, convErr := strconv.Atoi(portText)
 		if convErr != nil {
@@ -1720,10 +1594,10 @@ func main() {
 		listeners = append(listeners, channelListener{channel: 0, ln: l})
 	}
 	ready, _ := json.Marshal(map[string]any{"address": l.Addr().String(), "advertise": advertised, "pid": os.Getpid(), "fixture_bytes": len(raw), "channels": len(listeners)})
-	if err = os.WriteFile(filepath.Join(*dir, "ready.json"), ready, 0600); err != nil {
+	if err = os.WriteFile(filepath.Join(startup.Output, "ready.json"), ready, 0600); err != nil {
 		log.Fatal(err)
 	}
-	f, err := os.OpenFile(filepath.Join(*dir, "events.jsonl"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
+	f, err := os.OpenFile(filepath.Join(startup.Output, "events.jsonl"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -1757,7 +1631,7 @@ func main() {
 		peer = c.RemoteAddr().String()
 		characters := characters // isolate context from simultaneous channel sessions
 		var channelNotice []byte
-		if *channelIdentityEnabled || channelCfg.SynchronizeIdentity {
+		if startup.ChannelIdentity || channelCfg.SynchronizeIdentity {
 			ctx, notice, identityErr := channelIdentity(channelCfg, channel)
 			if identityErr != nil || characters == nil {
 				event(map[string]any{"kind": "channel_identity_error", "error": fmt.Sprint(identityErr), "characters_present": characters != nil})
@@ -1782,7 +1656,7 @@ func main() {
 			return
 		}
 		purchaseSession.keys = keys
-		if (*vaultPurchase || *vaultRelease || *shopRelease) && vaultService != nil {
+		if (startup.VaultPurchaseCandidate || startup.VaultPurchaseRelease || startup.ShopRelease) && vaultService != nil {
 			purchaseSession.vaultRules = &vaultService.Rules
 		}
 		var selectedBasic []byte
@@ -1802,7 +1676,7 @@ func main() {
 			if questService != nil && townArrivalScenes == nil {
 				log.Fatal("town arrival scene whitelist was not passed to world sessions")
 			}
-			worldState = &worldSession{characters: characters, service: worldService, store: gameStore, account: developmentAccount, flags: townPolicy.Flags, dungeons: dungeonCatalog, townArrivalScenes: townArrivalScenes, tutorials: tutorialRoutes, tutorialDungeons: tutorialDungeons, professions: characters.Catalog, fatigue: fatigueService, quests: questService, progression: progressionService, loot: lootService, items: itemService, shop: shopService, selectionBoxes: selectionBoxes, vault: vaultService, skinCatalog: skinCatalog, soloPartyBootstrap: *soloPartyBootstrap, hub: hub, scaleDeathFromHP: *scaleDeathFromHP, oathGrades: oathGradePair, oathTable: oathGradeTable, oathFromGear: *oathFromGear, oathProgressClears: *oathProgressClears, oathProgressDungeons: oathProgressSet, oathInject: oathInjectSpecs, omenHold: *omenHold, omenState: omenState, omenInfo: omenInfoBytes}
+			worldState = &worldSession{characters: characters, service: worldService, store: gameStore, account: developmentAccount, flags: townPolicy.Flags, dungeons: dungeonCatalog, townArrivalScenes: townArrivalScenes, tutorials: tutorialRoutes, tutorialDungeons: tutorialDungeons, professions: characters.Catalog, fatigue: fatigueService, quests: questService, progression: progressionService, loot: lootService, items: itemService, shop: shopService, selectionBoxes: selectionBoxes, vault: vaultService, skinCatalog: skinCatalog, soloPartyBootstrap: startup.SoloPartyBootstrap, hub: hub, scaleDeathFromHP: startup.ScaleDeathFromHP, oathGrades: oathGradePair, oathTable: oathGradeTable, oathFromGear: startup.OathGradesFromGear, oathProgressClears: startup.OathProgressClears, oathProgressDungeons: oathProgressSet, oathInject: oathInjectSpecs, omenHold: startup.OmenHold, omenState: omenState, omenInfo: omenInfoBytes}
 			worldState.serverID = channelCfg.ServerID
 			worldState.channelType = channelTypes[channel]
 			if moonConfig != nil && channel == moonConfig.Channel {
@@ -4945,7 +4819,7 @@ func main() {
 					}
 				}
 				var areaPayload []byte
-				if *townProbeFile != "" || contractPurchaseCrashFixEnabled() {
+				if startup.TownEntryProbe != "" || contractPurchaseCrashFixEnabled() {
 					premiumCtx, premiumCancel := context.WithTimeout(context.Background(), 5*time.Second)
 					premiums, pe := gameStore.ActivePremiums(premiumCtx, developmentAccount, time.Now())
 					premiumCancel()
@@ -4958,7 +4832,7 @@ func main() {
 					}
 					event(map[string]any{"kind": "premiums_restored", "account": developmentAccount, "count": len(profile.Premiums)})
 				}
-				if *townProbeFile != "" {
+				if startup.TownEntryProbe != "" {
 					var state character.State
 					if e = json.Unmarshal(role.State, &state); e != nil || !townCatalog.Allows(state.Level, townPolicy.X, townPolicy.Y) {
 						event(map[string]any{"kind": "town_entry_rejected", "error": "character level or spawn policy incompatible with source area"})
@@ -4970,7 +4844,7 @@ func main() {
 						continue
 					}
 				}
-				if *entryBasicProbe {
+				if startup.EntryBasicProbe {
 					basic, e = characters.EntryBasicProbe(role, [2]byte{})
 					if e != nil {
 						event(map[string]any{"kind": "entry_basic_error", "error": e.Error()})
@@ -4980,7 +4854,7 @@ func main() {
 						event(map[string]any{"kind": "character_mode_projection", "character_id": role.ID, "name": role.Name, "odyssey_pilot": characters.Rules.OdysseyPilot, "entry_mode_byte": basic[len(basic)-13]})
 					}
 				}
-				if *entryAdditionProbe {
+				if startup.EntryAdditionProbe {
 					addition, e = characters.EntryAddition(role)
 					if e != nil {
 						event(map[string]any{"kind": "entry_addition_error", "error": e.Error()})
@@ -5283,7 +5157,7 @@ func main() {
 					event(map[string]any{"kind": "entry_skill_lock_error", "error": lockErr.Error()})
 					continue
 				}
-				plan.SkillLocks, e = unifiedCharacPayload(unifiedCharacTemplate, locks, *skillLockOffset)
+				plan.SkillLocks, e = unifiedCharacPayload(unifiedCharacTemplate, locks, startup.SkillLockOffset)
 				if e != nil {
 					event(map[string]any{"kind": "entry_skill_lock_error", "error": e.Error()})
 					continue
@@ -5567,7 +5441,7 @@ func main() {
 				if len(addition) > 0 && len(areaPayload) > 0 {
 					plan.Complete = protocol.EnterGameworldComplete()
 				}
-				if *boosterGageHide {
+				if startup.BoosterGageHide {
 					// NOTI398 displayValue=0 collapses the top-left Liberation Trace
 					// panel; preparePackets skips empty payloads, so the flag-off path
 					// equals the pre-fix behavior.

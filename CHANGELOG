@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 2026-10-02：Wireprobe 类型化启动配置（源码候选）
+
+- 引入 Koanf v2.3.7 / confmap v1.0.1；95 个既有启动参数及 54 个环境变量别名集中声明到 Config，main 改为读取类型化字段，删除原 config_env.go。默认值、布尔/整数/字节环境语义、显式空值和 false 的覆盖保持。
+- Python 继续读取既有运行 profile；Go 合并默认值、环境变量、显式命令行参数。未新增配置文件入口、游戏内容 JSON 链路、玩法开关或自动环境变量映射。
+- 七组改造前独立配置向量、原帮助文本、非法参数/字节边界、连接输出与接线专项、架构守卫和 Go 1.26.5 vet 通过；运行主体在归一化 95 项配置引用后的 47,281 个 token 完全一致。按用户要求未跑全量测试。
+- 独立编译候选保存在 .tmp/koanf，未部署、操作玩家数据库或启动客户端；协议、SQL/schema、存档格式保持。confirmed baseline 保持既有程序与实机范围；维护说明见 server/work/dfo-lan/docs/startup-configuration.md。
+
 ## 2026-10-02：接入 Testify（源码确认）
 
 - 固定 github.com/stretchr/testify v1.11.1，连接生命周期与报文输出的既有测试使用 require/assert；保留关闭、报文完整性与并发输出顺序断言。

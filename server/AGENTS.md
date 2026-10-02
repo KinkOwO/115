@@ -1,5 +1,11 @@
 # AGENTS.md — server/
 
+## 2026-10-02：Wireprobe 启动配置集中管理（源码候选）
+
+- Koanf 与类型化 Config 集中声明既有 95 个参数及 54 个环境变量别名；默认值、覆盖优先级、旧布尔/整数/字节语义保持。运行 profile 仍由 Python 编排，PVF 内容准备路径保持。
+- 七组旧配置对照、帮助/非法参数/字节边界、连接与接线专项、架构守卫、Go 1.26.5 vet 和独立候选编译验证；本轮依用户指令不跑全量测试。见 work/dfo-lan/docs/startup-configuration.md。
+- 仅源码候选，未替换运行程序、操作玩家库或启动客户端；confirmed baseline 不增加实机范围，协议、SQL/schema 和玩家存档保持。
+
 ## 2026-10-02：Testify 测试依赖源码确认
 
 - 用户确认接入 Testify v1.11.1；仅用于既有连接生命周期、报文完整性与并发输出顺序测试。Go 1.26.5 专项、全量测试和 vet 通过。
