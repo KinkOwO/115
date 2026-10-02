@@ -1,15 +1,41 @@
-package loot
+package inventory
 
 import (
 	crand "crypto/rand"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/inventory"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"math/rand"
 	"time"
 )
+
+// PremiumActivation is the account contract effect produced by item use.
+type PremiumActivation struct {
+	Type           uint8
+	DurationSecond int64
+}
+
+// Premium preserves the existing receipt JSON consumed by the client flow.
+type Premium struct {
+	Type            uint8 `json:"type"`
+	EndTime         int64 `json:"end_time"`
+	RemainingSecond int64 `json:"remaining_seconds"`
+}
+
+// ContractResolver resolves the premium activation carried by an item.
+type ContractResolver func(uint32) (PremiumActivation, bool)
+
+func (s *ItemService) Bootstrap(role Role) ([]byte, error) {
+	if role.ConfigVersion != s.Catalog.Source.SaveIdentity() {
+		return nil, fmt.Errorf("inventory source mismatch")
+	}
+	b, err := ReadBag(role.State)
+	if err != nil {
+		return nil, err
+	}
+	return protocol.InventoryRestore(b.Rows(), b.Expansion)
+}
 
 type ConsumeReceipt struct {
 	SeasonExperience uint32    `json:"season_experience,omitempty"`
@@ -41,7 +67,7 @@ func boxSeed() (int64, error) {
 	return int64(binary.LittleEndian.Uint64(b[:])), nil
 }
 
-func (s *Service) ConsumeKey(role Role, r protocol.UseStackableRequest) (string, error) {
+func (s *ItemService) ConsumeKey(role Role, r protocol.UseStackableRequest) (string, error) {
 	if role.ConfigVersion != s.Catalog.Source.SaveIdentity() {
 		return "", fmt.Errorf("consume source mismatch")
 	}
@@ -50,7 +76,7 @@ func (s *Service) ConsumeKey(role Role, r protocol.UseStackableRequest) (string,
 		// inventories) have their own unverified semantics.
 		return "", fmt.Errorf("unsupported source container %d", r.List)
 	}
-	if inventory.IsReinforcementTicket(r.Template) {
+	if IsReinforcementTicket(r.Template) {
 		return "", fmt.Errorf("强化券必须选择装备后使用，不能作为普通消耗品扣除")
 	}
 	key := fmt.Sprintf("consume:%d:%d:%d", r.Slot, r.Template, r.Instance)
@@ -64,9 +90,9 @@ func (s *Service) ConsumeKey(role Role, r protocol.UseStackableRequest) (string,
 // transition, invoked at the original point inside the inventory transaction.
 type SeasonCapsuleApplier func(json.RawMessage, uint32, time.Time) (json.RawMessage, uint32, error)
 
-func (s *Service) PrepareConsume(current Role, r protocol.UseStackableRequest, seasonCapsule bool, applySeason SeasonCapsuleApplier, resolveContract ContractResolver) (json.RawMessage, json.RawMessage, []PremiumActivation, error) {
+func (s *ItemService) PrepareConsume(current Role, r protocol.UseStackableRequest, seasonCapsule bool, applySeason SeasonCapsuleApplier, resolveContract ContractResolver) (json.RawMessage, json.RawMessage, []PremiumActivation, error) {
 	var out ConsumeReceipt
-	b, e := inventory.ReadBag(current.State)
+	b, e := ReadBag(current.State)
 	if e != nil {
 		return nil, nil, nil, e
 	}
@@ -80,16 +106,16 @@ func (s *Service) PrepareConsume(current Role, r protocol.UseStackableRequest, s
 	var remaining uint32
 	if r.List == 7 {
 		definition, ok := s.Catalog.Items[r.Template]
-		if !ok || !inventory.IsPetFeed(definition.StackableType) {
+		if !ok || !IsPetFeed(definition.StackableType) {
 			return nil, nil, nil, fmt.Errorf("unsupported pet consumable effect")
 		}
-		if !inventory.HasEquippedCreature(current.State) {
+		if !HasEquippedCreature(current.State) {
 			return nil, nil, nil, fmt.Errorf("no equipped creature to feed")
 		}
 		b, remaining, e = b.ConsumePet(s.Catalog, r.Slot, r.Template)
 		if e == nil {
 			var fed bool
-			b, fed = inventory.FeedEquippedCreatureBag(b)
+			b, fed = FeedEquippedCreatureBag(b)
 			if !fed {
 				return nil, nil, nil, fmt.Errorf("equipped creature is already fully fed")
 			}
@@ -144,7 +170,7 @@ func (s *Service) PrepareConsume(current Role, r protocol.UseStackableRequest, s
 		return nil, nil, nil, e
 	}
 	premiums = append(premiums, usedPremiums...)
-	updated, e := inventory.SaveBag(current.State, b)
+	updated, e := SaveBag(current.State, b)
 	if e != nil {
 		return nil, nil, nil, e
 	}

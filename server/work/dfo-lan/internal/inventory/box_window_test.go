@@ -1,9 +1,9 @@
-package loot
+package inventory
 
 import "testing"
 
 func TestBoxWindowCountersUsePersistedStackOrder(t *testing.T) {
-	svc := &Service{Boxes: &BoxCatalog{Tables: map[string]BoxTable{
+	svc := &ItemService{Boxes: &BoxCatalog{Tables: map[string]BoxTable{
 		"590712474": {PointStacks: []BoxPointStack{{Type: "section"}, {Type: "bonus"}}},
 	}}}
 	state := []byte(`{"box_points":{"590712474":{"0":27,"1":3}},"inventory":{}}`)

@@ -1091,7 +1091,7 @@ func main() {
 			if boxErr != nil {
 				log.Fatal(boxErr)
 			}
-			lootService.Boxes = boxes
+			itemService.Boxes = boxes
 			log.Printf("PVF boxes: %d tables, %d prize templates", boxes.TableCount(), boxes.RewardCount())
 		} else if *boxesFile != "" {
 			log.Fatal("boxes file missing: " + boxesPath)
@@ -2184,10 +2184,10 @@ func main() {
 				event(map[string]any{"kind": "cera_purchase_cancelled", "reason": reason, "items": items, "character_id": selectedCharacterID, "charged": false, "plain_hex": hex.EncodeToString(payload)})
 				continue
 			}
-			if frame.Type == 1 && bootstrapped && verified && worldState != nil && lootService != nil && lootService.Boxes != nil &&
+			if frame.Type == 1 && bootstrapped && verified && worldState != nil && itemService != nil && itemService.Boxes != nil &&
 				((frame.ID == 2036 && protocol.IsCeraShopDeviceAction(plaintext)) ||
 					(frame.ID == 495 && protocol.IsCeraShopDeviceRefresh(plaintext))) {
-				blob, stateErr := radiantDeviceWindowState(lootService, worldState.role)
+				blob, stateErr := radiantDeviceWindowState(itemService, worldState.role)
 				if stateErr != nil {
 					event(map[string]any{"kind": "radiant_device_state_refused", "id": frame.ID, "character_id": selectedCharacterID, "reason": stateErr.Error()})
 					continue
@@ -2198,7 +2198,7 @@ func main() {
 				event(map[string]any{"kind": "radiant_device_state_sent", "id": frame.ID, "character_id": selectedCharacterID, "plain_hex": hex.EncodeToString(blob)})
 				continue
 			}
-			if frame.Type == 1 && bootstrapped && verified && frame.ID == 681 && worldState != nil && lootService != nil && lootService.Boxes != nil {
+			if frame.Type == 1 && bootstrapped && verified && frame.ID == 681 && worldState != nil && itemService != nil && itemService.Boxes != nil {
 				request, decodeErr := protocol.DecodeRadiantBoxOpen(plaintext)
 				if decodeErr != nil {
 					// Other events share this opcode; they stay unanswered as
@@ -2207,7 +2207,7 @@ func main() {
 					continue
 				}
 				count, countErr := radiantBoxOpens(request.Mode)
-				box, boxErr := radiantBoxHeld(lootService, worldState.role)
+				box, boxErr := radiantBoxHeld(itemService, worldState.role)
 				if countErr != nil || boxErr != nil {
 					reason := countErr
 					if reason == nil {
@@ -4823,9 +4823,9 @@ func main() {
 					}
 				}
 				profile := *selectProbe
-				if lootService != nil && lootService.Boxes != nil {
+				if itemService != nil && itemService.Boxes != nil {
 					ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
-					updated, applied, repairErr := (&workflow.LootService{Store: gameStore, Loot: lootService}).RepairBoxRewards(ctx, role)
+					updated, applied, repairErr := (&workflow.ItemService{Store: gameStore, Items: itemService}).RepairBoxRewards(ctx, role)
 					cancel()
 					if repairErr != nil {
 						event(map[string]any{"kind": "box_reward_repair_error", "character_id": role.ID, "error": repairErr.Error()})
@@ -5482,7 +5482,7 @@ func main() {
 						plan.RadiantSouls, e = radiantSoulSnapshot(materials)
 					}
 					if e == nil {
-						plan.Inventory, e = lootService.Bootstrap(workflow.LootRole(role))
+						plan.Inventory, e = itemService.Bootstrap(workflow.InventoryRole(role))
 					}
 					if e != nil {
 						event(map[string]any{"kind": "entry_inventory_error", "error": e.Error()})

@@ -15,7 +15,7 @@ import (
 // hands out its source lot row in that same transaction; event records both
 // shapes so a run can be read back without the capture log.
 func (w *worldSession) useStackable(p []byte, event func(map[string]any)) ([]outboundPacket, error) {
-	if w == nil || w.role.ID == 0 || w.loot == nil {
+	if w == nil || w.role.ID == 0 || w.items == nil {
 		return nil, fmt.Errorf("item use before character selection")
 	}
 	r, e := protocol.DecodeUseStackable(p)
@@ -28,7 +28,7 @@ func (w *worldSession) useStackable(p []byte, event func(map[string]any)) ([]out
 	if e != nil {
 		return nil, e
 	}
-	saved, receipt, _, e := (&workflow.LootService{Store: w.store, Loot: w.loot}).Consume(ctx, w.role, r)
+	saved, receipt, _, e := (&workflow.ItemService{Store: w.store, Items: w.items}).Consume(ctx, w.role, r)
 	if e != nil {
 		return nil, e
 	}

@@ -24,7 +24,7 @@ import (
 type pvfCoreCatalogs struct {
 	sourceChecksum                               string
 	itemShops                                    *catalog.ItemShops
-	boxes                                        *loot.BoxCatalog
+	boxes                                        *inventory.BoxCatalog
 	cashshop                                     *cashshop.Pilot
 	characters, sourceCharacters                 *catalog.Characters
 	layerRevisits                                *catalog.LayerRevisitOverlay

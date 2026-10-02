@@ -4,7 +4,6 @@ import (
 	"context"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/loot"
 	"dfolan/internal/storage"
 	"dfolan/internal/workflow"
 	"fmt"
@@ -29,7 +28,7 @@ func radiantBoxOpens(mode uint32) (uint32, error) {
 // radiantBoxHeld reports which imported box the player is holding. The event
 // request names no template, so the bag decides; the transactional open re-reads
 // the same bag before it spends anything.
-func radiantBoxHeld(service *loot.Service, role storage.Character) (uint32, error) {
+func radiantBoxHeld(service *inventory.ItemService, role storage.Character) (uint32, error) {
 	box, ok, e := radiantBoxInBag(service, role)
 	if e != nil {
 		return 0, e
@@ -40,7 +39,7 @@ func radiantBoxHeld(service *loot.Service, role storage.Character) (uint32, erro
 	return box, nil
 }
 
-func radiantBoxInBag(service *loot.Service, role storage.Character) (uint32, bool, error) {
+func radiantBoxInBag(service *inventory.ItemService, role storage.Character) (uint32, bool, error) {
 	if service == nil || service.Boxes == nil {
 		return 0, false, fmt.Errorf("box catalog is not loaded")
 	}
@@ -58,7 +57,7 @@ func radiantBoxInBag(service *loot.Service, role storage.Character) (uint32, boo
 		if _, scanErr := fmt.Sscanf(id, "%d", &box); scanErr != nil {
 			continue
 		}
-		if _, held, ok := loot.BoxOpenMaterial(bag, box); ok && held > 0 {
+		if _, held, ok := inventory.BoxOpenMaterial(bag, box); ok && held > 0 {
 			return box, true, nil
 		}
 	}
@@ -66,7 +65,7 @@ func radiantBoxInBag(service *loot.Service, role storage.Character) (uint32, boo
 }
 
 // radiantDeviceWindowState answers both shop and bag-side state requests.
-func radiantDeviceWindowState(service *loot.Service, role storage.Character) ([]byte, error) {
+func radiantDeviceWindowState(service *inventory.ItemService, role storage.Character) ([]byte, error) {
 	box, held, e := radiantBoxInBag(service, role)
 	if e != nil {
 		return nil, e
@@ -85,22 +84,22 @@ func radiantDeviceWindowState(service *loot.Service, role storage.Character) ([]
 // spends the material, rolls every open, and reports the result through
 // NOTI2551.
 func (w *worldSession) openRadiantBox(ctx context.Context, box, count uint32) ([]outboundPacket, error) {
-	if w == nil || w.loot == nil {
-		return nil, fmt.Errorf("box open before the loot service is ready")
+	if w == nil || w.items == nil || w.items.Boxes == nil {
+		return nil, fmt.Errorf("box open before the item service is ready")
 	}
 	before, e := inventory.ReadBag(w.role.State)
 	if e != nil {
 		return nil, e
 	}
-	saved, receipt, _, e := (&workflow.LootService{Store: w.store, Loot: w.loot}).OpenBoxes(ctx, w.role, box, count)
+	saved, receipt, _, e := (&workflow.ItemService{Store: w.store, Items: w.items}).OpenBoxes(ctx, w.role, box, count)
 	if e != nil {
 		return nil, e
 	}
-	table, ok := w.loot.Boxes.Table(box)
+	table, ok := w.items.Boxes.Table(box)
 	if !ok {
 		return nil, fmt.Errorf("box %d has no imported content table", box)
 	}
-	entries := loot.BoxNoticeEntries(table, receipt.Points, receipt.Granted)
+	entries := inventory.BoxNoticeEntries(table, receipt.Points, receipt.Granted)
 	list := make([]protocol.RadiantBoxEntry, 0, len(entries))
 	for _, row := range entries {
 		list = append(list, protocol.RadiantBoxEntry{Key: row.Key, Value: row.Value})
@@ -109,8 +108,8 @@ func (w *worldSession) openRadiantBox(ctx context.Context, box, count uint32) ([
 		return nil, fmt.Errorf("box %d receipt has %d main results for %d opens", box, len(receipt.Results), count)
 	}
 	state := table.BoxStateRows(receipt.Points)
-	state = append(state, loot.BoxMainResultRows(receipt.Results)...)
-	state = append(state, loot.BoxBonusResultRows(receipt.Bonus)...)
+	state = append(state, inventory.BoxMainResultRows(receipt.Results)...)
+	state = append(state, inventory.BoxBonusResultRows(receipt.Bonus)...)
 	rows := make([]protocol.RadiantBoxRow, 0, len(state))
 	for _, row := range state {
 		rows = append(rows, protocol.RadiantBoxRow{

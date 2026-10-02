@@ -1,9 +1,8 @@
-package loot
+package inventory
 
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/inventory"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -313,7 +312,7 @@ func saveBoxPoints(state json.RawMessage, box uint32, points map[string]uint32) 
 // character transaction that spent the box. Placement comes from the imported
 // family band, never from a guess: an unknown family refuses the whole open
 // rather than dropping the prize somewhere the client does not expect.
-func (s *Service) grantBoxPrize(bag inventory.Bag, prize ConsumeGrant, resolveContract ContractResolver) (inventory.Bag, *PremiumActivation, error) {
+func (s *ItemService) grantBoxPrize(bag Bag, prize ConsumeGrant, resolveContract ContractResolver) (Bag, *PremiumActivation, error) {
 	reward, ok := s.Boxes.Rewards[strconv.FormatUint(uint64(prize.Template), 10)]
 	if !ok {
 		return bag, nil, fmt.Errorf("box prize %d has no imported item family", prize.Template)
@@ -341,7 +340,7 @@ func (s *Service) grantBoxPrize(bag inventory.Bag, prize ConsumeGrant, resolveCo
 			},
 		},
 	}
-	rules := inventory.BagRules{
+	rules := BagRules{
 		Source:            s.Catalog.Source.SaveIdentity(),
 		Slots:             map[string][2]uint16{reward.StackableType: *reward.Slots},
 		MissingStackLimit: 1000,
@@ -353,12 +352,12 @@ func (s *Service) grantBoxPrize(bag inventory.Bag, prize ConsumeGrant, resolveCo
 
 // settleBoxRewardBag 补齐旧奖励的零期限，并将源契约别名兑换为账号时长。
 // 契约占位物品与效果必须由调用者在同一事务提交，不能只删物品再单独续期。
-func (s *Service) settleBoxRewardBag(bag inventory.Bag, resolveContract ContractResolver) (inventory.Bag, []PremiumActivation, error) {
+func (s *ItemService) settleBoxRewardBag(bag Bag, resolveContract ContractResolver) (Bag, []PremiumActivation, error) {
 	if s.Boxes == nil {
 		return bag, nil, nil
 	}
 	var premiums []PremiumActivation
-	items := make([]inventory.BagItem, 0, len(bag.Items))
+	items := make([]BagItem, 0, len(bag.Items))
 	for _, row := range bag.Items {
 		if _, ok := s.Boxes.Rewards[strconv.FormatUint(uint64(row.Template), 10)]; !ok {
 			items = append(items, row)
@@ -380,11 +379,11 @@ func (s *Service) settleBoxRewardBag(bag inventory.Bag, resolveContract Contract
 	return bag, premiums, nil
 }
 
-func (s *Service) NeedsBoxRewardRepair(role Role, resolveContract ContractResolver) (bool, error) {
+func (s *ItemService) NeedsBoxRewardRepair(role Role, resolveContract ContractResolver) (bool, error) {
 	if s.Boxes == nil {
 		return false, nil
 	}
-	bag, err := inventory.ReadBag(role.State)
+	bag, err := ReadBag(role.State)
 	if err != nil {
 		return false, err
 	}
@@ -400,8 +399,8 @@ func (s *Service) NeedsBoxRewardRepair(role Role, resolveContract ContractResolv
 	}
 	return needed, nil
 }
-func (s *Service) PrepareBoxRewardRepair(current Role, resolveContract ContractResolver) (json.RawMessage, json.RawMessage, []PremiumActivation, error) {
-	bag, err := inventory.ReadBag(current.State)
+func (s *ItemService) PrepareBoxRewardRepair(current Role, resolveContract ContractResolver) (json.RawMessage, json.RawMessage, []PremiumActivation, error) {
+	bag, err := ReadBag(current.State)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -413,7 +412,7 @@ func (s *Service) PrepareBoxRewardRepair(current Role, resolveContract ContractR
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	state, err := inventory.SaveBag(current.State, bag)
+	state, err := SaveBag(current.State, bag)
 	if err != nil {
 		return nil, nil, nil, err
 	}

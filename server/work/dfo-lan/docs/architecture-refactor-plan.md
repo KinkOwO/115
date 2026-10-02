@@ -1,10 +1,10 @@
 # 服务端架构简化实施计划
 
-状态：批次 1–10 的代码改动和自动化验证已完成；2026-10-01 继续合并装备事件公共流程和连接批量输出，等待用户手动实机验收。
+状态：批次 1–10 的代码改动和自动化验证已完成；2026-10-02 继续领域归并，最新消耗品/光辉礼盒源码收口见第 20 节；各批实机状态单独记录。
 
 基线提交：`9fc9a0617d3fc16fa43f8bb4bc1fcd31be4c7990`（2026-09-30）
 
-当前分支：`refactor/go-server-dedup-20260930`
+当前批次分支：`refactor/consumable-consolidation-20261002`（原分支及起点见各批记录）
 
 这份文档是后续架构改动的持续交接文档。它记录当前真实职责、依赖方向、每批改动的边界和验收条件。每完成一批，更新本文件的状态、提交号、验证结果和仍然存在的风险；不要把未验证的目标架构写成已经完成。
 
@@ -551,3 +551,27 @@ Go 文件由 1437 减至 1408，其中生产文件 795→772，测试文件 642�
 前三项为第 17/18 节已有失败；商城项在本批起点 052532c 的原始源码隔离目录重现同一 pvf_catalog_test.go:194 / empty delivery 3400013 断言。隔离目录仅提取起点 Go 源码与嵌入文件，通过 configs junction 使用同一只读配置；未改 baseline 源码或断言。其余包通过，没有新增测试失败。git diff --check 通过。
 
 后续先梳理 loot 的消耗/礼盒奖励混合职责，再评估 character/quest/loot/cashshop 的剩余 9 条依赖；不通过复制规则或新增短转发文件消除统计边。没有连接玩家库、部署二进制或启动客户端，不扩大 confirmed baseline。四个用户原有配置改动保持原哈希，不纳入提交。
+
+## 20. 消耗品与光辉礼盒继续收口
+
+本批起点为 main `4064325`（第 19 节领域归并与 Redis 清理均已合入），分支 `refactor/consumable-consolidation-20261002`。用户要求继续业务收口，并明确使用 GPT-6 Luna 子代理；两位 Luna 分别实现迁移、审查调用边界并补充回归，主代理复核与运行全仓验证。
+
+- inventory.ItemService：拥有普通消耗品、宠物喂养、光辉礼盒的 COS 目录/PVF 投影、抽取、累计进度、奖品落袋和旧奖励修复。盒目录/规则/开启文件保留各自职责，原 premium/contract 小文件与库存还原入口合并到 consumable.go，不新增领域、消费接口或转发门面。
+- workflow.ItemService：持有消费、单开/十连和奖励修复的原持久化事务；合并原 loot_consume/loot_boxes/loot_contracts，契约适配与账号激活投影也在同一文件。抽奖仍在事务回调内，原消费 key、boxopen key、修复 key、Model、SaveIdentity 与收据校验保留。
+- 组合根与调用方：盒目录直接注入同一 ItemService，监听前仍同步最终 Catalog/BagRules/Equipment。CMD44、任务用物品、皮肤登记、设备状态、光辉礼盒开启与登录修复切换到新所有者；登录、翻牌、月湖、武斗大会和 charactercheck 的库存还原调用 inventory.ItemService.Bootstrap。ACK/背包刷新/NOTI2551 与账号契约通知的顺序保持。
+- loot：删除玩家消费/光辉礼盒入口与 Boxes 字段；保留掉落生成、拾取、翻牌、副本奖励恢复，以及掉落时的 RewardBoxSource/OpenRewardBoxes 包装展开。普通 booster/自选礼盒与 cashshop.Purchase 不在本批范围；9 条真实领域依赖仍存在，不通过新增例外消账。
+
+迁移函数与相关既有测试共 43 个函数体，以 Go AST/scanner 提取后，在包前缀、接收者、消费角色投影和 Bootstrap 局部变量名归一化后全部一致；三条事务函数也在对照中。未修改 SQL、schema、存档/回执 JSON 字段、事件 key/model 或随机调用位置。生产 Go 文件 772→768，测试 638→639，合计 1410→1407（不含 runtime 与临时文件）。
+
+新增三个纯状态回归：消费扣一与身份/幂等键、契约激活效果、单开产物/点数/累计次数与其它箱计数保留；同时覆盖未知顶层字段、其它背包物品保留和拒绝时不修改输入。新回归使用合成规则，原 PVF 原生导入、窗口和奖励修复测试随领域移动，未改断言。
+
+验证使用 Go 1.26.5：全仓 vet、架构守卫、迁移领域及新增回归通过；最终 go test ./... 与修改前同一工作区对照均只有下列 4 项既有失败，其余包通过：
+
+- cmd/wireprobe.TestAdventureAuditProvenanceAllowanceIsNarrow
+- cmd/wireprobe.TestPVFCatalogGateRefusesRewardChangesAndDoesNotFallback
+- cmd/wireprobe.TestEnhancementAuditAllowsOnlyMissingOrdinaryTicketExpirationHeader
+- internal/cashshop.TestShopPilotPVFCurrentCatalog
+
+首次全仓检查发现 charactercheck 仍使用旧 Bootstrap；已补齐调用并通过编译，随后重新运行全仓 test/vet。git diff --check 通过，原有 .gitignore、launch_local.py、pgdata/postgresql.conf 与两份服务端二进制均核对 SHA256 未变。本批不连接玩家 PostgreSQL，不运行依赖玩家库的集成入口，不启动客户端，也不重编/部署确认 EXE；confirmed baseline 保持原范围。
+
+本批源码已收口，实机尚待用户手动验证：普通用物品与宠物喂养、光辉礼盒单开/十连及进度、重选后的奖励/背包恢复。后续候选为 cashshop 的背包发货/扩容编排（E25）和 character/quest/loot 的其余跨领域协作，应分别保持交易回执与存档兼容后再推进。

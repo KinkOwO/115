@@ -1,4 +1,4 @@
-package loot
+package inventory
 
 import (
 	"strings"

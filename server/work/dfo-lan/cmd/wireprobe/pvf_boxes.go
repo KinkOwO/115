@@ -2,7 +2,7 @@ package main
 
 import (
 	"dfolan/internal/gamedata"
-	"dfolan/internal/loot"
+	"dfolan/internal/inventory"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,8 +11,8 @@ import (
 	"path/filepath"
 )
 
-func readPVFBoxPolicy(path string) (loot.BoxSourcePolicy, error) {
-	var p loot.BoxSourcePolicy
+func readPVFBoxPolicy(path string) (inventory.BoxSourcePolicy, error) {
+	var p inventory.BoxSourcePolicy
 	f, err := os.Open(path)
 	if err != nil {
 		return p, err
@@ -48,7 +48,7 @@ func preparePVFBoxes(c *pvfCoreCatalogs, s *gamedata.Source, selected map[string
 		if path == "" {
 			path = filepath.Join(filepath.Dir(i.indexPath), "boxes.json")
 		}
-		old, err := loot.LoadBoxes(path)
+		old, err := inventory.LoadBoxes(path)
 		if err != nil {
 			return err
 		}
@@ -61,7 +61,7 @@ func preparePVFBoxes(c *pvfCoreCatalogs, s *gamedata.Source, selected map[string
 	log.Printf("PVF boxes prepared: tables=%d rewards=%d raw sources=%d; unique native COS material bindings and existing point/grant rules retained", direct.TableCount(), direct.RewardCount(), len(direct.Sources))
 	return nil
 }
-func auditPVFBoxes(old, direct *loot.BoxCatalog) error {
+func auditPVFBoxes(old, direct *inventory.BoxCatalog) error {
 	if old == nil || direct == nil || direct.Source != "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80" || (old.Source != "inner Script.pvf .cos content scripts" && old.Source != direct.Source) {
 		return fmt.Errorf("unknown box source provenance")
 	}
@@ -75,12 +75,12 @@ func auditPVFBoxes(old, direct *loot.BoxCatalog) error {
 	}
 	return nil
 }
-func (c pvfCoreCatalogs) loadBoxes(path, source string) (*loot.BoxCatalog, error) {
+func (c pvfCoreCatalogs) loadBoxes(path, source string) (*inventory.BoxCatalog, error) {
 	if c.boxes != nil {
 		if c.boxes.Source != source {
 			return nil, fmt.Errorf("native box source differs from save catalog")
 		}
 		return c.boxes, nil
 	}
-	return loot.LoadBoxes(path)
+	return inventory.LoadBoxes(path)
 }

@@ -108,7 +108,7 @@ func (w *worldSession) tournamentSelect(p []byte) ([]outboundPacket, error) {
 	saved.WireID = w.role.WireID
 	w.role = saved
 	run.Selected[cardType] = cardIndex
-	bag, err := w.loot.Bootstrap(workflow.LootRole(saved))
+	bag, err := w.items.Bootstrap(workflow.InventoryRole(saved))
 	if err != nil {
 		return nil, err
 	}

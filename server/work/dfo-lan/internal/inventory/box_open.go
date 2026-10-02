@@ -1,8 +1,7 @@
-package loot
+package inventory
 
 import (
 	"dfolan/internal/catalog"
-	"dfolan/internal/inventory"
 	"encoding/json"
 	"fmt"
 	"math/rand"
@@ -31,7 +30,7 @@ const boxOpensKey = "opens"
 
 // BoxOpenMaterial reports which owned stack holds the box material. The event
 // request names no slot, so the bag decides what the player is opening.
-func BoxOpenMaterial(bag inventory.Bag, box uint32) (uint16, uint32, bool) {
+func BoxOpenMaterial(bag Bag, box uint32) (uint16, uint32, bool) {
 	for _, row := range bag.Items {
 		if row.Template == box {
 			return row.Slot, row.Amount, true
@@ -173,7 +172,7 @@ type BoxOpenPlan struct {
 	Opens uint32
 }
 
-func (s *Service) PlanBoxOpen(role Role, box, count uint32) (BoxOpenPlan, error) {
+func (s *ItemService) PlanBoxOpen(role Role, box, count uint32) (BoxOpenPlan, error) {
 	if role.ConfigVersion != s.Catalog.Source.SaveIdentity() {
 		return BoxOpenPlan{}, fmt.Errorf("box open source mismatch")
 	}
@@ -190,10 +189,10 @@ func (s *Service) PlanBoxOpen(role Role, box, count uint32) (BoxOpenPlan, error)
 	}
 	return BoxOpenPlan{Table: table, Opens: opens}, nil
 }
-func (s *Service) PrepareBoxOpen(current Role, box, count uint32, plan BoxOpenPlan, resolveContract ContractResolver) (json.RawMessage, json.RawMessage, []PremiumActivation, error) {
+func (s *ItemService) PrepareBoxOpen(current Role, box, count uint32, plan BoxOpenPlan, resolveContract ContractResolver) (json.RawMessage, json.RawMessage, []PremiumActivation, error) {
 	var out BoxOpenReceipt
 	table, opens := plan.Table, plan.Opens
-	bag, e := inventory.ReadBag(current.State)
+	bag, e := ReadBag(current.State)
 	if e != nil {
 		return nil, nil, nil, e
 	}
@@ -257,7 +256,7 @@ func (s *Service) PrepareBoxOpen(current Role, box, count uint32, plan BoxOpenPl
 		return nil, nil, nil, e
 	}
 	premiums = append(premiums, grantedPremiums...)
-	updated, e := inventory.SaveBag(current.State, bag)
+	updated, e := SaveBag(current.State, bag)
 	if e != nil {
 		return nil, nil, nil, e
 	}
@@ -284,7 +283,7 @@ func readBoxCounter(state json.RawMessage, box uint32, name string) (uint32, err
 
 // BoxWindowCounters reads the same persisted point stacks used by OpenBoxes.
 // The device window needs their current values even before the first open.
-func (s *Service) BoxWindowCounters(state json.RawMessage, box uint32) (uint32, uint32, error) {
+func (s *ItemService) BoxWindowCounters(state json.RawMessage, box uint32) (uint32, uint32, error) {
 	if s == nil || s.Boxes == nil {
 		return 0, 0, fmt.Errorf("box catalog is not loaded")
 	}
