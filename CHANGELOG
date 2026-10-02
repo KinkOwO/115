@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## 2026-10-03：测试提速与旧基线收敛（源码候选）
+
+- 目标：原生模式（DFO_PVF_CORE_TEST_ARCHIVE）下套件既慢又有失败。根因是内层归档已是 8b2a、而大量测试/夹具仍对照旧源 7ef2；以及联合物品扫描逐条解码约 60 万条脚本。
+- 提速：归档打开走共享缓存（internal/catalog/pvf 源码哈希作 parser identity）+ 每包一次导入；联合物品扫描（ImportItemBasics）由串行改为分批并行预读 + 串行按序消费（消费者写入顺序与错误语义不变），生产启动准备同享；UTF-16 解码改单趟直接编码 UTF-8（ASCII 快路径 + sync.Pool），去掉 []uint16/[]rune 中间分配；测试用稳定缓存身份 DFO_PVF_CACHE_IDENTITY 使解析投影落盘复用；scripts/test_local.ps1 收敛为单一入口（-Full 开全量）。联合扫描 52s→40s(冷)/21s(暖)。
+- 旧基线收敛：删除或抽样纯旧 JSON 基线对照（cashshop 逐 SKU→确定性抽样、inventory equipment parity→抽样、managementdata parity→审计门禁、catalog/pvf 目录 parity→抽样）；原生模式 15 个 FAIL 清零——dungeon 4 个改原生 overlay（Import*/Apply*）、gamedata 10 个改绑原生源锚点/更新到当前源/删除旧 items_test、quest 1 个改原生 ImportQuests。
+- 验证：go build/vet 通过；各修复项定向测试通过；本机无 gcc，-race 不可用，联合扫描以连续运行结果一致（scripts=599771）验证确定性。按用户要求未跑全量套件。
+- 仅提交源码与测试；未改动协议、SQL/schema、玩家存档或客户端资源，未替换运行程序或操作玩家库。confirmed baseline 不新增实机确认范围。
+
 ## 2026-10-03：Wireprobe 启动装配拆分（源码候选）
 
 - bootstrap.go 的 prepareRuntime(Config) 集中目录准备、数据库迁移及服务装配，返回类型化运行依赖和清理函数；main.go 从 5825 行降到 4398 行。原准备顺序、路径派生、存档身份归一与连接作用域保持。
