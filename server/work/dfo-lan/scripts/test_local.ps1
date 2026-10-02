@@ -1,20 +1,24 @@
 # Local native-PVF test runner.
 #
-# Points DFO_PVF_CORE_TEST_ARCHIVE at the current inner PVF and enables the
-# disposable metadata cache, then runs the Go tests. This keeps a single
-# checksum-verified archive open per package and reuses runtime/pvf-cache
-# between runs instead of re-parsing the whole inner PVF for every test.
+# One command for every case — no environment variables to remember. It points
+# DFO_PVF_CORE_TEST_ARCHIVE at the current inner PVF, enables the disposable
+# metadata cache, and runs the Go tests. A single checksum-verified archive is
+# opened per package and reused via runtime/pvf-cache instead of re-parsing the
+# whole inner PVF for every test.
 #
 # Usage:
-#   pwsh -File scripts/test_local.ps1                 # go test ./...
+#   pwsh -File scripts/test_local.ps1                 # fast default: go test ./...
+#   pwsh -File scripts/test_local.ps1 -Full           # run the gated heavy/exhaustive tests too
 #   pwsh -File scripts/test_local.ps1 ./internal/dungeon
 #   pwsh -File scripts/test_local.ps1 -Run TestFoo ./internal/catalog
 #
-# Release verification still uses the serial, cache-disabled form:
-#   go test -p 1 -count=1 ./...
+# Default keeps every test case under ~30s: sampled parity tests run on a
+# deterministic cross-range sample and the heaviest archive tests skip. -Full
+# restores exhaustive sweeps (sets DFO_PVF_ARCHIVE_FULL_SWEEP=1).
 [CmdletBinding()]
 param(
     [string]$Run = "",
+    [switch]$Full,
     [Parameter(ValueFromRemainingArguments = $true)]
     [string[]]$GoTestArgs
 )
@@ -33,6 +37,9 @@ if (-not $env:DFO_PVF_CORE_TEST_ARCHIVE) {
 if (-not $env:DFO_PVF_CACHE_DIR) {
     $env:DFO_PVF_CACHE_DIR = 'runtime/pvf-cache'
 }
+if ($Full) {
+    $env:DFO_PVF_ARCHIVE_FULL_SWEEP = '1'
+}
 
 if (-not $GoTestArgs -or $GoTestArgs.Count -eq 0) {
     $GoTestArgs = @('./...')
@@ -46,6 +53,7 @@ $goArgs += $GoTestArgs
 
 Write-Host "DFO_PVF_CORE_TEST_ARCHIVE=$env:DFO_PVF_CORE_TEST_ARCHIVE"
 Write-Host "DFO_PVF_CACHE_DIR=$env:DFO_PVF_CACHE_DIR"
+Write-Host "DFO_PVF_ARCHIVE_FULL_SWEEP=$env:DFO_PVF_ARCHIVE_FULL_SWEEP"
 Write-Host "go $($goArgs -join ' ')"
 
 Push-Location $moduleRoot
