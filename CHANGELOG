@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 2026-10-03：奥德赛章节奖励与115级荣誉邮件候选（待实机）
+
+- 按用户要求新增 `odyssey-completion-rewards.json`，奖励ID经 `client/Script.pvf` 英语名称及原生LIST核对；章节进度和物品属性仍读当前服务端PVF。PVF实际含章节奖励表，第4/5章装备盒保留原生数量2。
+- 章节奖励使用原生物品目录，锁内复核通关，允许毕业后补发；保留旧收据和满包逐行重试。补上115级荣誉盒10420561系统邮件，邮件/欠奖/收据原子提交，兼容旧已发毕业盒与v2欠奖，满箱可重试。
+- 专项、隔离PostgreSQL、当前PVF、vet、构建及候选入口检查通过；全量测试4项失败均在HEAD overlay复现。无schema/玩家库/客户端资源修改。独立候选 `.tmp/odyssey-rewards-20261003/启动验证.cmd` 待用户手动验证，默认程序与confirmed baseline不变。详见 `server/work/dfo-lan/docs/odyssey-completion-rewards.md`。
+- 按用户授权从stash恢复，适配合并后的bootstrap、client_entry与internal/gamedata目录，保留stash备份。恢复版全量测试/vet、原生PVF和隔离PG邮件测试通过；通用charactercheck缺少account_unified_options表，经当前HEAD overlay复现。恢复候选SHA256 `3ca6bb14223ba5023eb12efcea3c82eea4aa8f281c7925c3fbc16022563e365d`，独立入口为 `启动验证-恢复版.cmd`，尚待章末发奖实机验收。
+
 ## 2026-10-03：Hell Party 全副本入场已确认
 
 - 删除早期仅允许副本103的验证门禁，改由当前PVF的Hell声明和封印地图确定支持范围。原生副本87失败请求已通过回归；当前PVF共60项声明，59项资源完整并通过离线入场，活动副本100005110缺地图100016811继续拒绝。

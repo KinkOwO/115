@@ -49,6 +49,7 @@ type Catalogs struct {
 	ClearCube                                    *catalog.LootItem
 	OdysseyGrowth                                *catalog.OdysseyGrowth
 	OdysseyChapters                              *catalog.OdysseyChapters
+	OdysseyCompletionRewards                     *catalog.OdysseyCompletionRewards
 	OdysseyWeapons                               *catalog.OdysseyWeaponChoices
 	OdysseyDrop                                  *loot.OdysseyChapterDrop
 	OdysseyCurrency                              *loot.OdysseyCurrency

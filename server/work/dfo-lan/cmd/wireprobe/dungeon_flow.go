@@ -1213,8 +1213,16 @@ func (w *worldSession) completeDungeon() ([]outboundPacket, error) {
 		ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
 		gifted, applied, _ := w.progression.OdysseyGifts(ctx, w.role)
 		if w.progression != nil && w.progression.Chapters != nil {
-			chaptered, chapterApplied, _ := w.progression.OdysseyChapterRewards(ctx, gifted)
+			chaptered, chapterApplied, pending := w.progression.OdysseyChapterRewards(ctx, gifted)
 			gifted, applied = chaptered, applied || chapterApplied
+			for _, err := range pending {
+				log.Printf("Odyssey chapter reward pending: character=%d: %v", gifted.ID, err)
+			}
+		}
+		mailed, _, mailErr := w.progression.OdysseyHonorMail(ctx, gifted)
+		gifted = mailed
+		if mailErr != nil {
+			log.Printf("Odyssey honor mail pending: character=%d: %v", gifted.ID, mailErr)
 		}
 		cancel()
 		w.role = gifted
