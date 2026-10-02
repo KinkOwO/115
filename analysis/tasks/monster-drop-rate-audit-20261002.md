@@ -8,6 +8,58 @@
 
 独立候选SHA256 `ce476c14359b012b24aedcbf8dfead763ddccb71a3d1c40ddafe97c30c790a9e` 纳入本项confirmed baseline，同目录 `启动验证.cmd` 保留。源码/验证记录与根CHANGELOG、server/AGENTS及开发交接同步收口，用户其它文件和默认程序保持。全量测试保留经HEAD对照的4项既有失败，相关领域及当前源回归、vet通过；不把全量写成通过。Hell表解析只是只读源投影，不启用Hell发奖。
 
+## 下一阶段：材料/消耗品源边界（提交aff2337之后）
+
+用户要求继续补材料与消耗品。进一步原生取证否定了“STK缺省创建率按1”这一方案：common reset `1470F42E0` 在 `1470F432F` 清空对象qword+0x10；STK parser `147110790` 的case21039由 `[creation rate]` 字符串 `14B210238` 注册，在 `14712BD1B` 写入DWORD+0x10。因此普通STK未声明创建率时原生字段为0，不能把所有材料、现金道具或食物均匀塞入通用掉落池。装备阶段未声明创建率的兼容策略仍按该阶段文档记录，不能倒推成STK原生默认。
+
+原生MOB reader `147444B30` 的 `[item]` case2757在 `147467A99` 将vector end+0x6C0重置为begin+0x6B8，随后两次int读取形成8字节记录，通过 `1403FAE90` 原样追加。重复[item]替换前段，不能参考正则只读首段，也不能简单拼接。此链只证明记录读取，未证明总触发率或第二格概率分母。
+
+当前PVF哥布林1/2、龙人70/71确实有这条独立物品表；70的原始对为1063/50、1002/100、1047/200。普通材料3012和这些消耗品在STK中都未声明创建率。新增独立只读 `catalog.ParseMonsterItemTable` / `ImportMonsterItemTables`，保留路径/完整脚本SHA、原始有符号数值、重复段替换与明确空段；未知LIST模板、截断或非整数对拒绝。没有接入死亡或卡片生成，未变更已确认二进制、爆率或存档。
+
+参考端存在实质冲突：S4 `DropGenerator.cs` 为MOB池额外固定1000/10000触发；usdof `mob_item_pool.py` 为每次必选一件。S4/usdof的区域材料表还硬编码副本区间和25%，不能作为当前115真源。`independent_drop.etc` 和 `worlddrop.etc` 是另外的路径，已定位原始源，但表结构、条件、分母与触发未作为本阶段已实现声明。根据根AGENTS的证据门禁，已询问用户是否将S4 10%明确作为本服兼容策略；回复之前不启用该率，也不以实机等待冒充能从客户端证明官方服务端公式。
+
+### 用户指定策略后：MOB材料/消耗品候选
+
+用户回复：“用环境变量定义吧，默认10%，等以后找到了再改”。据此新增 `DFO_ORDINARY_MONSTER_ITEM_DROP_PERCENT`，整数0..100，空值/未设置默认10，0关闭，非法值在打开存储前拒绝。只作用于普通副本MOB[item]专属池，独立于全局/地图普通生成与翻牌，不将其冒称为115官方率。池内正值按S4兼容选择权重，每次命中选一件；不再以通用创建率/等级窗口删除这类明确声明的物品。
+
+原生LIST/MOB由独立只读视图按需读取，16MiB/256条脚本缓存，源父归档关闭后仍有效。重复[item]最后一段覆盖，未知/负值/零权重/非堆叠/任务/策略排除模板不加入有效池，不可读源产生诊断、不替换源也不阻断既有Boss结算。没有有效池或率0不推进新分支随机状态。只在归属本场的普通战斗死亡启用，遵守随机掉落排除；Hell、奥德赛、Abyss/调律不消费该路径。奖励追加于地图奖励之后，不删除既有装备/金币；领取沿用现有Awarder/角色事件，未改包布局或schema。
+
+真实当前PVF回归验证怪物1/70的草莓1000、朗姆酒1002、恢复食物1063及65005声明的魔力溶解剂3227（[material expert job]）能生成地面对象并入袋，存档future_field与期限保持；源视图生命周期、死亡重放与暂缓模式/排除/归属/关闭隔离通过。默认10%和1:9选型权重的固定种子统计通过；100%仅用于离线强制覆盖，不修改候选默认。当前准备检查27.438秒通过，普通装备6905/旧池2794保持，并验证MOB70视图与6013排除策略。新测试夹具的slice/slot访问、期限字段名、MaximumGrade及vet要求的外包具名字面量错误已修正，不把中间检查写成通过。
+
+最终 `go test ./...`（`go-test-monster-material-final-keyed.txt`）中catalog、loot、dungeon、inventory、workflow、savecontract与协议包通过；仅保留前阶段HEAD对照已复现的4项失败：wireprobe的 `TestAdventureAuditProvenanceAllowanceIsNarrow`、`TestPVFCatalogGateRefusesRewardChangesAndDoesNotFallback`、`TestEnhancementAuditAllowsOnlyMissingOrdinaryTicketExpirationHeader`，以及cashshop的 `TestShopPilotPVFCurrentCatalog`（SKU3400013空发放）。全量退出1，不宣称全通过。最终 `go vet ./...`（`go-vet-monster-material-final-keyed.txt`）退出0，`git diff --check`通过，构建成功。
+
+独立程序 `.tmp/drop-audit-20261002/wireprobe-drop-materials.exe`，SHA256 `1584a73a30b896d1e493d55702832bfb441351cffb89b6b2c89a396b4583f918`；独立profile `pvf-drop-materials.json` 只替换binary，入口 `启动材料验证.cmd`。scoped装备confirmed候选保持ce476c14，默认EXE不覆盖。按同一普通掉落功能保守记录累计 **attempt 3/3**；这是用户明确选择的兼容策略，不新增C2S或S2C字段。若失败先据源与实机日志取证，不盲目换包或编造新率。MOB未声明的其它材料来源、独立/区域/worlddrop尚未全面实现，付费/材料翻牌不在本候选声明内。此候选待用户手动验证，尚未确认/提交。
+
+## 20:13实机追查：剧情怪无专属池与全局材料缺口
+
+用户反馈几次普通副本基本没有材料/消耗品，并指定核对全局表与实际怪物，而非直接调高概率。手动会话 `roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261002_200452_104132_next37` 启动日志明确记录当前4d8c源、MOB兼容率1000/10000以及1022个通用STK候选。NOTI33/后续房间spawn与NOTI38死亡对象逐项关联：副本12/13/14/15分别28/55/61/36条死亡确认，共180条；34种模板（包含不发随机奖励的剧情实体）均未声明MOB[item]。NOTI38实际地面对象为金币11个、装备4件（104030492、116010066、117010025、28313），没有STK物品；不把翻牌计入地面掉落。
+
+142次 `monster_item_source_refused` 揭示本候选的路径错误：LIST已给出归档根 `contents/2022/new_scenario_renewal/...`，读取器仍无条件添加 `monster/`。PVF目录扫描和直接读取确认原始LIST路径的文件存在，并非资源缺失；23种出现拒绝的模板均对应此问题。修正为优先保留存在的精确LIST绑定，只有相对路径才补旧monster目录，两条导入/按需视图路径共用。真实源回归同时验证哥布林1保留旧路径/池，以及109014957、109014964、109015032使用contents根路径且不凭空补池，父归档关闭后视图仍有效。这里只修有明确源证据的路径错误，没有更换包或新增未知发奖公式；累计attempt3/3保持，不追加盲试。正确读取实际这34种模板后仍全部未声明[item]，因此10%或100%都不能使本次怪物从专属池产生物品。旧哥布林/龙人模板的池不能移植给同名新版剧情模板。
+
+当前通用STK候选1022种仅含1007个[material]与15个[throw]；草莓1000、朗姆酒1002、恢复食物1063、普通材料3012都未声明创建率且不在池内。实机怪等级15..18：对应等级/稀有度窗口可命中的候选只有投掷物，15级额外两个rarity4投掷物在当前普通稀有度第一行（rarity3已达1000000/1000000）无法被选中，没有可命中的普通材料/恢复消耗品。两条通用STK分支基础率在1..15级为60/10000与0，16..23级为30/10000与17/10000，再乘rank/难度；这些低概率只影响已有候选，不会补出缺失物品。
+
+地图来源也不能补齐：12带率索引只引用unique11005/legendary11006；12..15的DGN自身均引用11005。源组11005全部194行属于EQU，11006两行也均为EQU，没有STK。13..15无带率全局索引，现行声明组分支会把通用物品预算转交11005，原STK结果也被组装备替代。这是当前服务端行为与源组成的确认，不把该替代语义冒称115官方规则；不能因此给装备组硬塞材料或复制旧同名MOB池。`independent_drop.etc`、`worlddrop.etc`及区域材料来源仍需进一步闭环，未实现部分才是普通材料目标的主要缺口。现有实机证据足够定位，不要求用户通过更多重复跑图证明概率问题。
+
+只读复核工具/结果为 `.tmp/drop-audit-20261002/live_material_audit.go` / `live-material-audit.txt`，不入Git。当前源路径回归 `go-test-monster-root-path.txt` 通过（10.936秒）；最终全量 `go-test-monster-root-final.txt` 中相关包通过，仅保留上述4项已对照的既有失败，退出1；`go-vet-monster-root-final.txt` 为空且退出0，diff检查通过。路径修正程序为 `wireprobe-drop-materials-root.exe`，SHA256 `120fb257c275e400f5c371d8ccf6299bf7fa404829d1b1b995710546810417b3`，原材料独立profile只更新binary指向它，旧1584候选及装备confirmed候选保留。默认程序不覆盖。这不是普通材料掉落完整修复，尚未确认/提交；本次未操作玩家存档、schema、资源或客户端。
+
+## 世界材料/消耗品：用户实机确认
+
+用户继续指定核对全局与实际怪物来源，随后明确回复“采用参考规则，默认1倍”；实机确认“能掉落消耗品和材料了，可以提交”。本轮新的取证范围是独立/世界/区域来源，世界发奖是用户明确指定的兼容策略；不是在旧attempt3/3上继续换包、无依据硬编码或盲试第四次。新的世界来源验证记录为 **attempt1/3**，保持既有协议布局和MOB策略。本项已纳入confirmed baseline；独立主表、区域来源及材料/消耗品翻牌继续留待后续取证。
+
+当前源 `etc/worlddrop.etc` SHA256 `b75a987a68d93e579b56e67c3dd0309b9bc5e5813efda38073c640057975dc71`，46202 cells、200行。逐行闭环等级/保留列、物品权重对与-1边界；保留列当前全部0，不冒称115官方语义。15～18级正权重合计7006，材料3030/3028/3027/3142/3151/3156分别850/830/830/830/830/830；15级药剂1107/1113各1000，16～18级为1108/1114各1000；6种制作配方各1。材料及药剂均有当前原生STK/LIST绑定，因此问题是服务端遗漏世界来源，不只是MOB池触发太低。S4 `WorldDropSystem.cs` 为权重和/100000独立触发、命中再按权重选一件，usdof同分母但查找(r)/(f)文件；当前只读现存的worlddrop精确源，不复制旧区域硬编码或造备用表。
+
+115原生MOB `[exclude world drop]` 在14744CB96注册case11379，1474541BC对MOB+1694执行OR8、不消费数值。已注释IDB并保存；只读MOB投影保留此布尔标记，world发奖必须先读取本场怪物的精确源并遵守它。world运行表和策略标记json:"-"，不进入内容快照；即使命中普通loot派生缓存，EnableRuntimeDetails仍从当前已验证PVF重新解析此表。父归档关闭后世界表及STK/MOB只读视图保持有效。无玩家数据库/schema或资源改动。
+
+新增 `DFO_ORDINARY_WORLD_DROP_PERCENT` 整数0..10000，空/未设置100=1倍，200=2倍，0关闭，非法值拒绝启动；按源权重和乘百分比/100生成阈值，分母100000，阈值封顶100%。这是用户指定的参考兼容公式，不声称取得115官方server公式。第二列非0或权重溢出拒绝该次世界奖励并诊断，不阻断既有死亡/Boss结算。只选源中正权重条目，一件/数量1；选中未知、非STK、任务、策略排除或不可读项则跳过，不重新归一化或重抽其它物品。该分支追加在普通地图生成之后，MOB[item]未声明仍可世界掉落；不补通用创建率、不替换装备金币，不进入翻牌。排除随机、未归属、剧情/APC与Hell/奥德赛/Abyss/调律边界保持。
+
+独立主表另行只读取证：`etc/independent_drop.etc` SHA256 `3e13815db2e4ef8a55b905d86217d4067791fea4aaae3ec6fd6eed3ab8e0f798`，1806条：953直给flag0、844内联flag1、9替换flag5；当前外部 `independentdrop.lst` 为空。115 reader147C74470读取17-int行，flag上限5，flag5有replace list及可选dungeon condition；已命名IndependentDrop_ReadSourceTables并写索引。唯一已见直接调用1450B0840加载的是Independent_Drop_Card.etc，用于MonsterCardDictionary元数据；不是独立怪物发奖，也不证明官方触发分母、计数索引和条件解释。实际34种模板中主表仅59520/59522有匹配，原始五列均2300、内联10149045..10149052各12500；这些8种物品是原生[waste]，不能误报为装备。新版109014...怪物未匹配主表。旧参考端对计数索引、external分母及entry_type处理存在冲突；本候选未接入这条主表，不把它算作已解决范围。审计JSON只保留于.tmp，不是运行内容源。
+
+聚焦测试 `go-test-world-focused-final.txt` 通过：默认1倍100000个固定种子接近7.006%，正确保持源选型权重，排除/未知项不重抽；当前PVF的109014957在15～18级离线强制覆盖6种材料及4种HP/MP药剂，地面对象、入袋、期限与future_field保持、死亡重放不重复、暂缓模式/归属/剧情边界通过。初次夹具遗漏NextEntity导致drop identity exhausted，已补回真实会话要求的身份空间；该错误没有改运行逻辑。强制倍率仅用于离线覆盖，候选仍默认1倍。
+
+当前准备检查 `go-test-world-prepare.txt` 通过（40.69秒），使用4d8c源、默认世界100%倍率、MOB1000/10000，世界200行、装备ordinary6905/legacy2794保持。最终 `go test ./...`（go-test-world-all.txt）相关catalog/loot/dungeon/inventory/protocol/workflow/savecontract/storage全部通过，仅保留已由HEAD对照复现的4项既有失败：wireprobe三项来源审计、cashshop SKU3400013 empty delivery；全量退出1，不宣称全绿。`go vet ./...`（go-vet-world-all.txt）退出0，diff检查通过，构建成功。
+
+新独立程序 `wireprobe-drop-world.exe` SHA256 `5e40b294dfd92ab27408b13f0f5d9918c79b30f1bdecb6a6bf9f6a6cea49329f`。新profile `pvf-drop-world.json` 相对材料profile只修改binary，环境集合比对一致；新入口 `启动世界掉落验证.cmd` 调用根启动游戏.cmd --repair-profile。它们位于 `.tmp/drop-audit-20261002/`，不入Git。用户确认材料/消耗品可以掉落；该候选纳入本项confirmed baseline，默认程序哈希仍77ce8513/2e00530b，未替换。详见 `server/work/dfo-lan/docs/ordinary-world-drop.md`。普通材料/消耗品翻牌和其它来源不外推为已确认。
+
 ## 18:33 实机回归：难度 0 阻断结算
 
 用户反馈“打完boss不触发结算了”。手动会话 `roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261002_182316_881531_next37` 的 CMD16 原文为 `0b0000000000000000ffff000000000000000000000000000000000000000000`，即副本11、难度0；18:33:46.162 的 `boss_check_confirmed` 为 `01014610`，死亡/完成确认正常。随后18:33:46.177 的 CMD46 被拒绝，原因精确为 `ordinary clear-reward table/difficulty unavailable`。新 `ordinaryFreeCard` 的1..5门禁与已有 `dungeon.Select` 的0..5准入、死亡掉落的难度0→第一列处理不一致，导致 `FreezeCards` 返回错误，结算通知未发出。

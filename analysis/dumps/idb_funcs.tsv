@@ -1,4 +1,5 @@
 address	name	description
+0x1470F42E0	ItemScript_ResetCommonFields	115 native common item reset clears qword+0x10; STK creation-rate case21039 writes DWORD+0x10 at14712BD1B; missing rate zero, award trigger remains separate, audit20261002
 0x147399CC0	DungeonDropInfo_DecodeRewardType	115 native drop-rule type enum special0 epic1 legendary2 unique3 rare4 random5 stackable6 primeval7 unknown8; independent from EQU rarity, audit20261002
 0x146AA0AE0	ResultReward_AddTemplateRow	115 result UI stores template row per participant/reward channel; binary template kind2 forces amount1 and passes local item state to display factory; NOTI35 first-channel metadata resides at local state+239..259, audit20261002
 0x147426050	DungeonDropGroups_ReadTables	115 dungeondroptablebygroup reader; keeps nonzero-creation explicit raw, smart raw, and zero-creation explicit cumulative pairs in separate maps; award semantics still open, audit20261002
@@ -98,3 +99,5 @@ address	name	description
 0x14524C580	PacketDispatch_RegisterHandlers_14524C580	Registers command handlers including CMD72 -> 145244570 at 14524C65E. Registration bytes match current PE.
 0x145244570	Handler_CmdSettlementExit	CMD72 success handler reads state u8 at 1452445AD, option u8 at 1452445B9 after common success; applies option/state to normal reward window at 145244973.
 0x146ABAF50	ClearRewardWindow_ApplySettlementExit	Stores option at +4108 and state at +4112; state!=1 returns at 146ABB201. Option 0 restart, 1 dungeon selection, 2 town, 5 seamless.
+0x147C74470	IndependentDrop_ReadSourceTables	115 source parser: 17-int rows, flag<=5, inline flags1/4/5, external flag2, flag5 replacement/dungeon condition; proven card-metadata caller only, award formula not established.
+0x1450B0840	MonsterCardDictionary_LoadIndependentDropMetadata	Loads MonsterCardDictionary.etc and Independent_Drop_Card.etc via147C74470, builds item-keyed dictionary metadata, then EnchantBeadDictionary.etc; not monster award generation.

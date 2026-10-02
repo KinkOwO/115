@@ -246,6 +246,12 @@ func (s *Source) EnableRuntimeDetails(q *catalog.QuestCatalog, l *character.Lear
 		if err := items.EnableRuntimeDetails(s.archive, *index); err != nil {
 			return err
 		}
+		if err := items.EnableMonsterItemDetails(s.archive); err != nil {
+			return err
+		}
+		if err := items.EnableWorldDrop(s.archive); err != nil {
+			return err
+		}
 	}
 	return nil
 }

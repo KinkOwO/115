@@ -22,14 +22,21 @@ type LootItem struct {
 	Script        ScriptRecord
 }
 type LootCatalog struct {
-	details      *ScriptDetails[uint32, ScriptRecord]
-	Source       pvf.ArchiveSnapshot     `json:"source"`
-	MaximumGrade uint32                  `json:"maximum_grade"`
-	Rules        map[string]ScriptRecord `json:"rules"`
-	HellEpic     *HellEpicTable          `json:"hell_epic,omitempty"`
-	ClearReward  *ClearRewardTable       `json:"clear_reward,omitempty"`
-	Items        map[uint32]LootItem     `json:"items"`
-	IndexHashes  map[string]string       `json:"index_hashes"`
+	details                *ScriptDetails[uint32, ScriptRecord]
+	monsterItems           *ScriptDetails[uint32, ScriptRecord]
+	monsterItemUnavailable map[uint32]string
+	// User-selected runtime policy, denominator10000; never persisted content.
+	OrdinaryMonsterItemRate  uint32                  `json:"-"`
+	MonsterItemExclusions    map[uint32]bool         `json:"-"`
+	WorldDrop                *WorldDropTable         `json:"-"`
+	OrdinaryWorldDropPercent uint32                  `json:"-"`
+	Source                   pvf.ArchiveSnapshot     `json:"source"`
+	MaximumGrade             uint32                  `json:"maximum_grade"`
+	Rules                    map[string]ScriptRecord `json:"rules"`
+	HellEpic                 *HellEpicTable          `json:"hell_epic,omitempty"`
+	ClearReward              *ClearRewardTable       `json:"clear_reward,omitempty"`
+	Items                    map[uint32]LootItem     `json:"items"`
+	IndexHashes              map[string]string       `json:"index_hashes"`
 	// DropGroups is the typed projection of etc/dungeondroptablebygroup.etc; a
 	// dungeon script's [difficulty dropitem group list] indexes into it by id.
 	DropGroupSource DropGroupSource `json:"drop_group_source"`

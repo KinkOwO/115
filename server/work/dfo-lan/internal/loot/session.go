@@ -212,6 +212,32 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 		_ = groupTaken
 	}
 	result.Awards = filterDungeonAwards(d.Definition, result.Awards)
+	// Append this independent pool after map awards; it cannot replace gear.
+	// Deferred/special modes do not consume its RNG or runtime policy.
+	if ordinaryDungeonRewards(d, s.Catalog, s.Attunement) && !excludeRandom && !d.Unowned[entity] && monsterItemsEnabled(s.Rules) && (s.Catalog.OrdinaryMonsterItemRate > 0 || s.Catalog.WorldDrop != nil && s.Catalog.OrdinaryWorldDropPercent > 0) {
+		table, known, err := s.Catalog.MonsterItemTable(monster.Template)
+		if err != nil {
+			result.SkippedKinds = append(result.SkippedKinds, "monster_item_source_refused:"+err.Error())
+		} else if known {
+			out, err := rollMonsterItems(s.Catalog, table, result.NextSeed)
+			if err != nil {
+				return nil, err
+			}
+			result.Awards = append(result.Awards, out.Awards...)
+			result.SkippedKinds = append(result.SkippedKinds, out.SkippedKinds...)
+			result.NextSeed = out.NextSeed
+			if !table.ExcludeWorldDrop {
+				out, err := rollWorldItems(s.Catalog, result.NextSeed, monster.Level)
+				if err != nil {
+					result.SkippedKinds = append(result.SkippedKinds, "world_drop_source_refused:"+err.Error())
+				} else {
+					result.Awards = append(result.Awards, out.Awards...)
+					result.SkippedKinds = append(result.SkippedKinds, out.SkippedKinds...)
+					result.NextSeed = out.NextSeed
+				}
+			}
+		}
+	}
 	if d.Definition.Odyssey && s.Currency != nil {
 		// ⚠️ 这里必须比**内层真哈希**（`Checksum`），不能比契约身份（`SaveIdentity()`）：
 		// `s.Currency.Source` 是 `ImportOdysseyCurrency` 里按 `a.Snapshot().Checksum` 赋的值，

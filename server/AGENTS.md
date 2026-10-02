@@ -1,5 +1,11 @@
 # AGENTS.md — server/
 
+## 2026-10-02：普通副本材料与消耗品掉落已确认
+
+- 用户确认“能掉落消耗品和材料了”。按当前PVF接入MOB专属物品池及等级世界掉落，已补入材料和HP/MP药剂；遵守MOB `[exclude world drop]`、普通副本归属/排除及Hell/奥德赛/Abyss/调律边界，复用现有地面拾取与角色存档事务。
+- confirmed baseline 为独立候选 `work/dfo-lan/.tmp/drop-audit-20261002/wireprobe-drop-world.exe`，SHA256 `5e40b294dfd92ab27408b13f0f5d9918c79b30f1bdecb6a6bf9f6a6cea49329f`。世界参考兼容倍率 `DFO_ORDINARY_WORLD_DROP_PERCENT` 默认100=1倍；MOB专属池 `DFO_ORDINARY_MONSTER_ITEM_DROP_PERCENT` 默认10%。两者均不声称是115官方服务端完整公式。默认程序未替换。
+- 普通材料/消耗品翻牌、independent_drop主表与区域材料表仍未确认/接入；Hell Party、奥德赛暂缓。真实PVF及领取回归、启动准备检查和`go vet ./...`通过；全量测试保留经HEAD对照的3项wireprobe审计失败及1项cashshop空发放。无schema、玩家数据库或客户端资源改动。详见 `work/dfo-lan/docs/ordinary-world-drop.md` 与 `../analysis/tasks/monster-drop-rate-audit-20261002.md`。
+
 ## 2026-10-02：普通装备掉落与免费翻牌已确认
 
 - 用户确认普通怪物能掉装备、翻牌能出装备，并要求先提交。19:13手动会话 `roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261002_191351_952423_next37` 中角色21的Boss确认、NOTI35、装备拾取刷新及CMD71翻牌入袋成功均有记录。难度0结算阻断和地图类别覆盖过宽已修复。

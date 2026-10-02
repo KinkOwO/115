@@ -4,6 +4,7 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/gamedata"
 	"dfolan/internal/inventory"
+	"dfolan/internal/loot"
 	"fmt"
 	"log"
 	"os"
@@ -23,6 +24,20 @@ func preparePVFLoot(c *pvfCoreCatalogs, s *gamedata.Source, inputs pvfItemInputs
 		delete(direct.Items, id)
 	}
 	log.Printf("PVF loot selection exclusions retained: %v", policy.ExcludedLootIDs)
+	direct.OrdinaryMonsterItemRate, err = loot.ParseMonsterItemDropPercent(os.Getenv("DFO_ORDINARY_MONSTER_ITEM_DROP_PERCENT"))
+	if err != nil {
+		return err
+	}
+	direct.MonsterItemExclusions = map[uint32]bool{}
+	for _, id := range policy.ExcludedLootIDs {
+		direct.MonsterItemExclusions[id] = true
+	}
+	log.Printf("ordinary MOB item compatibility rate=%d/10000 (DFO_ORDINARY_MONSTER_ITEM_DROP_PERCENT, default 10%%); source pairs retain selection weights", direct.OrdinaryMonsterItemRate)
+	direct.OrdinaryWorldDropPercent, err = loot.ParseWorldDropPercent(os.Getenv("DFO_ORDINARY_WORLD_DROP_PERCENT"))
+	if err != nil {
+		return err
+	}
+	log.Printf("ordinary world drop compatibility multiplier=%d%% (DFO_ORDINARY_WORLD_DROP_PERCENT, default 100%%); source weights /100000", direct.OrdinaryWorldDropPercent)
 	if inputs.checksBaselines() {
 		path := inputs.lootPath
 		if override := os.Getenv("DFO_LOOT_CATALOG"); override != "" {

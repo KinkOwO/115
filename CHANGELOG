@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 2026-10-02：普通副本材料与消耗品掉落已确认
+
+- 按当前内层PVF接入MOB专属物品池和等级世界掉落；世界表补上此前未接入的普通材料与HP/MP药剂来源。尊重怪物 `[exclude world drop]`、地图随机掉落排除及特殊模式边界，生成物走现有地面拾取/存档事务，不改包布局或schema。
+- 用户实机确认“能掉落消耗品和材料了”。世界池采用用户指定的参考端兼容规则，默认1倍权重和/100000；`DFO_ORDINARY_WORLD_DROP_PERCENT` 可调倍率（100=1倍）。MOB专属池 `DFO_ORDINARY_MONSTER_ITEM_DROP_PERCENT` 仍默认10%。这些兼容倍率不冒称115官方服务端完整公式。
+- 本项confirmed baseline为独立候选 `wireprobe-drop-world.exe`，SHA256 `5e40b294dfd92ab27408b13f0f5d9918c79b30f1bdecb6a6bf9f6a6cea49329f`；默认程序未替换。普通材料/消耗品翻牌、独立主表及区域材料规则仍不在确认范围；Hell Party与奥德赛暂缓，Abyss/调律保留。
+- 世界/怪物真实PVF回归、死亡生成/入袋与隔离测试、启动准备检查和`go vet ./...`通过。`go test ./...`仍有经HEAD对照的3项wireprobe来源审计失败与商城SKU3400013空发放1项。未改客户端资源、玩家数据库或schema。取证与公式边界见`analysis/tasks/monster-drop-rate-audit-20261002.md`及`server/work/dfo-lan/docs/ordinary-world-drop.md`。
+
 ## 2026-10-02：普通装备掉落与免费翻牌已确认
 
 - 用户确认“能掉装备了，翻牌也能出装备了”，按要求提交本阶段。普通副本接入当前内层PVF的分类难度倍率、独立普通装备候选与创建权重，地图带率条目仅覆盖其声明类别，修复只掉金币的问题；免费翻牌生成并冻结主背包装备，领取沿用角色事件事务。
