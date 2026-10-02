@@ -11,11 +11,8 @@ import (
 
 func TestYellowDragonCapturedEntry(t *testing.T) {
 	base := filepath.Join("..", "..", "configs")
-	c, err := catalog.LoadDungeons(filepath.Join(base, "dungeons.full.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err = catalog.AttachTournamentQuestMaps(&c, filepath.Join(base, "dungeons.tournament-quest-maps.json")); err != nil {
+	c := catalog.LoadNativeFullDungeons(t)
+	if err := catalog.AttachTournamentQuestMaps(&c, filepath.Join(base, "dungeons.tournament-quest-maps.json")); err != nil {
 		t.Fatal(err)
 	}
 	body, err := hex.DecodeString("e2edf5050300000000ffff0000000000d8350000000000000000000000000000")

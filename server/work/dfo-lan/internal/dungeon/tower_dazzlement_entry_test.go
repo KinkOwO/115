@@ -10,10 +10,7 @@ import (
 
 func TestDazzlementSourceEntry(t *testing.T) {
 	configDir := filepath.Join("..", "..", "configs")
-	c, err := catalog.LoadDungeons(filepath.Join(configDir, "dungeons.full.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	c := catalog.LoadNativeFullDungeons(t)
 	if _, err := Select(c, protocol.DungeonSelection{ID: 7601, Party: 65535}, 95, nil); err == nil {
 		t.Fatal("unresolved Dazzlement maze entered without source maps")
 	}

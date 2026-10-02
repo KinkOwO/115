@@ -4,15 +4,11 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
 	"encoding/hex"
-	"path/filepath"
 	"testing"
 )
 
 func TestRoarRavineLiveSelectionResolvesAcceptedQuest(t *testing.T) {
-	c, err := catalog.LoadDungeons(filepath.Join("..", "..", "configs", "dungeons.full.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	c := catalog.LoadNativeFullDungeons(t)
 	p, err := hex.DecodeString("6789d7170000000000ffff000000000000000000000000000000000000000000")
 	if err != nil {
 		t.Fatal(err)

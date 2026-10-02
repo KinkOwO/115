@@ -9,10 +9,7 @@ import (
 
 func TestTowerGriefSourceEntry(t *testing.T) {
 	configDir := filepath.Join("..", "..", "configs")
-	c, err := catalog.LoadDungeons(filepath.Join(configDir, "dungeons.full.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	c := catalog.LoadNativeFullDungeons(t)
 	if _, err := Select(c, protocol.DungeonSelection{ID: 5115, Party: 65535}, 95, nil); err == nil {
 		t.Fatal("unresolved source tower maze unexpectedly entered without overlay")
 	}

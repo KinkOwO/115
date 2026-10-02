@@ -3,10 +3,7 @@ package catalog
 import "testing"
 
 func TestCurrentTerminalSceneExportMatchesDungeonSource(t *testing.T) {
-	c, err := LoadDungeons("../../configs/dungeons.full.json")
-	if err != nil {
-		t.Fatal(err)
-	}
+	c := LoadNativeFullDungeons(t)
 	if err := AttachTerminalScenes(&c, "../../configs/dungeons.terminal-scenes.json"); err != nil {
 		t.Fatal(err)
 	}

@@ -10,10 +10,7 @@ import (
 
 func TestCapturedTrombeHellSelectionUsesSourceSealRoom(t *testing.T) {
 	config := filepath.Join("..", "..", "configs")
-	c, err := catalog.LoadDungeons(filepath.Join(config, "dungeons.full.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	c := catalog.LoadNativeFullDungeons(t)
 	if err := catalog.AttachHellPartyMaps(&c, filepath.Join(config, "dungeons.hell-party-maps.json")); err != nil {
 		t.Fatal(err)
 	}

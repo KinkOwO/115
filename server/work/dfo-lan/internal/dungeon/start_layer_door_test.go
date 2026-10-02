@@ -1,8 +1,6 @@
 package dungeon
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 
 	"dfolan/internal/catalog"
@@ -18,18 +16,7 @@ import (
 //
 // 锁住：起点层图格点门必须**前进**，不能回 base。
 func TestStartLayerSceneDoorAdvancesNotBase(t *testing.T) {
-	raw, e := os.ReadFile(filepath.Join("..", "..", "configs", "dungeons.full.json"))
-	if e != nil {
-		t.Skip("full catalog missing:", e)
-	}
-	tmp := filepath.Join(t.TempDir(), "d.json")
-	if e = os.WriteFile(tmp, raw, 0o600); e != nil {
-		t.Fatal(e)
-	}
-	c, e := catalog.LoadDungeons(tmp)
-	if e != nil {
-		t.Fatal(e)
-	}
+	c := catalog.LoadNativeFullDungeons(t)
 	d, ok := c.Dungeons[100004777]
 	if !ok {
 		t.Fatal("100004777 不在 full 导出里")
@@ -63,9 +50,11 @@ func TestStartLayerSceneDoorAdvancesNotBase(t *testing.T) {
 	if !ok {
 		t.Fatalf("map %d 未导入", s.Room.Map)
 	}
-	if s.Monsters, e = fixedMonsters(script, d.BasisLevel); e != nil {
-		t.Fatal(e)
+	monsters, err := fixedMonsters(script, d.BasisLevel)
+	if err != nil {
+		t.Fatal(err)
 	}
+	s.Monsters = monsters
 	if !s.LayerAtStart(mz.Start) {
 		t.Fatal("起点层图格应被 LayerAtStart 认出")
 	}

@@ -7,10 +7,7 @@ import (
 )
 
 func TestDelezieQuestWaitsForSourceClearMap(t *testing.T) {
-	c, err := catalog.LoadDungeons("../../configs/dungeons.full.json")
-	if err != nil {
-		t.Fatal(err)
-	}
+	c := catalog.LoadNativeFullDungeons(t)
 	s, err := Select(c, protocol.DungeonSelection{ID: 7123, Quest: 23108, Party: 65535, Difficulty: 1}, 50, map[uint16]bool{23108: true})
 	if err != nil {
 		t.Fatal(err)

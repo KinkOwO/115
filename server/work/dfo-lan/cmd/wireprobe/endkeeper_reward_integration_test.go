@@ -80,10 +80,7 @@ func TestEndkeeperBossPaysTheUnwrappedRewards(t *testing.T) {
 	if os.Getenv("ATTUNEMENT_REWARD_INTEGRATION") != "1" {
 		t.Skip("set ATTUNEMENT_REWARD_INTEGRATION=1 to load the 295 MB dungeon catalog")
 	}
-	dc, err := catalog.LoadDungeons("../../configs/dungeons.full.json")
-	if err != nil {
-		t.Fatal(err)
-	}
+	dc := catalog.LoadNativeFullDungeons(t)
 	lc, err := catalog.LoadLoot("../../configs/loot.level150.json")
 	if err != nil {
 		t.Fatal(err)

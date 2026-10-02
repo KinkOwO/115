@@ -193,10 +193,7 @@ func TestMazeChanceOverlayKeepsSourceRates(t *testing.T) {
 // 副本 sha256、权重个数与 maze 数一致 —— 任一项漂移，服务端都会在启动期直接失败，
 // 而这条测试让那个失败出现在测试里，而不是实机上。
 func TestMazeChanceOverlayFitsTheRealCatalog(t *testing.T) {
-	c, err := LoadDungeons("../../configs/dungeons.full.json")
-	if err != nil {
-		t.Fatal(err)
-	}
+	c := LoadNativeFullDungeons(t)
 	if err := AttachMazeChanceRates(&c, "../../configs/dungeons.maze-chance-rates.json"); err != nil {
 		t.Fatal(err)
 	}
