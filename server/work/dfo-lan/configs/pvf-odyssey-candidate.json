@@ -9,6 +9,6 @@
     "DFO_PVF_VAULT_POLICY": "configs/pvf-vault-policy.json",
     "DFO_PVF_DROP_POLICY": "configs/pvf-drop-policy.json",
     "DFO_PVF_SCENE_POLICY": "configs/pvf-scene-policy.json",
-    "DFO_PVF_CONTENT_POLICY": "configs/pvf-odyssey-policy.json"
+    "DFO_PVF_CONTENT_POLICY": "configs/pvf-mine-policy.json"
   }
 }

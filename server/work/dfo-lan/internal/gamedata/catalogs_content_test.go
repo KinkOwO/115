@@ -67,7 +67,7 @@ func TestPVFBlackPurgatoryLocalArchive(t *testing.T) {
 	if path == "" {
 		t.Skip("set DFO_PVF_CORE_TEST_ARCHIVE for source reward scope parity")
 	}
-	c, err := prepareCatalogsForTest(t, "black-purgatory", path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "../../configs/characters.skycastle-release.json", "", "", "", CatalogInputs{IndexPath: "../../configs/items.index.json", ContentPolicyPath: "../../configs/pvf-reward-policy.json"})
+	c, err := prepareCatalogsForTest(t, "black-purgatory", path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "../../configs/characters.skycastle-release.json", "", "", "", CatalogInputs{IndexPath: "../../configs/items.index.json", ContentPolicyPath: "../../configs/pvf-mine-policy.json"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -182,7 +182,7 @@ func TestPVFOdysseyLocalArchive(t *testing.T) {
 	if path == "" {
 		t.Skip("set DFO_PVF_CORE_TEST_ARCHIVE for Odyssey native parity")
 	}
-	c, err := prepareCatalogsForTest(t, "odyssey-growth,odyssey-chapters,odyssey-weapons,odyssey-drop,odyssey-currency", path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "../../configs/characters.skycastle-release.json", "", "", "", CatalogInputs{IndexPath: "../../configs/items.index.json", ContentPolicyPath: "../../configs/pvf-odyssey-policy.json"})
+	c, err := prepareCatalogsForTest(t, "odyssey-growth,odyssey-chapters,odyssey-weapons,odyssey-drop,odyssey-currency", path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "../../configs/characters.skycastle-release.json", "", "", "", CatalogInputs{IndexPath: "../../configs/items.index.json", ContentPolicyPath: "../../configs/pvf-mine-policy.json"})
 	if err != nil {
 		t.Fatal(err)
 	}
