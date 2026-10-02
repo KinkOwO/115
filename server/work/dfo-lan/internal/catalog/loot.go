@@ -60,10 +60,11 @@ func lootInt(c []pvf.Token, name string) (int32, bool) {
 
 // ImportLoot preserves current typed item definitions. Only item grades inside
 // the explicitly requested import range are projected into this runtime pool.
-func ImportLoot(a *pvf.Archive, maxGrade uint32) (LootCatalog, error) {
+func importLootTables(a *pvf.Archive, maxGrade uint32) (LootCatalog, map[string]map[uint32]string, error) {
 	c := LootCatalog{Source: a.Snapshot(), MaximumGrade: maxGrade, Rules: map[string]ScriptRecord{}, Items: map[uint32]LootItem{}, IndexHashes: map[string]string{}}
+	refs := map[string]map[uint32]string{}
 	if maxGrade == 0 || maxGrade > 200 {
-		return c, fmt.Errorf("invalid loot import grade range")
+		return c, refs, fmt.Errorf("invalid loot import grade range")
 	}
 	// [MERGE-20260928-ABYSS-HELL-TABLE] etc/itemdropinfo_monster_hell.etc 是深渊
 	// (hell party) 专用的掉落支持表。它自 2026-09-28 起就在 client-build 的 PVF 里
@@ -83,7 +84,7 @@ func ImportLoot(a *pvf.Archive, maxGrade uint32) (LootCatalog, error) {
 				// 旧快照没有这张表时跳过，而不是让整个 loot 导入失败。
 				continue
 			}
-			return c, e
+			return c, refs, e
 		}
 		c.Rules[name] = s
 	}
@@ -95,12 +96,12 @@ func ImportLoot(a *pvf.Archive, maxGrade uint32) (LootCatalog, error) {
 	// nothing consumes these groups yet.
 	groupTable, e := ResolveScript(a, "etc/dungeondroptablebygroup.etc")
 	if e != nil {
-		return c, e
+		return c, refs, e
 	}
 	c.DropGroupSource = DropGroupSource{Path: groupTable.Path, SHA256: groupTable.SHA256}
 	c.DropGroups, c.DropGroupsUnreadable, e = ParseDropGroups(groupTable.Cells)
 	if e != nil {
-		return c, e
+		return c, refs, e
 	}
 	// [MERGE-20260928-DUNGEON-DROPINFO] etc/dungeondropinfo.cos 是「副本 → 掉落组」
 	// 的索引表。它是 DataType=3 的**文本**（UTF-16LE），不是脚本，所以不能走
@@ -112,11 +113,11 @@ func ImportLoot(a *pvf.Archive, maxGrade uint32) (LootCatalog, error) {
 	if idx := a.FindFileIndex(dungeonDropInfoPath); idx >= 0 {
 		raw, e := a.ReadRaw(dungeonDropInfoPath)
 		if e != nil {
-			return c, e
+			return c, refs, e
 		}
 		info, e := ParseDungeonDropInfo(raw)
 		if e != nil {
-			return c, e
+			return c, refs, e
 		}
 		sum := sha256.Sum256(raw)
 		c.DungeonDropInfo = info
@@ -125,21 +126,39 @@ func ImportLoot(a *pvf.Archive, maxGrade uint32) (LootCatalog, error) {
 			SHA256: hex.EncodeToString(sum[:]),
 		}
 	}
-	refs := map[string]map[uint32]string{}
+	refs = map[string]map[uint32]string{}
 	for _, kind := range []string{"stackable", "equipment"} {
 		index, e := ResolveScript(a, "list/"+kind+".lst")
 		if e != nil {
-			return c, e
+			return c, refs, e
 		}
 		c.IndexHashes[index.Path] = index.SHA256
 		rows, e := ParseIndex(index.Cells)
 		if e != nil {
-			return c, e
+			return c, refs, e
 		}
 		refs[kind] = map[uint32]string{}
 		for _, r := range rows {
 			refs[kind][r.ID] = r.Path
 		}
+	}
+	return c, refs, nil
+}
+
+// importLootDropTables imports the drop-rule tables (Rules, DropGroups,
+// DungeonDropInfo and the item index hashes) without scanning every stackable
+// script into LootCatalog.Items. Routing and test code that only needs the
+// dungeon -> drop group mapping uses this; ImportLoot keeps the full item
+// projection.
+func importLootDropTables(a *pvf.Archive, maxGrade uint32) (LootCatalog, error) {
+	c, _, err := importLootTables(a, maxGrade)
+	return c, err
+}
+
+func ImportLoot(a *pvf.Archive, maxGrade uint32) (LootCatalog, error) {
+	c, refs, e := importLootTables(a, maxGrade)
+	if e != nil {
+		return c, e
 	}
 	read := func(kind string, id uint32) (ScriptRecord, error) {
 		p, ok := refs[kind][id]

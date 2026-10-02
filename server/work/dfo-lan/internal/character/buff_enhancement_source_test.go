@@ -86,7 +86,7 @@ func TestBuffEnhancementNativePVFSource(t *testing.T) {
 	if path == "" {
 		t.Skip("set DFO_PVF_CORE_TEST_ARCHIVE for native buff equipment lookup")
 	}
-	a, err := pvf.OpenReadOnly(pvf.Options{Path: path, MaxBytes: 1 << 30}, os.Getenv("DFO_PVF_CORE_TEST_SHA256"))
+	a, err := catalog.OpenTestArchiveCached(path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"))
 	if err != nil {
 		t.Fatal(err)
 	}

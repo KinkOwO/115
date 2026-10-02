@@ -2,7 +2,6 @@ package gamedata
 
 import (
 	"dfolan/internal/catalog"
-	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/character"
 	"dfolan/internal/npcpresence"
 	"dfolan/internal/quest"
@@ -17,7 +16,7 @@ func TestRuntimeDetailsLocalArchiveParity(t *testing.T) {
 	if p == "" {
 		t.Skip("set DFO_PVF_CORE_TEST_ARCHIVE for complete runtime details parity")
 	}
-	a, err := pvf.OpenReadOnly(pvf.Options{Path: p, MaxBytes: 1024 * 1024 * 1024}, os.Getenv("DFO_PVF_CORE_TEST_SHA256"))
+	a, err := catalog.OpenTestArchiveCached(p, os.Getenv("DFO_PVF_CORE_TEST_SHA256"))
 	if err != nil {
 		t.Fatal(err)
 	}

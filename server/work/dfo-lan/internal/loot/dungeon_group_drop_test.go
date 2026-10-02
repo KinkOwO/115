@@ -1,12 +1,9 @@
 package loot
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 
 	"dfolan/internal/catalog"
-	"dfolan/internal/catalog/pvf"
 )
 
 // [MERGE-20260928-DUNGEON-GROUP-DROP] 验证「按副本声明的组索引发放」这条链。
@@ -182,30 +179,10 @@ func TestDungeonGroupPathBoundary(t *testing.T) {
 	}
 }
 
+// loadDropInfoCatalog returns the narrow drop-rule catalog: Rules, DropGroups
+// and DungeonDropInfo, without the per-stackable scan. The boundary tests only
+// route dungeon -> drop group, so they never read LootCatalog.Items.
 func loadDropInfoCatalog(t *testing.T) catalog.LootCatalog {
 	t.Helper()
-	p := os.Getenv("DFO_LOOT_PVF")
-	if p == "" {
-		for _, cand := range []string{
-			filepath.Join("..", "..", "client-build", "Script.inner.pvf"),
-			filepath.Join("..", "..", "..", "client-build", "Script.inner.pvf"),
-		} {
-			if _, e := os.Stat(cand); e == nil {
-				p = cand
-				break
-			}
-		}
-	}
-	if p == "" {
-		t.Skip("client-build PVF not present")
-	}
-	a, e := pvf.LoadArchive(pvf.Options{Path: p, MaxBytes: 900 * 1024 * 1024})
-	if e != nil {
-		t.Skip("cannot open PVF:", e)
-	}
-	cat, e := catalog.ImportLoot(a, 130)
-	if e != nil {
-		t.Fatal(e)
-	}
-	return cat
+	return catalog.LoadNativeLootTables(t)
 }

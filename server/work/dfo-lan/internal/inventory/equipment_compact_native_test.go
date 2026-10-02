@@ -2,7 +2,6 @@ package inventory
 
 import (
 	"dfolan/internal/catalog"
-	"dfolan/internal/catalog/pvf"
 	"os"
 	"reflect"
 	"sort"
@@ -16,7 +15,7 @@ func TestCompactEquipmentLocalArchiveParity(t *testing.T) {
 	if p == "" {
 		t.Skip("set DFO_PVF_CORE_TEST_ARCHIVE for compact equipment complete parity")
 	}
-	a, err := pvf.OpenReadOnly(pvf.Options{Path: p, MaxBytes: 1024 * 1024 * 1024}, os.Getenv("DFO_PVF_CORE_TEST_SHA256"))
+	a, err := catalog.OpenTestArchiveCached(p, os.Getenv("DFO_PVF_CORE_TEST_SHA256"))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -1,7 +1,6 @@
 package catalog
 
 import (
-	"dfolan/internal/catalog/pvf"
 	"os"
 	"reflect"
 	"testing"
@@ -14,7 +13,7 @@ func TestJointItemBasicsLocalArchiveParity(t *testing.T) {
 	if p == "" {
 		t.Skip("set DFO_PVF_CORE_TEST_ARCHIVE for joint item parity")
 	}
-	a, err := pvf.OpenReadOnly(pvf.Options{Path: p, MaxBytes: 1024 * 1024 * 1024}, os.Getenv("DFO_PVF_CORE_TEST_SHA256"))
+	a, err := OpenTestArchiveCached(p, os.Getenv("DFO_PVF_CORE_TEST_SHA256"))
 	if err != nil {
 		t.Fatal(err)
 	}
