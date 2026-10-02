@@ -9,14 +9,11 @@ import (
 )
 
 func TestSeekMeetBossClearRequiresOwnedSourceAndItems(t *testing.T) {
-	quests, err := catalog.LoadQuests("../../configs/quests.generated.json")
+	quests, err := catalog.ImportQuests(catalog.OpenNativeArchive(t))
 	if err != nil {
 		t.Fatal(err)
 	}
-	dungeons, err := catalog.LoadDungeons("../../configs/dungeons.full.json")
-	if err != nil {
-		t.Fatal(err)
-	}
+	dungeons := catalog.LoadNativeFullDungeons(t)
 	s := &Service{Catalog: quests, Dungeons: &dungeons}
 	en := s.Index().Entries[3634]
 	def := dungeons.Dungeons[71]

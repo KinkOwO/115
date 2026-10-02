@@ -4,17 +4,17 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
 	"encoding/hex"
-	"path/filepath"
 	"testing"
 )
 
 func TestCapturedTrombeHellSelectionUsesSourceSealRoom(t *testing.T) {
-	config := filepath.Join("..", "..", "configs")
-	c, err := catalog.LoadDungeons(filepath.Join(config, "dungeons.full.json"))
+	a := catalog.OpenNativeArchive(t)
+	c := catalog.LoadNativeFullDungeons(t)
+	overlay, _, err := catalog.ImportHellPartyMaps(a, c)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := catalog.AttachHellPartyMaps(&c, filepath.Join(config, "dungeons.hell-party-maps.json")); err != nil {
+	if err := catalog.ApplyHellPartyMaps(&c, overlay); err != nil {
 		t.Fatal(err)
 	}
 	body, err := hex.DecodeString("670000000300000100ffff0000000000ff180000000000000000000000000000")

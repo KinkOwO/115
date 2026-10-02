@@ -117,10 +117,7 @@ func TestMonsterDeathAfterAdvancementIntegration(t *testing.T) {
 	initialExperience := state.Experience
 	// Match channel_probe.py's runtime catalog. The older generated subset
 	// has only 11 dungeons and does not include this captured dungeon ID 11.
-	dc, err := catalog.LoadDungeons("../../configs/dungeons.full.json")
-	if err != nil {
-		t.Fatal(err)
-	}
+	dc := catalog.LoadNativeFullDungeons(t)
 	run, err := dungeon.Select(dc, protocol.DungeonSelection{ID: 11, Difficulty: 1, Party: 65535}, state.Level, nil)
 	if err != nil {
 		t.Fatal(err)

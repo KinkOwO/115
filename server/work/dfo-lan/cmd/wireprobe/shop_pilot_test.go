@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"dfolan/internal/cashshop"
+	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/game/wire"
 	"dfolan/internal/inventory"
@@ -15,6 +16,22 @@ import (
 	"testing"
 	"time"
 )
+
+// nativeShopPilot imports the current inner PVF named by
+// DFO_PVF_CORE_TEST_ARCHIVE; tests skip when no archive is configured.
+func nativeShopPilot(t *testing.T, release bool) *cashshop.Pilot {
+	t.Helper()
+	a := catalog.OpenNativeArchive(t)
+	c, err := cashshop.ImportPilot(a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := cashshop.NewPilot(c, c.Source.Checksum, release)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
 
 type pilotLedger struct {
 	calls int
@@ -49,10 +66,7 @@ func (l *vaultPilotLedger) PurchaseCashVault(_ context.Context, o storage.CashOr
 	return storage.CashReceipt{Vault: &l.vault, VaultSpace: o.VaultSpace, After: 70, Deliveries: []storage.CashDelivery{{Product: o.Lines[0].Product, Quantity: 1}}}, true, nil
 }
 func TestVaultPurchasePackets(t *testing.T) {
-	p, e := cashshop.LoadPilot("../../configs/shop-special-candidate.json", "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80")
-	if e != nil {
-		t.Fatal(e)
-	}
+	p := nativeShopPilot(t, false)
 	rules, e := inventory.LoadVaultRules("../../configs/vault.generated.json")
 	if e != nil {
 		t.Fatal(e)
@@ -162,10 +176,7 @@ func (f *pilotLedger) PurchaseCashToBag(_ context.Context, o storage.CashOrder, 
 	return storage.CashReceipt{CharacterState: state, Before: 1000, After: 955, Charged: 45, Deliveries: []storage.CashDelivery{{Product: o.Lines[0].Product, Template: o.Lines[0].Template, Amount: o.Lines[0].Quantity * o.Lines[0].Units, Quantity: o.Lines[0].Quantity}}}, true, nil
 }
 func TestShopPilotRequestToPackets(t *testing.T) {
-	p, e := cashshop.LoadPilot("../../configs/shop-purchase-pilot.json", "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80")
-	if e != nil {
-		t.Fatal(e)
-	}
+	p := nativeShopPilot(t, false)
 	s, e := newShopPilotSession()
 	if e != nil {
 		t.Fatal(e)
@@ -200,10 +211,7 @@ func TestShopPilotRequestToPackets(t *testing.T) {
 }
 
 func TestShopPilotCreatureEggPackets(t *testing.T) {
-	p, e := cashshop.LoadPilot("../../configs/shop-vault-release.json", "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80")
-	if e != nil {
-		t.Fatal(e)
-	}
+	p := nativeShopPilot(t, true)
 	s, e := newShopPilotSession()
 	if e != nil {
 		t.Fatal(e)
@@ -235,10 +243,7 @@ func TestShopPilotCreatureEggPackets(t *testing.T) {
 }
 
 func TestShopPilotLifeTokenPackets(t *testing.T) {
-	p, e := cashshop.LoadPilot("../../configs/shop-purchase-pilot.json", "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80")
-	if e != nil {
-		t.Fatal(e)
-	}
+	p := nativeShopPilot(t, false)
 	s, e := newShopPilotSession()
 	if e != nil {
 		t.Fatal(e)
@@ -327,10 +332,7 @@ func TestShopPilotDatabasePurchase(t *testing.T) {
 			t.Fatal(e)
 		}
 	}
-	p, e := cashshop.LoadPilot("../../configs/shop-purchase-pilot.json", "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80")
-	if e != nil {
-		t.Fatal(e)
-	}
+	p := nativeShopPilot(t, false)
 	account, e := store.DevelopmentAccount(ctx, "wire-fixture")
 	if e != nil {
 		t.Fatal(e)
@@ -559,10 +561,7 @@ func (l *contractCartPilotLedger) PurchaseCashMixed(_ context.Context, o storage
 // order" 整单拒绝;契约行现在逐行激活并可与普通商品同单。
 func TestShopPilotContractCartPurchase(t *testing.T) {
 	t.Setenv("DFO_CONTRACT_PURCHASE_CRASH_FIX", "0")
-	p, e := cashshop.LoadPilot("../../configs/shop-vault-release.json", "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80")
-	if e != nil {
-		t.Fatal(e)
-	}
+	p := nativeShopPilot(t, true)
 	ledger := &contractCartPilotLedger{pilotLedger{state: json.RawMessage(`{}`)}}
 	s, e := newShopPilotSession()
 	if e != nil {

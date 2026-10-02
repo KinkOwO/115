@@ -126,7 +126,8 @@ func lootCheck(ctx context.Context, s, reopened *storage.Store, role storage.Cha
 	if e != nil || applied {
 		return fmt.Errorf("pickup reopen replay: %v", e)
 	}
-	p, e := domain.Bootstrap(workflow.LootRole(saved))
+	items := inventory.ItemService{Catalog: domain.Catalog}
+	p, e := items.Bootstrap(workflow.InventoryRole(saved))
 	if e != nil || len(p) != 367 {
 		return fmt.Errorf("reopened bag wire: %d %v", len(p), e)
 	}

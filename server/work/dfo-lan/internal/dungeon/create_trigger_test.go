@@ -13,10 +13,7 @@ import (
 // 这条不变量是「服务端投了怪、客户端却把天平和 109019280 当成地面物品拿走」这一现象的
 // 判据基础：值必须与行严格对齐，错一格就会把创建时机安到别的怪身上。
 func TestCreateTriggerOrdinalsFollowMonsterRows(t *testing.T) {
-	c, e := catalog.LoadDungeons("../../configs/dungeons.full.json")
-	if e != nil {
-		t.Skip("runtime dungeon catalog not present:", e)
-	}
+	c := catalog.LoadNativeFullDungeons(t)
 	script, ok := c.Maps[100016614]
 	if !ok {
 		t.Skip("map 100016614 is not imported")

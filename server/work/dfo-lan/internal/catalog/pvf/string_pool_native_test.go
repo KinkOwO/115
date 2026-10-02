@@ -2,7 +2,6 @@ package pvf
 
 import (
 	"crypto/sha256"
-	"encoding/binary"
 	"os"
 	"reflect"
 	"testing"
@@ -35,36 +34,6 @@ func nativePoolDigest(t *testing.T, p *runtimeStringPools) [2][32]byte {
 	return sums
 }
 
-func nativeDirectoryDigest(t *testing.T, a *Archive, prefix string) [32]byte {
-	t.Helper()
-	h := sha256.New()
-	visit := func(file File) error {
-		var numeric [24]byte
-		binary.LittleEndian.PutUint64(numeric[:8], uint64(file.Index))
-		binary.LittleEndian.PutUint64(numeric[8:16], uint64(file.DataType))
-		binary.LittleEndian.PutUint64(numeric[16:], uint64(file.Size))
-		h.Write(numeric[:])
-		for _, s := range []string{file.Path, file.Name, file.ArchivePath} {
-			binary.LittleEndian.PutUint64(numeric[:8], uint64(len(s)))
-			h.Write(numeric[:8])
-			h.Write([]byte(s))
-		}
-		return nil
-	}
-	var err error
-	if prefix == "" {
-		err = a.IterateFiles(visit)
-	} else {
-		err = a.IterateFilesUnder(prefix, visit)
-	}
-	if err != nil {
-		t.Fatal(err)
-	}
-	var sum [32]byte
-	copy(sum[:], h.Sum(nil))
-	return sum
-}
-
 func TestCompressedPoolsLocalArchiveParity(t *testing.T) {
 	path := os.Getenv("DFO_PVF_CORE_TEST_ARCHIVE")
 	if path == "" {
@@ -76,8 +45,11 @@ func TestCompressedPoolsLocalArchiveParity(t *testing.T) {
 	}
 	defer a.Close()
 	beforePools := nativePoolDigest(t, a.stringPools)
-	beforeFiles := nativeDirectoryDigest(t, a, "")
-	beforeSubtree := nativeDirectoryDigest(t, a, "equipment")
+	beforeCount := a.FileCount()
+	fullIdx := sampledDirectoryIndices(t, a, "")
+	subtreeIdx := sampledDirectoryIndices(t, a, "equipment")
+	beforeFiles := digestArchiveIndices(t, a, fullIdx)
+	beforeSubtree := digestArchiveIndices(t, a, subtreeIdx)
 	paths := []string{"list/map.lst", "list/dungeon.lst"}
 	tokens := make([][]Token, len(paths))
 	for i, path := range paths {
@@ -105,10 +77,16 @@ func TestCompressedPoolsLocalArchiveParity(t *testing.T) {
 	if got := nativePoolDigest(t, a.stringPools); got != beforePools {
 		t.Fatal("native pool bytes differ")
 	}
-	if got := nativeDirectoryDigest(t, a, ""); got != beforeFiles {
+	if a.FileCount() != beforeCount {
+		t.Fatal("directory file count changed")
+	}
+	// The full count above is exhaustive; the expanded records are compared on
+	// the same deterministic cross-range sample. Set DFO_PVF_ARCHIVE_FULL_SWEEP=1
+	// for every record.
+	if got := digestArchiveIndices(t, a, fullIdx); got != beforeFiles {
 		t.Fatal("complete directory differs")
 	}
-	if got := nativeDirectoryDigest(t, a, "equipment"); got != beforeSubtree {
+	if got := digestArchiveIndices(t, a, subtreeIdx); got != beforeSubtree {
 		t.Fatal("subtree admission/order differs")
 	}
 	if err = a.Close(); err != nil {

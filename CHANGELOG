@@ -5,6 +5,68 @@
 - 删除早期仅允许副本103的验证门禁，改由当前PVF的Hell声明和封印地图确定支持范围。原生副本87失败请求已通过回归；当前PVF共60项声明，59项资源完整并通过离线入场，活动副本100005110缺地图100016811继续拒绝。
 - 保留专用Hell副本的Boss标记，检查剧情路线冲突与连通，普通路线和存档不改。专项回归、vet、构建通过；全量测试4项失败均在HEAD overlay复现。
 - 用户确认 Hell Party 正常进入、柱子可攻击破坏并刷出专属怪物。候选SHA256 `104965f85e1721547dc646b65c5a24ed8050529c5867e55b22a712842b93b7b8` 纳入 confirmed baseline；验收限用户实际测试路径，未扩展成59张地图逐张实测。Hell专属掉落尚未确认。详见`server/work/dfo-lan/docs/protocol/hell-party-all-entry-20261003.md`。
+## 2026-10-03：合并上游掉落与副本修复（源码候选）
+
+- 合入上游 main `5c8530f`：普通装备/免费翻牌、MOB 材料与世界掉落、Lotus 末层原生结束路径和誓约 Clone 入场修复。保留双方既有交接与 confirmed baseline 记录。
+- 将已删除 pvf_drop.go 的上游装配增量迁入 internal/gamedata/catalogs_items.go；原生准备回归同步迁至 gamedata，保留源身份、排除项、兼容倍率和缓存绑定。适配 importLootTables 的三返回值，避免文本自动合并留下编译错误。
+- Go 1.26.5 网关配置/启动/连接/分发、Lotus、掉落/翻牌和目录专项、架构守卫、vet 与候选编译通过；当前 8b2a 源的普通 PVF 准备冷/热缓存专项通过，普通装备池 6905 条。依用户要求未跑全量测试；PostgreSQL 实机集成未执行。
+- 更新 MR !138 的最终范围与验证说明。本轮未部署、操作玩家库或启动客户端；合并源码候选不新增实机确认，保留上游各项既有 confirmed baseline 身份和本地运行程序。
+
+## 2026-10-03：修复连接 panic 恢复接线（源码候选）
+
+- 原 main 接入闭包把 recoverConnection 包在另一层 deferred closure 中，recover() 不在直接 defer 的函数内，连接 panic 会逃逸。现直接 defer recoverConnection，通过诊断回调补齐当时 peer，保留频道、错误、完整堆栈和资源关闭流程。
+- 新增真实接入处理回归，修复前复现写入 panic 逃逸及恢复日志缺失；修复后异常连接关闭并可继续处理下一连接。连接/分发/频道/继承/增幅/输出专项及 Go 1.26.5 vet、编译通过，原分支词法及隔离网关/CLI 对照保持；依用户要求未跑全量测试。
+- 本项独立于分发重构提交，仅源码候选；未替换运行程序、访问玩家库或启动客户端，confirmed baseline 保持原实机范围。详见 server/work/dfo-lan/docs/connection-dispatch.md。
+
+## 2026-10-03：Wireprobe 连接与分发拆分（源码候选）
+
+- main.go 4398→160 行；接入连接建立独立 gameConnection，原连接可变状态与事件/发送回调归连接所有，共享运行依赖与频道角色 context 隔离保持。
+- 原 if 链按职责拆成 21 个固定顺序阶段，类型门禁仍位于 7 个前置阶段与 13 个后续阶段之间；明确继续检查、处理下一帧与关闭连接的返回值，内层循环和闭包控制保持。SELECT 入场当前仍保留完整原流程。
+- 继承/增幅书接线测试改为执行实际分发；新增登录包序/频道隔离/采样/门禁前处理/分支优先级/发送失败专项。Go 1.26.5 专项、架构守卫、vet 和编译通过；33,614 个分发 token、1,178 个循环 token、8 个回调及注册顺序对照一致；旧/新隔离网关 11 请求/11 帧/25 事件与 12 组 CLI 对照一致。依用户要求未跑全量测试。
+- 独立源码候选位于 .tmp/dispatch，未部署、访问玩家库或启动客户端；协议、SQL/schema、存档格式与现有实机 confirmed baseline 保持。详见 server/work/dfo-lan/docs/connection-dispatch.md。
+
+## 2026-10-03：测试提速与旧基线收敛（源码候选）
+
+- 目标：原生模式（DFO_PVF_CORE_TEST_ARCHIVE）下套件既慢又有失败。根因是内层归档已是 8b2a、而大量测试/夹具仍对照旧源 7ef2；以及联合物品扫描逐条解码约 60 万条脚本。
+- 提速：归档打开走共享缓存（internal/catalog/pvf 源码哈希作 parser identity）+ 每包一次导入；联合物品扫描（ImportItemBasics）由串行改为分批并行预读 + 串行按序消费（消费者写入顺序与错误语义不变），生产启动准备同享；UTF-16 解码改单趟直接编码 UTF-8（ASCII 快路径 + sync.Pool），去掉 []uint16/[]rune 中间分配；测试用稳定缓存身份 DFO_PVF_CACHE_IDENTITY 使解析投影落盘复用；scripts/test_local.ps1 收敛为单一入口（-Full 开全量）。联合扫描 52s→40s(冷)/21s(暖)。
+- 旧基线收敛：删除或抽样纯旧 JSON 基线对照（cashshop 逐 SKU→确定性抽样、inventory equipment parity→抽样、managementdata parity→审计门禁、catalog/pvf 目录 parity→抽样）；原生模式 15 个 FAIL 清零——dungeon 4 个改原生 overlay（Import*/Apply*）、gamedata 10 个改绑原生源锚点/更新到当前源/删除旧 items_test、quest 1 个改原生 ImportQuests。
+- 验证：go build/vet 通过；各修复项定向测试通过；本机无 gcc，-race 不可用，联合扫描以连续运行结果一致（scripts=599771）验证确定性。按用户要求未跑全量套件。
+- 仅提交源码与测试；未改动协议、SQL/schema、玩家存档或客户端资源，未替换运行程序或操作玩家库。confirmed baseline 不新增实机确认范围。
+
+## 2026-10-03：Wireprobe 启动装配拆分（源码候选）
+
+- bootstrap.go 的 prepareRuntime(Config) 集中目录准备、数据库迁移及服务装配，返回类型化运行依赖和清理函数；main.go 从 5825 行降到 4398 行。原准备顺序、路径派生、存档身份归一与连接作用域保持。
+- 启动及监听装配错误改为返回，已获取资源先清理再由 main 退出；部分 PVF 准备失败、检查模式及正常模式均纳入资源所有权，逆序关闭且只执行一次。城镇场景白名单缺失校验移到监听前，合法空表继续允许，移除连接内进程级 log.Fatal。
+- 新增启动/端口释放/清理/白名单专项，既有配置、连接与接线专项、架构守卫、Go 1.26.5 vet 和编译通过。连接分发 35,896 个 token、启动装配 9,886 个 token 在声明的归一化范围内一致；12 组旧/新 CLI 输出与退出码一致。依用户要求未跑全量测试。
+- 仅提交本批源码与交接记录，独立候选位于 .tmp/bootstrap；未部署、操作玩家库或启动客户端。协议、SQL/schema 与存档格式保持，confirmed baseline 不增加实机范围；本批暂未引入依赖注入库。详见 server/work/dfo-lan/docs/startup-configuration.md。
+
+## 2026-10-02：Wireprobe 类型化启动配置（源码候选）
+
+- 引入 Koanf v2.3.7 / confmap v1.0.1；95 个既有启动参数及 54 个环境变量别名集中声明到 Config，main 改为读取类型化字段，删除原 config_env.go。默认值、布尔/整数/字节环境语义、显式空值和 false 的覆盖保持。
+- Python 继续读取既有运行 profile；Go 合并默认值、环境变量、显式命令行参数。未新增配置文件入口、游戏内容 JSON 链路、玩法开关或自动环境变量映射。
+- 七组改造前独立配置向量、原帮助文本、非法参数/字节边界、连接输出与接线专项、架构守卫和 Go 1.26.5 vet 通过；运行主体在归一化 95 项配置引用后的 47,281 个 token 完全一致。按用户要求未跑全量测试。
+- 独立编译候选保存在 .tmp/koanf，未部署、操作玩家数据库或启动客户端；协议、SQL/schema、存档格式保持。confirmed baseline 保持既有程序与实机范围；维护说明见 server/work/dfo-lan/docs/startup-configuration.md。
+
+## 2026-10-02：接入 Testify（源码确认）
+
+- 固定 github.com/stretchr/testify v1.11.1，连接生命周期与报文输出的既有测试使用 require/assert；保留关闭、报文完整性与并发输出顺序断言。
+- Go 1.26.5 专项、全量 go test ./... 与 go vet ./... 通过；用户确认后仅提交本批依赖和测试。没有业务、协议、SQL/schema、玩家存档或客户端资源改动。
+- 运行程序未替换，confirmed baseline 保持既有程序哈希与实机确认范围；此次确认只涉及源码测试依赖。
+
+## 2026-10-02：PVF 读取入口收拢（源码候选）
+
+- 删除 wireprobe 的 32 个 PVF 读取/准备生产文件，集中到 internal/gamedata 的 5 个 catalogs 文件，通过 Catalogs / PrepareCatalogs 统一获取数据；底层解析与文件读取归 catalog，入口保留装配及原有运行期适配。
+- 角色预热改名 role_detail_prewarm；原 46 个测试名称保留，按数据准备与运行职责合并，cmd/wireprobe 中 pvf_* 文件清零。选中目录缺失显式报错，合法空数据不回读 JSON；历史基线校验默认关闭。
+- Go 1.26.5 编译、vet、架构守卫和 Python 3.11 启动器 10 项检查通过；全量 Go 测试只剩与 HEAD b7a5692 相同的 4 项既有失败。当前 8b 内层源的 54 域报告与迁移前一致，抽奖 271,492 个权重边界、无导出 JSON 准备及关闭父源后的角色预热通过。
+- 本批仅提交源码、测试和依赖审计记录；未替换运行程序或操作玩家数据库、客户端，无 SQL/schema/存档格式改动。confirmed baseline 保持既有实机确认范围；configs 剩余内容依赖继续按 docs/todo/pvf 台账收口。
+
+## 2026-10-02：消耗品与光辉礼盒继续收口（源码候选）
+
+- 普通消耗品、宠物喂养、光辉礼盒目录/PVF 投影、抽取/进度、奖励落袋与旧奖励修复归现有 inventory.ItemService；消费/开箱/修复事务合并为 workflow/item_consumables.go，删除 loot 的对应入口和短文件，不保留转发门面。
+- PVF 装配、CMD44、任务用物品、皮肤登记、礼盒设备/开箱、登录修复与库存还原同步切换；离线 charactercheck 的库存还原也适配新所有者。副本掉落包装展开仍归 loot，普通 booster、自选礼盒和商城购买不扩大本批范围。
+- 43 个迁移函数体经包名/接收者/消费投影归一化的词法对照一致；事件 key/model、存档身份、JSON 字段、随机调用点和回包顺序保持。生产 Go 文件 772→768，含新增回归共 1410→1407；剩余 9 条领域依赖继续登记。
+- 新增回归覆盖消费扣物、契约激活、开箱产物/点数/累计次数、未知存档字段及失败输入保留。Go 1.26.5 vet 通过；全量测试与修改前对照仍为相同 4 项既有失败，详见架构重构计划第 20 节。
+- 只提交本任务源码和交接，用户原有配置改动保持；无 SQL/schema、玩家存档格式或客户端资源改动，未操作玩家库、启动客户端或替换二进制。confirmed baseline 保持原实机确认范围，本批待用户手动回归。
 
 ## 2026-10-02：任务3215结算与末层演出崩溃已确认修复
 

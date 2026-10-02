@@ -32,7 +32,7 @@ type PilotConfig struct {
 	Release bool `json:"release,omitempty"`
 	// immediateTemplates caches the templates any [immediately adaptive
 	// product] SKU sells, so classify stays O(1) per entry. Built by
-	// LoadPilot/ImportPilot; classify falls back to a per-call derivation
+	// ImportPilot/NewPilot; classify falls back to a per-call derivation
 	// when the config was built by hand (tests).
 	immediateTemplates map[int32]bool
 }
@@ -462,25 +462,8 @@ func (p *Pilot) resolveDeliveryType(template uint32) (deliveryType, error) {
 	}, nil
 }
 
-// 目录或启动参数任一显式启用发布模式时，使用已实现的发布商品规则。
-// 未传参数的目录检查、试运行及既有调用继续遵循目录自身的设置。
-func LoadPilot(path, source string, release ...bool) (*Pilot, error) {
-	if len(release) > 1 {
-		return nil, fmt.Errorf("商城发布模式参数重复")
-	}
-	b, e := os.ReadFile(path)
-	if e != nil {
-		return nil, e
-	}
-	var c PilotConfig
-	if e = json.Unmarshal(b, &c); e != nil {
-		return nil, e
-	}
-	return NewPilot(c, source, release...)
-}
-
 // NewPilot accepts an already imported source catalog. It owns all token
-// slices and uses the same validation and delivery classification as LoadPilot.
+// slices and applies the complete validation and delivery classification.
 func NewPilot(c PilotConfig, source string, release ...bool) (*Pilot, error) {
 	if len(release) > 1 {
 		return nil, fmt.Errorf("商城发布模式参数重复")

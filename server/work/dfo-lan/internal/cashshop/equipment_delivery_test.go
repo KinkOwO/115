@@ -11,10 +11,7 @@ import (
 // 它当 "[etc]" 发进了消耗品区（Use），客户端拖回装备区被拒。装备必须进
 // b.Equipment（Equip 页），耐久走注入的 Catalog.Reward 规则。
 func TestShopDeliveryEquipmentGoesToEquipTab(t *testing.T) {
-	p, e := LoadPilot("../../configs/shop-purchase-pilot.json", "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80")
-	if e != nil {
-		t.Fatal(e)
-	}
+	p := nativePilot(t, false)
 	p.SupplementItemKinds(map[uint32]ItemInfo{
 		500330719: {ID: 500330719, Kind: "equipment", Path: "equipment/character/common/title/500330719.equ"},
 	})
@@ -48,10 +45,7 @@ func TestShopDeliveryEquipmentGoesToEquipTab(t *testing.T) {
 
 // creature 的 .equ 在索引里同样是 kind=equipment，必须按源路径改投宠物栏。
 func TestShopDeliveryCreatureRoutedByPath(t *testing.T) {
-	p, e := LoadPilot("../../configs/shop-purchase-pilot.json", "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80")
-	if e != nil {
-		t.Fatal(e)
-	}
+	p := nativePilot(t, false)
 	p.SupplementItemKinds(map[uint32]ItemInfo{
 		63006: {ID: 63006, Kind: "equipment", Path: "equipment/creature/egg_faras.equ"},
 	})
@@ -73,10 +67,7 @@ func TestShopDeliveryCreatureRoutedByPath(t *testing.T) {
 
 // 未补全分类的未知模板保持原兜底行为（[etc] → 消耗品区），不做行为漂移。
 func TestShopDeliveryUnknownStillEtc(t *testing.T) {
-	p, e := LoadPilot("../../configs/shop-purchase-pilot.json", "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80")
-	if e != nil {
-		t.Fatal(e)
-	}
+	p := nativePilot(t, false)
 	out, e := p.deliverAmount(json.RawMessage(`{}`), 999999999, 1)
 	if e != nil {
 		t.Fatal(e)

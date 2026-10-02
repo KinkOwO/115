@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 )
@@ -26,8 +27,13 @@ func (s *Source) DerivedCacheStats() DerivedCacheStats {
 }
 
 // Binding to the exact executable also invalidates caches for uncommitted
-// parser changes, embedded rules and dependency/toolchain changes.
+// parser changes, embedded rules and dependency/toolchain changes. Tests may
+// override it with DFO_PVF_CACHE_IDENTITY so a test-binary rebuild does not
+// discard the parsed-projection cache between runs.
 var derivedParserIdentity = sync.OnceValues(func() (string, error) {
+	if id := strings.TrimSpace(os.Getenv("DFO_PVF_CACHE_IDENTITY")); id != "" {
+		return id, nil
+	}
 	p, err := os.Executable()
 	if err != nil {
 		return "", err

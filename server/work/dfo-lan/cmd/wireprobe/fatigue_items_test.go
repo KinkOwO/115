@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"dfolan/internal/cashshop"
 	"dfolan/internal/catalog"
 	"dfolan/internal/character"
 	"dfolan/internal/dungeon"
@@ -21,14 +20,8 @@ import (
 func testFatigueItems(t *testing.T, s *storage.Store, role storage.Character) {
 	t.Helper()
 	ctx := context.Background()
-	c, e := catalog.LoadLoot("../../configs/loot.level150.json")
-	if e != nil {
-		t.Fatal(e)
-	}
-	shop, e := cashshop.LoadPilot("../../configs/shop-special-candidate.json", c.Source.Checksum)
-	if e != nil {
-		t.Fatal(e)
-	}
+	shop := nativeShopPilot(t, false)
+	c := catalog.LootCatalog{Source: shop.Config.Source, Items: map[uint32]catalog.LootItem{}}
 	use, e := shop.StorageCatalog(c)
 	if e != nil {
 		t.Fatal(e)

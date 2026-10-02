@@ -7,10 +7,7 @@ import (
 )
 
 func TestDungeon27OpeningSceneIsNotCompletion(t *testing.T) {
-	c, err := catalog.LoadDungeons("../../configs/dungeons.full.json")
-	if err != nil {
-		t.Fatal(err)
-	}
+	c := catalog.LoadNativeFullDungeons(t)
 	d := c.Dungeons[27]
 	var maze catalog.DungeonMaze
 	for _, m := range d.Mazes {
@@ -38,10 +35,7 @@ func TestDungeon27OpeningSceneIsNotCompletion(t *testing.T) {
 }
 
 func TestAPCBossCheckUsesClientBossRank(t *testing.T) {
-	c, err := catalog.LoadDungeons("../../configs/dungeons.full.json")
-	if err != nil {
-		t.Fatal(err)
-	}
+	c := catalog.LoadNativeFullDungeons(t)
 	d := c.Dungeons[60]
 	var s *Session
 	var boss uint16
@@ -93,10 +87,7 @@ func TestAPCBossCheckUsesClientBossRank(t *testing.T) {
 }
 
 func TestCompletedBossRoomsHaveEncodableIdentity(t *testing.T) {
-	c, err := catalog.LoadDungeons("../../configs/dungeons.full.json")
-	if err != nil {
-		t.Fatal(err)
-	}
+	c := catalog.LoadNativeFullDungeons(t)
 	checked := 0
 	for _, d := range c.Dungeons {
 		for _, maze := range d.Mazes {

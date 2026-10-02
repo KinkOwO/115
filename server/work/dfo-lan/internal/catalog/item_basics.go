@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"log"
 	"path"
+	"runtime"
 	"sort"
 	"strings"
+	"sync"
 )
 
 // ItemScript is valid only during its consumer call. Consumers retain their
@@ -78,6 +80,11 @@ func ImportItemBasics(a *pvf.Archive, options ItemBasicOptions) (ItemBasics, err
 		if err != nil {
 			return ItemBasics{}, err
 		}
+		needRead := kind == "stackable" || options.Periods || options.Prices
+		var reads []itemScriptRead
+		if needRead {
+			reads = prefetchItemScripts(a, rows, kind)
+		}
 		for i, row := range rows {
 			if _, dup := out.Index.Items[row.ID]; dup {
 				return ItemBasics{}, fmt.Errorf("item ID %d occurs in both source lists", row.ID)
@@ -90,20 +97,12 @@ func ImportItemBasics(a *pvf.Archive, options ItemBasicOptions) (ItemBasics, err
 			if kind == "equipment" && (strings.Contains(p, "/avatar/") || strings.Contains(p, "/at_avatar/")) {
 				entry.Kind = "avatar"
 			}
-			if kind == "stackable" || options.Periods || options.Prices {
-				resolved := ResolveScriptPath(a, p)
-				file, found := a.FindFile(resolved)
-				if !found || file.DataType != 1 {
-					return ItemBasics{}, fmt.Errorf("item %d: missing source script %s", row.ID, resolved)
+			if needRead {
+				r := reads[i]
+				if r.err != nil {
+					return ItemBasics{}, r.err
 				}
-				raw, err := a.ReadRaw(resolved)
-				if err != nil {
-					return ItemBasics{}, fmt.Errorf("item %d: %w", row.ID, err)
-				}
-				cells, err := a.TokensFromRaw(raw)
-				if err != nil {
-					return ItemBasics{}, fmt.Errorf("item %d: %w", row.ID, err)
-				}
+				cells, raw := r.cells, r.raw
 				out.ScriptsRead++
 				if kind == "stackable" {
 					types := sectionCells(cells, "[stackable type]")
@@ -118,8 +117,7 @@ func ImportItemBasics(a *pvf.Archive, options ItemBasicOptions) (ItemBasics, err
 					out.Periods.Templates = append(out.Periods.Templates, row.ID)
 				}
 				if kind == "stackable" {
-					_, exact := a.FindFile(p)
-					script := ItemScript{Item: entry, Cells: cells, Raw: raw, Exact: exact}
+					script := ItemScript{Item: entry, Cells: cells, Raw: raw, Exact: r.exact}
 					if skinImport != nil {
 						if err := skinImport.consume(script); err != nil {
 							return ItemBasics{}, err
@@ -147,7 +145,7 @@ func ImportItemBasics(a *pvf.Archive, options ItemBasicOptions) (ItemBasics, err
 				// Material import intentionally has no (r) fallback. Preserve that
 				// exact-path boundary even though other projections resolve aliases.
 				if options.Materials && kind == "stackable" && strings.HasSuffix(p, ".stk") {
-					if _, exact := a.FindFile(p); exact {
+					if r.exact {
 						costs, err := ItemMaterialCosts(cells)
 						if err != nil {
 							return ItemBasics{}, fmt.Errorf("material script %d: %w", row.ID, err)
@@ -159,9 +157,6 @@ func ImportItemBasics(a *pvf.Archive, options ItemBasicOptions) (ItemBasics, err
 				}
 			}
 			out.Index.Items[row.ID] = entry
-			if i%4096 == 4095 {
-				a.ReleaseReadCaches()
-			}
 		}
 	}
 	if err := out.Index.Validate(); err != nil {
@@ -188,4 +183,71 @@ func ImportItemBasics(a *pvf.Archive, options ItemBasicOptions) (ItemBasics, err
 		out.Boosters = boosterImport.finish()
 	}
 	return out, nil
+}
+
+// itemScriptRead is the prefetched native script for one LIST row.
+type itemScriptRead struct {
+	cells []pvf.Token
+	raw   []byte
+	exact bool
+	err   error
+}
+
+// prefetchItemScripts reads and tokenizes LIST rows in bounded parallel batches.
+// Results are stored per row so the caller can apply them in source order; the
+// archive read path (FindFile/ReadRaw/TokensFromRaw) is safe for concurrent use.
+// This is the bulk-import hot path, so the parallelism benefits both startup
+// preparation and tests.
+func prefetchItemScripts(a *pvf.Archive, rows []IndexEntry, kind string) []itemScriptRead {
+	out := make([]itemScriptRead, len(rows))
+	workers := runtime.GOMAXPROCS(0)
+	if workers < 1 {
+		workers = 1
+	}
+	const batch = 1024
+	for start := 0; start < len(rows); start += batch {
+		end := start + batch
+		if end > len(rows) {
+			end = len(rows)
+		}
+		idxCh := make(chan int)
+		var wg sync.WaitGroup
+		for w := 0; w < workers; w++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for i := range idxCh {
+					out[i] = readItemScript(a, rows[i], kind)
+				}
+			}()
+		}
+		for i := start; i < end; i++ {
+			idxCh <- i
+		}
+		close(idxCh)
+		wg.Wait()
+	}
+	return out
+}
+
+func readItemScript(a *pvf.Archive, row IndexEntry, kind string) itemScriptRead {
+	p := row.Path
+	if !strings.HasPrefix(p, kind+"/") {
+		p = path.Join(kind, p)
+	}
+	resolved := ResolveScriptPath(a, p)
+	file, found := a.FindFile(resolved)
+	if !found || file.DataType != 1 {
+		return itemScriptRead{err: fmt.Errorf("item %d: missing source script %s", row.ID, resolved)}
+	}
+	raw, err := a.ReadRaw(resolved)
+	if err != nil {
+		return itemScriptRead{err: fmt.Errorf("item %d: %w", row.ID, err)}
+	}
+	cells, err := a.TokensFromRaw(raw)
+	if err != nil {
+		return itemScriptRead{err: fmt.Errorf("item %d: %w", row.ID, err)}
+	}
+	_, exact := a.FindFile(p)
+	return itemScriptRead{cells: cells, raw: raw, exact: exact}
 }

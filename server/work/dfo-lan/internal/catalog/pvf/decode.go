@@ -8,7 +8,7 @@ import (
 	"io"
 	"math"
 	"strings"
-	"unicode/utf16"
+	"sync"
 	"unicode/utf8"
 
 	"golang.org/x/text/encoding/simplifiedchinese"
@@ -98,15 +98,58 @@ func readUTF16String(buf []byte, start int) string {
 	return decodeUTF16LE(buf[start:end])
 }
 
+var utf16Scratch = sync.Pool{New: func() any { b := make([]byte, 0, 256); return &b }}
+
+// decodeUTF16LE encodes little-endian UTF-16 to UTF-8 in a single pass. It
+// avoids the []uint16 and []rune intermediates of utf16.Decode/string(), which
+// dominated the bulk-import profile; a pooled buffer avoids per-string scratch
+// allocation. Unpaired surrogates become U+FFFD, matching utf16.Decode.
 func decodeUTF16LE(data []byte) string {
 	if len(data) < 2 {
 		return ""
 	}
-	units := make([]uint16, 0, len(data)/2)
-	for idx := 0; idx+1 < len(data); idx += 2 {
-		units = append(units, binary.LittleEndian.Uint16(data[idx:idx+2]))
+	bufp := utf16Scratch.Get().(*[]byte)
+	buf := (*bufp)[:0]
+	ascii := true
+	for i := 0; i+1 < len(data); i += 2 {
+		if data[i+1] != 0 {
+			ascii = false
+			break
+		}
 	}
-	return string(utf16.Decode(units))
+	if ascii {
+		for i := 0; i+1 < len(data); i += 2 {
+			buf = append(buf, data[i])
+		}
+	} else {
+		for i := 0; i+1 < len(data); i += 2 {
+			u := binary.LittleEndian.Uint16(data[i : i+2])
+			switch {
+			case u < 0x80:
+				buf = append(buf, byte(u))
+			case u < 0x800:
+				buf = append(buf, 0xC0|byte(u>>6), 0x80|byte(u&0x3F))
+			case u >= 0xD800 && u < 0xDC00:
+				if i+3 < len(data) {
+					v := binary.LittleEndian.Uint16(data[i+2 : i+4])
+					if v >= 0xDC00 && v < 0xE000 {
+						buf = utf8.AppendRune(buf, rune(u-0xD800)<<10|rune(v-0xDC00)+0x10000)
+						i += 2
+						continue
+					}
+				}
+				buf = utf8.AppendRune(buf, utf8.RuneError)
+			case u >= 0xDC00 && u < 0xE000:
+				buf = utf8.AppendRune(buf, utf8.RuneError)
+			default:
+				buf = append(buf, 0xE0|byte(u>>12), 0x80|byte((u>>6)&0x3F), 0x80|byte(u&0x3F))
+			}
+		}
+	}
+	s := string(buf)
+	*bufp = buf
+	utf16Scratch.Put(bufp)
+	return s
 }
 
 func zlibBytes(data []byte) ([]byte, error) {

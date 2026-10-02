@@ -1,8 +1,6 @@
 package dungeon
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 
 	"dfolan/internal/catalog"
@@ -16,18 +14,7 @@ import (
 // （ReuseRoom 无缓存）直接 0xC0000005。
 // 修好后：起点层图格必须**前进**到相邻格。
 func TestStartLayerRoomAdvancesInsteadOfLooping(t *testing.T) {
-	raw, e := os.ReadFile(filepath.Join("..", "..", "configs", "dungeons.full.json"))
-	if e != nil {
-		t.Skip("full catalog missing:", e)
-	}
-	tmp := filepath.Join(t.TempDir(), "d.json")
-	if e = os.WriteFile(tmp, raw, 0o600); e != nil {
-		t.Fatal(e)
-	}
-	c, e := catalog.LoadDungeons(tmp)
-	if e != nil {
-		t.Fatal(e)
-	}
+	c := catalog.LoadNativeFullDungeons(t)
 	d, ok := c.Dungeons[100004782]
 	if !ok {
 		t.Fatal("100004782 不在 full 导出里")
@@ -54,9 +41,11 @@ func TestStartLayerRoomAdvancesInsteadOfLooping(t *testing.T) {
 	if !ok {
 		t.Fatalf("map %d 未导入", layerMaps[len(layerMaps)-1])
 	}
-	if s.Monsters, e = fixedMonsters(script, d.BasisLevel); e != nil {
-		t.Fatal(e)
+	monsters, err := fixedMonsters(script, d.BasisLevel)
+	if err != nil {
+		t.Fatal(err)
 	}
+	s.Monsters = monsters
 	t.Logf("当前房间 %+v monsters=%d cinematic=%v atLayerLast=%v layerAtStart=%v",
 		s.Room, len(s.Monsters), s.LayerRoomIsCinematic(), s.AtLayerLastMap(), s.LayerAtStart(mz.Start))
 

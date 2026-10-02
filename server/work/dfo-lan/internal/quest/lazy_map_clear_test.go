@@ -2,7 +2,6 @@ package quest
 
 import (
 	"dfolan/internal/catalog"
-	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/character"
 	"dfolan/internal/dungeon"
 	"encoding/json"
@@ -15,7 +14,7 @@ func TestSeekMeetBossClearLazyLocalArchive(t *testing.T) {
 	if path == "" {
 		t.Skip("set DFO_PVF_CORE_TEST_ARCHIVE for lazy NPC quest completion")
 	}
-	a, err := pvf.OpenReadOnly(pvf.Options{Path: path, MaxBytes: 1024 * 1024 * 1024}, os.Getenv("DFO_PVF_CORE_TEST_SHA256"))
+	a, err := catalog.OpenTestArchiveCached(path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"))
 	if err != nil {
 		t.Fatal(err)
 	}

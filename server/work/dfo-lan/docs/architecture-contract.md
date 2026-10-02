@@ -80,7 +80,7 @@ L3 领域之间 **默认禁止**互相 import。需要另一领域能力时，�
 | `internal/savecontract` | L1 | 存档契约版本与身份（与客户端资源解耦） | 仅标准库 | 任何 `internal/*` |
 | `internal/storage` | L2 | SQL、事务、锁、存档；实现领域声明的接口 | L3 领域（仅为实现接口）、`catalog`、`catalog/pvf` | 定义游戏规则 |
 | `internal/character` | L3 | 建角、列表、角色状态、技能、经验与奖励成长、资料皮肤与账号选角背景 | `game/protocol`、`catalog`、`catalog/pvf`、自声明接口 | `storage`、其他领域（§7 例外除外） |
-| `internal/inventory` | L3 | 背包、穿戴、通用物品状态、装备图鉴制作/变换/分解、时装与徽章操作 | 同上 | 同上 |
+| `internal/inventory` | L3 | 背包、穿戴、通用物品状态、装备图鉴制作/变换/分解、时装与徽章操作、消耗品/宠物喂养与光辉礼盒目录/开启/奖励修复 | 同上 | 同上 |
 | `internal/loot` | L3 | 掉落生成、掉落实例、拾取、去重 | 同上 | 同上 |
 | `internal/quest` | L3 | 任务链、目标推进、任务奖励 | 同上 | 同上 |
 | `internal/dungeon` | L3 | 副本会话、房间、门、清场、结算 | 同上 | 同上 |
@@ -163,7 +163,7 @@ L3 领域之间 **默认禁止**互相 import。需要另一领域能力时，�
 | E24 | `legion` → `dungeon` | **已消除（2026-10-01，本分支）**：legion 接收选择校验器，由组合层注入 dungeon 校验 |
 | E25 | `cashshop` → `inventory` | 商城发货写背包；改为消费者接口或移入 `workflow` |
 
-当前剩余 9 条领域间允许边。2026-10-02 领域归并删除 `progression`、`profileskin`、`rosterbg` 三个目录；不保留转发门面。礼盒奖励选择和奖励恢复仍归 loot，军团与 NPC 相位各自具有独立状态职责，保留其领域。
+当前剩余 9 条领域间允许边。2026-10-02 领域归并删除 `progression`、`profileskin`、`rosterbg` 三个目录；不保留转发门面。后续消耗品与光辉礼盒目录、抽取、进度及奖励修复归现有 inventory.ItemService，事务归 workflow.ItemService；loot 继续拥有副本掉落包装展开（RewardBoxSource/OpenRewardBoxes）与掉落恢复。本批改变职责所有者，没有消除上述 9 条实际领域依赖。军团与 NPC 相位各自具有独立状态职责，保留其领域。
 
 ---
 
@@ -172,4 +172,4 @@ L3 领域之间 **默认禁止**互相 import。需要另一领域能力时，�
 1. 新增/修改依赖关系前，先按 §3 判断落位，再对照 §2 与 §4。
 2. 若确需新增例外，必须：改本文 §7、说明目标与消除计划、在提交信息中标注。
 3. 消除例外时，同步从 §7 和 `archtest` 允许清单删除。
-4. 每次改动后运行 `go test ./...`（守卫测试会强制校验）。
+4. 守卫测试随 `go test ./...` 执行；改动后的测试门禁见 `server/AGENTS.md` §4。

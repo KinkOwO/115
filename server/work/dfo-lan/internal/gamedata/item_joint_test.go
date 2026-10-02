@@ -12,7 +12,7 @@ func TestJointComplexItemsLocalArchiveParity(t *testing.T) {
 	if p == "" {
 		t.Skip("set DFO_PVF_CORE_TEST_ARCHIVE for complete native complex item parity")
 	}
-	s, err := Open(Options{Mode: PVF, ArchivePath: p, ExpectedChecksum: os.Getenv("DFO_PVF_CORE_TEST_SHA256")})
+	s, err := Open(Options{Mode: PVF, ArchivePath: p, ExpectedChecksum: os.Getenv("DFO_PVF_CORE_TEST_SHA256"), DerivedCacheDir: testPVFCacheDir()})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -1,8 +1,6 @@
 package dungeon
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 
 	"dfolan/internal/catalog"
@@ -15,18 +13,7 @@ import (
 // 客户端再进层图、再被弹回，来回循环（症状：「放一次技能就重看一次剧情」）。
 // 判据必须同时看死亡记录。
 func TestLayerRoomIsCinematicDistinguishesPlayableLayers(t *testing.T) {
-	raw, e := os.ReadFile(filepath.Join("..", "..", "configs", "dungeons.full.json"))
-	if e != nil {
-		t.Skip("full catalog missing:", e)
-	}
-	tmp := filepath.Join(t.TempDir(), "d.json")
-	if e = os.WriteFile(tmp, raw, 0o600); e != nil {
-		t.Fatal(e)
-	}
-	c, e := catalog.LoadDungeons(tmp)
-	if e != nil {
-		t.Fatal(e)
-	}
+	c := catalog.LoadNativeFullDungeons(t)
 
 	// 1. 德洛斯矿山的可打层图 100016270：没打之前「无战斗迹象」，但一旦有怪被确认
 	//    打死就不是演出图（客户端会自己推进）。

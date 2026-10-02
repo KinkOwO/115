@@ -2,7 +2,6 @@ package dungeon
 
 import (
 	"encoding/hex"
-	"path/filepath"
 	"testing"
 
 	"dfolan/internal/catalog"
@@ -11,10 +10,7 @@ import (
 )
 
 func TestWhiteLandCapturedDownwardRoomMove(t *testing.T) {
-	c, err := catalog.LoadDungeons(filepath.Join("..", "..", "configs", "dungeons.full.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	c := catalog.LoadNativeFullDungeons(t)
 	s, err := Select(c, protocol.DungeonSelection{ID: 100002746, Quest: 12920, Party: 65535}, 100, map[uint16]bool{12920: true})
 	if err != nil {
 		t.Fatal(err)

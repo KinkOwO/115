@@ -1,8 +1,6 @@
 package dungeon
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 
 	"dfolan/internal/catalog"
@@ -18,18 +16,7 @@ import (
 //
 // 锁住：进层图时存下的记录，能被 SceneEntryRecord 原样取回。
 func TestSceneEntryRecordIsRetained(t *testing.T) {
-	raw, e := os.ReadFile(filepath.Join("..", "..", "configs", "dungeons.full.json"))
-	if e != nil {
-		t.Skip("full catalog missing:", e)
-	}
-	tmp := filepath.Join(t.TempDir(), "d.json")
-	if e = os.WriteFile(tmp, raw, 0o600); e != nil {
-		t.Fatal(e)
-	}
-	c, e := catalog.LoadDungeons(tmp)
-	if e != nil {
-		t.Fatal(e)
-	}
+	c := catalog.LoadNativeFullDungeons(t)
 	d, ok := c.Dungeons[100004777]
 	if !ok {
 		t.Fatal("100004777 不在 full 导出里")
@@ -57,12 +44,14 @@ func TestSceneEntryRecordIsRetained(t *testing.T) {
 	if !ok {
 		t.Fatalf("map %d 未导入", s.Room.Map)
 	}
-	if s.Monsters, e = fixedMonsters(script, d.BasisLevel); e != nil {
-		t.Fatal(e)
+	monsters, err := fixedMonsters(script, d.BasisLevel)
+	if err != nil {
+		t.Fatal(err)
 	}
+	s.Monsters = monsters
 
 	// 用「客户端主动进层图」那一包（带记录）走一次 MoveScene，记录应被留存。
-	if _, e = s.MoveScene(c, protocol.DungeonRoomTransition{
+	if _, e := s.MoveScene(c, protocol.DungeonRoomTransition{
 		Dungeon: 100004777, Position: mz.Start, LayerChange: true, Record: entry,
 	}); e != nil {
 		t.Fatalf("进层图应成功: %v", e)

@@ -1,8 +1,6 @@
 package dungeon
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 
 	"dfolan/internal/catalog"
@@ -17,18 +15,7 @@ import (
 // 图缓存，直接闪退。
 // 判据必须加上「当前是序列最后一张」。
 func TestLayerExitOnlyAtLastMap(t *testing.T) {
-	raw, e := os.ReadFile(filepath.Join("..", "..", "configs", "dungeons.full.json"))
-	if e != nil {
-		t.Skip("full catalog missing:", e)
-	}
-	tmp := filepath.Join(t.TempDir(), "d.json")
-	if e = os.WriteFile(tmp, raw, 0o600); e != nil {
-		t.Fatal(e)
-	}
-	c, e := catalog.LoadDungeons(tmp)
-	if e != nil {
-		t.Fatal(e)
-	}
+	c := catalog.LoadNativeFullDungeons(t)
 	d := c.Dungeons[100004981]
 
 	var layer catalog.DungeonLayer

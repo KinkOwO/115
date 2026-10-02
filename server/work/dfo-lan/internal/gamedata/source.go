@@ -57,8 +57,8 @@ func (s *Source) ItemShops(policy catalog.ItemShopSourcePolicy) (catalog.NativeI
 	return catalog.ImportItemShops(s.archive, policy)
 }
 
-func (s *Source) Boxes(index catalog.ItemIndex, policy loot.BoxSourcePolicy) (*loot.BoxCatalog, error) {
-	return loot.ImportBoxes(s.archive, index, policy)
+func (s *Source) Boxes(index catalog.ItemIndex, policy inventory.BoxSourcePolicy) (*inventory.BoxCatalog, error) {
+	return inventory.ImportBoxes(s.archive, index, policy)
 }
 
 func (s *Source) AvatarDisjoint(index catalog.ItemIndex) (*inventory.AvatarDisjointRules, error) {

@@ -2,36 +2,29 @@ package main
 
 import (
 	"bytes"
+	"dfolan/internal/game/wire"
 	"os"
 	"regexp"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // CMD1722（装备继承）曾经「服务层 + 流程层都在、就是没人调」：
 // 客户端发 1722 之后服务端既不处理也不回包，实机表现就是「按下继承毫无效果」。
 // 这条用例把分派钉住 —— 光有 inherit() 这个函数不算接线成功。
 func TestInheritDispatchIsWired(t *testing.T) {
-	src, err := os.ReadFile("main.go")
-	if err != nil {
-		t.Fatal(err)
-	}
-	i := bytes.Index(src, []byte("frame.ID == 1722"))
-	if i < 0 {
-		t.Fatal("main.go 里没有 frame.ID == 1722 的分派：CMD1722 会被静默丢弃")
-	}
-	window := src[i:]
-	if j := bytes.IndexByte(window, '\n'); j >= 0 {
-		window = window[j+1:]
-	}
-	if len(window) > 4096 {
-		window = window[:4096]
-	}
-	if !bytes.Contains(window, []byte("worldState.inherit(")) {
-		t.Fatal("frame.ID == 1722 的分支没有调用 worldState.inherit")
-	}
-	// 拒绝路径必须有（记日志也算）：否则出了错连排查线索都没有。
-	if !bytes.Contains(window, []byte("inherit_refused")) {
-		t.Fatal("frame.ID == 1722 的分支没有拒绝路径")
+	for _, verified := range []bool{false, true} {
+		client, conn, events := newDispatchTestClient()
+		result := client.dispatch(&clientRequest{frame: wire.Frame{Type: 1, ID: 1722}, verified: verified})
+		require.Equal(t, dispatchHandled, result)
+		kind := "inherit_rejected"
+		if verified {
+			kind = "inherit_refused"
+		}
+		require.Equal(t, kind, (*events)[len(*events)-1]["kind"])
+		assert.Zero(t, conn.Len(), "继承拒绝没有合法的 1722 回包通道")
 	}
 }
 
@@ -70,7 +63,7 @@ func TestInheritIsRegisteredInBothRequestGates(t *testing.T) {
 func TestInheritNeverRepliesWithKindOne(t *testing.T) {
 	// 容忍空格差异：`sendPayload(1, 1722` / `sendPayload(1,1722`。
 	pattern := regexp.MustCompile(`sendPayload\(\s*1\s*,\s*1722\b`)
-	for _, file := range []string{"main.go", "inherit_flow.go", "inherit.go"} {
+	for _, file := range []string{"client_dispatch_inventory.go", "inherit_flow.go", "inherit.go"} {
 		src, err := os.ReadFile(file)
 		if os.IsNotExist(err) {
 			continue
@@ -121,7 +114,7 @@ func TestInheritNeverSendsAnyOutbound1722(t *testing.T) {
 		regexp.MustCompile(`outboundPacket\{[^}]*1722`),
 		regexp.MustCompile(`protocol\.InheritResult\(`),
 	}
-	for _, file := range []string{"main.go", "inherit_flow.go", "inherit.go"} {
+	for _, file := range []string{"client_dispatch_inventory.go", "inherit_flow.go", "inherit.go"} {
 		src, err := os.ReadFile(file)
 		if os.IsNotExist(err) {
 			continue

@@ -20,7 +20,7 @@ import (
 // panel consumer (the 武器外观 tab, which the replication path owns) stays
 // durable-only, so no frame is invented for it.
 func (w *worldSession) useAddSkinStorage(p []byte, event func(map[string]any)) ([]outboundPacket, error) {
-	if w == nil || w.role.ID == 0 || w.loot == nil || w.characters == nil {
+	if w == nil || w.role.ID == 0 || w.items == nil || w.characters == nil {
 		return nil, fmt.Errorf("skin registration before character selection")
 	}
 	slot, e := protocol.DecodeAddSkinStorageAction(p)
@@ -49,7 +49,7 @@ func (w *worldSession) useAddSkinStorage(p []byte, event func(map[string]any)) (
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	saved, receipt, _, e := (&workflow.LootService{Store: w.store, Loot: w.loot}).Consume(ctx, w.role, protocol.UseStackableRequest{
+	saved, receipt, _, e := (&workflow.ItemService{Store: w.store, Items: w.items}).Consume(ctx, w.role, protocol.UseStackableRequest{
 		Slot: slot, Template: template,
 	})
 	if e != nil {
@@ -57,7 +57,7 @@ func (w *worldSession) useAddSkinStorage(p []byte, event func(map[string]any)) (
 	}
 	w.role = saved
 	// The spend committed before this insert, so a database failure here is
-	// recovered by the next press: loot.Consume replays the original receipt
+	// recovered by the next press: workflow.ItemService.Consume replays the original receipt
 	// instead of spending a second unit and UnlockSkin lands then.
 	record := map[string]any{"character_id": saved.ID, "template": template,
 		"slot": slot, "skin_key": entry.SkinKey(), "remaining": receipt.Remaining,

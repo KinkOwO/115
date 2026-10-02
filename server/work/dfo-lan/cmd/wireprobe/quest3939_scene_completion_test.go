@@ -12,10 +12,7 @@ import (
 // report is followed by CMD33 for quest 3939, never a boss check. The scene
 // completion must reach clear-enable without trying to confirm entity zero.
 func TestQuest3939SceneCompletionWithoutBossIdentity(t *testing.T) {
-	c, err := catalog.LoadDungeons("../../configs/dungeons.full.json")
-	if err != nil {
-		t.Fatal(err)
-	}
+	c := catalog.LoadNativeFullDungeons(t)
 	s, err := dungeon.Select(c, protocol.DungeonSelection{ID: 5109, Difficulty: 1, Party: 65535, Quest: 3939}, 102, map[uint16]bool{3939: true})
 	if err != nil {
 		t.Fatal(err)
