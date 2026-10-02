@@ -13,6 +13,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
+	"os"
 	"path/filepath"
 	"strings"
 )
@@ -243,6 +244,12 @@ func (s *Source) EnableRuntimeDetails(q *catalog.QuestCatalog, l *character.Lear
 	}
 	if items != nil && index != nil {
 		if err := items.EnableRuntimeDetails(s.archive, *index); err != nil {
+			return err
+		}
+		if err := items.EnableMonsterItemDetails(s.archive); err != nil {
+			return err
+		}
+		if err := items.EnableWorldDrop(s.archive); err != nil {
 			return err
 		}
 	}
@@ -537,7 +544,26 @@ func (s *Source) EquipmentSelection(index catalog.ItemIndex, quests catalog.Ques
 	if s.archive == nil {
 		return nil, fmt.Errorf("equipment selection requires PVF")
 	}
-	return inventory.ImportEquipmentSelection(s.archive, index, quests, policy)
+	selection, err := inventory.ImportEquipmentSelection(s.archive, index, quests, policy)
+	if err != nil {
+		return nil, err
+	}
+	selection.OrdinaryPool, err = cachedProjection(s, "ordinary-equipment", struct {
+		Index    string
+		Excluded []uint32
+		Trade    bool
+	}{itemIndexIdentity(index), policy.ExcludedLootIDs, os.Getenv("DFO_ALLOW_TRADE_EQUIPMENT") == "1"}, func() ([]inventory.EquipmentDrop, error) {
+		return inventory.ImportOrdinaryDropPool(s.archive, index, policy.ExcludedLootIDs)
+	}, func(pool []inventory.EquipmentDrop) ([]inventory.EquipmentDrop, error) {
+		for _, row := range pool {
+			item, ok := index.Items[row.ID]
+			if !ok || item.Kind != "equipment" || row.Weight == 0 || row.Grade <= 0 || row.Grade > 200 || row.Rarity < 0 || row.Rarity > 2 {
+				return nil, fmt.Errorf("invalid ordinary equipment cache")
+			}
+		}
+		return pool, nil
+	})
+	return selection, err
 }
 
 func (s *Source) Town(town, area uint32) (catalog.TownArea, error) {

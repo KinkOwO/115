@@ -398,6 +398,14 @@ func (s *Session) layerSequenceAdvance(c catalog.DungeonCatalog, pos [2]byte) (*
 //
 // 同样不能走 Session.Move（RoomCleared 会拦住剧情层图的布景怪）。
 func (s *Session) ExitSceneRoom(c catalog.DungeonCatalog, pos [2]byte) (*Session, error) {
+	// CMD38 is native USE_SKILL. The Lotus finale's display actors make it
+	// look like an ordinary cinematic room, but ACT14948/CMT14949 owns its
+	// closing CMD45. A skill must not synthesize a return to boss map 53543:
+	// live 20261002_212301 did so mid-cinematic and crashed during boss cleanup
+	// (145c34e0c). Keep the exact native closing path in MoveScene instead.
+	if s.Definition.ID == 26 && s.Maze.Index == 3 && s.Room.Map == 100008697 {
+		return nil, fmt.Errorf("Lotus finale requires the native closing scene transition")
+	}
 	if s.LayerAtStart(pos) {
 		if next, err := s.layerSequenceAdvance(c, pos); err == nil {
 			return next, nil

@@ -32,6 +32,11 @@ func TestSourceDropPlanOwnershipAndRetry(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
+	// This test covers the generic source roll's ownership and retry contract.
+	// A declared map pool can legitimately suppress its item result; that
+	// boundary is exercised separately by TestOrdinaryMapMissOwnsItemResultAndDeathRetry.
+	run.Definition.Script.Cells = nil
+	delete(c.DungeonDropInfo, run.Definition.ID)
 	s := NewSession(c, tables, rules, nil, run.RunID, 10, 20, 3)
 	entity := run.Monsters[0].Entity
 	if _, e = s.Death(run, entity); e == nil {

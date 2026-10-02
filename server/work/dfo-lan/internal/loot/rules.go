@@ -99,7 +99,11 @@ func numbers(c []pvf.Token) ([]float64, error) {
 	return v, nil
 }
 
-type Tables struct{ Probability, Gold, Grade, Rank, Rarity []float64 }
+type Tables struct {
+	Probability, Gold, Grade, Rank, Rarity []float64
+	// Five categories, each containing five difficulty columns in the PVF.
+	Difficulty []float64
+}
 
 func Parse(c catalog.LootCatalog) (Tables, error) {
 	var t Tables
@@ -123,6 +127,20 @@ func Parse(c catalog.LootCatalog) (Tables, error) {
 	if len(t.Rank) != 20 || len(t.Rarity) != 36 {
 		return t, fmt.Errorf("unsupported source drop table shape")
 	}
+	if cells := Cells(c.Rules["etc/itemdropinfo_monseter.etc"].Cells, "[dungeon difficulty drop bonusrate]"); len(cells) > 0 {
+		var err error
+		t.Difficulty, err = numbers(cells)
+		if err != nil || len(t.Difficulty) != 25 {
+			return t, fmt.Errorf("invalid source difficulty table: %v", err)
+		}
+		for _, rate := range t.Difficulty {
+			if rate < 0 {
+				return t, fmt.Errorf("negative source difficulty multiplier")
+			}
+		}
+	} else if c.ClearReward != nil {
+		return t, fmt.Errorf("PVF ordinary difficulty table missing")
+	}
 	return t, nil
 }
 
@@ -145,6 +163,9 @@ type Outcome struct {
 	Awards       []Award
 	SkippedKinds []string
 	NextSeed     uint32
+	// A declared map pool must receive successful item rolls even when the
+	// generic pool has no candidate at the rolled grade/rarity.
+	ItemBudget int
 }
 
 // Roll ports the explicitly named reference formula. The equipment category
@@ -157,6 +178,25 @@ func Roll(c catalog.LootCatalog, t Tables, r Rules, pool []inventory.EquipmentDr
 }
 
 func RollWithBonus(c catalog.LootCatalog, t Tables, r Rules, pool []inventory.EquipmentDrop, seed uint32, level, rank, difficulty byte, questDropBonusPercent int) (Outcome, error) {
+	return rollWithBonus(c, t, r, pool, seed, level, rank, difficulty, questDropBonusPercent, false)
+}
+
+// RollOrdinary uses current source difficulty columns. The explicitly named
+// compatibility formula and the separately confirmed special-mode sequence
+// remain distinct; this does not claim an official 115 server formula.
+func RollOrdinary(c catalog.LootCatalog, t Tables, r Rules, pool []inventory.EquipmentDrop, seed uint32, level, rank, difficulty byte, questDropBonusPercent int) (Outcome, error) {
+	if len(t.Difficulty) != 25 || difficulty >= 5 {
+		return Outcome{}, fmt.Errorf("ordinary source difficulty unavailable")
+	}
+	for _, rate := range t.Difficulty {
+		if rate < 0 || math.IsNaN(rate) || math.IsInf(rate, 0) {
+			return Outcome{}, fmt.Errorf("invalid ordinary source multiplier")
+		}
+	}
+	return rollWithBonus(c, t, r, pool, seed, level, rank, difficulty, questDropBonusPercent, true)
+}
+
+func rollWithBonus(c catalog.LootCatalog, t Tables, r Rules, pool []inventory.EquipmentDrop, seed uint32, level, rank, difficulty byte, questDropBonusPercent int, sourceDifficulty bool) (Outcome, error) {
 	var out Outcome
 	if len(t.Rank) != 20 || len(t.Rarity) != 36 || len(t.Probability)%7 != 0 || len(t.Gold)%3 != 0 || len(t.Grade)%3 != 0 || r.Denominator == 0 {
 		return out, fmt.Errorf("invalid drop model tables")
@@ -165,7 +205,7 @@ func RollWithBonus(c catalog.LootCatalog, t Tables, r Rules, pool []inventory.Eq
 	for _, kind := range r.SupportedKinds {
 		enabled[kind] = true
 	}
-	if level == 0 || rank > 3 || int(difficulty) >= len(r.DifficultyBonus) || uint32(level)+3 > c.MaximumGrade {
+	if level == 0 || rank > 3 || int(difficulty) >= len(r.DifficultyBonus) || !sourceDifficulty && uint32(level)+3 > c.MaximumGrade {
 		return out, ErrOutOfDropRange
 	}
 	var prob, gold, grade []float64
@@ -196,12 +236,18 @@ func RollWithBonus(c catalog.LootCatalog, t Tables, r Rules, pool []inventory.Eq
 	}
 	rng := RNG{seed}
 	diff := r.DifficultyBonus[difficulty]
+	categoryDifficulty := func(category int) float64 {
+		if sourceDifficulty {
+			return t.Difficulty[category*5+int(difficulty)]
+		}
+		return diff
+	}
 	rate := func(category int) uint32 {
 		bonus := 1.0
 		if category == 3 && questDropBonusPercent > 0 {
 			bonus += float64(questDropBonusPercent) / 100.0
 		}
-		n := math.Floor(prob[category] * t.Rank[category*4+int(rank)] * diff * bonus)
+		n := math.Floor(prob[category] * t.Rank[category*4+int(rank)] * categoryDifficulty(category) * bonus)
 		if n < 0 {
 			return 0
 		}
@@ -214,7 +260,10 @@ func RollWithBonus(c catalog.LootCatalog, t Tables, r Rules, pool []inventory.Eq
 	if gold[2] > 0 {
 		amount += (int64(rng.Next(uint32(gold[2])*2+1)) - int64(gold[2])) * int64(gold[1]) / 100
 	}
-	a := math.Floor(float64(amount) * diff)
+	a := math.Floor(float64(amount) * categoryDifficulty(0))
+	if sourceDifficulty && categoryDifficulty(0) == 0 {
+		a = 1
+	} // zero source multiplier also makes gold probability zero
 	if a < 1 || a > math.MaxUint32 {
 		return out, fmt.Errorf("gold amount overflow")
 	}
@@ -224,6 +273,9 @@ func RollWithBonus(c catalog.LootCatalog, t Tables, r Rules, pool []inventory.Eq
 	for category := 1; category <= 3; category++ {
 		if rng.Next(r.Denominator) >= rate(category) {
 			continue
+		}
+		if sourceDifficulty && (category == 2 && enabled["equipment"] || category != 2 && enabled["stackable"]) {
+			out.ItemBudget++
 		}
 		roll := float64(rng.Next(1000000) + 1)
 		rarity := int32(0)
@@ -239,14 +291,22 @@ func RollWithBonus(c catalog.LootCatalog, t Tables, r Rules, pool []inventory.Eq
 				continue
 			}
 			gear := equipmentCandidates(pool, rarity, level, grade)
-			if len(gear) == 0 {
+			if len(gear) == 0 && !sourceDifficulty {
 				gear = equipmentCandidatesNearest(pool, rarity, level, grade)
 			}
 			if len(gear) == 0 {
 				out.SkippedKinds = append(out.SkippedKinds, "equipment_grade_window_empty")
 				continue
 			}
-			out.Awards = append(out.Awards, Award{gear[rng.Next(uint32(len(gear)))].ID, 1})
+			if sourceDifficulty {
+				item, err := weightedEquipment(&rng, gear)
+				if err != nil {
+					return out, err
+				}
+				out.Awards = append(out.Awards, Award{item.ID, 1})
+			} else {
+				out.Awards = append(out.Awards, Award{gear[rng.Next(uint32(len(gear)))].ID, 1})
+			}
 			continue
 		}
 		candidates := func(rare int32) []catalog.LootItem {
@@ -272,11 +332,34 @@ func RollWithBonus(c catalog.LootCatalog, t Tables, r Rules, pool []inventory.Eq
 			return ids
 		}
 		ids := candidates(rarity)
-		if len(ids) == 0 && rarity > 0 {
+		if len(ids) == 0 && rarity > 0 && !sourceDifficulty {
 			ids = candidates(0)
 		}
+		if len(ids) == 0 && sourceDifficulty && enabled["stackable"] {
+			out.SkippedKinds = append(out.SkippedKinds, fmt.Sprintf("stackable_grade_window_empty: category=%d level=%d rarity=%d", category, level, rarity))
+		}
 		if len(ids) > 0 {
-			id := ids[rng.Next(uint32(len(ids)))].ID
+			var id uint32
+			if sourceDifficulty {
+				// Creation weights are source values, not uniform candidate counts.
+				var total uint64
+				for _, item := range ids {
+					total += uint64(item.Weight)
+				}
+				if total == 0 || total > math.MaxUint32 {
+					return out, fmt.Errorf("invalid ordinary stackable weights")
+				}
+				pick := rng.Next(uint32(total))
+				for _, item := range ids {
+					if pick < item.Weight {
+						id = item.ID
+						break
+					}
+					pick -= item.Weight
+				}
+			} else {
+				id = ids[rng.Next(uint32(len(ids)))].ID
+			}
 			if enabled["stackable"] {
 				out.Awards = append(out.Awards, Award{id, 1})
 			}

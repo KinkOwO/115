@@ -59,6 +59,12 @@ const groupRateBase = 1000000
 //   - Outcome.SkippedKinds 记录跳过的原因，便于从日志定位
 //   - 副本没有 dungeondropinfo 条目（大多数副本走全局表）时返回 ok=false
 func RollDungeonGroups(cat catalog.LootCatalog, r Rules, seed uint32, req DungeonGroupDropRequest) (Outcome, bool, error) {
+	return rollDungeonGroups(cat, r, seed, req, false)
+}
+
+// advanceSelection is enabled for ordinary drops. The existing Abyss reward
+// sequence remains unchanged until that separately confirmed pool is audited.
+func rollDungeonGroups(cat catalog.LootCatalog, r Rules, seed uint32, req DungeonGroupDropRequest, advanceSelection bool) (Outcome, bool, error) {
 	var out Outcome
 	out.NextSeed = seed
 
@@ -113,7 +119,7 @@ func RollDungeonGroups(cat catalog.LootCatalog, r Rules, seed uint32, req Dungeo
 				fmt.Sprintf("group %d not readable", en.DropGroup))
 			continue
 		}
-		pick, ok := pickFromGroup(rng, group)
+		pick, ok := selectGroupItem(&rng, group, advanceSelection)
 		if !ok {
 			out.SkippedKinds = append(out.SkippedKinds,
 				fmt.Sprintf("group %d has no weighted item", en.DropGroup))
@@ -143,6 +149,12 @@ func replaceItemAwards(base, from []Award) []Award {
 	if len(from) == 0 {
 		return base
 	}
+	return replaceDeclaredItemAwards(base, from)
+}
+
+// A declared ordinary pool owns the item result, including a probability miss
+// or an empty pool. Retaining generic items here bypasses the map's drop rate.
+func replaceDeclaredItemAwards(base, from []Award) []Award {
 	kept := make([]Award, 0, len(base)+len(from))
 	for _, a := range base {
 		if a.Template == 0 {
@@ -162,6 +174,10 @@ func replaceItemAwards(base, from []Award) []Award {
 // 2026-09-28 表现为「普通小怪爆了一地」，13 只小怪 26 件/把）。件数由全局表先 roll
 // 出来，这里只按那个件数抽。count <= 0 时不产出任何东西。
 func RollDeclaredGroups(cat catalog.LootCatalog, groupIDs []uint32, count int, seed uint32) (Outcome, int, error) {
+	return rollDeclaredGroups(cat, groupIDs, count, seed, false)
+}
+
+func rollDeclaredGroups(cat catalog.LootCatalog, groupIDs []uint32, count int, seed uint32, advanceSelection bool) (Outcome, int, error) {
 	var out Outcome
 	out.NextSeed = seed
 	if count <= 0 || len(groupIDs) == 0 {
@@ -181,7 +197,7 @@ func RollDeclaredGroups(cat catalog.LootCatalog, groupIDs []uint32, count int, s
 			skipped++
 			continue
 		}
-		pick, ok := pickFromGroup(rng, group)
+		pick, ok := selectGroupItem(&rng, group, advanceSelection)
 		if !ok {
 			// 空组（源表里有 479 个）就是「这一组不产出」，不是错误。
 			out.SkippedKinds = append(out.SkippedKinds, fmt.Sprintf("declared group %d is empty", gid))
@@ -226,9 +242,21 @@ func gradeMatchesRarity(grade string, rarity int) bool {
 
 // pickFromGroup 按权重从组里挑一件。
 //
-// DropGroup 的两段（Explicit = [drop item]，Smart = [smart drop item]）语义未确立，
-// 因此合并后按权重抽 —— 权重是源里明确写出的唯一选择依据。
+// 这是既有兼容选择算法。115 reader 147426050 将 Explicit 的两种 creation
+// 分支与 Smart 存入三个不同 map；直接合并并非已确认的原生行为。完整发奖
+// 分支尚待取证，本轮仅修普通路径的随机状态传播，保留排除范围的历史序列。
 func pickFromGroup(rng RNG, g catalog.DropGroup) (uint32, bool) {
+	return pickFromGroupWithSeed(&rng, g)
+}
+
+func selectGroupItem(rng *RNG, g catalog.DropGroup, advance bool) (uint32, bool) {
+	if !advance {
+		return pickFromGroup(*rng, g)
+	}
+	return pickFromGroupWithSeed(rng, g)
+}
+
+func pickFromGroupWithSeed(rng *RNG, g catalog.DropGroup) (uint32, bool) {
 	type row struct {
 		tpl uint32
 		w   uint32

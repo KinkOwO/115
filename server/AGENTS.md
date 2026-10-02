@@ -1,5 +1,10 @@
 # AGENTS.md — server/
 
+## 2026-10-03：上游同步与冲突收敛（源码候选）
+
+- 上游 main 5c8530f 的掉落/免费翻牌、Lotus 与誓约 Clone 修复已接入；普通掉落装配与原生准备测试归 internal/gamedata，wireprobe 的 pvf_* 文件保持清零。
+- 网关/掉落/目录专项、架构守卫、Go 1.26.5 vet 与候选编译通过；当前 8b2a PVF 普通准备冷/热缓存专项通过，未跑全量或 PostgreSQL 实机集成。未部署、访问玩家库或启动客户端，合并候选不新增实机确认；双方原 confirmed baseline 记录保留。
+
 ## 2026-10-03：连接 panic 恢复接线修复（源码候选）
 
 - 原 deferred closure 间接调用 recoverConnection 导致 recover() 无效；现直接 defer 该函数，诊断回调补齐当时 peer，保留频道/堆栈和资源关闭流程。
@@ -29,6 +34,18 @@
 
 - 用户确认接入 Testify v1.11.1；仅用于既有连接生命周期、报文完整性与并发输出顺序测试。Go 1.26.5 专项、全量测试和 vet 通过。
 - 此项仅为源码确认，没有替换运行二进制或新增实机验收；confirmed baseline 保持既有程序哈希与确认范围。协议、SQL/schema、玩家存档及客户端资源保持。
+
+## 2026-10-02：普通副本材料与消耗品掉落已确认
+
+- 用户确认“能掉落消耗品和材料了”。按当前PVF接入MOB专属物品池及等级世界掉落，已补入材料和HP/MP药剂；遵守MOB `[exclude world drop]`、普通副本归属/排除及Hell/奥德赛/Abyss/调律边界，复用现有地面拾取与角色存档事务。
+- confirmed baseline 为独立候选 `work/dfo-lan/.tmp/drop-audit-20261002/wireprobe-drop-world.exe`，SHA256 `5e40b294dfd92ab27408b13f0f5d9918c79b30f1bdecb6a6bf9f6a6cea49329f`。世界参考兼容倍率 `DFO_ORDINARY_WORLD_DROP_PERCENT` 默认100=1倍；MOB专属池 `DFO_ORDINARY_MONSTER_ITEM_DROP_PERCENT` 默认10%。两者均不声称是115官方服务端完整公式。默认程序未替换。
+- 普通材料/消耗品翻牌、independent_drop主表与区域材料表仍未确认/接入；Hell Party、奥德赛暂缓。真实PVF及领取回归、启动准备检查和`go vet ./...`通过；全量测试保留经HEAD对照的3项wireprobe审计失败及1项cashshop空发放。无schema、玩家数据库或客户端资源改动。详见 `work/dfo-lan/docs/ordinary-world-drop.md` 与 `../analysis/tasks/monster-drop-rate-audit-20261002.md`。
+
+## 2026-10-02：普通装备掉落与免费翻牌已确认
+
+- 用户确认普通怪物能掉装备、翻牌能出装备，并要求先提交。19:13手动会话 `roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261002_191351_952423_next37` 中角色21的Boss确认、NOTI35、装备拾取刷新及CMD71翻牌入袋成功均有记录。难度0结算阻断和地图类别覆盖过宽已修复。
+- 本项confirmed baseline为独立候选 `.tmp/drop-audit-20261002/wireprobe-drop-audit-scoped.exe`，SHA256 `ce476c14359b012b24aedcbf8dfead763ddccb71a3d1c40ddafe97c30c790a9e`，通过同目录 `启动验证.cmd` 使用；未替换其它任务的默认二进制。确认范围仅限普通装备地面掉落与免费装备翻牌，材料/消耗品继续处理；不扩展为官方完整概率、付费牌或全地图验收。Hell Party、奥德赛暂缓，Abyss/调律保留。
+- 源回归、相关领域回归与vet通过；全量测试保留经HEAD对照的4项既有失败。无schema/玩家数据库/客户端资源改动。详见 `../analysis/tasks/monster-drop-rate-audit-20261002.md`。
 
 ## 2026-10-02：魔法封印装备解除已确认
 
