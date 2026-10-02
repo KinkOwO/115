@@ -147,7 +147,7 @@ sub_14069E3B0(a2);                    // 发 CMD2355
   `internal/catalog/apocalypse.go`（新增）、`internal/legion/phase.go`（新增）、
   `cmd/apocalypseimport/main.go`（重写）、`cmd/wireprobe/legion_flow.go`（守卫分流 + 目录层）、
   `cmd/wireprobe/main.go`（一个 flag + 一处装载 + 一处结果结构）。
-* 数据库：**无改动**（符合根 `AGENTS.md` §4）。
+* 数据库：**无改动**（符合根 `AGENTS.md` §0.4）。
 * 回滚方式：`git revert` 本轮提交即可；`configs/apocalypse.generated.json` 是纯新增。
 * 若只想临时关掉目录层：启动时不传 `-apocalypse-catalog`（或传空），
   军团族仍按 P1–P3 行为工作，只在确认时多一条 `legion_catalog_missing`。

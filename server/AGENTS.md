@@ -46,7 +46,7 @@
 3. **禁止新增「JSON 回落」。** `pvfCoreCatalogs.load*()` 里除 `if c.x != nil` 之外不得引入
    新数据源；已有回落随任务逐步删除——直读失败要**显式报错**，不要静默换源（静默换源正是
    此前「直读模式下玩法整片失效」却查不出来的原因）。
-4. **禁止把开关当数据。** 玩法行为不留开关（见根 `AGENTS.md` §6 开关原则）；数值差异入口
+4. **禁止把开关当数据。** 玩法行为不留开关（见本文件 §6 开关原则）；数值差异入口
    必须能追溯到一条明确策略文件，且该文件**不得承载「有哪些内容」的清单**。
 
 **允许保留的 JSON**（仅此三类）：
@@ -155,21 +155,10 @@
 
 ## 4. 开发与构建规范
 
-1. **测试先行**：修改协议或业务逻辑后，必须在 `server/work/dfo-lan/` 下执行：
-
-   ```powershell
-   go test ./...
-   go vet ./...
-   ```
-
-2. **候选版隔离**：源码编译输出为 `bin/wireprobe-handoff-source.exe`。**严禁直接覆盖原 39 版归档基线 `wireprobe-dungeon39.exe`**。只有经过实机完整回归确认后，方可升级基准。
-3. **验证候选版**：关闭已有游戏会话后，通过带参数启动测试源码候选版：
-
-   ```powershell
-   powershell -NoProfile -ExecutionPolicy Bypass -File ./Start-DFO.cmd --source-build
-   ```
-
-4. **数据库集成检查**：运行 `go run ./cmd/charactercheck` 检验角色存储与 schema 兼容性。
+1. **测试门禁**：修改协议或业务逻辑后，在 `server/work/dfo-lan/` 执行 `go test ./...` 与 `go vet ./...`。
+2. **数据库集成**：`go run ./cmd/charactercheck` 校验角色存储与 schema 兼容性。
+3. **候选隔离**：源码编译输出 `bin/wireprobe-handoff-source.exe`，**严禁直接覆盖 39 版归档基线 `wireprobe-dungeon39.exe`**；实机完整回归确认后方可升级基准。
+4. **实机回归**：关闭已有游戏会话后 `./Start-DFO.cmd --source-build`，由用户手动操作。
 
 ## 5. 变更事务与数据安全
 
