@@ -44,11 +44,11 @@ class DefaultPVFLaunchTests(unittest.TestCase):
             with self.assertRaises(FileNotFoundError):
                 launch.gateway_configuration(arguments(pvf_mode=True), {'server_binary': 'legacy.exe'})
 
-    def test_no_flags_uses_configured_json_binary_without_loading_pvf_profile(self):
+    def test_explicit_json_mode_uses_configured_binary_without_loading_pvf_profile(self):
         configured_binary = launch.ROOT / 'legacy.exe'
-        with mock.patch.object(launch, 'load_profile', side_effect=AssertionError('default must not load a PVF profile')):
+        with mock.patch.object(launch, 'load_profile', side_effect=AssertionError('JSON mode must not load a PVF profile')):
             binary, required, env = launch.gateway_configuration(
-                arguments(), {'server_binary': 'legacy.exe'})
+                arguments(json_mode=True), {'server_binary': 'legacy.exe'})
         self.assertEqual(binary, configured_binary)
         self.assertEqual(required, [])
         self.assertEqual(env, {})
@@ -137,7 +137,7 @@ class DefaultPVFLaunchTests(unittest.TestCase):
             popen.assert_called_once()
             self.assertEqual(popen.call_args.kwargs['env']['DFO_PVF_CATALOGS'], 'characters')
 
-    def test_check_default_mode_never_starts_storage_or_helper(self):
+    def test_check_json_mode_never_starts_storage_or_helper(self):
         configuration = ({'client_dir': str(launch.PROJECT), 'server_binary': 'legacy.exe'}, {},
                          types.SimpleNamespace(hostname='127.0.0.1', port=25438))
         with mock.patch.object(launch, 'configuration', return_value=configuration), \
@@ -145,7 +145,7 @@ class DefaultPVFLaunchTests(unittest.TestCase):
              mock.patch.object(launch.subprocess, 'Popen') as popen, \
              mock.patch.object(launch, 'listening', return_value=False), \
              mock.patch.object(pathlib.Path, 'is_file', return_value=True), \
-             mock.patch.object(sys, 'argv', ['launch_local.py', '--check', '--server-only']), \
+             mock.patch.object(sys, 'argv', ['launch_local.py', '--check', '--server-only', '--json-mode']), \
              contextlib.redirect_stdout(io.StringIO()) as output:
             launch.main()
         storage.assert_not_called()
