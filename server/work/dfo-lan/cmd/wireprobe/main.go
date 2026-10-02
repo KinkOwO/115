@@ -89,7 +89,6 @@ func main() {
 	// 默认关 = 保留疲劳消耗；打开后进本消耗与房间消耗**一起**归零
 	// （见 character.FatigueService.Free —— 只关一处会卡在加载界面）。
 	fatigueFree := flag.Bool("fatigue-free", os.Getenv("DFO_FATIGUE_FREE") == "1", "关闭疲劳消耗（进本与房间一起归零）；默认关")
-	dungeonCatalogFile := flag.String("dungeon-catalog", "", "source dungeon layouts and first-room loading experiment")
 	progressionCatalogFile := flag.String("progression-catalog", "", "current-source experience and growth catalog")
 	progressionRulesFile := flag.String("progression-rules", "configs/experience.compat90.json", "separate reference compatibility formula settings")
 	lootCatalogFile := flag.String("loot-catalog", "", "current gold/ordinary stackable source projection; equipment pending")
@@ -225,7 +224,6 @@ func main() {
 		QuestEquipmentPath:     *equipmentRewardFile,
 		DropPolicyPath:         *pvfDropPolicy,
 		TownPath:               *townCatalogFile,
-		DungeonPath:            *dungeonCatalogFile,
 		TutorialDungeonPath:    *tutorialDungeonsFile,
 		ScenePolicyPath:        *pvfScenePolicyPath,
 		ApocalypsePath:         *apocalypseCatalogFile,
@@ -834,20 +832,14 @@ func main() {
 			log.Fatal(e)
 		}
 	}
-	if *dungeonCatalogFile != "" || pvfCatalogs.Dungeons != nil {
-		if candidate := os.Getenv("DFO_ODYSSEY_DUNGEON_CATALOG"); candidate != "" {
-			*dungeonCatalogFile = candidate
-		}
+	if pvfCatalogs.Dungeons != nil {
 		if worldService == nil {
 			log.Fatal("dungeons require world sessions")
 		}
-		data, e := pvfCatalogs.LoadDungeons(*dungeonCatalogFile)
-		if e != nil {
-			log.Fatal(e)
-		}
+		data := *pvfCatalogs.Dungeons
 		trainingRoomPath := os.Getenv("DFO_TRAINING_ROOM_CATALOG")
 		if trainingRoomPath == "" {
-			trainingRoomPath = filepath.Join(filepath.Dir(*dungeonCatalogFile), "dungeons.training-room.json")
+			trainingRoomPath = filepath.Join(filepath.Dir(*characterCatalog), "dungeons.training-room.json")
 		}
 		trainingRooms, e := pvfCatalogs.LoadTrainingDungeons(trainingRoomPath)
 		if e != nil {
@@ -856,39 +848,34 @@ func main() {
 		if e = catalog.MergeDungeonCatalog(&data, trainingRooms); e != nil {
 			log.Fatal(e)
 		}
-		if filepath.Base(*dungeonCatalogFile) == "dungeons.full.json" || pvfCatalogs.Dungeons != nil {
-			overlayDirectory := filepath.Dir(*dungeonCatalogFile)
-			if pvfCatalogs.Dungeons != nil {
-				overlayDirectory = filepath.Dir(*characterCatalog)
-			}
-			path := filepath.Join(overlayDirectory, "dungeons.terminal-scenes.json")
-			if e = pvfCatalogs.AttachTerminalScenes(&data, path); e != nil {
-				log.Fatal(e)
-			}
-			path = filepath.Join(overlayDirectory, "dungeons.layer-revisits.json")
-			if e = pvfCatalogs.AttachLayerRevisits(&data, path); e != nil {
-				log.Fatal(e)
-			}
-			path = filepath.Join(overlayDirectory, "dungeons.tournament-quest-maps.json")
-			if e = pvfCatalogs.AttachTournamentMaps(&data, path); e != nil {
-				log.Fatal(e)
-			}
-			path = filepath.Join(overlayDirectory, "dungeons.tower-of-grief-maps.json")
-			if e = pvfCatalogs.AttachTowerGrief(&data, path); e != nil {
-				log.Fatal(e)
-			}
-			path = filepath.Join(overlayDirectory, "dungeons.tower-of-dazzlement-maps.json")
-			if e = pvfCatalogs.AttachTowerDazzlement(&data, path); e != nil {
-				log.Fatal(e)
-			}
-			path = filepath.Join(overlayDirectory, "dungeons.maze-chance-rates.json")
-			if e = pvfCatalogs.AttachMazeRates(&data, path); e != nil {
-				log.Fatal(e)
-			}
-			path = filepath.Join(overlayDirectory, "dungeons.hell-party-maps.json")
-			if e = pvfCatalogs.AttachHellMaps(&data, path); e != nil {
-				log.Fatal(e)
-			}
+		overlayDirectory := filepath.Dir(*characterCatalog)
+		path := filepath.Join(overlayDirectory, "dungeons.terminal-scenes.json")
+		if e = pvfCatalogs.AttachTerminalScenes(&data, path); e != nil {
+			log.Fatal(e)
+		}
+		path = filepath.Join(overlayDirectory, "dungeons.layer-revisits.json")
+		if e = pvfCatalogs.AttachLayerRevisits(&data, path); e != nil {
+			log.Fatal(e)
+		}
+		path = filepath.Join(overlayDirectory, "dungeons.tournament-quest-maps.json")
+		if e = pvfCatalogs.AttachTournamentMaps(&data, path); e != nil {
+			log.Fatal(e)
+		}
+		path = filepath.Join(overlayDirectory, "dungeons.tower-of-grief-maps.json")
+		if e = pvfCatalogs.AttachTowerGrief(&data, path); e != nil {
+			log.Fatal(e)
+		}
+		path = filepath.Join(overlayDirectory, "dungeons.tower-of-dazzlement-maps.json")
+		if e = pvfCatalogs.AttachTowerDazzlement(&data, path); e != nil {
+			log.Fatal(e)
+		}
+		path = filepath.Join(overlayDirectory, "dungeons.maze-chance-rates.json")
+		if e = pvfCatalogs.AttachMazeRates(&data, path); e != nil {
+			log.Fatal(e)
+		}
+		path = filepath.Join(overlayDirectory, "dungeons.hell-party-maps.json")
+		if e = pvfCatalogs.AttachHellMaps(&data, path); e != nil {
+			log.Fatal(e)
 		}
 		if data.Source.Checksum != worldService.Catalog.Source.Checksum {
 			log.Fatal("dungeon/world source versions differ")
