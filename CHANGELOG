@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 2026-10-02：接入 Testify（源码确认）
+
+- 固定 github.com/stretchr/testify v1.11.1，连接生命周期与报文输出的既有测试使用 require/assert；保留关闭、报文完整性与并发输出顺序断言。
+- Go 1.26.5 专项、全量 go test ./... 与 go vet ./... 通过；用户确认后仅提交本批依赖和测试。没有业务、协议、SQL/schema、玩家存档或客户端资源改动。
+- 运行程序未替换，confirmed baseline 保持既有程序哈希与实机确认范围；此次确认只涉及源码测试依赖。
+
 ## 2026-10-02：PVF 读取入口收拢（源码候选）
 
 - 删除 wireprobe 的 32 个 PVF 读取/准备生产文件，集中到 internal/gamedata 的 5 个 catalogs 文件，通过 Catalogs / PrepareCatalogs 统一获取数据；底层解析与文件读取归 catalog，入口保留装配及原有运行期适配。
