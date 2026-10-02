@@ -2,6 +2,28 @@
 
 `cmd/wireprobe/config.go` 的 `Config` 是 Go 网关启动参数的唯一声明处。95 个既有参数的名称、类型、默认值、环境变量别名和帮助文本在同一结构体中声明；`main.go` 只读取类型化字段。
 
+## 启动装配（2026-10-03 源码候选）
+
+`main` 解析参数并调用 `runGateway`。`bootstrap.go` 的 `prepareRuntime(Config)` 负责既有目录准备、策略校验、数据库迁移及服务接线，返回类型化 `gatewayRuntime` 与清理函数；`runGateway` 再打开监听端口、记录文件并进入原有连接分发。`main.go` 从 5825 行降到 4398 行。
+
+- 装配按原顺序执行，迁移与存档身份归一位置保持。自动补全的路径及 `DFO_SKILL_CATALOG` 覆盖保存在返回的 `runtime.config`，连接消费装配后的配置；调用者的 `Config` 值保持。
+- `pvf-check-catalogs` 完成报告后返回空 runtime，提前退出，仍在运行规则安装、存储、监听之前。失败与检查模式自行清理已获取资源；正常模式由 `runGateway` 持有清理函数。
+- 启动错误向上返回，`main` 在清理完成后记录错误并退出。目录资源、数据库池和管理锁按注册的逆序只关闭一次；`PrepareCatalogs` 返回部分结果及错误时也释放已打开目录。准备期的数据库超时 context 在准备函数退出时取消。
+- 城镇场景白名单在打开监听端口前校验；world 与 quest 同时启用时不能传入 nil，合法空 map 继续允许。连接中原来的进程级 `log.Fatal` 已移除。
+- 当前连接分发保留原局部变量和作用域，尤其每连接的角色 context 隔离；之后拆分连接流程时再收敛服务引用。依赖注入库暂未引入，目录读取、校验与迁移仍需要显式编排。
+
+新增启动专项使用临时工作目录、临时文件和本机回环监听端口，覆盖配置/报文 fixture 保留、错误返回、端口释放、白名单缺失与合法空表，以及并发重复清理。按用户要求不运行全量测试，也未执行真实 PVF 完整检查或玩家数据库迁移。
+
+```powershell
+$env:GOTOOLCHAIN = 'go1.26.5'
+go test ./cmd/wireprobe -run '^(TestPrepareRuntime|TestRunGateway|TestTownArrivalScenesValidated|TestRuntimeCleanup|TestWireprobeConfig|TestConnection(Session|Output)|TestInherit|TestAmplifyGrimoire)' -count=1
+go test ./internal/archtest -count=1
+go vet ./...
+go build -trimpath -o ../../../.tmp/bootstrap/wireprobe-bootstrap.exe ./cmd/wireprobe
+```
+
+旧源码与新源码的连接分发在排除前移的白名单校验后 35,896 个 token 一致；启动装配在归一化错误返回、资源所有权和策略类型提取后 9,886 个 token 一致。12 组旧/新 CLI 子进程对照覆盖帮助、非法参数、检查模式参数校验、模板/fixture 缺失及监听后的错误，输出与退出码保持。候选保存在根目录 `.tmp/bootstrap/`，confirmed runtime baseline 及实机确认范围保持。
+
 ## 读取顺序
 
 1. `Config` 的默认值。

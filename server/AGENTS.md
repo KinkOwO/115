@@ -1,5 +1,12 @@
 # AGENTS.md — server/
 
+## 2026-10-03：Wireprobe 启动装配拆分（源码候选）
+
+- prepareRuntime(Config) 将目录准备、迁移与服务接线从 main 抽到 bootstrap.go，返回类型化依赖及统一清理函数；main.go 5825→4398 行。准备顺序、路径派生、存档身份归一与连接分发作用域保持。
+- 启动错误返回后先释放已获取资源；部分 PVF 结果、检查模式、数据库池与管理锁按所有权逆序清理，重复调用只执行一次。城镇场景白名单缺失检查移到监听前，合法空 map 保持，连接内 log.Fatal 已移除。
+- Go 1.26.5 启动/配置/连接/接线专项、架构守卫、vet 与候选编译通过；35,896 个连接 token、9,886 个装配 token 的归一化对照及 12 组 CLI 对照通过。依用户要求未跑全量测试；见 work/dfo-lan/docs/startup-configuration.md。
+- 本批为源码候选，未部署、操作玩家库或启动客户端；confirmed baseline 保持既有程序和实机范围。协议、SQL/schema、存档格式保持，暂未引入依赖注入库。
+
 ## 2026-10-02：Wireprobe 启动配置集中管理（源码候选）
 
 - Koanf 与类型化 Config 集中声明既有 95 个参数及 54 个环境变量别名；默认值、覆盖优先级、旧布尔/整数/字节语义保持。运行 profile 仍由 Python 编排，PVF 内容准备路径保持。
