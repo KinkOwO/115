@@ -37,6 +37,11 @@ if (-not $env:DFO_PVF_CORE_TEST_ARCHIVE) {
 if (-not $env:DFO_PVF_CACHE_DIR) {
     $env:DFO_PVF_CACHE_DIR = 'runtime/pvf-cache'
 }
+if (-not $env:DFO_PVF_CACHE_IDENTITY) {
+    # Stable identity so a test-binary rebuild does not discard the parsed
+    # projection cache between runs (production keeps the executable hash).
+    $env:DFO_PVF_CACHE_IDENTITY = 'dfo-lan-test-cache-v1'
+}
 if ($Full) {
     $env:DFO_PVF_ARCHIVE_FULL_SWEEP = '1'
 }
@@ -53,6 +58,7 @@ $goArgs += $GoTestArgs
 
 Write-Host "DFO_PVF_CORE_TEST_ARCHIVE=$env:DFO_PVF_CORE_TEST_ARCHIVE"
 Write-Host "DFO_PVF_CACHE_DIR=$env:DFO_PVF_CACHE_DIR"
+Write-Host "DFO_PVF_CACHE_IDENTITY=$env:DFO_PVF_CACHE_IDENTITY"
 Write-Host "DFO_PVF_ARCHIVE_FULL_SWEEP=$env:DFO_PVF_ARCHIVE_FULL_SWEEP"
 Write-Host "go $($goArgs -join ' ')"
 
