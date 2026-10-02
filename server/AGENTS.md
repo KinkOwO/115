@@ -1,5 +1,11 @@
 # AGENTS.md — server/
 
+## 2026-10-03：Wireprobe 连接与命令分发拆分（源码候选）
+
+- main.go 4398→160 行；gameConnection 持有原连接可变状态，保留逐频道角色 context 隔离，21 个命名阶段沿原 if 链顺序接线，类型门禁位置、内层循环及 SELECT 原流程保持。
+- 继承/增幅书接线改为真实分发测试；登录包序/频道隔离/采样/分支优先级/发送失败专项、架构守卫、Go 1.26.5 vet 和编译通过。33,614 分发 token、1,178 循环 token、8 回调及注册顺序一致，隔离网关 11 请求/11 帧/25 事件与 12 组 CLI 对照通过；依用户要求未跑全量测试。
+- 仅源码候选，未替换运行程序、访问玩家库或启动客户端；协议、SQL/schema、玩家存档与实机 confirmed baseline 保持。见 work/dfo-lan/docs/connection-dispatch.md。
+
 ## 2026-10-03：Wireprobe 启动装配拆分（源码候选）
 
 - prepareRuntime(Config) 将目录准备、迁移与服务接线从 main 抽到 bootstrap.go，返回类型化依赖及统一清理函数；main.go 5825→4398 行。准备顺序、路径派生、存档身份归一与连接分发作用域保持。

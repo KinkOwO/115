@@ -2,6 +2,8 @@
 
 `cmd/wireprobe/config.go` 的 `Config` 是 Go 网关启动参数的唯一声明处。95 个既有参数的名称、类型、默认值、环境变量别名和帮助文本在同一结构体中声明；`main.go` 只读取类型化字段。
 
+2026-10-03 后续已将连接状态与命令接线拆出，`main.go` 进一步降到 160 行，见 [连接与命令分发](connection-dispatch.md)。下列 4398 行数字为启动装配拆分时的历史记录。
+
 ## 启动装配（2026-10-03 源码候选）
 
 `main` 解析参数并调用 `runGateway`。`bootstrap.go` 的 `prepareRuntime(Config)` 负责既有目录准备、策略校验、数据库迁移及服务接线，返回类型化 `gatewayRuntime` 与清理函数；`runGateway` 再打开监听端口、记录文件并进入原有连接分发。`main.go` 从 5825 行降到 4398 行。
