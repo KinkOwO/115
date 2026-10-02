@@ -321,23 +321,11 @@ func TestPVFCharactersLocalArchive(t *testing.T) {
 	t.Log("17 complete runtime professions match; 341 raw differences resolved through shortcut/command policy and duplicate source-view projection")
 }
 
-// requireHeavyArchiveSweep gates the heavyweight exhaustive archive tests that
-// each exceed the 30s per-test budget. They stay available with
-// DFO_PVF_ARCHIVE_FULL_SWEEP=1.
-func requireHeavyArchiveSweep(t *testing.T) {
-	t.Helper()
-	if os.Getenv("DFO_PVF_ARCHIVE_FULL_SWEEP") != "1" {
-		t.Skip("heavy exhaustive archive test; set DFO_PVF_ARCHIVE_FULL_SWEEP=1 to run")
-	}
-}
-
 func TestPVFMigrationSourceOnlyLocalArchive(t *testing.T) {
-	requireHeavyArchiveSweep(t)
 	verifyPVFMigrationSourceOnly(t, "")
 }
 
 func TestPVFDerivedCacheCombinedLocalArchive(t *testing.T) {
-	requireHeavyArchiveSweep(t)
 	if os.Getenv("DFO_PVF_CORE_TEST_ARCHIVE") == "" {
 		t.Skip("set DFO_PVF_CORE_TEST_ARCHIVE for cached combined direct startup")
 	}

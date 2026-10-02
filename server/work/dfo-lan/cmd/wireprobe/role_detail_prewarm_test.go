@@ -39,9 +39,6 @@ func TestRolePVFPrewarmPreservesUnknownInventoryTemplates(t *testing.T) {
 }
 
 func TestRolePVFPrewarmNativeArchive(t *testing.T) {
-	if os.Getenv("DFO_PVF_ARCHIVE_FULL_SWEEP") != "1" {
-		t.Skip("heavy exhaustive archive test; set DFO_PVF_ARCHIVE_FULL_SWEEP=1 to run")
-	}
 	path := os.Getenv("DFO_PVF_CORE_TEST_ARCHIVE")
 	if path == "" {
 		t.Skip("set DFO_PVF_CORE_TEST_ARCHIVE for native prewarm detail checks")

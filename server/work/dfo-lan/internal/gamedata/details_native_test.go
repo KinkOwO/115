@@ -12,7 +12,6 @@ import (
 )
 
 func TestRuntimeDetailsLocalArchiveParity(t *testing.T) {
-	requireHeavyArchiveSweep(t)
 	p := os.Getenv("DFO_PVF_CORE_TEST_ARCHIVE")
 	if p == "" {
 		t.Skip("set DFO_PVF_CORE_TEST_ARCHIVE for complete runtime details parity")
