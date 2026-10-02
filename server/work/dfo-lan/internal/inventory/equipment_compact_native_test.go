@@ -51,7 +51,7 @@ func TestCompactEquipmentLocalArchiveParity(t *testing.T) {
 	}
 	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
 	begin := time.Now()
-	for _, id := range ids {
+	for _, id := range paritySweep(ids) {
 		if !c.HasDefinition(id) {
 			t.Fatal("missing compact binding", id)
 		}
