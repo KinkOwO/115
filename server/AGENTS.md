@@ -1,5 +1,11 @@
 # AGENTS.md — server/
 
+## 2026-10-03：Hell Party 入场与封印房已确认
+
+- 用户确认 Hell Party 正常进入，柱子可攻击破坏并刷出专属怪物。服务端按当前 PVF 自动支持声明 Hell Party 且封印地图可用的副本；离线审计60项源声明中59项地图可读，活动副本100005110的地图100016811缺失，仍明确拒绝。
+- confirmed baseline 为独立候选 `work/dfo-lan/.tmp/hellparty-20261003/wireprobe-hellparty.exe`，SHA256 `104965f85e1721547dc646b65c5a24ed8050529c5867e55b22a712842b93b7b8`，profile 与启动验证入口在同目录；默认服务程序未替换。确认仅覆盖用户实际手动测试路径；59项是离线入场覆盖，不是逐图实测。Hell专属掉落/奖励仍待取证。
+- 专项PVF回归、完整54域准备检查和`go vet ./...`通过；全量测试4项失败经HEAD overlay复核为既有失败。无schema、玩家存档或客户端资源修改。详见 `work/dfo-lan/docs/protocol/hell-party-all-entry-20261003.md`。
+
 ## 2026-10-02：普通副本材料与消耗品掉落已确认
 
 - 用户确认“能掉落消耗品和材料了”。按当前PVF接入MOB专属物品池及等级世界掉落，已补入材料和HP/MP药剂；遵守MOB `[exclude world drop]`、普通副本归属/排除及Hell/奥德赛/Abyss/调律边界，复用现有地面拾取与角色存档事务。

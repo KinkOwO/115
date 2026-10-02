@@ -102,11 +102,6 @@ func Select(c catalog.DungeonCatalog, r protocol.DungeonSelection, level byte, a
 		return nil, fmt.Errorf("unsupported dungeon option")
 	}
 	if r.Mode == 1 {
-		// Attempt 1/3 is a native-vector probe for Trombe (CMD16 ID 103).
-		// Other DGN seal positions have not yet been exercised on this client.
-		if r.ID != 103 {
-			return nil, fmt.Errorf("Hell Party entry is not yet verified for this dungeon")
-		}
 		if d.HellParty == nil || d.HellParty.SealMap == 0 {
 			return nil, fmt.Errorf("Hell Party is absent from this dungeon source")
 		}
@@ -127,28 +122,9 @@ func Select(c catalog.DungeonCatalog, r protocol.DungeonSelection, level byte, a
 	}
 	selected := chosen
 	if r.Mode == 1 {
-		position := d.HellParty.SealPosition
-		if position == selected.Start || position == selected.Boss {
-			return nil, fmt.Errorf("Hell Party seal room conflicts with source start or boss")
-		}
-		selected.Rooms = append([]catalog.DungeonRoom(nil), selected.Rooms...)
-		seal := catalog.DungeonRoom{X: position[0], Y: position[1], Map: d.HellParty.SealMap}
-		found := false
-		for i, room := range selected.Rooms {
-			if [2]byte{room.X, room.Y} == position {
-				selected.Rooms[i] = seal
-				found = true
-				break
-			}
-		}
-		if !found {
-			selected.Rooms = append(selected.Rooms, seal)
-		}
-		if selected.Size[0] <= position[0] {
-			selected.Size[0] = position[0] + 1
-		}
-		if selected.Size[1] <= position[1] {
-			selected.Size[1] = position[1] + 1
+		selected, err = hellPartyMaze(chosen, *d.HellParty)
+		if err != nil {
+			return nil, err
 		}
 	}
 	s, err := newSession(c, d, selected)
