@@ -104,43 +104,26 @@ func preparePVFCashShop(c *Catalogs, s *Source, i CatalogInputs) error {
 	if err != nil {
 		return err
 	}
-	if i.checksBaselines() {
-		old, err := cashshop.LoadPilot(i.CashshopPath, s.Snapshot().Checksum, i.CashshopRelease)
-		if err != nil {
-			return err
-		}
-		if err = verifyPVFCatalog(old.Config, direct.Config); err != nil {
-			return fmt.Errorf("cashshop source projection: %w", err)
-		}
-		oldProducts, err := old.ProductSnapshot()
-		if err != nil {
-			return err
-		}
-		directProducts, err := direct.ProductSnapshot()
-		if err != nil {
-			return err
-		}
-		if err = verifyPVFCatalog(oldProducts, directProducts); err != nil {
-			return fmt.Errorf("cashshop effective products: %w", err)
-		}
-	}
 	c.CashShop = direct
 	s.ReleaseReadCaches()
 	log.Printf("PVF cashshop prepared: rows=%d enabled=%d release=%t; native prices, item cells and purchase policies retained", len(direct.Config.Entries), direct.EnabledCount(), direct.Config.Release)
 	return nil
 }
 
-func (c *Catalogs) LoadCashShop(path, source string, release bool) (*cashshop.Pilot, error) {
+// LoadCashShop returns the prepared PVF catalog. There is no JSON fallback:
+// the historical export was a baseline snapshot and its files are gone, so a
+// selected-but-unprepared domain is an explicit error.
+func (c *Catalogs) LoadCashShop(source string, release bool) (*cashshop.Pilot, error) {
 	if err := c.RequireSelected("cashshop", c.CashShop != nil); err != nil {
 		return nil, err
 	}
-	if c.CashShop != nil {
-		if c.CashShop.Config.Source.Checksum != source || c.CashShop.Config.Release != release {
-			return nil, fmt.Errorf("prepared cashshop source/release settings changed")
-		}
-		return c.CashShop, nil
+	if c.CashShop == nil {
+		return nil, fmt.Errorf("PVF cashshop catalog is not prepared")
 	}
-	return cashshop.LoadPilot(path, source, release)
+	if c.CashShop.Config.Source.Checksum != source || c.CashShop.Config.Release != release {
+		return nil, fmt.Errorf("prepared cashshop source/release settings changed")
+	}
+	return c.CashShop, nil
 }
 
 func loadBoosterBaseline(path string) (map[uint32]catalog.BoosterDefinition, error) {

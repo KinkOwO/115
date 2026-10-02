@@ -33,11 +33,16 @@ func writeAtomic(name string, b []byte) error {
 
 func main() {
 	source := flag.String("source", "", "read-only inner PVF")
-	output := flag.String("output", "configs/shop-purchase-pilot.json", "output catalog")
-	report := flag.String("report", "configs/shop-purchase-report.json", "enabled and rejected ordinary products")
+	output := flag.String("output", ".tmp/shop-purchase-pilot.json", "output catalog (historical baseline export; never a runtime input)")
+	report := flag.String("report", ".tmp/shop-purchase-report.json", "enabled and rejected ordinary products (historical baseline export)")
 	flag.Parse()
 	if filepath.Clean(*output) == filepath.Clean(*report) {
 		log.Fatal("catalog and report must have distinct paths")
+	}
+	for _, dir := range []string{filepath.Dir(*output), filepath.Dir(*report)} {
+		if e := os.MkdirAll(dir, 0o755); e != nil {
+			log.Fatal(e)
+		}
 	}
 	a, e := pvf.LoadArchive(pvf.Options{Path: *source, MaxBytes: 1024 * 1024 * 1024})
 	if e != nil {

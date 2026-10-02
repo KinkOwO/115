@@ -96,7 +96,6 @@ type CatalogInputs struct {
 	DerivedCacheDir                                                                                                        string
 	ItemShopPath, ItemShopPolicyPath                                                                                       string
 	BoxesPath, BoxPolicyPath                                                                                               string
-	CashshopPath                                                                                                           string
 	CashshopRelease                                                                                                        bool
 	CharacterPolicyPath                                                                                                    string
 	LayerRevisitPolicyPath                                                                                                 string

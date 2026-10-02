@@ -137,7 +137,6 @@ func main() {
 	skillLockOffset := flag.Int("skill-lock-offset", -1, "override the subtype 19 skill lock offset inside the character option block (default 2736)")
 	tutorialRoutesFile := flag.String("tutorial-routes", "", "source per-job starting route table")
 	tutorialDungeonsFile := flag.String("tutorial-dungeons", "", "source starting-route dungeon catalog")
-	shopPilotFile := flag.String("shop-purchase-pilot", os.Getenv("DFO_SHOP_PURCHASE_PILOT"), "isolated single-item cash purchase pilot catalog")
 	shopRelease := flag.Bool("shop-release", os.Getenv("DFO_SHOP_RELEASE") == "1", "enable accepted ordinary shop in release profile")
 	vaultPurchase := flag.Bool("vault-purchase-candidate", os.Getenv("DFO_VAULT_PURCHASE_CANDIDATE") == "1", "enable isolated vault purchase candidate")
 	vaultRelease := flag.Bool("vault-purchase-release", os.Getenv("DFO_VAULT_PURCHASE_RELEASE") == "1", "enable accepted personal vault purchases in release profile")
@@ -194,7 +193,6 @@ func main() {
 		ItemShopPolicyPath:     *pvfItemShopPolicyPath,
 		BoxesPath:              *boxesFile,
 		BoxPolicyPath:          *pvfBoxPolicyPath,
-		CashshopPath:           *shopPilotFile,
 		CashshopRelease:        *shopRelease,
 		CharacterPolicyPath:    *pvfCharacterPolicyPath,
 		LayerRevisitPolicyPath: *pvfLayerRevisitPolicyPath,
@@ -384,18 +382,6 @@ func main() {
 	if *randomOptionFile == "" && pvfCatalogs.RandomOptions == nil {
 		if _, err := os.Stat("configs/randomoption.current37.json"); err == nil {
 			*randomOptionFile = "configs/randomoption.current37.json"
-		}
-	}
-	if *shopPilotFile == "" && pvfCatalogs.CashShop == nil {
-		for _, cand := range []string{
-			"configs/shop-vault-release.json",
-			"configs/shop-purchase-pilot.json",
-		} {
-			if _, err := os.Stat(cand); err == nil {
-				*shopPilotFile = cand
-				*shopRelease = true
-				break
-			}
 		}
 	}
 	if *boosterCatalogFile == "" {
@@ -740,14 +726,14 @@ func main() {
 				log.Printf("skin storage registration armed for %d PVF templates", len(entries))
 			}
 		}
-		if *shopPilotFile != "" || pvfCatalogs.CashShop != nil {
+		if pvfCatalogs.CashShop != nil {
 			var database string
 			if e = s.DB.QueryRow(ctx, "SELECT current_database()").Scan(&database); e == nil {
 				if database != "dfo_swordmaster_pilot_20260916" && !*shopRelease {
 					log.Printf("shop purchase pilot running on database: %s", database)
 				}
 			}
-			shopPilot, e = pvfCatalogs.LoadCashShop(*shopPilotFile, data.Source.Checksum, *shopRelease)
+			shopPilot, e = pvfCatalogs.LoadCashShop(data.Source.Checksum, *shopRelease)
 			if e != nil {
 				log.Fatal(e)
 			}
@@ -755,7 +741,7 @@ func main() {
 				log.Fatal(e)
 			}
 			log.Printf("PVF shop enabled: %d ordinary products", shopPilot.EnabledCount())
-			log.Printf("商城配置：%s，发布模式：%t", *shopPilotFile, shopPilot.Config.Release)
+			log.Printf("商城发布模式：%t", shopPilot.Config.Release)
 		}
 		if *learningFile != "" || pvfCatalogs.Learning != nil {
 			characters.Learning, e = pvfCatalogs.LoadLearning(*learningFile, data.Source.Checksum)

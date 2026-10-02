@@ -462,17 +462,10 @@ with (
     "-random-option-catalog",
     str(project / "configs/randomoption.current37.json"),
    ]
-  shop_release = project / "configs/shop-vault-release.json"
-  shop_pilot = project / "configs/shop-purchase-pilot.json"
-  if os.environ.get("DFO_SHOP_PURCHASE_PILOT"):
-   shop_override = pathlib.Path(os.environ["DFO_SHOP_PURCHASE_PILOT"])
-   if not shop_override.is_absolute():
-    shop_override = (project / shop_override).resolve()
-   command += ["-shop-purchase-pilot", str(shop_override), "-shop-release"]
-  elif shop_release.exists():
-   command += ["-shop-purchase-pilot", str(shop_release), "-shop-release"]
-  elif shop_pilot.exists():
-   command += ["-shop-purchase-pilot", str(shop_pilot)]
+  # Cash shop is one content source: the PVF profile (DFO_PVF_CATALOGS
+  # includes "cashshop") prepares it, and DFO_SHOP_RELEASE carries the release
+  # policy. The historical JSON export and its -shop-purchase-pilot flag are
+  # gone; a selected-but-unprepared domain now fails the gateway explicitly.
  command[0] = os.environ.get("DFO_SERVER_BINARY", command[0])
  if os.environ.get("DFO_CHANNEL_IDENTITY") == "1":
   command += ["-channel-identity"]
