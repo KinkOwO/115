@@ -120,7 +120,6 @@
 - **服务端主体**：Go 1.26（模块根目录位于 `server/work/dfo-lan/`，通过 `go.mod` / `go.sum` 管理依赖）。
 - **服务启动编排**：Python 3.11.9 便携版（`tools/python/python.exe`），调用 `launch_local.py` 与 `channel_probe.py`。
 - **数据持久化**：PostgreSQL 16.4 便携版（端口 25438），连接配置 `runtime/storage/local.json`，数据目录 `runtime/storage/pgdata/`。
-- **缓存与会话**：Redis 5.0.14 便携版（端口 26388），纯内存配置 `runtime/storage/redis.conf`。
 
 ## 2. 服务入口与端点约定
 
@@ -130,7 +129,7 @@
 | `127.0.0.2:<动态端口>`    | Game 游戏接入网关（TCP，由 probe 协同引导连接）              |
 | 根目录 `启动游戏.cmd`     | 玩家与完整测试入口（需管理员权限，自动拉起存储、服务与客户端） |
 | 根目录 `启动服务端.cmd`   | 纯服务端调试入口（调用 `launch_local.py --server-only`）     |
-| 根目录 `停止游戏环境.cmd` | 安全关闭客户端、游戏服务、PostgreSQL (做 checkpoint) 与 Redis |
+| 根目录 `停止游戏环境.cmd` | 安全关闭客户端、游戏服务、PostgreSQL (做 checkpoint) |
 | `server/Build-Server.ps1` | 服务端编译脚本（执行测试、vet 并编译候选版）                 |
 
 ## 3. 目录职责（`server/work/dfo-lan/`）
@@ -146,11 +145,11 @@
 | `internal/quest/`               | 任务链、任务目标推进（NPC 对话、范围到达、通关检查等）与奖励 |
 | `internal/dungeon/`             | 副本会话状态机、房间切换、门控制、怪物清场与通关结算         |
 | `internal/world/`               | 城镇场景、区域跳转、传送逻辑与位置保存                       |
-| `internal/storage/`             | PostgreSQL 数据库事务 (pgxpool)、角色存档持久化、Redis 会话  |
+| `internal/storage/`             | PostgreSQL 数据库事务 (pgxpool)、角色存档持久化  |
 | `internal/catalog/`             | 游戏规则驱动目录与静态数据索引解析                           |
 | `configs/`                      | 导出的全量 JSON 规则配置（任务、地图、装备、掉落等）         |
 | `scripts/`                      | 本地启动与初始化脚本（`launch_local.py`、`bootstrap_local.py`） |
-| `runtime/storage/`              | 本地存储集群：`pgdata/`、`redis.conf`、`local.json`（严禁入库） |
+| `runtime/storage/`              | 本地存储：`pgdata/`、`local.json`（严禁入库） |
 | `runtime/roles_*/`              | 运行会话追踪日志（`run.json`、`events.jsonl`、`helper.err`） |
 | `reference/analysis-tools/*.py` | 分析辅助脚本                                                 |
 

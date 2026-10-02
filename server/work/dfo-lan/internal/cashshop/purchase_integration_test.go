@@ -39,7 +39,7 @@ func TestPurchasePipelineIntegration(t *testing.T) {
 			t.Error(err)
 		}
 	}()
-	cfg.PostgresSchema, cfg.RedisPrefix = schema, schema+":"
+	cfg.PostgresSchema = schema
 	store, err := storage.Open(ctx, cfg)
 	if err != nil {
 		t.Fatal(err)

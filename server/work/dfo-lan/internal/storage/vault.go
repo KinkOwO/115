@@ -5,7 +5,6 @@ import (
 	"dfolan/internal/inventory"
 	"encoding/json"
 	"errors"
-	"fmt"
 )
 
 type VaultState = inventory.VaultState
@@ -122,7 +121,6 @@ func (s *Store) CommitVaultMove(ctx context.Context, account, id int64,
 
 	role.State = newRoleState
 	vault.Items = newVaultItems
-	s.Cache.Del(ctx, fmt.Sprintf("%scharacters:%d", s.prefix, account))
 	return role, vault, nil
 }
 
@@ -173,6 +171,5 @@ func (s *Store) CommitVaultCrossMove(ctx context.Context, account, id int64,
 		return role, first, second, err
 	}
 	role.State, first.Items, second.Items = state, items1, items2
-	s.Cache.Del(ctx, fmt.Sprintf("%scharacters:%d", s.prefix, account))
 	return role, first, second, nil
 }

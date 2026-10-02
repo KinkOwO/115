@@ -18,4 +18,4 @@
 
 - 独立缓存下 `go test ./...` 与 `go vet ./...` 通过。新增测试核对 2,477 池加载、普通装备奖励行与耐久、装备栏满时事务回滚、装扮通知及重复请求回放。
 - 候选程序 `bin/wireprobe-lottery-equipment-20260925.exe` SHA-256 为 `43c0903c47e7f68fe2baac58bf704e7052cc6d609501da2ac4bb2cc17e5a453e`；奖池配置 SHA-256 为 `a54a36ada189308dc0f003ee7ba8fd312cdfd7c533ace9c7904ab14f289cdf87`。
-- 候选通过忽略入库的 `runtime/lottery-equipment-profile.json` 选用；启动检查确认程序路径、数据库与 Redis 可用。用户手动验收会话 `roles_persist_select_actor_town_world_live_detail_dungeon_manual_20260925_212422_220092_next37` 的 `events.jsonl` 在 `2026-09-25T13:30:07.586Z` 和 `13:30:14.074Z` 记录成功 CMD27 回执及 NOTI14 背包刷新：源罐 7219 发放鞋子模板 19282（槽位 22），源罐 7222 发放裤子模板 13643（槽位 23）。客户端跟踪及用户反馈确认物品入包。该行为列为当前装备罐确认基线。
+- 候选通过忽略入库的 `runtime/lottery-equipment-profile.json` 选用；启动检查确认程序路径、数据库可用。用户手动验收会话 `roles_persist_select_actor_town_world_live_detail_dungeon_manual_20260925_212422_220092_next37` 的 `events.jsonl` 在 `2026-09-25T13:30:07.586Z` 和 `13:30:14.074Z` 记录成功 CMD27 回执及 NOTI14 背包刷新：源罐 7219 发放鞋子模板 19282（槽位 22），源罐 7222 发放裤子模板 13643（槽位 23）。客户端跟踪及用户反馈确认物品入包。该行为列为当前装备罐确认基线。

@@ -105,6 +105,5 @@ func (s *Store) commitAccountMaterialEvent(ctx context.Context, account, id int6
 		return role, nil, false, e
 	}
 	role.State = state
-	s.Cache.Del(ctx, fmt.Sprintf("%scharacters:%d", s.prefix, account))
 	return role, updated, true, nil
 }

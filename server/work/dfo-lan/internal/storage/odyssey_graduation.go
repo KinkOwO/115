@@ -80,6 +80,5 @@ func (s *Store) CommitOdysseyGraduation(ctx context.Context, account, id int64, 
 		return role, false, err
 	}
 	role.State = state
-	s.Cache.Del(ctx, fmt.Sprintf("%scharacters:%d", s.prefix, account))
 	return role, true, nil
 }

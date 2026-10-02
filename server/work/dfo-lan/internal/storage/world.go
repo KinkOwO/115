@@ -5,7 +5,6 @@ import (
 	"dfolan/internal/world"
 	"encoding/json"
 	"errors"
-	"fmt"
 )
 
 // 世界位置类型归 internal/world 拥有；这里保留类型别名（迁移期），
@@ -61,6 +60,5 @@ func (s *Store) SaveWorld(ctx context.Context, account, characterID int64, old W
 	}
 	out.Position = next
 	out.Revision++
-	s.Cache.Del(ctx, fmt.Sprintf("%sworld:%d", s.prefix, characterID))
 	return out, nil
 }

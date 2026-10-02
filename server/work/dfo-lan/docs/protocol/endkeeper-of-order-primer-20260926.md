@@ -747,8 +747,6 @@ common / rare / unique / legendary / epic / primeval **逐位对位**；
 - 服务端栏位模型：`EquipmentBodySlot` 接受 0..47，**oath = 47**，引子相关移动用 37/45
   （`internal/inventory/equipment_family.go`）。
 - 每件带 `Record []byte`（实例数据 = 强化/属性等）。
-- 服务端有 Redis 缓存 `characters:<account>`：**改库后必须让该键失效**，
-  否则会被缓存回写覆盖。
 - `cmd/gmtool` 只有 `/api/grant`（发放），**没有卸装端点**。
 
 ### 10.5 服务端可动的三个方向（待定优先级）

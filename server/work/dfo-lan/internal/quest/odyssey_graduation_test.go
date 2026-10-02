@@ -143,7 +143,6 @@ func TestOdysseyGraduationAtomicIntegration(t *testing.T) {
 		}
 	}()
 	cfg.PostgresSchema = schema
-	cfg.RedisPrefix = schema + ":"
 	db, err := storage.Open(ctx, cfg)
 	if err != nil {
 		t.Fatal(err)

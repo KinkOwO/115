@@ -22,7 +22,7 @@ import (
 
 // This exercises the real experience transaction and the death response plan,
 // not just ConfirmDeath with progression disabled. All writes use a disposable
-// schema and Redis prefix; no existing character is read or changed.
+// schema; no existing character is read or changed.
 func TestMonsterDeathAfterAdvancementIntegration(t *testing.T) {
 	if os.Getenv("MONSTER_DEATH_INTEGRATION") != "1" {
 		t.Skip("set MONSTER_DEATH_INTEGRATION=1 for isolated PostgreSQL integration")
@@ -49,7 +49,7 @@ func TestMonsterDeathAfterAdvancementIntegration(t *testing.T) {
 			t.Error(err)
 		}
 	}()
-	cfg.PostgresSchema, cfg.RedisPrefix = schema, schema+":"
+	cfg.PostgresSchema = schema
 	store, err := storage.Open(ctx, cfg)
 	if err != nil {
 		t.Fatal(err)

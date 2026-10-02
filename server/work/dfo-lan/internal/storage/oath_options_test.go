@@ -43,7 +43,7 @@ func TestOathOptionRevisionWrites(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer admin.DB.Exec(context.Background(), "DROP SCHEMA "+schema+" CASCADE")
-	cfg.PostgresSchema, cfg.RedisPrefix = schema, schema+":"
+	cfg.PostgresSchema = schema
 	store, err := Open(ctx, cfg)
 	if err != nil {
 		t.Fatal(err)

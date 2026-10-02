@@ -12,7 +12,7 @@
 
 合并后的 Go 1.26.0 全量 `go test ./...` 和 `go vet ./...` 均通过，包括上游旧背包预热兼容回归。旧默认启动器测试与用户启动设置的 5 项既有不匹配仍按下文记录，未修改用户设置。
 
-合并后源码候选 SHA256 为 `aabb142d06f3bb6f479c2e7b93302708e3c2f6823d2727d2e0fc1166774bc3be`，下文 `43a965b5…` 为同步前候选记录。默认程序保留同步前文件。`.gitignore`、`launch_local.py`、`redis.conf`、`pgdata/postgresql.conf` 四份用户改动用同步前后文件哈希核对，保持原样并排除提交；没有将 pgdata 或临时目录保存到本任务 stash/提交，没有运行客户端或玩家数据库。
+合并后源码候选 SHA256 为 `aabb142d06f3bb6f479c2e7b93302708e3c2f6823d2727d2e0fc1166774bc3be`，下文 `43a965b5…` 为同步前候选记录。默认程序保留同步前文件。`.gitignore`、`launch_local.py`、`pgdata/postgresql.conf` 用户改动用同步前后文件哈希核对，保持原样并排除提交；没有将 pgdata 或临时目录保存到本任务 stash/提交，没有运行客户端或玩家数据库。
 
 ## 目标与配置归属
 

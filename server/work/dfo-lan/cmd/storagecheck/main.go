@@ -33,7 +33,7 @@ func main() {
 	if e != nil {
 		log.Fatal(e)
 	}
-	log.Printf("POSTGRES_REDIS_READY development_account=%d characters=%d", id, len(chars))
+	log.Printf("POSTGRES_READY development_account=%d characters=%d", id, len(chars))
 	for _, role := range chars {
 		log.Printf("CHARACTER id=%d name=%s profession=%d config_version=%s", role.WireID, role.Name, role.Profession, role.ConfigVersion)
 	}

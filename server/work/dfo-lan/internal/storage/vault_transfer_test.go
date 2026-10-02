@@ -37,7 +37,6 @@ func TestVaultTransferIntegration(t *testing.T) {
 		}
 	}()
 	cfg.PostgresSchema = schema
-	cfg.RedisPrefix = schema + ":"
 	cfg.MaxConnections = 8
 	s, e := Open(ctx, cfg)
 	if e != nil {

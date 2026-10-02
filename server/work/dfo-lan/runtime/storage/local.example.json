@@ -1,11 +1,6 @@
 {
-  "postgres_dsn": "postgres://dfo_owner:-J5vg5kBCfjt5WccbR1OkkXChKXxxqOBt1mZF6spNDI@127.0.0.1:25438/dfo_lan?sslmode=disable",
-  "redis_address": "127.0.0.1:26388",
-  "redis_password": "u8glX8sSBZ6LF7JcxG5vcuiklDRfIMDG_4BWxxGMpkg",
-  "redis_prefix": "dfo-lan:",
-  "redis_bin": "tools/redis",
+  "postgres_dsn": "postgres://dfo_owner:CHANGE_ME@127.0.0.1:25438/dfo_lan?sslmode=disable",
   "max_connections": 12,
   "postgres_bin": "tools/pg/pgsql/bin",
-  "redis_pid": 5020,
   "postgres_data": "server/work/dfo-lan/runtime/storage/pgdata"
 }
