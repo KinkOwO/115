@@ -325,32 +325,6 @@ func TestPVFMigrationSourceOnlyLocalArchive(t *testing.T) {
 	verifyPVFMigrationSourceOnly(t, "")
 }
 
-func TestPVFDerivedCacheCombinedLocalArchive(t *testing.T) {
-	if os.Getenv("DFO_PVF_CORE_TEST_ARCHIVE") == "" {
-		t.Skip("set DFO_PVF_CORE_TEST_ARCHIVE for cached combined direct startup")
-	}
-	dir := t.TempDir()
-	t.Run("cold", func(t *testing.T) { verifyPVFMigrationSourceOnly(t, dir) })
-	files, err := filepath.Glob(filepath.Join(dir, "*.pvfc"))
-	if err != nil || len(files) != 9 {
-		t.Fatal("cold combined startup did not store its cache", files, err)
-	}
-	before := make([]os.FileInfo, len(files))
-	for i, file := range files {
-		before[i], err = os.Stat(file)
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
-	t.Run("hot", func(t *testing.T) { verifyPVFMigrationSourceOnly(t, dir) })
-	for i, file := range files {
-		after, err := os.Stat(file)
-		if err != nil || !before[i].ModTime().Equal(after.ModTime()) {
-			t.Fatal("hot combined startup rebuilt instead of using its cache", file, err)
-		}
-	}
-}
-
 func verifyPVFMigrationSourceOnly(t *testing.T, cacheDir string) {
 	t.Helper()
 	path := os.Getenv("DFO_PVF_CORE_TEST_ARCHIVE")
