@@ -1,4 +1,4 @@
-package progression
+package character
 
 import (
 	"dfolan/internal/catalog"
@@ -12,7 +12,7 @@ import (
 
 // These configurable compatibility rules originate in the supplied90 server.
 // They are not asserted to be the private official rules of the current DFO.
-type Rules struct {
+type GrowthRules struct {
 	Model           string          `json:"model"`
 	ReferenceSHA256 string          `json:"reference_sha256"`
 	LevelCap        byte            `json:"level_cap"`
@@ -21,8 +21,8 @@ type Rules struct {
 	OutsidePenalty  float32         `json:"outside_level_range_rate"`
 }
 
-func LoadRules(path string) (Rules, error) {
-	var r Rules
+func LoadGrowthRules(path string) (GrowthRules, error) {
+	var r GrowthRules
 	b, e := os.ReadFile(path)
 	if e != nil {
 		return r, e
@@ -33,22 +33,24 @@ func LoadRules(path string) (Rules, error) {
 	if r.Model != "reference90-solo-v1" || len(r.ReferenceSHA256) != 64 || r.LevelCap < 2 || r.NamedMultiplier <= 0 || len(r.Penalty) == 0 {
 		return r, fmt.Errorf("incomplete experience compatibility rules")
 	}
-	for _, v := range append([]float32{r.NamedMultiplier, r.OutsidePenalty}, mapValues(r.Penalty)...) {
-		if !finite(v) {
+	for _, v := range append([]float32{r.NamedMultiplier, r.OutsidePenalty}, growthMapValues(r.Penalty)...) {
+		if !growthFinite(v) {
 			return r, fmt.Errorf("invalid rule rate")
 		}
 	}
 	return r, nil
 }
-func mapValues(m map[int]float32) []float32 {
+func growthMapValues(m map[int]float32) []float32 {
 	a := make([]float32, 0, len(m))
 	for _, v := range m {
 		a = append(a, v)
 	}
 	return a
 }
-func finite(v float32) bool { return v >= 0 && !math.IsNaN(float64(v)) && !math.IsInf(float64(v), 0) }
-func section(c []pvf.Token, name string) []pvf.Token {
+func growthFinite(v float32) bool {
+	return v >= 0 && !math.IsNaN(float64(v)) && !math.IsInf(float64(v), 0)
+}
+func growthSection(c []pvf.Token, name string) []pvf.Token {
 	var r []pvf.Token
 	on := false
 	for _, v := range c {
@@ -63,7 +65,7 @@ func section(c []pvf.Token, name string) []pvf.Token {
 	return r
 }
 
-func MonsterGain(c catalog.Progression, r Rules, d catalog.DungeonDefinition, m protocol.DungeonMonster, level, difficulty byte) (uint64, error) {
+func GrowthMonsterGain(c catalog.Progression, r GrowthRules, d catalog.DungeonDefinition, m protocol.DungeonMonster, level, difficulty byte) (uint64, error) {
 	if m.NonCombat || m.APC || m.Level == 0 {
 		return 0, nil
 	}
@@ -75,7 +77,7 @@ func MonsterGain(c catalog.Progression, r Rules, d catalog.DungeonDefinition, m 
 		return 0, fmt.Errorf("missing monster level table")
 	}
 	weight := float32(1)
-	if cells := section(d.Script.Cells, "[experience increasing point]"); len(cells) > 0 {
+	if cells := growthSection(d.Script.Cells, "[experience increasing point]"); len(cells) > 0 {
 		if len(cells) != 1 {
 			return 0, fmt.Errorf("ambiguous dungeon experience weight")
 		}
@@ -94,7 +96,7 @@ func MonsterGain(c catalog.Progression, r Rules, d catalog.DungeonDefinition, m 
 	}
 	rate := c.MonsterRates[rank]
 	if m.Rank != 3 {
-		for _, t := range section(d.Script.Cells, "[named monster]") {
+		for _, t := range growthSection(d.Script.Cells, "[named monster]") {
 			if t.Type != 0 {
 				return 0, fmt.Errorf("invalid named monster list")
 			}
@@ -109,7 +111,7 @@ func MonsterGain(c catalog.Progression, r Rules, d catalog.DungeonDefinition, m 
 		penalty = r.OutsidePenalty
 	}
 	product := func(v float32, max float64) (uint64, error) {
-		if !finite(v) || float64(v) > max {
+		if !growthFinite(v) || float64(v) > max {
 			return 0, fmt.Errorf("experience product out of range")
 		}
 		return uint64(v), nil
@@ -126,14 +128,14 @@ func MonsterGain(c catalog.Progression, r Rules, d catalog.DungeonDefinition, m 
 	return product(float32(v)*penalty, math.MaxUint32)
 }
 
-type Advance struct {
+type GrowthAdvance struct {
 	Level          byte
 	Experience     uint64
 	SkillPointGain uint32
 }
 
-func AddExperience(c catalog.Progression, r Rules, level byte, total, gain uint64) (Advance, error) {
-	out := Advance{Level: level, Experience: total}
+func AddGrowthExperience(c catalog.Progression, r GrowthRules, level byte, total, gain uint64) (GrowthAdvance, error) {
+	out := GrowthAdvance{Level: level, Experience: total}
 	if level == 0 || level > r.LevelCap || int(r.LevelCap)-1 > len(c.Thresholds) || math.MaxUint64-total < gain {
 		return out, fmt.Errorf("invalid experience ledger or cap")
 	}
@@ -145,7 +147,7 @@ func AddExperience(c catalog.Progression, r Rules, level byte, total, gain uint6
 		out.Level++
 		sp, ok := c.SkillPoints[uint16(out.Level)]
 		if !ok {
-			return Advance{}, fmt.Errorf("missing crossed-level SP row")
+			return GrowthAdvance{}, fmt.Errorf("missing crossed-level SP row")
 		}
 		out.SkillPointGain += uint32(sp)
 	}

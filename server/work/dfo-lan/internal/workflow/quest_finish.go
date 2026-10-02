@@ -4,8 +4,8 @@ import (
 	"context"
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
+	"dfolan/internal/character"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/progression"
 	"dfolan/internal/quest"
 	"dfolan/internal/storage"
 	"encoding/json"
@@ -36,10 +36,10 @@ func (s *QuestService) Finish(ctx context.Context, role storage.Character, r pro
 		}, quest.FinishRewards{
 			Items: questItemRewards,
 			Experience: func(d catalog.QuestDefinition, level byte) (uint32, error) {
-				return progression.QuestExperience(s.Quest.Progression.Catalog, d, level)
+				return character.GrowthQuestExperience(s.Quest.Progression.Catalog, d, level)
 			},
 			Gold: func(d catalog.QuestDefinition, level byte) (uint32, error) {
-				return progression.QuestGold(s.Quest.Progression.Catalog, d, level)
+				return character.GrowthQuestGold(s.Quest.Progression.Catalog, d, level)
 			},
 		})
 	})
@@ -77,7 +77,7 @@ func (s *QuestService) Finish(ctx context.Context, role storage.Character, r pro
 }
 
 func questItemRewards(cells []pvf.Token, profession, advancement byte) ([]quest.RewardItem, error) {
-	items, err := progression.ItemRewards(cells, profession, advancement)
+	items, err := character.GrowthItemRewards(cells, profession, advancement)
 	if err != nil {
 		return nil, err
 	}

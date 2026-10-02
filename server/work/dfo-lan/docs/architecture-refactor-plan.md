@@ -529,3 +529,25 @@ git diff --check
 最终远端复核又发现上游新增 `7d4f5c0`（时装皮肤开孔修复），继续合入该 11 文件更新。开孔事务按同样边界迁至 workflow，原协议、道具规则、时间戳位置、事件 key/model、收据与回包顺序保留。最后一次全仓编译、vet、架构/身份守卫通过；全量测试仍仅上述 3 项 wireprobe 既有失败，其余通过。四个用户原有改动再次核对内容哈希一致，未纳入提交。
 
 上游持续更新，本轮同步最终截止 `647c3fd`（徽章合成修复），合入其完整历史并将新增合成事务适配进 workflow。领域、道具规则及协议与上游一致；随机调用仍只发生在事务回调，事件键的 JSON 字段顺序、摘要、model、收据 DeepEqual 检查和 ACK/NOTI13 顺序保留。适配完成后再次全仓编译、vet、架构/身份守卫及全量测试，仍仅上述 3 项 wireprobe 既有失败，其余包通过；差异检查通过。继续保留 10 条领域间例外，本 MR 整体尚未完成。
+
+## 19. 领域归并与文件收口
+
+MR !127 已合并，本批从 main `052532c` 开始，分支 `refactor/domain-consolidation`。用户要求先按职责收拢领域和文件，再处理剩余跨领域依赖。
+
+- inventory：装备制作/变换/分解的规则、计划与回执从 loot 迁入同一装备图鉴操作文件；时装分解/开孔、徽章合成/镶嵌的服务准备逻辑并入现有对应 Bag 规则文件，不保留 loot 转发门面。
+- character：经验、任务奖励与通关成长公式归入 growth_rules/growth_rewards；资料皮肤状态与恢复合并，账号选角背景状态/报文与目录/PVF 投影合并。删除 progression、profileskin、rosterbg 三个目录，背景券嵌入数据保持同字节。
+- workflow：7 个物品操作事务归 ItemService，按装备与时装/徽章合并为 2 文件；奖励事务、礼盒事务与背包移动/排序分别归并。cmd 的时装/徽章分发也合并，main 注入独立 ItemService，并在监听前同步最终 Catalog/BagRules/Equipment，保留上游目录扩充的装配结果。
+- 架构契约与守卫同步：删除 character→progression 允许边，剩余 9 条。纠正 legion 的职责记录为军团/末世录请求、阶段门控与入场计划；它与 NPC 相位各有独立状态职责，保留目录。
+
+Go 文件由 1437 减至 1408，其中生产文件 795→772，测试文件 642→636。inventory 迁入的 41 个操作函数、成长的 14 个公式函数和归并的 14 个事务函数，经标识归一化后的词法比对保持一致。装备迁移测试保留 17 项测试和 101 个断言调用，其他测试随领域迁移保留断言。SQL、schema、协议布局、JSON 存档字段、事件 key/model 和随机调用点未改。
+
+验证使用 Go 1.26：全仓 vet、架构守卫、存档身份守卫与迁移领域/工作流测试通过。全量 go test ./... 留下 4 项既有失败：
+
+- cmd/wireprobe.TestAdventureAuditProvenanceAllowanceIsNarrow
+- cmd/wireprobe.TestPVFCatalogGateRefusesRewardChangesAndDoesNotFallback
+- cmd/wireprobe.TestEnhancementAuditAllowsOnlyMissingOrdinaryTicketExpirationHeader
+- internal/cashshop.TestShopPilotPVFCurrentCatalog
+
+前三项为第 17/18 节已有失败；商城项在本批起点 052532c 的原始源码隔离目录重现同一 pvf_catalog_test.go:194 / empty delivery 3400013 断言。隔离目录仅提取起点 Go 源码与嵌入文件，通过 configs junction 使用同一只读配置；未改 baseline 源码或断言。其余包通过，没有新增测试失败。git diff --check 通过。
+
+后续先梳理 loot 的消耗/礼盒奖励混合职责，再评估 character/quest/loot/cashshop 的剩余 9 条依赖；不通过复制规则或新增短转发文件消除统计边。没有连接玩家库、部署二进制或启动客户端，不扩大 confirmed baseline。四个用户原有配置改动保持原哈希，不纳入提交。

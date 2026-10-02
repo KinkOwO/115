@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-// 选角背景的选择/恢复报文体例已移回 internal/rosterbg（见 rosterbg/wire.go）；
+// 选角背景的选择/恢复报文体例已移回 internal/character（见 character/roster_background.go）；
 // 本文件只保留不依赖领域中立的背景券 CMD507 布局。
 
 const RosterBackgroundTicketAction uint32 = 209

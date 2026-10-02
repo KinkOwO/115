@@ -58,6 +58,7 @@ type worldSession struct {
 	quests           *quest.Service
 	progression      *character.ProgressionService
 	loot             *loot.Service
+	items            *inventory.ItemService
 	shop             *workflow.ShopService
 	selectionBoxes   *catalog.SelectionBoxes
 	vault            *workflow.VaultService

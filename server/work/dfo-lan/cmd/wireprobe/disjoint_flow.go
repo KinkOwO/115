@@ -17,11 +17,11 @@ import (
 // moves the stacks into the soul-storage panel.
 //
 // CMD26 同时就是客户端的「**装备库添加**」（规格 `CMD/0026-DISJOINTITEM`）：收录与
-// "扣装备 / 发材料"在同一个事务里落库（见 loot.Disjoint）。所以成功之后必须**补发一次
+// "扣装备 / 发材料"在同一个事务里落库（见 inventory.ItemService.Disjoint）。所以成功之后必须**补发一次
 // NOTI2610 权威快照** —— 客户端的图鉴计数只认 2610，只在入场发的话，玩家当场分解完
 // 什么都看不到（实机 2026-09-30 玩家报告："分解没进图鉴"），得重登才刷新。
 func (w *worldSession) disjointItem(p []byte, event func(map[string]any)) ([]outboundPacket, error) {
-	if w == nil || w.role.ID == 0 || w.loot == nil {
+	if w == nil || w.role.ID == 0 || w.items == nil {
 		return nil, fmt.Errorf("disjoint service unavailable")
 	}
 	r, e := protocol.DecodeDisjointItem(p)
@@ -30,7 +30,7 @@ func (w *worldSession) disjointItem(p []byte, event func(map[string]any)) ([]out
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	saved, receipt, _, e := (&workflow.LootService{Store: w.store, Loot: w.loot}).Disjoint(ctx, w.role, r)
+	saved, receipt, _, e := (&workflow.ItemService{Store: w.store, Items: w.items}).Disjoint(ctx, w.role, r)
 	if e != nil {
 		return nil, e
 	}

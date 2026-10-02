@@ -4,7 +4,6 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/character"
-	"dfolan/internal/progression"
 	"encoding/json"
 	"testing"
 )
@@ -26,7 +25,7 @@ func TestPrepareFinishPremiumLookupOrder(t *testing.T) {
 	s := &Service{Progression: &character.ProgressionService{Catalog: catalogXP}}
 	rewards := FinishRewards{
 		Items: func(cells []pvf.Token, p, g byte) ([]RewardItem, error) {
-			awards, e := progression.ItemRewards(cells, p, g)
+			awards, e := character.GrowthItemRewards(cells, p, g)
 			var out []RewardItem
 			for _, a := range awards {
 				out = append(out, RewardItem{a.Template, a.Amount})
@@ -34,10 +33,10 @@ func TestPrepareFinishPremiumLookupOrder(t *testing.T) {
 			return out, e
 		},
 		Experience: func(d catalog.QuestDefinition, l byte) (uint32, error) {
-			return progression.QuestExperience(s.Progression.Catalog, d, l)
+			return character.GrowthQuestExperience(s.Progression.Catalog, d, l)
 		},
 		Gold: func(d catalog.QuestDefinition, l byte) (uint32, error) {
-			return progression.QuestGold(s.Progression.Catalog, d, l)
+			return character.GrowthQuestGold(s.Progression.Catalog, d, l)
 		},
 	}
 

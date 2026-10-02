@@ -137,9 +137,9 @@ func (w *worldSession) equipmentJournalBoard(role storage.Character) ([]outbound
 // 执行时机：`[12]==1`（变换）实机是「变换 → 确定」**两次**同指纹请求 ⇒ 等第二次；
 // `[12]==0`（生成）**只有一次**请求 ⇒ 单步执行（`-equipment-craft-execute-on` 可覆盖）。
 //
-// 成本校验 / 扣料 / 发装备由 `loot.Service.CreateEquipment` 完成，**严格按 `[13]` 扣**。
+// 成本校验 / 扣料 / 发装备由 `inventory.ItemService.CreateEquipment` 完成，**严格按 `[13]` 扣**。
 //
-// `action == 1`（装备变换）则走 `loot.Service.TransformEquipment`：把该部位的装备换成
+// `action == 1`（装备变换）则走 `inventory.ItemService.TransformEquipment`：把该部位的装备换成
 // 图鉴里选中的那件、打造效果跟着走、源自动登记进图鉴。
 //
 // `event` 用于把**不落库**的判定（拒绝原因、逐件跳过明细、变换结果）写进 events.jsonl ——
@@ -209,13 +209,13 @@ func (w *worldSession) equipmentCraft(p []byte, event func(map[string]any)) ([]o
 			}
 			return plan, nil
 		}
-		if w.loot == nil {
+		if w.items == nil {
 			log.Printf("equipment craft TRANSFORM-REFUSED: loot service unavailable")
 			return plan, nil
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		saved, receipt, applied, e := (&workflow.LootService{Store: w.store, Loot: w.loot}).TransformEquipment(ctx, w.role, slots, templates, int(r.PayOption))
+		saved, receipt, applied, e := (&workflow.ItemService{Store: w.store, Items: w.items}).TransformEquipment(ctx, w.role, slots, templates, int(r.PayOption))
 		if e != nil {
 			log.Printf("equipment craft TRANSFORM-REFUSED: requested=%d: %v", len(templates), e)
 			if event != nil {
@@ -273,7 +273,7 @@ func (w *worldSession) equipmentCraft(p []byte, event func(map[string]any)) ([]o
 	// 第二步 = 执行「装备生成」：模板必须已在账本登记，成本来自 [create cost] 表。
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	saved, receipt, applied, e := (&workflow.LootService{Store: w.store, Loot: w.loot}).CreateEquipment(ctx, w.role, templates[0], slots[0], int(r.PayOption))
+	saved, receipt, applied, e := (&workflow.ItemService{Store: w.store, Items: w.items}).CreateEquipment(ctx, w.role, templates[0], slots[0], int(r.PayOption))
 	if e != nil {
 		// [ALIGN-20260930-CRAFT-VISIBLE] 拒绝**不能吞** —— 但**也不能瞎回包**。
 		//
@@ -370,10 +370,10 @@ func craftFingerprint(r protocol.EquipmentCraftRequest, slots, templates []uint3
 }
 
 func (w *worldSession) journalRules() *catalog.EquipmentJournalRules {
-	if w == nil || w.loot == nil {
+	if w == nil || w.items == nil {
 		return nil
 	}
-	return w.loot.Journal
+	return w.items.Journal
 }
 
 // equipmentFavorite 处理 CMD2264：**全量替换**一个类别的收藏列表。
@@ -385,7 +385,7 @@ func (w *worldSession) journalRules() *catalog.EquipmentJournalRules {
 //
 // 幂等：同一个请求重放时 CommitCharacterEvent 命中回执，不再重复写账本；应答照发。
 func (w *worldSession) equipmentFavorite(p []byte) ([]outboundPacket, error) {
-	if w == nil || w.loot == nil || w.store == nil {
+	if w == nil || w.items == nil || w.store == nil {
 		return nil, fmt.Errorf("equipment journal unavailable")
 	}
 	if w.role.ID <= 0 || w.account <= 0 || w.role.AccountID != w.account {

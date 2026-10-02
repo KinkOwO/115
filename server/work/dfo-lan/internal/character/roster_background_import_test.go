@@ -1,4 +1,4 @@
-package rosterbg
+package character
 
 import (
 	"dfolan/internal/catalog/pvf"

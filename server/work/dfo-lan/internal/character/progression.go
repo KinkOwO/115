@@ -5,7 +5,6 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/progression"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -19,7 +18,7 @@ type ProgressionService struct {
 	Store         ProgressionStore
 	Catalog       catalog.Progression
 	Professions   catalog.Characters
-	Rules         progression.Rules
+	Rules         GrowthRules
 }
 
 func (s *ProgressionService) Monster(ctx context.Context, role Character, run *dungeon.Session, entity uint16) (Character, bool, error) {
@@ -51,7 +50,7 @@ func (s *ProgressionService) Monster(ctx context.Context, role Character, run *d
 		if e := json.Unmarshal(current.State, &state); e != nil {
 			return nil, nil, e
 		}
-		gain, e := progression.MonsterGain(s.Catalog, s.Rules, run.Definition, monster, state.Level, 0)
+		gain, e := GrowthMonsterGain(s.Catalog, s.Rules, run.Definition, monster, state.Level, 0)
 		if e != nil {
 			return nil, nil, e
 		}

@@ -1,8 +1,8 @@
 package main
 
 import (
+	"dfolan/internal/character"
 	"dfolan/internal/gamedata"
-	"dfolan/internal/rosterbg"
 	"fmt"
 	"log"
 )
@@ -19,7 +19,7 @@ func preparePVFRosterBackgrounds(c *pvfCoreCatalogs, s *gamedata.Source, selecte
 		return err
 	}
 	if i.checksBaselines() {
-		old, err := rosterbg.EmbeddedTickets()
+		old, err := character.EmbeddedRosterBackgroundTickets()
 		if err != nil {
 			return err
 		}
@@ -29,14 +29,14 @@ func preparePVFRosterBackgrounds(c *pvfCoreCatalogs, s *gamedata.Source, selecte
 		if err := verifyPVFCatalog(old.Items, direct.Items); err != nil {
 			return fmt.Errorf("background tickets: %w", err)
 		}
-		resources := map[rosterbg.Background]bool{}
+		resources := map[character.RosterBackground]bool{}
 		for _, b := range direct.Backgrounds {
 			resources[b] = true
 		}
 		for category := 0; category < 256; category++ {
 			for id := 0; id <= 65535; id++ {
-				b := rosterbg.Background{Category: uint8(category), ID: uint16(id)}
-				if resources[b] != old.ValidBackground(b) {
+				b := character.RosterBackground{Category: uint8(category), ID: uint16(id)}
+				if resources[b] != old.ValidRosterBackground(b) {
 					return fmt.Errorf("native background boundary differs at %v", b)
 				}
 			}
@@ -52,5 +52,5 @@ func (c pvfCoreCatalogs) installRosterBackgrounds() (func(), error) {
 	if c.rosterBackgrounds == nil {
 		return func() {}, nil
 	}
-	return rosterbg.InstallTickets(c.rosterBackgrounds)
+	return character.InstallRosterBackgroundTickets(c.rosterBackgrounds)
 }

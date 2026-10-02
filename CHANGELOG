@@ -7,6 +7,13 @@
 - Go 1.26.5 的 go vet ./... 通过；go test ./... 与未修改 HEAD 对照均为相同 4 项既有失败。独立 PostgreSQL16.4 回归通过仅 PG 配置、旧配置兼容、建角/事务提交、未知背包及扩展字段保留、重开恢复和幂等重放；storage/loot/quest 集成通过。额外 character/workflow 集成分别受缺失历史 fixture、旧身份用例限制；cashshop 失败在 HEAD 同样复现。
 - 新增启动/GM Python 8 项与根环境迁移/停止 2 项测试通过，GM Python 全套 8 项通过、GM Go 检查通过；服务端 Python 全套仍有 2 项既有配置断言失败。发布脚本语法检查与 git diff --check 通过。
 - 使用独立工作树及测试数据库，没有操作玩家库、启动客户端或替换确认 EXE；部署需从新源码重建服务端与 GM。现有 confirmed baseline 保持原实机验收范围，本轮不新增实机确认。
+## 2026-10-02：领域归并与文件收口（源码候选）
+
+- 装备图鉴制作/变换/分解与时装、徽章操作归 inventory，事务归 workflow.ItemService；原事件 key/model、随机调用位置、回执字段与协议响应顺序保留。
+- 经验与奖励成长、资料皮肤及账号选角背景归 character，删除 progression/profileskin/rosterbg 三个小领域目录与兼容门面；背景券嵌入数据保持同字节。
+- 合并装备操作、奖励事务、礼盒事务、背包移动/排序与时装分发文件；生产 Go 文件减少 23 个，含测试共减少 29 个。架构允许边由 10 条减至 9 条。
+- Go 1.26 vet、架构与身份守卫通过；全量测试保留 4 项既有失败（3 项 wireprobe、1 项商城，商城项已用起点源码隔离复现），其余包通过。
+- 不改业务规则、SQL/schema 或存档结构；未部署、启动客户端或访问玩家数据库，不扩展 confirmed baseline。验证记录见 server/work/dfo-lan/docs/architecture-refactor-plan.md 第 19 节。
 
 ## 2026-10-02（二）：秘宝精度提升（CMD2288）直读 PVF 落地
 

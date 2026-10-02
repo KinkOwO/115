@@ -5,7 +5,6 @@ import (
 	"dfolan/internal/adventure"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/inventory"
-	"dfolan/internal/progression"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -14,7 +13,7 @@ import (
 )
 
 type ClearReceipt struct {
-	progression.ClearGain
+	GrowthClearGain
 	Source, Run              string
 	Elapsed                  uint32
 	BestElapsed              uint32
@@ -72,7 +71,7 @@ func (s *ProgressionService) ClearWithTowerRewards(ctx context.Context, role Cha
 		if e != nil {
 			return nil, nil, e
 		}
-		gain, e := progression.DungeonClear(s.Catalog, run.Definition, 0, rank)
+		gain, e := GrowthDungeonClear(s.Catalog, run.Definition, 0, rank)
 		if e != nil {
 			return nil, nil, e
 		}
@@ -131,7 +130,7 @@ func (s *ProgressionService) ClearWithTowerRewards(ctx context.Context, role Cha
 				}
 			}
 		}
-		outcome, e := json.Marshal(ClearReceipt{ClearGain: gain, Source: s.Catalog.Source.SaveIdentity(), Run: run.RunID, Elapsed: uint32(elapsed), BestElapsed: best, NewRecord: improved, AllClear: all, MonsterExperience: uint32(monsterTotal), CreatureExperienceGained: creatureAwarded, SeasonExperienceGained: seasonAwarded,
+		outcome, e := json.Marshal(ClearReceipt{GrowthClearGain: gain, Source: s.Catalog.Source.SaveIdentity(), Run: run.RunID, Elapsed: uint32(elapsed), BestElapsed: best, NewRecord: improved, AllClear: all, MonsterExperience: uint32(monsterTotal), CreatureExperienceGained: creatureAwarded, SeasonExperienceGained: seasonAwarded,
 			RecommendedDungeonClear: recommended, DungeonID: run.Definition.ID, CharacterLevel: before.Level, TowerRewards: towerRewards})
 		return next.State, outcome, e
 	})

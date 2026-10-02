@@ -24,7 +24,7 @@
 | L0 | 传输原语 | `internal/game/wire` | 帧、加解密、校验和；不含任何游戏事实 |
 | L1 | 协议与静态数据 | `internal/game/protocol`、`internal/catalog`、`internal/catalog/pvf`、`internal/derivedcache`、`internal/savecontract` | 字节布局、PVF 归档原语、规则驱动静态目录、磁盘缓存与存档契约原语 |
 | L2 | 持久化 | `internal/storage` | SQL、事务、存档读写；游戏事实的搬运者和实现者，不是拥有者 |
-| L3 | 业务领域 | `internal/{character,inventory,loot,quest,dungeon,world,cashshop,progression,adventure,legion,npcpresence,profileskin,rosterbg}` | 拥有各自的游戏规则与状态 |
+| L3 | 业务领域 | `internal/{character,inventory,loot,quest,dungeon,world,cashshop,adventure,legion,npcpresence}` | 拥有各自的游戏规则与状态 |
 | L4 | 组合与工具 | `cmd/**`、`internal/{gamedata,managementdata,admin,channelrefresh,workflow}` | 组合根、只读投影、管理、离线工具；`workflow` 承载跨领域编排与事务 |
 
 ---
@@ -48,7 +48,7 @@ L3 领域之间 **默认禁止**互相 import。需要另一领域能力时，�
 1. **消费者声明小接口**，由提供者在 `bootstrap` 注入；或
 2. 把流程放入跨领域编排层（目标 `internal/workflow`，见 §5）。
 
-例外必须登记进 §7 并按计划消除。纯计算函数（如 `progression` 的经验公式）可在评审后合法化为接口。
+例外必须登记进 §7 并按计划消除。同一领域的状态与规则先归回领域所有者，避免为了分文件而新建领域或接口。
 
 ### R5 禁止依赖环
 任意两包之间不得存在互相 import 的环。
@@ -79,19 +79,16 @@ L3 领域之间 **默认禁止**互相 import。需要另一领域能力时，�
 | `internal/derivedcache` | L1 | 磁盘派生缓存原语（哈希/失效/读写） | 仅标准库 | 任何 `internal/*` |
 | `internal/savecontract` | L1 | 存档契约版本与身份（与客户端资源解耦） | 仅标准库 | 任何 `internal/*` |
 | `internal/storage` | L2 | SQL、事务、锁、存档；实现领域声明的接口 | L3 领域（仅为实现接口）、`catalog`、`catalog/pvf` | 定义游戏规则 |
-| `internal/character` | L3 | 建角、列表、角色状态、技能、成长 | `game/protocol`、`catalog`、`catalog/pvf`、自声明接口 | `storage`、其他领域（§7 例外除外） |
-| `internal/inventory` | L3 | 背包、穿戴、通用物品状态与装备操作 | 同上 | 同上 |
+| `internal/character` | L3 | 建角、列表、角色状态、技能、经验与奖励成长、资料皮肤与账号选角背景 | `game/protocol`、`catalog`、`catalog/pvf`、自声明接口 | `storage`、其他领域（§7 例外除外） |
+| `internal/inventory` | L3 | 背包、穿戴、通用物品状态、装备图鉴制作/变换/分解、时装与徽章操作 | 同上 | 同上 |
 | `internal/loot` | L3 | 掉落生成、掉落实例、拾取、去重 | 同上 | 同上 |
 | `internal/quest` | L3 | 任务链、目标推进、任务奖励 | 同上 | 同上 |
 | `internal/dungeon` | L3 | 副本会话、房间、门、清场、结算 | 同上 | 同上 |
 | `internal/world` | L3 | 城镇、区域跳转、传送、位置保存 | 同上 | 同上 |
 | `internal/cashshop` | L3 | 商城报价、购买、账号点券账本 | 同上 | 同上 |
-| `internal/progression` | L3 | 经验、等级、纯计算规则 | 同上 | 同上 |
 | `internal/adventure` | L3 | 冒险团/成长规则 | 同上 | 同上 |
-| `internal/legion` | L3 | 冒险团小队/编队规则 | 同上 | 同上 |
+| `internal/legion` | L3 | 军团/末世录请求状态、阶段门控与入场计划；共享运行由 partyrun 持有 | 同上 | 同上 |
 | `internal/npcpresence` | L3 | NPC 相位/可见性规则 | 同上 | 同上 |
-| `internal/profileskin` | L3 | 分流皮肤状态读模型 | 同上 | 同上 |
-| `internal/rosterbg` | L3 | 选角背景状态读模型 | 同上 | 同上 |
 | `internal/gamedata` | L4 | 全量静态数据只读投影/装配 | L1–L3 | 被 L3 依赖 |
 | `internal/managementdata` | L4 | 管理端只读目录投影 | L1–L3 | 被 L3 依赖 |
 | `internal/admin` | L4 | GM/管理操作 | L1–L3 | 被 L3 依赖 |
@@ -137,9 +134,9 @@ L3 领域之间 **默认禁止**互相 import。需要另一领域能力时，�
 | # | 边 | 处理 |
 |---|---|---|
 | E01 | `game/protocol` → `adventure` | `SeasonLevelHistory`/`SeasonOathHistory` 移入 `internal/adventure/season_wire.go` |
-| E02 | `game/protocol` → `profileskin` | `ProfileSkinRestore` 移入 `internal/profileskin/restore.go`（`profileskin.Restore`） |
-| E03 | `game/protocol` → `rosterbg` | 选择/恢复/解码移入 `internal/rosterbg/wire.go`（`rosterbg.DecodeSelect`/`Restore`） |
-| E04 | `catalog` → `rosterbg` | PVF 投影移入 `internal/rosterbg/import.go`（`rosterbg.ImportTickets`） |
+| E02 | `game/protocol` → `profileskin` | 已消除；资料皮肤状态与恢复现归 `character/profile_skin.go` |
+| E03 | `game/protocol` → `rosterbg` | 已消除；背景状态、选择/恢复/解码现归 `character/roster_background.go` |
+| E04 | `catalog` → `rosterbg` | 已消除；背景 PVF 投影现归 `character/roster_background_catalog.go` |
 
 ### 7.2 领域 → 持久化（违反 R2）
 
@@ -160,13 +157,13 @@ L3 领域之间 **默认禁止**互相 import。需要另一领域能力时，�
 
 | # | 边 | 目标 |
 |---|---|---|
-| E21 | `character` → `adventure`、`dungeon`、`inventory`、`progression` | 中带事务的移入 `workflow` 或改为消费者接口 |
+| E21 | `character` → `adventure`、`dungeon`、`inventory` | `progression` 的成长规则已归 character，原依赖删除；其余移入 `workflow` 或改为消费者接口 |
 | E22 | `quest` → `character`、`dungeon`、`inventory` | `progression` 依赖已由奖励消费者接口消除；其余同上 |
 | E23 | `loot` → `dungeon`、`inventory` | `adventure`/`cashshop` 依赖已迁入 workflow 或消费者接口；其余同上 |
 | E24 | `legion` → `dungeon` | **已消除（2026-10-01，本分支）**：legion 接收选择校验器，由组合层注入 dungeon 校验 |
 | E25 | `cashshop` → `inventory` | 商城发货写背包；改为消费者接口或移入 `workflow` |
 
-> `progress`（纯计算）可在评审后把对应接口合法化；不得用「允许协作」把带状态的领域依赖一起放开。
+当前剩余 9 条领域间允许边。2026-10-02 领域归并删除 `progression`、`profileskin`、`rosterbg` 三个目录；不保留转发门面。礼盒奖励选择和奖励恢复仍归 loot，军团与 NPC 相位各自具有独立状态职责，保留其领域。
 
 ---
 

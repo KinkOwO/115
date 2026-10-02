@@ -3,7 +3,6 @@ package main
 import (
 	"dfolan/internal/adventure"
 	"dfolan/internal/character"
-	"dfolan/internal/rosterbg"
 	"os"
 	"path/filepath"
 	"testing"
@@ -157,7 +156,7 @@ func verifyPVFMigrationSourceOnly(t *testing.T, cacheDir string) {
 		t.Fatal(err)
 	}
 	defer restoreBackgrounds()
-	backgrounds, err := rosterbg.CurrentTickets()
+	backgrounds, err := character.CurrentRosterBackgroundTickets()
 	if err != nil || len(backgrounds.Items) != 95 || len(backgrounds.Backgrounds) != 63 {
 		t.Fatal("native background tickets or resources missing", err)
 	}

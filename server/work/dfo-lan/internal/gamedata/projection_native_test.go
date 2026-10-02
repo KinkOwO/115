@@ -3,8 +3,8 @@ package gamedata
 import (
 	"dfolan/internal/adventure"
 	"dfolan/internal/catalog"
+	"dfolan/internal/character"
 	"dfolan/internal/inventory"
-	"dfolan/internal/rosterbg"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -59,7 +59,7 @@ func TestProjectionCachesLocalArchiveParity(t *testing.T) {
 		Loot      catalog.LootCatalog
 		Dungeons  catalog.DungeonCatalog
 		Season    *adventure.SeasonRules
-		Roster    *rosterbg.TicketCatalog
+		Roster    *character.RosterBackgroundTicketCatalog
 		Warps     []catalog.ScriptWarpRoute
 		Terminal  catalog.TerminalSceneOverlay
 	}
@@ -105,7 +105,7 @@ func TestProjectionCachesLocalArchiveParity(t *testing.T) {
 			t.Fatal("changed native projections/private lookup indexes")
 		}
 		for _, b := range r.Roster.Backgrounds {
-			if !r.Roster.ValidBackground(b) {
+			if !r.Roster.ValidRosterBackground(b) {
 				t.Fatal("background index not restored", b)
 			}
 		}

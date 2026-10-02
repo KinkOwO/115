@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"dfolan/internal/catalog"
 	"dfolan/internal/inventory"
-	"dfolan/internal/progression"
 
 	"encoding/json"
 	"testing"
@@ -34,7 +33,7 @@ func odysseyGrowthFixture(t *testing.T) (*ProgressionService, Character) {
 		req = append(req, 0)
 	}
 	r.Request = req
-	return &ProgressionService{Catalog: p, Professions: c, Rules: progression.Rules{LevelCap: 115}, Odyssey: o}, r
+	return &ProgressionService{Catalog: p, Professions: c, Rules: GrowthRules{LevelCap: 115}, Odyssey: o}, r
 }
 
 func TestOdysseyGiftCapacityAndSource(t *testing.T) {

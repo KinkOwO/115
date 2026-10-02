@@ -9,7 +9,6 @@ import (
 	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
 	"dfolan/internal/quest"
-	"dfolan/internal/rosterbg"
 	"fmt"
 	"log"
 	"os"
@@ -34,7 +33,7 @@ type pvfCoreCatalogs struct {
 	awakeningRules                               *catalog.EquipmentAwakeningRules
 	awakeningOptions                             *catalog.EquipmentAwakeningOptions
 	soleRules                                    *catalog.SoleEquipmentRules
-	rosterBackgrounds                            *rosterbg.TicketCatalog
+	rosterBackgrounds                            *character.RosterBackgroundTicketCatalog
 	odysseyRoutes                                *catalog.OdysseyJournalRoutes
 	seasonRules                                  *adventure.SeasonRules
 	recommendedRules                             *adventure.RecommendedRules

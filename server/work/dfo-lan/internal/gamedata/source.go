@@ -10,7 +10,6 @@ import (
 	"dfolan/internal/character"
 	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
-	"dfolan/internal/rosterbg"
 	"encoding/hex"
 	"fmt"
 	"log"
@@ -106,14 +105,14 @@ func (s *Source) OdysseyJournalRoutes() (*catalog.OdysseyJournalRoutes, error) {
 	return catalog.ImportOdysseyJournalRoutes(s.archive)
 }
 
-func (s *Source) RosterBackgrounds(index catalog.ItemIndex) (*rosterbg.TicketCatalog, error) {
-	return cachedProjection(s, "roster", itemIndexIdentity(index), func() (*rosterbg.TicketCatalog, error) {
-		return rosterbg.ImportTickets(s.archive, index)
-	}, func(r *rosterbg.TicketCatalog) (*rosterbg.TicketCatalog, error) {
+func (s *Source) RosterBackgrounds(index catalog.ItemIndex) (*character.RosterBackgroundTicketCatalog, error) {
+	return cachedProjection(s, "roster", itemIndexIdentity(index), func() (*character.RosterBackgroundTicketCatalog, error) {
+		return character.ImportRosterBackgroundTickets(s.archive, index)
+	}, func(r *character.RosterBackgroundTicketCatalog) (*character.RosterBackgroundTicketCatalog, error) {
 		if r == nil || r.Source != s.Snapshot().Checksum {
 			return nil, fmt.Errorf("background cache source mismatch")
 		}
-		return rosterbg.NewTicketCatalog(*r)
+		return character.NewRosterBackgroundTicketCatalog(*r)
 	})
 }
 

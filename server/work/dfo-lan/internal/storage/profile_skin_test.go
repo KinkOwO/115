@@ -2,7 +2,7 @@ package storage
 
 import (
 	"context"
-	"dfolan/internal/profileskin"
+	"dfolan/internal/character"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -76,7 +76,7 @@ func TestProfileSkinPersistence(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			state, e := s.RestoreProfileSkins(ctx, account, role.ID)
-			if e == nil && !reflect.DeepEqual(state, profileskin.Defaults()) {
+			if e == nil && !reflect.DeepEqual(state, character.ProfileSkinDefaults()) {
 				e = fmt.Errorf("unexpected defaults")
 			}
 			errs <- e
@@ -89,8 +89,8 @@ func TestProfileSkinPersistence(t *testing.T) {
 			t.Fatal(e)
 		}
 	}
-	custom := profileskin.Defaults()
-	custom.Owned = append(custom.Owned, profileskin.Owned{ID: 60001})
+	custom := character.ProfileSkinDefaults()
+	custom.Owned = append(custom.Owned, character.ProfileSkinOwned{ID: 60001})
 	custom.Selected[2] = 60001
 	raw, _ := json.Marshal(custom)
 	if _, err = s.DB.Exec(ctx, "UPDATE character_profile_skins SET state=$2 WHERE character_id=$1", role.ID, raw); err != nil {
@@ -108,7 +108,7 @@ func TestProfileSkinPersistence(t *testing.T) {
 		t.Fatalf("stored selection reset: %+v %v", got, err)
 	}
 	got, err = reopened.RestoreProfileSkins(ctx, account, role2.ID)
-	if err != nil || !reflect.DeepEqual(got, profileskin.Defaults()) {
+	if err != nil || !reflect.DeepEqual(got, character.ProfileSkinDefaults()) {
 		t.Fatalf("selection leaked across characters: %+v %v", got, err)
 	}
 	var unrelated int

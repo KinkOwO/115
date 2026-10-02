@@ -3,7 +3,6 @@ package character
 import (
 	"bytes"
 	"dfolan/internal/catalog"
-	"dfolan/internal/progression"
 
 	"encoding/json"
 	"fmt"
@@ -22,7 +21,7 @@ func advancementProgressionService(t *testing.T) *ProgressionService {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &ProgressionService{Catalog: pc, Professions: professions, Rules: progression.Rules{LevelCap: 115}}
+	return &ProgressionService{Catalog: pc, Professions: professions, Rules: GrowthRules{LevelCap: 115}}
 }
 
 func ordinaryAdvancedRole(t *testing.T, s *ProgressionService, job, advancement byte) Character {

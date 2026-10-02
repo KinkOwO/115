@@ -8,7 +8,6 @@ import (
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/game/wire"
-	"dfolan/internal/progression"
 	"dfolan/internal/storage"
 	"encoding/binary"
 	"encoding/hex"
@@ -72,7 +71,7 @@ func TestMonsterDeathAfterAdvancementIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rules, err := progression.LoadRules("../../configs/experience.compat90.json")
+	rules, err := character.LoadGrowthRules("../../configs/experience.compat90.json")
 	if err != nil {
 		t.Fatal(err)
 	}

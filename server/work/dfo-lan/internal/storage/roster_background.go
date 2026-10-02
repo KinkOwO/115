@@ -2,8 +2,8 @@ package storage
 
 import (
 	"context"
+	"dfolan/internal/character"
 	"dfolan/internal/db"
-	"dfolan/internal/rosterbg"
 	"fmt"
 	"math"
 	"time"
@@ -32,21 +32,21 @@ ALTER TABLE account_roster_background_unlocks ADD COLUMN IF NOT EXISTS expires_a
 }
 
 // RosterBackgrounds 在同一个快照中读取选择和授权；未设置的页使用原版基础背景 0。
-func (s *Store) RosterBackgrounds(ctx context.Context, account int64) (rosterbg.State, error) {
+func (s *Store) RosterBackgrounds(ctx context.Context, account int64) (character.RosterBackgroundState, error) {
 	tx, err := s.DB.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
 	if err != nil {
-		return rosterbg.State{}, err
+		return character.RosterBackgroundState{}, err
 	}
 	defer tx.Rollback(ctx)
 	state, err := readRosterBackgrounds(ctx, tx, account)
 	if err != nil {
-		return rosterbg.State{}, err
+		return character.RosterBackgroundState{}, err
 	}
 	return state, tx.Commit(ctx)
 }
 
-func readRosterBackgrounds(ctx context.Context, tx pgx.Tx, account int64) (rosterbg.State, error) {
-	var state rosterbg.State
+func readRosterBackgrounds(ctx context.Context, tx pgx.Tx, account int64) (character.RosterBackgroundState, error) {
+	var state character.RosterBackgroundState
 	if account <= 0 {
 		return state, fmt.Errorf("选角背景缺少账号")
 	}
@@ -56,7 +56,7 @@ func readRosterBackgrounds(ctx context.Context, tx pgx.Tx, account int64) (roste
 		return state, err
 	}
 	for rows.Next() {
-		var b rosterbg.Unlock
+		var b character.RosterBackgroundUnlock
 		if err = rows.Scan(&b.Category, &b.ID, &b.ExpiresAt); err != nil {
 			rows.Close()
 			return state, err
@@ -74,11 +74,11 @@ func readRosterBackgrounds(ctx context.Context, tx pgx.Tx, account int64) (roste
 	defer rows.Close()
 	for rows.Next() {
 		var page int
-		var b rosterbg.Background
+		var b character.RosterBackground
 		if err = rows.Scan(&page, &b.Category, &b.ID); err != nil {
 			return state, err
 		}
-		if page < 0 || page >= rosterbg.Pages {
+		if page < 0 || page >= character.RosterBackgroundPages {
 			return state, fmt.Errorf("选角背景存档页号无效")
 		}
 		// 授权被撤销或资源不再存在时只回退此页，不覆盖其它页存档。
@@ -92,9 +92,9 @@ func readRosterBackgrounds(ctx context.Context, tx pgx.Tx, account int64) (roste
 	return state, state.Validate()
 }
 
-func (s *Store) SelectRosterBackground(ctx context.Context, account int64, page uint16, b rosterbg.Background) (rosterbg.State, error) {
-	var state rosterbg.State
-	if account <= 0 || page >= rosterbg.Pages || !b.Valid() {
+func (s *Store) SelectRosterBackground(ctx context.Context, account int64, page uint16, b character.RosterBackground) (character.RosterBackgroundState, error) {
+	var state character.RosterBackgroundState
+	if account <= 0 || page >= character.RosterBackgroundPages || !b.Valid() {
 		return state, fmt.Errorf("选角背景请求无效")
 	}
 	tx, err := s.DB.Begin(ctx)
@@ -124,7 +124,7 @@ func (s *Store) SelectRosterBackground(ctx context.Context, account int64, page 
 
 // UnlockRosterBackground 必须在扣券的同一角色事件事务中调用。
 // 与背景选择共用账号行锁；已有永久或未到期授权不覆盖，防止跨角色重复扣券。
-func (s *Store) UnlockRosterBackground(ctx context.Context, tx db.Tx, account int64, grant rosterbg.Unlock, now time.Time) error {
+func (s *Store) UnlockRosterBackground(ctx context.Context, tx db.Tx, account int64, grant character.RosterBackgroundUnlock, now time.Time) error {
 	if account <= 0 || grant.Category != 1 || !grant.Valid() || grant.ExpiresAt > math.MaxInt32 ||
 		grant.ExpiresAt != 0 && int64(grant.ExpiresAt) <= now.Unix() {
 		return fmt.Errorf("背景授权或到期时间无效")

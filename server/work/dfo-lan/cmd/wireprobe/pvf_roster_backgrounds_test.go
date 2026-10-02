@@ -1,7 +1,7 @@
 package main
 
 import (
-	"dfolan/internal/rosterbg"
+	"dfolan/internal/character"
 	"os"
 	"testing"
 	"time"
@@ -16,7 +16,7 @@ func TestPVFRosterBackgroundsLocalArchive(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	old, err := rosterbg.EmbeddedTickets()
+	old, err := character.EmbeddedRosterBackgroundTickets()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -25,7 +25,7 @@ func TestPVFRosterBackgroundsLocalArchive(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer restore()
-	current, err := rosterbg.CurrentTickets()
+	current, err := character.CurrentRosterBackgroundTickets()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -37,7 +37,7 @@ func TestPVFRosterBackgroundsLocalArchive(t *testing.T) {
 	}
 	checks := 0
 	for id, ticket := range old.Items {
-		actual, err := rosterbg.TicketFor(id)
+		actual, err := character.RosterBackgroundTicketFor(id)
 		if err != nil {
 			t.Fatal(err)
 		}
