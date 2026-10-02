@@ -26,6 +26,12 @@ func ParseSelectionCells(cells []pvf.Token) ([]SelectionCategory, bool) {
 	return out, fixed
 }
 
+// parseSelectionCategory reads one [booster select category] block starting at
+// the (job, growtype) pair. The source omits the closing tag on a few scripts
+// and leaves a stray [equipment] where [/equipment] was intended; the client
+// reads the block by its header/end boundary, so a new header or the end of the
+// script closes the block, and an [equipment] scan never crosses into the next
+// category. Both boundaries are source facts, not a guess between candidates.
 func parseSelectionCategory(cells []pvf.Token, i int) (SelectionCategory, int, bool) {
 	var cat SelectionCategory
 	nums := make([]int32, 0, 2)
@@ -39,7 +45,7 @@ func parseSelectionCategory(cells []pvf.Token, i int) (SelectionCategory, int, b
 		i++
 	}
 	if len(nums) != 2 {
-		return cat, i, false
+		return cat, len(cells), false
 	}
 	cat.Category = [2]byte{byte(nums[0]), byte(nums[1])}
 	for i < len(cells) {
@@ -50,6 +56,11 @@ func parseSelectionCategory(cells []pvf.Token, i int) (SelectionCategory, int, b
 		}
 		if c.Text == "[/booster select category]" {
 			return cat, i, true
+		}
+		// 未闭合的块由下一个 [booster select category] 或脚本结尾收口；不消费
+		// 下一个头，交给 ParseSelectionCells 继续解析。
+		if c.Text == "[booster select category]" {
+			return cat, i - 1, true
 		}
 		switch c.Text {
 		case "[booster equipment grade]":
@@ -71,12 +82,27 @@ func parseSelectionCategory(cells []pvf.Token, i int) (SelectionCategory, int, b
 		case "[equipment]":
 			cat.Sections = append(cat.Sections, c.Text)
 			i++
-			for i < len(cells) && !(cells[i].Type == 3 && cells[i].Text == "[/equipment]") {
-				if cells[i].Type != 0 {
+			for i < len(cells) {
+				e := cells[i]
+				if e.Type == 3 {
+					if e.Text == "[/equipment]" {
+						i++
+						break
+					}
+					// 源里有个别脚本把 [/equipment] 写成了 [equipment]，或整块缺
+					// 尾标签：以类别边界收口，绝不把下一个类别的 (job,growtype)
+					// 和条目当成装备条目。
+					if e.Text == "[booster select category]" || e.Text == "[/booster select category]" {
+						break
+					}
 					i++
 					continue
 				}
-				id := uint32(cells[i].Value)
+				if e.Type != 0 {
+					i++
+					continue
+				}
+				id := uint32(e.Value)
 				i++
 				count := uint32(1)
 				if i < len(cells) && cells[i].Type == 0 {
@@ -98,5 +124,5 @@ func parseSelectionCategory(cells []pvf.Token, i int) (SelectionCategory, int, b
 			i++
 		}
 	}
-	return cat, i, false
+	return cat, len(cells), true
 }

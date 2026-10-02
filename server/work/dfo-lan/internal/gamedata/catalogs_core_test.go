@@ -373,7 +373,7 @@ func verifyPVFMigrationSourceOnly(t *testing.T, cacheDir string) {
 	}
 
 	boxes, err := c.LoadSelectionBoxes("missing-selection-boxes.json")
-	if err != nil || len(boxes.Boxes) != 2975 || len(boxes.Fixed) != 2 || len(boxes.Unparsed) != 1 {
+	if err != nil || len(boxes.Boxes) != 16749 || len(boxes.Fixed) != 2 || len(boxes.Unparsed) != 3 || len(boxes.Rejected) != 3 {
 		t.Fatal("selection source scope changed", err)
 	}
 

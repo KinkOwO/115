@@ -687,7 +687,7 @@ func preparePVFSelectionBoxes(c *Catalogs, s *Source, selected map[string]bool, 
 	}
 	c.SelectionBoxes = direct
 	s.ReleaseReadCaches()
-	log.Printf("PVF selection boxes prepared: boxes=%d fixed=%d unparsed=%d; bounded server selection retained", len(direct.Boxes), len(direct.Fixed), len(direct.Unparsed))
+	log.Printf("PVF selection boxes prepared: boxes=%d fixed=%d unparsed=%d rejected=%d; source-discovered scope with policy whitelist", len(direct.Boxes), len(direct.Fixed), len(direct.Unparsed), len(direct.Rejected))
 	return nil
 }
 

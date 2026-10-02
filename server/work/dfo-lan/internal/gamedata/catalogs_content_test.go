@@ -406,14 +406,29 @@ func TestPVFSelectionBoxesLocalArchive(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(boxes.Boxes) != 2975 || len(boxes.Fixed) != 2 || len(boxes.Unparsed) != 1 || !boxes.IsFixed(10307659) || !boxes.IsFixed(490022952) || boxes.Unparsed[0] != 10358468 {
+	// Scope is discovered from the source now: all 16,757 [booster selection]
+	// candidates classify, and only three scripts with an uncomparable repeated
+	// category and three label-only scripts stay out.
+	if len(boxes.Boxes) != 16749 || len(boxes.Fixed) != 2 || len(boxes.Unparsed) != 3 || len(boxes.Rejected) != 3 ||
+		!boxes.IsFixed(10307659) || !boxes.IsFixed(490022952) {
 		t.Fatal("selection source range changed")
+	}
+	// 10358468 had no closing tag; the boundary close now models it.
+	if _, ok := boxes.ByTemplate(10358468); !ok {
+		t.Fatal("the missing-closing-tag box is still unmodelled")
 	}
 	old, err := catalog.LoadSelectionBoxes("../../configs/selection-boxes-candidate.json")
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, box := range boxes.Boxes {
+	// Every historical box must still resolve identically; the discovered extras
+	// are new scope, not a change to the old scope.
+	historical := 0
+	for _, box := range old.Boxes {
+		if _, ok := boxes.ByTemplate(box.Template); !ok {
+			t.Fatalf("historical selection box %d disappeared", box.Template)
+		}
+		historical++
 		for _, cat := range box.Categories {
 			if len(cat.Items) == 0 {
 				continue
@@ -432,7 +447,10 @@ func TestPVFSelectionBoxesLocalArchive(t *testing.T) {
 			}
 		}
 	}
-	t.Log("complete category/count/recommendation/hash parity and derived Resolve lookup verified for all modeled categories")
+	if historical != len(old.Boxes) {
+		t.Fatal("historical selection box count changed")
+	}
+	t.Log("source discovery plus historical category/count/recommendation parity verified")
 }
 
 func TestPVFAttunementLocalArchive(t *testing.T) {
