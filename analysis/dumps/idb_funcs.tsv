@@ -1,4 +1,8 @@
 address	name	description
+0x147399CC0	DungeonDropInfo_DecodeRewardType	115 native drop-rule type enum special0 epic1 legendary2 unique3 rare4 random5 stackable6 primeval7 unknown8; independent from EQU rarity, audit20261002
+0x146AA0AE0	ResultReward_AddTemplateRow	115 result UI stores template row per participant/reward channel; binary template kind2 forces amount1 and passes local item state to display factory; NOTI35 first-channel metadata resides at local state+239..259, audit20261002
+0x147426050	DungeonDropGroups_ReadTables	115 dungeondroptablebygroup reader; keeps nonzero-creation explicit raw, smart raw, and zero-creation explicit cumulative pairs in separate maps; award semantics still open, audit20261002
+0x1473E9E00	HellEpicTable_ReadAreaWeightedLists	115 HellDropEpicItemTable.etc reader; area/list-type key, source template/weight pairs accumulated into cumulative-weight tree; dungeon mapping and award trigger still open, audit20261002
 0x14505dab0	KnightShieldWindow_SendMoveOrDeck	Mode 1 sends CMD19; otherwise CMD649 writes exactly five u32 map values at byte zero.
 0x14524fca0	Handler_CmdKnightShieldDeck	CMD649 status-zero is inert; success reads one byte before five u32 writes (not five repeated bytes).
 0x145310a90	Handler_NotiKnightShieldDeck	NOTI567 reads five u32 and writes map plus UI, no status prefix.

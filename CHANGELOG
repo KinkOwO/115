@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 2026-10-02：普通装备掉落与免费翻牌已确认
+
+- 用户确认“能掉装备了，翻牌也能出装备了”，按要求提交本阶段。普通副本接入当前内层PVF的分类难度倍率、独立普通装备候选与创建权重，地图带率条目仅覆盖其声明类别，修复只掉金币的问题；免费翻牌生成并冻结主背包装备，领取沿用角色事件事务。
+- 修复难度0被翻牌门禁拒绝而阻断Boss结算。19:13手动会话中角色21于19:21:35收到NOTI35，19:21:38装备拾取刷新、19:21:41翻牌入袋与CMD71成功回执均有记录。
+- 本项confirmed baseline为独立候选wireprobe-drop-audit-scoped.exe，SHA256 ce476c14359b012b24aedcbf8dfead763ddccb71a3d1c40ddafe97c30c790a9e；默认程序未替换。普通材料/消耗品、怪物专属池及完整官方公式仍有缺口；Hell Party、奥德赛暂缓，Abyss/调律原行为保留。Hell表仅增加只读源解析，未接入发奖。
+- 相关回归与go vet通过；全量go test仍有经HEAD对照复现的3项wireprobe审计失败及1项商城SKU3400013失败。未修改协议布局、schema、玩家数据库或客户端资源。证据见analysis/tasks/monster-drop-rate-audit-20261002.md。
+
 ## 2026-10-02：移除 Redis 运行依赖（源码候选）
 
 - 存储只依赖 PostgreSQL：删除 Redis 客户端、配置必填/PING 门禁和全部事务后的缓存 DEL；现有业务没有缓存读取或 Redis 会话消费者。PostgreSQL SQL、schema、事务与玩家存档格式保持。

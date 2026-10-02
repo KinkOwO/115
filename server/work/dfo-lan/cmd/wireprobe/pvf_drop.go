@@ -43,7 +43,7 @@ func preparePVFLoot(c *pvfCoreCatalogs, s *gamedata.Source, inputs pvfItemInputs
 		}
 	}
 	c.loot = &direct
-	log.Printf("PVF loot prepared: maximum grade=%d stackable candidates=%d drop groups=%d dungeon indexes=%d; compatibility formulas unchanged", direct.MaximumGrade, len(direct.Items), len(direct.DropGroups), len(direct.DungeonDropInfo))
+	log.Printf("PVF loot prepared: maximum grade=%d stackable candidates=%d drop groups=%d dungeon indexes=%d; ordinary difficulty/creation weights from PVF", direct.MaximumGrade, len(direct.Items), len(direct.DropGroups), len(direct.DungeonDropInfo))
 	s.ReleaseReadCaches()
 	return nil
 }
@@ -89,7 +89,7 @@ func preparePVFEquipmentSelection(c *pvfCoreCatalogs, s *gamedata.Source, inputs
 		}
 	}
 	c.selection = direct
-	log.Printf("PVF equipment selection prepared: basic whitelist=%d source quest additions=%d total=%d drop pool=%d", len(policy.BasicEquipmentIDs), len(direct.Rows)-len(policy.BasicEquipmentIDs), len(direct.Rows), len(direct.DropPool()))
+	log.Printf("PVF equipment selection prepared: basic whitelist=%d source quest additions=%d total=%d legacy drop pool=%d ordinary source pool=%d", len(policy.BasicEquipmentIDs), len(direct.Rows)-len(policy.BasicEquipmentIDs), len(direct.Rows), len(direct.DropPool()), len(direct.OrdinaryPool))
 	s.ReleaseReadCaches()
 	return nil
 }

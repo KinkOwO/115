@@ -64,6 +64,26 @@ type Session struct {
 func NewSession(c catalog.LootCatalog, t Tables, r Rules, equipment *inventory.EquipmentCatalog, run string, account, character int64, actor uint16) *Session {
 	return &Session{Catalog: c, Tables: t, Rules: r, Equipment: equipment, Run: run, Account: account, Character: character, Actor: actor, next: 1, seeds: map[uint32]uint32{}, deaths: map[uint16][]protocol.SceneDrop{}, Objects: map[uint32]Drop{}, Skipped: map[uint16][]string{}}
 }
+
+func preserveAbyssDrops(c catalog.LootCatalog, attunement *AttunementRewards, dungeonID uint32) bool {
+	if c.IsAbyssDungeon(dungeonID) {
+		return true
+	}
+	for _, id := range attunement.Dungeons() {
+		if id == dungeonID {
+			return true
+		}
+	}
+	return false
+}
+
+// Ordinary reward changes exclude the deferred modes. HellPosition is set
+// for an actual Hell Party run; merely offering Hell entry in the DGN does
+// not exclude its ordinary run.
+func ordinaryDungeonRewards(d *dungeon.Session, c catalog.LootCatalog, attunement *AttunementRewards) bool {
+	return d != nil && !d.Definition.Odyssey && d.HellPosition == nil && !preserveAbyssDrops(c, attunement, d.Definition.ID)
+}
+
 func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -99,7 +119,16 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 	excludeGold, excludeRandom := dungeonDropExclusions(d.Definition)
 	if (!excludeGold || !excludeRandom) && !d.Unowned[entity] {
 		var e error
-		result, e = RollWithBonus(s.Catalog, s.Tables, s.Rules, s.Equipment.DropPool(), seed, monster.Level, monster.Rank, difficultyIndex(s.Rules, d.Difficulty), s.QuestDropBonusPercent)
+		roll := RollWithBonus
+		pool := s.Equipment.DropPool()
+		sourceOrdinary := ordinaryDungeonRewards(d, s.Catalog, s.Attunement) && s.Catalog.ClearReward != nil
+		if sourceOrdinary {
+			roll = RollOrdinary
+			if s.Equipment != nil {
+				pool = s.Equipment.OrdinaryPool
+			}
+		}
+		result, e = roll(s.Catalog, s.Tables, s.Rules, pool, seed, monster.Level, monster.Rank, difficultyIndex(s.Rules, d.Difficulty), s.QuestDropBonusPercent)
 		if errors.Is(e, ErrOutOfDropRange) && blackBoss {
 			// 通用旧掉落表的等级上限不能阻断已冻结的黑鸦专属奖励。
 			result = Outcome{NextSeed: seed, SkippedKinds: []string{"黑鸦通用掉落超出导入等级"}}
@@ -126,18 +155,29 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 		// ⚠️ 与外部包的一处**有意收窄**：这两条只在「该副本不排除掉落、且这只怪属于本次
 		// 战斗」时启用（即仍在本 `if` 内）。排除标记是副本作者写下的意图，宁可不发。
 		groupTaken := false
+		// Historical catalogs without any group projection keep their existing
+		// compatibility result. PVF direct catalogs always carry the source hash;
+		// a missing individual group in those catalogs remains an empty result.
+		groupProjection := s.Catalog.DropGroupSource.SHA256 != "" || len(s.Catalog.DropGroups) > 0 || len(s.Catalog.DungeonDropInfo) > 0
+		ordinaryGroups := groupProjection && ordinaryDungeonRewards(d, s.Catalog, s.Attunement)
 		if entries, has := s.Catalog.DropInfoByID(d.Definition.ID); has && len(entries) > 0 {
-			grpOut, _, gerr := RollDungeonGroups(s.Catalog, s.Rules, result.NextSeed, DungeonGroupDropRequest{
+			grpOut, _, gerr := rollDungeonGroups(s.Catalog, s.Rules, result.NextSeed, DungeonGroupDropRequest{
 				DungeonID:   d.Definition.ID,
 				MonsterKind: monsterKindName(monster.Rank),
 				Difficulty:  int(difficultyIndex(s.Rules, d.Difficulty)),
 				Rarity:      -1,
-			})
+			}, ordinaryGroups)
 			if gerr != nil {
 				return nil, gerr
 			}
 			groupTaken = true
-			result.Awards = replaceItemAwards(result.Awards, grpOut.Awards)
+			if sourceOrdinary {
+				result.Awards = replaceOrdinaryRateAwards(result.Awards, grpOut.Awards, entries, s.Catalog, pool)
+			} else if ordinaryGroups {
+				result.Awards = replaceDeclaredItemAwards(result.Awards, grpOut.Awards)
+			} else {
+				result.Awards = replaceItemAwards(result.Awards, grpOut.Awards)
+			}
 			result.SkippedKinds = append(result.SkippedKinds, grpOut.SkippedKinds...)
 			result.NextSeed = grpOut.NextSeed
 		} else if ids, ok, gerr := DungeonGroupIndices(d.Definition, int(difficultyIndex(s.Rules, d.Difficulty))); gerr != nil {
@@ -152,12 +192,19 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 					budget += int(a.Amount)
 				}
 			}
-			grpOut, _, gerr := RollDeclaredGroups(s.Catalog, ids, budget, result.NextSeed)
+			if sourceOrdinary {
+				budget = result.ItemBudget
+			}
+			grpOut, _, gerr := rollDeclaredGroups(s.Catalog, ids, budget, result.NextSeed, ordinaryGroups)
 			if gerr != nil {
 				return nil, gerr
 			}
 			groupTaken = true
-			result.Awards = replaceItemAwards(result.Awards, grpOut.Awards)
+			if ordinaryGroups {
+				result.Awards = replaceDeclaredItemAwards(result.Awards, grpOut.Awards)
+			} else {
+				result.Awards = replaceItemAwards(result.Awards, grpOut.Awards)
+			}
 			result.SkippedKinds = append(result.SkippedKinds, grpOut.SkippedKinds...)
 			result.NextSeed = grpOut.NextSeed
 		}
@@ -270,6 +317,24 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 			bossIndices = append(bossIndices, byte(i+1))
 		}
 	}
+	// Validate all new ordinary gear before publishing any object or consuming
+	// its identity. A bad declared template must not leave partial ground loot.
+	ordinaryDurability := map[uint32]uint16{}
+	if ordinaryDungeonRewards(d, s.Catalog, s.Attunement) && s.Catalog.ClearReward != nil {
+		for _, award := range result.Awards {
+			if award.Template == 0 || s.stackable(award.Template) {
+				continue
+			}
+			if s.Equipment == nil {
+				return nil, fmt.Errorf("ordinary equipment source unavailable")
+			}
+			durability, err := s.Equipment.Reward(award.Template)
+			if err != nil {
+				return nil, fmt.Errorf("ordinary drop equipment %d: %w", award.Template, err)
+			}
+			ordinaryDurability[award.Template] = durability
+		}
+	}
 	if d.NextEntity == 0 || uint64(d.NextEntity)+uint64(len(result.Awards)) >= 65535 || uint64(s.next)+uint64(len(result.Awards)) >= 65535 {
 		return nil, fmt.Errorf("drop identity exhausted")
 	}
@@ -290,6 +355,9 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 		// does in a bag row; a stackable carries its amount instead.
 		item := protocol.OrdinaryItem(slot, a.Template, a.Amount)
 		if durability, ok := s.Equipment.Durability(a.Template); ok && !s.stackable(a.Template) {
+			item = inventory.EquipmentRow(inventory.BagEquipment{Slot: slot, Template: a.Template, Durability: durability})
+		}
+		if durability, ok := ordinaryDurability[a.Template]; ok {
 			item = inventory.EquipmentRow(inventory.BagEquipment{Slot: slot, Template: a.Template, Durability: durability})
 		}
 		if drop.BlackPurgatoryIndex != 0 {

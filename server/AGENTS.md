@@ -1,5 +1,11 @@
 # AGENTS.md — server/
 
+## 2026-10-02：普通装备掉落与免费翻牌已确认
+
+- 用户确认普通怪物能掉装备、翻牌能出装备，并要求先提交。19:13手动会话 `roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261002_191351_952423_next37` 中角色21的Boss确认、NOTI35、装备拾取刷新及CMD71翻牌入袋成功均有记录。难度0结算阻断和地图类别覆盖过宽已修复。
+- 本项confirmed baseline为独立候选 `.tmp/drop-audit-20261002/wireprobe-drop-audit-scoped.exe`，SHA256 `ce476c14359b012b24aedcbf8dfead763ddccb71a3d1c40ddafe97c30c790a9e`，通过同目录 `启动验证.cmd` 使用；未替换其它任务的默认二进制。确认范围仅限普通装备地面掉落与免费装备翻牌，材料/消耗品继续处理；不扩展为官方完整概率、付费牌或全地图验收。Hell Party、奥德赛暂缓，Abyss/调律保留。
+- 源回归、相关领域回归与vet通过；全量测试保留经HEAD对照的4项既有失败。无schema/玩家数据库/客户端资源改动。详见 `../analysis/tasks/monster-drop-rate-audit-20261002.md`。
+
 ## 2026-10-02：魔法封印装备解除已确认
 
 - 用户确认普通装备可正常解除魔法封印。重构后 CMD393 曾以 PVF 哈希提交角色事件，身份门禁拒绝请求；现改用角色存档契约身份。解封随机属性存库并在重读后保持，原生目录身份校验和存档兼容保留。
