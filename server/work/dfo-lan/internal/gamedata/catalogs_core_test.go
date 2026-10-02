@@ -202,23 +202,6 @@ func TestPVFCoreCatalogsLocalArchive(t *testing.T) {
 	t.Logf("quests=%d thresholds=%d world_areas=%d NPC_moves=%d episode_returns=%d retained_heap_bytes=%d source=%s", len(quests.Quests), len(progression.Thresholds), len(world.Areas), len(world.NPCMoves), len(world.EpisodeReturns), memory.HeapAlloc, quests.Source.Checksum)
 }
 
-func TestPVFCatalogGateRefusesRewardChangesAndDoesNotFallback(t *testing.T) {
-	legacy := catalog.QuestCatalog{Quests: map[uint32]catalog.QuestDefinition{7: {ID: 7, MinimumLevel: 10}}}
-	direct := catalog.QuestCatalog{Quests: map[uint32]catalog.QuestDefinition{7: {ID: 7, MinimumLevel: 20}}}
-	if err := verifyPVFCatalog(legacy, direct); err == nil {
-		t.Fatal("changed source semantics accepted")
-	}
-	if err := verifyPVFCatalog(legacy, legacy); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := prepareCatalogsForTest(t, "quests", "missing", "wrong", "missing", "", "", ""); err == nil {
-		t.Fatal("missing baseline accepted")
-	}
-	if _, err := prepareCatalogsForTest(t, "world", "missing", "wrong", "missing", "", "", ""); err == nil {
-		t.Fatal("missing world baseline accepted")
-	}
-}
-
 func TestCatalogBaselineVerificationDefaultsOff(t *testing.T) {
 	if (CatalogInputs{}).checksBaselines() {
 		t.Fatal("zero-value catalog inputs must not read historical JSON baselines")

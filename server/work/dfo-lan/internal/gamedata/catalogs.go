@@ -170,13 +170,28 @@ func parsePVFCatalogSelection(value string) (map[string]bool, error) {
 // （实测：78 个配置、181 处历史来源标记都会失配，见 next147 的排查）。
 //
 // 差异本身仍有价值 —— 打出来交给判断即可。需要**严格**审计时请用
-// `cmd/pvfaudit` / `cmd/audit36`，不要把启动路径变成熔断器。
+// `auditPVFCatalog` 或 `cmd/pvfaudit` / `cmd/audit36`，不要把启动路径变成熔断器。
 func verifyPVFCatalog(legacy, direct any) error {
 	comparison := Compare(legacy, direct, 1)
 	if comparison.Count != 0 {
 		first := comparison.Differences[0]
 		log.Printf("baseline vs PVF direct: %d effective field difference(s); first %s: JSON=%s PVF=%s (expected in direct mode: the JSON is a historical snapshot; not fatal)",
 			comparison.Count, first.Path, first.JSON, first.PVF)
+	}
+	return nil
+}
+
+// auditPVFCatalog 是严格版比较：任一有效字段差异即返回 error，绝不静默通过。
+//
+// 与 `verifyPVFCatalog` 的告警语义相反，它供审计助手（`auditAdventureRules` /
+// `auditBlackPurgatory` / `auditPVFBoxes` / `auditPVFEnhancements`）与奇偶性测试
+// 使用。这些调用点会先归一化已知的历史来源标记，剩下的任何差异都是真实内容漂移，
+// 必须熔断 —— 否则「JSON 换了内容却静默通过」正是直读模式整片失效的根因。
+func auditPVFCatalog(legacy, direct any) error {
+	comparison := Compare(legacy, direct, 1)
+	if comparison.Count != 0 {
+		first := comparison.Differences[0]
+		return fmt.Errorf("PVF candidate has %d effective field differences; first %s: JSON=%s PVF=%s", comparison.Count, first.Path, first.JSON, first.PVF)
 	}
 	return nil
 }

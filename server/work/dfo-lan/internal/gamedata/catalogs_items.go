@@ -76,7 +76,7 @@ func auditPVFBoxes(old, direct *inventory.BoxCatalog) error {
 	baseline, native := *old, *direct
 	baseline.Sources = nil
 	native.Sources = nil
-	if err := verifyPVFCatalog(baseline, native); err != nil {
+	if err := auditPVFCatalog(baseline, native); err != nil {
 		return fmt.Errorf("boxes: %w", err)
 	}
 	return nil
@@ -485,7 +485,7 @@ func auditPVFEnhancements(legacy, direct *inventory.EnhancementCatalog) error {
 			supplemented++
 		}
 	}
-	if err := verifyPVFCatalog(legacy, direct); err != nil {
+	if err := auditPVFCatalog(legacy, direct); err != nil {
 		return err
 	}
 	log.Printf("PVF enhancement audit passed: ordinary-ticket native expiration headers supplemented=%d; all other typed fields equal", supplemented)

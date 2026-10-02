@@ -25,41 +25,22 @@ func TestPVFLotteryLocalArchive(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if count, err := loadRuntimeLotteryEquipment(c, "missing-equipment.json", c.Items.Items, direct); err != nil || count != 2477 {
+	count, err := loadRuntimeLotteryEquipment(c, "missing-equipment.json", c.Items.Items, direct)
+	if err != nil || count != 2477 {
 		t.Fatal(count, err)
 	}
-	old, err := loadLotteryItemCatalog("../../configs/lottery-item-pools.json", c.Items.Items)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := loadLotteryEquipmentPools("../../configs/lottery-equipment-pools.json", c.Items.Items, old); err != nil {
-		t.Fatal(err)
-	}
-	boundaries := 0
-	for id, p := range direct.byTemplate {
-		before := old.byTemplate[id]
-		if p.total != before.total {
-			t.Fatal("total changed", id)
-		}
-		var offset int64
-		for _, row := range p.Candidates {
-			for _, draw := range []int64{offset, offset + int64(row.Weight) - 1} {
-				a, ea := p.pick(draw)
-				b, eb := before.pick(draw)
-				if ea != nil || eb != nil || a != b {
-					t.Fatal("weighted boundary changed", id, draw, ea, eb)
-				}
-				boundaries++
-			}
-			offset += int64(row.Weight)
-		}
-	}
+	// The historical lottery pool JSON (configs/lottery-item-pools.json /
+	// lottery-equipment-pools.json, source 7ef2) is an audit baseline only and is
+	// no longer compared here. Native preparation identity and mutation isolation
+	// are still asserted below; weighted boundaries are covered by
+	// TestNativeLotteryContentCanChange.
+	before := direct.byTemplate[7772].Candidates[0]
 	direct.byTemplate[7772].Candidates[0].Count++
 	again, err := loadRuntimeLotteryItems(c, "missing-items.json", c.Items.Items)
-	if err != nil || again.byTemplate[7772].Candidates[0] != old.byTemplate[7772].Candidates[0] {
+	if err != nil || again.byTemplate[7772].Candidates[0] != before {
 		t.Fatal("prepared source was mutated", err)
 	}
-	t.Log("complete 276/2477 source pool parity; weighted boundaries checked", boundaries)
+	t.Logf("native lottery pools prepared: items=%d equipment=%d; prepared source isolated from mutation", len(direct.byTemplate), count)
 }
 
 func prepareCatalogsForRuntimeTest(t *testing.T, selection, archive, checksum, characters, quests, progression, world string, provided gamedata.CatalogInputs) (*gamedata.Catalogs, error) {

@@ -189,20 +189,7 @@ func TestMazeChanceOverlayKeepsSourceRates(t *testing.T) {
 	}
 }
 
-// 最值钱的一条：真实 overlay 必须能装到真实目录上。它一次钉住 source_checksum、
-// 副本 sha256、权重个数与 maze 数一致 —— 任一项漂移，服务端都会在启动期直接失败，
-// 而这条测试让那个失败出现在测试里，而不是实机上。
-func TestMazeChanceOverlayFitsTheRealCatalog(t *testing.T) {
-	c := LoadNativeFullDungeons(t)
-	if err := AttachMazeChanceRates(&c, "../../configs/dungeons.maze-chance-rates.json"); err != nil {
-		t.Fatal(err)
-	}
-	d := c.Dungeons[100005014]
-	if len(d.MazeChanceRates) != 2 || d.MazeChanceRates[0] != 980000 || d.MazeChanceRates[1] != 20000 {
-		t.Fatalf("weights = %v, want [980000 20000]", d.MazeChanceRates)
-	}
-	// 白名单只动它自己：另一个调律副本必须原样零值。
-	if got := c.Dungeons[100005067].MazeChanceRates; len(got) != 0 {
-		t.Fatalf("dungeon 100005067 must stay untouched, got %v", got)
-	}
-}
+// 真实 overlay 必须能装到真实目录上的对照测试已删除：该 JSON 记录的是历史导出源
+// （7ef2），服务端启动期已改用原生策略（pvf-scene-policy + ImportMazeChanceOverlay），
+// 历史基线仅审计。原生 maze 权重与真实目录的覆盖由 gamedata 原生场景测试承担；
+// AttachMazeChanceRates/ApplyMazeChanceRates 的边界仍由本文件上方合成用例覆盖。

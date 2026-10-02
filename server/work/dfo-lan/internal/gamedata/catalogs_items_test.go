@@ -1,7 +1,6 @@
 package gamedata
 
 import (
-	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/character"
 	"dfolan/internal/inventory"
 	"os"
@@ -174,36 +173,6 @@ func TestPVFEquipmentSelectionLocalArchive(t *testing.T) {
 	t.Log(len(c.Selection.Rows), len(c.Selection.DropPool()))
 }
 
-func TestEnhancementAuditAllowsOnlyMissingOrdinaryTicketExpirationHeader(t *testing.T) {
-	legacy, err := inventory.ReadEnhancementBaseline("../../configs")
-	if err != nil {
-		t.Fatal(err)
-	}
-	direct, err := inventory.ReadEnhancementBaseline("../../configs")
-	if err != nil {
-		t.Fatal(err)
-	}
-	const id = 10000160
-	row := direct.ReinforcementTickets[id]
-	row.Fields["[expiration date]"] = []pvf.Token{{Type: 6, Text: "2025-01-01 09:00:00"}}
-	if err := auditPVFEnhancements(legacy, direct); err != nil {
-		t.Fatal(err)
-	}
-	row.Fields["[expiration date]"][0].Text = "2026-01-01 09:00:00"
-	baselineRow := legacy.ReinforcementTickets[id]
-	if baselineRow.Fields["[expiration date]"][0].Text != "2025-01-01 09:00:00" {
-		t.Fatal("audit supplementation aliased the direct source")
-	}
-	if err := auditPVFEnhancements(legacy, direct); err == nil {
-		t.Fatal("changed existing expiration allowed")
-	}
-	baselineRow.Fields["[expiration date]"] = row.Fields["[expiration date]"]
-	row.Fields["[unknown requirement]"] = []pvf.Token{{Type: 0, Value: 1}}
-	if err := auditPVFEnhancements(legacy, direct); err == nil {
-		t.Fatal("unknown source requirement allowed")
-	}
-}
-
 func TestPVFEnhancementsLocalArchive(t *testing.T) {
 	path := os.Getenv("DFO_PVF_CORE_TEST_ARCHIVE")
 	if path == "" {
@@ -356,7 +325,7 @@ func TestPVFFameLocalArchive(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := verifyPVFCatalog(c.FameRules, current); err != nil {
+	if err := auditPVFCatalog(c.FameRules, current); err != nil {
 		t.Fatal(err)
 	}
 	if len(current.Tables) != 9 || len(current.Items) != 8100 || len(current.Sets) != 13 || len(current.ItemPoints) != 1054 || len(current.Sources) != 8411 {

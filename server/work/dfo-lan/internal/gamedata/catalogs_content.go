@@ -54,7 +54,7 @@ func auditAdventureRules(old, direct *adventure.Rules) error {
 		}
 		baseline.SourceChecksum = direct.SourceChecksum
 	}
-	return verifyPVFCatalog(&baseline, direct)
+	return auditPVFCatalog(&baseline, direct)
 }
 
 func (c *Catalogs) InstallAdventureRules() (func(), error) {
@@ -81,7 +81,7 @@ func auditBlackPurgatory(legacy, direct loot.BlackPurgatoryRewards) error {
 		}
 		legacy.ClientSource = direct.ClientSource
 	}
-	return verifyPVFCatalog(legacy, direct)
+	return auditPVFCatalog(legacy, direct)
 }
 
 func blackPurgatoryLookup(index *catalog.ItemIndex) func(uint32) (catalog.LootItem, bool) {

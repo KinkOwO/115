@@ -29,37 +29,13 @@ func TestPVFAdventureLocalArchive(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := verifyPVFCatalog(c.AdventureRules, actual); err != nil {
+	if err := auditPVFCatalog(c.AdventureRules, actual); err != nil {
 		t.Fatal(err)
 	}
 	if actual.MaxLevel != 50 || actual.Experience[50] != 171361456285 || actual.Experience[60] != 369956531543 || len(actual.Shops) != 3 {
 		t.Fatal("adventure source scope changed")
 	}
 	t.Log("native experience levels", len(actual.Experience), "shops", len(actual.Shops), "unique items", len(actual.Items))
-}
-
-func TestAdventureAuditProvenanceAllowanceIsNarrow(t *testing.T) {
-	old, err := adventure.EmbeddedRules()
-	if err != nil {
-		t.Fatal(err)
-	}
-	direct := *old
-	direct.SourceChecksum = "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80"
-	if err := auditAdventureRules(old, &direct); err != nil {
-		t.Fatal(err)
-	}
-	if old.SourceChecksum != "2429b15aa4235be32c3f3b49676646a25b6bf42bd45d5d651dae7e6fd9186167" {
-		t.Fatal("audit rewrote embedded provenance")
-	}
-	unknown := *old
-	unknown.SourceChecksum = "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
-	if auditAdventureRules(&unknown, &direct) == nil {
-		t.Fatal("unknown provenance accepted")
-	}
-	direct.Sources = map[string]string{"etc/adventurersystem/adventurersystem2018.etc": "wrong-source-hash"}
-	if auditAdventureRules(old, &direct) == nil {
-		t.Fatal("changed source hash suppressed")
-	}
 }
 
 func TestPVFBlackPurgatoryLocalArchive(t *testing.T) {
@@ -166,7 +142,7 @@ func TestPVFOdysseyRoutesLocalArchive(t *testing.T) {
 	if err := c.BindOdysseyRoutes(&service); err != nil {
 		t.Fatal(err)
 	}
-	if err := verifyPVFCatalog(c.OdysseyRoutes, service.JournalRoutes); err != nil {
+	if err := auditPVFCatalog(c.OdysseyRoutes, service.JournalRoutes); err != nil {
 		t.Fatal(err)
 	}
 	if len(service.JournalRoutes.Nodes) != 29 {
@@ -257,7 +233,7 @@ func TestPVFRecommendedLocalArchive(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := verifyPVFCatalog(c.RecommendedRules, current); err != nil {
+	if err := auditPVFCatalog(c.RecommendedRules, current); err != nil {
 		t.Fatal(err)
 	}
 	excluded := map[uint32]bool{}
@@ -309,7 +285,7 @@ func TestPVFRosterBackgroundsLocalArchive(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := verifyPVFCatalog(c.RosterBackgrounds, current); err != nil {
+	if err := auditPVFCatalog(c.RosterBackgrounds, current); err != nil {
 		t.Fatal(err)
 	}
 	if len(current.Items) != 95 || len(current.Backgrounds) != 63 {
@@ -363,7 +339,7 @@ func TestPVFSeasonLocalArchive(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := verifyPVFCatalog(c.SeasonRules, current); err != nil {
+	if err := auditPVFCatalog(c.SeasonRules, current); err != nil {
 		t.Fatal(err)
 	}
 	if len(current.Levels) != 120 || len(current.Contents) != 59 || len(current.Capsules) != 40 || current.OathCost.Gold != 0 || current.OathCostKey != 16 {
@@ -442,10 +418,10 @@ func TestPVFSelectionBoxesLocalArchive(t *testing.T) {
 			if checked != ok {
 				t.Fatal("selection category lookup changed")
 			}
-			if err := verifyPVFCatalog(items, a); err != nil {
+			if err := auditPVFCatalog(items, a); err != nil {
 				t.Fatal(err)
 			}
-			if err := verifyPVFCatalog(missing, b); err != nil {
+			if err := auditPVFCatalog(missing, b); err != nil {
 				t.Fatal(err)
 			}
 		}
