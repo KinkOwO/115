@@ -31,17 +31,22 @@ func ReadDropPolicy(path string) (DropPolicy, error) {
 		return out, err
 	}
 	var tail any
-	if d.Decode(&tail) != io.EOF || out.Version != 1 || out.MaximumLootGrade == 0 || out.MaximumLootGrade > 200 || len(out.BasicEquipmentIDs) == 0 {
+	if d.Decode(&tail) != io.EOF || out.Version != 1 || out.MaximumLootGrade > 200 {
 		return out, fmt.Errorf("invalid source-free drop policy")
 	}
-	seen := map[uint32]bool{}
-	for _, id := range out.BasicEquipmentIDs {
-		if id == 0 || seen[id] {
-			return out, fmt.Errorf("duplicate/invalid basic equipment %d", id)
+	// basic_equipment_ids 与 maximum_loot_grade 为可选（operator 策展边界，保留 JSON 不变；
+	// 真正驱动掉落的是 PVF 的 etc/dungeondropinfo.cos + etc/dungeondroptablebygroup.etc，
+	// 见 server/AGENTS.md §0 单一内容真源铁律）。
+	if len(out.BasicEquipmentIDs) > 0 {
+		seen := map[uint32]bool{}
+		for _, id := range out.BasicEquipmentIDs {
+			if id == 0 || seen[id] {
+				return out, fmt.Errorf("duplicate/invalid basic equipment %d", id)
+			}
+			seen[id] = true
 		}
-		seen[id] = true
 	}
-	seen = map[uint32]bool{}
+	seen := map[uint32]bool{}
 	for _, id := range out.ExcludedLootIDs {
 		if id == 0 || seen[id] {
 			return out, fmt.Errorf("invalid/duplicate excluded loot ID %d", id)

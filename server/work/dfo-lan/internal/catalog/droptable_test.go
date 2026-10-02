@@ -253,10 +253,7 @@ func TestParseDungeonDropBlocksBorderOfAttunement(t *testing.T) {
 // whose opening [group info] tag is missing (100002889), a list repeated verbatim
 // (5410) and an empty list (100004448).
 func TestParseDungeonDropBlocksAcrossCatalog(t *testing.T) {
-	c, e := LoadDungeons("../../configs/dungeons.full.json")
-	if e != nil {
-		t.Fatal(e)
-	}
+	c := LoadNativeFullDungeons(t)
 	blocks, custom, empty, sections := 0, 0, 0, 0
 	for id, d := range c.Dungeons {
 		got, e := ParseDungeonDropBlocks(d.Script.Cells)
@@ -286,10 +283,7 @@ func TestParseDungeonDropBlocksAcrossCatalog(t *testing.T) {
 // change makes one reading fit everything, it will fail and the conclusion can be
 // revisited on purpose instead of by accident.
 func TestNormalGroupIndexEncodingIsAmbiguous(t *testing.T) {
-	c, e := LoadDungeons("../../configs/dungeons.full.json")
-	if e != nil {
-		t.Fatal(e)
-	}
+	c := LoadNativeFullDungeons(t)
 	const header = "[normal group index]"
 	var both, prefixOnly, pairsOnly, neither, total int
 	var firstNeither string
@@ -554,10 +548,7 @@ func equalUint32(a, b []uint32) bool {
 
 func loadDungeon(t *testing.T, id uint32) DungeonDefinition {
 	t.Helper()
-	c, e := LoadDungeons("../../configs/dungeons.full.json")
-	if e != nil {
-		t.Fatal(e)
-	}
+	c := LoadNativeFullDungeons(t)
 	d, ok := c.Dungeons[id]
 	if !ok {
 		t.Fatalf("dungeon %d absent from the catalog", id)

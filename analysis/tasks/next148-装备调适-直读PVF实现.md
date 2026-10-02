@@ -191,7 +191,7 @@ equipment/**/*.equ 的 [equipment awakening option] N  装备 → 选项 ID
 5. 若调适后名望变化异常，按 `docs/交接-深渊与身份修复-20261001.md` §2 的命令取 `gateway.err` 里的
    `equipment_awakening_*` 事件。
 
-> 实机确认后按根 `AGENTS.md` §7 收口：更新 `CHANGELOG` 与 confirmed baseline，再提交本轮文件。
+> 实机确认后按根 `AGENTS.md` §0.7 收口：更新 `CHANGELOG` 与 confirmed baseline，再提交本轮文件。
 
 ---
 

@@ -7,10 +7,7 @@ import (
 )
 
 func TestDungeon25DisplayBossWithoutCheckCompletesOnSourceMap(t *testing.T) {
-	c, err := catalog.LoadDungeons("../../configs/dungeons.full.json")
-	if err != nil {
-		t.Fatal(err)
-	}
+	c := catalog.LoadNativeFullDungeons(t)
 	d := c.Dungeons[25]
 	var maze catalog.DungeonMaze
 	for _, m := range d.Mazes {

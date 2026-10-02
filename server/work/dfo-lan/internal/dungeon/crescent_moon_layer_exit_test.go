@@ -11,10 +11,7 @@ import (
 // current layer cell (2,0). The previous room is already visited; the next
 // source maze room (3,0) is not.
 func TestCrescentMoonLayerExitUsesUnvisitedNeighbor(t *testing.T) {
-	c, err := catalog.LoadDungeons("../../configs/dungeons.full.json")
-	if err != nil {
-		t.Fatal(err)
-	}
+	c := catalog.LoadNativeFullDungeons(t)
 	d, ok := c.Dungeons[100004779]
 	if !ok {
 		t.Fatal("Crescent Moon Lake source dungeon missing")

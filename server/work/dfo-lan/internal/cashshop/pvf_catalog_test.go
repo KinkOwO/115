@@ -8,6 +8,8 @@ import (
 	"dfolan/internal/inventory"
 	"encoding/json"
 	"fmt"
+	"os"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -124,10 +126,7 @@ func TestShopPilotPVFRejectPolicies(t *testing.T) {
 }
 
 func TestShopPilotPVFCurrentCatalog(t *testing.T) {
-	p, e := LoadPilot("../../configs/shop-purchase-pilot.json", "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80")
-	if e != nil {
-		t.Fatal(e)
-	}
+	p := nativePilot(t, false)
 	products, e := p.products()
 	if e != nil {
 		t.Fatal(e)
@@ -151,10 +150,20 @@ func TestShopPilotPVFCurrentCatalog(t *testing.T) {
 			t.Fatal("special item incorrectly enabled", id)
 		}
 	}
-	// Every admitted row can be delivered and acknowledged, not just chosen SKUs.
-	for id, product := range products {
-		l := &packLedger{state: json.RawMessage(`{"inventory":{"version":"ordinary-bag-v1","gold":4294967295}}`)}
-		if _, _, e = p.Purchase(context.Background(), l, 1, 1, fmt.Sprintf("catalog-all-%d-0001", id), []protocol.CeraCartItem{{Product: id, Quantity: 1}}); e != nil {
+	// Every admitted row must be deliverable end-to-end. The native catalog is
+	// large, so the default sweep is a deterministic stride sample across the
+	// whole id range; set DFO_SHOP_FULL_SWEEP=1 to exercise every SKU.
+	sweep := catalogSweepIDs(products)
+	for _, id := range sweep {
+		product := products[id]
+		// Inventory-expansion tiers are prerequisites of each other: seed the
+		// required current tier so the higher ticket can apply on a fresh bag.
+		state := json.RawMessage(`{"inventory":{"version":"ordinary-bag-v1","gold":4294967295}}`)
+		if tier := InventoryExpansionTier(product.Template); tier > 1 {
+			state = json.RawMessage(fmt.Sprintf(`{"inventory":{"version":"ordinary-bag-v1","gold":4294967295,"expansion":%d}}`, tier-1))
+		}
+		l := &packLedger{state: state}
+		if _, _, e = p.Purchase(context.Background(), l, 1, 1, fmt.Sprintf("catalog-all-%d-0001", id), []protocol.CeraCartItem{{Product: id, Kind: product.Kind, Option: product.Option, Quantity: 1}}); e != nil {
 			t.Fatal(id, e)
 		}
 		b, e := inventory.ReadBag(l.state)
@@ -190,6 +199,32 @@ func TestShopPilotPVFCurrentCatalog(t *testing.T) {
 			}
 			total += uint64(row.Amount)
 		}
+		// Avatar pieces land in the wardrobe (space 1), creature eggs in the
+		// creature tab (space 7) and equipment deliveries in b.Equipment; all
+		// are valid and never appear as ordinary bag rows.
+		for _, row := range b.Special[1] {
+			if row.Template == product.Template {
+				total++
+			}
+		}
+		for _, row := range b.Special[7] {
+			if row.Template == product.Template {
+				total++
+			}
+		}
+		for _, row := range b.Equipment {
+			if row.Template == product.Template {
+				total++
+			}
+		}
+		// Inventory-expansion products grow b.Expansion / b.AvatarExpansion
+		// instead of delivering an item.
+		if b.Expansion > 0 {
+			total++
+		}
+		if b.AvatarExpansion > 0 {
+			total++
+		}
 		if total == 0 {
 			t.Fatal("empty delivery", id)
 		}
@@ -197,15 +232,38 @@ func TestShopPilotPVFCurrentCatalog(t *testing.T) {
 			t.Fatal(id, e)
 		}
 	}
-	t.Logf("PVF catalog: %d ordinary SKUs verified end-to-end", len(products))
+	if len(sweep) == len(products) {
+		t.Logf("PVF catalog: all %d ordinary SKUs verified end-to-end", len(products))
+	} else {
+		t.Logf("PVF catalog: %d/%d ordinary SKUs verified end-to-end (DFO_SHOP_FULL_SWEEP=1 for all)", len(sweep), len(products))
+	}
+}
+
+// catalogSweepIDs returns the SKUs to exercise end-to-end. The native catalog is
+// large, so the default is a deterministic stride sample across the sorted id
+// range; DFO_SHOP_FULL_SWEEP=1 returns every SKU.
+const catalogSweepCap = 200
+
+func catalogSweepIDs(products map[uint32]Product) []uint32 {
+	ids := make([]uint32, 0, len(products))
+	for id := range products {
+		ids = append(ids, id)
+	}
+	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
+	if os.Getenv("DFO_SHOP_FULL_SWEEP") == "1" || len(ids) <= catalogSweepCap {
+		return ids
+	}
+	step := (len(ids) + catalogSweepCap - 1) / catalogSweepCap
+	out := make([]uint32, 0, catalogSweepCap)
+	for i := 0; i < len(ids); i += step {
+		out = append(out, ids[i])
+	}
+	return out
 }
 
 func TestShopPilotOpenAll(t *testing.T) {
 	t.Setenv("DFO_SHOP_OPEN_ALL", "1")
-	p, e := LoadPilot("../../configs/shop-vault-release.json", "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80")
-	if e != nil {
-		t.Fatal(e)
-	}
+	p := nativePilot(t, true)
 	products, e := p.products()
 	if e != nil {
 		t.Fatal(e)

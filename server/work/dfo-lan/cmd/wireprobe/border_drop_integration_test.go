@@ -31,10 +31,7 @@ func TestBorderOfAttunementPaysWithAGearPool(t *testing.T) {
 	if os.Getenv("BORDER_DROP_INTEGRATION") != "1" {
 		t.Skip("set BORDER_DROP_INTEGRATION=1 to load the 295 MB dungeon catalog")
 	}
-	dc, err := catalog.LoadDungeons("../../configs/dungeons.full.json")
-	if err != nil {
-		t.Fatal(err)
-	}
+	dc := catalog.LoadNativeFullDungeons(t)
 	lc, err := catalog.LoadLoot("../../configs/loot.level150.json")
 	if err != nil {
 		t.Fatal(err)

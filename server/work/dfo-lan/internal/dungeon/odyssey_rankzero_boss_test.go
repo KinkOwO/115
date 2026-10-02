@@ -13,10 +13,7 @@ import (
 // 副本永远结算不了，CompletionTarget 也是 0（编码器拒绝，整批完成数据被丢弃），
 // 玩家在 boss 房里点门只收到 door_ack。
 func TestOdysseyRankZeroBossRoomCompletes(t *testing.T) {
-	c, e := catalog.LoadDungeons("../../configs/dungeons.full.json")
-	if e != nil {
-		t.Skip("full catalog missing:", e)
-	}
+	c := catalog.LoadNativeFullDungeons(t)
 	for _, did := range []uint32{100004984, 100004985, 100004986, 100004987, 100004988, 100004989} {
 		d, ok := c.Dungeons[did]
 		if !ok {

@@ -234,7 +234,7 @@ func (w *worldSession) moonTick(now time.Time) ([]outboundPacket, error) {
 		if e != nil && !errors.Is(e, loot.ErrMoonBagFull) {
 			return nil, e
 		}
-		body, err := w.loot.Bootstrap(workflow.LootRole(w.role))
+		body, err := w.items.Bootstrap(workflow.InventoryRole(w.role))
 		if err != nil {
 			return nil, err
 		}
@@ -651,7 +651,7 @@ func (w *worldSession) moonClaim(index byte) ([]outboundPacket, error) {
 	}
 	w.role = saved
 	w.moon.claimed = true
-	body, e := w.loot.Bootstrap(workflow.LootRole(saved))
+	body, e := w.items.Bootstrap(workflow.InventoryRole(saved))
 	if e != nil {
 		return nil, e
 	}

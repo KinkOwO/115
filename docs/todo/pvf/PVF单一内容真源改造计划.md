@@ -1,6 +1,10 @@
 # PVF 单一内容真源改造计划
 
-更新：2026-10-01。用户要求 PVF 作为核心游戏内容文件，消除另一套人工维护的玩法 JSON，并明确 PVF 对服务端是只读资源。内容修改由服务端之外的编辑工具完成。本文记录目标、第一批实际审计和迁移缺口；不表示全量配置依赖已经解除。
+更新：2026-10-02。用户要求 PVF 作为核心游戏内容文件，消除另一套人工维护的玩法 JSON，并明确 PVF 对服务端是只读资源。内容修改由服务端之外的编辑工具完成。本文记录目标、第一批实际审计和迁移缺口；不表示全量配置依赖已经解除。
+
+## 第 0 批：真实运行依赖台账
+
+已完成入口 → profile/environment/default flags → PVF/JSON 读取与运行消费者的文档审计，见[PVF运行依赖台账](PVF运行依赖台账.md)。当前工作区的 launch_local.py 改动被保留并按现状记录：只有显式 --pvf-mode 才选择默认 PVF profile，根入口不自动传该参数。Phase 01 源码整合与离线验证已完成：wireprobe 内 `pvf_*.go` 共 0 个（含测试），32 个生产读取文件集中到 5 个 `internal/gamedata/catalogs*.go`，以 `Catalogs` / `PrepareCatalogs` 暴露，由 `main` 装配；运行期适配见 `catalog_runtime.go`，两个预热文件归入 `role_detail_prewarm*`，46 个原测试名称保留并聚合到 4 个 gamedata 测试文件和 `catalog_runtime_test.go`。Go 1.26.5 build/vet、Python 3.11 启动器测试 10/10、完整 54 域离线 prepared-check 通过；`go test ./...` 仍有 4 项在原 HEAD 已复现的失败，详见[运行依赖台账](PVF运行依赖台账.md)。实际归档的 NativeLotteryDiscovery/startup 与 NativeRolePrewarm 检查通过；未操作玩家数据库或客户端、未替换正式/源码 bin、未实机确认；本批仅收口源码提交。gamedata 作为 L4 组合/只读投影层的职责依据见[服务端依赖契约 §1、§2/R6、§4](../../../server/work/dfo-lan/docs/architecture-contract.md#1-分层)。本阶段不表示 configs 剩余内容依赖已清除；集中读取便于替换实现而不改业务逻辑，不新增运行时来源开关，读取错误不隐式切换实现。台账行号仍指向审计基点 HEAD b7a5692。未改变内容范围或数值。
 
 ## 上游同步与源码收口
 

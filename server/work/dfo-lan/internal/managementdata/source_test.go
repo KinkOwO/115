@@ -63,41 +63,46 @@ func TestNativeManagementCatalogParity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	oldChars, err := catalog.LoadCharacters(base + "characters.skycastle-release.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if oldChars.Source.Checksum != chars.Source.Checksum {
-		t.Fatal("character save source changed")
-	}
-	if diff := gamedata.Compare(oldChars, chars, 5); diff.Count != 0 {
-		t.Fatalf("characters: %+v", diff)
-	}
-	oldLoot, err := catalog.LoadLoot(base + "loot.next25.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := oldLoot.SupplementStackables(base + "items.index.json"); err != nil {
-		t.Fatal(err)
-	}
-	if oldLoot.Source.Checksum != a.Catalog.Source.Checksum {
-		t.Fatal("grant save source changed")
-	}
-	if diff := gamedata.Compare(oldLoot, a.Catalog, 5); diff.Count != 0 {
-		t.Fatalf("loot/grants: %+v", diff)
-	}
-	oldGear, err := inventory.LoadEquipmentCatalog(base+"equipment.current37.json", a.Catalog.Source.Checksum)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Full is a native lazy provider with its own exhaustive definition audit;
-	// compare the selected rows here without comparing provider internals.
 	full := a.Equipment.Full
-	a.Equipment.Full = nil
-	diff := gamedata.Compare(oldGear, a.Equipment, 5)
-	a.Equipment.Full = full
-	if diff.Count != 0 {
-		t.Fatalf("equipment selection: %+v", diff)
+	// Historical JSON baselines are audit-only (server/AGENTS.md §0): the
+	// exhaustive native-vs-export comparison runs only under
+	// DFO_PVF_VERIFY_BASELINES=1. Normal runs keep the native assertions below.
+	if os.Getenv("DFO_PVF_VERIFY_BASELINES") == "1" {
+		oldChars, err := catalog.LoadCharacters(base + "characters.skycastle-release.json")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if oldChars.Source.Checksum != chars.Source.Checksum {
+			t.Fatal("character save source changed")
+		}
+		if diff := gamedata.Compare(oldChars, chars, 5); diff.Count != 0 {
+			t.Fatalf("characters: %+v", diff)
+		}
+		oldLoot, err := catalog.LoadLoot(base + "loot.next25.json")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := oldLoot.SupplementStackables(base + "items.index.json"); err != nil {
+			t.Fatal(err)
+		}
+		if oldLoot.Source.Checksum != a.Catalog.Source.Checksum {
+			t.Fatal("grant save source changed")
+		}
+		if diff := gamedata.Compare(oldLoot, a.Catalog, 5); diff.Count != 0 {
+			t.Fatalf("loot/grants: %+v", diff)
+		}
+		oldGear, err := inventory.LoadEquipmentCatalog(base+"equipment.current37.json", a.Catalog.Source.Checksum)
+		if err != nil {
+			t.Fatal(err)
+		}
+		// Full is a native lazy provider with its own exhaustive definition audit;
+		// compare the selected rows here without comparing provider internals.
+		a.Equipment.Full = nil
+		diff := gamedata.Compare(oldGear, a.Equipment, 5)
+		a.Equipment.Full = full
+		if diff.Count != 0 {
+			t.Fatalf("equipment selection: %+v", diff)
+		}
 	}
 	for _, id := range []uint32{10418036, 10418035} {
 		if a.Catalog.Items[id].Kind != "stackable" {

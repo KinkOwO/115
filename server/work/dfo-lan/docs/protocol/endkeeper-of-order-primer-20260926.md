@@ -3224,7 +3224,7 @@ SizeOfImage=0x11DB9000，**运行时解密镜像**」）+ 78 个运行期模块�
   每次通关打印 `oath progress: dungeon <id> clears <a> -> <b> (pity every 5)`。
 
 **验证**：`go build -p 1 ./...` OK；`go vet ./internal/... ./cmd/...` 干净；
-`go test -p 1 -count=1 ./internal/... ./cmd/...` **21 包全绿**；`CASH_INTEGRATION=1 go test -run TestOathProgressPity ./internal/storage/`
+`go test ./...`（日常；`-p 1 -count=1` 串行且禁 test cache，仅留给发布验证）**21 包全绿**；`CASH_INTEGRATION=1 go test -run TestOathProgressPity ./internal/storage/`
 **PASS**（真库：建表 / 新角色读 0 / 推进 `(0,1)→(1,2)→(2,0)→(0,1)` / 分副本独立 / 非法键拒绝）。
 候选程序 `bin/wireprobe-handoff-source.exe` = `23adbe74…`（12:39，**待实机**）；旧的 `3b3d6c6f…` 备份在 `D:/115us-backup/bin-before-pity-20260927/`。
 

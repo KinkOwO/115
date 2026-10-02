@@ -44,9 +44,11 @@ class RepairProfileTests(unittest.TestCase):
         binary, required, env = load_profile(project / 'configs/pvf-odyssey-candidate.json', project)
         self.assertEqual(len(env['DFO_PVF_CATALOGS'].split(',')), 35)
         self.assertEqual(binary, project / '.tmp/pvf-odyssey/bin/wireprobe-handoff-source.exe')
-        self.assertEqual(pathlib.Path(env['DFO_PVF_CONTENT_POLICY']), project / 'configs/pvf-odyssey-policy.json')
+        # 2026-10-01 收口后已统一使用 pvf-mine-policy.json 作为 content policy 唯一源，attunement 副本范围由源 ctp 自动发现
+        self.assertEqual(pathlib.Path(env['DFO_PVF_CONTENT_POLICY']), project / 'configs/pvf-mine-policy.json')
         old_policy = json.loads((project / 'configs/pvf-content-policy.json').read_text(encoding='utf-8'))
-        self.assertEqual(set(old_policy), {'version', 'attunement_dungeons'})
+        # 2026-10-01 收口后 attunement_dungeons 已删（attunement 副本范围由源 ctp 自动发现，详见 server/AGENTS.md §0）
+        self.assertEqual(set(old_policy), {'version'})
         old_binary, _, old_env = load_profile(project / 'configs/pvf-content-candidate.json', project)
         self.assertEqual(len(old_env['DFO_PVF_CATALOGS'].split(',')), 30)
         self.assertNotEqual(old_binary, binary)

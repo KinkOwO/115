@@ -52,10 +52,7 @@ func TestWestCoastOriginSyncKeepsPendingScene(t *testing.T) {
 }
 
 func TestWestCoastSceneSelectsQuestMaze(t *testing.T) {
-	c, err := catalog.LoadDungeons("../../configs/dungeons.full.json")
-	if err != nil {
-		t.Fatal(err)
-	}
+	c := catalog.LoadNativeFullDungeons(t)
 	body, err := hex.DecodeString("34f2f5050000000000ffff0000000000782f0000000000000000000000000000")
 	if err != nil {
 		t.Fatal(err)

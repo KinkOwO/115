@@ -56,13 +56,10 @@ func TestExtractGroupIndices(t *testing.T) {
 // 实机副本 100005014「深渊：最终调律者」必须能从自己的脚本里读到组索引。
 // 这是「装备不爆」的直接修复点：它不在 dungeondropinfo 里，只能走这条路。
 func TestAbyss100005014DeclaresGroups(t *testing.T) {
-	c, e := catalog.LoadDungeons("../../configs/dungeons.full.json")
-	if e != nil {
-		t.Skip("dungeons.full.json 不可用:", e)
-	}
+	c := catalog.LoadNativeFullDungeons(t)
 	d, ok := c.Dungeons[100005014]
 	if !ok {
-		t.Fatal("100005014 不在 dungeons.full.json")
+		t.Fatal("100005014 不在 PVF 副本目录里")
 	}
 	ids, ok, e := DungeonGroupIndices(d, 0)
 	if e != nil {
@@ -85,10 +82,7 @@ func TestAbyss100005014DeclaresGroups(t *testing.T) {
 
 // 多难度副本：100005068 一个难度一个块，组号递增。
 func TestAbyss100005068DeclaresPerDifficultyGroups(t *testing.T) {
-	c, e := catalog.LoadDungeons("../../configs/dungeons.full.json")
-	if e != nil {
-		t.Skip("dungeons.full.json 不可用:", e)
-	}
+	c := catalog.LoadNativeFullDungeons(t)
 	d, ok := c.Dungeons[100005068]
 	if !ok {
 		t.Skip("100005068 不在 catalog")

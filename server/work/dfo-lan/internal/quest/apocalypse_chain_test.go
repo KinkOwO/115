@@ -9,7 +9,7 @@ import (
 )
 
 // apocalypseEntryQuest is the quest the apocalypse (末世录) legion entry is bound
-// to: dungeon 100005220 declares `quests = [23099]` in configs/dungeons.full.json,
+// to: dungeon 100005220 declares `quests = [23099]` in the dungeon source script,
 // and the quest's own script names the same dungeon in its `[dungeon info]` cell.
 //
 // The client will not offer the legion entry until the player is inside the quest

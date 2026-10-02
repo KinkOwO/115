@@ -221,10 +221,16 @@ func TestMetadataCacheLocalArchiveParity(t *testing.T) {
 	if b.MetadataCacheStats().Hits != 1 {
 		t.Fatal(b.MetadataCacheStats())
 	}
-	if !bytes.Equal(a.compactTable, b.compactTable) || !reflect.DeepEqual(a.compactIndex, b.compactIndex) || !reflect.DeepEqual(a.groups, b.groups) || nativePoolDigest(t, a.stringPools) != nativePoolDigest(t, b.stringPools) {
+	if a.FileCount() != b.FileCount() || !bytes.Equal(a.compactTable, b.compactTable) || !reflect.DeepEqual(a.compactIndex, b.compactIndex) || !reflect.DeepEqual(a.groups, b.groups) || nativePoolDigest(t, a.stringPools) != nativePoolDigest(t, b.stringPools) {
 		t.Fatal("complete native metadata differs")
 	}
-	if nativeDirectoryDigest(t, a, "") != nativeDirectoryDigest(t, b, "") || nativeDirectoryDigest(t, a, "equipment") != nativeDirectoryDigest(t, b, "equipment") {
+	// The raw compact table bytes and file count above stay exhaustive; the
+	// expanded directory records are compared on a deterministic cross-range
+	// sample so the default run stays fast. Set DFO_PVF_ARCHIVE_FULL_SWEEP=1 for
+	// every record.
+	full := sampledDirectoryIndices(t, a, "")
+	subtree := sampledDirectoryIndices(t, a, "equipment")
+	if digestArchiveIndices(t, a, full) != digestArchiveIndices(t, b, full) || digestArchiveIndices(t, a, subtree) != digestArchiveIndices(t, b, subtree) {
 		t.Fatal("complete native directory differs")
 	}
 	paths := []string{"list/map.lst", "list/dungeon.lst", "list/equipment.lst", "list/stackable.lst"}

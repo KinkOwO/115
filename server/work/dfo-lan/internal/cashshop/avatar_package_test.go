@@ -303,10 +303,7 @@ func TestPackageRejections(t *testing.T) {
 // The regenerated release catalog must admit the audited source families and
 // deliver them end to end.
 func TestAvatarAndPackageCurrentCatalog(t *testing.T) {
-	p, e := LoadPilot("../../configs/shop-vault-release.json", "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80")
-	if e != nil {
-		t.Fatal(e)
-	}
+	p := nativePilot(t, true)
 	products, e := p.products()
 	if e != nil {
 		t.Fatal(e)

@@ -29,6 +29,50 @@ type LotteryPoolCatalog struct {
 	Pools           []LotterySourcePool `json:"pools"`
 }
 
+// LoadLotteryItemPools reads the historical object-candidate representation.
+// The returned source projection has the same shape as native PVF discovery;
+// runtime validation and historical content checks belong to the consumer.
+func LoadLotteryItemPools(path string) (LotteryPoolCatalog, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return LotteryPoolCatalog{}, err
+	}
+	var raw struct {
+		SourcePVFSHA256 string `json:"source_pvf_sha256"`
+		Pools           []*struct {
+			SourceItem         uint32                   `json:"source_item"`
+			SourceScript       string                   `json:"source_script"`
+			SourceScriptSHA256 string                   `json:"source_script_sha256"`
+			Candidates         []BoosterRewardCandidate `json:"candidates"`
+		} `json:"pools"`
+	}
+	if err = json.Unmarshal(data, &raw); err != nil {
+		return LotteryPoolCatalog{}, err
+	}
+	out := LotteryPoolCatalog{SourcePVFSHA256: raw.SourcePVFSHA256}
+	for _, row := range raw.Pools {
+		if row == nil {
+			return LotteryPoolCatalog{}, fmt.Errorf("nil lottery pool")
+		}
+		pool := LotterySourcePool{SourceItem: row.SourceItem, SourceScript: row.SourceScript, SourceScriptSHA256: row.SourceScriptSHA256}
+		for _, candidate := range row.Candidates {
+			pool.Candidates = append(pool.Candidates, [3]uint32{candidate.Template, candidate.Weight, candidate.Count})
+		}
+		out.Pools = append(out.Pools, pool)
+	}
+	return out, nil
+}
+
+func LoadLotteryEquipmentPools(path string) (LotteryPoolCatalog, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return LotteryPoolCatalog{}, err
+	}
+	var source LotteryPoolCatalog
+	err = json.Unmarshal(data, &source)
+	return source, err
+}
+
 type LotteryTables struct{ Items, Equipment LotteryPoolCatalog }
 
 func ReadLotteryPolicy(path string) (LotteryPolicy, error) {
