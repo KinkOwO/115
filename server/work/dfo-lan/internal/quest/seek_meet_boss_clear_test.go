@@ -9,7 +9,7 @@ import (
 )
 
 func TestSeekMeetBossClearRequiresOwnedSourceAndItems(t *testing.T) {
-	quests, err := catalog.LoadQuests("../../configs/quests.generated.json")
+	quests, err := catalog.ImportQuests(catalog.OpenNativeArchive(t))
 	if err != nil {
 		t.Fatal(err)
 	}
