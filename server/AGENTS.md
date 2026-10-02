@@ -1,5 +1,11 @@
 # AGENTS.md — server/
 
+## 2026-10-03：连接 panic 恢复接线修复（源码候选）
+
+- 原 deferred closure 间接调用 recoverConnection 导致 recover() 无效；现直接 defer 该函数，诊断回调补齐当时 peer，保留频道/堆栈和资源关闭流程。
+- 真实连接处理专项在修复前复现逃逸 panic，修复后记录诊断、关闭异常连接并继续处理下一连接；相关专项、Go 1.26.5 vet 与编译通过，分支词法及隔离网关/CLI 对照保持，依用户要求未跑全量测试。
+- 独立源码提交，运行程序与实机 confirmed baseline 保持；未操作玩家库或客户端，协议/schema/存档保持。见 work/dfo-lan/docs/connection-dispatch.md。
+
 ## 2026-10-03：Wireprobe 连接与命令分发拆分（源码候选）
 
 - main.go 4398→160 行；gameConnection 持有原连接可变状态，保留逐频道角色 context 隔离，21 个命名阶段沿原 if 链顺序接线，类型门禁位置、内层循环及 SELECT 原流程保持。

@@ -131,3 +131,44 @@ func TestGameGatewayChecksEveryFrameBeyondSampleCap(t *testing.T) {
 	assert.NotContains(t, frames[BodySampleLimit], "plain_hex", "sampling is bounded")
 	assert.Equal(t, true, frames[len(frames)-1]["checksum_ok"], "implemented commands always retain validated bodies")
 }
+
+type panicDispatchConnection struct {
+	recordingConnection
+	panicOnWrite bool
+	closes       int
+}
+
+func (c *panicDispatchConnection) RemoteAddr() net.Addr     { return &net.TCPAddr{Port: 1234} }
+func (c *panicDispatchConnection) Read([]byte) (int, error) { return 0, io.EOF }
+func (c *panicDispatchConnection) Close() error             { c.closes++; return nil }
+func (c *panicDispatchConnection) Write(p []byte) (int, error) {
+	if c.panicOnWrite {
+		panic("fixture write panic")
+	}
+	return c.Buffer.Write(p)
+}
+
+func TestGameGatewayContainsPanicAndKeepsServing(t *testing.T) {
+	fixture, err := wire.ServerFrame(0, 60000, nil)
+	require.NoError(t, err)
+	var events []map[string]any
+	gateway := &gameGateway{runtime: &gatewayRuntime{raw: fixture}, event: func(v map[string]any) { events = append(events, v) }}
+	broken := &panicDispatchConnection{panicOnWrite: true}
+	assert.NotPanics(t, func() { gateway.handleClient(broken, 10) })
+	assert.Positive(t, broken.closes)
+	var recovered map[string]any
+	for _, v := range events {
+		if v["kind"] == "connection_panic_recovered" {
+			recovered = v
+		}
+	}
+	require.NotNil(t, recovered)
+	assert.Equal(t, broken.RemoteAddr().String(), recovered["peer"])
+	assert.Equal(t, uint32(10), recovered["channel"])
+	assert.Equal(t, "fixture write panic", recovered["error"])
+	assert.NotEmpty(t, recovered["stack"])
+	healthy := &panicDispatchConnection{}
+	assert.NotPanics(t, func() { gateway.handleClient(healthy, 6) })
+	assert.Equal(t, fixture, healthy.Bytes())
+	assert.Positive(t, healthy.closes)
+}

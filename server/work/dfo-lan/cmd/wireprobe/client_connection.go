@@ -57,7 +57,12 @@ func (gateway *gameGateway) handleClient(c net.Conn, channel uint32) {
 	client := &gameConnection{gatewayRuntime: gateway.runtime, characters: gateway.runtime.characters, channel: channel, channelCfg: gateway.channels, channelTypes: gateway.channelTypes, event: gateway.event}
 	client.peer = ""
 	// Recover after the reader, timers, world membership and socket have closed.
-	defer func() { recoverConnection(client.peer, client.channel, c, client.event) }()
+	// recover() must run in the directly deferred function. Fill the peer at
+	// report time so even an initialization panic keeps its available identity.
+	defer recoverConnection("", client.channel, c, func(v map[string]any) {
+		v["peer"] = client.peer
+		client.event(v)
+	})
 	defer c.Close()
 	client.peer = c.RemoteAddr().String()
 	if client.config.ChannelIdentity || client.channelCfg.SynchronizeIdentity {

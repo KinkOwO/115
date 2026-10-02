@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 2026-10-03：修复连接 panic 恢复接线（源码候选）
+
+- 原 main 接入闭包把 recoverConnection 包在另一层 deferred closure 中，recover() 不在直接 defer 的函数内，连接 panic 会逃逸。现直接 defer recoverConnection，通过诊断回调补齐当时 peer，保留频道、错误、完整堆栈和资源关闭流程。
+- 新增真实接入处理回归，修复前复现写入 panic 逃逸及恢复日志缺失；修复后异常连接关闭并可继续处理下一连接。连接/分发/频道/继承/增幅/输出专项及 Go 1.26.5 vet、编译通过，原分支词法及隔离网关/CLI 对照保持；依用户要求未跑全量测试。
+- 本项独立于分发重构提交，仅源码候选；未替换运行程序、访问玩家库或启动客户端，confirmed baseline 保持原实机范围。详见 server/work/dfo-lan/docs/connection-dispatch.md。
+
 ## 2026-10-03：Wireprobe 连接与分发拆分（源码候选）
 
 - main.go 4398→160 行；接入连接建立独立 gameConnection，原连接可变状态与事件/发送回调归连接所有，共享运行依赖与频道角色 context 隔离保持。
