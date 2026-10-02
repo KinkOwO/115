@@ -35,7 +35,6 @@ func TestCapturedAutoSetPersistence(t *testing.T) {
 	}
 	defer admin.DB.Exec(ctx, "DROP SCHEMA "+schema+" CASCADE")
 	cfg.PostgresSchema = schema
-	cfg.RedisPrefix = schema + ":"
 	store, e := storage.Open(ctx, cfg)
 	if e != nil {
 		t.Fatal(e)

@@ -2,7 +2,7 @@
 
 ## 状态与唯一假设
 
-attempt 1/3：修正订单与角色存档比较时的身份取值；不改变 CMD64 reader、codec、包字段或等待态。普通 Cera 购买已经用户确认并有20:53:26日志支持，确认范围详见文末；扩容等其他路径仍待逐项验证。本次未启动客户端，也未连接玩家 PostgreSQL/Redis；独立测试实例已关闭。
+attempt 1/3：修正订单与角色存档比较时的身份取值；不改变 CMD64 reader、codec、包字段或等待态。普通 Cera 购买已经用户确认并有20:53:26日志支持，确认范围详见文末；扩容等其他路径仍待逐项验证。本次未启动客户端，也未连接玩家 PostgreSQL；独立测试实例已关闭。
 
 ## 证据闭环
 
@@ -22,9 +22,9 @@ attempt 1/3：修正订单与角色存档比较时的身份取值；不改变 CM
 
 - `TestCashPurchaseSaveIdentity`：普通、混合契约、背包和账号金库订单使用契约身份；容量生效。
 - `TestVaultSourcePurchase`：16 档角色金库订单使用契约身份，同时保留金库自身版本、价格、档位及内容。
-- `TestShopPilotDatabasePurchase`：独立 PostgreSQL 16.4 / Redis 5.0.14 中，普通与混合购物车扣款发货、ACK 加密、失败回滚、重复请求通过。测试支持通过 `DFO_TEST_STORAGE_CONFIG` 指向独立实例。
+- `TestShopPilotDatabasePurchase`：独立 PostgreSQL 16.4 中，普通与混合购物车扣款发货、ACK 加密、失败回滚、重复请求通过。测试支持通过 `DFO_TEST_STORAGE_CONFIG` 指向独立实例。
 - `TestShopPilotNativeSaveIdentityPurchase`：直接读取当前 `Script.inner.pvf`，不读取历史商城 JSON；重放实机 body，商品 3400232 以 7,900 Cera 交付模板 590712474 ×100。旧哈希订单仍被未改变的存储门禁拒绝；响应编码失败不扣款；修复订单扣款、背包和审计原子提交，原有物品/无关字段保留；重试不扣款并返回更新后的存档；没有可再次领取的未交付物品。
-- 测试实例位于根 `.tmp/cera-identity-20261001/`，端口 25459/26459；已正常关闭。不入 Git。
+- 测试实例位于根 `.tmp/cera-identity-20261001/`，端口 25459；已正常关闭。不入 Git。
 
 `go test ./...` 已执行：商城、存储和其它通过的包均记录成功；全量有 5 项既有失败，不能标记全绿。已从未修改 HEAD 导出源码到根 `.tmp/cera-identity-20261001/baseline/`，仅提取测试所需文件，复跑得到完全相同的失败：
 

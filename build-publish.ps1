@@ -2,7 +2,7 @@
 # 用法: 一键打包.cmd                       使用当前 git 分支打包
 #       一键打包.cmd -Branch release/minimal-publish   指定分支
 #       一键打包.cmd -OutDir D:\out        指定输出目录（默认仓库上一级）
-# 流程: git 分支导出 -> 加入 tools/{python,pg,redis}(排除 pgAdmin 4) ->
+# 流程: git 分支导出 -> 加入 tools/{python,pg}(排除 pgAdmin 4) ->
 #       launcher.local.json 模板(相对路径) -> Python 标准 zip(正斜杠/UTF-8) -> 关键文件校验
 [CmdletBinding()]
 param(
@@ -36,11 +36,11 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'git archive 失败' }
     [IO.Compression.ZipFile]::ExtractToDirectory($tar, $work)
 
-    # 2. 加入便携运行环境（python/pg/redis），排除 pgAdmin 4
+    # 2. 加入便携运行环境（python/pg），排除 pgAdmin 4
     Write-Host '[2/5] 复制便携运行环境...'
     $tools = Join-Path $ROOT 'tools'
     New-Item -ItemType Directory -Path (Join-Path $work 'tools') | Out-Null
-    foreach ($d in @('python','pg','redis')) {
+    foreach ($d in @('python','pg')) {
         $src = Join-Path $tools $d
         if (-not (Test-Path $src)) { Write-Warning "缺少运行环境目录 tools\$d (跳过)"; continue }
         Copy-Item $src (Join-Path $work "tools\$d") -Recurse -Force
@@ -64,7 +64,7 @@ try {
     Write-Host '[5/5] 校验关键文件...'
     $z = [IO.Compression.ZipFile]::OpenRead($zipOut)
     try {
-        $need = @('启动游戏.cmd','server/launcher.local.json','server/work/dfo-lan/bin/wireprobe-dungeon39.exe','server/work/dfo-lan/bin/wireprobe-handoff-source.exe','server/work/dfo-lan/configs/items.index.json','tools/python/python.exe','tools/pg/pgsql/bin/initdb.exe','tools/redis/redis-server.exe')
+        $need = @('启动游戏.cmd','server/launcher.local.json','server/work/dfo-lan/bin/wireprobe-dungeon39.exe','server/work/dfo-lan/bin/wireprobe-handoff-source.exe','server/work/dfo-lan/configs/items.index.json','tools/python/python.exe','tools/pg/pgsql/bin/initdb.exe')
         $miss = @()
         foreach ($n in $need) {
             $hit = $z.Entries | Where-Object { $_.FullName -eq $n }

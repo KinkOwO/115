@@ -97,7 +97,7 @@ class DefaultPVFLaunchTests(unittest.TestCase):
                     (session / 'run.json').write_text(json.dumps({'server_pid': 123, 'port': 1}))
 
             configuration = ({'client_dir': str(project), 'server_binary': 'legacy.exe'}, {},
-                             types.SimpleNamespace(hostname='127.0.0.1', port=25438), '127.0.0.1', 26388)
+                             types.SimpleNamespace(hostname='127.0.0.1', port=25438))
             child = mock.Mock()
             child.poll.return_value = None
             with mock.patch.object(launch, 'PROJECT', project), \
@@ -118,7 +118,7 @@ class DefaultPVFLaunchTests(unittest.TestCase):
 
     def test_check_default_mode_never_starts_storage_or_helper(self):
         configuration = ({'client_dir': str(launch.PROJECT), 'server_binary': 'legacy.exe'}, {},
-                         types.SimpleNamespace(hostname='127.0.0.1', port=25438), '127.0.0.1', 26388)
+                         types.SimpleNamespace(hostname='127.0.0.1', port=25438))
         with mock.patch.object(launch, 'configuration', return_value=configuration), \
              mock.patch.object(launch, 'start_storage') as storage, \
              mock.patch.object(launch.subprocess, 'Popen') as popen, \

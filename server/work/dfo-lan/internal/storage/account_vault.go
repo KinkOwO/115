@@ -149,7 +149,6 @@ func (s *Store) CommitAccountVault(ctx context.Context, account, character int64
 		return role, materials, vault, false, err
 	}
 	role.State = state
-	s.Cache.Del(ctx, fmt.Sprintf("%scharacters:%d", s.prefix, account))
 	return role, updated, next, true, nil
 }
 
@@ -229,6 +228,5 @@ func (s *Store) CommitAccountVaultCrossMove(ctx context.Context, account, charac
 	}
 	role.State = state
 	personal.Items = items
-	s.Cache.Del(ctx, fmt.Sprintf("%scharacters:%d", s.prefix, account))
 	return role, next, personal, true, nil
 }

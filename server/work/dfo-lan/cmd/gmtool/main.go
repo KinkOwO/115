@@ -258,7 +258,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("读取存储配置失败：%v", err)
 	}
-	// 存储没起来就自己拉起来（pg_ctl / redis-server 不需要管理员权限）
+	// 存储没起来就自己拉起来（pg_ctl 不需要管理员权限）
 	if raw, e := os.ReadFile(p.storage); e == nil {
 		var sc storageConfig
 		if json.Unmarshal(raw, &sc) == nil {
@@ -273,10 +273,10 @@ func main() {
 	defer cancel()
 	store, err := storage.Open(ctx, cfg)
 	if err != nil {
-		log.Fatalf("连接 PostgreSQL/Redis 失败：%v\n\n"+
+		log.Fatalf("连接 PostgreSQL 失败：%v\n\n"+
 			"处理办法（任选其一）：\n"+
-			"  1. 双击 D:\\115us\\启动游戏.cmd 进一次游戏，数据库和缓存就都在跑了；\n"+
-			"  2. 检查 D:\\115us\\server\\work\\dfo-lan\\runtime\\storage 下的 postgres.log / redis.log。\n", err)
+			"  1. 双击 D:\\115us\\启动服务端.cmd 启动数据库；\n"+
+			"  2. 检查 D:\\115us\\server\\work\\dfo-lan\\runtime\\storage 下的 postgres.log。\n", err)
 	}
 	defer store.Close()
 

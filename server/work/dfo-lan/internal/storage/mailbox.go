@@ -225,7 +225,6 @@ func (s *Store) SendMail(ctx context.Context, account, id int64, version, key, n
 		return fail(err)
 	}
 	role.State = state
-	s.Cache.Del(ctx, fmt.Sprintf("%scharacters:%d", s.prefix, account))
 	return role, receipt, true, nil
 }
 
@@ -301,6 +300,5 @@ func (s *Store) MutateMailbox(ctx context.Context, account, id int64, version, k
 		return fail(err)
 	}
 	role.State = state
-	s.Cache.Del(ctx, fmt.Sprintf("%scharacters:%d", s.prefix, account))
 	return role, receipt, true, nil
 }

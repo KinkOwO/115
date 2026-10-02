@@ -227,6 +227,5 @@ func (s *Store) commitCharacterEvent(ctx context.Context, account, id int64, ver
 		return role, false, e
 	}
 	role.State = state
-	s.Cache.Del(ctx, fmt.Sprintf("%scharacters:%d", s.prefix, account))
 	return role, true, nil
 }

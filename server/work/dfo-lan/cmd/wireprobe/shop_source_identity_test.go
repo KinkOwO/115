@@ -85,7 +85,7 @@ func runNativeShopPurchase(t *testing.T, goldPurchase bool) {
 			t.Error(err)
 		}
 	}()
-	cfg.PostgresSchema, cfg.RedisPrefix = schema, schema+":"
+	cfg.PostgresSchema = schema
 	store, err := storage.Open(ctx, cfg)
 	if err != nil {
 		t.Fatal(err)

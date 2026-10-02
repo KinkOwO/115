@@ -2,7 +2,7 @@
 
 二进制：bin/wireprobe-dungeon37.exe（原地替换，旧版备份为 wireprobe-dungeon37.pre-goldwear.exe）
 SHA256：c58951ccaa85207024529c28b56b85e49d14d5c9c9b58236a24616860a036cc7
-go test ./... 全绿，go vet 干净，launch_local.py --check 通过（PG/Redis 在线）。
+go test ./... 全绿，go vet 干净，launch_local.py --check 通过（PG 在线）。
 
 ## 本轮根因与修复（均已自查，不需用户先测）
 

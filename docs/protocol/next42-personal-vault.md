@@ -93,7 +93,7 @@
   - 加行锁 `SELECT ... FROM characters ... FOR UPDATE`。
   - 加行锁 `SELECT ... FROM character_vaults ... FOR UPDATE`。
   - 在原子事务闭包内完成背包与金库状态更新。
-  - 更新 `character_vaults` 表并清理 Redis 缓存。
+  - 更新 `character_vaults` 表。
 
 ### 3. 领域逻辑层（`internal/inventory/vault.go`）
 

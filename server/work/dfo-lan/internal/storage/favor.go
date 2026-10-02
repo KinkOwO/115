@@ -124,7 +124,6 @@ func (s *Store) GiveFavor(ctx context.Context, account, id int64, version string
 		return role, st, nil, e
 	}
 	role.State = state
-	s.Cache.Del(ctx, fmt.Sprintf("%scharacters:%d", s.prefix, account))
 	st.Point = next
 	for _, th := range g.Levels {
 		if next >= th {

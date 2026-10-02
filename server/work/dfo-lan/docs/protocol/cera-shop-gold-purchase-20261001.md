@@ -27,7 +27,7 @@ attempt 1/3 已完成并由用户确认可购买。普通14列商城商品按当
 ## 验证
 
 - internal/cashshop 和 internal/storage 整包通过。GoldShopDebitAndDelivery覆盖1000→800金币、分堆、余额不足和满包原状态保留；GoldCashOrderValidationAndLegacyJSON覆盖混合价格、免费/双货币/溢出拒绝和旧Cera订单JSON兼容。
-- 独立 PostgreSQL16.4/Redis5.0.14（25459/26459）与临时schema：直接读Script.inner.pvf，真实捕获Gold body成功扣100金币、模板590715403×1到账、Cera不变；余额不足、错误存档身份、编码失败无扣款；重放保留更新后的777金币及无关数据，没有可重复领取的待发物品。最终NOTI13等于当前完整背包快照。
+- 独立 PostgreSQL16.4（25459）与临时schema：直接读Script.inner.pvf，真实捕获Gold body成功扣100金币、模板590715403×1到账、Cera不变；余额不足、错误存档身份、编码失败无扣款；重放保留更新后的777金币及无关数据，没有可重复领取的待发物品。最终NOTI13等于当前完整背包快照。
 - 原生Cera回归SKU3400232（7900点、模板590712474×100）继续通过。
 - 原生混合车Gold100+Cera7900：两种余额不足和编码失败均不提交；同时两个同key请求只有一个applied，最终777→677金币、20000→12100Cera，两条订单审计（含此前单独Gold订单）。
 - 上述原生回归在默认门禁和启动器DFO_SHOP_OPEN_ALL=1分别通过。

@@ -55,13 +55,12 @@ def configuration():
   )
  cfg = json.loads(storage.read_text(encoding="utf-8-sig"))
  pg = urlparse(cfg["postgres_dsn"])
- rh, rp = cfg["redis_address"].rsplit(":", 1)
- if pg.hostname != "127.0.0.1" or rh != "127.0.0.1":
+ if pg.hostname != "127.0.0.1":
   raise RuntimeError("This development profile requires local loopback storage.")
- return local, cfg, pg, rh, int(rp)
+ return local, cfg, pg
 
 
-def start_storage(cfg, pg, rh, rp):
+def start_storage(cfg, pg):
  if not listening(pg.hostname, pg.port):
   data = pathlib.Path(cfg.get("postgres_data", "")).resolve()
   if data != (STORAGE / "pgdata").resolve():
@@ -91,21 +90,6 @@ def start_storage(cfg, pg, rh, rp):
    )
   if r.returncode or not listening(pg.hostname, pg.port):
    raise RuntimeError("PostgreSQL did not start; inspect launcher-postgres.log.")
- if not listening(rh, rp):
-  redis = pathlib.Path(cfg["redis_bin"]) / "redis-server.exe"
-  if not redis.exists() or not (STORAGE / "redis.conf").exists():
-   raise RuntimeError("Redis binary/config missing.")
-  with (STORAGE / "redis.log").open("ab") as log:
-   child = subprocess.Popen(
-    [str(redis), "redis.conf"], cwd=STORAGE, stdout=log, stderr=log, creationflags=FLAGS
-   )
-  for _ in range(100):
-   if listening(rh, rp):
-    return
-   if child.poll() is not None:
-    break
-   time.sleep(0.1)
-  raise RuntimeError("Redis did not start; inspect redis.log.")
 
 
 def gateway_configuration(args, local):
@@ -201,7 +185,7 @@ def main():
   help="Run the client against a server on another machine (DFO_LAN_HOST); starts no local server or storage",
  )
  args = parser.parse_args()
- local, cfg, pg, rh, rp = configuration()
+ local, cfg, pg = configuration()
  channel_identity = local.get("channel_identity", False)
  if type(channel_identity) is not bool:
   raise ValueError("channel_identity must be a JSON boolean")
@@ -238,7 +222,7 @@ def main():
    raise RuntimeError("Missing repair profile dependency: " + str(path))
  if args.check:
   print(
-   "Paths OK. PostgreSQL:", listening(pg.hostname, pg.port), "Redis:", listening(rh, rp)
+   "Paths OK. PostgreSQL:", listening(pg.hostname, pg.port)
   )
   print("Binary:", binary)
   print("Data mode:", "PVF direct" if profile_env.get("DFO_PVF_CATALOGS") else "JSON / explicit profile")
@@ -252,7 +236,7 @@ def main():
   raise RuntimeError("Port7001 in use; inspect existing session before retrying.")
  # 客户端模式连接别的机器上的服务端，本机不启动存储。
  if not args.client_only:
-  start_storage(cfg, pg, rh, rp)
+  start_storage(cfg, pg)
  if args.storage_only:
   print("Existing storage ready.")
   return

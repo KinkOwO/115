@@ -61,7 +61,6 @@ func run() error {
 		}
 	}()
 	cfg.PostgresSchema = schema
-	cfg.RedisPrefix += schema + ":"
 	s, e := storage.Open(ctx, cfg)
 	if e != nil {
 		return e
