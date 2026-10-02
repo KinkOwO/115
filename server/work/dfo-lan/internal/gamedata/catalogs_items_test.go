@@ -339,11 +339,11 @@ func TestPVFItemShopsLocalArchive(t *testing.T) {
 	if path == "" {
 		t.Skip("set DFO_PVF_CORE_TEST_ARCHIVE for complete SHP/runtime routing audit")
 	}
-	c, err := prepareCatalogsForTest(t, "item-shops", path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "../../configs/characters.skycastle-release.json", "", "", "", CatalogInputs{ItemShopPath: "../../configs/itemshop-candidate.json", ItemShopPolicyPath: "../../configs/pvf-item-shop-policy.json"})
+	c, err := prepareCatalogsForTest(t, "items,item-shops", path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "../../configs/characters.skycastle-release.json", "", "", "", CatalogInputs{ItemShopPath: "../../configs/itemshop-candidate.json", ItemShopPolicyPath: "../../configs/pvf-item-shop-policy.json"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	s, err := c.LoadItemShops("missing-item-shops.json", os.Getenv("DFO_PVF_CORE_TEST_SHA256"))
+	s, err := c.LoadItemShops("missing-item-shops.json", c.Items.Source.Checksum)
 	if err != nil || len(s.Shops) != 527 {
 		t.Fatal("native shop lookup unavailable", err)
 	}

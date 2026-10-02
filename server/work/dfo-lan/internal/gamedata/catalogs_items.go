@@ -164,6 +164,15 @@ func learningRows(c *character.LearningCatalog) map[byte]map[uint16]character.Le
 }
 
 func preparePVFLearning(c *Catalogs, s *Source, chars catalog.Characters, inputs CatalogInputs) error {
+	if chars.Source.Checksum == "" {
+		// No characters domain selected: bind the learning source to a native
+		// character catalog instead of a stale historical anchor.
+		native, err := catalog.ImportCharacters(s.archive)
+		if err != nil {
+			return err
+		}
+		chars = native
+	}
 	direct, err := s.Learning(chars)
 	if err != nil {
 		return err

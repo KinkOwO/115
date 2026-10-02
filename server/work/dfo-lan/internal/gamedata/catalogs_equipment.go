@@ -198,6 +198,15 @@ func preparePVFEquipmentRules(c *Catalogs, s *Source, selected map[string]bool, 
 }
 
 func preparePVFShields(c *Catalogs, s *Source, jobs catalog.Characters, inputs CatalogInputs) error {
+	if jobs.Source.Checksum == "" {
+		// No characters domain selected: bind shields to a native character
+		// catalog instead of a stale historical anchor.
+		native, err := catalog.ImportCharacters(s.archive)
+		if err != nil {
+			return err
+		}
+		jobs = native
+	}
 	wear := inputs.WearRulesPath
 	if override := os.Getenv("DFO_EQUIPMENT_WEAR_RULES"); override != "" {
 		wear = override

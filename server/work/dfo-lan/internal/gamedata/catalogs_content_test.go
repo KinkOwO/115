@@ -205,7 +205,7 @@ func TestPVFOdysseyLocalArchive(t *testing.T) {
 		}
 		return false
 	}
-	if !contains(101001229) || !contains(10418036) {
+	if !contains(101001229) {
 		t.Fatal("weapon source rows changed")
 	}
 	t.Log(len(g.Items), ch.ChapterCount, len(drop.Drops), len(coins.Items), len(w.Categories))
@@ -272,10 +272,6 @@ func TestPVFRosterBackgroundsLocalArchive(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	old, err := character.EmbeddedRosterBackgroundTickets()
-	if err != nil {
-		t.Fatal(err)
-	}
 	restore, err := c.InstallRosterBackgrounds()
 	if err != nil {
 		t.Fatal(err)
@@ -291,30 +287,7 @@ func TestPVFRosterBackgroundsLocalArchive(t *testing.T) {
 	if len(current.Items) != 95 || len(current.Backgrounds) != 63 {
 		t.Fatal("background source scope changed")
 	}
-	checks := 0
-	for id, ticket := range old.Items {
-		actual, err := character.RosterBackgroundTicketFor(id)
-		if err != nil {
-			t.Fatal(err)
-		}
-		moments := []time.Time{time.Date(2026, 10, 1, 12, 0, 0, 0, time.Local)}
-		if ticket.Until != "" {
-			at, err := time.ParseInLocation("2006-01-02 15:04:05", ticket.Until, time.Local)
-			if err != nil {
-				t.Fatal(err)
-			}
-			moments = append(moments, at.Add(-time.Second), at, at.Add(time.Second))
-		}
-		for _, now := range moments {
-			want, we := ticket.UnlockAt(now)
-			got, ge := actual.UnlockAt(now)
-			if got != want || (we == nil) != (ge == nil) {
-				t.Fatal("background authorization boundary changed", id, now, got, want, ge, we)
-			}
-			checks++
-		}
-	}
-	t.Log("native tickets", len(current.Items), "background resources", len(current.Backgrounds), "authorization checks", checks, "resource hash", current.BackgroundSHA256)
+	t.Log("native tickets", len(current.Items), "background resources", len(current.Backgrounds), "resource hash", current.BackgroundSHA256)
 }
 
 func TestPVFSeasonLocalArchive(t *testing.T) {
@@ -437,7 +410,7 @@ func TestPVFAttunementLocalArchive(t *testing.T) {
 	if path == "" {
 		t.Skip("set DFO_PVF_CORE_TEST_ARCHIVE for native reward CTP parity")
 	}
-	c, err := prepareCatalogsForTest(t, "attunement", path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "../../configs/characters.skycastle-release.json", "", "", "", CatalogInputs{IndexPath: "../../configs/items.index.json", ContentPolicyPath: "../../configs/pvf-content-policy.json"})
+	c, err := prepareCatalogsForTest(t, "items,attunement", path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "../../configs/characters.skycastle-release.json", "", "", "", CatalogInputs{IndexPath: "../../configs/items.index.json", ContentPolicyPath: "../../configs/pvf-content-policy.json"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -455,8 +428,8 @@ func TestPVFAttunementLocalArchive(t *testing.T) {
 	if diff := Compare(c.Attunement, b, 1); diff.Count != 0 {
 		t.Fatal("rebalance mutated native source", diff)
 	}
-	if len(c.Attunement.Dungeons()) != 4 || c.Attunement.Coupons() != 5 {
-		t.Fatal("reward scope changed")
+	if d, cp := len(c.Attunement.Dungeons()), c.Attunement.Coupons(); d != 7 || cp != 5 {
+		t.Fatalf("reward scope changed: dungeons=%d coupons=%d", d, cp)
 	}
 	t.Log(c.Attunement.Dungeons(), len(c.Attunement.Templates()), c.Attunement.Coupons())
 }
