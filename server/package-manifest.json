@@ -9,8 +9,8 @@
   "files": [
     {
       "path": "AGENTS.md",
-      "bytes": 55435,
-      "sha256": "3fe2d6d88dd01010321388d96da287b53593d06942c6a1d2ce98384beb970309"
+      "bytes": 66251,
+      "sha256": "b4b31c1432f36f09855d12781481e1153b00e83c7cb963d72830b8943c6f1901"
     },
     {
       "path": "Build-Manifest.ps1",
@@ -928,136 +928,6 @@
       "sha256": "f81a3a4030316bfc32b795da1f91178e15636c22f10f61ff3fe67bbb74eb5282"
     },
     {
-      "path": "work/dfo-lan/cmd/audit36/features.go",
-      "bytes": 4752,
-      "sha256": "0e0b145b5eedb9cc85507e5f27c1f0e99d01a5245479e09540bbfd819ebd621b"
-    },
-    {
-      "path": "work/dfo-lan/cmd/audit36/main.go",
-      "bytes": 8724,
-      "sha256": "3360628b6c15069646b9d904154324141b9c5ef5db0411efea896878031df98e"
-    },
-    {
-      "path": "work/dfo-lan/cmd/audit36/npc.go",
-      "bytes": 2166,
-      "sha256": "37e5a384f523462162ba7240977fafb1ee3117e73cbc909d3db908e62238f191"
-    },
-    {
-      "path": "work/dfo-lan/cmd/audit36/probe_paths.go",
-      "bytes": 1238,
-      "sha256": "e9b3b041dd804648ff8ec1a3c016b5b7d846af2d0c9014376e4b51bc0e796827"
-    },
-    {
-      "path": "work/dfo-lan/cmd/audit36/skills.go",
-      "bytes": 2100,
-      "sha256": "a47ff36cc6e3e635b4515c2b14b5760554702f63e795ad82c69ad0cac2b1e606"
-    },
-    {
-      "path": "work/dfo-lan/cmd/audit36/tutorial.go",
-      "bytes": 2171,
-      "sha256": "b246ea8522a4510183953554ca710fe0e534592b5aba259cfd6594abd925595b"
-    },
-    {
-      "path": "work/dfo-lan/cmd/audit36/verify.go",
-      "bytes": 2777,
-      "sha256": "645b183027e8324a31afb372aa161c2fb5fb7230c91722b0bae19ee73e8eebfa"
-    },
-    {
-      "path": "work/dfo-lan/cmd/avatarrestorecheck/main.go",
-      "bytes": 3138,
-      "sha256": "7788544004fc32d2aa449d72d12eba582178aa2071d7402a6e223f0c732b0f42"
-    },
-    {
-      "path": "work/dfo-lan/cmd/boosterexport/main.go",
-      "bytes": 4391,
-      "sha256": "0b3f30d9e9af25cdc5b3fa614190148316021cc7ca340785cf030aef5044858d"
-    },
-    {
-      "path": "work/dfo-lan/cmd/catalogimport/main.go",
-      "bytes": 874,
-      "sha256": "971e48d67c8f6f0952e0c7e6dcb520b29e30dd233c9c8efce304026c9c06f15b"
-    },
-    {
-      "path": "work/dfo-lan/cmd/charactercheck/birth_check.go",
-      "bytes": 3847,
-      "sha256": "fe17a78a67bbaf98204963931f95d681e186e0c069edf40b3cd5e3679c1e4f51"
-    },
-    {
-      "path": "work/dfo-lan/cmd/charactercheck/card_check.go",
-      "bytes": 3748,
-      "sha256": "d90bb9a9b1507b4dc61ade8aff755c23d87660ccbf9b244750ce9879934d26b0"
-    },
-    {
-      "path": "work/dfo-lan/cmd/charactercheck/clear_reward_check.go",
-      "bytes": 3787,
-      "sha256": "408646cf9e296c20226f789d9442fa0fcdcf477a5087be56ba5ffd06c348d116"
-    },
-    {
-      "path": "work/dfo-lan/cmd/charactercheck/delete_check.go",
-      "bytes": 1872,
-      "sha256": "2391106559231b3c60e65e1aee37108a6140e8740277f292bf5b475ef9529728"
-    },
-    {
-      "path": "work/dfo-lan/cmd/charactercheck/fatigue_check.go",
-      "bytes": 2311,
-      "sha256": "d88518b9e90f30685cf238a20c4b3b291ea8607fceeb4b14faf8ab04e339c878"
-    },
-    {
-      "path": "work/dfo-lan/cmd/charactercheck/grant_check.go",
-      "bytes": 5484,
-      "sha256": "b703f67ffeb52e8e809bdb245092b0d00e6f46e96298da0ebc37026974787347"
-    },
-    {
-      "path": "work/dfo-lan/cmd/charactercheck/learning_check.go",
-      "bytes": 5659,
-      "sha256": "1855ae67cc1a12e9d4afafe2d0c8512f17ce62bc0f603b4269ec7902b08447fb"
-    },
-    {
-      "path": "work/dfo-lan/cmd/charactercheck/loot_check.go",
-      "bytes": 4141,
-      "sha256": "6763e08bf9845de15e3c1b8eec1eb24ec1f82605655548bdf9e5dd2c0d5a8d20"
-    },
-    {
-      "path": "work/dfo-lan/cmd/charactercheck/main.go",
-      "bytes": 9480,
-      "sha256": "14eb6ea64877d21a2fee3ee6a30c20f68a1e4570cef11e971f70321917ed1564"
-    },
-    {
-      "path": "work/dfo-lan/cmd/charactercheck/module_check.go",
-      "bytes": 4636,
-      "sha256": "092f125e8a3fbddc7e1c8cda59d800d708b60dd444841ba78b8b7beaf15792a3"
-    },
-    {
-      "path": "work/dfo-lan/cmd/charactercheck/progression_check.go",
-      "bytes": 4071,
-      "sha256": "17226185dacbb7d83d34ea420da0a46920f68e59b8f0db93dd8fa8de33c056ca"
-    },
-    {
-      "path": "work/dfo-lan/cmd/charactercheck/quest_chain_check.go",
-      "bytes": 6912,
-      "sha256": "5756a1a1e32a979872045d4584d4206528d18f2e66472cfd5ca1b4067d00dc8b"
-    },
-    {
-      "path": "work/dfo-lan/cmd/charactercheck/quest_objective_check.go",
-      "bytes": 3879,
-      "sha256": "86b55777e14f7df47af0927769251ec5c982435a322c96d7687457497953720e"
-    },
-    {
-      "path": "work/dfo-lan/cmd/charactercheck/quest_reward_check.go",
-      "bytes": 4512,
-      "sha256": "bb1e66c1cb0bbf1a73669c3fd71b186147a2f22859faef6e91c1c3123a8439c1"
-    },
-    {
-      "path": "work/dfo-lan/cmd/charactercheck/tutorial_check.go",
-      "bytes": 1370,
-      "sha256": "e383bd4f8a92242090bf7bb03916cb0a3ffc536277cb177efb082b16d1749ae8"
-    },
-    {
-      "path": "work/dfo-lan/cmd/charactercheck/wear_check.go",
-      "bytes": 3832,
-      "sha256": "20ad8c7746fd4861049c54acc7e49a57320c398d8de9ddc670c5a66f27462f65"
-    },
-    {
       "path": "work/dfo-lan/cmd/dungeonaudit/main.go",
       "bytes": 2984,
       "sha256": "22bb27f909da04acdb6b29b81a9f6b2607ba1c751d0912b9d69d853268651fde"
@@ -1068,44 +938,9 @@
       "sha256": "e7ae8dfcaa32e46cfd0c0aa7df20cf9024e246d6198e84fe0a6bc808ad497529"
     },
     {
-      "path": "work/dfo-lan/cmd/dungeonimport/main.go",
-      "bytes": 987,
-      "sha256": "be6805ab0bee85d5ceefb2503d76ef1266c9abeab47aa5957781f67415ae3d78"
-    },
-    {
       "path": "work/dfo-lan/cmd/dungeonmaps/main.go",
       "bytes": 3630,
       "sha256": "68cda599bbe0d96b1d3a5679c7891834e1bc5ca1a5da112515f46411186c009c"
-    },
-    {
-      "path": "work/dfo-lan/cmd/dungeonscenesaudit/main.go",
-      "bytes": 3338,
-      "sha256": "d4a3cb67c8609024ed703f140168a2ceca83ed24b6f7872adfe031fda16bcc33"
-    },
-    {
-      "path": "work/dfo-lan/cmd/equipfields/main.go",
-      "bytes": 1843,
-      "sha256": "662685698c799fc940c404e30c59430a5bc3b64dddef41a74842ff9bc1486b41"
-    },
-    {
-      "path": "work/dfo-lan/cmd/equipmentaudit/main.go",
-      "bytes": 2223,
-      "sha256": "19c3cffa646a941760925a5fc72db7a5746a627156677b9b6f0f9601da8c6c0b"
-    },
-    {
-      "path": "work/dfo-lan/cmd/equipmentfull/main.go",
-      "bytes": 4909,
-      "sha256": "fdf9b10a5184fdd7c756190d88c8b6aa975d01cfb4f86d9a5db00486c89e9226"
-    },
-    {
-      "path": "work/dfo-lan/cmd/equipmentfullimport/main.go",
-      "bytes": 2519,
-      "sha256": "7611c851cf1a83cf5da4f707cde3a9f05daa1fe3dd3fb000ab43c7032c5d68e2"
-    },
-    {
-      "path": "work/dfo-lan/cmd/equipmentwearimport/main.go",
-      "bytes": 1713,
-      "sha256": "71973e059fe792faa075ace1a4b716f80d3f4642f25c763f19c047f210d4dc68"
     },
     {
       "path": "work/dfo-lan/cmd/gmtool/index.go",
@@ -1136,121 +971,6 @@
       "path": "work/dfo-lan/cmd/gmtool/ui.go",
       "bytes": 23187,
       "sha256": "e5ea21001c34b2f24599166244441a6646a819eb50abd51b822c97a19b5dc696"
-    },
-    {
-      "path": "work/dfo-lan/cmd/initialrepair/main.go",
-      "bytes": 5412,
-      "sha256": "57b4c18e7ecfcb18bb4f730e01ff191a271305b8e5c57e89f572afdd339fca42"
-    },
-    {
-      "path": "work/dfo-lan/cmd/loginchannel/main.go",
-      "bytes": 1594,
-      "sha256": "3148fe2d16f5104c0e9dcd1414685b876f0df954f4620e15333333f1531e3f68"
-    },
-    {
-      "path": "work/dfo-lan/cmd/loginchannel/main_test.go",
-      "bytes": 1049,
-      "sha256": "b67a5faa237d1cb9788fbf7500125340e9761d7528620fd1e61a62404022a86b"
-    },
-    {
-      "path": "work/dfo-lan/cmd/lootimport/main.go",
-      "bytes": 1053,
-      "sha256": "5640a23ce4b1c219a8a1324e65870dbe5c1af8620d90f41f891fe349dc9a3292"
-    },
-    {
-      "path": "work/dfo-lan/cmd/odysseyaudit/main.go",
-      "bytes": 2168,
-      "sha256": "11e1d795e3f4b248ca8fed98448a9e3930659341e98d946c04d740d21483b1d0"
-    },
-    {
-      "path": "work/dfo-lan/cmd/odysseygrowthaudit/main.go",
-      "bytes": 3802,
-      "sha256": "e54bed6d6a854741cafb0db7f9045d4a8b57a88b51a7a6ba71490f3d03292801"
-    },
-    {
-      "path": "work/dfo-lan/cmd/progressionimport/main.go",
-      "bytes": 839,
-      "sha256": "5aab33d1dcd36ec8027f4885419205c5e3c228dc31a7a580f3b844d34fd9f44e"
-    },
-    {
-      "path": "work/dfo-lan/cmd/protocolfixture/main.go",
-      "bytes": 2570,
-      "sha256": "0a6fb089cff8bd980c74b8e0dae9eb5fff155939eb2266d4b8149db22b8c3470"
-    },
-    {
-      "path": "work/dfo-lan/cmd/pvfinspect/main.go",
-      "bytes": 3515,
-      "sha256": "05370a1b9f9c14940c83688c1094fee6f71eced96d48d9a12d02b61728ba6769"
-    },
-    {
-      "path": "work/dfo-lan/cmd/pvfpatch/main.go",
-      "bytes": 1259,
-      "sha256": "62654206ba48fe777dbe6f4409654e641be065b2fca97f0b393d339f0c109343"
-    },
-    {
-      "path": "work/dfo-lan/cmd/questaudit/main.go",
-      "bytes": 939,
-      "sha256": "95d871c2c5205254e2b1de7cc789e1d5d3ca9b82a5ed63361b36880cbea10a07"
-    },
-    {
-      "path": "work/dfo-lan/cmd/questcatalog/main.go",
-      "bytes": 759,
-      "sha256": "82c8fa84b7d1367504cb3daa60b0be3f62cb12e44eddba0a75714b4846e94519"
-    },
-    {
-      "path": "work/dfo-lan/cmd/questchain/main.go",
-      "bytes": 2365,
-      "sha256": "6d173c5cce50c3ab67770392e9ff11a693eb97488c660626967a3581910df428"
-    },
-    {
-      "path": "work/dfo-lan/cmd/questchain/reasons.go",
-      "bytes": 2343,
-      "sha256": "e6ba4e2706db29c33523a0406149eb815b9f73798920042847f140c22b4e7745"
-    },
-    {
-      "path": "work/dfo-lan/cmd/questequipmentimport/main.go",
-      "bytes": 2403,
-      "sha256": "6bc6f8f883d8b5fc972877e8a1b6609f5b2c24e5d99a844834edff4b9efb3a2f"
-    },
-    {
-      "path": "work/dfo-lan/cmd/questequipmentimport/run.go",
-      "bytes": 2202,
-      "sha256": "5255f7d5f809a4471c6b178bf797461f1d96e92f8714d82644f7499741e182bb"
-    },
-    {
-      "path": "work/dfo-lan/cmd/questrepair/main.go",
-      "bytes": 2467,
-      "sha256": "c305347d7f4407ca1b0c642e9efc9b45e640445ae7a4f00a3f15c2cc1410f35b"
-    },
-    {
-      "path": "work/dfo-lan/cmd/shopimport/main.go",
-      "bytes": 1615,
-      "sha256": "05405e16a546562192bed7b423e682a1889fbd311ac3fb16743b2bdfbffe7433"
-    },
-    {
-      "path": "work/dfo-lan/cmd/shopimport/main_test.go",
-      "bytes": 637,
-      "sha256": "8738120e81c90a7a3afa0205bba5006ead832ca41b67d425711caf29e9e9d455"
-    },
-    {
-      "path": "work/dfo-lan/cmd/skillaudit/main.go",
-      "bytes": 3584,
-      "sha256": "372520cbdd255638ccb96f900615c5ab5d46a4d7211191a4237631eb61c5a206"
-    },
-    {
-      "path": "work/dfo-lan/cmd/storagecheck/main.go",
-      "bytes": 888,
-      "sha256": "7ed5c89236289cc3a6cca0861b7b5a2240000ffac880914195ee193063512b9a"
-    },
-    {
-      "path": "work/dfo-lan/cmd/towncatalog/main.go",
-      "bytes": 968,
-      "sha256": "066f1f67e9d116423889e9096e56f7ae04e5a98913c7a536575396bebeaf9681"
-    },
-    {
-      "path": "work/dfo-lan/cmd/tutorialimport/main.go",
-      "bytes": 1366,
-      "sha256": "7cf86f473a504b0f8859c6fa7011da99b72f3426b7811e91a52108112536079c"
     },
     {
       "path": "work/dfo-lan/cmd/wireprobe/account_materials_flow.go",
@@ -1626,11 +1346,6 @@
       "path": "work/dfo-lan/cmd/wireprobe/worn_display_handoff_test.go",
       "bytes": 481,
       "sha256": "a81710104c491f8e4ff5955f27fd63ddd769071dc0b1e4f75ccf188864c6aca8"
-    },
-    {
-      "path": "work/dfo-lan/cmd/worldcatalog/main.go",
-      "bytes": 845,
-      "sha256": "20865713e4c617e7a74a5b9dfff7f6cf153db21ee04e25d96c685e641a215276"
     },
     {
       "path": "work/dfo-lan/configs/account-options.current35.json",
@@ -4229,13 +3944,493 @@
     },
     {
       "path": "开发对接文档.md",
-      "bytes": 11650,
-      "sha256": "48c310400ab260a2c9ad95193d43139dfc1a39bb03086a65e1e20cb1cd6f8f63"
+      "bytes": 107960,
+      "sha256": "0620bb3c4af3911117fed3fd76babd73a1c8290788ebdee0d7d7fe2486dbbc83"
     },
     {
       "path": "退出按钮修复记录-20260920.md",
       "bytes": 1576,
       "sha256": "e1674d8314a84d3ab852492b17c662c6e53b3f6207c958419d296eded505fcaa"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/apocalypseimport/main.go",
+      "bytes": 2418,
+      "sha256": "bcc4bc5147326976006e1d53f066e7176ff7cd1500bce0434de51d89d5a8227a"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/attunementimport/main.go",
+      "bytes": 3817,
+      "sha256": "9f9fd86b92b84501f8e112d596229aa46004bbc0175891bbf2cefc52a622a142"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/audit36/features.go",
+      "bytes": 4755,
+      "sha256": "cbe199c40a9b58bb177dc1f904777e4c1259451f7508349425f358cbe0ea439f"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/audit36/main.go",
+      "bytes": 9156,
+      "sha256": "a9ae27b8de1b58c1654b8e0d652a60f8d51061f1c278fbeb6b913562451a2f07"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/audit36/npc.go",
+      "bytes": 2053,
+      "sha256": "3b1151d3ab33a75349835f27e35a9a9ec2fb7cbf0fcc45fbbb6e84d786bcfc3d"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/audit36/probe_paths.go",
+      "bytes": 1241,
+      "sha256": "45f4f6b70878a1118e95618d733ae151ffde510e6a29a4f17c44e9d8d1ce55f0"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/audit36/skills.go",
+      "bytes": 2100,
+      "sha256": "e6548fee720e3894af8f76a3fb1a7723cb034efd30ead21a6665fb1a8599f4fd"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/audit36/tutorial.go",
+      "bytes": 2174,
+      "sha256": "b277c177e3cd0ed4741a6ec16e8299be972d3cb54e19726fd8abe00da443f5d3"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/audit36/verify.go",
+      "bytes": 3215,
+      "sha256": "8beed72ab7843dbae248fd6e39b06235efbd26d28a121c7bf4aadc079add9a3c"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/avatarrestorecheck/main.go",
+      "bytes": 3323,
+      "sha256": "789073e0b806c5d6b377660fb2fd4d9278771acc20c4ce2b57480c1c1472cc5a"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/boosterexport/main.go",
+      "bytes": 995,
+      "sha256": "4f437ef19569db0e94150024b73151482bd99722e8b3add98713f14e771736e9"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/catalogimport/main.go",
+      "bytes": 882,
+      "sha256": "da57831d19d528ea49ea4a66b271376132b4445647bc93505bb3797c5e227e8d"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/charactercheck/birth_check.go",
+      "bytes": 3857,
+      "sha256": "fbbff71086a075c52bb597c4a9bf2d566efae9e401b3028e65a8cdd3a41e0fa5"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/charactercheck/card_check.go",
+      "bytes": 3775,
+      "sha256": "b3e18f6615bf6daef1c15f673d511b3f122999467e62c614a2beff5d94abbce1"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/charactercheck/clear_reward_check.go",
+      "bytes": 3658,
+      "sha256": "b8dde52f3c35271f0af14caba4e887219cbfb8a223deaa2d76e4da072fc95dab"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/charactercheck/delete_check.go",
+      "bytes": 1882,
+      "sha256": "50ccd5ee4a7fd98856cb91fa96623446e1f0d056fed6ceef195cfcae3f823878"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/charactercheck/fatigue_check.go",
+      "bytes": 2321,
+      "sha256": "463db3551c75c37c9d646db633222a3c921fd2e3b4bc6fc7ea33644a7999a5f2"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/charactercheck/grant_check.go",
+      "bytes": 5426,
+      "sha256": "eae4a69ce481b65f5e98269cdda5ff0e1855dab3c4de0fbcd84b78c7f88a6416"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/charactercheck/learning_check.go",
+      "bytes": 6078,
+      "sha256": "68ea06e8624ab73ae7dbfd21f1e92bedcff304cac4826827804476abc389c0ab"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/charactercheck/loot_check.go",
+      "bytes": 4247,
+      "sha256": "7178a87d001df12bf65efd2ca51629d284b3eff2bfc366503bae7bb1b052e16f"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/charactercheck/main.go",
+      "bytes": 10255,
+      "sha256": "14bfbf2a317bab42114e6413d1e03c2962214cbc88d8230d918534b0ee647b52"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/charactercheck/module_check.go",
+      "bytes": 4684,
+      "sha256": "0d124360c3c61f9179a6504efd9e351d0331aeca1005d055791de9c6e501b6a2"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/charactercheck/native_catalogs.go",
+      "bytes": 4312,
+      "sha256": "cb6a98336669f0163a4ba6c9afb5842f51fdd45cd067f16a81c85a2fad7e5ab2"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/charactercheck/native_catalogs_test.go",
+      "bytes": 767,
+      "sha256": "f18254898b92506f53f1702db916a106a19608bc760626beaca0205fc1009913"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/charactercheck/progression_check.go",
+      "bytes": 4014,
+      "sha256": "86ee0d341f9afa8fc22ec170fc7868f039e470ca570656937beb78e5467520e8"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/charactercheck/quest_chain_check.go",
+      "bytes": 6944,
+      "sha256": "5732d2d13e6ff2d35517ebb741585b1999e824644020c9e49da6a444a7f0ab76"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/charactercheck/quest_objective_check.go",
+      "bytes": 3910,
+      "sha256": "9adb767d9c54b1cf3f177feb1f4861afadc664c8909d186c777d04302854a4c7"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/charactercheck/quest_reward_check.go",
+      "bytes": 4598,
+      "sha256": "b5bd4d1c3e564e075ed6a31c8a29bf742ae4d2c6fdba68737294b560c973efe3"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/charactercheck/tutorial_check.go",
+      "bytes": 1380,
+      "sha256": "440855bf90df4d87546a0600755b41e1bc3f5d37ba48b5146230c8a58505e5a9"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/charactercheck/wear_check.go",
+      "bytes": 3829,
+      "sha256": "169a4c7fe20c88118f4ae39d0d8282a092de4c7eddcbc781f712737edfb59ef2"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/dbq/main.go",
+      "bytes": 1094,
+      "sha256": "b840f739766b59abdf713d5334cca2bfd5f090499b1058d18973c7059d25af7a"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/dump342/main.go",
+      "bytes": 2266,
+      "sha256": "ae76a1a615120a929736f7cff72a1f22b7b7d2c29213515386576763c17f0436"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/dump781x/main.go",
+      "bytes": 1391,
+      "sha256": "fff466f5d81717e6fe0225e770d487e5aaeb09702575f685a949ac6eae7de1c1"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/dungeonimport/main.go",
+      "bytes": 1045,
+      "sha256": "77069ae33224347063d6332b4ba320221005d9eb46018b59e3d56c8ec3e568b6"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/dungeonscenesaudit/main.go",
+      "bytes": 3588,
+      "sha256": "5d0739aea4f135118bc6401d28fd5c1ace45a0d59ee661665acc6993879cb5cc"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/equipfields/main.go",
+      "bytes": 2192,
+      "sha256": "99c3c37dad34448d197d177cf49d04148ebf5ae319846b4c73d51aa35cb924ef"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/equipfields/main_test.go",
+      "bytes": 736,
+      "sha256": "3eba6d5cdb3b0201e66d8df681d4e4098f80cff7d52a9f5d1afefd094badbb80"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/equipmentaudit/main.go",
+      "bytes": 3921,
+      "sha256": "17d3579e3040c164cb85e80730f217680d742cabbfdccf907a848d814394d7c7"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/equipmentfull/main.go",
+      "bytes": 8093,
+      "sha256": "e2847fd630db720075ba2c68d709f34b370a706161c3f695c8793e50af9fbf83"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/equipmentfullimport/main.go",
+      "bytes": 2620,
+      "sha256": "f0fbd1ab1d93a38456dc5329585d1cd065ab10e2495b7cf1fa828ae1bf7aa5ee"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/equipmentjournalimport/main.go",
+      "bytes": 4128,
+      "sha256": "174b39928a5d516cbd21dd0cae078ab9625d2f62dd2e2e4d9f18a257783cc532"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/equipmentwearimport/main.go",
+      "bytes": 2058,
+      "sha256": "6746e9d4b82bc7bbd6142eb370f0bfb8d07e0e2b2bb501c73a9877fdae439312"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/equipmentwearimport/main_test.go",
+      "bytes": 416,
+      "sha256": "1c9d756cb6eaa4d59bf5330c2a773efdc75d8d6e905f2bfa5f727883ceb77b45"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/framedump/main.go",
+      "bytes": 2613,
+      "sha256": "da44c32b7078a013f59111a8982723795c114ebbf64993fc07f42845fe7730e1"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/hellpartyimport/main.go",
+      "bytes": 2507,
+      "sha256": "2e18c0cace0217dbb3e31b855dde9fd178b8f7c4573c8990a214c38533d2b88a"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/initialrepair/main.go",
+      "bytes": 6073,
+      "sha256": "65beed951cf5938467974f32de96ad1b49b056365c8d9d7010b4f6551751890e"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/itemperiodimport/main.go",
+      "bytes": 877,
+      "sha256": "36f930141aa6d04b012fbe253366bf0c26ec2aafdef049dfb3c43b0588d63546"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/itemshopimport/main.go",
+      "bytes": 6655,
+      "sha256": "30ce24be27ee5efbac6c658c62177c7c4df6f3637f50e5961bb11165d6a72c99"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/legionimport/main.go",
+      "bytes": 2731,
+      "sha256": "2544096b24b3cdc324b10571de9015d59f86c1dc41e0ef902831efb1da06e6af"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/loginchannel/main.go",
+      "bytes": 1601,
+      "sha256": "d5ca92e965dde8a552d709eece95ac13a390b571208fe85bb78da75ef4c6f6e5"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/loginchannel/main_test.go",
+      "bytes": 1060,
+      "sha256": "b80b4e3d8198d7bde7f1269c66cb3c27bbcd58519b951de15989891b4c9b36e5"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/lootimport/main.go",
+      "bytes": 1103,
+      "sha256": "8fdf7e6014f55946de201ecb6d6638c5317a1370913edfbe4fa6608cab5fdb17"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/lotterycatalog/main.go",
+      "bytes": 9238,
+      "sha256": "734345a5e12232fe60261d90b18253ff61163550f975eb5c202c2206a3fdcb2e"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/npcpresenceaudit/main.go",
+      "bytes": 6515,
+      "sha256": "5b2df15b1d1f9775b0824bbe8552d1cb15c021980c88cae18c53457557ffaf36"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/npcpresenceaudit/main_test.go",
+      "bytes": 1374,
+      "sha256": "e65f6be6fa63697d51fc6750e9585c03a1d74fe0f59370f9b41169b7167000fb"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/npcteleportimport/main.go",
+      "bytes": 782,
+      "sha256": "126d772dd103eb3071e643ba48d618f3158e409cc9f8dba0020a524f454da041"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/oathgradeimport/main.go",
+      "bytes": 4104,
+      "sha256": "0e1d17546327fc80f84139829dd55317b05ea9e280bb727bb4c99f8d32fa5273"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/odysseyaudit/main.go",
+      "bytes": 2175,
+      "sha256": "1fac3e1e0d6836cea1759bf15366046dff2694772528473df78dfec82daa8e7d"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/odysseychapterimport/main.go",
+      "bytes": 2052,
+      "sha256": "1e19ffbfcfdf83107e2107d57aa2c7cfcf09d69a1453beef7a08fa7fb518efa5"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/odysseygrowthaudit/main.go",
+      "bytes": 4007,
+      "sha256": "00a4ca1b3881233177b0ca32918ed76d23e7f05ccbf4dc76f341d253d4142dcb"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/progressionimport/main.go",
+      "bytes": 945,
+      "sha256": "c9245c132acd152ddaea1ff16f41dc6f30579124fb068cae21d6befff8c51ee3"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/protocolfixture/main.go",
+      "bytes": 2580,
+      "sha256": "d1783b3628bda280eb8a7b4a6c510db434aa9eb2a9d973253067cc4f457c0a8a"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/pvfaudit/main.go",
+      "bytes": 6499,
+      "sha256": "f0bf5c9818eae5d226d124a4cb24aec26419ca5697d0294eddfe8a9ffbff89ef"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/pvfaudit/main_test.go",
+      "bytes": 1921,
+      "sha256": "f8dfe3203c3f2d2c226ef82c1f8da1dd5f0065101e714ff85894bb47a032e393"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/pvfinspect/main.go",
+      "bytes": 3520,
+      "sha256": "fbcb40ba4d424617aae4fbeb42fd4c4c8dc8b7848142167086c8b349d37b5656"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/pvflist/main.go",
+      "bytes": 2820,
+      "sha256": "e7f4e0841030d25bf66a859ddff78755699ef89098e5c2ea4378109887fe2f0c"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/pvfpatch/main.go",
+      "bytes": 1262,
+      "sha256": "1d205ff12ff323df1843ab817afc0a47f0a4cc8fd6a16aad6aa3fd1a1c0e27ad"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/questaudit/main.go",
+      "bytes": 944,
+      "sha256": "8fc286c2aaf9b6ffbfdd0750a758e434a523514ace1c5db5133553ddaf985a33"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/questcatalog/main.go",
+      "bytes": 842,
+      "sha256": "a5888ab0c5b9edcb8387c899623f7320363c54a8d63911f5cd52723046979b54"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/questchain/main.go",
+      "bytes": 2615,
+      "sha256": "50229eca8bc2480bc58ea64d40c6438e7953eb262e3a1a62e69115b46bad473f"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/questchain/reasons.go",
+      "bytes": 2540,
+      "sha256": "3173d9d75eeef9a3e03959b502762fe1205d5b906c4d6fe354fa488d7f179f80"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/questequipmentimport/main.go",
+      "bytes": 2026,
+      "sha256": "6eb894407aa7a4a659bee27eef39759e4aab618d7e1acb7f9de9f7cbb74e90c0"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/questequipmentimport/main_test.go",
+      "bytes": 1119,
+      "sha256": "a82af3b5987a15112b3801c7e5932b91644ea00deeeb060b29c00a0b128e4f3d"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/questrepair/main.go",
+      "bytes": 2921,
+      "sha256": "d53ddad31dab12ddb009e709b94dc8feda5846830b9c8e3b942a6134ba1cff3c"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/randomoptionimport/main.go",
+      "bytes": 1659,
+      "sha256": "4be775fcb7eb0f6dd569618ae4f09a8701736411f4c5a42633e515885859e772"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/selectionboximport/main.go",
+      "bytes": 1106,
+      "sha256": "5be8a3877b771099c77baf2702b388e85b588ba0a9221d49ff392f90e33845ce"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/shieldaudit/main.go",
+      "bytes": 2316,
+      "sha256": "e690c0687935fed2996fa13c1821ccde0affde3792575e68349b597e5460239d"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/shieldaudit/main_test.go",
+      "bytes": 1120,
+      "sha256": "abd139b80556357ecbf35e61a1add0eac65ff49f65c0576caecbbac275408ee7"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/shopaudit/main.go",
+      "bytes": 1926,
+      "sha256": "9d54316c305b11dc10ad33752e96825a1b98513b13401edcfceae600fda6caf2"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/shopimport/main.go",
+      "bytes": 1842,
+      "sha256": "77fbdc653507d4cefd495125a7118a5fbf99541d42b2341cf4e9842bbc06b8c0"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/shopimport/main_test.go",
+      "bytes": 643,
+      "sha256": "492928de7b280fbbce5c0d50131b34cbf058dffd783ec4607790df668a89c735"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/shopprices/main.go",
+      "bytes": 975,
+      "sha256": "8a3f9cf98b2a86e20c56be8aac5230444c566a5495591a90b8fa39c20950daf5"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/skillaudit/main.go",
+      "bytes": 1188,
+      "sha256": "f257a160aeed7f8ed2c2fc4084d8a7c6a6cc70b92107c972ba701c00fdac1444"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/skillaudit/main_test.go",
+      "bytes": 4109,
+      "sha256": "04abbeda9dcee9ceef782587997a2b6d98fe2acabf2b41098e28e2f5a0fe87d1"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/skinstorageimport/main.go",
+      "bytes": 1220,
+      "sha256": "bd5a328ab0f13efd1586df9378118e2161b2356442ddb016f1d676e703db422c"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/storagecheck/main.go",
+      "bytes": 889,
+      "sha256": "8ee69ce3c06c1e5efd1b4e38f56ae5b980658188be0849a5600c0482439a13ee"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/towerdazzlementimport/main.go",
+      "bytes": 915,
+      "sha256": "f5451e85936a2b44447a2f397285ce4f919780312a050fd64a991abbded771dc"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/towergriefimport/main.go",
+      "bytes": 906,
+      "sha256": "adf40038a6e0848ac5fa5533ae891d5ce32125696a42707643574da14c2331fd"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/towncatalog/main.go",
+      "bytes": 1007,
+      "sha256": "420df588d3d6e58f95b5f2b754f8465d06a028224c9a1cdb720fff83ed47bf0a"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/townprobe/main.go",
+      "bytes": 1049,
+      "sha256": "40865343c3e045401b67f7db1789e3ecac61fcfa205ef1de3e76cbbfe73574c2"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/tutorialimport/main.go",
+      "bytes": 1375,
+      "sha256": "6146d481cb6df0860355fcd45abf7c6fb5e6b5de34fa95068221386df217dc98"
+    },
+    {
+      "path": "work/dfo-lan/internal/toolcmd/worldcatalog/main.go",
+      "bytes": 1953,
+      "sha256": "d5d02c72980f96c15325d5b0164e7b1cdaff39cf9bb78241706e1e1cbd9d8b75"
+    },
+    {
+      "path": "work/dfo-lan/cmd/dfo-tool/main.go",
+      "bytes": 9126,
+      "sha256": "a8d4ce88ba6472576c3b4c67706b756440f89e29ef69e482ad9bbdd0c5586df8"
+    },
+    {
+      "path": "work/dfo-lan/cmd/dfo-tool/main_test.go",
+      "bytes": 2249,
+      "sha256": "f0121494258f6ecb8d4d0f688932e1940e08f47bc286af30b1c148aa3c1ab38d"
+    },
+    {
+      "path": "work/dfo-lan/cmd/README.md",
+      "bytes": 2271,
+      "sha256": "e592eb8c5b854bbb98b9b34985672e5537e1b57ad536b0f5bdf435083b5b8732"
+    },
+    {
+      "path": "README-先看这里.md",
+      "bytes": 11075,
+      "sha256": "30523828feb09b55963106a10084537bd19f5c3810f729d8126d5f96f9992dcb"
     }
   ]
 }
