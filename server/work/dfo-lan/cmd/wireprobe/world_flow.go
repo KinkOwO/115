@@ -58,6 +58,7 @@ type worldSession struct {
 	inTutorial       bool
 	fatigue          *character.FatigueService
 	lastFatigueDay   string
+	lastFatigueLimit uint16
 	quests           *quest.Service
 	progression      *character.ProgressionService
 	loot             *loot.Service
@@ -89,6 +90,7 @@ type worldSession struct {
 	// disables the CMD507 action 169 flow.
 	skinCatalog map[uint32]catalog.SkinStorageEntry
 	drops       *loot.Session
+	autoPickup  bool
 	deathSent   map[uint16]bool
 	// scaleDeathFromHP 打开「定盘机关血量触底时由服务端宣布它死亡」这条兜底路径
 	// （见 scale_death.go）。默认关闭，开启方式是 -scale-death-from-hp

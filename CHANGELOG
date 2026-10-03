@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 2026-10-03：副本经验与难度接线已确认
+
+- 击杀与通关经验使用本次副本的实际难度，0/1取PVF首档、2..5取后续档；当前源系数为1.30/2.00/2.50/3.00/4.00，评级经验随通关基础变化。保留原兼容公式与事件幂等，无schema或客户端修改。
+- Go 1.26全量测试、vet、事务重放/存档字段保留专项及54域PVF准备通过。旧charactercheck缺account_unified_options表，HEAD原代码overlay同样失败。
+- 用户确认不同副本难度获得的经验不同；确认版为独立候选 `.tmp/difficulty-exp-20261003/wireprobe-difficulty-experience.exe`，SHA256 `6cce9f0462d25093fabec8c932a43d4e21bf4f90ee2b25b6d9741dfb9bcc6e0f`，同目录入口 `启动验证.cmd`。验收范围限本次用户实测，不推定所有副本逐项验证。详见 `server/work/dfo-lan/docs/protocol/dungeon-experience-difficulty-20261003.md`。
+
 ## 2026-10-03：黄龙/银龙大会四轮流程已确认
 
 - 首场CMD39后客户端发送CMD33；旧剧情收尾路径把它当作整场通关并立即结算。现有大会运行只接受最终BossCheck完成，未完成时忽略CMD33，不写任务清除证据；四轮Bracket、普通副本Boss错位兼容及最终奖励协议保持。

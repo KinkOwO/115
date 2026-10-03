@@ -1,5 +1,12 @@
 # AGENTS.md — server/
 
+## 2026-10-03：副本经验与难度挂钩已确认
+
+- 修复角色击杀经验及副本通关基础/评级经验固定取首列的问题；按实际难度转换为当前PVF五档系数索引。难度0/1兼容首档，2..5逐档取表；保留原等级惩罚、PVF权重、成长契约及通关/击杀幂等。
+- 用户实机确认不同副本难度获得的经验不同。确认范围限此次手动测试，不扩展到全地图或全等级。
+- confirmed baseline 为独立候选 `work/dfo-lan/.tmp/difficulty-exp-20261003/wireprobe-difficulty-experience.exe`，SHA256 `6cce9f0462d25093fabec8c932a43d4e21bf4f90ee2b25b6d9741dfb9bcc6e0f`，同目录 `profile.json` 和 `启动验证.cmd`；默认 `wireprobe-pvf.exe` 未替换。无schema、玩家存档、客户端/DLL或PVF资源修改。
+- Go全量测试、`go vet ./...`、事务难度/重放专项与当前PVF54域准备通过。`charactercheck` 因缺 `account_unified_options` 失败，HEAD源码overlay亦可复现。资料见 `work/dfo-lan/docs/protocol/dungeon-experience-difficulty-20261003.md`。
+
 ## 2026-10-03：黄龙/银龙大会四轮流程已确认
 
 - 用户反馈首场CMD33触发剧情式最终结算。已在未完成Tournament时禁止SceneClearObjective写入任务地图通关证据，并由`MarkSceneCompleted`守卫，前三场保留已有回合推进，第四场按最终BossCheck进入原结算流程。

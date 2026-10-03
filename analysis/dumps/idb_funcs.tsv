@@ -8,6 +8,17 @@ address	name	description
 0x146ea0be0	PacketReader_CopyFixedOrAssert	Local client SHA256 01c633df; reads edx bytes; remaining<edx jumps to deliberate null write 146ea0c30. next79 20261003 crash stack confirmed.
 0x1424fdc30	Handler_LegionBasicClearReward_Local2252	NOTI2252 local fixed 7772B direct copy at1424fdd01; no zlib inflation; return1424fdd06 matches next79 live crash.
 0x1424fdb60	Handler_LegionAdditionalClearReward_Local2253	NOTI2253 local fixed 2405B direct copy at1424fdbd5; no zlib inflation. Existing IDB survey anchor corroborated with current client bytes.
+0x147812210	ServerParameters_ReadScript	115 serverparameter reader; difficulty experience tag14B3018B0 at1478128D6 loads five sequential float32 values via14709BDB0 into byte offset1656; source order confirmed20261003, official server award formula not established.
+0x1470F42E0	ItemScript_ResetCommonFields	115 native common item reset clears qword+0x10; STK creation-rate case21039 writes DWORD+0x10 at14712BD1B; missing rate zero, award trigger remains separate, audit20261002
+0x147399CC0	DungeonDropInfo_DecodeRewardType	115 native drop-rule type enum special0 epic1 legendary2 unique3 rare4 random5 stackable6 primeval7 unknown8; independent from EQU rarity, audit20261002
+0x146AA0AE0	ResultReward_AddTemplateRow	115 result UI stores template row per participant/reward channel; binary template kind2 forces amount1 and passes local item state to display factory; NOTI35 first-channel metadata resides at local state+239..259, audit20261002
+0x147426050	DungeonDropGroups_ReadTables	115 dungeondroptablebygroup reader; keeps nonzero-creation explicit raw, smart raw, and zero-creation explicit cumulative pairs in separate maps; award semantics still open, audit20261002
+0x1473E9E00	HellEpicTable_ReadAreaWeightedLists	115 HellDropEpicItemTable.etc reader; area/list-type key, source template/weight pairs accumulated into cumulative-weight tree; dungeon mapping and award trigger still open, audit20261002
+0x14505dab0	KnightShieldWindow_SendMoveOrDeck	Mode 1 sends CMD19; otherwise CMD649 writes exactly five u32 map values at byte zero.
+0x14524fca0	Handler_CmdKnightShieldDeck	CMD649 status-zero is inert; success reads one byte before five u32 writes (not five repeated bytes).
+0x145310a90	Handler_NotiKnightShieldDeck	NOTI567 reads five u32 and writes map plus UI, no status prefix.
+0x145057bb0	KnightShieldWindow_SetSocket	Rejects socket >4, writes native map; socket zero affects pending move flag.
+0x145a0e8c0	InventoryContainer_FromSpace	Spaces31/32 fall through to null; neither has a physical bag container.
 0x140ced7f0	ActBehavior_KickOutMapCharacter_Execute	KICK OUT MAP CHARACTER execution, validates current room and delegates scripted map move to 145ea1ca0
 0x145ea2f90	DungeonTransition_DecodeNative18	NOTI29 native 18-byte transition decode, type/direction/position/random-range
 0x1452b7100	Handler_NotiStartMap	NOTI29; flag0 leaves layer ordinal unchanged, flag2 clears ordinal at1452b7876; mode0 preserves cached room. Evil Justice live20260929 confirms flag0 left active layer.

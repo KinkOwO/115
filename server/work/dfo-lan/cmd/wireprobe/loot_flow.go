@@ -4,8 +4,11 @@ import (
 	"context"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
+	"dfolan/internal/loot"
+	"dfolan/internal/storage"
 	"dfolan/internal/workflow"
 	"fmt"
+	"log"
 	"time"
 )
 
@@ -23,6 +26,14 @@ func (w *worldSession) pickup(p []byte) ([]outboundPacket, error) {
 	if e != nil {
 		return nil, e
 	}
+	return w.finishPickup(ctx, saved, receipt, applied, true)
+}
+
+func (w *worldSession) finishPickup(ctx context.Context, saved storage.Character, receipt loot.PickupReceipt, applied, acknowledge bool) ([]outboundPacket, error) {
+	previousState := w.role.State
+	// 落账成功后先保留最新状态，后续通知构造失败也不能恢复旧背包。
+	w.role = saved
+	var e error
 	// Account-shared materials (colored cube fragments, souls, old souls)
 	// never stay in the bag: sweep the freshly picked stack into the account
 	// storage and republish the list35+list0 snapshots instead of NOTI14.
@@ -46,28 +57,36 @@ func (w *worldSession) pickup(p []byte) ([]outboundPacket, error) {
 			break
 		}
 	}
-	// NOTI14 is an incremental slot update: publish only the pickup
-	// destination row so the client marks just that slot as newly obtained.
-	// A full-bag update makes every slot flash the new-item highlight on every
-	// pickup, which the client shows as a highlight on all items.
+	// 一次拾取可能填满多个旧堆叠再占新格；只刷新变动格子，保留幂等回显。
 	var update []byte
 	if !isAccountMaterial && !isPetConsumable {
 		row, ok := b.RowAt(receipt.Destination)
 		if !ok {
 			return nil, fmt.Errorf("pickup destination slot %d missing", receipt.Destination)
 		}
-		update, e = protocol.InventoryUpdate([][protocol.CurrentItemRecordSize]byte{row})
+		before, err := inventory.ReadBag(previousState)
+		if err != nil {
+			return nil, err
+		}
+		rows := inventory.ChangedItemRows(before, b)
+		if len(rows) == 0 {
+			rows = append(rows, row)
+		}
+		update, e = protocol.InventoryUpdate(rows)
 		if e != nil {
 			return nil, e
 		}
 	}
-	plan := []outboundPacket{{"pickup_ack", 1, 43, []byte{1}}}
+	var plan []outboundPacket
+	if acknowledge {
+		plan = append(plan, outboundPacket{"pickup_ack", 1, 43, []byte{1}})
+	}
 	// NOTI39's parser changes branch after the scene object has been removed.
 	// Replaying a gold tail there would corrupt the ordinary fallback cursor.
 	if applied {
-		body, e := protocol.PickupConfirmed(r.Object, w.role.WireID, receipt.Destination, receipt.Award.Template == 0)
+		body, e := protocol.PickupConfirmed(receipt.Object, w.role.WireID, receipt.Destination, receipt.Award.Template == 0)
 		if receipt.Award.Template == 0 {
-			body, e = protocol.GoldPickupConfirmed(r.Object, w.role.WireID, receipt.Award.Amount)
+			body, e = protocol.GoldPickupConfirmed(receipt.Object, w.role.WireID, receipt.Award.Amount)
 		}
 		if e != nil {
 			return nil, e
@@ -113,4 +132,28 @@ func (w *worldSession) pickup(p []byte) ([]outboundPacket, error) {
 		}
 	}
 	return plan, nil
+}
+
+func (w *worldSession) autoPickupDrops(rows []protocol.SceneDrop) []outboundPacket {
+	if !w.autoPickup || w.loot == nil || w.activeDungeon == nil {
+		return nil
+	}
+	var plan []outboundPacket
+	for _, row := range rows {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		saved, receipt, applied, err := (&workflow.LootService{Store: w.store, Loot: w.loot}).AutoPickup(ctx, w.role, w.drops, w.activeDungeon, row.Object)
+		if err != nil {
+			cancel()
+			log.Printf("自动拾取未入包，保留地面物品：角色=%d 对象=%d 错误=%v", w.role.ID, row.Object, err)
+			continue
+		}
+		packets, err := w.finishPickup(ctx, saved, receipt, applied, false)
+		cancel()
+		if err != nil {
+			log.Printf("自动拾取已落账但同步失败：角色=%d 对象=%d 错误=%v", w.role.ID, row.Object, err)
+			continue
+		}
+		plan = append(plan, packets...)
+	}
+	return plan
 }
