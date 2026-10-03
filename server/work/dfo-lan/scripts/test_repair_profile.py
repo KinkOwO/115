@@ -34,7 +34,7 @@ class RepairProfileTests(unittest.TestCase):
 
     def test_example_is_portable_and_policies_are_opt_in(self):
         project = pathlib.Path(__file__).resolve().parent.parent
-        binary, required, env = load_profile(project / 'configs/repair-profile.example.json', project)
+        binary, required, env = load_profile(project / 'docs/repair-profile.example.json', project)
         self.assertEqual(binary, project / 'bin/wireprobe-handoff-source.exe')
         self.assertEqual(len(env['DFO_PVF_CATALOGS'].split(',')), 54)
         self.assertNotIn('DFO_SKILL_CATALOG', env)

@@ -10,7 +10,7 @@ import (
 )
 
 func TestChannelLoginCurrentFixture(t *testing.T) {
-	raw, err := os.ReadFile("../../configs/login-normal22.bin")
+	raw, err := os.ReadFile("testdata/login-normal22.bin")
 	if err != nil {
 		t.Fatal(err)
 	}

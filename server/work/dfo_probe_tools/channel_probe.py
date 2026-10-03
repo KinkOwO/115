@@ -92,7 +92,7 @@ with bps.open("a") as f:
 # "自动入口"类型（旧 0/2/3 被拒，见 docs/protocol/next34-channel-login.md），且在它
 # 底下客户端才会给出"奥德赛模式 / 剧情模式"双卡创建界面 —— 正是一个进程同时服务两种
 # 角色所需的形态。模式该由角色存档决定（internal/character/odyssey.go），而非启动参数。
-login_22 = project / "configs/login-normal22.bin"
+login_22 = project / "cmd/wireprobe/testdata/login-normal22.bin"
 login_normal = project / "runtime/login_ok.bin"
 if login_22.exists():
  default_login_bin = login_22.resolve()
@@ -233,16 +233,9 @@ with (
  ]
  if persisted:
   cr_odyssey = project / "configs/character-rules.odyssey-release.json"
-  cr_jobs = project / "configs/character-rules.jobs-release.json"
   cr_probe = project / "configs/character-probe.json"
-  # 统一用带 odyssey_pilot 的那份：它允许创建界面同时提供两种模式（角色各自记下模式），
-  # 而 jobs-release 缺这个字段，奥德赛角色在建号这一步就做不出来。
-  if cr_odyssey.exists():
-   cr_default = cr_odyssey
-  elif cr_jobs.exists():
-   cr_default = cr_jobs
-  else:
-   cr_default = cr_probe
+  # 使用带 odyssey_pilot 的规则，同时允许两种模式由角色存档决定。
+  cr_default = cr_odyssey if cr_odyssey.exists() else cr_probe
   cat_skycastle = project / "configs/characters.skycastle-release.json"
   cat_generated = project / "configs/characters.generated.json"
   cat_default = cat_skycastle if cat_skycastle.exists() else cat_generated
@@ -255,7 +248,7 @@ with (
    str(cr_default),
   ]
  if tag.startswith("roles_persist_select"):
-  command += ["-select-probe-config", str(project / "configs/select-parser-probe.json")]
+  command += ["-select-probe-config", str(project / "cmd/wireprobe/testdata/select-parser-probe.json")]
   with bps.open("a") as f:
    f.write(
     "525a120 SELECT_RESULT\n525a2e3 SELECT_FIELDS_BEGIN\n525b409 SELECT_LAST_COUNT\n525b4c4 SELECT_FIELDS_DONE\n"
@@ -271,7 +264,7 @@ with (
    "-town-catalog",
    str(project / "configs/town.generated.json"),
    "-town-entry-probe",
-   str(project / "configs/town-entry-probe.json"),
+   str(project / "cmd/wireprobe/testdata/town-entry-probe.json"),
   ]
   with bps.open("a") as f:
    f.write("52fc5b0 AREA_USERS_BEGIN\n52fcf01 AREA_MAP_LOAD\n52fd9e3 AREA_USERS_DONE\n")
@@ -279,7 +272,7 @@ with (
   command += ["-responses", str(responses.resolve())]
  if tag.startswith("roles_persist_select_actor_town_world_live"):
   command[command.index("-select-probe-config") + 1] = str(
-   project / "configs/select-world-probe.json"
+   project / "cmd/wireprobe/testdata/select-world-probe.json"
   )
   command += [
    "-world-rules",

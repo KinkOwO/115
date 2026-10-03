@@ -1,10 +1,10 @@
 # configs JSON 字面引用清单
 
-由 `scripts/audit_config_references.py` 生成。扫描范围为模块的 cmd、internal、scripts，以及不超过 1 MiB 的 configs JSON。
+由 `scripts/audit_config_references.py` 生成。扫描范围为模块的 cmd、internal、scripts，以及不超过 1 MiB 的 configs JSON 和 docs 根目录的 JSON 示例。
 
 引用包含注释和历史分支；数字是不同引用位置数，不表示正式运行必读。零引用也不能作为删除依据：动态拼路径、模块外启动器、GM 代理及历史二进制未由本清单证明。
 
-共 71 个顶层 JSON，扫描 1505 个文件；只输出文件名、大小和引用位置，不输出配置值。
+共 66 个顶层 JSON，扫描 1501 个文件；只输出文件名、大小和引用位置，不输出配置值。
 
 | JSON | MiB | 网关 | internal | 工具 | 测试 | 脚本 | 配置引用 | 非测试引用示例 |
 |---|---:|---:|---:|---:|---:|---:|---:|---|
@@ -20,7 +20,6 @@
 | `channel.local32.json` | 0.002 | 0 | 0 | 0 | 0 | 0 | 0 | 需追踪动态路径或外部入口 |
 | `channel.local34.json` | 0.006 | 0 | 0 | 0 | 3 | 0 | 0 | 需追踪动态路径或外部入口 |
 | `character-probe.json` | 0.000 | 1 | 0 | 0 | 0 | 0 | 0 | `cmd/wireprobe/config.go:51` |
-| `character-rules.jobs-release.json` | 0.000 | 0 | 0 | 0 | 0 | 0 | 0 | 需追踪动态路径或外部入口 |
 | `character-rules.odyssey-release.json` | 0.000 | 0 | 0 | 1 | 0 | 0 | 0 | `cmd/initialrepair/main.go:35` |
 | `characters.alljobs-pilot.json` | 0.066 | 0 | 0 | 0 | 3 | 0 | 0 | 需追踪动态路径或外部入口 |
 | `characters.auto-skills-candidate.json` | 0.074 | 0 | 0 | 0 | 3 | 0 | 0 | 需追踪动态路径或外部入口 |
@@ -41,8 +40,8 @@
 | `equipment-knight-shield.full-candidate.json` | 0.007 | 1 | 1 | 1 | 4 | 0 | 0 | `cmd/shieldaudit/main.go:22`<br>`cmd/wireprobe/config.go:87` |
 | `equipment-wear.current35.json` | 0.001 | 0 | 0 | 6 | 11 | 1 | 0 | `cmd/charactercheck/wear_check.go:49`<br>`cmd/gmtool/index.go:147` |
 | `equipment-wear.full-candidate.json` | 0.001 | 0 | 1 | 1 | 2 | 0 | 0 | `cmd/avatarrestorecheck/main.go:63`<br>`internal/game/protocol/equipment_journal.go:127` |
-| `equipment.current35.json` | 2.126 | 0 | 0 | 0 | 14 | 0 | 1 | `configs/drop.current36.json:10` |
-| `equipment.current37.json` | 4.333 | 0 | 2 | 6 | 21 | 0 | 0 | `cmd/gmtool/index.go:10`<br>`cmd/gmtool/index.go:180` |
+| `equipment.current35.json` | 2.126 | 0 | 0 | 0 | 13 | 0 | 1 | `configs/drop.current36.json:10` |
+| `equipment.current37.json` | 4.333 | 0 | 2 | 6 | 17 | 0 | 0 | `cmd/gmtool/index.go:10`<br>`cmd/gmtool/index.go:180` |
 | `experience.compat90.json` | 0.000 | 1 | 0 | 4 | 2 | 0 | 0 | `cmd/charactercheck/clear_reward_check.go:24`<br>`cmd/charactercheck/progression_check.go:29` |
 | `fatigue-probe.json` | 0.000 | 1 | 1 | 0 | 0 | 0 | 0 | `cmd/wireprobe/config.go:61`<br>`internal/savecontract/normalize.go:38` |
 | `inventory.compat90.json` | 0.000 | 1 | 0 | 2 | 3 | 0 | 0 | `cmd/charactercheck/card_check.go:26`<br>`cmd/charactercheck/loot_check.go:26` |
@@ -60,20 +59,16 @@
 | `pvf-box-policy.json` | 0.001 | 1 | 0 | 0 | 3 | 0 | 2 | `cmd/wireprobe/config.go:41`<br>`configs/pvf-default.json:17` |
 | `pvf-character-policy.json` | 0.001 | 1 | 1 | 2 | 9 | 0 | 2 | `cmd/audit36/verify.go:27`<br>`cmd/charactercheck/native_catalogs.go:45` |
 | `pvf-default.json` | 0.002 | 0 | 0 | 0 | 6 | 4 | 0 | `scripts/launch_local.py:21`<br>`scripts/launch_local.py:25` |
-| `pvf-drop-policy.json` | 0.020 | 1 | 1 | 7 | 11 | 0 | 2 | `cmd/audit36/main.go:198`<br>`cmd/audit36/verify.go:59` |
+| `pvf-drop-policy.json` | 0.020 | 1 | 1 | 7 | 12 | 0 | 2 | `cmd/audit36/main.go:198`<br>`cmd/audit36/verify.go:59` |
 | `pvf-enhancement-policy.json` | 0.005 | 1 | 0 | 0 | 10 | 0 | 2 | `cmd/wireprobe/config.go:36`<br>`configs/pvf-default.json:8` |
 | `pvf-item-shop-policy.json` | 0.052 | 1 | 0 | 0 | 2 | 0 | 2 | `cmd/wireprobe/config.go:40`<br>`configs/pvf-default.json:18` |
 | `pvf-layer-revisit-policy.json` | 0.000 | 1 | 0 | 0 | 2 | 0 | 2 | `cmd/wireprobe/config.go:43`<br>`configs/pvf-default.json:14` |
-| `pvf-mine-policy.json` | 0.001 | 0 | 0 | 0 | 6 | 0 | 2 | `configs/pvf-default.json:12`<br>`configs/repair-profile.example.json:12` |
+| `pvf-mine-policy.json` | 0.001 | 0 | 0 | 0 | 6 | 0 | 2 | `configs/pvf-default.json:12`<br>`docs/repair-profile.example.json:12` |
 | `pvf-scene-policy.json` | 0.000 | 1 | 0 | 0 | 9 | 0 | 2 | `cmd/wireprobe/config.go:46`<br>`configs/pvf-default.json:11` |
 | `pvf-script-warp-policy.json` | 0.005 | 1 | 0 | 0 | 2 | 0 | 2 | `cmd/wireprobe/config.go:44`<br>`configs/pvf-default.json:13` |
 | `pvf-vault-policy.json` | 0.000 | 1 | 0 | 0 | 4 | 0 | 2 | `cmd/wireprobe/config.go:37`<br>`configs/pvf-default.json:9` |
 | `randomoption.current37.json` | 0.137 | 2 | 1 | 1 | 5 | 0 | 0 | `cmd/randomoptionimport/main.go:16`<br>`cmd/wireprobe/bootstrap.go:345` |
 | `refine.json` | 0.002 | 1 | 3 | 0 | 3 | 0 | 0 | `cmd/wireprobe/bootstrap.go:881`<br>`internal/inventory/equipment.go:123` |
-| `repair-profile.example.json` | 0.002 | 0 | 0 | 0 | 1 | 0 | 0 | 需追踪动态路径或外部入口 |
-| `select-parser-probe.json` | 0.000 | 0 | 0 | 0 | 0 | 0 | 0 | 需追踪动态路径或外部入口 |
-| `select-world-probe.json` | 0.000 | 0 | 0 | 0 | 0 | 0 | 0 | 需追踪动态路径或外部入口 |
-| `town-entry-probe.json` | 0.000 | 0 | 0 | 0 | 0 | 0 | 0 | 需追踪动态路径或外部入口 |
 | `town.generated.json` | 0.001 | 0 | 1 | 1 | 0 | 0 | 0 | `cmd/towncatalog/main.go:16`<br>`internal/gamedata/catalogs_scenes.go:291` |
 | `tutorial-dungeons.current36.json` | 2.098 | 0 | 1 | 2 | 4 | 0 | 0 | `cmd/audit36/verify.go:45`<br>`cmd/audit36/verify.go:46` |
 | `tutorial-routes.current35.json` | 0.030 | 0 | 0 | 2 | 2 | 0 | 0 | `cmd/audit36/verify.go:34`<br>`cmd/audit36/verify.go:35` |

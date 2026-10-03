@@ -24,6 +24,8 @@
 
 剩余 loot/equipment-selection 的运行 fallback 与隐式 baseline 已移除；charactercheck/audit36 和 GM 离线部位导出改接原生 Source。三份原 JSON 暂保留为旧测试输入，本批不添加完整压缩快照；不能据生产退役宣称文件已删除。
 
+configs 目录语义已归位首批五份诊断/示例输入，相关动态消费者同步路径；冗余 jobs 规则文件已删除，顶层 JSON 71→66。完整内容表不会仅为目录整洁而整表搬入测试目录，仍按消费者逐项解耦。
+
 ## 第 0 批历史审计
 
 审计日期：2026-10-02。代码审计基点：HEAD b7a5692；本文件行号均指该快照，实际工作树中其他 agent 已修改 cmd/wireprobe 的行号，集成后须复核。审计范围为源码、默认 profile、启动器、admin/GM 与外部探针。server/work/dfo-lan/scripts/launch_local.py 有用户改动，本表按当前行为描述。本批只更新文档，不改运行代码、数值、客户端、协议、存档或启动行为，也没有启动服务、客户端或数据库。
