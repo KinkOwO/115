@@ -4,7 +4,7 @@
 
 引用包含注释和历史分支；数字是不同引用位置数，不表示正式运行必读。零引用也不能作为删除依据：动态拼路径、模块外启动器、GM 代理及历史二进制未由本清单证明。
 
-共 109 个顶层 JSON，扫描 1503 个文件；只输出文件名、大小和引用位置，不输出配置值。
+共 106 个顶层 JSON，扫描 1500 个文件；只输出文件名、大小和引用位置，不输出配置值。
 
 | JSON | MiB | 网关 | internal | 工具 | 测试 | 脚本 | 配置引用 | 非测试引用示例 |
 |---|---:|---:|---:|---:|---:|---:|---:|---|
@@ -71,8 +71,8 @@
 | `legion-contents.generated.json` | 0.035 | 0 | 0 | 2 | 2 | 0 | 0 | `cmd/legionimport/main.go:3`<br>`cmd/legionimport/main.go:47` |
 | `loot.level150.json` | 3.126 | 0 | 0 | 1 | 12 | 0 | 1 | `cmd/odysseygrowthaudit/main.go:120`<br>`configs/repair-profile.example.json:1` |
 | `loot.next25.json` | 3.124 | 0 | 2 | 13 | 27 | 0 | 0 | `cmd/admin/main.go:71`<br>`cmd/charactercheck/card_check.go:19` |
-| `lottery-equipment-pools.json` | 2.467 | 2 | 0 | 0 | 2 | 0 | 0 | `cmd/wireprobe/bootstrap.go:1316`<br>`cmd/wireprobe/catalog_runtime.go:57` |
-| `lottery-item-pools.json` | 0.395 | 2 | 0 | 0 | 3 | 0 | 0 | `cmd/wireprobe/bootstrap.go:1308`<br>`cmd/wireprobe/catalog_runtime.go:53` |
+| `lottery-equipment-pools.json` | 2.467 | 2 | 0 | 0 | 3 | 0 | 0 | `cmd/wireprobe/bootstrap.go:1316`<br>`cmd/wireprobe/catalog_runtime.go:57` |
+| `lottery-item-pools.json` | 0.395 | 2 | 0 | 0 | 4 | 0 | 0 | `cmd/wireprobe/bootstrap.go:1308`<br>`cmd/wireprobe/catalog_runtime.go:53` |
 | `npc-teleport.generated.json` | 0.050 | 0 | 2 | 1 | 0 | 0 | 0 | `cmd/npcteleportimport/main.go:14`<br>`internal/catalog/npc_teleport.go:156` |
 | `oath-grades.json` | 0.034 | 1 | 3 | 2 | 1 | 0 | 0 | `cmd/oathgradeimport/main.go:13`<br>`cmd/oathgradeimport/main.go:56` |
 | `odyssey-chapter-drop-release.json` | 0.001 | 0 | 2 | 0 | 5 | 0 | 0 | `internal/gamedata/catalogs_content.go:314`<br>`internal/loot/odyssey_chapter_drop.go:13` |
@@ -81,19 +81,16 @@
 | `odyssey-growth-release.json` | 0.034 | 0 | 1 | 0 | 10 | 0 | 1 | `configs/repair-profile.example.json:1`<br>`internal/gamedata/catalogs_content.go:270` |
 | `odyssey-weapon-box-release.json` | 0.061 | 0 | 1 | 0 | 3 | 0 | 1 | `configs/repair-profile.example.json:1`<br>`internal/gamedata/catalogs_content.go:354` |
 | `progression.next25.json` | 3.851 | 0 | 0 | 6 | 15 | 0 | 0 | `cmd/charactercheck/clear_reward_check.go:17`<br>`cmd/charactercheck/progression_check.go:22` |
-| `pvf-box-policy.json` | 0.001 | 1 | 0 | 0 | 3 | 0 | 1 | `cmd/wireprobe/config.go:41`<br>`configs/pvf-default.json:18` |
-| `pvf-character-policy.json` | 0.001 | 1 | 1 | 0 | 9 | 0 | 1 | `cmd/wireprobe/config.go:42`<br>`configs/pvf-default.json:16` |
-| `pvf-content-policy.json` | 0.000 | 1 | 0 | 0 | 2 | 0 | 0 | `cmd/wireprobe/config.go:38` |
+| `pvf-box-policy.json` | 0.001 | 1 | 0 | 0 | 3 | 0 | 1 | `cmd/wireprobe/config.go:41`<br>`configs/pvf-default.json:17` |
+| `pvf-character-policy.json` | 0.001 | 1 | 1 | 0 | 9 | 0 | 1 | `cmd/wireprobe/config.go:42`<br>`configs/pvf-default.json:15` |
 | `pvf-default.json` | 0.002 | 0 | 0 | 0 | 6 | 4 | 0 | `scripts/launch_local.py:21`<br>`scripts/launch_local.py:25` |
 | `pvf-drop-policy.json` | 0.020 | 1 | 1 | 0 | 9 | 0 | 1 | `cmd/wireprobe/config.go:47`<br>`configs/pvf-default.json:10` |
 | `pvf-enhancement-policy.json` | 0.005 | 1 | 0 | 0 | 9 | 0 | 1 | `cmd/wireprobe/config.go:36`<br>`configs/pvf-default.json:8` |
-| `pvf-item-shop-policy.json` | 0.052 | 1 | 0 | 0 | 2 | 0 | 1 | `cmd/wireprobe/config.go:40`<br>`configs/pvf-default.json:19` |
-| `pvf-layer-revisit-policy.json` | 0.000 | 1 | 0 | 0 | 2 | 0 | 1 | `cmd/wireprobe/config.go:43`<br>`configs/pvf-default.json:15` |
-| `pvf-lottery-policy.json` | 0.039 | 0 | 0 | 0 | 3 | 0 | 0 | 需追踪动态路径或外部入口 |
+| `pvf-item-shop-policy.json` | 0.052 | 1 | 0 | 0 | 2 | 0 | 1 | `cmd/wireprobe/config.go:40`<br>`configs/pvf-default.json:18` |
+| `pvf-layer-revisit-policy.json` | 0.000 | 1 | 0 | 0 | 2 | 0 | 1 | `cmd/wireprobe/config.go:43`<br>`configs/pvf-default.json:14` |
 | `pvf-mine-policy.json` | 0.001 | 0 | 0 | 0 | 6 | 0 | 1 | `configs/pvf-default.json:12` |
 | `pvf-scene-policy.json` | 0.000 | 1 | 0 | 0 | 7 | 0 | 1 | `cmd/wireprobe/config.go:46`<br>`configs/pvf-default.json:11` |
-| `pvf-script-warp-policy.json` | 0.005 | 1 | 0 | 0 | 2 | 0 | 1 | `cmd/wireprobe/config.go:44`<br>`configs/pvf-default.json:14` |
-| `pvf-selection-policy.json` | 0.000 | 1 | 0 | 0 | 2 | 0 | 1 | `cmd/wireprobe/config.go:39`<br>`configs/pvf-default.json:13` |
+| `pvf-script-warp-policy.json` | 0.005 | 1 | 0 | 0 | 2 | 0 | 1 | `cmd/wireprobe/config.go:44`<br>`configs/pvf-default.json:13` |
 | `pvf-vault-policy.json` | 0.000 | 1 | 0 | 0 | 4 | 0 | 1 | `cmd/wireprobe/config.go:37`<br>`configs/pvf-default.json:9` |
 | `quest-equipment.current37.json` | 2.137 | 0 | 0 | 2 | 0 | 0 | 0 | `cmd/equipfields/main.go:40`<br>`cmd/questequipmentimport/main.go:32` |
 | `quest-equipment.next29.json` | 1.782 | 0 | 0 | 3 | 0 | 0 | 0 | `cmd/charactercheck/quest_chain_check.go:130`<br>`cmd/equipmentwearimport/main.go:17` |

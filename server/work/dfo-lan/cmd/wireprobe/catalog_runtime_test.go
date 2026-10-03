@@ -17,7 +17,7 @@ func TestPVFLotteryLocalArchive(t *testing.T) {
 	if path == "" {
 		t.Skip("set DFO_PVF_CORE_TEST_ARCHIVE for complete lottery source and weighted boundary parity")
 	}
-	c, err := prepareCatalogsForRuntimeTest(t, "characters,lottery", path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "missing-characters.json", "", "", "", gamedata.CatalogInputs{CharacterPolicyPath: "../../configs/pvf-character-policy.json", IndexPath: "missing-index.json", LotteryPolicyPath: "../../configs/pvf-lottery-policy.json"})
+	c, err := prepareCatalogsForRuntimeTest(t, "characters,lottery", path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "missing-characters.json", "", "", "", gamedata.CatalogInputs{CharacterPolicyPath: "../../configs/pvf-character-policy.json", IndexPath: "missing-index.json", LotteryPolicyPath: "missing-lottery-policy.json"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -118,9 +118,22 @@ func TestNativeLotteryDiscoveryCurrentArchive(t *testing.T) {
 	if scope.Candidates != len(direct.Items.Pools)+len(direct.Equipment.Pools)+len(scope.Issues) {
 		t.Fatal("incomplete discovery")
 	}
-	old, err := catalog.ReadLotteryPolicy("../../configs/pvf-lottery-policy.json")
+	itemPools, err := catalog.LoadLotteryItemPools("../../configs/lottery-item-pools.json")
 	if err != nil {
 		t.Fatal(err)
+	}
+	equipmentPools, err := catalog.LoadLotteryEquipmentPools("../../configs/lottery-equipment-pools.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The retained historical pool data supplies the audit scope; no separate
+	// hand-maintained policy is needed to exercise the native scoped importer.
+	old := catalog.LotteryPolicy{Version: 1}
+	for _, pool := range itemPools.Pools {
+		old.Items = append(old.Items, pool.SourceItem)
+	}
+	for _, pool := range equipmentPools.Pools {
+		old.Equipment = append(old.Equipment, pool.SourceItem)
 	}
 	legacy, err := s.Lottery(index, old)
 	if err != nil {

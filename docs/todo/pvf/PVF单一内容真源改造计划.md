@@ -2,6 +2,19 @@
 
 更新：2026-10-03。用户要求 PVF 作为核心游戏内容文件，消除另一套人工维护的玩法 JSON，并明确 PVF 对服务端是只读资源。内容修改由服务端之外的编辑工具完成。本文记录目标、第一批实际审计和迁移缺口；不表示全量配置依赖已经解除。
 
+## 2026-10-03：3 个冗余政策 JSON（源码候选）
+
+继续用户授权的配置清理，删除 `pvf-lottery-policy.json`、`pvf-selection-policy.json`、`pvf-content-policy.json`，共 40,829 字节，顶层 JSON 109→106。
+
+- 抽奖历史清单原来有 276 个普通池、2,477 个装备池；删除前逐 ID 核对，与保留的两个奖池 JSON 完全一致。历史原生 importer 对照测试现在从这些奖池取 ID，不再复制独立清单；正常运行继续自动发现。旧 compatibility 参数保持忽略语义。
+- 自选政策不提供路径时采用 version=1、空白名单，仍从 PVF 类型自动发现；默认 profile 移除 `DFO_PVF_SELECTION_POLICY`。显式 whitelist/旧 templates 政策仍可读取，路径缺失、版本错误和非法内容仍报错，不静默回退。
+- 不提供 content 政策路径时采用与原 `{"version":1}` 文件完全相同的空策略。当前默认档仍明确使用原 `pvf-mine-policy.json`，其数值、补充物品、范围和哈希保持。不是把正常默认档改为空策略。
+- 两个 Go 参数的默认路径改为空，帮助与配置向量同步更新；其余参数、环境覆盖、显式空值与路径校验保持。增加缺失/非法显式政策拒绝及空策略等价回归，保留 24 项 Python profile/启动检查。
+
+Go 1.26.5 无缓存全量测试、vet、政策/配置专项、当前 8b2a PVF 的抽奖自动发现与旧范围对照通过。删除后候选的 54 域只读准备通过；与 HEAD 63c783c 的隔离 baseline 构建相比，准备报告的 14 个非 memory 顶层字段全部一致（同源、同域、同目录数量、runtime_started/storage_accessed=false）。memory 为 GC/内存诊断，不作为内容等价字段，也不据本次并行运行推断性能改善。
+
+候选程序为 `server/work/dfo-lan/.tmp/config-policy-cleanup/candidate.exe`，配套 `candidate-profile.json` 和 `启动验证.cmd`；由用户手动运行验证脚本。旧程序可能仍默认读取已删的两个政策文件，删除后的工作树须使用本次源码构建；未替换正式/源码 bin，未启动网关、玩家库或客户端。confirmed baseline 保持原实机确认范围，不将本次离线检查计为玩法实机确认。候选、baseline overlay、报告、日志与删除前哈希均保留在该临时目录且不提交；当前客户端资源、服务端内层 PVF、玩家存档与 SQL/schema 无改动。
+
 ## 2026-10-03：17 个 JSON 收口
 
 按用户“先收口刚刚说的能删的”授权，删除 17 个顶层 JSON，126→109，共 23,584,750 字节（约 22.49 MiB）。只处理已经完成引用审计的这批文件，不扩展删除其余政策或 JSON 回退数据。

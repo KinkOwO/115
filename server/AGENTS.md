@@ -1,5 +1,10 @@
 # AGENTS.md — server/
 
+## 2026-10-03：3 个冗余政策 JSON 清理（源码候选）
+
+- 删除 lottery/selection/content 三个冗余政策 JSON，109→106；空路径使用原空策略，显式政策仍严格校验，默认档实际 mine 政策数值保持。抽奖历史 scope 从保留奖池生成，不另存测试清单。
+- Go 1.26.5 无缓存全量测试、vet、政策/配置和原生抽奖回归、Python 3.11.9 的 24 项检查通过；删除后候选 54 域准备与 63c783c baseline 的 14 个非 memory 报告字段相同。当前工作树需更新后源码构建，独立候选/手动入口在 .tmp/config-policy-cleanup，未替换正式/源码 bin 或访问玩家库、客户端。无 PVF/schema/存档改动；confirmed baseline 保持既有实机范围。
+
 ## 2026-10-03：17 个配置 JSON 清理已确认（源码收口）
 
 - 用户授权收口：删除 cerashop.json、5 个字节相同的 candidate 数据与 11 个逐批 PVF profile，顶层 JSON 126→109（减少 22.49 MiB）；商城旧导出脚本和两份交付清单对应条目同步移除。Go 测试改用保留的 release，profile 测试使用默认档与临时显式配置，README/迁移计划/引用清单更新。

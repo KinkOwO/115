@@ -552,6 +552,9 @@ type pvfContentPolicy struct {
 }
 
 func readPVFContentPolicy(path string) (pvfContentPolicy, error) {
+	if path == "" {
+		return pvfContentPolicy{Version: 1}, nil
+	}
 	var p pvfContentPolicy
 	f, err := os.Open(path)
 	if err != nil {

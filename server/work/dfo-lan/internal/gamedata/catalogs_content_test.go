@@ -7,9 +7,37 @@ import (
 	"dfolan/internal/legion"
 	"dfolan/internal/loot"
 	"os"
+	"path/filepath"
+	"reflect"
 	"testing"
 	"time"
 )
+
+func TestPVFContentPolicyOmittedPreservesEmptyPolicyAndRejectsInvalidOverride(t *testing.T) {
+	policy, err := readPVFContentPolicy("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "policy.json")
+	if err := os.WriteFile(path, []byte(`{"version":1}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	old, err := readPVFContentPolicy(path)
+	if err != nil || !reflect.DeepEqual(policy, old) {
+		t.Fatal("omitted policy changed the former empty policy semantics", policy, old, err)
+	}
+	if _, err := readPVFContentPolicy(path + ".missing"); err == nil {
+		t.Fatal("missing explicit content policy was silently replaced")
+	}
+	for _, raw := range []string{`{"version":2}`, `{"version":1,"unknown":true}`, `{"version":1} {}`} {
+		if err := os.WriteFile(path, []byte(raw), 0600); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := readPVFContentPolicy(path); err == nil {
+			t.Fatal("invalid explicit content policy was silently replaced", raw)
+		}
+	}
+}
 
 func TestPVFAdventureLocalArchive(t *testing.T) {
 	path := os.Getenv("DFO_PVF_CORE_TEST_ARCHIVE")
@@ -350,7 +378,7 @@ func TestPVFSelectionBoxesLocalArchive(t *testing.T) {
 	if path == "" {
 		t.Skip("set DFO_PVF_CORE_TEST_ARCHIVE for full bounded selection box parity")
 	}
-	c, err := prepareCatalogsForTest(t, "selection-boxes", path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "../../configs/characters.skycastle-release.json", "", "", "", CatalogInputs{IndexPath: "../../configs/items.index.json", SelectionPolicyPath: "../../configs/pvf-selection-policy.json"})
+	c, err := prepareCatalogsForTest(t, "selection-boxes", path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "../../configs/characters.skycastle-release.json", "", "", "", CatalogInputs{IndexPath: "../../configs/items.index.json"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -410,7 +438,7 @@ func TestPVFAttunementLocalArchive(t *testing.T) {
 	if path == "" {
 		t.Skip("set DFO_PVF_CORE_TEST_ARCHIVE for native reward CTP parity")
 	}
-	c, err := prepareCatalogsForTest(t, "items,attunement", path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "../../configs/characters.skycastle-release.json", "", "", "", CatalogInputs{IndexPath: "../../configs/items.index.json", ContentPolicyPath: "../../configs/pvf-content-policy.json"})
+	c, err := prepareCatalogsForTest(t, "items,attunement", path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "../../configs/characters.skycastle-release.json", "", "", "", CatalogInputs{IndexPath: "../../configs/items.index.json"})
 	if err != nil {
 		t.Fatal(err)
 	}

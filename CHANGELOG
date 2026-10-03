@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 2026-10-03：3 个冗余政策 JSON 清理（源码候选）
+
+- 删除 pvf-lottery-policy.json、空白名单 pvf-selection-policy.json 和空 pvf-content-policy.json，109→106。抽奖历史对照从保留奖池生成清单；源码不提供 selection/content 路径时采用原空策略，显式非法路径/内容仍拒绝。默认档移除 selection 政策项，实际数值的 pvf-mine-policy.json 保持。
+- 配置默认值、帮助向量及专项同步；Go 1.26.5 无缓存全量测试、vet、当前 PVF 抽奖范围回归与 Python 3.11.9 的 24 项检查通过。删除后候选 54 域准备成功，与 63c783c 隔离 baseline 的 14 个非 memory 报告字段一致，未启动运行/存储。
+- 独立候选及手动验证入口位于 .tmp/config-policy-cleanup；旧程序可能默认读已删政策，当前工作树需新源码构建。未替换正式/源码 bin，confirmed baseline 保持既有实机范围；未访问玩家库、启动客户端或修改 PVF/schema/存档。用户 .gitignore 改动保持并排除提交。详见 docs/todo/pvf/PVF单一内容真源改造计划.md。
+
 ## 2026-10-03：17 个配置 JSON 清理已确认（源码收口）
 
 - 按用户授权删除无消费者的 cerashop.json、5 个与 release 字节相同的 candidate 数据、11 个逐批 PVF profile，顶层 JSON 126→109，减少 23,584,750 字节（22.49 MiB）。删除商城旧导出脚本，并从两份交付清单移除对应 7 条；配置 README、迁移计划和字面引用清单同步更新。

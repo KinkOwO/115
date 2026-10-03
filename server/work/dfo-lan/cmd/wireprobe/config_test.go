@@ -13,7 +13,9 @@ import (
 )
 
 // These vectors were captured from the original flag declarations and getenv
-// helpers, before replacing them. They include every flag, every environment
+// helpers, before replacing them. The empty selection/content policy defaults
+// and current native profile were updated when their redundant files retired.
+// They include every flag, every environment
 // alias, and the launcher's existing native profile, without opening the PVF.
 func TestWireprobeConfigLegacyContract(t *testing.T) {
 	data, err := os.ReadFile("testdata/config_legacy.json")

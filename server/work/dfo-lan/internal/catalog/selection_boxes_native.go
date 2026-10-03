@@ -32,6 +32,9 @@ func (p SelectionBoxPolicy) namedTemplates() []uint32 {
 }
 
 func ReadSelectionBoxPolicy(path string) (SelectionBoxPolicy, error) {
+	if path == "" {
+		return SelectionBoxPolicy{Version: 1}, nil
+	}
 	var p SelectionBoxPolicy
 	f, err := os.Open(path)
 	if err != nil {

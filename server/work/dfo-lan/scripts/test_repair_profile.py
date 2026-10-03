@@ -48,9 +48,7 @@ class RepairProfileTests(unittest.TestCase):
         self.assertTrue({'odyssey-growth', 'odyssey-chapters', 'odyssey-weapons', 'odyssey-drop', 'odyssey-currency'} <= set(env['DFO_PVF_CATALOGS'].split(',')))
         # 2026-10-01 收口后已统一使用 pvf-mine-policy.json 作为 content policy 唯一源，attunement 副本范围由源 ctp 自动发现
         self.assertEqual(pathlib.Path(env['DFO_PVF_CONTENT_POLICY']), project / 'configs/pvf-mine-policy.json')
-        old_policy = json.loads((project / 'configs/pvf-content-policy.json').read_text(encoding='utf-8'))
-        # 2026-10-01 收口后 attunement_dungeons 已删（attunement 副本范围由源 ctp 自动发现，详见 server/AGENTS.md §0）
-        self.assertEqual(set(old_policy), {'version'})
+        self.assertNotIn('DFO_PVF_SELECTION_POLICY', env)
 
     def test_rejects_unknown_keys(self):
         with tempfile.TemporaryDirectory() as directory:
