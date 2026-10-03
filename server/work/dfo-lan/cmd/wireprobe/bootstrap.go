@@ -929,6 +929,18 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 			log.Printf("loaded equipment create cost: groups=%d itemRows=%d templates=%d",
 				len(cc.Groups), items, len(cc.Templates()))
 		}
+		// Creation supplies are grant/move content, never ordinary drop entries.
+		if progressionService != nil && progressionService.Odyssey != nil && progressionService.Odyssey.Creation != nil {
+			creation := progressionService.Odyssey.Creation
+			items := make(map[uint32]catalog.LootItem, len(c.Items)+len(creation.Supplies))
+			for id, item := range c.Items {
+				items[id] = item
+			}
+			for _, row := range creation.Supplies {
+				items[row.Template] = creation.Items.Items[row.Template]
+			}
+			c.Items = items
+		}
 		lootService = &loot.Service{Catalog: c, DropCatalog: dropCatalog, Rules: r, BagRules: bag, Tables: tables, Equipment: gear}
 		itemService = &inventory.ItemService{Model: r.Model, Catalog: c, BagRules: bag, Equipment: gear, AvatarDisjoint: pvfCatalogs.AvatarDisjoint, EmblemCompound: pvfCatalogs.EmblemCompound, AvatarSockets: pvfCatalogs.AvatarSockets, EmblemInlay: pvfCatalogs.EmblemInlay, Journal: journalRules, CreateCost: equipmentCreateCost}
 		if progressionService != nil {
@@ -1197,7 +1209,7 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 			for id, item := range vaultService.Catalog.Items {
 				items[id] = item
 			}
-			items[10417789] = catalog.LootItem{ID: 10417789, Kind: "stackable", Grade: 1, Rarity: 2, StackableType: "[booster selection]", StackLimit: 1, Script: odysseyChoices.Definition}
+			items[odysseyChoices.Template] = odysseyChoices.Item
 			vaultService.Catalog.Items = items
 		}
 	}

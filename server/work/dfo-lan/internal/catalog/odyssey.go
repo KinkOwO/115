@@ -44,6 +44,7 @@ func SetOdysseySource(checksum string) {
 const OdysseyGraduateRewardTemplate uint32 = 10420561
 
 type OdysseyGrowth struct {
+	Creation     *OdysseyCreateRewards   `json:"-"`
 	LevelActions map[byte][]string       `json:"-"`
 	Source       string                  `json:"source"`
 	Definition   ScriptRecord            `json:"definition"`

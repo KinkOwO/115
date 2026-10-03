@@ -38,7 +38,7 @@ func TestOdysseyCreatePotionStacksIntoExistingRow(t *testing.T) {
 		t.Fatal(e)
 	}
 
-	raw, receipt, e := applyOdysseyCreatePotion(role, loot, wear.BagRules)
+	raw, receipt, e := applyOdysseyCreatePotion(role, loot, wear.BagRules, odysseyCreationFixture())
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -58,7 +58,7 @@ func TestOdysseyCreatePotionStacksIntoExistingRow(t *testing.T) {
 
 	// 普通角色（非奥德赛）不发这件补给
 	role.Request[19] = 0
-	if _, _, e := applyOdysseyCreatePotion(role, loot, wear.BagRules); e == nil {
+	if _, _, e := applyOdysseyCreatePotion(role, loot, wear.BagRules, odysseyCreationFixture()); e == nil {
 		t.Fatal("普通角色也发了奥德赛创建补给")
 	}
 	// ⚠️ 这里曾经写着「目录校验和不匹配时拒绝」—— 那是**名不副实**：删掉的那行
@@ -68,7 +68,7 @@ func TestOdysseyCreatePotionStacksIntoExistingRow(t *testing.T) {
 	role, wear = odysseyRewardFixture(t)
 	other := loot
 	other.Source.Checksum = "another-source"
-	if _, _, e := applyOdysseyCreatePotion(role, other, wear.BagRules); e != nil {
+	if _, _, e := applyOdysseyCreatePotion(role, other, wear.BagRules, odysseyCreationFixture()); e != nil {
 		t.Fatalf("目录身份不应参与门禁（角色合法就该发放）: %v", e)
 	}
 	t.Log("30 potions stack into the existing row; ordinary role rejected; catalog identity no longer gates the grant")

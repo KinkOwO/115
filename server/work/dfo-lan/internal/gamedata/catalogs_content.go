@@ -236,7 +236,7 @@ func preparePVFOdyssey(c *Catalogs, s *Source, selected map[string]bool, i Catal
 		}
 		c.OdysseyCompletionRewards = rewards
 	}
-	if selected["odyssey-growth"] || selected["odyssey-drop"] || selected["odyssey-currency"] {
+	if selected["odyssey-drop"] || selected["odyssey-currency"] {
 		var err error
 		policy, err = readPVFContentPolicy(i.ContentPolicyPath)
 		if err != nil {
@@ -244,7 +244,7 @@ func preparePVFOdyssey(c *Catalogs, s *Source, selected map[string]bool, i Catal
 		}
 	}
 	if selected["odyssey-growth"] {
-		direct, err := s.OdysseyGrowth(*c.Items, policy.OdysseySupplemental)
+		direct, err := s.OdysseyGrowth(*c.Items)
 		if err != nil {
 			return err
 		}
@@ -525,12 +525,11 @@ func (c *Catalogs) InstallSeasonRules() (func(), error) {
 }
 
 type pvfContentPolicy struct {
-	BleedingMine        loot.BleedingMinePolicy         `json:"bleeding_mine"`
-	BlackPurgatory      loot.BlackPurgatoryPolicy       `json:"black_purgatory"`
-	OdysseySupplemental []uint32                        `json:"odyssey_supplemental_items"`
-	OdysseyDrops        []loot.OdysseyChapterDropPolicy `json:"odyssey_chapter_drops"`
-	OdysseyCurrency     loot.OdysseyCurrencyPolicy      `json:"odyssey_currency"`
-	Version             int                             `json:"version"`
+	BleedingMine    loot.BleedingMinePolicy         `json:"bleeding_mine"`
+	BlackPurgatory  loot.BlackPurgatoryPolicy       `json:"black_purgatory"`
+	OdysseyDrops    []loot.OdysseyChapterDropPolicy `json:"odyssey_chapter_drops"`
+	OdysseyCurrency loot.OdysseyCurrencyPolicy      `json:"odyssey_currency"`
+	Version         int                             `json:"version"`
 }
 
 func readPVFContentPolicy(path string) (pvfContentPolicy, error) {

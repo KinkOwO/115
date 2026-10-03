@@ -10,9 +10,8 @@ import (
 const OdysseyGrowthPath = "contents/2026/aradodyssey/etc/aradodyssey.etc"
 
 // ImportOdysseyGrowth follows gift and graduation references from the native
-// definition. Supplemental IDs retain the existing offline evidence scope;
-// their paths, hashes and contents are always resolved from the source index.
-func ImportOdysseyGrowth(a *pvf.Archive, index ItemIndex, supplemental []uint32) (*OdysseyGrowth, error) {
+// definition. Creation rewards follow the same ETC and native item references.
+func ImportOdysseyGrowth(a *pvf.Archive, index ItemIndex) (*OdysseyGrowth, error) {
 	if a == nil || a.Snapshot().Checksum != OdysseySource || index.Source.Checksum != OdysseySource {
 		return nil, fmt.Errorf("Odyssey growth source mismatch")
 	}
@@ -37,14 +36,6 @@ func ImportOdysseyGrowth(a *pvf.Archive, index ItemIndex, supplemental []uint32)
 		return nil, err
 	}
 	ids[graduate] = true
-	seen := map[uint32]bool{}
-	for _, id := range supplemental {
-		if id == 0 || ids[id] || seen[id] {
-			return nil, fmt.Errorf("invalid supplemental Odyssey item %d", id)
-		}
-		seen[id] = true
-		ids[id] = true
-	}
 	for id := range ids {
 		entry, ok := index.Items[id]
 		if !ok || entry.Kind != "stackable" {
@@ -56,10 +47,15 @@ func ImportOdysseyGrowth(a *pvf.Archive, index ItemIndex, supplemental []uint32)
 		}
 		c.Items[id] = script
 	}
+	c.Creation, err = ImportOdysseyCreateRewards(a, index, definition)
+	if err != nil {
+		return nil, err
+	}
 	return NewOdysseyGrowth(c)
 }
 
 type OdysseyWeaponChoices struct {
+	Item       LootItem     `json:"-"`
 	Definition ScriptRecord `json:"definition"`
 	Source     string       `json:"source"`
 	Template   uint32       `json:"template"`
@@ -93,15 +89,17 @@ func ImportOdysseyWeaponChoices(a *pvf.Archive, index ItemIndex) (OdysseyWeaponC
 	if a == nil || a.Snapshot().Checksum != OdysseySource || index.Source.Checksum != OdysseySource {
 		return c, fmt.Errorf("Odyssey weapon source mismatch")
 	}
-	entry, ok := index.Items[10417789]
-	if !ok || entry.Kind != "stackable" {
-		return c, fmt.Errorf("missing Odyssey weapon box")
-	}
-	script, err := ReadScript(a, entry.Path)
+	definition, err := ReadScript(a, OdysseyGrowthPath)
 	if err != nil {
 		return c, err
 	}
-	c.Source, c.Template, c.Definition = a.Snapshot().Checksum, entry.ID, script
+	creation, err := ImportOdysseyCreateRewards(a, index, definition)
+	if err != nil {
+		return c, err
+	}
+	script := creation.Items.Items[creation.Weapon.Template].Script
+	c.Source, c.Template, c.Definition = a.Snapshot().Checksum, creation.Weapon.Template, script
+	c.Item = creation.Items.Items[c.Template]
 	categories, fixed := ParseSelectionCells(script.Cells)
 	if fixed {
 		return c, fmt.Errorf("Odyssey creation box has fixed rewards")
@@ -123,7 +121,10 @@ func ImportOdysseyWeaponChoices(a *pvf.Archive, index ItemIndex) (OdysseyWeaponC
 		}
 		c.Categories = append(c.Categories, row)
 	}
-	return ValidateOdysseyWeaponChoices(c)
+	if len(c.Categories) == 0 {
+		return c, fmt.Errorf("empty native Odyssey weapon choices")
+	}
+	return c, nil
 }
 
 // ImportStackableItem projects a source template for a specific reward table.

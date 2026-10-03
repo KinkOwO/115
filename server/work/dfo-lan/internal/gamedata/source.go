@@ -672,11 +672,11 @@ func (s *Source) Attunement() (*loot.AttunementRewards, error) {
 	return loot.ImportAttunementRewards(s.archive)
 }
 
-func (s *Source) OdysseyGrowth(index catalog.ItemIndex, supplemental []uint32) (*catalog.OdysseyGrowth, error) {
+func (s *Source) OdysseyGrowth(index catalog.ItemIndex) (*catalog.OdysseyGrowth, error) {
 	if s.archive == nil {
 		return nil, fmt.Errorf("Odyssey requires PVF")
 	}
-	return catalog.ImportOdysseyGrowth(s.archive, index, supplemental)
+	return catalog.ImportOdysseyGrowth(s.archive, index)
 }
 func (s *Source) OdysseyChapters() (*catalog.OdysseyChapters, error) {
 	if s.archive == nil {
