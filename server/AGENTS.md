@@ -1,5 +1,11 @@
 # AGENTS.md — server/
 
+## 2026-10-03：cmd 入口收敛
+
+`server/work/dfo-lan/cmd` 从62个命令目录收敛为 `wireprobe`、`admin`、`gmtool`、`dfo-tool` 四个入口。59个导出、审计、维护和协议工具移入 `internal/toolcmd`，统一通过 `go run ./cmd/dfo-tool <原工具名> <参数>` 调用。新增工具扩展该入口，不新增独立cmd目录。完整操作说明见 [cmd/README.md](work/dfo-lan/cmd/README.md)。历史记录中的旧工具路径按此转换；游戏启动器及GM构建路径保持。
+
+本轮为入口组织整理，玩法/PVF reader、数据库schema和存档契约保持。confirmed baseline沿用既有实机范围，本轮自动验证不运行客户端或玩家库。
+
 ## 2026-10-03：MR !139 本轮源码收口与可运行交付
 
 用户要求先收口并让上游可合并。本轮JSON/规则清理停止扩展，已完成改动全部提交；MR独立树以 `077b62c` 合入最新上游 `61106a0e`，保留副本难度经验修复，CHANGELOG和server/AGENTS两处冲突保留双方记录。根工作区源码停在 `66f722c`，用户 `.gitignore` 未提交；本段描述MR集成树，不混称根main已同步上游。
@@ -332,7 +338,7 @@ loot 与 equipment-selection 的运行 JSON 回退、隐式 baseline 已移除�
 ## 4. 开发与构建规范
 
 1. **测试门禁**：修改协议或业务逻辑后，在 `server/work/dfo-lan/` 执行 `go test ./...` 与 `go vet ./...`。
-2. **数据库集成**：`go run ./cmd/charactercheck` 校验角色存储与 schema 兼容性。
+2. **数据库集成**：`go run ./cmd/dfo-tool charactercheck` 校验角色存储与 schema 兼容性。
 3. **候选隔离**：源码编译输出 `bin/wireprobe-handoff-source.exe`，**严禁直接覆盖 39 版归档基线 `wireprobe-dungeon39.exe`**；实机完整回归确认后方可升级基准。
 4. **实机回归**：关闭已有游戏会话后 `./Start-DFO.cmd --source-build`，由用户手动操作。
 
