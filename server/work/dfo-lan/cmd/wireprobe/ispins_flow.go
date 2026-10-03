@@ -30,6 +30,9 @@ type ispinsRun struct {
 	confirmed bool
 	// finalDone 表示终局 ACK2046 已发，后续 CMD191 走 ispins 剧情分支。
 	finalDone bool
+	// storyFinished is presentation completion, not dungeon/party departure.
+	// Keep ownership until the actual CMD72 town exit has been prepared.
+	storyFinished bool
 }
 
 // 官服 S1 局（默认顺序）各 ACK 尾 5B token，逐帧回放（next78 §5.1：语义
@@ -99,12 +102,33 @@ func (w *worldSession) ispinsClearedCount() int {
 // 语义（容量 4 / 类型 0x0b / 模式 1，见 protocol.IspinsStandbyPartyReply）。
 // 队长资料两个 op=2 包照黑鸦先例先行（成员列表显示数据源）。
 func (w *worldSession) ispinsStandbyPartyHandle(id uint16, p []byte) (bool, []outboundPacket, error) {
-	if w.channelType != 81 || w.role.ID == 0 || id != 12 {
+	if w.channelType != 81 || w.role.ID == 0 || (id != 12 && id != 13) {
 		return false, nil, nil
 	}
 	fail := func(err error) (bool, []outboundPacket, error) { return true, nil, err }
 	if w.characters == nil {
 		return fail(fmt.Errorf("伊斯待机区角色服务不可用"))
+	}
+	if id == 13 {
+		// The live native CMD13 body is empty plus eight zero padding bytes.
+		if len(p) != 0 && len(p) != 8 {
+			return fail(fmt.Errorf("伊斯离队请求长度无效"))
+		}
+		for _, b := range p {
+			if b != 0 {
+				return fail(fmt.Errorf("不支持的伊斯离队选项"))
+			}
+		}
+		if w.activeDungeon != nil {
+			return fail(fmt.Errorf("请先返回待机区再退出伊斯队伍"))
+		}
+		// Native NOTI9 action3 skips roster details and clears all eight
+		// member slots at1452f40fa..4132. Reuse the proven current-build
+		// party-gone grammar; Ispins creates the same local party ID9999.
+		gone := protocol.BlackPurgatoryPartyGone(w.characters.ChannelContext)
+		w.soloPartyReady = false
+		w.ispins = nil
+		return true, []outboundPacket{{"ispins_party_gone", 0, 9, gone}}, nil
 	}
 	name, err := protocol.DecodeIspinsStandbyParty(p)
 	if err != nil {
@@ -696,7 +720,10 @@ func (w *worldSession) ispinsStoryPause(p []byte) ([]outboundPacket, []map[strin
 			outboundPacket{"ispins_info_leave", 0, legion.NotiIspinsInfo, leave},
 			outboundPacket{"ispins_entry_character_info", 0, legion.NotiIspinsEntryCharacterInfo, entry},
 		)
-		w.ispins = nil
+		// CMD191 only finishes the movie. Clearing ispins here sends the
+		// subsequent CMD72 through ordinary cardsReady, which this legion
+		// never uses. Release it only on town departure or party leave.
+		run.storyFinished = true
 	}
 	return plan, []map[string]any{{
 		"kind":         "ispins_story_pause",

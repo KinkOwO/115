@@ -40,6 +40,9 @@ for name, va, size in (
     ("local_userinfo_equipment", 0x145639840, 0xDC),
     ("local_2047_reset_reader", 0x142530950, 0x2DB),
     ("local_2047_sender", 0x1425311F0, 0xAA),
+    ("local_party_header", 0x1452F27A0, 0x88),
+    ("local_party_action3_skips_details", 0x1452F2F05, 0x15),
+    ("local_party_action3_clears_members", 0x1452F40FA, 0x3A),
 ):
     result["readers"][name] = disassemble(va, size)
 assert pe.get_data(0x1424FDCF7 - base, 5).hex() == "ba5c1e0000"

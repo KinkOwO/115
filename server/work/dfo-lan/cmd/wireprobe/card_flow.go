@@ -126,6 +126,9 @@ func (w *worldSession) settlementExit(p []byte) (*dungeon.Session, []outboundPac
 		}
 		w.selectingDungeon = false
 		ack.Name = "settlement_exit_ack"
+		if w.ispins.finalDone && w.ispins.storyFinished {
+			w.ispins = nil
+		}
 		return nil, append([]outboundPacket{ack}, route[1:]...), nil
 	}
 	if e = w.cardsReady(); e != nil {

@@ -6,6 +6,7 @@ import (
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/wire"
 	"dfolan/internal/storage"
+	"encoding/hex"
 	"testing"
 
 	"dfolan/internal/game/protocol"
@@ -152,6 +153,83 @@ func TestIspinsSettlementFocusThenTownExit(t *testing.T) {
 				t.Fatalf("stage %d route[%d]=%d want%d", stage, i, plan[i].ID, want)
 			}
 		}
+	}
+}
+
+func TestIspinsFinalMovieTownExitThenPartyLeave(t *testing.T) {
+	run := &dungeon.Session{Loaded: true, ArenaBoss: true, Dead: map[uint16]bool{},
+		Monsters: []protocol.DungeonMonster{{Entity: 4096, Rank: 3, Team: 100}}}
+	if _, err := run.ConfirmDeath(4096, 7, 7); err != nil || !run.Completed() {
+		t.Fatal(err)
+	}
+	w := &worldSession{activeDungeon: run, completionSent: true, channelType: 81, soloPartyReady: true,
+		ispins:     &ispinsRun{stage: 3, cleared: [4]bool{true, true, true, true}},
+		role:       storage.Character{ID: 7, WireID: 7, Name: "001", State: []byte(`{"level":115,"advancement":5,"source_sha256":"fixture","attributes":{"[hp max]":100,"[mp max]":100}}`)},
+		characters: &character.Service{ChannelContext: [2]byte{3, 86}},
+		state:      storage.WorldState{Position: storage.WorldPosition{Town: 146, Area: 0, X: 700, Y: 300}}}
+	claim := make([]byte, 32)
+	claim[13], claim[17], claim[21] = 101, 3, 1
+	if _, _, err := w.ispinsRewardEnd(claim); err != nil || !w.ispins.finalDone {
+		t.Fatal("final claim", err)
+	}
+	pause := make([]byte, 16)
+	pause[1] = 1
+	if _, _, err := w.ispinsStoryPause(pause); err != nil || w.ispins == nil || w.ispins.storyFinished {
+		t.Fatal("movie start", err)
+	}
+	pause[0] = 1
+	if _, _, err := w.ispinsStoryPause(pause); err != nil {
+		t.Fatal(err)
+	}
+	if w.ispins == nil || !w.ispins.storyFinished || w.activeDungeon != run {
+		t.Fatal("movie completion released settlement ownership before CMD72")
+	}
+	focus := make([]byte, 16)
+	focus[0], focus[1], focus[2] = 2, 2, 1
+	if _, plan, err := w.settlementExit(focus); err != nil || len(plan) != 1 || plan[0].Name != "settlement_focus_ack" || w.ispins == nil {
+		t.Fatal("final focus", plan, err)
+	}
+	focus[0] = 1
+	if _, plan, err := w.settlementExit(focus); err != nil || len(plan) < 4 || plan[0].Name != "settlement_exit_ack" || w.ispins != nil {
+		t.Fatal("final town exit", plan, err)
+	}
+	// The existing post-send exit callback clears the active map. The party
+	// remains owned until the separate native CMD13 is received in town.
+	w.activeDungeon = nil
+	if !w.soloPartyReady {
+		t.Fatal("town exit silently abandoned the owned party")
+	}
+	handled, gone, err := w.ispinsStandbyPartyHandle(13, make([]byte, 8))
+	if err != nil || !handled || len(gone) != 1 || gone[0].Kind != 0 || gone[0].ID != 9 {
+		t.Fatal("leave party", handled, gone, err)
+	}
+	golden, _ := hex.DecodeString("01000f270100035600030100")
+	if !bytes.Equal(gone[0].Payload, golden) || w.soloPartyReady || w.ispins != nil {
+		t.Fatal("native party-gone notification or server ownership mismatch")
+	}
+	// Leaving must not prevent a fresh party from being created.
+	create, _ := hex.DecodeString(ispinsStandbyPartyRequestHex)
+	if handled, plan, err := w.ispinsStandbyPartyHandle(12, create); err != nil || !handled || len(plan) != 3 || !w.soloPartyReady {
+		t.Fatal("recreate party", handled, plan, err)
+	}
+}
+
+func TestIspinsPartyLeaveRequiresTownAndNativeEmptyRequest(t *testing.T) {
+	w := &worldSession{channelType: 81, role: storage.Character{ID: 7, WireID: 7},
+		characters: &character.Service{ChannelContext: [2]byte{3, 86}}, soloPartyReady: true,
+		ispins: &ispinsRun{stage: 1}, activeDungeon: &dungeon.Session{}}
+	for _, request := range [][]byte{make([]byte, 8), {1, 0, 0, 0, 0, 0, 0, 0}, make([]byte, 9)} {
+		if handled, plan, err := w.ispinsStandbyPartyHandle(13, request); !handled || err == nil || len(plan) != 0 {
+			t.Fatal("invalid/in-map leave accepted", handled, plan, err)
+		}
+		if !w.soloPartyReady || w.ispins == nil {
+			t.Fatal("refused leave discarded ownership")
+		}
+	}
+	w.activeDungeon = nil
+	w.channelType = 73
+	if handled, _, _ := w.ispinsStandbyPartyHandle(13, make([]byte, 8)); handled {
+		t.Fatal("Ispins handler intercepted another channel's party leave")
 	}
 }
 
