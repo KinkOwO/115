@@ -302,7 +302,16 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 			}
 		}
 		if client.worldState != nil {
-			e = client.worldState.enter(role, storage.WorldPosition{Town: client.townCatalog.TownID, Area: client.townCatalog.AreaID, X: client.townPolicy.X, Y: client.townPolicy.Y})
+			// 特殊频道有**自己的城镇**（源 clientchannelinfo 的 [seriaRoomTown]）：
+			// 征讨/军团这类频道里角色只能在门口的专属城镇活动，落点取该城镇地图里
+			// 第一个可行走矩形的中心；普通频道保持原有城镇与落点。
+			spawn := storage.WorldPosition{Town: client.townCatalog.TownID, Area: client.townCatalog.AreaID, X: client.townPolicy.X, Y: client.townPolicy.Y}
+			if t, ok := client.gatewayRuntime.channelTowns[client.channelTypes[client.channel]]; ok {
+				x, y := t.Spawn()
+				spawn = storage.WorldPosition{Town: t.TownID, Area: t.AreaID, X: x, Y: y}
+				client.event(map[string]any{"kind": "channel_town_spawn", "channel": client.channel, "channel_type": client.channelTypes[client.channel], "town": t.TownID, "area": t.AreaID, "x": x, "y": y, "spawn_rects": len(t.Walkable)})
+			}
+			e = client.worldState.enter(role, spawn)
 			if e != nil {
 				client.event(map[string]any{"kind": "world_entry_error", "error": e.Error()})
 				return dispatchHandled

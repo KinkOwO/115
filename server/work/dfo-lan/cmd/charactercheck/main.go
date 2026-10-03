@@ -189,23 +189,23 @@ func run() error {
 		return e
 	}
 	spawn := storage.WorldPosition{Town: 38, Area: 0, X: 561, Y: 234}
-	world, e := s.LoadWorld(ctx, account, rows[0].ID, spawn, c.Source.SaveIdentity())
+	world, e := s.LoadWorld(ctx, account, rows[0].ID, 0, spawn, c.Source.SaveIdentity())
 	if e != nil {
 		return e
 	}
-	if _, e = s.LoadWorld(ctx, second, rows[0].ID, spawn, c.Source.SaveIdentity()); e == nil {
+	if _, e = s.LoadWorld(ctx, second, rows[0].ID, 0, spawn, c.Source.SaveIdentity()); e == nil {
 		return fmt.Errorf("world crossed account boundary")
 	}
 	next := spawn
 	next.X = 600
-	changed, e := s.SaveWorld(ctx, account, rows[0].ID, world, next)
+	changed, e := s.SaveWorld(ctx, account, rows[0].ID, 0, world, next)
 	if e != nil {
 		return e
 	}
-	if _, e = s.SaveWorld(ctx, account, rows[0].ID, world, spawn); !errors.Is(e, storage.ErrWorldConflict) {
+	if _, e = s.SaveWorld(ctx, account, rows[0].ID, 0, world, spawn); !errors.Is(e, storage.ErrWorldConflict) {
 		return fmt.Errorf("stale world overwrite accepted: %v", e)
 	}
-	loaded, e := reopened.LoadWorld(ctx, account, rows[0].ID, spawn, c.Source.SaveIdentity())
+	loaded, e := reopened.LoadWorld(ctx, account, rows[0].ID, 0, spawn, c.Source.SaveIdentity())
 	if e != nil || loaded.Position.X != 600 || loaded.Revision != changed.Revision {
 		return fmt.Errorf("saved world did not survive reopen: %v", e)
 	}

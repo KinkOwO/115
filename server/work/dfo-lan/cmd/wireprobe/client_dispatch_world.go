@@ -188,6 +188,88 @@ func (client *gameConnection) dispatchLegion(requestData *clientRequest) dispatc
 }
 
 func (client *gameConnection) dispatchDungeon(requestData *clientRequest) dispatchAction {
+	if client.worldState != nil && client.bootstrapped && requestData.frame.ID == 15 && client.worldState.channelGuideDungeon != 0 {
+		// SemiRaid 频道红门（Azure Main 100004131 等）：客户端在 SemiRaid 门口
+		// 等的是直接进本，不是「选图 → C16」流程 —— 走旧路径回 N27 选图状态会让
+		// 客户端黑屏等选图数据（2026-10-03 15:17 实测）。照月湖红门模式：
+		// ACK15 + 进图帧序列（N2,N2,N14,N3,N27,N28,N29 —— 与军团进图同款，
+		// N3/N27 是服务端驱动进场的必备帧），dungeon 会话照 CMD16 落地。
+		if !requestData.verified {
+			client.event(map[string]any{"kind": "semiraid_gate_rejected", "reason": "checksum failed"})
+			return dispatchHandled
+		}
+		sel := protocol.DungeonSelection{ID: client.worldState.channelGuideDungeon, Difficulty: 0, Party: 65535}
+		entryCtx, entryCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		sess, _, e := client.worldState.prepareDungeonEntry(sel)
+		if e != nil {
+			entryCancel()
+			client.event(map[string]any{"kind": "semiraid_gate_refused", "character_id": client.selectedCharacterID, "dungeon": sel.ID, "reason": e.Error()})
+			if client.output.send(1, 15, protocol.Refusal(4)) != nil {
+				return dispatchClose
+			}
+			return dispatchHandled
+		}
+		frames, fe := client.worldState.dungeonEntryPlanImpl(entryCtx, "semiraid_gate_ack", 15, sel, sess, &client.worldState.characters.ChannelContext)
+		entryCancel()
+		if fe != nil {
+			client.event(map[string]any{"kind": "semiraid_gate_plan_error", "character_id": client.selectedCharacterID, "dungeon": sel.ID, "reason": fe.Error()})
+			if client.output.send(1, 15, protocol.Refusal(4)) != nil {
+				return dispatchClose
+			}
+			return dispatchHandled
+		}
+		// NOTI28 之前补 N3（actor 状态 → 副本态）与 NOTI27（选图上下文），
+		// 顺序对齐沉月湖成功序列（…N14, N3, N9, N27, N28…）。
+		actorState, se := protocol.UserState(client.worldState.role.WireID, protocol.UserStateDungeon)
+		if se != nil {
+			client.event(map[string]any{"kind": "semiraid_actor_state_error", "character_id": client.selectedCharacterID, "reason": se.Error()})
+		}
+		inserted := false
+		plan := make([]outboundPacket, 0, len(frames)+2)
+		for _, pkt := range frames {
+			if pkt.ID == 28 && !inserted {
+				if actorState != nil {
+					plan = append(plan, outboundPacket{"semiraid_actor_state_dungeon", 0, 3, actorState})
+				}
+				plan = append(plan, outboundPacket{"semiraid_dungeon_selection", 0, 27, protocol.EnterDungeonSelection()})
+				inserted = true
+			}
+			plan = append(plan, pkt)
+		}
+		prepared, pe := preparePackets(client.keys, plan)
+		if pe != nil {
+			client.event(map[string]any{"kind": "semiraid_encode_error", "error": pe.Error()})
+			return dispatchHandled
+		}
+		if e = client.output.writePrepared(prepared, func(p preparedPacket) {
+			client.event(map[string]any{"kind": p.Name, "id": p.ID, "character_id": client.selectedCharacterID, "plain_hex": hex.EncodeToString(p.Payload)})
+		}); e != nil {
+			return dispatchClose
+		}
+		// dungeon 会话落地（照 CMD16 pending 应用 + 军团落地段）：
+		w := client.worldState
+		w.deathSent = map[uint16]bool{}
+		w.drops = nil
+		w.resetCards()
+		w.completionSent = false
+		w.completionErr = nil
+		w.resultSent = false
+		w.selectingDungeon = false
+		w.approvedDungeonGate = 0
+		w.pendingTownArrival = nil
+		loyaltyCtx, loyaltyCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		loyaltyPackets, loyaltyErr := w.refreshCreatureLoyalty(loyaltyCtx, time.Now(), true)
+		loyaltyCancel()
+		if loyaltyErr != nil {
+			client.event(map[string]any{"kind": "creature_loyalty_error", "character_id": client.selectedCharacterID, "error": loyaltyErr.Error()})
+		} else if client.sendPlan(loyaltyPackets, nil) != nil {
+			return dispatchClose
+		}
+		w.leaveScene()
+		w.activeDungeon = sess
+		client.event(map[string]any{"kind": "dungeon_session_started", "dungeon": sess.Definition.ID, "maze": sess.Maze.Index, "map": sess.Room.Map, "monsters": len(sess.Monsters), "source": "semiraid_gate"})
+		return dispatchHandled
+	}
 	if client.worldState != nil && client.bootstrapped && requestData.frame.ID == 15 {
 		if !requestData.verified {
 			client.event(map[string]any{"kind": "dungeon_gate_rejected", "reason": "checksum failed"})

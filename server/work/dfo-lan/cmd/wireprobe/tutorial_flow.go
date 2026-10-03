@@ -110,7 +110,7 @@ func (w *worldSession) settleTutorialReturn() error {
 	if e = w.service.ValidatePosition(w.level, w.odyssey, next); e != nil {
 		return e
 	}
-	saved, e := w.store.SaveWorld(ctx, w.account, w.role.ID, w.state, next)
+	saved, e := w.store.SaveWorld(ctx, w.account, w.role.ID, w.worldStorageType(), w.state, next)
 	if e != nil {
 		return e
 	}
