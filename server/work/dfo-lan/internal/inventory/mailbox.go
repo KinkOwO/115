@@ -205,7 +205,7 @@ func (b Bag) AddMailItem(c catalog.LootCatalog, r BagRules, equipment *Equipment
 	for i, row := range b.Items {
 		occupied[row.Slot] = true
 		// 不同期限的堆叠必须分开，永久物品不能继承另一堆的到期时间。
-		if row.Template == item.Template && row.ExpireTime == item.ExpireTime && row.Slot >= slots[0] && row.Slot <= slots[1] && row.Amount < limit {
+		if row.Template == item.Template && row.ExpireTime == item.ExpireTime && (r.Quick(row.Slot) || row.Slot >= slots[0] && row.Slot <= slots[1]) && row.Amount < limit {
 			added := min(limit-row.Amount, item.Amount)
 			b.Items[i].Amount += added
 			item.Amount -= added

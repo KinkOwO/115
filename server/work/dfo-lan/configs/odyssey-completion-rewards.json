@@ -1,0 +1,170 @@
+{
+  "version": 1,
+  "chapters": [
+    {
+      "number": 1,
+      "rewards": [
+        {
+          "template": 10417792,
+          "count": 1,
+          "name": "[Arad Odyssey] Veteran's Odyssey Weapon Selection Box"
+        },
+        {
+          "template": 10419741,
+          "count": 1,
+          "name": "[Arad Odyssey] Veteran's Odyssey Primary Equipment Selection Box"
+        },
+        {
+          "template": 10419342,
+          "count": 1,
+          "name": "[Arad Odyssey] Combat Support Box"
+        },
+        {
+          "template": 10419346,
+          "count": 1,
+          "name": "[Arad Odyssey] Odyssey Silver Coin Pouch (10)"
+        }
+      ]
+    },
+    {
+      "number": 2,
+      "rewards": [
+        {
+          "template": 10419742,
+          "count": 1,
+          "name": "[Arad Odyssey] Pioneer's Odyssey Primary Equipment Selection Box"
+        },
+        {
+          "template": 10419745,
+          "count": 1,
+          "name": "Odyssey Consumable Bundle"
+        },
+        {
+          "template": 10419346,
+          "count": 1,
+          "name": "[Arad Odyssey] Odyssey Silver Coin Pouch (10)"
+        }
+      ]
+    },
+    {
+      "number": 3,
+      "rewards": [
+        {
+          "template": 10417793,
+          "count": 1,
+          "name": "[Arad Odyssey] Master's Odyssey Weapon Selection Box"
+        },
+        {
+          "template": 10417796,
+          "count": 1,
+          "name": "[Arad Odyssey] Master's Odyssey Advanced Equipment Box"
+        },
+        {
+          "template": 10419745,
+          "count": 1,
+          "name": "Odyssey Consumable Bundle"
+        },
+        {
+          "template": 10419346,
+          "count": 1,
+          "name": "[Arad Odyssey] Odyssey Silver Coin Pouch (10)"
+        }
+      ]
+    },
+    {
+      "number": 4,
+      "rewards": [
+        {
+          "template": 10417794,
+          "count": 1,
+          "name": "[Arad Odyssey] Legend's Odyssey Weapon Selection Box"
+        },
+        {
+          "template": 10419743,
+          "count": 2,
+          "name": "[Arad Odyssey] Legend's Odyssey Advanced Equipment Selection Box"
+        },
+        {
+          "template": 10419745,
+          "count": 1,
+          "name": "Odyssey Consumable Bundle"
+        },
+        {
+          "template": 10419347,
+          "count": 1,
+          "name": "[Arad Odyssey] Odyssey Gold Coin Pouch (10)"
+        }
+      ]
+    },
+    {
+      "number": 5,
+      "rewards": [
+        {
+          "template": 10419744,
+          "count": 2,
+          "name": "[Arad Odyssey] Hero's Odyssey Advanced Equipment Selection Box"
+        },
+        {
+          "template": 10419745,
+          "count": 1,
+          "name": "Odyssey Consumable Bundle"
+        },
+        {
+          "template": 10419347,
+          "count": 1,
+          "name": "[Arad Odyssey] Odyssey Gold Coin Pouch (10)"
+        }
+      ]
+    },
+    {
+      "number": 6,
+      "rewards": [
+        {
+          "template": 10417795,
+          "count": 1,
+          "name": "[Arad Odyssey] Hero's Odyssey Weapon Selection Box"
+        },
+        {
+          "template": 10419744,
+          "count": 1,
+          "name": "[Arad Odyssey] Hero's Odyssey Advanced Equipment Selection Box"
+        },
+        {
+          "template": 10419745,
+          "count": 1,
+          "name": "Odyssey Consumable Bundle"
+        },
+        {
+          "template": 10419347,
+          "count": 1,
+          "name": "[Arad Odyssey] Odyssey Gold Coin Pouch (10)"
+        }
+      ]
+    },
+    {
+      "number": 7,
+      "rewards": [
+        {
+          "template": 10419538,
+          "count": 1,
+          "name": "[Arad Odyssey] Pilgrim's Seal Bundle"
+        },
+        {
+          "template": 10419539,
+          "count": 1,
+          "name": "[Arad Odyssey] Delilah's Repair Coupon (All Parts) Bundle"
+        },
+        {
+          "template": 10419745,
+          "count": 1,
+          "name": "Odyssey Consumable Bundle"
+        }
+      ]
+    }
+  ],
+  "honor": {
+    "template": 10420561,
+    "count": 1,
+    "name": "[Arad Odyssey] Honor Reward Box"
+  }
+}

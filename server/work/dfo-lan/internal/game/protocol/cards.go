@@ -1,6 +1,9 @@
 package protocol
 
-import "fmt"
+import (
+	"bytes"
+	"fmt"
+)
 
 type CardSelection struct{ Side, Index byte }
 
@@ -66,12 +69,37 @@ func DecodeSettlementExit(p []byte) (SettlementExit, error) {
 		return SettlementExit{}, fmt.Errorf("invalid exit body")
 	}
 	// Current146ab8b43/54/63 writes state, option, literal1.
-	if p[2] != 1 {
+	// 2026-10-03 伊斯实测与官服 s4 对照确认存在三种 source 字节与一个常量 token：
+	//   - p[2]=1：结算面板（边界之调律 RE 先例）；
+	//   - p[2]=0：副本内「撤退」对话框发送器（私服 2.38.2 实测 5× `01 02 00`，
+	//     此前被拒导致撤退是死按钮）；
+	//   - p[2]=2：官服伊斯客户端奖励领取后的退出（s4 帧 498 `01 01 02`，
+	//     紧跟 CMD2046 帧 496）。
+	// 官服 s4 帧 342/402/498 与私服实测 5 帧的 16B 体在 p[3:8] 逐字节一致地
+	// 携带常量 token c5 20 24 76 3f（跨新旧客户端相同 ⇒ 客户端侧常量或对
+	// 服务端某帧的回执），按已知常量放行；普通副本的 16B 体仍是全零 padding。
+	if p[2] > 2 {
 		return SettlementExit{}, fmt.Errorf("unsupported exit source")
 	}
-	for _, b := range p[3:] {
-		if b != 0 {
-			return SettlementExit{}, fmt.Errorf("nonzero exit padding")
+	if len(p) >= 8 {
+		if bytes.Equal(p[3:8], settlementExitEchoToken) {
+			for _, b := range p[8:] {
+				if b != 0 {
+					return SettlementExit{}, fmt.Errorf("nonzero exit padding")
+				}
+			}
+		} else {
+			for _, b := range p[3:] {
+				if b != 0 {
+					return SettlementExit{}, fmt.Errorf("nonzero exit padding")
+				}
+			}
+		}
+	} else {
+		for _, b := range p[3:] {
+			if b != 0 {
+				return SettlementExit{}, fmt.Errorf("nonzero exit padding")
+			}
 		}
 	}
 	// Option 5 is the EPLP seamless rechallenge (right-edge walk-in). The
@@ -83,6 +111,10 @@ func DecodeSettlementExit(p []byte) (SettlementExit, error) {
 	}
 	return SettlementExit{p[0], p[1]}, nil
 }
+
+// settlementExitEchoToken 是伊斯大陆会话 CMD72 16B 体内 p[3:8] 的常量回执
+// （官服 s4 与私服 2.38.2 逐字节一致，语义未解——字节必须来自实证）。
+var settlementExitEchoToken = []byte{0xc5, 0x20, 0x24, 0x76, 0x3f}
 
 // SettlementExitSuccess includes the common CMD success byte consumed at
 // 0x1459a1ca2 before dispatch to handler 0x145244570. The handler then reads

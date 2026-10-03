@@ -22,6 +22,8 @@ import (
 	"log"
 	"net"
 	"os"
+	"strconv"
+	"strings"
 	"path/filepath"
 	"sync"
 	"time"
@@ -34,6 +36,10 @@ type gatewayRuntime struct {
 	apocalypseClock       *legion.ApocalypseClock
 	boosterCatalog        *BoosterCatalog
 	characters            *character.Service
+	channelDirectory       *catalog.ChannelDirectory
+	channelTowns           map[uint32]catalog.TownArea
+	channelGuides          map[uint32]uint32
+	channelInfo            *catalog.ChannelInfo
 	developmentAccount    int64
 	dungeonCatalog        *catalog.DungeonCatalog
 	fatigueService        *character.FatigueService
@@ -262,6 +268,13 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 	if _, err := pvfCatalogs.InstallSoleEquipment(); err != nil {
 		return nil, nil, fmt.Errorf("PVF sole equipment runtime rules: %v", err)
 	}
+	// 秘宝精度结算口径开关（业主 2026-10-02）：默认单机口径（单次 5..20，到上限截断）；
+	// 打开后按原版（国服）结算 —— 保底 +1、25% 大成功、四阶段封顶、24/49/74/99 必到节点、
+	// 25/50/75 之后必暴击。**两套并存**，见 internal/inventory/sole.go。
+	inventory.SetSoleQualityNative(startup.SoleQualityNative)
+	if startup.SoleQualityNative {
+		log.Printf("sole quality NATIVE ON — 保底+1 / 25%% 大成功 / 四阶段封顶（-sole-quality-native / DFO_SOLE_QUALITY_NATIVE）")
+	}
 	if _, err := pvfCatalogs.InstallScriptWarps(); err != nil {
 		return nil, nil, fmt.Errorf("PVF script warp runtime routes: %v", err)
 	}
@@ -461,6 +474,24 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		}
 		resources.add(func() { s.Close() })
 		gameStore = s
+
+		// 兜底自愈：会话位置隔离修复之前，特殊征讨频道（月湖 215 / Azure 213 / 军团
+		// 239 等）的会话位置曾被写进普通频道共享行，玩家切回普通频道会被客户端以
+		// 「对立阵营起始点」拒绝。启动期清一次污染行（幂等），玩家下一次进普通频道
+		// 走默认落点重建，无资产损失。
+		if pvfCatalogs != nil && len(pvfCatalogs.ChannelTowns) > 0 {
+			towns := make([]uint32, 0, len(pvfCatalogs.ChannelTowns))
+			for _, a := range pvfCatalogs.ChannelTowns {
+				towns = append(towns, a.TownID)
+			}
+			scrubCtx, scrubCancel := context.WithTimeout(context.Background(), 15*time.Second)
+			if n, scrubErr := gameStore.ScrubPollutedWorldPositions(scrubCtx, towns); scrubErr != nil {
+				log.Printf("warning: scrub polluted world positions: %v", scrubErr)
+			} else if n > 0 {
+				log.Printf("scrubbed %d polluted world position(s) from the shared row (special-channel towns: %v)", n, towns)
+			}
+			scrubCancel()
+		}
 		releaseAdminGuard, e := s.HoldAdminGuard(ctx)
 		if e != nil {
 			return nil, nil, e
@@ -750,6 +781,29 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		}
 		dungeonCatalog = &data
 	}
+	// 诊断探针：DFO_DUNGEON_PROBE=100004131,100004136 打印副本的迷宫结构
+	// （房间坐标/map/怪生成触发器），用于 SemiRaid 门控取证。只读，不影响运行。
+	if probeSpec := os.Getenv("DFO_DUNGEON_PROBE"); probeSpec != "" && dungeonCatalog != nil {
+		for _, idStr := range strings.Split(probeSpec, ",") {
+			id64, err := strconv.ParseUint(strings.TrimSpace(idStr), 10, 32)
+			if err != nil {
+				continue
+			}
+			def, ok := dungeonCatalog.Dungeons[uint32(id64)]
+			if !ok {
+				log.Printf("dungeon-probe %d: not in catalog", id64)
+				continue
+			}
+			log.Printf("dungeon-probe %d noFatigue=%v chances=%v", id64, def.NoFatigue, def.MazeChanceRates)
+			for _, mz := range def.Mazes {
+				log.Printf("dungeon-probe %d maze%d size=%v start=%v boss=%v rooms=%d",
+					id64, mz.Index, mz.Size, mz.Start, mz.Boss, len(mz.Rooms))
+				for _, r := range mz.Rooms {
+					log.Printf("  room(%d,%d) map=%d boss=%v", r.X, r.Y, r.Map, r.Boss)
+				}
+			}
+		}
+	}
 	// 疲劳的**进本消耗**完全来自源：`[use fatigue only start dungeon] <N>`（only start = 进本只收一次）。
 	// 源未声明该段的副本由 EnterFatigueOf 返回 0，走 FatigueService 原有的「按房间计费」路径。
 	//
@@ -781,6 +835,7 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 			return nil, nil, errors.New("progression source version mismatch")
 		}
 		progressionService = &character.ProgressionService{Store: gameStore, Catalog: data, Professions: characters.Catalog, Rules: rules}
+		progressionService.CompletionRewards = pvfCatalogs.OdysseyCompletionRewards
 		if path := os.Getenv("DFO_ODYSSEY_GROWTH"); path != "" || pvfCatalogs.OdysseyGrowth != nil {
 			progressionService.Odyssey, e = pvfCatalogs.LoadOdysseyGrowth(path)
 			if e != nil {
@@ -933,6 +988,9 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		}
 		lootService = &loot.Service{Catalog: c, DropCatalog: dropCatalog, Rules: r, BagRules: bag, Tables: tables, Equipment: gear}
 		itemService = &inventory.ItemService{Model: r.Model, Catalog: c, BagRules: bag, Equipment: gear, AvatarDisjoint: pvfCatalogs.AvatarDisjoint, EmblemCompound: pvfCatalogs.EmblemCompound, AvatarSockets: pvfCatalogs.AvatarSockets, EmblemInlay: pvfCatalogs.EmblemInlay, Journal: journalRules, CreateCost: equipmentCreateCost}
+		if progressionService != nil {
+			progressionService.CompletionAwarder = &inventory.Awarder{Catalog: c, Rules: bag, Equipment: gear}
+		}
 		shopService = &workflow.ShopService{Store: gameStore, ShopService: inventory.ShopService{Catalog: c, EventModel: r.Model, BagRules: bag, ItemMaterials: itemMaterials}}
 		if pvfCatalogs.Mine != nil || startup.BleedingMineRewards != "" {
 			mine, err := pvfCatalogs.LoadMine(startup.BleedingMineRewards)
@@ -1480,14 +1538,19 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		}
 	}
 	hub := newLanHub()
+	// 沉月湖单人配置一律从**直读**推导（业主 2026-10-02：直读模式下不新增 JSON，
+	// 也不再需要 -moon-solo-config 这种手工配置档）。频道/城镇/翻牌张数与**翻牌池**
+	// 全部来自 PVF（池 = 第二层声明的掉落组里可结算的堆叠物品，权重照抄源里）；
+	// 只有源里确实没有的"测试剩余次数"由代码常量给出。
 	var moonConfig *moonSoloConfig
-	if startup.MoonSoloConfig != "" {
-		moonConfig, err = loadMoonSoloConfig(startup.MoonSoloConfig, lootService)
-		if err != nil {
-			return nil, nil, err
+	if worldService != nil && characters != nil && dungeonCatalog != nil && startup.ChannelRefreshConfig != "" && startup.EntryBasicProbe && startup.EntryAdditionProbe {
+		if pvfCatalogs.ChannelDirectory == nil {
+			return nil, nil, errors.New("Moon 需要频道目录的 PVF 直读投影（preparePVFChannels 未装载）")
 		}
-		if worldService == nil || characters == nil || dungeonCatalog == nil || startup.ChannelRefreshConfig == "" || !startup.EntryBasicProbe || !startup.EntryAdditionProbe {
-			return nil, nil, errors.New("Moon requires complete persisted world/entry/dungeon/channel services")
+		var moonErr error
+		moonConfig, moonErr = defaultMoonSoloConfig(pvfCatalogs.ChannelDirectory, pvfCatalogs.ChannelTowns, dungeonCatalog, lootService)
+		if moonErr != nil {
+			return nil, nil, moonErr
 		}
 		if err = validateMoonResources(dungeonCatalog, lootService, gameStore); err != nil {
 			return nil, nil, err
@@ -1512,6 +1575,10 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		apocalypseClock:       apocalypseClock,
 		boosterCatalog:        boosterCatalog,
 		characters:            characters,
+		channelDirectory:      pvfCatalogs.ChannelDirectory,
+		channelInfo:           pvfCatalogs.ChannelInfo,
+		channelTowns:          pvfCatalogs.ChannelTowns,
+		channelGuides:         channelGuidesFromDirectory(pvfCatalogs.ChannelDirectory),
 		developmentAccount:    developmentAccount,
 		dungeonCatalog:        dungeonCatalog,
 		fatigueService:        fatigueService,
@@ -1577,4 +1644,20 @@ func (r *runtimeCleanup) close() {
 		}
 		r.actions = nil
 	})
+}
+
+// channelGuidesFromDirectory 抽取每个 SemiRaid/Legion 频道类型的
+// [guide dungeon index]（clientchannelinfo.etc 直读）—— SemiRaid 频道红门
+// 直接进这个副本（Azure 102 -> 100004131，月湖 101 -> 100004137）。
+func channelGuidesFromDirectory(dir *catalog.ChannelDirectory) map[uint32]uint32 {
+	if dir == nil {
+		return nil
+	}
+	out := map[uint32]uint32{}
+	for channelType, a := range dir.ByType {
+		if a.GuideDungeon != 0 && (a.IsLegion || a.IsRaid || a.IsPreRaid || a.IsSemiRaid) {
+			out[channelType] = a.GuideDungeon
+		}
+	}
+	return out
 }

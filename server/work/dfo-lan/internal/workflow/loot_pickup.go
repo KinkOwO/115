@@ -11,12 +11,25 @@ import (
 )
 
 func (s *LootService) Pickup(ctx context.Context, role storage.Character, session *loot.Session, d *dungeon.Session, r protocol.PickupRequest) (storage.Character, loot.PickupReceipt, bool, error) {
-	var result loot.PickupReceipt
-	fail := func(e error) (storage.Character, loot.PickupReceipt, bool, error) { return role, result, false, e }
 	plan, e := s.Loot.PlanPickup(LootRole(role), session, d, r)
 	if e != nil {
-		return fail(e)
+		return role, loot.PickupReceipt{}, false, e
 	}
+	return s.pickupPlan(ctx, role, plan)
+}
+
+// AutoPickup 与手动拾取共用持久化事务、幂等回执及失败保留地面物品的语义。
+func (s *LootService) AutoPickup(ctx context.Context, role storage.Character, session *loot.Session, d *dungeon.Session, object uint32) (storage.Character, loot.PickupReceipt, bool, error) {
+	plan, err := s.Loot.PlanAutoPickup(LootRole(role), session, d, object)
+	if err != nil {
+		return role, loot.PickupReceipt{}, false, err
+	}
+	return s.pickupPlan(ctx, role, plan)
+}
+
+func (s *LootService) pickupPlan(ctx context.Context, role storage.Character, plan loot.PickupPlan) (storage.Character, loot.PickupReceipt, bool, error) {
+	var result loot.PickupReceipt
+	fail := func(e error) (storage.Character, loot.PickupReceipt, bool, error) { return role, result, false, e }
 	drop := plan.Drop
 	if drop.BlackPurgatoryIndex != 0 {
 		saved, receipt, applied, err := s.pickBlackPurgatoryBoss(ctx, role, drop.Run, drop.BlackPurgatoryIndex, drop.Award)

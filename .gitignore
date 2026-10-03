@@ -112,3 +112,14 @@ analysis/dumps/sender-callers/
 analysis/dumps/rip-scan*.json
 analysis/dumps/decoded-names-*.json
 analysis/dumps/matches.json
+
+# ------------------------------------------------------------------------------
+# 7. 运行时缓存与重建产物（2026-10-03 合并前快照补充）
+# server/runtime/pvf-cache：PVF 直读的磁盘派生缓存（约 7.8GB，可随时重建）；
+# client-build 的 *.stale-* 为内层 PVF 重建前的旧档备份；analysis/tmp-* 为
+# 信道抓包临时解码产物；.tmp/ 为 wireprobe 构建中间目录。
+# ------------------------------------------------------------------------------
+/server/runtime/
+/server/work/dfo-lan/.tmp/
+*.stale-*
+analysis/tmp-*/

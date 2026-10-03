@@ -53,6 +53,9 @@ def load_profile(path, project):
             env[key] = str(p)
         elif key in FLAGS and value in ('0', '1'):
             env[key] = value
+        elif key == 'DFO_HELL_PARTY_DROP_PERCENT' and isinstance(value, str) and re.fullmatch(r'[0-9]{1,5}', value) and int(value) <= 10000:
+            # Independent Hell numerical multiplier; 100 = 1x, default in Go.
+            env[key] = str(int(value))
         elif key == 'DFO_PVF_SHA256' and (value == '' or (isinstance(value, str) and re.fullmatch(r'[0-9a-fA-F]{64}', value))):
             # 空串 = 自动派生（信任内层归档自身哈希，见 analysis/tasks/next142）。
             # 非空必须是 64 位 hex，保持显式钉版本的能力。
@@ -67,6 +70,11 @@ def load_profile(path, project):
             # 诊断：固定下发的「引子/誓约」档位，形如 "45" 或 "45,45"（见 cmd/wireprobe/oath_info.go）。
             # 空串 = 正常路径（保底 + 国服爆率随机）。只接受空或两个十进制数。
             # ⚠️ 临时诊断入口：用于验证「天平档位 → 誓约掉落模板」的对应关系，验完清空。
+            env[key] = value
+        elif key == 'DFO_ISPINS_MODE' and value in ('unlimited', 'weekly'):
+            # 伊斯作战次数模式（unlimited=不限次 / weekly=每周一次），由
+            # scripts/Set-Ispins-Mode.ps1 写入；Go 侧 ispins_policy.go 消费，
+            # 空环境变量默认 unlimited。
             env[key] = value
         elif key == 'DFO_PVF_CATALOGS' and isinstance(value, str):
             domains = [part.strip() for part in value.split(',')]

@@ -20,6 +20,8 @@ type Service struct {
 	Tables         Tables
 	Equipment      *inventory.EquipmentCatalog
 	CardPolicy     *CardRules
+	// Boxes 保存已导出的袖珍罐奖励与进度规则。
+	Boxes *BoxCatalog
 	// ChapterDrop 是章节最终领主的章节盒掉落（手册 P3 子项 3）。默认整表
 	// enabled=false，禁用行连掷骰种子都不消耗；由 profile 显式开启。
 	ChapterDrop *OdysseyChapterDrop
@@ -42,17 +44,29 @@ type PickupReceipt struct {
 	Source      string
 }
 
+func (s *Service) Bootstrap(role Role) ([]byte, error) {
+	if role.ConfigVersion != s.Catalog.Source.SaveIdentity() {
+		return nil, fmt.Errorf("inventory source mismatch")
+	}
+	b, e := inventory.ReadBag(role.State)
+	if e != nil {
+		return nil, e
+	}
+	return protocol.InventoryRestore(b.Rows(), b.Expansion)
+}
+
 type PickupPlan struct {
 	Drop     Drop
 	Catalog  catalog.LootCatalog
 	BagRules inventory.BagRules
 }
 
-func (s *Service) PlanPickup(role Role, session *Session, d *dungeon.Session, r protocol.PickupRequest) (PickupPlan, error) {
+// PlanAutoPickup 保留本地自动拾取的场景、物品归属及目录校验，不检查距离。
+func (s *Service) PlanAutoPickup(role Role, session *Session, d *dungeon.Session, object uint32) (PickupPlan, error) {
 	if session == nil || session.Catalog.Source.Checksum != s.Catalog.Source.Checksum || session.Rules.Model != s.Rules.Model {
 		return PickupPlan{}, (fmt.Errorf("pickup without loot session"))
 	}
-	drop, e := session.Owned(d, role.AccountID, role.ID, role.WireID, r.Object)
+	drop, e := session.Owned(d, role.AccountID, role.ID, role.WireID, object)
 	if e != nil {
 		return PickupPlan{}, (e)
 	}
@@ -68,6 +82,14 @@ func (s *Service) PlanPickup(role Role, session *Session, d *dungeon.Session, r 
 		}
 		awardCatalog, bagRules = session.Currency.StorageCatalog(s.Catalog), session.Currency.BagRules(s.BagRules)
 	}
+	return PickupPlan{Drop: drop, Catalog: awardCatalog, BagRules: bagRules}, nil
+}
+
+func (s *Service) PlanPickup(role Role, session *Session, d *dungeon.Session, r protocol.PickupRequest) (PickupPlan, error) {
+	plan, err := s.PlanAutoPickup(role, session, d, r.Object)
+	if err != nil || plan.Drop.BlackPurgatoryIndex != 0 {
+		return plan, err
+	}
 	distance := func(a, b uint16) int {
 		n := int(a) - int(b)
 		if n < 0 {
@@ -78,7 +100,7 @@ func (s *Service) PlanPickup(role Role, session *Session, d *dungeon.Session, r 
 	if distance(r.ActorX, r.DropX) > int(s.Rules.MaximumPickupX) || distance(r.ActorY, r.DropY) > int(s.Rules.MaximumPickupY) {
 		return PickupPlan{}, (fmt.Errorf("pickup request coordinates are too far apart"))
 	}
-	return PickupPlan{Drop: drop, Catalog: awardCatalog, BagRules: bagRules}, nil
+	return plan, nil
 }
 func (s *Service) PreparePickup(current Role, plan PickupPlan) (json.RawMessage, json.RawMessage, error) {
 	var result PickupReceipt

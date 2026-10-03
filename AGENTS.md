@@ -87,7 +87,7 @@
 | `server/work/dfo-lan/bin/wireprobe-dungeon39.exe`      | 39 版归档基准服务程序（已实机验证进城与装备显示）            |
 | `server/work/dfo-lan/bin/wireprobe-handoff-source.exe` | 源码候选版服务程序（代码测试通过，待实机回归）               |
 | `client/DFO.exe.i64`                                   | 唯一权威 115 级客户端 IDB，禁止直接打开                      |
-| `server/reference/analysis-tools/`                     | 历史协议探测、逆向分析与加解密测试 Python 工具集             |
+| `D:\115us\analysis-tools\`（仓库外独立目录）          | 历史协议探测、逆向分析与加解密测试 Python 工具集（2026-10-02 已迁出本仓库，路径由其 config/paths.json 管理） |
 | `GIT-MANAGEMENT.md`                                    | 项目 Git 版本管理与 LFS 分类决策规范                         |
 | `server/work/dfo-lan/configs/`                         | 游戏全量导出配置（装备、任务、地图、技能等规则驱动数据）     |
 | `analysis/dumps/`                                      | 权威逆向 Dump 资产库：CMD/NOTI Opcode表、XORSTR地址表、DSTR翻译表、PVF目录树 |

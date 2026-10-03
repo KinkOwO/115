@@ -1,5 +1,14 @@
 # AGENTS.md — server/
 
+## 2026-10-03：MR !139 本轮源码收口与可运行交付
+
+用户要求先收口并让上游可合并。本轮JSON/规则清理停止扩展，已完成改动全部提交；MR独立树以 `077b62c` 合入最新上游 `61106a0e`，保留副本难度经验修复，CHANGELOG和server/AGENTS两处冲突保留双方记录。根工作区源码停在 `66f722c`，用户 `.gitignore` 未提交；本段描述MR集成树，不混称根main已同步上游。
+
+收口验证：Go1.26.5无缓存全量测试及vet、Python3.11.9默认启动/profile25项通过；使用默认profile全部54域和启动器相同的穿戴布局参数，真实PVF8b2a9f83准备通过（599,771物品、424,216装备绑定、2,844任务、3,200副本），报告 `storage_accessed=false`、`runtime_started=false`。未启动客户端、服务监听或访问玩家库。`-trimpath`独立候选SHA256 `f9cca84b4373ca0bdd5d8ae7438c8af91ae7139ea505bd4cb0f1801bda0e6a36`，本机位置 `.tmp/mr139-closeout/wireprobe-native-closeout.exe`。
+
+confirmed baseline边界：本轮确认源码整理/提交收口；既有实机确认基线保持，不把默认准备成功写成玩法实机验收。110级槽位动作、旧角色补齐及本轮交互改动仍由用户手动回归。上游接入须同时使用MR源码与配置；先用 `pwsh -NoProfile -File ./server/Build-Server.ps1` 构建，再手动 `./启动游戏.cmd --source-build` 或 `./启动服务端.cmd --source-build`。旧默认PVF可执行文件不会自动更新；验收后才用现有 `-UpdatePVFDefault` 发布确认程序，39归档保持。构建/启动说明见server/README-先看这里.md。
+
+
 ## 玩法规则归属与开发门禁
 
 遵守根 [AGENTS.md §0.2](../AGENTS.md#02-pvf-脚本驱动与单一规则流程强制2026-10-03-用户确认)。服务端新增、修复或重构玩法时，先定位 PVF 定义与重复 Go/JSON 规则，再复用 Source、领域解析器和执行能力，按根流程验证与提交。该节是唯一规范；本文件下方迁移记录只描述当时完成范围，不授权继续维护平行内容表。
@@ -89,6 +98,36 @@ loot 与 equipment-selection 的运行 JSON 回退、隐式 baseline 已移除�
 
 - 用户授权收口：删除 cerashop.json、5 个字节相同的 candidate 数据与 11 个逐批 PVF profile，顶层 JSON 126→109（减少 22.49 MiB）；商城旧导出脚本和两份交付清单对应条目同步移除。Go 测试改用保留的 release，profile 测试使用默认档与临时显式配置，README/迁移计划/引用清单更新。
 - Go 1.26.5 清理前后全量测试、清理后 vet 和 Python 3.11.9 的 24 项检查通过。仅配置/测试清理确认；默认 profile、生产加载逻辑、运行二进制和既有 confirmed baseline 实机范围保持，没有 SQL/schema、玩家存档或客户端资源改动，未访问玩家库或启动客户端。
+## 2026-10-03：副本经验与难度挂钩已确认
+
+- 修复角色击杀经验及副本通关基础/评级经验固定取首列的问题；按实际难度转换为当前PVF五档系数索引。难度0/1兼容首档，2..5逐档取表；保留原等级惩罚、PVF权重、成长契约及通关/击杀幂等。
+- 用户实机确认不同副本难度获得的经验不同。确认范围限此次手动测试，不扩展到全地图或全等级。
+- confirmed baseline 为独立候选 `work/dfo-lan/.tmp/difficulty-exp-20261003/wireprobe-difficulty-experience.exe`，SHA256 `6cce9f0462d25093fabec8c932a43d4e21bf4f90ee2b25b6d9741dfb9bcc6e0f`，同目录 `profile.json` 和 `启动验证.cmd`；默认 `wireprobe-pvf.exe` 未替换。无schema、玩家存档、客户端/DLL或PVF资源修改。
+- Go全量测试、`go vet ./...`、事务难度/重放专项与当前PVF54域准备通过。`charactercheck` 因缺 `account_unified_options` 失败，HEAD源码overlay亦可复现。资料见 `work/dfo-lan/docs/protocol/dungeon-experience-difficulty-20261003.md`。
+
+## 2026-10-03：黄龙/银龙大会四轮流程已确认
+
+- 用户反馈首场CMD33触发剧情式最终结算。已在未完成Tournament时禁止SceneClearObjective写入任务地图通关证据，并由`MarkSceneCompleted`守卫，前三场保留已有回合推进，第四场按最终BossCheck进入原结算流程。
+- 角色10 gene在19:09—19:11手动实测：黄龙100003298和银龙100003299各四轮；前三场每次CMD33后继续战斗，第四场后才出现Boss确认、NOTI31与NOTI374。两个卡牌选择均获CMD450 ACK。该范围确认两个任务副本的完整四轮与领奖路径。
+- confirmed baseline 为独立候选 `work/dfo-lan/.tmp/tournament-rounds-20261003/wireprobe-tournament-rounds.exe`，SHA256 `0d956338390f5f1332ed1f9bb0eacafe07510640461761cda01f53f19681a070`；profile及`启动验证.cmd`位于同目录，默认`wireprobe-pvf.exe`与`wireprobe-dungeon39.exe`保持。测试后角色10/13784任务原行已逐字段恢复，银龙按正常流程接取；未改schema、客户端或PVF。全量`go test ./...`、`go vet ./...`、当前PVF专项和54域准备通过。记录见`work/dfo-lan/docs/protocol/tournament-round-completion-20261003.md`。
+
+## 2026-10-03：雾都赫伊斯 Hell Party 入场已确认
+
+- 修复副本92 DGN重复声明相同Hell字段后被合并而丢失的问题；同值才合并，冲突字段保持拒绝。
+- 用户确认可进入。18:36:43手动会话记录副本92 Mode1选择及成功ACK，18:39:19进入封印地图60056。confirmed baseline 候选SHA256 `f31c611c33956867beaf091ad8baccf87e08b11f0ee69d1057fa10d7a1dd503e`，入口 `.tmp/hellparty-heiz-20261003/启动验证.cmd`；默认程序未替换。
+- 全量Go测试、vet和54域准备通过。验收限副本92进入，不扩展为全部副本逐一实测。详见 `work/dfo-lan/docs/protocol/hell-party-haze-entry-20261003.md`。
+
+## 2026-10-03：Hell Party 波次与装备掉落已确认
+
+- 用户确认封印柱后续敌人可以正常刷新，击杀后可掉落装备。服务端按已授权的参考端兼容规则接入owned隐藏波次、最后一只奖励实体和独立Hell装备池；`DFO_HELL_PARTY_DROP_PERCENT` 默认100=1倍。该规则是本服兼容实现，不代表115官方完整概率公式。
+- confirmed baseline 更新为独立候选 `work/dfo-lan/.tmp/hellparty-20261003/wireprobe-hellparty-owned-waves.exe`，SHA256 `308a7b8434815dc2936557d8cebad41faeee61e9dedc6c1fc6d0c6ebcdddc352`；默认程序未替换。实机范围限用户此次所测路径，没有逐图验证所有Hell副本。
+- Go全量测试、`go vet ./...`、54域原生准备及独立profile启动检查通过。旧`charactercheck`因缺少`account_unified_options`表失败，HEAD overlay复现；未改schema、玩家存档或客户端资源。分析记录见 `../analysis/tasks/hell-party-owned-waves-20261003.md`。
+
+## 2026-10-03：Hell Party 入场与封印房已确认
+
+- 用户确认 Hell Party 正常进入，柱子可攻击破坏并刷出专属怪物。服务端按当前 PVF 自动支持声明 Hell Party 且封印地图可用的副本；离线审计60项源声明中59项地图可读，活动副本100005110的地图100016811缺失，仍明确拒绝。
+- confirmed baseline 为独立候选 `work/dfo-lan/.tmp/hellparty-20261003/wireprobe-hellparty.exe`，SHA256 `104965f85e1721547dc646b65c5a24ed8050529c5867e55b22a712842b93b7b8`，profile 与启动验证入口在同目录；默认服务程序未替换。确认仅覆盖用户实际手动测试路径；59项是离线入场覆盖，不是逐图实测。Hell专属掉落/奖励仍待取证。
+- 专项PVF回归、完整54域准备检查和`go vet ./...`通过；全量测试4项失败经HEAD overlay复核为既有失败。无schema、玩家存档或客户端资源修改。详见 `work/dfo-lan/docs/protocol/hell-party-all-entry-20261003.md`。
 
 ## 2026-10-03：上游同步与冲突收敛（源码候选）
 

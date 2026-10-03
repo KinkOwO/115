@@ -143,6 +143,100 @@ type entryPayloads struct {
 	Peers [][]byte
 }
 
+// weeklyDungeonInfoConfig is the verbatim NOTI708 body captured from the
+// official server's channel-entry announce (2026-10-02 16:03 capture, s1
+// frame 8, byte-identical in s4). The client's own fallback legion schedule
+// closes Ispins on Thursday/Friday; these bytes are what the official server
+// answered the same client with on a Friday, so they are replayed as-is.
+// Layout beyond the capture is NOT interpreted - no field semantics are
+// guessed (project rule: bytes must come from official evidence).
+var weeklyDungeonInfoConfig = []byte{
+	0x32, 0x33, 0x36, 0x3f, 0x3e, 0x3b, 0x3a, 0x39,
+	0xff, 0xff,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x51, 0xfc, 0x40, 0xed, 0x35, 0x00,
+}
+
+// integrateEventData is the verbatim NOTI1198 INTEGRATE_EVENT_DATA body from
+// the same official capture (s1 frame 15 / s4 frame 15, byte-identical, 176
+// bytes; the u64 at +0xA5 is the capture-time unix timestamp). Official
+// announce order is 708 (frame 8) -> 1198 (frame 15) -> 108 (frame 58): the
+// 1198 frame arrives BEFORE the 108 event table. Replaying 108 without it made
+// the client answer CMD217 ENUM_CMDPACKET_OVERFLOW_INFO (plain
+// 006c000000000000, i.e. reporting NOTI108) right after the announce and then
+// go fully silent - the client appears to need the 1198 container state before
+// it can absorb the 108 table (next79 §10, freeze regression 2026-10-02
+// 21:45). Layout beyond the capture is NOT interpreted (project rule).
+var integrateEventData = mustHexDecode(
+	"4209000001000000000000000000000000000000000000000002000000000000" +
+		"0000000000000000000000000000000000000000000000000000000000000000" +
+		"0000000000000000000000000000000000000000000000000000000000000000" +
+		"0000000000000000000000000000000000000000000000000000000000000000" +
+		"0000000000000000000000000000000000000000000000000000000000000000" +
+		"00000000009fd695103f000000000000")
+
+// weeklyDungeonInOutInfo is the verbatim NOTI1336 WEEKLY_DUNGEON_INOUT_INFO
+// body from the official channel-entry announce (2026-10-02 capture: s1
+// frame 60 / s4 frame 60, byte-identical). s4 is the session where the
+// client actually fired CMD2043 into Ispins, and this frame rides its
+// announce before the click. Field semantics unknown - replayed as-is.
+var weeklyDungeonInOutInfo = []byte{
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0xf4, 0xf7, 0x69, 0xb2, 0x3a, 0x00, 0x00, 0x00,
+}
+
+// dungeonEnterCountInfo is the verbatim NOTI537 DUNGEON_ENTER_COUNT_INFO
+// body from the same official announce (s1 frames 98/149 and s4 frames
+// 91/142, all byte-identical). Official pushes it twice in the burst;
+// one copy is replayed here - the handler is absolute state, and both
+// captures carry the same bytes.
+var dungeonEnterCountInfo = []byte{
+	0xc4, 0x0d, 0x00, 0x00, 0x05, 0x00, 0xd5, 0xcd,
+	0x28, 0xca, 0x3b, 0x00, 0x00, 0x00, 0x00, 0x00,
+}
+
+// questClearGroupInfo is the verbatim NOTI1792 QUEST_CLEAR_GROUP_INFO body
+// from the official login flood (2026-10-02 s4 frame 9 / 2026-10-03 switch
+// frame 12, byte-identical, 96 bytes). It is the ONLY quest-completion data
+// that reaches the client BEFORE the SELECT_CHARACTER gate: NOTI342 clears
+// only after the selection (switch frame 129, t+7.1s), but the legion
+// channel character-select gate ("必须完成任务『熄灭火焰的时间』") is
+// evaluated while picking the character, against the clear-group state this
+// frame installs (next79 §20: without it the gate pops and the client kicks
+// back to town even for a max-level character). Layout is NOT interpreted -
+// replayed as-is (project rule).
+var questClearGroupInfo = mustHexDecode(
+	"1100000035000000013600000001370000000138000000013a" +
+		"000000013b000000013c000000013d000000013e000000013f" +
+		"000000014000000001450000000146000000014b000000014c" +
+		"000000014d000000014e000000016289eda43c0000")
+
+// loginFloodPackets is the account-level event/weekly burst the official
+// server pushes during the LOGIN flood, BEFORE the character selection. The
+// 2026-10-02 21:18 capture shows every business connection repeating
+// 1759 -> 708 -> 1198 -> 108 -> 1336 before the SELECT_CHARACTER(4) request
+// (and a second 108 after NOTI706 post-selection). The earlier replay put
+// this whole burst in the post-selection town announce; the client answered
+// that announce with CMD217 ENUM_CMDPACKET_OVERFLOW_INFO (plain
+// 006c000000000000, reporting NOTI108) and froze on town entry (next79 §13).
+// Round 10 then replayed the official burst verbatim (108 included) at this
+// exact login stage and the client STILL froze at the selection screen -
+// the official 108 body is rejected by the private client's parser wherever
+// it is placed. The 108 therefore left the flood entirely (next79 §15): the
+// login stage is now always healthy, and the ONLY NOTI108 this server sends
+// is the announce's fixed V3 table (event_info_generated.go) - the single
+// count=1 raw body the round-11 experiment proved the client accepts.
+// The burst is sent once per connection, right after the roster-background
+// (NOTI1759) restore that precedes the selection screen.
+func loginFloodPackets() []outboundPacket {
+	return []outboundPacket{
+		{"weekly_dungeon_config_sent", 0, 708, weeklyDungeonInfoConfig},
+		{"quest_clear_group_info_sent", 0, 1792, questClearGroupInfo},
+		{"integrate_event_data_sent", 0, 1198, integrateEventData},
+		{"weekly_dungeon_inout_info_sent", 0, 1336, weeklyDungeonInOutInfo},
+	}
+}
+
 func (p entryPayloads) packets() []outboundPacket {
 	out := []outboundPacket{
 		{"select_parser_response", 1, 4, p.Select},
@@ -165,6 +259,27 @@ func (p entryPayloads) packets() []outboundPacket {
 		{"skin_selection_skill_cutscene_restored", 0, 1546, p.SkinSelectionSkillCutscene},
 		{"cinematic_skips_restored", 0, 1352, p.CinematicSkips},
 		{"story_digest_restored", 0, 1370, p.StoryDigest},
+		// The 708/1198/108/1336 burst moved from this announce to the
+		// pre-selection LOGIN flood (loginFloodPackets): the official 21:18
+		// capture pushes all four frames before SELECT_CHARACTER, and
+		// replaying the 108 table only in this post-selection announce made
+		// the client answer CMD217 ENUM_CMDPACKET_OVERFLOW_INFO and freeze on
+		// entry (next79 §13).
+		// NOTI706 WEEKLY_DUNGEON_INFO - the 1464-byte weekly dungeon table
+		// (s1 frame 78; see weekly_dungeon_info_generated.go for why it rides
+		// here even though s4 does not repeat it).
+		{"weekly_dungeon_info_sent", 0, 706, weeklyDungeonInfoTable},
+		// The NOTI108 EVENT_INFO table. Official post-selection order is
+		// 706 -> 108 -> STAMINA(4) -> 537, and the body is the fixed 54-byte
+		// raw table (event_info_generated.go) established by the round-11
+		// differential probe experiment (next79 §15-§16): zlib containers
+		// and multi-record raw tables both trigger CMD217
+		// ENUM_CMDPACKET_OVERFLOW_INFO and freeze this client, while this
+		// exact body parses AND the legion-tab gate then opens Ispins
+		// (probe V3 verdict, live 2026-10-02 16:00). The table carries the
+		// Ispins Legion Open event (776) the gate looks up.
+		{"event_info_sent", 0, 108, eventInfoTable},
+		{"dungeon_enter_count_info_sent", 0, 537, dungeonEnterCountInfo},
 		{"entry_basic_probe_sent", 0, 2, p.Basic},
 		{"entry_addition_sent", 0, 2, p.Addition},
 		{"entry_skills_sent", 0, 19, p.Skills},
@@ -227,10 +342,6 @@ func (p entryPayloads) packets() []outboundPacket {
 		outboundPacket{"booster_gage_hidden", 0, 398, p.BoosterGage},
 		outboundPacket{"entry_experience_restored", 0, 37, p.Experience},
 		outboundPacket{"odyssey_journal_restored", 0, 2856, p.OdysseyProgress},
-		outboundPacket{"completed_quests_restored", 0, 342, p.CompletedQuests},
-		outboundPacket{"available_quests_restored", 0, 21, p.AvailableQuests},
-		// Rebuild unread synopsis IDs after the client has its quest lists.
-		outboundPacket{"synopsis_read_restored", 0, 2310, p.SynopsisRead},
 		outboundPacket{"skill_variations_restored", 1, 29, p.SkillVariations},
 		// Complete lists and visual refresh after the entry/actor initialization barrier.
 		outboundPacket{"avatar_inventory_restored", 0, 13, p.AvatarReady},
@@ -297,6 +408,16 @@ func (p entryPayloads) packets() []outboundPacket {
 	}
 	return append(out,
 		outboundPacket{"actor_appearance_ready", 0, 2, p.Basic},
+		// 官服入场序列在末尾的 864B USERINFO basic（s4 #116）之后才发 NOTI342
+		// （#118）与 NOTI21（#121）。2.38.2 的 342 handler 只有在 QuestManager
+		// （[0x14E683D40]，init batch 0x145a21e40 创建）就绪后才会把完成列表
+		// 插入完成哈希集合；manager 为空时 990 个 ID 全部跳过，实机表现为
+		// 「再次查看」页近乎空白、伊斯大陆门禁弹窗（2026-10-03）。因此
+		// 342/21/2310 必须跟在 actor_appearance_ready 之后、2827 之前。
+		outboundPacket{"completed_quests_restored", 0, 342, p.CompletedQuests},
+		outboundPacket{"available_quests_restored", 0, 21, p.AvailableQuests},
+		// Rebuild unread synopsis IDs after the client has its quest lists.
+		outboundPacket{"synopsis_read_restored", 0, 2310, p.SynopsisRead},
 		// The character option block goes after every other entry frame: this
 		// client crashes on town entry when NOTI2827 arrives early.
 		outboundPacket{"skill_locks_restored", 0, 2827, p.SkillLocks},
@@ -308,7 +429,11 @@ func (p entryPayloads) packets() []outboundPacket {
 func preparePackets(keys []byte, packets []outboundPacket) ([]preparedPacket, error) {
 	var prepared []preparedPacket
 	for _, p := range packets {
-		if len(p.Payload) == 0 {
+		// nil payload = placeholder the plan never fills: skip. A non-nil
+		// zero-length slice is a genuine zero-body frame (next79 §25: the
+		// Ispins stage settlement N1658, official s4 frame 493, is a bare
+		// 16-byte s2c header) and must be delivered.
+		if p.Payload == nil {
 			continue
 		}
 		encrypted, err := wire.EncryptPayload(keys, p.ID, p.Payload)

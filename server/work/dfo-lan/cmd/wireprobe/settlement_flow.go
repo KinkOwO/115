@@ -36,6 +36,15 @@ func (w *worldSession) canRechallenge(ctx context.Context) bool {
 }
 
 func (w *worldSession) dungeonResult(p []byte) ([]outboundPacket, error) {
+	// [ISPINS-ARENA-BOSS] 伊斯大陆会话的 CMD46 整包吞掉：官服 s4 实证
+	// （c2s 帧 338/393/442/489）每阶段 boss 死亡后客户端都会发 141B 的
+	// 通用结算请求，但官服对它没有任何专门应答（s2c 全流无 kind=1 id=46；
+	// 结算链 N31 家族已在死亡时刻发出，也无 N34/N37/N26/N261/N19/N2758/
+	// N29/N21 通用结算族）。2026-10-03 四测：generic 路径发出这 8 个包后
+	// 客户端 1.2s 内 op=682 崩溃退出。
+	if w != nil && w.ispins != nil && w.activeDungeon != nil {
+		return nil, nil
+	}
 	if w == nil || w.progression == nil || w.activeDungeon == nil || !w.activeDungeon.Completed() || !w.completionSent {
 		return nil, fmt.Errorf("result before committed boss completion")
 	}

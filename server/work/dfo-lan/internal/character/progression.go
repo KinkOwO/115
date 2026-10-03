@@ -5,6 +5,7 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
+	"dfolan/internal/inventory"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -12,13 +13,15 @@ import (
 )
 
 type ProgressionService struct {
-	JournalRoutes *catalog.OdysseyJournalRoutes
-	Odyssey       *catalog.OdysseyGrowth
-	Chapters      *catalog.OdysseyChapters
-	Store         ProgressionStore
-	Catalog       catalog.Progression
-	Professions   catalog.Characters
-	Rules         GrowthRules
+	JournalRoutes     *catalog.OdysseyJournalRoutes
+	Odyssey           *catalog.OdysseyGrowth
+	Chapters          *catalog.OdysseyChapters
+	CompletionRewards *catalog.OdysseyCompletionRewards
+	CompletionAwarder *inventory.Awarder
+	Store             ProgressionStore
+	Catalog           catalog.Progression
+	Professions       catalog.Characters
+	Rules             GrowthRules
 }
 
 func (s *ProgressionService) Monster(ctx context.Context, role Character, run *dungeon.Session, entity uint16) (Character, bool, error) {
@@ -28,6 +31,10 @@ func (s *ProgressionService) Monster(ctx context.Context, role Character, run *d
 	b, e := hex.DecodeString(run.RunID)
 	if e != nil || len(b) != 16 {
 		return role, false, fmt.Errorf("invalid experience run")
+	}
+	difficulty, e := growthDifficultyIndex(run.Difficulty)
+	if e != nil {
+		return role, false, e
 	}
 	var monster protocol.DungeonMonster
 	found := false
@@ -50,7 +57,7 @@ func (s *ProgressionService) Monster(ctx context.Context, role Character, run *d
 		if e := json.Unmarshal(current.State, &state); e != nil {
 			return nil, nil, e
 		}
-		gain, e := GrowthMonsterGain(s.Catalog, s.Rules, run.Definition, monster, state.Level, 0)
+		gain, e := GrowthMonsterGain(s.Catalog, s.Rules, run.Definition, monster, state.Level, difficulty)
 		if e != nil {
 			return nil, nil, e
 		}

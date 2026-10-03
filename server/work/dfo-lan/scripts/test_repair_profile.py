@@ -6,6 +6,20 @@ from repair_profile import load_profile
 
 
 class RepairProfileTests(unittest.TestCase):
+    def test_hell_drop_percent_is_numeric_policy(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            path = root / 'profile.json'
+            for value in ('0', '100', '10000', '-1', '10001', '1.5', True):
+                with self.subTest(value=value):
+                    path.write_text(json.dumps({'binary': 'server.exe', 'environment': {'DFO_HELL_PARTY_DROP_PERCENT': value}}))
+                    if value in ('0', '100', '10000'):
+                        _, _, env = load_profile(path, root)
+                        self.assertEqual(env['DFO_HELL_PARTY_DROP_PERCENT'], value)
+                    else:
+                        with self.assertRaises(ValueError):
+                            load_profile(path, root)
+
     def load_explicit_profile(self, project, environment, binary='isolated/server.exe'):
         with tempfile.TemporaryDirectory() as directory:
             path = pathlib.Path(directory) / 'profile.json'
@@ -73,7 +87,8 @@ class RepairProfileTests(unittest.TestCase):
         _, required, env = load_profile(project / 'configs/pvf-default.json', project)
         self.assertIn('boxes', env['DFO_PVF_CATALOGS'].split(','))
         policy = json.loads(pathlib.Path(env['DFO_PVF_BOX_POLICY']).read_text(encoding='utf-8'))
-        self.assertEqual(policy['templates'], [590712474, 590719043])
+        self.assertNotIn('templates', policy)
+        self.assertNotIn('cos_paths', policy)
         self.assertNotIn('rewards', policy)
         self.assertNotIn('tables', policy)
         self.assertTrue(all(p.suffix != '.json' or 'policy' in p.name for p in required))

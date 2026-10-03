@@ -65,6 +65,20 @@ func growthSection(c []pvf.Token, name string) []pvf.Token {
 	return r
 }
 
+// growthDifficultyIndex maps the session's native 1..5 difficulty to the five
+// PVF experience columns. Native runs reporting 0 retain the first column,
+// matching the admitted selection and existing ordinary reward boundary.
+func growthDifficultyIndex(difficulty byte) (byte, error) {
+	if difficulty > 5 {
+		return 0, fmt.Errorf("unsupported experience difficulty %d", difficulty)
+	}
+	if difficulty == 0 {
+		return 0, nil
+	}
+	return difficulty - 1, nil
+}
+
+// GrowthMonsterGain takes a zero-based PVF experience column, not a wire code.
 func GrowthMonsterGain(c catalog.Progression, r GrowthRules, d catalog.DungeonDefinition, m protocol.DungeonMonster, level, difficulty byte) (uint64, error) {
 	if m.NonCombat || m.APC || m.Level == 0 {
 		return 0, nil

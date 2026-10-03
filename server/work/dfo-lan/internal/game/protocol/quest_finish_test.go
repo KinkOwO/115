@@ -36,14 +36,18 @@ func TestCompletedQuestsNativeBitmap(t *testing.T) {
 		t.Fatal(e)
 	}
 	var f struct {
-		Payload   string `json:"payload_hex"`
-		Consumed  int
+		Payload   string   `json:"payload_hex"`
+		Consumed  int      `json:"consumed"`
 		IDs       []uint32 `json:"completed_ids"`
 		Truncated string   `json:"truncation_failure"`
 	}
 	if e = json.Unmarshal(b, &f); e != nil {
 		t.Fatal(e)
 	}
+	// next79 §17: raw count+ids matches the oracle reader sites, but it does
+	// NOT populate the private client's completed set (zlib from the official
+	// 2.38.3 server fast-exits 2.38.2). Body transform still unresolved; this
+	// keeps pinning the oracle layout until it is.
 	p, e := CompletedQuests(f.IDs)
 	if e != nil || hex.EncodeToString(p) != f.Payload || len(p) != f.Consumed || f.Truncated == "" {
 		t.Fatal("current completion bitmap mismatch", e)

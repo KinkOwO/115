@@ -56,14 +56,70 @@ const SoleEquipmentSystemPath = "etc/115lvability/soleequipmentsystem.cos"
 // 所以服务端唯一的精度真源就是这一格，不另设镜像字段（避免双源不一致）。
 const SoleQualityRecordOffset = 172
 
-// 单次精度提升量的范围。
+// 秘宝精度单次提升的口径。**两套并存，由运行期开关选择**（见 internal/inventory/sole.go）：
 //
-// ⚠️ **源里没有这张表**（`[quality ability]` 是精度→属性值，不含单次增量），
-// 这里采用业主提供的**实机口径 5..20**；到 `[max quality]` 处按上限截断（截断时回填实际增量）。
+//   - 默认（单机化）：每次在 [SoleQualityGainMin, SoleQualityGainMax]（5..20）均匀取值，
+//     到 `[max quality]` 截断。这是本仓库原有的业主口径。
+//   - 原版（国服，开关 `-sole-quality-native` / `DFO_SOLE_QUALITY_NATIVE=1`）：
+//     保底 +1、按 SoleQualityGreatPercent 触发大成功，且单次不得越过源 `[quality group]`
+//     的分段上限（0/25/50/75/100）。
+//
+// ⚠️ 源里**没有**增量数值表：`[quality ability]` 是"精度 → 属性"的查表，
+// `[quality group]` 只给分段边界。所以两套增量口径都来自业主，与**有源**的分段边界分开存放。
 const (
+	// SoleQualityGainMin/Max 是**单机口径**的单次增量范围（默认启用）。
 	SoleQualityGainMin = 5
 	SoleQualityGainMax = 20
+
+	// SoleQualityBaseGain 是**原版口径**的保底提升量。
+	SoleQualityBaseGain = 1
+	// SoleQualityGreatPercent 是**原版口径**的大成功触发概率（百分点），
+	// 命中后增量在 [2, 当前分段剩余] 内均匀取值。
+	SoleQualityGreatPercent = 25
 )
+
+// BandCaps 返回分段上限（升序，末项 = MaxQuality）。
+//
+// 源 `[quality group]` 是去重升序的扁平边界（`0 25 / 25 50 / 50 75 / 75 100`
+// → `0,25,50,75,100`），去掉 0 之后就是每段的上限。
+func (i SoleEquipmentInfo) BandCaps() []int {
+	caps := make([]int, 0, len(i.Boundaries))
+	for _, b := range i.Boundaries {
+		if b > 0 && b <= i.MaxQuality {
+			caps = append(caps, b)
+		}
+	}
+	if len(caps) == 0 || caps[len(caps)-1] != i.MaxQuality {
+		caps = append(caps, i.MaxQuality)
+	}
+	return caps
+}
+
+// BandCap 返回精度 quality 所在分段的封顶值（单次提升不得越过它）。
+func (i SoleEquipmentInfo) BandCap(quality int) int {
+	for _, c := range i.BandCaps() {
+		if quality < c {
+			return c
+		}
+	}
+	return i.MaxQuality
+}
+
+// BandNode 报告精度是否正好停在**分段节点**上（25/50/75）。
+//
+// 节点后的下一次精炼必定大成功。末段上限（MaxQuality）不算节点：
+// 那已经是终点，不该再精炼。
+func (i SoleEquipmentInfo) BandNode(quality int) bool {
+	if quality >= i.MaxQuality {
+		return false
+	}
+	for _, c := range i.BandCaps() {
+		if quality == c {
+			return true
+		}
+	}
+	return false
+}
 
 // SoleEquipmentMaterial 是精度提升成本里的一项（Template 0 = 金币）。
 type SoleEquipmentMaterial struct {
@@ -76,10 +132,23 @@ func (m SoleEquipmentMaterial) Gold() bool { return m.Template == 0 }
 
 // SoleEquipmentInfo 是源里一件秘宝的 `[info]`。
 type SoleEquipmentInfo struct {
-	Template   uint32                   `json:"template"`
-	MaxQuality int                      `json:"max_quality"`
-	Groups     map[int][]SoleEquipmentMaterial `json:"groups"`
-	Boundaries []int                    `json:"boundaries,omitempty"`
+	Template   uint32 `json:"template"`
+	MaxQuality int    `json:"max_quality"`
+	// Groups 是 `[quality need materials]`：给**成品**加精度的成本表（CMD2288）。
+	Groups map[int][]SoleEquipmentMaterial `json:"groups"`
+	// CreateGroups 是 `[create need materials]`：把**半成品做成成品**的成本表（CMD2289）。
+	// 与 Groups 是两套独立表（源里就分两段写），决定组号的仍是请求里的 selector。
+	// 缺这一段 = 这件秘宝没有制作配方（精度仍然可用），所以它是可选的。
+	CreateGroups map[int][]SoleEquipmentMaterial `json:"create_groups,omitempty"`
+	// CreateMovieTime / CreateWaitTime 是源里 `[create movie time]` / `[create wait time]`
+	// 的毫秒数（各件不同：Venus 18000/1200、Nabel 13500/1500、Diregie 18800/2100）。
+	//
+	// 客户端自己播这段动画，服务端**不消费**它们。解析出来只有一个用途：回包时机的
+	// 对照实验 —— 实机 2026-10-02 发现"三件里只有时长最短的那件播了动画"，怀疑是
+	// ack 回得太早让客户端判定已完成、直接跳过演出（见 cmd/wireprobe/sole_flow.go）。
+	CreateMovieTime int `json:"create_movie_time,omitempty"`
+	CreateWaitTime  int `json:"create_wait_time,omitempty"`
+	Boundaries      []int `json:"boundaries,omitempty"`
 }
 
 // SoleEquipmentRules 是秘宝精度提升的完整直读规则表。
@@ -121,6 +190,26 @@ func (r SoleEquipmentRules) Materials(template uint32, groupIndex int) ([]SoleEq
 	}
 	items, ok := info.Groups[groupIndex]
 	if !ok {
+		return nil, false
+	}
+	return items, true
+}
+
+// CreateMaterials 给出某件秘宝在**指定制作组**下的制作成本（源 `[create need materials]`，CMD2289）。
+//
+// 与 Materials 是**两套独立表**：Materials 读 `[quality need materials]`（给成品加精度），
+// 本函数读 `[create need materials]`（把半成品做成成品）。组号同样由**请求的 selector** 决定
+// （protocol.SoleMaterialGroupForSelector），不按精度/进度推 —— 口径仍是"面板显示什么就扣什么"。
+//
+// 模板不在源 `[infos]` 里、这件秘宝没有这一段、或组号不存在 ⇒ `(nil, false)`：**不猜、不回落**
+// （与 Materials 同口径；文档 §4 明确要求）。
+func (r SoleEquipmentRules) CreateMaterials(template uint32, groupIndex int) ([]SoleEquipmentMaterial, bool) {
+	info, ok := r.Items[template]
+	if !ok {
+		return nil, false
+	}
+	items, ok := info.CreateGroups[groupIndex]
+	if !ok || len(items) == 0 {
 		return nil, false
 	}
 	return items, true
@@ -236,7 +325,50 @@ func parseSoleInfo(node *journalNode) (SoleEquipmentInfo, error) {
 	if qg := node.child("quality group"); qg != nil {
 		info.Boundaries, _ = parseSoleBoundaries(qg.Values)
 	}
+	// `[create need materials]` 是**秘宝制作**（CMD2289）的成本表，与精度提升是两套独立表。
+	// 源里有些 [info] 没有这一段 —— 那只是这件秘宝没有制作配方（精度仍然可用），
+	// 所以**缺段合法**；但一旦声明了就必须严格解析（组号非法、行不成对都报错，不半读）。
+	if create := node.child("create need materials"); create != nil {
+		info.CreateGroups = map[int][]SoleEquipmentMaterial{}
+		for _, group := range create.children("group") {
+			groupIndex, ok := journalUint(group.Head)
+			if !ok || groupIndex > 255 {
+				return info, fmt.Errorf("sole equipment: %d has an unusable create [group] %q", template, group.Head)
+			}
+			items, e := parseSoleMaterials(group.Values)
+			if e != nil {
+				return info, fmt.Errorf("sole equipment: %d create group %d: %w", template, groupIndex, e)
+			}
+			info.CreateGroups[int(groupIndex)] = items
+		}
+	}
+	// 制作演出三件套的时长（客户端自己播，服务端只用于回包时机的对照实验）。
+	//
+	// ⚠️ 值写在**节标题后面的同一行**（`[create movie time] 18000 18000`），在 PVF 节模型里
+	// 就是 `Head`；节**内部**的行（`Values`）是空的 —— 2026-10-02 第一次就栽在这里，
+	// 解析出 0 导致整个延迟实验静默失效（探针抓到 movie_time: 0 才发现）。
+	if s := node.child("create movie time"); s != nil {
+		info.CreateMovieTime = parseSoleFirstMillis([]string{s.Head})
+	}
+	if s := node.child("create wait time"); s != nil {
+		info.CreateWaitTime = parseSoleFirstMillis([]string{s.Head})
+	}
 	return info, nil
+}
+
+// parseSoleFirstMillis 读 `<毫秒>` 或 `<毫秒> <毫秒>` 形式的第一项
+// （源里 `[create movie time] 18000 18000` 与 `[create wait time] 1200` 都是这个形状）。
+func parseSoleFirstMillis(lines []string) int {
+	for _, line := range lines {
+		f := strings.Fields(line)
+		if len(f) == 0 {
+			continue
+		}
+		if v, err := strconv.ParseInt(f[0], 10, 32); err == nil && v > 0 {
+			return int(v)
+		}
+	}
+	return 0
 }
 
 // parseSoleMaterials 解析 `<模板> <数量>` 的行集合（模板 0 = 金币）。

@@ -480,7 +480,10 @@ func (b Bag) Add(c catalog.LootCatalog, r BagRules, id, amount uint32, expireTim
 		if exp != 0 && row.ExpireTime != 0 && row.ExpireTime != exp {
 			continue
 		}
-		if row.Template == id && row.Slot >= slots[0] && row.Slot <= slots[1] && row.Amount < limit {
+		// 快捷栏上的同模板堆就是这堆本身（next79 2026-10-03）：发放必须并进
+		// 它，否则段内另起一叠、客户端陷入 findItemSlot "multiple slot issues"
+		// 死循环。belt 行作合并目标与其余守卫（期限、上限）完全同规则。
+		if row.Template == id && (r.Quick(row.Slot) || row.Slot >= slots[0] && row.Slot <= slots[1]) && row.Amount < limit {
 			added := min(amount, limit-row.Amount)
 			b.Items[i].Amount += added
 			amount -= added
@@ -503,8 +506,14 @@ func (b Bag) Add(c catalog.LootCatalog, r BagRules, id, amount uint32, expireTim
 }
 
 // SweepStackSlots relocates saved stackables with known categories. It leaves
-// quick slots and unknown types alone, and returns the original bag on any
-// placement error so a failed migration cannot lose an item.
+// unknown types alone, and returns the original bag on any placement error so
+// a failed migration cannot lose an item.
+//
+// 快捷栏行（slot<=8）不再整体豁免（2026-10-03，next79 待机区闪退）：客户端把
+// 堆拖上快捷栏后，那一行就是这堆本身（实机 20260912T004320，CMD19 65→3）。
+// 同模板在 belt 和类型段各有一行时，客户端 findItemSlot 陷入 "multiple slot
+// issues" 死循环（032305 会话 79374 次告警，待机区场景永不完成、约 11 分钟后
+// 崩）。修复方向：belt 行并入段内行后删除；belt 上唯一的堆仍受保护。
 func SweepStackSlots(b Bag, c catalog.LootCatalog, r BagRules) (Bag, bool, error) {
 	next := b
 	next.Items = append([]BagItem(nil), b.Items...)
@@ -512,8 +521,38 @@ func SweepStackSlots(b Bag, c catalog.LootCatalog, r BagRules) (Bag, bool, error
 	for i := 0; i < len(next.Items); {
 		row := next.Items[i]
 		definition, ok := c.Items[row.Template]
-		if !ok || definition.Kind != "stackable" || row.Slot <= 8 || IsPetConsumable(definition.StackableType) {
+		if !ok || definition.Kind != "stackable" || IsPetConsumable(definition.StackableType) {
 			i++
+			continue
+		}
+		if row.Slot <= 8 {
+			// 同模板在类型段有行且能吸收时并入；期限不同的堆不并（继承
+			// 另一堆的期限会改变到期语义）。段内行已满时 belt 保留剩余
+			// （满堆分堆是官服合法状态）。
+			slots := stackableSlotRange(r, definition.StackableType)
+			limit := stackLimitFor(r, definition.StackableType, definition.StackLimit)
+			target := -1
+			for j, other := range next.Items {
+				if other.Slot >= slots[0] && other.Slot <= slots[1] &&
+					other.Template == row.Template && other.ExpireTime == row.ExpireTime &&
+					other.Amount < limit {
+					target = j
+					break
+				}
+			}
+			if target < 0 {
+				i++
+				continue
+			}
+			added := min(row.Amount, limit-next.Items[target].Amount)
+			next.Items[target].Amount += added
+			next.Items[i].Amount -= added
+			if next.Items[i].Amount == 0 {
+				next.Items = append(next.Items[:i], next.Items[i+1:]...)
+			} else {
+				i++
+			}
+			moved = true
 			continue
 		}
 		slots, known := classifyStackableSlot(r, definition.StackableType)
