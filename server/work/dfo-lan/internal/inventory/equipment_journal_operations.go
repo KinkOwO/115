@@ -1036,4 +1036,7 @@ type ItemService struct {
 	// Transform 是三条变换链的费用/返还表（装备 2259 + 晶体 2381 共用）。
 	// nil = 算不出成本 ⇒ 变换拒绝执行，绝不静默改成免费。
 	Transform *catalog.EquipmentTransformSystem
+	// Points 是逐件「套装/誓约积分」表（setpointinfo.cos / oathpointinfo.cos）。
+	// nil = 算不出积分 ⇒ 不推 NOTI2634（客户端保持原值），绝不发 0 冒充。
+	Points *catalog.PointRules
 }

@@ -79,6 +79,9 @@ type Catalogs struct {
 	Journal                                      *catalog.EquipmentJournalRules
 	CreateCost                                   *catalog.EquipmentCreateCost
 	Transform                                    *catalog.EquipmentTransformSystem
+	// Points 是逐件「套装积分 / 誓约积分」表（setpointinfo.cos / oathpointinfo.cos），
+	// 与 transform 同域装载；服务端算角色总分、推 NOTI2634 时用。
+	Points *catalog.PointRules
 	Learning                                     *character.LearningCatalog
 	Prices                                       *catalog.ShopPrices
 	Materials                                    *catalog.ItemMaterials

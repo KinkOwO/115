@@ -40,6 +40,10 @@ type entryPayloads struct {
 	// 客户端一次消费前 160 字节，所以**恒发**（没设过就是全零）。
 	// 它在 packets() 里的位置必须晚于 2758，见那里的注释。
 	EquipmentSkill []byte
+	// OathPartSetPoints 是 NOTI2634「每角色一对 Set/Oath Point」的若干条候选帧
+	// （每条 10 字节：`u16 实体键 + u32 SetPoint + u32 OathPoint`）。它们在 packets()
+	// 里被排在**所有帧之后**：handler 写的是角色实体对象，必须等 actor 重建完。
+	OathPartSetPoints []outboundPacket
 	// 冒险图鉴为账号登记集合，登录即恢复，不依赖角色移动上报。
 	AdventureCollection []byte
 	// InformNotice / InformNotice2nd are the per-character read-notice sets
@@ -406,7 +410,7 @@ func (p entryPayloads) packets() []outboundPacket {
 		// NOTI2425先替换集合，窗口531已打开时才重绘；空集合也需恢复，避免换号残留。
 		out = append(out, outboundPacket{"冒险图鉴登录恢复", 0, 2425, p.AdventureCollection})
 	}
-	return append(out,
+	out = append(out,
 		outboundPacket{"actor_appearance_ready", 0, 2, p.Basic},
 		// 官服入场序列在末尾的 864B USERINFO basic（s4 #116）之后才发 NOTI342
 		// （#118）与 NOTI21（#121）。2.38.2 的 342 handler 只有在 QuestManager
@@ -422,6 +426,10 @@ func (p entryPayloads) packets() []outboundPacket {
 		// client crashes on town entry when NOTI2827 arrives early.
 		outboundPacket{"skill_locks_restored", 0, 2827, p.SkillLocks},
 	)
+	// NOTI2634（每角色一对 Set/Oath Point）排在**最后**：handler 直接写角色实体对象的
+	// `实体+1872/+1876`，必须等 actor_appearance_ready 重建完实体再写，否则会被覆盖。
+	// 见 docs/protocol/oath-set-points-20261004.md §7.1。
+	return append(out, p.OathPartSetPoints...)
 }
 
 // Prepare every frame before the first write. In particular, a missing cipher

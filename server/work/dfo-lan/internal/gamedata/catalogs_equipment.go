@@ -486,9 +486,16 @@ func preparePVFRules(c *Catalogs, s *Source, selected map[string]bool, inputs Ca
 			return err
 		}
 		c.Transform = &direct
-		log.Printf("PVF equipment transform system prepared: need=%d/%d/%d refund=%d/%d/%d",
+		points, err := s.PointRules()
+		if err != nil {
+			return err
+		}
+		c.Points = &points
+		log.Printf("PVF equipment transform system prepared: need=%d/%d/%d refund=%d/%d/%d; "+
+			"point rules prepared: set=%d grades=%d oath=%d minOath=%d",
 			len(direct.EquipmentNeed), len(direct.AmalgamationNeed), len(direct.PrimerNeed),
-			len(direct.EquipmentRefund), len(direct.AmalgamationRefund), len(direct.PrimerRefund))
+			len(direct.EquipmentRefund), len(direct.AmalgamationRefund), len(direct.PrimerRefund),
+			len(points.Set.Rules), len(points.Set.Grades), len(points.Oath.Rules), points.Oath.MinOathPoint)
 		s.ReleaseReadCaches()
 	}
 	return nil
@@ -538,6 +545,17 @@ func (c *Catalogs) LoadEquipmentTransformSystem() (*catalog.EquipmentTransformSy
 	}
 	if c.Transform != nil {
 		return c.Transform, nil
+	}
+	return nil, nativeContentRequired("transform")
+}
+
+// LoadPointRules 返回逐件「套装积分 / 誓约积分」表（与 transform 同域装载）。
+func (c *Catalogs) LoadPointRules() (*catalog.PointRules, error) {
+	if err := c.RequireSelected("transform", c.Points != nil); err != nil {
+		return nil, err
+	}
+	if c.Points != nil {
+		return c.Points, nil
 	}
 	return nil, nativeContentRequired("transform")
 }

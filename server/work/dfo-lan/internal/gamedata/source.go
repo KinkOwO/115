@@ -455,6 +455,18 @@ func (s *Source) EquipmentTransformSystem() (catalog.EquipmentTransformSystem, e
 	return catalog.ImportEquipmentTransformSystem(s.archive)
 }
 
+// PointRules 直读逐件「套装积分 / 誓约积分」表（2026-10-04）。
+//
+// 源 = etc/115lvability/setpointinfo.cos 与 etc/115lvability2/oathpointinfo.cos（两份 UTF-16 文本），
+// 不经过任何导出 JSON。客户端只用这两张表做逐件明细，**角色总分由服务端算并推 NOTI2634** ——
+// 见 docs/protocol/oath-set-points-20261004.md。
+func (s *Source) PointRules() (catalog.PointRules, error) {
+	if s.archive == nil {
+		return catalog.PointRules{}, fmt.Errorf("point rules import requires PVF")
+	}
+	return catalog.ImportPointRules(s.archive)
+}
+
 // EquipmentAwakening 直读装备调适规则（CMD2258）。
 // 源 = etc/115lvability/equipmentawakeningoptionsystem.cos，不经过任何导出 JSON。
 func (s *Source) EquipmentAwakening() (*catalog.EquipmentAwakeningRules, error) {
