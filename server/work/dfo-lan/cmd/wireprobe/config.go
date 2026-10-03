@@ -58,6 +58,7 @@ type Config struct {
 	EntryAdditionProbe            bool   `koanf:"entry-addition-probe" default:"false" help:"send current-build source attributes; optional inventory and skills remain pending"`
 	QuestCatalog                  string `koanf:"quest-catalog" help:"enable source quest accept/abandon persistence; objectives and rewards are separate"`
 	VaultRules                    string `koanf:"vault-rules" help:"source vault capacity and empty-state initialization"`
+	SoleQualityNative             bool   `koanf:"sole-quality-native" default:"false" env:"DFO_SOLE_QUALITY_NATIVE" help:"秘宝精度按原版（国服）结算；默认关（单机口径 5..20）"`
 	FatigueRules                  string `koanf:"fatigue-rules" default:"configs/fatigue-probe.json" help:"separate persisted fatigue and rollover policy (default: configs/fatigue-probe.json)"`
 	FatigueFree                   bool   `koanf:"fatigue-free" default:"false" env:"DFO_FATIGUE_FREE" help:"关闭疲劳消耗（进本与房间一起归零）；默认关"`
 	ProgressionCatalog            string `koanf:"progression-catalog" help:"current-source experience and growth catalog"`

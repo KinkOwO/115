@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## 2026-10-03：秘宝制作（CMD2289）移植到 gamedata 新架构（实机已验证）
+
+- 秘宝规则加载沿用上游 gamedata.Catalogs.SoleRules / InstallSoleEquipment，删除旧 cmd/wireprobe/pvf_sole.go；
+  CreateGroups（[create need materials] 制作成本）解析随 internal/catalog/sole_equipment.go 就位，
+  启动日志补 create= 计数。
+- CMD2289 分派接入 cmd/wireprobe/client_dispatch_inventory.go：ack（kind1 + u8 1 + u32 成品模板）
+  立即发送清客户端等待态，结果刷新包按 followDelay 阻塞后发送；失败分支同样回 ack 防窗口卡死。
+- 精度结算口径开关迁 koanf 配置：SoleQualityNative（-sole-quality-native / DFO_SOLE_QUALITY_NATIVE，默认关单机口径）；
+  request_scope 白名单 2288,2289。
+- 验证：Go 1.26 build/vet 专项通过；inventory/catalog/protocol/workflow Sole 专项全绿；
+  真源测试 TestSoleCreateMaterialsNative（inner.pvf）通过；实机制作验证成功
+  （sole_create_committed 模板 100354181，扣料与成品入包正常，窗口无等待态残留）。
+
 ## 2026-10-03：合并上游掉落与副本修复（源码候选）
 
 - 合入上游 main `5c8530f`：普通装备/免费翻牌、MOB 材料与世界掉落、Lotus 末层原生结束路径和誓约 Clone 入场修复。保留双方既有交接与 confirmed baseline 记录。

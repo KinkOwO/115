@@ -90,3 +90,92 @@ func TestSoleMaterialGroupSelectorMapping(t *testing.T) {
 		}
 	}
 }
+
+// CMD2289 秘宝制作：**字段偏移是 13，不是 12**（本轮最容易踩的坑）。
+//
+// 两条实机明文样本（2026-10-02，多个会话逐字节一致）：偏移 13 读出的 u32 恰好等于源
+// `[item index]`（Venus / Nabel）；按 12 读会把信封尾的 `ff` 当成模板首字节，拿到
+// `0xFF8548FB` 这类垃圾值 ⇒ 查不到源 ⇒ 制作恒被拒。
+var soleCreateSamples = []struct {
+	name     string
+	body     []byte
+	template uint32
+}{
+	{"Venus", []byte{
+		0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
+		0xFE, 0xFF, 0xFF, 0xFF, 0xFF, // 13 字节信封（以 ff ff ff ff 收尾）
+		0x85, 0x48, 0xFB, 0x05, // [13..16] 模板 = 0x05FB4885 = 100354181
+		0x00, 0x00, 0x00, 0x00, // [17..20] selector
+		0x00, 0x00, 0x00, // [21..23] 补零
+	}, 100354181},
+	{"Nabel", []byte{
+		0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
+		0xFE, 0xFF, 0xFF, 0xFF, 0xFF,
+		0xE6, 0xD8, 0xFB, 0x05, // 0x05FBD8E6 = 100391142
+		0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00,
+	}, 100391142},
+}
+
+func TestDecodeSoleCreateFromRealSamples(t *testing.T) {
+	for _, tc := range soleCreateSamples {
+		if len(tc.body) != SoleCreatePayloadSize {
+			t.Fatalf("%s: fixture length = %d, want %d", tc.name, len(tc.body), SoleCreatePayloadSize)
+		}
+		r, err := DecodeSoleCreate(tc.body)
+		if err != nil {
+			t.Fatalf("%s: decode: %v", tc.name, err)
+		}
+		if r.Template != tc.template || r.Selector != 0 || r.PayloadOffset != soleCreateFields {
+			t.Fatalf("%s: decoded = %+v, want template %d selector 0 offset %d",
+				tc.name, r, tc.template, soleCreateFields)
+		}
+		// 负面钉：按 12 读必须拿到不同的值 —— 这条断言把"偏移必须 13"钉死。
+		if at12 := binary.LittleEndian.Uint32(tc.body[12:16]); at12 == tc.template {
+			t.Fatalf("%s: 偏移 12 也读出了同一个模板，样本已失去区分度", tc.name)
+		}
+	}
+}
+
+// 带信封帧（37 字节 = 13 信封 + 24 负载）：结构自校验后字段整体后移 13（与 2258/2288 同一约定）。
+func TestDecodeSoleCreateWithEnvelope(t *testing.T) {
+	frame := []byte{0x01, 0xF1, 0x08}          // 01 | opcode(2289 = 0x08F1) | …
+	frame = append(frame, make([]byte, 10)...) // …凑满 13 字节信封
+	frame = append(frame, soleCreateSamples[0].body...)
+	if binary.LittleEndian.Uint16(frame[1:3]) != SoleCreateOpcode {
+		t.Fatalf("fixture opcode = %d", binary.LittleEndian.Uint16(frame[1:3]))
+	}
+	r, err := DecodeSoleCreate(frame)
+	if err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if r.PayloadOffset != 26 || r.Template != soleCreateSamples[0].template {
+		t.Fatalf("decoded = %+v, want offset 26 template %d", r, soleCreateSamples[0].template)
+	}
+}
+
+func TestDecodeSoleCreateRejectsShortAndBadTemplate(t *testing.T) {
+	if _, err := DecodeSoleCreate(soleCreateSamples[0].body[:16]); err == nil {
+		t.Fatal("a 16-byte body must be rejected（最短 17 字节）")
+	}
+	for _, bad := range []uint32{0, 0xFFFFFFFF} {
+		body := append([]byte(nil), soleCreateSamples[0].body...)
+		binary.LittleEndian.PutUint32(body[13:17], bad)
+		if _, err := DecodeSoleCreate(body); err == nil {
+			t.Fatalf("template 0x%08X must be rejected", bad)
+		}
+	}
+}
+
+func TestSoleCreateReplyShape(t *testing.T) {
+	got := SoleCreateReply(100354181)
+	want := []byte{0x01, 0x85, 0x48, 0xFB, 0x05}
+	if len(got) != len(want) {
+		t.Fatalf("reply = %x, want %x", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("reply = %x, want %x", got, want)
+		}
+	}
+}
