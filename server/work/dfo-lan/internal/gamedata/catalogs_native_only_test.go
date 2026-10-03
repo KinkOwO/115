@@ -36,6 +36,43 @@ func TestRetiredCommerceJSONCannotSupplyRuntimeContent(t *testing.T) {
 	}
 }
 
+func TestRetiredItemAndEquipmentJSONCannotSupplyRuntimeContent(t *testing.T) {
+	c := &Catalogs{}
+	if _, err := c.OpenFullEquipment("old-export", "old"); err == nil {
+		t.Fatal("equipment export fallback accepted")
+	}
+	loot := &catalog.LootCatalog{}
+	if err := c.SupplementStackables(loot, "old-export.json"); err == nil {
+		t.Fatal("item export fallback accepted")
+	}
+	s := &Source{mode: JSON}
+	if _, err := s.ItemIndex("old-export.json"); err == nil {
+		t.Fatal("JSON source supplied item bindings")
+	}
+}
+
+func TestNativeItemEquipmentCurrentArchiveFingerprint(t *testing.T) {
+	path := os.Getenv("DFO_PVF_CORE_TEST_ARCHIVE")
+	if path == "" {
+		t.Skip("set DFO_PVF_CORE_TEST_ARCHIVE for complete item/equipment binding fingerprints")
+	}
+	c, err := PrepareCatalogs(CatalogInputs{Selection: "items,equipment", ArchivePath: path, ArchiveChecksum: "8b2a9f83247e000a28acd5134b616da725f46def39980b5373030e8cbc5d0934", DerivedCacheDir: "-"}, CatalogAdapters{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Equipment.Close()
+	raw, err := json.Marshal(c.Items.Items)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := fmt.Sprintf("%x", sha256.Sum256(raw)); got != "a8c866c2e8c396ec86ae2290619b65c36f4e4980a26447f263c682eae2e3a5e5" || len(c.Items.Items) != 599771 {
+		t.Fatal("native item metadata changed", got, len(c.Items.Items))
+	}
+	if c.Equipment.RecordCount() != 424216 || c.Equipment.IndexSHA256 != "7ffc480eee357d1dbd507de2c75621e0fca3a209dac76e64254bc00bc0557b71" {
+		t.Fatal("complete equipment LIST binding changed")
+	}
+}
+
 // Full effective-map fingerprints captured before removing the JSON branches.
 // Source changes require a fresh read-only audit, not an edited game export.
 func TestNativeCommerceCurrentArchiveFingerprint(t *testing.T) {

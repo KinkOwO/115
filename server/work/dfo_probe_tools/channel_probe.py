@@ -427,8 +427,6 @@ with (
   command[command.index("-bag-rules") + 1] = str(
    project / "configs/inventory.current37.json"
   )
-  if (project / "configs/items.index.json").exists():
-   command += ["-item-index", str(project / "configs/items.index.json")]
   # Booster contents and selection boxes are prepared from native PVF domains.
   # Source item shops ([need material] prices — the Odyssey shop charges silver
   # coins). Without it the gateway charges a flat 1 gold for everything.
@@ -553,14 +551,9 @@ with (
  elif chapter_drop.exists():
   os.environ["DFO_ODYSSEY_CHAPTER_DROP"] = str(chapter_drop.resolve())
 
- eq_full = project / "configs/equipment-full"
- if (project / "configs/equipment-full.index.json").exists() and (
-  project / "configs/equipment-full.data"
- ).exists():
-  os.environ["DFO_EQUIPMENT_FULL_CATALOG"] = str(eq_full.resolve())
-  eq_wear_full = project / "configs/equipment-wear.full-candidate.json"
-  if eq_wear_full.exists():
-   os.environ["DFO_EQUIPMENT_WEAR_RULES"] = str(eq_wear_full.resolve())
+ eq_wear_full = project / "configs/equipment-wear.full-candidate.json"
+ if eq_wear_full.exists():
+  os.environ["DFO_EQUIPMENT_WEAR_RULES"] = str(eq_wear_full.resolve())
  # ★ 下发前按当前服务端程序自报的能力过滤参数（见 prune_unsupported）。
  command = prune_unsupported(command)
  # The gear a run can drop. Required with -loot-catalog: without it the

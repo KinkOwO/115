@@ -263,7 +263,7 @@ func TestPVFItemCatalogsLocalArchive(t *testing.T) {
 		t.Skip("set DFO_PVF_CORE_TEST_ARCHIVE for prepared item catalogs")
 	}
 	c, err := prepareCatalogsForTest(t, "world,quests,progression,items,equipment,periods,skins,journal,create-cost", path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "../../configs/characters.skycastle-release.json", "../../configs/quests.generated.json", "../../configs/progression.next25.json", "../../configs/world.generated.json", CatalogInputs{
-		IndexPath: "../../configs/items.index.json", FullPrefix: "../../configs/equipment-full",
+		IndexPath: "../catalog/testdata/item-flow.json", FullPrefix: "../../configs/equipment-full",
 		JournalPath: "../../configs/equipment-journal.generated.json", CreateCostPath: "../../configs/equipment-create-cost.generated.json"})
 	if err != nil {
 		t.Fatal(err)

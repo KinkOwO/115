@@ -3,10 +3,12 @@ package inventory
 import (
 	"dfolan/internal/catalog"
 	"encoding/json"
+	"maps"
 	"os"
 	"path"
 	"reflect"
 	"runtime"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -101,7 +103,7 @@ func TestPVFEquipmentLocalArchive(t *testing.T) {
 	}
 	// Item index parity has its own exhaustive proof. Reuse that verified source
 	// binding here to avoid a second bulk stackable decode in this test.
-	index, err := catalog.LoadItemIndex("../../configs/items.index.json")
+	index, err := catalog.ImportItemIndex(a)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,12 +117,12 @@ func TestPVFEquipmentLocalArchive(t *testing.T) {
 	var memory runtime.MemStats
 	runtime.ReadMemStats(&memory)
 	t.Logf("compact equipment archive entries=%d retained_heap_bytes=%d", direct.archive.FileCount(), memory.HeapAlloc)
-	legacy, err := OpenFullEquipmentCatalog("../../configs/equipment-full", direct.Source.Checksum)
+	legacy, err := OpenFullEquipmentCatalog("../inventory/testdata/equipment-flow", "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer legacy.Close()
-	if legacy.RecordCount() != direct.RecordCount() || legacy.IndexSHA256 != direct.IndexSHA256 {
+	if direct.RecordCount() != 424216 || legacy.IndexSHA256 != direct.IndexSHA256 {
 		t.Fatal("equipment index changed")
 	}
 	ids := make([]uint32, 0, len(legacy.Records))
@@ -137,6 +139,19 @@ func TestPVFEquipmentLocalArchive(t *testing.T) {
 		if e != nil {
 			t.Fatal(id, e)
 		}
+		// Historical 7ef2 and current 8b2a resolve this translated string to
+		// different years. Pin both facts, then compare all other fields.
+		// The pre/post native fingerprints also cover the current value.
+		if id == 109010772 {
+			key := "[expiration date]"
+			if len(want.Fields[key]) != 1 || len(got.Fields[key]) != 1 ||
+				want.Fields[key][0].Text != "2025-01-09 06:00:00" || got.Fields[key][0].Text != "2099-01-09 06:00:00" {
+				t.Fatal("known historical/current expiration difference changed")
+			}
+			want.Fields = maps.Clone(want.Fields)
+			want.Fields[key] = slices.Clone(want.Fields[key])
+			want.Fields[key][0].Text = got.Fields[key][0].Text
+		}
 		if !reflect.DeepEqual(want, got) {
 			t.Fatalf("equipment %d definition differs", id)
 		}
@@ -147,5 +162,5 @@ func TestPVFEquipmentLocalArchive(t *testing.T) {
 	if _, err := direct.Definition(0); err == nil {
 		t.Fatal("unknown equipment ID accepted")
 	}
-	t.Logf("all %d equipment definitions matched", len(ids))
+	t.Logf("all %d historical equipment anchors matched; complete LIST fingerprint checked", len(ids))
 }

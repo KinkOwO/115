@@ -505,18 +505,6 @@ func PrepareCatalogs(inputs CatalogInputs, adapters CatalogAdapters) (*Catalogs,
 		if e != nil {
 			return &result, e
 		}
-		if inputs.VerifyBaselines {
-			legacy, e := catalog.LoadItemIndex(inputs.IndexPath)
-			if e != nil {
-				return &result, e
-			}
-			if legacy.Source.Checksum != source.Snapshot().Checksum {
-				return &result, fmt.Errorf("item index baseline/PVF source mismatch")
-			}
-			if e = verifyPVFCatalog(legacy, direct); e != nil {
-				return &result, fmt.Errorf("items: %w", e)
-			}
-		}
 		result.Items = &direct
 		log.Printf("PVF item index prepared: %d templates source=%s", len(direct.Items), direct.Source.Checksum)
 		if selected["loot"] {
@@ -573,24 +561,6 @@ func PrepareCatalogs(inputs CatalogInputs, adapters CatalogAdapters) (*Catalogs,
 			candidate, e := source.Equipment(direct)
 			if e != nil {
 				return &result, e
-			}
-			if inputs.VerifyBaselines {
-				if inputs.FullPrefix == "" {
-					return &result, fmt.Errorf("PVF equipment audit requires the baseline prefix")
-				}
-				full, e := inventory.OpenFullEquipmentCatalog(inputs.FullPrefix, direct.Source.Checksum)
-				if e != nil {
-					return &result, e
-				}
-				defer full.Close()
-				if full.IndexSHA256 != candidate.IndexSHA256 || full.RecordCount() != candidate.RecordCount() || len(full.Errors) != 0 {
-					return &result, fmt.Errorf("full equipment baseline/PVF index differs")
-				}
-				for id := range full.Records {
-					if !candidate.HasDefinition(id) {
-						return &result, fmt.Errorf("equipment %d absent from PVF index", id)
-					}
-				}
 			}
 			result.Equipment = candidate
 			log.Printf("PVF lazy equipment prepared: %d compact source bindings; expanded chunks bounded to 64 MiB", candidate.RecordCount())
@@ -726,14 +696,14 @@ func (c *Catalogs) OpenFullEquipment(prefix, checksum string) (*inventory.FullEq
 		}
 		return c.Equipment, nil
 	}
-	return inventory.OpenFullEquipmentCatalog(prefix, checksum)
+	return nil, fmt.Errorf("full equipment requires the native PVF equipment domain")
 }
 
 func (c *Catalogs) SupplementStackables(loot *catalog.LootCatalog, path string) error {
 	if c.Items != nil {
 		return loot.SupplementItemIndex(*c.Items)
 	}
-	return loot.SupplementStackables(path)
+	return fmt.Errorf("item supplementation requires the native PVF items domain")
 }
 
 func (c *Catalogs) LoadBooster(path, indexPath string) (*catalog.BoosterCatalog, error) {

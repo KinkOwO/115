@@ -23,9 +23,9 @@ import (
 //
 // 这条用例把那只依赖钉住：模板清单取自 test-xl（角色 11）2026-09-28 的实际存档。
 func TestFullEquipmentCatalogCoversWornTemplates(t *testing.T) {
-	prefix := filepath.Join("..", "..", "configs", "equipment-full")
+	prefix := "../inventory/testdata/equipment-flow"
 	if _, err := os.Stat(prefix + ".index.json"); err != nil {
-		t.Skip("侧车 full 目录不在默认位置，跳过")
+		t.Fatal("equipment test fixture missing", err)
 	}
 	raw, err := os.ReadFile(prefix + ".index.json")
 	if err != nil {

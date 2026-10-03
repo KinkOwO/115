@@ -300,8 +300,8 @@ func (s *Source) Progression(path string) (catalog.Progression, error) {
 }
 
 func (s *Source) ItemIndex(path string) (catalog.ItemIndex, error) {
-	if s.mode == JSON {
-		return catalog.LoadItemIndex(path)
+	if s.mode != PVF {
+		return catalog.ItemIndex{}, fmt.Errorf("item index requires native PVF")
 	}
 	return catalog.ImportItemIndex(s.archive)
 }

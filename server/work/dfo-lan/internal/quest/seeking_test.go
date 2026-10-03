@@ -81,7 +81,7 @@ func TestSeekingMonsterItemUsesDirectBagStackable(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = items.SupplementStackables("../../configs/items.index.json"); err != nil {
+	if err = items.SupplementStackables("../catalog/testdata/item-flow.json"); err != nil {
 		t.Fatal(err)
 	}
 	rules, err := inventory.LoadBagRules("../../configs/inventory.compat90.json")

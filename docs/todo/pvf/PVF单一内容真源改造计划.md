@@ -3,6 +3,23 @@
 更新：2026-10-03。用户要求 PVF 作为核心游戏内容文件，消除另一套人工维护的玩法 JSON，并明确 PVF 对服务端是只读资源。内容修改由服务端之外的编辑工具完成。本文记录目标、第一批实际审计和迁移缺口；不表示全量配置依赖已经解除。
 
 
+
+## 2026-10-03：物品索引 / 全量装备及 GM 原生收口（源码候选）
+
+删除模块 `items.index.json`（65.81 MiB）、`equipment-full.index.json`（51.16 MiB）、`equipment-full.data`（311.55 MiB），共 449,330,028 字节（428.51 MiB），顶层 JSON 103→101。新测试夹具 4.57 MiB，保留 37,887 条旧抽奖/物品元数据及 490 条装备测试锚点与成本组成员。测试记录沿用旧来源和逐条压缩记录哈希，不迁成运行内容表。
+
+- 网关移除物品索引与 full 装备 JSON 回退、自动探测和旧 baseline 审计；显式旧路径缺少原生域时在存储访问前拒绝，已准备时只取原生结果。完整穿戴目录继续独立于掉落/任务选集，不扩大掉落范围。探针不再注入旧 index/full 路径，既有穿戴规则路径选择保持。
+- admin/GM 的目录默认且唯一使用 PVF，JSON 模式显式拒绝，原 JSON Awarder 与 GM 运行装配分支移除。余额/历史/纯点券操作保持原存储事务路线；发物品、金币、查询目录在存储前准备原生目录。中文名字保留外部显示覆盖，物品身份、属性、部位、最低等级和发放校验来自 PVF；不修改存档身份或 SQL/schema。
+- GM Python 默认 PVF，未显式指定时从 storage 的模块位置派生归档及掉落策略，当前包默认 storage 为相邻游戏目录。归档 SHA256 可显式断言，空值使用实际资源校验哈希。`--check` 只准备目录，不读取 storage 内容、启动 PG/HTTP 或打开浏览器。代理必须使用后端认证的 `/api/catalog-metadata`；401/404/500、无效元数据均拒绝，不再回退游戏 JSON。
+- 六个无当前入口调用、依赖退休索引的旧 Python 导出脚本移除（amplify grimoire/tickets、enchant beads、item materials、fame、black purgatory）。Odyssey/lottery/shield/装备名望与 avatar pilot 诊断改用原生物品/装备提供者；equipmentfull 和 indexed exporter 输出必须显式指定，不再默认重建 configs 大目录。诊断工具未执行玩家数据库流程；原 shield 源一致性门禁保持。
+- 删除前后原生指纹相同：599,771 条完整物品元数据、424,216 条装备 LIST 绑定（脚本 SHA256 `7ffc480e…`）以及 345 个原生锚点定义。490 条历史装备夹具中 489 条完全一致，109010772 的过期日期由旧 2025 对照当前 2099；确认来源 epoch 的文本差异，两侧值和其它字段分别校验，不改源或导出。完整原生值在迁移前后相同。
+- Go 1.26.5 删除后无缓存全量测试、vet、原生 admin/GM/物品及装备回归通过；Python 3.11.9 的 30 项 profile/GM/代理检查通过。54 域网关、admin、GM 的只读准备报告与 HEAD 892b55e 隔离原生 baseline 相同，storage_accessed=false；网关 runtime_started=false。memory 诊断不作为内容等价字段，不据并行运行推断性能收益。
+- 独立候选、baseline、指纹、报告、日志和手动入口在 `server/work/dfo-lan/.tmp/item-equipment-cleanup/`，包括游戏 candidate、admin、gmweb。旧正式/源码/GM 发布程序未替换，删除后的配置目录必须配新源码构建；confirmed baseline 仍为原实机范围，没有新增实机确认。服务端/客户端 PVF、玩家库、SQL/schema、存档和用户 `.gitignore` 均保持。
+
+其它域的导出/回退以及 GM 包中的旧显示与历史对照资产继续逐项审计；不表示全部 JSON 已退休。两份交付清单原来没有上述三个数据与六个旧脚本条目，保持不重生成。只读验证不运行数据库集成命令；player SQL 流程未修改。
+
+本批候选 SHA256：网关 `c905fd83debd4aa11553c3b2f2fdcc6374a8301d5b808c82f5bb1f654e2432ce`；admin `0dc2bc27afed975d21ba9313d7fa42fcbd9e34191825424c8a0c2d50708ca432`；gmweb `56021c8260fcdad16e4404f7702bff8cfb8fe049f7014f0653b346ed392dae38`。GM 启动器以默认派生路径调用候选的真实 `--check` 也通过，报告 `storage_accessed=false`；旧 index/full 两条入口的存储前拒绝测试通过。
+
 ## 2026-10-03：booster / 自选 / NPC 价格唯一真源（源码候选）
 
 - 删除 `booster-catalog.json`（84.03 MiB）、`selection-boxes-candidate.json`（15.75 MiB）、`shop-prices.json`（14.06 MiB），共 119,375,398 字节（113.85 MiB），顶层 JSON 106→103。三域运行内容只从只读 PVF 准备，移除 JSON 加载、自动探测和旧 JSON baseline 审计；其余域审计保持。

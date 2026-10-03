@@ -17,7 +17,7 @@ import (
 // （cmd/wireprobe/selection_box_audit_test.go）显示 78 个自选盒 / 543 件装备因此发不出去。
 func TestRewardFollowsImportScript(t *testing.T) {
 	const src = "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80"
-	full, err := OpenFullEquipmentCatalog("../../configs/equipment-full", src)
+	full, err := OpenFullEquipmentCatalog("../inventory/testdata/equipment-flow", src)
 	if err != nil {
 		t.Fatal(err)
 	}

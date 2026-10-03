@@ -164,16 +164,9 @@ func TestCraftEventKeyChangesPerAttempt(t *testing.T) {
 	}
 }
 
-// transformEquipmentCatalog 载入一份**全量**装备目录，整个测试进程只载一次。
-//
-// ★ 本仓的全量目录不是单文件：外部包里的 `configs/equipment-full.json` 是 `cmd/equipmentfull`
-// 的导出物，本仓没有它 —— 本仓用的是 `configs/equipment-full.index.json` +
-// `configs/equipment-full.data` 两件套（.data 326 MB），由 `OpenFullEquipmentCatalog` 打开，
-// 再挂到基础目录的 `Full` 字段上（此后 `Definition` / `Reward` 都走全量，见
-// internal/inventory/equipment_full.go 的 Definition）。
-//
-// 加载不便宜（53 MB 的 index 要整体 decode），所以用 sync.Once 摊到整个测试进程；
-// 变换的每个用例都要 115 级装备，只有全量目录里才有。
+// transformEquipmentCatalog uses the historical flow fixture, loaded once.
+// It contains all explicit test anchors and unchanged create-cost group members;
+// complete native bindings and definition parity are checked separately.
 var (
 	transformGearOnce sync.Once
 	transformGear     *EquipmentCatalog
@@ -192,9 +185,9 @@ func transformEquipmentCatalog() (*EquipmentCatalog, error) {
 			transformGearErr = fmt.Errorf("load base equipment catalog: %w", e)
 			return
 		}
-		full, e := OpenFullEquipmentCatalog("../../configs/equipment-full", cat.Source.Checksum)
+		full, e := OpenFullEquipmentCatalog("../inventory/testdata/equipment-flow", cat.Source.Checksum)
 		if e != nil {
-			transformGearErr = fmt.Errorf("open full equipment catalog (configs/equipment-full.data): %w", e)
+			transformGearErr = fmt.Errorf("open equipment flow fixture: %w", e)
 			return
 		}
 		gear := *base

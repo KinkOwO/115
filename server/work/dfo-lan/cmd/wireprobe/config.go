@@ -85,8 +85,8 @@ type Config struct {
 	QuestEquipmentCatalog         string `koanf:"quest-equipment-catalog" help:"source basic-equipment metadata for atomic quest rewards"`
 	EquipmentWearRules            string `koanf:"equipment-wear-rules" help:"current-client equipment slots and persistent wear handling"`
 	KnightShieldCatalog           string `koanf:"knight-shield-catalog" default:"equipment-knight-shield.full-candidate.json" help:"optional source-verified shield window side-car; relative to wear rules directory, empty disables"`
-	EquipmentFullCatalog          string `koanf:"equipment-full-catalog" env:"DFO_EQUIPMENT_FULL_CATALOG" help:"separate indexed wear catalog prefix; does not widen drops"`
-	ItemIndex                     string `koanf:"item-index" env:"DFO_ITEM_INDEX" help:"full stackable item index JSON (e.g. configs/items.index.json)"`
+	EquipmentFullCatalog          string `koanf:"equipment-full-catalog" env:"DFO_EQUIPMENT_FULL_CATALOG" help:"deprecated prefix; ignored with native PVF equipment, otherwise refused"`
+	ItemIndex                     string `koanf:"item-index" env:"DFO_ITEM_INDEX" help:"deprecated path; ignored with native PVF items, otherwise refused"`
 	BoosterCatalog                string `koanf:"booster-catalog" env:"DFO_BOOSTER_CATALOG" help:"deprecated path; ignored with native PVF boosters, otherwise refused"`
 	SelectionBoxes                string `koanf:"selection-boxes" env:"DFO_SELECTION_BOXES" help:"deprecated path; ignored with native PVF selection-boxes, otherwise refused"`
 	ItemShop                      string `koanf:"item-shop" env:"DFO_ITEM_SHOP" help:"source item shop JSON (itemshop/**.shp; prices goods with [need material], e.g. the Odyssey shop's silver coins)"`

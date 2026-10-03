@@ -18,7 +18,7 @@ func knightDeckTestService(t *testing.T) *WearService {
 	if e != nil {
 		t.Fatal(e)
 	}
-	full, e := OpenFullEquipmentCatalog("../../configs/equipment-full", jobs.Source.Checksum)
+	full, e := OpenFullEquipmentCatalog("../inventory/testdata/equipment-flow", jobs.Source.Checksum)
 	if e != nil {
 		t.Fatal(e)
 	}

@@ -1,5 +1,12 @@
 # AGENTS.md — server/
 
+## 2026-10-03：物品索引 / 全量装备及 GM 原生收口（源码候选）
+
+- 物品/full 装备运行回退、探测和旧 baseline 移除；admin/GM 默认且仅从 PVF 准备，代理必须读取后端元数据。删除两份 JSON 和 full data 共 428.51 MiB，103→101；旧无调用 Python 导出脚本退休，流程测试保留约 4.57 MiB 小型历史夹具。
+- Go 1.26.5 无缓存全量测试、vet、原生管理/装备/物品回归和 30 项 Python 检查通过；完整物品指纹/装备 LIST/345 原生定义以及网关54域、admin、GM报告与 892b55e 原生 baseline 一致。490 条历史定义中一处旧日期2025/当前PVF2099被明确钉住，其余字段保持。
+- 独立游戏/admin/GM 候选与手动入口位于 .tmp/item-equipment-cleanup；正式与 GM 发布程序未替换，现目录需新源码构建。confirmed baseline 保持既有实机范围，未访问玩家库或启动客户端，PVF/schema/存档/用户 .gitignore 保持。详情见 docs/todo/pvf/PVF单一内容真源改造计划.md。
+
+
 ## 2026-10-03：booster / 自选 / NPC 价格唯一真源（源码候选）
 
 - 三域移除 JSON 运行回退、路径探测和旧 baseline，内容统一从只读 PVF 准备；兼容旧路径参数，缺少原生域时在存储访问前拒绝。删除三个大 JSON，106→103，减少 113.85 MiB；流程测试改为约 0.34 MiB 夹具，诊断导出使用原生索引且要求显式输出。

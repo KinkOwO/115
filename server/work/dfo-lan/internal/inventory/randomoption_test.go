@@ -43,9 +43,9 @@ func TestRandomOptionCatalogLoads(t *testing.T) {
 // minimum level 15.
 func TestRandomOptionRollLiveAnchor(t *testing.T) {
 	c, source := loadRandomOptionCatalogForTest(t)
-	full, e := OpenFullEquipmentCatalog("../../configs/equipment-full", source)
+	full, e := OpenFullEquipmentCatalog("../inventory/testdata/equipment-flow", source)
 	if e != nil {
-		t.Skip("full equipment catalog not present")
+		t.Fatal("equipment test fixture unavailable", e)
 	}
 	defer full.Close()
 	def, e := full.Definition(100310840)
@@ -101,9 +101,9 @@ func TestRandomOptionGroupChoiceCoverage(t *testing.T) {
 
 func TestUnsealRandomOptionBag(t *testing.T) {
 	c, source := loadRandomOptionCatalogForTest(t)
-	full, e := OpenFullEquipmentCatalog("../../configs/equipment-full", source)
+	full, e := OpenFullEquipmentCatalog("../inventory/testdata/equipment-flow", source)
 	if e != nil {
-		t.Skip("full equipment catalog not present")
+		t.Fatal("equipment test fixture unavailable", e)
 	}
 	defer full.Close()
 	equipment := &EquipmentCatalog{Full: full}

@@ -15,7 +15,6 @@ import (
 
 func main() {
 	source := flag.String("source", "../client-build/Script.inner.pvf", "source PVF, opened read-only")
-	indexPath := flag.String("index", "configs/items.index.json", "item index used to classify reward templates")
 	chaptersOut := flag.String("chapters", "configs/odyssey-chapters.json", "exported chapter catalog")
 	dropOut := flag.String("drop", "configs/odyssey-chapter-drop.json", "exported chapter drop catalog")
 	rate := flag.Uint("rate", 10000, "drop rate in basis points for an enabled chapter box (default 100%)")
@@ -23,11 +22,12 @@ func main() {
 	if *rate > 10000 {
 		log.Fatal("drop rate must be in 0..10000")
 	}
-	index, err := catalog.LoadItemIndex(*indexPath)
+	a, err := pvf.LoadArchive(pvf.Options{Path: *source, MaxBytes: 1 << 30})
 	if err != nil {
 		log.Fatal(err)
 	}
-	a, err := pvf.LoadArchive(pvf.Options{Path: *source, MaxBytes: 1 << 30})
+	defer a.Close()
+	index, err := catalog.ImportItemIndex(a)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -16,7 +16,7 @@ import (
 func main() {
 	source := flag.String("pvf", "../client-build/Script.inner.pvf", "read-only inner PVF")
 	characters := flag.String("characters", "configs/characters.generated.json", "existing profession catalog, never rewritten")
-	full := flag.String("equipment-full", "configs/equipment-full", "full equipment catalog prefix")
+	full := flag.String("equipment-full", "", "deprecated prefix; source equipment is always read from PVF")
 	wear := flag.String("wear-rules", "configs/equipment-wear.current35.json", "source slot map")
 	profession := flag.Uint("profession", 12, "knight profession")
 	out := flag.String("export", "configs/equipment-knight-shield.full-candidate.json", "side-car output")
@@ -41,18 +41,23 @@ func run(source, characters, full, wear, out string, profession uint) error {
 	if rules.Slots["[support weapon]"] != 24 {
 		return fmt.Errorf("source support weapon slot is not 24")
 	}
-	equipment, err := inventory.OpenFullEquipmentCatalog(full, jobs.Source.Checksum)
-	if err != nil {
-		return err
-	}
-	defer equipment.Close()
 	archive, err := pvf.LoadArchive(pvf.Options{Path: source, MaxBytes: 1024 * 1024 * 1024})
 	if err != nil {
 		return err
 	}
+	defer archive.Close()
 	if archive.Snapshot().Checksum != jobs.Source.Checksum {
 		return fmt.Errorf("PVF checksum differs from existing config_version; do not rewrite character catalog")
 	}
+	index, err := catalog.ImportItemIndex(archive)
+	if err != nil {
+		return err
+	}
+	equipment, err := inventory.OpenPVFEquipmentCatalog(archive, index)
+	if err != nil {
+		return err
+	}
+	defer equipment.Close()
 	window, err := catalog.ResolveScript(archive, "etc/character/knight/shieldwindownewdata.etc")
 	if err != nil {
 		return err

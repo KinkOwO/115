@@ -178,6 +178,12 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 			return nil, nil, err
 		}
 	}
+	if startup.ItemIndex != "" && pvfCatalogs.Items == nil {
+		return nil, nil, fmt.Errorf("item index requires the native PVF items domain")
+	}
+	if startup.EquipmentFullCatalog != "" && pvfCatalogs.Equipment == nil {
+		return nil, nil, fmt.Errorf("full equipment requires the native PVF equipment domain")
+	}
 	if startup.PVFCheckCatalogs {
 		pvfCatalogs.CollectImportMemory()
 		if startup.PVFCheckHeapProfile != "" {
@@ -298,19 +304,7 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 			FixedTiltPercent: uint32(startup.AttunementFixedTilt),
 		}
 	}
-	if startup.EquipmentFullCatalog == "" {
-		for _, cand := range []string{
-			"configs/equipment-full",
-			"cmd/wireprobe/testdata/odyssey-equipment",
-		} {
-			if _, err := os.Stat(cand + ".index.json"); err == nil {
-				if _, err := os.Stat(cand + ".data"); err == nil {
-					startup.EquipmentFullCatalog = cand
-					break
-				}
-			}
-		}
-	}
+
 	if startup.RandomOptionCatalog == "" && pvfCatalogs.RandomOptions == nil {
 		if _, err := os.Stat("configs/randomoption.current37.json"); err == nil {
 			startup.RandomOptionCatalog = "configs/randomoption.current37.json"
@@ -334,17 +328,6 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		for _, cand := range candidates {
 			if _, err := os.Stat(cand); err == nil {
 				startup.ItemShop = cand
-				break
-			}
-		}
-	}
-	if startup.ItemIndex == "" {
-		for _, cand := range []string{
-			"configs/items.index.json",
-			"server/work/dfo-lan/configs/items.index.json",
-		} {
-			if _, err := os.Stat(cand); err == nil {
-				startup.ItemIndex = cand
 				break
 			}
 		}
@@ -902,24 +885,11 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		log.Printf("loaded equipment catalog: %d rows, %d droppable, from %s",
 			len(gear.Rows), len(gear.DropPool()), startup.EquipmentCatalog)
 		dropCatalog := c
-		itemIndexPath := startup.ItemIndex
-		if itemIndexPath == "" {
-			cand := filepath.Join(filepath.Dir(lootPath), "items.index.json")
-			if _, err := os.Stat(cand); err == nil {
-				itemIndexPath = cand
-			} else if _, err := os.Stat("configs/items.index.json"); err == nil {
-				itemIndexPath = "configs/items.index.json"
+		if pvfCatalogs.Items != nil {
+			if err := pvfCatalogs.SupplementStackables(&c, ""); err != nil {
+				return nil, nil, err
 			}
-		}
-		if itemIndexPath != "" || pvfCatalogs.Items != nil {
-			if err := pvfCatalogs.SupplementStackables(&c, itemIndexPath); err != nil {
-				if pvfCatalogs.Items != nil {
-					return nil, nil, err
-				}
-				log.Printf("warning: supplement stackables from %s: %v", itemIndexPath, err)
-			} else {
-				log.Printf("supplemented stackable catalog from %s (total items: %d)", itemIndexPath, len(c.Items))
-			}
+			log.Printf("supplemented stackable catalog from native PVF (total items: %d)", len(c.Items))
 		}
 		if startup.EquipmentJournalRules != "" || pvfCatalogs.Journal != nil {
 			jr, e := pvfCatalogs.LoadEquipmentJournal(startup.EquipmentJournalRules, c.Source.Checksum)
@@ -1252,12 +1222,7 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		log.Printf("loaded native booster catalog (%d definitions, %d item index entries)", len(boosterCatalog.Definitions), len(boosterCatalog.Items))
 	} else if pvfCatalogs.Items != nil {
 		boosterCatalog = &catalog.BoosterCatalog{Items: pvfCatalogs.Items.Items}
-	} else if startup.ItemIndex != "" {
-		var err error
-		boosterCatalog, err = catalog.LoadBoosterCatalog("", startup.ItemIndex)
-		if err != nil {
-			return nil, nil, err
-		}
+
 	}
 	// 商城发货分类需要完整的物品索引：LootCatalog 只投影 stackable（装备投影
 	// 被刻意拒绝），礼包就地展开开出装备时（实机 2026-09-26：称号进消耗品栏）

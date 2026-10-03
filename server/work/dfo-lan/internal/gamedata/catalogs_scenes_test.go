@@ -12,7 +12,7 @@ func TestPVFClosingScenesLocalArchive(t *testing.T) {
 	if path == "" {
 		t.Skip("set DFO_PVF_CORE_TEST_ARCHIVE for terminal and tournament scene parity")
 	}
-	c, err := prepareCatalogsForTest(t, "dungeons,dungeon-terminal,dungeon-tournament", path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "../../configs/characters.skycastle-release.json", "", "", "", CatalogInputs{IndexPath: "../../configs/items.index.json", ScenePolicyPath: "../../configs/pvf-scene-policy.json"})
+	c, err := prepareCatalogsForTest(t, "dungeons,dungeon-terminal,dungeon-tournament", path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "../../configs/characters.skycastle-release.json", "", "", "", CatalogInputs{IndexPath: "../catalog/testdata/item-flow.json", ScenePolicyPath: "../../configs/pvf-scene-policy.json"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,7 +53,7 @@ func TestPVFLayerRevisitsLocalArchive(t *testing.T) {
 	if path == "" {
 		t.Skip("set DFO_PVF_CORE_TEST_ARCHIVE for native layer revisit source binding")
 	}
-	c, err := prepareCatalogsForTest(t, "dungeons,layer-revisits", path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "../../configs/characters.skycastle-release.json", "", "", "", CatalogInputs{IndexPath: "../../configs/items.index.json", ScenePolicyPath: "../../configs/pvf-scene-policy.json", LayerRevisitPolicyPath: "../../configs/pvf-layer-revisit-policy.json"})
+	c, err := prepareCatalogsForTest(t, "dungeons,layer-revisits", path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "../../configs/characters.skycastle-release.json", "", "", "", CatalogInputs{IndexPath: "../catalog/testdata/item-flow.json", ScenePolicyPath: "../../configs/pvf-scene-policy.json", LayerRevisitPolicyPath: "../../configs/pvf-layer-revisit-policy.json"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,7 +76,7 @@ func TestPVFScenesLocalArchive(t *testing.T) {
 	if path == "" {
 		t.Skip("set DFO_PVF_CORE_TEST_ARCHIVE for complete scene parity")
 	}
-	c, err := prepareCatalogsForTest(t, "town,dungeons,training-dungeons,tutorial-dungeons,dungeon-towers,dungeon-hell,dungeon-maze", path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "../../configs/characters.skycastle-release.json", "", "", "", CatalogInputs{IndexPath: "../../configs/items.index.json", ScenePolicyPath: "../../configs/pvf-scene-policy.json"})
+	c, err := prepareCatalogsForTest(t, "town,dungeons,training-dungeons,tutorial-dungeons,dungeon-towers,dungeon-hell,dungeon-maze", path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "../../configs/characters.skycastle-release.json", "", "", "", CatalogInputs{IndexPath: "../catalog/testdata/item-flow.json", ScenePolicyPath: "../../configs/pvf-scene-policy.json"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -126,7 +126,7 @@ func TestPVFScriptWarpsLocalArchive(t *testing.T) {
 	if path == "" {
 		t.Skip("set DFO_PVF_CORE_TEST_ARCHIVE for full native script warp bindings")
 	}
-	c, err := prepareCatalogsForTest(t, "dungeons,script-warps", path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "../../configs/characters.skycastle-release.json", "", "", "", CatalogInputs{IndexPath: "../../configs/items.index.json", ScenePolicyPath: "../../configs/pvf-scene-policy.json", ScriptWarpPolicyPath: "../../configs/pvf-script-warp-policy.json"})
+	c, err := prepareCatalogsForTest(t, "dungeons,script-warps", path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "../../configs/characters.skycastle-release.json", "", "", "", CatalogInputs{IndexPath: "../catalog/testdata/item-flow.json", ScenePolicyPath: "../../configs/pvf-scene-policy.json", ScriptWarpPolicyPath: "../../configs/pvf-script-warp-policy.json"})
 	if err != nil {
 		t.Fatal(err)
 	}
