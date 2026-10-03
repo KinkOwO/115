@@ -70,7 +70,8 @@ func (client *gameConnection) dispatchIspins(requestData *clientRequest) dispatc
 				w.ispins = nil
 			}
 		}
-		return dispatchHandled
+		// This is an extra notification, not ownership of CMD35. The old
+		// frame loop continued into town movement and pending standby data.
 	}
 
 	// 伊斯频道（Type 81）待机区分支：客户端入场后的第一帧 c2s 是场景
@@ -130,6 +131,32 @@ func (client *gameConnection) dispatchIspins(requestData *clientRequest) dispatc
 		}
 		if client.sendPlan(ispinsPlan, client.logWorldResponseBody) != nil {
 			return dispatchClose
+		}
+		// The merge preserved the immediate start batch but omitted f384:
+		// the native client waits for this N2255 before sending CMD2047.
+		// Snapshot before scheduling, as in the confirmed backup main loop.
+		if requestData.frame.ID == legion.CmdStart {
+			body, err := w.ispinsWaitInfo()
+			if err == nil {
+				roleID := w.role.ID
+				var done <-chan struct{}
+				if client.connection != nil {
+					done = client.connection.done
+				}
+				go func() {
+					timer := time.NewTimer(2500 * time.Millisecond)
+					defer timer.Stop()
+					select {
+					case <-timer.C:
+					case <-done:
+						return
+					}
+					if client.output.send(0, legion.NotiIspinsInfo, body) != nil {
+						return
+					}
+					client.event(map[string]any{"kind": "ispins_info_wait_pushed", "id": legion.NotiIspinsInfo, "character_id": roleID})
+				}()
+			}
 		}
 		return dispatchHandled
 	}
