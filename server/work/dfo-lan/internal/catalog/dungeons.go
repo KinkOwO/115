@@ -56,6 +56,10 @@ type DungeonDefinition struct {
 	// 只有「客户端不发 CMD117」的副本才走得到它，见 internal/dungeon/completion.go
 	// 的 tryComplete —— 客户端会发 CMD117 的副本由那条路径负责，这里不会重复结算。
 	SourceBoss uint32
+	// RewardCard 是源 [dungeon clear result] [reward card] <N> 声明的**翻牌张数**
+	// （沉月湖第二层 100004137 为 1）。这是源对通关结算的声明，不是本地策略 ——
+	// 沉月湖单人的抽牌次数就取它，见 cmd/wireprobe 的 moon 配置推导。
+	RewardCard uint32
 	HellParty  *DungeonHellParty `json:"hell_party,omitempty"`
 	Mazes      []DungeonMaze     `json:"mazes"`
 	// MazeChanceRates 非空表示这张副本按源里的 [maze chance rate] 掷骰选图，
@@ -290,6 +294,12 @@ func ParseDungeon(id uint32, s ScriptRecord) (DungeonDefinition, error) {
 		d.DesignatedDifficulty = byte(v[0].Value)
 	}
 	d.SourceBoss = sourceBoss(s.Cells)
+	// [reward card] 是翻牌张数（月湖第二层 100004137 = 1）。源里它写在
+	// [dungeon clear result] 段内；只在恰好一条且为非负整数时采纳 —— 形状不符就
+	// 保持 0，其它副本的行为一个字节都不变。
+	if cards := sectionCells(s.Cells, "[reward card]"); len(cards) == 1 && cards[0].Type == 0 && cards[0].Value >= 0 {
+		d.RewardCard = uint32(cards[0].Value)
+	}
 	minimum := sectionCells(s.Cells, "[minimum required level]")
 	if len(minimum) != 1 || minimum[0].Type != 0 || minimum[0].Value < 1 {
 		return d, fmt.Errorf("invalid [minimum required level]")

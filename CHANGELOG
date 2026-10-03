@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 2026-10-03：月湖与秘宝上游合并冲突收敛（源码合并）
+
+- 合入上游 main `c7a5801`；CHANGELOG 保留本地 Hell Party/奥德赛与上游月湖/秘宝制作的全部新增记录和既有 confirmed baseline 信息。
+- 补齐上游新增 `-sole-quality-native` 参数对应的帮助文本测试快照，保持已合并的运行逻辑。Go 1.26 当前内层 PVF 全量包测试中，其余包首轮全部通过；快照修正后网关包全量复测通过，配置专项与 `go vet ./...` 通过。
+- 本轮未替换运行程序、操作玩家库或启动客户端，confirmed baseline 保持双方既有实机确认范围；临时文件和用户未跟踪工作不纳入提交。
+
 ## 2026-10-03：Hell Party 后续敌人与装备掉落已确认
 
 - 用户手动实机确认封印柱后续敌人正常刷新，击杀后可以掉落装备。按已授权的参考端兼容规则接入隐藏波次名单、服务端owned实体身份、最后一只奖励实体触发及Hell独立装备池；`DFO_HELL_PARTY_DROP_PERCENT` 默认100（1倍）。该规则明确是本服兼容实现，不声称为115官方完整公式。
@@ -18,6 +24,37 @@
 - 删除早期仅允许副本103的验证门禁，改由当前PVF的Hell声明和封印地图确定支持范围。原生副本87失败请求已通过回归；当前PVF共60项声明，59项资源完整并通过离线入场，活动副本100005110缺地图100016811继续拒绝。
 - 保留专用Hell副本的Boss标记，检查剧情路线冲突与连通，普通路线和存档不改。专项回归、vet、构建通过；全量测试4项失败均在HEAD overlay复现。
 - 用户确认 Hell Party 正常进入、柱子可攻击破坏并刷出专属怪物。候选SHA256 `104965f85e1721547dc646b65c5a24ed8050529c5867e55b22a712842b93b7b8` 纳入 confirmed baseline；验收限用户实际测试路径，未扩展成59张地图逐张实测。Hell专属掉落尚未确认。详见`server/work/dfo-lan/docs/protocol/hell-party-all-entry-20261003.md`。
+
+## 2026-10-03：月湖（Moon Lake）单人副本移植到 gamedata 新架构（实机已验证）
+
+- 频道直读改造入新架构：internal/catalog/channel_directory.go（etc/clientchannelinfo.etc +
+  etc/channelslotinfo.etc）、channel_info.go（普通频道行）、channelrefresh.Resolve（configs 只声明
+  {ID, Name}，Type/Area/SourceValues 由直读补全）、town.go 特殊频道城镇 map 路径探测修复；
+  gamedata.Source 频道方法 ×3，configs/channel.local34.json 回瘦身版（16 行）。
+- gamedata 化：Catalogs 加 ChannelDirectory/ChannelInfo/ChannelTowns，preparePVFChannels 入
+  PrepareCatalogs 链（catalogs_channel.go）；gatewayRuntime 经 channelDirectory/channelInfo 传递，
+  main.go 频道段植入 Resolve；bootstrap moon 段从 loadMoonSoloConfig 改为 defaultMoonSoloConfig
+  直读推导（不再需要 -moon-solo-config 手工配置档）。
+- 月湖增量：moon_rewards.go 翻牌产出（装备 1..4 件权重 1/3/3/2 + 深渊门票 10362429×60 +
+  迷雾银币 10362432×15）、moon_solo_flow.go 进场链（红门 N15/N27、装备显示 N14、入图序列、
+  跨层交接）、依赖链 loot pickup/premium/box/contracts/consume 与 workflow loot_*。
+- 验证：Go 1.26 build/vet 全绿；Moon/Channel 测试族全绿（真源 inner.pvf）；实机单人次全流程通过：
+  Moon Lake 频道 → 215/1 落点 → 建队 → NPC Start → 一层五房清怪 → 红门换层 → 二层 → Boss →
+  翻牌（moon_clear_reward / moon_reward_inventory）→ 回城，events.jsonl 零错误。
+
+## 2026-10-03：秘宝制作（CMD2289）移植到 gamedata 新架构（实机已验证）
+
+- 秘宝规则加载沿用上游 gamedata.Catalogs.SoleRules / InstallSoleEquipment，删除旧 cmd/wireprobe/pvf_sole.go；
+  CreateGroups（[create need materials] 制作成本）解析随 internal/catalog/sole_equipment.go 就位，
+  启动日志补 create= 计数。
+- CMD2289 分派接入 cmd/wireprobe/client_dispatch_inventory.go：ack（kind1 + u8 1 + u32 成品模板）
+  立即发送清客户端等待态，结果刷新包按 followDelay 阻塞后发送；失败分支同样回 ack 防窗口卡死。
+- 精度结算口径开关迁 koanf 配置：SoleQualityNative（-sole-quality-native / DFO_SOLE_QUALITY_NATIVE，默认关单机口径）；
+  request_scope 白名单 2288,2289。
+- 验证：Go 1.26 build/vet 专项通过；inventory/catalog/protocol/workflow Sole 专项全绿；
+  真源测试 TestSoleCreateMaterialsNative（inner.pvf）通过；实机制作验证成功
+  （sole_create_committed 模板 100354181，扣料与成品入包正常，窗口无等待态残留）。
+
 ## 2026-10-03：合并上游掉落与副本修复（源码候选）
 
 - 合入上游 main `5c8530f`：普通装备/免费翻牌、MOB 材料与世界掉落、Lotus 末层原生结束路径和誓约 Clone 入场修复。保留双方既有交接与 confirmed baseline 记录。
