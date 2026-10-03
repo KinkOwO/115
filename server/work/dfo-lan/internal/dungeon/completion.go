@@ -331,7 +331,7 @@ func (s *Session) SceneEntryRecord() ([18]byte, bool) {
 // 客户端发 SET_QUEST_TRIGGER(33) 收尾。任务侧结算成功即代表本次攻略完成，
 // 这里把副本一并标记完成，好让上层走正常的完成结算（NOTI34/37/35 等）。
 func (s *Session) MarkSceneCompleted() {
-	if s == nil {
+	if s == nil || s.Tournament != nil {
 		return
 	}
 	s.completed = true

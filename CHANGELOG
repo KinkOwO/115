@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 2026-10-03：黄龙/银龙大会四轮流程已确认
+
+- 首场CMD39后客户端发送CMD33；旧剧情收尾路径把它当作整场通关并立即结算。现有大会运行只接受最终BossCheck完成，未完成时忽略CMD33，不写任务清除证据；四轮Bracket、普通副本Boss错位兼容及最终奖励协议保持。
+- 角色10 gene手动实测黄龙副本100003298和银龙副本100003299：各四名对手逐场确认死亡，前三轮CMD33均继续下一场，第四轮后才发Boss确认、NOTI31及NOTI374；两次CMD450领奖均ACK。黄龙13784在实测前回退至accepted/progress1，银龙13785正常接取；实测后黄龙任务行逐字段恢复原值，其他物品和奖励保留。
+- confirmed baseline 候选 `server/work/dfo-lan/.tmp/tournament-rounds-20261003/wireprobe-tournament-rounds.exe` SHA256 `0d956338390f5f1332ed1f9bb0eacafe07510640461761cda01f53f19681a070`，使用同目录 `启动验证.cmd`。默认PVF程序和39版归档基准保留。全量Go测试、vet、当前PVF两项原生四轮回归和54域准备检查通过；详见`server/work/dfo-lan/docs/protocol/tournament-round-completion-20261003.md`。
+
 ## 2026-10-03：雾都赫伊斯 Hell Party 入场已确认
 
 - 修复副本92 DGN在两张普通迷宫重复写入相同 Hell 配置、服务端把同名段拼接后误判无定义的问题。逐段比较所有副本声明；仅全部相同才恢复单份，冲突及空/损坏段保持拒绝。
