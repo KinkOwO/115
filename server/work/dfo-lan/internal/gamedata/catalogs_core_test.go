@@ -269,8 +269,7 @@ func TestPVFItemCatalogsLocalArchive(t *testing.T) {
 		t.Fatal(err)
 	}
 	c.CollectImportMemory()
-	index, err := c.LoadBooster("", "missing-after-preparation.json")
-	if err != nil || len(index.Items) != 599771 {
+	if len(c.Items.Items) != 599771 {
 		t.Fatal("index not reused", err)
 	}
 	full, err := c.OpenFullEquipment("missing-after-preparation", c.Items.Source.Checksum)
@@ -299,7 +298,7 @@ func TestPVFItemCatalogsLocalArchive(t *testing.T) {
 	}
 	var memory runtime.MemStats
 	runtime.ReadMemStats(&memory)
-	t.Logf("items=%d equipment=%d periods=%d skins=%d costs=%d retained_heap_bytes=%d", len(index.Items), full.RecordCount(), len(periods), len(skins), len(cost.Groups), memory.HeapAlloc)
+	t.Logf("items=%d equipment=%d periods=%d skins=%d costs=%d retained_heap_bytes=%d", len(c.Items.Items), full.RecordCount(), len(periods), len(skins), len(cost.Groups), memory.HeapAlloc)
 }
 
 func TestPVFCharactersLocalArchive(t *testing.T) {
@@ -334,7 +333,7 @@ func verifyPVFMigrationSourceOnly(t *testing.T, cacheDir string) {
 	verify := false
 	c, err := prepareCatalogsForTest(t, SupportedDomains, path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "missing-characters.json", "missing-quests.json", "missing-progression.json", "missing-world.json", CatalogInputs{
 		DerivedCacheDir: cacheDir,
-		ItemShopPath:    "missing-item-shops.json", ItemShopPolicyPath: "../../configs/pvf-item-shop-policy.json", BoxesPath: "missing-boxes.json", BoxPolicyPath: "../../configs/pvf-box-policy.json", CashshopRelease: true, CharacterPolicyPath: "../../configs/pvf-character-policy.json", LayerRevisitPolicyPath: "../../configs/pvf-layer-revisit-policy.json", ScriptWarpPolicyPath: "../../configs/pvf-script-warp-policy.json", LotteryPolicyPath: "missing-lottery-policy.json", SelectionBoxesPath: "missing-selection-boxes.json", VerifyBaselines: verify, MinePath: "missing-mine.json", BlackPurgatoryPath: "missing-black-purgatory.json", ClearCubePath: "missing-cube.json", OdysseyGrowthPath: "missing-growth.json", OdysseyChapterPath: "missing-chapters.json", OdysseyDropPath: "missing-odyssey-drop.json", OdysseyCurrencyPath: "missing-coins.json", OdysseyWeaponPath: "missing-weapons.json", ApocalypsePath: "missing-apocalypse.json", AttunementPath: "missing-attunement.json", ContentPolicyPath: "../../configs/pvf-mine-policy.json", IndexPath: "missing/items.index.json", FullPrefix: "missing/equipment-full", JournalPath: "missing-journal.json", CreateCostPath: "missing-create-cost.json", LearningPath: "missing-skills.json", PricesPath: "missing-prices.json", MaterialsPath: "missing-materials.json", BoosterPath: "missing-boosters.json", TutorialPath: "missing-tutorial.json", EnhancementPolicyPath: "../../configs/pvf-enhancement-policy.json",
+		ItemShopPath:    "missing-item-shops.json", ItemShopPolicyPath: "../../configs/pvf-item-shop-policy.json", BoxesPath: "missing-boxes.json", BoxPolicyPath: "../../configs/pvf-box-policy.json", CashshopRelease: true, CharacterPolicyPath: "../../configs/pvf-character-policy.json", LayerRevisitPolicyPath: "../../configs/pvf-layer-revisit-policy.json", ScriptWarpPolicyPath: "../../configs/pvf-script-warp-policy.json", LotteryPolicyPath: "missing-lottery-policy.json", VerifyBaselines: verify, MinePath: "missing-mine.json", BlackPurgatoryPath: "missing-black-purgatory.json", ClearCubePath: "missing-cube.json", OdysseyGrowthPath: "missing-growth.json", OdysseyChapterPath: "missing-chapters.json", OdysseyDropPath: "missing-odyssey-drop.json", OdysseyCurrencyPath: "missing-coins.json", OdysseyWeaponPath: "missing-weapons.json", ApocalypsePath: "missing-apocalypse.json", AttunementPath: "missing-attunement.json", ContentPolicyPath: "../../configs/pvf-mine-policy.json", IndexPath: "missing/items.index.json", FullPrefix: "missing/equipment-full", JournalPath: "missing-journal.json", CreateCostPath: "missing-create-cost.json", LearningPath: "missing-skills.json", MaterialsPath: "missing-materials.json", TutorialPath: "missing-tutorial.json", EnhancementPolicyPath: "../../configs/pvf-enhancement-policy.json",
 		RandomOptionPath: "missing-options.json", ShieldPath: "missing-shields.json", OathPath: "missing-oath.json", VaultPath: "missing-vault.json", WearRulesPath: "../../configs/equipment-wear.current35.json", VaultPolicyPath: "../../configs/pvf-vault-policy.json", LootPath: "missing-loot.json", EquipmentPath: "missing-equipment.json", QuestEquipmentPath: "missing-quest-equipment.json", DropPolicyPath: "../../configs/pvf-drop-policy.json",
 		TownPath: "missing-town.json", DungeonPath: "missing-dungeons.json", TrainingDungeonPath: "missing-training.json", TutorialDungeonPath: "missing-tutorial-dungeons.json", ScenePolicyPath: "../../configs/pvf-scene-policy.json",
 	})

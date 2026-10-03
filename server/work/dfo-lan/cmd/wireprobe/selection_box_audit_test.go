@@ -1,8 +1,10 @@
 package main
 
 import (
-	"dfolan/internal/catalog"
+	"dfolan/internal/gamedata"
 	"dfolan/internal/inventory"
+	"encoding/json"
+	"os"
 	"sort"
 	"strings"
 	"testing"
@@ -15,23 +17,24 @@ import (
 // 只查 equipment/ 下的模板：装扮（avatar/）与宠物走 Destination 1/2，用各自的目录与
 // 行结构，拿装备目录去查它们只会得到假阳性（第一版就是这么误报 1438 件的）。
 func TestSelectionBoxItemsAreGrantable(t *testing.T) {
-	boxes, err := catalog.LoadSelectionBoxes("../../configs/selection-boxes-candidate.json")
+	path := os.Getenv("DFO_PVF_CORE_TEST_ARCHIVE")
+	if path == "" {
+		t.Skip("set DFO_PVF_CORE_TEST_ARCHIVE for native historical selection equipment audit")
+	}
+	c, err := gamedata.PrepareCatalogs(gamedata.CatalogInputs{Selection: "items,equipment,selection-boxes", ArchivePath: path, ArchiveChecksum: os.Getenv("DFO_PVF_CORE_TEST_SHA256"), DerivedCacheDir: "-"}, gamedata.CatalogAdapters{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	full, err := inventory.OpenFullEquipmentCatalog("../../configs/equipment-full", boxes.Source.Checksum)
+	defer c.Equipment.Close()
+	boxes := c.SelectionBoxes
+	gear := &inventory.EquipmentCatalog{Full: c.Equipment}
+	index := c.Items
+	data, err := os.ReadFile("../../internal/catalog/testdata/selection-historical-templates.json")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer full.Close()
-	gear, err := inventory.LoadEquipmentCatalog("../../configs/equipment.current37.json", boxes.Source.Checksum)
-	if err != nil {
-		t.Fatal(err)
-	}
-	gear.Full = full
-	// items.index.json 给出每个模板的归档路径，用来判断它走哪条发放目的地。
-	index, err := catalog.LoadBoosterCatalog("../../configs/booster-catalog.json", "../../configs/items.index.json")
-	if err != nil {
+	var historical []uint32
+	if err := json.Unmarshal(data, &historical); err != nil {
 		t.Fatal(err)
 	}
 
@@ -39,7 +42,11 @@ func TestSelectionBoxItemsAreGrantable(t *testing.T) {
 	badTemplates := map[uint32]string{}
 	boxesWithBad := 0
 	checked := 0
-	for _, box := range boxes.Boxes {
+	for _, id := range historical {
+		box, ok := boxes.ByTemplate(id)
+		if !ok {
+			t.Fatalf("historical box %d disappeared", id)
+		}
 		boxBad := 0
 		for _, cat := range box.Categories {
 			for _, it := range cat.Items {

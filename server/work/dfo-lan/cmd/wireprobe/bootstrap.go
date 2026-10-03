@@ -113,7 +113,6 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		LayerRevisitPolicyPath: startup.PVFLayerRevisitPolicy,
 		ScriptWarpPolicyPath:   startup.PVFScriptWarpPolicy,
 		LotteryPolicyPath:      startup.PVFLotteryPolicy,
-		SelectionBoxesPath:     startup.SelectionBoxes,
 		SelectionPolicyPath:    startup.PVFSelectionPolicy,
 		MinePath:               startup.BleedingMineRewards,
 		IndexPath:              startup.ItemIndex,
@@ -121,8 +120,6 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		JournalPath:            startup.EquipmentJournalRules,
 		CreateCostPath:         startup.EquipmentCreateCost,
 		LearningPath:           startup.SkillCatalog,
-		PricesPath:             startup.ShopPrices,
-		BoosterPath:            startup.BoosterCatalog,
 		TutorialPath:           startup.TutorialRoutes,
 		VerifyBaselines:        startup.PVFVerifyBaselines,
 		EnhancementPolicyPath:  startup.PVFEnhancementPolicy,
@@ -163,6 +160,23 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 	}
 	if pvfCatalogErr != nil {
 		return nil, nil, fmt.Errorf("PVF candidate catalogs: %v", pvfCatalogErr)
+	}
+	// Reject retired content paths before opening storage. Old flag names remain
+	// compatible only when their native domain has actually been prepared.
+	if startup.BoosterCatalog != "" {
+		if _, err := pvfCatalogs.LoadBooster(startup.BoosterCatalog, startup.ItemIndex); err != nil {
+			return nil, nil, err
+		}
+	}
+	if startup.SelectionBoxes != "" {
+		if _, err := pvfCatalogs.LoadSelectionBoxes(startup.SelectionBoxes); err != nil {
+			return nil, nil, err
+		}
+	}
+	if startup.ShopPrices != "" {
+		if _, err := pvfCatalogs.LoadShopPrices(startup.ShopPrices, pvfCatalogs.SourceChecksum); err != nil {
+			return nil, nil, err
+		}
 	}
 	if startup.PVFCheckCatalogs {
 		pvfCatalogs.CollectImportMemory()
@@ -302,41 +316,6 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 			startup.RandomOptionCatalog = "configs/randomoption.current37.json"
 		}
 	}
-	if startup.BoosterCatalog == "" {
-		for _, cand := range []string{
-			"configs/booster-catalog.json",
-			"server/work/dfo-lan/configs/booster-catalog.json",
-		} {
-			if _, err := os.Stat(cand); err == nil {
-				startup.BoosterCatalog = cand
-				break
-			}
-		}
-	}
-	if startup.SelectionBoxes == "" {
-		candidates := []string{
-			"configs/selection-boxes-release.json",
-			"configs/selection-boxes-candidate.json",
-			"server/work/dfo-lan/configs/selection-boxes-candidate.json",
-		}
-		// 网关通常不是从模块根启动的（启动器的工作目录是 server/），所以再按
-		// "与已经显式给出的目录同目录"推导一次——那些路径是绝对路径。
-		for _, base := range []string{startup.BoosterCatalog, startup.ItemIndex} {
-			if base == "" {
-				continue
-			}
-			dir := filepath.Dir(base)
-			candidates = append(candidates,
-				filepath.Join(dir, "selection-boxes-release.json"),
-				filepath.Join(dir, "selection-boxes-candidate.json"))
-		}
-		for _, cand := range candidates {
-			if _, err := os.Stat(cand); err == nil {
-				startup.SelectionBoxes = cand
-				break
-			}
-		}
-	}
 	if startup.ItemShop == "" && pvfCatalogs.ItemShops == nil {
 		candidates := []string{
 			"configs/itemshop-release.json",
@@ -368,12 +347,6 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 				startup.ItemIndex = cand
 				break
 			}
-		}
-	}
-	if startup.BoosterCatalog == "" && startup.ItemIndex != "" {
-		cand := filepath.Join(filepath.Dir(startup.ItemIndex), "booster-catalog.json")
-		if _, err := os.Stat(cand); err == nil {
-			startup.BoosterCatalog = cand
 		}
 	}
 	skillRelease := os.Getenv("DFO_SKILL_RELEASE") == "1"
@@ -989,18 +962,14 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		} else if startup.BleedingMineRewards != "" {
 			return nil, nil, err
 		}
-		pricesPath := startup.ShopPrices
-		if pricesPath == "" {
-			pricesPath = filepath.Join(filepath.Dir(lootPath), "shop-prices.json")
-		}
-		if _, err := os.Stat(pricesPath); err == nil || startup.ShopPrices != "" || pvfCatalogs.Prices != nil {
-			shopService.Prices, e = pvfCatalogs.LoadShopPrices(pricesPath, c.Source.Checksum)
+		if pvfCatalogs.Prices != nil || startup.ShopPrices != "" {
+			shopService.Prices, e = pvfCatalogs.LoadShopPrices(startup.ShopPrices, c.Source.Checksum)
 			if e != nil {
 				return nil, nil, e
 			}
-			log.Printf("loaded %d source NPC prices from %s", len(shopService.Prices.Items), pricesPath)
+			log.Printf("loaded %d NPC prices from native PVF", len(shopService.Prices.Items))
 		} else {
-			log.Printf("warning: no source NPC prices (%s); gold purchases and sales are refused", pricesPath)
+			log.Printf("warning: PVF prices domain is not enabled; gold purchases and sales are refused")
 		}
 		if path := os.Getenv("DFO_ODYSSEY_COIN_RULES"); path != "" || pvfCatalogs.OdysseyCurrency != nil {
 			lootService.Currency, e = pvfCatalogs.LoadOdysseyCurrency(path)
@@ -1274,13 +1243,20 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		}
 	}
 	var boosterCatalog *BoosterCatalog
-	if startup.BoosterCatalog != "" || startup.ItemIndex != "" || pvfCatalogs.Items != nil {
+	if startup.BoosterCatalog != "" || pvfCatalogs.Boosters != nil || pvfCatalogs.Prepared("boosters") {
 		var err error
 		boosterCatalog, err = pvfCatalogs.LoadBooster(startup.BoosterCatalog, startup.ItemIndex)
 		if err != nil {
-			log.Printf("warning: load booster catalog: %v", err)
-		} else {
-			log.Printf("loaded booster catalog (%d definitions, %d item index entries)", len(boosterCatalog.Definitions), len(boosterCatalog.Items))
+			return nil, nil, err
+		}
+		log.Printf("loaded native booster catalog (%d definitions, %d item index entries)", len(boosterCatalog.Definitions), len(boosterCatalog.Items))
+	} else if pvfCatalogs.Items != nil {
+		boosterCatalog = &catalog.BoosterCatalog{Items: pvfCatalogs.Items.Items}
+	} else if startup.ItemIndex != "" {
+		var err error
+		boosterCatalog, err = catalog.LoadBoosterCatalog("", startup.ItemIndex)
+		if err != nil {
+			return nil, nil, err
 		}
 	}
 	// 商城发货分类需要完整的物品索引：LootCatalog 只投影 stackable（装备投影
@@ -1331,9 +1307,9 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		var err error
 		selectionBoxes, err = pvfCatalogs.LoadSelectionBoxes(startup.SelectionBoxes)
 		if err != nil {
-			log.Printf("warning: load selection boxes (%s): %v", startup.SelectionBoxes, err)
+			return nil, nil, err
 		} else {
-			log.Printf("loaded selection boxes (%d boxes, %d mislabeled fixed) from %s", len(selectionBoxes.Boxes), len(selectionBoxes.Fixed), startup.SelectionBoxes)
+			log.Printf("loaded native selection boxes (%d boxes, %d mislabeled fixed)", len(selectionBoxes.Boxes), len(selectionBoxes.Fixed))
 		}
 	}
 	if selectionBoxes == nil {

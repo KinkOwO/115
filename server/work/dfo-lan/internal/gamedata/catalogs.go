@@ -90,30 +90,30 @@ type Catalogs struct {
 }
 
 type CatalogInputs struct {
-	Selection, ArchivePath, ArchiveChecksum                                                                                string
-	CharacterPath, QuestPath, ProgressionPath, WorldPath                                                                   string
-	BaselineDir                                                                                                            string
-	DerivedCacheDir                                                                                                        string
-	ItemShopPath, ItemShopPolicyPath                                                                                       string
-	BoxesPath, BoxPolicyPath                                                                                               string
-	CashshopRelease                                                                                                        bool
-	CharacterPolicyPath                                                                                                    string
-	LayerRevisitPolicyPath                                                                                                 string
-	ScriptWarpPolicyPath                                                                                                   string
-	LotteryPolicyPath                                                                                                      string
-	SelectionBoxesPath, SelectionPolicyPath                                                                                string
-	MinePath                                                                                                               string
-	BlackPurgatoryPath                                                                                                     string
-	ClearCubePath                                                                                                          string
-	OdysseyGrowthPath, OdysseyChapterPath, OdysseyDropPath, OdysseyCurrencyPath, OdysseyWeaponPath                         string
-	AttunementPath, ContentPolicyPath                                                                                      string
-	ApocalypsePath                                                                                                         string
-	IndexPath, FullPrefix, JournalPath, CreateCostPath, LearningPath, PricesPath, MaterialsPath, BoosterPath, TutorialPath string
-	VerifyBaselines                                                                                                        bool
-	LootPath, EquipmentPath, QuestEquipmentPath, DropPolicyPath                                                            string
-	RandomOptionPath, ShieldPath, WearRulesPath, OathPath, VaultPath, VaultPolicyPath                                      string
-	TownPath, DungeonPath, TrainingDungeonPath, TutorialDungeonPath, ScenePolicyPath                                       string
-	EnhancementPolicyPath                                                                                                  string
+	Selection, ArchivePath, ArchiveChecksum                                                        string
+	CharacterPath, QuestPath, ProgressionPath, WorldPath                                           string
+	BaselineDir                                                                                    string
+	DerivedCacheDir                                                                                string
+	ItemShopPath, ItemShopPolicyPath                                                               string
+	BoxesPath, BoxPolicyPath                                                                       string
+	CashshopRelease                                                                                bool
+	CharacterPolicyPath                                                                            string
+	LayerRevisitPolicyPath                                                                         string
+	ScriptWarpPolicyPath                                                                           string
+	LotteryPolicyPath                                                                              string
+	SelectionPolicyPath                                                                            string
+	MinePath                                                                                       string
+	BlackPurgatoryPath                                                                             string
+	ClearCubePath                                                                                  string
+	OdysseyGrowthPath, OdysseyChapterPath, OdysseyDropPath, OdysseyCurrencyPath, OdysseyWeaponPath string
+	AttunementPath, ContentPolicyPath                                                              string
+	ApocalypsePath                                                                                 string
+	IndexPath, FullPrefix, JournalPath, CreateCostPath, LearningPath, MaterialsPath, TutorialPath  string
+	VerifyBaselines                                                                                bool
+	LootPath, EquipmentPath, QuestEquipmentPath, DropPolicyPath                                    string
+	RandomOptionPath, ShieldPath, WearRulesPath, OathPath, VaultPath, VaultPolicyPath              string
+	TownPath, DungeonPath, TrainingDungeonPath, TutorialDungeonPath, ScenePolicyPath               string
+	EnhancementPolicyPath                                                                          string
 }
 
 type CatalogAdapters struct {
@@ -747,15 +747,7 @@ func (c *Catalogs) LoadBooster(path, indexPath string) (*catalog.BoosterCatalog,
 		}
 		return &catalog.BoosterCatalog{Definitions: c.Boosters, Items: items}, nil
 	}
-	if c.Items == nil {
-		return catalog.LoadBoosterCatalog(path, indexPath)
-	}
-	result, err := catalog.LoadBoosterCatalog(path, "")
-	if err != nil {
-		return nil, err
-	}
-	result.Items = c.Items.Items
-	return result, nil
+	return nil, fmt.Errorf("booster definitions require the native PVF boosters domain")
 }
 
 func (c *Catalogs) LoadWorld(path string) (catalog.WorldCatalog, error) {

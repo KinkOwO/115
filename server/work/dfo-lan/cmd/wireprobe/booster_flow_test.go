@@ -92,7 +92,7 @@ func (m *mockBoosterStore) CommitCharacterPremiumEvent(ctx context.Context, acco
 }
 
 func TestBoosterUseTitleBox(t *testing.T) {
-	cat, err := catalog.LoadBoosterCatalog("../../configs/booster-catalog.json", "../../configs/items.index.json")
+	cat, err := catalog.LoadBoosterCatalog("../../internal/catalog/testdata/booster-flow.json", "../../internal/catalog/testdata/booster-items.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -179,7 +179,7 @@ func TestBoosterUseTitleBox(t *testing.T) {
 }
 
 func TestBoosterUseAvatarBoxSelection(t *testing.T) {
-	cat, err := catalog.LoadBoosterCatalog("../../configs/booster-catalog.json", "../../configs/items.index.json")
+	cat, err := catalog.LoadBoosterCatalog("../../internal/catalog/testdata/booster-flow.json", "../../internal/catalog/testdata/booster-items.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -249,7 +249,7 @@ func TestBoosterUseAvatarBoxSelection(t *testing.T) {
 }
 
 func TestBoosterUseCreatureBoxSelection(t *testing.T) {
-	cat, err := catalog.LoadBoosterCatalog("../../configs/booster-catalog.json", "../../configs/items.index.json")
+	cat, err := catalog.LoadBoosterCatalog("../../internal/catalog/testdata/booster-flow.json", "../../internal/catalog/testdata/booster-items.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -301,7 +301,7 @@ func TestBoosterUseCreatureBoxSelection(t *testing.T) {
 }
 
 func TestBoosterUseSkinAvatarBoxWithAbilityOption(t *testing.T) {
-	cat, err := catalog.LoadBoosterCatalog("../../configs/booster-catalog.json", "../../configs/items.index.json")
+	cat, err := catalog.LoadBoosterCatalog("../../internal/catalog/testdata/booster-flow.json", "../../internal/catalog/testdata/booster-items.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -384,7 +384,7 @@ func TestBoosterUseSkinAvatarBoxWithAbilityOption(t *testing.T) {
 func TestBoosterOdysseyModeOpensRegularBooster(t *testing.T) {
 	t.Setenv("DFO_ODYSSEY_REWARDS_RELEASE", "1")
 
-	cat, err := catalog.LoadBoosterCatalog("../../configs/booster-catalog.json", "../../configs/items.index.json")
+	cat, err := catalog.LoadBoosterCatalog("../../internal/catalog/testdata/booster-flow.json", "../../internal/catalog/testdata/booster-items.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -443,7 +443,7 @@ func TestBoosterOdysseyModeOpensRegularBooster(t *testing.T) {
 }
 
 func TestBoosterOpenLifeTokenBox(t *testing.T) {
-	cat, err := catalog.LoadBoosterCatalog("../../configs/booster-catalog.json", "../../configs/items.index.json")
+	cat, err := catalog.LoadBoosterCatalog("../../internal/catalog/testdata/booster-flow.json", "../../internal/catalog/testdata/booster-items.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -513,7 +513,7 @@ func TestBoosterOpenLifeTokenBox(t *testing.T) {
 
 func TestBoosterOpenMasterContractPackage(t *testing.T) {
 	t.Setenv("DFO_CONTRACT_PURCHASE_CRASH_FIX", "0") // 本用例断言原即时 NOTI66 行为
-	cat, err := catalog.LoadBoosterCatalog("../../configs/booster-catalog.json", "../../configs/items.index.json")
+	cat, err := catalog.LoadBoosterCatalog("../../internal/catalog/testdata/booster-flow.json", "../../internal/catalog/testdata/booster-items.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -603,7 +603,7 @@ func TestBoosterOpenMasterContractPackage(t *testing.T) {
 // 命中契约奖不再追加即时 NOTI66，避免客户端闪退；契约仍激活落库。
 func TestBoosterOpenMasterContractPackageCrashFix(t *testing.T) {
 	t.Setenv("DFO_CONTRACT_PURCHASE_CRASH_FIX", "1")
-	cat, err := catalog.LoadBoosterCatalog("../../configs/booster-catalog.json", "../../configs/items.index.json")
+	cat, err := catalog.LoadBoosterCatalog("../../internal/catalog/testdata/booster-flow.json", "../../internal/catalog/testdata/booster-items.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -673,7 +673,7 @@ func TestBoosterOpenMasterContractPackageCrashFix(t *testing.T) {
 }
 
 func TestBoosterOpenRemySparklingTouchBox(t *testing.T) {
-	cat, err := catalog.LoadBoosterCatalog("../../configs/booster-catalog.json", "../../configs/items.index.json")
+	cat, err := catalog.LoadBoosterCatalog("../../internal/catalog/testdata/booster-flow.json", "../../internal/catalog/testdata/booster-items.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -737,7 +737,7 @@ func TestBoosterOpenRemySparklingTouchBox(t *testing.T) {
 
 func TestBoosterDirectContractActivation(t *testing.T) {
 	t.Setenv("DFO_CONTRACT_PURCHASE_CRASH_FIX", "0") // 本用例断言原即时 NOTI66 行为
-	cat, err := catalog.LoadBoosterCatalog("../../configs/booster-catalog.json", "../../configs/items.index.json")
+	cat, err := catalog.LoadBoosterCatalog("../../internal/catalog/testdata/booster-flow.json", "../../internal/catalog/testdata/booster-items.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -801,7 +801,7 @@ func TestBoosterDirectContractActivation(t *testing.T) {
 // 道具同样不追加即时 NOTI66；契约仍激活落库。
 func TestBoosterDirectContractActivationCrashFix(t *testing.T) {
 	t.Setenv("DFO_CONTRACT_PURCHASE_CRASH_FIX", "1")
-	cat, err := catalog.LoadBoosterCatalog("../../configs/booster-catalog.json", "../../configs/items.index.json")
+	cat, err := catalog.LoadBoosterCatalog("../../internal/catalog/testdata/booster-flow.json", "../../internal/catalog/testdata/booster-items.json")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -2,6 +2,16 @@
 
 更新：2026-10-03。用户要求 PVF 作为核心游戏内容文件，消除另一套人工维护的玩法 JSON，并明确 PVF 对服务端是只读资源。内容修改由服务端之外的编辑工具完成。本文记录目标、第一批实际审计和迁移缺口；不表示全量配置依赖已经解除。
 
+
+## 2026-10-03：booster / 自选 / NPC 价格唯一真源（源码候选）
+
+- 删除 `booster-catalog.json`（84.03 MiB）、`selection-boxes-candidate.json`（15.75 MiB）、`shop-prices.json`（14.06 MiB），共 119,375,398 字节（113.85 MiB），顶层 JSON 106→103。三域运行内容只从只读 PVF 准备，移除 JSON 加载、自动探测和旧 JSON baseline 审计；其余域审计保持。
+- 旧 CLI/环境变量名保留兼容：原生域已准备时忽略旧路径，未准备且显式给旧路径则在访问存储前报错。未启用的价格域继续拒绝金币交易；物品索引单独服务既有发货分类，不再触发 booster JSON。探针启动器停止传入两个旧导出路径。
+- booster/价格诊断导出工具改为从 PVF 枚举索引，自选诊断导出复用原生运行投影；均必须明确指定输出，不再默认重建 configs 内容表。旧 `-index` 与自选 bounded/config 引用参数退休。
+- 流程用例使用 359,657 字节的 testdata 夹具（非生产内容）；原生审计保留全部 2,975 个历史盒模板，126,008 次装备发放检查通过。当前源完整 booster/price/selection 与 fixed/unparsed/rejected 六项内容指纹在删除前后完全一致：42,504 个 booster、599,682 条价格、16,749 个自选盒、2 fixed、3 unparsed、3 rejected。
+- Go 1.26.5 删除后无缓存全量测试、vet、原生指纹/自选范围/历史装备审计，以及 Python 3.11.9 的 24 项 profile/启动检查通过；收尾变更复跑相关包与 vet。54 域只读准备报告与 HEAD 5f51ee2 的隔离 baseline 相同（14 个非 memory 字段；runtime_started/storage_accessed=false），不据 memory/并行时长推断性能变化。
+- 独立候选、内容指纹、54 域报告和手动入口保存在 `server/work/dfo-lan/.tmp/native-commerce-cleanup/`。候选 SHA256 `5cf860a4df2985c2f6b17e6c50ad9fc7a4a9dba6f2eb116692f37f15abbf55a9`。当前工作树须使用更新后源码构建，正式/源码 bin 未替换；confirmed baseline 保持既有实机范围。没有 PVF、SQL/schema 或玩家存档改动，未访问玩家库或启动客户端。用户 `.gitignore` 改动保持且排除提交。
+
 ## 2026-10-03：3 个冗余政策 JSON（源码候选）
 
 继续用户授权的配置清理，删除 `pvf-lottery-policy.json`、`pvf-selection-policy.json`、`pvf-content-policy.json`，共 40,829 字节，顶层 JSON 109→106。

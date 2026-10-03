@@ -127,30 +127,6 @@ func (c *Catalogs) LoadCashShop(source string, release bool) (*cashshop.Pilot, e
 	return c.CashShop, nil
 }
 
-func loadBoosterBaseline(path string) (map[uint32]catalog.BoosterDefinition, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	var raw map[string]catalog.BoosterDefinition
-	if err = json.NewDecoder(f).Decode(&raw); err != nil {
-		return nil, err
-	}
-	if len(raw) == 0 {
-		return nil, fmt.Errorf("empty booster baseline")
-	}
-	out := make(map[uint32]catalog.BoosterDefinition, len(raw))
-	for key, def := range raw {
-		id, err := strconv.ParseUint(key, 10, 32)
-		if err != nil || id == 0 || uint32(id) != def.Template {
-			return nil, fmt.Errorf("invalid booster key %s", key)
-		}
-		out[def.Template] = def
-	}
-	return out, nil
-}
-
 // Row order in the historical skill exporter came from map iteration. The
 // runtime identity is (profession, skill), so compare that exact projection.
 func learningRows(c *character.LearningCatalog) map[byte]map[uint16]character.LearningDefinition {
@@ -204,10 +180,6 @@ func preparePVFCommerce(c *Catalogs, s *Source, selected map[string]bool, inputs
 	checksum := s.Snapshot().Checksum
 	dir := filepath.Dir(inputs.IndexPath)
 	if selected["prices"] {
-		path := inputs.PricesPath
-		if path == "" {
-			path = filepath.Join(dir, "shop-prices.json")
-		}
 		var direct *catalog.ShopPrices
 		var err error
 		if c.ItemBasics != nil {
@@ -217,15 +189,6 @@ func preparePVFCommerce(c *Catalogs, s *Source, selected map[string]bool, inputs
 		}
 		if err != nil {
 			return err
-		}
-		if inputs.checksBaselines() {
-			legacy, err := catalog.LoadShopPrices(path, checksum)
-			if err != nil {
-				return err
-			}
-			if err = verifyPVFCatalog(legacy.Items, direct.Items); err != nil {
-				return fmt.Errorf("prices: %w", err)
-			}
 		}
 		c.Prices = direct
 		log.Printf("PVF prices prepared: %d definitions", len(direct.Items))
@@ -270,10 +233,6 @@ func preparePVFCommerce(c *Catalogs, s *Source, selected map[string]bool, inputs
 		s.ReleaseReadCaches()
 	}
 	if selected["boosters"] {
-		path := inputs.BoosterPath
-		if path == "" {
-			path = filepath.Join(dir, "booster-catalog.json")
-		}
 		var direct map[uint32]catalog.BoosterDefinition
 		var err error
 		if c.ItemBasics != nil && c.ItemBasics.Boosters != nil {
@@ -283,15 +242,6 @@ func preparePVFCommerce(c *Catalogs, s *Source, selected map[string]bool, inputs
 		}
 		if err != nil {
 			return err
-		}
-		if inputs.checksBaselines() {
-			legacy, err := loadBoosterBaseline(path)
-			if err != nil {
-				return err
-			}
-			if err = verifyPVFCatalog(legacy, direct); err != nil {
-				return fmt.Errorf("boosters: %w", err)
-			}
 		}
 		c.Boosters = direct
 		log.Printf("PVF boosters prepared: %d definitions", len(direct))
@@ -322,7 +272,7 @@ func (c *Catalogs) LoadShopPrices(path, checksum string) (*catalog.ShopPrices, e
 		}
 		return c.Prices, nil
 	}
-	return catalog.LoadShopPrices(path, checksum)
+	return nil, fmt.Errorf("NPC prices require the native PVF prices domain")
 }
 func (c *Catalogs) LoadItemMaterials(path string) (*catalog.ItemMaterials, error) {
 	if err := c.RequireSelected("materials", c.Materials != nil); err != nil {
@@ -676,22 +626,6 @@ func preparePVFSelectionBoxes(c *Catalogs, s *Source, selected map[string]bool, 
 	if err != nil {
 		return err
 	}
-	if i.checksBaselines() {
-		path := i.SelectionBoxesPath
-		if path == "" {
-			path = filepath.Join(filepath.Dir(i.IndexPath), "selection-boxes-candidate.json")
-		}
-		old, err := catalog.LoadSelectionBoxes(path)
-		if err != nil {
-			return err
-		}
-		if old.Source.Checksum != direct.Source.Checksum {
-			return fmt.Errorf("selection boxes baseline source mismatch")
-		}
-		if err := verifyPVFCatalog(old, direct); err != nil {
-			return fmt.Errorf("selection boxes: %w", err)
-		}
-	}
 	c.SelectionBoxes = direct
 	s.ReleaseReadCaches()
 	log.Printf("PVF selection boxes prepared: boxes=%d fixed=%d unparsed=%d rejected=%d; source-discovered scope with policy whitelist", len(direct.Boxes), len(direct.Fixed), len(direct.Unparsed), len(direct.Rejected))
@@ -705,5 +639,5 @@ func (c *Catalogs) LoadSelectionBoxes(path string) (*catalog.SelectionBoxes, err
 	if c.SelectionBoxes != nil {
 		return c.SelectionBoxes, nil
 	}
-	return catalog.LoadSelectionBoxes(path)
+	return nil, fmt.Errorf("selection boxes require the native PVF selection-boxes domain")
 }

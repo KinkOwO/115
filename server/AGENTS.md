@@ -1,5 +1,11 @@
 # AGENTS.md — server/
 
+## 2026-10-03：booster / 自选 / NPC 价格唯一真源（源码候选）
+
+- 三域移除 JSON 运行回退、路径探测和旧 baseline，内容统一从只读 PVF 准备；兼容旧路径参数，缺少原生域时在存储访问前拒绝。删除三个大 JSON，106→103，减少 113.85 MiB；流程测试改为约 0.34 MiB 夹具，诊断导出使用原生索引且要求显式输出。
+- Go 1.26.5 无缓存全量测试、vet 与 Python 3.11.9 的 24 项检查通过；完整三域/分类内容指纹及 54 域报告与 5f51ee2 baseline 一致，2,975 个历史盒的 126,008 次装备检查通过。独立候选与手动入口在 .tmp/native-commerce-cleanup，当前工作树需源码重建。
+- 仅源码候选，confirmed baseline 保持既有实机范围；未替换正式/源码 bin、访问玩家库或启动客户端，无 PVF/schema/存档改动。用户 .gitignore 保持并排除提交；详情见 docs/todo/pvf/PVF单一内容真源改造计划.md。
+
 ## 2026-10-03：3 个冗余政策 JSON 清理（源码候选）
 
 - 删除 lottery/selection/content 三个冗余政策 JSON，109→106；空路径使用原空策略，显式政策仍严格校验，默认档实际 mine 政策数值保持。抽奖历史 scope 从保留奖池生成，不另存测试清单。

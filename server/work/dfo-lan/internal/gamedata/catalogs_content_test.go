@@ -397,12 +397,12 @@ func TestPVFSelectionBoxesLocalArchive(t *testing.T) {
 	if _, ok := boxes.ByTemplate(10358468); !ok {
 		t.Fatal("the missing-closing-tag box is still unmodelled")
 	}
-	old, err := catalog.LoadSelectionBoxes("../../configs/selection-boxes-candidate.json")
+	old, err := catalog.LoadSelectionBoxes("../catalog/testdata/selection-flow.json")
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Every historical box must still resolve identically; the discovered extras
-	// are new scope, not a change to the old scope.
+	// Historical flow fixtures must still resolve identically. Complete current
+	// scope is guarded by TestNativeCommerceCurrentArchiveFingerprint.
 	historical := 0
 	for _, box := range old.Boxes {
 		if _, ok := boxes.ByTemplate(box.Template); !ok {
@@ -430,7 +430,7 @@ func TestPVFSelectionBoxesLocalArchive(t *testing.T) {
 	if historical != len(old.Boxes) {
 		t.Fatal("historical selection box count changed")
 	}
-	t.Log("source discovery plus historical category/count/recommendation parity verified")
+	t.Log("source discovery plus historical flow fixture parity verified")
 }
 
 func TestPVFAttunementLocalArchive(t *testing.T) {

@@ -101,7 +101,7 @@ func TestEndkeeperBossPaysTheUnwrappedRewards(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	bc, err := catalog.LoadBoosterCatalog("../../configs/booster-catalog.json", "../../configs/items.index.json")
+	bc, err := catalog.LoadBoosterCatalog("../../internal/catalog/testdata/booster-flow.json", "../../internal/catalog/testdata/booster-items.json")
 	if err != nil {
 		t.Fatal(err)
 	}

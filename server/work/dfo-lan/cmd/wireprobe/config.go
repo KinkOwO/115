@@ -87,10 +87,10 @@ type Config struct {
 	KnightShieldCatalog           string `koanf:"knight-shield-catalog" default:"equipment-knight-shield.full-candidate.json" help:"optional source-verified shield window side-car; relative to wear rules directory, empty disables"`
 	EquipmentFullCatalog          string `koanf:"equipment-full-catalog" env:"DFO_EQUIPMENT_FULL_CATALOG" help:"separate indexed wear catalog prefix; does not widen drops"`
 	ItemIndex                     string `koanf:"item-index" env:"DFO_ITEM_INDEX" help:"full stackable item index JSON (e.g. configs/items.index.json)"`
-	BoosterCatalog                string `koanf:"booster-catalog" env:"DFO_BOOSTER_CATALOG" help:"booster definitions JSON"`
-	SelectionBoxes                string `koanf:"selection-boxes" env:"DFO_SELECTION_BOXES" help:"source selection box JSON ([booster select category] boxes)"`
+	BoosterCatalog                string `koanf:"booster-catalog" env:"DFO_BOOSTER_CATALOG" help:"deprecated path; ignored with native PVF boosters, otherwise refused"`
+	SelectionBoxes                string `koanf:"selection-boxes" env:"DFO_SELECTION_BOXES" help:"deprecated path; ignored with native PVF selection-boxes, otherwise refused"`
 	ItemShop                      string `koanf:"item-shop" env:"DFO_ITEM_SHOP" help:"source item shop JSON (itemshop/**.shp; prices goods with [need material], e.g. the Odyssey shop's silver coins)"`
-	ShopPrices                    string `koanf:"shop-prices" env:"DFO_SHOP_PRICES" help:"source NPC prices; empty resolves shop-prices.json beside the loot catalog"`
+	ShopPrices                    string `koanf:"shop-prices" env:"DFO_SHOP_PRICES" help:"deprecated path; ignored with native PVF prices, otherwise refused"`
 	BleedingMineRewards           string `koanf:"bleeding-mine-rewards" help:"赤红铁矿原版奖励表；默认读取掉落目录旁的 bleeding-mine-rewards.json"`
 	SoloPartyBootstrap            bool   `koanf:"solo-party-bootstrap" default:"false" help:"initialize the owned actor in the current solo party roster"`
 	AccountOptions                string `koanf:"account-options" help:"sparse current-client account option overrides; other defaults remain client-owned"`

@@ -16,7 +16,7 @@ func TestOdysseyChapterDropReleaseConfig(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	boxes, e := catalog.LoadSelectionBoxes("../../configs/selection-boxes-candidate.json")
+	boxes, e := catalog.LoadSelectionBoxes("../catalog/testdata/selection-flow.json")
 	if e != nil {
 		t.Fatal(e)
 	}

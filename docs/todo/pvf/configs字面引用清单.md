@@ -4,20 +4,19 @@
 
 引用包含注释和历史分支；数字是不同引用位置数，不表示正式运行必读。零引用也不能作为删除依据：动态拼路径、模块外启动器、GM 代理及历史二进制未由本清单证明。
 
-共 106 个顶层 JSON，扫描 1500 个文件；只输出文件名、大小和引用位置，不输出配置值。
+共 103 个顶层 JSON，扫描 1501 个文件；只输出文件名、大小和引用位置，不输出配置值。
 
 | JSON | MiB | 网关 | internal | 工具 | 测试 | 脚本 | 配置引用 | 非测试引用示例 |
 |---|---:|---:|---:|---:|---:|---:|---:|---|
 | `account-options.current35.json` | 0.000 | 0 | 0 | 0 | 0 | 0 | 0 | 需追踪动态路径或外部入口 |
-| `amplify-grimoire.json` | 0.195 | 0 | 2 | 0 | 4 | 3 | 0 | `internal/gamedata/catalogs_items.go:532`<br>`internal/inventory/enhancement_catalog.go:45` |
-| `amplify-tickets.json` | 4.107 | 0 | 2 | 0 | 3 | 2 | 0 | `internal/gamedata/catalogs_items.go:534`<br>`internal/inventory/enhancement_catalog.go:56` |
-| `amplify-upgrade.json` | 0.059 | 0 | 3 | 0 | 3 | 2 | 0 | `internal/gamedata/catalogs_items.go:533`<br>`internal/inventory/amplify_upgrade.go:14` |
+| `amplify-grimoire.json` | 0.195 | 0 | 2 | 0 | 4 | 3 | 0 | `internal/gamedata/catalogs_items.go:482`<br>`internal/inventory/enhancement_catalog.go:45` |
+| `amplify-tickets.json` | 4.107 | 0 | 2 | 0 | 3 | 2 | 0 | `internal/gamedata/catalogs_items.go:484`<br>`internal/inventory/enhancement_catalog.go:56` |
+| `amplify-upgrade.json` | 0.059 | 0 | 3 | 0 | 3 | 2 | 0 | `internal/gamedata/catalogs_items.go:483`<br>`internal/inventory/amplify_upgrade.go:14` |
 | `apocalypse.generated.json` | 0.055 | 2 | 2 | 1 | 6 | 0 | 0 | `cmd/apocalypseimport/main.go:4`<br>`cmd/wireprobe/config.go:105` |
 | `attunement-rewards.generated.json` | 0.026 | 0 | 1 | 2 | 4 | 0 | 0 | `cmd/attunementimport/main.go:5`<br>`cmd/attunementimport/main.go:46` |
-| `black-purgatory-rewards.json` | 0.107 | 1 | 1 | 0 | 0 | 0 | 0 | `cmd/wireprobe/bootstrap.go:1494`<br>`internal/gamedata/catalogs_content.go:121` |
-| `bleeding-mine-rewards.json` | 0.674 | 2 | 2 | 0 | 0 | 0 | 0 | `cmd/wireprobe/bootstrap.go:978`<br>`cmd/wireprobe/config.go:94` |
-| `booster-catalog.json` | 84.027 | 3 | 1 | 2 | 18 | 0 | 0 | `cmd/boosterexport/main.go:16`<br>`cmd/selectionboximport/main.go:209` |
-| `boxes.json` | 0.029 | 2 | 1 | 0 | 8 | 0 | 0 | `cmd/wireprobe/bootstrap.go:1022`<br>`cmd/wireprobe/config.go:80` |
+| `black-purgatory-rewards.json` | 0.107 | 1 | 1 | 0 | 0 | 0 | 0 | `cmd/wireprobe/bootstrap.go:1470`<br>`internal/gamedata/catalogs_content.go:121` |
+| `bleeding-mine-rewards.json` | 0.674 | 2 | 2 | 0 | 0 | 0 | 0 | `cmd/wireprobe/bootstrap.go:951`<br>`cmd/wireprobe/config.go:94` |
+| `boxes.json` | 0.029 | 2 | 1 | 0 | 8 | 0 | 0 | `cmd/wireprobe/bootstrap.go:991`<br>`cmd/wireprobe/config.go:80` |
 | `cards.compat90.json` | 0.000 | 1 | 0 | 1 | 0 | 0 | 0 | `cmd/charactercheck/card_check.go:31`<br>`cmd/wireprobe/config.go:81` |
 | `channel.local28.json` | 0.001 | 0 | 0 | 0 | 1 | 0 | 0 | 需追踪动态路径或外部入口 |
 | `channel.local31.json` | 0.001 | 0 | 0 | 0 | 2 | 0 | 0 | 需追踪动态路径或外部入口 |
@@ -37,20 +36,20 @@
 | `drop.compat90.json` | 0.000 | 1 | 0 | 1 | 12 | 0 | 0 | `cmd/charactercheck/loot_check.go:23`<br>`cmd/wireprobe/config.go:66` |
 | `drop.current36.json` | 0.001 | 0 | 0 | 2 | 7 | 0 | 0 | `cmd/audit36/verify.go:48`<br>`cmd/audit36/verify.go:49` |
 | `dungeons.generated.json` | 0.901 | 0 | 0 | 5 | 9 | 0 | 0 | `cmd/charactercheck/card_check.go:37`<br>`cmd/charactercheck/clear_reward_check.go:29` |
-| `dungeons.hell-party-maps.json` | 0.815 | 1 | 1 | 0 | 0 | 0 | 0 | `cmd/wireprobe/bootstrap.go:776`<br>`internal/gamedata/catalogs_scenes.go:109` |
-| `dungeons.layer-revisits.json` | 0.001 | 1 | 1 | 0 | 1 | 0 | 0 | `cmd/wireprobe/bootstrap.go:756`<br>`internal/gamedata/catalogs_scenes.go:217` |
-| `dungeons.maze-chance-rates.json` | 0.000 | 2 | 4 | 0 | 1 | 0 | 0 | `cmd/wireprobe/bootstrap.go:772`<br>`cmd/wireprobe/maze_chance.go:16` |
+| `dungeons.hell-party-maps.json` | 0.815 | 1 | 1 | 0 | 0 | 0 | 0 | `cmd/wireprobe/bootstrap.go:749`<br>`internal/gamedata/catalogs_scenes.go:109` |
+| `dungeons.layer-revisits.json` | 0.001 | 1 | 1 | 0 | 1 | 0 | 0 | `cmd/wireprobe/bootstrap.go:729`<br>`internal/gamedata/catalogs_scenes.go:217` |
+| `dungeons.maze-chance-rates.json` | 0.000 | 2 | 4 | 0 | 1 | 0 | 0 | `cmd/wireprobe/bootstrap.go:745`<br>`cmd/wireprobe/maze_chance.go:16` |
 | `dungeons.next28.json` | 5.130 | 0 | 0 | 0 | 3 | 0 | 0 | 需追踪动态路径或外部入口 |
 | `dungeons.odyssey-candidate.json` | 5.660 | 0 | 0 | 0 | 1 | 0 | 0 | 需追踪动态路径或外部入口 |
 | `dungeons.odyssey-release.json` | 7.659 | 0 | 0 | 0 | 5 | 0 | 0 | 需追踪动态路径或外部入口 |
 | `dungeons.odyssey-scenes-release.json` | 10.220 | 0 | 0 | 0 | 13 | 0 | 1 | `configs/repair-profile.example.json:1` |
 | `dungeons.skycastle-candidate.json` | 7.795 | 0 | 0 | 1 | 2 | 0 | 0 | `cmd/dungeonscenesaudit/main.go:20` |
-| `dungeons.terminal-scenes.json` | 0.006 | 1 | 1 | 0 | 0 | 0 | 0 | `cmd/wireprobe/bootstrap.go:752`<br>`internal/gamedata/catalogs_scenes.go:42` |
-| `dungeons.tournament-quest-maps.json` | 0.013 | 1 | 1 | 0 | 0 | 0 | 0 | `cmd/wireprobe/bootstrap.go:760`<br>`internal/gamedata/catalogs_scenes.go:64` |
-| `dungeons.tower-of-dazzlement-maps.json` | 0.575 | 1 | 1 | 1 | 0 | 0 | 0 | `cmd/towerdazzlementimport/main.go:14`<br>`cmd/wireprobe/bootstrap.go:768` |
-| `dungeons.tower-of-grief-maps.json` | 0.729 | 1 | 1 | 1 | 0 | 0 | 0 | `cmd/towergriefimport/main.go:14`<br>`cmd/wireprobe/bootstrap.go:764` |
-| `dungeons.training-room.json` | 0.183 | 1 | 1 | 0 | 3 | 0 | 0 | `cmd/wireprobe/bootstrap.go:742`<br>`internal/gamedata/catalogs_scenes.go:372` |
-| `enchant-beads.json` | 0.683 | 0 | 3 | 0 | 3 | 2 | 0 | `internal/gamedata/catalogs_items.go:535`<br>`internal/inventory/enchant.go:14` |
+| `dungeons.terminal-scenes.json` | 0.006 | 1 | 1 | 0 | 0 | 0 | 0 | `cmd/wireprobe/bootstrap.go:725`<br>`internal/gamedata/catalogs_scenes.go:42` |
+| `dungeons.tournament-quest-maps.json` | 0.013 | 1 | 1 | 0 | 0 | 0 | 0 | `cmd/wireprobe/bootstrap.go:733`<br>`internal/gamedata/catalogs_scenes.go:64` |
+| `dungeons.tower-of-dazzlement-maps.json` | 0.575 | 1 | 1 | 1 | 0 | 0 | 0 | `cmd/towerdazzlementimport/main.go:14`<br>`cmd/wireprobe/bootstrap.go:741` |
+| `dungeons.tower-of-grief-maps.json` | 0.729 | 1 | 1 | 1 | 0 | 0 | 0 | `cmd/towergriefimport/main.go:14`<br>`cmd/wireprobe/bootstrap.go:737` |
+| `dungeons.training-room.json` | 0.183 | 1 | 1 | 0 | 3 | 0 | 0 | `cmd/wireprobe/bootstrap.go:715`<br>`internal/gamedata/catalogs_scenes.go:372` |
+| `enchant-beads.json` | 0.683 | 0 | 3 | 0 | 3 | 2 | 0 | `internal/gamedata/catalogs_items.go:485`<br>`internal/inventory/enchant.go:14` |
 | `equipment-create-cost.generated.json` | 0.006 | 0 | 1 | 1 | 6 | 0 | 0 | `cmd/equipmentjournalimport/main.go:5`<br>`internal/catalog/equipment_create_cost.go:17` |
 | `equipment-full.index.json` | 51.162 | 0 | 0 | 1 | 1 | 0 | 0 | `cmd/admin/main.go:75` |
 | `equipment-journal.generated.json` | 0.027 | 0 | 0 | 2 | 5 | 0 | 0 | `cmd/equipmentjournalimport/main.go:4`<br>`cmd/equipmentjournalimport/main.go:50` |
@@ -58,21 +57,21 @@
 | `equipment-wear.current35.json` | 0.001 | 0 | 0 | 6 | 11 | 1 | 0 | `cmd/charactercheck/wear_check.go:50`<br>`cmd/gmtool/index.go:149` |
 | `equipment-wear.full-candidate.json` | 0.001 | 0 | 1 | 1 | 2 | 0 | 1 | `cmd/avatarrestorecheck/main.go:57`<br>`configs/repair-profile.example.json:1` |
 | `equipment.current35.json` | 2.126 | 0 | 0 | 6 | 14 | 0 | 1 | `cmd/audit36/main.go:63`<br>`cmd/audit36/verify.go:53` |
-| `equipment.current37.json` | 4.333 | 0 | 3 | 15 | 25 | 0 | 0 | `cmd/admin/main.go:74`<br>`cmd/admin/main.go:232` |
+| `equipment.current37.json` | 4.333 | 0 | 3 | 15 | 24 | 0 | 0 | `cmd/admin/main.go:74`<br>`cmd/admin/main.go:232` |
 | `experience.compat90.json` | 0.000 | 1 | 0 | 4 | 2 | 0 | 0 | `cmd/charactercheck/clear_reward_check.go:25`<br>`cmd/charactercheck/progression_check.go:30` |
 | `fatigue-probe.json` | 0.000 | 1 | 1 | 0 | 0 | 0 | 0 | `cmd/wireprobe/config.go:61`<br>`internal/savecontract/normalize.go:38` |
 | `inventory.compat90.json` | 0.000 | 1 | 0 | 2 | 3 | 0 | 0 | `cmd/charactercheck/card_check.go:27`<br>`cmd/charactercheck/loot_check.go:27` |
 | `inventory.current37.json` | 0.000 | 0 | 0 | 0 | 11 | 0 | 0 | 需追踪动态路径或外部入口 |
 | `inventory.next29.json` | 0.000 | 0 | 0 | 7 | 14 | 0 | 0 | `cmd/admin/main.go:73`<br>`cmd/charactercheck/grant_check.go:25` |
-| `item-materials.json` | 2.809 | 1 | 2 | 0 | 3 | 2 | 0 | `cmd/wireprobe/bootstrap.go:899`<br>`internal/catalog/item_materials.go:16` |
-| `item-period-tags.json` | 1.130 | 1 | 1 | 1 | 1 | 0 | 0 | `cmd/itemperiodimport/main.go:14`<br>`cmd/wireprobe/bootstrap.go:602` |
-| `items.index.json` | 65.807 | 6 | 4 | 21 | 64 | 6 | 0 | `cmd/admin/main.go:72`<br>`cmd/admin/main.go:209` |
+| `item-materials.json` | 2.809 | 1 | 2 | 0 | 3 | 2 | 0 | `cmd/wireprobe/bootstrap.go:872`<br>`internal/catalog/item_materials.go:16` |
+| `item-period-tags.json` | 1.130 | 1 | 1 | 1 | 1 | 0 | 0 | `cmd/itemperiodimport/main.go:14`<br>`cmd/wireprobe/bootstrap.go:575` |
+| `items.index.json` | 65.807 | 6 | 4 | 17 | 47 | 6 | 0 | `cmd/admin/main.go:72`<br>`cmd/admin/main.go:209` |
 | `itemshop-candidate.json` | 0.836 | 3 | 3 | 2 | 4 | 0 | 0 | `cmd/itemshopimport/main.go:10`<br>`cmd/itemshopimport/main.go:153` |
 | `legion-contents.generated.json` | 0.035 | 0 | 0 | 2 | 2 | 0 | 0 | `cmd/legionimport/main.go:3`<br>`cmd/legionimport/main.go:47` |
 | `loot.level150.json` | 3.126 | 0 | 0 | 1 | 12 | 0 | 1 | `cmd/odysseygrowthaudit/main.go:120`<br>`configs/repair-profile.example.json:1` |
-| `loot.next25.json` | 3.124 | 0 | 2 | 13 | 27 | 0 | 0 | `cmd/admin/main.go:71`<br>`cmd/charactercheck/card_check.go:19` |
-| `lottery-equipment-pools.json` | 2.467 | 2 | 0 | 0 | 3 | 0 | 0 | `cmd/wireprobe/bootstrap.go:1316`<br>`cmd/wireprobe/catalog_runtime.go:57` |
-| `lottery-item-pools.json` | 0.395 | 2 | 0 | 0 | 4 | 0 | 0 | `cmd/wireprobe/bootstrap.go:1308`<br>`cmd/wireprobe/catalog_runtime.go:53` |
+| `loot.next25.json` | 3.124 | 0 | 2 | 12 | 27 | 0 | 0 | `cmd/admin/main.go:71`<br>`cmd/charactercheck/card_check.go:19` |
+| `lottery-equipment-pools.json` | 2.467 | 2 | 0 | 0 | 3 | 0 | 0 | `cmd/wireprobe/bootstrap.go:1292`<br>`cmd/wireprobe/catalog_runtime.go:57` |
+| `lottery-item-pools.json` | 0.395 | 2 | 0 | 0 | 4 | 0 | 0 | `cmd/wireprobe/bootstrap.go:1284`<br>`cmd/wireprobe/catalog_runtime.go:53` |
 | `npc-teleport.generated.json` | 0.050 | 0 | 2 | 1 | 0 | 0 | 0 | `cmd/npcteleportimport/main.go:14`<br>`internal/catalog/npc_teleport.go:156` |
 | `oath-grades.json` | 0.034 | 1 | 3 | 2 | 1 | 0 | 0 | `cmd/oathgradeimport/main.go:13`<br>`cmd/oathgradeimport/main.go:56` |
 | `odyssey-chapter-drop-release.json` | 0.001 | 0 | 2 | 0 | 5 | 0 | 0 | `internal/gamedata/catalogs_content.go:314`<br>`internal/loot/odyssey_chapter_drop.go:13` |
@@ -95,18 +94,16 @@
 | `quest-equipment.current37.json` | 2.137 | 0 | 0 | 2 | 0 | 0 | 0 | `cmd/equipfields/main.go:40`<br>`cmd/questequipmentimport/main.go:32` |
 | `quest-equipment.next29.json` | 1.782 | 0 | 0 | 3 | 0 | 0 | 0 | `cmd/charactercheck/quest_chain_check.go:130`<br>`cmd/equipmentwearimport/main.go:17` |
 | `quests.generated.json` | 26.786 | 0 | 1 | 13 | 38 | 0 | 0 | `cmd/audit36/main.go:62`<br>`cmd/audit36/verify.go:59` |
-| `randomoption.current37.json` | 0.137 | 2 | 1 | 1 | 3 | 0 | 0 | `cmd/randomoptionimport/main.go:16`<br>`cmd/wireprobe/bootstrap.go:301` |
-| `refine.json` | 0.002 | 1 | 3 | 0 | 3 | 0 | 0 | `cmd/wireprobe/bootstrap.go:894`<br>`internal/inventory/equipment.go:123` |
-| `reinforcement-gold.json` | 0.072 | 0 | 3 | 0 | 2 | 2 | 0 | `internal/gamedata/catalogs_items.go:531`<br>`internal/inventory/enhancement_catalog.go:46` |
-| `reinforcement-tickets.json` | 3.100 | 0 | 2 | 0 | 0 | 1 | 0 | `internal/gamedata/catalogs_items.go:530`<br>`internal/inventory/enhancement_catalog.go:56` |
+| `randomoption.current37.json` | 0.137 | 2 | 1 | 1 | 3 | 0 | 0 | `cmd/randomoptionimport/main.go:16`<br>`cmd/wireprobe/bootstrap.go:315` |
+| `refine.json` | 0.002 | 1 | 3 | 0 | 3 | 0 | 0 | `cmd/wireprobe/bootstrap.go:867`<br>`internal/inventory/equipment.go:123` |
+| `reinforcement-gold.json` | 0.072 | 0 | 3 | 0 | 2 | 2 | 0 | `internal/gamedata/catalogs_items.go:481`<br>`internal/inventory/enhancement_catalog.go:46` |
+| `reinforcement-tickets.json` | 3.100 | 0 | 2 | 0 | 0 | 1 | 0 | `internal/gamedata/catalogs_items.go:480`<br>`internal/inventory/enhancement_catalog.go:56` |
 | `repair-profile.example.json` | 0.001 | 0 | 0 | 0 | 1 | 0 | 0 | 需追踪动态路径或外部入口 |
 | `select-parser-probe.json` | 0.000 | 0 | 0 | 0 | 0 | 0 | 0 | 需追踪动态路径或外部入口 |
 | `select-world-probe.json` | 0.000 | 0 | 0 | 0 | 0 | 0 | 0 | 需追踪动态路径或外部入口 |
-| `selection-boxes-candidate.json` | 15.754 | 3 | 1 | 2 | 5 | 0 | 0 | `cmd/selectionboximport/main.go:17`<br>`cmd/selectionboximport/main.go:206` |
-| `shop-prices.json` | 14.064 | 2 | 1 | 1 | 0 | 0 | 0 | `cmd/shopprices/main.go:17`<br>`cmd/wireprobe/bootstrap.go:994` |
 | `skills.next27.json` | 11.532 | 0 | 0 | 1 | 13 | 0 | 0 | `cmd/charactercheck/learning_check.go:23` |
 | `skills.release.json` | 4.289 | 0 | 1 | 0 | 9 | 0 | 1 | `configs/repair-profile.example.json:1`<br>`internal/character/learning_catalog.go:84` |
-| `skin-storage-items.json` | 0.305 | 2 | 1 | 1 | 2 | 0 | 0 | `cmd/skinstorageimport/main.go:16`<br>`cmd/wireprobe/bootstrap.go:620` |
+| `skin-storage-items.json` | 0.305 | 2 | 1 | 1 | 2 | 0 | 0 | `cmd/skinstorageimport/main.go:16`<br>`cmd/wireprobe/bootstrap.go:593` |
 | `town-entry-probe.json` | 0.000 | 0 | 0 | 0 | 0 | 0 | 0 | 需追踪动态路径或外部入口 |
 | `town.generated.json` | 0.001 | 0 | 1 | 1 | 0 | 0 | 0 | `cmd/towncatalog/main.go:16`<br>`internal/gamedata/catalogs_scenes.go:317` |
 | `tutorial-dungeons.current36.json` | 2.098 | 0 | 1 | 2 | 4 | 0 | 0 | `cmd/audit36/verify.go:43`<br>`cmd/audit36/verify.go:44` |

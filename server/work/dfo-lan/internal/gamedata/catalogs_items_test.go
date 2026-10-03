@@ -120,7 +120,7 @@ func TestPVFSourceOnlyLocalArchiveDoesNotReadSelectedJSON(t *testing.T) {
 	}
 	verify := false
 	c, err := prepareCatalogsForTest(t, pvfNextDomains, path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "../../configs/characters.skycastle-release.json", "missing-quests.json", "missing-progression.json", "missing-world.json", CatalogInputs{
-		VerifyBaselines: verify, IndexPath: "missing/items.index.json", FullPrefix: "missing/equipment-full", JournalPath: "missing-journal.json", CreateCostPath: "missing-create-cost.json", LearningPath: "missing-skills.json", PricesPath: "missing-prices.json", MaterialsPath: "missing-materials.json", BoosterPath: "missing-boosters.json", TutorialPath: "missing-tutorial.json"})
+		VerifyBaselines: verify, IndexPath: "missing/items.index.json", FullPrefix: "missing/equipment-full", JournalPath: "missing-journal.json", CreateCostPath: "missing-create-cost.json", LearningPath: "missing-skills.json", MaterialsPath: "missing-materials.json", TutorialPath: "missing-tutorial.json"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -211,7 +211,7 @@ func TestPVFEnhancementSourceOnlyLocalArchive(t *testing.T) {
 	}
 	verify := false
 	c, err := prepareCatalogsForTest(t, pvfNextDomains+",enhancements", path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "../../configs/characters.skycastle-release.json", "missing-quests.json", "missing-progression.json", "missing-world.json", CatalogInputs{
-		VerifyBaselines: verify, IndexPath: "missing/items.index.json", FullPrefix: "missing/equipment-full", JournalPath: "missing-journal.json", CreateCostPath: "missing-create-cost.json", LearningPath: "missing-skills.json", PricesPath: "missing-prices.json", MaterialsPath: "missing-materials.json", BoosterPath: "missing-boosters.json", TutorialPath: "missing-tutorial.json", EnhancementPolicyPath: "../../configs/pvf-enhancement-policy.json"})
+		VerifyBaselines: verify, IndexPath: "missing/items.index.json", FullPrefix: "missing/equipment-full", JournalPath: "missing-journal.json", CreateCostPath: "missing-create-cost.json", LearningPath: "missing-skills.json", MaterialsPath: "missing-materials.json", TutorialPath: "missing-tutorial.json", EnhancementPolicyPath: "../../configs/pvf-enhancement-policy.json"})
 	if err != nil {
 		t.Fatal(err)
 	}

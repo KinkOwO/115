@@ -66,6 +66,29 @@ func TestPrepareRuntimeRetainsResolvedConfigAndFixtures(t *testing.T) {
 	cleanup()
 }
 
+func TestPrepareRuntimeRejectsRetiredContentBeforeStorage(t *testing.T) {
+	for _, row := range []struct {
+		name string
+		set  func(*Config)
+	}{
+		{"boosters", func(c *Config) { c.BoosterCatalog = "old.json" }},
+		{"selection-boxes", func(c *Config) { c.SelectionBoxes = "old.json" }},
+		{"prices", func(c *Config) { c.ShopPrices = "old.json" }},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			cfg := bootstrapTestConfig(t)
+			// If storage is reached this path fails with a different error.
+			cfg.CharacterStorage = "missing-storage.json"
+			row.set(&cfg)
+			runtime, cleanup, err := prepareRuntime(cfg)
+			require.ErrorContains(t, err, "native PVF")
+			require.ErrorContains(t, err, row.name)
+			assert.Nil(t, runtime)
+			assert.Nil(t, cleanup)
+		})
+	}
+}
+
 func TestPrepareRuntimeReturnsStartupFailures(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
