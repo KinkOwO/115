@@ -72,23 +72,31 @@ func (s *Store) LoadWorld(ctx context.Context, account, characterID int64, chann
 		}
 		return out, e
 	}
+	// SemiRaid/Legion 频道：位置**不持久化恢复**（业主 2026-10-03 口径）——
+	// 每次进频道都落在该频道等候区的标准入口（initial，取自 towns[Type].Spawn
+	// 的矩形中心），不恢复上次离开位置。表里仍记录最近一次进入位置（审计用）。
 	_, e = s.DB.Exec(ctx, `INSERT INTO character_channel_world(character_id,channel_type,position,config_version)
- SELECT id,$3,$4,$5 FROM characters WHERE id=$2 AND account_id=$1 ON CONFLICT DO NOTHING`, account, characterID, channelType, b, version)
+ SELECT id,$3,$4,$5 FROM characters WHERE id=$2 AND account_id=$1
+ ON CONFLICT (character_id, channel_type) DO UPDATE SET position=$4, updated_at=now()`, account, characterID, channelType, b, version)
 	if e != nil {
 		return out, e
 	}
-	var raw []byte
-	e = s.DB.QueryRow(ctx, `SELECT w.position,w.revision,w.config_version FROM character_channel_world w JOIN characters c ON c.id=w.character_id WHERE c.account_id=$1 AND c.id=$2 AND w.channel_type=$3`, account, characterID, channelType).Scan(&raw, &out.Revision, &out.ConfigVersion)
-	if e == nil {
-		e = json.Unmarshal(raw, &out.Position)
-	}
-	return out, e
+	out.Position = initial
+	out.ConfigVersion = version
+	out.Revision = 1
+	return out, nil
 }
 
-// SaveWorld 落库角色位置。与 LoadWorld 同一口径：channelType = 0 写共享表，
-// 非 0 写该频道的独立行；乐观并发仍按 revision 校验。
+// SaveWorld 落库角色位置。channelType = 0（普通频道）写共享 character_world 并按
+// revision 乐观并发；非 0（SemiRaid/Legion 频道）**不落库** —— 位置只在会话内
+// 流动，每次进频道重置到等候区标准入口（见 LoadWorld，业主 2026-10-03 口径）。
 func (s *Store) SaveWorld(ctx context.Context, account, characterID int64, channelType uint32, old WorldState, next WorldPosition) (WorldState, error) {
 	out := old
+	if channelType != 0 {
+		out.Position = next
+		out.Revision++
+		return out, nil
+	}
 	if channelType > 255 {
 		return out, errors.New("invalid channel type")
 	}
