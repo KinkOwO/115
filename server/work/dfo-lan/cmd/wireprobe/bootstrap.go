@@ -259,6 +259,13 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 	if _, err := pvfCatalogs.InstallSoleEquipment(); err != nil {
 		return nil, nil, fmt.Errorf("PVF sole equipment runtime rules: %v", err)
 	}
+	// 秘宝精度结算口径开关（业主 2026-10-02）：默认单机口径（单次 5..20，到上限截断）；
+	// 打开后按原版（国服）结算 —— 保底 +1、25% 大成功、四阶段封顶、24/49/74/99 必到节点、
+	// 25/50/75 之后必暴击。**两套并存**，见 internal/inventory/sole.go。
+	inventory.SetSoleQualityNative(startup.SoleQualityNative)
+	if startup.SoleQualityNative {
+		log.Printf("sole quality NATIVE ON — 保底+1 / 25%% 大成功 / 四阶段封顶（-sole-quality-native / DFO_SOLE_QUALITY_NATIVE）")
+	}
 	if _, err := pvfCatalogs.InstallScriptWarps(); err != nil {
 		return nil, nil, fmt.Errorf("PVF script warp runtime routes: %v", err)
 	}

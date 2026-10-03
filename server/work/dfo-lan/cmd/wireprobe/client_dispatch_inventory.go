@@ -680,6 +680,43 @@ func (client *gameConnection) dispatchEnhancementAndConsumables(requestData *cli
 		}
 		return dispatchHandled
 	}
+	if client.worldState != nil && client.bootstrapped && requestData.frame.ID == protocol.SoleCreateOpcode {
+		// CMD2289 = ENUM_CMDPACKET_SOLE_EQUIPMENT_CREATE：秘宝制作（把半成品做成成品）。
+		// 内容真源 = 直读 etc/115lvability/soleequipmentsystem.cos 的 `[create need materials]`
+		// 段（与精度提升的 `[quality need materials]` 是两套独立表）；成品落进背包装备槽。
+		// 回包 = kind 1、体 = u8 1 + u32 成品模板（**必须发**，否则制作窗口卡在等待态；
+		// 见 cmd/wireprobe/sole_flow.go 的 raiseSoleCreate 文件头注释）。
+		if !requestData.verified {
+			client.event(map[string]any{"kind": "sole_create_rejected", "reason": "秘宝制作请求校验失败"})
+			return dispatchHandled
+		}
+		plan, followDelay, err := client.equipmentState.raiseSoleCreate(client.wearService, client.worldState, requestData.plaintext, requestData.frame.Raw, client.event)
+		if err != nil {
+			client.event(map[string]any{"kind": "sole_create_refused", "character_id": client.worldState.role.ID,
+				"reason": err.Error(), "request_hex": hex.EncodeToString(requestData.plaintext)})
+			// 失败也把 ack 发掉（计划里已经带了），否则客户端窗口会卡住。
+			if client.sendPlan(plan, nil) != nil {
+				return dispatchClose
+			}
+			return dispatchHandled
+		}
+		// 成功：**ack（plan[0]）必须立即发**（否则客户端清不掉等待态），其余结果刷新包
+		// 延后 followDelay —— 见 sole_flow.go 的「结果刷新包的时机实验」。
+		// 这里刻意阻塞：客户端正在播制作演出，这一小段时间不会要别的包。
+		if len(plan) > 0 {
+			if client.sendPlan(plan[:1], nil) != nil {
+				return dispatchClose
+			}
+			plan = plan[1:]
+			if followDelay > 0 {
+				time.Sleep(followDelay)
+			}
+		}
+		if client.sendPlan(plan, nil) != nil {
+			return dispatchClose
+		}
+		return dispatchHandled
+	}
 	if client.worldState != nil && client.bootstrapped && requestData.frame.ID == 205 {
 		// CMD205 = ENUM_CMDPACKET_INVEST_ITEM_AMPLIFY_OPTION：用增幅书（红字书）
 		// 给装备打次元属性。
