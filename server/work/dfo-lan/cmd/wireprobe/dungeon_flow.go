@@ -990,6 +990,7 @@ func (w *worldSession) monsterDeath(p []byte, event func(map[string]any)) ([]out
 		}
 	}
 	plan := []outboundPacket{{"monster_death_ack", 1, 39, []byte{1}}}
+	var newDrops []protocol.SceneDrop
 	if !w.deathSent[uint16(r.Entity)] {
 		body := protocol.MonsterDeathConfirmed(uint16(r.Entity))
 		if w.loot != nil && (!unowned || blackBoss) {
@@ -1061,6 +1062,7 @@ func (w *worldSession) monsterDeath(p []byte, event func(map[string]any)) ([]out
 			if err := w.noteOmenClear(event); err != nil {
 				return nil, err
 			}
+			newDrops = rows
 		}
 		plan = append(plan, outboundPacket{"monster_death_confirmed", 0, 38, body})
 	}
@@ -1176,7 +1178,9 @@ func (w *worldSession) monsterDeath(p []byte, event func(map[string]any)) ([]out
 		w.completionErr = err
 		return plan, nil
 	}
-	return append(plan, completed...), nil
+	plan = append(plan, completed...)
+	// 必须先通知生成地面物品，再发送已有拾取通知；自动领取不发送 CMD43 应答。
+	return append(plan, w.autoPickupDrops(newDrops)...), nil
 }
 
 func (w *worldSession) bossCheck(p []byte) ([]outboundPacket, error) {
