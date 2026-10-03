@@ -197,6 +197,12 @@ func TestPVFOdysseyLocalArchive(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if g.Creation == nil || g.Creation.Template != 10417791 || g.Creation.ArmorBox != 10417790 || len(g.Creation.Armor) != 8 || g.Creation.Weapon.Template != 10417789 || len(g.Creation.Supplies) != 1 || g.Creation.Supplies[0].Template != 10418028 || g.Creation.Supplies[0].Count != 30 {
+		t.Fatal("native creation chain changed")
+	}
+	if len(g.Items) != 4 {
+		t.Fatal("unused supplemental items still maintained")
+	}
 	ch, err := c.LoadOdysseyChapters("missing-chapters.json")
 	if err != nil {
 		t.Fatal(err)

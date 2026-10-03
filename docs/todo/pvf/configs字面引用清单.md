@@ -4,7 +4,7 @@
 
 引用包含注释和历史分支；数字是不同引用位置数，不表示正式运行必读。零引用也不能作为删除依据：动态拼路径、模块外启动器、GM 代理及历史二进制未由本清单证明。
 
-共 62 个顶层 JSON，扫描 1500 个文件；只输出文件名、大小和引用位置，不输出配置值。
+共 62 个顶层 JSON，扫描 1506 个文件；只输出文件名、大小和引用位置，不输出配置值。
 
 | JSON | MiB | 网关 | internal | 工具 | 测试 | 脚本 | 配置引用 | 非测试引用示例 |
 |---|---:|---:|---:|---:|---:|---:|---:|---|
@@ -51,8 +51,8 @@
 | `odyssey-chapter-drop-release.json` | 0.001 | 0 | 2 | 0 | 5 | 0 | 0 | `internal/gamedata/catalogs_content.go:281`<br>`internal/loot/odyssey_chapter_drop.go:13` |
 | `odyssey-chapters-release.json` | 0.003 | 0 | 2 | 0 | 2 | 0 | 0 | `internal/catalog/odyssey_chapters.go:10`<br>`internal/gamedata/catalogs_content.go:260` |
 | `odyssey-currency.json` | 0.004 | 0 | 1 | 0 | 4 | 0 | 0 | `internal/gamedata/catalogs_content.go:301` |
-| `odyssey-growth-release.json` | 0.034 | 0 | 1 | 0 | 10 | 0 | 0 | `internal/gamedata/catalogs_content.go:237` |
-| `odyssey-weapon-box-release.json` | 0.061 | 0 | 1 | 0 | 3 | 0 | 0 | `internal/gamedata/catalogs_content.go:321` |
+| `odyssey-growth-release.json` | 0.034 | 0 | 1 | 0 | 11 | 0 | 0 | `internal/gamedata/catalogs_content.go:237` |
+| `odyssey-weapon-box-release.json` | 0.061 | 0 | 1 | 0 | 4 | 0 | 0 | `internal/gamedata/catalogs_content.go:321` |
 | `pvf-box-policy.json` | 0.001 | 1 | 0 | 0 | 3 | 0 | 2 | `cmd/wireprobe/config.go:41`<br>`configs/pvf-default.json:17` |
 | `pvf-character-policy.json` | 0.001 | 1 | 1 | 2 | 9 | 0 | 2 | `cmd/audit36/verify.go:27`<br>`cmd/charactercheck/native_catalogs.go:45` |
 | `pvf-default.json` | 0.002 | 0 | 0 | 0 | 6 | 4 | 0 | `scripts/launch_local.py:21`<br>`scripts/launch_local.py:25` |

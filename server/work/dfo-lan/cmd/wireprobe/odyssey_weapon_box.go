@@ -19,7 +19,7 @@ func loadOdysseyWeaponChoices(path string) (odysseyWeaponChoices, error) {
 	return odysseyWeaponChoices(c), err
 }
 func (c odysseyWeaponChoices) allows(r protocol.WeaponBoxSelection) bool {
-	if c.Template != 10417789 {
+	if c.Template == 0 {
 		return false
 	}
 	for _, cat := range c.Categories {
@@ -53,7 +53,7 @@ func applyOdysseyWeaponChoice(role storage.Character, wear *workflow.WearService
 	}
 	index := -1
 	for i, v := range b.Items {
-		if v.Slot == r.Slot && v.Template == 10417789 && v.Amount == 1 {
+		if v.Slot == r.Slot && v.Template == choices.Template && v.Amount == 1 {
 			index = i
 			break
 		}
@@ -107,6 +107,6 @@ func selectOdysseyWeapon(ctx context.Context, store *storage.Store, wear *workfl
 		}
 		plan = append(plan, outboundPacket{"odyssey_weapon_inventory_updated", 0, 14, update})
 	}
-	plan = append(plan, outboundPacket{"odyssey_weapon_selection_ack", 1, 160, protocol.WeaponBoxSuccess(r)})
+	plan = append(plan, outboundPacket{"odyssey_weapon_selection_ack", 1, 160, protocol.WeaponBoxSuccess(choices.Template, r)})
 	return saved, plan, nil
 }

@@ -24,30 +24,27 @@ const odysseyArmorEvent = "odyssey-create-10417791-armor-10417790-v1"
 const odysseyWeaponBoxEvent = "odyssey-create-10417791-weapon-box-10417789-v1"
 const odysseyCreatePotionEvent = "odyssey-create-10417791-potion-10418028-v1"
 
-// Source create reward10417791 contains armor box10417790. Its single
-// selection-num0 category awards these eight pieces, not one random item.
-// The third line of the same [stackable] block (potion10418028 x30) is settled
-// by grantOdysseyCreatePotion below.
-var odysseyArmor = [...]uint32{100051399, 100101277, 100151218, 100201190, 100251230, 100302054, 100313767, 100323647}
+// Keep the existing event keys: persisted receipts must continue to suppress
+// repeated grants. Content identifiers and quantities come from native rules.
 
 func isOdysseyRewardRole(role storage.Character) bool {
 	return character.OdysseyRole(role)
 }
 
-func applyOdysseyArmor(role storage.Character, wear *workflow.WearService) (json.RawMessage, json.RawMessage, error) {
+func applyOdysseyArmor(role storage.Character, wear *workflow.WearService, rewards *catalog.OdysseyCreateRewards) (json.RawMessage, json.RawMessage, error) {
 	// ⚠️ 别再往这里加「目录身份」子句：`X.Source.SaveIdentity()` 是**常量**
 	// （`pvf.ArchiveSnapshot.SaveIdentity()` 直接返回 `savecontract.Identity()`），
 	// 与 `savecontract.Identity()` 比较恒相等 ⇒ 那种子句恒假、等于不写（2026-10-01 清理）。
 	// 真要校验目录来源（L3）必须比内层哈希 `.Source.Checksum` —— 见 internal/savecontract 的分级说明。
-	if !isOdysseyRewardRole(role) || role.ConfigVersion != savecontract.Identity() || wear == nil || wear.Catalog == nil {
+	if !isOdysseyRewardRole(role) || role.ConfigVersion != savecontract.Identity() || wear == nil || wear.Catalog == nil || rewards == nil || len(rewards.Armor) == 0 {
 		return nil, nil, fmt.Errorf("Odyssey armor requires matching character and source catalogs")
 	}
 	b, e := inventory.ReadBag(role.State)
 	if e != nil {
 		return nil, nil, e
 	}
-	for _, id := range odysseyArmor {
-		b, _, e = b.AddEquipment(wear.Catalog, wear.BagRules.EquipmentSlots, id, 1)
+	for _, row := range rewards.Armor {
+		b, _, e = b.AddEquipment(wear.Catalog, wear.BagRules.EquipmentSlots, row.Template, row.Count)
 		if e != nil {
 			return nil, nil, e
 		}
@@ -56,21 +53,21 @@ func applyOdysseyArmor(role storage.Character, wear *workflow.WearService) (json
 	if e != nil {
 		return nil, nil, e
 	}
-	receipt, e := json.Marshal(map[string]any{"create_reward": 10417791, "armor_box": 10417790, "templates": odysseyArmor, "before": role.State, "after": raw, "weapon_settled": false, "potion_settled": false})
+	receipt, e := json.Marshal(map[string]any{"create_reward": rewards.Template, "armor_box": rewards.ArmorBox, "templates": rewards.ArmorTemplates(), "before": role.State, "after": raw, "weapon_settled": false, "potion_settled": false})
 	return raw, receipt, e
 }
 
-func grantOdysseyArmor(ctx context.Context, store *storage.Store, wear *workflow.WearService, role storage.Character) (storage.Character, bool, error) {
+func grantOdysseyArmor(ctx context.Context, store *storage.Store, wear *workflow.WearService, role storage.Character, rewards *catalog.OdysseyCreateRewards) (storage.Character, bool, error) {
 	if !isOdysseyRewardRole(role) {
 		return role, false, nil
 	}
 	return store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, odysseyArmorEvent, "odyssey-source-armor-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
-		return applyOdysseyArmor(current, wear)
+		return applyOdysseyArmor(current, wear, rewards)
 	})
 }
 
-func applyOdysseyWeaponBox(role storage.Character) (json.RawMessage, json.RawMessage, error) {
-	if !isOdysseyRewardRole(role) || role.ConfigVersion != savecontract.Identity() {
+func applyOdysseyWeaponBox(role storage.Character, rewards *catalog.OdysseyCreateRewards) (json.RawMessage, json.RawMessage, error) {
+	if !isOdysseyRewardRole(role) || role.ConfigVersion != savecontract.Identity() || rewards == nil || rewards.Weapon.Template == 0 || rewards.Weapon.Count != 1 {
 		return nil, nil, fmt.Errorf("Odyssey weapon box requires source mode")
 	}
 	b, e := inventory.ReadBag(role.State)
@@ -94,47 +91,35 @@ func applyOdysseyWeaponBox(role storage.Character) (json.RawMessage, json.RawMes
 	if slot == 0 {
 		return nil, nil, fmt.Errorf("consumable bag full; weapon box remains owed")
 	}
-	b.Items = append(b.Items, inventory.BagItem{Slot: slot, Template: 10417789, Amount: 1})
+	b.Items = append(b.Items, inventory.BagItem{Slot: slot, Template: rewards.Weapon.Template, Amount: rewards.Weapon.Count})
 	raw, e := inventory.SaveBag(role.State, b)
 	if e != nil {
 		return nil, nil, e
 	}
-	receipt, e := json.Marshal(map[string]any{"create_reward": 10417791, "template": 10417789, "quantity": 1, "slot": slot, "before": role.State, "after": raw, "selection_settled": false})
+	receipt, e := json.Marshal(map[string]any{"create_reward": rewards.Template, "template": rewards.Weapon.Template, "quantity": rewards.Weapon.Count, "slot": slot, "before": role.State, "after": raw, "selection_settled": false})
 	return raw, receipt, e
 }
 
-func grantOdysseyWeaponBox(ctx context.Context, store *storage.Store, role storage.Character) (storage.Character, bool, error) {
+func grantOdysseyWeaponBox(ctx context.Context, store *storage.Store, role storage.Character, rewards *catalog.OdysseyCreateRewards) (storage.Character, bool, error) {
 	if !isOdysseyRewardRole(role) {
 		return role, false, nil
 	}
-	return store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, odysseyWeaponBoxEvent, "odyssey-source-weapon-box-v1", applyOdysseyWeaponBox)
+	return store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, odysseyWeaponBoxEvent, "odyssey-source-weapon-box-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+		return applyOdysseyWeaponBox(current, rewards)
+	})
 }
 
-// Source create reward 10417791 has three lines in its [stackable] block:
-//
-//	10417789 1   10417790 1   10418028 30
-//
-// The first two are settled by applyOdysseyWeaponBox / applyOdysseyArmor; the
-// 30 odyssey-only recovery potions were never awarded (手册 P3 子项 1).
-const (
-	odysseyCreatePotion      = uint32(10418028)
-	odysseyCreatePotionCount = uint32(30)
-)
-
-// applyOdysseyCreatePotion 发放创建补给里的 30 瓶专属恢复药水。
-//
-// 走 Bag.Add 而不是照 applyOdysseyWeaponBox 手写槽位：药水是 [waste] 可叠加物，
-// 角色包里往往已经有几十瓶（初始补给一路发到 73 个），必须并进同一叠；手写
-// "找一个空格"会在每次重试时多占一格，30 个也只落一格。
-func applyOdysseyCreatePotion(role storage.Character, cat catalog.LootCatalog, rules inventory.BagRules) (json.RawMessage, json.RawMessage, error) {
-	if !isOdysseyRewardRole(role) || role.ConfigVersion != savecontract.Identity() {
+// Grant the source-defined consumable line through the existing stack-aware
+// bag implementation, under its unchanged independent transaction receipt.
+func applyOdysseyCreatePotion(role storage.Character, cat catalog.LootCatalog, rules inventory.BagRules, rewards *catalog.OdysseyCreateRewards) (json.RawMessage, json.RawMessage, error) {
+	if !isOdysseyRewardRole(role) || role.ConfigVersion != savecontract.Identity() || rewards == nil || len(rewards.Supplies) != 1 {
 		return nil, nil, fmt.Errorf("Odyssey create potion requires source mode")
 	}
 	b, e := inventory.ReadBag(role.State)
 	if e != nil {
 		return nil, nil, e
 	}
-	b, slot, e := b.Add(cat, rules, odysseyCreatePotion, odysseyCreatePotionCount)
+	b, slot, e := b.Add(cat, rules, rewards.Supplies[0].Template, rewards.Supplies[0].Count)
 	if e != nil {
 		return nil, nil, e
 	}
@@ -143,9 +128,9 @@ func applyOdysseyCreatePotion(role storage.Character, cat catalog.LootCatalog, r
 		return nil, nil, e
 	}
 	receipt, e := json.Marshal(map[string]any{
-		"create_reward": 10417791,
-		"template":      odysseyCreatePotion,
-		"quantity":      odysseyCreatePotionCount,
+		"create_reward": rewards.Template,
+		"template":      rewards.Supplies[0].Template,
+		"quantity":      rewards.Supplies[0].Count,
 		"slot":          slot,
 		"before":        role.State,
 		"after":         raw,
@@ -155,11 +140,11 @@ func applyOdysseyCreatePotion(role storage.Character, cat catalog.LootCatalog, r
 
 // grantOdysseyCreatePotion 用独立事件键结算药水，与武器盒/防具盒互不干扰。
 // 满包时 Bag.Add 会报错，事件不落库 ⇒ 下次登录重试（与另外两项同策略）。
-func grantOdysseyCreatePotion(ctx context.Context, store *storage.Store, cat catalog.LootCatalog, rules inventory.BagRules, role storage.Character) (storage.Character, bool, error) {
+func grantOdysseyCreatePotion(ctx context.Context, store *storage.Store, cat catalog.LootCatalog, rules inventory.BagRules, role storage.Character, rewards *catalog.OdysseyCreateRewards) (storage.Character, bool, error) {
 	if !isOdysseyRewardRole(role) {
 		return role, false, nil
 	}
 	return store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, odysseyCreatePotionEvent, "odyssey-source-create-potion-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
-		return applyOdysseyCreatePotion(current, cat, rules)
+		return applyOdysseyCreatePotion(current, cat, rules, rewards)
 	})
 }
