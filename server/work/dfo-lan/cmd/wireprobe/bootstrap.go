@@ -167,6 +167,9 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 	if startup.SkillCatalog != "" && pvfCatalogs.Learning == nil {
 		return nil, nil, fmt.Errorf("skills require the native PVF skills domain")
 	}
+	if startup.LootCatalog != "" && (!pvfCatalogs.Selected("materials") || !pvfCatalogs.Prepared("materials") || pvfCatalogs.Materials == nil) {
+		return nil, nil, fmt.Errorf("loot requires the prepared native PVF materials domain")
+	}
 	if startup.LootCatalog != "" && pvfCatalogs.Enhancements == nil {
 		return nil, nil, fmt.Errorf("enhancements require the native PVF enhancements domain")
 	}
@@ -201,6 +204,9 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 	}
 	if startup.QuestCatalog != "" && pvfCatalogs.Quests == nil {
 		return nil, nil, fmt.Errorf("quests require the native PVF quests domain")
+	}
+	if startup.ProgressionCatalog != "" && pvfCatalogs.Progression == nil {
+		return nil, nil, fmt.Errorf("progression requires the native PVF progression domain")
 	}
 	if os.Getenv("DFO_NPC_PRESENCE_WORLD") != "" {
 		return nil, nil, fmt.Errorf("NPC diagnostics require the active native PVF world; clear DFO_NPC_PRESENCE_WORLD")
@@ -573,8 +579,7 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 			if startup.ItemIndex == "" && pvfCatalogs.Periods == nil && !pvfCatalogs.Prepared("periods") {
 				log.Printf("maximum item period: no item index (-item-index), lifting stored periods only")
 			} else {
-				periodFile := filepath.Join(filepath.Dir(startup.ItemIndex), "item-period-tags.json")
-				templates, periodErr := pvfCatalogs.LoadItemPeriods(periodFile, data.Source.Checksum)
+				templates, periodErr := pvfCatalogs.LoadItemPeriods("", data.Source.Checksum)
 				if periodErr != nil {
 					if pvfCatalogs.Selected("periods") || pvfCatalogs.Periods != nil {
 						return nil, nil, periodErr
@@ -591,8 +596,7 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		// Skin-cargo registration (CMD507 action 169, `[add skin storage]`) reads
 		// the skin key straight from PVF and persists the unlock per account.
 		if startup.ItemIndex != "" || pvfCatalogs.Skins != nil || pvfCatalogs.Prepared("skins") {
-			skinFile := filepath.Join(filepath.Dir(startup.ItemIndex), "skin-storage-items.json")
-			entries, skinErr := pvfCatalogs.LoadSkinStorage(skinFile, data.Source.Checksum)
+			entries, skinErr := pvfCatalogs.LoadSkinStorage("", data.Source.Checksum)
 			if skinErr != nil {
 				if pvfCatalogs.Selected("skins") {
 					return nil, nil, skinErr
@@ -870,7 +874,7 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		}
 		// 物品脚本自带的 [need material]（商店表 itemshop/**.shp 没有价格字段）：
 		// 商店里「用材料交换」的商品，材料成本只写在物品脚本里（3242=1000×3037 等）。
-		itemMaterials, matErr := pvfCatalogs.LoadItemMaterials(filepath.Join(filepath.Dir(lootPath), "item-materials.json"))
+		itemMaterials, matErr := pvfCatalogs.LoadItemMaterials("")
 		if matErr != nil {
 			return nil, nil, matErr
 		}

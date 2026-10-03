@@ -18,7 +18,7 @@ func TestAllSourceAdvancementsEntryAndGrowth(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	pc, e := catalog.LoadProgression("../../configs/progression.next25.json")
+	pc, e := catalog.LoadProgression(testfixture.ProgressionPath(t))
 	if e != nil {
 		t.Fatal(e)
 	}

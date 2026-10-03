@@ -14,7 +14,7 @@ import (
 )
 
 func clearRewardCheck(ctx context.Context, s, reopened *storage.Store, role storage.Character, other int64) error {
-	c, e := catalog.LoadProgression("configs/progression.next25.json")
+	c, e := loadNativeProgressionCatalog()
 	if e != nil {
 		return e
 	}

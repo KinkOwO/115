@@ -6,6 +6,7 @@ import (
 
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
+	"dfolan/internal/testfixture"
 )
 
 // 端到端回归：用 2026-09-29 实机日志里的真实 CMD21 字节，验证修复后
@@ -55,23 +56,20 @@ func TestBuyItemRequestResolvesEnchantBookShop(t *testing.T) {
 	if !listed {
 		t.Fatalf("商店 %d 没列模板 %d", id, r.Template)
 	}
-	// ⚠️ 与作者树的**刻意分歧**：他那边把物品脚本的 [need material] **烘焙进**
-	// itemshop-candidate.json（`paid=true`），本仓的材料来自**运行时**解析
-	// `configs/item-materials.json`（internal/catalog/item_materials.go），
-	// `inventory.ShopService.Buy` 会把两条来源合起来用（先看 .shp 再看物品脚本）。
-	// 所以这里按本仓的链路断言：两条来源合起来必须给出实机那 2 个材料。
+	// The historical full snapshot is test-only. Runtime purchases use the
+	// prepared native PVF materials catalog.
 	mats, _, _ := shops.Materials(id, r.Template) // .shp 侧（本仓通常为空）
 	if !paid {
-		im, e := catalog.LoadItemMaterials("../../configs/item-materials.json")
+		im, e := catalog.LoadItemMaterials(testfixture.ItemContentPath(t, "materials", "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80"))
 		if e != nil {
-			t.Skipf("item-materials.json 不可用：%v", e)
+			t.Fatal(e)
 		}
 		itemMats, itemPaid := im.Materials(r.Template)
 		if !itemPaid {
 			t.Fatalf("两条材料来源都没给出模板 %d 的材料", r.Template)
 		}
-		if len(itemMats) != 2 {
-			t.Fatalf("物品脚本材料数=%d，期望 2", len(itemMats))
+		if len(itemMats) != 2 || itemMats[0] != (catalog.ItemMaterialCost{Template: 10400396, Count: 500}) || itemMats[1] != (catalog.ItemMaterialCost{Template: 10403609, Count: 5}) {
+			t.Fatalf("物品脚本材料与实机购买来源不一致: %+v", itemMats)
 		}
 		t.Logf("解析成功：商店=%d 材料来自物品脚本：%v", id, itemMats)
 		return
@@ -80,4 +78,11 @@ func TestBuyItemRequestResolvesEnchantBookShop(t *testing.T) {
 		t.Fatalf("材料数=%d，期望 2", len(mats))
 	}
 	t.Logf("解析成功：商店=%d 材料来自 .shp：%v", id, mats)
+}
+
+func TestShopBuyRequiresNativeItemMaterials(t *testing.T) {
+	service := ShopService{}
+	if _, err := service.QuoteBuy(protocol.BuyItemRequest{}); err == nil {
+		t.Fatal("shop buy accepted without the native item materials catalog")
+	}
 }

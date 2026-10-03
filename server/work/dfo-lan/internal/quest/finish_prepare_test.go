@@ -12,7 +12,7 @@ import (
 // Premium eligibility must stay after reward/base EXP validation. Moving it
 // ahead of those gates adds database reads for rejected submissions.
 func TestPrepareFinishPremiumLookupOrder(t *testing.T) {
-	catalogXP, err := catalog.LoadProgression("../../configs/progression.next25.json")
+	catalogXP, err := catalog.LoadProgression(testfixture.ProgressionPath(t))
 	if err != nil {
 		t.Fatal(err)
 	}

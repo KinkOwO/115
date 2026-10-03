@@ -154,6 +154,8 @@ func ParseProgression(p Progression) (Progression, error) {
 }
 
 func LoadProgression(path string) (Progression, error) {
+	// LoadProgression reads an explicit historical baseline for offline audits
+	// and tests. Runtime callers must use a prepared gamedata Source.
 	var p Progression
 	b, e := os.ReadFile(path)
 	if e != nil {

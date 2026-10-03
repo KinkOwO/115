@@ -322,7 +322,6 @@ func PrepareCatalogs(inputs CatalogInputs, adapters CatalogAdapters) (*Catalogs,
 	path := inputs.ArchivePath
 	checksum := inputs.ArchiveChecksum
 	characterPath := inputs.CharacterPath
-	progressionPath := inputs.ProgressionPath
 	selected, err := parsePVFCatalogSelection(selection)
 	if err != nil {
 		return nil, err
@@ -334,9 +333,6 @@ func PrepareCatalogs(inputs CatalogInputs, adapters CatalogAdapters) (*Catalogs,
 
 	if inputs.IndexPath == "" {
 		inputs.IndexPath = filepath.Join(filepath.Dir(characterPath), "items.index.json")
-	}
-	if inputs.VerifyBaselines && selected["progression"] && progressionPath == "" {
-		return &result, fmt.Errorf("selected PVF domains require their current baseline catalog flags during parity validation")
 	}
 	if selected["world"] && os.Getenv("DFO_NPC_PRESENCE_WORLD") != "" {
 		return &result, fmt.Errorf("PVF world uses its source phase graph for NPC diagnostics; clear DFO_NPC_PRESENCE_WORLD to avoid a JSON shadow-world override")
@@ -426,18 +422,6 @@ func PrepareCatalogs(inputs CatalogInputs, adapters CatalogAdapters) (*Catalogs,
 		direct, e := source.Progression("")
 		if e != nil {
 			return &result, e
-		}
-		if inputs.VerifyBaselines {
-			legacy, e := catalog.LoadProgression(progressionPath)
-			if e != nil {
-				return &result, e
-			}
-			if legacy.Source.Checksum != source.Snapshot().Checksum {
-				return &result, fmt.Errorf("progression baseline/PVF source mismatch")
-			}
-			if e = verifyPVFCatalog(legacy, direct); e != nil {
-				return &result, fmt.Errorf("progression: %w", e)
-			}
 		}
 		result.Progression = &direct
 		log.Printf("PVF progression prepared: %d thresholds source=%s", len(direct.Thresholds), direct.Source.Checksum)
@@ -647,7 +631,7 @@ func (c *Catalogs) LoadProgression(path string) (catalog.Progression, error) {
 	if c.Progression != nil {
 		return *c.Progression, nil
 	}
-	return catalog.LoadProgression(path)
+	return catalog.Progression{}, fmt.Errorf("progression requires the native PVF progression domain")
 }
 
 func (c *Catalogs) CollectImportMemory() {

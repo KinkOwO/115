@@ -3,6 +3,7 @@ package character
 import (
 	"bytes"
 	"dfolan/internal/catalog"
+	"dfolan/internal/testfixture"
 
 	"encoding/json"
 	"fmt"
@@ -17,7 +18,7 @@ func advancementProgressionService(t *testing.T) *ProgressionService {
 	if err != nil {
 		t.Fatal(err)
 	}
-	pc, err := catalog.LoadProgression("../../configs/progression.next25.json")
+	pc, err := catalog.LoadProgression(testfixture.ProgressionPath(t))
 	if err != nil {
 		t.Fatal(err)
 	}

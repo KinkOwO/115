@@ -2,9 +2,7 @@ package catalog
 
 import (
 	"dfolan/internal/catalog/pvf"
-	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 )
 
@@ -146,24 +144,7 @@ func ImportTowerGriefOverlay(a *pvf.Archive) (TowerGriefOverlay, error) {
 	return out, nil
 }
 
-// AttachTowerGriefMaps resolves only source-matched tower mazes after the full
-// catalog has been loaded and reparsed. All checks finish before mutation.
-func AttachTowerGriefMaps(c *DungeonCatalog, path string) error {
-	if c == nil {
-		return fmt.Errorf("nil dungeon catalog")
-	}
-	b, err := os.ReadFile(path)
-	if err != nil {
-		return err
-	}
-	var overlay TowerGriefOverlay
-	if err := json.Unmarshal(b, &overlay); err != nil {
-		return err
-	}
-	return ApplyTowerGriefMaps(c, overlay)
-}
-
-// ApplyTowerGriefMaps validates and attaches a native or audited source table.
+// ApplyTowerGriefMaps validates and attaches the prepared source table.
 func ApplyTowerGriefMaps(c *DungeonCatalog, overlay TowerGriefOverlay) error {
 	if c == nil {
 		return fmt.Errorf("nil dungeon catalog")

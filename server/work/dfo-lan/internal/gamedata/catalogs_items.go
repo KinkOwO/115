@@ -146,8 +146,6 @@ func preparePVFLearning(c *Catalogs, s *Source, chars catalog.Characters) error 
 }
 
 func preparePVFCommerce(c *Catalogs, s *Source, selected map[string]bool, inputs CatalogInputs) error {
-	checksum := s.Snapshot().Checksum
-	dir := filepath.Dir(inputs.IndexPath)
 	if selected["prices"] {
 		var direct *catalog.ShopPrices
 		var err error
@@ -164,10 +162,6 @@ func preparePVFCommerce(c *Catalogs, s *Source, selected map[string]bool, inputs
 		s.ReleaseReadCaches()
 	}
 	if selected["materials"] {
-		path := inputs.MaterialsPath
-		if path == "" {
-			path = filepath.Join(dir, "item-materials.json")
-		}
 		var direct *catalog.ItemMaterials
 		var err error
 		if c.ItemBasics != nil && c.ItemBasics.Materials != nil {
@@ -177,25 +171,6 @@ func preparePVFCommerce(c *Catalogs, s *Source, selected map[string]bool, inputs
 		}
 		if err != nil {
 			return err
-		}
-		if inputs.checksBaselines() {
-			legacy, err := catalog.LoadItemMaterials(path)
-			if err != nil {
-				return err
-			}
-			if legacy == nil || len(legacy.Source) != 64 {
-				return fmt.Errorf("materials baseline lacks source provenance")
-			}
-			if err = verifyPVFCatalog(legacy.Items, direct.Items); err != nil {
-				return fmt.Errorf("materials: %w", err)
-			}
-			// The existing material loader never binds this metadata to player
-			// saves. Exact cost/path parity permits replacement of this projection,
-			// while the new catalog keeps the verified PVF checksum. This is not
-			// an archive-version alias and never rewrites a save's source version.
-			if legacy.Source != checksum {
-				log.Printf("PVF materials provenance replaced after complete cost parity: %s -> %s", legacy.Source, checksum)
-			}
 		}
 		c.Materials = direct
 		log.Printf("PVF materials prepared: %d definitions", len(direct.Items))
@@ -250,7 +225,7 @@ func (c *Catalogs) LoadItemMaterials(path string) (*catalog.ItemMaterials, error
 	if c.Materials != nil {
 		return c.Materials, nil
 	}
-	return catalog.LoadItemMaterials(path)
+	return nil, fmt.Errorf("item material costs require the native PVF materials domain")
 }
 
 func preparePVFLoot(c *Catalogs, s *Source, inputs CatalogInputs) error {

@@ -1,31 +1,13 @@
 package catalog
 
 import (
-	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 )
 
-// Tournament quest DGN files have a maze and a quest connection, but no
+// Tournament quest DGN files have a maze and quest connection, but no
 // ordinary [map specification]. Their arena MAP declares the dungeon owner.
-// Keep this source-matched overlay separate from the large persisted catalog:
-// changing its archive checksum would invalidate existing quest save records.
-func AttachTournamentQuestMaps(c *DungeonCatalog, path string) error {
-	if c == nil {
-		return fmt.Errorf("nil dungeon catalog")
-	}
-	var overlay SourceMapOverlay
-	b, err := os.ReadFile(path)
-	if err != nil {
-		return err
-	}
-	if err := json.Unmarshal(b, &overlay); err != nil {
-		return err
-	}
-	return ApplyTournamentQuestMaps(c, overlay)
-}
-
+// Keep the source checksum stable so existing quest saves remain valid.
 func ApplyTournamentQuestMaps(c *DungeonCatalog, overlay SourceMapOverlay) error {
 	if c == nil {
 		return fmt.Errorf("nil dungeon catalog")

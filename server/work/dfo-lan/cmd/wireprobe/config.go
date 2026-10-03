@@ -60,7 +60,7 @@ type Config struct {
 	VaultRules                    string `koanf:"vault-rules" help:"source vault capacity and empty-state initialization"`
 	FatigueRules                  string `koanf:"fatigue-rules" default:"configs/fatigue-probe.json" help:"separate persisted fatigue and rollover policy (default: configs/fatigue-probe.json)"`
 	FatigueFree                   bool   `koanf:"fatigue-free" default:"false" env:"DFO_FATIGUE_FREE" help:"关闭疲劳消耗（进本与房间一起归零）；默认关"`
-	ProgressionCatalog            string `koanf:"progression-catalog" help:"current-source experience and growth catalog"`
+	ProgressionCatalog            string `koanf:"progression-catalog" help:"deprecated progression JSON path; requires the native PVF progression domain"`
 	ProgressionRules              string `koanf:"progression-rules" default:"configs/experience.compat90.json" help:"separate reference compatibility formula settings"`
 	LootCatalog                   string `koanf:"loot-catalog" help:"current gold/ordinary stackable source projection; equipment pending"`
 	LootRules                     string `koanf:"loot-rules" default:"configs/drop.compat90.json" help:"explicit reference drop formula policy"`

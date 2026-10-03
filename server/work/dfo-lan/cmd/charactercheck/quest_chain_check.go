@@ -35,7 +35,7 @@ func questChainCheck(ctx context.Context, s *storage.Store, other int64) error {
 	if e != nil {
 		return e
 	}
-	p, e := catalog.LoadProgression("configs/progression.next25.json")
+	p, e := loadNativeProgressionCatalog()
 	if e != nil {
 		return e
 	}

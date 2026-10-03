@@ -8,7 +8,7 @@ import (
 )
 
 func TestCurrentSourceWithExplicitReferenceRules(t *testing.T) {
-	c, e := catalog.LoadProgression("../../configs/progression.next25.json")
+	c, e := catalog.LoadProgression(testfixture.ProgressionPath(t))
 	if e != nil {
 		t.Fatal(e)
 	}

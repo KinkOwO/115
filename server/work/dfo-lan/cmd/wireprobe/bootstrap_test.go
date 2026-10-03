@@ -79,8 +79,9 @@ func TestPrepareRuntimeRejectsRetiredContentBeforeStorage(t *testing.T) {
 		{"full equipment", func(c *Config) { c.EquipmentFullCatalog = "old" }},
 		{"world", func(c *Config) { c.WorldCatalog = "old.json" }},
 		{"quests", func(c *Config) { c.QuestCatalog = "old.json" }},
+		{"progression", func(c *Config) { c.ProgressionCatalog = "old.json" }},
 		{"skills", func(c *Config) { c.SkillCatalog = "old.json" }},
-		{"enhancements", func(c *Config) { c.LootCatalog = "old.json" }},
+		{"loot", func(c *Config) { c.LootCatalog = "old.json" }},
 	} {
 		t.Run(row.name, func(t *testing.T) {
 			cfg := bootstrapTestConfig(t)

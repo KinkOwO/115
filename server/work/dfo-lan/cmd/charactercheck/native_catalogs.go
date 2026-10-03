@@ -23,6 +23,15 @@ func loadNativeQuestCatalog() (catalog.QuestCatalog, error) {
 	return source.Quests("")
 }
 
+func loadNativeProgressionCatalog() (catalog.Progression, error) {
+	source, err := nativeSource()
+	if err != nil {
+		return catalog.Progression{}, err
+	}
+	defer source.Close()
+	return source.Progression("")
+}
+
 func loadNativeWorldCatalog() (catalog.WorldCatalog, error) {
 	source, err := nativeSource()
 	if err != nil {

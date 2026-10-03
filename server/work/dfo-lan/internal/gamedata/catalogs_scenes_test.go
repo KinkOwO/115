@@ -2,10 +2,32 @@ package gamedata
 
 import (
 	"dfolan/internal/catalog"
+	"dfolan/internal/testfixture"
+	"encoding/json"
 	"os"
 	"reflect"
 	"testing"
 )
+
+func TestDungeonOverlaysFailClosedWithoutPreparedPVF(t *testing.T) {
+	c := &Catalogs{}
+	base := &catalog.DungeonCatalog{}
+	for _, attach := range []struct {
+		name string
+		call func() error
+	}{
+		{"tournament", func() error { return c.AttachTournamentMaps(base, "retired.json") }},
+		{"hell", func() error { return c.AttachHellMaps(base, "retired.json") }},
+		{"grief", func() error { return c.AttachTowerGrief(base, "retired.json") }},
+		{"dazzlement", func() error { return c.AttachTowerDazzlement(base, "retired.json") }},
+	} {
+		t.Run(attach.name, func(t *testing.T) {
+			if err := attach.call(); err == nil {
+				t.Fatal("retired overlay unexpectedly loaded without a prepared native PVF domain")
+			}
+		})
+	}
+}
 
 func TestPVFClosingScenesLocalArchive(t *testing.T) {
 	path := os.Getenv("DFO_PVF_CORE_TEST_ARCHIVE")
@@ -19,6 +41,7 @@ func TestPVFClosingScenesLocalArchive(t *testing.T) {
 	if len(c.TerminalScenes.Scenes) != 7 || len(c.TournamentMaps.Maps) != 2 {
 		t.Fatalf("source scene scope changed: terminal=%d tournament=%d", len(c.TerminalScenes.Scenes), len(c.TournamentMaps.Maps))
 	}
+	assertDungeonOverlaySnapshot(t, "dungeons.tournament-quest-maps.json", *c.TournamentMaps)
 	base := clonePVFDungeons(*c.Dungeons)
 	if err := c.AttachTerminalScenes(&base, "missing-terminal.json"); err != nil {
 		t.Fatal(err)
@@ -89,6 +112,9 @@ func TestPVFScenesLocalArchive(t *testing.T) {
 	if _, err := c.LoadDungeons("missing.json"); err != nil {
 		t.Fatal(err)
 	}
+	assertDungeonOverlaySnapshot(t, "dungeons.hell-party-maps.json", *c.HellMaps)
+	assertDungeonOverlaySnapshot(t, "dungeons.tower-of-grief-maps.json", *c.Grief)
+	assertDungeonOverlaySnapshot(t, "dungeons.tower-of-dazzlement-maps.json", *c.Dazzlement)
 	base, err := c.LoadDungeons("missing.json")
 	if err != nil {
 		t.Fatal(err)
@@ -111,6 +137,48 @@ func TestPVFScenesLocalArchive(t *testing.T) {
 		}
 	}
 	t.Log(len(c.Dungeons.Dungeons), len(c.Dungeons.Maps), len(c.TutorialDungeons.Dungeons))
+}
+
+func assertDungeonOverlaySnapshot[T any](t *testing.T, name string, got T) {
+	t.Helper()
+	path := testfixture.DungeonOverlayPath(t, name)
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var want T
+	if err := json.Unmarshal(b, &want); err != nil {
+		t.Fatalf("decode historical %s: %v", name, err)
+	}
+	const historicalSource = "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80"
+	const currentSource = "8b2a9f83247e000a28acd5134b616da725f46def39980b5373030e8cbc5d0934"
+	var historicalChecksum *string
+	switch value := any(&want).(type) {
+	case *catalog.SourceMapOverlay:
+		historicalChecksum = &value.SourceChecksum
+	case *catalog.TowerGriefOverlay:
+		historicalChecksum = &value.SourceChecksum
+	case *catalog.DazzlementOverlay:
+		historicalChecksum = &value.SourceChecksum
+	default:
+		t.Fatalf("unsupported historical dungeon overlay type %T", got)
+	}
+	currentChecksum := ""
+	switch value := any(got).(type) {
+	case catalog.SourceMapOverlay:
+		currentChecksum = value.SourceChecksum
+	case catalog.TowerGriefOverlay:
+		currentChecksum = value.SourceChecksum
+	case catalog.DazzlementOverlay:
+		currentChecksum = value.SourceChecksum
+	}
+	if *historicalChecksum != historicalSource || currentChecksum != currentSource {
+		t.Fatalf("%s source pair changed: historical=%s current=%s", name, *historicalChecksum, currentChecksum)
+	}
+	*historicalChecksum = currentChecksum
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("native %s differs from its exact historical projection", name)
+	}
 }
 
 func TestPVFOldDungeonBasisDiagnosticsAreNarrow(t *testing.T) {

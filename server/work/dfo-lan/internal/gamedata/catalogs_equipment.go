@@ -402,7 +402,6 @@ func readPVFRuleBaseline(path, checksum string, out any) error {
 
 func preparePVFRules(c *Catalogs, s *Source, selected map[string]bool, inputs CatalogInputs) error {
 	checksum := s.Snapshot().Checksum
-	dir := filepath.Dir(inputs.IndexPath)
 	if selected["tutorial"] {
 		direct, err := s.Tutorials()
 		if err != nil {
@@ -422,7 +421,6 @@ func preparePVFRules(c *Catalogs, s *Source, selected map[string]bool, inputs Ca
 		s.ReleaseReadCaches()
 	}
 	if selected["periods"] {
-		path := filepath.Join(dir, "item-period-tags.json")
 		var direct catalog.ItemPeriodCatalog
 		var err error
 		if c.ItemBasics != nil {
@@ -433,24 +431,11 @@ func preparePVFRules(c *Catalogs, s *Source, selected map[string]bool, inputs Ca
 		if err != nil {
 			return err
 		}
-		if inputs.checksBaselines() {
-			var legacy catalog.ItemPeriodCatalog
-			if err := readPVFRuleBaseline(path, checksum, &legacy); err != nil {
-				return err
-			}
-			if _, err := catalog.LoadItemPeriods(path, checksum); err != nil {
-				return err
-			}
-			if err = verifyPVFCatalog(legacy, direct); err != nil {
-				return fmt.Errorf("periods: %w", err)
-			}
-		}
 		c.Periods = direct.Templates
 		log.Printf("PVF item periods prepared: %d templates", len(c.Periods))
 		s.ReleaseReadCaches()
 	}
 	if selected["skins"] {
-		path := filepath.Join(dir, "skin-storage-items.json")
 		var direct catalog.SkinStorageCatalog
 		var err error
 		if c.ItemBasics != nil && c.ItemBasics.Skins != nil {
@@ -460,18 +445,6 @@ func preparePVFRules(c *Catalogs, s *Source, selected map[string]bool, inputs Ca
 		}
 		if err != nil {
 			return err
-		}
-		if inputs.checksBaselines() {
-			var legacy catalog.SkinStorageCatalog
-			if err := readPVFRuleBaseline(path, checksum, &legacy); err != nil {
-				return err
-			}
-			if _, err := catalog.LoadSkinStorage(path, checksum); err != nil {
-				return err
-			}
-			if err = verifyPVFCatalog(legacy, direct); err != nil {
-				return fmt.Errorf("skins: %w", err)
-			}
 		}
 		c.Skins = make(map[uint32]catalog.SkinStorageEntry, len(direct.Entries))
 		for _, e := range direct.Entries {
@@ -526,7 +499,7 @@ func (c *Catalogs) LoadItemPeriods(path, checksum string) ([]uint32, error) {
 	if c.Periods != nil || c.Prepared("periods") {
 		return c.Periods, nil
 	}
-	return catalog.LoadItemPeriods(path, checksum)
+	return nil, fmt.Errorf("item periods require the native PVF periods domain")
 }
 func (c *Catalogs) LoadSkinStorage(path, checksum string) (map[uint32]catalog.SkinStorageEntry, error) {
 	if err := c.RequireSelected("skins", c.Prepared("skins")); err != nil {
@@ -535,7 +508,7 @@ func (c *Catalogs) LoadSkinStorage(path, checksum string) (map[uint32]catalog.Sk
 	if c.Skins != nil || c.Prepared("skins") {
 		return c.Skins, nil
 	}
-	return catalog.LoadSkinStorage(path, checksum)
+	return nil, fmt.Errorf("skin storage requires the native PVF skins domain")
 }
 func (c *Catalogs) LoadEquipmentJournal(path, checksum string) (catalog.EquipmentJournalRules, error) {
 	if err := c.RequireSelected("journal", c.Journal != nil); err != nil {

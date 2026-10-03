@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"dfolan/internal/catalog"
 	"dfolan/internal/inventory"
+	"dfolan/internal/testfixture"
 
 	"encoding/json"
 	"testing"
@@ -19,7 +20,7 @@ func odysseyGrowthFixture(t *testing.T) (*ProgressionService, Character) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	p, e := catalog.LoadProgression("../../configs/progression.next25.json")
+	p, e := catalog.LoadProgression(testfixture.ProgressionPath(t))
 	if e != nil {
 		t.Fatal(e)
 	}

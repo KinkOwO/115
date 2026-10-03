@@ -59,15 +59,6 @@ func preparePVFClosingScenes(c *Catalogs, s *Source, selected map[string]bool, i
 		if err := catalog.ApplyTournamentQuestMaps(&base, direct); err != nil {
 			return err
 		}
-		if i.checksBaselines() {
-			old := clonePVFDungeons(*c.Dungeons)
-			if err := catalog.AttachTournamentQuestMaps(&old, filepath.Join(dir, "dungeons.tournament-quest-maps.json")); err != nil {
-				return err
-			}
-			if err := verifyPVFCatalog(old, base); err != nil {
-				return fmt.Errorf("tournament maps: %w", err)
-			}
-		}
 		c.TournamentMaps = &direct
 		log.Printf("PVF tournament quest arenas prepared: %d source owner bindings", len(direct.Maps))
 	}
@@ -84,14 +75,14 @@ func (c *Catalogs) AttachTerminalScenes(d *catalog.DungeonCatalog, path string) 
 	return catalog.AttachTerminalScenes(d, path)
 }
 
-func (c *Catalogs) AttachTournamentMaps(d *catalog.DungeonCatalog, path string) error {
+func (c *Catalogs) AttachTournamentMaps(d *catalog.DungeonCatalog, _ string) error {
 	if err := c.RequireSelected("dungeon-tournament", c.TournamentMaps != nil); err != nil {
 		return err
 	}
-	if c.TournamentMaps != nil {
-		return catalog.ApplyTournamentQuestMaps(d, *c.TournamentMaps)
+	if c.TournamentMaps == nil {
+		return fmt.Errorf("tournament maps require the native PVF dungeon-tournament domain")
 	}
-	return catalog.AttachTournamentQuestMaps(d, path)
+	return catalog.ApplyTournamentQuestMaps(d, *c.TournamentMaps)
 }
 
 func preparePVFHellMaps(c *Catalogs, s *Source, selected map[string]bool, inputs CatalogInputs) error {
@@ -105,20 +96,6 @@ func preparePVFHellMaps(c *Catalogs, s *Source, selected map[string]bool, inputs
 	if err != nil {
 		return err
 	}
-	if inputs.checksBaselines() {
-		path := filepath.Join(filepath.Dir(fullDungeonAuditPath(inputs)), "dungeons.hell-party-maps.json")
-		var legacy catalog.SourceMapOverlay
-		b, err := os.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		if err := json.Unmarshal(b, &legacy); err != nil {
-			return err
-		}
-		if err := verifyPVFCatalog(legacy, direct); err != nil {
-			return fmt.Errorf("Hell Party maps: %w", err)
-		}
-	}
 	base := clonePVFDungeons(*c.Dungeons)
 	if err := catalog.ApplyHellPartyMaps(&base, direct); err != nil {
 		return err
@@ -129,14 +106,14 @@ func preparePVFHellMaps(c *Catalogs, s *Source, selected map[string]bool, inputs
 	return nil
 }
 
-func (c *Catalogs) AttachHellMaps(data *catalog.DungeonCatalog, path string) error {
+func (c *Catalogs) AttachHellMaps(data *catalog.DungeonCatalog, _ string) error {
 	if err := c.RequireSelected("dungeon-hell", c.HellMaps != nil); err != nil {
 		return err
 	}
-	if c.HellMaps != nil {
-		return catalog.ApplyHellPartyMaps(data, *c.HellMaps)
+	if c.HellMaps == nil {
+		return fmt.Errorf("Hell Party maps require the native PVF dungeon-hell domain")
 	}
-	return catalog.AttachHellPartyMaps(data, path)
+	return catalog.ApplyHellPartyMaps(data, *c.HellMaps)
 }
 
 func preparePVFMazeRates(c *Catalogs, selected map[string]bool, inputs CatalogInputs) error {
@@ -534,29 +511,6 @@ func preparePVFTowers(c *Catalogs, s *Source, selected map[string]bool, inputs C
 		return err
 	}
 	s.ReleaseReadCaches()
-	if inputs.checksBaselines() {
-		dir := filepath.Dir(fullDungeonAuditPath(inputs))
-		var oldGrief catalog.TowerGriefOverlay
-		var oldDazzlement catalog.DazzlementOverlay
-		for _, x := range []struct {
-			name        string
-			old, direct any
-		}{
-			{"dungeons.tower-of-grief-maps.json", &oldGrief, &grief},
-			{"dungeons.tower-of-dazzlement-maps.json", &oldDazzlement, &dazzlement},
-		} {
-			b, err := os.ReadFile(filepath.Join(dir, x.name))
-			if err != nil {
-				return err
-			}
-			if err := json.Unmarshal(b, x.old); err != nil {
-				return err
-			}
-			if err := verifyPVFCatalog(x.old, x.direct); err != nil {
-				return fmt.Errorf("tower %s: %w", x.name, err)
-			}
-		}
-	}
 	base := clonePVFDungeons(*c.Dungeons)
 	if err := catalog.ApplyTowerGriefMaps(&base, grief); err != nil {
 		return err
@@ -589,22 +543,22 @@ func clonePVFDungeons(c catalog.DungeonCatalog) catalog.DungeonCatalog {
 	return c
 }
 
-func (c *Catalogs) AttachTowerGrief(data *catalog.DungeonCatalog, path string) error {
+func (c *Catalogs) AttachTowerGrief(data *catalog.DungeonCatalog, _ string) error {
 	if err := c.RequireSelected("dungeon-towers", c.Grief != nil); err != nil {
 		return err
 	}
-	if c.Grief != nil {
-		return catalog.ApplyTowerGriefMaps(data, *c.Grief)
+	if c.Grief == nil {
+		return fmt.Errorf("Tower of Grief maps require the native PVF dungeon-towers domain")
 	}
-	return catalog.AttachTowerGriefMaps(data, path)
+	return catalog.ApplyTowerGriefMaps(data, *c.Grief)
 }
 
-func (c *Catalogs) AttachTowerDazzlement(data *catalog.DungeonCatalog, path string) error {
+func (c *Catalogs) AttachTowerDazzlement(data *catalog.DungeonCatalog, _ string) error {
 	if err := c.RequireSelected("dungeon-towers", c.Dazzlement != nil); err != nil {
 		return err
 	}
-	if c.Dazzlement != nil {
-		return catalog.ApplyDazzlementMaps(data, *c.Dazzlement)
+	if c.Dazzlement == nil {
+		return fmt.Errorf("Tower of Dazzlement maps require the native PVF dungeon-towers domain")
 	}
-	return catalog.AttachDazzlementMaps(data, path)
+	return catalog.ApplyDazzlementMaps(data, *c.Dazzlement)
 }

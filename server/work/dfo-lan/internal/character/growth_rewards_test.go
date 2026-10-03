@@ -8,7 +8,7 @@ import (
 )
 
 func TestCurrentQuestExperienceAndJobRewards(t *testing.T) {
-	c, e := catalog.LoadProgression("../../configs/progression.next25.json")
+	c, e := catalog.LoadProgression(testfixture.ProgressionPath(t))
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -57,7 +57,7 @@ func TestCurrentQuestExperienceAndJobRewards(t *testing.T) {
 // build ignored - live capture 20260912T011900 shows no quest crediting gold.
 // The value must track the level table and stay zero where experience is zero.
 func TestQuestGoldTracksLevelTable(t *testing.T) {
-	c, e := catalog.LoadProgression("../../configs/progression.next25.json")
+	c, e := catalog.LoadProgression(testfixture.ProgressionPath(t))
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -110,7 +110,7 @@ func max32(a, b int) int {
 // in lower case while the table spells every key upper. Neither shape may cost
 // the player the quest.
 func TestQuestDifficultyCoverage(t *testing.T) {
-	c, e := catalog.LoadProgression("../../configs/progression.next25.json")
+	c, e := catalog.LoadProgression(testfixture.ProgressionPath(t))
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -160,7 +160,7 @@ func TestQuestDifficultyCoverage(t *testing.T) {
 }
 
 func TestSourceClearBaseAndReferenceRankFormula(t *testing.T) {
-	c, e := catalog.LoadProgression("../../configs/progression.next25.json")
+	c, e := catalog.LoadProgression(testfixture.ProgressionPath(t))
 	if e != nil {
 		t.Fatal(e)
 	}

@@ -47,7 +47,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		"characters":  flags.String("character-catalog", "configs/characters.skycastle-release.json", "effective profession JSON baseline"),
 		"world":       flags.String("world-catalog", "", "explicit historical world JSON for offline comparison, including side catalogs"),
 		"quests":      flags.String("quest-catalog", "", "explicit historical quest JSON for offline comparison"),
-		"progression": flags.String("progression-catalog", "configs/progression.next25.json", "effective progression JSON baseline"),
+		"progression": flags.String("progression-catalog", "", "explicit historical progression JSON baseline for offline comparison"),
 	}
 	if err := flags.Parse(args); err != nil {
 		return 1

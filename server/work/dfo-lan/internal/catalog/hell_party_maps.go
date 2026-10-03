@@ -2,9 +2,7 @@ package catalog
 
 import (
 	"dfolan/internal/catalog/pvf"
-	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 )
 
@@ -62,24 +60,8 @@ func ImportHellPartyMaps(a *pvf.Archive, c DungeonCatalog) (SourceMapOverlay, []
 	return out, unavailable, nil
 }
 
-// AttachHellPartyMaps adds map scripts referenced by DGN [seal door map index]
-// and [season seal door map index]. The archive checksum stays unchanged so
-// existing character and quest save versions remain valid.
-func AttachHellPartyMaps(c *DungeonCatalog, path string) error {
-	if c == nil {
-		return fmt.Errorf("nil dungeon catalog")
-	}
-	var overlay SourceMapOverlay
-	b, err := os.ReadFile(path)
-	if err != nil {
-		return err
-	}
-	if err := json.Unmarshal(b, &overlay); err != nil {
-		return err
-	}
-	return ApplyHellPartyMaps(c, overlay)
-}
-
+// ApplyHellPartyMaps adds source map scripts referenced by DGN seal-map fields.
+// The archive checksum stays unchanged so existing character and quest saves remain valid.
 func ApplyHellPartyMaps(c *DungeonCatalog, overlay SourceMapOverlay) error {
 	if c == nil {
 		return fmt.Errorf("nil dungeon catalog")

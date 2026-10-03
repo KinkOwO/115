@@ -2,6 +2,15 @@
 
 更新：2026-10-03。用户要求 PVF 作为核心游戏内容文件，消除另一套人工维护的玩法 JSON，并明确 PVF 对服务端是只读资源。内容修改由服务端之外的编辑工具完成。本文记录目标、第一批实际审计和迁移缺口；不表示全量配置依赖已经解除。
 
+## 2026-10-03：经验、物品成本与副本地图覆盖（源码候选）
+
+本轮删除 8 个 JSON：`progression.next25.json`、`item-materials.json`、`item-period-tags.json`、`skin-storage-items.json`，以及 Hell Party、Tournament Quest、Tower of Grief、Tower of Dazzlement 四份地图覆盖，共 10,356,097 字节；顶层 JSON 84→76。完整历史输入只供测试使用，压缩快照共 563,393 字节并校验原始 SHA256；净减 9,792,704 字节（约 9.34 MiB）。
+
+- progression、materials、periods、skins 与四类副本 overlay 的运行读取改为只使用已经准备的原生 PVF 投影。启用 loot 时要求 materials 已选择、准备且非 nil，并在 storage 访问前拒绝缺失目录；商店引用材料成本时不允许缺失材料目录退化为金币报价。原有角色/物品存档与费用规则未更改。
+- 对当前 8b2a PVF 的对照测试只在临时历史副本中对齐已知旧 source checksum，完整 typed fields 仍作比较；progression 和两类场景覆盖分别保留 gated 真实归档对照。材料 14,211 项、期限 124,610 项、皮肤 1,733 个已解析项及 127 个未解析引用锁定在测试中；材料成本示例 3242 与商店商品 10345008 保持。
+- 角色检查工具的 progression 改用 `gamedata.Open/Source` 原生读取。progression importer、期限/皮肤 importer 和两种塔地图 importer 必须显式指定输出；pvfaudit 的 progression baseline 默认留空。旧 JSON 只通过 SHA 校验的 gzip fixture 进入测试，不作为启动回退。
+- Go 1.26.5 全量 `go test ./...` 与 `go vet ./...` 通过；未启动客户端、服务端运行实例或玩家数据库，未改 PVF、存档、schema 与用户 `.gitignore`。本轮不增加实机确认范围。
+
 
 
 ## 2026-10-03：技能 / 副本 / 强化并行唯一真源（源码候选）
