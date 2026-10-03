@@ -22,6 +22,8 @@ import (
 	"log"
 	"net"
 	"os"
+	"strconv"
+	"strings"
 	"path/filepath"
 	"sync"
 	"time"
@@ -35,6 +37,8 @@ type gatewayRuntime struct {
 	boosterCatalog        *BoosterCatalog
 	characters            *character.Service
 	channelDirectory       *catalog.ChannelDirectory
+	channelTowns           map[uint32]catalog.TownArea
+	channelGuides          map[uint32]uint32
 	channelInfo            *catalog.ChannelInfo
 	developmentAccount    int64
 	dungeonCatalog        *catalog.DungeonCatalog
@@ -470,6 +474,24 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		}
 		resources.add(func() { s.Close() })
 		gameStore = s
+
+		// 兜底自愈：会话位置隔离修复之前，特殊征讨频道（月湖 215 / Azure 213 / 军团
+		// 239 等）的会话位置曾被写进普通频道共享行，玩家切回普通频道会被客户端以
+		// 「对立阵营起始点」拒绝。启动期清一次污染行（幂等），玩家下一次进普通频道
+		// 走默认落点重建，无资产损失。
+		if pvfCatalogs != nil && len(pvfCatalogs.ChannelTowns) > 0 {
+			towns := make([]uint32, 0, len(pvfCatalogs.ChannelTowns))
+			for _, a := range pvfCatalogs.ChannelTowns {
+				towns = append(towns, a.TownID)
+			}
+			scrubCtx, scrubCancel := context.WithTimeout(context.Background(), 15*time.Second)
+			if n, scrubErr := gameStore.ScrubPollutedWorldPositions(scrubCtx, towns); scrubErr != nil {
+				log.Printf("warning: scrub polluted world positions: %v", scrubErr)
+			} else if n > 0 {
+				log.Printf("scrubbed %d polluted world position(s) from the shared row (special-channel towns: %v)", n, towns)
+			}
+			scrubCancel()
+		}
 		releaseAdminGuard, e := s.HoldAdminGuard(ctx)
 		if e != nil {
 			return nil, nil, e
@@ -758,6 +780,29 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 			return nil, nil, e
 		}
 		dungeonCatalog = &data
+	}
+	// 诊断探针：DFO_DUNGEON_PROBE=100004131,100004136 打印副本的迷宫结构
+	// （房间坐标/map/怪生成触发器），用于 SemiRaid 门控取证。只读，不影响运行。
+	if probeSpec := os.Getenv("DFO_DUNGEON_PROBE"); probeSpec != "" && dungeonCatalog != nil {
+		for _, idStr := range strings.Split(probeSpec, ",") {
+			id64, err := strconv.ParseUint(strings.TrimSpace(idStr), 10, 32)
+			if err != nil {
+				continue
+			}
+			def, ok := dungeonCatalog.Dungeons[uint32(id64)]
+			if !ok {
+				log.Printf("dungeon-probe %d: not in catalog", id64)
+				continue
+			}
+			log.Printf("dungeon-probe %d noFatigue=%v chances=%v", id64, def.NoFatigue, def.MazeChanceRates)
+			for _, mz := range def.Mazes {
+				log.Printf("dungeon-probe %d maze%d size=%v start=%v boss=%v rooms=%d",
+					id64, mz.Index, mz.Size, mz.Start, mz.Boss, len(mz.Rooms))
+				for _, r := range mz.Rooms {
+					log.Printf("  room(%d,%d) map=%d boss=%v", r.X, r.Y, r.Map, r.Boss)
+				}
+			}
+		}
 	}
 	// 疲劳的**进本消耗**完全来自源：`[use fatigue only start dungeon] <N>`（only start = 进本只收一次）。
 	// 源未声明该段的副本由 EnterFatigueOf 返回 0，走 FatigueService 原有的「按房间计费」路径。
@@ -1532,6 +1577,8 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		characters:            characters,
 		channelDirectory:      pvfCatalogs.ChannelDirectory,
 		channelInfo:           pvfCatalogs.ChannelInfo,
+		channelTowns:          pvfCatalogs.ChannelTowns,
+		channelGuides:         channelGuidesFromDirectory(pvfCatalogs.ChannelDirectory),
 		developmentAccount:    developmentAccount,
 		dungeonCatalog:        dungeonCatalog,
 		fatigueService:        fatigueService,
@@ -1597,4 +1644,20 @@ func (r *runtimeCleanup) close() {
 		}
 		r.actions = nil
 	})
+}
+
+// channelGuidesFromDirectory 抽取每个 SemiRaid/Legion 频道类型的
+// [guide dungeon index]（clientchannelinfo.etc 直读）—— SemiRaid 频道红门
+// 直接进这个副本（Azure 102 -> 100004131，月湖 101 -> 100004137）。
+func channelGuidesFromDirectory(dir *catalog.ChannelDirectory) map[uint32]uint32 {
+	if dir == nil {
+		return nil
+	}
+	out := map[uint32]uint32{}
+	for channelType, a := range dir.ByType {
+		if a.GuideDungeon != 0 && (a.IsLegion || a.IsRaid || a.IsPreRaid || a.IsSemiRaid) {
+			out[channelType] = a.GuideDungeon
+		}
+	}
+	return out
 }

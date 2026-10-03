@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/hex"
 	"context"
 	"crypto/rand"
 	"dfolan/internal/catalog"
@@ -280,7 +281,7 @@ func (w *worldSession) prepareDungeonEntry(r protocol.DungeonSelection) (*dungeo
 // map). Both the town selection (CMD 16) and the post-clear "next story
 // dungeon" gate (CMD 2062) replay it unchanged - only the ack id differs,
 // because the client loads a whole new dungeon either way.
-func (w *worldSession) dungeonEntryPlan(ctx context.Context, ackName string, ackID uint16, sel protocol.DungeonSelection, s *dungeon.Session) ([]outboundPacket, error) {
+func (w *worldSession) dungeonEntryPlanImpl(ctx context.Context, ackName string, ackID uint16, sel protocol.DungeonSelection, s *dungeon.Session, channelCtx *[2]byte) ([]outboundPacket, error) {
 	if s.HellParty != nil {
 		log.Printf("Hell Party selected: dungeon=%d map=%d mode=%s(%d) S4 compatibility rows=%+v actor groups=%+v", s.Definition.ID, s.HellParty.Map, s.HellParty.Key, s.HellParty.Mode, s.HellParty.Rows, s.HellParty.Actors)
 	}
@@ -298,7 +299,9 @@ func (w *worldSession) dungeonEntryPlan(ctx context.Context, ackName string, ack
 	plan := []outboundPacket{{ackName, 1, ackID, []byte{1}}}
 	if w.characters != nil {
 		channel := [2]byte{}
-		if w.channelType == 73 && w.blackPurgatory.created {
+		if channelCtx != nil {
+			channel = *channelCtx
+		} else if w.channelType == 73 && w.blackPurgatory.created {
 			channel = w.characters.ChannelContext
 		}
 		visual, err := w.characters.EntryBasicProbe(w.role, channel)
@@ -389,6 +392,12 @@ func (w *worldSession) dungeonEntryPlan(ctx context.Context, ackName string, ack
 	}
 	return plan, nil
 }
+// dungeonEntryPlan 是 dungeonEntryPlanImpl 的普通进图入口（客户端自己发起：
+// 点门 → C16，身份上下文客户端本地就有，channelCtx 传 nil）。
+func (w *worldSession) dungeonEntryPlan(ctx context.Context, ackName string, ackID uint16, sel protocol.DungeonSelection, s *dungeon.Session) ([]outboundPacket, error) {
+	return w.dungeonEntryPlanImpl(ctx, ackName, ackID, sel, s, nil)
+}
+
 
 // directMoveDungeon handles CMD 2062 (ENUM_CMDPACKET_DUNGEON_DIRECT_MOVE): the
 // "next story dungeon" gate the client offers beside "return to town" after a
@@ -989,6 +998,24 @@ func (w *worldSession) monsterDeath(p []byte, event func(map[string]any)) ([]out
 			return nil, err
 		}
 	}
+	// [ISPINS-ARENA-BOSS] 伊斯大陆死亡批次（next79 §24）：官服 s4 实证
+	// （c2s op=39 帧 335/392/441/485）对 boss 死亡上报的应答只有 16B 常量
+	// N38（<u32 entity> <4B零> <5B token> <3B零>），无 39-ack、无 N37 经验
+	// 推送、无 200B 掉落实体语法。私服 generic 批次发出这 3 帧后客户端
+	// 1.2s 内 op=682 闪退（2026-10-03 五测实证）。
+	if w.ispins != nil && w.activeDungeon != nil {
+		plan := []outboundPacket{
+			// N38 尾 5B token 官服按阶段各不相同（next79 §26），
+			// 用当前 run 的阶段号回放对应 nonce。
+			{"monster_death_confirmed", 0, 38, protocol.IspinsMonsterDeathConfirmed(r.Entity, w.ispins.stage)},
+		}
+		completed, err := w.completeDungeon()
+		if err != nil {
+			w.completionErr = err
+			return plan, nil
+		}
+		return append(plan, completed...), nil
+	}
 	plan := []outboundPacket{{"monster_death_ack", 1, 39, []byte{1}}}
 	var newDrops []protocol.SceneDrop
 	if !w.deathSent[uint16(r.Entity)] {
@@ -1204,6 +1231,11 @@ func (w *worldSession) completeDungeon() ([]outboundPacket, error) {
 	if w.bleedingMineStart != nil {
 		return w.completeBleedingMineStage()
 	}
+	// 伊斯大陆结算链（next78 §1.4）：N31 阶段 token → N2256 → N2252 →
+	// N2255 clear → N1658 → N2253 → N2254。阶段推进由 CMD2046 分支处理。
+	if w.ispins != nil {
+		return w.completeIspinsStage()
+	}
 	if err := w.freezeBlackPurgatoryRewards(); err != nil {
 		return nil, err
 	}
@@ -1361,6 +1393,21 @@ func (w *worldSession) interactDoor(p []byte) (*dungeon.Session, []outboundPacke
 		return nil, nil, fmt.Errorf("door interaction without active dungeon")
 	}
 	run := w.activeDungeon
+	// SemiRaid 门控取证：门交互的对象与房间状态（Azure 100004131 等）。
+	if w.channelGuideDungeon != 0 {
+		cleared := run.RoomCleared()
+		neighbors := make([]string, 0, 4)
+		for _, room := range run.Maze.Rooms {
+			dx, dy := int(room.X)-int(run.Room.X), int(room.Y)-int(run.Room.Y)
+			if dx*dx+dy*dy == 1 {
+				neighbors = append(neighbors, fmt.Sprintf("(%d,%d)map=%d", room.X, room.Y, room.Map))
+			}
+		}
+		log.Printf("semiraid door probe: dungeon=%d room=(%d,%d) map=%d cleared=%v alive=%d neighbors=%v obj_hex=%s",
+			run.Definition.ID, run.Room.X, run.Room.Y, run.Room.Map, cleared,
+			len(run.LivingMonsters()), neighbors, hex.EncodeToString(p))
+	}
+
 	if run.Definition.ID == 7113 && run.Room.Map == 76026 && run.RoomCleared() {
 		for _, room := range run.Maze.Rooms {
 			dx, dy := int(room.X)-int(run.Room.X), int(room.Y)-int(run.Room.Y)

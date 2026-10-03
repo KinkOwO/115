@@ -307,7 +307,16 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 			}
 		}
 		if client.worldState != nil {
-			e = client.worldState.enter(role, storage.WorldPosition{Town: client.townCatalog.TownID, Area: client.townCatalog.AreaID, X: client.townPolicy.X, Y: client.townPolicy.Y})
+			// 特殊频道有**自己的城镇**（源 clientchannelinfo 的 [seriaRoomTown]）：
+			// 征讨/军团这类频道里角色只能在门口的专属城镇活动，落点取该城镇地图里
+			// 第一个可行走矩形的中心；普通频道保持原有城镇与落点。
+			spawn := storage.WorldPosition{Town: client.townCatalog.TownID, Area: client.townCatalog.AreaID, X: client.townPolicy.X, Y: client.townPolicy.Y}
+			if t, ok := client.gatewayRuntime.channelTowns[client.channelTypes[client.channel]]; ok {
+				x, y := t.Spawn()
+				spawn = storage.WorldPosition{Town: t.TownID, Area: t.AreaID, X: x, Y: y}
+				client.event(map[string]any{"kind": "channel_town_spawn", "channel": client.channel, "channel_type": client.channelTypes[client.channel], "town": t.TownID, "area": t.AreaID, "x": x, "y": y, "spawn_rects": len(t.Walkable)})
+			}
+			e = client.worldState.enter(role, spawn)
 			if e != nil {
 				client.event(map[string]any{"kind": "world_entry_error", "error": e.Error()})
 				return dispatchHandled
@@ -945,11 +954,18 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 				client.event(map[string]any{"kind": "area_presence_error", "error": e.Error()})
 			}
 		}
+		// next79 挂接（ispins_wiring.go）：N1719 保活 goroutine 与登录期
+		// N2254 分支（伊斯频道挂 pending、普通频道 1.1s 后推 N2254+781+782）。
+		client.ispinsPostSelection(role.ID)
 		// 进城镇好感度全量同步：NOTI733(NPC_FAVOR_POINT_INFO) 是客户端
 		// 唯一的无弹窗全量装载入口（handler 0x1452db190：先清空 favor
 		// map 再逐条装入并刷新，不派发任何 UI 事件）；806 ack 虽也写
 		// 缓存但必弹好感度窗。NOTI124 刚完成时好感度子系统尚未就绪，
 		// 早发会被丢弃，沿用 900ms 延迟（2026-09-29 定案时序）。
+		// **伊斯频道（Type 81）待机区分支不发**：官服待机区抓包全程
+		// 无 N733（待机区无 NPC，好感度子系统不适用），且该推送同样
+		// 会撞进场景装载期（2026-10-03 闪退会话 seq 66 实证）。
+		if client.worldState == nil || client.worldState.channelType != 81 {
 		go func(characterID int64) {
 			time.Sleep(900 * time.Millisecond)
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -973,6 +989,7 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 			}
 			client.event(map[string]any{"kind": "npc_favor_point_info_sent", "character_id": characterID, "npc_count": len(records), "plain_bytes": len(payload)})
 		}(role.ID)
+		}
 		return dispatchHandled
 	}
 

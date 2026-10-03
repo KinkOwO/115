@@ -18,6 +18,7 @@
     "DFO_PVF_ITEM_SHOP_POLICY": "configs/pvf-item-shop-policy.json",
     "DFO_ODYSSEY_REWARDS_RELEASE": "1",
     "DFO_ATTUNEMENT_REBALANCE": "0",
-    "DFO_FATIGUE_FREE": "1"
+    "DFO_FATIGUE_FREE": "1",
+    "DFO_ISPINS_MODE": "unlimited"
   }
 }

@@ -2,81 +2,237 @@
   "Listen": "0.0.0.0:7001",
   "ServerKey": "first",
   "ServerID": 1,
+  "SourceSHA256": "aecc92480ccd469fa2b33bf9c189496a0c4e31c20eb2fef7e1623642c23a687f",
   "MaxUsers": 30,
   "SynchronizeIdentity": true,
-  "SourceSHA256": "aecc92480ccd469fa2b33bf9c189496a0c4e31c20eb2fef7e1623642c23a687f",
+  "Dungeons": {
+    "[elven_guard]": [
+      1,
+      2
+    ],
+    "[granfloris]": [
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      1000
+    ],
+    "[sky_catle]": [
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17
+    ],
+    "[behemoth]": [
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27
+    ],
+    "[stormpass]": [
+      40,
+      41
+    ],
+    "[Alfhlyra]": [
+      31,
+      32,
+      33,
+      34,
+      35,
+      1500,
+      50
+    ],
+    "[north_myre]": [
+      31,
+      32,
+      33,
+      34,
+      35,
+      1500,
+      50
+    ]
+  },
+  "DungeonTitles": {
+    "[apocalypse]": "Apocalypse",
+    "[ispins_legion]": "Ispins"
+  },
   "Channels": [
     {
       "ID": 1,
-      "Name": "LAN 1"
+      "Name": "LAN 1",
+      "Type": 2,
+      "Area": "[elven_guard]",
+      "SourceValues": [
+        10,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
     },
     {
       "ID": 6,
-      "Name": "LAN 6"
+      "Name": "LAN 6",
+      "Type": 3,
+      "Area": "[none]",
+      "SourceValues": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
     },
     {
       "ID": 10,
       "Name": "LAN Normal",
-      "Type": 22
+      "Type": 22,
+      "Area": "[granfloris]",
+      "SourceValues": [
+        5,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "SourceType": 0
     },
     {
-      "ID": 119,
-      "Name": "Legion"
+      "ID": 30,
+      "Name": "Apocalypse",
+      "Type": 119,
+      "Area": "[apocalypse]",
+      "SourceValues": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "Note": "末世录军团频道，官服行证据（2026-10-02 频道脚本，cain 块）：30/31/32 `Apocalypse` 119 `[apocalypse]`，SourceValues 全 0。此前用 [none] 区域导致客户端入口门禁⑦开放日程查表失败，弹『这个时间不开门』；改用官方区域键 [apocalypse] 并由 DungeonTitles 补发官方空 [dungeon] 块。协议走军团族（CMD2043 等）。"
+    },
+    {
+      "ID": 31,
+      "Name": "Apocalypse",
+      "Type": 119,
+      "Area": "[apocalypse]",
+      "SourceValues": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "Note": "同上，官服脚本第二行（31 Apocalypse 119 [apocalypse]）。"
+    },
+    {
+      "ID": 32,
+      "Name": "Apocalypse",
+      "Type": 119,
+      "Area": "[apocalypse]",
+      "SourceValues": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "Note": "同上，官服脚本第三行（32 Apocalypse 119 [apocalypse]）。"
     },
     {
       "ID": 106,
-      "Name": "Bleeding Mines"
+      "Name": "Bleeding Mines",
+      "Type": 106,
+      "Area": "[none]",
+      "SourceValues": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "Note": "赤红铁矿。当前客户端147ABABF4注册CHANNEL_BLEEDING_MINE=106，clientchannelinfo.etc保留其特殊区域属性及218/0落点，channelslotinfo.etc将其放入weeklyDungeonPanel。沿用当前版本的频道类型分类，不冒用旧流放分类。入口候选attempt 1/3，编队、战斗与奖励仍需各自协议闭环。"
     },
     {
       "ID": 63,
       "Name": "Oculus",
       "Type": 63,
-      "Area": "[oculus]"
+      "Area": "[oculus]",
+      "SourceValues": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "Note": "洞察之眼。原生类型63；144DA9020按[oculus]识别特殊分类，144D991D0的返回值使频道进入组1。channelslotinfo.etc的oldDungeonPanel将入口放入110级前玩法频道。仅设置类型而保留[none]会误入区域频道。"
     },
     {
       "ID": 73,
       "Name": "Purgatory",
       "Type": 73,
-      "Area": "[black_purgatory]"
+      "Area": "[black_purgatory]",
+      "SourceValues": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "Note": "黑鸦之境。原生类型73；144DAAA0D注册[black_purgatory]特殊分类键，channelslotinfo.etc将其附着到oldDungeonPanel。保留客户端源任务门槛。"
     },
     {
       "ID": 74,
       "Name": "Revelation",
       "Type": 74,
-      "Area": "[impossible]"
+      "Area": "[impossible]",
+      "SourceValues": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "Note": "启示之夜。保留原生类型74；当前144DA9020没有同名区域键，本地目录使用该函数已支持的通用特殊分类键[impossible]，不借用其他副本类型。channelslotinfo.etc保留其独立槽位且未设置attach panel，14447244A之后走默认specialChannelPanel。此键仅为本地分类兼容选择，不宣称来自原服频道行；保留源任务门槛。"
     },
     {
       "ID": 67,
-      "Name": "Sirocco"
+      "Name": "Sirocco",
+      "Type": 67,
+      "Area": "[none]",
+      "SourceValues": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "Note": "希洛克团队频道。当前客户端147AB9C8E注册CHANNEL_SIROCO_RAID=67；clientchannelinfo.etc关联子频道类型68。"
+    },
+    {
+      "ID": 68,
+      "Name": "Sirocco Guide",
+      "Type": 68,
+      "Area": "[none]",
+      "SourceValues": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "Note": "希洛克引导频道。当前客户端147AB9D27注册CHANNEL_GUIDE_SIROCO_RAID=68。仅恢复频道目录，不代表团队副本或精锐战斗已实现。"
     },
     {
       "ID": 76,
-      "Name": "Ozma"
+      "Name": "Ozma",
+      "Type": 76,
+      "Area": "[none]",
+      "SourceValues": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "Note": "奥兹玛团队频道。当前客户端147AB9E59注册CHANNEL_OZMA_RAID=76；clientchannelinfo.etc关联子频道类型78。"
     },
     {
-      "ID": 108,
-      "Name": "Unshackled"
+      "ID": 78,
+      "Name": "Ozma Guide",
+      "Type": 78,
+      "Area": "[none]",
+      "SourceValues": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "Note": "奥兹玛引导频道。当前客户端147AB9EF2注册CHANNEL_GUIDE_OZMA_RAID=78。仅恢复频道目录，不代表团队副本或精锐战斗已完成。"
     },
     {
-      "ID": 103,
-      "Name": "Temple of Death"
+      "ID": 86,
+      "Name": "Ispins",
+      "Type": 81,
+      "Area": "[ispins_legion]",
+      "SourceValues": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "Note": "伊斯大陆军团频道，官服行证据（2026-10-02 频道脚本，siroco 块）：86/87 `Ispins` 81 `[ispins_legion]`，SourceValues 全 0。此前 ID=81/Area=[none] 导致客户端入口门禁⑦开放日程查表失败，弹『这个时间不开门』（官服同日同客户端可进，判定输入含频道行数据）。协议走 STOLEN_LAND_ISPINS 族（CMD2043/2045/2046/2047、NOTI2252-2256）。"
     },
     {
-      "ID": 102,
-      "Name": "Azure Main"
+      "ID": 87,
+      "Name": "Ispins",
+      "Type": 81,
+      "Area": "[ispins_legion]",
+      "SourceValues": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "Note": "同上，官服脚本第二行（87 Ispins 81 [ispins_legion]）。"
     },
     {
       "ID": 101,
-      "Name": "Moon Lake"
-    },
-    {
-      "ID": 117,
-      "Name": "Apostate"
-    },
-    {
-      "ID": 116,
-      "Name": "Turtle Lib"
+      "Name": "Moon Lake",
+      "Note": "沉月湖频道（上游 next80 月湖单人玩法，type 101 由 PVF clientchannelinfo.etc 直读）。合并后 moonConfig 启动硬校验要求频道表存在 type 101 行（main.go Moon channel must exist with source online type 101），缺失会拦启动。"
     }
   ],
-  "Note": "只声明发布哪些频道与显示名；Type/Area/SourceValues/[dungeon] 全部直读内层 PVF（etc/channel_info.etc + etc/clientchannelinfo.etc）。ID 按 type 给出，启动期缺 type 直接报错。ID 10 的 Type 22 是唯一的本地覆盖。"
+  "CompatibilityNote": "已撤回本轮误加的流放频道72及其城镇落点逻辑：官方115更新已移除此玩法，原版城镇索引未登记其93号城镇，普通钱特利92号城镇属于剧情路线。其余频道与通用修复保留：洞察、黑鸦使用原生特殊分类键，启示之夜保留本轮既有的通用特殊分类键；SynchronizeIdentity同步登录类型、NOTI2435及角色频道上下文。频道显示不代表精锐随行战斗、团队创建或副本结算已完成；不修改客户端资源及角色存档。"
 }
