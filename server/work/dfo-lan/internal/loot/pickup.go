@@ -48,11 +48,12 @@ type PickupPlan struct {
 	BagRules inventory.BagRules
 }
 
-func (s *Service) PlanPickup(role Role, session *Session, d *dungeon.Session, r protocol.PickupRequest) (PickupPlan, error) {
+// PlanAutoPickup 保留本地自动拾取的场景、物品归属及目录校验，不检查距离。
+func (s *Service) PlanAutoPickup(role Role, session *Session, d *dungeon.Session, object uint32) (PickupPlan, error) {
 	if session == nil || session.Catalog.Source.Checksum != s.Catalog.Source.Checksum || session.Rules.Model != s.Rules.Model {
 		return PickupPlan{}, (fmt.Errorf("pickup without loot session"))
 	}
-	drop, e := session.Owned(d, role.AccountID, role.ID, role.WireID, r.Object)
+	drop, e := session.Owned(d, role.AccountID, role.ID, role.WireID, object)
 	if e != nil {
 		return PickupPlan{}, (e)
 	}
@@ -68,6 +69,14 @@ func (s *Service) PlanPickup(role Role, session *Session, d *dungeon.Session, r 
 		}
 		awardCatalog, bagRules = session.Currency.StorageCatalog(s.Catalog), session.Currency.BagRules(s.BagRules)
 	}
+	return PickupPlan{Drop: drop, Catalog: awardCatalog, BagRules: bagRules}, nil
+}
+
+func (s *Service) PlanPickup(role Role, session *Session, d *dungeon.Session, r protocol.PickupRequest) (PickupPlan, error) {
+	plan, err := s.PlanAutoPickup(role, session, d, r.Object)
+	if err != nil || plan.Drop.BlackPurgatoryIndex != 0 {
+		return plan, err
+	}
 	distance := func(a, b uint16) int {
 		n := int(a) - int(b)
 		if n < 0 {
@@ -78,7 +87,7 @@ func (s *Service) PlanPickup(role Role, session *Session, d *dungeon.Session, r 
 	if distance(r.ActorX, r.DropX) > int(s.Rules.MaximumPickupX) || distance(r.ActorY, r.DropY) > int(s.Rules.MaximumPickupY) {
 		return PickupPlan{}, (fmt.Errorf("pickup request coordinates are too far apart"))
 	}
-	return PickupPlan{Drop: drop, Catalog: awardCatalog, BagRules: bagRules}, nil
+	return plan, nil
 }
 func (s *Service) PreparePickup(current Role, plan PickupPlan) (json.RawMessage, json.RawMessage, error) {
 	var result PickupReceipt
