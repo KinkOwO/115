@@ -36,7 +36,8 @@ func observedGameRequest(id uint16) bool {
 		return true
 	case 1722, 1725, 1811, 1852, 1881, 1950, 1951, 1960, 2015, 2062, 2079, 2139, 2177, 2179, 2258, 2259, 2261:
 		return true
-	case 2288:
+	case 2288, 2289:
+		// 2289 = 秘宝制作（SOLE_EQUIPMENT_CREATE）：已实现（同一个 sole_flow.go 的 raiseSoleCreate）。
 		// 2288 = 秘宝精度提升（SOLE_EQUIPMENT_QUALITY）：已实现（见 cmd/wireprobe/sole_flow.go）。
 		// 必须登记：否则第 BodySampleLimit(8) 次之后 verified 不再被计算，请求永远进不了处理器。
 		return true
