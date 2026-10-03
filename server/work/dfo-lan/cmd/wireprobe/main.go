@@ -6,6 +6,7 @@ package main
 
 import (
 	"dfolan/internal/channelrefresh"
+	"dfolan/internal/catalog"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -79,6 +80,40 @@ func runGateway(startup Config) error {
 		if err != nil {
 			return err
 		}
+		// 规则层直读：频道属性来自 etc/clientchannelinfo.etc，普通频道的 ID/Area/SourceValues
+		// 与 [dungeon] 区域表来自 etc/channel_info.etc。configs 只声明 {ID, Name}
+		// （外加必要的本地 Type 覆盖，见 channelrefresh.Config.Resolve）。
+		if prepared.channelDirectory == nil || prepared.channelInfo == nil {
+			return errors.New("频道目录需要 PVF 直读投影（preparePVFChannels 未装载）")
+		}
+		ordinary := map[uint32]catalog.ChannelInfoRow{}
+		if rows, ok := prepared.channelInfo.Rows(channelCfg.ServerID); ok {
+			for _, row := range rows {
+				ordinary[row.ID] = row
+			}
+		}
+		if err = channelCfg.Resolve(func(id uint32) (channelrefresh.ChannelAttributes, bool) {
+			// 普通频道优先：channel_info.etc 带 Area 与 11 个 SourceValues。
+			if row, ok := ordinary[id]; ok {
+				values := make([]int32, 0, len(row.SourceValues))
+				for _, s := range row.SourceValues {
+					v, convErr := strconv.ParseInt(s, 10, 32)
+					if convErr != nil {
+						log.Fatalf("频道 %d 的 SourceValue %q 不是整数", id, s)
+					}
+					values = append(values, int32(v))
+				}
+				return channelrefresh.ChannelAttributes{Type: row.Type, Area: row.Area, SourceValues: values}, true
+			}
+			// 特殊频道：clientchannelinfo.etc 给属性，源里没有区域与 SourceValues（用 [none] 与 0）。
+			if a, ok := prepared.channelDirectory.Attributes(id); ok {
+				return channelrefresh.ChannelAttributes{Type: a.Type, Area: "[none]", SourceValues: make([]int32, 11)}, true
+			}
+			return channelrefresh.ChannelAttributes{}, false
+		}); err != nil {
+			return err
+		}
+		channelCfg.Dungeons = prepared.channelInfo.AreaDungeons
 		for _, ch := range channelCfg.Channels {
 			channelTypes[ch.ID] = ch.Type
 		}

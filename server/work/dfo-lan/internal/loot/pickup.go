@@ -20,6 +20,8 @@ type Service struct {
 	Tables         Tables
 	Equipment      *inventory.EquipmentCatalog
 	CardPolicy     *CardRules
+	// Boxes 保存已导出的袖珍罐奖励与进度规则。
+	Boxes *BoxCatalog
 	// ChapterDrop 是章节最终领主的章节盒掉落（手册 P3 子项 3）。默认整表
 	// enabled=false，禁用行连掷骰种子都不消耗；由 profile 显式开启。
 	ChapterDrop *OdysseyChapterDrop
@@ -40,6 +42,17 @@ type PickupReceipt struct {
 	Award       Award
 	Destination uint16
 	Source      string
+}
+
+func (s *Service) Bootstrap(role Role) ([]byte, error) {
+	if role.ConfigVersion != s.Catalog.Source.SaveIdentity() {
+		return nil, fmt.Errorf("inventory source mismatch")
+	}
+	b, e := inventory.ReadBag(role.State)
+	if e != nil {
+		return nil, e
+	}
+	return protocol.InventoryRestore(b.Rows(), b.Expansion)
 }
 
 type PickupPlan struct {

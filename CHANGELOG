@@ -1,5 +1,22 @@
 # CHANGELOG
 
+## 2026-10-03：月湖（Moon Lake）单人副本移植到 gamedata 新架构（实机已验证）
+
+- 频道直读改造入新架构：internal/catalog/channel_directory.go（etc/clientchannelinfo.etc +
+  etc/channelslotinfo.etc）、channel_info.go（普通频道行）、channelrefresh.Resolve（configs 只声明
+  {ID, Name}，Type/Area/SourceValues 由直读补全）、town.go 特殊频道城镇 map 路径探测修复；
+  gamedata.Source 频道方法 ×3，configs/channel.local34.json 回瘦身版（16 行）。
+- gamedata 化：Catalogs 加 ChannelDirectory/ChannelInfo/ChannelTowns，preparePVFChannels 入
+  PrepareCatalogs 链（catalogs_channel.go）；gatewayRuntime 经 channelDirectory/channelInfo 传递，
+  main.go 频道段植入 Resolve；bootstrap moon 段从 loadMoonSoloConfig 改为 defaultMoonSoloConfig
+  直读推导（不再需要 -moon-solo-config 手工配置档）。
+- 月湖增量：moon_rewards.go 翻牌产出（装备 1..4 件权重 1/3/3/2 + 深渊门票 10362429×60 +
+  迷雾银币 10362432×15）、moon_solo_flow.go 进场链（红门 N15/N27、装备显示 N14、入图序列、
+  跨层交接）、依赖链 loot pickup/premium/box/contracts/consume 与 workflow loot_*。
+- 验证：Go 1.26 build/vet 全绿；Moon/Channel 测试族全绿（真源 inner.pvf）；实机单人次全流程通过：
+  Moon Lake 频道 → 215/1 落点 → 建队 → NPC Start → 一层五房清怪 → 红门换层 → 二层 → Boss →
+  翻牌（moon_clear_reward / moon_reward_inventory）→ 回城，events.jsonl 零错误。
+
 ## 2026-10-03：秘宝制作（CMD2289）移植到 gamedata 新架构（实机已验证）
 
 - 秘宝规则加载沿用上游 gamedata.Catalogs.SoleRules / InstallSoleEquipment，删除旧 cmd/wireprobe/pvf_sole.go；

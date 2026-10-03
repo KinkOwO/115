@@ -149,12 +149,55 @@ func TestMoonFloorHandoffRefusesOutsideWaitingArea(t *testing.T) {
 	}
 }
 
+// 等候区红门（C15）：只有 215/2 那一扇门由月湖接管，且未满足条件时必须走**否定回执**，
+// 而不是普通门那条「gate_ack + 空选图 N27」—— 后者实机表现是整屏黑屏后客户端强关连接
+// （2026-10-02 18:23:50 的日志：C15 → dungeon_gate_ack → 空 N27 → close）。
+func TestMoonPortalGateOnlyTakesTheWaitingArea(t *testing.T) {
+	// 月湖未启用（普通频道）：这扇门与月湖无关，必须留给普通门路径。
+	off := &worldSession{role: storage.Character{ID: 1, WireID: 7}}
+	off.state.Position = storage.WorldPosition{Town: 215, Area: 2}
+	if handled, _, _ := off.moonHandle(15, make([]byte, 8), time.Now(), nil); handled {
+		t.Fatal("月湖未启用时红门必须留给普通门路径")
+	}
+	w := &worldSession{role: storage.Character{ID: 1, WireID: 7}, moonConfig: &moonSoloConfig{Channel: 101}}
+	// 招募区 215/1：不是等候区，不能被这条分支吃掉。
+	w.state.Position = storage.WorldPosition{Town: 215, Area: 1}
+	if handled, _, _ := w.moonHandle(15, make([]byte, 8), time.Now(), nil); handled {
+		t.Fatal("招募区的门不该由月湖接管")
+	}
+	// 等候区 215/2、未建队 → 必须拒绝（上层 main.go 会转成 N15 Refusal(4)）。
+	w.state.Position = storage.WorldPosition{Town: 215, Area: 2}
+	handled, packets, e := w.moonHandle(15, make([]byte, 8), time.Now(), nil)
+	if !handled || e == nil || len(packets) != 0 {
+		t.Fatalf("未建队时必须拒绝：handled=%v packets=%v err=%v", handled, packets, e)
+	}
+	if !w.moon.prepared.IsZero() {
+		t.Fatal("被拒的红门不能启动倒计时")
+	}
+	// 已建队但副本/掉落资源不可用 → 同样走否定通道，绝不发选图 N27。
+	w.moon.created = true
+	if handled, packets, e = w.moonHandle(15, make([]byte, 8), time.Now(), nil); !handled || e == nil || len(packets) != 0 {
+		t.Fatalf("资源不可用时必须拒绝：handled=%v packets=%v err=%v", handled, packets, e)
+	}
+	if !w.moon.prepared.IsZero() {
+		t.Fatal("资源校验没过就启动了倒计时")
+	}
+	// 回执形状：门应答的否定回执是 3 字节 Refusal(4)（0x00 + u16 4）。
+	refusal := moonRefusal(15, make([]byte, 8))
+	if len(refusal) != 1 || refusal[0].Kind != 1 || refusal[0].ID != 15 || len(refusal[0].Payload) != 3 {
+		t.Fatalf("红门拒绝回执形状：%+v", refusal)
+	}
+	if refusal[0].Payload[0] != 0 || binary.LittleEndian.Uint16(refusal[0].Payload[1:]) != 4 {
+		t.Fatalf("红门拒绝必须是 Refusal(4)，得到 %x", refusal[0].Payload)
+	}
+}
+
 // 换层帧序：跨副本交接排在本人资料与 N27 之前，N27 恰好一次；
 // 首次进场（floor=false）与普通同层移动的顺序保持不变。
 func TestMoonEntryPlanFloorHandoffOrder(t *testing.T) {
 	parts := moonEntryParts{
 		Handoff: []outboundPacket{{"h_wait", 0, 23, []byte{1}}, {"h_users", 0, 24, []byte{2}}, {"h_off", 0, 23, []byte{3}}},
-		Basic:   []byte{4}, Addition: []byte{5}, State: []byte{6}, Roster: []byte{7},
+		Basic:   []byte{4}, Addition: []byte{5}, Worn: []byte{11}, State: []byte{6}, Roster: []byte{7},
 		Dungeon: []byte{8}, Map: []byte{9}, MoonInfo: outboundPacket{"moon_info", 0, 2622, []byte{10}},
 	}
 	ids := func(p []outboundPacket) []uint16 {
@@ -165,7 +208,9 @@ func TestMoonEntryPlanFloorHandoffOrder(t *testing.T) {
 		return out
 	}
 	up := moonEntryPlan(true, parts)
-	want := []uint16{2281, 23, 24, 23, 2, 2, 27, 3, 9, 28, 29, 2622}
+	// 换层：N2281 → 区域交接 → 本人资料(2/2/14) → N27 → N3/N9 → N28/N29 → N2622。
+	// N14 是穿戴窗口，与普通副本入图（2 → 2 → 14）同序，缺了它装备栏不刷新。
+	want := []uint16{2281, 23, 24, 23, 2, 2, 14, 27, 3, 9, 28, 29, 2622}
 	if got := ids(up); len(got) != len(want) {
 		t.Fatalf("floor handoff plan = %v, want %v", got, want)
 	} else {
@@ -189,7 +234,7 @@ func TestMoonEntryPlanFloorHandoffOrder(t *testing.T) {
 		t.Fatalf("N27 sent %d times on the floor handoff", select27)
 	}
 	first := moonEntryPlan(false, parts)
-	wantFirst := []uint16{2, 2, 3, 9, 27, 28, 29, 2622}
+	wantFirst := []uint16{2, 2, 14, 3, 9, 27, 28, 29, 2622}
 	if got := ids(first); len(got) != len(wantFirst) {
 		t.Fatalf("first-entry plan = %v, want %v", got, wantFirst)
 	} else {

@@ -35,6 +35,9 @@ type Catalogs struct {
 	AwakeningRules                               *catalog.EquipmentAwakeningRules
 	AwakeningOptions                             *catalog.EquipmentAwakeningOptions
 	SoleRules                                    *catalog.SoleEquipmentRules
+	ChannelDirectory                             *catalog.ChannelDirectory
+	ChannelInfo                                  *catalog.ChannelInfo
+	ChannelTowns                                 map[uint32]catalog.TownArea
 	RosterBackgrounds                            *character.RosterBackgroundTicketCatalog
 	OdysseyRoutes                                *catalog.OdysseyJournalRoutes
 	SeasonRules                                  *adventure.SeasonRules
@@ -622,6 +625,9 @@ func PrepareCatalogs(inputs CatalogInputs, adapters CatalogAdapters) (*Catalogs,
 		return &result, err
 	}
 	if err := preparePVFSoleEquipment(&result, source); err != nil {
+		return &result, err
+	}
+	if err := preparePVFChannels(&result, source); err != nil {
 		return &result, err
 	}
 	if err := preparePVFItemShops(&result, source, selected, inputs); err != nil {
