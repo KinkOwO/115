@@ -389,3 +389,23 @@ func TestPVFItemShopsLocalArchive(t *testing.T) {
 	}
 	t.Logf("%d shops / %d source offers and complete first-payable/amount/limit lookup match", len(s.Shops), count)
 }
+
+func TestPVFWorldIncludesNativeFavorRules(t *testing.T) {
+	path := os.Getenv("DFO_PVF_CORE_TEST_ARCHIVE")
+	if path == "" {
+		t.Skip("set DFO_PVF_CORE_TEST_ARCHIVE")
+	}
+	s, err := Open(Options{Mode: PVF, ArchivePath: path, DerivedCacheDir: t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	w, err := s.World("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if w.Favor == nil || w.Favor.Source != s.Snapshot().Checksum || w.Favor.GiftCount != 100 || len(w.Favor.Gifts) != 6 || w.Favor.MaxPoint() != 1500 {
+		t.Fatal("world did not prepare native favor rules")
+	}
+	t.Logf("world source=%s native favor source=%s", w.Source.Checksum, w.Favor.Source)
+}

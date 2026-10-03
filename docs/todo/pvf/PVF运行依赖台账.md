@@ -1,5 +1,11 @@
 # PVF 运行依赖台账（第 0 批）
 
+## 2026-10-03：好感度消费者改为 ETC 规则驱动（源码候选）
+
+重复定义：`etc/npcfavorsystem.etc` 的 `[favor condition level]`、`[favor gift item count]`、`[favor gift limit]`、`[favor level point up]`、`[favor level point down]`，此前又写在 `cmd/wireprobe/favor_flow.go` 的常量、礼物 switch 与门槛数组中。现由同一 `gamedata.Source.World` 准备 `catalog.NPCFavorRules`，世界服务的好感度消费者读取原生规则；缺少规则明确拒绝，网关不保留内容 fallback。既有协议处理、账号材料事务与用户明确要求的取消每日送礼次数限制保持。源表里的衰减数值随规则保留，本轮没有新增衰减执行。
+
+实际 PVF `8b2a9f83…` 核验 6 种礼物、3 档门槛、20 级开放及每次 100 个材料，源脚本 SHA256 `a0d575f6c8d7e63223b814c3465489497f7af3236673e8fa5ce5992be6fa3f65`。测试改变源等级、数量、范围和门槛，验证规则随源变化；网关等级检查与缺源拒绝专项通过。Go 1.26.5 全量测试和 vet、真实 PVF 解析与统一 Source 世界准备专项通过。正式程序未替换，没有启动客户端或访问玩家库，不扩大 confirmed baseline。JSON 文件数仍为 62，本轮移除的是 Go 重复规则。
+
 ## 2026-10-03：COS 礼盒清单由 PVF 自动发现（源码候选）
 
 移除 `pvf-box-policy.json` 的 `templates` 和 `cos_paths` 两份内容清单。统一 Source 的盒子导入器遍历当前归档 `.cos`，按现有原生 lot-group 标签选择已支持语法，由 `[material]` 关联原生 stackable 索引，并核验普通/增强光辉宝盒动作。解析错误、重复材料绑定、缺失物品或不支持的动作明确失败；不猜文件名，不新增奖励或概率规则。policy 只保留版本、槽位及缺失堆叠上限兼容值；旧清单字段由严格 JSON 解码拒绝，部署源码候选须同时更新 policy。

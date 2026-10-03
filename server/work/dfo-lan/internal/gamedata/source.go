@@ -282,7 +282,12 @@ func (s *Source) World(path string) (catalog.WorldCatalog, error) {
 	if s.mode != PVF {
 		return catalog.WorldCatalog{}, fmt.Errorf("world requires native PVF")
 	}
-	return catalog.ImportWorldRuntime(s.archive)
+	w, err := catalog.ImportWorldRuntime(s.archive)
+	if err != nil {
+		return w, err
+	}
+	w.Favor, err = catalog.ImportNPCFavorRules(s.archive)
+	return w, err
 }
 
 func (s *Source) Quests(path string) (catalog.QuestCatalog, error) {
