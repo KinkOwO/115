@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## 2026-10-03：黄龙/银龙大会四轮流程已确认
+
+- 首场CMD39后客户端发送CMD33；旧剧情收尾路径把它当作整场通关并立即结算。现有大会运行只接受最终BossCheck完成，未完成时忽略CMD33，不写任务清除证据；四轮Bracket、普通副本Boss错位兼容及最终奖励协议保持。
+- 角色10 gene手动实测黄龙副本100003298和银龙副本100003299：各四名对手逐场确认死亡，前三轮CMD33均继续下一场，第四轮后才发Boss确认、NOTI31及NOTI374；两次CMD450领奖均ACK。黄龙13784在实测前回退至accepted/progress1，银龙13785正常接取；实测后黄龙任务行逐字段恢复原值，其他物品和奖励保留。
+- confirmed baseline 候选 `server/work/dfo-lan/.tmp/tournament-rounds-20261003/wireprobe-tournament-rounds.exe` SHA256 `0d956338390f5f1332ed1f9bb0eacafe07510640461761cda01f53f19681a070`，使用同目录 `启动验证.cmd`。默认PVF程序和39版归档基准保留。全量Go测试、vet、当前PVF两项原生四轮回归和54域准备检查通过；详见`server/work/dfo-lan/docs/protocol/tournament-round-completion-20261003.md`。
+
+## 2026-10-03：雾都赫伊斯 Hell Party 入场已确认
+
+- 修复副本92 DGN在两张普通迷宫重复写入相同 Hell 配置、服务端把同名段拼接后误判无定义的问题。逐段比较所有副本声明；仅全部相同才恢复单份，冲突及空/损坏段保持拒绝。
+- 用户确认副本92 Hell Party 可以进入。18:36:43手动会话 `roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261003_183234_180122_next37` 记录Mode1请求与成功ACK，18:39:19 `dungeon_session_started` 记录封印地图60056、maze0。确认候选SHA256 `f31c611c33956867beaf091ad8baccf87e08b11f0ee69d1057fa10d7a1dd503e` 纳入本轮confirmed baseline；独立入口 `.tmp/hellparty-heiz-20261003/启动验证.cmd`，默认程序未替换。
+- Go全量测试、vet及54域PVF准备通过。本轮当前源有66个Hell声明，65个资源存在且入口基础检查可通过；缺图副本100005110仍拒绝。验收仅确认副本92入场，不扩展成全部副本逐项实测或柱子/波次/掉落确认。无schema、玩家存档或客户端资源改动。详见 `server/work/dfo-lan/docs/protocol/hell-party-haze-entry-20261003.md`。
+
 ## 2026-10-03 next79 基线1：单机可重复挑战已实机确认
 - 用户多次确认完整通关可重复挑战，中途退出后重新组队也正常。通关回待机区后的次数恢复纳入“基线1”；EXE SHA256 `854cbe1d8c1738f6ff46f6ad1a356d614fa44900e77f5d284589a5a23c8720c9`。
 - 程序备份保存于 `server/work/dfo-lan/runtime/baselines/next79-baseline1-unlimited/wireprobe-pvf.exe`，不混入玩家数据库；已记录恢复方式。专项及vet通过，全量仍4项既有失败。
@@ -115,6 +127,7 @@
   - **登录期 N2254**：Ispins 频道（类型 81）角色选择后 1.1s 推送官服 f257 原文（延迟原因同好感度 NOTI733：子系统未就绪会丢包）。
   - **v1 已知限制**：① CMD2047-A 选择 token 未解，阶段固定按官服默认顺序（nemaug→nagor→ashcore→itrenog）推进，玩家在 UI 换序会被拒绝（错误信息注明原因）；② 结算不发 N2168/N14（无成就源、奖励不落库存），奖励仅 UI 展示；③ N2254 条目 flag（7f/00）语义未解，照抄官服值；④ CMD2059 局内复活未实现。待实机验收后逐项补解。
   - **验证**：`go build ./cmd/... ./internal/...`、`go vet` 通过；`internal/legion` 单测全过（官体 golden 向量、19 状态模板、阶段记录断言、ACK 字段、奖励 zlib 往返、22 个回放帧尺寸）。cmd/wireprobe 三个 PVF 审计测试失败为**预先存在**（未跟踪的 adventure 迁移半成品文件，与本任务无关）。
+
 ## 2026-10-03：月湖与秘宝上游合并冲突收敛（源码合并）
 
 - 合入上游 main `c7a5801`；CHANGELOG 保留本地 Hell Party/奥德赛与上游月湖/秘宝制作的全部新增记录和既有 confirmed baseline 信息。

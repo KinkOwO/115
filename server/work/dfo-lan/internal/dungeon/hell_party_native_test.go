@@ -96,4 +96,39 @@ func TestHellPartyCurrentPVFEntryCoverage(t *testing.T) {
 	if _, err = dungeon.Select(c, r, 115, nil); err != nil {
 		t.Fatalf("captured dungeon87 request: %v", err)
 	}
+	// 2026-10-03 18:16:28: Haze's two ordinary mazes repeat the same
+	// Hell declaration. The old scalar parser concatenated both copies.
+	body, _ = hex.DecodeString("5c0000000200000100ffff000000000000000000000000000000000000000000")
+	r, err = protocol.DecodeDungeonSelection(body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	withRules := c
+	withRules.HellRules, err = source.HellPartyRules()
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, err := dungeon.Select(withRules, r, 115, nil)
+	if err != nil {
+		t.Fatalf("captured dungeon92 request: %v", err)
+	}
+	if s.HellPosition == nil || *s.HellPosition != [2]byte{1, 2} {
+		t.Fatalf("Haze Hell coordinate=%v", s.HellPosition)
+	}
+	if s.HellParty == nil || s.HellParty.Map != 60056 || len(s.HellParty.Rows) == 0 {
+		t.Fatal("Haze entry lost its owned Hell wave roster")
+	}
+	r.Mode = 0
+	normal, err := dungeon.Select(c, r, 115, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if normal.HellPosition != nil {
+		t.Fatal("ordinary Haze entry enabled Hell")
+	}
+	for _, room := range normal.Maze.Rooms {
+		if [2]byte{room.X, room.Y} == [2]byte{1, 2} && room.Map != 95155 {
+			t.Fatalf("ordinary Haze room changed: %+v", room)
+		}
+	}
 }

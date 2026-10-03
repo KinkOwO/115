@@ -1,5 +1,16 @@
 # AGENTS.md — server/
 
+## 2026-10-03：黄龙/银龙大会四轮流程已确认
+
+- 用户反馈首场CMD33触发剧情式最终结算。已在未完成Tournament时禁止SceneClearObjective写入任务地图通关证据，并由`MarkSceneCompleted`守卫，前三场保留已有回合推进，第四场按最终BossCheck进入原结算流程。
+- 角色10 gene在19:09—19:11手动实测：黄龙100003298和银龙100003299各四轮；前三场每次CMD33后继续战斗，第四场后才出现Boss确认、NOTI31与NOTI374。两个卡牌选择均获CMD450 ACK。该范围确认两个任务副本的完整四轮与领奖路径。
+- confirmed baseline 为独立候选 `work/dfo-lan/.tmp/tournament-rounds-20261003/wireprobe-tournament-rounds.exe`，SHA256 `0d956338390f5f1332ed1f9bb0eacafe07510640461761cda01f53f19681a070`；profile及`启动验证.cmd`位于同目录，默认`wireprobe-pvf.exe`与`wireprobe-dungeon39.exe`保持。测试后角色10/13784任务原行已逐字段恢复，银龙按正常流程接取；未改schema、客户端或PVF。全量`go test ./...`、`go vet ./...`、当前PVF专项和54域准备通过。记录见`work/dfo-lan/docs/protocol/tournament-round-completion-20261003.md`。
+
+## 2026-10-03：雾都赫伊斯 Hell Party 入场已确认
+
+- 修复副本92 DGN重复声明相同Hell字段后被合并而丢失的问题；同值才合并，冲突字段保持拒绝。
+- 用户确认可进入。18:36:43手动会话记录副本92 Mode1选择及成功ACK，18:39:19进入封印地图60056。confirmed baseline 候选SHA256 `f31c611c33956867beaf091ad8baccf87e08b11f0ee69d1057fa10d7a1dd503e`，入口 `.tmp/hellparty-heiz-20261003/启动验证.cmd`；默认程序未替换。
+- 全量Go测试、vet和54域准备通过。验收限副本92进入，不扩展为全部副本逐一实测。详见 `work/dfo-lan/docs/protocol/hell-party-haze-entry-20261003.md`。
 
 ## 2026-10-03：Hell Party 波次与装备掉落已确认
 
