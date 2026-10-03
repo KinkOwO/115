@@ -1,5 +1,13 @@
 # PVF 运行依赖台账（第 0 批）
 
+## 2026-10-03：COS 礼盒清单由 PVF 自动发现（源码候选）
+
+移除 `pvf-box-policy.json` 的 `templates` 和 `cos_paths` 两份内容清单。统一 Source 的盒子导入器遍历当前归档 `.cos`，按现有原生 lot-group 标签选择已支持语法，由 `[material]` 关联原生 stackable 索引，并核验普通/增强光辉宝盒动作。解析错误、重复材料绑定、缺失物品或不支持的动作明确失败；不猜文件名，不新增奖励或概率规则。policy 只保留版本、槽位及缺失堆叠上限兼容值；旧清单字段由严格 JSON 解码拒绝，部署源码候选须同时更新 policy。
+
+实际内层 PVF `8b2a9f83…` 有 1,434 个 COS 文件，发现的两个宝盒保持 54 种奖励、58 份来源记录；完整 Tables/Rewards 与保留历史对照一致。Go 1.26.5 全量测试、vet 及实际 PVF 专项通过。顶层 JSON 仍为 62 个，本轮收敛的是字段和源绑定，不是删除文件。奥德赛补充物品、按难度选择货币及掉落概率仍保留，尚未建立完整原生关系替代证据。
+
+confirmed baseline 保持已有实机范围；没有改存档、数据库或客户端，正式程序未替换。
+
 ## 2026-10-03：四份无当前消费者的内容导出删除
 
 本轮实际删除 `black-purgatory-rewards.json`、`bleeding-mine-rewards.json`、`town.generated.json`、`dungeons.terminal-scenes.json`，共 826,529 字节（约 0.79 MiB），顶层 JSON **66→62**。四域现有原生读取保持，隐式历史 baseline 依赖退休；towncatalog 只读统一 Source，诊断导出要求显式输出。没有新增整表压缩快照；城镇条目从两份历史交付清单同步移除，其它旧条目不重生成。

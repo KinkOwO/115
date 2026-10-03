@@ -5,6 +5,7 @@ import (
 	"dfolan/internal/inventory"
 	"dfolan/internal/testfixture"
 	"os"
+	"reflect"
 	"runtime"
 	"testing"
 )
@@ -51,6 +52,22 @@ func TestPVFBoxesLocalArchive(t *testing.T) {
 	b, err := c.LoadBoxes("missing-boxes.json", c.Items.Source.Checksum)
 	if err != nil || b.TableCount() != 2 || b.RewardCount() != 54 {
 		t.Fatal("native boxes unavailable", err)
+	}
+	legacy, err := inventory.LoadBoxes("../../configs/boxes.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The historical JSON emits [] for an absent bonus section; native scripts
+	// use nil. Normalize that representation, retaining every populated row.
+	for _, table := range legacy.Tables {
+		for j := range table.PointStacks {
+			if len(table.PointStacks[j].SectionReward) == 0 {
+				table.PointStacks[j].SectionReward = nil
+			}
+		}
+	}
+	if !reflect.DeepEqual(legacy.Tables, b.Tables) || !reflect.DeepEqual(legacy.Rewards, b.Rewards) {
+		t.Fatal("native discovery changed the complete box tables or reward layout")
 	}
 	if b.Tables["590712474"].PointStacks[1].SectionReward[0].Template != 590722560 || b.Tables["590719043"].PointStacks[1].SectionReward[0].Template != 590719045 {
 		t.Fatal("same-name COS material owners confused")
