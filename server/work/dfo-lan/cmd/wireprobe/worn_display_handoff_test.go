@@ -4,16 +4,21 @@ import "testing"
 
 func TestHandoffWornVisualsAfterEntry(t *testing.T) {
 	p := entryPayloads{WornUpdate: []byte{3, 1, 0}}.packets()
-	// The worn visual refresh is followed by the actor appearance frame, and
-	// the character option block (NOTI2827) is appended after those when one
+	// The worn visual refresh is followed by the actor appearance frame. The
+	// quest list block (342/21/2310) must ride AFTER that actor rebuild — the
+	// NOTI342 handler only inserts the completed set once the quest manager
+	// the actor install creates exists, and an earlier copy left the set
+	// empty (live 2026-10-03: review page near-blank, legion gate popup).
+	// The character option block (NOTI2827) is appended after those when one
 	// is configured, because this client crashes on town entry when 2827
 	// arrives early.
 	end := len(p)
 	if len(p) > 0 && p[len(p)-1].ID == 2827 {
 		end--
 	}
-	if end < 1 || p[end-1].Kind != 0 || p[end-1].ID != 2 {
-		t.Fatal("actor appearance must be the final data frame")
+	if end < 4 || p[end-4].Kind != 0 || p[end-4].ID != 2 ||
+		p[end-3].ID != 342 || p[end-2].ID != 21 || p[end-1].ID != 2310 {
+		t.Fatal("entry tail must be actor appearance followed by the quest block 342/21/2310")
 	}
 	complete := -1
 	for i, q := range p[:end] {

@@ -25,6 +25,9 @@ type clientDispatchStage func(*gameConnection, *clientRequest) dispatchAction
 
 // Order is part of the routing contract; the type gate stays between the lists.
 var beforeClientTypeDispatch = [...]clientDispatchStage{
+	// dispatchIspins 必须首位（next79）：伊斯族 CMD2043/2045/2046 与末世录
+	// 共用信封、按内容号分流，终局剧情 191 也须先于通用 191 处理器。
+	(*gameConnection).dispatchIspins,
 	(*gameConnection).dispatchSpecialContent,
 	(*gameConnection).dispatchCashshopAndBoxes,
 	(*gameConnection).dispatchStoryAndAdvancement,

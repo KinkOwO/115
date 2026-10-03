@@ -22,14 +22,17 @@ type Session struct {
 	Difficulty byte
 	// HellPosition is the current DGN's sealed Hell Party room, advertised in
 	// NOTI28. Nil retains the native absent sentinel (255,255).
-	HellPosition *[2]byte
-	Definition   catalog.DungeonDefinition
-	Maze         catalog.DungeonMaze
-	Room         catalog.DungeonRoom
-	Monsters     []protocol.DungeonMonster
-	Tournament   *TournamentRun
-	Loaded       bool
-	Dead         map[uint16]bool
+	HellPosition   *[2]byte
+	HellParty      *HellPartyRun
+	HellClearSent  bool
+	hellLastDeaths map[[2]uint16]uint16
+	Definition     catalog.DungeonDefinition
+	Maze           catalog.DungeonMaze
+	Room           catalog.DungeonRoom
+	Monsters       []protocol.DungeonMonster
+	Tournament     *TournamentRun
+	Loaded         bool
+	Dead           map[uint16]bool
 	// 沉月湖（Moon Lake）单人攻坚状态。只有该频道启用了 moonConfig 时才会被写入，
 	// 普通副本与军团全程保持零值。
 	MoonFirstGrid                     [5]byte
@@ -66,6 +69,15 @@ type Session struct {
 	completed                   bool
 	lotusClosingReached         bool
 	terminalSceneClosingReached bool
+	// ArenaBoss 声明「进图房间本身就是这场战斗的 boss 竞技场」：军团阶段本
+	// （伊斯大陆 nemaug/nagor/ashcore/itrenog）的源迷宫里 [boss map] 是未被
+	// 使用的源元数据（100002987 迷宫 0 的 boss 坐标在 (0,0)/100006472），
+	// 而官服实证（s4 帧 451/550）把玩家放进 [start map] 房间 (1,1)/100006476
+	// 并在那里开打、在那里结算 —— N28 仍回源迷宫的 boss 坐标。该标志只放宽
+	// BossCheck/完成判定的「房间归属」守卫，目标仍必须是房内真实存在的源领主
+	// （rank3 / APC，team≠0），不会把任意小怪当 boss 放行。只由军团阶段入场
+	// 路径（cmd/wireprobe ispins_flow）置位，普通副本恒为零值。
+	ArenaBoss                  bool
 	// sceneDiagnostic 记录最近一次场景换图走了哪条判定分支，仅供排查（见 SceneDiagnostic）。
 	sceneDiagnostic string
 	// layerRecord 是客户端主动进当前层图时带来的换图记录（见 SceneEntryRecord）。
@@ -102,11 +114,6 @@ func Select(c catalog.DungeonCatalog, r protocol.DungeonSelection, level byte, a
 		return nil, fmt.Errorf("unsupported dungeon option")
 	}
 	if r.Mode == 1 {
-		// Attempt 1/3 is a native-vector probe for Trombe (CMD16 ID 103).
-		// Other DGN seal positions have not yet been exercised on this client.
-		if r.ID != 103 {
-			return nil, fmt.Errorf("Hell Party entry is not yet verified for this dungeon")
-		}
 		if d.HellParty == nil || d.HellParty.SealMap == 0 {
 			return nil, fmt.Errorf("Hell Party is absent from this dungeon source")
 		}
@@ -127,28 +134,9 @@ func Select(c catalog.DungeonCatalog, r protocol.DungeonSelection, level byte, a
 	}
 	selected := chosen
 	if r.Mode == 1 {
-		position := d.HellParty.SealPosition
-		if position == selected.Start || position == selected.Boss {
-			return nil, fmt.Errorf("Hell Party seal room conflicts with source start or boss")
-		}
-		selected.Rooms = append([]catalog.DungeonRoom(nil), selected.Rooms...)
-		seal := catalog.DungeonRoom{X: position[0], Y: position[1], Map: d.HellParty.SealMap}
-		found := false
-		for i, room := range selected.Rooms {
-			if [2]byte{room.X, room.Y} == position {
-				selected.Rooms[i] = seal
-				found = true
-				break
-			}
-		}
-		if !found {
-			selected.Rooms = append(selected.Rooms, seal)
-		}
-		if selected.Size[0] <= position[0] {
-			selected.Size[0] = position[0] + 1
-		}
-		if selected.Size[1] <= position[1] {
-			selected.Size[1] = position[1] + 1
+		selected, err = hellPartyMaze(chosen, *d.HellParty)
+		if err != nil {
+			return nil, err
 		}
 	}
 	s, err := newSession(c, d, selected)
@@ -160,6 +148,19 @@ func Select(c catalog.DungeonCatalog, r protocol.DungeonSelection, level byte, a
 	if r.Mode == 1 {
 		position := d.HellParty.SealPosition
 		s.HellPosition = &position
+		if c.HellRules != nil {
+			s.HellParty, err = newHellPartyRun(c, s, func(total uint64) (uint64, error) { n, e := randomUint64(); return n % total, e })
+			if err != nil {
+				return nil, err
+			}
+			if s.Room.Map == s.HellParty.Map {
+				s.Monsters = append(s.Monsters, s.HellParty.Rows...)
+				if len(s.Monsters) > 255 {
+					return nil, fmt.Errorf("Hell room roster exceeds native count")
+				}
+				s.Visited[s.Room.Map] = s.Monsters
+			}
+		}
 	}
 	if tournamentDungeon(d) {
 		script, err := c.MapScript(s.Room.Map)
@@ -379,6 +380,7 @@ func (s *Session) ConfirmDeath(entity uint32, killer, actor uint16) (bool, error
 				s.Unowned[m.Entity] = true
 			}
 			s.Dead[m.Entity] = true
+			s.recordHellDeath(m.Entity)
 			if s.Tournament != nil {
 				s.Tournament.CurrentRound++
 			}
@@ -397,6 +399,11 @@ func (s *Session) ConfirmDeath(entity uint32, killer, actor uint16) (bool, error
 	// 只加一道守卫：值必须落在正常的 entity 空间里。服务端投放的怪从 4096 起
 	// （fixedMonsters 用 4096 + index），客户端本地召唤的怪共享同一空间；明显无效的
 	// 值（如 100）仍然拒绝，既有契约不变。
+	if s.HellParty != nil && entity <= 65535 {
+		if _, reserved := s.HellParty.Actors[uint16(entity)]; reserved {
+			return false, fmt.Errorf("Hell actor outside current seal room")
+		}
+	}
 	if entity < 4096 {
 		return false, fmt.Errorf("monster absent from current source room")
 	}
@@ -526,6 +533,12 @@ func (s *Session) enterRoom(c catalog.DungeonCatalog, room catalog.DungeonRoom) 
 			}
 			monsters[i].Entity = next.NextEntity
 			next.NextEntity++
+		}
+	}
+	if !seen && next.HellParty != nil && room.Map == next.HellParty.Map {
+		monsters = append(monsters, next.HellParty.Rows...)
+		if len(monsters) > 255 {
+			return nil, fmt.Errorf("Hell room roster exceeds native count")
 		}
 	}
 	// Harvest only map-native friendly APCs. Ordinary team-0 cinematic

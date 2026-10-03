@@ -1,5 +1,164 @@
 # CHANGELOG
 
+## 2026-10-03：副本经验与难度接线已确认
+
+- 击杀与通关经验使用本次副本的实际难度，0/1取PVF首档、2..5取后续档；当前源系数为1.30/2.00/2.50/3.00/4.00，评级经验随通关基础变化。保留原兼容公式与事件幂等，无schema或客户端修改。
+- Go 1.26全量测试、vet、事务重放/存档字段保留专项及54域PVF准备通过。旧charactercheck缺account_unified_options表，HEAD原代码overlay同样失败。
+- 用户确认不同副本难度获得的经验不同；确认版为独立候选 `.tmp/difficulty-exp-20261003/wireprobe-difficulty-experience.exe`，SHA256 `6cce9f0462d25093fabec8c932a43d4e21bf4f90ee2b25b6d9741dfb9bcc6e0f`，同目录入口 `启动验证.cmd`。验收范围限本次用户实测，不推定所有副本逐项验证。详见 `server/work/dfo-lan/docs/protocol/dungeon-experience-difficulty-20261003.md`。
+
+## 2026-10-03：黄龙/银龙大会四轮流程已确认
+
+- 首场CMD39后客户端发送CMD33；旧剧情收尾路径把它当作整场通关并立即结算。现有大会运行只接受最终BossCheck完成，未完成时忽略CMD33，不写任务清除证据；四轮Bracket、普通副本Boss错位兼容及最终奖励协议保持。
+- 角色10 gene手动实测黄龙副本100003298和银龙副本100003299：各四名对手逐场确认死亡，前三轮CMD33均继续下一场，第四轮后才发Boss确认、NOTI31及NOTI374；两次CMD450领奖均ACK。黄龙13784在实测前回退至accepted/progress1，银龙13785正常接取；实测后黄龙任务行逐字段恢复原值，其他物品和奖励保留。
+- confirmed baseline 候选 `server/work/dfo-lan/.tmp/tournament-rounds-20261003/wireprobe-tournament-rounds.exe` SHA256 `0d956338390f5f1332ed1f9bb0eacafe07510640461761cda01f53f19681a070`，使用同目录 `启动验证.cmd`。默认PVF程序和39版归档基准保留。全量Go测试、vet、当前PVF两项原生四轮回归和54域准备检查通过；详见`server/work/dfo-lan/docs/protocol/tournament-round-completion-20261003.md`。
+
+## 2026-10-03：雾都赫伊斯 Hell Party 入场已确认
+
+- 修复副本92 DGN在两张普通迷宫重复写入相同 Hell 配置、服务端把同名段拼接后误判无定义的问题。逐段比较所有副本声明；仅全部相同才恢复单份，冲突及空/损坏段保持拒绝。
+- 用户确认副本92 Hell Party 可以进入。18:36:43手动会话 `roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261003_183234_180122_next37` 记录Mode1请求与成功ACK，18:39:19 `dungeon_session_started` 记录封印地图60056、maze0。确认候选SHA256 `f31c611c33956867beaf091ad8baccf87e08b11f0ee69d1057fa10d7a1dd503e` 纳入本轮confirmed baseline；独立入口 `.tmp/hellparty-heiz-20261003/启动验证.cmd`，默认程序未替换。
+- Go全量测试、vet及54域PVF准备通过。本轮当前源有66个Hell声明，65个资源存在且入口基础检查可通过；缺图副本100005110仍拒绝。验收仅确认副本92入场，不扩展成全部副本逐项实测或柱子/波次/掉落确认。无schema、玩家存档或客户端资源改动。详见 `server/work/dfo-lan/docs/protocol/hell-party-haze-entry-20261003.md`。
+
+## 2026-10-03 next79 基线1：单机可重复挑战已实机确认
+- 用户多次确认完整通关可重复挑战，中途退出后重新组队也正常。通关回待机区后的次数恢复纳入“基线1”；EXE SHA256 `854cbe1d8c1738f6ff46f6ad1a356d614fa44900e77f5d284589a5a23c8720c9`。
+- 程序备份保存于 `server/work/dfo-lan/runtime/baselines/next79-baseline1-unlimited/wireprobe-pvf.exe`，不混入玩家数据库；已记录恢复方式。专项及vet通过，全量仍4项既有失败。
+- 新增“每周一次/单机无限”配置和军团频道重新选角任务门禁为后续候选，不扩大此已确认范围。
+
+## 2026-10-03 next79：伊斯四阶段完整流程已实机确认
+- 用户确认100%走通：建队、变更作战、四阶段战斗结算、最后动画、右上角回城、退出队伍全部正常。动画完成保留结算归属、CMD13离队通知修复纳入confirmed baseline。
+- 源码/默认EXE SHA256 `de16748a507b07ae269206f71fc5a5265e87353aa9a74f0f60f26907c92c5686`；专项及vet通过，全量仍4项既有失败。未改数据库结构/玩家存档/客户端资源。
+- 按用户单机重复挑战提议，完成后恢复次数为新的候选，不扩大本次已确认范围；奖励持久化仍未在本轮验证。
+
+## 2026-10-03 next79：四阶段战斗与结算、阶段间回城已实机确认
+- 用户确认四个副本均可战斗并完成结算。14:41会话依次进入stage0..3并完成CMD2046；stage1的focus→正式CMD72正常回城，提前清副本状态问题已确认修复。
+- 默认/源码EXE SHA256 `925f6b74998725998891346d1fac881fe51c33df212d5a924d0f3d9211b2bda3` 纳入confirmed baseline；专项、vet通过，全量仍4项既有失败。
+- 最终动画后右上角回城、退出队伍仍未确认，独立排查§32；不扩大为奖励持久化或所有离场入口已完成。
+
+## 2026-10-03 next79：变更作战与前两阶段 Boss 结算已实机确认
+- 用户确认变更作战生效、Boss 结算及奖励发放界面生效。14:23会话记录 action4 后重新确认；stage0/1 均到 CMD1654→CMD2046，stage0 正式 CMD72 回待机成功。
+- 固定长奖励体及本地原生角色资料修复纳入本次 confirmed baseline；源码/默认 EXE SHA256 `b3fc95409ac600108030221ea69fdb0d5c83bf7180559394b703be4cb1aa82c9`。专项及 vet 通过，全量仍4项已对照确认的既有失败。
+- 确认范围不含四阶段全通、奖励入库/重登保持和后续难度数值映射。stage1 回城出现 focus 请求提前清会话的新缺陷，另行修复；详见 `server/work/dfo-lan/docs/protocol/next79-confirmed-baseline-20261003.md`。
+
+## 2026-10-03（03:52·第十六轮）待机区闪退根因闭环：快捷栏同模板双行（findItemSlot 死循环）+ N2254 待机体对齐（已发布，实测进入成功）
+- **根因（三方证据闭环）**：032305 会话 client_trace 79,374 次 findItemSlot fail - multiple slot issues - itemIndex 10418028（城镇 140-320 次/秒、待机区 112 次/秒跑满 11 分钟至崩，场景永不完成）；psql 实证 char 7 背包双行 slot 3 ×12（belt）+ slot 75 ×40（[waste] 药水，无显式上限）。成因链：CMD19 把堆拖上快捷栏后，Add/addStackable/AddMailItem 的合并扫描只认类型段 65..120，belt 行永远收不到合并 → 后续发放段内另起一叠；SweepStackSlots 的 slot<=8 豁免使 belt 脏行永久幸存。
+- **修复**：① SweepStackSlots belt 行不再整体豁免——同模板段内有行且能吸收时并入（期限不同不并；唯一 belt 堆仍保护），每次入场经 CommitCharacterEvent 持久化自动修复存量脏数据，无需手工改库；② Add（bag.go）/ addStackable（shop.go）/ AddMailItem（mailbox.go）三条发放路径合并扫描加 r.Quick() 臂，belt 上的堆就是这堆本身，杜绝复发；③ N2254 待机入场体逐字节对齐官服帧 331/997 = run 模板 + 四 stage 旗标全开（偏移 2/4/6/8）+ 21/117=0x7f（原发 login 模板旗标全零），新增 legion.IspinsStandbyEntryCharacterInfo，main.go first_post_entry_frame 触发点换用。
+- **测试**：新增 quickslot_duplicate_test.go（belt 双行清扫合并/幂等/唯一堆保护 + 三发放路径并进 belt 堆）与 TestIspinsStandbyEntryCharacterInfo（vs run 基底恰差 6 偏移、vs login 恰差 5）；go vet + inventory/legion/wireprobe 定向全过（PVF 审计 4 失败为既有）。发布 wireprobe-pvf.exe（03:52）。
+- **实测**：用户确认伊斯大陆待机区进入成功，不再闪退/回城镇。待机区长时间停留与开作战流程待后续验收。
+- 取证文档：analysis/tasks/next79-legion-weekly-open.md §16-§17（§16 补记第十二~十五轮：108 固化 54B 表、342 裸发与 g_QuestManager115 时序、待机入场官服复刻）。
+
+﻿## 2026-10-02（深夜·第十一轮）裸表仍选角屏卡死 → 静态 RE 穷尽 → 黑盒差分实验：NOTI108 变体轮换探针（已发布，待实机采集）
+- **实测**：第十轮（登录洪流 708→1198→108裸表356B→1336 + announce 第二份）**仍在选角屏卡死**。五轮官服字节级复刻全灭（21:43/22:12/22:26/22:45/23:00）⇒ 私服客户端 108 解析器与官服当前版本格式不同，位置/编码/前置/表大小假说全部否定。
+- **静态 RE 穷尽**（去壳 DFO.exe）：event-mode 类已解剖（对象 0x9c0B、单例槽 0x14E635248、位图 +0x458、id 阈值 0x2AF7、>阈值走 +0x30 std::map），但定位 108 解析器的常规锚点全灭：单例 getter 全内联（11158 处槽引用）、opcode 分发无 cmp 链无跳转表（.rdata 巨表 0x1491889a0 实为 CRT _initterm）、NOTI 注册走通用 pubsub（0x14668e570，按运行时 string pool 名键控，静态不可枚举）、protobuf 无 EVENT_INFO。~20 个 RE 工具落 analysis-tools/output/。
+- **黑盒差分实验**：登录洪流永久去掉 108（保 708→1198→1336，登录阶段恒健康）；announce 的 108 改为**每次进镇轮换下一个变体**（main.go announce 构建前 `advanceEventInfoProbe()` + 日志 `event_info_probe_selected`）。变体表 `cmd/wireprobe/event_info_probe.go`：V0 跳过不发（基线）/ V1 裸空表 `0000` / V2 zlib 空表 / V3 裸表仅 Ispins 记录（54B）/ V4 356B 裸表（阳性对照）/ V5 官方 2624B zlib（阳性对照，`eventInfoOfficialZlibHex`）。判读：`event_info_probe_selected` 后紧跟 CMD217 = 该变体失败；V4/V5 若不触发 217 则轮换机制本身损坏、当轮作废。
+- **测试**：洪流断言改 708→1198→1336 且禁 108；ledger 序列改 706→(108探针)→537；新增 TestEventInfoProbeRidesAnnounce（每变体恰一份/位置/skip 省略）、TestEventInfoProbeRotation（轮换+读不消费）、TestEventInfoProbeBodies（V3/V4/V5 与抓包锚定）。`go vet` + 探针/storydigest 全过（3 个 PVF 审计失败为既有问题）。发布 wireprobe-pvf.exe（23:31）。
+- **实机操作**：`启动服务端.cmd` → 连续 6 次登录（每次选同一角色进镇，卡死就退出客户端重登，**不要重启服务端**）→ 6 变体各一次，之后读 events.jsonl 判读。实验目标 = 解析通过（空表下 Ispins 门禁必然锁，属预期）。保底：全灭则回滚 108 保可玩。
+- 取证文档：`analysis/tasks/next79-legion-weekly-open.md` §15。
+
+## 2026-10-02（深夜·第十轮）真根因二 = 私服客户端 108 不吃 zlib：改发解压后裸表 356B（已发布，待实机）
+- **实测**：第九轮（登录洪流）后**点击「游戏开始」无反应**，客户端卡在选角屏（不发 782/4），退出弹「公告/结束比赛…」窗。runtime 时间线：洪流（708/1198/108/1336）→ 848/433/637/2127/433 → **CMD217** → 静默；健康会话同位置后是 407→782→CMD4。
+- **决定性证据**：① 我们一直发的 NOTI2826 是 **3648B 裸模板**且私服客户端消化正常，而官服抓包里同帧是 zlib——私服客户端对官服压缩帧吃的是裸体；② 全部健康会话里我们发的帧**没有任何 zlib 体**，唯一发过 zlib 体的帧就是 108，唯一触发 CMD217 的帧也是 108（四轮复现：全量表/+1198/过滤表/登录洪流）；③ CMD217 = `ENUM_CMDPACKET_OVERFLOW_INFO` 语义吻合：`78 9c` 被当裸表头，记录数读成 0x9c78（40056）→ 解析越界。
+- **修改**：`event_info_generated.go` 108 体改为**解压后的裸表**（356B，计数 7，记录与官服解压内容逐字节一致；生成脚本 `analysis-tools/output/gen_108_raw.py`）；测试改为 356B + **禁止 789c 前缀**（防回归 zlib）。洪流/announce 布局保持第九轮。
+- `go vet` + 定向测试通过；发布 wireprobe-pvf.exe（22:55）。待实机：选角有反应 → 进镇不卡死 → 军团 tab 点伊斯大陆（CMD2043）。若仍 217：反汇编私服客户端 108 处理器定真格式，或回滚 108 保可玩。
+- 取证文档：`analysis/tasks/next79-legion-weekly-open.md` §14。
+
+## 2026-10-02（深夜·第九轮）真根因 = 阶段放错：108/1198/708/1336 属于登录洪流（选角前）→ 洪流前移 + announce 保留第二份 108（已发布，待实机）
+- **决定性证据**：用户提供 `D:\115us\DFO-115US-抓包协议完全解析`（21:18 完整会话 frames.jsonl）。逐帧验证三条业务连接帧序完全一致：`C2S 1(LOGIN) → S2C 1759 → 708 → 1198 → 108 → 1336 → S2C 1(112B) → C2S 782 → C2S 4(选角) → 706 → 108(第二次) → 4 → 537 → 124`——**官服把 708/1198/108/1336 放在登录洪流（选角前），且选角后 706 之后再发一次 108**。此前七、八两轮把它们放在选角后的进镇 announce ⇒ 阶段放错，客户端 108 事件容器未在登录阶段建立，选角后单独收到 108 即报 CMD217 溢出并冻结（解释了补 1198、过滤表均无效）。
+- **勘误**：16:03 抓包 s1 帧 7-60（1370@7/708@8/1198@15/108@58/1336@60）实为登录洪流，此前误标为「频道进入 announce」——第二/四/六/七轮的插帧位置全部基于该误标。
+- **修改**：`entry_flow.go` 新增 `loginFloodPackets()`（708→1198→108→1336）并从 `packets()` 移除 708/1198/1336、108 挪到 706 之后（对齐官服选角后序 706→108→537）；`main.go` 每连接守卫 `loginEventFloodSent`，在 CMD8(mode2) 角色列表 + 1759 恢复之后、选角前 `sendPlan(loginFloodPackets())` 发送一次（对齐官服 1759→洪流→SELECT；bootstrapped 重置点均紧跟连接关闭，无需重发）。
+- **测试重写**：`TestLoginEventFloodOrder`（洪流顺序 + 四帧黄金体 + 108 表内容）、`TestWeeklyDungeonLedgerFollowsConfig`（announce 序 1370<706<108<537<2 + 1198/1336 不回流）、`TestWeeklyDungeonConfigLeftTheAnnounce`、`TestEventInfoSecondCopyRidesAnnounce`。`go vet` + 定向测试通过；发布 wireprobe-pvf.exe（22:45）。
+- 待实机：进镇不卡死 + 军团 tab 点伊斯大陆（CMD2043）。备选：登录洪流换完整官服表（2652B，frames.jsonl 可提取）。
+- 取证文档：`analysis/tasks/next79-legion-weekly-open.md` §13。
+
+## 2026-10-02（深夜·第八轮）N1198 前置无效（CMD217 仍发）→ 方案 C：108 活动表过滤到 7 个频道开门事件（已发布，待实机）
+- **H1 否定**：22:14 实测 1198 已按官服序发出，客户端仍回 CMD217 OVERFLOW_INFO（0x6c=108）后冻结。
+- **表结构完全解剖**：全局 u16 计数=76；记录 = `[id u16][flags 3B][name_len u32][名字][pad][25B tail（含 start/end u32 unix 窗口）]` + 可选参数串；74 条可验证 + 2 条空/短名（id 621 空名）。官服两帧 108 字节相同（非分段）。
+- **方案 C**：保留频道行引用的全部 7 个频道开门活动（621/627 Venus/642 Dusky Island/680/681 Forest of Awakening/776 Ispins/1007 Apocalypse），记录字节原样复制、仅改计数头 76→7 并重压缩；6829B→356B / 2624B→202B，时间窗全部覆盖抓包日。附带收益：web 弹窗/商店/日历活动移除，「解放痕迹」弹窗应一并消失。
+- **修改**：`event_info_generated.go` 重写为过滤表（`gen_108_filtered.py` 生成）；`story_digest_test.go` 断言更新。`go vet`+测试通过；发布 wireprobe-pvf.exe（22:26）。
+- 取证文档：`analysis/tasks/next79-legion-weekly-open.md` §12。
+
+## 2026-10-02（深夜·第七轮）N108 回放回归：进镇卡死 → 补 N1198 INTEGRATE_EVENT_DATA 前置（已发布，待实机）
+- **回归取证**：21:43 版 exe 实测进镇后客户端冻结；冻结会话最后动作 = **CMD217 `ENUM_CMDPACKET_OVERFLOW_INFO`**（plain `006c000000000000`，0x6c=108，报告 NOTI108 溢出）后彻底静默。健康会话与官服抓包均无 CMD217。
+- **根因（H1）**：官服 announce 帧序 708@8 → **1198@15** → 108@58——**NOTI1198 INTEGRATE_EVENT_DATA（176B）先于 108**，客户端吸收 108 表前需要 1198 建立事件容器状态。向量：s1 帧 15（offset 2795）/ s4 帧 15（offset 2794，framedump 用十进制 offset）提取，两 session 字节相同；布局要点 0x0942 / +4 flag1 / +25=2 / +0xA5 时间戳 0x3f1095d69f / 其余零，不做语义解读。
+- **修改**：`entry_flow.go` 新增 `integrateEventData`（mustHexDecode + `gen_1198_var.py` 脚本生成，避免手抄）并在 708 与 108 之间插入 1198（帧序 708@8→1198@15→108@58）；`TestEventInfoFollowsWeeklyConfig` 扩展顺序断言 708<1198<108<1336 + 176B 逐字节断言。
+- **验证**：`go vet` + 定向测试通过（测试同时证明向量与抓包原件逐字节一致）；exe 已重建并发布 wireprobe-pvf.exe（22:12）。待实机：进镇不卡死 + 军团 tab 点伊斯大陆。若仍卡死备选：回滚 108 保可玩 / 过滤 6829B 表仅留频道开门活动后重压缩（H2：web 弹窗事件（libcef）在私服挂起）。
+- 取证文档：`analysis/tasks/next79-legion-weekly-open.md` §11。
+
+## 2026-10-02（深夜·第六轮）门禁⑦真源突破：ENABLE_CHANNEL_TAB_EVENT_ID 活动查表 → 回放 N108 EVENT_INFO 活动日程表（已发布，待实机）
+- **静态逆向突破（去壳客户端）**：用户在 D:\115us 放置去壳 DFO.exe（246MB），capstone+pefile 逆向（`analysis-tools/output/disasm.py`）：门禁⑦调用链 = 频道行属性容器查 **ENABLE_CHANNEL_TAB_EVENT_ID**（`0x1476e0690` 具名查表，未命中 -1）→ 活动位图判定（`0x1456958c0`：id≤11000 测 mode 单例 +0x458 位图 `(id>>6, id&0x3f)` 位；>11000 走 +0x30 树）→ 失败弹 dstr 100088632「这个时间不开门」。位图构造时 memset 全 0，开启数据必须来自服务端。
+- **字符串加密完整逆向**：0x2CA1 明文标记 / 否则密钥流 XOR（key0=(h1&0xFE)|0x9a714ca0、长度=(((h1<<7)|h1)^word(+2))*2、key=key*0x1003f+plain / 字节尾 0x107），工具化 `lookup_names.py`。28 个查表调用点名全是频道行字段 ⇒ 数据源 = legionsystem.cos `[ui data][int list]`（仓库已有解析：Ispins=776、末世录=1007）。
+- **数据源定位**：官服 announce 的 **NOTI108 EVENT_INFO**（s1 帧 58/82、s4 帧 58/74，字节相同）：body 2624B zlib 流，解压 6829B 活动日程表，含 **"Ispins Legion Open"=活动 776**（窗口 2023-02-10→2034-01-04，覆盖抓包日）、"Apocalypse Channel"=1007 等全部频道开门活动。记录布局：`[id u16][3B 标志][名长 u32][名字][pad][start u32][end u32]`（unix 秒）。
+- **修改**：新增 `cmd/wireprobe/event_info_generated.go`（生成自 `gen_108_vector.py`，zlib 流原样回放、客户端自行解压）；`entry_flow.go` 在 708 与 1336 之间插入 108（官服帧序 708@8→108@58→1336@60）；`story_digest_test.go` 新增 `TestEventInfoFollowsWeeklyConfig`（顺序+长度+789c 前缀+inflate 6829B+含 Ispins Legion Open）。
+- **验证**：`go vet` 通过、定向测试通过、全量仅 3 个预先存在的 PVF 审计失败；exe 已重建 **并已发布 wireprobe-pvf.exe**（21:43）。待实机：军团 tab 点伊斯大陆应不再弹窗、CMD2043 发出并进入等待区。
+- 取证文档：`analysis/tasks/next79-legion-weekly-open.md` §10（含六轮完整推理链与客户端活动位图判定反汇编）。
+## 2026-10-02（深夜·第五轮）军团门禁⑦仍拦：回放 N706 WEEKLY_DUNGEON_INFO 1464B 大表（待发布+实机）
+- **实测**：第四轮后 708/1336/537/2254 日志确认全部下发，点击仍弹「这个时间不开门」、无 CMD2043。
+- **复盘排除漏洞**：第四轮以「s4 announce 无 706」排除了 N706，但 s1/s4 是**同一客户端进程的先后两条连接**，706 的表可在 s1 装入后跨连接保留到 s4——排除不成立。706 是抓包中唯一名字就叫 `WEEKLY_DUNGEON_INFO` 的帧（1464B，大量 -100 条目）。
+- **修改**：新增 `cmd/wireprobe/weekly_dungeon_info_generated.go`（生成自 `gen_706_vector.py`，N706 官服 s1 帧 78 原文 1464B + `mustHexDecode`）；`entry_flow.go` 在 1336 与 537 之间插入 706（官服帧序 1336@60→706@78→537@91）；测试扩展 1464B 长度与黄金前缀断言。
+- **验证**：`go vet` 通过、定向测试通过；exe 已重建，**待停止游戏环境后发布 wireprobe-pvf.exe**。IDA 反编译路线受阻（工具与 i64 不在本机），`run-weekly-gate.cmd` 已备好；若 706 仍无效，下一步 Frida 动态 hook `sub_145695000` 直接定位门禁⑦查表源。
+
+## 2026-10-02（深夜·第四轮）军团门禁仍拦点击：补发官服 announce 的周常账本帧 N1336/N537（待实机验收）
+- **实测**：第三轮后军团 tab 完整点亮（N2254 生效：条目/名望/挑战与奖励次数全显）、面板本地日程文本消失（N708 生效），但点击伊斯大陆仍弹「这个时间不开门」且无 CMD2043——客户端门禁⑦查的周常地下城**账本**仍未下发。
+- **成功会话反推**：官服 CMD2043 从 **s4** 发出。甄别：N706 WEEKLY_DUNGEON_INFO（1464B）s4 里没有 ⇒ 排除；N2255/2256 在 CMD2043 之后 ⇒ 属进本流程非门禁输入；s4 announce 里我们没发的周常静态帧只剩 **N1336 `WEEKLY_DUNGEON_INOUT_INFO`**（帧60，16B）与 **N537 `DUNGEON_ENTER_COUNT_INFO`**（帧91/142，16B），s1/s4 逐字节一致。
+- **修改**：`cmd/wireprobe/entry_flow.go` 新增 `weeklyDungeonInOutInfo` / `dungeonEnterCountInfo` 官服原文常量，`packets()` 在 708 后插入（官服帧序 708@8→1336@60→537@91）；`story_digest_test.go` 新增 `TestWeeklyDungeonLedgerFollowsConfig`。
+- **新增取证工具**：`cmd/framedump`——用私服 wire 包解密官服抓包单帧（wiredecode.exe 的 plain 显示截断，全帧取证用它）。
+- **验证**：`go vet` 通过、定向测试通过；exe 已重建并发布 `wireprobe-pvf.exe`（21:07）。待实机：军团 tab 点伊斯大陆应发出 CMD2043 并进入等待区。
+
+## 2026-10-02（深夜·第三轮）军团入口点击无反应：N2254 军团状态底座改为每次选角都发 + exe 发布链路修正（待实机验收）
+- **二进制发布链路踩坑（假测试）**：`启动服务端.cmd`/一键启动器默认跑 `bin/wireprobe-pvf.exe`（`configs/pvf-default.json` profile 权威 binary），而两轮修复只重建了 `wireprobe-handoff-source.exe`（发布需 `Build-Server.ps1 -UpdatePVFDefault` 或手动 Copy-Item）。旧 exe 重启会读到新 `channel.local34.json`（运行时数据）——造成「锁消失（频道行修复生效）但 708/Ispins 代码不生效」的假象。已发布新 exe 到 wireprobe-pvf.exe，教训记入项目记忆。
+- **点击无包根因**：新 exe 会话（20:43）日志确认 708 已发，但点击伊斯大陆**依然连 CMD2043 都不发**（客户端门禁静默拦截）。对照官服 announce 突发：**s1 f265 / s4 f257 都带 N2254（272B 世界装载串尾部）——普通频道也发**；用临时取证工具 `cmd/framedump`（私服 wire 包解密官服抓包单帧）提取 f265 全文，与既有 `IspinsEntryCharacterInfo(true,...)` 登录模板**逐字节一致**（flag：101=7f、102=7f、105=7f）。私服原实现只在 `channelType == 81` 时发送 ⇒ 普通频道客户端军团状态未装载，入口门禁拦截。
+- **修改**：`cmd/wireprobe/main.go` 选角装载串的 N2254 发送条件从 `channelType == 81` 放开为每次选角都发。
+- **验证**：`go vet` 通过、定向测试通过；exe 已重建并发布 `bin/wireprobe-pvf.exe`（20:50）。待实机：军团 tab 点伊斯大陆应真正发出 CMD2043 并进入等待区。
+
+## 2026-10-02（深夜·第二轮）军团「这个时间不开门」根因定位：NOTI708 每周地下城日程覆盖包（待实机验收）
+- **实机反馈**：第一轮频道行复刻后仍弹「这个时间不开门」。用户截图给出决定性线索：伊斯大陆面板写「(周六、周日、周一、周二、周三可进入)」——客户端**本地日程**周四/周五关门，而抓包当天 2026-10-02 恰是周五且官服可进 ⇒ 官服必有一包覆盖本地日程。
+- **定位**：对官服进频道 announce 突发（s1/s4 解码流）逐 id 查 `analysis/dumps/opcodes.tsv`，唯一日程类候选 = **NOTI708 `ENUM_NOTIPACKET_WEEKLY_DUNGEON_INFO_CONFIG`**（s1 帧 8，紧跟 N1370 story digest；24B 载荷，s1/s4 逐字节相同 = 静态配置）。私服从未发送 ⇒ 客户端回落本地日程 → 门禁⑦（`sub_145695000`）弹窗；用户日志证实被挡时不发包（纯客户端判定）。
+- **修改**：`cmd/wireprobe/entry_flow.go` 新增 `weeklyDungeonInfoConfig` 常量（官服 24B 原文 `32 33 36 3f 3e 3b 3a 39 ff ff 00…00 51 fc 40 ed 35 00`，按原文回放、不解释字段语义，遵守「不猜包」规矩），`packets()` 在 N1370 之后、N2 之前插入（对齐官服帧序）；`cmd/wireprobe/story_digest_test.go` 新增 `TestWeeklyDungeonConfigFollowsStoryDigest`（存在性 + 相对位置 + 逐字节黄金向量）。
+- **验证**：定向测试通过、`go vet` 干净；全量 `go test ./cmd/wireprobe` 仅 3 个预先存在的 PVF 审计迁移失败（与本改动无文件交集）；exe 已重建 `bin/wireprobe-handoff-source.exe`。待实机：重启服务端后军团 tab 点伊斯大陆应不再弹「这个时间不开门」。
+- 取证文档：`analysis/tasks/next79-legion-weekly-open.md` §6（推理链、opcode 表定位过程、24B 原文）。
+
+## 2026-10-02（晚）军团频道「这个时间不开门」修复：频道行改用官服抓包行值（待实机验收）
+- **证据获取**：从既有官服抓包 `official_20261002-160349.pcapng` 的 7101 端口（频道目录协议，与私服 7001 同族）解出**官服当日频道脚本全文**（13568B）与双世界频道目录（cain 44 行 + siroco 50 行）。解密链：握手 cmd12 下发 32B key（当日值 `20261002000014`+零填充，AES key = key[:16]）→ cmd10 body = zlib(AES-ECB(script))。工具：`analysis-tools/output/decrypt_chscript.py`。
+- **关键定论（推翻旧假说）**：官服脚本里**所有军团行 SourceValues 全 0.0**——「11 标量含开放日程位图」假说不成立；官服 Ispins 行为 `86/87 `Ispins` 81 `[ispins_legion]``（双行、官方区域键、含官方空 `[dungeon]` 块 `` `[ispins_legion]` `Ispins` ``），而私服旧行为 `81/[none]` 且无 [dungeon] 块。同日同客户端官服可进、私服弹「这个时间不开门」（门禁⑦ `sub_145695000` 开放日程查表）⇒ 判定输入含频道行数据，[none] 区域查表失败。官服行为即「每天开放」，复刻行值即满足用户「周一到周日都能进」的诉求。
+- **修改**：① `configs/channel.local34.json`：Ispins 行 81→86/87 双行（Type 81、Area `[ispins_legion]`、Name `Ispins`）；末世录行 119→30/31/32 三行（Type 119、Area `[apocalypse]`、Name `Apocalypse`，官服 cain 块行值——同时解除 next66 遗留 D1 入口暴露疑点）；新增 `DungeonTitles` 配置下发官方空 [dungeon] 块。② `internal/channelrefresh/server.go`：`Config.DungeonTitles`（区域→官方显示名，Load 校验）；`Script()` 对 titled 区域发官服形态块（`[dungeon]\n  `key` `Name`\n\n[/dungeon]`），并对同行区域去重（官服块每区域一块，双 Ispins 行只发一次 [dungeon]）。
+- **验证**：`go test ./internal/channelrefresh` 全过（新增/改写：末世录行官服形态断言、Ispins 双行+块唯一性断言）；`go vet` 通过；exe 已重建 `bin/wireprobe-handoff-source.exe`。待实机：重启服务端后军团 tab 点击伊斯大陆应不再弹「这个时间不开门」。
+- 取证文档：`analysis/tasks/next79-legion-weekly-open.md`（官服脚本/目录解密全文、行对照表、假说推翻过程）。
+
+## 2026-10-02
+- **伊斯大陆军团副本（内容号 101）首次接入（服务端，官服向量回放，待实机验收）**：
+  - **频道行（P1）**：`configs/channel.local34.json` 末尾追加类型 81 频道（Ispins Legion）。证据：本机客户端 Script.pvf 的 clientchannelinfo.etc 类型 81 条目 `isLegion=1`、`seriaRoomTown=146`（与 legionsystem.cos 的 Ispins 等待区 146 一致）；协议走 STOLEN_LAND_ISPINS 族（CMD2043/2045/2046/2047、NOTI2252-2256），与末世录类型 119 不同族。
+  - **协议族（P2 库层）**：`internal/legion/ispins.go` + 两个 generated 向量文件 + 单测（全部通过）。信封判别：CMD2047 为本族专属；CMD2043/2045/2046 与末世录共用信封、按 body @13 内容号 101 分流（wireprobe 拦截置于末世录 legion 分发之前）。阶段副本几何：阶段序→副本 id [100002987,100002988,100002985,100002986]（nemaug/nagor/ashcore/itrenog），dungeon_info_data 索引 (2,3,0,1)。
+  - **N2255 状态机（88B）**：@2 场所（ff 大厅/02 本内）、@3 状态（01 初始→06 待选→02 已选/已进→03 本阶段通关→05 离场）、@7 结果、@11 已通关数、@19+8k 阶段记录（dungeon index u32 + status u32：0 当前/1 已通/2 锁定）、@79:83 5B nonce。19 个状态模板（initial/wait0-3/chosen0-3/dungeon0-3/clear0-3/final/leave）由官服 s2c 流按精确偏移程序化提取（ispinsdump，已删除），杜绝手抄错漏。
+  - **5B token 家族**：各 ACK 尾 5B token 语义未解，v1 一律照抄官服观测值（逐 ACK/逐阶段常量表）；N2255 各状态 nonce 亦照抄模板原值。CMD2046[21] 与 ACK2046@13 均为 **(stage+2)%4**（S1=02,S2=03,S3=00,S4=01，四帧实测；next78 文档表格的 (stage+1)%4 为笔误）。
+  - **奖励（NOTI2252/2253）**：N2252 = 7772B（全零 + @1600 道具 0x9DB1BC×20 + @7760 2B 阶段 token，与 N31 首 2B 一致）zlib 压缩；N2253 = 2405B 40B 记录数组（[0]=flag、[1:5]=item LE、[5]=数量、[9]=03）zlib。阶段奖励表按官服 S1-S4 原文回放。
+  - **流程（P3 wireprobe 接线）**：CMD2043 开战（N2254 局内基底→N2255 initial→ACK2043，2.5s 后主动推 N2255 wait，照官服 f384 无触发推送）；CMD2047 变体 A 选址（N2255 chosen 先于 ACK）/ 变体 B 确认（ACK + N22/N1719/N1377×3 confirm burst）；CMD2045 进本 18 连包（官服回放帧与私有真实迷宫数据 N2/N28/N29 按官服顺序交错，ACK2045 后 N3/N390/N1474/N30 尾帧）；结算链 N31（名 dungeon_clear_enabled）→N2256→N2252→N2255 clear→N1658→N2253→N2254；CMD2046 非终局（ACK+N2255 wait，回城走通用 CMD72）/ 终局（N2255 final 先于 ACK）；终局 CMD191 走 ispins 专属 N170 分支（通用 191 处理器的活动副本门槛不适用），恢复时随发 N2255 leave + 全通关 N2254。
+  - **登录期 N2254**：Ispins 频道（类型 81）角色选择后 1.1s 推送官服 f257 原文（延迟原因同好感度 NOTI733：子系统未就绪会丢包）。
+  - **v1 已知限制**：① CMD2047-A 选择 token 未解，阶段固定按官服默认顺序（nemaug→nagor→ashcore→itrenog）推进，玩家在 UI 换序会被拒绝（错误信息注明原因）；② 结算不发 N2168/N14（无成就源、奖励不落库存），奖励仅 UI 展示；③ N2254 条目 flag（7f/00）语义未解，照抄官服值；④ CMD2059 局内复活未实现。待实机验收后逐项补解。
+  - **验证**：`go build ./cmd/... ./internal/...`、`go vet` 通过；`internal/legion` 单测全过（官体 golden 向量、19 状态模板、阶段记录断言、ACK 字段、奖励 zlib 往返、22 个回放帧尺寸）。cmd/wireprobe 三个 PVF 审计测试失败为**预先存在**（未跟踪的 adventure 迁移半成品文件，与本任务无关）。
+
+## 2026-10-03：月湖与秘宝上游合并冲突收敛（源码合并）
+
+- 合入上游 main `c7a5801`；CHANGELOG 保留本地 Hell Party/奥德赛与上游月湖/秘宝制作的全部新增记录和既有 confirmed baseline 信息。
+- 补齐上游新增 `-sole-quality-native` 参数对应的帮助文本测试快照，保持已合并的运行逻辑。Go 1.26 当前内层 PVF 全量包测试中，其余包首轮全部通过；快照修正后网关包全量复测通过，配置专项与 `go vet ./...` 通过。
+- 本轮未替换运行程序、操作玩家库或启动客户端，confirmed baseline 保持双方既有实机确认范围；临时文件和用户未跟踪工作不纳入提交。
+
+## 2026-10-03：Hell Party 后续敌人与装备掉落已确认
+
+- 用户手动实机确认封印柱后续敌人正常刷新，击杀后可以掉落装备。按已授权的参考端兼容规则接入隐藏波次名单、服务端owned实体身份、最后一只奖励实体触发及Hell独立装备池；`DFO_HELL_PARTY_DROP_PERCENT` 默认100（1倍）。该规则明确是本服兼容实现，不声称为115官方完整公式。
+- confirmed baseline 更新为独立候选 `server/work/dfo-lan/.tmp/hellparty-20261003/wireprobe-hellparty-owned-waves.exe`，SHA256 `308a7b8434815dc2936557d8cebad41faeee61e9dedc6c1fc6d0c6ebcdddc352`；默认程序未替换。确认范围限本次手动测试路径中的后续敌人刷新与装备掉落，不代表全部Hell地图已逐一实测。
+- Go全量测试、`go vet ./...`、54域原生准备和启动profile检查通过。旧`charactercheck`自检因缺少`account_unified_options`表失败，HEAD overlay可复现；未改schema或玩家存档。分析、PVF范围和实机日志见 `analysis/tasks/hell-party-owned-waves-20261003.md`。
+
+## 2026-10-03：奥德赛章节奖励与115级荣誉邮件候选（待实机）
+
+- 按用户要求新增 `odyssey-completion-rewards.json`，奖励ID经 `client/Script.pvf` 英语名称及原生LIST核对；章节进度和物品属性仍读当前服务端PVF。PVF实际含章节奖励表，第4/5章装备盒保留原生数量2。
+- 章节奖励使用原生物品目录，锁内复核通关，允许毕业后补发；保留旧收据和满包逐行重试。补上115级荣誉盒10420561系统邮件，邮件/欠奖/收据原子提交，兼容旧已发毕业盒与v2欠奖，满箱可重试。
+- 专项、隔离PostgreSQL、当前PVF、vet、构建及候选入口检查通过；全量测试4项失败均在HEAD overlay复现。无schema/玩家库/客户端资源修改。独立候选 `.tmp/odyssey-rewards-20261003/启动验证.cmd` 待用户手动验证，默认程序与confirmed baseline不变。详见 `server/work/dfo-lan/docs/odyssey-completion-rewards.md`。
+- 按用户授权从stash恢复，适配合并后的bootstrap、client_entry与internal/gamedata目录，保留stash备份。恢复版全量测试/vet、原生PVF和隔离PG邮件测试通过；通用charactercheck缺少account_unified_options表，经当前HEAD overlay复现。恢复候选SHA256 `3ca6bb14223ba5023eb12efcea3c82eea4aa8f281c7925c3fbc16022563e365d`，独立入口为 `启动验证-恢复版.cmd`，尚待章末发奖实机验收。
+
+## 2026-10-03：Hell Party 全副本入场已确认
+
+- 删除早期仅允许副本103的验证门禁，改由当前PVF的Hell声明和封印地图确定支持范围。原生副本87失败请求已通过回归；当前PVF共60项声明，59项资源完整并通过离线入场，活动副本100005110缺地图100016811继续拒绝。
+- 保留专用Hell副本的Boss标记，检查剧情路线冲突与连通，普通路线和存档不改。专项回归、vet、构建通过；全量测试4项失败均在HEAD overlay复现。
+- 用户确认 Hell Party 正常进入、柱子可攻击破坏并刷出专属怪物。候选SHA256 `104965f85e1721547dc646b65c5a24ed8050529c5867e55b22a712842b93b7b8` 纳入 confirmed baseline；验收限用户实际测试路径，未扩展成59张地图逐张实测。Hell专属掉落尚未确认。详见`server/work/dfo-lan/docs/protocol/hell-party-all-entry-20261003.md`。
+
 ## 2026-10-03：月湖（Moon Lake）单人副本移植到 gamedata 新架构（实机已验证）
 
 - 频道直读改造入新架构：internal/catalog/channel_directory.go（etc/clientchannelinfo.etc +

@@ -138,7 +138,7 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 				client.event(map[string]any{"kind": "odyssey_chapter_reward_pending", "character_id": role.ID, "reason": err.Error()})
 			}
 			// Graduation and earlier-level quests share one durable receipt.
-			// Honour rewards remain pending mail delivery, never bag grants.
+			// Honour rewards use an independent idempotent mailbox delivery.
 			if client.questService != nil {
 				ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
 				graduated, applied, gradErr := client.questService.GraduateOdyssey(ctx, role)
@@ -151,6 +151,15 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 				if applied {
 					client.event(map[string]any{"kind": "odyssey_graduated", "character_id": role.ID, "model": storage.OdysseyGraduationEvent})
 				}
+			}
+			ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+			mailed, mailApplied, mailErr := client.progressionService.OdysseyHonorMail(ctx, role)
+			cancel()
+			role = mailed
+			if mailErr != nil {
+				client.event(map[string]any{"kind": "odyssey_honor_mail_pending", "character_id": role.ID, "reason": mailErr.Error()})
+			} else if mailApplied {
+				client.event(map[string]any{"kind": "odyssey_honor_mail_committed", "character_id": role.ID})
 			}
 		}
 		profile := *client.selectProbe
@@ -940,11 +949,18 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 				client.event(map[string]any{"kind": "area_presence_error", "error": e.Error()})
 			}
 		}
+		// next79 挂接（ispins_wiring.go）：N1719 保活 goroutine 与登录期
+		// N2254 分支（伊斯频道挂 pending、普通频道 1.1s 后推 N2254+781+782）。
+		client.ispinsPostSelection(role.ID)
 		// 进城镇好感度全量同步：NOTI733(NPC_FAVOR_POINT_INFO) 是客户端
 		// 唯一的无弹窗全量装载入口（handler 0x1452db190：先清空 favor
 		// map 再逐条装入并刷新，不派发任何 UI 事件）；806 ack 虽也写
 		// 缓存但必弹好感度窗。NOTI124 刚完成时好感度子系统尚未就绪，
 		// 早发会被丢弃，沿用 900ms 延迟（2026-09-29 定案时序）。
+		// **伊斯频道（Type 81）待机区分支不发**：官服待机区抓包全程
+		// 无 N733（待机区无 NPC，好感度子系统不适用），且该推送同样
+		// 会撞进场景装载期（2026-10-03 闪退会话 seq 66 实证）。
+		if client.worldState == nil || client.worldState.channelType != 81 {
 		go func(characterID int64) {
 			time.Sleep(900 * time.Millisecond)
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -968,6 +984,7 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 			}
 			client.event(map[string]any{"kind": "npc_favor_point_info_sent", "character_id": characterID, "npc_count": len(records), "plain_bytes": len(payload)})
 		}(role.ID)
+		}
 		return dispatchHandled
 	}
 

@@ -59,6 +59,7 @@ type Session struct {
 	deaths             map[uint16][]protocol.SceneDrop
 	Objects            map[uint32]Drop
 	Skipped            map[uint16][]string
+	hellGroups         map[[2]uint16]bool
 }
 
 func NewSession(c catalog.LootCatalog, t Tables, r Rules, equipment *inventory.EquipmentCatalog, run string, account, character int64, actor uint16) *Session {
@@ -105,7 +106,12 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 		return append([]protocol.SceneDrop(nil), p...), nil
 	}
 	blackBoss := s.BlackPurgatory != nil && s.BlackPurgatoryPlan != nil && BlackPurgatoryBossDeath(d, entity)
-	if monster.NonCombat || monster.APC || monster.Level == 0 || d.Unowned[entity] && !blackBoss {
+	hellActor, hellOwned := d.HellPartyReward(entity)
+	hellKey := [2]uint16{hellActor.Order, hellActor.Group}
+	if s.hellGroups[hellKey] {
+		hellActor.RewardRolls = 0
+	}
+	if monster.NonCombat || monster.APC && !hellOwned || monster.Level == 0 || d.Unowned[entity] && !blackBoss {
 		s.deaths[entity] = nil
 		return nil, nil
 	}
@@ -117,7 +123,18 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 	}
 	result := Outcome{NextSeed: seed}
 	excludeGold, excludeRandom := dungeonDropExclusions(d.Definition)
-	if (!excludeGold || !excludeRandom) && !d.Unowned[entity] {
+	if hellOwned && !excludeRandom {
+		var err error
+		var pool []inventory.EquipmentDrop
+		if s.Equipment != nil {
+			pool = s.Equipment.HellPartyPool
+		}
+		result, err = rollHellParty(s.Catalog, pool, seed, d, hellActor)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if !hellOwned && (!excludeGold || !excludeRandom) && !d.Unowned[entity] {
 		var e error
 		roll := RollWithBonus
 		pool := s.Equipment.DropPool()
@@ -346,7 +363,7 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 	// Validate all new ordinary gear before publishing any object or consuming
 	// its identity. A bad declared template must not leave partial ground loot.
 	ordinaryDurability := map[uint32]uint16{}
-	if ordinaryDungeonRewards(d, s.Catalog, s.Attunement) && s.Catalog.ClearReward != nil {
+	if hellOwned || ordinaryDungeonRewards(d, s.Catalog, s.Attunement) && s.Catalog.ClearReward != nil {
 		for _, award := range result.Awards {
 			if award.Template == 0 || s.stackable(award.Template) {
 				continue
@@ -395,6 +412,12 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 	s.deaths[entity] = rows
 	s.blackPurgatoryRolled = s.blackPurgatoryRolled || blackBoss
 	s.Skipped[entity] = result.SkippedKinds
+	if hellOwned && hellActor.RewardRolls > 0 {
+		if s.hellGroups == nil {
+			s.hellGroups = map[[2]uint16]bool{}
+		}
+		s.hellGroups[hellKey] = true
+	}
 	return append([]protocol.SceneDrop(nil), rows...), nil
 }
 

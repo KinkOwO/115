@@ -45,7 +45,7 @@ func (s *Store) CommitOdysseyGraduation(ctx context.Context, account, id int64, 
 		return role, false, err
 	}
 	var paid bool
-	if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM character_events WHERE character_id=$1 AND event_key='odyssey-graduate-reward-v1')`, id).Scan(&paid); err != nil {
+	if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM character_events WHERE character_id=$1 AND event_key IN ('odyssey-graduate-reward-v1','odyssey-honor-mail-v1'))`, id).Scan(&paid); err != nil {
 		return role, false, err
 	}
 	state, proof, quests, err := apply(role, paid)

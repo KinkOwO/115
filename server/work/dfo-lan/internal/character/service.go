@@ -167,7 +167,7 @@ func (s *Service) List(ctx context.Context, account int64) ([]byte, error) {
 	return s.ListWithFatigue(ctx, account, nil, time.Time{})
 }
 
-var specialChannelPrerequisites = []uint16{12167, 12312, 12392, 12422}
+var specialChannelPrerequisites = []uint16{12167, 12312, 12392, 12422, 13763}
 
 // 列表、进城及外观刷新使用同一份任务到频道资格映射。
 func contentClearFlagsForQuests(ids []uint16) (flags [28]byte) {
@@ -181,6 +181,9 @@ func contentClearFlagsForQuests(ids []uint16) (flags [28]byte) {
 			flags[8] = 1
 		case 12422:
 			flags[9] = 1
+		case 13763:
+			// Local Ispins gate1424e673a reads row+643 = block638 byte11.
+			flags[11] = 1
 		}
 	}
 	return flags

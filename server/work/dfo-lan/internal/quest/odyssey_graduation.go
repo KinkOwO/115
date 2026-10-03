@@ -95,11 +95,14 @@ func (s *Service) ApplyOdysseyGraduation(role character.Character, rewardPaid bo
 		return nil, nil, nil, err
 	}
 	doc["odyssey_graduation_version"] = json.RawMessage(`2`)
-	// The mail path is not implemented. Keep a debt without touching the bag.
-	// Honour old paid receipts so previously granted boxes cannot repeat.
+	// Keep a debt until the independent honor-mail transaction succeeds.
+	// Honour both the old bag receipt and the new mail receipt.
 	owed := uint32(0)
 	if !rewardPaid {
 		owed = s.Odyssey.GraduateReward
+		if s.Progression.CompletionRewards != nil {
+			owed = s.Progression.CompletionRewards.Honor.Template
+		}
 		if owed == 0 {
 			return nil, nil, nil, fmt.Errorf("graduation reward template missing")
 		}

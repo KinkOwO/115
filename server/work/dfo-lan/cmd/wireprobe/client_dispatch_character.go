@@ -443,6 +443,39 @@ func (client *gameConnection) dispatchRoster(requestData *clientRequest) dispatc
 				return dispatchClose
 			}
 		}
+		if requestData.verified && len(requestData.plaintext) == 0 && client.selectedCharacterID != 0 {
+			// 官服对 c2s 637 探测的应答是 8B RAID_INOUT_SYSTEM：
+			// 01 00 38d22c5e 4000（官服抓包帧 86/792，城镇与伊斯待机
+			// 两处逐字节一致，见 standby_entry_test.go 的官服注释）。
+			// 原实现只在选角前应答 {1,0}（wire padding 后 u32/u16 全
+			// 零），选角后的探测（伊斯待机连接）完全不应答——
+			// 2026-10-03 实测三个待机连接的 c2s 637 均无应答，客户端
+			// RAID 进出计数缺省 0，点发起作战时本地拦截（连 CMD2043
+			// 都不发）。黑鸦同款先例见 protocol/black_purgatory.go：
+			// 计数缺省 0 客户端直接拦截建队请求。选角前 145250040 读
+			// 的 pending deletion count 在 offset 1，仍是 0，不受影响。
+			if e := client.output.send(1, 637, raidInOutSystemReply); e != nil {
+				return dispatchClose
+			}
+		}
+		return dispatchHandled
+	}
+	if client.characters != nil && client.bootstrapped && requestData.frame.ID == 782 {
+		if requestData.verified && len(requestData.plaintext) == 16 {
+			// c2s 782 REQUEST_WEEKLY_DUNGEON_INFO：客户端登录连接
+			//（选角前，私服抓包帧 34/485；官服帧 113）发 16B 体
+			// 01 52 01 <namelen> 0000 <角色名>，官服立即回 16B 应答
+			//（帧 115，与官服 op2 16B 头帧逐字节相同，见
+			// weekly_difficulty_info_generated.go 头注释）。私服此前
+			// 完全不应答——该探测是周本「无限难度」链路的登录一半，
+			// 另一半是入场后主动推 781/782（ispins_wiring.go
+			// ispinsPostSelection）。应答体 verbatim 回放官服帧（内嵌
+			// 官服会话角色 ID，同 637 应答的 raidInOutSystemReply 先例；
+			// 私服各 NOTI 的同类会话头全为零客户端也正常，无跨会话污染路径）。
+			if e := client.output.send(1, 782, weeklyDungeonInfoReply); e != nil {
+				return dispatchClose
+			}
+		}
 		return dispatchHandled
 	}
 	if client.characters != nil && client.bootstrapped && (requestData.frame.ID == 433 || requestData.frame.ID == 848) {
@@ -603,6 +636,12 @@ func (client *gameConnection) dispatchRoster(requestData *clientRequest) dispatc
 		// NOTI2 先建立选角管理器，再由 NOTI1759 初始化背景列表和五页选择。
 		if requestData.frame.ID == 8 && userInfoMode == 2 && kind == 0 && id == 2 {
 			if err = restoreRosterBackgrounds(client.gameStore, client.developmentAccount, client.output.send, client.event); err != nil {
+				return dispatchClose
+			}
+			// 登录洪流（选角前）：官服在 1759 之后、SELECT_CHARACTER 之前
+			// 推送 708 → 1198 → 1336 → 1792。108 事件表只在选角后的进镇
+			// announce 里发会让客户端回 CMD217 溢出并卡死（next79 §13）。
+			if err = client.sendLoginFloodOnce(); err != nil {
 				return dispatchClose
 			}
 		}

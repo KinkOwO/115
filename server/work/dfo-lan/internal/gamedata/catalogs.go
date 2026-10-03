@@ -52,6 +52,7 @@ type Catalogs struct {
 	ClearCube                                    *catalog.LootItem
 	OdysseyGrowth                                *catalog.OdysseyGrowth
 	OdysseyChapters                              *catalog.OdysseyChapters
+	OdysseyCompletionRewards                     *catalog.OdysseyCompletionRewards
 	OdysseyWeapons                               *catalog.OdysseyWeaponChoices
 	OdysseyDrop                                  *loot.OdysseyChapterDrop
 	OdysseyCurrency                              *loot.OdysseyCurrency
@@ -59,6 +60,7 @@ type Catalogs struct {
 	Apocalypse                                   *catalog.ApocalypseCatalog
 	MazeRates                                    *catalog.MazeChanceOverlay
 	HellMaps                                     *catalog.SourceMapOverlay
+	HellRules                                    *catalog.HellPartyRules
 	Grief                                        *catalog.TowerGriefOverlay
 	Dazzlement                                   *catalog.DazzlementOverlay
 	Quests                                       *catalog.QuestCatalog

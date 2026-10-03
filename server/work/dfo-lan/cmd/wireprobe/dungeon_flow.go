@@ -282,6 +282,9 @@ func (w *worldSession) prepareDungeonEntry(r protocol.DungeonSelection) (*dungeo
 // dungeon" gate (CMD 2062) replay it unchanged - only the ack id differs,
 // because the client loads a whole new dungeon either way.
 func (w *worldSession) dungeonEntryPlanImpl(ctx context.Context, ackName string, ackID uint16, sel protocol.DungeonSelection, s *dungeon.Session, channelCtx *[2]byte) ([]outboundPacket, error) {
+	if s.HellParty != nil {
+		log.Printf("Hell Party selected: dungeon=%d map=%d mode=%s(%d) S4 compatibility rows=%+v actor groups=%+v", s.Definition.ID, s.HellParty.Map, s.HellParty.Key, s.HellParty.Mode, s.HellParty.Rows, s.HellParty.Actors)
+	}
 	var seed uint32
 	if e := binary.Read(rand.Reader, binary.LittleEndian, &seed); e != nil {
 		return nil, e
@@ -289,7 +292,7 @@ func (w *worldSession) dungeonEntryPlanImpl(ctx context.Context, ackName string,
 	if s.Tournament != nil {
 		seed = s.Tournament.Seed
 	}
-	start, e := protocol.StartMap(protocol.StartMapState{Position: s.Maze.Start, Seed: seed, Map: s.Room.Map, Monsters: s.Monsters, EncodeCreateTrigger: monsterCreateTriggerEnabled()})
+	start, e := protocol.StartMap(protocol.StartMapState{Position: s.Maze.Start, Seed: seed, Map: s.Room.Map, Monsters: s.Monsters, HellPartyMode: s.HellPartyMode(), EncodeCreateTrigger: monsterCreateTriggerEnabled()})
 	if e != nil {
 		return nil, e
 	}
@@ -361,6 +364,13 @@ func (w *worldSession) dungeonEntryPlanImpl(ctx context.Context, ackName string,
 			}
 		}
 		plan = append(plan, direct[len(direct)-1])
+	}
+	if rows := s.HellPartyAPCs(); len(rows) > 0 {
+		body, err := protocol.HellPartyMonsterInfo(rows)
+		if err != nil {
+			return nil, err
+		}
+		plan = append(plan, outboundPacket{"hell_party_apcs_preloaded", 0, 666, body})
 	}
 	plan = append(plan, []outboundPacket{
 		{"dungeon_info_sent", 0, 28, protocol.DungeonInfo(protocol.DungeonInfoState{ID: sel.ID, Difficulty: sel.Difficulty, Maze: s.Maze.Index, Boss: s.Maze.Boss, Hell: s.HellPosition})},
@@ -988,7 +998,26 @@ func (w *worldSession) monsterDeath(p []byte, event func(map[string]any)) ([]out
 			return nil, err
 		}
 	}
+	// [ISPINS-ARENA-BOSS] 伊斯大陆死亡批次（next79 §24）：官服 s4 实证
+	// （c2s op=39 帧 335/392/441/485）对 boss 死亡上报的应答只有 16B 常量
+	// N38（<u32 entity> <4B零> <5B token> <3B零>），无 39-ack、无 N37 经验
+	// 推送、无 200B 掉落实体语法。私服 generic 批次发出这 3 帧后客户端
+	// 1.2s 内 op=682 闪退（2026-10-03 五测实证）。
+	if w.ispins != nil && w.activeDungeon != nil {
+		plan := []outboundPacket{
+			// N38 尾 5B token 官服按阶段各不相同（next79 §26），
+			// 用当前 run 的阶段号回放对应 nonce。
+			{"monster_death_confirmed", 0, 38, protocol.IspinsMonsterDeathConfirmed(r.Entity, w.ispins.stage)},
+		}
+		completed, err := w.completeDungeon()
+		if err != nil {
+			w.completionErr = err
+			return plan, nil
+		}
+		return append(plan, completed...), nil
+	}
 	plan := []outboundPacket{{"monster_death_ack", 1, 39, []byte{1}}}
+	var newDrops []protocol.SceneDrop
 	if !w.deathSent[uint16(r.Entity)] {
 		body := protocol.MonsterDeathConfirmed(uint16(r.Entity))
 		if w.loot != nil && (!unowned || blackBoss) {
@@ -1037,6 +1066,13 @@ func (w *worldSession) monsterDeath(p []byte, event func(map[string]any)) ([]out
 			w.drops.BlackPurgatory = w.loot.BlackPurgatory
 			w.drops.BlackPurgatoryPlan = w.cardPlan
 			rows, err := w.drops.Death(w.activeDungeon, uint16(r.Entity))
+			if actor, known := w.activeDungeon.HellPartyReward(uint16(r.Entity)); known && confirmed {
+				errText := ""
+				if err != nil {
+					errText = err.Error()
+				}
+				event(map[string]any{"kind": "hell_party_entity_death", "entity": r.Entity, "map": w.activeDungeon.Room.Map, "group": actor.Group, "order": actor.Order, "reward_rolls": actor.RewardRolls, "hell_monster": actor.HellMonster, "drop_percent": w.drops.Catalog.HellPartyDropPercent, "drops": len(rows), "skipped": w.drops.Skipped[uint16(r.Entity)], "error": errText})
+			}
 			if fatal := fatalDropFailure(err); fatal != nil {
 				return nil, fatal
 			}
@@ -1053,6 +1089,7 @@ func (w *worldSession) monsterDeath(p []byte, event func(map[string]any)) ([]out
 			if err := w.noteOmenClear(event); err != nil {
 				return nil, err
 			}
+			newDrops = rows
 		}
 		plan = append(plan, outboundPacket{"monster_death_confirmed", 0, 38, body})
 	}
@@ -1157,6 +1194,10 @@ func (w *worldSession) monsterDeath(p []byte, event func(map[string]any)) ([]out
 			plan = append(plan, outboundPacket{"level_available_quests", 0, 21, available})
 		}
 	}
+	if w.activeDungeon.HellPartyCleared() && !w.activeDungeon.HellClearSent {
+		plan = append(plan, outboundPacket{"hell_party_clear_sent", 0, 777, protocol.HellPartyClear()})
+		w.activeDungeon.HellClearSent = true
+	}
 	completed, err := w.completeDungeon()
 	if err != nil {
 		// The death acknowledgement and confirmation are already in plan.
@@ -1164,7 +1205,9 @@ func (w *worldSession) monsterDeath(p []byte, event func(map[string]any)) ([]out
 		w.completionErr = err
 		return plan, nil
 	}
-	return append(plan, completed...), nil
+	plan = append(plan, completed...)
+	// 必须先通知生成地面物品，再发送已有拾取通知；自动领取不发送 CMD43 应答。
+	return append(plan, w.autoPickupDrops(newDrops)...), nil
 }
 
 func (w *worldSession) bossCheck(p []byte) ([]outboundPacket, error) {
@@ -1187,6 +1230,11 @@ func (w *worldSession) completeDungeon() ([]outboundPacket, error) {
 	}
 	if w.bleedingMineStart != nil {
 		return w.completeBleedingMineStage()
+	}
+	// 伊斯大陆结算链（next78 §1.4）：N31 阶段 token → N2256 → N2252 →
+	// N2255 clear → N1658 → N2253 → N2254。阶段推进由 CMD2046 分支处理。
+	if w.ispins != nil {
+		return w.completeIspinsStage()
 	}
 	if err := w.freezeBlackPurgatoryRewards(); err != nil {
 		return nil, err
@@ -1222,8 +1270,16 @@ func (w *worldSession) completeDungeon() ([]outboundPacket, error) {
 		ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
 		gifted, applied, _ := w.progression.OdysseyGifts(ctx, w.role)
 		if w.progression != nil && w.progression.Chapters != nil {
-			chaptered, chapterApplied, _ := w.progression.OdysseyChapterRewards(ctx, gifted)
+			chaptered, chapterApplied, pending := w.progression.OdysseyChapterRewards(ctx, gifted)
 			gifted, applied = chaptered, applied || chapterApplied
+			for _, err := range pending {
+				log.Printf("Odyssey chapter reward pending: character=%d: %v", gifted.ID, err)
+			}
+		}
+		mailed, _, mailErr := w.progression.OdysseyHonorMail(ctx, gifted)
+		gifted = mailed
+		if mailErr != nil {
+			log.Printf("Odyssey honor mail pending: character=%d: %v", gifted.ID, mailErr)
 		}
 		cancel()
 		w.role = gifted
@@ -1515,7 +1571,7 @@ func (w *worldSession) moveDungeonRoomDecoded(r protocol.DungeonRoomTransition) 
 	// 上它们会不同：请求带的还是层图所在格的坐标 (0,2)，玩家却已经去了 (0,1)。
 	// StartMap 把 Position 写成包的前两字节，客户端据此安放角色 —— 用错就等于把玩家
 	// 放在地图外，实机表现是「角色不见了」（2026-09-28 贵族机要 100004968）。
-	state := protocol.StartMapState{Position: [2]byte{next.Room.X, next.Room.Y}, Seed: seed, Map: next.Room.Map, Monsters: next.LivingMonsters(), LayerChange: r.LayerChange, EncodeCreateTrigger: monsterCreateTriggerEnabled()}
+	state := protocol.StartMapState{Position: [2]byte{next.Room.X, next.Room.Y}, Seed: seed, Map: next.Room.Map, Monsters: next.LivingMonsters(), HellPartyMode: next.HellPartyMode(), LayerChange: r.LayerChange, EncodeCreateTrigger: monsterCreateTriggerEnabled()}
 	if resume, ok := w.activeDungeon.SourceLayerResume(*w.dungeons, r); ok && resume != w.activeDungeon.Room.Map {
 		// Flag 2 clears the native layer ordinal at1452b7876; flag 0 only
 		// selects the base descriptor and leaves the active layer unchanged.

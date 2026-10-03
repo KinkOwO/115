@@ -1,4 +1,14 @@
 address	name	description
+0x1424e66a0	Ispins_SelectRosterPrerequisiteGate	Channel81 callback tests role+643 at1424e673a; prerequisite missing sets dstr100088074 at1424e67cc. Native28B roster block starts638 so flag11. PVF13763.
+0x1424e71e0	Ispins_CompletedPrerequisiteSetsRosterFlag	Channel81 prerequisite match calls native completion lookup and sets role+643 at1424e727c/72b3. next79 mode/character-selection evidence20261003.
+0x142530950	Handler_IspinsOperationSelectAck_Local2047	Local ACK2047 success path reads19B; action4 at142530a1e resets window644 then takes flag0 selection path. next79 20261003 live reset request confirmed.
+0x14251dca0	IspinsSelection_ClearThreeOperationChoices	Called by action4 ACK handler; clears three UI choice widgets and their values at14251dcc0..dce4.
+0x1425311f0	Send_IspinsOperationSelect_Local2047	Native writer stores action u32 at13 and argument u16 at17, sends19B plus native transport tail; next79 live action4/ffff vector.
+0x145639840	UserInfo_ReadEquipmentAppearance_Local	N2 basic row equipment loop; length-prefixed field145639906 ->1459a0220 ->146d77f50 ->146ea0be0. next79 newer template fails here after2252 fix.
+0x146ea0be0	PacketReader_CopyFixedOrAssert	Local client SHA256 01c633df; reads edx bytes; remaining<edx jumps to deliberate null write 146ea0c30. next79 20261003 crash stack confirmed.
+0x1424fdc30	Handler_LegionBasicClearReward_Local2252	NOTI2252 local fixed 7772B direct copy at1424fdd01; no zlib inflation; return1424fdd06 matches next79 live crash.
+0x1424fdb60	Handler_LegionAdditionalClearReward_Local2253	NOTI2253 local fixed 2405B direct copy at1424fdbd5; no zlib inflation. Existing IDB survey anchor corroborated with current client bytes.
+0x147812210	ServerParameters_ReadScript	115 serverparameter reader; difficulty experience tag14B3018B0 at1478128D6 loads five sequential float32 values via14709BDB0 into byte offset1656; source order confirmed20261003, official server award formula not established.
 0x1470F42E0	ItemScript_ResetCommonFields	115 native common item reset clears qword+0x10; STK creation-rate case21039 writes DWORD+0x10 at14712BD1B; missing rate zero, award trigger remains separate, audit20261002
 0x147399CC0	DungeonDropInfo_DecodeRewardType	115 native drop-rule type enum special0 epic1 legendary2 unique3 rare4 random5 stackable6 primeval7 unknown8; independent from EQU rarity, audit20261002
 0x146AA0AE0	ResultReward_AddTemplateRow	115 result UI stores template row per participant/reward channel; binary template kind2 forces amount1 and passes local item state to display factory; NOTI35 first-channel metadata resides at local state+239..259, audit20261002
@@ -18,86 +28,3 @@ address	name	description
 0x145b2f160	Dungeon_GetBaseRoom	Base rendered room vector at dungeon+448/+456; bounds checked
 0x145df0410	RoomEntities_GetMonsterSlotCount	Monster weak-reference vector at manager+392/+400, stride24
 0x145df0390	RoomEntities_GetMonsterBySlot	Weak-reference control+8/ref+16; returns ref-48 only if control live
-0x1453281a0	NPCVisibility_ReadHiddenNPCConfig	Reads [hidden npc] integers and [npc visibility quest sequence] triples; source etc/hiddennpc.etc, research20260929
-0x146d0f980	NPCVisibility_LoadHiddenNPCConfig	Loads Etc/hiddenNpc.etc, hides configured NPC IDs and registers quest sequence triples via144f542a0
-0x1479ff000	TownPhaseCondition_KindFromTag	Kinds0 recent clear dungeon,1 regional movement,2 completed quest,3 by event,4 depend townarea event,5 while event active,6 unknown
-0x1479ff2c0	TownScript_ReadDefinition	Reads Town/ resource; [phase Index] maps condition vector to index at tree node+56, definition+424; phase resources at+408
-0x146d02440	TownMap_ResolvePhaseResource	Selects active phase resource by town/area and condition vector; phase key=(town<<16)|area|((phaseIndex+1)<<8); base fallback
-0x146cf6cd0	NPCVisibility_AppendQuestEffect	Per-NPC tree at manager+480 appends logical record NPC/quest/showFlag; batch consumer146d00bd0 resolves and clears records
-0x146d00bd0	NPCVisibility_ResolveQuestEffectBatch	Strict lexicographic maximum of native unit parent key and sequence; first effect wins ties; fallback only if unit missing; clears batch after applying
-0x144f4a870	NPCVisibility_FindSequenceFallback	Looks up questManager+1528 by quest ID; logical record quest/parentKey/sequence at native tree node+32
-0x147661070	QuestUnit_SequenceForQuest	Scans unit+112 sequence tree for node+40 quest ID, returns node+32 sequence or -1
-0x14519ae00	QuestCatalog_FindConnectUnit	Looks up connect unit by parent key in questCatalog+72 hash, returns logical unit at node+24
-0x144f3a780	QuestNPCVisibility_ApplyCompletedQuest	Inserts completed quest and applies NPC visibility blocks whose condition is1, appending quest effects; other completion side effects retained
-0x1452c9b50	Noti_ClearQuestList_ApplyNPCVisibility	Current NOTI342 handler replays completed quest effects then resolves NPC effect batch; static dispatch1452f9420
-0x1452de670	Noti_QuestTriggerList_ApplyNPCVisibility	Current NOTI291 handler applies received quest trigger list then resolves NPC effect batch; static dispatch1452f9420
-0x147663660	QuestUnit_ReadConnectQuestList	Reads n_quest/connectquestlist.etc; parent key at unit+4; ordinary sequence keys increment from1, auxiliary second cell stored separately
-0x1451a0710	QuestCatalog_BindUnitQuestMetadata	Walks unit sequence tree; writes unit+4 parent key to existing quest metadata+64; initializes related unit fields; research20260929
-0x1451a0a30	QuestCatalog_BindAllUnitMetadata	Walks quest catalog connect-unit hash at+72 and binds each unit through1451a0710; startup14519e760
-0x1476608f0	QuestNPCVisibility_ConditionFromTag	Native conditions accept0,clear1,clearable2,clearing3,unknown4; clearable is objective-ready, not an exposed-NPC condition
-0x1476549d0	QuestNPCVisibility_InitBlock	Initializes40-byte visibility block: show1/protection0,condition4,NPC vector empty,revert1
-0x144f3b900	QuestNPCVisibility_ApplyOrRevertCondition	Matches condition; true applies/protects and records, false inverses only blocks with+32 revert1; called by342 and32
-0x14527dd70	Cmd32_CancelQuestResponse	Success removes accepted quest; when script+2793 enabled, inverses accept0/clearable2 visibility; no direct batch resolve at handler exit
-0x145261b40	Cmd31_AcceptQuestResponse	CMD31 callback in1452a1f90; reads quest/progress, calls144f38b60, resolves NPC batch at145262eb0
-0x14527aa60	Cmd34_FinishQuestResponse	CMD34 callback in1452a1f90; completion/phase side effects, resolves NPC batch at14527d302
-0x146d135c0	TownPhase_SetTownEvent	Writes town event value in manager+1248; working-copy IDB b863f6ef, research20260929
-0x146d135f0	TownPhase_SetTownAreaEvent	Upserts manager+1264 keyed by town/area; value at native node+36; working-copy IDB b863f6ef
-0x146d044d0	TownPhase_GetTownAreaEvent	Reads manager+1264 town/area key; missing returns signed -1; working-copy IDB b863f6ef
-0x144cefe60	Object_GetUInt32At696	Shared offset-only getter; town updater passes14E66C090, consumer141eb0e10 passes14E683C30; do not assume identical instances
-0x144ce1670	Noti571_RaidDungeonParticipationInfo	Registered at144cd5238 as NOTI571; reads participation rows, status3 stores bound object+696; scene input identity still unresolved
-0x1471e4790	MapNPC_AppendSourcePlacement	Appends28-byte NPC source placement; optional conditional flags parsed at1471d38fe and1471d3978
-0x146d06b80	TownPhase_EvaluateCondition	Native condition predicate; type2 completed set and increasing phase; event kinds have separate inputs; working-copy IDB b863f6ef
-0x146d02c70	TownMap_ResolveSourceScript	Restores town condition vector, checks completed/event/activity groups, resolves phase script or base resource; working-copy IDB b863f6ef
-0x145deba20	MapNPC_CreateFromSourcePlacements	Reads28-byte map NPC rows at+944; signed quest+4<0 bypasses gate, otherwise flag+9 chooses completed or accepted membership; final visibility separate
-0x144f54570	QuestManager_HasAcceptedQuest	Membership in accepted quest vector+8/+16; progress is not checked; working-copy IDB b863f6ef
-0x144f54990	QuestManager_HasCompletedQuest	Membership in completed quest hash at+336; used by map NPC placement gate and town phase; working-copy IDB b863f6ef
-0x145b5f520	NPC_CreateFromCatalog	Requires NPC catalog source, dispatches special ID constructors or generic145b55f20; no source returns0; placement eligibility does not ensure creation
-0x146cf1cc0	TownPhaseManager_Construct	Initializes town phase, saved conditions and event containers; calls146cfa2b0 reset at146cf21da; constructor evidence alone does not establish relogin reset; working-copy IDB b863f6ef
-0x146cfa9b0	TownPhase_ClearSavedTownConditions	Clears manager+560 saved town condition tree; called in successful CMD4 at14525a6d7 and conditional scene-state transition1459b10e5; does not clear event tables
-0x146d04fe0	TownPhase_ResetCurrentCondition	Replaces manager+576 current condition vector with single(value=-1,kind=6); CMD4 success14525a6eb; does not clear completed membership or event tables
-0x146d02320	TownPhase_CopySavedTownConditionOrDefault	Copies saved condition for town from manager+560; missing town returns single(value=-1,kind=6); working-copy IDB b863f6ef
-0x141308bd0	Scene_GetTownPhaseManager	Returns Scene+280 town phase manager; same field as constructor1459a4bd0; CMD4 and342 consumers; working-copy IDB b863f6ef
-0x1416dbca0	PairIntTree_FindOrInsertZeroValue	Signed lexicographic pair-int key at node+28/+32, int value+36; missing key inserts zero; kind4 predicate146d06b80 uses(value,4), not assumed current town/area
-0x146d13390	TownPhase_SetSavedTownCondition	Upserts and copies supplied condition vector into manager+560 per-town entry; not intrinsically a reset; working-copy IDB b863f6ef
-0x146cf6650	NPCVisibility_AddQuestShowOverride	Registers unique quest-ID SHOW override in manager+1064; suppresses hide requests, not show; source [visible npc]+2320; polarity corrected20260929
-0x146cfc070	NPCVisibility_RemoveQuestShowOverride	Removes SHOW override; last removal reapplies logical show1/hide0 if present then erases node; corrected20260929
-0x146d14060	NPCVisibility_ShowEntityPreservingLogicalState	Erases hidden-ID sets manager624 and entity-manager112, shows entity without changing logical show1080; corrected20260929
-0x146d14000	NPCVisibility_RequestShow	Source show1 path144f3a877; logical show1080=1, erase hidden sets624/entity112; corrected20260929
-0x146d04ef0	NPCVisibility_RequestHide	hiddenNpc loader146d0fa55; logical show1080=0, insert hidden IDs except nonempty quest override1064 forces show; corrected20260929
-0x145978490	NPCVisibility_InsertEntityHiddenNPC	Adds NPC ID to entity-manager112 tree using confirmed set insertion1401bdc10; hidden-list source proves polarity
-0x145982020	NPCVisibility_EraseEntityHiddenNPC	Removes NPC ID from entity-manager112 tree via confirmed set erase1403a7590; source show1 consumer proves polarity
-0x146d05450	NPCVisibility_IsProtected	Queries manager1176 protected NPC set; independent of1064 task SHOW overrides;144f3b900 first-effect guard
-0x146cf6930	NPCVisibility_AddProtection	Adds manager1176 protected NPC via confirmed int-set insertion1401bdc10
-0x146d0f120	NPCVisibility_RemoveProtection	Removes manager1176 protected NPC via1403a7590;144f3b900 has already appended temporary SHOW
-0x146d06e30	TownMap_AreaForcesBaseResource	Town base-area node40 area/80 flag; true forces base in146d02c70; does not read event1264; source tag unresolved
-0x145b5ef80	NPC_CreateWithSourceVariant	Source variant may replace factory NPC ID; original identity2816/selector2812; NPC1000 scene-type1 rejection; instance existence separate from source row
-0x1470a2910	SourceReader_ReadNumericOrStringSkippingOtherKinds	Native numeric kinds0/1 direct and2 float-to-int;3/4 strings; other kinds including7 advance cursor;1476749db NPC-list caller
-0x1470a1a80	SourceReader_ReadStringSkippingOtherKinds	Returns native string kinds3/4; skip flag controls cursor advance through other cells
-0x147c99ac0	SourceToken_MatchesKind	Compares one native kind byte with supplied integer kind
-0x147c99090	SourceInteger_CopyDirectValue	Copies input integer to output and returns success1
-0x142c9c6c0	SourceToken_GetKind	Returns native cell kind byte
-0x1436436d0	BuffEnhancement_SendRegistration	CMD1421 writes skill u16, equipment kind u8, inventory list u8, slot u16; 20260930 live samples match
-0x14363df50	BuffEnhancement_CommandResult	CMD1421 status success closes popup; failure restores optimistic item edit; 20261001 IDB and EXE byte equality
-0x14363e4b0	BuffEnhancement_ReadItems	NOTI1360 reads count u8 and exists/kind/list u8 plus slot u16; resolves items before updating manager and UI
-0x14363eed0	BuffEnhancement_ReadAllData	NOTI1361 clears manager map, reads skill u16, invokes 14363e4b0; item containers must exist first
-0x14563c1f0	BuffEnhancement_ReadUserInfoBlock	USERINFO switching block reads skill u16/count u8, clears actor map via143642610 then binds supplied items; empty service block erases registrations
-0x143642610	BuffEnhancement_ClearActorRegistration	Erases actor+48 map binding via14363ff90 and refreshes windows740/741; USERINFO caller confirmed
-0x143643910	BuffEnhancement_CopyActorRegistration	Copies old actor registration to new actor in145961b80/145c6fe60; registrations are keyed by actor+48
-0x14573dc60	BoosterSelectWindow_SendWithAvatarOptions	CMD160: u16 slot, u32 amount, two u8 category bytes, all selected u32 templates, u8 option count, template-u32/option-u8 rows and trailing zero. Archer package captured 2026-10-01 has 8 templates and 0 options.
-0x14573e120	BoosterSelectWindow_SendSelection	CMD160 normal branch writes all selected u32 templates then two zero bytes at 14573E776/14573E785. Native archer and dark-knight package vectors captured 2026-10-01.
-0x140B899B0	Handler_CmdEquipmentAwakening	CMD2258 equipment-awakening handler(obj, status, code): status != 0 refreshes panel 3580 only; status 0 pops a message by code then refreshes and resets. Status 1 = success.
-0x140B8AD40	Sender_CmdEquipmentAwakening	CMD2258 sender: writes opcode then a fixed 25-byte request body.
-0x141491D10	EquipmentAwakeningWindow_SendTune	Tune request: +13=0 mode, +14..17 material group, +18 space, +19..20 slot, +21..24 target template.
-0x141491BE0	EquipmentAwakeningWindow_SendInit	Init/refund request: +13=1 mode, +14..17 and +21..24 are both 0xFFFFFFFF.
-0x1414921F0	EquipmentAwakeningWindow_ApplyResultState	state 3 calls the refresh only; state 4 refreshes then clears +1512 and calls sub_141494520 to reset.
-0x1414928D0	EquipmentAwakeningWindow_RefreshMaterials	Re-reads material counts and refreshes the panel buttons/material rows.
-0x14148BF80	EquipmentAwakeningWindow_Get	Window singleton getter: sub_14667BB90(qword_14E683C78, 3580, 0).
-0x14667BB90	UIManager_GetWindowByID	Fetches a window object by (manager, id, index); out-of-range index returns 0.
-0x1459A1BB0	PacketDispatch_Receive	CMD kind=1 consumes common success u8 at 1459A1CA2; failure consumes error u16 at 1459A1D1B before command dispatch. PE/IDB bytes verified 20261001.
-0x14599D200	PacketDispatch_Command	Dispatches opcode from packet+1 with already-consumed success/error arguments; invokes handler table at 14599D357.
-0x1459A2D70	PacketDispatch_InvokeCommandHandler	Invokes registered opcode handler with command/status/error/context; does not re-read common status.
-0x14524C580	PacketDispatch_RegisterHandlers_14524C580	Registers command handlers including CMD72 -> 145244570 at 14524C65E. Registration bytes match current PE.
-0x145244570	Handler_CmdSettlementExit	CMD72 success handler reads state u8 at 1452445AD, option u8 at 1452445B9 after common success; applies option/state to normal reward window at 145244973.
-0x146ABAF50	ClearRewardWindow_ApplySettlementExit	Stores option at +4108 and state at +4112; state!=1 returns at 146ABB201. Option 0 restart, 1 dungeon selection, 2 town, 5 seamless.
-0x147C74470	IndependentDrop_ReadSourceTables	115 source parser: 17-int rows, flag<=5, inline flags1/4/5, external flag2, flag5 replacement/dungeon condition; proven card-metadata caller only, award formula not established.
-0x1450B0840	MonsterCardDictionary_LoadIndependentDropMetadata	Loads MonsterCardDictionary.etc and Independent_Drop_Card.etc via147C74470, builds item-keyed dictionary metadata, then EnchantBeadDictionary.etc; not monster award generation.

@@ -124,6 +124,7 @@ class DefaultPVFLaunchTests(unittest.TestCase):
             with mock.patch.object(launch, 'PROJECT', project), \
                  mock.patch.object(launch, 'configuration', return_value=configuration), \
                  mock.patch.object(launch, 'gateway_configuration', return_value=(project / 'pvf.exe', [], {'DFO_PVF_CATALOGS': 'characters'})), \
+                 mock.patch.object(launch, '_ensure_inner_pvf') as inner_prepare, \
                  mock.patch.object(launch, 'start_storage') as storage, \
                  mock.patch.object(launch, 'listening', return_value=False), \
                  mock.patch.object(pathlib.Path, 'is_file', return_value=True), \
@@ -133,6 +134,7 @@ class DefaultPVFLaunchTests(unittest.TestCase):
                  contextlib.redirect_stdout(io.StringIO()):
                 launch.main()
             self.assertEqual(count, 400)
+            inner_prepare.assert_called_once()
             storage.assert_called_once()
             popen.assert_called_once()
             self.assertEqual(popen.call_args.kwargs['env']['DFO_PVF_CATALOGS'], 'characters')

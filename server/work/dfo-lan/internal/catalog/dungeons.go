@@ -130,6 +130,7 @@ type DungeonCatalog struct {
 	TerminalScenes []DungeonTerminalScene  `json:"terminal_scenes,omitempty"`
 	LayerRevisits  []DungeonLayerRevisit   `json:"layer_revisits,omitempty"`
 	mapScripts     *mapScriptCache
+	HellRules      *HellPartyRules `json:"-"`
 }
 
 // DungeonTerminalScene records a source CMT [CHANGE MAP] on a quest maze's
@@ -259,14 +260,14 @@ func sourceBoss(cells []pvf.Token) uint32 {
 
 func ParseDungeon(id uint32, s ScriptRecord) (DungeonDefinition, error) {
 	d := DungeonDefinition{ID: id, Script: s}
-	if enabled := sectionCells(s.Cells, "[hell dungeon]"); len(enabled) == 1 && enabled[0].Type == 0 && enabled[0].Value == 1 {
-		mapIndex := sectionCells(s.Cells, "[seal door map index]")
-		position := sectionCells(s.Cells, "[seal door pos]")
+	if enabled := consistentHellPartySection(s.Cells, "[hell dungeon]"); len(enabled) == 1 && enabled[0].Type == 0 && enabled[0].Value == 1 {
+		mapIndex := consistentHellPartySection(s.Cells, "[seal door map index]")
+		position := consistentHellPartySection(s.Cells, "[seal door pos]")
 		if len(mapIndex) == 1 && mapIndex[0].Type == 0 && mapIndex[0].Value > 0 {
 			if xy, err := dungeonPair(position); err == nil {
 				d.HellParty = &DungeonHellParty{SealMap: uint32(mapIndex[0].Value), SealPosition: xy}
-				seasonIndex := sectionCells(s.Cells, "[season seal door map index]")
-				seasonPosition := sectionCells(s.Cells, "[season seal door pos]")
+				seasonIndex := consistentHellPartySection(s.Cells, "[season seal door map index]")
+				seasonPosition := consistentHellPartySection(s.Cells, "[season seal door pos]")
 				if len(seasonIndex) == 1 && seasonIndex[0].Type == 0 && seasonIndex[0].Value > 0 {
 					if xy, err := dungeonPair(seasonPosition); err == nil {
 						d.HellParty.SeasonSealMap = uint32(seasonIndex[0].Value)

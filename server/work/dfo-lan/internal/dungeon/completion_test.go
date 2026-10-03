@@ -3,6 +3,7 @@ package dungeon
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
+	"os"
 	"testing"
 )
 
@@ -107,6 +108,85 @@ func TestOdysseyBossCheckImmediateCompletion(t *testing.T) {
 	}
 	if !s.Completed() || s.CompletionTarget() != 9999 {
 		t.Fatalf("expected dungeon to be completed with target 9999, got completed=%v target=%d", s.Completed(), s.CompletionTarget())
+	}
+}
+
+// [ISPINS-ARENA-BOSS] 军团阶段本（伊斯大陆 nemaug 100002987）的结算回归：
+// 源迷宫把 boss 坐标标在 (0,0)/100006472，官服 s4 却在 start 房 (1,1)/100006476
+// 开打并结算（帧 451/337/495）。未置 ArenaBoss 时 BossCheck 必须维持拒绝
+//（2026-10-03 实测回归原因：`boss check target is not a source boss in this
+// room`，整场无结算）；置位后 CMD117 受理 + 死亡驱动结算双路可用。
+func TestIspinsArenaBossCompletion(t *testing.T) {
+	path := os.Getenv("DFO_PVF_CORE_TEST_ARCHIVE")
+	if path == "" {
+		t.Skip("set DFO_PVF_CORE_TEST_ARCHIVE for Ispins arena-boss completion coverage")
+	}
+	a, e := catalog.OpenTestArchiveCached(path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"))
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer a.Close()
+	c, e := catalog.ImportDungeons(a, []uint32{100002987})
+	if e != nil {
+		t.Fatal(e)
+	}
+	newSession := func() *Session {
+		s, e := Select(c, protocol.DungeonSelection{ID: 100002987, Party: 65535}, 115, nil)
+		if e != nil {
+			t.Fatal(e)
+		}
+		// 进本落在 start 房：官服实证（帧 451 Boss 位置 (1,1) 不变，N28 帧 449
+		// 仍回源迷宫 boss 坐标 (0,0)）。
+		if s.Room.X != 1 || s.Room.Y != 1 || s.Room.Map != 100006476 || s.Room.Boss {
+			t.Fatalf("unexpected entry room %+v", s.Room)
+		}
+		if len(s.Monsters) != 1 || s.Monsters[0].Rank != 3 {
+			t.Fatalf("expected the single rank-3 nemaug boss, got %+v", s.Monsters)
+		}
+		return s
+	}
+	target := func(s *Session) uint16 { return s.Monsters[0].Entity }
+
+	s := newSession()
+	s.Loaded = true
+	// 回归护栏：不置 ArenaBoss 的会话必须在 start 房拒绝 CMD117。
+	if e := s.BossCheck(protocol.BossCheckRequest{Actor: 3, Target: target(s)}, 3); e == nil {
+		t.Fatal("non-arena session must keep refusing the entry-room boss check")
+	}
+
+	// CMD117 驱动：置位后受理，boss 未死不结算，死亡后结算并回显目标。
+	s = newSession()
+	s.ArenaBoss = true
+	s.Loaded = true
+	if e := s.BossCheck(protocol.BossCheckRequest{Actor: 3, Target: target(s)}, 3); e != nil {
+		t.Fatal(e)
+	}
+	if s.Completed() {
+		t.Fatal("boss check must not complete before the boss dies")
+	}
+	if e := s.BossCheck(protocol.BossCheckRequest{Actor: 3, Target: target(s) + 1}, 3); e == nil {
+		t.Fatal("arena waiver must still require a real source boss target")
+	}
+	if _, e = s.ConfirmDeath(uint32(target(s)), 3, 3); e != nil {
+		t.Fatal(e)
+	}
+	if !s.Completed() || s.CompletionTarget() != target(s) {
+		t.Fatal("arena boss death must complete the run with the reported target")
+	}
+
+	// 死亡驱动：官服 s4 后两个阶段没有 CMD117 也照常结算（4 条 N31），
+	// completionTarget 恒为 0 时由进房清空兜底。
+	s = newSession()
+	s.ArenaBoss = true
+	s.Loaded = true
+	if _, e = s.ConfirmDeath(uint32(target(s)), 3, 3); e != nil {
+		t.Fatal(e)
+	}
+	if !s.Completed() {
+		t.Fatal("arena boss death must complete the run without CMD117")
+	}
+	if s.CompletionTarget() == 0 {
+		t.Fatal("death-driven completion must still expose a reportable target for NOTI115")
 	}
 }
 

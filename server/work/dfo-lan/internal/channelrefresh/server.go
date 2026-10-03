@@ -49,7 +49,16 @@ type Config struct {
 	// 当前客户端目录显式启用，确保登录和角色刷新使用所选频道身份。
 	SynchronizeIdentity bool
 	Dungeons            map[string][]uint32
-	Channels            []Channel
+	// DungeonTitles carries the official display names for area keys whose
+	// source dungeon block lists no dungeon ids (e.g. [ispins_legion]).
+	// Official 2026-10-02 channel script evidence: every legion area ships a
+	// block of the shape "[dungeon]\n  `[key]` `Name`\n\n[/dungeon]" and no
+	// dungeon ids; the local directory must reproduce that block because the
+	// client's legion open-schedule lookup fails for area rows it cannot
+	// resolve (the source [none] area makes the entry gate pop "not open
+	// today").
+	DungeonTitles map[string]string
+	Channels      []Channel
 }
 
 func Load(path string) (Config, error) {
@@ -71,6 +80,11 @@ func Load(path string) (Config, error) {
 	}
 	if c.SynchronizeIdentity && (c.ServerID == 0 || c.ServerID > 255) {
 		return c, fmt.Errorf("频道身份同步要求服务器编号在 1～255 之间")
+	}
+	for area, title := range c.DungeonTitles {
+		if len(area) == 0 || len(title) == 0 || len(title) > 24 || strings.ContainsAny(title, "`\r\n\x00") {
+			return c, fmt.Errorf("invalid dungeon area title for %q", area)
+		}
 	}
 	seen := make(map[uint32]bool, len(c.Channels))
 	for _, ch := range c.Channels {
@@ -134,11 +148,25 @@ func (c Config) Script() []byte {
 	var b strings.Builder
 	// Local display names are explicit configuration; source area keys/IDs and
 	// the eleven channel rule scalars are retained from this client's PVF.
+	// Areas shared by several channel rows ship one block, matching the
+	// official script shape.
+	emitted := make(map[string]bool, len(c.Channels))
 	for _, ch := range c.Channels {
+		if emitted[ch.Area] {
+			continue
+		}
 		ids := c.Dungeons[ch.Area]
-		if len(ids) == 0 {
+		title, titled := c.DungeonTitles[ch.Area]
+		if len(ids) == 0 && !titled {
 			continue
 		} // Source [none] entrance has no dungeon block.
+		emitted[ch.Area] = true
+		if titled {
+			// Official shape: no dungeon ids, the display name line, then an
+			// empty id line before the closing tag.
+			fmt.Fprintf(&b, "[dungeon]\n  `%s` `%s`\n\n[/dungeon]\n\n", ch.Area, title)
+			continue
+		}
 		fmt.Fprintf(&b, "[dungeon]\n`%s` `%s`", ch.Area, strings.Trim(ch.Area, "[]"))
 		for _, id := range ids {
 			fmt.Fprintf(&b, " %d", id)

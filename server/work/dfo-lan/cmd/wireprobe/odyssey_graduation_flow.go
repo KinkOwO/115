@@ -5,6 +5,7 @@ import (
 	"dfolan/internal/character"
 	"dfolan/internal/game/protocol"
 	"fmt"
+	"log"
 	"time"
 )
 
@@ -31,6 +32,12 @@ func (w *worldSession) graduateOdysseyAtTown() ([]outboundPacket, error) {
 	role, applied, err := w.quests.GraduateOdyssey(ctx, w.role)
 	if err != nil {
 		return nil, err
+	}
+	if w.progression != nil {
+		role, _, err = w.progression.OdysseyHonorMail(ctx, role)
+		if err != nil {
+			log.Printf("Odyssey honor mail pending: character=%d: %v", role.ID, err)
+		}
 	}
 	role.WireID = w.role.WireID
 	w.role = role

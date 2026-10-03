@@ -1,0 +1,24 @@
+{
+  "status": "confirmed by user manual difficulty comparison; scope limited to tested path",
+  "confirmed_baseline_sha256": "6cce9f0462d25093fabec8c932a43d4e21bf4f90ee2b25b6d9741dfb9bcc6e0f",
+  "archive_sha256": "4d8c0c82192eb72806d4bec803f5ab638e91e24401d38110cb78fcb09f69e37f",
+  "script": "etc/(r)serverparameter.etc",
+  "script_raw_sha256": "dabfa8887674c92d418e8ead8f538b550fac7e8865e077a7ad18f21a211f10ab",
+  "tag": "[dungeon difficulty exp bonusrate]",
+  "rates": [1.3, 2.0, 2.5, 3.0, 4.0],
+  "native_reader": {
+    "idb_source": "client/DFO.exe.i64 (working copy only)",
+    "tag_address": "0x14B3018B0",
+    "xref_site": "0x1478128D6",
+    "function": "0x147812210",
+    "pseudocode": "v378 = (float *)(a1 + 207); for (kk = 5; kk != 0; --kk) *v378++ = sub_14709BDB0(v418);",
+    "interpretation": "Five sequential float32 values in source order; a1 is a QWORD pointer, first field offset is 1656 bytes. Does not establish the private official server experience formula."
+  },
+  "selection_boundary": {
+    "wire_to_table_index": {"0": 0, "1": 0, "2": 1, "3": 2, "4": 3, "5": 4},
+    "normal_one_evidence": "internal/dungeon/session.go: captured CMD16 Difficulty=1 with Normal UI, 20260912T231711; existing ordinary rewards use the same boundary",
+    "zero_evidence": "analysis/tasks/monster-drop-rate-audit-20261002.md: dungeon 11 CMD16 Difficulty=0 and boss completion, 20261002_182316_881531; zero remains accepted and uses first column",
+    "invalid": "6..255 rejected before experience transaction"
+  },
+  "formula_policy": "Existing reference90-solo-v1 compatibility formula retained; rates continue to be read from current native PVF."
+}

@@ -873,6 +873,7 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 			return nil, nil, errors.New("progression source version mismatch")
 		}
 		progressionService = &character.ProgressionService{Store: gameStore, Catalog: data, Professions: characters.Catalog, Rules: rules}
+		progressionService.CompletionRewards = pvfCatalogs.OdysseyCompletionRewards
 		if path := os.Getenv("DFO_ODYSSEY_GROWTH"); path != "" || pvfCatalogs.OdysseyGrowth != nil {
 			progressionService.Odyssey, e = pvfCatalogs.LoadOdysseyGrowth(path)
 			if e != nil {
@@ -1026,6 +1027,9 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		}
 		lootService = &loot.Service{Catalog: c, DropCatalog: dropCatalog, Rules: r, BagRules: bag, Tables: tables, Equipment: gear}
 		itemService = &inventory.ItemService{Model: r.Model, Catalog: c, BagRules: bag, Equipment: gear, AvatarDisjoint: pvfCatalogs.AvatarDisjoint, EmblemCompound: pvfCatalogs.EmblemCompound, AvatarSockets: pvfCatalogs.AvatarSockets, EmblemInlay: pvfCatalogs.EmblemInlay, Journal: journalRules, CreateCost: equipmentCreateCost}
+		if progressionService != nil {
+			progressionService.CompletionAwarder = &inventory.Awarder{Catalog: c, Rules: bag, Equipment: gear}
+		}
 		shopService = &workflow.ShopService{Store: gameStore, ShopService: inventory.ShopService{Catalog: c, EventModel: r.Model, BagRules: bag, ItemMaterials: itemMaterials}}
 		minePath := startup.BleedingMineRewards
 		if minePath == "" {
