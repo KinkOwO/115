@@ -1,4 +1,5 @@
 address	name	description
+0x147812210	ServerParameters_ReadScript	115 serverparameter reader; difficulty experience tag14B3018B0 at1478128D6 loads five sequential float32 values via14709BDB0 into byte offset1656; source order confirmed20261003, official server award formula not established.
 0x1470F42E0	ItemScript_ResetCommonFields	115 native common item reset clears qword+0x10; STK creation-rate case21039 writes DWORD+0x10 at14712BD1B; missing rate zero, award trigger remains separate, audit20261002
 0x147399CC0	DungeonDropInfo_DecodeRewardType	115 native drop-rule type enum special0 epic1 legendary2 unique3 rare4 random5 stackable6 primeval7 unknown8; independent from EQU rarity, audit20261002
 0x146AA0AE0	ResultReward_AddTemplateRow	115 result UI stores template row per participant/reward channel; binary template kind2 forces amount1 and passes local item state to display factory; NOTI35 first-channel metadata resides at local state+239..259, audit20261002

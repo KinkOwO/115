@@ -266,6 +266,7 @@ func growthSourceDecimal(v float32) float64 {
 	return out
 }
 
+// GrowthDungeonClear takes a zero-based PVF experience column, not a wire code.
 func GrowthDungeonClear(c catalog.Progression, d catalog.DungeonDefinition, difficulty, rank byte) (GrowthClearGain, error) {
 	out := GrowthClearGain{Rank: rank}
 	cells := growthSection(c.Scripts["n_quest/questparameter.etc"].Cells, "[exp reward table]")

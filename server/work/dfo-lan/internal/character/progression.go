@@ -32,6 +32,10 @@ func (s *ProgressionService) Monster(ctx context.Context, role Character, run *d
 	if e != nil || len(b) != 16 {
 		return role, false, fmt.Errorf("invalid experience run")
 	}
+	difficulty, e := growthDifficultyIndex(run.Difficulty)
+	if e != nil {
+		return role, false, e
+	}
 	var monster protocol.DungeonMonster
 	found := false
 	for _, m := range run.Monsters {
@@ -53,7 +57,7 @@ func (s *ProgressionService) Monster(ctx context.Context, role Character, run *d
 		if e := json.Unmarshal(current.State, &state); e != nil {
 			return nil, nil, e
 		}
-		gain, e := GrowthMonsterGain(s.Catalog, s.Rules, run.Definition, monster, state.Level, 0)
+		gain, e := GrowthMonsterGain(s.Catalog, s.Rules, run.Definition, monster, state.Level, difficulty)
 		if e != nil {
 			return nil, nil, e
 		}
