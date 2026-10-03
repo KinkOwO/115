@@ -1,31 +1,31 @@
-# configs JSON ×ÖÃæÒıÓÃÇåµ¥
+# configs JSON å­—é¢å¼•ç”¨æ¸…å•
 
-ÓÉ `scripts/audit_config_references.py` Éú³É¡£É¨Ãè·¶Î§ÎªÄ£¿éµÄ cmd¡¢internal¡¢scripts£¬ÒÔ¼°²»³¬¹ı 1 MiB µÄ configs JSON ºÍ docs ¸ùÄ¿Â¼µÄ JSON Ê¾Àı¡£
+ç”± `scripts/audit_config_references.py` ç”Ÿæˆã€‚æ‰«æèŒƒå›´ä¸ºæ¨¡å—çš„ cmdã€internalã€scriptsï¼Œä»¥åŠä¸è¶…è¿‡ 1 MiB çš„ configs JSON å’Œ docs æ ¹ç›®å½•çš„ JSON ç¤ºä¾‹ã€‚
 
-ÒıÓÃ°üº¬×¢ÊÍºÍÀúÊ··ÖÖ§£»Êı×ÖÊÇ²»Í¬ÒıÓÃÎ»ÖÃÊı£¬²»±íÊ¾ÕıÊ½ÔËĞĞ±Ø¶Á¡£ÁãÒıÓÃÒ²²»ÄÜ×÷ÎªÉ¾³ıÒÀ¾İ£º¶¯Ì¬Æ´Â·¾¶¡¢Ä£¿éÍâÆô¶¯Æ÷¡¢GM ´úÀí¼°ÀúÊ·¶ş½øÖÆÎ´ÓÉ±¾Çåµ¥Ö¤Ã÷¡£
+å¼•ç”¨åŒ…å«æ³¨é‡Šå’Œå†å²åˆ†æ”¯ï¼›æ•°å­—æ˜¯ä¸åŒå¼•ç”¨ä½ç½®æ•°ï¼Œä¸è¡¨ç¤ºæ­£å¼è¿è¡Œå¿…è¯»ã€‚é›¶å¼•ç”¨ä¹Ÿä¸èƒ½ä½œä¸ºåˆ é™¤ä¾æ®ï¼šåŠ¨æ€æ‹¼è·¯å¾„ã€æ¨¡å—å¤–å¯åŠ¨å™¨ã€GM ä»£ç†åŠå†å²äºŒè¿›åˆ¶æœªç”±æœ¬æ¸…å•è¯æ˜ã€‚
 
-¹² 62 ¸ö¶¥²ã JSON£¬É¨Ãè 1500 ¸öÎÄ¼ş£»Ö»Êä³öÎÄ¼şÃû¡¢´óĞ¡ºÍÒıÓÃÎ»ÖÃ£¬²»Êä³öÅäÖÃÖµ¡£
+å…± 62 ä¸ªé¡¶å±‚ JSONï¼Œæ‰«æ 1500 ä¸ªæ–‡ä»¶ï¼›åªè¾“å‡ºæ–‡ä»¶åã€å¤§å°å’Œå¼•ç”¨ä½ç½®ï¼Œä¸è¾“å‡ºé…ç½®å€¼ã€‚
 
-| JSON | MiB | Íø¹Ø | internal | ¹¤¾ß | ²âÊÔ | ½Å±¾ | ÅäÖÃÒıÓÃ | ·Ç²âÊÔÒıÓÃÊ¾Àı |
+| JSON | MiB | ç½‘å…³ | internal | å·¥å…· | æµ‹è¯• | è„šæœ¬ | é…ç½®å¼•ç”¨ | éæµ‹è¯•å¼•ç”¨ç¤ºä¾‹ |
 |---|---:|---:|---:|---:|---:|---:|---:|---|
-| `account-options.current35.json` | 0.000 | 0 | 0 | 0 | 0 | 0 | 0 | Ğè×·×Ù¶¯Ì¬Â·¾¶»òÍâ²¿Èë¿Ú |
+| `account-options.current35.json` | 0.000 | 0 | 0 | 0 | 0 | 0 | 0 | éœ€è¿½è¸ªåŠ¨æ€è·¯å¾„æˆ–å¤–éƒ¨å…¥å£ |
 | `apocalypse.generated.json` | 0.055 | 2 | 2 | 1 | 6 | 0 | 0 | `cmd/apocalypseimport/main.go:4`<br>`cmd/wireprobe/config.go:106` |
 | `attunement-rewards.generated.json` | 0.026 | 0 | 1 | 2 | 4 | 0 | 0 | `cmd/attunementimport/main.go:5`<br>`cmd/attunementimport/main.go:46` |
-| `boxes.json` | 0.029 | 0 | 1 | 0 | 8 | 0 | 0 | `internal/gamedata/catalogs_items.go:54` |
+| `boxes.json` | 0.029 | 0 | 1 | 0 | 9 | 0 | 0 | `internal/gamedata/catalogs_items.go:54` |
 | `cards.compat90.json` | 0.000 | 1 | 0 | 1 | 0 | 0 | 0 | `cmd/charactercheck/card_check.go:30`<br>`cmd/wireprobe/config.go:82` |
-| `channel.local28.json` | 0.001 | 0 | 0 | 0 | 1 | 0 | 0 | Ğè×·×Ù¶¯Ì¬Â·¾¶»òÍâ²¿Èë¿Ú |
-| `channel.local31.json` | 0.001 | 0 | 0 | 0 | 2 | 0 | 0 | Ğè×·×Ù¶¯Ì¬Â·¾¶»òÍâ²¿Èë¿Ú |
-| `channel.local32.json` | 0.002 | 0 | 0 | 0 | 0 | 0 | 0 | Ğè×·×Ù¶¯Ì¬Â·¾¶»òÍâ²¿Èë¿Ú |
-| `channel.local34.json` | 0.006 | 0 | 0 | 0 | 3 | 0 | 0 | Ğè×·×Ù¶¯Ì¬Â·¾¶»òÍâ²¿Èë¿Ú |
+| `channel.local28.json` | 0.001 | 0 | 0 | 0 | 1 | 0 | 0 | éœ€è¿½è¸ªåŠ¨æ€è·¯å¾„æˆ–å¤–éƒ¨å…¥å£ |
+| `channel.local31.json` | 0.001 | 0 | 0 | 0 | 2 | 0 | 0 | éœ€è¿½è¸ªåŠ¨æ€è·¯å¾„æˆ–å¤–éƒ¨å…¥å£ |
+| `channel.local32.json` | 0.002 | 0 | 0 | 0 | 0 | 0 | 0 | éœ€è¿½è¸ªåŠ¨æ€è·¯å¾„æˆ–å¤–éƒ¨å…¥å£ |
+| `channel.local34.json` | 0.006 | 0 | 0 | 0 | 3 | 0 | 0 | éœ€è¿½è¸ªåŠ¨æ€è·¯å¾„æˆ–å¤–éƒ¨å…¥å£ |
 | `character-probe.json` | 0.000 | 1 | 0 | 0 | 0 | 0 | 0 | `cmd/wireprobe/config.go:51` |
 | `character-rules.odyssey-release.json` | 0.000 | 0 | 0 | 1 | 0 | 0 | 0 | `cmd/initialrepair/main.go:35` |
-| `characters.alljobs-pilot.json` | 0.066 | 0 | 0 | 0 | 3 | 0 | 0 | Ğè×·×Ù¶¯Ì¬Â·¾¶»òÍâ²¿Èë¿Ú |
-| `characters.auto-skills-candidate.json` | 0.074 | 0 | 0 | 0 | 3 | 0 | 0 | Ğè×·×Ù¶¯Ì¬Â·¾¶»òÍâ²¿Èë¿Ú |
-| `characters.awakening-candidate.json` | 0.070 | 0 | 0 | 0 | 4 | 0 | 0 | Ğè×·×Ù¶¯Ì¬Â·¾¶»òÍâ²¿Èë¿Ú |
+| `characters.alljobs-pilot.json` | 0.066 | 0 | 0 | 0 | 3 | 0 | 0 | éœ€è¿½è¸ªåŠ¨æ€è·¯å¾„æˆ–å¤–éƒ¨å…¥å£ |
+| `characters.auto-skills-candidate.json` | 0.074 | 0 | 0 | 0 | 3 | 0 | 0 | éœ€è¿½è¸ªåŠ¨æ€è·¯å¾„æˆ–å¤–éƒ¨å…¥å£ |
+| `characters.awakening-candidate.json` | 0.070 | 0 | 0 | 0 | 4 | 0 | 0 | éœ€è¿½è¸ªåŠ¨æ€è·¯å¾„æˆ–å¤–éƒ¨å…¥å£ |
 | `characters.generated.json` | 0.120 | 1 | 0 | 1 | 18 | 0 | 0 | `cmd/catalogimport/main.go:15`<br>`cmd/wireprobe/config.go:31` |
-| `characters.next25.json` | 0.125 | 0 | 0 | 0 | 17 | 0 | 0 | Ğè×·×Ù¶¯Ì¬Â·¾¶»òÍâ²¿Èë¿Ú |
+| `characters.next25.json` | 0.125 | 0 | 0 | 0 | 17 | 0 | 0 | éœ€è¿½è¸ªåŠ¨æ€è·¯å¾„æˆ–å¤–éƒ¨å…¥å£ |
 | `characters.skycastle-release.json` | 0.074 | 0 | 0 | 1 | 41 | 0 | 0 | `cmd/pvfaudit/main.go:47` |
-| `characters.swordmaster-pilot.json` | 0.053 | 0 | 0 | 0 | 1 | 0 | 0 | Ğè×·×Ù¶¯Ì¬Â·¾¶»òÍâ²¿Èë¿Ú |
+| `characters.swordmaster-pilot.json` | 0.053 | 0 | 0 | 0 | 1 | 0 | 0 | éœ€è¿½è¸ªåŠ¨æ€è·¯å¾„æˆ–å¤–éƒ¨å…¥å£ |
 | `clear-cube-source.json` | 0.002 | 0 | 1 | 0 | 1 | 0 | 0 | `internal/gamedata/catalogs_content.go:149` |
 | `drop.compat90.json` | 0.000 | 1 | 0 | 1 | 12 | 0 | 0 | `cmd/charactercheck/loot_check.go:22`<br>`cmd/wireprobe/config.go:67` |
 | `drop.current36.json` | 0.001 | 0 | 0 | 2 | 7 | 0 | 0 | `cmd/audit36/verify.go:50`<br>`cmd/audit36/verify.go:51` |
@@ -42,7 +42,7 @@
 | `experience.compat90.json` | 0.000 | 1 | 0 | 4 | 2 | 0 | 0 | `cmd/charactercheck/clear_reward_check.go:24`<br>`cmd/charactercheck/progression_check.go:29` |
 | `fatigue-probe.json` | 0.000 | 1 | 1 | 0 | 0 | 0 | 0 | `cmd/wireprobe/config.go:62`<br>`internal/savecontract/normalize.go:38` |
 | `inventory.compat90.json` | 0.000 | 1 | 0 | 2 | 3 | 0 | 0 | `cmd/charactercheck/card_check.go:26`<br>`cmd/charactercheck/loot_check.go:26` |
-| `inventory.current37.json` | 0.000 | 0 | 0 | 0 | 11 | 0 | 0 | Ğè×·×Ù¶¯Ì¬Â·¾¶»òÍâ²¿Èë¿Ú |
+| `inventory.current37.json` | 0.000 | 0 | 0 | 0 | 11 | 0 | 0 | éœ€è¿½è¸ªåŠ¨æ€è·¯å¾„æˆ–å¤–éƒ¨å…¥å£ |
 | `inventory.next29.json` | 0.000 | 0 | 0 | 6 | 12 | 0 | 0 | `cmd/admin/main.go:70`<br>`cmd/charactercheck/grant_check.go:24` |
 | `itemshop-candidate.json` | 0.836 | 0 | 3 | 2 | 3 | 0 | 0 | `cmd/itemshopimport/main.go:10`<br>`cmd/itemshopimport/main.go:153` |
 | `legion-contents.generated.json` | 0.035 | 0 | 0 | 2 | 2 | 0 | 0 | `cmd/legionimport/main.go:3`<br>`cmd/legionimport/main.go:47` |
