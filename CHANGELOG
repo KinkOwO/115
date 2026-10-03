@@ -31,6 +31,59 @@ confirmed baseline 保持已有实机范围；没有改存档、数据库或客�
 - 独立候选 `.tmp/pvf-remaining-runtime/wireprobe-native-only.exe`，SHA256 `7447659027474094f15e532009de1ab890fba07c495ff984b6ff89366fff7b72`；同目录 `启动验证.cmd` 供用户关闭现有会话后手动验证。正式/default bin 未替换，confirmed baseline 保持既有实机范围，等待本轮用户确认后收口。
 - 顶层 configs JSON 仍为 66 个：历史对照及测试输入继续保留，本轮没有把运行退役计作文件删除。运行策略、容器/槽位和服主锻造数值 JSON 保留；没有改 PVF、SQL/schema、玩家存档或客户端资源，没有启动服务/客户端或访问玩家库。用户 `.gitignore` 和四份 charactercheck 工作区改动不属于本任务，不覆盖或提交。
 
+## 2026-10-03：黄龙/银龙大会四轮流程已确认
+
+- 首场CMD39后客户端发送CMD33；旧剧情收尾路径把它当作整场通关并立即结算。现有大会运行只接受最终BossCheck完成，未完成时忽略CMD33，不写任务清除证据；四轮Bracket、普通副本Boss错位兼容及最终奖励协议保持。
+- 角色10 gene手动实测黄龙副本100003298和银龙副本100003299：各四名对手逐场确认死亡，前三轮CMD33均继续下一场，第四轮后才发Boss确认、NOTI31及NOTI374；两次CMD450领奖均ACK。黄龙13784在实测前回退至accepted/progress1，银龙13785正常接取；实测后黄龙任务行逐字段恢复原值，其他物品和奖励保留。
+- confirmed baseline 候选 `server/work/dfo-lan/.tmp/tournament-rounds-20261003/wireprobe-tournament-rounds.exe` SHA256 `0d956338390f5f1332ed1f9bb0eacafe07510640461761cda01f53f19681a070`，使用同目录 `启动验证.cmd`。默认PVF程序和39版归档基准保留。全量Go测试、vet、当前PVF两项原生四轮回归和54域准备检查通过；详见`server/work/dfo-lan/docs/protocol/tournament-round-completion-20261003.md`。
+
+## 2026-10-03：雾都赫伊斯 Hell Party 入场已确认
+
+- 修复副本92 DGN在两张普通迷宫重复写入相同 Hell 配置、服务端把同名段拼接后误判无定义的问题。逐段比较所有副本声明；仅全部相同才恢复单份，冲突及空/损坏段保持拒绝。
+- 用户确认副本92 Hell Party 可以进入。18:36:43手动会话 `roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261003_183234_180122_next37` 记录Mode1请求与成功ACK，18:39:19 `dungeon_session_started` 记录封印地图60056、maze0。确认候选SHA256 `f31c611c33956867beaf091ad8baccf87e08b11f0ee69d1057fa10d7a1dd503e` 纳入本轮confirmed baseline；独立入口 `.tmp/hellparty-heiz-20261003/启动验证.cmd`，默认程序未替换。
+- Go全量测试、vet及54域PVF准备通过。本轮当前源有66个Hell声明，65个资源存在且入口基础检查可通过；缺图副本100005110仍拒绝。验收仅确认副本92入场，不扩展成全部副本逐项实测或柱子/波次/掉落确认。无schema、玩家存档或客户端资源改动。详见 `server/work/dfo-lan/docs/protocol/hell-party-haze-entry-20261003.md`。
+
+## 2026-10-03：月湖与秘宝上游合并冲突收敛（源码合并）
+
+- 合入上游 main `c7a5801`；CHANGELOG 保留本地 Hell Party/奥德赛与上游月湖/秘宝制作的全部新增记录和既有 confirmed baseline 信息。
+- 补齐上游新增 `-sole-quality-native` 参数对应的帮助文本测试快照，保持已合并的运行逻辑。Go 1.26 当前内层 PVF 全量包测试中，其余包首轮全部通过；快照修正后网关包全量复测通过，配置专项与 `go vet ./...` 通过。
+- 本轮未替换运行程序、操作玩家库或启动客户端，confirmed baseline 保持双方既有实机确认范围；临时文件和用户未跟踪工作不纳入提交。
+
+## 2026-10-03：Hell Party 后续敌人与装备掉落已确认
+
+- 用户手动实机确认封印柱后续敌人正常刷新，击杀后可以掉落装备。按已授权的参考端兼容规则接入隐藏波次名单、服务端owned实体身份、最后一只奖励实体触发及Hell独立装备池；`DFO_HELL_PARTY_DROP_PERCENT` 默认100（1倍）。该规则明确是本服兼容实现，不声称为115官方完整公式。
+- confirmed baseline 更新为独立候选 `server/work/dfo-lan/.tmp/hellparty-20261003/wireprobe-hellparty-owned-waves.exe`，SHA256 `308a7b8434815dc2936557d8cebad41faeee61e9dedc6c1fc6d0c6ebcdddc352`；默认程序未替换。确认范围限本次手动测试路径中的后续敌人刷新与装备掉落，不代表全部Hell地图已逐一实测。
+- Go全量测试、`go vet ./...`、54域原生准备和启动profile检查通过。旧`charactercheck`自检因缺少`account_unified_options`表失败，HEAD overlay可复现；未改schema或玩家存档。分析、PVF范围和实机日志见 `analysis/tasks/hell-party-owned-waves-20261003.md`。
+
+## 2026-10-03：奥德赛章节奖励与115级荣誉邮件候选（待实机）
+
+- 按用户要求新增 `odyssey-completion-rewards.json`，奖励ID经 `client/Script.pvf` 英语名称及原生LIST核对；章节进度和物品属性仍读当前服务端PVF。PVF实际含章节奖励表，第4/5章装备盒保留原生数量2。
+- 章节奖励使用原生物品目录，锁内复核通关，允许毕业后补发；保留旧收据和满包逐行重试。补上115级荣誉盒10420561系统邮件，邮件/欠奖/收据原子提交，兼容旧已发毕业盒与v2欠奖，满箱可重试。
+- 专项、隔离PostgreSQL、当前PVF、vet、构建及候选入口检查通过；全量测试4项失败均在HEAD overlay复现。无schema/玩家库/客户端资源修改。独立候选 `.tmp/odyssey-rewards-20261003/启动验证.cmd` 待用户手动验证，默认程序与confirmed baseline不变。详见 `server/work/dfo-lan/docs/odyssey-completion-rewards.md`。
+- 按用户授权从stash恢复，适配合并后的bootstrap、client_entry与internal/gamedata目录，保留stash备份。恢复版全量测试/vet、原生PVF和隔离PG邮件测试通过；通用charactercheck缺少account_unified_options表，经当前HEAD overlay复现。恢复候选SHA256 `3ca6bb14223ba5023eb12efcea3c82eea4aa8f281c7925c3fbc16022563e365d`，独立入口为 `启动验证-恢复版.cmd`，尚待章末发奖实机验收。
+
+## 2026-10-03：Hell Party 全副本入场已确认
+
+- 删除早期仅允许副本103的验证门禁，改由当前PVF的Hell声明和封印地图确定支持范围。原生副本87失败请求已通过回归；当前PVF共60项声明，59项资源完整并通过离线入场，活动副本100005110缺地图100016811继续拒绝。
+- 保留专用Hell副本的Boss标记，检查剧情路线冲突与连通，普通路线和存档不改。专项回归、vet、构建通过；全量测试4项失败均在HEAD overlay复现。
+- 用户确认 Hell Party 正常进入、柱子可攻击破坏并刷出专属怪物。候选SHA256 `104965f85e1721547dc646b65c5a24ed8050529c5867e55b22a712842b93b7b8` 纳入 confirmed baseline；验收限用户实际测试路径，未扩展成59张地图逐张实测。Hell专属掉落尚未确认。详见`server/work/dfo-lan/docs/protocol/hell-party-all-entry-20261003.md`。
+
+## 2026-10-03：月湖（Moon Lake）单人副本移植到 gamedata 新架构（实机已验证）
+
+- 频道直读改造入新架构：internal/catalog/channel_directory.go（etc/clientchannelinfo.etc +
+  etc/channelslotinfo.etc）、channel_info.go（普通频道行）、channelrefresh.Resolve（configs 只声明
+  {ID, Name}，Type/Area/SourceValues 由直读补全）、town.go 特殊频道城镇 map 路径探测修复；
+  gamedata.Source 频道方法 ×3，configs/channel.local34.json 回瘦身版（16 行）。
+- gamedata 化：Catalogs 加 ChannelDirectory/ChannelInfo/ChannelTowns，preparePVFChannels 入
+  PrepareCatalogs 链（catalogs_channel.go）；gatewayRuntime 经 channelDirectory/channelInfo 传递，
+  main.go 频道段植入 Resolve；bootstrap moon 段从 loadMoonSoloConfig 改为 defaultMoonSoloConfig
+  直读推导（不再需要 -moon-solo-config 手工配置档）。
+- 月湖增量：moon_rewards.go 翻牌产出（装备 1..4 件权重 1/3/3/2 + 深渊门票 10362429×60 +
+  迷雾银币 10362432×15）、moon_solo_flow.go 进场链（红门 N15/N27、装备显示 N14、入图序列、
+  跨层交接）、依赖链 loot pickup/premium/box/contracts/consume 与 workflow loot_*。
+- 验证：Go 1.26 build/vet 全绿；Moon/Channel 测试族全绿（真源 inner.pvf）；实机单人次全流程通过：
+  Moon Lake 频道 → 215/1 落点 → 建队 → NPC Start → 一层五房清怪 → 红门换层 → 二层 → Boss →
+  翻牌（moon_clear_reward / moon_reward_inventory）→ 回城，events.jsonl 零错误。
 
 ## 2026-10-03：秘宝制作（CMD2289）移植到 gamedata 新架构（实机已验证）
 

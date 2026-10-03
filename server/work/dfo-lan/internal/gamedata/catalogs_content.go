@@ -221,6 +221,21 @@ func preparePVFOdyssey(c *Catalogs, s *Source, selected map[string]bool, i Catal
 		return nil
 	}
 	var policy pvfContentPolicy
+	if selected["odyssey-growth"] || selected["odyssey-chapters"] {
+		// Explicit operator-requested mapping; native metadata and chapter
+		// progress remain authoritative. Never silently fall back.
+		rewards, err := catalog.LoadOdysseyCompletionRewards(filepath.Join(filepath.Dir(i.ContentPolicyPath), "odyssey-completion-rewards.json"))
+		if err != nil {
+			return err
+		}
+		if c.Items == nil {
+			return fmt.Errorf("Odyssey completion item index missing")
+		}
+		if err = rewards.ValidateItems(*c.Items); err != nil {
+			return err
+		}
+		c.OdysseyCompletionRewards = rewards
+	}
 	if selected["odyssey-growth"] || selected["odyssey-drop"] || selected["odyssey-currency"] {
 		var err error
 		policy, err = readPVFContentPolicy(i.ContentPolicyPath)

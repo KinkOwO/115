@@ -138,7 +138,7 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 				client.event(map[string]any{"kind": "odyssey_chapter_reward_pending", "character_id": role.ID, "reason": err.Error()})
 			}
 			// Graduation and earlier-level quests share one durable receipt.
-			// Honour rewards remain pending mail delivery, never bag grants.
+			// Honour rewards use an independent idempotent mailbox delivery.
 			if client.questService != nil {
 				ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
 				graduated, applied, gradErr := client.questService.GraduateOdyssey(ctx, role)
@@ -151,6 +151,15 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 				if applied {
 					client.event(map[string]any{"kind": "odyssey_graduated", "character_id": role.ID, "model": storage.OdysseyGraduationEvent})
 				}
+			}
+			ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+			mailed, mailApplied, mailErr := client.progressionService.OdysseyHonorMail(ctx, role)
+			cancel()
+			role = mailed
+			if mailErr != nil {
+				client.event(map[string]any{"kind": "odyssey_honor_mail_pending", "character_id": role.ID, "reason": mailErr.Error()})
+			} else if mailApplied {
+				client.event(map[string]any{"kind": "odyssey_honor_mail_committed", "character_id": role.ID})
 			}
 		}
 		profile := *client.selectProbe

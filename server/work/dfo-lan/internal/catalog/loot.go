@@ -30,6 +30,8 @@ type LootCatalog struct {
 	MonsterItemExclusions    map[uint32]bool         `json:"-"`
 	WorldDrop                *WorldDropTable         `json:"-"`
 	OrdinaryWorldDropPercent uint32                  `json:"-"`
+	HellPartyDrop            *HellPartyDropTable     `json:"-"`
+	HellPartyDropPercent     uint32                  `json:"-"`
 	Source                   pvf.ArchiveSnapshot     `json:"source"`
 	MaximumGrade             uint32                  `json:"maximum_grade"`
 	Rules                    map[string]ScriptRecord `json:"rules"`

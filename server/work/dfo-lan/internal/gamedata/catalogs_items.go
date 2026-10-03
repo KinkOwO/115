@@ -255,6 +255,15 @@ func preparePVFLoot(c *Catalogs, s *Source, inputs CatalogInputs) error {
 		return err
 	}
 	log.Printf("ordinary world drop compatibility multiplier=%d%% (DFO_ORDINARY_WORLD_DROP_PERCENT, default 100%%); source weights /100000", direct.OrdinaryWorldDropPercent)
+	direct.HellPartyDrop, err = catalog.ParseHellPartyDropTable(direct.Rules["etc/itemdropinfo_monster_hell.etc"])
+	if err != nil {
+		return err
+	}
+	direct.HellPartyDropPercent, err = loot.ParseHellPartyDropPercent(os.Getenv("DFO_HELL_PARTY_DROP_PERCENT"))
+	if err != nil {
+		return err
+	}
+	log.Printf("Hell Party S4 compatibility multiplier=%d%% (DFO_HELL_PARTY_DROP_PERCENT, default 100%%); source probabilities /1001, source A/B rarity /1000000", direct.HellPartyDropPercent)
 	c.Loot = &direct
 	log.Printf("PVF loot prepared: maximum grade=%d stackable candidates=%d drop groups=%d dungeon indexes=%d; ordinary difficulty/creation weights from PVF", direct.MaximumGrade, len(direct.Items), len(direct.DropGroups), len(direct.DungeonDropInfo))
 	s.ReleaseReadCaches()
@@ -279,7 +288,7 @@ func preparePVFEquipmentSelection(c *Catalogs, s *Source, inputs CatalogInputs) 
 		return err
 	}
 	c.Selection = direct
-	log.Printf("PVF equipment selection prepared: basic whitelist=%d source quest additions=%d total=%d legacy drop pool=%d ordinary source pool=%d", len(policy.BasicEquipmentIDs), len(direct.Rows)-len(policy.BasicEquipmentIDs), len(direct.Rows), len(direct.DropPool()), len(direct.OrdinaryPool))
+	log.Printf("PVF equipment selection prepared: basic whitelist=%d source quest additions=%d total=%d legacy drop pool=%d ordinary source pool=%d Hell source pool=%d", len(policy.BasicEquipmentIDs), len(direct.Rows)-len(policy.BasicEquipmentIDs), len(direct.Rows), len(direct.DropPool()), len(direct.OrdinaryPool), len(direct.HellPartyPool))
 	s.ReleaseReadCaches()
 	return nil
 }

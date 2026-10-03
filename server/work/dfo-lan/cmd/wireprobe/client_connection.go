@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net"
+	"os"
 	"time"
 )
 
@@ -97,6 +98,10 @@ func (gateway *gameGateway) handleClient(c net.Conn, channel uint32) {
 	client.legionState.channelType = client.channelTypes[client.channel]
 	if client.worldService != nil {
 		client.worldState = &worldSession{characters: client.characters, service: client.worldService, store: client.gameStore, account: client.developmentAccount, flags: client.townPolicy.Flags, dungeons: client.dungeonCatalog, townArrivalScenes: client.townArrivalScenes, tutorials: client.tutorialRoutes, tutorialDungeons: client.tutorialDungeons, professions: client.characters.Catalog, fatigue: client.fatigueService, quests: client.questService, progression: client.progressionService, loot: client.lootService, items: client.itemService, shop: client.shopService, selectionBoxes: client.selectionBoxes, vault: client.vaultService, skinCatalog: client.skinCatalog, soloPartyBootstrap: client.config.SoloPartyBootstrap, hub: client.hub, scaleDeathFromHP: client.config.ScaleDeathFromHP, oathGrades: client.oathGradePair, oathTable: client.oathGradeTable, oathFromGear: client.config.OathGradesFromGear, oathProgressClears: client.config.OathProgressClears, oathProgressDungeons: client.oathProgressSet, oathInject: client.oathInjectSpecs, omenHold: client.config.OmenHold, omenState: client.omenState, omenInfo: client.omenInfoBytes}
+		// 启动器自动拾取只对本机回环连接生效，避免把本地便利开关扩散给局域网玩家。
+		if addr, ok := c.RemoteAddr().(*net.TCPAddr); ok {
+			client.worldState.autoPickup = addr.IP.IsLoopback() && os.Getenv("DFO_AUTO_PICKUP") == "1"
+		}
 		client.worldState.serverID = client.channelCfg.ServerID
 		client.worldState.channelType = client.channelTypes[client.channel]
 		if client.moonConfig != nil && client.channel == client.moonConfig.Channel {

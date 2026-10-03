@@ -101,3 +101,13 @@ address	name	description
 0x146ABAF50	ClearRewardWindow_ApplySettlementExit	Stores option at +4108 and state at +4112; state!=1 returns at 146ABB201. Option 0 restart, 1 dungeon selection, 2 town, 5 seamless.
 0x147C74470	IndependentDrop_ReadSourceTables	115 source parser: 17-int rows, flag<=5, inline flags1/4/5, external flag2, flag5 replacement/dungeon condition; proven card-metadata caller only, award formula not established.
 0x1450B0840	MonsterCardDictionary_LoadIndependentDropMetadata	Loads MonsterCardDictionary.etc and Independent_Drop_Card.etc via147C74470, builds item-keyed dictionary metadata, then EnchantBeadDictionary.etc; not monster award generation.
+0x1452AFF30	Handler_NotiHellPartyClear	NOTI777 registered1452BB6E2; no body reader, quest event37 and actor+1512=true; no item list, static20261003.
+0x1452AFEA0	Handler_NotiHellPartyValue	NOTI207 registered1452BB122; single u32 to encoded14E684DF8/+4, reset under actor condition; static20261003.
+0x1452AFF70	Handler_NotiHellPartyMonsterInfo	NOTI666 registered1452BB69D; u32 count then template/level u32 pairs to AIC preload map; no uniqueId; static20261003.
+0x1456E6EE0	HellPartyPillar_SpawnCurrentWave	Matches hidden monster/APC queue order with controller+12168, creates queued identities then increments wave capped9; static20261003.
+0x1456E8F60	HellPartyPillar_RequestQueuedMonster	Builds native monster request with queued uniqueId+44, flag+49=1, passes145D883C0 world action22 to UDP/local queue; static20261003.
+0x1456E8C80	HellPartyPillar_RequestQueuedAPC	Builds native APC request with queued uniqueId+48, flag+52=1, team, passes145D880C0 world action41; fallback monster branch exists; static20261003.
+0x1456E92B0	HellPartyPillar_RequestLocalGatekeepers	Iterates pillar parameter template vector+12208; creates monster requests with uniqueIdFFFF for native allocation, differs from hidden owned wave rows; static20261003.
+0x1456E7D40	HellPartyPillar_AdvanceHitStage	Accumulates hit count/damage against+12264/+12268; stage1 local gatekeepers, stages through6 select animation transitions; static20261003.
+0x1456E8B10	HellPartyPillar_OnAnimationTransition	Animation offset2 with START_MAP header7==1, or offset5, invokes current-wave spawn; static20261003.
+0x147339B10	HellParty_ImportRulesScript	Imports Etc/HellParty.etc; difficulty five columns u8/u16/u8/u8/u8, group key A..E -> native mode1..5, 16 template/type slots; server formula not established; static20261003.

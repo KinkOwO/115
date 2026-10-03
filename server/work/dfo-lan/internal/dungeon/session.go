@@ -22,14 +22,17 @@ type Session struct {
 	Difficulty byte
 	// HellPosition is the current DGN's sealed Hell Party room, advertised in
 	// NOTI28. Nil retains the native absent sentinel (255,255).
-	HellPosition *[2]byte
-	Definition   catalog.DungeonDefinition
-	Maze         catalog.DungeonMaze
-	Room         catalog.DungeonRoom
-	Monsters     []protocol.DungeonMonster
-	Tournament   *TournamentRun
-	Loaded       bool
-	Dead         map[uint16]bool
+	HellPosition   *[2]byte
+	HellParty      *HellPartyRun
+	HellClearSent  bool
+	hellLastDeaths map[[2]uint16]uint16
+	Definition     catalog.DungeonDefinition
+	Maze           catalog.DungeonMaze
+	Room           catalog.DungeonRoom
+	Monsters       []protocol.DungeonMonster
+	Tournament     *TournamentRun
+	Loaded         bool
+	Dead           map[uint16]bool
 	// 沉月湖（Moon Lake）单人攻坚状态。只有该频道启用了 moonConfig 时才会被写入，
 	// 普通副本与军团全程保持零值。
 	MoonFirstGrid                     [5]byte
@@ -102,11 +105,6 @@ func Select(c catalog.DungeonCatalog, r protocol.DungeonSelection, level byte, a
 		return nil, fmt.Errorf("unsupported dungeon option")
 	}
 	if r.Mode == 1 {
-		// Attempt 1/3 is a native-vector probe for Trombe (CMD16 ID 103).
-		// Other DGN seal positions have not yet been exercised on this client.
-		if r.ID != 103 {
-			return nil, fmt.Errorf("Hell Party entry is not yet verified for this dungeon")
-		}
 		if d.HellParty == nil || d.HellParty.SealMap == 0 {
 			return nil, fmt.Errorf("Hell Party is absent from this dungeon source")
 		}
@@ -127,28 +125,9 @@ func Select(c catalog.DungeonCatalog, r protocol.DungeonSelection, level byte, a
 	}
 	selected := chosen
 	if r.Mode == 1 {
-		position := d.HellParty.SealPosition
-		if position == selected.Start || position == selected.Boss {
-			return nil, fmt.Errorf("Hell Party seal room conflicts with source start or boss")
-		}
-		selected.Rooms = append([]catalog.DungeonRoom(nil), selected.Rooms...)
-		seal := catalog.DungeonRoom{X: position[0], Y: position[1], Map: d.HellParty.SealMap}
-		found := false
-		for i, room := range selected.Rooms {
-			if [2]byte{room.X, room.Y} == position {
-				selected.Rooms[i] = seal
-				found = true
-				break
-			}
-		}
-		if !found {
-			selected.Rooms = append(selected.Rooms, seal)
-		}
-		if selected.Size[0] <= position[0] {
-			selected.Size[0] = position[0] + 1
-		}
-		if selected.Size[1] <= position[1] {
-			selected.Size[1] = position[1] + 1
+		selected, err = hellPartyMaze(chosen, *d.HellParty)
+		if err != nil {
+			return nil, err
 		}
 	}
 	s, err := newSession(c, d, selected)
@@ -160,6 +139,19 @@ func Select(c catalog.DungeonCatalog, r protocol.DungeonSelection, level byte, a
 	if r.Mode == 1 {
 		position := d.HellParty.SealPosition
 		s.HellPosition = &position
+		if c.HellRules != nil {
+			s.HellParty, err = newHellPartyRun(c, s, func(total uint64) (uint64, error) { n, e := randomUint64(); return n % total, e })
+			if err != nil {
+				return nil, err
+			}
+			if s.Room.Map == s.HellParty.Map {
+				s.Monsters = append(s.Monsters, s.HellParty.Rows...)
+				if len(s.Monsters) > 255 {
+					return nil, fmt.Errorf("Hell room roster exceeds native count")
+				}
+				s.Visited[s.Room.Map] = s.Monsters
+			}
+		}
 	}
 	if tournamentDungeon(d) {
 		script, err := c.MapScript(s.Room.Map)
@@ -379,6 +371,7 @@ func (s *Session) ConfirmDeath(entity uint32, killer, actor uint16) (bool, error
 				s.Unowned[m.Entity] = true
 			}
 			s.Dead[m.Entity] = true
+			s.recordHellDeath(m.Entity)
 			if s.Tournament != nil {
 				s.Tournament.CurrentRound++
 			}
@@ -397,6 +390,11 @@ func (s *Session) ConfirmDeath(entity uint32, killer, actor uint16) (bool, error
 	// 只加一道守卫：值必须落在正常的 entity 空间里。服务端投放的怪从 4096 起
 	// （fixedMonsters 用 4096 + index），客户端本地召唤的怪共享同一空间；明显无效的
 	// 值（如 100）仍然拒绝，既有契约不变。
+	if s.HellParty != nil && entity <= 65535 {
+		if _, reserved := s.HellParty.Actors[uint16(entity)]; reserved {
+			return false, fmt.Errorf("Hell actor outside current seal room")
+		}
+	}
 	if entity < 4096 {
 		return false, fmt.Errorf("monster absent from current source room")
 	}
@@ -526,6 +524,12 @@ func (s *Session) enterRoom(c catalog.DungeonCatalog, room catalog.DungeonRoom) 
 			}
 			monsters[i].Entity = next.NextEntity
 			next.NextEntity++
+		}
+	}
+	if !seen && next.HellParty != nil && room.Map == next.HellParty.Map {
+		monsters = append(monsters, next.HellParty.Rows...)
+		if len(monsters) > 255 {
+			return nil, fmt.Errorf("Hell room roster exceeds native count")
 		}
 	}
 	// Harvest only map-native friendly APCs. Ordinary team-0 cinematic

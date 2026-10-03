@@ -24,9 +24,10 @@ type EquipmentCatalog struct {
 	Source pvf.ArchiveSnapshot   `json:"source"`
 	Rows   []EquipmentDefinition `json:"rows"`
 	// Separate from the historical selection used by deferred special modes.
-	OrdinaryPool []EquipmentDrop `json:"ordinary_pool,omitempty"`
-	index        map[uint32]EquipmentDefinition
-	pool         []EquipmentDrop
+	OrdinaryPool  []EquipmentDrop `json:"ordinary_pool,omitempty"`
+	HellPartyPool []EquipmentDrop `json:"-"`
+	index         map[uint32]EquipmentDefinition
+	pool          []EquipmentDrop
 }
 
 // EquipmentDrop is one piece of gear this build can actually place in a bag,

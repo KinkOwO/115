@@ -34,6 +34,12 @@ func SceneClearObjective(d catalog.QuestDefinition, run *dungeon.Session) (objec
 	if run.Room.Map != objective {
 		return 0, true, fmt.Errorf("quest %d scene trigger outside its source objective map", d.ID)
 	}
+	// Tournament rounds share the quest's objective map. Live 2026-10-03
+	// sends CMD33 after the first opponent; standing on that map does not
+	// prove a four-round clear. Final completion owns its map-clear evidence.
+	if run.Tournament != nil && !run.Completed() {
+		return 0, false, nil
+	}
 	return objective, true, nil
 }
 

@@ -61,6 +61,13 @@ func moonRefusal(id uint16, p []byte) []outboundPacket {
 		}
 	case 2284:
 		return []outboundPacket{{"moon_start_refused", 1, 2284, protocol.SemiRaidStartReply115(false)}}
+	case 15:
+		// 等候区红门开始被拒（未建队 / 已在副本里 / 教程中 / 资源或翻牌策略不可用）：
+		// 与普通门失败路径同形状的否定回执（main.go:4149-4158 对 C15 失败就是发
+		// Refusal(4)），客户端据此弹提示并留在等候区 —— 这正是取代「空选图 N27 →
+		// 黑屏」的那条回执。不要退回一字节的通用 ACK：门应答的 reader 会把它当成
+		// 「可以开选图了」，又会走回黑屏那条路。
+		return []outboundPacket{{"moon_portal_refused", 1, 15, protocol.Refusal(4)}}
 	}
 	return nil
 }

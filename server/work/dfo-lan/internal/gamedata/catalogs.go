@@ -35,6 +35,9 @@ type Catalogs struct {
 	AwakeningRules                               *catalog.EquipmentAwakeningRules
 	AwakeningOptions                             *catalog.EquipmentAwakeningOptions
 	SoleRules                                    *catalog.SoleEquipmentRules
+	ChannelDirectory                             *catalog.ChannelDirectory
+	ChannelInfo                                  *catalog.ChannelInfo
+	ChannelTowns                                 map[uint32]catalog.TownArea
 	RosterBackgrounds                            *character.RosterBackgroundTicketCatalog
 	OdysseyRoutes                                *catalog.OdysseyJournalRoutes
 	SeasonRules                                  *adventure.SeasonRules
@@ -49,6 +52,7 @@ type Catalogs struct {
 	ClearCube                                    *catalog.LootItem
 	OdysseyGrowth                                *catalog.OdysseyGrowth
 	OdysseyChapters                              *catalog.OdysseyChapters
+	OdysseyCompletionRewards                     *catalog.OdysseyCompletionRewards
 	OdysseyWeapons                               *catalog.OdysseyWeaponChoices
 	OdysseyDrop                                  *loot.OdysseyChapterDrop
 	OdysseyCurrency                              *loot.OdysseyCurrency
@@ -56,6 +60,7 @@ type Catalogs struct {
 	Apocalypse                                   *catalog.ApocalypseCatalog
 	MazeRates                                    *catalog.MazeChanceOverlay
 	HellMaps                                     *catalog.SourceMapOverlay
+	HellRules                                    *catalog.HellPartyRules
 	Grief                                        *catalog.TowerGriefOverlay
 	Dazzlement                                   *catalog.DazzlementOverlay
 	Quests                                       *catalog.QuestCatalog
@@ -536,6 +541,9 @@ func PrepareCatalogs(inputs CatalogInputs, adapters CatalogAdapters) (*Catalogs,
 		return &result, err
 	}
 	if err := preparePVFSoleEquipment(&result, source); err != nil {
+		return &result, err
+	}
+	if err := preparePVFChannels(&result, source); err != nil {
 		return &result, err
 	}
 	if err := preparePVFItemShops(&result, source, selected, inputs); err != nil {

@@ -3,6 +3,7 @@ package character
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/inventory"
+	"encoding/json"
 
 	"testing"
 )
@@ -63,6 +64,13 @@ func odysseyChapterFixture(t *testing.T) (*ProgressionService, Character) {
 // 逐行发放：数量为 2 的行按数量发放（Ch4 10419743 x2、Ch5 10419744 x2）。
 func TestOdysseyChapterRewardGrant(t *testing.T) {
 	s, r := odysseyChapterFixture(t)
+	// Payment must be backed by a persisted server clear, never a client claim.
+	var doc map[string]json.RawMessage
+	if e := json.Unmarshal(r.State, &doc); e != nil {
+		t.Fatal(e)
+	}
+	doc["odyssey_completed_dungeons"] = json.RawMessage(`[100004972]`)
+	r.State, _ = json.Marshal(doc)
 
 	ch5, _ := s.Chapters.At(5)
 	raw, receipt, e := s.ApplyOdysseyChapterReward(r, 5, 0, ch5.Rewards[0])
