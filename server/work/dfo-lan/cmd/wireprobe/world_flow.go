@@ -198,6 +198,7 @@ func (w *worldSession) enter(role storage.Character, spawn storage.WorldPosition
 		}
 	}
 	w.role, w.level, w.state, w.odyssey = role, state.Level, saved, odyssey
+	w.ispinsRepeatPending = false
 	w.blackPurgatory = blackPurgatoryState{}
 	if w.channelType == 73 {
 		// blackpurgatory.etc的85/1招募大厅连回原版85/0房间。

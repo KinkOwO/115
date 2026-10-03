@@ -5,6 +5,7 @@ import (
 	"dfolan/internal/character"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/wire"
+	"dfolan/internal/legion"
 	"dfolan/internal/storage"
 	"encoding/hex"
 	"testing"
@@ -200,17 +201,25 @@ func TestIspinsFinalMovieTownExitThenPartyLeave(t *testing.T) {
 		t.Fatal("town exit silently abandoned the owned party")
 	}
 	handled, gone, err := w.ispinsStandbyPartyHandle(13, make([]byte, 8))
-	if err != nil || !handled || len(gone) != 1 || gone[0].Kind != 0 || gone[0].ID != 9 {
+	if err != nil || !handled || len(gone) != 4 || gone[0].Kind != 0 || gone[0].ID != 9 {
 		t.Fatal("leave party", handled, gone, err)
 	}
 	golden, _ := hex.DecodeString("01000f270100035600030100")
 	if !bytes.Equal(gone[0].Payload, golden) || w.soloPartyReady || w.ispins != nil {
 		t.Fatal("native party-gone notification or server ownership mismatch")
 	}
+	if w.ispinsRepeatPending {
+		t.Fatal("quota restore was still pending after party leave delivered it")
+	}
 	// Leaving must not prevent a fresh party from being created.
 	create, _ := hex.DecodeString(ispinsStandbyPartyRequestHex)
 	if handled, plan, err := w.ispinsStandbyPartyHandle(12, create); err != nil || !handled || len(plan) != 3 || !w.soloPartyReady {
 		t.Fatal("recreate party", handled, plan, err)
+	}
+	start := make([]byte, 24)
+	start[13] = 101
+	if _, _, err := w.startIspins(start); err != nil || w.ispins == nil || w.ispins.cleared != [4]bool{} || w.ispins.finalDone {
+		t.Fatal("fresh replay start after a completed run", err)
 	}
 }
 
@@ -230,6 +239,61 @@ func TestIspinsPartyLeaveRequiresTownAndNativeEmptyRequest(t *testing.T) {
 	w.channelType = 73
 	if handled, _, _ := w.ispinsStandbyPartyHandle(13, make([]byte, 8)); handled {
 		t.Fatal("Ispins handler intercepted another channel's party leave")
+	}
+}
+
+func TestIspinsRepeatQuotaRestoresOnlyAfterFullTownReturn(t *testing.T) {
+	w := &worldSession{channelType: 81, role: storage.Character{ID: 7, WireID: 7},
+		ispins:        &ispinsRun{stage: 3, finalDone: true, storyFinished: true, cleared: [4]bool{true, true, true, true}},
+		activeDungeon: &dungeon.Session{}}
+	if plan, err := w.ispinsRepeatRestorePackets(); err != nil || len(plan) != 0 {
+		t.Fatal("quota refilled while still in the last dungeon", plan, err)
+	}
+	w.activeDungeon = nil
+	w.ispins.storyFinished = false
+	if plan, _ := w.ispinsRepeatRestorePackets(); len(plan) != 0 {
+		t.Fatal("quota refilled before movie completion")
+	}
+	w.ispins.storyFinished = true
+	w.ispins.cleared[3] = false
+	if plan, _ := w.ispinsRepeatRestorePackets(); len(plan) != 0 {
+		t.Fatal("partial clear/retreat refilled quota")
+	}
+	w.ispins.cleared[3] = true
+	// ESC returns with the completed run retained; CMD72 returns with a
+	// pending flag after it releases that run. Both use the same known body.
+	for _, usePending := range []bool{false, true} {
+		if usePending {
+			w.ispins, w.ispinsRepeatPending = nil, true
+		}
+		plan, err := w.ispinsRepeatRestorePackets()
+		if err != nil || len(plan) != 3 {
+			t.Fatal("completed replay restore", plan, err)
+		}
+		fresh, err := legion.IspinsStandbyEntryCharacterInfo([5]byte{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if plan[0].ID != 2254 || !bytes.Equal(plan[0].Payload, fresh) ||
+			plan[1].ID != 781 || !bytes.Equal(plan[1].Payload, weeklyDifficultyInfoUserStandby) ||
+			plan[2].ID != 782 || !bytes.Equal(plan[2].Payload, weeklyDifficultyInfoCharacStandby) {
+			t.Fatal("repeat quota differs from accepted fresh-standby packets")
+		}
+		if !bytes.Equal(fresh[:10], make([]byte, 10)) {
+			t.Fatal("old clear/entry marks retained in restored quota")
+		}
+	}
+	w.channelType = 73
+	if plan, _ := w.ispinsRepeatRestorePackets(); len(plan) != 0 {
+		t.Fatal("another channel's quota changed")
+	}
+	w.channelType = 81
+	clearSelectedWorld(w)
+	if w.ispinsRepeatPending {
+		t.Fatal("pending quota restore survived character deselection")
+	}
+	if w.ispins != nil {
+		t.Fatal("old character's completed replay state survived deselection")
 	}
 }
 

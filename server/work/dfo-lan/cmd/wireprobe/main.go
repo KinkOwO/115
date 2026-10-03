@@ -1814,6 +1814,25 @@ func main() {
 				}
 			}
 			event(entry)
+			// Full Ispins single-player replay: CMD35 is town-position input,
+			// the native readiness signal already used for standby quota data.
+			// Do not push quota restoration during the final movie/map transition.
+			if worldState != nil && frame.Type == 1 && frame.ID == 35 && bootstrapped && verified && selectedCharacterID != 0 {
+				plan, err := worldState.ispinsRepeatRestorePackets()
+				if err != nil {
+					event(map[string]any{"kind": "ispins_repeat_restore_error", "error": err.Error()})
+				} else if len(plan) != 0 {
+					if sendPlan(plan, func(packet outboundPacket) {
+						event(map[string]any{"kind": packet.Name, "id": packet.ID, "character_id": selectedCharacterID, "trigger": "post_clear_town_position", "plain_bytes": len(packet.Payload)})
+					}) != nil {
+						return
+					}
+					worldState.ispinsRepeatPending = false
+					if worldState.ispins != nil && worldState.ispins.finalDone && worldState.ispins.storyFinished {
+						worldState.ispins = nil
+					}
+				}
+			}
 			if frame.Type == 1 && bootstrapped && verified && characters != nil && selectedCharacterID != 0 && frame.ID == 1462 {
 				// 1402359F0发送无正文请求，实机20260929_005313已确认。
 				if len(plaintext) != 0 {

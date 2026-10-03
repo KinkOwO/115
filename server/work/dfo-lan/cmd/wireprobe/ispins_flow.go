@@ -126,9 +126,14 @@ func (w *worldSession) ispinsStandbyPartyHandle(id uint16, p []byte) (bool, []ou
 		// member slots at1452f40fa..4132. Reuse the proven current-build
 		// party-gone grammar; Ispins creates the same local party ID9999.
 		gone := protocol.BlackPurgatoryPartyGone(w.characters.ChannelContext)
+		restore, err := w.ispinsRepeatRestorePackets()
+		if err != nil {
+			return fail(err)
+		}
 		w.soloPartyReady = false
 		w.ispins = nil
-		return true, []outboundPacket{{"ispins_party_gone", 0, 9, gone}}, nil
+		w.ispinsRepeatPending = false
+		return true, append([]outboundPacket{{"ispins_party_gone", 0, 9, gone}}, restore...), nil
 	}
 	name, err := protocol.DecodeIspinsStandbyParty(p)
 	if err != nil {
@@ -153,6 +158,31 @@ func (w *worldSession) ispinsStandbyPartyHandle(id uint16, p []byte) (bool, []ou
 		{"伊斯队长资料", 0, 2, basic},
 		{"伊斯队长详细资料", 0, 2, detail},
 		{"伊斯待机区队伍创建", 0, 9, party},
+	}, nil
+}
+
+// ispinsRepeatRestorePackets reuses the already accepted fresh-standby quota
+// messages. The normal clear/award/movie flow finishes first; only a full run
+// arms this restore on CMD72. No invented count values or PVF edits are needed.
+// Caller clears the pending flag only after delivery (or a successful leave).
+func (w *worldSession) ispinsRepeatRestorePackets() ([]outboundPacket, error) {
+	if w == nil || w.activeDungeon != nil || w.role.ID == 0 || w.channelType != 81 {
+		return nil, nil
+	}
+	// ESC uses the menu town route: it releases the map but leaves the
+	// completed run here. It qualifies for the same refill as CMD72.
+	finished := w.ispins != nil && w.ispins.finalDone && w.ispins.storyFinished && w.ispins.cleared == [4]bool{true, true, true, true}
+	if !w.ispinsRepeatPending && !finished {
+		return nil, nil
+	}
+	entry, err := legion.IspinsStandbyEntryCharacterInfo([5]byte{})
+	if err != nil {
+		return nil, err
+	}
+	return []outboundPacket{
+		{"ispins_repeat_quota_restored", 0, legion.NotiIspinsEntryCharacterInfo, entry},
+		{"ispins_repeat_weekly_user_restored", 0, 781, weeklyDifficultyInfoUserStandby},
+		{"ispins_repeat_weekly_character_restored", 0, 782, weeklyDifficultyInfoCharacStandby},
 	}, nil
 }
 
