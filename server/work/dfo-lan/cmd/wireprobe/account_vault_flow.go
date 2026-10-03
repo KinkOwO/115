@@ -163,7 +163,9 @@ func (w *worldSession) sortAccountVaultCmd() ([]outboundPacket, error) {
 	if err != nil {
 		return nil, err
 	}
-	return []outboundPacket{{"account_vault_sorted", 1, 20, []byte{}}, {"account_vault_list", 0, 13, body}}, nil
+	// ACK20 体保持 nil（preparePackets 跳过空体占位，行为与旧版一致）；
+	// 真正需要空包的场景见 ispins_flow.go 的 N1658。
+	return []outboundPacket{{"account_vault_sorted", 1, 20, nil}, {"account_vault_list", 0, 13, body}}, nil
 }
 
 func (w *worldSession) moveAccountVaultCross(service *workflow.WearService, r protocol.ItemMoveRequest, key string) ([]outboundPacket, error) {

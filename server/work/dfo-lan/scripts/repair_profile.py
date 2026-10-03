@@ -71,6 +71,11 @@ def load_profile(path, project):
             # 空串 = 正常路径（保底 + 国服爆率随机）。只接受空或两个十进制数。
             # ⚠️ 临时诊断入口：用于验证「天平档位 → 誓约掉落模板」的对应关系，验完清空。
             env[key] = value
+        elif key == 'DFO_ISPINS_MODE' and value in ('unlimited', 'weekly'):
+            # 伊斯作战次数模式（unlimited=不限次 / weekly=每周一次），由
+            # scripts/Set-Ispins-Mode.ps1 写入；Go 侧 ispins_policy.go 消费，
+            # 空环境变量默认 unlimited。
+            env[key] = value
         elif key == 'DFO_PVF_CATALOGS' and isinstance(value, str):
             domains = [part.strip() for part in value.split(',')]
             allowed = {'world', 'quests', 'progression', 'items', 'equipment', 'periods', 'skins', 'journal', 'create-cost', 'skills', 'prices', 'materials', 'boosters', 'tutorial', 'enhancements', 'random-options', 'shields', 'oath-grades', 'vault', 'loot', 'equipment-selection', 'town', 'dungeons', 'training-dungeons', 'tutorial-dungeons', 'dungeon-towers', 'dungeon-hell', 'dungeon-maze', 'apocalypse', 'attunement', 'odyssey-growth', 'odyssey-chapters', 'odyssey-weapons', 'odyssey-drop', 'odyssey-currency', 'clear-cube', 'black-purgatory', 'bleeding-mine', 'dungeon-terminal', 'dungeon-tournament', 'selection-boxes', 'lottery', 'adventure', 'adventure-recommended', 'season', 'odyssey-routes', 'roster-backgrounds', 'fame', 'script-warps', 'layer-revisits', 'characters', 'cashshop', 'boxes', 'item-shops'}

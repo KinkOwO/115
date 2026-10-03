@@ -69,6 +69,15 @@ type Session struct {
 	completed                   bool
 	lotusClosingReached         bool
 	terminalSceneClosingReached bool
+	// ArenaBoss 声明「进图房间本身就是这场战斗的 boss 竞技场」：军团阶段本
+	// （伊斯大陆 nemaug/nagor/ashcore/itrenog）的源迷宫里 [boss map] 是未被
+	// 使用的源元数据（100002987 迷宫 0 的 boss 坐标在 (0,0)/100006472），
+	// 而官服实证（s4 帧 451/550）把玩家放进 [start map] 房间 (1,1)/100006476
+	// 并在那里开打、在那里结算 —— N28 仍回源迷宫的 boss 坐标。该标志只放宽
+	// BossCheck/完成判定的「房间归属」守卫，目标仍必须是房内真实存在的源领主
+	// （rank3 / APC，team≠0），不会把任意小怪当 boss 放行。只由军团阶段入场
+	// 路径（cmd/wireprobe ispins_flow）置位，普通副本恒为零值。
+	ArenaBoss                  bool
 	// sceneDiagnostic 记录最近一次场景换图走了哪条判定分支，仅供排查（见 SceneDiagnostic）。
 	sceneDiagnostic string
 	// layerRecord 是客户端主动进当前层图时带来的换图记录（见 SceneEntryRecord）。

@@ -21,6 +21,9 @@ import (
 )
 
 func main() {
+	if _, err := ispinsWeeklyLimited(); err != nil {
+		log.Fatal(err)
+	}
 	startup, configErr := loadConfig(os.Args[1:], os.Getenv, os.Stderr)
 	if configErr != nil {
 		if errors.Is(configErr, flag.ErrHelp) {

@@ -40,6 +40,9 @@ type worldSession struct {
 	bleedingMineReady      bool
 	bleedingMineRoster     []int64
 	bleedingMineStart      *bleedingMineStart
+	// ispins 是一次伊斯大陆（内容号 101）挑战的会话状态；nil = 无进行中的
+	// 挑战。字节契约见 ispins_flow.go 与 next78 取证文档。
+	ispins                 *ispinsRun
 	blackPurgatory         blackPurgatoryState
 	adventureEliteSnapshot [32]byte
 	// odyssey mirrors character.OdysseyRole for this session. It selects which
@@ -67,6 +70,15 @@ type worldSession struct {
 	townArrivalScenes   map[uint32]catalog.TownArrivalScene
 	approvedDungeonGate uint32
 	pendingTownArrival  *dungeon.Session
+	// pendingLegionEntryInfo：伊斯频道（Type 81）待机区分支的 N2254 延迟
+	// 发送标志。官服证据（2026-10-03 待机区抓包，帧 998 > 894）：N2254 在
+	// 客户端已在场景内（c2s 35 位置上报之后）才送达；私服原先固定 1.1s
+	// 推送，实测撞进待机场景装载期导致客户端硬崩（USERDMP 为空）。改为
+	// 等入场后第一帧 c2s（场景就绪信号）再发。
+	pendingLegionEntryInfo bool
+	// Single-player Ispins: refill the client quota after a full run returns
+	// to a ready town scene. Never refresh during the final movie/map load.
+	ispinsRepeatPending bool
 	// craftPending / craftPendingAt 记录上一次装备库制作（CMD2259）请求的指纹与
 	// 时间戳（UnixNano）。**同一个正文客户端会发两次**（"变换" → "确定"），
 	// 而且两次的 plain_hex 逐字节相同 ⇒ 只能由服务端记状态来区分第一步与第二步。
@@ -214,6 +226,7 @@ func (w *worldSession) enter(role storage.Character, spawn storage.WorldPosition
 		}
 	}
 	w.role, w.level, w.state, w.odyssey = role, state.Level, saved, odyssey
+	w.ispinsRepeatPending = false
 	w.blackPurgatory = blackPurgatoryState{}
 	if w.channelType == 73 {
 		// blackpurgatory.etc的85/1招募大厅连回原版85/0房间。
@@ -237,6 +250,19 @@ func (w *worldSession) enter(role storage.Character, spawn storage.WorldPosition
 		entry := storage.WorldPosition{Town: 218, Area: 0, X: 562, Y: 234}
 		if e := w.service.ValidatePosition(w.level, w.odyssey, entry); e != nil {
 			return fmt.Errorf("赤红铁矿频道落点无效：%w", e)
+		}
+		w.state.Position = entry
+	}
+	if w.channelType == 81 {
+		// 伊斯大陆军团频道（Type 81，channel 86/87）待机区落点。官服抓包
+		// （analysis/ispins-standby-official-capture-20261003.md §2-§3，c2s 帧
+		// 894/919/925 SET_USER_AREA 首字段 0x92）：重连选角后角色落在
+		// 146/0 的 (562,234)，坐标在 world 目录 146/0 的可行走矩形内。与
+		// 黑鸦/赤红铁矿同一模式：会话内改写位置，不写普通城镇存档，
+		// 换回普通频道仍恢复原城镇落点。
+		entry := storage.WorldPosition{Town: 146, Area: 0, X: 562, Y: 234}
+		if e := w.service.ValidatePosition(w.level, w.odyssey, entry); e != nil {
+			return fmt.Errorf("伊斯大陆频道落点无效：%w", e)
 		}
 		w.state.Position = entry
 	}
@@ -564,6 +590,11 @@ func (w *worldSession) handle(id uint16, p []byte, send func(byte, uint16, []byt
 	} else if w.channelType == 73 && next.Town == 85 {
 		w.state.Position = next
 		event(map[string]any{"kind": "黑鸦会话位置更新", "character_id": w.role.ID, "position": next, "request": id})
+	} else if w.channelType == 81 && next.Town == 146 {
+		// 伊斯大陆待机区位置属于当前军团频道会话（官服证据：区内移动
+		// SET_USER_AREA 帧 1105，0→1 区域），不覆盖普通频道的城镇落点。
+		w.state.Position = next
+		event(map[string]any{"kind": "伊斯大陆待机区会话位置更新", "character_id": w.role.ID, "position": next, "request": id})
 	} else {
 		saved, e := w.store.SaveWorld(ctx, w.account, w.role.ID, old, next)
 		if e != nil {

@@ -42,6 +42,15 @@ func (s *Session) BossCheck(r protocol.BossCheckRequest, actor uint16) error {
 		if s.Definition.Tutorial {
 			bossRoom = position == s.Maze.Boss
 		}
+		// [ISPINS-ARENA-BOSS] 军团阶段本（伊斯大陆）的战斗就发生在进图房间：
+		// 源迷宫的 [boss map] 是未使用元数据（100002987 的 boss 坐标在
+		// (0,0)/100006472，官服 s4 帧 451 却在 start (1,1)/100006476 开打，
+		// 帧 337 的 CMD117 也在那里发出、官服 N115 帧 495 回显其 target）。
+		// 见 Session.ArenaBoss。目标校验照旧：必须是房内真实存在的源领主
+		// （rank3 / APC，team≠0 由下方循环把守）。
+		if s.ArenaBoss {
+			bossRoom = true
+		}
 		for _, m := range s.Monsters {
 			if m.Entity == r.Target && (m.Rank == 3 || m.APC && m.Rank >= 5 && m.Rank <= 8) {
 				if s.Definition.Odyssey && s.Definition.HuntBoss != 0 {
@@ -60,7 +69,10 @@ func (s *Session) BossCheck(r protocol.BossCheckRequest, actor uint16) error {
 	// CMD117 被静默丢弃、客户端死等（实机 2026-09-27 黑屏卡死）。
 	// 源已声明 boss 房位置、且房里确实存在可战斗的源领主时，接受客户端指定的任意
 	// 本房间敌怪作为完成目标；目标仍必须是真实存在的源怪（team≠0 且非剧情 actor）。
-	if !found && s.Room.Boss && position == s.Maze.Boss && s.hasFightableBoss() {
+	// [ISPINS-ARENA-BOSS] 军团阶段本同享这条错位兜底：进图房间即 boss 竞技场
+	// （房间归属由 ArenaBoss 声明，官服 s4 帧 495 的 N115 回显的 target=255 就是
+	// 官服侧对客户端任意上报的接受），目标校验照旧。
+	if !found && (s.ArenaBoss || s.Room.Boss && position == s.Maze.Boss) && s.hasFightableBoss() {
 		for _, m := range s.Monsters {
 			if m.Entity == r.Target && m.Team != 0 && !m.NonCombat {
 				found = true
@@ -257,6 +269,16 @@ func (s *Session) tryComplete() {
 					return
 				}
 			}
+		}
+		// [ISPINS-ARENA-BOSS] 军团阶段本（伊斯大陆）的死亡驱动结算：官服 s4 实证
+		// 四个阶段里只有前两个（nemaug/nagor）发了 CMD117，后两个（ashcore/itrenog）
+		// 没有 op=117 也照样结算（s2c 有 4 条 N31）—— completionTarget 恒为 0 时
+		// 这里是它们唯一的结算入口。判据与上面各条同形：进图房间已清空
+		// （roomEnemiesDead 蕴含领主已死）+ 房里确有一只可上报的 rank3 领主。
+		// 房间归属由入场路径置位的 ArenaBoss 声明，普通副本不受影响。
+		if s.ArenaBoss && s.Loaded && s.roomEnemiesDead() && s.reportableDisplayBoss() != 0 {
+			s.completed = true
+			return
 		}
 		return
 	}

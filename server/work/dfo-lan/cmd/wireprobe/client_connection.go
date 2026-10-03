@@ -32,6 +32,9 @@ type gameConnection struct {
 	equipmentState       equipmentSession
 	frames               <-chan clientRead
 	keys                 []byte
+	// loginEventFloodSent 选角前的登录事件洪流（next79 §13/§15，
+	// ispins_wiring.go sendLoginFloodOnce）每连接只发一次。
+	loginEventFloodSent  bool
 	legionState          legionSession
 	mailAlarmRole        int64
 	mailChanges          chan struct{}
