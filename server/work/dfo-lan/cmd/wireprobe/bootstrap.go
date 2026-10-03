@@ -34,6 +34,8 @@ type gatewayRuntime struct {
 	apocalypseClock       *legion.ApocalypseClock
 	boosterCatalog        *BoosterCatalog
 	characters            *character.Service
+	channelDirectory       *catalog.ChannelDirectory
+	channelInfo            *catalog.ChannelInfo
 	developmentAccount    int64
 	dungeonCatalog        *catalog.DungeonCatalog
 	fatigueService        *character.FatigueService
@@ -1554,14 +1556,19 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		}
 	}
 	hub := newLanHub()
+	// 沉月湖单人配置一律从**直读**推导（业主 2026-10-02：直读模式下不新增 JSON，
+	// 也不再需要 -moon-solo-config 这种手工配置档）。频道/城镇/翻牌张数与**翻牌池**
+	// 全部来自 PVF（池 = 第二层声明的掉落组里可结算的堆叠物品，权重照抄源里）；
+	// 只有源里确实没有的"测试剩余次数"由代码常量给出。
 	var moonConfig *moonSoloConfig
-	if startup.MoonSoloConfig != "" {
-		moonConfig, err = loadMoonSoloConfig(startup.MoonSoloConfig, lootService)
-		if err != nil {
-			return nil, nil, err
+	if worldService != nil && characters != nil && dungeonCatalog != nil && startup.ChannelRefreshConfig != "" && startup.EntryBasicProbe && startup.EntryAdditionProbe {
+		if pvfCatalogs.ChannelDirectory == nil {
+			return nil, nil, errors.New("Moon 需要频道目录的 PVF 直读投影（preparePVFChannels 未装载）")
 		}
-		if worldService == nil || characters == nil || dungeonCatalog == nil || startup.ChannelRefreshConfig == "" || !startup.EntryBasicProbe || !startup.EntryAdditionProbe {
-			return nil, nil, errors.New("Moon requires complete persisted world/entry/dungeon/channel services")
+		var moonErr error
+		moonConfig, moonErr = defaultMoonSoloConfig(pvfCatalogs.ChannelDirectory, pvfCatalogs.ChannelTowns, dungeonCatalog, lootService)
+		if moonErr != nil {
+			return nil, nil, moonErr
 		}
 		if err = validateMoonResources(dungeonCatalog, lootService, gameStore); err != nil {
 			return nil, nil, err
@@ -1586,6 +1593,8 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		apocalypseClock:       apocalypseClock,
 		boosterCatalog:        boosterCatalog,
 		characters:            characters,
+		channelDirectory:      pvfCatalogs.ChannelDirectory,
+		channelInfo:           pvfCatalogs.ChannelInfo,
 		developmentAccount:    developmentAccount,
 		dungeonCatalog:        dungeonCatalog,
 		fatigueService:        fatigueService,
