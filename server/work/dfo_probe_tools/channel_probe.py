@@ -309,8 +309,6 @@ with (
    project / "configs/characters.skycastle-release.json"
   )
   command += [
-   "-progression-catalog",
-   str(project / "configs/progression.next25.json"),
    "-progression-rules",
    str(project / "configs/experience.compat90.json"),
    "-loot-catalog",
