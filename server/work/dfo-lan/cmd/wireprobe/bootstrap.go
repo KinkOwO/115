@@ -119,26 +119,26 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		FullPrefix:             startup.EquipmentFullCatalog,
 		JournalPath:            startup.EquipmentJournalRules,
 		CreateCostPath:         startup.EquipmentCreateCost,
-		LearningPath:           startup.SkillCatalog,
-		TutorialPath:           startup.TutorialRoutes,
-		VerifyBaselines:        startup.PVFVerifyBaselines,
-		EnhancementPolicyPath:  startup.PVFEnhancementPolicy,
-		RandomOptionPath:       startup.RandomOptionCatalog,
-		ShieldPath:             startup.KnightShieldCatalog,
-		WearRulesPath:          startup.EquipmentWearRules,
-		OathPath:               startup.OathGradesTable,
-		VaultPath:              startup.VaultRules,
-		VaultPolicyPath:        startup.PVFVaultPolicy,
-		LootPath:               startup.LootCatalog,
-		EquipmentPath:          startup.EquipmentCatalog,
-		QuestEquipmentPath:     startup.QuestEquipmentCatalog,
-		DropPolicyPath:         startup.PVFDropPolicy,
-		TownPath:               startup.TownCatalog,
-		TutorialDungeonPath:    startup.TutorialDungeons,
-		ScenePolicyPath:        startup.PVFScenePolicy,
-		ApocalypsePath:         startup.ApocalypseCatalog,
-		AttunementPath:         startup.AttunementRewards,
-		ContentPolicyPath:      startup.PVFContentPolicy,
+
+		TutorialPath:          startup.TutorialRoutes,
+		VerifyBaselines:       startup.PVFVerifyBaselines,
+		EnhancementPolicyPath: startup.PVFEnhancementPolicy,
+		RandomOptionPath:      startup.RandomOptionCatalog,
+		ShieldPath:            startup.KnightShieldCatalog,
+		WearRulesPath:         startup.EquipmentWearRules,
+		OathPath:              startup.OathGradesTable,
+		VaultPath:             startup.VaultRules,
+		VaultPolicyPath:       startup.PVFVaultPolicy,
+		LootPath:              startup.LootCatalog,
+		EquipmentPath:         startup.EquipmentCatalog,
+		QuestEquipmentPath:    startup.QuestEquipmentCatalog,
+		DropPolicyPath:        startup.PVFDropPolicy,
+		TownPath:              startup.TownCatalog,
+		TutorialDungeonPath:   startup.TutorialDungeons,
+		ScenePolicyPath:       startup.PVFScenePolicy,
+		ApocalypsePath:        startup.ApocalypseCatalog,
+		AttunementPath:        startup.AttunementRewards,
+		ContentPolicyPath:     startup.PVFContentPolicy,
 	}, runtimeCatalogAdapters())
 	// PrepareCatalogs can return partially acquired catalogs alongside an error.
 	if pvfCatalogs != nil {
@@ -160,6 +160,18 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 	}
 	if pvfCatalogErr != nil {
 		return nil, nil, fmt.Errorf("PVF candidate catalogs: %v", pvfCatalogErr)
+	}
+	if candidateSkills := os.Getenv("DFO_SKILL_CATALOG"); candidateSkills != "" {
+		startup.SkillCatalog = candidateSkills
+	}
+	if startup.SkillCatalog != "" && pvfCatalogs.Learning == nil {
+		return nil, nil, fmt.Errorf("skills require the native PVF skills domain")
+	}
+	if startup.LootCatalog != "" && pvfCatalogs.Enhancements == nil {
+		return nil, nil, fmt.Errorf("enhancements require the native PVF enhancements domain")
+	}
+	if (os.Getenv("DFO_DUNGEON_CATALOG") != "" || os.Getenv("DFO_ODYSSEY_DUNGEON_CATALOG") != "") && pvfCatalogs.Dungeons == nil {
+		return nil, nil, fmt.Errorf("dungeons require the native PVF dungeons domain")
 	}
 	// Reject retired content paths before opening storage. Old flag names remain
 	// compatible only when their native domain has actually been prepared.
@@ -342,9 +354,6 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		}
 	}
 	skillRelease := os.Getenv("DFO_SKILL_RELEASE") == "1"
-	if candidateSkills := os.Getenv("DFO_SKILL_CATALOG"); candidateSkills != "" {
-		startup.SkillCatalog = candidateSkills
-	}
 	// NOTI2827 restores locked skills from the client's own character option
 	// block. The built-in block is the same version as this client, so the
 	// template file and the offset override are escapes for a different build.

@@ -1,5 +1,13 @@
 # AGENTS.md — server/
 
+## 2026-10-03：技能 / 副本 / 强化内容原生收口（源码候选）
+
+- 三组子代理并行迁移，移除技能、完整副本、强化/增幅及附魔的运行 JSON 回退和旧 baseline。删除 14 个顶层 JSON 共 64,385,633 字节（61.40 MiB），98→84；完整历史测试快照 2,947,505 字节（2.81 MiB），内容净减 58.59 MiB，解压核验原 SHA256。
+- 诊断复用 `gamedata.Open/Source`；运行复用 `PrepareCatalogs/Catalogs`，补同源脚本读取门面。显式旧技能/副本路径与缺少增强域的掉落启动在存储前拒绝；启动器不再注入技能 JSON，repair 示例改用完整 PVF 域与保留政策。
+- Go 1.26.5 全量测试/vet、Python 3.11.9 的 24 项 profile/启动检查和三域原生门禁通过。完整原生技能 3224、副本 3200/地图18387、六类增强指纹保持；54域只读报告与4d943e5候选的非 memory字段一致，storage_accessed/runtime_started=false。
+- 独立候选与手动入口在 `.tmp/pvf-parallel-cleanup/`，正式程序保持。confirmed baseline 仅保留既有实机确认范围，尚待用户手动回归；未启动客户端或玩家库，无 PVF/schema/存档修改，用户 `.gitignore` 排除提交。详情见根目录 `docs/todo/pvf/PVF单一内容真源改造计划.md`。
+
+
 ## 2026-10-03：世界 / 任务及 NPC 传送原生收口（源码候选）
 
 - world/quests 的运行 JSON 回退、baseline 依赖与启动器注入移除，NPC 影子诊断只用活动原生图；显式旧路径缺少原生域时在存储前拒绝。删除三个导出共 56.63 MiB，顶层 JSON 101→98；完整历史图保留为 2.04 MiB 压缩测试快照，解压逐字节核验原 SHA256，净减少约 54.59 MiB。

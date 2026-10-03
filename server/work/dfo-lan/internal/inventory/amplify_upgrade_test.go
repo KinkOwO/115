@@ -1,10 +1,10 @@
 package inventory
 
-// 增幅规则的回归测试：数据来自 configs/amplify-upgrade.json
-// （scripts/export_amplify_upgrade.py 从 PVF 的 etc/amplifyupgrade.etc 只读导出）。
+// 增幅费用规则回归使用完整历史压缩夹具，运行真源为 PVF。
+// （历史 PVF 导出 从 PVF 的 etc/amplifyupgrade.etc 只读导出）。
 
 import (
-	"path/filepath"
+	"dfolan/internal/testfixture"
 	"testing"
 )
 
@@ -13,12 +13,12 @@ func loadAmplifyUpgradeRulesForTest(t *testing.T) {
 	if amplifyUpgradeRules != nil {
 		return
 	}
-	path := filepath.Join("..", "..", "configs", "amplify-upgrade.json")
+	path := testfixture.EnhancementPath(t, "amplify-upgrade.json")
 	if err := LoadAmplifyUpgradeRules(path); err != nil {
 		t.Fatalf("装载增幅规则失败: %v", err)
 	}
 	if !AmplifyUpgradeRulesLoaded() {
-		t.Skip("configs/amplify-upgrade.json 不存在，跳过增幅用例")
+		t.Fatal("historical amplify-upgrade.json fixture failed to activate")
 	}
 }
 

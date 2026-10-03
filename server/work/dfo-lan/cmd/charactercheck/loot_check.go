@@ -32,7 +32,7 @@ func lootCheck(ctx context.Context, s, reopened *storage.Store, role storage.Cha
 	if e != nil {
 		return e
 	}
-	dc, e := catalog.LoadDungeons("configs/dungeons.generated.json")
+	dc, e := loadNativeDungeonCatalog()
 	if e != nil {
 		return e
 	}

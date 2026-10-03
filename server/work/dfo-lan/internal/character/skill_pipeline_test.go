@@ -6,6 +6,7 @@ import (
 	. "dfolan/internal/character"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/storage"
+	"dfolan/internal/testfixture"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -53,7 +54,7 @@ func TestCapturedAutoSetPersistence(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	l, e := LoadLearningCatalog("../../configs/skills.release.json", c.Source.Checksum)
+	l, e := LoadLearningCatalog(testfixture.SkillCatalogPath(t, "release"), c.Source.Checksum)
 	if e != nil {
 		t.Fatal(e)
 	}

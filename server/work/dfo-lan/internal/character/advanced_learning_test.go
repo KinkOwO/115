@@ -3,6 +3,7 @@ package character
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
+	"dfolan/internal/testfixture"
 	"testing"
 )
 
@@ -11,7 +12,7 @@ func TestSwordmasterLearningUsesSourceRules(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	l, err := LoadLearningCatalog("../../configs/skills.next27.json", c.Source.Checksum)
+	l, err := LoadLearningCatalog(testfixture.SkillCatalogPath(t, "next27"), c.Source.Checksum)
 	if err != nil {
 		t.Fatal(err)
 	}

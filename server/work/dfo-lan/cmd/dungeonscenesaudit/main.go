@@ -3,8 +3,9 @@ package main
 
 import (
 	"dfolan/internal/catalog"
-	"dfolan/internal/catalog/pvf"
+	"dfolan/internal/gamedata"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -15,25 +16,34 @@ import (
 )
 
 func main() {
-	const dest = "docs/evidence/odyssey-scenes-20260917"
-	must(os.MkdirAll(dest, 0755))
-	old, err := catalog.LoadDungeons("configs/dungeons.skycastle-candidate.json")
+	archive := flag.String("archive", "../client-build/Script.inner.pvf", "read-only inner PVF")
+	output := flag.String("output", "", "explicit directory for diagnostic evidence")
+	flag.Parse()
+	if *output == "" {
+		log.Fatal("-output is required; no runtime export is maintained")
+	}
+	dest := *output
+	source, err := gamedata.Open(gamedata.Options{Mode: gamedata.PVF, ArchivePath: *archive})
+	must(err)
+	defer source.Close()
+	world, err := source.World("")
+	must(err)
+	full, err := source.FullDungeons(world, nil)
 	must(err)
 	var ids []uint32
-	for id, d := range old.Dungeons {
+	for id, d := range full.Dungeons {
 		if d.Odyssey {
 			ids = append(ids, id)
 		}
 	}
 	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
-	a, err := pvf.LoadArchive(pvf.Options{Path: "../client-build/Script.inner.pvf", MaxBytes: 1024 * 1024 * 1024})
+	c, err := source.Dungeons(ids)
 	must(err)
-	c, err := catalog.ImportDungeons(a, ids)
-	must(err)
+	must(os.MkdirAll(dest, 0755))
 	write(filepath.Join(dest, "dungeons.json"), c)
 	scripts := map[string]catalog.ScriptRecord{}
 	var lists []string
-	for _, f := range a.Files() {
+	for _, f := range source.Files() {
 		p := strings.ToLower(f.ArchivePath)
 		if strings.HasPrefix(p, "list/") && (strings.Contains(p, "cinematic") || strings.Contains(p, "aicharacter") || p == "list/monster.lst") {
 			lists = append(lists, p)
@@ -41,12 +51,12 @@ func main() {
 		if !strings.HasPrefix(p, "contents/2026/aradodyssey/") || !(strings.HasSuffix(p, ".act") || strings.HasSuffix(p, ".cmt") || strings.HasSuffix(p, ".aic") || strings.HasSuffix(p, ".mob")) {
 			continue
 		}
-		s, e := catalog.ReadScript(a, p)
+		s, e := source.Script(p)
 		must(e)
 		scripts[p] = s
 	}
 	for _, p := range lists {
-		s, e := catalog.ReadScript(a, p)
+		s, e := source.Script(p)
 		must(e)
 		scripts[p] = s
 	}
@@ -65,7 +75,7 @@ func main() {
 	}
 	missing := map[string]string{}
 	add := func(p string) catalog.ScriptRecord {
-		s, e := catalog.ResolveScript(a, p)
+		s, e := source.ResolveScript(p)
 		if e != nil {
 			missing[p] = e.Error()
 			return s

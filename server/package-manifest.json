@@ -1728,36 +1728,6 @@
       "sha256": "f164890d92f420354bb672b9bd4a590bf7df6c42a09370bed1c895025b4d3898"
     },
     {
-      "path": "work/dfo-lan/configs/dungeons.generated.json",
-      "bytes": 896579,
-      "sha256": "a183d347ea290c38d3a92b164268ab50e4d66fc78e1c470c6ceacfbd8523bd62"
-    },
-    {
-      "path": "work/dfo-lan/configs/dungeons.next28.json",
-      "bytes": 5103142,
-      "sha256": "8f74f15d7e48d9db6f1b86006f7d96e7d89a2f731e63a786d1461c2e3071ae5e"
-    },
-    {
-      "path": "work/dfo-lan/configs/dungeons.odyssey-candidate.json",
-      "bytes": 5935233,
-      "sha256": "f47d0485d9e39b136ffee77fb60d594e6cfb3d2acff235d1b052e921fb4e7040"
-    },
-    {
-      "path": "work/dfo-lan/configs/dungeons.odyssey-release.json",
-      "bytes": 8030834,
-      "sha256": "5f88b749246b86fb4bcb64859be11c8840dc95fb1a9b1fe8592a71db00cfea8f"
-    },
-    {
-      "path": "work/dfo-lan/configs/dungeons.odyssey-scenes-release.json",
-      "bytes": 10716235,
-      "sha256": "8c2e92510dfb024b6547f66fab6187f2fd60f29e7def29a232bcab019cb9d8d2"
-    },
-    {
-      "path": "work/dfo-lan/configs/dungeons.skycastle-candidate.json",
-      "bytes": 8174100,
-      "sha256": "820d79453591e15f44b51ca73d0ebf3b0994bcabb79ec89ab15d47c19fe28b33"
-    },
-    {
       "path": "work/dfo-lan/configs/equipment.current35.json",
       "bytes": 2128789,
       "sha256": "ccb690e639f354df3dff1c0a8f82cdb21453f0b73d014e1f897b5eca1e462ea7"
@@ -1876,16 +1846,6 @@
       "path": "work/dfo-lan/configs/shop-purchase-report.json",
       "bytes": 216309,
       "sha256": "63d7b8152a7482e84404924ff67a7e95799a965097757504b31f00e51bfe0e80"
-    },
-    {
-      "path": "work/dfo-lan/configs/skills.next27.json",
-      "bytes": 5638036,
-      "sha256": "540513f3b7568d296e6ab96434d1a0a3640e9193d54c2c14bdee7fecf0b4f91e"
-    },
-    {
-      "path": "work/dfo-lan/configs/skills.release.json",
-      "bytes": 4497221,
-      "sha256": "47cfbca40df08128d2e8899b550fec220af98bdc9a12cbe8fcf9047c3f900193"
     },
     {
       "path": "work/dfo-lan/configs/town.generated.json",

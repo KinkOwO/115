@@ -2,9 +2,9 @@
 package main
 
 import (
-	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/character"
+	"dfolan/internal/gamedata"
 	"encoding/json"
 	"flag"
 	"log"
@@ -16,19 +16,23 @@ func learnableSkillFields(cells []pvf.Token) map[string][]pvf.Token {
 }
 
 func main() {
-	src := flag.String("source", "runtime/pvf_source/Script.inner.pvf", "read-only source")
-	out := flag.String("output", "runtime/skill_learning_audit.json", "metadata audit")
-	characterFile := flag.String("characters", "configs/characters.next25.json", "profession catalog")
+	src := flag.String("source", "../client-build/Script.inner.pvf", "read-only native PVF source")
+	out := flag.String("output", "", "explicit diagnostic output path (required)")
+	flag.String("characters", "", "deprecated: professions are read from the same PVF")
 	flag.Parse()
-	a, e := pvf.LoadArchive(pvf.Options{Path: *src, MaxBytes: 1024 * 1024 * 1024})
+	if *out == "" {
+		log.Fatal("diagnostic output path is required")
+	}
+	source, e := gamedata.Open(gamedata.Options{Mode: gamedata.PVF, ArchivePath: *src})
 	if e != nil {
 		log.Fatal(e)
 	}
-	c, e := catalog.LoadCharacters(*characterFile)
+	defer source.Close()
+	c, e := source.Characters("")
 	if e != nil {
 		log.Fatal(e)
 	}
-	direct, e := character.ImportLearningCatalog(a, c)
+	direct, e := source.Learning(c)
 	if e != nil {
 		log.Fatal(e)
 	}

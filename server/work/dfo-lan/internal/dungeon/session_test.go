@@ -4,11 +4,12 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/game/protocol"
+	"dfolan/internal/testfixture"
 	"testing"
 )
 
 func TestMirkwoodSourceQuestRoute(t *testing.T) {
-	c, e := catalog.LoadDungeons("../../configs/dungeons.generated.json")
+	c, e := catalog.LoadDungeons(testfixture.DungeonPath(t, "dungeons.generated.json"))
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -83,7 +84,7 @@ func TestFriendlyAPCCarriesWithDynamicNativeSource(t *testing.T) {
 }
 
 func TestRoomClearOwnershipAndBacktracking(t *testing.T) {
-	c, e := catalog.LoadDungeons("../../configs/dungeons.generated.json")
+	c, e := catalog.LoadDungeons(testfixture.DungeonPath(t, "dungeons.generated.json"))
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -174,7 +175,7 @@ func TestRoomClearOwnershipAndBacktracking(t *testing.T) {
 }
 
 func TestCompleteSourceRoutePreservesCinematicActors(t *testing.T) {
-	c, err := catalog.LoadDungeons("../../configs/dungeons.generated.json")
+	c, err := catalog.LoadDungeons(testfixture.DungeonPath(t, "dungeons.generated.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -243,7 +244,7 @@ func TestCompleteSourceRoutePreservesCinematicActors(t *testing.T) {
 // 于是天平永远打不死）。这类死亡按「无主」处理：回确认、不给掉落与经验，也不参与
 // 房间清空与通关判定；明显无效的值（低于 entity 空间起点 4096）仍然拒绝。
 func TestUnknownSummonedEntityConfirmedUnowned(t *testing.T) {
-	c, e := catalog.LoadDungeons("../../configs/dungeons.generated.json")
+	c, e := catalog.LoadDungeons(testfixture.DungeonPath(t, "dungeons.generated.json"))
 	if e != nil {
 		t.Fatal(e)
 	}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"dfolan/internal/testfixture"
 	"encoding/binary"
 	"testing"
 
@@ -16,7 +17,7 @@ import (
 // 就等于把玩家放在地图外，实机表现是「角色不见了」。
 // 这里锁住「发出的 next_map 里前两字节必须是目标房间自己的坐标」。
 func TestNextMapPositionMatchesTargetRoom(t *testing.T) {
-	c, e := catalog.LoadDungeons("../../configs/dungeons.odyssey-scenes-release.json")
+	c, e := catalog.LoadDungeons(testfixture.DungeonPath(t, "dungeons.odyssey-scenes-release.json"))
 	if e != nil {
 		t.Fatal(e)
 	}

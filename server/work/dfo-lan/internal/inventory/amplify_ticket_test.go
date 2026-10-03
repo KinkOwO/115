@@ -1,10 +1,10 @@
 package inventory
 
-// 增幅券规则的回归测试：数据来自 configs/amplify-tickets.json
-// （scripts/export_amplify_tickets.py 从 PVF 的 [equipment amplify reinforcement ticket] 只读导出）。
+// 增幅券规则回归使用完整历史压缩夹具，运行真源为 PVF。
+// （历史 PVF 导出 从 PVF 的 [equipment amplify reinforcement ticket] 只读导出）。
 
 import (
-	"path/filepath"
+	"dfolan/internal/testfixture"
 	"testing"
 )
 
@@ -13,12 +13,12 @@ func loadAmplifyTicketsForTest(t *testing.T) {
 	if len(amplifyTickets) > 0 {
 		return
 	}
-	path := filepath.Join("..", "..", "configs", "amplify-tickets.json")
+	path := testfixture.EnhancementPath(t, "amplify-tickets.json")
 	if err := LoadAmplifyTickets(path); err != nil {
 		t.Fatalf("装载增幅券规则失败: %v", err)
 	}
 	if len(amplifyTickets) == 0 {
-		t.Skip("configs/amplify-tickets.json 不存在，跳过增幅券用例")
+		t.Fatal("historical amplify-tickets.json fixture failed to activate")
 	}
 }
 

@@ -34,7 +34,7 @@ func cardCheck(ctx context.Context, s, reopened *storage.Store, role storage.Cha
 	}
 	domain := loot.Service{Catalog: c, Tables: tables, BagRules: bag, CardPolicy: &policy}
 	service := workflow.LootService{Store: s, Loot: &domain}
-	dc, e := catalog.LoadDungeons("configs/dungeons.generated.json")
+	dc, e := loadNativeDungeonCatalog()
 	if e != nil {
 		return e
 	}

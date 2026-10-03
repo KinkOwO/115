@@ -3,6 +3,7 @@ package character
 import (
 	"bytes"
 	"dfolan/internal/catalog"
+	"dfolan/internal/testfixture"
 
 	"encoding/hex"
 	"encoding/json"
@@ -15,7 +16,7 @@ func pilotFixture(t *testing.T) (*Service, Character) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	l, err := LoadLearningCatalog("../../configs/skills.next27.json", c.Source.Checksum)
+	l, err := LoadLearningCatalog(testfixture.SkillCatalogPath(t, "next27"), c.Source.Checksum)
 	if err != nil {
 		t.Fatal(err)
 	}

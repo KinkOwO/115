@@ -294,9 +294,6 @@ func preparePVFScenes(c *Catalogs, s *Source, selected map[string]bool, inputs C
 		if legacy.Source.Checksum != direct.Source.Checksum {
 			return fmt.Errorf("dungeon baseline source mismatch")
 		}
-		if path == fullDungeonAuditPath(inputs) {
-			legacy = normalizeOldDungeonBasisDiagnostics(legacy, policy)
-		}
 		expanded, err := direct.ExpandedMaps()
 		if err != nil {
 			return err
@@ -343,10 +340,6 @@ func preparePVFScenes(c *Catalogs, s *Source, selected map[string]bool, inputs C
 		excluded := append(append([]uint32(nil), policy.Training...), policy.Disabled...)
 		direct, err := s.RuntimeFullDungeons(*world, excluded)
 		if err != nil {
-			return err
-		}
-		path := fullDungeonAuditPath(inputs)
-		if err := audit(path, direct); err != nil {
 			return err
 		}
 		c.Dungeons = &direct
@@ -427,25 +420,6 @@ func fullDungeonAuditPath(inputs CatalogInputs) string {
 	return path
 }
 
-// The old exporter rejected these fourteen missing-basis scripts. The current
-// parser already accepts them, but training is separate and ten are disabled.
-// Normalize only their obsolete diagnostic text; every other diagnostic and
-// every gameplay field still participates in the complete comparison.
-func normalizeOldDungeonBasisDiagnostics(c catalog.DungeonCatalog, p pvfScenePolicy) catalog.DungeonCatalog {
-	obsolete := map[string]bool{}
-	for _, id := range append(append([]uint32(nil), p.Training...), p.Disabled...) {
-		obsolete[fmt.Sprintf("dungeon %d: invalid [basis level]", id)] = true
-	}
-	kept := make([]string, 0, len(c.Skipped))
-	for _, diagnostic := range c.Skipped {
-		if !obsolete[diagnostic] {
-			kept = append(kept, diagnostic)
-		}
-	}
-	c.Skipped = kept
-	return c
-}
-
 func (c *Catalogs) LoadTown(path string) (catalog.TownArea, error) {
 	if err := c.RequireSelected("town", c.Town != nil); err != nil {
 		return catalog.TownArea{}, err
@@ -463,7 +437,7 @@ func (c *Catalogs) LoadDungeons(path string) (catalog.DungeonCatalog, error) {
 	if c.Dungeons != nil {
 		return clonePVFDungeons(*c.Dungeons), nil
 	}
-	return catalog.LoadDungeons(path)
+	return catalog.DungeonCatalog{}, fmt.Errorf("dungeons require a prepared native PVF domain; JSON runtime catalogs are retired")
 }
 
 func (c *Catalogs) LoadTrainingDungeons(path string) (catalog.DungeonCatalog, error) {

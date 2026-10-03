@@ -31,3 +31,13 @@ func loadNativeWorldCatalog() (catalog.WorldCatalog, error) {
 	defer source.Close()
 	return source.World("")
 }
+
+// The storage checks exercise dungeon 3; load its current native definition.
+func loadNativeDungeonCatalog() (catalog.DungeonCatalog, error) {
+	source, err := nativeSource()
+	if err != nil {
+		return catalog.DungeonCatalog{}, err
+	}
+	defer source.Close()
+	return source.Dungeons([]uint32{3})
+}

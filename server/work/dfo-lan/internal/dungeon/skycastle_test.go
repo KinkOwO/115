@@ -3,13 +3,14 @@ package dungeon
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
+	"dfolan/internal/testfixture"
 	"encoding/hex"
 	"reflect"
 	"testing"
 )
 
 func TestSkycastleCapturedEntry(t *testing.T) {
-	old, err := catalog.LoadDungeons("../../configs/dungeons.odyssey-release.json")
+	old, err := catalog.LoadDungeons(testfixture.DungeonPath(t, "dungeons.odyssey-release.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -22,7 +23,7 @@ func TestSkycastleCapturedEntry(t *testing.T) {
 		t.Fatal("baseline unexpectedly admitted unresolved layers")
 	}
 	t.Log("BASELINE: no resolved source maze for requested quest")
-	c, err := catalog.LoadDungeons("../../configs/dungeons.skycastle-candidate.json")
+	c, err := catalog.LoadDungeons(testfixture.DungeonPath(t, "dungeons.skycastle-candidate.json"))
 	if err != nil {
 		t.Fatal(err)
 	}

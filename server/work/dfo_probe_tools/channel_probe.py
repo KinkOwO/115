@@ -335,7 +335,6 @@ with (
    )
   ):
    command[0] = str(project / "bin/wireprobe-dungeon27.exe")
-   command += ["-skill-catalog", str(project / "configs/skills.next27.json")]
   if tag.endswith(
    ("_next28", "_next29", "_next30", "_next31", "_next32", "_next33", "_next34")
   ):

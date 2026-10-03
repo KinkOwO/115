@@ -4,6 +4,7 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/character"
 	"dfolan/internal/storage"
+	"dfolan/internal/testfixture"
 	"encoding/json"
 	"testing"
 )
@@ -13,7 +14,7 @@ func TestAutomaticSkillLevelRefresh(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	l, err := character.LoadLearningCatalog("../../configs/skills.release.json", c.Source.Checksum)
+	l, err := character.LoadLearningCatalog(testfixture.SkillCatalogPath(t, "release"), c.Source.Checksum)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,7 +42,7 @@ func TestAutomaticSkillRefreshCoversAwakeningGrants(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	l, err := character.LoadLearningCatalog("../../configs/skills.next27.json", c.Source.Checksum)
+	l, err := character.LoadLearningCatalog(testfixture.SkillCatalogPath(t, "next27"), c.Source.Checksum)
 	if err != nil {
 		t.Fatal(err)
 	}

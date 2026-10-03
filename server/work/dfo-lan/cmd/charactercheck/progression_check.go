@@ -31,7 +31,7 @@ func progressionCheck(ctx context.Context, s, reopened *storage.Store, role stor
 	if e != nil {
 		return e
 	}
-	d, e := catalog.LoadDungeons("configs/dungeons.generated.json")
+	d, e := loadNativeDungeonCatalog()
 	if e != nil {
 		return e
 	}

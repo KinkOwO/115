@@ -1,9 +1,9 @@
 package inventory
 
 import (
+	"dfolan/internal/testfixture"
 	"encoding/json"
 	"os"
-	"path/filepath"
 	"testing"
 )
 
@@ -70,10 +70,7 @@ func TestFullEquipmentCatalogCoversWornTemplates(t *testing.T) {
 // 的宝珠（GM 发放用）钉住，它们必须落在配置表里，否则服务端会以
 // 「宝珠槽位里不是附魔宝珠」拒绝 —— 而那是玩家看不出区别的失败。
 func TestEnchantBeadsCoverGrantedTemplates(t *testing.T) {
-	path := filepath.Join("..", "..", "configs", "enchant-beads.json")
-	if _, err := os.Stat(path); err != nil {
-		t.Skip("宝珠表不在默认位置，跳过")
-	}
+	path := testfixture.EnhancementPath(t, "enchant-beads.json")
 	if err := LoadEnchantBeads(path); err != nil {
 		t.Fatalf("装载宝珠表失败: %v", err)
 	}

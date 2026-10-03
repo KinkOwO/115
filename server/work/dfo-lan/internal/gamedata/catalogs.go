@@ -108,7 +108,7 @@ type CatalogInputs struct {
 	OdysseyGrowthPath, OdysseyChapterPath, OdysseyDropPath, OdysseyCurrencyPath, OdysseyWeaponPath string
 	AttunementPath, ContentPolicyPath                                                              string
 	ApocalypsePath                                                                                 string
-	IndexPath, FullPrefix, JournalPath, CreateCostPath, LearningPath, MaterialsPath, TutorialPath  string
+	IndexPath, FullPrefix, JournalPath, CreateCostPath, MaterialsPath, TutorialPath                string
 	VerifyBaselines                                                                                bool
 	LootPath, EquipmentPath, QuestEquipmentPath, DropPolicyPath                                    string
 	RandomOptionPath, ShieldPath, WearRulesPath, OathPath, VaultPath, VaultPolicyPath              string
@@ -448,7 +448,7 @@ func PrepareCatalogs(inputs CatalogInputs, adapters CatalogAdapters) (*Catalogs,
 	}
 	logPVFMemory("base-rules", time.Since(started))
 	if selected["skills"] {
-		if e := preparePVFLearning(&result, source, characters, inputs); e != nil {
+		if e := preparePVFLearning(&result, source, characters); e != nil {
 			return &result, e
 		}
 	}

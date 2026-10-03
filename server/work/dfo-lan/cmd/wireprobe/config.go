@@ -79,7 +79,7 @@ type Config struct {
 	BagRules                      string `koanf:"bag-rules" default:"configs/inventory.compat90.json" help:"separate bag slot and missing stack limit policy"`
 	Boxes                         string `koanf:"boxes" help:"imported open-box content tables; empty resolves boxes.json beside the bag rules"`
 	CardRules                     string `koanf:"card-rules" default:"configs/cards.compat90.json" help:"separate compatible free-card policy"`
-	SkillCatalog                  string `koanf:"skill-catalog" help:"current PVF learning metadata; enables manual learning and persisted skill slots"`
+	SkillCatalog                  string `koanf:"skill-catalog" help:"deprecated skill JSON path; requires the native PVF skills domain"`
 	ChannelRefreshConfig          string `koanf:"channel-refresh-config" help:"separate local channel directory service for native refresh"`
 	ChannelIdentity               bool   `koanf:"channel-identity" default:"false" help:"candidate: synchronize NOTI2435 and all actor contexts with the connected channel"`
 	QuestEquipmentCatalog         string `koanf:"quest-equipment-catalog" help:"source basic-equipment metadata for atomic quest rewards"`

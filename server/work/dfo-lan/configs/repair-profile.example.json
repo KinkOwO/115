@@ -1,1 +1,24 @@
-{"binary":"bin/wireprobe-repairs.exe","environment":{"DFO_CHARACTER_CATALOG":"configs/characters.skycastle-release.json","DFO_CHARACTER_RULES":"configs/character-rules.odyssey-release.json","DFO_LOGIN_RESPONSE":"configs/login-normal22.bin","DFO_SKILL_CATALOG":"configs/skills.release.json","DFO_DETAIL_WORN":"1","DFO_EQUIPMENT_FULL_CATALOG":"configs/equipment-full","DFO_EQUIPMENT_WEAR_RULES":"configs/equipment-wear.full-candidate.json","DFO_SHOP_RELEASE":"1","DFO_VAULT_PURCHASE_RELEASE":"1","DFO_ODYSSEY_DUNGEON_CATALOG":"configs/dungeons.odyssey-scenes-release.json","DFO_ODYSSEY_WEAPON_BOX":"configs/odyssey-weapon-box-release.json","DFO_ODYSSEY_GROWTH":"configs/odyssey-growth-release.json","DFO_ODYSSEY_REWARDS_RELEASE":"1","DFO_ODYSSEY_TEMPORARY_CREDITS":"0","DFO_LOOT_CATALOG":"configs/loot.level150.json","DFO_CLEAR_CUBE_SOURCE":"configs/clear-cube-source.json"}}
+{
+  "binary": "bin/wireprobe-handoff-source.exe",
+  "environment": {
+    "DFO_PVF_CATALOGS": "world,quests,progression,items,equipment,periods,skins,journal,create-cost,skills,prices,materials,boosters,tutorial,enhancements,random-options,shields,oath-grades,vault,loot,equipment-selection,town,dungeons,training-dungeons,tutorial-dungeons,dungeon-towers,dungeon-hell,dungeon-maze,apocalypse,attunement,odyssey-growth,odyssey-chapters,odyssey-weapons,odyssey-drop,odyssey-currency,clear-cube,black-purgatory,bleeding-mine,dungeon-terminal,dungeon-tournament,selection-boxes,lottery,adventure,adventure-recommended,season,odyssey-routes,roster-backgrounds,fame,script-warps,layer-revisits,characters,cashshop,boxes,item-shops",
+    "DFO_PVF_VERIFY_BASELINES": "0",
+    "DFO_PVF_ARCHIVE": "../client-build/Script.inner.pvf",
+    "DFO_PVF_SHA256": "",
+    "DFO_PVF_ENHANCEMENT_POLICY": "configs/pvf-enhancement-policy.json",
+    "DFO_PVF_VAULT_POLICY": "configs/pvf-vault-policy.json",
+    "DFO_PVF_DROP_POLICY": "configs/pvf-drop-policy.json",
+    "DFO_PVF_SCENE_POLICY": "configs/pvf-scene-policy.json",
+    "DFO_PVF_CONTENT_POLICY": "configs/pvf-mine-policy.json",
+    "DFO_PVF_SCRIPT_WARP_POLICY": "configs/pvf-script-warp-policy.json",
+    "DFO_PVF_LAYER_REVISIT_POLICY": "configs/pvf-layer-revisit-policy.json",
+    "DFO_PVF_CHARACTER_POLICY": "configs/pvf-character-policy.json",
+    "DFO_SHOP_RELEASE": "1",
+    "DFO_PVF_BOX_POLICY": "configs/pvf-box-policy.json",
+    "DFO_PVF_ITEM_SHOP_POLICY": "configs/pvf-item-shop-policy.json",
+    "DFO_ODYSSEY_REWARDS_RELEASE": "1",
+    "DFO_ATTUNEMENT_REBALANCE": "0",
+    "DFO_FATIGUE_FREE": "1",
+    "DFO_ODYSSEY_TEMPORARY_CREDITS": "0"
+  }
+}

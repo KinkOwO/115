@@ -4,6 +4,20 @@
 
 
 
+## 2026-10-03：技能 / 副本 / 强化并行唯一真源（源码候选）
+
+本轮删除 14 个运行 JSON：`skills.next27.json`、`skills.release.json`；`dungeons.generated.json`、`dungeons.next28.json`、`dungeons.odyssey-candidate.json`、`dungeons.odyssey-release.json`、`dungeons.odyssey-scenes-release.json`、`dungeons.skycastle-candidate.json`；`reinforcement-tickets.json`、`reinforcement-gold.json`、`amplify-grimoire.json`、`amplify-upgrade.json`、`amplify-tickets.json`、`enchant-beads.json`。共 64,385,633 字节（61.40 MiB），顶层 JSON 98→84。保留完整历史 gzip 快照 2,947,505 字节（2.81 MiB），内容净减 61,438,128 字节（58.59 MiB）。新 helper 仅由测试引用，解压到每个测试临时目录，验证原始未压缩 SHA256；两版技能与六版图保留各自完整数据，未用小样本替换全图覆盖。
+
+- 三域 `Catalogs` 运行入口拒绝 JSON 回退，prepare 阶段不再读取对应 baseline；技能准备去除已死 `LearningPath`，无 character 域时仍由原生角色导入学习绑定。显式角色来源锚定、PVF checksum 及存档身份门禁保持，未对其它域 baseline 改语义。
+- 网关显式旧技能 CLI/env、两个副本旧 env 与缺少原生增强的 loot 装配，在 storage 前报错；已准备的原生技能保持来源检查。强化激活仍在原 loot 装配时机，未提前切全局规则。探针移除技能 JSON 注入，旧非原生副本检查直接提示源码/PVF；repair 示例采用默认54域及原政策，保留临时信用额度0。
+- skillaudit、dungeonimport、dungeonscenesaudit 统一用 `gamedata.Open/Source`，显式指定导出输出；后者通过 `Source.Files/Script/ResolveScript` 复用同一个已验证归档。charactercheck 学习读原生角色/技能，四个存储检查只导入其用到的原生 dungeon 3。本轮未运行存储检查。删除无生产入口的两份强化旧 Python exporter。
+- 原生技能全部 3224 定义及完整详情，父 Source 关闭后 eager/lazy 内容一致；指纹 `352504f912d7621d446affc4c098f18cb026ea88898265c90eb04cbf3fb2ef26`。额外 skills 单域准备以 VerifyBaselines=true 完成，缺失旧技能路径仍复用原生目录，错误 source 拒绝。
+- 原生副本全部 3200、地图18387、skipped1699，完整 eager/lazy 地图对照与十四个政策排除图通过；归一化 Source 的加载时间/路径等运维字段后，所有内容字段指纹 `cfef29a48e70f1b13bcc04d4b5bdac8bcf0728f9b9313678d816662149b90427`。训练、教程、附加场景与政策保持。
+- 六类增强指纹 `22083b62b1071c074bb6592612309c7dfd94d3070838623477a828fd2c551507` 前后相同，含强化券1196、增幅券1629、增幅书433、宝珠4846、两类费用各255行。历史快照与当前 PVF 的1430处差异全部是增幅券到期年份2025→2099；旧强化券缺少的926个日期头仅在离线审计补齐，其它 typed字段一致。两侧来源差异钉在门禁里，没有修改当前运行内容、费用公式、倍率、政策或资源。
+- 删除后 Go 1.26.5 `go test -count=1 ./...` / `go vet ./...` 通过，各域原生专项及相关包检查通过；Python 3.11.9 的24项 profile/启动测试与脚本编译通过，复用原 `.tmp/config-cleanup/pydeps`，没有安装依赖。技能prepare收尾测试/vet另过。
+- 网关候选 `77de3398a6362756c2d6837c04a567d2aaef9a0049c1a63e624804ad98d33b6c` 的54域只读报告，与上一提交4d943e5的已验证候选 `56f24bd2f9eb5d38112a598a4836f3d6b62b5dba541328d23251e93ed26c1948` 全部非 memory字段一致；storage_accessed=false、runtime_started=false，不据并行内存或时长推断性能。
+- 旧交付清单只移除原有退休条目，其它历史哈希不重写；字面引用清单重新生成。独立程序/profile/手动入口位于 `server/work/dfo-lan/.tmp/pvf-parallel-cleanup/`，原生分域证据分别在 `.tmp/skills-cleanup/`、`.tmp/dungeons-cleanup/`、`.tmp/enhancements-cleanup/`。正式/default bin 未替换、未访问玩家库或启动客户端，PVF、SQL/schema、存档及用户 `.gitignore` 保持；confirmed baseline 不增加实机确认范围。
+
 ## 2026-10-03：世界 / 任务及 NPC 传送唯一运行真源（源码候选）
 
 删除 `world.generated.json`（29.80 MiB）、`quests.generated.json`（26.79 MiB）与 `npc-teleport.generated.json`（0.05 MiB），共 59,382,632 字节（56.63 MiB）；顶层 JSON 101→98。完整历史图仅作为 `internal/testfixture/testdata/*.json.gz`，共 2,138,961 字节（2.04 MiB），净减少约 54.59 MiB。保留全图是为了继续覆盖全任务目标/碰撞/前置链、城镇到达白名单、NPC 传送及阶段图；没有把全图改成当前运行内容表。测试 helper 仅由测试引用，解压到各测试私有临时目录，验证原始未压缩 SHA256，缺失或损坏直接失败；不落回 configs、不修改历史来源或字段。

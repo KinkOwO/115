@@ -10,11 +10,9 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"maps"
 	"os"
 	"path/filepath"
 	"reflect"
-	"slices"
 	"strconv"
 )
 
@@ -127,24 +125,11 @@ func (c *Catalogs) LoadCashShop(source string, release bool) (*cashshop.Pilot, e
 	return c.CashShop, nil
 }
 
-// Row order in the historical skill exporter came from map iteration. The
-// runtime identity is (profession, skill), so compare that exact projection.
-func learningRows(c *character.LearningCatalog) map[byte]map[uint16]character.LearningDefinition {
-	out := map[byte]map[uint16]character.LearningDefinition{}
-	for _, row := range c.Rows {
-		if out[row.Job] == nil {
-			out[row.Job] = map[uint16]character.LearningDefinition{}
-		}
-		out[row.Job][row.ID] = row
-	}
-	return out
-}
-
-func preparePVFLearning(c *Catalogs, s *Source, chars catalog.Characters, inputs CatalogInputs) error {
+func preparePVFLearning(c *Catalogs, s *Source, chars catalog.Characters) error {
 	if chars.Source.Checksum == "" {
 		// No characters domain selected: bind the learning source to a native
 		// character catalog instead of a stale historical anchor.
-		native, err := catalog.ImportCharacters(s.archive)
+		native, err := s.Characters("")
 		if err != nil {
 			return err
 		}
@@ -153,22 +138,6 @@ func preparePVFLearning(c *Catalogs, s *Source, chars catalog.Characters, inputs
 	direct, err := s.Learning(chars)
 	if err != nil {
 		return err
-	}
-	if inputs.checksBaselines() {
-		path := inputs.LearningPath
-		if path == "" {
-			path = os.Getenv("DFO_SKILL_CATALOG")
-		}
-		if path == "" {
-			return fmt.Errorf("PVF skills requires the active skill catalog baseline")
-		}
-		legacy, err := character.LoadLearningCatalog(path, chars.Source.Checksum)
-		if err != nil {
-			return err
-		}
-		if err = verifyPVFCatalog(learningRows(legacy), learningRows(direct)); err != nil {
-			return fmt.Errorf("skills: %w", err)
-		}
 	}
 	c.Learning = direct
 	log.Printf("PVF learning prepared: %d definitions", len(direct.Rows))
@@ -260,7 +229,7 @@ func (c *Catalogs) LoadLearning(path, checksum string) (*character.LearningCatal
 		}
 		return c.Learning, nil
 	}
-	return character.LoadLearningCatalog(path, checksum)
+	return nil, fmt.Errorf("skills require the native PVF skills domain")
 }
 func (c *Catalogs) LoadShopPrices(path, checksum string) (*catalog.ShopPrices, error) {
 	if err := c.RequireSelected("prices", c.Prices != nil); err != nil {
@@ -415,54 +384,9 @@ func preparePVFEnhancements(c *Catalogs, s *Source, inputs CatalogInputs) error 
 	if err != nil {
 		return err
 	}
-	if inputs.checksBaselines() {
-		legacy, err := inventory.ReadEnhancementBaseline(filepath.Dir(inputs.IndexPath))
-		if err != nil {
-			return err
-		}
-		if err = auditPVFEnhancements(legacy, direct); err != nil {
-			return fmt.Errorf("enhancements: %w", err)
-		}
-	}
 	c.Enhancements = direct
 	log.Printf("PVF enhancements prepared: reinforcement tickets=%d amplify tickets=%d grimoires=%d enchant beads=%d reinforcement levels=%d amplify levels=%d", len(direct.ReinforcementTickets), len(direct.AmplifyTickets), len(direct.Grimoires.Grimoires), len(direct.Enchant.Beads), len(direct.Gold.Levels), len(direct.Amplify.Levels))
 	s.ReleaseReadCaches()
-	return nil
-}
-
-func auditPVFEnhancements(legacy, direct *inventory.EnhancementCatalog) error {
-	// These exports identify different outer snapshots. This is a field audit,
-	// not an archive alias: direct source/save checks remain strict and unchanged.
-	legacy.Grimoires.Source = direct.Grimoires.Source
-	legacy.Enchant.Source = direct.Enchant.Source
-	legacy.Enchant.Rule = direct.Enchant.Rule // descriptive text, never consumed
-	legacy.Gold.Source = direct.Gold.Source
-	legacy.Amplify.Source = direct.Amplify.Source
-	// The old ordinary-ticket export has no expiration headers. Native scripts
-	// contain 926. Keep those headers in the direct catalog; the ticket consumer
-	// checks the saved instance ExpireTime, not this script date. The independently
-	// audited periods catalog supplies template period classification. Only absent
-	// headers may be supplemented: any changed existing date or other tag fails.
-	supplemented := 0
-	for id, row := range legacy.ReinforcementTickets {
-		native, ok := direct.ReinforcementTickets[id]
-		if !ok {
-			continue
-		}
-		if _, exists := row.Fields["[expiration date]"]; exists {
-			continue
-		}
-		if date, exists := native.Fields["[expiration date]"]; exists {
-			row.Fields = maps.Clone(row.Fields)
-			row.Fields["[expiration date]"] = slices.Clone(date)
-			legacy.ReinforcementTickets[id] = row
-			supplemented++
-		}
-	}
-	if err := auditPVFCatalog(legacy, direct); err != nil {
-		return err
-	}
-	log.Printf("PVF enhancement audit passed: ordinary-ticket native expiration headers supplemented=%d; all other typed fields equal", supplemented)
 	return nil
 }
 
@@ -473,22 +397,7 @@ func (c *Catalogs) LoadEnhancements(dir string) error {
 	if c.Enhancements != nil {
 		return c.Enhancements.Activate()
 	}
-	for _, r := range []struct {
-		name string
-		load func(string) error
-	}{
-		{"reinforcement-tickets.json", inventory.LoadReinforcementTickets},
-		{"reinforcement-gold.json", inventory.LoadGoldRules},
-		{"amplify-grimoire.json", inventory.LoadAmplifyGrimoires},
-		{"amplify-upgrade.json", inventory.LoadAmplifyUpgradeRules},
-		{"amplify-tickets.json", inventory.LoadAmplifyTickets},
-		{"enchant-beads.json", inventory.LoadEnchantBeads},
-	} {
-		if err := r.load(filepath.Join(dir, r.name)); err != nil {
-			return err
-		}
-	}
-	return nil
+	return fmt.Errorf("enhancements require the native PVF enhancements domain")
 }
 
 func preparePVFItemShops(c *Catalogs, s *Source, selected map[string]bool, i CatalogInputs) error {

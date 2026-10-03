@@ -1,24 +1,25 @@
 package inventory
 
 import (
+	"dfolan/internal/testfixture"
 	"os"
 	"path/filepath"
 	"testing"
 )
 
-// 增幅书（红字书）清单来自 scripts/export_amplify_grimoire.py：
+// 增幅书（红字书）清单来自 历史 PVF 导出：
 // 识别方式是物品脚本含 [amplification random value]，段内是 (次元属性数值, 权重) 加权表。
 func loadGrimoiresForTest(t *testing.T) {
 	t.Helper()
 	if AmplifyGrimoiresLoaded() {
 		return
 	}
-	path := filepath.Join("..", "..", "configs", "amplify-grimoire.json")
+	path := testfixture.EnhancementPath(t, "amplify-grimoire.json")
 	if err := LoadAmplifyGrimoires(path); err != nil {
 		t.Fatalf("装载增幅书清单失败: %v", err)
 	}
 	if !AmplifyGrimoiresLoaded() {
-		t.Skip("configs/amplify-grimoire.json 不存在，跳过增幅书用例")
+		t.Fatal("historical amplify-grimoire.json fixture failed to activate")
 	}
 }
 

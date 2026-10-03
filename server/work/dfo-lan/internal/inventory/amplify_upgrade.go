@@ -11,8 +11,8 @@ package inventory
 // 与强化共用同一个 ReinforcementRequest 结构（44 字节明文，唯一的差别就是 [0]=1）。
 // 材料放在「券槽」位（[9..10]），MaterialSlot（[11..12]）为 0xffff 未用。
 //
-// 规则数据来自 configs/amplify-upgrade.json（scripts/export_amplify_upgrade.py 从
-// PVF 的 etc/amplifyupgrade.etc 只读导出）：材料 3242 矛盾结晶体、每级消耗 = 等级+1、
+// 运行费用规则由 gamedata 从 PVF 的 etc/amplifyupgrade.etc 准备：
+// 材料 3242 矛盾结晶体、每级消耗 = 等级+1、
 // 金币列。成功率与失败惩罚 **PVF 里没有**，以官方页数据为准（同强化：PVF 无成功率表）。
 
 import (

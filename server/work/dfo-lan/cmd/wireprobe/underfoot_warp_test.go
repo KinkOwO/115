@@ -5,6 +5,7 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
+	"dfolan/internal/testfixture"
 	"encoding/binary"
 	"encoding/hex"
 	"testing"
@@ -14,7 +15,7 @@ const underfootWarpRequest = "0102170200006301000000b2cc000000000000000000000000
 
 func underfootWarpFixture(t *testing.T) *worldSession {
 	t.Helper()
-	c, e := catalog.LoadDungeons("../../configs/dungeons.odyssey-scenes-release.json")
+	c, e := catalog.LoadDungeons(testfixture.DungeonPath(t, "dungeons.odyssey-scenes-release.json"))
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -65,7 +66,7 @@ func TestUnderfootCinematicCipherPadding(t *testing.T) {
 }
 
 func TestMoveScriptFallbackToAdjacentMove(t *testing.T) {
-	c, e := catalog.LoadDungeons("../../configs/dungeons.odyssey-release.json")
+	c, e := catalog.LoadDungeons(testfixture.DungeonPath(t, "dungeons.odyssey-release.json"))
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -99,7 +100,7 @@ func TestMoveScriptFallbackToAdjacentMove(t *testing.T) {
 }
 
 func TestInteractDoorOrdinaryAndSirocco(t *testing.T) {
-	c, e := catalog.LoadDungeons("../../configs/dungeons.odyssey-scenes-release.json")
+	c, e := catalog.LoadDungeons(testfixture.DungeonPath(t, "dungeons.odyssey-scenes-release.json"))
 	if e != nil {
 		t.Fatal(e)
 	}

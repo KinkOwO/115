@@ -164,7 +164,7 @@ func TestSourceClearBaseAndReferenceRankFormula(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	d, e := catalog.LoadDungeons("../../configs/dungeons.generated.json")
+	d, e := catalog.LoadDungeons(testfixture.DungeonPath(t, "dungeons.generated.json"))
 	if e != nil {
 		t.Fatal(e)
 	}

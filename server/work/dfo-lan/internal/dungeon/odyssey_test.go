@@ -3,13 +3,14 @@ package dungeon
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
+	"dfolan/internal/testfixture"
 	"encoding/hex"
 	"reflect"
 	"testing"
 )
 
 func TestCapturedOdysseyEntry(t *testing.T) {
-	c, e := catalog.LoadDungeons("../../configs/dungeons.odyssey-candidate.json")
+	c, e := catalog.LoadDungeons(testfixture.DungeonPath(t, "dungeons.odyssey-candidate.json"))
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -47,11 +48,11 @@ func TestCapturedOdysseyEntry(t *testing.T) {
 }
 
 func TestOrdinaryDungeonsUnchangedByOdysseyMerge(t *testing.T) {
-	before, e := catalog.LoadDungeons("../../configs/dungeons.next28.json")
+	before, e := catalog.LoadDungeons(testfixture.DungeonPath(t, "dungeons.next28.json"))
 	if e != nil {
 		t.Fatal(e)
 	}
-	after, e := catalog.LoadDungeons("../../configs/dungeons.odyssey-release.json")
+	after, e := catalog.LoadDungeons(testfixture.DungeonPath(t, "dungeons.odyssey-release.json"))
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -76,7 +77,7 @@ func TestOrdinaryDungeonsUnchangedByOdysseyMerge(t *testing.T) {
 }
 
 func TestFixedMonstersZeroLevelFallback(t *testing.T) {
-	c, e := catalog.LoadDungeons("../../configs/dungeons.odyssey-release.json")
+	c, e := catalog.LoadDungeons(testfixture.DungeonPath(t, "dungeons.odyssey-release.json"))
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -103,7 +104,7 @@ func TestFixedMonstersZeroLevelFallback(t *testing.T) {
 }
 
 func TestOdysseyRaidRoomCleared(t *testing.T) {
-	c, e := catalog.LoadDungeons("../../configs/dungeons.odyssey-scenes-release.json")
+	c, e := catalog.LoadDungeons(testfixture.DungeonPath(t, "dungeons.odyssey-scenes-release.json"))
 	if e != nil {
 		t.Fatal(e)
 	}
