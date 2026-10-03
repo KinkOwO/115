@@ -3,6 +3,7 @@ package dungeon
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
+	"os"
 	"testing"
 )
 
@@ -116,7 +117,16 @@ func TestOdysseyBossCheckImmediateCompletion(t *testing.T) {
 //（2026-10-03 实测回归原因：`boss check target is not a source boss in this
 // room`，整场无结算）；置位后 CMD117 受理 + 死亡驱动结算双路可用。
 func TestIspinsArenaBossCompletion(t *testing.T) {
-	c, e := catalog.LoadDungeons("../../configs/dungeons.full.json")
+	path := os.Getenv("DFO_PVF_CORE_TEST_ARCHIVE")
+	if path == "" {
+		t.Skip("set DFO_PVF_CORE_TEST_ARCHIVE for Ispins arena-boss completion coverage")
+	}
+	a, e := catalog.OpenTestArchiveCached(path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"))
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer a.Close()
+	c, e := catalog.ImportDungeons(a, []uint32{100002987})
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -181,10 +191,7 @@ func TestIspinsArenaBossCompletion(t *testing.T) {
 }
 
 func TestDungeon22CinematicActorDoesNotBlockBossCompletion(t *testing.T) {
-	c, err := catalog.LoadDungeons("../../configs/dungeons.full.json")
-	if err != nil {
-		t.Fatal(err)
-	}
+	c := catalog.LoadNativeFullDungeons(t)
 	d := c.Dungeons[22]
 	var maze catalog.DungeonMaze
 	for _, m := range d.Mazes {

@@ -14,10 +14,7 @@ func TestEpicHuntMonsterSourceRoutes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	dungeons, err := catalog.LoadDungeons("../../configs/dungeons.full.json")
-	if err != nil {
-		t.Fatal(err)
-	}
+	dungeons := catalog.LoadNativeFullDungeons(t)
 	x := BuildIndex(quests)
 	var supported []uint32
 	for id, q := range quests.Quests {

@@ -58,7 +58,20 @@ func ImportTownArea(a *pvf.Archive, townID, areaID uint32) (TownArea, error) {
 			}
 			active = ts[i+1].Value >= 0 && uint32(ts[i+1].Value) == areaID
 			if active {
-				c.MapPath = "map/" + strings.ToLower(strings.ReplaceAll(ts[i+2].Text, "\\", "/"))
+				// 源里 town 文件给的 map 引用有**两种形态**：普通城镇给的是
+				// `cataclysm/town/…`（归档根在 map/ 下，要补 "map/"），而月湖城镇
+				// 给的是 `contents/2025/moonlake/…`（归档根就是它自己）。逐一探测，
+				// 取真正存在于归档里的那个 —— 不猜前缀，也不因源改写法而静默走偏。
+				ref := strings.ToLower(strings.ReplaceAll(ts[i+2].Text, "\\", "/"))
+				for _, cand := range []string{"map/" + ref, ref} {
+					if _, ok := a.FindFile(cand); ok {
+						c.MapPath = cand
+						break
+					}
+				}
+				if c.MapPath == "" {
+					return c, fmt.Errorf("town %d area %d map %q absent from the archive", townID, areaID, ref)
+				}
 			}
 		} else if t.Text == "[/area]" {
 			active = false
@@ -107,6 +120,32 @@ func ImportTownArea(a *pvf.Archive, townID, areaID uint32) (TownArea, error) {
 		*dst = fmt.Sprintf("%x", sha256.Sum256(raw))
 	}
 	return c, nil
+}
+
+// Spawn 取本城镇的默认落点：**第一个可行走矩形的中心**。
+//
+// 源只说哪些矩形能走，不给"出生点"；取中心是本地策略，作用与旧的
+// townPolicy.X/Y 相同，但不再需要人工挑坐标 —— 特殊频道的落点要从该频道
+// **自己的城镇**直读（业主 2026-10-02）。
+func (c TownArea) Spawn() (uint16, uint16) {
+	if len(c.Walkable) == 0 {
+		return 0, 0
+	}
+	r := c.Walkable[0] // [x, y, w, h]
+	x, y := int64(r[0])+int64(r[2])/2, int64(r[1])+int64(r[3])/2
+	if x < 0 {
+		x = 0
+	}
+	if y < 0 {
+		y = 0
+	}
+	if x > 0xffff {
+		x = 0xffff
+	}
+	if y > 0xffff {
+		y = 0xffff
+	}
+	return uint16(x), uint16(y)
 }
 
 func (c TownArea) Allows(level byte, x, y uint16) bool {

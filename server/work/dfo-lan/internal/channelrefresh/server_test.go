@@ -14,6 +14,27 @@ import (
 	"time"
 )
 
+// testChannelAttrs 是测试用的频道属性桩：**真源对照**在 internal/catalog 的
+// channel_native_test.go（那里压到真实内层 PVF）。这里只提供最小形状 ——
+// 普通频道 1/6/10 的 Type 与 Area 照源写（1 -> type 2 [elven_guard]、
+// 6 -> type 3 [none]、10 -> type 0 [granfloris]），其余按"ID = type"约定。
+func testChannelAttrs(id uint32) (ChannelAttributes, bool) {
+	values := make([]int32, 11)
+	switch id {
+	case 1:
+		return ChannelAttributes{Type: 2, Area: "[elven_guard]", SourceValues: values}, true
+	case 6:
+		return ChannelAttributes{Type: 3, Area: "[none]", SourceValues: values}, true
+	case 10:
+		// 源：`10 0 [granfloris] 5 0 …` —— 注意 type 是 0（本地覆盖成 22）。
+		values[0] = 5
+		return ChannelAttributes{Type: 0, Area: "[granfloris]", SourceValues: values}, true
+	case 119, 106, 63, 73, 74, 67, 76, 108, 103, 102, 101, 117, 116:
+		return ChannelAttributes{Type: id, Area: "[none]", SourceValues: values}, true
+	}
+	return ChannelAttributes{}, false
+}
+
 // fixedEndpoints advertises the same address for every channel, which is how
 // the directory fixtures were captured.
 func fixedEndpoints(c Config, host string, port uint16) map[uint32]ChannelEndpoint {
@@ -90,6 +111,10 @@ func TestDirectoryNumberMatchesSourceChannel(t *testing.T) {
 func TestCurrentClientHasEligibleAutoEntryChannel(t *testing.T) {
 	c, err := Load("../../configs/channel.local34.json")
 	if err != nil {
+		t.Fatal(err)
+	}
+	// 配置文件只写 {ID, Name}；规则层由直读属性补全（真源对照见 internal/catalog）。
+	if err := c.Resolve(testChannelAttrs); err != nil {
 		t.Fatal(err)
 	}
 	b, err := os.ReadFile("../game/protocol/testdata/native_channel_eligibility34.json")
@@ -204,6 +229,10 @@ func TestDirectorySeparatesChannelPorts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// 配置文件只写 {ID, Name}；规则层由直读属性补全（真源对照见 internal/catalog）。
+	if err := c.Resolve(testChannelAttrs); err != nil {
+		t.Fatal(err)
+	}
 	endpoints := map[uint32]ChannelEndpoint{}
 	for i, ch := range c.Channels {
 		endpoints[ch.ID] = ChannelEndpoint{ID: ch.ID, Host: "192.168.1.10", Port: uint16(7002 + i)}
@@ -240,6 +269,10 @@ func TestDirectorySeparatesChannelPorts(t *testing.T) {
 func TestLocalDirectoryPublishesLegionChannel(t *testing.T) {
 	c, err := Load("../../configs/channel.local34.json")
 	if err != nil {
+		t.Fatal(err)
+	}
+	// 配置文件只写 {ID, Name}；规则层由直读属性补全（真源对照见 internal/catalog）。
+	if err := c.Resolve(testChannelAttrs); err != nil {
 		t.Fatal(err)
 	}
 	var row *Channel

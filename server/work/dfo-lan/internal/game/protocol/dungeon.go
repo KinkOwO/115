@@ -152,17 +152,22 @@ type DungeonMonster struct {
 	// 它是否会写进进图包由 StartMapState.EncodeCreateTrigger 决定；
 	// 该字段的语义尚未确认，所以默认不编码。
 	CreateTrigger byte
+	// NOTI29 +0 order and +15 hidden are consumed by native145b26960:
+	// hidden rows with selector -1 queue for the pillar's matching wave.
+	SpawnOrder uint16
+	Hidden     bool
 }
 type StartMapState struct {
 	ReuseRoom   bool
 	LayerChange bool
 	// ExitLayer clears the native layer ordinal before selecting the base cache
 	// (1452b787f -> 1452b7876). Ordinary flag 0 leaves that ordinal unchanged.
-	ExitLayer  bool
-	Transition *[18]byte
-	Position   [2]byte
-	Seed, Map  uint32
-	Monsters   []DungeonMonster
+	ExitLayer     bool
+	Transition    *[18]byte
+	Position      [2]byte
+	Seed, Map     uint32
+	Monsters      []DungeonMonster
+	HellPartyMode byte // header +7; approved A=1/B=2 compatibility mapping
 	// EncodeCreateTrigger 置位时，怪物记录里 Rank 之后那一格（原本恒为 0）
 	// 改写实例的 CreateTrigger。默认 false 时输出与原先逐字节一致。
 	EncodeCreateTrigger bool
@@ -189,7 +194,7 @@ func StartMap(s StartMapState) ([]byte, error) {
 		}
 	}
 	p = add32(p, s.Seed)
-	p = append(p, 0, 0)
+	p = append(p, s.HellPartyMode, 0)
 	p = add32(p, 0xffffffff)
 	// Native transition record defaults at1452b7494..4a7, consumed18 bytes.
 	p = append(p, 0, 0, 0, 0, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 0, 0, 0)
@@ -217,17 +222,24 @@ func StartMap(s StartMapState) ([]byte, error) {
 		if m.Entity == 0 || m.Entity == 65535 || seen[m.Entity] || m.Template == 0 || !validRank || m.Team > 0x7fffffff {
 			return nil, fmt.Errorf("invalid monster identity")
 		}
+		if m.Hidden && (m.SpawnOrder < 1 || m.SpawnOrder > 9 || m.NonCombat || m.APC && m.SourceIndex != 10000) || !m.Hidden && m.SpawnOrder != 0 {
+			return nil, fmt.Errorf("invalid hidden wave identity")
+		}
 		seen[m.Entity] = true
 		// 1452b7c3c -> 145b0d910: the SECOND u16 is MonsterUniqueId.
 		// MonsterLevel is the first byte after the template u32. Confirmed
 		// against the same constructor and named log at 1452b6492.
-		p = add32(add16(p, 0), m.SourceIndex)
+		p = add32(add16(p, m.SpawnOrder), m.SourceIndex)
 		p = add32(add16(p, m.Entity), m.Template)
 		createTrigger := byte(0)
 		if s.EncodeCreateTrigger {
 			createTrigger = m.CreateTrigger
 		}
-		p = append(p, m.Level, m.Rank, createTrigger, 0, 255)
+		hidden := byte(0)
+		if m.Hidden {
+			hidden = 1
+		}
+		p = append(p, m.Level, m.Rank, createTrigger, hidden, 255)
 		// 145b0d910 record+40 ->145b219d0 ->145b144f0 ->vtable+a40
 		// ->145dd6080 ->145d87580 writes actor+f10 (team), not HP.
 		p = add32(p, m.Team)

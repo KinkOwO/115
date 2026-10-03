@@ -42,7 +42,8 @@ type CardPlan struct {
 	Gold               uint32
 	Level              byte
 	// 固定长度保持旧回执可比较；旧存档缺省为空，不改变普通翻牌。
-	Items [8]Award `json:",omitempty"`
+	Items     [8]Award `json:",omitempty"`
+	ItemModel string   `json:",omitempty"`
 	// 独立领主奖励与翻牌同事务冻结，但分别领取，不能在翻牌时再次发放。
 	BossItems [3]Award `json:",omitempty"`
 	BossModel string   `json:",omitempty"`
@@ -91,7 +92,7 @@ func CardGold(t Tables, r CardRules, seed uint32, level, difficulty byte) (uint3
 	return 0, fmt.Errorf("source card gold level absent")
 }
 
-// Freeze is a durable plan, not an award. No reward is granted until PickCard.
+// PlanCards prepares a plan for the caller to freeze durably before selection.
 func (s *Service) PlanCards(role Role, d *dungeon.Session, r CardRules, seed uint32) (CardPlan, error) {
 	var p CardPlan
 	if d == nil || !d.Completed() || role.ConfigVersion != s.Catalog.Source.SaveIdentity() {
@@ -118,23 +119,65 @@ func (s *Service) PlanCards(role Role, d *dungeon.Session, r CardRules, seed uin
 	if level == 0 {
 		level = 1
 	}
-	gold, e := CardGold(s.Tables, r, seed, level, 0)
+	gold, e := s.cardGoldForDungeon(d, r, seed, level)
 	if e != nil {
 		return p, e
 	}
 	p = CardPlan{Run: d.RunID, Source: s.Catalog.Source.SaveIdentity(), Model: r.Model, Gold: gold, Level: level}
+	if ordinaryDungeonRewards(d, s.Catalog, s.Attunement) && s.Catalog.ClearReward != nil {
+		item, err := s.ordinaryFreeCard(d, seed, level)
+		if err != nil {
+			return CardPlan{}, err
+		}
+		p.Items[0], p.ItemModel = item, ordinaryFreeCardModel
+	}
 	return p, nil
 }
+func (s *Service) cardGoldForDungeon(d *dungeon.Session, r CardRules, seed uint32, level byte) (uint32, error) {
+	difficulty := byte(0)
+	if ordinaryDungeonRewards(d, s.Catalog, s.Attunement) {
+		var err error
+		difficulty, err = ordinaryCardDifficultyIndex(d.Difficulty)
+		if err != nil {
+			return 0, err
+		}
+	}
+	return CardGold(s.Tables, r, seed, level, difficulty)
+}
+
+// Select accepts 0..5, and Death already treats 0 as the first difficulty
+// column. Cards must retain that boundary for native runs reporting zero.
+func ordinaryCardDifficultyIndex(difficulty byte) (byte, error) {
+	if difficulty > 5 {
+		return 0, fmt.Errorf("unsupported ordinary card difficulty %d", difficulty)
+	}
+	if difficulty == 0 {
+		return 0, nil
+	}
+	return difficulty - 1, nil
+}
+
 func (s *Service) PrepareFrozenCard(current Role, p CardPlan, index byte) (json.RawMessage, json.RawMessage, error) {
-	var receipt CardReceipt
-	bag, e := inventory.ReadBag(current.State)
+	state, e := s.grantCardAwards(current.State, p)
 	if e != nil {
 		return nil, nil, e
 	}
+	receipt := CardReceipt{p, index}
+	data, e := json.Marshal(receipt)
+	return state, data, e
+}
+
+// The caller persists the returned state and receipt in one character event.
+// Awarder uses the existing stackable/equipment paths and preserves unrelated
+// save fields. A later failure never publishes the earlier grants.
+func (s *Service) grantCardAwards(raw json.RawMessage, p CardPlan) (json.RawMessage, error) {
+	awarder := inventory.Awarder{Catalog: s.Catalog, Rules: s.BagRules, Equipment: s.Equipment}
+	state := raw
+	var err error
 	if p.Gold > 0 {
-		bag, _, e = bag.Add(s.Catalog, s.BagRules, 0, p.Gold)
-		if e != nil {
-			return nil, nil, e
+		state, _, err = awarder.Grant(state, 0, p.Gold)
+		if err != nil {
+			return nil, err
 		}
 	}
 	for _, item := range p.Items {
@@ -142,18 +185,12 @@ func (s *Service) PrepareFrozenCard(current Role, p CardPlan, index byte) (json.
 			continue
 		}
 		if item.Template == 0 || item.Amount == 0 {
-			return nil, nil, fmt.Errorf("冻结翻牌物品无效")
+			return nil, fmt.Errorf("冻结翻牌物品无效")
 		}
-		bag, _, e = bag.Add(s.Catalog, s.BagRules, item.Template, item.Amount, inventory.GrantExpireTime)
-		if e != nil {
-			return nil, nil, e
+		state, _, err = awarder.Grant(state, item.Template, item.Amount)
+		if err != nil {
+			return nil, err
 		}
 	}
-	state, e := inventory.SaveBag(current.State, bag)
-	if e != nil {
-		return nil, nil, e
-	}
-	receipt = CardReceipt{p, index}
-	data, e := json.Marshal(receipt)
-	return state, data, e
+	return state, nil
 }

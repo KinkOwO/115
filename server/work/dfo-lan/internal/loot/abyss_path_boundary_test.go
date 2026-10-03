@@ -1,8 +1,6 @@
 package loot
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 
 	"dfolan/internal/catalog"
@@ -45,14 +43,7 @@ func TestAbyss100005014TakesLegacyPath(t *testing.T) {
 // 顺带锁住：100005014 的两个 exclude 标记确实存在，且服务端目前只认 [exclude gold drop]。
 // 这条记录的是**既有缺口**，不是本轮的回归 —— 用日志形式呈现，便于后续补齐。
 func TestAbyss100005014ExcludeMarkers(t *testing.T) {
-	p := filepath.Join("..", "..", "configs", "dungeons.full.json")
-	if _, e := os.Stat(p); e != nil {
-		t.Skip("dungeons.full.json not present")
-	}
-	c, e := catalog.LoadDungeons(p)
-	if e != nil {
-		t.Fatal(e)
-	}
+	c := catalog.LoadNativeDungeons(t, 100005014)
 	d, ok := c.Dungeons[100005014]
 	if !ok {
 		t.Skip("100005014 not in catalog")
@@ -85,7 +76,7 @@ func TestAbyss100005014ExcludeMarkers(t *testing.T) {
 
 func loadPVFOrSkip(t *testing.T, p string) *pvf.Archive {
 	t.Helper()
-	a, e := pvf.LoadArchive(pvf.Options{Path: p, MaxBytes: 900 * 1024 * 1024})
+	a, e := catalog.OpenTestArchiveCached(p, "")
 	if e != nil {
 		t.Skip("cannot open PVF:", e)
 	}

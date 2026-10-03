@@ -12,11 +12,12 @@ if %errorlevel% neq 0 (
 
 set DFO_SHOP_OPEN_ALL=1
 set DFO_ODYSSEY_MODE=0
-set DFO_CONTRACT_PURCHASE_CRASH_FIX=0
+set DFO_CONTRACT_PURCHASE_CRASH_FIX=1
 set DFO_MAX_ITEM_PERIOD=1
 set DFO_QUEST_VISIBLE_NPC_RELAX=1
 set DFO_QUEST_NPC_DISTANCE_MULTIPLIER=5
-echo Starting DFO 115us Game Client and Server (Scenario Mode)...
+rem 默认使用 configs/pvf-default.json；保留剧情模式，--json-mode 显式回退。
+echo Starting DFO 115us Game Client and Server (PVF Direct + Scenario Mode)...
 if exist "tools\python\python.exe" (
     "tools\python\python.exe" "server\work\dfo-lan\scripts\launch_local.py" %*
 ) else (

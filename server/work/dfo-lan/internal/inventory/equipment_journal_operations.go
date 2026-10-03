@@ -1006,6 +1006,7 @@ type ItemService struct {
 	AvatarSockets  *AvatarSocketRules
 	EmblemInlay    *EmblemInlayRules
 	EmblemCompound *EmblemCompoundRules
+	Boxes          *BoxCatalog
 	// WearRules maps a requested body slot to equipment still in the bag.
 	// A nil map retains the existing equipped-only lookup.
 	WearRules WearRules

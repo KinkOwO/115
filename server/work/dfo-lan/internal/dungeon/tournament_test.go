@@ -5,17 +5,17 @@ import (
 	"dfolan/internal/game/protocol"
 	"encoding/binary"
 	"encoding/hex"
-	"path/filepath"
 	"testing"
 )
 
 func TestYellowDragonCapturedEntry(t *testing.T) {
-	base := filepath.Join("..", "..", "configs")
-	c, err := catalog.LoadDungeons(filepath.Join(base, "dungeons.full.json"))
+	a := catalog.OpenNativeArchive(t)
+	c := catalog.LoadNativeFullDungeons(t)
+	overlay, err := catalog.ImportTournamentQuestMaps(a, c)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = catalog.AttachTournamentQuestMaps(&c, filepath.Join(base, "dungeons.tournament-quest-maps.json")); err != nil {
+	if err := catalog.ApplyTournamentQuestMaps(&c, overlay); err != nil {
 		t.Fatal(err)
 	}
 	body, err := hex.DecodeString("e2edf5050300000000ffff0000000000d8350000000000000000000000000000")

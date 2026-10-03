@@ -1322,7 +1322,7 @@ func dungeonSelectionHead() []outboundPacket {
 
 ### 校验（2026-09-26 15:32）
 
-`go build ./...` + `go vet ./internal/... ./cmd/...` + `go test -p 1 -count=1 ./internal/... ./cmd/...`
+`go build ./...` + `go vet ./internal/... ./cmd/...` + `go test ./...`（日常；`-p 1 -count=1` 串行且禁 test cache，仅留给发布验证）
 → **exit 全 0，23 个包 ok、0 FAIL**；两条门控集成测试（`BORDER_DROP_INTEGRATION=1`、
 `ATTUNEMENT_REWARD_INTEGRATION=1`）都通过；改动文件 gofmt 通过。候选 exe：
 
@@ -1497,7 +1497,7 @@ account- or character-bound, and it may be rarer than rare」，并附了实机�
 
 ### 校验（2026-09-26 16:41）
 
-`go build ./...` + `go vet ./internal/... ./cmd/...` + `go test -p 1 -count=1 ./internal/... ./cmd/...`
+`go build ./...` + `go vet ./internal/... ./cmd/...` + `go test ./...`（日常；`-p 1 -count=1` 串行且禁 test cache，仅留给发布验证）
 + 两条门控集成 → **全 0，23 个有测试的包 0 FAIL**；改动文件 gofmt 通过。
 
 候选 exe（源码 = 本次改动）：

@@ -1,4 +1,4 @@
-package main
+﻿package main
 
 import (
 	"context"
@@ -55,7 +55,7 @@ func (w *worldSession) grantFreeCard(index byte) ([]outboundPacket, error) {
 		return nil, e
 	}
 	w.role = role
-	bag, e := w.loot.Bootstrap(workflow.LootRole(role))
+	bag, e := w.items.Bootstrap(workflow.InventoryRole(role))
 	if e != nil {
 		return nil, e
 	}

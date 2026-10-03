@@ -1,4 +1,37 @@
 {
+  "HellPartyPillarQueueFields115": {
+    "monster_queue_begin": {"type": "HellPartyMonsterQueueRow115*", "offset": 12088},
+    "monster_queue_end": {"type": "HellPartyMonsterQueueRow115*", "offset": 12096},
+    "apc_queue_begin": {"type": "HellPartyAPCQueueRow115*", "offset": 12112},
+    "apc_queue_end": {"type": "HellPartyAPCQueueRow115*", "offset": 12120},
+    "hit_count": {"type": "uint32", "offset": 12156},
+    "hit_damage_sum": {"type": "uint32", "offset": 12160},
+    "hit_stage": {"type": "uint32", "offset": 12164},
+    "wave_order": {"type": "uint32", "offset": 12168},
+    "local_gatekeeper_templates_begin": {"type": "uint32*", "offset": 12208},
+    "local_gatekeeper_templates_end": {"type": "uint32*", "offset": 12216},
+    "hit_count_threshold": {"type": "uint32", "offset": 12264},
+    "hit_damage_threshold": {"type": "uint32", "offset": 12268},
+    "evidence": "146146CA0/146146A40 queue writers;145B26960 case5 attaches hidden rows;1456E7170 initializes wave1 and thresholds;1456E7D40 hit stages;1456E6EE0 queue consumer; partial subclass layout, static20261003"
+  },
+  "HellPartyMonsterQueueRow115": {
+    "template": {"type": "uint32", "offset": 0},
+    "level": {"type": "uint32", "offset": 4},
+    "unique_id": {"type": "uint32", "offset": 8},
+    "creation_flag": {"type": "uint32", "offset": 12},
+    "order": {"type": "uint32", "offset": 16},
+    "size": 20,
+    "evidence": "146146CA0 writer and1456E6EE0 consumer passing first3 fields to1456E8F60; flag meaning remains partial, static20261003"
+  },
+  "HellPartyAPCQueueRow115": {
+    "template": {"type": "uint32", "offset": 0},
+    "level": {"type": "uint32", "offset": 4},
+    "unique_id": {"type": "uint32", "offset": 8},
+    "team": {"type": "uint32", "offset": 12},
+    "order": {"type": "uint32", "offset": 16},
+    "size": 20,
+    "evidence": "146146A40 writer;1456E6EE0 consumer passes first4 fields to1456E8C80; static20261003"
+  },
   "DungeonCachedRoomDescriptor115": {
     "map_id": {"type": "uint32", "offset": 0},
     "spawn_begin": {"type": "void*", "offset": 8},
@@ -8,6 +41,36 @@
     "size": 64,
     "evidence": "1452b7100; manual Evil Justice room-cache snapshot20260929"
   },
+  "TownDefinitionPhaseFields115": {
+    "town_id": {"type": "uint32", "offset": 0},
+    "base_area_resources_tree": {"type": "void*", "offset": 360},
+    "phase_area_resources_tree": {"type": "void*", "offset": 408},
+    "phase_conditions_tree": {"type": "void*", "offset": 424},
+    "evidence": "1479ff2c0 parser and146d02440 selector, static research20260929; partial layout"
+  },
+  "TownPhaseCondition115": {
+    "value": {"type": "int32", "offset": 0},
+    "kind": {"type": "int32", "offset": 4},
+    "size": 8,
+    "evidence": "1479ff000,1479ff2c0,146cf8c80,146d06b80; native phase condition vector stride8"
+  },
+  "NPCVisibilityQuestEffect115": {
+    "npc_id": {"type": "uint32", "offset": 0},
+    "quest_id": {"type": "uint32", "offset": 4},
+    "show_flag": {"type": "int32", "offset": 8},
+    "evidence": "146cf6cd0 logical record at native list node+16; list nodes have32-byte allocation"
+  },
+  "NPCVisibilitySequenceFallback115": {
+    "quest_id": {"type": "uint32", "offset": 0},
+    "parent_key": {"type": "int32", "offset": 4},
+    "sequence": {"type": "int32", "offset": 8},
+    "evidence": "144f542a0 registration,144f4a870 lookup,146d00bd0 fallback; logical record at native tree node+32"
+  },
+  "QuestConnectUnitOrderFields115": {
+    "parent_key": {"type": "int32", "offset": 4},
+    "sequence_tree": {"type": "void*", "offset": 112},
+    "evidence": "147663660 source parser,147656f70 reset,147661070 lookup,146d00bd0 consumer; partial layout"
+  },
   "DungeonLayerRoomCache115": {
     "descriptors_begin": {"type": "DungeonCachedRoomDescriptor115*", "offset": 0},
     "descriptors_end": {"type": "DungeonCachedRoomDescriptor115*", "offset": 8},
@@ -16,5 +79,81 @@
     "entity_references_begin": {"type": "void*", "offset": 48},
     "entity_references_end": {"type": "void*", "offset": 56},
     "evidence": "145b22f50, 145ea25f0; entity reference stride24"
+  },
+  "QuestMetadataUnitFields115": {
+    "unit_parent_key": {"type": "int32", "offset": 64},
+    "evidence": "1451a0710 writes unit+4 to metadata+64;146d00bd0 consumes; partial layout"
+  },
+  "QuestScriptNPCVisibilityFields115": {
+    "npc_visibility_begin": {"type": "QuestNPCVisibilityBlock115*", "offset": 2024},
+    "npc_visibility_end": {"type": "QuestNPCVisibilityBlock115*", "offset": 2032},
+    "quest_show_override_npc_index": {"type": "int32", "offset": 2320},
+    "cancel_visibility_revert_enabled": {"type": "uint8", "offset": 2793},
+    "evidence": "147674f4f appends blocks;147657ab3 initializes cancel flag1;14766d67b no-revert tag clears it;14527dd70 consumes;1476577d9 defaults2320=-1;14766927e/147677458 parses[visible npc] into2320,144f394fd registers SHOW override by native script ID; partial layout"
+  },
+  "QuestNPCVisibilityBlock115": {
+    "show_flag": {"type": "uint8", "offset": 0},
+    "protection_flag": {"type": "uint8", "offset": 1},
+    "condition_kind": {"type": "int32", "offset": 4},
+    "npc_begin": {"type": "int32*", "offset": 8},
+    "npc_end": {"type": "int32*", "offset": 16},
+    "npc_capacity_end": {"type": "int32*", "offset": 24},
+    "revert_enabled": {"type": "uint8", "offset": 32},
+    "size": 40,
+    "evidence": "1476549d0 defaults;14767493a..147674f5e tags;1476608f0 conditions;144f3b900 apply/revert"
+  },
+  "MapNPCSourcePlacement115": {
+    "npc_id": {"type": "int32", "offset": 0},
+    "placement_quest_id": {"type": "int32", "offset": 4},
+    "visible_on_dungeon_clear_source_flag": {"type": "uint8", "offset": 8},
+    "visible_on_dungeon_if_quest_clear_source_flag": {"type": "uint8", "offset": 9},
+    "direction": {"type": "int32", "offset": 12},
+    "x": {"type": "int32", "offset": 16},
+    "y": {"type": "int32", "offset": 20},
+    "z": {"type": "int32", "offset": 24},
+    "size": 28,
+    "evidence": "1471c31c8..31e9 initializes quest=-1/flags0 once;1471d38c0..1471d3a4e source parse carries optional fields;1471e4790 stride28;145deba20 signed quest<0 bypasses gate, else flag+9 selects completed144f54990 or accepted144f54570;flag+8 sets NPC script+4272 after creation; final visibility remains separate"
+  },
+  "TownPhaseManagerFields115": {
+    "saved_town_conditions_tree": {"type": "void*", "offset": 560},
+    "active_conditions_begin": {"type": "TownPhaseCondition115*", "offset": 576},
+    "active_conditions_end": {"type": "TownPhaseCondition115*", "offset": 584},
+    "hidden_npc_tree": {"type": "void*", "offset": 624},
+    "town_id": {"type": "int32", "offset": 640},
+    "area_id": {"type": "int32", "offset": 672},
+    "npc_show_override_tree": {"type": "void*", "offset": 1064},
+    "npc_logical_show_tree": {"type": "void*", "offset": 1080},
+    "protected_npc_tree": {"type": "void*", "offset": 1176},
+    "town_event_tree": {"type": "void*", "offset": 1248},
+    "townarea_event_tree": {"type": "void*", "offset": 1264},
+    "evidence": "146cf8c80,146d02440,146d04480,146d044d0,146d135c0,146d135f0;14525a6d7/6eb resets560/576 only;146cf6650/146cfc070 register/remove unique quest SHOW override IDs in1064;146d04ef0 hide request writes logical show0 but nonempty override keeps entity visible;146d14060 shows without logical-state write; polarity corrected20260929; full native replay still unresolved; partial layout"
+  },
+  "NPCShowOverrideTreeNode115": {
+    "npc_id": {"type": "int32", "offset": 32},
+    "quest_ids_begin": {"type": "int32*", "offset": 40},
+    "quest_ids_end": {"type": "int32*", "offset": 48},
+    "quest_ids_capacity_end": {"type": "int32*", "offset": 56},
+    "size": 64,
+    "evidence": "146cf6650 allocates64 and inserts unique quest IDs;146cfc070 removes one and erases empty node;146d04ef0 checks nonempty vector; partial native tree-node layout"
+  },
+  "TownBaseAreaResourceNode115": {
+    "area_id": {"type": "int32", "offset": 40},
+    "resource_path": {"type": "wstring", "offset": 48},
+    "force_base_resource_flag": {"type": "int32", "offset": 80},
+    "evidence": "146d06e30 query,146d02c70 selector; source tag for80 unresolved; partial tree node layout"
+  },
+  "NPCSourceVariantInstanceFields115": {
+    "source_variant_selector": {"type": "uint32", "offset": 2812},
+    "original_source_npc_id": {"type": "uint32", "offset": 2816},
+    "evidence": "145b5ef80 variant factory path; partial instance layout"
+  },
+  "SceneTownPhaseFields115": {
+    "town_phase_manager": {"type": "TownPhaseManagerFields115*", "offset": 280},
+    "channel_id_input": {"type": "uint32", "offset": 4528},
+    "evidence": "141308bd0 getter;1459a4bd0 construction;1459ab5e0 channel property3 query via14799b0b0/147ab9310; partial layout"
+  },
+  "MapDefinitionChannelLimitFields115": {
+    "channel_limit_npc_tree": {"type": "void*", "offset": 7184},
+    "evidence": "1471c6bb2 case6577 source[pvp channel limit npc]14b22fb38;1471cea67..ceaaf inserts integer IDs;146d00a80 applies show/hide by scene channel-property3 predicate; partial layout"
   }
 }

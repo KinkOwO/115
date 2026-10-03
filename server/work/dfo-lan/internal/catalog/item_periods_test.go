@@ -7,31 +7,9 @@ import (
 	"testing"
 )
 
-func TestCurrentItemPeriodCatalogMatchesSourceAndKnownTemplates(t *testing.T) {
-	const source = "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80"
-	file := filepath.Join("..", "..", "configs", "item-period-tags.json")
-	templates, err := LoadItemPeriods(file, source)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(templates) < 100000 {
-		t.Fatalf("only %d time-limited templates exported", len(templates))
-	}
-	contains := func(id uint32) bool {
-		for _, template := range templates {
-			if template == id {
-				return true
-			}
-		}
-		return false
-	}
-	if !contains(590012183) || !contains(100991331) || contains(10000660) {
-		t.Fatal("known expiring/non-expiring templates classified incorrectly")
-	}
-	if _, err := LoadItemPeriods(file, "0000000000000000000000000000000000000000000000000000000000000000"); err == nil {
-		t.Fatal("catalog from another PVF source accepted")
-	}
-}
+// 历史 item-period 导出（configs/item-period-tags.json，源 7ef2）与当前源的对照测试
+// 已删除：该 JSON 是历史基线，服务端运行期改由原生 ImportItemPeriods/ItemBasics 提供，
+// 历史基线仅审计。原生到期模板分类由 item_basics_test.go 的联合导入对照覆盖。
 
 func TestItemPeriodCatalogRejectsRepeatedTemplates(t *testing.T) {
 	const source = "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80"

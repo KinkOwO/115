@@ -5,6 +5,7 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
+	"dfolan/internal/inventory"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -12,13 +13,15 @@ import (
 )
 
 type ProgressionService struct {
-	JournalRoutes *catalog.OdysseyJournalRoutes
-	Odyssey       *catalog.OdysseyGrowth
-	Chapters      *catalog.OdysseyChapters
-	Store         ProgressionStore
-	Catalog       catalog.Progression
-	Professions   catalog.Characters
-	Rules         GrowthRules
+	JournalRoutes     *catalog.OdysseyJournalRoutes
+	Odyssey           *catalog.OdysseyGrowth
+	Chapters          *catalog.OdysseyChapters
+	CompletionRewards *catalog.OdysseyCompletionRewards
+	CompletionAwarder *inventory.Awarder
+	Store             ProgressionStore
+	Catalog           catalog.Progression
+	Professions       catalog.Characters
+	Rules             GrowthRules
 }
 
 func (s *ProgressionService) Monster(ctx context.Context, role Character, run *dungeon.Session, entity uint16) (Character, bool, error) {

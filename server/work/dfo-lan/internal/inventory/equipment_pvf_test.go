@@ -2,7 +2,6 @@ package inventory
 
 import (
 	"dfolan/internal/catalog"
-	"dfolan/internal/catalog/pvf"
 	"encoding/json"
 	"os"
 	"path"
@@ -20,7 +19,7 @@ func TestEquipmentProjectionLocalArchiveParity(t *testing.T) {
 	if p == "" {
 		t.Skip("set DFO_PVF_CORE_TEST_ARCHIVE for complete native equipment projection parity")
 	}
-	a, err := pvf.OpenReadOnly(pvf.Options{Path: p, MaxBytes: 1 << 30}, os.Getenv("DFO_PVF_CORE_TEST_SHA256"))
+	a, err := catalog.OpenTestArchiveCached(p, os.Getenv("DFO_PVF_CORE_TEST_SHA256"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,7 +57,7 @@ func TestEquipmentProjectionLocalArchiveParity(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer c.Close()
-	for i, b := range restored.Bindings {
+	for i, b := range paritySweep(restored.Bindings) {
 		expected, err := catalog.ReadScript(a, catalog.ResolveScriptPath(a, index.Items[b.ID].Path))
 		if err != nil {
 			t.Fatal(b.ID, err)
@@ -89,11 +88,15 @@ func TestPVFEquipmentLocalArchive(t *testing.T) {
 	if p == "" {
 		t.Skip("set DFO_PVF_CORE_TEST_ARCHIVE for full definition parity")
 	}
-	a, err := pvf.LoadArchive(pvf.Options{Path: p, MaxBytes: 1024 * 1024 * 1024})
+	want := os.Getenv("DFO_PVF_CORE_TEST_SHA256")
+	if want == "" {
+		t.Skip("set DFO_PVF_CORE_TEST_SHA256 to pin the source for full equipment parity")
+	}
+	a, err := catalog.OpenTestArchiveCached(p, want)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if a.Snapshot().Checksum != os.Getenv("DFO_PVF_CORE_TEST_SHA256") {
+	if a.Snapshot().Checksum != want {
 		t.Fatal("source checksum mismatch")
 	}
 	// Item index parity has its own exhaustive proof. Reuse that verified source
@@ -125,7 +128,7 @@ func TestPVFEquipmentLocalArchive(t *testing.T) {
 		ids = append(ids, id)
 	}
 	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
-	for i, id := range ids {
+	for i, id := range paritySweep(ids) {
 		want, e := legacy.Definition(id)
 		if e != nil {
 			t.Fatal(id, e)

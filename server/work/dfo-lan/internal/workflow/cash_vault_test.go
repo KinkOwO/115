@@ -3,6 +3,7 @@ package workflow
 import (
 	"context"
 	"dfolan/internal/cashshop"
+	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
@@ -12,16 +13,29 @@ import (
 	"testing"
 )
 
+// nativeCashPilot imports the current inner PVF named by
+// DFO_PVF_CORE_TEST_ARCHIVE; the test skips when no archive is configured.
+func nativeCashPilot(t *testing.T, release bool) *cashshop.Pilot {
+	t.Helper()
+	a := catalog.OpenNativeArchive(t)
+	c, err := cashshop.ImportPilot(a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := cashshop.NewPilot(c, c.Source.Checksum, release)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
+
 type vaultTestLedger struct {
 	state storage.VaultState
 	order storage.CashOrder
 }
 
 func TestAccountVaultPurchaseUsesSaveIdentity(t *testing.T) {
-	p, err := cashshop.LoadPilot("../../configs/shop-special-candidate.json", "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80")
-	if err != nil {
-		t.Fatal(err)
-	}
+	p := nativeCashPilot(t, false)
 	identity := p.Config.Source.SaveIdentity()
 	if identity == p.Config.Source.Checksum {
 		t.Fatal("fixture must distinguish archive provenance from save identity")
@@ -52,10 +66,7 @@ func (l *vaultTestLedger) PurchaseCashVault(_ context.Context, o storage.CashOrd
 	return storage.CashReceipt{Vault: &next}, true, nil
 }
 func TestVaultSourcePurchase(t *testing.T) {
-	p, e := cashshop.LoadPilot("../../configs/shop-special-candidate.json", "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80")
-	if e != nil {
-		t.Fatal(e)
-	}
+	p := nativeCashPilot(t, false)
 	products, e := p.Config.VaultUpgrades()
 	if e != nil || len(products) != 16 {
 		t.Fatal(products, e)

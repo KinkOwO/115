@@ -263,13 +263,16 @@ def main():
             pass
 
     # 从当前 cwd/root_dir 计算服务端路径
-    redis_bin_path = (root_dir / "tools/redis").resolve().as_posix()
     postgres_bin_path = (root_dir / "tools/pg/pgsql/bin").resolve().as_posix()
     postgres_data_path = (
         (root_dir / "server/work/dfo-lan/runtime/storage/pgdata").resolve().as_posix()
     )
 
-    storage_cfg["redis_bin"] = redis_bin_path
+    # Keep existing PostgreSQL credentials and settings; discard retired cache keys.
+    storage_cfg = {
+        key: value for key, value in storage_cfg.items()
+        if not key.startswith("redis_")
+    }
     storage_cfg["postgres_bin"] = postgres_bin_path
     storage_cfg["postgres_data"] = postgres_data_path
 
@@ -278,10 +281,6 @@ def main():
         storage_cfg["postgres_dsn"] = (
             "postgres://dfo_owner:-J5vg5kBCfjt5WccbR1OkkXChKXxxqOBt1mZF6spNDI@127.0.0.1:25438/dfo_lan?sslmode=disable"
         )
-    if "redis_address" not in storage_cfg:
-        storage_cfg["redis_address"] = "127.0.0.1:26388"
-    if "redis_prefix" not in storage_cfg:
-        storage_cfg["redis_prefix"] = "dfo-lan:"
     if "max_connections" not in storage_cfg:
         storage_cfg["max_connections"] = 12
 
@@ -290,17 +289,14 @@ def main():
         json.dumps(storage_cfg, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
     )
     print(f"\n[写入成功] {storage_file}")
-    print(f"  - redis_bin     = {storage_cfg['redis_bin']}")
     print(f"  - postgres_bin  = {storage_cfg['postgres_bin']}")
     print(f"  - postgres_data = {storage_cfg['postgres_data']}")
 
     # 验证服务端依赖程序是否存在
     print("\n[检查] 服务端依赖项验证:")
-    redis_exe = pathlib.Path(redis_bin_path) / "redis-server.exe"
     pg_ctl_exe = pathlib.Path(postgres_bin_path) / "pg_ctl.exe"
     pg_data_dir = pathlib.Path(postgres_data_path)
 
-    print(f"  [{'✓' if redis_exe.is_file() else '!'}] Redis 可执行文件: {redis_exe}")
     print(f"  [{'✓' if pg_ctl_exe.is_file() else '!'}] PostgreSQL pg_ctl: {pg_ctl_exe}")
     print(
         f"  [{'✓' if (pg_data_dir / 'PG_VERSION').is_file() else '!'}] PostgreSQL 数据文件 (PG_VERSION): {pg_data_dir / 'PG_VERSION'}"

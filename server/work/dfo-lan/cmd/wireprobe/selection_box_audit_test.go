@@ -30,7 +30,7 @@ func TestSelectionBoxItemsAreGrantable(t *testing.T) {
 	}
 	gear.Full = full
 	// items.index.json 给出每个模板的归档路径，用来判断它走哪条发放目的地。
-	index, err := LoadBoosterCatalog("../../configs/booster-catalog.json", "../../configs/items.index.json")
+	index, err := catalog.LoadBoosterCatalog("../../configs/booster-catalog.json", "../../configs/items.index.json")
 	if err != nil {
 		t.Fatal(err)
 	}

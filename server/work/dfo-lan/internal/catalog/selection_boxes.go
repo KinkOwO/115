@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"slices"
 	"strconv"
 )
 
@@ -43,6 +44,10 @@ type SelectionBox struct {
 // SelectionBoxes is the exported catalog. Fixed lists templates the item index
 // labels [booster selection] but whose script only carries a fixed
 // [booster info] block — they must not be treated as pick-a-item boxes.
+// Unparsed lists candidates with no modelled category or fixed block, and
+// Rejected lists candidates the per-box validation refused (for example a
+// category pair repeated with different contents). Both are recorded instead
+// of aborting the whole catalog so one malformed script cannot hide the rest.
 type SelectionBoxes struct {
 	Model    string                  `json:"model"`
 	Bounded  bool                    `json:"bounded"`
@@ -50,6 +55,7 @@ type SelectionBoxes struct {
 	Boxes    map[string]SelectionBox `json:"boxes"`
 	Fixed    []uint32                `json:"fixed"`
 	Unparsed []uint32                `json:"unparsed,omitempty"`
+	Rejected []uint32                `json:"rejected,omitempty"`
 
 	byTemplate map[uint32]SelectionBox
 	fixed      map[uint32]bool
@@ -89,35 +95,76 @@ func NewSelectionBoxes(s SelectionBoxes) (*SelectionBoxes, error) {
 		if err != nil || uint32(id) != box.Template || box.Template == 0 {
 			return nil, fmt.Errorf("selection box key %q does not match template %d", key, box.Template)
 		}
-		if box.Path == "" {
-			return nil, fmt.Errorf("selection box %d lacks a source path", box.Template)
+		normalized, err := normalizeSelectionBox(box)
+		if err != nil {
+			return nil, fmt.Errorf("selection box %d %w", box.Template, err)
 		}
-		if _, err := hex.DecodeString(box.SHA256); err != nil || len(box.SHA256) != 64 {
-			return nil, fmt.Errorf("selection box %d has an invalid script hash", box.Template)
-		}
-		if len(box.Categories) == 0 {
-			return nil, fmt.Errorf("selection box %d has no categories", box.Template)
-		}
-		seen := map[[2]byte]bool{}
-		for _, cat := range box.Categories {
-			if seen[cat.Category] {
-				return nil, fmt.Errorf("selection box %d repeats category %v", box.Template, cat.Category)
-			}
-			seen[cat.Category] = true
-			for _, it := range cat.Items {
-				// 真源里数量可以是材料类的 1000/10000（盒子同时带装备与堆叠物），
-				// 所以这里只要求非零：上限由发放路径按物品类别自己把关。
-				if it.Template == 0 || it.Count == 0 {
-					return nil, fmt.Errorf("selection box %d has an invalid item", box.Template)
-				}
-			}
-		}
-		s.byTemplate[box.Template] = box
+		s.byTemplate[normalized.Template] = normalized
 	}
 	for _, id := range s.Fixed {
 		s.fixed[id] = true
 	}
 	return &s, nil
+}
+
+// normalizeSelectionBox validates one box's bound content and drops a category
+// pair the source repeats with identical, fully-modelled content: the client
+// sees a single block there, so keeping both would only trip the duplicate
+// guard. A repeated pair whose contents differ, or that carries a block this
+// parser does not model (avatar/etc), is refused — which copy the client reads
+// is not knowable from the script alone.
+func normalizeSelectionBox(box SelectionBox) (SelectionBox, error) {
+	if box.Path == "" {
+		return box, fmt.Errorf("lacks a source path")
+	}
+	if _, err := hex.DecodeString(box.SHA256); err != nil || len(box.SHA256) != 64 {
+		return box, fmt.Errorf("has an invalid script hash")
+	}
+	if len(box.Categories) == 0 {
+		return box, fmt.Errorf("has no categories")
+	}
+	seen := map[[2]byte]int{}
+	deduped := make([]SelectionCategory, 0, len(box.Categories))
+	for _, cat := range box.Categories {
+		if idx, ok := seen[cat.Category]; ok {
+			// Only a fully-modelled, byte-identical repeat is safe to drop. An
+			// [avatar]/[etc] block the parser does not model could differ while
+			// looking empty here, so it stays a conflict rather than a guess.
+			if hasUnmodelledSection(cat) || hasUnmodelledSection(deduped[idx]) || !sameSelectionCategory(deduped[idx], cat) {
+				return box, fmt.Errorf("repeats category %v with contents this parser cannot compare", cat.Category)
+			}
+			continue
+		}
+		for _, it := range cat.Items {
+			// 真源里数量可以是材料类的 1000/10000（盒子同时带装备与堆叠物），
+			// 所以这里只要求非零：上限由发放路径按物品类别自己把关。
+			if it.Template == 0 || it.Count == 0 {
+				return box, fmt.Errorf("has an invalid item")
+			}
+		}
+		seen[cat.Category] = len(deduped)
+		deduped = append(deduped, cat)
+	}
+	box.Categories = deduped
+	return box, nil
+}
+
+func sameSelectionCategory(a, b SelectionCategory) bool {
+	return a.Category == b.Category && a.Grade == b.Grade &&
+		slices.Equal(a.Recommend, b.Recommend) &&
+		slices.Equal(a.Items, b.Items) &&
+		slices.Equal(a.Sections, b.Sections)
+}
+
+// hasUnmodelledSection reports a category carrying a content block whose items
+// this parser does not read; two such blocks cannot be compared by value.
+func hasUnmodelledSection(cat SelectionCategory) bool {
+	for _, s := range cat.Sections {
+		if s != "[equipment]" {
+			return true
+		}
+	}
+	return false
 }
 
 // ByTemplate reports the source definition of a pick-a-item box.

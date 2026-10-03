@@ -44,8 +44,14 @@ func (c LootCatalog) ItemScript(id uint32) (ScriptRecord, error) {
 }
 func (c LootCatalog) HasRuntimeDetails() bool { return c.details != nil }
 func (c LootCatalog) CloseDetails() error {
-	if c.details == nil {
-		return nil
+	var err error
+	if c.monsterItems != nil {
+		err = c.monsterItems.Close()
 	}
-	return c.details.Close()
+	if c.details != nil {
+		if itemErr := c.details.Close(); err == nil {
+			err = itemErr
+		}
+	}
+	return err
 }

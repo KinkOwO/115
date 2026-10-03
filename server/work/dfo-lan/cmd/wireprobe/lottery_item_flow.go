@@ -15,7 +15,6 @@ import (
 	"fmt"
 	"github.com/jackc/pgx/v5"
 	"math/big"
-	"os"
 	"strings"
 	"time"
 )
@@ -67,15 +66,11 @@ type lotteryItemCatalog struct {
 }
 
 func loadLotteryItemCatalog(path string, index map[uint32]ItemIndexInfo) (*lotteryItemCatalog, error) {
-	data, err := os.ReadFile(path)
+	source, err := catalog.LoadLotteryItemPools(path)
 	if err != nil {
 		return nil, err
 	}
-	var c lotteryItemCatalog
-	if err := json.Unmarshal(data, &c); err != nil {
-		return nil, err
-	}
-	return newLotteryItemCatalog(c, index)
+	return newLotteryItemCatalog(lotteryItemsFromSource(source), index)
 }
 
 func newLotteryItemCatalog(c lotteryItemCatalog, index map[uint32]ItemIndexInfo) (*lotteryItemCatalog, error) {
@@ -142,19 +137,15 @@ func buildLotteryItemCatalog(c lotteryItemCatalog, index map[uint32]ItemIndexInf
 // Equipment-containing pools use compact numeric triples to keep the checked
 // PVF export reviewable. Import the whole pool or none of it: removing a row
 // would change the source lottery odds.
-func loadLotteryEquipmentPools(path string, index map[uint32]ItemIndexInfo, catalog *lotteryItemCatalog) (int, error) {
-	if catalog == nil || !lotterySourceAccepts(catalog.SourcePVFSHA256) {
+func loadLotteryEquipmentPools(path string, index map[uint32]ItemIndexInfo, base *lotteryItemCatalog) (int, error) {
+	if base == nil || !lotterySourceAccepts(base.SourcePVFSHA256) {
 		return 0, fmt.Errorf("lottery base catalog unavailable")
 	}
-	data, err := os.ReadFile(path)
+	source, err := catalog.LoadLotteryEquipmentPools(path)
 	if err != nil {
 		return 0, err
 	}
-	var source lotteryEquipmentSource
-	if err := json.Unmarshal(data, &source); err != nil {
-		return 0, err
-	}
-	return applyLotteryEquipmentPools(source, index, catalog)
+	return applyLotteryEquipmentPools(source, index, base)
 }
 
 type lotteryEquipmentSource = catalog.LotteryPoolCatalog

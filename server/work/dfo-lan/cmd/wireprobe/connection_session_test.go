@@ -1,13 +1,15 @@
 package main
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/require"
+)
 
 func TestConnectionSessionOwnsLifecycle(t *testing.T) {
 	plain := newConnectionSession(false)
 	t.Cleanup(plain.close)
-	if plain.moonTicks() != nil {
-		t.Fatal("disabled moon timer must not create a channel")
-	}
+	require.Nil(t, plain.moonTicks(), "disabled moon timer must not create a channel")
 	select {
 	case <-plain.done:
 		t.Fatal("connection starts open")
@@ -23,8 +25,6 @@ func TestConnectionSessionOwnsLifecycle(t *testing.T) {
 
 	moon := newConnectionSession(true)
 	t.Cleanup(moon.close)
-	if moon.moonTicks() == nil {
-		t.Fatal("enabled moon timer must expose a channel")
-	}
+	require.NotNil(t, moon.moonTicks(), "enabled moon timer must expose a channel")
 	moon.close()
 }

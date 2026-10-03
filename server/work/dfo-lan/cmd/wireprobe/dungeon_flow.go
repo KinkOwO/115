@@ -281,6 +281,9 @@ func (w *worldSession) prepareDungeonEntry(r protocol.DungeonSelection) (*dungeo
 // dungeon" gate (CMD 2062) replay it unchanged - only the ack id differs,
 // because the client loads a whole new dungeon either way.
 func (w *worldSession) dungeonEntryPlan(ctx context.Context, ackName string, ackID uint16, sel protocol.DungeonSelection, s *dungeon.Session) ([]outboundPacket, error) {
+	if s.HellParty != nil {
+		log.Printf("Hell Party selected: dungeon=%d map=%d mode=%s(%d) S4 compatibility rows=%+v actor groups=%+v", s.Definition.ID, s.HellParty.Map, s.HellParty.Key, s.HellParty.Mode, s.HellParty.Rows, s.HellParty.Actors)
+	}
 	var seed uint32
 	if e := binary.Read(rand.Reader, binary.LittleEndian, &seed); e != nil {
 		return nil, e
@@ -288,7 +291,7 @@ func (w *worldSession) dungeonEntryPlan(ctx context.Context, ackName string, ack
 	if s.Tournament != nil {
 		seed = s.Tournament.Seed
 	}
-	start, e := protocol.StartMap(protocol.StartMapState{Position: s.Maze.Start, Seed: seed, Map: s.Room.Map, Monsters: s.Monsters, EncodeCreateTrigger: monsterCreateTriggerEnabled()})
+	start, e := protocol.StartMap(protocol.StartMapState{Position: s.Maze.Start, Seed: seed, Map: s.Room.Map, Monsters: s.Monsters, HellPartyMode: s.HellPartyMode(), EncodeCreateTrigger: monsterCreateTriggerEnabled()})
 	if e != nil {
 		return nil, e
 	}
@@ -329,17 +332,42 @@ func (w *worldSession) dungeonEntryPlan(ctx context.Context, ackName string, ack
 		}
 		plan = append(plan, outboundPacket{"solo_party_initialized", 0, 9, party})
 	}
-	// ★ 誓约战斗效果进图时序（外部施工图 Attempt 1/3，**未实机验证**）：
-	// 对「穿槽位 47 誓约核心 ∧ 无需 Clone 重挂载」的角色，把 NOTI13 完整穿戴、
-	// NOTI14 槽位更新、S2C2839 选项**提前到 NOTI29 开始地图之前**下发，
-	// 并在加载后跳过同组重复（下方 oathDirectEntryActive 判断）。
-	// 假设（待玩家实机判定）：加载后补发会让穿戴效果被应用两次，且对普通副本的
-	// 开图效果装载已太晚（现象=Buff 出现两次、第一次无效）。
-	// `DFO_OATH_DIRECT_ENTRY=0` 可一键回退到旧时序。
+	// Full worn refresh can recreate Clone objects without their inherited
+	// cover. Refresh first, then rebuild Clone and restore only non-avatar
+	// rows (including oath slots 36..47 cleared by mode 1). Apply the oath
+	// selection last, before NOTI29. Loading must not repeat reconstruction
+	// for this path.
 	if direct, directErr := w.oathDirectEntryPackets(ctx); directErr != nil {
 		return nil, directErr
 	} else if len(direct) > 0 {
-		plan = append(plan, direct...)
+		// oathDirectEntryPackets ends with the selection; all earlier packets
+		// are worn refreshes and must precede the Clone cover reconstruction.
+		plan = append(plan, direct[:len(direct)-1]...)
+		reset, full, enabled, err := w.characters.CloneReattachPackets(w.role)
+		if err != nil {
+			return nil, err
+		}
+		if enabled {
+			restore, err := inventory.NonAvatarWornSpaceUpdate(w.role.State)
+			if err != nil {
+				return nil, err
+			}
+			plan = append(plan,
+				outboundPacket{"dungeon_clone_detached_pre_direct", 0, 2, reset},
+				outboundPacket{"dungeon_clone_reattached_pre_direct", 0, 2, full},
+			)
+			if len(restore) > 0 {
+				plan = append(plan, outboundPacket{"dungeon_nonavatar_worn_restored_pre_direct", 0, 14, restore})
+			}
+		}
+		plan = append(plan, direct[len(direct)-1])
+	}
+	if rows := s.HellPartyAPCs(); len(rows) > 0 {
+		body, err := protocol.HellPartyMonsterInfo(rows)
+		if err != nil {
+			return nil, err
+		}
+		plan = append(plan, outboundPacket{"hell_party_apcs_preloaded", 0, 666, body})
 	}
 	plan = append(plan, []outboundPacket{
 		{"dungeon_info_sent", 0, 28, protocol.DungeonInfo(protocol.DungeonInfoState{ID: sel.ID, Difficulty: sel.Difficulty, Maze: s.Maze.Index, Boss: s.Maze.Boss, Hell: s.HellPosition})},
@@ -558,6 +586,7 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 		}
 		plan = append(plan, outboundPacket{"dungeon_fatigue_updated", 0, 36, p})
 	}
+	cloneReattached := false
 	if w.characters != nil {
 		// Dungeon actor reconstruction does not carry oath slot 47 in the
 		// mode-1 detail record. Restore the authoritative worn container before
@@ -583,7 +612,8 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 		if err != nil {
 			return nil, err
 		}
-		if enabled {
+		if enabled && !directEntry {
+			cloneReattached = true
 			restore, restoreErr := inventory.NonAvatarWornSpaceUpdate(w.role.State)
 			if restoreErr != nil {
 				return nil, restoreErr
@@ -612,12 +642,13 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 		plan = append(plan, w.damageFontRestore()...)
 	}
 	if w.characters != nil && w.store != nil {
-		// 誓约进图直发命中时，S2C2839 已在 NOTI29 之前发过 ⇒ 此处不再重复。
+		// Direct entry already restored the selection before NOTI29. The
+		// fallback must apply it after any Clone reconstruction cleared slot 47.
 		directOathHere, oathHereErr := w.oathDirectEntryActive(context.Background())
 		if oathHereErr != nil {
 			return nil, oathHereErr
 		}
-		if !directOathHere {
+		if !directOathHere || cloneReattached {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 			selection, err := w.dungeonOathSelectionPacket(ctx)
@@ -1025,6 +1056,13 @@ func (w *worldSession) monsterDeath(p []byte, event func(map[string]any)) ([]out
 			w.drops.BlackPurgatory = w.loot.BlackPurgatory
 			w.drops.BlackPurgatoryPlan = w.cardPlan
 			rows, err := w.drops.Death(w.activeDungeon, uint16(r.Entity))
+			if actor, known := w.activeDungeon.HellPartyReward(uint16(r.Entity)); known && confirmed {
+				errText := ""
+				if err != nil {
+					errText = err.Error()
+				}
+				event(map[string]any{"kind": "hell_party_entity_death", "entity": r.Entity, "map": w.activeDungeon.Room.Map, "group": actor.Group, "order": actor.Order, "reward_rolls": actor.RewardRolls, "hell_monster": actor.HellMonster, "drop_percent": w.drops.Catalog.HellPartyDropPercent, "drops": len(rows), "skipped": w.drops.Skipped[uint16(r.Entity)], "error": errText})
+			}
 			if fatal := fatalDropFailure(err); fatal != nil {
 				return nil, fatal
 			}
@@ -1145,6 +1183,10 @@ func (w *worldSession) monsterDeath(p []byte, event func(map[string]any)) ([]out
 			plan = append(plan, outboundPacket{"level_available_quests", 0, 21, available})
 		}
 	}
+	if w.activeDungeon.HellPartyCleared() && !w.activeDungeon.HellClearSent {
+		plan = append(plan, outboundPacket{"hell_party_clear_sent", 0, 777, protocol.HellPartyClear()})
+		w.activeDungeon.HellClearSent = true
+	}
 	completed, err := w.completeDungeon()
 	if err != nil {
 		// The death acknowledgement and confirmation are already in plan.
@@ -1215,8 +1257,16 @@ func (w *worldSession) completeDungeon() ([]outboundPacket, error) {
 		ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
 		gifted, applied, _ := w.progression.OdysseyGifts(ctx, w.role)
 		if w.progression != nil && w.progression.Chapters != nil {
-			chaptered, chapterApplied, _ := w.progression.OdysseyChapterRewards(ctx, gifted)
+			chaptered, chapterApplied, pending := w.progression.OdysseyChapterRewards(ctx, gifted)
 			gifted, applied = chaptered, applied || chapterApplied
+			for _, err := range pending {
+				log.Printf("Odyssey chapter reward pending: character=%d: %v", gifted.ID, err)
+			}
+		}
+		mailed, _, mailErr := w.progression.OdysseyHonorMail(ctx, gifted)
+		gifted = mailed
+		if mailErr != nil {
+			log.Printf("Odyssey honor mail pending: character=%d: %v", gifted.ID, mailErr)
 		}
 		cancel()
 		w.role = gifted
@@ -1493,7 +1543,7 @@ func (w *worldSession) moveDungeonRoomDecoded(r protocol.DungeonRoomTransition) 
 	// 上它们会不同：请求带的还是层图所在格的坐标 (0,2)，玩家却已经去了 (0,1)。
 	// StartMap 把 Position 写成包的前两字节，客户端据此安放角色 —— 用错就等于把玩家
 	// 放在地图外，实机表现是「角色不见了」（2026-09-28 贵族机要 100004968）。
-	state := protocol.StartMapState{Position: [2]byte{next.Room.X, next.Room.Y}, Seed: seed, Map: next.Room.Map, Monsters: next.LivingMonsters(), LayerChange: r.LayerChange, EncodeCreateTrigger: monsterCreateTriggerEnabled()}
+	state := protocol.StartMapState{Position: [2]byte{next.Room.X, next.Room.Y}, Seed: seed, Map: next.Room.Map, Monsters: next.LivingMonsters(), HellPartyMode: next.HellPartyMode(), LayerChange: r.LayerChange, EncodeCreateTrigger: monsterCreateTriggerEnabled()}
 	if resume, ok := w.activeDungeon.SourceLayerResume(*w.dungeons, r); ok && resume != w.activeDungeon.Room.Map {
 		// Flag 2 clears the native layer ordinal at1452b7876; flag 0 only
 		// selects the base descriptor and leaves the active layer unchanged.
@@ -1538,25 +1588,12 @@ func (w *worldSession) moveDungeonRoomDecoded(r protocol.DungeonRoomTransition) 
 	return next, []outboundPacket{{"dungeon_move_ack", 1, 45, []byte{1}}, {"dungeon_next_map_sent", 0, 29, body}}, nil
 }
 
-// oathDirectEntryEnabled 报告是否走「誓约进图直发」时序。默认开；`DFO_OATH_DIRECT_ENTRY=0` 回退。
-//
-// ⚠️ 这是外部施工图（Attempt 1/3，未实机验证）提出的时序假设：把 NOTI13/NOTI14/S2C2839
-// 从"加载后补发"提前到 NOTI29 之前，并跳过加载后的重复下发。留开关是为了能一次构建里 A/B。
-func oathDirectEntryEnabled() bool {
-	return os.Getenv("DFO_OATH_DIRECT_ENTRY") != "0"
-}
-
 // oathDirectEntryActive 报告本连接当前是否命中「誓约进图直发」。
-// 条件：开关开 ∧ 有角色服务 ∧ **无需 Clone 重挂载** ∧ **穿槽位 47 誓约核心**
-//（`EquippedOathSelection` 在未穿槽位 47 时返回 ItemID == 0）。
+// 条件：有角色服务和存储 ∧ **穿槽位 47 誓约核心**
+// （`EquippedOathSelection` 在未穿槽位 47 时返回 ItemID == 0）。
 func (w *worldSession) oathDirectEntryActive(ctx context.Context) (bool, error) {
-	if !oathDirectEntryEnabled() || w.characters == nil || w.role.ID == 0 {
+	if w.characters == nil || w.store == nil || w.role.ID == 0 {
 		return false, nil
-	}
-	if _, _, reattach, err := w.characters.CloneReattachPackets(w.role); err != nil {
-		return false, err
-	} else if reattach {
-		return false, nil // 穿 Clone 的角色沿用已验证的重挂载路径
 	}
 	oathCtx, oathCancel := context.WithTimeout(ctx, 5*time.Second)
 	defer oathCancel()

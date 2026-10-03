@@ -287,8 +287,6 @@ with (
     "-fatigue-rules",
     str(project / "configs/fatigue-probe.json"),
    ]
-  if "_dungeon_" in tag:
-   command += ["-dungeon-catalog", str(project / "configs/dungeons.full.json")]
  if tag.endswith(
   (
    "_next26",
@@ -347,9 +345,6 @@ with (
   ):
    command[0] = str(project / "bin/wireprobe-dungeon28.exe")
    command += ["-channel-refresh-config", str(project / "configs/channel.local28.json")]
-   command[command.index("-dungeon-catalog") + 1] = str(
-    project / "configs/dungeons.full.json"
-   )
   if tag.endswith(("_next29", "_next30", "_next31", "_next32", "_next33", "_next34")):
    command[0] = str(project / "bin/wireprobe-dungeon29.exe")
    command[command.index("-bag-rules") + 1] = str(
@@ -467,17 +462,10 @@ with (
     "-random-option-catalog",
     str(project / "configs/randomoption.current37.json"),
    ]
-  shop_release = project / "configs/shop-vault-release.json"
-  shop_pilot = project / "configs/shop-purchase-pilot.json"
-  if os.environ.get("DFO_SHOP_PURCHASE_PILOT"):
-   shop_override = pathlib.Path(os.environ["DFO_SHOP_PURCHASE_PILOT"])
-   if not shop_override.is_absolute():
-    shop_override = (project / shop_override).resolve()
-   command += ["-shop-purchase-pilot", str(shop_override), "-shop-release"]
-  elif shop_release.exists():
-   command += ["-shop-purchase-pilot", str(shop_release), "-shop-release"]
-  elif shop_pilot.exists():
-   command += ["-shop-purchase-pilot", str(shop_pilot)]
+  # Cash shop is one content source: the PVF profile (DFO_PVF_CATALOGS
+  # includes "cashshop") prepares it, and DFO_SHOP_RELEASE carries the release
+  # policy. The historical JSON export and its -shop-purchase-pilot flag are
+  # gone; a selected-but-unprepared domain now fails the gateway explicitly.
  command[0] = os.environ.get("DFO_SERVER_BINARY", command[0])
  if os.environ.get("DFO_CHANNEL_IDENTITY") == "1":
   command += ["-channel-identity"]
@@ -504,14 +492,10 @@ with (
  # next25 那代导出于 growtype 解析之前：用它时建号请求 option[8] 选定的转职槽位
  # 无处落账，角色停在 advancement 0（全局按基础职业渲染、技能面板缺该分支起始技能），
  # 而且全程没有报错 —— 2026-09-20 的"新角色不转职"就是这么来的。这里显式告警。
- # 允许用环境变量覆盖副本目录（本机用 dungeons.full.json：3200 副本/16042 地图，
- # 而默认的 dungeons.generated.json 只有 11 个）。
- if os.environ.get("DFO_DUNGEON_CATALOG") and "-dungeon-catalog" in command:
-  command[command.index("-dungeon-catalog") + 1] = os.environ["DFO_DUNGEON_CATALOG"]
  # ★ 显式校验：副本目录必须真实存在且非空。
- # 2026-09-18 事故：这里曾被指向 configs/dungeons.full.json，而那个 294MB 文件从没进仓库，
- # 于是服务端起不来、探针一直等不到 ready.json —— 正常玩家表现为"下载后启动不了游戏"。
- # 不要再让"文件不存在"静默落回默认值（那条 tag 降级链最终是只有 11 个副本的 dungeons.generated.json）。
+ # 2026-09-18 事故：这里曾指向一个从未进仓库的大副本目录，服务端起不来、探针一直等不到
+ # ready.json —— 正常玩家表现为"下载后启动不了游戏"。不要再让"文件不存在"静默落回默认值
+ #（那条 tag 降级链最终是只有 11 个副本的 dungeons.generated.json）。
  validate_json_catalogs(command, os.environ)
  # 奥德赛组件常驻挂载（不再看 DFO_ODYSSEY_MODE）：服务端只在环境变量存在时才挂载
  # 成长/货币/武器盒（cmd/wireprobe/main.go:369/455/579），而"按角色"要求同一进程同时

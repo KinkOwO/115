@@ -6,7 +6,7 @@ import re
 
 PATH_KEYS = {
     'DFO_CHARACTER_CATALOG', 'DFO_CHARACTER_RULES', 'DFO_LOGIN_RESPONSE',
-    'DFO_SKILL_CATALOG', 'DFO_SHOP_PURCHASE_PILOT',
+    'DFO_SKILL_CATALOG',
     'DFO_EQUIPMENT_WEAR_RULES', 'DFO_ODYSSEY_DUNGEON_CATALOG',
     'DFO_ODYSSEY_WEAPON_BOX', 'DFO_ODYSSEY_GROWTH', 'DFO_LOOT_CATALOG',
     'DFO_ODYSSEY_COIN_RULES', 'DFO_FATIGUE_RULES', 'DFO_CLEAR_CUBE_SOURCE',
@@ -53,6 +53,9 @@ def load_profile(path, project):
             env[key] = str(p)
         elif key in FLAGS and value in ('0', '1'):
             env[key] = value
+        elif key == 'DFO_HELL_PARTY_DROP_PERCENT' and isinstance(value, str) and re.fullmatch(r'[0-9]{1,5}', value) and int(value) <= 10000:
+            # Independent Hell numerical multiplier; 100 = 1x, default in Go.
+            env[key] = str(int(value))
         elif key == 'DFO_PVF_SHA256' and (value == '' or (isinstance(value, str) and re.fullmatch(r'[0-9a-fA-F]{64}', value))):
             # 空串 = 自动派生（信任内层归档自身哈希，见 analysis/tasks/next142）。
             # 非空必须是 64 位 hex，保持显式钉版本的能力。

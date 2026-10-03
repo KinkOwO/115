@@ -9,14 +9,8 @@ import (
 )
 
 func TestShopStorageCatalogDepositsPurchasedKaleido(t *testing.T) {
-	base, e := catalog.LoadLoot("../../configs/loot.next25.json")
-	if e != nil {
-		t.Fatal(e)
-	}
-	p, e := LoadPilot("../../configs/shop-purchase-pilot.json", base.Source.Checksum)
-	if e != nil {
-		t.Fatal(e)
-	}
+	p := nativePilot(t, false)
+	base := catalog.LootCatalog{Source: p.Config.Source, Items: map[uint32]catalog.LootItem{}}
 	n := len(base.Items)
 	merged, e := p.StorageCatalog(base)
 	if e != nil {

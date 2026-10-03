@@ -22,12 +22,23 @@ type LootItem struct {
 	Script        ScriptRecord
 }
 type LootCatalog struct {
-	details      *ScriptDetails[uint32, ScriptRecord]
-	Source       pvf.ArchiveSnapshot     `json:"source"`
-	MaximumGrade uint32                  `json:"maximum_grade"`
-	Rules        map[string]ScriptRecord `json:"rules"`
-	Items        map[uint32]LootItem     `json:"items"`
-	IndexHashes  map[string]string       `json:"index_hashes"`
+	details                *ScriptDetails[uint32, ScriptRecord]
+	monsterItems           *ScriptDetails[uint32, ScriptRecord]
+	monsterItemUnavailable map[uint32]string
+	// User-selected runtime policy, denominator10000; never persisted content.
+	OrdinaryMonsterItemRate  uint32                  `json:"-"`
+	MonsterItemExclusions    map[uint32]bool         `json:"-"`
+	WorldDrop                *WorldDropTable         `json:"-"`
+	OrdinaryWorldDropPercent uint32                  `json:"-"`
+	HellPartyDrop            *HellPartyDropTable     `json:"-"`
+	HellPartyDropPercent     uint32                  `json:"-"`
+	Source                   pvf.ArchiveSnapshot     `json:"source"`
+	MaximumGrade             uint32                  `json:"maximum_grade"`
+	Rules                    map[string]ScriptRecord `json:"rules"`
+	HellEpic                 *HellEpicTable          `json:"hell_epic,omitempty"`
+	ClearReward              *ClearRewardTable       `json:"clear_reward,omitempty"`
+	Items                    map[uint32]LootItem     `json:"items"`
+	IndexHashes              map[string]string       `json:"index_hashes"`
 	// DropGroups is the typed projection of etc/dungeondroptablebygroup.etc; a
 	// dungeon script's [difficulty dropitem group list] indexes into it by id.
 	DropGroupSource DropGroupSource `json:"drop_group_source"`
@@ -60,33 +71,40 @@ func lootInt(c []pvf.Token, name string) (int32, bool) {
 
 // ImportLoot preserves current typed item definitions. Only item grades inside
 // the explicitly requested import range are projected into this runtime pool.
-func ImportLoot(a *pvf.Archive, maxGrade uint32) (LootCatalog, error) {
+func importLootTables(a *pvf.Archive, maxGrade uint32) (LootCatalog, map[string]map[uint32]string, error) {
 	c := LootCatalog{Source: a.Snapshot(), MaximumGrade: maxGrade, Rules: map[string]ScriptRecord{}, Items: map[uint32]LootItem{}, IndexHashes: map[string]string{}}
+	refs := map[string]map[uint32]string{}
 	if maxGrade == 0 || maxGrade > 200 {
-		return c, fmt.Errorf("invalid loot import grade range")
+		return c, refs, fmt.Errorf("invalid loot import grade range")
 	}
-	// [MERGE-20260928-ABYSS-HELL-TABLE] etc/itemdropinfo_monster_hell.etc 是深渊
-	// (hell party) 专用的掉落支持表。它自 2026-09-28 起就在 client-build 的 PVF 里
-	// (index 5055835，645 cells)，但导入清单一直漏了它 —— 于是深渊副本只能回落到
-	// 普通怪的 monseter 表，实测表现是「深渊只掉紫装」。
-	//
-	// 与 monseter 的差异（只读观察，已实测）：
-	//   monseter:      [basis of rarity dicision] 4 行 × 9 列
-	//   monster_hell:  [basis of rarity dicision] 2 行 × 9 列，且**没有** [drop prob] 段
-	// 即深渊有独立的一套 rarity 判定，不能套用普通怪的表。
-	//
-	// 这里只做「导入」，不改变任何现有判定：把它放进 Rules 供后续按副本类型选用。
-	for _, name := range []string{"etc/itemdropinfo_monseter.etc", "etc/itemdropinfo_common.etc", "etc/itemdropinfo_control.etc", "etc/dungeonbossdrop.etc", "etc/itemdropinfo_monster_hell.etc"} {
+	// Traditional Hell Party and clear cards have separate source tables. Their
+	// presence here does not enable awards or change the Attunement/Abyss pools.
+	// Hell rarity has a row-count header followed by two nine-column rows.
+	for _, name := range []string{"etc/itemdropinfo_monseter.etc", "etc/itemdropinfo_common.etc", "etc/itemdropinfo_control.etc", "etc/dungeonbossdrop.etc", "etc/itemdropinfo_monster_hell.etc", "etc/itemdropinfo_clearreward.etc", "etc/hellparty.etc"} {
 		s, e := ResolveScript(a, name)
 		if e != nil {
 			if name == "etc/itemdropinfo_monster_hell.etc" {
 				// 旧快照没有这张表时跳过，而不是让整个 loot 导入失败。
 				continue
 			}
-			return c, e
+			return c, refs, e
 		}
 		c.Rules[name] = s
 	}
+	clearReward, e := ParseClearRewardTable(c.Rules["etc/itemdropinfo_clearreward.etc"])
+	if e != nil {
+		return c, refs, e
+	}
+	c.ClearReward = &clearReward
+	epicScript, e := ResolveScript(a, "etc/helldropepicitemtable.etc")
+	if e != nil {
+		return c, refs, e
+	}
+	epic, e := ParseHellEpicTable(epicScript)
+	if e != nil {
+		return c, refs, e
+	}
+	c.HellEpic = &epic
 	// etc/dungeondroptablebygroup.etc is the per-dungeon drop group table a
 	// dungeon's [difficulty dropitem group list] indexes into. It is stored as a
 	// typed projection instead of raw cells: the cell stream is 85k entries, and
@@ -95,12 +113,12 @@ func ImportLoot(a *pvf.Archive, maxGrade uint32) (LootCatalog, error) {
 	// nothing consumes these groups yet.
 	groupTable, e := ResolveScript(a, "etc/dungeondroptablebygroup.etc")
 	if e != nil {
-		return c, e
+		return c, refs, e
 	}
 	c.DropGroupSource = DropGroupSource{Path: groupTable.Path, SHA256: groupTable.SHA256}
 	c.DropGroups, c.DropGroupsUnreadable, e = ParseDropGroups(groupTable.Cells)
 	if e != nil {
-		return c, e
+		return c, refs, e
 	}
 	// [MERGE-20260928-DUNGEON-DROPINFO] etc/dungeondropinfo.cos 是「副本 → 掉落组」
 	// 的索引表。它是 DataType=3 的**文本**（UTF-16LE），不是脚本，所以不能走
@@ -112,11 +130,11 @@ func ImportLoot(a *pvf.Archive, maxGrade uint32) (LootCatalog, error) {
 	if idx := a.FindFileIndex(dungeonDropInfoPath); idx >= 0 {
 		raw, e := a.ReadRaw(dungeonDropInfoPath)
 		if e != nil {
-			return c, e
+			return c, refs, e
 		}
 		info, e := ParseDungeonDropInfo(raw)
 		if e != nil {
-			return c, e
+			return c, refs, e
 		}
 		sum := sha256.Sum256(raw)
 		c.DungeonDropInfo = info
@@ -125,21 +143,39 @@ func ImportLoot(a *pvf.Archive, maxGrade uint32) (LootCatalog, error) {
 			SHA256: hex.EncodeToString(sum[:]),
 		}
 	}
-	refs := map[string]map[uint32]string{}
+	refs = map[string]map[uint32]string{}
 	for _, kind := range []string{"stackable", "equipment"} {
 		index, e := ResolveScript(a, "list/"+kind+".lst")
 		if e != nil {
-			return c, e
+			return c, refs, e
 		}
 		c.IndexHashes[index.Path] = index.SHA256
 		rows, e := ParseIndex(index.Cells)
 		if e != nil {
-			return c, e
+			return c, refs, e
 		}
 		refs[kind] = map[uint32]string{}
 		for _, r := range rows {
 			refs[kind][r.ID] = r.Path
 		}
+	}
+	return c, refs, nil
+}
+
+// importLootDropTables imports the drop-rule tables (Rules, DropGroups,
+// DungeonDropInfo and the item index hashes) without scanning every stackable
+// script into LootCatalog.Items. Routing and test code that only needs the
+// dungeon -> drop group mapping uses this; ImportLoot keeps the full item
+// projection.
+func importLootDropTables(a *pvf.Archive, maxGrade uint32) (LootCatalog, error) {
+	c, _, err := importLootTables(a, maxGrade)
+	return c, err
+}
+
+func ImportLoot(a *pvf.Archive, maxGrade uint32) (LootCatalog, error) {
+	c, refs, e := importLootTables(a, maxGrade)
+	if e != nil {
+		return c, e
 	}
 	read := func(kind string, id uint32) (ScriptRecord, error) {
 		p, ok := refs[kind][id]
@@ -193,7 +229,7 @@ func ImportLoot(a *pvf.Archive, maxGrade uint32) (LootCatalog, error) {
 		if limit < 0 {
 			continue
 		}
-		c.Items[id] = LootItem{ID: id, Kind: "stackable", Grade: grade, Rarity: rarity, Weight: 1, Script: s, StackableType: typeCells[0].Text, StackLimit: uint32(limit)}
+		c.Items[id] = LootItem{ID: id, Kind: "stackable", Grade: grade, Rarity: rarity, Weight: uint32(rate), Script: s, StackableType: typeCells[0].Text, StackLimit: uint32(limit)}
 	}
 	dictionary, e := ResolveScript(a, "etc/itemdictionary/itemdictionary.etc")
 	if e != nil {
@@ -226,6 +262,42 @@ func ValidateLoot(c LootCatalog) (LootCatalog, error) {
 	// （没有 hell 表）与新快照都能装载，不会因为多导一张支持表就拒绝整份目录。
 	if len(c.Source.Checksum) != 64 || c.MaximumGrade == 0 || len(c.Rules) < 4 {
 		return c, fmt.Errorf("invalid loot catalog")
+	}
+	if c.HellEpic != nil {
+		if c.HellEpic.Path != "etc/helldropepicitemtable.etc" || len(c.HellEpic.SHA256) != 64 || len(c.HellEpic.Lists) == 0 {
+			return c, fmt.Errorf("Hell epic table without source provenance")
+		}
+		seen := map[[2]uint32]bool{}
+		for _, list := range c.HellEpic.Lists {
+			key := [2]uint32{list.Area, list.ListType}
+			if seen[key] {
+				return c, fmt.Errorf("duplicate Hell epic area/list %v", key)
+			}
+			seen[key] = true
+			var total uint64
+			for _, row := range list.Items {
+				if row.Template == 0 {
+					return c, fmt.Errorf("invalid Hell epic template")
+				}
+				total += uint64(row.Weight)
+			}
+			if total != uint64(list.TotalWeight) {
+				return c, fmt.Errorf("Hell epic weight sum mismatch for %v", key)
+			}
+		}
+	}
+	if c.ClearReward != nil {
+		s, ok := c.Rules["etc/itemdropinfo_clearreward.etc"]
+		if !ok || s.Path != c.ClearReward.Path || len(s.SHA256) != 64 || s.SHA256 != c.ClearReward.SHA256 {
+			return c, fmt.Errorf("clear-reward table without source provenance")
+		}
+		// Rebuild from the retained source cells rather than trust a stale or
+		// independently edited projection. Old catalogs without it stay readable.
+		parsed, err := ParseClearRewardTable(s)
+		if err != nil {
+			return c, err
+		}
+		c.ClearReward = &parsed
 	}
 	for id, item := range c.Items {
 		if id == 0 || id != item.ID || item.Weight == 0 || item.Grade <= 0 || uint32(item.Grade) > c.MaximumGrade || len(item.Script.SHA256) != 64 {

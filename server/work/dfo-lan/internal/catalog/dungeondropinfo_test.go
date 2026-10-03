@@ -137,7 +137,7 @@ func openSnapshotForDropInfo(t *testing.T) *pvf.Archive {
 	if p == "" {
 		t.Skip("client-build PVF not present")
 	}
-	a, e := pvf.LoadArchive(pvf.Options{Path: p, MaxBytes: 900 * 1024 * 1024})
+	a, e := OpenTestArchiveCached(p, "")
 	if e != nil {
 		t.Skip("cannot open PVF:", e)
 	}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"dfolan/internal/catalog"
 	"testing"
 
 	"dfolan/internal/loot"
@@ -18,7 +19,7 @@ import (
 // data (every item whose body pays a reserved id declares a smart group, and no
 // item pays a reserved id without one).
 func TestSmartDropCarriersOpenThroughTheirGroup(t *testing.T) {
-	cat, err := LoadBoosterCatalog("../../configs/booster-catalog.json", "../../configs/items.index.json")
+	cat, err := catalog.LoadBoosterCatalog("../../configs/booster-catalog.json", "../../configs/items.index.json")
 	if err != nil {
 		t.Fatal(err)
 	}

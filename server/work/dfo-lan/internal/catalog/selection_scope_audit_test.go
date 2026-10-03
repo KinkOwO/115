@@ -1,7 +1,6 @@
 package catalog
 
 import (
-	"dfolan/internal/catalog/pvf"
 	"os"
 	"reflect"
 	"testing"
@@ -12,7 +11,7 @@ func TestSelectionScopeAuditLocalArchive(t *testing.T) {
 	if path == "" {
 		t.Skip("set DFO_PVF_SCOPE_TEST_ARCHIVE for native discovery and parser coverage")
 	}
-	a, err := pvf.OpenReadOnly(pvf.Options{Path: path, MaxBytes: 1024 * 1024 * 1024}, os.Getenv("DFO_PVF_SCOPE_TEST_SHA256"))
+	a, err := OpenTestArchiveCached(path, os.Getenv("DFO_PVF_SCOPE_TEST_SHA256"))
 	if err != nil {
 		t.Fatal(err)
 	}

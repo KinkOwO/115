@@ -15,7 +15,6 @@ import (
 	"log"
 	"math"
 	"math/rand"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -43,45 +42,7 @@ type BoosterDefinition = catalog.BoosterDefinition
 
 type ItemIndexInfo = catalog.ItemIndexEntry
 
-type BoosterCatalog struct {
-	Definitions map[uint32]BoosterDefinition
-	Items       map[uint32]ItemIndexInfo
-}
-
-func LoadBoosterCatalog(catPath, indexPath string) (*BoosterCatalog, error) {
-	cat := &BoosterCatalog{
-		Definitions: make(map[uint32]BoosterDefinition),
-		Items:       make(map[uint32]ItemIndexInfo),
-	}
-
-	if catPath != "" {
-		data, err := os.ReadFile(catPath)
-		if err == nil {
-			var raw map[string]BoosterDefinition
-			if err = json.Unmarshal(data, &raw); err == nil {
-				for _, def := range raw {
-					cat.Definitions[def.Template] = def
-				}
-			}
-		}
-	}
-
-	if indexPath != "" {
-		data, err := os.ReadFile(indexPath)
-		if err == nil {
-			var raw struct {
-				Items map[string]ItemIndexInfo `json:"items"`
-			}
-			if err = json.Unmarshal(data, &raw); err == nil {
-				for _, it := range raw.Items {
-					cat.Items[it.ID] = it
-				}
-			}
-		}
-	}
-
-	return cat, nil
-}
+type BoosterCatalog = catalog.BoosterCatalog
 
 // payAsIsWrappers 是**声明了 [booster info]、但必须原样发给玩家**的模板。
 //

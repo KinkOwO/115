@@ -1,0 +1,61 @@
+{
+ "generated": "2026-10-01T22:22:15",
+ "records": [
+  {
+   "va": "0x1414921F0",
+   "name": "sub_1414921F0",
+   "size": 160,
+   "file": "ui_result_state_1414921F0_sub_1414921F0.c",
+   "callers": [
+    {
+     "func": "0x140B899B0",
+     "site": "0x140B89A85"
+    },
+    {
+     "func": "0x141489620",
+     "site": "0x141489649"
+    },
+    {
+     "func": "0x14148FEA0",
+     "site": "0x14148FF95"
+    },
+    {
+     "func": "0x141490BD0",
+     "site": "0x141490D06"
+    },
+    {
+     "func": "0x141491360",
+     "site": "0x141491365"
+    },
+    {
+     "func": "0x141491E70",
+     "site": "0x141491F09"
+    }
+   ]
+  },
+  {
+   "va": "0x14148BF80",
+   "name": "sub_14148BF80",
+   "size": 20,
+   "file": "ui_singleton_getter_14148BF80_sub_14148BF80.c",
+   "callers": [
+    {
+     "func": "0x140B899B0",
+     "site": "0x140B899C6"
+    }
+   ]
+  },
+  {
+   "va": "0x141491360",
+   "name": "sub_141491360",
+   "size": 10,
+   "file": "fail_path_wrapper_141491360_sub_141491360.c",
+   "callers": [
+    {
+     "func": "0x140B899B0",
+     "site": "0x140B899DE"
+    }
+   ]
+  }
+ ]
+}

@@ -8,6 +8,9 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type recordingConnection struct {
@@ -41,19 +44,11 @@ func (c *recordingConnection) SetWriteDeadline(time.Time) error {
 func TestConnectionOutputWritesOneServerFrame(t *testing.T) {
 	conn := &recordingConnection{}
 	output := newConnectionOutput(conn, make([]byte, wire.SessionKeyBytes), "recording", func(map[string]any) {})
-	if err := output.send(1, 1960, []byte{1, 2, 3}); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, output.send(1, 1960, []byte{1, 2, 3}))
 	raw := conn.Bytes()
-	if err := wire.ValidateServer(raw); err != nil {
-		t.Fatal(err)
-	}
-	if got := binary.LittleEndian.Uint16(raw[1:3]); got != 1960 {
-		t.Fatalf("response id = %d, want 1960", got)
-	}
-	if got := binary.LittleEndian.Uint32(raw[3:7]); int(got) != len(raw) {
-		t.Fatalf("response size = %d, bytes written = %d", got, len(raw))
-	}
+	require.NoError(t, wire.ValidateServer(raw))
+	assert.Equal(t, uint16(1960), binary.LittleEndian.Uint16(raw[1:3]), "response id")
+	assert.Equal(t, uint32(len(raw)), binary.LittleEndian.Uint32(raw[3:7]), "response size")
 }
 
 type gatedConnection struct {
@@ -74,9 +69,7 @@ func TestConnectionOutputKeepsPreparedBatchTogether(t *testing.T) {
 	defer release()
 	output := newConnectionOutput(conn, make([]byte, wire.SessionKeyBytes), "recording", func(map[string]any) {})
 	packets, err := preparePackets(output.keys, []outboundPacket{{"first", 0, 13, []byte{1}}, {"second", 1, 19, []byte{2}}})
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	batchDone, rawDone := make(chan error, 1), make(chan error, 1)
 	var sent []uint16
 	go func() {
@@ -93,18 +86,12 @@ func TestConnectionOutputKeepsPreparedBatchTogether(t *testing.T) {
 	for _, done := range []chan error{batchDone, rawDone} {
 		select {
 		case err := <-done:
-			if err != nil {
-				t.Fatal(err)
-			}
+			require.NoError(t, err)
 		case <-time.After(2 * time.Second):
 			t.Fatal("connection output stalled")
 		}
 	}
 	want := append(append(append([]byte{}, packets[0].Raw...), packets[1].Raw...), raw...)
-	if !bytes.Equal(conn.Bytes(), want) {
-		t.Fatal("prepared batch changed or raw write interleaved")
-	}
-	if len(sent) != 2 || sent[0] != 13 || sent[1] != 19 {
-		t.Fatalf("callback order: %v", sent)
-	}
+	assert.Equal(t, want, conn.Bytes(), "prepared batch changed or raw write interleaved")
+	assert.Equal(t, []uint16{13, 19}, sent, "callback order")
 }

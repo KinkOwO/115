@@ -20,26 +20,26 @@ import (
 )
 
 type worldSession struct {
-	npcPresenceIndex    *npcpresence.Index
-	npcPresenceIndexErr error
-	lastFame            uint32
-	fameInitialized     bool
-	moonConfig          *moonSoloConfig
-	moon                moonSoloState
-	characters          *character.Service
-	pilotDeath          *odysseyDeath
-	service             *world.Service
-	store               *storage.Store
-	account             int64
-	serverID            uint32
-	role                storage.Character
-	level               byte
-	adventureSnapshot   [32]byte
-	channelType         uint32
-	bleedingMineCreated bool
-	bleedingMineReady   bool
-	bleedingMineRoster  []int64
-	bleedingMineStart   *bleedingMineStart
+	npcPresenceIndex       *npcpresence.Index
+	npcPresenceIndexErr    error
+	lastFame               uint32
+	fameInitialized        bool
+	moonConfig             *moonSoloConfig
+	moon                   moonSoloState
+	characters             *character.Service
+	pilotDeath             *odysseyDeath
+	service                *world.Service
+	store                  *storage.Store
+	account                int64
+	serverID               uint32
+	role                   storage.Character
+	level                  byte
+	adventureSnapshot      [32]byte
+	channelType            uint32
+	bleedingMineCreated    bool
+	bleedingMineReady      bool
+	bleedingMineRoster     []int64
+	bleedingMineStart      *bleedingMineStart
 	// ispins 是一次伊斯大陆（内容号 101）挑战的会话状态；nil = 无进行中的
 	// 挑战。字节契约见 ispins_flow.go 与 next78 取证文档。
 	ispins                 *ispinsRun

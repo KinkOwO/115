@@ -91,15 +91,115 @@ func TestPlanSoleQualityRejectsNonSoleTemplates(t *testing.T) {
 	}
 }
 
-// 单次增量必须落在 [5,20] 且**两端都要能取到**（业主口径：每次在 5..20 之间随机）。
+// withSoleNative 在原版（国服）口径下跑一个测试，结束后恢复默认（单机）口径。
+func withSoleNative(t *testing.T) {
+	t.Helper()
+	SetSoleQualityNative(true)
+	t.Cleanup(func() { SetSoleQualityNative(false) })
+}
+
+// 单次增量遵守国服的分段规则：保底 +1、不跨段、节点后必暴击。（开关打开时）
 //
-// 断言"两端都出现"是为了防住两类改坏边界又不易察觉的写法：`rand.Int(hi-lo)+lo`（取不到 20）
-// 或把常量改窄。2000 次均匀采样下漏掉任一端的概率约 (15/16)^2000 ≈ 0。
-func TestSoleQualityGainStaysInSourceRange(t *testing.T) {
-	const rounds = 2000
+// 业主口径（2026-10-02）：全程只涨不掉；每段上限来自源 `[quality group]`
+// （0/25/50/75/100），单次提升不得越过当前段上限。
+func TestSoleQualityGainRespectsBandsAndFloor(t *testing.T) {
+	withSoleNative(t)
+	info, ok := soleTestRules().Info(100346156)
+	if !ok {
+		t.Fatal("test rules lost 100346156")
+	}
+	for q := 0; q < info.MaxQuality; q++ {
+		for i := 0; i < 40; i++ {
+			gain := soleQualityGain(info, q)
+			if gain < 1 {
+				t.Fatalf("gain %d at quality %d: must always advance (100%% success)", gain, q)
+			}
+			if cap := info.BandCap(q); q+gain > cap {
+				t.Fatalf("gain %d at quality %d crosses the band cap %d", gain, q, cap)
+			}
+		}
+	}
+	// 满精度没有增量可言。
+	if gain := soleQualityGain(info, info.MaxQuality); gain != 0 {
+		t.Fatalf("gain at the cap = %d, want 0", gain)
+	}
+}
+
+// 分段节点（25/50/75）之后必定大成功：绝不可能只 +1。（开关打开时）
+func TestSoleQualityGainAfterBandNodeIsAlwaysGreat(t *testing.T) {
+	withSoleNative(t)
+	info, _ := soleTestRules().Info(100346156)
+	for _, q := range []int{25, 50, 75} {
+		if !info.BandNode(q) {
+			t.Fatalf("quality %d should be a band node", q)
+		}
+		for i := 0; i < 200; i++ {
+			if gain := soleQualityGain(info, q); gain < 2 {
+				t.Fatalf("node %d rolled gain %d, want >= 2", q, gain)
+			}
+		}
+	}
+	// 末段上限不是节点（到顶就该停手）。
+	if info.BandNode(info.MaxQuality) {
+		t.Fatal("the max quality is not a band node")
+	}
+}
+
+// 临界值（24/49/74/99）永远只 +1：保底 1 加封顶，结果只能是节点本身。（开关打开时）
+func TestSoleQualityBandEdgeAlwaysArrivesAtNode(t *testing.T) {
+	withSoleNative(t)
+	info, _ := soleTestRules().Info(100346156)
+	for _, q := range []int{24, 49, 74, 99} {
+		for i := 0; i < 100; i++ {
+			if gain := soleQualityGain(info, q); gain != 1 {
+				t.Fatalf("edge %d rolled gain %d, want exactly 1", q, gain)
+			}
+		}
+	}
+}
+
+// 原版口径下从 0 走到满精度：只涨不掉、从不跨段，并记录实测期望次数。
+func TestSoleQualityWalkReachesMaxWithoutCrossingBands(t *testing.T) {
+	withSoleNative(t)
+	info, _ := soleTestRules().Info(100346156)
+	const trials = 300
+	total := 0
+	for i := 0; i < trials; i++ {
+		steps, q := 0, 0
+		for q < info.MaxQuality {
+			gain := soleQualityGain(info, q)
+			if gain < 1 {
+				t.Fatalf("walk stalled at quality %d (gain %d)", q, gain)
+			}
+			if cap := info.BandCap(q); q+gain > cap {
+				t.Fatalf("walk from %d with gain %d crosses band cap %d", q, gain, cap)
+			}
+			q += gain
+			steps++
+			if steps > 500 {
+				t.Fatalf("walk from 0 did not terminate (at %d)", q)
+			}
+		}
+		total += steps
+	}
+	// 宽带上界，防止将来把概率/幅度改到离谱的区间；业主目标 ~25 次。
+	avg := total / trials
+	if avg < 10 || avg > 90 {
+		t.Fatalf("average %d refinements to reach max quality is out of a sane range", avg)
+	}
+	t.Logf("原版口径实测平均 %d 次满精度（业主口径约 25 次）", avg)
+}
+
+// 默认（单机）口径：单次增量落在 5..20 且两端都能取到 —— 与开关打开时完全不同。
+func TestSoleQualityGainDefaultIsSoloRange(t *testing.T) {
+	SetSoleQualityNative(false)
+	if SoleQualityNative() {
+		t.Fatal("默认必须是单机口径（开关关）")
+	}
+	info, _ := soleTestRules().Info(100346156)
 	minGain, maxGain := catalog.SoleQualityGainMax+1, 0
-	for i := 0; i < rounds; i++ {
-		gain := soleQualityGain()
+	for i := 0; i < 3000; i++ {
+		gain := soleQualityGain(info, 0)
 		if gain < catalog.SoleQualityGainMin || gain > catalog.SoleQualityGainMax {
 			t.Fatalf("gain %d outside [%d,%d]", gain, catalog.SoleQualityGainMin, catalog.SoleQualityGainMax)
 		}
@@ -113,6 +213,44 @@ func TestSoleQualityGainStaysInSourceRange(t *testing.T) {
 	if minGain != catalog.SoleQualityGainMin || maxGain != catalog.SoleQualityGainMax {
 		t.Fatalf("sampled range %d..%d does not cover [%d,%d]",
 			minGain, maxGain, catalog.SoleQualityGainMin, catalog.SoleQualityGainMax)
+	}
+	// 默认口径**不做分段封顶**：20 + 20 可以直接到 40（原版会停在 25 段附近的可达范围内）。
+	plan, err := PlanSoleQuality(soleTestRules(), 100346156, 20, 20, 0)
+	if err != nil {
+		t.Fatalf("plan: %v", err)
+	}
+	if plan.QualityAfter != 40 || plan.Gain != 20 {
+		t.Fatalf("plan = after %d gain %d, want 40/20（默认口径按 [max quality] 封顶）", plan.QualityAfter, plan.Gain)
+	}
+}
+
+// 判定侧必须尊重分段上限：超出当前段的部分一律截断（不跨段）。（开关打开时）
+func TestPlanSoleQualityCapsWithinBand(t *testing.T) {
+	withSoleNative(t)
+	rules := soleTestRules()
+	// 30 在 [25,50) 段 ⇒ 一次 +20 只能到 50，绝不能跨到 75。
+	plan, err := PlanSoleQuality(rules, 100346156, 30, 20, 0)
+	if err != nil {
+		t.Fatalf("plan: %v", err)
+	}
+	if plan.QualityAfter != 50 || plan.Gain != 20 {
+		t.Fatalf("plan = after %d gain %d, want 50/20", plan.QualityAfter, plan.Gain)
+	}
+	// 30 + 40 也只能到该段上限 50。
+	plan, err = PlanSoleQuality(rules, 100346156, 30, 40, 0)
+	if err != nil {
+		t.Fatalf("plan: %v", err)
+	}
+	if plan.QualityAfter != 50 || plan.Gain != 20 {
+		t.Fatalf("plan = after %d gain %d, want 50/20", plan.QualityAfter, plan.Gain)
+	}
+	// 末段 [75,100) 的上限就是 [max quality]。
+	plan, err = PlanSoleQuality(rules, 100346156, 99, 50, 0)
+	if err != nil {
+		t.Fatalf("plan: %v", err)
+	}
+	if plan.QualityAfter != 100 || plan.Gain != 1 {
+		t.Fatalf("plan = after %d gain %d, want 100/1", plan.QualityAfter, plan.Gain)
 	}
 }
 

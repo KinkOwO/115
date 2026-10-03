@@ -3,13 +3,8 @@ package dungeon
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
-	"os"
 	"testing"
 )
-
-// catalogPath is the shipped dungeon catalog, read relative to this package so
-// the suite stays runnable on a bare checkout.
-const catalogPath = "../../configs/dungeons.full.json"
 
 // TestStoryLayerCompletionOnRealCastellanChamber pins the shipped shape of the
 // run this fallback exists for: dungeon 15 maze 6 (quest 3191, palaceofload).
@@ -24,13 +19,7 @@ const catalogPath = "../../configs/dungeons.full.json"
 // too: the wire encoder rejects 0, and a rejected payload drops the whole
 // completion batch with the clear-enable in it.
 func TestStoryLayerCompletionOnRealCastellanChamber(t *testing.T) {
-	if _, err := os.Stat(catalogPath); err != nil {
-		t.Skipf("dungeon catalog unavailable: %v", err)
-	}
-	c, err := catalog.LoadDungeons(catalogPath)
-	if err != nil {
-		t.Fatalf("load catalog: %v", err)
-	}
+	c := catalog.LoadNativeFullDungeons(t)
 	const quest = 3191
 	s, err := Select(c, protocol.DungeonSelection{ID: 15, Difficulty: 2, Party: 65535, Quest: quest}, 115, map[uint16]bool{quest: true})
 	if err != nil {

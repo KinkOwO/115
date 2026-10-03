@@ -3,15 +3,11 @@ package dungeon
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
-	"path/filepath"
 	"testing"
 )
 
 func TestEscapeMineQuest3354EntersSourceMaze(t *testing.T) {
-	c, err := catalog.LoadDungeons(filepath.Join("..", "..", "configs", "dungeons.full.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	c := catalog.LoadNativeFullDungeons(t)
 	r := protocol.DungeonSelection{ID: 53, Difficulty: 1, Party: 65535, Quest: 3354}
 	s, err := Select(c, r, 49, map[uint16]bool{3354: true})
 	if err != nil {

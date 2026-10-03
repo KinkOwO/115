@@ -13,6 +13,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
+	"os"
 	"path/filepath"
 	"strings"
 )
@@ -56,8 +57,8 @@ func (s *Source) ItemShops(policy catalog.ItemShopSourcePolicy) (catalog.NativeI
 	return catalog.ImportItemShops(s.archive, policy)
 }
 
-func (s *Source) Boxes(index catalog.ItemIndex, policy loot.BoxSourcePolicy) (*loot.BoxCatalog, error) {
-	return loot.ImportBoxes(s.archive, index, policy)
+func (s *Source) Boxes(index catalog.ItemIndex, policy inventory.BoxSourcePolicy) (*inventory.BoxCatalog, error) {
+	return inventory.ImportBoxes(s.archive, index, policy)
 }
 
 func (s *Source) AvatarDisjoint(index catalog.ItemIndex) (*inventory.AvatarDisjointRules, error) {
@@ -243,6 +244,12 @@ func (s *Source) EnableRuntimeDetails(q *catalog.QuestCatalog, l *character.Lear
 	}
 	if items != nil && index != nil {
 		if err := items.EnableRuntimeDetails(s.archive, *index); err != nil {
+			return err
+		}
+		if err := items.EnableMonsterItemDetails(s.archive); err != nil {
+			return err
+		}
+		if err := items.EnableWorldDrop(s.archive); err != nil {
 			return err
 		}
 	}
@@ -537,7 +544,43 @@ func (s *Source) EquipmentSelection(index catalog.ItemIndex, quests catalog.Ques
 	if s.archive == nil {
 		return nil, fmt.Errorf("equipment selection requires PVF")
 	}
-	return inventory.ImportEquipmentSelection(s.archive, index, quests, policy)
+	selection, err := inventory.ImportEquipmentSelection(s.archive, index, quests, policy)
+	if err != nil {
+		return nil, err
+	}
+	selection.OrdinaryPool, err = cachedProjection(s, "ordinary-equipment", struct {
+		Index    string
+		Excluded []uint32
+		Trade    bool
+	}{itemIndexIdentity(index), policy.ExcludedLootIDs, os.Getenv("DFO_ALLOW_TRADE_EQUIPMENT") == "1"}, func() ([]inventory.EquipmentDrop, error) {
+		return inventory.ImportOrdinaryDropPool(s.archive, index, policy.ExcludedLootIDs)
+	}, func(pool []inventory.EquipmentDrop) ([]inventory.EquipmentDrop, error) {
+		for _, row := range pool {
+			item, ok := index.Items[row.ID]
+			if !ok || item.Kind != "equipment" || row.Weight == 0 || row.Grade <= 0 || row.Grade > 200 || row.Rarity < 0 || row.Rarity > 2 {
+				return nil, fmt.Errorf("invalid ordinary equipment cache")
+			}
+		}
+		return pool, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	selection.HellPartyPool, err = cachedProjection(s, "hell-party-equipment", struct {
+		Index    string
+		Excluded []uint32
+	}{itemIndexIdentity(index), policy.ExcludedLootIDs}, func() ([]inventory.EquipmentDrop, error) {
+		return inventory.ImportHellPartyDropPool(s.archive, index, policy.ExcludedLootIDs)
+	}, func(pool []inventory.EquipmentDrop) ([]inventory.EquipmentDrop, error) {
+		for i, row := range pool {
+			item, known := index.Items[row.ID]
+			if !known || item.Kind != "equipment" || row.Weight == 0 || row.Grade < 1 || row.Grade > 200 || row.Rarity < 0 || row.Rarity > 8 || i > 0 && pool[i-1].ID >= row.ID {
+				return nil, fmt.Errorf("invalid Hell equipment cache")
+			}
+		}
+		return pool, nil
+	})
+	return selection, err
 }
 
 func (s *Source) Town(town, area uint32) (catalog.TownArea, error) {
@@ -602,6 +645,10 @@ func (s *Source) HellPartyMaps(c catalog.DungeonCatalog) (catalog.SourceMapOverl
 		return catalog.SourceMapOverlay{}, nil, fmt.Errorf("Hell Party maps require PVF")
 	}
 	return catalog.ImportHellPartyMaps(s.archive, c)
+}
+
+func (s *Source) HellPartyRules() (*catalog.HellPartyRules, error) {
+	return catalog.ImportHellPartyRules(s.archive)
 }
 
 func (s *Source) Apocalypse() (*catalog.ApocalypseCatalog, error) {
@@ -685,4 +732,46 @@ func (s *Source) ScriptWarpRoutes(d catalog.DungeonCatalog, p catalog.ScriptWarp
 
 func (s *Source) LayerRevisits(d catalog.DungeonCatalog, p catalog.LayerRevisitPolicy) (catalog.LayerRevisitOverlay, error) {
 	return catalog.ImportLayerRevisits(s.archive, d, p)
+}
+
+// ChannelDirectory 直读频道属性（etc/clientchannelinfo.etc + etc/channelslotinfo.etc）。
+//
+// 频道目录原先整份放在 configs/channel.local34.json 里；现在规则层一律以 PVF 为准，
+// 配置只声明"发布哪些频道、叫什么名"（见 internal/channelrefresh 的 Resolve）。
+func (s *Source) ChannelDirectory() (*catalog.ChannelDirectory, error) {
+	if s.archive == nil {
+		return nil, fmt.Errorf("channel directory import requires PVF")
+	}
+	dir, err := catalog.ImportChannelDirectory(s.archive)
+	if err != nil {
+		return nil, err
+	}
+	return &dir, nil
+}
+
+// ChannelInfo 直读普通频道目录（etc/channel_info.etc）：
+// 每条频道行的 ID / Type / Area / 11 个 SourceValues，以及 [dungeon] 区域表。
+func (s *Source) ChannelInfo() (*catalog.ChannelInfo, error) {
+	if s.archive == nil {
+		return nil, fmt.Errorf("channel info import requires PVF")
+	}
+	info, err := catalog.ImportChannelInfo(s.archive)
+	if err != nil {
+		return nil, err
+	}
+	return &info, nil
+}
+
+// TownArea 直读指定 (城镇, 区域) 的城镇：来源是 list/town.lst + 该城镇的 .twn
+// 与它引用的 .map（可行走矩形从 map 里取）。特殊频道各有自己的城镇，靠这个入口
+// 按 clientchannelinfo 的 [seriaRoomTown] 读出来，不需要任何导出 JSON。
+func (s *Source) TownArea(townID, areaID uint32) (*catalog.TownArea, error) {
+	if s.archive == nil {
+		return nil, fmt.Errorf("town area import requires PVF")
+	}
+	area, err := catalog.ImportTownArea(s.archive, townID, areaID)
+	if err != nil {
+		return nil, err
+	}
+	return &area, nil
 }

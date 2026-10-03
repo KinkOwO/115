@@ -1,5 +1,65 @@
 # AGENTS.md — server/
 
+
+## 2026-10-03：Hell Party 波次与装备掉落已确认
+
+- 用户确认封印柱后续敌人可以正常刷新，击杀后可掉落装备。服务端按已授权的参考端兼容规则接入owned隐藏波次、最后一只奖励实体和独立Hell装备池；`DFO_HELL_PARTY_DROP_PERCENT` 默认100=1倍。该规则是本服兼容实现，不代表115官方完整概率公式。
+- confirmed baseline 更新为独立候选 `work/dfo-lan/.tmp/hellparty-20261003/wireprobe-hellparty-owned-waves.exe`，SHA256 `308a7b8434815dc2936557d8cebad41faeee61e9dedc6c1fc6d0c6ebcdddc352`；默认程序未替换。实机范围限用户此次所测路径，没有逐图验证所有Hell副本。
+- Go全量测试、`go vet ./...`、54域原生准备及独立profile启动检查通过。旧`charactercheck`因缺少`account_unified_options`表失败，HEAD overlay复现；未改schema、玩家存档或客户端资源。分析记录见 `../analysis/tasks/hell-party-owned-waves-20261003.md`。
+
+## 2026-10-03：Hell Party 入场与封印房已确认
+
+- 用户确认 Hell Party 正常进入，柱子可攻击破坏并刷出专属怪物。服务端按当前 PVF 自动支持声明 Hell Party 且封印地图可用的副本；离线审计60项源声明中59项地图可读，活动副本100005110的地图100016811缺失，仍明确拒绝。
+- confirmed baseline 为独立候选 `work/dfo-lan/.tmp/hellparty-20261003/wireprobe-hellparty.exe`，SHA256 `104965f85e1721547dc646b65c5a24ed8050529c5867e55b22a712842b93b7b8`，profile 与启动验证入口在同目录；默认服务程序未替换。确认仅覆盖用户实际手动测试路径；59项是离线入场覆盖，不是逐图实测。Hell专属掉落/奖励仍待取证。
+- 专项PVF回归、完整54域准备检查和`go vet ./...`通过；全量测试4项失败经HEAD overlay复核为既有失败。无schema、玩家存档或客户端资源修改。详见 `work/dfo-lan/docs/protocol/hell-party-all-entry-20261003.md`。
+
+## 2026-10-03：上游同步与冲突收敛（源码候选）
+
+- 上游 main 5c8530f 的掉落/免费翻牌、Lotus 与誓约 Clone 修复已接入；普通掉落装配与原生准备测试归 internal/gamedata，wireprobe 的 pvf_* 文件保持清零。
+- 网关/掉落/目录专项、架构守卫、Go 1.26.5 vet 与候选编译通过；当前 8b2a PVF 普通准备冷/热缓存专项通过，未跑全量或 PostgreSQL 实机集成。未部署、访问玩家库或启动客户端，合并候选不新增实机确认；双方原 confirmed baseline 记录保留。
+
+## 2026-10-03：连接 panic 恢复接线修复（源码候选）
+
+- 原 deferred closure 间接调用 recoverConnection 导致 recover() 无效；现直接 defer 该函数，诊断回调补齐当时 peer，保留频道/堆栈和资源关闭流程。
+- 真实连接处理专项在修复前复现逃逸 panic，修复后记录诊断、关闭异常连接并继续处理下一连接；相关专项、Go 1.26.5 vet 与编译通过，分支词法及隔离网关/CLI 对照保持，依用户要求未跑全量测试。
+- 独立源码提交，运行程序与实机 confirmed baseline 保持；未操作玩家库或客户端，协议/schema/存档保持。见 work/dfo-lan/docs/connection-dispatch.md。
+
+## 2026-10-03：Wireprobe 连接与命令分发拆分（源码候选）
+
+- main.go 4398→160 行；gameConnection 持有原连接可变状态，保留逐频道角色 context 隔离，21 个命名阶段沿原 if 链顺序接线，类型门禁位置、内层循环及 SELECT 原流程保持。
+- 继承/增幅书接线改为真实分发测试；登录包序/频道隔离/采样/分支优先级/发送失败专项、架构守卫、Go 1.26.5 vet 和编译通过。33,614 分发 token、1,178 循环 token、8 回调及注册顺序一致，隔离网关 11 请求/11 帧/25 事件与 12 组 CLI 对照通过；依用户要求未跑全量测试。
+- 仅源码候选，未替换运行程序、访问玩家库或启动客户端；协议、SQL/schema、玩家存档与实机 confirmed baseline 保持。见 work/dfo-lan/docs/connection-dispatch.md。
+
+## 2026-10-03：Wireprobe 启动装配拆分（源码候选）
+
+- prepareRuntime(Config) 将目录准备、迁移与服务接线从 main 抽到 bootstrap.go，返回类型化依赖及统一清理函数；main.go 5825→4398 行。准备顺序、路径派生、存档身份归一与连接分发作用域保持。
+- 启动错误返回后先释放已获取资源；部分 PVF 结果、检查模式、数据库池与管理锁按所有权逆序清理，重复调用只执行一次。城镇场景白名单缺失检查移到监听前，合法空 map 保持，连接内 log.Fatal 已移除。
+- Go 1.26.5 启动/配置/连接/接线专项、架构守卫、vet 与候选编译通过；35,896 个连接 token、9,886 个装配 token 的归一化对照及 12 组 CLI 对照通过。依用户要求未跑全量测试；见 work/dfo-lan/docs/startup-configuration.md。
+- 本批为源码候选，未部署、操作玩家库或启动客户端；confirmed baseline 保持既有程序和实机范围。协议、SQL/schema、存档格式保持，暂未引入依赖注入库。
+
+## 2026-10-02：Wireprobe 启动配置集中管理（源码候选）
+
+- Koanf 与类型化 Config 集中声明既有 95 个参数及 54 个环境变量别名；默认值、覆盖优先级、旧布尔/整数/字节语义保持。运行 profile 仍由 Python 编排，PVF 内容准备路径保持。
+- 七组旧配置对照、帮助/非法参数/字节边界、连接与接线专项、架构守卫、Go 1.26.5 vet 和独立候选编译验证；本轮依用户指令不跑全量测试。见 work/dfo-lan/docs/startup-configuration.md。
+- 仅源码候选，未替换运行程序、操作玩家库或启动客户端；confirmed baseline 不增加实机范围，协议、SQL/schema 和玩家存档保持。
+
+## 2026-10-02：Testify 测试依赖源码确认
+
+- 用户确认接入 Testify v1.11.1；仅用于既有连接生命周期、报文完整性与并发输出顺序测试。Go 1.26.5 专项、全量测试和 vet 通过。
+- 此项仅为源码确认，没有替换运行二进制或新增实机验收；confirmed baseline 保持既有程序哈希与确认范围。协议、SQL/schema、玩家存档及客户端资源保持。
+
+## 2026-10-02：普通副本材料与消耗品掉落已确认
+
+- 用户确认“能掉落消耗品和材料了”。按当前PVF接入MOB专属物品池及等级世界掉落，已补入材料和HP/MP药剂；遵守MOB `[exclude world drop]`、普通副本归属/排除及Hell/奥德赛/Abyss/调律边界，复用现有地面拾取与角色存档事务。
+- confirmed baseline 为独立候选 `work/dfo-lan/.tmp/drop-audit-20261002/wireprobe-drop-world.exe`，SHA256 `5e40b294dfd92ab27408b13f0f5d9918c79b30f1bdecb6a6bf9f6a6cea49329f`。世界参考兼容倍率 `DFO_ORDINARY_WORLD_DROP_PERCENT` 默认100=1倍；MOB专属池 `DFO_ORDINARY_MONSTER_ITEM_DROP_PERCENT` 默认10%。两者均不声称是115官方服务端完整公式。默认程序未替换。
+- 普通材料/消耗品翻牌、independent_drop主表与区域材料表仍未确认/接入；Hell Party、奥德赛暂缓。真实PVF及领取回归、启动准备检查和`go vet ./...`通过；全量测试保留经HEAD对照的3项wireprobe审计失败及1项cashshop空发放。无schema、玩家数据库或客户端资源改动。详见 `work/dfo-lan/docs/ordinary-world-drop.md` 与 `../analysis/tasks/monster-drop-rate-audit-20261002.md`。
+
+## 2026-10-02：普通装备掉落与免费翻牌已确认
+
+- 用户确认普通怪物能掉装备、翻牌能出装备，并要求先提交。19:13手动会话 `roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261002_191351_952423_next37` 中角色21的Boss确认、NOTI35、装备拾取刷新及CMD71翻牌入袋成功均有记录。难度0结算阻断和地图类别覆盖过宽已修复。
+- 本项confirmed baseline为独立候选 `.tmp/drop-audit-20261002/wireprobe-drop-audit-scoped.exe`，SHA256 `ce476c14359b012b24aedcbf8dfead763ddccb71a3d1c40ddafe97c30c790a9e`，通过同目录 `启动验证.cmd` 使用；未替换其它任务的默认二进制。确认范围仅限普通装备地面掉落与免费装备翻牌，材料/消耗品继续处理；不扩展为官方完整概率、付费牌或全地图验收。Hell Party、奥德赛暂缓，Abyss/调律保留。
+- 源回归、相关领域回归与vet通过；全量测试保留经HEAD对照的4项既有失败。无schema/玩家数据库/客户端资源改动。详见 `../analysis/tasks/monster-drop-rate-audit-20261002.md`。
+
 ## 2026-10-02：魔法封印装备解除已确认
 
 - 用户确认普通装备可正常解除魔法封印。重构后 CMD393 曾以 PVF 哈希提交角色事件，身份门禁拒绝请求；现改用角色存档契约身份。解封随机属性存库并在重读后保持，原生目录身份校验和存档兼容保留。
@@ -46,7 +106,7 @@
 3. **禁止新增「JSON 回落」。** `pvfCoreCatalogs.load*()` 里除 `if c.x != nil` 之外不得引入
    新数据源；已有回落随任务逐步删除——直读失败要**显式报错**，不要静默换源（静默换源正是
    此前「直读模式下玩法整片失效」却查不出来的原因）。
-4. **禁止把开关当数据。** 玩法行为不留开关（见根 `AGENTS.md` §6 开关原则）；数值差异入口
+4. **禁止把开关当数据。** 玩法行为不留开关（见本文件 §6 开关原则）；数值差异入口
    必须能追溯到一条明确策略文件，且该文件**不得承载「有哪些内容」的清单**。
 
 **允许保留的 JSON**（仅此三类）：
@@ -155,21 +215,10 @@
 
 ## 4. 开发与构建规范
 
-1. **测试先行**：修改协议或业务逻辑后，必须在 `server/work/dfo-lan/` 下执行：
-
-   ```powershell
-   go test ./...
-   go vet ./...
-   ```
-
-2. **候选版隔离**：源码编译输出为 `bin/wireprobe-handoff-source.exe`。**严禁直接覆盖原 39 版归档基线 `wireprobe-dungeon39.exe`**。只有经过实机完整回归确认后，方可升级基准。
-3. **验证候选版**：关闭已有游戏会话后，通过带参数启动测试源码候选版：
-
-   ```powershell
-   powershell -NoProfile -ExecutionPolicy Bypass -File ./Start-DFO.cmd --source-build
-   ```
-
-4. **数据库集成检查**：运行 `go run ./cmd/charactercheck` 检验角色存储与 schema 兼容性。
+1. **测试门禁**：修改协议或业务逻辑后，在 `server/work/dfo-lan/` 执行 `go test ./...` 与 `go vet ./...`。
+2. **数据库集成**：`go run ./cmd/charactercheck` 校验角色存储与 schema 兼容性。
+3. **候选隔离**：源码编译输出 `bin/wireprobe-handoff-source.exe`，**严禁直接覆盖 39 版归档基线 `wireprobe-dungeon39.exe`**；实机完整回归确认后方可升级基准。
+4. **实机回归**：关闭已有游戏会话后 `./Start-DFO.cmd --source-build`，由用户手动操作。
 
 ## 5. 变更事务与数据安全
 

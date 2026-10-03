@@ -1,0 +1,354 @@
+{
+ "generated": "2026-10-01T22:21:20",
+ "records": [
+  {
+   "va": "0x141491360",
+   "name": "sub_141491360",
+   "size": 10,
+   "file": "ack_status_fail_path_141491360_sub_141491360.c",
+   "callers": [
+    {
+     "func": "0x140B899B0",
+     "site": "0x140B899DE"
+    }
+   ]
+  },
+  {
+   "va": "0x146ADFC80",
+   "name": "sub_146ADFC80",
+   "size": 729,
+   "file": "ack_success_message_146ADFC80_sub_146ADFC80.c",
+   "callers": [
+    {
+     "func": "0x1404B4670",
+     "site": "0x1404B46E6"
+    },
+    {
+     "func": "0x14052E740",
+     "site": "0x14052E81A"
+    },
+    {
+     "func": "0x140575470",
+     "site": "0x140575569"
+    },
+    {
+     "func": "0x140575610",
+     "site": "0x14057565A"
+    },
+    {
+     "func": "0x140654B70",
+     "site": "0x140654F2D"
+    },
+    {
+     "func": "0x140B4B7F0",
+     "site": "0x140B4B81B"
+    },
+    {
+     "func": "0x140B899B0",
+     "site": "0x140B89A13"
+    },
+    {
+     "func": "0x141356C80",
+     "site": "0x141356D57"
+    },
+    {
+     "func": "0x1413F7E60",
+     "site": "0x1413F82DA"
+    },
+    {
+     "func": "0x14157FFF0",
+     "site": "0x141580048"
+    },
+    {
+     "func": "0x141598A40",
+     "site": "0x141598E24"
+    },
+    {
+     "func": "0x141598F60",
+     "site": "0x1415992CF"
+    }
+   ]
+  },
+  {
+   "va": "0x1480A6620",
+   "name": "sub_1480A6620",
+   "size": 392,
+   "file": "target_template_gen_1480A6620_sub_1480A6620.c",
+   "callers": [
+    {
+     "func": "0x1401C4780",
+     "site": "0x1401C47A1"
+    },
+    {
+     "func": "0x1401CDAA0",
+     "site": "0x1401CE25A"
+    },
+    {
+     "func": "0x1401CDAA0",
+     "site": "0x1401CE2CC"
+    },
+    {
+     "func": "0x1401CDAA0",
+     "site": "0x1401CE33E"
+    },
+    {
+     "func": "0x140252D90",
+     "site": "0x140252E80"
+    },
+    {
+     "func": "0x140256DC0",
+     "site": "0x140256DE1"
+    },
+    {
+     "func": "0x1402CAD70",
+     "site": "0x1402CB389"
+    },
+    {
+     "func": "0x1402CAD70",
+     "site": "0x1402CB3DC"
+    },
+    {
+     "func": "0x140307CA0",
+     "site": "0x140307E7C"
+    },
+    {
+     "func": "0x140307CA0",
+     "site": "0x140307ED5"
+    },
+    {
+     "func": "0x14033FF30",
+     "site": "0x14033FF51"
+    },
+    {
+     "func": "0x1403556C0",
+     "site": "0x140355FAB"
+    }
+   ]
+  },
+  {
+   "va": "0x140B8D280",
+   "name": "sub_140B8D280",
+   "size": 1330,
+   "file": "ui_object_ctor_140B8D280_sub_140B8D280.c",
+   "callers": [
+    {
+     "func": "0x140B8FE20",
+     "site": "0x140B8FE7F"
+    },
+    {
+     "func": "0x140B90BB0",
+     "site": "0x140B90BFD"
+    },
+    {
+     "func": "0x140B90BB0",
+     "site": "0x140B90F06"
+    },
+    {
+     "func": "0x140B90FA0",
+     "site": "0x140B911F6"
+    },
+    {
+     "func": "0x140B915D0",
+     "site": "0x140B91600"
+    },
+    {
+     "func": "0x140B939B0",
+     "site": "0x140B93A09"
+    },
+    {
+     "func": "0x140B939B0",
+     "site": "0x140B93A44"
+    },
+    {
+     "func": "0x140B939B0",
+     "site": "0x140B93A99"
+    },
+    {
+     "func": "0x140B93B40",
+     "site": "0x140B93BB3"
+    },
+    {
+     "func": "0x140B94830",
+     "site": "0x140B94A39"
+    },
+    {
+     "func": "0x140B94830",
+     "site": "0x140B94BF6"
+    },
+    {
+     "func": "0x140B95410",
+     "site": "0x140B95475"
+    }
+   ]
+  },
+  {
+   "va": "0x140B8FE20",
+   "name": "sub_140B8FE20",
+   "size": 500,
+   "file": "uictor_caller_140B8FE20_sub_140B8FE20.c",
+   "callers": [
+    {
+     "func": "0x14683FD50",
+     "site": "0x146840851"
+    }
+   ],
+   "call_site": "0x140B8FE7F"
+  },
+  {
+   "va": "0x140B90BB0",
+   "name": "sub_140B90BB0",
+   "size": 996,
+   "file": "uictor_caller_140B90BB0_sub_140B90BB0.c",
+   "callers": [
+    {
+     "func": "0x1404D52C0",
+     "site": "0x1404D557C"
+    },
+    {
+     "func": "0x1404D52C0",
+     "site": "0x1404D55F7"
+    },
+    {
+     "func": "0x1404D52C0",
+     "site": "0x1404D577C"
+    },
+    {
+     "func": "0x1404D52C0",
+     "site": "0x1404D57A0"
+    },
+    {
+     "func": "0x1404D52C0",
+     "site": "0x1404D5935"
+    },
+    {
+     "func": "0x1404D52C0",
+     "site": "0x1404D59AA"
+    },
+    {
+     "func": "0x1404D52C0",
+     "site": "0x1404D5B44"
+    },
+    {
+     "func": "0x1404D52C0",
+     "site": "0x1404D5B6E"
+    },
+    {
+     "func": "0x1404D52C0",
+     "site": "0x1404D5FFD"
+    },
+    {
+     "func": "0x1404D52C0",
+     "site": "0x1404D6027"
+    },
+    {
+     "func": "0x1404D52C0",
+     "site": "0x1404D61FB"
+    },
+    {
+     "func": "0x1404D6730",
+     "site": "0x1404D695B"
+    }
+   ],
+   "call_site": "0x140B90BFD"
+  },
+  {
+   "va": "0x140B90FA0",
+   "name": "sub_140B90FA0",
+   "size": 1579,
+   "file": "uictor_caller_140B90FA0_sub_140B90FA0.c",
+   "callers": [
+    {
+     "func": "0x14050E7D0",
+     "site": "0x14050E8A2"
+    },
+    {
+     "func": "0x14050E950",
+     "site": "0x14050EB29"
+    },
+    {
+     "func": "0x14050EC80",
+     "site": "0x14050F0B8"
+    },
+    {
+     "func": "0x14050F2B0",
+     "site": "0x14050FDB8"
+    },
+    {
+     "func": "0x1414DE660",
+     "site": "0x1414DE845"
+    }
+   ],
+   "call_site": "0x140B911F6"
+  },
+  {
+   "va": "0x140B915D0",
+   "name": "sub_140B915D0",
+   "size": 66,
+   "file": "uictor_caller_140B915D0_sub_140B915D0.c",
+   "callers": [
+    {
+     "func": "0x1402579A0",
+     "site": "0x1402579B4"
+    },
+    {
+     "func": "0x140257A80",
+     "site": "0x140257A94"
+    },
+    {
+     "func": "0x140257B60",
+     "site": "0x140257B7C"
+    },
+    {
+     "func": "0x140257B60",
+     "site": "0x140257C35"
+    },
+    {
+     "func": "0x14028BFA0",
+     "site": "0x14028BFDC"
+    },
+    {
+     "func": "0x14028BFA0",
+     "site": "0x14028C0AC"
+    },
+    {
+     "func": "0x1403B7F40",
+     "site": "0x1403B805E"
+    },
+    {
+     "func": "0x140425170",
+     "site": "0x1404251B4"
+    },
+    {
+     "func": "0x140425170",
+     "site": "0x1404251C1"
+    },
+    {
+     "func": "0x140425170",
+     "site": "0x140425204"
+    },
+    {
+     "func": "0x140425170",
+     "site": "0x140425263"
+    },
+    {
+     "func": "0x14048DCA0",
+     "site": "0x14048DDBC"
+    }
+   ],
+   "call_site": "0x140B91600"
+  },
+  {
+   "va": "0x140B939B0",
+   "name": "sub_140B939B0",
+   "size": 398,
+   "file": "uictor_caller_140B939B0_sub_140B939B0.c",
+   "callers": [
+    {
+     "func": "0x14683FD50",
+     "site": "0x14684074E"
+    }
+   ],
+   "call_site": "0x140B93A09"
+  }
+ ]
+}

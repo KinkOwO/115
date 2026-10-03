@@ -4,9 +4,8 @@
 都会退回上游版（2026-09-28 已发生三次：01:26:50 抹掉 42 个文件、02:37:20 抹掉 10 个、
 03:09:59 抹掉 14 个并且把本任务新增的那 4 个未跟踪源文件从磁盘上删掉了）。它弹窗里那 4 个
 「上游已删除、本机仍存在」的文件其实是本任务新增的源文件，删掉才是真的编译失败。
-03:18:12 启动前还发生第二类事故：启动器把 configs 下 4 份本机配置（items.index.json、
-booster-catalog.json、shop-vault-release.json、shop-purchase-pilot.json）搬进
-runtime/disabled-configs，物品索引因此没被补全，服务端在 attunement 校验处 log.Fatal，
+03:18:12 启动前还发生第二类事故：启动器把 configs 下本机配置（items.index.json、
+booster-catalog.json）搬进 runtime/disabled-configs，物品索引因此没被补全，服务端在 attunement 校验处 log.Fatal，
 启动脚本 exit status 1。本脚本让这两种恢复都变成一条命令，并且机械地保证源码侧只加不删：
 
   * 目标文件缺行（上游退回旧版）：用载荷里的确认版整文件写回；
@@ -18,7 +17,7 @@ runtime/disabled-configs，物品索引因此没被补全，服务端在 attunem
     python port_skin_family_fixes.py            # 实际重放（源码 + 被隔离的本机配置）
     python port_skin_family_fixes.py --target D:/somewhere/115us
     python port_skin_family_fixes.py --force    # 冲突文件也按载荷覆盖，判据见下
-    python port_skin_family_fixes.py --configs-only  # 只搬回被隔离的 4 份本机配置，不动源码
+    python port_skin_family_fixes.py --configs-only  # 只搬回被隔离的本机配置，不动源码
     python port_skin_family_fixes.py --refresh  # 用当前工作树刷新载荷（确认版前滚）
 
 冲突文件要逐条判一次再决定加不加 --force。03:09:59 那次同步之后，main.go / skin_cargo.go /
@@ -74,14 +73,12 @@ FILES = [
 ]
 
 # 启动器在 03:18 那次启动前把这几份本机配置移进了 runtime/disabled-configs，
-# 于是命令行里 -booster-catalog / -shop-vault 等参数消失，物品索引不再被补全，
+# 于是命令行里 -booster-catalog 等参数消失，物品索引不再被补全，
 # 服务端在 attunement 校验处 log.Fatal 退出。这里只把「configs 里没有、隔离区里有」
 # 的那份搬回去；两边都有时不动，免得覆盖别人的选择。
 LOCAL_CONFIGS = [
     "items.index.json",
     "booster-catalog.json",
-    "shop-vault-release.json",
-    "shop-purchase-pilot.json",
 ]
 QUARANTINE = "runtime/disabled-configs"
 

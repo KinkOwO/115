@@ -10,11 +10,25 @@ import (
 	"strconv"
 )
 
-// SelectionBoxPolicy contains only the bounded range the server loads. Paths,
-// hashes and all offered item/category/count data remain archive facts.
+// SelectionBoxPolicy carries only the scope the source cannot express: a small
+// whitelist of templates that are selection boxes but whose [stackable type] is
+// not [booster selection]. The offered categories, items and counts are always
+// archive facts discovered from the item index, not policy data.
 type SelectionBoxPolicy struct {
-	Version   int      `json:"version"`
-	Templates []uint32 `json:"templates"`
+	Version int `json:"version"`
+	// Whitelist adds templates the [stackable type] scan cannot reach.
+	Whitelist []uint32 `json:"whitelist,omitempty"`
+	// Templates is the pre-discovery field. Entries are treated exactly like
+	// whitelist entries so existing profiles keep loading during migration.
+	Templates  []uint32 `json:"templates,omitempty"`
+	Provenance string   `json:"provenance,omitempty"`
+}
+
+func (p SelectionBoxPolicy) namedTemplates() []uint32 {
+	out := make([]uint32, 0, len(p.Whitelist)+len(p.Templates))
+	out = append(out, p.Whitelist...)
+	out = append(out, p.Templates...)
+	return out
 }
 
 func ReadSelectionBoxPolicy(path string) (SelectionBoxPolicy, error) {
@@ -32,11 +46,11 @@ func ReadSelectionBoxPolicy(path string) (SelectionBoxPolicy, error) {
 	if err := d.Decode(new(any)); err != io.EOF {
 		return p, fmt.Errorf("selection box policy has trailing data")
 	}
-	if p.Version != 1 || len(p.Templates) == 0 {
-		return p, fmt.Errorf("empty or invalid selection box policy")
+	if p.Version != 1 {
+		return p, fmt.Errorf("invalid selection box policy version %d", p.Version)
 	}
 	seen := map[uint32]bool{}
-	for _, id := range p.Templates {
+	for _, id := range p.namedTemplates() {
 		if id == 0 || seen[id] {
 			return p, fmt.Errorf("invalid or duplicate selection box policy template %d", id)
 		}
@@ -45,21 +59,64 @@ func ReadSelectionBoxPolicy(path string) (SelectionBoxPolicy, error) {
 	return p, nil
 }
 
+// ImportSelectionBoxes discovers every stackable the item index labels
+// [booster selection], unions the policy's whitelist, and reads each script.
+// A single malformed or unmodelled candidate is classified (fixed / unparsed /
+// rejected) instead of aborting the whole catalog, so the source remains the
+// sole content truth and one bad script cannot hide the rest.
 func ImportSelectionBoxes(a *pvf.Archive, index ItemIndex, policy SelectionBoxPolicy) (*SelectionBoxes, error) {
-	if a == nil || a.Snapshot().Checksum != index.Source.Checksum || policy.Version != 1 || len(policy.Templates) == 0 {
-		return nil, fmt.Errorf("selection boxes require matching source and bounded policy")
+	if a == nil || a.Snapshot().Checksum != index.Source.Checksum || policy.Version != 1 {
+		return nil, fmt.Errorf("selection boxes require matching source and version 1 policy")
 	}
-	s := SelectionBoxes{Model: SelectionBoxModel, Bounded: true, Source: a.Snapshot(), Boxes: map[string]SelectionBox{}}
-	ids := append([]uint32(nil), policy.Templates...)
-	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
-	for i, id := range ids {
-		item, ok := index.Items[id]
-		if id == 0 || i > 0 && ids[i-1] == id || !ok || item.ID != id || item.StackableType != "[booster selection]" {
-			return nil, fmt.Errorf("selection box %d has no unique indexed source binding", id)
+	if err := index.Validate(); err != nil {
+		return nil, err
+	}
+	candidates, err := selectionBoxCandidates(index, policy)
+	if err != nil {
+		return nil, err
+	}
+	read := func(path string) (ScriptRecord, error) { return ReadScript(a, path) }
+	return assembleSelectionBoxes(candidates, read, a.Snapshot())
+}
+
+// selectionBoxCandidates is the discovery half: every stackable the index
+// labels [booster selection], plus any template the policy whitelists. A
+// whitelisted template with no indexed binding is a hard error so a typo
+// cannot silently drop a box.
+func selectionBoxCandidates(index ItemIndex, policy SelectionBoxPolicy) (map[uint32]string, error) {
+	candidates := map[uint32]string{}
+	for id, item := range index.Items {
+		if item.Kind == "stackable" && item.StackableType == "[booster selection]" {
+			candidates[id] = item.Path
 		}
-		script, err := ReadScript(a, item.Path)
+	}
+	for _, id := range policy.namedTemplates() {
+		item, ok := index.Items[id]
+		if id == 0 || !ok || item.ID != id {
+			return nil, fmt.Errorf("selection box policy template %d has no indexed source binding", id)
+		}
+		candidates[id] = item.Path
+	}
+	return candidates, nil
+}
+
+type selectionScriptReader func(path string) (ScriptRecord, error)
+
+// assembleSelectionBoxes is the archive-independent half of the import: it
+// classifies candidate scripts and binds the runtime catalog. Keeping it
+// separate lets the whitelist + discovery hybrid be tested without an archive.
+func assembleSelectionBoxes(candidates map[uint32]string, read selectionScriptReader, source pvf.ArchiveSnapshot) (*SelectionBoxes, error) {
+	ids := make([]uint32, 0, len(candidates))
+	for id := range candidates {
+		ids = append(ids, id)
+	}
+	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
+	s := SelectionBoxes{Model: SelectionBoxModel, Bounded: true, Source: source, Boxes: map[string]SelectionBox{}}
+	for _, id := range ids {
+		script, err := read(candidates[id])
 		if err != nil {
-			return nil, fmt.Errorf("selection box %d: %w", id, err)
+			s.Unparsed = append(s.Unparsed, id)
+			continue
 		}
 		categories, fixed := ParseSelectionCells(script.Cells)
 		if len(categories) == 0 {
@@ -70,7 +127,15 @@ func ImportSelectionBoxes(a *pvf.Archive, index ItemIndex, policy SelectionBoxPo
 			}
 			continue
 		}
-		s.Boxes[strconv.FormatUint(uint64(id), 10)] = SelectionBox{Template: id, Path: script.Path, SHA256: script.SHA256, Categories: categories}
+		box, err := normalizeSelectionBox(SelectionBox{Template: id, Path: script.Path, SHA256: script.SHA256, Categories: categories})
+		if err != nil {
+			s.Rejected = append(s.Rejected, id)
+			continue
+		}
+		s.Boxes[strconv.FormatUint(uint64(id), 10)] = box
 	}
+	sort.Slice(s.Fixed, func(i, j int) bool { return s.Fixed[i] < s.Fixed[j] })
+	sort.Slice(s.Unparsed, func(i, j int) bool { return s.Unparsed[i] < s.Unparsed[j] })
+	sort.Slice(s.Rejected, func(i, j int) bool { return s.Rejected[i] < s.Rejected[j] })
 	return NewSelectionBoxes(s)
 }

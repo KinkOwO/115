@@ -12,7 +12,7 @@ import (
 // useQuestAirshipItem handles the captured CMD507 action 206 only when the
 // owned item matches an accepted, source-backed single-use quest objective.
 func (w *worldSession) useQuestAirshipItem(p []byte, event func(map[string]any)) ([]outboundPacket, error) {
-	if w == nil || w.role.ID == 0 || w.quests == nil || w.loot == nil {
+	if w == nil || w.role.ID == 0 || w.quests == nil || w.items == nil {
 		return nil, fmt.Errorf("quest item use before character selection")
 	}
 	if w.activeDungeon != nil || w.state.Position.Town == 0 {
@@ -61,7 +61,7 @@ func (w *worldSession) useQuestAirshipItem(p []byte, event func(map[string]any))
 	if !pending {
 		return nil, fmt.Errorf("no accepted quest requires this item")
 	}
-	saved, receipt, _, err := (&workflow.LootService{Store: w.store, Loot: w.loot}).Consume(ctx, w.role,
+	saved, receipt, _, err := (&workflow.ItemService{Store: w.store, Items: w.items}).Consume(ctx, w.role,
 		protocol.UseStackableRequest{Slot: slot, List: 0, Template: template})
 	if err != nil {
 		return nil, err

@@ -23,8 +23,11 @@ type EquipmentCatalog struct {
 	Full   *FullEquipmentCatalog `json:"-"`
 	Source pvf.ArchiveSnapshot   `json:"source"`
 	Rows   []EquipmentDefinition `json:"rows"`
-	index  map[uint32]EquipmentDefinition
-	pool   []EquipmentDrop
+	// Separate from the historical selection used by deferred special modes.
+	OrdinaryPool  []EquipmentDrop `json:"ordinary_pool,omitempty"`
+	HellPartyPool []EquipmentDrop `json:"-"`
+	index         map[uint32]EquipmentDefinition
+	pool          []EquipmentDrop
 }
 
 // EquipmentDrop is one piece of gear this build can actually place in a bag,
@@ -33,6 +36,7 @@ type EquipmentDrop struct {
 	ID            uint32
 	Grade, Rarity int32
 	Durability    uint16
+	Weight        uint32 `json:",omitempty"`
 }
 
 // DropPool is the catalog's bag-usable gear, projected once at load. Basic
@@ -95,7 +99,7 @@ func NewEquipmentCatalog(c EquipmentCatalog, source string) (*EquipmentCatalog, 
 		if len(rarity) != 1 || rarity[0].Type != 0 || rarity[0].Value < 0 {
 			continue
 		}
-		c.pool = append(c.pool, EquipmentDrop{r.ID, grade[0].Value, rarity[0].Value, durability})
+		c.pool = append(c.pool, EquipmentDrop{ID: r.ID, Grade: grade[0].Value, Rarity: rarity[0].Value, Durability: durability})
 	}
 	sort.Slice(c.pool, func(i, j int) bool {
 		if c.pool[i].Grade != c.pool[j].Grade {

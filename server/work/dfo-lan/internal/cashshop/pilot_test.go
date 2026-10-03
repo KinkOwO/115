@@ -23,10 +23,7 @@ func (l *packLedger) PurchaseCashToBag(_ context.Context, o CashOrder, fn func(j
 	return CashReceipt{}, true, nil
 }
 func TestShopPilotPacksAndAtomicCapacity(t *testing.T) {
-	p, e := LoadPilot("../../configs/shop-purchase-pilot.json", "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80")
-	if e != nil {
-		t.Fatal(e)
-	}
+	p := nativePilot(t, false)
 	products, e := p.products()
 	if e != nil {
 		t.Fatal(e)
@@ -120,10 +117,7 @@ func TestShopPilotPacksAndAtomicCapacity(t *testing.T) {
 }
 
 func TestShopPilotSourceAndDelivery(t *testing.T) {
-	p, e := LoadPilot("../../configs/shop-purchase-pilot.json", "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80")
-	if e != nil {
-		t.Fatal(e)
-	}
+	p := nativePilot(t, false)
 	products, e := p.products()
 	if e != nil || products[3000118].Cera != 45 || products[3000118].Template != 15 {
 		t.Fatalf("unexpected current PVF product %+v %v", products[3000118], e)
@@ -159,10 +153,7 @@ func TestShopPilotSourceAndDelivery(t *testing.T) {
 }
 
 func TestShopPilotCartAndSplitStacks(t *testing.T) {
-	p, err := LoadPilot("../../configs/shop-purchase-pilot.json", "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80")
-	if err != nil {
-		t.Fatal(err)
-	}
+	p := nativePilot(t, false)
 	l := &packLedger{state: json.RawMessage(`{"level":55}`)}
 	cart := []protocol.CeraCartItem{{Product: 3000121, Quantity: 21}, {Product: 3000674, Quantity: 2}, {Product: 3003001, Quantity: 1}}
 	_, applied, err := p.Purchase(context.Background(), l, 1, 1, "mixed-cart-test-0001", cart)
@@ -197,7 +188,7 @@ func TestShopPilotCartAndSplitStacks(t *testing.T) {
 	if err == nil || string(l.state) != before {
 		t.Fatal("partial cart persisted", err)
 	}
-	for _, invalid := range [][]protocol.CeraCartItem{nil, make([]protocol.CeraCartItem, 33), {{Product: 3000118, Quantity: 57}}, {{Product: 3000118, Quantity: 1}, {Product: 3107337, Kind: 4, Quantity: 1}}} {
+	for _, invalid := range [][]protocol.CeraCartItem{nil, make([]protocol.CeraCartItem, 33), {{Product: 3000118, Quantity: 57}}, {{Product: 3000118, Quantity: 1}, {Product: 999999999, Kind: 4, Quantity: 1}}} {
 		if _, _, err = p.Purchase(context.Background(), l, 1, 1, "mixed-cart-bad-0001", invalid); err == nil || string(l.state) != before {
 			t.Fatal("invalid cart changed state")
 		}
@@ -219,10 +210,7 @@ func TestShopPilotCartAndSplitStacks(t *testing.T) {
 }
 
 func TestShopPilotMaterialProductsAndCategories(t *testing.T) {
-	p, err := LoadPilot("../../configs/shop-purchase-pilot.json", "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80")
-	if err != nil {
-		t.Fatal(err)
-	}
+	p := nativePilot(t, false)
 	products, err := p.products()
 	if err != nil {
 		t.Fatal(err)
@@ -291,11 +279,7 @@ func TestShopPilotMaterialProductsAndCategories(t *testing.T) {
 
 func TestShopPilotPackageDelivery(t *testing.T) {
 	t.Setenv("DFO_SHOP_OPEN_ALL", "1")
-	p, err := LoadPilot("../../configs/shop-vault-release.json", "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80")
-	if err != nil {
-		t.Skip("shop-vault-release.json not available or unparseable:", err)
-		return
-	}
+	p := nativePilot(t, true)
 	// Verify package 3400489
 	l := &packLedger{state: json.RawMessage(`{}`)}
 	_, applied, err := p.Purchase(context.Background(), l, 1, 1, "pkg-test-order-0001", []protocol.CeraCartItem{{Product: 3400489, Quantity: 1}})
@@ -345,10 +329,7 @@ func TestShopPilotPackageDelivery(t *testing.T) {
 }
 
 func TestShopPilotLifeTokenPurchase(t *testing.T) {
-	p, err := LoadPilot("../../configs/shop-purchase-pilot.json", "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80")
-	if err != nil {
-		t.Fatal(err)
-	}
+	p := nativePilot(t, false)
 
 	// Create a full bag where all consumables and materials slots are occupied
 	full := inventory.Bag{Version: "ordinary-bag-v1", Gold: 1000, Coin: 5}

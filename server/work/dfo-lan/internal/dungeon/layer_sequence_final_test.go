@@ -1,8 +1,6 @@
 package dungeon
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 
 	"dfolan/internal/catalog"
@@ -19,18 +17,7 @@ import (
 // 关键断言：序列走到最后一张时，**怪没清也必须放行** —— 判据不能要求 roomEnemiesDead，
 // 也不能要求 Record 匹配（剧情层图的请求带客户端自己的落点记录）。
 func TestLayerSequenceFinalExitsWithoutClearingRoom(t *testing.T) {
-	raw, e := os.ReadFile(filepath.Join("..", "..", "configs", "dungeons.full.json"))
-	if e != nil {
-		t.Skip("full catalog missing:", e)
-	}
-	tmp := filepath.Join(t.TempDir(), "d.json")
-	if e = os.WriteFile(tmp, raw, 0o600); e != nil {
-		t.Fatal(e)
-	}
-	c, e := catalog.LoadDungeons(tmp)
-	if e != nil {
-		t.Fatal(e)
-	}
+	c := catalog.LoadNativeFullDungeons(t)
 	d, ok := c.Dungeons[100004777]
 	if !ok {
 		t.Fatal("100004777 不在 full 导出里")
@@ -71,9 +58,11 @@ func TestLayerSequenceFinalExitsWithoutClearingRoom(t *testing.T) {
 	if !ok {
 		t.Fatalf("map %d 未导入", plotLayer)
 	}
-	if s.Monsters, e = fixedMonsters(script, d.BasisLevel); e != nil {
-		t.Fatal(e)
+	monsters, err := fixedMonsters(script, d.BasisLevel)
+	if err != nil {
+		t.Fatal(err)
 	}
+	s.Monsters = monsters
 	t.Logf("层图 %d monsters=%d roomEnemiesDead=%v atLayerLast=%v",
 		plotLayer, len(s.Monsters), s.roomEnemiesDead(), s.AtLayerLastMap())
 

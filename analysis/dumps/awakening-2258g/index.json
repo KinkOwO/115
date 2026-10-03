@@ -1,0 +1,115 @@
+{
+ "generated": "2026-10-02T00:28:37",
+ "by_target": {
+  "tag_need_materials": [
+   "0x14769EAF0",
+   "0x1477E07E0"
+  ],
+  "tag_refund_materials": [
+   "0x14769EAF0",
+   "0x1477E07E0"
+  ],
+  "tag_need_amalgamation": [
+   "0x14769EAF0"
+  ],
+  "field_equipment_awakening_option": [
+   "0x14016A7B0",
+   "0x140171570"
+  ],
+  "path_equipmentawakeningoption_lst": [
+   "0x140B8A980"
+  ],
+  "log_system_init": [
+   "0x140B8A980"
+  ]
+ },
+ "names": {
+  "0x14769EAF0": "sub_14769EAF0",
+  "0x1477E07E0": "sub_1477E07E0",
+  "0x14016A7B0": "sub_14016A7B0",
+  "0x140171570": "sub_140171570",
+  "0x140B8A980": "sub_140B8A980"
+ },
+ "shared": [
+  "0x14769EAF0",
+  "0x1477E07E0",
+  "0x140B8A980"
+ ],
+ "decompiled": [
+  {
+   "func": "0x14769EAF0",
+   "name": "sub_14769EAF0",
+   "size": 9595,
+   "file": "shared_14769EAF0_sub_14769EAF0.c",
+   "shared_targets": 3
+  },
+  {
+   "func": "0x1477E07E0",
+   "name": "sub_1477E07E0",
+   "size": 5423,
+   "file": "shared_1477E07E0_sub_1477E07E0.c",
+   "shared_targets": 2
+  },
+  {
+   "func": "0x140B8A980",
+   "name": "sub_140B8A980",
+   "size": 414,
+   "file": "shared_140B8A980_sub_140B8A980.c",
+   "shared_targets": 2
+  },
+  {
+   "func": "0x14769EAF0",
+   "name": "sub_14769EAF0",
+   "size": 9595,
+   "file": "tag_need_materials_14769EAF0_sub_14769EAF0.c"
+  },
+  {
+   "func": "0x1477E07E0",
+   "name": "sub_1477E07E0",
+   "size": 5423,
+   "file": "tag_need_materials_1477E07E0_sub_1477E07E0.c"
+  },
+  {
+   "func": "0x14769EAF0",
+   "name": "sub_14769EAF0",
+   "size": 9595,
+   "file": "tag_refund_materials_14769EAF0_sub_14769EAF0.c"
+  },
+  {
+   "func": "0x1477E07E0",
+   "name": "sub_1477E07E0",
+   "size": 5423,
+   "file": "tag_refund_materials_1477E07E0_sub_1477E07E0.c"
+  },
+  {
+   "func": "0x14769EAF0",
+   "name": "sub_14769EAF0",
+   "size": 9595,
+   "file": "tag_need_amalgamation_14769EAF0_sub_14769EAF0.c"
+  },
+  {
+   "func": "0x14016A7B0",
+   "name": "sub_14016A7B0",
+   "size": 10869,
+   "file": "field_equipment_awakening_option_14016A7B0_sub_14016A7B0.c"
+  },
+  {
+   "func": "0x140171570",
+   "name": "sub_140171570",
+   "size": 2370,
+   "file": "field_equipment_awakening_option_140171570_sub_140171570.c"
+  },
+  {
+   "func": "0x140B8A980",
+   "name": "sub_140B8A980",
+   "size": 414,
+   "file": "path_equipmentawakeningoption_lst_140B8A980_sub_140B8A980.c"
+  },
+  {
+   "func": "0x140B8A980",
+   "name": "sub_140B8A980",
+   "size": 414,
+   "file": "log_system_init_140B8A980_sub_140B8A980.c"
+  }
+ ]
+}
