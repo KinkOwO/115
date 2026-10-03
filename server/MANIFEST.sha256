@@ -365,7 +365,6 @@ ab2d2711ce9e6d80f8b3cf452d678c6d2b3dae673efe8b00994cb0c12fcef455  work/dfo-lan/c
 bcf58e925db45c53968bbf7605ebb1f6abea691628b50b482aef68b3a02a0f9c  work/dfo-lan/configs/shop-next-candidate.json
 3a48ea97b98357279adf718c206a35aac3581bbd9f9bb7240cc4a752d73a48c8  work/dfo-lan/configs/shop-purchase-pilot.json
 63d7b8152a7482e84404924ff67a7e95799a965097757504b31f00e51bfe0e80  work/dfo-lan/configs/shop-purchase-report.json
-696e9335fffd24d191745f2021d77e002c22a264f97ffd2a7bcb312aaf588324  work/dfo-lan/configs/town.generated.json
 fbfc5394f141c786aca14616d6b58480de46adbe8564a85a71400f5c3abc65dc  work/dfo-lan/cmd/wireprobe/testdata/town-entry-probe.json
 d8d044e68296e9f60588c74f7fb532b2ac3a63f13a0cccae06772c2b12db7b8e  work/dfo-lan/configs/tutorial-dungeons.current36.json
 7347030681c9227071bc56afded41b0117c0761164060ea1bbac3e7b75a69603  work/dfo-lan/configs/tutorial-routes.current35.json

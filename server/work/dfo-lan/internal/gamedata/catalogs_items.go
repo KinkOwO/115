@@ -90,7 +90,7 @@ func (c *Catalogs) LoadBoxes(path, source string) (*inventory.BoxCatalog, error)
 		}
 		return c.Boxes, nil
 	}
-	return inventory.LoadBoxes(path)
+	return nil, nativeContentRequired("boxes")
 }
 
 func preparePVFCashShop(c *Catalogs, s *Source, i CatalogInputs) error {
@@ -391,7 +391,7 @@ func (c *Catalogs) LoadItemShops(name, source string) (*catalog.ItemShops, error
 		}
 		return c.ItemShops, nil
 	}
-	return catalog.LoadItemShops(name)
+	return nil, nativeContentRequired("item-shops")
 }
 
 // preparePVFLottery discovers PVF pools and delegates gateway-only validation.

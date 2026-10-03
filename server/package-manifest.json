@@ -1843,11 +1843,6 @@
       "sha256": "63d7b8152a7482e84404924ff67a7e95799a965097757504b31f00e51bfe0e80"
     },
     {
-      "path": "work/dfo-lan/configs/town.generated.json",
-      "bytes": 1113,
-      "sha256": "696e9335fffd24d191745f2021d77e002c22a264f97ffd2a7bcb312aaf588324"
-    },
-    {
       "path": "work/dfo-lan/cmd/wireprobe/testdata/town-entry-probe.json",
       "bytes": 175,
       "sha256": "fbfc5394f141c786aca14616d6b58480de46adbe8564a85a71400f5c3abc65dc"

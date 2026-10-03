@@ -272,8 +272,8 @@ func (s *Source) ReleaseReadCaches() {
 }
 
 func (s *Source) Characters(path string) (catalog.Characters, error) {
-	if s.mode == JSON {
-		return catalog.LoadCharacters(path)
+	if s.mode != PVF {
+		return catalog.Characters{}, nativeContentRequired("characters")
 	}
 	return catalog.ImportCharacters(s.archive)
 }
@@ -293,8 +293,8 @@ func (s *Source) Quests(path string) (catalog.QuestCatalog, error) {
 }
 
 func (s *Source) Progression(path string) (catalog.Progression, error) {
-	if s.mode == JSON {
-		return catalog.LoadProgression(path)
+	if s.mode != PVF {
+		return catalog.Progression{}, nativeContentRequired("progression")
 	}
 	return catalog.ImportProgression(s.archive)
 }

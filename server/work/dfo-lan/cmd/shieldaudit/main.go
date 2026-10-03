@@ -3,8 +3,8 @@
 package main
 
 import (
-	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
+	"dfolan/internal/gamedata"
 	"dfolan/internal/inventory"
 	"encoding/json"
 	"flag"
@@ -15,11 +15,11 @@ import (
 
 func main() {
 	source := flag.String("pvf", "../client-build/Script.inner.pvf", "read-only inner PVF")
-	characters := flag.String("characters", "configs/characters.generated.json", "existing profession catalog, never rewritten")
+	characters := flag.String("characters", "", "deprecated path; native professions are always read from PVF")
 	full := flag.String("equipment-full", "", "deprecated prefix; source equipment is always read from PVF")
 	wear := flag.String("wear-rules", "configs/equipment-wear.current35.json", "source slot map")
 	profession := flag.Uint("profession", 12, "knight profession")
-	out := flag.String("export", "configs/equipment-knight-shield.full-candidate.json", "side-car output")
+	out := flag.String("export", "", "explicit diagnostic output path (required)")
 	flag.Parse()
 	if err := run(*source, *characters, *full, *wear, *out, *profession); err != nil {
 		log.Fatal(err)
@@ -27,72 +27,34 @@ func main() {
 }
 
 func run(source, characters, full, wear, out string, profession uint) error {
-	jobs, err := catalog.LoadCharacters(characters)
+	if out == "" {
+		return fmt.Errorf("explicit -export output is required")
+	}
+	if characters != "" || full != "" {
+		return fmt.Errorf("legacy -characters and -equipment-full inputs are retired; use -pvf")
+	}
+	native, err := gamedata.Open(gamedata.Options{Mode: gamedata.PVF, ArchivePath: source})
+	if err != nil {
+		return err
+	}
+	defer native.Close()
+	jobs, err := native.Characters("")
 	if err != nil {
 		return err
 	}
 	if profession > 255 || jobs.Professions[byte(profession)].Job != "[knight]" {
 		return fmt.Errorf("profession is not knight")
 	}
-	rules, err := inventory.LoadWearRules(wear, jobs.Source.Checksum)
+	rules, err := inventory.LoadWearRules(wear, native.Snapshot().Checksum)
 	if err != nil {
 		return err
 	}
-	if rules.Slots["[support weapon]"] != 24 {
-		return fmt.Errorf("source support weapon slot is not 24")
-	}
-	archive, err := pvf.LoadArchive(pvf.Options{Path: source, MaxBytes: 1024 * 1024 * 1024})
+	index, err := native.ItemIndex("")
 	if err != nil {
 		return err
 	}
-	defer archive.Close()
-	if archive.Snapshot().Checksum != jobs.Source.Checksum {
-		return fmt.Errorf("PVF checksum differs from existing config_version; do not rewrite character catalog")
-	}
-	index, err := catalog.ImportItemIndex(archive)
+	c, err := native.KnightShields(index, jobs, rules)
 	if err != nil {
-		return err
-	}
-	equipment, err := inventory.OpenPVFEquipmentCatalog(archive, index)
-	if err != nil {
-		return err
-	}
-	defer equipment.Close()
-	window, err := catalog.ResolveScript(archive, "etc/character/knight/shieldwindownewdata.etc")
-	if err != nil {
-		return err
-	}
-	c := inventory.KnightShields{Source: archive.Snapshot(), Chain: window.Path, WindowSHA256: window.SHA256, WearSource: rules.Source, Profession: byte(profession)}
-	rows, err := parseWindow(window.Cells)
-	if err != nil {
-		return err
-	}
-	for _, r := range rows {
-		def, e := equipment.Definition(r.Item)
-		if e != nil {
-			return e
-		}
-		native, e := catalog.ResolveScript(archive, def.Path)
-		if e != nil {
-			return e
-		}
-		if native.SHA256 != def.SHA256 {
-			return fmt.Errorf("shield %d source equipment differs", r.Item)
-		}
-		kind, sub := def.Fields["[equipment type]"], def.Fields["[sub type]"]
-		if len(kind) == 0 || kind[0].Text != "[support weapon]" {
-			return fmt.Errorf("shield %d is not support weapon", r.Item)
-		}
-		r.EquSHA256 = def.SHA256
-		r.WearSlot = 24
-		if len(sub) > 0 {
-			r.SubType = sub[0].Value
-		} else if len(kind) > 1 {
-			r.SubType = kind[1].Value
-		}
-		c.Rows = append(c.Rows, r)
-	}
-	if err = c.Validate(jobs.Source.Checksum); err != nil {
 		return err
 	}
 	data, err := json.MarshalIndent(c, "", "  ")

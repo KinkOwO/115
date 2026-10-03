@@ -35,6 +35,7 @@ func bootstrapTestConfig(t *testing.T) Config {
 	cfg, err := loadConfig(nil, func(string) string { return "" }, io.Discard)
 	require.NoError(t, err)
 	cfg.FatigueRules = ""
+	cfg.ApocalypseCatalog = ""
 	return cfg
 }
 
@@ -52,7 +53,7 @@ func TestPrepareRuntimeRetainsResolvedConfigAndFixtures(t *testing.T) {
 	require.NotNil(t, runtime)
 	require.NotNil(t, cleanup)
 	t.Cleanup(cleanup)
-	assert.Equal(t, "configs/randomoption.current37.json", runtime.config.RandomOptionCatalog)
+	assert.Empty(t, runtime.config.RandomOptionCatalog, "historical JSON must not auto-enable content")
 	assert.Empty(t, cfg.RandomOptionCatalog, "caller configuration must remain a value")
 	assert.Equal(t, "127.0.0.1", runtime.gameHost)
 	assert.Equal(t, frame, runtime.raw)
