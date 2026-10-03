@@ -1,5 +1,16 @@
 # PVF 单一内容真源改造计划
 
+## 2026-10-03：MR !139 同步 upstream/main 5c64d224（集成候选）
+
+保留上游 Moon Lake / Sole / Hell Party / 大会流程 / 自动拾取及奥德赛章节荣誉奖励改动；内容门禁冲突保持 PVF 唯一入口，Hell Party 原生准备与规则接线保留，历史 JSON 不重新参与运行回退。根工作区未合并上游；合并与三批规则迁移均在 MR 独立工作树完成。
+
+新增重复规则提醒：上游 `configs/odyssey-completion-rewards.json` 的章节 ID/数量对应 `aradodysseyjournal.cos [reward]`，荣誉盒对应 `aradodyssey.etc [complete reward info]`。上游 `docs/odyssey-completion-rewards.md` 明确记录用户指定人工维护映射，因此本轮保留授权差异，不能静默删除；原生章节/物品/盒内容仍取同一 Source。若取消该覆盖，应回到已有原生章节和完成奖励消费者，并保持旧收据键及行序。其余未闭环项沿现有台账，不据本次迁移宣称全量规则已收敛。
+
+上游新增这一份 JSON 后，MR 集成树顶层63份，本地规则迁移提交树62份；此前四份实际删除不撤回。候选验证与既有 confirmed baseline 分开记录，不替换正式运行程序，不启动客户端或访问玩家库。
+
+
+集成验证：Go 1.26.5 全量 `go test -count=1 ./...` 与 `go vet ./...`、Python 3.11.9 启动/profile 25项通过；实际PVF8b2a9f83的奥德赛五域与统一Source好感度专项通过。独立候选 `.tmp/pvf-rule-integration/wireprobe-native-rules.exe` SHA256 `bb686d305ef4e8ee7a6e727586fcc392af079faf230465d2e3827291003f1709`；正式/default bin保持，110级全槽动作与旧角色补齐仍待手动实机。
+
 ## 2026-10-03：奥德赛创建奖励及武器箱消费者由原生引用链驱动（源码候选）
 
 重复定义：`contents/2026/aradodyssey/etc/aradodyssey.etc` 的 `[create reward] / [reward data]` 引用固定礼包 `.stk`，礼包继续引用护甲盒、武器自选箱与补给。统一 Source 按原生物品索引解析该链，创建发奖消费者读取护甲模板及数量、武器箱模板、补给模板及数量，移除 Go 的八件护甲表与药水 ID/数量常量。启动装配、开箱分流、武器箱消耗、移动识别和 CMD160 ACK 同时读取该原生身份；启动装配也从脚本读取 grade/rarity/stack limit，协议字段布局保持。创建补给的源物品定义也装配到发奖/移动目录，普通怪物掉落池不扩展。
