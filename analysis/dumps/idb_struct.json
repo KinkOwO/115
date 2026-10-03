@@ -1,4 +1,37 @@
 {
+  "HellPartyPillarQueueFields115": {
+    "monster_queue_begin": {"type": "HellPartyMonsterQueueRow115*", "offset": 12088},
+    "monster_queue_end": {"type": "HellPartyMonsterQueueRow115*", "offset": 12096},
+    "apc_queue_begin": {"type": "HellPartyAPCQueueRow115*", "offset": 12112},
+    "apc_queue_end": {"type": "HellPartyAPCQueueRow115*", "offset": 12120},
+    "hit_count": {"type": "uint32", "offset": 12156},
+    "hit_damage_sum": {"type": "uint32", "offset": 12160},
+    "hit_stage": {"type": "uint32", "offset": 12164},
+    "wave_order": {"type": "uint32", "offset": 12168},
+    "local_gatekeeper_templates_begin": {"type": "uint32*", "offset": 12208},
+    "local_gatekeeper_templates_end": {"type": "uint32*", "offset": 12216},
+    "hit_count_threshold": {"type": "uint32", "offset": 12264},
+    "hit_damage_threshold": {"type": "uint32", "offset": 12268},
+    "evidence": "146146CA0/146146A40 queue writers;145B26960 case5 attaches hidden rows;1456E7170 initializes wave1 and thresholds;1456E7D40 hit stages;1456E6EE0 queue consumer; partial subclass layout, static20261003"
+  },
+  "HellPartyMonsterQueueRow115": {
+    "template": {"type": "uint32", "offset": 0},
+    "level": {"type": "uint32", "offset": 4},
+    "unique_id": {"type": "uint32", "offset": 8},
+    "creation_flag": {"type": "uint32", "offset": 12},
+    "order": {"type": "uint32", "offset": 16},
+    "size": 20,
+    "evidence": "146146CA0 writer and1456E6EE0 consumer passing first3 fields to1456E8F60; flag meaning remains partial, static20261003"
+  },
+  "HellPartyAPCQueueRow115": {
+    "template": {"type": "uint32", "offset": 0},
+    "level": {"type": "uint32", "offset": 4},
+    "unique_id": {"type": "uint32", "offset": 8},
+    "team": {"type": "uint32", "offset": 12},
+    "order": {"type": "uint32", "offset": 16},
+    "size": 20,
+    "evidence": "146146A40 writer;1456E6EE0 consumer passes first4 fields to1456E8C80; static20261003"
+  },
   "DungeonCachedRoomDescriptor115": {
     "map_id": {"type": "uint32", "offset": 0},
     "spawn_begin": {"type": "void*", "offset": 8},

@@ -1,6 +1,12 @@
 # AGENTS.md — server/
 
 
+## 2026-10-03：Hell Party 波次与装备掉落已确认
+
+- 用户确认封印柱后续敌人可以正常刷新，击杀后可掉落装备。服务端按已授权的参考端兼容规则接入owned隐藏波次、最后一只奖励实体和独立Hell装备池；`DFO_HELL_PARTY_DROP_PERCENT` 默认100=1倍。该规则是本服兼容实现，不代表115官方完整概率公式。
+- confirmed baseline 更新为独立候选 `work/dfo-lan/.tmp/hellparty-20261003/wireprobe-hellparty-owned-waves.exe`，SHA256 `308a7b8434815dc2936557d8cebad41faeee61e9dedc6c1fc6d0c6ebcdddc352`；默认程序未替换。实机范围限用户此次所测路径，没有逐图验证所有Hell副本。
+- Go全量测试、`go vet ./...`、54域原生准备及独立profile启动检查通过。旧`charactercheck`因缺少`account_unified_options`表失败，HEAD overlay复现；未改schema、玩家存档或客户端资源。分析记录见 `../analysis/tasks/hell-party-owned-waves-20261003.md`。
+
 ## 2026-10-03：Hell Party 入场与封印房已确认
 
 - 用户确认 Hell Party 正常进入，柱子可攻击破坏并刷出专属怪物。服务端按当前 PVF 自动支持声明 Hell Party 且封印地图可用的副本；离线审计60项源声明中59项地图可读，活动副本100005110的地图100016811缺失，仍明确拒绝。

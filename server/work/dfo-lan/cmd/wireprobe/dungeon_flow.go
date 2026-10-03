@@ -281,6 +281,9 @@ func (w *worldSession) prepareDungeonEntry(r protocol.DungeonSelection) (*dungeo
 // dungeon" gate (CMD 2062) replay it unchanged - only the ack id differs,
 // because the client loads a whole new dungeon either way.
 func (w *worldSession) dungeonEntryPlan(ctx context.Context, ackName string, ackID uint16, sel protocol.DungeonSelection, s *dungeon.Session) ([]outboundPacket, error) {
+	if s.HellParty != nil {
+		log.Printf("Hell Party selected: dungeon=%d map=%d mode=%s(%d) S4 compatibility rows=%+v actor groups=%+v", s.Definition.ID, s.HellParty.Map, s.HellParty.Key, s.HellParty.Mode, s.HellParty.Rows, s.HellParty.Actors)
+	}
 	var seed uint32
 	if e := binary.Read(rand.Reader, binary.LittleEndian, &seed); e != nil {
 		return nil, e
@@ -288,7 +291,7 @@ func (w *worldSession) dungeonEntryPlan(ctx context.Context, ackName string, ack
 	if s.Tournament != nil {
 		seed = s.Tournament.Seed
 	}
-	start, e := protocol.StartMap(protocol.StartMapState{Position: s.Maze.Start, Seed: seed, Map: s.Room.Map, Monsters: s.Monsters, EncodeCreateTrigger: monsterCreateTriggerEnabled()})
+	start, e := protocol.StartMap(protocol.StartMapState{Position: s.Maze.Start, Seed: seed, Map: s.Room.Map, Monsters: s.Monsters, HellPartyMode: s.HellPartyMode(), EncodeCreateTrigger: monsterCreateTriggerEnabled()})
 	if e != nil {
 		return nil, e
 	}
@@ -358,6 +361,13 @@ func (w *worldSession) dungeonEntryPlan(ctx context.Context, ackName string, ack
 			}
 		}
 		plan = append(plan, direct[len(direct)-1])
+	}
+	if rows := s.HellPartyAPCs(); len(rows) > 0 {
+		body, err := protocol.HellPartyMonsterInfo(rows)
+		if err != nil {
+			return nil, err
+		}
+		plan = append(plan, outboundPacket{"hell_party_apcs_preloaded", 0, 666, body})
 	}
 	plan = append(plan, []outboundPacket{
 		{"dungeon_info_sent", 0, 28, protocol.DungeonInfo(protocol.DungeonInfoState{ID: sel.ID, Difficulty: sel.Difficulty, Maze: s.Maze.Index, Boss: s.Maze.Boss, Hell: s.HellPosition})},
@@ -1028,6 +1038,13 @@ func (w *worldSession) monsterDeath(p []byte, event func(map[string]any)) ([]out
 			w.drops.BlackPurgatory = w.loot.BlackPurgatory
 			w.drops.BlackPurgatoryPlan = w.cardPlan
 			rows, err := w.drops.Death(w.activeDungeon, uint16(r.Entity))
+			if actor, known := w.activeDungeon.HellPartyReward(uint16(r.Entity)); known && confirmed {
+				errText := ""
+				if err != nil {
+					errText = err.Error()
+				}
+				event(map[string]any{"kind": "hell_party_entity_death", "entity": r.Entity, "map": w.activeDungeon.Room.Map, "group": actor.Group, "order": actor.Order, "reward_rolls": actor.RewardRolls, "hell_monster": actor.HellMonster, "drop_percent": w.drops.Catalog.HellPartyDropPercent, "drops": len(rows), "skipped": w.drops.Skipped[uint16(r.Entity)], "error": errText})
+			}
 			if fatal := fatalDropFailure(err); fatal != nil {
 				return nil, fatal
 			}
@@ -1147,6 +1164,10 @@ func (w *worldSession) monsterDeath(p []byte, event func(map[string]any)) ([]out
 			}
 			plan = append(plan, outboundPacket{"level_available_quests", 0, 21, available})
 		}
+	}
+	if w.activeDungeon.HellPartyCleared() && !w.activeDungeon.HellClearSent {
+		plan = append(plan, outboundPacket{"hell_party_clear_sent", 0, 777, protocol.HellPartyClear()})
+		w.activeDungeon.HellClearSent = true
 	}
 	completed, err := w.completeDungeon()
 	if err != nil {
@@ -1499,7 +1520,7 @@ func (w *worldSession) moveDungeonRoomDecoded(r protocol.DungeonRoomTransition) 
 	// 上它们会不同：请求带的还是层图所在格的坐标 (0,2)，玩家却已经去了 (0,1)。
 	// StartMap 把 Position 写成包的前两字节，客户端据此安放角色 —— 用错就等于把玩家
 	// 放在地图外，实机表现是「角色不见了」（2026-09-28 贵族机要 100004968）。
-	state := protocol.StartMapState{Position: [2]byte{next.Room.X, next.Room.Y}, Seed: seed, Map: next.Room.Map, Monsters: next.LivingMonsters(), LayerChange: r.LayerChange, EncodeCreateTrigger: monsterCreateTriggerEnabled()}
+	state := protocol.StartMapState{Position: [2]byte{next.Room.X, next.Room.Y}, Seed: seed, Map: next.Room.Map, Monsters: next.LivingMonsters(), HellPartyMode: next.HellPartyMode(), LayerChange: r.LayerChange, EncodeCreateTrigger: monsterCreateTriggerEnabled()}
 	if resume, ok := w.activeDungeon.SourceLayerResume(*w.dungeons, r); ok && resume != w.activeDungeon.Room.Map {
 		// Flag 2 clears the native layer ordinal at1452b7876; flag 0 only
 		// selects the base descriptor and leaves the active layer unchanged.

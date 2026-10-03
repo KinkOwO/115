@@ -124,6 +124,11 @@ func preparePVFHellMaps(c *Catalogs, s *Source, selected map[string]bool, inputs
 		return err
 	}
 	c.HellMaps = &direct
+	c.HellRules, err = s.HellPartyRules()
+	if err != nil {
+		return err
+	}
+	log.Printf("PVF Hell Party rules prepared: groups=%d actor bindings=%d; S4 A/B compatibility policy", len(c.HellRules.Groups), len(c.HellRules.Actors))
 	log.Printf("PVF Hell Party maps prepared: maps=%d unavailable source references=%d; missing maps remain refused", len(direct.Maps), len(unavailable))
 	s.ReleaseReadCaches()
 	return nil
@@ -134,7 +139,11 @@ func (c *Catalogs) AttachHellMaps(data *catalog.DungeonCatalog, path string) err
 		return err
 	}
 	if c.HellMaps != nil {
-		return catalog.ApplyHellPartyMaps(data, *c.HellMaps)
+		if err := catalog.ApplyHellPartyMaps(data, *c.HellMaps); err != nil {
+			return err
+		}
+		data.HellRules = c.HellRules
+		return nil
 	}
 	return catalog.AttachHellPartyMaps(data, path)
 }

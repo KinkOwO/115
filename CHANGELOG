@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 2026-10-03：Hell Party 后续敌人与装备掉落已确认
+
+- 用户手动实机确认封印柱后续敌人正常刷新，击杀后可以掉落装备。按已授权的参考端兼容规则接入隐藏波次名单、服务端owned实体身份、最后一只奖励实体触发及Hell独立装备池；`DFO_HELL_PARTY_DROP_PERCENT` 默认100（1倍）。该规则明确是本服兼容实现，不声称为115官方完整公式。
+- confirmed baseline 更新为独立候选 `server/work/dfo-lan/.tmp/hellparty-20261003/wireprobe-hellparty-owned-waves.exe`，SHA256 `308a7b8434815dc2936557d8cebad41faeee61e9dedc6c1fc6d0c6ebcdddc352`；默认程序未替换。确认范围限本次手动测试路径中的后续敌人刷新与装备掉落，不代表全部Hell地图已逐一实测。
+- Go全量测试、`go vet ./...`、54域原生准备和启动profile检查通过。旧`charactercheck`自检因缺少`account_unified_options`表失败，HEAD overlay可复现；未改schema或玩家存档。分析、PVF范围和实机日志见 `analysis/tasks/hell-party-owned-waves-20261003.md`。
+
 ## 2026-10-03：奥德赛章节奖励与115级荣誉邮件候选（待实机）
 
 - 按用户要求新增 `odyssey-completion-rewards.json`，奖励ID经 `client/Script.pvf` 英语名称及原生LIST核对；章节进度和物品属性仍读当前服务端PVF。PVF实际含章节奖励表，第4/5章装备盒保留原生数量2。

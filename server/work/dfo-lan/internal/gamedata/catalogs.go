@@ -57,6 +57,7 @@ type Catalogs struct {
 	Apocalypse                                   *catalog.ApocalypseCatalog
 	MazeRates                                    *catalog.MazeChanceOverlay
 	HellMaps                                     *catalog.SourceMapOverlay
+	HellRules                                    *catalog.HellPartyRules
 	Grief                                        *catalog.TowerGriefOverlay
 	Dazzlement                                   *catalog.DazzlementOverlay
 	Quests                                       *catalog.QuestCatalog

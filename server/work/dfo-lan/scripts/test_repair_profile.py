@@ -6,6 +6,20 @@ from repair_profile import load_profile
 
 
 class RepairProfileTests(unittest.TestCase):
+    def test_hell_drop_percent_is_numeric_policy(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            path = root / 'profile.json'
+            for value in ('0', '100', '10000', '-1', '10001', '1.5', True):
+                with self.subTest(value=value):
+                    path.write_text(json.dumps({'binary': 'server.exe', 'environment': {'DFO_HELL_PARTY_DROP_PERCENT': value}}))
+                    if value in ('0', '100', '10000'):
+                        _, _, env = load_profile(path, root)
+                        self.assertEqual(env['DFO_HELL_PARTY_DROP_PERCENT'], value)
+                    else:
+                        with self.assertRaises(ValueError):
+                            load_profile(path, root)
+
     def test_all_source_candidate_keeps_latest_scope_and_isolated_binary(self):
         project = pathlib.Path(__file__).resolve().parent.parent
         binary, required, env = load_profile(project / 'configs/pvf-all-candidate.json', project)

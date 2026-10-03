@@ -41,10 +41,10 @@ type DungeonDefinition struct {
 	// EnterFatigue 是源 [use fatigue only start dungeon] <N> 声明的**进本消耗**（only start = 进本只收一次）
 	// 0 表示源未声明该段，服务端回退本地策略或在策略里查 dungeon_enter_fatigue 兜底。
 	// 注意 [minimum enter fatigue] 是**门槛**而非消耗，不读它。
-	EnterFatigue uint16
-	Odyssey                  bool
-	DesignatedDifficulty     byte
-	HuntBoss                 uint32 // Source Odyssey [hunt boss] single-target completion.
+	EnterFatigue         uint16
+	Odyssey              bool
+	DesignatedDifficulty byte
+	HuntBoss             uint32 // Source Odyssey [hunt boss] single-target completion.
 	// AttunementBoss 是「调律之边界」玩法（[dungeon type] boundary of attunement）的源领主模板。
 	// 该玩法单人、不发 CMD117，所以只有这只领主的死亡确认能结束本次挑战 ——
 	// 见 internal/dungeon/completion.go 的 tryComplete。
@@ -115,6 +115,7 @@ func (c *DungeonCatalog) DeclaredEnterFatigue() string {
 	sort.Strings(parts)
 	return strings.Join(parts, " ")
 }
+
 type DungeonCatalog struct {
 	Source   pvf.ArchiveSnapshot          `json:"source"`
 	Dungeons map[uint32]DungeonDefinition `json:"dungeons"`
@@ -125,6 +126,7 @@ type DungeonCatalog struct {
 	TerminalScenes []DungeonTerminalScene  `json:"terminal_scenes,omitempty"`
 	LayerRevisits  []DungeonLayerRevisit   `json:"layer_revisits,omitempty"`
 	mapScripts     *mapScriptCache
+	HellRules      *HellPartyRules `json:"-"`
 }
 
 // DungeonTerminalScene records a source CMT [CHANGE MAP] on a quest maze's

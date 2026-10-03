@@ -563,6 +563,23 @@ func (s *Source) EquipmentSelection(index catalog.ItemIndex, quests catalog.Ques
 		}
 		return pool, nil
 	})
+	if err != nil {
+		return nil, err
+	}
+	selection.HellPartyPool, err = cachedProjection(s, "hell-party-equipment", struct {
+		Index    string
+		Excluded []uint32
+	}{itemIndexIdentity(index), policy.ExcludedLootIDs}, func() ([]inventory.EquipmentDrop, error) {
+		return inventory.ImportHellPartyDropPool(s.archive, index, policy.ExcludedLootIDs)
+	}, func(pool []inventory.EquipmentDrop) ([]inventory.EquipmentDrop, error) {
+		for i, row := range pool {
+			item, known := index.Items[row.ID]
+			if !known || item.Kind != "equipment" || row.Weight == 0 || row.Grade < 1 || row.Grade > 200 || row.Rarity < 0 || row.Rarity > 8 || i > 0 && pool[i-1].ID >= row.ID {
+				return nil, fmt.Errorf("invalid Hell equipment cache")
+			}
+		}
+		return pool, nil
+	})
 	return selection, err
 }
 
@@ -628,6 +645,10 @@ func (s *Source) HellPartyMaps(c catalog.DungeonCatalog) (catalog.SourceMapOverl
 		return catalog.SourceMapOverlay{}, nil, fmt.Errorf("Hell Party maps require PVF")
 	}
 	return catalog.ImportHellPartyMaps(s.archive, c)
+}
+
+func (s *Source) HellPartyRules() (*catalog.HellPartyRules, error) {
+	return catalog.ImportHellPartyRules(s.archive)
 }
 
 func (s *Source) Apocalypse() (*catalog.ApocalypseCatalog, error) {
