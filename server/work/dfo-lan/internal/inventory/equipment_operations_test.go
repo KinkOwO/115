@@ -201,7 +201,8 @@ func loadTransformFixtures(t *testing.T) (*ItemService, *catalog.EquipmentCreate
 	if e != nil {
 		t.Fatalf("load create cost: %v", e)
 	}
-	return &ItemService{CreateCost: &cc, Equipment: gear}, &cc
+	// 变换成本表没有历史 JSON 回落（原生直读），所以这里用与真实源同形的合成表。
+	return &ItemService{CreateCost: &cc, Equipment: gear, Transform: transformSystemFixture(t)}, &cc
 }
 
 // costGroupFor 必须能靠**档位**找到组：实测请求里的目标模板一个都不在
@@ -579,34 +580,256 @@ func TestTransformSourcePrefersWornThenBag(t *testing.T) {
 	}
 }
 
-// 装备变换的成本口径 = 客户端「变换确认」界面：**目标稀有度 → 对应灵魂 ×1** + 固定金币。
-// （源里的 `[create cost]` 只按 (grade,rarity) 分三档、没有太初档，武器永远匹配不到，
-// 所以变换不走那张表。）
-func TestTransformCostByRarity(t *testing.T) {
+// 装备变换的成本口径 = **源表**`etc/115lvability/equipmenttransformsystem.cos` 的
+// `[need materials]`（装备）与 `[need primer materials]`（晶体/誓约，CMD2381）。
+//
+// 这里用一份与真实源同形的合成表（真实源本身由 catalog 包的真实源用例钉住）：
+// 装备链每档 = 金币 + 灵魂 ×1；晶体链每档 = 只有金币或巡礼之印，没有灵魂项。
+const transformSystemFixtureText = `[need materials]
+ [info]
+  [condition] 115 ` + "`rare`" + `
+  [cost]
+   [group] 1
+    0 25000
+    10361512 1
+   [/group]
+   [group] 2
+    10401346 5
+    10361512 1
+   [/group]
+  [/cost]
+ [/info]
+ [info]
+  [condition] 115 ` + "`unique`" + `
+  [cost]
+   [group] 1
+    0 30000
+    10361513 1
+   [/group]
+   [group] 2
+    10401346 6
+    10361513 1
+   [/group]
+  [/cost]
+ [/info]
+ [info]
+  [condition] 115 ` + "`legendary`" + `
+  [cost]
+   [group] 1
+    0 35000
+    10361514 1
+   [/group]
+   [group] 2
+    10401346 7
+    10361514 1
+   [/group]
+  [/cost]
+ [/info]
+ [info]
+  [condition] 115 ` + "`epic`" + `
+  [cost]
+   [group] 1
+    0 40000
+    10361515 1
+   [/group]
+   [group] 2
+    10401346 8
+    10361515 1
+   [/group]
+  [/cost]
+ [/info]
+ [info]
+  [condition] 115 ` + "`primeval`" + `
+  [cost]
+   [group] 1
+    0 50000
+    10361516 1
+   [/group]
+   [group] 2
+    10401346 10
+    10361516 1
+   [/group]
+  [/cost]
+ [/info]
+[/need materials]
+[refund materials]
+ 115 ` + "`rare`" + ` 0 1 10361512 1
+[/refund materials]
+[need amalgamation materials]
+ [info]
+  [condition] 115 ` + "`unique`" + `
+  [cost]
+   [group] 1
+    0 30000
+   [/group]
+   [group] 2
+    10401346 6
+   [/group]
+  [/cost]
+ [/info]
+[/need amalgamation materials]
+[refund amalgamation materials]
+ 115 ` + "`rare`" + ` 0 -1 0
+[/refund amalgamation materials]
+[need primer materials]
+ [info]
+  [condition] 115 ` + "`rare`" + `
+  [cost]
+   [group] 1
+    0 25000
+   [/group]
+   [group] 2
+    10401346 5
+   [/group]
+  [/cost]
+ [/info]
+ [info]
+  [condition] 115 ` + "`unique`" + `
+  [cost]
+   [group] 1
+    0 30000
+   [/group]
+   [group] 2
+    10401346 6
+   [/group]
+  [/cost]
+ [/info]
+ [info]
+  [condition] 115 ` + "`legendary`" + `
+  [cost]
+   [group] 1
+    0 35000
+   [/group]
+   [group] 2
+    10401346 7
+   [/group]
+  [/cost]
+ [/info]
+ [info]
+  [condition] 115 ` + "`epic`" + `
+  [cost]
+   [group] 1
+    0 40000
+   [/group]
+   [group] 2
+    10401346 8
+   [/group]
+  [/cost]
+ [/info]
+ [info]
+  [condition] 115 ` + "`primeval`" + `
+  [cost]
+   [group] 1
+    0 50000
+   [/group]
+   [group] 2
+    10401346 10
+   [/group]
+  [/cost]
+ [/info]
+[/need primer materials]
+[refund primer materials]
+ 115 ` + "`rare`" + ` 0 1 10415190 1
+ 115 ` + "`rare`" + ` 1 0
+[/refund primer materials]
+`
+
+// transformSystemFixture 造一份与真实源同形的成本表。
+func transformSystemFixture(t *testing.T) *catalog.EquipmentTransformSystem {
+	t.Helper()
+	s, e := catalog.ParseEquipmentTransformSystem(transformSystemFixtureText)
+	if e != nil {
+		t.Fatalf("parse transform system fixture: %v", e)
+	}
+	return &s
+}
+
+// 变换成本必须**整表直读**：金币按稀有度递进（25000/30000/35000/40000/50000），
+// 而不是旧实现那个恒定 50000 的常量（它对 rare..epic 一直多扣）。
+func TestTransformPaymentByRarity(t *testing.T) {
 	s, _ := loadTransformFixtures(t)
 
-	// 实测目标：117010280 / 117010253 都是 rarity 8（太初）⇒ 客户端界面写「1 太初(s)」。
-	if soul, gold, e := s.transformCost(117010280); e != nil || soul != 10361516 || gold != transformGoldCost {
-		t.Fatalf("rarity8 应为太初灵魂 10361516 + %d 金币，实际 soul=%d gold=%d err=%v",
-			transformGoldCost, soul, gold, e)
+	// 实测目标：117010280 / 117010253 都是 rarity 8（太初）⇒ 50000 金币 + 太初灵魂 ×1。
+	pay, e := s.transformPayment(catalog.TransformChainEquipment, 117010280, 1)
+	if e != nil {
+		t.Fatal(e)
 	}
-	// 五个稀有度一对一。
-	for rarity, want := range map[int32]uint32{2: 10361512, 3: 10361513, 4: 10361514, 6: 10361515, 8: 10361516} {
-		if got, ok := soulFor(rarity); !ok || got != want {
-			t.Fatalf("rarity %d 应映射到 %d，实际 %d ok=%v", rarity, want, got, ok)
+	if pay.Option != 1 || pay.Gold != 50000 {
+		t.Fatalf("rarity8 option1 = %+v, want option 1 / 50000 gold", pay)
+	}
+	if len(pay.AccountMats) != 1 || pay.AccountMats[0].Template != 10361516 || pay.AccountMats[0].Count != 1 {
+		t.Fatalf("rarity8 option1 account materials = %+v, want 10361516 x1", pay.AccountMats)
+	}
+	if len(pay.BagMats) != 0 {
+		t.Fatalf("rarity8 option1 bag materials = %+v, want none", pay.BagMats)
+	}
+
+	// 灵魂与金币逐档对位（稀有度码值 2/3/6/4/8 ↔ 源里的 rare/unique/legendary/epic/primeval）。
+	assertEquipmentPayment := func(tpl uint32, wantSoul, wantGold uint32) {
+		t.Helper()
+		p, e := s.transformPayment(catalog.TransformChainEquipment, tpl, 1)
+		if e != nil {
+			t.Fatalf("template %d: %v", tpl, e)
+		}
+		if p.Gold != wantGold || len(p.AccountMats) != 1 || p.AccountMats[0].Template != wantSoul {
+			t.Fatalf("template %d = %+v, want soul %d + gold %d", tpl, p, wantSoul, wantGold)
 		}
 	}
-	// 表外的稀有度必须明确拒绝，不能猜。
-	for _, rarity := range []int32{0, 1, 5, 7, 9} {
-		if _, ok := soulFor(rarity); ok {
-			t.Fatalf("rarity %d 不该有映射", rarity)
-		}
+	// 五个稀有度各取一件**夹具目录里真实存在**的模板（rarity 来自 PVF，见
+	// configs/oath-grades.json 的同源分布；夹具是完整装备目录的子集）。
+	assertEquipmentPayment(100401592, 10361512, 25000) // rarity 2 = rare
+	assertEquipmentPayment(100401596, 10361513, 30000) // rarity 3 = unique
+	assertEquipmentPayment(100401597, 10361514, 35000) // rarity 6 = legendary
+	assertEquipmentPayment(100401595, 10361515, 40000) // rarity 4 = epic
+	assertEquipmentPayment(100401599, 10361516, 50000) // rarity 8 = primeval
+
+	// 付款方式 2 = 巡礼之印那一支：不扣金币，扣 10401346（背包材料，不进账号仓）。
+	pay, e = s.transformPayment(catalog.TransformChainEquipment, 100401597, 2)
+	if e != nil {
+		t.Fatal(e)
 	}
+	if pay.Gold != 0 || len(pay.AccountMats) != 1 || pay.AccountMats[0].Template != 10361514 {
+		t.Fatalf("option2 = %+v, want soul 10361514 and no gold", pay)
+	}
+	if len(pay.BagMats) != 1 || pay.BagMats[0].Template != 10401346 || pay.BagMats[0].Count != 7 {
+		t.Fatalf("option2 bag materials = %+v, want 10401346 x7", pay.BagMats)
+	}
+
+	// 晶体/誓约链（CMD2381）：源里**没有灵魂项**。
+	pay, e = s.transformPayment(catalog.TransformChainPrimer, 100401597, 1)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if pay.Gold != 35000 || len(pay.AccountMats) != 0 || len(pay.BagMats) != 0 {
+		t.Fatalf("primer option1 = %+v, want 35000 gold and no materials", pay)
+	}
+	pay, e = s.transformPayment(catalog.TransformChainPrimer, 100401597, 2)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if pay.Gold != 0 || len(pay.BagMats) != 1 || pay.BagMats[0].Template != 10401346 || pay.BagMats[0].Count != 7 {
+		t.Fatalf("primer option2 = %+v, want 10401346 x7", pay)
+	}
+
+	// 表外付法必须明确拒绝，不能猜。
+	if _, e := s.transformPayment(catalog.TransformChainEquipment, 100401599, 3); e == nil {
+		t.Fatal("option 3 must be rejected")
+	}
+	// 成本表没装载时同样拒绝（绝不静默当免费）。
+	empty := &ItemService{Equipment: s.Equipment}
+	if _, e := empty.transformPayment(catalog.TransformChainPrimer, 100401599, 1); e == nil {
+		t.Fatal("missing transform table must be rejected")
+	}
+
 	// 灵魂必须都在**账号材料槽**里（否则变换扣不到）。
 	for _, tpl := range []uint32{10361512, 10361513, 10361514, 10361515, 10361516} {
 		if _, ok := AccountMaterialSlot(tpl); !ok {
 			t.Fatalf("灵魂 %d 不在账号材料槽里，变换会扣不到", tpl)
 		}
+	}
+	// 巡礼之印是背包材料（源把它放在"替材料"那一列，不是灵魂仓库）。
+	if _, ok := AccountMaterialSlot(10401346); ok {
+		t.Fatal("10401346 不该被当作账号共享材料")
 	}
 }
 

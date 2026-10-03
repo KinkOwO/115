@@ -66,6 +66,39 @@ func (s *ItemService) TransformEquipment(
 	}
 	return saved, result, applied, nil
 }
+// TransformPrimers 实现装备库「誓约 / 晶体变换」（CMD2381 ENUM_CMDPACKET_PRIMER_TRANSFORM）。
+//
+// 与 TransformEquipment 同构：成本可能落在**账号共享材料**（灵魂仓库/巡礼之印按源表所在仓）
+// 与背包两处，所以走 CommitAccountMaterialEvent，让角色状态与账号仓同生共死。
+func (s *ItemService) TransformPrimers(
+	ctx context.Context,
+	role storage.Character,
+	r protocol.PrimerTransformRequest,
+	payOption int,
+) (storage.Character, inventory.PrimerTransformReceipt, bool, error) {
+	var result inventory.PrimerTransformReceipt
+	fail := func(e error) (storage.Character, inventory.PrimerTransformReceipt, bool, error) {
+		return role, result, false, e
+	}
+	plan, e := s.Items.PlanPrimerTransform(InventoryRole(role), r, payOption)
+	result = plan.Receipt
+	if e != nil {
+		return fail(e)
+	}
+	saved, _, applied, e := s.Store.CommitAccountMaterialEvent(ctx, role.AccountID, role.ID,
+		s.Items.Catalog.Source.SaveIdentity(), plan.Key, s.Items.Model,
+		func(current storage.Character, accountRaw json.RawMessage) (json.RawMessage, json.RawMessage, error) {
+			state, account, receipt, err := s.Items.PreparePrimerTransform(InventoryRole(current), accountRaw, plan)
+			result = receipt
+			return state, account, err
+		})
+	if e != nil {
+		return fail(e)
+	}
+	saved.WireID = role.WireID
+	return saved, result, applied, nil
+}
+
 func (s *ItemService) Disjoint(
 	ctx context.Context,
 	role database.Character,

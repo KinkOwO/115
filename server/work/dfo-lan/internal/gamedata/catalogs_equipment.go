@@ -480,6 +480,17 @@ func preparePVFRules(c *Catalogs, s *Source, selected map[string]bool, inputs Ca
 		log.Printf("PVF equipment creation costs prepared: %d groups", len(direct.Groups))
 		s.ReleaseReadCaches()
 	}
+	if selected["transform"] {
+		direct, err := s.EquipmentTransformSystem()
+		if err != nil {
+			return err
+		}
+		c.Transform = &direct
+		log.Printf("PVF equipment transform system prepared: need=%d/%d/%d refund=%d/%d/%d",
+			len(direct.EquipmentNeed), len(direct.AmalgamationNeed), len(direct.PrimerNeed),
+			len(direct.EquipmentRefund), len(direct.AmalgamationRefund), len(direct.PrimerRefund))
+		s.ReleaseReadCaches()
+	}
 	return nil
 }
 
@@ -518,6 +529,17 @@ func (c *Catalogs) LoadEquipmentCreateCost(path, checksum string) (catalog.Equip
 		return *c.CreateCost, nil
 	}
 	return catalog.EquipmentCreateCost{}, nativeContentRequired("create-cost")
+}
+
+// LoadEquipmentTransformSystem 取已准备的变换费用/返还表（装备 2259 + 晶体 2381 共用）。
+func (c *Catalogs) LoadEquipmentTransformSystem() (*catalog.EquipmentTransformSystem, error) {
+	if err := c.RequireSelected("transform", c.Transform != nil); err != nil {
+		return nil, err
+	}
+	if c.Transform != nil {
+		return c.Transform, nil
+	}
+	return nil, nativeContentRequired("transform")
 }
 
 func (c *Catalogs) LoadTutorialRoutes(path, checksum string) (*catalog.TutorialCatalog, error) {

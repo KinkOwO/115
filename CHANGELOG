@@ -42,6 +42,118 @@ PostgreSQL 运行方式保持；将 pgx 连接、事务与持久化操作集中�
 - 用户确认建队正常、二阶段机制门已开；22:00会话可见1人/2人CMD12和进门成功。程序c89560a0的源规则活怪换房及请求容量回显纳入该范围确认，3人/其它三副本仅有离线回归，不扩大实机范围。
 - 返回金龙原房后22:05:41闪退，及选择4分钟条件仍使用副本3600秒计时，是本次确认外的新问题；未确认整轮战斗稳定或限时失败行为。见analysis/tasks/next79-legion-weekly-open.md后续调查。
 
+## 2026-10-04：修复「誓约/晶体变换」凭空生成晶体（实机缺陷，用户回报）
+
+用户实机确认变换**可以用**，但发现**晶体越变越多**：反复点「变换」后 11 个晶体槽全满
+（`runtime/roles_..._20261004_002343_168831_next37/gateway.err`：5 次点击 -400000 金币，
+槽 36..46 全被 617/592 填满）。
+
+- **根因**：CMD2381 的实现只把 `equipment_journal.counts[target] > 0` 当"配方解锁"，
+  换上去的目标是**新造**的（`equipPrimerCrystals` 直接写 `Template`），从不扣掉那件实物；
+  客户端看到军械库仍"有货"就继续报下一格 ⇒ 每次点击净增一件。
+- **修复口径**：变换 = **把一件"拥有但没穿上"的实物搬到目标槽**。每行必须先找到一件来源，
+  找不到就跳过：①背包物品/装备列表（−1，`Amount == 1` 时删条目）→ ②军械库登记
+  （`counts - 1`，下限 0）。⚠️ **来源不取"另一个穿戴槽"**：搬位会顶掉目标槽那件、让它按源表
+  "登记 + 返还材料"，两块晶体来回搬即可无限刷返还材料 ⇒ 只认未穿戴的实物；被换下去的那件
+  仍可以是穿戴中的。同一请求内两行不能共用同一件（`primerSourceClaim`），plan 与 prepare
+  同一套规则；被换下去的那件仍按源表「登记 + 返还材料」。
+- **回归**：`TestPrimerTransformNeverConjuresExtraCrystals`（两行抢一件 ⇒ 只成功一行）、
+  `TestPrimerTransformDoesNotUseWornCrystalAsSource`（穿戴中的那件不能当来源，防刷材料）、
+  `TestPrimerTransformFlowDoesNotMultiplyCrystals`（真实 PostgreSQL 复刻实机连点 6 次 ⇒
+  第 1 轮搬入、第 2..6 轮全部"没有可消耗的实物"而拒绝：不扣费、不新增晶体）、
+  `TestPrimerTransformOnEmptySlotEquipsWithoutRefund` 改断言"目标登记必须被消耗到 0"；
+  全量 `go test ./...`、`go vet ./...` 通过。
+- 最终候选源码入口 SHA256 `f031c86bfd6e3a904c9a90809a372c241578c2e03c39fe5d816e01bdb3ab1b74`
+  （含上面的来源收紧；实机请用 `./启动游戏.cmd --source-build`）。
+- 用户存档（角色 1）已按用户确认的口径清理并验证可加载：晶体槽只留 617@36、592@37；
+  登记 592/617 归 0、600 回到 1；退还缺陷期多扣的 340000 金币；扣掉返还的 12 个微光灵魂。
+  执行前整行备份于 `analysis/tmp-primer-transform/char1-before-cleanup-20261004.json`。
+
+**实机确认（2026-10-04，用户："变换已经完成了"）**：会话
+`runtime/roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261004_003928_836060_next37`，
+运行入口 `bin/wireprobe-pvf.exe`（与该轮候选 `bin/wireprobe-handoff-source.exe` **同哈希**
+`f031c86bfd6e3a904c9a90809a372c241578c2e03c39fe5d816e01bdb3ab1b74`；该默认文件由启动器/用户动作发布，
+非本提交替换）。三次手动点击 `00:40:38 / 00:40:47 / 00:43:11` 分别 `pairs=1 / pairs=1 / pairs=2`，
+逐笔对账：穿戴晶体 + 军械库登记总数 **6→6→9→9 守恒**，金币按目标稀有度扣（30000/30000/65000），
+返还微光灵魂按 `[refund primer materials]` 精确（r6→10、r3→2、r3→2），会话日志无 panic /
+`invalid saved` / `record mismatch`。**confirmed baseline**：本轮确认范围 =「誓约 / 晶体变换」
+Cmd2381 可用 + 复制缺陷已修复；候选身份为上述 SHA256，实机证据为上述会话日志。
+
+下一步（用户 2026-10-04 报）：**誓约没有积分**（积分/最高积分那条口径）待修，另见文档 §4 的三条
+未闭环（`+202` 实参语义、调适值跨稀有度转移、CMD2259 `[refund materials]` 未接）。
+
+## 2026-10-03：装备库「誓约 / 晶体变换」（CMD2381 PRIMER_TRANSFORM）已实现（源码候选，待实机）
+
+用户报告「誓约变换点了没反应」。取证结论：装备库誓约页签的「变换」按钮发 **CMD2381
+`ENUM_CMDPACKET_PRIMER_TRANSFORM`**，服务端此前**完全没有实现**（不在 `observedGameRequest`、
+无 handler）⇒ 客户端发完卡在「期望回包树」上，表现即"没反应"。
+
+- 协议（IDA 权威 IDB 工作副本 + 实机帧）：正文客户端 append **203 字节**、实机明文 208（封包层
+  补零到 8 字节边界）；`+17` 的**行 0 = 誓约核心槽 47**、`+36` 起 11 条 15 字节记录 = **晶体槽 36..46**
+  （`sub_141518820` / `sub_14150B940` 双向复证）；记录字段是 `(space u8, slot u16, 模板 u32)`，
+  不是此前的"u24 分组"猜测；`[0:13]` 客户端从不写（栈残留，必须忽略）。
+- 回包：`status(1B) + 6B`，**窗口选择字节必须为 0** ⇒ 窗口 2145 = `EquipmentTransformWindow`
+  本体 → `setState(3)` → 弹 DSTR 101039076「Oath/Crystal conversion completed! Moving to the
+  Oath settings.」并切到 2144（Oath settings）。发非 0 会落到另一簇窗口（3937，弹"Extraction
+  complete."）⇒ 看起来仍然"没生效"。失败一律不回 Error 包（与 2259 同纪律）。
+- 规则真源 = 内层 PVF `etc/115lvability/equipmenttransformsystem.cos`（此前未进任何文档/代码）：
+  `[need primer materials]`（金币 25000..50000 / 巡礼之印 ×5..10，**无灵魂项**）与
+  `[refund primer materials]`（微光灵魂 1/2/10/30/100）。新增
+  `catalog.EquipmentTransformSystem` 直读 + `transform` 原生域（profile 同步加入），无 JSON 回落。
+- **顺带收敛重复规则（根 AGENTS §0.2）**：CMD2259 装备变换成本原先硬编码在 Go
+  （`walletSoulByRarity` + 常量 `transformGoldCost = 50000`），而源里金币是
+  25000/30000/35000/40000/50000 ⇒ **rare..epic 一直多扣金币**（只有 primeval 恰好相等）。
+  两条链现共用同一张直读表，常量与映射已删。
+- 未闭环（不得当作已证，详见 `server/work/dfo-lan/docs/protocol/primer-transform-20261003.md`）：
+  付款方式序号**线上无字段**（本轮固定取 group 1 = 金币并在回执记录）；`[refund primer materials]`
+  的分支列无源内标签（取有料那一支）；「军械库 5 件只报 2 件」的过滤判据未闭环（服务端不自行筛选）；
+  成功后的 NOTI 刷新组合未端到端证实。
+- **首次启动失败已修复（同一轮）**：给 profile 加 `transform` 域时漏同步 Python 侧白名单 ——
+  `scripts/repair_profile.py` 的 `allowed` 集合是 Go `gamedata.SupportedDomains` 的**跨语言镜像**，
+  只加一边会让启动脚本在 profile 校验处直接 `exit status 1`（用户实测报"启动脚本异常退出"）。
+  已同步白名单、`docs/repair-profile.example.json` 与三处域数量断言（54→55），并给白名单加上
+  「必须与 Go 一字不差」的注释；Python 47 项脚本检查通过。
+- 端到端回归（真实 PostgreSQL 专用测试库 + 临时 schema，跑完即删，不接触玩家库）：
+  `TestPrimerTransformFlowIntegration` 覆盖 解码 → 计划 → 事务 → 回包逐字节 `01 00 00 00 00 00 00`
+  → 刷新包（NOTI14/13/2610 齐全、2610 恰 16444 字节）→ 落库（金币 100000→65000、槽 36 换件、
+  旧件进装备库、微光灵魂入账号仓），并钉住**重复帧幂等**（第二次同帧只回窗口应答、不再扣费）；
+  `TestPrimerTransformRejectsPrimevalInEarlySlot` 钉住"太初晶体只能进 44..46"的守卫（越界只拒不动存档）。
+- 相邻缺口（按根 AGENTS §0.2 主动上报，**本轮未改**，见文档 §8）：源里 `[refund materials]`
+  （CMD2259 换下去的装备应返还灵魂）当前未接；融合石变换 `[need/refund amalgamation materials]`
+  与 `[tradable soul info]` 无执行器；`costGroupFor` 回退逻辑已无生产消费者、建议随下次清理删除。
+- 实机事件日志闭环两处开放口径：①**支付组号** `+13`（见上）；②**单帧即执行** ——
+  `roles_..._20261004_002343_168831_next37/events.jsonl` 里 5 次点击各恰好一帧 `id=2381 type=1`，
+  之后紧跟本实现的回包与刷新包，**没有第二帧**（与 2259 的"变换→确定"两次不同），
+  文档 §4.2 据此改写。
+- 金币**逐件**判：`PreparePrimerTransform` 用剩余金币逐件比，换不起的那件只记进 `Skipped`，
+  不再因为"够换便宜那件、不够换贵那件"而整批回滚（表现就是"点了没反应"）。
+  `TestPrimerTransformSkipsOnlyThePricierUnfundedRow` 钉住这条；2259 那条链仍是最后一次性比总额
+  （既有行为，本轮未改）。另按根 AGENTS §0.2 主动上报相邻缺口（文档 §8）：源里
+  `[refund materials]`（CMD2259 换下去的装备应返还灵魂）当前未接；融合石变换
+  `[need/refund amalgamation materials]` 与 `[tradable soul info]` 无执行器；
+  `costGroupFor` 回退逻辑已无生产消费者、建议随下次清理删除。
+- 付款方式**已闭环**（补取：2026-10-04 IDA 指令级）：正文 `+13` 就是**支付组号**（1 = 金币 /
+  2 = 巡礼之印 `10401346`×N），**可被 UI 切换、不是常量** —— 写入正文 `0x14150c8cb`、
+  字段 `win+0x19E4` 由构造器置 1 并被 `sub_141503B70`（`0x141503bba`）切换成 2，
+  `0x1414E0000–0x141530000` 全函数逐指令扫描里只有这两个写者（其余 56 处读/比较）；
+  2259 与 2381 由同一发包器同一条指令写同一字段 ⇒ 同义。实现按 `+13` 的 1..2 采信、
+  域外回落金币并记日志；`TestPrimerTransformPayOptionResolution` 钉住解析规则，
+  group 2 的实际扣料由 `TestTransformPaymentByRarity` 覆盖。详见文档 §4.3。
+- 验证：Go 1.26.5 全量 `go test -count=1 ./...`、`go vet ./...` 通过；真实内层 PVF
+  `-pvf-check-catalogs` 直读准备通过（`transform` 域：need=5/2/5、refund=10/10/10），
+  `storage_accessed=false`、`runtime_started=false`。**未启动客户端、未访问玩家库**，
+  未改 schema/PVF/客户端资源。真实启动路径另做三次 `launch_local.py --server-only` 冒烟：
+  55 域全部准备成功、运行期日志确认 `loaded equipment transform system: equipment=5 primer=5
+  rarities, refundRows 10/10`、网关成功监听 7001，跑完用 `stop_environment.py` 恢复干净停止态。
+  源码候选 `server/work/dfo-lan/bin/wireprobe-handoff-source.exe` SHA256
+  `ed3eb120181b796fab5f76b16cd5d49a4d2c2c90907fe9a72d1cc15a822cb235`（实机请用
+  `./启动游戏.cmd --source-build` 跑这一份）。
+  ⚠️ 本机现状（如实记录）：`bin/wireprobe-pvf.exe` 现为**上一份候选**（SHA256 `61ff277b…`，
+  写入时间 23:41:06，早于本任务第二次构建；本任务的 `Build-Server.ps1` 每次都打印
+  `confirmed PVF gateway was preserved`）⇒ 它**不是**会话前的历史默认程序，也不是本提交替换的；
+  `bin/` 已被 gitignore，不在提交范围内。另 `bin/wireprobe-dungeon39.exe` 当前不在该目录下，
+  本任务未删除任何二进制，如需回退须从备份恢复。实机由用户手动回归。
+
 ## 2026-10-03：MR !139 本轮源码收口与可运行交付
 
 用户要求先收口并让上游可合并。本轮JSON/规则清理停止扩展，已完成改动全部提交；MR独立树以 `077b62c` 合入最新上游 `61106a0e`，保留副本难度经验修复，CHANGELOG和server/AGENTS两处冲突保留双方记录。根工作区源码停在 `66f722c`，用户 `.gitignore` 未提交；本段描述MR集成树，不混称根main已同步上游。

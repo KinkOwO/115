@@ -269,6 +269,9 @@ type EquipmentTransformPlan struct {
 	Key     string
 	Steps   []transformStep
 	Receipt EquipmentTransformReceipt
+	// PayOption 是请求头 [13] 的付款方式序号。它必须随计划一起递交事务回调 ——
+	// 成本按玩家点的那一支扣（源里 `[need materials]` 每档两支），不回退。
+	PayOption int
 }
 
 func (s *ItemService) PlanEquipmentTransform(role Role, slots, templates []uint32, payOption int) (EquipmentTransformPlan, error) {
@@ -324,7 +327,7 @@ func (s *ItemService) PlanEquipmentTransform(role Role, slots, templates []uint3
 			result.Skipped = append(result.Skipped, target)
 			continue
 		}
-		if _, _, e := s.transformCost(target); e != nil {
+		if _, e := s.transformPayment(catalog.TransformChainEquipment, target, payOption); e != nil {
 			notes = append(notes, fmt.Sprintf("slot %d: 目标 %d 算不出变换成本（%v）", slot, target, e))
 			result.Skipped = append(result.Skipped, target)
 			continue
@@ -339,7 +342,7 @@ func (s *ItemService) PlanEquipmentTransform(role Role, slots, templates []uint3
 	}
 
 	key := transformKey(slots, templates, role.State)
-	return EquipmentTransformPlan{Key: key, Steps: plans, Receipt: result}, nil
+	return EquipmentTransformPlan{Key: key, Steps: plans, Receipt: result, PayOption: payOption}, nil
 }
 func (s *ItemService) PrepareEquipmentTransform(current Role, accountRaw json.RawMessage, plan EquipmentTransformPlan) (json.RawMessage, json.RawMessage, EquipmentTransformReceipt, error) {
 	result, plans := plan.Receipt, plan.Steps
@@ -371,25 +374,29 @@ func (s *ItemService) PrepareEquipmentTransform(current Role, accountRaw json.Ra
 			result.Skipped = append(result.Skipped, p.to)
 			continue
 		}
-		// 成本：**目标稀有度对应的灵魂 ×1 + 固定金币**（客户端「变换确认」界面的口径，
-		// 不走 [create cost] —— 那张表没有太初档，武器永远匹配不到）。
-		soul, g, e := s.transformCost(p.to)
+		// 成本：源 `[need materials]` 里该稀有度的、玩家点的那一支付法（请求头 [13]）。
+		// ⚠️ 旧实现是「灵魂 ×1 + 固定 50000 金币」，只有 primeval 一档与源相同 ——
+		// rare..epic 一直多扣金币（源是 25000/30000/35000/40000）。现在整表直读。
+		pay, e := s.transformPayment(catalog.TransformChainEquipment, p.to, plan.PayOption)
 		if e != nil {
 			result.Skipped = append(result.Skipped, p.to)
 			continue
 		}
-		mat := MaterialCost{Template: soul, Count: 1}
-		if _, isAccount := AccountMaterialSlot(soul); isAccount {
-			if have := account.Count(soul); have < mat.Count {
-				result.Skipped = append(result.Skipped, p.to)
-				continue
+		affordable := true
+		for _, m := range pay.AccountMats {
+			if account.Count(m.Template) < m.Count {
+				affordable = false
+				break
 			}
-			accountMats = append(accountMats, mat)
-		} else {
-			bagMats = append(bagMats, mat)
 		}
-		option = 1
-		gold += g
+		if !affordable {
+			result.Skipped = append(result.Skipped, p.to)
+			continue
+		}
+		accountMats = append(accountMats, pay.AccountMats...)
+		bagMats = append(bagMats, pay.BagMats...)
+		option = pay.Option
+		gold += pay.Gold
 		done = append(done, EquipmentTransformPair{
 			Slot: p.slot, From: p.from, To: p.to, Group: 0,
 			FromBag: p.bagSlot != 0, BagSlot: p.bagSlot,
@@ -716,45 +723,57 @@ func (s *ItemService) equipmentGradeRarity(id uint32) (int32, int32, bool) {
 	return g, r, ok1 && ok2
 }
 
-// walletSoulByRarity 是「装备变换」要扣的灵魂：**按目标的稀有度一对一**。
+// transformPayment 给出一次变换要付什么：**按目标的稀有度**查源表，再按玩家点的付法取支。
 //
-// 依据是客户端「变换确认」界面的口径（用户实机截图）——目标 `117010280`（rarity 8 = 太初）
-// 那一栏写着「**所需灵魂 1 太初(s)**」。而源里的 `[create cost]` 只按 `(grade,rarity)` 分了三档
-// （`10361513`/`10361514`/`10361515`，对应 (119,3)/(120,6)/(121,4)），**根本没有"太初灵魂"这一档**
-// —— 武器（rarity 8）在那边永远匹配不到，客户端也就一直卡。所以变换的成本**不走 `[create cost]`**，
-// 一律按这张表取。
+// 源（唯一内容真源 = 内层 PVF）：`etc/115lvability/equipmenttransformsystem.cos`
 //
-// 五个模板号全部在**账号材料槽**里（375..379，见 accountMaterialSlotByTemplate），所以从这里扣。
-var walletSoulByRarity = map[int32]uint32{
-	2: 10361512, // 稀有灵魂
-	3: 10361513, // 神器灵魂
-	4: 10361514, // 传说灵魂
-	6: 10361515, // 史诗灵魂
-	8: 10361516, // 太初灵魂
+//	装备变换（CMD2259 action=1）→ `[need materials]`：金币（25000..50000，按稀有度）
+//	                              **外加一件灵魂** 10361512..10361516
+//	晶体/誓约变换（CMD2381）    → `[need primer materials]`：只有金币或巡礼之印，
+//	                              没有灵魂项
+//
+// ⚠️ 旧实现把这条规则硬编码成「`walletSoulByRarity` + 常量 50000 金币」，
+// 只有 primeval 一档恰好等于源值 ⇒ rare..epic 一直**多扣**金币。现在整表直读。
+//
+// 付款方式序号 `payOption` 直接来自请求头（2259 的 u8@13 / 2381 的 u32@13，都是 1 起），
+// **刻意不做「付不起就换另一支」的回退**：玩家点的是哪支就扣哪支（先例见 pickCraftCost）。
+//
+// 材料按 `AccountMaterialSlot` 分两仓：命中 = 账号共享材料（灵魂仓库），其余走背包。
+type transformPayment struct {
+	Option      int
+	Gold        uint32
+	BagMats     []MaterialCost
+	AccountMats []MaterialCost
 }
 
-// transformGoldCost 是一次装备变换的金币成本（客户端界面同样显示的金币栏）。
-const transformGoldCost = 50000
-
-// soulFor 按稀有度取对应的灵魂模板（客户端界面只列 2/3/4/6/8 五档）。
-func soulFor(rarity int32) (uint32, bool) {
-	tpl, ok := walletSoulByRarity[rarity]
-	return tpl, ok
-}
-
-// transformCost 给出一次变换的成本：**目标稀有度对应的灵魂 ×1** + 固定金币。
-//
-// ⚠️ 金币量（50,000）取自客户端界面的金币栏；如果官方另有按稀有度递进的表，改这一个常量即可。
-func (s *ItemService) transformCost(target uint32) (uint32, uint32, error) {
+func (s *ItemService) transformPayment(chain catalog.TransformChain, target uint32, payOption int) (transformPayment, error) {
+	var out transformPayment
+	if s.Transform == nil {
+		return out, fmt.Errorf("变换成本表未装载（%s）", catalog.EquipmentTransformSystemPath)
+	}
 	_, rarity, ok := s.equipmentGradeRarity(target)
 	if !ok {
-		return 0, 0, fmt.Errorf("读不到目标 %d 的稀有度", target)
+		return out, fmt.Errorf("读不到目标 %d 的稀有度", target)
 	}
-	soul, ok := soulFor(rarity)
+	// 源用稀有度**名字**做键（rare/unique/legendary/epic/primeval），码值是 2/3/6/4/8。
+	name, ok := catalog.TransformRarityName(rarity)
 	if !ok {
-		return 0, 0, fmt.Errorf("稀有度 %d 没有对应的灵魂（客户端界面只列 2/3/4/6/8）", rarity)
+		return out, fmt.Errorf("稀有度 %d 在变换表里没有档位（源只列 rare/unique/legendary/epic/primeval）", rarity)
 	}
-	return soul, transformGoldCost, nil
+	opt, ok := s.Transform.Payment(chain, name, payOption)
+	if !ok {
+		return out, fmt.Errorf("变换表里 %s 没有付款方式 %d", name, payOption)
+	}
+	out.Option, out.Gold = opt.Number, opt.Gold
+	for _, m := range opt.Items {
+		mat := MaterialCost{Template: m.Template, Count: m.Count}
+		if _, isAccount := AccountMaterialSlot(m.Template); isAccount {
+			out.AccountMats = append(out.AccountMats, mat)
+			continue
+		}
+		out.BagMats = append(out.BagMats, mat)
+	}
+	return out, nil
 }
 
 // transformKey 让同一次变换（同一份请求 + 同一个前置状态）只应用一次。
@@ -1014,4 +1033,7 @@ type ItemService struct {
 	// at its existing window-only step without changing saved items.
 	Journal    *catalog.EquipmentJournalRules
 	CreateCost *catalog.EquipmentCreateCost
+	// Transform 是三条变换链的费用/返还表（装备 2259 + 晶体 2381 共用）。
+	// nil = 算不出成本 ⇒ 变换拒绝执行，绝不静默改成免费。
+	Transform *catalog.EquipmentTransformSystem
 }
