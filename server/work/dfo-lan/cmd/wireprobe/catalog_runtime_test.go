@@ -5,6 +5,7 @@ import (
 	"dfolan/internal/gamedata"
 	"dfolan/internal/inventory"
 	"dfolan/internal/quest"
+	"dfolan/internal/testfixture"
 	"os"
 	"os/exec"
 	"reflect"
@@ -29,11 +30,10 @@ func TestPVFLotteryLocalArchive(t *testing.T) {
 	if err != nil || count != 2477 {
 		t.Fatal(count, err)
 	}
-	// The historical lottery pool JSON (configs/lottery-item-pools.json /
-	// lottery-equipment-pools.json, source 7ef2) is an audit baseline only and is
-	// no longer compared here. Native preparation identity and mutation isolation
-	// are still asserted below; weighted boundaries are covered by
-	// TestNativeLotteryContentCanChange.
+	// Historical fixtures (source 7ef2) supply audit scope in the gated parity
+	// test only; ordinary native startup does not consult them. Native
+	// preparation identity and mutation isolation are still asserted below;
+	// weighted boundaries are covered by TestNativeLotteryContentCanChange.
 	before := direct.byTemplate[7772].Candidates[0]
 	direct.byTemplate[7772].Candidates[0].Count++
 	again, err := loadRuntimeLotteryItems(c, "missing-items.json", c.Items.Items)
@@ -118,11 +118,11 @@ func TestNativeLotteryDiscoveryCurrentArchive(t *testing.T) {
 	if scope.Candidates != len(direct.Items.Pools)+len(direct.Equipment.Pools)+len(scope.Issues) {
 		t.Fatal("incomplete discovery")
 	}
-	itemPools, err := catalog.LoadLotteryItemPools("../../configs/lottery-item-pools.json")
+	itemPools, err := catalog.LoadLotteryItemPools(testfixture.LotteryPath(t, "lottery-item-pools.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	equipmentPools, err := catalog.LoadLotteryEquipmentPools("../../configs/lottery-equipment-pools.json")
+	equipmentPools, err := catalog.LoadLotteryEquipmentPools(testfixture.LotteryPath(t, "lottery-equipment-pools.json"))
 	if err != nil {
 		t.Fatal(err)
 	}

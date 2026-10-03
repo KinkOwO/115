@@ -127,7 +127,7 @@ func questChainCheck(ctx context.Context, s *storage.Store, other int64) error {
 	if e != nil {
 		return e
 	}
-	ec, e := inventory.LoadEquipmentCatalog("configs/quest-equipment.next29.json", r.ConfigVersion)
+	ec, e := loadNativeQuestEquipmentCatalog(r.ConfigVersion)
 	if e != nil {
 		return e
 	}

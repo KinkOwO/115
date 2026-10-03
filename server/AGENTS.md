@@ -1,5 +1,14 @@
 # AGENTS.md — server/
 
+## 2026-10-03：任务装备重复导出与抽奖唯一真源（源码候选）
+
+删除 `quest-equipment.current37.json`、`quest-equipment.next29.json`、`lottery-item-pools.json`、`lottery-equipment-pools.json`，共 7,111,136 字节；顶层 JSON 75→71。抽奖完整历史快照保留为 476,221 字节 gzip，仅供测试读取并核验原始 SHA256；本轮内容净减少 6,634,915 字节（约 6.33 MiB）。
+
+- 抽奖运行 API 只接受准备好的原生 PVF 表，不读取旧路径或历史 baseline；启动不再构造退役奖池路径，启用抽奖而缺少原生域时明确拒绝。奖励、数量、权重、发现范围和不可发放奖池拒绝规则保持。
+- equipfields、questequipmentimport、equipmentwearimport 统一使用 `gamedata.Open/Source`；两个导出器要求显式输出，旧 JSON seed 参数明确拒绝。基础装备选集继续来自既有 policy，任务装备选集由同源物品与任务构建。
+- charactercheck 从 PVF 构建任务装备并严格核对角色 ConfigVersion，不别名化历史源哈希。旧 next29–34 探针不再自动注入退休 JSON，较新候选显式保留当前装备表。`equipment.current35/37.json` 仍有独立消费者，本轮保留。
+- Go 1.26.5 全量 `go test -count=1 ./...` 和 `go vet ./...` 通过；Python 3.11.9 启动检查 10/10 与探针语法/参数设置检查通过。当前环境未挂载 PVF，真实归档输出/完整原生对照测试未执行；归档门禁仍保留。未启动客户端、运行服务或玩家库，没有改 PVF、schema、存档或用户 `.gitignore`，不扩展实机 confirmed baseline。
+
 ## 2026-10-03：150 级掉落测试导出退役
 
 - `loot.level150.json` 没有生产读取者，仅为测试提供完整导出；删除文件后测试改读验证原始 SHA256 的压缩夹具。Odyssey source 审计器使用 `gamedata.Open/Source`，并要求显式 `-output-dir`，不再向 configs 写导出。

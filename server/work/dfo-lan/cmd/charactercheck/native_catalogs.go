@@ -3,6 +3,8 @@ package main
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/gamedata"
+	"dfolan/internal/inventory"
+	"fmt"
 	"os"
 )
 
@@ -30,6 +32,35 @@ func loadNativeProgressionCatalog() (catalog.Progression, error) {
 	}
 	defer source.Close()
 	return source.Progression("")
+}
+
+func loadNativeQuestEquipmentCatalog(characterConfigVersion string) (*inventory.EquipmentCatalog, error) {
+	source, err := nativeSource()
+	if err != nil {
+		return nil, err
+	}
+	defer source.Close()
+
+	index, err := source.ItemIndex("")
+	if err != nil {
+		return nil, err
+	}
+	quests, err := source.Quests("")
+	if err != nil {
+		return nil, err
+	}
+	policy, err := inventory.ReadDropPolicy("configs/pvf-drop-policy.json")
+	if err != nil {
+		return nil, err
+	}
+	equipment, err := source.EquipmentSelection(index, quests, policy)
+	if err != nil {
+		return nil, err
+	}
+	if equipment.Source.Checksum != characterConfigVersion {
+		return nil, fmt.Errorf("native quest equipment source %s does not match character config version %s", equipment.Source.Checksum, characterConfigVersion)
+	}
+	return equipment, nil
 }
 
 func loadNativeWorldCatalog() (catalog.WorldCatalog, error) {

@@ -457,11 +457,7 @@ func preparePVFLottery(c *Catalogs, s *Source, selected map[string]bool, i Catal
 	if adapters.ValidateLottery == nil {
 		return fmt.Errorf("PVF lottery validation adapter is required")
 	}
-	baselineDir := i.BaselineDir
-	if baselineDir == "" {
-		baselineDir = filepath.Dir(i.IndexPath)
-	}
-	if err := adapters.ValidateLottery(direct, *c.Items, baselineDir, i.VerifyBaselines); err != nil {
+	if err := adapters.ValidateLottery(direct, *c.Items, "", false); err != nil {
 		return fmt.Errorf("validate PVF lottery: %w", err)
 	}
 	c.LotteryTables = &direct
@@ -473,26 +469,19 @@ func preparePVFLottery(c *Catalogs, s *Source, selected map[string]bool, i Catal
 	return nil
 }
 
-// LoadLotteryItemPools uses the prepared PVF projection when available. A
-// selected but unprepared PVF domain is an error and never loads the baseline.
-func (c *Catalogs) LoadLotteryItemPools(path string) (catalog.LotteryPoolCatalog, error) {
+// LoadLotteryItemPools exposes only the prepared native PVF projection.
+func (c *Catalogs) LoadLotteryItemPools(_ string) (catalog.LotteryPoolCatalog, error) {
 	if c.LotteryTables != nil {
 		return c.LotteryTables.Items, nil
 	}
-	if c.Selected("lottery") {
-		return catalog.LotteryPoolCatalog{}, fmt.Errorf("selected PVF lottery catalog is not prepared")
-	}
-	return catalog.LoadLotteryItemPools(path)
+	return catalog.LotteryPoolCatalog{}, fmt.Errorf("native PVF lottery catalog is not prepared")
 }
 
-func (c *Catalogs) LoadLotteryEquipmentPools(path string) (catalog.LotteryPoolCatalog, error) {
+func (c *Catalogs) LoadLotteryEquipmentPools(_ string) (catalog.LotteryPoolCatalog, error) {
 	if c.LotteryTables != nil {
 		return c.LotteryTables.Equipment, nil
 	}
-	if c.Selected("lottery") {
-		return catalog.LotteryPoolCatalog{}, fmt.Errorf("selected PVF lottery catalog is not prepared")
-	}
-	return catalog.LoadLotteryEquipmentPools(path)
+	return catalog.LotteryPoolCatalog{}, fmt.Errorf("native PVF lottery catalog is not prepared")
 }
 
 func preparePVFSelectionBoxes(c *Catalogs, s *Source, selected map[string]bool, i CatalogInputs) error {

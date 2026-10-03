@@ -183,6 +183,9 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 			return nil, nil, err
 		}
 	}
+	if (startup.BoosterCatalog != "" || pvfCatalogs.Boosters != nil || pvfCatalogs.Prepared("boosters")) && startup.ItemIndex != "" && pvfCatalogs.LotteryTables == nil {
+		return nil, nil, fmt.Errorf("lottery requires the native PVF lottery domain")
+	}
 	if startup.SelectionBoxes != "" {
 		if _, err := pvfCatalogs.LoadSelectionBoxes(startup.SelectionBoxes); err != nil {
 			return nil, nil, err
@@ -1268,17 +1271,15 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 	}
 	var lotteryPools *lotteryItemCatalog
 	if boosterCatalog != nil && (startup.ItemIndex != "" || pvfCatalogs.LotteryTables != nil) {
-		lotteryPath := filepath.Join(filepath.Dir(startup.ItemIndex), "lottery-item-pools.json")
 		var err error
-		lotteryPools, err = loadRuntimeLotteryItems(pvfCatalogs, lotteryPath, boosterCatalog.Items)
+		lotteryPools, err = loadRuntimeLotteryItems(pvfCatalogs, "", boosterCatalog.Items)
 		if err != nil {
-			log.Printf("warning: lottery item catalog disabled: %v", err)
+			return nil, nil, fmt.Errorf("prepare lottery item catalog: %w", err)
 		} else {
 			log.Printf("loaded lottery item catalog (%d verified pools)", len(lotteryPools.Pools))
 			if wearService != nil && wearService.Catalog != nil {
-				equipmentPath := filepath.Join(filepath.Dir(startup.ItemIndex), "lottery-equipment-pools.json")
-				if count, loadErr := loadRuntimeLotteryEquipment(pvfCatalogs, equipmentPath, boosterCatalog.Items, lotteryPools); loadErr != nil {
-					log.Printf("warning: equipment lottery pools disabled: %v", loadErr)
+				if count, loadErr := loadRuntimeLotteryEquipment(pvfCatalogs, "", boosterCatalog.Items, lotteryPools); loadErr != nil {
+					return nil, nil, fmt.Errorf("prepare equipment lottery pools: %w", loadErr)
 				} else {
 					log.Printf("loaded equipment lottery pools (%d verified pools)", count)
 				}

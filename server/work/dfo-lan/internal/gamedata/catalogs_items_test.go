@@ -3,10 +3,23 @@ package gamedata
 import (
 	"dfolan/internal/character"
 	"dfolan/internal/inventory"
+	"dfolan/internal/testfixture"
 	"os"
 	"runtime"
 	"testing"
 )
+
+func TestLotteryLoadersDoNotFallBackToHistoricalJSON(t *testing.T) {
+	c := &Catalogs{}
+	itemPath := testfixture.LotteryPath(t, "lottery-item-pools.json")
+	if _, err := c.LoadLotteryItemPools(itemPath); err == nil {
+		t.Fatal("item lottery JSON fallback accepted without prepared PVF")
+	}
+	equipmentPath := testfixture.LotteryPath(t, "lottery-equipment-pools.json")
+	if _, err := c.LoadLotteryEquipmentPools(equipmentPath); err == nil {
+		t.Fatal("equipment lottery JSON fallback accepted without prepared PVF")
+	}
+}
 
 func TestPVFBoxesSourceOnlyImportsItsOwnItemDependency(t *testing.T) {
 	path := os.Getenv("DFO_PVF_CORE_TEST_ARCHIVE")

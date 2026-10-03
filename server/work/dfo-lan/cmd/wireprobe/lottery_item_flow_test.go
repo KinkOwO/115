@@ -9,6 +9,7 @@ import (
 	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
 	"dfolan/internal/storage"
+	"dfolan/internal/testfixture"
 	"dfolan/internal/workflow"
 	"encoding/binary"
 	"encoding/json"
@@ -24,7 +25,7 @@ func TestLotteryCatalogMatchesCurrentIndex(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	pools, err := loadLotteryItemCatalog("../../configs/lottery-item-pools.json", index.Items)
+	pools, err := loadLotteryItemCatalog(testfixture.LotteryPath(t, "lottery-item-pools.json"), index.Items)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,11 +50,11 @@ func TestLotteryEquipmentCatalogMatchesCurrentIndex(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	pools, err := loadLotteryItemCatalog("../../configs/lottery-item-pools.json", index.Items)
+	pools, err := loadLotteryItemCatalog(testfixture.LotteryPath(t, "lottery-item-pools.json"), index.Items)
 	if err != nil {
 		t.Fatal(err)
 	}
-	count, err := loadLotteryEquipmentPools("../../configs/lottery-equipment-pools.json", index.Items, pools)
+	count, err := loadLotteryEquipmentPools(testfixture.LotteryPath(t, "lottery-equipment-pools.json"), index.Items, pools)
 	if err != nil {
 		t.Fatal(err)
 	}

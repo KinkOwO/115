@@ -170,6 +170,16 @@ def exe_flags(exe):
  return names or None
 
 
+def set_option_value(command, option, value):
+ """Set an existing option or append it when a newer profile owns the flag."""
+ try:
+  index = command.index(option)
+ except ValueError:
+  command.extend([option, str(value)])
+ else:
+  command[index + 1] = str(value)
+
+
 def prune_unsupported(command):
  """丢弃当前服务端程序不认识的参数（连同它的值），避免 flag 解析直接退出。
 
@@ -343,10 +353,10 @@ with (
    command[command.index("-bag-rules") + 1] = str(
     project / "configs/inventory.next29.json"
    )
-   command += [
-    "-quest-equipment-catalog",
-    str(project / "configs/quest-equipment.next29.json"),
-   ]
+   if not (candidate35 or candidate36 or candidate37):
+    print(
+     "NOTICE: next29-next34 are historical binaries. Their retired quest-equipment JSON is no longer injected; use the matching historical configuration, or build current source with native PVF."
+    )
   if tag.endswith("_next30"):
    command[0] = str(project / "bin/wireprobe-dungeon30.exe")
   if tag.endswith("_next31"):
@@ -373,8 +383,10 @@ with (
    command += ["-game-listen", "127.0.0.2:0"]
  if candidate35:
   command[0] = str(project / "bin/wireprobe-dungeon35.exe")
-  command[command.index("-quest-equipment-catalog") + 1] = str(
-   project / "configs/equipment.current37.json"
+  set_option_value(
+   command,
+   "-quest-equipment-catalog",
+   project / "configs/equipment.current37.json",
   )
   command += [
    "-equipment-wear-rules",
@@ -412,8 +424,10 @@ with (
   # re-entry, no crash. (Do NOT use 38 - its userinfo-appearance block over-reads
   # and access-violates the client; that whole approach is abandoned.)
   command[0] = str(project / "bin/wireprobe-dungeon39.exe")
-  command[command.index("-quest-equipment-catalog") + 1] = str(
-   project / "configs/equipment.current37.json"
+  set_option_value(
+   command,
+   "-quest-equipment-catalog",
+   project / "configs/equipment.current37.json",
   )
   # The bag policy gains the quick-use belt (slots 0..8, the gap below the
   # equipment range) so a consumable can be dragged onto the hotkey bar.
