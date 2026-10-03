@@ -22,6 +22,8 @@ import (
 	"log"
 	"net"
 	"os"
+	"strconv"
+	"strings"
 	"path/filepath"
 	"sync"
 	"time"
@@ -816,6 +818,29 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 			return nil, nil, e
 		}
 		dungeonCatalog = &data
+	}
+	// 诊断探针：DFO_DUNGEON_PROBE=100004131,100004136 打印副本的迷宫结构
+	// （房间坐标/map/怪生成触发器），用于 SemiRaid 门控取证。只读，不影响运行。
+	if probeSpec := os.Getenv("DFO_DUNGEON_PROBE"); probeSpec != "" && dungeonCatalog != nil {
+		for _, idStr := range strings.Split(probeSpec, ",") {
+			id64, err := strconv.ParseUint(strings.TrimSpace(idStr), 10, 32)
+			if err != nil {
+				continue
+			}
+			def, ok := dungeonCatalog.Dungeons[uint32(id64)]
+			if !ok {
+				log.Printf("dungeon-probe %d: not in catalog", id64)
+				continue
+			}
+			log.Printf("dungeon-probe %d noFatigue=%v chances=%v", id64, def.NoFatigue, def.MazeChanceRates)
+			for _, mz := range def.Mazes {
+				log.Printf("dungeon-probe %d maze%d size=%v start=%v boss=%v rooms=%d",
+					id64, mz.Index, mz.Size, mz.Start, mz.Boss, len(mz.Rooms))
+				for _, r := range mz.Rooms {
+					log.Printf("  room(%d,%d) map=%d boss=%v", r.X, r.Y, r.Map, r.Boss)
+				}
+			}
+		}
 	}
 	// 疲劳的**进本消耗**完全来自源：`[use fatigue only start dungeon] <N>`（only start = 进本只收一次）。
 	// 源未声明该段的副本由 EnterFatigueOf 返回 0，走 FatigueService 原有的「按房间计费」路径。

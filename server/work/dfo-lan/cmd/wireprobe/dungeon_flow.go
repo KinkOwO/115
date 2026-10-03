@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/hex"
 	"context"
 	"crypto/rand"
 	"dfolan/internal/catalog"
@@ -1332,6 +1333,21 @@ func (w *worldSession) interactDoor(p []byte) (*dungeon.Session, []outboundPacke
 		return nil, nil, fmt.Errorf("door interaction without active dungeon")
 	}
 	run := w.activeDungeon
+	// SemiRaid 门控取证：门交互的对象与房间状态（Azure 100004131 等）。
+	if w.channelGuideDungeon != 0 {
+		cleared := run.RoomCleared()
+		neighbors := make([]string, 0, 4)
+		for _, room := range run.Maze.Rooms {
+			dx, dy := int(room.X)-int(run.Room.X), int(room.Y)-int(run.Room.Y)
+			if dx*dx+dy*dy == 1 {
+				neighbors = append(neighbors, fmt.Sprintf("(%d,%d)map=%d", room.X, room.Y, room.Map))
+			}
+		}
+		log.Printf("semiraid door probe: dungeon=%d room=(%d,%d) map=%d cleared=%v alive=%d neighbors=%v obj_hex=%s",
+			run.Definition.ID, run.Room.X, run.Room.Y, run.Room.Map, cleared,
+			len(run.LivingMonsters()), neighbors, hex.EncodeToString(p))
+	}
+
 	if run.Definition.ID == 7113 && run.Room.Map == 76026 && run.RoomCleared() {
 		for _, room := range run.Maze.Rooms {
 			dx, dy := int(room.X)-int(run.Room.X), int(room.Y)-int(run.Room.Y)
