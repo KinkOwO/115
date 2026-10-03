@@ -255,25 +255,6 @@ func preparePVFLoot(c *Catalogs, s *Source, inputs CatalogInputs) error {
 		return err
 	}
 	log.Printf("ordinary world drop compatibility multiplier=%d%% (DFO_ORDINARY_WORLD_DROP_PERCENT, default 100%%); source weights /100000", direct.OrdinaryWorldDropPercent)
-	if inputs.checksBaselines() {
-		path := inputs.LootPath
-		if override := os.Getenv("DFO_LOOT_CATALOG"); override != "" {
-			path = override
-		}
-		if path == "" {
-			path = filepath.Join(filepath.Dir(inputs.IndexPath), "loot.next25.json")
-		}
-		legacy, err := catalog.LoadLoot(path)
-		if err != nil {
-			return err
-		}
-		if legacy.Source.Checksum != direct.Source.Checksum {
-			return fmt.Errorf("loot baseline source mismatch")
-		}
-		if err := verifyPVFCatalog(legacy, direct); err != nil {
-			return fmt.Errorf("loot: %w", err)
-		}
-	}
 	c.Loot = &direct
 	log.Printf("PVF loot prepared: maximum grade=%d stackable candidates=%d drop groups=%d dungeon indexes=%d; ordinary difficulty/creation weights from PVF", direct.MaximumGrade, len(direct.Items), len(direct.DropGroups), len(direct.DungeonDropInfo))
 	s.ReleaseReadCaches()
@@ -297,57 +278,28 @@ func preparePVFEquipmentSelection(c *Catalogs, s *Source, inputs CatalogInputs) 
 	if err != nil {
 		return err
 	}
-	if inputs.checksBaselines() {
-		paths := []string{inputs.EquipmentPath, inputs.QuestEquipmentPath}
-		if paths[0] == "" && paths[1] == "" {
-			paths = []string{filepath.Join(filepath.Dir(inputs.IndexPath), "equipment.current37.json")}
-		}
-		seen := map[string]bool{}
-		for _, path := range paths {
-			if path == "" || seen[path] {
-				continue
-			}
-			seen[path] = true
-			legacy, err := inventory.LoadEquipmentCatalog(path, s.Snapshot().Checksum)
-			if err != nil {
-				return err
-			}
-			if err := verifyPVFCatalog(legacy, direct); err != nil {
-				return fmt.Errorf("equipment selection %s: %w", path, err)
-			}
-			if err := verifyPVFCatalog(legacy.DropPool(), direct.DropPool()); err != nil {
-				return fmt.Errorf("equipment drop pool: %w", err)
-			}
-		}
-	}
 	c.Selection = direct
 	log.Printf("PVF equipment selection prepared: basic whitelist=%d source quest additions=%d total=%d legacy drop pool=%d ordinary source pool=%d", len(policy.BasicEquipmentIDs), len(direct.Rows)-len(policy.BasicEquipmentIDs), len(direct.Rows), len(direct.DropPool()), len(direct.OrdinaryPool))
 	s.ReleaseReadCaches()
 	return nil
 }
 
-func (c *Catalogs) LoadLoot(path string) (catalog.LootCatalog, error) {
-	if err := c.RequireSelected("loot", c.Loot != nil); err != nil {
-		return catalog.LootCatalog{}, err
+func (c *Catalogs) LoadLoot(_ string) (catalog.LootCatalog, error) {
+	if c == nil || !c.Selected("loot") || !c.Prepared("loot") || c.Loot == nil {
+		return catalog.LootCatalog{}, fmt.Errorf("loot requires a prepared native PVF catalog")
 	}
-	if c.Loot != nil {
-		return *c.Loot, nil
-	}
-	return catalog.LoadLoot(path)
+	return *c.Loot, nil
 }
 
-func (c *Catalogs) LoadEquipmentSelection(path, source string) (*inventory.EquipmentCatalog, error) {
-	if err := c.RequireSelected("equipment-selection", c.Selection != nil); err != nil {
-		return nil, err
+func (c *Catalogs) LoadEquipmentSelection(_ string, source string) (*inventory.EquipmentCatalog, error) {
+	if c == nil || !c.Selected("equipment-selection") || !c.Prepared("equipment-selection") || c.Selection == nil {
+		return nil, fmt.Errorf("equipment selection requires a prepared native PVF catalog")
 	}
-	if c.Selection != nil {
-		if source != c.Selection.Source.Checksum {
-			return nil, fmt.Errorf("prepared equipment selection source mismatch")
-		}
-		copy := *c.Selection
-		return &copy, nil
+	if source != c.Selection.Source.Checksum {
+		return nil, fmt.Errorf("prepared equipment selection source mismatch")
 	}
-	return inventory.LoadEquipmentCatalog(path, source)
+	copy := *c.Selection
+	return &copy, nil
 }
 
 func preparePVFEnhancements(c *Catalogs, s *Source, inputs CatalogInputs) error {

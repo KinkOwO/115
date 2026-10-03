@@ -167,6 +167,12 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 	if startup.SkillCatalog != "" && pvfCatalogs.Learning == nil {
 		return nil, nil, fmt.Errorf("skills require the native PVF skills domain")
 	}
+	if startup.LootCatalog != "" && (pvfCatalogs.Loot == nil || pvfCatalogs.Selection == nil || !pvfCatalogs.Selected("loot") || !pvfCatalogs.Prepared("loot") || !pvfCatalogs.Selected("equipment-selection") || !pvfCatalogs.Prepared("equipment-selection")) {
+		return nil, nil, fmt.Errorf("loot requires native PVF loot and equipment-selection domains")
+	}
+	if startup.QuestEquipmentCatalog != "" && (pvfCatalogs.Selection == nil || !pvfCatalogs.Selected("equipment-selection") || !pvfCatalogs.Prepared("equipment-selection")) {
+		return nil, nil, fmt.Errorf("quest equipment requires native PVF equipment-selection domain")
+	}
 	if startup.LootCatalog != "" && (!pvfCatalogs.Selected("materials") || !pvfCatalogs.Prepared("materials") || pvfCatalogs.Materials == nil) {
 		return nil, nil, fmt.Errorf("loot requires the prepared native PVF materials domain")
 	}
@@ -872,7 +878,7 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		}
 		// 锻造（CMD430 / Refine）的武器限制、成功率表与材料消耗。
 		// 成功率由服主提供（115 版本），材料消耗 PVF 无表、走配置默认值。
-		if err := inventory.LoadRefineRules(filepath.Join(filepath.Dir(lootPath), "refine.json")); err != nil {
+		if err := inventory.LoadRefineRules(filepath.Join(filepath.Dir(startup.BagRules), "refine.json")); err != nil {
 			return nil, nil, err
 		}
 		// 物品脚本自带的 [need material]（商店表 itemshop/**.shp 没有价格字段）：

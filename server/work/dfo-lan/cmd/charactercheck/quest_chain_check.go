@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"dfolan/internal/catalog"
 	"dfolan/internal/character"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
@@ -15,7 +14,7 @@ import (
 )
 
 func questChainCheck(ctx context.Context, s *storage.Store, other int64) error {
-	c, e := catalog.LoadCharacters("configs/characters.next25.json")
+	c, e := loadNativeCharacterCatalog()
 	if e != nil {
 		return e
 	}
@@ -119,11 +118,11 @@ func questChainCheck(ctx context.Context, s *storage.Store, other int64) error {
 	if e != nil || contains(ids, 4873) || !contains(ids, 3146) {
 		return fmt.Errorf("NPC completion did not unlock next source quest: %v", e)
 	}
-	lc, e := catalog.LoadLoot("configs/loot.next25.json")
+	lc, e := loadNativeLootCatalog()
 	if e != nil {
 		return e
 	}
-	br, e := inventory.LoadBagRules("configs/inventory.next29.json")
+	br, e := inventory.LoadBagRules("configs/inventory.next29.json", lc.Source.Checksum)
 	if e != nil {
 		return e
 	}

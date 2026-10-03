@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"dfolan/internal/catalog"
 	"dfolan/internal/character"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
@@ -16,7 +15,7 @@ import (
 )
 
 func lootCheck(ctx context.Context, s, reopened *storage.Store, role storage.Character, other int64) error {
-	c, e := catalog.LoadLoot("configs/loot.next25.json")
+	c, e := loadNativeLootCatalog()
 	if e != nil {
 		return e
 	}
@@ -24,7 +23,7 @@ func lootCheck(ctx context.Context, s, reopened *storage.Store, role storage.Cha
 	if e != nil {
 		return e
 	}
-	bagRules, e := inventory.LoadBagRules("configs/inventory.compat90.json")
+	bagRules, e := inventory.LoadBagRules("configs/inventory.compat90.json", c.Source.Checksum)
 	if e != nil {
 		return e
 	}

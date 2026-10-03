@@ -4,10 +4,11 @@
 package main
 
 import (
+	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/gamedata"
+	"dfolan/internal/inventory"
 	"dfolan/internal/quest"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -61,7 +62,6 @@ type kindRow struct {
 func main() {
 	questPath := flag.String("quests", "", "deprecated quest path; quests are read from native PVF")
 	archive := flag.String("pvf-archive", "../client-build/Script.inner.pvf", "read-only inner PVF")
-	equipPath := flag.String("equipment", "configs/equipment.current35.json", "equipment catalog")
 	low := flag.Int("low-level", 20, "low-level reporting threshold")
 	samples := flag.Int("samples", 6, "per-kind unimplemented samples to print")
 	worldPath := flag.String("world", "", "nonempty enables NPC presence scan; world is read from native PVF")
@@ -191,18 +191,17 @@ func main() {
 		fmt.Printf("  %-20s %d\n", k, n)
 	}
 
-	b, e := os.ReadFile(*equipPath)
+	index, e := native.ItemIndex("")
 	if e != nil {
 		log.Fatal(e)
 	}
-	var ef struct {
-		Rows []struct {
-			ID     uint32
-			Path   string
-			Fields map[string][]pvf.Token
-		} `json:"rows"`
+	dropPolicy, e := inventory.ReadDropPolicy("configs/pvf-drop-policy.json")
+	if e != nil {
+		log.Fatal(e)
 	}
-	if e = json.Unmarshal(b, &ef); e != nil {
+	questCatalog := catalog.QuestCatalog{Source: native.Snapshot(), Quests: map[uint32]catalog.QuestDefinition{}}
+	gear, e := native.EquipmentSelection(index, questCatalog, dropPolicy)
+	if e != nil {
 		log.Fatal(e)
 	}
 	// Same acceptance test as inventory.EquipmentCatalog.Basic: only free,
@@ -211,7 +210,7 @@ func main() {
 	byGrade := map[int32]int{}
 	byLevel := map[int32]int{}
 	usable := 0
-	for _, r := range ef.Rows {
+	for _, r := range gear.Rows {
 		attach, rarity := r.Fields["[attach type]"], r.Fields["[rarity]"]
 		kind, dur := r.Fields["[equipment type]"], r.Fields["[durability]"]
 		switch {
@@ -243,7 +242,7 @@ func main() {
 			byLevel[l[0].Value]++
 		}
 	}
-	fmt.Printf("\n== equipment drop pool candidates (rows=%d bag-usable=%d)\n", len(ef.Rows), usable)
+	fmt.Printf("\n== equipment drop pool candidates (native selected rows=%d bag-usable=%d)\n", len(gear.Rows), usable)
 	for _, m := range []struct {
 		name string
 		data map[int32]int
@@ -286,7 +285,7 @@ func main() {
 		})
 	}
 	if *verify {
-		if n := verifyStartup(q); n > 0 {
+		if n := verifyStartup(native, q); n > 0 {
 			os.Exit(1)
 		}
 	}

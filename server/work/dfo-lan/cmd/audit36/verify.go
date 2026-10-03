@@ -2,8 +2,10 @@ package main
 
 import (
 	"dfolan/internal/catalog"
+	"dfolan/internal/gamedata"
 	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
+	"dfolan/internal/managementdata"
 	"dfolan/internal/quest"
 	"fmt"
 )
@@ -11,7 +13,7 @@ import (
 // verifyStartup loads every catalog and policy the 36 launch profile passes to
 // wireprobe, through the very same loaders the server uses. A mismatch here is
 // a startup failure the player would otherwise meet as a dead launcher.
-func verifyStartup(quests catalog.QuestCatalog) int {
+func verifyStartup(native *gamedata.Source, quests catalog.QuestCatalog) int {
 	failures := 0
 	step := func(name string, e error) {
 		if e != nil {
@@ -22,14 +24,14 @@ func verifyStartup(quests catalog.QuestCatalog) int {
 		fmt.Printf("  ok   %s\n", name)
 	}
 	fmt.Printf("\n== 36 startup profile\n")
-	chars, e := catalog.LoadCharacters("configs/characters.next25.json")
-	step("characters.next25.json", e)
+	chars, e := managementdata.Characters(native, "configs/pvf-character-policy.json")
+	step("native PVF characters + policy", e)
 	if e != nil {
 		return failures
 	}
-	source := chars.Source.Checksum
+	sourceChecksum := chars.Source.Checksum
 
-	routes, e := catalog.LoadTutorialRoutes("configs/tutorial-routes.current35.json", source)
+	routes, e := catalog.LoadTutorialRoutes("configs/tutorial-routes.current35.json", sourceChecksum)
 	step("tutorial-routes.current35.json", e)
 	if e == nil {
 		normal := 0
@@ -42,7 +44,7 @@ func verifyStartup(quests catalog.QuestCatalog) int {
 	}
 	td, e := catalog.LoadDungeons("configs/tutorial-dungeons.current36.json")
 	step("tutorial-dungeons.current36.json", e)
-	if e == nil && td.Source.Checksum != source {
+	if e == nil && td.Source.Checksum != sourceChecksum {
 		step("tutorial dungeon source match", fmt.Errorf("checksum differs"))
 	}
 	rules, e := loot.LoadRules("configs/drop.current36.json")
@@ -50,8 +52,19 @@ func verifyStartup(quests catalog.QuestCatalog) int {
 	if e == nil {
 		fmt.Printf("       kinds=%v\n", rules.SupportedKinds)
 	}
-	gear, e := inventory.LoadEquipmentCatalog("configs/equipment.current35.json", source)
-	step("equipment.current35.json", e)
+	index, e := native.ItemIndex("")
+	if e != nil {
+		step("native equipment item index", e)
+	}
+	policy, pe := inventory.ReadDropPolicy("configs/pvf-drop-policy.json")
+	if pe != nil {
+		step("PVF drop policy", pe)
+	}
+	var gear *inventory.EquipmentCatalog
+	if e == nil && pe == nil {
+		gear, e = native.EquipmentSelection(index, catalog.QuestCatalog{Source: native.Snapshot(), Quests: map[uint32]catalog.QuestDefinition{}}, policy)
+	}
+	step("native equipment selection + policy", e)
 	if e == nil {
 		fmt.Printf("       bag-usable drop pool=%d\n", len(gear.DropPool()))
 	}

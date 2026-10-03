@@ -11,7 +11,6 @@ package main
 
 import (
 	"context"
-	"dfolan/internal/catalog"
 	"dfolan/internal/character"
 	"dfolan/internal/inventory"
 	"dfolan/internal/managementdata"
@@ -30,8 +29,8 @@ const repairEventKey = "creation-equipment-repair-v1"
 func main() {
 	sourceFlags := managementdata.Register(flag.CommandLine)
 	storageConfig := flag.String("storage", "runtime/storage/local.json", "storage configuration")
-	characterCatalog := flag.String("character-catalog", "configs/characters.skycastle-release.json", "profession catalog（必须带 growtype 分段数据）")
-	equipmentCatalog := flag.String("quest-equipment-catalog", "configs/equipment.current37.json", "source equipment metadata")
+	flag.String("character-catalog", "", "retired compatibility flag; characters come from PVF")
+	flag.String("quest-equipment-catalog", "", "retired compatibility flag; equipment comes from PVF")
 	wearRules := flag.String("equipment-wear-rules", "configs/equipment-wear.current35.json", "part to worn-slot rules")
 	characterRules := flag.String("character-rules", "configs/character-rules.odyssey-release.json", "creation rules（all_jobs_pilot / swordmaster_pilot 决定是否补转职落账）")
 	id := flag.Int64("character", 0, "exact development character ID")
@@ -41,31 +40,21 @@ func main() {
 	if e != nil {
 		log.Fatal(e)
 	}
-	var chars catalog.Characters
-	if native != nil {
-		defer native.Close()
-		chars, e = managementdata.Characters(native, sourceFlags.CharacterPolicy)
-	} else {
-		chars, e = catalog.LoadCharacters(*characterCatalog)
-	}
+	defer native.Close()
+	chars, e := managementdata.Characters(native, sourceFlags.CharacterPolicy)
 	if e != nil {
 		log.Fatal(e)
 	}
-	var equipment *inventory.EquipmentCatalog
-	if native != nil {
-		policy, err := inventory.ReadDropPolicy(sourceFlags.DropPolicy)
-		if err != nil {
-			log.Fatal(err)
-		}
-		index, err := native.ItemIndex("")
-		if err != nil {
-			log.Fatal(err)
-		}
-		native.ReleaseReadCaches()
-		equipment, e = managementdata.Equipment(native, index, policy)
-	} else {
-		equipment, e = inventory.LoadEquipmentCatalog(*equipmentCatalog, chars.Source.Checksum)
+	policy, err := inventory.ReadDropPolicy(sourceFlags.DropPolicy)
+	if err != nil {
+		log.Fatal(err)
 	}
+	index, err := native.ItemIndex("")
+	if err != nil {
+		log.Fatal(err)
+	}
+	native.ReleaseReadCaches()
+	equipment, e := managementdata.Equipment(native, index, policy)
 	if e != nil {
 		log.Fatal(e)
 	}

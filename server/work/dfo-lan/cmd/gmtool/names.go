@@ -22,7 +22,9 @@ package main
 
 import (
 	"bufio"
+	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
+	"dfolan/internal/gamedata"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -194,104 +196,42 @@ type catalogRow struct {
 	Fields map[string][]pvf.Token `json:"Fields"`
 }
 
-// buildEquipmentSlots 把若干份装备目录里的 [equipment type] / [minimum level]
-// 合成一张 id -> 部位+等级的紧凑表。
-//
-// 传入的目录按顺序生效：先读的目录优先（后面目录只补缺）。
-// 用法见 main.go 的 -build-data：先 configs/equipment.current37.json（服务端现役目录，
-// 19,955 行），再补一份全量遍历目录（121,726 行）以提高物品库覆盖率。
-func buildEquipmentSlots(outPath string, catalogPaths ...string) (int, []string, error) {
+// buildEquipmentSlots exports current native PVF display metadata.
+func buildEquipmentSlots(outPath, archivePath string) (int, []string, error) {
+	source, err := gamedata.Open(gamedata.Options{Mode: gamedata.PVF, ArchivePath: archivePath})
+	if err != nil {
+		return 0, nil, err
+	}
+	defer source.Close()
+	index, err := source.ItemIndex("")
+	if err != nil {
+		return 0, nil, err
+	}
 	slots := map[string]slotMapEntry{}
-	used := []string{}
-	for _, p := range catalogPaths {
-		p = strings.TrimSpace(p)
-		if p == "" {
-			continue
+	err = source.VisitItemDisplay(index, func(row catalog.ItemDisplay) error {
+		if row.Kind == "equipment" && row.ID != 0 && row.EquipmentType != "" {
+			slots[strconv.FormatUint(uint64(row.ID), 10)] = slotMapEntry{Cell: row.EquipmentType, Level: row.MinimumLevel}
 		}
-		if _, err := os.Stat(p); err != nil {
-			fmt.Fprintf(os.Stderr, "提示：装备目录 %s 不存在，跳过\n", p)
-			continue
-		}
-		n, err := absorbCatalogSlots(p, slots)
-		if err != nil {
-			return 0, used, fmt.Errorf("读取装备目录 %s: %w", p, err)
-		}
-		used = append(used, fmt.Sprintf("%s(%d 行新增)", p, n))
-		fmt.Fprintf(os.Stderr, "  装备目录 %-70s 新增 %d 行\n", p, n)
+		return nil
+	})
+	if err != nil {
+		return 0, nil, err
 	}
 	if len(slots) == 0 {
-		return 0, used, fmt.Errorf("没有任何装备目录可用，equipment.slots.json 未生成")
+		return 0, nil, fmt.Errorf("native equipment display metadata is empty")
 	}
-	out := slotMapFile{
-		Source:  strings.Join(used, " + "),
-		BuiltAt: time.Now().Format(time.RFC3339),
-		Slots:   slots,
-	}
-	b, err := json.Marshal(out)
+	used := []string{source.Snapshot().Checksum}
+	data, err := json.Marshal(slotMapFile{Source: used[0], BuiltAt: time.Now().Format(time.RFC3339), Slots: slots})
 	if err != nil {
 		return 0, used, err
 	}
-	if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
+	if err = os.MkdirAll(filepath.Dir(outPath), 0755); err != nil {
 		return 0, used, err
 	}
-	if err := os.WriteFile(outPath, b, 0o644); err != nil {
+	if err = os.WriteFile(outPath, data, 0644); err != nil {
 		return 0, used, err
 	}
 	return len(slots), used, nil
-}
-
-// absorbCatalogSlots 流式读取一份装备目录的 rows 数组，把它并进 slots（已有的不覆盖）。
-// 文件最大 122MB，用 json.Decoder 逐行解码，避免再复制一份整体字节。
-func absorbCatalogSlots(path string, slots map[string]slotMapEntry) (int, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return 0, err
-	}
-	defer f.Close()
-	dec := json.NewDecoder(bufio.NewReaderSize(f, 1<<20))
-	// 顶层对象开括号
-	if _, err := dec.Token(); err != nil {
-		return 0, err
-	}
-	n := 0
-	for dec.More() {
-		keyTok, err := dec.Token()
-		if err != nil {
-			return 0, err
-		}
-		if key, _ := keyTok.(string); key != "rows" {
-			var skip json.RawMessage
-			if err := dec.Decode(&skip); err != nil {
-				return 0, err
-			}
-			continue
-		}
-		// rows 数组开括号
-		if _, err := dec.Token(); err != nil {
-			return 0, err
-		}
-		for dec.More() {
-			var row catalogRow
-			if err := dec.Decode(&row); err != nil {
-				return 0, err
-			}
-			cell := cellText(row.Fields["[equipment type]"])
-			if row.ID == 0 || cell == "" {
-				continue
-			}
-			k := strconv.FormatUint(uint64(row.ID), 10)
-			if _, dup := slots[k]; dup {
-				continue
-			}
-			slots[k] = slotMapEntry{Cell: cell, Level: cellInt(row.Fields["[minimum level]"])}
-			n++
-		}
-		// rows 数组闭括号
-		if _, err := dec.Token(); err != nil {
-			return 0, err
-		}
-	}
-	return n, nil
 }
 
 // loadSlotMap 读取 equipment.slots.json。文件不存在时返回空表而不是报错 ——

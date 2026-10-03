@@ -53,7 +53,7 @@ type paths struct {
 }
 
 // 独立发布包 D:\115us\gm-tool 里的默认路径。
-// 找不到时 LoadItemIndex 会回落到 loot + equipment 目录，名字则回落到 names.zh.json。
+// 运行物品目录从原生 PVF 准备，外部名字表仅补翻译。
 const (
 	// defaultItemIndex 是全量物品库（386230 件）。
 	defaultItemIndex = `D:\115us\gm-tool\configs\items.index.json`
@@ -83,9 +83,9 @@ func resolvePaths(root string) paths {
 		namesClient:    defaultNamesClient,
 		itemIndex:      defaultItemIndex,
 		equipmentSlots: defaultEquipmentSlots,
-		lootCatalog:    filepath.Join(configs, "loot.next25.json"),
+		lootCatalog:    "",
 		bagRules:       filepath.Join(configs, "inventory.next29.json"),
-		equipCatalog:   filepath.Join(configs, "equipment.current37.json"),
+		equipCatalog:   "",
 		clientPVF:      defaultClientPVF,
 		equipmentFull:  defaultEquipmentFull,
 	}
@@ -160,9 +160,9 @@ func main() {
 	// 兼容独立发布包 D:\115us\gm-tool 的启动参数（scripts/gmweb.py 会全部传进来）。
 	storagePath := flag.String("storage", "", "local.json 路径（默认 -root 下的 runtime/storage/local.json）")
 	itemIndexPath := flag.String("item-index", "", "兼容旧参数；运行内容只读PVF，不读取该JSON")
-	lootCatalog := flag.String("loot-catalog", "", "掉落目录路径（默认 -root 下的 configs/loot.next25.json）")
+	lootCatalog := flag.String("loot-catalog", "", "已退休兼容参数；运行内容使用 PVF")
 	bagRules := flag.String("bag-rules", "", "背包规则路径（默认 -root 下的 configs/inventory.next29.json）")
-	equipCatalog := flag.String("equipment-catalog", "", "装备目录路径（默认 -root 下的 configs/equipment.current37.json）")
+	equipCatalog := flag.String("equipment-catalog", "", "已退休兼容参数；运行内容使用 PVF")
 	// 名字与部位这两个"和游戏对齐"的数据源，见 names.go 的包注释。
 	namesClient := flag.String("names-client", "",
 		"客户端 PVF 文本表导出的名字表 names.client.json（游戏里显示的名字；留空则自动查找，缺失时回落到 runtime/l10n/names.zh.json）")
@@ -208,7 +208,7 @@ func main() {
 	}
 	p.applyOverrides(*lootCatalog, *bagRules, *equipCatalog, itemIndexResolved, namesClientResolved, equipmentSlotsResolved)
 	// 显式给了配置路径时，configs 目录以用户给的为准（独立包不在 -root 下面）。
-	p.configs = filepath.Dir(p.lootCatalog)
+	p.configs = filepath.Dir(p.bagRules)
 	p.clientPVF, p.equipmentFull = *clientPVF, *equipmentFull
 
 	// 数据准备模式：只读 PVF/装备目录，写两个新文件，不连数据库。
@@ -656,8 +656,8 @@ func buildDataFiles(p paths) error {
 	}
 	log.Printf("名字表导出完成：%d 条（name_/growtype_name_/common_rarity_）", n)
 
-	log.Printf("从装备目录导出部位与最低等级：%s + %s -> %s", p.equipCatalog, p.equipmentFull, p.equipmentSlots)
-	m, used, err := buildEquipmentSlots(p.equipmentSlots, p.equipCatalog, p.equipmentFull)
+	log.Printf("从原生 PVF 导出部位与最低等级：%s -> %s", p.clientPVF, p.equipmentSlots)
+	m, used, err := buildEquipmentSlots(p.equipmentSlots, p.clientPVF)
 	if err != nil {
 		return err
 	}

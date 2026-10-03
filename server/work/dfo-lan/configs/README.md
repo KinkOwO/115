@@ -40,4 +40,13 @@ PVF 读取统一复用既有入口：运行装配用 `gamedata.PrepareCatalogs/C
 - charactercheck 从 PVF 构建任务装备，内容哈希与原生任务目录核对，角色 ConfigVersion 单独与 SaveIdentity 存档契约核对；不把存档版本当作 PVF 哈希。旧 next29–34 探针不再自动注入退休 JSON，较新候选显式保留当前装备表。`equipment.current35/37.json` 仍有独立消费者，本轮保留。
 - Go 1.26.5 全量 `go test -count=1 ./...` 和 `go vet ./...` 通过；Python 3.11.9 启动检查 10/10 与探针语法/参数设置检查通过。当前环境未挂载 PVF，真实归档输出/完整原生对照测试未执行；归档门禁仍保留。未启动客户端、运行服务或玩家库，没有改 PVF、schema、存档或用户 `.gitignore`，不扩展实机 confirmed baseline。
 
+## 2026-10-03：剩余装备 / 掉落运行读取收口（源码候选）
+
+loot 与 equipment-selection 的运行 JSON 回退、隐式 baseline 已移除，加载 API 必须有已选择且准备好的原生目录。wireprobe 启用掉落或任务装备时，在访问存储前检查所需领域；原有等级上限、排除项、概率和发放规则继续使用既有政策。
+
+- charactercheck / audit36 统一使用 `gamedata.Open/Source` 及既有 policy；基础装备选集使用同源空任务目录保持政策基础范围，任务扩展另走原生任务。BagRules 使用实际内容 checksum；角色 ConfigVersion 仍与 SaveIdentity 核对，不修改角色存档或别名化来源哈希。
+- GM 正常运行继续用原生 PVF，退休无调用的 JSON fallback 构建器；离线装备部位导出直接使用原生 ItemDisplay，读取失败不覆盖现有产物。initialrepair 删除不可达 JSON 分支，lootimport 使用 Source 并要求显式输出。当前源码探针用 PVF 领域激活标记，历史二进制需要显式提供匹配的历史装备输入。
+- 本轮不增加整表 gzip 快照。`loot.next25.json`、`equipment.current35.json`、`equipment.current37.json` 暂时保留为旧测试输入，顶层 JSON 仍为 71 个，不能把运行退役误报为文件已删除。后续普通行为测试优先小型输入，当前内容校验用真实 PVF；完整历史快照仅在确有版本比较需求时保留。
+- Go 1.26.5 全量 `go test -count=1 ./...` 与 `go vet ./...` 通过；Python 3.11.9 启动/profile/身份接线检查 26/26 及探针语法检查通过。当前没有挂载 PVF；真实归档专项仍待执行，未运行客户端、服务实例或玩家库，没有修改 PVF、schema 或存档，不扩展 confirmed baseline。
+
 完整审计与迁移顺序见根目录 [PVF 单一内容真源改造计划](../../../../docs/todo/pvf/PVF单一内容真源改造计划.md)，逐文件源码线索见 [configs 字面引用清单](../../../../docs/todo/pvf/configs字面引用清单.md)。其他尚未解除的运行依赖继续逐项迁移。

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"dfolan/internal/catalog"
 	"dfolan/internal/character"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
@@ -14,7 +13,7 @@ import (
 )
 
 func wearCheck(ctx context.Context, s, reopened *storage.Store, account, foreign int64) error {
-	c, e := catalog.LoadCharacters("configs/characters.next25.json")
+	c, e := loadNativeCharacterCatalog()
 	if e != nil {
 		return e
 	}
@@ -43,7 +42,7 @@ func wearCheck(ctx context.Context, s, reopened *storage.Store, account, foreign
 	if _, e = s.DB.Exec(ctx, "UPDATE characters SET state=$2 WHERE id=$1", role.ID, role.State); e != nil {
 		return e
 	}
-	eq, e := inventory.LoadEquipmentCatalog("configs/equipment.current35.json", c.Source.Checksum)
+	eq, e := loadNativeEquipmentCatalog(c.Source.Checksum)
 	if e != nil {
 		return e
 	}
@@ -51,7 +50,7 @@ func wearCheck(ctx context.Context, s, reopened *storage.Store, account, foreign
 	if e != nil {
 		return e
 	}
-	bagRules, e := inventory.LoadBagRules("configs/inventory.next29.json")
+	bagRules, e := inventory.LoadBagRules("configs/inventory.next29.json", c.Source.Checksum)
 	if e != nil {
 		return e
 	}

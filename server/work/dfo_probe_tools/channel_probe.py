@@ -322,7 +322,7 @@ with (
    "-progression-rules",
    str(project / "configs/experience.compat90.json"),
    "-loot-catalog",
-   str(project / "configs/loot.level150.json"),
+   "pvf",
    "-loot-rules",
    str(project / "configs/drop.compat90.json"),
    "-bag-rules",
@@ -383,11 +383,6 @@ with (
    command += ["-game-listen", "127.0.0.2:0"]
  if candidate35:
   command[0] = str(project / "bin/wireprobe-dungeon35.exe")
-  set_option_value(
-   command,
-   "-quest-equipment-catalog",
-   project / "configs/equipment.current37.json",
-  )
   command += [
    "-equipment-wear-rules",
    str(project / "configs/equipment-wear.current35.json"),
@@ -424,11 +419,6 @@ with (
   # re-entry, no crash. (Do NOT use 38 - its userinfo-appearance block over-reads
   # and access-violates the client; that whole approach is abandoned.)
   command[0] = str(project / "bin/wireprobe-dungeon39.exe")
-  set_option_value(
-   command,
-   "-quest-equipment-catalog",
-   project / "configs/equipment.current37.json",
-  )
   # The bag policy gains the quick-use belt (slots 0..8, the gap below the
   # equipment range) so a consumable can be dragged onto the hotkey bar.
   command[command.index("-bag-rules") + 1] = str(
@@ -563,13 +553,19 @@ with (
   os.environ["DFO_EQUIPMENT_WEAR_RULES"] = str(eq_wear_full.resolve())
  # ★ 下发前按当前服务端程序自报的能力过滤参数（见 prune_unsupported）。
  command = prune_unsupported(command)
- # The gear a run can drop. Required with -loot-catalog: without it the
- # session builds an empty pool and every equipment award is discarded, which
- # is what made a full border-of-attunement clear pay nothing. The gateway
- # cwd is the pack root, so a relative built-in default never resolves.
- os.environ["DFO_EQUIPMENT_CATALOG"] = str(
-  project / "configs/equipment.current37.json"
- )
+ # Current source uses prepared PVF domains. Historical binaries require
+ # an explicit matching export; retired configs are never injected implicitly.
+ supported = exe_flags(command[0]) or set()
+ if "pvf-catalogs" in supported:
+  os.environ["DFO_EQUIPMENT_CATALOG"] = "pvf"
+  set_option_value(command, "-quest-equipment-catalog", "pvf")
+ else:
+  historical = os.environ.get("DFO_HISTORICAL_EQUIPMENT_CATALOG")
+  if historical:
+   set_option_value(command, "-quest-equipment-catalog", historical)
+   os.environ["DFO_EQUIPMENT_CATALOG"] = historical
+  elif candidate35 or candidate36 or candidate37:
+   raise ValueError("Historical binaries require DFO_HISTORICAL_EQUIPMENT_CATALOG and matching historical configs; use DFO_SERVER_BINARY with current PVF-capable source for this configuration tree")
  # The boundary-of-attunement reward table (source rewardboostinfo CTPs).
  # Without it a full border-of-attunement clear pays no exclusive reward; the
  # gateway only ever finds it through this absolute path, for the same cwd

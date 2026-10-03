@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"dfolan/internal/catalog"
 	"dfolan/internal/character"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/quest"
@@ -21,7 +20,7 @@ func questRewardCheck(ctx context.Context, s, reopened *storage.Store, role stor
 	if e != nil {
 		return e
 	}
-	prof, e := catalog.LoadCharacters("configs/characters.next25.json")
+	prof, e := loadNativeCharacterCatalog()
 	if e != nil {
 		return e
 	}

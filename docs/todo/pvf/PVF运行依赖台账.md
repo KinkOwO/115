@@ -22,6 +22,8 @@
 
 随后收口两份任务装备重复导出与两份抽奖奖池，顶层 JSON 75→71。抽奖只使用原生域，工具统一使用 Source；历史抽奖仅作为 SHA256 校验测试夹具。当前环境没有挂载 PVF，未增加归档或实机确认结论。详见迁移计划本轮记录。
 
+剩余 loot/equipment-selection 的运行 fallback 与隐式 baseline 已移除；charactercheck/audit36 和 GM 离线部位导出改接原生 Source。三份原 JSON 暂保留为旧测试输入，本批不添加完整压缩快照；不能据生产退役宣称文件已删除。
+
 ## 第 0 批历史审计
 
 审计日期：2026-10-02。代码审计基点：HEAD b7a5692；本文件行号均指该快照，实际工作树中其他 agent 已修改 cmd/wireprobe 的行号，集成后须复核。审计范围为源码、默认 profile、启动器、admin/GM 与外部探针。server/work/dfo-lan/scripts/launch_local.py 有用户改动，本表按当前行为描述。本批只更新文档，不改运行代码、数值、客户端、协议、存档或启动行为，也没有启动服务、客户端或数据库。

@@ -1,5 +1,14 @@
 # AGENTS.md — server/
 
+## 2026-10-03：剩余装备 / 掉落运行读取收口（源码候选）
+
+loot 与 equipment-selection 的运行 JSON 回退、隐式 baseline 已移除，加载 API 必须有已选择且准备好的原生目录。wireprobe 启用掉落或任务装备时，在访问存储前检查所需领域；原有等级上限、排除项、概率和发放规则继续使用既有政策。
+
+- charactercheck / audit36 统一使用 `gamedata.Open/Source` 及既有 policy；基础装备选集使用同源空任务目录保持政策基础范围，任务扩展另走原生任务。BagRules 使用实际内容 checksum；角色 ConfigVersion 仍与 SaveIdentity 核对，不修改角色存档或别名化来源哈希。
+- GM 正常运行继续用原生 PVF，退休无调用的 JSON fallback 构建器；离线装备部位导出直接使用原生 ItemDisplay，读取失败不覆盖现有产物。initialrepair 删除不可达 JSON 分支，lootimport 使用 Source 并要求显式输出。当前源码探针用 PVF 领域激活标记，历史二进制需要显式提供匹配的历史装备输入。
+- 本轮不增加整表 gzip 快照。`loot.next25.json`、`equipment.current35.json`、`equipment.current37.json` 暂时保留为旧测试输入，顶层 JSON 仍为 71 个，不能把运行退役误报为文件已删除。后续普通行为测试优先小型输入，当前内容校验用真实 PVF；完整历史快照仅在确有版本比较需求时保留。
+- Go 1.26.5 全量 `go test -count=1 ./...` 与 `go vet ./...` 通过；Python 3.11.9 启动/profile/身份接线检查 26/26 及探针语法检查通过。当前没有挂载 PVF；真实归档专项仍待执行，未运行客户端、服务实例或玩家库，没有修改 PVF、schema 或存档，不扩展 confirmed baseline。
+
 ## 2026-10-03：任务装备重复导出与抽奖唯一真源（源码候选）
 
 删除 `quest-equipment.current37.json`、`quest-equipment.next29.json`、`lottery-item-pools.json`、`lottery-equipment-pools.json`，共 7,111,136 字节；顶层 JSON 75→71。抽奖完整历史快照保留为 476,221 字节 gzip，仅供测试读取并核验原始 SHA256；本轮内容净减少 6,634,915 字节（约 6.33 MiB）。
