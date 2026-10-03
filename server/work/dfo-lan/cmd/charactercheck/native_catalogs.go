@@ -2,6 +2,7 @@ package main
 
 import (
 	"dfolan/internal/catalog"
+	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/gamedata"
 	"dfolan/internal/inventory"
 	"fmt"
@@ -34,7 +35,17 @@ func loadNativeProgressionCatalog() (catalog.Progression, error) {
 	return source.Progression("")
 }
 
-func loadNativeQuestEquipmentCatalog(characterConfigVersion string) (*inventory.EquipmentCatalog, error) {
+func validateNativeEquipmentIdentity(source pvf.ArchiveSnapshot, characterConfigVersion, questSourceChecksum string) error {
+	if source.SaveIdentity() != characterConfigVersion {
+		return fmt.Errorf("native quest equipment save identity %s does not match character config version %s", source.SaveIdentity(), characterConfigVersion)
+	}
+	if source.Checksum != questSourceChecksum {
+		return fmt.Errorf("native quest equipment source %s does not match quest source %s", source.Checksum, questSourceChecksum)
+	}
+	return nil
+}
+
+func loadNativeQuestEquipmentCatalog(characterConfigVersion, questSourceChecksum string) (*inventory.EquipmentCatalog, error) {
 	source, err := nativeSource()
 	if err != nil {
 		return nil, err
@@ -57,8 +68,8 @@ func loadNativeQuestEquipmentCatalog(characterConfigVersion string) (*inventory.
 	if err != nil {
 		return nil, err
 	}
-	if equipment.Source.Checksum != characterConfigVersion {
-		return nil, fmt.Errorf("native quest equipment source %s does not match character config version %s", equipment.Source.Checksum, characterConfigVersion)
+	if err := validateNativeEquipmentIdentity(equipment.Source, characterConfigVersion, questSourceChecksum); err != nil {
+		return nil, err
 	}
 	return equipment, nil
 }

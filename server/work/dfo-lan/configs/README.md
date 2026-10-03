@@ -37,7 +37,7 @@ PVF 读取统一复用既有入口：运行装配用 `gamedata.PrepareCatalogs/C
 
 - 抽奖运行 API 只接受准备好的原生 PVF 表，不读取旧路径或历史 baseline；启动不再构造退役奖池路径，启用抽奖而缺少原生域时明确拒绝。奖励、数量、权重、发现范围和不可发放奖池拒绝规则保持。
 - equipfields、questequipmentimport、equipmentwearimport 统一使用 `gamedata.Open/Source`；两个导出器要求显式输出，旧 JSON seed 参数明确拒绝。基础装备选集继续来自既有 policy，任务装备选集由同源物品与任务构建。
-- charactercheck 从 PVF 构建任务装备并严格核对角色 ConfigVersion，不别名化历史源哈希。旧 next29–34 探针不再自动注入退休 JSON，较新候选显式保留当前装备表。`equipment.current35/37.json` 仍有独立消费者，本轮保留。
+- charactercheck 从 PVF 构建任务装备，内容哈希与原生任务目录核对，角色 ConfigVersion 单独与 SaveIdentity 存档契约核对；不把存档版本当作 PVF 哈希。旧 next29–34 探针不再自动注入退休 JSON，较新候选显式保留当前装备表。`equipment.current35/37.json` 仍有独立消费者，本轮保留。
 - Go 1.26.5 全量 `go test -count=1 ./...` 和 `go vet ./...` 通过；Python 3.11.9 启动检查 10/10 与探针语法/参数设置检查通过。当前环境未挂载 PVF，真实归档输出/完整原生对照测试未执行；归档门禁仍保留。未启动客户端、运行服务或玩家库，没有改 PVF、schema、存档或用户 `.gitignore`，不扩展实机 confirmed baseline。
 
 完整审计与迁移顺序见根目录 [PVF 单一内容真源改造计划](../../../../docs/todo/pvf/PVF单一内容真源改造计划.md)，逐文件源码线索见 [configs 字面引用清单](../../../../docs/todo/pvf/configs字面引用清单.md)。其他尚未解除的运行依赖继续逐项迁移。

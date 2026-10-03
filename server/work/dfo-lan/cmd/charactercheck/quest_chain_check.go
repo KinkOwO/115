@@ -127,7 +127,7 @@ func questChainCheck(ctx context.Context, s *storage.Store, other int64) error {
 	if e != nil {
 		return e
 	}
-	ec, e := loadNativeQuestEquipmentCatalog(r.ConfigVersion)
+	ec, e := loadNativeQuestEquipmentCatalog(r.ConfigVersion, q.Source.Checksum)
 	if e != nil {
 		return e
 	}
