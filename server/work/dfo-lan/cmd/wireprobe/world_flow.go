@@ -220,9 +220,12 @@ func (w *worldSession) enter(role storage.Character, spawn storage.WorldPosition
 		}
 	}
 	// 特殊征讨频道（SemiRaid/Legion）的专属城镇曾经由会话位置保存写进普通频道
-	// 共享行（月湖 215 / Azure 213 / 军团 239）：普通频道恢复到该位置会被客户端
+	// 共享行（月湖 215 / Azure 213 / 军团 239）：**普通频道**恢复到该位置会被客户端
 	// 以「对立阵营起始点」拒绝。修回默认落点，而不是拒绝进入。
-	if w.specialTowns[saved.Position.Town] {
+	// ⚠️ 只修普通频道（!channelWorldIsolated）：特殊频道自己恢复专属城镇位置是
+	// 合法的（[102] 行的 213/2 就是 Azure 门口），不能误修 —— 2026-10-03 实测
+	// 无条件修复会把 Azure 频道的落点改回普通世界 Elvenguard。
+	if !w.channelWorldIsolated && w.specialTowns[saved.Position.Town] {
 		if w.specialTowns[spawn.Town] {
 			return fmt.Errorf("普通频道默认落点不能使用特殊征讨频道城镇 %d", spawn.Town)
 		}
