@@ -1,6 +1,7 @@
 package character
 
 import (
+	"dfolan/internal/catalog"
 	"dfolan/internal/inventory"
 	"testing"
 )
@@ -8,6 +9,10 @@ import (
 // 奥德赛角色不走任务链路，扩展装备槽靠通关指定副本解锁；
 // 规则来源见 analysis/tasks/next50-odyssey-expanded-equip-slot.md §1。
 func TestOdysseyExpandEquipMask(t *testing.T) {
+	r, e := catalog.LoadOdysseyGrowth("../../configs/odyssey-growth-release.json")
+	if e != nil {
+		t.Fatal(e)
+	}
 	cases := []struct {
 		id   uint32
 		want byte
@@ -21,9 +26,11 @@ func TestOdysseyExpandEquipMask(t *testing.T) {
 		{100004968, 0, false, "普通奥德赛副本不解锁"},
 		{100004963, 0, false, "普通奥德赛副本不解锁"},
 		{0, 0, false, "空 id"},
+		{100004980, inventory.ExpandSupport | inventory.ExpandMagicStone | inventory.ExpandEarring, true, "源 110 级全槽解锁"},
 	}
 	for _, c := range cases {
-		got, ok := OdysseyExpandEquipMask(c.id)
+		got := odysseySlotActionMask(r.LevelActions[r.ClearLevels[c.id]])
+		ok := got != 0
 		if ok != c.ok || got != c.want {
 			t.Fatalf("%s: dungeon %d got (%d, %v), want (%d, %v)", c.desc, c.id, got, ok, c.want, c.ok)
 		}
@@ -44,5 +51,54 @@ func TestOdysseyExpandEquipMaskBitsMatchSlots(t *testing.T) {
 	}
 	if all := inventory.ExpandSupport | inventory.ExpandMagicStone | inventory.ExpandEarring; all != 19 {
 		t.Fatalf("三个槽全解锁应为 19 (1|2|16)，实际 %d", all)
+	}
+}
+
+func TestOdysseyGrowthExecutesCrossedSlotActions(t *testing.T) {
+	s, r := odysseyGrowthFixture(t)
+	s.Odyssey.LevelActions = map[byte][]string{12: {"unlock support"}, 14: {"unlock magic stone"}}
+	next, e := s.ApplyOdysseyTarget(r, 15)
+	if e != nil {
+		t.Fatal(e)
+	}
+	b, e := inventory.ReadBag(next.State)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if b.ExpandEquipFlags != inventory.ExpandSupport|inventory.ExpandMagicStone {
+		t.Fatalf("crossed source actions not executed: %+v", b)
+	}
+	r.Request = nil
+	if _, e = s.ApplyOdysseyTarget(r, 15); e == nil {
+		t.Fatal("ordinary mode consumed Odyssey level actions")
+	}
+}
+
+func TestOdysseySlotActionsReconcileReachedLevelsWithoutRegrant(t *testing.T) {
+	s, r := odysseyGrowthFixture(t)
+	s.Odyssey.LevelActions = map[byte][]string{12: {"unlock support"}}
+	next, e := s.ApplyOdysseyTarget(r, 15)
+	if e != nil {
+		t.Fatal(e)
+	}
+	before := append([]byte(nil), next.State...)
+	again, e := s.ApplyOdysseyTarget(next, 15)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if string(again.State) != string(before) {
+		t.Fatal("repeat action changed state")
+	}
+	s.Odyssey.LevelActions = map[byte][]string{12: {"unlock earring"}}
+	changed, e := s.ApplyOdysseyTarget(next, 15)
+	if e != nil {
+		t.Fatal(e)
+	}
+	b, e := inventory.ReadBag(changed.State)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if b.ExpandEquipFlags != inventory.ExpandSupport|inventory.ExpandEarring {
+		t.Fatal("updated source action did not reconcile", b.ExpandEquipFlags)
 	}
 }

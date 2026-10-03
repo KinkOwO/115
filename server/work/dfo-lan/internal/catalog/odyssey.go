@@ -44,12 +44,13 @@ func SetOdysseySource(checksum string) {
 const OdysseyGraduateRewardTemplate uint32 = 10420561
 
 type OdysseyGrowth struct {
-	Source      string                  `json:"source"`
-	Definition  ScriptRecord            `json:"definition"`
-	Items       map[uint32]ScriptRecord `json:"items"`
-	ClearLevels map[uint32]byte         `json:"-"`
-	EntryLevels map[uint32]byte         `json:"-"`
-	Gifts       map[byte]uint32         `json:"-"`
+	LevelActions map[byte][]string       `json:"-"`
+	Source       string                  `json:"source"`
+	Definition   ScriptRecord            `json:"definition"`
+	Items        map[uint32]ScriptRecord `json:"items"`
+	ClearLevels  map[uint32]byte         `json:"-"`
+	EntryLevels  map[uint32]byte         `json:"-"`
+	Gifts        map[byte]uint32         `json:"-"`
 	// Quests mirrors the [quest clear]/[remove clear quest]/[show quest]/
 	// [branch quest] tables of the same .etc file (graduation mainline plan).
 	Quests *OdysseyQuests `json:"-"`
@@ -146,6 +147,10 @@ func NewOdysseyGrowth(r OdysseyGrowth) (*OdysseyGrowth, error) {
 	// Quest tables: parsed and pinned against the source shape; see
 	// odyssey_quests.go for the exact assertions.
 	r.Quests, e = loadOdysseyQuests(r.Definition.Cells)
+	if e != nil {
+		return nil, e
+	}
+	r.LevelActions, e = ParseOdysseyLevelActions(r.Definition.Cells)
 	if e != nil {
 		return nil, e
 	}
