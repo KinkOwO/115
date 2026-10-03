@@ -238,6 +238,9 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		fmt.Println(string(b))
 		return nil, nil, nil
 	}
+	if err := requireRuntimeContent(startup, pvfCatalogs); err != nil {
+		return nil, nil, err
+	}
 	if _, err := pvfCatalogs.InstallAdventureRules(); err != nil {
 		return nil, nil, fmt.Errorf("PVF adventure runtime rules: %v", err)
 	}
@@ -348,33 +351,6 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		}
 	}
 
-	if startup.RandomOptionCatalog == "" && pvfCatalogs.RandomOptions == nil {
-		if _, err := os.Stat("configs/randomoption.current37.json"); err == nil {
-			startup.RandomOptionCatalog = "configs/randomoption.current37.json"
-		}
-	}
-	if startup.ItemShop == "" && pvfCatalogs.ItemShops == nil {
-		candidates := []string{
-			"configs/itemshop-release.json",
-			"configs/itemshop-candidate.json",
-			"server/work/dfo-lan/configs/itemshop-candidate.json",
-		}
-		for _, base := range []string{startup.BoosterCatalog, startup.ItemIndex} {
-			if base == "" {
-				continue
-			}
-			dir := filepath.Dir(base)
-			candidates = append(candidates,
-				filepath.Join(dir, "itemshop-release.json"),
-				filepath.Join(dir, "itemshop-candidate.json"))
-		}
-		for _, cand := range candidates {
-			if _, err := os.Stat(cand); err == nil {
-				startup.ItemShop = cand
-				break
-			}
-		}
-	}
 	skillRelease := os.Getenv("DFO_SKILL_RELEASE") == "1"
 	// NOTI2827 restores locked skills from the client's own character option
 	// block. The built-in block is the same version as this client, so the
@@ -743,11 +719,10 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 			return nil, nil, e
 		}
 		overlayDirectory := filepath.Dir(startup.CharacterCatalog)
-		path := filepath.Join(overlayDirectory, "dungeons.terminal-scenes.json")
-		if e = pvfCatalogs.AttachTerminalScenes(&data, path); e != nil {
+		if e = pvfCatalogs.AttachTerminalScenes(&data, ""); e != nil {
 			return nil, nil, e
 		}
-		path = filepath.Join(overlayDirectory, "dungeons.layer-revisits.json")
+		path := filepath.Join(overlayDirectory, "dungeons.layer-revisits.json")
 		if e = pvfCatalogs.AttachLayerRevisits(&data, path); e != nil {
 			return nil, nil, e
 		}
@@ -954,12 +929,8 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		lootService = &loot.Service{Catalog: c, DropCatalog: dropCatalog, Rules: r, BagRules: bag, Tables: tables, Equipment: gear}
 		itemService = &inventory.ItemService{Model: r.Model, Catalog: c, BagRules: bag, Equipment: gear, AvatarDisjoint: pvfCatalogs.AvatarDisjoint, EmblemCompound: pvfCatalogs.EmblemCompound, AvatarSockets: pvfCatalogs.AvatarSockets, EmblemInlay: pvfCatalogs.EmblemInlay, Journal: journalRules, CreateCost: equipmentCreateCost}
 		shopService = &workflow.ShopService{Store: gameStore, ShopService: inventory.ShopService{Catalog: c, EventModel: r.Model, BagRules: bag, ItemMaterials: itemMaterials}}
-		minePath := startup.BleedingMineRewards
-		if minePath == "" {
-			minePath = filepath.Join(filepath.Dir(lootPath), "bleeding-mine-rewards.json")
-		}
-		if _, err := os.Stat(minePath); err == nil || pvfCatalogs.Mine != nil {
-			mine, err := pvfCatalogs.LoadMine(minePath)
+		if pvfCatalogs.Mine != nil || startup.BleedingMineRewards != "" {
+			mine, err := pvfCatalogs.LoadMine(startup.BleedingMineRewards)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -967,8 +938,6 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 				return nil, nil, errors.New("赤红铁矿奖励表与当前角色配置版本不一致")
 			}
 			lootService.BleedingMine = mine
-		} else if startup.BleedingMineRewards != "" {
-			return nil, nil, err
 		}
 		if pvfCatalogs.Prices != nil || startup.ShopPrices != "" {
 			shopService.Prices, e = pvfCatalogs.LoadShopPrices(startup.ShopPrices, c.Source.Checksum)
@@ -990,30 +959,13 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 			return nil, nil, e
 		}
 		lootService.CardPolicy = &cards
-		// Open-box tables are optional: without them a box is still consumed, it
-		// just cannot hand out a prize. The launcher passes every config path
-		// absolutely, so an unset -boxes resolves beside the bag rules rather
-		// than against the working directory, which is not the project directory.
-		boxesPath := startup.Boxes
-		if boxesPath == "" {
-			boxesPath = filepath.Join(filepath.Dir(startup.BagRules), "boxes.json")
-		}
-		boxesAvailable := pvfCatalogs.Boxes != nil
-		if !boxesAvailable {
-			_, statErr := os.Stat(boxesPath)
-			boxesAvailable = statErr == nil
-		}
-		if boxesAvailable {
-			boxes, boxErr := pvfCatalogs.LoadBoxes(boxesPath, lootService.Catalog.Source.Checksum)
+		if pvfCatalogs.Boxes != nil || startup.Boxes != "" {
+			boxes, boxErr := pvfCatalogs.LoadBoxes(startup.Boxes, lootService.Catalog.Source.Checksum)
 			if boxErr != nil {
 				return nil, nil, boxErr
 			}
 			itemService.Boxes = boxes
 			log.Printf("PVF boxes: %d tables, %d prize templates", boxes.TableCount(), boxes.RewardCount())
-		} else if startup.Boxes != "" {
-			return nil, nil, errors.New(fmt.Sprint("boxes file missing: " + boxesPath))
-		} else {
-			log.Printf("boxes: %s absent, open-box prizes disabled", boxesPath)
 		}
 	}
 	responses := map[uint16][]byte{}
@@ -1468,8 +1420,7 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		log.Printf("warning: no attunement reward table; boundary-of-attunement clears pay no exclusive reward")
 	}
 	if lootService != nil && boosterCatalog != nil && (startup.ItemIndex != "" || pvfCatalogs.BlackPurgatory != nil) {
-		path := filepath.Join(filepath.Dir(startup.ItemIndex), "black-purgatory-rewards.json")
-		rewards, err := pvfCatalogs.LoadBlackPurgatory(path, boosterBoxSource{catalog: boosterCatalog}, func(id uint32) (catalog.LootItem, bool) {
+		rewards, err := pvfCatalogs.LoadBlackPurgatory("", boosterBoxSource{catalog: boosterCatalog}, func(id uint32) (catalog.LootItem, bool) {
 			item, ok := boosterCatalog.Items[id]
 			return catalog.LootItem{ID: id, Kind: item.Kind, StackableType: item.StackableType, StackLimit: item.StackLimit, Script: catalog.ScriptRecord{Path: item.Path}}, ok
 		})

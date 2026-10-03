@@ -34,13 +34,12 @@ func AuditCatalog(domain, path string, direct *Source, limit int) (result AuditR
 		runtime.ReadMemStats(&memory)
 		result.HeapAfterBytes = memory.HeapAlloc
 	}()
-	legacy, _ := Open(Options{Mode: JSON})
 	var left, right any
 	var err error
 	switch domain {
 	case "characters":
 		var value catalog.Characters
-		value, err = legacy.Characters(path)
+		value, err = catalog.LoadCharacters(path)
 		result.SourceChecksum, left = value.Source.Checksum, value
 		if err == nil {
 			right, err = direct.Characters(path)
@@ -61,7 +60,7 @@ func AuditCatalog(domain, path string, direct *Source, limit int) (result AuditR
 		}
 	case "progression":
 		var value catalog.Progression
-		value, err = legacy.Progression(path)
+		value, err = catalog.LoadProgression(path)
 		result.SourceChecksum, left = value.Source.Checksum, value
 		if err == nil {
 			right, err = direct.Progression(path)

@@ -18,7 +18,6 @@ func preparePVFClosingScenes(c *Catalogs, s *Source, selected map[string]bool, i
 	if c.Dungeons == nil {
 		return fmt.Errorf("native closing scene overlays require native dungeons")
 	}
-	dir := filepath.Dir(fullDungeonAuditPath(i))
 	if selected["dungeon-terminal"] {
 		quests := c.Quests
 		if quests == nil {
@@ -36,15 +35,6 @@ func preparePVFClosingScenes(c *Catalogs, s *Source, selected map[string]bool, i
 		base := clonePVFDungeons(*c.Dungeons)
 		if err := catalog.ApplyTerminalScenes(&base, direct); err != nil {
 			return err
-		}
-		if i.checksBaselines() {
-			old := clonePVFDungeons(*c.Dungeons)
-			if err := catalog.AttachTerminalScenes(&old, filepath.Join(dir, "dungeons.terminal-scenes.json")); err != nil {
-				return err
-			}
-			if err := verifyPVFCatalog(old.TerminalScenes, direct.Scenes); err != nil {
-				return fmt.Errorf("terminal scenes: %w", err)
-			}
 		}
 		c.TerminalScenes = &direct
 		log.Printf("PVF terminal scenes prepared: %d native quest/maze/ACT/CMT chains", len(direct.Scenes))
@@ -72,7 +62,7 @@ func (c *Catalogs) AttachTerminalScenes(d *catalog.DungeonCatalog, path string) 
 	if c.TerminalScenes != nil {
 		return catalog.ApplyTerminalScenes(d, *c.TerminalScenes)
 	}
-	return catalog.AttachTerminalScenes(d, path)
+	return nativeContentRequired("dungeon-terminal")
 }
 
 func (c *Catalogs) AttachTournamentMaps(d *catalog.DungeonCatalog, _ string) error {
@@ -161,7 +151,7 @@ func (c *Catalogs) AttachMazeRates(data *catalog.DungeonCatalog, path string) er
 	if c.MazeRates != nil {
 		return catalog.ApplyMazeChanceRates(data, *c.MazeRates)
 	}
-	return catalog.AttachMazeChanceRates(data, path)
+	return nativeContentRequired("dungeon-maze")
 }
 
 func preparePVFLayerRevisits(c *Catalogs, s *Source, selected map[string]bool, i CatalogInputs) error {
@@ -210,7 +200,7 @@ func (c *Catalogs) AttachLayerRevisits(d *catalog.DungeonCatalog, path string) e
 	if c.LayerRevisits != nil {
 		return catalog.ApplyLayerRevisits(d, *c.LayerRevisits)
 	}
-	return catalog.AttachLayerRevisits(d, path)
+	return nativeContentRequired("layer-revisits")
 }
 
 // Only the server's choice of entry scene and separately enabled training
@@ -284,22 +274,6 @@ func preparePVFScenes(c *Catalogs, s *Source, selected map[string]bool, inputs C
 		direct, err := s.Town(policy.Town, policy.Area)
 		if err != nil {
 			return err
-		}
-		if inputs.checksBaselines() {
-			path := inputs.TownPath
-			if path == "" {
-				path = filepath.Join(filepath.Dir(inputs.IndexPath), "town.generated.json")
-			}
-			legacy, err := catalog.LoadTownArea(path)
-			if err != nil {
-				return err
-			}
-			if legacy.Source.Checksum != direct.Source.Checksum {
-				return fmt.Errorf("town baseline source mismatch")
-			}
-			if err := verifyPVFCatalog(legacy, direct); err != nil {
-				return fmt.Errorf("town: %w", err)
-			}
 		}
 		c.Town = &direct
 		log.Printf("PVF entry town prepared: town=%d area=%d rectangles=%d; separate spawn policy retained", direct.TownID, direct.AreaID, len(direct.Walkable))
@@ -404,7 +378,7 @@ func (c *Catalogs) LoadTown(path string) (catalog.TownArea, error) {
 	if c.Town != nil {
 		return *c.Town, nil
 	}
-	return catalog.LoadTownArea(path)
+	return catalog.TownArea{}, nativeContentRequired("town")
 }
 
 func (c *Catalogs) LoadDungeons(path string) (catalog.DungeonCatalog, error) {
@@ -424,7 +398,7 @@ func (c *Catalogs) LoadTrainingDungeons(path string) (catalog.DungeonCatalog, er
 	if c.TrainingDungeons != nil {
 		return clonePVFDungeons(*c.TrainingDungeons), nil
 	}
-	return catalog.LoadDungeons(path)
+	return catalog.DungeonCatalog{}, nativeContentRequired("training-dungeons")
 }
 
 func (c *Catalogs) LoadTutorialDungeons(path string) (catalog.DungeonCatalog, error) {
@@ -434,7 +408,7 @@ func (c *Catalogs) LoadTutorialDungeons(path string) (catalog.DungeonCatalog, er
 	if c.TutorialDungeons != nil {
 		return clonePVFDungeons(*c.TutorialDungeons), nil
 	}
-	return catalog.LoadDungeons(path)
+	return catalog.DungeonCatalog{}, nativeContentRequired("tutorial-dungeons")
 }
 
 func preparePVFScriptWarps(c *Catalogs, s *Source, selected map[string]bool, i CatalogInputs) error {

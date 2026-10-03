@@ -140,6 +140,10 @@ func (c *Catalogs) RequireSelected(domain string, ready bool) error {
 	return nil
 }
 
+func nativeContentRequired(domain string) error {
+	return fmt.Errorf("%s requires a prepared native PVF domain; JSON runtime catalogs are retired", domain)
+}
+
 func parsePVFCatalogSelection(value string) (map[string]bool, error) {
 	supported := map[string]bool{}
 	for _, domain := range strings.Split(SupportedDomains, ",") {
@@ -346,18 +350,6 @@ func PrepareCatalogs(inputs CatalogInputs, adapters CatalogAdapters) (*Catalogs,
 			return &result, err
 		}
 		anchorChecksum = characterPolicy.SourceChecksum
-	} else if strings.TrimSpace(characterPath) != "" {
-		// Native non-character domains do not need the JSON character baseline as
-		// an anchor: the archive identity is already enforced by
-		// Open(ExpectedChecksum). Dropping the path leaves anchorChecksum empty so
-		// the source-mismatch guard below is skipped instead of comparing a stale
-		// historical anchor against the current inner archive.
-		var e error
-		characters, e = catalog.LoadCharacters(characterPath)
-		if e != nil {
-			return &result, fmt.Errorf("PVF character source anchor: %w", e)
-		}
-		anchorChecksum = characters.Source.Checksum
 	}
 	started := time.Now()
 	source, err := Open(Options{Mode: PVF, ArchivePath: path, ExpectedChecksum: checksum, DerivedCacheDir: inputs.DerivedCacheDir})

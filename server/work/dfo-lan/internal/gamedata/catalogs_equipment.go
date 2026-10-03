@@ -116,7 +116,7 @@ func (c *Catalogs) LoadCharacters(path string) (catalog.Characters, error) {
 	if c.Characters != nil {
 		return *c.Characters, nil
 	}
-	return catalog.LoadCharacters(path)
+	return catalog.Characters{}, nativeContentRequired("characters")
 }
 
 func preparePVFEquipmentRules(c *Catalogs, s *Source, selected map[string]bool, inputs CatalogInputs) error {
@@ -248,7 +248,7 @@ func (c *Catalogs) LoadRandomOptions(path, source string) (*inventory.RandomOpti
 	if c.RandomOptions != nil {
 		return c.RandomOptions, c.RandomOptions.ValidateSource(source)
 	}
-	return inventory.LoadRandomOptionCatalog(path, source)
+	return nil, nativeContentRequired("random-options")
 }
 func (c *Catalogs) LoadShields(path, source string) (*inventory.KnightShields, error) {
 	if err := c.RequireSelected("shields", c.Shields != nil); err != nil {
@@ -257,7 +257,7 @@ func (c *Catalogs) LoadShields(path, source string) (*inventory.KnightShields, e
 	if c.Shields != nil {
 		return c.Shields, c.Shields.Validate(source)
 	}
-	return inventory.LoadKnightShields(path, source)
+	return nil, nativeContentRequired("shields")
 }
 func (c *Catalogs) LoadOathGrades(path string) (*inventory.OathGradeTable, error) {
 	if err := c.RequireSelected("oath-grades", c.Oath != nil); err != nil {
@@ -266,16 +266,7 @@ func (c *Catalogs) LoadOathGrades(path string) (*inventory.OathGradeTable, error
 	if c.Oath != nil {
 		return c.Oath, nil
 	}
-	if path == "" {
-		path = "configs/oath-grades.json"
-		if exe, err := os.Executable(); err == nil {
-			candidate := filepath.Join(filepath.Dir(exe), "..", path)
-			if _, err := os.Stat(candidate); err == nil {
-				path = candidate
-			}
-		}
-	}
-	return inventory.LoadOathGradeTable(path)
+	return nil, nativeContentRequired("oath-grades")
 }
 func (c *Catalogs) LoadVaultRules(path string) (inventory.VaultRules, error) {
 	if err := c.RequireSelected("vault", c.Vault != nil); err != nil {
@@ -284,7 +275,7 @@ func (c *Catalogs) LoadVaultRules(path string) (inventory.VaultRules, error) {
 	if c.Vault != nil {
 		return *c.Vault, nil
 	}
-	return inventory.LoadVaultRules(path)
+	return inventory.VaultRules{}, nativeContentRequired("vault")
 }
 
 func preparePVFFame(c *Catalogs, s *Source, selected map[string]bool, i CatalogInputs) error {
@@ -517,7 +508,7 @@ func (c *Catalogs) LoadEquipmentJournal(path, checksum string) (catalog.Equipmen
 	if c.Journal != nil {
 		return *c.Journal, nil
 	}
-	return catalog.LoadEquipmentJournalRules(path, checksum)
+	return catalog.EquipmentJournalRules{}, nativeContentRequired("journal")
 }
 func (c *Catalogs) LoadEquipmentCreateCost(path, checksum string) (catalog.EquipmentCreateCost, error) {
 	if err := c.RequireSelected("create-cost", c.CreateCost != nil); err != nil {
@@ -526,7 +517,7 @@ func (c *Catalogs) LoadEquipmentCreateCost(path, checksum string) (catalog.Equip
 	if c.CreateCost != nil {
 		return *c.CreateCost, nil
 	}
-	return catalog.LoadEquipmentCreateCost(path, checksum)
+	return catalog.EquipmentCreateCost{}, nativeContentRequired("create-cost")
 }
 
 func (c *Catalogs) LoadTutorialRoutes(path, checksum string) (*catalog.TutorialCatalog, error) {
@@ -539,7 +530,7 @@ func (c *Catalogs) LoadTutorialRoutes(path, checksum string) (*catalog.TutorialC
 		}
 		return c.Tutorial, nil
 	}
-	return catalog.LoadTutorialRoutes(path, checksum)
+	return nil, nativeContentRequired("tutorial")
 }
 
 // 秘宝精度提升（CMD2288）的直读准备与安装。

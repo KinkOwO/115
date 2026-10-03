@@ -1,5 +1,23 @@
 # CHANGELOG
 
+## 2026-10-03：四份无当前消费者的内容导出删除
+
+本轮实际删除 `black-purgatory-rewards.json`、`bleeding-mine-rewards.json`、`town.generated.json`、`dungeons.terminal-scenes.json`，共 826,529 字节（约 0.79 MiB），顶层 JSON **66→62**。四域现有原生读取保持，隐式历史 baseline 依赖退休；towncatalog 只读统一 Source，诊断导出要求显式输出。没有新增整表压缩快照；城镇条目从两份历史交付清单同步移除，其它旧条目不重生成。
+
+删除后 Go 1.26.5 无缓存全量测试与 vet 通过；未访问玩家库，正式程序未替换。
+
+仍有独立消费者的测试输入、历史版本输入、运行策略与布局规则保留。前一阶段“移除 26 处回退”是运行入口改造，本段才是四份文件的实际删除。按用户继续授权提交本轮源码和文件清理，并更新上游 MR !139；confirmed baseline 保持原实机范围，不将源码确认记为新的实机验收。
+
+## 2026-10-03：剩余内容加载入口 PVF 唯一真源（源码候选）
+
+- 移除 26 个剩余运行入口的 JSON 回退：角色、随机词条、骑士盾牌、誓约档位、仓库、装备图鉴/生成成本、教程、盒子、材料商店、城镇/训练与教程副本、黑鸦/矿区/清晰方块、奥德赛五域、调律、末世录及三类副本叠层。未选择或未准备对应 PVF 域时明确拒绝；旧路径参数仅兼容调用，不提供内容。已有原生解析器和玩法数值保持。
+- 删除网关随机词条/商店的 JSON 自动发现，以及矿区/盒子的文件存在性启用逻辑。新增存储前内容依赖门禁；非角色域准备不再读取历史角色 JSON 作来源锚点，仍核验实际 PVF SHA256。Source.Characters/Progression 只接受 PVF；AuditCatalog 显式读取历史对照，保持审计用途。shieldaudit 接统一 Source 和骑士盾牌解析器，要求显式输出并拒绝 JSON seed。
+- Go 1.26.5 无缓存全量 `go test -count=1 ./...` 与 `go vet ./...` 通过；后补的只读真源/盾牌诊断门禁专项通过。Python 3.11.9 的 profile/默认启动检查 24/24 通过，默认启动测试使用已有 `.tmp/config-cleanup/pydeps`，未安装依赖。
+- 实际内层 PVF `8b2a9f83…` 修改前/后 54 域准备报告的 14 个非 memory 字段相同（物品 599,771、装备绑定 424,216、装备选集 3,174、任务 2,844、副本 3,200）；报告均 `storage_accessed=false`、`runtime_started=false`。原生随机词条/盾牌/誓约/仓库及生产入口缺失历史角色锚点专项通过。报告规模一致不声称等于逐项实机玩法验收，也不据两轮不同缓存状态比较性能。
+- 独立候选 `.tmp/pvf-remaining-runtime/wireprobe-native-only.exe`，SHA256 `7447659027474094f15e532009de1ab890fba07c495ff984b6ff89366fff7b72`；同目录 `启动验证.cmd` 供用户关闭现有会话后手动验证。正式/default bin 未替换，confirmed baseline 保持既有实机范围，等待本轮用户确认后收口。
+- 顶层 configs JSON 仍为 66 个：历史对照及测试输入继续保留，本轮没有把运行退役计作文件删除。运行策略、容器/槽位和服主锻造数值 JSON 保留；没有改 PVF、SQL/schema、玩家存档或客户端资源，没有启动服务/客户端或访问玩家库。用户 `.gitignore` 和四份 charactercheck 工作区改动不属于本任务，不覆盖或提交。
+
+
 ## 2026-10-03：秘宝制作（CMD2289）移植到 gamedata 新架构（实机已验证）
 
 - 秘宝规则加载沿用上游 gamedata.Catalogs.SoleRules / InstallSoleEquipment，删除旧 cmd/wireprobe/pvf_sole.go；
@@ -12,6 +30,7 @@
 - 验证：Go 1.26 build/vet 专项通过；inventory/catalog/protocol/workflow Sole 专项全绿；
   真源测试 TestSoleCreateMaterialsNative（inner.pvf）通过；实机制作验证成功
   （sole_create_committed 模板 100354181，扣料与成品入包正常，窗口无等待态残留）。
+
 ## 2026-10-03：configs 首批诊断输入与示例归位
 
 - 登录回包、SELECT 两份实验输入、出生点策略移到已有 wireprobe/testdata；维修 profile 示例移到 docs，探针/测试/文档及两份交付清单同步路径。删除冗余 jobs 规则文件，顶层 JSON 71→66（四个迁出、一个删除），不将目录调整当作减重。
