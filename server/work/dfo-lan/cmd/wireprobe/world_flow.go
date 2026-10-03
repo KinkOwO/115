@@ -204,7 +204,8 @@ func (w *worldSession) enter(role storage.Character, spawn storage.WorldPosition
 	// client applies its per-character flag too, and a graduated character
 	// must pass the regular level gates.
 	odyssey := character.OdysseyMember(role)
-	saved, e := w.service.Enter(ctx, w.account, role.ID, state.Level, odyssey, spawn)
+	worldType := w.worldStorageType()
+	saved, e := w.service.Enter(ctx, w.account, role.ID, state.Level, odyssey, spawn, worldType)
 	if e != nil {
 		return e
 	}
@@ -214,7 +215,7 @@ func (w *worldSession) enter(role storage.Character, spawn storage.WorldPosition
 		if spawn.Town == 218 {
 			return fmt.Errorf("普通频道默认落点不能使用赤红铁矿区域")
 		}
-		saved, e = w.store.SaveWorld(ctx, w.account, role.ID, saved, spawn)
+		saved, e = w.store.SaveWorld(ctx, w.account, role.ID, w.worldStorageType(), saved, spawn)
 		if e != nil {
 			return e
 		}
@@ -229,7 +230,7 @@ func (w *worldSession) enter(role storage.Character, spawn storage.WorldPosition
 		if w.specialTowns[spawn.Town] {
 			return fmt.Errorf("普通频道默认落点不能使用特殊征讨频道城镇 %d", spawn.Town)
 		}
-		saved, e = w.store.SaveWorld(ctx, w.account, role.ID, saved, spawn)
+		saved, e = w.store.SaveWorld(ctx, w.account, role.ID, w.worldStorageType(), saved, spawn)
 		if e != nil {
 			return e
 		}
@@ -585,13 +586,8 @@ func (w *worldSession) handle(id uint16, p []byte, send func(byte, uint16, []byt
 	} else if w.channelType == 73 && next.Town == 85 {
 		w.state.Position = next
 		event(map[string]any{"kind": "黑鸦会话位置更新", "character_id": w.role.ID, "position": next, "request": id})
-	} else if w.channelWorldIsolated {
-		// 特殊征讨频道（SemiRaid/Legion）会话内位置只留在会话里，不覆盖普通频道
-		// 共享行 —— 黑鸦 73 / 矿区 106 既有模式推广到月湖 101 / Azure 102 / 军团 119。
-		w.state.Position = next
-		event(map[string]any{"kind": "isolated_channel_position_update", "character_id": w.role.ID, "position": next, "channel_type": w.channelType, "request": id})
 	} else {
-		saved, e := w.store.SaveWorld(ctx, w.account, w.role.ID, old, next)
+		saved, e := w.store.SaveWorld(ctx, w.account, w.role.ID, w.worldStorageType(), old, next)
 		if e != nil {
 			return e
 		}
@@ -681,4 +677,12 @@ func (w *worldSession) settleProximityObjectives(ctx context.Context, send func(
 	}
 	event(map[string]any{"kind": "quest_proximity_advanced", "character_id": w.role.ID, "quests": advanced, "position": w.state.Position})
 	return nil
+}
+
+// worldStorageType 见 worldSession.worldStorageType 声明。
+func (w *worldSession) worldStorageType() uint32 {
+	if w.channelWorldIsolated {
+		return w.channelType
+	}
+	return 0
 }

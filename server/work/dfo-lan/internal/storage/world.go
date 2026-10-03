@@ -21,42 +21,99 @@ func (s *Store) MigrateWorld(ctx context.Context) error {
  position jsonb NOT NULL, config_version text NOT NULL,
  revision bigint NOT NULL DEFAULT 1 CHECK(revision>0),
  updated_at timestamptz NOT NULL DEFAULT now());`)
+	if e != nil {
+		return e
+	}
+	// 频道隔离的世界位置（业主 2026-10-02）。
+	//
+	// 征讨/军团这类特殊频道里，角色只能在自己的赛丽亚房间与副本门口活动；位置必须
+	// 与该角色在普通城镇的位置**分开存**，否则切一次频道就把原位置覆盖掉（实际现象：
+	// 切到沉月湖后右上角频道号变了、角色却还站在原地，或者反过来把城镇位置弄丢）。
+	//
+	// 普通频道（channel_type = 0 的语义）仍然走上面的 character_world；本表只在
+	// 特殊频道使用，因此对已有存档是**纯新增**，不动任何既有行。
+	_, e = s.DB.Exec(ctx, `CREATE TABLE IF NOT EXISTS character_channel_world (
+ character_id bigint NOT NULL REFERENCES characters(id),
+ channel_type integer NOT NULL CHECK(channel_type>0 AND channel_type<=255),
+ position jsonb NOT NULL, config_version text NOT NULL,
+ revision bigint NOT NULL DEFAULT 1 CHECK(revision>0),
+ updated_at timestamptz NOT NULL DEFAULT now(),
+ PRIMARY KEY(character_id, channel_type));`)
 	return e
 }
-func (s *Store) LoadWorld(ctx context.Context, account, characterID int64, initial WorldPosition, version string) (WorldState, error) {
+
+// LoadWorld 取角色的世界位置。
+//
+// channelType = 0 表示"普通频道"，用共享的 character_world；非 0 表示该特殊频道的
+// 独立位置，用 character_channel_world（按 角色 + 频道 一行）。首次进入某频道时用
+// 调用方给的 initial —— 对该频道而言就是它自己的赛丽亚房间。
+func (s *Store) LoadWorld(ctx context.Context, account, characterID int64, channelType uint32, initial WorldPosition, version string) (WorldState, error) {
 	var out WorldState
 	if len(version) != 64 {
 		return out, errors.New("invalid world configuration version")
+	}
+	if channelType > 255 {
+		return out, errors.New("invalid channel type")
 	}
 	b, e := json.Marshal(initial)
 	if e != nil {
 		return out, e
 	}
-	_, e = s.DB.Exec(ctx, `INSERT INTO character_world(character_id,position,config_version)
+	if channelType == 0 {
+		_, e = s.DB.Exec(ctx, `INSERT INTO character_world(character_id,position,config_version)
  SELECT id,$3,$4 FROM characters WHERE id=$2 AND account_id=$1 ON CONFLICT DO NOTHING`, account, characterID, b, version)
+		if e != nil {
+			return out, e
+		}
+		var raw []byte
+		e = s.DB.QueryRow(ctx, `SELECT w.position,w.revision,w.config_version FROM character_world w JOIN characters c ON c.id=w.character_id WHERE c.account_id=$1 AND c.id=$2`, account, characterID).Scan(&raw, &out.Revision, &out.ConfigVersion)
+		if e == nil {
+			e = json.Unmarshal(raw, &out.Position)
+		}
+		return out, e
+	}
+	_, e = s.DB.Exec(ctx, `INSERT INTO character_channel_world(character_id,channel_type,position,config_version)
+ SELECT id,$3,$4,$5 FROM characters WHERE id=$2 AND account_id=$1 ON CONFLICT DO NOTHING`, account, characterID, channelType, b, version)
 	if e != nil {
 		return out, e
 	}
 	var raw []byte
-	e = s.DB.QueryRow(ctx, `SELECT w.position,w.revision,w.config_version FROM character_world w JOIN characters c ON c.id=w.character_id WHERE c.account_id=$1 AND c.id=$2`, account, characterID).Scan(&raw, &out.Revision, &out.ConfigVersion)
+	e = s.DB.QueryRow(ctx, `SELECT w.position,w.revision,w.config_version FROM character_channel_world w JOIN characters c ON c.id=w.character_id WHERE c.account_id=$1 AND c.id=$2 AND w.channel_type=$3`, account, characterID, channelType).Scan(&raw, &out.Revision, &out.ConfigVersion)
 	if e == nil {
 		e = json.Unmarshal(raw, &out.Position)
 	}
 	return out, e
 }
-func (s *Store) SaveWorld(ctx context.Context, account, characterID int64, old WorldState, next WorldPosition) (WorldState, error) {
+
+// SaveWorld 落库角色位置。与 LoadWorld 同一口径：channelType = 0 写共享表，
+// 非 0 写该频道的独立行；乐观并发仍按 revision 校验。
+func (s *Store) SaveWorld(ctx context.Context, account, characterID int64, channelType uint32, old WorldState, next WorldPosition) (WorldState, error) {
 	out := old
+	if channelType > 255 {
+		return out, errors.New("invalid channel type")
+	}
 	b, e := json.Marshal(next)
 	if e != nil {
 		return out, e
 	}
-	tag, e := s.DB.Exec(ctx, `UPDATE character_world w SET position=$4,revision=revision+1,updated_at=now()
+	if channelType == 0 {
+		tag, e := s.DB.Exec(ctx, `UPDATE character_world w SET position=$4,revision=revision+1,updated_at=now()
  FROM characters c WHERE c.id=w.character_id AND c.account_id=$1 AND c.id=$2 AND w.revision=$3`, account, characterID, old.Revision, b)
-	if e != nil {
-		return out, e
-	}
-	if tag.RowsAffected() != 1 {
-		return out, ErrWorldConflict
+		if e != nil {
+			return out, e
+		}
+		if tag.RowsAffected() != 1 {
+			return out, ErrWorldConflict
+		}
+	} else {
+		tag, e := s.DB.Exec(ctx, `UPDATE character_channel_world w SET position=$5,revision=revision+1,updated_at=now()
+ FROM characters c WHERE c.id=w.character_id AND c.account_id=$1 AND c.id=$2 AND w.channel_type=$3 AND w.revision=$4`, account, characterID, channelType, old.Revision, b)
+		if e != nil {
+			return out, e
+		}
+		if tag.RowsAffected() != 1 {
+			return out, ErrWorldConflict
+		}
 	}
 	out.Position = next
 	out.Revision++
