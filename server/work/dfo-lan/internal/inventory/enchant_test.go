@@ -1,7 +1,7 @@
 package inventory
 
 import (
-	"path/filepath"
+	"dfolan/internal/testfixture"
 	"testing"
 )
 
@@ -10,16 +10,16 @@ func loadEnchantBeadsForTest(t *testing.T) {
 	if EnchantBeadsLoaded() {
 		return
 	}
-	path := filepath.Join("..", "..", "configs", "enchant-beads.json")
+	path := testfixture.EnhancementPath(t, "enchant-beads.json")
 	if err := LoadEnchantBeads(path); err != nil {
 		t.Fatalf("装载附魔宝珠清单失败: %v", err)
 	}
 	if !EnchantBeadsLoaded() {
-		t.Skip("configs/enchant-beads.json 不存在，跳过附魔用例")
+		t.Fatal("historical enchant-beads.json fixture failed to activate")
 	}
 }
 
-// 宝珠 → 附魔卡 的对照（数据来自 scripts/export_enchant_beads.py 的 PVF 导出）。
+// 宝珠 → 附魔卡 的对照（数据来自 历史 PVF 导出 的 PVF 导出）。
 func TestEnchantBeadMapping(t *testing.T) {
 	loadEnchantBeadsForTest(t)
 	// bead_sieghart.stk → mcard_sieghart.stk

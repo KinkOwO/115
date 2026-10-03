@@ -12,14 +12,17 @@ import (
 
 func main() {
 	source := flag.String("source", "../client-build/Script.inner.pvf", "read-only inner PVF")
-	indexFile := flag.String("index", "configs/items.index.json", "same-source item index")
-	out := flag.String("output", "configs/booster-catalog.json", "reward catalog")
+	out := flag.String("output", "", "required diagnostic output; not a runtime configuration")
 	flag.Parse()
-	index, err := catalog.LoadItemIndex(*indexFile)
+	if *out == "" {
+		log.Fatal("explicit -output is required for diagnostic export")
+	}
+	a, err := pvf.LoadArchive(pvf.Options{Path: *source, MaxBytes: 1 << 30})
 	if err != nil {
 		log.Fatal(err)
 	}
-	a, err := pvf.LoadArchive(pvf.Options{Path: *source, MaxBytes: 1 << 30})
+	defer a.Close()
+	index, err := catalog.ImportItemIndex(a)
 	if err != nil {
 		log.Fatal(err)
 	}

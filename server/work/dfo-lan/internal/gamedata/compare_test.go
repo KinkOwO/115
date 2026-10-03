@@ -70,6 +70,9 @@ func TestSourceRejectsInvalidModeAndUnpinnedPVF(t *testing.T) {
 	if _, err := source.Characters("missing"); err == nil {
 		t.Fatal("missing JSON was accepted")
 	}
+	if _, err := source.ReadRaw("missing"); err == nil {
+		t.Fatal("raw diagnostics accepted a non-PVF source")
+	}
 }
 
 func TestAuditRefusesUnknownDomainAndMissingBaseline(t *testing.T) {

@@ -34,7 +34,7 @@ func TestBagDisjointAwardsOdysseyCoinsIntoConsumableSlots(t *testing.T) {
 	}
 	// 硬币不在怪物掉落目录里，靠 items.index.json 补进目录后才能解析出它的
 	// [stackable type]（`[unlimited waste]`）—— 与网关启动时的做法一致。
-	if err := c.SupplementStackables("../../configs/items.index.json"); err != nil {
+	if err := c.SupplementStackables("../catalog/testdata/item-flow.json"); err != nil {
 		t.Fatal(err)
 	}
 	rules, err := LoadBagRules("../../configs/inventory.next29.json")
@@ -79,7 +79,7 @@ func TestBagDisjointCoinTableDoesNotLeakToOtherTemplates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := c.SupplementStackables("../../configs/items.index.json"); err != nil {
+	if err := c.SupplementStackables("../catalog/testdata/item-flow.json"); err != nil {
 		t.Fatal(err)
 	}
 	rules, err := LoadBagRules("../../configs/inventory.next29.json")
@@ -104,7 +104,7 @@ func TestBagDisjointMaterialRewardsKeepTheirRange(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := c.SupplementStackables("../../configs/items.index.json"); err != nil {
+	if err := c.SupplementStackables("../catalog/testdata/item-flow.json"); err != nil {
 		t.Fatal(err)
 	}
 	rules, err := LoadBagRules("../../configs/inventory.next29.json")

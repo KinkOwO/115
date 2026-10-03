@@ -11,7 +11,7 @@ package inventory
 //   取证 row_writer sub_14576D8B0 —— `*(u32*)(a2+14)` 经 sub_146E922E0 写进物品对象 obj+8；
 //   文档 docs/进度-20260917-副本可进性与GM工具.md 记为 enchantIndex@14(u32) 附魔卡。
 //
-// 规则数据来自 configs/enchant-beads.json（scripts/export_enchant_beads.py 只读 PVF 导出）。
+// 运行规则由 gamedata 从 PVF 物品脚本的 [monster card id] 准备。
 
 import (
 	"dfolan/internal/game/protocol"

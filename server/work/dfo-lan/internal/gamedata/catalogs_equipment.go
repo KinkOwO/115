@@ -116,7 +116,7 @@ func (c *Catalogs) LoadCharacters(path string) (catalog.Characters, error) {
 	if c.Characters != nil {
 		return *c.Characters, nil
 	}
-	return catalog.LoadCharacters(path)
+	return catalog.Characters{}, nativeContentRequired("characters")
 }
 
 func preparePVFEquipmentRules(c *Catalogs, s *Source, selected map[string]bool, inputs CatalogInputs) error {
@@ -248,7 +248,7 @@ func (c *Catalogs) LoadRandomOptions(path, source string) (*inventory.RandomOpti
 	if c.RandomOptions != nil {
 		return c.RandomOptions, c.RandomOptions.ValidateSource(source)
 	}
-	return inventory.LoadRandomOptionCatalog(path, source)
+	return nil, nativeContentRequired("random-options")
 }
 func (c *Catalogs) LoadShields(path, source string) (*inventory.KnightShields, error) {
 	if err := c.RequireSelected("shields", c.Shields != nil); err != nil {
@@ -257,7 +257,7 @@ func (c *Catalogs) LoadShields(path, source string) (*inventory.KnightShields, e
 	if c.Shields != nil {
 		return c.Shields, c.Shields.Validate(source)
 	}
-	return inventory.LoadKnightShields(path, source)
+	return nil, nativeContentRequired("shields")
 }
 func (c *Catalogs) LoadOathGrades(path string) (*inventory.OathGradeTable, error) {
 	if err := c.RequireSelected("oath-grades", c.Oath != nil); err != nil {
@@ -266,16 +266,7 @@ func (c *Catalogs) LoadOathGrades(path string) (*inventory.OathGradeTable, error
 	if c.Oath != nil {
 		return c.Oath, nil
 	}
-	if path == "" {
-		path = "configs/oath-grades.json"
-		if exe, err := os.Executable(); err == nil {
-			candidate := filepath.Join(filepath.Dir(exe), "..", path)
-			if _, err := os.Stat(candidate); err == nil {
-				path = candidate
-			}
-		}
-	}
-	return inventory.LoadOathGradeTable(path)
+	return nil, nativeContentRequired("oath-grades")
 }
 func (c *Catalogs) LoadVaultRules(path string) (inventory.VaultRules, error) {
 	if err := c.RequireSelected("vault", c.Vault != nil); err != nil {
@@ -284,7 +275,7 @@ func (c *Catalogs) LoadVaultRules(path string) (inventory.VaultRules, error) {
 	if c.Vault != nil {
 		return *c.Vault, nil
 	}
-	return inventory.LoadVaultRules(path)
+	return inventory.VaultRules{}, nativeContentRequired("vault")
 }
 
 func preparePVFFame(c *Catalogs, s *Source, selected map[string]bool, i CatalogInputs) error {
@@ -402,7 +393,6 @@ func readPVFRuleBaseline(path, checksum string, out any) error {
 
 func preparePVFRules(c *Catalogs, s *Source, selected map[string]bool, inputs CatalogInputs) error {
 	checksum := s.Snapshot().Checksum
-	dir := filepath.Dir(inputs.IndexPath)
 	if selected["tutorial"] {
 		direct, err := s.Tutorials()
 		if err != nil {
@@ -422,7 +412,6 @@ func preparePVFRules(c *Catalogs, s *Source, selected map[string]bool, inputs Ca
 		s.ReleaseReadCaches()
 	}
 	if selected["periods"] {
-		path := filepath.Join(dir, "item-period-tags.json")
 		var direct catalog.ItemPeriodCatalog
 		var err error
 		if c.ItemBasics != nil {
@@ -433,24 +422,11 @@ func preparePVFRules(c *Catalogs, s *Source, selected map[string]bool, inputs Ca
 		if err != nil {
 			return err
 		}
-		if inputs.checksBaselines() {
-			var legacy catalog.ItemPeriodCatalog
-			if err := readPVFRuleBaseline(path, checksum, &legacy); err != nil {
-				return err
-			}
-			if _, err := catalog.LoadItemPeriods(path, checksum); err != nil {
-				return err
-			}
-			if err = verifyPVFCatalog(legacy, direct); err != nil {
-				return fmt.Errorf("periods: %w", err)
-			}
-		}
 		c.Periods = direct.Templates
 		log.Printf("PVF item periods prepared: %d templates", len(c.Periods))
 		s.ReleaseReadCaches()
 	}
 	if selected["skins"] {
-		path := filepath.Join(dir, "skin-storage-items.json")
 		var direct catalog.SkinStorageCatalog
 		var err error
 		if c.ItemBasics != nil && c.ItemBasics.Skins != nil {
@@ -460,18 +436,6 @@ func preparePVFRules(c *Catalogs, s *Source, selected map[string]bool, inputs Ca
 		}
 		if err != nil {
 			return err
-		}
-		if inputs.checksBaselines() {
-			var legacy catalog.SkinStorageCatalog
-			if err := readPVFRuleBaseline(path, checksum, &legacy); err != nil {
-				return err
-			}
-			if _, err := catalog.LoadSkinStorage(path, checksum); err != nil {
-				return err
-			}
-			if err = verifyPVFCatalog(legacy, direct); err != nil {
-				return fmt.Errorf("skins: %w", err)
-			}
 		}
 		c.Skins = make(map[uint32]catalog.SkinStorageEntry, len(direct.Entries))
 		for _, e := range direct.Entries {
@@ -526,7 +490,7 @@ func (c *Catalogs) LoadItemPeriods(path, checksum string) ([]uint32, error) {
 	if c.Periods != nil || c.Prepared("periods") {
 		return c.Periods, nil
 	}
-	return catalog.LoadItemPeriods(path, checksum)
+	return nil, fmt.Errorf("item periods require the native PVF periods domain")
 }
 func (c *Catalogs) LoadSkinStorage(path, checksum string) (map[uint32]catalog.SkinStorageEntry, error) {
 	if err := c.RequireSelected("skins", c.Prepared("skins")); err != nil {
@@ -535,7 +499,7 @@ func (c *Catalogs) LoadSkinStorage(path, checksum string) (map[uint32]catalog.Sk
 	if c.Skins != nil || c.Prepared("skins") {
 		return c.Skins, nil
 	}
-	return catalog.LoadSkinStorage(path, checksum)
+	return nil, fmt.Errorf("skin storage requires the native PVF skins domain")
 }
 func (c *Catalogs) LoadEquipmentJournal(path, checksum string) (catalog.EquipmentJournalRules, error) {
 	if err := c.RequireSelected("journal", c.Journal != nil); err != nil {
@@ -544,7 +508,7 @@ func (c *Catalogs) LoadEquipmentJournal(path, checksum string) (catalog.Equipmen
 	if c.Journal != nil {
 		return *c.Journal, nil
 	}
-	return catalog.LoadEquipmentJournalRules(path, checksum)
+	return catalog.EquipmentJournalRules{}, nativeContentRequired("journal")
 }
 func (c *Catalogs) LoadEquipmentCreateCost(path, checksum string) (catalog.EquipmentCreateCost, error) {
 	if err := c.RequireSelected("create-cost", c.CreateCost != nil); err != nil {
@@ -553,7 +517,7 @@ func (c *Catalogs) LoadEquipmentCreateCost(path, checksum string) (catalog.Equip
 	if c.CreateCost != nil {
 		return *c.CreateCost, nil
 	}
-	return catalog.LoadEquipmentCreateCost(path, checksum)
+	return catalog.EquipmentCreateCost{}, nativeContentRequired("create-cost")
 }
 
 func (c *Catalogs) LoadTutorialRoutes(path, checksum string) (*catalog.TutorialCatalog, error) {
@@ -566,7 +530,7 @@ func (c *Catalogs) LoadTutorialRoutes(path, checksum string) (*catalog.TutorialC
 		}
 		return c.Tutorial, nil
 	}
-	return catalog.LoadTutorialRoutes(path, checksum)
+	return nil, nativeContentRequired("tutorial")
 }
 
 // 秘宝精度提升（CMD2288）的直读准备与安装。

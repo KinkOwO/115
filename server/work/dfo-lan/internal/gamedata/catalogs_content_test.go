@@ -7,16 +7,44 @@ import (
 	"dfolan/internal/legion"
 	"dfolan/internal/loot"
 	"os"
+	"path/filepath"
+	"reflect"
 	"testing"
 	"time"
 )
+
+func TestPVFContentPolicyOmittedPreservesEmptyPolicyAndRejectsInvalidOverride(t *testing.T) {
+	policy, err := readPVFContentPolicy("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "policy.json")
+	if err := os.WriteFile(path, []byte(`{"version":1}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	old, err := readPVFContentPolicy(path)
+	if err != nil || !reflect.DeepEqual(policy, old) {
+		t.Fatal("omitted policy changed the former empty policy semantics", policy, old, err)
+	}
+	if _, err := readPVFContentPolicy(path + ".missing"); err == nil {
+		t.Fatal("missing explicit content policy was silently replaced")
+	}
+	for _, raw := range []string{`{"version":2}`, `{"version":1,"unknown":true}`, `{"version":1} {}`} {
+		if err := os.WriteFile(path, []byte(raw), 0600); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := readPVFContentPolicy(path); err == nil {
+			t.Fatal("invalid explicit content policy was silently replaced", raw)
+		}
+	}
+}
 
 func TestPVFAdventureLocalArchive(t *testing.T) {
 	path := os.Getenv("DFO_PVF_CORE_TEST_ARCHIVE")
 	if path == "" {
 		t.Skip("set DFO_PVF_CORE_TEST_ARCHIVE for complete adventure source parity")
 	}
-	c, err := prepareCatalogsForTest(t, "adventure", path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "../../configs/characters.skycastle-release.json", "", "", "", CatalogInputs{IndexPath: "../../configs/items.index.json"})
+	c, err := prepareCatalogsForTest(t, "adventure", path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "../../configs/characters.skycastle-release.json", "", "", "", CatalogInputs{IndexPath: "../catalog/testdata/item-flow.json"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -43,7 +71,7 @@ func TestPVFBlackPurgatoryLocalArchive(t *testing.T) {
 	if path == "" {
 		t.Skip("set DFO_PVF_CORE_TEST_ARCHIVE for source reward scope parity")
 	}
-	c, err := prepareCatalogsForTest(t, "black-purgatory", path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "../../configs/characters.skycastle-release.json", "", "", "", CatalogInputs{IndexPath: "../../configs/items.index.json", ContentPolicyPath: "../../configs/pvf-mine-policy.json"})
+	c, err := prepareCatalogsForTest(t, "black-purgatory", path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "../../configs/characters.skycastle-release.json", "", "", "", CatalogInputs{IndexPath: "../catalog/testdata/item-flow.json", ContentPolicyPath: "../../configs/pvf-mine-policy.json"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,7 +107,7 @@ func TestPVFClearCubeLocalArchive(t *testing.T) {
 	if path == "" {
 		t.Skip("set DFO_PVF_CORE_TEST_ARCHIVE for source overlay parity")
 	}
-	c, err := prepareCatalogsForTest(t, "clear-cube", path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "../../configs/characters.skycastle-release.json", "", "", "", CatalogInputs{IndexPath: "../../configs/items.index.json"})
+	c, err := prepareCatalogsForTest(t, "clear-cube", path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "../../configs/characters.skycastle-release.json", "", "", "", CatalogInputs{IndexPath: "../catalog/testdata/item-flow.json"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -102,7 +130,7 @@ func TestPVFMineLocalArchive(t *testing.T) {
 	if path == "" {
 		t.Skip("set DFO_PVF_CORE_TEST_ARCHIVE for mine reward graph parity")
 	}
-	c, err := prepareCatalogsForTest(t, "bleeding-mine", path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "../../configs/characters.skycastle-release.json", "", "", "", CatalogInputs{IndexPath: "../../configs/items.index.json", ContentPolicyPath: "../../configs/pvf-mine-policy.json"})
+	c, err := prepareCatalogsForTest(t, "bleeding-mine", path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "../../configs/characters.skycastle-release.json", "", "", "", CatalogInputs{IndexPath: "../catalog/testdata/item-flow.json", ContentPolicyPath: "../../configs/pvf-mine-policy.json"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -161,13 +189,19 @@ func TestPVFOdysseyLocalArchive(t *testing.T) {
 	if path == "" {
 		t.Skip("set DFO_PVF_CORE_TEST_ARCHIVE for Odyssey native parity")
 	}
-	c, err := prepareCatalogsForTest(t, "odyssey-growth,odyssey-chapters,odyssey-weapons,odyssey-drop,odyssey-currency", path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "../../configs/characters.skycastle-release.json", "", "", "", CatalogInputs{IndexPath: "../../configs/items.index.json", ContentPolicyPath: "../../configs/pvf-mine-policy.json"})
+	c, err := prepareCatalogsForTest(t, "odyssey-growth,odyssey-chapters,odyssey-weapons,odyssey-drop,odyssey-currency", path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "../../configs/characters.skycastle-release.json", "", "", "", CatalogInputs{IndexPath: "../catalog/testdata/item-flow.json", ContentPolicyPath: "../../configs/pvf-mine-policy.json"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	g, err := c.LoadOdysseyGrowth("missing-growth.json")
 	if err != nil {
 		t.Fatal(err)
+	}
+	if g.Creation == nil || g.Creation.Template != 10417791 || g.Creation.ArmorBox != 10417790 || len(g.Creation.Armor) != 8 || g.Creation.Weapon.Template != 10417789 || len(g.Creation.Supplies) != 1 || g.Creation.Supplies[0].Template != 10418028 || g.Creation.Supplies[0].Count != 30 {
+		t.Fatal("native creation chain changed")
+	}
+	if len(g.Items) != 4 {
+		t.Fatal("unused supplemental items still maintained")
 	}
 	ch, err := c.LoadOdysseyChapters("missing-chapters.json")
 	if err != nil {
@@ -268,7 +302,7 @@ func TestPVFRosterBackgroundsLocalArchive(t *testing.T) {
 	if path == "" {
 		t.Skip("set DFO_PVF_CORE_TEST_ARCHIVE for complete background source parity")
 	}
-	c, err := prepareCatalogsForTest(t, "roster-backgrounds", path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "../../configs/characters.skycastle-release.json", "", "", "", CatalogInputs{IndexPath: "../../configs/items.index.json"})
+	c, err := prepareCatalogsForTest(t, "roster-backgrounds", path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "../../configs/characters.skycastle-release.json", "", "", "", CatalogInputs{IndexPath: "../catalog/testdata/item-flow.json"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -295,7 +329,7 @@ func TestPVFSeasonLocalArchive(t *testing.T) {
 	if path == "" {
 		t.Skip("set DFO_PVF_CORE_TEST_ARCHIVE for complete season source parity")
 	}
-	c, err := prepareCatalogsForTest(t, "season", path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "../../configs/characters.skycastle-release.json", "", "", "", CatalogInputs{IndexPath: "../../configs/items.index.json"})
+	c, err := prepareCatalogsForTest(t, "season", path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "../../configs/characters.skycastle-release.json", "", "", "", CatalogInputs{IndexPath: "../catalog/testdata/item-flow.json"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -350,7 +384,7 @@ func TestPVFSelectionBoxesLocalArchive(t *testing.T) {
 	if path == "" {
 		t.Skip("set DFO_PVF_CORE_TEST_ARCHIVE for full bounded selection box parity")
 	}
-	c, err := prepareCatalogsForTest(t, "selection-boxes", path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "../../configs/characters.skycastle-release.json", "", "", "", CatalogInputs{IndexPath: "../../configs/items.index.json", SelectionPolicyPath: "../../configs/pvf-selection-policy.json"})
+	c, err := prepareCatalogsForTest(t, "selection-boxes", path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "../../configs/characters.skycastle-release.json", "", "", "", CatalogInputs{IndexPath: "../catalog/testdata/item-flow.json"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -369,12 +403,12 @@ func TestPVFSelectionBoxesLocalArchive(t *testing.T) {
 	if _, ok := boxes.ByTemplate(10358468); !ok {
 		t.Fatal("the missing-closing-tag box is still unmodelled")
 	}
-	old, err := catalog.LoadSelectionBoxes("../../configs/selection-boxes-candidate.json")
+	old, err := catalog.LoadSelectionBoxes("../catalog/testdata/selection-flow.json")
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Every historical box must still resolve identically; the discovered extras
-	// are new scope, not a change to the old scope.
+	// Historical flow fixtures must still resolve identically. Complete current
+	// scope is guarded by TestNativeCommerceCurrentArchiveFingerprint.
 	historical := 0
 	for _, box := range old.Boxes {
 		if _, ok := boxes.ByTemplate(box.Template); !ok {
@@ -402,7 +436,7 @@ func TestPVFSelectionBoxesLocalArchive(t *testing.T) {
 	if historical != len(old.Boxes) {
 		t.Fatal("historical selection box count changed")
 	}
-	t.Log("source discovery plus historical category/count/recommendation parity verified")
+	t.Log("source discovery plus historical flow fixture parity verified")
 }
 
 func TestPVFAttunementLocalArchive(t *testing.T) {
@@ -410,7 +444,7 @@ func TestPVFAttunementLocalArchive(t *testing.T) {
 	if path == "" {
 		t.Skip("set DFO_PVF_CORE_TEST_ARCHIVE for native reward CTP parity")
 	}
-	c, err := prepareCatalogsForTest(t, "items,attunement", path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "../../configs/characters.skycastle-release.json", "", "", "", CatalogInputs{IndexPath: "../../configs/items.index.json", ContentPolicyPath: "../../configs/pvf-content-policy.json"})
+	c, err := prepareCatalogsForTest(t, "items,attunement", path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "../../configs/characters.skycastle-release.json", "", "", "", CatalogInputs{IndexPath: "../catalog/testdata/item-flow.json"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -439,7 +473,7 @@ func TestPVFApocalypseLocalArchive(t *testing.T) {
 	if path == "" {
 		t.Skip("set DFO_PVF_CORE_TEST_ARCHIVE for native CTP parity")
 	}
-	c, err := prepareCatalogsForTest(t, "apocalypse", path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "../../configs/characters.skycastle-release.json", "", "", "", CatalogInputs{IndexPath: "../../configs/items.index.json"})
+	c, err := prepareCatalogsForTest(t, "apocalypse", path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "../../configs/characters.skycastle-release.json", "", "", "", CatalogInputs{IndexPath: "../catalog/testdata/item-flow.json"})
 	if err != nil {
 		t.Fatal(err)
 	}

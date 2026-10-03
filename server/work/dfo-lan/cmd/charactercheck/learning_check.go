@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"dfolan/internal/catalog"
 	"dfolan/internal/character"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/storage"
@@ -12,7 +11,12 @@ import (
 )
 
 func learningCheck(ctx context.Context, s, reopened *storage.Store, other int64) error {
-	c, e := catalog.LoadCharacters("configs/characters.next25.json")
+	source, e := nativeSource()
+	if e != nil {
+		return e
+	}
+	defer source.Close()
+	c, e := source.Characters("")
 	if e != nil {
 		return e
 	}
@@ -20,7 +24,7 @@ func learningCheck(ctx context.Context, s, reopened *storage.Store, other int64)
 	if e != nil {
 		return e
 	}
-	cs.Learning, e = character.LoadLearningCatalog("configs/skills.next27.json", c.Source.Checksum)
+	cs.Learning, e = source.Learning(c)
 	if e != nil {
 		return e
 	}

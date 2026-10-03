@@ -35,16 +35,14 @@ class NativeProxyTests(unittest.TestCase):
             self.assertEqual(self.proxy.STACKABLE_IDS, {"7"})
             self.assertEqual(self.proxy.EQ_MAP, {"9": "[coat]"})
 
-    def test_only_explicit_old_endpoint_absence_allows_compatibility(self):
-        for code in (401, 500):
+    def test_backend_failures_never_fall_back_to_exports(self):
+        for code in (401, 404, 500):
             error = urllib.error.HTTPError("local", code, "failure", None, None)
-            with mock.patch.object(self.proxy.urllib.request, "urlopen", side_effect=error):
+            with mock.patch.object(self.proxy.urllib.request, "urlopen", side_effect=error), \
+                    mock.patch("builtins.open", side_effect=AssertionError("game export read")):
                 with self.assertRaises(urllib.error.HTTPError):
                     self.proxy.load_catalog_metadata()
             self.assertIsNone(self.proxy.CATALOG_METADATA_LOADED)
-        error = urllib.error.HTTPError("local", 404, "old backend", None, None)
-        with mock.patch.object(self.proxy.urllib.request, "urlopen", side_effect=error):
-            self.assertFalse(self.proxy.load_catalog_metadata())
 
     def test_bad_response_does_not_replace_maps(self):
         data = {"items": {"7": ["equipment"]}, "stackables": [7]}
@@ -64,9 +62,11 @@ class NativeLauncherTests(unittest.TestCase):
         args = type("Args", (), {"catalog_source": "pvf", "pvf_archive": "inner.pvf",
                                  "pvf_source_checksum": "1" * 64, "pvf_drop_policy": "policy.json"})()
         native = self.launcher.catalog_args(args)
+        args.pvf_source_checksum = ""
+        self.assertIn("-pvf-source-checksum", self.launcher.catalog_args(args))
         for flag in ("-loot-catalog", "-equipment-catalog", "-item-index", "-equipment-slots"):
             self.assertNotIn(flag, native)
-        args.pvf_source_checksum = ""
+        args.pvf_archive = ""
         with self.assertRaises(ValueError):
             self.launcher.catalog_args(args)
 
@@ -87,6 +87,26 @@ class NativeLauncherTests(unittest.TestCase):
                 run.assert_called_once()
                 self.assertIn("-check-catalogs", run.call_args.args[0])
                 self.assertTrue(run.call_args.kwargs["capture_output"])
+
+    def test_default_native_paths_follow_storage_module(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            binary = root / "candidate.exe"
+            binary.write_bytes(b"candidate placeholder")
+            module = root / "game/server/work/dfo-lan"
+            storage = module / "runtime/storage/missing.json"
+            argv = ["gmweb.py", "--check", "--gmweb-binary", str(binary), "--storage", str(storage)]
+            with mock.patch.object(sys, "argv", argv), \
+                    mock.patch.object(self.launcher.subprocess, "run") as run, \
+                    mock.patch.object(self.launcher, "load_storage", side_effect=AssertionError("storage read")), \
+                    mock.patch.object(self.launcher, "start_storage", side_effect=AssertionError("storage start")):
+                run.return_value = type("Result", (), {"stdout": "", "stderr": "", "returncode": 0})()
+                self.launcher.main()
+                command = run.call_args.args[0]
+                self.assertEqual(command[command.index("-catalog-source") + 1], "pvf")
+                self.assertEqual(command[command.index("-pvf-archive") + 1], str(module.parent / "client-build/Script.inner.pvf"))
+                self.assertEqual(command[command.index("-pvf-drop-policy") + 1], str(module / "configs/pvf-drop-policy.json"))
+                self.assertNotIn("-item-index", command)
 
 
 if __name__ == "__main__":

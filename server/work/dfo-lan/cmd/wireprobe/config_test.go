@@ -13,7 +13,9 @@ import (
 )
 
 // These vectors were captured from the original flag declarations and getenv
-// helpers, before replacing them. They include every flag, every environment
+// helpers, before replacing them. The empty selection/content policy defaults
+// and current native profile were updated when their redundant files retired.
+// They include every flag, every environment
 // alias, and the launcher's existing native profile, without opening the PVF.
 func TestWireprobeConfigLegacyContract(t *testing.T) {
 	data, err := os.ReadFile("testdata/config_legacy.json")
@@ -116,6 +118,31 @@ func TestWireprobeConfigValidationBeforeRuntimeSetup(t *testing.T) {
 			} else {
 				require.EqualError(t, cfg.validate(), tc.Want)
 			}
+		})
+	}
+}
+
+func TestSoleQualityNativeConfigContract(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		args []string
+		env  string
+		want bool
+	}{
+		{name: "default"},
+		{name: "cli", args: []string{"-sole-quality-native"}, want: true},
+		{name: "environment", env: "1", want: true},
+		{name: "cli overrides environment", args: []string{"-sole-quality-native=false"}, env: "1"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg, err := loadConfig(tc.args, func(key string) string {
+				if key == "DFO_SOLE_QUALITY_NATIVE" {
+					return tc.env
+				}
+				return ""
+			}, io.Discard)
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, cfg.SoleQualityNative)
 		})
 	}
 }

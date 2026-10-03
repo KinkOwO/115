@@ -9,8 +9,8 @@
   "files": [
     {
       "path": "AGENTS.md",
-      "bytes": 6372,
-      "sha256": "3f5626e427db3873be80029d862075dab64fe26ce942b4d2096216130f11635e"
+      "bytes": 55435,
+      "sha256": "3fe2d6d88dd01010321388d96da287b53593d06942c6a1d2ce98384beb970309"
     },
     {
       "path": "Build-Manifest.ps1",
@@ -874,8 +874,8 @@
     },
     {
       "path": "work/dfo_probe_tools/channel_probe.py",
-      "bytes": 27019,
-      "sha256": "0b8bbebd9f16d97c82985b9096b01855722230d51224e9b3f04e8c0e05c932fe"
+      "bytes": 30280,
+      "sha256": "e6e3e3e4391a31ed5cd54e7ac00b7f2424be69079b336519d3aed7d67ca145db"
     },
     {
       "path": "work/dfo_probe_tools/probe.cpp",
@@ -1643,11 +1643,6 @@
       "sha256": "7308851e79d19133969d411ec94f08c6c2aa1c98e876a7fb4aa2e0e4b394134f"
     },
     {
-      "path": "work/dfo-lan/configs/cerashop.json",
-      "bytes": 219409,
-      "sha256": "9568e91049b471200c7701d9acee6d90d6d78758165f3de82a8bc422975df830"
-    },
-    {
       "path": "work/dfo-lan/configs/channel.local28.json",
       "bytes": 1061,
       "sha256": "5d620f57a68e40e018a92c8370493b4120122486c888004a4ed0ea9ddc0a14cc"
@@ -1671,11 +1666,6 @@
       "path": "work/dfo-lan/configs/character-probe.json",
       "bytes": 334,
       "sha256": "6ab0ef5c962cc55bf856c9e6cda7d3dcb494f855315a0172e1e559457b98ab7f"
-    },
-    {
-      "path": "work/dfo-lan/configs/character-rules.jobs-release.json",
-      "bytes": 87,
-      "sha256": "926f93b9de1ebe33e071f8a8d9e111ec41f79f315bc207658852d31be745231a"
     },
     {
       "path": "work/dfo-lan/configs/character-rules.odyssey-release.json",
@@ -1733,46 +1723,6 @@
       "sha256": "f164890d92f420354bb672b9bd4a590bf7df6c42a09370bed1c895025b4d3898"
     },
     {
-      "path": "work/dfo-lan/configs/dungeons.generated.json",
-      "bytes": 896579,
-      "sha256": "a183d347ea290c38d3a92b164268ab50e4d66fc78e1c470c6ceacfbd8523bd62"
-    },
-    {
-      "path": "work/dfo-lan/configs/dungeons.next28.json",
-      "bytes": 5103142,
-      "sha256": "8f74f15d7e48d9db6f1b86006f7d96e7d89a2f731e63a786d1461c2e3071ae5e"
-    },
-    {
-      "path": "work/dfo-lan/configs/dungeons.odyssey-candidate.json",
-      "bytes": 5935233,
-      "sha256": "f47d0485d9e39b136ffee77fb60d594e6cfb3d2acff235d1b052e921fb4e7040"
-    },
-    {
-      "path": "work/dfo-lan/configs/dungeons.odyssey-merged-candidate.json",
-      "bytes": 8030834,
-      "sha256": "5f88b749246b86fb4bcb64859be11c8840dc95fb1a9b1fe8592a71db00cfea8f"
-    },
-    {
-      "path": "work/dfo-lan/configs/dungeons.odyssey-release.json",
-      "bytes": 8030834,
-      "sha256": "5f88b749246b86fb4bcb64859be11c8840dc95fb1a9b1fe8592a71db00cfea8f"
-    },
-    {
-      "path": "work/dfo-lan/configs/dungeons.odyssey-scenes-candidate.json",
-      "bytes": 10716235,
-      "sha256": "8c2e92510dfb024b6547f66fab6187f2fd60f29e7def29a232bcab019cb9d8d2"
-    },
-    {
-      "path": "work/dfo-lan/configs/dungeons.odyssey-scenes-release.json",
-      "bytes": 10716235,
-      "sha256": "8c2e92510dfb024b6547f66fab6187f2fd60f29e7def29a232bcab019cb9d8d2"
-    },
-    {
-      "path": "work/dfo-lan/configs/dungeons.skycastle-candidate.json",
-      "bytes": 8174100,
-      "sha256": "820d79453591e15f44b51ca73d0ebf3b0994bcabb79ec89ab15d47c19fe28b33"
-    },
-    {
       "path": "work/dfo-lan/configs/equipment.current35.json",
       "bytes": 2128789,
       "sha256": "ccb690e639f354df3dff1c0a8f82cdb21453f0b73d014e1f897b5eca1e462ea7"
@@ -1818,7 +1768,7 @@
       "sha256": "690994951c7f545fbe94274202089a02325a32b74a19e4134951be8c71f3b175"
     },
     {
-      "path": "work/dfo-lan/configs/login-normal22.bin",
+      "path": "work/dfo-lan/cmd/wireprobe/testdata/login-normal22.bin",
       "bytes": 56,
       "sha256": "ccdbcd9604fd7e00d953403d5ad929acb76d49a1d4e82b89ce4027319ed8efd5"
     },
@@ -1838,19 +1788,9 @@
       "sha256": "f4cd74761a2e689900db516f7065274e9324629dce1c3112ae8e04c42b100600"
     },
     {
-      "path": "work/dfo-lan/configs/odyssey-growth-candidate.json",
-      "bytes": 35814,
-      "sha256": "b7b6f7aa7c23e619e115c8643df5dda1813123d5bad442677ea52b487bb18ece"
-    },
-    {
       "path": "work/dfo-lan/configs/odyssey-growth-release.json",
       "bytes": 35814,
       "sha256": "b7b6f7aa7c23e619e115c8643df5dda1813123d5bad442677ea52b487bb18ece"
-    },
-    {
-      "path": "work/dfo-lan/configs/odyssey-weapon-box-candidate.json",
-      "bytes": 63788,
-      "sha256": "9ba588fc0c72f905a72ac84e94cb5685cacd5733ce62353baecc082bb12eb6ea"
     },
     {
       "path": "work/dfo-lan/configs/odyssey-weapon-box-release.json",
@@ -1873,24 +1813,19 @@
       "sha256": "24ba25bc66f3c4504cd21bf699ac7f4547cf1cdd9a4f15af3ff4d46fa53635be"
     },
     {
-      "path": "work/dfo-lan/configs/quests.generated.json",
-      "bytes": 26796000,
-      "sha256": "1c540704ef5afc9f6dc152531a4f1fac815d79326f58705c7a0a2b932982bb3e"
+      "path": "work/dfo-lan/docs/repair-profile.example.json",
+      "bytes": 1716,
+      "sha256": "21f61556db831d7e20705588e42497ebbdd365f1768e598ed4869970b4dd7574"
     },
     {
-      "path": "work/dfo-lan/configs/repair-profile.example.json",
-      "bytes": 934,
-      "sha256": "2e5f40a3588299c4542256ad9aaf48fd5a707ef1188d9a3f2e42942b6b544161"
+      "path": "work/dfo-lan/cmd/wireprobe/testdata/select-parser-probe.json",
+      "bytes": 250,
+      "sha256": "2920d66025ebd541d5c9e09cf9bffd4a7915e955760823c9bd90febcd0d3165c"
     },
     {
-      "path": "work/dfo-lan/configs/select-parser-probe.json",
-      "bytes": 238,
-      "sha256": "8e6155b1ec8c48c187c91f6314efb5a238a40644ba30a874dafe68e30d439bdd"
-    },
-    {
-      "path": "work/dfo-lan/configs/select-world-probe.json",
-      "bytes": 470,
-      "sha256": "0d1e4a3f30bff29d80d46f60d53deec5cc0d7f3734c567f4f3fa4d367c59f615"
+      "path": "work/dfo-lan/cmd/wireprobe/testdata/select-world-probe.json",
+      "bytes": 494,
+      "sha256": "258133949857437b334b92788dbb7c60989ed119fcbb8e9e6f96c81d66aa4c3e"
     },
     {
       "path": "work/dfo-lan/configs/shop-next-candidate.json",
@@ -1908,29 +1843,9 @@
       "sha256": "63d7b8152a7482e84404924ff67a7e95799a965097757504b31f00e51bfe0e80"
     },
     {
-      "path": "work/dfo-lan/configs/skills.awakening-candidate.json",
-      "bytes": 4497221,
-      "sha256": "47cfbca40df08128d2e8899b550fec220af98bdc9a12cbe8fcf9047c3f900193"
-    },
-    {
-      "path": "work/dfo-lan/configs/skills.next27.json",
-      "bytes": 5638036,
-      "sha256": "540513f3b7568d296e6ab96434d1a0a3640e9193d54c2c14bdee7fecf0b4f91e"
-    },
-    {
-      "path": "work/dfo-lan/configs/skills.release.json",
-      "bytes": 4497221,
-      "sha256": "47cfbca40df08128d2e8899b550fec220af98bdc9a12cbe8fcf9047c3f900193"
-    },
-    {
-      "path": "work/dfo-lan/configs/town.generated.json",
-      "bytes": 1113,
-      "sha256": "696e9335fffd24d191745f2021d77e002c22a264f97ffd2a7bcb312aaf588324"
-    },
-    {
-      "path": "work/dfo-lan/configs/town-entry-probe.json",
-      "bytes": 169,
-      "sha256": "2fc2517f59ad3c5c05044bb6fe6ab2109d923f3a8ca9aff22bdced013a154b96"
+      "path": "work/dfo-lan/cmd/wireprobe/testdata/town-entry-probe.json",
+      "bytes": 175,
+      "sha256": "fbfc5394f141c786aca14616d6b58480de46adbe8564a85a71400f5c3abc65dc"
     },
     {
       "path": "work/dfo-lan/configs/tutorial-dungeons.current36.json",
@@ -1948,11 +1863,6 @@
       "sha256": "aa39be87926fb3f877ef942a611e598b7e89857dfcbb724b90d96ff0d8714f19"
     },
     {
-      "path": "work/dfo-lan/configs/world.generated.json",
-      "bytes": 29593225,
-      "sha256": "ea190c698ce9f719afc7a6343e8c0b472d52f7ec9bc1e939f69237dc69a68392"
-    },
-    {
       "path": "work/dfo-lan/configs/world-probe.json",
       "bytes": 312,
       "sha256": "6024086ce4fc07739669eaa8f7a1ebb383cd767cd9b10f9720cf83ae58eeca36"
@@ -1964,8 +1874,8 @@
     },
     {
       "path": "work/dfo-lan/docs/current-evidence.md",
-      "bytes": 13623,
-      "sha256": "adb6dae6a12e6f78fd6c2b5f7d9b71c54f79197ac9c4be7e9b0e51c581dd86b6"
+      "bytes": 51533,
+      "sha256": "c340dfaf2121e8ca03483af39b4c1bad5ebd5e8f00f1f77d2bcedbe605316b72"
     },
     {
       "path": "work/dfo-lan/docs/entry-next.md",
@@ -3824,8 +3734,8 @@
     },
     {
       "path": "work/dfo-lan/internal/inventory/equipment_catalog37_test.go",
-      "bytes": 2297,
-      "sha256": "c0c17c78020070fa63eb6fe388e762f2fe97747e6058febace09186e9894be3a"
+      "bytes": 2842,
+      "sha256": "8008a09aa5b614496fd4f24492eda1acfb707df1960ce7aa25f966cf57f88a93"
     },
     {
       "path": "work/dfo-lan/internal/inventory/equipment_family.go",
@@ -4273,11 +4183,6 @@
       "sha256": "517d59ef9368dcfc18c5f183d3ecf8521653f3d7de5a2a802549b155682d01af"
     },
     {
-      "path": "work/dfo-lan/scripts/export_cerashop_catalog.py",
-      "bytes": 3404,
-      "sha256": "5d2c842d8394298730d39098cb94cdf0ab10c663b2fdbb9e80961774bd9c0ccd"
-    },
-    {
       "path": "work/dfo-lan/scripts/launch_local.py",
       "bytes": 7125,
       "sha256": "7e82842fd33c4828f0e10abaeeace4c5346aa86d8feaef818595fd668955b5ce"
@@ -4289,8 +4194,8 @@
     },
     {
       "path": "work/dfo-lan/scripts/test_repair_profile.py",
-      "bytes": 1174,
-      "sha256": "0d0320215eb9b20aa52a9a64eedbe02fb709d8774298552b7f91937a234a934d"
+      "bytes": 10773,
+      "sha256": "e7c6518f43671f6cd0dd5776e1a21ef27d623c3a3aa2017f1ec91b78cd2ee0a8"
     },
     {
       "path": "work/make_patch_diff.py",

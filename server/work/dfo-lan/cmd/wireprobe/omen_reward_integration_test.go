@@ -11,6 +11,7 @@ import (
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
+	"dfolan/internal/testfixture"
 )
 
 // omenTestEnv 把 omen 集成测试需要的东西一次装好。它与
@@ -30,7 +31,7 @@ func loadOmenTestEnv(t *testing.T) omenTestEnv {
 		t.Skip("set ATTUNEMENT_REWARD_INTEGRATION=1 to load the 295 MB dungeon catalog")
 	}
 	dc := catalog.LoadNativeFullDungeons(t)
-	lc, err := catalog.LoadLoot("../../configs/loot.level150.json")
+	lc, err := catalog.LoadLoot(testfixture.LootLevel150Path(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,7 +46,7 @@ func loadOmenTestEnv(t *testing.T) omenTestEnv {
 	if err := a.ValidateOmen(); err != nil {
 		t.Fatalf("the shipped table fails the omen check: %v", err)
 	}
-	bc, err := catalog.LoadBoosterCatalog("../../configs/booster-catalog.json", "../../configs/items.index.json")
+	bc, err := catalog.LoadBoosterCatalog("../../internal/catalog/testdata/booster-flow.json", "../../internal/catalog/testdata/booster-items.json")
 	if err != nil {
 		t.Fatal(err)
 	}

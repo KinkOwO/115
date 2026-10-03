@@ -20,22 +20,22 @@ type Flags struct {
 
 func Register(fs *flag.FlagSet) *Flags {
 	f := new(Flags)
-	fs.StringVar(&f.Mode, "catalog-source", "json", "static catalog source: json or pvf")
+	fs.StringVar(&f.Mode, "catalog-source", "pvf", "static catalog source: pvf; legacy json is refused")
 	fs.StringVar(&f.ArchivePath, "pvf-archive", "", "explicit inner PVF path")
-	fs.StringVar(&f.Checksum, "pvf-source-checksum", "", "exact inner PVF SHA256; must match player save source")
+	fs.StringVar(&f.Checksum, "pvf-source-checksum", "", "optional exact inner PVF SHA256; empty derives the verified resource hash")
 	fs.StringVar(&f.DropPolicy, "pvf-drop-policy", "configs/pvf-drop-policy.json", "existing source-free drop/equipment selection policy")
 	fs.StringVar(&f.CharacterPolicy, "pvf-character-policy", "configs/pvf-character-policy.json", "existing initial shortcut and command policy")
 	fs.BoolVar(&f.CheckOnly, "check-catalogs", false, "prepare catalogs and exit before accessing storage; no character ID required")
 	return f
 }
 
-// Open returns nil for the legacy JSON path. PVF requires a caller-supplied,
-// validated archive checksum; it never infers or substitutes a save identity.
+// Open only prepares read-only native data. Explicit SHA256 is a resource
+// assertion; an empty assertion uses the verified archive hash, never a save alias.
 func (f Flags) Open() (*gamedata.Source, error) {
-	if f.Mode == "json" {
-		return nil, nil
+	if f.Mode != "pvf" {
+		return nil, fmt.Errorf("management catalogs require catalog-source=pvf; JSON content is retired")
 	}
-	return gamedata.Open(gamedata.Options{Mode: gamedata.Mode(f.Mode), ArchivePath: f.ArchivePath, ExpectedChecksum: f.Checksum})
+	return gamedata.Open(gamedata.Options{Mode: gamedata.PVF, ArchivePath: f.ArchivePath, ExpectedChecksum: f.Checksum})
 }
 
 func ReadPolicy(path string, out any) error {

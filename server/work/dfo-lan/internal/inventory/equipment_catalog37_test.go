@@ -1,56 +1,70 @@
-package inventory
+package inventory_test
 
 import (
-	"encoding/json"
+	"dfolan/internal/catalog"
+	"dfolan/internal/gamedata"
+	"dfolan/internal/inventory"
 	"os"
 	"testing"
 )
 
-// The 37 catalog adds the 1638 templates quests hand out. Those rows exist so
-// a quest reward can be granted at all; they must not quietly become monster
-// drops, so the bag-usable pool is expected to stay close to the 35 catalog's.
-func TestWidenedCatalogKeepsDropPoolSane(t *testing.T) {
-	var source struct {
-		Source struct {
-			Checksum string `json:"checksum"`
-		} `json:"source"`
+// The historical narrow/wide comparison covered the complete 1536-row basic
+// policy selection and its PVF quest-reward expansion. Rebuild both directly
+// from the pinned current archive rather than carrying full exported tables.
+func TestNativeWidenedCatalogKeepsDropPoolSane(t *testing.T) {
+	archive := os.Getenv("DFO_PVF_CORE_TEST_ARCHIVE")
+	if archive == "" {
+		t.Skip("set DFO_PVF_CORE_TEST_ARCHIVE for the complete native equipment selection test")
 	}
-	b, e := os.ReadFile("../../configs/equipment.current37.json")
-	if e != nil {
-		t.Skip("37 catalog not present")
+	const currentChecksum = "8b2a9f83247e000a28acd5134b616da725f46def39980b5373030e8cbc5d0934"
+	if got := os.Getenv("DFO_PVF_CORE_TEST_SHA256"); got != currentChecksum {
+		t.Skip("set DFO_PVF_CORE_TEST_SHA256 to the current 8b2a archive for this integration gate")
 	}
-	if e = json.Unmarshal(b, &source); e != nil {
-		t.Fatal(e)
+	source, err := gamedata.Open(gamedata.Options{
+		Mode: gamedata.PVF, ArchivePath: archive, ExpectedChecksum: currentChecksum,
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
-	wide, e := LoadEquipmentCatalog("../../configs/equipment.current37.json", source.Source.Checksum)
-	if e != nil {
-		t.Fatal(e)
+	defer source.Close()
+
+	policy, err := inventory.ReadDropPolicy("../../configs/pvf-drop-policy.json")
+	if err != nil {
+		t.Fatal(err)
 	}
-	narrow, e := LoadEquipmentCatalog("../../configs/equipment.current35.json", source.Source.Checksum)
-	if e != nil {
-		t.Fatal(e)
+	index, err := source.ItemIndex("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	narrow, err := source.EquipmentSelection(index, catalog.QuestCatalog{Source: source.Snapshot()}, policy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	quests, err := source.Quests("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	wide, err := source.EquipmentSelection(index, quests, policy)
+	if err != nil {
+		t.Fatal(err)
 	}
 	before, after := len(narrow.DropPool()), len(wide.DropPool())
-	t.Logf("rows %d -> %d, drop pool %d -> %d",
+	t.Logf("native rows %d -> %d, drop pool %d -> %d",
 		len(narrow.Rows), len(wide.Rows), before, after)
 	if len(wide.Rows) <= len(narrow.Rows) {
-		t.Fatal("widened catalog is not wider")
+		t.Fatal("quest reward selection is not wider than the basic policy selection")
 	}
-	// Every row the narrow catalog could grant must still be grantable.
-	for _, r := range narrow.Rows {
-		if _, err := wide.Basic(r.ID); err != nil {
-			if _, was := narrow.Basic(r.ID); was == nil {
-				t.Fatalf("template %d lost its basic acceptance", r.ID)
+	for _, row := range narrow.Rows {
+		if _, err := wide.Basic(row.ID); err != nil {
+			if _, was := narrow.Basic(row.ID); was == nil {
+				t.Fatalf("template %d lost its basic acceptance", row.ID)
 			}
 		}
 	}
 	if after > before*3 {
 		t.Fatalf("drop pool grew out of proportion: %d -> %d", before, after)
 	}
-
-	// Quest 21650's reward. Live capture 20260912T011904 refused it four times
-	// after the template was imported, because it is bound gear and Basic only
-	// accepts what a monster may drop.
+	// Quest 21650's reward is grantable but bound gear must not enter the drop pool.
 	if _, err := wide.Reward(100261068); err != nil {
 		t.Fatal("quest 21650's reward is still not grantable:", err)
 	}
@@ -58,16 +72,16 @@ func TestWidenedCatalogKeepsDropPoolSane(t *testing.T) {
 		t.Fatal("bound gear leaked into the drop-pool rule")
 	}
 	grantable, pooled := 0, 0
-	for _, r := range wide.Rows {
-		if _, err := wide.Reward(r.ID); err == nil {
+	for _, row := range wide.Rows {
+		if _, err := wide.Reward(row.ID); err == nil {
 			grantable++
 		}
-		if _, err := wide.Basic(r.ID); err == nil {
+		if _, err := wide.Basic(row.ID); err == nil {
 			pooled++
 		}
 	}
-	t.Logf("grantable %d of %d rows, pool-eligible %d", grantable, len(wide.Rows), pooled)
+	t.Logf("grantable %d of %d native rows, pool-eligible %d", grantable, len(wide.Rows), pooled)
 	if grantable <= pooled {
-		t.Fatal("the reward rule is no wider than the pool rule")
+		t.Fatal("the quest reward rule is no wider than the drop-pool rule")
 	}
 }

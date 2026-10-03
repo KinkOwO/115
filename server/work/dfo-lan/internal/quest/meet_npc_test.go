@@ -2,6 +2,7 @@ package quest
 
 import (
 	"dfolan/internal/catalog"
+	"dfolan/internal/testfixture"
 	"testing"
 )
 
@@ -12,7 +13,7 @@ import (
 // （100001447）只在 town139，原始目标 NPC 28 在 town40/area2 —— 所以"先解析目标
 // 再做地图检查"必然把客户端已经发出的请求拒掉。豁免对它们不是顺带，而是必需。
 func TestExplicitDialogueQuestsMayResolveTheirOwnTarget(t *testing.T) {
-	c, e := catalog.LoadQuests("../../configs/quests.generated.json")
+	c, e := catalog.LoadQuests(testfixture.CatalogPath(t, "quests"))
 	if e != nil {
 		t.Fatal(e)
 	}

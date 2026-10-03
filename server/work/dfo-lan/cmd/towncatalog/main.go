@@ -1,8 +1,7 @@
 package main
 
 import (
-	"dfolan/internal/catalog"
-	"dfolan/internal/catalog/pvf"
+	"dfolan/internal/gamedata"
 	"encoding/json"
 	"flag"
 	"log"
@@ -13,16 +12,20 @@ func main() {
 	source := flag.String("source", "", "read-only source PVF")
 	town := flag.Uint("town", 0, "town ID from list/town.lst")
 	area := flag.Uint("area", 0, "area ID from the town script")
-	out := flag.String("output", "configs/town.generated.json", "catalog output")
+	out := flag.String("output", "", "explicit diagnostic output path (required)")
 	flag.Parse()
+	if *out == "" {
+		log.Fatal("explicit -output is required")
+	}
 	if *town > 65535 || *area > 65535 {
 		log.Fatal("invalid town/area")
 	}
-	a, e := pvf.LoadArchive(pvf.Options{Path: *source, MaxBytes: 1024 * 1024 * 1024})
+	a, e := gamedata.Open(gamedata.Options{Mode: gamedata.PVF, ArchivePath: *source})
 	if e != nil {
 		log.Fatal(e)
 	}
-	c, e := catalog.ImportTownArea(a, uint32(*town), uint32(*area))
+	defer a.Close()
+	c, e := a.Town(uint32(*town), uint32(*area))
 	if e != nil {
 		log.Fatal(e)
 	}

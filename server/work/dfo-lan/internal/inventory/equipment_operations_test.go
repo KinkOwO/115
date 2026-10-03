@@ -4,10 +4,10 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/game/protocol"
+	"dfolan/internal/testfixture"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"sync"
 	"testing"
 )
 
@@ -164,54 +164,36 @@ func TestCraftEventKeyChangesPerAttempt(t *testing.T) {
 	}
 }
 
-// transformEquipmentCatalog 载入一份**全量**装备目录，整个测试进程只载一次。
-//
-// ★ 本仓的全量目录不是单文件：外部包里的 `configs/equipment-full.json` 是 `cmd/equipmentfull`
-// 的导出物，本仓没有它 —— 本仓用的是 `configs/equipment-full.index.json` +
-// `configs/equipment-full.data` 两件套（.data 326 MB），由 `OpenFullEquipmentCatalog` 打开，
-// 再挂到基础目录的 `Full` 字段上（此后 `Definition` / `Reward` 都走全量，见
-// internal/inventory/equipment_full.go 的 Definition）。
-//
-// 加载不便宜（53 MB 的 index 要整体 decode），所以用 sync.Once 摊到整个测试进程；
-// 变换的每个用例都要 115 级装备，只有全量目录里才有。
-var (
-	transformGearOnce sync.Once
-	transformGear     *EquipmentCatalog
-	transformGearErr  error
-)
-
-func transformEquipmentCatalog() (*EquipmentCatalog, error) {
-	transformGearOnce.Do(func() {
-		cat, e := catalog.LoadLoot("../../configs/loot.level150.json")
-		if e != nil {
-			transformGearErr = fmt.Errorf("load loot catalog: %w", e)
-			return
-		}
-		base, e := LoadEquipmentCatalog("../../configs/equipment.current37.json", cat.Source.Checksum)
-		if e != nil {
-			transformGearErr = fmt.Errorf("load base equipment catalog: %w", e)
-			return
-		}
-		full, e := OpenFullEquipmentCatalog("../../configs/equipment-full", cat.Source.Checksum)
-		if e != nil {
-			transformGearErr = fmt.Errorf("open full equipment catalog (configs/equipment-full.data): %w", e)
-			return
-		}
-		gear := *base
-		gear.Full = full
-		transformGear = &gear
-	})
-	return transformGear, transformGearErr
+// transformEquipmentCatalog uses the historical flow fixture.
+// It contains all explicit test anchors and unchanged create-cost group members;
+// complete native bindings and definition parity are checked separately.
+func transformEquipmentCatalog(t *testing.T) (*EquipmentCatalog, error) {
+	t.Helper()
+	cat, err := catalog.LoadLoot(testfixture.LootLevel150Path(t))
+	if err != nil {
+		return nil, fmt.Errorf("load loot catalog: %w", err)
+	}
+	base, err := LoadEquipmentCatalog("../../configs/equipment.current37.json", cat.Source.Checksum)
+	if err != nil {
+		return nil, fmt.Errorf("load base equipment catalog: %w", err)
+	}
+	full, err := OpenFullEquipmentCatalog("../inventory/testdata/equipment-flow", cat.Source.Checksum)
+	if err != nil {
+		return nil, fmt.Errorf("open equipment flow fixture: %w", err)
+	}
+	gear := *base
+	gear.Full = full
+	return &gear, nil
 }
 
 // loadTransformFixtures 载入变换用到的三张真实表。
 func loadTransformFixtures(t *testing.T) (*ItemService, *catalog.EquipmentCreateCost) {
 	t.Helper()
-	cat, e := catalog.LoadLoot("../../configs/loot.level150.json")
+	cat, e := catalog.LoadLoot(testfixture.LootLevel150Path(t))
 	if e != nil {
 		t.Fatalf("load loot catalog: %v", e)
 	}
-	gear, e := transformEquipmentCatalog()
+	gear, e := transformEquipmentCatalog(t)
 	if e != nil {
 		t.Fatalf("load equipment catalog: %v", e)
 	}
@@ -451,7 +433,7 @@ func TestApplyTransformKeepsBuildEffects(t *testing.T) {
 // （实机 2026-09-30 01:31：11 件里 A 套只有 3 件在 counts 里 ⇒ 只有那 3 件能换回。）
 func TestRegisterTransformedSourcesAddsSource(t *testing.T) {
 	s, _ := loadTransformFixtures(t)
-	cat, e := catalog.LoadLoot("../../configs/loot.level150.json")
+	cat, e := catalog.LoadLoot(testfixture.LootLevel150Path(t))
 	if e != nil {
 		t.Fatalf("load loot catalog: %v", e)
 	}

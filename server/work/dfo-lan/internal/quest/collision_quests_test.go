@@ -2,6 +2,7 @@ package quest
 
 import (
 	"dfolan/internal/catalog"
+	"dfolan/internal/testfixture"
 	"reflect"
 	"testing"
 )
@@ -11,7 +12,7 @@ import (
 // exclusive, or a character can pick a faction three times and re-clear the
 // same maps on every branch.
 func TestCollisionQuestsParsedFromSource(t *testing.T) {
-	c, err := catalog.LoadQuests("../../configs/quests.generated.json")
+	c, err := catalog.LoadQuests(testfixture.CatalogPath(t, "quests"))
 	if err != nil {
 		t.Fatal(err)
 	}

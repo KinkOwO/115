@@ -2,6 +2,7 @@ package dungeon
 
 import (
 	"dfolan/internal/catalog"
+	"dfolan/internal/testfixture"
 	"testing"
 )
 
@@ -11,7 +12,7 @@ import (
 // every map through the real parser so no spawn option is left that would
 // block a room.
 func TestEveryRuntimeMapParses(t *testing.T) {
-	c, e := catalog.LoadDungeons("../../configs/dungeons.next28.json")
+	c, e := catalog.LoadDungeons(testfixture.DungeonPath(t, "dungeons.next28.json"))
 	if e != nil {
 		t.Skip("runtime dungeon catalog not present:", e)
 	}

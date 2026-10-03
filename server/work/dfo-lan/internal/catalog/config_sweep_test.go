@@ -28,7 +28,7 @@ func TestConfigCrossCatalogSweep(t *testing.T) {
 	if jobs.Professions[shields.Profession].Job != "[knight]" || rules.Slots["[support weapon]"] != shields.Slot() {
 		t.Fatal("shield profession or slot mismatch")
 	}
-	full, e := inventory.OpenFullEquipmentCatalog("../../configs/equipment-full", jobs.Source.Checksum)
+	full, e := inventory.OpenFullEquipmentCatalog("../inventory/testdata/equipment-flow", jobs.Source.Checksum)
 	if e != nil {
 		t.Fatal(e)
 	}

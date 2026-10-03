@@ -1,5 +1,0 @@
-{
-  "version": 1,
-  "whitelist": [],
-  "provenance": "2026-10-02 single-content-source migration: selection-box scope is discovered from the item index [stackable type] = [booster selection]; the historical 2,978-ID list was removed. Add a template to whitelist only when the source cannot label it [booster selection]."
-}

@@ -2,6 +2,7 @@ package world
 
 import (
 	"context"
+	"dfolan/internal/testfixture"
 	"testing"
 
 	"dfolan/internal/catalog"
@@ -19,7 +20,7 @@ func (f *fakeStore) LoadWorld(_ context.Context, _, _ int64, _ uint32, initial W
 }
 
 func TestServiceUsesInjectedStore(t *testing.T) {
-	cat, err := catalog.LoadWorld("../../configs/world.generated.json")
+	cat, err := catalog.LoadWorld(testfixture.CatalogPath(t, "world"))
 	if err != nil {
 		t.Fatal(err)
 	}

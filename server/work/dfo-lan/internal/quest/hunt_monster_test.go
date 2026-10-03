@@ -4,13 +4,14 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
+	"dfolan/internal/testfixture"
 	"reflect"
 	"sort"
 	"testing"
 )
 
 func TestEpicHuntMonsterSourceRoutes(t *testing.T) {
-	quests, err := catalog.LoadQuests("../../configs/quests.generated.json")
+	quests, err := catalog.LoadQuests(testfixture.CatalogPath(t, "quests"))
 	if err != nil {
 		t.Fatal(err)
 	}

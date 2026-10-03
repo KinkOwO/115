@@ -3,6 +3,7 @@ package dungeon
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
+	"dfolan/internal/testfixture"
 	"testing"
 )
 
@@ -12,7 +13,7 @@ import (
 // 的层索引，它又从第一张重播 —— 973→974→356→973 死循环，症状是「放一次技能就重看
 // 一次剧情」。多张序列走完后必须**前进**到相邻房间。
 func TestLayerSequenceExitAdvancesInsteadOfLooping(t *testing.T) {
-	c, e := catalog.LoadDungeons("../../configs/dungeons.odyssey-scenes-release.json")
+	c, e := catalog.LoadDungeons(testfixture.DungeonPath(t, "dungeons.odyssey-scenes-release.json"))
 	if e != nil {
 		t.Fatal(e)
 	}

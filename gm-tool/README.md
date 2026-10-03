@@ -1,5 +1,19 @@
 # DFO GM 工具（独立网页版）
 
+## 2026-10-03 当前源码：PVF 唯一内容源
+
+GM/admin 源码和 Python 启动器默认使用原生 PVF，拒绝 JSON 内容源；物品分类、可发放集合与完整装备定义不再读取 `items.index.json` 或 `equipment-full.index.json/.data`。中文名称覆盖、背包策略和操作备份继续保留。代理必须取得后端 `/api/catalog-metadata`，接口错误直接报错。
+
+默认存储路径为本仓库 `server/work/dfo-lan/runtime/storage/local.json`；指定 `--storage` 时，从其所在模块派生 `../client-build/Script.inner.pvf` 与 `configs/pvf-drop-policy.json`。资源路径可显式覆盖，`--pvf-source-checksum` 可选，留空时仍校验并使用实际资源哈希；玩家存档身份逻辑保持。
+
+本批候选位于 `server/work/dfo-lan/.tmp/item-equipment-cleanup/gmweb.exe`，未替换 `gm-tool/bin` 发布程序。仓库根目录下可只读检查候选（不读取存储配置、不启动 PostgreSQL、网页服务或浏览器）：
+
+```powershell
+./tools/python/python.exe ./gm-tool/scripts/gmweb.py --check --gmweb-binary ./server/work/dfo-lan/.tmp/item-equipment-cleanup/gmweb.exe
+```
+
+需要手动回归时使用同目录 `启动GM候选.cmd`，可附加 `--storage` 等参数。本批已完成离线原生目录与发放回归，未增加实机确认范围。以下为旧发布包和早期候选的历史说明，旧 JSON 启动参数不适用于当前源码。
+
 ## 2026-10-01 PVF查询候选
 
 源码`server/work/dfo-lan/cmd/gmtool`新增原生源入口；独立程序放在模块的`.tmp/pvf-management/bin/gmweb.exe`，现有发布程序和默认启动参数保持。模块根目录下只检查候选目录（不需要数据库）：

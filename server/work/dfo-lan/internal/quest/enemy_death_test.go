@@ -4,13 +4,14 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
+	"dfolan/internal/testfixture"
 	"reflect"
 	"sort"
 	"testing"
 )
 
 func TestSingleHuntSourceForms(t *testing.T) {
-	c, err := catalog.LoadQuests("../../configs/quests.generated.json")
+	c, err := catalog.LoadQuests(testfixture.CatalogPath(t, "quests"))
 	if err != nil {
 		t.Fatal(err)
 	}

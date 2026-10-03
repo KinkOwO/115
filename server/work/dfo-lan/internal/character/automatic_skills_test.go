@@ -2,6 +2,7 @@ package character
 
 import (
 	"dfolan/internal/catalog"
+	"dfolan/internal/testfixture"
 
 	"testing"
 )
@@ -12,7 +13,7 @@ func autoSkillFixture(t *testing.T) (*Service, Character, State) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	l, e := LoadLearningCatalog("../../configs/skills.awakening-candidate.json", c.Source.Checksum)
+	l, e := LoadLearningCatalog(testfixture.SkillCatalogPath(t, "release"), c.Source.Checksum)
 	if e != nil {
 		t.Fatal(e)
 	}

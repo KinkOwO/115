@@ -9,6 +9,7 @@ import (
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/game/wire"
 	"dfolan/internal/storage"
+	"dfolan/internal/testfixture"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
@@ -67,7 +68,7 @@ func TestMonsterDeathAfterAdvancementIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	pc, err := catalog.LoadProgression("../../configs/progression.next25.json")
+	pc, err := catalog.LoadProgression(testfixture.ProgressionPath(t))
 	if err != nil {
 		t.Fatal(err)
 	}

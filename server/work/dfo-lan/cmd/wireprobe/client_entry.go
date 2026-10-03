@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"dfolan/internal/catalog"
 	"dfolan/internal/character"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
@@ -46,29 +47,33 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 			client.event(map[string]any{"kind": "select_rejected", "error": e.Error()})
 			return dispatchHandled
 		}
+		var creation *catalog.OdysseyCreateRewards
+		if client.progressionService != nil && client.progressionService.Odyssey != nil {
+			creation = client.progressionService.Odyssey.Creation
+		}
 		if odysseyRewardsEnabled() {
 			ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
-			updated, applied, rewardErr := grantOdysseyArmor(ctx, client.gameStore, client.wearService, role)
+			updated, applied, rewardErr := grantOdysseyArmor(ctx, client.gameStore, client.wearService, role, creation)
 			cancel()
 			if rewardErr != nil {
 				client.event(map[string]any{"kind": "odyssey_armor_pending", "character_id": role.ID, "reason": rewardErr.Error()})
 			} else {
 				role = updated
 				if applied {
-					client.event(map[string]any{"kind": "odyssey_armor_granted", "character_id": role.ID, "templates": odysseyArmor})
+					client.event(map[string]any{"kind": "odyssey_armor_granted", "character_id": role.ID, "templates": creation.ArmorTemplates()})
 				}
 			}
 		}
 		if odysseyRewardsEnabled() {
 			ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
-			updated, applied, rewardErr := grantOdysseyWeaponBox(ctx, client.gameStore, role)
+			updated, applied, rewardErr := grantOdysseyWeaponBox(ctx, client.gameStore, role, creation)
 			cancel()
 			if rewardErr != nil {
 				client.event(map[string]any{"kind": "odyssey_weapon_box_pending", "character_id": role.ID, "reason": rewardErr.Error()})
 			} else {
 				role = updated
 				if applied {
-					client.event(map[string]any{"kind": "odyssey_weapon_box_granted", "character_id": role.ID, "template": 10417789})
+					client.event(map[string]any{"kind": "odyssey_weapon_box_granted", "character_id": role.ID, "template": creation.Weapon.Template})
 				}
 			}
 		}
@@ -80,14 +85,14 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 				client.event(map[string]any{"kind": "odyssey_create_potion_pending", "character_id": role.ID, "reason": "loot catalog unavailable"})
 			} else {
 				ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
-				updated, applied, rewardErr := grantOdysseyCreatePotion(ctx, client.gameStore, client.lootService.Catalog, client.lootService.BagRules, role)
+				updated, applied, rewardErr := grantOdysseyCreatePotion(ctx, client.gameStore, client.lootService.Catalog, client.lootService.BagRules, role, creation)
 				cancel()
 				if rewardErr != nil {
 					client.event(map[string]any{"kind": "odyssey_create_potion_pending", "character_id": role.ID, "reason": rewardErr.Error()})
 				} else {
 					role = updated
 					if applied {
-						client.event(map[string]any{"kind": "odyssey_create_potion_granted", "character_id": role.ID, "template": 10418028, "quantity": 30})
+						client.event(map[string]any{"kind": "odyssey_create_potion_granted", "character_id": role.ID, "template": creation.Supplies[0].Template, "quantity": creation.Supplies[0].Count})
 					}
 				}
 			}

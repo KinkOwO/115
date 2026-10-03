@@ -1244,6 +1244,10 @@ func (w *worldSession) completeDungeon() ([]outboundPacket, error) {
 	}
 	var plan []outboundPacket
 	if w.progression != nil && w.progression.Odyssey != nil && w.activeDungeon.Definition.Odyssey {
+		beforeBag, e := inventory.ReadBag(w.role.State)
+		if e != nil {
+			return nil, e
+		}
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		saved, _, e := w.progression.OdysseyClear(ctx, w.role, w.activeDungeon)
 		cancel()
@@ -1302,7 +1306,7 @@ func (w *worldSession) completeDungeon() ([]outboundPacket, error) {
 		// id-13 重喂背包网格与 worn 模型，id-14 重喂 worn 槽窗口；**两者必须成对**，
 		// 实测只发 id-13 会让槽位窗口变空。注意不要发 entry_addition（NOTI 2）——
 		// 那是进图/登录帧，在副本内发会让客户端把装备栏显示清空（见该文档「重发的坑」）。
-		if _, unlocks := character.OdysseyExpandEquipMask(w.activeDungeon.Definition.ID); unlocks {
+		if afterBag, e := inventory.ReadBag(w.role.State); e == nil && afterBag.ExpandEquipFlags != beforeBag.ExpandEquipFlags {
 			if bag, e := inventory.ReadBag(w.role.State); e == nil {
 				if bagBody, e := protocol.InventoryRestore(bag.Rows()); e == nil {
 					plan = append(plan, outboundPacket{"equipment_bag_resynced", 0, 13, bagBody})

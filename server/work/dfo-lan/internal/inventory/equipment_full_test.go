@@ -113,12 +113,12 @@ func TestFullCatalogWearFamiliesIntegration(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	full, e := OpenFullEquipmentCatalog("../../configs/equipment-full", role.ConfigVersion)
+	full, e := OpenFullEquipmentCatalog("../inventory/testdata/equipment-flow", role.ConfigVersion)
 	if e != nil {
 		t.Fatal(e)
 	}
 	defer full.Close()
-	if len(full.Records) != 424216 || len(full.Errors) != 0 {
+	if len(full.Records) != 490 || len(full.Errors) != 0 {
 		t.Fatal("incomplete catalog")
 	}
 	expanded := *original

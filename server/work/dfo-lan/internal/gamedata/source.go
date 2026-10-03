@@ -272,36 +272,41 @@ func (s *Source) ReleaseReadCaches() {
 }
 
 func (s *Source) Characters(path string) (catalog.Characters, error) {
-	if s.mode == JSON {
-		return catalog.LoadCharacters(path)
+	if s.mode != PVF {
+		return catalog.Characters{}, nativeContentRequired("characters")
 	}
 	return catalog.ImportCharacters(s.archive)
 }
 
 func (s *Source) World(path string) (catalog.WorldCatalog, error) {
-	if s.mode == JSON {
-		return catalog.LoadWorld(path)
+	if s.mode != PVF {
+		return catalog.WorldCatalog{}, fmt.Errorf("world requires native PVF")
 	}
-	return catalog.ImportWorldRuntime(s.archive)
+	w, err := catalog.ImportWorldRuntime(s.archive)
+	if err != nil {
+		return w, err
+	}
+	w.Favor, err = catalog.ImportNPCFavorRules(s.archive)
+	return w, err
 }
 
 func (s *Source) Quests(path string) (catalog.QuestCatalog, error) {
-	if s.mode == JSON {
-		return catalog.LoadQuests(path)
+	if s.mode != PVF {
+		return catalog.QuestCatalog{}, fmt.Errorf("quests require native PVF")
 	}
 	return catalog.ImportQuests(s.archive)
 }
 
 func (s *Source) Progression(path string) (catalog.Progression, error) {
-	if s.mode == JSON {
-		return catalog.LoadProgression(path)
+	if s.mode != PVF {
+		return catalog.Progression{}, nativeContentRequired("progression")
 	}
 	return catalog.ImportProgression(s.archive)
 }
 
 func (s *Source) ItemIndex(path string) (catalog.ItemIndex, error) {
-	if s.mode == JSON {
-		return catalog.LoadItemIndex(path)
+	if s.mode != PVF {
+		return catalog.ItemIndex{}, fmt.Errorf("item index requires native PVF")
 	}
 	return catalog.ImportItemIndex(s.archive)
 }
@@ -667,11 +672,11 @@ func (s *Source) Attunement() (*loot.AttunementRewards, error) {
 	return loot.ImportAttunementRewards(s.archive)
 }
 
-func (s *Source) OdysseyGrowth(index catalog.ItemIndex, supplemental []uint32) (*catalog.OdysseyGrowth, error) {
+func (s *Source) OdysseyGrowth(index catalog.ItemIndex) (*catalog.OdysseyGrowth, error) {
 	if s.archive == nil {
 		return nil, fmt.Errorf("Odyssey requires PVF")
 	}
-	return catalog.ImportOdysseyGrowth(s.archive, index, supplemental)
+	return catalog.ImportOdysseyGrowth(s.archive, index)
 }
 func (s *Source) OdysseyChapters() (*catalog.OdysseyChapters, error) {
 	if s.archive == nil {

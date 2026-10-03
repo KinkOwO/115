@@ -1,8 +1,14 @@
 package main
 
 import (
+	"dfolan/internal/catalog"
+	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
+	"dfolan/internal/loot"
+	"dfolan/internal/storage"
+	"dfolan/internal/world"
+	"strings"
 	"testing"
 )
 
@@ -60,6 +66,7 @@ func TestFavorDyeAckEchoesRequestBody(t *testing.T) {
 // 无色 100/300，黑白红蓝 200/600，金色 400/900；未知礼物必须拒绝。
 // 档位来自 [favor level point down]：500/1000/1500 累计门槛，1500 满。
 func TestFavorPointUpFollowsGiftTemplate(t *testing.T) {
+	favor := favorRulesFixture(t)
 	cases := map[uint32][2]int64{
 		3037: {100, 300},
 		3033: {200, 600},
@@ -69,38 +76,77 @@ func TestFavorPointUpFollowsGiftTemplate(t *testing.T) {
 		3262: {400, 900},
 	}
 	for tpl, want := range cases {
-		minPoint, maxPoint := favorPointUp(tpl)
+		minPoint, maxPoint := favor.PointRange(tpl)
 		if minPoint != want[0] || maxPoint != want[1] {
 			t.Fatalf("favorPointUp(%d) = %d/%d, want %d/%d", tpl, minPoint, maxPoint, want[0], want[1])
 		}
 	}
-	if minPoint, _ := favorPointUp(10100115); minPoint != 0 {
+	if minPoint, _ := favor.PointRange(10100115); minPoint != 0 {
 		t.Fatal("non-cube account material must not be a favor gift")
 	}
-	if favorMaxPoint != 1500 || len(favorLevels) != 3 || favorLevels[2] != 1500 {
-		t.Fatalf("favor level gates wrong: max=%d levels=%v", favorMaxPoint, favorLevels)
+	if favor.MaxPoint() != 1500 || len(favor.Levels) != 3 || favor.Levels[2] != 1500 {
+		t.Fatalf("favor level gates wrong: max=%d levels=%v", favor.MaxPoint(), favor.Levels)
 	}
 }
 
 // 礼物按所选槽位扣材料：白色小晶块（槽 364 → 3034）必须扣白色，
 // 无色库存不受影响；材料不足时拒绝（此前硬编码 3037 扣错颜色）。
 func TestFavorGiftSpendsSelectedCube(t *testing.T) {
-	if favorDailyLimit != 5 || favorGiftCount != 100 {
-		t.Fatalf("favor source rules changed: limit=%d count=%d", favorDailyLimit, favorGiftCount)
+	favor := favorRulesFixture(t)
+	if favor.DailyLimit != 5 || favor.GiftCount != 100 {
+		t.Fatalf("favor source rules changed: limit=%d count=%d", favor.DailyLimit, favor.GiftCount)
 	}
 	template, ok := inventory.StorageRowTemplate(protocol.FavorGiftRequest{Slot: 0x6c}.GiftSlot())
 	if !ok {
 		t.Fatal("slot 364 must resolve")
 	}
-	materials, _, err := inventory.NewAccountMaterials().Add(template, favorGiftCount)
+	materials, _, err := inventory.NewAccountMaterials().Add(template, favor.GiftCount)
 	if err != nil {
 		t.Fatal(err)
 	}
-	after, slot, err := materials.Spend(template, favorGiftCount)
+	after, slot, err := materials.Spend(template, favor.GiftCount)
 	if err != nil || slot != 364 || after.Count(template) != 0 {
 		t.Fatalf("white cube spend = slot %d, remaining %d, err %v", slot, after.Count(template), err)
 	}
 	if after.Count(3037) != 0 {
 		t.Fatal("clear cubes must stay untouched when gifting white cubes")
+	}
+}
+
+// Observed source values belong to this test input, not the runtime executor.
+func favorRulesFixture(t *testing.T) *catalog.NPCFavorRules {
+	t.Helper()
+	var cells []pvf.Token
+	add := func(tag string, nums ...int32) {
+		cells = append(cells, pvf.Token{Type: 3, Text: tag})
+		for _, n := range nums {
+			cells = append(cells, pvf.Token{Type: 0, Value: n})
+		}
+	}
+	add("[favor condition level]", 20)
+	add("[favor gift item count]", 100)
+	add("[favor gift limit]", 5)
+	add("[favor level point up]", 3037, 100, 300, 3033, 200, 600, 3034, 200, 600, 3035, 200, 600, 3036, 200, 600, 3262, 400, 900)
+	add("[/favor level point up]")
+	add("[favor level point down]", 0, 21, 500, 1, 14, 1000, 2, 7, 1500)
+	add("[/favor level point down]")
+	r, e := catalog.ParseNPCFavorRules("test-source", catalog.ScriptRecord{Cells: cells})
+	if e != nil {
+		t.Fatal(e)
+	}
+	return r
+}
+
+func TestFavorGiftUsesNativeEligibilityAndRejectsMissingRules(t *testing.T) {
+	rules := favorRulesFixture(t)
+	rules.OpenLevel = 27
+	w := &worldSession{role: storage.Character{ID: 1, State: []byte(`{"level":26}`)}, store: &storage.Store{}, loot: &loot.Service{}, service: &world.Service{Catalog: catalog.WorldCatalog{Favor: rules}}}
+	p := []byte{0, 0x9d, 0, 0, 0, 0x23, 0x6c, 1}
+	if _, err := w.giveFavor(p); err == nil || !strings.Contains(err.Error(), "level 27") {
+		t.Fatalf("source eligibility ignored: %v", err)
+	}
+	w.service.Catalog.Favor = nil
+	if _, err := w.giveFavor(p); err == nil || !strings.Contains(err.Error(), "native favor rules unavailable") {
+		t.Fatalf("missing source fell back: %v", err)
 	}
 }

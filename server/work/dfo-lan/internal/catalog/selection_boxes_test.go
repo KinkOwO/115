@@ -11,15 +11,15 @@ import (
 // 里——那是固定内容盒——所以服务端查无定义、只回通用失败码，客户端把它显示成
 // "库存已满"。目录由 cmd/selectionboximport 从真源 PVF 导出；这里盯住加载校验，
 // 以及"玩家的选择必须落在源给出的范围内"这条服务端校验。
-func TestSelectionBoxesFromSource(t *testing.T) {
-	s, err := LoadSelectionBoxes("../../configs/selection-boxes-candidate.json")
+func TestSelectionBoxesFlowFixture(t *testing.T) {
+	s, err := LoadSelectionBoxes("testdata/selection-flow.json")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if s.Model != SelectionBoxModel || len(s.Source.Checksum) != 64 {
 		t.Fatalf("model=%q source=%+v", s.Model, s.Source)
 	}
-	if len(s.Boxes) < 2000 {
+	if len(s.Boxes) != 26 {
 		t.Fatalf("suspiciously small catalog: %d boxes", len(s.Boxes))
 	}
 

@@ -1,5 +1,92 @@
 # PVF 运行依赖台账（第 0 批）
 
+## 2026-10-03：MR !139 本轮源码收口与可运行交付
+
+用户要求先收口并让上游可合并。本轮JSON/规则清理停止扩展，已完成改动全部提交；MR独立树以 `077b62c` 合入最新上游 `61106a0e`，保留副本难度经验修复，CHANGELOG和server/AGENTS两处冲突保留双方记录。根工作区源码停在 `66f722c`，用户 `.gitignore` 未提交；本段描述MR集成树，不混称根main已同步上游。
+
+收口验证：Go1.26.5无缓存全量测试及vet、Python3.11.9默认启动/profile25项通过；使用默认profile全部54域和启动器相同的穿戴布局参数，真实PVF8b2a9f83准备通过（599,771物品、424,216装备绑定、2,844任务、3,200副本），报告 `storage_accessed=false`、`runtime_started=false`。未启动客户端、服务监听或访问玩家库。`-trimpath`独立候选SHA256 `f9cca84b4373ca0bdd5d8ae7438c8af91ae7139ea505bd4cb0f1801bda0e6a36`，本机位置 `.tmp/mr139-closeout/wireprobe-native-closeout.exe`。
+
+confirmed baseline边界：本轮确认源码整理/提交收口；既有实机确认基线保持，不把默认准备成功写成玩法实机验收。110级槽位动作、旧角色补齐及本轮交互改动仍由用户手动回归。上游接入须同时使用MR源码与配置；先用 `pwsh -NoProfile -File ./server/Build-Server.ps1` 构建，再手动 `./启动游戏.cmd --source-build` 或 `./启动服务端.cmd --source-build`。旧默认PVF可执行文件不会自动更新；验收后才用现有 `-UpdatePVFDefault` 发布确认程序，39归档保持。构建/启动说明见server/README-先看这里.md。
+
+
+## 2026-10-03：MR !139 同步 upstream/main 5c64d224（集成候选）
+
+保留上游 Moon Lake / Sole / Hell Party / 大会流程 / 自动拾取及奥德赛章节荣誉奖励改动；内容门禁冲突保持 PVF 唯一入口，Hell Party 原生准备与规则接线保留，历史 JSON 不重新参与运行回退。根工作区未合并上游；合并与三批规则迁移均在 MR 独立工作树完成。
+
+新增重复规则提醒：上游 `configs/odyssey-completion-rewards.json` 的章节 ID/数量对应 `aradodysseyjournal.cos [reward]`，荣誉盒对应 `aradodyssey.etc [complete reward info]`。上游 `docs/odyssey-completion-rewards.md` 明确记录用户指定人工维护映射，因此本轮保留授权差异，不能静默删除；原生章节/物品/盒内容仍取同一 Source。若取消该覆盖，应回到已有原生章节和完成奖励消费者，并保持旧收据键及行序。其余未闭环项沿现有台账，不据本次迁移宣称全量规则已收敛。
+
+上游新增这一份 JSON 后，MR 集成树顶层63份，本地规则迁移提交树62份；此前四份实际删除不撤回。候选验证与既有 confirmed baseline 分开记录，不替换正式运行程序，不启动客户端或访问玩家库。
+
+
+集成验证：Go 1.26.5 全量 `go test -count=1 ./...` 与 `go vet ./...`、Python 3.11.9 启动/profile 25项通过；实际PVF8b2a9f83的奥德赛五域与统一Source好感度专项通过。独立候选 `.tmp/pvf-rule-integration/wireprobe-native-rules.exe` SHA256 `bb686d305ef4e8ee7a6e727586fcc392af079faf230465d2e3827291003f1709`；正式/default bin保持，110级全槽动作与旧角色补齐仍待手动实机。
+
+## 2026-10-03：奥德赛创建奖励及武器箱消费者由原生引用链驱动（源码候选）
+
+重复定义：`contents/2026/aradodyssey/etc/aradodyssey.etc` 的 `[create reward] / [reward data]` 引用固定礼包 `.stk`，礼包继续引用护甲盒、武器自选箱与补给。统一 Source 按原生物品索引解析该链，创建发奖消费者读取护甲模板及数量、武器箱模板、补给模板及数量，移除 Go 的八件护甲表与药水 ID/数量常量。启动装配、开箱分流、武器箱消耗、移动识别和 CMD160 ACK 同时读取该原生身份；启动装配也从脚本读取 grade/rarity/stack limit，协议字段布局保持。创建补给的源物品定义也装配到发奖/移动目录，普通怪物掉落池不扩展。
+
+删除 `pvf-mine-policy.json` 的 `odyssey_supplemental_items` 两项冗余 ID：创建补给由引用链准备，货币由自己的原生目录准备；成长礼物目录只保留实际消费者所需的四个礼包。旧字段由严格解码拒绝，代码与 policy 须同时更新。创建发奖与武器选择保留旧事务事件键（字符串中的旧 ID 属于存档幂等契约，不能随源修改），不重发已有角色奖励。当前解析模型支持一个固定护甲包、一个武器自选包和一种补给，未知结构明确拒绝，不回退旧清单。
+
+改变小型源中的引用、护甲数量和补给数量，验证 reader 与执行器随源变化；改变武器箱身份验证消费及 ACK，原实机向量的字节回归保持。实际 PVF `8b2a9f83…` 创建链核验：10417791 → 护甲10417790（8件）、武器10417789（85类）、补给10418028×30。Go 1.26.5 全量测试与 vet、实际 PVF 奥德赛五域专项通过。没有访问玩家库、修改 schema 或替换正式程序，confirmed baseline 保持既有实机范围；JSON仍为62个，本轮主要移除 Go 重复定义。
+
+继续排查的未闭环项：特殊频道前置任务（`internal/character/service.go` 的12167/12312/12392/12422与客户端通知位映射）、皮肤槽扩容券（`internal/inventory/expand_slots.go` 的10309084/10157209/50006401与原生动作绑定）、分解3037的材料身份，以及 mine policy 的奥德赛货币 rank 映射和兼容掉落概率。须先确认源标签及当前客户端语义，不能以删除 policy 代替证据。武器箱65–120槽位布局仍是已有兼容执行契约；等级动作的觉醒名称已解析，但本轮只迁移装备槽执行。
+
+
+## 2026-10-03：奥德赛槽位解锁由 ETC 等级动作驱动（源码候选）
+
+重复定义：`internal/character/odyssey.go` 原先另写三份副本 ID 到槽位的 switch；当前 `aradodyssey.etc` 已有 `[grow up level on dungeon clear]` 和 `[level action]`。现解析原生动作表，由奥德赛成长处理应用已达到等级的三个槽位动作，并可补齐已达到等级的旧角色解锁位；通关事务与事件键保持。普通模式继续通过任务 `.qst` 的 `[slot expansion]` 发奖，未接入奥德赛动作。
+
+移除三个副本 ID 规则及网关按 ID 刷新条件，装备栏刷新改为对比解锁状态的实际变化，复用现有成对背包/装备栏包。当前源的 60/65/90 级规则保持，110 级全槽动作也得到执行；这项新增覆盖来自 PVF，尚待用户实机确认。解析器保留觉醒动作名称，本轮执行范围只迁移槽位解锁，不宣称整张等级动作表全部执行。
+
+测试改变源等级/动作与成长目标、检查重复调用和普通模式隔离。Go 1.26.5 全量测试、vet、实际 PVF 奥德赛五域专项通过；没有改存档 schema、访问玩家库或替换正式程序，confirmed baseline 不扩大。
+
+## 2026-10-03：好感度消费者改为 ETC 规则驱动（源码候选）
+
+重复定义：`etc/npcfavorsystem.etc` 的 `[favor condition level]`、`[favor gift item count]`、`[favor gift limit]`、`[favor level point up]`、`[favor level point down]`，此前又写在 `cmd/wireprobe/favor_flow.go` 的常量、礼物 switch 与门槛数组中。现由同一 `gamedata.Source.World` 准备 `catalog.NPCFavorRules`，世界服务的好感度消费者读取原生规则；缺少规则明确拒绝，网关不保留内容 fallback。既有协议处理、账号材料事务与用户明确要求的取消每日送礼次数限制保持。源表里的衰减数值随规则保留，本轮没有新增衰减执行。
+
+实际 PVF `8b2a9f83…` 核验 6 种礼物、3 档门槛、20 级开放及每次 100 个材料，源脚本 SHA256 `a0d575f6c8d7e63223b814c3465489497f7af3236673e8fa5ce5992be6fa3f65`。测试改变源等级、数量、范围和门槛，验证规则随源变化；网关等级检查与缺源拒绝专项通过。Go 1.26.5 全量测试和 vet、真实 PVF 解析与统一 Source 世界准备专项通过。正式程序未替换，没有启动客户端或访问玩家库，不扩大 confirmed baseline。JSON 文件数仍为 62，本轮移除的是 Go 重复规则。
+
+## 2026-10-03：COS 礼盒清单由 PVF 自动发现（源码候选）
+
+移除 `pvf-box-policy.json` 的 `templates` 和 `cos_paths` 两份内容清单。统一 Source 的盒子导入器遍历当前归档 `.cos`，按现有原生 lot-group 标签选择已支持语法，由 `[material]` 关联原生 stackable 索引，并核验普通/增强光辉宝盒动作。解析错误、重复材料绑定、缺失物品或不支持的动作明确失败；不猜文件名，不新增奖励或概率规则。policy 只保留版本、槽位及缺失堆叠上限兼容值；旧清单字段由严格 JSON 解码拒绝，部署源码候选须同时更新 policy。
+
+实际内层 PVF `8b2a9f83…` 有 1,434 个 COS 文件，发现的两个宝盒保持 54 种奖励、58 份来源记录；完整 Tables/Rewards 与保留历史对照一致。Go 1.26.5 全量测试、vet 及实际 PVF 专项通过。顶层 JSON 仍为 62 个，本轮收敛的是字段和源绑定，不是删除文件。奥德赛补充物品、按难度选择货币及掉落概率仍保留，尚未建立完整原生关系替代证据。
+
+confirmed baseline 保持已有实机范围；没有改存档、数据库或客户端，正式程序未替换。
+
+## 2026-10-03：四份无当前消费者的内容导出删除
+
+本轮实际删除 `black-purgatory-rewards.json`、`bleeding-mine-rewards.json`、`town.generated.json`、`dungeons.terminal-scenes.json`，共 826,529 字节（约 0.79 MiB），顶层 JSON **66→62**。四域现有原生读取保持，隐式历史 baseline 依赖退休；towncatalog 只读统一 Source，诊断导出要求显式输出。没有新增整表压缩快照；城镇条目从两份历史交付清单同步移除，其它旧条目不重生成。
+
+仍有独立消费者的测试输入、历史版本输入、运行策略与布局规则保留。前一阶段“移除 26 处回退”是运行入口改造，本段才是四份文件的实际删除。按用户继续授权提交本轮源码和文件清理，并更新上游 MR !139；confirmed baseline 保持原实机范围，不将源码确认记为新的实机验收。
+
+## 2026-10-03：当前只读入口与分层约定
+
+当前主服务的运行内容准备入口是 `gamedata.PrepareCatalogs`，返回 typed `gamedata.Catalogs`；启动装配在访问玩家存储前完成所选领域的读取、来源校验及跨目录准备，运行消费者使用已准备目录。已经退休的 JSON 内容域缺少原生目录时应明确拒绝，不通过文件存在性或旧路径重新选择内容源。运维、客户端布局、调服策略和不可变历史测试夹具仍有各自边界，不能据此宣称全部 JSON 都可删除。
+
+诊断与导出工具使用 `gamedata.Open` / `gamedata.Source` 作为只读资源入口，再调用领域方法读取同一归档；需要完整运行装配时复用 `PrepareCatalogs`。两者属于现有 gamedata 门面：前者负责工具的源访问，后者负责运行目录组合。工具应按既有来源门禁打开归档、处理读取失败并关闭资源；导出使用明确输出路径，不维护另一套运行 JSON 真源，也不新增平行的 archive opener 或 loader。
+
+| 层次 | 当前职责 |
+|---|---|
+| `gamedata.PrepareCatalogs` / `Catalogs` | 主服务运行准备、领域选择、来源和跨目录校验、typed 结果及生命周期。 |
+| `gamedata.Open` / `Source` | 工具的只读源访问与领域投影门面；复用底层及领域读取实现。 |
+| `internal/catalog/pvf` 与现有领域导入器 | 归档目录、文件、字符串及脚本读取和解析；领域语义仍由相应 catalog/inventory/character 等实现。 |
+
+集中入口不要求搬走领域解析器，也不表示全仓已经完成迁移。仍有历史诊断命令直接调用 `pvf.LoadArchive`，其它尚未退休域也保留独立 loader 或旧对照分支，需后续按实际消费者迁移。本轮相关诊断优先复用现有门面；此约定不增加客户端协议、源数值或实机验收结论。
+
+下面保留第 0 批历史审计及随后整合记录；旧快照中的默认模式、文件路径和行号不是当前实现声明，判断现有依赖应重新追踪入口和消费者。
+
+2026-10-03 后续收口已将 progression、materials、periods、skins，以及 Hell Party / Tournament Quest / Tower of Grief / Tower of Dazzlement 覆盖域改为只使用准备好的 PVF 目录，并删除对应 8 个 JSON。其余历史段落仅记录旧调用路径，不代表上述 JSON 仍是当前依赖；当前字面路径清单已重生成，逐域状态见 [单一内容真源改造计划](PVF单一内容真源改造计划.md)。
+
+随后删除了只被测试引用的 `loot.level150.json`；完整历史掉落数据仅保存在 SHA256 校验的测试夹具中。`loot.next25.json` 仍服务 GM/JSON 模式消费者，不能据此批次类推删除。
+
+随后收口两份任务装备重复导出与两份抽奖奖池，顶层 JSON 75→71。抽奖只使用原生域，工具统一使用 Source；历史抽奖仅作为 SHA256 校验测试夹具。当前环境没有挂载 PVF，未增加归档或实机确认结论。详见迁移计划本轮记录。
+
+剩余 loot/equipment-selection 的运行 fallback 与隐式 baseline 已移除；charactercheck/audit36 和 GM 离线部位导出改接原生 Source。三份原 JSON 暂保留为旧测试输入，本批不添加完整压缩快照；不能据生产退役宣称文件已删除。
+
+configs 目录语义已归位首批五份诊断/示例输入，相关动态消费者同步路径；冗余 jobs 规则文件已删除，顶层 JSON 71→66。完整内容表不会仅为目录整洁而整表搬入测试目录，仍按消费者逐项解耦。
+
+## 第 0 批历史审计
+
 审计日期：2026-10-02。代码审计基点：HEAD b7a5692；本文件行号均指该快照，实际工作树中其他 agent 已修改 cmd/wireprobe 的行号，集成后须复核。审计范围为源码、默认 profile、启动器、admin/GM 与外部探针。server/work/dfo-lan/scripts/launch_local.py 有用户改动，本表按当前行为描述。本批只更新文档，不改运行代码、数值、客户端、协议、存档或启动行为，也没有启动服务、客户端或数据库。
 
 这是入口调用路径审计，不是单纯的字符串扫描：从实际入口追到 profile/environment/default flags、配置读取，再到目录构造与运行消费者。configs字面引用清单.md 是线索清单；零命中不证明没有消费者。PVF 候选表示代码已接入原生读取路径，不代表源规则完整、客户端语义已由 IDB 闭环或已逐玩法实机确认。

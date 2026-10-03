@@ -8,6 +8,7 @@ import (
 	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
 	"dfolan/internal/storage"
+	"dfolan/internal/testfixture"
 	"dfolan/internal/workflow"
 	"encoding/json"
 	"fmt"
@@ -59,7 +60,7 @@ func TestOdysseyCurrencyPickupDatabase(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	c, e := catalog.LoadLoot("../../configs/loot.level150.json")
+	c, e := catalog.LoadLoot(testfixture.LootLevel150Path(t))
 	if e != nil {
 		t.Fatal(e)
 	}

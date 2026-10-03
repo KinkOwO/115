@@ -3,12 +3,13 @@ package dungeon
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
+	"dfolan/internal/testfixture"
 	"os"
 	"testing"
 )
 
 func TestSourceBossRequiresSeparateStoryDeathAndCheck(t *testing.T) {
-	c, e := catalog.LoadDungeons("../../configs/dungeons.generated.json")
+	c, e := catalog.LoadDungeons(testfixture.DungeonPath(t, "dungeons.generated.json"))
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -92,7 +93,7 @@ func TestSourceBossRequiresSeparateStoryDeathAndCheck(t *testing.T) {
 }
 
 func TestOdysseyBossCheckImmediateCompletion(t *testing.T) {
-	c, e := catalog.LoadDungeons("../../configs/dungeons.odyssey-scenes-release.json")
+	c, e := catalog.LoadDungeons(testfixture.DungeonPath(t, "dungeons.odyssey-scenes-release.json"))
 	if e != nil {
 		t.Fatal(e)
 	}

@@ -44,3 +44,15 @@ func TestSelectionScopeRefusesComparisonFlagsBeforeOpeningArchive(t *testing.T) 
 		}
 	}
 }
+
+func TestRetiredDomainAuditRequiresExplicitHistoricalBaseline(t *testing.T) {
+	for _, domain := range []string{"world", "quests"} {
+		var stdout, stderr bytes.Buffer
+		if code := run([]string{"-domains", domain}, &stdout, &stderr); code != 1 || stdout.Len() != 0 {
+			t.Fatal(code, stdout.String())
+		}
+		if !strings.Contains(stderr.String(), "explicit historical baseline") || strings.Contains(stderr.String(), "open inner PVF") {
+			t.Fatal("retired default baseline reached archive loading", stderr.String())
+		}
+	}
+}

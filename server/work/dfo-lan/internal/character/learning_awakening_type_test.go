@@ -2,6 +2,7 @@ package character
 
 import (
 	"dfolan/internal/catalog"
+	"dfolan/internal/testfixture"
 	"fmt"
 	"sort"
 	"testing"
@@ -34,7 +35,7 @@ func loadRealSkillCatalog(t *testing.T) (*Service, *LearningCatalog, catalog.Cha
 	if err != nil {
 		t.Fatal(err)
 	}
-	l, err := LoadLearningCatalog("../../configs/skills.next27.json", c.Source.Checksum)
+	l, err := LoadLearningCatalog(testfixture.SkillCatalogPath(t, "next27"), c.Source.Checksum)
 	if err != nil {
 		t.Fatal(err)
 	}

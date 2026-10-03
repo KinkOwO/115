@@ -3,13 +3,14 @@ package main
 import (
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
+	"encoding/binary"
 	"encoding/hex"
 	"testing"
 )
 
 func TestCapturedOdysseyWeaponSelection(t *testing.T) {
 	role, wear := odysseyRewardFixture(t)
-	c, e := loadOdysseyWeaponChoices("../../configs/odyssey-weapon-box-candidate.json")
+	c, e := loadOdysseyWeaponChoices("../../configs/odyssey-weapon-box-release.json")
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -29,7 +30,7 @@ func TestCapturedOdysseyWeaponSelection(t *testing.T) {
 	if e != nil || len(result.Items) != 0 || len(result.Equipment) != 1 || result.Equipment[0].Template != r.Template {
 		t.Fatal(result, e)
 	}
-	ack := protocol.WeaponBoxSuccess(r)
+	ack := protocol.WeaponBoxSuccess(c.Template, r)
 	if len(ack) != 30 || hex.EncodeToString(ack) != "0100007df69e004200000000000100d8c205060100000000000000000000" {
 		t.Fatalf("native response mismatch: %x", ack)
 	}
@@ -50,4 +51,24 @@ func TestCapturedOdysseyWeaponSelection(t *testing.T) {
 		}
 	}
 	t.Log("captured CMD160 exact source selection; one box->one chosen weapon; full bag and invalid selections retain box")
+}
+
+func TestOdysseyWeaponSelectionFollowsSourceBoxTemplate(t *testing.T) {
+	role, wear := odysseyRewardFixture(t)
+	choices, err := loadOdysseyWeaponChoices("../../configs/odyssey-weapon-box-release.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	choices.Template = 99999
+	req := protocol.WeaponBoxSelection{Slot: 66, Category: choices.Categories[0].Category, Template: 101040856}
+	bag, _ := inventory.ReadBag(role.State)
+	bag.Items = append(bag.Items, inventory.BagItem{Slot: req.Slot, Template: choices.Template, Amount: 1})
+	role.State, _ = inventory.SaveBag(role.State, bag)
+	if _, _, err := applyOdysseyWeaponChoice(role, wear, choices, req); err != nil {
+		t.Fatal(err)
+	}
+	ack := protocol.WeaponBoxSuccess(choices.Template, req)
+	if binary.LittleEndian.Uint32(ack[3:7]) != choices.Template {
+		t.Fatalf("box identity does not follow source: %x", ack)
+	}
 }

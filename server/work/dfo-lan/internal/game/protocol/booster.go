@@ -34,8 +34,8 @@ func DecodeWeaponBoxSelection(p []byte) (WeaponBoxSelection, error) {
 
 // CMD160 native14529cda0: success, error, box ID, box slot, auxiliary
 // count, result count, then15 bytes per result. Fresh gear has zero bonuses.
-func WeaponBoxSuccess(r WeaponBoxSelection) []byte {
-	return BoosterOpenSuccess(10417789, r.Slot, []BoosterGrantedItem{{Template: r.Template, Count: 1}})
+func WeaponBoxSuccess(boxTemplate uint32, r WeaponBoxSelection) []byte {
+	return BoosterOpenSuccess(boxTemplate, r.Slot, []BoosterGrantedItem{{Template: r.Template, Count: 1}})
 }
 
 type BoosterGrantedItem struct {

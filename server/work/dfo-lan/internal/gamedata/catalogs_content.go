@@ -117,23 +117,6 @@ func preparePVFBlackPurgatory(c *Catalogs, s *Source, selected map[string]bool, 
 	if err != nil {
 		return err
 	}
-	if i.checksBaselines() {
-		path := pvfOdysseyBaseline(i, i.BlackPurgatoryPath, "", "black-purgatory-rewards.json")
-		raw, err := os.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		var legacy loot.BlackPurgatoryRewards
-		if err := json.Unmarshal(raw, &legacy); err != nil {
-			return err
-		}
-		if _, err := loot.NewBlackPurgatoryRewards(legacy, boxes, blackPurgatoryLookup(c.Items)); err != nil {
-			return err
-		}
-		if err := auditBlackPurgatory(legacy, *direct); err != nil {
-			return fmt.Errorf("Black Purgatory: %w", err)
-		}
-	}
 	c.BlackPurgatory = bound
 	log.Printf("PVF Black Purgatory prepared: card branches=%d VIP source-only=%d equipment groups=%d rates=%v/%d; operator probabilities retained", len(direct.Cards), len(direct.VIPSourceOnly), len(direct.Boss.Groups), direct.Boss.Rates, direct.Boss.Denominator)
 	s.ReleaseReadCaches()
@@ -147,7 +130,7 @@ func (c *Catalogs) LoadBlackPurgatory(path string, boxes loot.RewardBoxSource, l
 	if c.BlackPurgatory != nil {
 		return loot.NewBlackPurgatoryRewards(*c.BlackPurgatory, boxes, lookup)
 	}
-	return loot.LoadBlackPurgatoryRewards(path, boxes, lookup)
+	return nil, nativeContentRequired("black-purgatory")
 }
 
 func preparePVFClearCube(c *Catalogs, s *Source, selected map[string]bool, i CatalogInputs) error {
@@ -192,7 +175,7 @@ func (c *Catalogs) WithClearCube(base catalog.LootCatalog, path string) (catalog
 	if c.ClearCube != nil {
 		return inventory.WithClearCubeItem(base, *c.ClearCube)
 	}
-	return inventory.WithClearCube(base, path)
+	return catalog.LootCatalog{}, nativeContentRequired("clear-cube")
 }
 
 func preparePVFMine(c *Catalogs, s *Source, selected map[string]bool, i CatalogInputs) error {
@@ -207,22 +190,6 @@ func preparePVFMine(c *Catalogs, s *Source, selected map[string]bool, i CatalogI
 	if err != nil {
 		return err
 	}
-	if i.checksBaselines() {
-		path := i.MinePath
-		if path == "" && i.LootPath != "" {
-			path = filepath.Join(filepath.Dir(i.LootPath), "bleeding-mine-rewards.json")
-		}
-		legacy, err := loot.LoadBleedingMineRewards(pvfOdysseyBaseline(i, path, "", "bleeding-mine-rewards.json"))
-		if err != nil {
-			return err
-		}
-		if legacy.Source != direct.Source {
-			return fmt.Errorf("mine baseline/PVF source mismatch")
-		}
-		if err := verifyPVFCatalog(legacy, direct); err != nil {
-			return fmt.Errorf("mine rewards: %w", err)
-		}
-	}
 	c.Mine = direct
 	log.Printf("PVF mine rewards prepared: stages=%d boss entries=%d difficulty rewards=%d containers=%d items=%d; signed empty faces and source composition retained", len(direct.StageBoxes), len(direct.BossBoxes), len(direct.GroupBoxes), len(direct.Boxes), len(direct.Items))
 	s.ReleaseReadCaches()
@@ -236,7 +203,7 @@ func (c *Catalogs) LoadMine(path string) (*loot.BleedingMineRewards, error) {
 	if c.Mine != nil {
 		return c.Mine, nil
 	}
-	return loot.LoadBleedingMineRewards(path)
+	return nil, nativeContentRequired("bleeding-mine")
 }
 
 func pvfOdysseyBaseline(i CatalogInputs, explicit, env, fallback string) string {
@@ -269,7 +236,7 @@ func preparePVFOdyssey(c *Catalogs, s *Source, selected map[string]bool, i Catal
 		}
 		c.OdysseyCompletionRewards = rewards
 	}
-	if selected["odyssey-growth"] || selected["odyssey-drop"] || selected["odyssey-currency"] {
+	if selected["odyssey-drop"] || selected["odyssey-currency"] {
 		var err error
 		policy, err = readPVFContentPolicy(i.ContentPolicyPath)
 		if err != nil {
@@ -277,7 +244,7 @@ func preparePVFOdyssey(c *Catalogs, s *Source, selected map[string]bool, i Catal
 		}
 	}
 	if selected["odyssey-growth"] {
-		direct, err := s.OdysseyGrowth(*c.Items, policy.OdysseySupplemental)
+		direct, err := s.OdysseyGrowth(*c.Items)
 		if err != nil {
 			return err
 		}
@@ -391,7 +358,7 @@ func (c *Catalogs) LoadOdysseyGrowth(path string) (*catalog.OdysseyGrowth, error
 	if c.OdysseyGrowth != nil {
 		return c.OdysseyGrowth, nil
 	}
-	return catalog.LoadOdysseyGrowth(path)
+	return nil, nativeContentRequired("odyssey-growth")
 }
 func (c *Catalogs) LoadOdysseyChapters(path string) (*catalog.OdysseyChapters, error) {
 	if err := c.RequireSelected("odyssey-chapters", c.OdysseyChapters != nil); err != nil {
@@ -400,7 +367,7 @@ func (c *Catalogs) LoadOdysseyChapters(path string) (*catalog.OdysseyChapters, e
 	if c.OdysseyChapters != nil {
 		return c.OdysseyChapters, nil
 	}
-	return catalog.LoadOdysseyChapters(path)
+	return nil, nativeContentRequired("odyssey-chapters")
 }
 func (c *Catalogs) LoadOdysseyDrop(path string) (*loot.OdysseyChapterDrop, error) {
 	if err := c.RequireSelected("odyssey-drop", c.OdysseyDrop != nil); err != nil {
@@ -409,7 +376,7 @@ func (c *Catalogs) LoadOdysseyDrop(path string) (*loot.OdysseyChapterDrop, error
 	if c.OdysseyDrop != nil {
 		return c.OdysseyDrop, nil
 	}
-	return loot.LoadOdysseyChapterDrop(path)
+	return nil, nativeContentRequired("odyssey-drop")
 }
 func (c *Catalogs) LoadOdysseyCurrency(path string) (*loot.OdysseyCurrency, error) {
 	if err := c.RequireSelected("odyssey-currency", c.OdysseyCurrency != nil); err != nil {
@@ -418,7 +385,7 @@ func (c *Catalogs) LoadOdysseyCurrency(path string) (*loot.OdysseyCurrency, erro
 	if c.OdysseyCurrency != nil {
 		return c.OdysseyCurrency, nil
 	}
-	return loot.LoadOdysseyCurrency(path)
+	return nil, nativeContentRequired("odyssey-currency")
 }
 func (c *Catalogs) LoadOdysseyWeapons(path string) (catalog.OdysseyWeaponChoices, error) {
 	if err := c.RequireSelected("odyssey-weapons", c.OdysseyWeapons != nil); err != nil {
@@ -427,7 +394,7 @@ func (c *Catalogs) LoadOdysseyWeapons(path string) (catalog.OdysseyWeaponChoices
 	if c.OdysseyWeapons != nil {
 		return *c.OdysseyWeapons, nil
 	}
-	return catalog.LoadOdysseyWeaponChoices(path)
+	return catalog.OdysseyWeaponChoices{}, nativeContentRequired("odyssey-weapons")
 }
 
 func preparePVFOdysseyRoutes(c *Catalogs, s *Source, selected map[string]bool, i CatalogInputs) error {
@@ -558,15 +525,17 @@ func (c *Catalogs) InstallSeasonRules() (func(), error) {
 }
 
 type pvfContentPolicy struct {
-	BleedingMine        loot.BleedingMinePolicy         `json:"bleeding_mine"`
-	BlackPurgatory      loot.BlackPurgatoryPolicy       `json:"black_purgatory"`
-	OdysseySupplemental []uint32                        `json:"odyssey_supplemental_items"`
-	OdysseyDrops        []loot.OdysseyChapterDropPolicy `json:"odyssey_chapter_drops"`
-	OdysseyCurrency     loot.OdysseyCurrencyPolicy      `json:"odyssey_currency"`
-	Version             int                             `json:"version"`
+	BleedingMine    loot.BleedingMinePolicy         `json:"bleeding_mine"`
+	BlackPurgatory  loot.BlackPurgatoryPolicy       `json:"black_purgatory"`
+	OdysseyDrops    []loot.OdysseyChapterDropPolicy `json:"odyssey_chapter_drops"`
+	OdysseyCurrency loot.OdysseyCurrencyPolicy      `json:"odyssey_currency"`
+	Version         int                             `json:"version"`
 }
 
 func readPVFContentPolicy(path string) (pvfContentPolicy, error) {
+	if path == "" {
+		return pvfContentPolicy{Version: 1}, nil
+	}
 	var p pvfContentPolicy
 	f, err := os.Open(path)
 	if err != nil {
@@ -651,7 +620,7 @@ func (c *Catalogs) LoadAttunement(path string) (*loot.AttunementRewards, error) 
 	if c.Attunement != nil {
 		return c.Attunement.Clone()
 	}
-	return loot.LoadAttunementRewards(path)
+	return nil, nativeContentRequired("attunement")
 }
 
 func (c *Catalogs) LoadApocalypse(path string) (*catalog.ApocalypseCatalog, error) {
@@ -661,5 +630,5 @@ func (c *Catalogs) LoadApocalypse(path string) (*catalog.ApocalypseCatalog, erro
 	if c.Apocalypse != nil {
 		return c.Apocalypse, nil
 	}
-	return catalog.LoadApocalypseCatalog(path)
+	return nil, nativeContentRequired("apocalypse")
 }

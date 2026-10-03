@@ -1,59 +1,66 @@
-// equipmentwearimport enriches the already selected basic equipment catalog
-// with exact-source wear eligibility fields; it never changes the PVF.
+// equipmentwearimport exports the policy's basic equipment selection with
+// current PVF eligibility fields. It never writes to the source archive.
 package main
 
 import (
 	"dfolan/internal/catalog"
-	"dfolan/internal/catalog/pvf"
+	"dfolan/internal/gamedata"
 	"dfolan/internal/inventory"
 	"encoding/json"
+	"errors"
 	"flag"
 	"log"
 	"os"
 )
 
+func validateArguments(base, output string) error {
+	if base != "" {
+		return errors.New("-base is retired; basic equipment IDs come from the native PVF drop policy")
+	}
+	if output == "" {
+		return errors.New("-output is required")
+	}
+	return nil
+}
+
 func main() {
-	source := flag.String("source", "runtime/pvf_source/Script.inner.pvf", "source archive")
-	base := flag.String("base", "configs/quest-equipment.next29.json", "existing basic item selection")
-	out := flag.String("output", "configs/equipment.current35.json", "enriched catalog")
+	sourcePath := flag.String("source", "runtime/pvf_source/Script.inner.pvf", "read-only source archive")
+	policyPath := flag.String("policy", "configs/pvf-drop-policy.json", "existing basic-equipment policy")
+	base := flag.String("base", "", "retired; supplying a JSON seed is refused")
+	output := flag.String("output", "", "required output path for the basic equipment selection")
 	flag.Parse()
-	a, e := pvf.LoadArchive(pvf.Options{Path: *source, MaxBytes: 1024 * 1024 * 1024})
-	if e != nil {
-		log.Fatal(e)
+	if err := validateArguments(*base, *output); err != nil {
+		log.Fatal(err)
 	}
-	c, e := inventory.LoadEquipmentCatalog(*base, a.Snapshot().Checksum)
-	if e != nil {
-		log.Fatal(e)
+
+	source, err := gamedata.Open(gamedata.Options{Mode: gamedata.PVF, ArchivePath: *sourcePath, MaxBytes: gamedata.DefaultMaxBytes})
+	if err != nil {
+		log.Fatal(err)
 	}
-	wanted := map[string]bool{"[usable job]": true, "[usable grow type]": true, "[minimum level]": true, "[equipment type]": true, "[attach type]": true, "[rarity]": true, "[durability]": true, "[name]": true, "[grade]": true}
-	for i := range c.Rows {
-		r := &c.Rows[i]
-		s, e := catalog.ResolveScript(a, r.Path)
-		if e != nil {
-			log.Fatal(e)
-		}
-		if s.SHA256 != r.SHA256 {
-			log.Fatalf("source equipment changed: %d", r.ID)
-		}
-		fields := map[string][]pvf.Token{}
-		tag := ""
-		for _, cell := range s.Cells {
-			if cell.Type == 3 {
-				tag = cell.Text
-				continue
-			}
-			if wanted[tag] {
-				fields[tag] = append(fields[tag], cell)
-			}
-		}
-		r.Fields = fields
+	defer source.Close()
+	policy, err := inventory.ReadDropPolicy(*policyPath)
+	if err != nil {
+		log.Fatal(err)
 	}
-	b, e := json.MarshalIndent(c, "", "  ")
-	if e != nil {
-		log.Fatal(e)
+	index, err := source.ItemIndex("")
+	if err != nil {
+		log.Fatal(err)
 	}
-	if e = os.WriteFile(*out, b, 0600); e != nil {
-		log.Fatal(e)
+	// An empty quest catalog with the same source preserves the historical
+	// 1536-entry basic whitelist boundary; quest reward expansion belongs to
+	// questequipmentimport.
+	emptyQuests := catalog.QuestCatalog{Source: source.Snapshot()}
+	selection, err := source.EquipmentSelection(index, emptyQuests, policy)
+	if err != nil {
+		log.Fatal(err)
 	}
-	log.Printf("equipment eligibility exported: %d source records", len(c.Rows))
+	selection.OrdinaryPool = nil
+	data, err := json.MarshalIndent(selection, "", "  ")
+	if err != nil {
+		log.Fatal(err)
+	}
+	if err := os.WriteFile(*output, data, 0600); err != nil {
+		log.Fatal(err)
+	}
+	log.Printf("wrote %s from native PVF basic whitelist: %d rows", *output, len(selection.Rows))
 }

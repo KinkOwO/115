@@ -7,7 +7,7 @@ import (
 // Extended equipment-slot unlock bits, as stored in Bag.ExpandEquipFlags.
 //
 // Two paths award them: quest [slot expansion] rewards (internal/quest) and
-// Odyssey dungeon clears (internal/character, see OdysseyExpandEquipMask).
+// Odyssey source level actions (internal/character).
 // USERINFO1 / EntryAddition then projects the byte back to the armoury padlocks.
 // Slot numbers: support 22, magic stone 23, earring 25.
 const (

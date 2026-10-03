@@ -4,6 +4,7 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/character"
+	"dfolan/internal/testfixture"
 	"encoding/json"
 	"testing"
 )
@@ -11,11 +12,11 @@ import (
 // Premium eligibility must stay after reward/base EXP validation. Moving it
 // ahead of those gates adds database reads for rejected submissions.
 func TestPrepareFinishPremiumLookupOrder(t *testing.T) {
-	catalogXP, err := catalog.LoadProgression("../../configs/progression.next25.json")
+	catalogXP, err := catalog.LoadProgression(testfixture.ProgressionPath(t))
 	if err != nil {
 		t.Fatal(err)
 	}
-	quests, err := catalog.LoadQuests("../../configs/quests.generated.json")
+	quests, err := catalog.LoadQuests(testfixture.CatalogPath(t, "quests"))
 	if err != nil {
 		t.Fatal(err)
 	}

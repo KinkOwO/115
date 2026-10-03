@@ -1,8 +1,7 @@
 package main
 
 import (
-	"dfolan/internal/catalog"
-	"dfolan/internal/catalog/pvf"
+	"dfolan/internal/gamedata"
 	"encoding/json"
 	"flag"
 	"log"
@@ -11,17 +10,21 @@ import (
 
 func main() {
 	source := flag.String("source", "runtime/pvf_source/Script.inner.pvf", "read-only current PVF")
-	output := flag.String("output", "configs/loot.next25.json", "generated typed loot catalog")
+	output := flag.String("output", "", "required diagnostic output path")
 	grade := flag.Uint("max-grade", 20, "maximum source item grade to import")
 	flag.Parse()
+	if *output == "" {
+		log.Fatal("-output is required")
+	}
 	if *grade == 0 || *grade > 200 {
 		log.Fatal("grade range1..200 required")
 	}
-	a, e := pvf.LoadArchive(pvf.Options{Path: *source, MaxBytes: 1024 * 1024 * 1024})
+	a, e := gamedata.Open(gamedata.Options{Mode: gamedata.PVF, ArchivePath: *source, MaxBytes: gamedata.DefaultMaxBytes})
 	if e != nil {
 		log.Fatal(e)
 	}
-	c, e := catalog.ImportLoot(a, uint32(*grade))
+	defer a.Close()
+	c, e := a.Loot(uint32(*grade))
 	if e != nil {
 		log.Fatal(e)
 	}

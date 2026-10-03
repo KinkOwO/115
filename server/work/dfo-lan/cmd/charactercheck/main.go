@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
-	"dfolan/internal/catalog"
 	"dfolan/internal/character"
 	"dfolan/internal/storage"
 	"encoding/binary"
@@ -76,7 +75,7 @@ func run() error {
 	if e = s.Migrate(ctx); e != nil {
 		return e
 	}
-	c, e := catalog.LoadCharacters("configs/characters.generated.json")
+	c, e := loadNativeCharacterCatalog()
 	if e != nil {
 		return e
 	}

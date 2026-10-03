@@ -19,8 +19,11 @@ import (
 
 func main() {
 	source := flag.String("source", "", "read-only PVF")
-	output := flag.String("output", "configs/equipment-full", "output prefix")
+	output := flag.String("output", "", "required diagnostic output prefix")
 	flag.Parse()
+	if *output == "" {
+		log.Fatal("explicit -output is required for diagnostic export")
+	}
 	a, e := pvf.LoadArchive(pvf.Options{Path: *source, MaxBytes: 1024 * 1024 * 1024})
 	if e != nil {
 		log.Fatal(e)

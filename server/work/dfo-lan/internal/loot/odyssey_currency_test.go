@@ -5,6 +5,7 @@ import (
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
+	"dfolan/internal/testfixture"
 	"reflect"
 	"testing"
 )
@@ -42,7 +43,7 @@ func TestPermanentOdysseyCurrencyPolicy(t *testing.T) {
 }
 
 func TestOdysseyCurrencySceneRetryAndPoolIsolation(t *testing.T) {
-	c, e := catalog.LoadLoot("../../configs/loot.level150.json")
+	c, e := catalog.LoadLoot(testfixture.LootLevel150Path(t))
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -116,7 +117,7 @@ func TestLevel150CatalogPreservesExistingPool(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	full, e := catalog.LoadLoot("../../configs/loot.level150.json")
+	full, e := catalog.LoadLoot(testfixture.LootLevel150Path(t))
 	if e != nil {
 		t.Fatal(e)
 	}

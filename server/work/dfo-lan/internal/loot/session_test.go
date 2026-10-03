@@ -4,6 +4,7 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
+	"dfolan/internal/testfixture"
 	"encoding/json"
 	"testing"
 )
@@ -24,7 +25,7 @@ func TestSourceDropPlanOwnershipAndRetry(t *testing.T) {
 	if tables.Gold[6] != 3 || tables.Gold[7] != 34 || tables.Gold[8] != 15 || tables.Probability[2] != 986 || tables.Rank[8] != 0.2 {
 		t.Fatal("current source table shape/value drift")
 	}
-	dc, e := catalog.LoadDungeons("../../configs/dungeons.generated.json")
+	dc, e := catalog.LoadDungeons(testfixture.DungeonPath(t, "dungeons.generated.json"))
 	if e != nil {
 		t.Fatal(e)
 	}

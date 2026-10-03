@@ -3,11 +3,12 @@ package quest
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
+	"dfolan/internal/testfixture"
 	"testing"
 )
 
 func TestAwakeningQuestTargetCharacter(t *testing.T) {
-	c, err := catalog.LoadQuests("../../configs/quests.generated.json")
+	c, err := catalog.LoadQuests(testfixture.CatalogPath(t, "quests"))
 	if err != nil {
 		t.Fatal(err)
 	}

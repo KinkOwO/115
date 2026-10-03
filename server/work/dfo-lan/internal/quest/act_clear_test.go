@@ -3,12 +3,13 @@ package quest
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/character"
+	"dfolan/internal/testfixture"
 	"slices"
 	"testing"
 )
 
 func TestActClearPlanOnlyIncludesAlreadyAcceptedEpicQuests(t *testing.T) {
-	quests, err := catalog.LoadQuests("../../configs/quests.generated.json")
+	quests, err := catalog.LoadQuests(testfixture.CatalogPath(t, "quests"))
 	if err != nil {
 		t.Fatal(err)
 	}

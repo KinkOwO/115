@@ -7,6 +7,7 @@ package main
 
 import (
 	"dfolan/internal/catalog"
+	"dfolan/internal/gamedata"
 	"dfolan/internal/quest"
 	"flag"
 	"fmt"
@@ -16,14 +17,20 @@ import (
 )
 
 func main() {
-	questFile := flag.String("quests", "configs/quests.generated.json", "quest catalog")
+	flag.String("quests", "", "deprecated; quests are read from native PVF")
+	archive := flag.String("pvf-archive", "../client-build/Script.inner.pvf", "read-only inner PVF")
 	level := flag.Uint("level", 9, "character level")
 	adv := flag.Int("advancement", 0, "advancement stage")
 	job := flag.String("job", "[archer]", "profession job tag")
 	done := flag.String("completed", "3145,3146,3147,3148,4873,2109,21650", "completed quest ids")
 	flag.Parse()
 
-	c, e := catalog.LoadQuests(*questFile)
+	native, e := gamedata.Open(gamedata.Options{Mode: gamedata.PVF, ArchivePath: *archive})
+	if e != nil {
+		log.Fatal(e)
+	}
+	defer native.Close()
+	c, e := native.Quests("")
 	if e != nil {
 		log.Fatal(e)
 	}

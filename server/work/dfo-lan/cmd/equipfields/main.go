@@ -6,62 +6,67 @@ package main
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
-	"encoding/json"
+	"dfolan/internal/gamedata"
 	"flag"
 	"fmt"
 	"log"
-	"os"
+	"strconv"
 	"strings"
 )
 
-func loadPaths(file string) (map[uint32]string, error) {
-	b, e := os.ReadFile(file)
-	if e != nil {
-		return nil, e
+func equipmentPaths(source *gamedata.Source) (map[uint32]string, error) {
+	list, err := source.Script("list/equipment.lst")
+	if err != nil {
+		return nil, err
 	}
-	var c struct {
-		Rows []struct {
-			ID   uint32
-			Path string
-		} `json:"rows"`
+	return parseEquipmentPaths(list.Cells)
+}
+
+func parseEquipmentPaths(cells []pvf.Token) (map[uint32]string, error) {
+	rows, err := catalog.ParseIndex(cells)
+	if err != nil {
+		return nil, err
 	}
-	if e = json.Unmarshal(b, &c); e != nil {
-		return nil, e
+	paths := make(map[uint32]string, len(rows))
+	for _, row := range rows {
+		paths[row.ID] = row.Path
 	}
-	m := map[uint32]string{}
-	for _, r := range c.Rows {
-		m[r.ID] = r.Path
-	}
-	return m, nil
+	return paths, nil
 }
 
 func main() {
-	source := flag.String("source", "runtime/pvf_source/Script.inner.pvf", "read-only source")
-	base := flag.String("base", "configs/quest-equipment.current37.json", "selection with the paths")
+	sourcePath := flag.String("source", "runtime/pvf_source/Script.inner.pvf", "read-only source archive")
 	flag.Parse()
-	a, e := pvf.LoadArchive(pvf.Options{Path: *source, MaxBytes: 1024 * 1024 * 1024})
-	if e != nil {
-		log.Fatal(e)
+
+	source, err := gamedata.Open(gamedata.Options{Mode: gamedata.PVF, ArchivePath: *sourcePath, MaxBytes: gamedata.DefaultMaxBytes})
+	if err != nil {
+		log.Fatal(err)
 	}
-	c, e := loadPaths(*base)
-	if e != nil {
-		log.Fatal(e)
+	defer source.Close()
+
+	paths, err := equipmentPaths(source)
+	if err != nil {
+		log.Fatal(err)
 	}
-	for _, s := range flag.Args() {
-		var id uint32
-		fmt.Sscan(s, &id)
-		p, ok := c[id]
+	for _, arg := range flag.Args() {
+		parsedID, err := strconv.ParseUint(arg, 10, 32)
+		if err != nil || parsedID == 0 {
+			fmt.Printf("\n%s: invalid equipment ID\n", arg)
+			continue
+		}
+		id := uint32(parsedID)
+		path, ok := paths[id]
 		if !ok {
-			fmt.Printf("\n%d: not in selection\n", id)
+			fmt.Printf("\n%d: not in PVF equipment list\n", id)
 			continue
 		}
-		sc, e := catalog.ResolveScript(a, p)
-		if e != nil {
-			fmt.Printf("\n%d: %v\n", id, e)
+		script, err := source.ResolveScript(path)
+		if err != nil {
+			fmt.Printf("\n%d: %v\n", id, err)
 			continue
 		}
-		fmt.Printf("\n===== %d  %s\n", id, p)
-		printCells(sc.Cells)
+		fmt.Printf("\n===== %d  %s\n", id, script.Path)
+		printCells(script.Cells)
 	}
 }
 
@@ -73,16 +78,16 @@ func printCells(cells []pvf.Token) {
 			fmt.Printf("  %-28s %s\n", tag, strings.Join(vals, " "))
 		}
 	}
-	for _, c := range cells {
-		if c.Type == 3 {
+	for _, cell := range cells {
+		if cell.Type == 3 {
 			flush()
-			tag, vals = c.Text, nil
+			tag, vals = cell.Text, nil
 			continue
 		}
-		if c.Text != "" {
-			vals = append(vals, c.Text)
+		if cell.Text != "" {
+			vals = append(vals, cell.Text)
 		} else {
-			vals = append(vals, fmt.Sprintf("%d", c.Value))
+			vals = append(vals, fmt.Sprintf("%d", cell.Value))
 		}
 	}
 	flush()

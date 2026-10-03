@@ -1,6 +1,8 @@
 package inventory
 
 import (
+	"dfolan/internal/catalog/pvf"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -41,5 +43,41 @@ func TestNativeBoxRefusesAmbiguousOrMalformedSource(t *testing.T) {
 				t.Fatal("invalid source accepted")
 			}
 		})
+	}
+}
+
+func TestBoxDiscoveryFollowsNativeGrammarWithoutPathOrTemplateLists(t *testing.T) {
+	files := []pvf.File{{ArchivePath: "new/location/a.cos"}, {ArchivePath: "else/other.cos"}, {ArchivePath: "comment.cos"}, {ArchivePath: "ignored.txt"}}
+	texts := map[string]string{"new/location/a.cos": nativeBoxFixture, "else/other.cos": "[material] 44 1 [upgrade material]", "comment.cos": "// [main lot group id] 1"}
+	iterate := func(visit func(pvf.File) error) error {
+		for _, f := range files {
+			if err := visit(f); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	read := func(p string) (string, error) {
+		text, ok := texts[p]
+		if !ok {
+			return "", fmt.Errorf("unexpected read %s", p)
+		}
+		return text, nil
+	}
+	got, err := discoverBoxCOSFiles(iterate, read)
+	if err != nil || len(got) != 1 || got[0].id != 800 || got[0].path != "new/location/a.cos" || got[0].table.Groups["1"][1].Count != 3 {
+		t.Fatalf("native discovery: %+v %v", got, err)
+	}
+	texts["new/location/a.cos"] = strings.Replace(nativeBoxFixture, "[material] 800 1", "[material] 800 -1", 1)
+	if _, err = discoverBoxCOSFiles(iterate, read); err == nil {
+		t.Fatal("malformed candidate was silently ignored")
+	}
+	delete(texts, "new/location/a.cos")
+	if _, err = discoverBoxCOSFiles(iterate, read); err == nil {
+		t.Fatal("unreadable source was silently ignored")
+	}
+	files = []pvf.File{{ArchivePath: "comment.cos"}}
+	if _, err = discoverBoxCOSFiles(iterate, read); err == nil {
+		t.Fatal("comment enabled a box")
 	}
 }

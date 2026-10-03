@@ -29,7 +29,7 @@ func TestOdysseyCoinGrantReachesConsumableSlots(t *testing.T) {
 	if _, ok := c.Items[coin]; ok {
 		t.Fatal("fixture drift: the Odyssey coin is now a monster drop")
 	}
-	if err := c.SupplementStackables("../../configs/items.index.json"); err != nil {
+	if err := c.SupplementStackables("../catalog/testdata/item-flow.json"); err != nil {
 		t.Fatal(err)
 	}
 	rules, err := LoadBagRules("../../configs/inventory.next29.json")
