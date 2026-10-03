@@ -1,5 +1,13 @@
 # PVF 单一内容真源改造计划
 
+## 2026-10-03：奥德赛槽位解锁由 ETC 等级动作驱动（源码候选）
+
+重复定义：`internal/character/odyssey.go` 原先另写三份副本 ID 到槽位的 switch；当前 `aradodyssey.etc` 已有 `[grow up level on dungeon clear]` 和 `[level action]`。现解析原生动作表，由奥德赛成长处理应用已达到等级的三个槽位动作，并可补齐已达到等级的旧角色解锁位；通关事务与事件键保持。普通模式继续通过任务 `.qst` 的 `[slot expansion]` 发奖，未接入奥德赛动作。
+
+移除三个副本 ID 规则及网关按 ID 刷新条件，装备栏刷新改为对比解锁状态的实际变化，复用现有成对背包/装备栏包。当前源的 60/65/90 级规则保持，110 级全槽动作也得到执行；这项新增覆盖来自 PVF，尚待用户实机确认。解析器保留觉醒动作名称，本轮执行范围只迁移槽位解锁，不宣称整张等级动作表全部执行。
+
+测试改变源等级/动作与成长目标、检查重复调用和普通模式隔离。Go 1.26.5 全量测试、vet、实际 PVF 奥德赛五域专项通过；没有改存档 schema、访问玩家库或替换正式程序，confirmed baseline 不扩大。
+
 ## 2026-10-03：好感度消费者改为 ETC 规则驱动（源码候选）
 
 重复定义：`etc/npcfavorsystem.etc` 的 `[favor condition level]`、`[favor gift item count]`、`[favor gift limit]`、`[favor level point up]`、`[favor level point down]`，此前又写在 `cmd/wireprobe/favor_flow.go` 的常量、礼物 switch 与门槛数组中。现由同一 `gamedata.Source.World` 准备 `catalog.NPCFavorRules`，世界服务的好感度消费者读取原生规则；缺少规则明确拒绝，网关不保留内容 fallback。既有协议处理、账号材料事务与用户明确要求的取消每日送礼次数限制保持。源表里的衰减数值随规则保留，本轮没有新增衰减执行。

@@ -2,6 +2,7 @@ package character
 
 import (
 	"context"
+	"dfolan/internal/catalog"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
@@ -44,7 +45,7 @@ func (s *ProgressionService) ApplyOdysseyTarget(role Character, target byte) (Ch
 		return role, e
 	}
 	if state.Level >= target {
-		return role, nil
+		return applyOdysseySlotActions(role, s.Odyssey, state.Level)
 	}
 	threshold := s.Catalog.Thresholds[int(target)-2]
 	if state.Experience >= threshold {
@@ -57,29 +58,41 @@ func (s *ProgressionService) ApplyOdysseyTarget(role Character, target byte) (Ch
 	if result.Level != target {
 		return role, fmt.Errorf("Odyssey target mismatch")
 	}
-	return next, nil
+	return applyOdysseySlotActions(next, s.Odyssey, target)
 }
 
-// OdysseyExpandEquipMask maps an Odyssey dungeon clear to the extended equipment
-// slot it unlocks, using the same bits as the quest [slot expansion] rewards.
-//
-// Odyssey characters have no quest/season system, so clearing these runs is how
-// they earn the slots (rules from the user, recorded in
-// analysis/tasks/next50-odyssey-expanded-equip-slot.md §1):
-//
-//	安徒恩讨伐战 anton.dgn   100004950 -> support,     equipment slot 22
-//	使徒卢克     luke.dgn    100004953 -> magic stone, equipment slot 23
-//	盖波加       gaebolg.dgn 100004969 -> earring,     equipment slot 25
-func OdysseyExpandEquipMask(dungeonID uint32) (byte, bool) {
-	switch dungeonID {
-	case 100004950:
-		return inventory.ExpandSupport, true
-	case 100004953:
-		return inventory.ExpandMagicStone, true
-	case 100004969:
-		return inventory.ExpandEarring, true
+func applyOdysseySlotActions(role Character, r *catalog.OdysseyGrowth, reached byte) (Character, error) {
+	var unlock byte
+	for level, actions := range r.LevelActions {
+		if level <= reached {
+			unlock |= odysseySlotActionMask(actions)
+		}
 	}
-	return 0, false
+	if unlock == 0 {
+		return role, nil
+	}
+	raw, err := inventory.UnlockEquipSlots(role.State, unlock)
+	if err != nil {
+		return role, err
+	}
+	role.State = raw
+	return role, nil
+}
+
+// Action names and saved bits are execution contracts. Levels and the dungeons
+// that reach them remain source-defined rules.
+func odysseySlotActionMask(actions []string) (mask byte) {
+	for _, action := range actions {
+		switch action {
+		case "unlock support":
+			mask |= inventory.ExpandSupport
+		case "unlock magic stone":
+			mask |= inventory.ExpandMagicStone
+		case "unlock earring":
+			mask |= inventory.ExpandEarring
+		}
+	}
+	return mask
 }
 
 // Completion owns this transaction, before notifying the client that the exit
@@ -112,15 +125,6 @@ func (s *ProgressionService) OdysseyClear(ctx context.Context, role Character, r
 				return nil, nil, e
 			}
 			if next.State, e = s.saveOdysseyCompletion(next, run.Definition.ID); e != nil {
-				return nil, nil, e
-			}
-		}
-		// The clear may also unlock an extended equipment slot. It lands in the
-		// same character transaction, so a failed commit rolls both back and a
-		// repeated clear stays idempotent (the mask is only OR-ed in).
-		if mask, ok := OdysseyExpandEquipMask(run.Definition.ID); ok {
-			next.State, e = inventory.UnlockEquipSlots(next.State, mask)
-			if e != nil {
 				return nil, nil, e
 			}
 		}
