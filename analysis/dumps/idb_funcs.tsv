@@ -1,4 +1,11 @@
 address	name	description
+0x142530950	Handler_IspinsOperationSelectAck_Local2047	Local ACK2047 success path reads19B; action4 at142530a1e resets window644 then takes flag0 selection path. next79 20261003 live reset request confirmed.
+0x14251dca0	IspinsSelection_ClearThreeOperationChoices	Called by action4 ACK handler; clears three UI choice widgets and their values at14251dcc0..dce4.
+0x1425311f0	Send_IspinsOperationSelect_Local2047	Native writer stores action u32 at13 and argument u16 at17, sends19B plus native transport tail; next79 live action4/ffff vector.
+0x145639840	UserInfo_ReadEquipmentAppearance_Local	N2 basic row equipment loop; length-prefixed field145639906 ->1459a0220 ->146d77f50 ->146ea0be0. next79 newer template fails here after2252 fix.
+0x146ea0be0	PacketReader_CopyFixedOrAssert	Local client SHA256 01c633df; reads edx bytes; remaining<edx jumps to deliberate null write 146ea0c30. next79 20261003 crash stack confirmed.
+0x1424fdc30	Handler_LegionBasicClearReward_Local2252	NOTI2252 local fixed 7772B direct copy at1424fdd01; no zlib inflation; return1424fdd06 matches next79 live crash.
+0x1424fdb60	Handler_LegionAdditionalClearReward_Local2253	NOTI2253 local fixed 2405B direct copy at1424fdbd5; no zlib inflation. Existing IDB survey anchor corroborated with current client bytes.
 0x140ced7f0	ActBehavior_KickOutMapCharacter_Execute	KICK OUT MAP CHARACTER execution, validates current room and delegates scripted map move to 145ea1ca0
 0x145ea2f90	DungeonTransition_DecodeNative18	NOTI29 native 18-byte transition decode, type/direction/position/random-range
 0x1452b7100	Handler_NotiStartMap	NOTI29; flag0 leaves layer ordinal unchanged, flag2 clears ordinal at1452b7876; mode0 preserves cached room. Evil Justice live20260929 confirms flag0 left active layer.

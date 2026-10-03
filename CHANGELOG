@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 2026-10-03 next79：变更作战与前两阶段 Boss 结算已实机确认
+- 用户确认变更作战生效、Boss 结算及奖励发放界面生效。14:23会话记录 action4 后重新确认；stage0/1 均到 CMD1654→CMD2046，stage0 正式 CMD72 回待机成功。
+- 固定长奖励体及本地原生角色资料修复纳入本次 confirmed baseline；源码/默认 EXE SHA256 `b3fc95409ac600108030221ea69fdb0d5c83bf7180559394b703be4cb1aa82c9`。专项及 vet 通过，全量仍4项已对照确认的既有失败。
+- 确认范围不含四阶段全通、奖励入库/重登保持和后续难度数值映射。stage1 回城出现 focus 请求提前清会话的新缺陷，另行修复；详见 `server/work/dfo-lan/docs/protocol/next79-confirmed-baseline-20261003.md`。
+
+
 ## 2026-09-29
 - **NPC 好感度收尾：剧情角色染色修复 + 进城镇好感度无弹窗全量同步（服务端，已实机验收）**：
   - **染色（CMD806 p[0]=1）**：染色与送礼共用 CMD806，请求 `01 npcID u32 count (slot,color)*`；正确应答 = `0x01(result)` + 请求体原样回显（9B）。逆向客户端 CMD806 响应 parser（VA 0x14528f570）定论：byte1=op，1 走染色分支本地写颜色、完全不读好感度字段；此前回 16B 送礼 ack（byte1=0）被当成送礼，误弹「好感度增加了X」。
