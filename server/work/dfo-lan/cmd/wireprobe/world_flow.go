@@ -10,6 +10,7 @@ import (
 	"dfolan/internal/loot"
 	"dfolan/internal/npcpresence"
 	"dfolan/internal/quest"
+	"dfolan/internal/reward"
 	"dfolan/internal/storage"
 	"dfolan/internal/workflow"
 	"dfolan/internal/world"
@@ -20,22 +21,22 @@ import (
 )
 
 type worldSession struct {
-	npcPresenceIndex       *npcpresence.Index
-	npcPresenceIndexErr    error
-	lastFame               uint32
-	fameInitialized        bool
-	moonConfig             *moonSoloConfig
-	moon                   moonSoloState
-	characters             *character.Service
-	pilotDeath             *odysseyDeath
-	service                *world.Service
-	store                  *storage.Store
-	account                int64
-	serverID               uint32
-	role                   storage.Character
-	level                  byte
-	adventureSnapshot      [32]byte
-	channelType            uint32
+	npcPresenceIndex    *npcpresence.Index
+	npcPresenceIndexErr error
+	lastFame            uint32
+	fameInitialized     bool
+	moonConfig          *moonSoloConfig
+	moon                moonSoloState
+	characters          *character.Service
+	pilotDeath          *odysseyDeath
+	service             *world.Service
+	store               *storage.Store
+	account             int64
+	serverID            uint32
+	role                storage.Character
+	level               byte
+	adventureSnapshot   [32]byte
+	channelType         uint32
 	// channelWorldIsolated 标记当前连接在特殊征讨频道（towns 表有专属城镇）。
 	// true 时会话内位置不落普通频道共享行；specialTowns 是全部特殊城镇集合，
 	// 用于把共享行里的历史污染位置修回默认落点。
@@ -44,10 +45,10 @@ type worldSession struct {
 	// channelGuideDungeon 是本频道 [guide dungeon index] 直读值（SemiRaid/Legion
 	// 频道的红门直接进这个副本）；0 = 无（普通频道）。
 	channelGuideDungeon uint32
-	bleedingMineCreated    bool
-	bleedingMineReady      bool
-	bleedingMineRoster     []int64
-	bleedingMineStart      *bleedingMineStart
+	bleedingMineCreated bool
+	bleedingMineReady   bool
+	bleedingMineRoster  []int64
+	bleedingMineStart   *bleedingMineStart
 	// ispins 是一次伊斯大陆（内容号 101）挑战的会话状态；nil = 无进行中的
 	// 挑战。字节契约见 ispins_flow.go 与 next78 取证文档。
 	ispins                 *ispinsRun
@@ -69,11 +70,13 @@ type worldSession struct {
 	lastFatigueLimit uint16
 	quests           *quest.Service
 	progression      *character.ProgressionService
-	loot             *loot.Service
-	items            *inventory.ItemService
-	shop             *workflow.ShopService
-	selectionBoxes   *catalog.SelectionBoxes
-	vault            *workflow.VaultService
+	// rewards is the optional event-triggered Lua reward notifier; nil disables it.
+	rewards        reward.Notifier
+	loot           *loot.Service
+	items          *inventory.ItemService
+	shop           *workflow.ShopService
+	selectionBoxes *catalog.SelectionBoxes
+	vault          *workflow.VaultService
 
 	townArrivalScenes   map[uint32]catalog.TownArrivalScene
 	approvedDungeonGate uint32

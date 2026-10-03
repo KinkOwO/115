@@ -6,6 +6,7 @@ import (
 	"dfolan/internal/character"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
+	"dfolan/internal/mail"
 	"dfolan/internal/storage"
 	"encoding/binary"
 	"encoding/json"
@@ -268,7 +269,7 @@ func (w *worldSession) sendMail(ctx context.Context, id uint16, p, keys []byte, 
 			if err != nil {
 				return nil, nil, err
 			}
-			cost := uint64(r.Gold) + inventory.MailPostage(r.Gold, len(r.Items))
+			cost := uint64(r.Gold) + mail.Postage(r.Gold, len(r.Items))
 			if uint64(bag.Gold) < cost {
 				return nil, nil, inventory.ErrMailGold
 			}

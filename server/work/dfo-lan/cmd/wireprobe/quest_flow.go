@@ -59,7 +59,7 @@ func (w *worldSession) finishQuest(r protocol.QuestSubmitRequest) ([]outboundPac
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	result, e := (&workflow.QuestService{Store: w.store, Quest: w.quests}).Finish(ctx, w.role, r)
+	result, e := (&workflow.QuestService{Store: w.store, Quest: w.quests, Rewards: w.rewards}).Finish(ctx, w.role, r)
 	if e != nil {
 		return nil, e
 	}

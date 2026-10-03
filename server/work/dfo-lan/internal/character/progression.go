@@ -6,6 +6,7 @@ import (
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
+	"dfolan/internal/reward"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -22,6 +23,9 @@ type ProgressionService struct {
 	Catalog           catalog.Progression
 	Professions       catalog.Characters
 	Rules             GrowthRules
+	// Rewards is the optional event-triggered reward notifier. Domains only
+	// notify after a committed success; nil disables the feature.
+	Rewards reward.Notifier
 }
 
 func (s *ProgressionService) Monster(ctx context.Context, role Character, run *dungeon.Session, entity uint16) (Character, bool, error) {
@@ -52,7 +56,7 @@ func (s *ProgressionService) Monster(ctx context.Context, role Character, run *d
 		return role, false, nil
 	}
 	key := fmt.Sprintf("monster:%s:%d:%d", run.RunID, run.Room.Map, entity)
-	return s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, s.Catalog.Source.SaveIdentity(), key, s.Rules.Model, func(current Character) (json.RawMessage, json.RawMessage, error) {
+	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, s.Catalog.Source.SaveIdentity(), key, s.Rules.Model, func(current Character) (json.RawMessage, json.RawMessage, error) {
 		var state State
 		if e := json.Unmarshal(current.State, &state); e != nil {
 			return nil, nil, e
@@ -73,6 +77,36 @@ func (s *ProgressionService) Monster(ctx context.Context, role Character, run *d
 		proof, e := json.Marshal(map[string]any{"gain": gain, "level": result.Level, "experience": result.Experience, "skill_point_gain": result.SkillPointGain, "monster": monster.Template, "source_map": run.Room.Map, "reference_sha256": s.Rules.ReferenceSHA256})
 		return updated.State, proof, e
 	})
+	if e != nil {
+		return saved, applied, e
+	}
+	if applied {
+		s.notifyLevelUp(ctx, role, saved)
+	}
+	return saved, applied, nil
+}
+
+// notifyLevelUp is best-effort: a reward failure never affects the committed
+// domain result. before/after are the pre-commit and committed characters.
+func (s *ProgressionService) notifyLevelUp(ctx context.Context, before, after Character) {
+	if s.Rewards == nil {
+		return
+	}
+	level := stateLevel(after.State)
+	if level <= stateLevel(before.State) {
+		return
+	}
+	s.Rewards.LevelUp(ctx, reward.Recipient{AccountID: after.AccountID, CharacterID: after.ID, Name: after.Name, Level: level, ConfigVersion: after.ConfigVersion})
+}
+
+// stateLevel reads the committed level from a saved character state. An
+// absent or malformed state yields 0, which suppresses the notification.
+func stateLevel(raw json.RawMessage) byte {
+	var state State
+	if e := json.Unmarshal(raw, &state); e != nil {
+		return 0
+	}
+	return state.Level
 }
 
 func ExperiencePayload(role Character) ([]byte, error) {

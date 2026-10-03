@@ -64,29 +64,12 @@ func (s *Store) UpdateBleedingMineRewards(ctx context.Context, account, actor in
 		if len(assets) > 11 {
 			return role, nil, fmt.Errorf("矿区奖励邮件附件过多")
 		}
-		var mails, attachments int
-		err = tx.QueryRow(ctx, `SELECT count(*),coalesce(sum((SELECT count(*) FROM jsonb_array_elements(m.assets) a WHERE NOT coalesce((a->>'claimed')::boolean,false))),0)
- FROM character_mail m WHERE recipient_id=$1 AND deleted_at IS NULL AND (expires_at>now() OR status=3)`, actor).Scan(&mails, &attachments)
-		if err != nil {
-			return role, nil, err
-		}
-		if mails >= 255 || attachments+len(assets) > 255 {
-			return role, nil, ErrMailFull
-		}
 		for i := range assets {
 			if assets[i].Claimed || assets[i].Gold != 0 || !json.Valid(assets[i].Item) {
 				return role, nil, fmt.Errorf("矿区邮件附件无效")
 			}
-			if err = tx.QueryRow(ctx, `SELECT nextval('mailbox_id_seq')`).Scan(&assets[i].ID); err != nil {
-				return role, nil, err
-			}
 		}
-		encoded, err := json.Marshal(assets)
-		if err != nil {
-			return role, nil, err
-		}
-		if _, err = tx.Exec(ctx, `INSERT INTO character_mail(recipient_id,sender_name,body,assets,expires_at)
- VALUES($1,'赤红铁矿','本次探索获得的奖励，请领取附件。',$2,now()+interval '15 days')`, actor, encoded); err != nil {
+		if _, err = insertSystemMailTx(ctx, pgxTx{tx}, actor, "赤红铁矿", "本次探索获得的奖励，请领取附件。", assets); err != nil {
 			return role, nil, err
 		}
 	}

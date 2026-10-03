@@ -41,6 +41,7 @@ const persistencePackage = "internal/storage"
 var domainPackages = map[string]bool{
 	"internal/character":   true,
 	"internal/inventory":   true,
+	"internal/mail":        true,
 	"internal/loot":        true,
 	"internal/quest":       true,
 	"internal/dungeon":     true,

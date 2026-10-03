@@ -12,6 +12,7 @@ import (
 	"dfolan/internal/legion"
 	"dfolan/internal/loot"
 	"dfolan/internal/quest"
+	"dfolan/internal/reward"
 	"dfolan/internal/storage"
 	"dfolan/internal/workflow"
 	"dfolan/internal/world"
@@ -22,9 +23,9 @@ import (
 	"log"
 	"net"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
-	"path/filepath"
 	"sync"
 	"time"
 )
@@ -36,10 +37,10 @@ type gatewayRuntime struct {
 	apocalypseClock       *legion.ApocalypseClock
 	boosterCatalog        *BoosterCatalog
 	characters            *character.Service
-	channelDirectory       *catalog.ChannelDirectory
-	channelTowns           map[uint32]catalog.TownArea
-	channelGuides          map[uint32]uint32
-	channelInfo            *catalog.ChannelInfo
+	channelDirectory      *catalog.ChannelDirectory
+	channelTowns          map[uint32]catalog.TownArea
+	channelGuides         map[uint32]uint32
+	channelInfo           *catalog.ChannelInfo
 	developmentAccount    int64
 	dungeonCatalog        *catalog.DungeonCatalog
 	fatigueService        *character.FatigueService
@@ -62,6 +63,7 @@ type gatewayRuntime struct {
 	questService          *quest.Service
 	raw                   []byte
 	responses             map[uint16][]byte
+	rewards               reward.Notifier
 	selectProbe           *protocol.SelectProbeState
 	selectionBoxes        *catalog.SelectionBoxes
 	shopPilot             *cashshop.Pilot
@@ -448,6 +450,8 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 	var dungeonCatalog *catalog.DungeonCatalog
 	var progressionService *character.ProgressionService
 	var lootService *loot.Service
+	// rewardNotifier is the optional Lua reward add-on; nil disables it.
+	var rewardNotifier reward.Notifier
 	var itemService *inventory.ItemService
 	var shopService *workflow.ShopService
 	// journalRules 是装备库规则（nil = 不登记）。它同时被 CMD26 的事务与入场 2610 用到，
@@ -990,6 +994,17 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		itemService = &inventory.ItemService{Model: r.Model, Catalog: c, BagRules: bag, Equipment: gear, AvatarDisjoint: pvfCatalogs.AvatarDisjoint, EmblemCompound: pvfCatalogs.EmblemCompound, AvatarSockets: pvfCatalogs.AvatarSockets, EmblemInlay: pvfCatalogs.EmblemInlay, Journal: journalRules, CreateCost: equipmentCreateCost}
 		if progressionService != nil {
 			progressionService.CompletionAwarder = &inventory.Awarder{Catalog: c, Rules: bag, Equipment: gear}
+		}
+		// Event-triggered Lua rewards reuse the same catalog as the completion
+		// awarder. The rule scripts are embedded in the binary.
+		if rewards := buildRewardService(gameStore, &inventory.Awarder{Catalog: c, Rules: bag, Equipment: gear}); rewards != nil {
+			if progressionService != nil {
+				progressionService.Rewards = rewards
+			}
+			if characters != nil {
+				characters.Rewards = rewards
+			}
+			rewardNotifier = rewards
 		}
 		shopService = &workflow.ShopService{Store: gameStore, ShopService: inventory.ShopService{Catalog: c, EventModel: r.Model, BagRules: bag, ItemMaterials: itemMaterials}}
 		if pvfCatalogs.Mine != nil || startup.BleedingMineRewards != "" {
@@ -1601,6 +1616,7 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		questService:          questService,
 		raw:                   raw,
 		responses:             responses,
+		rewards:               rewardNotifier,
 		selectProbe:           selectProbe,
 		selectionBoxes:        selectionBoxes,
 		shopPilot:             shopPilot,

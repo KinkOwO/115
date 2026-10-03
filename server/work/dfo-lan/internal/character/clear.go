@@ -151,6 +151,9 @@ func (s *ProgressionService) ClearWithTowerRewards(ctx context.Context, role Cha
 	if receipt.Source != s.Catalog.Source.SaveIdentity() || receipt.Run != run.RunID || receipt.Rank != rank {
 		return fail(fmt.Errorf("clear retry conflicts with saved result"))
 	}
+	if applied {
+		s.notifyLevelUp(ctx, role, saved)
+	}
 	return saved, receipt, applied, nil
 }
 

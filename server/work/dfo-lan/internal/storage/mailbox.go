@@ -2,38 +2,25 @@ package storage
 
 import (
 	"context"
+	"dfolan/internal/db"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"time"
+
+	"dfolan/internal/mail"
 
 	"github.com/jackc/pgx/v5"
 )
 
 var (
-	ErrMailRecipient = errors.New("收件角色不存在")
-	ErrMailSelf      = errors.New("不能给自己发送邮件")
-	ErrMailFull      = errors.New("收件箱已满")
+	ErrMailRecipient = mail.ErrRecipient
+	ErrMailSelf      = mail.ErrSelf
+	ErrMailFull      = mail.ErrFull
 )
 
-type MailAsset struct {
-	ID      int64           `json:"id"`
-	Gold    uint32          `json:"gold,omitempty"`
-	Item    json.RawMessage `json:"item,omitempty"`
-	Claimed bool            `json:"claimed,omitempty"`
-}
-type MailMessage struct {
-	ID          int64       `json:"id"`
-	SenderID    int64       `json:"sender_id"`
-	RecipientID int64       `json:"recipient_id"`
-	SenderName  string      `json:"sender_name"`
-	Text        string      `json:"text"`
-	Status      uint16      `json:"status"`
-	Assets      []MailAsset `json:"assets"`
-	ExpiresAt   time.Time   `json:"expires_at"`
-	Deleted     bool        `json:"deleted,omitempty"`
-}
-type MailSendReceipt struct{ MessageID, RecipientID int64 }
+type MailAsset = mail.Asset
+type MailMessage = mail.Message
+type MailSendReceipt = mail.SendReceipt
 
 // 只新增邮件表与序列，不修改已有角色和背包存档。附件采用同一编号
 // 序列，避免正文编号和附件编号冲突；已领取的附件保留记录供审计。
@@ -87,12 +74,6 @@ func readMailRows(rows pgx.Rows) ([]MailMessage, error) {
 }
 
 const mailColumns = `m.id,coalesce(m.sender_id,0),m.recipient_id,m.sender_name,m.body,m.status,m.assets,m.expires_at,m.deleted_at IS NOT NULL`
-
-func (s *Store) MailboxUnread(ctx context.Context, account, id int64) (uint16, error) {
-	var n uint16
-	err := s.DB.QueryRow(ctx, `SELECT count(*) FROM character_mail m JOIN characters c ON c.id=m.recipient_id WHERE c.account_id=$1 AND c.id=$2 AND c.deleted_at IS NULL AND m.deleted_at IS NULL AND m.status=1 AND m.expires_at>now()`, account, id).Scan(&n)
-	return n, err
-}
 
 // MailboxDeliveryState 在同一快照中读取最新投递编号和未读数。
 // 已读、领取不会产生新编号；调用方保留编号高水位，删除或过期也不会重复提醒。
@@ -226,6 +207,59 @@ func (s *Store) SendMail(ctx context.Context, account, id int64, version, key, n
 	}
 	role.State = state
 	return role, receipt, true, nil
+}
+
+// insertSystemMailTx inserts one system mail (sender_id NULL) inside an
+// existing transaction under the mail-owned capacity and retention rules.
+// It assigns the shared mailbox_id_seq IDs and returns the new message id.
+func insertSystemMailTx(ctx context.Context, tx db.Tx, recipientID int64, senderName, body string, assets []mail.Asset) (int64, error) {
+	if len(assets) > mail.MaxAttachments {
+		return 0, fmt.Errorf("系统邮件附件过多")
+	}
+	var messages, existing int
+	if err := tx.QueryRow(ctx, `SELECT count(*),coalesce(sum((SELECT count(*) FROM jsonb_array_elements(m.assets) a WHERE NOT coalesce((a->>'claimed')::boolean,false))),0)
+ FROM character_mail m WHERE recipient_id=$1 AND deleted_at IS NULL AND (expires_at>now() OR status=3)`, recipientID).Scan(&messages, &existing); err != nil {
+		return 0, err
+	}
+	if messages >= mail.MaxMessages || existing+len(assets) > mail.MaxUnclaimedAssets {
+		return 0, ErrMailFull
+	}
+	for i := range assets {
+		if err := tx.QueryRow(ctx, `SELECT nextval('mailbox_id_seq')`).Scan(&assets[i].ID); err != nil {
+			return 0, err
+		}
+	}
+	encoded, err := json.Marshal(assets)
+	if err != nil {
+		return 0, err
+	}
+	if assets == nil {
+		encoded = []byte("[]")
+	}
+	var mailID int64
+	err = tx.QueryRow(ctx, `INSERT INTO character_mail(recipient_id,sender_name,body,assets,expires_at)
+ VALUES($1,$2,$3,$4, now()+interval '15 days') RETURNING id`, recipientID, senderName, body, encoded).Scan(&mailID)
+	return mailID, err
+}
+
+// CommitSystemMail creates one system mail for a recipient under the caller's
+// idempotency key/model (e.g. reward-mail-v1). Returns the new message id.
+func (s *Store) CommitSystemMail(ctx context.Context, account, id int64, version, key, model, senderName, body string, assets []MailAsset) (int64, bool, error) {
+	var messageID int64
+	_, applied, err := s.CommitCharacterEventTx(ctx, account, id, version, key, model,
+		func(tx db.Tx, role Character) (json.RawMessage, json.RawMessage, error) {
+			mid, err := insertSystemMailTx(ctx, tx, id, senderName, body, assets)
+			if err != nil {
+				return nil, nil, err
+			}
+			messageID = mid
+			receipt, err := json.Marshal(map[string]any{"mail_id": mid})
+			return role.State, receipt, err
+		})
+	if err != nil {
+		return 0, false, err
+	}
+	return messageID, applied, nil
 }
 
 // MutateMailbox 将领取入包、附件已领取标记、邮件状态和操作回执原子

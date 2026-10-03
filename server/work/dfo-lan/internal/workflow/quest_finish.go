@@ -7,6 +7,7 @@ import (
 	"dfolan/internal/character"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/quest"
+	"dfolan/internal/reward"
 	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
@@ -17,6 +18,9 @@ import (
 type QuestService struct {
 	Store *storage.Store
 	Quest *quest.Service
+	// Rewards is the optional event-triggered reward notifier. It is only
+	// called after a committed settlement; nil disables the feature.
+	Rewards reward.Notifier
 }
 
 func (s *QuestService) Finish(ctx context.Context, role storage.Character, r protocol.QuestSubmitRequest) (quest.FinishResult, error) {
@@ -53,6 +57,17 @@ func (s *QuestService) Finish(ctx context.Context, role storage.Character, r pro
 		return out, fmt.Errorf("quest reward receipt mismatch")
 	}
 	out.Role, out.Applied = commit.Character, commit.Applied
+	// Event-triggered rewards are best-effort and only fire on a fresh
+	// settlement, never on an idempotent replay.
+	if out.Applied && s.Rewards != nil {
+		recipient := rewardRecipient(out.Role)
+		var before character.State
+		_ = json.Unmarshal(role.State, &before)
+		if recipient.Level > before.Level {
+			s.Rewards.LevelUp(ctx, recipient)
+		}
+		s.Rewards.QuestComplete(ctx, recipient, r.ID)
+	}
 	// Self-heal a pre-fix state: a character who once accepted several
 	// [collision quest] branches still carries the unchosen factions' quests.
 	// Once one branch completes, accepted siblings leave the journal (their
@@ -86,4 +101,12 @@ func questItemRewards(cells []pvf.Token, profession, advancement byte) ([]quest.
 		out = append(out, quest.RewardItem{Template: item.Template, Amount: item.Amount})
 	}
 	return out, nil
+}
+
+// rewardRecipient builds the notifier recipient from a committed character.
+// A malformed state leaves the level at 0, which suppresses level-up notices.
+func rewardRecipient(c character.Character) reward.Recipient {
+	var state character.State
+	_ = json.Unmarshal(c.State, &state)
+	return reward.Recipient{AccountID: c.AccountID, CharacterID: c.ID, Name: c.Name, Level: state.Level, ConfigVersion: c.ConfigVersion}
 }

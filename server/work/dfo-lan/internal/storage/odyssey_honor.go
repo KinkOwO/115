@@ -33,25 +33,8 @@ func (s *Store) CommitOdysseyHonorMail(ctx context.Context, account, id int64, v
 			if _, err = attachment.Row(); err != nil {
 				return nil, nil, err
 			}
-			var messages, assets int
-			if err = tx.QueryRow(ctx, `SELECT count(*),coalesce(sum((SELECT count(*) FROM jsonb_array_elements(m.assets) a WHERE NOT coalesce((a->>'claimed')::boolean,false))),0)
- FROM character_mail m WHERE recipient_id=$1 AND deleted_at IS NULL AND (expires_at>now() OR status=3)`, id).Scan(&messages, &assets); err != nil {
-				return nil, nil, err
-			}
-			if messages >= 255 || assets >= 255 {
-				return nil, nil, ErrMailFull
-			}
-			var assetID int64
-			if err = tx.QueryRow(ctx, `SELECT nextval('mailbox_id_seq')`).Scan(&assetID); err != nil {
-				return nil, nil, err
-			}
-			encoded, err := json.Marshal([]MailAsset{{ID: assetID, Item: item}})
+			mailID, err := insertSystemMailTx(ctx, tx, id, "Arad Odyssey", "Congratulations on reaching Level 115! Please claim your Arad Odyssey Honor Reward Box.", []MailAsset{{Item: item}})
 			if err != nil {
-				return nil, nil, err
-			}
-			var mailID int64
-			if err = tx.QueryRow(ctx, `INSERT INTO character_mail(recipient_id,sender_name,body,assets,expires_at)
- VALUES($1,'Arad Odyssey','Congratulations on reaching Level 115! Please claim your Arad Odyssey Honor Reward Box.',$2,now()+interval '15 days') RETURNING id`, id, encoded).Scan(&mailID); err != nil {
 				return nil, nil, err
 			}
 			var outcome map[string]json.RawMessage

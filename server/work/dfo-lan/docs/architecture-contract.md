@@ -24,7 +24,7 @@
 | L0 | 传输原语 | `internal/game/wire` | 帧、加解密、校验和；不含任何游戏事实 |
 | L1 | 协议与静态数据 | `internal/game/protocol`、`internal/catalog`、`internal/catalog/pvf`、`internal/derivedcache`、`internal/savecontract` | 字节布局、PVF 归档原语、规则驱动静态目录、磁盘缓存与存档契约原语 |
 | L2 | 持久化 | `internal/storage` | SQL、事务、存档读写；游戏事实的搬运者和实现者，不是拥有者 |
-| L3 | 业务领域 | `internal/{character,inventory,loot,quest,dungeon,world,cashshop,adventure,legion,npcpresence}` | 拥有各自的游戏规则与状态 |
+| L3 | 业务领域 | `internal/{character,inventory,mail,loot,quest,dungeon,world,cashshop,adventure,legion,npcpresence}` | 拥有各自的游戏规则与状态 |
 | L4 | 组合与工具 | `cmd/**`、`internal/{gamedata,managementdata,admin,channelrefresh,workflow}` | 组合根、只读投影、管理、离线工具；`workflow` 承载跨领域编排与事务 |
 
 ---
@@ -81,6 +81,7 @@ L3 领域之间 **默认禁止**互相 import。需要另一领域能力时，�
 | `internal/storage` | L2 | SQL、事务、锁、存档；实现领域声明的接口 | L3 领域（仅为实现接口）、`catalog`、`catalog/pvf` | 定义游戏规则 |
 | `internal/character` | L3 | 建角、列表、角色状态、技能、经验与奖励成长、资料皮肤与账号选角背景 | `game/protocol`、`catalog`、`catalog/pvf`、自声明接口 | `storage`、其他领域（§7 例外除外） |
 | `internal/inventory` | L3 | 背包、穿戴、通用物品状态、装备图鉴制作/变换/分解、时装与徽章操作、消耗品/宠物喂养与光辉礼盒目录/开启/奖励修复 | 同上 | 同上 |
+| `internal/mail` | L3 | 邮件信封类型、容量/保留/邮费规则与 model 字符串 | 仅标准库（后续阶段可含自声明窄接口） | 同上 |
 | `internal/loot` | L3 | 掉落生成、掉落实例、拾取、去重 | 同上 | 同上 |
 | `internal/quest` | L3 | 任务链、目标推进、任务奖励 | 同上 | 同上 |
 | `internal/dungeon` | L3 | 副本会话、房间、门、清场、结算 | 同上 | 同上 |
