@@ -3,15 +3,16 @@ package character
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
+	"dfolan/internal/testfixture"
 	"testing"
 )
 
 func TestCurrentSourceWithExplicitReferenceRules(t *testing.T) {
-	c, e := catalog.LoadProgression("../../configs/progression.next25.json")
+	c, e := catalog.LoadProgression(testfixture.ProgressionPath(t))
 	if e != nil {
 		t.Fatal(e)
 	}
-	d, e := catalog.LoadDungeons("../../configs/dungeons.generated.json")
+	d, e := catalog.LoadDungeons(testfixture.DungeonPath(t, "dungeons.generated.json"))
 	if e != nil {
 		t.Fatal(e)
 	}

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"dfolan/internal/catalog"
+	"dfolan/internal/testfixture"
 )
 
 // [MERGE-20260928-DUNGEON-GROUP-INDEX] 115 深渊三个真副本走的是**另一条**路径：
@@ -15,7 +16,7 @@ import (
 //	100003295/100003296/100003297  [type] dgn_hell
 //	组 10900 (epic, 53 物) / 21030 (epic, 11) / 10012..10026 11085~11087 (stackable)
 func TestAbyssHellThreeRealDungeons(t *testing.T) {
-	cat, e := catalog.LoadLoot("../../configs/loot.level150.json")
+	cat, e := catalog.LoadLoot(testfixture.LootLevel150Path(t))
 	if e != nil {
 		t.Fatal(e)
 	}

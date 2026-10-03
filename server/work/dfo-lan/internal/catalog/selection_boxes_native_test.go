@@ -3,8 +3,19 @@ package catalog
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 )
+
+func TestSelectionBoxPolicyOmittedPreservesDiscoveryAndRejectsMissingOverride(t *testing.T) {
+	policy, err := ReadSelectionBoxPolicy("")
+	if err != nil || !reflect.DeepEqual(policy, SelectionBoxPolicy{Version: 1}) {
+		t.Fatal("omitted policy must discover source scope without a whitelist", policy, err)
+	}
+	if _, err := ReadSelectionBoxPolicy(filepath.Join(t.TempDir(), "missing.json")); err == nil {
+		t.Fatal("an explicit missing override must not fall back to source discovery")
+	}
+}
 
 func TestSelectionBoxPolicyRefusesSourcePayloadAndAmbiguousScope(t *testing.T) {
 	for _, raw := range []string{

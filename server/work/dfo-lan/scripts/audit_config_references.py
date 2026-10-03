@@ -19,7 +19,7 @@ def source_files(root):
                 yield path
     # Small profiles can refer to policy files. Large game catalogs are data,
     # and searching their content would mix item text with dependency evidence.
-    for path in sorted((root / "configs").glob("*.json")):
+    for path in sorted(list((root / "configs").glob("*.json")) + list((root / "docs").glob("*.json"))):
         if path.stat().st_size <= 1024 * 1024:
             yield path
 
@@ -28,7 +28,7 @@ def group(path):
     parts = path.parts
     if path.name.endswith("_test.go") or path.name.startswith("test_"):
         return "tests"
-    if parts[0] == "configs":
+    if parts[0] in ("configs", "docs"):
         return "profiles"
     if parts[:2] == ("cmd", "wireprobe"):
         return "gateway"
@@ -56,7 +56,7 @@ def inventory(root):
     lines = [
         "# configs JSON 字面引用清单",
         "",
-        "由 `scripts/audit_config_references.py` 生成。扫描范围为模块的 cmd、internal、scripts，以及不超过 1 MiB 的 configs JSON。",
+        "由 `scripts/audit_config_references.py` 生成。扫描范围为模块的 cmd、internal、scripts，以及不超过 1 MiB 的 configs JSON 和 docs 根目录的 JSON 示例。",
         "",
         "引用包含注释和历史分支；数字是不同引用位置数，不表示正式运行必读。零引用也不能作为删除依据：动态拼路径、模块外启动器、GM 代理及历史二进制未由本清单证明。",
         "",

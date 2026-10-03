@@ -6,6 +6,7 @@ import (
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/savecontract"
 	"dfolan/internal/storage"
+	"dfolan/internal/testfixture"
 	"dfolan/internal/world"
 	"encoding/json"
 	"errors"
@@ -21,11 +22,11 @@ import (
 // [odyssey enter level] 45，客户端在奥德赛模式下按 45 判定（提示里的数字就是它），
 // 服务端此前只读 [need level]，于是把 45 级奥德赛角色挡在门外。
 func TestOdysseyStormPassJournalTeleportGate(t *testing.T) {
-	cat, err := catalog.LoadWorld("../../configs/world.generated.json")
+	cat, err := catalog.LoadWorld(testfixture.CatalogPath(t, "world"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	growth, err := catalog.LoadOdysseyGrowth("../../configs/odyssey-growth-candidate.json")
+	growth, err := catalog.LoadOdysseyGrowth("../../configs/odyssey-growth-release.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -102,7 +103,7 @@ func TestOdysseyStormPassJournalTeleportGate(t *testing.T) {
 // 约束的是该区域 [phase] 变体）；服务端按 replace 语义误用 35 拦截。日志传送白名单
 // 不含 40/0，所以实机走的是 special warp 分支。
 func TestOdysseyWestCoastTeleportGate(t *testing.T) {
-	cat, err := catalog.LoadWorld("../../configs/world.generated.json")
+	cat, err := catalog.LoadWorld(testfixture.CatalogPath(t, "world"))
 	if err != nil {
 		t.Fatal(err)
 	}

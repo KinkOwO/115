@@ -3,7 +3,7 @@
 package main
 
 import (
-	"dfolan/internal/catalog"
+	"dfolan/internal/gamedata"
 	"dfolan/internal/npcpresence"
 	"encoding/json"
 	"flag"
@@ -132,16 +132,22 @@ func evaluate(index *npcpresence.Index, t trace) ([]npcpresence.Result, error) {
 }
 
 func main() {
-	worldFile := flag.String("world", "configs/world.generated.json", "source world catalog, with optional phase maps")
-	questFile := flag.String("quests", "configs/quests.generated.json", "source quest catalog")
+	flag.String("world", "", "deprecated; world and phase maps are read from native PVF")
+	archive := flag.String("pvf-archive", "../client-build/Script.inner.pvf", "read-only inner PVF")
+	flag.String("quests", "", "deprecated; quests are read from native PVF")
 	traceFile := flag.String("trace", "", "explicit offline trace with source identity")
 	outFile := flag.String("output", "", "output report (stdout if omitted)")
 	flag.Parse()
-	w, err := catalog.LoadWorld(*worldFile)
+	native, err := gamedata.Open(gamedata.Options{Mode: gamedata.PVF, ArchivePath: *archive})
 	if err != nil {
 		log.Fatal(err)
 	}
-	q, err := catalog.LoadQuests(*questFile)
+	defer native.Close()
+	w, err := native.World("")
+	if err != nil {
+		log.Fatal(err)
+	}
+	q, err := native.Quests("")
 	if err != nil {
 		log.Fatal(err)
 	}

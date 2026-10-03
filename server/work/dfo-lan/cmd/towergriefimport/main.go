@@ -11,8 +11,11 @@ import (
 
 func main() {
 	source := flag.String("source", "../client-build/Script.inner.pvf", "current source PVF")
-	output := flag.String("output", "configs/dungeons.tower-of-grief-maps.json", "source-matched tower overlay")
+	output := flag.String("output", "", "required explicit source-matched tower overlay output")
 	flag.Parse()
+	if *output == "" {
+		log.Fatal("-output is required; choose a test/export destination explicitly")
+	}
 	a, err := pvf.LoadArchive(pvf.Options{Path: *source, MaxBytes: 1024 * 1024 * 1024})
 	if err != nil {
 		log.Fatal(err)

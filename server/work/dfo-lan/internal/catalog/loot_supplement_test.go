@@ -2,7 +2,6 @@ package catalog
 
 import (
 	"dfolan/internal/catalog/pvf"
-	"os"
 	"testing"
 )
 
@@ -15,10 +14,7 @@ func TestSupplementStackables(t *testing.T) {
 			1000: {ID: 1000, Kind: "stackable", StackableType: "[material]", Grade: 5},
 		},
 	}
-	indexPath := "../../configs/items.index.json"
-	if _, err := os.Stat(indexPath); err != nil {
-		t.Skip("items.index.json missing, skipping")
-	}
+	indexPath := "../catalog/testdata/item-flow.json"
 
 	if err := c.SupplementStackables(indexPath); err != nil {
 		t.Fatalf("SupplementStackables failed: %v", err)

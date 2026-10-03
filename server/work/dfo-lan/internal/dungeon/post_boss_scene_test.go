@@ -3,6 +3,7 @@ package dungeon
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
+	"dfolan/internal/testfixture"
 	"testing"
 )
 
@@ -12,7 +13,7 @@ import (
 // "boss completion is pending or already accepted"，传送阵过不去。
 // 修好后：完成之后仍可走向「有剧情层图」的相邻格，普通邻格照旧被拒。
 func TestPostBossSceneRoomStillReachable(t *testing.T) {
-	c, e := catalog.LoadDungeons("../../configs/dungeons.odyssey-scenes-release.json")
+	c, e := catalog.LoadDungeons(testfixture.DungeonPath(t, "dungeons.odyssey-scenes-release.json"))
 	if e != nil {
 		t.Fatal(e)
 	}

@@ -107,6 +107,18 @@ func (gateway *gameGateway) handleClient(c net.Conn, channel uint32) {
 		}
 		client.worldState.serverID = client.channelCfg.ServerID
 		client.worldState.channelType = client.channelTypes[client.channel]
+		// 特殊征讨频道（SemiRaid/Legion，towns 表里有专属城镇的）的位置隔离：
+		// 会话内位置不覆盖普通频道的共享行（黑鸦 73 / 矿区 106 既有模式的全频道推广）。
+		if _, isolated := client.gatewayRuntime.channelTowns[client.channelTypes[client.channel]]; isolated {
+			client.worldState.channelWorldIsolated = true
+		}
+		if client.worldState.specialTowns == nil {
+			client.worldState.specialTowns = map[uint32]bool{}
+			for _, a := range client.gatewayRuntime.channelTowns {
+				client.worldState.specialTowns[a.TownID] = true
+			}
+		}
+		client.worldState.channelGuideDungeon = client.gatewayRuntime.channelGuides[client.channelTypes[client.channel]]
 		if client.moonConfig != nil && client.channel == client.moonConfig.Channel {
 			client.worldState.moonConfig = client.moonConfig
 		}
@@ -163,6 +175,13 @@ func (client *gameConnection) serve() {
 					client.event(map[string]any{"kind": "黑鸦超时退出失败", "error": err.Error()})
 				}
 				if client.sendPlan(packets, client.logCharacterResponse) != nil {
+					return
+				}
+				packets, err = client.worldState.ispinsTimeout(now)
+				if err != nil {
+					client.event(map[string]any{"kind": "ispins_timeout_error", "error": err.Error()})
+				}
+				if client.sendPlan(packets, client.logWorldResponseBody) != nil {
 					return
 				}
 			}

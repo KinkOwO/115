@@ -108,7 +108,7 @@ func (w *worldSession) moveStack(rules inventory.BagRules,
 	}
 	// The candidate carries only the source-backed creation box in this
 	// extra category; do not widen the monster drop catalog to move it.
-	if bagCatalog.Items[10417789].StackableType == "[booster selection]" {
+	if w.progression != nil && w.progression.Odyssey != nil && w.progression.Odyssey.Creation != nil && bagCatalog.Items[w.progression.Odyssey.Creation.Weapon.Template].StackableType == "[booster selection]" {
 		slots := make(map[string][2]uint16, len(rules.Slots)+1)
 		for k, v := range rules.Slots {
 			slots[k] = v

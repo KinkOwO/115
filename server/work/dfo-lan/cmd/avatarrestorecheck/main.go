@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"dfolan/internal/character"
 	"dfolan/internal/game/protocol"
+	"dfolan/internal/gamedata"
 	"dfolan/internal/inventory"
 	"dfolan/internal/storage"
 	"encoding/hex"
@@ -51,7 +52,12 @@ func main() {
 		log.Fatal("pilot has no persisted worn avatars")
 	}
 	const source = "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80"
-	catalog, e := inventory.OpenFullEquipmentCatalog("configs/equipment-full", source)
+	native, e := gamedata.Open(gamedata.Options{Mode: gamedata.PVF, ArchivePath: "../client-build/Script.inner.pvf"})
+	must(e)
+	defer native.Close()
+	index, e := native.ItemIndex("")
+	must(e)
+	catalog, e := native.Equipment(index)
 	must(e)
 	defer catalog.Close()
 	rules, e := inventory.LoadWearRules("configs/equipment-wear.full-candidate.json", source)

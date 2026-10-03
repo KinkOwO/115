@@ -12,46 +12,26 @@ import (
 	"strings"
 )
 
-// The enabled source files and templates are independent of source rewards.
-// Slot bands and the absent-stack-limit default are existing server behavior.
+// Slot bands and the absent-stack-limit default are server policy.
+// Templates, COS paths and reward tables come from the verified archive.
 type BoxSourcePolicy struct {
 	Version           int                  `json:"version"`
-	Templates         []uint32             `json:"templates"`
-	COSPaths          []string             `json:"cos_paths"`
 	MissingStackLimit uint32               `json:"missing_stack_limit"`
 	Slots             map[string][2]uint16 `json:"slots"`
 }
 
 func ImportBoxes(a *pvf.Archive, index catalog.ItemIndex, policy BoxSourcePolicy) (*BoxCatalog, error) {
-	if a == nil || index.Source.Checksum != a.Snapshot().Checksum || policy.Version != 1 || len(policy.Templates) == 0 || len(policy.COSPaths) == 0 || policy.MissingStackLimit == 0 {
+	if a == nil || index.Source.Checksum != a.Snapshot().Checksum || policy.Version != 1 || policy.MissingStackLimit == 0 {
 		return nil, fmt.Errorf("invalid box source/policy")
 	}
-	wanted := map[uint32]bool{}
-	for _, id := range policy.Templates {
-		if id == 0 || wanted[id] {
-			return nil, fmt.Errorf("duplicate/zero enabled box")
-		}
-		wanted[id] = true
+	bindings, err := discoverBoxCOSFiles(a.IterateFiles, a.ReadText)
+	if err != nil {
+		return nil, err
 	}
 	c := BoxCatalog{Source: a.Snapshot().Checksum, Tables: map[string]BoxTable{}, Rewards: map[string]BoxReward{}, Sources: map[string]string{}}
 	c.Sources["list/stackable.lst"] = index.IndexHashes["list/stackable.lst"]
-	seenPaths := map[string]bool{}
-	for _, p := range policy.COSPaths {
-		if p != strings.ToLower(p) || path.Clean(p) != p || strings.HasPrefix(p, "../") || path.Ext(p) != ".cos" || seenPaths[p] {
-			return nil, fmt.Errorf("invalid/duplicate box COS path")
-		}
-		seenPaths[p] = true
-		text, err := a.ReadText(p)
-		if err != nil {
-			return nil, err
-		}
-		id, table, err := parseNativeBoxCOS(text, path.Base(p)+".txt")
-		if err != nil {
-			return nil, fmt.Errorf("%s: %w", p, err)
-		}
-		if !wanted[id] {
-			return nil, fmt.Errorf("COS material %d outside enabled box scope", id)
-		}
+	for _, binding := range bindings {
+		p, id, table := binding.path, binding.id, binding.table
 		key := strconv.FormatUint(uint64(id), 10)
 		if _, ok := c.Tables[key]; ok {
 			return nil, fmt.Errorf("ambiguous native COS material %d", id)
@@ -78,9 +58,6 @@ func ImportBoxes(a *pvf.Archive, index catalog.ItemIndex, policy BoxSourcePolicy
 			return nil, err
 		}
 		c.Sources[p] = fmt.Sprintf("%x", sha256.Sum256(raw))
-	}
-	if len(c.Tables) != len(wanted) {
-		return nil, fmt.Errorf("enabled box lacks native material binding")
 	}
 	rewards := map[uint32]bool{}
 	for _, table := range c.Tables {
@@ -126,6 +103,48 @@ func ImportBoxes(a *pvf.Archive, index catalog.ItemIndex, policy BoxSourcePolicy
 		c.Sources[stk.Path] = stk.SHA256
 	}
 	return NewBoxCatalog(c)
+}
+
+var boxLineComment = regexp.MustCompile(`(?m)//[^\r\n]*`)
+
+type nativeBoxCOS struct {
+	path  string
+	id    uint32
+	table BoxTable
+}
+
+// The native lot-group tag selects the existing radiant-box grammar. Other
+// COS systems (crafting, events, etc.) remain outside this parser's scope.
+func discoverBoxCOSFiles(iterate func(func(pvf.File) error) error, read func(string) (string, error)) ([]nativeBoxCOS, error) {
+	var out []nativeBoxCOS
+	err := iterate(func(file pvf.File) error {
+		p := file.ArchivePath
+		if path.Ext(p) != ".cos" {
+			return nil
+		}
+		text, err := read(p)
+		if err != nil {
+			return fmt.Errorf("box COS discovery %s: %w", p, err)
+		}
+		// Comments cannot introduce a candidate.
+		text = boxLineComment.ReplaceAllString(text, "")
+		if !strings.Contains(text, "[main lot group id]") {
+			return nil
+		}
+		id, table, err := parseNativeBoxCOS(text, path.Base(p)+".txt")
+		if err != nil {
+			return fmt.Errorf("%s: %w", p, err)
+		}
+		out = append(out, nativeBoxCOS{path: p, id: id, table: table})
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	if len(out) == 0 {
+		return nil, fmt.Errorf("native PVF has no supported box COS tables")
+	}
+	return out, nil
 }
 
 func boxScriptText(cells []pvf.Token, tag string) (string, error) {
@@ -196,7 +215,7 @@ func boxCOSRows(text string, width int) ([][]uint32, error) {
 }
 
 func parseNativeBoxCOS(text, tableName string) (uint32, BoxTable, error) {
-	text = regexp.MustCompile(`(?m)//[^\r\n]*`).ReplaceAllString(text, "")
+	text = boxLineComment.ReplaceAllString(text, "")
 	t := BoxTable{Table: tableName, Groups: map[string][]BoxEntry{}}
 	material := regexp.MustCompile(`\[material\]\s*([0-9]+)\s+([0-9]+)`).FindAllStringSubmatch(text, -1)
 	if len(material) != 1 {

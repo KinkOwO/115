@@ -58,7 +58,8 @@ type DungeonDefinition struct {
 	SourceBoss uint32
 	// MoveMapEvenEnemy is the DGN [move map even enemy] rule. It permits
 	// movement with living actors without declaring the room cleared.
-	MoveMapEvenEnemy bool
+	MoveMapEvenEnemy      bool
+	IndividualMapMovement bool
 	// TimeoutSeconds comes from [dungeon timeout] seconds and mode0.
 	TimeoutSeconds uint32
 	// RewardCard 是源 [dungeon clear result] [reward card] <N> 声明的**翻牌张数**
@@ -126,8 +127,9 @@ func (c *DungeonCatalog) DeclaredEnterFatigue() string {
 }
 
 type DungeonCatalog struct {
-	Source   pvf.ArchiveSnapshot          `json:"source"`
-	Dungeons map[uint32]DungeonDefinition `json:"dungeons"`
+	Source           pvf.ArchiveSnapshot                  `json:"source"`
+	Dungeons         map[uint32]DungeonDefinition         `json:"dungeons"`
+	IspinsOperations map[uint16]IspinsOperationDefinition `json:"ispins_operations,omitempty"`
 	// Runtime imports retain map identity here; use MapScript to obtain cells.
 	Maps           map[uint32]ScriptRecord `json:"maps"`
 	Skipped        []string                `json:"skipped,omitempty"`
@@ -304,6 +306,9 @@ func ParseDungeon(id uint32, s ScriptRecord) (DungeonDefinition, error) {
 	}
 	if move := sectionCells(s.Cells, "[move map even enemy]"); len(move) == 1 && move[0].Type == 0 && move[0].Value == 1 {
 		d.MoveMapEvenEnemy = true
+	}
+	if individual := sectionCells(s.Cells, "[individual map movement]"); len(individual) == 1 && individual[0].Type == 0 && individual[0].Value == 1 {
+		d.IndividualMapMovement = true
 	}
 	// [reward card] 是翻牌张数（月湖第二层 100004137 = 1）。源里它写在
 	// [dungeon clear result] 段内；只在恰好一条且为非负整数时采纳 —— 形状不符就
@@ -551,6 +556,16 @@ func importDungeons(a *pvf.Archive, ids []uint32, lazyMaps bool) (DungeonCatalog
 			continue
 		}
 		out.Dungeons[id] = d
+		if kind := sectionCells(s.Cells, "[dungeon type]"); len(kind) == 1 && kind[0].Text == "stolen land ispins" && out.IspinsOperations == nil {
+			operations, err := ResolveScript(a, IspinsOperationsPath)
+			if err != nil {
+				return out, err
+			}
+			out.IspinsOperations, err = ParseIspinsOperations(operations.Cells)
+			if err != nil {
+				return out, err
+			}
+		}
 		importMap := func(mapID uint32) {
 			if _, ok := out.Maps[mapID]; ok {
 				return

@@ -129,7 +129,7 @@ func TestQuestStackRoutesAndSavedSlotSweep(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := c.SupplementStackables("../../configs/items.index.json"); err != nil {
+	if err := c.SupplementStackables("../catalog/testdata/item-flow.json"); err != nil {
 		t.Fatal(err)
 	}
 	rules, err := LoadBagRules("../../configs/inventory.current37.json")
@@ -172,7 +172,7 @@ func TestStackSlotSweepPreservesExpiryAndRollsBackWhenFull(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := c.SupplementStackables("../../configs/items.index.json"); err != nil {
+	if err := c.SupplementStackables("../catalog/testdata/item-flow.json"); err != nil {
 		t.Fatal(err)
 	}
 	rules, err := LoadBagRules("../../configs/inventory.current37.json")

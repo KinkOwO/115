@@ -3,6 +3,7 @@ package dungeon
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
+	"dfolan/internal/testfixture"
 	"encoding/json"
 	"os"
 	"testing"
@@ -16,7 +17,7 @@ import (
 // the chapter. Every other FFFF death (trash cleared with the boss) keeps the
 // ordinary unowned rule.
 func TestOdysseyHuntBossDeathIsOwned(t *testing.T) {
-	c, e := catalog.LoadDungeons("../../configs/dungeons.odyssey-scenes-release.json")
+	c, e := catalog.LoadDungeons(testfixture.DungeonPath(t, "dungeons.odyssey-scenes-release.json"))
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -106,7 +107,7 @@ func TestOdysseyChapterFinalsCarryHuntBoss(t *testing.T) {
 	if e = json.Unmarshal(raw, &drop); e != nil {
 		t.Fatal(e)
 	}
-	c, e := catalog.LoadDungeons("../../configs/dungeons.odyssey-scenes-release.json")
+	c, e := catalog.LoadDungeons(testfixture.DungeonPath(t, "dungeons.odyssey-scenes-release.json"))
 	if e != nil {
 		t.Fatal(e)
 	}

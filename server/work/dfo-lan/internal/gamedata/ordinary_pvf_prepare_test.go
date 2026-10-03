@@ -16,7 +16,7 @@ func TestOrdinaryPVFPreparation(t *testing.T) {
 	t.Setenv("DFO_PVF_VERIFY_BASELINES", "0")
 	t.Setenv("DFO_ORDINARY_MONSTER_ITEM_DROP_PERCENT", "10")
 	t.Setenv("DFO_ORDINARY_WORLD_DROP_PERCENT", "100")
-	c, err := prepareCatalogsForTest(t, "characters,loot,equipment-selection", archive, "", "../../configs/characters.skycastle-release.json", "", "", "", CatalogInputs{DerivedCacheDir: os.Getenv("DFO_PVF_CACHE_DIR"), IndexPath: "../../configs/items.index.json", DropPolicyPath: "../../configs/pvf-drop-policy.json", CharacterPolicyPath: "../../configs/pvf-character-policy.json"})
+	c, err := prepareCatalogsForTest(t, "characters,loot,equipment-selection", archive, "", "../../configs/characters.skycastle-release.json", "", "", "", CatalogInputs{DerivedCacheDir: os.Getenv("DFO_PVF_CACHE_DIR"), IndexPath: "../catalog/testdata/item-flow.json", DropPolicyPath: "../../configs/pvf-drop-policy.json", CharacterPolicyPath: "../../configs/pvf-character-policy.json"})
 	if err != nil {
 		t.Fatal(err)
 	}

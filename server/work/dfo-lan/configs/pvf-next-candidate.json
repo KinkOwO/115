@@ -1,9 +1,0 @@
-{
-  "binary": ".tmp/pvf-next/bin/wireprobe-handoff-source.exe",
-  "environment": {
-    "DFO_PVF_CATALOGS": "world,quests,progression,items,equipment,periods,skins,journal,create-cost,skills,prices,materials,boosters,tutorial",
-    "DFO_PVF_VERIFY_BASELINES": "0",
-    "DFO_PVF_ARCHIVE": "../client-build/Script.inner.pvf",
-    "DFO_PVF_SHA256": ""
-  }
-}

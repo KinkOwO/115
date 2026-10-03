@@ -4,7 +4,7 @@ import "testing"
 
 // 真源形状钉死：四张表 + 毕业奖励（next63 / 手册 P3 子项 8/9）。
 func TestOdysseyQuestTablesShape(t *testing.T) {
-	g, e := LoadOdysseyGrowth("../../configs/odyssey-growth-candidate.json")
+	g, e := LoadOdysseyGrowth("../../configs/odyssey-growth-release.json")
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -42,7 +42,7 @@ func TestOdysseyQuestTablesShape(t *testing.T) {
 
 // 真源语义：12911 被 [remove clear quest] 从 102 主线救回；22987 只在分支表。
 func TestOdysseyClearedAtSemantics(t *testing.T) {
-	g, e := LoadOdysseyGrowth("../../configs/odyssey-growth-candidate.json")
+	g, e := LoadOdysseyGrowth("../../configs/odyssey-growth-release.json")
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -90,7 +90,7 @@ func TestOdysseyClearedAtSemantics(t *testing.T) {
 
 // 分支表按 (level, profession) 取行；-1 为全职业行。
 func TestOdysseyBranchQuestsUpTo(t *testing.T) {
-	g, e := LoadOdysseyGrowth("../../configs/odyssey-growth-candidate.json")
+	g, e := LoadOdysseyGrowth("../../configs/odyssey-growth-release.json")
 	if e != nil {
 		t.Fatal(e)
 	}

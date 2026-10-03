@@ -92,7 +92,7 @@ with bps.open("a") as f:
 # "自动入口"类型（旧 0/2/3 被拒，见 docs/protocol/next34-channel-login.md），且在它
 # 底下客户端才会给出"奥德赛模式 / 剧情模式"双卡创建界面 —— 正是一个进程同时服务两种
 # 角色所需的形态。模式该由角色存档决定（internal/character/odyssey.go），而非启动参数。
-login_22 = project / "configs/login-normal22.bin"
+login_22 = project / "cmd/wireprobe/testdata/login-normal22.bin"
 login_normal = project / "runtime/login_ok.bin"
 if login_22.exists():
  default_login_bin = login_22.resolve()
@@ -170,6 +170,16 @@ def exe_flags(exe):
  return names or None
 
 
+def set_option_value(command, option, value):
+ """Set an existing option or append it when a newer profile owns the flag."""
+ try:
+  index = command.index(option)
+ except ValueError:
+  command.extend([option, str(value)])
+ else:
+  command[index + 1] = str(value)
+
+
 def prune_unsupported(command):
  """丢弃当前服务端程序不认识的参数（连同它的值），避免 flag 解析直接退出。
 
@@ -223,16 +233,9 @@ with (
  ]
  if persisted:
   cr_odyssey = project / "configs/character-rules.odyssey-release.json"
-  cr_jobs = project / "configs/character-rules.jobs-release.json"
   cr_probe = project / "configs/character-probe.json"
-  # 统一用带 odyssey_pilot 的那份：它允许创建界面同时提供两种模式（角色各自记下模式），
-  # 而 jobs-release 缺这个字段，奥德赛角色在建号这一步就做不出来。
-  if cr_odyssey.exists():
-   cr_default = cr_odyssey
-  elif cr_jobs.exists():
-   cr_default = cr_jobs
-  else:
-   cr_default = cr_probe
+  # 使用带 odyssey_pilot 的规则，同时允许两种模式由角色存档决定。
+  cr_default = cr_odyssey if cr_odyssey.exists() else cr_probe
   cat_skycastle = project / "configs/characters.skycastle-release.json"
   cat_generated = project / "configs/characters.generated.json"
   cat_default = cat_skycastle if cat_skycastle.exists() else cat_generated
@@ -245,7 +248,7 @@ with (
    str(cr_default),
   ]
  if tag.startswith("roles_persist_select"):
-  command += ["-select-probe-config", str(project / "configs/select-parser-probe.json")]
+  command += ["-select-probe-config", str(project / "cmd/wireprobe/testdata/select-parser-probe.json")]
   with bps.open("a") as f:
    f.write(
     "525a120 SELECT_RESULT\n525a2e3 SELECT_FIELDS_BEGIN\n525b409 SELECT_LAST_COUNT\n525b4c4 SELECT_FIELDS_DONE\n"
@@ -261,7 +264,7 @@ with (
    "-town-catalog",
    str(project / "configs/town.generated.json"),
    "-town-entry-probe",
-   str(project / "configs/town-entry-probe.json"),
+   str(project / "cmd/wireprobe/testdata/town-entry-probe.json"),
   ]
   with bps.open("a") as f:
    f.write("52fc5b0 AREA_USERS_BEGIN\n52fcf01 AREA_MAP_LOAD\n52fd9e3 AREA_USERS_DONE\n")
@@ -269,15 +272,11 @@ with (
   command += ["-responses", str(responses.resolve())]
  if tag.startswith("roles_persist_select_actor_town_world_live"):
   command[command.index("-select-probe-config") + 1] = str(
-   project / "configs/select-world-probe.json"
+   project / "cmd/wireprobe/testdata/select-world-probe.json"
   )
   command += [
-   "-world-catalog",
-   str(project / "configs/world.generated.json"),
    "-world-rules",
    str(project / "configs/world-probe.json"),
-   "-quest-catalog",
-   str(project / "configs/quests.generated.json"),
    "-vault-rules",
    str(project / "configs/vault.generated.json"),
   ]
@@ -313,12 +312,10 @@ with (
    project / "configs/characters.skycastle-release.json"
   )
   command += [
-   "-progression-catalog",
-   str(project / "configs/progression.next25.json"),
    "-progression-rules",
    str(project / "configs/experience.compat90.json"),
    "-loot-catalog",
-   str(project / "configs/loot.level150.json"),
+   "pvf",
    "-loot-rules",
    str(project / "configs/drop.compat90.json"),
    "-bag-rules",
@@ -339,7 +336,6 @@ with (
    )
   ):
    command[0] = str(project / "bin/wireprobe-dungeon27.exe")
-   command += ["-skill-catalog", str(project / "configs/skills.next27.json")]
   if tag.endswith(
    ("_next28", "_next29", "_next30", "_next31", "_next32", "_next33", "_next34")
   ):
@@ -350,10 +346,10 @@ with (
    command[command.index("-bag-rules") + 1] = str(
     project / "configs/inventory.next29.json"
    )
-   command += [
-    "-quest-equipment-catalog",
-    str(project / "configs/quest-equipment.next29.json"),
-   ]
+   if not (candidate35 or candidate36 or candidate37):
+    print(
+     "NOTICE: next29-next34 are historical binaries. Their retired quest-equipment JSON is no longer injected; use the matching historical configuration, or build current source with native PVF."
+    )
   if tag.endswith("_next30"):
    command[0] = str(project / "bin/wireprobe-dungeon30.exe")
   if tag.endswith("_next31"):
@@ -380,9 +376,6 @@ with (
    command += ["-game-listen", "127.0.0.2:0"]
  if candidate35:
   command[0] = str(project / "bin/wireprobe-dungeon35.exe")
-  command[command.index("-quest-equipment-catalog") + 1] = str(
-   project / "configs/equipment.current37.json"
-  )
   command += [
    "-equipment-wear-rules",
    str(project / "configs/equipment-wear.current35.json"),
@@ -419,24 +412,12 @@ with (
   # re-entry, no crash. (Do NOT use 38 - its userinfo-appearance block over-reads
   # and access-violates the client; that whole approach is abandoned.)
   command[0] = str(project / "bin/wireprobe-dungeon39.exe")
-  command[command.index("-quest-equipment-catalog") + 1] = str(
-   project / "configs/equipment.current37.json"
-  )
   # The bag policy gains the quick-use belt (slots 0..8, the gap below the
   # equipment range) so a consumable can be dragged onto the hotkey bar.
   command[command.index("-bag-rules") + 1] = str(
    project / "configs/inventory.current37.json"
   )
-  if (project / "configs/items.index.json").exists():
-   command += ["-item-index", str(project / "configs/items.index.json")]
-  if (project / "configs/booster-catalog.json").exists():
-   command += ["-booster-catalog", str(project / "configs/booster-catalog.json")]
-  # Pick-a-item boxes ([booster select category]) come from their own table. The
-  # gateway starts with the project root as cwd, so the built-in relative paths
-  # never resolve — pass the absolute catalog like every other config.
-  selection_boxes = project / "configs/selection-boxes-candidate.json"
-  if selection_boxes.exists():
-   command += ["-selection-boxes", str(selection_boxes)]
+  # Booster contents and selection boxes are prepared from native PVF domains.
   # Source item shops ([need material] prices — the Odyssey shop charges silver
   # coins). Without it the gateway charges a flat 1 gold for everything.
   item_shop = project / "configs/itemshop-candidate.json"
@@ -560,23 +541,24 @@ with (
  elif chapter_drop.exists():
   os.environ["DFO_ODYSSEY_CHAPTER_DROP"] = str(chapter_drop.resolve())
 
- eq_full = project / "configs/equipment-full"
- if (project / "configs/equipment-full.index.json").exists() and (
-  project / "configs/equipment-full.data"
- ).exists():
-  os.environ["DFO_EQUIPMENT_FULL_CATALOG"] = str(eq_full.resolve())
-  eq_wear_full = project / "configs/equipment-wear.full-candidate.json"
-  if eq_wear_full.exists():
-   os.environ["DFO_EQUIPMENT_WEAR_RULES"] = str(eq_wear_full.resolve())
+ eq_wear_full = project / "configs/equipment-wear.full-candidate.json"
+ if eq_wear_full.exists():
+  os.environ["DFO_EQUIPMENT_WEAR_RULES"] = str(eq_wear_full.resolve())
  # ★ 下发前按当前服务端程序自报的能力过滤参数（见 prune_unsupported）。
  command = prune_unsupported(command)
- # The gear a run can drop. Required with -loot-catalog: without it the
- # session builds an empty pool and every equipment award is discarded, which
- # is what made a full border-of-attunement clear pay nothing. The gateway
- # cwd is the pack root, so a relative built-in default never resolves.
- os.environ["DFO_EQUIPMENT_CATALOG"] = str(
-  project / "configs/equipment.current37.json"
- )
+ # Current source uses prepared PVF domains. Historical binaries require
+ # an explicit matching export; retired configs are never injected implicitly.
+ supported = exe_flags(command[0]) or set()
+ if "pvf-catalogs" in supported:
+  os.environ["DFO_EQUIPMENT_CATALOG"] = "pvf"
+  set_option_value(command, "-quest-equipment-catalog", "pvf")
+ else:
+  historical = os.environ.get("DFO_HISTORICAL_EQUIPMENT_CATALOG")
+  if historical:
+   set_option_value(command, "-quest-equipment-catalog", historical)
+   os.environ["DFO_EQUIPMENT_CATALOG"] = historical
+  elif candidate35 or candidate36 or candidate37:
+   raise ValueError("Historical binaries require DFO_HISTORICAL_EQUIPMENT_CATALOG and matching historical configs; use DFO_SERVER_BINARY with current PVF-capable source for this configuration tree")
  # The boundary-of-attunement reward table (source rewardboostinfo CTPs).
  # Without it a full border-of-attunement clear pays no exclusive reward; the
  # gateway only ever finds it through this absolute path, for the same cwd

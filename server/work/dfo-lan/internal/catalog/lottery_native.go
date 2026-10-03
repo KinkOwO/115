@@ -9,8 +9,9 @@ import (
 	"sort"
 )
 
-// LotteryPolicy preserves the server's enabled and grantable pool range.
-// It contains no source paths, reward rows, weights or counts.
+// LotteryPolicy supplies a scope for historical audits and the legacy scoped
+// importer. Native runtime discovery does not read this policy. It contains no
+// source paths, reward rows, weights or counts.
 type LotteryPolicy struct {
 	Version   int      `json:"version"`
 	Items     []uint32 `json:"item_pools"`

@@ -64,10 +64,13 @@ func equipmentIDByPath(a *pvf.Archive) (map[string]uint32, error) {
 
 func main() {
 	source := flag.String("source", "runtime/pvf_source/Script.inner.pvf", "read-only inner archive")
-	out := flag.String("output", "configs/equipment-full.json", "output catalog")
+	out := flag.String("output", "", "required diagnostic output")
 	minLevel := flag.Int("min-level", 0, "only keep entries whose [minimum level] >= this (0 = keep all)")
 	prefix := flag.String("prefix", "equipment/", "path prefix to enumerate")
 	flag.Parse()
+	if *out == "" {
+		log.Fatal("explicit -output is required for diagnostic export")
+	}
 
 	a, e := pvf.LoadArchive(pvf.Options{Path: *source, MaxBytes: 1024 * 1024 * 1024})
 	if e != nil {

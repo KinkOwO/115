@@ -66,6 +66,9 @@ type ShopBuyPlan struct {
 
 // QuoteBuy gives shop materials priority over item materials, then source gold price.
 func (s *ShopService) QuoteBuy(r protocol.BuyItemRequest) (ShopBuyPlan, error) {
+	if s.ItemMaterials == nil {
+		return ShopBuyPlan{}, fmt.Errorf("shop purchases require the native PVF materials catalog")
+	}
 	shopID := r.NpcID
 	if id, ok := s.ItemShops.ResolveShop(r.NpcID, r.ActorID); ok {
 		shopID = id

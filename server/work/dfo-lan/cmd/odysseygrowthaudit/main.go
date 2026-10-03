@@ -5,18 +5,28 @@ import (
 	"bytes"
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
+	"dfolan/internal/gamedata"
 	"encoding/binary"
 	"encoding/json"
+	"flag"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
 )
 
 func main() {
-	a, e := pvf.LoadArchive(pvf.Options{Path: "../client-build/Script.inner.pvf", MaxBytes: 1024 * 1024 * 1024})
+	sourcePath := flag.String("source", "../client-build/Script.inner.pvf", "read-only inner PVF archive")
+	outputDir := flag.String("output-dir", "", "required directory for diagnostic source exports")
+	flag.Parse()
+	if *outputDir == "" {
+		log.Fatal("-output-dir is required")
+	}
+	source, e := gamedata.Open(gamedata.Options{Mode: gamedata.PVF, ArchivePath: *sourcePath})
 	must(e)
-	dest := "docs/evidence/odyssey-growth-20260917/source"
+	defer source.Close()
+	dest := *outputDir
 	must(os.MkdirAll(dest, 0755))
 	write := func(name string, v any) {
 		b, e := json.MarshalIndent(v, "", "  ")
@@ -24,12 +34,12 @@ func main() {
 		must(os.WriteFile(filepath.Join(dest, name), b, 0644))
 	}
 	var paths []string
-	for _, f := range a.Files() {
+	for _, f := range source.Files() {
 		p := strings.ToLower(f.ArchivePath)
 		if strings.Contains(p, "odyssey") || strings.Contains(p, "itemdrop") {
 			paths = append(paths, f.ArchivePath)
 			if strings.Contains(p, ".etc") {
-				s, e := catalog.ReadScript(a, f.ArchivePath)
+				s, e := source.Script(f.ArchivePath)
 				if e == nil {
 					write(strings.ReplaceAll(p, "/", "_")+".json", s)
 				}
@@ -39,12 +49,12 @@ func main() {
 	write("paths.json", paths)
 	wanted := map[uint32]bool{10419348: true, 10419349: true, 10419350: true, 10420561: true, 10418028: true, 10418036: true, 10418035: true}
 	var drops []map[string]any
-	for _, f := range a.Files() {
+	for _, f := range source.Files() {
 		p := strings.ToLower(f.ArchivePath)
 		if !strings.Contains(p, "odyssey") || !(strings.HasSuffix(p, ".mob") || strings.HasSuffix(p, ".dgn") || strings.HasSuffix(p, ".shp")) {
 			continue
 		}
-		s, e := catalog.ReadScript(a, f.ArchivePath)
+		s, e := source.Script(f.ArchivePath)
 		if e != nil {
 			continue
 		}
@@ -69,13 +79,13 @@ func main() {
 		}
 	}
 	write("drop-sections.json", drops)
-	idx, e := catalog.ReadScript(a, "list/stackable.lst")
+	idx, e := source.Script("list/stackable.lst")
 	must(e)
 	rows, e := catalog.ParseIndex(idx.Cells)
 	must(e)
 	var matches []map[string]any
 	for _, r := range rows {
-		s, e := catalog.ResolveScript(a, r.Path)
+		s, e := source.ResolveScript(r.Path)
 		if e != nil {
 			continue
 		}
@@ -93,19 +103,19 @@ func main() {
 	write("items.json", matches)
 	var currencyRefs []string
 	needle := func(id uint32) []byte { b := make([]byte, 5); binary.LittleEndian.PutUint32(b[1:], id); return b }
-	for _, f := range a.Files() {
+	for _, f := range source.Files() {
 		p := strings.ToLower(f.ArchivePath)
 		if f.DataType != 1 || !(strings.HasSuffix(p, ".etc") || strings.HasSuffix(p, ".cos") || strings.HasSuffix(p, ".tbl")) {
 			continue
 		}
-		b, e := a.ReadRaw(f.ArchivePath)
+		b, e := source.ReadRaw(f.ArchivePath)
 		if e != nil {
 			continue
 		}
 		if !bytes.Contains(b, needle(10418036)) && !bytes.Contains(b, needle(10418035)) {
 			continue
 		}
-		s, e := catalog.ReadScript(a, f.ArchivePath)
+		s, e := source.Script(f.ArchivePath)
 		if e != nil {
 			continue
 		}
@@ -113,13 +123,11 @@ func main() {
 		write("currency-ref-"+strings.ReplaceAll(p, "/", "_")+".json", s)
 	}
 	write("currency-refs.json", currencyRefs)
-	fullLoot, e := catalog.ImportLoot(a, 150)
+	fullLoot, e := source.Loot(150)
 	must(e)
-	b, e := json.MarshalIndent(fullLoot, "", "  ")
-	must(e)
-	must(os.WriteFile("configs/loot.level150.json", b, 0644))
+	write("loot-level150.json", fullLoot)
 	fmt.Printf("LOOT SOURCE PASS maximum_grade=150 items=%d\n", len(fullLoot.Items))
-	fmt.Printf("SOURCE PASS checksum=%s paths=%d stackables=%d\n", a.Snapshot().Checksum, len(paths), len(matches))
+	fmt.Printf("SOURCE PASS checksum=%s paths=%d stackables=%d\n", source.Snapshot().Checksum, len(paths), len(matches))
 }
 func must(e error) {
 	if e != nil {

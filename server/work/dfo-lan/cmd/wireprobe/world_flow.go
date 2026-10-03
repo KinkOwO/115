@@ -36,6 +36,14 @@ type worldSession struct {
 	level                  byte
 	adventureSnapshot      [32]byte
 	channelType            uint32
+	// channelWorldIsolated 标记当前连接在特殊征讨频道（towns 表有专属城镇）。
+	// true 时会话内位置不落普通频道共享行；specialTowns 是全部特殊城镇集合，
+	// 用于把共享行里的历史污染位置修回默认落点。
+	channelWorldIsolated bool
+	specialTowns         map[uint32]bool
+	// channelGuideDungeon 是本频道 [guide dungeon index] 直读值（SemiRaid/Legion
+	// 频道的红门直接进这个副本）；0 = 无（普通频道）。
+	channelGuideDungeon uint32
 	bleedingMineCreated    bool
 	bleedingMineReady      bool
 	bleedingMineRoster     []int64
@@ -79,6 +87,7 @@ type worldSession struct {
 	// Single-player Ispins: refill the client quota after a full run returns
 	// to a ready town scene. Never refresh during the final movie/map load.
 	ispinsRepeatPending bool
+	ispinsRetryPending bool
 	// craftPending / craftPendingAt 记录上一次装备库制作（CMD2259）请求的指纹与
 	// 时间戳（UnixNano）。**同一个正文客户端会发两次**（"变换" → "确定"），
 	// 而且两次的 plain_hex 逐字节相同 ⇒ 只能由服务端记状态来区分第一步与第二步。
@@ -210,7 +219,8 @@ func (w *worldSession) enter(role storage.Character, spawn storage.WorldPosition
 	// client applies its per-character flag too, and a graduated character
 	// must pass the regular level gates.
 	odyssey := character.OdysseyMember(role)
-	saved, e := w.service.Enter(ctx, w.account, role.ID, state.Level, odyssey, spawn)
+	worldType := w.worldStorageType()
+	saved, e := w.service.Enter(ctx, w.account, role.ID, state.Level, odyssey, spawn, worldType)
 	if e != nil {
 		return e
 	}
@@ -220,7 +230,22 @@ func (w *worldSession) enter(role storage.Character, spawn storage.WorldPosition
 		if spawn.Town == 218 {
 			return fmt.Errorf("普通频道默认落点不能使用赤红铁矿区域")
 		}
-		saved, e = w.store.SaveWorld(ctx, w.account, role.ID, saved, spawn)
+		saved, e = w.store.SaveWorld(ctx, w.account, role.ID, w.worldStorageType(), saved, spawn)
+		if e != nil {
+			return e
+		}
+	}
+	// 特殊征讨频道（SemiRaid/Legion）的专属城镇曾经由会话位置保存写进普通频道
+	// 共享行（月湖 215 / Azure 213 / 军团 239）：**普通频道**恢复到该位置会被客户端
+	// 以「对立阵营起始点」拒绝。修回默认落点，而不是拒绝进入。
+	// ⚠️ 只修普通频道（!channelWorldIsolated）：特殊频道自己恢复专属城镇位置是
+	// 合法的（[102] 行的 213/2 就是 Azure 门口），不能误修 —— 2026-10-03 实测
+	// 无条件修复会把 Azure 频道的落点改回普通世界 Elvenguard。
+	if !w.channelWorldIsolated && w.specialTowns[saved.Position.Town] {
+		if w.specialTowns[spawn.Town] {
+			return fmt.Errorf("普通频道默认落点不能使用特殊征讨频道城镇 %d", spawn.Town)
+		}
+		saved, e = w.store.SaveWorld(ctx, w.account, role.ID, w.worldStorageType(), saved, spawn)
 		if e != nil {
 			return e
 		}
@@ -596,7 +621,7 @@ func (w *worldSession) handle(id uint16, p []byte, send func(byte, uint16, []byt
 		w.state.Position = next
 		event(map[string]any{"kind": "伊斯大陆待机区会话位置更新", "character_id": w.role.ID, "position": next, "request": id})
 	} else {
-		saved, e := w.store.SaveWorld(ctx, w.account, w.role.ID, old, next)
+		saved, e := w.store.SaveWorld(ctx, w.account, w.role.ID, w.worldStorageType(), old, next)
 		if e != nil {
 			return e
 		}
@@ -686,4 +711,12 @@ func (w *worldSession) settleProximityObjectives(ctx context.Context, send func(
 	}
 	event(map[string]any{"kind": "quest_proximity_advanced", "character_id": w.role.ID, "quests": advanced, "position": w.state.Position})
 	return nil
+}
+
+// worldStorageType 见 worldSession.worldStorageType 声明。
+func (w *worldSession) worldStorageType() uint32 {
+	if w.channelWorldIsolated {
+		return w.channelType
+	}
+	return 0
 }

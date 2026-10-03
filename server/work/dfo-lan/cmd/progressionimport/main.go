@@ -1,8 +1,7 @@
 package main
 
 import (
-	"dfolan/internal/catalog"
-	"dfolan/internal/catalog/pvf"
+	"dfolan/internal/gamedata"
 	"encoding/json"
 	"flag"
 	"log"
@@ -11,13 +10,17 @@ import (
 
 func main() {
 	source := flag.String("source", "runtime/pvf_source/Script.inner.pvf", "read-only current source")
-	output := flag.String("output", "configs/progression.next25.json", "generated progression catalog")
+	output := flag.String("output", "", "required explicit generated progression output")
 	flag.Parse()
-	a, e := pvf.LoadArchive(pvf.Options{Path: *source, MaxBytes: 1024 * 1024 * 1024})
+	if *output == "" {
+		log.Fatal("-output is required; the retired configs default is not written")
+	}
+	a, e := gamedata.Open(gamedata.Options{Mode: gamedata.PVF, ArchivePath: *source, MaxBytes: 1024 * 1024 * 1024})
 	if e != nil {
 		log.Fatal(e)
 	}
-	c, e := catalog.ImportProgression(a)
+	defer a.Close()
+	c, e := a.Progression("")
 	if e != nil {
 		log.Fatal(e)
 	}

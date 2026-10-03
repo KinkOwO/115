@@ -67,7 +67,7 @@ func TestOdysseyArmorSourceAndAtomicGrant(t *testing.T) {
 		t.Fatal("source reward mismatch", ids)
 	}
 	before := append([]byte(nil), role.State...)
-	raw, receipt, e := applyOdysseyArmor(role, wear)
+	raw, receipt, e := applyOdysseyArmor(role, wear, odysseyCreationFixture())
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -84,11 +84,11 @@ func TestOdysseyArmorSourceAndAtomicGrant(t *testing.T) {
 		t.Fatal("state preservation")
 	}
 	wear.BagRules.EquipmentSlots = [2]uint16{9, 15}
-	if out, _, e := applyOdysseyArmor(role, wear); e == nil || out != nil || !bytes.Equal(before, role.State) {
+	if out, _, e := applyOdysseyArmor(role, wear, odysseyCreationFixture()); e == nil || out != nil || !bytes.Equal(before, role.State) {
 		t.Fatal("partial full-bag award", e)
 	}
 	role.Request[19] = 0
-	if _, _, e := applyOdysseyArmor(role, wear); e == nil {
+	if _, _, e := applyOdysseyArmor(role, wear, odysseyCreationFixture()); e == nil {
 		t.Fatal("ordinary role awarded")
 	}
 	t.Log("source eight-item set; existing state retained; full bag atomic; ordinary role rejected")
@@ -133,7 +133,7 @@ func TestCapturedOdysseyPlayerDeath(t *testing.T) {
 
 func TestOdysseyWeaponBoxKeepsOriginalSelection(t *testing.T) {
 	role, _ := odysseyRewardFixture(t)
-	raw, _, e := applyOdysseyWeaponBox(role)
+	raw, _, e := applyOdysseyWeaponBox(role, odysseyCreationFixture())
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -148,7 +148,7 @@ func TestOdysseyWeaponBoxKeepsOriginalSelection(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	if raw, _, e = applyOdysseyWeaponBox(role); e == nil || raw != nil {
+	if raw, _, e = applyOdysseyWeaponBox(role, odysseyCreationFixture()); e == nil || raw != nil {
 		t.Fatal("full bag partially granted", e)
 	}
 	t.Log("original10417789 box only; no automatic weapon choice; full consumable bag rejected")
@@ -209,11 +209,11 @@ func TestOdysseyArmorDatabaseReplay(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	updated, applied, e := grantOdysseyArmor(ctx, store, wear, role)
+	updated, applied, e := grantOdysseyArmor(ctx, store, wear, role, odysseyCreationFixture())
 	if e != nil || !applied {
 		t.Fatal(e, applied)
 	}
-	replay, applied, e := grantOdysseyArmor(ctx, store, wear, role)
+	replay, applied, e := grantOdysseyArmor(ctx, store, wear, role, odysseyCreationFixture())
 	if e != nil || applied {
 		t.Fatal(e, applied)
 	}
@@ -230,11 +230,11 @@ func TestOdysseyArmorDatabaseReplay(t *testing.T) {
 		t.Fatal(e)
 	}
 	t.Log("temporary-schema transaction: first grant eight, stale replay zero, persisted receipt, real characters unchanged")
-	updated, applied, e = grantOdysseyWeaponBox(ctx, store, replay)
+	updated, applied, e = grantOdysseyWeaponBox(ctx, store, replay, odysseyCreationFixture())
 	if e != nil || !applied {
 		t.Fatal(e, applied)
 	}
-	replay, applied, e = grantOdysseyWeaponBox(ctx, store, replay)
+	replay, applied, e = grantOdysseyWeaponBox(ctx, store, replay, odysseyCreationFixture())
 	if e != nil || applied {
 		t.Fatal(e, applied)
 	}
@@ -245,11 +245,11 @@ func TestOdysseyArmorDatabaseReplay(t *testing.T) {
 	t.Log("weapon box persisted exactly once; selection deliberately unsettled")
 	// 创建奖励第三行：药水 x30，独立事件键，重放必须被幂等拦下。
 	potLoot := odysseyCreatePotionCatalog()
-	updated, applied, e = grantOdysseyCreatePotion(ctx, store, potLoot, wear.BagRules, replay)
+	updated, applied, e = grantOdysseyCreatePotion(ctx, store, potLoot, wear.BagRules, replay, odysseyCreationFixture())
 	if e != nil || !applied {
 		t.Fatal(e, applied)
 	}
-	replay, applied, e = grantOdysseyCreatePotion(ctx, store, potLoot, wear.BagRules, updated)
+	replay, applied, e = grantOdysseyCreatePotion(ctx, store, potLoot, wear.BagRules, updated, odysseyCreationFixture())
 	if e != nil || applied {
 		t.Fatal("药水事件重放没有被幂等拦下", e)
 	}
@@ -271,7 +271,7 @@ func TestOdysseyArmorDatabaseReplay(t *testing.T) {
 		t.Fatal("药水收据缺失", e)
 	}
 	t.Log("create potion x30 settled exactly once with its own event key")
-	choices, e := loadOdysseyWeaponChoices("../../configs/odyssey-weapon-box-candidate.json")
+	choices, e := loadOdysseyWeaponChoices("../../configs/odyssey-weapon-box-release.json")
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -330,4 +330,53 @@ func TestOdysseyArmorDatabaseReplay(t *testing.T) {
 		t.Fatal("wrong remaining credit")
 	}
 	t.Log("one chosen weapon persisted; replay emits no inventory delta; test credits10->0; old packets and relogin do not refill/spend/revive")
+}
+
+// Golden content values are test expectations only; runtime rules follow PVF.
+var odysseyArmor = [...]uint32{100051399, 100101277, 100151218, 100201190, 100251230, 100302054, 100313767, 100323647}
+
+const odysseyCreatePotion uint32 = 10418028
+const odysseyCreatePotionCount uint32 = 30
+
+func odysseyCreationFixture() *catalog.OdysseyCreateRewards {
+	r := &catalog.OdysseyCreateRewards{Source: odysseySource(), Template: 10417791, ArmorBox: 10417790, Weapon: catalog.SelectionItem{Template: 10417789, Count: 1}, Supplies: []catalog.SelectionItem{{Template: odysseyCreatePotion, Count: odysseyCreatePotionCount}}}
+	for _, id := range odysseyArmor {
+		r.Armor = append(r.Armor, catalog.SelectionItem{Template: id, Count: 1})
+	}
+	return r
+}
+func TestOdysseyCreationConsumersUsePreparedRules(t *testing.T) {
+	role, wear := odysseyRewardFixture(t)
+	r := odysseyCreationFixture()
+	r.Supplies[0].Count = 7
+	raw, receipt, e := applyOdysseyCreatePotion(role, odysseyCreatePotionCatalog(), wear.BagRules, r)
+	if e != nil {
+		t.Fatal(e)
+	}
+	b, e := inventory.ReadBag(raw)
+	if e != nil || len(b.Items) != 1 || b.Items[0].Amount != 7 || !bytes.Contains(receipt, []byte(`"quantity":7`)) {
+		t.Fatal("source count ignored", b, e)
+	}
+	r = odysseyCreationFixture()
+	r.Armor = r.Armor[:1]
+	raw, _, e = applyOdysseyArmor(role, wear, r)
+	if e != nil {
+		t.Fatal(e)
+	}
+	b, e = inventory.ReadBag(raw)
+	if e != nil || len(b.Equipment) != 1 || b.Equipment[0].Template != r.Armor[0].Template {
+		t.Fatal("source armor list ignored", b, e)
+	}
+	r.Weapon.Template = 99999
+	raw, _, e = applyOdysseyWeaponBox(role, r)
+	if e != nil {
+		t.Fatal(e)
+	}
+	b, e = inventory.ReadBag(raw)
+	if e != nil || len(b.Items) != 1 || b.Items[0].Template != 99999 {
+		t.Fatal("source box template ignored", b, e)
+	}
+	if _, _, e = applyOdysseyWeaponBox(role, nil); e == nil {
+		t.Fatal("missing native reward rules fell back")
+	}
 }

@@ -2,10 +2,29 @@ package catalog
 
 import (
 	"dfolan/internal/catalog/pvf"
+	"dfolan/internal/testfixture"
 	"os"
 	"path/filepath"
 	"testing"
 )
+
+func TestHistoricalLotteryFixturesRemainComplete(t *testing.T) {
+	items, err := LoadLotteryItemPools(testfixture.LotteryPath(t, "lottery-item-pools.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	equipment, err := LoadLotteryEquipmentPools(testfixture.LotteryPath(t, "lottery-equipment-pools.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	const source = "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80"
+	if items.SourcePVFSHA256 != source || len(items.Pools) != 276 {
+		t.Fatalf("historical item lottery fixture changed: source=%s pools=%d", items.SourcePVFSHA256, len(items.Pools))
+	}
+	if equipment.SourcePVFSHA256 != source || len(equipment.Pools) != 2477 {
+		t.Fatalf("historical equipment lottery fixture changed: source=%s pools=%d", equipment.SourcePVFSHA256, len(equipment.Pools))
+	}
+}
 
 func TestLotteryPolicyRefusesOverlapAndEmbeddedRewardRows(t *testing.T) {
 	for _, raw := range []string{

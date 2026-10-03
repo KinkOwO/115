@@ -3,7 +3,7 @@
 > 问题：用户私服实机军团 tab 全锁，点伊斯大陆弹「这个时间不开门」（dstr 100088632
 > "This dungeon isn't open today."，入口门禁⑦ `sub_145695000` 开放日程查表）。
 > 诉求：改成周一到周日都能进。
-> 最新状态（2026-10-03）：§32完整四阶段、动画后回城、退出队伍已获用户100%确认。后续单机重复挑战/恢复次数为新候选，另见§33。
+> 最新状态（2026-10-03）：§32原始四阶段流程和§33重复挑战已确认；§35/36建队与金龙机制进门局部确认。返回金龙原房闪退、所选4分钟计时及到时失败的新候选见§37，待实机。
 
 ## 1. 证据源：官服 7101 频道目录抓包解密
 
@@ -1709,3 +1709,124 @@ ParseDungeon投影源`[dungeon timeout] seconds 0`；伊斯入场使用本次Ses
 **待实机**：按原来的默认入口重启，先验证机制阶段及普通阶段的小房间换房，再验证
 1/2/3人建队和右上剩余时间。新会话必须从gateway.err首行确认默认入口已用新EXE；
 若仍拒绝，读本次实际Loaded/源规则/目标与拒绝原因，不把旧默认测试当新代码命中。
+
+## 37. 22:05实机闪退与所选4分钟作战条件
+
+### 37.1 已确认范围、真实崩溃
+
+用户确认建队正常、二阶段门禁已开。22:00会话
+`20261003_220050_342412_next37`中22:03:49/55的CMD12分别容量1/2，
+22:04:52的CMD45换房成功到100006475。已更新CHANGELOG和confirmed记录，
+仅本任务源码与确认资料用独立临时Git index收口为commit **888ba4f**；
+用户已暂存的Script.inner.manifest.json保留，未夹带其它改动。
+
+客户端确实闪退：`client-direct.out`含CrashDump，异常0xc0000005、访问地址0x188，
+EIP145C34E0C；调用栈145DC86BF→145C3BEEE→145DCF839→145C0220F等。
+22:05:40.213 CMD45请求从侧房返回(1,1)，ACK45成功，N29=mode1，目标100006476，
+再次携带起点房原Boss实体4096/模板109014133。22:05:41.804 CMD682关闭，
+距返图约1.6秒；没有发生Boss结算链，不把它归因于旧N2252崩溃。
+
+当前客户端145C34D4A调用14106AE40获取actor集合，145C34E0C直接解引用r14，
+本次访问188；说明崩溃在actor构建/处理路径，不是短包固定拷贝断言。
+当前N29已有原生mode0缓存分支：1452B78F0跳过地图/出生行，
+145B235D1/D3在已有房间且mode0时跳145B2578D，保留缓存地图/一次性ACT状态。
+源nemaug.dgn明确`[individual map movement] 1`、`[move map even enemy] 1`。
+本轮候选对同时声明这两项的已访问房间使用已有ReuseRoom/mode0，首次访问仍mode1，
+保留服务端原Boss实体与请求落点记录；不造新N29语法、不改客户端/PVF。
+这是对返回时重建原actor路径的候选修复，不宣称离线测试已证明客户端不再崩。
+缓存重入运行路径attempt1/3；原生静态片段加入next79-native-reader-evidence.py/json。
+
+### 37.2 4分钟选择来自源作战11
+
+22:04:12确认CMD2047=`...02 000000 0b00...`；当前原生1425311F0按
+action u32@13、argument u16@17发送。此次参数11对应源作战index11，
+不是Counter=41或最前方随机Token的推测映射。
+只读`contents/2022/stolenlandispins/etc/stolenlandispins.etc`，
+index11/type6/[type fixed value]4，与用户“4分钟内通关”的动态选择一致。
+完整源导出在仓库外`analysis-tools/output/next79-operation-definitions/`。
+
+统一DungeonCatalog原生导入在DGN类型`stolen land ispins`时同源读取作战表，
+保留index/type/fixed值；不另设JSON或硬编码240内容表。
+CMD2047确认保存u16作战index，未知源index拒绝；重新选/变更作战清选择。
+进图type6按源固定分钟数构造N1474，11对应240秒，四阶段均发送04:00初始期限。
+其它作战保持源DGN3600秒；未知来源不猜难度/伤害/怪物数值。
+deadline与发送的epoch秒+limit对齐，换房不重置计时。
+
+### 37.3 到00:00失败
+
+在现有单连接串行1秒ticker处理到期（最迟下一次tick，不新增异步状态竞争），
+复用当前已存在的DungeonFailClear(100)/NOTI33超时失败体及健康leaveDungeon城镇通知，
+不伪造CMD42 ACK。主动结束活动地图、清掉当前确认/期限，保留早先已通关阶段，
+不发N31/N2252/N2253/奖励物品，不记录通关周回执。
+completeIspinsStage同样检查期限，防止tick前抵达的迟到击杀绕过失败；
+已发送成功结算不被后续tick撤销。离场/换角释放run后不会触发旧期限。
+此项复用普通失败和回待机包，尚无本轮四分钟到期的客户端动态验收，
+实际军团失败UI/重试流程仍待用户观察；限时路径attempt1/3。
+
+### 37.4 验证、发布与下一测
+
+真实PVF四阶段选作战11→确认→进图均生成240秒/本次epoch；固定分钟值4/10
+解析回归确保来自源而非硬编码。完整22:05:40 CMD45复现返回路径，候选N29=mode0/34B，
+仍持有原Boss实体。到期边界、失败无奖励、只执行一次、保存前阶段、迟到击杀拒绝、
+成功结算不撤销专项通过。overlay恢复旧mode1/旧3600秒并关闭到期处理，四项回归分别失败。
+全量go test ./... -count=1和go vet ./...通过，没有新增失败。
+日志`analysis-tools/output/next79-return-clock-*.log`、`next79-return-before-check.log`。
+
+无游戏/网关进程时，已构建并发布源码及默认EXE，SHA256均：
+`ee00dfed6bc605b5dc3fa7365b485356800a0ca61259fc4d46b0b5417f153559`。
+旧c895局部确认程序备份`analysis-tools/output/next79-confirmed-party-doors-c895.exe`。
+保持原启动入口，没有独立验证程序，没有代启动服务/客户端，也没有改数据库/PVF。
+
+**待实机**：默认入口重启，金龙进侧房后返回原房，观察是否还崩；选择4分钟条件，
+确认04:00向下计时、换房不重置，到00:00失败退场，失败不领奖且已清前阶段保留。
+本候选未升级confirmed；若再崩，先读新CrashDump/最后N29与mode，不叠加无依据辅助包。
+
+## 38. 超时退场后不能重新进图：恢复待机重试状态
+
+### 38.1 动态断点
+
+用户反馈选择限时条件后自动退出成功，但点击作战无反应，离队重建也不能再进图。
+会话`20261003_224242_587162_next37`：23:00:37.847 stage3限时240秒到期，
+N33=64及N3/23/24主动回待机；23:00:53 CMD2045仍为stage3，被
+`ispins enter before the operation was confirmed`拒绝。
+23:01:10 action4及23:01:16 action2重新确认成功，但没有后续CMD2045；
+23:01:35离队、重新创建、2043→2047选择/确认也成功，仍没有新2045。
+没有CrashDump，不能把客户端本地不再发进图当服务端断线。
+这次日志已验证所选倒计时/到时退场；失败后的复活/等待状态及重试闭环遗漏。
+
+N33走原生失败/死亡场景，但没有普通CMD40死亡请求，因此旧leaveDungeon的
+`pilotDeath.Dead`条件不成立，缺少已有的N32 alive恢复。
+同时超时清confirmed却没有恢复当前军团N2255等待状态，第一次直接再进图被拒。
+N32使用当前1452AA080已验证8B体：actor u16、state u8、flag u8、hp/mp u16；
+state1复用leaveDungeon中town_actor_revived现有路径，不新增codec。
+
+### 38.2 候选修复与边界
+
+超时清掉所选作战index和期限，挂起ispinsRetryPending；回待机后verified CMD35
+触发N32 alive→当前已通关数量对应N2255 wait，成功发送后清pending。
+不在换图装载时推包，沿用§17/19/33已验证场景就绪边界。
+保留已通关阶段，重新选择/确认后仍可进未通关的当前阶段。
+
+若用户在就绪前先CMD13离队，同一健康恢复接在NOTI9之后：N32 alive及
+既有N2254/781/782待机信息；之后释放旧run，可新建队开全新挑战。
+该待机资格调用当前模式的ispinsStandbyQuotaInfo，不绕过持久化每周限制。
+换角清pending，副本内/其它频道/无选角不恢复；超时不增加奖励或完整通关回执。
+此超时重试运行路径attempt2/3，仍需本客户端实机确认，不叠加未知状态包。
+
+### 38.3 验证与交付状态
+
+真实PVF回归覆盖stage3超时→场景就绪→恢复alive/wait3→重新确认→再进stage3，
+以及超时→先离队→恢复alive/待机资格→重建→2043/2047→重新进stage0。
+检查当前wait3体逐字节相同、N32=8B/state1、原已清前三阶段保持及新期限。
+关闭pending的overlay使该回归重现缺失恢复；修复后通过。
+全量go test ./... -count=1及go vet ./...通过，无新增失败。
+日志`analysis-tools/output/next79-retry-native-test.log`、`next79-retry-go-test.log`、
+`next79-retry-go-vet.log`、`next79-retry-before-check.log`。
+
+已构建常规源码候选`bin/wireprobe-handoff-source.exe`：
+`071442d623f52808ad4b4795fe6f39578f7be95a8ff5009fedb9b548260a8f50`。
+准备时游戏PID19756/默认服务端PID33052仍在运行，故先保留ee00dfed默认程序。
+请求用户结束测试后，复查游戏/网关均已退出；已直接复制源码候选到默认EXE并核对
+两入口哈希均为上述071442d6。没有强停游戏/服务或代启动，没有独立验证程序。
+旧默认备份`analysis-tools/output/next79-before-retry-default.exe`。
+尚未实机确认，未升级confirmed baseline。

@@ -1,5 +1,20 @@
 # DFO 服务端源码与启动脚本交接包
 
+## MR !139 合并后的首次使用（2026-10-03源码收口）
+
+本轮删除旧内容配置并调整严格policy字段，必须配套当前MR源码构建。旧bin不随Git源码更新；在仓库根目录执行：
+
+```powershell
+$env:GOTOOLCHAIN = 'go1.26.5'
+pwsh -NoProfile -File ./server/Build-Server.ps1
+./启动游戏.cmd --source-build
+```
+
+只启动服务端时，最后一行改为 `./启动服务端.cmd --source-build`。启动前手动关闭原游戏会话；构建脚本执行测试/vet并生成 `wireprobe-handoff-source.exe`，已有默认程序保留，首次缺少默认程序时会补齐。用户完成实机验收后，再运行 `pwsh -NoProfile -File ./server/Build-Server.ps1 -UpdatePVFDefault` 更新日常默认程序。39归档和现有数据库保持。
+
+本轮合入上游61106a0e后的全量测试/vet、25项Python检查、真实PVF默认54域准备通过。下面旧程序身份属于既有实机基线，不冒充本轮构建；新交互仍需手动验收。上游MR集成树含63份顶层JSON，下一批清理未实施。
+
+
 交付日期：2026-09-12。目标客户端：DFO 2.38.2.34，Windows x64。
 
 这个包用于继续开发本地兼容服。包含 **Go 源码、完整导出配置、启动脚本、原39版服务端程序、补齐后重新编译的源码版、探针程序及源码、开发记录**。不是完整游戏安装包，不包含玩家数据库、密码、运行抓包、Go/Python/PostgreSQL 安装包，也不包含完整客户端。

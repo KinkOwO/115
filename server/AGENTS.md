@@ -1,5 +1,103 @@
 # AGENTS.md — server/
 
+## 2026-10-03：MR !139 本轮源码收口与可运行交付
+
+用户要求先收口并让上游可合并。本轮JSON/规则清理停止扩展，已完成改动全部提交；MR独立树以 `077b62c` 合入最新上游 `61106a0e`，保留副本难度经验修复，CHANGELOG和server/AGENTS两处冲突保留双方记录。根工作区源码停在 `66f722c`，用户 `.gitignore` 未提交；本段描述MR集成树，不混称根main已同步上游。
+
+收口验证：Go1.26.5无缓存全量测试及vet、Python3.11.9默认启动/profile25项通过；使用默认profile全部54域和启动器相同的穿戴布局参数，真实PVF8b2a9f83准备通过（599,771物品、424,216装备绑定、2,844任务、3,200副本），报告 `storage_accessed=false`、`runtime_started=false`。未启动客户端、服务监听或访问玩家库。`-trimpath`独立候选SHA256 `f9cca84b4373ca0bdd5d8ae7438c8af91ae7139ea505bd4cb0f1801bda0e6a36`，本机位置 `.tmp/mr139-closeout/wireprobe-native-closeout.exe`。
+
+confirmed baseline边界：本轮确认源码整理/提交收口；既有实机确认基线保持，不把默认准备成功写成玩法实机验收。110级槽位动作、旧角色补齐及本轮交互改动仍由用户手动回归。上游接入须同时使用MR源码与配置；先用 `pwsh -NoProfile -File ./server/Build-Server.ps1` 构建，再手动 `./启动游戏.cmd --source-build` 或 `./启动服务端.cmd --source-build`。旧默认PVF可执行文件不会自动更新；验收后才用现有 `-UpdatePVFDefault` 发布确认程序，39归档保持。构建/启动说明见server/README-先看这里.md。
+
+
+## 玩法规则归属与开发门禁
+
+遵守根 [AGENTS.md §0.2](../AGENTS.md#02-pvf-脚本驱动与单一规则流程强制2026-10-03-用户确认)。服务端新增、修复或重构玩法时，先定位 PVF 定义与重复 Go/JSON 规则，再复用 Source、领域解析器和执行能力，按根流程验证与提交。该节是唯一规范；本文件下方迁移记录只描述当时完成范围，不授权继续维护平行内容表。
+
+## 2026-10-03：四份无当前消费者的内容导出删除
+
+本轮实际删除 `black-purgatory-rewards.json`、`bleeding-mine-rewards.json`、`town.generated.json`、`dungeons.terminal-scenes.json`，共 826,529 字节（约 0.79 MiB），顶层 JSON **66→62**。四域现有原生读取保持，隐式历史 baseline 依赖退休；towncatalog 只读统一 Source，诊断导出要求显式输出。没有新增整表压缩快照；城镇条目从两份历史交付清单同步移除，其它旧条目不重生成。
+
+删除后 Go 1.26.5 无缓存全量测试与 vet 通过；未访问玩家库，正式程序未替换。
+
+仍有独立消费者的测试输入、历史版本输入、运行策略与布局规则保留。前一阶段“移除 26 处回退”是运行入口改造，本段才是四份文件的实际删除。按用户继续授权提交本轮源码和文件清理，并更新上游 MR !139；confirmed baseline 保持原实机范围，不将源码确认记为新的实机验收。
+
+## 2026-10-03：剩余内容加载入口 PVF 唯一真源（源码候选）
+
+- 移除 26 个剩余运行入口的 JSON 回退：角色、随机词条、骑士盾牌、誓约档位、仓库、装备图鉴/生成成本、教程、盒子、材料商店、城镇/训练与教程副本、黑鸦/矿区/清晰方块、奥德赛五域、调律、末世录及三类副本叠层。未选择或未准备对应 PVF 域时明确拒绝；旧路径参数仅兼容调用，不提供内容。已有原生解析器和玩法数值保持。
+- 删除网关随机词条/商店的 JSON 自动发现，以及矿区/盒子的文件存在性启用逻辑。新增存储前内容依赖门禁；非角色域准备不再读取历史角色 JSON 作来源锚点，仍核验实际 PVF SHA256。Source.Characters/Progression 只接受 PVF；AuditCatalog 显式读取历史对照，保持审计用途。shieldaudit 接统一 Source 和骑士盾牌解析器，要求显式输出并拒绝 JSON seed。
+- Go 1.26.5 无缓存全量 `go test -count=1 ./...` 与 `go vet ./...` 通过；后补的只读真源/盾牌诊断门禁专项通过。Python 3.11.9 的 profile/默认启动检查 24/24 通过，默认启动测试使用已有 `.tmp/config-cleanup/pydeps`，未安装依赖。
+- 实际内层 PVF `8b2a9f83…` 修改前/后 54 域准备报告的 14 个非 memory 字段相同（物品 599,771、装备绑定 424,216、装备选集 3,174、任务 2,844、副本 3,200）；报告均 `storage_accessed=false`、`runtime_started=false`。原生随机词条/盾牌/誓约/仓库及生产入口缺失历史角色锚点专项通过。报告规模一致不声称等于逐项实机玩法验收，也不据两轮不同缓存状态比较性能。
+- 独立候选 `.tmp/pvf-remaining-runtime/wireprobe-native-only.exe`，SHA256 `7447659027474094f15e532009de1ab890fba07c495ff984b6ff89366fff7b72`；同目录 `启动验证.cmd` 供用户关闭现有会话后手动验证。正式/default bin 未替换，confirmed baseline 保持既有实机范围，等待本轮用户确认后收口。
+- 顶层 configs JSON 仍为 66 个：历史对照及测试输入继续保留，本轮没有把运行退役计作文件删除。运行策略、容器/槽位和服主锻造数值 JSON 保留；没有改 PVF、SQL/schema、玩家存档或客户端资源，没有启动服务/客户端或访问玩家库。用户 `.gitignore` 和四份 charactercheck 工作区改动不属于本任务，不覆盖或提交。
+
+## 2026-10-03：configs 目录语义归位与小型测试输入
+
+五份诊断/示例资源原字节归位：登录回包和两份 SELECT 实验、出生点策略转入已有 `cmd/wireprobe/testdata`；维修 profile 示例转入 `docs`。Python 探针、Go 登录回包测试、维修测试及操作文档同步路径。删除被现有 Odyssey 规则覆盖的 `character-rules.jobs-release.json` 和旧探针 fallback。顶层 JSON 71→66（四个迁出、一个删除），实际只减少冗余 JSON 88 字节，不把目录调整计成数据去重收益。
+
+普通武器皮肤职业限制测试使用一条 typed 装备定义；完整宽/窄装备选择测试从真实 PVF + 既有 policy 重建，不保存新整表快照。当前没有挂载真实归档，相关集成门禁未执行；不声称当前内容等价已验收。依赖报告增加 docs JSON 示例扫描，交付清单同步本批路径。其它角色快照、大内容表和默认 probe 规则仍有消费者，后续按实际用途继续处理。
+
+Go 1.26.5 全量 `go test -count=1 ./...` 与 `go vet ./...`、Python 3.11.9 的 26 项启动/profile/身份检查通过；迁移输入内容保持，新路径、旧路径退休和交付清单条目核验通过。没有运行服务实例、客户端或玩家库，没有修改 PVF/schema/存档；用户 `.gitignore` 保持并排除提交。
+
+## 2026-10-03：剩余装备 / 掉落运行读取收口（源码候选）
+
+loot 与 equipment-selection 的运行 JSON 回退、隐式 baseline 已移除，加载 API 必须有已选择且准备好的原生目录。wireprobe 启用掉落或任务装备时，在访问存储前检查所需领域；原有等级上限、排除项、概率和发放规则继续使用既有政策。
+
+- charactercheck / audit36 统一使用 `gamedata.Open/Source` 及既有 policy；基础装备选集使用同源空任务目录保持政策基础范围，任务扩展另走原生任务。BagRules 使用实际内容 checksum；角色 ConfigVersion 仍与 SaveIdentity 核对，不修改角色存档或别名化来源哈希。
+- GM 正常运行继续用原生 PVF，退休无调用的 JSON fallback 构建器；离线装备部位导出直接使用原生 ItemDisplay，读取失败不覆盖现有产物。initialrepair 删除不可达 JSON 分支，lootimport 使用 Source 并要求显式输出。当前源码探针用 PVF 领域激活标记，历史二进制需要显式提供匹配的历史装备输入。
+- 本轮不增加整表 gzip 快照。`loot.next25.json`、`equipment.current35.json`、`equipment.current37.json` 暂时保留为旧测试输入，顶层 JSON 仍为 71 个，不能把运行退役误报为文件已删除。后续普通行为测试优先小型输入，当前内容校验用真实 PVF；完整历史快照仅在确有版本比较需求时保留。
+- Go 1.26.5 全量 `go test -count=1 ./...` 与 `go vet ./...` 通过；Python 3.11.9 启动/profile/身份接线检查 26/26 及探针语法检查通过。当前没有挂载 PVF；真实归档专项仍待执行，未运行客户端、服务实例或玩家库，没有修改 PVF、schema 或存档，不扩展 confirmed baseline。
+
+## 2026-10-03：任务装备重复导出与抽奖唯一真源（源码候选）
+
+删除 `quest-equipment.current37.json`、`quest-equipment.next29.json`、`lottery-item-pools.json`、`lottery-equipment-pools.json`，共 7,111,136 字节；顶层 JSON 75→71。抽奖完整历史快照保留为 476,221 字节 gzip，仅供测试读取并核验原始 SHA256；本轮内容净减少 6,634,915 字节（约 6.33 MiB）。
+
+- 抽奖运行 API 只接受准备好的原生 PVF 表，不读取旧路径或历史 baseline；启动不再构造退役奖池路径，启用抽奖而缺少原生域时明确拒绝。奖励、数量、权重、发现范围和不可发放奖池拒绝规则保持。
+- equipfields、questequipmentimport、equipmentwearimport 统一使用 `gamedata.Open/Source`；两个导出器要求显式输出，旧 JSON seed 参数明确拒绝。基础装备选集继续来自既有 policy，任务装备选集由同源物品与任务构建。
+- charactercheck 从 PVF 构建任务装备，内容哈希与原生任务目录核对，角色 ConfigVersion 单独与 SaveIdentity 存档契约核对；不把存档版本当作 PVF 哈希。旧 next29–34 探针不再自动注入退休 JSON，较新候选显式保留当前装备表。`equipment.current35/37.json` 仍有独立消费者，本轮保留。
+- Go 1.26.5 全量 `go test -count=1 ./...` 和 `go vet ./...` 通过；Python 3.11.9 启动检查 10/10 与探针语法/参数设置检查通过。当前环境未挂载 PVF，真实归档输出/完整原生对照测试未执行；归档门禁仍保留。未启动客户端、运行服务或玩家库，没有改 PVF、schema、存档或用户 `.gitignore`，不扩展实机 confirmed baseline。
+
+## 2026-10-03：150 级掉落测试导出退役
+
+- `loot.level150.json` 没有生产读取者，仅为测试提供完整导出；删除文件后测试改读验证原始 SHA256 的压缩夹具。Odyssey source 审计器使用 `gamedata.Open/Source`，并要求显式 `-output-dir`，不再向 configs 写导出。
+- `loot.next25.json` 仍供 GM/JSON 模式读取，本轮保留。Go 1.26.5 相关包测试及 `go vet ./...` 通过；未启用 PostgreSQL 集成测试，没有改存档/schema/PVF 或用户 `.gitignore`。
+
+## 2026-10-03：技能 / 副本 / 强化内容原生收口（源码候选）
+
+- 三组子代理并行迁移，移除技能、完整副本、强化/增幅及附魔的运行 JSON 回退和旧 baseline。删除 14 个顶层 JSON 共 64,385,633 字节（61.40 MiB），98→84；完整历史测试快照 2,947,505 字节（2.81 MiB），内容净减 58.59 MiB，解压核验原 SHA256。
+- 诊断复用 `gamedata.Open/Source`；运行复用 `PrepareCatalogs/Catalogs`，补同源脚本读取门面。显式旧技能/副本路径与缺少增强域的掉落启动在存储前拒绝；启动器不再注入技能 JSON，repair 示例改用完整 PVF 域与保留政策。
+- Go 1.26.5 全量测试/vet、Python 3.11.9 的 24 项 profile/启动检查和三域原生门禁通过。完整原生技能 3224、副本 3200/地图18387、六类增强指纹保持；54域只读报告与4d943e5候选的非 memory字段一致，storage_accessed/runtime_started=false。
+- 独立候选与手动入口在 `.tmp/pvf-parallel-cleanup/`，正式程序保持。confirmed baseline 仅保留既有实机确认范围，尚待用户手动回归；未启动客户端或玩家库，无 PVF/schema/存档修改，用户 `.gitignore` 排除提交。详情见根目录 `docs/todo/pvf/PVF单一内容真源改造计划.md`。
+
+
+## 2026-10-03：世界 / 任务及 NPC 传送原生收口（源码候选）
+
+- world/quests 的运行 JSON 回退、baseline 依赖与启动器注入移除，NPC 影子诊断只用活动原生图；显式旧路径缺少原生域时在存储前拒绝。删除三个导出共 56.63 MiB，顶层 JSON 101→98；完整历史图保留为 2.04 MiB 压缩测试快照，解压逐字节核验原 SHA256，净减少约 54.59 MiB。
+- 诊断与 questrepair/charactercheck 改用 PVF；导出要求显式输出，历史比较工具须显式提供退休域 baseline。删除后 Go 1.26.5 全量测试/vet、32 项 Python 检查、原生指纹及完整任务详情/NPC 图回归通过；最终54域报告与52962ce原生baseline相同。
+- 独立候选与手动入口在 .tmp/world-quest-cleanup；正式程序未替换，confirmed baseline 保持既有实机范围。未启动客户端或访问玩家库，PVF/schema/存档/用户 .gitignore 保持。详情见根目录 docs/todo/pvf/PVF单一内容真源改造计划.md。
+
+
+## 2026-10-03：物品索引 / 全量装备及 GM 原生收口（源码候选）
+
+- 物品/full 装备运行回退、探测和旧 baseline 移除；admin/GM 默认且仅从 PVF 准备，代理必须读取后端元数据。删除两份 JSON 和 full data 共 428.51 MiB，103→101；旧无调用 Python 导出脚本退休，流程测试保留约 4.57 MiB 小型历史夹具。
+- Go 1.26.5 无缓存全量测试、vet、原生管理/装备/物品回归和 30 项 Python 检查通过；完整物品指纹/装备 LIST/345 原生定义以及网关54域、admin、GM报告与 892b55e 原生 baseline 一致。490 条历史定义中一处旧日期2025/当前PVF2099被明确钉住，其余字段保持。
+- 独立游戏/admin/GM 候选与手动入口位于 .tmp/item-equipment-cleanup；正式与 GM 发布程序未替换，现目录需新源码构建。confirmed baseline 保持既有实机范围，未访问玩家库或启动客户端，PVF/schema/存档/用户 .gitignore 保持。详情见 docs/todo/pvf/PVF单一内容真源改造计划.md。
+
+
+## 2026-10-03：booster / 自选 / NPC 价格唯一真源（源码候选）
+
+- 三域移除 JSON 运行回退、路径探测和旧 baseline，内容统一从只读 PVF 准备；兼容旧路径参数，缺少原生域时在存储访问前拒绝。删除三个大 JSON，106→103，减少 113.85 MiB；流程测试改为约 0.34 MiB 夹具，诊断导出使用原生索引且要求显式输出。
+- Go 1.26.5 无缓存全量测试、vet 与 Python 3.11.9 的 24 项检查通过；完整三域/分类内容指纹及 54 域报告与 5f51ee2 baseline 一致，2,975 个历史盒的 126,008 次装备检查通过。独立候选与手动入口在 .tmp/native-commerce-cleanup，当前工作树需源码重建。
+- 仅源码候选，confirmed baseline 保持既有实机范围；未替换正式/源码 bin、访问玩家库或启动客户端，无 PVF/schema/存档改动。用户 .gitignore 保持并排除提交；详情见 docs/todo/pvf/PVF单一内容真源改造计划.md。
+
+## 2026-10-03：3 个冗余政策 JSON 清理（源码候选）
+
+- 删除 lottery/selection/content 三个冗余政策 JSON，109→106；空路径使用原空策略，显式政策仍严格校验，默认档实际 mine 政策数值保持。抽奖历史 scope 从保留奖池生成，不另存测试清单。
+- Go 1.26.5 无缓存全量测试、vet、政策/配置和原生抽奖回归、Python 3.11.9 的 24 项检查通过；删除后候选 54 域准备与 63c783c baseline 的 14 个非 memory 报告字段相同。当前工作树需更新后源码构建，独立候选/手动入口在 .tmp/config-policy-cleanup，未替换正式/源码 bin 或访问玩家库、客户端。无 PVF/schema/存档改动；confirmed baseline 保持既有实机范围。
+
+## 2026-10-03：17 个配置 JSON 清理已确认（源码收口）
+
+- 用户授权收口：删除 cerashop.json、5 个字节相同的 candidate 数据与 11 个逐批 PVF profile，顶层 JSON 126→109（减少 22.49 MiB）；商城旧导出脚本和两份交付清单对应条目同步移除。Go 测试改用保留的 release，profile 测试使用默认档与临时显式配置，README/迁移计划/引用清单更新。
+- Go 1.26.5 清理前后全量测试、清理后 vet 和 Python 3.11.9 的 24 项检查通过。仅配置/测试清理确认；默认 profile、生产加载逻辑、运行二进制和既有 confirmed baseline 实机范围保持，没有 SQL/schema、玩家存档或客户端资源改动，未访问玩家库或启动客户端。
 ## 2026-10-03：副本经验与难度挂钩已确认
 
 - 修复角色击杀经验及副本通关基础/评级经验固定取首列的问题；按实际难度转换为当前PVF五档系数索引。难度0/1兼容首档，2..5逐档取表；保留原等级惩罚、PVF权重、成长契约及通关/击杀幂等。

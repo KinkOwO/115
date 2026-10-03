@@ -2,9 +2,7 @@ package catalog
 
 import (
 	"dfolan/internal/catalog/pvf"
-	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 )
 
@@ -143,24 +141,7 @@ func ImportDazzlementOverlay(a *pvf.Archive) (DazzlementOverlay, error) {
 	return out, nil
 }
 
-// AttachDazzlementMaps resolves all source-listed encounters without changing
-// their separate weekly progression or reward protocol.
-func AttachDazzlementMaps(c *DungeonCatalog, path string) error {
-	if c == nil {
-		return fmt.Errorf("nil dungeon catalog")
-	}
-	b, err := os.ReadFile(path)
-	if err != nil {
-		return err
-	}
-	var overlay DazzlementOverlay
-	if err := json.Unmarshal(b, &overlay); err != nil {
-		return err
-	}
-	return ApplyDazzlementMaps(c, overlay)
-}
-
-// ApplyDazzlementMaps shares the same checks for native and exported tables.
+// ApplyDazzlementMaps validates and attaches the prepared source table.
 func ApplyDazzlementMaps(c *DungeonCatalog, overlay DazzlementOverlay) error {
 	if c == nil {
 		return fmt.Errorf("nil dungeon catalog")

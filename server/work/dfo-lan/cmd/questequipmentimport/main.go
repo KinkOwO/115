@@ -1,78 +1,69 @@
-// questequipmentimport widens the basic-equipment selection so every piece a
-// quest can hand out is present in the catalog.
-//
-// Live capture 20260912T004122 refused quest 21650 twice with "equipment
-// absent from source": its reward is template 100261068, which the 1536-row
-// selection does not contain. An audit over the whole quest catalog found
-// 1811 distinct reward templates missing, referenced 10843 times, so this is
-// not one stray quest - it is most of the quest rewards in the build.
-//
-// The selection is widened from the source's own list/equipment.lst, never
-// invented: an id that list does not carry is reported and skipped. Existing
-// rows are preserved exactly, so previously verified entries keep their
-// hashes. It never writes to the PVF.
+// questequipmentimport exports the native PVF equipment selection, including
+// basic server-policy entries and equipment referenced by native quest rewards.
 package main
 
 import (
-	"dfolan/internal/catalog"
-	"dfolan/internal/catalog/pvf"
+	"dfolan/internal/gamedata"
 	"dfolan/internal/inventory"
 	"encoding/json"
+	"errors"
 	"flag"
 	"log"
 	"os"
-	"path"
-	"strings"
 )
 
+func validateArguments(base, output string) error {
+	if base != "" {
+		return errors.New("-base is retired; equipment selection is derived from native PVF and policy")
+	}
+	if output == "" {
+		return errors.New("-output is required")
+	}
+	return nil
+}
+
+func writeCatalog(c *inventory.EquipmentCatalog, output string) error {
+	data, err := json.MarshalIndent(c, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(output, data, 0600)
+}
+
 func main() {
-	source := flag.String("source", "runtime/pvf_source/Script.inner.pvf", "read-only source archive")
-	base := flag.String("base", "configs/quest-equipment.next29.json", "existing basic item selection")
-	quests := flag.String("quests", "configs/quests.generated.json", "quest catalog to read rewards from")
-	out := flag.String("output", "configs/quest-equipment.current37.json", "widened selection")
+	sourcePath := flag.String("source", "runtime/pvf_source/Script.inner.pvf", "read-only source archive")
+	policyPath := flag.String("policy", "configs/pvf-drop-policy.json", "existing basic-equipment and drop policy")
+	base := flag.String("base", "", "retired; supplying a JSON seed is refused")
+	output := flag.String("output", "", "required output path for the native equipment selection")
 	flag.Parse()
+	if err := validateArguments(*base, *output); err != nil {
+		log.Fatal(err)
+	}
 
-	a, e := pvf.LoadArchive(pvf.Options{Path: *source, MaxBytes: 1024 * 1024 * 1024})
-	if e != nil {
-		log.Fatal(e)
+	source, err := gamedata.Open(gamedata.Options{Mode: gamedata.PVF, ArchivePath: *sourcePath, MaxBytes: gamedata.DefaultMaxBytes})
+	if err != nil {
+		log.Fatal(err)
 	}
-	c, e := inventory.LoadEquipmentCatalog(*base, a.Snapshot().Checksum)
-	if e != nil {
-		log.Fatal(e)
+	defer source.Close()
+	policy, err := inventory.ReadDropPolicy(*policyPath)
+	if err != nil {
+		log.Fatal(err)
 	}
-	q, e := catalog.LoadQuests(*quests)
-	if e != nil {
-		log.Fatal(e)
+	index, err := source.ItemIndex("")
+	if err != nil {
+		log.Fatal(err)
 	}
-	index, e := catalog.ResolveScript(a, "list/equipment.lst")
-	if e != nil {
-		log.Fatal(e)
+	quests, err := source.Quests("")
+	if err != nil {
+		log.Fatal(err)
 	}
-	rows, e := catalog.ParseIndex(index.Cells)
-	if e != nil {
-		log.Fatal(e)
+	selection, err := source.EquipmentSelection(index, quests, policy)
+	if err != nil {
+		log.Fatal(err)
 	}
-	paths := map[uint32]string{}
-	for _, r := range rows {
-		paths[r.ID] = r.Path
+	if err := writeCatalog(selection, *output); err != nil {
+		log.Fatal(err)
 	}
-	log.Printf("source list carries %d equipment templates", len(paths))
-	run(a, c, q, paths, *out)
-}
-
-func writeCatalog(c *inventory.EquipmentCatalog, out string) {
-	b, e := json.MarshalIndent(c, "", "  ")
-	if e != nil {
-		log.Fatal(e)
-	}
-	if e = os.WriteFile(out, b, 0600); e != nil {
-		log.Fatal(e)
-	}
-}
-
-func resolve(a *pvf.Archive, p string) (catalog.ScriptRecord, error) {
-	if !strings.HasPrefix(p, "equipment/") {
-		p = path.Join("equipment", p)
-	}
-	return catalog.ResolveScript(a, p)
+	log.Printf("wrote %s from native PVF selection: %d rows (basic whitelist %d; quest rewards included)",
+		*output, len(selection.Rows), len(policy.BasicEquipmentIDs))
 }

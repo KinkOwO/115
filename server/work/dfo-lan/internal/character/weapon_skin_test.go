@@ -2,12 +2,13 @@ package character
 
 import (
 	"dfolan/internal/catalog"
+	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/inventory"
 
 	"encoding/binary"
 	"encoding/json"
 	"errors"
-	"os"
+	"strings"
 	"testing"
 )
 
@@ -121,32 +122,25 @@ func TestEntryBasicProbeOverridesWeaponSlotWithSkin(t *testing.T) {
 // 调用方靠这个哨兵把拒绝与真正的故障分开。解除（skin 0）与缺目录必须永远放行，否则玩家
 // 会卡在一件戴不上的外观里出不来。
 func TestWeaponSkinUsableReadsTheSave(t *testing.T) {
+	const beamsword uint32 = 401040091
 	professions, e := catalog.LoadCharacters("../../configs/characters.next25.json")
 	if e != nil {
 		t.Fatal(e)
 	}
-	raw, e := os.ReadFile("../../configs/equipment.current37.json")
-	if e != nil {
-		t.Fatal(e)
-	}
-	var shell struct {
-		Source struct {
-			Checksum string `json:"checksum"`
-		} `json:"source"`
-	}
-	if e = json.Unmarshal(raw, &shell); e != nil {
-		t.Fatal(e)
-	}
-	// 这一份目录不带 Full（运行时的全量索引由 -equipment-full-catalog 提供），光剑在这里
-	// 只有 [usable job]，所以这段覆盖的是「别的职业根本用不了」那一半。
-	equipment, e := inventory.LoadEquipmentCatalog("../../configs/equipment.current37.json", shell.Source.Checksum)
+	// This gate only needs the real behavior vector: a beamsword's source
+	// [usable job] includes swordman but excludes gunner.
+	equipment, e := inventory.NewEquipmentCatalog(inventory.EquipmentCatalog{
+		Source: professions.Source,
+		Rows: []inventory.EquipmentDefinition{{
+			ID: beamsword, Path: "equipment/test/401040091.equ", SHA256: strings.Repeat("0", 64),
+			Fields: map[string][]pvf.Token{"[usable job]": {{Type: 6, Text: "[swordman]"}}},
+		}},
+	}, professions.Source.Checksum)
 	if e != nil {
 		t.Fatal(e)
 	}
 	s := &Service{Catalog: professions, Equipment: equipment}
 	state := weaponSkinState(t, inventory.Bag{})
-	// 401040091 的 [usable job] 只列 [swordman] / [demonic swordman] / [at swordman]。
-	const beamsword uint32 = 401040091
 	byJob := func(job string) (byte, bool) {
 		for id, p := range professions.Professions {
 			if p.Job == job {

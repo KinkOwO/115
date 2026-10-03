@@ -15,7 +15,7 @@ func questObjectiveCheck(ctx context.Context, s, reopened *storage.Store, role s
 	if err := s.MigrateQuestObjectives(ctx); err != nil {
 		return err
 	}
-	c, err := catalog.LoadQuests("configs/quests.generated.json")
+	c, err := loadNativeQuestCatalog()
 	if err != nil {
 		return err
 	}

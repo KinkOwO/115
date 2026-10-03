@@ -1,7 +1,7 @@
 package inventory
 
 import (
-	"path/filepath"
+	"dfolan/internal/testfixture"
 	"testing"
 )
 
@@ -18,12 +18,12 @@ func loadGoldRulesForTest(t *testing.T) {
 	if GoldRulesLoaded() {
 		return
 	}
-	path := filepath.Join("..", "..", "configs", "reinforcement-gold.json")
+	path := testfixture.EnhancementPath(t, "reinforcement-gold.json")
 	if err := LoadGoldRules(path); err != nil {
 		t.Fatalf("装载金币强化规则失败: %v", err)
 	}
 	if !GoldRulesLoaded() {
-		t.Skip("configs/reinforcement-gold.json 不存在，跳过金币强化用例")
+		t.Fatal("historical reinforcement-gold.json fixture failed to activate")
 	}
 }
 

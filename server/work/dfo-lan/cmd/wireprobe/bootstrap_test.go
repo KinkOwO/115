@@ -21,7 +21,7 @@ import (
 func bootstrapTestConfig(t *testing.T) Config {
 	t.Helper()
 	t.Chdir(t.TempDir())
-	for _, key := range []string{"DFO_SKILL_CATALOG", "DFO_SKILL_RELEASE", "DFO_ODYSSEY_REWARDS_PILOT", "DFO_ODYSSEY_REWARDS_RELEASE", "DFO_ODYSSEY_CHAPTER_DROP", "DFO_CLEAR_CUBE_SOURCE"} {
+	for _, key := range []string{"DFO_SKILL_CATALOG", "DFO_SKILL_RELEASE", "DFO_DUNGEON_CATALOG", "DFO_ODYSSEY_DUNGEON_CATALOG", "DFO_ODYSSEY_REWARDS_PILOT", "DFO_ODYSSEY_REWARDS_RELEASE", "DFO_ODYSSEY_CHAPTER_DROP", "DFO_CLEAR_CUBE_SOURCE"} {
 		t.Setenv(key, "")
 	}
 	craftBytes := [6]byte{equipmentCraftWindow, equipmentCraftVariant, equipmentCraftConfirmWindow, equipmentCraftConfirmVariant, equipmentCraftGenerateWindow, equipmentCraftGenerateVariant}
@@ -35,12 +35,14 @@ func bootstrapTestConfig(t *testing.T) Config {
 	cfg, err := loadConfig(nil, func(string) string { return "" }, io.Discard)
 	require.NoError(t, err)
 	cfg.FatigueRules = ""
+	cfg.ApocalypseCatalog = ""
 	return cfg
 }
 
 func TestPrepareRuntimeRetainsResolvedConfigAndFixtures(t *testing.T) {
 	cfg := bootstrapTestConfig(t)
-	t.Setenv("DFO_SKILL_CATALOG", "candidate-learning.json")
+	require.NoError(t, os.Mkdir("configs", 0700))
+	require.NoError(t, os.WriteFile("configs/randomoption.current37.json", []byte(`{}`), 0600))
 	frame, err := wire.ServerFrame(0, 33, nil)
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile("fixture.bin", frame, 0600))
@@ -51,8 +53,8 @@ func TestPrepareRuntimeRetainsResolvedConfigAndFixtures(t *testing.T) {
 	require.NotNil(t, runtime)
 	require.NotNil(t, cleanup)
 	t.Cleanup(cleanup)
-	assert.Equal(t, "candidate-learning.json", runtime.config.SkillCatalog)
-	assert.Empty(t, cfg.SkillCatalog, "caller configuration must remain a value")
+	assert.Empty(t, runtime.config.RandomOptionCatalog, "historical JSON must not auto-enable content")
+	assert.Empty(t, cfg.RandomOptionCatalog, "caller configuration must remain a value")
 	assert.Equal(t, "127.0.0.1", runtime.gameHost)
 	assert.Equal(t, frame, runtime.raw)
 	assert.Equal(t, frame, runtime.responses[33])
@@ -64,6 +66,36 @@ func TestPrepareRuntimeRetainsResolvedConfigAndFixtures(t *testing.T) {
 	assert.ErrorIs(t, err, os.ErrNotExist, "preparation must not publish readiness")
 	cleanup()
 	cleanup()
+}
+
+func TestPrepareRuntimeRejectsRetiredContentBeforeStorage(t *testing.T) {
+	for _, row := range []struct {
+		name string
+		set  func(*Config)
+	}{
+		{"boosters", func(c *Config) { c.BoosterCatalog = "old.json" }},
+		{"selection-boxes", func(c *Config) { c.SelectionBoxes = "old.json" }},
+		{"prices", func(c *Config) { c.ShopPrices = "old.json" }},
+		{"item index", func(c *Config) { c.ItemIndex = "old.json" }},
+		{"full equipment", func(c *Config) { c.EquipmentFullCatalog = "old" }},
+		{"world", func(c *Config) { c.WorldCatalog = "old.json" }},
+		{"quests", func(c *Config) { c.QuestCatalog = "old.json" }},
+		{"progression", func(c *Config) { c.ProgressionCatalog = "old.json" }},
+		{"skills", func(c *Config) { c.SkillCatalog = "old.json" }},
+		{"loot", func(c *Config) { c.LootCatalog = "old.json" }},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			cfg := bootstrapTestConfig(t)
+			// If storage is reached this path fails with a different error.
+			cfg.CharacterStorage = "missing-storage.json"
+			row.set(&cfg)
+			runtime, cleanup, err := prepareRuntime(cfg)
+			require.ErrorContains(t, err, "native PVF")
+			require.ErrorContains(t, err, row.name)
+			assert.Nil(t, runtime)
+			assert.Nil(t, cleanup)
+		})
+	}
 }
 
 func TestPrepareRuntimeReturnsStartupFailures(t *testing.T) {
@@ -88,6 +120,30 @@ func TestPrepareRuntimeReturnsStartupFailures(t *testing.T) {
 			if tc.name == "missing template" {
 				assert.ErrorIs(t, err, os.ErrNotExist)
 			}
+		})
+	}
+}
+
+func TestPrepareRuntimeRejectsShadowWorldBeforeStorage(t *testing.T) {
+	cfg := bootstrapTestConfig(t)
+	cfg.CharacterStorage = "missing-storage.json"
+	t.Setenv("DFO_NPC_PRESENCE_WORLD", "old-world.json")
+	runtime, cleanup, err := prepareRuntime(cfg)
+	require.ErrorContains(t, err, "active native PVF world")
+	assert.Nil(t, runtime)
+	assert.Nil(t, cleanup)
+}
+
+func TestPrepareRuntimeRejectsRetiredEnvironmentBeforeStorage(t *testing.T) {
+	for _, key := range []string{"DFO_SKILL_CATALOG", "DFO_DUNGEON_CATALOG", "DFO_ODYSSEY_DUNGEON_CATALOG"} {
+		t.Run(key, func(t *testing.T) {
+			cfg := bootstrapTestConfig(t)
+			cfg.CharacterStorage = "missing-storage.json"
+			t.Setenv(key, "old.json")
+			runtime, cleanup, err := prepareRuntime(cfg)
+			require.ErrorContains(t, err, "native PVF")
+			assert.Nil(t, runtime)
+			assert.Nil(t, cleanup)
 		})
 	}
 }

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"dfolan/internal/catalog"
 	"dfolan/internal/character"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
@@ -19,11 +18,11 @@ func progressionCheck(ctx context.Context, s, reopened *storage.Store, role stor
 	if e := s.MigrateCharacterNotices(ctx); e != nil {
 		return e
 	}
-	c, e := catalog.LoadProgression("configs/progression.next25.json")
+	c, e := loadNativeProgressionCatalog()
 	if e != nil {
 		return e
 	}
-	prof, e := catalog.LoadCharacters("configs/characters.next25.json")
+	prof, e := loadNativeCharacterCatalog()
 	if e != nil {
 		return e
 	}
@@ -31,7 +30,7 @@ func progressionCheck(ctx context.Context, s, reopened *storage.Store, role stor
 	if e != nil {
 		return e
 	}
-	d, e := catalog.LoadDungeons("configs/dungeons.generated.json")
+	d, e := loadNativeDungeonCatalog()
 	if e != nil {
 		return e
 	}

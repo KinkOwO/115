@@ -13,8 +13,11 @@ import (
 
 func main() {
 	source := flag.String("source", "../client-build/Script.inner.pvf", "read-only source inner PVF")
-	output := flag.String("output", "configs/skin-storage-items.json", "output catalog")
+	output := flag.String("output", "", "explicit output path for an audit export")
 	flag.Parse()
+	if *output == "" {
+		log.Fatal("-output is required for an audit export")
+	}
 	a, err := pvf.LoadArchive(pvf.Options{Path: *source, MaxBytes: 1024 * 1024 * 1024})
 	if err != nil {
 		log.Fatal(err)

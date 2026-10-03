@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"dfolan/internal/catalog"
 	"dfolan/internal/inventory"
+	"dfolan/internal/testfixture"
 
 	"encoding/json"
 	"testing"
@@ -11,7 +12,7 @@ import (
 
 func odysseyGrowthFixture(t *testing.T) (*ProgressionService, Character) {
 	t.Helper()
-	o, e := catalog.LoadOdysseyGrowth("../../configs/odyssey-growth-candidate.json")
+	o, e := catalog.LoadOdysseyGrowth("../../configs/odyssey-growth-release.json")
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -19,7 +20,7 @@ func odysseyGrowthFixture(t *testing.T) (*ProgressionService, Character) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	p, e := catalog.LoadProgression("../../configs/progression.next25.json")
+	p, e := catalog.LoadProgression(testfixture.ProgressionPath(t))
 	if e != nil {
 		t.Fatal(e)
 	}

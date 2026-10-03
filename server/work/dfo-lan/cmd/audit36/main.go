@@ -6,8 +6,9 @@ package main
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
+	"dfolan/internal/gamedata"
+	"dfolan/internal/inventory"
 	"dfolan/internal/quest"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -59,11 +60,11 @@ type kindRow struct {
 }
 
 func main() {
-	questPath := flag.String("quests", "configs/quests.generated.json", "generated quest catalog")
-	equipPath := flag.String("equipment", "configs/equipment.current35.json", "equipment catalog")
+	questPath := flag.String("quests", "", "deprecated quest path; quests are read from native PVF")
+	archive := flag.String("pvf-archive", "../client-build/Script.inner.pvf", "read-only inner PVF")
 	low := flag.Int("low-level", 20, "low-level reporting threshold")
 	samples := flag.Int("samples", 6, "per-kind unimplemented samples to print")
-	worldPath := flag.String("world", "", "world catalog for the NPC presence scan")
+	worldPath := flag.String("world", "", "nonempty enables NPC presence scan; world is read from native PVF")
 	skillManifest := flag.String("skill-manifest", "", "archer layout patch manifest")
 	verify := flag.Bool("verify", false, "load every 36 startup catalog and policy")
 	featureSource := flag.String("feature-source", "", "survey mail/avatar/shop/item-use source data in this PVF")
@@ -73,7 +74,12 @@ func main() {
 	detailMax := flag.Int("detail-max", 0, "print full detail for quests up to this id")
 	flag.Parse()
 
-	q, e := catalog.LoadQuests(*questPath)
+	native, e := gamedata.Open(gamedata.Options{Mode: gamedata.PVF, ArchivePath: *archive})
+	if e != nil {
+		log.Fatal(e)
+	}
+	defer native.Close()
+	q, e := native.Quests("")
 	if e != nil {
 		log.Fatal(e)
 	}
@@ -185,18 +191,17 @@ func main() {
 		fmt.Printf("  %-20s %d\n", k, n)
 	}
 
-	b, e := os.ReadFile(*equipPath)
+	index, e := native.ItemIndex("")
 	if e != nil {
 		log.Fatal(e)
 	}
-	var ef struct {
-		Rows []struct {
-			ID     uint32
-			Path   string
-			Fields map[string][]pvf.Token
-		} `json:"rows"`
+	dropPolicy, e := inventory.ReadDropPolicy("configs/pvf-drop-policy.json")
+	if e != nil {
+		log.Fatal(e)
 	}
-	if e = json.Unmarshal(b, &ef); e != nil {
+	questCatalog := catalog.QuestCatalog{Source: native.Snapshot(), Quests: map[uint32]catalog.QuestDefinition{}}
+	gear, e := native.EquipmentSelection(index, questCatalog, dropPolicy)
+	if e != nil {
 		log.Fatal(e)
 	}
 	// Same acceptance test as inventory.EquipmentCatalog.Basic: only free,
@@ -205,7 +210,7 @@ func main() {
 	byGrade := map[int32]int{}
 	byLevel := map[int32]int{}
 	usable := 0
-	for _, r := range ef.Rows {
+	for _, r := range gear.Rows {
 		attach, rarity := r.Fields["[attach type]"], r.Fields["[rarity]"]
 		kind, dur := r.Fields["[equipment type]"], r.Fields["[durability]"]
 		switch {
@@ -237,7 +242,7 @@ func main() {
 			byLevel[l[0].Value]++
 		}
 	}
-	fmt.Printf("\n== equipment drop pool candidates (rows=%d bag-usable=%d)\n", len(ef.Rows), usable)
+	fmt.Printf("\n== equipment drop pool candidates (native selected rows=%d bag-usable=%d)\n", len(gear.Rows), usable)
 	for _, m := range []struct {
 		name string
 		data map[int32]int
@@ -258,7 +263,11 @@ func main() {
 		fmt.Printf("    %-28s %d\n", k, n)
 	}
 	if *worldPath != "" {
-		reportNPC(*worldPath, []int{38, 40}, []uint32{1, 12, 29, 358})
+		w, err := native.World("")
+		if err != nil {
+			log.Fatal(err)
+		}
+		reportNPC(w, []int{38, 40}, []uint32{1, 12, 29, 358})
 	}
 	if *tutorialRoutes != "" {
 		reportTutorial(*tutorialRoutes, *tutorialDungeons)
@@ -276,7 +285,7 @@ func main() {
 		})
 	}
 	if *verify {
-		if n := verifyStartup(); n > 0 {
+		if n := verifyStartup(native, q); n > 0 {
 			os.Exit(1)
 		}
 	}

@@ -7,6 +7,7 @@ import (
 	"dfolan/internal/quest"
 	"dfolan/internal/savecontract"
 	"dfolan/internal/storage"
+	"dfolan/internal/testfixture"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -17,11 +18,11 @@ import (
 
 func graduationFixture(t *testing.T) (*quest.Service, storage.Character) {
 	t.Helper()
-	g, err := catalog.LoadOdysseyGrowth("../../configs/odyssey-growth-candidate.json")
+	g, err := catalog.LoadOdysseyGrowth("../../configs/odyssey-growth-release.json")
 	if err != nil {
 		t.Fatal(err)
 	}
-	q, err := catalog.LoadQuests("../../configs/quests.generated.json")
+	q, err := catalog.LoadQuests(testfixture.CatalogPath(t, "quests"))
 	if err != nil {
 		t.Fatal(err)
 	}

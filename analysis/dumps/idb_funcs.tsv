@@ -28,3 +28,4 @@ address	name	description
 0x145b2f160	Dungeon_GetBaseRoom	Base rendered room vector at dungeon+448/+456; bounds checked
 0x145df0410	RoomEntities_GetMonsterSlotCount	Monster weak-reference vector at manager+392/+400, stride24
 0x145df0390	RoomEntities_GetMonsterBySlot	Weak-reference control+8/ref+16; returns ref-48 only if control live
+0x1452ae370	Handler_NotiDungeonTimeoutTime	NOTI1474 registered1452bb718; u32 duration seconds then start epoch seconds, scene milliseconds and mode start/end pair; next79 current client static20261003

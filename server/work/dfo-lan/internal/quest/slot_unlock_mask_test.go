@@ -2,6 +2,7 @@ package quest
 
 import (
 	"dfolan/internal/catalog"
+	"dfolan/internal/testfixture"
 	"testing"
 )
 
@@ -9,7 +10,7 @@ import (
 // 两者只在 support 上巧合相等：耳环的索引 2 对应位 4，而魔法石的索引 1 对应位 2。
 // 一旦有人把索引直接当位用，耳环任务会"完成但不解锁"，且没有任何报错。
 func TestSlotUnlockMaskIsNotTheRewardScalar(t *testing.T) {
-	c, e := catalog.LoadQuests("../../configs/quests.generated.json")
+	c, e := catalog.LoadQuests(testfixture.CatalogPath(t, "quests"))
 	if e != nil {
 		t.Fatal(e)
 	}

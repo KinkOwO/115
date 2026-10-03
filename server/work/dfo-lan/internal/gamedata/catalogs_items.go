@@ -10,11 +10,9 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"maps"
 	"os"
 	"path/filepath"
 	"reflect"
-	"slices"
 	"strconv"
 )
 
@@ -92,7 +90,7 @@ func (c *Catalogs) LoadBoxes(path, source string) (*inventory.BoxCatalog, error)
 		}
 		return c.Boxes, nil
 	}
-	return inventory.LoadBoxes(path)
+	return nil, nativeContentRequired("boxes")
 }
 
 func preparePVFCashShop(c *Catalogs, s *Source, i CatalogInputs) error {
@@ -127,48 +125,11 @@ func (c *Catalogs) LoadCashShop(source string, release bool) (*cashshop.Pilot, e
 	return c.CashShop, nil
 }
 
-func loadBoosterBaseline(path string) (map[uint32]catalog.BoosterDefinition, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	var raw map[string]catalog.BoosterDefinition
-	if err = json.NewDecoder(f).Decode(&raw); err != nil {
-		return nil, err
-	}
-	if len(raw) == 0 {
-		return nil, fmt.Errorf("empty booster baseline")
-	}
-	out := make(map[uint32]catalog.BoosterDefinition, len(raw))
-	for key, def := range raw {
-		id, err := strconv.ParseUint(key, 10, 32)
-		if err != nil || id == 0 || uint32(id) != def.Template {
-			return nil, fmt.Errorf("invalid booster key %s", key)
-		}
-		out[def.Template] = def
-	}
-	return out, nil
-}
-
-// Row order in the historical skill exporter came from map iteration. The
-// runtime identity is (profession, skill), so compare that exact projection.
-func learningRows(c *character.LearningCatalog) map[byte]map[uint16]character.LearningDefinition {
-	out := map[byte]map[uint16]character.LearningDefinition{}
-	for _, row := range c.Rows {
-		if out[row.Job] == nil {
-			out[row.Job] = map[uint16]character.LearningDefinition{}
-		}
-		out[row.Job][row.ID] = row
-	}
-	return out
-}
-
-func preparePVFLearning(c *Catalogs, s *Source, chars catalog.Characters, inputs CatalogInputs) error {
+func preparePVFLearning(c *Catalogs, s *Source, chars catalog.Characters) error {
 	if chars.Source.Checksum == "" {
 		// No characters domain selected: bind the learning source to a native
 		// character catalog instead of a stale historical anchor.
-		native, err := catalog.ImportCharacters(s.archive)
+		native, err := s.Characters("")
 		if err != nil {
 			return err
 		}
@@ -178,22 +139,6 @@ func preparePVFLearning(c *Catalogs, s *Source, chars catalog.Characters, inputs
 	if err != nil {
 		return err
 	}
-	if inputs.checksBaselines() {
-		path := inputs.LearningPath
-		if path == "" {
-			path = os.Getenv("DFO_SKILL_CATALOG")
-		}
-		if path == "" {
-			return fmt.Errorf("PVF skills requires the active skill catalog baseline")
-		}
-		legacy, err := character.LoadLearningCatalog(path, chars.Source.Checksum)
-		if err != nil {
-			return err
-		}
-		if err = verifyPVFCatalog(learningRows(legacy), learningRows(direct)); err != nil {
-			return fmt.Errorf("skills: %w", err)
-		}
-	}
 	c.Learning = direct
 	log.Printf("PVF learning prepared: %d definitions", len(direct.Rows))
 	s.ReleaseReadCaches()
@@ -201,13 +146,7 @@ func preparePVFLearning(c *Catalogs, s *Source, chars catalog.Characters, inputs
 }
 
 func preparePVFCommerce(c *Catalogs, s *Source, selected map[string]bool, inputs CatalogInputs) error {
-	checksum := s.Snapshot().Checksum
-	dir := filepath.Dir(inputs.IndexPath)
 	if selected["prices"] {
-		path := inputs.PricesPath
-		if path == "" {
-			path = filepath.Join(dir, "shop-prices.json")
-		}
 		var direct *catalog.ShopPrices
 		var err error
 		if c.ItemBasics != nil {
@@ -218,24 +157,11 @@ func preparePVFCommerce(c *Catalogs, s *Source, selected map[string]bool, inputs
 		if err != nil {
 			return err
 		}
-		if inputs.checksBaselines() {
-			legacy, err := catalog.LoadShopPrices(path, checksum)
-			if err != nil {
-				return err
-			}
-			if err = verifyPVFCatalog(legacy.Items, direct.Items); err != nil {
-				return fmt.Errorf("prices: %w", err)
-			}
-		}
 		c.Prices = direct
 		log.Printf("PVF prices prepared: %d definitions", len(direct.Items))
 		s.ReleaseReadCaches()
 	}
 	if selected["materials"] {
-		path := inputs.MaterialsPath
-		if path == "" {
-			path = filepath.Join(dir, "item-materials.json")
-		}
 		var direct *catalog.ItemMaterials
 		var err error
 		if c.ItemBasics != nil && c.ItemBasics.Materials != nil {
@@ -246,34 +172,11 @@ func preparePVFCommerce(c *Catalogs, s *Source, selected map[string]bool, inputs
 		if err != nil {
 			return err
 		}
-		if inputs.checksBaselines() {
-			legacy, err := catalog.LoadItemMaterials(path)
-			if err != nil {
-				return err
-			}
-			if legacy == nil || len(legacy.Source) != 64 {
-				return fmt.Errorf("materials baseline lacks source provenance")
-			}
-			if err = verifyPVFCatalog(legacy.Items, direct.Items); err != nil {
-				return fmt.Errorf("materials: %w", err)
-			}
-			// The existing material loader never binds this metadata to player
-			// saves. Exact cost/path parity permits replacement of this projection,
-			// while the new catalog keeps the verified PVF checksum. This is not
-			// an archive-version alias and never rewrites a save's source version.
-			if legacy.Source != checksum {
-				log.Printf("PVF materials provenance replaced after complete cost parity: %s -> %s", legacy.Source, checksum)
-			}
-		}
 		c.Materials = direct
 		log.Printf("PVF materials prepared: %d definitions", len(direct.Items))
 		s.ReleaseReadCaches()
 	}
 	if selected["boosters"] {
-		path := inputs.BoosterPath
-		if path == "" {
-			path = filepath.Join(dir, "booster-catalog.json")
-		}
 		var direct map[uint32]catalog.BoosterDefinition
 		var err error
 		if c.ItemBasics != nil && c.ItemBasics.Boosters != nil {
@@ -283,15 +186,6 @@ func preparePVFCommerce(c *Catalogs, s *Source, selected map[string]bool, inputs
 		}
 		if err != nil {
 			return err
-		}
-		if inputs.checksBaselines() {
-			legacy, err := loadBoosterBaseline(path)
-			if err != nil {
-				return err
-			}
-			if err = verifyPVFCatalog(legacy, direct); err != nil {
-				return fmt.Errorf("boosters: %w", err)
-			}
 		}
 		c.Boosters = direct
 		log.Printf("PVF boosters prepared: %d definitions", len(direct))
@@ -310,7 +204,7 @@ func (c *Catalogs) LoadLearning(path, checksum string) (*character.LearningCatal
 		}
 		return c.Learning, nil
 	}
-	return character.LoadLearningCatalog(path, checksum)
+	return nil, fmt.Errorf("skills require the native PVF skills domain")
 }
 func (c *Catalogs) LoadShopPrices(path, checksum string) (*catalog.ShopPrices, error) {
 	if err := c.RequireSelected("prices", c.Prices != nil); err != nil {
@@ -322,7 +216,7 @@ func (c *Catalogs) LoadShopPrices(path, checksum string) (*catalog.ShopPrices, e
 		}
 		return c.Prices, nil
 	}
-	return catalog.LoadShopPrices(path, checksum)
+	return nil, fmt.Errorf("NPC prices require the native PVF prices domain")
 }
 func (c *Catalogs) LoadItemMaterials(path string) (*catalog.ItemMaterials, error) {
 	if err := c.RequireSelected("materials", c.Materials != nil); err != nil {
@@ -331,7 +225,7 @@ func (c *Catalogs) LoadItemMaterials(path string) (*catalog.ItemMaterials, error
 	if c.Materials != nil {
 		return c.Materials, nil
 	}
-	return catalog.LoadItemMaterials(path)
+	return nil, fmt.Errorf("item material costs require the native PVF materials domain")
 }
 
 func preparePVFLoot(c *Catalogs, s *Source, inputs CatalogInputs) error {
@@ -370,25 +264,6 @@ func preparePVFLoot(c *Catalogs, s *Source, inputs CatalogInputs) error {
 		return err
 	}
 	log.Printf("Hell Party S4 compatibility multiplier=%d%% (DFO_HELL_PARTY_DROP_PERCENT, default 100%%); source probabilities /1001, source A/B rarity /1000000", direct.HellPartyDropPercent)
-	if inputs.checksBaselines() {
-		path := inputs.LootPath
-		if override := os.Getenv("DFO_LOOT_CATALOG"); override != "" {
-			path = override
-		}
-		if path == "" {
-			path = filepath.Join(filepath.Dir(inputs.IndexPath), "loot.next25.json")
-		}
-		legacy, err := catalog.LoadLoot(path)
-		if err != nil {
-			return err
-		}
-		if legacy.Source.Checksum != direct.Source.Checksum {
-			return fmt.Errorf("loot baseline source mismatch")
-		}
-		if err := verifyPVFCatalog(legacy, direct); err != nil {
-			return fmt.Errorf("loot: %w", err)
-		}
-	}
 	c.Loot = &direct
 	log.Printf("PVF loot prepared: maximum grade=%d stackable candidates=%d drop groups=%d dungeon indexes=%d; ordinary difficulty/creation weights from PVF", direct.MaximumGrade, len(direct.Items), len(direct.DropGroups), len(direct.DungeonDropInfo))
 	s.ReleaseReadCaches()
@@ -412,57 +287,28 @@ func preparePVFEquipmentSelection(c *Catalogs, s *Source, inputs CatalogInputs) 
 	if err != nil {
 		return err
 	}
-	if inputs.checksBaselines() {
-		paths := []string{inputs.EquipmentPath, inputs.QuestEquipmentPath}
-		if paths[0] == "" && paths[1] == "" {
-			paths = []string{filepath.Join(filepath.Dir(inputs.IndexPath), "equipment.current37.json")}
-		}
-		seen := map[string]bool{}
-		for _, path := range paths {
-			if path == "" || seen[path] {
-				continue
-			}
-			seen[path] = true
-			legacy, err := inventory.LoadEquipmentCatalog(path, s.Snapshot().Checksum)
-			if err != nil {
-				return err
-			}
-			if err := verifyPVFCatalog(legacy, direct); err != nil {
-				return fmt.Errorf("equipment selection %s: %w", path, err)
-			}
-			if err := verifyPVFCatalog(legacy.DropPool(), direct.DropPool()); err != nil {
-				return fmt.Errorf("equipment drop pool: %w", err)
-			}
-		}
-	}
 	c.Selection = direct
 	log.Printf("PVF equipment selection prepared: basic whitelist=%d source quest additions=%d total=%d legacy drop pool=%d ordinary source pool=%d Hell source pool=%d", len(policy.BasicEquipmentIDs), len(direct.Rows)-len(policy.BasicEquipmentIDs), len(direct.Rows), len(direct.DropPool()), len(direct.OrdinaryPool), len(direct.HellPartyPool))
 	s.ReleaseReadCaches()
 	return nil
 }
 
-func (c *Catalogs) LoadLoot(path string) (catalog.LootCatalog, error) {
-	if err := c.RequireSelected("loot", c.Loot != nil); err != nil {
-		return catalog.LootCatalog{}, err
+func (c *Catalogs) LoadLoot(_ string) (catalog.LootCatalog, error) {
+	if c == nil || !c.Selected("loot") || !c.Prepared("loot") || c.Loot == nil {
+		return catalog.LootCatalog{}, fmt.Errorf("loot requires a prepared native PVF catalog")
 	}
-	if c.Loot != nil {
-		return *c.Loot, nil
-	}
-	return catalog.LoadLoot(path)
+	return *c.Loot, nil
 }
 
-func (c *Catalogs) LoadEquipmentSelection(path, source string) (*inventory.EquipmentCatalog, error) {
-	if err := c.RequireSelected("equipment-selection", c.Selection != nil); err != nil {
-		return nil, err
+func (c *Catalogs) LoadEquipmentSelection(_ string, source string) (*inventory.EquipmentCatalog, error) {
+	if c == nil || !c.Selected("equipment-selection") || !c.Prepared("equipment-selection") || c.Selection == nil {
+		return nil, fmt.Errorf("equipment selection requires a prepared native PVF catalog")
 	}
-	if c.Selection != nil {
-		if source != c.Selection.Source.Checksum {
-			return nil, fmt.Errorf("prepared equipment selection source mismatch")
-		}
-		copy := *c.Selection
-		return &copy, nil
+	if source != c.Selection.Source.Checksum {
+		return nil, fmt.Errorf("prepared equipment selection source mismatch")
 	}
-	return inventory.LoadEquipmentCatalog(path, source)
+	copy := *c.Selection
+	return &copy, nil
 }
 
 func preparePVFEnhancements(c *Catalogs, s *Source, inputs CatalogInputs) error {
@@ -474,54 +320,9 @@ func preparePVFEnhancements(c *Catalogs, s *Source, inputs CatalogInputs) error 
 	if err != nil {
 		return err
 	}
-	if inputs.checksBaselines() {
-		legacy, err := inventory.ReadEnhancementBaseline(filepath.Dir(inputs.IndexPath))
-		if err != nil {
-			return err
-		}
-		if err = auditPVFEnhancements(legacy, direct); err != nil {
-			return fmt.Errorf("enhancements: %w", err)
-		}
-	}
 	c.Enhancements = direct
 	log.Printf("PVF enhancements prepared: reinforcement tickets=%d amplify tickets=%d grimoires=%d enchant beads=%d reinforcement levels=%d amplify levels=%d", len(direct.ReinforcementTickets), len(direct.AmplifyTickets), len(direct.Grimoires.Grimoires), len(direct.Enchant.Beads), len(direct.Gold.Levels), len(direct.Amplify.Levels))
 	s.ReleaseReadCaches()
-	return nil
-}
-
-func auditPVFEnhancements(legacy, direct *inventory.EnhancementCatalog) error {
-	// These exports identify different outer snapshots. This is a field audit,
-	// not an archive alias: direct source/save checks remain strict and unchanged.
-	legacy.Grimoires.Source = direct.Grimoires.Source
-	legacy.Enchant.Source = direct.Enchant.Source
-	legacy.Enchant.Rule = direct.Enchant.Rule // descriptive text, never consumed
-	legacy.Gold.Source = direct.Gold.Source
-	legacy.Amplify.Source = direct.Amplify.Source
-	// The old ordinary-ticket export has no expiration headers. Native scripts
-	// contain 926. Keep those headers in the direct catalog; the ticket consumer
-	// checks the saved instance ExpireTime, not this script date. The independently
-	// audited periods catalog supplies template period classification. Only absent
-	// headers may be supplemented: any changed existing date or other tag fails.
-	supplemented := 0
-	for id, row := range legacy.ReinforcementTickets {
-		native, ok := direct.ReinforcementTickets[id]
-		if !ok {
-			continue
-		}
-		if _, exists := row.Fields["[expiration date]"]; exists {
-			continue
-		}
-		if date, exists := native.Fields["[expiration date]"]; exists {
-			row.Fields = maps.Clone(row.Fields)
-			row.Fields["[expiration date]"] = slices.Clone(date)
-			legacy.ReinforcementTickets[id] = row
-			supplemented++
-		}
-	}
-	if err := auditPVFCatalog(legacy, direct); err != nil {
-		return err
-	}
-	log.Printf("PVF enhancement audit passed: ordinary-ticket native expiration headers supplemented=%d; all other typed fields equal", supplemented)
 	return nil
 }
 
@@ -532,22 +333,7 @@ func (c *Catalogs) LoadEnhancements(dir string) error {
 	if c.Enhancements != nil {
 		return c.Enhancements.Activate()
 	}
-	for _, r := range []struct {
-		name string
-		load func(string) error
-	}{
-		{"reinforcement-tickets.json", inventory.LoadReinforcementTickets},
-		{"reinforcement-gold.json", inventory.LoadGoldRules},
-		{"amplify-grimoire.json", inventory.LoadAmplifyGrimoires},
-		{"amplify-upgrade.json", inventory.LoadAmplifyUpgradeRules},
-		{"amplify-tickets.json", inventory.LoadAmplifyTickets},
-		{"enchant-beads.json", inventory.LoadEnchantBeads},
-	} {
-		if err := r.load(filepath.Join(dir, r.name)); err != nil {
-			return err
-		}
-	}
-	return nil
+	return fmt.Errorf("enhancements require the native PVF enhancements domain")
 }
 
 func preparePVFItemShops(c *Catalogs, s *Source, selected map[string]bool, i CatalogInputs) error {
@@ -614,7 +400,7 @@ func (c *Catalogs) LoadItemShops(name, source string) (*catalog.ItemShops, error
 		}
 		return c.ItemShops, nil
 	}
-	return catalog.LoadItemShops(name)
+	return nil, nativeContentRequired("item-shops")
 }
 
 // preparePVFLottery discovers PVF pools and delegates gateway-only validation.
@@ -632,11 +418,7 @@ func preparePVFLottery(c *Catalogs, s *Source, selected map[string]bool, i Catal
 	if adapters.ValidateLottery == nil {
 		return fmt.Errorf("PVF lottery validation adapter is required")
 	}
-	baselineDir := i.BaselineDir
-	if baselineDir == "" {
-		baselineDir = filepath.Dir(i.IndexPath)
-	}
-	if err := adapters.ValidateLottery(direct, *c.Items, baselineDir, i.VerifyBaselines); err != nil {
+	if err := adapters.ValidateLottery(direct, *c.Items, "", false); err != nil {
 		return fmt.Errorf("validate PVF lottery: %w", err)
 	}
 	c.LotteryTables = &direct
@@ -648,26 +430,19 @@ func preparePVFLottery(c *Catalogs, s *Source, selected map[string]bool, i Catal
 	return nil
 }
 
-// LoadLotteryItemPools uses the prepared PVF projection when available. A
-// selected but unprepared PVF domain is an error and never loads the baseline.
-func (c *Catalogs) LoadLotteryItemPools(path string) (catalog.LotteryPoolCatalog, error) {
+// LoadLotteryItemPools exposes only the prepared native PVF projection.
+func (c *Catalogs) LoadLotteryItemPools(_ string) (catalog.LotteryPoolCatalog, error) {
 	if c.LotteryTables != nil {
 		return c.LotteryTables.Items, nil
 	}
-	if c.Selected("lottery") {
-		return catalog.LotteryPoolCatalog{}, fmt.Errorf("selected PVF lottery catalog is not prepared")
-	}
-	return catalog.LoadLotteryItemPools(path)
+	return catalog.LotteryPoolCatalog{}, fmt.Errorf("native PVF lottery catalog is not prepared")
 }
 
-func (c *Catalogs) LoadLotteryEquipmentPools(path string) (catalog.LotteryPoolCatalog, error) {
+func (c *Catalogs) LoadLotteryEquipmentPools(_ string) (catalog.LotteryPoolCatalog, error) {
 	if c.LotteryTables != nil {
 		return c.LotteryTables.Equipment, nil
 	}
-	if c.Selected("lottery") {
-		return catalog.LotteryPoolCatalog{}, fmt.Errorf("selected PVF lottery catalog is not prepared")
-	}
-	return catalog.LoadLotteryEquipmentPools(path)
+	return catalog.LotteryPoolCatalog{}, fmt.Errorf("native PVF lottery catalog is not prepared")
 }
 
 func preparePVFSelectionBoxes(c *Catalogs, s *Source, selected map[string]bool, i CatalogInputs) error {
@@ -685,22 +460,6 @@ func preparePVFSelectionBoxes(c *Catalogs, s *Source, selected map[string]bool, 
 	if err != nil {
 		return err
 	}
-	if i.checksBaselines() {
-		path := i.SelectionBoxesPath
-		if path == "" {
-			path = filepath.Join(filepath.Dir(i.IndexPath), "selection-boxes-candidate.json")
-		}
-		old, err := catalog.LoadSelectionBoxes(path)
-		if err != nil {
-			return err
-		}
-		if old.Source.Checksum != direct.Source.Checksum {
-			return fmt.Errorf("selection boxes baseline source mismatch")
-		}
-		if err := verifyPVFCatalog(old, direct); err != nil {
-			return fmt.Errorf("selection boxes: %w", err)
-		}
-	}
 	c.SelectionBoxes = direct
 	s.ReleaseReadCaches()
 	log.Printf("PVF selection boxes prepared: boxes=%d fixed=%d unparsed=%d rejected=%d; source-discovered scope with policy whitelist", len(direct.Boxes), len(direct.Fixed), len(direct.Unparsed), len(direct.Rejected))
@@ -714,5 +473,5 @@ func (c *Catalogs) LoadSelectionBoxes(path string) (*catalog.SelectionBoxes, err
 	if c.SelectionBoxes != nil {
 		return c.SelectionBoxes, nil
 	}
-	return catalog.LoadSelectionBoxes(path)
+	return nil, fmt.Errorf("selection boxes require the native PVF selection-boxes domain")
 }

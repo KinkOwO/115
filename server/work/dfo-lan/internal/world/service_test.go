@@ -3,13 +3,14 @@ package world
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
+	"dfolan/internal/testfixture"
 	"encoding/hex"
 	"errors"
 	"testing"
 )
 
 func TestSiroccoCentralTentPhaseNPCPlacement(t *testing.T) {
-	cat, err := catalog.LoadWorld("../../configs/world.generated.json")
+	cat, err := catalog.LoadWorld(testfixture.CatalogPath(t, "world"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -27,7 +28,7 @@ func TestSiroccoCentralTentPhaseNPCPlacement(t *testing.T) {
 }
 
 func TestPandemoniumJunctionNativeZeroLanding(t *testing.T) {
-	cat, err := catalog.LoadWorld("../../configs/world.generated.json")
+	cat, err := catalog.LoadWorld(testfixture.CatalogPath(t, "world"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -190,7 +191,7 @@ func TestSameAreaRepositionKeepsReturnStamp(t *testing.T) {
 }
 
 func TestSourceSeriaRoundTrip(t *testing.T) {
-	cat, e := catalog.LoadWorld("../../configs/world.generated.json")
+	cat, e := catalog.LoadWorld(testfixture.CatalogPath(t, "world"))
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -222,7 +223,7 @@ func TestQuestGatedPortalToElvenmere(t *testing.T) {
 	// 的门户行。旧导入器在子块处失活吞掉该行，实机进入时报
 	// "no authorized source portal to destination"。任务条件由客户端
 	// 依据同一份地图数据自行判定，服务端只须授权这条边。
-	cat, e := catalog.LoadWorld("../../configs/world.generated.json")
+	cat, e := catalog.LoadWorld(testfixture.CatalogPath(t, "world"))
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -242,7 +243,7 @@ func TestQuestGatedPortalToElvenmere(t *testing.T) {
 }
 
 func TestWestCoastTownOriginSync(t *testing.T) {
-	cat, err := catalog.LoadWorld("../../configs/world.generated.json")
+	cat, err := catalog.LoadWorld(testfixture.CatalogPath(t, "world"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -272,7 +273,7 @@ func TestNegativeCoordinateAreaTransition(t *testing.T) {
 	// 旧的 Contains 将 x/y 无符号提升为 int64(x)，把 65534 当作正大数，
 	// 导致判定在矩形外（"position outside source walkable rectangles"）。
 	// 改为 int64(int16(x)) 后应正常放行负坐标。
-	cat, e := catalog.LoadWorld("../../configs/world.generated.json")
+	cat, e := catalog.LoadWorld(testfixture.CatalogPath(t, "world"))
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -316,7 +317,7 @@ func TestOdysseyEnterLevelGateAtStormPass(t *testing.T) {
 	// [need level] 50 与 [odyssey enter level] 45。
 	// 客户端在奥德赛模式下按后者判定（拒绝提示 DSTR 535 填 45），服务端此前只读
 	// [need level]，于是 45 级奥德赛角色传送进城 43/1 被回 code 8 卡住剧情。
-	cat, e := catalog.LoadWorld("../../configs/world.generated.json")
+	cat, e := catalog.LoadWorld(testfixture.CatalogPath(t, "world"))
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -363,7 +364,7 @@ func TestOdysseyGateNeverRaisesEntry(t *testing.T) {
 	// [odyssey enter level] 35（16 个 odyssey>need 区之一）。客户端在 20 级就放行
 	// 请求且提示数字是 15，说明高出的 odyssey 值不是入门门槛（它约束 [phase]
 	// 变体）；服务端取 min 与客户端一致。
-	cat, e := catalog.LoadWorld("../../configs/world.generated.json")
+	cat, e := catalog.LoadWorld(testfixture.CatalogPath(t, "world"))
 	if e != nil {
 		t.Fatal(e)
 	}

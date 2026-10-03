@@ -5,8 +5,7 @@ import (
 	"math"
 )
 
-// 金币强化（普通强化）的服务端规则。数据来自 configs/reinforcement-gold.json，
-// 该文件由 scripts/export_reinforcement_gold.py 从客户端 PVF 的 etc/upgrade.etc 导出，
+// 金币强化（普通强化）的运行规则由 gamedata 从 PVF 的 etc/upgrade.etc 准备，
 // 成功率与失败惩罚一段是玩家实测值（客户端不含成功率表）。
 //
 // 费用公式（四点实机验证：+0 防具/首饰 147750、+0 武器 177300、+15 武器 8155800）：

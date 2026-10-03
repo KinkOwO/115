@@ -1,6 +1,7 @@
 package main
 
 import (
+	"dfolan/internal/testfixture"
 	"testing"
 
 	"dfolan/internal/catalog"
@@ -14,7 +15,7 @@ import (
 // [0,0,0,0,4,5,127,1,20,1,0,0,3,0,2,0,0,0]。留全零会让客户端用默认落点，角色
 // 卡在场景左上角。这里锁住 interactDoor 合成的请求确实带上了源路由的记录。
 func TestSceneExitCarriesTransitionRecord(t *testing.T) {
-	c, e := catalog.LoadDungeons("../../configs/dungeons.odyssey-scenes-release.json")
+	c, e := catalog.LoadDungeons(testfixture.DungeonPath(t, "dungeons.odyssey-scenes-release.json"))
 	if e != nil {
 		t.Fatal(e)
 	}

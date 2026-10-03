@@ -13,10 +13,11 @@ type Rules struct {
 	RequirePortalProximity bool   `json:"require_portal_proximity"`
 	PortalMargin           uint16 `json:"portal_margin"`
 }
+
 // Store 是 world 需要的持久化能力，由 internal/storage 实现并在 bootstrap 注入。
 // 领域因此不再依赖具体存储实现（契约 R2）。
 type Store interface {
-	LoadWorld(ctx context.Context, account, characterID int64, initial WorldPosition, version string) (WorldState, error)
+	LoadWorld(ctx context.Context, account, characterID int64, channelType uint32, initial WorldPosition, version string) (WorldState, error)
 }
 
 type Service struct {
@@ -252,13 +253,13 @@ func (s *Service) transition(level byte, odyssey bool, old WorldPosition, r prot
 	}
 	return next, nil
 }
-func (s *Service) Enter(ctx context.Context, account, id int64, level byte, odyssey bool, spawn WorldPosition) (WorldState, error) {
+func (s *Service) Enter(ctx context.Context, account, id int64, level byte, odyssey bool, spawn WorldPosition, channelType uint32) (WorldState, error) {
 	// Re-entering a saved position is a restore, not an entry: the permissive
 	// gate keeps a character logged in whichever source gate applies now.
 	if e := s.ValidateRestoredPosition(level, odyssey, spawn); e != nil {
 		return WorldState{}, e
 	}
-	state, e := s.Store.LoadWorld(ctx, account, id, spawn, s.Catalog.Source.SaveIdentity())
+	state, e := s.Store.LoadWorld(ctx, account, id, channelType, spawn, s.Catalog.Source.SaveIdentity())
 	if e != nil {
 		return state, e
 	}

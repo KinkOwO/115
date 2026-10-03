@@ -3,6 +3,7 @@ package quest
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
+	"dfolan/internal/testfixture"
 	"testing"
 )
 
@@ -30,7 +31,7 @@ func numericCells(values ...int32) []pvf.Token {
 
 func loadQuestCatalog(t *testing.T) catalog.QuestCatalog {
 	t.Helper()
-	c, e := catalog.LoadQuests("../../configs/quests.generated.json")
+	c, e := catalog.LoadQuests(testfixture.CatalogPath(t, "quests"))
 	if e != nil {
 		t.Fatal(e)
 	}

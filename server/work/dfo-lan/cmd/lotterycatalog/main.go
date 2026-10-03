@@ -52,26 +52,26 @@ type compactCatalog struct {
 
 func main() {
 	source := flag.String("source", "", "current inner PVF")
-	indexPath := flag.String("index", "", "item index")
+	flag.String("index", "", "deprecated; native item index is always used")
 	out := flag.String("out", "", "catalog output")
 	outEquipment := flag.String("out-equipment", "", "equipment-containing lottery pools")
 	equipmentFull := flag.String("equipment-full", "", "full equipment catalog prefix for grantability checks")
 	equipmentCurrent := flag.String("equipment-current", "", "current equipment catalog for grantability checks")
 	flag.Parse()
-	b, err := os.ReadFile(*indexPath)
-	if err != nil {
-		panic(err)
-	}
-	var index itemIndex
-	if err := json.Unmarshal(b, &index); err != nil {
-		panic(err)
-	}
 	a, err := pvf.LoadArchive(pvf.Options{Path: *source, MaxBytes: 1 << 30})
 	if err != nil {
 		panic(err)
 	}
-	if a.Snapshot().Checksum != index.Source.Checksum {
-		panic("item index and PVF checksum differ")
+	defer a.Close()
+	nativeIndex, err := sourcecatalog.ImportItemIndex(a)
+	if err != nil {
+		panic(err)
+	}
+	var index itemIndex
+	index.Source.Checksum = nativeIndex.Source.Checksum
+	index.Items = make(map[string]itemInfo, len(nativeIndex.Items))
+	for id, it := range nativeIndex.Items {
+		index.Items[strconv.FormatUint(uint64(id), 10)] = itemInfo{Path: it.Path, Kind: it.Kind, StackableType: it.StackableType}
 	}
 	counts := map[string]int{}
 	result := catalog{SourcePVFSHA256: a.Snapshot().Checksum}
@@ -198,19 +198,12 @@ func main() {
 	}
 	if *outEquipment != "" {
 		if *equipmentFull != "" || *equipmentCurrent != "" {
-			if *equipmentFull == "" || *equipmentCurrent == "" {
-				panic("both equipment catalogs are required")
-			}
-			full, err := inventory.OpenFullEquipmentCatalog(*equipmentFull, index.Source.Checksum)
+			full, err := inventory.OpenPVFEquipmentCatalog(a, nativeIndex)
 			if err != nil {
 				panic(err)
 			}
 			defer full.Close()
-			gear, err := inventory.LoadEquipmentCatalog(*equipmentCurrent, index.Source.Checksum)
-			if err != nil {
-				panic(err)
-			}
-			gear.Full = full
+			gear := &inventory.EquipmentCatalog{Full: full}
 			grantable := make(map[uint32]bool)
 			checked := make(map[uint32]bool)
 			failure := make(map[uint32]string)

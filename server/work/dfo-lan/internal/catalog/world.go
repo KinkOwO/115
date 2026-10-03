@@ -70,6 +70,7 @@ type WorldArea struct {
 }
 
 type WorldCatalog struct {
+	Favor          *NPCFavorRules        `json:"-"`
 	Source         pvf.ArchiveSnapshot   `json:"source"`
 	TownIndex      ScriptRecord          `json:"town_index"`
 	Towns          []ScriptRecord        `json:"towns"`

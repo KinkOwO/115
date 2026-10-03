@@ -26,7 +26,7 @@ import (
 // 自选盒里的装备，而这里要验的是"选择 → 校验 → 发放"这条链路本身。
 func loadSelectionBoxesForTest(t *testing.T) *catalog.SelectionBoxes {
 	t.Helper()
-	boxes, err := catalog.LoadSelectionBoxes("../../configs/selection-boxes-candidate.json")
+	boxes, err := catalog.LoadSelectionBoxes("../../internal/catalog/testdata/selection-flow.json")
 	if err != nil {
 		t.Fatal(err)
 	}

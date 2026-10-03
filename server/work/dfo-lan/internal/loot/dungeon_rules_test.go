@@ -5,12 +5,13 @@ import (
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
+	"dfolan/internal/testfixture"
 	"reflect"
 	"testing"
 )
 
 func TestDungeonSourceGoldExclusion(t *testing.T) {
-	c, e := catalog.LoadDungeons("../../configs/dungeons.odyssey-merged-candidate.json")
+	c, e := catalog.LoadDungeons(testfixture.DungeonPath(t, "dungeons.odyssey-release.json"))
 	if e != nil {
 		t.Fatal(e)
 	}

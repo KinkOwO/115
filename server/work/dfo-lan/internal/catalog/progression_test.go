@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"dfolan/internal/catalog/pvf"
+	"dfolan/internal/testfixture"
 	"encoding/json"
 	"os"
 	"reflect"
@@ -9,7 +10,7 @@ import (
 )
 
 func TestExperienceThresholdsAgainstCurrentNativeReader(t *testing.T) {
-	c, e := LoadProgression("../../configs/progression.next25.json")
+	c, e := LoadProgression(testfixture.ProgressionPath(t))
 	if e != nil {
 		t.Fatal(e)
 	}

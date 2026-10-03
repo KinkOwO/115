@@ -5,6 +5,7 @@ import (
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
+	"dfolan/internal/testfixture"
 	"testing"
 )
 
@@ -16,7 +17,7 @@ func TestOdysseyChapterDropReleaseConfig(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	boxes, e := catalog.LoadSelectionBoxes("../../configs/selection-boxes-candidate.json")
+	boxes, e := catalog.LoadSelectionBoxes("../catalog/testdata/selection-flow.json")
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -64,7 +65,7 @@ func TestOdysseyChapterFinalLordDrop(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	dc, e := catalog.LoadDungeons("../../configs/dungeons.odyssey-scenes-release.json")
+	dc, e := catalog.LoadDungeons(testfixture.DungeonPath(t, "dungeons.odyssey-scenes-release.json"))
 	if e != nil {
 		t.Fatal(e)
 	}

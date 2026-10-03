@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"dfolan/internal/catalog"
 	"dfolan/internal/npcpresence"
 	"dfolan/internal/quest"
 	"dfolan/internal/savecontract"
@@ -43,13 +42,6 @@ func (w *worldSession) npcPresenceShadow(p []byte) map[string]any {
 	entry := map[string]any{"kind": "quest_npc_presence_shadow", "character_id": w.role.ID, "quest": qid, "npc": npc, "town": w.state.Position.Town, "area": w.state.Position.Area, "mode": "diagnostic_only", "snapshot_timing": "after CMD33 handling, before its response packets"}
 	if w.npcPresenceIndex == nil && w.npcPresenceIndexErr == nil {
 		world := w.service.Catalog
-		if file := os.Getenv("DFO_NPC_PRESENCE_WORLD"); file != "" {
-			world, w.npcPresenceIndexErr = catalog.LoadWorld(file)
-			if w.npcPresenceIndexErr == nil && world.Source.Checksum != w.service.Catalog.Source.Checksum {
-				entry["error"] = "shadow world source differs from active world"
-				return entry
-			}
-		}
 		if w.npcPresenceIndexErr == nil {
 			w.npcPresenceIndex, w.npcPresenceIndexErr = npcpresence.NewIndex(world, w.quests.Catalog)
 		}

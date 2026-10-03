@@ -9,6 +9,7 @@ import (
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
+	"dfolan/internal/testfixture"
 )
 
 // TestBorderOfAttunementPaysWithAGearPool pins the 2026-09-26 incident.
@@ -32,7 +33,7 @@ func TestBorderOfAttunementPaysWithAGearPool(t *testing.T) {
 		t.Skip("set BORDER_DROP_INTEGRATION=1 to load the 295 MB dungeon catalog")
 	}
 	dc := catalog.LoadNativeFullDungeons(t)
-	lc, err := catalog.LoadLoot("../../configs/loot.level150.json")
+	lc, err := catalog.LoadLoot(testfixture.LootLevel150Path(t))
 	if err != nil {
 		t.Fatal(err)
 	}

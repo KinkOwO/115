@@ -26,12 +26,4 @@ def validate_json_catalogs(command, environment):
    except Exception as exc:
     print("WARNING: 无法解析角色目录 %s：%s" % (_catalog, exc), file=sys.stderr)
  if "-dungeon-catalog" in command and not uses_pvf_catalog(environment, "dungeons"):
-  dungeon_catalog = pathlib.Path(command[command.index("-dungeon-catalog") + 1])
-  if not dungeon_catalog.is_file() or dungeon_catalog.stat().st_size == 0:
-   raise RuntimeError(
-    "副本目录不存在或为空：%s\n"
-    "  当前 -dungeon-catalog 指向它，服务端会启动失败/超时。\n"
-    "  生成：go run ./cmd/dungeonfull -output %s\n"
-    "  或设 DFO_DUNGEON_CATALOG 指向已有目录；确实要用 11 个副本的默认表请显式指过去。"
-    % (dungeon_catalog, dungeon_catalog)
-   )
+  raise RuntimeError("副本内容已退休 JSON 入口，请使用当前源码程序并选择原生 PVF dungeons 域。")

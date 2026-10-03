@@ -39,15 +39,15 @@ func run(args []string, stdout, stderr io.Writer) int {
 	archive := flags.String("pvf-archive", "", "explicit read-only inner PVF path")
 	checksum := flags.String("pvf-sha256", "", "expected inner PVF SHA256")
 	maxBytes := flags.Int64("pvf-max-bytes", gamedata.DefaultMaxBytes, "maximum allowed archive size")
-	domains := flags.String("domains", "characters,world,quests,progression", "catalog domains to compare sequentially")
+	domains := flags.String("domains", "characters,progression", "catalog domains to compare sequentially")
 	limit := flags.Int("difference-limit", 100, "maximum field differences retained per domain; total count is not capped")
 	selectionScope := flags.Bool("selection-scope", false, "audit all native selection-box scripts without a JSON baseline or template policy; difference-limit caps issue details")
 	output := flags.String("output", "", "new report JSON path; empty writes to stdout; existing files are refused")
 	paths := map[string]*string{
 		"characters":  flags.String("character-catalog", "configs/characters.skycastle-release.json", "effective profession JSON baseline"),
-		"world":       flags.String("world-catalog", "configs/world.generated.json", "effective world JSON baseline including side catalogs"),
-		"quests":      flags.String("quest-catalog", "configs/quests.generated.json", "effective quest JSON baseline"),
-		"progression": flags.String("progression-catalog", "configs/progression.next25.json", "effective progression JSON baseline"),
+		"world":       flags.String("world-catalog", "", "explicit historical world JSON for offline comparison, including side catalogs"),
+		"quests":      flags.String("quest-catalog", "", "explicit historical quest JSON for offline comparison"),
+		"progression": flags.String("progression-catalog", "", "explicit historical progression JSON baseline for offline comparison"),
 	}
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -63,6 +63,12 @@ func run(args []string, stdout, stderr io.Writer) int {
 		if err != nil {
 			fmt.Fprintln(stderr, err)
 			return 1
+		}
+		for _, domain := range selected {
+			if *paths[domain] == "" {
+				fmt.Fprintf(stderr, "%s requires an explicit historical baseline for offline comparison\n", domain)
+				return 1
+			}
 		}
 	} else {
 		conflicting := false

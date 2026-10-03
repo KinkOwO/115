@@ -11,7 +11,7 @@ import (
 )
 
 func TestSourceFlagsFailClosed(t *testing.T) {
-	for _, args := range [][]string{{"-catalog-source", "unknown"}, {"-catalog-source", "pvf"}, {"-catalog-source", "pvf", "-pvf-archive", "missing.pvf", "-pvf-source-checksum", "abcd"}} {
+	for _, args := range [][]string{{"-catalog-source", "json"}, {"-catalog-source", "unknown"}, {"-catalog-source", "pvf"}, {"-catalog-source", "pvf", "-pvf-archive", "missing.pvf", "-pvf-source-checksum", "abcd"}} {
 		fs := flag.NewFlagSet("test", flag.ContinueOnError)
 		f := Register(fs)
 		if err := fs.Parse(args); err != nil {
@@ -21,10 +21,14 @@ func TestSourceFlagsFailClosed(t *testing.T) {
 			t.Fatal("invalid source accepted", args)
 		}
 	}
-	f := Register(flag.NewFlagSet("legacy", flag.ContinueOnError))
-	if s, err := f.Open(); err != nil || s != nil {
-		t.Fatal("legacy source changed", err)
+	f := Register(flag.NewFlagSet("native-default", flag.ContinueOnError))
+	if f.Mode != "pvf" {
+		t.Fatal("management default is not PVF")
 	}
+	if _, err := f.Open(); err == nil {
+		t.Fatal("missing native archive accepted")
+	}
+
 }
 
 func TestPolicyRejectsUnknownAndTrailingFields(t *testing.T) {
@@ -77,19 +81,6 @@ func TestNativeManagementCatalogParity(t *testing.T) {
 		}
 		if diff := gamedata.Compare(oldChars, chars, 5); diff.Count != 0 {
 			t.Fatalf("characters: %+v", diff)
-		}
-		oldLoot, err := catalog.LoadLoot(base + "loot.next25.json")
-		if err != nil {
-			t.Fatal(err)
-		}
-		if err := oldLoot.SupplementStackables(base + "items.index.json"); err != nil {
-			t.Fatal(err)
-		}
-		if oldLoot.Source.Checksum != a.Catalog.Source.Checksum {
-			t.Fatal("grant save source changed")
-		}
-		if diff := gamedata.Compare(oldLoot, a.Catalog, 5); diff.Count != 0 {
-			t.Fatalf("loot/grants: %+v", diff)
 		}
 		oldGear, err := inventory.LoadEquipmentCatalog(base+"equipment.current37.json", a.Catalog.Source.Checksum)
 		if err != nil {

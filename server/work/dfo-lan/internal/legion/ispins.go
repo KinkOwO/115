@@ -78,11 +78,12 @@ func DecodeIspinsStart(p []byte) (StartRequest, error) {
 // u32 token at 0 and 0xffff at 17; variant B carries a counter at 8 and an
 // auxiliary byte at 17 (next78 §2.5).
 type IspinsOperationRequest struct {
-	Variant    byte
-	Token      uint32
-	Counter    uint32
-	Auxiliary  byte
-	BodyLength int
+	Variant        byte
+	Token          uint32
+	Counter        uint32
+	Auxiliary      byte
+	OperationIndex uint16
+	BodyLength     int
 }
 
 // DecodeIspinsOperationSelect reads the CMD2047 request (32B official).
@@ -102,6 +103,7 @@ func DecodeIspinsOperationSelect(p []byte) (IspinsOperationRequest, error) {
 		out.Variant = 2
 		out.Counter = binary.LittleEndian.Uint32(p[8:])
 		out.Auxiliary = p[17]
+		out.OperationIndex = binary.LittleEndian.Uint16(p[17:])
 	case 4:
 		// Local native sender 1425311f0 emits action u32 at13, arg u16
 		// at17; live change-operation request uses action4 and argffff.

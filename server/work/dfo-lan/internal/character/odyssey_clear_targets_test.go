@@ -12,7 +12,7 @@ import (
 // 结算时不能再因为 target==0 就直接报 "missing source clear target" —— 那会让
 // 它们即便被判为完成也发不出完成数据，客户端看不到任何变化、卡在 boss 房里。
 func TestOdysseyClearLevelsCoverage(t *testing.T) {
-	g, e := catalog.LoadOdysseyGrowth("../../configs/odyssey-growth-candidate.json")
+	g, e := catalog.LoadOdysseyGrowth("../../configs/odyssey-growth-release.json")
 	if e != nil {
 		t.Fatal(e)
 	}

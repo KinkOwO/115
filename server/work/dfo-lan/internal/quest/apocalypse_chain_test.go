@@ -2,6 +2,7 @@ package quest
 
 import (
 	"dfolan/internal/catalog"
+	"dfolan/internal/testfixture"
 	"fmt"
 	"sort"
 	"strings"
@@ -72,7 +73,7 @@ var knownBlockedQuests = map[uint32]string{}
 // unimplemented objective model skips with the fix spelled out, so the suite
 // stays green without pretending the chain works.
 func TestApocalypsePrerequisiteChainIsOffered(t *testing.T) {
-	c, e := catalog.LoadQuests("../../configs/quests.generated.json")
+	c, e := catalog.LoadQuests(testfixture.CatalogPath(t, "quests"))
 	if e != nil {
 		t.Fatal(e)
 	}

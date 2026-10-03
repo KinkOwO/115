@@ -236,7 +236,7 @@ func (w *worldSession) openBoosterItem(
 	}
 
 	// If this is the Odyssey weapon creation box and Odyssey rewards are enabled, delegate to existing handler
-	if boxItem.Template == 10417789 && len(req.Selections) > 0 && odysseyRewardsEnabled() {
+	if choices.Template != 0 && boxItem.Template == choices.Template && len(req.Selections) > 0 && odysseyRewardsEnabled() {
 		sel := protocol.WeaponBoxSelection{
 			Slot:     req.Slot,
 			Category: [2]byte{byte(req.Category), byte(req.Category >> 8)},
@@ -264,7 +264,7 @@ func (w *worldSession) openBoosterItem(
 	// destination logic below (avatar / creature / equipment / stackable), because
 	// a box may mix them (10335328 carries gear plus 1000/10000-strong stacks).
 	// The Odyssey creation weapon box keeps its own handler above.
-	if w.selectionBoxes != nil && boxItem.Template != 10417789 {
+	if w.selectionBoxes != nil && boxItem.Template != choices.Template {
 		if _, ok := w.selectionBoxes.ByTemplate(boxItem.Template); ok {
 			if len(req.Selections) == 0 {
 				// The client asks once before it can show the pick list. Answering

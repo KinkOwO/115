@@ -19,10 +19,10 @@ func main() {
 	source := flag.String("source", "runtime/pvf_source/Script.inner.pvf", "read-only source")
 	out := flag.String("output", "runtime/equipment_audit.json", "audit output")
 	fameState := flag.String("fame-state", "", "只读核对名望：角色JSON文件或标准输入-，每条含name和state")
-	fullPrefix := flag.String("equipment-full", "configs/equipment-full", "名望核对使用的全量装备目录")
+	flag.String("equipment-full", "", "兼容旧参数；名望装备只读PVF")
 	flag.Parse()
 	if *fameState != "" {
-		if err := auditFame(*fullPrefix, *fameState); err != nil {
+		if err := auditFame(*source, *fameState); err != nil {
 			log.Fatal(err)
 		}
 		return
@@ -97,15 +97,16 @@ func main() {
 
 // 直接调用游戏服相同的计算器；只读输入与装备目录，不连接或修改玩家数据库。
 func auditFame(prefix, path string) error {
-	raw, err := os.ReadFile(prefix + ".index.json")
+	a, err := pvf.LoadArchive(pvf.Options{Path: prefix, MaxBytes: 1 << 30})
 	if err != nil {
 		return err
 	}
-	var header struct{ Source pvf.ArchiveSnapshot }
-	if err = json.Unmarshal(raw, &header); err != nil {
+	defer a.Close()
+	index, err := catalog.ImportItemIndex(a)
+	if err != nil {
 		return err
 	}
-	full, err := inventory.OpenFullEquipmentCatalog(prefix, header.Source.Checksum)
+	full, err := inventory.OpenPVFEquipmentCatalog(a, index)
 	if err != nil {
 		return err
 	}

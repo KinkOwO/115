@@ -56,6 +56,15 @@ func (client *gameConnection) dispatchIspins(requestData *clientRequest) dispatc
 	// the native readiness signal already used for standby quota data.
 	// Do not push quota restoration during the final movie/map transition.
 	if requestData.frame.ID == 35 && requestData.verified && client.selectedCharacterID != 0 {
+		retry, err := w.ispinsRetryRestorePackets(true)
+		if err != nil {
+			client.event(map[string]any{"kind": "ispins_retry_restore_error", "error": err.Error()})
+		} else if len(retry) != 0 {
+			if client.sendPlan(retry, client.logWorldResponseBody) != nil {
+				return dispatchClose
+			}
+			w.ispinsRetryPending = false
+		}
 		plan, err := w.ispinsRepeatRestorePackets()
 		if err != nil {
 			client.event(map[string]any{"kind": "ispins_repeat_restore_error", "error": err.Error()})

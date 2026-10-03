@@ -13,7 +13,7 @@ import (
 // [need material]，于是这些商品落进「金币价」分支，而物品又没写 [price] → 直接拒绝，
 // 客户端就弹「仓库已满」（真实原因 missing or overflowing source purchase price）。
 //
-// 规则数据来自 configs/item-materials.json（scripts/export_item_materials.py 只读 PVF 导出）。
+// Runtime rules are imported from the native PVF item index and stackable scripts.
 type ItemMaterialCost struct {
 	Template uint32 `json:"template"`
 	Count    uint32 `json:"count"`
@@ -31,7 +31,7 @@ type itemMaterialsDoc struct {
 	Items   []ItemMaterialEntry `json:"items"`
 }
 
-// ItemMaterials is the exported catalog, queryable by template.
+// ItemMaterials is the typed item-script projection, queryable by template.
 type ItemMaterials struct {
 	Source     string
 	Items      []ItemMaterialEntry
@@ -44,8 +44,8 @@ func RestoreItemMaterials(source string, entries []ItemMaterialEntry) (*ItemMate
 	return newItemMaterials(itemMaterialsDoc{Version: 1, Source: source, Items: entries})
 }
 
-// LoadItemMaterials reads the item [need material] catalog. A missing file yields
-// a nil catalog (the shop falls back to gold pricing).
+// LoadItemMaterials decodes a historical JSON audit snapshot. Runtime shop code
+// must use the prepared native PVF projection. A missing file yields a nil value.
 func LoadItemMaterials(path string) (*ItemMaterials, error) {
 	b, err := os.ReadFile(path)
 	if os.IsNotExist(err) {

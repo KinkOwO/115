@@ -45,6 +45,10 @@ for name, va, size in (
     ("local_party_action3_clears_members", 0x1452F40FA, 0x3A),
     ("local_ispins_roster_gate", 0x1424E66A0, 0x137),
     ("local_ispins_prerequisite_sets_flag", 0x1424E71E0, 0xDA),
+    ("local_timeout1474_registration", 0x1452BB715, 0x17),
+    ("local_timeout1474_two_u32_reader", 0x1452AE370, 0xC6),
+    ("gold_return_crash_actor_collection", 0x145C34D30, 0x149),
+    ("native_cached_map_mode0_branch", 0x145B235B0, 0x50),
 ):
     result["readers"][name] = disassemble(va, size)
 assert pe.get_data(0x1424FDCF7 - base, 5).hex() == "ba5c1e0000"

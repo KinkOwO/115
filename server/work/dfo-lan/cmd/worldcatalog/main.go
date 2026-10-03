@@ -12,13 +12,17 @@ import (
 
 func main() {
 	source := flag.String("source", "", "read-only source PVF")
-	out := flag.String("output", "configs/world.generated.json", "source catalog output")
+	out := flag.String("output", "", "source catalog output")
 	base := flag.String("base", "", "preserve an existing catalog and refresh its phase NPC rows and source graphs")
 	flag.Parse()
+	if *out == "" {
+		log.Fatal("explicit -output is required for a diagnostic export")
+	}
 	a, e := pvf.LoadArchive(pvf.Options{Path: *source, MaxBytes: 1024 * 1024 * 1024})
 	if e != nil {
 		log.Fatal(e)
 	}
+	defer a.Close()
 	w, e := catalog.ImportWorld(a)
 	if e != nil {
 		log.Fatal(e)

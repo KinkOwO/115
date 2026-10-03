@@ -3,11 +3,12 @@ package dungeon
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
+	"dfolan/internal/testfixture"
 	"testing"
 )
 
 func TestGrandFloresMainQuestMapsAreReachable(t *testing.T) {
-	c, e := catalog.LoadDungeons("../../configs/dungeons.next28.json")
+	c, e := catalog.LoadDungeons(testfixture.DungeonPath(t, "dungeons.next28.json"))
 	if e != nil {
 		t.Fatal(e)
 	}

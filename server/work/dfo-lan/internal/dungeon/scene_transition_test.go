@@ -3,6 +3,7 @@ package dungeon
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
+	"dfolan/internal/testfixture"
 	"encoding/hex"
 	"os"
 	"testing"
@@ -10,7 +11,7 @@ import (
 
 func sceneFixture(t *testing.T) (catalog.DungeonCatalog, *Session, protocol.DungeonRoomTransition) {
 	t.Helper()
-	c, err := catalog.LoadDungeons("../../configs/dungeons.odyssey-scenes-candidate.json")
+	c, err := catalog.LoadDungeons(testfixture.DungeonPath(t, "dungeons.odyssey-scenes-release.json"))
 	if err != nil {
 		t.Fatal(err)
 	}

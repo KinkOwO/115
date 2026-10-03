@@ -1,8 +1,7 @@
 package main
 
 import (
-	"dfolan/internal/catalog"
-	"dfolan/internal/catalog/pvf"
+	"dfolan/internal/gamedata"
 	"encoding/json"
 	"flag"
 	"log"
@@ -14,8 +13,11 @@ import (
 func main() {
 	source := flag.String("source", "", "original PVF (read-only)")
 	ids := flag.String("ids", "", "source dungeon IDs to import")
-	dest := flag.String("output", "configs/dungeons.generated.json", "output catalog")
+	dest := flag.String("output", "", "explicit diagnostic output catalog")
 	flag.Parse()
+	if *dest == "" {
+		log.Fatal("-output is required; no runtime export is maintained")
+	}
 	var list []uint32
 	for _, s := range strings.Split(*ids, ",") {
 		v, e := strconv.ParseUint(s, 10, 32)
@@ -24,11 +26,12 @@ func main() {
 		}
 		list = append(list, uint32(v))
 	}
-	a, e := pvf.LoadArchive(pvf.Options{Path: *source, MaxBytes: 1024 * 1024 * 1024})
+	a, e := gamedata.Open(gamedata.Options{Mode: gamedata.PVF, ArchivePath: *source})
 	if e != nil {
 		log.Fatal(e)
 	}
-	c, e := catalog.ImportDungeons(a, list)
+	defer a.Close()
+	c, e := a.Dungeons(list)
 	if e != nil {
 		log.Fatal(e)
 	}

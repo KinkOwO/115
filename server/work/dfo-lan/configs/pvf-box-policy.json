@@ -1,13 +1,5 @@
 {
   "version": 1,
-  "templates": [
-    590712474,
-    590719043
-  ],
-  "cos_paths": [
-    "live/else/univ/2024/0514_radianttreasurebox/radianttreasurebox.cos",
-    "live/else/univ/2025/0318_newrandombox/radianttreasurebox.cos"
-  ],
   "missing_stack_limit": 1000,
   "slots": {
     "[waste]": [

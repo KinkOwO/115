@@ -34,8 +34,9 @@ func readEnhancementJSON(path string, out any) error {
 	return json.Unmarshal(b, out)
 }
 
-// ReadEnhancementBaseline reads effective typed fields without activating any
-// rules. Descriptive JSON metadata unused by the engine is not game policy.
+// ReadEnhancementBaseline is an offline historical-fixture audit helper. It reads
+// effective typed fields without activation and is never a runtime source.
+// Descriptive JSON metadata unused by the engine is not game policy.
 func ReadEnhancementBaseline(dir string) (*EnhancementCatalog, error) {
 	c := &EnhancementCatalog{}
 	for _, r := range []struct {

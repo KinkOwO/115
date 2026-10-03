@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"dfolan/internal/admin"
-	"dfolan/internal/catalog"
 	"dfolan/internal/inventory"
 	"dfolan/internal/storage"
 	"fmt"
@@ -18,15 +17,15 @@ func grantCheck(ctx context.Context, s, reopened *storage.Store, role storage.Ch
 	if e := s.MigrateGrants(ctx); e != nil {
 		return e
 	}
-	c, e := catalog.LoadLoot("configs/loot.next25.json")
+	c, e := loadNativeLootCatalog()
 	if e != nil {
 		return e
 	}
-	rules, e := inventory.LoadBagRules("configs/inventory.next29.json")
+	rules, e := inventory.LoadBagRules("configs/inventory.next29.json", c.Source.Checksum)
 	if e != nil {
 		return e
 	}
-	gear, e := inventory.LoadEquipmentCatalog("configs/equipment.current35.json", c.Source.Checksum)
+	gear, e := loadNativeEquipmentCatalog(c.Source.Checksum)
 	if e != nil {
 		return e
 	}
@@ -136,7 +135,7 @@ func grantCheck(ctx context.Context, s, reopened *storage.Store, role storage.Ch
 	// A hand-out must never invent an item the source does not have.
 	if _, _, e = service.Apply(ctx, storage.Grant{
 		ID: "check-grant-unknown-item", AccountID: role.AccountID, Character: role.ID,
-		Items: []storage.GrantItem{{Template: 4000000123, Amount: 1}},
+		Items:  []storage.GrantItem{{Template: 4000000123, Amount: 1}},
 		Reason: "unknown", Operator: "check"}); e == nil {
 		return fmt.Errorf("granted an item that is absent from the source")
 	}

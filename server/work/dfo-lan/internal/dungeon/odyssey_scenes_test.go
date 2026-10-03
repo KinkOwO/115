@@ -3,6 +3,7 @@ package dungeon
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
+	"dfolan/internal/testfixture"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -13,7 +14,7 @@ import (
 
 func odysseyScenes(t *testing.T) catalog.DungeonCatalog {
 	t.Helper()
-	c, e := catalog.LoadDungeons("../../configs/dungeons.odyssey-scenes-candidate.json")
+	c, e := catalog.LoadDungeons(testfixture.DungeonPath(t, "dungeons.odyssey-scenes-release.json"))
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -124,7 +125,7 @@ func TestOdysseySceneInvalidCatalog(t *testing.T) {
 }
 
 func TestOdysseySceneBaseline(t *testing.T) {
-	c, e := catalog.LoadDungeons("../../configs/dungeons.skycastle-candidate.json")
+	c, e := catalog.LoadDungeons(testfixture.DungeonPath(t, "dungeons.skycastle-candidate.json"))
 	if e != nil {
 		t.Fatal(e)
 	}

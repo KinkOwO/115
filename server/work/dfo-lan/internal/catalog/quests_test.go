@@ -1,9 +1,12 @@
 package catalog
 
-import "testing"
+import (
+	"dfolan/internal/testfixture"
+	"testing"
+)
 
 func TestCurrentGrandFloresQuestPrerequisites(t *testing.T) {
-	c, e := LoadQuests("../../configs/quests.generated.json")
+	c, e := LoadQuests(testfixture.CatalogPath(t, "quests"))
 	if e != nil {
 		t.Fatal(e)
 	}

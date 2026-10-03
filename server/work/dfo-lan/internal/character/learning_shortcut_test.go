@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// 真源：configs/skills.release.json（3224 行）。只有 12 行的 [type] 不是
+// 历史夹具：已退休 skills.release 导出（3224 行）。只有 12 行的 [type] 不是
 // [active]/[passive]：8 行是导出器解析不出的常量（导出成 "default"，如 job8
 // atmage 138 spiralpress / 139 violentstorm），4 行根本没有 [type]（job4
 // priest 133/134/250/253）。它们全是觉醒或 variation-point 行。

@@ -32,12 +32,7 @@ func npcRows(a catalog.WorldArea) map[uint32][]pvf.Token {
 	return out
 }
 
-func reportNPC(worldPath string, towns []int, wanted []uint32) {
-	w, e := catalog.LoadWorld(worldPath)
-	if e != nil {
-		fmt.Printf("\n== world npc scan unavailable: %v\n", e)
-		return
-	}
+func reportNPC(w catalog.WorldCatalog, towns []int, wanted []uint32) {
 	fmt.Printf("\n== npc presence by area (towns=%v)\n", towns)
 	placed := map[uint32][]string{}
 	detail := map[uint32]string{}

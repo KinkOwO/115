@@ -32,7 +32,9 @@ type ispinsRun struct {
 	finalDone bool
 	// storyFinished is presentation completion, not dungeon/party departure.
 	// Keep ownership until the actual CMD72 town exit has been prepared.
-	storyFinished bool
+	storyFinished  bool
+	operationIndex uint16
+	deadline       time.Time
 }
 
 // 官服 S1 局（默认顺序）各 ACK 尾 5B token，逐帧回放（next78 §5.1：语义
@@ -126,6 +128,10 @@ func (w *worldSession) ispinsStandbyPartyHandle(id uint16, p []byte) (bool, []ou
 		// member slots at1452f40fa..4132. Reuse the proven current-build
 		// party-gone grammar; Ispins creates the same local party ID9999.
 		gone := protocol.BlackPurgatoryPartyGone(w.characters.ChannelContext)
+		retry, err := w.ispinsRetryRestorePackets(false)
+		if err != nil {
+			return fail(err)
+		}
 		restore, err := w.ispinsRepeatRestorePackets()
 		if err != nil {
 			return fail(err)
@@ -133,7 +139,9 @@ func (w *worldSession) ispinsStandbyPartyHandle(id uint16, p []byte) (bool, []ou
 		w.soloPartyReady = false
 		w.ispins = nil
 		w.ispinsRepeatPending = false
-		return true, append([]outboundPacket{{"ispins_party_gone", 0, 9, gone}}, restore...), nil
+		w.ispinsRetryPending = false
+		plan := append([]outboundPacket{{"ispins_party_gone", 0, 9, gone}}, retry...)
+		return true, append(plan, restore...), nil
 	}
 	request, err := protocol.DecodeIspinsStandbyParty(p)
 	if err != nil {
@@ -275,6 +283,7 @@ func (w *worldSession) ispinsOperation(p []byte) ([]outboundPacket, []map[string
 	switch req.Variant {
 	case 1:
 		w.ispins.confirmed = false
+		w.ispins.operationIndex = 0
 		info, err := legion.IspinsInfoPayload(fmt.Sprintf("chosen%d", count), [5]byte{})
 		if err != nil {
 			return nil, nil, err
@@ -289,23 +298,31 @@ func (w *worldSession) ispinsOperation(p []byte) ([]outboundPacket, []map[string
 				"token":        fmt.Sprintf("%x", req.Token),
 			}}, nil
 	case 2:
+		if w.dungeons != nil {
+			if _, ok := w.dungeons.IspinsOperations[req.OperationIndex]; !ok {
+				return nil, nil, fmt.Errorf("ispins operation%d absent from source", req.OperationIndex)
+			}
+		}
 		w.ispins.confirmed = true
+		w.ispins.operationIndex = req.OperationIndex
 		plan, err := appendIspinsReplays([]outboundPacket{}, "confirm_echo_b", "confirm_support", "confirm_quest_a", "confirm_quest_b", "confirm_quest_c")
 		if err != nil {
 			return nil, nil, err
 		}
 		ack := outboundPacket{"ispins_operation_ack_b", 1, legion.CmdIspinsOperationSelect, legion.IspinsOperationAckB(req.Auxiliary, ispinsOperationAckBNonce)}
 		return append([]outboundPacket{ack}, plan...), []map[string]any{{
-			"kind":         "ispins_operation_confirmed",
-			"character_id": w.role.ID,
-			"counter":      req.Counter,
-			"auxiliary":    req.Auxiliary,
+			"kind":            "ispins_operation_confirmed",
+			"character_id":    w.role.ID,
+			"counter":         req.Counter,
+			"auxiliary":       req.Auxiliary,
+			"operation_index": req.OperationIndex,
 		}}, nil
 	case 4:
 		// Local ACK2047 handler 142530950 reads action u32, selects action4
 		// at142530a1e, resets window644 at142530a58, then opens selection.
 		// This is a change-operation request, not a new difficulty value.
 		w.ispins.confirmed = false
+		w.ispins.operationIndex = 0
 		return []outboundPacket{{"ispins_operation_reset_ack", 1, legion.CmdIspinsOperationSelect, legion.IspinsOperationResetAck(uint32(time.Now().Unix()))}},
 			[]map[string]any{{"kind": "ispins_operation_reset", "character_id": w.role.ID}}, nil
 	}
@@ -427,7 +444,17 @@ func (w *worldSession) enterIspinsStage(p []byte) ([]outboundPacket, []map[strin
 	if err != nil {
 		return nil, nil, err
 	}
-	clock, err := protocol.LegionDungeonTimeout115(s.StartedAt, time.Duration(s.Definition.TimeoutSeconds)*time.Second)
+	limit := time.Duration(s.Definition.TimeoutSeconds) * time.Second
+	if run.operationIndex != 0 {
+		operation, ok := w.dungeons.IspinsOperations[run.operationIndex]
+		if !ok {
+			return nil, nil, fmt.Errorf("ispins selected operation missing source definition")
+		}
+		if operation.Type == 6 {
+			limit = time.Duration(operation.FixedValue) * time.Minute
+		}
+	}
+	clock, err := protocol.LegionDungeonTimeout115(s.StartedAt, limit)
 	if err != nil {
 		return nil, nil, fmt.Errorf("ispins source dungeon clock: %w", err)
 	}
@@ -438,6 +465,7 @@ func (w *worldSession) enterIspinsStage(p []byte) ([]outboundPacket, []map[strin
 	}
 	// 会话样板与主循环 pending 机制一致（main.go 4299-4323）。
 	w.activeDungeon = s
+	run.deadline = time.Unix(s.StartedAt.Unix(), 0).Add(limit)
 	w.deathSent = map[uint16]bool{}
 	w.drops = nil
 	w.completionSent = false
@@ -446,13 +474,15 @@ func (w *worldSession) enterIspinsStage(p []byte) ([]outboundPacket, []map[strin
 	w.leaveScene()
 	run.stage = stage
 	return plan, []map[string]any{{
-		"kind":         "ispins_stage_entered",
-		"character_id": w.role.ID,
-		"stage":        stage,
-		"dungeon":      s.Definition.ID,
-		"maze":         s.Maze.Index,
-		"map":          s.Room.Map,
-		"monsters":     len(s.Monsters),
+		"kind":            "ispins_stage_entered",
+		"character_id":    w.role.ID,
+		"stage":           stage,
+		"dungeon":         s.Definition.ID,
+		"maze":            s.Maze.Index,
+		"map":             s.Room.Map,
+		"monsters":        len(s.Monsters),
+		"operation_index": run.operationIndex,
+		"limit_seconds":   int64(limit / time.Second),
 	}}, nil
 }
 
@@ -588,6 +618,9 @@ var ispinsAuxPre115 = [4][]ispinsAuxPacket{
 // are locally rebuilt (protocol.IspinsSettlementCharacterInfo / SoloPartyInfo);
 // the reward items in the N14 echoes are not persisted in v1.
 func (w *worldSession) completeIspinsStage() ([]outboundPacket, error) {
+	if w.ispins != nil && !w.ispins.deadline.IsZero() && !time.Now().Before(w.ispins.deadline) {
+		return w.ispinsTimeout(time.Now())
+	}
 	if !w.activeDungeon.Completed() || w.completionSent {
 		return nil, nil
 	}

@@ -13,14 +13,17 @@ import (
 
 func main() {
 	source := flag.String("source", "", "inner PVF, read only")
-	indexPath := flag.String("index", "configs/items.index.json", "item index")
-	out := flag.String("out", "configs/shop-prices.json", "price catalog")
+	out := flag.String("out", "", "required diagnostic output; not a runtime configuration")
 	flag.Parse()
-	index, err := catalog.LoadItemIndex(*indexPath)
+	if *out == "" {
+		log.Fatal("explicit -out is required for diagnostic export")
+	}
+	a, err := pvf.LoadArchive(pvf.Options{Path: *source, MaxBytes: 1 << 30})
 	if err != nil {
 		log.Fatal(err)
 	}
-	a, err := pvf.LoadArchive(pvf.Options{Path: *source, MaxBytes: 1 << 30})
+	defer a.Close()
+	index, err := catalog.ImportItemIndex(a)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -3,6 +3,7 @@ package legion
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/dungeon"
+	"dfolan/internal/testfixture"
 	"testing"
 )
 
@@ -33,7 +34,7 @@ func TestApocalypseEntryPlanUsesSourceDestinations(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	dc, e := catalog.LoadDungeons("../../configs/dungeons.generated.json")
+	dc, e := catalog.LoadDungeons(testfixture.DungeonPath(t, "dungeons.generated.json"))
 	if e != nil {
 		t.Fatal(e)
 	}

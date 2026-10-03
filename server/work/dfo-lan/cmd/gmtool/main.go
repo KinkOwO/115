@@ -14,7 +14,6 @@ import (
 	"crypto/rand"
 	"dfolan/internal/admin"
 	"dfolan/internal/catalog"
-	"dfolan/internal/inventory"
 	"dfolan/internal/managementdata"
 	"dfolan/internal/storage"
 	"encoding/hex"
@@ -54,7 +53,7 @@ type paths struct {
 }
 
 // 独立发布包 D:\115us\gm-tool 里的默认路径。
-// 找不到时 LoadItemIndex 会回落到 loot + equipment 目录，名字则回落到 names.zh.json。
+// 运行物品目录从原生 PVF 准备，外部名字表仅补翻译。
 const (
 	// defaultItemIndex 是全量物品库（386230 件）。
 	defaultItemIndex = `D:\115us\gm-tool\configs\items.index.json`
@@ -84,9 +83,9 @@ func resolvePaths(root string) paths {
 		namesClient:    defaultNamesClient,
 		itemIndex:      defaultItemIndex,
 		equipmentSlots: defaultEquipmentSlots,
-		lootCatalog:    filepath.Join(configs, "loot.next25.json"),
+		lootCatalog:    "",
 		bagRules:       filepath.Join(configs, "inventory.next29.json"),
-		equipCatalog:   filepath.Join(configs, "equipment.current37.json"),
+		equipCatalog:   "",
 		clientPVF:      defaultClientPVF,
 		equipmentFull:  defaultEquipmentFull,
 	}
@@ -160,10 +159,10 @@ func main() {
 	operator := flag.String("operator", "gm-tool", "审计里记录的操作用户")
 	// 兼容独立发布包 D:\115us\gm-tool 的启动参数（scripts/gmweb.py 会全部传进来）。
 	storagePath := flag.String("storage", "", "local.json 路径（默认 -root 下的 runtime/storage/local.json）")
-	itemIndexPath := flag.String("item-index", "", "全量物品库 items.index.json 路径；留空则自动查找（物品库同目录 / exe 的 ../configs / -root 的 configs）；找不到时回落到 loot+equipment 目录")
-	lootCatalog := flag.String("loot-catalog", "", "掉落目录路径（默认 -root 下的 configs/loot.next25.json）")
+	itemIndexPath := flag.String("item-index", "", "兼容旧参数；运行内容只读PVF，不读取该JSON")
+	lootCatalog := flag.String("loot-catalog", "", "已退休兼容参数；运行内容使用 PVF")
 	bagRules := flag.String("bag-rules", "", "背包规则路径（默认 -root 下的 configs/inventory.next29.json）")
-	equipCatalog := flag.String("equipment-catalog", "", "装备目录路径（默认 -root 下的 configs/equipment.current37.json）")
+	equipCatalog := flag.String("equipment-catalog", "", "已退休兼容参数；运行内容使用 PVF")
 	// 名字与部位这两个"和游戏对齐"的数据源，见 names.go 的包注释。
 	namesClient := flag.String("names-client", "",
 		"客户端 PVF 文本表导出的名字表 names.client.json（游戏里显示的名字；留空则自动查找，缺失时回落到 runtime/l10n/names.zh.json）")
@@ -197,7 +196,7 @@ func main() {
 		dirs = append(dirs, filepath.Join(*root, "server", "work", "dfo-lan", "configs"))
 		return dirs
 	}
-	itemIndexResolved := resolveDataFile(*itemIndexPath, "items.index.json", defaultDirs(), defaultItemIndex)
+	itemIndexResolved := *itemIndexPath
 	namesClientResolved := resolveDataFile(*namesClient, "names.client.json",
 		defaultDirs(filepath.Dir(itemIndexResolved)), defaultNamesClient)
 	equipmentSlotsResolved := resolveDataFile(*equipmentSlots, "equipment.slots.json",
@@ -209,7 +208,7 @@ func main() {
 	}
 	p.applyOverrides(*lootCatalog, *bagRules, *equipCatalog, itemIndexResolved, namesClientResolved, equipmentSlotsResolved)
 	// 显式给了配置路径时，configs 目录以用户给的为准（独立包不在 -root 下面）。
-	p.configs = filepath.Dir(p.lootCatalog)
+	p.configs = filepath.Dir(p.bagRules)
 	p.clientPVF, p.equipmentFull = *clientPVF, *equipmentFull
 
 	// 数据准备模式：只读 PVF/装备目录，写两个新文件，不连数据库。
@@ -230,22 +229,19 @@ func main() {
 		}
 	}
 
-	var prepared *preparedGMData
-	if sourceFlags.Mode != "json" {
-		var err error
-		prepared, err = prepareNativeGMData(p, *sourceFlags)
-		if err != nil {
-			log.Fatalf("PVF目录准备失败：%v", err)
+	if sourceFlags.ArchivePath == "" {
+		sourceFlags.ArchivePath = filepath.Join(*root, "server", "work", "client-build", "Script.inner.pvf")
+	}
+	prepared, err := prepareNativeGMData(p, *sourceFlags)
+	if err != nil {
+		log.Fatalf("PVF目录准备失败：%v", err)
+	}
+	defer prepared.awarder.Equipment.Full.Close()
+	if sourceFlags.CheckOnly {
+		if err := managementdata.Report(map[string]any{"source": prepared.awarder.Catalog.Source.Checksum, "items": prepared.index.Count(), "grant_stackables": len(prepared.awarder.Catalog.Items), "equipment_rows": len(prepared.awarder.Equipment.Rows), "storage_accessed": false}); err != nil {
+			log.Fatal(err)
 		}
-		defer prepared.awarder.Equipment.Full.Close()
-		if sourceFlags.CheckOnly {
-			if err := managementdata.Report(map[string]any{"source": prepared.awarder.Catalog.Source.Checksum, "items": prepared.index.Count(), "grant_stackables": len(prepared.awarder.Catalog.Items), "equipment_rows": len(prepared.awarder.Equipment.Rows), "storage_accessed": false}); err != nil {
-				log.Fatal(err)
-			}
-			return
-		}
-	} else if sourceFlags.CheckOnly {
-		log.Fatal("GM check-catalogs requires catalog-source=pvf")
+		return
 	}
 
 	for _, f := range []string{p.storage} {
@@ -281,62 +277,9 @@ func main() {
 	defer store.Close()
 
 	svc := &admin.Service{Store: store, Operator: *operator}
-	var loot catalog.LootCatalog
-	var gear *inventory.EquipmentCatalog
-	var index *ItemIndex
-	if prepared != nil {
-		svc.Awarder = prepared.awarder
-		loot, gear, index = prepared.awarder.Catalog, prepared.awarder.Equipment, prepared.index
-		log.Printf("GM原生目录：%d个LIST绑定；源%s；中文文本按外部显示覆盖读取", index.Count(), loot.Source.Checksum)
-	} else {
-		lootPath := p.lootCatalog
-		loot, err = catalog.LoadLoot(lootPath)
-		if err != nil {
-			log.Fatalf("载入物品目录失败：%v", err)
-		}
-		rules, err := inventory.LoadBagRules(p.bagRules)
-		if err != nil {
-			log.Fatalf("载入背包规则失败：%v", err)
-		}
-		var gerr error
-		gear, gerr = inventory.LoadEquipmentCatalog(p.equipCatalog, loot.Source.Checksum)
-		if gerr != nil {
-			log.Printf("警告：装备目录不可用（%v），本次只能发放普通物品", gerr)
-		}
-
-		svc.Awarder = &inventory.Awarder{Catalog: loot, Rules: rules, Equipment: gear}
-
-		// 名字表 66MB，物品库 43MB，部分只读一次并常驻；名字表加载时就裁到 name_/growtype_name_/common_rarity_ 三类键。
-		// 客户端名字表（names.client.json）是游戏里真正显示的文本，优先于 names.zh.json。
-		indexStarted := time.Now()
-		clientNames := loadNames(p.namesClient)
-		if len(clientNames) == 0 {
-			log.Printf("警告：客户端名字表 %s 不可用，物品名回落到 runtime/l10n/names.zh.json（可能与游戏显示不一致，可用 -build-data 生成）", p.namesClient)
-		}
-		slotMap := loadSlotMap(p.equipmentSlots)
-		if len(slotMap) == 0 {
-			log.Printf("提示：装备部位表 %s 不可用，装备部位只用现役装备目录 %s 判定", p.equipmentSlots, p.equipCatalog)
-		}
-		var note string
-		index, note, err = LoadItemIndex(IndexOptions{
-			Configs:     p.configs,
-			IndexPath:   p.itemIndex,
-			Gear:        gear,
-			SlotMap:     slotMap,
-			NamesClient: clientNames,
-			NamesZH:     loadNames(p.namesZH),
-			NamesEN:     loadNames(p.namesEN),
-		})
-		if note != "" {
-			log.Printf("提示：%s", note)
-		}
-		if err != nil {
-			log.Fatalf("建立物品索引失败：%v", err)
-		}
-		log.Printf("物品索引来自 %s，载入 %d 件，耗时 %s", index.Source(), index.Count(), time.Since(indexStarted).Round(time.Millisecond))
-		log.Printf("名字来源：客户端 PVF 文本表 %d 条（游戏显示名）", len(clientNames))
-
-	}
+	svc.Awarder = prepared.awarder
+	loot, index := prepared.awarder.Catalog, prepared.index
+	log.Printf("GM原生目录：%d个LIST绑定；源%s；中文文本按外部显示覆盖读取", index.Count(), loot.Source.Checksum)
 
 	buf := make([]byte, 16)
 	_, _ = rand.Read(buf)
@@ -713,8 +656,8 @@ func buildDataFiles(p paths) error {
 	}
 	log.Printf("名字表导出完成：%d 条（name_/growtype_name_/common_rarity_）", n)
 
-	log.Printf("从装备目录导出部位与最低等级：%s + %s -> %s", p.equipCatalog, p.equipmentFull, p.equipmentSlots)
-	m, used, err := buildEquipmentSlots(p.equipmentSlots, p.equipCatalog, p.equipmentFull)
+	log.Printf("从原生 PVF 导出部位与最低等级：%s -> %s", p.clientPVF, p.equipmentSlots)
+	m, used, err := buildEquipmentSlots(p.equipmentSlots, p.clientPVF)
 	if err != nil {
 		return err
 	}

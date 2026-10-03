@@ -95,30 +95,30 @@ type Catalogs struct {
 }
 
 type CatalogInputs struct {
-	Selection, ArchivePath, ArchiveChecksum                                                                                string
-	CharacterPath, QuestPath, ProgressionPath, WorldPath                                                                   string
-	BaselineDir                                                                                                            string
-	DerivedCacheDir                                                                                                        string
-	ItemShopPath, ItemShopPolicyPath                                                                                       string
-	BoxesPath, BoxPolicyPath                                                                                               string
-	CashshopRelease                                                                                                        bool
-	CharacterPolicyPath                                                                                                    string
-	LayerRevisitPolicyPath                                                                                                 string
-	ScriptWarpPolicyPath                                                                                                   string
-	LotteryPolicyPath                                                                                                      string
-	SelectionBoxesPath, SelectionPolicyPath                                                                                string
-	MinePath                                                                                                               string
-	BlackPurgatoryPath                                                                                                     string
-	ClearCubePath                                                                                                          string
-	OdysseyGrowthPath, OdysseyChapterPath, OdysseyDropPath, OdysseyCurrencyPath, OdysseyWeaponPath                         string
-	AttunementPath, ContentPolicyPath                                                                                      string
-	ApocalypsePath                                                                                                         string
-	IndexPath, FullPrefix, JournalPath, CreateCostPath, LearningPath, PricesPath, MaterialsPath, BoosterPath, TutorialPath string
-	VerifyBaselines                                                                                                        bool
-	LootPath, EquipmentPath, QuestEquipmentPath, DropPolicyPath                                                            string
-	RandomOptionPath, ShieldPath, WearRulesPath, OathPath, VaultPath, VaultPolicyPath                                      string
-	TownPath, DungeonPath, TrainingDungeonPath, TutorialDungeonPath, ScenePolicyPath                                       string
-	EnhancementPolicyPath                                                                                                  string
+	Selection, ArchivePath, ArchiveChecksum                                                        string
+	CharacterPath, QuestPath, ProgressionPath, WorldPath                                           string
+	BaselineDir                                                                                    string
+	DerivedCacheDir                                                                                string
+	ItemShopPath, ItemShopPolicyPath                                                               string
+	BoxesPath, BoxPolicyPath                                                                       string
+	CashshopRelease                                                                                bool
+	CharacterPolicyPath                                                                            string
+	LayerRevisitPolicyPath                                                                         string
+	ScriptWarpPolicyPath                                                                           string
+	LotteryPolicyPath                                                                              string
+	SelectionPolicyPath                                                                            string
+	MinePath                                                                                       string
+	BlackPurgatoryPath                                                                             string
+	ClearCubePath                                                                                  string
+	OdysseyGrowthPath, OdysseyChapterPath, OdysseyDropPath, OdysseyCurrencyPath, OdysseyWeaponPath string
+	AttunementPath, ContentPolicyPath                                                              string
+	ApocalypsePath                                                                                 string
+	IndexPath, FullPrefix, JournalPath, CreateCostPath, MaterialsPath, TutorialPath                string
+	VerifyBaselines                                                                                bool
+	LootPath, EquipmentPath, QuestEquipmentPath, DropPolicyPath                                    string
+	RandomOptionPath, ShieldPath, WearRulesPath, OathPath, VaultPath, VaultPolicyPath              string
+	TownPath, DungeonPath, TrainingDungeonPath, TutorialDungeonPath, ScenePolicyPath               string
+	EnhancementPolicyPath                                                                          string
 }
 
 type CatalogAdapters struct {
@@ -143,6 +143,10 @@ func (c *Catalogs) RequireSelected(domain string, ready bool) error {
 		return fmt.Errorf("selected PVF %s projection is not prepared", domain)
 	}
 	return nil
+}
+
+func nativeContentRequired(domain string) error {
+	return fmt.Errorf("%s requires a prepared native PVF domain; JSON runtime catalogs are retired", domain)
 }
 
 func parsePVFCatalogSelection(value string) (map[string]bool, error) {
@@ -327,9 +331,6 @@ func PrepareCatalogs(inputs CatalogInputs, adapters CatalogAdapters) (*Catalogs,
 	path := inputs.ArchivePath
 	checksum := inputs.ArchiveChecksum
 	characterPath := inputs.CharacterPath
-	questPath := inputs.QuestPath
-	progressionPath := inputs.ProgressionPath
-	worldPath := inputs.WorldPath
 	selected, err := parsePVFCatalogSelection(selection)
 	if err != nil {
 		return nil, err
@@ -341,9 +342,6 @@ func PrepareCatalogs(inputs CatalogInputs, adapters CatalogAdapters) (*Catalogs,
 
 	if inputs.IndexPath == "" {
 		inputs.IndexPath = filepath.Join(filepath.Dir(characterPath), "items.index.json")
-	}
-	if inputs.VerifyBaselines && (selected["quests"] && questPath == "" || selected["progression"] && progressionPath == "" || selected["world"] && worldPath == "") {
-		return &result, fmt.Errorf("selected PVF domains require their current baseline catalog flags during parity validation")
 	}
 	if selected["world"] && os.Getenv("DFO_NPC_PRESENCE_WORLD") != "" {
 		return &result, fmt.Errorf("PVF world uses its source phase graph for NPC diagnostics; clear DFO_NPC_PRESENCE_WORLD to avoid a JSON shadow-world override")
@@ -357,18 +355,6 @@ func PrepareCatalogs(inputs CatalogInputs, adapters CatalogAdapters) (*Catalogs,
 			return &result, err
 		}
 		anchorChecksum = characterPolicy.SourceChecksum
-	} else if strings.TrimSpace(characterPath) != "" {
-		// Native non-character domains do not need the JSON character baseline as
-		// an anchor: the archive identity is already enforced by
-		// Open(ExpectedChecksum). Dropping the path leaves anchorChecksum empty so
-		// the source-mismatch guard below is skipped instead of comparing a stale
-		// historical anchor against the current inner archive.
-		var e error
-		characters, e = catalog.LoadCharacters(characterPath)
-		if e != nil {
-			return &result, fmt.Errorf("PVF character source anchor: %w", e)
-		}
-		anchorChecksum = characters.Source.Checksum
 	}
 	started := time.Now()
 	source, err := Open(Options{Mode: PVF, ArchivePath: path, ExpectedChecksum: checksum, DerivedCacheDir: inputs.DerivedCacheDir})
@@ -416,44 +402,14 @@ func PrepareCatalogs(inputs CatalogInputs, adapters CatalogAdapters) (*Catalogs,
 		if e != nil {
 			return &result, e
 		}
-		additions := 0
-		if inputs.VerifyBaselines {
-			legacy, e := catalog.LoadWorld(worldPath)
-			if e != nil {
-				return &result, e
-			}
-			if legacy.Source.Checksum != source.Snapshot().Checksum {
-				return &result, fmt.Errorf("world baseline/PVF source mismatch")
-			}
-			comparison, added, e := CompareWorldMigration(legacy, direct, 1)
-			if e != nil {
-				return &result, e
-			}
-			if comparison.Count != 0 {
-				return &result, fmt.Errorf("world: %d effective field differences; first %s", comparison.Count, comparison.Differences[0].Path)
-			}
-			additions = len(added)
-		}
 		result.World = &direct
-		log.Printf("PVF world prepared: %d areas, %d NPC moves, %d audited phase additions source=%s", len(direct.Areas), len(direct.NPCMoves), additions, direct.Source.Checksum)
+		log.Printf("PVF world prepared: %d areas, %d NPC moves source=%s", len(direct.Areas), len(direct.NPCMoves), direct.Source.Checksum)
 		source.ReleaseReadCaches()
 	}
 	if selected["quests"] {
 		direct, e := source.Quests("")
 		if e != nil {
 			return &result, e
-		}
-		if inputs.VerifyBaselines {
-			legacy, e := catalog.LoadQuests(questPath)
-			if e != nil {
-				return &result, e
-			}
-			if legacy.Source.Checksum != source.Snapshot().Checksum {
-				return &result, fmt.Errorf("quest baseline/PVF source mismatch")
-			}
-			if e = verifyPVFCatalog(legacy, direct); e != nil {
-				return &result, fmt.Errorf("quests: %w", e)
-			}
 		}
 		result.Quests = &direct
 		log.Printf("PVF quests prepared: %d definitions source=%s", len(direct.Quests), direct.Source.Checksum)
@@ -464,18 +420,6 @@ func PrepareCatalogs(inputs CatalogInputs, adapters CatalogAdapters) (*Catalogs,
 		if e != nil {
 			return &result, e
 		}
-		if inputs.VerifyBaselines {
-			legacy, e := catalog.LoadProgression(progressionPath)
-			if e != nil {
-				return &result, e
-			}
-			if legacy.Source.Checksum != source.Snapshot().Checksum {
-				return &result, fmt.Errorf("progression baseline/PVF source mismatch")
-			}
-			if e = verifyPVFCatalog(legacy, direct); e != nil {
-				return &result, fmt.Errorf("progression: %w", e)
-			}
-		}
 		result.Progression = &direct
 		log.Printf("PVF progression prepared: %d thresholds source=%s", len(direct.Thresholds), direct.Source.Checksum)
 		source.ReleaseReadCaches()
@@ -485,7 +429,7 @@ func PrepareCatalogs(inputs CatalogInputs, adapters CatalogAdapters) (*Catalogs,
 	}
 	logPVFMemory("base-rules", time.Since(started))
 	if selected["skills"] {
-		if e := preparePVFLearning(&result, source, characters, inputs); e != nil {
+		if e := preparePVFLearning(&result, source, characters); e != nil {
 			return &result, e
 		}
 	}
@@ -509,18 +453,6 @@ func PrepareCatalogs(inputs CatalogInputs, adapters CatalogAdapters) (*Catalogs,
 		}
 		if e != nil {
 			return &result, e
-		}
-		if inputs.VerifyBaselines {
-			legacy, e := catalog.LoadItemIndex(inputs.IndexPath)
-			if e != nil {
-				return &result, e
-			}
-			if legacy.Source.Checksum != source.Snapshot().Checksum {
-				return &result, fmt.Errorf("item index baseline/PVF source mismatch")
-			}
-			if e = verifyPVFCatalog(legacy, direct); e != nil {
-				return &result, fmt.Errorf("items: %w", e)
-			}
 		}
 		result.Items = &direct
 		log.Printf("PVF item index prepared: %d templates source=%s", len(direct.Items), direct.Source.Checksum)
@@ -578,24 +510,6 @@ func PrepareCatalogs(inputs CatalogInputs, adapters CatalogAdapters) (*Catalogs,
 			candidate, e := source.Equipment(direct)
 			if e != nil {
 				return &result, e
-			}
-			if inputs.VerifyBaselines {
-				if inputs.FullPrefix == "" {
-					return &result, fmt.Errorf("PVF equipment audit requires the baseline prefix")
-				}
-				full, e := inventory.OpenFullEquipmentCatalog(inputs.FullPrefix, direct.Source.Checksum)
-				if e != nil {
-					return &result, e
-				}
-				defer full.Close()
-				if full.IndexSHA256 != candidate.IndexSHA256 || full.RecordCount() != candidate.RecordCount() || len(full.Errors) != 0 {
-					return &result, fmt.Errorf("full equipment baseline/PVF index differs")
-				}
-				for id := range full.Records {
-					if !candidate.HasDefinition(id) {
-						return &result, fmt.Errorf("equipment %d absent from PVF index", id)
-					}
-				}
 			}
 			result.Equipment = candidate
 			log.Printf("PVF lazy equipment prepared: %d compact source bindings; expanded chunks bounded to 64 MiB", candidate.RecordCount())
@@ -707,7 +621,7 @@ func (c *Catalogs) LoadQuests(path string) (catalog.QuestCatalog, error) {
 	if c.Quests != nil {
 		return *c.Quests, nil
 	}
-	return catalog.LoadQuests(path)
+	return catalog.QuestCatalog{}, fmt.Errorf("quests require the native PVF quests domain")
 }
 
 func (c *Catalogs) LoadProgression(path string) (catalog.Progression, error) {
@@ -717,7 +631,7 @@ func (c *Catalogs) LoadProgression(path string) (catalog.Progression, error) {
 	if c.Progression != nil {
 		return *c.Progression, nil
 	}
-	return catalog.LoadProgression(path)
+	return catalog.Progression{}, fmt.Errorf("progression requires the native PVF progression domain")
 }
 
 func (c *Catalogs) CollectImportMemory() {
@@ -734,14 +648,14 @@ func (c *Catalogs) OpenFullEquipment(prefix, checksum string) (*inventory.FullEq
 		}
 		return c.Equipment, nil
 	}
-	return inventory.OpenFullEquipmentCatalog(prefix, checksum)
+	return nil, fmt.Errorf("full equipment requires the native PVF equipment domain")
 }
 
 func (c *Catalogs) SupplementStackables(loot *catalog.LootCatalog, path string) error {
 	if c.Items != nil {
 		return loot.SupplementItemIndex(*c.Items)
 	}
-	return loot.SupplementStackables(path)
+	return fmt.Errorf("item supplementation requires the native PVF items domain")
 }
 
 func (c *Catalogs) LoadBooster(path, indexPath string) (*catalog.BoosterCatalog, error) {
@@ -755,15 +669,7 @@ func (c *Catalogs) LoadBooster(path, indexPath string) (*catalog.BoosterCatalog,
 		}
 		return &catalog.BoosterCatalog{Definitions: c.Boosters, Items: items}, nil
 	}
-	if c.Items == nil {
-		return catalog.LoadBoosterCatalog(path, indexPath)
-	}
-	result, err := catalog.LoadBoosterCatalog(path, "")
-	if err != nil {
-		return nil, err
-	}
-	result.Items = c.Items.Items
-	return result, nil
+	return nil, fmt.Errorf("booster definitions require the native PVF boosters domain")
 }
 
 func (c *Catalogs) LoadWorld(path string) (catalog.WorldCatalog, error) {
@@ -773,7 +679,7 @@ func (c *Catalogs) LoadWorld(path string) (catalog.WorldCatalog, error) {
 	if c.World != nil {
 		return *c.World, nil
 	}
-	return catalog.LoadWorld(path)
+	return catalog.WorldCatalog{}, fmt.Errorf("world requires the native PVF world domain")
 }
 
 func (c *Catalogs) WriteHeapProfile(path string) error {
