@@ -7,6 +7,7 @@ import (
 	"dfolan/internal/quest"
 	"dfolan/internal/savecontract"
 	"dfolan/internal/storage"
+	"dfolan/internal/testfixture"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -21,7 +22,7 @@ func graduationFixture(t *testing.T) (*quest.Service, storage.Character) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	q, err := catalog.LoadQuests("../../configs/quests.generated.json")
+	q, err := catalog.LoadQuests(testfixture.CatalogPath(t, "quests"))
 	if err != nil {
 		t.Fatal(err)
 	}

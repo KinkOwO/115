@@ -2,11 +2,12 @@ package quest
 
 import (
 	"dfolan/internal/catalog"
+	"dfolan/internal/testfixture"
 	"testing"
 )
 
 func TestSkywarUseItemQuestRoute(t *testing.T) {
-	quests, err := catalog.LoadQuests("../../configs/quests.generated.json")
+	quests, err := catalog.LoadQuests(testfixture.CatalogPath(t, "quests"))
 	if err != nil {
 		t.Fatal(err)
 	}

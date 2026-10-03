@@ -4,6 +4,21 @@
 
 
 
+## 2026-10-03：世界 / 任务及 NPC 传送唯一运行真源（源码候选）
+
+删除 `world.generated.json`（29.80 MiB）、`quests.generated.json`（26.79 MiB）与 `npc-teleport.generated.json`（0.05 MiB），共 59,382,632 字节（56.63 MiB）；顶层 JSON 101→98。完整历史图仅作为 `internal/testfixture/testdata/*.json.gz`，共 2,138,961 字节（2.04 MiB），净减少约 54.59 MiB。保留全图是为了继续覆盖全任务目标/碰撞/前置链、城镇到达白名单、NPC 传送及阶段图；没有把全图改成当前运行内容表。测试 helper 仅由测试引用，解压到各测试私有临时目录，验证原始未压缩 SHA256，缺失或损坏直接失败；不落回 configs、不修改历史来源或字段。
+
+- `gamedata.Source` / `Catalogs` 的世界和任务入口只返回原生结果，移除启动阶段两域的旧 baseline 读取。`VerifyBaselines` 对其余未退休域保持原语义。世界仍从同一 PVF 导入 NPC moves、位置索引和 episode returns，不需要传送 sidecar。
+- 网关显式旧 world/quest 路径缺少对应原生域时在存储访问前拒绝；兼容参数不提供内容。启动器不再注入旧文件路径，活动原生域继续自动装配服务。NPC 影子诊断移除外部 JSON 覆盖，旧 `DFO_NPC_PRESENCE_WORLD` 明确拒绝；只读诊断保持原时机与玩家状态取样，不改变互动准入或协议。
+- questchain、npcpresenceaudit、audit36 和 charactercheck 的任务/世界读取改为原生；questequipmentimport 从自己的同源归档导入任务奖励。questrepair 去掉已不可达的 JSON 分支，默认派生归档位置，`-check-catalogs` 在数据库之前返回。现有修复/临时 schema 逻辑及存档身份保持，本批不运行数据库流程。
+- worldcatalog、questcatalog、npcteleportimport 必须明确指定诊断输出；pvfaudit 默认比较剩余 characters/progression，world/quests 历史比较须显式提供 baseline。纯 `catalog.LoadWorld/LoadQuests` 仅供测试和明确历史审计读取，不是运行源；`AuditCatalog` 直接调用它们，保留旧源匹配与字段差异报告。
+- 迁移前后完整原生指纹相同：694 areas、175 towns、2,844 quests、236 NPC moves、1,080 NPC places、4 episode returns，以及三份原生 LIST 和完整世界/任务元数据。当前 8b2a 归档的十项指纹钉在 `TestNativeWorldQuestsCurrentArchiveFingerprint`，也验证 `VerifyBaselines=true` 与缺失旧文件同时成立。
+- Go 1.26.5 删除后 `go test -count=1 ./...`、`go vet ./...` 与 Python 3.11.9 的 32 项 profile/启动/GM 检查通过；Python 使用既有 `.tmp/config-cleanup/pydeps`，没有安装或修改工具环境。原生核心准备、完整 2,844 任务与 3,224 技能详情、全部 NPC 可见性图、任务索引和 33 个城镇到达场景回归通过。技能仅作为既有详情测试的联合验证，本批未迁移技能 JSON。
+- 最终候选 54 域准备报告与 52962ce 原生 baseline 的全部非 memory 字段一致；`storage_accessed=false`、`runtime_started=false`。questrepair 使用不存在的 storage 配置完成原生只读准备，报告 2,844 quests 和 `storage_accessed=false`。不据并行运行时长或 memory 指标推断性能变化。
+- 两份旧交付清单仅移除原有 world/quests 两个条目，其它历史哈希和说明保持；未重生成清单。旧 verification 报告为历史证据，未改写。根本资源、SQL/schema、玩家存档及默认 profile 保持，未启动玩家库/客户端或替换正式程序；confirmed baseline 不增加实机确认范围。用户 `.gitignore` 保持并排除提交。
+
+候选、baseline、指纹和准备报告在 `server/work/dfo-lan/.tmp/world-quest-cleanup/`。游戏候选 SHA256 `56f24bd2f9eb5d38112a598a4836f3d6b62b5dba541328d23251e93ed26c1948`；questrepair 候选 `d2d183e0d39e11a91cf0da6040c01e0a4f117d8942e316da85471b477776aabf`。手动游戏入口为同目录 `启动验证.cmd`，本批没有运行它。其它领域导出与运维/容器政策继续逐项审计。
+
 ## 2026-10-03：物品索引 / 全量装备及 GM 原生收口（源码候选）
 
 删除模块 `items.index.json`（65.81 MiB）、`equipment-full.index.json`（51.16 MiB）、`equipment-full.data`（311.55 MiB），共 449,330,028 字节（428.51 MiB），顶层 JSON 103→101。新测试夹具 4.57 MiB，保留 37,887 条旧抽奖/物品元数据及 490 条装备测试锚点与成本组成员。测试记录沿用旧来源和逐条压缩记录哈希，不迁成运行内容表。

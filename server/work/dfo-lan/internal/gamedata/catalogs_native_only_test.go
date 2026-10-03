@@ -51,6 +51,72 @@ func TestRetiredItemAndEquipmentJSONCannotSupplyRuntimeContent(t *testing.T) {
 	}
 }
 
+func TestRetiredWorldAndQuestJSONCannotSupplyRuntimeContent(t *testing.T) {
+	c := &Catalogs{}
+	s := &Source{mode: JSON}
+	if _, err := c.LoadWorld("old-world.json"); err == nil {
+		t.Fatal("world JSON runtime fallback accepted")
+	}
+	if _, err := c.LoadQuests("old-quests.json"); err == nil {
+		t.Fatal("quest JSON runtime fallback accepted")
+	}
+	if _, err := s.World("old-world.json"); err == nil {
+		t.Fatal("JSON source supplied world content")
+	}
+	if _, err := s.Quests("old-quests.json"); err == nil {
+		t.Fatal("JSON source supplied quest content")
+	}
+	c.World = &catalog.WorldCatalog{}
+	c.Quests = &catalog.QuestCatalog{}
+	if _, err := c.LoadWorld("missing.json"); err != nil {
+		t.Fatal("prepared native world ignored", err)
+	}
+	if _, err := c.LoadQuests("missing.json"); err != nil {
+		t.Fatal("prepared native quests ignored", err)
+	}
+}
+
+func TestNativeWorldQuestsCurrentArchiveFingerprint(t *testing.T) {
+	path := os.Getenv("DFO_PVF_CORE_TEST_ARCHIVE")
+	if path == "" {
+		t.Skip("set DFO_PVF_CORE_TEST_ARCHIVE for complete native world/quest fingerprints")
+	}
+	// Baseline verification must no longer discover these retired exports.
+	c, err := PrepareCatalogs(CatalogInputs{Selection: "world,quests", ArchivePath: path, ArchiveChecksum: "8b2a9f83247e000a28acd5134b616da725f46def39980b5373030e8cbc5d0934", DerivedCacheDir: "-", VerifyBaselines: true, WorldPath: "missing-world.json", QuestPath: "missing-quests.json"}, CatalogAdapters{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Quests.Close()
+	w, q := c.World, c.Quests
+	if len(w.Areas) != 694 || len(w.Towns) != 175 || len(q.Quests) != 2844 || len(w.NPCMoves) != 236 || len(w.NPCPlaces) != 1080 || len(w.EpisodeReturns) != 4 {
+		t.Fatal("complete native world/quest scope changed")
+	}
+	for _, row := range []struct {
+		name  string
+		value any
+		want  string
+	}{
+		{"world areas", w.Areas, "30bc07131ac38fab97f08439436e798a2717d03e2850938cf1a792f5dc4bd7d7"},
+		{"world towns", w.Towns, "c2e08064dffe83229d4a5671862801a4bd4d5c45f91ac6262350b1060b27d50a"},
+		{"town index", w.TownIndex, "42375fcfed4aab954035793f01a5954f31d8037ebe5f633ed1f11e3ab4500fcc"},
+		{"world dungeons", w.Dungeons, "a97a0c344cf59235875f90b0671824aae5be4c2214eee346e1e772d08e10cf71"},
+		{"dungeon index", w.DungeonIndex, "2e6eeda5f03eef08b34c7bcf65d5b8ec29ee39b25cf6b22b459b0777922a57ce"},
+		{"NPC moves", w.NPCMoves, "53004164be53054b86eb375700de0f5dd7da393df291f272cd0c9842c1b719cc"},
+		{"NPC places", w.NPCPlaces, "fb68caa0f400aee53c46eb3f99c32cba7da96ea15b843d1620c9bfc923e999fa"},
+		{"episode returns", w.EpisodeReturns, "1e79e6876b58f0fe2485119f2fab3a0ed2f2a65f9a9669d42aef5f3725e923e5"},
+		{"quests", q.Quests, "2eafa456b584acb4b8137e93d914183266aac8eb2e9c90bab6141eb89c70e711"},
+		{"quest index", q.Index, "ff6cecfbdf1b0f296aeb629ce086e803da8ffb0570a9e864042f0a9a721ca84e"},
+	} {
+		raw, err := json.Marshal(row.value)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := fmt.Sprintf("%x", sha256.Sum256(raw)); got != row.want {
+			t.Fatalf("%s content changed: %s", row.name, got)
+		}
+	}
+}
+
 func TestNativeItemEquipmentCurrentArchiveFingerprint(t *testing.T) {
 	path := os.Getenv("DFO_PVF_CORE_TEST_ARCHIVE")
 	if path == "" {

@@ -279,15 +279,15 @@ func (s *Source) Characters(path string) (catalog.Characters, error) {
 }
 
 func (s *Source) World(path string) (catalog.WorldCatalog, error) {
-	if s.mode == JSON {
-		return catalog.LoadWorld(path)
+	if s.mode != PVF {
+		return catalog.WorldCatalog{}, fmt.Errorf("world requires native PVF")
 	}
 	return catalog.ImportWorldRuntime(s.archive)
 }
 
 func (s *Source) Quests(path string) (catalog.QuestCatalog, error) {
-	if s.mode == JSON {
-		return catalog.LoadQuests(path)
+	if s.mode != PVF {
+		return catalog.QuestCatalog{}, fmt.Errorf("quests require native PVF")
 	}
 	return catalog.ImportQuests(s.archive)
 }

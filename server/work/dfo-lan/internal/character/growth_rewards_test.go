@@ -3,6 +3,7 @@ package character
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
+	"dfolan/internal/testfixture"
 	"testing"
 )
 
@@ -11,7 +12,7 @@ func TestCurrentQuestExperienceAndJobRewards(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	q, e := catalog.LoadQuests("../../configs/quests.generated.json")
+	q, e := catalog.LoadQuests(testfixture.CatalogPath(t, "quests"))
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -60,7 +61,7 @@ func TestQuestGoldTracksLevelTable(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	q, e := catalog.LoadQuests("../../configs/quests.generated.json")
+	q, e := catalog.LoadQuests(testfixture.CatalogPath(t, "quests"))
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -113,7 +114,7 @@ func TestQuestDifficultyCoverage(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	q, e := catalog.LoadQuests("../../configs/quests.generated.json")
+	q, e := catalog.LoadQuests(testfixture.CatalogPath(t, "quests"))
 	if e != nil {
 		t.Fatal(e)
 	}

@@ -2,6 +2,7 @@ package quest
 
 import (
 	"dfolan/internal/catalog"
+	"dfolan/internal/testfixture"
 	"fmt"
 	"sort"
 	"testing"
@@ -17,7 +18,7 @@ import (
 // Run it with -v after touching initialProgress or ReachRange/SeekMeet: the
 // "not settleable" column is the list of content that is currently unreachable.
 func TestAuditObjectiveKinds(t *testing.T) {
-	c, e := catalog.LoadQuests("../../configs/quests.generated.json")
+	c, e := catalog.LoadQuests(testfixture.CatalogPath(t, "quests"))
 	if e != nil {
 		t.Fatal(e)
 	}

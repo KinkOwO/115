@@ -4,8 +4,8 @@
 package main
 
 import (
-	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
+	"dfolan/internal/gamedata"
 	"dfolan/internal/quest"
 	"encoding/json"
 	"flag"
@@ -59,11 +59,12 @@ type kindRow struct {
 }
 
 func main() {
-	questPath := flag.String("quests", "configs/quests.generated.json", "generated quest catalog")
+	questPath := flag.String("quests", "", "deprecated quest path; quests are read from native PVF")
+	archive := flag.String("pvf-archive", "../client-build/Script.inner.pvf", "read-only inner PVF")
 	equipPath := flag.String("equipment", "configs/equipment.current35.json", "equipment catalog")
 	low := flag.Int("low-level", 20, "low-level reporting threshold")
 	samples := flag.Int("samples", 6, "per-kind unimplemented samples to print")
-	worldPath := flag.String("world", "", "world catalog for the NPC presence scan")
+	worldPath := flag.String("world", "", "nonempty enables NPC presence scan; world is read from native PVF")
 	skillManifest := flag.String("skill-manifest", "", "archer layout patch manifest")
 	verify := flag.Bool("verify", false, "load every 36 startup catalog and policy")
 	featureSource := flag.String("feature-source", "", "survey mail/avatar/shop/item-use source data in this PVF")
@@ -73,7 +74,12 @@ func main() {
 	detailMax := flag.Int("detail-max", 0, "print full detail for quests up to this id")
 	flag.Parse()
 
-	q, e := catalog.LoadQuests(*questPath)
+	native, e := gamedata.Open(gamedata.Options{Mode: gamedata.PVF, ArchivePath: *archive})
+	if e != nil {
+		log.Fatal(e)
+	}
+	defer native.Close()
+	q, e := native.Quests("")
 	if e != nil {
 		log.Fatal(e)
 	}
@@ -258,7 +264,11 @@ func main() {
 		fmt.Printf("    %-28s %d\n", k, n)
 	}
 	if *worldPath != "" {
-		reportNPC(*worldPath, []int{38, 40}, []uint32{1, 12, 29, 358})
+		w, err := native.World("")
+		if err != nil {
+			log.Fatal(err)
+		}
+		reportNPC(w, []int{38, 40}, []uint32{1, 12, 29, 358})
 	}
 	if *tutorialRoutes != "" {
 		reportTutorial(*tutorialRoutes, *tutorialDungeons)
@@ -276,7 +286,7 @@ func main() {
 		})
 	}
 	if *verify {
-		if n := verifyStartup(); n > 0 {
+		if n := verifyStartup(q); n > 0 {
 			os.Exit(1)
 		}
 	}

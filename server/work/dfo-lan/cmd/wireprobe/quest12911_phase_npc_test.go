@@ -4,6 +4,7 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/storage"
+	"dfolan/internal/testfixture"
 	"dfolan/internal/world"
 	"encoding/binary"
 	"encoding/hex"
@@ -12,11 +13,11 @@ import (
 
 func TestALullNativeTriggerUsesChestTownPhaseNPC(t *testing.T) {
 	t.Setenv("DFO_QUEST_VISIBLE_NPC_RELAX", "0")
-	qcat, err := catalog.LoadQuests("../../configs/quests.generated.json")
+	qcat, err := catalog.LoadQuests(testfixture.CatalogPath(t, "quests"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	wcat, err := catalog.LoadWorld("../../configs/world.generated.json")
+	wcat, err := catalog.LoadWorld(testfixture.CatalogPath(t, "world"))
 	if err != nil {
 		t.Fatal(err)
 	}

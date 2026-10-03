@@ -4,6 +4,7 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/character"
+	"dfolan/internal/testfixture"
 	"encoding/json"
 	"testing"
 )
@@ -15,7 +16,7 @@ func TestPrepareFinishPremiumLookupOrder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	quests, err := catalog.LoadQuests("../../configs/quests.generated.json")
+	quests, err := catalog.LoadQuests(testfixture.CatalogPath(t, "quests"))
 	if err != nil {
 		t.Fatal(err)
 	}

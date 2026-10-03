@@ -180,7 +180,7 @@ func TestPVFCoreCatalogsLocalArchive(t *testing.T) {
 	if path == "" {
 		t.Skip("set DFO_PVF_CORE_TEST_ARCHIVE and DFO_PVF_CORE_TEST_SHA256 for the read-only local check")
 	}
-	c, err := prepareCatalogsForTest(t, "quests,progression,world", path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "../../configs/characters.skycastle-release.json", "../../configs/quests.generated.json", "../../configs/progression.next25.json", "../../configs/world.generated.json")
+	c, err := prepareCatalogsForTest(t, "quests,progression,world", path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "../../configs/characters.skycastle-release.json", "retired-quests.json", "../../configs/progression.next25.json", "retired-world.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -213,7 +213,7 @@ func TestCatalogBaselineVerificationDefaultsOff(t *testing.T) {
 
 func TestSelectedNativeReadFailureNeverFallsBackToJSON(t *testing.T) {
 	c := &Catalogs{selected: map[string]bool{"quests": true}}
-	if _, err := c.LoadQuests("../../configs/quests.generated.json"); err == nil {
+	if _, err := c.LoadQuests("retired-quests.json"); err == nil {
 		t.Fatal("selected but unprepared PVF quests silently consumed JSON")
 	}
 }
@@ -262,7 +262,7 @@ func TestPVFItemCatalogsLocalArchive(t *testing.T) {
 	if path == "" {
 		t.Skip("set DFO_PVF_CORE_TEST_ARCHIVE for prepared item catalogs")
 	}
-	c, err := prepareCatalogsForTest(t, "world,quests,progression,items,equipment,periods,skins,journal,create-cost", path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "../../configs/characters.skycastle-release.json", "../../configs/quests.generated.json", "../../configs/progression.next25.json", "../../configs/world.generated.json", CatalogInputs{
+	c, err := prepareCatalogsForTest(t, "world,quests,progression,items,equipment,periods,skins,journal,create-cost", path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "../../configs/characters.skycastle-release.json", "retired-quests.json", "../../configs/progression.next25.json", "retired-world.json", CatalogInputs{
 		IndexPath: "../catalog/testdata/item-flow.json", FullPrefix: "../../configs/equipment-full",
 		JournalPath: "../../configs/equipment-journal.generated.json", CreateCostPath: "../../configs/equipment-create-cost.generated.json"})
 	if err != nil {

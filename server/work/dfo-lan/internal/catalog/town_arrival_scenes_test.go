@@ -1,13 +1,16 @@
 package catalog
 
-import "testing"
+import (
+	"dfolan/internal/testfixture"
+	"testing"
+)
 
 func TestTownArrivalSceneWhitelistCurrentPVF(t *testing.T) {
-	quests, err := LoadQuests("../../configs/quests.generated.json")
+	quests, err := LoadQuests(testfixture.CatalogPath(t, "quests"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	world, err := LoadWorld("../../configs/world.generated.json")
+	world, err := LoadWorld(testfixture.CatalogPath(t, "world"))
 	if err != nil {
 		t.Fatal(err)
 	}

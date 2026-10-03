@@ -272,12 +272,8 @@ with (
    project / "configs/select-world-probe.json"
   )
   command += [
-   "-world-catalog",
-   str(project / "configs/world.generated.json"),
    "-world-rules",
    str(project / "configs/world-probe.json"),
-   "-quest-catalog",
-   str(project / "configs/quests.generated.json"),
    "-vault-rules",
    str(project / "configs/vault.generated.json"),
   ]

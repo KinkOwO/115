@@ -366,7 +366,6 @@ b7b6f7aa7c23e619e115c8643df5dda1813123d5bad442677ea52b487bb18ece  work/dfo-lan/c
 ab2d2711ce9e6d80f8b3cf452d678c6d2b3dae673efe8b00994cb0c12fcef455  work/dfo-lan/configs/progression.next25.json
 69ccfd68b19b1d581366d2226311e40c4ee8772340befaa76394ef92f035544d  work/dfo-lan/configs/quest-equipment.current37.json
 24ba25bc66f3c4504cd21bf699ac7f4547cf1cdd9a4f15af3ff4d46fa53635be  work/dfo-lan/configs/quest-equipment.next29.json
-1c540704ef5afc9f6dc152531a4f1fac815d79326f58705c7a0a2b932982bb3e  work/dfo-lan/configs/quests.generated.json
 2e5f40a3588299c4542256ad9aaf48fd5a707ef1188d9a3f2e42942b6b544161  work/dfo-lan/configs/repair-profile.example.json
 8e6155b1ec8c48c187c91f6314efb5a238a40644ba30a874dafe68e30d439bdd  work/dfo-lan/configs/select-parser-probe.json
 0d1e4a3f30bff29d80d46f60d53deec5cc0d7f3734c567f4f3fa4d367c59f615  work/dfo-lan/configs/select-world-probe.json
@@ -380,7 +379,6 @@ bcf58e925db45c53968bbf7605ebb1f6abea691628b50b482aef68b3a02a0f9c  work/dfo-lan/c
 d8d044e68296e9f60588c74f7fb532b2ac3a63f13a0cccae06772c2b12db7b8e  work/dfo-lan/configs/tutorial-dungeons.current36.json
 7347030681c9227071bc56afded41b0117c0761164060ea1bbac3e7b75a69603  work/dfo-lan/configs/tutorial-routes.current35.json
 aa39be87926fb3f877ef942a611e598b7e89857dfcbb724b90d96ff0d8714f19  work/dfo-lan/configs/vault.generated.json
-ea190c698ce9f719afc7a6343e8c0b472d52f7ec9bc1e939f69237dc69a68392  work/dfo-lan/configs/world.generated.json
 6024086ce4fc07739669eaa8f7a1ebb383cd767cd9b10f9720cf83ae58eeca36  work/dfo-lan/configs/world-probe.json
 c9677c5f033a81deacaaa6680f57d06e0a456227947086e0b7a170b467f7f628  work/dfo-lan/docs/architecture.md
 adb6dae6a12e6f78fd6c2b5f7d9b71c54f79197ac9c4be7e9b0e51c581dd86b6  work/dfo-lan/docs/current-evidence.md

@@ -11,7 +11,7 @@ import (
 // verifyStartup loads every catalog and policy the 36 launch profile passes to
 // wireprobe, through the very same loaders the server uses. A mismatch here is
 // a startup failure the player would otherwise meet as a dead launcher.
-func verifyStartup() int {
+func verifyStartup(quests catalog.QuestCatalog) int {
 	failures := 0
 	step := func(name string, e error) {
 		if e != nil {
@@ -56,9 +56,8 @@ func verifyStartup() int {
 		fmt.Printf("       bag-usable drop pool=%d\n", len(gear.DropPool()))
 	}
 
-	quests, e := catalog.LoadQuests("configs/quests.generated.json")
-	step("quests.generated.json", e)
-	if e == nil {
+	step("native PVF quests", nil)
+	{
 		x := quest.BuildIndex(quests)
 		settleable, positional := 0, 0
 		for _, en := range x.Entries {

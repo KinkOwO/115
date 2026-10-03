@@ -3,12 +3,13 @@ package quest
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/inventory"
+	"dfolan/internal/testfixture"
 	"encoding/json"
 	"testing"
 )
 
 func TestEpicSeekingSourceForms(t *testing.T) {
-	quests, err := catalog.LoadQuests("../../configs/quests.generated.json")
+	quests, err := catalog.LoadQuests(testfixture.CatalogPath(t, "quests"))
 	if err != nil {
 		t.Fatal(err)
 	}

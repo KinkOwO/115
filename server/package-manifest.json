@@ -1848,11 +1848,6 @@
       "sha256": "24ba25bc66f3c4504cd21bf699ac7f4547cf1cdd9a4f15af3ff4d46fa53635be"
     },
     {
-      "path": "work/dfo-lan/configs/quests.generated.json",
-      "bytes": 26796000,
-      "sha256": "1c540704ef5afc9f6dc152531a4f1fac815d79326f58705c7a0a2b932982bb3e"
-    },
-    {
       "path": "work/dfo-lan/configs/repair-profile.example.json",
       "bytes": 934,
       "sha256": "2e5f40a3588299c4542256ad9aaf48fd5a707ef1188d9a3f2e42942b6b544161"
@@ -1916,11 +1911,6 @@
       "path": "work/dfo-lan/configs/vault.generated.json",
       "bytes": 342,
       "sha256": "aa39be87926fb3f877ef942a611e598b7e89857dfcbb724b90d96ff0d8714f19"
-    },
-    {
-      "path": "work/dfo-lan/configs/world.generated.json",
-      "bytes": 29593225,
-      "sha256": "ea190c698ce9f719afc7a6343e8c0b472d52f7ec9bc1e939f69237dc69a68392"
     },
     {
       "path": "work/dfo-lan/configs/world-probe.json",

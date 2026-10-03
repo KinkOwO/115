@@ -3,7 +3,6 @@ package main
 
 import (
 	"context"
-	"dfolan/internal/catalog"
 	"dfolan/internal/managementdata"
 	"dfolan/internal/quest"
 	"dfolan/internal/storage"
@@ -17,21 +16,19 @@ import (
 func main() {
 	sourceFlags := managementdata.Register(flag.CommandLine)
 	config := flag.String("storage", "runtime/storage/local.json", "storage configuration")
-	source := flag.String("catalog", "configs/quests.generated.json", "quest source")
+	flag.String("catalog", "", "deprecated; quests are read from native PVF")
 	id := flag.Int64("character", 0, "exact development character ID")
 	apply := flag.Bool("apply", false, "apply audited repair; default previews character changes after schema migration")
 	flag.Parse()
+	if sourceFlags.ArchivePath == "" {
+		sourceFlags.ArchivePath = "../client-build/Script.inner.pvf"
+	}
 	native, e := sourceFlags.Open()
 	if e != nil {
 		log.Fatal(e)
 	}
-	var cat catalog.QuestCatalog
-	if native != nil {
-		defer native.Close()
-		cat, e = native.Quests("")
-	} else {
-		cat, e = catalog.LoadQuests(*source)
-	}
+	defer native.Close()
+	cat, e := native.Quests("")
 	if e != nil {
 		log.Fatal(e)
 	}

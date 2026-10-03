@@ -7,6 +7,7 @@ import (
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/savecontract"
 	"dfolan/internal/storage"
+	"dfolan/internal/testfixture"
 	"dfolan/internal/world"
 	"encoding/hex"
 	"encoding/json"
@@ -14,7 +15,7 @@ import (
 )
 
 func TestOdysseyJournalAreaTransition(t *testing.T) {
-	cat, err := catalog.LoadWorld("../../configs/world.generated.json")
+	cat, err := catalog.LoadWorld(testfixture.CatalogPath(t, "world"))
 	if err != nil {
 		t.Fatal(err)
 	}

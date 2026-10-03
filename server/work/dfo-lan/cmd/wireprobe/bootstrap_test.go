@@ -76,6 +76,8 @@ func TestPrepareRuntimeRejectsRetiredContentBeforeStorage(t *testing.T) {
 		{"prices", func(c *Config) { c.ShopPrices = "old.json" }},
 		{"item index", func(c *Config) { c.ItemIndex = "old.json" }},
 		{"full equipment", func(c *Config) { c.EquipmentFullCatalog = "old" }},
+		{"world", func(c *Config) { c.WorldCatalog = "old.json" }},
+		{"quests", func(c *Config) { c.QuestCatalog = "old.json" }},
 	} {
 		t.Run(row.name, func(t *testing.T) {
 			cfg := bootstrapTestConfig(t)
@@ -115,6 +117,16 @@ func TestPrepareRuntimeReturnsStartupFailures(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestPrepareRuntimeRejectsShadowWorldBeforeStorage(t *testing.T) {
+	cfg := bootstrapTestConfig(t)
+	cfg.CharacterStorage = "missing-storage.json"
+	t.Setenv("DFO_NPC_PRESENCE_WORLD", "old-world.json")
+	runtime, cleanup, err := prepareRuntime(cfg)
+	require.ErrorContains(t, err, "active native PVF world")
+	assert.Nil(t, runtime)
+	assert.Nil(t, cleanup)
 }
 
 func TestRunGatewayReleasesListenerOnStartupError(t *testing.T) {

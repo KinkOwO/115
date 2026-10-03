@@ -31,7 +31,7 @@ func questChainCheck(ctx context.Context, s *storage.Store, other int64) error {
 	if e != nil {
 		return e
 	}
-	q, e := catalog.LoadQuests("configs/quests.generated.json")
+	q, e := loadNativeQuestCatalog()
 	if e != nil {
 		return e
 	}
@@ -94,7 +94,7 @@ func questChainCheck(ctx context.Context, s *storage.Store, other int64) error {
 	if e = qs.MeetNPC(ctx, r, 4873, 2); e == nil {
 		return fmt.Errorf("wrong NPC completed objective")
 	}
-	wc, e := catalog.LoadWorld("configs/world.generated.json")
+	wc, e := loadNativeWorldCatalog()
 	if e != nil {
 		return e
 	}

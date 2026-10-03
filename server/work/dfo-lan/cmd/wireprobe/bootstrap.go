@@ -184,6 +184,15 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 	if startup.EquipmentFullCatalog != "" && pvfCatalogs.Equipment == nil {
 		return nil, nil, fmt.Errorf("full equipment requires the native PVF equipment domain")
 	}
+	if startup.WorldCatalog != "" && pvfCatalogs.World == nil {
+		return nil, nil, fmt.Errorf("world requires the native PVF world domain")
+	}
+	if startup.QuestCatalog != "" && pvfCatalogs.Quests == nil {
+		return nil, nil, fmt.Errorf("quests require the native PVF quests domain")
+	}
+	if os.Getenv("DFO_NPC_PRESENCE_WORLD") != "" {
+		return nil, nil, fmt.Errorf("NPC diagnostics require the active native PVF world; clear DFO_NPC_PRESENCE_WORLD")
+	}
 	if startup.PVFCheckCatalogs {
 		pvfCatalogs.CollectImportMemory()
 		if startup.PVFCheckHeapProfile != "" {

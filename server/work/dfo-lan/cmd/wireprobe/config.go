@@ -53,10 +53,10 @@ type Config struct {
 	EntryBasicProbe               bool   `koanf:"entry-basic-probe" default:"false" help:"send experimental current-build minimum actor info after SELECT; does not initialize a town"`
 	TownCatalog                   string `koanf:"town-catalog" help:"PVF-derived town-area catalog for the entry experiment"`
 	TownEntryProbe                string `koanf:"town-entry-probe" help:"opt in to experimental town entry using this separate spawn policy"`
-	WorldCatalog                  string `koanf:"world-catalog" help:"enable source-backed town transitions and saved positions"`
+	WorldCatalog                  string `koanf:"world-catalog" help:"deprecated world JSON path; requires the native PVF world domain"`
 	WorldRules                    string `koanf:"world-rules" default:"configs/world-probe.json" help:"separate world movement policy"`
 	EntryAdditionProbe            bool   `koanf:"entry-addition-probe" default:"false" help:"send current-build source attributes; optional inventory and skills remain pending"`
-	QuestCatalog                  string `koanf:"quest-catalog" help:"enable source quest accept/abandon persistence; objectives and rewards are separate"`
+	QuestCatalog                  string `koanf:"quest-catalog" help:"deprecated quest JSON path; requires the native PVF quests domain"`
 	VaultRules                    string `koanf:"vault-rules" help:"source vault capacity and empty-state initialization"`
 	FatigueRules                  string `koanf:"fatigue-rules" default:"configs/fatigue-probe.json" help:"separate persisted fatigue and rollover policy (default: configs/fatigue-probe.json)"`
 	FatigueFree                   bool   `koanf:"fatigue-free" default:"false" env:"DFO_FATIGUE_FREE" help:"关闭疲劳消耗（进本与房间一起归零）；默认关"`

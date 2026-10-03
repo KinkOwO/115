@@ -5,6 +5,7 @@ import (
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/quest"
 	"dfolan/internal/storage"
+	"dfolan/internal/testfixture"
 	"dfolan/internal/world"
 	"encoding/binary"
 	"testing"
@@ -33,11 +34,11 @@ func sectionCells(d catalog.QuestDefinition, name string) []pvf.Token {
 // 断言"地图检查"这一层的判据本身，以及豁免没有放宽到普通对话任务。
 func TestQuestNPCCheckExemptsOnlyExplicitDialogueQuests(t *testing.T) {
 	t.Setenv("DFO_QUEST_VISIBLE_NPC_RELAX", "0")
-	wcat, e := catalog.LoadWorld("../../configs/world.generated.json")
+	wcat, e := catalog.LoadWorld(testfixture.CatalogPath(t, "world"))
 	if e != nil {
 		t.Fatal(e)
 	}
-	qcat, e := catalog.LoadQuests("../../configs/quests.generated.json")
+	qcat, e := catalog.LoadQuests(testfixture.CatalogPath(t, "quests"))
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -104,11 +105,11 @@ func TestQuestNPCCheckExemptsOnlyExplicitDialogueQuests(t *testing.T) {
 
 func TestPreyQuestVisibleNPCUsesObservedBlackMarketInteraction(t *testing.T) {
 	t.Setenv("DFO_QUEST_VISIBLE_NPC_RELAX", "0")
-	qcat, err := catalog.LoadQuests("../../configs/quests.generated.json")
+	qcat, err := catalog.LoadQuests(testfixture.CatalogPath(t, "quests"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	wcat, err := catalog.LoadWorld("../../configs/world.generated.json")
+	wcat, err := catalog.LoadWorld(testfixture.CatalogPath(t, "world"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -137,7 +138,7 @@ func TestPreyQuestVisibleNPCUsesObservedBlackMarketInteraction(t *testing.T) {
 }
 
 func TestQuestVisibleNPCRelaxSwitch(t *testing.T) {
-	qcat, err := catalog.LoadQuests("../../configs/quests.generated.json")
+	qcat, err := catalog.LoadQuests(testfixture.CatalogPath(t, "quests"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -173,7 +174,7 @@ func TestQuestVisibleNPCRelaxSwitch(t *testing.T) {
 }
 
 func TestZasuraRevealedByPrecedingQuest(t *testing.T) {
-	qcat, err := catalog.LoadQuests("../../configs/quests.generated.json")
+	qcat, err := catalog.LoadQuests(testfixture.CatalogPath(t, "quests"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -206,11 +207,11 @@ func TestZasuraRevealedByPrecedingQuest(t *testing.T) {
 
 func TestWoonRevealedByGroupedVisibilityInGhentAfterwar(t *testing.T) {
 	t.Setenv("DFO_QUEST_VISIBLE_NPC_RELAX", "0")
-	qcat, err := catalog.LoadQuests("../../configs/quests.generated.json")
+	qcat, err := catalog.LoadQuests(testfixture.CatalogPath(t, "quests"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	wcat, err := catalog.LoadWorld("../../configs/world.generated.json")
+	wcat, err := catalog.LoadWorld(testfixture.CatalogPath(t, "world"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -255,11 +256,11 @@ func TestWoonRevealedByGroupedVisibilityInGhentAfterwar(t *testing.T) {
 
 func TestErjeMeetingBeforeItsOwnClearHide(t *testing.T) {
 	t.Setenv("DFO_QUEST_VISIBLE_NPC_RELAX", "0")
-	qcat, err := catalog.LoadQuests("../../configs/quests.generated.json")
+	qcat, err := catalog.LoadQuests(testfixture.CatalogPath(t, "quests"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	wcat, err := catalog.LoadWorld("../../configs/world.generated.json")
+	wcat, err := catalog.LoadWorld(testfixture.CatalogPath(t, "world"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -287,7 +288,7 @@ func TestErjeMeetingBeforeItsOwnClearHide(t *testing.T) {
 }
 
 func TestQuestLineageGuidesRevealedNPC(t *testing.T) {
-	qcat, err := catalog.LoadQuests("../../configs/quests.generated.json")
+	qcat, err := catalog.LoadQuests(testfixture.CatalogPath(t, "quests"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -320,7 +321,7 @@ func TestQuestLineageGuidesRevealedNPC(t *testing.T) {
 }
 
 func TestQuestReachTemporaryNPCFromNativeTrigger(t *testing.T) {
-	qcat, err := catalog.LoadQuests("../../configs/quests.generated.json")
+	qcat, err := catalog.LoadQuests(testfixture.CatalogPath(t, "quests"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -340,11 +341,11 @@ func TestQuestReachTemporaryNPCFromNativeTrigger(t *testing.T) {
 }
 
 func TestPathToMtHardtNativeReachUsesStationNPC(t *testing.T) {
-	qcat, err := catalog.LoadQuests("../../configs/quests.generated.json")
+	qcat, err := catalog.LoadQuests(testfixture.CatalogPath(t, "quests"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	wcat, err := catalog.LoadWorld("../../configs/world.generated.json")
+	wcat, err := catalog.LoadWorld(testfixture.CatalogPath(t, "world"))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -69,7 +69,7 @@ func moduleCheck(ctx context.Context, s, reopened *storage.Store, role storage.C
 	if e != nil || fp.Used != 0 || fp.Limit != 200 {
 		return fmt.Errorf("daily fatigue rollover: %v", e)
 	}
-	qc, e := catalog.LoadQuests("configs/quests.generated.json")
+	qc, e := loadNativeQuestCatalog()
 	if e != nil {
 		return e
 	}

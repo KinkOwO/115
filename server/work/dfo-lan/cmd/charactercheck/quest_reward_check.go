@@ -29,7 +29,7 @@ func questRewardCheck(ctx context.Context, s, reopened *storage.Store, role stor
 	if e != nil {
 		return e
 	}
-	q, e := catalog.LoadQuests("configs/quests.generated.json")
+	q, e := loadNativeQuestCatalog()
 	if e != nil {
 		return e
 	}

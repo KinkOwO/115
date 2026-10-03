@@ -2,6 +2,7 @@ package quest
 
 import (
 	"dfolan/internal/catalog"
+	"dfolan/internal/testfixture"
 	"slices"
 	"testing"
 )
@@ -37,7 +38,7 @@ func simulateOffered(x *Index, status map[uint32]string, id uint32, level uint32
 
 func loadQuestIndex(t *testing.T) *Index {
 	t.Helper()
-	c, err := catalog.LoadQuests("../../configs/quests.generated.json")
+	c, err := catalog.LoadQuests(testfixture.CatalogPath(t, "quests"))
 	if err != nil {
 		t.Fatal(err)
 	}

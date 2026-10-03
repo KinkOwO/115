@@ -77,7 +77,7 @@ func TestPVFCommerceLocalArchive(t *testing.T) {
 	if path == "" {
 		t.Skip("set DFO_PVF_CORE_TEST_ARCHIVE for the read-only complete source comparison")
 	}
-	c, err := prepareCatalogsForTest(t, pvfNextDomains, path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "../../configs/characters.skycastle-release.json", "../../configs/quests.generated.json", "../../configs/progression.next25.json", "../../configs/world.generated.json", CatalogInputs{
+	c, err := prepareCatalogsForTest(t, pvfNextDomains, path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"), "../../configs/characters.skycastle-release.json", "retired-quests.json", "../../configs/progression.next25.json", "retired-world.json", CatalogInputs{
 		IndexPath: "../catalog/testdata/item-flow.json", LearningPath: "../../configs/skills.next27.json", FullPrefix: "../../configs/equipment-full", JournalPath: "../../configs/equipment-journal.generated.json", CreateCostPath: "../../configs/equipment-create-cost.generated.json", TutorialPath: "../../configs/tutorial-routes.current35.json"})
 	if err != nil {
 		t.Fatal(err)

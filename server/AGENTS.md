@@ -1,5 +1,12 @@
 # AGENTS.md — server/
 
+## 2026-10-03：世界 / 任务及 NPC 传送原生收口（源码候选）
+
+- world/quests 的运行 JSON 回退、baseline 依赖与启动器注入移除，NPC 影子诊断只用活动原生图；显式旧路径缺少原生域时在存储前拒绝。删除三个导出共 56.63 MiB，顶层 JSON 101→98；完整历史图保留为 2.04 MiB 压缩测试快照，解压逐字节核验原 SHA256，净减少约 54.59 MiB。
+- 诊断与 questrepair/charactercheck 改用 PVF；导出要求显式输出，历史比较工具须显式提供退休域 baseline。删除后 Go 1.26.5 全量测试/vet、32 项 Python 检查、原生指纹及完整任务详情/NPC 图回归通过；最终54域报告与52962ce原生baseline相同。
+- 独立候选与手动入口在 .tmp/world-quest-cleanup；正式程序未替换，confirmed baseline 保持既有实机范围。未启动客户端或访问玩家库，PVF/schema/存档/用户 .gitignore 保持。详情见根目录 docs/todo/pvf/PVF单一内容真源改造计划.md。
+
+
 ## 2026-10-03：物品索引 / 全量装备及 GM 原生收口（源码候选）
 
 - 物品/full 装备运行回退、探测和旧 baseline 移除；admin/GM 默认且仅从 PVF 准备，代理必须读取后端元数据。删除两份 JSON 和 full data 共 428.51 MiB，103→101；旧无调用 Python 导出脚本退休，流程测试保留约 4.57 MiB 小型历史夹具。

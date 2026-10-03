@@ -322,9 +322,7 @@ func PrepareCatalogs(inputs CatalogInputs, adapters CatalogAdapters) (*Catalogs,
 	path := inputs.ArchivePath
 	checksum := inputs.ArchiveChecksum
 	characterPath := inputs.CharacterPath
-	questPath := inputs.QuestPath
 	progressionPath := inputs.ProgressionPath
-	worldPath := inputs.WorldPath
 	selected, err := parsePVFCatalogSelection(selection)
 	if err != nil {
 		return nil, err
@@ -337,7 +335,7 @@ func PrepareCatalogs(inputs CatalogInputs, adapters CatalogAdapters) (*Catalogs,
 	if inputs.IndexPath == "" {
 		inputs.IndexPath = filepath.Join(filepath.Dir(characterPath), "items.index.json")
 	}
-	if inputs.VerifyBaselines && (selected["quests"] && questPath == "" || selected["progression"] && progressionPath == "" || selected["world"] && worldPath == "") {
+	if inputs.VerifyBaselines && selected["progression"] && progressionPath == "" {
 		return &result, fmt.Errorf("selected PVF domains require their current baseline catalog flags during parity validation")
 	}
 	if selected["world"] && os.Getenv("DFO_NPC_PRESENCE_WORLD") != "" {
@@ -411,44 +409,14 @@ func PrepareCatalogs(inputs CatalogInputs, adapters CatalogAdapters) (*Catalogs,
 		if e != nil {
 			return &result, e
 		}
-		additions := 0
-		if inputs.VerifyBaselines {
-			legacy, e := catalog.LoadWorld(worldPath)
-			if e != nil {
-				return &result, e
-			}
-			if legacy.Source.Checksum != source.Snapshot().Checksum {
-				return &result, fmt.Errorf("world baseline/PVF source mismatch")
-			}
-			comparison, added, e := CompareWorldMigration(legacy, direct, 1)
-			if e != nil {
-				return &result, e
-			}
-			if comparison.Count != 0 {
-				return &result, fmt.Errorf("world: %d effective field differences; first %s", comparison.Count, comparison.Differences[0].Path)
-			}
-			additions = len(added)
-		}
 		result.World = &direct
-		log.Printf("PVF world prepared: %d areas, %d NPC moves, %d audited phase additions source=%s", len(direct.Areas), len(direct.NPCMoves), additions, direct.Source.Checksum)
+		log.Printf("PVF world prepared: %d areas, %d NPC moves source=%s", len(direct.Areas), len(direct.NPCMoves), direct.Source.Checksum)
 		source.ReleaseReadCaches()
 	}
 	if selected["quests"] {
 		direct, e := source.Quests("")
 		if e != nil {
 			return &result, e
-		}
-		if inputs.VerifyBaselines {
-			legacy, e := catalog.LoadQuests(questPath)
-			if e != nil {
-				return &result, e
-			}
-			if legacy.Source.Checksum != source.Snapshot().Checksum {
-				return &result, fmt.Errorf("quest baseline/PVF source mismatch")
-			}
-			if e = verifyPVFCatalog(legacy, direct); e != nil {
-				return &result, fmt.Errorf("quests: %w", e)
-			}
 		}
 		result.Quests = &direct
 		log.Printf("PVF quests prepared: %d definitions source=%s", len(direct.Quests), direct.Source.Checksum)
@@ -669,7 +637,7 @@ func (c *Catalogs) LoadQuests(path string) (catalog.QuestCatalog, error) {
 	if c.Quests != nil {
 		return *c.Quests, nil
 	}
-	return catalog.LoadQuests(path)
+	return catalog.QuestCatalog{}, fmt.Errorf("quests require the native PVF quests domain")
 }
 
 func (c *Catalogs) LoadProgression(path string) (catalog.Progression, error) {
@@ -727,7 +695,7 @@ func (c *Catalogs) LoadWorld(path string) (catalog.WorldCatalog, error) {
 	if c.World != nil {
 		return *c.World, nil
 	}
-	return catalog.LoadWorld(path)
+	return catalog.WorldCatalog{}, fmt.Errorf("world requires the native PVF world domain")
 }
 
 func (c *Catalogs) WriteHeapProfile(path string) error {

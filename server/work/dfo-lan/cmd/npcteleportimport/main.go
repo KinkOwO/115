@@ -11,12 +11,16 @@ import (
 
 func main() {
 	source := flag.String("source", "../client-build/Script.inner.pvf", "native inner PVF")
-	output := flag.String("output", "configs/npc-teleport.generated.json", "output catalog")
+	output := flag.String("output", "", "output catalog")
 	flag.Parse()
+	if *output == "" {
+		log.Fatal("explicit -output is required for a diagnostic export")
+	}
 	a, err := pvf.LoadArchive(pvf.Options{Path: *source, MaxBytes: 1024 * 1024 * 1024})
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer a.Close()
 	c, err := catalog.ImportNPCMoves(a)
 	if err != nil {
 		log.Fatal(err)

@@ -28,7 +28,7 @@ import (
 func main() {
 	source := flag.String("source", "runtime/pvf_source/Script.inner.pvf", "read-only source archive")
 	base := flag.String("base", "configs/quest-equipment.next29.json", "existing basic item selection")
-	quests := flag.String("quests", "configs/quests.generated.json", "quest catalog to read rewards from")
+	flag.String("quests", "", "deprecated; quest rewards are read from native PVF")
 	out := flag.String("output", "configs/quest-equipment.current37.json", "widened selection")
 	flag.Parse()
 
@@ -36,11 +36,12 @@ func main() {
 	if e != nil {
 		log.Fatal(e)
 	}
+	defer a.Close()
 	c, e := inventory.LoadEquipmentCatalog(*base, a.Snapshot().Checksum)
 	if e != nil {
 		log.Fatal(e)
 	}
-	q, e := catalog.LoadQuests(*quests)
+	q, e := catalog.ImportQuests(a)
 	if e != nil {
 		log.Fatal(e)
 	}

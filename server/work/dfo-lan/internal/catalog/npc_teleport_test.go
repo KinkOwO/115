@@ -1,9 +1,12 @@
 package catalog
 
-import "testing"
+import (
+	"dfolan/internal/testfixture"
+	"testing"
+)
 
 func TestNativeNPCMoveAndEpisodeReturnIndex(t *testing.T) {
-	w, err := LoadWorld("../../configs/world.generated.json")
+	w, err := LoadWorld(testfixture.CatalogPath(t, "world"))
 	if err != nil {
 		t.Fatal(err)
 	}

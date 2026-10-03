@@ -7,6 +7,7 @@ import (
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/savecontract"
 	"dfolan/internal/storage"
+	"dfolan/internal/testfixture"
 	"dfolan/internal/world"
 	"encoding/hex"
 	"encoding/json"
@@ -16,7 +17,7 @@ import (
 
 func specialWarpFixture(t *testing.T) *worldSession {
 	t.Helper()
-	c, e := catalog.LoadWorld("../../configs/world.generated.json")
+	c, e := catalog.LoadWorld(testfixture.CatalogPath(t, "world"))
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -121,7 +122,7 @@ func TestSpecialWarpRejectsInvalidContext(t *testing.T) {
 }
 
 func TestTownMapTeleportTransition(t *testing.T) {
-	c, e := catalog.LoadWorld("../../configs/world.generated.json")
+	c, e := catalog.LoadWorld(testfixture.CatalogPath(t, "world"))
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -256,7 +257,7 @@ func TestTownMapTeleportTransition(t *testing.T) {
 }
 
 func TestNativeEpisodeTownReturnFromSavedPosition(t *testing.T) {
-	c, err := catalog.LoadWorld("../../configs/world.generated.json")
+	c, err := catalog.LoadWorld(testfixture.CatalogPath(t, "world"))
 	if err != nil {
 		t.Fatal(err)
 	}
