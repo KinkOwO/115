@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 2026-10-03：好感度消费者改为 ETC 规则驱动（源码候选）
+
+重复定义：`etc/npcfavorsystem.etc` 的 `[favor condition level]`、`[favor gift item count]`、`[favor gift limit]`、`[favor level point up]`、`[favor level point down]`，此前又写在 `cmd/wireprobe/favor_flow.go` 的常量、礼物 switch 与门槛数组中。现由同一 `gamedata.Source.World` 准备 `catalog.NPCFavorRules`，世界服务的好感度消费者读取原生规则；缺少规则明确拒绝，网关不保留内容 fallback。既有协议处理、账号材料事务与用户明确要求的取消每日送礼次数限制保持。源表里的衰减数值随规则保留，本轮没有新增衰减执行。
+
+实际 PVF `8b2a9f83…` 核验 6 种礼物、3 档门槛、20 级开放及每次 100 个材料，源脚本 SHA256 `a0d575f6c8d7e63223b814c3465489497f7af3236673e8fa5ce5992be6fa3f65`。测试改变源等级、数量、范围和门槛，验证规则随源变化；网关等级检查与缺源拒绝专项通过。Go 1.26.5 全量测试和 vet、真实 PVF 解析与统一 Source 世界准备专项通过。正式程序未替换，没有启动客户端或访问玩家库，不扩大 confirmed baseline。JSON 文件数仍为 62，本轮移除的是 Go 重复规则。
+
 ## 2026-10-03：PVF 脚本驱动玩法的统一开发流程
 
 按用户确认，将规则归属、来源取证、重复规则检查、模式边界、源驱动验证与提交追溯固化到根 AGENTS.md §0.2，服务端说明、配置说明和迁移计划统一引用。明确「ETC」包含实际承载规则的 PVF 原生脚本；Go 负责解析、执行、协议与存档事务，源已有规则不再维护平行常量表或 JSON policy。以后改代码发现源与 Go/JSON 重复，必须当轮主动提示用户，列出源字段、重复位置、影响与处理情况，并记录未收敛项。

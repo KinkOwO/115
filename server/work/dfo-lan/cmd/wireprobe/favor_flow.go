@@ -12,34 +12,9 @@ import (
 	"time"
 )
 
-// favorPointUp mirrors [favor level point up]，键是**礼物物品**而非 NPC
-// （3033-3037/3262 是小晶块模板 ID，账号材料栏 363-368；[total favor leader
-// npc] 里根本没有这几个 ID）。白色实测（2026-09-27）：p[6]=0x6c→槽364→
-// 3034 白色小晶块。两个数值是每次送礼的随机点数区间 [min,max]（[extra
-// favor gift] 大量 "物品 1 5000 7000" 条目证实 min/max 语义）。未知礼物拒绝。
-func favorPointUp(template uint32) (minPoint, maxPoint int64) {
-	switch template {
-	case 3037: // 无色小晶块
-		return 100, 300
-	case 3033, 3034, 3035, 3036: // 黑/白/红/蓝
-		return 200, 600
-	case 3262: // 金色
-		return 400, 900
-	}
-	return 0, 0
-}
-
-const favorDailyLimit = 5         // [favor gift limit]（用户要求体验满好感，实际不生效）
-const favorOpenLevel = 20         // [favor condition level]
-const favorGiftCount uint32 = 100 // [favor gift item count]
-const favorNoDailyLimit = true    // 用户要求：去掉每日送礼次数限制，体验从头送到满
-
-// [favor level point down] 0 21 500 / 1 14 1000 / 2 7 1500：好感度三级累计
-// 门槛（不送礼按 21/14/7 点每日衰减），1500 为满——好感度名称颜色表也是
-// 按 10%~100% 十档设计。
-var favorLevels = []int64{500, 1000, 1500}
-
-const favorMaxPoint int64 = 1500
+// Preserve the user's explicit unlimited daily-gift policy. Source-defined
+// costs, eligibility, point ranges and thresholds remain archive facts.
+const favorNoDailyLimit = true
 
 // giveFavor handles CMD806。请求 p[6] 编码礼物所在账号材料栏槽位-256
 // （0x6f=无色367，0x6c=白色364），据此扣对应材料并按 [favor level point up]
@@ -66,7 +41,11 @@ func (w *worldSession) giveFavor(p []byte) ([]outboundPacket, error) {
 	if !ok {
 		return nil, fmt.Errorf("favor gift slot %d is not an account material", req.GiftSlot())
 	}
-	minPoint, maxPoint := favorPointUp(template)
+	if w.service == nil || w.service.Catalog.Favor == nil {
+		return nil, fmt.Errorf("native favor rules unavailable")
+	}
+	rules := w.service.Catalog.Favor
+	minPoint, maxPoint := rules.PointRange(template)
 	if minPoint == 0 {
 		return nil, fmt.Errorf("template %d is not a valid favor gift", template)
 	}
@@ -74,23 +53,23 @@ func (w *worldSession) giveFavor(p []byte) ([]outboundPacket, error) {
 	if e = json.Unmarshal(w.role.State, &state); e != nil {
 		return nil, e
 	}
-	if int(state.Level) < favorOpenLevel {
-		return nil, fmt.Errorf("favor requires level %d", favorOpenLevel)
+	if state.Level < rules.OpenLevel {
+		return nil, fmt.Errorf("favor requires level %d", rules.OpenLevel)
 	}
 	// 每次送礼的点数在礼物区间 [min,max] 内随机（PVF 语义）。
 	delta := minPoint + rand.Int63n(maxPoint-minPoint+1)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	giftTemplate := template
-	dailyLimit := favorDailyLimit
+	dailyLimit := rules.DailyLimit
 	if favorNoDailyLimit {
 		dailyLimit = 99999999
 	}
 	saved, fs, rawMaterials, e := w.store.GiveFavor(ctx, w.account, w.role.ID, w.role.ConfigVersion, req.NPCID, storage.FavorGift{
 		Day:      time.Now().Format("2006-01-02"),
 		Limit:    dailyLimit,
-		Levels:   favorLevels,
-		MaxPoint: favorMaxPoint,
+		Levels:   rules.Levels,
+		MaxPoint: rules.MaxPoint(),
 		Delta:    delta,
 		Now:      time.Now(),
 	}, func(current storage.Character, raw json.RawMessage) (json.RawMessage, json.RawMessage, error) {
@@ -98,7 +77,7 @@ func (w *worldSession) giveFavor(p []byte) ([]outboundPacket, error) {
 		if e != nil {
 			return nil, nil, e
 		}
-		materials, _, e = materials.Spend(giftTemplate, favorGiftCount)
+		materials, _, e = materials.Spend(giftTemplate, rules.GiftCount)
 		if e != nil {
 			return nil, nil, e
 		}
