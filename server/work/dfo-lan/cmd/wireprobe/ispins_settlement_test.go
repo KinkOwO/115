@@ -110,6 +110,51 @@ func TestIspinsChangeOperationResetsConfirmation(t *testing.T) {
 	}
 }
 
+// Live stage1 sends focus 020201 before the actual town exit 010201.
+// Only the latter may carry main.go's dungeon-cleanup event name.
+func TestIspinsSettlementFocusThenTownExit(t *testing.T) {
+	for stage := 0; stage < 4; stage++ {
+		run := &dungeon.Session{Loaded: true, ArenaBoss: true, Dead: map[uint16]bool{},
+			Monsters: []protocol.DungeonMonster{{Entity: 4096, Rank: 3, Team: 100}}}
+		if _, err := run.ConfirmDeath(4096, 7, 7); err != nil || !run.Completed() {
+			t.Fatal(err)
+		}
+		w := &worldSession{activeDungeon: run, ispins: &ispinsRun{stage: stage},
+			role: storage.Character{ID: 7, WireID: 7}, completionSent: true,
+			state: storage.WorldState{Position: storage.WorldPosition{Town: 146, Area: 0, X: 700, Y: 300}}}
+		w.ispins.cleared[stage] = true
+		focus := make([]byte, 16)
+		focus[0], focus[1], focus[2] = 2, 2, 1
+		for n := 0; n < 2; n++ {
+			pending, plan, err := w.settlementExit(focus)
+			if err != nil || pending != nil || len(plan) != 1 {
+				t.Fatalf("stage %d focus: pending=%v plan=%v err=%v", stage, pending, plan, err)
+			}
+			p := plan[0]
+			if p.Name != "settlement_focus_ack" || p.Kind != 1 || p.ID != 72 || !bytes.Equal(p.Payload, []byte{1, 2, 2}) {
+				t.Fatalf("stage %d focus must not signal exit cleanup: %+v", stage, p)
+			}
+			if w.activeDungeon != run || !w.completionSent || !w.ispins.cleared[stage] {
+				t.Fatal("focus discarded the completed Ispins run")
+			}
+		}
+		exit := append([]byte(nil), focus...)
+		exit[0] = 1
+		pending, plan, err := w.settlementExit(exit)
+		if err != nil || pending != nil || len(plan) < 4 {
+			t.Fatalf("stage %d actual exit after focus: plan=%v err=%v", stage, plan, err)
+		}
+		if plan[0].Name != "settlement_exit_ack" || !bytes.Equal(plan[0].Payload, []byte{1, 1, 2}) {
+			t.Fatalf("stage %d actual exit ACK: %+v", stage, plan[0])
+		}
+		for i, want := range []uint16{72, 3, 23, 24} {
+			if plan[i].ID != want {
+				t.Fatalf("stage %d route[%d]=%d want%d", stage, i, plan[i].ID, want)
+			}
+		}
+	}
+}
+
 // TestIspinsAuxReplayTables guards the §26 settlement aux tables: the bodies
 // are verbatim official s4 dumps with fixed shapes (2204=32B, 2201=32B,
 // 279=16B, 2168=48B, 14=192B) and the stage0 packet mix matches the official

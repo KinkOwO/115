@@ -105,6 +105,29 @@ func (w *worldSession) settlementExit(p []byte) (*dungeon.Session, []outboundPac
 	if e != nil {
 		return nil, nil, e
 	}
+	// [ISPINS-ARENA-BOSS] 伊斯大陆的 CMD72 全部不走通用翻牌/结算：官服 s4
+	// 整场没有一帧 69/70/71（阶段奖励由 N2256/N2252 承载），撤退休退
+	// （source=0）更发生在副本未完成时。回城复用 leaveDungeon（回到进本前
+	// 位置=待机区），弃用 42 回执、只发 ACK72；主循环按 settlement_exit_ack
+	// 清 activeDungeon。不保持选图（option 1 在军团流程没有「选图」语义）。
+	// 撤退不算通关：run.cleared 不动，玩家重新 CMD2043 开战时官服语义本就
+	// 是整场作废重开。
+	if w.ispins != nil && w.activeDungeon != nil {
+		ack := outboundPacket{"settlement_focus_ack", 1, 72, protocol.SettlementExitSuccess(r)}
+		if r.State == 2 {
+			// Focus only updates the button selection. Naming this as an exit
+			// triggers main.go's post-send activeDungeon/card cleanup, so the
+			// subsequent state1 request loses its owned Ispins settlement.
+			return nil, []outboundPacket{ack}, nil
+		}
+		route, e := w.leaveDungeon()
+		if e != nil {
+			return nil, nil, e
+		}
+		w.selectingDungeon = false
+		ack.Name = "settlement_exit_ack"
+		return nil, append([]outboundPacket{ack}, route[1:]...), nil
+	}
 	if e = w.cardsReady(); e != nil {
 		return nil, nil, e
 	}

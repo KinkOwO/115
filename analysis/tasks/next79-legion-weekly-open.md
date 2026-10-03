@@ -1359,3 +1359,55 @@ ACK2047 注册点 `1425314CC` 指向 **142530950**：成功字节已由公共分
 第一阶段72回待机成功，基线SHA256 `b3fc95409ac600108030221ea69fdb0d5c83bf7180559394b703be4cb1aa82c9`。
 本次确认已写CHANGELOG和 `docs/protocol/next79-confirmed-baseline-20261003.md`。
 第二阶段正式回城仍被拒，是新的focus清理缺陷，继续§31，不能扩大已确认范围。
+
+## 31. 第二阶段回城无反应：focus ACK 错误触发服务端会话清理
+
+### 31.1 本地会话证据
+
+用户截图停在死亡之森(stage1)结算后的“是否继续/返回城镇”按钮，客户端仍存活。
+14:23会话事件：
+
+- 14:28:22.624 stage1 CMD2046结束领奖，服务端正常应答及N2255 wait2。
+- 14:28:23.065 CMD72 `02020100000000000000000000000000`（state2 focus，option2城镇），
+  服务端发正确字节 `010202`，但事件名错误为 **settlement_exit_ack**。
+- `main.go` 发送后回调按此事件名清 `activeDungeon`、completionSent、翻牌状态。
+- 14:28:24.038 真正 CMD72 `01020100000000000000000000000000`（state1确认）
+  已无activeDungeon，落通用翻牌门禁，拒绝 `cards before owned settlement`。
+- stage0只发state1，因而正常回城；第二阶段先focus再确认，才出现问题。
+
+协议真源沿用已确认 `docs/protocol/settlement-exit-envelope-20261001.md`：
+当前CMD72 handler消费 success/state/option，state!=1只改按钮状态，state1才执行离场。
+这不是ACK字节缺失，也不需要新增回城包；错误位于服务端发送后状态清理的事件标记。
+
+### 31.2 最小修正
+
+`card_flow.go settlementExit` 的Ispins分支先构造 **settlement_focus_ack**，
+state2直接返回此包；只有state1通过leaveDungeon、回城帧准备完成后，
+才命名为settlement_exit_ack，由既有发送成功回调清会话。
+ACK内容与回城路由顺序不改；普通副本、撤退和已有军团阶段进度保持。
+只修状态生命周期，不涉及数据库/玩家存档/客户端补丁，不猜新协议字段。
+
+### 31.3 验证与候选
+
+新增 `TestIspinsSettlementFocusThenTownExit`：四阶段真实boss死亡完成，
+重复focus两次均只发010202 focus ACK并保留副本/完成标记，随后state1产生
+010102正式ACK以及NOTI3/23/24回到原待机区；只有正式ACK带退出清理事件名。
+相关Ispins/SettlementExit/CardTransport/LegionReward专项通过；vet通过。
+overlay仅恢复focus包的旧事件名，新回归立即失败，证明可抓住本次提前清理缺陷。
+外部日志：`analysis-tools/output/next79-pre-focus-fix-check.log`。
+
+源码候选已构建 SHA256：
+`925f6b74998725998891346d1fac881fe51c33df212d5a924d0f3d9211b2bda3`。
+已确认基线单独commit **0acf471**，未夹带本轮回城候选或其它用户改动。
+全量 `go test ./...` 仍仅4项既有失败（Adventure/PVFCatalogGate/Enhancement/ShopPilot），
+其余通过，没有新增失败，完整日志 `analysis-tools/output/next79-focus-exit-go-test.log`。
+
+用户要求“更新完告诉我，我来重启服务端”。按此要求已复制候选到默认wireprobe-pvf.exe，
+两者SHA256均为上述925f6b74；发布时旧服务端已退出，无需结束客户端。
+没有启动服务端，由用户自行重启；没有改数据库和客户端资源。回城候选尚未实机确认。
+
+### 31.4 用户确认
+
+用户确认四个副本地图均可战斗、完成结算。14:41会话stage1在14:50:02聚焦后
+14:50:05正式回城成功，§31修复纳入925f6b74 confirmed baseline。
+最终动画后右上角回城及CMD13离队仍有问题，另行§32，不扩大确认范围。
