@@ -458,7 +458,7 @@ func (s *Session) Move(c catalog.DungeonCatalog, target [2]byte) (*Session, erro
 			return nil, fmt.Errorf("boss completion is pending or already accepted")
 		}
 	}
-	if !s.RoomCleared() {
+	if !s.Loaded || (!s.Definition.MoveMapEvenEnemy && !s.RoomCleared()) {
 		return nil, fmt.Errorf("current room not loaded or still has live enemies")
 	}
 	dx, dy := int(target[0])-int(s.Room.X), int(target[1])-int(s.Room.Y)

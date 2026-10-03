@@ -135,11 +135,11 @@ func (w *worldSession) ispinsStandbyPartyHandle(id uint16, p []byte) (bool, []ou
 		w.ispinsRepeatPending = false
 		return true, append([]outboundPacket{{"ispins_party_gone", 0, 9, gone}}, restore...), nil
 	}
-	name, err := protocol.DecodeIspinsStandbyParty(p)
+	request, err := protocol.DecodeIspinsStandbyParty(p)
 	if err != nil {
 		return fail(err)
 	}
-	party, err := protocol.IspinsStandbyPartyReply(name, w.role.WireID, w.characters.ChannelContext)
+	party, err := protocol.IspinsStandbyPartyReply(request.Name, w.role.WireID, w.characters.ChannelContext, request.Capacity)
 	if err != nil {
 		return fail(err)
 	}
@@ -423,7 +423,16 @@ func (w *worldSession) enterIspinsStage(p []byte) ([]outboundPacket, []map[strin
 		return nil, nil, err
 	}
 	plan = append(plan, outboundPacket{"ispins_enter_ack", 1, legion.CmdEnterDungeon, legion.IspinsEnterAck(byte(stage), ispinsEnterAckNonces[stage])})
-	plan, err = appendIspinsReplays(plan, "user_state", "noti_390", "timer_sync", "noti_30")
+	plan, err = appendIspinsReplays(plan, "user_state", "noti_390")
+	if err != nil {
+		return nil, nil, err
+	}
+	clock, err := protocol.LegionDungeonTimeout115(s.StartedAt, time.Duration(s.Definition.TimeoutSeconds)*time.Second)
+	if err != nil {
+		return nil, nil, fmt.Errorf("ispins source dungeon clock: %w", err)
+	}
+	plan = append(plan, outboundPacket{"ispins_timer_sync", 0, legion.NotiDungeonTimeoutTime, clock})
+	plan, err = appendIspinsReplays(plan, "noti_30")
 	if err != nil {
 		return nil, nil, err
 	}

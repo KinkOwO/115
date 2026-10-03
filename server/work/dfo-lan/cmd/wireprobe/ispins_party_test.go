@@ -40,7 +40,7 @@ const ispinsStandbyPartyReplyHex = "01000f27690003561500010001000300000031313101
 // 槽 p[4:6]=1；伊斯语义字段（容量 4 / 类型 0x0b / 模式 1 / 本地 actor）各
 // 就各位。官服 208B 模板已证伪，不得回归。
 func TestIspinsStandbyPartyReplyNativeGrammar(t *testing.T) {
-	got, err := protocol.IspinsStandbyPartyReply([]byte("111"), 7, [2]byte{0x03, 0x56})
+	got, err := protocol.IspinsStandbyPartyReply([]byte("111"), 7, [2]byte{0x03, 0x56}, 4)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -91,19 +91,19 @@ func TestIspinsStandbyPartyReplyNativeGrammar(t *testing.T) {
 		}
 	}
 	// 拒绝：空名 / 超长名 / actor 0 / 65535 / 零频道。
-	if _, err := protocol.IspinsStandbyPartyReply(nil, 7, [2]byte{3, 86}); err == nil {
+	if _, err := protocol.IspinsStandbyPartyReply(nil, 7, [2]byte{3, 86}, 4); err == nil {
 		t.Fatal("empty name must be rejected")
 	}
-	if _, err := protocol.IspinsStandbyPartyReply(bytes.Repeat([]byte{0x31}, 64), 7, [2]byte{3, 86}); err == nil {
+	if _, err := protocol.IspinsStandbyPartyReply(bytes.Repeat([]byte{0x31}, 64), 7, [2]byte{3, 86}, 4); err == nil {
 		t.Fatal("overlong name must be rejected")
 	}
-	if _, err := protocol.IspinsStandbyPartyReply([]byte("111"), 0, [2]byte{3, 86}); err == nil {
+	if _, err := protocol.IspinsStandbyPartyReply([]byte("111"), 0, [2]byte{3, 86}, 4); err == nil {
 		t.Fatal("actor 0 must be rejected")
 	}
-	if _, err := protocol.IspinsStandbyPartyReply([]byte("111"), 65535, [2]byte{3, 86}); err == nil {
+	if _, err := protocol.IspinsStandbyPartyReply([]byte("111"), 65535, [2]byte{3, 86}, 4); err == nil {
 		t.Fatal("actor 65535 must be rejected")
 	}
-	if _, err := protocol.IspinsStandbyPartyReply([]byte("111"), 7, [2]byte{}); err == nil {
+	if _, err := protocol.IspinsStandbyPartyReply([]byte("111"), 7, [2]byte{}, 4); err == nil {
 		t.Fatal("zero channel context must be rejected")
 	}
 }
@@ -117,18 +117,17 @@ func TestDecodeIspinsStandbyPartyOfficialRequest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(name) != "111" {
-		t.Fatalf("decoded name %q, want 111", name)
+	if string(name.Name) != "111" {
+		t.Fatalf("decoded name %q, want 111", name.Name)
 	}
-	// 长度不足、黑鸦形态（容量1/类型7/模式5）与普通城镇队伍形态都必须
-	// 拒绝——本处理器只认伊斯待机区 4 人军团队。
+	// Invalid sizes and other party types remain outside this handler.
 	if _, err := protocol.DecodeIspinsStandbyParty(req[:16]); err == nil {
 		t.Fatal("truncated request must be rejected")
 	}
 	black := append([]byte{}, req...)
-	black[9] = 1 // 容量 1
+	black[9] = 0 // 非法容量 0
 	if _, err := protocol.DecodeIspinsStandbyParty(black); err == nil {
-		t.Fatal("capacity 1 must be rejected")
+		t.Fatal("capacity 0 must be rejected")
 	}
 	wrongType := append([]byte{}, req...)
 	wrongType[18] = 7 // 队伍类型 7（黑鸦）
@@ -139,6 +138,33 @@ func TestDecodeIspinsStandbyPartyOfficialRequest(t *testing.T) {
 	nul[6] = 0
 	if _, err := protocol.DecodeIspinsStandbyParty(nul); err == nil {
 		t.Fatal("NUL in name must be rejected")
+	}
+}
+
+func TestIspinsStandbyPartyPreservesRequestedCapacity(t *testing.T) {
+	for capacity := byte(1); capacity <= 4; capacity++ {
+		request, _ := hex.DecodeString(ispinsStandbyPartyRequestHex)
+		binary.LittleEndian.PutUint32(request[9:], uint32(capacity))
+		w := &worldSession{
+			channelType: 81,
+			role:        storage.Character{WireID: 7, ID: 7, Name: "001", State: []byte(`{"level":115,"advancement":5,"source_sha256":"fixture","attributes":{"[hp max]":100,"[mp max]":100}}`)},
+			characters:  &character.Service{ChannelContext: [2]byte{3, 86}},
+		}
+		handled, packets, err := w.ispinsStandbyPartyHandle(12, request)
+		if !handled || err != nil || len(packets) != 3 || !w.soloPartyReady {
+			t.Fatalf("capacity%d create failed: %v", capacity, err)
+		}
+		p := packets[2].Payload
+		if binary.LittleEndian.Uint16(p[4:]) != 1 || p[23] != capacity {
+			t.Fatalf("capacity%d confused members with party limit: %x", capacity, p)
+		}
+	}
+	for _, capacity := range []uint32{0, 5, 256, 0xffffffff} {
+		request, _ := hex.DecodeString(ispinsStandbyPartyRequestHex)
+		binary.LittleEndian.PutUint32(request[9:], capacity)
+		if _, err := protocol.DecodeIspinsStandbyParty(request); err == nil {
+			t.Fatalf("invalid capacity%d accepted", capacity)
+		}
 	}
 }
 
@@ -165,8 +191,8 @@ func TestIspinsStandbyPartyHandlerGate(t *testing.T) {
 	// 成功路径：黑鸦族原生 NOTI9 + 队长资料两个 op=2 先行（黑鸦建队先例）。
 	standby := &worldSession{
 		channelType: 81,
-		role:       storage.Character{WireID: 7, ID: 7, Name: "IspinsCap", State: []byte(`{"level":115,"advancement":5,"source_sha256":"fixture","attributes":{"[hp max]":100,"[mp max]":100}}`)},
-		characters: &character.Service{ChannelContext: [2]byte{0x03, 0x56}},
+		role:        storage.Character{WireID: 7, ID: 7, Name: "IspinsCap", State: []byte(`{"level":115,"advancement":5,"source_sha256":"fixture","attributes":{"[hp max]":100,"[mp max]":100}}`)},
+		characters:  &character.Service{ChannelContext: [2]byte{0x03, 0x56}},
 	}
 	handled, plan, err := standby.ispinsStandbyPartyHandle(12, req)
 	if !handled || err != nil {

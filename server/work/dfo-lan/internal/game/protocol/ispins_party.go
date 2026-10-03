@@ -17,28 +17,36 @@ import (
 
 // DecodeIspinsStandbyParty 解码伊斯待机区队伍对话框发送的 CMD12。
 // 私服客户端实测与官服 s4 帧 125 逐字节一致（48B）：
-// [u16 0][u32 名长][队名][u32 容量=4][5 零][u8 队伍类型 0x0b]
+// [u16 0][u32 名长][队名][u32 容量1..4][5 零][u8 队伍类型 0x0b]
 // [u16 模式 1][1,1,2,4][7×4][ff×4][零尾]。
-func DecodeIspinsStandbyParty(p []byte) ([]byte, error) {
+// Capacity is the requested limit, not the number of present members.
+type IspinsStandbyPartyRequest struct {
+	Name     []byte
+	Capacity byte
+}
+
+func DecodeIspinsStandbyParty(p []byte) (r IspinsStandbyPartyRequest, err error) {
 	if len(p) < 36 {
-		return nil, fmt.Errorf("伊斯待机区建队请求不完整")
+		return r, fmt.Errorf("伊斯待机区建队请求不完整")
 	}
 	n := int(binary.LittleEndian.Uint32(p[2:]))
 	if n < 1 || n > 63 || n > len(p)-36 {
-		return nil, fmt.Errorf("伊斯队伍名称长度无效")
+		return r, fmt.Errorf("伊斯队伍名称长度无效")
 	}
 	at := 6 + n
-	if binary.LittleEndian.Uint32(p[at:]) != 4 {
-		return nil, fmt.Errorf("伊斯待机区只支持4人队伍")
+	capacity := binary.LittleEndian.Uint32(p[at:])
+	if capacity < 1 || capacity > 4 {
+		return r, fmt.Errorf("伊斯队伍人数必须为1至4人")
 	}
 	if p[at+9] != 0x0b || binary.LittleEndian.Uint16(p[at+10:]) != 1 {
-		return nil, fmt.Errorf("仅支持创建军团普通队伍")
+		return r, fmt.Errorf("仅支持创建军团普通队伍")
 	}
 	name := p[6:at]
 	if bytes.IndexByte(name, 0) >= 0 {
-		return nil, fmt.Errorf("伊斯队伍名称含无效字符")
+		return r, fmt.Errorf("伊斯队伍名称含无效字符")
 	}
-	return bytes.Clone(name), nil
+	r.Name, r.Capacity = bytes.Clone(name), byte(capacity)
+	return r, nil
 }
 
 // IspinsStandbyPartyReply 按 2.38.2 客户端原生 NOTI9 语法（黑鸦
@@ -51,8 +59,11 @@ func DecodeIspinsStandbyParty(p []byte) ([]byte, error) {
 // 解析 208B，越界读出垃圾长度 → ReadLengthPrefixedBlob 巨量拷贝（卡死）
 // → 空指针闪退（CrashDump 0xc0000005 @0x0，收帧 1.2s 后 op=682）。
 // 必须用本客户端实证可解析的黑鸦族语法承载伊斯语义：
-// 容量 4、队伍类型 0x0b（军团普通队伍，客户端请求自带）、模式 1。
-func IspinsStandbyPartyReply(name []byte, actor uint16, channel [2]byte) ([]byte, error) {
+// 容量沿用请求、队伍类型 0x0b（军团普通队伍，客户端请求自带）、模式 1。
+func IspinsStandbyPartyReply(name []byte, actor uint16, channel [2]byte, capacity byte) ([]byte, error) {
+	if capacity < 1 || capacity > 4 {
+		return nil, fmt.Errorf("伊斯队伍人数必须为1至4人")
+	}
 	if len(name) < 1 || len(name) > 63 {
 		return nil, fmt.Errorf("伊斯队伍名称无效")
 	}
@@ -72,9 +83,9 @@ func IspinsStandbyPartyReply(name []byte, actor uint16, channel [2]byte) ([]byte
 	binary.LittleEndian.PutUint32(p[14:], uint32(len(name)))
 	copy(p[18:], name)
 	q := p[len(name):]
-	q[20] = 4                              // 容量：伊斯 4 人军团队
-	q[25] = 5                              // 普通难度，同黑鸦原生建队发送器
-	q[29], q[95] = 0x0b, 0x0b              // 队伍类型 11 = 军团普通队伍
+	q[20] = capacity                         // Requested maximum size; member count stays1.
+	q[25] = 5                                // 普通难度，同黑鸦原生建队发送器
+	q[29], q[95] = 0x0b, 0x0b                // 队伍类型 11 = 军团普通队伍
 	binary.LittleEndian.PutUint16(q[30:], 1) // 模式 1，同 CMD12 请求
 	copy(q[46:54], []byte{1, 1, 2, 4, 7, 7, 7, 7})
 	q[69] = 1
