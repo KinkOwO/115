@@ -4,7 +4,7 @@
 
 引用包含注释和历史分支；数字是不同引用位置数，不表示正式运行必读。零引用也不能作为删除依据：动态拼路径、模块外启动器、GM 代理及历史二进制未由本清单证明。
 
-共 76 个顶层 JSON，扫描 1498 个文件；只输出文件名、大小和引用位置，不输出配置值。
+共 75 个顶层 JSON，扫描 1499 个文件；只输出文件名、大小和引用位置，不输出配置值。
 
 | JSON | MiB | 网关 | internal | 工具 | 测试 | 脚本 | 配置引用 | 非测试引用示例 |
 |---|---:|---:|---:|---:|---:|---:|---:|---|
@@ -32,10 +32,10 @@
 | `clear-cube-source.json` | 0.002 | 0 | 1 | 0 | 1 | 0 | 0 | `internal/gamedata/catalogs_content.go:166` |
 | `drop.compat90.json` | 0.000 | 1 | 0 | 1 | 12 | 0 | 0 | `cmd/charactercheck/loot_check.go:23`<br>`cmd/wireprobe/config.go:66` |
 | `drop.current36.json` | 0.001 | 0 | 0 | 2 | 7 | 0 | 0 | `cmd/audit36/verify.go:48`<br>`cmd/audit36/verify.go:49` |
-| `dungeons.layer-revisits.json` | 0.001 | 1 | 1 | 0 | 1 | 0 | 0 | `cmd/wireprobe/bootstrap.go:734`<br>`internal/gamedata/catalogs_scenes.go:188` |
+| `dungeons.layer-revisits.json` | 0.001 | 1 | 1 | 0 | 1 | 0 | 0 | `cmd/wireprobe/bootstrap.go:734`<br>`internal/gamedata/catalogs_scenes.go:194` |
 | `dungeons.maze-chance-rates.json` | 0.000 | 2 | 4 | 0 | 1 | 0 | 0 | `cmd/wireprobe/bootstrap.go:750`<br>`cmd/wireprobe/maze_chance.go:16` |
 | `dungeons.terminal-scenes.json` | 0.006 | 1 | 1 | 0 | 0 | 0 | 0 | `cmd/wireprobe/bootstrap.go:730`<br>`internal/gamedata/catalogs_scenes.go:42` |
-| `dungeons.training-room.json` | 0.183 | 1 | 1 | 0 | 3 | 0 | 0 | `cmd/wireprobe/bootstrap.go:720`<br>`internal/gamedata/catalogs_scenes.go:336` |
+| `dungeons.training-room.json` | 0.183 | 1 | 1 | 0 | 3 | 0 | 0 | `cmd/wireprobe/bootstrap.go:720`<br>`internal/gamedata/catalogs_scenes.go:342` |
 | `equipment-create-cost.generated.json` | 0.006 | 0 | 1 | 1 | 6 | 0 | 0 | `cmd/equipmentjournalimport/main.go:5`<br>`internal/catalog/equipment_create_cost.go:17` |
 | `equipment-journal.generated.json` | 0.027 | 0 | 0 | 2 | 5 | 0 | 0 | `cmd/equipmentjournalimport/main.go:4`<br>`cmd/equipmentjournalimport/main.go:50` |
 | `equipment-knight-shield.full-candidate.json` | 0.007 | 1 | 1 | 1 | 4 | 0 | 0 | `cmd/shieldaudit/main.go:22`<br>`cmd/wireprobe/config.go:87` |
@@ -50,7 +50,6 @@
 | `inventory.next29.json` | 0.000 | 0 | 0 | 7 | 12 | 0 | 0 | `cmd/admin/main.go:70`<br>`cmd/charactercheck/grant_check.go:25` |
 | `itemshop-candidate.json` | 0.836 | 3 | 3 | 2 | 3 | 0 | 0 | `cmd/itemshopimport/main.go:10`<br>`cmd/itemshopimport/main.go:153` |
 | `legion-contents.generated.json` | 0.035 | 0 | 0 | 2 | 2 | 0 | 0 | `cmd/legionimport/main.go:3`<br>`cmd/legionimport/main.go:47` |
-| `loot.level150.json` | 3.126 | 0 | 0 | 1 | 12 | 0 | 0 | `cmd/odysseygrowthaudit/main.go:120` |
 | `loot.next25.json` | 3.124 | 0 | 2 | 11 | 23 | 0 | 0 | `cmd/charactercheck/card_check.go:19`<br>`cmd/charactercheck/grant_check.go:21` |
 | `lottery-equipment-pools.json` | 2.467 | 2 | 0 | 0 | 3 | 0 | 0 | `cmd/wireprobe/bootstrap.go:1279`<br>`cmd/wireprobe/catalog_runtime.go:57` |
 | `lottery-item-pools.json` | 0.395 | 2 | 0 | 0 | 4 | 0 | 0 | `cmd/wireprobe/bootstrap.go:1271`<br>`cmd/wireprobe/catalog_runtime.go:53` |
@@ -79,7 +78,7 @@
 | `select-parser-probe.json` | 0.000 | 0 | 0 | 0 | 0 | 0 | 0 | 需追踪动态路径或外部入口 |
 | `select-world-probe.json` | 0.000 | 0 | 0 | 0 | 0 | 0 | 0 | 需追踪动态路径或外部入口 |
 | `town-entry-probe.json` | 0.000 | 0 | 0 | 0 | 0 | 0 | 0 | 需追踪动态路径或外部入口 |
-| `town.generated.json` | 0.001 | 0 | 1 | 1 | 0 | 0 | 0 | `cmd/towncatalog/main.go:16`<br>`internal/gamedata/catalogs_scenes.go:285` |
+| `town.generated.json` | 0.001 | 0 | 1 | 1 | 0 | 0 | 0 | `cmd/towncatalog/main.go:16`<br>`internal/gamedata/catalogs_scenes.go:291` |
 | `tutorial-dungeons.current36.json` | 2.098 | 0 | 1 | 2 | 4 | 0 | 0 | `cmd/audit36/verify.go:43`<br>`cmd/audit36/verify.go:44` |
 | `tutorial-routes.current35.json` | 0.030 | 0 | 0 | 2 | 2 | 0 | 0 | `cmd/audit36/verify.go:32`<br>`cmd/audit36/verify.go:33` |
 | `vault.generated.json` | 0.002 | 0 | 5 | 1 | 3 | 0 | 0 | `cmd/charactercheck/module_check.go:22`<br>`internal/gamedata/catalogs_equipment.go:183` |

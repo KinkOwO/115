@@ -2,6 +2,14 @@
 
 更新：2026-10-03。用户要求 PVF 作为核心游戏内容文件，消除另一套人工维护的玩法 JSON，并明确 PVF 对服务端是只读资源。内容修改由服务端之外的编辑工具完成。本文记录目标、第一批实际审计和迁移缺口；不表示全量配置依赖已经解除。
 
+## 2026-10-03：退役仅供测试的 150 级掉落导出
+
+删除 `loot.level150.json`（3,278,355 字节）；配置目录顶层 JSON 76→75。完整测试输入压缩为 184,835 字节的 gzip 夹具，解压时核对原始 SHA256 `939c837b9c1b966cf1655dace420361d03613354869c17a607cbe703b7e0b6cf`，净减少 3,093,520 字节（约 2.95 MiB）。
+
+- 全仓生产代码没有读取该文件；它是掉落、深渊、Odyssey 和装备操作测试的完整历史输入。测试现从 `internal/testfixture.LootLevel150Path` 取得临时副本，`loot.next25.json` 与其现有职责未改。
+- Odyssey 源审计器从 `gamedata.Open/Source` 读取 PVF，原始字节诊断也经 `Source.ReadRaw`；输出目录必须通过 `-output-dir` 指定，完整 loot audit 输出在该目录，不写入 configs。掉落等级上限仍使用现有 policy，没有删改概率、排除项、费用或玩家数据。
+- Go 1.26.5 `go test -count=1` 覆盖 catalog、loot、inventory、wireprobe 与 gamedata；相关包测试、审计器编译和 `go vet ./...` 通过。隔离 PostgreSQL 测试未启用；未启动客户端或访问玩家库。
+
 ## 2026-10-03：经验、物品成本与副本地图覆盖（源码候选）
 
 本轮删除 8 个 JSON：`progression.next25.json`、`item-materials.json`、`item-period-tags.json`、`skin-storage-items.json`，以及 Hell Party、Tournament Quest、Tower of Grief、Tower of Dazzlement 四份地图覆盖，共 10,356,097 字节；顶层 JSON 84→76。完整历史输入只供测试使用，压缩快照共 563,393 字节并校验原始 SHA256；净减 9,792,704 字节（约 9.34 MiB）。

@@ -14,6 +14,14 @@ func (s *Source) Files() []pvf.File {
 	return s.archive.Files()
 }
 
+// ReadRaw reads an exact file from the verified archive for binary diagnostics.
+func (s *Source) ReadRaw(path string) ([]byte, error) {
+	if s == nil || s.archive == nil {
+		return nil, fmt.Errorf("raw diagnostics require a native PVF source")
+	}
+	return s.archive.ReadRaw(path)
+}
+
 // Script reads a script without opening another archive or changing provenance.
 func (s *Source) Script(path string) (catalog.ScriptRecord, error) {
 	if s == nil || s.archive == nil {

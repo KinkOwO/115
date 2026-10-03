@@ -18,6 +18,8 @@
 
 2026-10-03 后续收口已将 progression、materials、periods、skins，以及 Hell Party / Tournament Quest / Tower of Grief / Tower of Dazzlement 覆盖域改为只使用准备好的 PVF 目录，并删除对应 8 个 JSON。其余历史段落仅记录旧调用路径，不代表上述 JSON 仍是当前依赖；当前字面路径清单已重生成，逐域状态见 [单一内容真源改造计划](PVF单一内容真源改造计划.md)。
 
+随后删除了只被测试引用的 `loot.level150.json`；完整历史掉落数据仅保存在 SHA256 校验的测试夹具中。`loot.next25.json` 仍服务 GM/JSON 模式消费者，不能据此批次类推删除。
+
 ## 第 0 批历史审计
 
 审计日期：2026-10-02。代码审计基点：HEAD b7a5692；本文件行号均指该快照，实际工作树中其他 agent 已修改 cmd/wireprobe 的行号，集成后须复核。审计范围为源码、默认 profile、启动器、admin/GM 与外部探针。server/work/dfo-lan/scripts/launch_local.py 有用户改动，本表按当前行为描述。本批只更新文档，不改运行代码、数值、客户端、协议、存档或启动行为，也没有启动服务、客户端或数据库。

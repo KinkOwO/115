@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"dfolan/internal/catalog/pvf"
+	"dfolan/internal/testfixture"
 )
 
 func loadDropGroupFixture(t *testing.T) []DropGroup {
@@ -584,16 +585,19 @@ func TestLoadLootAcceptsCatalogWithoutDropGroups(t *testing.T) {
 		t.Fatal("empty projection answered a lookup")
 	}
 	// 随包发布的 next25/level150 现在**带**组表，这是组索引消费的前提。
-	for _, f := range []string{"loot.next25.json", "loot.level150.json"} {
-		shipped, e := LoadLoot(filepath.Join("../../configs", f))
+	for _, f := range []struct{ name, path string }{
+		{"loot.next25.json", filepath.Join("../../configs", "loot.next25.json")},
+		{"loot.level150.json", testfixture.LootLevel150Path(t)},
+	} {
+		shipped, e := LoadLoot(f.path)
 		if e != nil {
-			t.Fatalf("%s: %v", f, e)
+			t.Fatalf("%s: %v", f.name, e)
 		}
 		if len(shipped.DropGroups) == 0 {
-			t.Fatalf("%s 应带掉落组（[normal group index] 消费的前提）", f)
+			t.Fatalf("%s 应带掉落组（[normal group index] 消费的前提）", f.name)
 		}
 		if _, ok := shipped.DropGroupByID(21251); !ok {
-			t.Fatalf("%s 应能读到深渊组 21251", f)
+			t.Fatalf("%s 应能读到深渊组 21251", f.name)
 		}
 	}
 }

@@ -12,6 +12,7 @@ import (
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
+	"dfolan/internal/testfixture"
 )
 
 // endkeeperDungeon is the small abyss "最终调律者" (endkeeper of order).
@@ -81,7 +82,7 @@ func TestEndkeeperBossPaysTheUnwrappedRewards(t *testing.T) {
 		t.Skip("set ATTUNEMENT_REWARD_INTEGRATION=1 to load the 295 MB dungeon catalog")
 	}
 	dc := catalog.LoadNativeFullDungeons(t)
-	lc, err := catalog.LoadLoot("../../configs/loot.level150.json")
+	lc, err := catalog.LoadLoot(testfixture.LootLevel150Path(t))
 	if err != nil {
 		t.Fatal(err)
 	}

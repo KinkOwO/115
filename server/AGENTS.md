@@ -1,5 +1,10 @@
 # AGENTS.md — server/
 
+## 2026-10-03：150 级掉落测试导出退役
+
+- `loot.level150.json` 没有生产读取者，仅为测试提供完整导出；删除文件后测试改读验证原始 SHA256 的压缩夹具。Odyssey source 审计器使用 `gamedata.Open/Source`，并要求显式 `-output-dir`，不再向 configs 写导出。
+- `loot.next25.json` 仍供 GM/JSON 模式读取，本轮保留。Go 1.26.5 相关包测试及 `go vet ./...` 通过；未启用 PostgreSQL 集成测试，没有改存档/schema/PVF 或用户 `.gitignore`。
+
 ## 2026-10-03：技能 / 副本 / 强化内容原生收口（源码候选）
 
 - 三组子代理并行迁移，移除技能、完整副本、强化/增幅及附魔的运行 JSON 回退和旧 baseline。删除 14 个顶层 JSON 共 64,385,633 字节（61.40 MiB），98→84；完整历史测试快照 2,947,505 字节（2.81 MiB），内容净减 58.59 MiB，解压核验原 SHA256。
