@@ -1,5 +1,14 @@
 # AGENTS.md — server/
 
+## 2026-10-03：MR !139 本轮源码收口与可运行交付
+
+用户要求先收口并让上游可合并。本轮JSON/规则清理停止扩展，已完成改动全部提交；MR独立树以 `077b62c` 合入最新上游 `61106a0e`，保留副本难度经验修复，CHANGELOG和server/AGENTS两处冲突保留双方记录。根工作区源码停在 `66f722c`，用户 `.gitignore` 未提交；本段描述MR集成树，不混称根main已同步上游。
+
+收口验证：Go1.26.5无缓存全量测试及vet、Python3.11.9默认启动/profile25项通过；使用默认profile全部54域和启动器相同的穿戴布局参数，真实PVF8b2a9f83准备通过（599,771物品、424,216装备绑定、2,844任务、3,200副本），报告 `storage_accessed=false`、`runtime_started=false`。未启动客户端、服务监听或访问玩家库。`-trimpath`独立候选SHA256 `f9cca84b4373ca0bdd5d8ae7438c8af91ae7139ea505bd4cb0f1801bda0e6a36`，本机位置 `.tmp/mr139-closeout/wireprobe-native-closeout.exe`。
+
+confirmed baseline边界：本轮确认源码整理/提交收口；既有实机确认基线保持，不把默认准备成功写成玩法实机验收。110级槽位动作、旧角色补齐及本轮交互改动仍由用户手动回归。上游接入须同时使用MR源码与配置；先用 `pwsh -NoProfile -File ./server/Build-Server.ps1` 构建，再手动 `./启动游戏.cmd --source-build` 或 `./启动服务端.cmd --source-build`。旧默认PVF可执行文件不会自动更新；验收后才用现有 `-UpdatePVFDefault` 发布确认程序，39归档保持。构建/启动说明见server/README-先看这里.md。
+
+
 ## 玩法规则归属与开发门禁
 
 遵守根 [AGENTS.md §0.2](../AGENTS.md#02-pvf-脚本驱动与单一规则流程强制2026-10-03-用户确认)。服务端新增、修复或重构玩法时，先定位 PVF 定义与重复 Go/JSON 规则，再复用 Source、领域解析器和执行能力，按根流程验证与提交。该节是唯一规范；本文件下方迁移记录只描述当时完成范围，不授权继续维护平行内容表。
