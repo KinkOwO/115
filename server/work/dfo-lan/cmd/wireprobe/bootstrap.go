@@ -35,6 +35,7 @@ type gatewayRuntime struct {
 	boosterCatalog        *BoosterCatalog
 	characters            *character.Service
 	channelDirectory       *catalog.ChannelDirectory
+	channelTowns           map[uint32]catalog.TownArea
 	channelInfo            *catalog.ChannelInfo
 	developmentAccount    int64
 	dungeonCatalog        *catalog.DungeonCatalog
@@ -1595,6 +1596,7 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		characters:            characters,
 		channelDirectory:      pvfCatalogs.ChannelDirectory,
 		channelInfo:           pvfCatalogs.ChannelInfo,
+		channelTowns:          pvfCatalogs.ChannelTowns,
 		developmentAccount:    developmentAccount,
 		dungeonCatalog:        dungeonCatalog,
 		fatigueService:        fatigueService,
