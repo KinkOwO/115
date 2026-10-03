@@ -20,16 +20,15 @@ go build -trimpath -o bin/dfo-tool.exe ./cmd/dfo-tool
 ./bin/dfo-tool.exe pvfaudit -h
 ```
 
-原 `go run ./cmd/<工具名> <参数>` 统一改为 `go run ./cmd/dfo-tool <工具名> <参数>`；原独立工具构建改为构建 `dfo-tool` 并在执行时传工具名。59 个工具名保留，完整清单按 PVF、目录导出、审计、维护、协议分组显示在 `-h` 中。旧路径不保留空壳入口。历史协议记录中的旧调用方式按此转换。
+原 `go run ./cmd/<工具名> <参数>` 对仍保留的工具改为 `go run ./cmd/dfo-tool <工具名> <参数>`；原独立工具构建改为构建 `dfo-tool` 并在执行时传工具名。当前只保留20个工具，完整清单按 PVF、目录导出、审计、维护、协议分组显示在 `-h` 中。旧路径不保留空壳入口，已删除的39个工具名直接报未知命令，不再提供旧导出行为。删除与保留依据见 [工具裁减记录](../../../../docs/todo/server-tool-pruning-20261003.md)。
 
 实现与原有测试位于 `internal/toolcmd/<工具名>`。新增工具应注册到统一入口，不能继续添加独立 `cmd` 目录。工具仅在选中后注册/解析自身参数；相对输入输出路径仍以工作目录为基准。
 
-这是入口合并，不是工具行为重写：维护工具保留原来的迁移、临时 schema 和 `-apply` 语义，PVF patch 工具保留原来的资源写入能力。帮助命令不执行工具、不读取存档或修改资源。`avatarrestorecheck`、`dump781x`、`odysseyaudit` 仍为历史固定输入诊断，仅在对应环境中显式执行；不参与日常启动。
+保留工具的执行行为保持：维护工具沿用原来的迁移、临时 schema 和 `-apply` 语义。帮助命令不执行工具、不读取存档或修改资源。固定输入诊断 `avatarrestorecheck`、`dump781x`、`odysseyaudit` 及资源写入工具 `pvfpatch` 已删除；运行PVF资源和既有历史证据保持。
 
 参数式协议工具的调用位置保持：
 
 ```powershell
-go run ./cmd/dfo-tool dump342 <key.bin> <stream.bin>
 go run ./cmd/dfo-tool framedump <label> <key.bin> <stream.bin> <all|id|offset:size> [header]
 go run ./cmd/dfo-tool loginchannel <input.bin> <output.bin> <channel-type>
 go run ./cmd/dfo-tool protocolfixture <output.bin> [login|characters|name|characters-row]

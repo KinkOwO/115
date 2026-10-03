@@ -1,5 +1,11 @@
 # AGENTS.md — server/
 
+## 2026-10-03：无当前消费者的工具实际删除
+
+核对相邻 `115us-dfolauncher` 的4e3bb21源码：服务端只构建wireprobe，运行沿launch_local/channel_probe，GM来自启动器自己的gm模块。结合本仓库脚本/源码依赖，实际删除39个旧内容导出、固定输入取证与重复工具（42个Go文件、3187行），dfo-tool从59个子命令降为20个；不归档副本、不保留旧命令别名。运行reader、领域测试、存档契约保持；equipmentfull/dungeonimport仍有本仓库手动操作引用，暂保留。
+
+当前工具清单与删除/保留依据见 [cmd/README.md](work/dfo-lan/cmd/README.md) 和 [工具裁减记录](../docs/todo/server-tool-pruning-20261003.md)。下方上一轮“59个工具”描述历史入口迁移，已退休命令不能按原名继续调用。confirmed baseline保持既有实机范围；本轮不访问玩家库或启动客户端。
+
 ## 2026-10-03：cmd 入口收敛
 
 `server/work/dfo-lan/cmd` 从62个命令目录收敛为 `wireprobe`、`admin`、`gmtool`、`dfo-tool` 四个入口。59个导出、审计、维护和协议工具移入 `internal/toolcmd`，统一通过 `go run ./cmd/dfo-tool <原工具名> <参数>` 调用。新增工具扩展该入口，不新增独立cmd目录。完整操作说明见 [cmd/README.md](work/dfo-lan/cmd/README.md)。历史记录中的旧工具路径按此转换；游戏启动器及GM构建路径保持。
