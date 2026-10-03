@@ -62,3 +62,23 @@ func (s *Store) SaveWorld(ctx context.Context, account, characterID int64, old W
 	out.Revision++
 	return out, nil
 }
+
+// ScrubPollutedWorldPositions 删除普通频道共享行里落在特殊征讨频道专属城镇的
+// 位置（历史污染：会话位置隔离修复之前，月湖 215 / Azure 213 / 军团 239 的会话
+// 位置曾被写进共享行）。删除后玩家下一次进普通频道走默认落点重建，无资产损失；
+// 特殊频道自己的 character_channel_world 行不受影响。幂等：已干净的库影响 0 行。
+func (s *Store) ScrubPollutedWorldPositions(ctx context.Context, towns []uint32) (int64, error) {
+	if len(towns) == 0 {
+		return 0, nil
+	}
+	ids := make([]int64, 0, len(towns))
+	for _, t := range towns {
+		ids = append(ids, int64(t))
+	}
+	tag, err := s.DB.Exec(ctx,
+		`DELETE FROM character_world WHERE (position->>'town')::bigint = ANY($1::bigint[])`, ids)
+	if err != nil {
+		return 0, err
+	}
+	return tag.RowsAffected(), nil
+}

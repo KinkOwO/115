@@ -506,6 +506,24 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		}
 		resources.add(func() { s.Close() })
 		gameStore = s
+
+		// 兜底自愈：会话位置隔离修复之前，特殊征讨频道（月湖 215 / Azure 213 / 军团
+		// 239 等）的会话位置曾被写进普通频道共享行，玩家切回普通频道会被客户端以
+		// 「对立阵营起始点」拒绝。启动期清一次污染行（幂等），玩家下一次进普通频道
+		// 走默认落点重建，无资产损失。
+		if pvfCatalogs != nil && len(pvfCatalogs.ChannelTowns) > 0 {
+			towns := make([]uint32, 0, len(pvfCatalogs.ChannelTowns))
+			for _, a := range pvfCatalogs.ChannelTowns {
+				towns = append(towns, a.TownID)
+			}
+			scrubCtx, scrubCancel := context.WithTimeout(context.Background(), 15*time.Second)
+			if n, scrubErr := gameStore.ScrubPollutedWorldPositions(scrubCtx, towns); scrubErr != nil {
+				log.Printf("warning: scrub polluted world positions: %v", scrubErr)
+			} else if n > 0 {
+				log.Printf("scrubbed %d polluted world position(s) from the shared row (special-channel towns: %v)", n, towns)
+			}
+			scrubCancel()
+		}
 		releaseAdminGuard, e := s.HoldAdminGuard(ctx)
 		if e != nil {
 			return nil, nil, e
