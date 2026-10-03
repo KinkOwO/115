@@ -41,49 +41,46 @@ def start_storage(storage_file, cfg):
             raise RuntimeError('PostgreSQL did not start; inspect launcher-postgres.log.')
 
 
-def catalog_args(args=None):
-    if args is not None and args.catalog_source == 'pvf':
-        if not args.pvf_archive or not args.pvf_source_checksum:
-            raise ValueError('PVF mode needs an explicit inner archive and exact save-source SHA256.')
-        return [
-            '-catalog-source', 'pvf', '-pvf-archive', str(pathlib.Path(args.pvf_archive).resolve()),
-            '-pvf-source-checksum', args.pvf_source_checksum,
-            '-pvf-drop-policy', str(pathlib.Path(args.pvf_drop_policy).resolve()),
-            '-bag-rules', str(CONFIGS / 'inventory.current37.json'),
-            '-names-client', str(CONFIGS / 'names.client.json'),
-        ]
+def catalog_args(args):
+    if args.catalog_source != 'pvf':
+        raise ValueError('GM game catalogs require PVF; the JSON content source is retired.')
+    if not args.pvf_archive:
+        raise ValueError('An inner PVF archive path is required.')
     return [
-        '-loot-catalog', str(CONFIGS / 'loot.next25.json'),
+        '-catalog-source', 'pvf', '-pvf-archive', str(pathlib.Path(args.pvf_archive).resolve()),
+        '-pvf-source-checksum', args.pvf_source_checksum,
+        '-pvf-drop-policy', str(pathlib.Path(args.pvf_drop_policy).resolve()),
         '-bag-rules', str(CONFIGS / 'inventory.current37.json'),
-        '-equipment-catalog', str(CONFIGS / 'equipment.current37.json'),
-        '-character-catalog', str(CONFIGS / 'characters.next25.json'),
-        '-progression-catalog', str(CONFIGS / 'progression.next25.json'),
-        '-progression-rules', str(CONFIGS / 'experience.compat90.json'),
-        '-item-index', str(CONFIGS / 'items.index.json'),
+        '-names-client', str(CONFIGS / 'names.client.json'),
     ]
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--storage', default=r'D:\115us\server\work\dfo-lan\runtime\storage\local.json',
+    parser.add_argument('--storage', default=str(ROOT.parent / 'server' / 'work' / 'dfo-lan' / 'runtime' / 'storage' / 'local.json'),
                         help='path to the DFO storage local.json')
     parser.add_argument('--check', action='store_true', help='read-only dependency check; starts nothing')
     parser.add_argument('--listen', default='127.0.0.1:28080', help='gmweb HTTP listen address')
     parser.add_argument('--no-browser', action='store_true', help='do not open the browser')
     parser.add_argument('--gmweb-binary', default=str(GMWEB), help='explicit candidate program; default keeps the existing release')
-    parser.add_argument('--catalog-source', choices=('json', 'pvf'), default='json')
-    parser.add_argument('--pvf-archive', default='')
+    parser.add_argument('--catalog-source', choices=('pvf',), default='pvf')
+    parser.add_argument('--pvf-archive', default='', help='inner PVF; default follows the storage module')
     parser.add_argument('--pvf-source-checksum', default='')
-    parser.add_argument('--pvf-drop-policy', default=str(ROOT.parent / 'server' / 'work' / 'dfo-lan' / 'configs' / 'pvf-drop-policy.json'))
+    parser.add_argument('--pvf-drop-policy', default='', help='default follows the storage module')
     args = parser.parse_args()
 
+    storage_file = pathlib.Path(args.storage).resolve()
+    module = storage_file.parent.parent.parent
+    if not args.pvf_archive:
+        args.pvf_archive = str(module.parent / 'client-build' / 'Script.inner.pvf')
+    if not args.pvf_drop_policy:
+        args.pvf_drop_policy = str(module / 'configs' / 'pvf-drop-policy.json')
     gmweb = pathlib.Path(args.gmweb_binary).resolve()
     source_args = catalog_args(args)
     if not gmweb.is_file():
         raise RuntimeError('Missing bin/gmweb.exe; this package is incomplete.')
 
-    storage_file = pathlib.Path(args.storage)
-    if args.check and args.catalog_source == 'pvf':
+    if args.check:
         # The candidate exits before reading storage or starting any processes.
         result = subprocess.run([str(gmweb), '-root', str(ROOT.parent), '-storage', str(storage_file.resolve()),
                                 '-check-catalogs'] + source_args, cwd=ROOT, capture_output=True,
@@ -94,20 +91,6 @@ def main():
         if result.returncode:
             raise RuntimeError('Native catalog check failed (exit %d).' % result.returncode)
         return
-    if args.check:
-        print('gmweb.exe:' , True, 'configs:', all((CONFIGS / f).is_file() for f in (
-            'loot.next25.json', 'inventory.current37.json', 'equipment.current37.json',
-            'characters.next25.json', 'progression.next25.json', 'experience.compat90.json',
-            'items.index.json')))
-        if not storage_file.is_file():
-            print('storage missing:', storage_file.resolve())
-            return
-        cfg = load_storage(storage_file)
-        pg = urlparse(cfg['postgres_dsn'])
-        print('storage:', storage_file.resolve())
-        print('PostgreSQL:', listening(pg.hostname, pg.port))
-        return
-
     cfg = load_storage(storage_file)
     start_storage(storage_file, cfg)
 
