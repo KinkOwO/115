@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
+	"dfolan/internal/workflow"
 	"fmt"
 	"time"
 )
@@ -23,7 +24,7 @@ type sortSession struct {
 // action, equipment disassembly included, was then refused locally with DSTR
 // 1659 ("The Inventory is currently in use."). Answering it is what clears the
 // latch, so a replayed frame is answered too.
-func (s *sortSession) handle(service *inventory.WearService, w *worldSession, p, raw []byte) ([]outboundPacket, error) {
+func (s *sortSession) handle(service *workflow.WearService, w *worldSession, p, raw []byte) ([]outboundPacket, error) {
 	if service == nil || w == nil || w.role.ID == 0 {
 		return nil, fmt.Errorf("item sort requires the owned character")
 	}
@@ -41,7 +42,7 @@ func (s *sortSession) handle(service *inventory.WearService, w *worldSession, p,
 	key := fmt.Sprintf("itemsort:%x:%x", s.nonce, hash)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	saved, applied, e := service.SortBag(ctx, w.role, key, r)
+	saved, applied, e := workflow.SortBag(ctx, w.store, w.role, service.BagRules, key, r)
 	if e != nil {
 		return nil, e
 	}

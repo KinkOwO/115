@@ -15,6 +15,7 @@ import (
 	"dfolan/internal/admin"
 	"dfolan/internal/catalog"
 	"dfolan/internal/inventory"
+	"dfolan/internal/managementdata"
 	"dfolan/internal/storage"
 	"encoding/hex"
 	"encoding/json"
@@ -152,6 +153,7 @@ type server struct {
 }
 
 func main() {
+	sourceFlags := managementdata.Register(flag.CommandLine)
 	root := flag.String("root", `D:\115us`, "115us 环境根目录")
 	listen := flag.String("listen", "127.0.0.1:0", "本地监听地址")
 	openBrowser := flag.Bool("open", true, "启动后自动打开浏览器")
@@ -228,6 +230,24 @@ func main() {
 		}
 	}
 
+	var prepared *preparedGMData
+	if sourceFlags.Mode != "json" {
+		var err error
+		prepared, err = prepareNativeGMData(p, *sourceFlags)
+		if err != nil {
+			log.Fatalf("PVF目录准备失败：%v", err)
+		}
+		defer prepared.awarder.Equipment.Full.Close()
+		if sourceFlags.CheckOnly {
+			if err := managementdata.Report(map[string]any{"source": prepared.awarder.Catalog.Source.Checksum, "items": prepared.index.Count(), "grant_stackables": len(prepared.awarder.Catalog.Items), "equipment_rows": len(prepared.awarder.Equipment.Rows), "storage_accessed": false}); err != nil {
+				log.Fatal(err)
+			}
+			return
+		}
+	} else if sourceFlags.CheckOnly {
+		log.Fatal("GM check-catalogs requires catalog-source=pvf")
+	}
+
 	for _, f := range []string{p.storage} {
 		if _, err := os.Stat(f); err != nil {
 			log.Fatalf("路径不存在：%s（用 -root 指定 115us 根目录，或用 -storage 指定 local.json）", f)
@@ -238,7 +258,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("读取存储配置失败：%v", err)
 	}
-	// 存储没起来就自己拉起来（pg_ctl / redis-server 不需要管理员权限）
+	// 存储没起来就自己拉起来（pg_ctl 不需要管理员权限）
 	if raw, e := os.ReadFile(p.storage); e == nil {
 		var sc storageConfig
 		if json.Unmarshal(raw, &sc) == nil {
@@ -253,57 +273,70 @@ func main() {
 	defer cancel()
 	store, err := storage.Open(ctx, cfg)
 	if err != nil {
-		log.Fatalf("连接 PostgreSQL/Redis 失败：%v\n\n"+
+		log.Fatalf("连接 PostgreSQL 失败：%v\n\n"+
 			"处理办法（任选其一）：\n"+
-			"  1. 双击 D:\\115us\\启动游戏.cmd 进一次游戏，数据库和缓存就都在跑了；\n"+
-			"  2. 检查 D:\\115us\\server\\work\\dfo-lan\\runtime\\storage 下的 postgres.log / redis.log。\n", err)
+			"  1. 双击 D:\\115us\\启动服务端.cmd 启动数据库；\n"+
+			"  2. 检查 D:\\115us\\server\\work\\dfo-lan\\runtime\\storage 下的 postgres.log。\n", err)
 	}
 	defer store.Close()
 
-	lootPath := p.lootCatalog
-	loot, err := catalog.LoadLoot(lootPath)
-	if err != nil {
-		log.Fatalf("载入物品目录失败：%v", err)
-	}
-	rules, err := inventory.LoadBagRules(p.bagRules)
-	if err != nil {
-		log.Fatalf("载入背包规则失败：%v", err)
-	}
-	gear, gerr := inventory.LoadEquipmentCatalog(p.equipCatalog, loot.Source.Checksum)
-	if gerr != nil {
-		log.Printf("警告：装备目录不可用（%v），本次只能发放普通物品", gerr)
-	}
 	svc := &admin.Service{Store: store, Operator: *operator}
-	svc.Awarder = &inventory.Awarder{Catalog: loot, Rules: rules, Equipment: gear}
+	var loot catalog.LootCatalog
+	var gear *inventory.EquipmentCatalog
+	var index *ItemIndex
+	if prepared != nil {
+		svc.Awarder = prepared.awarder
+		loot, gear, index = prepared.awarder.Catalog, prepared.awarder.Equipment, prepared.index
+		log.Printf("GM原生目录：%d个LIST绑定；源%s；中文文本按外部显示覆盖读取", index.Count(), loot.Source.Checksum)
+	} else {
+		lootPath := p.lootCatalog
+		loot, err = catalog.LoadLoot(lootPath)
+		if err != nil {
+			log.Fatalf("载入物品目录失败：%v", err)
+		}
+		rules, err := inventory.LoadBagRules(p.bagRules)
+		if err != nil {
+			log.Fatalf("载入背包规则失败：%v", err)
+		}
+		var gerr error
+		gear, gerr = inventory.LoadEquipmentCatalog(p.equipCatalog, loot.Source.Checksum)
+		if gerr != nil {
+			log.Printf("警告：装备目录不可用（%v），本次只能发放普通物品", gerr)
+		}
 
-	// 名字表 66MB，物品库 43MB，部分只读一次并常驻；名字表加载时就裁到 name_/growtype_name_/common_rarity_ 三类键。
-	// 客户端名字表（names.client.json）是游戏里真正显示的文本，优先于 names.zh.json。
-	indexStarted := time.Now()
-	clientNames := loadNames(p.namesClient)
-	if len(clientNames) == 0 {
-		log.Printf("警告：客户端名字表 %s 不可用，物品名回落到 runtime/l10n/names.zh.json（可能与游戏显示不一致，可用 -build-data 生成）", p.namesClient)
+		svc.Awarder = &inventory.Awarder{Catalog: loot, Rules: rules, Equipment: gear}
+
+		// 名字表 66MB，物品库 43MB，部分只读一次并常驻；名字表加载时就裁到 name_/growtype_name_/common_rarity_ 三类键。
+		// 客户端名字表（names.client.json）是游戏里真正显示的文本，优先于 names.zh.json。
+		indexStarted := time.Now()
+		clientNames := loadNames(p.namesClient)
+		if len(clientNames) == 0 {
+			log.Printf("警告：客户端名字表 %s 不可用，物品名回落到 runtime/l10n/names.zh.json（可能与游戏显示不一致，可用 -build-data 生成）", p.namesClient)
+		}
+		slotMap := loadSlotMap(p.equipmentSlots)
+		if len(slotMap) == 0 {
+			log.Printf("提示：装备部位表 %s 不可用，装备部位只用现役装备目录 %s 判定", p.equipmentSlots, p.equipCatalog)
+		}
+		var note string
+		index, note, err = LoadItemIndex(IndexOptions{
+			Configs:     p.configs,
+			IndexPath:   p.itemIndex,
+			Gear:        gear,
+			SlotMap:     slotMap,
+			NamesClient: clientNames,
+			NamesZH:     loadNames(p.namesZH),
+			NamesEN:     loadNames(p.namesEN),
+		})
+		if note != "" {
+			log.Printf("提示：%s", note)
+		}
+		if err != nil {
+			log.Fatalf("建立物品索引失败：%v", err)
+		}
+		log.Printf("物品索引来自 %s，载入 %d 件，耗时 %s", index.Source(), index.Count(), time.Since(indexStarted).Round(time.Millisecond))
+		log.Printf("名字来源：客户端 PVF 文本表 %d 条（游戏显示名）", len(clientNames))
+
 	}
-	slotMap := loadSlotMap(p.equipmentSlots)
-	if len(slotMap) == 0 {
-		log.Printf("提示：装备部位表 %s 不可用，装备部位只用现役装备目录 %s 判定", p.equipmentSlots, p.equipCatalog)
-	}
-	index, note, err := LoadItemIndex(IndexOptions{
-		Configs:     p.configs,
-		IndexPath:   p.itemIndex,
-		Gear:        gear,
-		SlotMap:     slotMap,
-		NamesClient: clientNames,
-		NamesZH:     loadNames(p.namesZH),
-		NamesEN:     loadNames(p.namesEN),
-	})
-	if note != "" {
-		log.Printf("提示：%s", note)
-	}
-	if err != nil {
-		log.Fatalf("建立物品索引失败：%v", err)
-	}
-	log.Printf("物品索引来自 %s，载入 %d 件，耗时 %s", index.Source(), index.Count(), time.Since(indexStarted).Round(time.Millisecond))
-	log.Printf("名字来源：客户端 PVF 文本表 %d 条（游戏显示名）", len(clientNames))
 
 	buf := make([]byte, 16)
 	_, _ = rand.Read(buf)
@@ -318,6 +351,7 @@ func main() {
 	mux.HandleFunc("/api/characters", s.auth(s.handleCharacters))
 	mux.HandleFunc("/api/character", s.auth(s.handleCharacter))
 	mux.HandleFunc("/api/items", s.auth(s.handleItems))
+	mux.HandleFunc("/api/catalog-metadata", s.auth(s.handleCatalogMetadata))
 	mux.HandleFunc("/api/types", s.auth(s.handleTypes))
 	mux.HandleFunc("/api/filters", s.auth(s.handleFilters))
 	mux.HandleFunc("/api/grant", s.auth(s.handleGrant))

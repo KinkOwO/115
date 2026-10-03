@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "scenes": [
+    {
+      "dungeon": 100002721,
+      "maze": 0,
+      "cinematic_path": "contents/2022/110levelscenario/sanctusbellum/cinematic/q12893_13042.cmt",
+      "record": [
+        0,
+        0,
+        0,
+        0,
+        4,
+        5,
+        165,
+        0,
+        33,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "resume_base": true
+    }
+  ]
+}

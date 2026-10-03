@@ -77,6 +77,5 @@ func (s *Store) CommitAccountMaterialSweep(ctx context.Context, account, id int6
 		return role, nil, e
 	}
 	role.State = state
-	s.Cache.Del(ctx, fmt.Sprintf("%scharacters:%d", s.prefix, account))
 	return role, updated, nil
 }

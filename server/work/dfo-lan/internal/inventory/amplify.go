@@ -1,14 +1,11 @@
 package inventory
 
 import (
-	"context"
 	"crypto/rand"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 )
 
@@ -107,17 +104,11 @@ var amplifyRandomInt = func(n int) (int, error) {
 
 // LoadAmplifyGrimoires 读取增幅书清单；文件缺失时该功能整体拒绝（不影响强化）。
 func LoadAmplifyGrimoires(path string) error {
-	b, err := os.ReadFile(path)
-	if os.IsNotExist(err) {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
 	var rules amplifyGrimoireRules
-	if err = json.Unmarshal(b, &rules); err != nil {
+	if loaded, err := loadOptionalJSON(path, &rules); !loaded || err != nil {
 		return err
 	}
+
 	if rules.Version != 1 || len(rules.Source) != 64 || len(rules.Grimoires) == 0 {
 		return fmt.Errorf("增幅书规则源定义不完整")
 	}
@@ -179,7 +170,7 @@ func IsPureGrimoire(template uint32) bool {
 	return false
 }
 
-// classifyAmplifyBook 判定 CMD205 请求里的增幅书属于哪一类，并给出普通书摇出的红字数值。
+// ClassifyAmplifyBook 判定 CMD205 请求里的增幅书属于哪一类，并给出普通书摇出的红字数值。
 //
 //	golden=true → 黄金增幅书（脚本路径含 golden）：**仍走摇值即等级**（8..12），
 //	              与纯净增幅书是两个不同产物，不并入；
@@ -191,7 +182,7 @@ func IsPureGrimoire(template uint32) bool {
 // 本服除 1286 外，实测玩家用过的还有 stackable/.../pure.stk(590704000)、
 // 10356261、10354248、10360807、10000605。以前这里直接拒绝「窗口里的物品不是增幅书」，
 // 导致玩家背包里除 1286 外的纯书全都用不了。
-func classifyAmplifyBook(template uint32) (golden, pure bool, value byte) {
+func ClassifyAmplifyBook(template uint32) (golden, pure bool, value byte) {
 	golden = IsGoldenGrimoire(template)
 	pure = IsPureGrimoire(template)
 	if pure {
@@ -350,67 +341,15 @@ type AmplifyGrimoireReceipt struct {
 const amplifyGrimoireModel = "amplify-grimoire-v1"
 
 // ApplyAmplifyGrimoire 处理 CMD 205：校验增幅书与目标装备，写入次元属性类型，扣掉一本书。
-func (s *WearService) ApplyAmplifyGrimoire(ctx context.Context, role storage.Character, key string, r protocol.AmplifyOptionRequest) (storage.Character, AmplifyGrimoireReceipt, error) {
-	var out AmplifyGrimoireReceipt
-	if s == nil || s.Store == nil || s.Catalog == nil || s.BagRules.Source != role.ConfigVersion {
-		return role, out, fmt.Errorf("打红字需要有效装备目录及角色存档")
-	}
-	if !AmplifyGrimoiresLoaded() {
-		return role, out, fmt.Errorf("增幅书规则未装载")
-	}
-	if r.Type < amplifyTypeVitality || r.Type > amplifyTypeIntelligence {
-		return role, out, fmt.Errorf("次元属性类型 %d 不在 1..4 范围内", r.Type)
-	}
-	golden, pure, value := classifyAmplifyBook(r.BookTemplate)
 
-	saved, _, err := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, amplifyGrimoireModel, func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
-		next, receipt, e := s.applyAmplifyGrimoire(current, r, value, golden, pure)
-		if e != nil {
-			return nil, nil, e
-		}
-		encoded, e := json.Marshal(receipt)
-		if e != nil {
-			return nil, nil, e
-		}
-		return next, encoded, nil
-	})
-	if err != nil {
-		return role, out, err
-	}
-	receipt, err := s.Store.CharacterEventReceipt(ctx, role.AccountID, role.ID, key)
-	if err == nil {
-		err = json.Unmarshal(receipt, &out)
-	}
-	saved.WireID = role.WireID
-	return saved, out, err
-}
-
-func (s *WearService) applyAmplifyGrimoire(role storage.Character, r protocol.AmplifyOptionRequest, value byte, golden, pure bool) (json.RawMessage, AmplifyGrimoireReceipt, error) {
+func (s *WearService) ApplyAmplifyGrimoire(role Role, r protocol.AmplifyOptionRequest, value byte, golden, pure bool) (json.RawMessage, AmplifyGrimoireReceipt, error) {
 	var out AmplifyGrimoireReceipt
 	bag, err := ReadBag(role.State)
 	if err != nil {
 		return nil, out, err
 	}
 	// 目标装备：先按背包装备区找，再按已穿戴空间找（窗口两种都能点）。
-	space := byte(0)
-	items := bag.Equipment
-	index := -1
-	for i, gear := range items {
-		if gear.Slot == r.EquipmentSlot && gear.Template == r.EquipmentTemplate {
-			index = i
-			break
-		}
-	}
-	if index < 0 {
-		space = 3
-		items = bag.Worn
-		for i, gear := range items {
-			if gear.Slot == r.EquipmentSlot && gear.Template == r.EquipmentTemplate {
-				index = i
-				break
-			}
-		}
-	}
+	space, items, index := bag.findEquipment(0, r.EquipmentSlot, r.EquipmentTemplate)
 	if index < 0 {
 		return nil, out, fmt.Errorf("目标装备不在背包或已穿戴槽位里")
 	}

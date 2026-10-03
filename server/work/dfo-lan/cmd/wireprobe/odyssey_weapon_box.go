@@ -5,36 +5,21 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
+	"dfolan/internal/savecontract"
 	"dfolan/internal/storage"
+	"dfolan/internal/workflow"
 	"encoding/json"
 	"fmt"
-	"os"
 )
 
-type odysseyWeaponChoices struct {
-	Definition catalog.ScriptRecord `json:"definition"`
-	Source     string               `json:"source"`
-	Template   uint32               `json:"template"`
-	Categories []struct {
-		Category [2]byte  `json:"category"`
-		Items    []uint32 `json:"items"`
-	} `json:"categories"`
-}
+type odysseyWeaponChoices catalog.OdysseyWeaponChoices
 
 func loadOdysseyWeaponChoices(path string) (odysseyWeaponChoices, error) {
-	var c odysseyWeaponChoices
-	p, e := os.ReadFile(path)
-	if e != nil {
-		return c, e
-	}
-	e = json.Unmarshal(p, &c)
-	if e == nil && (c.Source != odysseySource || c.Template != 10417789 || len(c.Categories) != 85 || c.Definition.SHA256 != "d67f5042a5e17ef30581e297f030561de39f92ad5e215d742ec067aeaad96bec") {
-		e = fmt.Errorf("invalid Odyssey weapon source")
-	}
-	return c, e
+	c, err := catalog.LoadOdysseyWeaponChoices(path)
+	return odysseyWeaponChoices(c), err
 }
 func (c odysseyWeaponChoices) allows(r protocol.WeaponBoxSelection) bool {
-	if c.Source != odysseySource || c.Template != 10417789 {
+	if c.Template != 10417789 {
 		return false
 	}
 	for _, cat := range c.Categories {
@@ -56,8 +41,10 @@ type odysseyWeaponReceipt struct {
 
 const odysseyWeaponChoiceEvent = "odyssey-create-weapon-choice-10417789-v1"
 
-func applyOdysseyWeaponChoice(role storage.Character, wear *inventory.WearService, choices odysseyWeaponChoices, r protocol.WeaponBoxSelection) (json.RawMessage, json.RawMessage, error) {
-	if !isOdysseyRewardRole(role) || role.ConfigVersion != odysseySource || !choices.allows(r) || wear == nil || wear.Catalog == nil || wear.Catalog.Source.Checksum != odysseySource || wear.BagRules.Source != odysseySource {
+func applyOdysseyWeaponChoice(role storage.Character, wear *workflow.WearService, choices odysseyWeaponChoices, r protocol.WeaponBoxSelection) (json.RawMessage, json.RawMessage, error) {
+	// 与 applyOdysseyArmor 同一口径：不写「X.Source.SaveIdentity() != savecontract.Identity()」
+	// 那种恒假子句（SaveIdentity() 是常量）。目录来源的 L3 校验要在别处比 `.Source.Checksum`。
+	if !isOdysseyRewardRole(role) || role.ConfigVersion != savecontract.Identity() || !choices.allows(r) || wear == nil || wear.Catalog == nil {
 		return nil, nil, fmt.Errorf("selection not in source Odyssey category")
 	}
 	b, e := inventory.ReadBag(role.State)
@@ -93,7 +80,7 @@ func applyOdysseyWeaponChoice(role storage.Character, wear *inventory.WearServic
 	return raw, receipt, e
 }
 
-func selectOdysseyWeapon(ctx context.Context, store *storage.Store, wear *inventory.WearService, role storage.Character, choices odysseyWeaponChoices, r protocol.WeaponBoxSelection) (storage.Character, []outboundPacket, error) {
+func selectOdysseyWeapon(ctx context.Context, store *storage.Store, wear *workflow.WearService, role storage.Character, choices odysseyWeaponChoices, r protocol.WeaponBoxSelection) (storage.Character, []outboundPacket, error) {
 	saved, applied, e := store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, odysseyWeaponChoiceEvent, "odyssey-weapon-selection-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
 		return applyOdysseyWeaponChoice(current, wear, choices, r)
 	})

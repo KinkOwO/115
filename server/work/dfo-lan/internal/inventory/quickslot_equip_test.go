@@ -4,7 +4,7 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
+	"dfolan/internal/savecontract"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -44,12 +44,12 @@ func TestQuickSlotEquipmentMoveRequest(t *testing.T) {
 		BagRules:    BagRules{EquipmentSlots: [2]uint16{9, 64}, QuickSlots: [2]uint16{0, 8}},
 		Rules:       WearRules{Source: sum, Slots: map[string]uint16{"[charm]": 9}},
 	}
-	role := func(bag Bag) storage.Character {
+	role := func(bag Bag) Role {
 		state, e := SaveBag(json.RawMessage(`{"level":5,"advancement":0}`), bag)
 		if e != nil {
 			t.Fatal(e)
 		}
-		return storage.Character{Profession: 0, ConfigVersion: sum, State: state}
+		return Role{Profession: 0, ConfigVersion: savecontract.Identity(), State: state}
 	}
 
 	// Case 1: 护身符从装备区槽 29 拖进快捷槽 8（实机 01:51:30 / 02:41:37 的报文形状）。
@@ -182,12 +182,12 @@ func TestQuickSlotEquipmentOneOnly(t *testing.T) {
 		BagRules:    BagRules{EquipmentSlots: [2]uint16{9, 64}, QuickSlots: [2]uint16{0, 8}},
 		Rules:       WearRules{Source: sum, Slots: map[string]uint16{"[charm]": 9}},
 	}
-	role := func(bag Bag) storage.Character {
+	role := func(bag Bag) Role {
 		state, e := SaveBag(json.RawMessage(`{"level":5,"advancement":0}`), bag)
 		if e != nil {
 			t.Fatal(e)
 		}
-		return storage.Character{Profession: 0, ConfigVersion: sum, State: state}
+		return Role{Profession: 0, ConfigVersion: savecontract.Identity(), State: state}
 	}
 	dragIn := func(bag Bag, targetSlot, bagSlot uint16, id uint32) error {
 		_, e := svc.MoveOrdinary(role(bag),

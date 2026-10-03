@@ -4,7 +4,7 @@ import (
 	"context"
 	"dfolan/internal/catalog"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
+	"dfolan/internal/savecontract"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -22,8 +22,8 @@ func OdysseyGiftCatalog(r *catalog.OdysseyGrowth) catalog.LootCatalog {
 	return c
 }
 
-func (s *ProgressionService) ApplyOdysseyGift(role storage.Character, level byte, id uint32) (json.RawMessage, json.RawMessage, error) {
-	if s.Odyssey == nil || !OdysseyRole(role) || role.ConfigVersion != s.Odyssey.Source || s.Odyssey.Gifts[level] != id {
+func (s *ProgressionService) ApplyOdysseyGift(role Character, level byte, id uint32) (json.RawMessage, json.RawMessage, error) {
+	if s.Odyssey == nil || !OdysseyRole(role) || role.ConfigVersion != savecontract.Identity() || s.Odyssey.Gifts[level] != id {
 		return nil, nil, fmt.Errorf("invalid Odyssey milestone")
 	}
 	var state State
@@ -33,7 +33,7 @@ func (s *ProgressionService) ApplyOdysseyGift(role storage.Character, level byte
 	if state.Level < level {
 		return nil, nil, fmt.Errorf("Odyssey milestone level not reached")
 	}
-	a := inventory.Awarder{Catalog: OdysseyGiftCatalog(s.Odyssey), Rules: inventory.BagRules{Source: s.Odyssey.Source, Slots: map[string][2]uint16{"[booster]": {65, 120}}, MissingStackLimit: 1}}
+	a := inventory.Awarder{Catalog: OdysseyGiftCatalog(s.Odyssey), Rules: inventory.BagRules{Source: savecontract.Identity(), Slots: map[string][2]uint16{"[booster]": {65, 120}}, MissingStackLimit: 1}}
 	raw, receipt, e := a.Grant(role.State, id, 1)
 	if e != nil {
 		return nil, nil, e
@@ -44,7 +44,7 @@ func (s *ProgressionService) ApplyOdysseyGift(role storage.Character, level byte
 
 // Each milestone has an independent receipt. A full bag does not roll back
 // completed growth, and the unpaid gift is retried at the next login/clear.
-func (s *ProgressionService) OdysseyGifts(ctx context.Context, role storage.Character) (storage.Character, bool, []error) {
+func (s *ProgressionService) OdysseyGifts(ctx context.Context, role Character) (Character, bool, []error) {
 	if s.Odyssey == nil || !OdysseyRole(role) {
 		return role, false, nil
 	}
@@ -64,7 +64,7 @@ func (s *ProgressionService) OdysseyGifts(ctx context.Context, role storage.Char
 	for _, n := range levels {
 		level := byte(n)
 		id := s.Odyssey.Gifts[level]
-		next, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, s.Odyssey.Source, fmt.Sprintf("odyssey-level-gift:%d:%d", level, id), "odyssey-source-gift-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+		next, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, savecontract.Identity(), fmt.Sprintf("odyssey-level-gift:%d:%d", level, id), "odyssey-source-gift-v1", func(current Character) (json.RawMessage, json.RawMessage, error) {
 			return s.ApplyOdysseyGift(current, level, id)
 		})
 		if e != nil {

@@ -3,7 +3,8 @@ package character
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
-	"dfolan/internal/storage"
+	"dfolan/internal/savecontract"
+
 	"encoding/json"
 	"fmt"
 	"testing"
@@ -15,7 +16,7 @@ func TestAwakeningStagesPreserveInventoryAndRanks(t *testing.T) {
 	for _, id := range []uint16{86, 245, 112} {
 		s.Learning.index[0][id] = LearningDefinition{Fields: map[string][]pvf.Token{"[required level]": {{Type: 0, Value: 50}}, "[skill fitness growtype]": {{Type: 0, Value: 1}}, "[type]": {{Type: 6, Text: "[active]"}}}}
 	}
-	r := storage.Character{ConfigVersion: "version", State: json.RawMessage(`{"level":115,"advancement":1,"source_sha256":"hash","inventory":{"gold":123,"worn":[{"slot":12,"template":101000013}]},"learned_skills":[{"86":7},{}]}`)}
+	r := Character{ConfigVersion: savecontract.Identity(), State: json.RawMessage(`{"level":115,"advancement":1,"source_sha256":"hash","inventory":{"gold":123,"worn":[{"slot":12,"template":101000013}]},"learned_skills":[{"86":7},{}]}`)}
 	if _, e := s.ApplyAwakening(r, 2); e == nil {
 		t.Fatal("stage skipped")
 	}
@@ -63,7 +64,7 @@ func TestSourceAwakeningGrants(t *testing.T) {
 			t.Run(fmt.Sprintf("job%d_adv%d", job, adv), func(t *testing.T) {
 				state := State{Level: 115, Advancement: adv, AllJobsPilot: true, Attributes: prof.InitialAttributes, InitialSkills: prof.InitialSkills, SourceSHA256: prof.RawSHA256}
 				raw, _ := json.Marshal(state)
-				role := storage.Character{Name: "AwakeTest", WireID: 503, Profession: job, ConfigVersion: c.Source.Checksum, State: raw}
+				role := Character{Name: "AwakeTest", WireID: 503, Profession: job, ConfigVersion: c.Source.SaveIdentity(), State: raw}
 				for stage := byte(1); stage <= 3; stage++ {
 					role.State, e = s.ApplyAwakening(role, stage)
 					if e != nil {

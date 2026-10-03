@@ -31,7 +31,7 @@ func cubeContractRestore(raw json.RawMessage) ([]byte, error) {
 }
 
 func (s *cubeContractSession) save(w *worldSession, p []byte) ([]byte, error) {
-	if w == nil || w.role.ID == 0 || w.characters == nil || w.characters.Store == nil {
+	if w == nil || w.role.ID == 0 || w.characters == nil || w.store == nil {
 		return nil, fmt.Errorf("晶体契约设置需要已选中的所属角色")
 	}
 	selection, err := protocol.DecodeCubeContractSelection(p)
@@ -53,7 +53,7 @@ func (s *cubeContractSession) save(w *worldSession, p []byte) ([]byte, error) {
 	key := fmt.Sprintf("cube-contract-selection:%x:%d", s.nonce, s.sequence)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	saved, _, err := w.characters.Store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, "cube-contract-selection-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+	saved, _, err := w.store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, "cube-contract-selection-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
 		var fields map[string]json.RawMessage
 		if err := json.Unmarshal(current.State, &fields); err != nil {
 			return nil, nil, err

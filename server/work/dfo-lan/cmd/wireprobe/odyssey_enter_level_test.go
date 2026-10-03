@@ -4,6 +4,7 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/character"
 	"dfolan/internal/game/protocol"
+	"dfolan/internal/savecontract"
 	"dfolan/internal/storage"
 	"dfolan/internal/world"
 	"encoding/json"
@@ -42,7 +43,7 @@ func TestOdysseyStormPassJournalTeleportGate(t *testing.T) {
 		t.Fatal(err)
 	}
 	session := func(level byte, odysseyRole bool) *worldSession {
-		role := storage.Character{ConfigVersion: growth.Source, State: state}
+		role := storage.Character{ConfigVersion: savecontract.Identity(), State: state}
 		if odysseyRole {
 			role.Request = req
 		}

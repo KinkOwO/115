@@ -5,6 +5,7 @@ import (
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/storage"
+	"dfolan/internal/workflow"
 	"fmt"
 	"log"
 	"time"
@@ -49,12 +50,12 @@ func (w *worldSession) cardStage(id uint16, p []byte) ([]outboundPacket, error) 
 func (w *worldSession) grantFreeCard(index byte) ([]outboundPacket, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	role, receipt, _, e := w.loot.PickCard(ctx, w.role, w.activeDungeon, *w.cardPlan, index)
+	role, receipt, _, e := (&workflow.LootService{Store: w.store, Loot: w.loot}).PickCard(ctx, w.role, w.activeDungeon, *w.cardPlan, index)
 	if e != nil {
 		return nil, e
 	}
 	w.role = role
-	bag, e := w.loot.Bootstrap(role)
+	bag, e := w.loot.Bootstrap(workflow.LootRole(role))
 	if e != nil {
 		return nil, e
 	}
@@ -139,12 +140,7 @@ func (w *worldSession) settlementExit(p []byte) (*dungeon.Session, []outboundPac
 	if r.State == 2 {
 		return nil, []outboundPacket{ack}, nil
 	}
-	// The selection flag is set from the decoded request, not read back out of
-	// the outgoing acknowledgement. The gateway used to do
-	// "worldState.selectingDungeon = p.Payload[2] == 1", which only worked
-	// while the ack happened to be three bytes wide; narrowing it to its
-	// native two bytes turned that line into index out of range [2] with
-	// length 2 and killed the whole process, dropping every connected player.
+	// Routing follows the decoded request, independently of the ACK envelope.
 	w.selectingDungeon = r.Option == 1
 	// Preflight routing before granting an automatic unclaimed free card.
 	var pending *dungeon.Session
@@ -228,6 +224,9 @@ func (w *worldSession) restartDungeon() (*dungeon.Session, []outboundPacket, err
 	if old.Definition.ID == blackPurgatorySquadDungeon {
 		return nil, nil, fmt.Errorf("黑鸦挑战结束，请返回大厅重新创建队伍")
 	}
+	if old.Definition.Tower != nil {
+		return nil, nil, fmt.Errorf("%s tower does not allow settlement retry", old.Definition.Tower.Key)
+	}
 	copy := *w
 	copy.activeDungeon = nil
 	sel := protocol.DungeonSelection{ID: old.Definition.ID, Party: 65535, Quest: uint32(old.Maze.Quest)}
@@ -236,7 +235,7 @@ func (w *worldSession) restartDungeon() (*dungeon.Session, []outboundPacket, err
 	// The same entry gate the ordinary selection applies, minus its town-only
 	// check: the character is inside a run, so there is no PVF [dungeon gate]
 	// area under its feet to stand on.
-	if w.fatigue != nil && !old.Definition.NoFatigue && w.fatigue.Rules.RoomCost > 0 {
+	if w.fatigue != nil && !old.Definition.NoFatigue && w.fatigue.EnterCostFor(old.Definition.ID) > 0 {
 		fp, err := w.fatigue.State(ctx, w.account, w.role.ID, time.Now())
 		if err != nil {
 			return nil, nil, err
@@ -253,7 +252,7 @@ func (w *worldSession) restartDungeon() (*dungeon.Session, []outboundPacket, err
 	if e != nil {
 		return nil, nil, e
 	}
-	entry, e := copy.dungeonEntryPlan("dungeon_select_ack", 16, sel, s)
+	entry, e := copy.dungeonEntryPlan(context.Background(), "dungeon_select_ack", 16, sel, s)
 	if e != nil {
 		return nil, nil, e
 	}

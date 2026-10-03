@@ -19,7 +19,7 @@ type ItemMaterialCost struct {
 	Count    uint32 `json:"count"`
 }
 
-type itemMaterialEntry struct {
+type ItemMaterialEntry struct {
 	Template  uint32             `json:"template"`
 	Path      string             `json:"path"`
 	Materials []ItemMaterialCost `json:"materials"`
@@ -28,12 +28,20 @@ type itemMaterialEntry struct {
 type itemMaterialsDoc struct {
 	Version int                 `json:"version"`
 	Source  string              `json:"source"`
-	Items   []itemMaterialEntry `json:"items"`
+	Items   []ItemMaterialEntry `json:"items"`
 }
 
 // ItemMaterials is the exported catalog, queryable by template.
 type ItemMaterials struct {
+	Source     string
+	Items      []ItemMaterialEntry
 	byTemplate map[uint32][]ItemMaterialCost
+}
+
+// RestoreItemMaterials rebuilds the private lookup index after decoding a
+// deterministic projection; order and duplicate override behavior stay native.
+func RestoreItemMaterials(source string, entries []ItemMaterialEntry) (*ItemMaterials, error) {
+	return newItemMaterials(itemMaterialsDoc{Version: 1, Source: source, Items: entries})
 }
 
 // LoadItemMaterials reads the item [need material] catalog. A missing file yields
@@ -50,10 +58,14 @@ func LoadItemMaterials(path string) (*ItemMaterials, error) {
 	if err := json.Unmarshal(b, &doc); err != nil {
 		return nil, err
 	}
+	return newItemMaterials(doc)
+}
+
+func newItemMaterials(doc itemMaterialsDoc) (*ItemMaterials, error) {
 	if doc.Version != 1 || len(doc.Items) == 0 {
 		return nil, fmt.Errorf("物品材料规则源定义不完整")
 	}
-	m := &ItemMaterials{byTemplate: make(map[uint32][]ItemMaterialCost, len(doc.Items))}
+	m := &ItemMaterials{Source: doc.Source, Items: doc.Items, byTemplate: make(map[uint32][]ItemMaterialCost, len(doc.Items))}
 	for _, it := range doc.Items {
 		if it.Template == 0 || len(it.Materials) == 0 {
 			continue

@@ -8,14 +8,13 @@ import (
 	"testing"
 )
 
-// 出站 ACK 的合法形状就是原生 reader 消费的两个 u8 (state, option)；旧的三字节
-// {1, state, option} 多出来的那个前导 1 是入站请求体才有的 literal。
+// 公共 CMD 分发器先读成功字节，CMD72 handler 再读 state/option。
 func TestSettlementExitAckWidth(t *testing.T) {
 	for s := byte(1); s <= 2; s++ {
-		for o := byte(0); o <= 3; o++ {
+		for _, o := range []byte{0, 1, 2, 3, SettlementExitSeamless} {
 			got := SettlementExitSuccess(SettlementExit{State: s, Option: o})
-			if len(got) != 2 || got[0] != s || got[1] != o {
-				t.Fatalf("ack %d/%d not the native two-byte body: %v", s, o, got)
+			if len(got) != 3 || got[0] != 1 || got[1] != s || got[2] != o {
+				t.Fatalf("ack %d/%d missing CMD envelope or handler bytes: %v", s, o, got)
 			}
 		}
 	}
@@ -66,7 +65,7 @@ func TestCurrentNativeCardPackets(t *testing.T) {
 	}
 	for s := byte(1); s <= 2; s++ {
 		for o := byte(0); o <= 2; o++ {
-			check(fmt.Sprintf("card_exit_%d_%d", s, o), SettlementExitSuccess(SettlementExit{State: s, Option: o}))
+			check(fmt.Sprintf("card_exit_%d_%d", s, o), SettlementExitSuccess(SettlementExit{State: s, Option: o})[1:])
 		}
 	}
 	r := ClearRewardState{BaseExperience: 500, ScoreExperience: 50, MonsterExperience: 1234}
@@ -81,7 +80,9 @@ func TestCurrentNativeCardPackets(t *testing.T) {
 			t.Fatal("malformed card selection", p)
 		}
 	}
-	for _, p := range [][]byte{{0, 0}, {3, 0}, {1, 4, 1}, {2}, {1, 2, 0, 0, 0, 0, 0, 0}, {1, 2, 1, 1, 0, 0, 0, 0}} {
+	// source=3 与 token 外非零 padding 仍拒绝；`{1,2,0,...}` 撤退体自
+	// [ISPINS-ARENA-BOSS] 起合法（见 TestIspinsSettlementExitSources）。
+	for _, p := range [][]byte{{0, 0}, {3, 0}, {1, 4, 1}, {2}, {1, 2, 3, 0, 0, 0, 0, 0}, {1, 2, 1, 1, 0, 0, 0, 0}} {
 		if _, e := DecodeSettlementExit(p); e == nil {
 			t.Fatal("malformed exit", p)
 		}
@@ -92,5 +93,40 @@ func TestCurrentNativeCardPackets(t *testing.T) {
 		if e != nil || r.State != 1 || r.Option != p[1] {
 			t.Fatal("captured exit refused", r, e)
 		}
+	}
+}
+
+// [ISPINS-ARENA-BOSS] 伊斯大陆会话的 CMD72 三种发送器：撤退对话框
+// （2.38.2 实测 5× `01 02 00`+token）、官服奖励后退出（s4 帧 498
+// `01 01 02`+token）、官服结算退出（s4 帧 342/402 `01 02 01`+token）。
+// 16B 体在 p[3:8] 携带官服/私服逐字节一致的常量回执 c5 20 24 76 3f。
+func TestIspinsSettlementExitSources(t *testing.T) {
+	for _, raw := range []string{
+		"010200c52024763f0000000000000000", // 2.38.2 实测：撤退对话框 source=0
+		"010102c52024763f0000000000000000", // 官服 s4 帧 498：奖励后退出 source=2
+		"010201c52024763f0000000000000000", // 官服 s4 帧 342/402：结算退出 source=1
+	} {
+		p, _ := hex.DecodeString(raw)
+		r, e := DecodeSettlementExit(p)
+		if e != nil || r.State != p[0] || r.Option != p[1] {
+			t.Fatal("ispins exit refused", raw, r, e)
+		}
+	}
+	for _, raw := range []string{
+		"010200c52024763f0100000000000000", // token 后 padding 非零
+		"010200c520247600",                 // token 不匹配且 padding 非零
+	} {
+		p, _ := hex.DecodeString(raw)
+		if _, e := DecodeSettlementExit(p); e == nil {
+			t.Fatal("malformed ispins exit accepted", raw)
+		}
+	}
+	p, _ := hex.DecodeString("010200c52024763f") // 8B：state+option+source+token，无 padding
+	if r, e := DecodeSettlementExit(p); e != nil || r.Option != 2 {
+		t.Fatal("compact retreat body refused", r, e)
+	}
+	p, _ = hex.DecodeString("0102000000000000")
+	if r, e := DecodeSettlementExit(p); e != nil || r.Option != 2 {
+		t.Fatal("short retreat body refused", r, e)
 	}
 }

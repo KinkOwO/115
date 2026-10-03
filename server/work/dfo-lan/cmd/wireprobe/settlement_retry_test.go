@@ -6,6 +6,8 @@ import (
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/storage"
 	"testing"
+
+	"context"
 )
 
 // 结算面板的「再次挑战」是 CMD72 option=0，dstr 479 原文 "Restart the dungeon."，
@@ -24,7 +26,7 @@ func TestSettlementRetryOpensSelectionBeforeEntry(t *testing.T) {
 		Room:       catalog.DungeonRoom{Map: 100016164},
 	}
 	sel := protocol.DungeonSelection{ID: 100004946, Party: 65535}
-	entry, e := w.dungeonEntryPlan("dungeon_select_ack", 16, sel, s)
+	entry, e := w.dungeonEntryPlan(context.Background(), "dungeon_select_ack", 16, sel, s)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -65,5 +67,27 @@ func TestSettlementRetryRequiresActiveRun(t *testing.T) {
 	}
 	if pending != nil || len(route) != 0 {
 		t.Fatalf("refused retry still produced a session or plan: %+v %+v", pending, route)
+	}
+}
+
+// [ISPINS-ARENA-BOSS] 伊斯大陆会话的 CMD46（141B 通用结算请求，每阶段 boss
+// 死亡后客户端必发，官服 s4 c2s 帧 338/393/442/489）必须整包吞掉：官服对它
+// 无任何专门应答，generic 结算族（N34/N37/N26/N261/N19/N2758/N29/N21）在官服
+// 伊斯结算里一个都没有。2026-10-03 四测：这些包发出后客户端 1.2s 内 op=682
+// 崩溃退出 —— 吞掉 = 静默无应答；非伊斯会话保持 generic 路径不变。
+func TestIspinsSwallowsGenericPlayResult(t *testing.T) {
+	w := &worldSession{
+		role:           storage.Character{ID: 7, WireID: 10},
+		ispins:         &ispinsRun{},
+		activeDungeon:  &dungeon.Session{Definition: catalog.DungeonDefinition{ID: 100002987}},
+		completionSent: true,
+	}
+	plan, e := w.dungeonResult(nil)
+	if e != nil || len(plan) != 0 {
+		t.Fatalf("ispins CMD46 must be swallowed silently: plan=%v err=%v", plan, e)
+	}
+	w.ispins = nil
+	if plan, e = w.dungeonResult(nil); e == nil || len(plan) != 0 {
+		t.Fatalf("non-ispins CMD46 must keep the generic settlement path: plan=%v err=%v", plan, e)
 	}
 }

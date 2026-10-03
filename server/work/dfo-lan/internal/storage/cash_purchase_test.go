@@ -14,17 +14,17 @@ import (
 )
 
 func cashFixture() CashOrder {
-	return CashOrder{Key: "fixture-order-0001", Account: 1, Character: 1, Source: strings.Repeat("a", 64), Lines: []CashOrderLine{{3400489, 590722921, 1, 1, 3180}}}
+	return CashOrder{Key: "fixture-order-0001", Account: 1, Character: 1, Source: strings.Repeat("a", 64), Lines: []CashOrderLine{{Product: 3400489, Template: 590722921, Quantity: 1, Units: 1, UnitPrice: 3180}}}
 }
 func TestCashOrderValidation(t *testing.T) {
 	o := cashFixture()
-	if n, e := o.total(); e != nil || n != 3180 {
+	if n, e := o.Total(); e != nil || n != 3180 {
 		t.Fatal(n, e)
 	}
 	for _, f := range []func(*CashOrder){func(o *CashOrder) { o.Account = 0 }, func(o *CashOrder) { o.Source = "bad" }, func(o *CashOrder) { o.Key = "" }, func(o *CashOrder) { o.Lines[0].Quantity = 0 }, func(o *CashOrder) { o.Lines[0].UnitPrice = 0 }, func(o *CashOrder) { o.Lines[0].UnitPrice = 4294967295 }, func(o *CashOrder) { o.Lines[0].Units = 4294967295; o.Lines[0].Quantity = 2 }} {
 		q := cashFixture()
 		f(&q)
-		if _, e := q.total(); e == nil {
+		if _, e := q.Total(); e == nil {
 			t.Fatal("invalid order accepted")
 		}
 	}
@@ -55,7 +55,6 @@ func TestCashPurchaseIntegration(t *testing.T) {
 		}
 	}()
 	cfg.PostgresSchema = schema
-	cfg.RedisPrefix = schema + ":"
 	cfg.MaxConnections = 12
 	s, e := Open(ctx, cfg)
 	if e != nil {
@@ -131,7 +130,7 @@ func TestCashPurchaseIntegration(t *testing.T) {
 	}
 	q = o
 	q.Key = "atomic-failure-001"
-	q.Lines = append(append([]CashOrderLine(nil), o.Lines...), CashOrderLine{2, 999, 1, 1, 1})
+	q.Lines = append(append([]CashOrderLine(nil), o.Lines...), CashOrderLine{Product: 2, Template: 999, Quantity: 1, Units: 1, UnitPrice: 1})
 	setBalance(10000)
 	if _, _, e = s.PurchaseCash(ctx, q); e == nil || balance() != 10000 {
 		t.Fatal("partial delivery charged")
@@ -225,7 +224,7 @@ func TestCashPurchaseIntegration(t *testing.T) {
 	// Fail after both the debit and character UPDATE: audit delivery insertion
 	// must roll them back, not just undo the new cash-inventory row.
 	q.Key = "bag-late-fail-001"
-	q.Lines = []CashOrderLine{{2, 999, 1, 1, 1}}
+	q.Lines = []CashOrderLine{{Product: 2, Template: 999, Quantity: 1, Units: 1, UnitPrice: 1}}
 	if _, _, e = s.PurchaseCashToBag(ctx, q, deliver); e == nil || balance() != 6820 {
 		t.Fatal("late bag failure charged")
 	}
@@ -251,7 +250,7 @@ func TestCashPurchaseIntegration(t *testing.T) {
 	}
 	q = o
 	q.Key = "vault-upgrade-0001"
-	q.Lines = []CashOrderLine{{3000129, 50, 1, 1, 30}}
+	q.Lines = []CashOrderLine{{Product: 3000129, Template: 50, Quantity: 1, Units: 1, UnitPrice: 30}}
 	setBalance(29)
 	if _, _, e = s.PurchaseCashVault(ctx, q, upgrade); e == nil || balance() != 29 {
 		t.Fatal("insufficient upgrade charged")
@@ -269,7 +268,7 @@ func TestCashPurchaseIntegration(t *testing.T) {
 		t.Fatal("wrong tier charged")
 	}
 	q.Key = "vault-late-fail-001"
-	q.Lines = []CashOrderLine{{2, 999, 1, 1, 1}}
+	q.Lines = []CashOrderLine{{Product: 2, Template: 999, Quantity: 1, Units: 1, UnitPrice: 1}}
 	if _, _, e = s.PurchaseCashVault(ctx, q, func(v VaultState) (VaultState, error) { v.Slots = 40; return v, nil }); e == nil || balance() != 70 {
 		t.Fatal("late vault failure charged")
 	}

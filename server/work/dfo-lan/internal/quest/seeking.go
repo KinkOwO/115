@@ -1,47 +1,49 @@
 package quest
 
 import (
-	"context"
+	"dfolan/internal/character"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 )
 
-type seekingItemGrant struct{ Template, Amount uint32 }
+type SeekingItemGrant struct{ Template, Amount uint32 }
 
 type SeekingGrantResult struct {
-	Role     storage.Character
+	Role     character.Character
 	Items    []inventory.AwardReceipt
 	Applied  bool
 	Advanced bool
 }
 
-type seekingGrantReceipt struct {
+type SeekingGrantReceipt struct {
 	Run    string                   `json:"run"`
 	Entity uint16                   `json:"entity"`
 	Source string                   `json:"source"`
 	Items  []inventory.AwardReceipt `json:"items"`
 }
 
-// seekingMonsterItemGrants resolves quest items for a confirmed, owned death.
+// SeekingMonsterItemEligible checks the source and owned death before storage reads.
 // Only the quest selected for this source maze can pay.
-func (s *Service) seekingMonsterItemGrants(ctx context.Context, role storage.Character, run *dungeon.Session, entity uint16) ([]seekingItemGrant, error) {
+func (s *Service) SeekingMonsterItemEligible(run *dungeon.Session, entity uint16) bool {
 	if run == nil || !run.Loaded || run.Maze.Quest == 0 || !run.Dead[entity] || run.Unowned[entity] {
-		return nil, nil
+		return false
 	}
 	en := s.Index().Entries[uint32(run.Maze.Quest)]
 	if en == nil || !en.Implemented || en.Model != SeekingItems || en.Seeking.Dungeon != run.Definition.ID {
+		return false
+	}
+	return true
+}
+func (s *Service) SeekingMonsterItemGrants(role character.Character, run *dungeon.Session, entity uint16, states []QuestState) ([]SeekingItemGrant, error) {
+	if !s.SeekingMonsterItemEligible(run, entity) {
 		return nil, nil
 	}
-	states, err := s.Store.Quests(ctx, role.AccountID, role.ID)
-	if err != nil {
-		return nil, err
-	}
+	en := s.Index().Entries[uint32(run.Maze.Quest)]
 	accepted := false
 	for _, q := range states {
-		if q.ID == run.Maze.Quest && q.Status == "accepted" && q.Progress > 0 && q.ConfigVersion == s.Catalog.Source.Checksum && q.ProgressModel == en.Model {
+		if q.ID == run.Maze.Quest && q.Status == "accepted" && q.Progress > 0 && q.ConfigVersion == s.Catalog.Source.SaveIdentity() && q.ProgressModel == en.Model {
 			accepted = true
 			break
 		}
@@ -68,7 +70,7 @@ func (s *Service) seekingMonsterItemGrants(ctx context.Context, role storage.Cha
 	for _, row := range en.Seeking.Items {
 		need[row.Template] = row.Amount
 	}
-	var out []seekingItemGrant
+	var out []SeekingItemGrant
 	for _, row := range en.Seeking.Rewards {
 		if row.Monster != monster || have[row.Item] >= need[row.Item] {
 			continue
@@ -78,72 +80,31 @@ func (s *Service) seekingMonsterItemGrants(ctx context.Context, role storage.Cha
 			amount = missing
 		}
 		if amount > 0 {
-			out = append(out, seekingItemGrant{row.Item, amount})
+			out = append(out, SeekingItemGrant{row.Item, amount})
 			have[row.Item] += amount
 		}
 	}
 	return out, nil
 }
 
-// GrantSeekingMonsterItems writes source [monster reward item] awards directly
-// into the bag. The event key binds the grant to one run and monster entity,
-// so a replayed death can never duplicate the invisible quest item.
-func (s *Service) GrantSeekingMonsterItems(ctx context.Context, role storage.Character, run *dungeon.Session, entity uint16) (SeekingGrantResult, error) {
-	out := SeekingGrantResult{Role: role}
-	awards, err := s.seekingMonsterItemGrants(ctx, role, run, entity)
-	if err != nil {
-		return out, err
-	}
-	if len(awards) == 0 {
-		advanced, e := s.InventoryProgress(ctx, role)
-		out.Advanced = len(advanced) > 0
-		return out, e
-	}
-	if s.Inventory == nil {
-		return out, ErrRewardPending
-	}
-	key := fmt.Sprintf("quest-monster-item:%s:%d", run.RunID, entity)
-	saved, applied, err := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, s.Catalog.Source.Checksum, key, SeekingItems, func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
-		var items []inventory.AwardReceipt
-		for _, award := range awards {
-			var receipt inventory.AwardReceipt
-			current.State, receipt, err = s.Inventory.Grant(current.State, award.Template, award.Amount)
-			if err != nil {
-				return nil, nil, err
-			}
-			items = append(items, receipt)
+func (s *Service) PrepareSeekingGrant(current character.Character, run string, entity uint16, awards []SeekingItemGrant) (json.RawMessage, json.RawMessage, error) {
+	var err error
+	var items []inventory.AwardReceipt
+	for _, award := range awards {
+		var receipt inventory.AwardReceipt
+		current.State, receipt, err = s.Inventory.Grant(current.State, award.Template, award.Amount)
+		if err != nil {
+			return nil, nil, err
 		}
-		receipt, e := json.Marshal(seekingGrantReceipt{Run: run.RunID, Entity: entity, Source: s.Catalog.Source.Checksum, Items: items})
-		return current.State, receipt, e
-	})
-	if err != nil {
-		return out, err
+		items = append(items, receipt)
 	}
-	receiptJSON, err := s.Store.CharacterEventReceipt(ctx, role.AccountID, role.ID, key)
-	if err != nil {
-		return out, err
-	}
-	var receipt seekingGrantReceipt
-	if err = json.Unmarshal(receiptJSON, &receipt); err != nil {
-		return out, err
-	}
-	if receipt.Run != run.RunID || receipt.Entity != entity || receipt.Source != s.Catalog.Source.Checksum {
-		return out, fmt.Errorf("quest monster item receipt mismatch")
-	}
-	saved.WireID = role.WireID
-	out.Role, out.Items, out.Applied = saved, receipt.Items, applied
-	advanced, err := s.InventoryProgress(ctx, saved)
-	out.Advanced = len(advanced) > 0
-	return out, err
+	receipt, e := json.Marshal(SeekingGrantReceipt{Run: run, Entity: entity, Source: s.Catalog.Source.SaveIdentity(), Items: items})
+	return current.State, receipt, e
 }
 
 // InventoryProgress completes accepted seeking objectives after a committed
 // pickup makes every required item present in the bag.
-func (s *Service) InventoryProgress(ctx context.Context, role storage.Character) ([]uint16, error) {
-	states, err := s.Store.Quests(ctx, role.AccountID, role.ID)
-	if err != nil {
-		return nil, err
-	}
+func (s *Service) InventoryProgressPlan(role character.Character, states []QuestState) ([]uint16, error) {
 	bag, err := inventory.ReadBag(role.State)
 	if err != nil {
 		return nil, err
@@ -156,13 +117,7 @@ func (s *Service) InventoryProgress(ctx context.Context, role storage.Character)
 			en == nil || en.Model != SeekingItems || q.ProgressModel != en.Model || !holdsSeekingItems(bag, en.Seeking.Items) {
 			continue
 		}
-		applied, e := s.Store.CompleteQuestObjective(ctx, role.AccountID, role.ID, q.ID, x.Source, en.Model)
-		if e != nil {
-			return advanced, e
-		}
-		if applied {
-			advanced = append(advanced, q.ID)
-		}
+		advanced = append(advanced, q.ID)
 	}
 	return advanced, nil
 }

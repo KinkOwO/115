@@ -1,7 +1,6 @@
 package character
 
 import (
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 )
@@ -12,7 +11,7 @@ import (
 // unawakened, so the awakening stage resets to 0. Advancement skills are
 // granted at read time by automaticSkills/knownSkills from the new branch, so
 // only the advancement/awakening fields are persisted - no skill rows change.
-func (s *Service) ApplyAdvancement(role storage.Character, advancement byte) (json.RawMessage, error) {
+func (s *Service) ApplyAdvancement(role Character, advancement byte) (json.RawMessage, error) {
 	var state State
 	if err := json.Unmarshal(role.State, &state); err != nil {
 		return nil, err
@@ -29,7 +28,7 @@ func (s *Service) ApplyAdvancement(role storage.Character, advancement byte) (js
 		return role.State, nil
 	}
 	prof, ok := s.Catalog.Professions[role.Profession]
-	if !ok || prof.RawSHA256 != state.SourceSHA256 || role.ConfigVersion != s.Catalog.Source.Checksum {
+	if !ok || prof.RawSHA256 != state.SourceSHA256 || role.ConfigVersion != s.Catalog.Source.SaveIdentity() {
 		return nil, fmt.Errorf("advancement source mismatch")
 	}
 	if len(prof.AdvancementGrowth[advancement]) == 0 {

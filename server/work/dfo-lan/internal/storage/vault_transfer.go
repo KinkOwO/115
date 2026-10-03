@@ -77,6 +77,5 @@ func (s *Store) CommitVaultTransfer(ctx context.Context, account, id int64, sour
 	}
 	role.State = state
 	v.Items = items
-	s.Cache.Del(ctx, fmt.Sprintf("%scharacters:%d", s.prefix, account))
 	return role, v, true, nil
 }

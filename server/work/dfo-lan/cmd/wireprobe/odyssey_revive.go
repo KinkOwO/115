@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"dfolan/internal/game/protocol"
+	"dfolan/internal/savecontract"
 	"dfolan/internal/storage"
 	"encoding/binary"
 	"encoding/json"
@@ -25,7 +26,7 @@ const odysseyCreditField = "odyssey_pilot_revive_credits"
 const odysseyCreditGrant = "odyssey-pilot-revive-10-user-approved-20260917-v1"
 
 func changeOdysseyCredits(role storage.Character, grant bool) (json.RawMessage, json.RawMessage, error) {
-	if !isOdysseyRewardRole(role) || role.ConfigVersion != odysseySource {
+	if !isOdysseyRewardRole(role) || role.ConfigVersion != savecontract.Identity() {
 		return nil, nil, fmt.Errorf("test revive credits require Odyssey source role")
 	}
 	var fields map[string]json.RawMessage
@@ -87,9 +88,9 @@ func (w *worldSession) pilotReviveAllowed(p []byte) error {
 	if w.dungeons == nil {
 		return fmt.Errorf("missing map revive rules")
 	}
-	script, ok := w.dungeons.Maps[w.activeDungeon.Room.Map]
-	if !ok {
-		return fmt.Errorf("missing current map source")
+	script, err := w.dungeons.MapScript(w.activeDungeon.Room.Map)
+	if err != nil {
+		return err
 	}
 	for _, v := range script.Cells {
 		if v.Type == 3 && v.Text == "[cannot use coin map]" {

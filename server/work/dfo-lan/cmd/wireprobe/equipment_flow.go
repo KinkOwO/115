@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
+	"dfolan/internal/workflow"
 	"fmt"
 	"time"
 )
@@ -20,6 +21,17 @@ type equipmentSession struct {
 	pendingGoldDue  time.Time
 }
 
+// requestKey shares the session nonce; callers retain their operation prefixes.
+func (s *equipmentSession) requestKey(raw []byte) (string, error) {
+	if !s.initialized {
+		if _, e := rand.Read(s.nonce[:]); e != nil {
+			return "", e
+		}
+		s.initialized = true
+	}
+	return fmt.Sprintf("%x:%x", s.nonce, sha256.Sum256(raw)), nil
+}
+
 // takePendingGold 到点则取出待补发的金币包（未到点或没有则返回 nil）。
 func (s *equipmentSession) takePendingGold(now time.Time) []byte {
 	if len(s.pendingGoldBody) == 0 || now.Before(s.pendingGoldDue) {
@@ -31,7 +43,7 @@ func (s *equipmentSession) takePendingGold(now time.Time) []byte {
 	return body
 }
 
-func (s *equipmentSession) handle(service *inventory.WearService, w *worldSession, p, raw []byte) ([]outboundPacket, error) {
+func (s *equipmentSession) handle(service *workflow.WearService, w *worldSession, p, raw []byte) ([]outboundPacket, error) {
 	if service == nil || w == nil || w.role.ID == 0 {
 		return nil, fmt.Errorf("equipment move requires owned character")
 	}
@@ -39,14 +51,15 @@ func (s *equipmentSession) handle(service *inventory.WearService, w *worldSessio
 	if e != nil {
 		return nil, e
 	}
+	if inventory.IsKnightShieldMove(r) {
+		return s.handleKnightShieldMove(service, w, r, raw)
+	}
 	if r.SourceList == 12 || r.DestinationList == 12 {
-		if !s.initialized {
-			if _, e = rand.Read(s.nonce[:]); e != nil {
-				return nil, e
-			}
-			s.initialized = true
+		key, e := s.requestKey(raw)
+		if e != nil {
+			return nil, e
 		}
-		return w.moveAccountVault(service, r, fmt.Sprintf("account-vault-move:%x:%x", s.nonce, sha256.Sum256(raw)))
+		return w.moveAccountVault(service, r, "account-vault-move:"+key)
 	}
 	// CMD19 carries every bag move, not only equipment. A move involving
 	// the personal vault (list 2) belongs to the vault path. A stack going onto
@@ -55,28 +68,24 @@ func (s *equipmentSession) handle(service *inventory.WearService, w *worldSessio
 	if plan, handled, e := w.moveVault(service.BagRules, r); handled {
 		return plan, e
 	}
-	if !s.initialized {
-		if _, e = rand.Read(s.nonce[:]); e != nil {
-			return nil, e
-		}
-		s.initialized = true
+	key, e := s.requestKey(raw)
+	if e != nil {
+		return nil, e
 	}
-	hash := sha256.Sum256(raw)
-	if plan, handled, e := w.movePetStack(service.BagRules, r, fmt.Sprintf("petmove:%x:%x", s.nonce, hash)); handled {
+	if plan, handled, e := w.movePetStack(service.BagRules, r, "petmove:"+key); handled {
 		return plan, e
 	}
 	// A stack going onto the quick-use belt belongs to the stackable path; anything it does not
 	// recognise falls through to the equipment move unchanged.
-	if plan, handled, e := w.moveStack(service.BagRules, r, fmt.Sprintf("bagmove:%x:%x", s.nonce, hash)); handled {
+	if plan, handled, e := w.moveStack(service.BagRules, r, "bagmove:"+key); handled {
 		return plan, e
 	}
 	// (20260918: the live-catalog warm block was removed together with the
 	// move-path PVF validation itself - the move no longer reads the gear
 	// catalog, so there is nothing to preheat.)
-	key := fmt.Sprintf("equipment:%x:%x", s.nonce, hash)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	saved, applied, e := service.Move(ctx, w.role, key, r)
+	saved, applied, e := service.Move(ctx, w.role, "equipment:"+key, r)
 	if e != nil {
 		return nil, e
 	}
@@ -119,12 +128,14 @@ func (s *equipmentSession) handle(service *inventory.WearService, w *worldSessio
 		return nil, e
 	}
 	plan = append(plan, outboundPacket{"equipment_bag_resynced", 0, 13, bagBody})
-	wornBody, e := inventory.WornPayload(saved.State)
-	if e != nil {
-		return nil, e
-	}
-	if len(wornBody) > 0 {
-		plan = append(plan, outboundPacket{"equipment_worn_resynced", 0, 13, wornBody})
+	if moveTouchesWorn(r) {
+		wornBody, e := inventory.WornPayload(saved.State)
+		if e != nil {
+			return nil, e
+		}
+		if len(wornBody) > 0 {
+			plan = append(plan, outboundPacket{"equipment_worn_resynced", 0, 13, wornBody})
+		}
 	}
 	for _, space := range []byte{0, 1, 3, 7} {
 		var rows []inventory.BagEquipment
@@ -159,7 +170,7 @@ func (s *equipmentSession) handle(service *inventory.WearService, w *worldSessio
 			plan = append(plan, outboundPacket{"equipment_slots_updated", 0, 14, body})
 		}
 	}
-	if r.SourceList == 7 || r.DestinationList == 7 || r.SourceSlot == 26 || r.DestinationSlot == 26 {
+	if moveTouchesCreature(r) {
 		clPayload, err := inventory.CreatureListPayload(saved.State)
 		if err == nil {
 			plan = append(plan, outboundPacket{"creature_list_updated", 0, 105, clPayload})
@@ -173,12 +184,14 @@ func (s *equipmentSession) handle(service *inventory.WearService, w *worldSessio
 			}
 		}
 	}
-	wornUpdate, e := inventory.WornSpaceUpdate(saved.State)
-	if e != nil {
-		return nil, e
-	}
-	if len(wornUpdate) > 0 {
-		plan = append(plan, outboundPacket{"equipment_worn_window_refreshed", 0, 14, wornUpdate})
+	if moveTouchesWorn(r) {
+		wornUpdate, e := inventory.WornSpaceUpdate(saved.State)
+		if e != nil {
+			return nil, e
+		}
+		if len(wornUpdate) > 0 {
+			plan = append(plan, outboundPacket{"equipment_worn_window_refreshed", 0, 14, wornUpdate})
+		}
 	}
 	// Appearance refresh (C9): when the move touched the worn set, re-send the
 	// mode0 userinfo with the equipped-appearance block bound to the new state.
@@ -213,7 +226,22 @@ func (s *equipmentSession) handle(service *inventory.WearService, w *worldSessio
 // (CMD38) but stopped issuing the room transition (CMD45). Before that move,
 // the same run had advanced rooms normally.
 func shouldSendEquipmentAppearanceRebuild(inDungeon bool, r protocol.ItemMoveRequest) bool {
-	return !inDungeon && (r.SourceList == 3 || r.DestinationList == 3)
+	return !inDungeon && moveTouchesWorn(r)
+}
+
+func moveTouchesWorn(r protocol.ItemMoveRequest) bool {
+	return r.SourceList == 3 || r.DestinationList == 3
+}
+
+func moveTouchesCreature(r protocol.ItemMoveRequest) bool {
+	return r.SourceList == 7 || r.DestinationList == 7 ||
+		(r.SourceList == 3 && r.SourceSlot == 26) ||
+		(r.DestinationList == 3 && r.DestinationSlot == 26)
+}
+
+func moveNeedsCreatureActorAppearance(r protocol.ItemMoveRequest) bool {
+	return !moveTouchesWorn(r) && moveTouchesCreature(r) &&
+		(r.SourceSlot == 26 || r.DestinationSlot == 26)
 }
 
 // The confirmed CMD37 repair must run again after a successful in-dungeon
@@ -222,8 +250,7 @@ func shouldSendEquipmentAppearanceRebuild(inDungeon bool, r protocol.ItemMoveReq
 // does not touch those objects. Keep the same detach/reattach/ordinary-gear
 // order as finishDungeonLoading; this is a new live timing to verify manually.
 func dungeonCloneEquipmentRefresh(w *worldSession, r protocol.ItemMoveRequest) ([]outboundPacket, bool, error) {
-	if w == nil || w.activeDungeon == nil || w.characters == nil ||
-		(r.SourceList != 3 && r.DestinationList != 3) {
+	if w == nil || w.activeDungeon == nil || w.characters == nil || !moveTouchesWorn(r) {
 		return nil, false, nil
 	}
 	reset, full, enabled, err := w.characters.CloneReattachPackets(w.role)

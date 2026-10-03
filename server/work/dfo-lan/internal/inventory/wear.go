@@ -4,7 +4,6 @@ import (
 	"context"
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -27,7 +26,30 @@ func LoadWearRules(path, source string) (WearRules, error) {
 	if e = json.Unmarshal(b, &r); e != nil {
 		return r, e
 	}
-	if r.Source != source || len(r.Slots) == 0 {
+	// 2026-10-01（next145 续）：与 gamedata/pvf_catalogs/characters_runtime 三处哈希门禁
+	// 同一口径 —— 文件的 `source` 留空 = 不钉来源，**自动派生**为当次内层实际哈希；非空仍强校验。
+	// 原因：这份 wear 规则表是**按语义手写的槽位映射**（不是 PVF 导出目录），它不随客户端
+	// 三件套换代而变；把它钉在某个历史内层哈希上，会让"内层重建成功"再次变成"启动失败"。
+	//
+	// 两件事必须一起做，否则会从"启动失败"变成"运行时失败"：
+	//  1) 门禁放开（下面这行）；
+	//  2) **回填** r.Source = source —— 因为 WearRules.Source 同时是运行时不变量：
+	//     wear.go 的 MoveOrdinary、knight_deck.go、creation_equipment.go 都拿它跟
+	//     role.ConfigVersion 比对。只留空不回填，装备穿戴会在运行时全被拒。
+	//
+	// 之所以必须放开：preparePVFShields 对 LoadWearRules 的调用**不受 checksBaselines 保护**
+	// （pvf_catalogs.go:318），是直读启动的必由之路；前一轮（next142）只改了另外三处门禁，
+	// 所以在这里撞墙（报 "wear rules source mismatch"）。
+	if r.Source != "" && r.Source != source {
+		return r, fmt.Errorf("wear rules source mismatch")
+	}
+	if r.Source == "" {
+		if len(source) != 64 {
+			return r, fmt.Errorf("wear rules source mismatch")
+		}
+		r.Source = source
+	}
+	if len(r.Slots) == 0 {
 		return r, fmt.Errorf("wear rules source mismatch")
 	}
 	for _, slot := range r.Slots {
@@ -38,12 +60,19 @@ func LoadWearRules(path, source string) (WearRules, error) {
 	return r, nil
 }
 
+type PremiumStore interface {
+	HasConquerorPremium(context.Context, int64, time.Time) (bool, error)
+}
+
 type WearService struct {
-	Store       *storage.Store
-	Catalog     *EquipmentCatalog
-	Professions catalog.Characters
-	BagRules    BagRules
-	Rules       WearRules
+	PremiumStore     PremiumStore
+	Catalog          *EquipmentCatalog
+	Professions      catalog.Characters
+	BagRules         BagRules
+	Rules            WearRules
+	Shields          *KnightShields
+	AvatarRecast     *AvatarRecastRules
+	AvatarRecastLoot *catalog.LootCatalog
 }
 
 func (s *WearService) EggHatchTarget(template uint32) uint32 {
@@ -60,7 +89,7 @@ func (s *WearService) EggHatchTarget(template uint32) uint32 {
 	return EggHatchOutputs[template]
 }
 
-func (s *WearService) wearable(role storage.Character, item BagEquipment, slot uint16) error {
+func (s *WearService) wearable(role Role, item BagEquipment, slot uint16) error {
 	d, err := s.Catalog.Definition(item.Template)
 	if err != nil {
 		return err
@@ -80,6 +109,21 @@ func (s *WearService) wearable(role storage.Character, item BagEquipment, slot u
 	if e := json.Unmarshal(role.State, &state); e != nil {
 		return e
 	}
+	if (kind[0].Text == "[oath]" || kind[0].Text == "[primer]") && state.Level < 115 {
+		return fmt.Errorf("oath equipment requires level 115")
+	}
+	if kind[0].Text == "[primer]" {
+		if slot < 36 || slot > 46 {
+			return fmt.Errorf("oath crystal does not fit destination slot")
+		}
+		rarity := d.Fields["[rarity]"]
+		if len(rarity) != 1 || rarity[0].Type != 0 {
+			return fmt.Errorf("oath crystal rarity unavailable")
+		}
+		if rarity[0].Value == 8 && slot < 44 {
+			return fmt.Errorf("primeval oath crystal requires slot 44..46")
+		}
+	}
 	job, ok := s.Professions.Professions[role.Profession]
 	if !ok {
 		return fmt.Errorf("equipment profession unavailable")
@@ -87,6 +131,10 @@ func (s *WearService) wearable(role storage.Character, item BagEquipment, slot u
 	expected, ok := s.Rules.Slots[kind[0].Text]
 	talismanSlot := s.Rules.Special && kind[0].Text == "[talisman]" && slot >= 33 && slot <= 35
 	primerSlot := s.Rules.Special && kind[0].Text == "[primer]" && slot >= 36 && slot <= 46
+	// 融合石使用客户端 CMD19 指定的八栏，不按 [amalgamation part] 换算普通部位。
+	// 36..43 为候选范围；44..46 保留给太初晶体，47 为誓约核心。
+	// 取证及当前实机验收边界见 docs/protocol/amalgamation-stone-wear-20260930.md。
+	amalgamationSlot := s.Rules.Special && kind[0].Text == "[amalgamation stone]" && slot >= 36 && slot <= 43
 	// 2026-09-25 实机 CMD19：光剑 28240 请求穿戴槽 24。
 	// 源 dualweapon.skl 限定女鬼剑转职 4；光剑源 [sub type] 为 5。
 	// 仅增加副手例外，之后仍执行武器自身的职业、转职及等级校验。
@@ -108,7 +156,9 @@ func (s *WearService) wearable(role storage.Character, item BagEquipment, slot u
 	// 武器装扮塞进幻化栏。
 	auraSkin := s.Rules.Special && kind[0].Text == "[aurora avatar]" &&
 		slot == AuraSkinSlot && s.auraSkinUnlocked(role)
-	if !ok || (expected != slot && !talismanSlot && !primerSlot && !offhandLightsabre && !creatureSkin && !auraSkin) {
+	// 先判断受限例外；表外类型也可以命中例外，但仍须通过后续源规则校验。
+	if !talismanSlot && !primerSlot && !amalgamationSlot && !offhandLightsabre && !creatureSkin && !auraSkin &&
+		(!ok || expected != slot) {
 		return fmt.Errorf("equipment does not fit destination slot")
 	}
 	if kind[0].Text == "[creature]" {
@@ -123,9 +173,9 @@ func (s *WearService) wearable(role storage.Character, item BagEquipment, slot u
 		}
 	}
 	level := state.Level
-	if s.Store != nil {
+	if s.PremiumStore != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		hasConqueror, _ := s.Store.HasActivePremium(ctx, role.AccountID, storage.PremiumConqueror, time.Now())
+		hasConqueror, _ := s.PremiumStore.HasConquerorPremium(ctx, role.AccountID, time.Now())
 		cancel()
 		if hasConqueror {
 			if int(level)+10 <= 255 {
@@ -140,7 +190,7 @@ func (s *WearService) wearable(role storage.Character, item BagEquipment, slot u
 
 // creatureSkinUnlocked 读存档里 USERINFO1 解锁字节的宠物幻化栏位（bit5）。
 // 读不到存档时按未开启处理：宁可不放行，也不要把宠物塞进客户端没打开的栏。
-func (s *WearService) creatureSkinUnlocked(role storage.Character) bool {
+func (s *WearService) creatureSkinUnlocked(role Role) bool {
 	b, e := ReadBag(role.State)
 	if e != nil {
 		return false
@@ -151,7 +201,7 @@ func (s *WearService) creatureSkinUnlocked(role storage.Character) bool {
 // auraSkinUnlocked 读存档里 USERINFO1 解锁字节的光环幻化栏位（bit3）。与
 // creatureSkinUnlocked 同一道理：客户端 UI 的挂锁读同一位，未开栏时服务端也不该
 // 放行，否则界面还锁着、东西却进去了，客户端/服务端状态就不一致了。
-func (s *WearService) auraSkinUnlocked(role storage.Character) bool {
+func (s *WearService) auraSkinUnlocked(role Role) bool {
 	b, e := ReadBag(role.State)
 	if e != nil {
 		return false
@@ -178,8 +228,11 @@ func (s *WearService) itemGroup(item *BagEquipment, flagGroup byte) byte {
 
 // MoveOrdinary validates both directions before swapping one physical item.
 // Equipped items retain identity and durability; no reward or copy is created.
-func (s *WearService) MoveOrdinary(role storage.Character, r protocol.ItemMoveRequest) (json.RawMessage, error) {
-	if s == nil || s.Catalog == nil || s.Catalog.Source.Checksum != role.ConfigVersion || s.Rules.Source != role.ConfigVersion || s.Professions.Source.Checksum != role.ConfigVersion {
+func (s *WearService) MoveOrdinary(role Role, r protocol.ItemMoveRequest) (json.RawMessage, error) {
+	if IsKnightShieldMove(r) {
+		return s.moveKnightShield(role, r)
+	}
+	if s == nil || s.Catalog == nil || s.Catalog.Source.SaveIdentity() != role.ConfigVersion || s.Professions.Source.SaveIdentity() != role.ConfigVersion {
 		return nil, fmt.Errorf("wear service source mismatch")
 	}
 	validSpace := func(v byte) bool { return v == 0 || v == 3 || (s.Rules.Special && (v == 1 || v == 7)) }
@@ -192,6 +245,11 @@ func (s *WearService) MoveOrdinary(role storage.Character, r protocol.ItemMoveRe
 	b, e := ReadBag(role.State)
 	if e != nil {
 		return nil, e
+	}
+	if r.DestinationList == 1 && r.DestinationSlot >= protocol.AvatarInventorySlots(b.AvatarExpansion) {
+		// Existing legacy rows stay in the save and can still move out; new
+		// placements must fit the capacity the native client can display.
+		return nil, fmt.Errorf("destination outside avatar inventory capacity")
 	}
 	// Migrate legacy worn appearance avatars that were saved with Group 0
 	for idx := range b.Worn {
@@ -408,22 +466,6 @@ func (s *WearService) MoveOrdinary(role storage.Character, r protocol.ItemMoveRe
 		return nil, e
 	}
 	return SaveBag(role.State, b)
-}
-
-func (s *WearService) Move(ctx context.Context, role storage.Character, key string, r protocol.ItemMoveRequest) (storage.Character, bool, error) {
-	if s == nil || s.Store == nil {
-		return role, false, fmt.Errorf("wear storage unavailable")
-	}
-	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, "ordinary-equipment-move-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
-		raw, e := s.MoveOrdinary(current, r)
-		if e != nil {
-			return nil, nil, e
-		}
-		receipt, e := json.Marshal(r)
-		return raw, receipt, e
-	})
-	saved.WireID = role.WireID
-	return saved, applied, e
 }
 
 // HasWornWeapon checks the native weapon slot in the persisted worn set.

@@ -22,7 +22,7 @@ func (w *worldSession) refreshCreatureLoyalty(ctx context.Context, now time.Time
 	}
 	var changed, fed bool
 	key := fmt.Sprintf("creature-loyalty:%d", now.UnixNano())
-	saved, _, err := w.characters.Store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion,
+	saved, _, err := w.store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion,
 		key, "creature-loyalty-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
 			state, didChange, didFeed, e := inventory.AdvanceCreatureLoyalty(current.State, now.Unix(), inDungeon, w.loot.Catalog)
 			changed, fed = didChange, didFeed

@@ -1,0 +1,275 @@
+{
+  "source": {
+    "format": "dfo_20260901_inner",
+    "path": "../client-build/Script.inner.pvf",
+    "size": 760530763,
+    "checksum": "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80",
+    "loaded_at": "2026-09-29T23:53:17.9006708Z",
+    "file_count": 5650173,
+    "group_count": 82571,
+    "cached_chunks": 1,
+    "cached_texts": 0
+  },
+  "chain": "etc/character/knight/shieldwindownewdata.etc",
+  "window_sha256": "cf9bdccaa0bb958cb197e9e538739961b0be999dafeabf9efa870da67c73fc80",
+  "wear_source": "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80",
+  "profession": 12,
+  "rows": [
+    {
+      "position": 1,
+      "item": 113370003,
+      "equ_sha256": "9550ac157ffb1317fd8fbeddd77fa0480c8a79c094c81782748bcff85acd70ec",
+      "grow_type": 1,
+      "condition": "level",
+      "required_level": 1,
+      "wear_slot": 24,
+      "sub_type": 3
+    },
+    {
+      "position": 2,
+      "item": 113370025,
+      "equ_sha256": "ec21cb810d6e5ba9668557e59db5a12d9fc9a2ac865cd51e75b9814096429ea7",
+      "grow_type": 2,
+      "condition": "level",
+      "required_level": 1,
+      "wear_slot": 24,
+      "sub_type": 3
+    },
+    {
+      "position": 3,
+      "item": 113370008,
+      "equ_sha256": "6aeccbbe338d609880530eca382aeb3f9eab9c613713e8acf8941ed63ad5206e",
+      "grow_type": 0,
+      "condition": "level",
+      "required_level": 25,
+      "wear_slot": 24,
+      "sub_type": 3
+    },
+    {
+      "position": 4,
+      "item": 113370029,
+      "equ_sha256": "427a3f1338b6fd05dea43444ef5525f5f53a1b89f681f586570090f4b66fcaf6",
+      "grow_type": 0,
+      "condition": "level",
+      "required_level": 35,
+      "wear_slot": 24,
+      "sub_type": 3
+    },
+    {
+      "position": 5,
+      "item": 113370004,
+      "equ_sha256": "3ea5b36203025b49d81cb0a4f2f63c9443282c2de34cbc10b0ddaf14d03edc3c",
+      "grow_type": 0,
+      "condition": "level",
+      "required_level": 40,
+      "wear_slot": 24,
+      "sub_type": 3
+    },
+    {
+      "position": 6,
+      "item": 113370026,
+      "equ_sha256": "c27d58d48edc6bf815f10ab062afd30995232791fe1ab9f33d85ffecf0bd6a02",
+      "grow_type": 0,
+      "condition": "level",
+      "required_level": 45,
+      "wear_slot": 24,
+      "sub_type": 3
+    },
+    {
+      "position": 7,
+      "item": 113370007,
+      "equ_sha256": "882b0dffee1ea3995a3baac837579e8df5747539fb40cf9fa5d9f0454bf8dd18",
+      "grow_type": 1,
+      "condition": "quest",
+      "open_quest": 12735,
+      "clear_quest": 12735,
+      "wear_slot": 24,
+      "sub_type": 3
+    },
+    {
+      "position": 8,
+      "item": 113370030,
+      "equ_sha256": "ca0844bd9b9a5580811e2b819cab7936cd8e337c5e15fcbabfceff0ddfad2768",
+      "grow_type": 2,
+      "condition": "quest",
+      "open_quest": 12786,
+      "clear_quest": 12786,
+      "wear_slot": 24,
+      "sub_type": 3
+    },
+    {
+      "position": 9,
+      "item": 113370005,
+      "equ_sha256": "ae00ec6982acb0a455ea583c6a211ab4f2de43af576f53536d7a96bfabb51f22",
+      "grow_type": 0,
+      "condition": "level",
+      "required_level": 55,
+      "wear_slot": 24,
+      "sub_type": 3
+    },
+    {
+      "position": 10,
+      "item": 113370027,
+      "equ_sha256": "4e1e4281b636e44d326188e6e7c8252257cda13fb1882f74fa1e4c63cbee0126",
+      "grow_type": 0,
+      "condition": "level",
+      "required_level": 60,
+      "wear_slot": 24,
+      "sub_type": 3
+    },
+    {
+      "position": 11,
+      "item": 113370006,
+      "equ_sha256": "0afd9f8ae47f28b0a94a94840ff77af3e055200fbc9fb4abf6eea9f97f14c3c2",
+      "grow_type": 0,
+      "condition": "level",
+      "required_level": 65,
+      "wear_slot": 24,
+      "sub_type": 3
+    },
+    {
+      "position": 12,
+      "item": 113370028,
+      "equ_sha256": "836bc48ade9013d63816cb34228542f84b019322ebb1c377e4b6a632b87ba52c",
+      "grow_type": 0,
+      "condition": "level",
+      "required_level": 70,
+      "wear_slot": 24,
+      "sub_type": 3
+    },
+    {
+      "position": 13,
+      "item": 113370038,
+      "equ_sha256": "1526e05d1c6c91d31069d4bd1bd7cf0405f249011ae4c38c389e7e1f0a86892d",
+      "grow_type": 1,
+      "condition": "quest",
+      "open_quest": 2631,
+      "clear_quest": 2631,
+      "wear_slot": 24,
+      "sub_type": 3
+    },
+    {
+      "position": 14,
+      "item": 113370039,
+      "equ_sha256": "04b7b1c4d2bf91a12a0fedb43cec9b76b5a6d3c56073cca18f37d10296c8f21e",
+      "grow_type": 2,
+      "condition": "quest",
+      "open_quest": 2632,
+      "clear_quest": 2632,
+      "wear_slot": 24,
+      "sub_type": 3
+    },
+    {
+      "position": 15,
+      "item": 113370009,
+      "equ_sha256": "9d2184d767f8c02efb39523d7ca10635a5ec7f2219f71ff0423d6b2915cf3982",
+      "grow_type": 0,
+      "condition": "level",
+      "required_level": 77,
+      "wear_slot": 24,
+      "sub_type": 3
+    },
+    {
+      "position": 16,
+      "item": 113370031,
+      "equ_sha256": "3d5f808af034ef8652098c282e8659000de7b328b7ce18c4a4351d7ba3adb353",
+      "grow_type": 0,
+      "condition": "level",
+      "required_level": 79,
+      "wear_slot": 24,
+      "sub_type": 3
+    },
+    {
+      "position": 17,
+      "item": 113370010,
+      "equ_sha256": "f222bf9e9308dc02dd4f2857ce861e23418d993eaecddfa2f03f1103c0acd664",
+      "grow_type": 0,
+      "condition": "level",
+      "required_level": 80,
+      "wear_slot": 24,
+      "sub_type": 3
+    },
+    {
+      "position": 18,
+      "item": 113370032,
+      "equ_sha256": "9bdcdc01a3fd631d6f62bddd5fb43764f383316d7804d74cf25347535ad8c328",
+      "grow_type": 0,
+      "condition": "level",
+      "required_level": 81,
+      "wear_slot": 24,
+      "sub_type": 3
+    },
+    {
+      "position": 19,
+      "item": 113370011,
+      "equ_sha256": "323e73f7af02521b9c0b9c33b34e879b3e2ea29f5d208c56ccd370343a7372ab",
+      "grow_type": 0,
+      "condition": "level",
+      "required_level": 82,
+      "wear_slot": 24,
+      "sub_type": 3
+    },
+    {
+      "position": 20,
+      "item": 113370033,
+      "equ_sha256": "953559fde67dca37536bde65257863ed30fd6ad77fde2e5159dae0841ffe4948",
+      "grow_type": 0,
+      "condition": "level",
+      "required_level": 83,
+      "wear_slot": 24,
+      "sub_type": 3
+    },
+    {
+      "position": 21,
+      "item": 113370035,
+      "equ_sha256": "ef75b51afdb266858209aee823b22e9acedb4c426217e55f57d301b9c361b856",
+      "grow_type": 0,
+      "condition": "level",
+      "required_level": 84,
+      "wear_slot": 24,
+      "sub_type": 3
+    },
+    {
+      "position": 22,
+      "item": 113370036,
+      "equ_sha256": "9d9c277257e396cea9986ee690eddc537c643c3d9527dd7d5a5718942d8dcea5",
+      "grow_type": 0,
+      "condition": "level",
+      "required_level": 85,
+      "wear_slot": 24,
+      "sub_type": 3
+    },
+    {
+      "position": 23,
+      "item": 113370012,
+      "equ_sha256": "1b4fb7d260e8d5652d5798045289bf9508330e00354e301824b3dad7d6c8c0bb",
+      "grow_type": 1,
+      "condition": "quest",
+      "open_quest": 12746,
+      "clear_quest": 12746,
+      "wear_slot": 24,
+      "sub_type": 3
+    },
+    {
+      "position": 24,
+      "item": 113370034,
+      "equ_sha256": "27acbc0c7dd0f94c419dfbad7168fc79539467e86b8fa7d275b413eede3cad7f",
+      "grow_type": 2,
+      "condition": "quest",
+      "open_quest": 12791,
+      "clear_quest": 12791,
+      "wear_slot": 24,
+      "sub_type": 3
+    },
+    {
+      "position": 25,
+      "item": 113370040,
+      "equ_sha256": "e4fde18725d8b09340b6efbf7fa406a187f53216647d45ff4838da477a878e8f",
+      "grow_type": 0,
+      "condition": "level",
+      "required_level": 90,
+      "wear_slot": 24,
+      "sub_type": 3
+    }
+  ]
+}

@@ -154,3 +154,182 @@ func TestStoryDigestRestoreAndEntryOrder(t *testing.T) {
 		t.Fatal("story digest update is not retained")
 	}
 }
+
+// NOTI708 now rides the LOGIN flood (TestLoginEventFloodOrder); this guard
+// keeps the frame from creeping back into the post-selection town announce,
+// where the client could not absorb it out of stage (next79 §13).
+func TestWeeklyDungeonConfigLeftTheAnnounce(t *testing.T) {
+	packets := (entryPayloads{CinematicSkips: []byte{0}, StoryDigest: []byte{115, 0, 0, 0}, Basic: []byte{1}}).packets()
+	for _, p := range packets {
+		if p.ID == 708 {
+			t.Fatal("entry announce still carries NOTI708; it belongs to the login flood")
+		}
+	}
+}
+
+// The weekly-dungeon ledger split across stages in the official 21:18
+// capture: NOTI1336 rides the LOGIN flood (pre-selection), while NOTI706 /
+// NOTI537 ride the post-selection announce in that order. The NOTI108 that
+// official order places between them is now the fixed V3 table
+// (event_info_generated.go, next79 §15/§16): one count=1 raw table whose
+// single Ispins record is the only 108 body the private-server client has
+// ever accepted; TestEventInfoTableRidesAnnounce pins the frame's body and
+// position.
+func TestWeeklyDungeonLedgerFollowsConfig(t *testing.T) {
+	packets := (entryPayloads{CinematicSkips: []byte{0}, StoryDigest: []byte{115, 0, 0, 0}, Basic: []byte{1}}).packets()
+	bodies := map[uint16][]byte{}
+	at := map[uint16]int{}
+	for i, p := range packets {
+		if _, seen := at[p.ID]; !seen {
+			at[p.ID] = i
+			bodies[p.ID] = p.Payload
+		}
+	}
+	for _, id := range []uint16{706, 108, 537} {
+		if _, ok := at[id]; !ok {
+			t.Fatalf("entry payloads missing frame %d", id)
+		}
+	}
+	// Official post-selection order: 706 -> 108 -> 537 (then the entry basics).
+	if !(at[1370] < at[706] && at[706] < at[108] && at[108] < at[537] && at[537] < at[2]) {
+		t.Fatalf("wrong ledger sequence: 1370@%d 706@%d 108@%d 537@%d 2@%d",
+			at[1370], at[706], at[108], at[537], at[2])
+	}
+	// The login-flood frames must not creep back into the announce; 708 has
+	// its own guard above, 1198/1336 are checked here.
+	for _, id := range []uint16{1198, 1336} {
+		if _, ok := at[id]; ok {
+			t.Fatalf("entry announce still carries frame %d; it belongs to the login flood", id)
+		}
+	}
+	if len(bodies[706]) != 1464 {
+		t.Fatalf("NOTI706 body len=%d, want 1464 (official s1 frame 78)", len(bodies[706]))
+	}
+	if !bytes.HasPrefix(bodies[706], []byte{0xff, 0xff, 0xff, 0xff, 0x01, 0x01, 0x05}) {
+		t.Fatalf("NOTI706 body drifted from the official capture: %x", bodies[706][:8])
+	}
+	want537 := []byte{0xc4, 0x0d, 0x00, 0x00, 0x05, 0x00, 0xd5, 0xcd,
+		0x28, 0xca, 0x3b, 0x00, 0x00, 0x00, 0x00, 0x00}
+	if !bytes.Equal(bodies[537], want537) {
+		t.Fatalf("NOTI537 body drifted from the official capture: %x", bodies[537])
+	}
+}
+
+// The 708/1198/1336 burst is LOGIN-stage traffic, not town-announce
+// traffic: every business connection of the official 21:18 capture repeats
+// 1759 -> 708 -> 1198 -> 108 -> 1336 before the SELECT_CHARACTER request.
+// Round 10 replayed that verbatim - 108 included - and the client STILL
+// froze at the selection screen, so the 108 left the flood for good
+// (next79 §15): the flood must now be exactly 708 -> 1792 -> 1198 -> 1336
+// (1792 joined in §20), and any NOTI108 anywhere in it voids the round (the
+// announce probe is the only 108 this server may send).
+func TestLoginEventFloodOrder(t *testing.T) {
+	flood := loginFloodPackets()
+	// next79 §20: 1792 rides the flood between 708 and 1198 (official order
+	// switch f11 708 -> f12 1792 -> f18 1198), so the legion character-select
+	// gate has quest-clear-group state before the selection is evaluated.
+	wantOrder := []uint16{708, 1792, 1198, 1336}
+	bodies := map[uint16][]byte{}
+	for i, want := range wantOrder {
+		if flood[i].ID != want {
+			t.Fatalf("login flood position %d is frame %d, want %d", i, flood[i].ID, want)
+		}
+		if flood[i].Kind != 0 {
+			t.Fatalf("login flood frame %d has kind %d, want NOTI(0)", flood[i].ID, flood[i].Kind)
+		}
+		bodies[flood[i].ID] = flood[i].Payload
+	}
+	if len(flood) != len(wantOrder) {
+		t.Fatalf("login flood has %d frames, want %d", len(flood), len(wantOrder))
+	}
+	// NOTI1792 golden body (s4 frame 9 / switch frame 12): 96 bytes,
+	// count=17 clear-group list, byte-identical across both sessions.
+	want1792 := mustHexDecode(
+		"1100000035000000013600000001370000000138000000013a" +
+			"000000013b000000013c000000013d000000013e000000013f" +
+			"000000014000000001450000000146000000014b000000014c" +
+			"000000014d000000014e000000016289eda43c0000")
+	if !bytes.Equal(bodies[1792], want1792) {
+		t.Fatalf("NOTI1792 body drifted from the official capture: %x", bodies[1792])
+	}
+	// NOTI708 golden body (official s1 frame 8).
+	want708 := []byte{0x32, 0x33, 0x36, 0x3f, 0x3e, 0x3b, 0x3a, 0x39, 0xff, 0xff,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x51, 0xfc, 0x40, 0xed, 0x35, 0x00}
+	if !bytes.Equal(bodies[708], want708) {
+		t.Fatalf("NOTI708 body drifted from the official capture: %x", bodies[708])
+	}
+	// NOTI1198 golden body (s1/s4 frame 15): 0x0942, flag 1 at +4, 2 at +25,
+	// capture timestamp 0x3f1095d69f at +0xA5, rest zero.
+	want1198 := make([]byte, 176)
+	want1198[0], want1198[1], want1198[4] = 0x42, 0x09, 0x01
+	want1198[25] = 0x02
+	copy(want1198[165:], []byte{0x9f, 0xd6, 0x95, 0x10, 0x3f})
+	if !bytes.Equal(bodies[1198], want1198) {
+		t.Fatalf("NOTI1198 body drifted from the official capture: %x", bodies[1198])
+	}
+	// NOTI1336 golden body (s1 frame 60).
+	want1336 := []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0xf4, 0xf7, 0x69, 0xb2, 0x3a, 0x00, 0x00, 0x00}
+	if !bytes.Equal(bodies[1336], want1336) {
+		t.Fatalf("NOTI1336 body drifted from the official capture: %x", bodies[1336])
+	}
+	// NOTI108 must be gone from the flood entirely (next79 §15): the only
+	// 108 this server sends is the announce's fixed V3 table, so a CMD217
+	// seen during login maps to a non-108 cause and voids the round.
+	for i, p := range flood {
+		if p.ID == 108 {
+			t.Fatalf("login flood position %d carries NOTI108; the announce table is the only 108 allowed", i)
+		}
+	}
+}
+
+// The permanent fix after the round-11 differential experiment (next79
+// §15/§16): the announce must carry exactly one NOTI108 whose body is the
+// fixed V3 table - the count=1 raw table with the single Ispins Legion
+// record - still positioned between 706 and 537 like the official order.
+// Every other 108 body the experiment tried (zlib, or a 7-record raw table)
+// froze the client with CMD217.
+func TestEventInfoTableRidesAnnounce(t *testing.T) {
+	packets := (entryPayloads{CinematicSkips: []byte{0}, StoryDigest: []byte{115, 0, 0, 0}, Basic: []byte{1}}).packets()
+	at := map[uint16]int{}
+	copies := 0
+	var got []byte
+	for j, p := range packets {
+		if _, seen := at[p.ID]; !seen {
+			at[p.ID] = j
+		}
+		if p.ID == 108 && len(p.Payload) > 0 {
+			copies++
+			got = p.Payload
+		}
+	}
+	if copies != 1 {
+		t.Fatalf("announce carries %d non-empty NOTI108 frames, want exactly 1", copies)
+	}
+	if !bytes.Equal(got, eventInfoTable) {
+		t.Fatalf("announce 108 body drifted from the fixed table (%d vs %d bytes)", len(got), len(eventInfoTable))
+	}
+	// Official post-selection position: 706 -> 108 -> 537.
+	if !(at[706] < at[108] && at[108] < at[537]) {
+		t.Fatalf("table frame out of order: 706@%d 108@%d 537@%d", at[706], at[108], at[537])
+	}
+}
+
+// Fixed-table body sanity (next79 §16): the V3 verdict is only reproducible
+// if the shipped body stays anchored to the experiment's winning bytes - a
+// 2-byte count of 1 followed by the 52-byte Ispins Legion Open record, raw
+// (never zlib, which the private client rejects with CMD217).
+func TestEventInfoTableBody(t *testing.T) {
+	if len(eventInfoTable) != 54 {
+		t.Fatalf("fixed table len=%d, want 54 (2-byte count + 52-byte Ispins record)", len(eventInfoTable))
+	}
+	if eventInfoTable[0] != 1 || eventInfoTable[1] != 0 {
+		t.Fatalf("record count=%d, want 1", eventInfoTable[0])
+	}
+	if !bytes.Contains(eventInfoTable, []byte("Ispins Legion Open")) {
+		t.Fatal("fixed table missing the Ispins Legion Open record")
+	}
+	if bytes.HasPrefix(eventInfoTable, []byte{0x78, 0x9c}) {
+		t.Fatal("fixed table must stay raw; zlib bodies freeze the private client (V2 verdict)")
+	}
+}

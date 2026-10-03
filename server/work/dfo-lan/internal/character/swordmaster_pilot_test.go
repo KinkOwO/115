@@ -3,14 +3,13 @@ package character
 import (
 	"bytes"
 	"dfolan/internal/catalog"
-	"dfolan/internal/progression"
-	"dfolan/internal/storage"
+
 	"encoding/hex"
 	"encoding/json"
 	"testing"
 )
 
-func pilotFixture(t *testing.T) (*Service, storage.Character) {
+func pilotFixture(t *testing.T) (*Service, Character) {
 	t.Helper()
 	c, err := catalog.LoadCharacters("../../configs/characters.swordmaster-pilot.json")
 	if err != nil {
@@ -27,7 +26,7 @@ func pilotFixture(t *testing.T) (*Service, storage.Character) {
 	fields["future_field"] = json.RawMessage(`{"keep":true}`)
 	state, _ = json.Marshal(fields)
 	req, _ := hex.DecodeString("000b0000006e6f726d616c5f74657374000000000000ff000100000000000000")
-	return &Service{Catalog: c, Learning: l, Rules: Rules{SwordmasterPilot: true}}, storage.Character{Name: "normal_test", WireID: 1, Profession: 0, Request: req, State: state, ConfigVersion: c.Source.Checksum}
+	return &Service{Catalog: c, Learning: l, Rules: Rules{SwordmasterPilot: true}}, Character{Name: "normal_test", WireID: 1, Profession: 0, Request: req, State: state, ConfigVersion: c.Source.SaveIdentity()}
 }
 
 func TestSwordmasterPilotRoundTripAndGrowth(t *testing.T) {
@@ -57,7 +56,7 @@ func TestSwordmasterPilotRoundTripAndGrowth(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ps := ProgressionService{Catalog: pc, Professions: s.Catalog, Rules: progression.Rules{LevelCap: 115}}
+	ps := ProgressionService{Catalog: pc, Professions: s.Catalog, Rules: GrowthRules{LevelCap: 115}}
 	next, result, err := ps.ApplyGain(updated, pc.Thresholds[13])
 	if err != nil || result.Level != 15 {
 		t.Fatal(result, err)

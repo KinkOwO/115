@@ -8,8 +8,10 @@ import (
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
+	"dfolan/internal/npcpresence"
 	"dfolan/internal/quest"
 	"dfolan/internal/storage"
+	"dfolan/internal/workflow"
 	"dfolan/internal/world"
 	"encoding/json"
 	"errors"
@@ -18,23 +20,29 @@ import (
 )
 
 type worldSession struct {
-	lastFame               uint32
-	fameInitialized        bool
-	moonConfig             *moonSoloConfig
-	moon                   moonSoloState
-	characters             *character.Service
-	pilotDeath             *odysseyDeath
-	service                *world.Service
-	account                int64
-	serverID               uint32
-	role                   storage.Character
-	level                  byte
-	adventureSnapshot      [32]byte
-	channelType            uint32
-	bleedingMineCreated    bool
-	bleedingMineReady      bool
-	bleedingMineRoster     []int64
-	bleedingMineStart      *bleedingMineStart
+	npcPresenceIndex    *npcpresence.Index
+	npcPresenceIndexErr error
+	lastFame            uint32
+	fameInitialized     bool
+	moonConfig          *moonSoloConfig
+	moon                moonSoloState
+	characters          *character.Service
+	pilotDeath          *odysseyDeath
+	service             *world.Service
+	store               *storage.Store
+	account             int64
+	serverID            uint32
+	role                storage.Character
+	level               byte
+	adventureSnapshot   [32]byte
+	channelType         uint32
+	bleedingMineCreated bool
+	bleedingMineReady   bool
+	bleedingMineRoster  []int64
+	bleedingMineStart   *bleedingMineStart
+	// ispins 是一次伊斯大陆（内容号 101）挑战的会话状态；nil = 无进行中的
+	// 挑战。字节契约见 ispins_flow.go 与 next78 取证文档。
+	ispins                 *ispinsRun
 	blackPurgatory         blackPurgatoryState
 	adventureEliteSnapshot [32]byte
 	// odyssey mirrors character.OdysseyRole for this session. It selects which
@@ -53,12 +61,23 @@ type worldSession struct {
 	quests           *quest.Service
 	progression      *character.ProgressionService
 	loot             *loot.Service
+	items            *inventory.ItemService
+	shop             *workflow.ShopService
 	selectionBoxes   *catalog.SelectionBoxes
-	vault            *inventory.VaultService
+	vault            *workflow.VaultService
 
 	townArrivalScenes   map[uint32]catalog.TownArrivalScene
 	approvedDungeonGate uint32
 	pendingTownArrival  *dungeon.Session
+	// pendingLegionEntryInfo：伊斯频道（Type 81）待机区分支的 N2254 延迟
+	// 发送标志。官服证据（2026-10-03 待机区抓包，帧 998 > 894）：N2254 在
+	// 客户端已在场景内（c2s 35 位置上报之后）才送达；私服原先固定 1.1s
+	// 推送，实测撞进待机场景装载期导致客户端硬崩（USERDMP 为空）。改为
+	// 等入场后第一帧 c2s（场景就绪信号）再发。
+	pendingLegionEntryInfo bool
+	// Single-player Ispins: refill the client quota after a full run returns
+	// to a ready town scene. Never refresh during the final movie/map load.
+	ispinsRepeatPending bool
 	// craftPending / craftPendingAt 记录上一次装备库制作（CMD2259）请求的指纹与
 	// 时间戳（UnixNano）。**同一个正文客户端会发两次**（"变换" → "确定"），
 	// 而且两次的 plain_hex 逐字节相同 ⇒ 只能由服务端记状态来区分第一步与第二步。
@@ -115,6 +134,13 @@ type worldSession struct {
 	// omenOrthaierDue 表示这一场会下发 oath=45（召唤隐藏 BOSS）。它由存档里的
 	// orthaire_pending 得出，noti 2838 与 noti 2836 共用这一份判断。
 	omenOrthaierDue bool
+	// oathTierRun 是本场**实际下发**的天平 oath 档位（40..45），由 oathInfoPackets 算完后写入。
+	// omenInfoPackets 用它把「天平颜色」映射成星蕴石档位（见 omen_info.go 的
+	// omenGradeForOathTier）—— 这是**我们一起补的映射**：源里星蕴石品质只由
+	// noti 2836 的 grade 决定，而 grade 原本只是征兆持有档数，与天平档位无关
+	// （2026-10-01 实机验证：固定 oath=45 仍掉 Unique 档箱子）。
+	// 0 = 本场还没算过，omenInfoPackets 会回落到 grade 1。
+	oathTierRun uint16
 	// omenReported 是本会话已经记过事件的征兆结算序号（见 noteOmenClear）。
 	omenReported uint64
 	// scaleRun 是上面两张表所归属的副本运行号。同一会话里重进副本会把 entity 从
@@ -192,7 +218,7 @@ func (w *worldSession) enter(role storage.Character, spawn storage.WorldPosition
 		if spawn.Town == 218 {
 			return fmt.Errorf("普通频道默认落点不能使用赤红铁矿区域")
 		}
-		saved, e = w.service.Store.SaveWorld(ctx, w.account, role.ID, saved, spawn)
+		saved, e = w.store.SaveWorld(ctx, w.account, role.ID, saved, spawn)
 		if e != nil {
 			return e
 		}
@@ -222,6 +248,19 @@ func (w *worldSession) enter(role storage.Character, spawn storage.WorldPosition
 		entry := storage.WorldPosition{Town: 218, Area: 0, X: 562, Y: 234}
 		if e := w.service.ValidatePosition(w.level, w.odyssey, entry); e != nil {
 			return fmt.Errorf("赤红铁矿频道落点无效：%w", e)
+		}
+		w.state.Position = entry
+	}
+	if w.channelType == 81 {
+		// 伊斯大陆军团频道（Type 81，channel 86/87）待机区落点。官服抓包
+		// （analysis/ispins-standby-official-capture-20261003.md §2-§3，c2s 帧
+		// 894/919/925 SET_USER_AREA 首字段 0x92）：重连选角后角色落在
+		// 146/0 的 (562,234)，坐标在 world 目录 146/0 的可行走矩形内。与
+		// 黑鸦/赤红铁矿同一模式：会话内改写位置，不写普通城镇存档，
+		// 换回普通频道仍恢复原城镇落点。
+		entry := storage.WorldPosition{Town: 146, Area: 0, X: 562, Y: 234}
+		if e := w.service.ValidatePosition(w.level, w.odyssey, entry); e != nil {
+			return fmt.Errorf("伊斯大陆频道落点无效：%w", e)
 		}
 		w.state.Position = entry
 	}
@@ -303,7 +342,7 @@ func (w *worldSession) introducePeers(send func(byte, uint16, []byte) error) err
 		return nil
 	}
 	for _, o := range w.joinedPeers {
-		if e := send(0, 2, o.info); e != nil {
+		if e := send(0, 2, w.hub.basicInfo(o)); e != nil {
 			return e
 		}
 		if len(o.addition) > 0 {
@@ -337,7 +376,7 @@ func (w *worldSession) announceSelf(event func(map[string]any)) error {
 		if o.send == nil {
 			continue
 		}
-		if e := o.send(0, 2, w.peer.info); e != nil {
+		if e := o.send(0, 2, w.hub.basicInfo(w.peer)); e != nil {
 			continue
 		}
 		if len(w.peer.addition) > 0 {
@@ -549,8 +588,13 @@ func (w *worldSession) handle(id uint16, p []byte, send func(byte, uint16, []byt
 	} else if w.channelType == 73 && next.Town == 85 {
 		w.state.Position = next
 		event(map[string]any{"kind": "黑鸦会话位置更新", "character_id": w.role.ID, "position": next, "request": id})
+	} else if w.channelType == 81 && next.Town == 146 {
+		// 伊斯大陆待机区位置属于当前军团频道会话（官服证据：区内移动
+		// SET_USER_AREA 帧 1105，0→1 区域），不覆盖普通频道的城镇落点。
+		w.state.Position = next
+		event(map[string]any{"kind": "伊斯大陆待机区会话位置更新", "character_id": w.role.ID, "position": next, "request": id})
 	} else {
-		saved, e := w.service.Store.SaveWorld(ctx, w.account, w.role.ID, old, next)
+		saved, e := w.store.SaveWorld(ctx, w.account, w.role.ID, old, next)
 		if e != nil {
 			return e
 		}
@@ -614,7 +658,8 @@ func (w *worldSession) settleProximityObjectives(ctx context.Context, send func(
 	if w.quests == nil || w.role.ID == 0 {
 		return nil
 	}
-	advanced, e := w.quests.ProximityProgress(ctx, w.role, w.state.Position, func(npc uint32) ([2]uint16, bool) {
+	at := w.state.Position
+	advanced, e := w.quests.ProximityProgress(ctx, w.role, quest.Position{Town: at.Town, Area: at.Area, X: at.X, Y: at.Y}, func(npc uint32) ([2]uint16, bool) {
 		return w.service.NPCPosition(w.state.Position, npc)
 	}, func(npc uint32) ([2]uint16, bool) {
 		return w.service.PhaseNPCPosition(w.state.Position, npc)

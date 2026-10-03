@@ -5,9 +5,9 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/character"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/progression"
 	"dfolan/internal/quest"
 	"dfolan/internal/storage"
+	"dfolan/internal/workflow"
 	"encoding/json"
 	"fmt"
 	"sync"
@@ -25,7 +25,7 @@ func questRewardCheck(ctx context.Context, s, reopened *storage.Store, role stor
 	if e != nil {
 		return e
 	}
-	rules, e := progression.LoadRules("configs/experience.compat90.json")
+	rules, e := character.LoadGrowthRules("configs/experience.compat90.json")
 	if e != nil {
 		return e
 	}
@@ -38,14 +38,14 @@ func questRewardCheck(ctx context.Context, s, reopened *storage.Store, role stor
 	req := protocol.QuestSubmitRequest{ID: 3145, RewardSelection: 65535, Option: 1}
 	foreign := role
 	foreign.AccountID = other
-	if _, e = service.Finish(ctx, foreign, req); e == nil {
+	if _, e = (&workflow.QuestService{Store: s, Quest: &service}).Finish(ctx, foreign, req); e == nil {
 		return fmt.Errorf("quest reward crossed account")
 	}
 	// Keep every mutation inside the established throwaway test schema.
 	if _, e = s.DB.Exec(ctx, `UPDATE character_quests SET progress=1 WHERE character_id=$1 AND quest_id=3145`, role.ID); e != nil {
 		return e
 	}
-	if _, e = service.Finish(ctx, role, req); e == nil {
+	if _, e = (&workflow.QuestService{Store: s, Quest: &service}).Finish(ctx, role, req); e == nil {
 		return fmt.Errorf("unfinished objective rewarded")
 	}
 	if _, e = s.DB.Exec(ctx, `UPDATE character_quests SET progress=0 WHERE character_id=$1 AND quest_id=3145`, role.ID); e != nil {
@@ -68,7 +68,7 @@ func questRewardCheck(ctx context.Context, s, reopened *storage.Store, role stor
 	if _, e = s.DB.Exec(ctx, `UPDATE characters SET state=$2 WHERE id=$1`, role.ID, advanced); e != nil {
 		return e
 	}
-	if _, e = service.Finish(ctx, role, req); e == nil {
+	if _, e = (&workflow.QuestService{Store: s, Quest: &service}).Finish(ctx, role, req); e == nil {
 		return fmt.Errorf("matching asset rewards silently discarded")
 	}
 	if _, e = s.DB.Exec(ctx, `UPDATE characters SET state=$2 WHERE id=$1`, role.ID, saved); e != nil {
@@ -82,7 +82,11 @@ func questRewardCheck(ctx context.Context, s, reopened *storage.Store, role stor
 	var wg sync.WaitGroup
 	for i := 0; i < 12; i++ {
 		wg.Add(1)
-		go func() { defer wg.Done(); r, e := service.Finish(ctx, role, req); results <- result{r, e} }()
+		go func() {
+			defer wg.Done()
+			r, e := (&workflow.QuestService{Store: s, Quest: &service}).Finish(ctx, role, req)
+			results <- result{r, e}
+		}()
 	}
 	wg.Wait()
 	close(results)

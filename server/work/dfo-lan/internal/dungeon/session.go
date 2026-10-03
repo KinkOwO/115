@@ -20,13 +20,16 @@ type Session struct {
 	// （1=普通 2=专家 3=达人 4=王者 5=英雄；奥德赛恒等于副本的
 	// [designated difficulty]）。掉落按它取难度加成，见 loot.Session.Death。
 	Difficulty byte
-	Definition catalog.DungeonDefinition
-	Maze       catalog.DungeonMaze
-	Room       catalog.DungeonRoom
-	Monsters   []protocol.DungeonMonster
-	Tournament *TournamentRun
-	Loaded     bool
-	Dead       map[uint16]bool
+	// HellPosition is the current DGN's sealed Hell Party room, advertised in
+	// NOTI28. Nil retains the native absent sentinel (255,255).
+	HellPosition *[2]byte
+	Definition   catalog.DungeonDefinition
+	Maze         catalog.DungeonMaze
+	Room         catalog.DungeonRoom
+	Monsters     []protocol.DungeonMonster
+	Tournament   *TournamentRun
+	Loaded       bool
+	Dead         map[uint16]bool
 	// 沉月湖（Moon Lake）单人攻坚状态。只有该频道启用了 moonConfig 时才会被写入，
 	// 普通副本与军团全程保持零值。
 	MoonFirstGrid                     [5]byte
@@ -63,6 +66,15 @@ type Session struct {
 	completed                   bool
 	lotusClosingReached         bool
 	terminalSceneClosingReached bool
+	// ArenaBoss 声明「进图房间本身就是这场战斗的 boss 竞技场」：军团阶段本
+	// （伊斯大陆 nemaug/nagor/ashcore/itrenog）的源迷宫里 [boss map] 是未被
+	// 使用的源元数据（100002987 迷宫 0 的 boss 坐标在 (0,0)/100006472），
+	// 而官服实证（s4 帧 451/550）把玩家放进 [start map] 房间 (1,1)/100006476
+	// 并在那里开打、在那里结算 —— N28 仍回源迷宫的 boss 坐标。该标志只放宽
+	// BossCheck/完成判定的「房间归属」守卫，目标仍必须是房内真实存在的源领主
+	// （rank3 / APC，team≠0），不会把任意小怪当 boss 放行。只由军团阶段入场
+	// 路径（cmd/wireprobe ispins_flow）置位，普通副本恒为零值。
+	ArenaBoss                  bool
 	// sceneDiagnostic 记录最近一次场景换图走了哪条判定分支，仅供排查（见 SceneDiagnostic）。
 	sceneDiagnostic string
 	// layerRecord 是客户端主动进当前层图时带来的换图记录（见 SceneEntryRecord）。
@@ -95,8 +107,21 @@ func Select(c catalog.DungeonCatalog, r protocol.DungeonSelection, level byte, a
 	if d.ID == 100003126 && r.Extra <= 100 {
 		extraValid = true
 	}
-	if d.Tutorial || !extraValid || r.Mode != 0 || r.Flag != 0 || r.Party != 65535 || r.Reserved != 0 || r.Tail != 0 || r.Options != [2]byte{} || r.Event != 0 {
+	if d.Tutorial || !extraValid || r.Mode > 1 || r.Flag != 0 || r.Party != 65535 || r.Reserved != 0 || r.Tail != 0 || r.Options != [2]byte{} || r.Event != 0 {
 		return nil, fmt.Errorf("unsupported dungeon option")
+	}
+	if r.Mode == 1 {
+		// Attempt 1/3 is a native-vector probe for Trombe (CMD16 ID 103).
+		// Other DGN seal positions have not yet been exercised on this client.
+		if r.ID != 103 {
+			return nil, fmt.Errorf("Hell Party entry is not yet verified for this dungeon")
+		}
+		if d.HellParty == nil || d.HellParty.SealMap == 0 {
+			return nil, fmt.Errorf("Hell Party is absent from this dungeon source")
+		}
+		if _, ok := c.Maps[d.HellParty.SealMap]; !ok {
+			return nil, fmt.Errorf("Hell Party seal map is not imported")
+		}
 	}
 	if r.Quest > 65535 || r.Quest != 0 && !accepted[uint16(r.Quest)] {
 		return nil, fmt.Errorf("quest is not accepted by this character")
@@ -109,14 +134,48 @@ func Select(c catalog.DungeonCatalog, r protocol.DungeonSelection, level byte, a
 	if err != nil {
 		return nil, err
 	}
-	s, err := newSession(c, d, chosen)
+	selected := chosen
+	if r.Mode == 1 {
+		position := d.HellParty.SealPosition
+		if position == selected.Start || position == selected.Boss {
+			return nil, fmt.Errorf("Hell Party seal room conflicts with source start or boss")
+		}
+		selected.Rooms = append([]catalog.DungeonRoom(nil), selected.Rooms...)
+		seal := catalog.DungeonRoom{X: position[0], Y: position[1], Map: d.HellParty.SealMap}
+		found := false
+		for i, room := range selected.Rooms {
+			if [2]byte{room.X, room.Y} == position {
+				selected.Rooms[i] = seal
+				found = true
+				break
+			}
+		}
+		if !found {
+			selected.Rooms = append(selected.Rooms, seal)
+		}
+		if selected.Size[0] <= position[0] {
+			selected.Size[0] = position[0] + 1
+		}
+		if selected.Size[1] <= position[1] {
+			selected.Size[1] = position[1] + 1
+		}
+	}
+	s, err := newSession(c, d, selected)
 	if err != nil {
 		return nil, err
 	}
 	s.Extra = r.Extra
 	s.Difficulty = r.Difficulty
+	if r.Mode == 1 {
+		position := d.HellParty.SealPosition
+		s.HellPosition = &position
+	}
 	if tournamentDungeon(d) {
-		run, actors, err := newTournamentRun(d, c.Maps[s.Room.Map], r.Difficulty)
+		script, err := c.MapScript(s.Room.Map)
+		if err != nil {
+			return nil, err
+		}
+		run, actors, err := newTournamentRun(d, script, r.Difficulty)
 		if err != nil {
 			return nil, err
 		}
@@ -209,17 +268,19 @@ func randomUint64() (uint64, error) {
 // resolveRoomMap 取该房间可用的地图脚本：先用主地图，主地图不在目录里时
 // 按源里给出的顺序退到备选地图。源列出多张候选地图表示这张房可以是其中任意
 // 一张（零售端按权重随机），因此选到任意一张已导入的都是合法结果。
-func resolveRoomMap(c catalog.DungeonCatalog, r catalog.DungeonRoom) (catalog.DungeonRoom, catalog.ScriptRecord, bool) {
-	if s, ok := c.Maps[r.Map]; ok {
-		return r, s, true
+func resolveRoomMap(c catalog.DungeonCatalog, r catalog.DungeonRoom) (catalog.DungeonRoom, catalog.ScriptRecord, bool, error) {
+	if _, ok := c.Maps[r.Map]; ok {
+		s, err := c.MapScript(r.Map)
+		return r, s, err == nil, err
 	}
 	for _, alt := range r.Alternates {
-		if s, ok := c.Maps[alt]; ok {
+		if _, ok := c.Maps[alt]; ok {
 			r.Map = alt
-			return r, s, true
+			s, err := c.MapScript(alt)
+			return r, s, err == nil, err
 		}
 	}
-	return r, catalog.ScriptRecord{}, false
+	return r, catalog.ScriptRecord{}, false, nil
 }
 
 // newSession builds the owned run for an already-resolved maze. Both the
@@ -244,7 +305,10 @@ func newSession(c catalog.DungeonCatalog, d catalog.DungeonDefinition, chosen ca
 		if [2]byte{room.X, room.Y} != chosen.Start {
 			continue
 		}
-		resolved, sc, ok := resolveRoomMap(c, room)
+		resolved, sc, ok, err := resolveRoomMap(c, room)
+		if err != nil {
+			return nil, err
+		}
 		if !ok {
 			if start.Map == 0 {
 				start = room
@@ -450,9 +514,9 @@ func (s *Session) enterRoom(c catalog.DungeonCatalog, room catalog.DungeonRoom) 
 	}
 	monsters, seen := next.Visited[room.Map]
 	if !seen {
-		script, ok := c.Maps[room.Map]
-		if !ok {
-			return nil, fmt.Errorf("target map not imported")
+		script, err := c.MapScript(room.Map)
+		if err != nil {
+			return nil, err
 		}
 		var e error
 		monsters, e = fixedMonsters(script, s.Definition.BasisLevel)
@@ -719,7 +783,12 @@ func fixedMonsters(script catalog.ScriptRecord, basis uint32) ([]protocol.Dungeo
 			i++
 		}
 		i--
-		if !fixed || !rankSeen || v[0] <= 0 || v[6] < 0 || v[7] < 0 || len(out) >= 255 {
+		// The native constructor sub_1471C18C0 zeros the rank at +0x24.
+		// sub_1471E9060 leaves it unchanged when no rank option matches.
+		// White Land map 100004527 row 3 is [fixed] without a rank tag;
+		// requiring rankSeen rejects a valid ordinary monster and its room.
+		// Keep rankSeen for duplicate-option validation, not as a requirement.
+		if !fixed || v[0] <= 0 || v[6] < 0 || v[7] < 0 || len(out) >= 255 {
 			return nil, fmt.Errorf("unsupported random monster placement or invalid source row")
 		}
 		level := int64(v[2])

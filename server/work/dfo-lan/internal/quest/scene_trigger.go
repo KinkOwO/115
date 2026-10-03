@@ -3,9 +3,9 @@ package quest
 import (
 	"context"
 	"dfolan/internal/catalog"
+	"dfolan/internal/character"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"fmt"
 )
 
@@ -43,7 +43,7 @@ func SceneClearObjective(d catalog.QuestDefinition, run *dungeon.Session) (objec
 // recorded against the owned run, so a replayed or foreign trigger cannot
 // mint progress, and a duplicate scene trigger stays idempotent through the
 // store's run-keyed evidence table.
-func (s *Service) SceneTrigger(ctx context.Context, role storage.Character, run *dungeon.Session, id uint16) ([]protocol.ActiveQuest, error) {
+func (s *Service) SceneTrigger(ctx context.Context, role character.Character, run *dungeon.Session, id uint16) ([]protocol.ActiveQuest, error) {
 	d, ok := s.Catalog.Quests[uint32(id)]
 	if !ok {
 		return nil, nil
@@ -53,7 +53,7 @@ func (s *Service) SceneTrigger(ctx context.Context, role storage.Character, run 
 		return nil, err
 	}
 	x := s.Index()
-	if _, err := s.Store.RecordQuestMapClear(ctx, role.AccountID, role.ID, run.RunID, objective, s.Catalog.Source.Checksum, SingleClearMap, x.ByClearMap[objective]); err != nil {
+	if _, err := s.Store.RecordQuestMapClear(ctx, role.AccountID, role.ID, run.RunID, objective, s.Catalog.Source.SaveIdentity(), SingleClearMap, x.ByClearMap[objective]); err != nil {
 		return nil, err
 	}
 	return s.Active(ctx, role)

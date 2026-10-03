@@ -19,16 +19,21 @@ type ScriptRecord struct {
 // ResolveScript follows current runtime 147c49900: try the exact path, then
 // prepend (R) to the filename (147c4bbb0), except ANI/MOB/OBJ (147c4b610).
 func ResolveScript(a *pvf.Archive, name string) (ScriptRecord, error) {
+	return ReadScript(a, ResolveScriptPath(a, name))
+}
+
+// ResolveScriptPath applies the same native fallback without decoding cells.
+func ResolveScriptPath(a *pvf.Archive, name string) string {
 	name = strings.ToLower(strings.ReplaceAll(name, "\\", "/"))
 	if _, ok := a.FindFile(name); ok {
-		return ReadScript(a, name)
+		return name
 	}
 	for _, ext := range []string{".ani", ".mob", ".obj"} {
 		if strings.Contains(name, ext) {
-			return ReadScript(a, name)
+			return name
 		}
 	}
-	return ReadScript(a, path.Join(path.Dir(name), "(r)"+path.Base(name)))
+	return path.Join(path.Dir(name), "(r)"+path.Base(name))
 }
 
 type IndexEntry struct {
@@ -39,12 +44,19 @@ type IndexEntry struct {
 func ReadScript(a *pvf.Archive, name string) (ScriptRecord, error) {
 	name = strings.ToLower(strings.ReplaceAll(name, "\\", "/"))
 	s := ScriptRecord{Path: name}
+	f, ok := a.FindFile(name)
+	if !ok {
+		return s, fmt.Errorf("%w: %s", pvf.ErrFileNotFound, name)
+	}
+	if f.DataType != 1 {
+		return s, fmt.Errorf("entry %s is not a script", name)
+	}
 	raw, e := a.ReadRaw(name)
 	if e != nil {
 		return s, e
 	}
 	s.SHA256 = fmt.Sprintf("%x", sha256.Sum256(raw))
-	s.Cells, e = a.Tokens(name)
+	s.Cells, e = a.TokensFromRaw(raw)
 	return s, e
 }
 

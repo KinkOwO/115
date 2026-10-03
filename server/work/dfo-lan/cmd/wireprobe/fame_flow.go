@@ -17,9 +17,9 @@ func (w *worldSession) appendFameUpdate(plan []outboundPacket, event func(map[st
 		return plan
 	}
 	highest := detail.Total
-	if err == nil && w.characters.Store != nil {
+	if err == nil && w.store != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		highest, err = w.characters.Store.RecordCharacterFame(ctx, w.role.AccountID, w.role.ID, detail.Total)
+		highest, err = w.store.RecordCharacterFame(ctx, w.role.AccountID, w.role.ID, detail.Total)
 		cancel()
 	}
 	var payload []byte

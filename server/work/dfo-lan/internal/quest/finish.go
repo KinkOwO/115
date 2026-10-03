@@ -2,15 +2,13 @@ package quest
 
 import (
 	"context"
+	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/character"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/progression"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
-	"time"
 )
 
 type FinishReceipt struct {
@@ -29,7 +27,7 @@ type FinishReceipt struct {
 	UnlockedEquipment byte `json:"unlocked_equipment,omitempty"`
 }
 type FinishResult struct {
-	Role    storage.Character
+	Role    character.Character
 	Receipt FinishReceipt
 	Applied bool
 }
@@ -49,21 +47,38 @@ func cells(c []pvf.Token, name string) []pvf.Token {
 	return a
 }
 
-func (s *Service) Finish(ctx context.Context, role storage.Character, r protocol.QuestSubmitRequest) (FinishResult, error) {
-	var out FinishResult
+// RewardItem is the item award requested by quest settlement.
+type RewardItem struct{ Template, Amount uint32 }
+
+// FinishRewards is the consumer contract for source-backed reward formulas.
+// Each capability is invoked at the same point as before the workflow split.
+type FinishRewards struct {
+	Items      func([]pvf.Token, byte, byte) ([]RewardItem, error)
+	Experience func(catalog.QuestDefinition, byte) (uint32, error)
+	Gold       func(catalog.QuestDefinition, byte) (uint32, error)
+}
+
+// FinishPlan contains source-validated reward input, without persistence.
+type FinishPlan struct {
+	ID         uint16
+	Definition catalog.QuestDefinition
+	Model      string
+}
+
+func (s *Service) PlanFinish(r protocol.QuestSubmitRequest) (FinishPlan, error) {
 	if s.Progression == nil {
-		return out, ErrRewardPending
+		return FinishPlan{}, ErrRewardPending
 	}
 	if r.RewardSelection != 65535 || r.Option != 1 {
-		return out, fmt.Errorf("quest reward selection requires inventory settlement")
+		return FinishPlan{}, fmt.Errorf("quest reward selection requires inventory settlement")
 	}
-	d, ok := s.Catalog.Quests[uint32(r.ID)]
-	if !ok {
-		return out, fmt.Errorf("quest source missing")
+	d, sourceErr := s.Catalog.Definition(uint32(r.ID))
+	if sourceErr != nil {
+		return FinishPlan{}, sourceErr
 	}
 	_, model, e := InitialProgress(d)
 	if e != nil {
-		return out, e
+		return FinishPlan{}, e
 	}
 	// Current3145 omits reward type but supplies typed [job] item tuples.
 	// Matching item tuples use the shared inventory awarder. An absent type
@@ -71,130 +86,103 @@ func (s *Service) Finish(ctx context.Context, role storage.Character, r protocol
 	// no items and settles on experience alone. The same test gates the
 	// available list, so a quest that cannot settle is never offered.
 	if !rewardUsable(d) {
-		return out, ErrRewardPending
+		return FinishPlan{}, ErrRewardPending
 	}
-	commit, e := s.Store.CommitQuestReward(ctx, role.AccountID, role.ID, r.ID, s.Catalog.Source.Checksum, model, s.Progression.Rules.Model, func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
-		var state character.State
-		if e := json.Unmarshal(current.State, &state); e != nil {
-			return nil, nil, e
-		}
-		// [slot expansion] 的 [reward int data] 是装备槽索引，不是物品元组；
-		// 送进 ItemRewards 会被读成"物品 0 缺数量"而报错，因此跳过物品结算，
-		// 改为累加对应的解锁位。索引与位不是同一个值，必须走 slotUnlockMask。
-		var awards []progression.QuestItemAward
-		var unlock byte
-		if slot, isSlotExpansion := slotExpansion(d); isSlotExpansion {
-			var known bool
-			if unlock, known = slotUnlockMask(slot); !known {
-				return nil, nil, fmt.Errorf("quest %d slot expansion index %d is out of range", r.ID, slot)
-			}
-		} else {
-			awards, e = progression.ItemRewards(d.RewardCells, current.Profession, state.Advancement)
-			if e != nil {
-				return nil, nil, e
-			}
-		}
-		if len(awards) > 0 && s.Inventory == nil {
-			return nil, nil, ErrRewardPending
-		}
-		var consumed []inventory.AwardReceipt
-		if model == SeekingItems {
-			objective, ok := SeekingObjective(d)
-			if !ok {
-				return nil, nil, ErrObjectiveIncomplete
-			}
-			current.State, consumed, e = consumeSeekingItems(current.State, objective.Items)
-			if e != nil {
-				return nil, nil, e
-			}
-		}
-		// EXP, gold, inventory and completion are prepared within one
-		// transaction.
-		gain, e := progression.QuestExperience(s.Progression.Catalog, d, state.Level)
-		if e != nil {
-			return nil, nil, e
-		}
-		if s.Store != nil {
-			if hasGrowth, _ := s.Store.HasActivePremium(ctx, role.AccountID, storage.PremiumGrowth, time.Now()); hasGrowth {
-				gain = gain + gain*20/100
-			}
-		}
-		gold, e := progression.QuestGold(s.Progression.Catalog, d, state.Level)
-		if e != nil {
-			return nil, nil, e
-		}
-		saved, _, e := s.Progression.ApplyGain(current, uint64(gain))
-		if e != nil {
-			return nil, nil, e
-		}
-		// The unlock bits accumulate inside the same transaction as the rest
-		// of the reward, so a later failure rolls the opened slot back with
-		// everything else instead of leaving a half-settled quest.
-		if unlock != 0 {
-			if saved.State, e = inventory.UnlockEquipSlots(saved.State, unlock); e != nil {
-				return nil, nil, e
-			}
-		}
-		// Completion gold comes from the [gold reward table], not from the
-		// quest's own cells; it is credited to the wallet (award id 0) in the
-		// same transaction. Item awards need the inventory service; gold does
-		// not, so a quest that pays only gold still settles when items are
-		// unconfigured, as long as the wallet can take it.
-		if gold > 0 {
-			if s.Inventory == nil {
-				return nil, nil, ErrRewardPending
-			}
-			saved.State, _, e = s.Inventory.Grant(saved.State, 0, gold)
-			if e != nil {
-				return nil, nil, e
-			}
-		}
-		var items []inventory.AwardReceipt
-		for _, a := range awards {
-			var item inventory.AwardReceipt
-			saved.State, item, e = s.Inventory.Grant(saved.State, a.Template, a.Amount)
-			if e != nil {
-				return nil, nil, e
-			}
-			items = append(items, item)
-		}
-		receipt, e := json.Marshal(FinishReceipt{Quest: r.ID, Experience: gain, Gold: gold, Source: s.Catalog.Source.Checksum, Model: s.Progression.Rules.Model, Items: items, Consumed: consumed, UnlockedEquipment: unlock})
-		return saved.State, receipt, e
-	})
-	if e != nil {
-		return out, e
-	}
-	if e = json.Unmarshal(commit.Receipt, &out.Receipt); e != nil {
-		return out, e
-	}
-	if out.Receipt.Quest != r.ID || out.Receipt.Source != s.Catalog.Source.Checksum {
-		return out, fmt.Errorf("quest reward receipt mismatch")
-	}
-	out.Role, out.Applied = commit.Character, commit.Applied
-	// Self-heal a pre-fix state: a character who once accepted several
-	// [collision quest] branches still carries the unchosen factions' quests.
-	// Once one branch completes, accepted siblings leave the journal (their
-	// maps would otherwise be cleared again); completed siblings keep their
-	// rewards. Best-effort: a sibling that vanished meanwhile is not an error.
-	if out.Applied && len(d.Collisions) > 0 {
-		if states, e := s.Store.Quests(ctx, role.AccountID, role.ID); e == nil {
-			for _, q := range states {
-				if q.Status != "accepted" {
-					continue
-				}
-				for _, c := range d.Collisions {
-					if uint32(q.ID) == c {
-						_ = s.Store.AbandonQuest(ctx, role.AccountID, role.ID, q.ID)
-						break
-					}
-				}
-			}
-		}
-	}
-	return out, nil
+	return FinishPlan{ID: r.ID, Definition: d, Model: model}, nil
 }
 
-func (s *Service) Completed(ctx context.Context, role storage.Character) ([]uint32, error) {
+// PrepareFinish applies quest rules to the locked role state. The workflow
+// supplies a premium lookup capability, invoked after base EXP validation,
+// and commits this state and receipt atomically.
+func (s *Service) PrepareFinish(current character.Character, plan FinishPlan, growth func() bool, rewards FinishRewards) (json.RawMessage, json.RawMessage, error) {
+	var e error
+	var state character.State
+	if e := json.Unmarshal(current.State, &state); e != nil {
+		return nil, nil, e
+	}
+	// [slot expansion] 的 [reward int data] 是装备槽索引，不是物品元组；
+	// 送进 ItemRewards 会被读成"物品 0 缺数量"而报错，因此跳过物品结算，
+	// 改为累加对应的解锁位。索引与位不是同一个值，必须走 slotUnlockMask。
+	var awards []RewardItem
+	var unlock byte
+	if slot, isSlotExpansion := slotExpansion(plan.Definition); isSlotExpansion {
+		var known bool
+		if unlock, known = slotUnlockMask(slot); !known {
+			return nil, nil, fmt.Errorf("quest %d slot expansion index %d is out of range", plan.ID, slot)
+		}
+	} else {
+		awards, e = rewards.Items(plan.Definition.RewardCells, current.Profession, state.Advancement)
+		if e != nil {
+			return nil, nil, e
+		}
+	}
+	if len(awards) > 0 && s.Inventory == nil {
+		return nil, nil, ErrRewardPending
+	}
+	var consumed []inventory.AwardReceipt
+	if plan.Model == SeekingItems {
+		objective, ok := SeekingObjective(plan.Definition)
+		if !ok {
+			return nil, nil, ErrObjectiveIncomplete
+		}
+		current.State, consumed, e = consumeSeekingItems(current.State, objective.Items)
+		if e != nil {
+			return nil, nil, e
+		}
+	}
+	// EXP, gold, inventory and completion are prepared within one
+	// transaction.
+	gain, e := rewards.Experience(plan.Definition, state.Level)
+	if e != nil {
+		return nil, nil, e
+	}
+	if growth != nil && growth() {
+		gain = gain + gain*20/100
+	}
+	gold, e := rewards.Gold(plan.Definition, state.Level)
+	if e != nil {
+		return nil, nil, e
+	}
+	saved, _, e := s.Progression.ApplyGain(current, uint64(gain))
+	if e != nil {
+		return nil, nil, e
+	}
+	// The unlock bits accumulate inside the same transaction as the rest
+	// of the reward, so a later failure rolls the opened slot back with
+	// everything else instead of leaving a half-settled quest.
+	if unlock != 0 {
+		if saved.State, e = inventory.UnlockEquipSlots(saved.State, unlock); e != nil {
+			return nil, nil, e
+		}
+	}
+	// Completion gold comes from the [gold reward table], not from the
+	// quest's own cells; it is credited to the wallet (award id 0) in the
+	// same transaction. Item awards need the inventory service; gold does
+	// not, so a quest that pays only gold still settles when items are
+	// unconfigured, as long as the wallet can take it.
+	if gold > 0 {
+		if s.Inventory == nil {
+			return nil, nil, ErrRewardPending
+		}
+		saved.State, _, e = s.Inventory.Grant(saved.State, 0, gold)
+		if e != nil {
+			return nil, nil, e
+		}
+	}
+	var items []inventory.AwardReceipt
+	for _, a := range awards {
+		var item inventory.AwardReceipt
+		saved.State, item, e = s.Inventory.Grant(saved.State, a.Template, a.Amount)
+		if e != nil {
+			return nil, nil, e
+		}
+		items = append(items, item)
+	}
+	receipt, e := json.Marshal(FinishReceipt{Quest: plan.ID, Experience: gain, Gold: gold, Source: s.Catalog.Source.SaveIdentity(), Model: s.Progression.Rules.Model, Items: items, Consumed: consumed, UnlockedEquipment: unlock})
+	return saved.State, receipt, e
+}
+
+func (s *Service) Completed(ctx context.Context, role character.Character) ([]uint32, error) {
 	states, e := s.Store.Quests(ctx, role.AccountID, role.ID)
 	if e != nil {
 		return nil, e
@@ -202,7 +190,7 @@ func (s *Service) Completed(ctx context.Context, role storage.Character) ([]uint
 	var ids []uint32
 	for _, q := range states {
 		if q.Status == "completed" {
-			if q.ConfigVersion != s.Catalog.Source.Checksum {
+			if q.ConfigVersion != s.Catalog.Source.SaveIdentity() {
 				return nil, fmt.Errorf("completed quest source mismatch")
 			}
 			ids = append(ids, uint32(q.ID))

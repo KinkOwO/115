@@ -157,6 +157,14 @@ func AttachDazzlementMaps(c *DungeonCatalog, path string) error {
 	if err := json.Unmarshal(b, &overlay); err != nil {
 		return err
 	}
+	return ApplyDazzlementMaps(c, overlay)
+}
+
+// ApplyDazzlementMaps shares the same checks for native and exported tables.
+func ApplyDazzlementMaps(c *DungeonCatalog, overlay DazzlementOverlay) error {
+	if c == nil {
+		return fmt.Errorf("nil dungeon catalog")
+	}
 	if overlay.SourceChecksum != c.Source.Checksum || len(overlay.Dungeons) != 33 || len(overlay.Maps) != 56 {
 		return fmt.Errorf("Dazzlement overlay source mismatch or incomplete")
 	}

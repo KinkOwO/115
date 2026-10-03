@@ -49,8 +49,8 @@ func (a *Archive) IterateStringRefs(fn func(StringRef) error) error {
 	if a == nil {
 		return fmt.Errorf("%w: archive is nil", ErrInvalidArchive)
 	}
-	for idx := range a.items {
-		item := a.items[idx]
+	for idx := 0; idx < a.FileCount(); idx++ {
+		item := a.itemAt(idx)
 		base := headerSize + idx*fileItemSize
 		for _, f := range []struct {
 			kind StringRefKind
@@ -73,8 +73,8 @@ func (a *Archive) IterateStringRefs(fn func(StringRef) error) error {
 			}
 		}
 	}
-	for idx := range a.files {
-		item := a.items[idx]
+	for idx := 0; idx < a.FileCount(); idx++ {
+		item := a.itemAt(idx)
 		if item.dataType != 1 {
 			continue
 		}
@@ -115,8 +115,8 @@ func (a *Archive) IterateStringRefs(fn func(StringRef) error) error {
 // TokenTypeHistogram 统计全部脚本 token 的类型分布。
 func (a *Archive) TokenTypeHistogram() (map[int]int, error) {
 	hist := map[int]int{}
-	for idx := range a.files {
-		if a.items[idx].dataType != 1 {
+	for idx := 0; idx < a.FileCount(); idx++ {
+		if a.itemAt(idx).dataType != 1 {
 			continue
 		}
 		raw, err := a.readRawIndex(idx)
@@ -142,8 +142,8 @@ type TokenSample struct {
 func (a *Archive) SampleTokenStrings(limit int) ([]TokenSample, error) {
 	per := map[int][]string{}
 	paths := map[int]string{}
-	for idx := range a.files {
-		if a.items[idx].dataType != 1 {
+	for idx := 0; idx < a.FileCount(); idx++ {
+		if a.itemAt(idx).dataType != 1 {
 			continue
 		}
 		raw, err := a.readRawIndex(idx)
@@ -160,11 +160,11 @@ func (a *Archive) SampleTokenStrings(limit int) ([]TokenSample, error) {
 			case 3, 6, 8:
 				if s := a.resolveString(value); s != "" {
 					per[typ] = append(per[typ], s)
-					paths[typ] = a.files[idx].ArchivePath
+					paths[typ] = a.fileAt(idx).ArchivePath
 				}
 			default:
 				per[typ] = append(per[typ], fmt.Sprintf("%d", value))
-				paths[typ] = a.files[idx].ArchivePath
+				paths[typ] = a.fileAt(idx).ArchivePath
 			}
 		}
 	}
@@ -182,13 +182,13 @@ func (a *Archive) SampleTokenStrings(limit int) ([]TokenSample, error) {
 
 // DistinctString 是所有被引用的池内字符串及其引用次数。
 type DistinctString struct {
-	Text    string `json:"text"`
-	Refs    int    `json:"refs"`
-	Tok3    int    `json:"tok3"`
-	Tok6    int    `json:"tok6"`
-	Tok8    int    `json:"tok8"`
-	Wide    bool   `json:"wide"`
-	Sample  string `json:"sample"`
+	Text   string `json:"text"`
+	Refs   int    `json:"refs"`
+	Tok3   int    `json:"tok3"`
+	Tok6   int    `json:"tok6"`
+	Tok8   int    `json:"tok8"`
+	Wide   bool   `json:"wide"`
+	Sample string `json:"sample"`
 }
 
 // DistinctStrings 汇总全部被引用字符串（按引用次数降序）。
@@ -209,8 +209,8 @@ func (a *Archive) DistinctStrings() ([]DistinctString, error) {
 		case 8:
 			d.Tok8++
 		}
-		if d.Sample == "" && a.files[ref.FileIdx].ArchivePath != "" {
-			d.Sample = a.files[ref.FileIdx].ArchivePath
+		if d.Sample == "" && a.fileAt(ref.FileIdx).ArchivePath != "" {
+			d.Sample = a.fileAt(ref.FileIdx).ArchivePath
 		}
 		return nil
 	})
@@ -232,6 +232,13 @@ func (a *Archive) DistinctStrings() ([]DistinctString, error) {
 
 // PoolBytes 返回解密后的 ANSI / UTF-16 字符串池副本。
 func (a *Archive) PoolBytes() (strA, strW []byte) {
+	if a.stringPools != nil {
+		first, second, err := a.stringPools.expanded()
+		if err != nil {
+			panic(err)
+		} // Legacy audit API cannot return an error; never publish partial pools.
+		return first, second
+	}
 	return append([]byte(nil), a.strA...), append([]byte(nil), a.strW...)
 }
 
@@ -251,7 +258,7 @@ type Translator func(text string) (string, bool)
 // Localize 生成一个经过字符串替换的新内层归档。
 func (a *Archive) Localize(out string, tr Translator) (LocalizeStats, error) {
 	var stats LocalizeStats
-	if a == nil || a.format != FormatDFO20260901 {
+	if a == nil || a.readOnlyView || a.format != FormatDFO20260901 {
 		return stats, fmt.Errorf("localize requires a dfo inner archive")
 	}
 	type pending struct {

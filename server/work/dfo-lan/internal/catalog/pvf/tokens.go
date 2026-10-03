@@ -27,6 +27,15 @@ func (a *Archive) Tokens(path string) ([]Token, error) {
 	if err != nil {
 		return nil, err
 	}
+	return a.TokensFromRaw(raw)
+}
+
+// TokensFromRaw parses already-read script bytes without a second body copy.
+// Callers must verify that the source entry has DataType 1.
+func (a *Archive) TokensFromRaw(raw []byte) ([]Token, error) {
+	if err := a.poolError(); err != nil {
+		return nil, err
+	}
 	if len(raw)%5 != 0 {
 		return nil, fmt.Errorf("%w: incomplete script cell", ErrInvalidArchive)
 	}
@@ -43,6 +52,9 @@ func (a *Archive) Tokens(path string) ([]Token, error) {
 			t.Reference = a.resolveString(int(t.Value))
 		}
 		result = append(result, t)
+	}
+	if err := a.poolError(); err != nil {
+		return nil, err
 	}
 	return result, nil
 }

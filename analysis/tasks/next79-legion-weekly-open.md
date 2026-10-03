@@ -1524,3 +1524,69 @@ LegionReward专项通过。vet通过，两次全量复核均仅相同4项既有�
 原始EXE已复制到runtime/baselines/next79-baseline1-unlimited并核对哈希，
 确认记录写入CHANGELOG与next79-confirmed-baseline-20261003.md。
 用户要求可配置“每周一次/无限”，以及修复伊斯频道菜单选角门禁，另行下一节。
+
+## 34. 基线1保存、次数模式配置、重新选角任务门禁
+
+### 34.1 基线1落盘
+
+原始无限程序854cbe1d已经备份，源码快照cmd/internal/go.mod/go.sum/profile也已压缩，
+同目录manifest记录哈希。路径 `runtime/baselines/next79-baseline1-unlimited/`，
+不包含pgdata、连接口令文件或客户端资源。任务源码确认提交393233c；项目其它未提交
+领域改造不混入任务commit，完整重建采用source.snapshot.zip，不强制Git回滚工作区。
+恢复/模式切换说明见 `docs/protocol/next79-baseline1-modes.md`。
+
+### 34.2 模式与存档兼容
+
+`DFO_ISPINS_MODE=unlimited/weekly`，默认profile明确保持unlimited；非法值启动时报错。
+每周模式使用既有character_events新增独立模型ispins-weekly-clear-v1的完整通关回执，
+不新增表、不改角色JSON/物品。每角色每周完整通关一次，周二09:00UTC换周，
+与美服伊斯官方周周期一致。官服三次入场/各Boss独立领奖计数未完整复刻，说明文档明确区别。
+
+两模式都记录新程序下的完整通关；无限不受周锁且恢复健康初始状态；每周模式入场时
+读取本角色账本，已完成时下发§19已验证的耗尽待机体，并在startIspins再次检查。
+最后Boss完成时，先在角色锁内写幂等回执，再生成结算链。每周模式记录失败则拒绝；
+无限模式仅日志记录异常，保留原已确认的结算流程，避免把新账本故障引入正常玩法。
+RunID固定事件键保证跨周重放旧请求也不扣新周；角色锁防重复记录；所有查询按账号/角色隔离。
+原始基线1及升级前日志不自动补记，新记录从此候选开始；切模式不删除历史回执。
+
+新增根目录 `伊斯-单机无限.cmd`、`伊斯-每周一次.cmd`、`伊斯-恢复基线1.cmd`。
+前两项仅改启动profile的模式字段；恢复脚本检查旧程序哈希、要求服务端已停止，
+恢复默认/源码EXE并设置无限，不碰数据库与客户端文件、不自动启动游戏。
+
+### 34.3 门禁根因与修复
+
+角色001数据库任务13763为completed，且任务config_version与角色存档身份相同。
+PVF `etc/enterablespecialchannel.etc` 的 `[stolen land Ispins]` 与legionsystem
+QuestIndex均明确指向13763（熄灭火焰的时间），不是13714引导任务。
+
+本地客户端140220030选角检查通过1424EA310调用81频道回调，
+1499CF4A0 vtable+10 →1424E74E0 →1424E66A0；1424E673A检查角色资料+0x643，
+缺失时1424E67CC写dstr100088074任务门禁。任务完成回调1424E71E0在
+1424E727C/72B3也写+0x643=1。角色列表原生28B资格区从+0x638开始，
+因此对应ContentClearFlags[11]。
+
+character.Service原先只查询/投影12167、12312、12392、12422，漏了13763。
+返回角色列表重建资料时，Ispins资格位重新变0，触发用户截图门禁。
+仅补13763→byte11的真实完成记录投影；其它角色/未完成/引导任务均不授予该位，
+原有资格位保留。不改已完成任务存档，不重复猜1792/342的新布局。
+只读调用真实角色EntryBasicProbe，已验证输出flag11=1、1683B；源码证据收录
+next79-native-reader-evidence.py/json，函数索引同步。
+
+### 34.4 验证与发布
+
+资格位正反例/原有资格位回归通过；overlay恢复旧映射时新测试失败为flag11=0。
+每周周期边界、模式值验证、无限登录帧不变、缺持久存储时每周模式拒绝专项通过。
+私有PostgreSQL schema集成覆盖重连持久化、重复请求幂等、同周再次拒绝、无限不受限、
+跨周开放、旧RunID重放不扣新周、账号隔离、角色JSON完全不变。
+另通过真实completeIspinsStage故障注入，确认无限账本失败仍产出结算、每周失败拒绝、
+正确每周通关有回执；测试结束清理私有schema，没有修改玩家角色/物品。
+切换脚本weekly→unlimited实测保留其它profile字段，最终保持unlimited。
+Ispins/SettlementExit/MenuReturn专项和vet通过；全量检查只有此前4项既有失败。
+日志 `analysis-tools/output/next79-modes-*`、`next79-old-character-gate-check.log`。
+
+新源码/默认EXE已更新，SHA256：
+`aba2a78a0b66dc2b9ff98058ea0e15e722d0cba8469033517e7f9e8b66c84558`。
+不代启动服务端/客户端，由用户重启验收。
+**待用户实机**：默认无限确认原流程、重复挑战仍正常；伊斯频道菜单选择角色→001→开始游戏
+不再错误报13763门禁；另切每周模式验证完整通关后本周不能再进，重启也保留限制。
+新的模式/门禁修复尚未实机确认，不覆盖已确认基线1原始程序。

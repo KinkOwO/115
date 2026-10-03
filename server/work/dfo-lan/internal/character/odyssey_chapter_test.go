@@ -3,7 +3,7 @@ package character
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
+
 	"testing"
 )
 
@@ -49,7 +49,7 @@ func TestOdysseyChapterJournalShape(t *testing.T) {
 	t.Logf("7 章 / %d 副本 / 15 模板；第 5 章源顺序 %v", total, ch5.Dungeons)
 }
 
-func odysseyChapterFixture(t *testing.T) (*ProgressionService, storage.Character) {
+func odysseyChapterFixture(t *testing.T) (*ProgressionService, Character) {
 	t.Helper()
 	s, r := odysseyGrowthFixture(t)
 	ch, e := catalog.LoadOdysseyChapters("../../configs/odyssey-chapters-release.json")

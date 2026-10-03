@@ -8,7 +8,7 @@
 - Skill projection SHA-256: `540513f3b7568d296e6ab96434d1a0a3640e9193d54c2c14bdee7fecf0b4f91e`
 - Runtime: `runtime/roles_persist_select_actor_town_world_live_detail_dungeon_27_next27`.
 - Launch snapshot: helper 27576, server 25564, probe 27708, owned client 27688, loopback port 58147. These identifiers require rechecking before any operation.
-- Candidate 26 closed normally before launch. Original client, previous executable, PostgreSQL and Redis were preserved.
+- Candidate 26 closed normally before launch. Original client, previous executable, PostgreSQL were preserved.
 
 ## Character deletion
 

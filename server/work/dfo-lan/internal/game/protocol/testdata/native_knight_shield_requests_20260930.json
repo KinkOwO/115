@@ -1,0 +1,48 @@
+{
+  "source": "roles_persist_select_actor_town_world_live_detail_dungeon_manual_20260930_130807_741338_next37/events.jsonl",
+  "note": "Native client requests captured during user manual shield selection; server refused because side-car was absent. No successful S2C consumption is claimed.",
+  "samples": [
+    {
+      "time": "2026-09-30T05:12:03.8598473Z",
+      "id": 19,
+      "checksum_ok": true,
+      "plain_hex": "20000093e3c106000000001f00000000000000000000ffffffff000000000000",
+      "hex": "0113002d0000008ffa71dd9d00d1e41e20252d4509bca9e216502cdadd250f84e2a9abf7290fd9395dcbb96f0c"
+    },
+    {
+      "time": "2026-09-30T05:12:21.6490481Z",
+      "id": 649,
+      "checksum_ok": true,
+      "plain_hex": "000000000000000093e3c106000000000000000000000000",
+      "hex": "0189022500000033666185a10062bc4f94f8e893af5edf8d86b66bc2bd62bc4f94f8e893af"
+    },
+    {
+      "time": "2026-09-30T05:12:22.5093261Z",
+      "id": 649,
+      "checksum_ok": true,
+      "plain_hex": "00000000000000000000000093e3c1060000000000000000",
+      "hex": "0189022500000051fd1c54a20062bc4f94f8e893afd980717da2541cb662bc4f94f8e893af"
+    },
+    {
+      "time": "2026-09-30T05:12:23.1964513Z",
+      "id": 649,
+      "checksum_ok": true,
+      "plain_hex": "0000000000000000000000000000000093e3c10600000000",
+      "hex": "01890225000000d5b9a8a4a30062bc4f94f8e893af62bc4f94f8e893af5edf8d86b66bc2bd"
+    },
+    {
+      "time": "2026-09-30T05:12:24.5355654Z",
+      "id": 649,
+      "checksum_ok": true,
+      "plain_hex": "000000000000000000000000000000000000000000000000",
+      "hex": "018902250000004bcfbccda40062bc4f94f8e893af62bc4f94f8e893af62bc4f94f8e893af"
+    },
+    {
+      "time": "2026-09-30T05:12:28.1914086Z",
+      "id": 19,
+      "checksum_ok": true,
+      "plain_hex": "20000093e3c106000000001f00000000000000000000ffffffff000000000000",
+      "hex": "0113002d000000616e8655a500d1e41e20252d4509bca9e216502cdadd250f84e2a9abf7290fd9395dcbb96f0c"
+    }
+  ]
+}

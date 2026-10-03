@@ -9,6 +9,7 @@ import (
 	"dfolan/internal/game/wire"
 	"dfolan/internal/inventory"
 	"dfolan/internal/storage"
+	"dfolan/internal/workflow"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -53,7 +54,11 @@ func (l preparedBagLedger) PurchaseCashMixed(ctx context.Context, o storage.Cash
 		for _, line := range o.Lines {
 			lines = append(lines, storage.CashDelivery{Product: line.Product, Template: line.Template, Amount: line.Quantity * line.Units, Quantity: line.Quantity})
 		}
-		packets, e := shopPilotSpaces(l.pilot, storage.CashReceipt{CharacterState: state, Deliveries: lines, Premiums: receiptPremiumsFor(premiums)}, 0, true)
+		goldCost, e := o.GoldTotal()
+		if e != nil {
+			return nil, e
+		}
+		packets, e := shopPilotSpaces(l.pilot, storage.CashReceipt{CharacterState: state, GoldCharged: goldCost, Deliveries: lines, Premiums: receiptPremiumsFor(premiums)}, 0, true)
 		if e != nil {
 			return nil, e
 		}
@@ -91,7 +96,11 @@ func (l preparedBagLedger) PurchaseCashToBag(ctx context.Context, o storage.Cash
 		for _, line := range o.Lines {
 			lines = append(lines, storage.CashDelivery{Product: line.Product, Template: line.Template, Amount: line.Quantity * line.Units, Quantity: line.Quantity})
 		}
-		packets, e := shopPilotSpaces(l.pilot, storage.CashReceipt{CharacterState: state, Deliveries: lines}, 0, true)
+		goldCost, e := o.GoldTotal()
+		if e != nil {
+			return nil, e
+		}
+		packets, e := shopPilotSpaces(l.pilot, storage.CashReceipt{CharacterState: state, GoldCharged: goldCost, Deliveries: lines}, 0, true)
 		if e != nil {
 			return nil, e
 		}
@@ -153,11 +162,11 @@ func (s *shopPilotSession) purchase(ctx context.Context, p *cashshop.Pilot, stor
 			if _, ok := upgrades[item.Product]; !ok {
 				continue
 			}
-			ledger, ok := store.(cashshop.VaultLedger)
+			ledger, ok := store.(workflow.VaultLedger)
 			if !ok {
 				return r, false, fmt.Errorf("vault purchase ledger missing")
 			}
-			return p.PurchaseVault(ctx, ledger, *s.vaultRules, account, character, key, cart, func(receipt storage.CashReceipt) error {
+			return workflow.PurchaseCashVault(p, ctx, ledger, *s.vaultRules, account, character, key, cart, func(receipt storage.CashReceipt) error {
 				packets, err := shopPilotPackets(receipt, 0, true)
 				if err != nil {
 					return err
@@ -189,14 +198,45 @@ func shopPilotSpaces(p *cashshop.Pilot, receipt storage.CashReceipt, balance uin
 	var vaultUpgrade *outboundPacket
 	var creatureUpdate *outboundPacket
 	var avatarUpdate *outboundPacket
+	var avatarExpansionNotice *outboundPacket
+	var avatarExpansionMessage *outboundPacket
 	var b inventory.Bag
 	expansion := false
+	avatarExpansion := false
 	for _, delivery := range receipt.Deliveries {
+		if _, found, err := p.AvatarInventoryExpansion(delivery.Template); err != nil {
+			return nil, err
+		} else if found {
+			avatarExpansion = true
+		}
 		if cashshop.InventoryExpansionTier(delivery.Template) != 0 {
 			expansion = true
 		}
 	}
-	if expansion {
+	if avatarExpansion {
+		var err error
+		b, err = inventory.ReadBag(receipt.CharacterState)
+		if err != nil {
+			return nil, err
+		}
+		body, err := inventory.SpecialEquipmentRestorePayload(receipt.CharacterState, 1)
+		if err != nil {
+			return nil, err
+		}
+		update = outboundPacket{"cera_purchase_avatar_capacity_restored", 0, 13, body}
+		body, err = protocol.AvatarInventoryExpansionNotice(b.AvatarExpansion)
+		if err != nil {
+			return nil, err
+		}
+		avatarExpansionNotice = &outboundPacket{"cera_purchase_avatar_expansion", 0, 66, body}
+		if applied {
+			body, err = protocol.AvatarInventoryExpansionPurchaseMessage(b.AvatarExpansion)
+			if err != nil {
+				return nil, err
+			}
+			avatarExpansionMessage = &outboundPacket{"cera_purchase_avatar_expansion_success_message", 0, 488, body}
+		}
+	} else if expansion {
 		var err error
 		b, err = inventory.ReadBag(receipt.CharacterState)
 		if err != nil {
@@ -294,6 +334,9 @@ func shopPilotSpaces(p *cashshop.Pilot, receipt storage.CashReceipt, balance uin
 		return nil, e
 	}
 	packets := []outboundPacket{update}
+	if avatarExpansionNotice != nil {
+		packets = append([]outboundPacket{*avatarExpansionNotice}, packets...)
+	}
 	if vaultUpgrade != nil {
 		// 扩容处理先于快照；角色金库使用 NOTI66，账号金库使用 CMD306 应答。
 		packets = append([]outboundPacket{*vaultUpgrade}, packets...)
@@ -346,6 +389,18 @@ func shopPilotSpaces(p *cashshop.Pilot, receipt storage.CashReceipt, balance uin
 				packets = append(packets, outboundPacket{"cera_purchase_premium_activated", 0, 66, notice})
 			}
 		}
+	}
+	if receipt.GoldCharged > 0 {
+		body, err := protocol.InventoryRestore(b.Rows(), b.Expansion)
+		if err != nil {
+			return nil, err
+		}
+		packets = append(packets, outboundPacket{"cera_purchase_gold_restored", 0, 13, body})
+	}
+	if avatarExpansionMessage != nil {
+		// CMD64 closes the native confirmation dialog; show success only
+		// after the ACK and absolute snapshots, never on receipt replay.
+		packets = append(packets, *avatarExpansionMessage)
 	}
 	return packets, nil
 }

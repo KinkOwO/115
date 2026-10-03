@@ -16,14 +16,11 @@ package inventory
 // 金币列。成功率与失败惩罚 **PVF 里没有**，以官方页数据为准（同强化：PVF 无成功率表）。
 
 import (
-	"context"
 	"crypto/rand"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"os"
 )
 
 const amplifyUpgradeModel = "amplify-upgrade-v1"
@@ -73,17 +70,11 @@ var amplifyUpgradeRules *amplifyUpgradeConfig
 
 // LoadAmplifyUpgradeRules 读取增幅规则；文件缺失时该功能整体拒绝（不影响强化/打红字）。
 func LoadAmplifyUpgradeRules(path string) error {
-	b, err := os.ReadFile(path)
-	if os.IsNotExist(err) {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
 	var c amplifyUpgradeConfig
-	if err = json.Unmarshal(b, &c); err != nil {
+	if loaded, err := loadOptionalJSON(path, &c); !loaded || err != nil {
 		return err
 	}
+
 	if c.Version != 1 || len(c.Source) != 64 || len(c.Levels) == 0 {
 		return fmt.Errorf("增幅规则源定义不完整")
 	}
@@ -247,75 +238,17 @@ type AmplifyUpgradeReceipt struct {
 }
 
 // ApplyAmplifyUpgrade 处理 CMD80 mode=1：校验次元属性与材料、扣费、按官方成功率判定。
-func (s *WearService) ApplyAmplifyUpgrade(ctx context.Context, role storage.Character, key string, r protocol.ReinforcementRequest) (storage.Character, AmplifyUpgradeReceipt, error) {
-	var out AmplifyUpgradeReceipt
-	if s == nil || s.Store == nil || s.Catalog == nil || s.BagRules.Source != role.ConfigVersion {
-		return role, out, fmt.Errorf("增幅需要有效装备目录及角色存档")
-	}
-	if r.Mode != 1 {
-		return role, out, fmt.Errorf("增幅请求的 mode 必须是 1，收到 %d", r.Mode)
-	}
-	if !AmplifyUpgradeRulesLoaded() {
-		return role, out, fmt.Errorf("增幅规则未装载")
-	}
-	saved, _, err := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, amplifyUpgradeModel, func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
-		next, receipt, e := s.applyAmplifyUpgrade(current, r)
-		if e != nil {
-			return nil, nil, e
-		}
-		encoded, e := json.Marshal(receipt)
-		if e != nil {
-			return nil, nil, e
-		}
-		return next, encoded, nil
-	})
-	if err != nil {
-		return role, out, err
-	}
-	receipt, err := s.Store.CharacterEventReceipt(ctx, role.AccountID, role.ID, key)
-	if err == nil {
-		err = json.Unmarshal(receipt, &out)
-	}
-	saved.WireID = role.WireID
-	return saved, out, err
-}
 
-func (s *WearService) applyAmplifyUpgrade(role storage.Character, r protocol.ReinforcementRequest) (json.RawMessage, AmplifyUpgradeReceipt, error) {
+func (s *WearService) ApplyAmplifyUpgrade(role Role, r protocol.ReinforcementRequest) (json.RawMessage, AmplifyUpgradeReceipt, error) {
 	var out AmplifyUpgradeReceipt
 	bag, err := ReadBag(role.State)
 	if err != nil {
 		return nil, out, err
 	}
 	// 目标装备：按请求里的空间找（0 背包 / 3 已穿戴），找不到再退回另一侧。
-	space := r.EquipmentSpace
-	items := bag.Equipment
-	index := -1
-	if space == 3 {
-		items = bag.Worn
-	}
-	for i, gear := range items {
-		if gear.Slot == r.EquipmentSlot && gear.Template == r.EquipmentTemplate {
-			index = i
-			break
-		}
-	}
+	space, items, index := bag.findEquipment(r.EquipmentSpace, r.EquipmentSlot, r.EquipmentTemplate)
 	if index < 0 {
-		// 退回另一侧再找一次。
-		space = 0
-		items = bag.Equipment
-		if r.EquipmentSpace != 3 {
-			space = 3
-			items = bag.Worn
-		}
-		for i, gear := range items {
-			if gear.Slot == r.EquipmentSlot && gear.Template == r.EquipmentTemplate {
-				index = i
-				break
-			}
-		}
-	}
-	if index < 0 {
-		return nil, out, fmt.Errorf("目标装备不在背包或已穿戴槽位里")
+		return nil, out, Refuse(RefusalItems, "目标装备不在背包或已穿戴槽位里")
 	}
 	gear := items[index]
 	if err = gear.ValidateRecord(); err != nil {
@@ -326,7 +259,7 @@ func (s *WearService) applyAmplifyUpgrade(role storage.Character, r protocol.Rei
 		return nil, out, err
 	}
 	if _, ok := d.Fields["[equipment type]"]; !ok {
-		return nil, out, fmt.Errorf("目标不是装备")
+		return nil, out, Refuse(RefusalEquipment, "目标不是装备")
 	}
 
 	row := EquipmentRow(gear)
@@ -334,14 +267,14 @@ func (s *WearService) applyAmplifyUpgrade(role storage.Character, r protocol.Rei
 	equipLevel, levelOK := singleInt(d, "[minimum level]")
 	rarity, rarityOK := singleInt(d, "[rarity]")
 	if !levelOK || !rarityOK {
-		return nil, out, fmt.Errorf("无法核对装备等级或品质")
+		return nil, out, Refuse(RefusalUnsupported, "无法核对装备等级或品质")
 	}
 	weapon := d.Fields["[equipment type]"][0].Text == "[weapon]"
 
 	// 前置：必须先有次元属性（增幅书打过红字）。
 	ampType := row[amplifyTypeOffset]
 	if ampType == 0 {
-		return nil, out, fmt.Errorf("该装备没有次元属性，不能增幅（先用增幅书打红字）")
+		return nil, out, Refuse(RefusalUnsupported, "该装备没有次元属性，不能增幅（先用增幅书打红字）")
 	}
 	level := amplifyLevel(row[:])
 
@@ -365,17 +298,17 @@ func (s *WearService) applyAmplifyUpgrade(role storage.Character, r protocol.Rei
 				AmplifySafeMaxLevel(), AmplifySafeMaxLevel()+1, level)
 		}
 		if !AmplifySafeEligible(int(equipLevel), int(rarity)) {
-			return nil, out, fmt.Errorf("该装备不符合安全增幅条件（100 级以上 + rare..primeval）")
+			return nil, out, Refuse(RefusalUnsupported, "该装备不符合安全增幅条件（100 级以上 + rare..primeval）")
 		}
 		c, g, ok := AmplifySafeCost(level, weapon)
 		if !ok {
-			return nil, out, fmt.Errorf("当前增幅等级不在安全增幅表内")
+			return nil, out, Refuse(RefusalLimit, "当前增幅等级不在安全增幅表内")
 		}
 		count, gold = c, g
 	} else {
 		c, ok := AmplifyMaterialCount(level)
 		if !ok {
-			return nil, out, fmt.Errorf("增幅等级 %d 超出规则表范围", level)
+			return nil, out, Refuse(RefusalLimit, "增幅等级 %d 超出规则表范围", level)
 		}
 		g, ok := AmplifyGold(level)
 		if !ok {
@@ -384,7 +317,7 @@ func (s *WearService) applyAmplifyUpgrade(role storage.Character, r protocol.Rei
 		count, gold = c, g
 	}
 	if bag.Gold < gold {
-		return nil, out, fmt.Errorf("金币不足：需要 %d，持有 %d", gold, bag.Gold)
+		return nil, out, Refuse(RefusalGold, "金币不足：需要 %d，持有 %d", gold, bag.Gold)
 	}
 
 	// 扣材料：请求里「券槽」位放的就是增幅材料。
@@ -397,15 +330,15 @@ func (s *WearService) applyAmplifyUpgrade(role storage.Character, r protocol.Rei
 		}
 		if safe {
 			if !IsAmplifySafeMaterial(item.Template) {
-				return nil, out, fmt.Errorf("增幅材料槽位放的不是安全增幅材料（槽 %d 里是模板 %d，需要 10327282）",
+				return nil, out, Refuse(RefusalMaterials, "增幅材料槽位放的不是安全增幅材料（槽 %d 里是模板 %d，需要 10327282）",
 					r.TicketSlot, item.Template)
 			}
 		} else if !IsAmplifyMaterial(item.Template) {
-			return nil, out, fmt.Errorf("增幅材料槽位放的不是矛盾结晶体（槽 %d 里是模板 %d，需要 3242）",
+			return nil, out, Refuse(RefusalMaterials, "增幅材料槽位放的不是矛盾结晶体（槽 %d 里是模板 %d，需要 3242）",
 				r.TicketSlot, item.Template)
 		}
 		if item.Amount < count {
-			return nil, out, fmt.Errorf("增幅材料不足：需要 %d，持有 %d", count, item.Amount)
+			return nil, out, Refuse(RefusalMaterials, "增幅材料不足：需要 %d，持有 %d", count, item.Amount)
 		}
 		remaining = item.Amount - count
 		if remaining == 0 {
@@ -417,7 +350,7 @@ func (s *WearService) applyAmplifyUpgrade(role storage.Character, r protocol.Rei
 		break
 	}
 	if !found {
-		return nil, out, fmt.Errorf("增幅材料不在背包里")
+		return nil, out, Refuse(RefusalItems, "增幅材料不在背包里")
 	}
 	bag.Gold -= gold
 

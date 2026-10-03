@@ -1,15 +1,14 @@
 package inventory
 
 import (
-	"dfolan/internal/storage"
 	"encoding/json"
 	"testing"
 )
 
 func TestAccountVaultGoldButtonsPreserveBalancesOnFailure(t *testing.T) {
 	rules := AccountVaultRules{Upgrades: [][6]int64{{8, 100000000}}}
-	role := storage.Character{State: json.RawMessage(`{"inventory":{"version":"ordinary-bag-v1","gold":700}}`)}
-	vault := storage.AccountVaultState{Slots: 8, Gold: 100, Items: json.RawMessage(`[]`)}
+	role := Role{State: json.RawMessage(`{"inventory":{"version":"ordinary-bag-v1","gold":700}}`)}
+	vault := AccountVaultState{Slots: 8, Gold: 100, Items: json.RawMessage(`[]`)}
 	state, next, err := DepositAccountVaultGold(role, vault, rules, 500)
 	if err != nil || next.Gold != 600 {
 		t.Fatalf("deposit: %v %+v", err, next)

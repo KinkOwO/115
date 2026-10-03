@@ -294,7 +294,11 @@ func TestShopPilotDatabasePurchase(t *testing.T) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	cfg, e := storage.LoadConfig("../../runtime/storage/local.json")
+	configPath := os.Getenv("DFO_TEST_STORAGE_CONFIG")
+	if configPath == "" {
+		configPath = "../../runtime/storage/local.json"
+	}
+	cfg, e := storage.LoadConfig(configPath)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -313,7 +317,6 @@ func TestShopPilotDatabasePurchase(t *testing.T) {
 		}
 	}()
 	cfg.PostgresSchema = schema
-	cfg.RedisPrefix = schema + ":"
 	store, e := storage.Open(ctx, cfg)
 	if e != nil {
 		t.Fatal(e)
@@ -332,7 +335,7 @@ func TestShopPilotDatabasePurchase(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	role, e := store.CreateCharacter(ctx, storage.Character{AccountID: account, Name: "ShopWireTest", Request: []byte{0}, ConfigVersion: p.Config.Source.Checksum, State: json.RawMessage(`{}`)}, 24)
+	role, e := store.CreateCharacter(ctx, storage.Character{AccountID: account, Name: "ShopWireTest", Request: []byte{0}, ConfigVersion: p.Config.Source.SaveIdentity(), State: json.RawMessage(`{}`)}, 24)
 	if e != nil {
 		t.Fatal(e)
 	}

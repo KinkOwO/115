@@ -13,7 +13,7 @@ import (
 func main() {
 	source := flag.String("source", "", "read-only source PVF")
 	out := flag.String("output", "configs/world.generated.json", "source catalog output")
-	base := flag.String("base", "", "preserve an existing catalog and refresh its phase NPC rows only")
+	base := flag.String("base", "", "preserve an existing catalog and refresh its phase NPC rows and source graphs")
 	flag.Parse()
 	a, e := pvf.LoadArchive(pvf.Options{Path: *source, MaxBytes: 1024 * 1024 * 1024})
 	if e != nil {
@@ -45,6 +45,7 @@ func main() {
 				log.Fatalf("base area %s is absent from the source archive", key)
 			}
 			area.PhaseNPCs = fromSource.PhaseNPCs
+			area.PhaseMaps = fromSource.PhaseMaps
 			existing.Areas[key] = area
 		}
 		w = existing

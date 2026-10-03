@@ -1,4 +1,4 @@
-﻿package quest
+package quest
 
 import "dfolan/internal/catalog/pvf"
 

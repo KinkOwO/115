@@ -4,7 +4,6 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"testing"
 )
@@ -35,8 +34,8 @@ func TestShopStorageCatalogDepositsPurchasedKaleido(t *testing.T) {
 		t.Fatal(e)
 	}
 	s := inventory.VaultService{Rules: rules, Catalog: merged, BagRules: bagRules}
-	role := storage.Character{ConfigVersion: base.Source.Checksum, State: json.RawMessage(`{"inventory":{"version":"ordinary-bag-v1","items":[{"slot":65,"Template":15,"Amount":10}]}}`)}
-	v := storage.VaultState{ConfigVersion: rules.SourceSHA256, Slots: 8, Items: json.RawMessage(`[]`)}
+	role := inventory.Role{ConfigVersion: base.Source.SaveIdentity(), State: json.RawMessage(`{"inventory":{"version":"ordinary-bag-v1","items":[{"slot":65,"Template":15,"Amount":10}]}}`)}
+	v := inventory.VaultState{ConfigVersion: rules.SourceSHA256, Slots: 8, Items: json.RawMessage(`[]`)}
 	_, items, e := s.TransferStacks(role, v, protocol.ItemMoveRequest{DestinationList: 2, SourceSlot: 65, SourceItem: 15, Count: 10, Selection: 0xffffffff})
 	if e != nil {
 		t.Fatal("real current PVF cash item deposit", e)

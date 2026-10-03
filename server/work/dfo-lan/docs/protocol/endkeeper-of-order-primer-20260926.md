@@ -747,8 +747,6 @@ common / rare / unique / legendary / epic / primeval **逐位对位**；
 - 服务端栏位模型：`EquipmentBodySlot` 接受 0..47，**oath = 47**，引子相关移动用 37/45
   （`internal/inventory/equipment_family.go`）。
 - 每件带 `Record []byte`（实例数据 = 强化/属性等）。
-- 服务端有 Redis 缓存 `characters:<account>`：**改库后必须让该键失效**，
-  否则会被缓存回写覆盖。
 - `cmd/gmtool` 只有 `/api/grant`（发放），**没有卸装端点**。
 
 ### 10.5 服务端可动的三个方向（待定优先级）
@@ -3838,7 +3836,11 @@ return count;   // 0..4
 
 ### 40.5 开关与作用域
 
-- `-attunement-rebalance` / `DFO_ATTUNEMENT_REBALANCE=1`（启动脚本已打开）
+- `-attunement-rebalance` / `DFO_ATTUNEMENT_REBALANCE=1`
+  ⚠️ **2026-10-01 业主改主意：已关掉**（`configs/pvf-default.json` 里显式 `"0"`）。
+  理由：业主实机发现「征兆几乎每场都出第一档、每次都结算」正是本层调参的结果，
+  且拿 1710 场国服实测一比，**国服的稀有 27.7% ≈ 官方原表 27.20%** ⇒ 国服用的就是倾斜 0。
+  本层保留为**可再打开的入口**（改 profile 即可），默认关。
 - `-attunement-fixed-tilt N` / `DFO_ATTUNEMENT_FIXED_TILT`（默认 25；0 = 固定池不动；≥100 被拒）
 - **默认关闭** ⇒ 表与官方逐字节一致，`TestRebalanceDisabledIsANoOp` 守这条
 - 作用域天然只在小深渊：大深渊的三张表**没有普通 / 稀有档**

@@ -44,7 +44,7 @@ func TestMoonRewardFullBagIsAtomicAndPreservesOtherState(t *testing.T) {
 }
 func TestMoonRewardPolicyAndEquipmentValueIsNotCount(t *testing.T) {
 	s := moonRewardFixture()
-	p := MoonRewardPolicy{Source: s.Catalog.Source.Checksum, Draws: 1, Choices: []MoonRewardChoice{{Template: 101, Count: 1, Weight: 80}, {Template: 102, Count: 1, Weight: 20}}}
+	p := MoonRewardPolicy{Source: s.Catalog.Source.SaveIdentity(), Draws: 1, Choices: []MoonRewardChoice{{Template: 101, Count: 1, Weight: 80}, {Template: 102, Count: 1, Weight: 20}}}
 	if e := s.ValidateMoonRewards(p); e != nil {
 		t.Fatal(e)
 	}

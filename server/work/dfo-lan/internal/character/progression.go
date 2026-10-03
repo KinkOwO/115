@@ -5,8 +5,6 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/progression"
-	"dfolan/internal/storage"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -14,16 +12,17 @@ import (
 )
 
 type ProgressionService struct {
-	Odyssey     *catalog.OdysseyGrowth
-	Chapters    *catalog.OdysseyChapters
-	Store       *storage.Store
-	Catalog     catalog.Progression
-	Professions catalog.Characters
-	Rules       progression.Rules
+	JournalRoutes *catalog.OdysseyJournalRoutes
+	Odyssey       *catalog.OdysseyGrowth
+	Chapters      *catalog.OdysseyChapters
+	Store         ProgressionStore
+	Catalog       catalog.Progression
+	Professions   catalog.Characters
+	Rules         GrowthRules
 }
 
-func (s *ProgressionService) Monster(ctx context.Context, role storage.Character, run *dungeon.Session, entity uint16) (storage.Character, bool, error) {
-	if run == nil || !run.Loaded || !run.Dead[entity] || role.ConfigVersion != s.Catalog.Source.Checksum || s.Professions.Source.Checksum != s.Catalog.Source.Checksum {
+func (s *ProgressionService) Monster(ctx context.Context, role Character, run *dungeon.Session, entity uint16) (Character, bool, error) {
+	if run == nil || !run.Loaded || !run.Dead[entity] || role.ConfigVersion != s.Catalog.Source.SaveIdentity() || s.Professions.Source.Checksum != s.Catalog.Source.Checksum {
 		return role, false, fmt.Errorf("experience requires owned confirmed source monster")
 	}
 	b, e := hex.DecodeString(run.RunID)
@@ -46,17 +45,17 @@ func (s *ProgressionService) Monster(ctx context.Context, role storage.Character
 		return role, false, nil
 	}
 	key := fmt.Sprintf("monster:%s:%d:%d", run.RunID, run.Room.Map, entity)
-	return s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, s.Catalog.Source.Checksum, key, s.Rules.Model, func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+	return s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, s.Catalog.Source.SaveIdentity(), key, s.Rules.Model, func(current Character) (json.RawMessage, json.RawMessage, error) {
 		var state State
 		if e := json.Unmarshal(current.State, &state); e != nil {
 			return nil, nil, e
 		}
-		gain, e := progression.MonsterGain(s.Catalog, s.Rules, run.Definition, monster, state.Level, 0)
+		gain, e := GrowthMonsterGain(s.Catalog, s.Rules, run.Definition, monster, state.Level, 0)
 		if e != nil {
 			return nil, nil, e
 		}
 		if s.Store != nil {
-			if hasGrowth, _ := s.Store.HasActivePremium(ctx, role.AccountID, storage.PremiumGrowth, time.Now()); hasGrowth {
+			if hasGrowth, _ := s.Store.HasGrowthPremium(ctx, role.AccountID, time.Now()); hasGrowth {
 				gain = gain + gain*20/100
 			}
 		}
@@ -69,7 +68,7 @@ func (s *ProgressionService) Monster(ctx context.Context, role storage.Character
 	})
 }
 
-func ExperiencePayload(role storage.Character) ([]byte, error) {
+func ExperiencePayload(role Character) ([]byte, error) {
 	var state State
 	if e := json.Unmarshal(role.State, &state); e != nil {
 		return nil, e

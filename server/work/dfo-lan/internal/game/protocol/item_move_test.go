@@ -11,7 +11,7 @@ func TestCurrentItemMoveAckCursors(t *testing.T) {
 	if !bytes.Equal(ItemMoveSuccess(r, 1)[1:], nativeInventoryFixture(t, "item_move_success35")) {
 		t.Fatal("success cursor")
 	}
-	if !bytes.Equal(ItemMoveRefused(r)[3:], nativeInventoryFixture(t, "item_move_failure35")) {
+	if !bytes.Equal(ItemMoveRefused(r, 4)[3:], nativeInventoryFixture(t, "item_move_failure35")) {
 		t.Fatal("refusal cursor")
 	}
 	p := make([]byte, 32)

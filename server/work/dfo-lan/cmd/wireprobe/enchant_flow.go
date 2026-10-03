@@ -5,8 +5,8 @@ import (
 	"crypto/sha256"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
+	"dfolan/internal/workflow"
 	"fmt"
-	"strings"
 	"time"
 )
 
@@ -22,17 +22,14 @@ import (
 //
 // 所以「宝珠不对 / 宝珠不在背包」走 17，「目标不是装备」走 19，兜底 23。
 func enchantRefusalCode(err error) uint16 {
-	if err == nil {
+	switch inventory.RefusalOf(err) {
+	case inventory.RefusalItems:
+		return cmd272ErrItem
+	case inventory.RefusalEquipment:
+		return cmd272ErrEquipment
+	default:
 		return cmd272ErrGeneric
 	}
-	msg := err.Error()
-	switch {
-	case strings.Contains(msg, "不是附魔宝珠"), strings.Contains(msg, "不在背包"), strings.Contains(msg, "容器"):
-		return cmd272ErrItem
-	case strings.Contains(msg, "目标不是装备"), strings.Contains(msg, "目标装备不在"):
-		return cmd272ErrEquipment
-	}
-	return cmd272ErrGeneric
 }
 
 const (
@@ -46,7 +43,7 @@ const (
 // 请求 16 字节：u8 宝珠空间 + u16 宝珠槽 + u8 装备空间 + u16 装备槽。
 // 成功回包 4 字节：status(1) + u8 装备空间 + u16 装备槽（客户端 handler 只读这两个字段）。
 // 成功后照既有约定补发宝珠行/装备行刷新 —— 附魔属性靠刷新行重新反序列化后显示。
-func (w *worldSession) enchantByBead(service *inventory.WearService, p, raw []byte, event func(map[string]any)) ([]outboundPacket, error) {
+func (w *worldSession) enchantByBead(service *workflow.WearService, p, raw []byte, event func(map[string]any)) ([]outboundPacket, error) {
 	if service == nil || w == nil || w.role.ID == 0 || w.activeDungeon != nil {
 		return nil, fmt.Errorf("附魔需要已选角色且位于城镇")
 	}
@@ -68,33 +65,10 @@ func (w *worldSession) enchantByBead(service *inventory.WearService, p, raw []by
 	if err != nil {
 		return nil, err
 	}
-	rows := [][protocol.CurrentItemRecordSize]byte{}
-	// 宝珠行：被扣完时该格已移除，用空行让客户端同步移除。
-	beadRow, exists := bag.RowAt(out.BeadSlot)
-	if !exists {
-		beadRow = protocol.EmptyOrdinaryItem(out.BeadSlot)
-	}
-	rows = append(rows, beadRow)
-	if out.EquipmentSpace == 0 {
-		gearRow, ok := bag.RowAt(out.EquipmentSlot)
-		if !ok {
-			gearRow = protocol.EmptyOrdinaryItem(out.EquipmentSlot)
-		}
-		rows = append(rows, gearRow)
-	}
-	body, err := protocol.InventoryUpdate(rows)
+	rows := equipmentRows(bag, out.EquipmentSpace, out.EquipmentSlot, out.BeadSlot)
+	plan, err = appendEquipmentUpdates(plan, saved.State, rows, out.EquipmentSpace, "enchant_inventory", "enchant_worn")
 	if err != nil {
 		return nil, err
-	}
-	plan = append(plan, outboundPacket{"enchant_inventory", 0, 14, body})
-	if out.EquipmentSpace == 3 {
-		wornBody, werr := inventory.WornSpaceUpdate(saved.State)
-		if werr != nil {
-			return nil, werr
-		}
-		if len(wornBody) > 0 {
-			plan = append(plan, outboundPacket{"enchant_worn", 0, 14, wornBody})
-		}
 	}
 	// ★ 回包放在物品行刷新之后：客户端是收到回包才去读那件装备并刷新附魔窗口的，
 	// 若回包先到，窗口会拿到还没更新的旧装备 —— 表现就是「附魔成功了，但预览窗口还是旧的」。

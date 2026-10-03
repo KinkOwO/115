@@ -1,12 +1,10 @@
 package loot
 
 import (
-	"context"
 	"crypto/sha256"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
@@ -30,13 +28,13 @@ type MoonRewardPlan struct {
 	Grants             []MoonRewardGrant
 }
 
-const moonRewardModel = "moon-solo-clear-v1"
+const MoonRewardModel = "moon-solo-clear-v1"
 
 var ErrMoonBagFull = errors.New("Moon reward pending: bag full")
 
 func (s *Service) ValidateMoonRewards(p MoonRewardPolicy) error {
 	hash, e := hex.DecodeString(p.Source)
-	if e != nil || len(hash) != 32 || s == nil || p.Source != s.Catalog.Source.Checksum || p.Source != s.BagRules.Source || p.Draws == 0 || p.Draws > 16 || len(p.Choices) == 0 || len(p.Choices) > 4096 {
+	if e != nil || len(hash) != 32 || s == nil || p.Source != s.Catalog.Source.SaveIdentity() || p.Draws == 0 || p.Draws > 16 || len(p.Choices) == 0 || len(p.Choices) > 4096 {
 		return fmt.Errorf("invalid Moon reward policy/source")
 	}
 	var total uint64
@@ -89,9 +87,9 @@ func (s *Service) moonGrant(v MoonRewardChoice) (MoonRewardGrant, error) {
 	g.Record = append([]byte(nil), row[:]...)
 	return g, nil
 }
-func (s *Service) FreezeMoonReward(ctx context.Context, role storage.Character, run *dungeon.Session, p MoonRewardPolicy) (MoonRewardPlan, error) {
+func (s *Service) PlanMoonReward(role Role, run *dungeon.Session, p MoonRewardPolicy) (MoonRewardPlan, error) {
 	var out MoonRewardPlan
-	if s == nil || s.Store == nil || run == nil || !moonRunID(run.RunID) || run.Definition.ID != 100004137 || !run.Completed() || role.ConfigVersion != p.Source {
+	if s == nil || run == nil || !MoonRunID(run.RunID) || run.Definition.ID != 100004137 || !run.Completed() || role.ConfigVersion != p.Source {
 		return out, fmt.Errorf("Moon reward before owned final")
 	}
 	if e := s.ValidateMoonRewards(p); e != nil {
@@ -119,52 +117,20 @@ func (s *Service) FreezeMoonReward(ctx context.Context, role storage.Character, 
 			roll -= uint64(v.Weight)
 		}
 	}
-	body, e := json.Marshal(out)
-	if e != nil {
-		return out, e
-	}
-	_, _, e = s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, p.Source, "moon-clear:"+run.RunID, moonRewardModel, func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
-		return current.State, body, nil
-	})
-	if e != nil {
-		return out, e
-	}
-	return s.ReadMoonReward(ctx, role, run.RunID)
+	return out, nil
 }
-func (s *Service) ReadMoonReward(ctx context.Context, role storage.Character, run string) (MoonRewardPlan, error) {
+func (s *Service) DecodeMoonReward(role Role, run string, raw json.RawMessage) (MoonRewardPlan, error) {
 	var p MoonRewardPlan
-	if s == nil || s.Store == nil || !moonRunID(run) {
-		return p, fmt.Errorf("invalid Moon reward owner/run")
-	}
-	raw, e := s.Store.CharacterEventReceipt(ctx, role.AccountID, role.ID, "moon-clear:"+run)
-	if e != nil {
+
+	if e := json.Unmarshal(raw, &p); e != nil {
 		return p, e
 	}
-	if e = json.Unmarshal(raw, &p); e != nil {
-		return p, e
-	}
-	if p.Run != run || p.Source != role.ConfigVersion || p.Source != s.Catalog.Source.Checksum || p.Account != role.AccountID || p.Character != role.ID || len(p.Grants) == 0 || len(p.Grants) > 16 {
+	if p.Run != run || p.Source != role.ConfigVersion || p.Source != s.Catalog.Source.SaveIdentity() || p.Account != role.AccountID || p.Character != role.ID || len(p.Grants) == 0 || len(p.Grants) > 16 {
 		return p, fmt.Errorf("foreign/corrupt Moon reward proof")
 	}
 	return p, nil
 }
-func (s *Service) ClaimMoonReward(ctx context.Context, role storage.Character, run string) (storage.Character, bool, error) {
-	p, e := s.ReadMoonReward(ctx, role, run)
-	if e != nil {
-		return role, false, e
-	}
-	saved, fresh, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, p.Source, "moon-grant:"+run, moonRewardModel, func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
-		state, e := s.applyMoonRewards(current.State, p)
-		if e != nil {
-			return nil, nil, e
-		}
-		receipt, _ := json.Marshal(p)
-		return state, receipt, nil
-	})
-	saved.WireID = role.WireID
-	return saved, fresh, e
-}
-func moonRunID(run string) bool { v, e := hex.DecodeString(run); return e == nil && len(v) == 16 }
+func MoonRunID(run string) bool { v, e := hex.DecodeString(run); return e == nil && len(v) == 16 }
 func (s *Service) applyMoonRewards(state json.RawMessage, p MoonRewardPlan) (json.RawMessage, error) {
 	bag, e := inventory.ReadBag(state)
 	if e != nil {
@@ -212,33 +178,7 @@ func (p MoonRewardPlan) WireRows() []protocol.ConquestRewardValue115 {
 	return out
 }
 
-// Recovery is per owning character and only discovers durable, unclaimed
-// clear plans. Full bags retain their plan. It never re-rolls with new policy.
-func (s *Service) RecoverMoonRewards(ctx context.Context, role storage.Character) (storage.Character, error) {
-	rows, e := s.Store.DB.Query(ctx, `SELECT substr(event_key,12) FROM character_events e WHERE character_id=$1 AND model=$2 AND event_key LIKE 'moon-clear:%' AND NOT EXISTS(SELECT 1 FROM character_events g WHERE g.character_id=e.character_id AND g.event_key='moon-grant:'||substr(e.event_key,12)) ORDER BY created_at LIMIT 16`, role.ID, moonRewardModel)
-	if e != nil {
-		return role, e
-	}
-	var runs []string
-	for rows.Next() {
-		var r string
-		if e = rows.Scan(&r); e != nil {
-			rows.Close()
-			return role, e
-		}
-		runs = append(runs, r)
-	}
-	e = rows.Err()
-	rows.Close()
-	if e != nil {
-		return role, e
-	}
-	for _, run := range runs {
-		saved, _, err := s.ClaimMoonReward(ctx, role, run)
-		if err != nil {
-			return role, err
-		}
-		role = saved
-	}
-	return role, nil
+// ApplyMoonRewards prepares a reward state without persistence.
+func (s *Service) ApplyMoonRewards(state json.RawMessage, p MoonRewardPlan) (json.RawMessage, error) {
+	return s.applyMoonRewards(state, p)
 }

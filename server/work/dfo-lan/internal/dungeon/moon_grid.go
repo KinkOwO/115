@@ -32,7 +32,10 @@ func MoonInitialProgress(c catalog.DungeonCatalog) (MoonProgress, error) {
 			return p, fmt.Errorf("invalid Moon grid source")
 		}
 		seen[key] = true
-		_, script, ok := resolveRoomMap(c, room)
+		_, script, ok, err := resolveRoomMap(c, room)
+		if err != nil {
+			return p, err
+		}
 		if !ok {
 			return p, fmt.Errorf("Moon grid map missing: %d", room.Map)
 		}
@@ -71,7 +74,10 @@ func moonFirstCounts(c catalog.DungeonCatalog, d catalog.DungeonDefinition, maze
 		if room.X != 0 || room.Y >= 5 {
 			continue
 		}
-		_, script, ok := resolveRoomMap(c, room)
+		_, script, ok, err := resolveRoomMap(c, room)
+		if err != nil {
+			return counts, err
+		}
 		if !ok {
 			return counts, fmt.Errorf("Moon first-floor map missing")
 		}

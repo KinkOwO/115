@@ -6,6 +6,7 @@ import (
 	"dfolan/internal/adventure"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
+	"dfolan/internal/savecontract"
 	"dfolan/internal/storage"
 	"encoding/binary"
 	"encoding/json"
@@ -62,11 +63,11 @@ func (s *bleedingMineRewardState) addCard(card bleedingMineRewardCard) error {
 }
 
 func (w *worldSession) updateBleedingMineRewards(ctx context.Context, apply func(*bleedingMineRewardState) ([]storage.MailAsset, error)) (*bleedingMineRewardState, error) {
-	if w == nil || w.characters == nil || w.characters.Store == nil || w.loot == nil || w.loot.BleedingMine == nil || w.role.ConfigVersion != w.loot.BleedingMine.Source {
+	if w == nil || w.characters == nil || w.store == nil || w.loot == nil || w.loot.BleedingMine == nil || w.role.ConfigVersion != savecontract.Identity() {
 		return nil, fmt.Errorf("赤红铁矿原版奖励配置或存储未加载")
 	}
 	var result bleedingMineRewardState
-	_, _, err := w.characters.Store.UpdateBleedingMineRewards(ctx, w.account, w.role.ID, w.role.ConfigVersion,
+	_, _, err := w.store.UpdateBleedingMineRewards(ctx, w.account, w.role.ID, w.role.ConfigVersion,
 		func(role storage.Character, raw json.RawMessage) (json.RawMessage, json.RawMessage, []storage.MailAsset, error) {
 			if err := json.Unmarshal(raw, &result); err != nil {
 				return nil, nil, nil, err

@@ -140,12 +140,12 @@ func (b Bag) AddMailItem(c catalog.LootCatalog, r BagRules, equipment *Equipment
 			if len(kind) == 0 || EquipmentBagSpace(kind[0].Text) != 1 {
 				return b, fmt.Errorf("时装邮件模板类型不匹配")
 			}
-			// 沿用商城与礼包的时装栏范围 0..209，保留附件实例全部属性。
+			// 使用角色的原生时装栏容量，保留附件实例全部属性。
 			occupied := make(map[uint16]bool, len(b.Special[1]))
 			for _, row := range b.Special[1] {
 				occupied[row.Slot] = true
 			}
-			for slot := uint16(0); slot < 210; slot++ {
+			for slot := uint16(0); slot < protocol.AvatarInventorySlots(b.AvatarExpansion); slot++ {
 				if occupied[slot] {
 					continue
 				}
@@ -205,7 +205,7 @@ func (b Bag) AddMailItem(c catalog.LootCatalog, r BagRules, equipment *Equipment
 	for i, row := range b.Items {
 		occupied[row.Slot] = true
 		// 不同期限的堆叠必须分开，永久物品不能继承另一堆的到期时间。
-		if row.Template == item.Template && row.ExpireTime == item.ExpireTime && row.Slot >= slots[0] && row.Slot <= slots[1] && row.Amount < limit {
+		if row.Template == item.Template && row.ExpireTime == item.ExpireTime && (r.Quick(row.Slot) || row.Slot >= slots[0] && row.Slot <= slots[1]) && row.Amount < limit {
 			added := min(limit-row.Amount, item.Amount)
 			b.Items[i].Amount += added
 			item.Amount -= added

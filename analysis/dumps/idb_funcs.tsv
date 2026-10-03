@@ -1,4 +1,6 @@
 address	name	description
+0x1424e66a0	Ispins_SelectRosterPrerequisiteGate	Channel81 callback tests role+643 at1424e673a; prerequisite missing sets dstr100088074 at1424e67cc. Native28B roster block starts638 so flag11. PVF13763.
+0x1424e71e0	Ispins_CompletedPrerequisiteSetsRosterFlag	Channel81 prerequisite match calls native completion lookup and sets role+643 at1424e727c/72b3. next79 mode/character-selection evidence20261003.
 0x142530950	Handler_IspinsOperationSelectAck_Local2047	Local ACK2047 success path reads19B; action4 at142530a1e resets window644 then takes flag0 selection path. next79 20261003 live reset request confirmed.
 0x14251dca0	IspinsSelection_ClearThreeOperationChoices	Called by action4 ACK handler; clears three UI choice widgets and their values at14251dcc0..dce4.
 0x1425311f0	Send_IspinsOperationSelect_Local2047	Native writer stores action u32 at13 and argument u16 at17, sends19B plus native transport tail; next79 live action4/ffff vector.

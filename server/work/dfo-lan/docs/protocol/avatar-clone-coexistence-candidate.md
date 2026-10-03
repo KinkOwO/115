@@ -130,3 +130,11 @@ attempt 2/3 静态门禁：`go test ./...` 与 `go vet ./...` 均通过。独立
 实现保持原 CMD19 应答及 NOTI13/14，只在成功触及穿戴表、当前仍有可解析 Clone、且身处副本时，于既有刷新之后复用已在 CMD37 验证的两包 mode1 移除/重建，再以 NOTI14 恢复普通装备。背包内移动、城镇换装、已无 Clone 的脱装都不追加；若本次脱下一个 Clone 但其他槽仍有 Clone，使用两包重建并避免旧的单包 `EntryAddition` 重复追加。用户已实机确认副本内普通装备、Clone Avatar、普通外观 Avatar 三类换装后修复正常。
 
 验证：新增普通装备、Clone Avatar、普通外观 Avatar 三类穿戴移动及城镇/背包排除的回归测试；`go test ./...`、`go vet ./...` 均通过。用户手动使用隔离程序实机确认修复，并检查换装后外观及后续切图正常。正常启动程序 `bin/wireprobe-handoff-source.exe` SHA-256 `2D796024CAF46A5A0B3095E32DF00F4AF118892EDF9389FDDF31386C5700B200`；临时测试 profile 已移除。
+
+### 2026-09-30 背包内移格误触发外观刷新（用户实机确认）
+
+用户报告副本内只移动背包装备也会让 Clone 部位裸体，随后无法进入下一房间。会话 `roles_persist_select_actor_town_world_live_detail_dungeon_manual_20260930_031458_012783_next37/events.jsonl` 的 UTC 19:50:01 和 19:50:02 两次 CMD19 明文分别是 `list0 slot26 → list0 slot10` 与反向；穿戴表没有参与。服务端却各发送 `equipment_worn_resynced`、`equipment_worn_window_refreshed`、`creature_list_updated`、mode0 `creature_actor_appearance_updated`。19:50:02 后到 19:52:28 断线之间只有 CMD122 心跳，没有下一房间的 CMD45。当前代码把背包槽号 26 当成宠物槽，恰好走到既有实机证实会卡下一房间的 mode0 角色重建路径；NOTI14 全量穿戴刷新也会重建未变化的 Clone 对象。两条副作用都由同一次纯背包移动触发。
+
+修复按列表身份判断：纯背包移动保留 CMD19 成功、背包 NOTI13 与源/目标单槽 NOTI14；穿戴 NOTI13/14 仅在 list3 参与时发送，宠物列表/外观仅在 list7 或 list3 宠物主体槽参与时刷新。另在后续合并后的当前主线发现，`dungeonCloneEquipmentRefresh` 的调用点丢失（函数与测试仍在），已将此前用户确认的副本内真实换装重建调用接回 CMD19 路径；list0→list0 不触发它。无新增协议字段、数据库或客户端改动。回滚可撤回本节的 `equipment_flow.go`、`main.go` 与回归测试增量，并保留先前已确认的 commit `8b1947c` 作为参照。用户已确认副本内 list0→list0 移动后外观保持，并能进入下一房间；list3 真换装的 Clone 重建逻辑一并恢复。
+
+验证：`go test ./...` 与 `go vet ./...` 通过；新增背包 slot26 双向移动回归断言。用户手动使用隔离程序确认修复。正常启动程序 `bin/wireprobe-handoff-source.exe` SHA-256 `BF3B203A92A641AD35F8904B8E5C364170A9F3E4158EA14C745D9916033C8720`；临时测试 profile 随主线合并移除。

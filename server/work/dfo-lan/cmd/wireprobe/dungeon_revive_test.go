@@ -147,7 +147,7 @@ func TestOdysseyCreditsExhaustThenTokenThenCera(t *testing.T) {
 	store := &ceraReviveFake{lifeTokenStore: lifeTokenStore{role: role}, balance: 30}
 	w := &worldSession{
 		role:          role,
-		loot:          &loot.Service{Catalog: catalog.LootCatalog{Source: pvf.ArchiveSnapshot{Checksum: odysseySource}}},
+		loot:          &loot.Service{Catalog: catalog.LootCatalog{Source: pvf.ArchiveSnapshot{Checksum: odysseySource()}}},
 		dungeons:      &catalog.DungeonCatalog{Maps: map[uint32]catalog.ScriptRecord{1: {}}},
 		activeDungeon: &dungeon.Session{RunID: "odyssey-run", Loaded: true, Definition: catalog.DungeonDefinition{Odyssey: true}, Room: catalog.DungeonRoom{Map: 1}},
 		pilotDeath:    &odysseyDeath{Run: "odyssey-run", Sequence: 1, Dead: true, Revives: map[[32]byte]bool{}},
@@ -172,7 +172,7 @@ func TestOdysseyCreditsDoNotChargeTokenOrCera(t *testing.T) {
 	store := &ceraReviveFake{lifeTokenStore: lifeTokenStore{role: role}, balance: 30}
 	w := &worldSession{
 		role:          role,
-		loot:          &loot.Service{Catalog: catalog.LootCatalog{Source: pvf.ArchiveSnapshot{Checksum: odysseySource}}},
+		loot:          &loot.Service{Catalog: catalog.LootCatalog{Source: pvf.ArchiveSnapshot{Checksum: odysseySource()}}},
 		dungeons:      &catalog.DungeonCatalog{Maps: map[uint32]catalog.ScriptRecord{1: {}}},
 		activeDungeon: &dungeon.Session{RunID: "odyssey-run", Loaded: true, Definition: catalog.DungeonDefinition{Odyssey: true}, Room: catalog.DungeonRoom{Map: 1}},
 		pilotDeath:    &odysseyDeath{Run: "odyssey-run", Sequence: 1, Dead: true, Revives: map[[32]byte]bool{}},

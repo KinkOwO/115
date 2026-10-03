@@ -5,10 +5,12 @@ import (
 	"dfolan/internal/inventory"
 	_ "embed"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math"
 	"sync"
+	"sync/atomic"
 )
 
 //go:embed fame_rules.json
@@ -27,32 +29,64 @@ type fameThreshold struct {
 }
 
 type fameSetPoint struct {
-	Set   int `json:"set"`
-	Point int `json:"point"`
+	Set       int  `json:"set"`
+	Point     int  `json:"point"`
+	Awakening byte `json:"awakening"`
 }
 
 type fameRules struct {
-	Version    int                        `json:"version"`
-	Source     string                     `json:"source"`
-	Tables     map[string]map[int]int64   `json:"tables"`
-	Refine     map[int]int                `json:"refine"`
-	Refine115  map[int]int                `json:"refine_115"`
-	Items      map[uint32]fameSourceValue `json:"items"`
-	Sets       map[int][]fameThreshold    `json:"sets"`
-	ItemPoints map[uint32][]fameSetPoint  `json:"item_points"`
-	Expanded   []fameThreshold            `json:"expanded"`
+	Sources           map[string]string          `json:"sources"`
+	Version           int                        `json:"version"`
+	Source            string                     `json:"source"`
+	Tables            map[string]map[int]int64   `json:"tables"`
+	Refine            map[int]int                `json:"refine"`
+	Refine115         map[int]int                `json:"refine_115"`
+	Items             map[uint32]fameSourceValue `json:"items"`
+	Sets              map[int][]fameThreshold    `json:"sets"`
+	ItemPoints        map[uint32][]fameSetPoint  `json:"item_points"`
+	Expanded          []fameThreshold            `json:"expanded"`
+	Awakening         map[uint32]map[byte]int64  `json:"awakening"`
+	MemoryRestore     map[byte]int64             `json:"memory_restore"`
+	MemoryActivate    map[byte]int64             `json:"memory_activate"`
+	MemoryRuminations map[byte]int64             `json:"memory_ruminations"`
+	SoleQuality       map[uint32]map[byte]int64  `json:"sole_quality"`
+	SolePenalty       map[uint32]map[int]int64   `json:"sole_penalty"`
 }
 
-var currentFameRules = sync.OnceValues(func() (*fameRules, error) {
+type FameRules = fameRules
+
+var loadEmbeddedFameRules = sync.OnceValues(func() (*fameRules, error) {
 	var r fameRules
 	if err := json.Unmarshal(fameRulesJSON, &r); err != nil {
 		return nil, err
 	}
-	if r.Version != 1 || len(r.Source) != 64 || len(r.Tables) == 0 || len(r.Refine115) != 8 {
+	return NewFameRules(r)
+})
+
+func NewFameRules(r FameRules) (*FameRules, error) {
+	if b, err := hex.DecodeString(r.Source); err != nil || len(b) != 32 {
+		return nil, fmt.Errorf("invalid fame source identity")
+	}
+	if r.Version != 1 || len(r.Source) != 64 || len(r.Tables) == 0 || len(r.Refine115) != 8 ||
+		len(r.Awakening) == 0 || len(r.MemoryRestore) == 0 || len(r.MemoryActivate) == 0 ||
+		len(r.MemoryRuminations) == 0 || len(r.SoleQuality) == 0 || len(r.SolePenalty) == 0 {
 		return nil, fmt.Errorf("内置名望规则不完整")
 	}
 	return &r, nil
-})
+}
+
+var installedFameRules atomic.Pointer[FameRules]
+
+func EmbeddedFameRules() (*FameRules, error) { return loadEmbeddedFameRules() }
+
+func currentFameRules() (*FameRules, error) {
+	if r := installedFameRules.Load(); r != nil {
+		return r, nil
+	}
+	return loadEmbeddedFameRules()
+}
+
+func CurrentFameRules() (*FameRules, error) { return currentFameRules() }
 
 // FameItem保留每个实际穿戴物品的计算来源，便于核对而不向角色存档写缓存值。
 type FameItem struct {
@@ -62,6 +96,10 @@ type FameItem struct {
 	Upgrade   int64  `json:"upgrade"`
 	Enchant   int64  `json:"enchant"`
 	SetPoints int    `json:"set_points"`
+	Awakening int64  `json:"awakening,omitempty"`
+	Memory    int64  `json:"memory,omitempty"`
+	Quality   int64  `json:"quality,omitempty"`
+	Penalty   int64  `json:"penalty,omitempty"`
 }
 
 type FameBreakdown struct {
@@ -258,6 +296,7 @@ func (s *Service) EquipmentFameBreakdown(raw json.RawMessage) (FameBreakdown, er
 		return result, err
 	}
 	points := map[int]int{}
+	soleItems := map[int]bool{}
 	var total int64
 	for _, item := range bag.WornBaseItems() {
 		// 142758AC0排除副手24、30；11和32为光环/宠物幻化，不叠加本体名望。
@@ -267,6 +306,18 @@ func (s *Service) EquipmentFameBreakdown(raw json.RawMessage) (FameBreakdown, er
 		d, err := s.Equipment.FameDefinition(item.Template, state.Level)
 		if err != nil {
 			return result, err
+		}
+		if err := item.ValidateRecord(); err != nil {
+			return result, err
+		}
+		var awakening byte
+		var memory int64
+		if len(item.Record) != 0 {
+			// 14576D8B0：181字节记录的170映射到实例285；162/163/169
+			// 分别映射到记忆激活275、还原276、追溯282。
+			awakening = item.Record[170]
+			memory = rules.MemoryActivate[item.Record[162]] +
+				rules.MemoryRestore[item.Record[163]] + rules.MemoryRuminations[item.Record[169]]
 		}
 		base, err := rules.sourceValue(d.Fields)
 		if err != nil {
@@ -280,14 +331,15 @@ func (s *Service) EquipmentFameBreakdown(raw json.RawMessage) (FameBreakdown, er
 		if err != nil {
 			return result, err
 		}
-		if base == 0 && item.Slot <= 8 {
+		// 1473A7B10：记忆养成已有名望时不再进入旧装备/装扮的默认值分支。
+		if base == 0 && memory == 0 && item.Slot <= 8 {
 			grade, err := fameInt(d, "[grade]")
 			if err != nil {
 				return result, err
 			}
 			base = fameAvatarBase(item.Slot, grade)
 		}
-		if base == 0 && item.Slot >= 12 && item.Slot <= 25 && item.Slot != 13 && level > 0 && level <= 255 && rarity >= 0 && rarity <= 8 {
+		if base == 0 && memory == 0 && item.Slot >= 12 && item.Slot <= 25 && item.Slot != 13 && level > 0 && level <= 255 && rarity >= 0 && rarity <= 8 {
 			// 1473A7DCE：没有直值/查表值的旧装备，按原生等级及品质公式回退。
 			weights := [...]float32{0.5, 0.55, 0.6, 0.65, 1, 0.65, 0.72, 1.25, 1.25}
 			n := fameCeil(famePow(0.65, 21-(level/5+1)) * 464)
@@ -298,23 +350,53 @@ func (s *Service) EquipmentFameBreakdown(raw json.RawMessage) (FameBreakdown, er
 			return result, err
 		}
 		entry := FameItem{Slot: item.Slot, Template: item.Template, Base: base + int64(additional),
-			Upgrade: rules.upgrade(item, level, rarity), Enchant: rules.enchant(item)}
+			Upgrade: rules.upgrade(item, level, rarity), Enchant: rules.enchant(item),
+			Awakening: rules.Awakening[item.Template][awakening], Memory: memory}
+		sole, err := fameInt(d, "[sole equipment]")
+		if err != nil {
+			return result, err
+		}
+		if sole != 0 {
+			soleItems[len(result.Items)] = true
+		}
+		if sole != 0 && len(item.Record) != 0 {
+			entry.Quality = rules.SoleQuality[item.Template][item.Record[172]]
+		}
 		set, err := fameInt(d, "[part set index]")
 		if err != nil {
 			return result, err
 		}
 		for _, p := range rules.ItemPoints[item.Template] {
+			if p.Awakening != awakening {
+				continue
+			}
 			id := p.Set
 			if id == -1 {
 				id = set
 			}
-			if id > 0 && len(rules.Sets[id]) > 0 {
+			if id > 0 {
 				points[id] += p.Point
 				entry.SetPoints += p.Point
 			}
 		}
-		total += entry.Base + entry.Upgrade + entry.Enchant
+		total += entry.Base + entry.Upgrade + entry.Enchant + entry.Awakening + entry.Memory + entry.Quality
 		result.Items = append(result.Items, entry)
+	}
+	// 145CDE7B0取最高套装积分；1473A6740按不小于积分的最小上界扣分。
+	// 这是上界表，不能复用套装奖励的下界查找，也不能合并不同套装的积分。
+	highestPoints := 0
+	for _, point := range points {
+		highestPoints = max(highestPoints, point)
+	}
+	for index := range soleItems {
+		entry := &result.Items[index]
+		upper := math.MaxInt
+		for point, penalty := range rules.SolePenalty[entry.Template] {
+			if point >= highestPoints && point < upper {
+				upper, entry.Penalty = point, penalty
+			}
+		}
+		total -= entry.Penalty
 	}
 	for set, point := range points {
 		value := fameThresholdValue(rules.Sets[set], point)

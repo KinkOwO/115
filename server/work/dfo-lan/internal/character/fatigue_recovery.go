@@ -4,7 +4,6 @@ import (
 	"context"
 	"dfolan/internal/catalog"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -14,8 +13,8 @@ import (
 // CMD507 action 54 is the observed fatigue-potion form. Other action values
 // (including the quest airship communicator's action 206) use the same opcode.
 // Only an expert town potion or a nostrum recovery can be consumed here.
-func (s *FatigueService) RecoverPotion(ctx context.Context, role storage.Character, c catalog.LootCatalog, slot uint16, now time.Time) (storage.Character, storage.FatigueState, error) {
-	var fp storage.FatigueState
+func (s *FatigueService) RecoverPotion(ctx context.Context, role Character, c catalog.LootCatalog, slot uint16, now time.Time) (Character, FatigueState, error) {
+	var fp FatigueState
 	b, e := inventory.ReadBag(role.State)
 	if e != nil {
 		return role, fp, e
@@ -31,11 +30,17 @@ func (s *FatigueService) RecoverPotion(ctx context.Context, role storage.Charact
 		return role, fp, fmt.Errorf("fatigue potion slot empty")
 	}
 	item, ok := c.Items[template]
-	if !ok || c.Source.Checksum != role.ConfigVersion {
+	if !ok || c.Source.SaveIdentity() != role.ConfigVersion {
 		return role, fp, fmt.Errorf("fatigue potion source missing")
 	}
 	if item.StackableType != "[expert town potion]" && !strings.Contains(item.Script.Path, "nostrum_recovery") {
 		return role, fp, fmt.Errorf("fatigue potion policy mismatch")
+	}
+	if c.HasRuntimeDetails() {
+		_, err := c.ItemScript(template)
+		if err != nil {
+			return role, fp, err
+		}
 	}
 	amount := uint16(30)
 	values := map[string]int32{}
@@ -47,8 +52,8 @@ func (s *FatigueService) RecoverPotion(ctx context.Context, role storage.Charact
 	if v, ok := values["[add fatigue]"]; ok && v > 0 {
 		amount = uint16(v)
 	}
-	r := storage.FatigueRecovery{Day: s.day(now), Limit: s.Rules.DailyLimit, Amount: amount, Template: template, DailyUses: 1, Cooldown: 10 * time.Second, Now: now}
-	return s.Store.RecoverFatigue(ctx, role.AccountID, role.ID, role.ConfigVersion, r, func(current storage.Character) (json.RawMessage, error) {
+	r := FatigueRecovery{Day: s.day(now), Limit: s.Rules.DailyLimit, Amount: amount, Template: template, DailyUses: 1, Cooldown: 10 * time.Second, Now: now}
+	return s.Store.RecoverFatigue(ctx, role.AccountID, role.ID, role.ConfigVersion, r, func(current Character) (json.RawMessage, error) {
 		b, e := inventory.ReadBag(current.State)
 		if e != nil {
 			return nil, e

@@ -1,8 +1,9 @@
-package character
+package character_test
 
 import (
 	"context"
 	"dfolan/internal/catalog"
+	. "dfolan/internal/character"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/storage"
 	"encoding/hex"
@@ -34,7 +35,6 @@ func TestCapturedAutoSetPersistence(t *testing.T) {
 	}
 	defer admin.DB.Exec(ctx, "DROP SCHEMA "+schema+" CASCADE")
 	cfg.PostgresSchema = schema
-	cfg.RedisPrefix = schema + ":"
 	store, e := storage.Open(ctx, cfg)
 	if e != nil {
 		t.Fatal(e)
@@ -69,7 +69,7 @@ func TestCapturedAutoSetPersistence(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	role, e := store.CreateCharacter(ctx, storage.Character{AccountID: a, Name: "SkillFixture", Profession: 0, ConfigVersion: c.Source.Checksum, State: receipt.Before, Request: []byte{0}}, 24)
+	role, e := store.CreateCharacter(ctx, Character{AccountID: a, Name: "SkillFixture", Profession: 0, ConfigVersion: c.Source.SaveIdentity(), State: receipt.Before, Request: []byte{0}}, 24)
 	if e != nil {
 		t.Fatal(e)
 	}

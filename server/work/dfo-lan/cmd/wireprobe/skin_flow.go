@@ -124,7 +124,7 @@ func (w *worldSession) makeSkin(plaintext []byte, event func(map[string]any)) ([
 	}
 	recentIDs = append(recentIDs, template)
 	plan = append(plan, outboundPacket{"skin_cargo_info", 0, 1545, cargo})
-	skins, le := w.characters.Store.ListSkins(ctx, saved.AccountID)
+	skins, le := w.store.ListSkins(ctx, saved.AccountID)
 	if le != nil {
 		event(map[string]any{"kind": "skin_recent_list_error",
 			"character_id": saved.ID, "reason": le.Error()})

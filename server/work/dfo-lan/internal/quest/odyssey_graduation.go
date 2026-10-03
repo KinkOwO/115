@@ -3,7 +3,7 @@ package quest
 import (
 	"context"
 	"dfolan/internal/character"
-	"dfolan/internal/storage"
+	"dfolan/internal/savecontract"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -11,9 +11,9 @@ import (
 
 // GraduationQuestPlan combines source clear tables and earlier-level epics.
 // Episode quests and level-115 content remain playable; rewards are not run.
-func (s *Service) GraduationQuestPlan(role storage.Character) ([]uint16, error) {
+func (s *Service) GraduationQuestPlan(role character.Character) ([]uint16, error) {
 	if s.Odyssey == nil || s.Odyssey.Quests == nil || len(s.Catalog.Quests) == 0 ||
-		role.ConfigVersion != s.Odyssey.Source || role.ConfigVersion != s.Catalog.Source.Checksum || role.ConfigVersion != s.Professions.Source.Checksum {
+		role.ConfigVersion != savecontract.Identity() || role.ConfigVersion != s.Catalog.Source.SaveIdentity() || role.ConfigVersion != s.Professions.Source.SaveIdentity() {
 		return nil, fmt.Errorf("graduation quest catalogs are missing or mismatched")
 	}
 	var state character.State
@@ -75,7 +75,7 @@ func (s *Service) GraduationQuestPlan(role storage.Character) ([]uint16, error) 
 	return ids, nil
 }
 
-func (s *Service) applyOdysseyGraduation(role storage.Character, rewardPaid bool) (json.RawMessage, json.RawMessage, []uint16, error) {
+func (s *Service) ApplyOdysseyGraduation(role character.Character, rewardPaid bool) (json.RawMessage, json.RawMessage, []uint16, error) {
 	if !character.CreatedAsOdyssey(role) || s.Progression == nil {
 		return nil, nil, nil, fmt.Errorf("invalid Odyssey graduation role/service")
 	}
@@ -115,7 +115,7 @@ func (s *Service) applyOdysseyGraduation(role storage.Character, rewardPaid bool
 
 // GraduateOdyssey runs only at login or an actual return-to-town boundary.
 // Eligibility is rechecked by the callback using the locked current row.
-func (s *Service) GraduateOdyssey(ctx context.Context, role storage.Character) (storage.Character, bool, error) {
+func (s *Service) GraduateOdyssey(ctx context.Context, role character.Character) (character.Character, bool, error) {
 	if !character.CreatedAsOdyssey(role) {
 		return role, false, nil
 	}
@@ -129,5 +129,5 @@ func (s *Service) GraduateOdyssey(ctx context.Context, role storage.Character) (
 	if s.Store == nil || s.Odyssey == nil || s.Progression == nil {
 		return role, false, fmt.Errorf("Odyssey graduation services missing")
 	}
-	return s.Store.CommitOdysseyGraduation(ctx, role.AccountID, role.ID, s.Odyssey.Source, s.applyOdysseyGraduation)
+	return s.Store.CommitOdysseyGraduation(ctx, role.AccountID, role.ID, savecontract.Identity(), s.ApplyOdysseyGraduation)
 }

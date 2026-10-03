@@ -83,14 +83,13 @@ func (s *Store) CommitAdventure(ctx context.Context, account, id int64, key stri
 		return role, p, nil, err
 	}
 	role.State = state
-	if s.Cache != nil {
-		s.Cache.Del(ctx, fmt.Sprintf("%scharacters:%d", s.prefix, account))
-	}
 	return role, p, receipt, nil
 }
 
 // 账号共享的货币和限购记录不放在单个角色 JSON 中，避免换角色重复兑换。
 type AdventureData struct {
+	// 账号共享的装备登记；缺省为空，保留旧账号的其它成长和货币。
+	CollectionEquipment      map[uint32]bool       `json:"collection_equipment,omitempty"`
 	RecommendedDungeonClears uint32                `json:"recommended_dungeon_clears,omitempty"`
 	SeasonLevel              adventure.SeasonState `json:"season_level,omitempty"`
 	Points                   [5]uint32             `json:"points"`

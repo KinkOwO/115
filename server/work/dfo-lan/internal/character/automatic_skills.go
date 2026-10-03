@@ -1,19 +1,18 @@
 package character
 
 import (
-	"dfolan/internal/storage"
 	"fmt"
 )
 
 // Free ranks are a source-derived floor, not purchases. Computing them from
 // persisted level/advancement also repairs older roles without SP or DB edits.
-func (s *Service) automaticSkills(role storage.Character, state State) (map[uint16]byte, error) {
+func (s *Service) automaticSkills(role Character, state State) (map[uint16]byte, error) {
 	out := map[uint16]byte{}
 	if s.Learning == nil {
 		return out, nil
 	}
 	p, ok := s.Catalog.Professions[role.Profession]
-	if !ok || p.RawSHA256 != state.SourceSHA256 || s.Learning.Source.Checksum != role.ConfigVersion {
+	if !ok || p.RawSHA256 != state.SourceSHA256 || s.Learning.Source.SaveIdentity() != role.ConfigVersion {
 		return nil, fmt.Errorf("automatic skill source mismatch")
 	}
 	grants := p.AdvancementSkills[state.Advancement]
@@ -22,7 +21,10 @@ func (s *Service) automaticSkills(role storage.Character, state State) (map[uint
 	}
 	for i := 0; i < len(grants); i += 3 {
 		id, rank, threshold := grants[i], grants[i+1], grants[i+2]
-		d, exists := s.Learning.index[role.Profession][uint16(id)]
+		d, exists, sourceErr := s.Learning.Definition(role.Profession, uint16(id))
+		if sourceErr != nil {
+			return nil, sourceErr
+		}
 		if id < 1 || id > 65535 || rank < 1 || rank > 255 || threshold < 1 || threshold > 255 || !exists {
 			return nil, fmt.Errorf("invalid automatic skill definition")
 		}
@@ -53,13 +55,13 @@ func (s *Service) automaticSkills(role storage.Character, state State) (map[uint
 // that awakened at 75 never receives the 85-level ones. Deriving them from the
 // persisted level/awakening (exactly like automaticSkills) repairs those roles
 // without a DB edit - the client sees the grant as soon as the level is met.
-func (s *Service) awakeningSkills(role storage.Character, state State) (map[uint16]byte, error) {
+func (s *Service) awakeningSkills(role Character, state State) (map[uint16]byte, error) {
 	out := map[uint16]byte{}
 	if s.Learning == nil || state.Awakening == 0 {
 		return out, nil
 	}
 	p, ok := s.Catalog.Professions[role.Profession]
-	if !ok || p.RawSHA256 != state.SourceSHA256 || s.Learning.Source.Checksum != role.ConfigVersion {
+	if !ok || p.RawSHA256 != state.SourceSHA256 || s.Learning.Source.SaveIdentity() != role.ConfigVersion {
 		return nil, fmt.Errorf("awakening skill source mismatch")
 	}
 	for stage := byte(1); stage <= state.Awakening; stage++ {
@@ -69,7 +71,10 @@ func (s *Service) awakeningSkills(role storage.Character, state State) (map[uint
 		}
 		for i := 0; i < len(grants); i += 2 {
 			id, rank := grants[i], grants[i+1]
-			d, exists := s.Learning.index[role.Profession][uint16(id)]
+			d, exists, sourceErr := s.Learning.Definition(role.Profession, uint16(id))
+			if sourceErr != nil {
+				return nil, sourceErr
+			}
 			// Membership in the profession's .chr awakening block authorizes
 			// this grant; awakened skills deliberately have zero base-growtype
 			// caps, so the source definition is only read for its level gate.
@@ -93,7 +98,7 @@ func (s *Service) awakeningSkills(role storage.Character, state State) (map[uint
 	return out, nil
 }
 
-func (s *Service) knownSkills(role storage.Character, state State, tree int) (map[uint16]byte, error) {
+func (s *Service) knownSkills(role Character, state State, tree int) (map[uint16]byte, error) {
 	known, err := knownSkills(state, tree)
 	if err != nil {
 		return nil, err
@@ -128,7 +133,10 @@ func (s *Service) knownSkills(role storage.Character, state State, tree int) (ma
 			if initial[id] || grants[id] > 0 {
 				continue
 			}
-			d, ok := s.Learning.index[role.Profession][id]
+			d, ok, sourceErr := s.Learning.Definition(role.Profession, id)
+			if sourceErr != nil {
+				return nil, sourceErr
+			}
 			if !ok || (!d.ForAdvancement(int(state.Advancement)) && !d.ForAwakening(int(state.Advancement), int(state.Awakening))) {
 				delete(known, id)
 			}

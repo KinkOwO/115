@@ -5,11 +5,12 @@ import (
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/loot"
+	"dfolan/internal/storage"
 	"fmt"
 )
 
-func validateMoonResources(c *catalog.DungeonCatalog, s *loot.Service) error {
-	if c == nil || s == nil || s.Store == nil || s.Equipment == nil || c.Source.Checksum != s.Catalog.Source.Checksum {
+func validateMoonResources(c *catalog.DungeonCatalog, s *loot.Service, store *storage.Store) error {
+	if c == nil || s == nil || store == nil || s.Equipment == nil || c.Source.Checksum != s.Catalog.Source.Checksum {
 		return fmt.Errorf("Moon needs same-source dungeon, loot, equipment and persistent rewards")
 	}
 	if _, e := dungeon.MoonInitialProgress(*c); e != nil {

@@ -2,6 +2,7 @@ package legion
 
 import (
 	"dfolan/internal/catalog"
+	"dfolan/internal/dungeon"
 	"testing"
 )
 
@@ -55,7 +56,7 @@ func TestApocalypseEntryPlanUsesSourceDestinations(t *testing.T) {
 		}
 		dc.Dungeons[row.Dungeon] = d
 	}
-	p, e := BuildEntryPlan(contents, c, dc)
+	p, e := BuildEntryPlan(contents, c, dc, dungeon.ValidateSelection)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -63,7 +64,7 @@ func TestApocalypseEntryPlanUsesSourceDestinations(t *testing.T) {
 		t.Fatal(p)
 	}
 	delete(dc.Dungeons, content.Dungeons[2].Dungeon)
-	if _, e = BuildEntryPlan(contents, c, dc); e == nil {
+	if _, e = BuildEntryPlan(contents, c, dc, dungeon.ValidateSelection); e == nil {
 		t.Fatal("missing phase accepted")
 	}
 }

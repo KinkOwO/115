@@ -5,6 +5,7 @@ import (
 	"dfolan/internal/character"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
+	"dfolan/internal/savecontract"
 	"dfolan/internal/storage"
 	"dfolan/internal/world"
 	"encoding/hex"
@@ -27,7 +28,7 @@ func TestOdysseyJournalAreaTransition(t *testing.T) {
 		req = append(req, 0)
 	}
 	w := &worldSession{service: &world.Service{Catalog: cat}, progression: &character.ProgressionService{Odyssey: growth}, level: 35, odyssey: true,
-		role:  storage.Character{Request: req, ConfigVersion: growth.Source, State: json.RawMessage(`{"odyssey_completed_dungeons":[100004934,100004935,100004936]}`)},
+		role:  storage.Character{Request: req, ConfigVersion: savecontract.Identity(), State: json.RawMessage(`{"odyssey_completed_dungeons":[100004934,100004935,100004936]}`)},
 		state: storage.WorldState{Position: storage.WorldPosition{Town: 38, Area: 1, X: 544, Y: 311}}}
 	b, _ := hex.DecodeString("280000000400000081032a01052600000001000000000000")
 	r, err := protocol.DecodeAreaChangeRequest(b)

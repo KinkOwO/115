@@ -134,7 +134,7 @@ func rewardUsable(d catalog.QuestDefinition) bool {
 }
 
 func BuildIndex(c catalog.QuestCatalog) *Index {
-	x := &Index{Source: c.Source.Checksum, Entries: map[uint32]*Entry{}, ByClearMap: map[uint32][]uint16{}, ByUseItem: map[uint32][]uint16{}}
+	x := &Index{Source: c.Source.SaveIdentity(), Entries: map[uint32]*Entry{}, ByClearMap: map[uint32][]uint16{}, ByUseItem: map[uint32][]uint16{}}
 	for id, d := range c.Quests {
 		initial, model, err := InitialProgress(d)
 		groups := d.PrerequisiteGroups
@@ -204,7 +204,7 @@ func BuildIndex(c catalog.QuestCatalog) *Index {
 
 // Index returns the service's lazily built quest index.
 func (s *Service) Index() *Index {
-	if s.index == nil || s.index.Source != s.Catalog.Source.Checksum {
+	if s.index == nil || s.index.Source != s.Catalog.Source.SaveIdentity() {
 		s.index = BuildIndex(s.Catalog)
 	}
 	return s.index

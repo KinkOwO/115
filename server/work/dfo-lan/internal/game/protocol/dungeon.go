@@ -114,6 +114,7 @@ type DungeonInfoState struct {
 	ID               uint32
 	Difficulty, Maze byte
 	Boss             [2]byte
+	Hell             *[2]byte
 }
 
 func DungeonInfo(s DungeonInfoState) []byte {
@@ -124,7 +125,11 @@ func DungeonInfo(s DungeonInfoState) []byte {
 	// native room predicate145b34090 and path gate14614de00. The current
 	// room belongs only in NOTI29. The following XY is the random-hell
 	// location (145b27520);255/255 is the native absent sentinel1452a94b2.
-	p = append(p, s.Maze, s.Boss[0], s.Boss[1], 255, 255, 0, 0)
+	hell := [2]byte{255, 255}
+	if s.Hell != nil {
+		hell = *s.Hell
+	}
+	p = append(p, s.Maze, s.Boss[0], s.Boss[1], hell[0], hell[1], 0, 0)
 	p = add16(add16(p, 0), 0)
 	p = append(p, 0)
 	p = add32(p, 0xffffffff)
@@ -295,6 +300,32 @@ func DecodeMonsterDeath(p []byte) (MonsterDeathReport, error) {
 // Drops are a separate generated outcome; this response does not grant any.
 func MonsterDeathConfirmed(entity uint16) []byte {
 	return append(add16(add16(nil, entity), 0), 0, 0, 255, 0)
+}
+
+// ispinsDeathTokens 是官服 s4 四个阶段的 N38 尾 5B token（帧 468/565/647/749，
+// next79 §26）。语义未解（推测 per-stage nonce），逐帧回放。
+var ispinsDeathTokens = [4][5]byte{
+	{0x58, 0x49, 0xff, 0x0b, 0x3e}, // stage0
+	{0xb4, 0x4e, 0xb2, 0x02, 0x44}, // stage1
+	{0x12, 0x14, 0x19, 0x62, 0x42}, // stage2
+	{0xb1, 0x5b, 0xb2, 0xb1, 0x39}, // stage3
+}
+
+// IspinsMonsterDeathConfirmed builds the 16B NOTI38 the official server sends
+// for an Ispins boss death (next79 §24, s4 frame 468). Body layout:
+// `<u32 entity> <4B zero> <5B token> <3B zero>`. The private server's
+// generic MonsterDeathConfirmed (200B drops form) is rejected in legion
+// context — the client expects the 16B echo form and crashes (op=682)
+// otherwise. The 5B token is the per-stage nonce observed on the official
+// N38; stage0 value replayed verbatim.
+func IspinsMonsterDeathConfirmed(entity uint32, stage int) []byte {
+	if stage < 0 || stage > 3 {
+		stage = 0
+	}
+	p := make([]byte, 16)
+	binary.LittleEndian.PutUint32(p, entity)
+	copy(p[8:13], ispinsDeathTokens[stage][:])
+	return p
 }
 
 func DecodeMoveDungeonRoom(p []byte) ([2]byte, error) {

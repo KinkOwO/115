@@ -3,8 +3,8 @@ package quest
 import (
 	"context"
 	"dfolan/internal/catalog"
+	"dfolan/internal/character"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"errors"
 	"fmt"
 )
@@ -80,7 +80,7 @@ func ReachNPCObjective(d catalog.QuestDefinition) (NPCReachObjective, bool) {
 	return NPCReachObjective{uint32(c[0].Value), c[1].Value, c[2].Value}, true
 }
 
-func (r RangeObjective) Contains(p storage.WorldPosition) bool {
+func (r RangeObjective) Contains(p Position) bool {
 	px, py := int32(p.X), int32(p.Y)
 	if r.X < 0 && p.X >= 0x8000 {
 		px = int32(int16(p.X))
@@ -224,6 +224,9 @@ var ErrRewardPending = errors.New("quest reward application is not implemented")
 // ready to submit. For the supported single map objective, one means pending.
 // Broader condition encodings must be recovered before accepting other types.
 func InitialProgress(d catalog.QuestDefinition) (uint32, string, error) {
+	if _, ok := AdventureCollectionObjective(d); ok {
+		return 1, RegisterAdventureEquipment, nil
+	}
 	if len(d.Pending) == 0 && d.Kind == "[meet npc]" && len(d.ObjectiveCells) == 1 && d.ObjectiveCells[0].Type == 0 && d.ObjectiveCells[0].Value > 0 {
 		return 1, SingleMeetNPC, nil
 	}
@@ -422,7 +425,7 @@ func LegionContentClearShape(d catalog.QuestDefinition) bool {
 	}
 	return true
 }
-func (s *Service) Active(ctx context.Context, role storage.Character) ([]protocol.ActiveQuest, error) {
+func (s *Service) Active(ctx context.Context, role character.Character) ([]protocol.ActiveQuest, error) {
 	states, e := s.Store.Quests(ctx, role.AccountID, role.ID)
 	if e != nil {
 		return nil, e
@@ -433,12 +436,24 @@ func (s *Service) Active(ctx context.Context, role storage.Character) ([]protoco
 			continue
 		}
 		d, ok := s.Catalog.Quests[uint32(q.ID)]
-		if !ok || q.ConfigVersion != s.Catalog.Source.Checksum {
+		if !ok || q.ConfigVersion != s.Catalog.Source.SaveIdentity() {
 			return nil, fmt.Errorf("quest %d requires source migration", q.ID)
 		}
 		initial, model, e := InitialProgress(d)
 		if e != nil || q.ProgressModel != model || q.Progress > initial {
 			return nil, fmt.Errorf("quest %d requires progress migration", q.ID)
+		}
+		if template, ok := AdventureCollectionObjective(d); ok && q.Progress != 0 {
+			registered, err := s.Store.AdventureEquipmentRegistered(ctx, role.AccountID, role.ID, template)
+			if err != nil {
+				return nil, err
+			}
+			if registered {
+				if _, err = s.Store.CompleteQuestObjective(ctx, role.AccountID, role.ID, q.ID, q.ConfigVersion, model); err != nil {
+					return nil, err
+				}
+				q.Progress = 0
+			}
 		}
 		out = append(out, protocol.ActiveQuest{ID: q.ID, Progress: q.Progress})
 	}
@@ -447,7 +462,7 @@ func (s *Service) Active(ctx context.Context, role storage.Character) ([]protoco
 
 // A completion request is not evidence of a map clear. No client-provided
 // counter or submit option can mint rewards or alter persistent objectives.
-func (s *Service) Submit(ctx context.Context, role storage.Character, id uint16) error {
+func (s *Service) Submit(ctx context.Context, role character.Character, id uint16) error {
 	active, e := s.Active(ctx, role)
 	if e != nil {
 		return e

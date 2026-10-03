@@ -175,9 +175,16 @@ func (w *worldSession) ispinsRepeatRestorePackets() ([]outboundPacket, error) {
 	if !w.ispinsRepeatPending && !finished {
 		return nil, nil
 	}
-	entry, err := legion.IspinsStandbyEntryCharacterInfo([5]byte{})
+	entry, err := w.ispinsStandbyQuotaInfo()
 	if err != nil {
 		return nil, err
+	}
+	limited, modeErr := ispinsWeeklyLimited()
+	if modeErr != nil {
+		return nil, modeErr
+	}
+	if limited {
+		return []outboundPacket{{"ispins_weekly_quota_refreshed", 0, 2254, entry}}, nil
 	}
 	return []outboundPacket{
 		{"ispins_repeat_quota_restored", 0, legion.NotiIspinsEntryCharacterInfo, entry},
@@ -221,6 +228,9 @@ func (w *worldSession) startIspins(p []byte) ([]outboundPacket, []map[string]any
 	}
 	if w.activeDungeon != nil {
 		return nil, nil, fmt.Errorf("ispins start inside an active dungeon")
+	}
+	if err := w.checkIspinsWeeklyAdmission(); err != nil {
+		return nil, nil, err
 	}
 	w.ispins = &ispinsRun{}
 	entry, err := legion.IspinsEntryCharacterInfo(false, [4]bool{}, [5]byte{})
@@ -588,6 +598,11 @@ func (w *worldSession) completeIspinsStage() ([]outboundPacket, error) {
 	clearInfo, err := legion.IspinsInfoPayload(fmt.Sprintf("clear%d", stage), [5]byte{})
 	if err != nil {
 		return nil, err
+	}
+	if stage == 3 {
+		if err := w.recordIspinsFullClear(); err != nil {
+			return nil, err
+		}
 	}
 	run.cleared[stage] = true
 	entry, err := legion.IspinsEntryCharacterInfo(false, run.cleared, [5]byte{})

@@ -2,16 +2,12 @@ package storage
 
 import (
 	"context"
+	"dfolan/internal/character"
 	"errors"
 	"fmt"
 )
 
-type FatigueState struct {
-	Day     string `json:"day"`
-	Used    uint16 `json:"used"`
-	Limit   uint16 `json:"limit"`
-	UsedMax uint16 `json:"used_max"`
-}
+type FatigueState = character.FatigueState
 
 func (s *Store) MigrateFatigue(ctx context.Context) error {
 	_, e := s.DB.Exec(ctx, `CREATE TABLE IF NOT EXISTS character_fatigue (
@@ -100,6 +96,19 @@ func (s *Store) ConsumeRoomFatigue(ctx context.Context, account, id int64, day s
 		return out, false, e
 	}
 	return out, true, tx.Commit(ctx)
+}
+
+// RunPaidFatigue 报告某个 run 是否已经付过进本消耗（存在 cost>0 的房间记录）。
+//
+// 「进本只收一次」（源 [use fatigue only start dungeon]）靠它实现：第一次进本记
+// 官方值，之后同一 run 的换房记 0。零消耗（exempt / 本地策略 0 点）不产生付费记录，
+// 因此不会把一次免费进入误判成「已付费」。
+func (s *Store) RunPaidFatigue(ctx context.Context, id int64, run string) (bool, error) {
+	var paid bool
+	if e := s.DB.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM character_fatigue_rooms WHERE character_id=$1 AND run_id=$2 AND cost>0)`, id, run).Scan(&paid); e != nil {
+		return false, e
+	}
+	return paid, nil
 }
 
 // Ownership and rollover are one atomic statement. Reconnecting on the same

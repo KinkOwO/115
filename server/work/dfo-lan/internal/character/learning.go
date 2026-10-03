@@ -3,7 +3,6 @@ package character
 import (
 	"context"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -48,7 +47,7 @@ func skillOrder(state State, known map[uint16]byte) []int {
 	sort.Ints(added)
 	return append(ids, added...)
 }
-func (s *Service) skillRows(role storage.Character, state State, tree int) ([]protocol.LearnedSkill, error) {
+func (s *Service) skillRows(role Character, state State, tree int) ([]protocol.LearnedSkill, error) {
 	known, e := s.knownSkills(role, state, tree)
 	if e != nil {
 		return nil, e
@@ -108,7 +107,10 @@ func (s *Service) skillRows(role storage.Character, state State, tree int) ([]pr
 	if s.Learning != nil {
 		for _, raw := range ids {
 			id := uint16(raw)
-			_, ok := s.Learning.index[role.Profession][id]
+			_, ok, sourceErr := s.Learning.Definition(role.Profession, id)
+			if sourceErr != nil {
+				return nil, sourceErr
+			}
 			if !ok {
 				return nil, fmt.Errorf("learned skill missing from profession")
 			}
@@ -166,11 +168,39 @@ func mergeSkillState(raw json.RawMessage, state State) (json.RawMessage, error) 
 	}
 	return json.Marshal(old)
 }
-func (s *Service) Learn(ctx context.Context, role storage.Character, key string, req protocol.SkillPurchase) (storage.Character, bool, error) {
+
+// Source awakening grants may precede a player's prerequisite purchases (for
+// example demonic swordman 255 -> 81). Check this request's skills and reject
+// refunds that break dependencies, without requiring unrelated old gaps to be
+// repaired before any ordinary purchase can succeed.
+func (s *Service) validateLearningPrerequisites(job byte, known, changes map[uint16]byte, reduced map[uint16]bool) error {
+	for id, level := range known {
+		if level == 0 {
+			continue
+		}
+		definition, _, sourceErr := s.Learning.Definition(job, id)
+		if sourceErr != nil {
+			return sourceErr
+		}
+		pre := definition.Ints("[pre required skill]")
+		if len(pre)%2 != 0 {
+			return fmt.Errorf("invalid skill prerequisite")
+		}
+		for i := 0; i < len(pre); i += 2 {
+			_, changed := changes[id]
+			if int(known[uint16(pre[i])]) < pre[i+1] && (changed || reduced[uint16(pre[i])]) {
+				return fmt.Errorf("skill change would invalidate learned skill prerequisite")
+			}
+		}
+	}
+	return nil
+}
+
+func (s *Service) Learn(ctx context.Context, role Character, key string, req protocol.SkillPurchase) (Character, bool, error) {
 	if s.Learning == nil || req.Tree != 0 {
 		return role, false, fmt.Errorf("learning service/source unavailable")
 	}
-	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, "source-skill-learning-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, "source-skill-learning-v1", func(current Character) (json.RawMessage, json.RawMessage, error) {
 		var state State
 		if e := json.Unmarshal(current.State, &state); e != nil {
 			return nil, nil, e
@@ -205,15 +235,19 @@ func (s *Service) Learn(ctx context.Context, role storage.Character, key string,
 		}
 		points := int(state.SkillPoints[req.Tree])
 		changes := map[uint16]byte{}
+		reduced := map[uint16]bool{}
 		var newlyLearned []uint16
 		effectiveLevel := int(state.Level)
 		if s.Store != nil {
-			if hasTactician, _ := s.Store.HasActivePremium(ctx, role.AccountID, storage.PremiumTactician, time.Now()); hasTactician {
+			if hasTactician, _ := s.Store.HasTacticianPremium(ctx, role.AccountID, time.Now()); hasTactician {
 				effectiveLevel += 5
 			}
 		}
 		for _, v := range req.Entries {
-			d, ok := s.Learning.index[current.Profession][v.ID]
+			d, ok, sourceErr := s.Learning.Definition(current.Profession, v.ID)
+			if sourceErr != nil {
+				return nil, nil, sourceErr
+			}
 			if !ok || seen[v.ID] || v.Delta == 0 || v.Refund > 1 {
 				return nil, nil, fmt.Errorf("invalid job skill learning request")
 			}
@@ -248,22 +282,12 @@ func (s *Service) Learn(ctx context.Context, role storage.Character, key string,
 			if known[v.ID] == 0 && target > 0 {
 				newlyLearned = append(newlyLearned, v.ID)
 			}
+			reduced[v.ID] = target < int(known[v.ID])
 			known[v.ID] = byte(target)
 			changes[v.ID] = byte(target)
 		}
-		for id, level := range known {
-			if level == 0 {
-				continue
-			}
-			pre := s.Learning.index[current.Profession][id].Ints("[pre required skill]")
-			if len(pre)%2 != 0 {
-				return nil, nil, fmt.Errorf("invalid skill prerequisite")
-			}
-			for i := 0; i < len(pre); i += 2 {
-				if int(known[uint16(pre[i])]) < pre[i+1] {
-					return nil, nil, fmt.Errorf("refund would invalidate learned skill prerequisite")
-				}
-			}
+		if e := s.validateLearningPrerequisites(current.Profession, known, changes, reduced); e != nil {
+			return nil, nil, e
 		}
 		if len(changes) == 0 && req.Intensions == nil && req.Options == nil {
 			return nil, nil, fmt.Errorf("empty learning request")
@@ -284,7 +308,11 @@ func (s *Service) Learn(ctx context.Context, role storage.Character, key string,
 		}
 		if state.Advancement > 0 {
 			for id := range state.LearnedSkills[req.Tree] {
-				if d, ok := s.Learning.index[current.Profession][id]; ok {
+				d, ok, sourceErr := s.Learning.Definition(current.Profession, id)
+				if sourceErr != nil {
+					return nil, nil, sourceErr
+				}
+				if ok {
 					if !d.ForAdvancement(int(state.Advancement)) && !d.ForAwakening(int(state.Advancement), int(state.Awakening)) {
 						delete(state.LearnedSkills[req.Tree], id)
 						delete(state.SkillSlots[req.Tree], id)
@@ -306,7 +334,7 @@ func (s *Service) Learn(ctx context.Context, role storage.Character, key string,
 		if e != nil {
 			return nil, nil, e
 		}
-		receipt, e := json.Marshal(map[string]any{"skills": changes, "sp": points, "source": s.Learning.Source.Checksum})
+		receipt, e := json.Marshal(map[string]any{"skills": changes, "sp": points, "source": s.Learning.Source.SaveIdentity()})
 		return p, receipt, e
 	})
 	saved.WireID = role.WireID
@@ -339,11 +367,11 @@ func (s *Service) placeNewShortcuts(job byte, rows []protocol.LearnedSkill, fres
 		}
 	}
 }
-func (s *Service) MoveSkill(ctx context.Context, role storage.Character, key string, req protocol.SkillMove) (storage.Character, bool, error) {
+func (s *Service) MoveSkill(ctx context.Context, role Character, key string, req protocol.SkillMove) (Character, bool, error) {
 	if s.Learning == nil || req.Tree != 0 || req.From == 255 || req.To == 255 || req.From == req.To {
 		return role, false, fmt.Errorf("invalid ordinary skill move")
 	}
-	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, "source-skill-slots-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, "source-skill-slots-v1", func(current Character) (json.RawMessage, json.RawMessage, error) {
 		var state State
 		if e := json.Unmarshal(current.State, &state); e != nil {
 			return nil, nil, e
@@ -398,11 +426,11 @@ func (s *Service) MoveSkill(ctx context.Context, role storage.Character, key str
 //
 // Sources name the state the previous pair produced, so the pairs are applied
 // in order; an empty target receives the source skill outright.
-func (s *Service) MoveSkillTotal(ctx context.Context, role storage.Character, key string, req protocol.SkillSlotTotal) (storage.Character, bool, error) {
+func (s *Service) MoveSkillTotal(ctx context.Context, role Character, key string, req protocol.SkillSlotTotal) (Character, bool, error) {
 	if s.Learning == nil || req.Tree != 0 || len(req.Pairs) == 0 {
 		return role, false, fmt.Errorf("invalid skill slot total")
 	}
-	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, "source-skill-slots-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, "source-skill-slots-v1", func(current Character) (json.RawMessage, json.RawMessage, error) {
 		var state State
 		if e := json.Unmarshal(current.State, &state); e != nil {
 			return nil, nil, e
@@ -474,7 +502,7 @@ func (s *Service) applySkillSlotSwaps(profession byte, rows []protocol.LearnedSk
 	return nil
 }
 
-func (s *Service) LearningResponse(role storage.Character, req protocol.SkillPurchase) ([]byte, error) {
+func (s *Service) LearningResponse(role Character, req protocol.SkillPurchase) ([]byte, error) {
 	var state State
 	if e := json.Unmarshal(role.State, &state); e != nil {
 		return nil, e

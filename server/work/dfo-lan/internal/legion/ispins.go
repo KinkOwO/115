@@ -318,6 +318,18 @@ func IspinsStandbyEntryCharacterInfo(nonce [5]byte) ([]byte, error) {
 	return p, nil
 }
 
+// Captured exhausted standby (next79§19, frames331/997): five u16 head marks set.
+func IspinsSpentStandbyEntryCharacterInfo() ([]byte, error) {
+	p, e := IspinsStandbyEntryCharacterInfo([5]byte{})
+	if e != nil {
+		return nil, e
+	}
+	for off := 0; off < 10; off += 2 {
+		binary.LittleEndian.PutUint16(p[off:], 1)
+	}
+	return p, nil
+}
+
 // IspinsOperationNotice replays the 16B N2256 observed three times in the
 // official run (S3 anomaly aside, the body never varies; next78 §1.4).
 func IspinsOperationNotice() []byte {

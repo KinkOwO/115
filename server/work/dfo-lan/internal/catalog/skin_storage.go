@@ -219,7 +219,10 @@ func ImportSkinStorage(a *pvf.Archive) (SkinStorageCatalog, error) {
 		return result, e
 	}
 	types := map[uint32]skinLabels{}
-	for _, row := range rows {
+	for i, row := range rows {
+		if i%4096 == 4095 {
+			a.ReleaseReadCaches()
+		}
 		name := row.Path
 		if !strings.HasPrefix(name, "stackable/") {
 			name = path.Join("stackable", name)

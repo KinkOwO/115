@@ -2,19 +2,13 @@ package storage
 
 import (
 	"context"
+	"dfolan/internal/character"
 	"encoding/json"
 	"fmt"
 	"time"
 )
 
-type FatigueRecovery struct {
-	Day           string
-	Limit, Amount uint16
-	Template      uint32
-	DailyUses     uint32
-	Cooldown      time.Duration
-	Now           time.Time
-}
+type FatigueRecovery = character.FatigueRecovery
 
 // Character then fatigue locks serialize inventory changes with room charges.
 // The callback is pure: item decrement and fatigue credit share one commit.
@@ -89,6 +83,5 @@ func (s *Store) RecoverFatigue(ctx context.Context, account, id int64, version s
 		return role, fp, e
 	}
 	role.State = state
-	s.Cache.Del(ctx, fmt.Sprintf("%scharacters:%d", s.prefix, account))
 	return role, fp, nil
 }

@@ -1,14 +1,12 @@
 package loot
 
 import (
-	"context"
 	"dfolan/internal/catalog"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
+	"dfolan/internal/savecontract"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 )
@@ -31,13 +29,18 @@ type blackPurgatoryBossGroup struct {
 }
 
 type blackPurgatoryBossRules struct {
-	Model       string                             `json:"model"`
-	Denominator uint32                             `json:"denominator"`
-	Rates       map[string]uint32                  `json:"rates"`
-	Groups      map[string]blackPurgatoryBossGroup `json:"groups"`
+	GroupScript   string                             `json:"group_script"`
+	GroupHash     string                             `json:"group_script_sha256"`
+	RoutingScript string                             `json:"routing_script"`
+	RoutingHash   string                             `json:"routing_script_sha256"`
+	Model         string                             `json:"model"`
+	Denominator   uint32                             `json:"denominator"`
+	Rates         map[string]uint32                  `json:"rates"`
+	Groups        map[string]blackPurgatoryBossGroup `json:"groups"`
 }
 
 type BlackPurgatoryRewards struct {
+	VIPSourceOnly  []RewardBoxCandidate    `json:"vip_source_only"`
 	Model          string                  `json:"model"`
 	Source         string                  `json:"source"`
 	ClientSource   string                  `json:"client_pvf_sha256"`
@@ -130,6 +133,12 @@ func LoadBlackPurgatoryRewards(path string, boxes RewardBoxSource, itemLookup fu
 	if err = json.Unmarshal(raw, &r); err != nil {
 		return nil, err
 	}
+	return NewBlackPurgatoryRewards(r, boxes, itemLookup)
+}
+
+// NewBlackPurgatoryRewards binds validated source tables to the existing reward
+// expansion and storage projection, regardless of their input format.
+func NewBlackPurgatoryRewards(r BlackPurgatoryRewards, boxes RewardBoxSource, itemLookup func(uint32) (catalog.LootItem, bool)) (*BlackPurgatoryRewards, error) {
 	if r.Model != blackPurgatoryCardModel || r.Dungeon != BlackPurgatorySquadDungeon ||
 		r.Script != "etc/dungeonspecialreward.etc" || len(r.Cards) != 5 || boxes == nil || itemLookup == nil {
 		return nil, fmt.Errorf("黑鸦奖励配置或礼包目录不完整")
@@ -232,175 +241,81 @@ func (r *BlackPurgatoryRewards) StorageCatalog(c catalog.LootCatalog) (catalog.L
 	return c, nil
 }
 
-func (s *Service) FreezeBlackPurgatoryCards(ctx context.Context, role storage.Character, d *dungeon.Session, seed uint32) (CardPlan, error) {
+func (s *Service) PlanBlackPurgatoryCards(role Role, d *dungeon.Session, seed uint32) (CardPlan, error) {
 	p := CardPlan{}
-	if s == nil || s.BlackPurgatory == nil || len(s.BlackPurgatory.bossDurability) == 0 || s.Store == nil || !blackPurgatoryFinalBossDead(d) ||
-		d.Definition.ID != BlackPurgatorySquadDungeon || role.ConfigVersion != s.BlackPurgatory.Source {
+	if s == nil || s.BlackPurgatory == nil || len(s.BlackPurgatory.bossDurability) == 0 || !blackPurgatoryFinalBossDead(d) ||
+		d.Definition.ID != BlackPurgatorySquadDungeon || role.ConfigVersion != savecontract.Identity() {
 		return p, fmt.Errorf("黑鸦奖励尚未加载或挑战未通关")
 	}
 	r := s.BlackPurgatory
 	p = CardPlan{Run: d.RunID, Source: r.Source, Model: blackPurgatoryCardModel}
-	raw, err := s.Store.FreezeBlackPurgatoryReward(ctx, role.AccountID, role.ID, p.Source, p.Run, p.Model, func() (json.RawMessage, error) {
-		rng := RNG{Seed: seed}
-		choice, ok := (RewardBoxPool{Candidates: r.Cards}).pick(&rng)
-		if !ok {
-			return nil, fmt.Errorf("黑鸦翻牌奖励池为空")
-		}
-		items, next, skipped := OpenRewardBoxes(rng.Seed, r.boxes, []Award{{Template: choice.Template, Amount: 1}})
-		if len(items) == 0 || len(items) > len(p.Items) || len(skipped) != 0 {
-			return nil, fmt.Errorf("黑鸦翻牌展开失败：%v", skipped)
-		}
-		copy(p.Items[:], items)
-		rng.Seed = next
-		p.BossModel = r.Boss.Model
-		for i, tier := range blackPurgatoryBossTiers {
-			if rng.Next(r.Boss.Denominator) < r.Boss.Rates[tier] {
-				candidates := r.Boss.Groups[tier].Candidates
-				p.BossItems[i] = Award{Template: candidates[rng.Next(uint32(len(candidates)))].Template, Amount: 1}
-			}
-		}
-		return json.Marshal(p)
-	})
-	if err != nil {
-		return CardPlan{}, err
-	}
-	if err = json.Unmarshal(raw, &p); err != nil {
-		return CardPlan{}, err
-	}
-	if p.Run != d.RunID || p.Source != r.Source || p.Model != blackPurgatoryCardModel || p.Items[0].Amount == 0 || p.Gold != 0 {
-		return CardPlan{}, fmt.Errorf("黑鸦冻结奖单不匹配")
-	}
 	return p, nil
 }
+func (s *Service) PrepareBlackPurgatoryCards(p CardPlan, seed uint32) (json.RawMessage, error) {
+	r := s.BlackPurgatory
+	rng := RNG{Seed: seed}
+	choice, ok := (RewardBoxPool{Candidates: r.Cards}).pick(&rng)
+	if !ok {
+		return nil, fmt.Errorf("黑鸦翻牌奖励池为空")
+	}
+	items, next, skipped := OpenRewardBoxes(rng.Seed, r.boxes, []Award{{Template: choice.Template, Amount: 1}})
+	if len(items) == 0 || len(items) > len(p.Items) || len(skipped) != 0 {
+		return nil, fmt.Errorf("黑鸦翻牌展开失败：%v", skipped)
+	}
+	copy(p.Items[:], items)
+	rng.Seed = next
+	p.BossModel = r.Boss.Model
+	for i, tier := range blackPurgatoryBossTiers {
+		if rng.Next(r.Boss.Denominator) < r.Boss.Rates[tier] {
+			candidates := r.Boss.Groups[tier].Candidates
+			p.BossItems[i] = Award{Template: candidates[rng.Next(uint32(len(candidates)))].Template, Amount: 1}
+		}
+	}
+	return json.Marshal(p)
+}
+func (s *Service) ValidateBlackPurgatoryCards(p CardPlan, d *dungeon.Session) error {
+	r := s.BlackPurgatory
+	if p.Run != d.RunID || p.Source != r.Source || p.Model != blackPurgatoryCardModel || p.Items[0].Amount == 0 || p.Gold != 0 {
+		return fmt.Errorf("黑鸦冻结奖单不匹配")
+	}
+	return nil
+}
 
-type blackPurgatoryBossReceipt struct {
+type BlackPurgatoryBossReceipt struct {
 	Run         string
 	Index       byte
 	Award       Award
 	Destination uint16
 }
 
-// 地面拾取和掉线补领共用分支回执，不依赖重登后已失效的场景物体编号。
-func (s *Service) pickBlackPurgatoryBoss(ctx context.Context, role storage.Character, run string, index byte, expected Award) (storage.Character, blackPurgatoryBossReceipt, bool, error) {
-	var receipt blackPurgatoryBossReceipt
-	if s == nil || s.Store == nil || index < 1 || index > 3 || role.ConfigVersion != s.Catalog.Source.Checksum {
-		return role, receipt, false, fmt.Errorf("黑鸦领主奖励归属无效")
+func (s *Service) ValidateBlackPurgatoryBossOwner(role Role, index byte) error {
+	if s == nil || index < 1 || index > 3 || role.ConfigVersion != s.Catalog.Source.SaveIdentity() {
+		return fmt.Errorf("黑鸦领主奖励归属无效")
 	}
-	raw, err := s.Store.CharacterEventReceipt(ctx, role.AccountID, role.ID, "cardplan:"+run)
-	if err != nil {
-		return role, receipt, false, err
-	}
-	var plan CardPlan
-	if err = json.Unmarshal(raw, &plan); err != nil {
-		return role, receipt, false, err
-	}
+	return nil
+}
+func (s *Service) ValidateBlackPurgatoryBossPlan(role Role, plan CardPlan, run string, index byte, expected Award) error {
 	if plan.Run != run || plan.Source != role.ConfigVersion || plan.Model != blackPurgatoryCardModel ||
 		plan.BossModel != blackPurgatoryBossModel || plan.BossItems[index-1] != expected || expected.Template == 0 || expected.Amount != 1 {
-		return role, receipt, false, fmt.Errorf("黑鸦领主奖励与冻结奖单不一致")
+		return fmt.Errorf("黑鸦领主奖励与冻结奖单不一致")
 	}
-	key := fmt.Sprintf("black-purgatory-boss-pick:%s:%d", run, index)
-	saved, applied, err := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, plan.Source, key, plan.BossModel,
-		func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
-			bag, err := inventory.ReadBag(current.State)
-			if err != nil {
-				return nil, nil, err
-			}
-			bag, slots, err := bag.AddEquipment(s.Equipment, s.BagRules.EquipmentSlots, expected.Template, 1)
-			if err != nil {
-				return nil, nil, err
-			}
-			state, err := inventory.SaveBag(current.State, bag)
-			if err != nil {
-				return nil, nil, err
-			}
-			data, err := json.Marshal(blackPurgatoryBossReceipt{run, index, expected, slots[0]})
-			return state, data, err
-		})
+	return nil
+}
+func (s *Service) PrepareBlackPurgatoryBoss(current Role, run string, index byte, expected Award) (json.RawMessage, json.RawMessage, error) {
+	bag, err := inventory.ReadBag(current.State)
 	if err != nil {
-		return role, receipt, false, err
+		return nil, nil, err
 	}
-	raw, err = s.Store.CharacterEventReceipt(ctx, role.AccountID, role.ID, key)
-	if err == nil {
-		err = json.Unmarshal(raw, &receipt)
-	}
+	bag, slots, err := bag.AddEquipment(s.Equipment, s.BagRules.EquipmentSlots, expected.Template, 1)
 	if err != nil {
-		return role, receipt, false, err
+		return nil, nil, err
 	}
-	if receipt.Run != run || receipt.Index != index || receipt.Award != expected {
-		return role, receipt, false, fmt.Errorf("黑鸦领主领取回执不一致")
+	state, err := inventory.SaveBag(current.State, bag)
+	if err != nil {
+		return nil, nil, err
 	}
-	saved.WireID = role.WireID
-	return saved, receipt, applied, nil
+	data, err := json.Marshal(BlackPurgatoryBossReceipt{run, index, expected, slots[0]})
+	return state, data, err
 }
 
-// 只补发已持久化的奖单；普通副本旧回执不参与，背包满时保留待领。
-func (s *Service) RecoverBlackPurgatoryCards(ctx context.Context, role storage.Character) (storage.Character, error) {
-	if s.BlackPurgatory == nil {
-		return role, nil
-	}
-	rows, err := s.Store.DB.Query(ctx, `SELECT e.outcome FROM character_events e
- JOIN characters c ON c.id=e.character_id
- WHERE c.account_id=$1 AND c.id=$2 AND e.model=$3 AND e.event_key LIKE 'cardplan:%'
- AND NOT EXISTS(SELECT 1 FROM character_events g WHERE g.character_id=e.character_id
- AND g.event_key='black-purgatory-recovered:'||substr(e.event_key,10)) ORDER BY e.created_at LIMIT 16`, role.AccountID, role.ID, blackPurgatoryCardModel)
-	if err != nil {
-		return role, err
-	}
-	var plans []CardPlan
-	for rows.Next() {
-		var raw []byte
-		var p CardPlan
-		if err = rows.Scan(&raw); err == nil {
-			err = json.Unmarshal(raw, &p)
-		}
-		if err != nil {
-			rows.Close()
-			return role, err
-		}
-		plans = append(plans, p)
-	}
-	err = rows.Err()
-	rows.Close()
-	if err != nil {
-		return role, err
-	}
-	var failures []error
-	for _, p := range plans {
-		var pending error
-		saved, _, _, err := s.pickFrozenCard(ctx, role, p, 0)
-		if err != nil {
-			pending = err
-		} else {
-			role = saved
-		}
-		for i, item := range p.BossItems {
-			if item == (Award{}) {
-				continue
-			}
-			saved, _, _, err := s.pickBlackPurgatoryBoss(ctx, role, p.Run, byte(i+1), item)
-			if err != nil {
-				pending = errors.Join(pending, err)
-			} else {
-				role = saved
-			}
-		}
-		if pending == nil {
-			saved, _, err = s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, p.Source,
-				"black-purgatory-recovered:"+p.Run, blackPurgatoryCardModel,
-				func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
-					data, err := json.Marshal(p.Run)
-					return current.State, data, err
-				})
-			if err == nil {
-				saved.WireID = role.WireID
-				role = saved
-			} else {
-				pending = err
-			}
-		}
-		if pending != nil {
-			failures = append(failures, fmt.Errorf("挑战%s尚有奖励待领：%w", p.Run, pending))
-		}
-	}
-	return role, errors.Join(failures...)
-}
+const BlackPurgatoryCardModel = blackPurgatoryCardModel

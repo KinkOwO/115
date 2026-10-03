@@ -231,10 +231,12 @@ func TestDirectorySeparatesChannelPorts(t *testing.T) {
 
 // The legion channel is the first directory row with no source counterpart:
 // analysis/tasks/next98-apocalypse-entry-evidence.md §16 shows channel_info.etc
-// tops out at Type 6, so a special content channel has to be supplied here. It
-// is also the first row without a [dungeon] block, and that is deliberate - the
-// legion entry runs through CMD2043 and never through a town gate list, so the
-// row names the source's own [none] area.
+// tops out at Type 6, so a special content channel has to be supplied here.
+// The row fields follow the official 2026-10-02 channel script capture
+// (analysis/tasks/next79-legion-weekly-open.md): the source [none] area made
+// the client's legion open-schedule lookup fail with "not open today", so the
+// row now names the official [apocalypse] area and the script ships the
+// official dungeon block.
 func TestLocalDirectoryPublishesLegionChannel(t *testing.T) {
 	c, err := Load("../../configs/channel.local34.json")
 	if err != nil {
@@ -242,27 +244,30 @@ func TestLocalDirectoryPublishesLegionChannel(t *testing.T) {
 	}
 	var row *Channel
 	for i := range c.Channels {
-		if c.Channels[i].ID == 119 {
+		if c.Channels[i].ID == 30 {
 			row = &c.Channels[i]
 		}
 	}
 	if row == nil {
-		t.Fatal("no channel 119 in the local directory")
+		t.Fatal("no channel 30 in the local directory")
 	}
 	// The Type is the clientChannelInfo channelType, which is what maps the
 	// channel onto isLegion=1 and town 239. It is outside 22/28/33 on purpose:
 	// native144d998b0 grants AUTO-SELECT only to those three, and next31 showed
 	// an ineligible type:2 channel still being listed, so being listed and being
 	// auto-selected are separate gates.
-	if row.Type != 119 || row.Area != "[none]" {
-		t.Fatalf("legion row type=%d area=%q, want 119 / [none]", row.Type, row.Area)
+	if row.Type != 119 || row.Area != "[apocalypse]" {
+		t.Fatalf("legion row type=%d area=%q, want 119 / [apocalypse]", row.Type, row.Area)
 	}
 	script := string(c.Script())
-	if !bytes.Contains([]byte(script), []byte("119 `Legion` 119 `[none]`")) {
+	if !bytes.Contains([]byte(script), []byte("30 `Apocalypse` 119 `[apocalypse]`")) {
 		t.Fatalf("script is missing the legion row:\n%s", script)
 	}
+	if !bytes.Contains([]byte(script), []byte("[dungeon]\n  `[apocalypse]` `Apocalypse`\n\n[/dungeon]")) {
+		t.Fatalf("script is missing the official apocalypse dungeon block:\n%s", script)
+	}
 	if bytes.Contains([]byte(script), []byte("[dungeon]\n`[none]`")) {
-		t.Fatal("the legion row grew a town gate list it does not have")
+		t.Fatal("the [none] area grew a town gate list it does not have")
 	}
 	// The directory has to advertise a game endpoint for it, and a missing one
 	// must fail the whole directory rather than quietly drop the channel.
@@ -270,8 +275,50 @@ func TestLocalDirectoryPublishesLegionChannel(t *testing.T) {
 	if _, err = c.Directory(endpoints); err != nil {
 		t.Fatal(err)
 	}
-	delete(endpoints, 119)
+	delete(endpoints, 30)
 	if _, err = c.Directory(endpoints); err == nil {
 		t.Fatal("directory accepted a channel with no game endpoint")
+	}
+}
+
+// The Ispins rows reproduce the official 2026-10-02 script capture verbatim
+// (86/87 `Ispins` 81 `[ispins_legion]`, all-zero rule scalars, official
+// dungeon block with no ids). The former local row (81/[none]) popped the
+// client's "not open today" gate even though the official server answered the
+// same client on the same day, which pins the schedule lookup to these row
+// fields.
+func TestLocalDirectoryPublishesIspinsChannel(t *testing.T) {
+	c, err := Load("../../configs/channel.local34.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows := map[uint32]Channel{}
+	for _, ch := range c.Channels {
+		if ch.Type == 81 {
+			rows[ch.ID] = ch
+		}
+	}
+	if len(rows) != 2 {
+		t.Fatalf("want exactly two Ispins channel rows, got %d", len(rows))
+	}
+	for _, id := range []uint32{86, 87} {
+		ch, ok := rows[id]
+		if !ok {
+			t.Fatalf("missing official Ispins channel row %d", id)
+		}
+		if ch.Area != "[ispins_legion]" || ch.Name != "Ispins" {
+			t.Fatalf("Ispins row %d = %q/%q, want Ispins/[ispins_legion]", id, ch.Name, ch.Area)
+		}
+	}
+	script := string(c.Script())
+	if !bytes.Contains([]byte(script), []byte("86 `Ispins` 81 `[ispins_legion]`")) {
+		t.Fatalf("script is missing the Ispins row:\n%s", script)
+	}
+	if !bytes.Contains([]byte(script), []byte("[dungeon]\n  `[ispins_legion]` `Ispins`\n\n[/dungeon]")) {
+		t.Fatalf("script is missing the official Ispins dungeon block:\n%s", script)
+	}
+	// Two rows share the [ispins_legion] area: the block must ship exactly once.
+	if got := bytes.Count([]byte(script), []byte("`[ispins_legion]` `Ispins`")); got != 1 {
+		t.Fatalf("Ispins dungeon block shipped %d times, want 1", got)
 	}
 }

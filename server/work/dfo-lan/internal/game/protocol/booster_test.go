@@ -2,6 +2,10 @@ package protocol
 
 import (
 	"encoding/binary"
+	"encoding/hex"
+	"encoding/json"
+	"os"
+	"reflect"
 	"testing"
 )
 
@@ -94,5 +98,40 @@ func TestDecodeBoosterUseRequestSimple(t *testing.T) {
 	}
 	if len(req.Selections) != 0 || len(req.AvatarOptions) != 0 {
 		t.Fatalf("expected no selections, got selections=%+v, options=%+v", req.Selections, req.AvatarOptions)
+	}
+}
+
+// The client sent eight templates and no ability options for both professions.
+// The archer fourth template starts with 04, which previously looked like an
+// option count and truncated the grant list to the first three templates.
+func TestDecodeBoosterUseRequestNativeAvatarPackages(t *testing.T) {
+	data, err := os.ReadFile("testdata/native_booster_avatar_package_20261001.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var vectors []struct {
+		Name       string   `json:"name"`
+		Slot       uint16   `json:"slot"`
+		Category   uint16   `json:"category"`
+		PlainHex   string   `json:"plain_hex"`
+		Selections []uint32 `json:"selections"`
+	}
+	if err := json.Unmarshal(data, &vectors); err != nil {
+		t.Fatal(err)
+	}
+	for _, v := range vectors {
+		t.Run(v.Name, func(t *testing.T) {
+			raw, err := hex.DecodeString(v.PlainHex)
+			if err != nil {
+				t.Fatal(err)
+			}
+			req, err := DecodeBoosterUseRequest(raw)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if req.Slot != v.Slot || req.Amount != 1 || req.Category != v.Category || !reflect.DeepEqual(req.Selections, v.Selections) || len(req.AvatarOptions) != 0 {
+				t.Fatalf("native request decoded as %+v, want slot=%d category=%d selections=%v and no options", req, v.Slot, v.Category, v.Selections)
+			}
+		})
 	}
 }

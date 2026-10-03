@@ -48,7 +48,10 @@ func ImportItemPeriods(a *pvf.Archive) (ItemPeriodCatalog, error) {
 		if err != nil {
 			return ItemPeriodCatalog{}, err
 		}
-		for _, row := range rows {
+		for i, row := range rows {
+			if i%4096 == 4095 {
+				a.ReleaseReadCaches()
+			}
 			name := row.Path
 			if !strings.HasPrefix(name, kind+"/") {
 				name = path.Join(kind, name)

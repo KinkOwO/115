@@ -6,6 +6,7 @@ import (
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/storage"
+	"dfolan/internal/workflow"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -65,6 +66,12 @@ var equipmentCraftExecute = true
 //	"first"         = 第一次请求就执行（装备生成可能没有确认弹窗）
 //	"never"         = 只回窗、不动存档
 var equipmentCraftExecuteOn = "confirm"
+
+// equipmentTransformApply 决定 action=1（装备变换）怎么执行：
+//
+//	"apply"（默认） = 真的换装：按目标稀有度扣灵魂 + 把该部位的装备换成选中的，然后回「打开窗口」；
+//	"observe"       = 只把请求本身写进 events.jsonl，不动存档（一键回退用）。
+var equipmentTransformApply = "apply"
 
 // equipmentCraftConfirmGap 是"同一正文要隔多久才算第二步"的下限。
 // 取 1 秒是为了不把玩家的**连点**（想再开一次确认窗）误判成"确认"。
@@ -130,8 +137,14 @@ func (w *worldSession) equipmentJournalBoard(role storage.Character) ([]outbound
 // 执行时机：`[12]==1`（变换）实机是「变换 → 确定」**两次**同指纹请求 ⇒ 等第二次；
 // `[12]==0`（生成）**只有一次**请求 ⇒ 单步执行（`-equipment-craft-execute-on` 可覆盖）。
 //
-// 成本校验 / 扣料 / 发装备由 `loot.Service.CreateEquipment` 完成，**严格按 `[13]` 扣**。
-func (w *worldSession) equipmentCraft(p []byte) ([]outboundPacket, error) {
+// 成本校验 / 扣料 / 发装备由 `inventory.ItemService.CreateEquipment` 完成，**严格按 `[13]` 扣**。
+//
+// `action == 1`（装备变换）则走 `inventory.ItemService.TransformEquipment`：把该部位的装备换成
+// 图鉴里选中的那件、打造效果跟着走、源自动登记进图鉴。
+//
+// `event` 用于把**不落库**的判定（拒绝原因、逐件跳过明细、变换结果）写进 events.jsonl ——
+// 这些分支都不回包，日志是唯一的取证入口。
+func (w *worldSession) equipmentCraft(p []byte, event func(map[string]any)) ([]outboundPacket, error) {
 	if w == nil {
 		return nil, fmt.Errorf("equipment craft unavailable")
 	}
@@ -167,6 +180,81 @@ func (w *worldSession) equipmentCraft(p []byte) ([]outboundPacket, error) {
 		ID:      protocol.EquipmentCraftOpcode,
 		Payload: protocol.EquipmentCraftReply(window, variant),
 	}}
+	// [ALIGN-20260930-TRANSFORM] 「装备变换」（action=1）。
+	//
+	// 语义（2026-09-30 实机取证确定）：客户端把「玩家在图鉴里选中的**已收录**目标装备」+
+	// 「它们各自的部位槽位」一起发上来，服务端要**把身上穿的这些部位换成目标**；成本按目标的
+	// **稀有度**取对应的灵魂（`[create cost]` 那张表没有武器档、也没有太初档 ⇒ 不走它）。
+	//
+	// 请求里的这批件本来就只有一部分是"能换的"（客户端会把整屏都报上来，实测 11 件里只有
+	// 一部分已登记 / 有档位）⇒ **逐件跳过，不整体拒绝**。
+	//
+	// 开关 `-equipment-transform` / `DFO_EQUIPMENT_TRANSFORM_APPLY`：
+	//   apply  （默认）= 真的换装（扣灵魂 + 换装 + 源登记进图鉴）；
+	//   observe        = 只记日志、不动存档（一键回退）。
+	//
+	// ⚠️ 外部包里那个 observe 分支会顺带输出 `[void soul]` 诊断 —— 本仓**不引入**那张表：
+	//   2026-09-30 的证据已推翻"它是变换表"的假设（请求里的目标装备根本不在那张表里，
+	//   也不受任何表约束），所以这里只记请求本身。
+	//
+	// ★ 无论哪条失败分支，都**只记日志、绝不回包** —— 客户端在 2259 上没有失败分支，
+	//   两次实测收到 Error 都 `exit=0xC0000005`。
+	if r.Action == 1 && len(templates) > 0 {
+		if equipmentTransformApply == "observe" {
+			log.Printf("equipment craft TRANSFORM-PLAN (observe): requested=%d slots=%v templates=%v",
+				len(templates), slots, templates)
+			if event != nil {
+				event(map[string]any{"kind": "equipment_craft_transform_planned", "character_id": w.role.ID,
+					"requested": len(templates), "slots": slots, "templates": templates})
+			}
+			return plan, nil
+		}
+		if w.items == nil {
+			log.Printf("equipment craft TRANSFORM-REFUSED: loot service unavailable")
+			return plan, nil
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		saved, receipt, applied, e := (&workflow.ItemService{Store: w.store, Items: w.items}).TransformEquipment(ctx, w.role, slots, templates, int(r.PayOption))
+		if e != nil {
+			log.Printf("equipment craft TRANSFORM-REFUSED: requested=%d: %v", len(templates), e)
+			if event != nil {
+				event(map[string]any{"kind": "equipment_craft_transform_refused", "character_id": w.role.ID,
+					"requested": len(templates), "reason": e.Error()})
+			}
+			return plan, nil
+		}
+		if applied {
+			w.role = saved
+		}
+		// ★ 刷新下发（这一步之前一直缺，所以"动画播完却没换装"）：
+		//
+		// 实机 trace 证明客户端在 2259 应答之后**不会再发任何请求**（Seq 129 之后全是
+		// PROCESS_SCAN 心跳）—— 它**不会自己重读装备栏**。服务端改完 `worn` 必须**主动把
+		// 身上装备栏再送一遍**，与强化/附魔/锻造/装备继承后的做法完全一致：
+		// `inventory.WornSpaceUpdate` + NOTI14（见 reinforcement_flow.go / enchant_flow.go /
+		// refine_flow.go / inherit_flow.go，都是这个形状）。
+		if applied {
+			if wornBody, e := inventory.WornSpaceUpdate(w.role.State); e == nil && len(wornBody) > 0 {
+				plan = append(plan, outboundPacket{"equipment_transform_worn_refreshed", 0, 14, wornBody})
+			}
+			// 金币在扣费时变了，主物品栏也补一份 NOTI13 list0（与账号材料刷新同一形状）。
+			if bag, e := inventory.ReadBag(w.role.State); e == nil {
+				if body, e := protocol.InventoryRestore(bag.Rows(), bag.Expansion); e == nil {
+					plan = append(plan, outboundPacket{"equipment_transform_inventory_refreshed", 0, 13, body})
+				}
+			}
+		}
+		log.Printf("equipment craft TRANSFORM: requested=%d pairs=%d gold=%d option=%d skipped=%d applied=%t",
+			len(templates), len(receipt.Pairs), receipt.Gold, receipt.Option, len(receipt.Skipped), applied)
+		if event != nil {
+			event(map[string]any{"kind": "equipment_craft_transform_done", "character_id": w.role.ID,
+				"requested": len(templates), "pairs": receipt.Pairs, "materials": receipt.Materials,
+				"gold": receipt.Gold, "option": receipt.Option, "skipped": receipt.Skipped,
+				"applied": applied, "source": receipt.Source})
+		}
+		return plan, nil
+	}
 	// 执行时机：
 	//   「变换」([12]==1) 实机是"变换 → 确定"**两次**请求（同指纹）⇒ 等第二次；
 	//   「生成」([12]==0) 实机**只有一次**请求（2026-09-29 12:46 / 13:13 两次会话都只 1 条，
@@ -185,12 +273,40 @@ func (w *worldSession) equipmentCraft(p []byte) ([]outboundPacket, error) {
 	// 第二步 = 执行「装备生成」：模板必须已在账本登记，成本来自 [create cost] 表。
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	saved, receipt, applied, e := w.loot.CreateEquipment(ctx, w.role, templates[0], slots[0], int(r.PayOption))
+	saved, receipt, applied, e := (&workflow.ItemService{Store: w.store, Items: w.items}).CreateEquipment(ctx, w.role, templates[0], slots[0], int(r.PayOption))
 	if e != nil {
-		// 拒绝**不能吞**：照常回窗口（客户端本来就会继续显示），但把原因写清楚。
-		// 不额外发拒绝包 —— 这一条还没有实机样本证明客户端认哪种拒绝形状。
+		// [ALIGN-20260930-CRAFT-VISIBLE] 拒绝**不能吞** —— 但**也不能瞎回包**。
+		//
+		// 2026-09-30 00:37 实测教训：原先这里追加过一个拒绝包
+		//   {"equipment_craft_refused_response", 1, 2259, protocol.Refusal(19)}
+		// 结果客户端**崩溃**（client.log `exit=0xC0000005`）。完整时序（client_trace）：
+		//   SEND ENUM_CMDPACKET_EQUIPMENT_TRANSFORM (141B)
+		//   RECV ENUM_CMDPACKET_EQUIPMENT_TRANSFORM (8B) Result : Ok          ← 打开窗口应答
+		//   RECV ENUM_CMDPACKET_EQUIPMENT_TRANSFORM (8B) Result : Error ErrCode : 19   ← 拒绝包
+		// 客户端**确实认得这个形状**（解析出了 `ErrCode : 19`），但在「先成功、再 Error」
+		// 这个序列下掉了线 —— 很可能是它已经按成功开了窗，随后又走"未开窗"的失败清理分支，
+		// 对象不匹配。**在拿到正确形状/正确序列之前，不要再发这个包。**
+		//
+		// 现在只做两件安全的事：① 拒因写进 events.jsonl；② 照常回「打开窗口」应答。
 		log.Printf("equipment craft REFUSED: template=%d slot=%d pay_option=%d: %v",
 			templates[0], slots[0], r.PayOption, e)
+		if event != nil {
+			event(map[string]any{"kind": "equipment_craft_create_refused", "character_id": w.role.ID,
+				"template": templates[0], "slot": slots[0], "pay_option": r.PayOption,
+				"requested": len(templates), "reason": e.Error()})
+		}
+		// [ALIGN-20260930-CRAFT-NO-REFUSAL] 拒绝**不发任何出站包**（也不发 Error）。
+		//
+		// 两次实测（都只看客户端自述，不看猜测）：
+		//   00:37  「先回成功打开窗口、再回 Error」→ trace 收到 `Result : Ok` + `Result : Error ErrCode : 19` → **崩溃 exit=0xC0000005**
+		//   00:42  「只回 Error、不回窗口」        → trace 只收到 `Result : Error ErrCode : 19`        → **仍然崩溃 exit=0xC0000005**
+		// ⇒ **客户端在 2259 这条链上没有失败分支**：它认得这个形状（能解析出 ErrCode 19），
+		//   但拿到 Error 就走进了会崩的路径。所以在拿到真正的成功产物规则之前，
+		//   **唯一安全的行为是「什么都不说」**（照常回"打开窗口"应答，客户端只播动画、不掉线，
+		//   与 00:29 那次一致）。
+		//
+		// ⚠️ 这不是修复，只是把客户端保住；真正的修复必须让 2259 **成功**（见
+		//   `docs/` 里 CMD2259 的取证记录）。拒因仍写进 events.jsonl 供后续分析。
 		return plan, nil
 	}
 	if !applied {
@@ -200,13 +316,17 @@ func (w *worldSession) equipmentCraft(p []byte) ([]outboundPacket, error) {
 		// "成功了但没生效"，实机 2026-09-29 14:21 就是这样白绕了一轮。
 		log.Printf("equipment craft REPLAY: already applied, nothing charged (template=%d slot=%d pay_option=%d)",
 			templates[0], slots[0], r.PayOption)
+		if event != nil {
+			event(map[string]any{"kind": "equipment_craft_replayed", "character_id": w.role.ID,
+				"template": templates[0], "slot": slots[0], "pay_option": r.PayOption})
+		}
 		return plan, nil
 	}
 	w.role = saved
 	// ★ 刷新要同时覆盖**两个仓**：背包（新装备 + 金币）与**账号共享材料库**
 	// （三档登记证就在那里扣的）。`accountMaterialRefreshPackets` 正好按
 	// list35 → list42 → list0 的顺序发，客户端靠最后那包做结算。
-	accountRaw, e := w.loot.Store.AccountMaterials(ctx, saved.AccountID)
+	accountRaw, e := w.store.AccountMaterials(ctx, saved.AccountID)
 	if e != nil {
 		log.Printf("equipment craft: read account materials after craft: %v", e)
 		return plan, nil
@@ -227,6 +347,11 @@ func (w *worldSession) equipmentCraft(p []byte) ([]outboundPacket, error) {
 	}
 	log.Printf("equipment craft DONE: template=%d placed_slot=%d group=%d cost_option=%d gold=%d materials=%v",
 		receipt.Template, receipt.Slot, receipt.Group, receipt.Cost, receipt.Gold, receipt.Materials)
+	if event != nil {
+		event(map[string]any{"kind": "equipment_craft_done", "character_id": w.role.ID,
+			"template": receipt.Template, "placed_slot": receipt.Slot, "group": receipt.Group,
+			"cost_option": receipt.Cost, "gold": receipt.Gold})
+	}
 	return plan, nil
 }
 
@@ -245,10 +370,10 @@ func craftFingerprint(r protocol.EquipmentCraftRequest, slots, templates []uint3
 }
 
 func (w *worldSession) journalRules() *catalog.EquipmentJournalRules {
-	if w == nil || w.loot == nil {
+	if w == nil || w.items == nil {
 		return nil
 	}
-	return w.loot.Journal
+	return w.items.Journal
 }
 
 // equipmentFavorite 处理 CMD2264：**全量替换**一个类别的收藏列表。
@@ -260,7 +385,7 @@ func (w *worldSession) journalRules() *catalog.EquipmentJournalRules {
 //
 // 幂等：同一个请求重放时 CommitCharacterEvent 命中回执，不再重复写账本；应答照发。
 func (w *worldSession) equipmentFavorite(p []byte) ([]outboundPacket, error) {
-	if w == nil || w.loot == nil || w.loot.Store == nil {
+	if w == nil || w.items == nil || w.store == nil {
 		return nil, fmt.Errorf("equipment journal unavailable")
 	}
 	if w.role.ID <= 0 || w.account <= 0 || w.role.AccountID != w.account {
@@ -278,7 +403,7 @@ func (w *worldSession) equipmentFavorite(p []byte) ([]outboundPacket, error) {
 	key := fmt.Sprintf("journal-favorite:%d:%d:%d:%d", r.Category, slots[0], slots[1], slots[2])
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	saved, _, e := w.loot.Store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID,
+	saved, _, e := w.store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID,
 		w.role.ConfigVersion, key, "equipment-journal-v1",
 		func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
 			ledger, e := inventory.ReadEquipmentJournal(current.State)

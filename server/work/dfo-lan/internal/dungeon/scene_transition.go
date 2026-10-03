@@ -294,12 +294,13 @@ func (s *Session) layerSequenceExit(pos [2]byte) ([2]byte, bool) {
 	if room == nil {
 		return [2]byte{}, false
 	}
-	// [MERGE-20260928-LAYER-SEQUENCE-FINAL] 优先选**不带层图**的相邻格。
-	// 落进另一个挂层图的格子，客户端进去又会自动播那张层图 —— 等于换了个地方
-	// 继续循环（实机 100004777 的 (1,0) 若前进到 (0,0)，那里挂着 [100015633]）。
-	// 没有干净的相邻格时才退而求其次。
-	var fallback [2]byte
-	hasFallback := false
+	// Prefer a unique unvisited plain neighbor. The native CMD45 for a final
+	// layer names its current position, not the destination. In the 100004779
+	// linear maze, taking the first plain neighbor sends (2,0) back to the
+	// visited (1,0), where the client re-enters the layer in a loop.
+	var plain, layered, unvisitedPlain, unvisitedLayered [2]byte
+	hasPlain, hasLayered := false, false
+	unvisitedPlainCount, unvisitedLayeredCount := 0, 0
 	for _, r := range s.Maze.Rooms {
 		dx := int(r.X) - int(room.X)
 		dy := int(r.Y) - int(room.Y)
@@ -307,15 +308,34 @@ func (s *Session) layerSequenceExit(pos [2]byte) ([2]byte, bool) {
 			continue
 		}
 		cand := [2]byte{r.X, r.Y}
+		_, visited := s.Visited[s.latestLayer(r).Map]
 		if s.layerMapCount(cand) == 0 {
-			return cand, true
+			if !hasPlain {
+				plain, hasPlain = cand, true
+			}
+			if !visited {
+				unvisitedPlain, unvisitedPlainCount = cand, unvisitedPlainCount+1
+			}
+			continue
 		}
-		if !hasFallback {
-			fallback, hasFallback = cand, true
+		if !hasLayered {
+			layered, hasLayered = cand, true
+		}
+		if !visited {
+			unvisitedLayered, unvisitedLayeredCount = cand, unvisitedLayeredCount+1
 		}
 	}
-	if hasFallback {
-		return fallback, true
+	if unvisitedPlainCount == 1 {
+		return unvisitedPlain, true
+	}
+	if hasPlain {
+		return plain, true
+	}
+	if unvisitedLayeredCount == 1 {
+		return unvisitedLayered, true
+	}
+	if hasLayered {
+		return layered, true
 	}
 	return [2]byte{}, false
 }

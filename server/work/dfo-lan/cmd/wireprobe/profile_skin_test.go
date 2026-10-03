@@ -1,13 +1,12 @@
 package main
 
 import (
-	"dfolan/internal/game/protocol"
-	"dfolan/internal/profileskin"
+	"dfolan/internal/character"
 	"testing"
 )
 
 func TestProfileSkinEntryOrder(t *testing.T) {
-	cargo, selected, err := protocol.ProfileSkinRestore(profileskin.Defaults())
+	cargo, selected, err := character.RestoreProfileSkin(character.ProfileSkinDefaults())
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -170,7 +170,6 @@ func (s *Store) ApplyGrant(ctx context.Context, g Grant, mutate func(Character) 
 	out.Receipt, out.Applied = receipt, true
 	// The roster cache carries character rows; drop it so the next read sees
 	// the new balance and bag.
-	s.Cache.Del(ctx, fmt.Sprintf("%scharacters:%d", s.prefix, g.AccountID))
 	return out, nil
 }
 

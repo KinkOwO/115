@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "templates": [
+    590712474,
+    590719043
+  ],
+  "cos_paths": [
+    "live/else/univ/2024/0514_radianttreasurebox/radianttreasurebox.cos",
+    "live/else/univ/2025/0318_newrandombox/radianttreasurebox.cos"
+  ],
+  "missing_stack_limit": 1000,
+  "slots": {
+    "[waste]": [
+      65,
+      120
+    ],
+    "[material]": [
+      121,
+      176
+    ],
+    "[booster]": [
+      65,
+      120
+    ],
+    "[enchant waste]": [
+      65,
+      120
+    ],
+    "[contract]": [
+      65,
+      120
+    ],
+    "[booster selection]": [
+      65,
+      120
+    ],
+    "[etc]": [
+      65,
+      120
+    ],
+    "[material expert job]": [
+      121,
+      176
+    ],
+    "[town and dungeon]": [
+      65,
+      120
+    ]
+  }
+}

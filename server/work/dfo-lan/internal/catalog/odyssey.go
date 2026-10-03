@@ -7,7 +7,37 @@ import (
 	"os"
 )
 
-const OdysseySource = "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80"
+// OdysseySource 是「奥德赛系目录来自哪一份 PVF」的身份令牌。
+//
+// 2026-10-01（next146）：由 const 改为 var，并提供 SetOdysseySource。
+// 原因：PVF 直读模式下所有目录都从**当次内层归档**（checksum 每次重建都变）构建，
+// 而角色的 ConfigVersion 也等于该内层 checksum（`character/service.go` 的
+// `ConfigVersion: s.Catalog.Source.Checksum`）。若此处仍钉死历史常量
+// `7ef2db59…`，奥德赛全家族（成长/章节/路线/兑换/黑鸦/赤红铁矿…）的
+// 「源身份」门禁会在直读启动时全部失败 —— 实机首个撞墙点是
+// `Odyssey journal routes source mismatch`。
+//
+// 启动时由 PVF 准备阶段调用 SetOdysseySource(实际内层 checksum) 覆盖；
+// 未调用（JSON/历史模式）时保持历史常量，行为不变。
+//
+// ⚠️ 它同时是**写入存档的运行时身份**（odyssey_chapter 的 CommitCharacterEvent 用它作
+// 乐观锁令牌、比较 role.ConfigVersion），所以必须与当次真实内层一致，不能只做「忽略比较」。
+var OdysseySource = "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80"
+
+// SetOdysseySource 把奥德赛源身份切到当次实际内层 checksum。
+// 只接受 64 位 hex；非法值忽略（保持历史常量），避免把空串/短串写进存档身份。
+func SetOdysseySource(checksum string) {
+	if len(checksum) != 64 {
+		return
+	}
+	for i := 0; i < len(checksum); i++ {
+		c := checksum[i]
+		if (c < '0' || c > '9') && (c < 'a' || c > 'f') && (c < 'A' || c > 'F') {
+			return
+		}
+	}
+	OdysseySource = checksum
+}
 
 // OdysseyGraduateRewardTemplate pins the [complete reward info] [reward]
 // template: the booster box a graduated character receives once.
@@ -37,6 +67,11 @@ func LoadOdysseyGrowth(path string) (*OdysseyGrowth, error) {
 	if e = json.Unmarshal(b, &r); e != nil {
 		return nil, e
 	}
+	return NewOdysseyGrowth(r)
+}
+
+// NewOdysseyGrowth shares validation and runtime index construction across native and JSON sources.
+func NewOdysseyGrowth(r OdysseyGrowth) (*OdysseyGrowth, error) {
 	if r.Source != OdysseySource || r.Definition.SHA256 != "638e71ab8fdc84b4be28db8ca3302fd1dfe689a9b771907514297edee4b8c8e8" {
 		return nil, fmt.Errorf("Odyssey source mismatch")
 	}

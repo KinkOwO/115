@@ -6,6 +6,7 @@ import (
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/storage"
+	"dfolan/internal/workflow"
 	"fmt"
 	"time"
 )
@@ -48,7 +49,7 @@ func (w *worldSession) useAddSkinStorage(p []byte, event func(map[string]any)) (
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	saved, receipt, _, e := w.loot.Consume(ctx, w.role, protocol.UseStackableRequest{
+	saved, receipt, _, e := (&workflow.LootService{Store: w.store, Loot: w.loot}).Consume(ctx, w.role, protocol.UseStackableRequest{
 		Slot: slot, Template: template,
 	})
 	if e != nil {
@@ -61,7 +62,7 @@ func (w *worldSession) useAddSkinStorage(p []byte, event func(map[string]any)) (
 	record := map[string]any{"character_id": saved.ID, "template": template,
 		"slot": slot, "skin_key": entry.SkinKey(), "remaining": receipt.Remaining,
 		"damage_font": entry.IsDamageFont()}
-	unlockErr := w.characters.Store.UnlockSkin(ctx, saved.AccountID, template, entry.SkinKey())
+	unlockErr := w.store.UnlockSkin(ctx, saved.AccountID, template, entry.SkinKey())
 	if unlockErr != nil {
 		record["kind"] = "skin_storage_unlock_failed"
 		record["reason"] = unlockErr.Error()
@@ -90,7 +91,7 @@ func (w *worldSession) useAddSkinStorage(p []byte, event func(map[string]any)) (
 	// damage-font skin the account holds, not only the one just registered.
 	// Other families have no proven page, so their unlock stays durable only.
 	if unlockErr == nil && entry.IsDamageFont() {
-		cargo, e := damageFontCargo(ctx, w.characters.Store, saved.AccountID, w.skinCatalog)
+		cargo, e := damageFontCargo(ctx, w.store, saved.AccountID, w.skinCatalog)
 		if e != nil {
 			event(map[string]any{"kind": "skin_cargo_damage_font_error",
 				"character_id": saved.ID, "reason": e.Error()})
@@ -104,7 +105,7 @@ func (w *worldSession) useAddSkinStorage(p []byte, event func(map[string]any)) (
 	// tab is not in that table — its page belongs to the replication path — so its
 	// unlock stays durable-only.
 	if frame, ok := skinFamilyForEntry(entry.Family()); ok {
-		cargo, push, e := skinFamilyCargo(ctx, w.characters.Store, saved.AccountID, saved.ID, w.skinCatalog, frame)
+		cargo, push, e := skinFamilyCargo(ctx, w.store, saved.AccountID, saved.ID, w.skinCatalog, frame)
 		if e != nil {
 			event(map[string]any{"kind": "skin_cargo_family_error",
 				"character_id": saved.ID, "category": frame.category, "reason": e.Error()})
@@ -117,7 +118,7 @@ func (w *worldSession) useAddSkinStorage(p []byte, event func(map[string]any)) (
 	// stored: a spend whose registration failed has nothing to show, and re-pressing the
 	// hotkey lands both frames.
 	if unlockErr == nil {
-		recent, e := skinRecentRestore(ctx, w.characters.Store, saved.AccountID, saved.State,
+		recent, e := skinRecentRestore(ctx, w.store, saved.AccountID, saved.State,
 			w.skinCatalog, w.characters.WeaponSkinUsableFor(saved))
 		if e != nil {
 			event(map[string]any{"kind": "skin_recent_list_error",

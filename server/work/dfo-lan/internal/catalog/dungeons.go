@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 )
 
@@ -37,9 +38,17 @@ type DungeonDefinition struct {
 	Script                   ScriptRecord `json:"script"`
 	MinimumLevel, BasisLevel uint32
 	Tutorial, NoFatigue      bool
+	// EnterFatigue 是源 [use fatigue only start dungeon] <N> 声明的**进本消耗**（only start = 进本只收一次）
+	// 0 表示源未声明该段，服务端回退本地策略或在策略里查 dungeon_enter_fatigue 兜底。
+	// 注意 [minimum enter fatigue] 是**门槛**而非消耗，不读它。
+	EnterFatigue uint16
 	Odyssey                  bool
 	DesignatedDifficulty     byte
 	HuntBoss                 uint32 // Source Odyssey [hunt boss] single-target completion.
+	// AttunementBoss 是「调律之边界」玩法（[dungeon type] boundary of attunement）的源领主模板。
+	// 该玩法单人、不发 CMD117，所以只有这只领主的死亡确认能结束本次挑战 ——
+	// 见 internal/dungeon/completion.go 的 tryComplete。
+	AttunementBoss uint32
 	// SourceBoss 是副本脚本自己用 [clear condition] [hunt boss] <模板> <数量> 声明的
 	// 通关领主：杀掉它就算通关。这是**源对通关条件的声明**，对所有副本成立，
 	// 不是某个玩法的特例。
@@ -47,7 +56,8 @@ type DungeonDefinition struct {
 	// 只有「客户端不发 CMD117」的副本才走得到它，见 internal/dungeon/completion.go
 	// 的 tryComplete —— 客户端会发 CMD117 的副本由那条路径负责，这里不会重复结算。
 	SourceBoss uint32
-	Mazes      []DungeonMaze `json:"mazes"`
+	HellParty  *DungeonHellParty `json:"hell_party,omitempty"`
+	Mazes      []DungeonMaze     `json:"mazes"`
 	// MazeChanceRates 非空表示这张副本按源里的 [maze chance rate] 掷骰选图，
 	// 而不是「同 quest 里 index 最小者」。
 	//
@@ -57,15 +67,64 @@ type DungeonDefinition struct {
 	// 其余副本的行为一个字节都不变。长度必须等于 Mazes 的长度；权重在候选集
 	// 内归一化，0 表示永不选中。见 internal/catalog/maze_chance.go。
 	MazeChanceRates []uint32 `json:"maze_chance_rates,omitempty"`
+	// TowerGriefFloor is sourced from etc/towerofgrief.etc when the verified
+	// overlay is attached. It is runtime metadata for tower settlement only.
+	TowerGriefFloor uint16 `json:"-"`
+	// Tower is attached only after a tower's source floor/map rules are verified.
+	// Entry and progress are shared; reward packets remain tower specific.
+	Tower *TowerRuntime `json:"-"`
+}
+
+type TowerRuntime struct {
+	Key          string
+	Floor        uint16
+	TopFloor     uint16
+	DailyEntries uint16
+	ResetHourUTC uint8
+	RewardRule   string
+	// Items may be populated only from a verified reward table for this floor.
+	Items []TowerItemReward
+}
+
+type TowerItemReward struct {
+	Template uint32
+	Amount   uint32
+}
+
+// DungeonHellParty retains the original DGN's ordinary Hell Party room.
+// These values come from the current client resource, not legacy server data.
+type DungeonHellParty struct {
+	SealMap            uint32  `json:"seal_map"`
+	SealPosition       [2]byte `json:"seal_position"`
+	SeasonSealMap      uint32  `json:"season_seal_map,omitempty"`
+	SeasonSealPosition [2]byte `json:"season_seal_position,omitempty"`
+}
+
+// DeclaredEnterFatigue 汇总源里声明了 [use fatigue only start dungeon] 的副本及其值，
+// 供启动日志与审计逐条核对。返回按副本号排序的 "id=值" 串；没有声明时返回空串。
+func (c *DungeonCatalog) DeclaredEnterFatigue() string {
+	if c == nil || len(c.Dungeons) == 0 {
+		return ""
+	}
+	parts := make([]string, 0, 8)
+	for id, d := range c.Dungeons {
+		if d.EnterFatigue > 0 {
+			parts = append(parts, fmt.Sprintf("%d=%d", id, d.EnterFatigue))
+		}
+	}
+	sort.Strings(parts)
+	return strings.Join(parts, " ")
 }
 type DungeonCatalog struct {
-	Source         pvf.ArchiveSnapshot          `json:"source"`
-	Dungeons       map[uint32]DungeonDefinition `json:"dungeons"`
-	Maps           map[uint32]ScriptRecord      `json:"maps"`
-	Skipped        []string                     `json:"skipped,omitempty"`
-	SceneRoutes    []DungeonSceneRoute          `json:"scene_routes,omitempty"`
-	TerminalScenes []DungeonTerminalScene       `json:"terminal_scenes,omitempty"`
-	LayerRevisits  []DungeonLayerRevisit        `json:"layer_revisits,omitempty"`
+	Source   pvf.ArchiveSnapshot          `json:"source"`
+	Dungeons map[uint32]DungeonDefinition `json:"dungeons"`
+	// Runtime imports retain map identity here; use MapScript to obtain cells.
+	Maps           map[uint32]ScriptRecord `json:"maps"`
+	Skipped        []string                `json:"skipped,omitempty"`
+	SceneRoutes    []DungeonSceneRoute     `json:"scene_routes,omitempty"`
+	TerminalScenes []DungeonTerminalScene  `json:"terminal_scenes,omitempty"`
+	LayerRevisits  []DungeonLayerRevisit   `json:"layer_revisits,omitempty"`
+	mapScripts     *mapScriptCache
 }
 
 // DungeonTerminalScene records a source CMT [CHANGE MAP] on a quest maze's
@@ -195,6 +254,23 @@ func sourceBoss(cells []pvf.Token) uint32 {
 
 func ParseDungeon(id uint32, s ScriptRecord) (DungeonDefinition, error) {
 	d := DungeonDefinition{ID: id, Script: s}
+	if enabled := sectionCells(s.Cells, "[hell dungeon]"); len(enabled) == 1 && enabled[0].Type == 0 && enabled[0].Value == 1 {
+		mapIndex := sectionCells(s.Cells, "[seal door map index]")
+		position := sectionCells(s.Cells, "[seal door pos]")
+		if len(mapIndex) == 1 && mapIndex[0].Type == 0 && mapIndex[0].Value > 0 {
+			if xy, err := dungeonPair(position); err == nil {
+				d.HellParty = &DungeonHellParty{SealMap: uint32(mapIndex[0].Value), SealPosition: xy}
+				seasonIndex := sectionCells(s.Cells, "[season seal door map index]")
+				seasonPosition := sectionCells(s.Cells, "[season seal door pos]")
+				if len(seasonIndex) == 1 && seasonIndex[0].Type == 0 && seasonIndex[0].Value > 0 {
+					if xy, err := dungeonPair(seasonPosition); err == nil {
+						d.HellParty.SeasonSealMap = uint32(seasonIndex[0].Value)
+						d.HellParty.SeasonSealPosition = xy
+					}
+				}
+			}
+		}
+	}
 	mode := sectionCells(s.Cells, "[dungeon mode script]")
 	d.Odyssey = len(mode) == 1 && mode[0].Type == 6 && mode[0].Text == "arad odyssey"
 	if d.Odyssey {
@@ -242,6 +318,12 @@ func ParseDungeon(id uint32, s ScriptRecord) (DungeonDefinition, error) {
 	}
 	if strings.Contains(strings.ToLower(strings.ReplaceAll(s.Path, "\\", "/")), "/poongjintrainingroom/") {
 		d.NoFatigue = true
+	}
+	// 进本消耗：源里 [use fatigue only start dungeon] N —— 该段紧随其后的闭标签，
+	// 所以 sectionCells 恰好只收到那一个数（实测容器的 [use fatigue start dungeon] 是另一种语义，不读）。
+	if enter := sectionCells(s.Cells, "[use fatigue only start dungeon]"); len(enter) == 1 &&
+		enter[0].Type == 0 && enter[0].Value > 0 && enter[0].Value <= 65535 {
+		d.EnterFatigue = uint16(enter[0].Value)
 	}
 	for i := 0; i < len(s.Cells); i++ {
 		if s.Cells[i].Type != 3 || s.Cells[i].Text != "[maze info]" {
@@ -397,6 +479,16 @@ func ParseDungeon(id uint32, s ScriptRecord) (DungeonDefinition, error) {
 	return d, nil
 }
 func ImportDungeons(a *pvf.Archive, ids []uint32) (DungeonCatalog, error) {
+	return importDungeons(a, ids, false)
+}
+
+// ImportRuntimeDungeons validates each source script, then retains map metadata
+// and an independent archive view instead of every map's expanded token tree.
+func ImportRuntimeDungeons(a *pvf.Archive, ids []uint32) (DungeonCatalog, error) {
+	return importDungeons(a, ids, true)
+}
+
+func importDungeons(a *pvf.Archive, ids []uint32, lazyMaps bool) (DungeonCatalog, error) {
 	out := DungeonCatalog{Source: a.Snapshot(), Dungeons: map[uint32]DungeonDefinition{}, Maps: map[uint32]ScriptRecord{}}
 	var skipped []string
 	indices := make([]map[uint32]string, 2)
@@ -414,7 +506,10 @@ func ImportDungeons(a *pvf.Archive, ids []uint32) (DungeonCatalog, error) {
 			indices[i][r.ID] = r.Path
 		}
 	}
-	for _, id := range ids {
+	for n, id := range ids {
+		if n%64 == 0 {
+			a.ReleaseReadCaches()
+		}
 		name, ok := indices[0][id]
 		if !ok {
 			// 世界目录里有 3000 多个副本 ID，其中一部分在 list/dungeon.lst 里已不存在。
@@ -447,6 +542,9 @@ func ImportDungeons(a *pvf.Archive, ids []uint32) (DungeonCatalog, error) {
 				skipped = append(skipped, fmt.Sprintf("map %d: %v", mapID, e))
 				return
 			}
+			if lazyMaps {
+				s.Cells = nil
+			}
 			out.Maps[mapID] = s
 		}
 		for _, m := range d.Mazes {
@@ -466,6 +564,11 @@ func ImportDungeons(a *pvf.Archive, ids []uint32) (DungeonCatalog, error) {
 		}
 	}
 	out.Skipped = skipped
+	if lazyMaps {
+		if err := out.attachMapScripts(a); err != nil {
+			return DungeonCatalog{}, err
+		}
+	}
 	return out, nil
 }
 func LoadDungeons(path string) (DungeonCatalog, error) {
@@ -477,6 +580,12 @@ func LoadDungeons(path string) (DungeonCatalog, error) {
 	if e = json.Unmarshal(b, &c); e != nil {
 		return c, e
 	}
+	return ValidateDungeons(c)
+}
+
+// ValidateDungeons applies the same runtime parsing and graph checks to native
+// imports and saved audit catalogs.
+func ValidateDungeons(c DungeonCatalog) (DungeonCatalog, error) {
 	if len(c.Source.Checksum) != 64 || len(c.Dungeons) == 0 {
 		return c, fmt.Errorf("invalid dungeon catalog")
 	}

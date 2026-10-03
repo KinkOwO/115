@@ -8,6 +8,8 @@ import (
 	"dfolan/internal/storage"
 	"encoding/hex"
 	"testing"
+
+	"context"
 )
 
 // 实机缺陷（2026-09-21，角色 test-jh）：奥德赛清关后场上出现两道门——"返回城镇"
@@ -91,7 +93,7 @@ func TestDungeonEntryPlanAcksDirectMove(t *testing.T) {
 		Room:       catalog.DungeonRoom{Map: 100016119},
 	}
 	sel := protocol.DungeonSelection{ID: 100004947, Difficulty: 2, Party: 65535}
-	plan, e := w.dungeonEntryPlan("dungeon_direct_move_ack", 2062, sel, s)
+	plan, e := w.dungeonEntryPlan(context.Background(), "dungeon_direct_move_ack", 2062, sel, s)
 	if e != nil {
 		t.Fatal(e)
 	}

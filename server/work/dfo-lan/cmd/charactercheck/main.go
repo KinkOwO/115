@@ -61,7 +61,6 @@ func run() error {
 		}
 	}()
 	cfg.PostgresSchema = schema
-	cfg.RedisPrefix += schema + ":"
 	s, e := storage.Open(ctx, cfg)
 	if e != nil {
 		return e
@@ -120,7 +119,7 @@ func run() error {
 	if e = json.Unmarshal(rows[0].State, &state); e != nil {
 		return e
 	}
-	if state.Attributes["[hp max]"] != c.Professions[0].InitialAttributes["[hp max]"] || rows[0].ConfigVersion != c.Source.Checksum {
+	if state.Attributes["[hp max]"] != c.Professions[0].InitialAttributes["[hp max]"] || rows[0].ConfigVersion != c.Source.SaveIdentity() {
 		return fmt.Errorf("saved source configuration mismatch")
 	}
 	second, e := s.DevelopmentAccount(ctx, "temporary-other")
@@ -190,11 +189,11 @@ func run() error {
 		return e
 	}
 	spawn := storage.WorldPosition{Town: 38, Area: 0, X: 561, Y: 234}
-	world, e := s.LoadWorld(ctx, account, rows[0].ID, spawn, c.Source.Checksum)
+	world, e := s.LoadWorld(ctx, account, rows[0].ID, spawn, c.Source.SaveIdentity())
 	if e != nil {
 		return e
 	}
-	if _, e = s.LoadWorld(ctx, second, rows[0].ID, spawn, c.Source.Checksum); e == nil {
+	if _, e = s.LoadWorld(ctx, second, rows[0].ID, spawn, c.Source.SaveIdentity()); e == nil {
 		return fmt.Errorf("world crossed account boundary")
 	}
 	next := spawn
@@ -206,32 +205,32 @@ func run() error {
 	if _, e = s.SaveWorld(ctx, account, rows[0].ID, world, spawn); !errors.Is(e, storage.ErrWorldConflict) {
 		return fmt.Errorf("stale world overwrite accepted: %v", e)
 	}
-	loaded, e := reopened.LoadWorld(ctx, account, rows[0].ID, spawn, c.Source.Checksum)
+	loaded, e := reopened.LoadWorld(ctx, account, rows[0].ID, spawn, c.Source.SaveIdentity())
 	if e != nil || loaded.Position.X != 600 || loaded.Revision != changed.Revision {
 		return fmt.Errorf("saved world did not survive reopen: %v", e)
 	}
-	q, e := s.AcceptQuest(ctx, account, rows[0].ID, 3145, c.Source.Checksum, 1, 10000, nil, 1, "single-clear-map-remaining-v1")
+	q, e := s.AcceptQuest(ctx, account, rows[0].ID, 3145, c.Source.SaveIdentity(), 1, 10000, nil, 1, "single-clear-map-remaining-v1")
 	if e != nil {
 		return e
 	}
-	repeated, e := s.AcceptQuest(ctx, account, rows[0].ID, 3145, c.Source.Checksum, 1, 10000, nil, 1, "single-clear-map-remaining-v1")
+	repeated, e := s.AcceptQuest(ctx, account, rows[0].ID, 3145, c.Source.SaveIdentity(), 1, 10000, nil, 1, "single-clear-map-remaining-v1")
 	if e != nil || q != repeated {
 		return fmt.Errorf("quest retry changed saved progress: %v", e)
 	}
-	if _, e = s.AcceptQuest(ctx, account, rows[0].ID, 3146, c.Source.Checksum, 1, 10000, []uint32{3145}, 1, "single-clear-map-remaining-v1"); e == nil {
+	if _, e = s.AcceptQuest(ctx, account, rows[0].ID, 3146, c.Source.SaveIdentity(), 1, 10000, []uint32{3145}, 1, "single-clear-map-remaining-v1"); e == nil {
 		return fmt.Errorf("unfinished prerequisite accepted")
 	}
 	act2Groups := [][]uint32{{3232}, {3237}}
-	if _, e = s.AcceptQuestGroups(ctx, account, rows[0].ID, 3240, c.Source.Checksum, 1, 10000, act2Groups, 1, "single-clear-map-remaining-v1"); e == nil {
+	if _, e = s.AcceptQuestGroups(ctx, account, rows[0].ID, 3240, c.Source.SaveIdentity(), 1, 10000, act2Groups, 1, "single-clear-map-remaining-v1"); e == nil {
 		return fmt.Errorf("alternative prerequisite accepted before either branch completed")
 	}
-	if _, e = s.DB.Exec(ctx, `INSERT INTO character_quests(character_id,quest_id,status,progress,config_version,progress_model) VALUES($1,3232,'completed',0,$2,$3)`, rows[0].ID, c.Source.Checksum, "single-clear-map-remaining-v1"); e != nil {
+	if _, e = s.DB.Exec(ctx, `INSERT INTO character_quests(character_id,quest_id,status,progress,config_version,progress_model) VALUES($1,3232,'completed',0,$2,$3)`, rows[0].ID, c.Source.SaveIdentity(), "single-clear-map-remaining-v1"); e != nil {
 		return e
 	}
-	if _, e = s.AcceptQuestGroups(ctx, account, rows[0].ID, 3240, c.Source.Checksum, 1, 10000, act2Groups, 1, "single-clear-map-remaining-v1"); e != nil {
+	if _, e = s.AcceptQuestGroups(ctx, account, rows[0].ID, 3240, c.Source.SaveIdentity(), 1, 10000, act2Groups, 1, "single-clear-map-remaining-v1"); e != nil {
 		return fmt.Errorf("completed Act 2 alternative did not unlock successor: %w", e)
 	}
-	if _, e = s.AcceptQuest(ctx, second, rows[0].ID, 3145, c.Source.Checksum, 1, 10000, nil, 1, "single-clear-map-remaining-v1"); e == nil {
+	if _, e = s.AcceptQuest(ctx, second, rows[0].ID, 3145, c.Source.SaveIdentity(), 1, 10000, nil, 1, "single-clear-map-remaining-v1"); e == nil {
 		return fmt.Errorf("quest crossed account boundary")
 	}
 	if e = s.AbandonQuest(ctx, second, rows[0].ID, 3145); e == nil {

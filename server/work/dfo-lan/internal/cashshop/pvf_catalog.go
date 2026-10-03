@@ -44,7 +44,7 @@ func ImportPilot(a *pvf.Archive) (PilotConfig, error) {
 	if e = c.resolveEquipmentEntries(equipment, resolve); e != nil {
 		return c, e
 	}
-	return c, c.validate()
+	return c, c.Validate()
 }
 
 // Single avatar pieces and creature eggs live in equipment.lst, not
@@ -218,7 +218,7 @@ func importShopScripts(source pvf.ArchiveSnapshot, shop, index catalog.ScriptRec
 			c.Entries = append(c.Entries, entry)
 		}
 	}
-	return c, c.validate()
+	return c, c.Validate()
 }
 
 func isCreatureEgg(v OrdinaryProduct) bool {
@@ -436,8 +436,23 @@ func (c PilotConfig) classify(v OrdinaryProduct) (Product, deliveryType, error) 
 	if r[0].Value <= 0 || r[1].Value <= 0 || r[2].Value <= 0 {
 		return fail("invalid product, units or template")
 	}
-	if !allowAny && (r[2].Value > 112000 || r[5].Value <= 0) {
-		return fail("invalid product, units or Cera price")
+	if !allowAny && (r[2].Value > 112000 || (r[3].Value <= 0 && r[5].Value <= 0)) {
+		return fail("invalid product, units or currency price")
+	}
+	// Native 1477C7870 maps row[3]/row[5] to +96/+104;
+	// 1446FFF70 and 1446FFFD0 select Gold/Cera from those fields.
+	if r[3].Value < 0 || r[5].Value < 0 || (r[3].Value > 0 && r[5].Value > 0) {
+		return fail("invalid or ambiguous currency price")
+	}
+	goldPrice := uint32(r[3].Value)
+	// The launcher's diagnostic open-all switch must not bypass Gold pricing
+	// policies we cannot debit or acknowledge.
+	if goldPrice > 0 {
+		for _, i := range []int{4, 6, 7} {
+			if r[i].Value != 0 {
+				return fail("alternate currency or special price policy")
+			}
+		}
 	}
 	ceraPrice := uint32(0)
 	if r[5].Value > 0 {
@@ -474,11 +489,8 @@ func (c PilotConfig) classify(v OrdinaryProduct) (Product, deliveryType, error) 
 				}
 			}
 		}
-		// 当前目录的 r[3]、r[4]、r[7] 没有数据，r[6] 仅一行有值；r[10] 则在
-		// petit_friends/luckybag 的 120 行中保存连续的类型引用（70383..70423），
-		// 实际点券价格仍在 r[5]。发布目录只放宽 r[10]，所有货币列继续受限，
-		// 且 r[5] 仍必须大于零。
-		alt := []int{3, 4, 6, 7}
+		// Gold and Cera are supported; other currency policies still require handlers.
+		alt := []int{4, 6, 7}
 		if !c.Release {
 			alt = append(alt, 10)
 		}
@@ -534,7 +546,7 @@ func (c PilotConfig) classify(v OrdinaryProduct) (Product, deliveryType, error) 
 			Limit: math.MaxUint32,
 		}
 	}
-	p = Product{ID: uint32(r[0].Value), Template: uint32(r[1].Value), Units: uint32(r[2].Value), Cera: ceraPrice, Enabled: true}
+	p = Product{ID: uint32(r[0].Value), Template: uint32(r[1].Value), Units: uint32(r[2].Value), Cera: ceraPrice, Gold: goldPrice, Enabled: true}
 	return p, h, nil
 }
 

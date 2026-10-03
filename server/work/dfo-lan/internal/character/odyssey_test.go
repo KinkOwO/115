@@ -4,13 +4,12 @@ import (
 	"bytes"
 	"dfolan/internal/catalog"
 	"dfolan/internal/inventory"
-	"dfolan/internal/progression"
-	"dfolan/internal/storage"
+
 	"encoding/json"
 	"testing"
 )
 
-func odysseyGrowthFixture(t *testing.T) (*ProgressionService, storage.Character) {
+func odysseyGrowthFixture(t *testing.T) (*ProgressionService, Character) {
 	t.Helper()
 	o, e := catalog.LoadOdysseyGrowth("../../configs/odyssey-growth-candidate.json")
 	if e != nil {
@@ -27,14 +26,14 @@ func odysseyGrowthFixture(t *testing.T) (*ProgressionService, storage.Character)
 	prof := c.Professions[0]
 	state := State{Level: 1, Attributes: prof.InitialAttributes, InitialSkills: prof.InitialSkills, SourceSHA256: prof.RawSHA256}
 	raw, _ := json.Marshal(state)
-	r := storage.Character{Profession: 0, Name: "GrowTest", WireID: 1, ConfigVersion: c.Source.Checksum, State: raw}
+	r := Character{Profession: 0, Name: "GrowTest", WireID: 1, ConfigVersion: c.Source.SaveIdentity(), State: raw}
 	req := append([]byte{0, 4, 0, 0, 0}, []byte("test")...)
 	req = append(req, 0, 0, 0, 0, 0, 0, 255, 0, 1, 0, 2, 0)
 	for len(req)%8 != 0 {
 		req = append(req, 0)
 	}
 	r.Request = req
-	return &ProgressionService{Catalog: p, Professions: c, Rules: progression.Rules{LevelCap: 115}, Odyssey: o}, r
+	return &ProgressionService{Catalog: p, Professions: c, Rules: GrowthRules{LevelCap: 115}, Odyssey: o}, r
 }
 
 func TestOdysseyGiftCapacityAndSource(t *testing.T) {

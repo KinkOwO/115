@@ -2,29 +2,16 @@ package storage
 
 import (
 	"context"
+	"dfolan/internal/world"
 	"encoding/json"
 	"errors"
-	"fmt"
 )
 
-type WorldPosition struct {
-	Town   uint32       `json:"town"`
-	Area   uint32       `json:"area"`
-	X      uint16       `json:"x"`
-	Y      uint16       `json:"y"`
-	Return *WorldReturn `json:"return,omitempty"`
-}
-type WorldReturn struct {
-	Town uint32 `json:"town"`
-	Area uint32 `json:"area"`
-	X    uint16 `json:"x"`
-	Y    uint16 `json:"y"`
-}
-type WorldState struct {
-	Position      WorldPosition `json:"position"`
-	Revision      int64         `json:"revision"`
-	ConfigVersion string        `json:"config_version"`
-}
+// 世界位置类型归 internal/world 拥有；这里保留类型别名（迁移期），
+// 使调用点无需一次性改动，且持久化方向为 storage -> world（契约 R3 允许）。
+type WorldPosition = world.WorldPosition
+type WorldReturn = world.WorldReturn
+type WorldState = world.WorldState
 
 var ErrWorldConflict = errors.New("world position changed concurrently")
 
@@ -73,6 +60,5 @@ func (s *Store) SaveWorld(ctx context.Context, account, characterID int64, old W
 	}
 	out.Position = next
 	out.Revision++
-	s.Cache.Del(ctx, fmt.Sprintf("%sworld:%d", s.prefix, characterID))
 	return out, nil
 }

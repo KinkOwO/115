@@ -1,8 +1,7 @@
 package quest
 
 import (
-	"context"
-	"dfolan/internal/storage"
+	"dfolan/internal/character"
 	"fmt"
 	"slices"
 )
@@ -11,8 +10,8 @@ import (
 // accepted. CMD1422 does not carry a quest ID, so the persisted accepted set is
 // the only source-backed boundary for the current Act quest(s). In particular,
 // completing one quest must not recursively add its newly unlocked successor.
-func (s *Service) ActClearPlan(role storage.Character, states []storage.QuestState) ([]uint16, error) {
-	if role.ConfigVersion != s.Catalog.Source.Checksum {
+func (s *Service) ActClearPlan(role character.Character, states []QuestState) ([]uint16, error) {
+	if role.ConfigVersion != s.Catalog.Source.SaveIdentity() {
 		return nil, fmt.Errorf("quest clear source mismatch")
 	}
 	ids := make([]uint16, 0, 1)
@@ -20,7 +19,7 @@ func (s *Service) ActClearPlan(role storage.Character, states []storage.QuestSta
 		if q.Status != "accepted" {
 			continue
 		}
-		if q.ConfigVersion != s.Catalog.Source.Checksum {
+		if q.ConfigVersion != s.Catalog.Source.SaveIdentity() {
 			return nil, fmt.Errorf("accepted quest %d requires source migration", q.ID)
 		}
 		d, ok := s.Catalog.Quests[uint32(q.ID)]
@@ -34,16 +33,4 @@ func (s *Service) ActClearPlan(role storage.Character, states []storage.QuestSta
 	}
 	slices.Sort(ids)
 	return ids, nil
-}
-
-func (s *Service) ClearActQuests(ctx context.Context, role storage.Character) (int, error) {
-	states, err := s.Store.Quests(ctx, role.AccountID, role.ID)
-	if err != nil {
-		return 0, err
-	}
-	ids, err := s.ActClearPlan(role, states)
-	if err != nil {
-		return 0, err
-	}
-	return s.Store.ClearActQuests(ctx, role.AccountID, role.ID, s.Catalog.Source.Checksum, ids)
 }

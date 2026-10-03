@@ -3,14 +3,13 @@ package inventory
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 	"math"
 	"strings"
 )
 
-func applyAccountVaultGold(bag Bag, saved storage.AccountVaultState, rules AccountVaultRules, amount uint32, deposit bool) (Bag, storage.AccountVaultState, error) {
+func applyAccountVaultGold(bag Bag, saved AccountVaultState, rules AccountVaultRules, amount uint32, deposit bool) (Bag, AccountVaultState, error) {
 	if amount == 0 {
 		return bag, saved, fmt.Errorf("金币金额不能为零")
 	}
@@ -34,7 +33,7 @@ func applyAccountVaultGold(bag Bag, saved storage.AccountVaultState, rules Accou
 	return bag, saved, nil
 }
 
-func moveAccountVaultGold(role storage.Character, saved storage.AccountVaultState, rules AccountVaultRules, amount uint32, deposit bool) (json.RawMessage, storage.AccountVaultState, error) {
+func moveAccountVaultGold(role Role, saved AccountVaultState, rules AccountVaultRules, amount uint32, deposit bool) (json.RawMessage, AccountVaultState, error) {
 	if saved.Slots == 0 {
 		return nil, saved, fmt.Errorf("账号金库尚未开通")
 	}
@@ -50,10 +49,10 @@ func moveAccountVaultGold(role storage.Character, saved storage.AccountVaultStat
 	return state, saved, err
 }
 
-func DepositAccountVaultGold(role storage.Character, saved storage.AccountVaultState, rules AccountVaultRules, amount uint32) (json.RawMessage, storage.AccountVaultState, error) {
+func DepositAccountVaultGold(role Role, saved AccountVaultState, rules AccountVaultRules, amount uint32) (json.RawMessage, AccountVaultState, error) {
 	return moveAccountVaultGold(role, saved, rules, amount, true)
 }
-func WithdrawAccountVaultGold(role storage.Character, saved storage.AccountVaultState, rules AccountVaultRules, amount uint32) (json.RawMessage, storage.AccountVaultState, error) {
+func WithdrawAccountVaultGold(role Role, saved AccountVaultState, rules AccountVaultRules, amount uint32) (json.RawMessage, AccountVaultState, error) {
 	return moveAccountVaultGold(role, saved, rules, amount, false)
 }
 
@@ -127,8 +126,8 @@ func accountVaultItemAllowed(item VaultItem, items catalog.LootCatalog, equipmen
 	return nil
 }
 
-func MoveAccountVault(role storage.Character, saved storage.AccountVaultState, rules BagRules, items catalog.LootCatalog, equipment *EquipmentCatalog, request protocol.ItemMoveRequest, goldRules ...AccountVaultRules) (json.RawMessage, storage.AccountVaultState, uint32, error) {
-	fail := func(reason string) (json.RawMessage, storage.AccountVaultState, uint32, error) {
+func MoveAccountVault(role Role, saved AccountVaultState, rules BagRules, items catalog.LootCatalog, equipment *EquipmentCatalog, request protocol.ItemMoveRequest, goldRules ...AccountVaultRules) (json.RawMessage, AccountVaultState, uint32, error) {
+	fail := func(reason string) (json.RawMessage, AccountVaultState, uint32, error) {
 		return nil, saved, 0, fmt.Errorf("%s", reason)
 	}
 	if saved.Slots == 0 || (request.SourceList != 12 && request.DestinationList != 12) || (request.SourceList != 0 && request.SourceList != 12) || (request.DestinationList != 0 && request.DestinationList != 12) || request.Extra != 0 || request.Selection != 0xffffffff || request.Flags != [3]byte{} {
@@ -145,7 +144,7 @@ func MoveAccountVault(role storage.Character, saved storage.AccountVaultState, r
 	if err != nil {
 		return fail(err.Error())
 	}
-	vault, err := ReadExtendedVault(storage.VaultState{Slots: saved.Slots, Items: saved.Items})
+	vault, err := ReadExtendedVault(VaultState{Slots: saved.Slots, Items: saved.Items})
 	if err != nil {
 		return fail(err.Error())
 	}

@@ -4,6 +4,7 @@ package main
 import (
 	"context"
 	"dfolan/internal/catalog"
+	"dfolan/internal/managementdata"
 	"dfolan/internal/quest"
 	"dfolan/internal/storage"
 	"encoding/json"
@@ -14,11 +15,32 @@ import (
 )
 
 func main() {
+	sourceFlags := managementdata.Register(flag.CommandLine)
 	config := flag.String("storage", "runtime/storage/local.json", "storage configuration")
 	source := flag.String("catalog", "configs/quests.generated.json", "quest source")
 	id := flag.Int64("character", 0, "exact development character ID")
 	apply := flag.Bool("apply", false, "apply audited repair; default previews character changes after schema migration")
 	flag.Parse()
+	native, e := sourceFlags.Open()
+	if e != nil {
+		log.Fatal(e)
+	}
+	var cat catalog.QuestCatalog
+	if native != nil {
+		defer native.Close()
+		cat, e = native.Quests("")
+	} else {
+		cat, e = catalog.LoadQuests(*source)
+	}
+	if e != nil {
+		log.Fatal(e)
+	}
+	if sourceFlags.CheckOnly {
+		if e := managementdata.Report(map[string]any{"source": cat.Source.Checksum, "quests": len(cat.Quests), "storage_accessed": false}); e != nil {
+			log.Fatal(e)
+		}
+		return
+	}
 	if *id <= 0 {
 		log.Fatal("an exact character ID is required")
 	}
@@ -44,17 +66,13 @@ func main() {
 	if e != nil {
 		log.Fatal(e)
 	}
-	cat, e := catalog.LoadQuests(*source)
-	if e != nil {
-		log.Fatal(e)
-	}
 	changes := []map[string]any{}
 	for _, q := range quests {
 		if q.ProgressModel != "legacy-zero" {
 			continue
 		}
 		d, ok := cat.Quests[uint32(q.ID)]
-		if !ok || q.ConfigVersion != cat.Source.Checksum {
+		if !ok || q.ConfigVersion != cat.Source.SaveIdentity() {
 			log.Fatal("quest source mismatch")
 		}
 		initial, model, e := quest.InitialProgress(d)

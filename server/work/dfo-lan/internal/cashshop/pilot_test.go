@@ -4,24 +4,23 @@ import (
 	"context"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"testing"
 )
 
 type packLedger struct {
 	state json.RawMessage
-	order storage.CashOrder
+	order CashOrder
 }
 
-func (l *packLedger) PurchaseCashToBag(_ context.Context, o storage.CashOrder, fn func(json.RawMessage) (json.RawMessage, error)) (storage.CashReceipt, bool, error) {
+func (l *packLedger) PurchaseCashToBag(_ context.Context, o CashOrder, fn func(json.RawMessage) (json.RawMessage, error)) (CashReceipt, bool, error) {
 	state, e := fn(l.state)
 	if e != nil {
-		return storage.CashReceipt{}, false, e
+		return CashReceipt{}, false, e
 	}
 	l.state = state
 	l.order = o
-	return storage.CashReceipt{}, true, nil
+	return CashReceipt{}, true, nil
 }
 func TestShopPilotPacksAndAtomicCapacity(t *testing.T) {
 	p, e := LoadPilot("../../configs/shop-purchase-pilot.json", "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80")

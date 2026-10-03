@@ -5,6 +5,40 @@ import "testing"
 // omenDungeon 是唯一带 [coupon drop table]（= 征兆阶段表）的副本：千海之空小深渊。
 const omenDungeon = 100005014
 
+// TestOathTierCofferMapsFourTiers 钉住「天平档位 → 星蕴石自选套装罐子」这条线。
+//
+// 业主 2026-10-01 定调：天平档位与征兆是**两条平行的线**，各发各的（同一场都触发就
+// 各自兑现一份）。四档对四个罐子，内容是 §38.2 实测展开的：
+//
+//	unique(42)    → 10416150 → 12 × rarity 3（神器）
+//	legendary(43) → 10417545 → 12 × rarity 6（传说）
+//	epic(44)      → 10417552 → 12 × rarity 4（史诗）
+//	primeval(45)  → 10417571 → 12 × rarity 8（太初）
+//
+// normal(40) / rare(41) 不发 —— 官方奖励表里没有 rarity 2 的罐子，行 0 的条目数是 0，
+// 国服 1710 场里 32.05% 也正是「不变色、不出东西」。
+func TestOathTierCofferMapsFourTiers(t *testing.T) {
+	cases := []struct {
+		tier uint16
+		want uint32
+	}{
+		{0, 0},         // 非深渊 / 未下发
+		{40, 0},        // normal   不发
+		{41, 0},        // rare     不发
+		{42, 10416150}, // unique
+		{43, 10417545}, // legendary
+		{44, 10417552}, // epic
+		{45, 10417571}, // primeval
+		{70, 10417571}, // rainbow1 取最高档
+		{71, 10417571}, // rainbow2
+	}
+	for _, c := range cases {
+		if got := oathTierCoffer(c.tier); got != c.want {
+			t.Errorf("oathTierCoffer(%d) = %d, want %d", c.tier, got, c.want)
+		}
+	}
+}
+
 // TestOmenStagesReadTheShippedCouponRows 钉住读法的**数据面**：五行、两列门槛、
 // 第 4 行 100% 结算。这三样是官方四阶段在文件里的样子，任何一处变动都意味着
 // 读法要重新论证，而不是继续按老读法发奖。

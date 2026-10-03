@@ -9,6 +9,7 @@ import (
 	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
 	"dfolan/internal/storage"
+	"dfolan/internal/workflow"
 	"encoding/json"
 	"fmt"
 	"sync"
@@ -56,7 +57,8 @@ func lootCheck(ctx context.Context, s, reopened *storage.Store, role storage.Cha
 		object := uint32(32768 + i)
 		session.Objects[object] = loot.Drop{Run: run.RunID, Map: run.Room.Map, Owner: role.WireID, Object: object, Slot: uint16(i + 1), Award: award}
 	}
-	service := loot.Service{Store: s, Catalog: c, Rules: rules, BagRules: bagRules, Tables: tables}
+	domain := loot.Service{Catalog: c, Rules: rules, BagRules: bagRules, Tables: tables}
+	service := workflow.LootService{Store: s, Loot: &domain}
 	foreign := role
 	foreign.AccountID = other
 	if _, _, _, e = service.Pickup(ctx, foreign, session, run, protocol.PickupRequest{Object: 32768}); e == nil {
@@ -124,7 +126,7 @@ func lootCheck(ctx context.Context, s, reopened *storage.Store, role storage.Cha
 	if e != nil || applied {
 		return fmt.Errorf("pickup reopen replay: %v", e)
 	}
-	p, e := service.Bootstrap(saved)
+	p, e := domain.Bootstrap(workflow.LootRole(saved))
 	if e != nil || len(p) != 367 {
 		return fmt.Errorf("reopened bag wire: %d %v", len(p), e)
 	}

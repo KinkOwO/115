@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"dfolan/internal/adventure"
+	"dfolan/internal/db"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -32,10 +33,26 @@ func (s *Store) CharacterEventReceipt(ctx context.Context, account, id int64, ke
 // pure domain code and runs only under the owning character's PostgreSQL lock.
 // Retries never recompute a reward using a later level or changed rules.
 func (s *Store) CommitCharacterEvent(ctx context.Context, account, id int64, version, key, model string, apply func(Character) (json.RawMessage, json.RawMessage, error)) (Character, bool, error) {
-	return s.commitCharacterEvent(ctx, account, id, version, key, model, apply, nil)
+	return s.commitCharacterEvent(ctx, account, id, version, key, model, apply, nil, nil)
 }
 
 // CommitCharacterPremiumEvent 将背包变化、账号契约续期和幂等回执放在同一事务中。
+// CommitCharacterEventTx 与 CommitCharacterEvent 相同，但把事务句柄交给 apply。
+//
+// 用于「除了改角色状态，还要在**同一事务**里读写另一张表」的场景 —— NPC 商店限购就是：
+// 校验已购次数 + 记录本次购买必须与背包变更原子完成，否则会出现「货到手但次数没记」，
+// 或者重发请求重复计数。
+//
+// apply 在角色行已被 FOR UPDATE 锁住时执行，且只在**首次**应用时调用
+// （重发的同 key 请求走幂等回执路径，不会重跑 apply）。
+func (s *Store) CommitCharacterEventTx(ctx context.Context, account, id int64, version, key, model string,
+	apply func(db.Tx, Character) (json.RawMessage, json.RawMessage, error)) (Character, bool, error) {
+	if apply == nil {
+		return Character{}, false, fmt.Errorf("character event 缺少处理函数")
+	}
+	return s.commitCharacterEvent(ctx, account, id, version, key, model, nil, apply, nil)
+}
+
 func (s *Store) CommitCharacterPremiumEvent(ctx context.Context, account, id int64, version, key, model string, apply func(Character) (json.RawMessage, json.RawMessage, []CashPremiumActivation, error)) (Character, bool, error) {
 	if apply == nil {
 		return Character{}, false, fmt.Errorf("角色契约事件缺少处理函数")
@@ -45,13 +62,19 @@ func (s *Store) CommitCharacterPremiumEvent(ctx context.Context, account, id int
 		state, outcome, premiums, err := apply(role)
 		rewards = premiums
 		return state, outcome, err
-	}, func() []CashPremiumActivation { return rewards })
+	}, nil, func() []CashPremiumActivation { return rewards })
 }
 
-func (s *Store) commitCharacterEvent(ctx context.Context, account, id int64, version, key, model string, apply func(Character) (json.RawMessage, json.RawMessage, error), premiums func() []CashPremiumActivation) (Character, bool, error) {
+func (s *Store) commitCharacterEvent(ctx context.Context, account, id int64, version, key, model string,
+	apply func(Character) (json.RawMessage, json.RawMessage, error),
+	txApply func(db.Tx, Character) (json.RawMessage, json.RawMessage, error),
+	premiums func() []CashPremiumActivation) (Character, bool, error) {
 	var role Character
 	decoded, e := hex.DecodeString(version)
-	if e != nil || len(decoded) != 32 || key == "" || len(key) > 200 || model == "" || len(model) > 100 || apply == nil {
+	if apply == nil && txApply == nil {
+		return role, false, fmt.Errorf("character event 缺少处理函数")
+	}
+	if e != nil || len(decoded) != 32 || key == "" || len(key) > 200 || model == "" || len(model) > 100 || (apply == nil && txApply == nil) {
 		return role, false, fmt.Errorf("invalid character event")
 	}
 	tx, e := s.DB.Begin(ctx)
@@ -100,7 +123,12 @@ func (s *Store) commitCharacterEvent(ctx context.Context, account, id int64, ver
 	if !errors.Is(e, pgx.ErrNoRows) {
 		return role, false, e
 	}
-	state, outcome, e := apply(role)
+	var state, outcome json.RawMessage
+	if txApply != nil {
+		state, outcome, e = txApply(pgxTx{tx}, role)
+	} else {
+		state, outcome, e = apply(role)
+	}
 	if e != nil {
 		return role, false, e
 	}
@@ -199,6 +227,5 @@ func (s *Store) commitCharacterEvent(ctx context.Context, account, id int64, ver
 		return role, false, e
 	}
 	role.State = state
-	s.Cache.Del(ctx, fmt.Sprintf("%scharacters:%d", s.prefix, account))
 	return role, true, nil
 }

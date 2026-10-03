@@ -3,7 +3,6 @@ package character
 import (
 	"context"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -20,7 +19,7 @@ const (
 // Confirm body). style selects the skill tree (0/1), mask carries the
 // checkboxes; bits outside the defined mask are dropped and an empty mask is
 // refused. Persists through the same character-event transaction as Learn.
-func (s *Service) ResetSkills(ctx context.Context, role storage.Character, key string, style, mask byte) (storage.Character, bool, error) {
+func (s *Service) ResetSkills(ctx context.Context, role Character, key string, style, mask byte) (Character, bool, error) {
 	tree := style
 	if tree > 1 {
 		tree = 0
@@ -29,7 +28,7 @@ func (s *Service) ResetSkills(ctx context.Context, role storage.Character, key s
 	if mask == 0 {
 		return role, false, fmt.Errorf("empty skill reset mask")
 	}
-	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, "source-skill-reset-window-v1", func(cur storage.Character) (json.RawMessage, json.RawMessage, error) {
+	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, "source-skill-reset-window-v1", func(cur Character) (json.RawMessage, json.RawMessage, error) {
 		var st State
 		if e := json.Unmarshal(cur.State, &st); e != nil {
 			return nil, nil, e
@@ -53,7 +52,7 @@ func (s *Service) ResetSkills(ctx context.Context, role storage.Character, key s
 
 // applySkillReset mutates a decoded State in place; split out so the window
 // arithmetic can be exercised without a database.
-func (s *Service) applySkillReset(ctx context.Context, cur storage.Character, st *State, tree int, mask byte) error {
+func (s *Service) applySkillReset(ctx context.Context, cur Character, st *State, tree int, mask byte) error {
 	if tree != 0 && tree != 1 {
 		return fmt.Errorf("invalid skill tree")
 	}
@@ -84,7 +83,7 @@ func (s *Service) applySkillReset(ctx context.Context, cur storage.Character, st
 // resetOrdinarySkills refunds every rank above the source floor (initial +
 // automatic advancement + satisfied awakening grants) into SP, leaves
 // LearnedSkills exactly at the floor, and rebuilds SkillSlots from skillRows.
-func (s *Service) resetOrdinarySkills(ctx context.Context, cur storage.Character, st *State, tree int) error {
+func (s *Service) resetOrdinarySkills(ctx context.Context, cur Character, st *State, tree int) error {
 	floor, e := s.skillFloor(cur, *st, tree)
 	if e != nil {
 		return e
@@ -103,7 +102,10 @@ func (s *Service) resetOrdinarySkills(ctx context.Context, cur storage.Character
 			if floor[id] >= rank {
 				continue
 			}
-			d, ok := s.Learning.index[cur.Profession][id]
+			d, ok, sourceErr := s.Learning.Definition(cur.Profession, id)
+			if sourceErr != nil {
+				return sourceErr
+			}
 			if !ok {
 				continue
 			}
@@ -170,7 +172,7 @@ func (d LearningDefinition) refundCostForState(state State, target int) (int, er
 // ResetResponse is the id29 tail frame for the Skill Reset window: the
 // purchase-success header (SP/TP) plus the variation blocks — filled 3+5
 // empty slots when the panel is unlocked, none otherwise.
-func (s *Service) ResetResponse(role storage.Character, tree byte) ([]byte, error) {
+func (s *Service) ResetResponse(role Character, tree byte) ([]byte, error) {
 	var state State
 	if e := json.Unmarshal(role.State, &state); e != nil {
 		return nil, e

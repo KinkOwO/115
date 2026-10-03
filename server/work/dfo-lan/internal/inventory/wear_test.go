@@ -5,13 +5,12 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"strings"
 	"testing"
 )
 
-func wearFixture(t *testing.T) (*WearService, storage.Character) {
+func wearFixture(t *testing.T) (*WearService, Role) {
 	t.Helper()
 	c, e := catalog.LoadCharacters("../../configs/characters.next25.json")
 	if e != nil {
@@ -34,7 +33,7 @@ func wearFixture(t *testing.T) (*WearService, storage.Character) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	return &WearService{Catalog: eq, Professions: c, BagRules: bagRules, Rules: rules}, storage.Character{Profession: 0, ConfigVersion: c.Source.Checksum, State: raw}
+	return &WearService{Catalog: eq, Professions: c, BagRules: bagRules, Rules: rules}, Role{Profession: 0, ConfigVersion: c.Source.SaveIdentity(), State: raw}
 }
 
 func TestWearUnequipPreservesAssetsAndOtherModules(t *testing.T) {
@@ -113,10 +112,10 @@ func TestWearCreatureEggHatchesOnEquip(t *testing.T) {
 		SHA256: strings.Repeat("1", 64),
 		Fields: map[string][]pvf.Token{
 			"[equipment type]": {{Type: 6, Text: "[creature]"}, {Type: 0, Value: 0}},
-			"[sub type]":        {{Type: 0, Value: 1}},
-			"[output index]":    {{Type: 0, Value: 63000}},
-			"[usable job]":      {{Type: 6, Text: "[all]"}},
-			"[minimum level]":   {{Type: 0, Value: 1}},
+			"[sub type]":       {{Type: 0, Value: 1}},
+			"[output index]":   {{Type: 0, Value: 63000}},
+			"[usable job]":     {{Type: 6, Text: "[all]"}},
+			"[minimum level]":  {{Type: 0, Value: 1}},
 		},
 	}
 	s.Catalog.index[63000] = EquipmentDefinition{
@@ -125,9 +124,9 @@ func TestWearCreatureEggHatchesOnEquip(t *testing.T) {
 		SHA256: strings.Repeat("2", 64),
 		Fields: map[string][]pvf.Token{
 			"[equipment type]": {{Type: 6, Text: "[creature]"}, {Type: 0, Value: 0}},
-			"[sub type]":        {{Type: 0, Value: 0}},
-			"[usable job]":      {{Type: 6, Text: "[all]"}},
-			"[minimum level]":   {{Type: 0, Value: 1}},
+			"[sub type]":       {{Type: 0, Value: 0}},
+			"[usable job]":     {{Type: 6, Text: "[all]"}},
+			"[minimum level]":  {{Type: 0, Value: 1}},
 		},
 	}
 
@@ -195,4 +194,3 @@ func TestWearCreatureEggHatchesOnEquip(t *testing.T) {
 		t.Fatalf("expected creature 63000 in space 7 slot 0, got: %+v", after2.Special[7])
 	}
 }
-

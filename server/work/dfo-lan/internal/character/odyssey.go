@@ -5,14 +5,14 @@ import (
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
+	"dfolan/internal/savecontract"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
 )
 
-func OdysseyRole(role storage.Character) bool {
+func OdysseyRole(role Character) bool {
 	// Graduation wins over every launcher tier: a graduated character is a
 	// regular character no matter what DFO_ODYSSEY_MODE says.
 	if OdysseyGraduated(role) {
@@ -30,13 +30,13 @@ func OdysseyRole(role storage.Character) bool {
 // per-character flag (XORSTR "[is arad odyssey user]"), so a launcher-forced
 // mode must not make the server apply a different level gate than the one the
 // client names in its own refusal message (DSTR 535).
-func CreatedAsOdyssey(role storage.Character) bool {
+func CreatedAsOdyssey(role Character) bool {
 	r, e := protocol.DecodeCreateRequest(role.Request)
 	return e == nil && len(r.Options) == 12 && r.Options[10] == 2
 }
 
-func (s *ProgressionService) ApplyOdysseyTarget(role storage.Character, target byte) (storage.Character, error) {
-	if s.Odyssey == nil || !OdysseyRole(role) || role.ConfigVersion != s.Odyssey.Source || target < 2 || target > 115 || target > s.Rules.LevelCap || int(target)-2 >= len(s.Catalog.Thresholds) {
+func (s *ProgressionService) ApplyOdysseyTarget(role Character, target byte) (Character, error) {
+	if s.Odyssey == nil || !OdysseyRole(role) || role.ConfigVersion != savecontract.Identity() || target < 2 || target > 115 || target > s.Rules.LevelCap || int(target)-2 >= len(s.Catalog.Thresholds) {
 		return role, fmt.Errorf("invalid Odyssey target/source/role")
 	}
 	var state State
@@ -84,7 +84,7 @@ func OdysseyExpandEquipMask(dungeonID uint32) (byte, bool) {
 
 // Completion owns this transaction, before notifying the client that the exit
 // portal is available. Ordinary card-result XP remains a separate receipt.
-func (s *ProgressionService) OdysseyClear(ctx context.Context, role storage.Character, run *dungeon.Session) (storage.Character, bool, error) {
+func (s *ProgressionService) OdysseyClear(ctx context.Context, role Character, run *dungeon.Session) (Character, bool, error) {
 	if s.Odyssey == nil || run == nil || !run.Definition.Odyssey || !run.Loaded || !run.Completed() || !OdysseyRole(role) {
 		return role, false, fmt.Errorf("Odyssey growth requires owned completed run")
 	}
@@ -103,7 +103,7 @@ func (s *ProgressionService) OdysseyClear(ctx context.Context, role storage.Char
 	// 未知 id，odysseyCompleted 读回来也会报 "unknown Odyssey journal dungeon"，
 	// 而「已通关列表」本来就只服务成长阶梯（journal 顺序门槛 / NOTI2856 进度）。
 	// 它们不在任何站点上，不记也不影响后续传送。
-	return s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, s.Odyssey.Source, "odyssey-growth:"+run.RunID, "odyssey-source-growth-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+	return s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, savecontract.Identity(), "odyssey-growth:"+run.RunID, "odyssey-source-growth-v1", func(current Character) (json.RawMessage, json.RawMessage, error) {
 		next := current
 		if target != 0 {
 			var e error
@@ -124,13 +124,13 @@ func (s *ProgressionService) OdysseyClear(ctx context.Context, role storage.Char
 				return nil, nil, e
 			}
 		}
-		proof, e := json.Marshal(map[string]any{"dungeon": run.Definition.ID, "target_level": target, "source": s.Odyssey.Source})
+		proof, e := json.Marshal(map[string]any{"dungeon": run.Definition.ID, "target_level": target, "source": savecontract.Identity()})
 		return next.State, proof, e
 	})
 }
 
-func (s *ProgressionService) odysseyRecordedTarget(role storage.Character) (byte, error) {
-	if s.Odyssey == nil || !OdysseyRole(role) || role.ConfigVersion != s.Odyssey.Source {
+func (s *ProgressionService) odysseyRecordedTarget(role Character) (byte, error) {
+	if s.Odyssey == nil || !OdysseyRole(role) || role.ConfigVersion != savecontract.Identity() {
 		return 0, nil
 	}
 	var saved struct {
@@ -154,12 +154,12 @@ func (s *ProgressionService) odysseyRecordedTarget(role storage.Character) (byte
 
 // Existing clear receipts wrote these server-owned best-time records even
 // before Odyssey growth existed. Do not grant catch-up from client claims.
-func (s *ProgressionService) OdysseyCatchup(ctx context.Context, role storage.Character) (storage.Character, bool, error) {
+func (s *ProgressionService) OdysseyCatchup(ctx context.Context, role Character) (Character, bool, error) {
 	target, e := s.odysseyRecordedTarget(role)
 	if e != nil || target == 0 {
 		return role, false, e
 	}
-	return s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, s.Odyssey.Source, fmt.Sprintf("odyssey-clear-catchup-v1:%d", target), "odyssey-source-growth-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+	return s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, savecontract.Identity(), fmt.Sprintf("odyssey-clear-catchup-v1:%d", target), "odyssey-source-growth-v1", func(current Character) (json.RawMessage, json.RawMessage, error) {
 		actual, e := s.odysseyRecordedTarget(current)
 		if e != nil {
 			return nil, nil, e

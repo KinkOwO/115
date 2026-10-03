@@ -6,6 +6,7 @@ import (
 	"dfolan/internal/character"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
+	"dfolan/internal/workflow"
 	"encoding/binary"
 	"fmt"
 	"time"
@@ -17,11 +18,11 @@ import (
 // no fatigue cost (or an exhausted fatigue pool) is answered before the
 // player presses anything.
 func (w *worldSession) canRechallenge(ctx context.Context) bool {
-	if w == nil || w.activeDungeon == nil || !w.activeDungeon.Completed() {
+	if w == nil {
 		return false
 	}
 	d := w.activeDungeon
-	if d.Definition.ID == blackPurgatorySquadDungeon {
+	if d == nil || !d.Completed() || d.Definition.ID == blackPurgatorySquadDungeon || d.Definition.Tower != nil {
 		return false
 	}
 	if w.fatigue == nil || d.Definition.NoFatigue || w.fatigue.Rules.RoomCost <= 0 {
@@ -35,6 +36,15 @@ func (w *worldSession) canRechallenge(ctx context.Context) bool {
 }
 
 func (w *worldSession) dungeonResult(p []byte) ([]outboundPacket, error) {
+	// [ISPINS-ARENA-BOSS] 伊斯大陆会话的 CMD46 整包吞掉：官服 s4 实证
+	// （c2s 帧 338/393/442/489）每阶段 boss 死亡后客户端都会发 141B 的
+	// 通用结算请求，但官服对它没有任何专门应答（s2c 全流无 kind=1 id=46；
+	// 结算链 N31 家族已在死亡时刻发出，也无 N34/N37/N26/N261/N19/N2758/
+	// N29/N21 通用结算族）。2026-10-03 四测：generic 路径发出这 8 个包后
+	// 客户端 1.2s 内 op=682 崩溃退出。
+	if w != nil && w.ispins != nil && w.activeDungeon != nil {
+		return nil, nil
+	}
 	if w == nil || w.progression == nil || w.activeDungeon == nil || !w.activeDungeon.Completed() || !w.completionSent {
 		return nil, fmt.Errorf("result before committed boss completion")
 	}
@@ -50,9 +60,30 @@ func (w *worldSession) dungeonResult(p []byte) ([]outboundPacket, error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	role, receipt, _, e := w.progression.Clear(ctx, w.role, w.activeDungeon, r.RankPoint, time.Now())
+	tower := w.activeDungeon.Definition.Tower
+	if tower != nil {
+		progress, _, err := w.towerProgress(ctx, tower)
+		if err != nil {
+			return nil, err
+		}
+		retry := progress.HighestCleared == tower.Floor && progress.LastRun == w.activeDungeon.RunID
+		if !retry && (progress.HighestCleared+1 != tower.Floor || progress.EntriesToday == 0) {
+			return nil, fmt.Errorf("%s tower clear is not the next available floor", tower.Key)
+		}
+	}
+	now := time.Now()
+	var awarder *inventory.Awarder
+	if w.loot != nil {
+		awarder = &inventory.Awarder{Catalog: w.loot.Catalog, Rules: w.loot.BagRules, Equipment: w.loot.Equipment}
+	}
+	role, receipt, _, e := w.progression.ClearWithTowerRewards(ctx, w.role, w.activeDungeon, r.RankPoint, now, awarder)
 	if e != nil {
 		return nil, e
+	}
+	if tower != nil {
+		if _, err := w.store.AdvanceTowerFloor(ctx, w.account, towerPolicy(tower), tower.Floor, w.activeDungeon.RunID); err != nil {
+			return nil, err
+		}
 	}
 	role.WireID = w.role.WireID
 	best := receipt.BestElapsed
@@ -70,7 +101,7 @@ func (w *worldSession) dungeonResult(p []byte) ([]outboundPacket, error) {
 			if e = binary.Read(rand.Reader, binary.LittleEndian, &seed); e != nil {
 				return nil, e
 			}
-			p, err := w.loot.FreezeCards(ctx, role, w.activeDungeon, *w.loot.CardPolicy, seed)
+			p, err := (&workflow.LootService{Store: w.store, Loot: w.loot}).FreezeCards(ctx, role, w.activeDungeon, *w.loot.CardPolicy, seed)
 			if err != nil {
 				return nil, err
 			}
@@ -94,8 +125,37 @@ func (w *worldSession) dungeonResult(p []byte) ([]outboundPacket, error) {
 	if e != nil {
 		return nil, e
 	}
+	var itemUpdate []byte
+	if len(receipt.TowerRewards) != 0 {
+		before, err := inventory.ReadBag(w.role.State)
+		if err != nil {
+			return nil, err
+		}
+		after, err := inventory.ReadBag(role.State)
+		if err != nil {
+			return nil, err
+		}
+		itemUpdate, err = protocol.InventoryUpdate(inventory.ChangedItemRows(before, after))
+		if err != nil {
+			return nil, err
+		}
+	}
 	w.role, w.level = role, experience[0]
 	plan := []outboundPacket{{"dungeon_play_result", 0, 34, notice}, {"dungeon_clear_experience", 0, 37, experience}, {"dungeon_clear_reward", 0, 35, reward}}
+	if len(itemUpdate) != 0 {
+		plan = append(plan, outboundPacket{"tower_inventory_reward", 0, 14, itemUpdate})
+	}
+	if tower != nil && tower.Key == "grief" {
+		rows := make([]protocol.TowerRewardItem, 0, len(receipt.TowerRewards))
+		for _, item := range receipt.TowerRewards {
+			rows = append(rows, protocol.TowerRewardItem{Template: item.Template, Amount: item.Amount})
+		}
+		body, err := protocol.TowerGriefClearReward(tower.Floor, rows...)
+		if err != nil {
+			return nil, err
+		}
+		plan = append(plan, outboundPacket{"tower_grief_clear_reward", 0, 1255, body})
+	}
 	// NOTI261（ENUM_NOTIPACKET_EPLP_RECHALLENGE）必须**跟在 NOTI35 之后**：
 	// 结算面板由 35 构建，261 只负责把「继续挑战」入口与右侧箭头置为可用（9）
 	// 或置灰（1）。不发它时面板照常显示，但入口永远点不动、右侧也不出箭头。

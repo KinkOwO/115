@@ -9,6 +9,7 @@ import (
 	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
 	"dfolan/internal/storage"
+	"dfolan/internal/workflow"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -204,7 +205,7 @@ func TestLotteryLegacyReceiptReplaysWithoutConsumingAnotherPot(t *testing.T) {
 	}
 }
 
-func lotteryEquipmentWear(t *testing.T) *inventory.WearService {
+func lotteryEquipmentWear(t *testing.T) *workflow.WearService {
 	t.Helper()
 	data := []byte(`{"source":{"checksum":"test"},"rows":[{"ID":10858,"Path":"equipment/test.equ","SHA256":"0000000000000000000000000000000000000000000000000000000000000000","Fields":{"[rarity]":[{"type":0,"value":3}],"[equipment type]":[{"type":6,"text":"[coat]"},{"type":0,"value":18}],"[durability]":[{"type":0,"value":60}]}}]}`)
 	path := filepath.Join(t.TempDir(), "equipment.json")
@@ -215,7 +216,7 @@ func lotteryEquipmentWear(t *testing.T) *inventory.WearService {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &inventory.WearService{Catalog: gear, BagRules: inventory.BagRules{EquipmentSlots: [2]uint16{9, 9}}}
+	return &workflow.WearService{WearService: inventory.WearService{Catalog: gear, BagRules: inventory.BagRules{EquipmentSlots: [2]uint16{9, 9}}}}
 }
 
 func TestLotteryEquipmentGrantAndFullBagRollback(t *testing.T) {

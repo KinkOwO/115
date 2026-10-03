@@ -1,6 +1,7 @@
 package character
 
 import (
+	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
 	"encoding/json"
 	"fmt"
@@ -16,9 +17,10 @@ type LearningDefinition struct {
 	Fields       map[string][]pvf.Token
 }
 type LearningCatalog struct {
-	Source pvf.ArchiveSnapshot  `json:"source"`
-	Rows   []LearningDefinition `json:"rows"`
-	index  map[byte]map[uint16]LearningDefinition
+	Source  pvf.ArchiveSnapshot  `json:"source"`
+	Rows    []LearningDefinition `json:"rows"`
+	index   map[byte]map[uint16]LearningDefinition
+	details *catalog.ScriptDetails[skillKey, LearningDefinition]
 }
 
 func LoadLearningCatalog(path string, source string) (*LearningCatalog, error) {
@@ -30,6 +32,10 @@ func LoadLearningCatalog(path string, source string) (*LearningCatalog, error) {
 	if e = json.Unmarshal(p, &c); e != nil {
 		return nil, e
 	}
+	return newLearningCatalog(c, source)
+}
+
+func newLearningCatalog(c LearningCatalog, source string) (*LearningCatalog, error) {
 	if c.Source.Checksum != source || len(c.Rows) == 0 {
 		return nil, fmt.Errorf("learning source mismatch")
 	}

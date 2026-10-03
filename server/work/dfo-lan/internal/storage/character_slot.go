@@ -2,15 +2,11 @@ package storage
 
 import (
 	"context"
+	"dfolan/internal/character"
 	"errors"
-	"fmt"
 )
 
-type CharacterSlotChange struct {
-	Swap, Before       bool
-	FromFixed, ToFixed bool
-	From, To           uint32
-}
+type CharacterSlotChange = character.CharacterSlotChange
 
 // changeCharacterSlots follows the native roster maps: pinning into an empty
 // grid cell preserves the roster index; swapping exchanges occupants at the
@@ -129,6 +125,5 @@ func (s *Store) ChangeCharacterSlots(ctx context.Context, account int64, r Chara
 	if err = tx.Commit(ctx); err != nil {
 		return err
 	}
-	s.Cache.Del(ctx, fmt.Sprintf("%scharacters:%d", s.prefix, account))
 	return nil
 }

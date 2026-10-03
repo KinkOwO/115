@@ -8,7 +8,6 @@ import (
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/game/wire"
-	"dfolan/internal/progression"
 	"dfolan/internal/storage"
 	"encoding/binary"
 	"encoding/hex"
@@ -22,7 +21,7 @@ import (
 
 // This exercises the real experience transaction and the death response plan,
 // not just ConfirmDeath with progression disabled. All writes use a disposable
-// schema and Redis prefix; no existing character is read or changed.
+// schema; no existing character is read or changed.
 func TestMonsterDeathAfterAdvancementIntegration(t *testing.T) {
 	if os.Getenv("MONSTER_DEATH_INTEGRATION") != "1" {
 		t.Skip("set MONSTER_DEATH_INTEGRATION=1 for isolated PostgreSQL integration")
@@ -49,7 +48,7 @@ func TestMonsterDeathAfterAdvancementIntegration(t *testing.T) {
 			t.Error(err)
 		}
 	}()
-	cfg.PostgresSchema, cfg.RedisPrefix = schema, schema+":"
+	cfg.PostgresSchema = schema
 	store, err := storage.Open(ctx, cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -72,7 +71,7 @@ func TestMonsterDeathAfterAdvancementIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rules, err := progression.LoadRules("../../configs/experience.compat90.json")
+	rules, err := character.LoadGrowthRules("../../configs/experience.compat90.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,7 +82,7 @@ func TestMonsterDeathAfterAdvancementIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	role := storage.Character{AccountID: account, Name: "DeathAfterAdvance", WireID: 10, Profession: 12, State: raw, Request: []byte{0}, ConfigVersion: professions.Source.Checksum}
+	role := storage.Character{AccountID: account, Name: "DeathAfterAdvance", WireID: 10, Profession: 12, State: raw, Request: []byte{0}, ConfigVersion: professions.Source.SaveIdentity()}
 	role, _, err = ps.ApplyGain(role, pc.Thresholds[13])
 	if err != nil {
 		t.Fatal(err)

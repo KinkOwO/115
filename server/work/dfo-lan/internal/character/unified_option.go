@@ -3,9 +3,40 @@ package character
 import (
 	"context"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"fmt"
+	"time"
 )
+
+// 账号没有保存此选项时返回0，让协议层保留原有默认显示。
+func growthEffectFlags(options map[uint16]uint16) byte {
+	value, ok := options[protocol.GrowthEffectOption]
+	if !ok {
+		return 0
+	}
+	flags, _ := protocol.GrowthEffectFlags(value)
+	return flags
+}
+
+func (s *Service) roleGrowthEffectFlags(role Character) (byte, error) {
+	if s.Store == nil {
+		return 0, nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	options, err := s.Store.AccountUnifiedOptions(ctx, role.AccountID)
+	if err != nil {
+		return 0, err
+	}
+	return growthEffectFlags(options), nil
+}
+
+// 1403F64D0读取角色设置分组5的第98项；1403DFE70仅将1视为显示光环。
+// 原版etc/unifiedoption/unifiedoption.ctp的CAEE默认值为1；未保存或
+// 0xffff沿用这个默认值，不覆盖玩家主动关闭的设置。
+func auraEffectVisible(options map[uint16]uint16) bool {
+	value, ok := options[98]
+	return !ok || value == 0xffff || value == 1
+}
 
 // SaveSkillLocks merges one CMD2377 skill lock frame (subtype 0x13) into the
 // character's stored set.
@@ -15,7 +46,7 @@ import (
 // compact pages from it. That is also why a frame whose first position is a page
 // boundary rebuilds that page - the client re-states the page it owns instead of
 // sending an incremental delta.
-func (s *Service) SaveSkillLocks(ctx context.Context, role storage.Character, key string, opt protocol.UnifiedOption) ([]uint16, bool, error) {
+func (s *Service) SaveSkillLocks(ctx context.Context, role Character, key string, opt protocol.UnifiedOption) ([]uint16, bool, error) {
 	if s.Store == nil {
 		return nil, false, fmt.Errorf("skill lock storage unavailable")
 	}

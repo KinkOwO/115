@@ -84,6 +84,10 @@ func skillMutationResponsePlan(cs *character.Service, saved storage.Character, i
 		if err != nil {
 			return nil, err
 		}
+		plan, err = appendComboSkillRestore(plan, cs, saved)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return plan, nil
 }

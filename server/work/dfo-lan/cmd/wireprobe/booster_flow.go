@@ -9,6 +9,7 @@ import (
 	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
 	"dfolan/internal/storage"
+	"dfolan/internal/workflow"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -29,79 +30,18 @@ const MaxExpireTime = math.MaxInt32
 // durabilityOptional（首饰、称号、辅助装备、魔法石、耳环……）时返回 0 且无错，
 // 那本来就是 0；其余情况解析不出来时返回错误，由调用方记日志后按 0 发放——
 // 不能因此拒绝开箱，否则"拿不到东西"比"拿到 0 耐久"更糟。
-func boosterEquipmentDurability(wear *inventory.WearService, id uint32) (uint16, error) {
+func boosterEquipmentDurability(wear *workflow.WearService, id uint32) (uint16, error) {
 	if wear == nil || wear.Catalog == nil {
 		return 0, fmt.Errorf("no equipment catalog loaded")
 	}
 	return wear.Catalog.Reward(id)
 }
 
-type BoosterRewardCandidate struct {
-	Template uint32 `json:"template"`
-	Weight   uint32 `json:"weight"`
-	Count    uint32 `json:"count"`
-}
+type BoosterRewardCandidate = catalog.BoosterRewardCandidate
+type BoosterRewardPool = catalog.BoosterRewardPool
+type BoosterDefinition = catalog.BoosterDefinition
 
-type BoosterRewardPool struct {
-	DrawCount  uint32                   `json:"draw_count"`
-	Candidates []BoosterRewardCandidate `json:"candidates"`
-}
-
-func (p BoosterRewardPool) Pick(r *rand.Rand) []BoosterRewardCandidate {
-	if len(p.Candidates) == 0 {
-		return nil
-	}
-	if len(p.Candidates) == 1 {
-		return []BoosterRewardCandidate{p.Candidates[0]}
-	}
-	var totalWeight uint32
-	for _, c := range p.Candidates {
-		totalWeight += c.Weight
-	}
-	if totalWeight == 0 {
-		totalWeight = uint32(len(p.Candidates))
-	}
-	draws := p.DrawCount
-	if draws == 0 {
-		draws = 1
-	}
-	var results []BoosterRewardCandidate
-	for d := uint32(0); d < draws; d++ {
-		roll := r.Uint32() % totalWeight
-		var acc uint32
-		picked := false
-		for _, c := range p.Candidates {
-			w := c.Weight
-			if c.Weight == 0 {
-				w = 1
-			}
-			acc += w
-			if roll < acc {
-				results = append(results, c)
-				picked = true
-				break
-			}
-		}
-		if !picked {
-			results = append(results, p.Candidates[len(p.Candidates)-1])
-		}
-	}
-	return results
-}
-
-type BoosterDefinition struct {
-	Template uint32              `json:"template"`
-	Type     string              `json:"type"`
-	Pools    []BoosterRewardPool `json:"pools,omitempty"`
-}
-
-type ItemIndexInfo struct {
-	ID            uint32 `json:"id"`
-	Path          string `json:"path"`
-	Kind          string `json:"kind"`
-	StackableType string `json:"stackable_type"`
-	StackLimit    uint32 `json:"stack_limit"`
-}
+type ItemIndexInfo = catalog.ItemIndexEntry
 
 type BoosterCatalog struct {
 	Definitions map[uint32]BoosterDefinition
@@ -233,6 +173,16 @@ func (s boosterBoxSource) Container(template uint32) bool {
 	if !ok {
 		return false
 	}
+	// `[booster selection]` 是**选择箱**，不是「打不开的盒子」：模板自带
+	// [booster select category] / [equipment] 候选表，玩家在客户端自己打开并从中挑一件，
+	// 服务端既不展开也不该拦它 —— 它在 index.go 里是 typeConsumable，能正常落地进背包。
+	// 判成容器会让整条奖励分支被判「unopenable」而**静默不发**
+	// （2026-10-01 实测：千海天深渊奖励表里 10401416/10401429/10417539/10417540/
+	// 10417548/10417549/10420581/10420594 这 8 个选择箱就是这样被丢掉的）。
+	// 只按类型字符串排除：带 [booster info] 的真礼包已在上面按 Definitions 返回 true。
+	if item.StackableType == "[booster selection]" {
+		return false
+	}
 	return strings.Contains(strings.ToLower(item.StackableType), "booster")
 }
 
@@ -290,7 +240,7 @@ func commitBoosterEvent(ctx context.Context, store boosterEventStore, role stora
 func (w *worldSession) openBoosterItem(
 	ctx context.Context,
 	store boosterEventStore,
-	wear *inventory.WearService,
+	wear *workflow.WearService,
 	lootSvc *loot.Service,
 	boosterCat *BoosterCatalog,
 	choices odysseyWeaponChoices,
@@ -615,7 +565,7 @@ func (w *worldSession) openBoosterItem(
 				}
 				for cnt := uint32(0); cnt < g.Count; cnt++ {
 					foundSlot := false
-					for s := uint16(0); s < 210; s++ {
+					for s := uint16(0); s < protocol.AvatarInventorySlots(b.AvatarExpansion); s++ {
 						if !occupied[s] {
 							occupied[s] = true
 							if b.Special == nil {

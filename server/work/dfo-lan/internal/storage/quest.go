@@ -2,19 +2,17 @@ package storage
 
 import (
 	"context"
+	"dfolan/internal/quest"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/jackc/pgx/v5"
 )
 
-type QuestState struct {
-	ID            uint16 `json:"id"`
-	Status        string `json:"status"`
-	Progress      uint32 `json:"progress"`
-	ConfigVersion string `json:"config_version"`
-	ProgressModel string `json:"progress_model"`
-}
+// QuestState retains the storage API while the quest domain owns its schema.
+type QuestState = quest.QuestState
+
+var _ quest.Store = (*Store)(nil)
 
 func (s *Store) MigrateQuests(ctx context.Context) error {
 	_, e := s.DB.Exec(ctx, `CREATE TABLE IF NOT EXISTS character_quests (
@@ -124,6 +122,20 @@ func (s *Store) AbandonQuest(ctx context.Context, account, characterID int64, qi
 	}
 	if tag.RowsAffected() != 1 {
 		return errors.New("quest is not active for this character")
+	}
+	return nil
+}
+
+// MarkMeetNPCQuest records the native meet-NPC progress transition for an
+// owned accepted quest. SQL ownership stays here so quest rules do not need to
+// know the character_quests table shape or its ownership predicates.
+func (s *Store) MarkMeetNPCQuest(ctx context.Context, account, characterID int64, qid uint16, version, model string) error {
+	tag, err := s.DB.Exec(ctx, `UPDATE character_quests q SET progress=0 FROM characters c WHERE c.id=q.character_id AND c.account_id=$1 AND c.id=$2 AND c.deleted_at IS NULL AND q.quest_id=$3 AND q.status='accepted' AND q.config_version=$4 AND q.progress_model=$5 AND q.progress IN (0,1)`, account, characterID, qid, version, model)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() != 1 {
+		return errors.New("NPC quest is not active for this owner")
 	}
 	return nil
 }

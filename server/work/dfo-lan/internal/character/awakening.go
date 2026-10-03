@@ -2,14 +2,15 @@ package character
 
 import (
 	"dfolan/internal/catalog/pvf"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 )
 
 // 14563eee3 extracts growtype from the low nibble and stage from bits4..6.
+// Branchless professions keep advancement 0 after awakening. Eligibility is
+// checked by ApplyAwakening against the profession's growtype-0 source grants.
 func (s State) WireAdvancement() (byte, error) {
-	if s.Advancement > 15 || s.Awakening > 3 || s.Awakening != 0 && s.Advancement == 0 {
+	if s.Advancement > 15 || s.Awakening > 3 {
 		return 0, fmt.Errorf("invalid advancement/stage")
 	}
 	return s.Advancement | s.Awakening<<4, nil
@@ -97,7 +98,7 @@ func (d LearningDefinition) costForState(state State, target int, known map[uint
 	return d.costForLevel(state, int(state.Level), target, known)
 }
 
-func (s *Service) ApplyAwakening(role storage.Character, stage byte) (json.RawMessage, error) {
+func (s *Service) ApplyAwakening(role Character, stage byte) (json.RawMessage, error) {
 	var state State
 	if err := json.Unmarshal(role.State, &state); err != nil {
 		return nil, err
@@ -105,7 +106,15 @@ func (s *Service) ApplyAwakening(role storage.Character, stage byte) (json.RawMe
 	if _, err := state.WireAdvancement(); err != nil {
 		return nil, err
 	}
-	if stage < 1 || stage > 3 || stage > state.Awakening+1 || state.Advancement == 0 {
+	// The sole [growtype 1] block of demonic swordman and creator mage
+	// carries [awakening 1..3]. Absence of branches alone is insufficient:
+	// require source grants in column 0 so an incomplete catalog stays refused.
+	// CMD2177 stage 1 at advancement 0 was captured in the 2026-09-26 handoff.
+	branchlessAwakening := false
+	if prof, ok := s.Catalog.Professions[role.Profession]; ok {
+		branchlessAwakening = len(prof.AdvancementGrowth) == 0 && len(prof.AwakeningSkills[0]) > 0
+	}
+	if stage < 1 || stage > 3 || stage > state.Awakening+1 || (state.Advancement == 0 && !branchlessAwakening) {
 		return nil, fmt.Errorf("awakening must progress sequentially")
 	}
 	if stage <= state.Awakening {
@@ -115,7 +124,7 @@ func (s *Service) ApplyAwakening(role storage.Character, stage byte) (json.RawMe
 		return nil, fmt.Errorf("awakening level requirement not met")
 	}
 	prof, ok := s.Catalog.Professions[role.Profession]
-	if !ok || prof.RawSHA256 != state.SourceSHA256 || role.ConfigVersion != s.Catalog.Source.Checksum {
+	if !ok || prof.RawSHA256 != state.SourceSHA256 || role.ConfigVersion != s.Catalog.Source.SaveIdentity() {
 		return nil, fmt.Errorf("awakening source mismatch")
 	}
 	grants := prof.AwakeningSkills[state.Advancement][stage]
@@ -124,7 +133,10 @@ func (s *Service) ApplyAwakening(role storage.Character, stage byte) (json.RawMe
 	}
 	for i := 0; i < len(grants); i += 2 {
 		id, rank := grants[i], grants[i+1]
-		d, ok := s.Learning.index[role.Profession][uint16(id)]
+		d, ok, sourceErr := s.Learning.Definition(role.Profession, uint16(id))
+		if sourceErr != nil {
+			return nil, sourceErr
+		}
 		// Membership in the profession's .chr awakening block authorizes this
 		// grant; awakened skills deliberately have zero base-growtype caps.
 		if id <= 0 || id > 65535 || rank <= 0 || rank > 255 || !ok {

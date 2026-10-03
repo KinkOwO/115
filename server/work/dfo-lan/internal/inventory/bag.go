@@ -31,7 +31,25 @@ func (r BagRules) Quick(slot uint16) bool {
 	return r.QuickSlots != [2]uint16{} && slot >= r.QuickSlots[0] && slot <= r.QuickSlots[1]
 }
 
-func LoadBagRules(p string) (BagRules, error) {
+// LoadBagRules 读取背包槽位策略。
+//
+// 可选 source 参数（2026-10-01，next146）：直读模式下调用方传入当次内层 checksum。
+//
+// 与 LoadWearRules 的差别，以及为什么这里用**覆盖**而不是拒绝：背包规则表的
+// `source` 不是"某个 PVF 的实时指纹"，而是**整批 configs/*.json 导出族的批次标记** ——
+// loot.next25 / inventory.next29 / compat90 / equipment.current37 等全部写着同一个
+// 历史值，`Bag.Disjoint` 只拿它断言"规则表和掉落目录来自同一批导出"。
+// 直读模式下服务端是**现场从内层 PVF 推导**目录的，调用方传进来的 checksum 就是权威身份，
+// 文件里那个历史批次值必须被它取代；若在这里硬拒，内层一重建（哈希必变）启动就又断了。
+//
+// 覆盖/回填是**必需的**：BagRules.Source 同时是运行时不变量（amplify / enchant /
+// inherit / refine / reinforcement / vault_transfer / stack_request / pet_move 都拿它比
+// role.ConfigVersion，main.go 也拿它比掉落目录的 checksum），只在文件里留空而不回填
+// 会让这些操作在运行时全被拒。
+//
+// 不传 source（cmd/admin、cmd/gmtool、cmd/charactercheck 等旧调用方）→ 保持旧契约：
+// 文件里必须写死 64 位哈希。
+func LoadBagRules(p string, source ...string) (BagRules, error) {
 	var r BagRules
 	b, e := os.ReadFile(p)
 	if e != nil {
@@ -40,7 +58,21 @@ func LoadBagRules(p string) (BagRules, error) {
 	if e = json.Unmarshal(b, &r); e != nil {
 		return r, e
 	}
-	if r.Model != "reference90-bag-v1" || len(r.Source) != 64 || r.MissingStackLimit == 0 {
+	derived := ""
+	if len(source) > 0 {
+		derived = source[0]
+	}
+	if r.Model != "reference90-bag-v1" || r.MissingStackLimit == 0 {
+		return r, fmt.Errorf("invalid bag policy")
+	}
+	if derived != "" {
+		// 直读模式：调用方的实时 checksum 权威，覆盖文件里的历史批次标记（含留空）。
+		if len(derived) != 64 {
+			return r, fmt.Errorf("bag rules source mismatch")
+		}
+		r.Source = derived
+	} else if len(r.Source) != 64 {
+		// 旧调用方：文件必须自带 64 位批次标记。
 		return r, fmt.Errorf("invalid bag policy")
 	}
 	seen := map[uint16]bool{}
@@ -85,15 +117,27 @@ type BagItem struct {
 	ExpireTime       uint32 `json:"expire_time,omitempty"`
 }
 type Bag struct {
-	Expansion byte                    `json:"expansion,omitempty"`
-	Version   string                  `json:"version"`
-	Gold      uint32                  `json:"gold"`
-	Coin      uint32                  `json:"coin,omitempty"`
-	Items     []BagItem               `json:"items"`
-	PetItems  []BagItem               `json:"pet_items,omitempty"`
-	Equipment []BagEquipment          `json:"equipment,omitempty"`
-	Worn      []BagEquipment          `json:"worn,omitempty"`
-	Special   map[byte][]BagEquipment `json:"special_equipment,omitempty"`
+	// Missing in legacy saves; fences atomic emblem insertion/replacement.
+	EmblemInlaySeq uint64 `json:"emblem_inlay_seq,omitempty"`
+
+	// Old inventories omit the sequence and start at zero. It distinguishes
+	// repeated compounds using stacks that keep the same slots and templates.
+	EmblemCompoundSeq uint64 `json:"emblem_compound_seq,omitempty"`
+
+	// Legacy inventories omit this field and keep their original avatar capacity.
+	AvatarExpansion byte                    `json:"avatar_expansion,omitempty"`
+	Expansion       byte                    `json:"expansion,omitempty"`
+	Version         string                  `json:"version"`
+	Gold            uint32                  `json:"gold"`
+	Coin            uint32                  `json:"coin,omitempty"`
+	Items           []BagItem               `json:"items"`
+	PetItems        []BagItem               `json:"pet_items,omitempty"`
+	Equipment       []BagEquipment          `json:"equipment,omitempty"`
+	Worn            []BagEquipment          `json:"worn,omitempty"`
+	Special         map[byte][]BagEquipment `json:"special_equipment,omitempty"`
+	// Missing in legacy saves. Socket zero is projected from Worn slot 24;
+	// the other four entries are the client's Reserved shield positions.
+	KnightShieldDeck []uint32 `json:"knight_shield_deck,omitempty"`
 	// CreatureExperience is keyed by the creature instance key stored in its
 	// equipment record. Older saves omit it and start at zero experience.
 	CreatureExperience map[uint32]uint32 `json:"creature_experience,omitempty"`
@@ -135,6 +179,12 @@ type Bag struct {
 	// 玩家看到的就是「替换不生效、状态停在 B」（实机 2026-09-27）。
 	// 把序号一起编进键，每次真实切换都是新键；序号本身不参与任何投影。
 	WeaponSkinSeq uint32 `json:"weapon_skin_seq,omitempty"`
+	// AvatarDisjointSeq separates successive instances of the same avatar in
+	// the same slot. Old saves begin at zero; it is not sent to the client.
+	AvatarDisjointSeq uint64 `json:"avatar_disjoint_seq,omitempty"`
+	// Old saves start at zero. Successive opening operations get distinct receipts.
+	AvatarSocketSeq uint64 `json:"avatar_socket_seq,omitempty"`
+	AvatarRecastSeq uint64 `json:"avatar_recast_seq,omitempty"`
 }
 
 // WeaponSlot 是穿戴容器（list 3）里的武器槽。[equipment type] 的序号空间里
@@ -183,6 +233,9 @@ func ReadBag(state json.RawMessage) (Bag, error) {
 	filtered := make([]BagItem, 0, len(b.Items))
 	if b.Expansion > 2 {
 		return b, fmt.Errorf("背包扩展档位超出客户端范围")
+	}
+	if b.AvatarExpansion > protocol.MaxAvatarInventoryExpansion {
+		return b, fmt.Errorf("时装栏扩展档位超出客户端范围")
 	}
 	for _, i := range b.Items {
 		if i.Template == 1 {
@@ -256,9 +309,66 @@ func ReadBag(state json.RawMessage) (Bag, error) {
 	}
 	return b, nil
 }
+
+// durabilityLimit 由启动期注入：给定模板返回源 `.equ` 里的 `[durability]` 上限。
+// nil 时不做任何修正（行为与修复前一致）。
+var durabilityLimit func(template uint32) (uint16, bool)
+
+// SetDurabilityLimit 安装"装备耐久上限"查询源（cmd/wireprobe 装载完装备目录后调用）。
+//
+// 为什么需要它：每件装备的**耐久上限**写在源 `.equ` 的 `[durability]`（例如 11701025x
+// 武器是 48），而耐久是**服务端权威**的实例字段。一旦有别的写入方把它写成超过上限的值
+// （实机 2026-09-30：存档里出现 `100/48`），客户端会判定这件装备**非法** —— 表现正是
+// "不能在装备库里登记 / 分解点不动 / 装备变换界面卡死"。落库前统一 clamp 是最省事也最
+// 彻底的堵口：无论耐久从哪来（GM 工具、外部脚本、旧数据），写进存档时都合法。
+func SetDurabilityLimit(fn func(template uint32) (uint16, bool)) { durabilityLimit = fn }
+
+// clampDurability 把超出源上限的耐久压回上限。上限查不到、或为 0（该部位本来就无耐久
+// 上限，如首饰/称号）时**不动**，避免把这类部位误改成 0。
+func clampDurability(items []BagEquipment) {
+	if durabilityLimit == nil {
+		return
+	}
+	for i := range items {
+		if items[i].Template == 0 {
+			continue
+		}
+		if max, ok := durabilityLimit(items[i].Template); ok && max > 0 && items[i].Durability > max {
+			items[i].Durability = max
+		}
+	}
+}
+
 func SaveBag(state json.RawMessage, b Bag) (json.RawMessage, error) {
+	if b.AvatarExpansion > protocol.MaxAvatarInventoryExpansion {
+		return nil, fmt.Errorf("时装栏扩展档位超出客户端范围")
+	}
 	if b.Expansion > 2 {
 		return nil, fmt.Errorf("背包扩展档位超出客户端范围")
+	}
+
+	// [ALIGN-20260930-DURABILITY] 落库前 clamp 耐久（见 SetDurabilityLimit 的说明）。
+	// 先拷贝切片，避免就地改到调用方那份 Bag。
+	b.Worn = append([]BagEquipment(nil), b.Worn...)
+	b.Equipment = append([]BagEquipment(nil), b.Equipment...)
+	if len(b.Special) > 0 {
+		m := make(map[byte][]BagEquipment, len(b.Special))
+		for space, rows := range b.Special {
+			m[space] = append([]BagEquipment(nil), rows...)
+		}
+		b.Special = m
+	}
+	clampDurability(b.Worn)
+	clampDurability(b.Equipment)
+	for _, rows := range b.Special {
+		clampDurability(rows)
+	}
+	if len(b.KnightShieldDeck) > 0 {
+		if len(b.KnightShieldDeck) > protocol.KnightDeckSize {
+			return nil, fmt.Errorf("saved knight deck exceeds five slots")
+		}
+		deck := b.KnightDeck()
+		b.KnightShieldDeck = append([]uint32(nil), deck[:]...)
 	}
 	var fields map[string]json.RawMessage
 	if e := json.Unmarshal(state, &fields); e != nil {
@@ -320,7 +430,7 @@ func (b Bag) RowAt(slot uint16) ([protocol.CurrentItemRecordSize]byte, bool) {
 // Add updates the whole bag in the caller's character transaction. It does
 // not silently spill, drop or partially grant a stack when the bag is full.
 func (b Bag) Add(c catalog.LootCatalog, r BagRules, id, amount uint32, expireTime ...uint32) (Bag, uint16, error) {
-	if amount == 0 || r.Source != c.Source.Checksum {
+	if amount == 0 {
 		return b, 0, fmt.Errorf("invalid inventory award/source")
 	}
 	var exp uint32
@@ -346,6 +456,11 @@ func (b Bag) Add(c catalog.LootCatalog, r BagRules, id, amount uint32, expireTim
 	if !ok || item.Kind != "stackable" {
 		return b, 0, fmt.Errorf("unsupported source item")
 	}
+	if c.HasRuntimeDetails() {
+		if _, err := c.ItemScript(id); err != nil {
+			return b, 0, err
+		}
+	}
 	if IsPetConsumable(item.StackableType) {
 		return b.addPetStack(r, id, amount, exp, item.StackLimit)
 	}
@@ -365,7 +480,10 @@ func (b Bag) Add(c catalog.LootCatalog, r BagRules, id, amount uint32, expireTim
 		if exp != 0 && row.ExpireTime != 0 && row.ExpireTime != exp {
 			continue
 		}
-		if row.Template == id && row.Slot >= slots[0] && row.Slot <= slots[1] && row.Amount < limit {
+		// 快捷栏上的同模板堆就是这堆本身（next79 2026-10-03）：发放必须并进
+		// 它，否则段内另起一叠、客户端陷入 findItemSlot "multiple slot issues"
+		// 死循环。belt 行作合并目标与其余守卫（期限、上限）完全同规则。
+		if row.Template == id && (r.Quick(row.Slot) || row.Slot >= slots[0] && row.Slot <= slots[1]) && row.Amount < limit {
 			added := min(amount, limit-row.Amount)
 			b.Items[i].Amount += added
 			amount -= added
@@ -388,8 +506,14 @@ func (b Bag) Add(c catalog.LootCatalog, r BagRules, id, amount uint32, expireTim
 }
 
 // SweepStackSlots relocates saved stackables with known categories. It leaves
-// quick slots and unknown types alone, and returns the original bag on any
-// placement error so a failed migration cannot lose an item.
+// unknown types alone, and returns the original bag on any placement error so
+// a failed migration cannot lose an item.
+//
+// 快捷栏行（slot<=8）不再整体豁免（2026-10-03，next79 待机区闪退）：客户端把
+// 堆拖上快捷栏后，那一行就是这堆本身（实机 20260912T004320，CMD19 65→3）。
+// 同模板在 belt 和类型段各有一行时，客户端 findItemSlot 陷入 "multiple slot
+// issues" 死循环（032305 会话 79374 次告警，待机区场景永不完成、约 11 分钟后
+// 崩）。修复方向：belt 行并入段内行后删除；belt 上唯一的堆仍受保护。
 func SweepStackSlots(b Bag, c catalog.LootCatalog, r BagRules) (Bag, bool, error) {
 	next := b
 	next.Items = append([]BagItem(nil), b.Items...)
@@ -397,8 +521,38 @@ func SweepStackSlots(b Bag, c catalog.LootCatalog, r BagRules) (Bag, bool, error
 	for i := 0; i < len(next.Items); {
 		row := next.Items[i]
 		definition, ok := c.Items[row.Template]
-		if !ok || definition.Kind != "stackable" || row.Slot <= 8 || IsPetConsumable(definition.StackableType) {
+		if !ok || definition.Kind != "stackable" || IsPetConsumable(definition.StackableType) {
 			i++
+			continue
+		}
+		if row.Slot <= 8 {
+			// 同模板在类型段有行且能吸收时并入；期限不同的堆不并（继承
+			// 另一堆的期限会改变到期语义）。段内行已满时 belt 保留剩余
+			// （满堆分堆是官服合法状态）。
+			slots := stackableSlotRange(r, definition.StackableType)
+			limit := stackLimitFor(r, definition.StackableType, definition.StackLimit)
+			target := -1
+			for j, other := range next.Items {
+				if other.Slot >= slots[0] && other.Slot <= slots[1] &&
+					other.Template == row.Template && other.ExpireTime == row.ExpireTime &&
+					other.Amount < limit {
+					target = j
+					break
+				}
+			}
+			if target < 0 {
+				i++
+				continue
+			}
+			added := min(row.Amount, limit-next.Items[target].Amount)
+			next.Items[target].Amount += added
+			next.Items[i].Amount -= added
+			if next.Items[i].Amount == 0 {
+				next.Items = append(next.Items[:i], next.Items[i+1:]...)
+			} else {
+				i++
+			}
+			moved = true
 			continue
 		}
 		slots, known := classifyStackableSlot(r, definition.StackableType)

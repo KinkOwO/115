@@ -9,10 +9,9 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 )
 
-// 这一组用例盯住「装备继承」的**业务落地**：applyInherit 只依赖装备目录与角色
+// 这一组用例盯住「装备继承」的**业务落地**：ApplyInherit 只依赖装备目录与角色
 // 存档里的背包 JSON，不需要数据库，所以能在普通 `go test` 里跑完整条链路。
 //
 // 起因：CMD1722 曾经整条没有分派 —— 服务层与流程层都在，就是没人调，客户端按下
@@ -44,7 +43,7 @@ const (
 // inheritFixture 装两件装备：matLevel 是材料件的强化/增幅等级（高），matType 是
 // 次元类型；基础件等级恒 0，baseSeal 是它自己的再封装次数，用来验证不被覆盖。
 // worn = true 时材料件穿在身上（容器 3），否则两件都在背包（容器 0）。
-func inheritFixture(t *testing.T, matLevel, matType, matValue, baseSeal byte, worn bool) (*WearService, storage.Character) {
+func inheritFixture(t *testing.T, matLevel, matType, matValue, baseSeal byte, worn bool) (*WearService, Role) {
 	t.Helper()
 	c, e := catalog.LoadCharacters("../../configs/characters.next25.json")
 	if e != nil {
@@ -87,7 +86,7 @@ func inheritFixture(t *testing.T, matLevel, matType, matValue, baseSeal byte, wo
 	if e != nil {
 		t.Fatal(e)
 	}
-	return &WearService{Catalog: eq}, storage.Character{ID: 1, ConfigVersion: c.Source.Checksum, State: state}
+	return &WearService{Catalog: eq}, Role{ConfigVersion: c.Source.SaveIdentity(), State: state}
 }
 
 // inheritEntry 造一条继承记录：A 侧 = 材料件，B 侧 = 基础件（方向由服务层按等级定，
@@ -104,10 +103,10 @@ func inheritEntry(matSpace, baseSpace byte) protocol.InheritEntry {
 	}
 }
 
-// applyOne 是对 applyInherit 的单记录便捷封装：返回落库后的 state 与唯一回执。
-func applyOne(t *testing.T, svc *WearService, role storage.Character, e protocol.InheritEntry) (json.RawMessage, InheritReceipt) {
+// applyOne 是对 ApplyInherit 的单记录便捷封装：返回落库后的 state 与唯一回执。
+func applyOne(t *testing.T, svc *WearService, role Role, e protocol.InheritEntry) (json.RawMessage, InheritReceipt) {
 	t.Helper()
-	next, receipts, err := svc.applyInherit(role, []protocol.InheritEntry{e})
+	next, receipts, err := svc.ApplyInherit(role, []protocol.InheritEntry{e})
 	if err != nil {
 		t.Fatalf("继承落库失败: %v", err)
 	}
@@ -151,7 +150,7 @@ func inheritGearAt(t *testing.T, state json.RawMessage, slot uint16) BagEquipmen
 }
 
 // setMatEnchant 给材料件写附魔卡（供附魔继承用例），返回新 state。
-func setMatEnchant(t *testing.T, role storage.Character, card uint32) storage.Character {
+func setMatEnchant(t *testing.T, role Role, card uint32) Role {
 	t.Helper()
 	bag, e := ReadBag(role.State)
 	if e != nil {
@@ -203,7 +202,7 @@ func TestApplyInheritTransfersLevelTypeAndValue(t *testing.T) {
 // dstr 69059 写的是 lose all its ... levels，不是 disappear —— 删错了不可逆。
 func TestApplyInheritZeroesButKeepsMaterialItem(t *testing.T) {
 	svc, role := inheritFixture(t, 15, 1, 7, 0, false)
-	next, _, err := svc.applyInherit(role, []protocol.InheritEntry{inheritEntry(0, 0)})
+	next, _, err := svc.ApplyInherit(role, []protocol.InheritEntry{inheritEntry(0, 0)})
 	if err != nil {
 		t.Fatalf("继承落库失败: %v", err)
 	}
@@ -275,7 +274,7 @@ func TestApplyInheritFallsBackToOtherSpace(t *testing.T) {
 func TestApplyInheritRejectsEqualLevels(t *testing.T) {
 	// 两件都是 0 级（fixture 里基础件恒 0 级，材料件也传 0）。
 	svc, role := inheritFixture(t, 0, 0, 0, 0, false)
-	if _, _, err := svc.applyInherit(role, []protocol.InheritEntry{inheritEntry(0, 0)}); err == nil ||
+	if _, _, err := svc.ApplyInherit(role, []protocol.InheritEntry{inheritEntry(0, 0)}); err == nil ||
 		!strings.Contains(err.Error(), "等级相同") {
 		t.Fatalf("两件等级相同应拒绝，实际 %v", err)
 	}
@@ -286,7 +285,7 @@ func TestApplyInheritRejectsSameItem(t *testing.T) {
 	svc, role := inheritFixture(t, 12, 1, 5, 0, false)
 	e := inheritEntry(0, 0)
 	e.SlotB, e.TemplateB = e.SlotA, e.TemplateA
-	if _, _, err := svc.applyInherit(role, []protocol.InheritEntry{e}); err == nil ||
+	if _, _, err := svc.ApplyInherit(role, []protocol.InheritEntry{e}); err == nil ||
 		!strings.Contains(err.Error(), "同一格") {
 		t.Fatalf("同一件应拒绝，实际 %v", err)
 	}
@@ -297,7 +296,7 @@ func TestApplyInheritRejectsTemplateMismatch(t *testing.T) {
 	svc, role := inheritFixture(t, 12, 1, 5, 0, false)
 	e := inheritEntry(0, 0)
 	e.TemplateB = inheritBaseTmpl + 1
-	if _, _, err := svc.applyInherit(role, []protocol.InheritEntry{e}); err == nil ||
+	if _, _, err := svc.ApplyInherit(role, []protocol.InheritEntry{e}); err == nil ||
 		!strings.Contains(err.Error(), "找不到模板") {
 		t.Fatalf("模板不符应拒绝，实际 %v", err)
 	}
@@ -325,7 +324,7 @@ func TestApplyInheritKeepsBaseAmplifyWhenMaterialHasNone(t *testing.T) {
 		t.Fatal(e)
 	}
 	role.State = state
-	next, _, err := svc.applyInherit(role, []protocol.InheritEntry{inheritEntry(0, 0)})
+	next, _, err := svc.ApplyInherit(role, []protocol.InheritEntry{inheritEntry(0, 0)})
 	if err != nil {
 		t.Fatalf("继承落库失败: %v", err)
 	}
@@ -455,7 +454,7 @@ func TestApplyInheritTargetsRealGearNotAppearanceAvatar(t *testing.T) {
 		t.Fatal(e)
 	}
 	role.State = state
-	next, _, err := svc.applyInherit(role, []protocol.InheritEntry{inheritEntry(3, 0)})
+	next, _, err := svc.ApplyInherit(role, []protocol.InheritEntry{inheritEntry(3, 0)})
 	if err != nil {
 		t.Fatalf("穿戴侧继承失败: %v", err)
 	}
@@ -518,14 +517,14 @@ func TestApplyInheritMultipleEntries(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	role := storage.Character{ID: 1, ConfigVersion: c.Source.Checksum, State: state}
+	role := Role{ConfigVersion: c.Source.SaveIdentity(), State: state}
 	svc := &WearService{Catalog: eq}
 
 	entries := []protocol.InheritEntry{
 		{SlotA: 30, TemplateA: 101, SpaceA: 0, SlotB: 31, TemplateB: 102, SpaceB: 0, Const: 257},
 		{SlotA: 32, TemplateA: 103, SpaceA: 0, SlotB: 33, TemplateB: 104, SpaceB: 0, Const: 257},
 	}
-	next, receipts, err := svc.applyInherit(role, entries)
+	next, receipts, err := svc.ApplyInherit(role, entries)
 	if err != nil {
 		t.Fatalf("多记录继承失败: %v", err)
 	}

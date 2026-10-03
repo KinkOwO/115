@@ -24,11 +24,7 @@ import (
 // 技能侧的问题（光剑掌握的自动学习等级是 1，把学习等级错配成 15 才导致 1 级
 // 没自动学会），不该由装备投影来兜。
 func (s *Service) creationWorn(prof catalog.Profession, advancement, level byte) []inventory.BagEquipment {
-	if s.Equipment == nil || s.WearRules.Source == "" || len(prof.CreateEquipmentBySlot) == 0 {
-		return nil
-	}
-	source := s.Catalog.Source.Checksum
-	if s.Equipment.Source.Checksum != source || s.WearRules.Source != source {
+	if s.Equipment == nil || s.Equipment.Source.Checksum != s.Catalog.Source.Checksum || s.WearRules.Source != s.Catalog.Source.Checksum || len(prof.CreateEquipmentBySlot) == 0 {
 		return nil
 	}
 	var worn []inventory.BagEquipment

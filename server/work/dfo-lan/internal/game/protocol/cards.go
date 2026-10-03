@@ -1,6 +1,9 @@
 package protocol
 
-import "fmt"
+import (
+	"bytes"
+	"fmt"
+)
 
 type CardSelection struct{ Side, Index byte }
 
@@ -57,11 +60,8 @@ type SettlementExit struct{ State, Option byte }
 const SettlementExitSeamless byte = 5
 
 // KeepsDungeonSelection reports whether this settlement exit leaves the client
-// in the dungeon-selection flow. It carries the meaning the third byte of the
-// old three-byte acknowledgement accidentally had - that byte was Option, so
-// "payload[2] == 1" meant "option == 1". The flag is now derived from the
-// decoded request, which is what makes the acknowledgement free to shrink to
-// its native width.
+// in the dungeon-selection flow. Derive it from the request rather than the
+// outgoing acknowledgement's envelope or byte offsets.
 func (r SettlementExit) KeepsDungeonSelection() bool { return r.Option == 1 }
 
 func DecodeSettlementExit(p []byte) (SettlementExit, error) {
@@ -69,12 +69,37 @@ func DecodeSettlementExit(p []byte) (SettlementExit, error) {
 		return SettlementExit{}, fmt.Errorf("invalid exit body")
 	}
 	// Current146ab8b43/54/63 writes state, option, literal1.
-	if p[2] != 1 {
+	// 2026-10-03 伊斯实测与官服 s4 对照确认存在三种 source 字节与一个常量 token：
+	//   - p[2]=1：结算面板（边界之调律 RE 先例）；
+	//   - p[2]=0：副本内「撤退」对话框发送器（私服 2.38.2 实测 5× `01 02 00`，
+	//     此前被拒导致撤退是死按钮）；
+	//   - p[2]=2：官服伊斯客户端奖励领取后的退出（s4 帧 498 `01 01 02`，
+	//     紧跟 CMD2046 帧 496）。
+	// 官服 s4 帧 342/402/498 与私服实测 5 帧的 16B 体在 p[3:8] 逐字节一致地
+	// 携带常量 token c5 20 24 76 3f（跨新旧客户端相同 ⇒ 客户端侧常量或对
+	// 服务端某帧的回执），按已知常量放行；普通副本的 16B 体仍是全零 padding。
+	if p[2] > 2 {
 		return SettlementExit{}, fmt.Errorf("unsupported exit source")
 	}
-	for _, b := range p[3:] {
-		if b != 0 {
-			return SettlementExit{}, fmt.Errorf("nonzero exit padding")
+	if len(p) >= 8 {
+		if bytes.Equal(p[3:8], settlementExitEchoToken) {
+			for _, b := range p[8:] {
+				if b != 0 {
+					return SettlementExit{}, fmt.Errorf("nonzero exit padding")
+				}
+			}
+		} else {
+			for _, b := range p[3:] {
+				if b != 0 {
+					return SettlementExit{}, fmt.Errorf("nonzero exit padding")
+				}
+			}
+		}
+	} else {
+		for _, b := range p[3:] {
+			if b != 0 {
+				return SettlementExit{}, fmt.Errorf("nonzero exit padding")
+			}
 		}
 	}
 	// Option 5 is the EPLP seamless rechallenge (right-edge walk-in). The
@@ -87,12 +112,13 @@ func DecodeSettlementExit(p []byte) (SettlementExit, error) {
 	return SettlementExit{p[0], p[1]}, nil
 }
 
-// SettlementExitSuccess is the acknowledgement body the native reader
-// consumes: exactly two u8s, (state, option). Native handler 0x145244570 reads
-// them at 0x1452445ad and 0x1452445b9, and testdata/native_card_exit_*.json pin
-// 0100 / 0102 / ... The extra leading 1 this used to carry was not part of the
-// body - the incoming request has a literal 1 at p[2] (see DecodeSettlementExit)
-// but the outgoing shape does not. Reading that byte back inside the gateway is
-// what once turned the acknowledgement's width into an out-of-range panic.
-func SettlementExitSuccess(r SettlementExit) []byte { return []byte{r.State, r.Option} }
+// settlementExitEchoToken 是伊斯大陆会话 CMD72 16B 体内 p[3:8] 的常量回执
+// （官服 s4 与私服 2.38.2 逐字节一致，语义未解——字节必须来自实证）。
+var settlementExitEchoToken = []byte{0xc5, 0x20, 0x24, 0x76, 0x3f}
+
+// SettlementExitSuccess includes the common CMD success byte consumed at
+// 0x1459a1ca2 before dispatch to handler 0x145244570. The handler then reads
+// state and option at 0x1452445ad/5b9. The native_card_exit fixtures cover only
+// those two handler bytes; transport does not prepend the common status.
+func SettlementExitSuccess(r SettlementExit) []byte { return []byte{1, r.State, r.Option} }
 func SettlementExitRefused(option byte) []byte      { return append(Refusal(4), option) }

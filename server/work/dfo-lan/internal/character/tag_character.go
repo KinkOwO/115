@@ -3,14 +3,13 @@ package character
 import (
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 )
 
 // TagCharacterSnapshot读取已有角色存档，不创建角色、不修改穿戴或技能。
 // 调用方负责从同一账号的稳定角色ID解析名单，避免账号排序后错用其他角色。
-func (s *Service) TagCharacterSnapshot(role storage.Character) (protocol.TagCharacter, error) {
+func (s *Service) TagCharacterSnapshot(role Character) (protocol.TagCharacter, error) {
 	var out protocol.TagCharacter
 	var state State
 	if err := json.Unmarshal(role.State, &state); err != nil {

@@ -124,7 +124,7 @@ func (b Bag) addStackable(r BagRules, template, count uint32, stackableType stri
 	b.Items = append([]BagItem(nil), b.Items...)
 	for i, it := range b.Items {
 		occupied[it.Slot] = true
-		if it.Template == template && it.Slot >= slots[0] && it.Slot <= slots[1] && it.Amount < limit {
+		if it.Template == template && (r.Quick(it.Slot) || it.Slot >= slots[0] && it.Slot <= slots[1]) && it.Amount < limit {
 			added := min(count, limit-it.Amount)
 			b.Items[i].Amount += added
 			count -= added

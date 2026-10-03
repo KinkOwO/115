@@ -3,7 +3,7 @@ package character
 import (
 	"bytes"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
+
 	"encoding/binary"
 	"encoding/json"
 	"testing"
@@ -18,7 +18,7 @@ func binary32(v uint32) []byte {
 func TestAvatarDetailCandidateIsolation(t *testing.T) {
 	state := json.RawMessage(`{"source_sha256":"fixture","attributes":{"[hp max]":100,"[mp max]":100},"inventory":{"worn":[{"slot":3,"template":40601,"durability":9},{"slot":12,"template":101000013},{"slot":26,"template":500991361},{"slot":47,"template":100610096}]}}`)
 	before := append([]byte(nil), state...)
-	role := storage.Character{WireID: 503, State: state}
+	role := Character{WireID: 503, State: state}
 	service := Service{}
 	baseline, e := service.EntryAddition(role)
 	if e != nil {
@@ -57,7 +57,7 @@ func TestAvatarDetailCandidateIsolation(t *testing.T) {
 func TestAvatarDetailProjectsCoexistingCloneAndAppearance(t *testing.T) {
 	state := json.RawMessage(`{"source_sha256":"fixture","attributes":{"[hp max]":100,"[mp max]":100},"inventory":{"worn":[{"slot":1,"template":517560000},{"slot":1,"template":517562678,"group":1}]}}`)
 	s := Service{DetailedWornCandidate: true}
-	packet, err := s.EntryAddition(storage.Character{WireID: 503, State: state})
+	packet, err := s.EntryAddition(Character{WireID: 503, State: state})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -71,6 +71,7 @@ func TestDungeonCloneRefreshAfterWornMoves(t *testing.T) {
 		w    *worldSession
 	}{
 		{"bag only", protocol.ItemMoveRequest{SourceList: 1, DestinationList: 1}, w},
+		{"equipment bag slot 26", protocol.ItemMoveRequest{SourceList: 0, SourceSlot: 26, DestinationList: 0, DestinationSlot: 10}, w},
 		{"town", protocol.ItemMoveRequest{SourceList: 1, DestinationList: 3}, &worldSession{role: w.role, characters: w.characters}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -87,5 +88,25 @@ func TestDungeonCloneRefreshAfterWornMoves(t *testing.T) {
 		protocol.ItemMoveRequest{SourceList: 1, DestinationList: 3, DestinationSlot: 12})
 	if err != nil || enabled || len(plan) != 0 {
 		t.Fatalf("character without Clone was refreshed: enabled=%v packets=%d err=%v", enabled, len(plan), err)
+	}
+}
+
+func TestBagSlot26DoesNotRefreshWornOrCreature(t *testing.T) {
+	for _, move := range []protocol.ItemMoveRequest{
+		{SourceList: 0, SourceSlot: 26, DestinationList: 0, DestinationSlot: 10},
+		{SourceList: 0, SourceSlot: 10, DestinationList: 0, DestinationSlot: 26},
+	} {
+		if moveTouchesWorn(move) || moveTouchesCreature(move) || moveNeedsCreatureActorAppearance(move) ||
+			shouldSendEquipmentAppearanceRebuild(false, move) {
+			t.Fatalf("bag-only move was classified as a visual change: %+v", move)
+		}
+	}
+	worn := protocol.ItemMoveRequest{SourceList: 0, DestinationList: 3, DestinationSlot: 12}
+	if !moveTouchesWorn(worn) || !shouldSendEquipmentAppearanceRebuild(false, worn) {
+		t.Fatal("ordinary equipped slot no longer refreshes worn visuals")
+	}
+	creature := protocol.ItemMoveRequest{SourceList: 0, DestinationList: 3, DestinationSlot: 26}
+	if !moveTouchesWorn(creature) || !moveTouchesCreature(creature) {
+		t.Fatal("worn creature body was not recognized")
 	}
 }

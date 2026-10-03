@@ -2,7 +2,7 @@ package quest
 
 import (
 	"dfolan/internal/catalog"
-	"dfolan/internal/storage"
+	"dfolan/internal/character"
 	"testing"
 )
 
@@ -57,11 +57,11 @@ func TestOdysseyMainlinePlanRejects(t *testing.T) {
 func TestOdysseyMainlineGating(t *testing.T) {
 	g := odysseyQuestFixture(t)
 	s := &Service{Odyssey: g} // Store 故意为 nil：门禁必须先拦
-	if n, _, e := s.OdysseyMainline(nil, storage.Character{}); e != nil || n != 0 {
-		t.Fatalf("nil Odyssey 目录应 no-op: %d %v", n, e)
+	if _, _, eligible, e := s.RoleMainlinePlan(character.Character{}); e != nil || eligible {
+		t.Fatalf("nil Odyssey 目录应 no-op: %t %v", eligible, e)
 	}
 	s2 := &Service{}
-	if n, _, e := s2.OdysseyMainline(nil, storage.Character{}); e != nil || n != 0 {
-		t.Fatalf("nil Store 应 no-op: %d %v", n, e)
+	if _, _, eligible, e := s2.RoleMainlinePlan(character.Character{}); e != nil || eligible {
+		t.Fatalf("nil Store 应 no-op: %t %v", eligible, e)
 	}
 }

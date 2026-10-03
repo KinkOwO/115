@@ -61,6 +61,10 @@
       50
     ]
   },
+  "DungeonTitles": {
+    "[apocalypse]": "Apocalypse",
+    "[ispins_legion]": "Ispins"
+  },
   "Channels": [
     {
       "ID": 1,
@@ -121,24 +125,28 @@
       "SourceType": 0
     },
     {
-      "ID": 119,
-      "Name": "Legion",
+      "ID": 30,
+      "Name": "Apocalypse",
       "Type": 119,
-      "Area": "[none]",
-      "SourceValues": [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "Note": "末世录军团频道。当前 clientchannelinfo.etc 的类型119对应军团及赛丽亚房间城镇239；通过内容入口进入，不复用旧版低号地下城分组。"
+      "Area": "[apocalypse]",
+      "SourceValues": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "Note": "末世录军团频道，官服行证据（2026-10-02 频道脚本，cain 块）：30/31/32 `Apocalypse` 119 `[apocalypse]`，SourceValues 全 0。此前用 [none] 区域导致客户端入口门禁⑦开放日程查表失败，弹『这个时间不开门』；改用官方区域键 [apocalypse] 并由 DungeonTitles 补发官方空 [dungeon] 块。协议走军团族（CMD2043 等）。"
+    },
+    {
+      "ID": 31,
+      "Name": "Apocalypse",
+      "Type": 119,
+      "Area": "[apocalypse]",
+      "SourceValues": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "Note": "同上，官服脚本第二行（31 Apocalypse 119 [apocalypse]）。"
+    },
+    {
+      "ID": 32,
+      "Name": "Apocalypse",
+      "Type": 119,
+      "Area": "[apocalypse]",
+      "SourceValues": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "Note": "同上，官服脚本第三行（32 Apocalypse 119 [apocalypse]）。"
     },
     {
       "ID": 106,
@@ -202,7 +210,23 @@
       "Type": 78,
       "Area": "[none]",
       "SourceValues": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-      "Note": "奥兹玛引导频道。当前客户端147AB9EF2注册CHANNEL_GUIDE_OZMA_RAID=78。仅恢复频道目录，不代表团队副本或精锐战斗已实现。"
+      "Note": "奥兹玛引导频道。当前客户端147AB9EF2注册CHANNEL_GUIDE_OZMA_RAID=78。仅恢复频道目录，不代表团队副本或精锐战斗已完成。"
+    },
+    {
+      "ID": 86,
+      "Name": "Ispins",
+      "Type": 81,
+      "Area": "[ispins_legion]",
+      "SourceValues": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "Note": "伊斯大陆军团频道，官服行证据（2026-10-02 频道脚本，siroco 块）：86/87 `Ispins` 81 `[ispins_legion]`，SourceValues 全 0。此前 ID=81/Area=[none] 导致客户端入口门禁⑦开放日程查表失败，弹『这个时间不开门』（官服同日同客户端可进，判定输入含频道行数据）。协议走 STOLEN_LAND_ISPINS 族（CMD2043/2045/2046/2047、NOTI2252-2256）。"
+    },
+    {
+      "ID": 87,
+      "Name": "Ispins",
+      "Type": 81,
+      "Area": "[ispins_legion]",
+      "SourceValues": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "Note": "同上，官服脚本第二行（87 Ispins 81 [ispins_legion]）。"
     }
   ],
   "CompatibilityNote": "已撤回本轮误加的流放频道72及其城镇落点逻辑：官方115更新已移除此玩法，原版城镇索引未登记其93号城镇，普通钱特利92号城镇属于剧情路线。其余频道与通用修复保留：洞察、黑鸦使用原生特殊分类键，启示之夜保留本轮既有的通用特殊分类键；SynchronizeIdentity同步登录类型、NOTI2435及角色频道上下文。频道显示不代表精锐随行战斗、团队创建或副本结算已完成；不修改客户端资源及角色存档。"

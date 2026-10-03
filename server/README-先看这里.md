@@ -2,30 +2,43 @@
 
 交付日期：2026-09-12。目标客户端：DFO 2.38.2.34，Windows x64。
 
-这个包用于继续开发本地兼容服。包含 **Go 源码、完整导出配置、启动脚本、原39版服务端程序、补齐后重新编译的源码版、探针程序及源码、开发记录**。不是完整游戏安装包，不包含玩家数据库、密码、运行抓包、Go/Python/PostgreSQL/Redis 安装包，也不包含完整客户端。
+这个包用于继续开发本地兼容服。包含 **Go 源码、完整导出配置、启动脚本、原39版服务端程序、补齐后重新编译的源码版、探针程序及源码、开发记录**。不是完整游戏安装包，不包含玩家数据库、密码、运行抓包、Go/Python/PostgreSQL 安装包，也不包含完整客户端。
 
-## 两个可运行版本
+## 默认PVF与历史运行版本
 
 | 文件 | 用途与验证边界 |
 |---|---|
-| `work/dfo-lan/bin/wireprobe-dungeon39.exe` | 原39版归档程序。前一任务的对接记录记载装备显示、重登保留和不崩已经用户确认；本次打包没有重做该实机验收。默认启动这个。 |
-| `work/dfo-lan/bin/wireprobe-handoff-source.exe` | 交付源码重新编译版。补回当前工作区缺失的入城 NOTI14 装备外观刷新，代码测试/静态检查/编译通过，**尚未实机验收**。它不是找回的原39版完整源码，也不能保证与39版行为全部相同。 |
+| `work/dfo-lan/bin/wireprobe-pvf.exe` | SHA256 bc6211802e361f1407a14fd62d7a5730be9ed5250851a7f4c6c48aea6d32310e，第四批剩余投影缓存已确认，三个根入口默认使用；保持54选择项/63投影、历史存档准入及来源自动派生。 |
+| `work/dfo-lan/bin/wireprobe-dungeon39.exe` | 原39版归档程序。前一任务的对接记录记载装备显示、重登保留和不崩已经用户确认；本次打包没有重做该实机验收。保留作历史回退。 |
+| `work/dfo-lan/bin/wireprobe-handoff-source.exe` | SHA256 bc6211802e361f1407a14fd62d7a5730be9ed5250851a7f4c6c48aea6d32310e，与默认入口相同，含上游SHA身份修复及已确认的第四批剩余优化。 |
 | `work/dfo-lan/bin/wireprobe-dungeon37.exe` | 历史回退参考；使用它时必须同时选择相匹配的配置。 |
 
 **没有附会导致入城崩溃的38版EXE。** 文件名 `next38-equipment-display.md` 记载的是修复到39版的结果，不代表应该启动38版。
 
+当前确认bc6211802e361f1407a14fd62d7a5730be9ed5250851a7f4c6c48aea6d32310e支持来源自动派生、归档元数据/联合物品缓存及七类投影缓存，用户已连续两轮手动启动并通过角色1第46帧入场预检；日常使用根入口即可。旧2e4bd343不支持空校验配置，仅保留历史匹配组合回退。启动脚本缺少内层manifest时可能重建资源，当前用户已生成be95d64e内层及manifest；原7ef离线采样不扩展为新归档性能数据。
+
+第四批联合物品缓存阶段的历史样本为准备40.49→31.15秒，首次建缓存42.23秒，保留堆基本持平；源码c6b2bace备份于work/dfo-lan/.tmp/pvf-phase4/bin/wireprobe-handoff-source.confirmed-before.exe。当前其余投影缓存也已确认，完整阶段记录见../docs/todo/pvf/PVF启动与内存优化实施计划.md。
+
+归档元数据缓存已确认：用户确认速度提升。17:50会话两类缓存miss/stored，准备50.244秒，角色4的45帧入场预检通过；17:53会话两类缓存hit，元数据2.361秒、联合物品2.647秒、全部准备25.704秒，角色11的49帧预检通过。正式/源码程序均核对为46c349cd8151ea66b9f056ce32f1c9f63368ee4ec6cc448205fbd713a062f7d8，无需替换，纳入confirmed baseline。确认依据用户反馈及上述日志，不扩大为所有玩法逐项验收；不改schema、存档准入/profile/客户端资源。按授权提交本段，再拉取合并上游SHA相关更新，继续其它投影及缓存保留策略。下文候选状态为历史记录。
+
+第四批剩余项已确认：七类确定性投影缓存（装备绑定/掉落/副本/赛季/背景券/传送/终场剧情）及旧缓存保留策略，绑定实际PVF/完整程序/实际输入策略，损坏重建、不可写回退及私有查询索引恢复。424216条装备、18387张地图、七类全部字段和54/63冷热启动一致；全量Go测试/vet、独立PostgreSQL16存档身份迁移回归通过。已提交确认段3def161并以2c24faa合并上游07e1551。用户手动连续两轮启动源码入口并确认：18:21:24冷轮准备48.0247秒，九类缓存miss/stored，角色1第46帧entry_preflight_passed；18:23:49热轮准备14.4253秒，九类缓存hit，角色1第46帧entry_preflight_passed。正式入口与源码入口均核对为SHA256 bc6211802e361f1407a14fd62d7a5730be9ed5250851a7f4c6c48aea6d32310e，现纳入confirmed baseline。热轮相较此前确认热轮23.9059秒快39.44%、累计分配降低61.84%；首次建九文件48.51秒，热堆527.47→536.01MiB，缓存合计约191MiB。实机确认范围为连续两次启动及选角进入前置检查，未扩大为所有玩法逐项验收。
+
+上游包含存档身份契约迁移：新源码启动后旧46c349cd默认程序不能直接作为回退。优先保持源码入口并设置DFO_PVF_CACHE_DIR='-'恢复原生导入；若需撤回本批实现，关闭会话后将.tmp/pvf-phase4c/bin/wireprobe-metadata-sha-compatible.exe复制到源码入口，再继续--source-build。该185ae7e99853d2b4d96a1043c47eb046279cfb6d777e536e7e1df6c1d46ba92f程序来自合并提交2c24faa，含上游身份修复及已确认元数据/物品缓存，不含本批七类投影；54/63离线完整报告与候选一致，未操作玩家数据库。46c349cd精确备份.tmp/pvf-phase4c/bin/wireprobe-handoff-source.confirmed-before.exe仅作迁移前历史快照。用户已手动关闭会话后启动游戏.cmd --source-build连续两轮并确认；默认入口与源码入口均已核对为当前SHA。
+
 ## 首次启动
 
-1. 解压到固定目录，如 `D:/DFO-dev`。准备 Windows x64 上可用的 Python 3.10+、PostgreSQL 和 Redis。继续编译还需要 Go 1.26（本包用1.26.5验证）。数据库工具需包含 `initdb.exe`、`pg_ctl.exe`、`createdb.exe`；Redis需有 `redis-server.exe` 及其配套依赖。
+归档元数据候选在已确认物品缓存基础上，本机单次准备33.14→26.18秒，保留堆基本持平；首次建立两类缓存51.10秒，元数据文件约162MiB。关闭会话后用--source-build两轮验证，gateway.err热轮同时出现archive metadata cache hit及derived item cache hit；DFO_PVF_CACHE_DIR='-'同时禁用两种缓存。旧源码8d6f979a备份work/dfo-lan/.tmp/pvf-phase4b/bin/wireprobe-handoff-source.confirmed-before.exe，详细证据及剩余范围见../docs/todo/pvf/PVF启动与内存优化实施计划.md。上文第四批首段记录为历史验证轮次。
+
+1. 解压到固定目录，如 `D:/DFO-dev`。准备 Windows x64 上可用的 Python 3.10+、PostgreSQL。继续编译还需要 Go 1.26（本包用1.26.5验证）。数据库工具需包含 `initdb.exe`、`pg_ctl.exe`、`createdb.exe`。
 2. 向项目提供者取得**完整的、当前能运行的隔离客户端目录**：原工作区 `work/dfo_probe_client`，包括资源和配套文件。可以放到解压目录的同名位置，也可放在其他磁盘。仅复制DFO.exe、PVF、sk.dat三个文件不够。配套校验值见 `client-requirements.json`。
 3. 将 `launcher.example.json` 复制为 `launcher.local.json`。编辑 `client_dir` 为客户端目录，相对路径以解压根目录为基准，或填写绝对路径。Windows JSON路径建议用 `/`。
 4. 仅在朋友自己的电脑上初始化**新库**。从解压根目录打开 PowerShell，修改下方工具路径再运行：
 
 ```powershell
-py -3 work/dfo-lan/scripts/bootstrap_local.py --postgres-bin 'D:/tools/pgsql/bin' --redis-bin 'D:/tools/redis'
+py -3 work/dfo-lan/scripts/bootstrap_local.py --postgres-bin 'D:/tools/pgsql/bin'
 ```
 
-这会在本包 `work/dfo-lan/runtime/storage` 内建立新PG数据目录和随机密码配置，PG端口25438、Redis端口26388。已有 `local.json` 或 `pgdata` 就拒绝初始化。初始化中途失败请查日志和现有数据，不要直接删除目录反复重试。
+这会在本包 `work/dfo-lan/runtime/storage` 内建立新PG数据目录和随机密码配置，PG端口25438。已有 `local.json` 或 `pgdata` 就拒绝初始化。初始化中途失败请查日志和现有数据，不要直接删除目录反复重试。
 
 5. 先检查，再启动：
 
@@ -33,7 +46,7 @@ py -3 work/dfo-lan/scripts/bootstrap_local.py --postgres-bin 'D:/tools/pgsql/bin
 py -3 work/dfo-lan/scripts/launch_local.py --check
 ```
 
-检查通过后，右键根目录 `Start-DFO.cmd`，以管理员身份运行。脚本启动已有本地存储和39版服务端，然后打开客户端。服务端启动时迁移表结构并建立开发账号 `probe`；角色由客户端创建。不会带入原机6666或LanTest01的存档。
+检查通过后，右键根目录 `Start-DFO.cmd`，以管理员身份运行。脚本启动已有本地存储和默认PVF服务端，然后打开客户端。服务端启动时迁移表结构并建立开发账号 `probe`；角色由客户端创建。不会带入原机6666或LanTest01的存档。
 
 若 `py` 不在PATH，可用 `python` 替代上述命令。双击入口支持 `DFO_PYTHON` 环境变量指向Python.exe；否则依次尝试 `py -3`、`python`。
 
@@ -45,7 +58,7 @@ py -3 work/dfo-lan/scripts/launch_local.py --check
 powershell -NoProfile -ExecutionPolicy Bypass -File ./Build-Server.ps1
 ```
 
-若Go不在PATH，给脚本加 `-Go 'D:/tools/go/bin/go.exe'`。脚本依次执行 `go test ./...`、`go vet ./...`、编译源码候选版，**不覆盖原39版**。首次编译可能需要下载 `go.mod/go.sum` 中的依赖，包中没有vendor。
+若Go不在PATH，给脚本加 `-Go 'D:/tools/go/bin/go.exe'`。脚本依次执行 `go test ./...`、`go vet ./...`、编译源码版；首次构建补齐bin/wireprobe-pvf.exe，已有确认PVF程序默认保留。后续已验收构建使用-UpdatePVFDefault更新默认PVF；**不覆盖原39版**。首次编译可能需要下载 `go.mod/go.sum` 中的依赖，包中没有vendor。
 
 测试源码候选版：关闭同一个测试会话后，在管理员PowerShell运行：
 
@@ -58,7 +71,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File ./Build-Server.ps1
 ## 限制与排障
 
 - 目前仍是**回环地址开发服**：频道目录127.0.0.1:7001，游戏监听127.0.0.2的动态端口，固定开发账号。多人局域网账号登录器、共享战斗同步等还不是完成品，不能只把监听改成0.0.0.0就当多人完成。
-- 7001占用时检查是否已有会话。每次启动在 `work/dfo-lan/runtime/roles_..._next37/` 下记录 `run.json`、`events.jsonl`、`helper.err`；tag仍叫next37但默认EXE是39。
+- 7001占用时检查是否已有会话。每次启动在 `work/dfo-lan/runtime/roles_..._next37/` 下记录 `run.json`、`events.jsonl`、`helper.err`；tag仍叫next37，默认EXE为wireprobe-pvf。
 - 请解压后再启动，不要从压缩包内部运行。初始化新库后若移动目录，需更新自己 `runtime/storage/local.json` 的 `postgres_data` 和工具路径。
 - 默认关闭内存观察器。日常启动只需要Python标准库；`reference/analysis-tools` 的历史分析脚本可能需要pefile/capstone/unicorn/cryptography，且含原机路径，**不能直接批量执行**。
 - 原机启动脚本只作对照，位于 `reference/original-launcher`，不要用它代替本包根目录的新入口。

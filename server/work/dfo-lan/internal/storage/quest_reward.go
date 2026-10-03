@@ -81,6 +81,5 @@ func (s *Store) CommitQuestReward(ctx context.Context, account, id int64, qid ui
 	r.State = state
 	out.Receipt = receipt
 	out.Applied = true
-	s.Cache.Del(ctx, fmt.Sprintf("%scharacters:%d", s.prefix, account))
 	return out, nil
 }

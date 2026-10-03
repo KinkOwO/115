@@ -4,13 +4,12 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"strings"
 	"testing"
 )
 
-func avatarCloneFixture(t *testing.T) (*WearService, storage.Character) {
+func avatarCloneFixture(t *testing.T) (*WearService, Role) {
 	t.Helper()
 	c, e := catalog.LoadCharacters("../../configs/characters.next25.json")
 	if e != nil {
@@ -94,7 +93,7 @@ func avatarCloneFixture(t *testing.T) (*WearService, storage.Character) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	return &WearService{Catalog: eq, Professions: c, BagRules: bagRules, Rules: rules}, storage.Character{Profession: 0, ConfigVersion: c.Source.Checksum, State: raw}
+	return &WearService{Catalog: eq, Professions: c, BagRules: bagRules, Rules: rules}, Role{Profession: 0, ConfigVersion: c.Source.SaveIdentity(), State: raw}
 }
 
 func TestAvatarCloneAndAppearanceCoexistence(t *testing.T) {

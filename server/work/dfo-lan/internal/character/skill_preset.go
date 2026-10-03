@@ -3,16 +3,15 @@ package character
 import (
 	"context"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 )
 
-func (s *Service) SaveSkillPreset(ctx context.Context, role storage.Character, key string, preset protocol.SkillPreset) (storage.Character, bool, error) {
+func (s *Service) SaveSkillPreset(ctx context.Context, role Character, key string, preset protocol.SkillPreset) (Character, bool, error) {
 	if s.Store == nil || role.ID == 0 || role.AccountID == 0 {
 		return role, false, fmt.Errorf("skill preset requires an owned selected character")
 	}
-	return s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, "skill-preset-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+	return s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, "skill-preset-v1", func(current Character) (json.RawMessage, json.RawMessage, error) {
 		var state State
 		if err := json.Unmarshal(current.State, &state); err != nil {
 			return nil, nil, err
@@ -26,7 +25,7 @@ func (s *Service) SaveSkillPreset(ctx context.Context, role storage.Character, k
 	})
 }
 
-func (s *Service) SkillPresetInfo(role storage.Character) ([]byte, error) {
+func (s *Service) SkillPresetInfo(role Character) ([]byte, error) {
 	var state State
 	if err := json.Unmarshal(role.State, &state); err != nil {
 		return nil, err

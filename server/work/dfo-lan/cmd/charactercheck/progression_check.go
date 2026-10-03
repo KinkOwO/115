@@ -6,7 +6,6 @@ import (
 	"dfolan/internal/character"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/progression"
 	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
@@ -28,7 +27,7 @@ func progressionCheck(ctx context.Context, s, reopened *storage.Store, role stor
 	if e != nil {
 		return e
 	}
-	rules, e := progression.LoadRules("configs/experience.compat90.json")
+	rules, e := character.LoadGrowthRules("configs/experience.compat90.json")
 	if e != nil {
 		return e
 	}
@@ -123,7 +122,7 @@ func progressionCheck(ctx context.Context, s, reopened *storage.Store, role stor
 		return fmt.Errorf("experience reopen failed")
 	}
 	// A refused domain operation must leave both receipt and character intact.
-	_, _, e = s.CommitCharacterEvent(ctx, role.AccountID, role.ID, c.Source.Checksum, "rejected-test", rules.Model, func(storage.Character) (json.RawMessage, json.RawMessage, error) {
+	_, _, e = s.CommitCharacterEvent(ctx, role.AccountID, role.ID, c.Source.SaveIdentity(), "rejected-test", rules.Model, func(storage.Character) (json.RawMessage, json.RawMessage, error) {
 		return nil, nil, fmt.Errorf("intentional rollback")
 	})
 	if e == nil {

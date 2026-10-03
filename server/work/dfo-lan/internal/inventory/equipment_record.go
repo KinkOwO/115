@@ -85,7 +85,14 @@ func creatureRowPeriod(template, stored, existing uint32) uint32 {
 
 // Native NOTI14 1452e9b65/85 reads two length-prefixed avatar blocks;
 // 1452e9ba2 reads their period. NOTI13 adds a period for every worn row.
-func EquipmentPayload(space byte, items []BagEquipment, restore bool) ([]byte, error) {
+func EquipmentPayload(space byte, items []BagEquipment, restore bool, avatarExpansion ...byte) ([]byte, error) {
+	var tier byte
+	if len(avatarExpansion) > 1 || (len(avatarExpansion) == 1 && (space != 1 || !restore || avatarExpansion[0] > protocol.MaxAvatarInventoryExpansion)) {
+		return nil, fmt.Errorf("invalid avatar expansion payload")
+	}
+	if len(avatarExpansion) == 1 {
+		tier = avatarExpansion[0]
+	}
 	if space != 0 && space != 1 && space != 3 && space != 7 {
 		return nil, fmt.Errorf("unsupported equipment space")
 	}
@@ -96,7 +103,7 @@ func EquipmentPayload(space byte, items []BagEquipment, restore bool) ([]byte, e
 	u16 := func(n uint16) { p = binary.LittleEndian.AppendUint16(p, n) }
 	u32 := func(n uint32) { p = binary.LittleEndian.AppendUint32(p, n) }
 	if restore && (space == 0 || space == 1) {
-		u16(0)
+		u16(uint16(tier) * 8)
 	}
 	u16(uint16(len(items)))
 	seen := map[uint16]bool{}
@@ -167,6 +174,9 @@ func SpecialEquipmentRestorePayload(state json.RawMessage, space byte) ([]byte, 
 	b, e := ReadBag(state)
 	if e != nil {
 		return nil, e
+	}
+	if space == 1 {
+		return EquipmentPayload(space, b.Special[space], true, b.AvatarExpansion)
 	}
 	return EquipmentPayload(space, b.Special[space], true)
 }

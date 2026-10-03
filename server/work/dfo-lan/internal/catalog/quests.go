@@ -27,9 +27,10 @@ type QuestDefinition struct {
 	Pending        []string    `json:"pending,omitempty"`
 }
 type QuestCatalog struct {
-	Source pvf.ArchiveSnapshot        `json:"source"`
-	Index  ScriptRecord               `json:"index"`
-	Quests map[uint32]QuestDefinition `json:"quests"`
+	Source  pvf.ArchiveSnapshot        `json:"source"`
+	Index   ScriptRecord               `json:"index"`
+	Quests  map[uint32]QuestDefinition `json:"quests"`
+	details *ScriptDetails[uint32, ScriptRecord]
 }
 
 func ImportQuests(a *pvf.Archive) (QuestCatalog, error) {

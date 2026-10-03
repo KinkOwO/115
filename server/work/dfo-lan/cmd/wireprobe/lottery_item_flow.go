@@ -8,6 +8,7 @@ import (
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/storage"
+	"dfolan/internal/workflow"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -28,7 +29,36 @@ type lotteryItemPool struct {
 	total              int64
 }
 
-const lotterySourcePVFSHA256 = "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80"
+// lotterySourcePVFSHA256 是抽奖目录的来源身份令牌。
+//
+// 2026-10-01（next146）：直读模式下这些目录由当次内层 PVF 直接派生，
+// SourcePVFSHA256 自然等于当次内层 checksum，而不再是编译期写死的
+// "7ef2db59…"（那是旧 client-build/Script.inner.pvf 的哈希）。它**不是**
+// 运行时不变量（不像 WearRules.Source / OdysseySource 会被写进存档），
+// 因此策略与其它来源身份门禁一致：留空 = 接受并派生为当次值；非空且
+// 不一致 = 仍硬拒绝（保留手工钉版本的意图）。
+var lotterySourcePVFSHA256 = "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80"
+
+// SetLotterySource 由直读目录准备阶段调用，把来源身份令牌切到当次内层 checksum。
+// 只接受 64 位十六进制，否则忽略（避免把垃圾值灌进来源令牌）。
+func SetLotterySource(checksum string) {
+	if len(checksum) != 64 {
+		return
+	}
+	for i := 0; i < len(checksum); i++ {
+		c := checksum[i]
+		if (c < '0' || c > '9') && (c < 'a' || c > 'f') && (c < 'A' || c > 'F') {
+			return
+		}
+	}
+	lotterySourcePVFSHA256 = checksum
+}
+
+// lotterySourceAccepts 判定一份目录的来源身份是否可接受。
+// 留空或与当前令牌一致 = 接受；其它一概拒绝。
+func lotterySourceAccepts(source string) bool {
+	return source == "" || source == lotterySourcePVFSHA256
+}
 
 type lotteryItemCatalog struct {
 	SourcePVFSHA256 string             `json:"source_pvf_sha256"`
@@ -45,12 +75,39 @@ func loadLotteryItemCatalog(path string, index map[uint32]ItemIndexInfo) (*lotte
 	if err := json.Unmarshal(data, &c); err != nil {
 		return nil, err
 	}
-	if c.SourcePVFSHA256 != lotterySourcePVFSHA256 || len(c.Pools) != 276 {
+	return newLotteryItemCatalog(c, index)
+}
+
+func newLotteryItemCatalog(c lotteryItemCatalog, index map[uint32]ItemIndexInfo) (*lotteryItemCatalog, error) {
+	return buildLotteryItemCatalog(c, index, true)
+}
+
+func buildLotteryItemCatalog(c lotteryItemCatalog, index map[uint32]ItemIndexInfo, historicalBaseline bool) (*lotteryItemCatalog, error) {
+	// PVF catalogs keep their actual source hash; pool counts and particular
+	// historical content vectors only apply to the old JSON baseline loader.
+	if !lotterySourceAccepts(c.SourcePVFSHA256) {
 		return nil, fmt.Errorf("lottery catalog source identity or pool count mismatch")
 	}
+	if historicalBaseline && c.SourcePVFSHA256 != "" && len(c.Pools) != 276 {
+		return nil, fmt.Errorf("lottery catalog source identity or pool count mismatch")
+	}
+	if c.SourcePVFSHA256 == "" {
+		c.SourcePVFSHA256 = lotterySourcePVFSHA256
+	}
 	c.byTemplate = make(map[uint32]*lotteryItemPool, len(c.Pools))
-	for _, p := range c.Pools {
-		if p == nil || p.SourceItem == 0 || len(p.SourceScriptSHA256) != 64 || len(p.Candidates) == 0 {
+	original := c.Pools
+	c.Pools = make([]*lotteryItemPool, len(original))
+	for i, source := range original {
+		if source == nil {
+			return nil, fmt.Errorf("nil lottery pool")
+		}
+		p := new(lotteryItemPool)
+		*p = *source
+		p.Candidates = append([]BoosterRewardCandidate(nil), source.Candidates...)
+		p.total = 0
+		c.Pools[i] = p
+		hash, hashErr := hex.DecodeString(p.SourceScriptSHA256)
+		if p.SourceItem == 0 || hashErr != nil || len(hash) != 32 || len(p.Candidates) == 0 {
 			return nil, fmt.Errorf("invalid lottery pool identity")
 		}
 		if source, ok := index[p.SourceItem]; !ok || source.Path != p.SourceScript || source.Kind != "stackable" || source.StackableType != "[upgradable legacy]" {
@@ -73,10 +130,10 @@ func loadLotteryItemCatalog(path string, index map[uint32]ItemIndexInfo) (*lotte
 		}
 		c.byTemplate[p.SourceItem] = p
 	}
-	if p := c.byTemplate[7772]; p == nil || p.SourceScriptSHA256 != "b6f59a8a3193ae4f6c0796e156f90d48317cbf2e16af2c309bacbdc63322e54c" || len(p.Candidates) != 209 || p.total != 98904 {
+	if p := c.byTemplate[7772]; historicalBaseline && (p == nil || p.SourceScriptSHA256 != "b6f59a8a3193ae4f6c0796e156f90d48317cbf2e16af2c309bacbdc63322e54c" || len(p.Candidates) != 209 || p.total != 98904) {
 		return nil, fmt.Errorf("lottery item 7772 regression")
 	}
-	if p := c.byTemplate[10306598]; p == nil || p.SourceScriptSHA256 != "a97094b202704c3cfb0f1e1e53a86bc9986813cddf071acc078c98b937414063" || len(p.Candidates) != 1 || p.Candidates[0] != (BoosterRewardCandidate{Template: 0, Weight: 10000, Count: 1000000}) {
+	if p := c.byTemplate[10306598]; historicalBaseline && (p == nil || p.SourceScriptSHA256 != "a97094b202704c3cfb0f1e1e53a86bc9986813cddf071acc078c98b937414063" || len(p.Candidates) != 1 || p.Candidates[0] != (BoosterRewardCandidate{Template: 0, Weight: 10000, Count: 1000000})) {
 		return nil, fmt.Errorf("lottery gold pot 10306598 regression")
 	}
 	return &c, nil
@@ -86,26 +143,34 @@ func loadLotteryItemCatalog(path string, index map[uint32]ItemIndexInfo) (*lotte
 // PVF export reviewable. Import the whole pool or none of it: removing a row
 // would change the source lottery odds.
 func loadLotteryEquipmentPools(path string, index map[uint32]ItemIndexInfo, catalog *lotteryItemCatalog) (int, error) {
-	if catalog == nil || catalog.SourcePVFSHA256 != lotterySourcePVFSHA256 {
+	if catalog == nil || !lotterySourceAccepts(catalog.SourcePVFSHA256) {
 		return 0, fmt.Errorf("lottery base catalog unavailable")
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return 0, err
 	}
-	var source struct {
-		SourcePVFSHA256 string `json:"source_pvf_sha256"`
-		Pools           []struct {
-			SourceItem         uint32      `json:"source_item"`
-			SourceScript       string      `json:"source_script"`
-			SourceScriptSHA256 string      `json:"source_script_sha256"`
-			Candidates         [][3]uint32 `json:"candidates"`
-		} `json:"pools"`
-	}
+	var source lotteryEquipmentSource
 	if err := json.Unmarshal(data, &source); err != nil {
 		return 0, err
 	}
-	if source.SourcePVFSHA256 != lotterySourcePVFSHA256 || len(source.Pools) != 2477 {
+	return applyLotteryEquipmentPools(source, index, catalog)
+}
+
+type lotteryEquipmentSource = catalog.LotteryPoolCatalog
+
+func applyLotteryEquipmentPools(source lotteryEquipmentSource, index map[uint32]ItemIndexInfo, catalog *lotteryItemCatalog) (int, error) {
+	return bindLotteryEquipmentPools(source, index, catalog, true)
+}
+
+func bindLotteryEquipmentPools(source lotteryEquipmentSource, index map[uint32]ItemIndexInfo, catalog *lotteryItemCatalog, historicalBaseline bool) (int, error) {
+	if catalog == nil || !lotterySourceAccepts(catalog.SourcePVFSHA256) {
+		return 0, fmt.Errorf("lottery base catalog unavailable")
+	}
+	if !lotterySourceAccepts(source.SourcePVFSHA256) {
+		return 0, fmt.Errorf("equipment lottery source identity or pool count mismatch")
+	}
+	if historicalBaseline && source.SourcePVFSHA256 != "" && len(source.Pools) != 2477 {
 		return 0, fmt.Errorf("equipment lottery source identity or pool count mismatch")
 	}
 	additions := make(map[uint32]*lotteryItemPool, len(source.Pools))
@@ -139,7 +204,7 @@ func loadLotteryEquipmentPools(path string, index map[uint32]ItemIndexInfo, cata
 		}
 		additions[row.SourceItem] = p
 	}
-	if p := additions[7213]; p == nil || p.SourceScriptSHA256 != "995df495602d0ede8df426e8ae3f3b200ef0a740ee9e2411a8794b4c24dd01ee" || len(p.Candidates) != 78 {
+	if p := additions[7213]; historicalBaseline && (p == nil || p.SourceScriptSHA256 != "995df495602d0ede8df426e8ae3f3b200ef0a740ee9e2411a8794b4c24dd01ee" || len(p.Candidates) != 78) {
 		return 0, fmt.Errorf("Pokin armor pot 7213 regression")
 	}
 	for id, p := range additions {
@@ -177,7 +242,7 @@ type lotteryItemReceipt struct {
 	SpecialRefresh []byte                                 `json:"special_refresh,omitempty"`
 }
 
-func (w *worldSession) openLotteryItem(ctx context.Context, store lotteryItemStore, pools *lotteryItemCatalog, index map[uint32]ItemIndexInfo, request, raw []byte, wear ...*inventory.WearService) ([]outboundPacket, error) {
+func (w *worldSession) openLotteryItem(ctx context.Context, store lotteryItemStore, pools *lotteryItemCatalog, index map[uint32]ItemIndexInfo, request, raw []byte, wear ...*workflow.WearService) ([]outboundPacket, error) {
 	if w == nil || w.role.ID == 0 || w.activeDungeon != nil || w.loot == nil || pools == nil {
 		return nil, fmt.Errorf("lottery item requires selected character in town and loaded catalog")
 	}
@@ -281,7 +346,7 @@ func (w *worldSession) openLotteryItem(ctx context.Context, store lotteryItemSto
 					used[item.Slot] = true
 				}
 				found := false
-				for slot := uint16(0); slot < 210; slot++ {
+				for slot := uint16(0); slot < protocol.AvatarInventorySlots(bag.AvatarExpansion); slot++ {
 					if !used[slot] {
 						rewardSlot = slot
 						found = true

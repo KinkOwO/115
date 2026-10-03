@@ -14,13 +14,10 @@ package inventory
 // 规则数据来自 configs/enchant-beads.json（scripts/export_enchant_beads.py 只读 PVF 导出）。
 
 import (
-	"context"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"os"
 )
 
 // enchantCardOffset 是装备 181 字节行里附魔卡（u32）的偏移。
@@ -45,17 +42,11 @@ var enchantBeadCards map[uint32]uint32
 
 // LoadEnchantBeads 读取附魔宝珠清单；文件缺失时附魔整体拒绝（不影响其它系统）。
 func LoadEnchantBeads(path string) error {
-	b, err := os.ReadFile(path)
-	if os.IsNotExist(err) {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
 	var c enchantBeadConfig
-	if err = json.Unmarshal(b, &c); err != nil {
+	if loaded, err := loadOptionalJSON(path, &c); !loaded || err != nil {
 		return err
 	}
+
 	if c.Version != 1 || len(c.Beads) == 0 {
 		return fmt.Errorf("附魔宝珠规则源定义不完整")
 	}
@@ -117,40 +108,8 @@ type EnchantReceipt struct {
 }
 
 // ApplyEnchantByBead 处理 CMD272：把宝珠对应的附魔卡写进装备行，扣掉一颗宝珠。
-func (s *WearService) ApplyEnchantByBead(ctx context.Context, role storage.Character, key string, r protocol.EnchantByBeadRequest) (storage.Character, EnchantReceipt, error) {
-	var out EnchantReceipt
-	if s == nil || s.Store == nil || s.Catalog == nil || s.BagRules.Source != role.ConfigVersion {
-		return role, out, fmt.Errorf("附魔需要有效装备目录及角色存档")
-	}
-	if !EnchantBeadsLoaded() {
-		return role, out, fmt.Errorf("附魔宝珠规则未装载")
-	}
-	if r.BeadSpace != 0 {
-		return role, out, fmt.Errorf("附魔宝珠容器 %d 不支持（仅背包）", r.BeadSpace)
-	}
-	saved, _, err := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, enchantModel, func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
-		next, receipt, e := s.applyEnchantByBead(current, r)
-		if e != nil {
-			return nil, nil, e
-		}
-		encoded, e := json.Marshal(receipt)
-		if e != nil {
-			return nil, nil, e
-		}
-		return next, encoded, nil
-	})
-	if err != nil {
-		return role, out, err
-	}
-	receipt, err := s.Store.CharacterEventReceipt(ctx, role.AccountID, role.ID, key)
-	if err == nil {
-		err = json.Unmarshal(receipt, &out)
-	}
-	saved.WireID = role.WireID
-	return saved, out, err
-}
 
-func (s *WearService) applyEnchantByBead(role storage.Character, r protocol.EnchantByBeadRequest) (json.RawMessage, EnchantReceipt, error) {
+func (s *WearService) ApplyEnchantByBead(role Role, r protocol.EnchantByBeadRequest) (json.RawMessage, EnchantReceipt, error) {
 	var out EnchantReceipt
 	bag, err := ReadBag(role.State)
 	if err != nil {
@@ -170,7 +129,7 @@ func (s *WearService) applyEnchantByBead(role storage.Character, r protocol.Ench
 		}
 	}
 	if index < 0 {
-		return nil, out, fmt.Errorf("目标装备不在 空间%d 槽%d", r.EquipSpace, r.EquipSlot)
+		return nil, out, Refuse(RefusalEquipment, "目标装备不在 空间%d 槽%d", r.EquipSpace, r.EquipSlot)
 	}
 	gear := items[index]
 	if err = gear.ValidateRecord(); err != nil {
@@ -181,7 +140,7 @@ func (s *WearService) applyEnchantByBead(role storage.Character, r protocol.Ench
 		return nil, out, err
 	}
 	if _, ok := d.Fields["[equipment type]"]; !ok {
-		return nil, out, fmt.Errorf("目标不是装备")
+		return nil, out, Refuse(RefusalEquipment, "目标不是装备")
 	}
 
 	// 扣宝珠：背包里那个槽必须就是这颗宝珠。
@@ -196,7 +155,7 @@ func (s *WearService) applyEnchantByBead(role storage.Character, r protocol.Ench
 		}
 		c, ok := EnchantCardForBead(item.Template)
 		if !ok || item.Amount == 0 {
-			return nil, out, fmt.Errorf("宝珠槽位里不是附魔宝珠（槽 %d 里是模板 %d）", r.BeadSlot, item.Template)
+			return nil, out, Refuse(RefusalItems, "宝珠槽位里不是附魔宝珠（槽 %d 里是模板 %d）", r.BeadSlot, item.Template)
 		}
 		card = c
 		beadTemplate = item.Template
@@ -210,7 +169,7 @@ func (s *WearService) applyEnchantByBead(role storage.Character, r protocol.Ench
 		break
 	}
 	if !found {
-		return nil, out, fmt.Errorf("附魔宝珠不在背包里")
+		return nil, out, Refuse(RefusalItems, "附魔宝珠不在背包里")
 	}
 
 	row := EquipmentRow(gear)

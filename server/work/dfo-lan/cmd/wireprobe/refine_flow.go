@@ -5,8 +5,8 @@ import (
 	"crypto/sha256"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
+	"dfolan/internal/workflow"
 	"fmt"
-	"strings"
 	"time"
 )
 
@@ -19,22 +19,18 @@ import (
 // 绝不能落进 4（"No items are available."）—— 强化/增幅那次全弹 1658 的坑就在这里：
 // 玩家看见「没有可用物品」根本想不到是材料位放错了。
 func refineRefusalCode(err error) uint16 {
-	if err == nil {
+	switch inventory.RefusalOf(err) {
+	case inventory.RefusalLimit:
+		return cmd80ErrNotEquipment
+	case inventory.RefusalMaterials:
+		return cmd80ErrNoMaterials
+	case inventory.RefusalItems:
+		return cmd80ErrNoItems
+	case inventory.RefusalEquipment:
+		return cmd80ErrNotUpgradable
+	default:
 		return cmd80ErrGeneric
 	}
-	msg := err.Error()
-	switch {
-	case strings.Contains(msg, "只有武器"), strings.Contains(msg, "上限"):
-		return cmd80ErrNotEquipment // 17 → "The equipment cannot be refined."
-	case strings.Contains(msg, "材料不足"), strings.Contains(msg, "不是 Powerful Energy"),
-		strings.Contains(msg, "取不到材料消耗"):
-		return cmd80ErrNoMaterials // 22 → "You do not have the materials required to Refine."
-	case strings.Contains(msg, "不在背包"):
-		return cmd80ErrNoItems
-	case strings.Contains(msg, "目标不是装备"):
-		return cmd80ErrNotUpgradable
-	}
-	return cmd80ErrGeneric
 }
 
 // CMD 430 = 锻造（Refine，NPC Kiri）。
@@ -46,7 +42,7 @@ func refineRefusalCode(err error) uint16 {
 //
 // 成功后照既有约定补发装备行/材料行刷新 —— 客户端不会用回包里的等级去改物品对象，
 // 它只在结果面板上显示 [7]/[9]，真正的等级靠刷新行重新反序列化。
-func (w *worldSession) refine(service *inventory.WearService, p, raw []byte, event func(map[string]any)) ([]outboundPacket, error) {
+func (w *worldSession) refine(service *workflow.WearService, p, raw []byte, event func(map[string]any)) ([]outboundPacket, error) {
 	if service == nil || w == nil || w.role.ID == 0 || w.activeDungeon != nil {
 		return nil, fmt.Errorf("锻造需要已选角色且位于城镇")
 	}
@@ -73,27 +69,10 @@ func (w *worldSession) refine(service *inventory.WearService, p, raw []byte, eve
 	if err != nil {
 		return nil, err
 	}
-	rows := [][protocol.CurrentItemRecordSize]byte{}
-	// 材料行：被扣完时该格已移除，用空行让客户端同步移除。
-	matRow := bagRowOrEmpty(bag, out.MaterialSlot)
-	rows = append(rows, matRow)
-	if out.EquipmentSpace == 0 {
-		gearRow := bagRowOrEmpty(bag, out.EquipmentSlot)
-		rows = append(rows, gearRow)
-	}
-	body, err := protocol.InventoryUpdate(rows)
+	rows := equipmentRows(bag, out.EquipmentSpace, out.EquipmentSlot, out.MaterialSlot)
+	plan, err = appendEquipmentUpdates(plan, saved.State, rows, out.EquipmentSpace, "refine_inventory", "refine_worn")
 	if err != nil {
 		return nil, err
-	}
-	plan = append(plan, outboundPacket{"refine_inventory", 0, 14, body})
-	if out.EquipmentSpace == 3 {
-		wornBody, werr := inventory.WornSpaceUpdate(saved.State)
-		if werr != nil {
-			return nil, werr
-		}
-		if len(wornBody) > 0 {
-			plan = append(plan, outboundPacket{"refine_worn", 0, 14, wornBody})
-		}
 	}
 	event(map[string]any{
 		"kind": "refine_committed", "character_id": saved.ID,

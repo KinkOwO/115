@@ -4,7 +4,8 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
+	"dfolan/internal/savecontract"
+
 	"encoding/hex"
 	"encoding/json"
 	"testing"
@@ -25,7 +26,7 @@ func repairService(t *testing.T, prof catalog.Profession, rows ...inventory.Equi
 	}
 }
 
-func repairRole(t *testing.T, advancement byte, worn []inventory.BagEquipment) storage.Character {
+func repairRole(t *testing.T, advancement byte, worn []inventory.BagEquipment) Character {
 	t.Helper()
 	req, e := hex.DecodeString(repairCreateRequest)
 	if e != nil {
@@ -41,7 +42,7 @@ func repairRole(t *testing.T, advancement byte, worn []inventory.BagEquipment) s
 			t.Fatal(e)
 		}
 	}
-	return storage.Character{ID: 6, Name: "cezz", Profession: 0, Request: req, ConfigVersion: creationSum, State: raw}
+	return Character{ID: 6, Name: "cezz", Profession: 0, Request: req, ConfigVersion: savecontract.Identity(), State: raw}
 }
 
 // 老角色：当时目录没有 growtype 数据，advancement 停在 0、身上也没装备。

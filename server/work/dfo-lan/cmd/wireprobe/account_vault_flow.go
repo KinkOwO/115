@@ -7,6 +7,7 @@ import (
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/storage"
+	"dfolan/internal/workflow"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
@@ -75,9 +76,9 @@ func (w *worldSession) upgradeAccountVault(ctx context.Context, opcode uint16, p
 	}
 	rules := *w.vault.Rules.Account
 	key := fmt.Sprintf("account-vault:%s:%x", prefix, sha256.Sum256(raw))
-	saved, materials, vault, applied, err := w.vault.Store.CommitAccountVault(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, opcode,
+	saved, materials, vault, applied, err := w.store.CommitAccountVault(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, opcode,
 		func(role storage.Character, materials json.RawMessage, vault storage.AccountVaultState) (json.RawMessage, json.RawMessage, storage.AccountVaultState, error) {
-			state, counts, next, err := inventory.UpgradeAccountVault(role, materials, vault, rules, opcode == 305)
+			state, counts, next, err := inventory.UpgradeAccountVault(workflow.InventoryRole(role), materials, vault, rules, opcode == 305)
 			if err != nil {
 				return nil, nil, vault, err
 			}
@@ -96,7 +97,7 @@ func (w *worldSession) upgradeAccountVault(ctx context.Context, opcode uint16, p
 	return accountVaultUpgradePackets(saved, materials, vault, rules, opcode, applied)
 }
 
-func (w *worldSession) moveAccountVault(service *inventory.WearService, r protocol.ItemMoveRequest, key string) ([]outboundPacket, error) {
+func (w *worldSession) moveAccountVault(service *workflow.WearService, r protocol.ItemMoveRequest, key string) ([]outboundPacket, error) {
 	if w.vault == nil || w.vault.Store == nil || w.vault.Rules.Account == nil || w.activeDungeon != nil {
 		return nil, fmt.Errorf("当前不能操作账号金库")
 	}
@@ -106,9 +107,9 @@ func (w *worldSession) moveAccountVault(service *inventory.WearService, r protoc
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	var count uint32
-	saved, _, savedVault, _, err := w.vault.Store.CommitAccountVault(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, 19,
+	saved, _, savedVault, _, err := w.store.CommitAccountVault(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, 19,
 		func(role storage.Character, materials json.RawMessage, vault storage.AccountVaultState) (json.RawMessage, json.RawMessage, storage.AccountVaultState, error) {
-			state, next, moved, err := inventory.MoveAccountVault(role, vault, service.BagRules, w.vault.Catalog, service.Catalog, r, *w.vault.Rules.Account)
+			state, next, moved, err := inventory.MoveAccountVault(workflow.InventoryRole(role), vault, service.BagRules, w.vault.Catalog, service.Catalog, r, *w.vault.Rules.Account)
 			if err != nil {
 				return nil, nil, vault, err
 			}
@@ -154,7 +155,7 @@ func (w *worldSession) sortAccountVaultCmd() ([]outboundPacket, error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	v, err := w.vault.Store.CommitAccountVaultSort(ctx, w.account, w.role.ID, inventory.SortAccountVaultItems)
+	v, err := w.store.CommitAccountVaultSort(ctx, w.account, w.role.ID, inventory.SortAccountVaultItems)
 	if err != nil {
 		return nil, err
 	}
@@ -162,10 +163,12 @@ func (w *worldSession) sortAccountVaultCmd() ([]outboundPacket, error) {
 	if err != nil {
 		return nil, err
 	}
-	return []outboundPacket{{"account_vault_sorted", 1, 20, []byte{}}, {"account_vault_list", 0, 13, body}}, nil
+	// ACK20 体保持 nil（preparePackets 跳过空体占位，行为与旧版一致）；
+	// 真正需要空包的场景见 ispins_flow.go 的 N1658。
+	return []outboundPacket{{"account_vault_sorted", 1, 20, nil}, {"account_vault_list", 0, 13, body}}, nil
 }
 
-func (w *worldSession) moveAccountVaultCross(service *inventory.WearService, r protocol.ItemMoveRequest, key string) ([]outboundPacket, error) {
+func (w *worldSession) moveAccountVaultCross(service *workflow.WearService, r protocol.ItemMoveRequest, key string) ([]outboundPacket, error) {
 	space := r.SourceList
 	if space == 12 {
 		space = r.DestinationList
@@ -176,7 +179,7 @@ func (w *worldSession) moveAccountVaultCross(service *inventory.WearService, r p
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	var moved uint32
-	saved, shared, personal, _, err := w.vault.Store.CommitAccountVaultCrossMove(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, space, func(role storage.Character, a storage.AccountVaultState, p storage.VaultState) (json.RawMessage, storage.AccountVaultState, json.RawMessage, error) {
+	saved, shared, personal, _, err := w.store.CommitAccountVaultCrossMove(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, space, func(role storage.Character, a storage.AccountVaultState, p storage.VaultState) (json.RawMessage, storage.AccountVaultState, json.RawMessage, error) {
 		if p.ConfigVersion != w.vault.Rules.SourceSHA256 {
 			return nil, a, nil, fmt.Errorf("个人金库存档版本不匹配")
 		}
@@ -300,14 +303,14 @@ func (w *worldSession) changeAccountVaultGold(ctx context.Context, opcode uint16
 	}
 	key := fmt.Sprintf("account-vault-gold:%s:%x", prefix, sha256.Sum256(raw))
 	var plan []outboundPacket
-	saved, _, _, applied, err := w.vault.Store.CommitAccountVault(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, opcode, func(role storage.Character, materials json.RawMessage, v storage.AccountVaultState) (json.RawMessage, json.RawMessage, storage.AccountVaultState, error) {
+	saved, _, _, applied, err := w.store.CommitAccountVault(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, opcode, func(role storage.Character, materials json.RawMessage, v storage.AccountVaultState) (json.RawMessage, json.RawMessage, storage.AccountVaultState, error) {
 		var state json.RawMessage
 		var next storage.AccountVaultState
 		var e error
 		if opcode == 307 {
-			state, next, e = inventory.DepositAccountVaultGold(role, v, *w.vault.Rules.Account, amount)
+			state, next, e = inventory.DepositAccountVaultGold(workflow.InventoryRole(role), v, *w.vault.Rules.Account, amount)
 		} else {
-			state, next, e = inventory.WithdrawAccountVaultGold(role, v, *w.vault.Rules.Account, amount)
+			state, next, e = inventory.WithdrawAccountVaultGold(workflow.InventoryRole(role), v, *w.vault.Rules.Account, amount)
 		}
 		if e != nil {
 			return nil, nil, v, e

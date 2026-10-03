@@ -3,7 +3,6 @@ package character
 import (
 	"context"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -41,7 +40,7 @@ import (
 // enforcement point, since no player data gets deleted. A refusal returns the
 // closure's error, so nothing is written and nothing is recorded. Zero (unapply)
 // never hits the gate: a character must always be able to get out of a skin.
-func (s *Service) ApplyWeaponSkin(ctx context.Context, role storage.Character, key string, skin uint32) (storage.Character, bool, error) {
+func (s *Service) ApplyWeaponSkin(ctx context.Context, role Character, key string, skin uint32) (Character, bool, error) {
 	if s == nil || s.Store == nil {
 		return role, false, fmt.Errorf("weapon skin without a store")
 	}
@@ -50,7 +49,7 @@ func (s *Service) ApplyWeaponSkin(ctx context.Context, role storage.Character, k
 	}
 	changed := false
 	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, "weapon-skin-apply-v1",
-		func(cur storage.Character) (json.RawMessage, json.RawMessage, error) {
+		func(cur Character) (json.RawMessage, json.RawMessage, error) {
 			b, err := inventory.ReadBag(cur.State)
 			if err != nil {
 				return nil, nil, err
@@ -88,7 +87,7 @@ func (s *Service) ApplyWeaponSkin(ctx context.Context, role storage.Character, k
 // 职业与转职必须从 cur 读，role 是入场时的旧快照，佩戴可能排在一次转职之后——与
 // ReplicateWeaponSkin 同一条理由。目录/职业查不到就跳过（返回 nil），交给
 // inventory.WeaponSkinUsable 去兜：缺目录不能让本来正常的佩戴全部失败。
-func (s *Service) weaponSkinUsable(cur storage.Character, skin uint32) error {
+func (s *Service) weaponSkinUsable(cur Character, skin uint32) error {
 	if s.Equipment == nil {
 		return nil
 	}
@@ -122,7 +121,7 @@ func (s *Service) weaponSkinUsable(cur storage.Character, skin uint32) error {
 // 职业查不到、存档读不出转职，都算「无从判断」而放行。缺目录不能让本来正常的仓库变成
 // 空的，而且**正在佩戴的那一条绝不能从页里消失**——消失后客户端就选不中它，玩家再也
 // 点不到「解除」，会被卡在一件本职业戴不上的外观里出不来（调用方自己保留那一条）。
-func (s *Service) WeaponSkinUsableFor(cur storage.Character) func(uint32) bool {
+func (s *Service) WeaponSkinUsableFor(cur Character) func(uint32) bool {
 	if s == nil || s.Equipment == nil {
 		return nil
 	}
@@ -160,7 +159,7 @@ func (s *Service) WeaponSkinUsableFor(cur storage.Character) func(uint32) bool {
 // The client's skin cargo container is session state - NOTI1545 only rides along
 // with this confirmation, and a reconnect starts from an empty container - which
 // is why the list is persisted here and re-pushed at entry.
-func (s *Service) ReplicateWeaponSkin(ctx context.Context, role storage.Character, key string, slot uint16, mode uint32) (storage.Character, inventory.WeaponReplication, bool, error) {
+func (s *Service) ReplicateWeaponSkin(ctx context.Context, role Character, key string, slot uint16, mode uint32) (Character, inventory.WeaponReplication, bool, error) {
 	if s == nil || s.Store == nil {
 		return role, inventory.WeaponReplication{}, false, fmt.Errorf("weapon replication without a store")
 	}
@@ -169,7 +168,7 @@ func (s *Service) ReplicateWeaponSkin(ctx context.Context, role storage.Characte
 	}
 	var spent inventory.WeaponReplication
 	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, "weapon-skin-replicate-v1",
-		func(cur storage.Character) (json.RawMessage, json.RawMessage, error) {
+		func(cur Character) (json.RawMessage, json.RawMessage, error) {
 			b, err := inventory.ReadBag(cur.State)
 			if err != nil {
 				return nil, nil, err
@@ -233,7 +232,10 @@ func (s *Service) canLearnSkill(profession byte, advancement, awakening int) fun
 		return nil
 	}
 	return func(skill uint16) bool {
-		d, ok := s.Learning.index[profession][skill]
+		d, ok, sourceErr := s.Learning.Definition(profession, skill)
+		if sourceErr != nil {
+			return false
+		}
 		if !ok {
 			return true
 		}

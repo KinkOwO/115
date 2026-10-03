@@ -3,7 +3,6 @@ package character
 import (
 	"context"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 )
@@ -24,7 +23,7 @@ import (
 //
 // Callers re-publish USERINFO1 afterwards: no other packet carries the unlock
 // byte (see worldSession.unlockRefresh).
-func (s *Service) ExpandSkinSlot(ctx context.Context, role storage.Character, key string, mask byte) (storage.Character, bool, error) {
+func (s *Service) ExpandSkinSlot(ctx context.Context, role Character, key string, mask byte) (Character, bool, error) {
 	if s == nil || s.Store == nil {
 		return role, false, fmt.Errorf("skin slot expansion without a store")
 	}
@@ -35,7 +34,7 @@ func (s *Service) ExpandSkinSlot(ctx context.Context, role storage.Character, ke
 		return role, false, fmt.Errorf("skin slot expansion without an event key")
 	}
 	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, "skin-slot-expand-v1",
-		func(cur storage.Character) (json.RawMessage, json.RawMessage, error) {
+		func(cur Character) (json.RawMessage, json.RawMessage, error) {
 			b, err := inventory.ReadBag(cur.State)
 			if err != nil {
 				return nil, nil, err

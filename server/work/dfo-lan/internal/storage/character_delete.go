@@ -3,7 +3,6 @@ package storage
 import (
 	"context"
 	"errors"
-	"fmt"
 )
 
 // DeleteCharacter retains all role state and dependent receipts. A name stays
@@ -34,6 +33,5 @@ func (s *Store) DeleteCharacter(ctx context.Context, account int64, slot uint16,
 	if e = tx.Commit(ctx); e != nil {
 		return 0, e
 	}
-	s.Cache.Del(ctx, fmt.Sprintf("%scharacters:%d", s.prefix, account))
 	return id, nil
 }

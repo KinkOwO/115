@@ -23,18 +23,18 @@ func questObjectiveCheck(ctx context.Context, s, reopened *storage.Store, role s
 	reset := func() error {
 		// Only the caller's isolated temporary-schema character is touched.
 		_ = s.AbandonQuest(ctx, role.AccountID, role.ID, 3145)
-		_, err := s.AcceptQuest(ctx, role.AccountID, role.ID, 3145, c.Source.Checksum, 1, 10000, nil, 1, quest.SingleClearMap)
+		_, err := s.AcceptQuest(ctx, role.AccountID, role.ID, 3145, c.Source.SaveIdentity(), 1, 10000, nil, 1, quest.SingleClearMap)
 		return err
 	}
 	if err = reset(); err != nil {
 		return err
 	}
 	run := &dungeon.Session{RunID: "000000000000000000000000000000a1", Loaded: true, Room: catalog.DungeonRoom{Map: 76126, Boss: true}, Monsters: []protocol.DungeonMonster{{Entity: 4096, Rank: 3}}, Dead: map[uint16]bool{}}
-	if _, err = service.MapClear(ctx, role, run, c.Source.Checksum); err == nil {
+	if _, err = service.MapClear(ctx, role, run, c.Source.SaveIdentity()); err == nil {
 		return fmt.Errorf("quest completed before known enemy death")
 	}
 	run.Dead[4096] = true
-	if _, err = service.MapClear(ctx, role, run, c.Source.Checksum); err == nil {
+	if _, err = service.MapClear(ctx, role, run, c.Source.SaveIdentity()); err == nil {
 		return fmt.Errorf("enemy death bypassed final boss check")
 	}
 	if err = run.BossCheck(protocol.BossCheckRequest{Actor: role.WireID, Target: 4096}, role.WireID); err != nil {
@@ -45,7 +45,7 @@ func questObjectiveCheck(ctx context.Context, s, reopened *storage.Store, role s
 	}
 	foreign := role
 	foreign.AccountID = other
-	if _, err = service.MapClear(ctx, foreign, run, c.Source.Checksum); err == nil {
+	if _, err = service.MapClear(ctx, foreign, run, c.Source.SaveIdentity()); err == nil {
 		return fmt.Errorf("map clear crossed account boundary")
 	}
 	var wg sync.WaitGroup
@@ -54,7 +54,7 @@ func questObjectiveCheck(ctx context.Context, s, reopened *storage.Store, role s
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			active, err := service.MapClear(ctx, role, run, c.Source.Checksum)
+			active, err := service.MapClear(ctx, role, run, c.Source.SaveIdentity())
 			if err == nil {
 				found := false
 				for _, q := range active {
@@ -96,7 +96,7 @@ func questObjectiveCheck(ctx context.Context, s, reopened *storage.Store, role s
 	if err = reset(); err != nil {
 		return err
 	}
-	active, err := service.MapClear(ctx, role, run, c.Source.Checksum)
+	active, err := service.MapClear(ctx, role, run, c.Source.SaveIdentity())
 	if err != nil {
 		return err
 	}
@@ -107,7 +107,7 @@ func questObjectiveCheck(ctx context.Context, s, reopened *storage.Store, role s
 	}
 	run.RunID = "000000000000000000000000000000a2"
 	run.Room.Map = 76121
-	active, err = service.MapClear(ctx, role, run, c.Source.Checksum)
+	active, err = service.MapClear(ctx, role, run, c.Source.SaveIdentity())
 	if err != nil {
 		return err
 	}
@@ -118,7 +118,7 @@ func questObjectiveCheck(ctx context.Context, s, reopened *storage.Store, role s
 	}
 	run.RunID = "000000000000000000000000000000a3"
 	run.Room.Map = 76126
-	if _, err = service.MapClear(ctx, role, run, c.Source.Checksum); err != nil {
+	if _, err = service.MapClear(ctx, role, run, c.Source.SaveIdentity()); err != nil {
 		return err
 	}
 	fmt.Println("QUEST_MAP_OBJECTIVE_PASS source_map=true ownership=true live_enemies_refused=true concurrent_retry=true reopen=true reaccept_requires_new_clear=true rewards_unchanged=true")

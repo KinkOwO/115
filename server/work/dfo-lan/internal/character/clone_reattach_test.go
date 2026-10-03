@@ -5,7 +5,7 @@ import (
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
+
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -50,7 +50,7 @@ func TestCloneReattachPacketsDetachThenAssignCover(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			state := json.RawMessage(`{"source_sha256":"fixture","attributes":{"[hp max]":100,"[mp max]":100},"inventory":{"version":"ordinary-bag-v1","worn":` + tc.worn + `}}`)
 			before := append([]byte(nil), state...)
-			role := storage.Character{WireID: 503, Profession: 11, State: state}
+			role := Character{WireID: 503, Profession: 11, State: state}
 			s := &Service{DetailedWornCandidate: true, Equipment: cloneReattachFixtureCatalog(t)}
 			baseline, err := s.EntryAddition(role)
 			if err != nil {
@@ -83,7 +83,7 @@ func TestCloneReattachPacketsDetachThenAssignCover(t *testing.T) {
 
 func TestCloneReattachPacketsRequireClone(t *testing.T) {
 	s := &Service{DetailedWornCandidate: true, Equipment: cloneReattachFixtureCatalog(t)}
-	role := storage.Character{WireID: 503, Profession: 11, State: json.RawMessage(`{"inventory":{"version":"ordinary-bag-v1","worn":[{"slot":3,"template":517502726,"group":1}]}}`)}
+	role := Character{WireID: 503, Profession: 11, State: json.RawMessage(`{"inventory":{"version":"ordinary-bag-v1","worn":[{"slot":3,"template":517502726,"group":1}]}}`)}
 	reset, full, ok, err := s.CloneReattachPackets(role)
 	if err != nil || ok || reset != nil || full != nil {
 		t.Fatalf("ordinary look enabled Clone reattach: ok=%v err=%v", ok, err)

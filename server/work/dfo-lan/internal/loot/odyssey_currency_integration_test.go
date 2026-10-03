@@ -1,4 +1,4 @@
-package loot
+package loot_test
 
 import (
 	"context"
@@ -6,7 +6,9 @@ import (
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
+	"dfolan/internal/loot"
 	"dfolan/internal/storage"
+	"dfolan/internal/workflow"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -39,7 +41,6 @@ func TestOdysseyCurrencyPickupDatabase(t *testing.T) {
 		}
 	}()
 	cfg.PostgresSchema = schema
-	cfg.RedisPrefix = schema + ":"
 	store, e := storage.Open(ctx, cfg)
 	if e != nil {
 		t.Fatal(e)
@@ -62,15 +63,15 @@ func TestOdysseyCurrencyPickupDatabase(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	rules, e := LoadRules("../../configs/drop.current36.json")
+	rules, e := loot.LoadRules("../../configs/drop.current36.json")
 	if e != nil {
 		t.Fatal(e)
 	}
-	tables, e := Parse(c)
+	tables, e := loot.Parse(c)
 	if e != nil {
 		t.Fatal(e)
 	}
-	coins, e := LoadOdysseyCurrency("../../configs/odyssey-currency.json")
+	coins, e := loot.LoadOdysseyCurrency("../../configs/odyssey-currency.json")
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -79,7 +80,7 @@ func TestOdysseyCurrencyPickupDatabase(t *testing.T) {
 		t.Fatal(e)
 	}
 	d := &dungeon.Session{RunID: "0123456789abcdef0123456789abcdef", Loaded: true, Definition: catalog.DungeonDefinition{Odyssey: true}, Room: catalog.DungeonRoom{Map: 1}, Monsters: []protocol.DungeonMonster{{Entity: 4096, Level: 115, Rank: 3}}, Dead: map[uint16]bool{4096: true}, NextEntity: 4097}
-	session := NewSession(c, tables, rules, nil, d.RunID, role.AccountID, role.ID, role.WireID)
+	session := loot.NewSession(c, tables, rules, nil, d.RunID, role.AccountID, role.ID, role.WireID)
 	session.Currency = coins
 	if _, e = session.Death(d, 4096); e != nil {
 		t.Fatal(e)
@@ -93,7 +94,8 @@ func TestOdysseyCurrencyPickupDatabase(t *testing.T) {
 	if object == 0 {
 		t.Fatal("no source currency object")
 	}
-	s := Service{Store: store, Catalog: c, Rules: rules, Tables: tables, BagRules: bagRules, Currency: coins}
+	domain := loot.Service{Catalog: c, Rules: rules, Tables: tables, BagRules: bagRules, Currency: coins}
+	s := workflow.LootService{Store: store, Loot: &domain}
 	request := protocol.PickupRequest{Object: object}
 	next, _, applied, e := s.Pickup(ctx, role, session, d, request)
 	if e != nil || !applied {

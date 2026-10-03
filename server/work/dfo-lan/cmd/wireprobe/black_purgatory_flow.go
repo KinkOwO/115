@@ -24,7 +24,7 @@ type blackPurgatoryState struct {
 }
 
 func (w *worldSession) blackPurgatoryQuota(ctx context.Context, run, action string, now time.Time) (storage.BlackPurgatoryQuota, time.Time, error) {
-	if w.characters == nil || w.characters.Store == nil || w.fatigue == nil || w.fatigue.Location == nil {
+	if w.characters == nil || w.store == nil || w.fatigue == nil || w.fatigue.Location == nil {
 		return storage.BlackPurgatoryQuota{}, time.Time{}, fmt.Errorf("黑鸦次数存储或重置时间配置不可用")
 	}
 	local := now.In(w.fatigue.Location)
@@ -34,7 +34,7 @@ func (w *worldSession) blackPurgatoryQuota(ctx context.Context, run, action stri
 	day := time.Date(local.Year(), local.Month(), local.Day(), w.fatigue.Rules.ResetHour, 0, 0, 0, w.fatigue.Location)
 	// dungeonincountinfo.etc的周重置日=2（周二）；时区及小时沿用本服配置。
 	week := day.AddDate(0, 0, -(int(day.Weekday())+7-int(time.Tuesday))%7)
-	quota, err := w.characters.Store.BlackPurgatoryQuota(ctx, w.account, w.role.ID, run, action, day, week)
+	quota, err := w.store.BlackPurgatoryQuota(ctx, w.account, w.role.ID, run, action, day, week)
 	if action != "read" {
 		w.blackPurgatory.quotaDay = time.Time{}
 	}

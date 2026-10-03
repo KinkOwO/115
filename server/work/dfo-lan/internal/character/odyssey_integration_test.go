@@ -1,8 +1,9 @@
-package character
+package character_test
 
 import (
 	"context"
 	"dfolan/internal/catalog"
+	. "dfolan/internal/character"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
@@ -48,7 +49,6 @@ func TestOdysseyGrowthDatabaseReplay(t *testing.T) {
 		}
 	}()
 	cfg.PostgresSchema = schema
-	cfg.RedisPrefix = schema + ":"
 	store, e := storage.Open(ctx, cfg)
 	if e != nil {
 		t.Fatal(e)
@@ -63,7 +63,7 @@ func TestOdysseyGrowthDatabaseReplay(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	s, role := odysseyGrowthFixture(t)
+	s, role := OdysseyGrowthFixtureForTest(t)
 	s.Store = store
 	role.AccountID = account
 	role.WireID = 0
@@ -99,7 +99,7 @@ func TestOdysseyGrowthDatabaseReplay(t *testing.T) {
 		t.Fatal("committed journal/replay", journal, e)
 	}
 	// Advance the disposable fixture only, then retry its three independent gifts.
-	next, _, e = store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, "test-level90", "fixture", func(r storage.Character) (json.RawMessage, json.RawMessage, error) {
+	next, _, e = store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, "test-level90", "fixture", func(r Character) (json.RawMessage, json.RawMessage, error) {
 		n, e := s.ApplyOdysseyTarget(r, 90)
 		return n.State, json.RawMessage(`{}`), e
 	})

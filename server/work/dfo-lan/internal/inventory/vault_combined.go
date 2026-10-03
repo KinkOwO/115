@@ -2,14 +2,13 @@ package inventory
 
 import (
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 )
 
 // TransferCombined keeps the upstream equipment schema while applying the
 // captured stack rules and replay-protected transaction to both item families.
-func (s *VaultService) TransferCombined(role storage.Character, state storage.VaultState, r protocol.ItemMoveRequest) (json.RawMessage, json.RawMessage, error) {
+func (s *VaultService) TransferCombined(role Role, state VaultState, r protocol.ItemMoveRequest) (json.RawMessage, json.RawMessage, error) {
 	v, err := ReadExtendedVault(state)
 	if err != nil {
 		return nil, nil, err
@@ -18,7 +17,7 @@ func (s *VaultService) TransferCombined(role storage.Character, state storage.Va
 	if err != nil {
 		return nil, nil, err
 	}
-	if role.ConfigVersion != s.Rules.SourceSHA256 || state.ConfigVersion != s.Rules.SourceSHA256 || !s.Rules.allows(state.Slots) || r.Extra != 0 || r.Selection != 0xffffffff || r.Flags != [3]byte{} {
+	if state.ConfigVersion != s.Rules.SourceSHA256 || !s.Rules.allows(state.Slots) || r.Extra != 0 || r.Selection != 0xffffffff || r.Flags != [3]byte{} {
 		return nil, nil, fmt.Errorf("vault source or request mismatch")
 	}
 	var equipment bool

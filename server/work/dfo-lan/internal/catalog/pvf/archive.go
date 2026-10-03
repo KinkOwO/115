@@ -2,11 +2,15 @@ package pvf
 
 import (
 	"bytes"
+	"container/list"
 	"crypto/sha256"
+	"dfolan/internal/savecontract"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"runtime"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -46,6 +50,19 @@ type ArchiveSnapshot struct {
 	CachedTexts  int           `json:"cached_texts"`
 }
 
+// SaveIdentity 返回本快照对应的**存档身份**（服务端契约版本，见 internal/savecontract）。
+//
+// 2026-10-01（next146 结构性根治）：Checksum 是**内层归档的 SHA256**，即一个本地构建
+// 产物的哈希 —— 同一份客户端三件套（DFO.exe + sk.dat + Script.pvf）重新解包一次就会变
+// （实测 7ef2db59… → b2b503b5… → be95d64e…），换客户端更是必变。它只配做
+// **L3 目录自校**（`a.Snapshot().Checksum != index.Source.Checksum`），**不配做存档身份**：
+// 拿它当身份 ⇒ 重打包/换客户端一次，全体存档就因「身份不符」被硬拒
+// （`quest %d requires source migration`）。
+//
+// 因此：凡是「拿存档行里的版本号跟目录快照比」或「把目录身份写进存档」的地方，
+// 一律用本方法取值，绝不用 Checksum。
+func (a ArchiveSnapshot) SaveIdentity() string { return savecontract.Identity() }
+
 type PreloadResult struct {
 	Groups int `json:"groups"`
 	Cached int `json:"cached"`
@@ -65,21 +82,41 @@ type Archive struct {
 	format   ArchiveFormat
 	header   pvfHeader
 
-	// data 是启动期读入的完整 PVF 字节，后续查询不再访问磁盘。
+	// Memory archives retain all bytes; runtime archives retain packed metadata.
 	data   []byte
 	files  []File
 	items  []fileItem
 	groups []groupItem
 
 	// pathIdx 保存归一化路径到文件表下标的映射，查询时避免扫描目录。
-	pathIdx map[string]int
-	bodyOff int
-	strA    []byte
-	strW    []byte
+	pathIdx           map[string]int
+	bodyOff           int
+	strA              []byte
+	strW              []byte
+	stringPools       *runtimeStringPools
+	compactDirectory  bool
+	compactTable      []byte
+	compactIndex      []directoryEntry
+	backing           *archiveFile
+	lease             *archiveLease
+	cleanup           runtime.Cleanup
+	closeOnce         sync.Once
+	closed            atomic.Bool
+	metadataCache     MetadataCacheStats
+	metadataCacheFile string
 
 	// chunks 缓存已解密解压的 body chunk，texts 缓存已解码的脚本文本。
-	chunks sync.Map
-	texts  sync.Map
+	chunks           sync.Map
+	texts            sync.Map
+	readOnlyView     bool
+	cacheMu          sync.Mutex
+	maxChunkBytes    int64
+	cachedChunkBytes int64
+	maxTexts         int
+	chunkOrder       list.List
+	chunkPositions   map[int]*list.Element
+	textOrder        list.List
+	textPositions    map[int]*list.Element
 }
 
 func Open(path string) (*Archive, error) {
@@ -149,7 +186,7 @@ func (a *Archive) Snapshot() ArchiveSnapshot {
 		Size:         a.snapshot.Size,
 		Checksum:     a.snapshot.Checksum,
 		LoadedAt:     a.snapshot.LoadedAt.Format(rfc3339Nano),
-		FileCount:    len(a.files),
+		FileCount:    a.FileCount(),
 		GroupCount:   len(a.groups),
 		CachedChunks: cachedChunks,
 		CachedTexts:  cachedTexts,
@@ -165,19 +202,74 @@ func (a *Archive) Format() ArchiveFormat {
 }
 
 func (a *Archive) Files() []File {
-	if a == nil || len(a.files) == 0 {
+	if a == nil || a.FileCount() == 0 {
 		return nil
 	}
-	out := make([]File, len(a.files))
-	copy(out, a.files)
+	out := make([]File, a.FileCount())
+	for i := range out {
+		out[i] = a.fileAt(i)
+	}
 	return out
+}
+
+// IterateFiles visits immutable directory values without copying the complete
+// multi-million-entry file slice. The callback cannot mutate archive entries.
+func (a *Archive) IterateFiles(fn func(File) error) error {
+	if a == nil || fn == nil {
+		return fmt.Errorf("invalid archive file iterator")
+	}
+	if err := a.poolError(); err != nil {
+		return err
+	}
+	for i := 0; i < a.FileCount(); i++ {
+		file := a.fileAt(i)
+		if err := a.poolError(); err != nil {
+			return err
+		}
+		if err := fn(file); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (a *Archive) FileCount() int {
 	if a == nil {
 		return 0
 	}
+	if a.compactDirectory {
+		return len(a.compactTable) / fileItemSize
+	}
 	return len(a.files)
+}
+
+func (a *Archive) FileInfo(index int) (File, error) {
+	if err := a.ReadError(); err != nil {
+		return File{}, err
+	}
+	if index < 0 || index >= a.FileCount() {
+		return File{}, fmt.Errorf("%w: file index %d", ErrInvalidArchive, index)
+	}
+	f := a.fileAt(index)
+	return f, a.poolError()
+}
+
+// ReleaseReadCaches discards temporary decoded chunks and text. Archive bytes,
+// paths and string pools remain intact, so subsequent reads are still valid.
+// A concurrent reader may repopulate an entry; this is not an archive close.
+func (a *Archive) ReleaseReadCaches() {
+	if a == nil {
+		return
+	}
+	a.cacheMu.Lock()
+	defer a.cacheMu.Unlock()
+	a.chunks.Clear()
+	a.texts.Clear()
+	a.chunkOrder.Init()
+	a.textOrder.Init()
+	a.chunkPositions = nil
+	a.textPositions = nil
+	a.cachedChunkBytes = 0
 }
 
 func (a *Archive) CanReadFileData() bool {
@@ -187,23 +279,31 @@ func (a *Archive) CanReadFileData() bool {
 	return a.format == FormatNKPI || a.format == FormatProtectedNKPI || a.format == FormatDFO20260901
 }
 
+func (a *Archive) ReadError() error {
+	if a == nil || a.closed.Load() {
+		return fmt.Errorf("%w: source is closed", ErrInvalidArchive)
+	}
+	return a.poolError()
+}
+
 func (a *Archive) FindFile(relativePath string) (File, bool) {
-	if a == nil {
+	if a == nil || a.poolError() != nil {
 		return File{}, false
 	}
-	idx, ok := a.pathIdx[pathKey(relativePath)]
+	idx, ok := a.lookupPath(relativePath)
 	if !ok {
 		return File{}, false
 	}
-	return a.files[idx], true
+	file := a.fileAt(idx)
+	return file, a.poolError() == nil
 }
 
 func (a *Archive) FindFileIndex(relativePath string) int {
-	if a == nil {
+	if a == nil || a.poolError() != nil {
 		return -1
 	}
-	idx, ok := a.pathIdx[pathKey(relativePath)]
-	if !ok {
+	idx, ok := a.lookupPath(relativePath)
+	if !ok || a.poolError() != nil {
 		return -1
 	}
 	return idx
@@ -213,7 +313,10 @@ func (a *Archive) ReadText(relativePath string) (string, error) {
 	if a == nil {
 		return "", fmt.Errorf("%w: archive is nil", ErrInvalidArchive)
 	}
-	idx, ok := a.pathIdx[pathKey(relativePath)]
+	idx, ok := a.lookupPath(relativePath)
+	if err := a.poolError(); err != nil {
+		return "", err
+	}
 	if !ok {
 		return "", fmt.Errorf("%w: %s", ErrFileNotFound, relativePath)
 	}
@@ -224,7 +327,10 @@ func (a *Archive) ReadRaw(relativePath string) ([]byte, error) {
 	if a == nil {
 		return nil, fmt.Errorf("%w: archive is nil", ErrInvalidArchive)
 	}
-	idx, ok := a.pathIdx[pathKey(relativePath)]
+	idx, ok := a.lookupPath(relativePath)
+	if err := a.poolError(); err != nil {
+		return nil, err
+	}
 	if !ok {
 		return nil, fmt.Errorf("%w: %s", ErrFileNotFound, relativePath)
 	}
@@ -274,6 +380,18 @@ func (a *Archive) Bytes() []byte {
 	if a == nil {
 		return nil
 	}
+	if a.backing != nil {
+		if a.closed.Load() {
+			return nil
+		}
+		out := make([]byte, int(a.sourceSize()))
+		if _, err := a.backing.file.ReadAt(out, 0); err != nil {
+			runtime.KeepAlive(a)
+			return nil
+		}
+		runtime.KeepAlive(a)
+		return out
+	}
 	out := make([]byte, len(a.data))
 	copy(out, a.data)
 	return out
@@ -282,6 +400,9 @@ func (a *Archive) Bytes() []byte {
 func (a *Archive) Reader() *bytes.Reader {
 	if a == nil {
 		return bytes.NewReader(nil)
+	}
+	if a.backing != nil {
+		return bytes.NewReader(a.Bytes())
 	}
 	return bytes.NewReader(a.data)
 }

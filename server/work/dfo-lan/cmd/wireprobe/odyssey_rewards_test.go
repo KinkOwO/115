@@ -7,7 +7,9 @@ import (
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
+	"dfolan/internal/savecontract"
 	"dfolan/internal/storage"
+	"dfolan/internal/workflow"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
@@ -17,14 +19,14 @@ import (
 	"time"
 )
 
-func odysseyRewardFixture(t *testing.T) (storage.Character, *inventory.WearService) {
+func odysseyRewardFixture(t *testing.T) (storage.Character, *workflow.WearService) {
 	t.Helper()
 	req := append([]byte{0, 4, 0, 0, 0}, []byte("test")...)
 	req = append(req, 0, 0, 0, 0, 0, 0, 255, 0, 1, 0, 2, 0)
 	for len(req)%8 != 0 {
 		req = append(req, 0)
 	}
-	full, e := inventory.OpenFullEquipmentCatalog("testdata/odyssey-equipment", odysseySource)
+	full, e := inventory.OpenFullEquipmentCatalog("testdata/odyssey-equipment", odysseySource())
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -33,9 +35,9 @@ func odysseyRewardFixture(t *testing.T) (storage.Character, *inventory.WearServi
 	if e != nil {
 		t.Fatal(e)
 	}
-	wear := &inventory.WearService{Catalog: &inventory.EquipmentCatalog{Full: full}, BagRules: rules}
-	wear.Catalog.Source.Checksum = odysseySource
-	return storage.Character{ID: 9, WireID: 9, Request: req, ConfigVersion: odysseySource, State: json.RawMessage(`{"level":1,"custom_marker":42}`)}, wear
+	wear := &workflow.WearService{WearService: inventory.WearService{Catalog: &inventory.EquipmentCatalog{Full: full}, BagRules: rules}}
+	wear.Catalog.Source.Checksum = odysseySource()
+	return storage.Character{ID: 9, WireID: 9, Request: req, ConfigVersion: savecontract.Identity(), State: json.RawMessage(`{"level":1,"custom_marker":42}`)}, wear
 }
 
 func TestOdysseyArmorSourceAndAtomicGrant(t *testing.T) {
@@ -184,7 +186,6 @@ func TestOdysseyArmorDatabaseReplay(t *testing.T) {
 		}
 	}()
 	cfg.PostgresSchema = schema
-	cfg.RedisPrefix = schema + ":"
 	store, e := storage.Open(ctx, cfg)
 	if e != nil {
 		t.Fatal(e)

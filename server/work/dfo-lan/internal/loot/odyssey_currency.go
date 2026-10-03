@@ -27,6 +27,11 @@ func LoadOdysseyCurrency(path string) (*OdysseyCurrency, error) {
 	if e = json.Unmarshal(b, &r); e != nil {
 		return nil, e
 	}
+	return NewOdysseyCurrency(r)
+}
+
+// NewOdysseyCurrency shares validation and runtime index construction across native and JSON sources.
+func NewOdysseyCurrency(r OdysseyCurrency) (*OdysseyCurrency, error) {
 	if r.Source != catalog.OdysseySource || r.Model != "operator-odyssey-coins-v1" || r.Denominator != 10000 || len(r.Items) != 2 {
 		return nil, fmt.Errorf("invalid Odyssey currency policy")
 	}

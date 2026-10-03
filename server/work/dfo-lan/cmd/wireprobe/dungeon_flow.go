@@ -10,6 +10,7 @@ import (
 	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
 	"dfolan/internal/storage"
+	"dfolan/internal/workflow"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
@@ -125,6 +126,33 @@ func (w *worldSession) isTownArrivalOriginSync(id uint16, p []byte) bool {
 		r.PreviousTown == pos.Town && uint32(r.PreviousArea) == pos.Area && r.Flag == 0 && r.TailFlags == [2]byte{}
 }
 
+func towerPolicy(t *catalog.TowerRuntime) storage.TowerPolicy {
+	return storage.TowerPolicy{Key: t.Key, TopFloor: t.TopFloor, DailyEntries: t.DailyEntries, ResetHourUTC: t.ResetHourUTC}
+}
+
+func (w *worldSession) towerProgress(ctx context.Context, tower *catalog.TowerRuntime) (storage.TowerProgress, []uint32, error) {
+	var empty storage.TowerProgress
+	if w == nil || tower == nil || w.dungeons == nil || w.characters == nil || w.store == nil {
+		return empty, nil, fmt.Errorf("tower progress unavailable")
+	}
+	floors, err := w.dungeons.TowerFloors(tower.Key, tower.TopFloor)
+	if err != nil {
+		return empty, floors, err
+	}
+	var legacyFloor uint16
+	if tower.Key == "grief" {
+		var griefFloors [101]uint32
+		copy(griefFloors[:], floors)
+		legacy, err := w.store.TowerGriefProgress(ctx, w.account, griefFloors)
+		if err != nil {
+			return empty, floors, err
+		}
+		legacyFloor = legacy.HighestCleared
+	}
+	progress, err := w.store.ReadTowerProgress(ctx, w.account, towerPolicy(tower), legacyFloor)
+	return progress, floors, err
+}
+
 func (w *worldSession) selectDungeon(p []byte) (*dungeon.Session, []outboundPacket, error) {
 	if w == nil || w.dungeons == nil || w.role.ID == 0 {
 		return nil, nil, fmt.Errorf("dungeon catalog or character unavailable")
@@ -191,6 +219,25 @@ func (w *worldSession) prepareDungeonEntry(r protocol.DungeonSelection) (*dungeo
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+	if definition, ok := w.dungeons.Dungeons[r.ID]; ok && definition.Tower != nil {
+		tower := definition.Tower
+		policy := towerPolicy(tower)
+		progress, floors, err := w.towerProgress(ctx, tower)
+		if err != nil {
+			return nil, nil, err
+		}
+		if progress.HighestCleared >= policy.TopFloor {
+			return nil, nil, fmt.Errorf("%s tower is fully cleared", policy.Key)
+		}
+		next := progress.HighestCleared + 1
+		// The selection UI may still submit its static first-floor ID. The
+		// verified PVF layer table supplies the actual next dungeon ID.
+		if tower.Floor == 1 && next != 1 {
+			r.ID = floors[next]
+		} else if tower.Floor != next {
+			return nil, nil, fmt.Errorf("%s tower floor %d is locked", policy.Key, tower.Floor)
+		}
+	}
 	var s *dungeon.Session
 	var e error
 	if dungeon.IsTrainingRoom(*w.dungeons, r.ID) {
@@ -206,7 +253,7 @@ func (w *worldSession) prepareDungeonEntry(r protocol.DungeonSelection) (*dungeo
 		return nil, nil, e
 	}
 	noteMazeEntry(s)
-	if w.fatigue != nil && !s.Definition.NoFatigue && w.fatigue.Rules.RoomCost > 0 {
+	if w.fatigue != nil && !s.Definition.NoFatigue && w.fatigue.EnterCostFor(s.Definition.ID) > 0 {
 		fp, err := w.fatigue.State(ctx, w.account, w.role.ID, time.Now())
 		if err != nil {
 			return nil, nil, err
@@ -215,9 +262,14 @@ func (w *worldSession) prepareDungeonEntry(r protocol.DungeonSelection) (*dungeo
 			return nil, nil, storage.ErrFatigueExhausted
 		}
 	}
-	plan, e := w.dungeonEntryPlan("dungeon_select_ack", 16, r, s)
+	plan, e := w.dungeonEntryPlan(context.Background(), "dungeon_select_ack", 16, r, s)
 	if e != nil {
 		return nil, nil, e
+	}
+	if tower := s.Definition.Tower; tower != nil {
+		if _, e = w.store.ReserveTowerEntry(ctx, w.account, towerPolicy(tower), tower.Floor, time.Now()); e != nil {
+			return nil, nil, e
+		}
 	}
 	return s, plan, nil
 }
@@ -228,7 +280,7 @@ func (w *worldSession) prepareDungeonEntry(r protocol.DungeonSelection) (*dungeo
 // map). Both the town selection (CMD 16) and the post-clear "next story
 // dungeon" gate (CMD 2062) replay it unchanged - only the ack id differs,
 // because the client loads a whole new dungeon either way.
-func (w *worldSession) dungeonEntryPlan(ackName string, ackID uint16, sel protocol.DungeonSelection, s *dungeon.Session) ([]outboundPacket, error) {
+func (w *worldSession) dungeonEntryPlan(ctx context.Context, ackName string, ackID uint16, sel protocol.DungeonSelection, s *dungeon.Session) ([]outboundPacket, error) {
 	var seed uint32
 	if e := binary.Read(rand.Reader, binary.LittleEndian, &seed); e != nil {
 		return nil, e
@@ -277,8 +329,20 @@ func (w *worldSession) dungeonEntryPlan(ackName string, ackID uint16, sel protoc
 		}
 		plan = append(plan, outboundPacket{"solo_party_initialized", 0, 9, party})
 	}
+	// ★ 誓约战斗效果进图时序（外部施工图 Attempt 1/3，**未实机验证**）：
+	// 对「穿槽位 47 誓约核心 ∧ 无需 Clone 重挂载」的角色，把 NOTI13 完整穿戴、
+	// NOTI14 槽位更新、S2C2839 选项**提前到 NOTI29 开始地图之前**下发，
+	// 并在加载后跳过同组重复（下方 oathDirectEntryActive 判断）。
+	// 假设（待玩家实机判定）：加载后补发会让穿戴效果被应用两次，且对普通副本的
+	// 开图效果装载已太晚（现象=Buff 出现两次、第一次无效）。
+	// `DFO_OATH_DIRECT_ENTRY=0` 可一键回退到旧时序。
+	if direct, directErr := w.oathDirectEntryPackets(ctx); directErr != nil {
+		return nil, directErr
+	} else if len(direct) > 0 {
+		plan = append(plan, direct...)
+	}
 	plan = append(plan, []outboundPacket{
-		{"dungeon_info_sent", 0, 28, protocol.DungeonInfo(protocol.DungeonInfoState{ID: sel.ID, Difficulty: sel.Difficulty, Maze: s.Maze.Index, Boss: s.Maze.Boss})},
+		{"dungeon_info_sent", 0, 28, protocol.DungeonInfo(protocol.DungeonInfoState{ID: sel.ID, Difficulty: sel.Difficulty, Maze: s.Maze.Index, Boss: s.Maze.Boss, Hell: s.HellPosition})},
 		{"dungeon_start_map_sent", 0, 29, start},
 	}...)
 	if s.Tournament != nil {
@@ -310,13 +374,13 @@ func (w *worldSession) dungeonEntryPlan(ackName string, ackID uint16, sel protoc
 // so completed ones count too; only accepted would lock out a dungeon whose
 // quest the character already finished.
 func (w *worldSession) acceptedQuestIDs(ctx context.Context) (map[uint16]bool, error) {
-	quests, e := w.service.Store.Quests(ctx, w.account, w.role.ID)
+	quests, e := w.store.Quests(ctx, w.account, w.role.ID)
 	if e != nil {
 		return nil, e
 	}
 	accepted := map[uint16]bool{}
 	for _, q := range quests {
-		if (q.Status == "accepted" || q.Status == "completed") && q.ConfigVersion == w.dungeons.Source.Checksum {
+		if (q.Status == "accepted" || q.Status == "completed") && q.ConfigVersion == w.dungeons.Source.SaveIdentity() {
 			accepted[q.ID] = true
 		}
 	}
@@ -346,7 +410,7 @@ func (w *worldSession) directMoveDungeon(p []byte) (*dungeon.Session, []outbound
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	if w.fatigue != nil && !d.NoFatigue && w.fatigue.Rules.RoomCost > 0 {
+	if w.fatigue != nil && !d.NoFatigue && w.fatigue.EnterCostFor(d.ID) > 0 {
 		fp, err := w.fatigue.State(ctx, w.account, w.role.ID, time.Now())
 		if err != nil {
 			return nil, nil, err
@@ -416,7 +480,7 @@ func dungeonSelectionHead() []outboundPacket {
 // The two entry sequences differ by nothing but that 2062 acknowledgement, so
 // it is dropped here: the direct move replays the town selection entry exactly.
 func (w *worldSession) directMoveEntryPlan(sel protocol.DungeonSelection, s *dungeon.Session) ([]outboundPacket, error) {
-	return w.dungeonEntryPlan("dungeon_select_ack", 16, sel, s)
+	return w.dungeonEntryPlan(context.Background(), "dungeon_select_ack", 16, sel, s)
 }
 
 func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) {
@@ -474,9 +538,19 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 		}
 		plan = append(plan, blackPackets...)
 		d := w.activeDungeon
-		fp, _, e := w.fatigue.EnterRoom(ctx, w.account, w.role.ID, d.RunID, d.Room.Map, d.Definition.NoFatigue, time.Now())
+		fp, _, e := w.fatigue.EnterRoomForDungeon(ctx, w.account, w.role.ID, d.RunID, d.Room.Map, d.Definition.ID, d.Definition.NoFatigue, time.Now())
 		if e != nil {
-			return nil, e
+			// 「限制」必须在进入之前生效，绝不能发生在副本里面：客户端已经进本、
+			// 正在等这条加载应答，回一个它不认识的拒绝形状就等于让它卡在加载界面
+			//（2026-10-01 实测过一次，见分析文档 §九）。这里把加载应答发完，
+			// 再立刻把角色完整送回城镇。
+			log.Printf("dungeon %d 进本记费失败（%v）：已放行加载并立即退回城镇，避免卡死", d.Definition.ID, e)
+			w.activeDungeon = nil
+			leave, le := w.leaveDungeon()
+			if le != nil {
+				return nil, le
+			}
+			return append(plan, leave...), nil
 		}
 		p, e := protocol.Fatigue(fp.Used, fp.Limit, fp.UsedMax)
 		if e != nil {
@@ -485,9 +559,25 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 		plan = append(plan, outboundPacket{"dungeon_fatigue_updated", 0, 36, p})
 	}
 	if w.characters != nil {
-		wornUpdate, err := inventory.WornSpaceUpdate(w.role.State)
-		if err == nil && len(wornUpdate) > 0 {
-			plan = append(plan, outboundPacket{"dungeon_worn_visuals_restored", 0, 14, wornUpdate})
+		// Dungeon actor reconstruction does not carry oath slot 47 in the
+		// mode-1 detail record. Restore the authoritative worn container before
+		// applying slot updates and the oath selection, as town entry does.
+		// 誓约进图直发命中时，这三项已在 NOTI29 之前发过 ⇒ 此处不再重复
+		// （否则穿戴效果会被应用两次 —— 正是施工图描述的"Buff 两次"来源）。
+		directEntry, directErr := w.oathDirectEntryActive(context.Background())
+		if directErr != nil {
+			return nil, directErr
+		}
+		if !directEntry {
+			wornSnapshot, err := inventory.WornPayload(w.role.State)
+			if err != nil {
+				return nil, err
+			}
+			plan = append(plan, outboundPacket{"dungeon_worn_equipment_restored", 0, 13, wornSnapshot})
+			wornUpdate, err := inventory.WornSpaceUpdate(w.role.State)
+			if err == nil && len(wornUpdate) > 0 {
+				plan = append(plan, outboundPacket{"dungeon_worn_visuals_restored", 0, 14, wornUpdate})
+			}
 		}
 		reset, full, enabled, err := w.characters.CloneReattachPackets(w.role)
 		if err != nil {
@@ -521,6 +611,22 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 		// back here the way the worn visuals do.
 		plan = append(plan, w.damageFontRestore()...)
 	}
+	if w.characters != nil && w.store != nil {
+		// 誓约进图直发命中时，S2C2839 已在 NOTI29 之前发过 ⇒ 此处不再重复。
+		directOathHere, oathHereErr := w.oathDirectEntryActive(context.Background())
+		if oathHereErr != nil {
+			return nil, oathHereErr
+		}
+		if !directOathHere {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			selection, err := w.dungeonOathSelectionPacket(ctx)
+			if err != nil {
+				return nil, err
+			}
+			plan = append(plan, selection)
+		}
+	}
 	if w.activeDungeon.Definition.ID == 100003126 {
 		// Elvenmere 初始化层数：根据进图选取的 Zone（Extra）设置当前层与最高已通关层。
 		floor := byte(w.activeDungeon.Extra)
@@ -535,7 +641,7 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 	}
 	// 房间重建会重置原生场景计时器，每次加载均同步同一个挑战期限。
 	plan = append(plan, w.bleedingMineTimer(time.Now())...)
-	return plan, nil
+	return appendBuffEnhancementRestore(plan, w.characters, w.role, "dungeon_buff_enhancement_restored")
 }
 
 func (w *worldSession) elvenmereTeleport(p []byte) ([]outboundPacket, error) {
@@ -584,7 +690,7 @@ func (w *worldSession) elvenmereTeleport(p []byte) ([]outboundPacket, error) {
 			before, _ := inventory.ReadBag(w.role.State)
 			if updated, _, err := awarder.Grant(w.role.State, itemTemplate, itemCount); err == nil {
 				w.role.State = updated
-				if store := w.service.Store; store != nil {
+				if store := w.store; store != nil {
 					key := fmt.Sprintf("elvenmere-weekly:%s:%d", w.activeDungeon.RunID, clearedFloor)
 					_, _, _ = store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, "elvenmere-reward-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
 						proof, _ := json.Marshal(map[string]any{"template": itemTemplate, "amount": itemCount, "floor": clearedFloor})
@@ -613,7 +719,7 @@ func (w *worldSession) elvenmereTeleport(p []byte) ([]outboundPacket, error) {
 			before, _ := inventory.ReadBag(w.role.State)
 			if updated, _, err := awarder.Grant(w.role.State, sTemplate, sCount); err == nil {
 				w.role.State = updated
-				if store := w.service.Store; store != nil {
+				if store := w.store; store != nil {
 					key := fmt.Sprintf("elvenmere-season:%s:%d", w.activeDungeon.RunID, clearedFloor)
 					_, _, _ = store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, "elvenmere-reward-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
 						proof, _ := json.Marshal(map[string]any{"template": sTemplate, "amount": sCount, "floor": clearedFloor})
@@ -636,7 +742,7 @@ func (w *worldSession) elvenmereTeleport(p []byte) ([]outboundPacket, error) {
 		if updatedRole, _, err := w.progression.ApplyGain(w.role, expGain); err == nil {
 			updatedRole.WireID = w.role.WireID
 			w.role = updatedRole
-			if store := w.service.Store; store != nil {
+			if store := w.store; store != nil {
 				key := fmt.Sprintf("elvenmere-exp:%s:%d", w.activeDungeon.RunID, clearedFloor)
 				_, _, _ = store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, "elvenmere-exp-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
 					proof, _ := json.Marshal(map[string]any{"exp": expGain, "floor": clearedFloor})
@@ -736,7 +842,7 @@ func (w *worldSession) leaveDungeon() ([]outboundPacket, error) {
 		w.blackPurgatory.prepared, w.blackPurgatory.loaded = false, false
 		w.blackPurgatory.deadline = time.Time{}
 	}
-	return plan, nil
+	return appendBuffEnhancementRestore(plan, w.characters, w.role, "town_buff_enhancement_restored")
 }
 
 func (w *worldSession) returnFromDungeonSelection(p []byte) ([]outboundPacket, error) {
@@ -852,6 +958,24 @@ func (w *worldSession) monsterDeath(p []byte, event func(map[string]any)) ([]out
 			return nil, err
 		}
 	}
+	// [ISPINS-ARENA-BOSS] 伊斯大陆死亡批次（next79 §24）：官服 s4 实证
+	// （c2s op=39 帧 335/392/441/485）对 boss 死亡上报的应答只有 16B 常量
+	// N38（<u32 entity> <4B零> <5B token> <3B零>），无 39-ack、无 N37 经验
+	// 推送、无 200B 掉落实体语法。私服 generic 批次发出这 3 帧后客户端
+	// 1.2s 内 op=682 闪退（2026-10-03 五测实证）。
+	if w.ispins != nil && w.activeDungeon != nil {
+		plan := []outboundPacket{
+			// N38 尾 5B token 官服按阶段各不相同（next79 §26），
+			// 用当前 run 的阶段号回放对应 nonce。
+			{"monster_death_confirmed", 0, 38, protocol.IspinsMonsterDeathConfirmed(r.Entity, w.ispins.stage)},
+		}
+		completed, err := w.completeDungeon()
+		if err != nil {
+			w.completionErr = err
+			return plan, nil
+		}
+		return append(plan, completed...), nil
+	}
 	plan := []outboundPacket{{"monster_death_ack", 1, 39, []byte{1}}}
 	if !w.deathSent[uint16(r.Entity)] {
 		body := protocol.MonsterDeathConfirmed(uint16(r.Entity))
@@ -872,6 +996,9 @@ func (w *worldSession) monsterDeath(p []byte, event func(map[string]any)) ([]out
 				w.drops.Attunement = w.loot.Attunement
 				w.drops.RewardBoxes = w.loot.RewardBoxes
 				w.drops.Omen = w.loot.Omen
+				// 天平档位：本场进本时由 oathInfoPackets 算好（见 oath_info.go 的
+				// oathTierRun）。它与征兆是两条平行线，各自发放互不抑制。
+				w.drops.OathTier = w.oathTierRun
 				if w.loot.Omen != nil && w.omenHeldReady {
 					// 本场开始时的持有数：-omen-state 时来自角色存档
 					// （loadOmenRunState），否则来自 -omen-hold 诊断。账本本身是内存的，
@@ -883,9 +1010,9 @@ func (w *worldSession) monsterDeath(p []byte, event func(map[string]any)) ([]out
 					w.loot.Omen.Set(w.role.ID, uint32(w.omenHold))
 					w.omenHoldApplied = true
 				}
-				store := w.service.Store
+				store := w.store
 				if store == nil && w.characters != nil {
-					store = w.characters.Store
+					store = w.store
 				}
 				if store != nil {
 					ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -920,7 +1047,7 @@ func (w *worldSession) monsterDeath(p []byte, event func(map[string]any)) ([]out
 	if confirmed && w.quests != nil && !unowned {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		grant, err := w.quests.GrantSeekingMonsterItems(ctx, w.role, w.activeDungeon, uint16(r.Entity))
+		grant, err := (&workflow.QuestService{Store: w.store, Quest: w.quests}).GrantSeekingMonsterItems(ctx, w.role, w.activeDungeon, uint16(r.Entity))
 		if err != nil {
 			return nil, err
 		}
@@ -1049,6 +1176,11 @@ func (w *worldSession) completeDungeon() ([]outboundPacket, error) {
 	if w.bleedingMineStart != nil {
 		return w.completeBleedingMineStage()
 	}
+	// 伊斯大陆结算链（next78 §1.4）：N31 阶段 token → N2256 → N2252 →
+	// N2255 clear → N1658 → N2253 → N2254。阶段推进由 CMD2046 分支处理。
+	if w.ispins != nil {
+		return w.completeIspinsStage()
+	}
 	if err := w.freezeBlackPurgatoryRewards(); err != nil {
 		return nil, err
 	}
@@ -1127,7 +1259,7 @@ func (w *worldSession) completeDungeon() ([]outboundPacket, error) {
 	if w.quests != nil && w.dungeons != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		active, err := w.quests.MapClear(ctx, w.role, w.activeDungeon, w.dungeons.Source.Checksum)
+		active, err := w.quests.MapClear(ctx, w.role, w.activeDungeon, w.dungeons.Source.SaveIdentity())
 		if err != nil {
 			return nil, err
 		}
@@ -1180,7 +1312,7 @@ func (w *worldSession) freezeBlackPurgatoryRewards() error {
 	if err := binary.Read(rand.Reader, binary.LittleEndian, &seed); err != nil {
 		return err
 	}
-	cards, err := w.loot.FreezeBlackPurgatoryCards(ctx, w.role, w.activeDungeon, seed)
+	cards, err := (&workflow.LootService{Store: w.store, Loot: w.loot}).FreezeBlackPurgatoryCards(ctx, w.role, w.activeDungeon, seed)
 	if err != nil {
 		return err
 	}
@@ -1404,4 +1536,55 @@ func (w *worldSession) moveDungeonRoomDecoded(r protocol.DungeonRoomTransition) 
 		return nil, nil, e
 	}
 	return next, []outboundPacket{{"dungeon_move_ack", 1, 45, []byte{1}}, {"dungeon_next_map_sent", 0, 29, body}}, nil
+}
+
+// oathDirectEntryEnabled 报告是否走「誓约进图直发」时序。默认开；`DFO_OATH_DIRECT_ENTRY=0` 回退。
+//
+// ⚠️ 这是外部施工图（Attempt 1/3，未实机验证）提出的时序假设：把 NOTI13/NOTI14/S2C2839
+// 从"加载后补发"提前到 NOTI29 之前，并跳过加载后的重复下发。留开关是为了能一次构建里 A/B。
+func oathDirectEntryEnabled() bool {
+	return os.Getenv("DFO_OATH_DIRECT_ENTRY") != "0"
+}
+
+// oathDirectEntryActive 报告本连接当前是否命中「誓约进图直发」。
+// 条件：开关开 ∧ 有角色服务 ∧ **无需 Clone 重挂载** ∧ **穿槽位 47 誓约核心**
+//（`EquippedOathSelection` 在未穿槽位 47 时返回 ItemID == 0）。
+func (w *worldSession) oathDirectEntryActive(ctx context.Context) (bool, error) {
+	if !oathDirectEntryEnabled() || w.characters == nil || w.role.ID == 0 {
+		return false, nil
+	}
+	if _, _, reattach, err := w.characters.CloneReattachPackets(w.role); err != nil {
+		return false, err
+	} else if reattach {
+		return false, nil // 穿 Clone 的角色沿用已验证的重挂载路径
+	}
+	oathCtx, oathCancel := context.WithTimeout(ctx, 5*time.Second)
+	defer oathCancel()
+	selected, err := w.store.EquippedOathSelection(oathCtx, w.account, w.role.ID)
+	if err != nil {
+		return false, err
+	}
+	return selected.ItemID != 0, nil
+}
+
+// oathDirectEntryPackets 构造要提前到 NOTI29 之前的三项（13/14/2839）。未命中时返回空切片。
+func (w *worldSession) oathDirectEntryPackets(ctx context.Context) ([]outboundPacket, error) {
+	active, err := w.oathDirectEntryActive(ctx)
+	if err != nil || !active {
+		return nil, err
+	}
+	wornSnapshot, err := inventory.WornPayload(w.role.State)
+	if err != nil {
+		return nil, err
+	}
+	out := []outboundPacket{{"dungeon_worn_equipment_direct", 0, 13, wornSnapshot}}
+	if wornUpdate, updErr := inventory.WornSpaceUpdate(w.role.State); updErr == nil && len(wornUpdate) > 0 {
+		out = append(out, outboundPacket{"dungeon_worn_visuals_direct", 0, 14, wornUpdate})
+	}
+	selection, err := w.dungeonOathSelectionPacket(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out = append(out, selection)
+	return out, nil
 }

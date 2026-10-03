@@ -26,6 +26,19 @@ type ItemShopOffer struct {
 	Template       uint32             `json:"template"`
 	PurchaseAmount uint32             `json:"purchase_amount,omitempty"`
 	Materials      []ItemShopMaterial `json:"materials,omitempty"`
+
+	// 限购，来自物品自身 `.stk` 的 `[purchase limit] <scope> <period> <count>`：
+	//
+	//	LimitScope  = "character" | "account"
+	//	LimitPeriod = "daily" | "weekly" | "monthly" | "accumulate" | "version"
+	//
+	// LimitCount == 0 表示**不限购**（多数商品）。
+	//
+	// "accumulate" 是**累计**：从首次购买起永久累计、不随周期重置（全库最多，1215 个）。
+	// "version" 语义**未查证**（仅 11 个），服务端按累计处理 —— 见 loot 侧的注释。
+	LimitScope  string `json:"limit_scope,omitempty"`
+	LimitPeriod string `json:"limit_period,omitempty"`
+	LimitCount  uint32 `json:"limit_count,omitempty"`
 }
 
 // ItemShop is one itemshop/*.shp table, keyed by the id the client sends as
@@ -59,6 +72,21 @@ func LoadItemShops(path string) (*ItemShops, error) {
 	if err := json.Unmarshal(raw, &s); err != nil {
 		return nil, err
 	}
+	return NewItemShops(s)
+}
+
+// NewItemShops owns the source offers and builds the historical first-payable
+// lookup for both PVF imports and legacy audit artifacts.
+func NewItemShops(s ItemShops) (*ItemShops, error) {
+	shops := make(map[string]ItemShop, len(s.Shops))
+	for key, shop := range s.Shops {
+		shop.Offers = append([]ItemShopOffer(nil), shop.Offers...)
+		for n := range shop.Offers {
+			shop.Offers[n].Materials = append([]ItemShopMaterial(nil), shop.Offers[n].Materials...)
+		}
+		shops[key] = shop
+	}
+	s.Shops = shops
 	if s.Model != ItemShopModel {
 		return nil, fmt.Errorf("unexpected item shop model %q", s.Model)
 	}
@@ -123,6 +151,52 @@ func (s *ItemShops) Materials(shopID, template uint32) (materials []ItemShopMate
 		return nil, true, false // listed, but priced in gold
 	}
 	return offer.Materials, true, true
+}
+
+// ResolveShop 从一组候选 id 里挑出真正开商店的那个。
+//
+// 背景（2026-09-29 实机取证，42/42 样本）：CMD21 的 p[8] 与 p[12] 都是
+// npc-like 的 id，但**哪个是商店取决于客户端当前从哪个 NPC 打开界面**：
+//
+//	p8=100000694 p12=100001774  -> 100001774 是商店（"装备之力魔法书"）
+//	p8=100001019 p12=100003035  -> 100001019 是商店（奥德赛商店）
+//
+// 42 个样本里「两个都不在商店表」的情况为 0，所以「谁在表里谁是商店」是可靠判据。
+// 返回 ok=false 表示候选都不是商店（调用方按无 source shop 处理）。
+//
+// 这里只做「查表选一」，不做任何猜测性推断。
+func (s *ItemShops) ResolveShop(candidates ...uint32) (shopID uint32, ok bool) {
+	if s == nil {
+		return 0, false
+	}
+	for _, id := range candidates {
+		if id == 0 {
+			continue
+		}
+		if _, found := s.byShop[id]; found {
+			return id, true
+		}
+	}
+	return 0, false
+}
+
+// PurchaseLimit 返回某商品在该商店的限购规则。
+//
+// ok=false 表示不限购（LimitCount 为 0，或该商店没有这个模板）。
+// 调用方应把 ok=false 当作「无限制」，不要当作错误。
+func (s *ItemShops) PurchaseLimit(shopID, template uint32) (scope, period string, count uint32, ok bool) {
+	if s == nil {
+		return "", "", 0, false
+	}
+	offers, found := s.byShop[shopID]
+	if !found {
+		return "", "", 0, false
+	}
+	offer, exists := offers[template]
+	if !exists || offer.LimitCount == 0 {
+		return "", "", 0, false
+	}
+	return offer.LimitScope, offer.LimitPeriod, offer.LimitCount, true
 }
 
 // PurchaseAmount is how many units one purchase grants (source default 1).

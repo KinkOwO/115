@@ -59,7 +59,10 @@ func (s *Store) MigrateUnifiedOptions(ctx context.Context) error {
  value integer NOT NULL CHECK(value BETWEEN 0 AND 65535),
  updated_at timestamptz NOT NULL DEFAULT now(),
  PRIMARY KEY(character_id,subtype,opt_index));`)
-	return e
+	if e != nil {
+		return e
+	}
+	return s.migrateWarpFavorites(ctx)
 }
 
 func validateUnifiedEntries(entries []UnifiedOptionEntry) error {
@@ -83,21 +86,18 @@ func (s *Store) SaveAccountUnifiedOptions(ctx context.Context, account int64, en
 	if e := validateUnifiedEntries(entries); e != nil {
 		return e
 	}
-	tx, e := s.DB.Begin(ctx)
-	if e != nil {
-		return e
-	}
-	defer tx.Rollback(ctx)
-	if e = tx.QueryRow(ctx, `SELECT 1 FROM accounts WHERE id=$1 FOR UPDATE`, account).Scan(new(int)); e != nil {
-		return e
-	}
-	for _, en := range entries {
-		if _, e = tx.Exec(ctx, `INSERT INTO account_unified_options(account_id,opt_index,value) VALUES($1,$2,$3)
- ON CONFLICT(account_id,opt_index) DO UPDATE SET value=EXCLUDED.value,updated_at=now()`, account, int(en.Position), int(en.Value)); e != nil {
+	return pgx.BeginFunc(ctx, s.DB, func(tx pgx.Tx) error {
+		if e := tx.QueryRow(ctx, `SELECT 1 FROM accounts WHERE id=$1 FOR UPDATE`, account).Scan(new(int)); e != nil {
 			return e
 		}
-	}
-	return tx.Commit(ctx)
+		for _, en := range entries {
+			if _, e := tx.Exec(ctx, `INSERT INTO account_unified_options(account_id,opt_index,value) VALUES($1,$2,$3)
+ ON CONFLICT(account_id,opt_index) DO UPDATE SET value=EXCLUDED.value,updated_at=now()`, account, int(en.Position), int(en.Value)); e != nil {
+				return e
+			}
+		}
+		return nil
+	})
 }
 
 // SaveCharacterUnifiedOptions upserts the character settings block, scoped to a
@@ -109,25 +109,22 @@ func (s *Store) SaveCharacterUnifiedOptions(ctx context.Context, account, id int
 	if e := validateUnifiedEntries(entries); e != nil {
 		return e
 	}
-	tx, e := s.DB.Begin(ctx)
-	if e != nil {
-		return e
-	}
-	defer tx.Rollback(ctx)
-	var one int
-	if e = tx.QueryRow(ctx, `SELECT 1 FROM characters WHERE account_id=$1 AND id=$2 AND deleted_at IS NULL FOR UPDATE`, account, id).Scan(&one); e != nil {
-		if errors.Is(e, pgx.ErrNoRows) {
-			return fmt.Errorf("unified options character is not owned")
-		}
-		return e
-	}
-	for _, en := range entries {
-		if _, e = tx.Exec(ctx, `INSERT INTO character_unified_options(character_id,opt_index,value) VALUES($1,$2,$3)
- ON CONFLICT(character_id,opt_index) DO UPDATE SET value=EXCLUDED.value,updated_at=now()`, id, int(en.Position), int(en.Value)); e != nil {
+	return pgx.BeginFunc(ctx, s.DB, func(tx pgx.Tx) error {
+		var one int
+		if e := tx.QueryRow(ctx, `SELECT 1 FROM characters WHERE account_id=$1 AND id=$2 AND deleted_at IS NULL FOR UPDATE`, account, id).Scan(&one); e != nil {
+			if errors.Is(e, pgx.ErrNoRows) {
+				return fmt.Errorf("unified options character is not owned")
+			}
 			return e
 		}
-	}
-	return tx.Commit(ctx)
+		for _, en := range entries {
+			if _, e := tx.Exec(ctx, `INSERT INTO character_unified_options(character_id,opt_index,value) VALUES($1,$2,$3)
+ ON CONFLICT(character_id,opt_index) DO UPDATE SET value=EXCLUDED.value,updated_at=now()`, id, int(en.Position), int(en.Value)); e != nil {
+				return e
+			}
+		}
+		return nil
+	})
 }
 
 // AccountUnifiedOptions returns the stored account option overrides for the
@@ -139,22 +136,7 @@ func (s *Store) AccountUnifiedOptions(ctx context.Context, account int64) (map[u
 	if account == 0 {
 		return out, nil
 	}
-	rows, e := s.DB.Query(ctx, `SELECT opt_index,value FROM account_unified_options WHERE account_id=$1`, account)
-	if e != nil {
-		return nil, e
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var idx, value int
-		if e = rows.Scan(&idx, &value); e != nil {
-			return nil, e
-		}
-		if value == 65535 {
-			continue
-		}
-		out[uint16(idx)] = uint16(value)
-	}
-	return out, rows.Err()
+	return s.readOptionValues(ctx, `SELECT opt_index,value FROM account_unified_options WHERE account_id=$1 AND value <> 65535`, account)
 }
 
 // CharacterUnifiedOptions returns the stored per-character setting overrides
@@ -164,19 +146,7 @@ func (s *Store) CharacterUnifiedOptions(ctx context.Context, characterID int64) 
 	if characterID == 0 {
 		return out, nil
 	}
-	rows, e := s.DB.Query(ctx, `SELECT opt_index,value FROM character_unified_options WHERE character_id=$1`, characterID)
-	if e != nil {
-		return nil, e
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var idx, value int
-		if e = rows.Scan(&idx, &value); e != nil {
-			return nil, e
-		}
-		out[uint16(idx)] = uint16(value)
-	}
-	return out, rows.Err()
+	return s.readOptionValues(ctx, `SELECT opt_index,value FROM character_unified_options WHERE character_id=$1`, characterID)
 }
 
 // SaveCharacterUnifiedOptionGroup persists a subtype-specific character
@@ -193,25 +163,22 @@ func (s *Store) SaveCharacterUnifiedOptionGroup(ctx context.Context, account, ch
 			return fmt.Errorf("character option group index out of range")
 		}
 	}
-	tx, err := s.DB.Begin(ctx)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback(ctx)
-	var one int
-	if err = tx.QueryRow(ctx, `SELECT 1 FROM characters WHERE account_id=$1 AND id=$2 AND deleted_at IS NULL FOR UPDATE`, account, characterID).Scan(&one); err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return fmt.Errorf("character option group: character is not owned")
-		}
-		return err
-	}
-	for _, entry := range entries {
-		if _, err = tx.Exec(ctx, `INSERT INTO character_unified_option_groups(character_id,subtype,opt_index,value) VALUES($1,$2,$3,$4)
-ON CONFLICT(character_id,subtype,opt_index) DO UPDATE SET value=EXCLUDED.value,updated_at=now()`, characterID, int(subtype), int(entry.Position), int(entry.Value)); err != nil {
+	return pgx.BeginFunc(ctx, s.DB, func(tx pgx.Tx) error {
+		var one int
+		if err := tx.QueryRow(ctx, `SELECT 1 FROM characters WHERE account_id=$1 AND id=$2 AND deleted_at IS NULL FOR UPDATE`, account, characterID).Scan(&one); err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return fmt.Errorf("character option group: character is not owned")
+			}
 			return err
 		}
-	}
-	return tx.Commit(ctx)
+		for _, entry := range entries {
+			if _, err := tx.Exec(ctx, `INSERT INTO character_unified_option_groups(character_id,subtype,opt_index,value) VALUES($1,$2,$3,$4)
+ON CONFLICT(character_id,subtype,opt_index) DO UPDATE SET value=EXCLUDED.value,updated_at=now()`, characterID, int(subtype), int(entry.Position), int(entry.Value)); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 // CharacterUnifiedOptionGroup returns the persisted values for one supported
@@ -224,19 +191,7 @@ func (s *Store) CharacterUnifiedOptionGroup(ctx context.Context, characterID int
 	if characterID == 0 {
 		return out, nil
 	}
-	rows, err := s.DB.Query(ctx, `SELECT opt_index,value FROM character_unified_option_groups WHERE character_id=$1 AND subtype=$2`, characterID, int(subtype))
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var index, value int
-		if err = rows.Scan(&index, &value); err != nil {
-			return nil, err
-		}
-		out[uint16(index)] = uint16(value)
-	}
-	return out, rows.Err()
+	return s.readOptionValues(ctx, `SELECT opt_index,value FROM character_unified_option_groups WHERE character_id=$1 AND subtype=$2`, characterID, int(subtype))
 }
 
 // SaveAccountHotkeys upserts account-scoped keyboard hotkeys (Subtype 3 Scheme A, Subtype 4 Scheme B).
@@ -250,26 +205,23 @@ func (s *Store) SaveAccountHotkeys(ctx context.Context, account int64, subtype b
 	if len(entries) == 0 {
 		return nil
 	}
-	tx, err := s.DB.Begin(ctx)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback(ctx)
-	if err = tx.QueryRow(ctx, `SELECT 1 FROM accounts WHERE id=$1 FOR UPDATE`, account).Scan(new(int)); err != nil {
-		return err
-	}
-	for _, en := range entries {
-		if en.Position > 156 {
-			continue
-		}
-		if _, err = tx.Exec(ctx, `INSERT INTO account_hotkeys(account_id, subtype, slot_index, keycode)
-VALUES($1, $2, $3, $4)
-ON CONFLICT(account_id, subtype, slot_index) DO UPDATE SET keycode=EXCLUDED.keycode, updated_at=now()`,
-			account, int(subtype), int(en.Position), int(en.Value)); err != nil {
+	return pgx.BeginFunc(ctx, s.DB, func(tx pgx.Tx) error {
+		if err := tx.QueryRow(ctx, `SELECT 1 FROM accounts WHERE id=$1 FOR UPDATE`, account).Scan(new(int)); err != nil {
 			return err
 		}
-	}
-	return tx.Commit(ctx)
+		for _, en := range entries {
+			if en.Position > 156 {
+				continue
+			}
+			if _, err := tx.Exec(ctx, `INSERT INTO account_hotkeys(account_id, subtype, slot_index, keycode)
+VALUES($1, $2, $3, $4)
+ON CONFLICT(account_id, subtype, slot_index) DO UPDATE SET keycode=EXCLUDED.keycode, updated_at=now()`,
+				account, int(subtype), int(en.Position), int(en.Value)); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 // SaveCharacterHotkeys upserts character-scoped keyboard hotkeys (Subtype 3 Scheme A, Subtype 4 Scheme B).
@@ -280,30 +232,27 @@ func (s *Store) SaveCharacterHotkeys(ctx context.Context, account, characterID i
 	if len(entries) == 0 {
 		return nil
 	}
-	tx, err := s.DB.Begin(ctx)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback(ctx)
-	var one int
-	if err = tx.QueryRow(ctx, `SELECT 1 FROM characters WHERE account_id=$1 AND id=$2 AND deleted_at IS NULL FOR UPDATE`, account, characterID).Scan(&one); err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return fmt.Errorf("character hotkeys: character is not owned")
-		}
-		return err
-	}
-	for _, en := range entries {
-		if en.Position > 156 {
-			continue
-		}
-		if _, err = tx.Exec(ctx, `INSERT INTO character_hotkeys(character_id, subtype, slot_index, keycode)
-VALUES($1, $2, $3, $4)
-ON CONFLICT(character_id, subtype, slot_index) DO UPDATE SET keycode=EXCLUDED.keycode, updated_at=now()`,
-			characterID, int(subtype), int(en.Position), int(en.Value)); err != nil {
+	return pgx.BeginFunc(ctx, s.DB, func(tx pgx.Tx) error {
+		var one int
+		if err := tx.QueryRow(ctx, `SELECT 1 FROM characters WHERE account_id=$1 AND id=$2 AND deleted_at IS NULL FOR UPDATE`, account, characterID).Scan(&one); err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return fmt.Errorf("character hotkeys: character is not owned")
+			}
 			return err
 		}
-	}
-	return tx.Commit(ctx)
+		for _, en := range entries {
+			if en.Position > 156 {
+				continue
+			}
+			if _, err := tx.Exec(ctx, `INSERT INTO character_hotkeys(character_id, subtype, slot_index, keycode)
+VALUES($1, $2, $3, $4)
+ON CONFLICT(character_id, subtype, slot_index) DO UPDATE SET keycode=EXCLUDED.keycode, updated_at=now()`,
+				characterID, int(subtype), int(en.Position), int(en.Value)); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 // AccountHotkeys returns stored account-wide keyboard hotkeys for the requested subtype (3 or 4).
@@ -312,19 +261,7 @@ func (s *Store) AccountHotkeys(ctx context.Context, account int64, subtype byte)
 	if account == 0 {
 		return out, nil
 	}
-	rows, err := s.DB.Query(ctx, `SELECT slot_index, keycode FROM account_hotkeys WHERE account_id=$1 AND subtype=$2`, account, int(subtype))
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var slot, keycode int
-		if err = rows.Scan(&slot, &keycode); err != nil {
-			return nil, err
-		}
-		out[uint16(slot)] = uint16(keycode)
-	}
-	return out, rows.Err()
+	return s.readOptionValues(ctx, `SELECT slot_index, keycode FROM account_hotkeys WHERE account_id=$1 AND subtype=$2`, account, int(subtype))
 }
 
 // CharacterHotkeys returns stored character-specific keyboard hotkeys for the requested subtype (3 or 4).
@@ -333,19 +270,7 @@ func (s *Store) CharacterHotkeys(ctx context.Context, characterID int64, subtype
 	if characterID == 0 {
 		return out, nil
 	}
-	rows, err := s.DB.Query(ctx, `SELECT slot_index, keycode FROM character_hotkeys WHERE character_id=$1 AND subtype=$2`, characterID, int(subtype))
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var slot, keycode int
-		if err = rows.Scan(&slot, &keycode); err != nil {
-			return nil, err
-		}
-		out[uint16(slot)] = uint16(keycode)
-	}
-	return out, rows.Err()
+	return s.readOptionValues(ctx, `SELECT slot_index, keycode FROM character_hotkeys WHERE character_id=$1 AND subtype=$2`, characterID, int(subtype))
 }
 
 // PromoteCharacterHotkeysToAccount copies a character's custom hotkeys to the account level.
@@ -403,4 +328,22 @@ WHERE account_id = $1 AND subtype = $3
 ON CONFLICT (character_id, subtype, slot_index) DO NOTHING`,
 		account, characterID, int(subtype))
 	return err
+}
+
+// readOptionValues owns the common two-column option/hotkey projection.
+func (s *Store) readOptionValues(ctx context.Context, query string, args ...any) (map[uint16]uint16, error) {
+	rows, err := s.DB.Query(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	out := map[uint16]uint16{}
+	var index, value int
+	_, err = pgx.ForEachRow(rows, []any{&index, &value}, func() error {
+		out[uint16(index)] = uint16(value)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }

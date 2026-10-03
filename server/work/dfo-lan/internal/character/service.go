@@ -7,7 +7,6 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -45,8 +44,10 @@ type State struct {
 	SkillSlots      [2]map[uint16]uint16   `json:"skill_slots,omitempty"`
 	SkillCommands   []byte                 `json:"skill_commands,omitempty"`
 	SkillPreset     []byte                 `json:"skill_preset,omitempty"`
-	SourcePath      string                 `json:"source_path"`
-	SourceSHA256    string                 `json:"source_sha256"`
+	// Explicit null clears a saved arrangement through mergeSkillState.
+	ComboSkillInfo []byte `json:"combo_skill_info"`
+	SourcePath     string `json:"source_path"`
+	SourceSHA256   string `json:"source_sha256"`
 	// Create equipment cells are intentionally unresolved until the native
 	// grow-type/slot selection semantics are verified. Never substitute IDs.
 	EquipmentPending bool   `json:"equipment_pending"`
@@ -65,7 +66,7 @@ type Service struct {
 	ChannelContext         [2]byte
 	DisableActorAppearance bool
 	DetailedWornCandidate  bool
-	Store                  *storage.Store
+	Store                  Store
 	Catalog                catalog.Characters
 	Rules                  Rules
 	Learning               *LearningCatalog
@@ -76,8 +77,8 @@ type Service struct {
 	WearRules inventory.WearRules
 }
 
-func New(s *storage.Store, c catalog.Characters, r Rules) (*Service, error) {
-	if s == nil || len(c.Professions) == 0 || r.MaxCharacters < 1 || r.MaxCharacters > 65534 || r.InitialLevel < 1 {
+func New(s Store, c catalog.Characters, r Rules) (*Service, error) {
+	if nilPersistence(s) || len(c.Professions) == 0 || r.MaxCharacters < 1 || r.MaxCharacters > 65534 || r.InitialLevel < 1 {
 		return nil, errors.New("incomplete character service configuration")
 	}
 	return &Service{Store: s, Catalog: c, Rules: r}, nil
@@ -96,20 +97,20 @@ func (s *Service) CheckName(ctx context.Context, p []byte) ([]byte, error) {
 	}
 	return []byte{1}, nil
 }
-func (s *Service) Create(ctx context.Context, account int64, p []byte) (storage.Character, error) {
+func (s *Service) Create(ctx context.Context, account int64, p []byte) (Character, error) {
 	req, e := protocol.DecodeCreateRequest(p)
 	if e != nil {
-		return storage.Character{}, e
+		return Character{}, e
 	}
 	prof, ok := s.Catalog.Professions[req.Profession]
 	if !ok {
-		return storage.Character{}, fmt.Errorf("profession %d is absent from source data", req.Profession)
+		return Character{}, fmt.Errorf("profession %d is absent from source data", req.Profession)
 	}
 	// A repeated confirmation for the same account/request returns its saved
 	// role. Never reset an existing character's state on a client retry.
 	existing, e := s.Store.Characters(ctx, account)
 	if e != nil {
-		return storage.Character{}, e
+		return Character{}, e
 	}
 	for _, c := range existing {
 		if strings.EqualFold(c.Name, req.Name) {
@@ -117,7 +118,7 @@ func (s *Service) Create(ctx context.Context, account int64, p []byte) (storage.
 			if c.Name == req.Name && c.Profession == req.Profession && parseErr == nil && bytes.Equal(old.Options, req.Options) {
 				return c, nil
 			}
-			return storage.Character{}, errors.New("character name already exists with another creation request")
+			return Character{}, errors.New("character name already exists with another creation request")
 		}
 	}
 	initial := State{Level: s.Rules.InitialLevel, Attributes: prof.InitialAttributes, InitialSkills: prof.InitialSkills, SourcePath: prof.Path, SourceSHA256: prof.RawSHA256, EquipmentPending: true}
@@ -141,15 +142,15 @@ func (s *Service) Create(ctx context.Context, account int64, p []byte) (storage.
 	}
 	state, e := json.Marshal(initial)
 	if e != nil {
-		return storage.Character{}, e
+		return Character{}, e
 	}
 	if len(worn) > 0 {
 		state, e = inventory.SaveBag(state, inventory.Bag{Version: "ordinary-bag-v1", Worn: worn})
 		if e != nil {
-			return storage.Character{}, e
+			return Character{}, e
 		}
 	}
-	return s.Store.CreateCharacter(ctx, storage.Character{AccountID: account, Name: req.Name, Profession: req.Profession, Request: append([]byte(nil), p...), ConfigVersion: s.Catalog.Source.Checksum, State: state}, s.Rules.MaxCharacters)
+	return s.Store.CreateCharacter(ctx, Character{AccountID: account, Name: req.Name, Profession: req.Profession, Request: append([]byte(nil), p...), ConfigVersion: s.Catalog.Source.SaveIdentity(), State: state}, s.Rules.MaxCharacters)
 }
 
 func (s *State) setCreationOptions(options []byte) {
@@ -166,7 +167,7 @@ func (s *Service) List(ctx context.Context, account int64) ([]byte, error) {
 	return s.ListWithFatigue(ctx, account, nil, time.Time{})
 }
 
-var specialChannelPrerequisites = []uint16{12167, 12312, 12392, 12422}
+var specialChannelPrerequisites = []uint16{12167, 12312, 12392, 12422, 13763}
 
 // 列表、进城及外观刷新使用同一份任务到频道资格映射。
 func contentClearFlagsForQuests(ids []uint16) (flags [28]byte) {
@@ -180,12 +181,15 @@ func contentClearFlagsForQuests(ids []uint16) (flags [28]byte) {
 			flags[8] = 1
 		case 12422:
 			flags[9] = 1
+		case 13763:
+			// Local Ispins gate1424e673a reads row+643 = block638 byte11.
+			flags[11] = 1
 		}
 	}
 	return flags
 }
 
-func (s *Service) roleContentClearFlags(role storage.Character) ([28]byte, error) {
+func (s *Service) roleContentClearFlags(role Character) ([28]byte, error) {
 	// 无存储的离线投影不推断任务完成状态。
 	if s.Store == nil {
 		return [28]byte{}, nil
@@ -233,12 +237,17 @@ func (s *Service) listRowsWithFatigue(ctx context.Context, account int64, fatigu
 	return s.rosterRowsWithFatigue(ctx, account, chars, fatigue, now)
 }
 
-func (s *Service) rosterRowsWithFatigue(ctx context.Context, account int64, chars []storage.Character, fatigue *FatigueService, now time.Time) ([]protocol.CharacterRow, error) {
+func (s *Service) rosterRowsWithFatigue(ctx context.Context, account int64, chars []Character, fatigue *FatigueService, now time.Time) ([]protocol.CharacterRow, error) {
 	rows := make([]protocol.CharacterRow, 0, len(chars))
+	options, e := s.Store.AccountUnifiedOptions(ctx, account)
+	if e != nil {
+		return nil, e
+	}
+	effectFlags := growthEffectFlags(options)
 	// 资格位来自140220030的频道入场分支；任务来自当前PVF。
 	// enterablespecialchannel.etc 中的洞察、希洛克、黑鸦、奥兹玛任务
 	// 保持原生资格位；已撤下流放频道，不重新投影其专用准入标记。
-	completed, e := s.Store.CompletedQuestIDs(ctx, account, s.Catalog.Source.Checksum, specialChannelPrerequisites)
+	completed, e := s.Store.CompletedQuestIDs(ctx, account, s.Catalog.Source.SaveIdentity(), specialChannelPrerequisites)
 	if e != nil {
 		return nil, e
 	}
@@ -248,6 +257,12 @@ func (s *Service) rosterRowsWithFatigue(ctx context.Context, account int64, char
 			return nil, e
 		}
 		row := protocol.CharacterRow{Slot: uint16(slot), FixedSlot: c.FixedSlot, Name: c.Name, Profession: c.Profession, Advancement: state.Advancement, Level: state.Level}
+		row.GrowthEffectFlags = effectFlags
+		settings, err := s.Store.CharacterUnifiedOptions(ctx, c.ID)
+		if err != nil {
+			return nil, err
+		}
+		row.AuraVisible = auraEffectVisible(settings)
 		row.ContentClearFlags = contentClearFlagsForQuests(completed[c.ID])
 		row.Advancement, e = state.WireAdvancement()
 		if e != nil {
@@ -294,17 +309,17 @@ func (s *Service) RosterSlot(ctx context.Context, account, characterID int64) (u
 	return 0, errors.New("created character is absent from account roster")
 }
 
-func (s *Service) Select(ctx context.Context, account int64, p []byte) (storage.Character, error) {
+func (s *Service) Select(ctx context.Context, account int64, p []byte) (Character, error) {
 	slot, e := protocol.DecodeSelectRequest(p)
 	if e != nil {
-		return storage.Character{}, e
+		return Character{}, e
 	}
 	roles, e := s.Store.Characters(ctx, account)
 	if e != nil {
-		return storage.Character{}, e
+		return Character{}, e
 	}
 	if uint64(slot) >= uint64(len(roles)) {
-		return storage.Character{}, errors.New("selected slot is absent from account roster")
+		return Character{}, errors.New("selected slot is absent from account roster")
 	}
 	return roles[slot], nil
 }
@@ -319,7 +334,7 @@ func (s *Service) Select(ctx context.Context, account int64, p []byte) (storage.
 // from the worn item objects (live-verified 2026-09-18: weapon, armour and
 // title all render correctly on first entry). The post-move refresh is the
 // path that does need explicit rows - see AppearanceProbe.
-func (s *Service) EntryBasicProbe(role storage.Character, channelContext [2]byte) ([]byte, error) {
+func (s *Service) EntryBasicProbe(role Character, channelContext [2]byte) ([]byte, error) {
 	if s.ChannelContext != [2]byte{} {
 		channelContext = s.ChannelContext
 	}
@@ -362,12 +377,16 @@ func (s *Service) EntryBasicProbe(role storage.Character, channelContext [2]byte
 	if err != nil {
 		return nil, err
 	}
+	effectFlags, err := s.roleGrowthEffectFlags(role)
+	if err != nil {
+		return nil, err
+	}
 	return protocol.UserInfoBasicProbe(protocol.EntryBasicProbe{
 		Fame:          fame,
 		SeasonLevel:   seasonLevel(state.SeasonLevel),
 		BasePercent:   entryBasePercent,
 		ActorServerID: role.WireID, Context: channelContext,
-		Character: protocol.CharacterRow{Name: role.Name, Profession: role.Profession, Advancement: advancement, Level: state.Level, Odyssey: odyssey, Equipment: equipment, CreatureItemID: creatureItemID, CreatureName: creatureName, ContentClearFlags: contentFlags},
+		Character: protocol.CharacterRow{Name: role.Name, Profession: role.Profession, Advancement: advancement, Level: state.Level, Odyssey: odyssey, Equipment: equipment, CreatureItemID: creatureItemID, CreatureName: creatureName, ContentClearFlags: contentFlags, GrowthEffectFlags: effectFlags},
 		// The explicit per-slot block must stay empty on the entry path. A
 		// block holding a client-rejected slot is worse than an empty one:
 		// the reader replaces the projection wholesale, so a knight wearing
@@ -398,7 +417,7 @@ func (s *Service) EntryBasicProbe(role storage.Character, channelContext [2]byte
 // state is the character's stored state object, which is the shape ReadBag
 // looks in. Handing it the inventory sub-object instead yields an empty bag
 // without an error, because the bag keys are looked up one level up.
-func (s *Service) AppearanceProbe(role storage.Character, channelContext [2]byte) ([]byte, error) {
+func (s *Service) AppearanceProbe(role Character, channelContext [2]byte) ([]byte, error) {
 	if s.ChannelContext != [2]byte{} {
 		channelContext = s.ChannelContext
 	}
@@ -436,12 +455,16 @@ func (s *Service) AppearanceProbe(role storage.Character, channelContext [2]byte
 	if err != nil {
 		return nil, err
 	}
+	effectFlags, err := s.roleGrowthEffectFlags(role)
+	if err != nil {
+		return nil, err
+	}
 	return protocol.UserInfoBasicProbe(protocol.EntryBasicProbe{
 		Fame:          fame,
 		SeasonLevel:   seasonLevel(state.SeasonLevel),
 		BasePercent:   entryBasePercent,
 		ActorServerID: role.WireID, Context: channelContext,
-		Character:  protocol.CharacterRow{Name: role.Name, Profession: role.Profession, Advancement: advancement, Level: state.Level, Odyssey: odyssey, CreatureItemID: creatureItemID, CreatureName: creatureName, ContentClearFlags: contentFlags},
+		Character:  protocol.CharacterRow{Name: role.Name, Profession: role.Profession, Advancement: advancement, Level: state.Level, Odyssey: odyssey, CreatureItemID: creatureItemID, CreatureName: creatureName, ContentClearFlags: contentFlags, GrowthEffectFlags: effectFlags},
 		Appearance: rows,
 	})
 }
@@ -516,6 +539,6 @@ func (s *Service) wornAppearance(state json.RawMessage) ([]protocol.EquippedAppe
 	return rows, nil
 }
 
-func (s *Service) IsOdyssey(role storage.Character) (bool, error) {
+func (s *Service) IsOdyssey(role Character) (bool, error) {
 	return OdysseyRole(role), nil
 }
