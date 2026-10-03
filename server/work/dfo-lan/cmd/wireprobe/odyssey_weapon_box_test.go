@@ -9,7 +9,7 @@ import (
 
 func TestCapturedOdysseyWeaponSelection(t *testing.T) {
 	role, wear := odysseyRewardFixture(t)
-	c, e := loadOdysseyWeaponChoices("../../configs/odyssey-weapon-box-candidate.json")
+	c, e := loadOdysseyWeaponChoices("../../configs/odyssey-weapon-box-release.json")
 	if e != nil {
 		t.Fatal(e)
 	}

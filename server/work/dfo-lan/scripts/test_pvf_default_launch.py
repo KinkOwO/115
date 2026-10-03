@@ -54,10 +54,19 @@ class DefaultPVFLaunchTests(unittest.TestCase):
         self.assertEqual(env, {})
 
     def test_explicit_candidate_and_source_build_are_retained(self):
-        explicit = launch.PROJECT / 'configs/pvf-migration-candidate.json'
-        binary, _, env = launch.gateway_configuration(arguments(repair_profile=explicit), {'server_binary': 'legacy.exe'})
-        self.assertEqual(binary, launch.PROJECT / '.tmp/pvf-migration/bin/wireprobe-handoff-source.exe')
-        self.assertEqual(len(env['DFO_PVF_CATALOGS'].split(',')), 28)
+        with tempfile.TemporaryDirectory() as directory:
+            explicit = pathlib.Path(directory) / 'profile.json'
+            explicit.write_text(json.dumps({'binary': 'isolated/server.exe', 'environment': {
+                'DFO_PVF_CATALOGS': 'items,characters', 'DFO_PVF_ARCHIVE': 'isolated/inner.pvf',
+            }}), encoding='utf-8')
+            binary, required, env = launch.gateway_configuration(arguments(repair_profile=explicit), {'server_binary': 'legacy.exe'})
+            self.assertEqual(binary, launch.PROJECT / 'isolated/server.exe')
+            self.assertEqual(env['DFO_PVF_CATALOGS'], 'items,characters')
+            self.assertEqual(set(required), {binary, launch.PROJECT / 'isolated/inner.pvf'})
+            source_binary, _, source_env = launch.gateway_configuration(
+                arguments(repair_profile=explicit, source_build=True), {'server_binary': 'legacy.exe'})
+            self.assertEqual(source_binary, binary)
+            self.assertEqual(source_env, env)
         binary, required, env = launch.gateway_configuration(
             arguments(source_build=True, pvf_mode=True), {'server_binary': 'legacy.exe'})
         self.assertEqual(binary, launch.PROJECT / 'bin/wireprobe-handoff-source.exe')
@@ -124,6 +133,7 @@ class DefaultPVFLaunchTests(unittest.TestCase):
             with mock.patch.object(launch, 'PROJECT', project), \
                  mock.patch.object(launch, 'configuration', return_value=configuration), \
                  mock.patch.object(launch, 'gateway_configuration', return_value=(project / 'pvf.exe', [], {'DFO_PVF_CATALOGS': 'characters'})), \
+                 mock.patch.object(launch, '_ensure_inner_pvf') as prepare, \
                  mock.patch.object(launch, 'start_storage') as storage, \
                  mock.patch.object(launch, 'listening', return_value=False), \
                  mock.patch.object(pathlib.Path, 'is_file', return_value=True), \
@@ -133,6 +143,7 @@ class DefaultPVFLaunchTests(unittest.TestCase):
                  contextlib.redirect_stdout(io.StringIO()):
                 launch.main()
             self.assertEqual(count, 400)
+            prepare.assert_called_once()
             storage.assert_called_once()
             popen.assert_called_once()
             self.assertEqual(popen.call_args.kwargs['env']['DFO_PVF_CATALOGS'], 'characters')

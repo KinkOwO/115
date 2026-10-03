@@ -25,7 +25,7 @@ func TestOdysseyStormPassJournalTeleportGate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	growth, err := catalog.LoadOdysseyGrowth("../../configs/odyssey-growth-candidate.json")
+	growth, err := catalog.LoadOdysseyGrowth("../../configs/odyssey-growth-release.json")
 	if err != nil {
 		t.Fatal(err)
 	}

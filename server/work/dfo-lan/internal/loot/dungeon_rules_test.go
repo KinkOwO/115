@@ -10,7 +10,7 @@ import (
 )
 
 func TestDungeonSourceGoldExclusion(t *testing.T) {
-	c, e := catalog.LoadDungeons("../../configs/dungeons.odyssey-merged-candidate.json")
+	c, e := catalog.LoadDungeons("../../configs/dungeons.odyssey-release.json")
 	if e != nil {
 		t.Fatal(e)
 	}

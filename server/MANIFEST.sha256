@@ -325,7 +325,6 @@ a81710104c491f8e4ff5955f27fd63ddd769071dc0b1e4f75ccf188864c6aca8  work/dfo-lan/c
 20865713e4c617e7a74a5b9dfff7f6cf153db21ee04e25d96c685e641a215276  work/dfo-lan/cmd/worldcatalog/main.go
 7418e408a719a53cabc061c314d9afbe0c3023ec79da1c650a77b13ac89e9056  work/dfo-lan/configs/account-options.current35.json
 7308851e79d19133969d411ec94f08c6c2aa1c98e876a7fb4aa2e0e4b394134f  work/dfo-lan/configs/cards.compat90.json
-9568e91049b471200c7701d9acee6d90d6d78758165f3de82a8bc422975df830  work/dfo-lan/configs/cerashop.json
 5d620f57a68e40e018a92c8370493b4120122486c888004a4ed0ea9ddc0a14cc  work/dfo-lan/configs/channel.local28.json
 92b1021d90a1c34673ca77d4bf04e443cf080bbbd95c487d7c10e0fe2398eed9  work/dfo-lan/configs/channel.local31.json
 926b81e846bf0a24d70cd45bf5d4e409e64563d77a24b4da4d729ae8b473ec31  work/dfo-lan/configs/channel.local32.json
@@ -346,9 +345,7 @@ f164890d92f420354bb672b9bd4a590bf7df6c42a09370bed1c895025b4d3898  work/dfo-lan/c
 a183d347ea290c38d3a92b164268ab50e4d66fc78e1c470c6ceacfbd8523bd62  work/dfo-lan/configs/dungeons.generated.json
 8f74f15d7e48d9db6f1b86006f7d96e7d89a2f731e63a786d1461c2e3071ae5e  work/dfo-lan/configs/dungeons.next28.json
 f47d0485d9e39b136ffee77fb60d594e6cfb3d2acff235d1b052e921fb4e7040  work/dfo-lan/configs/dungeons.odyssey-candidate.json
-5f88b749246b86fb4bcb64859be11c8840dc95fb1a9b1fe8592a71db00cfea8f  work/dfo-lan/configs/dungeons.odyssey-merged-candidate.json
 5f88b749246b86fb4bcb64859be11c8840dc95fb1a9b1fe8592a71db00cfea8f  work/dfo-lan/configs/dungeons.odyssey-release.json
-8c2e92510dfb024b6547f66fab6187f2fd60f29e7def29a232bcab019cb9d8d2  work/dfo-lan/configs/dungeons.odyssey-scenes-candidate.json
 8c2e92510dfb024b6547f66fab6187f2fd60f29e7def29a232bcab019cb9d8d2  work/dfo-lan/configs/dungeons.odyssey-scenes-release.json
 820d79453591e15f44b51ca73d0ebf3b0994bcabb79ec89ab15d47c19fe28b33  work/dfo-lan/configs/dungeons.skycastle-candidate.json
 ccb690e639f354df3dff1c0a8f82cdb21453f0b73d014e1f897b5eca1e462ea7  work/dfo-lan/configs/equipment.current35.json
@@ -364,9 +361,7 @@ ccdbcd9604fd7e00d953403d5ad929acb76d49a1d4e82b89ce4027319ed8efd5  work/dfo-lan/c
 3e3a3ea16c7b0cb8194ff8a0a412f05211822d29cd5d0b237e7ee06b60c6943f  work/dfo-lan/configs/loot.level150.json
 6bc91bca0a1f3892e8e6df6c9cdfa506dd44ab62606ff4e9cd393546050f85be  work/dfo-lan/configs/loot.next25.json
 f4cd74761a2e689900db516f7065274e9324629dce1c3112ae8e04c42b100600  work/dfo-lan/configs/odyssey-currency.json
-b7b6f7aa7c23e619e115c8643df5dda1813123d5bad442677ea52b487bb18ece  work/dfo-lan/configs/odyssey-growth-candidate.json
 b7b6f7aa7c23e619e115c8643df5dda1813123d5bad442677ea52b487bb18ece  work/dfo-lan/configs/odyssey-growth-release.json
-9ba588fc0c72f905a72ac84e94cb5685cacd5733ce62353baecc082bb12eb6ea  work/dfo-lan/configs/odyssey-weapon-box-candidate.json
 9ba588fc0c72f905a72ac84e94cb5685cacd5733ce62353baecc082bb12eb6ea  work/dfo-lan/configs/odyssey-weapon-box-release.json
 ab2d2711ce9e6d80f8b3cf452d678c6d2b3dae673efe8b00994cb0c12fcef455  work/dfo-lan/configs/progression.next25.json
 69ccfd68b19b1d581366d2226311e40c4ee8772340befaa76394ef92f035544d  work/dfo-lan/configs/quest-equipment.current37.json
@@ -378,7 +373,6 @@ ab2d2711ce9e6d80f8b3cf452d678c6d2b3dae673efe8b00994cb0c12fcef455  work/dfo-lan/c
 bcf58e925db45c53968bbf7605ebb1f6abea691628b50b482aef68b3a02a0f9c  work/dfo-lan/configs/shop-next-candidate.json
 3a48ea97b98357279adf718c206a35aac3581bbd9f9bb7240cc4a752d73a48c8  work/dfo-lan/configs/shop-purchase-pilot.json
 63d7b8152a7482e84404924ff67a7e95799a965097757504b31f00e51bfe0e80  work/dfo-lan/configs/shop-purchase-report.json
-47cfbca40df08128d2e8899b550fec220af98bdc9a12cbe8fcf9047c3f900193  work/dfo-lan/configs/skills.awakening-candidate.json
 540513f3b7568d296e6ab96434d1a0a3640e9193d54c2c14bdee7fecf0b4f91e  work/dfo-lan/configs/skills.next27.json
 47cfbca40df08128d2e8899b550fec220af98bdc9a12cbe8fcf9047c3f900193  work/dfo-lan/configs/skills.release.json
 696e9335fffd24d191745f2021d77e002c22a264f97ffd2a7bcb312aaf588324  work/dfo-lan/configs/town.generated.json
@@ -851,7 +845,6 @@ f70c8162df310f74460b5b2d5cd5644ea02a15d5292bffce949328df51eb86b0  work/dfo-lan/i
 cebb94bd631611166305e2780f17ca5bf9552613c50df910d81d2e70a53b231f  work/dfo-lan/internal/world/service.go
 73daaf25d4de2979e4d24796a5130ac5c88bac98a6718de60558aec5c8559da2  work/dfo-lan/internal/world/service_test.go
 517d59ef9368dcfc18c5f183d3ecf8521653f3d7de5a2a802549b155682d01af  work/dfo-lan/scripts/bootstrap_local.py
-5d2c842d8394298730d39098cb94cdf0ab10c663b2fdbb9e80961774bd9c0ccd  work/dfo-lan/scripts/export_cerashop_catalog.py
 7e82842fd33c4828f0e10abaeeace4c5346aa86d8feaef818595fd668955b5ce  work/dfo-lan/scripts/launch_local.py
 049167dfec0332e15e2bb3ab94c3c32dbffcd0562669b23944ee941f4cc90f9e  work/dfo-lan/scripts/repair_profile.py
 0d0320215eb9b20aa52a9a64eedbe02fb709d8774298552b7f91937a234a934d  work/dfo-lan/scripts/test_repair_profile.py

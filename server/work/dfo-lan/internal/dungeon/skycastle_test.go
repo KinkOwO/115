@@ -9,7 +9,7 @@ import (
 )
 
 func TestSkycastleCapturedEntry(t *testing.T) {
-	old, err := catalog.LoadDungeons("../../configs/dungeons.odyssey-merged-candidate.json")
+	old, err := catalog.LoadDungeons("../../configs/dungeons.odyssey-release.json")
 	if err != nil {
 		t.Fatal(err)
 	}

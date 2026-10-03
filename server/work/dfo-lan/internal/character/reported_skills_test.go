@@ -7,7 +7,7 @@ import (
 )
 
 func TestReportedAwakenedSkills(t *testing.T) {
-	c, e := LoadLearningCatalog("../../configs/skills.awakening-candidate.json", "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80")
+	c, e := LoadLearningCatalog("../../configs/skills.release.json", "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80")
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -21,7 +21,7 @@ func TestReportedAwakenedSkills(t *testing.T) {
 }
 
 func TestAutoSetSourceLearningAndVariation(t *testing.T) {
-	c, e := LoadLearningCatalog("../../configs/skills.awakening-candidate.json", "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80")
+	c, e := LoadLearningCatalog("../../configs/skills.release.json", "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80")
 	if e != nil {
 		t.Fatal(e)
 	}

@@ -12,7 +12,7 @@ func autoSkillFixture(t *testing.T) (*Service, Character, State) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	l, e := LoadLearningCatalog("../../configs/skills.awakening-candidate.json", c.Source.Checksum)
+	l, e := LoadLearningCatalog("../../configs/skills.release.json", c.Source.Checksum)
 	if e != nil {
 		t.Fatal(e)
 	}

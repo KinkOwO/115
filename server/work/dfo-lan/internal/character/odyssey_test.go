@@ -11,7 +11,7 @@ import (
 
 func odysseyGrowthFixture(t *testing.T) (*ProgressionService, Character) {
 	t.Helper()
-	o, e := catalog.LoadOdysseyGrowth("../../configs/odyssey-growth-candidate.json")
+	o, e := catalog.LoadOdysseyGrowth("../../configs/odyssey-growth-release.json")
 	if e != nil {
 		t.Fatal(e)
 	}

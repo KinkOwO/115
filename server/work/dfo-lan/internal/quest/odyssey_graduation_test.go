@@ -17,7 +17,7 @@ import (
 
 func graduationFixture(t *testing.T) (*quest.Service, storage.Character) {
 	t.Helper()
-	g, err := catalog.LoadOdysseyGrowth("../../configs/odyssey-growth-candidate.json")
+	g, err := catalog.LoadOdysseyGrowth("../../configs/odyssey-growth-release.json")
 	if err != nil {
 		t.Fatal(err)
 	}

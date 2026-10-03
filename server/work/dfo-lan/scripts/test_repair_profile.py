@@ -6,21 +6,24 @@ from repair_profile import load_profile
 
 
 class RepairProfileTests(unittest.TestCase):
-    def test_all_source_candidate_keeps_latest_scope_and_isolated_binary(self):
+    def load_explicit_profile(self, project, environment, binary='isolated/server.exe'):
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / 'profile.json'
+            path.write_text(json.dumps({'binary': binary, 'environment': environment}), encoding='utf-8')
+            return load_profile(path, project)
+
+    def test_default_profile_keeps_full_scope_without_exports(self):
         project = pathlib.Path(__file__).resolve().parent.parent
-        binary, required, env = load_profile(project / 'configs/pvf-all-candidate.json', project)
-        _, _, previous = load_profile(project / 'configs/pvf-item-shops-candidate.json', project)
-        self.assertEqual(env, previous)
+        binary, required, env = load_profile(project / 'configs/pvf-default.json', project)
         self.assertEqual(len(env['DFO_PVF_CATALOGS'].split(',')), 54)
         self.assertEqual(env['DFO_PVF_VERIFY_BASELINES'], '0')
-        self.assertEqual(binary, project / '.tmp/pvf-all/bin/wireprobe-handoff-source.exe')
+        self.assertEqual(binary, project / 'bin/wireprobe-pvf.exe')
         self.assertTrue(all(p.suffix != '.json' or 'policy' in p.name for p in required))
 
     def test_native_character_profile_preserves_save_source_and_policy_only_paths(self):
         project = pathlib.Path(__file__).resolve().parent.parent
-        binary, required, env = load_profile(project / 'configs/pvf-characters-candidate.json', project)
-        self.assertEqual(len(env['DFO_PVF_CATALOGS'].split(',')), 51)
-        self.assertEqual(binary, project / '.tmp/pvf-characters/bin/wireprobe-handoff-source.exe')
+        _, required, env = load_profile(project / 'configs/pvf-default.json', project)
+        self.assertIn('characters', env['DFO_PVF_CATALOGS'].split(','))
         policy = json.loads(pathlib.Path(env['DFO_PVF_CHARACTER_POLICY']).read_text(encoding='utf-8'))
         self.assertEqual(policy['source_checksum'], env['DFO_PVF_SHA256'])
         self.assertEqual(len(policy['initial_skill_slots']), 17)
@@ -39,19 +42,15 @@ class RepairProfileTests(unittest.TestCase):
         self.assertTrue(all(p.is_absolute() for p in required))
         self.assertNotIn('DFO_CHARACTER_STORAGE', env)
 
-    def test_odyssey_candidate_keeps_prior_content_policy_compatible(self):
+    def test_default_content_policy_keeps_odyssey_scope(self):
         project = pathlib.Path(__file__).resolve().parent.parent
-        binary, required, env = load_profile(project / 'configs/pvf-odyssey-candidate.json', project)
-        self.assertEqual(len(env['DFO_PVF_CATALOGS'].split(',')), 35)
-        self.assertEqual(binary, project / '.tmp/pvf-odyssey/bin/wireprobe-handoff-source.exe')
+        _, _, env = load_profile(project / 'configs/pvf-default.json', project)
+        self.assertTrue({'odyssey-growth', 'odyssey-chapters', 'odyssey-weapons', 'odyssey-drop', 'odyssey-currency'} <= set(env['DFO_PVF_CATALOGS'].split(',')))
         # 2026-10-01 收口后已统一使用 pvf-mine-policy.json 作为 content policy 唯一源，attunement 副本范围由源 ctp 自动发现
         self.assertEqual(pathlib.Path(env['DFO_PVF_CONTENT_POLICY']), project / 'configs/pvf-mine-policy.json')
         old_policy = json.loads((project / 'configs/pvf-content-policy.json').read_text(encoding='utf-8'))
         # 2026-10-01 收口后 attunement_dungeons 已删（attunement 副本范围由源 ctp 自动发现，详见 server/AGENTS.md §0）
         self.assertEqual(set(old_policy), {'version'})
-        old_binary, _, old_env = load_profile(project / 'configs/pvf-content-candidate.json', project)
-        self.assertEqual(len(old_env['DFO_PVF_CATALOGS'].split(',')), 30)
-        self.assertNotEqual(old_binary, binary)
 
     def test_rejects_unknown_keys(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -62,18 +61,16 @@ class RepairProfileTests(unittest.TestCase):
 
     def test_cashshop_native_profile_retains_release_policy_without_export(self):
         project = pathlib.Path(__file__).resolve().parent.parent
-        binary, required, env = load_profile(project / 'configs/pvf-cashshop-candidate.json', project)
-        self.assertEqual(len(env['DFO_PVF_CATALOGS'].split(',')), 52)
-        self.assertEqual(binary, project / '.tmp/pvf-cashshop/bin/wireprobe-handoff-source.exe')
+        _, required, env = load_profile(project / 'configs/pvf-default.json', project)
+        self.assertIn('cashshop', env['DFO_PVF_CATALOGS'].split(','))
         self.assertEqual(env['DFO_SHOP_RELEASE'], '1')
         self.assertNotIn('DFO_SHOP_PURCHASE_PILOT', env)
         self.assertTrue(all(p.suffix != '.json' or 'policy' in p.name for p in required))
 
     def test_box_native_profile_keeps_only_scope_and_placement_policy(self):
         project = pathlib.Path(__file__).resolve().parent.parent
-        binary, required, env = load_profile(project / 'configs/pvf-boxes-candidate.json', project)
-        self.assertEqual(len(env['DFO_PVF_CATALOGS'].split(',')), 53)
-        self.assertEqual(binary, project / '.tmp/pvf-boxes/bin/wireprobe-handoff-source.exe')
+        _, required, env = load_profile(project / 'configs/pvf-default.json', project)
+        self.assertIn('boxes', env['DFO_PVF_CATALOGS'].split(','))
         policy = json.loads(pathlib.Path(env['DFO_PVF_BOX_POLICY']).read_text(encoding='utf-8'))
         self.assertEqual(policy['templates'], [590712474, 590719043])
         self.assertNotIn('rewards', policy)
@@ -82,9 +79,8 @@ class RepairProfileTests(unittest.TestCase):
 
     def test_item_shop_profile_preserves_route_policy_without_offers(self):
         project = pathlib.Path(__file__).resolve().parent.parent
-        binary, required, env = load_profile(project / 'configs/pvf-item-shops-candidate.json', project)
-        self.assertEqual(len(env['DFO_PVF_CATALOGS'].split(',')), 54)
-        self.assertEqual(binary, project / '.tmp/pvf-item-shops/bin/wireprobe-handoff-source.exe')
+        _, required, env = load_profile(project / 'configs/pvf-default.json', project)
+        self.assertIn('item-shops', env['DFO_PVF_CATALOGS'].split(','))
         policy = json.loads(pathlib.Path(env['DFO_PVF_ITEM_SHOP_POLICY']).read_text(encoding='utf-8'))
         self.assertEqual(len(policy['routes']), 527)
         self.assertEqual(policy['purchase_limit_mode'], 'disabled')
@@ -93,8 +89,11 @@ class RepairProfileTests(unittest.TestCase):
 
     def test_pvf_candidate_is_explicit_and_source_bound(self):
         project = pathlib.Path(__file__).resolve().parent.parent
-        binary, required, env = load_profile(project / 'configs/pvf-direct-candidate.json', project)
-        self.assertEqual(binary, project / '.tmp/bin/wireprobe-handoff-source.exe')
+        binary, required, env = self.load_explicit_profile(project, {
+            'DFO_PVF_CATALOGS': 'world,items',
+            'DFO_PVF_ARCHIVE': 'isolated/inner.pvf', 'DFO_PVF_SHA256': '',
+        })
+        self.assertEqual(binary, project / 'isolated/server.exe')
         self.assertIn('DFO_PVF_ARCHIVE', env)
         # 方案 C（next142）：默认不钉版本，锁由内层归档实际哈希派生。
         # 空串是合法值，表示"接受内层实际哈希"；显式 64 位 hex 仍被接受（见下一条测试）。
@@ -126,31 +125,48 @@ class RepairProfileTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     load_profile(p, pathlib.Path(directory))
 
-    def test_next_pvf_profile_is_isolated_and_does_not_require_exported_data(self):
+    def test_explicit_profile_is_isolated_and_does_not_require_exported_data(self):
         project = pathlib.Path(__file__).resolve().parent.parent
-        binary, required, env = load_profile(project / 'configs/pvf-next-candidate.json', project)
-        self.assertEqual(binary, project / '.tmp/pvf-next/bin/wireprobe-handoff-source.exe')
+        binary, required, env = self.load_explicit_profile(project, {
+            'DFO_PVF_CATALOGS': 'world,items', 'DFO_PVF_VERIFY_BASELINES': '0',
+            'DFO_PVF_ARCHIVE': 'isolated/inner.pvf',
+        })
+        self.assertEqual(binary, project / 'isolated/server.exe')
         self.assertEqual(env['DFO_PVF_VERIFY_BASELINES'], '0')
-        self.assertEqual(len(env['DFO_PVF_CATALOGS'].split(',')), 14)
+        self.assertEqual(env['DFO_PVF_CATALOGS'], 'world,items')
         self.assertEqual(set(required), {binary, pathlib.Path(env['DFO_PVF_ARCHIVE'])})
 
     def test_enhancement_pvf_profile_keeps_only_separate_policy(self):
         project = pathlib.Path(__file__).resolve().parent.parent
-        binary, required, env = load_profile(project / 'configs/pvf-enhancement-candidate.json', project)
-        self.assertEqual(binary, project / '.tmp/pvf-enhancement/bin/wireprobe-handoff-source.exe')
+        binary, required, env = self.load_explicit_profile(project, {
+            'DFO_PVF_CATALOGS': 'items,enhancements', 'DFO_PVF_VERIFY_BASELINES': '0',
+            'DFO_PVF_ARCHIVE': 'isolated/inner.pvf',
+            'DFO_PVF_ENHANCEMENT_POLICY': 'configs/pvf-enhancement-policy.json',
+        })
+        self.assertEqual(binary, project / 'isolated/server.exe')
         self.assertEqual(env['DFO_PVF_VERIFY_BASELINES'], '0')
-        self.assertEqual(len(env['DFO_PVF_CATALOGS'].split(',')), 15)
+        self.assertEqual(env['DFO_PVF_CATALOGS'], 'items,enhancements')
         self.assertEqual(env['DFO_PVF_ENHANCEMENT_POLICY'], str(project / 'configs/pvf-enhancement-policy.json'))
         self.assertEqual(set(required), {binary, pathlib.Path(env['DFO_PVF_ARCHIVE']), pathlib.Path(env['DFO_PVF_ENHANCEMENT_POLICY'])})
 
-    def test_migration_profile_retains_independent_policies(self):
+    def test_explicit_profile_retains_independent_policies(self):
         project = pathlib.Path(__file__).resolve().parent.parent
-        binary, required, env = load_profile(project / 'configs/pvf-migration-candidate.json', project)
-        self.assertEqual(binary, project / '.tmp/pvf-migration/bin/wireprobe-handoff-source.exe')
+        policies = {
+            'DFO_PVF_ENHANCEMENT_POLICY': 'configs/pvf-enhancement-policy.json',
+            'DFO_PVF_VAULT_POLICY': 'configs/pvf-vault-policy.json',
+            'DFO_PVF_DROP_POLICY': 'configs/pvf-drop-policy.json',
+            'DFO_PVF_SCENE_POLICY': 'configs/pvf-scene-policy.json',
+        }
+        binary, required, env = self.load_explicit_profile(project, {
+            'DFO_PVF_CATALOGS': 'items,enhancements,vault,loot,town,dungeons',
+            'DFO_PVF_VERIFY_BASELINES': '0', 'DFO_PVF_ARCHIVE': 'isolated/inner.pvf',
+            **policies,
+        })
+        self.assertEqual(binary, project / 'isolated/server.exe')
         self.assertEqual(env['DFO_PVF_VERIFY_BASELINES'], '0')
-        self.assertEqual(len(env['DFO_PVF_CATALOGS'].split(',')), 28)
         expected = {binary, pathlib.Path(env['DFO_PVF_ARCHIVE'])}
-        for key in ['DFO_PVF_ENHANCEMENT_POLICY', 'DFO_PVF_VAULT_POLICY', 'DFO_PVF_DROP_POLICY', 'DFO_PVF_SCENE_POLICY']:
+        for key, value in policies.items():
+            self.assertEqual(pathlib.Path(env[key]), project / value)
             expected.add(pathlib.Path(env[key]))
         self.assertEqual(set(required), expected)
 

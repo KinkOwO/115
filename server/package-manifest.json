@@ -1643,11 +1643,6 @@
       "sha256": "7308851e79d19133969d411ec94f08c6c2aa1c98e876a7fb4aa2e0e4b394134f"
     },
     {
-      "path": "work/dfo-lan/configs/cerashop.json",
-      "bytes": 219409,
-      "sha256": "9568e91049b471200c7701d9acee6d90d6d78758165f3de82a8bc422975df830"
-    },
-    {
       "path": "work/dfo-lan/configs/channel.local28.json",
       "bytes": 1061,
       "sha256": "5d620f57a68e40e018a92c8370493b4120122486c888004a4ed0ea9ddc0a14cc"
@@ -1748,19 +1743,9 @@
       "sha256": "f47d0485d9e39b136ffee77fb60d594e6cfb3d2acff235d1b052e921fb4e7040"
     },
     {
-      "path": "work/dfo-lan/configs/dungeons.odyssey-merged-candidate.json",
-      "bytes": 8030834,
-      "sha256": "5f88b749246b86fb4bcb64859be11c8840dc95fb1a9b1fe8592a71db00cfea8f"
-    },
-    {
       "path": "work/dfo-lan/configs/dungeons.odyssey-release.json",
       "bytes": 8030834,
       "sha256": "5f88b749246b86fb4bcb64859be11c8840dc95fb1a9b1fe8592a71db00cfea8f"
-    },
-    {
-      "path": "work/dfo-lan/configs/dungeons.odyssey-scenes-candidate.json",
-      "bytes": 10716235,
-      "sha256": "8c2e92510dfb024b6547f66fab6187f2fd60f29e7def29a232bcab019cb9d8d2"
     },
     {
       "path": "work/dfo-lan/configs/dungeons.odyssey-scenes-release.json",
@@ -1838,19 +1823,9 @@
       "sha256": "f4cd74761a2e689900db516f7065274e9324629dce1c3112ae8e04c42b100600"
     },
     {
-      "path": "work/dfo-lan/configs/odyssey-growth-candidate.json",
-      "bytes": 35814,
-      "sha256": "b7b6f7aa7c23e619e115c8643df5dda1813123d5bad442677ea52b487bb18ece"
-    },
-    {
       "path": "work/dfo-lan/configs/odyssey-growth-release.json",
       "bytes": 35814,
       "sha256": "b7b6f7aa7c23e619e115c8643df5dda1813123d5bad442677ea52b487bb18ece"
-    },
-    {
-      "path": "work/dfo-lan/configs/odyssey-weapon-box-candidate.json",
-      "bytes": 63788,
-      "sha256": "9ba588fc0c72f905a72ac84e94cb5685cacd5733ce62353baecc082bb12eb6ea"
     },
     {
       "path": "work/dfo-lan/configs/odyssey-weapon-box-release.json",
@@ -1906,11 +1881,6 @@
       "path": "work/dfo-lan/configs/shop-purchase-report.json",
       "bytes": 216309,
       "sha256": "63d7b8152a7482e84404924ff67a7e95799a965097757504b31f00e51bfe0e80"
-    },
-    {
-      "path": "work/dfo-lan/configs/skills.awakening-candidate.json",
-      "bytes": 4497221,
-      "sha256": "47cfbca40df08128d2e8899b550fec220af98bdc9a12cbe8fcf9047c3f900193"
     },
     {
       "path": "work/dfo-lan/configs/skills.next27.json",
@@ -4271,11 +4241,6 @@
       "path": "work/dfo-lan/scripts/bootstrap_local.py",
       "bytes": 3362,
       "sha256": "517d59ef9368dcfc18c5f183d3ecf8521653f3d7de5a2a802549b155682d01af"
-    },
-    {
-      "path": "work/dfo-lan/scripts/export_cerashop_catalog.py",
-      "bytes": 3404,
-      "sha256": "5d2c842d8394298730d39098cb94cdf0ab10c663b2fdbb9e80961774bd9c0ccd"
     },
     {
       "path": "work/dfo-lan/scripts/launch_local.py",

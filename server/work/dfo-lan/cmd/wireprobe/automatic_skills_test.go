@@ -13,7 +13,7 @@ func TestAutomaticSkillLevelRefresh(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	l, err := character.LoadLearningCatalog("../../configs/skills.awakening-candidate.json", c.Source.Checksum)
+	l, err := character.LoadLearningCatalog("../../configs/skills.release.json", c.Source.Checksum)
 	if err != nil {
 		t.Fatal(err)
 	}

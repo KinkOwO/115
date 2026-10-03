@@ -1,6 +1,28 @@
 # PVF 单一内容真源改造计划
 
-更新：2026-10-02。用户要求 PVF 作为核心游戏内容文件，消除另一套人工维护的玩法 JSON，并明确 PVF 对服务端是只读资源。内容修改由服务端之外的编辑工具完成。本文记录目标、第一批实际审计和迁移缺口；不表示全量配置依赖已经解除。
+更新：2026-10-03。用户要求 PVF 作为核心游戏内容文件，消除另一套人工维护的玩法 JSON，并明确 PVF 对服务端是只读资源。内容修改由服务端之外的编辑工具完成。本文记录目标、第一批实际审计和迁移缺口；不表示全量配置依赖已经解除。
+
+## 2026-10-03：17 个 JSON 收口
+
+按用户“先收口刚刚说的能删的”授权，删除 17 个顶层 JSON，126→109，共 23,584,750 字节（约 22.49 MiB）。只处理已经完成引用审计的这批文件，不扩展删除其余政策或 JSON 回退数据。
+
+| 删除文件 | 处理依据与保留内容 |
+|---|---|
+| `cerashop.json` | 商城已仅从 PVF 准备，无运行/测试消费者；删除旧 `scripts/export_cerashop_catalog.py`，避免再生成无用途的内容表 |
+| `dungeons.odyssey-merged-candidate.json` | 删除前与 `dungeons.odyssey-release.json` 字节/SHA256 完全相同，测试统一读后者 |
+| `dungeons.odyssey-scenes-candidate.json` | 同上，保留 `dungeons.odyssey-scenes-release.json` |
+| `odyssey-growth-candidate.json` | 同上，保留 `odyssey-growth-release.json` |
+| `odyssey-weapon-box-candidate.json` | 同上，保留 `odyssey-weapon-box-release.json` |
+| `skills.awakening-candidate.json` | 同上，保留 `skills.release.json` |
+| 11 个 `pvf-*-candidate.json` | `all`、`boxes`、`cashshop`、`characters`、`content`、`direct`、`enhancement`、`item-shops`、`migration`、`next`、`odyssey`；当前引用仅在历史 profile 测试，默认档保留 |
+
+22 个 Go 测试文件仅合并数据路径，测试逻辑保持。Python profile/启动器共 24 项检查保留，当前范围与政策检查读取 `pvf-default.json`，显式路径/校验/隔离检查用临时配置；新增对显式 profile 与 `--source-build` 同用时仍遵循 profile binary 的断言。两份交付清单只移除对应 7 个条目，不全量重生成；字面引用清单按当前源码重生成。
+
+Go 1.26.5 清理前全量 `go test ./...`、清理后无缓存全量 `go test -count=1 ./...` 与 `go vet ./...` 均通过；Python 3.11.9 的 24 项 profile/启动器检查通过。测试日志与删除前文件身份核对记录位于 `.tmp/config-cleanup/`，隔离 Python 依赖也只放在该临时目录，不提交。
+
+运行原启动等待测试时发现其未模拟 `_ensure_inner_pvf`，全局 `Path.is_file` 模拟让真实服务端内层 PVF 被轮换成备份。已原位恢复并核对 SHA256 `8b2a9f83247e000a28acd5134b616da725f46def39980b5373030e8cbc5d0934`，该测试补上准备函数模拟及调用断言；Python 检查重跑通过，恢复资源后 Go 全量重新验证。客户端资源与服务端内层资源均无净改动。
+
+本批没有修改生产 Go/Python 加载逻辑或默认 profile，没有编译/替换运行程序、访问玩家库或启动客户端。仅确认源码与配置清理，confirmed baseline 保持既有运行程序和实机范围。`pvf-lottery-policy.json` 的历史对照、仍强制读取的空 selection/content policy，以及探针/GM/JSON 回退消费者继续保留。下文为各阶段原始记录，旧数量、阶段入口和当时的解析缺口不表示当前状态。
 
 ## 第 0 批：真实运行依赖台账
 

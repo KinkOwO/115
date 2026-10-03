@@ -1,5 +1,10 @@
 # AGENTS.md — server/
 
+## 2026-10-03：17 个配置 JSON 清理已确认（源码收口）
+
+- 用户授权收口：删除 cerashop.json、5 个字节相同的 candidate 数据与 11 个逐批 PVF profile，顶层 JSON 126→109（减少 22.49 MiB）；商城旧导出脚本和两份交付清单对应条目同步移除。Go 测试改用保留的 release，profile 测试使用默认档与临时显式配置，README/迁移计划/引用清单更新。
+- Go 1.26.5 清理前后全量测试、清理后 vet 和 Python 3.11.9 的 24 项检查通过。仅配置/测试清理确认；默认 profile、生产加载逻辑、运行二进制和既有 confirmed baseline 实机范围保持，没有 SQL/schema、玩家存档或客户端资源改动，未访问玩家库或启动客户端。
+
 ## 2026-10-03：上游同步与冲突收敛（源码候选）
 
 - 上游 main 5c8530f 的掉落/免费翻牌、Lotus 与誓约 Clone 修复已接入；普通掉落装配与原生准备测试归 internal/gamedata，wireprobe 的 pvf_* 文件保持清零。

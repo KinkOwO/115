@@ -20,7 +20,7 @@ func specialWarpFixture(t *testing.T) *worldSession {
 	if e != nil {
 		t.Fatal(e)
 	}
-	g, e := catalog.LoadOdysseyGrowth("../../configs/odyssey-growth-candidate.json")
+	g, e := catalog.LoadOdysseyGrowth("../../configs/odyssey-growth-release.json")
 	if e != nil {
 		t.Fatal(e)
 	}

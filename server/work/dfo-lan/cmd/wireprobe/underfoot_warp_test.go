@@ -14,7 +14,7 @@ const underfootWarpRequest = "0102170200006301000000b2cc000000000000000000000000
 
 func underfootWarpFixture(t *testing.T) *worldSession {
 	t.Helper()
-	c, e := catalog.LoadDungeons("../../configs/dungeons.odyssey-scenes-candidate.json")
+	c, e := catalog.LoadDungeons("../../configs/dungeons.odyssey-scenes-release.json")
 	if e != nil {
 		t.Fatal(e)
 	}

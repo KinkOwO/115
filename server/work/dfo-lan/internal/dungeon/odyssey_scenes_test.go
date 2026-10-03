@@ -13,7 +13,7 @@ import (
 
 func odysseyScenes(t *testing.T) catalog.DungeonCatalog {
 	t.Helper()
-	c, e := catalog.LoadDungeons("../../configs/dungeons.odyssey-scenes-candidate.json")
+	c, e := catalog.LoadDungeons("../../configs/dungeons.odyssey-scenes-release.json")
 	if e != nil {
 		t.Fatal(e)
 	}

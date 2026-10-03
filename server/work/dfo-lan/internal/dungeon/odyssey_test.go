@@ -51,7 +51,7 @@ func TestOrdinaryDungeonsUnchangedByOdysseyMerge(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	after, e := catalog.LoadDungeons("../../configs/dungeons.odyssey-merged-candidate.json")
+	after, e := catalog.LoadDungeons("../../configs/dungeons.odyssey-release.json")
 	if e != nil {
 		t.Fatal(e)
 	}

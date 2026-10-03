@@ -10,7 +10,7 @@ import (
 
 func sceneFixture(t *testing.T) (catalog.DungeonCatalog, *Session, protocol.DungeonRoomTransition) {
 	t.Helper()
-	c, err := catalog.LoadDungeons("../../configs/dungeons.odyssey-scenes-candidate.json")
+	c, err := catalog.LoadDungeons("../../configs/dungeons.odyssey-scenes-release.json")
 	if err != nil {
 		t.Fatal(err)
 	}

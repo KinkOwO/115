@@ -50,7 +50,7 @@ func TestSourceAwakeningGrants(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	l, e := LoadLearningCatalog("../../configs/skills.awakening-candidate.json", c.Source.Checksum)
+	l, e := LoadLearningCatalog("../../configs/skills.release.json", c.Source.Checksum)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -95,7 +95,7 @@ func TestAwakenedSkillLearningUsesOwnJobAndStage(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	l, e := LoadLearningCatalog("../../configs/skills.awakening-candidate.json", c.Source.Checksum)
+	l, e := LoadLearningCatalog("../../configs/skills.release.json", c.Source.Checksum)
 	if e != nil {
 		t.Fatal(e)
 	}

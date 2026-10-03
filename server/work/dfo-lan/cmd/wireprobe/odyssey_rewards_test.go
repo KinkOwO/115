@@ -271,7 +271,7 @@ func TestOdysseyArmorDatabaseReplay(t *testing.T) {
 		t.Fatal("药水收据缺失", e)
 	}
 	t.Log("create potion x30 settled exactly once with its own event key")
-	choices, e := loadOdysseyWeaponChoices("../../configs/odyssey-weapon-box-candidate.json")
+	choices, e := loadOdysseyWeaponChoices("../../configs/odyssey-weapon-box-release.json")
 	if e != nil {
 		t.Fatal(e)
 	}
