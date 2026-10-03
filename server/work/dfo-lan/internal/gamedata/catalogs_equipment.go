@@ -603,6 +603,8 @@ func soleItemsSummary(rules *catalog.SoleEquipmentRules) string {
 		b.WriteString(strconv.Itoa(info.MaxQuality))
 		b.WriteString(",groups=")
 		b.WriteString(strconv.Itoa(len(info.Groups)))
+		b.WriteString(",create=")
+		b.WriteString(strconv.Itoa(len(info.CreateGroups)))
 		b.WriteString(")")
 	}
 	return b.String()
