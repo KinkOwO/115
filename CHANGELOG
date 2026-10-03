@@ -66,6 +66,11 @@ confirmed baseline 保持已有实机范围；没有改存档、数据库或客�
 - 实际内层 PVF `8b2a9f83…` 修改前/后 54 域准备报告的 14 个非 memory 字段相同（物品 599,771、装备绑定 424,216、装备选集 3,174、任务 2,844、副本 3,200）；报告均 `storage_accessed=false`、`runtime_started=false`。原生随机词条/盾牌/誓约/仓库及生产入口缺失历史角色锚点专项通过。报告规模一致不声称等于逐项实机玩法验收，也不据两轮不同缓存状态比较性能。
 - 独立候选 `.tmp/pvf-remaining-runtime/wireprobe-native-only.exe`，SHA256 `7447659027474094f15e532009de1ab890fba07c495ff984b6ff89366fff7b72`；同目录 `启动验证.cmd` 供用户关闭现有会话后手动验证。正式/default bin 未替换，confirmed baseline 保持既有实机范围，等待本轮用户确认后收口。
 - 顶层 configs JSON 仍为 66 个：历史对照及测试输入继续保留，本轮没有把运行退役计作文件删除。运行策略、容器/槽位和服主锻造数值 JSON 保留；没有改 PVF、SQL/schema、玩家存档或客户端资源，没有启动服务/客户端或访问玩家库。用户 `.gitignore` 和四份 charactercheck 工作区改动不属于本任务，不覆盖或提交。
+## 2026-10-03：副本经验与难度接线已确认
+
+- 击杀与通关经验使用本次副本的实际难度，0/1取PVF首档、2..5取后续档；当前源系数为1.30/2.00/2.50/3.00/4.00，评级经验随通关基础变化。保留原兼容公式与事件幂等，无schema或客户端修改。
+- Go 1.26全量测试、vet、事务重放/存档字段保留专项及54域PVF准备通过。旧charactercheck缺account_unified_options表，HEAD原代码overlay同样失败。
+- 用户确认不同副本难度获得的经验不同；确认版为独立候选 `.tmp/difficulty-exp-20261003/wireprobe-difficulty-experience.exe`，SHA256 `6cce9f0462d25093fabec8c932a43d4e21bf4f90ee2b25b6d9741dfb9bcc6e0f`，同目录入口 `启动验证.cmd`。验收范围限本次用户实测，不推定所有副本逐项验证。详见 `server/work/dfo-lan/docs/protocol/dungeon-experience-difficulty-20261003.md`。
 
 ## 2026-10-03：黄龙/银龙大会四轮流程已确认
 

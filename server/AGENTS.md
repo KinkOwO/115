@@ -89,6 +89,13 @@ loot 与 equipment-selection 的运行 JSON 回退、隐式 baseline 已移除�
 
 - 用户授权收口：删除 cerashop.json、5 个字节相同的 candidate 数据与 11 个逐批 PVF profile，顶层 JSON 126→109（减少 22.49 MiB）；商城旧导出脚本和两份交付清单对应条目同步移除。Go 测试改用保留的 release，profile 测试使用默认档与临时显式配置，README/迁移计划/引用清单更新。
 - Go 1.26.5 清理前后全量测试、清理后 vet 和 Python 3.11.9 的 24 项检查通过。仅配置/测试清理确认；默认 profile、生产加载逻辑、运行二进制和既有 confirmed baseline 实机范围保持，没有 SQL/schema、玩家存档或客户端资源改动，未访问玩家库或启动客户端。
+## 2026-10-03：副本经验与难度挂钩已确认
+
+- 修复角色击杀经验及副本通关基础/评级经验固定取首列的问题；按实际难度转换为当前PVF五档系数索引。难度0/1兼容首档，2..5逐档取表；保留原等级惩罚、PVF权重、成长契约及通关/击杀幂等。
+- 用户实机确认不同副本难度获得的经验不同。确认范围限此次手动测试，不扩展到全地图或全等级。
+- confirmed baseline 为独立候选 `work/dfo-lan/.tmp/difficulty-exp-20261003/wireprobe-difficulty-experience.exe`，SHA256 `6cce9f0462d25093fabec8c932a43d4e21bf4f90ee2b25b6d9741dfb9bcc6e0f`，同目录 `profile.json` 和 `启动验证.cmd`；默认 `wireprobe-pvf.exe` 未替换。无schema、玩家存档、客户端/DLL或PVF资源修改。
+- Go全量测试、`go vet ./...`、事务难度/重放专项与当前PVF54域准备通过。`charactercheck` 因缺 `account_unified_options` 失败，HEAD源码overlay亦可复现。资料见 `work/dfo-lan/docs/protocol/dungeon-experience-difficulty-20261003.md`。
+
 ## 2026-10-03：黄龙/银龙大会四轮流程已确认
 
 - 用户反馈首场CMD33触发剧情式最终结算。已在未完成Tournament时禁止SceneClearObjective写入任务地图通关证据，并由`MarkSceneCompleted`守卫，前三场保留已有回合推进，第四场按最终BossCheck进入原结算流程。

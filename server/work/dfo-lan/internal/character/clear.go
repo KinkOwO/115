@@ -44,6 +44,10 @@ func (s *ProgressionService) ClearWithTowerRewards(ctx context.Context, role Cha
 	if e != nil || len(b) != 16 {
 		return fail(fmt.Errorf("invalid clear run identity"))
 	}
+	difficulty, e := growthDifficultyIndex(run.Difficulty)
+	if e != nil {
+		return fail(e)
+	}
 	key := "clear:" + run.RunID
 	monsterTotal, e := s.Store.RunMonsterExperience(ctx, role.AccountID, role.ID, run.RunID)
 	if e != nil {
@@ -71,7 +75,7 @@ func (s *ProgressionService) ClearWithTowerRewards(ctx context.Context, role Cha
 		if e != nil {
 			return nil, nil, e
 		}
-		gain, e := GrowthDungeonClear(s.Catalog, run.Definition, 0, rank)
+		gain, e := GrowthDungeonClear(s.Catalog, run.Definition, difficulty, rank)
 		if e != nil {
 			return nil, nil, e
 		}
