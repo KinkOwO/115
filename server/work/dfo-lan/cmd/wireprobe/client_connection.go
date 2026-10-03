@@ -110,6 +110,7 @@ func (gateway *gameGateway) handleClient(c net.Conn, channel uint32) {
 				client.worldState.specialTowns[a.TownID] = true
 			}
 		}
+		client.worldState.channelGuideDungeon = client.gatewayRuntime.channelGuides[client.channelTypes[client.channel]]
 		if client.moonConfig != nil && client.channel == client.moonConfig.Channel {
 			client.worldState.moonConfig = client.moonConfig
 		}

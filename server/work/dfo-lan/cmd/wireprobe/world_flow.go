@@ -41,6 +41,9 @@ type worldSession struct {
 	// 用于把共享行里的历史污染位置修回默认落点。
 	channelWorldIsolated bool
 	specialTowns         map[uint32]bool
+	// channelGuideDungeon 是本频道 [guide dungeon index] 直读值（SemiRaid/Legion
+	// 频道的红门直接进这个副本）；0 = 无（普通频道）。
+	channelGuideDungeon uint32
 	bleedingMineCreated    bool
 	bleedingMineReady      bool
 	bleedingMineRoster     []int64

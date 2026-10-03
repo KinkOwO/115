@@ -36,6 +36,7 @@ type gatewayRuntime struct {
 	characters            *character.Service
 	channelDirectory       *catalog.ChannelDirectory
 	channelTowns           map[uint32]catalog.TownArea
+	channelGuides          map[uint32]uint32
 	channelInfo            *catalog.ChannelInfo
 	developmentAccount    int64
 	dungeonCatalog        *catalog.DungeonCatalog
@@ -1615,6 +1616,7 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		channelDirectory:      pvfCatalogs.ChannelDirectory,
 		channelInfo:           pvfCatalogs.ChannelInfo,
 		channelTowns:          pvfCatalogs.ChannelTowns,
+		channelGuides:         channelGuidesFromDirectory(pvfCatalogs.ChannelDirectory),
 		developmentAccount:    developmentAccount,
 		dungeonCatalog:        dungeonCatalog,
 		fatigueService:        fatigueService,
@@ -1680,4 +1682,20 @@ func (r *runtimeCleanup) close() {
 		}
 		r.actions = nil
 	})
+}
+
+// channelGuidesFromDirectory 抽取每个 SemiRaid/Legion 频道类型的
+// [guide dungeon index]（clientchannelinfo.etc 直读）—— SemiRaid 频道红门
+// 直接进这个副本（Azure 102 -> 100004131，月湖 101 -> 100004137）。
+func channelGuidesFromDirectory(dir *catalog.ChannelDirectory) map[uint32]uint32 {
+	if dir == nil {
+		return nil
+	}
+	out := map[uint32]uint32{}
+	for channelType, a := range dir.ByType {
+		if a.GuideDungeon != 0 && (a.IsLegion || a.IsRaid || a.IsPreRaid || a.IsSemiRaid) {
+			out[channelType] = a.GuideDungeon
+		}
+	}
+	return out
 }
