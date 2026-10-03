@@ -1,5 +1,9 @@
 # AGENTS.md — server/
 
+## 玩法规则归属与开发门禁
+
+遵守根 [AGENTS.md §0.2](../AGENTS.md#02-pvf-脚本驱动与单一规则流程强制2026-10-03-用户确认)。服务端新增、修复或重构玩法时，先定位 PVF 定义与重复 Go/JSON 规则，再复用 Source、领域解析器和执行能力，按根流程验证与提交。该节是唯一规范；本文件下方迁移记录只描述当时完成范围，不授权继续维护平行内容表。
+
 ## 2026-10-03：四份无当前消费者的内容导出删除
 
 本轮实际删除 `black-purgatory-rewards.json`、`bleeding-mine-rewards.json`、`town.generated.json`、`dungeons.terminal-scenes.json`，共 826,529 字节（约 0.79 MiB），顶层 JSON **66→62**。四域现有原生读取保持，隐式历史 baseline 依赖退休；towncatalog 只读统一 Source，诊断导出要求显式输出。没有新增整表压缩快照；城镇条目从两份历史交付清单同步移除，其它旧条目不重生成。
