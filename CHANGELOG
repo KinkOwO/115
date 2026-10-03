@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 2026-10-03：雾都赫伊斯 Hell Party 入场已确认
+
+- 修复副本92 DGN在两张普通迷宫重复写入相同 Hell 配置、服务端把同名段拼接后误判无定义的问题。逐段比较所有副本声明；仅全部相同才恢复单份，冲突及空/损坏段保持拒绝。
+- 用户确认副本92 Hell Party 可以进入。18:36:43手动会话 `roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261003_183234_180122_next37` 记录Mode1请求与成功ACK，18:39:19 `dungeon_session_started` 记录封印地图60056、maze0。确认候选SHA256 `f31c611c33956867beaf091ad8baccf87e08b11f0ee69d1057fa10d7a1dd503e` 纳入本轮confirmed baseline；独立入口 `.tmp/hellparty-heiz-20261003/启动验证.cmd`，默认程序未替换。
+- Go全量测试、vet及54域PVF准备通过。本轮当前源有66个Hell声明，65个资源存在且入口基础检查可通过；缺图副本100005110仍拒绝。验收仅确认副本92入场，不扩展成全部副本逐项实测或柱子/波次/掉落确认。无schema、玩家存档或客户端资源改动。详见 `server/work/dfo-lan/docs/protocol/hell-party-haze-entry-20261003.md`。
+
 ## 2026-10-03：月湖与秘宝上游合并冲突收敛（源码合并）
 
 - 合入上游 main `c7a5801`；CHANGELOG 保留本地 Hell Party/奥德赛与上游月湖/秘宝制作的全部新增记录和既有 confirmed baseline 信息。
