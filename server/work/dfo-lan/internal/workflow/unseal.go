@@ -4,9 +4,9 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
@@ -24,7 +24,7 @@ import (
 // The bag transform stays in inventory (Bag.UnsealRandomOption); this workflow
 // owns the transaction and the persisted receipt.
 type UnsealService struct {
-	Store         *storage.Store
+	Store         *database.Store
 	Equipment     *inventory.EquipmentCatalog
 	RandomOptions *inventory.RandomOptionCatalog
 	Model         string
@@ -52,9 +52,9 @@ func newUnsealRand() (*mrand.Rand, error) {
 // Unseal breaks the magic seal on the bag equipment at the requested slot.
 // The scroll slot must be the native no-scroll sentinel; scroll-assisted
 // unsealing is not proven against the current client and stays refused.
-func (s *UnsealService) Unseal(ctx context.Context, role storage.Character, version string, r protocol.UnsealRequest) (storage.Character, UnsealReceipt, bool, error) {
+func (s *UnsealService) Unseal(ctx context.Context, role database.Character, version string, r protocol.UnsealRequest) (database.Character, UnsealReceipt, bool, error) {
 	var out UnsealReceipt
-	fail := func(e error) (storage.Character, UnsealReceipt, bool, error) {
+	fail := func(e error) (database.Character, UnsealReceipt, bool, error) {
 		return role, out, false, e
 	}
 	if s == nil || s.Store == nil || s.Equipment == nil || s.RandomOptions == nil {
@@ -88,7 +88,7 @@ func (s *UnsealService) Unseal(ctx context.Context, role storage.Character, vers
 		return fail(e)
 	}
 	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, version, key, s.Model,
-		func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+		func(current database.Character) (json.RawMessage, json.RawMessage, error) {
 			bag, e := inventory.ReadBag(current.State)
 			if e != nil {
 				return nil, nil, e

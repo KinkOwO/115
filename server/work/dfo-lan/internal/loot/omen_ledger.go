@@ -8,7 +8,7 @@ import "sync"
 // 掉落会话（Session 每场新建），也不能挂在副本状态上。
 //
 // 这本账只是**进程内缓存**：权威状态在角色存档里（character_omen_state，见
-// internal/storage/omen_state.go）。cmd/wireprobe 在每场开始时用存档刷新它、
+// internal/database/omen_state.go）。cmd/wireprobe 在每场开始时用存档刷新它、
 // 结算后写回，所以重启不再归零。这里不直接持有 Store 是为了让掉落会话不知道
 // 数据库的存在。
 type OmenLedger struct {

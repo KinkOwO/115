@@ -3,7 +3,7 @@ package main
 import (
 	"bytes"
 	"dfolan/internal/character"
-	"dfolan/internal/storage"
+	"dfolan/internal/database"
 	"encoding/json"
 	"testing"
 )
@@ -26,7 +26,7 @@ func TestSkillTreeRefreshPlan(t *testing.T) {
 			t.Fatalf("CMD28 applied=%t 不能追加 id19", applied)
 		}
 		body := []byte{1, 0, 1, 5}
-		plan, err := skillMutationResponsePlan(nil, storage.Character{}, 28, body, applied, false)
+		plan, err := skillMutationResponsePlan(nil, database.Character{}, 28, body, applied, false)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -43,7 +43,7 @@ func TestSkillPresetRestoreImmediatelyFollowsSkillTree(t *testing.T) {
 	}
 	plan, err := appendSkillPresetRestore(
 		[]outboundPacket{{"skill_state_restored", 0, 19, []byte{1}}},
-		&character.Service{}, storage.Character{State: raw},
+		&character.Service{}, database.Character{State: raw},
 		"skill_preset_restored_after_skill_state",
 	)
 	if err != nil {

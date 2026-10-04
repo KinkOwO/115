@@ -2,9 +2,9 @@ package main
 
 import (
 	"dfolan/internal/catalog"
+	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"testing"
 
 	"context"
@@ -19,7 +19,7 @@ import (
 //   - 结算面板上直接收 16+28+29 → 客户端 0xC0000005，约 1.7 秒后退出；
 //   - 结算面板上先收 15+27，再收 16+…+29 → 正常进入同一张图，不闪退、不用手选。
 func TestSettlementRetryOpensSelectionBeforeEntry(t *testing.T) {
-	w := &worldSession{role: storage.Character{ID: 7, WireID: 10}}
+	w := &worldSession{role: database.Character{ID: 7, WireID: 10}}
 	s := &dungeon.Session{
 		Definition: catalog.DungeonDefinition{ID: 100004946},
 		Maze:       catalog.DungeonMaze{Index: 0, Start: [2]byte{0, 0}, Boss: [2]byte{1, 1}},
@@ -58,7 +58,7 @@ func TestSettlementRetryOpensSelectionBeforeEntry(t *testing.T) {
 // 张图；这条分支在任何目录 / 数据库查询之前返回。
 func TestSettlementRetryRequiresActiveRun(t *testing.T) {
 	w := &worldSession{
-		role:     storage.Character{ID: 7, WireID: 10},
+		role:     database.Character{ID: 7, WireID: 10},
 		dungeons: &catalog.DungeonCatalog{Dungeons: map[uint32]catalog.DungeonDefinition{}},
 	}
 	pending, route, e := w.restartDungeon()
@@ -77,7 +77,7 @@ func TestSettlementRetryRequiresActiveRun(t *testing.T) {
 // 崩溃退出 —— 吞掉 = 静默无应答；非伊斯会话保持 generic 路径不变。
 func TestIspinsSwallowsGenericPlayResult(t *testing.T) {
 	w := &worldSession{
-		role:           storage.Character{ID: 7, WireID: 10},
+		role:           database.Character{ID: 7, WireID: 10},
 		ispins:         &ispinsRun{},
 		activeDungeon:  &dungeon.Session{Definition: catalog.DungeonDefinition{ID: 100002987}},
 		completionSent: true,

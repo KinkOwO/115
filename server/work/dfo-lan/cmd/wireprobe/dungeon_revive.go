@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"crypto/sha256"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
@@ -14,12 +14,12 @@ import (
 )
 
 type dungeonReviveStore interface {
-	CommitCharacterEvent(ctx context.Context, account, id int64, version, key, model string, apply func(storage.Character) (json.RawMessage, json.RawMessage, error)) (storage.Character, bool, error)
+	CommitCharacterEvent(ctx context.Context, account, id int64, version, key, model string, apply func(database.Character) (json.RawMessage, json.RawMessage, error)) (database.Character, bool, error)
 }
 
 type ceraReviveStore interface {
 	dungeonReviveStore
-	ApplyGrant(context.Context, storage.Grant, func(storage.Character) (json.RawMessage, json.RawMessage, error)) (storage.GrantResult, error)
+	ApplyGrant(context.Context, database.Grant, func(database.Character) (json.RawMessage, json.RawMessage, error)) (database.GrantResult, error)
 }
 
 // The current client's Life Token shop text (dstr 39335) prices one token at 15 CERA.
@@ -71,7 +71,7 @@ func (w *worldSession) lifeTokenRevive(ctx context.Context, store dungeonReviveS
 	}
 
 	key := fmt.Sprintf("dungeon-life-token-revive:%s:%d", w.pilotDeath.Run, w.pilotDeath.Sequence)
-	saved, _, e := store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, "dungeon-life-token-revive-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+	saved, _, e := store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, "dungeon-life-token-revive-v1", func(current database.Character) (json.RawMessage, json.RawMessage, error) {
 		bag, err := inventory.ReadBag(current.State)
 		if err != nil {
 			return nil, nil, err
@@ -145,7 +145,7 @@ func (w *worldSession) ceraRevive(ctx context.Context, store ceraReviveStore, p,
 	death[2] = 1
 	ack := binary.LittleEndian.AppendUint16([]byte{1}, w.role.WireID)
 	key := fmt.Sprintf("cera-revive:%s:%d", w.pilotDeath.Run, w.pilotDeath.Sequence)
-	charged, e := store.ApplyGrant(ctx, storage.Grant{
+	charged, e := store.ApplyGrant(ctx, database.Grant{
 		ID: key, AccountID: w.role.AccountID, Cera: -lifeTokenCeraCost,
 		Operator: "system", Reason: "life-token-less revive (dstr 7689)", MaxCera: math.MaxInt32,
 	}, nil)

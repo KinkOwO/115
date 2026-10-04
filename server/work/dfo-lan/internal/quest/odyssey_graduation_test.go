@@ -4,19 +4,18 @@ import (
 	"context"
 	"dfolan/internal/catalog"
 	"dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/quest"
 	"dfolan/internal/savecontract"
-	"dfolan/internal/storage"
 	"dfolan/internal/testfixture"
 	"encoding/json"
-	"fmt"
 	"os"
 	"slices"
 	"testing"
 	"time"
 )
 
-func graduationFixture(t *testing.T) (*quest.Service, storage.Character) {
+func graduationFixture(t *testing.T) (*quest.Service, database.Character) {
 	t.Helper()
 	g, err := catalog.LoadOdysseyGrowth("../../configs/odyssey-growth-release.json")
 	if err != nil {
@@ -36,7 +35,7 @@ func graduationFixture(t *testing.T) (*quest.Service, storage.Character) {
 		req = append(req, 0)
 	}
 	s := &quest.Service{Catalog: q, Professions: p, Odyssey: g, Progression: &character.ProgressionService{Odyssey: g}}
-	r := storage.Character{Profession: 0, Request: req, Name: "GradFixture", ConfigVersion: savecontract.Identity(), State: json.RawMessage(`{"level":115,"advancement":1,"creation_mode":2,"inventory":{"sentinel":[1,2,3]},"equipment_unlock_mask":7,"unrelated_saved_field":"keep"}`)}
+	r := database.Character{Profession: 0, Request: req, Name: "GradFixture", ConfigVersion: savecontract.Identity(), State: json.RawMessage(`{"level":115,"advancement":1,"creation_mode":2,"inventory":{"sentinel":[1,2,3]},"equipment_unlock_mask":7,"unrelated_saved_field":"keep"}`)}
 	return s, r
 }
 
@@ -120,35 +119,21 @@ func TestGraduationEligibilityAndJobFilter(t *testing.T) {
 }
 
 func TestOdysseyGraduationAtomicIntegration(t *testing.T) {
-	if os.Getenv("ODYSSEY_GRADUATION_INTEGRATION") != "1" {
-		t.Skip("requires isolated PostgreSQL schema")
+	if os.Getenv("DFO_TEST_POSTGRES_DSN") == "" {
+		t.Skip("requires explicit DFO_TEST_POSTGRES_DSN for isolated PostgreSQL schema")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
-	cfg, err := storage.LoadConfig(os.Getenv("ODYSSEY_GRADUATION_STORAGE"))
+	fixture, err := database.OpenTestFixture(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	live, err := storage.Open(ctx, cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer live.Close()
-	schema := fmt.Sprintf("odyssey_graduation_test_%d", time.Now().UnixNano())
-	if _, err = live.DB.Exec(ctx, "CREATE SCHEMA "+schema); err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if _, err := live.DB.Exec(context.Background(), "DROP SCHEMA "+schema+" CASCADE"); err != nil {
+	t.Cleanup(func() {
+		if err := fixture.Close(); err != nil {
 			t.Error(err)
 		}
-	}()
-	cfg.PostgresSchema = schema
-	db, err := storage.Open(ctx, cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
+	})
+	db := fixture.Storage()
 	for _, migrate := range []func(context.Context) error{db.Migrate, db.MigrateQuests, db.MigrateCharacterEvents} {
 		if err = migrate(ctx); err != nil {
 			t.Fatal(err)
@@ -169,26 +154,31 @@ func TestOdysseyGraduationAtomicIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = db.DB.Exec(ctx, `INSERT INTO character_quests(character_id,quest_id,status,config_version,progress_model) VALUES($1,$2,'accepted',$4,'prior-active'),($1,$3,'completed',$4,'prior-completed'),($1,22987,'accepted',$4,'future')`, role.ID, ids[0], ids[1], role.ConfigVersion)
-	if err != nil {
-		t.Fatal(err)
+	for _, seed := range []struct {
+		id            uint16
+		status, model string
+	}{{ids[0], "accepted", "prior-active"}, {ids[1], "completed", "prior-completed"}, {22987, "accepted", "future"}} {
+		if err = fixture.SeedQuestRecord(ctx, role.ID, int32(seed.id), seed.status, role.ConfigVersion, seed.model); err != nil {
+			t.Fatal(err)
+		}
 	}
 	// Force failure after quest writes. Neither completion rows, state nor
 	// receipt may survive the failed character UPDATE.
-	if _, err = db.DB.Exec(ctx, `ALTER TABLE characters ADD CONSTRAINT reject_graduation CHECK (NOT (state ? 'odyssey_graduation_version'))`); err != nil {
+	if err = fixture.RejectGraduation(ctx, true); err != nil {
 		t.Fatal(err)
 	}
 	if _, _, err = s.GraduateOdyssey(ctx, role); err == nil {
 		t.Fatal("injected storage failure ignored")
 	}
-	var count int
-	if err = db.DB.QueryRow(ctx, `SELECT count(*) FROM character_events`).Scan(&count); err != nil || count != 0 {
+	count, err := fixture.EventCount(ctx, 0)
+	if err != nil || count != 0 {
 		t.Fatalf("receipt survived rollback: %d %v", count, err)
 	}
-	if err = db.DB.QueryRow(ctx, `SELECT count(*) FROM character_quests`).Scan(&count); err != nil || count != 3 {
+	count, err = fixture.QuestCount(ctx, 0)
+	if err != nil || count != 3 {
 		t.Fatalf("quests survived rollback: %d %v", count, err)
 	}
-	if _, err = db.DB.Exec(ctx, `ALTER TABLE characters DROP CONSTRAINT reject_graduation`); err != nil {
+	if err = fixture.RejectGraduation(ctx, false); err != nil {
 		t.Fatal(err)
 	}
 	for i := 0; i < 2; i++ {
@@ -201,14 +191,16 @@ func TestOdysseyGraduationAtomicIntegration(t *testing.T) {
 			t.Fatalf("112 guide unavailable: %v %v", available, err)
 		}
 	}
-	var model, status string
-	if err = db.DB.QueryRow(ctx, `SELECT status,progress_model FROM character_quests WHERE character_id=$1 AND quest_id=$2`, role.ID, ids[1]).Scan(&status, &model); err != nil || model != "prior-completed" {
+	status, model, err := fixture.QuestRecord(ctx, role.ID, int32(ids[1]))
+	if err != nil || model != "prior-completed" {
 		t.Fatalf("completed history replaced: %s %v", model, err)
 	}
-	if err = db.DB.QueryRow(ctx, `SELECT status FROM character_quests WHERE character_id=$1 AND quest_id=22987`, role.ID).Scan(&status); err != nil || status != "accepted" {
+	status, _, err = fixture.QuestRecord(ctx, role.ID, 22987)
+	if err != nil || status != "accepted" {
 		t.Fatalf("115 quest changed: %s %v", status, err)
 	}
-	if err = db.DB.QueryRow(ctx, `SELECT count(*) FROM character_events`).Scan(&count); err != nil || count != 1 {
+	count, err = fixture.EventCount(ctx, 0)
+	if err != nil || count != 1 {
 		t.Fatalf("duplicate receipts: %d %v", count, err)
 	}
 }

@@ -3,13 +3,12 @@ package main
 import (
 	"context"
 	"crypto/sha256"
+	"dfolan/internal/database"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
 )
-
 
 func decodeCreatureHatchRequest(p []byte) (uint16, error) {
 	if len(p) >= 3 && p[0] == 7 {
@@ -22,7 +21,7 @@ func decodeCreatureHatchRequest(p []byte) (uint16, error) {
 }
 
 type characterEventStore interface {
-	CommitCharacterEvent(ctx context.Context, account, id int64, version, key, model string, apply func(storage.Character) (json.RawMessage, json.RawMessage, error)) (storage.Character, bool, error)
+	CommitCharacterEvent(ctx context.Context, account, id int64, version, key, model string, apply func(database.Character) (json.RawMessage, json.RawMessage, error)) (database.Character, bool, error)
 }
 
 func (w *worldSession) hatchCreature(ctx context.Context, store characterEventStore, cmdID uint16, p, raw []byte) ([]outboundPacket, error) {
@@ -34,7 +33,7 @@ func (w *worldSession) hatchCreature(ctx context.Context, store characterEventSt
 		return nil, err
 	}
 	key := fmt.Sprintf("creature-hatch:%d:%x", w.role.ID, sha256.Sum256(raw))
-	saved, _, err := store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, "creature-hatch-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+	saved, _, err := store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, "creature-hatch-v1", func(current database.Character) (json.RawMessage, json.RawMessage, error) {
 		b, err := inventory.ReadBag(current.State)
 		if err != nil {
 			return nil, nil, err

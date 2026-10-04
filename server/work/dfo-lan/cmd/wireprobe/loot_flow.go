@@ -2,10 +2,10 @@ package main
 
 import (
 	"context"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
-	"dfolan/internal/storage"
 	"dfolan/internal/workflow"
 	"fmt"
 	"log"
@@ -29,7 +29,7 @@ func (w *worldSession) pickup(p []byte) ([]outboundPacket, error) {
 	return w.finishPickup(ctx, saved, receipt, applied, true)
 }
 
-func (w *worldSession) finishPickup(ctx context.Context, saved storage.Character, receipt loot.PickupReceipt, applied, acknowledge bool) ([]outboundPacket, error) {
+func (w *worldSession) finishPickup(ctx context.Context, saved database.Character, receipt loot.PickupReceipt, applied, acknowledge bool) ([]outboundPacket, error) {
 	previousState := w.role.State
 	// 落账成功后先保留最新状态，后续通知构造失败也不能恢复旧背包。
 	w.role = saved

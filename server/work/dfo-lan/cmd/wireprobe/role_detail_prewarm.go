@@ -3,14 +3,14 @@ package main
 import (
 	"context"
 	"dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
 	"dfolan/internal/quest"
-	"dfolan/internal/storage"
 	"fmt"
 )
 
-func prepareRolePVFDetails(ctx context.Context, characters *character.Service, quests *quest.Service, items *loot.Service, role storage.Character) error {
+func prepareRolePVFDetails(ctx context.Context, characters *character.Service, quests *quest.Service, items *loot.Service, role database.Character) error {
 	if err := characters.PrepareRoleDetails(role); err != nil {
 		return err
 	}

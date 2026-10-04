@@ -2,8 +2,8 @@ package workflow
 
 import (
 	"context"
+	"dfolan/internal/database"
 	"dfolan/internal/loot"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 )
@@ -11,9 +11,9 @@ import (
 // OpenBoxes settles one radiant box request: it spends the material and hands out
 // every rolled prize inside the same character transaction, so a retried request
 // cannot spend a second stack or advance pity twice.
-func (s *LootService) OpenBoxes(ctx context.Context, role storage.Character, box, count uint32) (storage.Character, loot.BoxOpenReceipt, bool, error) {
+func (s *LootService) OpenBoxes(ctx context.Context, role database.Character, box, count uint32) (database.Character, loot.BoxOpenReceipt, bool, error) {
 	var out loot.BoxOpenReceipt
-	fail := func(e error) (storage.Character, loot.BoxOpenReceipt, bool, error) {
+	fail := func(e error) (database.Character, loot.BoxOpenReceipt, bool, error) {
 		return role, out, false, e
 	}
 	plan, e := s.Loot.PlanBoxOpen(LootRole(role), box, count)
@@ -23,7 +23,7 @@ func (s *LootService) OpenBoxes(ctx context.Context, role storage.Character, box
 	key := fmt.Sprintf("boxopen:%d:%d:%d", box, count, plan.Opens)
 	saved, applied, e := s.Store.CommitCharacterPremiumEvent(ctx, role.AccountID, role.ID,
 		s.Loot.Catalog.Source.SaveIdentity(), key, s.Loot.Rules.Model,
-		func(current storage.Character) (json.RawMessage, json.RawMessage, []storage.CashPremiumActivation, error) {
+		func(current database.Character) (json.RawMessage, json.RawMessage, []database.CashPremiumActivation, error) {
 			state, receipt, premiums, err := s.Loot.PrepareBoxOpen(LootRole(current), box, count, plan, resolveLootContract)
 			return state, receipt, lootPremiumActivations(premiums), err
 		})
@@ -45,13 +45,13 @@ func (s *LootService) OpenBoxes(ctx context.Context, role storage.Character, box
 }
 
 // RepairBoxRewards 在登录背包还原前修复遗留奖励，重复登录不重复续期。
-func (s *LootService) RepairBoxRewards(ctx context.Context, role storage.Character) (storage.Character, bool, error) {
+func (s *LootService) RepairBoxRewards(ctx context.Context, role database.Character) (database.Character, bool, error) {
 	needed, err := s.Loot.NeedsBoxRewardRepair(LootRole(role), resolveLootContract)
 	if err != nil || !needed {
 		return role, false, err
 	}
 	saved, applied, err := s.Store.CommitCharacterPremiumEvent(ctx, role.AccountID, role.ID, s.Loot.Catalog.Source.SaveIdentity(), "box-reward-repair-v1", s.Loot.Rules.Model,
-		func(current storage.Character) (json.RawMessage, json.RawMessage, []storage.CashPremiumActivation, error) {
+		func(current database.Character) (json.RawMessage, json.RawMessage, []database.CashPremiumActivation, error) {
 			state, receipt, premiums, err := s.Loot.PrepareBoxRewardRepair(LootRole(current), resolveLootContract)
 			return state, receipt, lootPremiumActivations(premiums), err
 		})

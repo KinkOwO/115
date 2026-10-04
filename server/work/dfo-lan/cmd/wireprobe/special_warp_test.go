@@ -3,10 +3,10 @@ package main
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/savecontract"
-	"dfolan/internal/storage"
 	"dfolan/internal/testfixture"
 	"dfolan/internal/world"
 	"encoding/hex"
@@ -31,8 +31,8 @@ func specialWarpFixture(t *testing.T) *worldSession {
 		req = append(req, 0)
 	}
 	return &worldSession{account: 7, level: 38, service: &world.Service{Catalog: c}, progression: &character.ProgressionService{Odyssey: g},
-		role:  storage.Character{ID: 14, AccountID: 7, WireID: 14, Request: req, ConfigVersion: savecontract.Identity(), State: json.RawMessage(`{"odyssey_completed_dungeons":[100004934,100004935,100004936,100004937,100004938]}`)},
-		state: storage.WorldState{Position: storage.WorldPosition{Town: 40, Area: 4, X: 849, Y: 263}}}
+		role:  database.Character{ID: 14, AccountID: 7, WireID: 14, Request: req, ConfigVersion: savecontract.Identity(), State: json.RawMessage(`{"odyssey_completed_dungeons":[100004934,100004935,100004936,100004937,100004938]}`)},
+		state: database.WorldState{Position: database.WorldPosition{Town: 40, Area: 4, X: 849, Y: 263}}}
 }
 
 func TestSpecialWarpPreparationAndDarkelfDestination(t *testing.T) {
@@ -130,8 +130,8 @@ func TestTownMapTeleportTransition(t *testing.T) {
 		account: 1,
 		level:   50,
 		service: &world.Service{Catalog: c},
-		role:    storage.Character{ID: 11, AccountID: 1, WireID: 11},
-		state:   storage.WorldState{Position: storage.WorldPosition{Town: 39, Area: 2, X: 320, Y: 306}},
+		role:    database.Character{ID: 11, AccountID: 1, WireID: 11},
+		state:   database.WorldState{Position: database.WorldPosition{Town: 39, Area: 2, X: 320, Y: 306}},
 	}
 
 	// 1. 普通走门：39/2 (后街) 到 40/0 (西海岸) 无门户边，TailFlags 为 0 时必须拒绝
@@ -154,7 +154,7 @@ func TestTownMapTeleportTransition(t *testing.T) {
 	}
 
 	// 3. 特殊传送预备态 (CMD 2261 触发的 specialWarpPending) 也放行
-	w.state.Position = storage.WorldPosition{Town: 39, Area: 2, X: 320, Y: 306}
+	w.state.Position = database.WorldPosition{Town: 39, Area: 2, X: 320, Y: 306}
 	if _, err := w.prepareSpecialWarp(nil); err != nil {
 		t.Fatal(err)
 	}
@@ -168,7 +168,7 @@ func TestTownMapTeleportTransition(t *testing.T) {
 	}
 
 	// 4. 月光酒馆传送点 (39/4) 落点偏差容差测试 (落点 y=198，距行走区 68 像素)
-	w.state.Position = storage.WorldPosition{Town: 40, Area: 3, X: 152, Y: 153}
+	w.state.Position = database.WorldPosition{Town: 40, Area: 3, X: 152, Y: 153}
 	rBar := protocol.AreaChangeRequest{
 		Town: 39, Area: 4, X: 355, Y: 198, Flag: 5,
 		PreviousTown: 40, PreviousArea: 3, TailFlags: [2]byte{0, 5},
@@ -188,7 +188,7 @@ func TestTownMapTeleportTransition(t *testing.T) {
 	}
 
 	// 6. 等级不足拒绝
-	w.state.Position = storage.WorldPosition{Town: 39, Area: 2, X: 320, Y: 306}
+	w.state.Position = database.WorldPosition{Town: 39, Area: 2, X: 320, Y: 306}
 	w.level = 1
 	if _, err := w.areaTransition(rTeleport); !errors.Is(err, world.ErrLevel) {
 		t.Fatalf("under-level teleport should return ErrLevel, got %v", err)
@@ -213,7 +213,7 @@ func TestTownMapTeleportTransition(t *testing.T) {
 
 	// 9. 点击 "Teleport to Seria's Room" (TailFlags == [0, 0], Flag == 5)
 	// 从西海岸 (40/0) 传送进入赛丽亚房间 (38/1)
-	w.state.Position = storage.WorldPosition{Town: 40, Area: 0, X: 403, Y: 181}
+	w.state.Position = database.WorldPosition{Town: 40, Area: 0, X: 403, Y: 181}
 	rSeria := protocol.AreaChangeRequest{
 		Town: 38, Area: 1, X: 557, Y: 210, Flag: 5,
 		PreviousTown: 40, PreviousArea: 0, TailFlags: [2]byte{0, 0},
@@ -229,7 +229,7 @@ func TestTownMapTeleportTransition(t *testing.T) {
 	// Live CMD36 from Seria's right-hand map selector: Flag=5, TailFlags[0]=5.
 	// The selected West Coast landing must win over the stamped Hendon origin.
 	quickRoom := next
-	quickRoom.Return = &storage.WorldReturn{Town: 39, Area: 0, X: 3494, Y: 314}
+	quickRoom.Return = &database.WorldReturn{Town: 39, Area: 0, X: 3494, Y: 314}
 	w.state.Position = quickRoom
 	quickBody, err := hex.DecodeString("28000000000000007f01bd00052600000001000005000000")
 	if err != nil {
@@ -265,8 +265,8 @@ func TestNativeEpisodeTownReturnFromSavedPosition(t *testing.T) {
 		account: 7,
 		level:   94,
 		service: &world.Service{Catalog: c},
-		role:    storage.Character{ID: 14, AccountID: 7, WireID: 14},
-		state:   storage.WorldState{Position: storage.WorldPosition{Town: 55, Area: 0, X: 862, Y: 345}},
+		role:    database.Character{ID: 14, AccountID: 7, WireID: 14},
+		state:   database.WorldState{Position: database.WorldPosition{Town: 55, Area: 0, X: 862, Y: 345}},
 	}
 	r := protocol.AreaChangeRequest{Town: 38, Area: 0, X: 2092, Y: 220, Flag: 5, PreviousTown: 55, PreviousArea: 0}
 	if !w.npcMoveTeleport(r) || !w.episodeTownReturn(r) {
@@ -283,7 +283,7 @@ func TestNativeEpisodeTownReturnFromSavedPosition(t *testing.T) {
 	for _, tc := range []struct{ episodeTown, returnTown, returnArea uint32 }{
 		{75, 22, 4}, {82, 22, 4}, {149, 6, 2},
 	} {
-		w.state.Position = storage.WorldPosition{Town: tc.episodeTown, Area: 0}
+		w.state.Position = database.WorldPosition{Town: tc.episodeTown, Area: 0}
 		r = protocol.AreaChangeRequest{Town: tc.returnTown, Area: tc.returnArea, Flag: 5, PreviousTown: tc.episodeTown}
 		if !w.episodeTownReturn(r) {
 			t.Fatalf("episode %d return NPC destination refused", tc.episodeTown)

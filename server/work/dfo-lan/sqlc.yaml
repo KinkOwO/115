@@ -1,0 +1,26 @@
+version: "2"
+sql:
+  - engine: "postgresql"
+    schema: "internal/database/sql/postgres/migrations"
+    queries: "internal/database/sql/postgres/queries"
+    gen:
+      go:
+        package: "sqlcgen"
+        out: "internal/database/sqlcgen"
+        sql_package: "pgx/v5"
+        emit_interface: false
+        omit_unused_structs: true
+        overrides:
+          - db_type: "timestamptz"
+            go_type:
+              import: "time"
+              type: "Time"
+          - db_type: "jsonb"
+            go_type:
+              import: "encoding/json"
+              type: "RawMessage"
+          - db_type: "jsonb"
+            nullable: true
+            go_type:
+              import: "encoding/json"
+              type: "RawMessage"

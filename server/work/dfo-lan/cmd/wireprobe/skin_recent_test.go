@@ -3,15 +3,15 @@ package main
 import (
 	"bytes"
 	"dfolan/internal/catalog"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"testing"
 	"time"
 )
 
 // recentSkin is one account registration at a chosen unlock instant.
-func recentSkin(template, key uint32, at int) storage.AccountSkin {
-	return storage.AccountSkin{
+func recentSkin(template, key uint32, at int) database.AccountSkin {
+	return database.AccountSkin{
 		SourceTemplate: template,
 		SkinKey:        key,
 		UnlockedAt:     time.Unix(int64(1700000000+at), 0).UTC(),
@@ -77,7 +77,7 @@ func checkRecent(t *testing.T, body []byte, want []protocol.RecentAddSkinEntry) 
 // (analysis/dumps/CLIENT-MECHANICS.md 20.2). The class is the same number the owned
 // page and the selection category use, so the frame carries the page, not a flag.
 func TestSkinRecentListKindIsFamilyPage(t *testing.T) {
-	skins := []storage.AccountSkin{
+	skins := []database.AccountSkin{
 		recentSkin(1001, 20001, 1),
 		recentSkin(1002, 30001, 2),
 		recentSkin(1003, 40001, 3),
@@ -108,7 +108,7 @@ func TestSkinRecentListKindIsFamilyPage(t *testing.T) {
 func TestSkinRecentListOrderIsOldestFirst(t *testing.T) {
 	// Deliberately handed over in the storage's own ORDER BY source_template shape,
 	// whose unlock instants run the other way.
-	skins := []storage.AccountSkin{
+	skins := []database.AccountSkin{
 		recentSkin(1003, 40001, 30),
 		recentSkin(1008, 40002, 20),
 		recentSkin(1009, 40003, 10),
@@ -142,7 +142,7 @@ func TestSkinRecentListWeaponUsesPage4IDNamespace(t *testing.T) {
 // RecentAddSkinList fail outright, and the same skin reachable twice (registered, then
 // replicated onto the weapon page) must not steal a second cell.
 func TestSkinRecentListDropsZeroAndDuplicateWeaponID(t *testing.T) {
-	skins := []storage.AccountSkin{recentSkin(1003, 40001, 1)}
+	skins := []database.AccountSkin{recentSkin(1003, 40001, 1)}
 	body, e := skinRecentList(skins, recentCatalog(), []uint32{0, 40001, 40001, 500001})
 	if e != nil {
 		t.Fatal(e)
@@ -157,7 +157,7 @@ func TestSkinRecentListDropsZeroAndDuplicateWeaponID(t *testing.T) {
 // renders the last five, so an over-long list drops its oldest entries rather than
 // its newest.
 func TestSkinRecentListTruncatesFromHead(t *testing.T) {
-	skins := make([]storage.AccountSkin, 0, 300)
+	skins := make([]database.AccountSkin, 0, 300)
 	for i := 0; i < 300; i++ {
 		skins = append(skins, recentSkin(1003, uint32(40000+i), i))
 	}
@@ -186,7 +186,7 @@ func TestSkinRecentListSilentWhenNothingAcquired(t *testing.T) {
 		t.Fatalf("body = %v, want nil", body)
 	}
 	// An unrenderable family alone is still "nothing acquired".
-	only := []storage.AccountSkin{recentSkin(1007, 99001, 1)}
+	only := []database.AccountSkin{recentSkin(1007, 99001, 1)}
 	body, e = skinRecentList(only, recentCatalog(), nil)
 	if e != nil {
 		t.Fatal(e)
@@ -200,7 +200,7 @@ func TestSkinRecentListSilentWhenNothingAcquired(t *testing.T) {
 // count, then count groups of {u8, u32}, and stores them as {u32, u8} pairs, so the
 // kind byte precedes the little-endian id on the wire.
 func TestSkinRecentEntryByteLayout(t *testing.T) {
-	skins := []storage.AccountSkin{recentSkin(1003, 0x12345678, 1)}
+	skins := []database.AccountSkin{recentSkin(1003, 0x12345678, 1)}
 	body, e := skinRecentList(skins, recentCatalog(), nil)
 	if e != nil {
 		t.Fatal(e)

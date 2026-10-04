@@ -4,9 +4,9 @@ import (
 	"context"
 	"crypto/sha256"
 	"dfolan/internal/cashshop"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -51,7 +51,7 @@ func (w *worldSession) useAvatarInventoryExpansion(ctx context.Context, store lo
 		return nil, err
 	}
 	key := fmt.Sprintf("avatar-expansion:%s:%x", prefix, sha256.Sum256(raw))
-	saved, applied, err := store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, "avatar-expansion-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+	saved, applied, err := store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, "avatar-expansion-v1", func(current database.Character) (json.RawMessage, json.RawMessage, error) {
 		bag, err := inventory.ReadBag(current.State)
 		if err != nil {
 			return nil, nil, err

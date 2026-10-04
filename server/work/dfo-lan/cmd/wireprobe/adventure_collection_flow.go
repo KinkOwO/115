@@ -3,10 +3,10 @@ package main
 import (
 	"context"
 	"crypto/sha256"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/quest"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 )
@@ -46,7 +46,7 @@ func (w *worldSession) registerAdventureCollection(ctx context.Context, p, raw [
 	}
 	key := fmt.Sprintf("adventure-collection-guide:%s:%x", prefix, sha256.Sum256(raw))
 	saved, profile, _, err := w.store.CommitAdventure(ctx, w.account, w.role.ID, key,
-		func(role storage.Character, profile *storage.AccountAdventure) (json.RawMessage, json.RawMessage, error) {
+		func(role database.Character, profile *database.AccountAdventure) (json.RawMessage, json.RawMessage, error) {
 			receipt, e := json.Marshal(map[string]any{"category": r.Category, "slot": r.Slot, "template": template})
 			if e != nil {
 				return nil, nil, e

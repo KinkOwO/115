@@ -5,9 +5,9 @@ import (
 	"dfolan/internal/cashshop"
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 	"testing"
@@ -30,8 +30,8 @@ func nativeCashPilot(t *testing.T, release bool) *cashshop.Pilot {
 }
 
 type vaultTestLedger struct {
-	state storage.VaultState
-	order storage.CashOrder
+	state database.VaultState
+	order database.CashOrder
 }
 
 func TestAccountVaultPurchaseUsesSaveIdentity(t *testing.T) {
@@ -49,21 +49,21 @@ func TestAccountVaultPurchaseUsesSaveIdentity(t *testing.T) {
 	p.Config.Entries[0].Row = row
 	p.Config.Policies["[cargo account]"] = []pvf.Token{{Value: product}, {Value: template}, {Value: 1}, {Value: product}}
 	rules := inventory.VaultRules{Account: &inventory.AccountVaultRules{RequiredLevel: 1, Upgrades: [][6]int64{{8, 100000, -1, 0, 0, -1}, {16, 100000, -1, 0, 0, int64(template)}}}}
-	l := &vaultTestLedger{state: storage.VaultState{Slots: 8, Items: json.RawMessage(`[]`), ConfigVersion: identity}}
-	_, applied, err := PurchaseCashVault(p, context.Background(), l, rules, 1, 1, "source-account-vault-0001", []protocol.CeraCartItem{{Product: uint32(product), Quantity: 1}}, func(storage.CashReceipt) error { return nil })
+	l := &vaultTestLedger{state: database.VaultState{Slots: 8, Items: json.RawMessage(`[]`), ConfigVersion: identity}}
+	_, applied, err := PurchaseCashVault(p, context.Background(), l, rules, 1, 1, "source-account-vault-0001", []protocol.CeraCartItem{{Product: uint32(product), Quantity: 1}}, func(database.CashReceipt) error { return nil })
 	if err != nil || !applied || l.order.Source != identity || l.order.VaultSpace != 12 || l.state.Slots != 16 || l.state.ConfigVersion != identity {
 		t.Fatalf("order=%+v vault=%+v error=%v", l.order, l.state, err)
 	}
 }
 
-func (l *vaultTestLedger) PurchaseCashVault(_ context.Context, o storage.CashOrder, fn func(storage.VaultState) (storage.VaultState, error)) (storage.CashReceipt, bool, error) {
+func (l *vaultTestLedger) PurchaseCashVault(_ context.Context, o database.CashOrder, fn func(database.VaultState) (database.VaultState, error)) (database.CashReceipt, bool, error) {
 	next, e := fn(l.state)
 	if e != nil {
-		return storage.CashReceipt{}, false, e
+		return database.CashReceipt{}, false, e
 	}
 	l.state = next
 	l.order = o
-	return storage.CashReceipt{Vault: &next}, true, nil
+	return database.CashReceipt{Vault: &next}, true, nil
 }
 func TestVaultSourcePurchase(t *testing.T) {
 	p := nativeCashPilot(t, false)
@@ -79,9 +79,9 @@ func TestVaultSourcePurchase(t *testing.T) {
 		rules.VerifiedSlots = append(rules.VerifiedSlots, n)
 	}
 	for id, u := range products {
-		l := &vaultTestLedger{state: storage.VaultState{Slots: u.Before, Items: []byte(`[{"slot":0,"template":14,"amount":5}]`), ConfigVersion: rules.SourceSHA256}}
+		l := &vaultTestLedger{state: database.VaultState{Slots: u.Before, Items: []byte(`[{"slot":0,"template":14,"amount":5}]`), ConfigVersion: rules.SourceSHA256}}
 		cart := []protocol.CeraCartItem{{Product: id, Quantity: 1}}
-		prepare := func(r storage.CashReceipt) error { _, e := inventory.VaultPayload(*r.Vault); return e }
+		prepare := func(r database.CashReceipt) error { _, e := inventory.VaultPayload(*r.Vault); return e }
 		_, ok, e := PurchaseCashVault(p, context.Background(), l, rules, 1, 1, "vault-test-000001", cart, prepare)
 		if e != nil || !ok || l.state.Slots != u.After || l.order.Lines[0].UnitPrice != u.Price || l.order.Source != p.Config.Source.SaveIdentity() || l.state.ConfigVersion != rules.SourceSHA256 {
 			t.Fatal(id, e)
@@ -90,7 +90,7 @@ func TestVaultSourcePurchase(t *testing.T) {
 			t.Fatal("wrong tier accepted")
 		}
 		l.state.Slots = u.Before
-		if _, _, e = PurchaseCashVault(p, context.Background(), l, rules, 1, 1, "vault-test-000003", cart, func(storage.CashReceipt) error { return fmt.Errorf("encoding failed") }); e == nil || l.state.Slots != u.Before {
+		if _, _, e = PurchaseCashVault(p, context.Background(), l, rules, 1, 1, "vault-test-000003", cart, func(database.CashReceipt) error { return fmt.Errorf("encoding failed") }); e == nil || l.state.Slots != u.Before {
 			t.Fatal("encoding failure mutated vault")
 		}
 		cart[0].Quantity = 2

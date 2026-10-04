@@ -5,10 +5,10 @@ import (
 	"crypto/sha256"
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
-	"dfolan/internal/storage"
 	"dfolan/internal/testfixture"
 	"dfolan/internal/workflow"
 	"encoding/binary"
@@ -72,7 +72,7 @@ func TestLotteryItemAtomicConsumeGrantAndWire(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	role := storage.Character{ID: 11, AccountID: 1, State: state}
+	role := database.Character{ID: 11, AccountID: 1, State: state}
 	store := newMockBoosterStore(role)
 	service := &loot.Service{
 		Catalog:  catalog.LootCatalog{Source: pvf.ArchiveSnapshot{Checksum: "test"}},
@@ -111,7 +111,7 @@ func TestLotteryGoldPotAtomicConsumeGrantAndWire(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	role := storage.Character{ID: 1, AccountID: 1, State: state}
+	role := database.Character{ID: 1, AccountID: 1, State: state}
 	store := newMockBoosterStore(role)
 	service := &loot.Service{Catalog: catalog.LootCatalog{Source: pvf.ArchiveSnapshot{Checksum: "test"}}, BagRules: inventory.BagRules{Source: "test"}}
 	w := &worldSession{role: role, loot: service}
@@ -149,7 +149,7 @@ func TestLotteryGoldPotOverflowPreservesSource(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	role := storage.Character{ID: 1, AccountID: 1, State: state}
+	role := database.Character{ID: 1, AccountID: 1, State: state}
 	store := newMockBoosterStore(role)
 	w := &worldSession{role: role, loot: &loot.Service{Catalog: catalog.LootCatalog{Source: pvf.ArchiveSnapshot{Checksum: "test"}}, BagRules: inventory.BagRules{Source: "test"}}}
 	pool := &lotteryItemPool{SourceItem: 10306598, Candidates: []BoosterRewardCandidate{{Template: 0, Weight: 1, Count: 1}}, total: 1}
@@ -172,7 +172,7 @@ type idempotentLotteryStore struct {
 	commitCalled bool
 }
 
-func (s *idempotentLotteryStore) CommitCharacterEvent(ctx context.Context, account, id int64, version, key, model string, apply func(storage.Character) (json.RawMessage, json.RawMessage, error)) (storage.Character, bool, error) {
+func (s *idempotentLotteryStore) CommitCharacterEvent(ctx context.Context, account, id int64, version, key, model string, apply func(database.Character) (json.RawMessage, json.RawMessage, error)) (database.Character, bool, error) {
 	s.commitCalled = true
 	if _, ok := s.receipts[key]; ok {
 		return s.character, false, fmt.Errorf("stored receipt must replay before event model check")
@@ -186,7 +186,7 @@ func TestLotteryLegacyReceiptReplaysWithoutConsumingAnotherPot(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	role := storage.Character{ID: 11, AccountID: 1, State: state}
+	role := database.Character{ID: 11, AccountID: 1, State: state}
 	store := idempotentLotteryStore{mockBoosterStore: newMockBoosterStore(role)}
 	request := []byte{91, 0, 0, 0, 0, 0, 0, 0}
 	key := fmt.Sprintf("lottery-item-7772:%d:%x", role.ID, sha256.Sum256(request))
@@ -231,7 +231,7 @@ func TestLotteryEquipmentGrantAndFullBagRollback(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		role := storage.Character{ID: 11, AccountID: 1, State: state}
+		role := database.Character{ID: 11, AccountID: 1, State: state}
 		store := newMockBoosterStore(role)
 		w := &worldSession{role: role, loot: &loot.Service{Catalog: catalog.LootCatalog{Source: pvf.ArchiveSnapshot{Checksum: "test"}}}}
 		pools := &lotteryItemCatalog{byTemplate: map[uint32]*lotteryItemPool{7213: {SourceItem: 7213, Candidates: []BoosterRewardCandidate{{Template: 10858, Weight: 1, Count: 1}}, total: 1}}}
@@ -268,7 +268,7 @@ func TestLotteryAvatarGrantAndReplay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	role := storage.Character{ID: 11, AccountID: 1, State: state}
+	role := database.Character{ID: 11, AccountID: 1, State: state}
 	store := newMockBoosterStore(role)
 	w := &worldSession{role: role, loot: &loot.Service{Catalog: catalog.LootCatalog{Source: pvf.ArchiveSnapshot{Checksum: "test"}}}}
 	pools := &lotteryItemCatalog{byTemplate: map[uint32]*lotteryItemPool{7213: {SourceItem: 7213, Candidates: []BoosterRewardCandidate{{Template: 48357, Weight: 1, Count: 1}}, total: 1}}}

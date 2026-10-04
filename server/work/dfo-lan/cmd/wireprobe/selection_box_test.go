@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	"dfolan/internal/catalog"
+	"dfolan/internal/database"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"dfolan/internal/workflow"
 	"encoding/binary"
 	"encoding/json"
@@ -107,7 +107,7 @@ func selectionBoxSession(t *testing.T, boxes *catalog.SelectionBoxes, boxTemplat
 		Items:   []inventory.BagItem{{Slot: 65, Template: boxTemplate, Amount: 1}},
 	}
 	state, _ := inventory.SaveBag(json.RawMessage(`{}`), bag)
-	char := storage.Character{ID: 11, AccountID: 1, ConfigVersion: boxes.Source.SaveIdentity(), State: state}
+	char := database.Character{ID: 11, AccountID: 1, ConfigVersion: boxes.Source.SaveIdentity(), State: state}
 	w := &worldSession{role: char, selectionBoxes: boxes}
 	return w, newMockBoosterStore(char)
 }

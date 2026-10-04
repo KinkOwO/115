@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	"crypto/rand"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -53,7 +53,7 @@ func (s *cubeContractSession) save(w *worldSession, p []byte) ([]byte, error) {
 	key := fmt.Sprintf("cube-contract-selection:%x:%d", s.nonce, s.sequence)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	saved, _, err := w.store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, "cube-contract-selection-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+	saved, _, err := w.store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, "cube-contract-selection-v1", func(current database.Character) (json.RawMessage, json.RawMessage, error) {
 		var fields map[string]json.RawMessage
 		if err := json.Unmarshal(current.State, &fields); err != nil {
 			return nil, nil, err

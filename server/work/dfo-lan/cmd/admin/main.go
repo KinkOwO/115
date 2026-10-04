@@ -16,9 +16,9 @@ package main
 import (
 	"context"
 	"dfolan/internal/admin"
+	"dfolan/internal/database"
 	"dfolan/internal/inventory"
 	"dfolan/internal/managementdata"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -28,7 +28,7 @@ import (
 	"time"
 )
 
-type itemList []storage.GrantItem
+type itemList []database.GrantItem
 
 func (l *itemList) String() string { return fmt.Sprint(*l) }
 
@@ -50,7 +50,7 @@ func (l *itemList) Set(v string) error {
 		if e != nil || n == 0 {
 			return fmt.Errorf("item amount %q must be a positive number", amount)
 		}
-		*l = append(*l, storage.GrantItem{Template: uint32(t), Amount: uint32(n)})
+		*l = append(*l, database.GrantItem{Template: uint32(t), Amount: uint32(n)})
 	}
 	return nil
 }
@@ -108,11 +108,11 @@ func main() {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	cfg, e := storage.LoadConfig(*storageConfig)
+	cfg, e := database.LoadConfig(*storageConfig)
 	if e != nil {
 		log.Fatal(e)
 	}
-	s, e := storage.Open(ctx, cfg)
+	s, e := database.Open(ctx, cfg)
 	if e != nil {
 		log.Fatal(e)
 	}
@@ -142,7 +142,7 @@ func main() {
 			fmt.Println("no recorded grants for this account")
 		}
 		for _, r := range rows {
-			fmt.Println(r)
+			fmt.Printf("%v  %-24s by %-12s  %s  %s\n", r.CreatedAt, r.GrantID, r.Operator, r.Reason, r.Request)
 		}
 		return
 	}
@@ -161,7 +161,7 @@ func main() {
 		service.Awarder = prepared
 	}
 
-	receipt, applied, e := service.Apply(ctx, storage.Grant{
+	receipt, applied, e := service.Apply(ctx, database.Grant{
 		ID: *grantID, AccountID: account, Character: *character,
 		Cera: *cera, Gold: uint32(*gold), Items: items,
 		Reason: *reason, Operator: *operator,

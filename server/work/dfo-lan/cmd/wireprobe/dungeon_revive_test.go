@@ -4,10 +4,10 @@ import (
 	"context"
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
+	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
-	"dfolan/internal/storage"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
@@ -17,7 +17,7 @@ import (
 )
 
 type lifeTokenStore struct {
-	role  storage.Character
+	role  database.Character
 	keys  map[string]bool
 	calls int
 }
@@ -25,31 +25,31 @@ type lifeTokenStore struct {
 type ceraReviveFake struct {
 	lifeTokenStore
 	balance uint64
-	grants  []storage.Grant
+	grants  []database.Grant
 	failed  error
 	paid    map[string]bool
 }
 
-func (s *ceraReviveFake) ApplyGrant(_ context.Context, g storage.Grant, _ func(storage.Character) (json.RawMessage, json.RawMessage, error)) (storage.GrantResult, error) {
+func (s *ceraReviveFake) ApplyGrant(_ context.Context, g database.Grant, _ func(database.Character) (json.RawMessage, json.RawMessage, error)) (database.GrantResult, error) {
 	s.grants = append(s.grants, g)
 	if s.failed != nil {
-		return storage.GrantResult{}, s.failed
+		return database.GrantResult{}, s.failed
 	}
 	if s.paid == nil {
 		s.paid = map[string]bool{}
 	}
 	if !s.paid[g.ID] {
 		if g.Cera != -lifeTokenCeraCost || s.balance < uint64(-g.Cera) {
-			return storage.GrantResult{}, fmt.Errorf("insufficient CERA")
+			return database.GrantResult{}, fmt.Errorf("insufficient CERA")
 		}
 		remaining := s.balance - uint64(-g.Cera)
 		if g.MaxCera != 0 && remaining > g.MaxCera {
-			return storage.GrantResult{}, fmt.Errorf("CERA exceeds client range")
+			return database.GrantResult{}, fmt.Errorf("CERA exceeds client range")
 		}
 		s.balance = remaining
 		s.paid[g.ID] = true
 	}
-	return storage.GrantResult{Cera: s.balance, Applied: true}, nil
+	return database.GrantResult{Cera: s.balance, Applied: true}, nil
 }
 
 func ceraReviveFixture(t *testing.T, coins uint32) (*worldSession, *ceraReviveFake, []byte) {
@@ -59,7 +59,7 @@ func ceraReviveFixture(t *testing.T, coins uint32) (*worldSession, *ceraReviveFa
 	if e != nil {
 		t.Fatal(e)
 	}
-	role := storage.Character{ID: 7, AccountID: 11, WireID: 9, ConfigVersion: source, State: state}
+	role := database.Character{ID: 7, AccountID: 11, WireID: 9, ConfigVersion: source, State: state}
 	store := &ceraReviveFake{lifeTokenStore: lifeTokenStore{role: role}, balance: 30}
 	w := &worldSession{
 		role:          role,
@@ -208,7 +208,7 @@ func TestReviveDoesNotFallThroughUnrelatedErrors(t *testing.T) {
 	}
 }
 
-func (s *lifeTokenStore) CommitCharacterEvent(_ context.Context, _ int64, _ int64, _, key, _ string, apply func(storage.Character) (json.RawMessage, json.RawMessage, error)) (storage.Character, bool, error) {
+func (s *lifeTokenStore) CommitCharacterEvent(_ context.Context, _ int64, _ int64, _, key, _ string, apply func(database.Character) (json.RawMessage, json.RawMessage, error)) (database.Character, bool, error) {
 	if s.keys == nil {
 		s.keys = map[string]bool{}
 	}
@@ -231,7 +231,7 @@ func TestLifeTokenReviveConsumesOneTokenAndRefreshesBag(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	role := storage.Character{ID: 7, AccountID: 11, WireID: 9, ConfigVersion: source, State: state}
+	role := database.Character{ID: 7, AccountID: 11, WireID: 9, ConfigVersion: source, State: state}
 	store := &lifeTokenStore{role: role}
 	w := &worldSession{
 		role:          role,
@@ -285,7 +285,7 @@ func TestLifeTokenReviveRejectsCoinForbiddenMap(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	role := storage.Character{ID: 7, AccountID: 11, WireID: 9, ConfigVersion: source, State: state}
+	role := database.Character{ID: 7, AccountID: 11, WireID: 9, ConfigVersion: source, State: state}
 	w := &worldSession{
 		role:          role,
 		loot:          &loot.Service{Catalog: catalog.LootCatalog{Source: pvf.ArchiveSnapshot{Checksum: source}}},

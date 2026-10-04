@@ -4,55 +4,36 @@ import (
 	"context"
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"dfolan/internal/workflow"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"os"
 	"testing"
 	"time"
 )
 
-// Opt in with SHOP_INTEGRATION_CONFIG; all writes use a new temporary schema.
+// Opt in with DFO_TEST_POSTGRES_DSN; all writes use a new temporary schema.
 func TestShopQuantityDatabaseAndWire(t *testing.T) {
-	path := os.Getenv("SHOP_INTEGRATION_CONFIG")
-	if path == "" {
+	dsn := os.Getenv("DFO_TEST_POSTGRES_DSN")
+	if dsn == "" {
 		t.Skip("isolated PostgreSQL integration")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()
-	cfg, e := storage.LoadConfig(path)
+	fixture, e := database.OpenTestFixture(ctx)
 	if e != nil {
-		t.Fatal(e)
-	}
-	admin, e := storage.Open(ctx, cfg)
-	if e != nil {
-		t.Fatal(e)
-	}
-	defer admin.Close()
-	schema := fmt.Sprintf("shop_sell_test_%d", time.Now().UnixNano())
-	if _, e = admin.DB.Exec(ctx, "CREATE SCHEMA "+schema); e != nil {
 		t.Fatal(e)
 	}
 	defer func() {
-		if _, e := admin.DB.Exec(context.Background(), "DROP SCHEMA "+schema+" CASCADE"); e != nil {
-			t.Error(e)
+		if err := fixture.Close(); err != nil {
+			t.Error(err)
 		}
 	}()
-	cfg.PostgresSchema = schema
-	store, e := storage.Open(ctx, cfg)
-	if e != nil {
-		t.Fatal(e)
-	}
-	defer store.Close()
-	var actual string
-	if e = store.DB.QueryRow(ctx, "SELECT current_schema()").Scan(&actual); e != nil || actual != schema {
-		t.Fatalf("isolation %s %v", actual, e)
-	}
+	store := fixture.Storage()
 	for _, f := range []func(context.Context) error{store.Migrate, store.MigrateCharacterEvents} {
 		if e = f(ctx); e != nil {
 			t.Fatal(e)
@@ -78,7 +59,7 @@ func TestShopQuantityDatabaseAndWire(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	role, e := store.CreateCharacter(ctx, storage.Character{AccountID: account, Name: "SaleFixture", Request: []byte{}, ConfigVersion: source, State: state}, 24)
+	role, e := store.CreateCharacter(ctx, database.Character{AccountID: account, Name: "SaleFixture", Request: []byte{}, ConfigVersion: (pvf.ArchiveSnapshot{Checksum: source}).SaveIdentity(), State: state}, 24)
 	if e != nil {
 		t.Fatal(e)
 	}

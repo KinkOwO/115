@@ -3,7 +3,7 @@ package main
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
-	"dfolan/internal/storage"
+	"dfolan/internal/database"
 	"dfolan/internal/testfixture"
 	"dfolan/internal/world"
 	"encoding/binary"
@@ -23,7 +23,7 @@ func TestALullNativeTriggerUsesChestTownPhaseNPC(t *testing.T) {
 	}
 	d := qcat.Quests[12911]
 	svc := &world.Service{Catalog: wcat}
-	at := storage.WorldPosition{Town: 80, Area: 0, X: 492, Y: 185}
+	at := database.WorldPosition{Town: 80, Area: 0, X: 492, Y: 185}
 	const npc = 100000670
 	p, err := hex.DecodeString("21006f32000000000000000000000000")
 	if err != nil || len(p) != 16 || binary.LittleEndian.Uint16(p) != 33 || binary.LittleEndian.Uint16(p[2:]) != uint16(d.ID) {
@@ -53,12 +53,12 @@ func TestALullNativeTriggerUsesChestTownPhaseNPC(t *testing.T) {
 		name string
 		id   uint16
 		npc  uint32
-		at   storage.WorldPosition
+		at   database.WorldPosition
 	}{
 		{"wrong quest", 12909, npc, at},
 		{"wrong NPC", 12911, npc + 1, at},
-		{"wrong town", 12911, npc, storage.WorldPosition{Town: 40, Area: 0}},
-		{"wrong area", 12911, npc, storage.WorldPosition{Town: 80, Area: 1}},
+		{"wrong town", 12911, npc, database.WorldPosition{Town: 40, Area: 0}},
+		{"wrong area", 12911, npc, database.WorldPosition{Town: 80, Area: 1}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if allowsALullPhaseNPCInteraction(svc, tc.id, tc.npc, tc.at, d, qcat) {

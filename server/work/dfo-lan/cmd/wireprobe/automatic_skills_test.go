@@ -3,7 +3,7 @@ package main
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/character"
-	"dfolan/internal/storage"
+	"dfolan/internal/database"
 	"dfolan/internal/testfixture"
 	"encoding/json"
 	"testing"
@@ -19,9 +19,9 @@ func TestAutomaticSkillLevelRefresh(t *testing.T) {
 		t.Fatal(err)
 	}
 	service := &character.Service{Catalog: c, Learning: l}
-	st := character.State{Level: 15, Advancement: 2, AllJobsPilot: true, SourceSHA256: c.Professions[11].RawSHA256, InitialSkills: c.Professions[11].InitialSkills}
+	st := character.State{Level: 15, Advancement: 2, AllJobsPilot: true, SourcePath: c.Professions[11].Path, SourceSHA256: c.Professions[11].RawSHA256, InitialSkills: c.Professions[11].InitialSkills}
 	raw, _ := json.Marshal(st)
-	w := worldSession{characters: service, role: storage.Character{Profession: 11, ConfigVersion: c.Source.SaveIdentity(), State: raw}}
+	w := worldSession{characters: service, role: database.Character{Profession: 11, ConfigVersion: c.Source.SaveIdentity(), State: raw}}
 	plan, err := w.automaticSkillRefresh()
 	if err != nil || len(plan) != 1 {
 		t.Fatal(plan, err)
@@ -52,15 +52,15 @@ func TestAutomaticSkillRefreshCoversAwakeningGrants(t *testing.T) {
 	}
 	prof.AdvancementSkills = nil
 	c.Professions[0] = prof
-	st := character.State{Level: 85, Advancement: 1, Awakening: 2, SourceSHA256: prof.RawSHA256, InitialSkills: prof.InitialSkills}
+	st := character.State{Level: 85, Advancement: 1, Awakening: 2, SourcePath: prof.Path, SourceSHA256: prof.RawSHA256, InitialSkills: prof.InitialSkills}
 	raw, _ := json.Marshal(st)
 	service := &character.Service{Catalog: c, Learning: l}
-	w := worldSession{characters: service, role: storage.Character{Profession: 0, ConfigVersion: c.Source.SaveIdentity(), State: raw}}
+	w := worldSession{characters: service, role: database.Character{Profession: 0, ConfigVersion: c.Source.SaveIdentity(), State: raw}}
 	plan, err := w.automaticSkillRefresh()
 	if err != nil || len(plan) != 1 {
 		t.Fatal("awakening-only profession did not refresh", plan, err)
 	}
-	w.characters.Catalog.Professions[0] = catalog.Profession{RawSHA256: prof.RawSHA256}
+	w.characters.Catalog.Professions[0] = catalog.Profession{Path: prof.Path, RawSHA256: prof.RawSHA256}
 	plan, err = w.automaticSkillRefresh()
 	if err != nil || len(plan) != 0 {
 		t.Fatal("profession without grants changed", err)

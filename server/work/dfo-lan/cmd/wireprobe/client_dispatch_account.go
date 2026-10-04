@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	"crypto/sha256"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/hex"
 	"fmt"
 	"time"
@@ -445,10 +445,10 @@ func (client *gameConnection) dispatchUnifiedOptions(requestData *clientRequest)
 }
 
 // unifiedEntries maps a decoded CMD2377 block to its durable storage shape.
-func unifiedEntries(entries []protocol.UnifiedOptionEntry) []storage.UnifiedOptionEntry {
-	out := make([]storage.UnifiedOptionEntry, 0, len(entries))
+func unifiedEntries(entries []protocol.UnifiedOptionEntry) []database.UnifiedOptionEntry {
+	out := make([]database.UnifiedOptionEntry, 0, len(entries))
 	for _, e := range entries {
-		out = append(out, storage.UnifiedOptionEntry{Position: e.Position, Value: e.Value})
+		out = append(out, database.UnifiedOptionEntry{Position: e.Position, Value: e.Value})
 	}
 	return out
 }

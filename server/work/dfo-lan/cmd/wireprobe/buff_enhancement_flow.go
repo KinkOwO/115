@@ -4,8 +4,8 @@ import (
 	"context"
 	"crypto/rand"
 	"dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"fmt"
 	"log"
 	"time"
@@ -20,7 +20,7 @@ type buffEnhancementSession struct {
 // USERINFO's 14563C1F0 clears the actor-specific registration map. Scene
 // transitions rebuild actors and worn instances; replay only after the final
 // actor/item updates so 1360 resolves the current objects, not stale pointers.
-func appendBuffEnhancementRestore(plan []outboundPacket, cs *character.Service, role storage.Character, name string) ([]outboundPacket, error) {
+func appendBuffEnhancementRestore(plan []outboundPacket, cs *character.Service, role database.Character, name string) ([]outboundPacket, error) {
 	if cs == nil || role.ID == 0 || len(role.State) == 0 {
 		return plan, nil
 	}

@@ -2,8 +2,8 @@ package main
 
 import (
 	"context"
+	"dfolan/internal/database"
 	"dfolan/internal/legion"
-	"dfolan/internal/storage"
 	"fmt"
 	"log"
 	"os"
@@ -82,7 +82,7 @@ func (w *worldSession) checkIspinsWeeklyAdmission() error {
 		return e
 	}
 	if used {
-		return storage.ErrIspinsWeeklyCleared
+		return database.ErrIspinsWeeklyCleared
 	}
 	return nil
 }

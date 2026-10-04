@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"crypto/sha256"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -28,7 +28,7 @@ func (w *worldSession) deleteItems(p, raw []byte) ([]outboundPacket, error) {
 	model := fmt.Sprintf("item-delete-v1:%x", sha256.Sum256(p))
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	saved, _, e := w.store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, model, func(role storage.Character) (json.RawMessage, json.RawMessage, error) {
+	saved, _, e := w.store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, model, func(role database.Character) (json.RawMessage, json.RawMessage, error) {
 		bag, e := inventory.ReadBag(role.State)
 		if e != nil {
 			return nil, nil, e

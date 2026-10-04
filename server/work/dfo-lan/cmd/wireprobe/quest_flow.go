@@ -5,10 +5,10 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/quest"
-	"dfolan/internal/storage"
 	"dfolan/internal/workflow"
 	"dfolan/internal/world"
 	"encoding/binary"
@@ -28,7 +28,7 @@ import (
 // addition, and it resets the client's worn containers, so the worn rows
 // follow immediately. This is the same trio dungeonEntryPlan sends on every
 // mid-session actor rebuild.
-func (w *worldSession) unlockRefresh(role storage.Character) ([]outboundPacket, error) {
+func (w *worldSession) unlockRefresh(role database.Character) ([]outboundPacket, error) {
 	if w.characters == nil {
 		return nil, nil
 	}
@@ -59,7 +59,7 @@ func (w *worldSession) finishQuest(r protocol.QuestSubmitRequest) ([]outboundPac
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	result, e := (&workflow.QuestService{Store: w.store, Quest: w.quests}).Finish(ctx, w.role, r)
+	result, e := (&workflow.QuestService{Store: w.store, Quest: w.quests, Rewards: w.rewards}).Finish(ctx, w.role, r)
 	if e != nil {
 		return nil, e
 	}
@@ -337,7 +337,7 @@ func (w *worldSession) questInteraction(p []byte) ([]outboundPacket, error) {
 // current client repeatedly sends CMD33 for 6200 while in Black Market 54/1.
 // Accept only that native request in that area; MeetNPC still requires the
 // character to own an accepted quest with the matching objective and version.
-func allowsQuestVisibleNPCInteraction(id uint16, npc uint32, at storage.WorldPosition, d catalog.QuestDefinition, quests catalog.QuestCatalog) bool {
+func allowsQuestVisibleNPCInteraction(id uint16, npc uint32, at database.WorldPosition, d catalog.QuestDefinition, quests catalog.QuestCatalog) bool {
 	// Preserve the user-confirmed 6200 behavior even with the relaxation off.
 	if id == 6200 && npc == 8000 && at.Town == 54 && at.Area == 1 && questShowsObjectiveNPCOnAccept(d, npc) {
 		return true
@@ -360,7 +360,7 @@ func allowsQuestVisibleNPCInteraction(id uint16, npc uint32, at storage.WorldPos
 // A phase map is an area-specific source of NPC placement, but its NPCs are
 // not all visible at once. Require the accepted meet quest's objective and
 // completion NPC to match a source visibility rule as well as a phase map row.
-func allowsQuestPhaseNPCInteraction(service *world.Service, npc uint32, at storage.WorldPosition, d catalog.QuestDefinition, quests catalog.QuestCatalog) bool {
+func allowsQuestPhaseNPCInteraction(service *world.Service, npc uint32, at database.WorldPosition, d catalog.QuestDefinition, quests catalog.QuestCatalog) bool {
 	if service == nil || !service.HasPhaseNPC(at, npc) {
 		return false
 	}
@@ -371,13 +371,13 @@ func allowsQuestPhaseNPCInteraction(service *world.Service, npc uint32, at stora
 // remains effective through later quests until a clear/hide rule supersedes it.
 // The guide supplies the area for the normal path; the opt-in path only needs
 // the source visibility rule. MeetNPC still validates the accepted quest.
-func questLineageShowsGuidedNPC(d catalog.QuestDefinition, npc uint32, at storage.WorldPosition, quests catalog.QuestCatalog, requireGuide bool) bool {
+func questLineageShowsGuidedNPC(d catalog.QuestDefinition, npc uint32, at database.WorldPosition, quests catalog.QuestCatalog, requireGuide bool) bool {
 	// A matching source guide proves the current area; the opt-in no-guide
 	// path keeps its older, stricter treatment of this quest's clear/hide.
 	return questLineageShowsVisibleNPC(d, npc, at, quests, requireGuide, requireGuide)
 }
 
-func questLineageShowsVisibleNPC(d catalog.QuestDefinition, npc uint32, at storage.WorldPosition, quests catalog.QuestCatalog, requireGuide, allowCurrentClearHide bool) bool {
+func questLineageShowsVisibleNPC(d catalog.QuestDefinition, npc uint32, at database.WorldPosition, quests catalog.QuestCatalog, requireGuide, allowCurrentClearHide bool) bool {
 	if npc == 0 || npc > 0x7fffffff || len(d.Pending) != 0 ||
 		d.Kind != "[meet npc]" || len(d.ObjectiveCells) != 1 ||
 		d.ObjectiveCells[0].Type != 0 || d.ObjectiveCells[0].Value != int32(npc) ||
@@ -391,14 +391,14 @@ func questLineageShowsVisibleNPC(d catalog.QuestDefinition, npc uint32, at stora
 
 // A subtype-0 reach objective may name an NPC distinct from its completion
 // NPC. Its own clear/hide rule takes effect after this objective completes.
-func questLineageShowsReachNPC(d catalog.QuestDefinition, npc uint32, at storage.WorldPosition, quests catalog.QuestCatalog) bool {
+func questLineageShowsReachNPC(d catalog.QuestDefinition, npc uint32, at database.WorldPosition, quests catalog.QuestCatalog) bool {
 	r, ok := quest.ReachNPCObjective(d)
 	return ok && r.NPC == npc && questLineageShowsNPC(d, npc, at, quests, true, true)
 }
 
 // For an NPC placed by the current area's source map, accept the native
 // range trigger only within the quest script's configured extents.
-func questReachNPCAtSourcePlacement(service *world.Service, at storage.WorldPosition, r quest.NPCReachObjective) bool {
+func questReachNPCAtSourcePlacement(service *world.Service, at database.WorldPosition, r quest.NPCReachObjective) bool {
 	if service == nil || r.W <= 0 || r.H <= 0 {
 		return false
 	}
@@ -413,7 +413,7 @@ func questReachNPCAtSourcePlacement(service *world.Service, at storage.WorldPosi
 		math.Abs(float64(dy)) <= float64(r.H)*multiplier
 }
 
-func questLineageShowsNPC(d catalog.QuestDefinition, npc uint32, at storage.WorldPosition, quests catalog.QuestCatalog, requireGuide, allowCurrentClearHide bool) bool {
+func questLineageShowsNPC(d catalog.QuestDefinition, npc uint32, at database.WorldPosition, quests catalog.QuestCatalog, requireGuide, allowCurrentClearHide bool) bool {
 	seen := make(map[uint32]bool)
 	var visit func(catalog.QuestDefinition, int) (bool, bool)
 	visit = func(current catalog.QuestDefinition, depth int) (bool, bool) {
@@ -475,7 +475,7 @@ func questSourcePrerequisiteIDs(cells []pvf.Token) []uint32 {
 	return nil
 }
 
-func questGoGuideTargetsNPC(cells []pvf.Token, npc uint32, at storage.WorldPosition) (found bool, matches bool) {
+func questGoGuideTargetsNPC(cells []pvf.Token, npc uint32, at database.WorldPosition) (found bool, matches bool) {
 	for i, c := range cells {
 		if c.Type == 3 && c.Text == "[go guide]" && i+3 < len(cells) &&
 			cells[i+1].Type == 0 && cells[i+2].Type == 0 && cells[i+3].Type == 0 &&

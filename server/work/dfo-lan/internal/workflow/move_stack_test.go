@@ -4,9 +4,9 @@ import (
 	"context"
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -17,31 +17,21 @@ import (
 )
 
 func TestBagMoveRoundtripReplayIntegration(t *testing.T) {
-	if os.Getenv("CASH_INTEGRATION") != "1" {
+	if os.Getenv("DFO_TEST_POSTGRES_DSN") == "" {
 		t.Skip("isolated PostgreSQL schema")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
-	cfg, e := storage.LoadConfig("../../runtime/storage/local.json")
+	fixture, e := database.OpenTestFixture(ctx)
 	if e != nil {
 		t.Fatal(e)
 	}
-	live, e := storage.Open(ctx, cfg)
-	if e != nil {
-		t.Fatal(e)
-	}
-	defer live.Close()
-	schema := fmt.Sprintf("bag_move_%d", time.Now().UnixNano())
-	if _, e = live.DB.Exec(ctx, "CREATE SCHEMA "+schema); e != nil {
-		t.Fatal(e)
-	}
-	defer live.DB.Exec(context.Background(), "DROP SCHEMA "+schema+" CASCADE")
-	cfg.PostgresSchema = schema
-	s, e := storage.Open(ctx, cfg)
-	if e != nil {
-		t.Fatal(e)
-	}
-	defer s.Close()
+	defer func() {
+		if err := fixture.Close(); err != nil {
+			t.Error(err)
+		}
+	}()
+	s := fixture.Storage()
 	for _, fn := range []func(context.Context) error{s.Migrate, s.MigrateCharacterEvents} {
 		if e = fn(ctx); e != nil {
 			t.Fatal(e)
@@ -52,11 +42,12 @@ func TestBagMoveRoundtripReplayIntegration(t *testing.T) {
 		t.Fatal(e)
 	}
 	h := strings.Repeat("a", 64)
-	role, e := s.CreateCharacter(ctx, storage.Character{AccountID: account, Name: "BagFixture", Request: []byte{0}, ConfigVersion: h, State: json.RawMessage(`{"inventory":{"version":"ordinary-bag-v1","items":[{"slot":68,"Template":14,"Amount":5}]}}`)}, 24)
+	source := pvf.ArchiveSnapshot{Checksum: h}
+	role, e := s.CreateCharacter(ctx, database.Character{AccountID: account, Name: "BagFixture", Request: []byte{0}, ConfigVersion: source.SaveIdentity(), State: json.RawMessage(`{"inventory":{"version":"ordinary-bag-v1","items":[{"slot":68,"Template":14,"Amount":5}]}}`)}, 24)
 	if e != nil {
 		t.Fatal(e)
 	}
-	c := catalog.LootCatalog{Source: pvf.ArchiveSnapshot{Checksum: h}, Items: map[uint32]catalog.LootItem{14: {Kind: "stackable", StackableType: "[etc]", StackLimit: 1000}}}
+	c := catalog.LootCatalog{Source: source, Items: map[uint32]catalog.LootItem{14: {Kind: "stackable", StackableType: "[etc]", StackLimit: 1000}}}
 	rules := inventory.BagRules{Source: h, MissingStackLimit: 1000}
 	raw, _ := hex.DecodeString("004c0000000000000000000044000e00000000000000ffffffff000000000000")
 	out, e := protocol.DecodeItemMove(raw)
