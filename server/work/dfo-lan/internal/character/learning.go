@@ -53,7 +53,9 @@ func (s *Service) skillRows(role Character, state State, tree int) ([]protocol.L
 		return nil, e
 	}
 	prof, ok := s.Catalog.Professions[role.Profession]
-	if !ok || prof.RawSHA256 != state.SourceSHA256 {
+	// Match the profession reference, as automaticSkills does. Rebuilding the
+	// PVF string pool changes raw .chr hashes without changing this reference.
+	if !ok || prof.Path != state.SourcePath {
 		return nil, fmt.Errorf("skill profession source mismatch")
 	}
 	ids := skillOrder(state, known)

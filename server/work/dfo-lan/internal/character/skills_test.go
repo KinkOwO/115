@@ -16,7 +16,7 @@ func TestStagedSlayerInitialSkillsAgainstNativeReader(t *testing.T) {
 		t.Fatal(err)
 	}
 	p := c.Professions[0]
-	raw, err := json.Marshal(State{Level: 1, InitialSkills: p.InitialSkills, SourceSHA256: p.RawSHA256})
+	raw, err := json.Marshal(State{Level: 1, InitialSkills: p.InitialSkills, SourcePath: p.Path, SourceSHA256: p.RawSHA256})
 	if err != nil {
 		t.Fatal(err)
 	}
