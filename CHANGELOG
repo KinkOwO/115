@@ -1,5 +1,21 @@
 # CHANGELOG
 
+## 2026-10-04：蔚蓝号（Azure Main）征讨地下城从 0 落地
+
+蔚蓝号（频道 type 102 / 专属城镇 213 / guide dungeon 100004131 / isSemiRaid=1）此前只有频道分类与专属城镇落点，副本玩法整条缺失。本轮补齐「创建攻坚队 → 进本 → 两阶段切换 → 清怪推进 → BOSS 弱点标记 → 翻牌结算 → 回城/撤退」全链路，M1–M6 由玩家手动实机逐段确认。
+
+进本与推进：SemiRaid 选本在 N27 之后必须补 CMD16 回执，否则客户端不进入下一阶段。N2621 AZURE_MAIN_INFO(128B) 统一由 azureMainInfoBody 构造 —— [0:4] 阶段、[9:11] 倒计时秒、[22:26] 弱点 id（CMD2274 的回显）、[32:36] 剩余复活币、[36:68] 已清房间 (x,y) u32 对；其中 [36:68] 是阶段推进门禁，不写客户端就停在原地，0 怪房间不登记。副本会话的 maze 索引钉为 1，避免被通用 maze 抽取打散。
+
+结算与翻牌：脚本带 [disable clear reward]，其 [difficulty dropitem group list] 的 [item index] 是产物目录而非奖励本身，故按沉月湖的装备策略抽取（件数 1..4、权重 {1,3,3,2}、等级取副本 MinimumLevel、boss 档），目录项不进奖单。翻牌倒计时结束自动选第一张。结算期死亡不再走失败链，保留复活 UI、倒计时只做回城；复活按官方口径回满 HP/MP 并真实扣减剩余复活币（上限 8）。
+
+回城按钮：真因是 CMD1654 只登记在 observedGameRequest、没进 dungeonRequest，导致对应 case 永不执行、按钮灰掉；补进 dungeonRequest 后按钮可用。期间曾同时改动「N70/N71/N72 结算尾巴」与「1654 路由」两个变量，客户端闪退且无法归因，整包回退后以单变量重做，证实 N70/N71/N72 既无必要、也是闪退来源，故不引入。
+
+新增协议件：internal/game/protocol/conquest_party115.go（征服/攻坚队频道 Mode/Route 表，表外频道一律报错，不替客户端猜）与 internal/game/protocol/party_create115.go（CMD12 建队请求解码，按抓包逐字段核对）。
+
+证据口径：字段以 2026-10-03 官服实机抓包（ch.76）与客户端 IDA 为准，参考服与历史文档只作线索。本 MR 不含「通关后、翻牌前死亡时的奖励找回」，已确认留待后续单独处理。未修改 PVF 资源、数据库 schema 与角色存档契约，既有 confirmed baseline 保持。
+
+验证：玩家手动实机确认 M1–M6（进本、两阶段切换、清怪推进、BOSS 弱点标记、翻牌结算、回城与撤退）。源码侧 go build ./cmd/... ./internal/...、go vet、go test -p 1 -count=1 ./internal/... ./cmd/... 通过。本轮与上游 main（sqlc/internal.database 重构、cmd 工具收敛到 dfo-tool）合并，冲突仅 world_flow.go 与 loot_rewards.go 两处，均按「保留双方」解并做了双向核对。
+
 ## 2026-10-04：数据库访问集中到 database 与 sqlc
 
 PostgreSQL 运行方式保持；将 pgx 连接、事务与持久化操作集中到 internal/database，SQL 与 sqlc 生成代码由该包统一管理。移除通用 db.Tx / db_adapter，业务代码使用既有领域接口和具体事务能力。GM 数据库操作移入 Go，测试与 charactercheck 使用显式指定的隔离 PostgreSQL fixture。
