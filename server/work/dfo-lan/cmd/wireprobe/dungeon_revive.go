@@ -177,14 +177,30 @@ func (w *worldSession) useCoinRevive(ctx context.Context, store ceraReviveStore,
 	if pilotEnabled {
 		plan, e := w.pilotRevive(ctx, store, p, frame)
 		if e == nil || !errors.Is(e, errOdysseyCreditsExhausted) {
-			return plan, e
+			return w.afterAzureCoinRevive(plan, e)
 		}
 	}
 	plan, e := w.lifeTokenRevive(ctx, store, p, frame)
 	if e == nil || !errors.Is(e, inventory.ErrCoinStackEmpty) {
+		return w.afterAzureCoinRevive(plan, e)
+	}
+	return w.afterAzureCoinRevive(w.ceraRevive(ctx, store, p, frame))
+}
+
+// afterAzureCoinRevive 在蔚蓝号里为「用币复活成功」扣一次额度并把 N2621 刷出去。
+//
+// N2621 的 [32:36] 是**剩余复活次数**（上限 8）。此前写死成 8，所以用币复活后客户端
+// 看到的次数不动（业主实机 2026-10-04）。这里只在真的复活成功（plan 非空、无错）时扣，
+// 且只在蔚蓝号频道生效；扣到 0 之后仍会回帧（客户端据此把入口灰掉）。
+func (w *worldSession) afterAzureCoinRevive(plan []outboundPacket, e error) ([]outboundPacket, error) {
+	if e != nil || len(plan) == 0 || w == nil || w.channelType != azureMainChannelType {
 		return plan, e
 	}
-	return w.ceraRevive(ctx, store, p, frame)
+	if w.azure.revivesLeft == 0 {
+		return plan, e
+	}
+	w.azure.revivesLeft--
+	return append(plan, w.azureMainInfoNow(azureMainPhasePlaying)), nil
 }
 
 func boosterActionRefusal(id uint16) []byte {

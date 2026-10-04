@@ -92,6 +92,10 @@ func (s *LootService) FreezeCards(ctx context.Context, role storage.Character, d
 	if d.Definition.ID == loot.BlackPurgatorySquadDungeon {
 		return s.FreezeBlackPurgatoryCards(ctx, role, d, seed)
 	}
+	// 蔚蓝号：清单来自副本脚本自己（脚本带 [disable clear reward]，通用卡池必然发错）。
+	if d.Definition.ID == loot.AzureMainDungeonID {
+		return s.FreezeAzureMainCards(ctx, role, d)
+	}
 	p, e := s.Loot.PlanCards(LootRole(role), d, r, seed)
 	if e != nil {
 		return p, e
@@ -116,6 +120,49 @@ func (s *LootService) FreezeCards(ctx context.Context, role storage.Character, d
 	}
 	return p, nil
 }
+// FreezeAzureMainCards 冻结蔚蓝号奖单。清单唯一真源是副本脚本的
+// [difficulty dropitem group list]（见 loot.AzureMainClearRewards）。
+//
+// 落盘键与普通翻牌同为 "cardplan:<run>"，所以领取侧一行都不用改：
+// pickFrozenCard 读回同一张奖单比对，PrepareFrozenCard/grantCardAwards 按
+// Items 逐项入库、Gold=0 自动跳过。幂等由事件键本身保证（同 run 只发一次）。
+func (s *LootService) FreezeAzureMainCards(ctx context.Context, role storage.Character, d *dungeon.Session) (loot.CardPlan, error) {
+	// 产物 = 从副本自己的产物目录里**抽**出来的装备：与月湖同口径
+	// （件数 1..4、权重 {1,3,3,2}、等级取副本 MinimumLevel、boss 档），逐件走源里的
+	// 掉落/品质判定表。脚本 `[item index]` 那几项是**目录项不是产物**，不进奖单
+	// （放进去会在翻牌面板上多出 "Expectable Rewards" 之类的行，实机 2026-10-04）。
+	level := byte(d.Definition.MinimumLevel)
+	if level == 0 {
+		level = byte(d.Definition.BasisLevel)
+	}
+	p, err := s.Loot.PlanAzureMainCards(LootRole(role), d, loot.AzureMainEquipmentPolicy(level))
+	if err != nil {
+		return loot.CardPlan{}, err
+	}
+	key := "cardplan:" + d.RunID
+	if _, _, err = s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, p.Source, key, p.Model,
+		func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+			b, e := json.Marshal(p)
+			return current.State, b, e
+		}); err != nil {
+		return loot.CardPlan{}, err
+	}
+	b, err := s.Store.CharacterEventReceipt(ctx, role.AccountID, role.ID, key)
+	if err != nil {
+		return loot.CardPlan{}, err
+	}
+	if err = json.Unmarshal(b, &p); err != nil {
+		return p, err
+	}
+	if p.Run != d.RunID || p.Source != s.Loot.Catalog.Source.SaveIdentity() || p.Model != loot.AzureMainCardModel {
+		return p, fmt.Errorf("蔚蓝号奖单来源冲突")
+	}
+	if p.Gold != 0 {
+		return p, fmt.Errorf("蔚蓝号脚本声明 [gold card use] 0，奖单不该带金币")
+	}
+	return p, nil
+}
+
 func (s *LootService) PickCard(ctx context.Context, role storage.Character, d *dungeon.Session, p loot.CardPlan, index byte) (storage.Character, loot.CardReceipt, bool, error) {
 	var receipt loot.CardReceipt
 	if index > 3 || d == nil || !d.Completed() || p.Run != d.RunID || p.Source != s.Loot.Catalog.Source.SaveIdentity() {

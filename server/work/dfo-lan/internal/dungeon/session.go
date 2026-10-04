@@ -192,6 +192,17 @@ func Select(c catalog.DungeonCatalog, r protocol.DungeonSelection, level byte, a
 	return s, nil
 }
 
+// azureMainDungeonID / azureMainMazeIndex 把蔚蓝号（Azure Main）的迷宫钉死。
+//
+// 官服实机用的是 maze 1（抓包 F16-s2c.txt #414 的 N28 `[7]` = 1）；三张迷宫只有
+// (0,2)/(1,1)/(1,3) 三格的房间图不同，而官服那条主路径上唯一会踩到的是 (1,1)：
+// maze 1 = 100012705（官服实测 2 只怪），maze 0 = 100012707（本服实测 27 只）。
+// 默认规则取 index 最小（= 0），与抓包不一致，所以这里显式钉 1 以便逐帧对照。
+const (
+	azureMainDungeonID = 100004131
+	azureMainMazeIndex = 1
+)
+
 // chooseMaze 在候选 maze 里挑一张。
 //
 // 默认规则（副本没有声明 MazeChanceRates）是「同 quest 里 index 最小者」——
@@ -213,6 +224,14 @@ func chooseMaze(d catalog.DungeonDefinition, quest uint32) (catalog.DungeonMaze,
 	}
 	if len(candidates) == 0 {
 		return catalog.DungeonMaze{}, fmt.Errorf("no resolved source maze for requested quest")
+	}
+	// 蔚蓝号：钉死 maze 1（见 azureMainMazeIndex 的说明）。
+	if d.ID == azureMainDungeonID {
+		for _, m := range candidates {
+			if m.Index == azureMainMazeIndex {
+				return m, nil
+			}
+		}
 	}
 	if len(d.MazeChanceRates) == len(d.Mazes) && len(candidates) > 1 {
 		var total uint64

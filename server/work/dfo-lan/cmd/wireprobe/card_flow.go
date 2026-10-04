@@ -64,14 +64,20 @@ func (w *worldSession) grantFreeCard(index byte) ([]outboundPacket, error) {
 	return []outboundPacket{{"card_inventory_committed", 0, 13, bag}, {"card_selection_ack", 1, 71, w.cardSnapshot()}}, nil
 }
 
-// 黑鸦展示翻牌后默认选择第一张免费牌。与手动选牌及退出结算共用
-// 同一领取事务；仅从已发送布局开始计时，重复请求不会延长等待。
-func (w *worldSession) autoPickBlackPurgatoryCard(now time.Time) ([]outboundPacket, error) {
+// autoPickSettlementCard 在「翻牌布局已发出、玩家一直没选」时替他选**第一张免费牌**。
+//
+// 与手动选牌及退出结算共用同一领取事务（grantFreeCard(0)）；仅从布局发出开始计时，
+// 重复请求不会延长等待，已领过（cardReceipt != nil）就不再动。
+//
+// 这套机制原本只给黑鸦开（判据写在副本号上），其它副本 —— 蔚蓝号也不例外 ——
+// 倒计时结束后服务端什么都不发，客户端就停在「一张都没翻」的状态
+// （业主实机 2026-10-04）。翻牌界面本来就是同一套 69/70/71，所以这里放开到
+// **所有已结算的副本**；黑鸦那两个事件名保留（有测试与日志在依赖它们）。
+func (w *worldSession) autoPickSettlementCard(now time.Time) ([]outboundPacket, error) {
 	if w == nil || w.cardAutoPickAt.IsZero() || now.Before(w.cardAutoPickAt) {
 		return nil, nil
 	}
-	if w.activeDungeon == nil || w.activeDungeon.Definition.ID != blackPurgatorySquadDungeon ||
-		w.cardReceipt != nil || !w.cardLayoutSent || w.cardsReady() != nil {
+	if w.activeDungeon == nil || w.cardReceipt != nil || !w.cardLayoutSent || w.cardsReady() != nil {
 		w.cardAutoPickAt = time.Time{}
 		return nil, nil
 	}
@@ -81,8 +87,10 @@ func (w *worldSession) autoPickBlackPurgatoryCard(now time.Time) ([]outboundPack
 		w.cardAutoPickAt = now.Add(5 * time.Second)
 		return nil, err
 	}
-	packets[0].Name = "黑鸦自动翻牌背包同步"
-	packets[1].Name = "黑鸦自动翻牌选牌确认"
+	if w.activeDungeon.Definition.ID == blackPurgatorySquadDungeon {
+		packets[0].Name = "黑鸦自动翻牌背包同步"
+		packets[1].Name = "黑鸦自动翻牌选牌确认"
+	}
 	return packets, nil
 }
 func (w *worldSession) cardPick(p []byte) ([]outboundPacket, error) {

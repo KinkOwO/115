@@ -867,8 +867,9 @@ func (w *worldSession) leaveDungeon() ([]outboundPacket, error) {
 		if w.pilotDeath != nil {
 			w.pilotDeath.Dead = false
 		}
-		if reviveState, err := protocol.PlayerDeathState(w.role.WireID); err == nil {
-			reviveState[2] = 1 // state 1: 恢复满血满蓝并解除死亡幽灵（Ghost）状态，使角色在城镇中正常恢复行动
+		// state 1 + 满 hp/mp：只翻 state 会把角色以 0% 血蓝送回城镇（实机 2026-10-04
+		// 蔚蓝号：玩家回城后一直 0%、客户端弹收费的 Stamina Recovery 服务）。
+		if reviveState, err := protocol.PlayerReviveState(w.role.WireID); err == nil {
 			plan = append(plan, outboundPacket{"town_actor_revived", 0, 32, reviveState})
 		}
 	}
@@ -881,6 +882,12 @@ func (w *worldSession) leaveDungeon() ([]outboundPacket, error) {
 		plan = append(plan, outboundPacket{"黑鸦挑战退出", 0, 1994, protocol.BlackPurgatoryEntryInfo(0, 0)})
 		w.blackPurgatory.prepared, w.blackPurgatory.loaded = false, false
 		w.blackPurgatory.deadline = time.Time{}
+	}
+	// 蔚蓝号通关后的收尾：官服在 CMD72 的应答之后补一帧 N249
+	//（FINISH_VILLAGE_MONSTER_FIGHTING，#698），私服全仓没有这个 opcode。
+	// 只在「这一局已经通关」时补；撤退/中途离开不发。
+	if w.channelType == azureMainChannelType && w.activeDungeon != nil && w.activeDungeon.Completed() {
+		plan = append(plan, outboundPacket{"azure_main_finish_fighting", 0, 249, protocol.AzureMainFinishFighting()})
 	}
 	return appendBuffEnhancementRestore(plan, w.characters, w.role, "town_buff_enhancement_restored")
 }
@@ -1235,6 +1242,9 @@ func (w *worldSession) completeDungeon() ([]outboundPacket, error) {
 	// N2255 clear → N1658 → N2253 → N2254。阶段推进由 CMD2046 分支处理。
 	if w.ispins != nil {
 		return w.completeIspinsStage()
+	}
+	if w.channelType == azureMainChannelType {
+		return w.completeAzureMain()
 	}
 	if err := w.freezeBlackPurgatoryRewards(); err != nil {
 		return nil, err

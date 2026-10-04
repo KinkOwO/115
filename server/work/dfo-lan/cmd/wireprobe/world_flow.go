@@ -26,6 +26,10 @@ type worldSession struct {
 	fameInitialized        bool
 	moonConfig             *moonSoloConfig
 	moon                   moonSoloState
+	// azure 是蔚蓝号（Azure Main，channelType 102）的会话状态。
+	// 它不像 moonConfig 那样需要注入对象才生效 ——
+	// 分派直接按 w.channelType == azureMainChannelType 门控（见 azure_main_flow.go）。
+	azure                  azureMainState
 	characters             *character.Service
 	pilotDeath             *odysseyDeath
 	service                *world.Service

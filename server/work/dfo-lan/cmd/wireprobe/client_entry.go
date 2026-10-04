@@ -990,6 +990,37 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 			client.event(map[string]any{"kind": "npc_favor_point_info_sent", "character_id": characterID, "npc_count": len(records), "plain_bytes": len(payload)})
 		}(role.ID)
 		}
+		// 蔚蓝号（Azure Main，channelType 102）进城时补一次奖励计数快照。
+		// 原因见 azure_main_flow.go 的 azureRewardSnapshot：缺它客户端会在
+		// 「创建攻坚队」时报「奖励已领完」。只对 102 生效。
+		if client.worldState != nil && client.worldState.channelType == azureMainChannelType {
+			azureRewards, azureErr := client.worldState.azureRewardSnapshot()
+			if azureErr != nil {
+				client.event(map[string]any{"kind": "azure_main_rewards_error", "error": azureErr.Error()})
+			} else {
+				for _, azurePacket := range azureRewards {
+					if sendErr := client.output.send(azurePacket.Kind, azurePacket.ID, azurePacket.Payload); sendErr != nil {
+						client.event(map[string]any{"kind": "azure_main_rewards_send_error", "id": azurePacket.ID, "error": sendErr.Error()})
+						break
+					}
+					client.event(map[string]any{"kind": azurePacket.Name, "id": azurePacket.ID})
+				}
+			}
+			// 再补一发**延迟重发**：本仓已有两处先例说明这个客户端在进场早期会丢包
+			// （N733 好感度用 900ms；N2254 改成等场景就绪再发，否则撞进装载期）。
+			// 计数快照是纯计数器，重发无副作用。
+			go func() {
+				time.Sleep(900 * time.Millisecond)
+				if snap, snapErr := client.worldState.azureRewardSnapshot(); snapErr == nil {
+					for _, azurePacket := range snap {
+						if sendErr := client.output.send(azurePacket.Kind, azurePacket.ID, azurePacket.Payload); sendErr != nil {
+							return
+						}
+						client.event(map[string]any{"kind": azurePacket.Name + "_delayed", "id": azurePacket.ID})
+					}
+				}
+			}()
+		}
 		return dispatchHandled
 	}
 

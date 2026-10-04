@@ -135,6 +135,21 @@ func (client *gameConnection) dispatchSpecialContent(requestData *clientRequest)
 			}
 			return dispatchHandled
 		}
+		// 蔚蓝号（Azure Main, channelType 102）：与月湖同层挂载，但它自己按频道门控，
+		// 对其它频道一律 return false（不影响普通频道与月湖）。
+		handled, packets, e = client.worldState.azureHandle(requestData.frame.ID, requestData.plaintext, time.Now(), client.event)
+		if handled {
+			if e != nil {
+				client.event(map[string]any{"kind": "azure_main_request_rejected", "id": requestData.frame.ID, "error": e.Error()})
+				packets = nil
+			}
+			if client.sendPlan(packets, func(packet outboundPacket) {
+				client.event(map[string]any{"kind": packet.Name, "id": packet.ID})
+			}) != nil {
+				return dispatchClose
+			}
+			return dispatchHandled
+		}
 		handled, packets, e = client.worldState.moonHandle(requestData.frame.ID, requestData.plaintext, time.Now(), client.event)
 		if handled {
 			if e != nil {
@@ -224,15 +239,36 @@ func (client *gameConnection) dispatchDungeon(requestData *clientRequest) dispat
 		if se != nil {
 			client.event(map[string]any{"kind": "semiraid_actor_state_error", "character_id": client.selectedCharacterID, "reason": se.Error()})
 		}
+		azureRun := client.worldState.channelType == azureMainChannelType
+		infoInserted := false
+		if azureRun {
+			// N2621 的 1 小时倒计时以本趟开始为基准。
+			client.worldState.azure.runStarted = time.Now()
+			client.worldState.azure.infoRoom = 0
+			client.worldState.azure.cleared = nil
+			client.worldState.azure.kraken = 0
+			client.worldState.azure.revivesLeft = azureMainReviveLimit
+		}
 		inserted := false
-		plan := make([]outboundPacket, 0, len(frames)+2)
+		plan := make([]outboundPacket, 0, len(frames)+4)
 		for _, pkt := range frames {
 			if pkt.ID == 28 && !inserted {
 				if actorState != nil {
 					plan = append(plan, outboundPacket{"semiraid_actor_state_dungeon", 0, 3, actorState})
 				}
 				plan = append(plan, outboundPacket{"semiraid_dungeon_selection", 0, 27, protocol.EnterDungeonSelection()})
+				// [AZURE-20261004] C15（红门）路径的客户端在收到 NOTI27 后停在「选图」状态：
+				// 紧接着补一个 select_ack(16) 才会离开该状态、重新接受普通房间门。
+				// 少了它，进图后整场都不发 CMD45 MOVE_MAP（与 2062 直达那次实测同症状，
+				// 见 docs/protocol/next49-odyssey-direct-move.md 的「闭环」解法）。
+				plan = append(plan, outboundPacket{"semiraid_dungeon_select_ack", 1, 16, []byte{1}})
 				inserted = true
+			}
+			if azureRun && pkt.ID == 29 && !infoInserted {
+				// 官服帧序 N28(#414) → N2621(#416) → N29(#417)：副本信息之后、
+				// 首张 START_MAP 之前。缺了这一帧，客户端清场后不走门（实机 2026-10-04）。
+				plan = append(plan, client.worldState.azureMainInfo(time.Now()))
+				infoInserted = true
 			}
 			plan = append(plan, pkt)
 		}
@@ -337,6 +373,14 @@ func (client *gameConnection) dispatchDungeon(requestData *clientRequest) dispat
 		case 39:
 			client.worldState.completionErr = nil
 			plan, e = client.worldState.monsterDeath(requestData.plaintext, client.event)
+			// 蔚蓝号：本房间打空时补一帧 N2621（官服 #488 的位置 —— 最后一怪确认
+			// 死亡之后、下一张 N29 之前）。这是蔚蓝号唯一「进图后」的进度帧；缺了它
+			// 客户端清场后不发 CMD45（实机 2026-10-04 10:25）。
+			if e == nil {
+				if info, ok := client.worldState.azureRoomClearedInfo(time.Now()); ok {
+					plan = append(plan, info)
+				}
+			}
 		case 2329:
 			plan, e = client.worldState.scaleStatus(requestData.plaintext, client.event)
 		case 40:
@@ -357,9 +401,14 @@ func (client *gameConnection) dispatchDungeon(requestData *clientRequest) dispat
 						if d == nil || !d.Dead || w.activeDungeon == nil {
 							return
 						}
+						// [AZURE-DEATH-AFTER-CLEAR] 结算已经走完的**只回城、不补 FAIL_CLEAR**：
+						// 补了会把一场已经通关并发了奖的挑战标成失败。没结算的还是照旧走失败链。
+						skipFailClear := w.resultSent
 						// reason 100 = timeout（0 是「默认死亡」）。
-						if err := client.output.send(0, 33, protocol.DungeonFailClear(100)); err != nil {
-							return
+						if !skipFailClear {
+							if err := client.output.send(0, 33, protocol.DungeonFailClear(100)); err != nil {
+								return
+							}
 						}
 						// 只发 FAIL_CLEAR 不够：客户端收到后只播死亡镜头，不会自己
 						// 离开副本 —— 实机 2026-09-28 客户端 trace 里
@@ -397,6 +446,16 @@ func (client *gameConnection) dispatchDungeon(requestData *clientRequest) dispat
 				e = fmt.Errorf("room movement requires living player")
 			} else {
 				pending, plan, e = client.worldState.moveDungeonRoom(requestData.plaintext)
+			}
+		case 1654:
+			// 蔚蓝号的「清关信息应答」（配 s2c 1658）。官服尾段：N1658(空) → 客户端
+			// CMD1654 → N2621 阶段 4/5。
+			//
+			// ⚠️ 非蔚蓝号会话**必须保持原来的"什么都不做"** —— 伊斯大陆也发 CMD1654
+			// （见 internal/game/protocol/ispins_settlement.go），它此前落进采样分支照样能用；
+			// 这里若回 Refusal 会把伊斯大陆的结算打坏。所以 else 分支只留注释、不发包。
+			if client.worldState.channelType == azureMainChannelType {
+				plan = client.worldState.azureClearInfo()
 			}
 		case 46:
 			plan, e = client.worldState.dungeonResult(requestData.plaintext)
@@ -588,8 +647,9 @@ func (client *gameConnection) dispatchDungeon(requestData *clientRequest) dispat
 				client.worldState.cardScrolled = true
 			}
 			if p.Name == "card_layout_ack" {
-				if !client.worldState.cardLayoutSent && client.worldState.cardReceipt == nil && client.worldState.activeDungeon != nil &&
-					client.worldState.activeDungeon.Definition.ID == blackPurgatorySquadDungeon {
+				// 布局发出后给玩家 3 秒选牌；到点还没选就替他选第一张（见
+				// autoPickSettlementCard）。**不再只给黑鸦开** —— 见该函数注释。
+				if !client.worldState.cardLayoutSent && client.worldState.cardReceipt == nil && client.worldState.activeDungeon != nil {
 					client.worldState.cardAutoPickAt = time.Now().Add(3 * time.Second)
 				}
 				client.worldState.cardLayoutSent = true
