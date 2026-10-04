@@ -138,7 +138,7 @@ func TestDarkKnightDefaultSkillRowsKeepAllSixComboSlots(t *testing.T) {
 	}
 	prof := c.Professions[9]
 	s := Service{Catalog: c}
-	state := State{Level: 1, SourceSHA256: prof.RawSHA256, InitialSkills: prof.InitialSkills}
+	state := State{Level: 1, SourcePath: prof.Path, SourceSHA256: prof.RawSHA256, InitialSkills: prof.InitialSkills}
 	rows, err := s.skillRows(Character{Profession: 9}, state, 0)
 	if err != nil {
 		t.Fatal(err)

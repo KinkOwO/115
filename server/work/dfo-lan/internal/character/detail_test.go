@@ -34,7 +34,7 @@ func TestSourceAttributesMatchNativeLoader(t *testing.T) {
 		if p.RawSHA256 != r.SHA {
 			t.Fatal("fixture source changed")
 		}
-		state, _ := json.Marshal(State{Level: 1, Attributes: p.InitialAttributes, InitialSkills: p.InitialSkills, SourceSHA256: p.RawSHA256})
+		state, _ := json.Marshal(State{Level: 1, Attributes: p.InitialAttributes, InitialSkills: p.InitialSkills, SourcePath: p.Path, SourceSHA256: p.RawSHA256})
 		got, e := (&Service{Catalog: c}).EntryAddition(Character{WireID: 3, Profession: r.Profession, State: state})
 		if e != nil {
 			t.Fatal(e)

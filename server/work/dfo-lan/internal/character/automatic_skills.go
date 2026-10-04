@@ -12,7 +12,11 @@ func (s *Service) automaticSkills(role Character, state State) (map[uint16]byte,
 		return out, nil
 	}
 	p, ok := s.Catalog.Professions[role.Profession]
-	if !ok || p.RawSHA256 != state.SourceSHA256 || s.Learning.Source.SaveIdentity() != role.ConfigVersion {
+	// 2026-10-04：源身份用 SourcePath（L2 引用身份）而非 RawSHA256。.chr 脚本字节里
+	// 嵌的是字符串池偏移，Neople 每次重建字符串池都会整体漂移——2.38.2.34 与
+	// 2.38.3.25 的 .chr 已逐 token 核对一致，仅池偏移不同。按 next146 的 savecontract
+	// 原则（存档身份不得依赖客户端资源哈希），原始哈希不配做拒档理由。
+	if !ok || p.Path != state.SourcePath || s.Learning.Source.SaveIdentity() != role.ConfigVersion {
 		return nil, fmt.Errorf("automatic skill source mismatch")
 	}
 	grants := p.AdvancementSkills[state.Advancement]
@@ -61,7 +65,8 @@ func (s *Service) awakeningSkills(role Character, state State) (map[uint16]byte,
 		return out, nil
 	}
 	p, ok := s.Catalog.Professions[role.Profession]
-	if !ok || p.RawSHA256 != state.SourceSHA256 || s.Learning.Source.SaveIdentity() != role.ConfigVersion {
+	// 同上：源身份用 SourcePath（L2 引用身份），原始哈希随字符串池漂移，不做拒档理由。
+	if !ok || p.Path != state.SourcePath || s.Learning.Source.SaveIdentity() != role.ConfigVersion {
 		return nil, fmt.Errorf("awakening skill source mismatch")
 	}
 	for stage := byte(1); stage <= state.Awakening; stage++ {

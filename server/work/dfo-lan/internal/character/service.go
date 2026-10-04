@@ -7,6 +7,7 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
+	"dfolan/internal/reward"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -75,6 +76,10 @@ type Service struct {
 	// 装备。缺任一项或不匹配都只是不投影，不构成拒绝创建的理由。
 	Equipment *inventory.EquipmentCatalog
 	WearRules inventory.WearRules
+	// Rewards is the optional event-triggered reward notifier. Create notifies
+	// it once after a fresh character is committed; nil disables the feature.
+	// It mirrors ProgressionService.Rewards and is never read as rule data.
+	Rewards reward.Notifier
 }
 
 func New(s Store, c catalog.Characters, r Rules) (*Service, error) {
@@ -150,7 +155,22 @@ func (s *Service) Create(ctx context.Context, account int64, p []byte) (Characte
 			return Character{}, e
 		}
 	}
-	return s.Store.CreateCharacter(ctx, Character{AccountID: account, Name: req.Name, Profession: req.Profession, Request: append([]byte(nil), p...), ConfigVersion: s.Catalog.Source.SaveIdentity(), State: state}, s.Rules.MaxCharacters)
+	created, e := s.Store.CreateCharacter(ctx, Character{AccountID: account, Name: req.Name, Profession: req.Profession, Request: append([]byte(nil), p...), ConfigVersion: s.Catalog.Source.SaveIdentity(), State: state}, s.Rules.MaxCharacters)
+	if e != nil {
+		return Character{}, e
+	}
+	// Notify only on a fresh commit: the idempotent "already exists" branch
+	// above returns early, so a client retry never re-fires the starter grant.
+	if s.Rewards != nil {
+		s.Rewards.CharacterCreate(ctx, reward.Recipient{
+			AccountID:     created.AccountID,
+			CharacterID:   created.ID,
+			Name:          created.Name,
+			Level:         stateLevel(created.State),
+			ConfigVersion: created.ConfigVersion,
+		})
+	}
+	return created, nil
 }
 
 func (s *State) setCreationOptions(options []byte) {

@@ -25,7 +25,7 @@ func odysseyGrowthFixture(t *testing.T) (*ProgressionService, Character) {
 		t.Fatal(e)
 	}
 	prof := c.Professions[0]
-	state := State{Level: 1, Attributes: prof.InitialAttributes, InitialSkills: prof.InitialSkills, SourceSHA256: prof.RawSHA256}
+	state := State{Level: 1, Attributes: prof.InitialAttributes, InitialSkills: prof.InitialSkills, SourcePath: prof.Path, SourceSHA256: prof.RawSHA256}
 	raw, _ := json.Marshal(state)
 	r := Character{Profession: 0, Name: "GrowTest", WireID: 1, ConfigVersion: c.Source.SaveIdentity(), State: raw}
 	req := append([]byte{0, 4, 0, 0, 0}, []byte("test")...)

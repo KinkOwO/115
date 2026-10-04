@@ -24,7 +24,9 @@ func (s *Service) RepairSwordmasterPilot(role Character) (Character, error) {
 		return role, err
 	}
 	prof := s.Catalog.Professions[0]
-	if state.Level != 1 || state.Experience != 0 || state.SourceSHA256 != prof.RawSHA256 || len(prof.SwordmasterGrowth) == 0 || (state.Advancement != 0 && !(state.Advancement == 1 && state.SwordmasterPilot)) {
+	// 2026-10-04：源身份用 SourcePath（L2 引用身份）而非 RawSHA256（.chr 原始哈希
+	// 随字符串池偏移漂移，见 automatic_skills.go 注释）。
+	if state.Level != 1 || state.Experience != 0 || prof.Path != state.SourcePath || len(prof.SwordmasterGrowth) == 0 || (state.Advancement != 0 && !(state.Advancement == 1 && state.SwordmasterPilot)) {
 		return role, fmt.Errorf("pilot repair requires unchanged level-one source state")
 	}
 	// Merge only these fields; preserve all unrelated and future JSON fields.
