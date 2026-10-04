@@ -7,7 +7,7 @@ import (
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/savecontract"
-	"dfolan/internal/storage"
+	"dfolan/internal/database"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -28,21 +28,21 @@ func TestPrimerTransformFlowIntegration(t *testing.T) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	admin, err := storage.Open(ctx, storage.Config{PostgresDSN: dsn, MaxConnections: 2})
+	admin, err := database.Open(ctx, database.Config{PostgresDSN: dsn, MaxConnections: 2})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer admin.Close()
 	schema := fmt.Sprintf("primer_transform_%d", time.Now().UnixNano())
-	if _, err := admin.DB.Exec(ctx, "CREATE SCHEMA "+schema); err != nil {
+	if err := admin.DiagnosticExec(ctx, "CREATE SCHEMA "+schema); err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
-		if _, err := admin.DB.Exec(context.Background(), "DROP SCHEMA "+schema+" CASCADE"); err != nil {
+		if err := admin.DiagnosticExec(context.Background(), "DROP SCHEMA "+schema+" CASCADE"); err != nil {
 			t.Error(err)
 		}
 	}()
-	store, err := storage.Open(ctx, storage.Config{PostgresDSN: dsn, PostgresSchema: schema, MaxConnections: 2})
+	store, err := database.Open(ctx, database.Config{PostgresDSN: dsn, PostgresSchema: schema, MaxConnections: 2})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,7 +97,7 @@ func TestPrimerTransformFlowIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	role, err := store.CreateCharacter(ctx, storage.Character{
+	role, err := store.CreateCharacter(ctx, database.Character{
 		AccountID: account, Name: "primer-transform", Profession: 11,
 		ConfigVersion: savecontract.Identity(), Request: []byte{0}, State: raw,
 	}, 24)
@@ -173,10 +173,11 @@ func TestPrimerTransformFlowIntegration(t *testing.T) {
 		t.Fatalf("refund missing: %v", accountMats)
 	}
 	// 事务状态确实写回了库（不是只在内存里改）。
-	var stored json.RawMessage
-	if err := store.DB.QueryRow(ctx, "SELECT state FROM characters WHERE id=$1", role.ID).Scan(&stored); err != nil {
+	storedRole, err := store.AdminCharacter(ctx, role.ID)
+	if err != nil {
 		t.Fatal(err)
 	}
+	stored := storedRole.State
 	storedBag, err := inventory.ReadBag(stored)
 	if err != nil {
 		t.Fatal(err)
@@ -235,21 +236,21 @@ func TestPrimerTransformFlowDoesNotMultiplyCrystals(t *testing.T) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
-	admin, err := storage.Open(ctx, storage.Config{PostgresDSN: dsn, MaxConnections: 2})
+	admin, err := database.Open(ctx, database.Config{PostgresDSN: dsn, MaxConnections: 2})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer admin.Close()
 	schema := fmt.Sprintf("primer_dupe_%d", time.Now().UnixNano())
-	if _, err := admin.DB.Exec(ctx, "CREATE SCHEMA "+schema); err != nil {
+	if err := admin.DiagnosticExec(ctx, "CREATE SCHEMA "+schema); err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
-		if _, err := admin.DB.Exec(context.Background(), "DROP SCHEMA "+schema+" CASCADE"); err != nil {
+		if err := admin.DiagnosticExec(context.Background(), "DROP SCHEMA "+schema+" CASCADE"); err != nil {
 			t.Error(err)
 		}
 	}()
-	store, err := storage.Open(ctx, storage.Config{PostgresDSN: dsn, PostgresSchema: schema, MaxConnections: 2})
+	store, err := database.Open(ctx, database.Config{PostgresDSN: dsn, PostgresSchema: schema, MaxConnections: 2})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -291,7 +292,7 @@ func TestPrimerTransformFlowDoesNotMultiplyCrystals(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	role, err := store.CreateCharacter(ctx, storage.Character{
+	role, err := store.CreateCharacter(ctx, database.Character{
 		AccountID: account, Name: "primer-dupe", Profession: 11,
 		ConfigVersion: savecontract.Identity(), Request: []byte{0}, State: raw,
 	}, 24)
@@ -348,21 +349,21 @@ func TestPrimerTransformRejectsPrimevalInEarlySlot(t *testing.T) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	admin, err := storage.Open(ctx, storage.Config{PostgresDSN: dsn, MaxConnections: 2})
+	admin, err := database.Open(ctx, database.Config{PostgresDSN: dsn, MaxConnections: 2})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer admin.Close()
 	schema := fmt.Sprintf("primer_guard_%d", time.Now().UnixNano())
-	if _, err := admin.DB.Exec(ctx, "CREATE SCHEMA "+schema); err != nil {
+	if err := admin.DiagnosticExec(ctx, "CREATE SCHEMA "+schema); err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
-		if _, err := admin.DB.Exec(context.Background(), "DROP SCHEMA "+schema+" CASCADE"); err != nil {
+		if err := admin.DiagnosticExec(context.Background(), "DROP SCHEMA "+schema+" CASCADE"); err != nil {
 			t.Error(err)
 		}
 	}()
-	store, err := storage.Open(ctx, storage.Config{PostgresDSN: dsn, PostgresSchema: schema, MaxConnections: 2})
+	store, err := database.Open(ctx, database.Config{PostgresDSN: dsn, PostgresSchema: schema, MaxConnections: 2})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -403,7 +404,7 @@ func TestPrimerTransformRejectsPrimevalInEarlySlot(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	role, err := store.CreateCharacter(ctx, storage.Character{
+	role, err := store.CreateCharacter(ctx, database.Character{
 		AccountID: account, Name: "primer-guard", Profession: 11,
 		ConfigVersion: savecontract.Identity(), Request: []byte{0}, State: raw,
 	}, 24)

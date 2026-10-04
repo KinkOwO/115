@@ -50,6 +50,11 @@ func observedGameRequest(id uint16) bool {
 		//          REQ_DUNGEON_CLEAR_INFO（16B：05000000 5e030000 3d010000 28240100）。
 		// 必须登记：否则第 BodySampleLimit(8) 次之后 verified 不再计算，请求进不了处理器。
 		return true
+	case 2288, 2289:
+		// 2289 = 秘宝制作（SOLE_EQUIPMENT_CREATE）：已实现（同一个 sole_flow.go 的 raiseSoleCreate）。
+		// 2288 = 秘宝精度提升（SOLE_EQUIPMENT_QUALITY）：已实现（见 cmd/wireprobe/sole_flow.go）。
+		// 必须登记：否则第 BodySampleLimit(8) 次之后 verified 不再被计算，请求永远进不了处理器。
+		return true
 	case 2264, 2265, 2276, 2277, 2278, 2284, 2329, 2331, 2346, 2377, 2381, 2405, 2419:
 		// 2381 = ENUM_CMDPACKET_PRIMER_TRANSFORM（装备库誓约/晶体变换）：已实现
 		// （cmd/wireprobe/primer_transform_flow.go）。必须登记，否则第 BodySampleLimit(8)

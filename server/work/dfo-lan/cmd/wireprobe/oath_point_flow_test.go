@@ -4,7 +4,7 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
+	"dfolan/internal/database"
 	"encoding/binary"
 	"testing"
 )
@@ -35,7 +35,7 @@ func TestOathPointPackets(t *testing.T) {
 
 	w := &worldSession{
 		items: &inventory.ItemService{Points: &rules},
-		role:  storage.Character{WireID: 7, State: state},
+		role:  database.Character{WireID: 7, State: state},
 	}
 	packets := w.oathPointPackets()
 	if len(packets) != 1 {
@@ -70,7 +70,7 @@ func TestOathPointPackets(t *testing.T) {
 // 没有积分表时**不发**：宁可不推，也不能发一对 0 把"未知"写成"该角色积分为 0"。
 func TestOathPointPacketsWithoutRules(t *testing.T) {
 	state := []byte(`{"inventory":{"version":"ordinary-bag-v1","gold":0,"worn":[{"slot":47,"template":100610095}]}}`)
-	w := &worldSession{items: &inventory.ItemService{}, role: storage.Character{State: state}}
+	w := &worldSession{items: &inventory.ItemService{}, role: database.Character{State: state}}
 	if packets := w.oathPointPackets(); packets != nil {
 		t.Fatalf("packets = %+v, want nil when the point table is not loaded", packets)
 	}
