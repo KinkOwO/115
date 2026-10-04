@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"os"
+	"path/filepath"
 )
 
 type Config struct {
@@ -126,6 +127,14 @@ func openPostgres(ctx context.Context, c Config) (*Store, error) {
 func openSQLiteStore(ctx context.Context, c Config) (*Store, error) {
 	if strings.TrimSpace(c.SQLitePath) == "" {
 		return nil, errors.New("sqlite storage configuration incomplete")
+	}
+	// The path must be absolute. A relative one would resolve against whatever working
+	// directory the server happened to inherit (the launcher uses server/), so the save
+	// would land somewhere other than the path suggests - silently, because nothing errors.
+	if !filepath.IsAbs(strings.TrimSpace(c.SQLitePath)) {
+		return nil, fmt.Errorf(
+			"sqlite_path must be an absolute path; %q would resolve against the server's working directory",
+			c.SQLitePath)
 	}
 	// Either naming pair is honoured, so one local.json serves both implementations.
 	maxConns := int(c.MaxReadConnections)
