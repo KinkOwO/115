@@ -14,7 +14,7 @@ type Rules struct {
 	PortalMargin           uint16 `json:"portal_margin"`
 }
 
-// Store 是 world 需要的持久化能力，由 internal/storage 实现并在 bootstrap 注入。
+// Store 是 world 需要的持久化能力，由 internal/database 实现并在 bootstrap 注入。
 // 领域因此不再依赖具体存储实现（契约 R2）。
 type Store interface {
 	LoadWorld(ctx context.Context, account, characterID int64, channelType uint32, initial WorldPosition, version string) (WorldState, error)

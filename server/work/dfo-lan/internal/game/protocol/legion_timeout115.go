@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// Current1452AEC10 reads two u32s. For Apocalypse it converts both to ms
+// Current1452AE370 (registered at1452BB718) reads two u32s. It converts both to ms
 // for the scene and stores [startSeconds,startSeconds+durationSeconds] in
 // the mode clock pair. This is NOT two absolute timestamps or a u64 value.
 func LegionDungeonTimeout115(start time.Time, limit time.Duration) ([]byte, error) {

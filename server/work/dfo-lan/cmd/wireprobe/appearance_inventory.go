@@ -2,8 +2,8 @@ package main
 
 import (
 	"dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/json"
 )
 
@@ -36,7 +36,7 @@ func appearanceInventory(state json.RawMessage) ([]outboundPacket, error) {
 	return plan, nil
 }
 
-func appearanceRestore(service *character.Service, role storage.Character) ([]outboundPacket, error) {
+func appearanceRestore(service *character.Service, role database.Character) ([]outboundPacket, error) {
 	plan, e := appearanceInventory(role.State)
 	if e != nil {
 		return nil, e

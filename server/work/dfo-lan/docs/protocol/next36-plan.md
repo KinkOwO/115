@@ -224,7 +224,7 @@ PVF 已补 3/7/511 到 `[archer] none` 段，`ForAdvancement` 已修。缺实测
 | Q5 | 返城包是否与 `leaveDungeon` 一致，坐标改为路线的 Town/Area/Position | 现有 `leaveDungeon`、`world.Service.Enter`、`Store.SaveWorld` |
 | Q6 | 首任务：`Available` 在 level=1、本职业、无前置时返回什么 | `configs/quests.generated.json` + `cmd/questaudit` |
 
-**状态机**：新增表 `character_birth`（`character_id` PK、`stage smallint`、`dungeon integer`、`route_version text`、`updated_at`），置于 `internal/storage/birth.go`。**迁移时把所有现有角色一次性回填 `stage=3`（已完成）**，只有迁移之后新建的角色才是 0——这是"不重置已有角色"的实现方式，charactercheck 必须有断言。阶段定义：0 新建未开始 / 1 已进教程副本 / 2 副本已结束未回城 / 3 完成。SELECT 时读 stage 决定走教程模式、回城模式还是现状。不复用 `character_tutorial_flags`（那是 CMD143 的 UI 指引 flag，与出生进度是两回事）。
+**状态机**：新增表 `character_birth`（`character_id` PK、`stage smallint`、`dungeon integer`、`route_version text`、`updated_at`），置于 `internal/database/birth.go`。**迁移时把所有现有角色一次性回填 `stage=3`（已完成）**，只有迁移之后新建的角色才是 0——这是"不重置已有角色"的实现方式，charactercheck 必须有断言。阶段定义：0 新建未开始 / 1 已进教程副本 / 2 副本已结束未回城 / 3 完成。SELECT 时读 stage 决定走教程模式、回城模式还是现状。不复用 `character_tutorial_flags`（那是 CMD143 的 UI 指引 flag，与出生进度是两回事）。
 
 **代码改动**：`storage/birth.go`（新）、`catalog/tutorial.go` 加 `LoadTutorialRoutes`、`dungeon/session.go` 加 `SelectTutorial`（允许 `d.Tutorial`、跳过最低等级 / 队伍 / 任务连接检查、`NoFatigue` 生效）、`dungeon_flow.go` 加 `tutorialGate` 与 `finishTutorial`、`main.go` 加参数与 stage 分支、`charactercheck/birth_check.go`（新）、`channel_probe.py` / `launch_local.py` 的 candidate36 参数。
 

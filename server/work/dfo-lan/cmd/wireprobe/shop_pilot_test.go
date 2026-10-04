@@ -5,10 +5,10 @@ import (
 	"context"
 	"dfolan/internal/cashshop"
 	"dfolan/internal/catalog"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/game/wire"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -35,13 +35,13 @@ func nativeShopPilot(t *testing.T, release bool) *cashshop.Pilot {
 
 type pilotLedger struct {
 	calls int
-	order storage.CashOrder
+	order database.CashOrder
 	state json.RawMessage
 }
 
 type vaultPilotLedger struct {
 	pilotLedger
-	vault storage.VaultState
+	vault database.VaultState
 	space byte
 }
 
@@ -49,21 +49,21 @@ func (l *vaultPilotLedger) VaultPurchaseSpace(context.Context, int64, int64, str
 	return l.space, nil
 }
 
-func (l *vaultPilotLedger) PurchaseCashVault(_ context.Context, o storage.CashOrder, fn func(storage.VaultState) (storage.VaultState, error)) (storage.CashReceipt, bool, error) {
+func (l *vaultPilotLedger) PurchaseCashVault(_ context.Context, o database.CashOrder, fn func(database.VaultState) (database.VaultState, error)) (database.CashReceipt, bool, error) {
 	if o.VaultSpace != l.space {
-		return storage.CashReceipt{}, false, fmt.Errorf("扩容目标金库不一致")
+		return database.CashReceipt{}, false, fmt.Errorf("扩容目标金库不一致")
 	}
 	if l.calls > 0 && l.order.Key == o.Key {
-		return storage.CashReceipt{Vault: &l.vault, VaultSpace: o.VaultSpace}, false, nil
+		return database.CashReceipt{Vault: &l.vault, VaultSpace: o.VaultSpace}, false, nil
 	}
 	next, e := fn(l.vault)
 	if e != nil {
-		return storage.CashReceipt{}, false, e
+		return database.CashReceipt{}, false, e
 	}
 	l.vault = next
 	l.order = o
 	l.calls++
-	return storage.CashReceipt{Vault: &l.vault, VaultSpace: o.VaultSpace, After: 70, Deliveries: []storage.CashDelivery{{Product: o.Lines[0].Product, Quantity: 1}}}, true, nil
+	return database.CashReceipt{Vault: &l.vault, VaultSpace: o.VaultSpace, After: 70, Deliveries: []database.CashDelivery{{Product: o.Lines[0].Product, Quantity: 1}}}, true, nil
 }
 func TestVaultPurchasePackets(t *testing.T) {
 	p := nativeShopPilot(t, false)
@@ -80,7 +80,7 @@ func TestVaultPurchasePackets(t *testing.T) {
 	}
 	s.keys = make([]byte, wire.SessionKeyBytes)
 	s.vaultRules = &rules
-	l := &vaultPilotLedger{vault: storage.VaultState{Slots: 8, Items: []byte(`[]`), ConfigVersion: rules.SourceSHA256}}
+	l := &vaultPilotLedger{vault: database.VaultState{Slots: 8, Items: []byte(`[]`), ConfigVersion: rules.SourceSHA256}}
 	body := make([]byte, 16)
 	body[2] = 1
 	binary.LittleEndian.PutUint32(body[5:], 3000129)
@@ -133,7 +133,7 @@ func TestVaultPurchasePackets(t *testing.T) {
 		t.Fatalf("第二金库的源商品、首档或末档无效：%v", err)
 	}
 	for id, upgrade := range secondary {
-		second := &vaultPilotLedger{space: 45, vault: storage.VaultState{Slots: upgrade.Before, Items: []byte(`[]`), ConfigVersion: rules.SourceSHA256}}
+		second := &vaultPilotLedger{space: 45, vault: database.VaultState{Slots: upgrade.Before, Items: []byte(`[]`), ConfigVersion: rules.SourceSHA256}}
 		binary.LittleEndian.PutUint32(body[5:], id)
 		request := append(make([]byte, 13), body...)
 		r, applied, err := s.purchase(context.Background(), p, second, 1, 1, body, request)
@@ -162,18 +162,18 @@ func TestVaultPurchasePackets(t *testing.T) {
 	}
 }
 
-func (f *pilotLedger) PurchaseCashToBag(_ context.Context, o storage.CashOrder, deliver func(json.RawMessage) (json.RawMessage, error)) (storage.CashReceipt, bool, error) {
+func (f *pilotLedger) PurchaseCashToBag(_ context.Context, o database.CashOrder, deliver func(json.RawMessage) (json.RawMessage, error)) (database.CashReceipt, bool, error) {
 	if f.calls > 0 && o.Key == f.order.Key {
-		return storage.CashReceipt{CharacterState: f.state, After: 955}, false, nil
+		return database.CashReceipt{CharacterState: f.state, After: 955}, false, nil
 	}
 	state, e := deliver(json.RawMessage(`{}`))
 	if e != nil {
-		return storage.CashReceipt{}, false, e
+		return database.CashReceipt{}, false, e
 	}
 	f.calls++
 	f.order = o
 	f.state = state
-	return storage.CashReceipt{CharacterState: state, Before: 1000, After: 955, Charged: 45, Deliveries: []storage.CashDelivery{{Product: o.Lines[0].Product, Template: o.Lines[0].Template, Amount: o.Lines[0].Quantity * o.Lines[0].Units, Quantity: o.Lines[0].Quantity}}}, true, nil
+	return database.CashReceipt{CharacterState: state, Before: 1000, After: 955, Charged: 45, Deliveries: []database.CashDelivery{{Product: o.Lines[0].Product, Template: o.Lines[0].Template, Amount: o.Lines[0].Quantity * o.Lines[0].Units, Quantity: o.Lines[0].Quantity}}}, true, nil
 }
 func TestShopPilotRequestToPackets(t *testing.T) {
 	p := nativeShopPilot(t, false)
@@ -294,39 +294,21 @@ func TestShopPilotLifeTokenPackets(t *testing.T) {
 }
 
 func TestShopPilotDatabasePurchase(t *testing.T) {
-	if os.Getenv("CASH_INTEGRATION") != "1" {
+	if os.Getenv("DFO_TEST_POSTGRES_DSN") == "" {
 		t.Skip("isolated PostgreSQL integration")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	configPath := os.Getenv("DFO_TEST_STORAGE_CONFIG")
-	if configPath == "" {
-		configPath = "../../runtime/storage/local.json"
-	}
-	cfg, e := storage.LoadConfig(configPath)
+	fixture, e := database.OpenTestFixture(ctx)
 	if e != nil {
-		t.Fatal(e)
-	}
-	admin, e := storage.Open(ctx, cfg)
-	if e != nil {
-		t.Fatal(e)
-	}
-	defer admin.Close()
-	schema := fmt.Sprintf("shop_wire_test_%d", time.Now().UnixNano())
-	if _, e = admin.DB.Exec(ctx, "CREATE SCHEMA "+schema); e != nil {
 		t.Fatal(e)
 	}
 	defer func() {
-		if _, e := admin.DB.Exec(context.Background(), "DROP SCHEMA "+schema+" CASCADE"); e != nil {
-			t.Error(e)
+		if err := fixture.Close(); err != nil {
+			t.Error(err)
 		}
 	}()
-	cfg.PostgresSchema = schema
-	store, e := storage.Open(ctx, cfg)
-	if e != nil {
-		t.Fatal(e)
-	}
-	defer store.Close()
+	store := fixture.Storage()
 	for _, fn := range []func(context.Context) error{store.Migrate, store.MigrateGrants, store.MigrateCashShop} {
 		if e = fn(ctx); e != nil {
 			t.Fatal(e)
@@ -337,11 +319,11 @@ func TestShopPilotDatabasePurchase(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	role, e := store.CreateCharacter(ctx, storage.Character{AccountID: account, Name: "ShopWireTest", Request: []byte{0}, ConfigVersion: p.Config.Source.SaveIdentity(), State: json.RawMessage(`{}`)}, 24)
+	role, e := store.CreateCharacter(ctx, database.Character{AccountID: account, Name: "ShopWireTest", Request: []byte{0}, ConfigVersion: p.Config.Source.SaveIdentity(), State: json.RawMessage(`{}`)}, 24)
 	if e != nil {
 		t.Fatal(e)
 	}
-	if _, e = store.DB.Exec(ctx, `INSERT INTO account_currency(account_id,cera) VALUES($1,1000)`, account); e != nil {
+	if e = fixture.SeedAccountCurrency(ctx, account, 1000); e != nil {
 		t.Fatal(e)
 	}
 	s, e := newShopPilotSession()
@@ -384,18 +366,18 @@ func TestShopPilotDatabasePurchase(t *testing.T) {
 		t.Fatal("duplicate charged", e)
 	}
 	var saved json.RawMessage
-	if e = store.DB.QueryRow(ctx, `SELECT state FROM characters WHERE id=$1`, role.ID).Scan(&saved); e != nil {
+	if saved, e = fixture.CharacterState(ctx, role.ID); e != nil {
 		t.Fatal(e)
 	}
 	var document map[string]json.RawMessage
 	if json.Unmarshal(saved, &document) != nil || document["inventory"] == nil {
 		t.Fatal("inventory absent")
 	}
-	var orders, claimed int
-	if e = store.DB.QueryRow(ctx, `SELECT count(*) FROM cash_orders`).Scan(&orders); e != nil || orders != 1 {
+	var orders, claimed int64
+	if orders, e = fixture.CashOrderCount(ctx, account); e != nil || orders != 1 {
 		t.Fatal("order audit", e)
 	}
-	if e = store.DB.QueryRow(ctx, `SELECT count(*) FROM cash_inventory WHERE claimed_at IS NOT NULL AND template=15 AND amount=1`).Scan(&claimed); e != nil || claimed != 1 {
+	if claimed, e = fixture.CashInventoryCount(ctx, account, 2, 15, 1); e != nil || claimed != 1 {
 		t.Fatal("delivery audit", e)
 	}
 	t.Log("PASS CMD64 pilot: server price45; Cera1000->955; template15x1 in saved bag; NOTI14+NOTI53+CMD64 encrypted; one audit; retry no debit; encoding failure rolled back")
@@ -437,7 +419,7 @@ func TestShopPilotDatabasePurchase(t *testing.T) {
 	if e != nil || balance != 810 {
 		t.Fatal("mixed balance", e)
 	}
-	if e = store.DB.QueryRow(ctx, `SELECT count(*) FROM cash_inventory WHERE claimed_at IS NOT NULL`).Scan(&claimed); e != nil || claimed != 3 {
+	if claimed, e = fixture.CashInventoryCount(ctx, account, 2, 0, 0); e != nil || claimed != 3 {
 		t.Fatal("mixed audit", e)
 	}
 	t.Log("PASS mixed CMD64: two products, debit145 once, balance810, two ACKs, three total claimed lines, replay no debit")
@@ -449,7 +431,7 @@ func TestShopPilotDatabasePurchase(t *testing.T) {
 	if e != nil || !applied || r.Charged != 240 || r.After != 570 {
 		t.Fatalf("material cart %+v %v", r, e)
 	}
-	if e = store.DB.QueryRow(ctx, `SELECT state FROM characters WHERE id=$1`, role.ID).Scan(&saved); e != nil {
+	if saved, e = fixture.CharacterState(ctx, role.ID); e != nil {
 		t.Fatal(e)
 	}
 	bag, e := inventory.ReadBag(saved)
@@ -495,10 +477,10 @@ func TestShopPilotDatabasePurchase(t *testing.T) {
 // 契约激活回执在 ACK64 之后追加 NOTI66,客户端即时刷新权益状态。
 func TestShopPilotPremiumActivationNotice(t *testing.T) {
 	t.Setenv("DFO_CONTRACT_PURCHASE_CRASH_FIX", "0")
-	r := storage.CashReceipt{
+	r := database.CashReceipt{
 		CharacterState: json.RawMessage(`{}`),
-		Deliveries:     []storage.CashDelivery{{Product: 3500001, Template: 45, Amount: 1, Quantity: 1}},
-		Premiums:       []storage.CashPremium{{Type: 27, EndTime: 1800000000}},
+		Deliveries:     []database.CashDelivery{{Product: 3500001, Template: 45, Amount: 1, Quantity: 1}},
+		Premiums:       []database.CashPremium{{Type: 27, EndTime: 1800000000}},
 	}
 	packets, e := shopPilotPackets(r, 70, true)
 	if e != nil {
@@ -515,10 +497,10 @@ func TestShopPilotPremiumActivationNotice(t *testing.T) {
 
 func TestShopPilotContractPurchaseCrashFix(t *testing.T) {
 	t.Setenv("DFO_CONTRACT_PURCHASE_CRASH_FIX", "1")
-	r := storage.CashReceipt{
+	r := database.CashReceipt{
 		CharacterState: json.RawMessage(`{}`),
-		Deliveries:     []storage.CashDelivery{{Product: 3500009, Template: 33, Amount: 1, Quantity: 1}},
-		Premiums:       []storage.CashPremium{{Type: 22, EndTime: time.Now().Add(24 * time.Hour).Unix()}},
+		Deliveries:     []database.CashDelivery{{Product: 3500009, Template: 33, Amount: 1, Quantity: 1}},
+		Premiums:       []database.CashPremium{{Type: 22, EndTime: time.Now().Add(24 * time.Hour).Unix()}},
 	}
 	packets, err := shopPilotPackets(r, 70, true)
 	if err != nil {
@@ -536,25 +518,25 @@ type contractCartPilotLedger struct {
 	pilotLedger
 }
 
-func (l *contractCartPilotLedger) PurchaseCashMixed(_ context.Context, o storage.CashOrder, fn func(json.RawMessage) (json.RawMessage, error), premiums map[int]storage.CashPremiumActivation) (storage.CashReceipt, bool, error) {
+func (l *contractCartPilotLedger) PurchaseCashMixed(_ context.Context, o database.CashOrder, fn func(json.RawMessage) (json.RawMessage, error), premiums map[int]database.CashPremiumActivation) (database.CashReceipt, bool, error) {
 	state, e := fn(l.state)
 	if e != nil {
-		return storage.CashReceipt{}, false, e
+		return database.CashReceipt{}, false, e
 	}
 	l.state = state
 	l.order = o
 	l.calls++
 	var charged uint64
-	var out []storage.CashPremium
-	var deliveries []storage.CashDelivery
+	var out []database.CashPremium
+	var deliveries []database.CashDelivery
 	for _, line := range o.Lines {
 		charged += uint64(line.UnitPrice) * uint64(line.Quantity)
-		deliveries = append(deliveries, storage.CashDelivery{Product: line.Product, Template: line.Template, Amount: line.Quantity * line.Units, Quantity: line.Quantity})
+		deliveries = append(deliveries, database.CashDelivery{Product: line.Product, Template: line.Template, Amount: line.Quantity * line.Units, Quantity: line.Quantity})
 	}
 	for _, act := range premiums {
-		out = append(out, storage.CashPremium{Type: act.Type, EndTime: time.Now().Unix() + act.DurationSecond})
+		out = append(out, database.CashPremium{Type: act.Type, EndTime: time.Now().Unix() + act.DurationSecond})
 	}
-	return storage.CashReceipt{Order: o.Key, Charged: charged, CharacterState: json.RawMessage(`{}`), Deliveries: deliveries, Premiums: out}, true, nil
+	return database.CashReceipt{Order: o.Key, Charged: charged, CharacterState: json.RawMessage(`{}`), Deliveries: deliveries, Premiums: out}, true, nil
 }
 
 // 实机 2026-09-23:合并购买契约曾被 "premium contracts require a separate

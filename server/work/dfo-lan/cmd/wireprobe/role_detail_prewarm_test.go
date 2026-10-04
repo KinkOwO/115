@@ -5,22 +5,22 @@ import (
 	"context"
 	"dfolan/internal/catalog"
 	"dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/gamedata"
 	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"os"
 	"testing"
 )
 
-func prewarmRole(t *testing.T, bag inventory.Bag) storage.Character {
+func prewarmRole(t *testing.T, bag inventory.Bag) database.Character {
 	t.Helper()
 	raw, err := inventory.SaveBag(json.RawMessage(`{"other_saved_field":123}`), bag)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return storage.Character{State: raw}
+	return database.Character{State: raw}
 }
 
 func TestRolePVFPrewarmPreservesUnknownInventoryTemplates(t *testing.T) {

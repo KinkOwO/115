@@ -4,10 +4,10 @@ import (
 	"context"
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
-	"dfolan/internal/storage"
 	"dfolan/internal/workflow"
 	"encoding/binary"
 	"encoding/json"
@@ -18,13 +18,13 @@ import (
 )
 
 type mockBoosterStore struct {
-	character storage.Character
+	character database.Character
 	receipts  map[string]json.RawMessage
 	premiums  map[uint8]int64
 	now       int64
 }
 
-func newMockBoosterStore(char storage.Character) *mockBoosterStore {
+func newMockBoosterStore(char database.Character) *mockBoosterStore {
 	return &mockBoosterStore{
 		character: char,
 		receipts:  make(map[string]json.RawMessage),
@@ -44,7 +44,7 @@ func (m *mockBoosterStore) ActivatePremium(ctx context.Context, account int64, p
 	return newEnd, nil
 }
 
-func (m *mockBoosterStore) CommitCharacterEvent(ctx context.Context, account, id int64, version, key, model string, apply func(storage.Character) (json.RawMessage, json.RawMessage, error)) (storage.Character, bool, error) {
+func (m *mockBoosterStore) CommitCharacterEvent(ctx context.Context, account, id int64, version, key, model string, apply func(database.Character) (json.RawMessage, json.RawMessage, error)) (database.Character, bool, error) {
 	newState, receipt, err := apply(m.character)
 	if err != nil {
 		return m.character, false, err
@@ -59,7 +59,7 @@ func (m *mockBoosterStore) CharacterEventReceipt(ctx context.Context, account, i
 }
 
 // 合并适配：上游礼包用例继续验证发奖，模拟存储改为本地原子契约接口。
-func (m *mockBoosterStore) CommitCharacterPremiumEvent(ctx context.Context, account, id int64, version, key, model string, apply func(storage.Character) (json.RawMessage, json.RawMessage, []storage.CashPremiumActivation, error)) (storage.Character, bool, error) {
+func (m *mockBoosterStore) CommitCharacterPremiumEvent(ctx context.Context, account, id int64, version, key, model string, apply func(database.Character) (json.RawMessage, json.RawMessage, []database.CashPremiumActivation, error)) (database.Character, bool, error) {
 	if _, ok := m.receipts[key]; ok {
 		return m.character, false, nil
 	}
@@ -76,11 +76,11 @@ func (m *mockBoosterStore) CommitCharacterPremiumEvent(ctx context.Context, acco
 		balances[kind] = end
 	}
 	now := m.now
-	var premiums []storage.CashPremium
+	var premiums []database.CashPremium
 	for _, reward := range rewards {
 		end := max(now, balances[reward.Type]) + reward.DurationSecond
 		balances[reward.Type] = end
-		premiums = append(premiums, storage.CashPremium{Type: reward.Type, EndTime: end, RemainingSecond: end - now})
+		premiums = append(premiums, database.CashPremium{Type: reward.Type, EndTime: end, RemainingSecond: end - now})
 	}
 	fields["premiums"], _ = json.Marshal(premiums)
 	receipt, err = json.Marshal(fields)
@@ -104,7 +104,7 @@ func TestBoosterUseTitleBox(t *testing.T) {
 		},
 	}
 	state, _ := inventory.SaveBag(json.RawMessage(`{}`), bag)
-	char := storage.Character{
+	char := database.Character{
 		ID:        10,
 		AccountID: 1,
 		State:     state,
@@ -191,7 +191,7 @@ func TestBoosterUseAvatarBoxSelection(t *testing.T) {
 		},
 	}
 	state, _ := inventory.SaveBag(json.RawMessage(`{}`), bag)
-	char := storage.Character{
+	char := database.Character{
 		ID:        10,
 		AccountID: 1,
 		State:     state,
@@ -261,7 +261,7 @@ func TestBoosterUseCreatureBoxSelection(t *testing.T) {
 		},
 	}
 	state, _ := inventory.SaveBag(json.RawMessage(`{}`), bag)
-	char := storage.Character{
+	char := database.Character{
 		ID:        10,
 		AccountID: 1,
 		State:     state,
@@ -314,7 +314,7 @@ func TestBoosterUseSkinAvatarBoxWithAbilityOption(t *testing.T) {
 		},
 	}
 	state, _ := inventory.SaveBag(json.RawMessage(`{}`), bag)
-	char := storage.Character{
+	char := database.Character{
 		ID:        10,
 		AccountID: 1,
 		State:     state,
@@ -396,7 +396,7 @@ func TestBoosterOdysseyModeOpensRegularBooster(t *testing.T) {
 		},
 	}
 	state, _ := inventory.SaveBag(json.RawMessage(`{}`), bag)
-	char := storage.Character{
+	char := database.Character{
 		ID:        10,
 		AccountID: 1,
 		State:     state,
@@ -457,7 +457,7 @@ func TestBoosterOpenLifeTokenBox(t *testing.T) {
 		},
 	}
 	state, _ := inventory.SaveBag(json.RawMessage(`{}`), bag)
-	char := storage.Character{
+	char := database.Character{
 		ID:        10,
 		AccountID: 1,
 		State:     state,
@@ -526,7 +526,7 @@ func TestBoosterOpenMasterContractPackage(t *testing.T) {
 		},
 	}
 	state, _ := inventory.SaveBag(json.RawMessage(`{}`), bag)
-	char := storage.Character{
+	char := database.Character{
 		ID:        10,
 		AccountID: 1,
 		State:     state,
@@ -616,7 +616,7 @@ func TestBoosterOpenMasterContractPackageCrashFix(t *testing.T) {
 		},
 	}
 	state, _ := inventory.SaveBag(json.RawMessage(`{}`), bag)
-	char := storage.Character{
+	char := database.Character{
 		ID:        10,
 		AccountID: 1,
 		State:     state,
@@ -686,7 +686,7 @@ func TestBoosterOpenRemySparklingTouchBox(t *testing.T) {
 		},
 	}
 	state, _ := inventory.SaveBag(json.RawMessage(`{}`), bag)
-	char := storage.Character{
+	char := database.Character{
 		ID:        10,
 		AccountID: 1,
 		State:     state,
@@ -750,7 +750,7 @@ func TestBoosterDirectContractActivation(t *testing.T) {
 		},
 	}
 	state, _ := inventory.SaveBag(json.RawMessage(`{}`), bag)
-	char := storage.Character{
+	char := database.Character{
 		ID:        10,
 		AccountID: 1,
 		State:     state,
@@ -814,7 +814,7 @@ func TestBoosterDirectContractActivationCrashFix(t *testing.T) {
 		},
 	}
 	state, _ := inventory.SaveBag(json.RawMessage(`{}`), bag)
-	char := storage.Character{
+	char := database.Character{
 		ID:        10,
 		AccountID: 1,
 		State:     state,
@@ -894,7 +894,7 @@ func TestBoosterEquipmentGrantUsesSourceDurability(t *testing.T) {
 		Items:   []inventory.BagItem{{Slot: 65, Template: boxTpl, Amount: 1}},
 	}
 	state, _ := inventory.SaveBag(json.RawMessage(`{}`), bag)
-	store := newMockBoosterStore(storage.Character{ID: 11, AccountID: 1, State: state})
+	store := newMockBoosterStore(database.Character{ID: 11, AccountID: 1, State: state})
 
 	lootSvc := &loot.Service{
 		Catalog: catalog.LootCatalog{

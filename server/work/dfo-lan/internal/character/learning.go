@@ -200,6 +200,7 @@ func (s *Service) Learn(ctx context.Context, role Character, key string, req pro
 	if s.Learning == nil || req.Tree != 0 {
 		return role, false, fmt.Errorf("learning service/source unavailable")
 	}
+	hasTactician, _ := s.Store.HasTacticianPremium(ctx, role.AccountID, time.Now())
 	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, "source-skill-learning-v1", func(current Character) (json.RawMessage, json.RawMessage, error) {
 		var state State
 		if e := json.Unmarshal(current.State, &state); e != nil {
@@ -238,10 +239,8 @@ func (s *Service) Learn(ctx context.Context, role Character, key string, req pro
 		reduced := map[uint16]bool{}
 		var newlyLearned []uint16
 		effectiveLevel := int(state.Level)
-		if s.Store != nil {
-			if hasTactician, _ := s.Store.HasTacticianPremium(ctx, role.AccountID, time.Now()); hasTactician {
-				effectiveLevel += 5
-			}
+		if hasTactician {
+			effectiveLevel += 5
 		}
 		for _, v := range req.Entries {
 			d, ok, sourceErr := s.Learning.Definition(current.Profession, v.ID)

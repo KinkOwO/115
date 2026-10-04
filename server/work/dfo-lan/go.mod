@@ -7,6 +7,7 @@ require (
 	github.com/knadh/koanf/providers/confmap v1.0.1
 	github.com/knadh/koanf/v2 v2.3.7
 	github.com/stretchr/testify v1.11.1
+	github.com/yuin/gopher-lua v1.1.2
 	golang.org/x/crypto v0.42.0
 	golang.org/x/text v0.29.0
 )

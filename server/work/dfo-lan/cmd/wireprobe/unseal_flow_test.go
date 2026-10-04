@@ -3,10 +3,10 @@ package main
 import (
 	"bytes"
 	"context"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/gamedata"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"dfolan/internal/workflow"
 	"encoding/json"
 	"fmt"
@@ -18,9 +18,9 @@ import (
 
 // Uses current native PVF rules and an explicitly selected disposable database.
 func TestUnsealNativeSaveIdentity(t *testing.T) {
-	configPath, archive := os.Getenv("DFO_TEST_STORAGE_CONFIG"), os.Getenv("DFO_PVF_CORE_TEST_ARCHIVE")
-	if configPath == "" || archive == "" {
-		t.Skip("set DFO_TEST_STORAGE_CONFIG and DFO_PVF_CORE_TEST_ARCHIVE for isolated native unseal regression")
+	dsn, archive := os.Getenv("DFO_TEST_POSTGRES_DSN"), os.Getenv("DFO_PVF_CORE_TEST_ARCHIVE")
+	if dsn == "" || archive == "" {
+		t.Skip("set DFO_TEST_POSTGRES_DSN and DFO_PVF_CORE_TEST_ARCHIVE for isolated native unseal regression")
 	}
 	source, err := gamedata.Open(gamedata.Options{Mode: gamedata.PVF, ArchivePath: archive, ExpectedChecksum: os.Getenv("DFO_PVF_CORE_TEST_SHA256")})
 	if err != nil {
@@ -47,32 +47,18 @@ func TestUnsealNativeSaveIdentity(t *testing.T) {
 	if source.Snapshot().Checksum == source.Snapshot().SaveIdentity() {
 		t.Fatal("native source must differ from save identity")
 	}
-	cfg, err := storage.LoadConfig(configPath)
-	if err != nil {
-		t.Fatal(err)
-	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	admin, err := storage.Open(ctx, cfg)
+	fixture, err := database.OpenTestFixture(ctx)
 	if err != nil {
-		t.Fatal(err)
-	}
-	defer admin.Close()
-	schema := fmt.Sprintf("unseal_test_%d", time.Now().UnixNano())
-	if _, err = admin.DB.Exec(ctx, "CREATE SCHEMA "+schema); err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
-		if _, err := admin.DB.Exec(context.Background(), "DROP SCHEMA "+schema+" CASCADE"); err != nil {
+		if err := fixture.Close(); err != nil {
 			t.Error(err)
 		}
 	}()
-	cfg.PostgresSchema = schema
-	store, err := storage.Open(ctx, cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer store.Close()
+	store := fixture.Storage()
 	for _, migrate := range []func(context.Context) error{store.Migrate, store.MigrateCharacterEvents} {
 		if err := migrate(ctx); err != nil {
 			t.Fatal(err)
@@ -91,7 +77,7 @@ func TestUnsealNativeSaveIdentity(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			role, err := store.CreateCharacter(ctx, storage.Character{AccountID: account, Name: fmt.Sprintf("UnsealFixture%d", i), Request: []byte{0}, ConfigVersion: version, State: state}, 24)
+			role, err := store.CreateCharacter(ctx, database.Character{AccountID: account, Name: fmt.Sprintf("UnsealFixture%d", i), Request: []byte{0}, ConfigVersion: version, State: state}, 24)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -125,7 +111,7 @@ func TestUnsealNativeSaveIdentity(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			var reloaded storage.Character
+			var reloaded database.Character
 			for _, saved := range roles {
 				if saved.ID == role.ID {
 					reloaded = saved
@@ -148,8 +134,8 @@ func TestUnsealNativeSaveIdentity(t *testing.T) {
 			if _, _, err := w.unsealRandomOption(service, request); err == nil {
 				t.Fatal("already unsealed item rerolled")
 			}
-			var events int
-			if err := store.DB.QueryRow(ctx, "SELECT count(*) FROM character_events WHERE character_id=$1", role.ID).Scan(&events); err != nil || events != 1 {
+			events, err := fixture.EventCount(ctx, role.ID)
+			if err != nil || events != 1 {
 				t.Fatalf("event count %d: %v", events, err)
 			}
 		})

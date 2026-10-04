@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"crypto/sha256"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/savecontract"
-	"dfolan/internal/storage"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
@@ -25,7 +25,7 @@ type odysseyDeath struct {
 const odysseyCreditField = "odyssey_pilot_revive_credits"
 const odysseyCreditGrant = "odyssey-pilot-revive-10-user-approved-20260917-v1"
 
-func changeOdysseyCredits(role storage.Character, grant bool) (json.RawMessage, json.RawMessage, error) {
+func changeOdysseyCredits(role database.Character, grant bool) (json.RawMessage, json.RawMessage, error) {
 	if !isOdysseyRewardRole(role) || role.ConfigVersion != savecontract.Identity() {
 		return nil, nil, fmt.Errorf("test revive credits require Odyssey source role")
 	}
@@ -62,11 +62,11 @@ func changeOdysseyCredits(role storage.Character, grant bool) (json.RawMessage, 
 	receipt, e := json.Marshal(map[string]uint32{"before": before, "after": after})
 	return raw, receipt, e
 }
-func grantOdysseyCredits(ctx context.Context, s *storage.Store, role storage.Character) (storage.Character, bool, error) {
+func grantOdysseyCredits(ctx context.Context, s *database.Store, role database.Character) (database.Character, bool, error) {
 	if !isOdysseyRewardRole(role) {
 		return role, false, nil
 	}
-	return s.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, odysseyCreditGrant, "odyssey-test-credits-v1", func(r storage.Character) (json.RawMessage, json.RawMessage, error) {
+	return s.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, odysseyCreditGrant, "odyssey-test-credits-v1", func(r database.Character) (json.RawMessage, json.RawMessage, error) {
 		return changeOdysseyCredits(r, true)
 	})
 }
@@ -107,7 +107,7 @@ func (w *worldSession) pilotRevive(ctx context.Context, s dungeonReviveStore, p,
 		return nil, e
 	}
 	key := fmt.Sprintf("odyssey-pilot-revive:%s:%d", w.pilotDeath.Run, w.pilotDeath.Sequence)
-	saved, _, e := s.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, "odyssey-test-revive-v1", func(r storage.Character) (json.RawMessage, json.RawMessage, error) {
+	saved, _, e := s.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, "odyssey-test-revive-v1", func(r database.Character) (json.RawMessage, json.RawMessage, error) {
 		return changeOdysseyCredits(r, false)
 	})
 	if e != nil {

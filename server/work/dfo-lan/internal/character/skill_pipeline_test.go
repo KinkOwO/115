@@ -4,43 +4,35 @@ import (
 	"context"
 	"dfolan/internal/catalog"
 	. "dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"dfolan/internal/testfixture"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"os"
 	"reflect"
 	"testing"
-	"time"
 )
 
 func TestCapturedAutoSetPersistence(t *testing.T) {
-	if os.Getenv("CASH_INTEGRATION") != "1" {
+	if os.Getenv("DFO_TEST_POSTGRES_DSN") == "" {
 		t.Skip("isolated schema integration")
 	}
+	capture := os.Getenv("DFO_TEST_SKILL_CAPTURE_FILE")
+	if capture == "" {
+		t.Skip("DFO_TEST_SKILL_CAPTURE_FILE selects the historical before-state capture")
+	}
 	ctx := context.Background()
-	cfg, e := storage.LoadConfig("../../runtime/storage/local.json")
+	fixture, e := database.OpenTestFixture(ctx)
 	if e != nil {
 		t.Fatal(e)
 	}
-	admin, e := storage.Open(ctx, cfg)
-	if e != nil {
-		t.Fatal(e)
-	}
-	defer admin.Close()
-	schema := fmt.Sprintf("skill_pipeline_%d", time.Now().UnixNano())
-	if _, e = admin.DB.Exec(ctx, "CREATE SCHEMA "+schema); e != nil {
-		t.Fatal(e)
-	}
-	defer admin.DB.Exec(ctx, "DROP SCHEMA "+schema+" CASCADE")
-	cfg.PostgresSchema = schema
-	store, e := storage.Open(ctx, cfg)
-	if e != nil {
-		t.Fatal(e)
-	}
-	defer store.Close()
+	defer func() {
+		if err := fixture.Close(); err != nil {
+			t.Error(err)
+		}
+	}()
+	store := fixture.Storage()
 	if e = store.Migrate(ctx); e != nil {
 		t.Fatal(e)
 	}
@@ -58,7 +50,7 @@ func TestCapturedAutoSetPersistence(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	raw, e := os.ReadFile("../../runtime/equipment-user-fairy-six-receipt.json")
+	raw, e := os.ReadFile(capture)
 	if e != nil {
 		t.Fatal(e)
 	}

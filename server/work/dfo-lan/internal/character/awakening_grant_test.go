@@ -196,7 +196,7 @@ func TestAwakeningGrantStaysOnReset(t *testing.T) {
 		LearnedSkills: [2]map[uint16]byte{{g.id: g.rank}, {}},
 		SkillSlots:    [2]map[uint16]uint16{{g.id: 0}, {}},
 	}
-	if e := s.resetAutoState(t.Context(), role, &st, 0, 1); e != nil {
+	if e := s.resetAutoState(role, &st, 0, 1, false); e != nil {
 		t.Fatal(e)
 	}
 	if st.LearnedSkills[0][g.id] != g.rank {

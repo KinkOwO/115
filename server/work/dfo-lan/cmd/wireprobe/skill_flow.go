@@ -5,8 +5,8 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"fmt"
 	"time"
 )
@@ -63,7 +63,7 @@ func skillTreeRefreshRequired(id uint16, applied, varied bool) bool {
 	return !(id == 29 && varied)
 }
 
-func skillMutationResponsePlan(cs *character.Service, saved storage.Character, id uint16, body []byte, applied, varied bool) ([]outboundPacket, error) {
+func skillMutationResponsePlan(cs *character.Service, saved database.Character, id uint16, body []byte, applied, varied bool) ([]outboundPacket, error) {
 	plan := []outboundPacket{{"skill_committed_response", 1, id, body}}
 	if skillTreeRefreshRequired(id, applied, varied) {
 		restore, err := cs.EntrySkills(saved)
@@ -106,7 +106,7 @@ func (s *skillSession) handle(cs *character.Service, w *worldSession, id uint16,
 	key := fmt.Sprintf("skill:%x:%x", s.nonce, h)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	var saved storage.Character
+	var saved database.Character
 	var applied bool
 	var varied bool
 	var body []byte

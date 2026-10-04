@@ -4,10 +4,9 @@ import (
 	"context"
 	"dfolan/internal/catalog"
 
+	"dfolan/internal/database"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/json"
-	"fmt"
 	"os"
 	"reflect"
 	"testing"
@@ -15,39 +14,21 @@ import (
 )
 
 func TestKnightShieldTransactionsIntegration(t *testing.T) {
-	if os.Getenv("KNIGHT_SHIELD_INTEGRATION") != "1" {
-		t.Skip("KNIGHT_SHIELD_INTEGRATION=1 uses isolated PostgreSQL schema")
+	if os.Getenv("DFO_TEST_POSTGRES_DSN") == "" {
+		t.Skip("requires explicit DFO_TEST_POSTGRES_DSN for isolated PostgreSQL schema")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
-	cfg, e := storage.LoadConfig("../../runtime/storage/local.json")
+	fixture, e := database.OpenTestFixture(ctx)
 	if e != nil {
-		t.Fatal(e)
-	}
-	live, e := storage.Open(ctx, cfg)
-	if e != nil {
-		t.Fatal(e)
-	}
-	t.Cleanup(live.Close)
-	schema := fmt.Sprintf("knight_test_%d", time.Now().UnixNano())
-	if _, e = live.DB.Exec(ctx, "CREATE SCHEMA "+schema); e != nil {
 		t.Fatal(e)
 	}
 	t.Cleanup(func() {
-		if _, err := live.DB.Exec(context.Background(), "DROP SCHEMA "+schema+" CASCADE"); err != nil {
+		if err := fixture.Close(); err != nil {
 			t.Error(err)
 		}
 	})
-	cfg.PostgresSchema = schema
-	store, e := storage.Open(ctx, cfg)
-	if e != nil {
-		t.Fatal(e)
-	}
-	defer store.Close()
-	var actualSchema string
-	if e = store.DB.QueryRow(ctx, "SELECT current_schema()").Scan(&actualSchema); e != nil || actualSchema != schema {
-		t.Fatal("integration schema isolation failed", actualSchema, e)
-	}
+	store := fixture.Storage()
 	for _, fn := range []func(context.Context) error{store.Migrate, store.MigrateCharacterEvents, store.MigrateCashShop} {
 		if e = fn(ctx); e != nil {
 			t.Fatal(e)
@@ -94,12 +75,12 @@ func TestKnightShieldTransactionsIntegration(t *testing.T) {
 	if _, _, e = w.CommitKnightDeck(ctx, role, "knight-fixture-invalid-1", [5]uint32{113370007}); e == nil {
 		t.Fatal("quest upload was accepted")
 	}
-	var events int
-	if e = store.DB.QueryRow(ctx, "SELECT count(*) FROM character_events WHERE character_id=$1", role.ID).Scan(&events); e != nil || events != 1 {
+	events, e := fixture.EventCount(ctx, role.ID)
+	if e != nil || events != 1 {
 		t.Fatal("failed upload left receipt", events, e)
 	}
-	var before json.RawMessage
-	if e = store.DB.QueryRow(ctx, "SELECT state FROM characters WHERE id=$1", role.ID).Scan(&before); e != nil {
+	before, e := fixture.CharacterState(ctx, role.ID)
+	if e != nil {
 		t.Fatal(e)
 	}
 	var aState, bState any
@@ -110,14 +91,14 @@ func TestKnightShieldTransactionsIntegration(t *testing.T) {
 	}
 	// Reintroduce the legacy coin row after normal bag canonicalization, so
 	// both SQL-selected cash migrations really run against the fixture.
-	if _, e = store.DB.Exec(ctx, `UPDATE characters SET state=jsonb_set(state,'{inventory,items}','[{"slot":65,"Template":1,"Amount":3},{"slot":66,"Template":590722921,"Amount":1}]'::jsonb) WHERE id=$1`, role.ID); e != nil {
+	if e = fixture.SeedInventoryItems(ctx, role.ID, json.RawMessage(`[{"slot":65,"Template":1,"Amount":3},{"slot":66,"Template":590722921,"Amount":1}]`)); e != nil {
 		t.Fatal(e)
 	}
 	if e = store.MigrateCashShop(ctx); e != nil {
 		t.Fatal(e)
 	}
-	var migrated json.RawMessage
-	if e = store.DB.QueryRow(ctx, "SELECT state FROM characters WHERE id=$1", role.ID).Scan(&migrated); e != nil {
+	migrated, e := fixture.CharacterState(ctx, role.ID)
+	if e != nil {
 		t.Fatal(e)
 	}
 	b, e = inventory.ReadBag(migrated)
@@ -151,7 +132,7 @@ func knightDeckTestService(t *testing.T) *inventory.WearService {
 	return &inventory.WearService{Catalog: &inventory.EquipmentCatalog{Source: jobs.Source, Full: full}, Professions: jobs, Rules: rules, Shields: shields}
 }
 
-func knightRole(t *testing.T, s *inventory.WearService, deck [5]uint32) storage.Character {
+func knightRole(t *testing.T, s *inventory.WearService, deck [5]uint32) database.Character {
 	t.Helper()
 	b := inventory.Bag{Version: "ordinary-bag-v1", KnightShieldDeck: append([]uint32(nil), deck[:]...)}
 	if deck[0] != 0 {
@@ -161,5 +142,5 @@ func knightRole(t *testing.T, s *inventory.WearService, deck [5]uint32) storage.
 	if e != nil {
 		t.Fatal(e)
 	}
-	return storage.Character{Profession: s.Shields.Profession, ConfigVersion: s.Catalog.Source.SaveIdentity(), State: raw}
+	return database.Character{Profession: s.Shields.Profession, ConfigVersion: s.Catalog.Source.SaveIdentity(), State: raw}
 }

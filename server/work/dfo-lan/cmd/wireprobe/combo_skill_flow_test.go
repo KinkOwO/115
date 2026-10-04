@@ -5,10 +5,9 @@ import (
 	"context"
 	"dfolan/internal/catalog"
 	"dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/json"
-	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -86,16 +85,16 @@ func TestComboRepeatedEditsGetDistinctEventKeys(t *testing.T) {
 
 func TestComboResetAcceptsLiveZeroPadding(t *testing.T) {
 	var s comboSkillSession
-	_, err := s.save(&character.Service{}, &worldSession{role: storage.Character{ID: 1, Profession: 9}}, 502, make([]byte, 16))
+	_, err := s.save(&character.Service{}, &worldSession{role: database.Character{ID: 1, Profession: 9}}, 502, make([]byte, 16))
 	if err == nil || s.sequence != 1 {
 		t.Fatal("canonical encrypted empty body was rejected before persistence")
 	}
 	var invalid comboSkillSession
-	_, err = invalid.save(&character.Service{}, &worldSession{role: storage.Character{ID: 1, Profession: 9}}, 502, []byte{1})
+	_, err = invalid.save(&character.Service{}, &worldSession{role: database.Character{ID: 1, Profession: 9}}, 502, []byte{1})
 	if err == nil || invalid.sequence != 0 {
 		t.Fatal("nonempty reset reached persistence")
 	}
-	_, err = invalid.save(&character.Service{}, &worldSession{role: storage.Character{ID: 1, Profession: 9}}, 502, make([]byte, 32))
+	_, err = invalid.save(&character.Service{}, &worldSession{role: database.Character{ID: 1, Profession: 9}}, 502, make([]byte, 32))
 	if err == nil || invalid.sequence != 0 {
 		t.Fatal("oversized reset padding reached persistence")
 	}
@@ -112,7 +111,7 @@ func TestComboRestoreAfterSkillRefreshUsesStoredLayout(t *testing.T) {
 		t.Fatal(err)
 	}
 	cs := &character.Service{}
-	role := storage.Character{Profession: 9, State: state}
+	role := database.Character{Profession: 9, State: state}
 	plan, err := appendComboSkillRestore([]outboundPacket{{"skills", 0, 19, []byte{1}}}, cs, role)
 	if err != nil {
 		t.Fatal(err)
@@ -143,47 +142,33 @@ func TestDefaultCatalogDarkKnightComboShortcuts(t *testing.T) {
 // Real PostgreSQL check in a disposable schema. No production characters are
 // created or modified; exercise editing A -> B -> A, reset, and old-save fields.
 func TestComboSkillPersistenceIntegration(t *testing.T) {
-	if os.Getenv("COMBO_INTEGRATION") != "1" {
-		t.Skip("COMBO_INTEGRATION=1 requires local storage")
+	if os.Getenv("DFO_TEST_POSTGRES_DSN") == "" {
+		t.Skip("DFO_TEST_POSTGRES_DSN requires a dedicated PostgreSQL test database")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
-	cfg, err := storage.LoadConfig("../../runtime/storage/local.json")
+	fixture, err := database.OpenTestFixture(ctx)
 	if err != nil {
-		t.Fatal(err)
-	}
-	admin, err := storage.Open(ctx, cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer admin.Close()
-	schema := fmt.Sprintf("combo_check_%d", time.Now().UnixNano())
-	if _, err = admin.DB.Exec(ctx, "CREATE SCHEMA "+schema); err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
-		if _, err := admin.DB.Exec(context.Background(), "DROP SCHEMA "+schema+" CASCADE"); err != nil {
+		if err := fixture.Close(); err != nil {
 			t.Error(err)
 		}
 	}()
-	cfg.PostgresSchema = schema
-	db, err := storage.Open(ctx, cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
+	db := fixture.Storage()
 	if err = db.Migrate(ctx); err != nil {
 		t.Fatal(err)
 	}
 	if err = db.MigrateCharacterEvents(ctx); err != nil {
 		t.Fatal(err)
 	}
-	role := storage.Character{Profession: 9, ConfigVersion: strings.Repeat("a", 64)}
-	if err = db.DB.QueryRow(ctx, "INSERT INTO accounts(username) VALUES('combo-test') RETURNING id").Scan(&role.AccountID); err != nil {
+	account, err := db.DevelopmentAccount(ctx, "combo-test")
+	if err != nil {
 		t.Fatal(err)
 	}
-	role.State = json.RawMessage(`{"level":1,"unknown_future_field":{"keep":true},"skill_slots":[{"118":0},null]}`)
-	if err = db.DB.QueryRow(ctx, `INSERT INTO characters(account_id,wire_id,name,profession,create_request,config_version,state) VALUES($1,1,'combo-test',9,''::bytea,$2,$3) RETURNING id`, role.AccountID, role.ConfigVersion, role.State).Scan(&role.ID); err != nil {
+	role, err := db.CreateCharacter(ctx, database.Character{AccountID: account, Name: "combo-test", Profession: 9, ConfigVersion: strings.Repeat("a", 64), Request: []byte{}, State: json.RawMessage(`{"level":1,"unknown_future_field":{"keep":true},"skill_slots":[{"118":0},null]}`)}, 24)
+	if err != nil {
 		t.Fatal(err)
 	}
 	cs := &character.Service{Store: db}
@@ -198,8 +183,8 @@ func TestComboSkillPersistenceIntegration(t *testing.T) {
 		if _, err = session.save(cs, w, 500, body); err != nil {
 			t.Fatal(err)
 		}
-		var persisted json.RawMessage
-		if err = db.DB.QueryRow(ctx, "SELECT state FROM characters WHERE id=$1", role.ID).Scan(&persisted); err != nil {
+		persisted, err := fixture.CharacterState(ctx, role.ID)
+		if err != nil {
 			t.Fatal(err)
 		}
 		check := w.role
@@ -223,8 +208,8 @@ func TestComboSkillPersistenceIntegration(t *testing.T) {
 	if string(state["combo_skill_info"]) != "null" || string(state["unknown_future_field"]) != `{"keep":true}` {
 		t.Fatalf("reset corrupted old-save state: %s", w.role.State)
 	}
-	var count int
-	if err = db.DB.QueryRow(ctx, "SELECT count(*) FROM character_events WHERE character_id=$1", role.ID).Scan(&count); err != nil {
+	count, err := fixture.EventCount(ctx, role.ID)
+	if err != nil {
 		t.Fatal(err)
 	}
 	if count != 4 {

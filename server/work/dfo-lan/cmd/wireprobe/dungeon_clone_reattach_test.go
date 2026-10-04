@@ -3,9 +3,9 @@ package main
 import (
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -35,7 +35,7 @@ func TestDungeonCloneReattachRestoresOrdinaryGearLast(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	role := storage.Character{
+	role := database.Character{
 		ID: 5, WireID: 503, Profession: 11,
 		State: json.RawMessage(`{"source_sha256":"fixture","attributes":{"[hp max]":100,"[mp max]":100},"inventory":{"version":"ordinary-bag-v1","worn":[{"slot":3,"template":517500000},{"slot":12,"template":101000013}]}}`),
 	}

@@ -4,13 +4,12 @@ import (
 	"context"
 	"dfolan/internal/catalog"
 	. "dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/binary"
 	"encoding/json"
-	"fmt"
 	"os"
 	"reflect"
 	"testing"
@@ -25,35 +24,21 @@ func TestOdysseyGrowthDatabaseReplay(t *testing.T) {
 		}
 		return reflect.DeepEqual(x, y)
 	}
-	if os.Getenv("ODYSSEY_INTEGRATION") != "1" {
+	if os.Getenv("DFO_TEST_POSTGRES_DSN") == "" {
 		t.Skip("isolated PostgreSQL integration")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()
-	cfg, e := storage.LoadConfig("../../runtime/swordmaster-pilot-20260916/storage.json")
+	fixture, e := database.OpenTestFixture(ctx)
 	if e != nil {
-		t.Fatal(e)
-	}
-	admin, e := storage.Open(ctx, cfg)
-	if e != nil {
-		t.Fatal(e)
-	}
-	defer admin.Close()
-	schema := fmt.Sprintf("odyssey_growth_test_%d", time.Now().UnixNano())
-	if _, e = admin.DB.Exec(ctx, "CREATE SCHEMA "+schema); e != nil {
 		t.Fatal(e)
 	}
 	defer func() {
-		if _, e := admin.DB.Exec(context.Background(), "DROP SCHEMA "+schema+" CASCADE"); e != nil {
-			t.Error(e)
+		if err := fixture.Close(); err != nil {
+			t.Error(err)
 		}
 	}()
-	cfg.PostgresSchema = schema
-	store, e := storage.Open(ctx, cfg)
-	if e != nil {
-		t.Fatal(e)
-	}
-	defer store.Close()
+	store := fixture.Storage()
 	for _, f := range []func(context.Context) error{store.Migrate, store.MigrateCharacterEvents} {
 		if e = f(ctx); e != nil {
 			t.Fatal(e)

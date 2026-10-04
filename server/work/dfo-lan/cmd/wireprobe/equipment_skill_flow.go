@@ -2,8 +2,8 @@ package main
 
 import (
 	"context"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"fmt"
 	"os"
 )
@@ -38,11 +38,11 @@ func (w *worldSession) equipmentSkillPackets(ctx context.Context, id uint16, bod
 	switch id {
 	case 2254, 2256:
 		want := protocol.EquipmentSkillCount
-		which := storage.EquipmentSkillSnapshotColumn
+		which := database.EquipmentSkillSnapshotColumn
 		name := "equipment_skill_slots_saved"
 		if id == 2256 {
 			want = protocol.EquipmentCommandCount
-			which = storage.EquipmentCommandSnapshotColumn
+			which = database.EquipmentCommandSnapshotColumn
 			name = "equipment_skill_commands_saved"
 		}
 		snapshot, err := protocol.DecodeEquipmentSkillSnapshot(body, want)

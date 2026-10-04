@@ -4,8 +4,8 @@ import (
 	"context"
 	. "dfolan/internal/character"
 
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -15,37 +15,21 @@ import (
 )
 
 func TestBranchlessAwakeningAndLearningPersistence(t *testing.T) {
-	if os.Getenv("AWAKENING_INTEGRATION") != "1" {
-		t.Skip("AWAKENING_INTEGRATION=1 requires local storage")
+	if os.Getenv("DFO_TEST_POSTGRES_DSN") == "" {
+		t.Skip("DFO_TEST_POSTGRES_DSN requires dedicated test storage")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	cfg, err := storage.LoadConfig("../../runtime/storage/local.json")
+	fixture, err := database.OpenTestFixture(ctx)
 	if err != nil {
-		t.Fatal(err)
-	}
-	admin, err := storage.Open(ctx, cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer admin.Close()
-	schema := fmt.Sprintf("branchless_awakening_%d", time.Now().UnixNano())
-	if _, err = admin.DB.Exec(ctx, "CREATE SCHEMA "+schema); err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
-		cleanup, stop := context.WithTimeout(context.Background(), 5*time.Second)
-		defer stop()
-		if _, err := admin.DB.Exec(cleanup, "DROP SCHEMA "+schema+" CASCADE"); err != nil {
-			t.Error("temporary schema cleanup", err)
+		if err := fixture.Close(); err != nil {
+			t.Error(err)
 		}
 	}()
-	cfg.PostgresSchema = schema
-	store, err := storage.Open(ctx, cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer store.Close()
+	store := fixture.Storage()
 	for _, migrate := range []func(context.Context) error{store.Migrate, store.MigrateUnifiedOptions, store.MigrateGrants, store.MigrateCharacterEvents, store.MigratePremiums, store.MigrateQuests} {
 		if err = migrate(ctx); err != nil {
 			t.Fatal(err)

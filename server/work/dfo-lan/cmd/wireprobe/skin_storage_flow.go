@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"dfolan/internal/catalog"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"dfolan/internal/workflow"
 	"fmt"
 	"time"
@@ -133,7 +133,7 @@ func (w *worldSession) useAddSkinStorage(p []byte, event func(map[string]any)) (
 // damageFontCargo builds the absolute NOTI1545 damage-font page for an account.
 // The page is pushed whole because sub_1444EFF40 rebuilds it from the frame: a
 // partial list would delete the skins it omits.
-func damageFontCargo(ctx context.Context, store *storage.Store, account int64, entries map[uint32]catalog.SkinStorageEntry) ([]byte, error) {
+func damageFontCargo(ctx context.Context, store *database.Store, account int64, entries map[uint32]catalog.SkinStorageEntry) ([]byte, error) {
 	skins, e := store.ListSkins(ctx, account)
 	if e != nil {
 		return nil, e
@@ -144,7 +144,7 @@ func damageFontCargo(ctx context.Context, store *storage.Store, account int64, e
 // damageFontSkinIDs selects the registered skins the damage-font page owns. The
 // other families are left out until their page is proven, and several items can
 // register the same skin, so identifiers are deduplicated.
-func damageFontSkinIDs(skins []storage.AccountSkin, entries map[uint32]catalog.SkinStorageEntry) []uint32 {
+func damageFontSkinIDs(skins []database.AccountSkin, entries map[uint32]catalog.SkinStorageEntry) []uint32 {
 	ids := make([]uint32, 0, len(skins))
 	seen := make(map[uint32]bool, len(skins))
 	for _, skin := range skins {

@@ -2,8 +2,8 @@ package main
 
 import (
 	"context"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -68,7 +68,7 @@ func advanceStoryDigest(current json.RawMessage, level uint32) (json.RawMessage,
 // 只向前推进：仅当 level > 存档值才写回，防止读旧档 / 回档把进度往回拉，
 // 已看过的影片被重新"上膛"又重播。幂等键按等级区分，同级重复上报不重复写库；
 // 升级后再播会用新等级键继续推进。
-func saveStoryDigest(store *storage.Store, w *worldSession, p []byte) error {
+func saveStoryDigest(store *database.Store, w *worldSession, p []byte) error {
 	if w == nil || w.role.ID == 0 {
 		return fmt.Errorf("story digest requires character")
 	}
@@ -77,7 +77,7 @@ func saveStoryDigest(store *storage.Store, w *worldSession, p []byte) error {
 	defer cancel()
 	saved, _, err := store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion,
 		fmt.Sprintf("story-digest:%d", level), "story-digest-v1",
-		func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+		func(current database.Character) (json.RawMessage, json.RawMessage, error) {
 			state, advanced, e := advanceStoryDigest(current.State, level)
 			if e != nil {
 				return nil, nil, e
@@ -96,7 +96,7 @@ func saveStoryDigest(store *storage.Store, w *worldSession, p []byte) error {
 	return nil
 }
 
-func cinematicSkip(store *storage.Store, w *worldSession, p []byte) error {
+func cinematicSkip(store *database.Store, w *worldSession, p []byte) error {
 	if w == nil || w.role.ID == 0 {
 		return fmt.Errorf("cinematic requires character")
 	}
@@ -106,7 +106,7 @@ func cinematicSkip(store *storage.Store, w *worldSession, p []byte) error {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	saved, _, err := store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, fmt.Sprintf("cinematic-skip:%d", id), "cinematic-skip-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+	saved, _, err := store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, fmt.Sprintf("cinematic-skip:%d", id), "cinematic-skip-v1", func(current database.Character) (json.RawMessage, json.RawMessage, error) {
 		var fields map[string]json.RawMessage
 		if e := json.Unmarshal(current.State, &fields); e != nil {
 			return nil, nil, e

@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -56,7 +56,7 @@ func (w *worldSession) authorizeTutorial(requested uint32) error {
 	if e != nil {
 		return e
 	}
-	if stage >= storage.BirthComplete {
+	if stage >= database.BirthComplete {
 		return fmt.Errorf("starting route already finished")
 	}
 	return nil
@@ -81,7 +81,7 @@ func (w *worldSession) selectTutorial(requested uint32) (*dungeon.Session, []out
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	if _, e = w.store.AdvanceBirth(ctx, w.account, w.role.ID, storage.BirthEntered, requested); e != nil {
+	if _, e = w.store.AdvanceBirth(ctx, w.account, w.role.ID, database.BirthEntered, requested); e != nil {
 		return nil, nil, e
 	}
 	w.inTutorial = true
@@ -103,10 +103,10 @@ func (w *worldSession) settleTutorialReturn() error {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	if _, e = w.store.AdvanceBirth(ctx, w.account, w.role.ID, storage.BirthComplete, 0); e != nil {
+	if _, e = w.store.AdvanceBirth(ctx, w.account, w.role.ID, database.BirthComplete, 0); e != nil {
 		return e
 	}
-	next := storage.WorldPosition{Town: town, Area: area, X: position[0], Y: position[1]}
+	next := database.WorldPosition{Town: town, Area: area, X: position[0], Y: position[1]}
 	if e = w.service.ValidatePosition(w.level, w.odyssey, next); e != nil {
 		return e
 	}

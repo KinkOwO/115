@@ -34,20 +34,20 @@ type gameConnection struct {
 	keys                 []byte
 	// loginEventFloodSent 选角前的登录事件洪流（next79 §13/§15，
 	// ispins_wiring.go sendLoginFloodOnce）每连接只发一次。
-	loginEventFloodSent  bool
-	legionState          legionSession
-	mailAlarmRole        int64
-	mailChanges          chan struct{}
-	mailDeliveryID       int64
-	output               *connectionOutput
-	peer                 string
-	purchaseSession      *shopPilotSession
-	selectedAddition     []byte
-	selectedBasic        []byte
-	selectedCharacterID  int64
-	skillState           skillSession
-	sortState            sortSession
-	worldState           *worldSession
+	loginEventFloodSent bool
+	legionState         legionSession
+	mailAlarmRole       int64
+	mailChanges         chan struct{}
+	mailDeliveryID      int64
+	output              *connectionOutput
+	peer                string
+	purchaseSession     *shopPilotSession
+	selectedAddition    []byte
+	selectedBasic       []byte
+	selectedCharacterID int64
+	skillState          skillSession
+	sortState           sortSession
+	worldState          *worldSession
 }
 
 type gameGateway struct {
@@ -100,7 +100,7 @@ func (gateway *gameGateway) handleClient(c net.Conn, channel uint32) {
 	client.legionState.clock = client.apocalypseClock
 	client.legionState.channelType = client.channelTypes[client.channel]
 	if client.worldService != nil {
-		client.worldState = &worldSession{characters: client.characters, service: client.worldService, store: client.gameStore, account: client.developmentAccount, flags: client.townPolicy.Flags, dungeons: client.dungeonCatalog, townArrivalScenes: client.townArrivalScenes, tutorials: client.tutorialRoutes, tutorialDungeons: client.tutorialDungeons, professions: client.characters.Catalog, fatigue: client.fatigueService, quests: client.questService, progression: client.progressionService, loot: client.lootService, items: client.itemService, shop: client.shopService, selectionBoxes: client.selectionBoxes, vault: client.vaultService, skinCatalog: client.skinCatalog, soloPartyBootstrap: client.config.SoloPartyBootstrap, hub: client.hub, scaleDeathFromHP: client.config.ScaleDeathFromHP, oathGrades: client.oathGradePair, oathTable: client.oathGradeTable, oathFromGear: client.config.OathGradesFromGear, oathProgressClears: client.config.OathProgressClears, oathProgressDungeons: client.oathProgressSet, oathInject: client.oathInjectSpecs, omenHold: client.config.OmenHold, omenState: client.omenState, omenInfo: client.omenInfoBytes}
+		client.worldState = &worldSession{characters: client.characters, service: client.worldService, store: client.gameStore, account: client.developmentAccount, flags: client.townPolicy.Flags, dungeons: client.dungeonCatalog, townArrivalScenes: client.townArrivalScenes, tutorials: client.tutorialRoutes, tutorialDungeons: client.tutorialDungeons, professions: client.characters.Catalog, fatigue: client.fatigueService, quests: client.questService, progression: client.progressionService, rewards: client.rewards, loot: client.lootService, items: client.itemService, shop: client.shopService, selectionBoxes: client.selectionBoxes, vault: client.vaultService, skinCatalog: client.skinCatalog, soloPartyBootstrap: client.config.SoloPartyBootstrap, hub: client.hub, scaleDeathFromHP: client.config.ScaleDeathFromHP, oathGrades: client.oathGradePair, oathTable: client.oathGradeTable, oathFromGear: client.config.OathGradesFromGear, oathProgressClears: client.config.OathProgressClears, oathProgressDungeons: client.oathProgressSet, oathInject: client.oathInjectSpecs, omenHold: client.config.OmenHold, omenState: client.omenState, omenInfo: client.omenInfoBytes}
 		// 启动器自动拾取只对本机回环连接生效，避免把本地便利开关扩散给局域网玩家。
 		if addr, ok := c.RemoteAddr().(*net.TCPAddr); ok {
 			client.worldState.autoPickup = addr.IP.IsLoopback() && os.Getenv("DFO_AUTO_PICKUP") == "1"
@@ -175,6 +175,13 @@ func (client *gameConnection) serve() {
 					client.event(map[string]any{"kind": "黑鸦超时退出失败", "error": err.Error()})
 				}
 				if client.sendPlan(packets, client.logCharacterResponse) != nil {
+					return
+				}
+				packets, err = client.worldState.ispinsTimeout(now)
+				if err != nil {
+					client.event(map[string]any{"kind": "ispins_timeout_error", "error": err.Error()})
+				}
+				if client.sendPlan(packets, client.logWorldResponseBody) != nil {
 					return
 				}
 			}

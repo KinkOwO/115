@@ -2,9 +2,9 @@ package main
 
 import (
 	"context"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 )
@@ -12,20 +12,20 @@ import (
 // Account material storage ("soul storage") orchestration. The 115 client
 // pins seventeen templates to list 35 at 363..379 and two radiant souls
 // to list 42 at 0..1
-// (docs/protocol/next43-account-material-storage.md). The server owns the
+// (docs/protocol/next43-account-material-database.md). The server owns the
 // counts per account; any of these templates entering a character bag is
 // swept into the account storage inside one transaction.
 
 // sweepAccountMaterials moves every account-shared material stack out of the
-// role's ordinary bag into the account storage. It is a pure state-derived
+// role's ordinary bag into the account database. It is a pure state-derived
 // migration: once swept, a retry finds nothing left to move.
-func sweepAccountMaterials(ctx context.Context, store *storage.Store, role storage.Character) (storage.Character, inventory.AccountMaterials, error) {
+func sweepAccountMaterials(ctx context.Context, store *database.Store, role database.Character) (database.Character, inventory.AccountMaterials, error) {
 	materials := inventory.NewAccountMaterials()
 	if store == nil || role.ID == 0 {
 		return role, materials, fmt.Errorf("account material storage unavailable")
 	}
 	saved, counts, e := store.CommitAccountMaterialSweep(ctx, role.AccountID, role.ID, role.ConfigVersion,
-		func(current storage.Character, raw json.RawMessage) (json.RawMessage, json.RawMessage, error) {
+		func(current database.Character, raw json.RawMessage) (json.RawMessage, json.RawMessage, error) {
 			m, e := inventory.ReadAccountMaterials(raw)
 			if e != nil {
 				return nil, nil, e
@@ -81,7 +81,7 @@ func radiantSoulSnapshot(m inventory.AccountMaterials) ([]byte, error) {
 
 // accountMaterialRefreshPackets sends list35, list42, then the full list0
 // bag snapshot that triggers the client-side harvest.
-func accountMaterialRefreshPackets(m inventory.AccountMaterials, role storage.Character) ([]outboundPacket, error) {
+func accountMaterialRefreshPackets(m inventory.AccountMaterials, role database.Character) ([]outboundPacket, error) {
 	storageBody, e := accountMaterialSnapshot(m)
 	if e != nil {
 		return nil, e

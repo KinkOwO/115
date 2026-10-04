@@ -3,9 +3,9 @@ package main
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/savecontract"
-	"dfolan/internal/storage"
 	"dfolan/internal/testfixture"
 	"dfolan/internal/world"
 	"encoding/json"
@@ -44,7 +44,7 @@ func TestOdysseyStormPassJournalTeleportGate(t *testing.T) {
 		t.Fatal(err)
 	}
 	session := func(level byte, odysseyRole bool) *worldSession {
-		role := storage.Character{ConfigVersion: savecontract.Identity(), State: state}
+		role := database.Character{ConfigVersion: savecontract.Identity(), State: state}
 		if odysseyRole {
 			role.Request = req
 		}
@@ -55,7 +55,7 @@ func TestOdysseyStormPassJournalTeleportGate(t *testing.T) {
 			level:       level,
 			odyssey:     character.CreatedAsOdyssey(role),
 			role:        role,
-			state:       storage.WorldState{Position: storage.WorldPosition{Town: 39, Area: 5, X: 341, Y: 267}},
+			state:       database.WorldState{Position: database.WorldPosition{Town: 39, Area: 5, X: 341, Y: 267}},
 		}
 	}
 	// 客户端日志传送形态：CMD 36 Flag=5 且尾部标志全 0。
@@ -112,13 +112,13 @@ func TestOdysseyWestCoastTeleportGate(t *testing.T) {
 	for len(req)%8 != 0 {
 		req = append(req, 0)
 	}
-	role := storage.Character{ID: 11, AccountID: 7, WireID: 11, Request: req, State: json.RawMessage(`{"level":20}`)}
+	role := database.Character{ID: 11, AccountID: 7, WireID: 11, Request: req, State: json.RawMessage(`{"level":20}`)}
 	w := &worldSession{
 		service: &world.Service{Catalog: cat},
 		role:    role,
 		level:   20,
 		odyssey: character.CreatedAsOdyssey(role),
-		state:   storage.WorldState{Position: storage.WorldPosition{Town: 39, Area: 0, X: 3284, Y: 259}},
+		state:   database.WorldState{Position: database.WorldPosition{Town: 39, Area: 0, X: 3284, Y: 259}},
 	}
 	if !w.odyssey {
 		t.Fatal("fixture is not an odyssey character")

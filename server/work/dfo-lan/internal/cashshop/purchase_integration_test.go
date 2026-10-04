@@ -3,10 +3,9 @@ package cashshop_test
 import (
 	"context"
 	"dfolan/internal/cashshop"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/hex"
-	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -14,37 +13,21 @@ import (
 )
 
 func TestPurchasePipelineIntegration(t *testing.T) {
-	if os.Getenv("CASH_INTEGRATION") != "1" {
-		t.Skip("CASH_INTEGRATION=1 uses a disposable PostgreSQL schema")
+	if os.Getenv("DFO_TEST_POSTGRES_DSN") == "" {
+		t.Skip("DFO_TEST_POSTGRES_DSN uses a disposable PostgreSQL schema")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	cfg, err := storage.LoadConfig("../../runtime/storage/local.json")
+	fixture, err := database.OpenTestFixture(ctx)
 	if err != nil {
-		t.Fatal(err)
-	}
-	admin, err := storage.Open(ctx, cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer admin.Close()
-	schema := fmt.Sprintf("cash_pipeline_%d", time.Now().UnixNano())
-	if _, err = admin.DB.Exec(ctx, "CREATE SCHEMA "+schema); err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
-		cleanup, stop := context.WithTimeout(context.Background(), 10*time.Second)
-		defer stop()
-		if _, err := admin.DB.Exec(cleanup, "DROP SCHEMA "+schema+" CASCADE"); err != nil {
+		if err := fixture.Close(); err != nil {
 			t.Error(err)
 		}
 	}()
-	cfg.PostgresSchema = schema
-	store, err := storage.Open(ctx, cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer store.Close()
+	store := fixture.Storage()
 	for _, migrate := range []func(context.Context) error{store.Migrate, store.MigrateGrants, store.MigrateCashShop} {
 		if err = migrate(ctx); err != nil {
 			t.Fatal(err)
@@ -55,11 +38,11 @@ func TestPurchasePipelineIntegration(t *testing.T) {
 		t.Fatal(err)
 	}
 	source := strings.Repeat("a", 64)
-	role, err := store.CreateCharacter(ctx, storage.Character{AccountID: account, Name: "CashPipeline", Request: []byte{0}, ConfigVersion: source, State: []byte(`{}`)}, 24)
+	role, err := store.CreateCharacter(ctx, database.Character{AccountID: account, Name: "CashPipeline", Request: []byte{0}, ConfigVersion: source, State: []byte(`{}`)}, 24)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = store.DB.Exec(ctx, `INSERT INTO account_currency(account_id,cera) VALUES($1,10000)`, account); err != nil {
+	if err = fixture.SeedAccountCurrency(ctx, account, 10000); err != nil {
 		t.Fatal(err)
 	}
 	raw, err := hex.DecodeString("000001000029e3330001000000000000")
@@ -78,7 +61,7 @@ func TestPurchasePipelineIntegration(t *testing.T) {
 		t.Fatalf("purchase: %+v applied=%v err=%v", r, applied, err)
 	}
 	// A separate pool reads persisted results, not the writer's in-memory state.
-	reopened, err := storage.Open(ctx, cfg)
+	reopened, err := fixture.Reopen(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

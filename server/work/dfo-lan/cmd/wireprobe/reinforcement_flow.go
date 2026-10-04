@@ -2,9 +2,9 @@ package main
 
 import (
 	"context"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"dfolan/internal/workflow"
 	"encoding/binary"
 	"encoding/hex"
@@ -69,7 +69,7 @@ const (
 
 // reinforcementBranch 判断这次 CMD80 走哪条路径。@9 是玩家放进窗口那件东西的槽位：
 // 363..379 是账号材料仓库格（无色小晶块固定 367），其余是背包槽位，需要看模板是券还是材料。
-func reinforcementBranch(role storage.Character, r protocol.ReinforcementRequest) (string, error) {
+func reinforcementBranch(role database.Character, r protocol.ReinforcementRequest) (string, error) {
 	if _, ok := inventory.StorageRowTemplate(r.TicketSlot); ok {
 		return reinforcementGoldBranch, nil
 	}
@@ -300,7 +300,7 @@ func (s *equipmentSession) amplifyUpgrade(ctx context.Context, service *workflow
 //   - 增幅券（PVF 段 [equipment amplify reinforcement ticket]）→ 跳级到券的目标等级；
 //   - 其余一律按增幅材料处理，由 applyAmplifyUpgrade 给出准确报错
 //     （例如「增幅材料槽位放的不是矛盾结晶体」），这里不提前拦。
-func amplifyBranch(role storage.Character, r protocol.ReinforcementRequest) (string, error) {
+func amplifyBranch(role database.Character, r protocol.ReinforcementRequest) (string, error) {
 	bag, err := inventory.ReadBag(role.State)
 	if err != nil {
 		return "", err

@@ -2,10 +2,9 @@ package workflow
 
 import (
 	"context"
-	"dfolan/internal/db"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -17,7 +16,7 @@ import (
 // ShopService settles NPC purchases and sales using inventory rules.
 type ShopService struct {
 	inventory.ShopService
-	Store *storage.Store
+	Store *database.Store
 }
 
 // shopEventSeq 是进程内的请求计数，只用于让事件键可读。
@@ -51,12 +50,8 @@ func shopEventKeyAt(boot int64, op string, seq uint64, fields ...uint32) string 
 
 // checkShopLimit 在**事务内**校验限购并记录本次购买。
 //
-// ⚠️ **本仓取舍（单机化的体验改动，非原版设计）**：原版源里有 `[purchase limit]`，本仓**暂不实施** ——
-// 目录里还没有 `limit_*` 字段（导入器未接），`PurchaseLimit` 因此恒返回 `ok=false`，本函数直接放行。
-// 代码路径保留，接上数据即生效。详见 internal/storage/shop_purchase.go 的头部说明。
-//
-// 规格：物品自身 `.stk` 的 `[purchase limit] <scope> <period> <count>`，由
-// cmd/itemshopimport 导进 itemshop 目录的 offer 字段（catalog.ItemShopOffer）。
+// 当前原生目录的 purchase_limit_mode=disabled 策略保持不变。
+// 本次只修正已有持久化能力，规则仍由 catalog 提供。
 //
 //   - scope：account ⇒ 按账号累计（跨角色共享）；其余按角色。
 //   - period：daily/weekly/monthly ⇒ 按日历窗口；accumulate/version/空 ⇒ 从首次购买起累计。
@@ -65,17 +60,16 @@ func shopEventKeyAt(boot int64, op string, seq uint64, fields ...uint32) string 
 //
 // 校验与记录都必须与背包变更在同一个事务里：否则会出现「货到手但次数没记」，
 // 或重发请求重复计数（重发的同 key 请求走幂等回执，不会重跑 apply）。
-func (s *ShopService) checkShopLimit(ctx context.Context, tx db.Tx, current storage.Character, shopID, template uint32) error {
+func (s *ShopService) checkShopLimit(ctx context.Context, tx *database.Tx, shopID, template uint32) error {
 	scope, period, count, limited := s.ItemShops.PurchaseLimit(shopID, template)
 	if !limited {
 		return nil
 	}
-	kind := storage.ShopPurchaseScope(scope)
-	if kind != storage.ShopScopeAccount {
-		kind = storage.ShopScopeCharacter
+	kind := database.ShopPurchaseScope(scope)
+	if kind != database.ShopScopeAccount {
+		kind = database.ShopScopeCharacter
 	}
-	used, e := s.Store.CountShopPurchases(ctx, kind, current.AccountID, current.ID,
-		shopID, template, storage.PeriodStart(period, time.Now()))
+	used, e := tx.CountShopPurchases(ctx, kind, shopID, template, database.PeriodStart(period, time.Now()))
 	if e != nil {
 		return e
 	}
@@ -83,12 +77,12 @@ func (s *ShopService) checkShopLimit(ctx context.Context, tx db.Tx, current stor
 		return fmt.Errorf("shop %d template %d reached its purchase limit (%d/%d, %s %s)",
 			shopID, template, used, count, scope, period)
 	}
-	return storage.RecordShopPurchase(ctx, tx, current.AccountID, current.ID, shopID, template)
+	return tx.RecordShopPurchase(ctx, shopID, template)
 }
 
-func (s *ShopService) Buy(ctx context.Context, role storage.Character, r protocol.BuyItemRequest) (storage.Character, inventory.BuyReceipt, bool, error) {
+func (s *ShopService) Buy(ctx context.Context, role database.Character, r protocol.BuyItemRequest) (database.Character, inventory.BuyReceipt, bool, error) {
 	var out inventory.BuyReceipt
-	fail := func(e error) (storage.Character, inventory.BuyReceipt, bool, error) {
+	fail := func(e error) (database.Character, inventory.BuyReceipt, bool, error) {
 		return role, out, false, e
 	}
 	if err := s.ValidateBuy(InventoryRole(role), r); err != nil {
@@ -112,7 +106,7 @@ func (s *ShopService) Buy(ctx context.Context, role storage.Character, r protoco
 		return fail(err)
 	}
 	shopID, mats := plan.ShopID, plan.Materials
-	var saved storage.Character
+	var saved database.Character
 	var applied bool
 	if len(mats) > 0 {
 		// ★ 材料支付：把「扣账号材料」与「改角色存档」放进**同一事务**
@@ -121,8 +115,8 @@ func (s *ShopService) Buy(ctx context.Context, role storage.Character, r protoco
 		var e error
 		saved, _, applied, e = s.Store.CommitAccountMaterialEventTx(ctx, role.AccountID, role.ID,
 			s.Catalog.Source.SaveIdentity(), key, s.EventModel,
-			func(tx db.Tx, current storage.Character, rawCounts json.RawMessage) (json.RawMessage, json.RawMessage, error) {
-				if e := s.checkShopLimit(ctx, tx, current, shopID, r.Template); e != nil {
+			func(tx *database.Tx, current database.Character, rawCounts json.RawMessage) (json.RawMessage, json.RawMessage, error) {
+				if e := s.checkShopLimit(ctx, tx, shopID, r.Template); e != nil {
 					return nil, nil, e
 				}
 				next, counts, receipt, e := s.ApplyBuyMaterials(InventoryRole(current), rawCounts, r, plan, seq)
@@ -139,8 +133,8 @@ func (s *ShopService) Buy(ctx context.Context, role storage.Character, r protoco
 		var e error
 		saved, applied, e = s.Store.CommitCharacterEventTx(ctx, role.AccountID, role.ID,
 			s.Catalog.Source.SaveIdentity(), key, s.EventModel,
-			func(tx db.Tx, current storage.Character) (json.RawMessage, json.RawMessage, error) {
-				if e := s.checkShopLimit(ctx, tx, current, shopID, r.Template); e != nil {
+			func(tx *database.Tx, current database.Character) (json.RawMessage, json.RawMessage, error) {
+				if e := s.checkShopLimit(ctx, tx, shopID, r.Template); e != nil {
 					return nil, nil, e
 				}
 				next, receipt, e := s.ApplyBuyGold(InventoryRole(current), r, plan, seq)
@@ -169,9 +163,9 @@ func (s *ShopService) Buy(ctx context.Context, role storage.Character, r protoco
 	return saved, out, applied, nil
 }
 
-func (s *ShopService) Sell(ctx context.Context, role storage.Character, r protocol.SellItemRequest) (storage.Character, inventory.SellReceipt, bool, error) {
+func (s *ShopService) Sell(ctx context.Context, role database.Character, r protocol.SellItemRequest) (database.Character, inventory.SellReceipt, bool, error) {
 	var out inventory.SellReceipt
-	fail := func(e error) (storage.Character, inventory.SellReceipt, bool, error) {
+	fail := func(e error) (database.Character, inventory.SellReceipt, bool, error) {
 		return role, out, false, e
 	}
 	if err := s.ValidateSell(InventoryRole(role), r); err != nil {
@@ -182,7 +176,7 @@ func (s *ShopService) Sell(ctx context.Context, role storage.Character, r protoc
 
 	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID,
 		s.Catalog.Source.SaveIdentity(), key, s.EventModel,
-		func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+		func(current database.Character) (json.RawMessage, json.RawMessage, error) {
 			next, receipt, e := s.ApplySell(InventoryRole(current), r, seq)
 			if e != nil {
 				return nil, nil, e

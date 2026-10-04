@@ -3,10 +3,10 @@ package main
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
-	"dfolan/internal/storage"
 	"dfolan/internal/world"
 	"strings"
 	"testing"
@@ -140,7 +140,7 @@ func favorRulesFixture(t *testing.T) *catalog.NPCFavorRules {
 func TestFavorGiftUsesNativeEligibilityAndRejectsMissingRules(t *testing.T) {
 	rules := favorRulesFixture(t)
 	rules.OpenLevel = 27
-	w := &worldSession{role: storage.Character{ID: 1, State: []byte(`{"level":26}`)}, store: &storage.Store{}, loot: &loot.Service{}, service: &world.Service{Catalog: catalog.WorldCatalog{Favor: rules}}}
+	w := &worldSession{role: database.Character{ID: 1, State: []byte(`{"level":26}`)}, store: &database.Store{}, loot: &loot.Service{}, service: &world.Service{Catalog: catalog.WorldCatalog{Favor: rules}}}
 	p := []byte{0, 0x9d, 0, 0, 0, 0x23, 0x6c, 1}
 	if _, err := w.giveFavor(p); err == nil || !strings.Contains(err.Error(), "level 27") {
 		t.Fatalf("source eligibility ignored: %v", err)

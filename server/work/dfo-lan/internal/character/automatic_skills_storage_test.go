@@ -4,41 +4,29 @@ import (
 	"context"
 	. "dfolan/internal/character"
 
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/json"
-	"fmt"
 	"os"
 	"reflect"
 	"testing"
-	"time"
 )
 
 func TestAutomaticSkillPersistence(t *testing.T) {
-	if os.Getenv("CASH_INTEGRATION") != "1" {
+	if os.Getenv("DFO_TEST_POSTGRES_DSN") == "" {
 		t.Skip("isolated schema integration")
 	}
 	ctx := context.Background()
-	cfg, err := storage.LoadConfig("../../runtime/storage/local.json")
+	fixture, err := database.OpenTestFixture(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	admin, err := storage.Open(ctx, cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer admin.Close()
-	schema := fmt.Sprintf("automatic_skills_%d", time.Now().UnixNano())
-	if _, err = admin.DB.Exec(ctx, "CREATE SCHEMA "+schema); err != nil {
-		t.Fatal(err)
-	}
-	defer admin.DB.Exec(ctx, "DROP SCHEMA "+schema+" CASCADE")
-	cfg.PostgresSchema = schema
-	store, err := storage.Open(ctx, cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer store.Close()
+	defer func() {
+		if err := fixture.Close(); err != nil {
+			t.Error(err)
+		}
+	}()
+	store := fixture.Storage()
 	for _, migrate := range []func(context.Context) error{store.Migrate, store.MigrateGrants, store.MigrateCharacterEvents} {
 		if err = migrate(ctx); err != nil {
 			t.Fatal(err)

@@ -2,10 +2,10 @@ package workflow
 
 import (
 	"context"
-	"dfolan/internal/storage"
+	"dfolan/internal/database"
 )
 
-func (s *QuestService) ClearActQuests(ctx context.Context, role storage.Character) (int, error) {
+func (s *QuestService) ClearActQuests(ctx context.Context, role database.Character) (int, error) {
 	states, err := s.Store.Quests(ctx, role.AccountID, role.ID)
 	if err != nil {
 		return 0, err

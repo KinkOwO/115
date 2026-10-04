@@ -4,14 +4,14 @@ import (
 	"context"
 	"dfolan/internal/catalog"
 	"dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"dfolan/internal/world"
 	"errors"
 	"time"
 )
 
-func (w *worldSession) areaTransition(r protocol.AreaChangeRequest) (storage.WorldPosition, error) {
+func (w *worldSession) areaTransition(r protocol.AreaChangeRequest) (database.WorldPosition, error) {
 	specialWarp := w.specialWarpPending
 	w.specialWarpPending = false
 	old := w.state.Position
@@ -20,9 +20,9 @@ func (w *worldSession) areaTransition(r protocol.AreaChangeRequest) (storage.Wor
 		(old.Area == 1 && r.Area == 2 && w.blackPurgatory.created ||
 			old.Area == 2 && r.Area == 1 && (w.blackPurgatory.created || w.blackPurgatory.returnToLobby)) {
 		// 原生建队/离队传送使用ETC的招募与等待坐标，不要求先走到地图边缘。
-		entry := storage.WorldPosition{Town: 85, Area: 2, X: 350, Y: 220}
+		entry := database.WorldPosition{Town: 85, Area: 2, X: 350, Y: 220}
 		if r.Area == 1 {
-			entry = storage.WorldPosition{Town: 85, Area: 1, X: 680, Y: 130}
+			entry = database.WorldPosition{Town: 85, Area: 1, X: 680, Y: 130}
 		}
 		if r.X == entry.X && r.Y == entry.Y {
 			if err := w.service.ValidatePosition(w.level, w.odyssey, entry); err != nil {
@@ -40,7 +40,7 @@ func (w *worldSession) areaTransition(r protocol.AreaChangeRequest) (storage.Wor
 		if err := w.service.ValidatePosition(w.level, w.odyssey, old); err != nil {
 			return old, err
 		}
-		next := storage.WorldPosition{Town: r.Town, Area: r.Area, X: r.X, Y: r.Y}
+		next := database.WorldPosition{Town: r.Town, Area: r.Area, X: r.X, Y: r.Y}
 		if err := w.service.ValidatePosition(w.level, w.odyssey, next); err != nil {
 			return old, err
 		}
@@ -156,7 +156,7 @@ func (w *worldSession) ownedTownTeleport(r protocol.AreaChangeRequest) bool {
 		r.Flag == 5 && r.TailFlags == [2]byte{}
 }
 
-func (w *worldSession) teleportTransition(old storage.WorldPosition, r protocol.AreaChangeRequest) (storage.WorldPosition, error) {
+func (w *worldSession) teleportTransition(old database.WorldPosition, r protocol.AreaChangeRequest) (database.WorldPosition, error) {
 	if w.activeDungeon != nil || w.selectingDungeon {
 		return old, errors.New("teleport requires town character")
 	}
@@ -170,12 +170,12 @@ func (w *worldSession) teleportTransition(old storage.WorldPosition, r protocol.
 	if uint32(w.level) < world.RequiredLevel(dest, w.odyssey) {
 		return old, world.ErrLevel
 	}
-	next := storage.WorldPosition{Town: r.Town, Area: r.Area, X: r.X, Y: r.Y}
+	next := database.WorldPosition{Town: r.Town, Area: r.Area, X: r.X, Y: r.Y}
 	if err := w.service.ValidatePosition(w.level, w.odyssey, next); err != nil {
 		return old, err
 	}
 	if dest.SeriaReturnWarp {
-		next.Return = &storage.WorldReturn{Town: old.Town, Area: old.Area, X: old.X, Y: old.Y}
+		next.Return = &database.WorldReturn{Town: old.Town, Area: old.Area, X: old.X, Y: old.Y}
 	}
 	return next, nil
 }
