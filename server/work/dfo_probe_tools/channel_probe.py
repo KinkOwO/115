@@ -412,6 +412,11 @@ with (
   # re-entry, no crash. (Do NOT use 38 - its userinfo-appearance block over-reads
   # and access-violates the client; that whole approach is abandoned.)
   command[0] = str(project / "bin/wireprobe-dungeon39.exe")
+  # next37 exercises the expanded 50-row channel directory. Keep next34's
+  # local34 selection for historical runs above.
+  command[command.index("-channel-refresh-config") + 1] = str(
+   project / "configs/channel.local35.json"
+  )
   # The bag policy gains the quick-use belt (slots 0..8, the gap below the
   # equipment range) so a consumable can be dragged onto the hotkey bar.
   command[command.index("-bag-rules") + 1] = str(
