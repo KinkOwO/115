@@ -1,6 +1,6 @@
 @echo off
 chcp 65001 >nul
-cd /d "%~dp0"
+cd /d "%~dp0.."
 title DFO 115us 环境配置向导
 
 echo ========================================================
@@ -9,9 +9,9 @@ echo ========================================================
 echo.
 
 if exist "tools\python\python.exe" (
-    "tools\python\python.exe" "configure_env.py" %*
+    "tools\python\python.exe" "scripts\configure_env.py" %*
 ) else (
-    python "configure_env.py" %*
+    python "scripts\configure_env.py" %*
 )
 
 if errorlevel 1 (

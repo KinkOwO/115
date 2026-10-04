@@ -1,12 +1,12 @@
 @echo off
 chcp 65001 >nul
-cd /d "%~dp0"
+cd /d "%~dp0.."
 title Stop DFO 115us Environment
 echo Stopping DFO 115us Environment...
 
 rem Prefer the Go launcher: the stop path no longer needs a Python runtime.
 if exist "server\work\dfo-lan\bin\dfolauncher.exe" (
-    "server\work\dfo-lan\bin\dfolauncher.exe" stop --root "%~dp0."
+    "server\work\dfo-lan\bin\dfolauncher.exe" stop --root "%~dp0.."
     goto :done
 )
 
@@ -27,7 +27,7 @@ exit /b 0
 
 :go_stop
 pushd "server\work\dfo-lan"
-"..\..\..\tools\go\bin\go.exe" run ./cmd/dfolauncher stop --root "%~dp0."
+"..\..\..\tools\go\bin\go.exe" run ./cmd/dfolauncher stop --root "%~dp0.."
 rem Read outside any parenthesised block so this is the command's own exit code.
 set "GO_STOP_RC=%ERRORLEVEL%"
 popd

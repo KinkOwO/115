@@ -1,7 +1,7 @@
 @echo off
 chcp 65001 >nul
-cd /d "%~dp0"
-title DFO 115us Game Launcher (Arad Odyssey Mode)
+cd /d "%~dp0.."
+title DFO 115us Game Launcher (Scenario Mode)
 
 net session >nul 2>&1
 if %errorlevel% neq 0 (
@@ -11,19 +11,22 @@ if %errorlevel% neq 0 (
 )
 
 set DFO_SHOP_OPEN_ALL=1
-set DFO_ODYSSEY_MODE=1
+rem 不再设置 DFO_ODYSSEY_MODE：游戏模式按角色存档投影（建号请求 options[10]，
+rem 剧情 0 / 奥德赛 2），与客户端自己读的 per-character 标记一致。
+rem 需要整档强制时才用 启动游戏-奥德赛.cmd（=1），或在启动器设置里选强制档。
 set DFO_CONTRACT_PURCHASE_CRASH_FIX=1
 set DFO_MAX_ITEM_PERIOD=1
 set DFO_QUEST_VISIBLE_NPC_RELAX=1
-rem 默认使用 configs/pvf-default.json；保留奥德赛模式，--json-mode 显式回退。
-echo Starting DFO 115us Game Client and Server (PVF Direct + Arad Odyssey Mode)...
+set DFO_QUEST_NPC_DISTANCE_MULTIPLIER=5
+rem 默认使用 configs/pvf-default.json；保留剧情模式，--json-mode 显式回退。
+echo Starting DFO 115us Game Client and Server (PVF Direct + Scenario Mode)...
 rem Prefer the Go launcher: the session orchestration is Go, so this path needs no
 rem Python runtime. DFO_ROOT is explicit because the launcher sits beside the repository
 rem and would otherwise infer the wrong tree.
 set "DFO_ROOT=%~dp0."
 rem tools\ was moved out of the repository, so expose the moved Go toolchain on PATH for
 rem the source build (serverbuild looks at tools\go first, then PATH).
-set "PATH=%~dp0..\tools\go\bin;%PATH%"
+set "PATH=%~dp0..\..\tools\go\bin;%PATH%"
 if exist "..\115us-dfolauncher\bin\dfolauncher-cli.exe" (
     "..\115us-dfolauncher\bin\dfolauncher-cli.exe" --launch %*
 ) else if exist "tools\python\python.exe" (

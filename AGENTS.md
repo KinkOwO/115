@@ -2,6 +2,9 @@
 
 > 本文件是 `DFO 115us` 项目的唯一 AGENTS 根真源；用户目录或其它副本仅作镜像，冲突时以本文件为准。
 > 先读本文件，再按 §1 的触发规则读子目录 `AGENTS.md`；默认不读 `server/reference/` 与历史归档。
+>
+> 结构：§0 硬约束 → §0.1~§0.5 专题规范（C2S 计次 / PVF 规则 / **提交** / **目录** / **开发**）
+> → §1 项目地图 → §2 权威索引。任何 AI 在动手前必须读完 §0 与 §0.3~§0.5。
 
 ## 0. 硬约束速查（每条都必须遵守）
 
@@ -19,6 +22,7 @@
 12. **服务端技术栈门禁**：Go 1.26；PostgreSQL 16.4（端口 25438）；日常启动由 Python 3.11.9 脚本编排。
 13. **一次只验证一个假设**：改动后必须通过测试与 vet；测试/候选/实机流程见 `server/AGENTS.md` §4。
 14. **玩法规则由 PVF 脚本驱动**：等级动作、条件、奖励、数量、材料、费用、概率与内容关联，以当前 PVF 原生脚本为唯一内容定义；Go 负责解析、校验与执行，不再维护平行玩法表。新增或修改玩法前必须走 §0.2 的来源与重复规则检查。
+15. **提交前必须过门禁并二次确认（强制，2026-10-04 业主定调）**：任何 AI 在 `git add` / `git commit` 之前，必须先跑 `pwsh -NoProfile -File scripts/check-commit-hygiene.ps1`。脚本一旦报出**本地缓存/构建产物入库**或**不符合 §0.4/§0.5 规范**，AI 必须**立即停止提交**，把违规条目逐条报告给业主并**取得业主明确的二次确认**后才能继续；不得用 `-Force`、`--no-verify`、`git add -A` 或任何方式绕过。完整流程见 §0.3。
 
 > 实现新功能时，先网络搜索参考端与当前版本的变化，再从 `pvf` 确认改动，之后从 `IDA` 确认逻辑。
 
@@ -47,6 +51,93 @@
 
 已确认的审计例子：普通装备槽解锁来自 `.qst` 的 `[slot expansion]` 奖励；奥德赛等级动作来自 `aradodyssey.etc` 的 `[level action]`，创建奖励继续引用礼包 `.stk`。这些规则分别按源读取并复用槽位或发奖执行能力。2026-10-03 源码候选已迁移奥德赛槽位解锁与创建奖励引用链，移除对应副本 switch、奖励 ID/数量与护甲清单；等级动作的觉醒执行及其它待取证项仍须按台账推进。源码与真实归档测试不表示新的实机验收。
 
+### 0.3 提交规范（强制，2026-10-04 业主定调）
+
+#### 0.3.1 提交前门禁：警告 + 二次确认（硬规则）
+
+任何 AI（以及人）在暂存/提交前，必须按顺序做：
+
+1. **跑门禁脚本**（只读，不改工作区）：
+   ```powershell
+   # PowerShell 7（有 pwsh 时）
+   pwsh -NoProfile -File scripts/check-commit-hygiene.ps1          # 检查已暂存内容（默认）
+   pwsh -NoProfile -File scripts/check-commit-hygiene.ps1 -All     # 检查工作树全部改动（含未跟踪）
+   # Windows PowerShell 5.1（无 pwsh 时的等价写法，已实测可用）
+   powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts\check-commit-hygiene.ps1 -All
+   ```
+   退出码：`0` 通过；`2` **需要二次确认**（发现缓存/产物或规范违规）；`1` 脚本自身错误。
+   > 注意：该脚本是 **UTF-8 带 BOM** 的 `.ps1`，5.1 才能正确解码中文；改它时不要去掉 BOM（§0.4.2）。
+2. **零命中才可直接提交**。
+3. **一旦命中（缓存/构建产物、或违反 §0.4/§0.5）**：
+   - **立即停止**本次暂存/提交，不得先提交再报告；
+   - 把每条违规**逐条**报告业主：路径、类别、为什么算违规（引用具体条款）、影响、建议处置（移出暂存 / 加 .gitignore / 改放正确目录 / 单独存档）；
+   - **取得业主明确的二次确认**后才可继续。判据：业主明确说出「确认」「按现状提交」「这条允许入库」一类表态。**沉默、未回复、含糊回应都不算确认**；
+   - 业主授权放行的例外条目，必须在提交信息正文里写明「例外条目 + 授权人 + 授权原话摘要」。
+4. **禁止绕过**：不得用 `-Force`、`--no-verify`、`git commit -a`、`git add -A`、手工拼 `git commit` 等方式跳过门禁；也不得为了让门禁通过而删除/移动业主的文件。
+5. 门禁脚本只覆盖「能机械判定」的部分；§0.5 的 build/vet/test 与证据纪律仍需 AI 自查并在回复中报告实际结果。
+
+#### 0.3.2 暂存与提交纪律
+
+- 提交前先 `git status --short`；**只暂存本任务文件**，绝不 `git add -A`。
+- 多写者并发时，不暂存、不提交他人正在修改的文件（若无法回避，先暂停并请业主裁决）。
+- 一次假设一次提交；不把无关改动、格式化噪音、行尾转换混进同一提交。
+- 提交信息用中文，至少写清：**改了什么 → 依据/证据 → 验证结果 → 未闭环项与风险**；引用相关文档路径或 `runtime/roles_*/` 会话目录。
+- 收口提交（§0 第 7 条）才更新 `CHANGELOG` 与 confirmed baseline；未取得业主收口信号前，不得把候选写成"已确认"。
+
+#### 0.3.3 二进制与大文件
+
+- 新增单个 blob **> 5 MB** 前必须先问业主（是否需要、是否走 LFS、是否只该留在本机）。
+- `server/work/dfo-lan/bin/*.exe`（候选/归档程序）默认**不入库**，仅在业主明确要求时提交；`bin/wireprobe-dungeon39.exe` 是已入库基线，**严禁覆盖**。
+- 事实订正（2026-10-04 核实）：本仓库**没有 `.gitattributes`**，虽然本机 git 配置里存在 `filter.lfs.*`，但没有任何路径被 LFS 接管；`GIT-MANAGEMENT.md` **并不存在**（旧索引条目已删）。新增二进制按普通 blob 处理，超过阈值时按上一条征询业主。
+
+### 0.4 代码目录规范（强制，2026-10-04 定）
+
+#### 0.4.1 落位铁规
+
+| 内容 | 必须放在 | 禁止 |
+| --- | --- | --- |
+| 运行/维护脚本（`.cmd`、`.ps1`） | `scripts/` | **根目录不得新增 `.cmd`**（2026-10-04 已把 13 个根入口收进 `scripts/`） |
+| Go 服务端源码 | `server/work/dfo-lan/`（入口 `cmd/{wireprobe,admin,gmtool,dfo-tool}`，工具实现 `internal/toolcmd/<name>`） | 新增 `cmd/<工具名>` 目录；把工具塞进 `wireprobe` |
+| 服务端文档 | `server/work/dfo-lan/docs/`（协议/取证类进 `docs/protocol/`） | 把交接/协议记录写在仓库根或 `server/` 根 |
+| 计划/台账/迁移清单 | `docs/todo/`（PVF 类进 `docs/todo/pvf/`） | 与交付文档混放 |
+| 逆向分析产物 | `analysis/tasks/`、`analysis/dumps/`（权威 Dump） | 往 `server/` 或根目录丢分析中间件 |
+| 导出的全量 JSON | `server/work/dfo-lan/configs/`（**仅历史基线/策略**） | 新增「导出 JSON → 运行期读取」链路（见 §0 铁律 1–3） |
+| 客户端补丁/DLL | `client-patchs/`（默认不启用） | 未经业主明确要求新增/启用 DLL |
+| 临时/生成物 | 未跟踪目录：`.tmp/`、`server/work/dfo-lan/runtime/`、`runtime/pvf-cache/`、`__pycache__/` | 任何情况下入库 |
+
+#### 0.4.2 脚本编写规范
+
+- `.cmd`/`.ps1` 一律先 `cd /d "%~dp0.."`（或等价）**回到仓库根**，再写根相对路径；`%~dp0` 只用于脚本自身所在目录里的文件。
+- 移动脚本后必须核对：所有 `%~dp0` 派生路径与 cwd 相对路径分别按新层级重算，改完要逐个落盘验证目标存在（可参考 `scripts/check-commit-hygiene.ps1` 的检查思路）。
+- **编码与行尾（2026-10-04 实测订正，照做否则脚本跑不起来）**：
+  - `.ps1`：**UTF-8 带 BOM** + CRLF。Windows PowerShell 5.1 对无 BOM 的 `.ps1` 按 ANSI(GBK) 解码，中文注释会直接让脚本语法报错（`scripts/check-commit-hygiene.ps1` 就是带 BOM 的，改它时不要去掉 BOM）。
+  - `.cmd`：UTF-8 **不带 BOM** + CRLF + 首部 `chcp 65001`（BOM 会让 `@echo off` 那行异常）。
+  - `.md`/`.go`/`.json` 等：UTF-8 不带 BOM。
+- 脚本要幂等、可重入，并在输出里明确「做了什么 / 下一步」（如 `scripts/停止游戏环境.cmd`）。
+- 只读检查脚本必须先自证「不修改工作区」，并在帮助注释里写清退出码含义（参照 `scripts/check-commit-hygiene.ps1`）。
+
+#### 0.4.3 命名与落位检查
+
+- 新增顶层目录/顶层文件前必须问业主；根目录只保留：`AGENTS.md`、`CHANGELOG`、`README`/`开发对接文档.md`、`使用教程.md`、`MERGE-RECORD-*.md`、`.gitignore`、`.gitattributes`(如新增)、业主的发布用 exe。
+- 上述落位由 `scripts/check-commit-hygiene.ps1` 机械校验；违反即触发 §0.3.1 的警告 + 二次确认。
+
+### 0.5 开发规范（强制）
+
+1. **门禁必过**：改动 Go 代码后执行 `go build ./...`、`go vet ./...`、`go test ./... -count=1`；全量测试的失败集合必须与既有基线**逐名比对**（新增失败即阻断）。改动协议/领域逻辑必须补对应测试。
+2. **一次一个假设 + 可回滚**：每次实验单独提交；候选程序与默认程序分离（`bin/wireprobe-handoff-source.exe` vs `bin/wireprobe-pvf.exe`），需要回退时按文档的备份路径操作。
+3. **候选隔离**：源码编译只输出 `bin/wireprobe-handoff-source.exe`；**严禁直接覆盖** `wireprobe-dungeon39.exe` 与已确认默认程序；发布默认程序只在业主实机验收通过后按 `server/Build-Server.ps1 -UpdatePVFDefault` 执行。
+4. **实机由业主操作**：准备就绪后通知业主操作，AI 只读日志；不得无人值守启动客户端或代跑。
+5. **证据纪律**：不猜包、不用 DLL 兜协议、不把日志采样当结论；结论与「未闭环」分开写；引用具体日志行/文件/会话目录。
+6. **内容真源**：玩法一律按 §0.2 走 PVF 直读；不新增平行玩法表、专用 switch 或 JSON 回退。
+7. **存档与 schema 兼容**：数据库/存档结构变更必须提供向前兼容或迁移脚本，并在回复里说明兼容范围。
+8. **回复必报**：本轮实际执行的命令与结果（build/vet/test 的真实输出结论）、改了哪些文件、未做与未闭环项、以及是否需要业主介入。
+9. **提交前自检清单**（与 §0.3.1 一起用）：
+   - `git status --short` 里只有本任务文件；
+   - 门禁脚本通过（或已取得二次确认）；
+   - build / vet / test 结论已实际取得；
+   - 文档与索引同步（改了入口/目录/规范就要同步 AGENTS、README、使用教程）；
+   - 没有把 `runtime/`、`pvf-cache/`、`.tmp/`、日志、`pgdata/`、SQLite 库文件带入暂存区。
+
 ## 1. 项目地图与子索引触发规则
 
 | 路径               | 子索引                    | 何时读                                                 |
@@ -56,9 +147,11 @@
 | `client-patchs/**` | `client-patchs/AGENTS.md` | 用户明确要求 DLL / 客户端补丁时（默认不读）            |
 | `client/**`        | 沿用根规则                | 涉及 115 级客户端运行资源与权威 IDB                   |
 | `gm-tool/**`       | `gm-tool/README.md`       | 使用或修改 GM 管理工具与 Web 界面                      |
-| `tools/**`         | 沿用根规则                | 便携环境（Python 3.11、PostgreSQL、Go 等）      |
+| `scripts/**`       | 沿用根规则 §0.3/§0.4      | 新增、移动或修改运行/维护脚本                          |
+| `docs/**`          | 沿用根规则                | 计划、台账、迁移清单                                   |
+| `tools/**`（**现在仓库外** `../tools/`） | 沿用根规则 | 便携环境（Python 3.11、PostgreSQL、Go） |
 
-- 子目录没有 `AGENTS.md` 时，沿用根规则。
+- 子目录没有 `AGENTS.md` 时，沿用根规则；**子索引不得与 §0.3~§0.5 冲突**，冲突以根文件为准。
 - 读取顺序：本文件 → 相关目录 `README` → `开发对接文档.md` → `使用教程.md`。
 - 权威 IDB `client/DFO.exe.i64` 位于 `client/` 目录；不得随意覆盖或并发损坏。
 
@@ -68,27 +161,31 @@
 | ------------------------------------------------------ | ------------------------------------------------------------ |
 | `client/`                                              | 完整冻结客户端运行目录、运行时 `Script.pvf`、`sk.dat` 与权威 IDB `DFO.exe.i64` |
 | `server/`                                              | 服务端总目录：Go 服务端源码（`work/dfo-lan/`）、启动编排与探针（`work/dfo_probe_tools/`）、配置与参考资料 |
-| `tools/`                                               | 开箱即用的便携环境：Python 3.11.9、PostgreSQL 16.4、Go 1.26 |
+| `scripts/`                                             | **全部运行/维护脚本**：`启动游戏.cmd`、`启动服务端.cmd`、`启动游戏-奥德赛.cmd`、`停止游戏环境.cmd`、`检查环境.cmd`、`配置环境.cmd`、`移除tools.cmd`/`还原tools.cmd`、`一键打包.cmd`、`打包增量更新.cmd`、`伊斯-*.cmd`，以及 Python/PS 工具与 `check-commit-hygiene.ps1` |
 | `gm-tool/`                                             | GM 管理工具命令行 (`admin.exe`) 与 Web 管理服务 (`gmweb.exe`) |
 | `analysis/`                                            | 逆向分析工作区、分析脚本与核心 Dump 资产（`analysis/dumps/`） |
 | `client-patchs/`                                       | 客户端补丁与 DLL 源码（ngstub, plugin loader 等，默认不开启） |
-| `启动游戏.cmd` / `启动服务端.cmd` / `停止游戏环境.cmd` | 根目录日常运行编排入口                                       |
+| `docs/`                                                | 计划、台账与迁移清单（`docs/todo/`）                         |
 | `开发对接文档.md`、`使用教程.md`                       | 核心交付基线与运行操作指南                                   |
+| `tools/`（**仓库外** `../tools/`）                     | 便携环境：Python 3.11.9、PostgreSQL 16.4、Go 1.26（2026-10-04 已移出仓库） |
 
 ## 2. 权威索引
 
 | 文件                                                   | 用途                                                         |
 | ------------------------------------------------------ | ------------------------------------------------------------ |
+| `AGENTS.md` §0.3 / §0.4 / §0.5                         | **提交规范 / 代码目录规范 / 开发规范**（唯一真源）           |
+| `scripts/check-commit-hygiene.ps1`                     | 提交前门禁：缓存产物与规范违规检测（配合 §0.3.1 的警告+二次确认） |
 | `开发对接文档.md`                                      | 核心交接基线：已实现功能边界、未完成系统与验收路线           |
 | `使用教程.md`                                          | 运行环境、启动流程、端口分配与故障排查说明                   |
 | `server/README-先看这里.md`                            | 服务端源码、双版本可执行文件与启动脚本交接说明               |
 | `server/work/dfo-lan/docs/architecture.md`             | 局域网多人架构设计与 ADR 决策记录                            |
 | `server/work/dfo-lan/docs/protocol/`                   | 历史协议取证与分析记录（next27 ~ next38-equipment-display）  |
-| `server/work/dfo-lan/bin/wireprobe-dungeon39.exe`      | 39 版归档基准服务程序（已实机验证进城与装备显示）            |
+| `server/work/dfo-lan/bin/wireprobe-dungeon39.exe`      | 39 版归档基准服务程序（已实机验证进城与装备显示），严禁覆盖  |
 | `server/work/dfo-lan/bin/wireprobe-handoff-source.exe` | 源码候选版服务程序（代码测试通过，待实机回归）               |
 | `client/DFO.exe.i64`                                   | 唯一权威 115 级客户端 IDB，禁止直接打开                      |
 | `D:\115us\analysis-tools\`（仓库外独立目录）          | 历史协议探测、逆向分析与加解密测试 Python 工具集（2026-10-02 已迁出本仓库，路径由其 config/paths.json 管理） |
-| `GIT-MANAGEMENT.md`                                    | 项目 Git 版本管理与 LFS 分类决策规范                         |
-| `server/work/dfo-lan/configs/`                         | 游戏全量导出配置（装备、任务、地图、技能等规则驱动数据）     |
+| `server/work/dfo-lan/configs/`                         | 游戏全量导出配置（装备、任务、地图、技能等规则驱动数据；**仅历史基线**） |
 | `analysis/dumps/`                                      | 权威逆向 Dump 资产库：CMD/NOTI Opcode表、XORSTR地址表、DSTR翻译表、PVF目录树 |
 | `analysis/dumps/README.md`                             | Dump 资产说明、快速查阅指南、IDAPython 注释工具与逆向解密链备忘 |
+
+> 旧索引里的 `GIT-MANAGEMENT.md` 经 2026-10-04 核实**不存在**，其内容职责已并入 §0.3；不要再引用该文件。

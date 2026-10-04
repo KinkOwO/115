@@ -1,6 +1,6 @@
 @echo off
 chcp 65001 >nul
-cd /d "%~dp0"
+cd /d "%~dp0.."
 title DFO 115us Server Gateway
 rem 默认使用 configs/pvf-default.json；--repair-profile 可选其它配置，--json-mode 显式回退。
 echo Starting DFO 115us Local Server (PVF Direct + Storage + Game Gateway)...
@@ -25,7 +25,7 @@ rem and would otherwise infer the wrong tree.
 set "DFO_ROOT=%~dp0."
 rem tools\ was moved out of the repository, so expose the moved Go toolchain on PATH for
 rem the source build (serverbuild looks at tools\go first, then PATH).
-set "PATH=%~dp0..\tools\go\bin;%PATH%"
+set "PATH=%~dp0..\..\tools\go\bin;%PATH%"
 if exist "..\115us-dfolauncher\bin\dfolauncher-cli.exe" (
     "..\115us-dfolauncher\bin\dfolauncher-cli.exe" --launch --server-only %*
 ) else if exist "tools\python\python.exe" (

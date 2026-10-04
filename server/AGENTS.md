@@ -1,5 +1,16 @@
 # AGENTS.md — server/
 
+> **强制继承根规范**（2026-10-04）：[`../AGENTS.md`](../AGENTS.md) §0.3 提交规范、§0.4 代码目录规范、
+> §0.5 开发规范对本目录**完全适用**，本节不与根文件冲突；冲突以根文件为准。
+>
+> - 提交前**必须**先跑 `pwsh -NoProfile -File scripts/check-commit-hygiene.ps1`；
+>   一旦报出本地缓存/构建产物入库或违反 §0.4/§0.5，**立即停止提交**，逐条报告业主并取得
+>   **明确的二次确认**后才可继续；禁止 `-Force` / `--no-verify` / `git add -A` 绕过。
+> - 服务端落位：入口只有 `cmd/{wireprobe,admin,gmtool,dfo-tool}`；新工具实现放
+>   `internal/toolcmd/<name>` 并注册到 `cmd/dfo-tool`，**不新增** `cmd/<工具名>` 目录。
+> - 服务端文档写 `work/dfo-lan/docs/`（协议/取证类进 `docs/protocol/`）；不要写在 `server/` 根。
+
+
 ## 2026-10-03：无当前消费者的工具实际删除
 
 核对相邻 `115us-dfolauncher` 的4e3bb21源码：服务端只构建wireprobe，运行沿launch_local/channel_probe，GM来自启动器自己的gm模块。结合本仓库脚本/源码依赖，实际删除39个旧内容导出、固定输入取证与重复工具（42个Go文件、3187行），dfo-tool从59个子命令降为20个；不归档副本、不保留旧命令别名。运行reader、领域测试、存档契约保持；equipmentfull/dungeonimport仍有本仓库手动操作引用，暂保留。
@@ -18,7 +29,7 @@
 
 收口验证：Go1.26.5无缓存全量测试及vet、Python3.11.9默认启动/profile25项通过；使用默认profile全部54域和启动器相同的穿戴布局参数，真实PVF8b2a9f83准备通过（599,771物品、424,216装备绑定、2,844任务、3,200副本），报告 `storage_accessed=false`、`runtime_started=false`。未启动客户端、服务监听或访问玩家库。`-trimpath`独立候选SHA256 `f9cca84b4373ca0bdd5d8ae7438c8af91ae7139ea505bd4cb0f1801bda0e6a36`，本机位置 `.tmp/mr139-closeout/wireprobe-native-closeout.exe`。
 
-confirmed baseline边界：本轮确认源码整理/提交收口；既有实机确认基线保持，不把默认准备成功写成玩法实机验收。110级槽位动作、旧角色补齐及本轮交互改动仍由用户手动回归。上游接入须同时使用MR源码与配置；先用 `pwsh -NoProfile -File ./server/Build-Server.ps1` 构建，再手动 `./启动游戏.cmd --source-build` 或 `./启动服务端.cmd --source-build`。旧默认PVF可执行文件不会自动更新；验收后才用现有 `-UpdatePVFDefault` 发布确认程序，39归档保持。构建/启动说明见server/README-先看这里.md。
+confirmed baseline边界：本轮确认源码整理/提交收口；既有实机确认基线保持，不把默认准备成功写成玩法实机验收。110级槽位动作、旧角色补齐及本轮交互改动仍由用户手动回归。上游接入须同时使用MR源码与配置；先用 `pwsh -NoProfile -File ./server/Build-Server.ps1` 构建，再手动 `./scripts/启动游戏.cmd --source-build` 或 `./scripts/启动服务端.cmd --source-build`。旧默认PVF可执行文件不会自动更新；验收后才用现有 `-UpdatePVFDefault` 发布确认程序，39归档保持。构建/启动说明见server/README-先看这里.md。
 
 
 ## 玩法规则归属与开发门禁
@@ -315,9 +326,9 @@ loot 与 equipment-selection 的运行 JSON 回退、隐式 baseline 已移除�
 | ------------------------- | ------------------------------------------------------------ |
 | `127.0.0.1:7001`          | Channel 频道目录与刷新服务（HTTP / 专有协议）                |
 | `127.0.0.2:<动态端口>`    | Game 游戏接入网关（TCP，由 probe 协同引导连接）              |
-| 根目录 `启动游戏.cmd`     | 玩家与完整测试入口（需管理员权限，自动拉起存储、服务与客户端） |
-| 根目录 `启动服务端.cmd`   | 纯服务端调试入口（调用 `launch_local.py --server-only`）     |
-| 根目录 `停止游戏环境.cmd` | 安全关闭客户端、游戏服务、PostgreSQL (做 checkpoint) |
+| `scripts/启动游戏.cmd`     | 玩家与完整测试入口（需管理员权限，自动拉起存储、服务与客户端） |
+| `scripts/启动服务端.cmd`   | 纯服务端调试入口（调用 `launch_local.py --server-only`）     |
+| `scripts/停止游戏环境.cmd` | 安全关闭客户端、游戏服务、PostgreSQL (做 checkpoint) |
 | `server/Build-Server.ps1` | 服务端编译脚本（执行测试、vet 并编译候选版）                 |
 
 ## 3. 目录职责（`server/work/dfo-lan/`）
@@ -346,7 +357,7 @@ loot 与 equipment-selection 的运行 JSON 回退、隐式 baseline 已移除�
 1. **测试门禁**：修改协议或业务逻辑后，在 `server/work/dfo-lan/` 执行 `go test ./...` 与 `go vet ./...`。
 2. **数据库集成**：`go run ./cmd/dfo-tool charactercheck` 校验角色存储与 schema 兼容性。
 3. **候选隔离**：源码编译输出 `bin/wireprobe-handoff-source.exe`，**严禁直接覆盖 39 版归档基线 `wireprobe-dungeon39.exe`**；实机完整回归确认后方可升级基准。
-4. **实机回归**：关闭已有游戏会话后 `./Start-DFO.cmd --source-build`，由用户手动操作。
+4. **实机回归**：关闭已有游戏会话后 `./scripts/启动游戏.cmd --source-build`，由用户手动操作。
 
 ## 5. 变更事务与数据安全
 
@@ -375,7 +386,7 @@ loot 与 equipment-selection 的运行 JSON 回退、隐式 baseline 已移除�
 
 **为什么**（2026-10-01 深渊失效排查的教训）：那批深渊 MR 的功能全靠
 `DFO_OMEN_REWARDS=1` / `DFO_OMEN_STATE=1` / `DFO_SCALE_DEATH_FROM_HP=1` / `-fatigue-rules` 开启，
-而直读默认档 `configs/pvf-default.json`（17 个键）与 `启动服务端.cmd` 里**一个都没有**
+而直读默认档 `configs/pvf-default.json`（17 个键）与 `scripts/启动服务端.cmd` 里**一个都没有**
 ⇒ 玩家走默认入口时**整套玩法静默不生效**：征兆不掷骰（日志 `-omen-rewards is off`）、
 隐藏 BOSS 无门禁来源、定盘机关可能打不死（"既不放结束动画也不 DESTROY"）、
 **疲劳服务根本没加载**（`if *fatigueRulesFile != ""` 不成立 ⇒ `fatigueService == nil` ⇒ 所有疲劳检查被跳过）。
