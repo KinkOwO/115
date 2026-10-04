@@ -6,13 +6,11 @@ import (
 	"dfolan/internal/cashshop"
 	"dfolan/internal/database/sqlcgen"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"math"
 	"sort"
 	"time"
 
-	"github.com/jackc/pgx/v5"
 )
 
 type CashOrder = cashshop.CashOrder
@@ -308,7 +306,7 @@ func (s *Store) VaultPurchaseSpace(ctx context.Context, account, character int64
 		}
 		return byte(space), nil
 	}
-	if !errors.Is(err, pgx.ErrNoRows) {
+	if !isNoRows(err) {
 		return 0, err
 	}
 	vault, err := s.queries.OwnedPrimaryVault(ctx, sqlcgen.OwnedPrimaryVaultParams{AccountID: account, CharacterID: character})
@@ -405,7 +403,7 @@ func (s *Store) purchaseCash(ctx context.Context, o CashOrder, deliver func(json
 		}
 		return receipt, false, tx.commit(ctx)
 	}
-	if !errors.Is(e, pgx.ErrNoRows) {
+	if !isNoRows(e) {
 		return receipt, false, e
 	}
 	if version != o.Source {
@@ -434,7 +432,7 @@ func (s *Store) purchaseCash(ctx context.Context, o CashOrder, deliver func(json
 			}
 			oldEnd, err := q.LockPremiumExpiry(ctx, sqlcgen.LockPremiumExpiryParams{AccountID: o.Account, PremiumType: int16(premium.Type)})
 			e = err
-			if e != nil && !errors.Is(e, pgx.ErrNoRows) {
+			if e != nil && !isNoRows(e) {
 				return CashReceipt{}, false, e
 			}
 			base := now

@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/jackc/pgx/v5"
 )
 
 // EquippedOathOption projects the equipped core and its persisted option.
@@ -72,7 +71,7 @@ func (s *Store) EquippedOathSelection(ctx context.Context, accountID, characterI
 		return out, tx.commit(ctx)
 	}
 	selected, err := queries.EquippedOathSelection(ctx, sqlcgen.EquippedOathSelectionParams{CharacterID: characterID, CoreInstanceKey: oathCoreKey(out.ItemID)})
-	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+	if err != nil && !isNoRows(err) {
 		return EquippedOathOption{}, err
 	}
 	out.Option = 1
@@ -140,7 +139,7 @@ func (s *Store) OathOption(ctx context.Context, characterID int64, coreInstanceK
 		return OathOptionState{}, false, errors.New("invalid oath option key")
 	}
 	row, err := s.queries.OathOption(ctx, sqlcgen.OathOptionParams{CharacterID: characterID, CoreInstanceKey: coreInstanceKey})
-	if errors.Is(err, pgx.ErrNoRows) {
+	if isNoRows(err) {
 		return OathOptionState{}, false, nil
 	}
 	if err != nil {
@@ -166,7 +165,7 @@ func (s *Store) SaveOathOption(ctx context.Context, characterID int64, coreInsta
 		return OathOptionState{}, err
 	}
 	current, err := queries.LockOathOptionRevision(ctx, sqlcgen.LockOathOptionRevisionParams{CharacterID: characterID, CoreInstanceKey: coreInstanceKey})
-	if errors.Is(err, pgx.ErrNoRows) {
+	if isNoRows(err) {
 		if expectedRevision != 0 {
 			return OathOptionState{}, fmt.Errorf("%w: expected %d, row absent", ErrOathOptionRevisionConflict, expectedRevision)
 		}

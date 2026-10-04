@@ -7,9 +7,7 @@ import (
 	"dfolan/internal/database/sqlcgen"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"github.com/jackc/pgx/v5"
 	"math"
 	"strings"
 	"time"
@@ -123,7 +121,7 @@ func (s *Store) commitCharacterEvent(ctx context.Context, account, id int64, ver
 		}
 		return role, false, tx.commit(ctx)
 	}
-	if !errors.Is(e, pgx.ErrNoRows) {
+	if !isNoRows(e) {
 		return role, false, e
 	}
 	var state, outcome json.RawMessage
@@ -147,7 +145,7 @@ func (s *Store) commitCharacterEvent(ctx context.Context, account, id int64, ver
 			}
 			oldEnd, err := q.LockPremiumExpiry(ctx, sqlcgen.LockPremiumExpiryParams{AccountID: account, PremiumType: int16(reward.Type)})
 			e = err
-			if e != nil && !errors.Is(e, pgx.ErrNoRows) {
+			if e != nil && !isNoRows(e) {
 				return role, false, e
 			}
 			base := max(now, oldEnd)

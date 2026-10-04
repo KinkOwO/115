@@ -6,20 +6,22 @@
 
 ## 1. 选择引擎：只改一份配置
 
-引擎由存储配置里的 `driver` 决定（`runtime/storage/local.json`）：
+引擎由存储配置里的 `driver` 决定（`runtime/storage/local.json`；模板见
+`runtime/storage/local.example.json`，**该模板当前就是 SQLite 档、与本机环境一致**）：
 
 ```json
 { "driver": "postgres", "postgres_dsn": "postgres://...", "max_connections": 12 }
 ```
 
 ```json
-{ "driver": "sqlite", "sqlite_path": "runtime/storage/dfolan.sqlite3", "sqlite_busy_timeout_ms": 5000, "max_connections": 4 }
+{ "driver": "sqlite", "sqlite_path": "C:/Game/dof/115us/115/server/work/dfo-lan/runtime/storage/dfolan.sqlite3", "sqlite_busy_timeout_ms": 5000, "max_connections": 4 }
 ```
 
+- **`sqlite_path` 必须是绝对路径**（2026-10-04 起服务端明确拒绝相对路径，否则会在进程当前目录下建库）。
 - **`driver` 缺省即 `postgres`**，所以既有配置不需要改动。
 - 写成其它值会**明确报错**，不会静默按 PostgreSQL 处理——存储配置写错一个词就连接到另一个库，必须响。
 - 换了 `driver` 之后，启动器与停止脚本都会跟着变：`sqlite` 档**不拉起也不需要停止 PostgreSQL**
-  （`启动游戏.cmd` 直接开服，`停止游戏环境.cmd` 打印 `Storage: sqlite profile` 后跳过停机）。
+  （`scripts/启动游戏.cmd` 直接开服，`scripts/停止游戏环境.cmd` 打印 `Storage: sqlite profile` 后跳过停机）。
 
 ## 2. 首次在 SQLite 上启动
 

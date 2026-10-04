@@ -23,7 +23,7 @@ echo Starting DFO 115us Game Client and Server (PVF Direct + Scenario Mode)...
 rem Prefer the Go launcher: the session orchestration is Go, so this path needs no
 rem Python runtime. DFO_ROOT is explicit because the launcher sits beside the repository
 rem and would otherwise infer the wrong tree.
-set "DFO_ROOT=%~dp0."
+set "DFO_ROOT=%~dp0.."
 rem tools\ was moved out of the repository, so expose the moved Go toolchain on PATH for
 rem the source build (serverbuild looks at tools\go first, then PATH).
 set "PATH=%~dp0..\..\tools\go\bin;%PATH%"

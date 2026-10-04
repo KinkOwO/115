@@ -3,13 +3,11 @@ package database
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 
 	"dfolan/internal/database/sqlcgen"
 	"dfolan/internal/mail"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -31,7 +29,7 @@ func (s *Store) MigrateMailbox(ctx context.Context) error {
 
 func (s *Store) MailRecipient(ctx context.Context, name string) (Character, error) {
 	row, err := s.queries.MailRecipient(ctx, name)
-	if errors.Is(err, pgx.ErrNoRows) {
+	if isNoRows(err) {
 		return Character{}, ErrMailRecipient
 	}
 	return storedCharacter(sqlcgen.CharactersRow(row)), err
@@ -90,7 +88,7 @@ func (s *Store) SendMail(ctx context.Context, account, id int64, version, key, n
 	defer tx.rollback(ctx)
 	q := tx.queries()
 	recipient, err := q.MailRecipientID(ctx, name)
-	if errors.Is(err, pgx.ErrNoRows) {
+	if isNoRows(err) {
 		return fail(ErrMailRecipient)
 	}
 	if err != nil {
@@ -123,7 +121,7 @@ func (s *Store) SendMail(ctx context.Context, account, id int64, version, key, n
 		}
 		return role, receipt, false, tx.commit(ctx)
 	}
-	if !errors.Is(err, pgx.ErrNoRows) {
+	if !isNoRows(err) {
 		return fail(err)
 	}
 	state, assets, err := prepare(role)
@@ -256,7 +254,7 @@ func (s *Store) MutateMailbox(ctx context.Context, account, id int64, version, k
 		}
 		return role, prior.Outcome, false, tx.commit(ctx)
 	}
-	if !errors.Is(err, pgx.ErrNoRows) {
+	if !isNoRows(err) {
 		return fail(err)
 	}
 	// 删除回调可能紧接着领取回执到达；按请求编号读取软删除记录，才能

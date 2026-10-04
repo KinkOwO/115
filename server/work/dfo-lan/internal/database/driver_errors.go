@@ -7,17 +7,35 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// isNoRows reports whether err is the "no rows" result of whichever storage
-// engine is in use.
+// driverNoRows reports the "no rows" condition as the DRIVER spells it.
 //
-// It is deliberately the ONLY place that knows how each driver spells this.
-// Callers' control flow — fall back to a default, report not-found, or surface
-// the error — is identical on both engines, so a single predicate means a change
-// of engine cannot leave a driver-specific check behind at one of the forty-odd
-// call sites (see docs/sqlite-dual-engine-design.md S2).
-//
-// The SQLite spelling is accepted here before that engine exists, so adding the
-// engine later needs no caller change at all.
-func isNoRows(err error) bool {
+// This is the only helper that should look at raw driver sentinels. storageError
+// uses it to translate absence into the engine-independent ErrNotFound; everything
+// else asks isNoRows instead.
+func driverNoRows(err error) bool {
 	return errors.Is(err, pgx.ErrNoRows) || errors.Is(err, sql.ErrNoRows)
+}
+
+// isNoRows reports whether err means "there is no such stored record", whichever
+// storage engine is in use.
+//
+// It is deliberately the ONLY place callers should ask this question.
+//
+// Absence reaches a caller in two different shapes:
+//
+//   - PostgreSQL hands the raw pgx.ErrNoRows straight through;
+//   - SQLite runs every adapter result through storageError, which replaces the
+//     driver sentinel with the package's ErrNotFound before the caller ever sees it.
+//
+// So a caller that only tests pgx.ErrNoRows takes the "error" branch on SQLite even
+// though the lookup legitimately found nothing. That single mistake broke every
+// "look the row up; if it is absent, carry on" path on the SQLite engine - equipping
+// and unequipping gear (the character-event ledger has no row for a first move) and
+// accepting quests (no prior character_quests row) among them, while PostgreSQL kept
+// working. Callers' control flow - fall back to a default, report not-found, or
+// surface the error - is identical on both engines, so one predicate keeps a change
+// of engine from leaving a driver-specific check behind at any of these call sites
+// (see docs/sqlite-dual-engine-design.md S2).
+func isNoRows(err error) bool {
+	return driverNoRows(err) || errors.Is(err, ErrNotFound)
 }

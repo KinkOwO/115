@@ -3,9 +3,7 @@ package database
 import (
 	"context"
 	"dfolan/internal/database/sqlcgen"
-	"errors"
 	"fmt"
-	"github.com/jackc/pgx/v5"
 )
 
 // Unified options: CMD2377 subtype 0x01 carries account options restored
@@ -72,7 +70,7 @@ func (s *Store) SaveCharacterUnifiedOptions(ctx context.Context, account, id int
 	return inTx(ctx, s.engine, func(tx txHandle) error {
 		queries := tx.queries()
 		if _, e := queries.LockCharacterOwner(ctx, sqlcgen.LockCharacterOwnerParams{AccountID: account, CharacterID: id}); e != nil {
-			if errors.Is(e, pgx.ErrNoRows) {
+			if isNoRows(e) {
 				return fmt.Errorf("unified options character is not owned")
 			}
 			return e
@@ -139,7 +137,7 @@ func (s *Store) SaveCharacterUnifiedOptionGroup(ctx context.Context, account, ch
 	return inTx(ctx, s.engine, func(tx txHandle) error {
 		queries := tx.queries()
 		if _, err := queries.LockCharacterOwner(ctx, sqlcgen.LockCharacterOwnerParams{AccountID: account, CharacterID: characterID}); err != nil {
-			if errors.Is(err, pgx.ErrNoRows) {
+			if isNoRows(err) {
 				return fmt.Errorf("character option group: character is not owned")
 			}
 			return err
@@ -212,7 +210,7 @@ func (s *Store) SaveCharacterHotkeys(ctx context.Context, account, characterID i
 	return inTx(ctx, s.engine, func(tx txHandle) error {
 		queries := tx.queries()
 		if _, err := queries.LockCharacterOwner(ctx, sqlcgen.LockCharacterOwnerParams{AccountID: account, CharacterID: characterID}); err != nil {
-			if errors.Is(err, pgx.ErrNoRows) {
+			if isNoRows(err) {
 				return fmt.Errorf("character hotkeys: character is not owned")
 			}
 			return err

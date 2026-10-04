@@ -5,9 +5,7 @@ import (
 	"dfolan/internal/database/sqlcgen"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"github.com/jackc/pgx/v5"
 )
 
 const OdysseyGraduationEvent = "odyssey-graduation-v2"
@@ -39,7 +37,7 @@ func (s *Store) CommitOdysseyGraduation(ctx context.Context, account, id int64, 
 		}
 		return role, false, tx.commit(ctx)
 	}
-	if !errors.Is(err, pgx.ErrNoRows) {
+	if !isNoRows(err) {
 		return role, false, err
 	}
 	queries := tx.queries()

@@ -4,9 +4,7 @@ import (
 	"context"
 	"dfolan/internal/database/sqlcgen"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"github.com/jackc/pgx/v5"
 )
 
 // Locked skills are character scoped: the client restores them from the
@@ -56,7 +54,7 @@ func (s *Store) CommitSkillLocks(ctx context.Context, account, id int64, key, mo
 		}
 		return locks, false, tx.commit(ctx)
 	}
-	if !errors.Is(e, pgx.ErrNoRows) {
+	if !isNoRows(e) {
 		return nil, false, e
 	}
 	current, e := skillLocksQuery(ctx, queries, id)

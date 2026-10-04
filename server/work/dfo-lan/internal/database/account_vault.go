@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/jackc/pgx/v5"
 )
 
 type AccountVaultState = inventory.AccountVaultState
@@ -115,7 +114,7 @@ func (s *Store) CommitAccountVault(ctx context.Context, account, character int64
 		}
 		return role, materials, vault, false, tx.commit(ctx)
 	}
-	if !errors.Is(err, pgx.ErrNoRows) {
+	if !isNoRows(err) {
 		return role, materials, vault, false, err
 	}
 	state, updated, next, err := apply(role, materials, vault)
@@ -193,7 +192,7 @@ func (s *Store) CommitAccountVaultCrossMove(ctx context.Context, account, charac
 		}
 		return role, shared, personal, false, tx.commit(ctx)
 	}
-	if !errors.Is(err, pgx.ErrNoRows) {
+	if !isNoRows(err) {
 		return role, shared, personal, false, err
 	}
 	state, next, items, err := apply(role, shared, personal)

@@ -4,10 +4,8 @@ import (
 	"bytes"
 	"context"
 	"dfolan/internal/database/sqlcgen"
-	"errors"
 	"fmt"
 
-	"github.com/jackc/pgx/v5"
 )
 
 // GamepadPayloadSize is the fixed size of NOTI 2128 packet body (0x583).
@@ -72,7 +70,7 @@ func (s *Store) AccountGamepadPayload(ctx context.Context, accountID int64) ([]b
 	}
 	settings, err := s.queries.AccountGamepadSettings(ctx, accountID)
 	mappingTSV, options := settings.MappingTsv, settings.Options
-	if errors.Is(err, pgx.ErrNoRows) {
+	if isNoRows(err) {
 		return nil, nil
 	}
 	if err != nil {
@@ -126,7 +124,7 @@ func (s *Store) CharacterGamepadPayload(ctx context.Context, characterID int64) 
 	}
 	settings, err := s.queries.CharacterGamepadSettings(ctx, characterID)
 	mappingTSV, options := settings.MappingTsv, settings.Options
-	if errors.Is(err, pgx.ErrNoRows) {
+	if isNoRows(err) {
 		return nil, nil
 	}
 	if err != nil {
@@ -146,7 +144,7 @@ func (s *Store) ResolveGamepadPayload(ctx context.Context, accountID, characterI
 	if characterID != 0 {
 		settings, err := s.queries.CharacterGamepadSettings(ctx, characterID)
 		charTSV, charOpts = settings.MappingTsv, settings.Options
-		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		if err != nil && !isNoRows(err) {
 			return nil, err
 		}
 	}
@@ -155,7 +153,7 @@ func (s *Store) ResolveGamepadPayload(ctx context.Context, accountID, characterI
 	if accountID != 0 {
 		settings, err := s.queries.AccountGamepadSettings(ctx, accountID)
 		accTSV, accOpts = settings.MappingTsv, settings.Options
-		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		if err != nil && !isNoRows(err) {
 			return nil, err
 		}
 	}

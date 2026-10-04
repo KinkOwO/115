@@ -6,9 +6,7 @@ import (
 	"dfolan/internal/database/sqlcgen"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"github.com/jackc/pgx/v5"
 )
 
 // CommitVaultTransfer locks character before vault, matching character writes.
@@ -52,7 +50,7 @@ func (s *Store) CommitVaultTransfer(ctx context.Context, account, id int64, sour
 		}
 		return role, v, false, nil
 	}
-	if !errors.Is(e, pgx.ErrNoRows) {
+	if !isNoRows(e) {
 		return fail(e)
 	}
 	state, items, e := apply(role, v)

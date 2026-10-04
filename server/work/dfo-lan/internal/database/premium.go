@@ -4,11 +4,9 @@ import (
 	"context"
 	"dfolan/internal/cashshop"
 	"dfolan/internal/database/sqlcgen"
-	"errors"
 	"fmt"
 	"time"
 
-	"github.com/jackc/pgx/v5"
 )
 
 const (
@@ -84,7 +82,7 @@ func (s *Store) ActivatePremium(ctx context.Context, account int64, premiumType 
 	now := time.Now().Unix()
 	q := tx.queries()
 	oldEnd, err := q.LockPremiumExpiry(ctx, sqlcgen.LockPremiumExpiryParams{AccountID: account, PremiumType: int16(premiumType)})
-	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+	if err != nil && !isNoRows(err) {
 		return 0, err
 	}
 	base := now

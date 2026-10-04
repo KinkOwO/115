@@ -5,7 +5,6 @@ import (
 	"dfolan/internal/database/sqlcgen"
 	"errors"
 
-	"github.com/jackc/pgx/v5"
 )
 
 // 征兆（omen）的**角色存档**。
@@ -48,7 +47,7 @@ func (s *Store) OmenState(ctx context.Context, characterID, dungeonID int64) (Om
 		return OmenState{}, errors.New("invalid omen state key")
 	}
 	row, err := s.queries.OmenState(ctx, sqlcgen.OmenStateParams{CharacterID: characterID, DungeonID: dungeonID})
-	if errors.Is(err, pgx.ErrNoRows) {
+	if isNoRows(err) {
 		return OmenState{}, nil
 	}
 	if err != nil {

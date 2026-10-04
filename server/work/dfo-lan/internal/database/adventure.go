@@ -5,9 +5,7 @@ import (
 	"dfolan/internal/adventure"
 	"dfolan/internal/database/sqlcgen"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"github.com/jackc/pgx/v5"
 	"golang.org/x/text/encoding/simplifiedchinese"
 	"math"
 	"time"
@@ -69,7 +67,7 @@ func (s *Store) CommitAdventure(ctx context.Context, account, id int64, key stri
 	if err == nil {
 		return role, p, receipt, tx.commit(ctx)
 	}
-	if !errors.Is(err, pgx.ErrNoRows) {
+	if !isNoRows(err) {
 		return role, p, nil, err
 	}
 	state, receipt, err := apply(role, &p)

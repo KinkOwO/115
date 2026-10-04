@@ -5,10 +5,8 @@ import (
 	"dfolan/internal/database/sqlcgen"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 
-	"github.com/jackc/pgx/v5"
 )
 
 // CommitAccountMaterialEvent applies an account-scoped material change exactly
@@ -83,7 +81,7 @@ func (s *Store) commitAccountMaterialEvent(ctx context.Context, account, id int6
 		// as it stands so the caller can still acknowledge with real counts.
 		return role, counts, false, tx.commit(ctx)
 	}
-	if !errors.Is(e, pgx.ErrNoRows) {
+	if !isNoRows(e) {
 		return role, nil, false, e
 	}
 	var state, updated json.RawMessage

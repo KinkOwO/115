@@ -271,7 +271,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("连接 PostgreSQL 失败：%v\n\n"+
 			"处理办法（任选其一）：\n"+
-			"  1. 双击 D:\\115us\\启动服务端.cmd 启动数据库；\n"+
+			"  1. 双击 游戏根目录下 scripts\\启动服务端.cmd 启动数据库；\n"+
 			"  2. 检查 D:\\115us\\server\\work\\dfo-lan\\runtime\\storage 下的 postgres.log。\n", err)
 	}
 	defer store.Close()

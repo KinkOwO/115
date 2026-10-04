@@ -20,8 +20,8 @@ SQLite 双引擎**已落地并提交**，实机已能走到「启动 → 登录 
 | `557220be` | `sqlite_path` 必须是绝对路径（否则按进程 cwd 建库，静默建错位置） |
 | `3ec50297` | `sql.ErrNoRows` → `ErrNotFound`（修穿脱装备 / 接任务失败） |
 
-工作树中**属于本次任务但尚未提交**的：三个根目录启动入口（`启动游戏.cmd`、
-`启动游戏-奥德赛.cmd`、`启动服务端.cmd`）已改为优先调用 Go 启动器并设置 `DFO_ROOT`/`PATH`。
+工作树中**属于本次任务但尚未提交**的：三个启动入口（`启动游戏.cmd`、
+`启动游戏-奥德赛.cmd`、`启动服务端.cmd`；2026-10-04 起已从根目录收进 `scripts/`）已改为优先调用 Go 启动器并设置 `DFO_ROOT`/`PATH`。
 本档案落盘时**连同这三个文件一起提交**。
 
 工作树中**属于其它写者、不要动**：`.gitignore`、`DFO-115US单机一键启动器.exe`、
@@ -168,3 +168,50 @@ SQLite 双引擎**已落地并提交**，实机已能走到「启动 → 登录 
 | `internal/config/storage.go`、`storage_test.go` | 新增 `StorageDriver`（显式 `driver` 优先；只有 `sqlite_path` 也算 SQLite；缺文件→PostgreSQL）+ 9 个用例 |
 
 > 结论：**不要再改 `check.go`**；增量集中在上面四个文件，提交前先确认没有覆盖 `c83aa2b` 的意图。
+
+## 10. 补正（同日复核）：§5 第 1 步已执行完，差集为空；§3 假设不成立
+
+已按 §5 第 1 步做完「登录 → 选角」阶段的服务端发包集合差，详细取证见
+[`sqlite-create-character-crash-20261004.md`](sqlite-create-character-crash-20261004.md)。要点：
+
+1. **差集为空。** 崩溃会话 `…_224700_762172` 与成功建号会话 `…_221054_428343`
+   （同一 `--source-build` 二进制族、同一 SQLite 引擎）在登录阶段的 13 个服务端发包
+   全部一致（7 个带 payload 的**逐字节相同**，唯一差异是 CMD1960 里的墙钟时间戳；
+   另 6 个按结构化字段与客户端收到的尺寸核对相同）。客户端侧 trace 也逐行相同，
+   直到 `Close IRDPopupWindow Type : 4019`（创建窗口切换点）。
+2. **§3 的「空角色列表 / 空账号选项」不是成因。** 成功会话点「创建角色」时
+   （14:11:50 进选角、14:12:02 建号），库里同样是 `characters=0`、
+   `account_unified_options=0`（那三行是 14:12:20 进城后才写的），
+   并且从该状态建号成功（`dfolan.sqlite3.first-try` 里有角色 `qqqq` 与
+   `reward:character_create:newchar.lua:1:cera` 的 100000 cera 入账记录）。
+3. **崩溃点是客户端本地**：客户端在「选角 → 创建角色窗口」切换中触发 `0xC0000005`，
+   调用栈落在 UI 弹窗模块（`14668cdf9` 位于 `sub_14668C520+0x8D9`，即打印
+   `IRDPopupWindow Type : N` 的函数内）。服务端在该阶段**一包未发**。
+   `events.jsonl` 里客户端最后一次发包 682 是退出/关服信号
+   （`cmd/wireprobe/client_dispatch_account.go:153`），发生在崩溃报告之后，属崩溃收尾。
+4. 因此 **§5 第 3 步「补包还是补默认行」没有依据**；也**不要**据此改服务端。
+   §5 第 2 步的 IDA 目标应从「创建界面读空列表」改为「创建窗口构造 / 弹窗 181 开窗路径」。
+5. 环境差异已穷举排除（脚本校验和、客户端 `[ERR]` 集合、反作弊遥测模块串、
+   启动参数、`DFO` 目录改动清单）；`NGClient64.aes` 虽在 22:39:17 被重写，
+   但其 SHA256 与 `C:\Game\dof\110us\client\NGClient64.aes` 完全相同，内容未变。
+   `CrashDNF2.cra` = `0x06`：该客户端安装此前已记录 5 次崩溃。
+6. 下一步只能靠**复现**区分偶发与确定性（不改代码、重跑两次点击：立即点 / 等 15 秒再点），
+   方案与判定表见报告 §6。本轮未启动客户端、未访问玩家库、未改任何代码或资源。
+7. **已按业主选择换库（报告 §9）**：活动库 `runtime/storage/dfolan.sqlite3` 现在是
+   22:12 真建号那轮的库（含角色 `qqqq`、`account_unified_options` 3 行、cera 100000），
+   22:47 的空库保留为 `dfolan.sqlite3.empty-from-224700`，原 `…first-try` 未动；
+   已删掉崩溃会话遗留的过期管理租约 `dfolan.sqlite3.admin-guard`。
+   活动库只读校验：`application_id=1152026104`、`integrity_check=ok`、37 迁移、
+   角色 `config_version` = 当次存档契约 `c638346f…`、金库契约 `fda6c33f…`。
+   ⇒ 下一步可先用这个角色验证「选角 → 进城 → 穿脱装备 → 接任务 → 退出重进」，
+   **建号**单独立项追（不要再用「空库首次建号」当作 SQLite 档的唯一入口）。
+8. 为让换库能写入，`server` / `server/work` / `server/work/dfo-lan` / `…/runtime`
+   按 DSH 的 Windows 文件权限诊断流程补了当前用户完整控制权限（每处改动都有可回滚备份，
+   记录在 `C:\Game\dof\115us\dsh-acl-report\`）。这与 SQLite 逻辑无关，只是本机文件权限。
+9. **更正 §1 表里 `3ec50297` 的作用**：它只把错误文本从 `sql: no rows in result set`
+   换成了 `stored record not found`，**并没有修好穿脱装备/接任务**（实机 23:21 仍在失败）。
+   真正的原因是 `internal/database` 里 41 处「查无此行就继续」的判断只认 PG 哨兵
+   `pgx.ErrNoRows`，而 SQLite 适配器已经把驱动哨兵换成 `ErrNotFound`。
+   行为修复与验证记录见 [`sqlite-absence-continue-fix-20261004.md`](sqlite-absence-continue-fix-20261004.md)
+   （候选 SHA256 `C738A15415B97D3BC5B61AD9A7F2BDDFFEEFE713BEB609C880D71C7C9E38CF50`，待实机验收）。
+   崩溃（§3/§10）与本次「查无此行」是**两个独立问题**，不要混在一起收口。

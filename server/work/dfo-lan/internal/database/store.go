@@ -2,7 +2,6 @@ package database
 
 import (
 	"context"
-	"database/sql"
 	"dfolan/internal/character"
 	"dfolan/internal/database/sqlcgen"
 	"encoding/json"
@@ -10,7 +9,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"os"
@@ -64,11 +62,14 @@ var ErrNotFound = errors.New("stored record not found")
 // returns pgx.ErrNoRows while database/sql returns sql.ErrNoRows. Recognising only the
 // former made every "look the row up; if it is absent, carry on" path fail hard on SQLite -
 // which is exactly how equipping gear and accepting quests stopped working.
+//
+// Callers must not test the driver sentinels themselves: by the time an error leaves the
+// adapter it is ErrNotFound on SQLite and pgx.ErrNoRows on PostgreSQL. Ask isNoRows.
 func storageError(err error) error {
 	if err == nil {
 		return nil
 	}
-	if errors.Is(err, pgx.ErrNoRows) || errors.Is(err, sql.ErrNoRows) {
+	if driverNoRows(err) {
 		return ErrNotFound
 	}
 	return err

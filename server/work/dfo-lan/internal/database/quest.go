@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/jackc/pgx/v5"
 )
 
 // QuestState retains the storage API while the quest domain owns its schema.
@@ -60,7 +59,7 @@ func (s *Store) AcceptQuestGroups(ctx context.Context, account, characterID int6
 		}
 		return out, tx.commit(ctx)
 	}
-	if !errors.Is(e, pgx.ErrNoRows) {
+	if !isNoRows(e) {
 		return out, e
 	}
 	if len(groups) > 0 {

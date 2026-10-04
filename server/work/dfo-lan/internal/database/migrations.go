@@ -4,13 +4,11 @@ import (
 	"context"
 	"crypto/sha256"
 	"embed"
-	"errors"
 	"fmt"
 	"strings"
 
 	"dfolan/internal/database/sqlcgen"
 
-	"github.com/jackc/pgx/v5"
 )
 
 // The initial schema is one file, shared with sqlc. Historical sections keep
@@ -75,7 +73,7 @@ func (s *Store) execMigration(ctx context.Context, name string) error {
 		return err
 	}
 	previous, err := q.MigrationChecksum(ctx, name)
-	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+	if err != nil && !isNoRows(err) {
 		return err
 	}
 	if err == nil {

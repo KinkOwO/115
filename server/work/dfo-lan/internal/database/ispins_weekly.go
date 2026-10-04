@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/jackc/pgx/v5"
 	"time"
 )
 
@@ -52,7 +51,7 @@ func (s *Store) RecordIspinsWeeklyClear(ctx context.Context, account, id int64, 
 		}
 		return tx.commit(ctx)
 	}
-	if !errors.Is(e, pgx.ErrNoRows) {
+	if !isNoRows(e) {
 		return e
 	}
 	if limited {

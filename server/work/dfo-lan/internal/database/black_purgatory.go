@@ -4,13 +4,11 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"time"
 
 	"dfolan/internal/database/sqlcgen"
 
-	"github.com/jackc/pgx/v5"
 )
 
 type BlackPurgatoryQuota struct {
@@ -45,7 +43,7 @@ func (s *Store) FreezeBlackPurgatoryReward(ctx context.Context, account, id int6
 		}
 		return prior.Outcome, tx.commit(ctx)
 	}
-	if !errors.Is(err, pgx.ErrNoRows) {
+	if !isNoRows(err) {
 		return nil, err
 	}
 	stage, err := q.BlackPurgatoryEntryStage(ctx, sqlcgen.BlackPurgatoryEntryStageParams{CharacterID: id, EventKey: "black-purgatory-entry:" + run})
@@ -108,7 +106,7 @@ func (s *Store) BlackPurgatoryQuota(ctx context.Context, account, id int64, run,
 	if run != "" {
 		var prior sqlcgen.CharacterEventStageRow
 		prior, err = q.CharacterEventStage(ctx, sqlcgen.CharacterEventStageParams{CharacterID: id, EventKey: key})
-		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		if err != nil && !isNoRows(err) {
 			return out, err
 		}
 		if err == nil && prior.Model != model {
@@ -127,7 +125,7 @@ func (s *Store) BlackPurgatoryQuota(ctx context.Context, account, id int64, run,
 		}
 		err = q.SetCharacterEventStage(ctx, sqlcgen.SetCharacterEventStageParams{CharacterID: id, EventKey: key, Stage: "cleared"})
 	}
-	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+	if err != nil && !isNoRows(err) {
 		return out, err
 	}
 	counts, err := q.BlackPurgatoryEntryCounts(ctx, sqlcgen.BlackPurgatoryEntryCountsParams{CharacterID: id, DayStart: day, WeekStart: week})
