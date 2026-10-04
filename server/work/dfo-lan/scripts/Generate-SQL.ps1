@@ -30,9 +30,10 @@ try {
     $expectedNames = @(Get-ChildItem -LiteralPath $expected -Filter '*.go' | ForEach-Object Name)
     if (Compare-Object $names $expectedNames) { throw 'Generated file list differs; run scripts/Generate-SQL.ps1.' }
     foreach ($name in $names) {
-        $a = (Get-FileHash -LiteralPath (Join-Path $actual $name)).Hash
-        $b = (Get-FileHash -LiteralPath (Join-Path $expected $name)).Hash
-        if ($a -ne $b) { throw "Generated code differs: $name; run scripts/Generate-SQL.ps1." }
+        # Git may check out LF files as CRLF on Windows; compare their content.
+        $a = [System.IO.File]::ReadAllText((Join-Path $actual $name)).Replace("`r`n", "`n")
+        $b = [System.IO.File]::ReadAllText((Join-Path $expected $name)).Replace("`r`n", "`n")
+        if ($a -cne $b) { throw "Generated code differs: $name; run scripts/Generate-SQL.ps1." }
     }
     Write-Output 'sqlc v1.31.1 generated code is up to date.'
 } finally {
