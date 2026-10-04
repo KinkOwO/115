@@ -1,0 +1,931 @@
+{
+  "Channels": [
+    {
+      "Area": "[elven_guard]",
+      "ID": 1,
+      "Name": "LAN 1",
+      "SourceValues": [
+        10,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "Type": 2
+    },
+    {
+      "Area": "[none]",
+      "ID": 6,
+      "Name": "LAN 6",
+      "SourceValues": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "Type": 3
+    },
+    {
+      "Area": "[granfloris]",
+      "ID": 10,
+      "Name": "LAN Normal",
+      "SourceValues": [
+        5,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "Type": 22
+    },
+    {
+      "ID": 11,
+      "Name": "LAN 11"
+    },
+    {
+      "ID": 12,
+      "Name": "LAN 12"
+    },
+    {
+      "ID": 13,
+      "Name": "LAN 13"
+    },
+    {
+      "ID": 14,
+      "Name": "LAN 14"
+    },
+    {
+      "ID": 15,
+      "Name": "LAN 15"
+    },
+    {
+      "ID": 16,
+      "Name": "LAN 16"
+    },
+    {
+      "ID": 45,
+      "Name": "DNF Tournament",
+      "Type": 45,
+      "Area": "[none]",
+      "SourceValues": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "ID": 50,
+      "Name": "Evildom",
+      "Type": 50,
+      "Area": "[none]",
+      "SourceValues": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "ID": 67,
+      "Name": "Sirocco",
+      "Type": 67,
+      "Area": "[none]",
+      "SourceValues": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "ID": 76,
+      "Name": "Ozma",
+      "Type": 76,
+      "Area": "[none]",
+      "SourceValues": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "Area": "[ispins_legion]",
+      "ID": 86,
+      "Name": "Ispins",
+      "SourceValues": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "Type": 81
+    },
+    {
+      "ID": 82,
+      "Name": "Machine Revolution",
+      "Type": 82,
+      "Area": "[none]",
+      "SourceValues": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "ID": 83,
+      "Name": "Bakal Prelude",
+      "Type": 83,
+      "Area": "[none]",
+      "SourceValues": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "ID": 84,
+      "Name": "Hall of Dimensions",
+      "Type": 84,
+      "Area": "[none]",
+      "SourceValues": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "ID": 85,
+      "Name": "Bakal Raid",
+      "Type": 85,
+      "Area": "[none]",
+      "SourceValues": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "Area": "[none]",
+      "ID": 9,
+      "Name": "Awakening Forest",
+      "SourceValues": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "Type": 86
+    },
+    {
+      "Area": "[none]",
+      "ID": 29,
+      "Name": "Awakening Forest+",
+      "SourceValues": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "Type": 87
+    },
+    {
+      "ID": 88,
+      "Name": "White Cloud Valley",
+      "Type": 88,
+      "Area": "[none]",
+      "SourceValues": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "ID": 91,
+      "Name": "Dusky Island",
+      "Type": 91,
+      "Area": "[none]",
+      "SourceValues": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "ID": 92,
+      "Name": "Asrahan Prelude",
+      "Type": 92,
+      "Area": "[none]",
+      "SourceValues": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "ID": 93,
+      "Name": "Mist Raid",
+      "Type": 93,
+      "Area": "[none]",
+      "SourceValues": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "ID": 94,
+      "Name": "Solidaris",
+      "Type": 94,
+      "Area": "[none]",
+      "SourceValues": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "ID": 95,
+      "Name": "White Cloud",
+      "Type": 95,
+      "Area": "[none]",
+      "SourceValues": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "ID": 96,
+      "Name": "Venus",
+      "Type": 96,
+      "Area": "[none]",
+      "SourceValues": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "ID": 97,
+      "Name": "Content 97",
+      "Type": 97,
+      "Area": "[none]",
+      "SourceValues": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "ID": 98,
+      "Name": "Mist Raid 98",
+      "Type": 98,
+      "Area": "[none]",
+      "SourceValues": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "ID": 99,
+      "Name": "Unshackled Night",
+      "Type": 99,
+      "Area": "[none]",
+      "SourceValues": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "ID": 100,
+      "Name": "Labyrinth",
+      "Type": 100,
+      "Area": "[none]",
+      "SourceValues": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "ID": 101,
+      "Name": "Moon Lake",
+      "Type": 101,
+      "Area": "[none]",
+      "SourceValues": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "ID": 102,
+      "Name": "Azure Main",
+      "Type": 102,
+      "Area": "[none]",
+      "SourceValues": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "ID": 103,
+      "Name": "Temple of Death",
+      "Type": 103,
+      "Area": "[none]",
+      "SourceValues": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "ID": 104,
+      "Name": "Cloud Valley 104",
+      "Type": 104,
+      "Area": "[none]",
+      "SourceValues": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "ID": 105,
+      "Name": "Solidaris 105",
+      "Type": 105,
+      "Area": "[none]",
+      "SourceValues": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "Area": "[none]",
+      "ID": 106,
+      "Name": "Bleeding Mines",
+      "SourceValues": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "Type": 106
+    },
+    {
+      "ID": 107,
+      "Name": "Bleeding Guide",
+      "Type": 107,
+      "Area": "[none]",
+      "SourceValues": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "ID": 108,
+      "Name": "Nightmare",
+      "Type": 108,
+      "Area": "[none]",
+      "SourceValues": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "ID": 109,
+      "Name": "Nightmare Trial",
+      "Type": 109,
+      "Area": "[none]",
+      "SourceValues": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "ID": 110,
+      "Name": "Imperial Warfare",
+      "Type": 110,
+      "Area": "[none]",
+      "SourceValues": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "ID": 111,
+      "Name": "World Boss",
+      "Type": 111,
+      "Area": "[none]",
+      "SourceValues": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "ID": 112,
+      "Name": "Grand Turtle",
+      "Type": 112,
+      "Area": "[none]",
+      "SourceValues": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "ID": 113,
+      "Name": "Castle Apostate",
+      "Type": 113,
+      "Area": "[none]",
+      "SourceValues": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "ID": 114,
+      "Name": "Paradox Labyrinth",
+      "Type": 114,
+      "Area": "[none]",
+      "SourceValues": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "ID": 116,
+      "Name": "Turtle Library",
+      "Type": 116,
+      "Area": "[none]",
+      "SourceValues": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "ID": 117,
+      "Name": "Apostate Castle",
+      "Type": 117,
+      "Area": "[none]",
+      "SourceValues": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "ID": 118,
+      "Name": "Content 118",
+      "Type": 118,
+      "Area": "[none]",
+      "SourceValues": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "Area": "[apocalypse]",
+      "ID": 119,
+      "Name": "Apocalypse",
+      "SourceValues": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "Type": 119
+    },
+    {
+      "ID": 120,
+      "Name": "Content 120",
+      "Type": 120,
+      "Area": "[none]",
+      "SourceValues": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  ],
+  "CompatibilityNote": "local35: 9 ordinary channels plus all 41 current PVF special channel types, 50 rows total. Apocalypse is single-channel CH.119; Ispins is single-channel CH.86. Explicit Type, Area, and SourceValues fields take precedence over PVF.",
+  "DungeonTitles": {
+    "[apocalypse]": "Apocalypse",
+    "[ispins_legion]": "Ispins"
+  },
+  "Dungeons": {
+    "[Alfhlyra]": [
+      31,
+      32,
+      33,
+      34,
+      35,
+      1500,
+      50
+    ],
+    "[behemoth]": [
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27
+    ],
+    "[elven_guard]": [
+      1,
+      2
+    ],
+    "[granfloris]": [
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      1000
+    ],
+    "[north_myre]": [
+      31,
+      32,
+      33,
+      34,
+      35,
+      1500,
+      50
+    ],
+    "[sky_catle]": [
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17
+    ],
+    "[stormpass]": [
+      40,
+      41
+    ]
+  },
+  "Listen": "0.0.0.0:7001",
+  "MaxUsers": 30,
+  "ServerID": 1,
+  "ServerKey": "first",
+  "SourceSHA256": "aecc92480ccd469fa2b33bf9c189496a0c4e31c20eb2fef7e1623642c23a687f",
+  "SynchronizeIdentity": true
+}

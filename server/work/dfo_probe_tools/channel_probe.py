@@ -8,6 +8,7 @@ import struct
 import subprocess
 import sys
 import time
+from catalog_startup import validate_json_catalogs
 
 p = pathlib.Path(__file__).parent
 project = p.parent / "dfo-lan"
@@ -87,10 +88,13 @@ bps.write_text(
 )
 with bps.open("a") as f:
  f.write("5255c70 PRECHECK_RESULT\n52543d0 LOGIN_RESULT\n")
-odyssey_mode = os.environ.get("DFO_ODYSSEY_MODE") == "1"
-login_22 = project / "configs/login-normal22.bin"
+# 登录频道类型固定用 22（不再按 DFO_ODYSSEY_MODE 切换）：类型 22 是原生客户端的
+# "自动入口"类型（旧 0/2/3 被拒，见 docs/protocol/next34-channel-login.md），且在它
+# 底下客户端才会给出"奥德赛模式 / 剧情模式"双卡创建界面 —— 正是一个进程同时服务两种
+# 角色所需的形态。模式该由角色存档决定（internal/character/odyssey.go），而非启动参数。
+login_22 = project / "cmd/wireprobe/testdata/login-normal22.bin"
 login_normal = project / "runtime/login_ok.bin"
-if odyssey_mode and login_22.exists():
+if login_22.exists():
  default_login_bin = login_22.resolve()
 else:
  default_login_bin = login_normal.resolve()
@@ -139,6 +143,82 @@ if tag.startswith("roles_"):
     "563e280 CHARACTER_ROW_BEGIN\n563ead2 CHARACTER_ROW_FIELDS_DONE\n563ec14 CHARACTER_ROW_TAIL\n"
    )
 flags = subprocess.CREATE_NO_WINDOW
+
+
+def exe_flags(exe):
+ """列出服务端程序认识的参数名（解析 `exe -h` 打印的 usage）。
+
+ Go 的 flag 包遇到 -h 就把 usage 打到 stderr 并以非零码退出，所有历史二进制都保留
+ 这个行为，所以能拿它判断"这个程序认不认某个参数"。探测失败（文件不在、超时、
+ 不是 Go 程序）返回 None，调用方据此保持原样，不改变既有行为。
+ """
+ try:
+  probe = subprocess.run(
+   [exe, "-h"],
+   stdout=subprocess.PIPE,
+   stderr=subprocess.STDOUT,
+   creationflags=flags,
+   timeout=15,
+  )
+ except (OSError, subprocess.SubprocessError):
+  return None
+ names = set()
+ for line in probe.stdout.decode("utf-8", "replace").splitlines():
+  match = re.match(r"^\s+-([A-Za-z0-9._-]+)", line)
+  if match:
+   names.add(match.group(1))
+ return names or None
+
+
+def set_option_value(command, option, value):
+ """Set an existing option or append it when a newer profile owns the flag."""
+ try:
+  index = command.index(option)
+ except ValueError:
+  command.extend([option, str(value)])
+ else:
+  command[index + 1] = str(value)
+
+
+def prune_unsupported(command):
+ """丢弃当前服务端程序不认识的参数（连同它的值），避免 flag 解析直接退出。
+
+ 2026-09-20 事故：b6d97c8 给源码加了 -booster-catalog / -item-index，本文件按
+ "configs 里存在对应文件" 就追加参数，但归档基准的 exe 还是更早的构建；Go 的 flag
+ 包遇到未定义参数会打印 usage 并以非零码退出，玩家看到的是 "启动脚本异常退出:
+ exit status 1"。下发前按 exe 自报的能力过滤一遍，旧程序也能照常起来（功能按旧版）。
+
+ 只在自身构造的命令串上工作，形状固定为 [-flag value -flag -flag value]；不认识的
+ 参数如果带值，按"下一个 token 不是参数名"判定并一并丢弃（参数值都是路径，不会以
+ '-' 开头）。
+ """
+ supported = exe_flags(command[0])
+ if os.environ.get("DFO_PVF_CATALOGS") and (not supported or "pvf-catalogs" not in supported):
+  raise RuntimeError("Selected gateway does not advertise PVF direct support; rebuild it or explicitly select --json-mode.")
+ if not supported:
+  return command
+ kept = [command[0]]
+ dropped = []
+ index = 1
+ while index < len(command):
+  token = command[index]
+  if not token.startswith("-") or token[1:] in supported:
+   kept.append(token)
+   index += 1
+   continue
+  dropped.append(token)
+  index += 1
+  if index < len(command) and not command[index].startswith("-"):
+   dropped.append(command[index])
+   index += 1
+ if dropped:
+  print(
+   "WARNING: %s does not define %s; dropped them so this build can still start."
+   % (command[0], ", ".join(x for x in dropped if x.startswith("-")))
+  )
+ return kept
+
+
 with (
  (out / "gateway.out").open("w") as stdout,
  (out / "gateway.err").open("w") as stderr,
@@ -153,16 +233,9 @@ with (
  ]
  if persisted:
   cr_odyssey = project / "configs/character-rules.odyssey-release.json"
-  cr_jobs = project / "configs/character-rules.jobs-release.json"
   cr_probe = project / "configs/character-probe.json"
-  if odyssey_mode and cr_odyssey.exists():
-   cr_default = cr_odyssey
-  elif cr_jobs.exists():
-   cr_default = cr_jobs
-  elif cr_odyssey.exists():
-   cr_default = cr_odyssey
-  else:
-   cr_default = cr_probe
+  # 使用带 odyssey_pilot 的规则，同时允许两种模式由角色存档决定。
+  cr_default = cr_odyssey if cr_odyssey.exists() else cr_probe
   cat_skycastle = project / "configs/characters.skycastle-release.json"
   cat_generated = project / "configs/characters.generated.json"
   cat_default = cat_skycastle if cat_skycastle.exists() else cat_generated
@@ -175,7 +248,7 @@ with (
    str(cr_default),
   ]
  if tag.startswith("roles_persist_select"):
-  command += ["-select-probe-config", str(project / "configs/select-parser-probe.json")]
+  command += ["-select-probe-config", str(project / "cmd/wireprobe/testdata/select-parser-probe.json")]
   with bps.open("a") as f:
    f.write(
     "525a120 SELECT_RESULT\n525a2e3 SELECT_FIELDS_BEGIN\n525b409 SELECT_LAST_COUNT\n525b4c4 SELECT_FIELDS_DONE\n"
@@ -191,7 +264,7 @@ with (
    "-town-catalog",
    str(project / "configs/town.generated.json"),
    "-town-entry-probe",
-   str(project / "configs/town-entry-probe.json"),
+   str(project / "cmd/wireprobe/testdata/town-entry-probe.json"),
   ]
   with bps.open("a") as f:
    f.write("52fc5b0 AREA_USERS_BEGIN\n52fcf01 AREA_MAP_LOAD\n52fd9e3 AREA_USERS_DONE\n")
@@ -199,15 +272,11 @@ with (
   command += ["-responses", str(responses.resolve())]
  if tag.startswith("roles_persist_select_actor_town_world_live"):
   command[command.index("-select-probe-config") + 1] = str(
-   project / "configs/select-world-probe.json"
+   project / "cmd/wireprobe/testdata/select-world-probe.json"
   )
   command += [
-   "-world-catalog",
-   str(project / "configs/world.generated.json"),
    "-world-rules",
    str(project / "configs/world-probe.json"),
-   "-quest-catalog",
-   str(project / "configs/quests.generated.json"),
    "-vault-rules",
    str(project / "configs/vault.generated.json"),
   ]
@@ -217,8 +286,6 @@ with (
     "-fatigue-rules",
     str(project / "configs/fatigue-probe.json"),
    ]
-  if "_dungeon_" in tag:
-   command += ["-dungeon-catalog", str(project / "configs/dungeons.full.json")]
  if tag.endswith(
   (
    "_next26",
@@ -235,16 +302,20 @@ with (
   if not persisted or "_dungeon_" not in tag:
    raise ValueError("next26 requires complete dungeon profile")
   command[0] = str(project / "bin/wireprobe-dungeon26.exe")
+  # next25 代目录导出于 growtype 分段解析之前，没有 advancement_growth /
+  # advancement_skills。用它时，建号请求 option[8] 选定的转职槽位无处落账，
+  # 角色停在 advancement 0：全局按基础职业渲染、技能面板没有该分支起始技能。
+  # skycastle-release 是同一份 PVF 快照的导出，17 个职业除这 4 个新增数据块
+  # 外逐字段一致（checksum 与 raw_sha256 相同，已有存档无需迁移），只是补上缺失块。
+  # 技能目录保持 next27：它已定义全部转职分支技能 ID，且 [required level] 同值。
   command[command.index("-character-catalog") + 1] = str(
-   project / "configs/characters.next25.json"
+   project / "configs/characters.skycastle-release.json"
   )
   command += [
-   "-progression-catalog",
-   str(project / "configs/progression.next25.json"),
    "-progression-rules",
    str(project / "configs/experience.compat90.json"),
    "-loot-catalog",
-   str(project / "configs/loot.next25.json"),
+   "pvf",
    "-loot-rules",
    str(project / "configs/drop.compat90.json"),
    "-bag-rules",
@@ -265,24 +336,20 @@ with (
    )
   ):
    command[0] = str(project / "bin/wireprobe-dungeon27.exe")
-   command += ["-skill-catalog", str(project / "configs/skills.next27.json")]
   if tag.endswith(
    ("_next28", "_next29", "_next30", "_next31", "_next32", "_next33", "_next34")
   ):
    command[0] = str(project / "bin/wireprobe-dungeon28.exe")
    command += ["-channel-refresh-config", str(project / "configs/channel.local28.json")]
-   command[command.index("-dungeon-catalog") + 1] = str(
-    project / "configs/dungeons.full.json"
-   )
   if tag.endswith(("_next29", "_next30", "_next31", "_next32", "_next33", "_next34")):
    command[0] = str(project / "bin/wireprobe-dungeon29.exe")
    command[command.index("-bag-rules") + 1] = str(
     project / "configs/inventory.next29.json"
    )
-   command += [
-    "-quest-equipment-catalog",
-    str(project / "configs/quest-equipment.next29.json"),
-   ]
+   if not (candidate35 or candidate36 or candidate37):
+    print(
+     "NOTICE: next29-next34 are historical binaries. Their retired quest-equipment JSON is no longer injected; use the matching historical configuration, or build current source with native PVF."
+    )
   if tag.endswith("_next30"):
    command[0] = str(project / "bin/wireprobe-dungeon30.exe")
   if tag.endswith("_next31"):
@@ -309,9 +376,6 @@ with (
    command += ["-game-listen", "127.0.0.2:0"]
  if candidate35:
   command[0] = str(project / "bin/wireprobe-dungeon35.exe")
-  command[command.index("-quest-equipment-catalog") + 1] = str(
-   project / "configs/equipment.current37.json"
-  )
   command += [
    "-equipment-wear-rules",
    str(project / "configs/equipment-wear.current35.json"),
@@ -348,30 +412,49 @@ with (
   # re-entry, no crash. (Do NOT use 38 - its userinfo-appearance block over-reads
   # and access-violates the client; that whole approach is abandoned.)
   command[0] = str(project / "bin/wireprobe-dungeon39.exe")
-  command[command.index("-quest-equipment-catalog") + 1] = str(
-   project / "configs/equipment.current37.json"
+  # next37 exercises the expanded 50-row channel directory. Keep next34's
+  # local34 selection for historical runs above.
+  command[command.index("-channel-refresh-config") + 1] = str(
+   project / "configs/channel.local35.json"
   )
   # The bag policy gains the quick-use belt (slots 0..8, the gap below the
   # equipment range) so a consumable can be dragged onto the hotkey bar.
   command[command.index("-bag-rules") + 1] = str(
    project / "configs/inventory.current37.json"
   )
-  if (project / "configs/items.index.json").exists():
-   command += ["-item-index", str(project / "configs/items.index.json")]
-  if (project / "configs/booster-catalog.json").exists():
-   command += ["-booster-catalog", str(project / "configs/booster-catalog.json")]
-  shop_release = project / "configs/shop-vault-release.json"
-  shop_pilot = project / "configs/shop-purchase-pilot.json"
-  if os.environ.get("DFO_SHOP_PURCHASE_PILOT"):
-   shop_override = pathlib.Path(os.environ["DFO_SHOP_PURCHASE_PILOT"])
-   if not shop_override.is_absolute():
-    shop_override = (project / shop_override).resolve()
-   command += ["-shop-purchase-pilot", str(shop_override), "-shop-release"]
-  elif shop_release.exists():
-   command += ["-shop-purchase-pilot", str(shop_release), "-shop-release"]
-  elif shop_pilot.exists():
-   command += ["-shop-purchase-pilot", str(shop_pilot)]
+  # Booster contents and selection boxes are prepared from native PVF domains.
+  # Source item shops ([need material] prices — the Odyssey shop charges silver
+  # coins). Without it the gateway charges a flat 1 gold for everything.
+  item_shop = project / "configs/itemshop-candidate.json"
+  if item_shop.exists():
+   command += ["-item-shop", str(item_shop)]
+  # The compiled apocalypse.ctp table (legion / apocalypse): the phase clock,
+  # the four operation blocks, gate schedule, coin flag, rewards and duty
+  # skills. Same cwd rule as the catalogs above - the gateway runs with the
+  # project root as cwd, so the built-in relative default never resolves.
+  # Deliberately NOT behind .exists(): when the file is missing the server
+  # then logs the absolute path it tried, which separates a cwd problem from
+  # a missing-file problem. Live run 20260923_163225 hit exactly this - the
+  # relative default failed and every legion confirmation went unvalidated.
+  command += [
+   "-apocalypse-catalog",
+   str(project / "configs/apocalypse.generated.json"),
+  ]
+  # Magic-seal unsealing (CMD393) rolls from the current random option rules;
+  # the default relative path never resolves because the gateway's cwd is the
+  # project root, so pass the absolute catalog like every other config.
+  if (project / "configs/randomoption.current37.json").exists():
+   command += [
+    "-random-option-catalog",
+    str(project / "configs/randomoption.current37.json"),
+   ]
+  # Cash shop is one content source: the PVF profile (DFO_PVF_CATALOGS
+  # includes "cashshop") prepares it, and DFO_SHOP_RELEASE carries the release
+  # policy. The historical JSON export and its -shop-purchase-pilot flag are
+  # gone; a selected-but-unprepared domain now fails the gateway explicitly.
  command[0] = os.environ.get("DFO_SERVER_BINARY", command[0])
+ if os.environ.get("DFO_CHANNEL_IDENTITY") == "1":
+  command += ["-channel-identity"]
  for flag, key in (
   ("-character-storage", "DFO_CHARACTER_STORAGE"),
   ("-character-catalog", "DFO_CHARACTER_CATALOG"),
@@ -391,70 +474,122 @@ with (
      responses.write_text(json.dumps(mapping))
    except Exception:
     pass
- # 允许用环境变量覆盖副本目录（本机用 dungeons.full.json：3200 副本/16042 地图，
- # 而默认的 dungeons.generated.json 只有 11 个）。
- if os.environ.get("DFO_DUNGEON_CATALOG") and "-dungeon-catalog" in command:
-  command[command.index("-dungeon-catalog") + 1] = os.environ["DFO_DUNGEON_CATALOG"]
+ # 角色目录必须带 growtype 分段数据（advancement_growth / advancement_skills）。
+ # next25 那代导出于 growtype 解析之前：用它时建号请求 option[8] 选定的转职槽位
+ # 无处落账，角色停在 advancement 0（全局按基础职业渲染、技能面板缺该分支起始技能），
+ # 而且全程没有报错 —— 2026-09-20 的"新角色不转职"就是这么来的。这里显式告警。
  # ★ 显式校验：副本目录必须真实存在且非空。
- # 2026-09-18 事故：这里曾被指向 configs/dungeons.full.json，而那个 294MB 文件从没进仓库，
- # 于是服务端起不来、探针一直等不到 ready.json —— 正常玩家表现为"下载后启动不了游戏"。
- # 不要再让"文件不存在"静默落回默认值（那条 tag 降级链最终是只有 11 个副本的 dungeons.generated.json）。
- if "-dungeon-catalog" in command:
-  dungeon_catalog = pathlib.Path(command[command.index("-dungeon-catalog") + 1])
-  if not dungeon_catalog.is_file() or dungeon_catalog.stat().st_size == 0:
-   raise RuntimeError(
-    "副本目录不存在或为空：%s\n"
-    "  当前 -dungeon-catalog 指向它，服务端会启动失败/超时。\n"
-    "  生成：go run ./cmd/dungeonfull -output %s\n"
-    "  或设 DFO_DUNGEON_CATALOG 指向已有目录；确实要用 11 个副本的默认表请显式指过去。"
-    % (dungeon_catalog, dungeon_catalog)
-   )
- if odyssey_mode:
-  coin_rules = project / "configs/odyssey-currency.json"
-  if os.environ.get("DFO_ODYSSEY_COIN_RULES"):
-   coin_override = pathlib.Path(os.environ["DFO_ODYSSEY_COIN_RULES"])
-   if not coin_override.is_absolute():
-    coin_override = (project / coin_override).resolve()
-   if coin_override.exists():
-    os.environ["DFO_ODYSSEY_COIN_RULES"] = str(coin_override)
-  elif coin_rules.exists():
-   os.environ["DFO_ODYSSEY_COIN_RULES"] = str(coin_rules.resolve())
+ # 2026-09-18 事故：这里曾指向一个从未进仓库的大副本目录，服务端起不来、探针一直等不到
+ # ready.json —— 正常玩家表现为"下载后启动不了游戏"。不要再让"文件不存在"静默落回默认值
+ #（那条 tag 降级链最终是只有 11 个副本的 dungeons.generated.json）。
+ validate_json_catalogs(command, os.environ)
+ # 奥德赛组件常驻挂载（不再看 DFO_ODYSSEY_MODE）：服务端只在环境变量存在时才挂载
+ # 成长/货币/武器盒（cmd/wireprobe/main.go:369/455/579），而"按角色"要求同一进程同时
+ # 服务两种角色 —— 少了这些，奥德赛角色进城后没有成长/货币/武器盒。挂载本身对所有
+ # 角色无害：是否真的生效由服务端按角色判定（internal/character/odyssey.go 的 OdysseyRole）。
+ coin_rules = project / "configs/odyssey-currency.json"
+ if os.environ.get("DFO_ODYSSEY_COIN_RULES"):
+  coin_override = pathlib.Path(os.environ["DFO_ODYSSEY_COIN_RULES"])
+  if not coin_override.is_absolute():
+   coin_override = (project / coin_override).resolve()
+  if coin_override.exists():
+   os.environ["DFO_ODYSSEY_COIN_RULES"] = str(coin_override)
+ elif coin_rules.exists():
+  os.environ["DFO_ODYSSEY_COIN_RULES"] = str(coin_rules.resolve())
 
-  weapon_box = project / "configs/odyssey-weapon-box-release.json"
-  if os.environ.get("DFO_ODYSSEY_WEAPON_BOX"):
-   box_override = pathlib.Path(os.environ["DFO_ODYSSEY_WEAPON_BOX"])
-   if not box_override.is_absolute():
-    box_override = (project / box_override).resolve()
-   if box_override.exists():
-    os.environ["DFO_ODYSSEY_WEAPON_BOX"] = str(box_override)
-    os.environ["DFO_ODYSSEY_REWARDS_RELEASE"] = "1"
-  elif weapon_box.exists():
-   os.environ["DFO_ODYSSEY_WEAPON_BOX"] = str(weapon_box.resolve())
+ weapon_box = project / "configs/odyssey-weapon-box-release.json"
+ if os.environ.get("DFO_ODYSSEY_WEAPON_BOX"):
+  box_override = pathlib.Path(os.environ["DFO_ODYSSEY_WEAPON_BOX"])
+  if not box_override.is_absolute():
+   box_override = (project / box_override).resolve()
+  if box_override.exists():
+   os.environ["DFO_ODYSSEY_WEAPON_BOX"] = str(box_override)
    os.environ["DFO_ODYSSEY_REWARDS_RELEASE"] = "1"
+ elif weapon_box.exists():
+  os.environ["DFO_ODYSSEY_WEAPON_BOX"] = str(weapon_box.resolve())
+  os.environ["DFO_ODYSSEY_REWARDS_RELEASE"] = "1"
 
-  odyssey_growth = project / "configs/odyssey-growth-release.json"
-  if os.environ.get("DFO_ODYSSEY_GROWTH"):
-   growth_override = pathlib.Path(os.environ["DFO_ODYSSEY_GROWTH"])
-   if not growth_override.is_absolute():
-    growth_override = (project / growth_override).resolve()
-   if growth_override.exists():
-    os.environ["DFO_ODYSSEY_GROWTH"] = str(growth_override)
-  elif odyssey_growth.exists():
-   os.environ["DFO_ODYSSEY_GROWTH"] = str(odyssey_growth.resolve())
+ odyssey_growth = project / "configs/odyssey-growth-release.json"
+ if os.environ.get("DFO_ODYSSEY_GROWTH"):
+  growth_override = pathlib.Path(os.environ["DFO_ODYSSEY_GROWTH"])
+  if not growth_override.is_absolute():
+   growth_override = (project / growth_override).resolve()
+  if growth_override.exists():
+   os.environ["DFO_ODYSSEY_GROWTH"] = str(growth_override)
+ elif odyssey_growth.exists():
+  os.environ["DFO_ODYSSEY_GROWTH"] = str(odyssey_growth.resolve())
 
- eq_full = project / "configs/equipment-full"
- if (project / "configs/equipment-full.index.json").exists() and (
-  project / "configs/equipment-full.data"
- ).exists():
-  os.environ["DFO_EQUIPMENT_FULL_CATALOG"] = str(eq_full.resolve())
-  eq_wear_full = project / "configs/equipment-wear.full-candidate.json"
-  if eq_wear_full.exists():
-   os.environ["DFO_EQUIPMENT_WEAR_RULES"] = str(eq_wear_full.resolve())
+ # 七章目录（章节奖励按进度补发）。章节盒掉落表**不**在这里注入：那一项出厂
+ # enabled=false，按手册要求由 profile 显式开启。
+ odyssey_chapters = project / "configs/odyssey-chapters-release.json"
+ if os.environ.get("DFO_ODYSSEY_CHAPTERS"):
+  chapters_override = pathlib.Path(os.environ["DFO_ODYSSEY_CHAPTERS"])
+  if not chapters_override.is_absolute():
+   chapters_override = (project / chapters_override).resolve()
+  if chapters_override.exists():
+   os.environ["DFO_ODYSSEY_CHAPTERS"] = str(chapters_override)
+ elif odyssey_chapters.exists():
+  os.environ["DFO_ODYSSEY_CHAPTERS"] = str(odyssey_chapters.resolve())
+
+ # 章节装备盒掉落（手册 P3 子项 3）。整表出厂 enabled=false，服务端只在环境变量存在
+ # 时才挂载；此前没有任何入口注入它（probe 不注入、repair profile 也不认这个键），
+ # 于是「章节最终领主掉装备盒」这条链永远是死的。现在 1/3/4/5/6 章已在 release 表
+ # 开启，这里按与金币表相同的规则常驻挂载（2 章盒子 10419742 不在选择盒目录里、
+ # 7 章手册没给装备盒，这两行保持关闭，开启会让网关启动即退出）。
+ chapter_drop = project / "configs/odyssey-chapter-drop-release.json"
+ if os.environ.get("DFO_ODYSSEY_CHAPTER_DROP"):
+  drop_override = pathlib.Path(os.environ["DFO_ODYSSEY_CHAPTER_DROP"])
+  if not drop_override.is_absolute():
+   drop_override = (project / drop_override).resolve()
+  if drop_override.exists():
+   os.environ["DFO_ODYSSEY_CHAPTER_DROP"] = str(drop_override)
+ elif chapter_drop.exists():
+  os.environ["DFO_ODYSSEY_CHAPTER_DROP"] = str(chapter_drop.resolve())
+
+ eq_wear_full = project / "configs/equipment-wear.full-candidate.json"
+ if eq_wear_full.exists():
+  os.environ["DFO_EQUIPMENT_WEAR_RULES"] = str(eq_wear_full.resolve())
+ # ★ 下发前按当前服务端程序自报的能力过滤参数（见 prune_unsupported）。
+ command = prune_unsupported(command)
+ # Current source uses prepared PVF domains. Historical binaries require
+ # an explicit matching export; retired configs are never injected implicitly.
+ supported = exe_flags(command[0]) or set()
+ if "pvf-catalogs" in supported:
+  os.environ["DFO_EQUIPMENT_CATALOG"] = "pvf"
+  set_option_value(command, "-quest-equipment-catalog", "pvf")
+ else:
+  historical = os.environ.get("DFO_HISTORICAL_EQUIPMENT_CATALOG")
+  if historical:
+   set_option_value(command, "-quest-equipment-catalog", historical)
+   os.environ["DFO_EQUIPMENT_CATALOG"] = historical
+  elif candidate35 or candidate36 or candidate37:
+   raise ValueError("Historical binaries require DFO_HISTORICAL_EQUIPMENT_CATALOG and matching historical configs; use DFO_SERVER_BINARY with current PVF-capable source for this configuration tree")
+ # The boundary-of-attunement reward table (source rewardboostinfo CTPs).
+ # Without it a full border-of-attunement clear pays no exclusive reward; the
+ # gateway only ever finds it through this absolute path, for the same cwd
+ # reason as the gear catalog above.
+ os.environ["DFO_ATTUNEMENT_REWARDS"] = str(
+  project / "configs/attunement-rewards.generated.json"
+ )
+ # 装备库（装备图鉴）规则表：分解登记（CMD26 事务内写账本）与入场 NOTI2610 都要它。
+ # 与上面的装备目录同一惯例 —— flag 的默认值读 DFO_EQUIPMENT_JOURNAL_RULES，
+ # 网关 cwd 是包根，所以必须给绝对路径。缺这张表只会"不登记"，不会拦启动。
+ os.environ["DFO_EQUIPMENT_JOURNAL_RULES"] = str(
+  project / "configs/equipment-journal.generated.json"
+ )
+ # 装备库「装备生成」的成本表（同一份源的 [create cost] 段）。与上面同一惯例：
+ # flag 默认值读 DFO_EQUIPMENT_CREATE_COST，网关 cwd 是包根，所以必须给绝对路径。
+ os.environ["DFO_EQUIPMENT_CREATE_COST"] = str(
+  project / "configs/equipment-create-cost.generated.json"
+ )
  stdout.write(' '.join(command) + '\n')
  server = subprocess.Popen(command, stdout=stdout, stderr=stderr, creationflags=flags)
  try:
   ready = out / "ready.json"
-  for _ in range(1000):
+  # Direct PVF startup verifies source/parity before opening storage. Allow its
+  # larger import stage without changing the default JSON startup timeout.
+  startup_checks = 3600 if os.environ.get("DFO_PVF_CATALOGS") else 1000
+  for _ in range(startup_checks):
    if server.poll() is not None:
     raise RuntimeError(f"gateway exited on {command}")
    if ready.exists():

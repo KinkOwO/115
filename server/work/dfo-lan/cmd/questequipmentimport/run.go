@@ -1,12 +1,37 @@
 package main
 
 import (
+	"crypto/sha256"
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/inventory"
+	"fmt"
 	"log"
 	"sort"
 )
+
+// resolvedEquipment is the minimal source identity needed when extending the
+// generated equipment catalog with a quest-referenced native file.
+type resolvedEquipment struct {
+	Path   string
+	SHA256 string
+}
+
+func resolve(a *pvf.Archive, path string) (resolvedEquipment, error) {
+	if a == nil {
+		return resolvedEquipment{}, fmt.Errorf("nil PVF archive")
+	}
+	file, ok := a.FindFile(path)
+	if !ok {
+		return resolvedEquipment{}, fmt.Errorf("equipment file not found: %s", path)
+	}
+	raw, err := a.ReadRaw(path)
+	if err != nil {
+		return resolvedEquipment{}, err
+	}
+	sum := sha256.Sum256(raw)
+	return resolvedEquipment{Path: file.Path, SHA256: fmt.Sprintf("%x", sum[:])}, nil
+}
 
 // section returns the cells that follow a named marker, the same way
 // progression/experience.go reads quest scripts.
@@ -42,7 +67,6 @@ func rewardTemplates(q catalog.QuestCatalog, known map[uint32]string) map[uint32
 	}
 	return want
 }
-
 
 func run(a *pvf.Archive, c *inventory.EquipmentCatalog, q catalog.QuestCatalog,
 	paths map[uint32]string, out string) {

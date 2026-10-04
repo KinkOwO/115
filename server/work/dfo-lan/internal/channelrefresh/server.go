@@ -18,9 +18,57 @@ import (
 	"time"
 )
 
+// Channel 是本地配置里的一个频道行。**配置文件只写 ID 与 Name** ——
+// Type / Area / SourceValues 是内层 PVF 的规则，由 Resolve 从直读结果填入，
+// 不再写进 configs（业主 2026-10-02：不必要的 JSON 逐步废弃）。
 type Channel struct {
-	ID           uint32
-	Name         string
+	// ID 同时是发布用的频道号，也按"ID = type"约定关联到 clientchannelinfo 的 [channelType]。
+	ID uint32
+	// Name 是本地显示名（PVF 里只有图标 iconIndex，没有名字）。
+	Name string
+
+	// 以下三项由 Resolve 填充。只有**在内层 PVF 里没有 [channelType] 的本地频道**
+	// （目前是 63 Oculus / 73 Purgatory / 74 Revelation：类型来自客户端 exe 144DA9020
+	// 的特殊分类，不在 clientchannelinfo.etc）才需要在配置里写出来。
+	Type         uint32
+	Area         string
+	SourceValues []int32
+
+	// The JSON decoder records field presence so Resolve can distinguish an
+	// explicitly configured empty value from an omitted value. Direct struct
+	// literals remain supported through the non-zero checks in Resolve.
+	typeSet, areaSet, sourceValuesSet bool
+}
+
+// UnmarshalJSON tracks whether optional rule fields were present in the local
+// configuration. The wire format is case-insensitive, matching encoding/json.
+func (c *Channel) UnmarshalJSON(data []byte) error {
+	type alias Channel
+	var v alias
+	if err := json.Unmarshal(data, &v); err != nil {
+		return err
+	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	*c = Channel(v)
+	for key := range raw {
+		switch {
+		case strings.EqualFold(key, "Type"):
+			c.typeSet = true
+		case strings.EqualFold(key, "Area"):
+			c.areaSet = true
+		case strings.EqualFold(key, "SourceValues"):
+			c.sourceValuesSet = true
+		}
+	}
+	return nil
+}
+
+// ChannelAttributes 是**直读**来的频道属性。channelrefresh 自己不碰 PVF ——
+// 调用方（cmd/wireprobe）从内层归档解析后注入，保持本包对 PVF 无依赖。
+type ChannelAttributes struct {
 	Type         uint32
 	Area         string
 	SourceValues []int32
@@ -29,8 +77,19 @@ type Config struct {
 	Listen, ServerKey, SourceSHA256 string
 	ServerID                        uint32
 	MaxUsers                        uint32
-	Dungeons                        map[string][]uint32
-	Channels                        []Channel
+	// 当前客户端目录显式启用，确保登录和角色刷新使用所选频道身份。
+	SynchronizeIdentity bool
+	Dungeons            map[string][]uint32
+	// DungeonTitles carries the official display names for area keys whose
+	// source dungeon block lists no dungeon ids (e.g. [ispins_legion]).
+	// Official 2026-10-02 channel script evidence: every legion area ships a
+	// block of the shape "[dungeon]\n  `[key]` `Name`\n\n[/dungeon]" and no
+	// dungeon ids; the local directory must reproduce that block because the
+	// client's legion open-schedule lookup fails for area rows it cannot
+	// resolve (the source [none] area makes the entry gate pop "not open
+	// today").
+	DungeonTitles map[string]string
+	Channels      []Channel
 }
 
 func Load(path string) (Config, error) {
@@ -50,23 +109,105 @@ func Load(path string) (Config, error) {
 	if e != nil || (h != "" && net.ParseIP(h) == nil) || len(c.SourceSHA256) != 64 || len(c.Channels) == 0 || len(c.Channels) > 128 || len(c.ServerKey) > 19 || c.MaxUsers == 0 {
 		return c, fmt.Errorf("invalid local channel configuration")
 	}
+	if c.SynchronizeIdentity && (c.ServerID == 0 || c.ServerID > 255) {
+		return c, fmt.Errorf("频道身份同步要求服务器编号在 1～255 之间")
+	}
+	for area, title := range c.DungeonTitles {
+		if len(area) == 0 || len(title) == 0 || len(title) > 24 || strings.ContainsAny(title, "`\r\n\x00") {
+			return c, fmt.Errorf("invalid dungeon area title for %q", area)
+		}
+	}
+	seen := make(map[uint32]bool, len(c.Channels))
 	for _, ch := range c.Channels {
-		if ch.ID == 0 || len(ch.Name) == 0 || len(ch.Name) > 18 || strings.ContainsAny(ch.Name, "`\r\n\x00") || len(ch.SourceValues) != 11 {
+		if ch.ID == 0 || len(ch.Name) == 0 || len(ch.Name) > 18 || strings.ContainsAny(ch.Name, "`\r\n\x00") {
 			return c, fmt.Errorf("invalid source channel row")
+		}
+		if seen[ch.ID] {
+			return c, fmt.Errorf("频道编号重复：%d", ch.ID)
+		}
+		seen[ch.ID] = true
+		if c.SynchronizeIdentity && (ch.ID > 255 || ch.Type > 255) {
+			return c, fmt.Errorf("频道 %d 的编号或类型超出身份字段范围", ch.ID)
 		}
 	}
 	return c, nil
+}
+
+// Resolve 用**直读**来的频道属性补全每个频道的 Type / Area / SourceValues。
+//
+// 属性必须存在：缺失说明"这个 ID 在内层 PVF 的 clientchannelinfo.etc 里没有对应的
+// [channelType]"，直接报错 —— 不静默跳过、也不猜类型。这是业主 2026-10-02 定的口径：
+// 配置文件只声明"发布哪些频道、叫什么名"，规则一律以直读为准，写错就在启动期炸掉。
+func (c *Config) Resolve(attrs func(id uint32) (ChannelAttributes, bool)) error {
+	if attrs == nil {
+		return fmt.Errorf("频道属性解析器缺失")
+	}
+	for i := range c.Channels {
+		ch := &c.Channels[i]
+		a, ok := attrs(ch.ID)
+		if !ok {
+			// 源里没有这个 [channelType]：只接受**配置完整给出**的本地频道
+			// （63/73/74，类型来自客户端 exe 的特殊分类）。Type 必填 —— 缺它说明
+			// 这个 ID 既不是合法 type、也没被本地定义，直接报错。
+			if ch.Type == 0 {
+				return fmt.Errorf("频道 %d 在内层 PVF 的 clientchannelinfo.etc 里没有对应的 [channelType]（要么按 type 给出 ID，要么在配置里写本地 Type）", ch.ID)
+			}
+			if ch.Area == "" {
+				ch.Area = "[none]"
+			}
+			if len(ch.SourceValues) == 0 {
+				ch.SourceValues = make([]int32, 11)
+			}
+			continue
+		}
+		if len(a.SourceValues) != 11 {
+			return fmt.Errorf("频道 %d 的属性带 %d 个 SourceValue，源要求 11 个", ch.ID, len(a.SourceValues))
+		}
+		// Type 已在配置里写明的，视为**本地覆盖**（目前只有 ID 10：源里是 type 0，
+		// 客户端不认；本地用 22 让它成为普通区域频道 —— 业主 2026-10-02 受控实验判定）。
+		// Area 与 SourceValues 仍然一律以直读为准。
+		// Configuration fields have priority when they are explicitly present.
+		// Preserve compatibility with direct Channel literals by treating non-zero
+		// values as explicit as well.
+		if !ch.typeSet && ch.Type == 0 {
+			ch.Type = a.Type
+		}
+		if !ch.areaSet && ch.Area == "" {
+			ch.Area = a.Area
+		}
+		if !ch.sourceValuesSet && len(ch.SourceValues) == 0 {
+			ch.SourceValues = append([]int32(nil), a.SourceValues...)
+		}
+		if len(ch.SourceValues) != 11 {
+			return fmt.Errorf("频道 %d 的 SourceValues 必须有 11 个，得到 %d", ch.ID, len(ch.SourceValues))
+		}
+	}
+	return nil
 }
 
 func (c Config) Script() []byte {
 	var b strings.Builder
 	// Local display names are explicit configuration; source area keys/IDs and
 	// the eleven channel rule scalars are retained from this client's PVF.
+	// Areas shared by several channel rows ship one block, matching the
+	// official script shape.
+	emitted := make(map[string]bool, len(c.Channels))
 	for _, ch := range c.Channels {
+		if emitted[ch.Area] {
+			continue
+		}
 		ids := c.Dungeons[ch.Area]
-		if len(ids) == 0 {
+		title, titled := c.DungeonTitles[ch.Area]
+		if len(ids) == 0 && !titled {
 			continue
 		} // Source [none] entrance has no dungeon block.
+		emitted[ch.Area] = true
+		if titled {
+			// Official shape: no dungeon ids, the display name line, then an
+			// empty id line before the closing tag.
+			fmt.Fprintf(&b, "[dungeon]\n  `%s` `%s`\n\n[/dungeon]\n\n", ch.Area, title)
+			continue
+		}
 		fmt.Fprintf(&b, "[dungeon]\n`%s` `%s`", ch.Area, strings.Trim(ch.Area, "[]"))
 		for _, id := range ids {
 			fmt.Fprintf(&b, " %d", id)
