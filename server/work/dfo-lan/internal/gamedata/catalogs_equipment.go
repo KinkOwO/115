@@ -480,6 +480,24 @@ func preparePVFRules(c *Catalogs, s *Source, selected map[string]bool, inputs Ca
 		log.Printf("PVF equipment creation costs prepared: %d groups", len(direct.Groups))
 		s.ReleaseReadCaches()
 	}
+	if selected["transform"] {
+		direct, err := s.EquipmentTransformSystem()
+		if err != nil {
+			return err
+		}
+		c.Transform = &direct
+		points, err := s.PointRules()
+		if err != nil {
+			return err
+		}
+		c.Points = &points
+		log.Printf("PVF equipment transform system prepared: need=%d/%d/%d refund=%d/%d/%d; "+
+			"point rules prepared: set=%d grades=%d oath=%d minOath=%d",
+			len(direct.EquipmentNeed), len(direct.AmalgamationNeed), len(direct.PrimerNeed),
+			len(direct.EquipmentRefund), len(direct.AmalgamationRefund), len(direct.PrimerRefund),
+			len(points.Set.Rules), len(points.Set.Grades), len(points.Oath.Rules), points.Oath.MinOathPoint)
+		s.ReleaseReadCaches()
+	}
 	return nil
 }
 
@@ -518,6 +536,28 @@ func (c *Catalogs) LoadEquipmentCreateCost(path, checksum string) (catalog.Equip
 		return *c.CreateCost, nil
 	}
 	return catalog.EquipmentCreateCost{}, nativeContentRequired("create-cost")
+}
+
+// LoadEquipmentTransformSystem 取已准备的变换费用/返还表（装备 2259 + 晶体 2381 共用）。
+func (c *Catalogs) LoadEquipmentTransformSystem() (*catalog.EquipmentTransformSystem, error) {
+	if err := c.RequireSelected("transform", c.Transform != nil); err != nil {
+		return nil, err
+	}
+	if c.Transform != nil {
+		return c.Transform, nil
+	}
+	return nil, nativeContentRequired("transform")
+}
+
+// LoadPointRules 返回逐件「套装积分 / 誓约积分」表（与 transform 同域装载）。
+func (c *Catalogs) LoadPointRules() (*catalog.PointRules, error) {
+	if err := c.RequireSelected("transform", c.Points != nil); err != nil {
+		return nil, err
+	}
+	if c.Points != nil {
+		return c.Points, nil
+	}
+	return nil, nativeContentRequired("transform")
 }
 
 func (c *Catalogs) LoadTutorialRoutes(path, checksum string) (*catalog.TutorialCatalog, error) {

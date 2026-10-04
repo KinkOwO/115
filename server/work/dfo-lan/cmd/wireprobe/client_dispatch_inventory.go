@@ -264,6 +264,22 @@ func (client *gameConnection) dispatchEquipmentSkillsAndMoves(requestData *clien
 		}
 		return dispatchHandled
 	}
+	if requestData.frame.Type == 1 && requestData.frame.ID == protocol.PrimerTransformOpcode && client.bootstrapped && requestData.verified && client.worldState != nil && client.worldState.role.ID == client.selectedCharacterID {
+		// 装备库「誓约 / 晶体变换」（CMD2381）。与 2259 同族：**永远回窗口应答**，
+		// 拒因只写 events.jsonl（客户端在这条链上没有失败分支）。
+		plan, primerErr := client.worldState.primerTransform(requestData.plaintext, client.event)
+		if primerErr != nil {
+			client.event(map[string]any{"kind": "primer_transform_rejected",
+				"character_id": client.selectedCharacterID, "reason": primerErr.Error()})
+			return dispatchHandled
+		}
+		if client.sendPlan(plan, func(packet outboundPacket) {
+			client.event(map[string]any{"kind": packet.Name, "id": packet.ID, "payload_bytes": len(packet.Payload)})
+		}) != nil {
+			return dispatchClose
+		}
+		return dispatchHandled
+	}
 	if requestData.frame.Type == 1 && requestData.frame.ID == 2382 && client.bootstrapped && requestData.verified && client.worldState != nil && client.worldState.role.ID == client.selectedCharacterID {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		plan, oathErr := client.worldState.oathSelectionPackets(ctx, requestData.plaintext)

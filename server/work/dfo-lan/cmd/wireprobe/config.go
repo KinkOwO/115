@@ -77,6 +77,9 @@ type Config struct {
 	EquipmentCraftExecute         bool   `koanf:"equipment-craft-execute" default:"true" env:"DFO_EQUIPMENT_CRAFT_EXECUTE" envmode:"not-zero" help:"CMD2259 是否执行装备生成（扣成本 + 发装备）"`
 	EquipmentCraftExecuteOn       string `koanf:"equipment-craft-execute-on" default:"confirm" env:"DFO_EQUIPMENT_CRAFT_EXECUTE_ON" help:"CMD2259 何时执行装备生成：confirm / first / never"`
 	EquipmentTransform            string `koanf:"equipment-transform" default:"apply" env:"DFO_EQUIPMENT_TRANSFORM_APPLY" help:"CMD2259 action=1（装备变换）如何执行：apply（真的换装）/ observe（只记日志）"`
+	PrimerTransform               string `koanf:"primer-transform" default:"apply" env:"DFO_PRIMER_TRANSFORM_APPLY" help:"CMD2381（装备库誓约/晶体变换）如何执行：apply（真的变换）/ observe（只记日志）"`
+	PrimerTransformWindow         int    `koanf:"primer-transform-window" default:"0" env:"DFO_PRIMER_TRANSFORM_WINDOW" envmode:"byte" help:"CMD2381 应答的窗口选择字节（0 → 窗口 2145 = EquipmentTransformWindow，会弹誓约变换完成并切到 Oath settings；非 0 → 窗口 3937）"`
+	PrimerTransformVariant        int    `koanf:"primer-transform-variant" default:"0" env:"DFO_PRIMER_TRANSFORM_VARIANT" envmode:"byte" help:"CMD2381 应答的子分支字节（仅当窗口字节为 0 时生效）"`
 	BagRules                      string `koanf:"bag-rules" default:"configs/inventory.compat90.json" help:"separate bag slot and missing stack limit policy"`
 	Boxes                         string `koanf:"boxes" help:"deprecated path; requires the prepared native PVF boxes domain"`
 	CardRules                     string `koanf:"card-rules" default:"configs/cards.compat90.json" help:"separate compatible free-card policy"`

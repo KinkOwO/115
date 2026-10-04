@@ -21,6 +21,13 @@ flowchart LR
 
 ## ADR-002：PostgreSQL 为持久数据唯一权威
 
+> ⚠️ **2026-10-04 业主改口（登记，待实施）**：业主明确要求 **PostgreSQL + SQLite 双引擎**。
+> 本节末句"SQLite 适合工具与小型单机，这里不作为多人服主库"与
+> `docs/database-sqlc-migration.md` 的"不提前引入双引擎接口"**均被推翻**，
+> 实施计划见 [database-dual-engine-plan.md](database-dual-engine-plan.md)（S1 抽接口缝 → S5 分叉控制）。
+> 定性保留：**默认引擎仍是 PostgreSQL**；SQLite 用于单机/工具，不做多人服主库（单写者）。
+> 新会话在开工 S1 时须一并修订本节与 sqlc 文档，避免代码与文档互相矛盾。
+
 装备操作共享 `internal/inventory/event_receipt.go` 的提交与持久收据解码流程，仍由 storage 原有事务管理归属、锁和幂等；金币强化的账号材料事务独立保留。网关的 `inventory_row.go` 统一增量行和穿戴刷新，各命令自行决定回执顺序；增幅书继续保留原有穿戴刷新容错。`packet_plan.go` 逐包发送，失败时立即停止，仅在成功发送后记录该包，不替换需要整组预编码的发送路径。
 
 增幅书、增幅券、材料增幅及锻造共用 `equipment_lookup.go` 的容器定位，返回实际容器、装备切片和索引；各业务继续负责验证、修改及写回。增幅书先查背包，其他三条先查请求容器；继承的 Group 过滤和普通强化的严格容器限制独立保留。`equipmentSession.requestKey` 统一会话 nonce 与原始帧哈希，各调用方保留原操作前缀及事件键格式。

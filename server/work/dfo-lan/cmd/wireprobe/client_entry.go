@@ -419,6 +419,15 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 				client.event(map[string]any{"kind": "oath_selection_restore_error", "character_id": role.ID, "reason": oathErr.Error()})
 				return dispatchHandled
 			}
+			// NOTI2634：服务端算出的「每角色一对 Set/Oath Point」。客户端不为誓约/晶体
+			// 算总分，它只把服务端给的值写进角色实体 ⇒ 不发就恒 0。
+			// packets() 会把这一帧排在**所有帧之后**（要在 actor 重建完实体之后写）。
+			// ⚠️ 装备库→誓约 页签的「已添加的 誓约积分」/`?/750次` **不由这一对值驱动**：
+			// 实机两种字段顺序下它都仍为 0，该页统计的是"登记进装备库的誓约装备"
+			// （客户端文案 101039328 `… registered in the Armory`）；见
+			// docs/protocol/oath-set-points-20261004.md §7.6。
+			plan.OathPartSetPoints = append(plan.OathPartSetPoints,
+				client.worldState.oathPointPackets()...)
 		}
 		// 装备技能栏/冷却提醒/自定义按键：两组快照（S2C2609）。恒发，
 		// 没设过的角色得到全零载荷（等于客户端默认）。
