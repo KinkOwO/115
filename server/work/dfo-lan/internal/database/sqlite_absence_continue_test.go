@@ -124,3 +124,46 @@ func TestSQLiteAppliesFirstCharacterEvent(t *testing.T) {
 		t.Fatalf("replayed character id = %d, want %d", replay.ID, role.ID)
 	}
 }
+
+// A shop purchase writes its character event and then reads the receipt back with a
+// separate query (workflow.ShopService.Buy). On SQLite the *first* absence -- no event
+// row for a fresh idempotency key -- used to surface as ErrNotFound, so the buy was
+// refused before anything was written. The live database showed exactly that: the
+// client sent four CMD21 buys and one CMD64 Cera purchase, every one was refused with
+// "stored record not found", and character_events held zero buy: rows while holding 112
+// rows for other flows.
+func TestSQLiteShopPurchaseWritesAndReadsBackItsReceipt(t *testing.T) {
+	store, account, role, version := sqliteAbsenceStore(t)
+	ctx := context.Background()
+	const key = "buy:absence-repro:1"
+
+	saved, applied, err := store.CommitCharacterEventTx(ctx, account, role.ID, version, key, "reference90-gold-stack-v1",
+		func(tx *Tx, current Character) (json.RawMessage, json.RawMessage, error) {
+			return json.RawMessage(`{"level":1,"gold":99}`),
+				json.RawMessage(`{"source":"gold","template":3242,"count":1}`), nil
+		})
+	if err != nil {
+		t.Fatalf("a first purchase with an empty ledger must continue, got %v", err)
+	}
+	if !applied {
+		t.Fatal("first purchase reported applied=false, want the transition to run")
+	}
+	if saved.ID != role.ID {
+		t.Fatalf("saved character id = %d, want %d", saved.ID, role.ID)
+	}
+
+	receipt, err := store.CharacterEventReceipt(ctx, account, role.ID, key)
+	if err != nil {
+		t.Fatalf("reading back the receipt that was just written must succeed, got %v", err)
+	}
+	var decoded struct {
+		Template uint32 `json:"template"`
+		Count    uint32 `json:"count"`
+	}
+	if err = json.Unmarshal(receipt, &decoded); err != nil {
+		t.Fatalf("receipt is not the stored JSON: %v (%s)", err, receipt)
+	}
+	if decoded.Template != 3242 || decoded.Count != 1 {
+		t.Fatalf("receipt = %+v, want template 3242 count 1", decoded)
+	}
+}
