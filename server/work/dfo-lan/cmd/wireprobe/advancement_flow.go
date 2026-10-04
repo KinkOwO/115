@@ -4,8 +4,8 @@ import (
 	"context"
 	"crypto/sha256"
 	"dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -53,7 +53,7 @@ func changeGrowType(service *character.Service, w *worldSession, p, keys []byte,
 	if err != nil {
 		return nil, err
 	}
-	planFor := func(role storage.Character) ([]preparedPacket, error) {
+	planFor := func(role database.Character) ([]preparedPacket, error) {
 		role.WireID = w.role.WireID
 		basic, e := service.EntryBasicProbe(role, [2]byte{})
 		if e != nil {
@@ -98,7 +98,7 @@ func changeGrowType(service *character.Service, w *worldSession, p, keys []byte,
 	// once the character already holds the target branch. The opcode keeps the
 	// 1881 (initial) and 777 (re-change) event streams distinct.
 	key := fmt.Sprintf("change-grow-type-v1:%d:%x", responseID, sha256.Sum256(p))
-	saved, _, err := service.Store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, "change-grow-type-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+	saved, _, err := service.Store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, "change-grow-type-v1", func(current database.Character) (json.RawMessage, json.RawMessage, error) {
 		raw, e := service.ApplyAdvancement(current, advancement)
 		if e != nil {
 			return nil, nil, e

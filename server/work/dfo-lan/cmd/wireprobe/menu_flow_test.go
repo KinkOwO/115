@@ -2,20 +2,20 @@ package main
 
 import (
 	"dfolan/internal/catalog"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/game/wire"
-	"dfolan/internal/storage"
 	"dfolan/internal/world"
 	"testing"
 )
 
 func TestMenuReturnUsesOwnedSavedOrigin(t *testing.T) {
-	w := &worldSession{account: 7, role: storage.Character{ID: 5, AccountID: 7, WireID: 3}, level: 1, service: &world.Service{
+	w := &worldSession{account: 7, role: database.Character{ID: 5, AccountID: 7, WireID: 3}, level: 1, service: &world.Service{
 		Catalog: catalog.WorldCatalog{Areas: map[string]catalog.WorldArea{
 			"38/1": {SeriaReturnWarp: true, Walkable: [][4]int32{{400, 100, 400, 300}}},
 			"38/0": {Walkable: [][4]int32{{0, 100, 1000, 300}}},
 		}},
-	}, state: storage.WorldState{Position: storage.WorldPosition{Town: 38, Area: 1, X: 544, Y: 311, Return: &storage.WorldReturn{Town: 38, Area: 0, X: 561, Y: 234}}}}
+	}, state: database.WorldState{Position: database.WorldPosition{Town: 38, Area: 1, X: 544, Y: 311, Return: &database.WorldReturn{Town: 38, Area: 0, X: 561, Y: 234}}}}
 	p, e := w.returnDestination()
 	if e != nil {
 		t.Fatal(e)

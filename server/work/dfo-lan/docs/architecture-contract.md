@@ -23,7 +23,7 @@
 |---|---|---|---|
 | L0 | 传输原语 | `internal/game/wire` | 帧、加解密、校验和；不含任何游戏事实 |
 | L1 | 协议与静态数据 | `internal/game/protocol`、`internal/catalog`、`internal/catalog/pvf`、`internal/derivedcache`、`internal/savecontract` | 字节布局、PVF 归档原语、规则驱动静态目录、磁盘缓存与存档契约原语 |
-| L2 | 持久化 | `internal/storage` | SQL、事务、存档读写；游戏事实的搬运者和实现者，不是拥有者 |
+| L2 | 持久化 | `internal/database` | SQL、事务、存档读写；游戏事实的搬运者和实现者，不是拥有者 |
 | L3 | 业务领域 | `internal/{character,inventory,mail,loot,quest,dungeon,world,cashshop,adventure,legion,npcpresence}` | 拥有各自的游戏规则与状态 |
 | L4 | 组合与工具 | `cmd/**`、`internal/{gamedata,managementdata,admin,channelrefresh,workflow}` | 组合根、只读投影、管理、离线工具；`workflow` 承载跨领域编排与事务 |
 
@@ -36,11 +36,11 @@
 理由：协议只描述字节布局，PVF 只描述归档与静态数据原语；一旦它们认识业务类型，布局就会随玩法漂移。
 
 ### R2 领域不得依赖持久化实现
-L3 领域 **禁止** import `internal/storage`。领域需要的存储能力，由**领域自己声明接口**（如 `character.Store`），由 `storage` 实现，并在 `bootstrap` 注入。
+L3 领域 **禁止** import `internal/database`。领域需要的存储能力，由**领域自己声明接口**（如 `character.Store`），由 `storage` 实现，并在 `bootstrap` 注入。
 理由：依赖倒置。领域认识具体持久化实现，等于把存储引擎锁死进业务层（也是换库时爆炸半径失控的根因）。
 
 ### R3 持久化可实现领域接口，但不得定义游戏事实
-`internal/storage` **允许** import 领域包以**实现**领域声明的接口、映射领域类型；但**不得**解释玩法规则、不得成为某条游戏规则的拥有者。
+`internal/database` **允许** import 领域包以**实现**领域声明的接口、映射领域类型；但**不得**解释玩法规则、不得成为某条游戏规则的拥有者。
 理由：适配器方向是允许的（实现方依赖被实现方），但事实的定义权必须留在领域。
 
 ### R4 领域之间的协作必须显式
@@ -78,7 +78,7 @@ L3 领域之间 **默认禁止**互相 import。需要另一领域能力时，�
 | `internal/catalog` | L1 | 规则驱动静态目录与索引 | `catalog/pvf` | 任何 L3 领域 |
 | `internal/derivedcache` | L1 | 磁盘派生缓存原语（哈希/失效/读写） | 仅标准库 | 任何 `internal/*` |
 | `internal/savecontract` | L1 | 存档契约版本与身份（与客户端资源解耦） | 仅标准库 | 任何 `internal/*` |
-| `internal/storage` | L2 | SQL、事务、锁、存档；实现领域声明的接口 | L3 领域（仅为实现接口）、`catalog`、`catalog/pvf` | 定义游戏规则 |
+| `internal/database` | L2 | SQL、事务、锁、存档；实现领域声明的接口 | L3 领域（仅为实现接口）、`catalog`、`catalog/pvf` | 定义游戏规则 |
 | `internal/character` | L3 | 建角、列表、角色状态、技能、经验与奖励成长、资料皮肤与账号选角背景 | `game/protocol`、`catalog`、`catalog/pvf`、自声明接口 | `storage`、其他领域（§7 例外除外） |
 | `internal/inventory` | L3 | 背包、穿戴、通用物品状态、装备图鉴制作/变换/分解、时装与徽章操作、消耗品/宠物喂养与光辉礼盒目录/开启/奖励修复 | 同上 | 同上 |
 | `internal/mail` | L3 | 邮件信封类型、容量/保留/邮费规则与 model 字符串 | 仅标准库（后续阶段可含自声明窄接口） | 同上 |
@@ -117,7 +117,7 @@ L3 领域之间 **默认禁止**互相 import。需要另一领域能力时，�
 - **数据源**：用标准库 `go/build` 遍历 `internal/` 与 `cmd/`，解析每个包的非测试 import；不引入新依赖。
 - **规则**：
   - 对 §2 R1 的每个包，断言其 import 中不含任何 L3 领域包。
-  - 对每个 L3 领域包，断言其 import 中不含 `internal/storage`。
+  - 对每个 L3 领域包，断言其 import 中不含 `internal/database`。
   - 对每个 L3 领域包，断言其与其他 L3 领域的 import 边全部出现在**允许清单**中。
   - 断言不存在 import 环（由各规则组合保证）。
 - **允许清单 = §7 的例外清单**。测试对每条例外 fail；例外消除后必须同步删除对应条目（否则 §6 的"过期条目"检查会失败）。**只减不增**：新增例外必须改本文并留评审记录。
@@ -141,7 +141,7 @@ L3 领域之间 **默认禁止**互相 import。需要另一领域能力时，�
 
 ### 7.2 领域 → 持久化（违反 R2）
 
-**已全部消除（2026-10-02，本分支）**：五个领域的生产代码均不再 import `internal/storage`，对应守卫允许条目全部删除。领域声明自己的消费接口或状态投影；跨领域事务由 `workflow` 持有持久化实现，`storage` 通过类型别名和适配器实现领域契约，不引入共享 model 包。
+**已全部消除（2026-10-02，本分支）**：五个领域的生产代码均不再 import `internal/database`，对应守卫允许条目全部删除。领域声明自己的消费接口或状态投影；跨领域事务由 `workflow` 持有持久化实现，`storage` 通过类型别名和适配器实现领域契约，不引入共享 model 包。
 
 | # | 边 | 目标 |
 |---|---|---|
@@ -152,7 +152,7 @@ L3 领域之间 **默认禁止**互相 import。需要另一领域能力时，�
 | E15 | `world` → `storage` | **已消除（2026-10-01）**：`world` 声明 `Store` 接口（`LoadWorld`），`storage` 实现并注入；`WorldPosition`/`WorldState`/`WorldReturn` 类型归 `world`，`storage` 以类型别名复用（迁移期）。见提交"world Store 倒置" |
 | E16 | `cashshop` → `storage` | **已消除（2026-10-01，本分支）**：现金订单/回执类型归 cashshop，storage 以别名实现持久化；金库购买编排迁入 workflow |
 
-> 说明：`internal/storage` 依赖领域类型和消费接口属于 R3 允许方向（实现方依赖被实现方），保留在例外之外；但不得解释玩法规则。`cmd/*` 工具 import `storage`（`gmtool`/`charactercheck`/`storagecheck`/`initialrepair`/`questrepair`/`avatarrestorecheck`）属 R6 工具层，允许。
+> 说明：`internal/database` 依赖领域类型和消费接口属于 R3 允许方向（实现方依赖被实现方），保留在例外之外；但不得解释玩法规则。`cmd/*` 工具 import `storage`（`gmtool`/`charactercheck`/`storagecheck`/`initialrepair`/`questrepair`/`avatarrestorecheck`）属 R6 工具层，允许。
 
 ### 7.3 领域 ↔ 领域（违反 R4）
 

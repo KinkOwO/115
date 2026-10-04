@@ -12,9 +12,9 @@ package initialrepair
 import (
 	"context"
 	"dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/inventory"
 	"dfolan/internal/managementdata"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -86,11 +86,11 @@ func Run() {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
-	conf, e := storage.LoadConfig(*storageConfig)
+	conf, e := database.LoadConfig(*storageConfig)
 	if e != nil {
 		log.Fatal(e)
 	}
-	s, e := storage.Open(ctx, conf)
+	s, e := database.Open(ctx, conf)
 	if e != nil {
 		log.Fatal(e)
 	}
@@ -104,14 +104,14 @@ func Run() {
 
 	// 只允许显式选定的开发账号角色：拒绝在别的账号或正式存档上误用。
 	var account int64
-	if e = s.DB.QueryRow(ctx, `SELECT c.account_id FROM characters c JOIN accounts a ON a.id=c.account_id WHERE c.id=$1 AND a.development_only`, *id).Scan(&account); e != nil {
+	if account, e = s.DevelopmentCharacterAccount(ctx, *id); e != nil {
 		log.Fatal("development character not found")
 	}
 	roles, e := s.Characters(ctx, account)
 	if e != nil {
 		log.Fatal(e)
 	}
-	var role storage.Character
+	var role database.Character
 	found := false
 	for _, r := range roles {
 		if r.ID == *id {
@@ -153,7 +153,7 @@ func Run() {
 	case !*apply:
 		report["note"] = "预览；确认后加 -apply 落盘"
 	default:
-		updated, applied, e := s.CommitCharacterEvent(ctx, account, *id, role.ConfigVersion, repairEventKey, repairEventKey, func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+		updated, applied, e := s.CommitCharacterEvent(ctx, account, *id, role.ConfigVersion, repairEventKey, repairEventKey, func(current database.Character) (json.RawMessage, json.RawMessage, error) {
 			fresh, changes, e := service.CreationPreview(current)
 			if e != nil {
 				return nil, nil, e

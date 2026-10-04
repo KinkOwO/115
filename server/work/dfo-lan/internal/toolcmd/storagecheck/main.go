@@ -2,7 +2,7 @@ package storagecheck
 
 import (
 	"context"
-	"dfolan/internal/storage"
+	"dfolan/internal/database"
 	"flag"
 	"log"
 	"time"
@@ -11,13 +11,13 @@ import (
 func Run() {
 	path := flag.String("config", "runtime/storage/local.json", "storage config")
 	flag.Parse()
-	c, e := storage.LoadConfig(*path)
+	c, e := database.LoadConfig(*path)
 	if e != nil {
 		log.Fatal(e)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	s, e := storage.Open(ctx, c)
+	s, e := database.Open(ctx, c)
 	if e != nil {
 		log.Fatal(e)
 	}

@@ -5,10 +5,10 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/quest"
 	"dfolan/internal/reward"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -16,26 +16,25 @@ import (
 
 // QuestService coordinates persistence around quest domain state transitions.
 type QuestService struct {
-	Store *storage.Store
+	Store *database.Store
 	Quest *quest.Service
 	// Rewards is the optional event-triggered reward notifier. It is only
 	// called after a committed settlement; nil disables the feature.
 	Rewards reward.Notifier
 }
 
-func (s *QuestService) Finish(ctx context.Context, role storage.Character, r protocol.QuestSubmitRequest) (quest.FinishResult, error) {
+func (s *QuestService) Finish(ctx context.Context, role database.Character, r protocol.QuestSubmitRequest) (quest.FinishResult, error) {
 	var out quest.FinishResult
 	plan, e := s.Quest.PlanFinish(r)
 	if e != nil {
 		return out, e
 	}
 	d, model := plan.Definition, plan.Model
-	commit, e := s.Store.CommitQuestReward(ctx, role.AccountID, role.ID, r.ID, s.Quest.Catalog.Source.SaveIdentity(), model, s.Quest.Progression.Rules.Model, func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+	// PrepareFinish runs under the character transaction and must not request
+	// another pool connection for an independent contract read.
+	growth, _ := s.Store.HasActivePremium(ctx, role.AccountID, database.PremiumGrowth, time.Now())
+	commit, e := s.Store.CommitQuestReward(ctx, role.AccountID, role.ID, r.ID, s.Quest.Catalog.Source.SaveIdentity(), model, s.Quest.Progression.Rules.Model, func(current database.Character) (json.RawMessage, json.RawMessage, error) {
 		return s.Quest.PrepareFinish(current, plan, func() bool {
-			if s.Store == nil {
-				return false
-			}
-			growth, _ := s.Store.HasActivePremium(ctx, role.AccountID, storage.PremiumGrowth, time.Now())
 			return growth
 		}, quest.FinishRewards{
 			Items: questItemRewards,

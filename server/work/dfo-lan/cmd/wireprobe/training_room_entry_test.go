@@ -2,7 +2,7 @@ package main
 
 import (
 	"dfolan/internal/catalog"
-	"dfolan/internal/storage"
+	"dfolan/internal/database"
 	"encoding/binary"
 	"path/filepath"
 	"testing"
@@ -13,7 +13,7 @@ func TestTrainingRoomEntryFrames(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	w := &worldSession{role: storage.Character{ID: 1}, level: 1, dungeons: &c}
+	w := &worldSession{role: database.Character{ID: 1}, level: 1, dungeons: &c}
 	gate := make([]byte, 8)
 	binary.LittleEndian.PutUint32(gate, 5000)
 	plan, err := w.dungeonGate(gate)

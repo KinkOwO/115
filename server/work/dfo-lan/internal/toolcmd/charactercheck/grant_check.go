@@ -3,8 +3,8 @@ package charactercheck
 import (
 	"context"
 	"dfolan/internal/admin"
+	"dfolan/internal/database"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"fmt"
 	"sync"
 )
@@ -13,7 +13,7 @@ import (
 // properties that matter are that a replayed grant pays out once, that a
 // balance cannot be driven negative, and that another account can never be
 // the target.
-func grantCheck(ctx context.Context, s, reopened *storage.Store, role storage.Character, other int64) error {
+func grantCheck(ctx context.Context, s *database.TestFixture, reopened *database.Store, role database.Character, other int64) error {
 	if e := s.MigrateGrants(ctx); e != nil {
 		return e
 	}
@@ -31,20 +31,25 @@ func grantCheck(ctx context.Context, s, reopened *storage.Store, role storage.Ch
 	}
 	var stackable uint32
 	for id, v := range c.Items {
-		if v.Kind == "stackable" && (stackable == 0 || id < stackable) {
+		// IDs 0/1 are wallet/coin balances, and pet consumables use another
+		// container. This assertion exercises a regular bag item grant.
+		if id > 1 && v.Kind == "stackable" && !inventory.IsPetConsumable(v.StackableType) && (stackable == 0 || id < stackable) {
 			stackable = id
 		}
 	}
-	service := &admin.Service{Store: s, Operator: "check",
+	if stackable == 0 {
+		return fmt.Errorf("native catalog has no regular bag stackable fixture")
+	}
+	service := &admin.Service{Store: s.Storage(), Operator: "check",
 		Awarder: &inventory.Awarder{Catalog: c, Rules: rules, Equipment: gear}}
 
 	before, e := inventory.ReadBag(role.State)
 	if e != nil {
 		return e
 	}
-	grant := storage.Grant{
+	grant := database.Grant{
 		ID: "check-grant-1", AccountID: role.AccountID, Character: role.ID,
-		Cera: 5000, Gold: 1234, Items: []storage.GrantItem{{Template: stackable, Amount: 3}},
+		Cera: 5000, Gold: 1234, Items: []database.GrantItem{{Template: stackable, Amount: 3}},
 		Reason: "isolated check", Operator: "check",
 	}
 	// Twelve concurrent attempts at the same grant id must pay out exactly once.
@@ -99,16 +104,22 @@ func grantCheck(ctx context.Context, s, reopened *storage.Store, role storage.Ch
 		return fmt.Errorf("gold is %d, want %d", after.Gold, before.Gold+1234)
 	}
 	var held uint32
+	var beforeHeld uint32
+	for _, row := range before.Items {
+		if row.Template == stackable {
+			beforeHeld += row.Amount
+		}
+	}
 	for _, row := range after.Items {
 		if row.Template == stackable {
 			held += row.Amount
 		}
 	}
-	if held < 3 {
-		return fmt.Errorf("granted items missing: held=%d", held)
+	if held != beforeHeld+3 {
+		return fmt.Errorf("granted items missing: template=%d before=%d after=%d", stackable, beforeHeld, held)
 	}
 	// A deduction larger than the balance must refuse the whole grant.
-	if _, _, e = service.Apply(ctx, storage.Grant{
+	if _, _, e = service.Apply(ctx, database.Grant{
 		ID: "check-grant-overdraw", AccountID: role.AccountID,
 		Cera: -999999, Reason: "overdraw", Operator: "check"}); e == nil {
 		return fmt.Errorf("cera was driven negative")
@@ -118,7 +129,7 @@ func grantCheck(ctx context.Context, s, reopened *storage.Store, role storage.Ch
 	}
 
 	// A partial deduction works and is audited.
-	if _, _, e = service.Apply(ctx, storage.Grant{
+	if _, _, e = service.Apply(ctx, database.Grant{
 		ID: "check-grant-spend", AccountID: role.AccountID,
 		Cera: -1500, Reason: "spend", Operator: "check"}); e != nil {
 		return e
@@ -127,15 +138,15 @@ func grantCheck(ctx context.Context, s, reopened *storage.Store, role storage.Ch
 		return fmt.Errorf("cera after deduction is %d, want 3500: %v", cera, e)
 	}
 	// Another account must not be able to target this character.
-	if _, _, e = service.Apply(ctx, storage.Grant{
+	if _, _, e = service.Apply(ctx, database.Grant{
 		ID: "check-grant-foreign", AccountID: other, Character: role.ID,
 		Gold: 10, Reason: "foreign", Operator: "check"}); e == nil {
 		return fmt.Errorf("grant crossed the account boundary")
 	}
 	// A hand-out must never invent an item the source does not have.
-	if _, _, e = service.Apply(ctx, storage.Grant{
+	if _, _, e = service.Apply(ctx, database.Grant{
 		ID: "check-grant-unknown-item", AccountID: role.AccountID, Character: role.ID,
-		Items:  []storage.GrantItem{{Template: 4000000123, Amount: 1}},
+		Items:  []database.GrantItem{{Template: 4000000123, Amount: 1}},
 		Reason: "unknown", Operator: "check"}); e == nil {
 		return fmt.Errorf("granted an item that is absent from the source")
 	}
@@ -150,7 +161,7 @@ func grantCheck(ctx context.Context, s, reopened *storage.Store, role storage.Ch
 		return fmt.Errorf("audit trail has %d rows, want exactly the 2 applied grants", len(history))
 	}
 	// The id a refused grant tried to claim must be free to use again.
-	if _, applied, e := service.Apply(ctx, storage.Grant{
+	if _, applied, e := service.Apply(ctx, database.Grant{
 		ID: "check-grant-overdraw", AccountID: role.AccountID,
 		Cera: 10, Reason: "reuse after refusal", Operator: "check"}); e != nil || !applied {
 		return fmt.Errorf("a refused grant id was not reusable: applied=%v err=%v", applied, e)

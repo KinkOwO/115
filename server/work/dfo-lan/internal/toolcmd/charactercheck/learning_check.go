@@ -3,14 +3,15 @@ package charactercheck
 import (
 	"context"
 	"dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"sync"
 )
 
-func learningCheck(ctx context.Context, s, reopened *storage.Store, other int64) error {
+func learningCheck(ctx context.Context, s *database.TestFixture, reopened *database.Store, other int64) error {
 	source, e := nativeSource()
 	if e != nil {
 		return e
@@ -54,7 +55,7 @@ func learningCheck(ctx context.Context, s, reopened *storage.Store, other int64)
 		return e
 	}
 	role.State = raw
-	if _, e = s.DB.Exec(ctx, `UPDATE characters SET state=$2 WHERE id=$1`, role.ID, raw); e != nil {
+	if e = s.SeedCharacterState(ctx, role.ID, raw); e != nil {
 		return e
 	}
 	buy := protocol.SkillPurchase{Entries: []protocol.SkillPurchaseEntry{{ID: 46, Delta: 1}}}
@@ -151,6 +152,12 @@ func learningCheck(ctx context.Context, s, reopened *storage.Store, other int64)
 		return e
 	}
 	refund := protocol.SkillPurchase{Entries: []protocol.SkillPurchaseEntry{{ID: 1, Refund: 1, Delta: 1}}}
+	expectedSlots := make(map[uint16]uint16)
+	for id, slot := range state.SkillSlots[0] {
+		if id != 1 {
+			expectedSlots[id] = slot
+		}
+	}
 	refunded, first, e := cs.Learn(ctx, rows[0], "skill:refund-once", refund)
 	if e != nil || !first {
 		return fmt.Errorf("skill refund failed: %v", e)
@@ -163,8 +170,8 @@ func learningCheck(ctx context.Context, s, reopened *storage.Store, other int64)
 	if e = json.Unmarshal(refunded.State, &state); e != nil {
 		return e
 	}
-	if state.SkillPoints[0] != 80 || state.LearnedSkills[0][1] != 0 || state.SkillSlots[0][46] != 5 {
-		return fmt.Errorf("refund duplicated SP or lost layout")
+	if state.SkillPoints[0] != 80 || state.LearnedSkills[0][1] != 0 || !reflect.DeepEqual(state.SkillSlots[0], expectedSlots) {
+		return fmt.Errorf("refund duplicated SP or lost layout: points=%d rank=%d slots=%v want=%v", state.SkillPoints[0], state.LearnedSkills[0][1], state.SkillSlots[0], expectedSlots)
 	}
 	if _, e = cs.LearningResponse(refunded, refund); e != nil {
 		return e

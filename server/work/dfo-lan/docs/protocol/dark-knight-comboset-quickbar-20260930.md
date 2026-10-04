@@ -35,7 +35,7 @@ CMD433与NOTI433属于不同方向/类型：主线原有type=1的角色列表佣
 
 本机实际只有一个黑暗武士角色：ID20。改前组合槽位为118→1、119→3、120→2、121→4、122→18、123→19；已改为0～5。没有使用交接包原环境的ID3/4。
 
-迁移：`scripts/migrations/dark_knight_combo_slots_v1.sql`。不增加表或列；使用现有character_events保存完整before_state/after_state，保留角色config_version。按prof9筛选、只合并六个键；表锁保护检查与更新；同一审计键使重复执行不再改动。普通技能占用0～5时拒绝，不覆盖玩家普通技能；没有显式第一页槽位的旧角色不改存档，走修复后的配置默认值。
+迁移：`internal/database/sql/postgres/repairs/dark_knight_combo_slots_v1.sql`。不增加表或列；使用现有character_events保存完整before_state/after_state，保留角色config_version。按prof9筛选、只合并六个键；表锁保护检查与更新；同一审计键使重复执行不再改动。普通技能占用0～5时拒绝，不覆盖玩家普通技能；没有显式第一页槽位的旧角色不改存档，走修复后的配置默认值。
 
 执行前确认客户端和游戏网关均未运行。备份存放于忽略目录：
 

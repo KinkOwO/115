@@ -4,8 +4,8 @@ import (
 	"context"
 	"crypto/rand"
 	"dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"fmt"
 	"time"
 )
@@ -17,7 +17,7 @@ type comboSkillSession struct {
 	lastNotify  []byte
 }
 
-func appendComboSkillRestore(plan []outboundPacket, cs *character.Service, role storage.Character) ([]outboundPacket, error) {
+func appendComboSkillRestore(plan []outboundPacket, cs *character.Service, role database.Character) ([]outboundPacket, error) {
 	notify, err := cs.ComboSkillInfoNotify(role)
 	if err != nil {
 		return nil, err
@@ -69,7 +69,7 @@ func (s *comboSkillSession) save(cs *character.Service, w *worldSession, id uint
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	var saved storage.Character
+	var saved database.Character
 	if id == 502 {
 		saved, _, err = cs.ClearComboSkillInfo(ctx, w.role, key)
 	} else {

@@ -3,15 +3,15 @@ package charactercheck
 import (
 	"context"
 	"dfolan/internal/catalog"
+	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/quest"
-	"dfolan/internal/storage"
 	"fmt"
 	"sync"
 )
 
-func questObjectiveCheck(ctx context.Context, s, reopened *storage.Store, role storage.Character, other int64) error {
+func questObjectiveCheck(ctx context.Context, s *database.TestFixture, reopened *database.Store, role database.Character, other int64) error {
 	if err := s.MigrateQuestObjectives(ctx); err != nil {
 		return err
 	}
@@ -19,7 +19,7 @@ func questObjectiveCheck(ctx context.Context, s, reopened *storage.Store, role s
 	if err != nil {
 		return err
 	}
-	service := quest.Service{Store: s, Catalog: c}
+	service := quest.Service{Store: s.Storage(), Catalog: c}
 	reset := func() error {
 		// Only the caller's isolated temporary-schema character is touched.
 		_ = s.AbandonQuest(ctx, role.AccountID, role.ID, 3145)
@@ -76,8 +76,8 @@ func questObjectiveCheck(ctx context.Context, s, reopened *storage.Store, role s
 			return err
 		}
 	}
-	var count int
-	if err = s.DB.QueryRow(ctx, `SELECT count(*) FROM character_map_clears WHERE character_id=$1 AND run_id=$2`, role.ID, run.RunID).Scan(&count); err != nil || count != 1 {
+	var count int64
+	if count, err = s.MapClearCount(ctx, role.ID, run.RunID); err != nil || count != 1 {
 		return fmt.Errorf("duplicate map-clear evidence: count=%d err=%v", count, err)
 	}
 	states, err := reopened.Quests(ctx, role.AccountID, role.ID)

@@ -1,7 +1,12 @@
-param([string]$Go = 'go', [switch]$UpdatePVFDefault)
+param([string]$Go = 'go', [switch]$UpdatePVFDefault, [switch]$CheckSQL)
 $ErrorActionPreference = 'Stop'
 Push-Location (Join-Path $PSScriptRoot 'work/dfo-lan')
 try {
+    # Normal builds use checked-in generated Go. SQL authors opt into the
+    # pinned generator check; this does not require a database connection.
+    if ($CheckSQL) {
+        & ./scripts/Generate-SQL.ps1 -Check
+    }
     & $Go test ./...
     if ($LASTEXITCODE -ne 0) { throw 'Tests failed' }
     & $Go vet ./...

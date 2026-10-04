@@ -17,7 +17,7 @@
 | M | `server/work/dfo-lan/cmd/wireprobe/entry_flow.go` | 城镇入场包序列加入已保存的 S2C2839。 |
 | M | `server/work/dfo-lan/cmd/wireprobe/dungeon_flow.go` | 副本加载后按 NOTI13 完整穿戴容器、NOTI14 槽位更新、S2C2839 已选项的顺序恢复状态。 |
 | M | `server/work/dfo-lan/internal/inventory/wear.go` | 增加誓约装备和晶体的 115 级门槛，以及晶体槽位和品级校验。 |
-| M | `server/work/dfo-lan/internal/storage/oath_options.go` | 从角色穿戴槽位 47 读取誓约核心；按角色与核心保存和读取选项，并在事务中核对等级与装备。 |
+| M | `server/work/dfo-lan/internal/database/oath_options.go` | 从角色穿戴槽位 47 读取誓约核心；按角色与核心保存和读取选项，并在事务中核对等级与装备。 |
 | A | `server/work/dfo-lan/cmd/wireprobe/oath_selection_flow.go` | 处理显式选项切换与场景初始化读取；在副本中拒绝切换，进图时重新读取已保存选项。 |
 | A | `server/work/dfo-lan/internal/game/protocol/oath_system.go` | 解析当前客户端的 C2S2382 请求，编码 S2C2839 选项状态。 |
 | A | `server/work/dfo-lan/docs/protocol/oath-dungeon-selection-20260929.md` | 记录进图选项丢失的抓包、客户端分析和实机验证依据。 |

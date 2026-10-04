@@ -3,50 +3,38 @@ package dbq
 
 import (
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
-	"os"
 	"time"
 
-	"github.com/jackc/pgx/v5"
+	"dfolan/internal/database"
 )
 
 func Run() {
 	local := flag.String("local", "runtime/storage/local.json", "storage local.json")
 	sql := flag.String("c", "", "sql to run")
 	flag.Parse()
-	cfg := map[string]interface{}{}
-	b, err := os.ReadFile(*local)
+	cfg, err := database.LoadConfig(*local)
 	if err != nil {
-		panic(err)
-	}
-	if err = json.Unmarshal(b, &cfg); err != nil {
 		panic(err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	conn, err := pgx.Connect(ctx, fmt.Sprint(cfg["postgres_dsn"]))
+	s, err := database.Open(ctx, cfg)
 	if err != nil {
 		panic(err)
 	}
-	defer conn.Close(ctx)
-	rows, err := conn.Query(ctx, *sql)
-	if err != nil {
-		panic(err)
-	}
-	defer rows.Close()
-	fields := rows.FieldDescriptions()
-	for rows.Next() {
-		vals, err := rows.Values()
-		if err != nil {
-			panic(err)
-		}
+	defer s.Close()
+	err = s.DiagnosticQuery(ctx, *sql, func(fields []string, vals []any) error {
 		line := ""
 		for i, v := range vals {
-			line += fmt.Sprintf("%s=%v | ", fields[i].Name, v)
+			line += fmt.Sprintf("%s=%v | ", fields[i], v)
 		}
 		fmt.Println(line)
+		return nil
+	})
+	if err != nil {
+		panic(err)
 	}
 	fmt.Println("done")
 }

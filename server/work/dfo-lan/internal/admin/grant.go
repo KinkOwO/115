@@ -10,14 +10,14 @@ package admin
 
 import (
 	"context"
+	"dfolan/internal/database"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 )
 
 type Service struct {
-	Store    *storage.Store
+	Store    *database.Store
 	Awarder  *inventory.Awarder
 	Operator string
 }
@@ -33,7 +33,7 @@ type Receipt struct {
 // Apply hands out one grant. Gold uses the bag's own currency path and items
 // the shared awarder, so a full bag refuses the whole grant instead of
 // silently dropping part of it.
-func (s *Service) Apply(ctx context.Context, g storage.Grant) (Receipt, bool, error) {
+func (s *Service) Apply(ctx context.Context, g database.Grant) (Receipt, bool, error) {
 	var out Receipt
 	if s == nil || s.Store == nil {
 		return out, false, fmt.Errorf("grant service is not configured")
@@ -49,7 +49,7 @@ func (s *Service) Apply(ctx context.Context, g storage.Grant) (Receipt, bool, er
 			return out, false, fmt.Errorf("an item grant needs a real template and amount")
 		}
 	}
-	result, e := s.Store.ApplyGrant(ctx, g, func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+	result, e := s.Store.ApplyGrant(ctx, g, func(current database.Character) (json.RawMessage, json.RawMessage, error) {
 		state := current.State
 		r := Receipt{Grant: g.ID}
 		if g.Gold != 0 {

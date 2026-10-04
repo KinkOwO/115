@@ -66,6 +66,8 @@ func (s *ProgressionService) ClearWithTowerRewards(ctx context.Context, role Cha
 	if e != nil {
 		return fail(fmt.Errorf("creature experience gain out of range"))
 	}
+	// Finish independent reads before the event holds a pooled connection.
+	hasGrowth, _ := s.Store.HasGrowthPremium(ctx, role.AccountID, now)
 	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, s.Catalog.Source.SaveIdentity(), key, s.Rules.Model, func(current Character) (json.RawMessage, json.RawMessage, error) {
 		var before State
 		if e := json.Unmarshal(current.State, &before); e != nil {
@@ -79,11 +81,9 @@ func (s *ProgressionService) ClearWithTowerRewards(ctx context.Context, role Cha
 		if e != nil {
 			return nil, nil, e
 		}
-		if s.Store != nil {
-			if hasGrowth, _ := s.Store.HasGrowthPremium(ctx, role.AccountID, now); hasGrowth {
-				gain.Base = gain.Base + gain.Base*20/100
-				gain.Score = gain.Score + gain.Score*20/100
-			}
+		if hasGrowth {
+			gain.Base = gain.Base + gain.Base*20/100
+			gain.Score = gain.Score + gain.Score*20/100
 		}
 		next, _, e := s.ApplyGain(current, uint64(gain.Base)+uint64(gain.Score))
 		if e != nil {

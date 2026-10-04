@@ -2,9 +2,9 @@ package main
 
 import (
 	"context"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"dfolan/internal/workflow"
 	"fmt"
 	"sort"
@@ -28,7 +28,7 @@ func radiantBoxOpens(mode uint32) (uint32, error) {
 // radiantBoxHeld reports which imported box the player is holding. The event
 // request names no template, so the bag decides; the transactional open re-reads
 // the same bag before it spends anything.
-func radiantBoxHeld(service *inventory.ItemService, role storage.Character) (uint32, error) {
+func radiantBoxHeld(service *inventory.ItemService, role database.Character) (uint32, error) {
 	box, ok, e := radiantBoxInBag(service, role)
 	if e != nil {
 		return 0, e
@@ -39,7 +39,7 @@ func radiantBoxHeld(service *inventory.ItemService, role storage.Character) (uin
 	return box, nil
 }
 
-func radiantBoxInBag(service *inventory.ItemService, role storage.Character) (uint32, bool, error) {
+func radiantBoxInBag(service *inventory.ItemService, role database.Character) (uint32, bool, error) {
 	if service == nil || service.Boxes == nil {
 		return 0, false, fmt.Errorf("box catalog is not loaded")
 	}
@@ -65,7 +65,7 @@ func radiantBoxInBag(service *inventory.ItemService, role storage.Character) (ui
 }
 
 // radiantDeviceWindowState answers both shop and bag-side state requests.
-func radiantDeviceWindowState(service *inventory.ItemService, role storage.Character) ([]byte, error) {
+func radiantDeviceWindowState(service *inventory.ItemService, role database.Character) ([]byte, error) {
 	box, held, e := radiantBoxInBag(service, role)
 	if e != nil {
 		return nil, e

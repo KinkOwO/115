@@ -25,7 +25,7 @@ func TestResetAutoSetKeepsSourceFloorWithoutRefund(t *testing.T) {
 	st.LearnedSkills[0] = map[uint16]byte{62: 1}
 	st.SkillSlots[0] = map[uint16]uint16{62: 0}
 
-	if e := s.resetAutoState(t.Context(), role, &st, 0, 1); e != nil {
+	if e := s.resetAutoState(role, &st, 0, 1, false); e != nil {
 		t.Fatal(e)
 	}
 	if st.SkillPoints[0] != 0 {
@@ -51,7 +51,7 @@ func TestResetAutoSetPersistsPublishedSlots(t *testing.T) {
 	s, role, st := autoSkillFixture(t)
 	st.LearnedSkills[0] = map[uint16]byte{62: 1}
 	st.SkillSlots[0] = map[uint16]uint16{62: 0}
-	if e := s.resetAutoState(t.Context(), role, &st, 0, 1); e != nil {
+	if e := s.resetAutoState(role, &st, 0, 1, false); e != nil {
 		t.Fatal(e)
 	}
 	rows, e := s.skillRows(role, st, 0)
@@ -131,7 +131,7 @@ func TestResetAutoSetRefundsOnlyPurchasedRanks(t *testing.T) {
 	if want == full {
 		t.Skip("该技能的源授予段单价为 0，退多退少无法区分")
 	}
-	if e = s.resetAutoState(t.Context(), role, &st, 0, 1); e != nil {
+	if e = s.resetAutoState(role, &st, 0, 1, false); e != nil {
 		t.Fatal(e)
 	}
 	if st.SkillPoints[0] != uint16(want) {
@@ -153,7 +153,7 @@ func TestResetAutoSetIsIdempotent(t *testing.T) {
 		Intensions: []protocol.SkillVariation{{ID: 62, Choice: 1}, {ID: 0, Choice: 3}, {ID: 0, Choice: 3}},
 		Options:    emptyRows(5),
 	}
-	if e := s.resetAutoState(t.Context(), role, &st, 0, 7); e != nil {
+	if e := s.resetAutoState(role, &st, 0, 7, false); e != nil {
 		t.Fatal(e)
 	}
 	first, e := json.Marshal(st)
@@ -161,7 +161,7 @@ func TestResetAutoSetIsIdempotent(t *testing.T) {
 		t.Fatal(e)
 	}
 	points := st.SkillPoints[0]
-	if e = s.resetAutoState(t.Context(), role, &st, 0, 7); e != nil {
+	if e = s.resetAutoState(role, &st, 0, 7, false); e != nil {
 		t.Fatal(e)
 	}
 	second, _ := json.Marshal(st)
@@ -182,7 +182,7 @@ func TestResetAutoSetClearsVariationsByMask(t *testing.T) {
 	st.SkillVariations[0] = full
 
 	onlySkills := st
-	if e := s.resetAutoState(t.Context(), role, &onlySkills, 0, 1); e != nil {
+	if e := s.resetAutoState(role, &onlySkills, 0, 1, false); e != nil {
 		t.Fatal(e)
 	}
 	if onlySkills.SkillVariations[0].Intensions[0].ID != 62 || onlySkills.SkillVariations[0].Options[0].ID != 62 {
@@ -190,7 +190,7 @@ func TestResetAutoSetClearsVariationsByMask(t *testing.T) {
 	}
 
 	st.SkillVariations[0] = full
-	if e := s.resetAutoState(t.Context(), role, &st, 0, 7); e != nil {
+	if e := s.resetAutoState(role, &st, 0, 7, false); e != nil {
 		t.Fatal(e)
 	}
 	v := st.SkillVariations[0]

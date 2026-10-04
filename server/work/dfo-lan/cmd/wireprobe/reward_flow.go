@@ -2,9 +2,9 @@ package main
 
 import (
 	"context"
+	"dfolan/internal/database"
 	"dfolan/internal/inventory"
 	"dfolan/internal/reward"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -16,7 +16,7 @@ import (
 // Its rules are embedded in the binary, so there is no external path to
 // resolve. It never fails startup: a compile error only disables the feature
 // with a warning.
-func buildRewardService(store *storage.Store, awarder *inventory.Awarder) *reward.Service {
+func buildRewardService(store *database.Store, awarder *inventory.Awarder) *reward.Service {
 	if store == nil || awarder == nil {
 		return nil
 	}
@@ -36,12 +36,12 @@ func buildRewardService(store *storage.Store, awarder *inventory.Awarder) *rewar
 
 // rewardCeraFunc persists account-level cera through the audited, idempotent
 // operator-grant path (admin_grants.grant_id is the idempotency gate).
-func rewardCeraFunc(store *storage.Store) reward.CeraFunc {
+func rewardCeraFunc(store *database.Store) reward.CeraFunc {
 	return func(ctx context.Context, r reward.Recipient, key string, amount uint64) error {
 		if amount == 0 || amount > math.MaxInt64 {
 			return fmt.Errorf("reward cera amount out of range")
 		}
-		_, err := store.ApplyGrant(ctx, storage.Grant{
+		_, err := store.ApplyGrant(ctx, database.Grant{
 			ID:        key,
 			AccountID: r.AccountID,
 			Cera:      int64(amount),
@@ -54,10 +54,10 @@ func rewardCeraFunc(store *storage.Store) reward.CeraFunc {
 
 // rewardGrantFunc commits the script's item grants through the existing
 // character-event path, which makes the stable key replay-safe.
-func rewardGrantFunc(store *storage.Store, awarder *inventory.Awarder) reward.GrantFunc {
+func rewardGrantFunc(store *database.Store, awarder *inventory.Awarder) reward.GrantFunc {
 	return func(ctx context.Context, r reward.Recipient, key string, items []reward.ItemGrant) error {
 		_, _, err := store.CommitCharacterEvent(ctx, r.AccountID, r.CharacterID, r.ConfigVersion, key, "reward-item-v1",
-			func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+			func(current database.Character) (json.RawMessage, json.RawMessage, error) {
 				state := current.State
 				receipt := make([]map[string]any, 0, len(items))
 				for _, item := range items {
@@ -81,7 +81,7 @@ func rewardGrantFunc(store *storage.Store, awarder *inventory.Awarder) reward.Gr
 // rewardMailFunc delivers a SYSTEM mail (sender_id NULL). Store.SendMail is
 // sender-oriented and rejects self-send, so this inserts directly inside the
 // same character-event transaction used by the Odyssey honor mail.
-func rewardMailFunc(store *storage.Store, awarder *inventory.Awarder) reward.MailFunc {
+func rewardMailFunc(store *database.Store, awarder *inventory.Awarder) reward.MailFunc {
 	return func(ctx context.Context, r reward.Recipient, key string, mail reward.MailReward) error {
 		attachments, err := rewardMailAssets(awarder, mail)
 		if err != nil {
@@ -97,11 +97,11 @@ func rewardMailFunc(store *storage.Store, awarder *inventory.Awarder) reward.Mai
 // rewardMailAssets builds the mail attachments. A stackable becomes a mail
 // stack, anything else (equipment, pet gear) is materialised through the
 // equipment catalog's reward rule so the claim path can rebuild the instance.
-func rewardMailAssets(awarder *inventory.Awarder, mail reward.MailReward) ([]storage.MailAsset, error) {
+func rewardMailAssets(awarder *inventory.Awarder, mail reward.MailReward) ([]database.MailAsset, error) {
 	if len(mail.Attachments) == 0 {
 		return nil, nil
 	}
-	assets := make([]storage.MailAsset, 0, len(mail.Attachments))
+	assets := make([]database.MailAsset, 0, len(mail.Attachments))
 	for i, item := range mail.Attachments {
 		if item.ID == 0 || item.Count == 0 {
 			return nil, fmt.Errorf("reward mail attachment %d is invalid", i+1)
@@ -117,7 +117,7 @@ func rewardMailAssets(awarder *inventory.Awarder, mail reward.MailReward) ([]sto
 		if err != nil {
 			return nil, err
 		}
-		assets = append(assets, storage.MailAsset{Item: raw})
+		assets = append(assets, database.MailAsset{Item: raw})
 	}
 	return assets, nil
 }

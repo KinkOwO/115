@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	"dfolan/internal/catalog"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"fmt"
 	"time"
 )
@@ -94,7 +94,7 @@ func (w *worldSession) selectSkin(p []byte, event func(map[string]any)) ([]outbo
 // it. 解除 is a request for that tab's own built-in font by name, so the answer has
 // to carry the id the click named; storing 0 keeps the entry path from re-applying
 // the font the player just took off.
-func damageFontSelectionFrame(ctx context.Context, store *storage.Store, character, account int64,
+func damageFontSelectionFrame(ctx context.Context, store *database.Store, character, account int64,
 	entries map[uint32]catalog.SkinStorageEntry, category, skinKey uint32, record map[string]any,
 	event func(map[string]any)) ([]outboundPacket, error) {
 	// The client resets the font to its built-in default for any id the owned page
@@ -205,7 +205,7 @@ var damageFontSelectionCategories = []uint32{
 // into the frame that selects it. A skin the account no longer holds is not
 // replayed: the client takes an unknown id as a reset, which looks the same as
 // sending nothing, so nothing is invented here either.
-func restoreDamageFontSelection(ctx context.Context, store *storage.Store, character, account int64,
+func restoreDamageFontSelection(ctx context.Context, store *database.Store, character, account int64,
 	entries map[uint32]catalog.SkinStorageEntry, category uint32) ([]byte, error) {
 	skinKey, e := store.SelectedSkin(ctx, character, category)
 	if e != nil || skinKey == 0 {

@@ -87,7 +87,7 @@
 - `empty_item.go`：新增 `EmptyOrdinaryItem(slot uint16)`，生成 181 字节槽位清空记录（template=0xFFFFFFFF）。
 - `vault_test.go` & `empty_item_test.go`：单元测试覆盖空金库、带物品金库及清空槽位编码。
 
-### 2. 存储层（`internal/storage/vault.go`）
+### 2. 存储层（`internal/database/vault.go`）
 
 - 实现 `CommitVaultMove` 原子事务：
   - 加行锁 `SELECT ... FROM characters ... FOR UPDATE`。

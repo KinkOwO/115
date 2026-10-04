@@ -3,17 +3,17 @@ package charactercheck
 import (
 	"context"
 	"dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/quest"
-	"dfolan/internal/storage"
 	"dfolan/internal/workflow"
 	"dfolan/internal/world"
 	"encoding/json"
 	"fmt"
 )
 
-func questChainCheck(ctx context.Context, s *storage.Store, other int64) error {
+func questChainCheck(ctx context.Context, s *database.TestFixture, other int64) error {
 	c, e := loadNativeCharacterCatalog()
 	if e != nil {
 		return e
@@ -42,7 +42,7 @@ func questChainCheck(ctx context.Context, s *storage.Store, other int64) error {
 	if e != nil {
 		return e
 	}
-	qs := quest.Service{Store: s, Catalog: q, Professions: c, Progression: &character.ProgressionService{Store: s, Catalog: p, Professions: c, Rules: rules}}
+	qs := quest.Service{Store: s.Storage(), Catalog: q, Professions: c, Progression: &character.ProgressionService{Store: s.Storage(), Catalog: p, Professions: c, Rules: rules}}
 	contains := func(ids []uint32, id uint32) bool {
 		for _, v := range ids {
 			if v == id {
@@ -68,14 +68,14 @@ func questChainCheck(ctx context.Context, s *storage.Store, other int64) error {
 	if e != nil {
 		return e
 	}
-	if _, e = s.DB.Exec(ctx, `UPDATE characters SET state=$2 WHERE id=$1`, r.ID, r.State); e != nil {
+	if e = s.SeedCharacterState(ctx, r.ID, r.State); e != nil {
 		return e
 	}
 	if _, e = qs.Accept(ctx, r, 4873); e == nil {
 		return fmt.Errorf("successor accepted without source prerequisite")
 	}
 	// Prerequisite completion is a fixture exclusively in this test schema.
-	if _, e = s.DB.Exec(ctx, `INSERT INTO character_quests(character_id,quest_id,status,progress,config_version,progress_model) VALUES($1,3145,'completed',0,$2,$3)`, r.ID, r.ConfigVersion, quest.SingleClearMap); e != nil {
+	if e = s.SeedCompletedQuest(ctx, r.ID, 3145, r.ConfigVersion, quest.SingleClearMap); e != nil {
 		return e
 	}
 	ids, e = qs.Available(ctx, r)
@@ -98,7 +98,7 @@ func questChainCheck(ctx context.Context, s *storage.Store, other int64) error {
 		return e
 	}
 	ws := world.Service{Catalog: wc}
-	if !ws.HasNPC(storage.WorldPosition{Town: 38, Area: 0}, 1) || ws.HasNPC(storage.WorldPosition{Town: 38, Area: 1}, 1) {
+	if !ws.HasNPC(database.WorldPosition{Town: 38, Area: 0}, 1) || ws.HasNPC(database.WorldPosition{Town: 38, Area: 1}, 1) {
 		return fmt.Errorf("NPC area source mismatch")
 	}
 	if e = qs.MeetNPC(ctx, r, 4873, 1); e != nil {
@@ -107,7 +107,16 @@ func questChainCheck(ctx context.Context, s *storage.Store, other int64) error {
 	if e = qs.MeetNPC(ctx, r, 4873, 1); e != nil {
 		return e
 	}
-	result, e := (&workflow.QuestService{Store: s, Quest: &qs}).Finish(ctx, r, protocol.QuestSubmitRequest{ID: 4873, RewardSelection: 65535, Option: 1})
+	lc, e := loadNativeLootCatalog()
+	if e != nil {
+		return e
+	}
+	br, e := inventory.LoadBagRules("configs/inventory.next29.json", lc.Source.Checksum)
+	if e != nil {
+		return e
+	}
+	qs.Inventory = &inventory.Awarder{Catalog: lc, Rules: br}
+	result, e := (&workflow.QuestService{Store: s.Storage(), Quest: &qs}).Finish(ctx, r, protocol.QuestSubmitRequest{ID: 4873, RewardSelection: 65535, Option: 1})
 	if e != nil {
 		return e
 	}
@@ -117,14 +126,6 @@ func questChainCheck(ctx context.Context, s *storage.Store, other int64) error {
 	ids, e = qs.Available(ctx, result.Role)
 	if e != nil || contains(ids, 4873) || !contains(ids, 3146) {
 		return fmt.Errorf("NPC completion did not unlock next source quest: %v", e)
-	}
-	lc, e := loadNativeLootCatalog()
-	if e != nil {
-		return e
-	}
-	br, e := inventory.LoadBagRules("configs/inventory.next29.json", lc.Source.Checksum)
-	if e != nil {
-		return e
 	}
 	ec, e := loadNativeQuestEquipmentCatalog(r.ConfigVersion, q.Source.Checksum)
 	if e != nil {
@@ -136,7 +137,7 @@ func questChainCheck(ctx context.Context, s *storage.Store, other int64) error {
 		return e
 	}
 	// A completed-map fixture isolates inventory/EXP/completion atomicity.
-	if _, e = s.DB.Exec(ctx, `UPDATE character_quests SET progress=0 WHERE character_id=$1 AND quest_id=3146`, r.ID); e != nil {
+	if e = s.SeedQuestProgress(ctx, r.ID, 3146, 0); e != nil {
 		return e
 	}
 	full := inventory.Bag{Version: "ordinary-bag-v1", Gold: 123}
@@ -147,19 +148,30 @@ func questChainCheck(ctx context.Context, s *storage.Store, other int64) error {
 	if e != nil {
 		return e
 	}
-	if _, e = s.DB.Exec(ctx, `UPDATE characters SET state=$2 WHERE id=$1`, r.ID, fullState); e != nil {
+	if e = s.SeedCharacterState(ctx, r.ID, fullState); e != nil {
 		return e
 	}
 	finish := protocol.QuestSubmitRequest{ID: 3146, RewardSelection: 65535, Option: 1}
-	if _, e = (&workflow.QuestService{Store: s, Quest: &qs}).Finish(ctx, r, finish); e == nil {
+	d, e := q.Definition(uint32(finish.ID))
+	if e != nil {
+		return e
+	}
+	if e = json.Unmarshal(r.State, &state); e != nil {
+		return e
+	}
+	expectedGold, e := character.GrowthQuestGold(p, d, state.Level)
+	if e != nil {
+		return e
+	}
+	if _, e = (&workflow.QuestService{Store: s.Storage(), Quest: &qs}).Finish(ctx, r, finish); e == nil {
 		return fmt.Errorf("full bag accepted a partial quest reward")
 	}
-	var receipts int
-	if e = s.DB.QueryRow(ctx, `SELECT count(*) FROM character_quest_rewards WHERE character_id=$1 AND quest_id=3146`, r.ID).Scan(&receipts); e != nil || receipts != 0 {
+	var receipts int64
+	if receipts, e = s.QuestRewardCount(ctx, r.ID, 3146); e != nil || receipts != 0 {
 		return fmt.Errorf("failed quest kept a reward receipt")
 	}
 	var unchanged json.RawMessage
-	if e = s.DB.QueryRow(ctx, `SELECT state FROM characters WHERE id=$1`, r.ID).Scan(&unchanged); e != nil {
+	if unchanged, e = s.CharacterState(ctx, r.ID); e != nil {
 		return e
 	}
 	var before, after character.State
@@ -180,17 +192,17 @@ func questChainCheck(ctx context.Context, s *storage.Store, other int64) error {
 	if e != nil {
 		return e
 	}
-	if _, e = s.DB.Exec(ctx, `UPDATE characters SET state=$2 WHERE id=$1`, r.ID, emptyState); e != nil {
+	if e = s.SeedCharacterState(ctx, r.ID, emptyState); e != nil {
 		return e
 	}
-	result, e = (&workflow.QuestService{Store: s, Quest: &qs}).Finish(ctx, r, finish)
+	result, e = (&workflow.QuestService{Store: s.Storage(), Quest: &qs}).Finish(ctx, r, finish)
 	if e != nil {
 		return e
 	}
 	if !result.Applied || len(result.Receipt.Items) != 3 {
 		return fmt.Errorf("source equipment rewards missing")
 	}
-	result, e = (&workflow.QuestService{Store: s, Quest: &qs}).Finish(ctx, result.Role, finish)
+	result, e = (&workflow.QuestService{Store: s.Storage(), Quest: &qs}).Finish(ctx, result.Role, finish)
 	if e != nil || result.Applied {
 		return fmt.Errorf("equipment quest replay failed: %v", e)
 	}
@@ -198,8 +210,8 @@ func questChainCheck(ctx context.Context, s *storage.Store, other int64) error {
 	if e != nil {
 		return e
 	}
-	if bag.Gold != 123 || len(bag.Equipment) != 3 {
-		return fmt.Errorf("quest equipment duplicated or zero currency changed balance")
+	if uint64(bag.Gold) != 123+uint64(expectedGold) || len(bag.Equipment) != 3 || result.Receipt.Gold != expectedGold {
+		return fmt.Errorf("quest equipment duplicated or source gold lost/duplicated")
 	}
 	for i, id := range []uint32{20002, 24002, 22002} {
 		if bag.Equipment[i].Template != id || bag.Equipment[i].Slot != uint16(9+i) {

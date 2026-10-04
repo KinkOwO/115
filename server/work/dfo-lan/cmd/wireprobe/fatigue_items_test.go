@@ -4,10 +4,10 @@ import (
 	"context"
 	"dfolan/internal/catalog"
 	"dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
-	"dfolan/internal/storage"
 	"dfolan/internal/workflow"
 	"encoding/hex"
 	"fmt"
@@ -17,16 +17,35 @@ import (
 	"time"
 )
 
-func testFatigueItems(t *testing.T, s *storage.Store, role storage.Character) {
+func testFatigueItems(t *testing.T, fixture *database.TestFixture, role database.Character) {
 	t.Helper()
 	ctx := context.Background()
+	s := fixture.Storage()
 	shop := nativeShopPilot(t, false)
 	c := catalog.LootCatalog{Source: shop.Config.Source, Items: map[uint32]catalog.LootItem{}}
 	use, e := shop.StorageCatalog(c)
 	if e != nil {
 		t.Fatal(e)
 	}
-	use, e = inventory.WithClearCube(use, "../../configs/clear-cube-source.json")
+	// Bind the native shop and material overlay to the same archive, as
+	// runtime preparation does. Clear-cube binding stays on this native source;
+	// it has no getter, so do not guess its previous value.
+	previousSource := catalog.OdysseySource
+	catalog.SetOdysseySource(c.Source.Checksum)
+	inventory.SetClearCubeSource(c.Source.Checksum)
+	t.Cleanup(func() {
+		catalog.SetOdysseySource(previousSource)
+	})
+	archive := catalog.OpenNativeArchive(t)
+	index, e := catalog.ImportItemIndex(archive)
+	if e != nil {
+		t.Fatal(e)
+	}
+	cube, e := catalog.ImportClearCube(archive, index)
+	if e != nil {
+		t.Fatal(e)
+	}
+	use, e = inventory.WithClearCubeItem(use, cube)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -35,7 +54,7 @@ func testFatigueItems(t *testing.T, s *storage.Store, role storage.Character) {
 	}
 	role.ConfigVersion = c.Source.SaveIdentity()
 	role.State = []byte(`{"inventory":{"version":"ordinary-bag-v1","items":[{"slot":66,"Template":10000541,"Amount":3},{"slot":121,"Template":3037,"Amount":3},{"slot":122,"Template":3037,"Amount":1000}]}}`)
-	if _, e = s.DB.Exec(ctx, `UPDATE characters SET state=$2,config_version=$3 WHERE id=$1`, role.ID, role.State, role.ConfigVersion); e != nil {
+	if e = fixture.SeedCharacterSnapshot(ctx, role.ID, role.State, role.ConfigVersion); e != nil {
 		t.Fatal(e)
 	}
 	if e = s.MigrateCharacterEvents(ctx); e != nil {
@@ -46,7 +65,7 @@ func testFatigueItems(t *testing.T, s *storage.Store, role storage.Character) {
 	if _, e = f.State(ctx, role.AccountID, role.ID, now); e != nil {
 		t.Fatal(e)
 	}
-	if _, e = s.DB.Exec(ctx, `UPDATE character_fatigue SET used=40,used_max=40 WHERE character_id=$1`, role.ID); e != nil {
+	if e = fixture.SeedFatigueUsage(ctx, role.ID, 40, 40); e != nil {
 		t.Fatal(e)
 	}
 	var success atomic.Int32
@@ -69,7 +88,7 @@ func testFatigueItems(t *testing.T, s *storage.Store, role storage.Character) {
 		t.Fatal(fp, e)
 	}
 	var state []byte
-	if e = s.DB.QueryRow(ctx, `SELECT state FROM characters WHERE id=$1`, role.ID).Scan(&state); e != nil {
+	if state, e = fixture.CharacterState(ctx, role.ID); e != nil {
 		t.Fatal(e)
 	}
 	b, e := inventory.ReadBag(state)
@@ -86,7 +105,7 @@ func testFatigueItems(t *testing.T, s *storage.Store, role storage.Character) {
 	if _, _, e = f.RecoverPotion(ctx, role, use, 66, next); e == nil {
 		t.Fatal("full fatigue consumed potion")
 	}
-	if _, e = s.DB.Exec(ctx, `UPDATE character_fatigue SET used=5,used_max=5 WHERE character_id=$1`, role.ID); e != nil {
+	if e = fixture.SeedFatigueUsage(ctx, role.ID, 5, 5); e != nil {
 		t.Fatal(e)
 	}
 	if _, _, e = f.RecoverPotion(ctx, role, use, 67, next); e == nil {

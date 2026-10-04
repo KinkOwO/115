@@ -333,7 +333,7 @@ loot 与 equipment-selection 的运行 JSON 回退、隐式 baseline 已移除�
 | `internal/quest/`               | 任务链、任务目标推进（NPC 对话、范围到达、通关检查等）与奖励 |
 | `internal/dungeon/`             | 副本会话状态机、房间切换、门控制、怪物清场与通关结算         |
 | `internal/world/`               | 城镇场景、区域跳转、传送逻辑与位置保存                       |
-| `internal/storage/`             | PostgreSQL 数据库事务 (pgxpool)、角色存档持久化  |
+| `internal/database/`             | PostgreSQL 数据库事务 (pgxpool)、角色存档持久化  |
 | `internal/catalog/`             | 游戏规则驱动目录与静态数据索引解析                           |
 | `configs/`                      | 导出的全量 JSON 规则配置（任务、地图、装备、掉落等）         |
 | `scripts/`                      | 本地启动与初始化脚本（`launch_local.py`、`bootstrap_local.py`） |

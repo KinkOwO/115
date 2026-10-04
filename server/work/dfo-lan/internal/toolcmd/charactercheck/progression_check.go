@@ -3,15 +3,15 @@ package charactercheck
 import (
 	"context"
 	"dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 	"sync"
 )
 
-func progressionCheck(ctx context.Context, s, reopened *storage.Store, role storage.Character, other int64) error {
+func progressionCheck(ctx context.Context, s *database.TestFixture, reopened *database.Store, role database.Character, other int64) error {
 	if e := s.MigrateCharacterEvents(ctx); e != nil {
 		return e
 	}
@@ -34,7 +34,7 @@ func progressionCheck(ctx context.Context, s, reopened *storage.Store, role stor
 	if e != nil {
 		return e
 	}
-	service := character.ProgressionService{Store: s, Catalog: c, Professions: prof, Rules: rules}
+	service := character.ProgressionService{Store: s.Storage(), Catalog: c, Professions: prof, Rules: rules}
 	run, e := dungeon.Select(d, protocol.DungeonSelection{ID: 3, Party: 65535, Quest: 3145}, 1, map[uint16]bool{3145: true})
 	if e != nil {
 		return e
@@ -64,11 +64,11 @@ func progressionCheck(ctx context.Context, s, reopened *storage.Store, role stor
 		return e
 	}
 	// This role belongs to the preverified temporary schema, never live data.
-	if _, e = s.DB.Exec(ctx, `UPDATE characters SET state=$2 WHERE id=$1`, role.ID, encoded); e != nil {
+	if e = s.SeedCharacterState(ctx, role.ID, encoded); e != nil {
 		return e
 	}
 	type result struct {
-		role    storage.Character
+		role    database.Character
 		applied bool
 		err     error
 	}
@@ -121,14 +121,14 @@ func progressionCheck(ctx context.Context, s, reopened *storage.Store, role stor
 		return fmt.Errorf("experience reopen failed")
 	}
 	// A refused domain operation must leave both receipt and character intact.
-	_, _, e = s.CommitCharacterEvent(ctx, role.AccountID, role.ID, c.Source.SaveIdentity(), "rejected-test", rules.Model, func(storage.Character) (json.RawMessage, json.RawMessage, error) {
+	_, _, e = s.CommitCharacterEvent(ctx, role.AccountID, role.ID, c.Source.SaveIdentity(), "rejected-test", rules.Model, func(database.Character) (json.RawMessage, json.RawMessage, error) {
 		return nil, nil, fmt.Errorf("intentional rollback")
 	})
 	if e == nil {
 		return fmt.Errorf("domain failure committed")
 	}
-	var receipts int
-	if e = s.DB.QueryRow(ctx, `SELECT count(*) FROM character_events WHERE character_id=$1`, role.ID).Scan(&receipts); e != nil || receipts != 1 {
+	var receipts int64
+	if receipts, e = s.EventCount(ctx, role.ID); e != nil || receipts != 1 {
 		return fmt.Errorf("reward receipts=%d error=%v", receipts, e)
 	}
 	fmt.Println("PROGRESSION_STORAGE_PASS concurrent_reward_once=true atomic_exp_level_sp=true source_growth=true reopen=true owner_checked=true rollback=true")

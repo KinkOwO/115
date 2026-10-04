@@ -2,22 +2,22 @@ package workflow
 
 import (
 	"context"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 )
 
 func (s *ItemService) CreateEquipment(
 	ctx context.Context,
-	role storage.Character,
+	role database.Character,
 	template uint32,
 	slot uint32,
 	payOption int,
-) (storage.Character, inventory.EquipmentCraftReceipt, bool, error) {
+) (database.Character, inventory.EquipmentCraftReceipt, bool, error) {
 	var result inventory.EquipmentCraftReceipt
-	fail := func(e error) (storage.Character, inventory.EquipmentCraftReceipt, bool, error) {
+	fail := func(e error) (database.Character, inventory.EquipmentCraftReceipt, bool, error) {
 		return role, result, false, e
 	}
 	plan, e := s.Items.PlanEquipmentCraft(InventoryRole(role), template, slot, payOption)
@@ -27,7 +27,7 @@ func (s *ItemService) CreateEquipment(
 	key := plan.Key
 	saved, _, applied, e := s.Store.CommitAccountMaterialEvent(ctx, role.AccountID, role.ID,
 		s.Items.Catalog.Source.SaveIdentity(), key, s.Items.Model,
-		func(current storage.Character, accountRaw json.RawMessage) (json.RawMessage, json.RawMessage, error) {
+		func(current database.Character, accountRaw json.RawMessage) (json.RawMessage, json.RawMessage, error) {
 			state, account, receipt, err := s.Items.PrepareEquipmentCraft(InventoryRole(current), accountRaw, template, payOption, plan)
 			result = receipt
 			return state, account, err
@@ -39,13 +39,13 @@ func (s *ItemService) CreateEquipment(
 }
 func (s *ItemService) TransformEquipment(
 	ctx context.Context,
-	role storage.Character,
+	role database.Character,
 	slots []uint32,
 	templates []uint32,
 	payOption int,
-) (storage.Character, inventory.EquipmentTransformReceipt, bool, error) {
+) (database.Character, inventory.EquipmentTransformReceipt, bool, error) {
 	var result inventory.EquipmentTransformReceipt
-	fail := func(e error) (storage.Character, inventory.EquipmentTransformReceipt, bool, error) {
+	fail := func(e error) (database.Character, inventory.EquipmentTransformReceipt, bool, error) {
 		return role, result, false, e
 	}
 	plan, e := s.Items.PlanEquipmentTransform(InventoryRole(role), slots, templates, payOption)
@@ -56,7 +56,7 @@ func (s *ItemService) TransformEquipment(
 	key := plan.Key
 	saved, _, applied, e := s.Store.CommitAccountMaterialEvent(ctx, role.AccountID, role.ID,
 		s.Items.Catalog.Source.SaveIdentity(), key, s.Items.Model,
-		func(current storage.Character, accountRaw json.RawMessage) (json.RawMessage, json.RawMessage, error) {
+		func(current database.Character, accountRaw json.RawMessage) (json.RawMessage, json.RawMessage, error) {
 			state, account, receipt, err := s.Items.PrepareEquipmentTransform(InventoryRole(current), accountRaw, plan)
 			result = receipt
 			return state, account, err
@@ -68,11 +68,11 @@ func (s *ItemService) TransformEquipment(
 }
 func (s *ItemService) Disjoint(
 	ctx context.Context,
-	role storage.Character,
+	role database.Character,
 	r protocol.DisjointItemRequest,
-) (storage.Character, inventory.DisjointReceipt, bool, error) {
+) (database.Character, inventory.DisjointReceipt, bool, error) {
 	var result inventory.DisjointReceipt
-	fail := func(e error) (storage.Character, inventory.DisjointReceipt, bool, error) {
+	fail := func(e error) (database.Character, inventory.DisjointReceipt, bool, error) {
 		return role, result, false, e
 	}
 	plan, e := s.Items.PlanDisjoint(InventoryRole(role), r)
@@ -82,7 +82,7 @@ func (s *ItemService) Disjoint(
 	key, slots := plan.Key, plan.Slots
 	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID,
 		s.Items.Catalog.Source.SaveIdentity(), key, s.Items.Model,
-		func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+		func(current database.Character) (json.RawMessage, json.RawMessage, error) {
 			return s.Items.PrepareDisjoint(InventoryRole(current), r, plan)
 		})
 	if e != nil {
@@ -104,6 +104,6 @@ func (s *ItemService) Disjoint(
 
 // ItemService coordinates inventory item transitions with durable event commits.
 type ItemService struct {
-	Store *storage.Store
+	Store *database.Store
 	Items *inventory.ItemService
 }

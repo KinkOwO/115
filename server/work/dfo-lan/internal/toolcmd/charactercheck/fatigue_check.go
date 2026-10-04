@@ -2,14 +2,14 @@ package charactercheck
 
 import (
 	"context"
-	"dfolan/internal/storage"
+	"dfolan/internal/database"
 	"errors"
 	"fmt"
 	"sync"
 )
 
 // Only called after the existing temporary-schema isolation check.
-func fatigueChargeCheck(ctx context.Context, s, reopened *storage.Store, role storage.Character, other int64) error {
+func fatigueChargeCheck(ctx context.Context, s *database.TestFixture, reopened *database.Store, role database.Character, other int64) error {
 	const run = "0123456789abcdef0123456789abcdef"
 	const day = "2026-09-12"
 	const room = 76121
@@ -44,8 +44,13 @@ func fatigueChargeCheck(ctx context.Context, s, reopened *storage.Store, role st
 	if e != nil || !fresh || fp.Used != 2 {
 		return fmt.Errorf("second room consumption: %+v %v", fp, e)
 	}
-	if _, _, e = s.ConsumeRoomFatigue(ctx, role.AccountID, role.ID, day, 2, run, 76124, 1); !errors.Is(e, storage.ErrFatigueExhausted) {
-		return fmt.Errorf("exhausted charge: %v", e)
+	// A run which already paid entry must remain playable at zero fatigue.
+	fp, fresh, e = s.ConsumeRoomFatigue(ctx, role.AccountID, role.ID, day, 2, run, 76124, 1)
+	if e != nil || !fresh || fp.Used != 2 {
+		return fmt.Errorf("paid run continuation at zero: %+v %v", fp, e)
+	}
+	if _, _, e = s.ConsumeRoomFatigue(ctx, role.AccountID, role.ID, day, 2, "fedcba9876543210fedcba9876543210", 76124, 1); !errors.Is(e, database.ErrFatigueExhausted) {
+		return fmt.Errorf("new run accepted at zero fatigue: %v", e)
 	}
 	fp, fresh, e = s.ConsumeRoomFatigue(ctx, role.AccountID, role.ID, day, 2, run, 53127, 0)
 	if e != nil || !fresh || fp.Used != 2 {
@@ -59,6 +64,6 @@ func fatigueChargeCheck(ctx context.Context, s, reopened *storage.Store, role st
 	if e != nil || !fresh || fp.Used != 1 {
 		return fmt.Errorf("new run did not charge: %+v %v", fp, e)
 	}
-	fmt.Println("FATIGUE_ROOM_CHECK_PASS concurrent_retry=true reopen=true ownership=true exhaustion=true exemption=true rollover=true")
+	fmt.Println("FATIGUE_ROOM_CHECK_PASS concurrent_retry=true reopen=true ownership=true paid_run_continues_at_zero=true new_run_exhaustion=true exemption=true rollover=true")
 	return nil
 }

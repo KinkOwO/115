@@ -1,7 +1,7 @@
 package main
 
 import (
-	"dfolan/internal/storage"
+	"dfolan/internal/database"
 	"encoding/binary"
 	"testing"
 )
@@ -215,8 +215,8 @@ func TestRuntimeNeverResendsAreaList(t *testing.T) {
 	session := &worldSession{
 		hub:   h,
 		peer:  late,
-		role:  storage.Character{ID: 2, WireID: 4},
-		state: storage.WorldState{Position: storage.WorldPosition{Town: 38, Area: 0, X: 700, Y: 240}},
+		role:  database.Character{ID: 2, WireID: 4},
+		state: database.WorldState{Position: database.WorldPosition{Town: 38, Area: 0, X: 700, Y: 240}},
 	}
 	session.enterArea()
 	got = nil
@@ -270,8 +270,8 @@ func TestAnnouncePeersIntroducesSelfToOthers(t *testing.T) {
 	session := &worldSession{
 		hub:   h,
 		peer:  late,
-		role:  storage.Character{ID: 2, WireID: 4},
-		state: storage.WorldState{Position: storage.WorldPosition{Town: 38, Area: 0, X: 700, Y: 240}},
+		role:  database.Character{ID: 2, WireID: 4},
+		state: database.WorldState{Position: database.WorldPosition{Town: 38, Area: 0, X: 700, Y: 240}},
 	}
 	session.enterArea()
 	if len(session.joinedPeers) != 1 || session.joinedPeers[0] != early {

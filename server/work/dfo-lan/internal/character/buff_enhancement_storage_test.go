@@ -7,7 +7,7 @@ import (
 
 	"dfolan/internal/game/protocol"
 
-	"dfolan/internal/storage"
+	"dfolan/internal/database"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -18,38 +18,22 @@ import (
 )
 
 func TestBuffEnhancementPostgres(t *testing.T) {
-	config := os.Getenv("BUFF_INTEGRATION_CONFIG")
+	config := os.Getenv("DFO_TEST_POSTGRES_DSN")
 	if config == "" {
 		t.Skip("isolated PostgreSQL integration not requested")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()
-	cfg, err := storage.LoadConfig(config)
+	dbFixture, err := database.OpenTestFixture(ctx)
 	if err != nil {
-		t.Fatal(err)
-	}
-	admin, err := storage.Open(ctx, cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer admin.Close()
-	schema := fmt.Sprintf("buff_check_%d", time.Now().UnixNano())
-	if _, err = admin.DB.Exec(ctx, "CREATE SCHEMA "+schema); err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
-		clean, c := context.WithTimeout(context.Background(), 5*time.Second)
-		defer c()
-		if _, e := admin.DB.Exec(clean, "DROP SCHEMA "+schema+" CASCADE"); e != nil {
-			t.Error(e)
+		if err := dbFixture.Close(); err != nil {
+			t.Error(err)
 		}
 	}()
-	cfg.PostgresSchema = schema
-	store, err := storage.Open(ctx, cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer store.Close()
+	store := dbFixture.Storage()
 	if err = store.Migrate(ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -86,7 +70,7 @@ func TestBuffEnhancementPostgres(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	second, err := storage.Open(ctx, cfg)
+	second, err := dbFixture.Reopen(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

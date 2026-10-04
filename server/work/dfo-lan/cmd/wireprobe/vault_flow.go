@@ -2,9 +2,9 @@ package main
 
 import (
 	"context"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -49,7 +49,7 @@ func (w *worldSession) moveVault(rules inventory.BagRules, r protocol.ItemMoveRe
 	}
 
 	savedRole, _, err := w.store.CommitVaultMove(ctx, w.account, w.role.ID,
-		func(curRole storage.Character, curVaultState storage.VaultState) (json.RawMessage, json.RawMessage, error) {
+		func(curRole database.Character, curVaultState database.VaultState) (json.RawMessage, json.RawMessage, error) {
 			if curVaultState.ConfigVersion != w.vault.Rules.SourceSHA256 {
 				return nil, nil, fmt.Errorf("个人金库存档版本不匹配")
 			}
@@ -178,7 +178,7 @@ func (w *worldSession) moveVaultCross(rules inventory.BagRules, r protocol.ItemM
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	var moved uint32
-	_, first, second, err := w.store.CommitVaultCrossMove(ctx, w.account, w.role.ID, func(role storage.Character, a, b storage.VaultState) (json.RawMessage, json.RawMessage, json.RawMessage, error) {
+	_, first, second, err := w.store.CommitVaultCrossMove(ctx, w.account, w.role.ID, func(role database.Character, a, b database.VaultState) (json.RawMessage, json.RawMessage, json.RawMessage, error) {
 		if a.ConfigVersion != w.vault.Rules.SourceSHA256 || b.ConfigVersion != w.vault.Rules.SourceSHA256 {
 			return nil, nil, nil, fmt.Errorf("个人金库存档版本不匹配")
 		}
@@ -247,7 +247,7 @@ func (w *worldSession) sortVaultSpace(space byte) ([]outboundPacket, error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	_, saved, err := w.store.CommitVaultMove(ctx, w.account, w.role.ID, func(role storage.Character, state storage.VaultState) (json.RawMessage, json.RawMessage, error) {
+	_, saved, err := w.store.CommitVaultMove(ctx, w.account, w.role.ID, func(role database.Character, state database.VaultState) (json.RawMessage, json.RawMessage, error) {
 		if state.ConfigVersion != w.vault.Rules.SourceSHA256 {
 			return nil, nil, fmt.Errorf("个人金库存档版本不匹配")
 		}

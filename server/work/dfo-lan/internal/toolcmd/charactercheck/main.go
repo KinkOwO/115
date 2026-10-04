@@ -5,15 +5,13 @@ package charactercheck
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
 	"dfolan/internal/character"
-	"dfolan/internal/storage"
+	"dfolan/internal/database"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/jackc/pgx/v5"
 	"os"
 	"sync"
 	"time"
@@ -32,47 +30,30 @@ func Run() {
 	}
 }
 func run() error {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	// The full command reads real PVF catalogs in addition to persistence;
+	// keep its overall budget separate from short individual test fixtures.
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
-	cfg, e := storage.LoadConfig("runtime/storage/local.json")
+	s, e := database.OpenTestFixture(ctx)
 	if e != nil {
-		return e
-	}
-	root, e := storage.Open(ctx, cfg)
-	if e != nil {
-		return e
-	}
-	defer root.Close()
-	var token [8]byte
-	if _, e = rand.Read(token[:]); e != nil {
-		return e
-	}
-	schema := "charactercheck_" + hex.EncodeToString(token[:])
-	quoted := pgx.Identifier{schema}.Sanitize()
-	if _, e = root.DB.Exec(ctx, "CREATE SCHEMA "+quoted); e != nil {
 		return e
 	}
 	defer func() {
-		cleanup, c := context.WithTimeout(context.Background(), 5*time.Second)
-		defer c()
-		if _, e := root.DB.Exec(cleanup, "DROP SCHEMA "+quoted+" CASCADE"); e != nil {
-			fmt.Fprintln(os.Stderr, "temporary schema cleanup failed:", schema, e)
+		if err := s.Close(); err != nil {
+			fmt.Fprintln(os.Stderr, "temporary schema cleanup failed:", err)
 		}
 	}()
-	cfg.PostgresSchema = schema
-	s, e := storage.Open(ctx, cfg)
-	if e != nil {
-		return e
-	}
-	defer s.Close()
-	var actualSchema string
-	if e = s.DB.QueryRow(ctx, "SELECT current_schema()").Scan(&actualSchema); e != nil {
-		return e
-	}
-	if actualSchema != schema {
-		return fmt.Errorf("test isolation failed: %s", actualSchema)
-	}
 	if e = s.Migrate(ctx); e != nil {
+		return e
+	}
+	if e = s.MigrateUnifiedOptions(ctx); e != nil {
+		return e
+	}
+	if e = s.MigratePremiums(ctx); e != nil {
+		return e
+	}
+	// Roster projection reads completed quests as well as option settings.
+	if e = s.MigrateQuests(ctx); e != nil {
 		return e
 	}
 	c, e := loadNativeCharacterCatalog()
@@ -165,7 +146,7 @@ func run() error {
 		return fmt.Errorf("creation retry changed persisted role: %v", e)
 	}
 	// Reopen storage to verify that state is not only an in-memory response.
-	reopened, e := storage.Open(ctx, cfg)
+	reopened, e := s.Reopen(ctx)
 	if e != nil {
 		return e
 	}
@@ -184,10 +165,7 @@ func run() error {
 	if e = s.MigrateWorld(ctx); e != nil {
 		return e
 	}
-	if e = s.MigrateQuests(ctx); e != nil {
-		return e
-	}
-	spawn := storage.WorldPosition{Town: 38, Area: 0, X: 561, Y: 234}
+	spawn := database.WorldPosition{Town: 38, Area: 0, X: 561, Y: 234}
 	world, e := s.LoadWorld(ctx, account, rows[0].ID, 0, spawn, c.Source.SaveIdentity())
 	if e != nil {
 		return e
@@ -201,7 +179,7 @@ func run() error {
 	if e != nil {
 		return e
 	}
-	if _, e = s.SaveWorld(ctx, account, rows[0].ID, 0, world, spawn); !errors.Is(e, storage.ErrWorldConflict) {
+	if _, e = s.SaveWorld(ctx, account, rows[0].ID, 0, world, spawn); !errors.Is(e, database.ErrWorldConflict) {
 		return fmt.Errorf("stale world overwrite accepted: %v", e)
 	}
 	loaded, e := reopened.LoadWorld(ctx, account, rows[0].ID, 0, spawn, c.Source.SaveIdentity())
@@ -223,7 +201,7 @@ func run() error {
 	if _, e = s.AcceptQuestGroups(ctx, account, rows[0].ID, 3240, c.Source.SaveIdentity(), 1, 10000, act2Groups, 1, "single-clear-map-remaining-v1"); e == nil {
 		return fmt.Errorf("alternative prerequisite accepted before either branch completed")
 	}
-	if _, e = s.DB.Exec(ctx, `INSERT INTO character_quests(character_id,quest_id,status,progress,config_version,progress_model) VALUES($1,3232,'completed',0,$2,$3)`, rows[0].ID, c.Source.SaveIdentity(), "single-clear-map-remaining-v1"); e != nil {
+	if e = s.SeedCompletedQuest(ctx, rows[0].ID, 3232, c.Source.SaveIdentity(), "single-clear-map-remaining-v1"); e != nil {
 		return e
 	}
 	if _, e = s.AcceptQuestGroups(ctx, account, rows[0].ID, 3240, c.Source.SaveIdentity(), 1, 10000, act2Groups, 1, "single-clear-map-remaining-v1"); e != nil {

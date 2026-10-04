@@ -3,9 +3,9 @@ package main
 import (
 	"bytes"
 	"dfolan/internal/catalog"
+	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/hex"
 	"testing"
 
@@ -24,7 +24,7 @@ func directMoveSession() (*worldSession, []byte) {
 		panic(e)
 	}
 	return &worldSession{
-		role:          storage.Character{ID: 7, WireID: 10},
+		role:          database.Character{ID: 7, WireID: 10},
 		dungeons:      &catalog.DungeonCatalog{Dungeons: map[uint32]catalog.DungeonDefinition{}},
 		activeDungeon: &dungeon.Session{RunID: "finished-run", Definition: catalog.DungeonDefinition{ID: 100004946}},
 	}, body
@@ -56,7 +56,7 @@ func TestDirectMoveDungeonRejectsMalformedBody(t *testing.T) {
 // 实机对照（同一次会话、同一关卡、同一张切层图）显示多回那条 2062 ack 会让客户端在
 // 切层后不再请求房间，而只回 select ack(16) 时首图/切层图/直到 Boss 房全部正常。
 func TestDirectMoveEntryPlanMatchesTownSelection(t *testing.T) {
-	w := &worldSession{role: storage.Character{ID: 7, WireID: 10}}
+	w := &worldSession{role: database.Character{ID: 7, WireID: 10}}
 	s := &dungeon.Session{
 		Definition: catalog.DungeonDefinition{ID: 100004950},
 		Maze:       catalog.DungeonMaze{Index: 0, Start: [2]byte{0, 5}, Boss: [2]byte{4, 1}},
@@ -86,7 +86,7 @@ func TestDirectMoveEntryPlanMatchesTownSelection(t *testing.T) {
 
 // 直达下一关复用城镇选图的整套进图序列，只有 ack 的 id 不同。
 func TestDungeonEntryPlanAcksDirectMove(t *testing.T) {
-	w := &worldSession{role: storage.Character{ID: 7, WireID: 10}}
+	w := &worldSession{role: database.Character{ID: 7, WireID: 10}}
 	s := &dungeon.Session{
 		Definition: catalog.DungeonDefinition{ID: 100004947},
 		Maze:       catalog.DungeonMaze{Index: 3, Start: [2]byte{0x40, 0x19}, Boss: [2]byte{1, 1}},

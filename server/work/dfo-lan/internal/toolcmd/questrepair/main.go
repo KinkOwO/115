@@ -3,9 +3,9 @@ package questrepair
 
 import (
 	"context"
+	"dfolan/internal/database"
 	"dfolan/internal/managementdata"
 	"dfolan/internal/quest"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -43,11 +43,11 @@ func Run() {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	conf, e := storage.LoadConfig(*config)
+	conf, e := database.LoadConfig(*config)
 	if e != nil {
 		log.Fatal(e)
 	}
-	s, e := storage.Open(ctx, conf)
+	s, e := database.Open(ctx, conf)
 	if e != nil {
 		log.Fatal(e)
 	}
@@ -56,7 +56,7 @@ func Run() {
 		log.Fatal(e)
 	}
 	var account int64
-	if e = s.DB.QueryRow(ctx, `SELECT c.account_id FROM characters c JOIN accounts a ON a.id=c.account_id WHERE c.id=$1 AND a.development_only`, *id).Scan(&account); e != nil {
+	if account, e = s.DevelopmentCharacterAccount(ctx, *id); e != nil {
 		log.Fatal("development character not found")
 	}
 	quests, e := s.Quests(ctx, account, *id)

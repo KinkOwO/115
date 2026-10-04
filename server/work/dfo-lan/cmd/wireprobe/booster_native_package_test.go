@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"dfolan/internal/catalog"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
@@ -43,7 +43,7 @@ func TestBoosterNativeAvatarPackagePersistsAllSelections(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			char := storage.Character{ID: 1, AccountID: 1, State: state}
+			char := database.Character{ID: 1, AccountID: 1, State: state}
 			store := newMockBoosterStore(char)
 			w := &worldSession{role: char}
 			cat := &BoosterCatalog{Items: map[uint32]ItemIndexInfo{}}

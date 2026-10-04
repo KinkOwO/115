@@ -3,18 +3,27 @@ package charactercheck
 import (
 	"context"
 	"dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
-	"dfolan/internal/storage"
 	"dfolan/internal/workflow"
 	"encoding/json"
 	"fmt"
 	"sync"
 )
 
-func cardCheck(ctx context.Context, s, reopened *storage.Store, role storage.Character, other int64) error {
+func cardCheck(ctx context.Context, s *database.TestFixture, reopened *database.Store, role database.Character, other int64) error {
+	storedState, e := s.CharacterState(ctx, role.ID)
+	if e != nil {
+		return e
+	}
+	beforeBag, e := inventory.ReadBag(storedState)
+	if e != nil {
+		return e
+	}
+	role.State = storedState
 	c, e := loadNativeLootCatalog()
 	if e != nil {
 		return e
@@ -31,8 +40,12 @@ func cardCheck(ctx context.Context, s, reopened *storage.Store, role storage.Cha
 	if e != nil {
 		return e
 	}
-	domain := loot.Service{Catalog: c, Tables: tables, BagRules: bag, CardPolicy: &policy}
-	service := workflow.LootService{Store: s, Loot: &domain}
+	equipment, e := loadNativeEquipmentCatalog(c.Source.Checksum)
+	if e != nil {
+		return e
+	}
+	domain := loot.Service{Catalog: c, Tables: tables, BagRules: bag, CardPolicy: &policy, Equipment: equipment}
+	service := workflow.LootService{Store: s.Storage(), Loot: &domain}
 	dc, e := loadNativeDungeonCatalog()
 	if e != nil {
 		return e
@@ -66,6 +79,15 @@ func cardCheck(ctx context.Context, s, reopened *storage.Store, role storage.Cha
 	if e != nil {
 		return e
 	}
+	expectedEquipment := map[uint32]int{}
+	for _, item := range beforeBag.Equipment {
+		expectedEquipment[item.Template]++
+	}
+	for _, item := range p.Items {
+		if item != (loot.Award{}) {
+			expectedEquipment[item.Template] += int(item.Amount)
+		}
+	}
 	if p2, e := service.FreezeCards(ctx, role, run, policy, 999999); e != nil || p2 != p {
 		return fmt.Errorf("card plan rerolled: %v", e)
 	}
@@ -83,7 +105,7 @@ func cardCheck(ctx context.Context, s, reopened *storage.Store, role storage.Cha
 		return fmt.Errorf("invalid card index")
 	}
 	type result struct {
-		role    storage.Character
+		role    database.Character
 		receipt loot.CardReceipt
 		applied bool
 		err     error
@@ -123,8 +145,20 @@ func cardCheck(ctx context.Context, s, reopened *storage.Store, role storage.Cha
 		if e = json.Unmarshal(r.role.State, &state); e != nil {
 			return e
 		}
-		if b.Gold != 34+p.Gold || state.Experience != 2490 || len(b.Items) != 1 {
+		if uint64(b.Gold) != uint64(beforeBag.Gold)+uint64(p.Gold) || state.Experience != 2490 || len(b.Items) != len(beforeBag.Items) {
 			return fmt.Errorf("card lost or duplicated inventory/EXP")
+		}
+		actualEquipment := map[uint32]int{}
+		for _, item := range b.Equipment {
+			actualEquipment[item.Template]++
+		}
+		if len(actualEquipment) != len(expectedEquipment) {
+			return fmt.Errorf("card equipment lost or duplicated")
+		}
+		for id, count := range expectedEquipment {
+			if actualEquipment[id] != count {
+				return fmt.Errorf("card equipment %d count=%d, want=%d", id, actualEquipment[id], count)
+			}
 		}
 	}
 	if applied != 1 {

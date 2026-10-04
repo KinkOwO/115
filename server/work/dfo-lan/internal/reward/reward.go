@@ -9,7 +9,7 @@
 // no external file path. Options.Scripts can override the embedded set (tests,
 // or a future operator-supplied directory).
 //
-// This package must not import internal/storage or internal/character, because
+// This package must not import internal/database or internal/character, because
 // character imports reward. Persistence is injected via GrantFunc/MailFunc/CeraFunc.
 package reward
 

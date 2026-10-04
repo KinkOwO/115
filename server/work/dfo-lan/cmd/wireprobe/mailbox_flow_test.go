@@ -1,7 +1,7 @@
 package main
 
 import (
-	"dfolan/internal/storage"
+	"dfolan/internal/database"
 	"encoding/binary"
 	"encoding/json"
 	"testing"
@@ -13,8 +13,8 @@ func TestMailboxSnapshotSkipsBadAssetsAndMessages(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	messages := []storage.MailMessage{
-		{ID: 1, SenderName: "GM", Text: "valid", Status: 1, ExpiresAt: time.Now().Add(time.Hour), Assets: []storage.MailAsset{{ID: 2, Item: json.RawMessage(`{broken`)}, {ID: 3, Item: gold}}},
+	messages := []database.MailMessage{
+		{ID: 1, SenderName: "GM", Text: "valid", Status: 1, ExpiresAt: time.Now().Add(time.Hour), Assets: []database.MailAsset{{ID: 2, Item: json.RawMessage(`{broken`)}, {ID: 3, Item: gold}}},
 		{ID: 4, SenderName: "GM", Text: "\x00bad", Status: 1, ExpiresAt: time.Now().Add(time.Hour)},
 	}
 	packets, err := mailboxSnapshot(messages)

@@ -55,6 +55,10 @@ func (s *ProgressionService) Monster(ctx context.Context, role Character, run *d
 	if monster.NonCombat {
 		return role, false, nil
 	}
+	// This independent read must finish before opening the event transaction.
+	// Its callback is pure: requesting a second pool connection while other
+	// transactions wait on the character lock can exhaust the whole pool.
+	hasGrowth, _ := s.Store.HasGrowthPremium(ctx, role.AccountID, time.Now())
 	key := fmt.Sprintf("monster:%s:%d:%d", run.RunID, run.Room.Map, entity)
 	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, s.Catalog.Source.SaveIdentity(), key, s.Rules.Model, func(current Character) (json.RawMessage, json.RawMessage, error) {
 		var state State
@@ -65,10 +69,8 @@ func (s *ProgressionService) Monster(ctx context.Context, role Character, run *d
 		if e != nil {
 			return nil, nil, e
 		}
-		if s.Store != nil {
-			if hasGrowth, _ := s.Store.HasGrowthPremium(ctx, role.AccountID, time.Now()); hasGrowth {
-				gain = gain + gain*20/100
-			}
+		if hasGrowth {
+			gain = gain + gain*20/100
 		}
 		updated, result, e := s.ApplyGain(current, gain)
 		if e != nil {
