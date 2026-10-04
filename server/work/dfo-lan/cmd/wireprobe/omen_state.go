@@ -2,7 +2,7 @@ package main
 
 // 征兆（omen）的角色存档读写，以及「隐藏 BOSS 由征兆驱动」的判定。
 //
-// 为什么征兆要落库、而不是留在内存账本里：见 internal/storage/omen_state.go 的文件头
+// 为什么征兆要落库、而不是留在内存账本里：见 internal/database/omen_state.go 的文件头
 // —— 它是角色存档级的占位标记，不是道具（全库没有一件「征兆」物品），也不属于某一次
 // 服务会话。内存账本在重启后归零，玩家永远攒不满四档。
 //
@@ -25,8 +25,8 @@ import (
 	"log"
 	"time"
 
+	"dfolan/internal/database"
 	"dfolan/internal/loot"
-	"dfolan/internal/storage"
 )
 
 // omenStateTimeout 是一次存档读写的上限。写法与 oath_progress.go 一致：卡住的读写
@@ -34,7 +34,7 @@ import (
 const omenStateTimeout = 5 * time.Second
 
 // omenStore returns the persistence handle injected by the composition root.
-func (w *worldSession) omenStore() *storage.Store {
+func (w *worldSession) omenStore() *database.Store {
 	if w == nil {
 		return nil
 	}

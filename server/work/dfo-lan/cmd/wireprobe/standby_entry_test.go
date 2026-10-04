@@ -2,7 +2,7 @@ package main
 
 import (
 	"bytes"
-	"dfolan/internal/storage"
+	"dfolan/internal/database"
 	"encoding/binary"
 	"encoding/hex"
 	"testing"
@@ -102,8 +102,8 @@ func TestEntryTailOrderHolds(t *testing.T) {
 // AreaUsers 布局 u32 town + u32 area + u16 count + …。
 func TestStandbyPlacementCarriesStandbyArea(t *testing.T) {
 	w := &worldSession{
-		role:  storage.Character{WireID: 7},
-		state: storage.WorldState{Position: storage.WorldPosition{Town: 146, Area: 0, X: 562, Y: 234}},
+		role:  database.Character{WireID: 7},
+		state: database.WorldState{Position: database.WorldPosition{Town: 146, Area: 0, X: 562, Y: 234}},
 	}
 	userArea, e := w.userAreaPayload()
 	if e != nil {

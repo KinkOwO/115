@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"dfolan/internal/workflow"
 	"encoding/binary"
 	"encoding/json"
@@ -25,7 +25,7 @@ func accountVaultRefusal(err error) []byte {
 
 // 成功应答先让客户端按当前档位执行一次开通/升级，再恢复权威快照。
 // 反序会导致 CMD306/0x14529A4A0 把已经同步的容量再升一档。
-func accountVaultUpgradePackets(role storage.Character, raw json.RawMessage, vault storage.AccountVaultState, rules inventory.AccountVaultRules, opcode uint16, applied bool) ([]outboundPacket, error) {
+func accountVaultUpgradePackets(role database.Character, raw json.RawMessage, vault database.AccountVaultState, rules inventory.AccountVaultRules, opcode uint16, applied bool) ([]outboundPacket, error) {
 	var packets []outboundPacket
 	if applied {
 		packets = append(packets, outboundPacket{"账号金库升级成功", 1, opcode, []byte{1}})
@@ -77,7 +77,7 @@ func (w *worldSession) upgradeAccountVault(ctx context.Context, opcode uint16, p
 	rules := *w.vault.Rules.Account
 	key := fmt.Sprintf("account-vault:%s:%x", prefix, sha256.Sum256(raw))
 	saved, materials, vault, applied, err := w.store.CommitAccountVault(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, opcode,
-		func(role storage.Character, materials json.RawMessage, vault storage.AccountVaultState) (json.RawMessage, json.RawMessage, storage.AccountVaultState, error) {
+		func(role database.Character, materials json.RawMessage, vault database.AccountVaultState) (json.RawMessage, json.RawMessage, database.AccountVaultState, error) {
 			state, counts, next, err := inventory.UpgradeAccountVault(workflow.InventoryRole(role), materials, vault, rules, opcode == 305)
 			if err != nil {
 				return nil, nil, vault, err
@@ -108,7 +108,7 @@ func (w *worldSession) moveAccountVault(service *workflow.WearService, r protoco
 	defer cancel()
 	var count uint32
 	saved, _, savedVault, _, err := w.store.CommitAccountVault(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, 19,
-		func(role storage.Character, materials json.RawMessage, vault storage.AccountVaultState) (json.RawMessage, json.RawMessage, storage.AccountVaultState, error) {
+		func(role database.Character, materials json.RawMessage, vault database.AccountVaultState) (json.RawMessage, json.RawMessage, database.AccountVaultState, error) {
 			state, next, moved, err := inventory.MoveAccountVault(workflow.InventoryRole(role), vault, service.BagRules, w.vault.Catalog, service.Catalog, r, *w.vault.Rules.Account)
 			if err != nil {
 				return nil, nil, vault, err
@@ -179,7 +179,7 @@ func (w *worldSession) moveAccountVaultCross(service *workflow.WearService, r pr
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	var moved uint32
-	saved, shared, personal, _, err := w.store.CommitAccountVaultCrossMove(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, space, func(role storage.Character, a storage.AccountVaultState, p storage.VaultState) (json.RawMessage, storage.AccountVaultState, json.RawMessage, error) {
+	saved, shared, personal, _, err := w.store.CommitAccountVaultCrossMove(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, space, func(role database.Character, a database.AccountVaultState, p database.VaultState) (json.RawMessage, database.AccountVaultState, json.RawMessage, error) {
 		if p.ConfigVersion != w.vault.Rules.SourceSHA256 {
 			return nil, a, nil, fmt.Errorf("个人金库存档版本不匹配")
 		}
@@ -262,7 +262,7 @@ func parseAccountVaultGoldWithdraw(plain []byte) (uint32, error) {
 	return binary.LittleEndian.Uint32(plain[:4]), nil
 }
 
-func (w *worldSession) accountVaultGoldPackets(role storage.Character, v storage.AccountVaultState) ([]outboundPacket, error) {
+func (w *worldSession) accountVaultGoldPackets(role database.Character, v database.AccountVaultState) ([]outboundPacket, error) {
 	body, err := inventory.AccountVaultPayload(v, *w.vault.Rules.Account)
 	if err != nil {
 		return nil, err
@@ -303,9 +303,9 @@ func (w *worldSession) changeAccountVaultGold(ctx context.Context, opcode uint16
 	}
 	key := fmt.Sprintf("account-vault-gold:%s:%x", prefix, sha256.Sum256(raw))
 	var plan []outboundPacket
-	saved, _, _, applied, err := w.store.CommitAccountVault(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, opcode, func(role storage.Character, materials json.RawMessage, v storage.AccountVaultState) (json.RawMessage, json.RawMessage, storage.AccountVaultState, error) {
+	saved, _, _, applied, err := w.store.CommitAccountVault(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, opcode, func(role database.Character, materials json.RawMessage, v database.AccountVaultState) (json.RawMessage, json.RawMessage, database.AccountVaultState, error) {
 		var state json.RawMessage
-		var next storage.AccountVaultState
+		var next database.AccountVaultState
 		var e error
 		if opcode == 307 {
 			state, next, e = inventory.DepositAccountVaultGold(workflow.InventoryRole(role), v, *w.vault.Rules.Account, amount)

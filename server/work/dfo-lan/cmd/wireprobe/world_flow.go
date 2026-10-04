@@ -4,13 +4,14 @@ import (
 	"context"
 	"dfolan/internal/catalog"
 	"dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
 	"dfolan/internal/npcpresence"
 	"dfolan/internal/quest"
-	"dfolan/internal/storage"
+	"dfolan/internal/reward"
 	"dfolan/internal/workflow"
 	"dfolan/internal/world"
 	"encoding/json"
@@ -20,22 +21,22 @@ import (
 )
 
 type worldSession struct {
-	npcPresenceIndex       *npcpresence.Index
-	npcPresenceIndexErr    error
-	lastFame               uint32
-	fameInitialized        bool
-	moonConfig             *moonSoloConfig
-	moon                   moonSoloState
-	characters             *character.Service
-	pilotDeath             *odysseyDeath
-	service                *world.Service
-	store                  *storage.Store
-	account                int64
-	serverID               uint32
-	role                   storage.Character
-	level                  byte
-	adventureSnapshot      [32]byte
-	channelType            uint32
+	npcPresenceIndex    *npcpresence.Index
+	npcPresenceIndexErr error
+	lastFame            uint32
+	fameInitialized     bool
+	moonConfig          *moonSoloConfig
+	moon                moonSoloState
+	characters          *character.Service
+	pilotDeath          *odysseyDeath
+	service             *world.Service
+	store               *database.Store
+	account             int64
+	serverID            uint32
+	role                database.Character
+	level               byte
+	adventureSnapshot   [32]byte
+	channelType         uint32
 	// channelWorldIsolated 标记当前连接在特殊征讨频道（towns 表有专属城镇）。
 	// true 时会话内位置不落普通频道共享行；specialTowns 是全部特殊城镇集合，
 	// 用于把共享行里的历史污染位置修回默认落点。
@@ -44,10 +45,10 @@ type worldSession struct {
 	// channelGuideDungeon 是本频道 [guide dungeon index] 直读值（SemiRaid/Legion
 	// 频道的红门直接进这个副本）；0 = 无（普通频道）。
 	channelGuideDungeon uint32
-	bleedingMineCreated    bool
-	bleedingMineReady      bool
-	bleedingMineRoster     []int64
-	bleedingMineStart      *bleedingMineStart
+	bleedingMineCreated bool
+	bleedingMineReady   bool
+	bleedingMineRoster  []int64
+	bleedingMineStart   *bleedingMineStart
 	// ispins 是一次伊斯大陆（内容号 101）挑战的会话状态；nil = 无进行中的
 	// 挑战。字节契约见 ispins_flow.go 与 next78 取证文档。
 	ispins                 *ispinsRun
@@ -57,7 +58,7 @@ type worldSession struct {
 	// source level gate the world service applies: an Arad Odyssey character
 	// follows the client's [odyssey enter level] instead of [need level].
 	odyssey          bool
-	state            storage.WorldState
+	state            database.WorldState
 	flags            [3]byte
 	dungeons         *catalog.DungeonCatalog
 	tutorials        *catalog.TutorialCatalog
@@ -69,11 +70,13 @@ type worldSession struct {
 	lastFatigueLimit uint16
 	quests           *quest.Service
 	progression      *character.ProgressionService
-	loot             *loot.Service
-	items            *inventory.ItemService
-	shop             *workflow.ShopService
-	selectionBoxes   *catalog.SelectionBoxes
-	vault            *workflow.VaultService
+	// rewards is the optional event-triggered Lua reward notifier; nil disables it.
+	rewards        reward.Notifier
+	loot           *loot.Service
+	items          *inventory.ItemService
+	shop           *workflow.ShopService
+	selectionBoxes *catalog.SelectionBoxes
+	vault          *workflow.VaultService
 
 	townArrivalScenes   map[uint32]catalog.TownArrivalScene
 	approvedDungeonGate uint32
@@ -206,7 +209,7 @@ type worldSession struct {
 	seasonOathSnapshot  [32]byte
 }
 
-func (w *worldSession) enter(role storage.Character, spawn storage.WorldPosition) error {
+func (w *worldSession) enter(role database.Character, spawn database.WorldPosition) error {
 	var state character.State
 	if e := json.Unmarshal(role.State, &state); e != nil {
 		return e
@@ -271,7 +274,7 @@ func (w *worldSession) enter(role storage.Character, spawn storage.WorldPosition
 		// 当前 clientchannelinfo.etc 指定赤红铁矿赛丽亚房间为218/0；
 		// 坐标取 town/bleedingmine.twn 的[gate]，不复用剧情城镇。
 		// 每次进入先回独立房间，不能恢复没有当前编队的副本准备区。
-		entry := storage.WorldPosition{Town: 218, Area: 0, X: 562, Y: 234}
+		entry := database.WorldPosition{Town: 218, Area: 0, X: 562, Y: 234}
 		if e := w.service.ValidatePosition(w.level, w.odyssey, entry); e != nil {
 			return fmt.Errorf("赤红铁矿频道落点无效：%w", e)
 		}
@@ -284,7 +287,7 @@ func (w *worldSession) enter(role storage.Character, spawn storage.WorldPosition
 		// 146/0 的 (562,234)，坐标在 world 目录 146/0 的可行走矩形内。与
 		// 黑鸦/赤红铁矿同一模式：会话内改写位置，不写普通城镇存档，
 		// 换回普通频道仍恢复原城镇落点。
-		entry := storage.WorldPosition{Town: 146, Area: 0, X: 562, Y: 234}
+		entry := database.WorldPosition{Town: 146, Area: 0, X: 562, Y: 234}
 		if e := w.service.ValidatePosition(w.level, w.odyssey, entry); e != nil {
 			return fmt.Errorf("伊斯大陆频道落点无效：%w", e)
 		}
@@ -328,7 +331,7 @@ func (w *worldSession) enter(role storage.Character, spawn storage.WorldPosition
 // a single actor inside Seria's room no matter how crowded the town is, so the
 // same area never publishes other players. The flag comes from the imported
 // source map's own [is seria room warp] marker.
-func (w *worldSession) privateArea(pos storage.WorldPosition) bool {
+func (w *worldSession) privateArea(pos database.WorldPosition) bool {
 	if w.service == nil || w.service.Catalog.Areas == nil {
 		return false
 	}
@@ -518,7 +521,7 @@ func (w *worldSession) userAreaPayload() ([]byte, error) {
 	return protocol.UserArea(p.Town, p.Area, protocol.AreaUser{ActorServerID: w.role.WireID, X: p.X, Y: p.Y, Flags: w.flags})
 }
 
-func previousVillageRequest(old storage.WorldPosition, body []byte, inDungeon, selectingDungeon bool) (protocol.AreaChangeRequest, error) {
+func previousVillageRequest(old database.WorldPosition, body []byte, inDungeon, selectingDungeon bool) (protocol.AreaChangeRequest, error) {
 	if len(body) != 0 {
 		return protocol.AreaChangeRequest{}, errors.New("prev village needs empty body")
 	}

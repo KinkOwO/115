@@ -3,10 +3,10 @@ package main
 import (
 	"bytes"
 	"dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/wire"
 	"dfolan/internal/legion"
-	"dfolan/internal/storage"
 	"encoding/hex"
 	"testing"
 
@@ -26,7 +26,7 @@ func TestIspinsSettlementNativeRewardDelivery(t *testing.T) {
 			t.Fatalf("stage %d boss death: changed=%v completed=%v err=%v", stage, changed, run.Completed(), err)
 		}
 		w := &worldSession{activeDungeon: run, ispins: &ispinsRun{stage: stage},
-			role:       storage.Character{Name: "001", WireID: 7, State: []byte(`{"level":115,"advancement":5,"source_sha256":"fixture","attributes":{"[hp max]":100,"[mp max]":100}}`)},
+			role:       database.Character{Name: "001", WireID: 7, State: []byte(`{"level":115,"advancement":5,"source_sha256":"fixture","attributes":{"[hp max]":100,"[mp max]":100}}`)},
 			characters: &character.Service{ChannelContext: [2]byte{3, 86}},
 		}
 		plan, err := w.completeIspinsStage()
@@ -122,8 +122,8 @@ func TestIspinsSettlementFocusThenTownExit(t *testing.T) {
 			t.Fatal(err)
 		}
 		w := &worldSession{activeDungeon: run, ispins: &ispinsRun{stage: stage},
-			role: storage.Character{ID: 7, WireID: 7}, completionSent: true,
-			state: storage.WorldState{Position: storage.WorldPosition{Town: 146, Area: 0, X: 700, Y: 300}}}
+			role: database.Character{ID: 7, WireID: 7}, completionSent: true,
+			state: database.WorldState{Position: database.WorldPosition{Town: 146, Area: 0, X: 700, Y: 300}}}
 		w.ispins.cleared[stage] = true
 		focus := make([]byte, 16)
 		focus[0], focus[1], focus[2] = 2, 2, 1
@@ -165,9 +165,9 @@ func TestIspinsFinalMovieTownExitThenPartyLeave(t *testing.T) {
 	}
 	w := &worldSession{activeDungeon: run, completionSent: true, channelType: 81, soloPartyReady: true,
 		ispins:     &ispinsRun{stage: 3, cleared: [4]bool{true, true, true, true}},
-		role:       storage.Character{ID: 7, WireID: 7, Name: "001", State: []byte(`{"level":115,"advancement":5,"source_sha256":"fixture","attributes":{"[hp max]":100,"[mp max]":100}}`)},
+		role:       database.Character{ID: 7, WireID: 7, Name: "001", State: []byte(`{"level":115,"advancement":5,"source_sha256":"fixture","attributes":{"[hp max]":100,"[mp max]":100}}`)},
 		characters: &character.Service{ChannelContext: [2]byte{3, 86}},
-		state:      storage.WorldState{Position: storage.WorldPosition{Town: 146, Area: 0, X: 700, Y: 300}}}
+		state:      database.WorldState{Position: database.WorldPosition{Town: 146, Area: 0, X: 700, Y: 300}}}
 	claim := make([]byte, 32)
 	claim[13], claim[17], claim[21] = 101, 3, 1
 	if _, _, err := w.ispinsRewardEnd(claim); err != nil || !w.ispins.finalDone {
@@ -224,7 +224,7 @@ func TestIspinsFinalMovieTownExitThenPartyLeave(t *testing.T) {
 }
 
 func TestIspinsPartyLeaveRequiresTownAndNativeEmptyRequest(t *testing.T) {
-	w := &worldSession{channelType: 81, role: storage.Character{ID: 7, WireID: 7},
+	w := &worldSession{channelType: 81, role: database.Character{ID: 7, WireID: 7},
 		characters: &character.Service{ChannelContext: [2]byte{3, 86}}, soloPartyReady: true,
 		ispins: &ispinsRun{stage: 1}, activeDungeon: &dungeon.Session{}}
 	for _, request := range [][]byte{make([]byte, 8), {1, 0, 0, 0, 0, 0, 0, 0}, make([]byte, 9)} {
@@ -243,7 +243,7 @@ func TestIspinsPartyLeaveRequiresTownAndNativeEmptyRequest(t *testing.T) {
 }
 
 func TestIspinsRepeatQuotaRestoresOnlyAfterFullTownReturn(t *testing.T) {
-	w := &worldSession{channelType: 81, role: storage.Character{ID: 7, WireID: 7},
+	w := &worldSession{channelType: 81, role: database.Character{ID: 7, WireID: 7},
 		ispins:        &ispinsRun{stage: 3, finalDone: true, storyFinished: true, cleared: [4]bool{true, true, true, true}},
 		activeDungeon: &dungeon.Session{}}
 	if plan, err := w.ispinsRepeatRestorePackets(); err != nil || len(plan) != 0 {

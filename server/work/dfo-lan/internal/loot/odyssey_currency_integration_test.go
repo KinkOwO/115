@@ -3,50 +3,35 @@ package loot_test
 import (
 	"context"
 	"dfolan/internal/catalog"
+	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
-	"dfolan/internal/storage"
 	"dfolan/internal/testfixture"
 	"dfolan/internal/workflow"
 	"encoding/json"
-	"fmt"
 	"os"
 	"testing"
 	"time"
 )
 
 func TestOdysseyCurrencyPickupDatabase(t *testing.T) {
-	if os.Getenv("ODYSSEY_INTEGRATION") != "1" {
+	if os.Getenv("DFO_TEST_POSTGRES_DSN") == "" {
 		t.Skip("isolated PostgreSQL integration")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()
-	cfg, e := storage.LoadConfig("../../runtime/swordmaster-pilot-20260916/storage.json")
+	dbFixture, e := database.OpenTestFixture(ctx)
 	if e != nil {
-		t.Fatal(e)
-	}
-	admin, e := storage.Open(ctx, cfg)
-	if e != nil {
-		t.Fatal(e)
-	}
-	defer admin.Close()
-	schema := fmt.Sprintf("odyssey_coin_test_%d", time.Now().UnixNano())
-	if _, e = admin.DB.Exec(ctx, "CREATE SCHEMA "+schema); e != nil {
 		t.Fatal(e)
 	}
 	defer func() {
-		if _, e := admin.DB.Exec(context.Background(), "DROP SCHEMA "+schema+" CASCADE"); e != nil {
-			t.Error(e)
+		if err := dbFixture.Close(); err != nil {
+			t.Error(err)
 		}
 	}()
-	cfg.PostgresSchema = schema
-	store, e := storage.Open(ctx, cfg)
-	if e != nil {
-		t.Fatal(e)
-	}
-	defer store.Close()
+	store := dbFixture.Storage()
 	for _, f := range []func(context.Context) error{store.Migrate, store.MigrateCharacterEvents} {
 		if e = f(ctx); e != nil {
 			t.Fatal(e)
@@ -56,11 +41,11 @@ func TestOdysseyCurrencyPickupDatabase(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	role, e := store.CreateCharacter(ctx, storage.Character{AccountID: account, Name: "CoinFixture", Request: []byte{}, ConfigVersion: catalog.OdysseySource, State: json.RawMessage(`{"level":115}`)}, 24)
+	c, e := catalog.LoadLoot(testfixture.LootLevel150Path(t))
 	if e != nil {
 		t.Fatal(e)
 	}
-	c, e := catalog.LoadLoot(testfixture.LootLevel150Path(t))
+	role, e := store.CreateCharacter(ctx, database.Character{AccountID: account, Name: "CoinFixture", Request: []byte{}, ConfigVersion: c.Source.SaveIdentity(), State: json.RawMessage(`{"level":115}`)}, 24)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -106,7 +91,7 @@ func TestOdysseyCurrencyPickupDatabase(t *testing.T) {
 	if e != nil || applied {
 		t.Fatal("pickup replay", applied, e)
 	}
-	for _, r := range []storage.Character{next, replay} {
+	for _, r := range []database.Character{next, replay} {
 		b, e := inventory.ReadBag(r.State)
 		if e != nil || len(b.Items) != 1 || b.Items[0].Template != 10418035 || b.Items[0].Amount != 1 {
 			t.Fatal("coin ledger", b, e)

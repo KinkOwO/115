@@ -2,9 +2,9 @@ package main
 
 import (
 	"dfolan/internal/catalog"
+	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/hex"
 	"strings"
 	"testing"
@@ -18,8 +18,8 @@ func TestRejectedWestCoastSceneGateCannotStartDungeon(t *testing.T) {
 		t.Fatal(err)
 	}
 	w := &worldSession{
-		role: storage.Character{ID: 11}, dungeons: &catalog.DungeonCatalog{},
-		state: storage.WorldState{Position: storage.WorldPosition{Town: 40, Area: 0}},
+		role: database.Character{ID: 11}, dungeons: &catalog.DungeonCatalog{},
+		state: database.WorldState{Position: database.WorldPosition{Town: 40, Area: 0}},
 		townArrivalScenes: map[uint32]catalog.TownArrivalScene{
 			100004404: {QuestID: 12152, Town: 40, Area: 0, DungeonID: 100004404},
 		},
@@ -36,7 +36,7 @@ func TestRejectedWestCoastSceneGateCannotStartDungeon(t *testing.T) {
 func TestWestCoastOriginSyncKeepsPendingScene(t *testing.T) {
 	w := &worldSession{
 		pendingTownArrival: &dungeon.Session{},
-		state:              storage.WorldState{Position: storage.WorldPosition{Town: 40, Area: 0, X: 412, Y: 181}},
+		state:              database.WorldState{Position: database.WorldPosition{Town: 40, Area: 0, X: 412, Y: 181}},
 	}
 	actual, err := hex.DecodeString("28000000000000009c01b500002800000000000000000000")
 	if err != nil {

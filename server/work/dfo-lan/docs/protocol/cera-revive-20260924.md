@@ -20,7 +20,7 @@
 
 - 实现：`cmd/wireprobe/dungeon_revive.go`、`cmd/wireprobe/main.go`、`cmd/wireprobe/odyssey_revive.go`。
 - 错误分类：`internal/inventory/consume.go` 提供空复活币 sentinel；奥德赛额度耗尽使用独立 sentinel。
-- 账号扣款上限：`internal/storage/grant.go` 在同一数据库事务中应用可选 CERA 余额上限，无 schema 迁移。
+- 账号扣款上限：`internal/database/grant.go` 在同一数据库事务中应用可选 CERA 余额上限，无 schema 迁移。
 - 新增测试：`TestCeraReviveChargesFifteenAndSendsThreeFrames`、`TestCeraReviveIsIdempotentPerDeath`、`TestCeraReviveInsufficientBalanceRefuses22`、`TestReviveFallsThroughTokenToCera`、`TestReviveWithTokenDoesNotChargeCera`、`TestOdysseyCreditsExhaustThenTokenThenCera`、`TestOdysseyCreditsDoNotChargeTokenOrCera`、`TestReviveDoesNotFallThroughUnrelatedErrors`。
 - `go test ./...`：21 个含测试包通过；`go vet ./...` 与 `go build ./...` 通过。
 - 源码候选程序：`bin/wireprobe-handoff-source.exe`，SHA-256 `DE6F4E8E8FA69D59FA8E191670AAB9A478F9ED83C463D8818135138D1C3932C6`。归档 39 版未更改。

@@ -1,13 +1,13 @@
 package main
 
 import (
-	"dfolan/internal/storage"
+	"dfolan/internal/database"
 	"testing"
 )
 
 func TestNPCShadowIsDisabledAndDoesNotRequireStorage(t *testing.T) {
 	t.Setenv("DFO_NPC_PRESENCE_DIAGNOSTICS", "")
-	w := &worldSession{role: storage.Character{ID: 1}}
+	w := &worldSession{role: database.Character{ID: 1}}
 	if got := w.npcPresenceShadow(make([]byte, 16)); got != nil {
 		t.Fatalf("disabled diagnostic ran: %v", got)
 	}

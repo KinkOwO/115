@@ -2,9 +2,9 @@ package main
 
 import (
 	"context"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"dfolan/internal/workflow"
 	"encoding/json"
 	"time"
@@ -28,7 +28,7 @@ func (w *worldSession) movePetStack(rules inventory.BagRules, r protocol.ItemMov
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	saved, applied, err := w.store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, "pet-move-v1",
-		func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+		func(current database.Character) (json.RawMessage, json.RawMessage, error) {
 			currentBag, e := inventory.ReadBag(current.State)
 			if e != nil {
 				return nil, nil, e
@@ -131,7 +131,7 @@ func (w *worldSession) moveStack(rules inventory.BagRules,
 	return plan, true, nil
 }
 
-func stackMovePackets(saved storage.Character, r protocol.ItemMoveRequest, applied bool) ([]outboundPacket, error) {
+func stackMovePackets(saved database.Character, r protocol.ItemMoveRequest, applied bool) ([]outboundPacket, error) {
 	updated, e := inventory.ReadBag(saved.State)
 	if e != nil {
 		return nil, e

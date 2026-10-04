@@ -4,17 +4,17 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 	"math"
 )
 
-func (s *WearService) RecastAvatar(ctx context.Context, role storage.Character, r protocol.RecastAvatarRequest) (storage.Character, inventory.AvatarRecastReceipt, bool, error) {
+func (s *WearService) RecastAvatar(ctx context.Context, role database.Character, r protocol.RecastAvatarRequest) (database.Character, inventory.AvatarRecastReceipt, bool, error) {
 	var receipt inventory.AvatarRecastReceipt
-	fail := func(e error) (storage.Character, inventory.AvatarRecastReceipt, bool, error) {
+	fail := func(e error) (database.Character, inventory.AvatarRecastReceipt, bool, error) {
 		return role, inventory.AvatarRecastReceipt{}, false, e
 	}
 	if s == nil || s.Store == nil || s.Catalog == nil || s.AvatarRecast == nil || s.AvatarRecastLoot == nil || s.Catalog.Source.Checksum != s.AvatarRecast.Source || s.AvatarRecastLoot.Source.Checksum != s.AvatarRecast.Source || s.BagRules.Source != s.AvatarRecast.Source || role.ConfigVersion != s.Catalog.Source.SaveIdentity() {
@@ -33,7 +33,7 @@ func (s *WearService) RecastAvatar(ctx context.Context, role storage.Character, 
 		return fail(e)
 	}
 	key := fmt.Sprintf("avatar-recast-emblem:%d:%x", sequence, sha256.Sum256(request))
-	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, s.Catalog.Source.SaveIdentity(), key, "avatar-recast-emblem-v2", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, s.Catalog.Source.SaveIdentity(), key, "avatar-recast-emblem-v2", func(current database.Character) (json.RawMessage, json.RawMessage, error) {
 		prior, e := inventory.ReadBag(current.State)
 		if e != nil {
 			return nil, nil, e

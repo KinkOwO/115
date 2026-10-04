@@ -4,8 +4,8 @@ import (
 	"context"
 	"crypto/sha256"
 	"dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -15,12 +15,12 @@ import (
 	"golang.org/x/text/encoding/simplifiedchinese"
 )
 
-func (w *worldSession) prepareAdventure(ctx context.Context) (storage.AccountAdventure, error) {
+func (w *worldSession) prepareAdventure(ctx context.Context) (database.AccountAdventure, error) {
 	if w == nil || w.characters == nil || w.store == nil || w.role.ID == 0 || w.role.AccountID != w.account {
-		return storage.AccountAdventure{}, fmt.Errorf("冒险团请求缺少所属角色")
+		return database.AccountAdventure{}, fmt.Errorf("冒险团请求缺少所属角色")
 	}
 	if w.fatigue == nil {
-		return storage.AccountAdventure{}, fmt.Errorf("冒险团游戏日历尚未加载")
+		return database.AccountAdventure{}, fmt.Errorf("冒险团游戏日历尚未加载")
 	}
 	return w.store.PrepareAdventure(ctx, w.role, w.fatigue.Day(time.Now()))
 }
@@ -173,7 +173,7 @@ func (w *worldSession) setAdventureBestHonor(ctx context.Context, p, raw []byte,
 	}
 	key := fmt.Sprintf("adventure-best-honor:%s:%x", prefix, sha256.Sum256(raw))
 	_, _, _, err = w.store.CommitAdventure(ctx, w.account, w.role.ID, key,
-		func(role storage.Character, profile *storage.AccountAdventure) (json.RawMessage, json.RawMessage, error) {
+		func(role database.Character, profile *database.AccountAdventure) (json.RawMessage, json.RawMessage, error) {
 			profile.Data.BestHonorCharacter = selected
 			receipt, e := json.Marshal(map[string]any{"character_id": selected, "automatic": automatic})
 			return role.State, receipt, e

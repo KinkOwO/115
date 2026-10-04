@@ -2,8 +2,8 @@ package main
 
 import (
 	"context"
+	"dfolan/internal/database"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -23,7 +23,7 @@ func (w *worldSession) refreshCreatureLoyalty(ctx context.Context, now time.Time
 	var changed, fed bool
 	key := fmt.Sprintf("creature-loyalty:%d", now.UnixNano())
 	saved, _, err := w.store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion,
-		key, "creature-loyalty-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+		key, "creature-loyalty-v1", func(current database.Character) (json.RawMessage, json.RawMessage, error) {
 			state, didChange, didFeed, e := inventory.AdvanceCreatureLoyalty(current.State, now.Unix(), inDungeon, w.loot.Catalog)
 			changed, fed = didChange, didFeed
 			return state, json.RawMessage(`{}`), e

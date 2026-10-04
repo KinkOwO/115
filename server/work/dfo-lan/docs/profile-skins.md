@@ -17,7 +17,7 @@ ProfileSkinRestore 从回读快照编码 category 0 的 NOTI1545 和 NOTI1546。
 | 模块 | 职责与位置 |
 |---|---|
 | 领域 | internal/profileskin/state.go：State、Defaults、Validate，公共初始状态及已拥有选择约束 |
-| 持久化 | internal/storage/profile_skin.go：MigrateProfileSkins、RestoreProfileSkins，增量建表、归属与事务回读 |
+| 持久化 | internal/database/profile_skin.go：MigrateProfileSkins、RestoreProfileSkins，增量建表、归属与事务回读 |
 | 协议 | internal/game/protocol/profile_skin.go：ProfileSkinRestore，当前 US 类别 0 编码 |
 | 登录 | cmd/wireprobe/main.go：迁移与选角状态恢复；entry_flow.go：先拥有后选择的发送顺序 |
 | 回归 | protocol/profile_skin_test.go、storage/profile_skin_test.go、cmd/wireprobe/profile_skin_test.go |

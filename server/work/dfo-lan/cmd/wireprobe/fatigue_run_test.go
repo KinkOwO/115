@@ -4,10 +4,9 @@ import (
 	"context"
 	"dfolan/internal/catalog"
 	"dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
-	"dfolan/internal/storage"
 	"errors"
-	"fmt"
 	"os"
 	"strings"
 	"sync"
@@ -16,35 +15,21 @@ import (
 )
 
 func TestFatigueRunLoadingIntegration(t *testing.T) {
-	if os.Getenv("FATIGUE_INTEGRATION") != "1" {
+	if os.Getenv("DFO_TEST_POSTGRES_DSN") == "" {
 		t.Skip("isolated PostgreSQL schema")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
-	cfg, err := storage.LoadConfig("../../runtime/swordmaster-pilot-20260916/storage.json")
+	fixture, err := database.OpenTestFixture(ctx)
 	if err != nil {
-		t.Fatal(err)
-	}
-	admin, err := storage.Open(ctx, cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer admin.Close()
-	schema := fmt.Sprintf("fatigue_run_test_%d", time.Now().UnixNano())
-	if _, err = admin.DB.Exec(ctx, "CREATE SCHEMA "+schema); err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
-		if _, err := admin.DB.Exec(context.Background(), "DROP SCHEMA "+schema+" CASCADE"); err != nil {
+		if err := fixture.Close(); err != nil {
 			t.Error(err)
 		}
 	}()
-	cfg.PostgresSchema = schema
-	s, err := storage.Open(ctx, cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer s.Close()
+	s := fixture.Storage()
 	for _, migrate := range []func(context.Context) error{s.Migrate, s.MigrateFatigue} {
 		if err = migrate(ctx); err != nil {
 			t.Fatal(err)
@@ -54,7 +39,7 @@ func TestFatigueRunLoadingIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	role, err := s.CreateCharacter(ctx, storage.Character{AccountID: account, Name: "FatigueFixture", Request: []byte{0}, ConfigVersion: strings.Repeat("a", 64), State: []byte(`{}`)}, 24)
+	role, err := s.CreateCharacter(ctx, database.Character{AccountID: account, Name: "FatigueFixture", Request: []byte{0}, ConfigVersion: strings.Repeat("a", 64), State: []byte(`{}`)}, 24)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,8 +67,8 @@ func TestFatigueRunLoadingIntegration(t *testing.T) {
 			t.Fatal("loading handshake incomplete")
 		}
 	}
-	var cost, count int
-	if err = s.DB.QueryRow(ctx, `SELECT count(*),sum(cost) FROM character_fatigue_rooms WHERE character_id=$1`, role.ID).Scan(&count, &cost); err != nil || count != 2 || cost != 1 {
+	var cost, count int64
+	if count, cost, err = fixture.FatigueRoomStats(ctx, role.ID); err != nil || count != 2 || cost != 1 {
 		t.Fatal(count, cost, err)
 	}
 	var wg sync.WaitGroup
@@ -101,7 +86,7 @@ func TestFatigueRunLoadingIntegration(t *testing.T) {
 	if err != nil || fp.Used != 1 || fp.UsedMax != 1 {
 		t.Fatal("counter overflow", fp, err)
 	}
-	if _, _, err = f.EnterRoom(ctx, account, role.ID, strings.Repeat("b", 32), 1, false, time.Now()); !errors.Is(err, storage.ErrFatigueExhausted) {
+	if _, _, err = f.EnterRoom(ctx, account, role.ID, strings.Repeat("b", 32), 1, false, time.Now()); !errors.Is(err, database.ErrFatigueExhausted) {
 		t.Fatal("new exhausted run admitted", err)
 	}
 	if _, _, err = f.EnterRoom(ctx, account+1, role.ID, run, 1, false, time.Now()); err == nil {
@@ -111,14 +96,14 @@ func TestFatigueRunLoadingIntegration(t *testing.T) {
 	if _, _, err = f.EnterRoom(ctx, account, role.ID, exempt, 1, true, time.Now()); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err = f.EnterRoom(ctx, account, role.ID, exempt, 2, false, time.Now()); !errors.Is(err, storage.ErrFatigueExhausted) {
+	if _, _, err = f.EnterRoom(ctx, account, role.ID, exempt, 2, false, time.Now()); !errors.Is(err, database.ErrFatigueExhausted) {
 		t.Fatal("zero-cost ledger authorized paid run", err)
 	}
 	future := time.Now().Add(24 * time.Hour)
 	if fp, _, err = f.EnterRoom(ctx, account, role.ID, strings.Repeat("d", 32), 1, false, future); err != nil || fp.Used != 1 {
 		t.Fatal("rollover", fp, err)
 	}
-	if _, _, err = f.EnterRoom(ctx, account, role.ID, strings.Repeat("e", 32), 1, false, time.Now()); !errors.Is(err, storage.ErrFatigueExhausted) {
+	if _, _, err = f.EnterRoom(ctx, account, role.ID, strings.Repeat("e", 32), 1, false, time.Now()); !errors.Is(err, database.ErrFatigueExhausted) {
 		t.Fatal("clock rollback granted quota", err)
 	}
 	t.Log("FATIGUE PASS: last point -> next room ACK37/NOTI30; retries and concurrent rooms clamped; new runs and wrong owner rejected; exempt ledger and rollover checked")
@@ -138,5 +123,5 @@ func TestFatigueRunLoadingIntegration(t *testing.T) {
 		t.Fatal("backward day changed cap", fp, err)
 	}
 	t.Log("CAP PASS: same-day 1056 preserves use; next day resets; backward day preserves quota")
-	testFatigueItems(t, s, role)
+	testFatigueItems(t, fixture, role)
 }

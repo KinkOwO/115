@@ -3,10 +3,10 @@ package main
 import (
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -37,7 +37,7 @@ func TestDungeonCloneRefreshAfterWornMoves(t *testing.T) {
 		t.Fatal(err)
 	}
 	w := &worldSession{
-		role:          storage.Character{WireID: 503, Profession: 11, State: json.RawMessage(`{"source_sha256":"fixture","attributes":{"[hp max]":100,"[mp max]":100},"inventory":{"version":"ordinary-bag-v1","worn":[{"slot":3,"template":517500000},{"slot":12,"template":101000013}]}}`)},
+		role:          database.Character{WireID: 503, Profession: 11, State: json.RawMessage(`{"source_sha256":"fixture","attributes":{"[hp max]":100,"[mp max]":100},"inventory":{"version":"ordinary-bag-v1","worn":[{"slot":3,"template":517500000},{"slot":12,"template":101000013}]}}`)},
 		activeDungeon: &dungeon.Session{},
 		characters:    &character.Service{DetailedWornCandidate: true, Equipment: catalog},
 	}

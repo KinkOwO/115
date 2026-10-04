@@ -131,7 +131,7 @@ def main():
             with io.open(ep, 'w', encoding='utf-8') as f:
                 json.dump(base, f, ensure_ascii=False, separators=(',', ':'))
     elif os.path.exists(ep):
-        log('【4/5】跳过：没有 equipment-high.json（需先用 cmd/equipmentfull 导出）')
+        log('【4/5】跳过：没有 equipment-high.json（需先用 cmd/dfo-tool equipmentfull 导出）')
 
     # 5) 副本目录
     fdp = os.path.join(C, 'dungeons.full.json')
@@ -143,7 +143,7 @@ def main():
         if not same:
             log('  ⚠ 不一致会导致启动报 "dungeon/world source versions differ"，需要重导入')
     else:
-        log('【5/5】跳过：没有 dungeons.full.json（需用 cmd/dungeonimport 生成）')
+        log('【5/5】跳过：没有 dungeons.full.json（需用 cmd/dfo-tool dungeonimport 生成）')
 
     log('完成%s' % ('（--dry，未写盘）' if a.dry else ''))
     return 0

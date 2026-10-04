@@ -1,16 +1,16 @@
 package main
 
 import (
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/game/wire"
-	"dfolan/internal/storage"
 	"encoding/binary"
 	"testing"
 	"time"
 )
 
 func TestMoonSoloFeatureOffAndPreparationCancel(t *testing.T) {
-	w := &worldSession{role: storage.Character{ID: 1, WireID: 7}}
+	w := &worldSession{role: database.Character{ID: 1, WireID: 7}}
 	if handled, _, _ := w.moonHandle(2284, []byte{24, 0, 0, 0}, time.Now(), nil); handled {
 		t.Fatal("feature default must be off")
 	}
@@ -77,9 +77,9 @@ func TestMoonSoloLoginAndCounterPacketShapes(t *testing.T) {
 // 而区域 255 只出现在线路上，不能写进角色状态或存档。
 func TestMoonFloorHandoffUsesOwnActorAndTransientArea(t *testing.T) {
 	w := &worldSession{
-		role:  storage.Character{ID: 1, WireID: 7},
+		role:  database.Character{ID: 1, WireID: 7},
 		flags: [3]byte{1, 2, 4},
-		state: storage.WorldState{Position: storage.WorldPosition{Town: 215, Area: 2, X: 311, Y: 907}},
+		state: database.WorldState{Position: database.WorldPosition{Town: 215, Area: 2, X: 311, Y: 907}},
 	}
 	before := w.state.Position
 	handoff, e := w.moonFloorHandoff()
@@ -138,11 +138,11 @@ func TestMoonFloorHandoffUsesOwnActorAndTransientArea(t *testing.T) {
 
 // 位置已经不在等候区就拒绝交接：区域 255 只是线路表示，位置漂了就报错，不猜。
 func TestMoonFloorHandoffRefusesOutsideWaitingArea(t *testing.T) {
-	for _, pos := range []storage.WorldPosition{
+	for _, pos := range []database.WorldPosition{
 		{Town: 215, Area: 1, X: 1, Y: 1},
 		{Town: 1, Area: 2, X: 1, Y: 1},
 	} {
-		w := &worldSession{role: storage.Character{ID: 1, WireID: 7}, state: storage.WorldState{Position: pos}}
+		w := &worldSession{role: database.Character{ID: 1, WireID: 7}, state: database.WorldState{Position: pos}}
 		if _, e := w.moonFloorHandoff(); e == nil {
 			t.Fatalf("handoff accepted %d/%d", pos.Town, pos.Area)
 		}
@@ -154,19 +154,19 @@ func TestMoonFloorHandoffRefusesOutsideWaitingArea(t *testing.T) {
 // （2026-10-02 18:23:50 的日志：C15 → dungeon_gate_ack → 空 N27 → close）。
 func TestMoonPortalGateOnlyTakesTheWaitingArea(t *testing.T) {
 	// 月湖未启用（普通频道）：这扇门与月湖无关，必须留给普通门路径。
-	off := &worldSession{role: storage.Character{ID: 1, WireID: 7}}
-	off.state.Position = storage.WorldPosition{Town: 215, Area: 2}
+	off := &worldSession{role: database.Character{ID: 1, WireID: 7}}
+	off.state.Position = database.WorldPosition{Town: 215, Area: 2}
 	if handled, _, _ := off.moonHandle(15, make([]byte, 8), time.Now(), nil); handled {
 		t.Fatal("月湖未启用时红门必须留给普通门路径")
 	}
-	w := &worldSession{role: storage.Character{ID: 1, WireID: 7}, moonConfig: &moonSoloConfig{Channel: 101}}
+	w := &worldSession{role: database.Character{ID: 1, WireID: 7}, moonConfig: &moonSoloConfig{Channel: 101}}
 	// 招募区 215/1：不是等候区，不能被这条分支吃掉。
-	w.state.Position = storage.WorldPosition{Town: 215, Area: 1}
+	w.state.Position = database.WorldPosition{Town: 215, Area: 1}
 	if handled, _, _ := w.moonHandle(15, make([]byte, 8), time.Now(), nil); handled {
 		t.Fatal("招募区的门不该由月湖接管")
 	}
 	// 等候区 215/2、未建队 → 必须拒绝（上层 main.go 会转成 N15 Refusal(4)）。
-	w.state.Position = storage.WorldPosition{Town: 215, Area: 2}
+	w.state.Position = database.WorldPosition{Town: 215, Area: 2}
 	handled, packets, e := w.moonHandle(15, make([]byte, 8), time.Now(), nil)
 	if !handled || e == nil || len(packets) != 0 {
 		t.Fatalf("未建队时必须拒绝：handled=%v packets=%v err=%v", handled, packets, e)

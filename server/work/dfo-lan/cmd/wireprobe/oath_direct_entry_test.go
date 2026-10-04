@@ -6,10 +6,10 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -21,7 +21,7 @@ import (
 
 func TestOathDirectEntryWithoutWorldStore(t *testing.T) {
 	// Domain persistence no longer supplies the world session's oath reader.
-	w := &worldSession{account: 1, role: storage.Character{ID: 1}, characters: &character.Service{Store: &storage.Store{}}}
+	w := &worldSession{account: 1, role: database.Character{ID: 1}, characters: &character.Service{Store: &database.Store{}}}
 	active, err := w.oathDirectEntryActive(context.Background())
 	if err != nil || active {
 		t.Fatalf("missing world store: active=%t err=%v", active, err)
@@ -41,26 +41,16 @@ func TestOathDirectEntryIntegration(t *testing.T) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	cfg := storage.Config{PostgresDSN: dsn, MaxConnections: 2}
-	admin, err := storage.Open(ctx, cfg)
+	fixture, err := database.OpenTestFixture(ctx)
 	if err != nil {
-		t.Fatal(err)
-	}
-	defer admin.Close()
-	cfg.PostgresSchema = fmt.Sprintf("oath_entry_%d", time.Now().UnixNano())
-	if _, err := admin.DB.Exec(ctx, "CREATE SCHEMA "+cfg.PostgresSchema); err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
-		if _, err := admin.DB.Exec(context.Background(), "DROP SCHEMA "+cfg.PostgresSchema+" CASCADE"); err != nil {
+		if err := fixture.Close(); err != nil {
 			t.Error(err)
 		}
 	}()
-	store, err := storage.Open(ctx, cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer store.Close()
+	store := fixture.Storage()
 	for _, migrate := range []func(context.Context) error{store.Migrate, store.MigrateOathOptions} {
 		if err := migrate(ctx); err != nil {
 			t.Fatal(err)
@@ -113,7 +103,7 @@ func TestOathDirectEntryIntegration(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			role, err := store.CreateCharacter(ctx, storage.Character{AccountID: account, Name: tc.name, Profession: 11, ConfigVersion: version, Request: []byte{0}, State: raw}, 24)
+			role, err := store.CreateCharacter(ctx, database.Character{AccountID: account, Name: tc.name, Profession: 11, ConfigVersion: version, Request: []byte{0}, State: raw}, 24)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -122,8 +112,8 @@ func TestOathDirectEntryIntegration(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			var before json.RawMessage
-			if err := store.DB.QueryRow(ctx, "SELECT state FROM characters WHERE id=$1", role.ID).Scan(&before); err != nil {
+			before, err := fixture.CharacterState(ctx, role.ID)
+			if err != nil {
 				t.Fatal(err)
 			}
 			for _, dungeonID := range []uint32{22, 5000} {
@@ -213,8 +203,8 @@ func TestOathDirectEntryIntegration(t *testing.T) {
 					}
 				})
 			}
-			var after json.RawMessage
-			if err := store.DB.QueryRow(ctx, "SELECT state FROM characters WHERE id=$1", role.ID).Scan(&after); err != nil {
+			after, err := fixture.CharacterState(ctx, role.ID)
+			if err != nil {
 				t.Fatal(err)
 			}
 			if !bytes.Equal(before, after) {

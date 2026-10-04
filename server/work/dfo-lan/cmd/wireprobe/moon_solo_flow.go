@@ -3,12 +3,12 @@ package main
 import (
 	"context"
 	"dfolan/internal/catalog"
+	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/game/wire"
 	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
-	"dfolan/internal/storage"
 	"dfolan/internal/workflow"
 	"encoding/binary"
 	"errors"
@@ -20,11 +20,11 @@ import (
 // Opt-in contribution profile. No change to the ordinary upstream server.
 // Pool/weights are operator policy, not claimed official smart-drop rates.
 type moonSoloConfig struct {
-	ClientProfile string                `json:"client_profile"`
-	Channel       uint32                `json:"channel"`
-	Remaining     byte                  `json:"test_remaining"`
-	Rewards       loot.MoonRewardPolicy `json:"rewards"`
-	Entry         storage.WorldPosition `json:"entry"`
+	ClientProfile string                 `json:"client_profile"`
+	Channel       uint32                 `json:"channel"`
+	Remaining     byte                   `json:"test_remaining"`
+	Rewards       loot.MoonRewardPolicy  `json:"rewards"`
+	Entry         database.WorldPosition `json:"entry"`
 	// RewardPool 是翻牌池的**直读来源描述**（组号与模板@权重），只用于启动日志：
 	// 池的成员与权重全部从源推导，不是配置项，也没有对应的 JSON 档。
 	RewardPool string `json:"reward_pool,omitempty"`
@@ -95,7 +95,7 @@ func defaultMoonSoloConfig(
 	cfg := &moonSoloConfig{
 		Channel:   moonChannelType,
 		Remaining: moonSoloTestRemaining,
-		Entry: storage.WorldPosition{
+		Entry: database.WorldPosition{
 			Town: uint32(town.TownID),
 			Area: uint32(town.AreaID),
 			X:    x,
@@ -844,6 +844,7 @@ func (w *worldSession) moonHandle(id uint16, p []byte, now time.Time, event func
 	}
 	return false, nil, nil
 }
+
 // moonStartPreflight 是月湖入场的**共用前置校验**：NPC 点 Start（C2284）与等候区
 // 红门（C15）必须走同一条路进来，否则两个入口迟早各自漂移 —— 一边放行、另一边
 // 拒绝，玩家看到的就是「NPC 能进、红门黑屏」这种半好状态。

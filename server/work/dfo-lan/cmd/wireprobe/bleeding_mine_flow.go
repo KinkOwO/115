@@ -4,9 +4,9 @@ import (
 	"context"
 	"crypto/sha256"
 	"dfolan/internal/adventure"
+	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/binary"
 	"fmt"
 	"strings"
@@ -100,7 +100,7 @@ func (w *worldSession) bleedingMineTimeout(now time.Time) ([]outboundPacket, err
 func (w *worldSession) endBleedingMine() ([]outboundPacket, error) {
 	if w.bleedingMineStart != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		_, err := w.updateBleedingMineRewards(ctx, func(s *bleedingMineRewardState) ([]storage.MailAsset, error) {
+		_, err := w.updateBleedingMineRewards(ctx, func(s *bleedingMineRewardState) ([]database.MailAsset, error) {
 			g := w.bleedingMineStart.Group
 			if s.Completed[g] || s.Week != w.bleedingMineStart.Week {
 				return nil, nil
@@ -194,7 +194,7 @@ func (w *worldSession) prepareBleedingMineStart(ctx context.Context, p []byte) (
 	if err != nil {
 		return nil, nil, err
 	}
-	owned := make(map[int64]storage.Character, len(roles))
+	owned := make(map[int64]database.Character, len(roles))
 	for _, role := range roles {
 		owned[role.ID] = role
 	}
@@ -356,7 +356,7 @@ func (w *worldSession) bleedingMineProfile(ctx context.Context, roster []int64) 
 	}
 	p := protocol.BleedingMineProfile(teams)
 	if w.loot != nil && w.loot.BleedingMine != nil {
-		s, err := w.updateBleedingMineRewards(ctx, func(*bleedingMineRewardState) ([]storage.MailAsset, error) { return nil, nil })
+		s, err := w.updateBleedingMineRewards(ctx, func(*bleedingMineRewardState) ([]database.MailAsset, error) { return nil, nil })
 		if err != nil {
 			return outboundPacket{}, err
 		}
@@ -521,7 +521,7 @@ func (w *worldSession) finishBleedingMine(p []byte) ([]outboundPacket, error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	_, err = w.updateBleedingMineRewards(ctx, func(s *bleedingMineRewardState) ([]storage.MailAsset, error) {
+	_, err = w.updateBleedingMineRewards(ctx, func(s *bleedingMineRewardState) ([]database.MailAsset, error) {
 		if s.Week != mine.Week || s.Claimed {
 			return nil, fmt.Errorf("矿区奖励周期已改变")
 		}

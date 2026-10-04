@@ -4,9 +4,10 @@ import (
 	"context"
 	"crypto/sha256"
 	"dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
+	"dfolan/internal/mail"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
@@ -34,9 +35,9 @@ func mailboxFailure(id uint16, err error) []byte {
 	switch id {
 	case 94, 315:
 		switch {
-		case errors.Is(err, storage.ErrMailRecipient):
+		case errors.Is(err, database.ErrMailRecipient):
 			code = 3
-		case errors.Is(err, storage.ErrMailSelf):
+		case errors.Is(err, database.ErrMailSelf):
 			code = 7
 		case errors.Is(err, inventory.ErrMailGold):
 			code = 10
@@ -54,16 +55,16 @@ func mailboxFailure(id uint16, err error) []byte {
 		}
 	case 324:
 		code = 2
-		if errors.Is(err, storage.ErrMailRecipient) {
+		if errors.Is(err, database.ErrMailRecipient) {
 			code = 21
-		} else if errors.Is(err, storage.ErrMailSelf) {
+		} else if errors.Is(err, database.ErrMailSelf) {
 			code = 7
 		}
 	}
 	return protocol.Refusal(code)
 }
 
-func mailRemaining(m storage.MailMessage, now time.Time) uint32 {
+func mailRemaining(m database.MailMessage, now time.Time) uint32 {
 	if m.Status == 3 {
 		return 0
 	}
@@ -71,7 +72,7 @@ func mailRemaining(m storage.MailMessage, now time.Time) uint32 {
 }
 
 // 正文编号同时作为附件组编号；金币先列出，原生组构造器由首行建立金币槽。
-func mailboxSnapshot(messages []storage.MailMessage) ([]outboundPacket, error) {
+func mailboxSnapshot(messages []database.MailMessage) ([]outboundPacket, error) {
 	var attachments []protocol.MailAttachmentView
 	var letters []protocol.MailTextView
 	var total uint16
@@ -233,7 +234,7 @@ func (w *worldSession) handleMailbox(ctx context.Context, selected int64, id uin
 			return nil, 0, err
 		}
 		if role.ID == selected {
-			return nil, 0, storage.ErrMailSelf
+			return nil, 0, database.ErrMailSelf
 		}
 		var state character.State
 		if err = json.Unmarshal(role.State, &state); err != nil {
@@ -263,19 +264,19 @@ func (w *worldSession) sendMail(ctx context.Context, id uint16, p, keys []byte, 
 		return nil, 0, fmt.Errorf("邮件物品目录不可用或请求了特殊付费发送模式")
 	}
 	saved, receipt, _, err := w.store.SendMail(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, r.Recipient, r.Text,
-		func(current storage.Character) (json.RawMessage, []storage.MailAsset, error) {
+		func(current database.Character) (json.RawMessage, []database.MailAsset, error) {
 			bag, err := inventory.ReadBag(current.State)
 			if err != nil {
 				return nil, nil, err
 			}
-			cost := uint64(r.Gold) + inventory.MailPostage(r.Gold, len(r.Items))
+			cost := uint64(r.Gold) + mail.Postage(r.Gold, len(r.Items))
 			if uint64(bag.Gold) < cost {
 				return nil, nil, inventory.ErrMailGold
 			}
 			bag.Gold -= uint32(cost)
-			var assets []storage.MailAsset
+			var assets []database.MailAsset
 			if r.Gold != 0 {
-				assets = append(assets, storage.MailAsset{ID: 1, Gold: r.Gold})
+				assets = append(assets, database.MailAsset{ID: 1, Gold: r.Gold})
 			}
 			for _, row := range r.Items {
 				var item inventory.MailItem
@@ -292,7 +293,7 @@ func (w *worldSession) sendMail(ctx context.Context, id uint16, p, keys []byte, 
 				if err != nil {
 					return nil, nil, err
 				}
-				assets = append(assets, storage.MailAsset{ID: int64(len(assets) + 1), Item: encoded})
+				assets = append(assets, database.MailAsset{ID: int64(len(assets) + 1), Item: encoded})
 			}
 			state, err := inventory.SaveBag(current.State, bag)
 			if err != nil {
@@ -303,7 +304,7 @@ func (w *worldSession) sendMail(ctx context.Context, id uint16, p, keys []byte, 
 				return nil, nil, err
 			}
 			// 提交前验证收件列表和背包都能编码；真实编号由存储事务分配。
-			preview, err := mailboxSnapshot([]storage.MailMessage{{ID: 1, SenderName: current.Name, Text: r.Text, Status: 1, Assets: assets, ExpiresAt: time.Now().Add(15 * 24 * time.Hour)}})
+			preview, err := mailboxSnapshot([]database.MailMessage{{ID: 1, SenderName: current.Name, Text: r.Text, Status: 1, Assets: assets, ExpiresAt: time.Now().Add(15 * 24 * time.Hour)}})
 			if err == nil && (len(preview) != 1 || len(preview[0].Payload) < 4 || int(preview[0].Payload[0]) != len(assets) || binary.LittleEndian.Uint16(preview[0].Payload[2:4]) != 1) {
 				err = fmt.Errorf("发信预览含不可编码附件")
 			}
@@ -330,7 +331,7 @@ func (w *worldSession) claimMail(ctx context.Context, p, keys []byte, key string
 		return nil, 0, fmt.Errorf("邮件领取类型无效")
 	}
 	saved, receipt, _, err := w.store.MutateMailbox(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, "mail-claim-v1", nil,
-		func(current storage.Character, messages []storage.MailMessage) (json.RawMessage, []storage.MailMessage, json.RawMessage, error) {
+		func(current database.Character, messages []database.MailMessage) (json.RawMessage, []database.MailMessage, json.RawMessage, error) {
 			bag, err := inventory.ReadBag(current.State)
 			if err != nil {
 				return nil, nil, nil, err
@@ -381,7 +382,7 @@ func (w *worldSession) claimMail(ctx context.Context, p, keys []byte, key string
 				touched[pos.message] = true
 				results = append(results, protocol.MailClaimResult{MessageID: uint64(m.ID), AttachmentID: id})
 			}
-			var changed []storage.MailMessage
+			var changed []database.MailMessage
 			for i := range messages {
 				if !touched[i] {
 					continue
@@ -421,7 +422,7 @@ func (w *worldSession) claimMail(ctx context.Context, p, keys []byte, key string
 	var updates []outboundPacket
 	if w.loot != nil {
 		var materials inventory.AccountMaterials
-		var swept storage.Character
+		var swept database.Character
 		swept, materials, err = sweepAccountMaterials(ctx, w.store, saved)
 		if err == nil {
 			saved = swept
@@ -464,12 +465,12 @@ func (w *worldSession) changeMailStatus(ctx context.Context, p, keys []byte, key
 		messageIDs[i] = int64(id)
 	}
 	saved, _, _, err := w.store.MutateMailbox(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, "mail-status-v1", messageIDs,
-		func(current storage.Character, messages []storage.MailMessage) (json.RawMessage, []storage.MailMessage, json.RawMessage, error) {
-			index := map[uint64]storage.MailMessage{}
+		func(current database.Character, messages []database.MailMessage) (json.RawMessage, []database.MailMessage, json.RawMessage, error) {
+			index := map[uint64]database.MailMessage{}
 			for _, m := range messages {
 				index[uint64(m.ID)] = m
 			}
-			var changed []storage.MailMessage
+			var changed []database.MailMessage
 			for _, id := range r.IDs {
 				m, ok := index[id]
 				if !ok {

@@ -3,11 +3,11 @@ package main
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/game/wire"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/binary"
 	"encoding/json"
 	"path/filepath"
@@ -40,7 +40,7 @@ func TestKnightShieldRepaintOrderAndDungeonBoundary(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	role := storage.Character{WireID: 1, Name: "ShieldTest", Profession: 12, ConfigVersion: jobs.Source.SaveIdentity()}
+	role := database.Character{WireID: 1, Name: "ShieldTest", Profession: 12, ConfigVersion: jobs.Source.SaveIdentity()}
 	role.State, e = inventory.SaveBag(json.RawMessage(`{"level":90,"advancement":1}`), inventory.Bag{Version: "ordinary-bag-v1", Worn: []inventory.BagEquipment{{Slot: 24, Template: 113370008}}})
 	if e != nil {
 		t.Fatal(e)

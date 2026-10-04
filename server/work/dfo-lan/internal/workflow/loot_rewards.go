@@ -2,9 +2,9 @@ package workflow
 
 import (
 	"context"
+	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/loot"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,11 +12,11 @@ import (
 
 // LootService commits and replays state prepared by the loot domain.
 type LootService struct {
-	Store *storage.Store
+	Store *database.Store
 	Loot  *loot.Service
 }
 
-func (s *LootService) FreezeMoonReward(ctx context.Context, role storage.Character, run *dungeon.Session, p loot.MoonRewardPolicy) (loot.MoonRewardPlan, error) {
+func (s *LootService) FreezeMoonReward(ctx context.Context, role database.Character, run *dungeon.Session, p loot.MoonRewardPolicy) (loot.MoonRewardPlan, error) {
 	var out loot.MoonRewardPlan
 	if s == nil || s.Loot == nil || s.Store == nil {
 		return out, fmt.Errorf("Moon reward before owned final")
@@ -30,7 +30,7 @@ func (s *LootService) FreezeMoonReward(ctx context.Context, role storage.Charact
 	if e != nil {
 		return out, e
 	}
-	_, _, e = s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, p.Source, "moon-clear:"+run.RunID, loot.MoonRewardModel, func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+	_, _, e = s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, p.Source, "moon-clear:"+run.RunID, loot.MoonRewardModel, func(current database.Character) (json.RawMessage, json.RawMessage, error) {
 		return current.State, body, nil
 	})
 	if e != nil {
@@ -38,7 +38,7 @@ func (s *LootService) FreezeMoonReward(ctx context.Context, role storage.Charact
 	}
 	return s.ReadMoonReward(ctx, role, run.RunID)
 }
-func (s *LootService) ReadMoonReward(ctx context.Context, role storage.Character, run string) (loot.MoonRewardPlan, error) {
+func (s *LootService) ReadMoonReward(ctx context.Context, role database.Character, run string) (loot.MoonRewardPlan, error) {
 	var p loot.MoonRewardPlan
 	if s == nil || s.Loot == nil || s.Store == nil || !loot.MoonRunID(run) {
 		return p, fmt.Errorf("invalid Moon reward owner/run")
@@ -49,12 +49,12 @@ func (s *LootService) ReadMoonReward(ctx context.Context, role storage.Character
 	}
 	return s.Loot.DecodeMoonReward(LootRole(role), run, raw)
 }
-func (s *LootService) ClaimMoonReward(ctx context.Context, role storage.Character, run string) (storage.Character, bool, error) {
+func (s *LootService) ClaimMoonReward(ctx context.Context, role database.Character, run string) (database.Character, bool, error) {
 	p, e := s.ReadMoonReward(ctx, role, run)
 	if e != nil {
 		return role, false, e
 	}
-	saved, fresh, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, p.Source, "moon-grant:"+run, loot.MoonRewardModel, func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+	saved, fresh, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, p.Source, "moon-grant:"+run, loot.MoonRewardModel, func(current database.Character) (json.RawMessage, json.RawMessage, error) {
 		state, e := s.Loot.ApplyMoonRewards(current.State, p)
 		if e != nil {
 			return nil, nil, e
@@ -68,7 +68,7 @@ func (s *LootService) ClaimMoonReward(ctx context.Context, role storage.Characte
 
 // Recovery is per owning character and only discovers durable, unclaimed
 // clear plans. Full bags retain their plan. It never re-rolls with new policy.
-func (s *LootService) RecoverMoonRewards(ctx context.Context, role storage.Character) (storage.Character, error) {
+func (s *LootService) RecoverMoonRewards(ctx context.Context, role database.Character) (database.Character, error) {
 	runs, e := s.Store.PendingMoonRewardRuns(ctx, role.ID, loot.MoonRewardModel)
 	if e != nil {
 		return role, e
@@ -84,7 +84,7 @@ func (s *LootService) RecoverMoonRewards(ctx context.Context, role storage.Chara
 }
 
 // Freeze is a durable plan, not an award. No reward is granted until PickCard.
-func (s *LootService) FreezeCards(ctx context.Context, role storage.Character, d *dungeon.Session, r loot.CardRules, seed uint32) (loot.CardPlan, error) {
+func (s *LootService) FreezeCards(ctx context.Context, role database.Character, d *dungeon.Session, r loot.CardRules, seed uint32) (loot.CardPlan, error) {
 	var p loot.CardPlan
 	if d == nil || !d.Completed() || role.ConfigVersion != s.Loot.Catalog.Source.SaveIdentity() {
 		return p, fmt.Errorf("card plan before owned completion")
@@ -97,7 +97,7 @@ func (s *LootService) FreezeCards(ctx context.Context, role storage.Character, d
 		return p, e
 	}
 	key := "cardplan:" + d.RunID
-	_, _, e = s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, p.Source, key, r.Model, func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+	_, _, e = s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, p.Source, key, r.Model, func(current database.Character) (json.RawMessage, json.RawMessage, error) {
 		b, e := json.Marshal(p)
 		return current.State, b, e
 	})
@@ -116,7 +116,7 @@ func (s *LootService) FreezeCards(ctx context.Context, role storage.Character, d
 	}
 	return p, nil
 }
-func (s *LootService) PickCard(ctx context.Context, role storage.Character, d *dungeon.Session, p loot.CardPlan, index byte) (storage.Character, loot.CardReceipt, bool, error) {
+func (s *LootService) PickCard(ctx context.Context, role database.Character, d *dungeon.Session, p loot.CardPlan, index byte) (database.Character, loot.CardReceipt, bool, error) {
 	var receipt loot.CardReceipt
 	if index > 3 || d == nil || !d.Completed() || p.Run != d.RunID || p.Source != s.Loot.Catalog.Source.SaveIdentity() {
 		return role, receipt, false, fmt.Errorf("invalid owned card selection")
@@ -124,7 +124,7 @@ func (s *LootService) PickCard(ctx context.Context, role storage.Character, d *d
 	return s.pickFrozenCard(ctx, role, p, index)
 }
 
-func (s *LootService) pickFrozenCard(ctx context.Context, role storage.Character, p loot.CardPlan, index byte) (storage.Character, loot.CardReceipt, bool, error) {
+func (s *LootService) pickFrozenCard(ctx context.Context, role database.Character, p loot.CardPlan, index byte) (database.Character, loot.CardReceipt, bool, error) {
 	var receipt loot.CardReceipt
 	if index > 3 || p.Source != s.Loot.Catalog.Source.SaveIdentity() || role.ConfigVersion != p.Source || p.Run == "" {
 		return role, receipt, false, fmt.Errorf("翻牌奖励归属无效")
@@ -143,7 +143,7 @@ func (s *LootService) pickFrozenCard(ctx context.Context, role storage.Character
 		return role, receipt, false, fmt.Errorf("unfrozen card plan")
 	}
 	key := "cardpick:" + p.Run
-	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, p.Source, key, p.Model, func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, p.Source, key, p.Model, func(current database.Character) (json.RawMessage, json.RawMessage, error) {
 		return s.Loot.PrepareFrozenCard(LootRole(current), p, index)
 	})
 	if e != nil {
@@ -163,7 +163,7 @@ func (s *LootService) pickFrozenCard(ctx context.Context, role storage.Character
 	return saved, receipt, applied, nil
 }
 
-func (s *LootService) FreezeBlackPurgatoryCards(ctx context.Context, role storage.Character, d *dungeon.Session, seed uint32) (loot.CardPlan, error) {
+func (s *LootService) FreezeBlackPurgatoryCards(ctx context.Context, role database.Character, d *dungeon.Session, seed uint32) (loot.CardPlan, error) {
 	p := loot.CardPlan{}
 	if s == nil || s.Store == nil {
 		return p, fmt.Errorf("黑鸦奖励尚未加载或挑战未通关")
@@ -188,7 +188,7 @@ func (s *LootService) FreezeBlackPurgatoryCards(ctx context.Context, role storag
 }
 
 // 地面拾取和掉线补领共用分支回执，不依赖重登后已失效的场景物体编号。
-func (s *LootService) pickBlackPurgatoryBoss(ctx context.Context, role storage.Character, run string, index byte, expected loot.Award) (storage.Character, loot.BlackPurgatoryBossReceipt, bool, error) {
+func (s *LootService) pickBlackPurgatoryBoss(ctx context.Context, role database.Character, run string, index byte, expected loot.Award) (database.Character, loot.BlackPurgatoryBossReceipt, bool, error) {
 	var receipt loot.BlackPurgatoryBossReceipt
 	if s == nil || s.Store == nil {
 		return role, receipt, false, fmt.Errorf("黑鸦领主奖励归属无效")
@@ -209,7 +209,7 @@ func (s *LootService) pickBlackPurgatoryBoss(ctx context.Context, role storage.C
 	}
 	key := fmt.Sprintf("black-purgatory-boss-pick:%s:%d", run, index)
 	saved, applied, err := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, plan.Source, key, plan.BossModel,
-		func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+		func(current database.Character) (json.RawMessage, json.RawMessage, error) {
 			return s.Loot.PrepareBlackPurgatoryBoss(LootRole(current), run, index, expected)
 		})
 	if err != nil {
@@ -230,7 +230,7 @@ func (s *LootService) pickBlackPurgatoryBoss(ctx context.Context, role storage.C
 }
 
 // 只补发已持久化的奖单；普通副本旧回执不参与，背包满时保留待领。
-func (s *LootService) RecoverBlackPurgatoryCards(ctx context.Context, role storage.Character) (storage.Character, error) {
+func (s *LootService) RecoverBlackPurgatoryCards(ctx context.Context, role database.Character) (database.Character, error) {
 	if s.Loot.BlackPurgatory == nil {
 		return role, nil
 	}
@@ -269,7 +269,7 @@ func (s *LootService) RecoverBlackPurgatoryCards(ctx context.Context, role stora
 		if pending == nil {
 			saved, _, err = s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, p.Source,
 				"black-purgatory-recovered:"+p.Run, loot.BlackPurgatoryCardModel,
-				func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+				func(current database.Character) (json.RawMessage, json.RawMessage, error) {
 					data, err := json.Marshal(p.Run)
 					return current.State, data, err
 				})

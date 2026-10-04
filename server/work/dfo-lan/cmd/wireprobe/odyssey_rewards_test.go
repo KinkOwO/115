@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"context"
 	"dfolan/internal/catalog"
+	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/savecontract"
-	"dfolan/internal/storage"
 	"dfolan/internal/workflow"
 	"encoding/binary"
 	"encoding/hex"
@@ -19,7 +19,7 @@ import (
 	"time"
 )
 
-func odysseyRewardFixture(t *testing.T) (storage.Character, *workflow.WearService) {
+func odysseyRewardFixture(t *testing.T) (database.Character, *workflow.WearService) {
 	t.Helper()
 	req := append([]byte{0, 4, 0, 0, 0}, []byte("test")...)
 	req = append(req, 0, 0, 0, 0, 0, 0, 255, 0, 1, 0, 2, 0)
@@ -37,7 +37,7 @@ func odysseyRewardFixture(t *testing.T) (storage.Character, *workflow.WearServic
 	}
 	wear := &workflow.WearService{WearService: inventory.WearService{Catalog: &inventory.EquipmentCatalog{Full: full}, BagRules: rules}}
 	wear.Catalog.Source.Checksum = odysseySource()
-	return storage.Character{ID: 9, WireID: 9, Request: req, ConfigVersion: savecontract.Identity(), State: json.RawMessage(`{"level":1,"custom_marker":42}`)}, wear
+	return database.Character{ID: 9, WireID: 9, Request: req, ConfigVersion: savecontract.Identity(), State: json.RawMessage(`{"level":1,"custom_marker":42}`)}, wear
 }
 
 func TestOdysseyArmorSourceAndAtomicGrant(t *testing.T) {
@@ -95,7 +95,7 @@ func TestOdysseyArmorSourceAndAtomicGrant(t *testing.T) {
 }
 
 func TestCapturedOdysseyPlayerDeath(t *testing.T) {
-	w := &worldSession{role: storage.Character{ID: 9, WireID: 9}, activeDungeon: &dungeon.Session{Loaded: true}}
+	w := &worldSession{role: database.Character{ID: 9, WireID: 9}, activeDungeon: &dungeon.Session{Loaded: true}}
 	for _, raw := range []string{"43020501000000000000000000000000", "a703fd00000000000000000000000000"} {
 		p, _ := hex.DecodeString(raw)
 		xy, e := protocol.DecodePlayerDeath(p)
@@ -155,42 +155,21 @@ func TestOdysseyWeaponBoxKeepsOriginalSelection(t *testing.T) {
 }
 
 func TestOdysseyArmorDatabaseReplay(t *testing.T) {
-	if os.Getenv("ODYSSEY_INTEGRATION") != "1" {
+	if os.Getenv("DFO_TEST_POSTGRES_DSN") == "" {
 		t.Skip("isolated PostgreSQL integration")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()
-	// 配置路径可覆盖：默认指向的历史目录（swordmaster-pilot-20260916）已不在仓库里，
-	// 所以这个集成测试一直是 skip 状态。设 ODYSSEY_INTEGRATION_CONFIG 就能用任意本地
-	// PG 配置跑（测试自建独立 schema 并 DROP，不碰真实存档）。
-	cfgPath := os.Getenv("ODYSSEY_INTEGRATION_CONFIG")
-	if cfgPath == "" {
-		cfgPath = "../../runtime/swordmaster-pilot-20260916/storage.json"
-	}
-	cfg, e := storage.LoadConfig(cfgPath)
+	dbFixture, e := database.OpenTestFixture(ctx)
 	if e != nil {
-		t.Fatal(e)
-	}
-	admin, e := storage.Open(ctx, cfg)
-	if e != nil {
-		t.Fatal(e)
-	}
-	defer admin.Close()
-	schema := fmt.Sprintf("odyssey_reward_test_%d", time.Now().UnixNano())
-	if _, e = admin.DB.Exec(ctx, "CREATE SCHEMA "+schema); e != nil {
 		t.Fatal(e)
 	}
 	defer func() {
-		if _, e := admin.DB.Exec(context.Background(), "DROP SCHEMA "+schema+" CASCADE"); e != nil {
-			t.Error(e)
+		if err := dbFixture.Close(); err != nil {
+			t.Error(err)
 		}
 	}()
-	cfg.PostgresSchema = schema
-	store, e := storage.Open(ctx, cfg)
-	if e != nil {
-		t.Fatal(e)
-	}
-	defer store.Close()
+	store := dbFixture.Storage()
 	for _, f := range []func(context.Context) error{store.Migrate, store.MigrateCharacterEvents} {
 		if e = f(ctx); e != nil {
 			t.Fatal(e)

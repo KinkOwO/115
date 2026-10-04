@@ -2,17 +2,17 @@ package workflow
 
 import (
 	"context"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 	"reflect"
 )
 
-func (s *ItemService) DisjointAvatar(ctx context.Context, role storage.Character, req protocol.DisjointAvatarRequest) (storage.Character, inventory.AvatarDisjointReceipt, bool, error) {
+func (s *ItemService) DisjointAvatar(ctx context.Context, role database.Character, req protocol.DisjointAvatarRequest) (database.Character, inventory.AvatarDisjointReceipt, bool, error) {
 	var receipt inventory.AvatarDisjointReceipt
-	fail := func(err error) (storage.Character, inventory.AvatarDisjointReceipt, bool, error) {
+	fail := func(err error) (database.Character, inventory.AvatarDisjointReceipt, bool, error) {
 		return role, inventory.AvatarDisjointReceipt{}, false, err
 	}
 	if s == nil || s.Store == nil || s.Items == nil {
@@ -24,7 +24,7 @@ func (s *ItemService) DisjointAvatar(ctx context.Context, role storage.Character
 	}
 	key := fmt.Sprintf("avatar-disjoint:%d:%d:%d", sequence, req.Slot, req.Template)
 	saved, applied, err := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, s.Items.Catalog.Source.SaveIdentity(), key, inventory.AvatarDisjointModel,
-		func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+		func(current database.Character) (json.RawMessage, json.RawMessage, error) {
 			return s.Items.PrepareAvatarDisjoint(InventoryRole(current), req, sequence)
 		})
 	if err != nil {
@@ -46,8 +46,8 @@ func (s *ItemService) DisjointAvatar(ctx context.Context, role storage.Character
 	saved.WireID = role.WireID
 	return saved, receipt, applied, nil
 }
-func (s *ItemService) AddAvatarSocket(ctx context.Context, role storage.Character, req protocol.AddAvatarSocketRequest) (storage.Character, inventory.AvatarSocketReceipt, bool, error) {
-	fail := func(err error) (storage.Character, inventory.AvatarSocketReceipt, bool, error) {
+func (s *ItemService) AddAvatarSocket(ctx context.Context, role database.Character, req protocol.AddAvatarSocketRequest) (database.Character, inventory.AvatarSocketReceipt, bool, error) {
+	fail := func(err error) (database.Character, inventory.AvatarSocketReceipt, bool, error) {
 		return role, inventory.AvatarSocketReceipt{}, false, err
 	}
 	if s == nil || s.Store == nil || s.Items == nil {
@@ -59,7 +59,7 @@ func (s *ItemService) AddAvatarSocket(ctx context.Context, role storage.Characte
 	}
 	key := fmt.Sprintf("avatar-socket:%d:%d:%d:%d", sequence, req.AvatarSlot, req.Template, req.DeviceSlot)
 	saved, applied, err := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, s.Items.Catalog.Source.SaveIdentity(), key, inventory.AvatarSocketModel,
-		func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+		func(current database.Character) (json.RawMessage, json.RawMessage, error) {
 			return s.Items.PrepareAvatarSocket(InventoryRole(current), req, sequence)
 		})
 	if err != nil {
@@ -82,8 +82,8 @@ func (s *ItemService) AddAvatarSocket(ctx context.Context, role storage.Characte
 	saved.WireID = role.WireID
 	return saved, receipt, applied, nil
 }
-func (s *ItemService) UseEmblems(ctx context.Context, role storage.Character, req protocol.UseEmblemRequest) (storage.Character, inventory.EmblemInlayReceipt, bool, error) {
-	fail := func(err error) (storage.Character, inventory.EmblemInlayReceipt, bool, error) {
+func (s *ItemService) UseEmblems(ctx context.Context, role database.Character, req protocol.UseEmblemRequest) (database.Character, inventory.EmblemInlayReceipt, bool, error) {
+	fail := func(err error) (database.Character, inventory.EmblemInlayReceipt, bool, error) {
 		return role, inventory.EmblemInlayReceipt{}, false, err
 	}
 	if s == nil || s.Store == nil || s.Items == nil {
@@ -98,7 +98,7 @@ func (s *ItemService) UseEmblems(ctx context.Context, role storage.Character, re
 		return fail(err)
 	}
 	saved, applied, err := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, s.Items.Catalog.Source.SaveIdentity(), key, inventory.EmblemInlayModel,
-		func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+		func(current database.Character) (json.RawMessage, json.RawMessage, error) {
 			return s.Items.PrepareEmblemInlay(InventoryRole(current), req, sequence)
 		})
 	if err != nil {
@@ -121,8 +121,8 @@ func (s *ItemService) UseEmblems(ctx context.Context, role storage.Character, re
 	saved.WireID = role.WireID
 	return saved, receipt, applied, nil
 }
-func (s *ItemService) CompoundEmblems(ctx context.Context, role storage.Character, req protocol.CompoundEmblemRequest) (storage.Character, inventory.EmblemCompoundReceipt, bool, error) {
-	fail := func(err error) (storage.Character, inventory.EmblemCompoundReceipt, bool, error) {
+func (s *ItemService) CompoundEmblems(ctx context.Context, role database.Character, req protocol.CompoundEmblemRequest) (database.Character, inventory.EmblemCompoundReceipt, bool, error) {
+	fail := func(err error) (database.Character, inventory.EmblemCompoundReceipt, bool, error) {
 		return role, inventory.EmblemCompoundReceipt{}, false, err
 	}
 	if s == nil || s.Store == nil || s.Items == nil {
@@ -137,7 +137,7 @@ func (s *ItemService) CompoundEmblems(ctx context.Context, role storage.Characte
 		return fail(err)
 	}
 	saved, applied, err := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, s.Items.Catalog.Source.SaveIdentity(), key, inventory.EmblemCompoundModel,
-		func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+		func(current database.Character) (json.RawMessage, json.RawMessage, error) {
 			return s.Items.PrepareEmblemCompound(InventoryRole(current), req, sequence)
 		})
 	if err != nil {

@@ -1,18 +1,18 @@
 package main
 
 import (
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"fmt"
 )
 
 func clearSelectedWorld(w *worldSession) {
 	if w != nil {
 		w.moon = moonSoloState{}
-		w.role = storage.Character{}
+		w.role = database.Character{}
 		w.level = 0
 		w.odyssey = false
-		w.state = storage.WorldState{}
+		w.state = database.WorldState{}
 		w.activeDungeon = nil
 		w.soloPartyReady = false
 		w.ispinsRepeatPending = false

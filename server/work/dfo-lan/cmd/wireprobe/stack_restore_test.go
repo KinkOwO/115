@@ -1,14 +1,14 @@
 package main
 
 import (
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"testing"
 )
 
 func TestStackMoveRestoreNeverAcquires(t *testing.T) {
-	role := storage.Character{State: json.RawMessage(`{"inventory":{"version":"ordinary-bag-v1","items":[{"slot":76,"Template":14,"Amount":5}]}}`)}
+	role := database.Character{State: json.RawMessage(`{"inventory":{"version":"ordinary-bag-v1","items":[{"slot":76,"Template":14,"Amount":5}]}}`)}
 	r := protocol.ItemMoveRequest{SourceSlot: 76, DestinationSlot: 68, DestinationItem: 14, Selection: 0xffffffff}
 	for _, applied := range []bool{true, false} {
 		plan, e := stackMovePackets(role, r, applied)

@@ -2,10 +2,9 @@ package main
 
 import (
 	"context"
+	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
-	"dfolan/internal/storage"
 	"encoding/json"
-	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -13,31 +12,21 @@ import (
 )
 
 func TestIspinsUnlimitedReceiptFailureKeepsSettlementIntegration(t *testing.T) {
-	if os.Getenv("ISPINS_WEEKLY_INTEGRATION") != "1" {
+	if os.Getenv("DFO_TEST_POSTGRES_DSN") == "" {
 		t.Skip("isolated PostgreSQL schema")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	cfg, e := storage.LoadConfig("../../runtime/storage/local.json")
+	dbFixture, e := database.OpenTestFixture(ctx)
 	if e != nil {
 		t.Fatal(e)
 	}
-	admin, e := storage.Open(ctx, cfg)
-	if e != nil {
-		t.Fatal(e)
-	}
-	defer admin.Close()
-	schema := fmt.Sprintf("ispins_policy_test_%d", time.Now().UnixNano())
-	if _, e = admin.DB.Exec(ctx, "CREATE SCHEMA "+schema); e != nil {
-		t.Fatal(e)
-	}
-	defer admin.DB.Exec(context.Background(), "DROP SCHEMA "+schema+" CASCADE")
-	cfg.PostgresSchema = schema
-	s, e := storage.Open(ctx, cfg)
-	if e != nil {
-		t.Fatal(e)
-	}
-	defer s.Close()
+	defer func() {
+		if err := dbFixture.Close(); err != nil {
+			t.Error(err)
+		}
+	}()
+	s := dbFixture.Storage()
 	if e = s.Migrate(ctx); e != nil {
 		t.Fatal(e)
 	}
@@ -49,7 +38,7 @@ func TestIspinsUnlimitedReceiptFailureKeepsSettlementIntegration(t *testing.T) {
 		t.Fatal(e)
 	}
 	v := strings.Repeat("a", 64)
-	role, e := s.CreateCharacter(ctx, storage.Character{AccountID: account, WireID: 7, Name: "PolicyFixture", ConfigVersion: v, Request: []byte{0}, State: json.RawMessage(`{"keep":true}`)}, 24)
+	role, e := s.CreateCharacter(ctx, database.Character{AccountID: account, WireID: 7, Name: "PolicyFixture", ConfigVersion: v, Request: []byte{0}, State: json.RawMessage(`{"keep":true}`)}, 24)
 	if e != nil {
 		t.Fatal(e)
 	}
