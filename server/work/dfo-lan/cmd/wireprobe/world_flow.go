@@ -27,16 +27,20 @@ type worldSession struct {
 	fameInitialized     bool
 	moonConfig          *moonSoloConfig
 	moon                moonSoloState
-	characters          *character.Service
-	pilotDeath          *odysseyDeath
-	service             *world.Service
-	store               *database.Store
-	account             int64
-	serverID            uint32
-	role                database.Character
-	level               byte
-	adventureSnapshot   [32]byte
-	channelType         uint32
+	// azure 是蔚蓝号（Azure Main，channelType 102）的会话状态。
+	// 它不像 moonConfig 那样需要注入对象才生效 ——
+	// 分派直接按 w.channelType == azureMainChannelType 门控（见 azure_main_flow.go）。
+	azure             azureMainState
+	characters        *character.Service
+	pilotDeath        *odysseyDeath
+	service           *world.Service
+	store             *database.Store
+	account           int64
+	serverID          uint32
+	role              database.Character
+	level             byte
+	adventureSnapshot [32]byte
+	channelType       uint32
 	// channelWorldIsolated 标记当前连接在特殊征讨频道（towns 表有专属城镇）。
 	// true 时会话内位置不落普通频道共享行；specialTowns 是全部特殊城镇集合，
 	// 用于把共享行里的历史污染位置修回默认落点。
@@ -90,7 +94,7 @@ type worldSession struct {
 	// Single-player Ispins: refill the client quota after a full run returns
 	// to a ready town scene. Never refresh during the final movie/map load.
 	ispinsRepeatPending bool
-	ispinsRetryPending bool
+	ispinsRetryPending  bool
 	// craftPending / craftPendingAt 记录上一次装备库制作（CMD2259）请求的指纹与
 	// 时间戳（UnixNano）。**同一个正文客户端会发两次**（"变换" → "确定"），
 	// 而且两次的 plain_hex 逐字节相同 ⇒ 只能由服务端记状态来区分第一步与第二步。

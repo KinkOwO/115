@@ -121,4 +121,60 @@ var settlementExitEchoToken = []byte{0xc5, 0x20, 0x24, 0x76, 0x3f}
 // state and option at 0x1452445ad/5b9. The native_card_exit fixtures cover only
 // those two handler bytes; transport does not prepend the common status.
 func SettlementExitSuccess(r SettlementExit) []byte { return []byte{1, r.State, r.Option} }
+
+// azureSettlementOptionToken 是 CMD72 16B 体内 p[3:8] 的客户端常量
+//（与 settlementExitEchoToken 同一个值，跨新旧客户端一致）。
+var azureSettlementOptionToken = [5]byte{0xc5, 0x20, 0x24, 0x76, 0x3f}
+
+// ⚠️ 实测（2026-10-04）：**这三帧不要发**。
+//
+// 先把结算尾帧从 CMD1654 的应答挪到发奖那一步、同时登记 1654 路由 ⇒ 客户端**闪退**；
+// 回退后**只保留 1654 路由**（azureClearInfo 只回 NOTI2621 阶段 4/5 + N31 全 0）⇒
+// `Back to Town (F12)` 就**已可用**（业主实机截图确认）。也就是说这一组并非必需，
+// 而很可能是那次闪退的来源（形状虽按官服逐字节复刻，但官服把它们夹在 N9/N435/N261
+// 之间，我全挤在 N35 后面，**时机/顺序**可能与形状一样关键）。
+// 构造函数与测试先留着作为取证底稿，但**不要在游戏链路里调用**。
+//
+// AzureSettlementOptionEnable 构造 NOTI70：结算面板的**选项使能掩码**。
+//
+// 官服尾段在 NOTI72 之前先发这一帧（F16-s2c.txt #687，32B）：
+//
+//	01 01 00 <14 x FF> <5B 值> <10 x 00>
+//
+// 一串 0xFF 读作"全部使能"。上一轮只补了 NOTI72，面板画出来了但
+// 「Back to Town」是**灰的**（业主实机 2026-10-04 截图）—— 缺的就是这一帧。
+// 尾部的 5B 值属本仓已多次验证「可省略」的那一类（N29 尾部 / N38 尾部），留 0。
+func AzureSettlementOptionEnable() []byte {
+	p := []byte{1, 1, 0}
+	for i := 0; i < 14; i++ {
+		p = append(p, 0xff)
+	}
+	return append(p, make([]byte, 15)...)
+}
+
+// AzureSettlementOptionRows 构造 NOTI71：结算面板的**选项行表**。
+//
+// 官服 F16-s2c.txt #692（40B）：`01 00 ff 00 00` + 7 x `ff ff 00 00` + <5B 值> + `00 00`。
+// 与 NOTI70 一起在 NOTI72 之前发；5B 值同样留 0。
+func AzureSettlementOptionRows() []byte {
+	p := []byte{1, 0, 0xff, 0, 0}
+	for i := 0; i < 7; i++ {
+		p = append(p, 0xff, 0xff, 0, 0)
+	}
+	return append(p, 0, 0, 0, 0, 0, 0, 0)
+}
+
+// AzureSettlementOptionOffer 构造一帧 NOTI72，把结算面板上的一个退出选项摆出来。
+//
+// 官服尾段在通关之后连发两帧（F16-s2c.txt #695 `01 02 02 …`、#696 `01 01 02 …`），
+// 也就是依次提供 option 2 与 option 1；体是 `State, Option, 2, <5B 常量>`，
+// 与客户端随后的 CMD72 体逐字节同形（cards.go 的注释已记录那个常量）。
+//
+// 本仓此前只在客户端**先**发 CMD72 时才回一个 ACK，等于从没告诉过客户端「有哪些退出选项」，
+// 所以结算面板上一直没有那个按钮（业主实机 2026-10-04）。
+func AzureSettlementOptionOffer(state, option byte) []byte {
+	p := []byte{state, option, 2}
+	p = append(p, azureSettlementOptionToken[:]...)
+	return append(p, 0, 0, 0, 0, 0, 0, 0, 0)
+}
 func SettlementExitRefused(option byte) []byte      { return append(Refusal(4), option) }

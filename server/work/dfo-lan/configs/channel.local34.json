@@ -232,6 +232,11 @@
       "ID": 101,
       "Name": "Moon Lake",
       "Note": "沉月湖频道（上游 next80 月湖单人玩法，type 101 由 PVF clientchannelinfo.etc 直读）。合并后 moonConfig 启动硬校验要求频道表存在 type 101 行（main.go Moon channel must exist with source online type 101），缺失会拦启动。"
+    },
+    {
+      "ID": 102,
+      "Name": "Azure Main",
+      "Note": "蔚蓝号频道。type 102 由 PVF etc/clientchannelinfo.etc 直读：[seriaRoomTown]=213、[guide dungeon index]=100004131、isSemiRaid=1、isLegion=0（对照 internal/catalog/channel_native_test.go 的 {102,213,100004131} 断言）。2026-10-03 官服实机抓包（E:/迅雷下载/20261003-214424/decoded/）：副本会话在 ch.76，C2284 载荷 u32=25，N2621 AZURE_MAIN_INFO 为本副本专属进度包。频道显示不代表副本玩法已实现，见 analysis/tasks/next152-蔚蓝号AzureMain-从0实现计划.md。"
     }
   ],
   "CompatibilityNote": "已撤回本轮误加的流放频道72及其城镇落点逻辑：官方115更新已移除此玩法，原版城镇索引未登记其93号城镇，普通钱特利92号城镇属于剧情路线。其余频道与通用修复保留：洞察、黑鸦使用原生特殊分类键，启示之夜保留本轮既有的通用特殊分类键；SynchronizeIdentity同步登录类型、NOTI2435及角色频道上下文。频道显示不代表精锐随行战斗、团队创建或副本结算已完成；不修改客户端资源及角色存档。"

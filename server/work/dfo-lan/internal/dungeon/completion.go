@@ -280,6 +280,16 @@ func (s *Session) tryComplete() {
 			s.completed = true
 			return
 		}
+		// 蔚蓝号（100004131）的脚本**没有**声明 [clear condition] [hunt boss]，客户端也不发
+		// CMD117（官服 c2s 全流无 117），所以 completionTarget 恒为 0，上面所有兜底都不成立 ——
+		// 实机 2026-10-04 跑完全场（9 房 / 48 杀）也没有任何结算帧。它唯一可用的通关事实是
+		// **maze 声明的 boss 格打空**：官服 7 张 N29 的最后一格就是 boss=(2,2) 的 map=100012704
+		// （含 rank3 的 109017562）。判据与 SourceBoss 那条同形，只是不需要脚本声明模板；
+		// 限定副本 id，普通副本不受影响。
+		if s.Definition.ID == azureMainDungeonID && s.Loaded && s.atSourceBossMap() && s.roomEnemiesDead() && s.reportableDisplayBoss() != 0 {
+			s.completed = true
+			return
+		}
 		return
 	}
 	if s.Definition.Odyssey || s.Definition.ID == 100003126 {

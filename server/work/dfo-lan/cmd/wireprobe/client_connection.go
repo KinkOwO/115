@@ -148,7 +148,7 @@ func (client *gameConnection) serve() {
 		case incoming = <-client.frames:
 		case now := <-client.connection.mineTicker.C:
 			if client.bootstrapped && client.selectedCharacterID != 0 && client.worldState != nil {
-				cardPackets, cardErr := client.worldState.autoPickBlackPurgatoryCard(now)
+				cardPackets, cardErr := client.worldState.autoPickSettlementCard(now)
 				if cardErr != nil {
 					client.event(map[string]any{"kind": "黑鸦自动翻牌待重试", "character_id": client.selectedCharacterID, "error": cardErr.Error()})
 				}
