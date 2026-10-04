@@ -3,14 +3,14 @@ package character_test
 import (
 	"dfolan/internal/catalog"
 	. "dfolan/internal/character"
-	"dfolan/internal/storage"
+	"dfolan/internal/database"
 	"os"
 	"path/filepath"
 	"testing"
 )
 
 func TestPersistenceConstructorNilCompatibility(t *testing.T) {
-	var concrete *storage.Store
+	var concrete *database.Store
 	c := catalog.Characters{Professions: map[byte]catalog.Profession{0: {}}}
 	if _, err := New(concrete, c, Rules{MaxCharacters: 24, InitialLevel: 1}); err == nil {
 		t.Fatal("typed nil storage accepted by character constructor")

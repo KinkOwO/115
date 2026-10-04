@@ -148,12 +148,16 @@ func (s *Service) VariationRestore(role Character) ([]byte, error) {
 // clearing the ranks: skillRows prefers them, so stale rows would keep the
 // quickbar occupied and push the recommended skills into the 14+ palette.
 func (s *Service) ResetAutoSet(ctx context.Context, role Character, key string, tree, mask byte) (Character, error) {
+	hasTactician := false
+	if tree <= 1 && mask&1 != 0 {
+		hasTactician, _ = s.Store.HasTacticianPremium(ctx, role.AccountID, time.Now())
+	}
 	saved, _, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, "source-skill-reset-v1", func(cur Character) (json.RawMessage, json.RawMessage, error) {
 		var st State
 		if e := json.Unmarshal(cur.State, &st); e != nil {
 			return nil, nil, e
 		}
-		if e := s.resetAutoState(ctx, cur, &st, tree, mask); e != nil {
+		if e := s.resetAutoState(cur, &st, tree, mask, hasTactician); e != nil {
 			return nil, nil, e
 		}
 		p, e := mergeSkillState(cur.State, st)
@@ -172,7 +176,7 @@ func (s *Service) ResetAutoSet(ctx context.Context, role Character, key string, 
 
 // resetAutoState mutates a decoded State in place. It is split out so the
 // refund arithmetic can be exercised without a database.
-func (s *Service) resetAutoState(ctx context.Context, cur Character, st *State, tree, mask byte) error {
+func (s *Service) resetAutoState(cur Character, st *State, tree, mask byte, hasTactician bool) error {
 	if tree > 1 {
 		return fmt.Errorf("invalid skill tree")
 	}
@@ -186,10 +190,8 @@ func (s *Service) resetAutoState(ctx context.Context, cur Character, st *State, 
 			return e
 		}
 		effectiveLevel := int(st.Level)
-		if s.Store != nil {
-			if has, e := s.Store.HasTacticianPremium(ctx, cur.AccountID, time.Now()); e == nil && has {
-				effectiveLevel += 5
-			}
+		if hasTactician {
+			effectiveLevel += 5
 		}
 		refund := 0
 		if s.Learning != nil {

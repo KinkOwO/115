@@ -118,7 +118,7 @@ CMD33 对话仍是 `[meet npc]` 的首选路径，这条只是兜底：不站到
 | cmd/wireprobe/world_flow.go | BA0E462FA6A86EED |
 | cmd/wireprobe/quest_flow.go | 9827B326059AEA40 |
 | cmd/wireprobe/dungeon_flow.go | 4B79DDC753B81981 |
-| internal/storage/quest_objective.go | 4BD4309607FF7FA7 |
+| internal/database/quest_objective.go | 4BD4309607FF7FA7 |
 | configs/drop.compat90.json | 45557BB442A27DFD |
 
 回退后端到 35：`channel_probe.py` 的 tag 后缀改回 `_next35`，`launch_local.py` 同改；36 的新参数 35 二进制不认识，必须一起回退。新表 `character_birth` 对 35 无害，可保留。

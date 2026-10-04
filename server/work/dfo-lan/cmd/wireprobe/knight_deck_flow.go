@@ -2,9 +2,9 @@ package main
 
 import (
 	"context"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"dfolan/internal/workflow"
 	"fmt"
 	"os"
@@ -91,7 +91,7 @@ func (s *equipmentSession) handleKnightShieldMove(service *workflow.WearService,
 	return plan, nil
 }
 
-func knightShieldUpdates(w *worldSession, saved storage.Character, repaint bool) ([]outboundPacket, error) {
+func knightShieldUpdates(w *worldSession, saved database.Character, repaint bool) ([]outboundPacket, error) {
 	var plan []outboundPacket
 	worn, e := inventory.WornPayload(saved.State)
 	if e != nil {
@@ -113,7 +113,7 @@ func knightShieldUpdates(w *worldSession, saved storage.Character, repaint bool)
 // Preserve the current branch's live dungeon restriction: rebuilding the
 // actor with mode0 during a dungeon previously stopped CMD45 room transitions.
 // Town uses both halves, with the window rebind strictly after them.
-func knightShieldRepaint(w *worldSession, saved storage.Character, plan []outboundPacket) ([]outboundPacket, error) {
+func knightShieldRepaint(w *worldSession, saved database.Character, plan []outboundPacket) ([]outboundPacket, error) {
 	appearance, e := w.characters.AppearanceProbe(saved, [2]byte{})
 	if e != nil {
 		return nil, e
@@ -133,7 +133,7 @@ func knightShieldRepaint(w *worldSession, saved storage.Character, plan []outbou
 	), nil
 }
 
-func knightShieldWornUpdate(saved storage.Character) ([]byte, error) {
+func knightShieldWornUpdate(saved database.Character) ([]byte, error) {
 	bag, e := inventory.ReadBag(saved.State)
 	if e != nil {
 		return nil, e

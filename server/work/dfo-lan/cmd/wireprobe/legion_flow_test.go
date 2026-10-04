@@ -3,15 +3,15 @@ package main
 import (
 	"encoding/binary"
 
+	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/legion"
-	"dfolan/internal/storage"
 	"testing"
 )
 
 // townSession is a connection with a selected character and no dungeon.
 func townSession(characterID int64) *worldSession {
-	return &worldSession{role: storage.Character{ID: characterID}}
+	return &worldSession{role: database.Character{ID: characterID}}
 }
 
 // dungeonSession is the same connection inside a dungeon (world state 3), which

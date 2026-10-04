@@ -4,9 +4,9 @@ import (
 	"context"
 	"dfolan/internal/catalog"
 	"dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"dfolan/internal/workflow"
 	"encoding/hex"
 	"encoding/json"
@@ -154,7 +154,7 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 				}
 				role = graduated
 				if applied {
-					client.event(map[string]any{"kind": "odyssey_graduated", "character_id": role.ID, "model": storage.OdysseyGraduationEvent})
+					client.event(map[string]any{"kind": "odyssey_graduated", "character_id": role.ID, "model": database.OdysseyGraduationEvent})
 				}
 			}
 			ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
@@ -251,7 +251,7 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 				secondaryVaultPayload, e = client.vaultService.BootstrapSpace(ctx, role, 45)
 			}
 			if e == nil && client.vaultService.Rules.Account != nil {
-				var accountVault storage.AccountVaultState
+				var accountVault database.AccountVaultState
 				accountVault, e = client.gameStore.LoadAccountVault(ctx, role.AccountID, role.ID)
 				if e == nil {
 					accountVaultPayload, e = inventory.AccountVaultPayload(accountVault, *client.vaultService.Rules.Account)
@@ -310,10 +310,10 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 			// 特殊频道有**自己的城镇**（源 clientchannelinfo 的 [seriaRoomTown]）：
 			// 征讨/军团这类频道里角色只能在门口的专属城镇活动，落点取该城镇地图里
 			// 第一个可行走矩形的中心；普通频道保持原有城镇与落点。
-			spawn := storage.WorldPosition{Town: client.townCatalog.TownID, Area: client.townCatalog.AreaID, X: client.townPolicy.X, Y: client.townPolicy.Y}
+			spawn := database.WorldPosition{Town: client.townCatalog.TownID, Area: client.townCatalog.AreaID, X: client.townPolicy.X, Y: client.townPolicy.Y}
 			if t, ok := client.gatewayRuntime.channelTowns[client.channelTypes[client.channel]]; ok {
 				x, y := t.Spawn()
-				spawn = storage.WorldPosition{Town: t.TownID, Area: t.AreaID, X: x, Y: y}
+				spawn = database.WorldPosition{Town: t.TownID, Area: t.AreaID, X: x, Y: y}
 				client.event(map[string]any{"kind": "channel_town_spawn", "channel": client.channel, "channel_type": client.channelTypes[client.channel], "town": t.TownID, "area": t.AreaID, "x": x, "y": y, "spawn_rects": len(t.Walkable)})
 			}
 			e = client.worldState.enter(role, spawn)
@@ -672,9 +672,9 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 			sweepCtx, sweepCancel := context.WithTimeout(context.Background(), 5*time.Second)
 			var applied bool
 			var sweepErr error
-			var sweptRole storage.Character
+			var sweptRole database.Character
 			sweptRole, applied, sweepErr = client.gameStore.CommitCharacterEvent(sweepCtx, role.AccountID, role.ID, role.ConfigVersion,
-				"stack-slot-resweep", "stack-slot-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+				"stack-slot-resweep", "stack-slot-v1", func(current database.Character) (json.RawMessage, json.RawMessage, error) {
 					bag, err := inventory.ReadBag(current.State)
 					if err != nil {
 						return nil, nil, err
@@ -701,7 +701,7 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 			}
 			petCtx, petCancel := context.WithTimeout(context.Background(), 5*time.Second)
 			petRole, _, petErr := client.gameStore.CommitCharacterEvent(petCtx, role.AccountID, role.ID, role.ConfigVersion,
-				"pet-container-resweep", "pet-container-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+				"pet-container-resweep", "pet-container-v1", func(current database.Character) (json.RawMessage, json.RawMessage, error) {
 					bag, err := inventory.ReadBag(current.State)
 					if err != nil {
 						return nil, nil, err
@@ -723,7 +723,7 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 		if client.wearService != nil && client.wearService.Catalog != nil {
 			gearCtx, gearCancel := context.WithTimeout(context.Background(), 5*time.Second)
 			gearRole, applied, gearErr := client.gameStore.CommitCharacterEvent(gearCtx, role.AccountID, role.ID, role.ConfigVersion,
-				"pet-gear-resweep", "pet-gear-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+				"pet-gear-resweep", "pet-gear-v1", func(current database.Character) (json.RawMessage, json.RawMessage, error) {
 					bag, err := inventory.ReadBag(current.State)
 					if err != nil {
 						return nil, nil, err
@@ -747,7 +747,7 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 		}
 		loyaltyCtx, loyaltyCancel := context.WithTimeout(context.Background(), 5*time.Second)
 		loyaltyRole, _, loyaltyErr := client.gameStore.CommitCharacterEvent(loyaltyCtx, role.AccountID, role.ID, role.ConfigVersion,
-			fmt.Sprintf("creature-loyalty-login:%d", time.Now().UnixNano()), "creature-loyalty-login-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+			fmt.Sprintf("creature-loyalty-login:%d", time.Now().UnixNano()), "creature-loyalty-login-v1", func(current database.Character) (json.RawMessage, json.RawMessage, error) {
 				state, err := inventory.BeginCreatureLoyaltySession(current.State, time.Now().Unix())
 				return state, json.RawMessage(`{}`), err
 			})
@@ -966,29 +966,29 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 		// 无 N733（待机区无 NPC，好感度子系统不适用），且该推送同样
 		// 会撞进场景装载期（2026-10-03 闪退会话 seq 66 实证）。
 		if client.worldState == nil || client.worldState.channelType != 81 {
-		go func(characterID int64) {
-			time.Sleep(900 * time.Millisecond)
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			points, listErr := client.gameStore.ListFavor(ctx, characterID)
-			cancel()
-			if listErr != nil {
-				client.event(map[string]any{"kind": "npc_favor_point_info_skipped", "character_id": characterID, "error": listErr.Error()})
-				return
-			}
-			if len(points) == 0 {
-				return
-			}
-			records := make([]protocol.FavorPointInfoRecord, 0, len(points))
-			for _, fp := range points {
-				records = append(records, protocol.FavorPointInfoRecord{NPCID: fp.NPCID, Point: uint32(fp.Point)})
-			}
-			payload := protocol.FavorPointInfo(records)
-			if err := client.output.send(0, 733, payload); err != nil {
-				client.event(map[string]any{"kind": "npc_favor_point_info_failed", "character_id": characterID, "error": err.Error()})
-				return
-			}
-			client.event(map[string]any{"kind": "npc_favor_point_info_sent", "character_id": characterID, "npc_count": len(records), "plain_bytes": len(payload)})
-		}(role.ID)
+			go func(characterID int64) {
+				time.Sleep(900 * time.Millisecond)
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				points, listErr := client.gameStore.ListFavor(ctx, characterID)
+				cancel()
+				if listErr != nil {
+					client.event(map[string]any{"kind": "npc_favor_point_info_skipped", "character_id": characterID, "error": listErr.Error()})
+					return
+				}
+				if len(points) == 0 {
+					return
+				}
+				records := make([]protocol.FavorPointInfoRecord, 0, len(points))
+				for _, fp := range points {
+					records = append(records, protocol.FavorPointInfoRecord{NPCID: fp.NPCID, Point: uint32(fp.Point)})
+				}
+				payload := protocol.FavorPointInfo(records)
+				if err := client.output.send(0, 733, payload); err != nil {
+					client.event(map[string]any{"kind": "npc_favor_point_info_failed", "character_id": characterID, "error": err.Error()})
+					return
+				}
+				client.event(map[string]any{"kind": "npc_favor_point_info_sent", "character_id": characterID, "npc_count": len(records), "plain_bytes": len(payload)})
+			}(role.ID)
 		}
 		return dispatchHandled
 	}

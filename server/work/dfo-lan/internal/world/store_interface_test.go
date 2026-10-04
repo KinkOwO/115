@@ -9,7 +9,7 @@ import (
 )
 
 // fakeStore 是内存实现，证明 world 只依赖自己声明的 Store 接口，
-// 不再绑定 internal/storage，因此领域单测无需 PostgreSQL。
+// 不再绑定 internal/database，因此领域单测无需 PostgreSQL。
 type fakeStore struct {
 	loaded bool
 }

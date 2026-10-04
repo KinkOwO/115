@@ -2,8 +2,8 @@ package main
 
 import (
 	"context"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -52,14 +52,14 @@ func synopsisReadState(raw json.RawMessage, id uint32) (json.RawMessage, error) 
 	return json.Marshal(fields)
 }
 
-func saveSynopsisRead(store *storage.Store, w *worldSession, id uint32) ([]byte, error) {
+func saveSynopsisRead(store *database.Store, w *worldSession, id uint32) ([]byte, error) {
 	if w == nil || w.role.ID == 0 {
 		return nil, fmt.Errorf("synopsis requires character")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	saved, _, err := store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion,
-		fmt.Sprintf("synopsis-read:%d", id), "synopsis-read-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+		fmt.Sprintf("synopsis-read:%d", id), "synopsis-read-v1", func(current database.Character) (json.RawMessage, json.RawMessage, error) {
 			state, err := synopsisReadState(current.State, id)
 			receipt, _ := json.Marshal(id)
 			return state, receipt, err

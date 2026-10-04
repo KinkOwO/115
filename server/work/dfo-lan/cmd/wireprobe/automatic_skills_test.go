@@ -3,7 +3,7 @@ package main
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/character"
-	"dfolan/internal/storage"
+	"dfolan/internal/database"
 	"dfolan/internal/testfixture"
 	"encoding/json"
 	"testing"
@@ -21,7 +21,7 @@ func TestAutomaticSkillLevelRefresh(t *testing.T) {
 	service := &character.Service{Catalog: c, Learning: l}
 	st := character.State{Level: 15, Advancement: 2, AllJobsPilot: true, SourceSHA256: c.Professions[11].RawSHA256, InitialSkills: c.Professions[11].InitialSkills}
 	raw, _ := json.Marshal(st)
-	w := worldSession{characters: service, role: storage.Character{Profession: 11, ConfigVersion: c.Source.SaveIdentity(), State: raw}}
+	w := worldSession{characters: service, role: database.Character{Profession: 11, ConfigVersion: c.Source.SaveIdentity(), State: raw}}
 	plan, err := w.automaticSkillRefresh()
 	if err != nil || len(plan) != 1 {
 		t.Fatal(plan, err)
@@ -55,7 +55,7 @@ func TestAutomaticSkillRefreshCoversAwakeningGrants(t *testing.T) {
 	st := character.State{Level: 85, Advancement: 1, Awakening: 2, SourceSHA256: prof.RawSHA256, InitialSkills: prof.InitialSkills}
 	raw, _ := json.Marshal(st)
 	service := &character.Service{Catalog: c, Learning: l}
-	w := worldSession{characters: service, role: storage.Character{Profession: 0, ConfigVersion: c.Source.SaveIdentity(), State: raw}}
+	w := worldSession{characters: service, role: database.Character{Profession: 0, ConfigVersion: c.Source.SaveIdentity(), State: raw}}
 	plan, err := w.automaticSkillRefresh()
 	if err != nil || len(plan) != 1 {
 		t.Fatal("awakening-only profession did not refresh", plan, err)

@@ -12,12 +12,6 @@ var ErrMailUntradeable = errors.New("附件不可交易或尚未支持该特殊�
 var ErrMailGold = errors.New("邮件金币不足或超出携带上限")
 var ErrMailBagFull = errors.New("背包没有空位，邮件附件仍保留在邮箱")
 
-// 当前客户端 0x145FBF960：基础邮费 100，每个物品附件 1000，
-// 另收寄送金币的 5%（向下取整，上限 10000）；金币自身不算物品附件。
-func MailPostage(gold uint32, itemCount int) uint64 {
-	return 100 + uint64(itemCount)*1000 + uint64(min(gold/20, 10000))
-}
-
 // MailItem 保存完整实例，而非领取时重新按模板生成物品。
 type MailItem struct {
 	Stack     *BagItem      `json:"stack,omitempty"`

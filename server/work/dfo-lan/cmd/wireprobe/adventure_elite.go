@@ -4,8 +4,8 @@ import (
 	"context"
 	"crypto/sha256"
 	"dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -13,7 +13,7 @@ import (
 
 // 角色选择列表按Store.Characters的顺序下发。精锐页14021ADF0从该列表
 // 查询界面索引；存档保存稳定ID，重登时重新投影，不能持久化易变的索引。
-func (w *worldSession) adventureElitePayload(ctx context.Context, profile storage.AccountAdventure) ([]byte, error) {
+func (w *worldSession) adventureElitePayload(ctx context.Context, profile database.AccountAdventure) ([]byte, error) {
 	roles, err := w.store.Characters(ctx, w.account)
 	if err != nil {
 		return nil, err
@@ -21,7 +21,7 @@ func (w *worldSession) adventureElitePayload(ctx context.Context, profile storag
 	return adventureElitePayloadForRoles(profile, roles)
 }
 
-func adventureElitePayloadForRoles(profile storage.AccountAdventure, roles []storage.Character) ([]byte, error) {
+func adventureElitePayloadForRoles(profile database.AccountAdventure, roles []database.Character) ([]byte, error) {
 	slots := make(map[int64]int32, len(roles))
 	for slot, role := range roles {
 		slots[role.ID] = int32(slot)
@@ -91,7 +91,7 @@ func (w *worldSession) setAdventureElite(ctx context.Context, p, raw []byte, pre
 	}
 	key := fmt.Sprintf("adventure-elite:%s:%x", prefix, sha256.Sum256(raw))
 	_, profile, _, err := w.store.CommitAdventure(ctx, w.account, w.role.ID, key,
-		func(role storage.Character, profile *storage.AccountAdventure) (json.RawMessage, json.RawMessage, error) {
+		func(role database.Character, profile *database.AccountAdventure) (json.RawMessage, json.RawMessage, error) {
 			if profile.Data.EliteSelections == nil {
 				profile.Data.EliteSelections = map[uint16][3]int64{}
 			}

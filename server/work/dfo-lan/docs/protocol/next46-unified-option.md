@@ -3,7 +3,7 @@
 日期：2026-09-21
 相关：`analysis/dumps/opcode_name_to_hex.json`、`analysis/dumps/NOTI2827-角色选项默认模板-3539.bin`、
 `docs/技能锁修复-补充答复-NOTI2827布局与勘误-20260921.txt`、`internal/game/protocol/unified_option.go`、
-`internal/storage/skill_lock.go`、`cmd/wireprobe/unified_flow.go`、`reference/analysis-tools/unified_option_oracle.py`
+`internal/database/skill_lock.go`、`cmd/wireprobe/unified_flow.go`、`reference/analysis-tools/unified_option_oracle.py`
 
 ## 1. 结论摘要
 
@@ -87,7 +87,7 @@
 | --- | --- |
 | `internal/game/protocol/unified_option.go` | `DecodeUnifiedOption`（帧布局 + 标记/长度/填充校验，**不校验 `+00`/`+04`**）、`CompactSkillSlots`/`SkillIDsFromSlots`、`MergeSkillLocks`（增量合并、槽值 0 = 删除、首条目落在 0/64 时先重建该页）、`EncodeSkillLockBlock`（386 字节对象）、`UnifiedCharacOptions`（3539 字节整包：内置客户端模板 + 同时填充 subtype 19/20 两个锁对象）、`UnifiedCharacOptionsFrom`（不同客户端版本时替换模板/偏移）、`CharacOptionsTemplate` |
 | `internal/game/protocol/templates/unified-charac-options-current.bin` | 客户端 3539 字节角色选项默认块（`go:embed`），sha256 `dd5ccdc7a84f66f799594edd1e8ceddfa957fdebc7d566e955d178038236f816` |
-| `internal/storage/skill_lock.go` | `character_skill_locks` 表（`IF NOT EXISTS` 幂等迁移）、`SkillLocks`、`CommitSkillLocks`（角色行锁 + `character_events` 幂等键 + 先删后插整体替换；重放同一帧不重复应用；拒绝 0/越界/重复/超 128） |
+| `internal/database/skill_lock.go` | `character_skill_locks` 表（`IF NOT EXISTS` 幂等迁移）、`SkillLocks`、`CommitSkillLocks`（角色行锁 + `character_events` 幂等键 + 先删后插整体替换；重放同一帧不重复应用；拒绝 0/越界/重复/超 128） |
 | `internal/character/unified_option.go` | `SaveSkillLocks`（把一帧合并进该角色的集合） |
 | `cmd/wireprobe/main.go` | CMD2377 按 subtype 分流：`0x13` 落库并记 `skill_lock_saved`，其它 subtype 仍客户端自管；启动执行 `MigrateSkillLocks`；入口处准备 NOTI2827 载荷 |
 | `cmd/wireprobe/entry_flow.go` + `unified_flow.go` | NOTI2827 作为**入口帧序列的最后一帧**（`packets()` 末尾，排在 NOTI14 外观刷新之后）；默认使用内置模板与偏移 2736，`-unified-charac-template` / `-skill-lock-offset` 仅作为不同客户端版本的逃生口 |

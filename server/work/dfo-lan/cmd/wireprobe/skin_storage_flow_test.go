@@ -3,8 +3,8 @@ package main
 import (
 	"bytes"
 	"dfolan/internal/catalog"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"testing"
 )
 
@@ -17,7 +17,7 @@ func TestDamageFontSkinIDs(t *testing.T) {
 		10358669: {Template: 10358669, SkinID: 59, SkinType: "Damage Font"},
 		10900001: {Template: 10900001, SkinID: 30001, SkinType: "spray"},
 	}
-	skins := []storage.AccountSkin{
+	skins := []database.AccountSkin{
 		{SourceTemplate: 10305398, SkinKey: 12},
 		{SourceTemplate: 10900001, SkinKey: 30001},
 		{SourceTemplate: 10358669, SkinKey: 59},

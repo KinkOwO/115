@@ -3212,7 +3212,7 @@ SizeOfImage=0x11DB9000，**运行时解密镜像**」）+ 78 个运行期模块�
 - `primer` 恒 40 ⇒ 第二个隐藏 BOSS「守望者」（`oath_max < 45 && primer_max == 45`）**暂不出现** —— 它要另有一条保底。
 
 **实现**
-- `internal/storage/oath_progress.go`：表 `character_oath_progress(character_id, dungeon_id, clears, updated_at)`；
+- `internal/database/oath_progress.go`：表 `character_oath_progress(character_id, dungeon_id, clears, updated_at)`；
   `MigrateOathProgress` / `OathProgressClears`（无记录 = 0）/ `BumpOathProgress`（角色行外 `FOR UPDATE`，到期归零）。
 - `cmd/wireprobe/oath_progress.go`：`oathGradePrimeval = 45`、`oathDefaultProgressClears = 5`、`oathDefaultProgressDungeons = "100005014"`。
 - `cmd/wireprobe/oath_info.go`：`oathInfoPackets()` 改为返回 error；`derivedOathGrades()` 走保底，
@@ -3224,7 +3224,7 @@ SizeOfImage=0x11DB9000，**运行时解密镜像**」）+ 78 个运行期模块�
   每次通关打印 `oath progress: dungeon <id> clears <a> -> <b> (pity every 5)`。
 
 **验证**：`go build -p 1 ./...` OK；`go vet ./internal/... ./cmd/...` 干净；
-`go test ./...`（日常；`-p 1 -count=1` 串行且禁 test cache，仅留给发布验证）**21 包全绿**；`CASH_INTEGRATION=1 go test -run TestOathProgressPity ./internal/storage/`
+`go test ./...`（日常；`-p 1 -count=1` 串行且禁 test cache，仅留给发布验证）**21 包全绿**；`CASH_INTEGRATION=1 go test -run TestOathProgressPity ./internal/database/`
 **PASS**（真库：建表 / 新角色读 0 / 推进 `(0,1)→(1,2)→(2,0)→(0,1)` / 分副本独立 / 非法键拒绝）。
 候选程序 `bin/wireprobe-handoff-source.exe` = `23adbe74…`（12:39，**待实机**）；旧的 `3b3d6c6f…` 备份在 `D:/115us-backup/bin-before-pity-20260927/`。
 

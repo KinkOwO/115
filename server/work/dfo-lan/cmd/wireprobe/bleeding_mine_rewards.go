@@ -4,10 +4,10 @@ import (
 	"context"
 	"crypto/sha256"
 	"dfolan/internal/adventure"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/savecontract"
-	"dfolan/internal/storage"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -32,9 +32,9 @@ type bleedingMineRewardState struct {
 }
 
 type bleedingMineRewardCard struct {
-	Template uint32              `json:"template"`
-	Group    uint32              `json:"group"`
-	Assets   []storage.MailAsset `json:"assets"`
+	Template uint32               `json:"template"`
+	Group    uint32               `json:"group"`
+	Assets   []database.MailAsset `json:"assets"`
 }
 
 var errBleedingMineClaimActor = fmt.Errorf("只有参与本周矿区探索的角色可以领取奖励")
@@ -62,13 +62,13 @@ func (s *bleedingMineRewardState) addCard(card bleedingMineRewardCard) error {
 	return nil
 }
 
-func (w *worldSession) updateBleedingMineRewards(ctx context.Context, apply func(*bleedingMineRewardState) ([]storage.MailAsset, error)) (*bleedingMineRewardState, error) {
+func (w *worldSession) updateBleedingMineRewards(ctx context.Context, apply func(*bleedingMineRewardState) ([]database.MailAsset, error)) (*bleedingMineRewardState, error) {
 	if w == nil || w.characters == nil || w.store == nil || w.loot == nil || w.loot.BleedingMine == nil || w.role.ConfigVersion != savecontract.Identity() {
 		return nil, fmt.Errorf("赤红铁矿原版奖励配置或存储未加载")
 	}
 	var result bleedingMineRewardState
 	_, _, err := w.store.UpdateBleedingMineRewards(ctx, w.account, w.role.ID, w.role.ConfigVersion,
-		func(role storage.Character, raw json.RawMessage) (json.RawMessage, json.RawMessage, []storage.MailAsset, error) {
+		func(role database.Character, raw json.RawMessage) (json.RawMessage, json.RawMessage, []database.MailAsset, error) {
 			if err := json.Unmarshal(raw, &result); err != nil {
 				return nil, nil, nil, err
 			}
@@ -101,7 +101,7 @@ func (w *worldSession) updateBleedingMineRewards(ctx context.Context, apply func
 }
 
 func (w *worldSession) validateBleedingMineRewards(ctx context.Context, group uint32, members [4]int64) error {
-	_, err := w.updateBleedingMineRewards(ctx, func(s *bleedingMineRewardState) ([]storage.MailAsset, error) {
+	_, err := w.updateBleedingMineRewards(ctx, func(s *bleedingMineRewardState) ([]database.MailAsset, error) {
 		if group >= 3 || s.Claimed || s.Completed[group] {
 			return nil, fmt.Errorf("该矿区本周已完成，或账号已领取本周奖励")
 		}
@@ -168,7 +168,7 @@ func (w *worldSession) bleedingMineCard(id, group uint32) (bleedingMineRewardCar
 		if err != nil {
 			return card, err
 		}
-		card.Assets = append(card.Assets, storage.MailAsset{Item: raw})
+		card.Assets = append(card.Assets, database.MailAsset{Item: raw})
 	}
 	if len(card.Assets) != 1 {
 		return card, fmt.Errorf("矿区奖励卡%d未展开为单个有效附件", id)
@@ -182,7 +182,7 @@ func (w *worldSession) freezeBleedingMineStage(ctx context.Context) error {
 	if mine == nil || w.activeDungeon == nil || !w.activeDungeon.Completed() || mine.Stage >= 4 {
 		return fmt.Errorf("矿区阶段尚未通关")
 	}
-	_, err := w.updateBleedingMineRewards(ctx, func(s *bleedingMineRewardState) ([]storage.MailAsset, error) {
+	_, err := w.updateBleedingMineRewards(ctx, func(s *bleedingMineRewardState) ([]database.MailAsset, error) {
 		if s.Claimed || s.Completed[mine.Group] || s.Week != mine.Week {
 			return nil, fmt.Errorf("矿区本次探索的奖励周期已结束")
 		}
@@ -227,7 +227,7 @@ func (w *worldSession) openBleedingMineRewards(ctx context.Context, p []byte) ([
 	if len(p) != 0 || w.channelType != 106 || w.activeDungeon != nil {
 		return nil, fmt.Errorf("请在矿区城镇打开奖励袋")
 	}
-	s, err := w.updateBleedingMineRewards(ctx, func(*bleedingMineRewardState) ([]storage.MailAsset, error) { return nil, nil })
+	s, err := w.updateBleedingMineRewards(ctx, func(*bleedingMineRewardState) ([]database.MailAsset, error) { return nil, nil })
 	if err != nil {
 		return nil, err
 	}
@@ -267,7 +267,7 @@ func (w *worldSession) claimBleedingMineRewards(ctx context.Context, p []byte) (
 	if len(slots) == 0 {
 		return nil, fmt.Errorf("至少选择一份矿区奖励")
 	}
-	s, err := w.updateBleedingMineRewards(ctx, func(s *bleedingMineRewardState) ([]storage.MailAsset, error) {
+	s, err := w.updateBleedingMineRewards(ctx, func(s *bleedingMineRewardState) ([]database.MailAsset, error) {
 		if s.Claimed {
 			return nil, nil
 		}
@@ -280,7 +280,7 @@ func (w *worldSession) claimBleedingMineRewards(ctx context.Context, p []byte) (
 		if !participant {
 			return nil, errBleedingMineClaimActor
 		}
-		var assets []storage.MailAsset
+		var assets []database.MailAsset
 		for i, slot := range slots {
 			if int(slot) >= len(s.Cards) || s.Cards[slot].Template == 0 {
 				return nil, fmt.Errorf("奖励袋格位已变更，请重新打开")
@@ -313,7 +313,7 @@ func (w *worldSession) composeBleedingMineRewards(ctx context.Context, p, frame 
 		return nil, err
 	}
 	key := fmt.Sprintf("%x", sha256.Sum256(frame))
-	s, err := w.updateBleedingMineRewards(ctx, func(s *bleedingMineRewardState) ([]storage.MailAsset, error) {
+	s, err := w.updateBleedingMineRewards(ctx, func(s *bleedingMineRewardState) ([]database.MailAsset, error) {
 		if s.Compositions[key] {
 			return nil, nil
 		}

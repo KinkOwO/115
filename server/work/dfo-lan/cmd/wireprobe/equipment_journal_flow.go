@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"dfolan/internal/catalog"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"dfolan/internal/workflow"
 	"encoding/json"
 	"fmt"
@@ -94,7 +94,7 @@ const equipmentCraftConfirmGap = int64(1_000_000_000) // 1s in UnixNano
 //
 // 空账本返回 nil —— 此时不发这一帧：客户端自己就是全零初值，发一份全零没有信息量，
 // 而"空正文的帧会被丢弃"这条约束本来也不允许我们发空包。
-func equipmentJournalEntryPayload(role storage.Character, rules *catalog.EquipmentJournalRules) ([]byte, error) {
+func equipmentJournalEntryPayload(role database.Character, rules *catalog.EquipmentJournalRules) ([]byte, error) {
 	if rules == nil {
 		return nil, nil
 	}
@@ -109,7 +109,7 @@ func equipmentJournalEntryPayload(role storage.Character, rules *catalog.Equipme
 }
 
 // equipmentJournalBoard 是「回成功 + 补发 2610」这一对。
-func (w *worldSession) equipmentJournalBoard(role storage.Character) ([]outboundPacket, error) {
+func (w *worldSession) equipmentJournalBoard(role database.Character) ([]outboundPacket, error) {
 	body, e := equipmentJournalEntryPayload(role, w.journalRules())
 	if e != nil {
 		return nil, e
@@ -405,7 +405,7 @@ func (w *worldSession) equipmentFavorite(p []byte) ([]outboundPacket, error) {
 	defer cancel()
 	saved, _, e := w.store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID,
 		w.role.ConfigVersion, key, "equipment-journal-v1",
-		func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+		func(current database.Character) (json.RawMessage, json.RawMessage, error) {
 			ledger, e := inventory.ReadEquipmentJournal(current.State)
 			if e != nil {
 				return nil, nil, e

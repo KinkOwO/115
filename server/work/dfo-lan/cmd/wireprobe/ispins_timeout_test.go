@@ -3,7 +3,7 @@ package main
 import (
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
+	"dfolan/internal/database"
 	"testing"
 	"time"
 )
@@ -11,8 +11,8 @@ import (
 func TestIspinsTimeLimitFailsWithoutClearOrRewards(t *testing.T) {
 	deadline := time.Now().Add(-time.Hour)
 	w := &worldSession{
-		role:          storage.Character{ID: 7, WireID: 7},
-		state:         storage.WorldState{Position: storage.WorldPosition{Town: 146, Area: 0, X: 700, Y: 300}},
+		role:          database.Character{ID: 7, WireID: 7},
+		state:         database.WorldState{Position: database.WorldPosition{Town: 146, Area: 0, X: 700, Y: 300}},
 		ispins:        &ispinsRun{stage: 1, confirmed: true, cleared: [4]bool{true, false, false, false}, deadline: deadline},
 		activeDungeon: &dungeon.Session{Loaded: true, ArenaBoss: true, RunID: "timed-run", Dead: map[uint16]bool{}, Monsters: []protocol.DungeonMonster{{Entity: 4096, Rank: 3, Team: 100}}},
 	}
@@ -40,8 +40,8 @@ func TestIspinsTimeLimitFailsWithoutClearOrRewards(t *testing.T) {
 }
 
 func TestIspinsLateBossCannotBypassTimeLimit(t *testing.T) {
-	w := &worldSession{role: storage.Character{ID: 7, WireID: 7},
-		state:         storage.WorldState{Position: storage.WorldPosition{Town: 146, Area: 0, X: 700, Y: 300}},
+	w := &worldSession{role: database.Character{ID: 7, WireID: 7},
+		state:         database.WorldState{Position: database.WorldPosition{Town: 146, Area: 0, X: 700, Y: 300}},
 		ispins:        &ispinsRun{confirmed: true, deadline: time.Now().Add(-time.Second)},
 		activeDungeon: &dungeon.Session{Loaded: true, ArenaBoss: true, Dead: map[uint16]bool{}, Monsters: []protocol.DungeonMonster{{Entity: 4096, Rank: 3, Team: 100}}},
 	}

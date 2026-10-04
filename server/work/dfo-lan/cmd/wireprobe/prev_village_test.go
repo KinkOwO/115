@@ -2,15 +2,15 @@ package main
 
 import (
 	"dfolan/internal/catalog"
+	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
-	"dfolan/internal/storage"
 	"dfolan/internal/world"
 	"testing"
 )
 
 func TestPrevVillageReturnsToStampedOrigin(t *testing.T) {
-	stamp := &storage.WorldReturn{Town: 41, Area: 1, X: 404, Y: 197}
-	inside := storage.WorldPosition{Town: 38, Area: 1, X: 550, Y: 340, Return: stamp}
+	stamp := &database.WorldReturn{Town: 41, Area: 1, X: 404, Y: 197}
+	inside := database.WorldPosition{Town: 38, Area: 1, X: 550, Y: 340, Return: stamp}
 	if _, err := previousVillageRequest(inside, []byte{1}, false, false); err == nil {
 		t.Fatal("non-empty body accepted")
 	}
@@ -35,7 +35,7 @@ func TestPrevVillageReturnsToStampedOrigin(t *testing.T) {
 	w := &worldSession{service: &world.Service{Catalog: catalog.WorldCatalog{Areas: map[string]catalog.WorldArea{
 		"38/1": {Town: 38, Area: 1, MinimumLevel: 1, Walkable: [][4]int32{{400, 100, 250, 300}}, SeriaReturnWarp: true, ReturnWarpBounds: [][4]int32{{470, 320, 150, 40}}},
 		"41/1": {Town: 41, Area: 1, MinimumLevel: 1, Walkable: [][4]int32{{350, 150, 100, 100}}},
-	}}, Rules: world.Rules{RequirePortalProximity: true}}, level: 1, state: storage.WorldState{Position: inside}}
+	}}, Rules: world.Rules{RequirePortalProximity: true}}, level: 1, state: database.WorldState{Position: inside}}
 	out, err := w.areaTransition(request)
 	if err != nil || out.Town != stamp.Town || out.Area != stamp.Area || out.X != stamp.X || out.Y != stamp.Y || out.Return != nil {
 		t.Fatalf("previous village transition failed: %+v %v", out, err)
@@ -45,10 +45,10 @@ func TestPrevVillageReturnsToStampedOrigin(t *testing.T) {
 // CMD 1418 uses an empty body and the saved Return stamp to identify the
 // destination. The handler must preserve that stamp and reject unsafe contexts.
 func TestPrevVillageUsesStampedOrigin(t *testing.T) {
-	w := &worldSession{role: storage.Character{ID: 7, WireID: 10}}
-	w.state.Position = storage.WorldPosition{
+	w := &worldSession{role: database.Character{ID: 7, WireID: 10}}
+	w.state.Position = database.WorldPosition{
 		Town: 38, Area: 1, X: 557, Y: 340,
-		Return: &storage.WorldReturn{Town: 41, Area: 1, X: 404, Y: 197},
+		Return: &database.WorldReturn{Town: 41, Area: 1, X: 404, Y: 197},
 	}
 	r, err := w.prevVillage(nil)
 	if err != nil {
@@ -64,10 +64,10 @@ func TestPrevVillageUsesStampedOrigin(t *testing.T) {
 
 func TestPrevVillageRefusesWithoutEvidence(t *testing.T) {
 	stamped := func() *worldSession {
-		w := &worldSession{role: storage.Character{ID: 7, WireID: 10}}
-		w.state.Position = storage.WorldPosition{
+		w := &worldSession{role: database.Character{ID: 7, WireID: 10}}
+		w.state.Position = database.WorldPosition{
 			Town: 38, Area: 1, X: 557, Y: 340,
-			Return: &storage.WorldReturn{Town: 41, Area: 1, X: 404, Y: 197},
+			Return: &database.WorldReturn{Town: 41, Area: 1, X: 404, Y: 197},
 		}
 		return w
 	}
@@ -77,8 +77,8 @@ func TestPrevVillageRefusesWithoutEvidence(t *testing.T) {
 		t.Fatal("non-empty body accepted")
 	}
 
-	w = &worldSession{role: storage.Character{ID: 7, WireID: 10}}
-	w.state.Position = storage.WorldPosition{Town: 38, Area: 1, X: 557, Y: 340}
+	w = &worldSession{role: database.Character{ID: 7, WireID: 10}}
+	w.state.Position = database.WorldPosition{Town: 38, Area: 1, X: 557, Y: 340}
 	if _, err := w.prevVillage(nil); err == nil {
 		t.Fatal("prev village without a return stamp accepted")
 	}

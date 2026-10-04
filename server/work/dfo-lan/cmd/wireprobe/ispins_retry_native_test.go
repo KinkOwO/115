@@ -6,7 +6,7 @@ import (
 	"dfolan/internal/character"
 	"dfolan/internal/game/wire"
 	"dfolan/internal/legion"
-	"dfolan/internal/storage"
+	"dfolan/internal/database"
 	"encoding/binary"
 	"encoding/hex"
 	"testing"
@@ -22,9 +22,9 @@ func TestIspinsTimeoutRetryKeepsProgressAndRebuiltPartyCanEnter(t *testing.T) {
 		w.channelType = 81
 		w.dungeons = &dungeons
 		w.level = 140
-		w.role = storage.Character{ID: 7, WireID: 7, Name: "001", State: []byte(`{"level":115,"advancement":5,"source_sha256":"fixture","attributes":{"[hp max]":100,"[mp max]":100}}`)}
+		w.role = database.Character{ID: 7, WireID: 7, Name: "001", State: []byte(`{"level":115,"advancement":5,"source_sha256":"fixture","attributes":{"[hp max]":100,"[mp max]":100}}`)}
 		w.characters = &character.Service{ChannelContext: [2]byte{3, 86}}
-		w.state = storage.WorldState{Position: storage.WorldPosition{Town: 146, Area: 2, X: 600, Y: 300}}
+		w.state = database.WorldState{Position: database.WorldPosition{Town: 146, Area: 2, X: 600, Y: 300}}
 		w.ispins = &ispinsRun{stage: 3, cleared: [4]bool{true, true, true, false}, confirmed: true, operationIndex: 11}
 		enter := make([]byte, 24)
 		enter[13] = 101

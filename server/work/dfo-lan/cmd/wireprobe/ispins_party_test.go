@@ -3,8 +3,8 @@ package main
 import (
 	"bytes"
 	"dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/binary"
 	"encoding/hex"
 	"testing"
@@ -147,7 +147,7 @@ func TestIspinsStandbyPartyPreservesRequestedCapacity(t *testing.T) {
 		binary.LittleEndian.PutUint32(request[9:], uint32(capacity))
 		w := &worldSession{
 			channelType: 81,
-			role:        storage.Character{WireID: 7, ID: 7, Name: "001", State: []byte(`{"level":115,"advancement":5,"source_sha256":"fixture","attributes":{"[hp max]":100,"[mp max]":100}}`)},
+			role:        database.Character{WireID: 7, ID: 7, Name: "001", State: []byte(`{"level":115,"advancement":5,"source_sha256":"fixture","attributes":{"[hp max]":100,"[mp max]":100}}`)},
 			characters:  &character.Service{ChannelContext: [2]byte{3, 86}},
 		}
 		handled, packets, err := w.ispinsStandbyPartyHandle(12, request)
@@ -175,7 +175,7 @@ func TestIspinsStandbyPartyHandlerGate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	town := &worldSession{channelType: 1, role: storage.Character{WireID: 7, ID: 7}}
+	town := &worldSession{channelType: 1, role: database.Character{WireID: 7, ID: 7}}
 	if handled, _, _ := town.ispinsStandbyPartyHandle(12, req); handled {
 		t.Fatal("town channel must not be handled by the ispins standby party handler")
 	}
@@ -184,14 +184,14 @@ func TestIspinsStandbyPartyHandlerGate(t *testing.T) {
 		t.Fatal("CMD12 before character selection must be ignored")
 	}
 	// 无角色服务：接手但拒绝，不能静默吞掉建队请求。
-	noService := &worldSession{channelType: 81, role: storage.Character{WireID: 7, ID: 7}}
+	noService := &worldSession{channelType: 81, role: database.Character{WireID: 7, ID: 7}}
 	if handled, _, err := noService.ispinsStandbyPartyHandle(12, req); !handled || err == nil {
 		t.Fatal("standby CMD12 without a character service must be handled with an error")
 	}
 	// 成功路径：黑鸦族原生 NOTI9 + 队长资料两个 op=2 先行（黑鸦建队先例）。
 	standby := &worldSession{
 		channelType: 81,
-		role:        storage.Character{WireID: 7, ID: 7, Name: "IspinsCap", State: []byte(`{"level":115,"advancement":5,"source_sha256":"fixture","attributes":{"[hp max]":100,"[mp max]":100}}`)},
+		role:        database.Character{WireID: 7, ID: 7, Name: "IspinsCap", State: []byte(`{"level":115,"advancement":5,"source_sha256":"fixture","attributes":{"[hp max]":100,"[mp max]":100}}`)},
 		characters:  &character.Service{ChannelContext: [2]byte{0x03, 0x56}},
 	}
 	handled, plan, err := standby.ispinsStandbyPartyHandle(12, req)

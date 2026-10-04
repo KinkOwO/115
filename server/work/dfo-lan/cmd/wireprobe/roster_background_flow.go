@@ -4,10 +4,9 @@ import (
 	"context"
 	"crypto/sha256"
 	"dfolan/internal/character"
-	"dfolan/internal/db"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -16,7 +15,7 @@ import (
 // restoreRosterBackgrounds owns the complete account-level background restore
 // operation. The connection loop supplies only its character owner, account,
 // output path, and event sink.
-func restoreRosterBackgrounds(store *storage.Store, account int64, send func(byte, uint16, []byte) error, event func(map[string]any)) error {
+func restoreRosterBackgrounds(store *database.Store, account int64, send func(byte, uint16, []byte) error, event func(map[string]any)) error {
 	if store == nil {
 		return nil
 	}
@@ -63,7 +62,7 @@ func (w *worldSession) useRosterBackgroundTicket(ctx context.Context, p, raw []b
 	}
 	store := w.store
 	saved, applied, err := store.CommitCharacterEventTx(ctx, w.account, w.role.ID, w.role.ConfigVersion, key, "roster-background-ticket-v1",
-		func(tx db.Tx, current storage.Character) (json.RawMessage, json.RawMessage, error) {
+		func(tx *database.Tx, current database.Character) (json.RawMessage, json.RawMessage, error) {
 			bag, e := inventory.ReadBag(current.State)
 			if e != nil {
 				return nil, nil, e
@@ -88,7 +87,7 @@ func (w *worldSession) useRosterBackgroundTicket(ctx context.Context, p, raw []b
 			if e != nil {
 				return nil, nil, e
 			}
-			if e = store.UnlockRosterBackground(ctx, tx, current.AccountID, grant, now); e != nil {
+			if e = tx.UnlockRosterBackground(ctx, grant, now); e != nil {
 				return nil, nil, e
 			}
 			bag, remaining, e := bag.Consume(w.loot.Catalog, slot, template)

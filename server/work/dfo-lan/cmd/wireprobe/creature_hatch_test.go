@@ -2,8 +2,8 @@ package main
 
 import (
 	"context"
+	"dfolan/internal/database"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"testing"
 )
@@ -13,17 +13,17 @@ type mockHatchStore struct {
 	state  json.RawMessage
 }
 
-func (m *mockHatchStore) CommitCharacterEvent(ctx context.Context, account, id int64, version, key, model string, apply func(storage.Character) (json.RawMessage, json.RawMessage, error)) (storage.Character, bool, error) {
+func (m *mockHatchStore) CommitCharacterEvent(ctx context.Context, account, id int64, version, key, model string, apply func(database.Character) (json.RawMessage, json.RawMessage, error)) (database.Character, bool, error) {
 	if m.events == nil {
 		m.events = map[string]bool{}
 	}
 	m.events[key] = true
-	raw, _, err := apply(storage.Character{ID: id, AccountID: account, ConfigVersion: version, State: m.state})
+	raw, _, err := apply(database.Character{ID: id, AccountID: account, ConfigVersion: version, State: m.state})
 	if err != nil {
-		return storage.Character{}, false, err
+		return database.Character{}, false, err
 	}
 	m.state = raw
-	return storage.Character{ID: id, AccountID: account, ConfigVersion: version, State: raw}, true, nil
+	return database.Character{ID: id, AccountID: account, ConfigVersion: version, State: raw}, true, nil
 }
 
 func TestCreatureHatchFlow(t *testing.T) {
@@ -42,7 +42,7 @@ func TestCreatureHatchFlow(t *testing.T) {
 	}
 
 	w := &worldSession{
-		role: storage.Character{
+		role: database.Character{
 			ID:            101,
 			AccountID:     1,
 			ConfigVersion: "test-ver",

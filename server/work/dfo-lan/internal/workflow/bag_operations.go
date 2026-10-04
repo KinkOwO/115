@@ -4,9 +4,9 @@ import (
 	"context"
 	"crypto/sha256"
 	"dfolan/internal/catalog"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 )
@@ -14,7 +14,7 @@ import (
 // Package workflow owns cross-domain orchestration that spans more than one
 // domain and the persistence transaction (contract §5). Domains expose pure
 // state and rules; this layer holds the store handle and sequences the calls so
-// that domains do not import each other or internal/storage.
+// that domains do not import each other or internal/database.
 // MoveStackReceipt records one completed quick-use-belt stack move.
 type MoveStackReceipt struct {
 	From     uint16 `json:"from"`
@@ -33,10 +33,10 @@ type MoveStackReceipt struct {
 // Like every other bag write it goes through the character event log, so a
 // drag the client retries moves the stack once. The bag transform itself stays
 // in inventory; this workflow owns the transaction and receipt.
-func MoveStack(ctx context.Context, store *storage.Store, role storage.Character, c catalog.LootCatalog, rules inventory.BagRules,
-	r protocol.ItemMoveRequest, key string) (storage.Character, MoveStackReceipt, bool, error) {
+func MoveStack(ctx context.Context, store *database.Store, role database.Character, c catalog.LootCatalog, rules inventory.BagRules,
+	r protocol.ItemMoveRequest, key string) (database.Character, MoveStackReceipt, bool, error) {
 	var out MoveStackReceipt
-	fail := func(e error) (storage.Character, MoveStackReceipt, bool, error) {
+	fail := func(e error) (database.Character, MoveStackReceipt, bool, error) {
 		return role, out, false, e
 	}
 	if store == nil {
@@ -55,7 +55,7 @@ func MoveStack(ctx context.Context, store *storage.Store, role storage.Character
 	eventModel := fmt.Sprintf("bag-move-v2:%x", sha256.Sum256(request))
 	saved, applied, e := store.CommitCharacterEvent(ctx, role.AccountID, role.ID,
 		c.Source.SaveIdentity(), key, eventModel,
-		func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+		func(current database.Character) (json.RawMessage, json.RawMessage, error) {
 			b, e := inventory.ReadBag(current.State)
 			if e != nil {
 				return nil, nil, e
@@ -93,11 +93,11 @@ func MoveStack(ctx context.Context, store *storage.Store, role storage.Character
 // character's lock. The receipt key makes a replayed frame a no-op instead of
 // applying the same permutation twice. The permutation itself stays in
 // inventory (BagRules/SortItems); this workflow owns the transaction.
-func SortBag(ctx context.Context, store *storage.Store, role storage.Character, rules inventory.BagRules, key string, r protocol.SortItemRequest) (storage.Character, bool, error) {
+func SortBag(ctx context.Context, store *database.Store, role database.Character, rules inventory.BagRules, key string, r protocol.SortItemRequest) (database.Character, bool, error) {
 	if store == nil {
 		return role, false, fmt.Errorf("wear storage unavailable")
 	}
-	saved, applied, e := store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, "ordinary-item-sort-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+	saved, applied, e := store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, "ordinary-item-sort-v1", func(current database.Character) (json.RawMessage, json.RawMessage, error) {
 		b, e := inventory.ReadBag(current.State)
 		if e != nil {
 			return nil, nil, e

@@ -5,9 +5,10 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/quest"
-	"dfolan/internal/storage"
+	"dfolan/internal/reward"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -15,23 +16,25 @@ import (
 
 // QuestService coordinates persistence around quest domain state transitions.
 type QuestService struct {
-	Store *storage.Store
+	Store *database.Store
 	Quest *quest.Service
+	// Rewards is the optional event-triggered reward notifier. It is only
+	// called after a committed settlement; nil disables the feature.
+	Rewards reward.Notifier
 }
 
-func (s *QuestService) Finish(ctx context.Context, role storage.Character, r protocol.QuestSubmitRequest) (quest.FinishResult, error) {
+func (s *QuestService) Finish(ctx context.Context, role database.Character, r protocol.QuestSubmitRequest) (quest.FinishResult, error) {
 	var out quest.FinishResult
 	plan, e := s.Quest.PlanFinish(r)
 	if e != nil {
 		return out, e
 	}
 	d, model := plan.Definition, plan.Model
-	commit, e := s.Store.CommitQuestReward(ctx, role.AccountID, role.ID, r.ID, s.Quest.Catalog.Source.SaveIdentity(), model, s.Quest.Progression.Rules.Model, func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+	// PrepareFinish runs under the character transaction and must not request
+	// another pool connection for an independent contract read.
+	growth, _ := s.Store.HasActivePremium(ctx, role.AccountID, database.PremiumGrowth, time.Now())
+	commit, e := s.Store.CommitQuestReward(ctx, role.AccountID, role.ID, r.ID, s.Quest.Catalog.Source.SaveIdentity(), model, s.Quest.Progression.Rules.Model, func(current database.Character) (json.RawMessage, json.RawMessage, error) {
 		return s.Quest.PrepareFinish(current, plan, func() bool {
-			if s.Store == nil {
-				return false
-			}
-			growth, _ := s.Store.HasActivePremium(ctx, role.AccountID, storage.PremiumGrowth, time.Now())
 			return growth
 		}, quest.FinishRewards{
 			Items: questItemRewards,
@@ -53,6 +56,17 @@ func (s *QuestService) Finish(ctx context.Context, role storage.Character, r pro
 		return out, fmt.Errorf("quest reward receipt mismatch")
 	}
 	out.Role, out.Applied = commit.Character, commit.Applied
+	// Event-triggered rewards are best-effort and only fire on a fresh
+	// settlement, never on an idempotent replay.
+	if out.Applied && s.Rewards != nil {
+		recipient := rewardRecipient(out.Role)
+		var before character.State
+		_ = json.Unmarshal(role.State, &before)
+		if recipient.Level > before.Level {
+			s.Rewards.LevelUp(ctx, recipient)
+		}
+		s.Rewards.QuestComplete(ctx, recipient, r.ID)
+	}
 	// Self-heal a pre-fix state: a character who once accepted several
 	// [collision quest] branches still carries the unchosen factions' quests.
 	// Once one branch completes, accepted siblings leave the journal (their
@@ -86,4 +100,12 @@ func questItemRewards(cells []pvf.Token, profession, advancement byte) ([]quest.
 		out = append(out, quest.RewardItem{Template: item.Template, Amount: item.Amount})
 	}
 	return out, nil
+}
+
+// rewardRecipient builds the notifier recipient from a committed character.
+// A malformed state leaves the level at 0, which suppresses level-up notices.
+func rewardRecipient(c character.Character) reward.Recipient {
+	var state character.State
+	_ = json.Unmarshal(c.State, &state)
+	return reward.Recipient{AccountID: c.AccountID, CharacterID: c.ID, Name: c.Name, Level: state.Level, ConfigVersion: c.ConfigVersion}
 }

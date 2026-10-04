@@ -2,9 +2,9 @@ package main
 
 import (
 	"bytes"
+	"dfolan/internal/database"
 	"dfolan/internal/game/wire"
 	"dfolan/internal/legion"
-	"dfolan/internal/storage"
 	"encoding/binary"
 	"io"
 	"net"
@@ -18,7 +18,7 @@ func TestIspinsDispatchStartPushesWaitingStateFromSnapshot(t *testing.T) {
 	defer server.Close()
 	defer peer.Close()
 	events := make(chan map[string]any, 16)
-	c := &gameConnection{gatewayRuntime: &gatewayRuntime{}, bootstrapped: true, selectedCharacterID: 7, keys: make([]byte, wire.SessionKeyBytes), worldState: &worldSession{channelType: 81, role: storage.Character{ID: 7, WireID: 7}}, event: func(e map[string]any) { events <- e }}
+	c := &gameConnection{gatewayRuntime: &gatewayRuntime{}, bootstrapped: true, selectedCharacterID: 7, keys: make([]byte, wire.SessionKeyBytes), worldState: &worldSession{channelType: 81, role: database.Character{ID: 7, WireID: 7}}, event: func(e map[string]any) { events <- e }}
 	c.output = newConnectionOutput(server, c.keys, "test", c.event)
 	body := make([]byte, 24)
 	body[13] = 101
@@ -84,7 +84,7 @@ func TestIspinsDispatchStartPushesWaitingStateFromSnapshot(t *testing.T) {
 func TestIspinsDispatchTownPositionFallsThrough(t *testing.T) {
 	c, conn, _ := newDispatchTestClient()
 	c.selectedCharacterID = 7
-	c.worldState.role = storage.Character{ID: 7, WireID: 7}
+	c.worldState.role = database.Character{ID: 7, WireID: 7}
 	request := &clientRequest{frame: wire.Frame{Type: 1, ID: 35}, plaintext: make([]byte, 8), verified: true}
 	if got := c.dispatchIspins(request); got != dispatchNext {
 		t.Fatal("Ispins swallowed ordinary town movement", got)

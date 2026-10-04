@@ -1,10 +1,10 @@
-﻿package main
+package main
 
 import (
 	"context"
+	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"dfolan/internal/workflow"
 	"fmt"
 	"log"
@@ -241,7 +241,7 @@ func (w *worldSession) restartDungeon() (*dungeon.Session, []outboundPacket, err
 			return nil, nil, err
 		}
 		if fp.Used >= fp.Limit {
-			return nil, nil, storage.ErrFatigueExhausted
+			return nil, nil, database.ErrFatigueExhausted
 		}
 	}
 	accepted, e := copy.acceptedQuestIDs(ctx)

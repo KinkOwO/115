@@ -65,3 +65,5 @@ Ispins状态被拒，而ESC菜单回城有效；14:54:54 CMD13离队未处理。
 
 专项测试和 go vet ./... 通过。全量4项既有失败已在修复前overlay复现，见
 analysis/tasks/next79-legion-weekly-open.md §29/30。没有改schema、玩家存档或客户端资源。
+
+2026-10-04 数据库重构交付：连接、事务与 sqlc 集中到 internal/database；隔离 PostgreSQL 与真实 PVF charactercheck 验证通过。未替换基线程序、访问玩家库或执行客户端实机回归，以上已确认基线及验收边界保持。

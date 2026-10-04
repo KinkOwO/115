@@ -2,11 +2,11 @@ package main
 
 import (
 	"context"
+	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
-	"dfolan/internal/storage"
 	"dfolan/internal/workflow"
 	"encoding/json"
 	"fmt"
@@ -88,7 +88,7 @@ func (w *worldSession) tournamentSelect(p []byte) ([]outboundPacket, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	key := fmt.Sprintf("tournament-card:%s:%d", w.activeDungeon.RunID, cardType)
-	saved, _, err := w.store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, "tournament-card-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+	saved, _, err := w.store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, "tournament-card-v1", func(current database.Character) (json.RawMessage, json.RawMessage, error) {
 		award := inventory.Awarder{Catalog: w.loot.Catalog, Rules: w.loot.BagRules}
 		state, _, err := award.Grant(current.State, card.Template, card.Amount)
 		if err != nil {

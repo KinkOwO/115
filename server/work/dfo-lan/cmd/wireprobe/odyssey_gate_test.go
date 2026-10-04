@@ -2,15 +2,15 @@ package main
 
 import (
 	"dfolan/internal/catalog"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/binary"
 	"strings"
 	"testing"
 )
 
 func TestOdysseyDungeonRequiresModeOwnership(t *testing.T) {
-	w := &worldSession{role: storage.Character{ID: 1}, dungeons: &catalog.DungeonCatalog{Dungeons: map[uint32]catalog.DungeonDefinition{100004934: {ID: 100004934, Odyssey: true, DesignatedDifficulty: 2}}}}
+	w := &worldSession{role: database.Character{ID: 1}, dungeons: &catalog.DungeonCatalog{Dungeons: map[uint32]catalog.DungeonDefinition{100004934: {ID: 100004934, Odyssey: true, DesignatedDifficulty: 2}}}}
 	p := make([]byte, 32)
 	binary.LittleEndian.PutUint32(p, 100004934)
 	p[4] = 2

@@ -3,16 +3,16 @@ package main
 import (
 	"bytes"
 	"dfolan/internal/catalog"
+	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/game/wire"
-	"dfolan/internal/storage"
 	"encoding/binary"
 	"testing"
 )
 
 func TestDungeonActorLifecyclePreflight(t *testing.T) {
-	w := &worldSession{role: storage.Character{ID: 5, WireID: 503}, activeDungeon: &dungeon.Session{}, state: storage.WorldState{Position: storage.WorldPosition{Town: 38, Area: 2, X: 150, Y: 249}}}
+	w := &worldSession{role: database.Character{ID: 5, WireID: 503}, activeDungeon: &dungeon.Session{}, state: database.WorldState{Position: database.WorldPosition{Town: 38, Area: 2, X: 150, Y: 249}}}
 	keys := make([]byte, wire.SessionKeyBytes)
 	for i := range keys {
 		keys[i] = byte(i%127 + 1)

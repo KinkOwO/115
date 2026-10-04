@@ -66,7 +66,7 @@ frame 224, airship effect 11, spray 9, weapon skin 2.
   unlock, and pushes the absolute committed bag back as **NOTI 14
   (InventoryUpdate)** for the spent slot — the exact mechanism the live-verified
   fatigue path uses on this same CMD507 frame. No speculative CMD507 ack.
-- `internal/storage/skin_cargo.go`: `account_skin_cargo` table
+- `internal/database/skin_cargo.go`: `account_skin_cargo` table
   (`PRIMARY KEY(account_id, source_template)`), `MigrateSkinCargo`,
   idempotent `UnlockSkin` (`ON CONFLICT DO NOTHING`), `ListSkins`. Account-shared
   like `account_material_storage`; save-compatible (new table, no change to
@@ -202,7 +202,7 @@ session log showed why: the client's request arrived and was never routed.
 - `internal/game/protocol/skin_cargo.go`: `SkinSelectionDamageFont(id)` encodes
   NOTI1546 `u8 6, u32 id`; `DecodeSelectSkin` parses the 88-byte CMD1565 body and
   refuses any length other than 88 or any nonzero byte past the first id slot.
-- `internal/storage/skin_selection.go`: `character_skin_selection
+- `internal/database/skin_selection.go`: `character_skin_selection
   (character_id, page, skin_key, updated_at)` with an upsert read back by
   `SelectedSkin`. Additive table only. The selection is per character because
   NOTI1546 is replayed per character, while the cargo that authorises it is per
@@ -382,7 +382,7 @@ limit rather than worked around.
 - Entry and dungeon restore replay **both** tabs (`entry_flow.go` fields
   `SkinSelectionDamageFontNormal` / `Cumulative`, `damageFontRestore()` looping
   `damageFontSelectionCategories`), each after the owned page frame.
-- `internal/storage/skin_selection.go`: no schema change — the `page` column already held
+- `internal/database/skin_selection.go`: no schema change — the `page` column already held
   this field, so existing rows stay valid; it now accepts `skin_key = 0` as an unequip and
   the comments state that it stores a category.
 - Tests: `TestSkinSelectionDamageFontMatchesReader` (three byte layouts plus the refusal),
@@ -581,7 +581,7 @@ different subsystem: an inert frame, not a wrong value.
   `SkinSelectionSkillCutscene(ids)`、`SelectSkinEchoList`→改为 `SelectSkinEchoRaw(body)`、
   `IsSkinSelectionFamilyBuiltin`。`DecodeSelectSkin` 现在返回整张去零的 id 列表，但**只对
   2/6 两类保留"槽 0 以外必须全零"那道严格门**，所以已实机验证过的字节没有放宽。
-- `internal/storage/skin_selection_list.go`（新）：`character_skin_selection_list` 纯增量建表 +
+- `internal/database/skin_selection_list.go`（新）：`character_skin_selection_list` 纯增量建表 +
   整类替换写/读。**旧表 `character_skin_selection` 与它的代码一行没动** —— 两族要的是集合，
   伤害字体要的是单值，合成一张表反而要让旧路径处理新形状。
 - `cmd/wireprobe/skin_family_flow.go`（新）：表驱动的 家庭→页→类别 映射、绝对页帧
@@ -846,7 +846,7 @@ with dumps `df37_*.c` (no C2S attempt spent, the IDB opened was the working copy
 `runtime/update-backup/20260928-012650/server/work/dfo-lan/` 整体取回（`protocol/skin_cargo.go` 及其用例、
 `catalog/skin_storage.go`、目录 JSON v3、`skin_selection_flow.go`、`skin_storage_flow.go` 及其用例、本文档），
 `entry_flow.go` 与 `main.go` 只重贴本任务 hunk 以保留他人新增的手柄设置与 boss 检查门，
-`internal/storage/store.go` 与 `cmd/wireprobe/dungeon_flow.go` 经查不含本任务丢失行、保留他人版本。两处
+`internal/database/store.go` 与 `cmd/wireprobe/dungeon_flow.go` 经查不含本任务丢失行、保留他人版本。两处
 为通过 gofmt 门禁做过纯空白归一（他人手工插入行的缩进层级错），无任何语义改动。
 
 候选 `bin/wireprobe-handoff-source.exe` 重建后 SHA-256 为

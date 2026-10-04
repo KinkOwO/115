@@ -3,8 +3,8 @@ package main
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
+	"dfolan/internal/database"
 	"dfolan/internal/quest"
-	"dfolan/internal/storage"
 	"dfolan/internal/testfixture"
 	"dfolan/internal/world"
 	"encoding/binary"
@@ -42,7 +42,7 @@ func TestQuestNPCCheckExemptsOnlyExplicitDialogueQuests(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	world40 := storage.WorldPosition{Town: 40, Area: 2}
+	world40 := database.WorldPosition{Town: 40, Area: 2}
 	svc := &world.Service{Catalog: wcat}
 
 	// 判据前置事实：原始目标在城镇 40/区域 2 内，替代目标不在。
@@ -63,8 +63,8 @@ func TestQuestNPCCheckExemptsOnlyExplicitDialogueQuests(t *testing.T) {
 	if svc.HasNPC(world40, uint32(alt[1].Value)) {
 		t.Fatal("the alternative NPC now stands in town40/area2: the exemption is no longer load-bearing")
 	}
-	if !svc.HasNPC(storage.WorldPosition{Town: 139, Area: 0}, uint32(alt[1].Value)) &&
-		!svc.HasNPC(storage.WorldPosition{Town: 139, Area: 1}, uint32(alt[1].Value)) {
+	if !svc.HasNPC(database.WorldPosition{Town: 139, Area: 0}, uint32(alt[1].Value)) &&
+		!svc.HasNPC(database.WorldPosition{Town: 139, Area: 1}, uint32(alt[1].Value)) {
 		t.Fatal("the alternative NPC is not in town139 either")
 	}
 
@@ -84,8 +84,8 @@ func TestQuestNPCCheckExemptsOnlyExplicitDialogueQuests(t *testing.T) {
 		w := &worldSession{
 			service: svc,
 			quests:  &quest.Service{Catalog: qcat},
-			role:    storage.Character{ID: 1, WireID: 3},
-			state:   storage.WorldState{Position: world40},
+			role:    database.Character{ID: 1, WireID: 3},
+			state:   database.WorldState{Position: world40},
 		}
 		payload := make([]byte, 16)
 		binary.LittleEndian.PutUint16(payload, 33)
@@ -114,7 +114,7 @@ func TestPreyQuestVisibleNPCUsesObservedBlackMarketInteraction(t *testing.T) {
 		t.Fatal(err)
 	}
 	d := qcat.Quests[6200]
-	at := storage.WorldPosition{Town: 54, Area: 1}
+	at := database.WorldPosition{Town: 54, Area: 1}
 	if (&world.Service{Catalog: wcat}).HasNPC(at, 8000) {
 		t.Fatal("NPC 8000 unexpectedly exists in the static Black Market map")
 	}
@@ -124,10 +124,10 @@ func TestPreyQuestVisibleNPCUsesObservedBlackMarketInteraction(t *testing.T) {
 	for _, tc := range []struct {
 		id  uint16
 		npc uint32
-		at  storage.WorldPosition
+		at  database.WorldPosition
 	}{
-		{6200, 8000, storage.WorldPosition{Town: 54, Area: 0}},
-		{6200, 8000, storage.WorldPosition{Town: 35, Area: 2}},
+		{6200, 8000, database.WorldPosition{Town: 54, Area: 0}},
+		{6200, 8000, database.WorldPosition{Town: 35, Area: 2}},
 		{6200, 607, at},
 		{6201, 8000, at},
 	} {
@@ -142,7 +142,7 @@ func TestQuestVisibleNPCRelaxSwitch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	farAway := storage.WorldPosition{Town: 1, Area: 0}
+	farAway := database.WorldPosition{Town: 1, Area: 0}
 	t.Setenv("DFO_QUEST_VISIBLE_NPC_RELAX", "0")
 	for _, id := range []uint16{6200, 12411, 12952} {
 		d := qcat.Quests[uint32(id)]
@@ -187,11 +187,11 @@ func TestZasuraRevealedByPrecedingQuest(t *testing.T) {
 		t.Fatal("quest 6357 itself has no accept/show visibility rule")
 	}
 	t.Setenv("DFO_QUEST_VISIBLE_NPC_RELAX", "0")
-	market := storage.WorldPosition{Town: 54, Area: 1}
+	market := database.WorldPosition{Town: 54, Area: 1}
 	if !allowsQuestVisibleNPCInteraction(6357, npc, market, d, qcat) {
 		t.Fatal("observed Black Market CMD33 remains blocked")
 	}
-	farAway := storage.WorldPosition{Town: 1, Area: 0}
+	farAway := database.WorldPosition{Town: 1, Area: 0}
 	if allowsQuestVisibleNPCInteraction(6357, npc, farAway, d, qcat) {
 		t.Fatal("quest 6357 was allowed outside the observed area with switch off")
 	}
@@ -216,7 +216,7 @@ func TestWoonRevealedByGroupedVisibilityInGhentAfterwar(t *testing.T) {
 		t.Fatal(err)
 	}
 	const npc = 100000304
-	ghent := storage.WorldPosition{Town: 6, Area: 3}
+	ghent := database.WorldPosition{Town: 6, Area: 3}
 	d := qcat.Quests[13588]
 	if (&world.Service{Catalog: wcat}).HasNPC(ghent, npc) {
 		t.Fatal("Woon unexpectedly exists in the base Ghent dock map")
@@ -243,7 +243,7 @@ func TestWoonRevealedByGroupedVisibilityInGhentAfterwar(t *testing.T) {
 	if !allowsQuestPhaseNPCInteraction(svc, npc, ghent, qcat.Quests[13590], qcat) {
 		t.Fatal("the later Woon meeting should reuse the source phase placement and visibility chain")
 	}
-	for _, at := range []storage.WorldPosition{{Town: 6, Area: 2}, {Town: 40, Area: 2}} {
+	for _, at := range []database.WorldPosition{{Town: 6, Area: 2}, {Town: 40, Area: 2}} {
 		if allowsQuestPhaseNPCInteraction(svc, npc, at, d, qcat) {
 			t.Fatalf("Woon interaction allowed outside Ghent dock at %+v", at)
 		}
@@ -265,7 +265,7 @@ func TestErjeMeetingBeforeItsOwnClearHide(t *testing.T) {
 		t.Fatal(err)
 	}
 	const npc = 100000305
-	palace := storage.WorldPosition{Town: 6, Area: 2}
+	palace := database.WorldPosition{Town: 6, Area: 2}
 	d := qcat.Quests[13595]
 	svc := &world.Service{Catalog: wcat}
 	if svc.HasNPC(palace, npc) || !svc.HasPhaseNPC(palace, npc) {
@@ -281,7 +281,7 @@ func TestErjeMeetingBeforeItsOwnClearHide(t *testing.T) {
 		!allowsQuestPhaseNPCInteraction(svc, npc, palace, d, qcat) {
 		t.Fatal("the future clear/hide must not block the current Erje meeting")
 	}
-	if allowsQuestPhaseNPCInteraction(svc, npc, storage.WorldPosition{Town: 6, Area: 3}, d, qcat) ||
+	if allowsQuestPhaseNPCInteraction(svc, npc, database.WorldPosition{Town: 6, Area: 3}, d, qcat) ||
 		allowsQuestPhaseNPCInteraction(svc, 100000304, palace, d, qcat) {
 		t.Fatal("Erje meeting allowed in a wrong area or with a wrong NPC")
 	}
@@ -294,13 +294,13 @@ func TestQuestLineageGuidesRevealedNPC(t *testing.T) {
 	}
 	d := qcat.Quests[13565]
 	const npc = 100001497
-	street := storage.WorldPosition{Town: 14, Area: 1}
+	street := database.WorldPosition{Town: 14, Area: 1}
 	t.Setenv("DFO_QUEST_VISIBLE_NPC_RELAX", "0")
 	if !questLineageShowsGuidedNPC(d, npc, street, qcat, true) ||
 		!allowsQuestVisibleNPCInteraction(13565, npc, street, d, qcat) {
 		t.Fatal("the 13562 clear/show and 13563 go guide should authorize 13565 in Slaugh 14/1")
 	}
-	for _, at := range []storage.WorldPosition{{Town: 14, Area: 0}, {Town: 54, Area: 1}} {
+	for _, at := range []database.WorldPosition{{Town: 14, Area: 0}, {Town: 54, Area: 1}} {
 		if allowsQuestVisibleNPCInteraction(13565, npc, at, d, qcat) {
 			t.Fatalf("quest 13565 was allowed outside its source guide at %+v", at)
 		}
@@ -315,7 +315,7 @@ func TestQuestLineageGuidesRevealedNPC(t *testing.T) {
 		t.Fatal("quest 13574 should hide Erje on clear")
 	}
 	t.Setenv("DFO_QUEST_VISIBLE_NPC_RELAX", "1")
-	if !allowsQuestVisibleNPCInteraction(13565, npc, storage.WorldPosition{Town: 1, Area: 0}, d, qcat) {
+	if !allowsQuestVisibleNPCInteraction(13565, npc, database.WorldPosition{Town: 1, Area: 0}, d, qcat) {
 		t.Fatal("opt-in source visibility path should cover deeper prerequisite chains")
 	}
 }
@@ -327,11 +327,11 @@ func TestQuestReachTemporaryNPCFromNativeTrigger(t *testing.T) {
 	}
 	d := qcat.Quests[13574]
 	const npc = 100001497
-	street := storage.WorldPosition{Town: 14, Area: 1}
+	street := database.WorldPosition{Town: 14, Area: 1}
 	if !questLineageShowsReachNPC(d, npc, street, qcat) {
 		t.Fatal("the source should authorize the 13574 NPC reach trigger in Slaugh 14/1")
 	}
-	if questLineageShowsReachNPC(d, npc, storage.WorldPosition{Town: 14, Area: 0}, qcat) ||
+	if questLineageShowsReachNPC(d, npc, database.WorldPosition{Town: 14, Area: 0}, qcat) ||
 		questLineageShowsReachNPC(d, 100001494, street, qcat) {
 		t.Fatal("range trigger accepted an unlinked area or NPC")
 	}
@@ -355,7 +355,7 @@ func TestPathToMtHardtNativeReachUsesStationNPC(t *testing.T) {
 		t.Fatalf("source reach objective changed: %+v, %v", r, ok)
 	}
 	svc := &world.Service{Catalog: wcat}
-	at := storage.WorldPosition{Town: 40, Area: 4, X: 846, Y: 242}
+	at := database.WorldPosition{Town: 40, Area: 4, X: 846, Y: 242}
 	if position, found := svc.NPCPosition(at, r.NPC); !found || position != [2]uint16{879, 238} {
 		t.Fatalf("station NPC placement changed: %v, %v", position, found)
 	}
@@ -365,7 +365,7 @@ func TestPathToMtHardtNativeReachUsesStationNPC(t *testing.T) {
 	if !questReachNPCAtSourcePlacement(svc, at, r) {
 		t.Fatal("the observed native CMD33 position must reach the station NPC")
 	}
-	for _, position := range []storage.WorldPosition{
+	for _, position := range []database.WorldPosition{
 		{Town: 40, Area: 3, X: 846, Y: 242},
 		{Town: 40, Area: 4, X: 800, Y: 242},
 		{Town: 40, Area: 4, X: 879, Y: 300},
@@ -375,8 +375,8 @@ func TestPathToMtHardtNativeReachUsesStationNPC(t *testing.T) {
 		}
 	}
 	t.Setenv("DFO_QUEST_NPC_DISTANCE_MULTIPLIER", "2")
-	if !questReachNPCAtSourcePlacement(svc, storage.WorldPosition{Town: 40, Area: 4, X: 800, Y: 242}, r) ||
-		questReachNPCAtSourcePlacement(svc, storage.WorldPosition{Town: 40, Area: 3, X: 800, Y: 242}, r) {
+	if !questReachNPCAtSourcePlacement(svc, database.WorldPosition{Town: 40, Area: 4, X: 800, Y: 242}, r) ||
+		questReachNPCAtSourcePlacement(svc, database.WorldPosition{Town: 40, Area: 3, X: 800, Y: 242}, r) {
 		t.Fatal("expanded native reach ignored source area or distance")
 	}
 }
@@ -386,8 +386,8 @@ func TestQuestInteractionRejectsNonNativeCMDForm(t *testing.T) {
 	w := &worldSession{
 		service: &world.Service{Catalog: catalog.WorldCatalog{}},
 		quests:  &quest.Service{Catalog: catalog.QuestCatalog{}},
-		role:    storage.Character{ID: 1, WireID: 3},
-		state:   storage.WorldState{Position: storage.WorldPosition{Town: 40, Area: 2}},
+		role:    database.Character{ID: 1, WireID: 3},
+		state:   database.WorldState{Position: database.WorldPosition{Town: 40, Area: 2}},
 	}
 	if _, e := w.questInteraction(make([]byte, 12)); e == nil {
 		t.Fatal("short quest check request accepted")

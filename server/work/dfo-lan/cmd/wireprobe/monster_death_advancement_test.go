@@ -5,15 +5,14 @@ import (
 	"context"
 	"dfolan/internal/catalog"
 	"dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/game/wire"
-	"dfolan/internal/storage"
 	"dfolan/internal/testfixture"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"os"
 	"reflect"
 	"testing"
@@ -24,37 +23,21 @@ import (
 // not just ConfirmDeath with progression disabled. All writes use a disposable
 // schema; no existing character is read or changed.
 func TestMonsterDeathAfterAdvancementIntegration(t *testing.T) {
-	if os.Getenv("MONSTER_DEATH_INTEGRATION") != "1" {
-		t.Skip("set MONSTER_DEATH_INTEGRATION=1 for isolated PostgreSQL integration")
+	if os.Getenv("DFO_TEST_POSTGRES_DSN") == "" {
+		t.Skip("DFO_TEST_POSTGRES_DSN requires a dedicated PostgreSQL test database")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
-	cfg, err := storage.LoadConfig("../../runtime/storage/local.json")
+	fixture, err := database.OpenTestFixture(ctx)
 	if err != nil {
-		t.Fatal(err)
-	}
-	admin, err := storage.Open(ctx, cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer admin.Close()
-	schema := fmt.Sprintf("monster_death_test_%d", time.Now().UnixNano())
-	if _, err = admin.DB.Exec(ctx, "CREATE SCHEMA "+schema); err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
-		cleanup, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		if _, err := admin.DB.Exec(cleanup, "DROP SCHEMA "+schema+" CASCADE"); err != nil {
+		if err := fixture.Close(); err != nil {
 			t.Error(err)
 		}
 	}()
-	cfg.PostgresSchema = schema
-	store, err := storage.Open(ctx, cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer store.Close()
+	store := fixture.Storage()
 	for _, migrate := range []func(context.Context) error{store.Migrate, store.MigrateCharacterEvents, store.MigratePremiums} {
 		if err = migrate(ctx); err != nil {
 			t.Fatal(err)
@@ -83,7 +66,7 @@ func TestMonsterDeathAfterAdvancementIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	role := storage.Character{AccountID: account, Name: "DeathAfterAdvance", WireID: 10, Profession: 12, State: raw, Request: []byte{0}, ConfigVersion: professions.Source.SaveIdentity()}
+	role := database.Character{AccountID: account, Name: "DeathAfterAdvance", WireID: 10, Profession: 12, State: raw, Request: []byte{0}, ConfigVersion: professions.Source.SaveIdentity()}
 	role, _, err = ps.ApplyGain(role, pc.Thresholds[13])
 	if err != nil {
 		t.Fatal(err)
@@ -217,8 +200,8 @@ func TestMonsterDeathAfterAdvancementIntegration(t *testing.T) {
 	if !moved {
 		t.Fatal("fixture has no adjacent room")
 	}
-	var receipts int
-	if err = store.DB.QueryRow(ctx, "SELECT count(*) FROM character_events WHERE character_id=$1 AND event_key LIKE 'monster:%'", role.ID).Scan(&receipts); err != nil || receipts != 4 {
+	receipts, err := fixture.MonsterEventCount(ctx, role.ID)
+	if err != nil || receipts != 4 {
 		t.Fatal("death receipt count", receipts, err)
 	}
 	roles, err := store.Characters(ctx, account)

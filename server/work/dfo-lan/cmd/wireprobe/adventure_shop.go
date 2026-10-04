@@ -5,9 +5,9 @@ import (
 	"crypto/sha256"
 	"dfolan/internal/adventure"
 	"dfolan/internal/catalog"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -80,7 +80,7 @@ func (w *worldSession) buyAdventureItem(ctx context.Context, p, raw []byte, pref
 	itemCatalog := catalog.LootCatalog{Source: w.loot.Catalog.Source, Items: map[uint32]catalog.LootItem{
 		template: {ID: template, Kind: "stackable", StackableType: definition.Type, StackLimit: definition.Limit}}}
 	key := fmt.Sprintf("adventure-shop:%s:%x", prefix, sha256.Sum256(raw))
-	saved, _, _, err := w.store.CommitAdventure(ctx, w.account, w.role.ID, key, func(role storage.Character, profile *storage.AccountAdventure) (json.RawMessage, json.RawMessage, error) {
+	saved, _, _, err := w.store.CommitAdventure(ctx, w.account, w.role.ID, key, func(role database.Character, profile *database.AccountAdventure) (json.RawMessage, json.RawMessage, error) {
 		if profile.Level < product.Level {
 			return nil, nil, errAdventureLevel
 		}
