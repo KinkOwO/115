@@ -47,3 +47,14 @@ func (s *Store) DiagnosticQuery(ctx context.Context, query string, consume func(
 	}
 	return rows.Err()
 }
+
+// DiagnosticExec 是**给测试与维护脚本**用的显式写入口（`db` 字段不再导出后，
+// 包外无法再直接 `store.DB.Exec`）。命名 SQL 仍是生产路径；这里只允许调用方
+// 自己保证语句安全，供"建/删临时 schema、造一条畸形存档"这类测试准备使用。
+func (s *Store) DiagnosticExec(ctx context.Context, statement string) error {
+	if statement == "" {
+		return errors.New("diagnostic statement required")
+	}
+	_, err := s.db.Exec(ctx, statement)
+	return err
+}

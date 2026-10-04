@@ -32,7 +32,7 @@ class DefaultPVFLaunchTests(unittest.TestCase):
         self.assertEqual(binary, launch.PROJECT / 'bin/wireprobe-pvf.exe')
         self.assertEqual(env, profile)
         self.assertEqual(required, configured)
-        self.assertEqual(len(env['DFO_PVF_CATALOGS'].split(',')), 54)
+        self.assertEqual(len(env['DFO_PVF_CATALOGS'].split(',')), 55)
         self.assertTrue(all(p.suffix != '.json' or 'policy' in p.name for p in required))
         with mock.patch.dict(os.environ, {'DFO_ODYSSEY_MODE': '0'}, clear=True):
             self.assertEqual(launch.launch_environment(arguments(), env)['DFO_ODYSSEY_MODE'], '0')
@@ -72,7 +72,7 @@ class DefaultPVFLaunchTests(unittest.TestCase):
         self.assertEqual(binary, launch.PROJECT / 'bin/wireprobe-handoff-source.exe')
         self.assertIn(binary, required)
         self.assertNotIn(launch.PROJECT / 'bin/wireprobe-pvf.exe', required)
-        self.assertEqual(len(env['DFO_PVF_CATALOGS'].split(',')), 54)
+        self.assertEqual(len(env['DFO_PVF_CATALOGS'].split(',')), 55)
 
     def test_source_build_json_mode_does_not_inherit_pvf_profile(self):
         binary, required, profile_env = launch.gateway_configuration(

@@ -244,6 +244,9 @@ func (w *worldSession) equipmentCraft(p []byte, event func(map[string]any)) ([]o
 					plan = append(plan, outboundPacket{"equipment_transform_inventory_refreshed", 0, 13, body})
 				}
 			}
+			// 金币不够时从**账号金库**调取过 ⇒ 必须补发金库金币显示包，否则金库界面停在旧值、
+			// 客户端本地校验会把存取卡住（"塞满了取不出放不进"）。
+			plan = append(plan, w.vaultGoldRefreshPackets(ctx, receipt.VaultGold)...)
 		}
 		log.Printf("equipment craft TRANSFORM: requested=%d pairs=%d gold=%d option=%d skipped=%d applied=%t",
 			len(templates), len(receipt.Pairs), receipt.Gold, receipt.Option, len(receipt.Skipped), applied)

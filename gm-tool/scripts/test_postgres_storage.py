@@ -42,7 +42,7 @@ class PostgresStorageTests(unittest.TestCase):
             self.assertEqual((data / 'PG_VERSION').read_text(), '16')
             popen.assert_not_called()
 
-    def test_check_accepts_pg_only_without_starting_anything(self):
+    def test_check_runs_native_catalog_check_without_accessing_storage(self):
         with tempfile.TemporaryDirectory() as directory:
             storage_file = pathlib.Path(directory) / 'local.json'
             storage_file.write_text(json.dumps({'postgres_dsn': 'postgres://user:pass@127.0.0.1:25438/dfo_lan'}))
@@ -50,15 +50,17 @@ class PostgresStorageTests(unittest.TestCase):
                  mock.patch.object(pathlib.Path, 'is_file', return_value=True), \
                  mock.patch.object(gmweb, 'listening', return_value=True) as listening, \
                  mock.patch.object(gmweb, 'start_storage') as storage, \
-                 mock.patch.object(gmweb.subprocess, 'run') as run, \
+                 mock.patch.object(gmweb.subprocess, 'run', return_value=types.SimpleNamespace(returncode=0, stdout='catalog ready\n', stderr='')) as run, \
                  mock.patch.object(gmweb.webbrowser, 'open') as browser, \
                  contextlib.redirect_stdout(io.StringIO()) as output:
                 gmweb.main()
-            listening.assert_called_once_with('127.0.0.1', 25438)
+            listening.assert_not_called()
             storage.assert_not_called()
-            run.assert_not_called()
+            run.assert_called_once()
+            self.assertIn('-check-catalogs', run.call_args.args[0])
+            self.assertIn('-storage', run.call_args.args[0])
             browser.assert_not_called()
-            self.assertIn('PostgreSQL: True', output.getvalue())
+            self.assertIn('catalog ready', output.getvalue())
 
 
 if __name__ == '__main__':

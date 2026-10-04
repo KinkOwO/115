@@ -78,6 +78,10 @@ type Catalogs struct {
 	Skins                                        map[uint32]catalog.SkinStorageEntry
 	Journal                                      *catalog.EquipmentJournalRules
 	CreateCost                                   *catalog.EquipmentCreateCost
+	Transform                                    *catalog.EquipmentTransformSystem
+	// Points 是逐件「套装积分 / 誓约积分」表（setpointinfo.cos / oathpointinfo.cos），
+	// 与 transform 同域装载；服务端算角色总分、推 NOTI2634 时用。
+	Points *catalog.PointRules
 	Learning                                     *character.LearningCatalog
 	Prices                                       *catalog.ShopPrices
 	Materials                                    *catalog.ItemMaterials
@@ -129,7 +133,7 @@ type CatalogAdapters struct {
 
 func (i CatalogInputs) checksBaselines() bool { return i.VerifyBaselines }
 
-const SupportedDomains = "world,quests,progression,items,equipment,periods,skins,journal,create-cost,skills,prices,materials,boosters,tutorial,enhancements,random-options,shields,oath-grades,vault,loot,equipment-selection,town,dungeons,training-dungeons,tutorial-dungeons,dungeon-towers,dungeon-hell,dungeon-maze,apocalypse,attunement,odyssey-growth,odyssey-chapters,odyssey-weapons,odyssey-drop,odyssey-currency,clear-cube,black-purgatory,bleeding-mine,dungeon-terminal,dungeon-tournament,selection-boxes,lottery,adventure,adventure-recommended,season,odyssey-routes,roster-backgrounds,fame,script-warps,layer-revisits,characters,cashshop,boxes,item-shops"
+const SupportedDomains = "world,quests,progression,items,equipment,periods,skins,journal,create-cost,transform,skills,prices,materials,boosters,tutorial,enhancements,random-options,shields,oath-grades,vault,loot,equipment-selection,town,dungeons,training-dungeons,tutorial-dungeons,dungeon-towers,dungeon-hell,dungeon-maze,apocalypse,attunement,odyssey-growth,odyssey-chapters,odyssey-weapons,odyssey-drop,odyssey-currency,clear-cube,black-purgatory,bleeding-mine,dungeon-terminal,dungeon-tournament,selection-boxes,lottery,adventure,adventure-recommended,season,odyssey-routes,roster-backgrounds,fame,script-warps,layer-revisits,characters,cashshop,boxes,item-shops"
 
 func (c *Catalogs) Selected(domain string) bool { return c != nil && c.selected[domain] }
 func (c *Catalogs) Prepared(domain string) bool { return c != nil && c.prepared[domain] }
@@ -223,6 +227,8 @@ func (c *Catalogs) validateSelectedProjections() error {
 			ready = c.Journal != nil
 		case "create-cost":
 			ready = c.CreateCost != nil
+		case "transform":
+			ready = c.Transform != nil
 		case "skills":
 			ready = c.Learning != nil
 		case "prices":

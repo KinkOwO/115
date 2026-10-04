@@ -9,7 +9,12 @@ func dungeonRequest(id uint16) bool {
 	switch id {
 	// 2329 = ENUM_CMDPACKET_MONSTER_HISTORY_LOG：定盘机关每秒上报一次自己的
 	// 血量与模板号，scale_death.go 用它判断「玩家已经把它打到血底」。
-	case 1722, 16, 37, 38, 39, 40, 42, 43, 45, 46, 69, 70, 71, 72, 117, 132, 449, 450, 1461, 1852, 2015, 2062, 2319, 2320, 2321, 2322, 2323, 2325, 2327, 2329:
+	// 1654 = RES_DUNGEON_CLEAR_INFO：蔚蓝号回「清关信息」应答（配 s2c 1658）。
+	// [AZURE-1654-ROUTE] 本函数的名单才是 dispatchDungeon 大 switch 的守卫；
+	// 只登 observedGameRequest 的话 `case 1654` 永远不执行（实机 2026-10-04 前一轮的教训）。
+	// ⚠️ 第一次登它时同时塞了 NOTI70/71/72，客户端闪退、无法归因 ⇒ 已整体回退。
+	// 本次**只**放行这一条路由，azureClearInfo 只回阶段 4/5（不带那三帧），单独验稳定性。
+	case 1654, 1722, 16, 37, 38, 39, 40, 42, 43, 45, 46, 69, 70, 71, 72, 117, 132, 449, 450, 1461, 1852, 2015, 2062, 2319, 2320, 2321, 2322, 2323, 2325, 2327, 2329:
 		return true
 	}
 	return false
@@ -36,12 +41,24 @@ func observedGameRequest(id uint16) bool {
 		return true
 	case 1722, 1725, 1811, 1852, 1881, 1950, 1951, 1960, 2015, 2047, 2062, 2079, 2139, 2177, 2179, 2258, 2259, 2261:
 		return true
+	case 1654, 2274:
+		// 蔚蓝号（Azure Main，channel 102 / town 213 / dungeon 100004131）实机取证命令。
+		// 证据：2026-10-03 官服抓包 E:/迅雷下载/20261003-214424/decoded/F16-c2s.txt。
+		//   2274 = AZURE_MAIN_KRAKEN_DATA：蔚蓝号阶段/海怪数据上报（实机 2 次，
+		//          尾段两个 u32 变体 01000000 01000000 与 01000000 03000000）。
+		//   1654 = RES_DUNGEON_CLEAR_INFO：客户端回「清关信息」应答，配 s2c 1658
+		//          REQ_DUNGEON_CLEAR_INFO（16B：05000000 5e030000 3d010000 28240100）。
+		// 必须登记：否则第 BodySampleLimit(8) 次之后 verified 不再计算，请求进不了处理器。
+		return true
 	case 2288, 2289:
 		// 2289 = 秘宝制作（SOLE_EQUIPMENT_CREATE）：已实现（同一个 sole_flow.go 的 raiseSoleCreate）。
 		// 2288 = 秘宝精度提升（SOLE_EQUIPMENT_QUALITY）：已实现（见 cmd/wireprobe/sole_flow.go）。
 		// 必须登记：否则第 BodySampleLimit(8) 次之后 verified 不再被计算，请求永远进不了处理器。
 		return true
-	case 2264, 2265, 2276, 2277, 2278, 2284, 2329, 2331, 2346, 2377, 2405, 2419:
+	case 2264, 2265, 2276, 2277, 2278, 2284, 2329, 2331, 2346, 2377, 2381, 2405, 2419:
+		// 2381 = ENUM_CMDPACKET_PRIMER_TRANSFORM（装备库誓约/晶体变换）：已实现
+		// （cmd/wireprobe/primer_transform_flow.go）。必须登记，否则第 BodySampleLimit(8)
+		// 次之后 verified 不再被计算、请求永远进不了处理器（2258 的既有教训）。
 		return true
 	}
 	return false

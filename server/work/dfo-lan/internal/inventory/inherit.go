@@ -46,6 +46,25 @@ import (
 // 前三个与增幅系统同一套常量，见 amplify.go 顶部的取证注释。
 const inheritModel = "inherit-v1"
 
+// isSoleEquipmentTemplate 报告模板是否属于秘宝系统装备（继承材料保护判定）：
+//  1. 秘宝耳环/秘宝装备 ID 段 100391000..100391999（黄金乡的秘密耳环、天气立方体等，
+//     实测 105 件全为 equipment）；
+//  2. 秘宝登记表 `[infos]` 的来源（`soleequipmentsystem.cos`，一槽一件）：
+//     辅助 100346156、魔法石 100354181、耳环 100391142 —— 实机 2026-10-04 核对，
+//     恰为玩家可穿的三个秘宝槽位 22/23/25 的登记装备。
+//
+// 判据与秘宝精度用的是**同一份**直读规则表（`soleEquipmentRules`，见 sole.go），不另立口径。
+func isSoleEquipmentTemplate(template uint32) bool {
+	if template >= 100391000 && template <= 100391999 {
+		return true
+	}
+	if soleEquipmentRules == nil {
+		return false
+	}
+	_, ok := soleEquipmentRules.Info(template)
+	return ok
+}
+
 // InheritReceipt 是一次继承（一条记录）的落库结果。
 type InheritReceipt struct {
 	BaseSlot         uint16 `json:"base_slot"`
@@ -144,6 +163,13 @@ func (s *WearService) applyInheritEntry(bag *Bag, e protocol.InheritEntry) (Inhe
 	if lm == 0 {
 		// 上面 lb < lm 的前提下 lm == 0 意味着两件都是 0，已被上一条拦住。
 		return out, fmt.Errorf("材料件没有可继承的等级（offset 10 低五位为 0）")
+	}
+	// ★ 秘宝装备不作为继承材料（2026-10-04 业主规则）：方向判定后的材料件若属于秘宝系统装备
+	// ⇒ 拒绝。背景：继承会把材料件清成白板，玩家随后分解白板后秘宝本体消失，而图鉴替换只覆盖
+	// 36..47 槽、无法再生成 22/23/25 槽的秘宝装备（实机 2026-10-04：辉煌耳环 100391016
+	// 被继承清空后被分解，无法找回）。**拦在任何写入之前**：两件装备一字节都不动。
+	if isSoleEquipmentTemplate(matGear.Template) {
+		return out, fmt.Errorf("模板 %d 是秘宝装备,不能作为继承材料被清除(保护规则);请改用其它装备作为材料", matGear.Template)
 	}
 
 	newLevel := matRow[amplifyReinforceOffset] & reinforceLevelMask

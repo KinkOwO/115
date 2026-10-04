@@ -300,6 +300,14 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 	default:
 		return nil, nil, fmt.Errorf("invalid -equipment-transform %q (want apply/observe)", startup.EquipmentTransform)
 	}
+	primerTransformWindow = byte(startup.PrimerTransformWindow)
+	primerTransformVariant = byte(startup.PrimerTransformVariant)
+	switch startup.PrimerTransform {
+	case "apply", "observe":
+		primerTransformApply = startup.PrimerTransform
+	default:
+		return nil, nil, fmt.Errorf("invalid -primer-transform %q (want apply/observe)", startup.PrimerTransform)
+	}
 	oathGradePair, oathGradesErr := parseOathGrades(startup.OathGrades)
 	if oathGradesErr != nil {
 		return nil, nil, fmt.Errorf("bad -oath-grades: %v", oathGradesErr)
@@ -459,6 +467,12 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 	var journalRules *catalog.EquipmentJournalRules
 	// equipmentCreateCost 是「装备生成」成本表（nil = 第二步只回窗口、不生成）。
 	var equipmentCreateCost *catalog.EquipmentCreateCost
+	// equipmentTransformSystem 是三条变换链（装备 2259 / 融合 / 晶体 2381）的费用与返还表。
+	// nil = 变换算不出成本 ⇒ 拒绝执行，不静默改成"免费"。
+	var equipmentTransformSystem *catalog.EquipmentTransformSystem
+	// pointRules 是逐件「套装/誓约积分」表（setpointinfo.cos / oathpointinfo.cos）。
+	// nil = 算不出积分 ⇒ 不推 NOTI2634（客户端保持原值），不发 0 冒充。
+	var pointRules *catalog.PointRules
 	var shopPilot *cashshop.Pilot
 	var unsealService *workflow.UnsealService
 	// skinCatalog maps an `[add skin storage]` stackable template to its PVF
@@ -913,6 +927,27 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 			log.Printf("loaded equipment create cost: groups=%d itemRows=%d templates=%d",
 				len(cc.Groups), items, len(cc.Templates()))
 		}
+		if pvfCatalogs.Transform != nil {
+			ts, e := pvfCatalogs.LoadEquipmentTransformSystem()
+			if e != nil {
+				return nil, nil, e
+			}
+			equipmentTransformSystem = ts
+			log.Printf("loaded equipment transform system: equipment=%d primer=%d rarities, refundRows %d/%d",
+				len(ts.EquipmentNeed), len(ts.PrimerNeed),
+				len(ts.EquipmentRefund), len(ts.PrimerRefund))
+		}
+		// 逐件积分表（setpointinfo.cos / oathpointinfo.cos）：服务端算角色 Set/Oath Point、
+		// 推 NOTI2634 用。装载失败必须显式报错 —— 静默降级会让"誓约积分恒 0"再复现一次。
+		if pvfCatalogs.Points != nil {
+			pr, e := pvfCatalogs.LoadPointRules()
+			if e != nil {
+				return nil, nil, e
+			}
+			pointRules = pr
+			log.Printf("loaded point rules: set=%d grades=%d oath=%d minOath=%d",
+				len(pr.Set.Rules), len(pr.Set.Grades), len(pr.Oath.Rules), pr.Oath.MinOathPoint)
+		}
 		// Creation supplies are grant/move content, never ordinary drop entries.
 		if progressionService != nil && progressionService.Odyssey != nil && progressionService.Odyssey.Creation != nil {
 			creation := progressionService.Odyssey.Creation
@@ -926,7 +961,7 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 			c.Items = items
 		}
 		lootService = &loot.Service{Catalog: c, DropCatalog: dropCatalog, Rules: r, BagRules: bag, Tables: tables, Equipment: gear}
-		itemService = &inventory.ItemService{Model: r.Model, Catalog: c, BagRules: bag, Equipment: gear, AvatarDisjoint: pvfCatalogs.AvatarDisjoint, EmblemCompound: pvfCatalogs.EmblemCompound, AvatarSockets: pvfCatalogs.AvatarSockets, EmblemInlay: pvfCatalogs.EmblemInlay, Journal: journalRules, CreateCost: equipmentCreateCost}
+		itemService = &inventory.ItemService{Model: r.Model, Catalog: c, BagRules: bag, Equipment: gear, AvatarDisjoint: pvfCatalogs.AvatarDisjoint, EmblemCompound: pvfCatalogs.EmblemCompound, AvatarSockets: pvfCatalogs.AvatarSockets, EmblemInlay: pvfCatalogs.EmblemInlay, Journal: journalRules, CreateCost: equipmentCreateCost, Transform: equipmentTransformSystem, Points: pointRules}
 		if progressionService != nil {
 			progressionService.CompletionAwarder = &inventory.Awarder{Catalog: c, Rules: bag, Equipment: gear}
 		}

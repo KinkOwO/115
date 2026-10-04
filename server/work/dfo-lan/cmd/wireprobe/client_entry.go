@@ -419,6 +419,15 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 				client.event(map[string]any{"kind": "oath_selection_restore_error", "character_id": role.ID, "reason": oathErr.Error()})
 				return dispatchHandled
 			}
+			// NOTI2634：服务端算出的「每角色一对 Set/Oath Point」。客户端不为誓约/晶体
+			// 算总分，它只把服务端给的值写进角色实体 ⇒ 不发就恒 0。
+			// packets() 会把这一帧排在**所有帧之后**（要在 actor 重建完实体之后写）。
+			// ⚠️ 装备库→誓约 页签的「已添加的 誓约积分」/`?/750次` **不由这一对值驱动**：
+			// 实机两种字段顺序下它都仍为 0，该页统计的是"登记进装备库的誓约装备"
+			// （客户端文案 101039328 `… registered in the Armory`）；见
+			// docs/protocol/oath-set-points-20261004.md §7.6。
+			plan.OathPartSetPoints = append(plan.OathPartSetPoints,
+				client.worldState.oathPointPackets()...)
 		}
 		// 装备技能栏/冷却提醒/自定义按键：两组快照（S2C2609）。恒发，
 		// 没设过的角色得到全零载荷（等于客户端默认）。
@@ -989,6 +998,37 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 				}
 				client.event(map[string]any{"kind": "npc_favor_point_info_sent", "character_id": characterID, "npc_count": len(records), "plain_bytes": len(payload)})
 			}(role.ID)
+		}
+		// 蔚蓝号（Azure Main，channelType 102）进城时补一次奖励计数快照。
+		// 原因见 azure_main_flow.go 的 azureRewardSnapshot：缺它客户端会在
+		// 「创建攻坚队」时报「奖励已领完」。只对 102 生效。
+		if client.worldState != nil && client.worldState.channelType == azureMainChannelType {
+			azureRewards, azureErr := client.worldState.azureRewardSnapshot()
+			if azureErr != nil {
+				client.event(map[string]any{"kind": "azure_main_rewards_error", "error": azureErr.Error()})
+			} else {
+				for _, azurePacket := range azureRewards {
+					if sendErr := client.output.send(azurePacket.Kind, azurePacket.ID, azurePacket.Payload); sendErr != nil {
+						client.event(map[string]any{"kind": "azure_main_rewards_send_error", "id": azurePacket.ID, "error": sendErr.Error()})
+						break
+					}
+					client.event(map[string]any{"kind": azurePacket.Name, "id": azurePacket.ID})
+				}
+			}
+			// 再补一发**延迟重发**：本仓已有两处先例说明这个客户端在进场早期会丢包
+			// （N733 好感度用 900ms；N2254 改成等场景就绪再发，否则撞进装载期）。
+			// 计数快照是纯计数器，重发无副作用。
+			go func() {
+				time.Sleep(900 * time.Millisecond)
+				if snap, snapErr := client.worldState.azureRewardSnapshot(); snapErr == nil {
+					for _, azurePacket := range snap {
+						if sendErr := client.output.send(azurePacket.Kind, azurePacket.ID, azurePacket.Payload); sendErr != nil {
+							return
+						}
+						client.event(map[string]any{"kind": azurePacket.Name + "_delayed", "id": azurePacket.ID})
+					}
+				}
+			}()
 		}
 		return dispatchHandled
 	}

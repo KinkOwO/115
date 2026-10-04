@@ -5,8 +5,8 @@
 //	DFO115GMTool.exe -root D:\115us
 //
 // 启动后只在 127.0.0.1 上监听一个随机端口，并自动打开浏览器界面。
-// 所有发放都走仓库既有的事务 + 幂等 + 审计路径（与 cmd/admin 完全一致），
-// 不直接改表、不凭空造物品。
+// 背包发放走既有事务、幂等与审计路径（与 cmd/admin 一致）。
+// Dashboard 邮件保留独立管理队列；主金库操作复用 storage 的事务。
 package main
 
 import (
@@ -14,8 +14,8 @@ import (
 	"crypto/rand"
 	"dfolan/internal/admin"
 	"dfolan/internal/catalog"
+	"dfolan/internal/database"
 	"dfolan/internal/managementdata"
-	"dfolan/internal/storage"
 	"encoding/hex"
 	"encoding/json"
 	"flag"
@@ -141,7 +141,7 @@ func resolveDataFile(explicit, name string, dirs []string, fallback string) stri
 }
 
 type server struct {
-	store    *storage.Store
+	store    *database.Store
 	admin    *admin.Service
 	index    *ItemIndex
 	paths    paths
@@ -250,7 +250,7 @@ func main() {
 		}
 	}
 
-	cfg, err := storage.LoadConfig(p.storage)
+	cfg, err := database.LoadConfig(p.storage)
 	if err != nil {
 		log.Fatalf("读取存储配置失败：%v", err)
 	}
@@ -267,7 +267,7 @@ func main() {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	store, err := storage.Open(ctx, cfg)
+	store, err := database.Open(ctx, cfg)
 	if err != nil {
 		log.Fatalf("连接 PostgreSQL 失败：%v\n\n"+
 			"处理办法（任选其一）：\n"+
@@ -275,6 +275,9 @@ func main() {
 			"  2. 检查 D:\\115us\\server\\work\\dfo-lan\\runtime\\storage 下的 postgres.log。\n", err)
 	}
 	defer store.Close()
+	if err := store.MigrateGMMail(ctx); err != nil {
+		log.Fatalf("初始化管理台邮件失败：%v", err)
+	}
 
 	svc := &admin.Service{Store: store, Operator: *operator}
 	svc.Awarder = prepared.awarder
@@ -299,6 +302,7 @@ func main() {
 	mux.HandleFunc("/api/filters", s.auth(s.handleFilters))
 	mux.HandleFunc("/api/grant", s.auth(s.handleGrant))
 	mux.HandleFunc("/api/history", s.auth(s.handleHistory))
+	s.registerDashboardRoutes(mux)
 
 	ln, err := net.Listen("tcp", *listen)
 	if err != nil {
@@ -371,20 +375,14 @@ type accountRow struct {
 func (s *server) handleOverview(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
-	rows, err := s.store.DB.Query(ctx, `SELECT id, username FROM accounts ORDER BY id`)
+	rows, err := s.store.Accounts(ctx)
 	if err != nil {
 		writeErr(w, 500, "读取账号失败：%v", err)
 		return
 	}
-	defer rows.Close()
-	accounts := []accountRow{}
-	for rows.Next() {
-		var a accountRow
-		if err := rows.Scan(&a.ID, &a.Username); err != nil {
-			writeErr(w, 500, "读取账号失败：%v", err)
-			return
-		}
-		accounts = append(accounts, a)
+	accounts := make([]accountRow, len(rows))
+	for i, row := range rows {
+		accounts[i] = accountRow{ID: row.ID, Username: row.Username}
 	}
 	writeJSON(w, map[string]any{
 		"accounts":      accounts,
@@ -424,19 +422,14 @@ func (s *server) classOf(profession int) string {
 }
 
 func (s *server) characters(ctx context.Context, account int64) ([]characterRow, error) {
-	rows, err := s.store.DB.Query(ctx, `SELECT id,wire_id,name,profession,state,created_at
- FROM characters WHERE account_id=$1 AND deleted_at IS NULL ORDER BY wire_id`, account)
+	rows, err := s.store.AdminCharacters(ctx, account)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 	out := []characterRow{}
-	for rows.Next() {
-		var c characterRow
-		var state json.RawMessage
-		if err := rows.Scan(&c.ID, &c.WireID, &c.Name, &c.Profession, &state, &c.CreatedAt); err != nil {
-			return nil, err
-		}
+	for _, role := range rows {
+		c := characterRow{ID: role.ID, WireID: int(role.WireID), Name: role.Name, Profession: int(role.Profession), CreatedAt: role.CreatedAt}
+		state := role.State
 		var fields struct {
 			Level      byte   `json:"level"`
 			Experience uint64 `json:"experience"`
@@ -452,7 +445,7 @@ func (s *server) characters(ctx context.Context, account int64) ([]characterRow,
 		c.State = state
 		out = append(out, c)
 	}
-	return out, rows.Err()
+	return out, nil
 }
 
 func (s *server) handleCharacters(w http.ResponseWriter, r *http.Request) {
@@ -489,15 +482,9 @@ func (s *server) handleCharacter(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
-	var (
-		c          characterRow
-		account    int64
-		state      json.RawMessage
-		profession int
-	)
-	err = s.store.DB.QueryRow(ctx, `SELECT id,account_id,wire_id,name,profession,state,created_at
- FROM characters WHERE id=$1 AND deleted_at IS NULL`, id).
-		Scan(&c.ID, &account, &c.WireID, &c.Name, &profession, &state, &c.CreatedAt)
+	role, err := s.store.AdminCharacter(ctx, id)
+	c := characterRow{ID: role.ID, WireID: int(role.WireID), Name: role.Name, CreatedAt: role.CreatedAt}
+	account, state, profession := role.AccountID, role.State, int(role.Profession)
 	if err != nil {
 		writeErr(w, 404, "角色不存在：%v", err)
 		return
@@ -673,13 +660,11 @@ func (s *server) handleHistory(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
-	rows, err := s.store.DB.Query(ctx, `SELECT grant_id,coalesce(character_id,0),operator,reason,request,created_at
- FROM admin_grants WHERE account_id=$1 ORDER BY created_at DESC LIMIT 100`, account)
+	rows, err := s.store.GrantHistory(ctx, account, 100)
 	if err != nil {
 		writeErr(w, 500, "读取发放记录失败：%v", err)
 		return
 	}
-	defer rows.Close()
 	type hist struct {
 		GrantID   string          `json:"grant_id"`
 		Character int64           `json:"character_id"`
@@ -689,13 +674,9 @@ func (s *server) handleHistory(w http.ResponseWriter, r *http.Request) {
 		At        time.Time       `json:"at"`
 	}
 	out := []hist{}
-	for rows.Next() {
-		var h hist
-		if err := rows.Scan(&h.GrantID, &h.Character, &h.Operator, &h.Reason, &h.Request, &h.At); err != nil {
-			writeErr(w, 500, "读取发放记录失败：%v", err)
-			return
-		}
-		out = append(out, h)
+	for _, row := range rows {
+		out = append(out, hist{GrantID: row.GrantID, Character: row.CharacterID, Operator: row.Operator,
+			Reason: row.Reason, Request: row.Request, At: row.CreatedAt})
 	}
 	writeJSON(w, map[string]any{"history": out})
 }
@@ -741,7 +722,7 @@ func (s *server) handleGrant(w http.ResponseWriter, r *http.Request) {
 	if req.Reason == "" {
 		req.Reason = "GM 工具发放"
 	}
-	g := storage.Grant{
+	g := database.Grant{
 		ID:        fmt.Sprintf("gm-%d-%s", time.Now().UnixNano(), s.token[:6]),
 		AccountID: req.Account,
 		Character: req.Character,
@@ -754,7 +735,7 @@ func (s *server) handleGrant(w http.ResponseWriter, r *http.Request) {
 		if it.Template == 0 || it.Amount == 0 {
 			continue
 		}
-		g.Items = append(g.Items, storage.GrantItem{Template: it.Template, Amount: it.Amount})
+		g.Items = append(g.Items, database.GrantItem{Template: it.Template, Amount: it.Amount})
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
 	defer cancel()
