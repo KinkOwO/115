@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 2026-10-04：合并版新旧客户端实机确认与默认发布
+
+- 用户反馈“测试了，没有问题，做收尾工作”。合并提交 `f2ba2b28` 对应的精确候选 `cc9fd242069cb7d8ef291e9d21fca093e8f1ae06f0c1f582ed801a9c0a06bb86` 纳入新旧版本进城 confirmed baseline，不扩大为全部玩法验收。
+- 19:09会话加载新版内层 `c3801215…`，19:12会话加载旧版内层 `3966e79d…`；两轮角色7都有入场预检及19/24/124发送。旧版当前client_dir保留为 `D:/115us/client`，未改玩家存档。
+- 默认 `wireprobe-pvf.exe`、源码入口 `wireprobe-handoff-source.exe` 同步为上述确认程序；发布前默认原件和精确确认件保存在 `runtime/baselines/client-2.38.3.25-merged-20261004`，39归档保持。更新两份交付清单中的网关指纹；默认入口依赖检查通过。
+- 既有运行备份参与全仓Go扫描、觉醒raw hash门禁和quest_rejected仍按台账保留。详见 `server/work/dfo-lan/docs/protocol/client-multiversion-merged-confirmed-baseline-20261004.md`。
+
 ## 2026-10-04：2.38.3.25 旧角色进城已确认
 
 - 修复技能投影 `skillRows` 将职业脚本原始 SHA 当作旧角色准入身份的问题；与自动技能路径一致按 SourcePath 校验职业引用，保留技能归属、槽位与存档契约检查，不重写玩家存档。回归验证资源 hash 改变后 EntrySkills 包和保存状态保持，不同引用仍拒绝。

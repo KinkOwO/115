@@ -1,5 +1,9 @@
 # AGENTS.md — server/
 
+## 2026-10-04：合并版双客户端进城确认收口
+
+用户确认合并版“测试了，没有问题”。确认程序SHA256 `cc9fd242069cb7d8ef291e9d21fca093e8f1ae06f0c1f582ed801a9c0a06bb86`，对应合并源码 `f2ba2b28`；默认PVF/源码入口已同步为同一精确程序，39归档保持。19:09新源c380、19:12旧源3966两会话均有角色7入场预检和技能19/城镇24/完成124；用户反馈提供客户端操作验收，不扩大到全部玩法。当前client_dir为旧版D:/115us/client，保留用户选择与原存档。基线记录见work/dfo-lan/docs/protocol/client-multiversion-merged-confirmed-baseline-20261004.md；旧默认与确认程序备份runtime/baselines/client-2.38.3.25-merged-20261004。340项双版本原生投影、27项Python及源码test/vet已通过；全仓扫描运行旧备份失败仍记录，不删除用户备份。
+
 ## 2026-10-03：无当前消费者的工具实际删除
 
 核对相邻 `115us-dfolauncher` 的4e3bb21源码：服务端只构建wireprobe，运行沿launch_local/channel_probe，GM来自启动器自己的gm模块。结合本仓库脚本/源码依赖，实际删除39个旧内容导出、固定输入取证与重复工具（42个Go文件、3187行），dfo-tool从59个子命令降为20个；不归档副本、不保留旧命令别名。运行reader、领域测试、存档契约保持；equipmentfull/dungeonimport仍有本仓库手动操作引用，暂保留。
