@@ -146,3 +146,25 @@ SQLite 双引擎**已落地并提交**，实机已能走到「启动 → 登录 
 `launcher-python-path.py`（解释器查找）、`wire-launch-entries.py`（.cmd 接线）、
 `fix-cmd-ascii.py`（.cmd ASCII/PATH 修正）、`fix-norows.py`（ErrNoRows 映射）、
 `fix-sqlite-path.py`、`commit-*.py`。
+
+## 9. 补正（同日核实）：相邻仓库的并发提交已包含我的一部分改动
+
+§1 里对 `c83aa2b` 只能写「可能已包含或覆盖」，核实后可以写死：
+
+- `internal/check/check.go` **已由 `c83aa2b` 提交**，第 115 行现在是
+  `filepath.Join(root, "tools", "python", "python.exe"), LevelWarn,` —— 即我那次
+  「`tools\python` 从 LevelError 降为 LevelWarn」的改动**已经落库，不需要再改**。
+- `cmd/launcher/cli.go` 与 `internal/cli/*` 也已由 `c83aa2b` 提交了一份**中期快照**
+  （含 `func tryCLI`、`internal/cli`、`SourceBuild`；不含 `parseCLIFlags`——它后来被我移进了
+  `internal/cli`）。
+
+因此该仓库**工作树里剩下的是我的后续增量**，逐项如下（下一轮先 `git diff` 这四个确认，再决定提交）：
+
+| 文件 | 增量内容 |
+| --- | --- |
+| `cmd/launcher/cli.go` | 改用 `internal/cli.Parse`；`--client-only` 改为**主动拒绝**（启动器只有 `interactive`/`server-only`/`compat` 三种模式）；`session.SourceBuild = sourceBuild` |
+| `internal/cli/cli.go`、`cli_test.go` | 参数解析独立成包（`cmd/launcher` 带管理员清单，测试跑不动）+ 10 条用例（含「未知 flag 必须整体交还 GUI」） |
+| `internal/run/run.go` | `Session.SourceBuild` 字段并在 `runLauncher` 转发 `--source-build`；SQLite 档跳过启动/停止 PostgreSQL；`resolvePython` 容忍工具链被移出仓库 |
+| `internal/config/storage.go`、`storage_test.go` | 新增 `StorageDriver`（显式 `driver` 优先；只有 `sqlite_path` 也算 SQLite；缺文件→PostgreSQL）+ 9 个用例 |
+
+> 结论：**不要再改 `check.go`**；增量集中在上面四个文件，提交前先确认没有覆盖 `c83aa2b` 的意图。
