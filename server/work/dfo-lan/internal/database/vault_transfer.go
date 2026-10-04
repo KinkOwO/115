@@ -6,9 +6,7 @@ import (
 	"dfolan/internal/database/sqlcgen"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"github.com/jackc/pgx/v5"
 )
 
 // CommitVaultTransfer locks character before vault, matching character writes.
@@ -24,16 +22,16 @@ func (s *Store) CommitVaultTransfer(ctx context.Context, account, id int64, sour
 	if e != nil || f != nil || len(a) != 32 || len(b) != 32 || account <= 0 || id <= 0 || len(key) == 0 || len(key) > 200 || len(request) == 0 || apply == nil {
 		return fail(fmt.Errorf("invalid vault transfer"))
 	}
-	tx, e := s.db.Begin(ctx)
+	tx, e := s.engine.begin(ctx)
 	if e != nil {
 		return fail(e)
 	}
-	defer tx.Rollback(ctx)
+	defer tx.rollback(ctx)
 	role, e = lockCharacter(ctx, tx, account, id)
 	if e != nil {
 		return fail(e)
 	}
-	queries := s.queries.WithTx(tx)
+	queries := tx.queries()
 	v, e = lockPersonalVault(ctx, queries, id, false)
 	if e != nil {
 		return fail(e)
@@ -42,17 +40,17 @@ func (s *Store) CommitVaultTransfer(ctx context.Context, account, id int64, sour
 		return fail(fmt.Errorf("vault transfer source mismatch"))
 	}
 	model := fmt.Sprintf("vault-stack-v1:%x", sha256.Sum256(request))
-	prior, e := sqlcgen.New(tx).CharacterEventModel(ctx, sqlcgen.CharacterEventModelParams{CharacterID: id, EventKey: key})
+	prior, e := tx.queries().CharacterEventModel(ctx, sqlcgen.CharacterEventModelParams{CharacterID: id, EventKey: key})
 	if e == nil {
 		if prior != model {
 			return fail(fmt.Errorf("vault transfer replay conflict"))
 		}
-		if e = tx.Commit(ctx); e != nil {
+		if e = tx.commit(ctx); e != nil {
 			return fail(e)
 		}
 		return role, v, false, nil
 	}
-	if !errors.Is(e, pgx.ErrNoRows) {
+	if !isNoRows(e) {
 		return fail(e)
 	}
 	state, items, e := apply(role, v)
@@ -64,7 +62,7 @@ func (s *Store) CommitVaultTransfer(ctx context.Context, account, id int64, sour
 	if json.Unmarshal(state, &obj) != nil || obj == nil || json.Unmarshal(items, &rows) != nil || rows == nil {
 		return fail(fmt.Errorf("invalid vault transfer state"))
 	}
-	if e = sqlcgen.New(tx).UpdateCharacterState(ctx, sqlcgen.UpdateCharacterStateParams{CharacterID: id, State: state}); e != nil {
+	if e = tx.queries().UpdateCharacterState(ctx, sqlcgen.UpdateCharacterStateParams{CharacterID: id, State: state}); e != nil {
 		return fail(e)
 	}
 	if e = savePersonalVaultItems(ctx, queries, id, items, false); e != nil {
@@ -73,7 +71,7 @@ func (s *Store) CommitVaultTransfer(ctx context.Context, account, id int64, sour
 	if e = queries.RecordCharacterEvent(ctx, sqlcgen.RecordCharacterEventParams{CharacterID: id, EventKey: key, ConfigVersion: source, Model: model, Outcome: json.RawMessage(`{}`)}); e != nil {
 		return fail(e)
 	}
-	if e = tx.Commit(ctx); e != nil {
+	if e = tx.commit(ctx); e != nil {
 		return fail(e)
 	}
 	role.State = state

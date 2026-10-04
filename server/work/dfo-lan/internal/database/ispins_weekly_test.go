@@ -36,13 +36,13 @@ func TestIspinsWeeklyPersistenceIntegration(t *testing.T) {
 	}
 	defer admin.Close()
 	schema := fmt.Sprintf("ispins_weekly_test_%d", time.Now().UnixNano())
-	if _, e = admin.db.Exec(ctx, "CREATE SCHEMA "+schema); e != nil {
+	if _, e = testPool(t, admin).Exec(ctx, "CREATE SCHEMA "+schema); e != nil {
 		t.Fatal(e)
 	}
 	defer func() {
 		c, stop := context.WithTimeout(context.Background(), 5*time.Second)
 		defer stop()
-		if _, e := admin.db.Exec(c, "DROP SCHEMA "+schema+" CASCADE"); e != nil {
+		if _, e := testPool(t, admin).Exec(c, "DROP SCHEMA "+schema+" CASCADE"); e != nil {
 			t.Error(e)
 		}
 	}()
@@ -71,7 +71,7 @@ func TestIspinsWeeklyPersistenceIntegration(t *testing.T) {
 	next := now.AddDate(0, 0, 7)
 	r1, r2 := strings.Repeat("1", 32), strings.Repeat("2", 32)
 	var before []byte
-	if e = s.db.QueryRow(ctx, "SELECT state FROM characters WHERE id=$1", role.ID).Scan(&before); e != nil {
+	if e = testPool(t, s).QueryRow(ctx, "SELECT state FROM characters WHERE id=$1", role.ID).Scan(&before); e != nil {
 		t.Fatal(e)
 	}
 	if used, e := s.IspinsWeeklyUsed(ctx, account, role.ID, now); e != nil || used {
@@ -113,7 +113,7 @@ func TestIspinsWeeklyPersistenceIntegration(t *testing.T) {
 		t.Fatal(e)
 	}
 	var after []byte
-	s.db.QueryRow(ctx, "SELECT state FROM characters WHERE id=$1", role.ID).Scan(&after)
+	testPool(t, s).QueryRow(ctx, "SELECT state FROM characters WHERE id=$1", role.ID).Scan(&after)
 	if !bytes.Equal(before, after) {
 		t.Fatal("quota metadata rewrote player state")
 	}

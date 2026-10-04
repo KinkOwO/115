@@ -8,7 +8,11 @@ func TestReachNPCProgressMigrationPostgres(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tx, err := store.db.Begin(ctx)
+	pool, poolErr := store.rawPool()
+	if poolErr != nil {
+		t.Fatal(poolErr)
+	}
+	tx, err := pool.Begin(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

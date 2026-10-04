@@ -30,13 +30,13 @@ func sqlcTestStore(t *testing.T) (*Store, context.Context) {
 		t.Fatal(err)
 	}
 	schema := fmt.Sprintf("sqlc_%d", time.Now().UnixNano())
-	if _, err := admin.db.Exec(ctx, "CREATE SCHEMA "+schema); err != nil {
+	if _, err := testPool(t, admin).Exec(ctx, "CREATE SCHEMA "+schema); err != nil {
 		admin.Close()
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
 		defer admin.Close()
-		if _, err := admin.db.Exec(context.Background(), "DROP SCHEMA "+schema+" CASCADE"); err != nil {
+		if _, err := testPool(t, admin).Exec(context.Background(), "DROP SCHEMA "+schema+" CASCADE"); err != nil {
 			t.Error(err)
 		}
 	})
@@ -61,7 +61,7 @@ func TestSQLCCoreUpgradeAndAccountSerialization(t *testing.T) {
 	s, ctx := sqlcTestStore(t)
 	// Pre-roster schema with a real historical save: initialize through the new
 	// migration files without resetting identity counters, bytea or unknown JSON.
-	_, err := s.db.Exec(ctx, `CREATE TABLE accounts (
+	_, err := testPool(t, s).Exec(ctx, `CREATE TABLE accounts (
  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, username text NOT NULL UNIQUE,
  password_hash text, development_only boolean NOT NULL DEFAULT true,
  created_at timestamptz NOT NULL DEFAULT now(), CHECK(development_only OR password_hash IS NOT NULL));
@@ -95,7 +95,7 @@ func TestSQLCCoreUpgradeAndAccountSerialization(t *testing.T) {
 	}
 	// Confirm aggregates retain bigint semantics rather than truncating to int32.
 	const highOrder = int64(1) << 33
-	if _, err := s.db.Exec(ctx, `UPDATE characters SET roster_order=$1 WHERE id=1`, highOrder); err != nil {
+	if _, err := testPool(t, s).Exec(ctx, `UPDATE characters SET roster_order=$1 WHERE id=1`, highOrder); err != nil {
 		t.Fatal(err)
 	}
 	var wg sync.WaitGroup
@@ -121,7 +121,7 @@ func TestSQLCCoreUpgradeAndAccountSerialization(t *testing.T) {
 	}
 	var wire int
 	var order int64
-	if err := s.db.QueryRow(ctx, `SELECT wire_id,roster_order FROM characters WHERE id<>1`).Scan(&wire, &order); err != nil {
+	if err := testPool(t, s).QueryRow(ctx, `SELECT wire_id,roster_order FROM characters WHERE id<>1`).Scan(&wire, &order); err != nil {
 		t.Fatal(err)
 	}
 	if success != 1 || wire != 18 || order != highOrder+1 {
@@ -137,7 +137,7 @@ func TestSQLCCoreUpgradeAndAccountSerialization(t *testing.T) {
 	if err := s.execMigration(ctx, "0006_adventure.sql"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.db.Exec(ctx, `INSERT INTO account_adventures(account_id,name,data) VALUES($1,'Fixture','{"season_level":{"future":123}}')`, account); err != nil {
+	if _, err := testPool(t, s).Exec(ctx, `INSERT INTO account_adventures(account_id,name,data) VALUES($1,'Fixture','{"season_level":{"future":123}}')`, account); err != nil {
 		t.Fatal(err)
 	}
 	s.adventureEnabled = true
@@ -150,7 +150,7 @@ func TestSQLCCoreUpgradeAndAccountSerialization(t *testing.T) {
 		!sameJSON(t, state["unknown"], json.RawMessage(`{"binary":"00ff"}`)) {
 		t.Fatalf("adventure projection changed existing save: %s %v", roles[1].State, err)
 	}
-	if _, err := s.db.Exec(ctx, `INSERT INTO accounts(username,development_only,password_hash) VALUES('protected',false,'hash')`); err != nil {
+	if _, err := testPool(t, s).Exec(ctx, `INSERT INTO accounts(username,development_only,password_hash) VALUES('protected',false,'hash')`); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.DevelopmentAccount(ctx, "protected"); !errors.Is(err, ErrNotFound) {
@@ -287,7 +287,7 @@ func TestSQLCSettingsPersistenceAndRollback(t *testing.T) {
 	}
 	// Fail the second row after updating the first, proving WithTx does not
 	// accidentally execute writes on the pool outside the transaction.
-	if _, err := s.db.Exec(ctx, `CREATE FUNCTION reject_warp() RETURNS trigger LANGUAGE plpgsql AS $$
+	if _, err := testPool(t, s).Exec(ctx, `CREATE FUNCTION reject_warp() RETURNS trigger LANGUAGE plpgsql AS $$
  BEGIN IF get_byte(NEW.value,0)=255 THEN RAISE EXCEPTION 'fixture rejection'; END IF; RETURN NEW; END $$;
  CREATE TRIGGER reject_warp BEFORE INSERT OR UPDATE ON account_warp_favorites FOR EACH ROW EXECUTE FUNCTION reject_warp();`); err != nil {
 		t.Fatal(err)

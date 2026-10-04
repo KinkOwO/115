@@ -38,12 +38,12 @@ func (s *Store) SaveEquipmentSkillSnapshot(ctx context.Context, accountID, chara
 	if len(data) == 0 {
 		return errors.New("empty equipment skill snapshot")
 	}
-	tx, err := s.db.Begin(ctx)
+	tx, err := s.engine.begin(ctx)
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
-	queries := s.queries.WithTx(tx)
+	defer tx.rollback(ctx)
+	queries := tx.queries()
 	if _, err := queries.LockCharacterOwnerIncludingDeleted(ctx, sqlcgen.LockCharacterOwnerIncludingDeletedParams{
 		AccountID: accountID, CharacterID: characterID,
 	}); err != nil {
@@ -57,7 +57,7 @@ func (s *Store) SaveEquipmentSkillSnapshot(ctx context.Context, accountID, chara
 	if err != nil {
 		return err
 	}
-	return tx.Commit(ctx)
+	return tx.commit(ctx)
 }
 
 // ClearEquipmentSkill 清空该角色的两组快照（2257）。
@@ -65,12 +65,12 @@ func (s *Store) ClearEquipmentSkill(ctx context.Context, accountID, characterID 
 	if accountID <= 0 || characterID <= 0 {
 		return errors.New("invalid equipment skill character")
 	}
-	tx, err := s.db.Begin(ctx)
+	tx, err := s.engine.begin(ctx)
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
-	queries := s.queries.WithTx(tx)
+	defer tx.rollback(ctx)
+	queries := tx.queries()
 	if _, err := queries.LockCharacterOwnerIncludingDeleted(ctx, sqlcgen.LockCharacterOwnerIncludingDeletedParams{
 		AccountID: accountID, CharacterID: characterID,
 	}); err != nil {
@@ -79,7 +79,7 @@ func (s *Store) ClearEquipmentSkill(ctx context.Context, accountID, characterID 
 	if err = queries.ClearEquipmentSkill(ctx, characterID); err != nil {
 		return err
 	}
-	return tx.Commit(ctx)
+	return tx.commit(ctx)
 }
 
 // EquipmentSkillSnapshots 读回该角色的两组快照；任一组没设过时返回 nil（调用方补零）。

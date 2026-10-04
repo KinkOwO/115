@@ -129,6 +129,9 @@ func TestOdysseyCatchupOnlyFromPersistedClear(t *testing.T) {
 
 func TestCreatedAsOdysseyIgnoresLauncherMode(t *testing.T) {
 	_, role := odysseyGrowthFixture(t)
+	// 空串 = 「按角色」档，也就是启动器的默认档（不注入变量）。显式钉住它，
+	// 结论才不依赖测试进程的外部环境：普通入库/奥德赛入库各按自己的标记走。
+	t.Setenv("DFO_ODYSSEY_MODE", "")
 	if !CreatedAsOdyssey(role) || !OdysseyRole(role) {
 		t.Fatal("creation marker lost")
 	}

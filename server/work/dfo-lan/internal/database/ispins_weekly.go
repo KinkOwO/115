@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/jackc/pgx/v5"
 	"time"
 )
 
@@ -32,12 +31,12 @@ func (s *Store) RecordIspinsWeeklyClear(ctx context.Context, account, id int64, 
 	}
 	week := IspinsWeekStart(now).Format(time.RFC3339)
 	key := "ispins-clear:" + run
-	tx, e := s.db.Begin(ctx)
+	tx, e := s.engine.begin(ctx)
 	if e != nil {
 		return e
 	}
-	defer tx.Rollback(ctx)
-	queries := s.queries.WithTx(tx)
+	defer tx.rollback(ctx)
+	queries := tx.queries()
 	saved, e := queries.LockCharacterVersion(ctx, sqlcgen.LockCharacterVersionParams{AccountID: account, CharacterID: id})
 	if e != nil {
 		return e
@@ -45,14 +44,14 @@ func (s *Store) RecordIspinsWeeklyClear(ctx context.Context, account, id int64, 
 	if saved != version {
 		return fmt.Errorf("Ispins clear save identity mismatch")
 	}
-	model, e := sqlcgen.New(tx).CharacterEventModel(ctx, sqlcgen.CharacterEventModelParams{CharacterID: id, EventKey: key})
+	model, e := tx.queries().CharacterEventModel(ctx, sqlcgen.CharacterEventModelParams{CharacterID: id, EventKey: key})
 	if e == nil {
 		if model != ispinsWeeklyModel {
 			return fmt.Errorf("Ispins receipt model mismatch")
 		}
-		return tx.Commit(ctx)
+		return tx.commit(ctx)
 	}
-	if !errors.Is(e, pgx.ErrNoRows) {
+	if !isNoRows(e) {
 		return e
 	}
 	if limited {
@@ -67,5 +66,5 @@ func (s *Store) RecordIspinsWeeklyClear(ctx context.Context, account, id int64, 
 	if e = queries.RecordIspinsWeeklyClear(ctx, sqlcgen.RecordIspinsWeeklyClearParams{CharacterID: id, EventKey: key, ConfigVersion: version, Model: ispinsWeeklyModel, Week: week, Run: run}); e != nil {
 		return e
 	}
-	return tx.Commit(ctx)
+	return tx.commit(ctx)
 }

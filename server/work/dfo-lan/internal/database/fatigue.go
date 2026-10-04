@@ -23,12 +23,12 @@ func (s *Store) ConsumeRoomFatigue(ctx context.Context, account, id int64, day s
 	if limit == 0 || len(run) != 32 || room == 0 {
 		return out, false, fmt.Errorf("invalid fatigue charge")
 	}
-	tx, e := s.db.Begin(ctx)
+	tx, e := s.engine.begin(ctx)
 	if e != nil {
 		return out, false, e
 	}
-	defer tx.Rollback(ctx)
-	q := s.queries.WithTx(tx)
+	defer tx.rollback(ctx)
+	q := tx.queries()
 	row, e := q.LoadFatigue(ctx, sqlcgen.LoadFatigueParams{AccountID: account, CharacterID: id, Day: day, DailyLimit: int32(limit)})
 	out = FatigueState{Day: row.Day, Used: uint16(row.Used), Limit: uint16(row.DailyLimit), UsedMax: uint16(row.UsedMax)}
 	if e != nil {
@@ -39,7 +39,7 @@ func (s *Store) ConsumeRoomFatigue(ctx context.Context, account, id int64, day s
 		return out, false, e
 	}
 	if exists {
-		return out, false, tx.Commit(ctx)
+		return out, false, tx.commit(ctx)
 	}
 	if cost > 0 && out.Used >= out.Limit {
 		// Once a run paid for entry, reaching zero must not strand its next
@@ -72,7 +72,7 @@ func (s *Store) ConsumeRoomFatigue(ctx context.Context, account, id int64, day s
 	if e != nil {
 		return out, false, e
 	}
-	return out, true, tx.Commit(ctx)
+	return out, true, tx.commit(ctx)
 }
 
 // RunPaidFatigue 报告某个 run 是否已经付过进本消耗（存在 cost>0 的房间记录）。

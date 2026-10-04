@@ -54,17 +54,17 @@ func (s *Store) RepairLegacyQuest(ctx context.Context, account, id int64, before
 	if before.Status != "accepted" || before.Progress != 0 || before.ProgressModel != "legacy-zero" || initial == 0 || model == "legacy-zero" || model == "" {
 		return errors.New("not an eligible legacy quest")
 	}
-	tx, e := s.db.Begin(ctx)
+	tx, e := s.engine.begin(ctx)
 	if e != nil {
 		return e
 	}
-	defer tx.Rollback(ctx)
+	defer tx.rollback(ctx)
 	after := before
 	after.Progress = initial
 	after.ProgressModel = model
 	oldJSON, _ := json.Marshal(before)
 	newJSON, _ := json.Marshal(after)
-	queries := s.queries.WithTx(tx)
+	queries := tx.queries()
 	changed, e := queries.RepairLegacyQuest(ctx, sqlcgen.RepairLegacyQuestParams{AccountID: account, CharacterID: id, QuestID: int32(before.ID), Progress: int64(initial), ProgressModel: model, ConfigVersion: before.ConfigVersion})
 	if e != nil {
 		return e
@@ -76,5 +76,5 @@ func (s *Store) RepairLegacyQuest(ctx context.Context, account, id int64, before
 	if e != nil {
 		return e
 	}
-	return tx.Commit(ctx)
+	return tx.commit(ctx)
 }

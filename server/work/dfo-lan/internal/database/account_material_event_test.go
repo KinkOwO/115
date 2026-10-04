@@ -29,10 +29,10 @@ func TestAccountMaterialEventIntegration(t *testing.T) {
 	}
 	defer admin.Close()
 	schema := fmt.Sprintf("account_material_test_%d", time.Now().UnixNano())
-	if _, err := admin.db.Exec(ctx, "CREATE SCHEMA "+schema); err != nil {
+	if _, err := testPool(t, admin).Exec(ctx, "CREATE SCHEMA "+schema); err != nil {
 		t.Fatal(err)
 	}
-	defer admin.db.Exec(context.Background(), "DROP SCHEMA "+schema+" CASCADE")
+	defer testPool(t, admin).Exec(context.Background(), "DROP SCHEMA "+schema+" CASCADE")
 	cfg.PostgresSchema = schema
 	cfg.MaxConnections = 8
 	s, err := Open(ctx, cfg)
@@ -57,7 +57,7 @@ func TestAccountMaterialEventIntegration(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if _, err := s.db.Exec(ctx, `INSERT INTO account_material_storage(account_id,counts) VALUES($1,$2)`, account, `{"version":"account-materials-v1","counts":{"367":10}}`); err != nil {
+	if _, err := testPool(t, s).Exec(ctx, `INSERT INTO account_material_storage(account_id,counts) VALUES($1,$2)`, account, `{"version":"account-materials-v1","counts":{"367":10}}`); err != nil {
 		t.Fatal(err)
 	}
 	type materialCounts struct {

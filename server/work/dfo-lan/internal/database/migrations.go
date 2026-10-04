@@ -4,13 +4,11 @@ import (
 	"context"
 	"crypto/sha256"
 	"embed"
-	"errors"
 	"fmt"
 	"strings"
 
 	"dfolan/internal/database/sqlcgen"
 
-	"github.com/jackc/pgx/v5"
 )
 
 // The initial schema is one file, shared with sqlc. Historical sections keep
@@ -46,18 +44,24 @@ func migrationQuery(name string) ([]byte, error) {
 }
 
 func (s *Store) execMigration(ctx context.Context, name string) error {
+	// The SQLite engine applies every section in openSQLiteStore, and the ledger makes
+	// that idempotent. PostgreSQL keeps its ordered per-domain walk because its schema
+	// grew incrementally; on SQLite the same call is honestly a no-op.
+	if _, ok := s.engine.(*sqliteEngine); ok {
+		return nil
+	}
 	query, err := migrationQuery(name)
 	if err != nil {
 		return err
 	}
 	// Git's Windows checkout policy must not change a migration's identity.
 	checksum := fmt.Sprintf("%x", sha256.Sum256([]byte(strings.ReplaceAll(string(query), "\r\n", "\n"))))
-	tx, err := s.db.Begin(ctx)
+	tx, err := s.engine.begin(ctx)
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
-	q := sqlcgen.New(tx)
+	defer tx.rollback(ctx)
+	q := tx.queries()
 	if err := q.LockMigrations(ctx); err != nil {
 		return err
 	}
@@ -65,11 +69,11 @@ func (s *Store) execMigration(ctx context.Context, name string) error {
 	if err != nil {
 		return err
 	}
-	if _, err := tx.Exec(ctx, string(ledger)); err != nil {
+	if err := tx.exec(ctx, string(ledger)); err != nil {
 		return err
 	}
 	previous, err := q.MigrationChecksum(ctx, name)
-	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+	if err != nil && !isNoRows(err) {
 		return err
 	}
 	if err == nil {
@@ -81,16 +85,16 @@ func (s *Store) execMigration(ctx context.Context, name string) error {
 		switch name {
 		case "0015_skin_cargo.sql", "0023_quests.sql", "0028_secondary_vault_upgrade.sql", "0035_tower_progress.sql":
 		default:
-			return tx.Commit(ctx)
+			return tx.commit(ctx)
 		}
 	}
-	if _, err := tx.Exec(ctx, string(query)); err != nil {
+	if err := tx.exec(ctx, string(query)); err != nil {
 		return fmt.Errorf("migration %s: %w", name, err)
 	}
 	if err := q.RecordMigration(ctx, sqlcgen.RecordMigrationParams{Name: name, Checksum: checksum}); err != nil {
 		return err
 	}
-	return tx.Commit(ctx)
+	return tx.commit(ctx)
 }
 
 // InitializeGame owns the gateway's unconditional persistence initialization.

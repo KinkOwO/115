@@ -34,17 +34,17 @@ func (s *Store) SetSkinFavorite(ctx context.Context, character int64, page uint3
 	if limit < 0 {
 		return false, fmt.Errorf("invalid favourite cap")
 	}
-	tx, err := s.db.Begin(ctx)
+	tx, err := s.engine.begin(ctx)
 	if err != nil {
 		return false, err
 	}
-	defer tx.Rollback(ctx)
-	queries := s.queries.WithTx(tx)
+	defer tx.rollback(ctx)
+	queries := tx.queries()
 	if !starred {
 		if err = queries.RemoveSkinFavorite(ctx, sqlcgen.RemoveSkinFavoriteParams{CharacterID: character, Page: int64(page), SkinKey: int64(key)}); err != nil {
 			return false, err
 		}
-		return true, tx.Commit(ctx)
+		return true, tx.commit(ctx)
 	}
 	held, err := queries.CountSkinFavorites(ctx, sqlcgen.CountSkinFavoritesParams{CharacterID: character, Page: int64(page)})
 	if err != nil {
@@ -56,7 +56,7 @@ func (s *Store) SetSkinFavorite(ctx context.Context, character int64, page uint3
 	if err = queries.AddSkinFavorite(ctx, sqlcgen.AddSkinFavoriteParams{CharacterID: character, Page: int64(page), SkinKey: int64(key)}); err != nil {
 		return false, err
 	}
-	return true, tx.Commit(ctx)
+	return true, tx.commit(ctx)
 }
 
 // SkinFavorites returns the character's favourites as exactly groups page groups, each

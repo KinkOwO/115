@@ -15,7 +15,11 @@ func (s *Store) DiagnosticQuery(ctx context.Context, query string, consume func(
 	if query == "" || consume == nil {
 		return errors.New("diagnostic query and consumer required")
 	}
-	conn, err := s.db.Acquire(ctx)
+	pool, err := s.rawPool()
+	if err != nil {
+		return err
+	}
+	conn, err := pool.Acquire(ctx)
 	if err != nil {
 		return err
 	}
@@ -55,6 +59,10 @@ func (s *Store) DiagnosticExec(ctx context.Context, statement string) error {
 	if statement == "" {
 		return errors.New("diagnostic statement required")
 	}
-	_, err := s.db.Exec(ctx, statement)
+	pool, err := s.rawPool()
+	if err != nil {
+		return err
+	}
+	_, err = pool.Exec(ctx, statement)
 	return err
 }

@@ -34,7 +34,7 @@ func secondaryPersonalVault(space []byte) (bool, error) {
 
 // The two personal containers share a domain shape but have separate SQL.
 // Keep that finite branch here rather than interpolating a table name.
-func lockPersonalVault(ctx context.Context, q *sqlcgen.Queries, id int64, secondary bool) (VaultState, error) {
+func lockPersonalVault(ctx context.Context, q querySet, id int64, secondary bool) (VaultState, error) {
 	var row sqlcgen.LockPrimaryVaultRow
 	var err error
 	if secondary {
@@ -46,7 +46,7 @@ func lockPersonalVault(ctx context.Context, q *sqlcgen.Queries, id int64, second
 	return VaultState{Slots: uint16(row.Slots), Items: row.Items, ConfigVersion: row.ConfigVersion}, err
 }
 
-func savePersonalVaultItems(ctx context.Context, q *sqlcgen.Queries, id int64, items json.RawMessage, secondary bool) error {
+func savePersonalVaultItems(ctx context.Context, q querySet, id int64, items json.RawMessage, secondary bool) error {
 	if secondary {
 		return q.SaveSecondaryVaultItems(ctx, sqlcgen.SaveSecondaryVaultItemsParams{CharacterID: id, Items: items})
 	}
@@ -95,18 +95,18 @@ func (s *Store) CommitVaultMove(ctx context.Context, account, id int64,
 	if apply == nil {
 		return role, vault, errors.New("nil vault move apply function")
 	}
-	tx, e := s.db.Begin(ctx)
+	tx, e := s.engine.begin(ctx)
 	if e != nil {
 		return role, vault, e
 	}
-	defer tx.Rollback(ctx)
+	defer tx.rollback(ctx)
 
 	role, e = lockCharacter(ctx, tx, account, id)
 	if e != nil {
 		return role, vault, e
 	}
 
-	queries := s.queries.WithTx(tx)
+	queries := tx.queries()
 	vault, e = lockPersonalVault(ctx, queries, id, secondary)
 	if e != nil {
 		return role, vault, e
@@ -120,7 +120,7 @@ func (s *Store) CommitVaultMove(ctx context.Context, account, id int64,
 		return role, vault, errors.New("invalid JSON state in vault move")
 	}
 
-	e = sqlcgen.New(tx).UpdateCharacterState(ctx, sqlcgen.UpdateCharacterStateParams{CharacterID: id, State: newRoleState})
+	e = tx.queries().UpdateCharacterState(ctx, sqlcgen.UpdateCharacterStateParams{CharacterID: id, State: newRoleState})
 	if e != nil {
 		return role, vault, e
 	}
@@ -129,7 +129,7 @@ func (s *Store) CommitVaultMove(ctx context.Context, account, id int64,
 		return role, vault, e
 	}
 
-	if e = tx.Commit(ctx); e != nil {
+	if e = tx.commit(ctx); e != nil {
 		return role, vault, e
 	}
 
@@ -148,16 +148,16 @@ func (s *Store) CommitVaultCrossMove(ctx context.Context, account, id int64,
 	if apply == nil {
 		return role, first, second, errors.New("nil cross-vault apply")
 	}
-	tx, err := s.db.Begin(ctx)
+	tx, err := s.engine.begin(ctx)
 	if err != nil {
 		return role, first, second, err
 	}
-	defer tx.Rollback(ctx)
+	defer tx.rollback(ctx)
 	role, err = lockCharacter(ctx, tx, account, id)
 	if err != nil {
 		return role, first, second, err
 	}
-	queries := s.queries.WithTx(tx)
+	queries := tx.queries()
 	first, err = lockPersonalVault(ctx, queries, id, false)
 	if err != nil {
 		return role, first, second, err
@@ -173,7 +173,7 @@ func (s *Store) CommitVaultCrossMove(ctx context.Context, account, id int64,
 	if !json.Valid(state) || !json.Valid(items1) || !json.Valid(items2) {
 		return role, first, second, errors.New("invalid cross-vault JSON")
 	}
-	if err = sqlcgen.New(tx).UpdateCharacterState(ctx, sqlcgen.UpdateCharacterStateParams{CharacterID: id, State: state}); err != nil {
+	if err = tx.queries().UpdateCharacterState(ctx, sqlcgen.UpdateCharacterStateParams{CharacterID: id, State: state}); err != nil {
 		return role, first, second, err
 	}
 	if err = savePersonalVaultItems(ctx, queries, id, items1, false); err != nil {
@@ -182,7 +182,7 @@ func (s *Store) CommitVaultCrossMove(ctx context.Context, account, id int64,
 	if err = savePersonalVaultItems(ctx, queries, id, items2, true); err != nil {
 		return role, first, second, err
 	}
-	if err = tx.Commit(ctx); err != nil {
+	if err = tx.commit(ctx); err != nil {
 		return role, first, second, err
 	}
 	role.State, first.Items, second.Items = state, items1, items2

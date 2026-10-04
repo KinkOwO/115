@@ -98,12 +98,12 @@ func (s *Store) ApplyGrant(ctx context.Context, g Grant, mutate func(Character) 
 	if g.Character != 0 && mutate == nil {
 		return out, fmt.Errorf("character payout requires a source-backed mutation")
 	}
-	tx, e := s.db.Begin(ctx)
+	tx, e := s.engine.begin(ctx)
 	if e != nil {
 		return out, e
 	}
-	defer tx.Rollback(ctx)
-	q := s.queries.WithTx(tx)
+	defer tx.rollback(ctx)
+	q := tx.queries()
 
 	// The audit row is the idempotency gate, claimed before anything is paid.
 	// Checking for an existing grant and then inserting one would be a race:
@@ -129,7 +129,7 @@ func (s *Store) ApplyGrant(ctx context.Context, g Grant, mutate func(Character) 
 			return out, err
 		}
 		out.Cera = uint64(balance)
-		return out, tx.Commit(ctx)
+		return out, tx.commit(ctx)
 	}
 
 	if g.Cera != 0 {
@@ -179,7 +179,7 @@ func (s *Store) ApplyGrant(ctx context.Context, g Grant, mutate func(Character) 
 	if e = q.SaveAdminGrantReceipt(ctx, sqlcgen.SaveAdminGrantReceiptParams{GrantID: g.ID, Receipt: receipt}); e != nil {
 		return out, e
 	}
-	if e = tx.Commit(ctx); e != nil {
+	if e = tx.commit(ctx); e != nil {
 		return out, e
 	}
 	out.Receipt, out.Applied = receipt, true

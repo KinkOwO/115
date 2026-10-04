@@ -29,10 +29,10 @@ func TestProfileSkinPersistence(t *testing.T) {
 	}
 	defer admin.Close()
 	schema := fmt.Sprintf("profile_skin_%d", time.Now().UnixNano())
-	if _, err = admin.db.Exec(ctx, "CREATE SCHEMA "+schema); err != nil {
+	if _, err = testPool(t, admin).Exec(ctx, "CREATE SCHEMA "+schema); err != nil {
 		t.Fatal(err)
 	}
-	defer admin.db.Exec(context.Background(), "DROP SCHEMA "+schema+" CASCADE")
+	defer testPool(t, admin).Exec(context.Background(), "DROP SCHEMA "+schema+" CASCADE")
 	cfg.PostgresSchema = schema
 	s, err := Open(ctx, cfg)
 	if err != nil {
@@ -66,7 +66,7 @@ func TestProfileSkinPersistence(t *testing.T) {
 		t.Fatal("foreign character accepted")
 	}
 	var n int
-	if err = s.db.QueryRow(ctx, "SELECT count(*) FROM character_profile_skins").Scan(&n); err != nil || n != 0 {
+	if err = testPool(t, s).QueryRow(ctx, "SELECT count(*) FROM character_profile_skins").Scan(&n); err != nil || n != 0 {
 		t.Fatalf("unauthorized bootstrap: %d %v", n, err)
 	}
 	var wg sync.WaitGroup
@@ -93,7 +93,7 @@ func TestProfileSkinPersistence(t *testing.T) {
 	custom.Owned = append(custom.Owned, character.ProfileSkinOwned{ID: 60001})
 	custom.Selected[2] = 60001
 	raw, _ := json.Marshal(custom)
-	if _, err = s.db.Exec(ctx, "UPDATE character_profile_skins SET state=$2 WHERE character_id=$1", role.ID, raw); err != nil {
+	if _, err = testPool(t, s).Exec(ctx, "UPDATE character_profile_skins SET state=$2 WHERE character_id=$1", role.ID, raw); err != nil {
 		t.Fatal(err)
 	}
 	// A new store connection models a server restart: it must return the row,
@@ -112,16 +112,16 @@ func TestProfileSkinPersistence(t *testing.T) {
 		t.Fatalf("selection leaked across characters: %+v %v", got, err)
 	}
 	var unrelated int
-	if err = s.db.QueryRow(ctx, "SELECT (state->>'unrelated')::int FROM characters WHERE id=$1", role.ID).Scan(&unrelated); err != nil || unrelated != 123 {
+	if err = testPool(t, s).QueryRow(ctx, "SELECT (state->>'unrelated')::int FROM characters WHERE id=$1", role.ID).Scan(&unrelated); err != nil || unrelated != 123 {
 		t.Fatal("character state changed", err)
 	}
-	if _, err = s.db.Exec(ctx, "UPDATE character_profile_skins SET state='{}' WHERE character_id=$1", role.ID); err != nil {
+	if _, err = testPool(t, s).Exec(ctx, "UPDATE character_profile_skins SET state='{}' WHERE character_id=$1", role.ID); err != nil {
 		t.Fatal(err)
 	}
 	if _, err = s.RestoreProfileSkins(ctx, account, role.ID); err == nil {
 		t.Fatal("corrupt state silently reset")
 	}
-	if _, err = s.db.Exec(ctx, "UPDATE characters SET deleted_at=now() WHERE id=$1", role2.ID); err != nil {
+	if _, err = testPool(t, s).Exec(ctx, "UPDATE characters SET deleted_at=now() WHERE id=$1", role2.ID); err != nil {
 		t.Fatal(err)
 	}
 	if _, err = s.RestoreProfileSkins(ctx, account, role2.ID); err == nil {

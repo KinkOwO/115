@@ -28,11 +28,11 @@ func TestVaultTransferIntegration(t *testing.T) {
 	}
 	defer live.Close()
 	schema := fmt.Sprintf("vault_test_%d", time.Now().UnixNano())
-	if _, e = live.db.Exec(ctx, "CREATE SCHEMA "+schema); e != nil {
+	if _, e = testPool(t, live).Exec(ctx, "CREATE SCHEMA "+schema); e != nil {
 		t.Fatal(e)
 	}
 	defer func() {
-		if _, e := live.db.Exec(context.Background(), "DROP SCHEMA "+schema+" CASCADE"); e != nil {
+		if _, e := testPool(t, live).Exec(context.Background(), "DROP SCHEMA "+schema+" CASCADE"); e != nil {
 			t.Error(e)
 		}
 	}()
@@ -94,7 +94,7 @@ func TestVaultTransferIntegration(t *testing.T) {
 		t.Fatal("other source accepted")
 	}
 	// Fail the audit insert after BOTH updates, proving transaction rollback.
-	if _, e = s.db.Exec(ctx, `ALTER TABLE character_events ADD CONSTRAINT reject_fixture_event CHECK(event_key <> 'fail-after-updates')`); e != nil {
+	if _, e = testPool(t, s).Exec(ctx, `ALTER TABLE character_events ADD CONSTRAINT reject_fixture_event CHECK(event_key <> 'fail-after-updates')`); e != nil {
 		t.Fatal(e)
 	}
 	bad := func(c Character, v VaultState) (json.RawMessage, json.RawMessage, error) {

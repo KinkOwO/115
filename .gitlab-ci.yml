@@ -5,6 +5,28 @@
 #   1. 注册一个 Windows Runner，并给它打上 tag: windows
 #   2. 该 Runner 的 executor shell 建议为 pwsh / powershell
 #   3. Runner 机器上已安装 Go（且 go 在 PATH 中），或者用变量 GO_BIN 指定绝对路径
+#
+# ⚠️ 2026-10-04 现状（MR !151 一直合并不了的根因）：
+#   上游 fuckworld/115 开启了「Pipelines must succeed」，但 GitGud 上并不存在带
+#   windows tag 的 Runner，作业永远停在 pending（runner: null），流水线永远
+#   running，MR 因此永远无法合并。注意 fork 的同名 main 分支 push 流水线也会被
+#   GitLab 当作 MR 的头流水线，所以两边都必须不产生作业。
+#   在 windows Runner 就绪之前，下面的 workflow:rules 只允许「上游仓库的 tag」与
+#   「上游仓库默认分支 push」创建流水线；fork 与 merge request 事件不产生任何
+#   作业 —— 没有流水线时，合并检查自然通过。
+#   Runner 就绪后要恢复 MR 构建：删掉 workflow 块，并把 build:server 的
+#   `merge_request_event` 规则加回来即可。
+workflow:
+  rules:
+    # fork 仓库（RicardoLz/115）一律不创建流水线，避免 pending 作业牵连上游 MR
+    - if: $CI_PROJECT_PATH != "fuckworld/115"
+      when: never
+    # 上游 tag 流水线（手动发布用）保留
+    - if: $CI_COMMIT_TAG
+    # 上游默认分支 push 才跑常规构建
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    # 其余（merge request event 等）一律不创建流水线
+    - when: never
 
 stages:
   - build
@@ -35,8 +57,7 @@ build:server:
       - server/work/dfo-lan/bin/wireprobe-handoff-source.exe
       - server/work/dfo-lan/bin/wireprobe-pvf.exe
   rules:
-    # MR、默认分支、tag 都触发
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    # MR 构建待 windows Runner 就绪后再恢复
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
     - if: $CI_COMMIT_TAG
 

@@ -8,12 +8,11 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/jackc/pgx/v5"
 )
 
 type AccountVaultState = inventory.AccountVaultState
 
-func lockSharedVault(ctx context.Context, q *sqlcgen.Queries, account int64) (AccountVaultState, error) {
+func lockSharedVault(ctx context.Context, q querySet, account int64) (AccountVaultState, error) {
 	row, err := q.LockAccountVault(ctx, account)
 	return AccountVaultState{Slots: uint16(row.Slots), Gold: uint32(row.Gold), Items: row.Items}, err
 }
@@ -35,12 +34,12 @@ func (s *Store) CommitAccountVaultSort(ctx context.Context, account, character i
 	if sortItems == nil {
 		return vault, errors.New("nil account vault sort")
 	}
-	tx, err := s.db.Begin(ctx)
+	tx, err := s.engine.begin(ctx)
 	if err != nil {
 		return vault, err
 	}
-	defer tx.Rollback(ctx)
-	queries := s.queries.WithTx(tx)
+	defer tx.rollback(ctx)
+	queries := tx.queries()
 	owned, err := queries.ActiveCharacterOwned(ctx, sqlcgen.ActiveCharacterOwnedParams{AccountID: account, CharacterID: character})
 	if err != nil {
 		return vault, err
@@ -65,7 +64,7 @@ func (s *Store) CommitAccountVaultSort(ctx context.Context, account, character i
 	if err = queries.SaveAccountVaultItems(ctx, sqlcgen.SaveAccountVaultItemsParams{AccountID: account, Items: items}); err != nil {
 		return vault, err
 	}
-	if err = tx.Commit(ctx); err != nil {
+	if err = tx.commit(ctx); err != nil {
 		return vault, err
 	}
 	vault.Items = items
@@ -83,11 +82,11 @@ func (s *Store) CommitAccountVault(ctx context.Context, account, character int64
 	if apply == nil || account <= 0 || character <= 0 || len(version) != 64 || key == "" || len(key) > 200 {
 		return role, materials, vault, false, fmt.Errorf("账号金库事务参数无效")
 	}
-	tx, err := s.db.Begin(ctx)
+	tx, err := s.engine.begin(ctx)
 	if err != nil {
 		return role, materials, vault, false, err
 	}
-	defer tx.Rollback(ctx)
+	defer tx.rollback(ctx)
 	role, err = lockCharacter(ctx, tx, account, character)
 	if err != nil {
 		return role, materials, vault, false, err
@@ -95,7 +94,7 @@ func (s *Store) CommitAccountVault(ctx context.Context, account, character int64
 	if role.ConfigVersion != version {
 		return role, materials, vault, false, fmt.Errorf("账号金库角色配置版本不匹配")
 	}
-	queries := s.queries.WithTx(tx)
+	queries := tx.queries()
 	if err = queries.InitializeAccountMaterials(ctx, account); err != nil {
 		return role, materials, vault, false, err
 	}
@@ -113,9 +112,9 @@ func (s *Store) CommitAccountVault(ctx context.Context, account, character int64
 		if prior.CharacterID != character || prior.Operation != int32(operation) {
 			return role, materials, vault, false, fmt.Errorf("账号金库请求流水冲突")
 		}
-		return role, materials, vault, false, tx.Commit(ctx)
+		return role, materials, vault, false, tx.commit(ctx)
 	}
-	if !errors.Is(err, pgx.ErrNoRows) {
+	if !isNoRows(err) {
 		return role, materials, vault, false, err
 	}
 	state, updated, next, err := apply(role, materials, vault)
@@ -128,7 +127,7 @@ func (s *Store) CommitAccountVault(ctx context.Context, account, character int64
 	if json.Unmarshal(state, &fields) != nil || fields == nil || json.Unmarshal(updated, &counts) != nil || counts == nil || json.Unmarshal(next.Items, &items) != nil || items == nil || next.Slots%8 != 0 || next.Slots > 320 || next.Gold > 800000000 || (next.Slots == 0 && (next.Gold != 0 || len(items) != 0)) {
 		return role, materials, vault, false, fmt.Errorf("账号金库事务生成了无效存档")
 	}
-	if err = sqlcgen.New(tx).UpdateCharacterState(ctx, sqlcgen.UpdateCharacterStateParams{CharacterID: character, State: state}); err != nil {
+	if err = tx.queries().UpdateCharacterState(ctx, sqlcgen.UpdateCharacterStateParams{CharacterID: character, State: state}); err != nil {
 		return role, materials, vault, false, err
 	}
 	if err = queries.SaveAccountMaterials(ctx, sqlcgen.SaveAccountMaterialsParams{AccountID: account, Counts: updated}); err != nil {
@@ -140,7 +139,7 @@ func (s *Store) CommitAccountVault(ctx context.Context, account, character int64
 	if err = queries.RecordAccountVaultEvent(ctx, sqlcgen.RecordAccountVaultEventParams{AccountID: account, EventKey: key, CharacterID: character, Operation: int32(operation)}); err != nil {
 		return role, materials, vault, false, err
 	}
-	if err = tx.Commit(ctx); err != nil {
+	if err = tx.commit(ctx); err != nil {
 		return role, materials, vault, false, err
 	}
 	role.State = state
@@ -162,11 +161,11 @@ func (s *Store) CommitAccountVaultCrossMove(ctx context.Context, account, charac
 	if apply == nil || account <= 0 || character <= 0 || len(version) != 64 || key == "" || len(key) > 200 {
 		return role, shared, personal, false, errors.New("账号金库跨库事务参数无效")
 	}
-	tx, err := s.db.Begin(ctx)
+	tx, err := s.engine.begin(ctx)
 	if err != nil {
 		return role, shared, personal, false, err
 	}
-	defer tx.Rollback(ctx)
+	defer tx.rollback(ctx)
 	role, err = lockCharacter(ctx, tx, account, character)
 	if err != nil {
 		return role, shared, personal, false, err
@@ -174,7 +173,7 @@ func (s *Store) CommitAccountVaultCrossMove(ctx context.Context, account, charac
 	if role.ConfigVersion != version {
 		return role, shared, personal, false, errors.New("角色配置版本不匹配")
 	}
-	queries := s.queries.WithTx(tx)
+	queries := tx.queries()
 	personal, err = lockPersonalVault(ctx, queries, character, secondary)
 	if err != nil {
 		return role, shared, personal, false, err
@@ -191,9 +190,9 @@ func (s *Store) CommitAccountVaultCrossMove(ctx context.Context, account, charac
 		if prior.CharacterID != character || prior.Operation != 19 {
 			return role, shared, personal, false, errors.New("账号金库请求流水冲突")
 		}
-		return role, shared, personal, false, tx.Commit(ctx)
+		return role, shared, personal, false, tx.commit(ctx)
 	}
-	if !errors.Is(err, pgx.ErrNoRows) {
+	if !isNoRows(err) {
 		return role, shared, personal, false, err
 	}
 	state, next, items, err := apply(role, shared, personal)
@@ -205,7 +204,7 @@ func (s *Store) CommitAccountVaultCrossMove(ctx context.Context, account, charac
 	if json.Unmarshal(state, &fields) != nil || fields == nil || json.Unmarshal(next.Items, &arows) != nil || arows == nil || json.Unmarshal(items, &prows) != nil || prows == nil || next.Slots%8 != 0 || next.Slots > 320 || next.Gold > 800000000 || (next.Slots == 0 && (next.Gold != 0 || len(arows) != 0)) {
 		return role, shared, personal, false, errors.New("账号金库跨库事务生成无效存档")
 	}
-	if err = sqlcgen.New(tx).UpdateCharacterState(ctx, sqlcgen.UpdateCharacterStateParams{CharacterID: character, State: state}); err != nil {
+	if err = tx.queries().UpdateCharacterState(ctx, sqlcgen.UpdateCharacterStateParams{CharacterID: character, State: state}); err != nil {
 		return role, shared, personal, false, err
 	}
 	if err = savePersonalVaultItems(ctx, queries, character, items, secondary); err != nil {
@@ -217,7 +216,7 @@ func (s *Store) CommitAccountVaultCrossMove(ctx context.Context, account, charac
 	if err = queries.RecordAccountVaultEvent(ctx, sqlcgen.RecordAccountVaultEventParams{AccountID: account, EventKey: key, CharacterID: character, Operation: 19}); err != nil {
 		return role, shared, personal, false, err
 	}
-	if err = tx.Commit(ctx); err != nil {
+	if err = tx.commit(ctx); err != nil {
 		return role, shared, personal, false, err
 	}
 	role.State = state

@@ -28,10 +28,10 @@ func TestOdysseyHonorMailPostgres(t *testing.T) {
 	}
 	defer admin.Close()
 	schema := fmt.Sprintf("odyssey_honor_%d", time.Now().UnixNano())
-	if _, err = admin.db.Exec(ctx, "CREATE SCHEMA "+schema); err != nil {
+	if _, err = testPool(t, admin).Exec(ctx, "CREATE SCHEMA "+schema); err != nil {
 		t.Fatal(err)
 	}
-	defer admin.db.Exec(context.Background(), "DROP SCHEMA "+schema+" CASCADE")
+	defer testPool(t, admin).Exec(context.Background(), "DROP SCHEMA "+schema+" CASCADE")
 	s, err := Open(ctx, Config{PostgresDSN: dsn, PostgresSchema: schema, MaxConnections: 4})
 	if err != nil {
 		t.Fatal(err)
@@ -99,7 +99,7 @@ func TestOdysseyHonorMailPostgres(t *testing.T) {
 		t.Fatal("duplicate mail", messages, err)
 	}
 	// Claiming/deleting the letter must never restore eligibility.
-	if _, err = s.db.Exec(ctx, `UPDATE character_mail SET deleted_at=now() WHERE recipient_id=$1`, role.ID); err != nil {
+	if _, err = testPool(t, s).Exec(ctx, `UPDATE character_mail SET deleted_at=now() WHERE recipient_id=$1`, role.ID); err != nil {
 		t.Fatal(err)
 	}
 	if _, applied, err = progress.OdysseyHonorMail(ctx, role); err != nil || applied {
@@ -123,21 +123,21 @@ func TestOdysseyHonorMailPostgres(t *testing.T) {
 	// Full inbox rolls back both debt clearing and payment receipt. Removing
 	// one unrelated letter then permits exactly one delivery.
 	full := create("HonorFull")
-	if _, err = s.db.Exec(ctx, `INSERT INTO character_mail(recipient_id,sender_name,body,assets,expires_at) SELECT $1,'GM','fixture','[]',now()+interval '15 days' FROM generate_series(1,255)`, full.ID); err != nil {
+	if _, err = testPool(t, s).Exec(ctx, `INSERT INTO character_mail(recipient_id,sender_name,body,assets,expires_at) SELECT $1,'GM','fixture','[]',now()+interval '15 days' FROM generate_series(1,255)`, full.ID); err != nil {
 		t.Fatal(err)
 	}
 	if _, applied, err = progress.OdysseyHonorMail(ctx, full); !errors.Is(err, ErrMailFull) || applied {
 		t.Fatal(applied, err)
 	}
 	var receipts int
-	if err = s.db.QueryRow(ctx, `SELECT count(*) FROM character_events WHERE character_id=$1 AND event_key=$2`, full.ID, OdysseyHonorMailEvent).Scan(&receipts); err != nil || receipts != 0 {
+	if err = testPool(t, s).QueryRow(ctx, `SELECT count(*) FROM character_events WHERE character_id=$1 AND event_key=$2`, full.ID, OdysseyHonorMailEvent).Scan(&receipts); err != nil || receipts != 0 {
 		t.Fatal(receipts, err)
 	}
 	var owed uint32
-	if err = s.db.QueryRow(ctx, `SELECT (state->>'odyssey_graduation_reward_owed')::bigint FROM characters WHERE id=$1`, full.ID).Scan(&owed); err != nil || owed != 10420561 {
+	if err = testPool(t, s).QueryRow(ctx, `SELECT (state->>'odyssey_graduation_reward_owed')::bigint FROM characters WHERE id=$1`, full.ID).Scan(&owed); err != nil || owed != 10420561 {
 		t.Fatal(owed, err)
 	}
-	if _, err = s.db.Exec(ctx, `UPDATE character_mail SET deleted_at=now() WHERE id=(SELECT min(id) FROM character_mail WHERE recipient_id=$1)`, full.ID); err != nil {
+	if _, err = testPool(t, s).Exec(ctx, `UPDATE character_mail SET deleted_at=now() WHERE id=(SELECT min(id) FROM character_mail WHERE recipient_id=$1)`, full.ID); err != nil {
 		t.Fatal(err)
 	}
 	if _, applied, err = progress.OdysseyHonorMail(ctx, full); err != nil || !applied {

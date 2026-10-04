@@ -3,9 +3,7 @@ package database
 import (
 	"context"
 	"dfolan/internal/database/sqlcgen"
-	"errors"
 	"fmt"
-	"github.com/jackc/pgx/v5"
 )
 
 // Unified options: CMD2377 subtype 0x01 carries account options restored
@@ -46,8 +44,8 @@ func (s *Store) SaveAccountUnifiedOptions(ctx context.Context, account int64, en
 	if e := validateUnifiedEntries(entries); e != nil {
 		return e
 	}
-	return pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
-		queries := s.queries.WithTx(tx)
+	return inTx(ctx, s.engine, func(tx txHandle) error {
+		queries := tx.queries()
 		if _, e := queries.LockAccount(ctx, account); e != nil {
 			return e
 		}
@@ -69,10 +67,10 @@ func (s *Store) SaveCharacterUnifiedOptions(ctx context.Context, account, id int
 	if e := validateUnifiedEntries(entries); e != nil {
 		return e
 	}
-	return pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
-		queries := s.queries.WithTx(tx)
+	return inTx(ctx, s.engine, func(tx txHandle) error {
+		queries := tx.queries()
 		if _, e := queries.LockCharacterOwner(ctx, sqlcgen.LockCharacterOwnerParams{AccountID: account, CharacterID: id}); e != nil {
-			if errors.Is(e, pgx.ErrNoRows) {
+			if isNoRows(e) {
 				return fmt.Errorf("unified options character is not owned")
 			}
 			return e
@@ -136,10 +134,10 @@ func (s *Store) SaveCharacterUnifiedOptionGroup(ctx context.Context, account, ch
 			return fmt.Errorf("character option group index out of range")
 		}
 	}
-	return pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
-		queries := s.queries.WithTx(tx)
+	return inTx(ctx, s.engine, func(tx txHandle) error {
+		queries := tx.queries()
 		if _, err := queries.LockCharacterOwner(ctx, sqlcgen.LockCharacterOwnerParams{AccountID: account, CharacterID: characterID}); err != nil {
-			if errors.Is(err, pgx.ErrNoRows) {
+			if isNoRows(err) {
 				return fmt.Errorf("character option group: character is not owned")
 			}
 			return err
@@ -184,8 +182,8 @@ func (s *Store) SaveAccountHotkeys(ctx context.Context, account int64, subtype b
 	if len(entries) == 0 {
 		return nil
 	}
-	return pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
-		queries := s.queries.WithTx(tx)
+	return inTx(ctx, s.engine, func(tx txHandle) error {
+		queries := tx.queries()
 		if _, err := queries.LockAccount(ctx, account); err != nil {
 			return err
 		}
@@ -209,10 +207,10 @@ func (s *Store) SaveCharacterHotkeys(ctx context.Context, account, characterID i
 	if len(entries) == 0 {
 		return nil
 	}
-	return pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
-		queries := s.queries.WithTx(tx)
+	return inTx(ctx, s.engine, func(tx txHandle) error {
+		queries := tx.queries()
 		if _, err := queries.LockCharacterOwner(ctx, sqlcgen.LockCharacterOwnerParams{AccountID: account, CharacterID: characterID}); err != nil {
-			if errors.Is(err, pgx.ErrNoRows) {
+			if isNoRows(err) {
 				return fmt.Errorf("character hotkeys: character is not owned")
 			}
 			return err

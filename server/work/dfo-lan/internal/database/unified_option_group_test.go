@@ -25,10 +25,10 @@ func TestCharacterUnifiedOptionGroupPersistence(t *testing.T) {
 	}
 	defer admin.Close()
 	schema := fmt.Sprintf("unified_options_%d", time.Now().UnixNano())
-	if _, err = admin.db.Exec(ctx, "CREATE SCHEMA "+schema); err != nil {
+	if _, err = testPool(t, admin).Exec(ctx, "CREATE SCHEMA "+schema); err != nil {
 		t.Fatal(err)
 	}
-	defer admin.db.Exec(ctx, "DROP SCHEMA "+schema+" CASCADE")
+	defer testPool(t, admin).Exec(ctx, "DROP SCHEMA "+schema+" CASCADE")
 	cfg.PostgresSchema = schema
 	store, err := Open(ctx, cfg)
 	if err != nil {
@@ -115,7 +115,7 @@ func TestCharacterUnifiedOptionGroupPersistence(t *testing.T) {
 	})
 	t.Run("failed write rolls back earlier entries", func(t *testing.T) {
 		// Constraint exists only in this test's isolated schema. Fail after one upsert.
-		if _, err := store.db.Exec(ctx, `ALTER TABLE account_unified_options ADD CONSTRAINT test_reject_value CHECK(value <> 4242)`); err != nil {
+		if _, err := testPool(t, store).Exec(ctx, `ALTER TABLE account_unified_options ADD CONSTRAINT test_reject_value CHECK(value <> 4242)`); err != nil {
 			t.Fatal(err)
 		}
 		values := []UnifiedOptionEntry{{Position: 2, Value: 99}, {Position: 3, Value: 4242}}

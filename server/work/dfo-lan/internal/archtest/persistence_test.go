@@ -91,6 +91,27 @@ func TestPersistenceBoundary(t *testing.T) {
 					if !ok || !method.Name.IsExported() {
 						continue
 					}
+					// The rule protects the package's public surface. A method on an
+					// UNEXPORTED receiver is not part of it: neither the receiver type
+					// nor any interface it satisfies can be named from outside the
+					// package, so a generated adapter is free to speak in generated
+					// types. Exported receivers (Store) are still checked.
+					if method.Recv != nil {
+						exportedReceiver := false
+						if len(method.Recv.List) > 0 {
+							switch recvType := method.Recv.List[0].Type.(type) {
+							case *ast.StarExpr:
+								if ident, ok := recvType.X.(*ast.Ident); ok {
+									exportedReceiver = ident.IsExported()
+								}
+							case *ast.Ident:
+								exportedReceiver = recvType.IsExported()
+							}
+						}
+						if !exportedReceiver {
+							continue
+						}
+					}
 					ast.Inspect(method.Type, func(node ast.Node) bool {
 						selector, ok := node.(*ast.SelectorExpr)
 						if ok {

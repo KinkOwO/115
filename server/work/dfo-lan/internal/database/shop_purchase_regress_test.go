@@ -30,10 +30,10 @@ func TestCommitCharacterEventTxAcceptsNilApply(t *testing.T) {
 	}
 	defer admin.Close()
 	schema := fmt.Sprintf("shop_limit_test_%d", time.Now().UnixNano())
-	if _, err := admin.db.Exec(ctx, "CREATE SCHEMA "+schema); err != nil {
+	if _, err := testPool(t, admin).Exec(ctx, "CREATE SCHEMA "+schema); err != nil {
 		t.Fatal(err)
 	}
-	defer admin.db.Exec(context.Background(), "DROP SCHEMA "+schema+" CASCADE")
+	defer testPool(t, admin).Exec(context.Background(), "DROP SCHEMA "+schema+" CASCADE")
 	cfg.PostgresSchema = schema
 	cfg.MaxConnections = 8
 	s, err := Open(ctx, cfg)

@@ -70,7 +70,7 @@ func TestRosterBackgroundTransactionUsesOwningAccount(t *testing.T) {
 	}
 	// Expired authorization falls back in the read view without erasing the
 	// stored selection; a later authorized renewal can restore it.
-	if _, err := s.db.Exec(ctx, `UPDATE account_roster_background_unlocks SET expires_at=1 WHERE account_id=$1`, account); err != nil {
+	if _, err := testPool(t, s).Exec(ctx, `UPDATE account_roster_background_unlocks SET expires_at=1 WHERE account_id=$1`, account); err != nil {
 		t.Fatal(err)
 	}
 	state, err = s.RosterBackgrounds(ctx, account)
@@ -78,7 +78,7 @@ func TestRosterBackgroundTransactionUsesOwningAccount(t *testing.T) {
 		t.Fatalf("expired grant remains active: %+v %v", state, err)
 	}
 	var stored int
-	if err := s.db.QueryRow(ctx, `SELECT background_id FROM account_roster_backgrounds WHERE account_id=$1 AND page=4`, account).Scan(&stored); err != nil || stored != int(background.ID) {
+	if err := testPool(t, s).QueryRow(ctx, `SELECT background_id FROM account_roster_backgrounds WHERE account_id=$1 AND page=4`, account).Scan(&stored); err != nil || stored != int(background.ID) {
 		t.Fatalf("expiry read rewrote stored selection: %d %v", stored, err)
 	}
 	grant.ExpiresAt = 0

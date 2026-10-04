@@ -7,9 +7,7 @@ import (
 	"dfolan/internal/database/sqlcgen"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"github.com/jackc/pgx/v5"
 	"math"
 	"strings"
 	"time"
@@ -74,12 +72,12 @@ func (s *Store) commitCharacterEvent(ctx context.Context, account, id int64, ver
 	if e != nil || len(decoded) != 32 || key == "" || len(key) > 200 || model == "" || len(model) > 100 || (apply == nil && txApply == nil) {
 		return role, false, fmt.Errorf("invalid character event")
 	}
-	tx, e := s.db.Begin(ctx)
+	tx, e := s.engine.begin(ctx)
 	if e != nil {
 		return role, false, e
 	}
-	defer tx.Rollback(ctx)
-	q := s.queries.WithTx(tx)
+	defer tx.rollback(ctx)
+	q := tx.queries()
 	// Callback operations may share account state across characters.
 	// Lock accounts before characters, matching roster/archival order.
 	if txApply != nil {
@@ -116,19 +114,19 @@ func (s *Store) commitCharacterEvent(ctx context.Context, account, id int64, ver
 			return role, false, e
 		}
 	}
-	prior, e := sqlcgen.New(tx).CharacterEventModel(ctx, sqlcgen.CharacterEventModelParams{CharacterID: id, EventKey: key})
+	prior, e := tx.queries().CharacterEventModel(ctx, sqlcgen.CharacterEventModelParams{CharacterID: id, EventKey: key})
 	if e == nil {
 		if prior != model {
 			return role, false, fmt.Errorf("character event model mismatch")
 		}
-		return role, false, tx.Commit(ctx)
+		return role, false, tx.commit(ctx)
 	}
-	if !errors.Is(e, pgx.ErrNoRows) {
+	if !isNoRows(e) {
 		return role, false, e
 	}
 	var state, outcome json.RawMessage
 	if txApply != nil {
-		state, outcome, e = txApply(newTx(tx, account, id), role)
+		state, outcome, e = txApply(newTx(tx.queries(), account, id), role)
 	} else {
 		state, outcome, e = apply(role)
 	}
@@ -147,7 +145,7 @@ func (s *Store) commitCharacterEvent(ctx context.Context, account, id int64, ver
 			}
 			oldEnd, err := q.LockPremiumExpiry(ctx, sqlcgen.LockPremiumExpiryParams{AccountID: account, PremiumType: int16(reward.Type)})
 			e = err
-			if e != nil && !errors.Is(e, pgx.ErrNoRows) {
+			if e != nil && !isNoRows(e) {
 				return role, false, e
 			}
 			base := max(now, oldEnd)
@@ -175,7 +173,7 @@ func (s *Store) commitCharacterEvent(ctx context.Context, account, id int64, ver
 			}
 		}
 	}
-	e = sqlcgen.New(tx).RecordCharacterEvent(ctx, sqlcgen.RecordCharacterEventParams{CharacterID: id, EventKey: key, ConfigVersion: version, Model: model, Outcome: outcome})
+	e = tx.queries().RecordCharacterEvent(ctx, sqlcgen.RecordCharacterEventParams{CharacterID: id, EventKey: key, ConfigVersion: version, Model: model, Outcome: outcome})
 	if e != nil {
 		return role, false, e
 	}
@@ -222,11 +220,11 @@ func (s *Store) commitCharacterEvent(ctx context.Context, account, id int64, ver
 	if e = s.commitAdventureExperience(ctx, tx, role, state); e != nil {
 		return role, false, e
 	}
-	e = sqlcgen.New(tx).UpdateCharacterState(ctx, sqlcgen.UpdateCharacterStateParams{CharacterID: id, State: state})
+	e = tx.queries().UpdateCharacterState(ctx, sqlcgen.UpdateCharacterStateParams{CharacterID: id, State: state})
 	if e != nil {
 		return role, false, e
 	}
-	if e = tx.Commit(ctx); e != nil {
+	if e = tx.commit(ctx); e != nil {
 		return role, false, e
 	}
 	role.State = state

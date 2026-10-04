@@ -64,7 +64,7 @@ func TestSQLCFixtureReopenAndCleanup(t *testing.T) {
 	}
 	defer admin.Close()
 	var remaining bool
-	if err := admin.db.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM pg_namespace WHERE nspname=$1)`, schema).Scan(&remaining); err != nil || remaining {
+	if err := testPool(t, admin).QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM pg_namespace WHERE nspname=$1)`, schema).Scan(&remaining); err != nil || remaining {
 		t.Fatalf("fixture schema not removed: %v %v", remaining, err)
 	}
 }
