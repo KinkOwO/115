@@ -151,7 +151,33 @@ func (w *worldSession) primerTransform(p []byte, event func(map[string]any)) ([]
 		return plan, nil
 	}
 	plan = append(plan, w.primerTransformRefresh(ctx, oathCoreChanged(receipt))...)
+	// 金币不够时从**账号金库**调取过 ⇒ 必须补发金库金币显示包（与 2259/生成同一条纪律：
+	// 漏发它，金库界面停留旧值，客户端本地校验会把存取卡住）。
+	plan = append(plan, w.vaultGoldRefreshPackets(ctx, receipt.VaultGold)...)
 	return plan, nil
+}
+
+// vaultGoldRefreshPackets 在"本次从账号金库扣过金币"时补发金库金币显示包。
+//
+// `taken == 0`（背包金币就够付）时什么都不发 —— 避免每次变换都多推一帧无关刷新。
+func (w *worldSession) vaultGoldRefreshPackets(ctx context.Context, taken uint32) []outboundPacket {
+	if taken == 0 || w == nil || w.store == nil || w.role.ID == 0 {
+		return nil
+	}
+	vault, e := w.store.LoadAccountVault(ctx, w.account, w.role.ID)
+	if e != nil {
+		log.Printf("vault gold refresh after transform: load vault: %v", e)
+		return nil
+	}
+	packets, e := w.accountVaultGoldPackets(w.role, vault)
+	if e != nil {
+		log.Printf("vault gold refresh after transform: build packets: %v", e)
+		return nil
+	}
+	for i := range packets {
+		packets[i].Name = "transform_vault_gold_" + packets[i].Name
+	}
+	return packets
 }
 
 // primerTransformSlots 把记录位次翻成穿戴槽（36+i）；越界位次直接丢弃（协议层已限 11 条）。

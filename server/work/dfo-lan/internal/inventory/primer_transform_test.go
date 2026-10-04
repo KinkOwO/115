@@ -156,7 +156,7 @@ func TestPrimerTransformOathCoreConsumesArmoryRegistration(t *testing.T) {
 	if e != nil {
 		t.Fatalf("plan: %v", e)
 	}
-	updated, accountNext, receipt, e := s.PreparePrimerTransform(role, primerAccountRaw(t), plan)
+	updated, accountNext, _, receipt, e := s.PreparePrimerTransform(role, primerAccountRaw(t), 0, plan)
 	if e != nil {
 		t.Fatalf("prepare: %v", e)
 	}
@@ -216,7 +216,7 @@ func TestPrimerTransformExecutesSourceCostAndRefunds(t *testing.T) {
 	if len(plan.Steps) != 1 || plan.Steps[0].source.kind != primerSourceArmory {
 		t.Fatalf("plan steps = %+v, want one armory-sourced step", plan.Steps)
 	}
-	updated, accountNext, receipt, e := s.PreparePrimerTransform(role, primerAccountRaw(t), plan)
+	updated, accountNext, _, receipt, e := s.PreparePrimerTransform(role, primerAccountRaw(t), 0, plan)
 	if e != nil {
 		t.Fatalf("prepare: %v", e)
 	}
@@ -287,7 +287,7 @@ func TestPrimerTransformConsumesArmoryRegistrations(t *testing.T) {
 			t.Fatalf("step %+v: want an armory-sourced fill", step)
 		}
 	}
-	updated, accountNext, receipt, e := s.PreparePrimerTransform(role, primerAccountRaw(t), plan)
+	updated, accountNext, _, receipt, e := s.PreparePrimerTransform(role, primerAccountRaw(t), 0, plan)
 	if e != nil {
 		t.Fatalf("prepare: %v", e)
 	}
@@ -353,7 +353,7 @@ func TestPrimerTransformArmorySourceKeepsJournalAndRefundsNothing(t *testing.T) 
 	if len(plan.Steps) != 1 || plan.Steps[0].source.kind != primerSourceArmory {
 		t.Fatalf("plan steps = %+v, want one armory-sourced step", plan.Steps)
 	}
-	updated, accountNext, receipt, e := s.PreparePrimerTransform(role, primerAccountRaw(t), plan)
+	updated, accountNext, _, receipt, e := s.PreparePrimerTransform(role, primerAccountRaw(t), 0, plan)
 	if e != nil {
 		t.Fatalf("prepare: %v", e)
 	}
@@ -407,7 +407,7 @@ func TestPrimerTransformOnEmptySlotEquipsWithoutRefund(t *testing.T) {
 	if e != nil {
 		t.Fatalf("plan: %v", e)
 	}
-	updated, accountNext, receipt, e := s.PreparePrimerTransform(role, primerAccountRaw(t), plan)
+	updated, accountNext, _, receipt, e := s.PreparePrimerTransform(role, primerAccountRaw(t), 0, plan)
 	if e != nil {
 		t.Fatalf("prepare: %v", e)
 	}
@@ -460,7 +460,7 @@ func TestPrimerTransformNeverConjuresExtraCrystals(t *testing.T) {
 	if len(plan.Steps) != 1 {
 		t.Fatalf("plan steps = %+v, want exactly one (only one real unit exists)", plan.Steps)
 	}
-	updated, _, receipt, e := s.PreparePrimerTransform(role, primerAccountRaw(t), plan)
+	updated, _, _, receipt, e := s.PreparePrimerTransform(role, primerAccountRaw(t), 0, plan)
 	if e != nil {
 		t.Fatalf("prepare: %v", e)
 	}
@@ -495,7 +495,7 @@ func TestPrimerTransformNeverConjuresExtraCrystals(t *testing.T) {
 			}
 			continue
 		}
-		nextState, _, _, e := s.PreparePrimerTransform(role, primerAccountRaw(t), again)
+		nextState, _, _, _, e := s.PreparePrimerTransform(role, primerAccountRaw(t), 0, again)
 		if e != nil {
 			t.Fatalf("round %d: prepare: %v", i+1, e)
 		}
@@ -563,7 +563,7 @@ func TestPrimerTransformReplacesOccupiedSlotWithoutOwnedCopy(t *testing.T) {
 	if len(plan.Steps) != 1 {
 		t.Fatalf("plan steps = %+v, want 1", plan.Steps)
 	}
-	updated, _, receipt, e := s.PreparePrimerTransform(role, primerAccountRaw(t), plan)
+	updated, _, _, receipt, e := s.PreparePrimerTransform(role, primerAccountRaw(t), 0, plan)
 	if e != nil {
 		t.Fatalf("prepare: %v", e)
 	}
@@ -594,7 +594,7 @@ func TestPrimerTransformReplacesOccupiedSlotWithoutOwnedCopy(t *testing.T) {
 	role.State = updated
 	again, e := s.PlanPrimerTransform(role, r, primerTransformPay)
 	if e == nil {
-		next, _, receipt2, e2 := s.PreparePrimerTransform(role, primerAccountRaw(t), again)
+		next, _, _, receipt2, e2 := s.PreparePrimerTransform(role, primerAccountRaw(t), 0, again)
 		if e2 != nil {
 			t.Fatalf("round 2 prepare: %v", e2)
 		}
@@ -630,7 +630,7 @@ func TestPrimerTransformSkipsOnlyThePricierUnfundedRow(t *testing.T) {
 	if len(plan.Steps) != 2 {
 		t.Fatalf("plan steps = %+v, want both rows planned (affordability is a transaction-time concern)", plan.Steps)
 	}
-	updated, _, receipt, e := s.PreparePrimerTransform(role, primerAccountRaw(t), plan)
+	updated, _, _, receipt, e := s.PreparePrimerTransform(role, primerAccountRaw(t), 0, plan)
 	if e != nil {
 		t.Fatalf("prepare: %v", e)
 	}
@@ -679,7 +679,7 @@ func TestPrimerTransformCostFollowsSourceTable(t *testing.T) {
 	if e != nil {
 		t.Fatalf("plan: %v", e)
 	}
-	_, _, receipt, e := s.PreparePrimerTransform(role, primerAccountRaw(t), plan)
+	_, _, _, receipt, e := s.PreparePrimerTransform(role, primerAccountRaw(t), 0, plan)
 	if e != nil {
 		t.Fatalf("prepare: %v", e)
 	}
@@ -752,7 +752,7 @@ func TestPrimerTransformKeepsCarriedCountsConstant(t *testing.T) {
 		if e != nil {
 			t.Fatalf("round %d: plan: %v", round+1, e)
 		}
-		next, _, receipt, e := s.PreparePrimerTransform(role, primerAccountRaw(t), plan)
+		next, _, _, receipt, e := s.PreparePrimerTransform(role, primerAccountRaw(t), 0, plan)
 		if e != nil {
 			t.Fatalf("round %d: prepare: %v", round+1, e)
 		}
@@ -842,7 +842,7 @@ func TestPrimerTransformKeepsJournalAndRefundsNothingWhenItBalances(t *testing.T
 	if len(plan.Steps) != 1 || plan.Steps[0].source.kind != primerSourceArmory {
 		t.Fatalf("plan steps = %+v, want an armory-sourced step", plan.Steps)
 	}
-	updated, accountNext, receipt, e := s.PreparePrimerTransform(role, primerAccountRaw(t), plan)
+	updated, accountNext, _, receipt, e := s.PreparePrimerTransform(role, primerAccountRaw(t), 0, plan)
 	if e != nil {
 		t.Fatalf("prepare: %v", e)
 	}
@@ -913,7 +913,7 @@ func TestPrimerTransformPrefersARegisteredCopyOverASlot(t *testing.T) {
 	if e != nil {
 		t.Fatalf("plan: %v", e)
 	}
-	updated, accountNext, receipt, e := s.PreparePrimerTransform(role, primerAccountRaw(t), plan)
+	updated, accountNext, _, receipt, e := s.PreparePrimerTransform(role, primerAccountRaw(t), 0, plan)
 	if e != nil {
 		t.Fatalf("prepare: %v", e)
 	}
@@ -989,7 +989,7 @@ func TestPrimerTransformRefundsOnlyWhenTheOldItemCannotBePlaced(t *testing.T) {
 	if len(plan.Steps) != 1 || plan.Steps[0].source.kind != primerSourceArmory || plan.Steps[0].from != rare {
 		t.Fatalf("plan steps = %+v, want one armory step swapping %d out", plan.Steps, rare)
 	}
-	updated, accountNext, receipt, e := s.PreparePrimerTransform(role, primerAccountRaw(t), plan)
+	updated, accountNext, _, receipt, e := s.PreparePrimerTransform(role, primerAccountRaw(t), 0, plan)
 	if e != nil {
 		t.Fatalf("prepare: %v", e)
 	}
@@ -1065,7 +1065,7 @@ func TestPrimerTransformSkipsSwapThatCannotBePaidBack(t *testing.T) {
 	if e != nil {
 		t.Fatalf("plan: %v", e)
 	}
-	updated, _, receipt, e := s.PreparePrimerTransform(role, primerAccountRaw(t), plan)
+	updated, _, _, receipt, e := s.PreparePrimerTransform(role, primerAccountRaw(t), 0, plan)
 	// 整行不可执行 ⇒ 允许两种收口（整笔报错 / 记 Skipped），但**存档必须一字不动**。
 	if e != nil {
 		t.Logf("prepare 拒绝整笔（可接受）: %v", e)
@@ -1119,7 +1119,7 @@ func TestPrimerTransformJournalDoesNotDriftAcrossRounds(t *testing.T) {
 		if e != nil {
 			t.Fatalf("round %d: plan: %v", round+1, e)
 		}
-		next, _, _, e := s.PreparePrimerTransform(role, primerAccountRaw(t), plan)
+		next, _, _, _, e := s.PreparePrimerTransform(role, primerAccountRaw(t), 0, plan)
 		if e != nil {
 			t.Fatalf("round %d: prepare: %v", round+1, e)
 		}

@@ -88,6 +88,8 @@ type PrimerTransformReceipt struct {
 	Refunds   []CraftMaterial `json:"refunds,omitempty"`
 	Gold      uint32          `json:"gold,omitempty"`
 	Option    int             `json:"option,omitempty"`
+	// VaultGold 是本次从**账号金库**调取的金币（背包不够时才会 > 0）。
+	VaultGold uint32 `json:"vault_gold,omitempty"`
 }
 
 type primerTransformStep struct {
@@ -194,6 +196,47 @@ func newPrimerSourceClaim() *primerSourceClaim {
 	}
 }
 
+// primerSlotReject 回答"这件模板能不能放到这个槽"，返回空串表示可以，否则返回中文原因。
+//
+// **口径与穿戴校验（wear.go 的 `wearable`）逐条对齐**，不另立第二处判据：
+//
+//	[oath]                → 仅槽 47
+//	[primer]              → 槽 36..46；rarity 8（太初）仅 44..46
+//	[amalgamation stone]  → 槽 36..43
+//	誓约 / 晶体            → 角色等级 ≥ 115
+//
+// 等级从 `role.State` 的 `"level"` 读（与 wear.go:105-114 同一读法）。
+func (s *ItemService) primerSlotReject(role Role, kind string, template uint32, slot uint16) string {
+	if kind == "[oath]" || kind == "[primer]" {
+		var state struct {
+			Level byte `json:"level"`
+		}
+		_ = json.Unmarshal(role.State, &state)
+		if state.Level < 115 {
+			return "是誓约/晶体，需要 115 级"
+		}
+	}
+	switch kind {
+	case "[oath]":
+		if slot != PrimerOathSlot {
+			return fmt.Sprintf("是誓约核心，只能进槽 %d", PrimerOathSlot)
+		}
+	case "[primer]":
+		if slot < PrimerCrystalSlotBase || slot > PrimerCrystalSlotBase+PrimerCrystalSlotCount-1 {
+			return fmt.Sprintf("是晶体，只能进槽 %d..%d",
+				PrimerCrystalSlotBase, PrimerCrystalSlotBase+PrimerCrystalSlotCount-1)
+		}
+		if _, rarity, ok := s.equipmentGradeRarity(template); ok && rarity == 8 && slot < 44 {
+			return "是太初晶体，只能进 44..46"
+		}
+	case "[amalgamation stone]":
+		if slot < PrimerCrystalSlotBase || slot > 43 {
+			return "是融合石，只能进槽 36..43"
+		}
+	}
+	return ""
+}
+
 // primerFindSource 找一件 `target` 的实物来源。
 //
 // 优先级（plan 与 prepare 必须完全一致，否则事务里会判成"来源变了"而整行跳过）：
@@ -271,8 +314,18 @@ func (s *ItemService) PlanPrimerTransform(role Role, r protocol.PrimerTransformR
 	consider := func(row int, slot uint16, entry protocol.PrimerTransformEntry) {
 		target := entry.Template
 		kind := s.equipmentKind(target)
-		if kind != "[primer]" && kind != "[oath]" {
-			notes = append(notes, fmt.Sprintf("行 %d → 槽 %d: 目标 %d 不是晶体/誓约(%q)", row, slot, target, kind))
+		if kind != "[primer]" && kind != "[oath]" && kind != "[amalgamation stone]" {
+			notes = append(notes, fmt.Sprintf("行 %d → 槽 %d: 目标 %d 不是晶体/誓约/融合石(%q)", row, slot, target, kind))
+			result.Skipped = append(result.Skipped, target)
+			return
+		}
+		// 槽位/类型/等级门禁 —— **与穿戴校验（wear.go）同一套口径**，不另立第二处判据：
+		// `[oath]` 只能进 47、`[primer]` 只能进 36..46（太初 r8 只能 44..46）、
+		// `[amalgamation stone]` 只能进 36..43，且誓约/晶体需要 115 级。
+		// 行号与槽号是从客户端抄来的；真出现越界说明对面模型变了，宁可跳过也不要写出
+		// 客户端认为非法的存档（"装备库登记不上 / 变换界面卡死"就是这么来的）。
+		if reason := s.primerSlotReject(role, kind, target, slot); reason != "" {
+			notes = append(notes, fmt.Sprintf("行 %d → 槽 %d: 目标 %d %s", row, slot, target, reason))
 			result.Skipped = append(result.Skipped, target)
 			return
 		}
@@ -297,16 +350,6 @@ func (s *ItemService) PlanPrimerTransform(role Role, r protocol.PrimerTransformR
 			return
 		}
 		claim.claimSource(src, target)
-		// 太初晶体（rarity 8）只能进 44..46（与 wear.go 的穿戴校验同一条源规则）：
-		// 行号与槽号是从客户端抄来的，真出现越界说明对面模型变了，宁可跳过也不要写出
-		// 客户端认为非法的存档（"装备库登记不上 / 变换界面卡死"就是这么来的）。
-		if kind == "[primer]" {
-			if _, rarity, ok := s.equipmentGradeRarity(target); ok && rarity == 8 && slot < 44 {
-				notes = append(notes, fmt.Sprintf("行 %d → 槽 %d: 太初晶体 %d 只能进 44..46", row, slot, target))
-				result.Skipped = append(result.Skipped, target)
-				return
-			}
-		}
 		if _, e := s.transformPayment(catalog.TransformChainPrimer, target, payOption); e != nil {
 			notes = append(notes, fmt.Sprintf("行 %d → 槽 %d: 目标 %d 算不出变换成本（%v）", row, slot, target, e))
 			result.Skipped = append(result.Skipped, target)
@@ -342,19 +385,22 @@ func (s *ItemService) PlanPrimerTransform(role Role, r protocol.PrimerTransformR
 
 // PreparePrimerTransform 在事务里执行计划：扣成本 → 按来源把目标搬到槽上、
 // 被换下的那件回原处（背包来源回背包、军械库来源回登记）→ 只有真的消耗了拥有物才返还材料。
-func (s *ItemService) PreparePrimerTransform(current Role, accountRaw json.RawMessage, plan PrimerTransformPlan) (json.RawMessage, json.RawMessage, PrimerTransformReceipt, error) {
+//
+// `vaultGold` 是账号金库当前金币：变换费用**背包优先、不足部分从金库同步调取**
+// （业主确认的官方「取用金库材料」语义）；返回值里回写剩余的金库金币。
+func (s *ItemService) PreparePrimerTransform(current Role, accountRaw json.RawMessage, vaultGold uint32, plan PrimerTransformPlan) (json.RawMessage, json.RawMessage, uint32, PrimerTransformReceipt, error) {
 	result, steps := plan.Receipt, plan.Steps
 	live, e := ReadBag(current.State)
 	if e != nil {
-		return nil, nil, result, e
+		return nil, nil, vaultGold, result, e
 	}
 	liveLedger, e := ReadEquipmentJournal(current.State)
 	if e != nil {
-		return nil, nil, result, e
+		return nil, nil, vaultGold, result, e
 	}
 	account, e := ReadAccountMaterials(accountRaw)
 	if e != nil {
-		return nil, nil, result, e
+		return nil, nil, vaultGold, result, e
 	}
 
 	var bagMats, accountMats []MaterialCost
@@ -365,6 +411,7 @@ func (s *ItemService) PreparePrimerTransform(current Role, accountRaw json.RawMe
 	// consumedArmory 是本次要从登记表里扣掉的模板；swapOut 是被换下、要登记回去的那一件。
 	// 两者在账本上**进出各一份** ⇒ 图鉴总份数不变（见 primerSourceKind）。
 	consumedArmory := map[uint32]uint32{}
+	// swapOut 是"目标从登记表扣、旧件登记回登记表"的那一件（进出相抵）。
 	swapOut := map[uint32]uint32{}
 	// lost 收集"被顶掉、又回不了背包"的旧件（源表按它们的稀有度返还材料）。
 	lost := map[uint32]uint32{}
@@ -409,10 +456,10 @@ func (s *ItemService) PreparePrimerTransform(current Role, accountRaw json.RawMe
 			result.Skipped = append(result.Skipped, step.to)
 			continue
 		}
-		// 金币也按"逐件扣"的口径判：**用剩余金币**（live.Gold - 已累计的 gold）比，
+		// 金币按"逐件扣"的口径判：**用背包 + 账号金库的剩余总额**比（金库不足时同步调取），
 		// 而不是最后一次性比总额 —— 否则"够换便宜那件、不够换贵那件"会整批回滚，
 		// 玩家看到的还是"点了没反应"。能换的照换，换不起的那件记进回执 Skipped。
-		if live.Gold < gold+pay.Gold {
+		if uint64(live.Gold)+uint64(vaultGold) < uint64(gold)+uint64(pay.Gold) {
 			result.Skipped = append(result.Skipped, step.to)
 			continue
 		}
@@ -462,22 +509,24 @@ func (s *ItemService) PreparePrimerTransform(current Role, accountRaw json.RawMe
 		done = append(done, PrimerTransformPair{Row: step.row, Slot: step.slot, From: step.from, To: step.to})
 	}
 	if len(done) == 0 {
-		return nil, nil, result, fmt.Errorf("primer transform: none of the %d steps is executable", len(steps))
+		return nil, nil, vaultGold, result, fmt.Errorf("primer transform: none of the %d steps is executable", len(steps))
 	}
 
 	paid, e := live.PayMaterials(bagMats, 1)
 	if e != nil {
-		return nil, nil, result, e
+		return nil, nil, vaultGold, result, e
 	}
-	if gold > paid.Gold {
-		return nil, nil, result, fmt.Errorf("primer transform: need %d gold, have %d", gold, paid.Gold)
+	// 金币：背包优先，不足部分从**账号金库**同步调取（业主确认的官方「取用金库材料」语义）。
+	paid, vaultNext, fromVault, e := payTransformGold(paid, vaultGold, gold)
+	if e != nil {
+		return nil, nil, vaultGold, result, e
 	}
-	paid.Gold -= gold
+	result.VaultGold = fromVault
 	out := account
 	for _, m := range accountMats {
 		nxt, _, e := out.Spend(m.Template, m.Count)
 		if e != nil {
-			return nil, nil, result, e
+			return nil, nil, vaultGold, result, e
 		}
 		out = nxt
 	}
@@ -485,7 +534,7 @@ func (s *ItemService) PreparePrimerTransform(current Role, accountRaw json.RawMe
 	// 目标登记 −1、被换下的那件登记 +1 ⇒ 总份数恒定（见 primerSourceKind 的说明）。
 	ledgerNext, lostNow, e := applyPrimerJournal(s.Equipment, s.Journal, liveLedger, consumedArmory, swapOut, lost)
 	if e != nil {
-		return nil, nil, result, e
+		return nil, nil, vaultGold, result, e
 	}
 	// 现场核对：**登记表的份数变化必须恰好等于"消耗 − 登记回去"**。
 	// 差额只允许来自"目标被搬到了身上"（那些件不再登记在册），不允许凭空多/少。
@@ -521,7 +570,7 @@ func (s *ItemService) PreparePrimerTransform(current Role, accountRaw json.RawMe
 		if e != nil || len(items) == 0 {
 			// 调用方（plan/prepare）已保证"没有返还料的档不会被记成离手" ⇒ 走到这里说明
 			// 口径被破坏。宁可整笔报错，也不要悄悄吃掉玩家一件实物。
-			return nil, nil, result, fmt.Errorf("primer transform: %d 被记为离手却在源表里没有返还料", template)
+			return nil, nil, vaultGold, result, fmt.Errorf("primer transform: %d 被记为离手却在源表里没有返还料", template)
 		}
 		for _, m := range items {
 			refunds = append(refunds, MaterialCost{Template: m.Template, Count: m.Count * count})
@@ -532,14 +581,14 @@ func (s *ItemService) PreparePrimerTransform(current Role, accountRaw json.RawMe
 		if _, isAccount := AccountMaterialSlot(m.Template); isAccount {
 			nxt, _, e := out.Add(m.Template, m.Count)
 			if e != nil {
-				return nil, nil, result, e
+				return nil, nil, vaultGold, result, e
 			}
 			out = nxt
 			continue
 		}
 		next, _, e := paid.Add(s.Catalog, s.BagRules, m.Template, m.Count)
 		if e != nil {
-			return nil, nil, result, e
+			return nil, nil, vaultGold, result, e
 		}
 		paid = next
 	}
@@ -547,22 +596,22 @@ func (s *ItemService) PreparePrimerTransform(current Role, accountRaw json.RawMe
 	// 背包那一行**换成被换下的那件**（空槽则整行删掉），军械库登记按份数减。
 	paid, e = consumePrimerBagSources(paid, consumedBag)
 	if e != nil {
-		return nil, nil, result, e
+		return nil, nil, vaultGold, result, e
 	}
 	equipped, e := s.equipPrimerCrystals(paid, done)
 	if e != nil {
-		return nil, nil, result, e
+		return nil, nil, vaultGold, result, e
 	}
 	updated, e := SaveBag(current.State, equipped)
 	if e != nil {
-		return nil, nil, result, e
+		return nil, nil, vaultGold, result, e
 	}
 	if updated, e = SaveEquipmentJournal(updated, ledgerNext); e != nil {
-		return nil, nil, result, e
+		return nil, nil, vaultGold, result, e
 	}
 	accountNext, e := out.Save()
 	if e != nil {
-		return nil, nil, result, e
+		return nil, nil, vaultGold, result, e
 	}
 	result.Source = s.Catalog.Source.SaveIdentity()
 	result.Option = option
@@ -578,7 +627,7 @@ func (s *ItemService) PreparePrimerTransform(current Role, accountRaw json.RawMe
 		_, isAccount := AccountMaterialSlot(m.Template)
 		result.Refunds = append(result.Refunds, CraftMaterial{Template: m.Template, Amount: m.Count, FromAccount: isAccount})
 	}
-	return updated, accountNext, result, nil
+	return updated, accountNext, vaultNext, result, nil
 }
 
 // primerRefund 给出「换下去这件」按源表返还的材料。

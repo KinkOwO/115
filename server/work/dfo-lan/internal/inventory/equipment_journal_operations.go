@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"log"
 	"sort"
 	"strings"
 )
@@ -46,6 +47,8 @@ type EquipmentCraftReceipt struct {
 	Gold      uint32          `json:"gold,omitempty"`
 	Materials []CraftMaterial `json:"materials,omitempty"`
 	Source    string          `json:"source"`
+	// VaultGold 是本次从**账号金库**调取的金币（背包不够时才会 > 0）。
+	VaultGold uint32 `json:"vault_gold,omitempty"`
 }
 
 // craftEventKey 是「装备生成」的幂等键。
@@ -88,7 +91,7 @@ func (s *ItemService) PlanEquipmentCraft(role Role, template, slot uint32, payOp
 	if s.Journal == nil {
 		return EquipmentCraftPlan{}, (fmt.Errorf("equipment craft: journal rules are not loaded"))
 	}
-	group, ok := s.CreateCost.GroupFor(template)
+	group, ok := s.costGroupFor(template)
 	if !ok {
 		return EquipmentCraftPlan{}, (fmt.Errorf("equipment craft: template %d is in no create-cost group", template))
 	}
@@ -96,62 +99,90 @@ func (s *ItemService) PlanEquipmentCraft(role Role, template, slot uint32, payOp
 	key := craftEventKey(template, slot, group.Index, role.State)
 	return EquipmentCraftPlan{Key: key, Group: group}, nil
 }
-func (s *ItemService) PrepareEquipmentCraft(current Role, accountRaw json.RawMessage, template uint32, payOption int, plan EquipmentCraftPlan) (json.RawMessage, json.RawMessage, EquipmentCraftReceipt, error) {
+
+// payTransformGold 从「背包金币 + 账号金库」里扣掉 `need` 金币，
+// 返回新的背包、剩余金库金币、以及**本次从金库调取了多少**。
+//
+// 口径（2026-10-04 业主确认的官方语义「取用金库材料」）：**背包优先，不足部分从账号金库同步调取**。
+// 背景：实机角色背包 0 金币、金库 8 亿，变换/生成被 "need 470000 gold, have 0" 拒绝 —— 金库金币
+// 此前完全不参与。`vaultGold` 由调用方从 `storage.AccountVaultState.Gold` 传入并回写。
+//
+// 余额不足时返回错误（**不改任何状态**，让上层按"这一件换不起"跳过或整笔回滚）。
+func payTransformGold(bag Bag, vaultGold, need uint32) (Bag, uint32, uint32, error) {
+	if need == 0 {
+		return bag, vaultGold, 0, nil
+	}
+	fromBag := need
+	if fromBag > bag.Gold {
+		fromBag = bag.Gold
+	}
+	rest := need - fromBag
+	if rest > vaultGold {
+		return bag, vaultGold, 0, fmt.Errorf("need %d gold, have %d in bag + %d in vault",
+			need, bag.Gold, vaultGold)
+	}
+	out := bag
+	out.Gold = bag.Gold - fromBag
+	return out, vaultGold - rest, rest, nil
+}
+
+func (s *ItemService) PrepareEquipmentCraft(current Role, accountRaw json.RawMessage, vaultGold uint32, template uint32, payOption int, plan EquipmentCraftPlan) (json.RawMessage, json.RawMessage, uint32, EquipmentCraftReceipt, error) {
 	var result EquipmentCraftReceipt
 	group := plan.Group
 	ledger, e := ReadEquipmentJournal(current.State)
 	if e != nil {
-		return nil, nil, result, e
+		return nil, nil, vaultGold, result, e
 	}
 	if ledger.Counts[template] == 0 {
 		// 未登记 ⇒ 拒绝。这是**规格**不是兜底：窗口列的只有已登记条目。
-		return nil, nil, result, fmt.Errorf("equipment craft: template %d is not registered in the journal", template)
+		return nil, nil, vaultGold, result, fmt.Errorf("equipment craft: template %d is not registered in the journal", template)
 	}
 	bag, e := ReadBag(current.State)
 	if e != nil {
-		return nil, nil, result, e
+		return nil, nil, vaultGold, result, e
 	}
 	account, e := ReadAccountMaterials(accountRaw)
 	if e != nil {
-		return nil, nil, result, e
+		return nil, nil, vaultGold, result, e
 	}
 
 	option, gold, bagMats, accountMats, e := pickCraftCost(bag, account, group, payOption)
 	if e != nil {
-		return nil, nil, result, e
+		return nil, nil, vaultGold, result, e
 	}
 	paid, e := bag.PayMaterials(bagMats, 1)
 	if e != nil {
-		return nil, nil, result, e
+		return nil, nil, vaultGold, result, e
 	}
-	if gold > paid.Gold {
-		return nil, nil, result, fmt.Errorf("equipment craft: need %d gold, have %d", gold, paid.Gold)
+	paid, vaultNext, fromVault, e := payTransformGold(paid, vaultGold, gold)
+	if e != nil {
+		return nil, nil, vaultGold, result, e
 	}
-	paid.Gold -= gold
 	out := account
 	for _, m := range accountMats {
 		next, _, e := out.Spend(m.Template, m.Count)
 		if e != nil {
-			return nil, nil, result, e
+			return nil, nil, vaultGold, result, e
 		}
 		out = next
 	}
-	paid, placed, e := paid.AddEquipment(s.Equipment, s.BagRules.EquipmentSlots, template, 1)
+	placed, slots, e := paid.AddEquipment(s.Equipment, s.BagRules.EquipmentSlots, template, 1)
 	if e != nil {
-		return nil, nil, result, e
+		return nil, nil, vaultGold, result, e
 	}
-	updated, e := SaveBag(current.State, paid)
+	updated, e := SaveBag(current.State, placed)
 	if e != nil {
-		return nil, nil, result, e
+		return nil, nil, vaultGold, result, e
 	}
 	accountNext, e := out.Save()
 	if e != nil {
-		return nil, nil, result, e
+		return nil, nil, vaultGold, result, e
 	}
 	result.Template = template
 	result.Group = group.Index
 	result.Cost = option
 	result.Gold = gold
+	result.VaultGold = fromVault
 	for _, m := range bagMats {
 		result.Materials = append(result.Materials, CraftMaterial{Template: m.Template, Amount: m.Count})
 	}
@@ -159,10 +190,10 @@ func (s *ItemService) PrepareEquipmentCraft(current Role, accountRaw json.RawMes
 		result.Materials = append(result.Materials, CraftMaterial{Template: m.Template, Amount: m.Count, FromAccount: true})
 	}
 	result.Source = s.Catalog.Source.SaveIdentity()
-	if len(placed) > 0 {
-		result.Slot = placed[0]
+	if len(slots) > 0 {
+		result.Slot = slots[0]
 	}
-	return updated, accountNext, result, nil
+	return updated, accountNext, vaultNext, result, nil
 }
 
 // pickCraftCost 取出玩家**在窗口里指定的那一支**付法，并校验付得起。
@@ -238,6 +269,8 @@ type EquipmentTransformReceipt struct {
 	Materials []CraftMaterial          `json:"materials,omitempty"`
 	Gold      uint32                   `json:"gold,omitempty"`
 	Option    int                      `json:"option,omitempty"`
+	// VaultGold 是本次从**账号金库**调取的金币（背包不够时才会 > 0）。
+	VaultGold uint32 `json:"vault_gold,omitempty"`
 	// Skipped 记录请求里没能变换的模板（未登记 / 找不到档位 / 身上没有该件 / 付不起）。
 	Skipped []uint32 `json:"skipped,omitempty"`
 }
@@ -327,6 +360,13 @@ func (s *ItemService) PlanEquipmentTransform(role Role, slots, templates []uint3
 			result.Skipped = append(result.Skipped, target)
 			continue
 		}
+		// 账本守卫：旧件必须能登记回图鉴（在收录范围内且未达上限），否则这一条**整条不做**。
+		// 与事务里的判断同一个函数（`equipmentSwapAllowed`），保证"能规划的"＝"能落库的"。
+		if !equipmentSwapAllowed(s.Equipment, s.Journal, ledger, from, target) {
+			notes = append(notes, fmt.Sprintf("slot %d: 目标 %d 的旧件 %d 回不了图鉴（不在收录范围或已达上限）", slot, target, from))
+			result.Skipped = append(result.Skipped, target)
+			continue
+		}
 		if _, e := s.transformPayment(catalog.TransformChainEquipment, target, payOption); e != nil {
 			notes = append(notes, fmt.Sprintf("slot %d: 目标 %d 算不出变换成本（%v）", slot, target, e))
 			result.Skipped = append(result.Skipped, target)
@@ -344,28 +384,30 @@ func (s *ItemService) PlanEquipmentTransform(role Role, slots, templates []uint3
 	key := transformKey(slots, templates, role.State)
 	return EquipmentTransformPlan{Key: key, Steps: plans, Receipt: result, PayOption: payOption}, nil
 }
-func (s *ItemService) PrepareEquipmentTransform(current Role, accountRaw json.RawMessage, plan EquipmentTransformPlan) (json.RawMessage, json.RawMessage, EquipmentTransformReceipt, error) {
+func (s *ItemService) PrepareEquipmentTransform(current Role, accountRaw json.RawMessage, vaultGold uint32, plan EquipmentTransformPlan) (json.RawMessage, json.RawMessage, uint32, EquipmentTransformReceipt, error) {
 	result, plans := plan.Receipt, plan.Steps
 	live, e := ReadBag(current.State)
 	if e != nil {
-		return nil, nil, result, e
+		return nil, nil, vaultGold, result, e
 	}
 	liveLedger, e := ReadEquipmentJournal(current.State)
 	if e != nil {
-		return nil, nil, result, e
+		return nil, nil, vaultGold, result, e
 	}
 	account, e := ReadAccountMaterials(accountRaw)
 	if e != nil {
-		return nil, nil, result, e
+		return nil, nil, vaultGold, result, e
 	}
 
+	// 事务内重校验：状态可能已被别的请求改过。**账本守卫（`equipmentSwapAllowed`）与
+	// 扣账必须分开**：守卫不通过的条目要在**任何写入之前**剔除（否则会出现"装备换了、
+	// 图鉴却没记账"的半状态）。
 	var bagMats, accountMats []MaterialCost
 	var gold uint32
 	option := 0
-	var done []EquipmentTransformPair
 	next := live
+	var applicable []transformStep
 	for _, p := range plans {
-		// 事务内重校验：状态可能已被别的请求改过。
 		if liveLedger.Counts[p.to] == 0 {
 			result.Skipped = append(result.Skipped, p.to)
 			continue
@@ -374,6 +416,16 @@ func (s *ItemService) PrepareEquipmentTransform(current Role, accountRaw json.Ra
 			result.Skipped = append(result.Skipped, p.to)
 			continue
 		}
+		if !equipmentSwapAllowed(s.Equipment, s.Journal, liveLedger, p.from, p.to) {
+			// 旧件回不到图鉴（不在收录范围 / 已达上限）⇒ 这一条整条不做：
+			// 宁可"点了没反应"，也不许扣了目标却不还旧件（那就是"图鉴变少"）。
+			result.Skipped = append(result.Skipped, p.to)
+			continue
+		}
+		applicable = append(applicable, p)
+	}
+	var done []EquipmentTransformPair
+	for _, p := range applicable {
 		// 成本：源 `[need materials]` 里该稀有度的、玩家点的那一支付法（请求头 [13]）。
 		// ⚠️ 旧实现是「灵魂 ×1 + 固定 50000 金币」，只有 primeval 一档与源相同 ——
 		// rare..epic 一直多扣金币（源是 25000/30000/35000/40000）。现在整表直读。
@@ -403,40 +455,53 @@ func (s *ItemService) PrepareEquipmentTransform(current Role, accountRaw json.Ra
 		})
 	}
 	if len(done) == 0 {
-		return nil, nil, result, fmt.Errorf("equipment transform: none of the %d pairs is affordable", len(plans))
-	}
-	if gold > next.Gold {
-		return nil, nil, result, fmt.Errorf("equipment transform: need %d gold, have %d", gold, next.Gold)
+		return nil, nil, vaultGold, result, fmt.Errorf("equipment transform: none of the %d pairs is affordable", len(plans))
 	}
 	paid, e := next.PayMaterials(bagMats, 1)
 	if e != nil {
-		return nil, nil, result, e
+		return nil, nil, vaultGold, result, e
 	}
-	paid.Gold -= gold
+	// 金币：背包优先，不足部分从**账号金库**同步调取（业主确认的官方「取用金库材料」语义）。
+	paid, vaultNext, fromVault, e := payTransformGold(paid, vaultGold, gold)
+	if e != nil {
+		return nil, nil, vaultGold, result, e
+	}
+	result.VaultGold = fromVault
 	out := account
 	for _, m := range accountMats {
 		nxt, _, e := out.Spend(m.Template, m.Count)
 		if e != nil {
-			return nil, nil, result, e
+			return nil, nil, vaultGold, result, e
 		}
 		out = nxt
 	}
 	replaced, e := s.applyTransform(paid, done)
 	if e != nil {
-		return nil, nil, result, e
+		return nil, nil, vaultGold, result, e
 	}
 	updated, e := SaveBag(current.State, replaced)
 	if e != nil {
-		return nil, nil, result, e
+		return nil, nil, vaultGold, result, e
 	}
-	// 方案「甲」：把换下去的源装备也登记进图鉴，否则它"换出去即消失"、再也选不回来。
-	ledgerNext := registerTransformedSources(s.Equipment, s.Journal, liveLedger, done)
+	// **账本口径与 CMD2381（晶体/誓约变换）对齐**：目标那件从登记表 −1，被换下的源装备 +1
+	// ⇒ 图鉴**总份数不变**。旧实现只做 +1、不做 −1，于是每换一次装备图鉴就净 +1
+	// （2026-10-04 用户报告"图鉴里的东西越来越多/乱变"，两条变换链是同一个病根）。
+	// 守卫已在上面剔除过不满足的条目，这里不再产生新的 Skipped。
+	ledgerNext, e := applyEquipmentTransformJournal(s.Equipment, s.Journal, liveLedger, done)
+	if e != nil {
+		return nil, nil, vaultGold, result, e
+	}
+	if journalTotal(ledgerNext) != journalTotal(liveLedger) {
+		// 正常路径下份数总量恒定（进 = 出）；不平就喊出来，便于实机一眼看到。
+		log.Printf("装备变换: 图鉴份数变化异常 %d→%d pairs=%+v（请连同本条一起上报）",
+			journalTotal(liveLedger), journalTotal(ledgerNext), done)
+	}
 	if updated, e = SaveEquipmentJournal(updated, ledgerNext); e != nil {
-		return nil, nil, result, e
+		return nil, nil, vaultGold, result, e
 	}
 	accountNext, e := out.Save()
 	if e != nil {
-		return nil, nil, result, e
+		return nil, nil, vaultGold, result, e
 	}
 	result.Source = s.Catalog.Source.SaveIdentity()
 	result.Option = option
@@ -448,7 +513,7 @@ func (s *ItemService) PrepareEquipmentTransform(current Role, accountRaw json.Ra
 	for _, m := range accountMats {
 		result.Materials = append(result.Materials, CraftMaterial{Template: m.Template, Amount: m.Count, FromAccount: true})
 	}
-	return updated, accountNext, result, nil
+	return updated, accountNext, vaultNext, result, nil
 }
 
 // applyTransform 把 worn 里这些槽的模板换成目标。
@@ -536,9 +601,81 @@ func (s *ItemService) applyTransform(bag Bag, pairs []EquipmentTransformPair) (B
 	return out, nil
 }
 
+// equipmentSwapAllowed 回答"这一条装备变换能不能记账"：
+//
+//	目标 `to` 必须在册（`counts > 0`）—— 这是"能不能被选为变换目标"的规格；
+//	旧件 `from` 必须能**登记回图鉴**（在收录范围内、且未达上限）—— 否则就是"扣了目标却不还旧件"。
+//
+// `from` 为空或与 `to` 相同 ⇒ 无旧件可还，视为允许（只把目标搬到身上）。
+// 计划与事务两遍都调它，保证"能规划出来的"与"能落库的"完全一致。
+func equipmentSwapAllowed(
+	gear *EquipmentCatalog,
+	rules *catalog.EquipmentJournalRules,
+	ledger EquipmentJournal,
+	from, to uint32,
+) bool {
+	if to == 0 || ledger.Counts[to] == 0 {
+		return false
+	}
+	if from == 0 || from == to {
+		return true
+	}
+	limit, ok := JournalLimit(gear, rules, from)
+	if !ok {
+		return false
+	}
+	return ledger.Counts[from] < limit
+}
+
+// applyEquipmentTransformJournal 把一次「装备变换」（CMD2259）对图鉴账本的影响算清。
+//
+// 口径与 CMD2381 完全一致（见 primer_transform.go 的 primerSourceKind）：**目标来自登记表
+// ⇒ 登记 −1，旧件登记 +1（总份数不变）**。旧实现只做 +1 ⇒ 每换一次装备图鉴净 +1。
+//
+// ⚠️ 计划与事务都必须**先用 `equipmentSwapAllowed` 过滤**，这里只处理已经通过守卫的条目；
+// 万一仍有条目过不了，直接返回错误（宁可整笔回滚，也不要写出"装备换了、图鉴没记账"的半状态）。
+func applyEquipmentTransformJournal(
+	gear *EquipmentCatalog,
+	rules *catalog.EquipmentJournalRules,
+	ledger EquipmentJournal,
+	pairs []EquipmentTransformPair,
+) (EquipmentJournal, error) {
+	out := ledger.clone()
+	if out.Counts == nil {
+		out.Counts = map[uint32]uint32{}
+	}
+	for _, p := range pairs {
+		if p.From == 0 || p.From == p.To {
+			continue
+		}
+		if !equipmentSwapAllowed(gear, rules, out, p.From, p.To) {
+			return ledger, fmt.Errorf(
+				"equipment transform: 目标 %d 或旧件 %d 过不了图鉴守卫（不许只扣不还）", p.To, p.From)
+		}
+		limit, _ := JournalLimit(gear, rules, p.From)
+		// 先减目标、再加旧件（同模板换回时这样才能通过上限）。
+		have := out.Counts[p.To]
+		if have <= 1 {
+			out.Counts[p.To] = 0 // 0 值条目保留："已登记但 0 份"与"从未登记"是两种状态
+		} else {
+			out.Counts[p.To] = have - 1
+		}
+		next, _, e := out.Add(p.From, 1, limit)
+		if e != nil {
+			return ledger, e
+		}
+		out = next
+	}
+	return out, nil
+}
+
 // registerTransformedSources 把**换下去的源装备**登记进装备库（装备图鉴）。
 //
-// 为什么必须有这一步（2026-09-30 实机取证 + 用户确认，方案「甲」）：
+// ⚠️ **只登记、不扣目标** —— 这是低层原语，供 `applyEquipmentTransformJournal` 之外的历史
+// 调用点与测试使用。运行期请走 `applyEquipmentTransformJournal`（它同时做 −1 与 +1，
+// 保证"换一次装备图鉴净 +1"的旧缺陷不再复发）。
+//
+// 为什么必须有登记这一步（2026-09-30 实机取证 + 用户确认，方案「甲」）：
 // 变换只把 `worn` 那一条**改写**成目标 —— 源装备的实体就此消失。而图鉴（`Journal.Counts`）
 // 是"能不能被选为变换目标"的**唯一池子**，它的入口**只有分解**。于是：
 //
@@ -636,13 +773,23 @@ func (s *ItemService) transformSource(bag Bag, slot uint16) (uint32, uint16, boo
 	return found.Template, found.Slot, true
 }
 
-// costGroupFor 把「变换目标模板」映射到 `[create cost]` 的档位组。
+// costGroupFor 把「目标模板」映射到 `[create cost]` 的档位组（**生成**走这条）。
 //
-// 实测 2026-09-30：请求里的目标模板**一个都不在**任何组的 `[item index]` 里 ——
-// 组是按 `[grade]` + `[rarity]` 分档的（组 1/6/8=(119,3)、组 2/7=(120,6)、组 3/5/9=(121,4)），
-// 组内 items 只是"该档的代表"。所以先精确查（保持既有行为），查不到再按**档位**找，
-// 取**列表里第一个**同档的组（组序稳定 ⇒ 结果可复现）。
+//  1. 精确命中 `[item index]`（保持既有行为）；
+//  2. 查不到再按**档位**（`[grade]` + `[rarity]`）找 —— 组内 items 只是"该档的代表"
+//     （实测 2026-09-30：请求里的目标模板**一个都不在**任何组的 `[item index]` 里）。
+//     同档多组时优先取**部位类型相同**的那组：`(121,4)` 同时有防具组（灵魂+金币）与
+//     融合石组（只有金币/巡礼之印），扣法不同、不能混。
+//
+// ★ **刻意不做「rarity 就近」兜底**（2026-10-04 撤掉 [ALIGN-20260930-WEAPON] 的就近档）：
+// 就近档会让 (122,8) 武器按 (120,6) 档扣「10361514 + 35,000」，而实机客户端界面写的是
+// 「1 太初(s) + 50,000 金币」⇒ **照就近档扣就是扣错东西**。档位在表里不存在时返回 false，
+// 由调用方明确拒绝并把档位写进拒因；变换链的兜底在
+// `transformPayment`（源表 `[need materials]`）里，不在这里混用第二张表。
 func (s *ItemService) costGroupFor(template uint32) (catalog.CreateCostGroup, bool) {
+	if s.CreateCost == nil {
+		return catalog.CreateCostGroup{}, false
+	}
 	if g, ok := s.CreateCost.GroupFor(template); ok {
 		return g, true
 	}
@@ -650,59 +797,31 @@ func (s *ItemService) costGroupFor(template uint32) (catalog.CreateCostGroup, bo
 	if !ok {
 		return catalog.CreateCostGroup{}, false
 	}
+	kind := s.equipmentKind(template)
+	var first, sameKind catalog.CreateCostGroup
+	haveFirst, haveKind := false, false
 	for _, g := range s.CreateCost.Groups {
 		for _, t := range g.Items {
 			gg, rr, ok := s.equipmentGradeRarity(t)
-			if ok && gg == grade && rr == rarity {
-				return g, true
+			if !ok || gg != grade || rr != rarity {
+				continue
+			}
+			if !haveFirst {
+				first, haveFirst = g, true
+			}
+			// 组内 11 件覆盖 11 个部位，所以同部位那一件未必是组里第一个 ⇒ 必须扫全组。
+			if !haveKind && kind != "" && s.equipmentKind(t) == kind {
+				sameKind, haveKind = g, true
 			}
 		}
-	}
-	// 兜底：按 **`[rarity]` 最接近** 找一个档位。
-	//
-	// [ALIGN-20260930-WEAPON] 武器 `(122,8 [weapon])` 与誓约 `(116,4/8 [oath]|[primer])` 的档位
-	// 在 `[create cost]` 里**根本不存在**（那张表只有 (119,3) / (120,6) / (121,4) 三档，且只覆盖
-	// 11 个防具首饰部位 + `[amalgamation stone]`）。但用户提供的官方规则明确说
-	// 「装备库的**武器**页签里能选择所有分解过的武器做变换」「拿到太初武器自选后直接分解，
-	// 再在装备库—武器中通过装备变换把 +12 等打造继承过去」⇒ 武器必须能变换。
-	//
-	// 口径：取**rarity ≥ 目标 rarity 里最小的档**；没有更高的就取**最高的档**
-	// ⇒ rarity 8 → (120,6) 那一档（组 2）。
-	// ⚠️ **这个兜底口径是本地定的**（源表无依据），拿到更明确的规则随时可换。
-	type cand struct {
-		g catalog.CreateCostGroup
-		r int32
-	}
-	var cands []cand
-	for _, g := range s.CreateCost.Groups {
-		for _, t := range g.Items {
-			if _, rr, ok := s.equipmentGradeRarity(t); ok {
-				cands = append(cands, cand{g, rr})
-				break // 每组取第一个 item 的 rarity 作代表
-			}
+		if haveKind {
+			break
 		}
 	}
-	if len(cands) == 0 {
-		return catalog.CreateCostGroup{}, false
+	if haveKind {
+		return sameKind, true
 	}
-	best := -1
-	for i, c := range cands {
-		if c.r < rarity {
-			continue
-		}
-		if best < 0 || c.r < cands[best].r {
-			best = i
-		}
-	}
-	if best < 0 {
-		best = 0
-		for i, c := range cands {
-			if c.r > cands[best].r {
-				best = i
-			}
-		}
-	}
-	return cands[best].g, true
+	return first, haveFirst
 }
 
 // equipmentGradeRarity 读装备的 `[grade]` / `[rarity]`（档位）。

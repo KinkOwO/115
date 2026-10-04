@@ -8,6 +8,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -296,28 +297,26 @@ func TestDisjointEventKeyCoversWholeBatch(t *testing.T) {
 	}
 }
 
-// 武器 / 誓约的档位在 `[create cost]` 里根本不存在（那张表只有 (119,3)/(120,6)/(121,4) 三档、
-// 只覆盖 11 个防具首饰部位 + 融合石）。但官方规则明确要求「武器页签里能对所有分解过的武器做
-// 装备变换」，所以 `costGroupFor` 必须按 rarity 兜底，且**不能**改判防具那种能精确命中的。
-func TestCostGroupForWeaponAndOathFallback(t *testing.T) {
+// 武器 / 誓约的档位在 `[create cost]` 里**根本不存在**（那张表只有 (119,3)/(120,6)/(121,4) 三档、
+// 只覆盖 11 个防具首饰部位 + 融合石）。
+//
+// ★ 2026-10-04 改口径：**撤掉"rarity 就近"兜底**。就近档会让 (122,8) 武器按 (120,6) 档扣
+// 「10361514 + 35,000」，而实机客户端界面写的是「1 太初(s) + 50,000 金币」⇒ 照就近档扣就是
+// 扣错东西。现在档位不在表里就**明确拒绝**（把档位写进拒因），变换链的成本由
+// `transformPayment`（源表 `[need materials]`）负责，不在这里混用第二张表。
+func TestCostGroupForRejectsTiersMissingFromTheTable(t *testing.T) {
 	s, cc := loadTransformFixtures(t)
 
-	for _, tpl := range []uint32{117010280 /*武器 [weapon]*/, 100610079 /*誓约核心 [oath]*/, 100401606 /*星蕴石 [primer]*/} {
+	for _, tpl := range []uint32{117010280 /*武器 (122,8)*/, 100610079 /*誓约核心 (116,*)*/, 100401606 /*星蕴石 (116,*)*/} {
 		if _, ok := cc.GroupFor(tpl); ok {
 			t.Fatalf("前提失效：%d 已在组的 items 里", tpl)
 		}
-		g, ok := s.costGroupFor(tpl)
-		if !ok {
-			t.Fatalf("%d 应能靠 rarity 兜底找到档位（武器/誓约必须可变换）", tpl)
+		if g, ok := s.costGroupFor(tpl); ok {
+			t.Fatalf("%d 的档位不在 [create cost] 里，不许靠就近档混过去（落到组 %d）", tpl, g.Index)
 		}
-		t.Logf("%d -> 组 %d", tpl, g.Index)
 	}
 
-	// 武器 rarity 8 ⇒ 表里最高 rarity 是 6 ⇒ 落到 (120,6) 那一档 = 组 2。
-	if g, _ := s.costGroupFor(117010280); g.Index != 2 {
-		t.Fatalf("武器应落到组 2（(120,6)），实际组 %d", g.Index)
-	}
-	// 防具 (121,4) 仍精确命中组 3，不被兜底改判。
+	// 防具 (121,4) 仍然精确命中组 3，不受影响。
 	if g, _ := s.costGroupFor(100051282); g.Index != 3 {
 		t.Fatalf("防具被改判到组 %d（应为 3）", g.Index)
 	}
@@ -466,6 +465,152 @@ func TestRegisterTransformedSourcesAddsSource(t *testing.T) {
 		[]EquipmentTransformPair{{Slot: 14, From: 100051282, To: 100051282, Group: 3}})
 	if noop.Counts[100051282] != 0 {
 		t.Fatalf("From==To 不该登记：%v", noop.Counts)
+	}
+}
+
+// **装备变换（CMD2259）的图鉴记账与 2381 对齐**（2026-10-04）：
+//
+//	目标那件从登记表 −1、被换下的源装备 +1 ⇒ **图鉴总份数不变**。
+//	旧实现只做 +1 ⇒ 每换一次装备图鉴净 +1（用户报的"图鉴里的东西越来越多/乱变"）。
+func TestEquipmentTransformJournalIsBalanced(t *testing.T) {
+	s, _ := loadTransformFixtures(t)
+	rules := repairRules()
+	s.Journal = &rules
+	s.WearRules = WearRules{Slots: map[string]uint16{"[coat]": 14}}
+	const (
+		worn   = uint32(100051282) // 身上穿的 coat（换下后要登记回去）
+		target = uint32(100061157) // 目标（必须在册）
+	)
+	for _, tpl := range []uint32{worn, target} {
+		if _, ok := JournalLimit(s.Equipment, s.Journal, tpl); !ok {
+			t.Fatalf("前提失效：%d 不可登记", tpl)
+		}
+		if _, e := s.transformPayment(catalog.TransformChainEquipment, tpl, 1); e != nil {
+			t.Fatalf("前提失效：%d 算不出变换成本（%v）", tpl, e)
+		}
+	}
+	bag := Bag{Version: "ordinary-bag-v1", Gold: 1_000_000,
+		Worn: []BagEquipment{{Slot: 14, Template: worn}},
+	}
+	state, e := SaveBag(json.RawMessage(`{"level":115,"advancement":0}`), bag)
+	if e != nil {
+		t.Fatal(e)
+	}
+	ledger := EquipmentJournal{Counts: map[uint32]uint32{target: 1}}
+	if state, e = SaveEquipmentJournal(state, ledger); e != nil {
+		t.Fatal(e)
+	}
+	role := Role{ConfigVersion: s.Catalog.Source.SaveIdentity(), State: state}
+
+	plan, e := s.PlanEquipmentTransform(role, []uint32{14}, []uint32{target}, 1)
+	if e != nil {
+		t.Fatalf("plan: %v", e)
+	}
+	// 变换要付"灵魂 + 金币"（源 `[need materials]`）：账号材料仓里先备一份对应灵魂。
+	pay, e := s.transformPayment(catalog.TransformChainEquipment, target, 1)
+	if e != nil {
+		t.Fatalf("payment: %v", e)
+	}
+	account := NewAccountMaterials()
+	for _, m := range pay.AccountMats {
+		if account, _, e = account.Add(m.Template, m.Count); e != nil {
+			t.Fatalf("seed account materials: %v", e)
+		}
+	}
+	accountRaw, e := account.Save()
+	if e != nil {
+		t.Fatal(e)
+	}
+	updated, _, _, receipt, e := s.PrepareEquipmentTransform(role, accountRaw, 0, plan)
+	if e != nil {
+		t.Fatalf("prepare: %v", e)
+	}
+	if len(receipt.Pairs) != 1 {
+		t.Fatalf("pairs = %+v, want one", receipt.Pairs)
+	}
+	next, e := ReadEquipmentJournal(updated)
+	if e != nil {
+		t.Fatal(e)
+	}
+	// 目标 −1（1→0，0 值条目保留）、源装备 +1（0→1）⇒ 总份数仍然是 1。
+	if next.Counts[target] != 0 {
+		t.Fatalf("目标没被扣：%v", next.Counts)
+	}
+	if next.Counts[worn] != 1 {
+		t.Fatalf("源装备没被登记：%v", next.Counts)
+	}
+	if got, want := journalTotal(next), journalTotal(ledger); got != want {
+		t.Fatalf("图鉴总份数 %d→%d，必须不变（旧实现每换一次净 +1）", want, got)
+	}
+	liveBag, e := ReadBag(updated)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if got, ok := wornOf(liveBag, 14); !ok || got != target {
+		t.Fatalf("worn 14 = %d ok=%v, want %d", got, ok, target)
+	}
+}
+
+// 旧件**登记不回去**（不在收录范围）时，这一条整条不做：宁可"点了没反应"，
+// 也不许扣了目标却不还旧件（那正是"图鉴变少"）。
+func TestEquipmentTransformSkipsWhenSourceCannotBeRegistered(t *testing.T) {
+	s, _ := loadTransformFixtures(t)
+	rules := repairRules()
+	s.Journal = &rules
+	s.WearRules = WearRules{Slots: map[string]uint16{"[coat]": 14}}
+	const (
+		worn   = uint32(100051282) // 身上穿的 coat
+		target = uint32(100061157) // 目标（在册）
+	)
+	bag := Bag{Version: "ordinary-bag-v1", Gold: 1_000_000,
+		Worn: []BagEquipment{{Slot: 14, Template: worn}},
+	}
+	state, e := SaveBag(json.RawMessage(`{"level":115,"advancement":0}`), bag)
+	if e != nil {
+		t.Fatal(e)
+	}
+	// 合成规则把 `[coat]` 这一档的上限压到 0 ⇒ 旧件登记不回去。
+	_, coatRarity, ok := s.equipmentGradeRarity(worn)
+	if !ok {
+		t.Fatalf("读不到 %d 的稀有度", worn)
+	}
+	s.Journal = &catalog.EquipmentJournalRules{
+		Maximum:       99,
+		MaximumByType: []catalog.JournalTypeLimit{{Kind: "[coat]", Rarity: uint32(coatRarity), Maximum: 0}},
+	}
+	if limit, ok := JournalLimit(s.Equipment, s.Journal, worn); ok && limit != 0 {
+		t.Skipf("%d 在本夹具里可登记（limit=%d），本用例不再适用", worn, limit)
+	}
+	if state, e = SaveEquipmentJournal(state, EquipmentJournal{Counts: map[uint32]uint32{target: 1}}); e != nil {
+		t.Fatal(e)
+	}
+	role := Role{ConfigVersion: s.Catalog.Source.SaveIdentity(), State: state}
+
+	// **计划阶段就该拒绝**（守卫与事务用同一个函数）——错误串里要能看出是"旧件回不了图鉴"。
+	_, e = s.PlanEquipmentTransform(role, []uint32{14}, []uint32{target}, 1)
+	if e == nil {
+		t.Fatal("旧件登记不回去时必须在计划阶段就拒绝，不许扣了目标却不还旧件")
+	}
+	if !strings.Contains(e.Error(), "回不了图鉴") {
+		t.Fatalf("plan error = %v, want the journal-guard reason", e)
+	}
+	// 存档一字不动：目标仍在册、身上那件没变。
+	next, e := ReadEquipmentJournal(state)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if next.Counts[target] != 1 {
+		t.Fatalf("目标那件不许被扣：%v", next.Counts)
+	}
+	if got, want := journalTotal(next), uint32(1); got != want {
+		t.Fatalf("图鉴总份数 = %d, want %d（守恒）", got, want)
+	}
+	liveBag, e := ReadBag(state)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if got, ok := wornOf(liveBag, 14); !ok || got != worn {
+		t.Fatalf("worn 14 = %d ok=%v, want %d（计划被拒 ⇒ 穿戴不动）", got, ok, worn)
 	}
 }
 
