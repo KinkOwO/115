@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"database/sql"
 	"dfolan/internal/character"
 	"dfolan/internal/database/sqlcgen"
 	"encoding/json"
@@ -57,8 +58,17 @@ type Store struct {
 // ErrNotFound keeps optional persistence results independent of the SQL driver.
 var ErrNotFound = errors.New("stored record not found")
 
+// storageError maps "the query found no row" onto the package's ErrNotFound.
+//
+// Both sentinels are recognised because the two engines report absence differently: pgx
+// returns pgx.ErrNoRows while database/sql returns sql.ErrNoRows. Recognising only the
+// former made every "look the row up; if it is absent, carry on" path fail hard on SQLite -
+// which is exactly how equipping gear and accepting quests stopped working.
 func storageError(err error) error {
-	if errors.Is(err, pgx.ErrNoRows) {
+	if err == nil {
+		return nil
+	}
+	if errors.Is(err, pgx.ErrNoRows) || errors.Is(err, sql.ErrNoRows) {
 		return ErrNotFound
 	}
 	return err

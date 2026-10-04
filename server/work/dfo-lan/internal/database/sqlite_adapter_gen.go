@@ -29,30 +29,19 @@ type sqliteQueries struct {
 	tx *sql.Tx
 }
 
-func toPgClaimAdminGrantParams(v sqlcgensqlite.ClaimAdminGrantParams) (sqlcgen.ClaimAdminGrantParams, error) {
-	var out sqlcgen.ClaimAdminGrantParams
-	out.GrantID = v.GrantID
+func toPgEnsureTowerProgressParams(v sqlcgensqlite.EnsureTowerProgressParams) (sqlcgen.EnsureTowerProgressParams, error) {
+	var out sqlcgen.EnsureTowerProgressParams
 	out.AccountID = v.AccountID
-	if v.CharacterID != nil {
-		out.CharacterID = pgtype.Int8{Int64: *v.CharacterID, Valid: true}
-	}
-	out.Request = v.Request
-	out.Operator = v.Operator
-	out.Reason = v.Reason
+	out.TowerKey = v.TowerKey
+	out.HighestCleared = int32(v.HighestCleared)
 	return out, nil
 }
 
-func fromPgClaimAdminGrantParams(v sqlcgen.ClaimAdminGrantParams) (sqlcgensqlite.ClaimAdminGrantParams, error) {
-	var out sqlcgensqlite.ClaimAdminGrantParams
-	out.GrantID = v.GrantID
+func fromPgEnsureTowerProgressParams(v sqlcgen.EnsureTowerProgressParams) (sqlcgensqlite.EnsureTowerProgressParams, error) {
+	var out sqlcgensqlite.EnsureTowerProgressParams
 	out.AccountID = v.AccountID
-	if v.CharacterID.Valid {
-		v := v.CharacterID.Int64
-		out.CharacterID = &v
-	}
-	out.Request = v.Request
-	out.Operator = v.Operator
-	out.Reason = v.Reason
+	out.TowerKey = v.TowerKey
+	out.HighestCleared = int16(v.HighestCleared)
 	return out, nil
 }
 
@@ -70,8 +59,141 @@ func fromPgFixtureInventoryItemsParams(v sqlcgen.FixtureInventoryItemsParams) (s
 	return out, nil
 }
 
-func toPgLockCharacterRow(v sqlcgensqlite.LockCharacterRow) (sqlcgen.LockCharacterRow, error) {
-	var out sqlcgen.LockCharacterRow
+func toPgInsertPlayerMailParams(v sqlcgensqlite.InsertPlayerMailParams) (sqlcgen.InsertPlayerMailParams, error) {
+	var out sqlcgen.InsertPlayerMailParams
+	if v.SenderID != nil {
+		out.SenderID = pgtype.Int8{Int64: *v.SenderID, Valid: true}
+	}
+	out.RecipientID = v.RecipientID
+	out.SenderName = v.SenderName
+	out.Body = v.Body
+	out.Assets = v.Assets
+	return out, nil
+}
+
+func fromPgInsertPlayerMailParams(v sqlcgen.InsertPlayerMailParams) (sqlcgensqlite.InsertPlayerMailParams, error) {
+	var out sqlcgensqlite.InsertPlayerMailParams
+	if v.SenderID.Valid {
+		v := v.SenderID.Int64
+		out.SenderID = &v
+	}
+	out.RecipientID = v.RecipientID
+	out.SenderName = v.SenderName
+	out.Body = v.Body
+	out.Assets = v.Assets
+	return out, nil
+}
+
+func toPgCharacterAllocationRow(v sqlcgensqlite.CharacterAllocationRow) (sqlcgen.CharacterAllocationRow, error) {
+	var out sqlcgen.CharacterAllocationRow
+	out.ActiveCount = v.ActiveCount
+	out.NextWireID = int32(v.NextWireID)
+	out.NextRosterOrder = v.NextRosterOrder
+	return out, nil
+}
+
+func fromPgCharacterAllocationRow(v sqlcgen.CharacterAllocationRow) (sqlcgensqlite.CharacterAllocationRow, error) {
+	var out sqlcgensqlite.CharacterAllocationRow
+	out.ActiveCount = v.ActiveCount
+	out.NextWireID = int64(v.NextWireID)
+	out.NextRosterOrder = v.NextRosterOrder
+	return out, nil
+}
+
+func toPgCompletedQuestIDsParams(v sqlcgensqlite.CompletedQuestIDsParams) (sqlcgen.CompletedQuestIDsParams, error) {
+	var out sqlcgen.CompletedQuestIDsParams
+	out.AccountID = v.AccountID
+	out.ConfigVersion = v.ConfigVersion
+	if err := json.Unmarshal([]byte(v.QuestIds	), &out.QuestIds); err != nil {
+		return out, err
+	}
+	return out, nil
+}
+
+func fromPgCompletedQuestIDsParams(v sqlcgen.CompletedQuestIDsParams) (sqlcgensqlite.CompletedQuestIDsParams, error) {
+	var out sqlcgensqlite.CompletedQuestIDsParams
+	out.AccountID = v.AccountID
+	out.ConfigVersion = v.ConfigVersion
+	b, err := json.Marshal(v.QuestIds)
+	if err != nil {
+		return out, err
+	}
+	out.QuestIds = string(b)
+	return out, nil
+}
+
+func toPgUpdateMailParams(v sqlcgensqlite.UpdateMailParams) (sqlcgen.UpdateMailParams, error) {
+	var out sqlcgen.UpdateMailParams
+	out.Assets = v.Assets
+	out.Status = int32(v.Status)
+	out.Deleted = v.Deleted
+	out.MailID = v.MailID
+	out.RecipientID = v.RecipientID
+	return out, nil
+}
+
+func fromPgUpdateMailParams(v sqlcgen.UpdateMailParams) (sqlcgensqlite.UpdateMailParams, error) {
+	var out sqlcgensqlite.UpdateMailParams
+	out.Assets = v.Assets
+	out.Status = int16(v.Status)
+	out.Deleted = v.Deleted
+	out.MailID = v.MailID
+	out.RecipientID = v.RecipientID
+	return out, nil
+}
+
+func toPgReserveTowerEntryParams(v sqlcgensqlite.ReserveTowerEntryParams) (sqlcgen.ReserveTowerEntryParams, error) {
+	var out sqlcgen.ReserveTowerEntryParams
+	out.Day = v.Day
+	out.AccountID = v.AccountID
+	out.TowerKey = v.TowerKey
+	out.Floor = int32(v.Floor)
+	return out, nil
+}
+
+func fromPgReserveTowerEntryParams(v sqlcgen.ReserveTowerEntryParams) (sqlcgensqlite.ReserveTowerEntryParams, error) {
+	var out sqlcgensqlite.ReserveTowerEntryParams
+	out.Day = v.Day
+	out.AccountID = v.AccountID
+	out.TowerKey = v.TowerKey
+	out.Floor = int16(v.Floor)
+	return out, nil
+}
+
+func toPgFixtureWalletGoldParams(v sqlcgensqlite.FixtureWalletGoldParams) (sqlcgen.FixtureWalletGoldParams, error) {
+	var out sqlcgen.FixtureWalletGoldParams
+	out.Gold = json.RawMessage(v.Gold)
+	out.CharacterID = v.CharacterID
+	return out, nil
+}
+
+func fromPgFixtureWalletGoldParams(v sqlcgen.FixtureWalletGoldParams) (sqlcgensqlite.FixtureWalletGoldParams, error) {
+	var out sqlcgensqlite.FixtureWalletGoldParams
+	out.Gold = []byte(v.Gold)
+	out.CharacterID = v.CharacterID
+	return out, nil
+}
+
+func toPgAdvanceTowerFloorRow(v sqlcgensqlite.AdvanceTowerFloorRow) (sqlcgen.AdvanceTowerFloorRow, error) {
+	var out sqlcgen.AdvanceTowerFloorRow
+	out.HighestCleared = v.HighestCleared
+	out.EntriesToday = v.EntriesToday
+	out.LastRunID = v.LastRunID
+	out.EntryDay = v.Column2
+	return out, nil
+}
+
+func fromPgAdvanceTowerFloorRow(v sqlcgen.AdvanceTowerFloorRow) (sqlcgensqlite.AdvanceTowerFloorRow, error) {
+	var out sqlcgensqlite.AdvanceTowerFloorRow
+	out.HighestCleared = v.HighestCleared
+	out.EntriesToday = v.EntriesToday
+	out.LastRunID = v.LastRunID
+	out.Column2 = v.EntryDay
+	return out, nil
+}
+
+func toPgLockMailCharactersRow(v sqlcgensqlite.LockMailCharactersRow) (sqlcgen.LockMailCharactersRow, error) {
+	var out sqlcgen.LockMailCharactersRow
 	out.ID = v.ID
 	out.AccountID = v.AccountID
 	out.WireID = v.WireID
@@ -85,8 +207,70 @@ func toPgLockCharacterRow(v sqlcgensqlite.LockCharacterRow) (sqlcgen.LockCharact
 	return out, nil
 }
 
-func fromPgLockCharacterRow(v sqlcgen.LockCharacterRow) (sqlcgensqlite.LockCharacterRow, error) {
-	var out sqlcgensqlite.LockCharacterRow
+func fromPgLockMailCharactersRow(v sqlcgen.LockMailCharactersRow) (sqlcgensqlite.LockMailCharactersRow, error) {
+	var out sqlcgensqlite.LockMailCharactersRow
+	out.ID = v.ID
+	out.AccountID = v.AccountID
+	out.WireID = v.WireID
+	out.Name = v.Name
+	out.Profession = v.Profession
+	out.CreateRequest = v.CreateRequest
+	out.ConfigVersion = v.ConfigVersion
+	out.State = v.State
+	out.CreatedAt = v.CreatedAt
+	out.FixedSlot = int64(v.FixedSlot)
+	return out, nil
+}
+
+func toPgEnsureTowerGriefProgressParams(v sqlcgensqlite.EnsureTowerGriefProgressParams) (sqlcgen.EnsureTowerGriefProgressParams, error) {
+	var out sqlcgen.EnsureTowerGriefProgressParams
+	out.AccountID = v.AccountID
+	out.HighestCleared = int32(v.HighestCleared)
+	return out, nil
+}
+
+func fromPgEnsureTowerGriefProgressParams(v sqlcgen.EnsureTowerGriefProgressParams) (sqlcgensqlite.EnsureTowerGriefProgressParams, error) {
+	var out sqlcgensqlite.EnsureTowerGriefProgressParams
+	out.AccountID = v.AccountID
+	out.HighestCleared = int16(v.HighestCleared)
+	return out, nil
+}
+
+func toPgAdvanceTowerFloorParams(v sqlcgensqlite.AdvanceTowerFloorParams) (sqlcgen.AdvanceTowerFloorParams, error) {
+	var out sqlcgen.AdvanceTowerFloorParams
+	out.Floor = int32(v.Floor)
+	out.RunID = v.RunID
+	out.AccountID = v.AccountID
+	out.TowerKey = v.TowerKey
+	return out, nil
+}
+
+func fromPgAdvanceTowerFloorParams(v sqlcgen.AdvanceTowerFloorParams) (sqlcgensqlite.AdvanceTowerFloorParams, error) {
+	var out sqlcgensqlite.AdvanceTowerFloorParams
+	out.Floor = int16(v.Floor)
+	out.RunID = v.RunID
+	out.AccountID = v.AccountID
+	out.TowerKey = v.TowerKey
+	return out, nil
+}
+
+func toPgMailRecipientRow(v sqlcgensqlite.MailRecipientRow) (sqlcgen.MailRecipientRow, error) {
+	var out sqlcgen.MailRecipientRow
+	out.ID = v.ID
+	out.AccountID = v.AccountID
+	out.WireID = v.WireID
+	out.Name = v.Name
+	out.Profession = v.Profession
+	out.CreateRequest = v.CreateRequest
+	out.ConfigVersion = v.ConfigVersion
+	out.State = v.State
+	out.CreatedAt = v.CreatedAt
+	out.FixedSlot = int16(v.FixedSlot)
+	return out, nil
+}
+
+func fromPgMailRecipientRow(v sqlcgen.MailRecipientRow) (sqlcgensqlite.MailRecipientRow, error) {
+	var out sqlcgensqlite.MailRecipientRow
 	out.ID = v.ID
 	out.AccountID = v.AccountID
 	out.WireID = v.WireID
@@ -124,52 +308,6 @@ func fromPgCompleteQuestUseObjectiveParams(v sqlcgen.CompleteQuestUseObjectivePa
 	return out, nil
 }
 
-func toPgMailRecipientRow(v sqlcgensqlite.MailRecipientRow) (sqlcgen.MailRecipientRow, error) {
-	var out sqlcgen.MailRecipientRow
-	out.ID = v.ID
-	out.AccountID = v.AccountID
-	out.WireID = v.WireID
-	out.Name = v.Name
-	out.Profession = v.Profession
-	out.CreateRequest = v.CreateRequest
-	out.ConfigVersion = v.ConfigVersion
-	out.State = v.State
-	out.CreatedAt = v.CreatedAt
-	out.FixedSlot = int16(v.FixedSlot)
-	return out, nil
-}
-
-func fromPgMailRecipientRow(v sqlcgen.MailRecipientRow) (sqlcgensqlite.MailRecipientRow, error) {
-	var out sqlcgensqlite.MailRecipientRow
-	out.ID = v.ID
-	out.AccountID = v.AccountID
-	out.WireID = v.WireID
-	out.Name = v.Name
-	out.Profession = v.Profession
-	out.CreateRequest = v.CreateRequest
-	out.ConfigVersion = v.ConfigVersion
-	out.State = v.State
-	out.CreatedAt = v.CreatedAt
-	out.FixedSlot = int64(v.FixedSlot)
-	return out, nil
-}
-
-func toPgFatigueRecoveryUsageRow(v sqlcgensqlite.FatigueRecoveryUsageRow) (sqlcgen.FatigueRecoveryUsageRow, error) {
-	var out sqlcgen.FatigueRecoveryUsageRow
-	out.DailyUses = v.DailyUses
-	out.LastUsed = time.UnixMicro(v.LastUsed).UTC()
-	out.HasLastUsed = v.HasLastUsed
-	return out, nil
-}
-
-func fromPgFatigueRecoveryUsageRow(v sqlcgen.FatigueRecoveryUsageRow) (sqlcgensqlite.FatigueRecoveryUsageRow, error) {
-	var out sqlcgensqlite.FatigueRecoveryUsageRow
-	out.DailyUses = v.DailyUses
-	out.LastUsed = v.LastUsed.UnixMicro()
-	out.HasLastUsed = v.HasLastUsed
-	return out, nil
-}
-
 func toPgHasCompletedQuestParams(v sqlcgensqlite.HasCompletedQuestParams) (sqlcgen.HasCompletedQuestParams, error) {
 	var out sqlcgen.HasCompletedQuestParams
 	out.CharacterID = v.CharacterID
@@ -181,6 +319,26 @@ func fromPgHasCompletedQuestParams(v sqlcgen.HasCompletedQuestParams) (sqlcgensq
 	var out sqlcgensqlite.HasCompletedQuestParams
 	out.CharacterID = v.CharacterID
 	out.QuestID = int32(v.QuestID)
+	return out, nil
+}
+
+func toPgCompleteQuestObjectiveParams(v sqlcgensqlite.CompleteQuestObjectiveParams) (sqlcgen.CompleteQuestObjectiveParams, error) {
+	var out sqlcgen.CompleteQuestObjectiveParams
+	out.AccountID = v.AccountID
+	out.CharacterID = v.CharacterID
+	out.QuestID = v.QuestID
+	out.ConfigVersion = v.ConfigVersion
+	out.ProgressModel = v.ProgressModel
+	return out, nil
+}
+
+func fromPgCompleteQuestObjectiveParams(v sqlcgen.CompleteQuestObjectiveParams) (sqlcgensqlite.CompleteQuestObjectiveParams, error) {
+	var out sqlcgensqlite.CompleteQuestObjectiveParams
+	out.AccountID = v.AccountID
+	out.CharacterID = v.CharacterID
+	out.QuestID = v.QuestID
+	out.ConfigVersion = v.ConfigVersion
+	out.ProgressModel = v.ProgressModel
 	return out, nil
 }
 
@@ -199,103 +357,6 @@ func fromPgAdvanceTowerGriefParams(v sqlcgen.AdvanceTowerGriefParams) (sqlcgensq
 	out.Day = v.Day
 	out.RunID = v.RunID
 	out.AccountID = v.AccountID
-	return out, nil
-}
-
-func toPgAdvanceTowerFloorParams(v sqlcgensqlite.AdvanceTowerFloorParams) (sqlcgen.AdvanceTowerFloorParams, error) {
-	var out sqlcgen.AdvanceTowerFloorParams
-	out.Floor = int32(v.Floor)
-	out.RunID = v.RunID
-	out.AccountID = v.AccountID
-	out.TowerKey = v.TowerKey
-	return out, nil
-}
-
-func fromPgAdvanceTowerFloorParams(v sqlcgen.AdvanceTowerFloorParams) (sqlcgensqlite.AdvanceTowerFloorParams, error) {
-	var out sqlcgensqlite.AdvanceTowerFloorParams
-	out.Floor = int16(v.Floor)
-	out.RunID = v.RunID
-	out.AccountID = v.AccountID
-	out.TowerKey = v.TowerKey
-	return out, nil
-}
-
-func toPgAdvanceTowerFloorRow(v sqlcgensqlite.AdvanceTowerFloorRow) (sqlcgen.AdvanceTowerFloorRow, error) {
-	var out sqlcgen.AdvanceTowerFloorRow
-	out.HighestCleared = v.HighestCleared
-	out.EntriesToday = v.EntriesToday
-	out.LastRunID = v.LastRunID
-	out.EntryDay = v.Column2
-	return out, nil
-}
-
-func fromPgAdvanceTowerFloorRow(v sqlcgen.AdvanceTowerFloorRow) (sqlcgensqlite.AdvanceTowerFloorRow, error) {
-	var out sqlcgensqlite.AdvanceTowerFloorRow
-	out.HighestCleared = v.HighestCleared
-	out.EntriesToday = v.EntriesToday
-	out.LastRunID = v.LastRunID
-	out.Column2 = v.EntryDay
-	return out, nil
-}
-
-func toPgInsertPlayerMailParams(v sqlcgensqlite.InsertPlayerMailParams) (sqlcgen.InsertPlayerMailParams, error) {
-	var out sqlcgen.InsertPlayerMailParams
-	if v.SenderID != nil {
-		out.SenderID = pgtype.Int8{Int64: *v.SenderID, Valid: true}
-	}
-	out.RecipientID = v.RecipientID
-	out.SenderName = v.SenderName
-	out.Body = v.Body
-	out.Assets = v.Assets
-	return out, nil
-}
-
-func fromPgInsertPlayerMailParams(v sqlcgen.InsertPlayerMailParams) (sqlcgensqlite.InsertPlayerMailParams, error) {
-	var out sqlcgensqlite.InsertPlayerMailParams
-	if v.SenderID.Valid {
-		v := v.SenderID.Int64
-		out.SenderID = &v
-	}
-	out.RecipientID = v.RecipientID
-	out.SenderName = v.SenderName
-	out.Body = v.Body
-	out.Assets = v.Assets
-	return out, nil
-}
-
-func toPgBleedingMineTeamsRow(v sqlcgensqlite.BleedingMineTeamsRow) (sqlcgen.BleedingMineTeamsRow, error) {
-	var out sqlcgen.BleedingMineTeamsRow
-	out.Team = v.Team
-	if err := json.Unmarshal(v.Members, &out.Members); err != nil {
-		return out, err
-	}
-	return out, nil
-}
-
-func fromPgBleedingMineTeamsRow(v sqlcgen.BleedingMineTeamsRow) (sqlcgensqlite.BleedingMineTeamsRow, error) {
-	var out sqlcgensqlite.BleedingMineTeamsRow
-	out.Team = v.Team
-	b, err := json.Marshal(v.Members)
-	if err != nil {
-		return out, err
-	}
-	out.Members = b
-	return out, nil
-}
-
-func toPgEnsureTowerProgressParams(v sqlcgensqlite.EnsureTowerProgressParams) (sqlcgen.EnsureTowerProgressParams, error) {
-	var out sqlcgen.EnsureTowerProgressParams
-	out.AccountID = v.AccountID
-	out.TowerKey = v.TowerKey
-	out.HighestCleared = int32(v.HighestCleared)
-	return out, nil
-}
-
-func fromPgEnsureTowerProgressParams(v sqlcgen.EnsureTowerProgressParams) (sqlcgensqlite.EnsureTowerProgressParams, error) {
-	var out sqlcgensqlite.EnsureTowerProgressParams
-	out.AccountID = v.AccountID
-	out.TowerKey = v.TowerKey
-	out.HighestCleared = int16(v.HighestCleared)
 	return out, nil
 }
 
@@ -324,88 +385,6 @@ func fromPgLockMailboxParams(v sqlcgen.LockMailboxParams) (sqlcgensqlite.LockMai
 	return out, nil
 }
 
-func toPgEnsureTowerGriefProgressParams(v sqlcgensqlite.EnsureTowerGriefProgressParams) (sqlcgen.EnsureTowerGriefProgressParams, error) {
-	var out sqlcgen.EnsureTowerGriefProgressParams
-	out.AccountID = v.AccountID
-	out.HighestCleared = int32(v.HighestCleared)
-	return out, nil
-}
-
-func fromPgEnsureTowerGriefProgressParams(v sqlcgen.EnsureTowerGriefProgressParams) (sqlcgensqlite.EnsureTowerGriefProgressParams, error) {
-	var out sqlcgensqlite.EnsureTowerGriefProgressParams
-	out.AccountID = v.AccountID
-	out.HighestCleared = int16(v.HighestCleared)
-	return out, nil
-}
-
-func toPgClearActQuestsParams(v sqlcgensqlite.ClearActQuestsParams) (sqlcgen.ClearActQuestsParams, error) {
-	var out sqlcgen.ClearActQuestsParams
-	out.CharacterID = v.CharacterID
-	if err := json.Unmarshal([]byte(v.QuestIds	), &out.QuestIds); err != nil {
-		return out, err
-	}
-	out.ConfigVersion = v.ConfigVersion
-	return out, nil
-}
-
-func fromPgClearActQuestsParams(v sqlcgen.ClearActQuestsParams) (sqlcgensqlite.ClearActQuestsParams, error) {
-	var out sqlcgensqlite.ClearActQuestsParams
-	out.CharacterID = v.CharacterID
-	b, err := json.Marshal(v.QuestIds)
-	if err != nil {
-		return out, err
-	}
-	out.QuestIds = string(b)
-	out.ConfigVersion = v.ConfigVersion
-	return out, nil
-}
-
-func toPgCharacterAllocationRow(v sqlcgensqlite.CharacterAllocationRow) (sqlcgen.CharacterAllocationRow, error) {
-	var out sqlcgen.CharacterAllocationRow
-	out.ActiveCount = v.ActiveCount
-	out.NextWireID = int32(v.NextWireID)
-	out.NextRosterOrder = v.NextRosterOrder
-	return out, nil
-}
-
-func fromPgCharacterAllocationRow(v sqlcgen.CharacterAllocationRow) (sqlcgensqlite.CharacterAllocationRow, error) {
-	var out sqlcgensqlite.CharacterAllocationRow
-	out.ActiveCount = v.ActiveCount
-	out.NextWireID = int64(v.NextWireID)
-	out.NextRosterOrder = v.NextRosterOrder
-	return out, nil
-}
-
-func toPgGrantHistoryParams(v sqlcgensqlite.GrantHistoryParams) (sqlcgen.GrantHistoryParams, error) {
-	var out sqlcgen.GrantHistoryParams
-	out.AccountID = v.AccountID
-	out.MaxEntries = int32(v.MaxEntries)
-	return out, nil
-}
-
-func fromPgGrantHistoryParams(v sqlcgen.GrantHistoryParams) (sqlcgensqlite.GrantHistoryParams, error) {
-	var out sqlcgensqlite.GrantHistoryParams
-	out.AccountID = v.AccountID
-	out.MaxEntries = int64(v.MaxEntries)
-	return out, nil
-}
-
-func toPgReserveFavorGiftRow(v sqlcgensqlite.ReserveFavorGiftRow) (sqlcgen.ReserveFavorGiftRow, error) {
-	var out sqlcgen.ReserveFavorGiftRow
-	out.Point = v.Point
-	out.DailyCount = v.DailyCount
-	out.LastGiftDay = v.Column3
-	return out, nil
-}
-
-func fromPgReserveFavorGiftRow(v sqlcgen.ReserveFavorGiftRow) (sqlcgensqlite.ReserveFavorGiftRow, error) {
-	var out sqlcgensqlite.ReserveFavorGiftRow
-	out.Point = v.Point
-	out.DailyCount = v.DailyCount
-	out.Column3 = v.LastGiftDay
-	return out, nil
-}
-
 func toPgRecordCharacterFameParams(v sqlcgensqlite.RecordCharacterFameParams) (sqlcgen.RecordCharacterFameParams, error) {
 	var out sqlcgen.RecordCharacterFameParams
 	out.CurrentFame = int32(v.CurrentFame)
@@ -419,6 +398,88 @@ func fromPgRecordCharacterFameParams(v sqlcgen.RecordCharacterFameParams) (sqlcg
 	out.CurrentFame = int64(v.CurrentFame)
 	out.AccountID = v.AccountID
 	out.CharacterID = v.CharacterID
+	return out, nil
+}
+
+func toPgLockOwnedCharacterIncludingDeletedRow(v sqlcgensqlite.LockOwnedCharacterIncludingDeletedRow) (sqlcgen.LockOwnedCharacterIncludingDeletedRow, error) {
+	var out sqlcgen.LockOwnedCharacterIncludingDeletedRow
+	out.ID = v.ID
+	out.AccountID = v.AccountID
+	out.WireID = v.WireID
+	out.Name = v.Name
+	out.Profession = v.Profession
+	out.CreateRequest = v.CreateRequest
+	out.ConfigVersion = v.ConfigVersion
+	out.State = v.State
+	out.CreatedAt = v.CreatedAt
+	out.FixedSlot = int16(v.FixedSlot)
+	return out, nil
+}
+
+func fromPgLockOwnedCharacterIncludingDeletedRow(v sqlcgen.LockOwnedCharacterIncludingDeletedRow) (sqlcgensqlite.LockOwnedCharacterIncludingDeletedRow, error) {
+	var out sqlcgensqlite.LockOwnedCharacterIncludingDeletedRow
+	out.ID = v.ID
+	out.AccountID = v.AccountID
+	out.WireID = v.WireID
+	out.Name = v.Name
+	out.Profession = v.Profession
+	out.CreateRequest = v.CreateRequest
+	out.ConfigVersion = v.ConfigVersion
+	out.State = v.State
+	out.CreatedAt = v.CreatedAt
+	out.FixedSlot = int64(v.FixedSlot)
+	return out, nil
+}
+
+func toPgRepairLegacyQuestParams(v sqlcgensqlite.RepairLegacyQuestParams) (sqlcgen.RepairLegacyQuestParams, error) {
+	var out sqlcgen.RepairLegacyQuestParams
+	out.Progress = v.Progress
+	out.ProgressModel = v.ProgressModel
+	out.AccountID = v.AccountID
+	out.CharacterID = v.CharacterID
+	out.QuestID = v.QuestID
+	out.ConfigVersion = v.ConfigVersion
+	return out, nil
+}
+
+func fromPgRepairLegacyQuestParams(v sqlcgen.RepairLegacyQuestParams) (sqlcgensqlite.RepairLegacyQuestParams, error) {
+	var out sqlcgensqlite.RepairLegacyQuestParams
+	out.Progress = v.Progress
+	out.ProgressModel = v.ProgressModel
+	out.AccountID = v.AccountID
+	out.CharacterID = v.CharacterID
+	out.QuestID = v.QuestID
+	out.ConfigVersion = v.ConfigVersion
+	return out, nil
+}
+
+func toPgCharactersWithAdventureRow(v sqlcgensqlite.CharactersWithAdventureRow) (sqlcgen.CharactersWithAdventureRow, error) {
+	var out sqlcgen.CharactersWithAdventureRow
+	out.ID = v.ID
+	out.AccountID = v.AccountID
+	out.WireID = v.WireID
+	out.Name = v.Name
+	out.Profession = v.Profession
+	out.CreateRequest = v.CreateRequest
+	out.ConfigVersion = v.ConfigVersion
+	out.State = json.RawMessage(v.State)
+	out.CreatedAt = v.CreatedAt
+	out.FixedSlot = v.FixedSlot
+	return out, nil
+}
+
+func fromPgCharactersWithAdventureRow(v sqlcgen.CharactersWithAdventureRow) (sqlcgensqlite.CharactersWithAdventureRow, error) {
+	var out sqlcgensqlite.CharactersWithAdventureRow
+	out.ID = v.ID
+	out.AccountID = v.AccountID
+	out.WireID = v.WireID
+	out.Name = v.Name
+	out.Profession = v.Profession
+	out.CreateRequest = v.CreateRequest
+	out.ConfigVersion = v.ConfigVersion
+	out.State = []byte(v.State)
+	out.CreatedAt = v.CreatedAt
+	out.FixedSlot = v.FixedSlot
 	return out, nil
 }
 
@@ -438,28 +499,6 @@ func fromPgCompleteGraduationQuestsParams(v sqlcgen.CompleteGraduationQuestsPara
 	out.CharacterID = v.CharacterID
 	out.ConfigVersion = v.ConfigVersion
 	out.ProgressModel = v.ProgressModel
-	b, err := json.Marshal(v.QuestIds)
-	if err != nil {
-		return out, err
-	}
-	out.QuestIds = string(b)
-	return out, nil
-}
-
-func toPgCompletedQuestIDsParams(v sqlcgensqlite.CompletedQuestIDsParams) (sqlcgen.CompletedQuestIDsParams, error) {
-	var out sqlcgen.CompletedQuestIDsParams
-	out.AccountID = v.AccountID
-	out.ConfigVersion = v.ConfigVersion
-	if err := json.Unmarshal([]byte(v.QuestIds	), &out.QuestIds); err != nil {
-		return out, err
-	}
-	return out, nil
-}
-
-func fromPgCompletedQuestIDsParams(v sqlcgen.CompletedQuestIDsParams) (sqlcgensqlite.CompletedQuestIDsParams, error) {
-	var out sqlcgensqlite.CompletedQuestIDsParams
-	out.AccountID = v.AccountID
-	out.ConfigVersion = v.ConfigVersion
 	b, err := json.Marshal(v.QuestIds)
 	if err != nil {
 		return out, err
@@ -510,124 +549,6 @@ func fromPgMarkMeetNPCQuestParams(v sqlcgen.MarkMeetNPCQuestParams) (sqlcgensqli
 	return out, nil
 }
 
-func toPgUpdateMailParams(v sqlcgensqlite.UpdateMailParams) (sqlcgen.UpdateMailParams, error) {
-	var out sqlcgen.UpdateMailParams
-	out.Assets = v.Assets
-	out.Status = int32(v.Status)
-	out.Deleted = v.Deleted
-	out.MailID = v.MailID
-	out.RecipientID = v.RecipientID
-	return out, nil
-}
-
-func fromPgUpdateMailParams(v sqlcgen.UpdateMailParams) (sqlcgensqlite.UpdateMailParams, error) {
-	var out sqlcgensqlite.UpdateMailParams
-	out.Assets = v.Assets
-	out.Status = int16(v.Status)
-	out.Deleted = v.Deleted
-	out.MailID = v.MailID
-	out.RecipientID = v.RecipientID
-	return out, nil
-}
-
-func toPgLockOwnedCharacterIncludingDeletedRow(v sqlcgensqlite.LockOwnedCharacterIncludingDeletedRow) (sqlcgen.LockOwnedCharacterIncludingDeletedRow, error) {
-	var out sqlcgen.LockOwnedCharacterIncludingDeletedRow
-	out.ID = v.ID
-	out.AccountID = v.AccountID
-	out.WireID = v.WireID
-	out.Name = v.Name
-	out.Profession = v.Profession
-	out.CreateRequest = v.CreateRequest
-	out.ConfigVersion = v.ConfigVersion
-	out.State = v.State
-	out.CreatedAt = v.CreatedAt
-	out.FixedSlot = int16(v.FixedSlot)
-	return out, nil
-}
-
-func fromPgLockOwnedCharacterIncludingDeletedRow(v sqlcgen.LockOwnedCharacterIncludingDeletedRow) (sqlcgensqlite.LockOwnedCharacterIncludingDeletedRow, error) {
-	var out sqlcgensqlite.LockOwnedCharacterIncludingDeletedRow
-	out.ID = v.ID
-	out.AccountID = v.AccountID
-	out.WireID = v.WireID
-	out.Name = v.Name
-	out.Profession = v.Profession
-	out.CreateRequest = v.CreateRequest
-	out.ConfigVersion = v.ConfigVersion
-	out.State = v.State
-	out.CreatedAt = v.CreatedAt
-	out.FixedSlot = int64(v.FixedSlot)
-	return out, nil
-}
-
-func toPgCompleteQuestObjectiveParams(v sqlcgensqlite.CompleteQuestObjectiveParams) (sqlcgen.CompleteQuestObjectiveParams, error) {
-	var out sqlcgen.CompleteQuestObjectiveParams
-	out.AccountID = v.AccountID
-	out.CharacterID = v.CharacterID
-	out.QuestID = v.QuestID
-	out.ConfigVersion = v.ConfigVersion
-	out.ProgressModel = v.ProgressModel
-	return out, nil
-}
-
-func fromPgCompleteQuestObjectiveParams(v sqlcgen.CompleteQuestObjectiveParams) (sqlcgensqlite.CompleteQuestObjectiveParams, error) {
-	var out sqlcgensqlite.CompleteQuestObjectiveParams
-	out.AccountID = v.AccountID
-	out.CharacterID = v.CharacterID
-	out.QuestID = v.QuestID
-	out.ConfigVersion = v.ConfigVersion
-	out.ProgressModel = v.ProgressModel
-	return out, nil
-}
-
-func toPgReserveTowerEntryParams(v sqlcgensqlite.ReserveTowerEntryParams) (sqlcgen.ReserveTowerEntryParams, error) {
-	var out sqlcgen.ReserveTowerEntryParams
-	out.Day = v.Day
-	out.AccountID = v.AccountID
-	out.TowerKey = v.TowerKey
-	out.Floor = int32(v.Floor)
-	return out, nil
-}
-
-func fromPgReserveTowerEntryParams(v sqlcgen.ReserveTowerEntryParams) (sqlcgensqlite.ReserveTowerEntryParams, error) {
-	var out sqlcgensqlite.ReserveTowerEntryParams
-	out.Day = v.Day
-	out.AccountID = v.AccountID
-	out.TowerKey = v.TowerKey
-	out.Floor = int16(v.Floor)
-	return out, nil
-}
-
-func toPgCharactersWithAdventureRow(v sqlcgensqlite.CharactersWithAdventureRow) (sqlcgen.CharactersWithAdventureRow, error) {
-	var out sqlcgen.CharactersWithAdventureRow
-	out.ID = v.ID
-	out.AccountID = v.AccountID
-	out.WireID = v.WireID
-	out.Name = v.Name
-	out.Profession = v.Profession
-	out.CreateRequest = v.CreateRequest
-	out.ConfigVersion = v.ConfigVersion
-	out.State = json.RawMessage(v.State)
-	out.CreatedAt = v.CreatedAt
-	out.FixedSlot = v.FixedSlot
-	return out, nil
-}
-
-func fromPgCharactersWithAdventureRow(v sqlcgen.CharactersWithAdventureRow) (sqlcgensqlite.CharactersWithAdventureRow, error) {
-	var out sqlcgensqlite.CharactersWithAdventureRow
-	out.ID = v.ID
-	out.AccountID = v.AccountID
-	out.WireID = v.WireID
-	out.Name = v.Name
-	out.Profession = v.Profession
-	out.CreateRequest = v.CreateRequest
-	out.ConfigVersion = v.ConfigVersion
-	out.State = []byte(v.State)
-	out.CreatedAt = v.CreatedAt
-	out.FixedSlot = v.FixedSlot
-	return out, nil
-}
-
 func toPgFixtureMergeCharacterFieldsParams(v sqlcgensqlite.FixtureMergeCharacterFieldsParams) (sqlcgen.FixtureMergeCharacterFieldsParams, error) {
 	var out sqlcgen.FixtureMergeCharacterFieldsParams
 	out.Fields = json.RawMessage(v.Fields)
@@ -660,55 +581,55 @@ func fromPgFixtureCashInventoryCountParams(v sqlcgen.FixtureCashInventoryCountPa
 	return out, nil
 }
 
-func toPgLockMailCharactersRow(v sqlcgensqlite.LockMailCharactersRow) (sqlcgen.LockMailCharactersRow, error) {
-	var out sqlcgen.LockMailCharactersRow
-	out.ID = v.ID
-	out.AccountID = v.AccountID
-	out.WireID = v.WireID
-	out.Name = v.Name
-	out.Profession = v.Profession
-	out.CreateRequest = v.CreateRequest
-	out.ConfigVersion = v.ConfigVersion
-	out.State = v.State
-	out.CreatedAt = v.CreatedAt
-	out.FixedSlot = int16(v.FixedSlot)
-	return out, nil
-}
-
-func fromPgLockMailCharactersRow(v sqlcgen.LockMailCharactersRow) (sqlcgensqlite.LockMailCharactersRow, error) {
-	var out sqlcgensqlite.LockMailCharactersRow
-	out.ID = v.ID
-	out.AccountID = v.AccountID
-	out.WireID = v.WireID
-	out.Name = v.Name
-	out.Profession = v.Profession
-	out.CreateRequest = v.CreateRequest
-	out.ConfigVersion = v.ConfigVersion
-	out.State = v.State
-	out.CreatedAt = v.CreatedAt
-	out.FixedSlot = int64(v.FixedSlot)
-	return out, nil
-}
-
-func toPgRepairLegacyQuestParams(v sqlcgensqlite.RepairLegacyQuestParams) (sqlcgen.RepairLegacyQuestParams, error) {
-	var out sqlcgen.RepairLegacyQuestParams
-	out.Progress = v.Progress
-	out.ProgressModel = v.ProgressModel
-	out.AccountID = v.AccountID
+func toPgClearActQuestsParams(v sqlcgensqlite.ClearActQuestsParams) (sqlcgen.ClearActQuestsParams, error) {
+	var out sqlcgen.ClearActQuestsParams
 	out.CharacterID = v.CharacterID
-	out.QuestID = v.QuestID
+	if err := json.Unmarshal([]byte(v.QuestIds	), &out.QuestIds); err != nil {
+		return out, err
+	}
 	out.ConfigVersion = v.ConfigVersion
 	return out, nil
 }
 
-func fromPgRepairLegacyQuestParams(v sqlcgen.RepairLegacyQuestParams) (sqlcgensqlite.RepairLegacyQuestParams, error) {
-	var out sqlcgensqlite.RepairLegacyQuestParams
-	out.Progress = v.Progress
-	out.ProgressModel = v.ProgressModel
-	out.AccountID = v.AccountID
+func fromPgClearActQuestsParams(v sqlcgen.ClearActQuestsParams) (sqlcgensqlite.ClearActQuestsParams, error) {
+	var out sqlcgensqlite.ClearActQuestsParams
 	out.CharacterID = v.CharacterID
-	out.QuestID = v.QuestID
+	b, err := json.Marshal(v.QuestIds)
+	if err != nil {
+		return out, err
+	}
+	out.QuestIds = string(b)
 	out.ConfigVersion = v.ConfigVersion
+	return out, nil
+}
+
+func toPgGrantHistoryParams(v sqlcgensqlite.GrantHistoryParams) (sqlcgen.GrantHistoryParams, error) {
+	var out sqlcgen.GrantHistoryParams
+	out.AccountID = v.AccountID
+	out.MaxEntries = int32(v.MaxEntries)
+	return out, nil
+}
+
+func fromPgGrantHistoryParams(v sqlcgen.GrantHistoryParams) (sqlcgensqlite.GrantHistoryParams, error) {
+	var out sqlcgensqlite.GrantHistoryParams
+	out.AccountID = v.AccountID
+	out.MaxEntries = int64(v.MaxEntries)
+	return out, nil
+}
+
+func toPgFatigueRecoveryUsageRow(v sqlcgensqlite.FatigueRecoveryUsageRow) (sqlcgen.FatigueRecoveryUsageRow, error) {
+	var out sqlcgen.FatigueRecoveryUsageRow
+	out.DailyUses = v.DailyUses
+	out.LastUsed = time.UnixMicro(v.LastUsed).UTC()
+	out.HasLastUsed = v.HasLastUsed
+	return out, nil
+}
+
+func fromPgFatigueRecoveryUsageRow(v sqlcgen.FatigueRecoveryUsageRow) (sqlcgensqlite.FatigueRecoveryUsageRow, error) {
+	var out sqlcgensqlite.FatigueRecoveryUsageRow
+	out.DailyUses = v.DailyUses
+	out.LastUsed = v.LastUsed.UnixMicro()
+	out.HasLastUsed = v.HasLastUsed
 	return out, nil
 }
 
@@ -728,17 +649,33 @@ func fromPgAbandonQuestParams(v sqlcgen.AbandonQuestParams) (sqlcgensqlite.Aband
 	return out, nil
 }
 
-func toPgFixtureWalletGoldParams(v sqlcgensqlite.FixtureWalletGoldParams) (sqlcgen.FixtureWalletGoldParams, error) {
-	var out sqlcgen.FixtureWalletGoldParams
-	out.Gold = json.RawMessage(v.Gold)
-	out.CharacterID = v.CharacterID
+func toPgLockCharacterRow(v sqlcgensqlite.LockCharacterRow) (sqlcgen.LockCharacterRow, error) {
+	var out sqlcgen.LockCharacterRow
+	out.ID = v.ID
+	out.AccountID = v.AccountID
+	out.WireID = v.WireID
+	out.Name = v.Name
+	out.Profession = v.Profession
+	out.CreateRequest = v.CreateRequest
+	out.ConfigVersion = v.ConfigVersion
+	out.State = v.State
+	out.CreatedAt = v.CreatedAt
+	out.FixedSlot = int16(v.FixedSlot)
 	return out, nil
 }
 
-func fromPgFixtureWalletGoldParams(v sqlcgen.FixtureWalletGoldParams) (sqlcgensqlite.FixtureWalletGoldParams, error) {
-	var out sqlcgensqlite.FixtureWalletGoldParams
-	out.Gold = []byte(v.Gold)
-	out.CharacterID = v.CharacterID
+func fromPgLockCharacterRow(v sqlcgen.LockCharacterRow) (sqlcgensqlite.LockCharacterRow, error) {
+	var out sqlcgensqlite.LockCharacterRow
+	out.ID = v.ID
+	out.AccountID = v.AccountID
+	out.WireID = v.WireID
+	out.Name = v.Name
+	out.Profession = v.Profession
+	out.CreateRequest = v.CreateRequest
+	out.ConfigVersion = v.ConfigVersion
+	out.State = v.State
+	out.CreatedAt = v.CreatedAt
+	out.FixedSlot = int64(v.FixedSlot)
 	return out, nil
 }
 
@@ -766,26 +703,89 @@ func fromPgClearQuestsParams(v sqlcgen.ClearQuestsParams) (sqlcgensqlite.ClearQu
 	return out, nil
 }
 
+func toPgBleedingMineTeamsRow(v sqlcgensqlite.BleedingMineTeamsRow) (sqlcgen.BleedingMineTeamsRow, error) {
+	var out sqlcgen.BleedingMineTeamsRow
+	out.Team = v.Team
+	if err := json.Unmarshal(v.Members, &out.Members); err != nil {
+		return out, err
+	}
+	return out, nil
+}
+
+func fromPgBleedingMineTeamsRow(v sqlcgen.BleedingMineTeamsRow) (sqlcgensqlite.BleedingMineTeamsRow, error) {
+	var out sqlcgensqlite.BleedingMineTeamsRow
+	out.Team = v.Team
+	b, err := json.Marshal(v.Members)
+	if err != nil {
+		return out, err
+	}
+	out.Members = b
+	return out, nil
+}
+
+func toPgReserveFavorGiftRow(v sqlcgensqlite.ReserveFavorGiftRow) (sqlcgen.ReserveFavorGiftRow, error) {
+	var out sqlcgen.ReserveFavorGiftRow
+	out.Point = v.Point
+	out.DailyCount = v.DailyCount
+	out.LastGiftDay = v.Column3
+	return out, nil
+}
+
+func fromPgReserveFavorGiftRow(v sqlcgen.ReserveFavorGiftRow) (sqlcgensqlite.ReserveFavorGiftRow, error) {
+	var out sqlcgensqlite.ReserveFavorGiftRow
+	out.Point = v.Point
+	out.DailyCount = v.DailyCount
+	out.Column3 = v.LastGiftDay
+	return out, nil
+}
+
+func toPgClaimAdminGrantParams(v sqlcgensqlite.ClaimAdminGrantParams) (sqlcgen.ClaimAdminGrantParams, error) {
+	var out sqlcgen.ClaimAdminGrantParams
+	out.GrantID = v.GrantID
+	out.AccountID = v.AccountID
+	if v.CharacterID != nil {
+		out.CharacterID = pgtype.Int8{Int64: *v.CharacterID, Valid: true}
+	}
+	out.Request = v.Request
+	out.Operator = v.Operator
+	out.Reason = v.Reason
+	return out, nil
+}
+
+func fromPgClaimAdminGrantParams(v sqlcgen.ClaimAdminGrantParams) (sqlcgensqlite.ClaimAdminGrantParams, error) {
+	var out sqlcgensqlite.ClaimAdminGrantParams
+	out.GrantID = v.GrantID
+	out.AccountID = v.AccountID
+	if v.CharacterID.Valid {
+		v := v.CharacterID.Int64
+		out.CharacterID = &v
+	}
+	out.Request = v.Request
+	out.Operator = v.Operator
+	out.Reason = v.Reason
+	return out, nil
+}
+
 func (q *sqliteQueries) AbandonQuest(ctx context.Context, p0 sqlcgen.AbandonQuestParams) (int64, error) {
 	arg0, err := fromPgAbandonQuestParams(p0)
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	raw, err := q.Queries.AbandonQuest(ctx, arg0)
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
 
 func (q *sqliteQueries) AcceptQuest(ctx context.Context, p0 sqlcgen.AcceptQuestParams) (error) {
-	return q.Queries.AcceptQuest(ctx, sqlcgensqlite.AcceptQuestParams(p0))
+	return storageError(q.Queries.AcceptQuest(ctx, sqlcgensqlite.AcceptQuestParams(p0)))
 }
 
 func (q *sqliteQueries) AccountCera(ctx context.Context, p0 int64) (int64, error) {
 	raw, err := q.Queries.AccountCera(ctx, p0)
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
@@ -793,7 +793,7 @@ func (q *sqliteQueries) AccountCera(ctx context.Context, p0 int64) (int64, error
 func (q *sqliteQueries) AccountCharacterStates(ctx context.Context, p0 int64) ([]json.RawMessage, error) {
 	raw, err := q.Queries.AccountCharacterStates(ctx, p0)
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	return raw, nil
 }
@@ -801,7 +801,7 @@ func (q *sqliteQueries) AccountCharacterStates(ctx context.Context, p0 int64) ([
 func (q *sqliteQueries) AccountGamepadSettings(ctx context.Context, p0 int64) (sqlcgen.AccountGamepadSettingsRow, error) {
 	raw, err := q.Queries.AccountGamepadSettings(ctx, p0)
 	if err != nil {
-		return sqlcgen.AccountGamepadSettingsRow{}, err
+		return sqlcgen.AccountGamepadSettingsRow{}, storageError(err)
 	}
 	return sqlcgen.AccountGamepadSettingsRow(raw), nil
 }
@@ -809,7 +809,7 @@ func (q *sqliteQueries) AccountGamepadSettings(ctx context.Context, p0 int64) (s
 func (q *sqliteQueries) AccountHotkeys(ctx context.Context, p0 sqlcgen.AccountHotkeysParams) ([]sqlcgen.AccountHotkeysRow, error) {
 	raw, err := q.Queries.AccountHotkeys(ctx, sqlcgensqlite.AccountHotkeysParams(p0))
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	out := make([]sqlcgen.AccountHotkeysRow, 0, len(raw))
 	for _, item := range raw {
@@ -821,7 +821,7 @@ func (q *sqliteQueries) AccountHotkeys(ctx context.Context, p0 sqlcgen.AccountHo
 func (q *sqliteQueries) AccountMaterials(ctx context.Context, p0 int64) (json.RawMessage, error) {
 	raw, err := q.Queries.AccountMaterials(ctx, p0)
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	return raw, nil
 }
@@ -829,7 +829,7 @@ func (q *sqliteQueries) AccountMaterials(ctx context.Context, p0 int64) (json.Ra
 func (q *sqliteQueries) AccountUnifiedOptions(ctx context.Context, p0 int64) ([]sqlcgen.AccountUnifiedOptionsRow, error) {
 	raw, err := q.Queries.AccountUnifiedOptions(ctx, p0)
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	out := make([]sqlcgen.AccountUnifiedOptionsRow, 0, len(raw))
 	for _, item := range raw {
@@ -841,7 +841,7 @@ func (q *sqliteQueries) AccountUnifiedOptions(ctx context.Context, p0 int64) ([]
 func (q *sqliteQueries) AccountVaultEvent(ctx context.Context, p0 sqlcgen.AccountVaultEventParams) (sqlcgen.AccountVaultEventRow, error) {
 	raw, err := q.Queries.AccountVaultEvent(ctx, sqlcgensqlite.AccountVaultEventParams(p0))
 	if err != nil {
-		return sqlcgen.AccountVaultEventRow{}, err
+		return sqlcgen.AccountVaultEventRow{}, storageError(err)
 	}
 	return sqlcgen.AccountVaultEventRow(raw), nil
 }
@@ -849,7 +849,7 @@ func (q *sqliteQueries) AccountVaultEvent(ctx context.Context, p0 sqlcgen.Accoun
 func (q *sqliteQueries) AccountWarpFavorites(ctx context.Context, p0 int64) ([]sqlcgen.AccountWarpFavoritesRow, error) {
 	raw, err := q.Queries.AccountWarpFavorites(ctx, p0)
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	out := make([]sqlcgen.AccountWarpFavoritesRow, 0, len(raw))
 	for _, item := range raw {
@@ -861,7 +861,7 @@ func (q *sqliteQueries) AccountWarpFavorites(ctx context.Context, p0 int64) ([]s
 func (q *sqliteQueries) Accounts(ctx context.Context) ([]sqlcgen.AccountsRow, error) {
 	raw, err := q.Queries.Accounts(ctx)
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	out := make([]sqlcgen.AccountsRow, 0, len(raw))
 	for _, item := range raw {
@@ -873,7 +873,7 @@ func (q *sqliteQueries) Accounts(ctx context.Context) ([]sqlcgen.AccountsRow, er
 func (q *sqliteQueries) ActiveCharacterOwned(ctx context.Context, p0 sqlcgen.ActiveCharacterOwnedParams) (bool, error) {
 	raw, err := q.Queries.ActiveCharacterOwned(ctx, sqlcgensqlite.ActiveCharacterOwnedParams(p0))
 	if err != nil {
-		return false, err
+		return false, storageError(err)
 	}
 	return raw, nil
 }
@@ -881,7 +881,7 @@ func (q *sqliteQueries) ActiveCharacterOwned(ctx context.Context, p0 sqlcgen.Act
 func (q *sqliteQueries) ActivePremiums(ctx context.Context, p0 sqlcgen.ActivePremiumsParams) ([]sqlcgen.ActivePremiumsRow, error) {
 	raw, err := q.Queries.ActivePremiums(ctx, sqlcgensqlite.ActivePremiumsParams(p0))
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	out := make([]sqlcgen.ActivePremiumsRow, 0, len(raw))
 	for _, item := range raw {
@@ -891,25 +891,25 @@ func (q *sqliteQueries) ActivePremiums(ctx context.Context, p0 sqlcgen.ActivePre
 }
 
 func (q *sqliteQueries) AddSkillLock(ctx context.Context, p0 sqlcgen.AddSkillLockParams) (error) {
-	return q.Queries.AddSkillLock(ctx, sqlcgensqlite.AddSkillLockParams(p0))
+	return storageError(q.Queries.AddSkillLock(ctx, sqlcgensqlite.AddSkillLockParams(p0)))
 }
 
 func (q *sqliteQueries) AddSkinFavorite(ctx context.Context, p0 sqlcgen.AddSkinFavoriteParams) (error) {
-	return q.Queries.AddSkinFavorite(ctx, sqlcgensqlite.AddSkinFavoriteParams(p0))
+	return storageError(q.Queries.AddSkinFavorite(ctx, sqlcgensqlite.AddSkinFavoriteParams(p0)))
 }
 
 func (q *sqliteQueries) AddSkinSelectionList(ctx context.Context, p0 sqlcgen.AddSkinSelectionListParams) (error) {
-	return q.Queries.AddSkinSelectionList(ctx, sqlcgensqlite.AddSkinSelectionListParams(p0))
+	return storageError(q.Queries.AddSkinSelectionList(ctx, sqlcgensqlite.AddSkinSelectionListParams(p0)))
 }
 
 func (q *sqliteQueries) AddSkinSelectionSlot(ctx context.Context, p0 sqlcgen.AddSkinSelectionSlotParams) (error) {
-	return q.Queries.AddSkinSelectionSlot(ctx, sqlcgensqlite.AddSkinSelectionSlotParams(p0))
+	return storageError(q.Queries.AddSkinSelectionSlot(ctx, sqlcgensqlite.AddSkinSelectionSlotParams(p0)))
 }
 
 func (q *sqliteQueries) AdjustAccountCurrency(ctx context.Context, p0 sqlcgen.AdjustAccountCurrencyParams) (int64, error) {
 	raw, err := q.Queries.AdjustAccountCurrency(ctx, sqlcgensqlite.AdjustAccountCurrencyParams(p0))
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
@@ -917,7 +917,7 @@ func (q *sqliteQueries) AdjustAccountCurrency(ctx context.Context, p0 sqlcgen.Ad
 func (q *sqliteQueries) AdminCharacter(ctx context.Context, p0 int64) (sqlcgen.AdminCharacterRow, error) {
 	raw, err := q.Queries.AdminCharacter(ctx, p0)
 	if err != nil {
-		return sqlcgen.AdminCharacterRow{}, err
+		return sqlcgen.AdminCharacterRow{}, storageError(err)
 	}
 	return sqlcgen.AdminCharacterRow(raw), nil
 }
@@ -925,7 +925,7 @@ func (q *sqliteQueries) AdminCharacter(ctx context.Context, p0 int64) (sqlcgen.A
 func (q *sqliteQueries) AdminCharacters(ctx context.Context, p0 int64) ([]sqlcgen.AdminCharactersRow, error) {
 	raw, err := q.Queries.AdminCharacters(ctx, p0)
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	out := make([]sqlcgen.AdminCharactersRow, 0, len(raw))
 	for _, item := range raw {
@@ -937,7 +937,7 @@ func (q *sqliteQueries) AdminCharacters(ctx context.Context, p0 int64) ([]sqlcge
 func (q *sqliteQueries) AdminGrantReceipt(ctx context.Context, p0 string) (json.RawMessage, error) {
 	raw, err := q.Queries.AdminGrantReceipt(ctx, p0)
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	return raw, nil
 }
@@ -945,7 +945,7 @@ func (q *sqliteQueries) AdminGrantReceipt(ctx context.Context, p0 string) (json.
 func (q *sqliteQueries) AdvanceBirth(ctx context.Context, p0 sqlcgen.AdvanceBirthParams) (int64, error) {
 	raw, err := q.Queries.AdvanceBirth(ctx, sqlcgensqlite.AdvanceBirthParams(p0))
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
@@ -953,11 +953,11 @@ func (q *sqliteQueries) AdvanceBirth(ctx context.Context, p0 sqlcgen.AdvanceBirt
 func (q *sqliteQueries) AdvanceTowerFloor(ctx context.Context, p0 sqlcgen.AdvanceTowerFloorParams) (sqlcgen.AdvanceTowerFloorRow, error) {
 	arg0, err := fromPgAdvanceTowerFloorParams(p0)
 	if err != nil {
-		return sqlcgen.AdvanceTowerFloorRow{}, err
+		return sqlcgen.AdvanceTowerFloorRow{}, storageError(err)
 	}
 	raw, err := q.Queries.AdvanceTowerFloor(ctx, arg0)
 	if err != nil {
-		return sqlcgen.AdvanceTowerFloorRow{}, err
+		return sqlcgen.AdvanceTowerFloorRow{}, storageError(err)
 	}
 	return toPgAdvanceTowerFloorRow(raw)
 }
@@ -965,11 +965,11 @@ func (q *sqliteQueries) AdvanceTowerFloor(ctx context.Context, p0 sqlcgen.Advanc
 func (q *sqliteQueries) AdvanceTowerGrief(ctx context.Context, p0 sqlcgen.AdvanceTowerGriefParams) (sqlcgen.AdvanceTowerGriefRow, error) {
 	arg0, err := fromPgAdvanceTowerGriefParams(p0)
 	if err != nil {
-		return sqlcgen.AdvanceTowerGriefRow{}, err
+		return sqlcgen.AdvanceTowerGriefRow{}, storageError(err)
 	}
 	raw, err := q.Queries.AdvanceTowerGrief(ctx, arg0)
 	if err != nil {
-		return sqlcgen.AdvanceTowerGriefRow{}, err
+		return sqlcgen.AdvanceTowerGriefRow{}, storageError(err)
 	}
 	return sqlcgen.AdvanceTowerGriefRow(raw), nil
 }
@@ -977,7 +977,7 @@ func (q *sqliteQueries) AdvanceTowerGrief(ctx context.Context, p0 sqlcgen.Advanc
 func (q *sqliteQueries) AdventureCollectionEquipment(ctx context.Context, p0 sqlcgen.AdventureCollectionEquipmentParams) (json.RawMessage, error) {
 	raw, err := q.Queries.AdventureCollectionEquipment(ctx, sqlcgensqlite.AdventureCollectionEquipmentParams(p0))
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	return json.RawMessage(raw), nil
 }
@@ -985,7 +985,7 @@ func (q *sqliteQueries) AdventureCollectionEquipment(ctx context.Context, p0 sql
 func (q *sqliteQueries) AdventureEquipmentRegistered(ctx context.Context, p0 sqlcgen.AdventureEquipmentRegisteredParams) (bool, error) {
 	raw, err := q.Queries.AdventureEquipmentRegistered(ctx, sqlcgensqlite.AdventureEquipmentRegisteredParams(p0))
 	if err != nil {
-		return false, err
+		return false, storageError(err)
 	}
 	return raw, nil
 }
@@ -993,7 +993,7 @@ func (q *sqliteQueries) AdventureEquipmentRegistered(ctx context.Context, p0 sql
 func (q *sqliteQueries) AdventureEventReceipt(ctx context.Context, p0 sqlcgen.AdventureEventReceiptParams) (json.RawMessage, error) {
 	raw, err := q.Queries.AdventureEventReceipt(ctx, sqlcgensqlite.AdventureEventReceiptParams(p0))
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	return raw, nil
 }
@@ -1001,23 +1001,23 @@ func (q *sqliteQueries) AdventureEventReceipt(ctx context.Context, p0 sqlcgen.Ad
 func (q *sqliteQueries) AdventureLevel(ctx context.Context, p0 sqlcgen.AdventureLevelParams) (int32, error) {
 	raw, err := q.Queries.AdventureLevel(ctx, sqlcgensqlite.AdventureLevelParams(p0))
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return int32(raw), nil
 }
 
 func (q *sqliteQueries) ArchiveCharacter(ctx context.Context, p0 sqlcgen.ArchiveCharacterParams) (error) {
-	return q.Queries.ArchiveCharacter(ctx, sqlcgensqlite.ArchiveCharacterParams(p0))
+	return storageError(q.Queries.ArchiveCharacter(ctx, sqlcgensqlite.ArchiveCharacterParams(p0)))
 }
 
 func (q *sqliteQueries) BackfillBirth(ctx context.Context, p0 int16) (error) {
-	return q.Queries.BackfillBirth(ctx, p0)
+	return storageError(q.Queries.BackfillBirth(ctx, p0))
 }
 
 func (q *sqliteQueries) BirthStage(ctx context.Context, p0 sqlcgen.BirthStageParams) (sqlcgen.BirthStageRow, error) {
 	raw, err := q.Queries.BirthStage(ctx, sqlcgensqlite.BirthStageParams(p0))
 	if err != nil {
-		return sqlcgen.BirthStageRow{}, err
+		return sqlcgen.BirthStageRow{}, storageError(err)
 	}
 	return sqlcgen.BirthStageRow(raw), nil
 }
@@ -1025,7 +1025,7 @@ func (q *sqliteQueries) BirthStage(ctx context.Context, p0 sqlcgen.BirthStagePar
 func (q *sqliteQueries) BlackPurgatoryEntryCounts(ctx context.Context, p0 sqlcgen.BlackPurgatoryEntryCountsParams) (sqlcgen.BlackPurgatoryEntryCountsRow, error) {
 	raw, err := q.Queries.BlackPurgatoryEntryCounts(ctx, sqlcgensqlite.BlackPurgatoryEntryCountsParams(p0))
 	if err != nil {
-		return sqlcgen.BlackPurgatoryEntryCountsRow{}, err
+		return sqlcgen.BlackPurgatoryEntryCountsRow{}, storageError(err)
 	}
 	return sqlcgen.BlackPurgatoryEntryCountsRow(raw), nil
 }
@@ -1033,7 +1033,7 @@ func (q *sqliteQueries) BlackPurgatoryEntryCounts(ctx context.Context, p0 sqlcge
 func (q *sqliteQueries) BlackPurgatoryEntryStage(ctx context.Context, p0 sqlcgen.BlackPurgatoryEntryStageParams) (string, error) {
 	raw, err := q.Queries.BlackPurgatoryEntryStage(ctx, sqlcgensqlite.BlackPurgatoryEntryStageParams(p0))
 	if err != nil {
-		return "", err
+		return "", storageError(err)
 	}
 	return raw, nil
 }
@@ -1041,7 +1041,7 @@ func (q *sqliteQueries) BlackPurgatoryEntryStage(ctx context.Context, p0 sqlcgen
 func (q *sqliteQueries) BleedingMineTeams(ctx context.Context, p0 int64) ([]sqlcgen.BleedingMineTeamsRow, error) {
 	raw, err := q.Queries.BleedingMineTeams(ctx, p0)
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	out := make([]sqlcgen.BleedingMineTeamsRow, 0, len(raw))
 	for _, item := range raw {
@@ -1057,7 +1057,7 @@ func (q *sqliteQueries) BleedingMineTeams(ctx context.Context, p0 int64) ([]sqlc
 func (q *sqliteQueries) CashInventory(ctx context.Context, p0 sqlcgen.CashInventoryParams) ([]sqlcgen.CashInventoryRow, error) {
 	raw, err := q.Queries.CashInventory(ctx, sqlcgensqlite.CashInventoryParams(p0))
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	out := make([]sqlcgen.CashInventoryRow, 0, len(raw))
 	for _, item := range raw {
@@ -1069,7 +1069,7 @@ func (q *sqliteQueries) CashInventory(ctx context.Context, p0 sqlcgen.CashInvent
 func (q *sqliteQueries) CashOrderReceipt(ctx context.Context, p0 sqlcgen.CashOrderReceiptParams) (sqlcgen.CashOrderReceiptRow, error) {
 	raw, err := q.Queries.CashOrderReceipt(ctx, sqlcgensqlite.CashOrderReceiptParams(p0))
 	if err != nil {
-		return sqlcgen.CashOrderReceiptRow{}, err
+		return sqlcgen.CashOrderReceiptRow{}, storageError(err)
 	}
 	return sqlcgen.CashOrderReceiptRow(raw), nil
 }
@@ -1077,7 +1077,7 @@ func (q *sqliteQueries) CashOrderReceipt(ctx context.Context, p0 sqlcgen.CashOrd
 func (q *sqliteQueries) CashOrderVaultSpace(ctx context.Context, p0 sqlcgen.CashOrderVaultSpaceParams) (int32, error) {
 	raw, err := q.Queries.CashOrderVaultSpace(ctx, sqlcgensqlite.CashOrderVaultSpaceParams(p0))
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return int32(raw), nil
 }
@@ -1085,7 +1085,7 @@ func (q *sqliteQueries) CashOrderVaultSpace(ctx context.Context, p0 sqlcgen.Cash
 func (q *sqliteQueries) CharacterAllocation(ctx context.Context, p0 int64) (sqlcgen.CharacterAllocationRow, error) {
 	raw, err := q.Queries.CharacterAllocation(ctx, p0)
 	if err != nil {
-		return sqlcgen.CharacterAllocationRow{}, err
+		return sqlcgen.CharacterAllocationRow{}, storageError(err)
 	}
 	return toPgCharacterAllocationRow(raw)
 }
@@ -1093,7 +1093,7 @@ func (q *sqliteQueries) CharacterAllocation(ctx context.Context, p0 int64) (sqlc
 func (q *sqliteQueries) CharacterAtRosterSlot(ctx context.Context, p0 sqlcgen.CharacterAtRosterSlotParams) (sqlcgen.CharacterAtRosterSlotRow, error) {
 	raw, err := q.Queries.CharacterAtRosterSlot(ctx, sqlcgensqlite.CharacterAtRosterSlotParams(p0))
 	if err != nil {
-		return sqlcgen.CharacterAtRosterSlotRow{}, err
+		return sqlcgen.CharacterAtRosterSlotRow{}, storageError(err)
 	}
 	return sqlcgen.CharacterAtRosterSlotRow(raw), nil
 }
@@ -1101,7 +1101,7 @@ func (q *sqliteQueries) CharacterAtRosterSlot(ctx context.Context, p0 sqlcgen.Ch
 func (q *sqliteQueries) CharacterEventModel(ctx context.Context, p0 sqlcgen.CharacterEventModelParams) (string, error) {
 	raw, err := q.Queries.CharacterEventModel(ctx, sqlcgensqlite.CharacterEventModelParams(p0))
 	if err != nil {
-		return "", err
+		return "", storageError(err)
 	}
 	return raw, nil
 }
@@ -1109,7 +1109,7 @@ func (q *sqliteQueries) CharacterEventModel(ctx context.Context, p0 sqlcgen.Char
 func (q *sqliteQueries) CharacterEventReceipt(ctx context.Context, p0 sqlcgen.CharacterEventReceiptParams) (json.RawMessage, error) {
 	raw, err := q.Queries.CharacterEventReceipt(ctx, sqlcgensqlite.CharacterEventReceiptParams(p0))
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	return raw, nil
 }
@@ -1117,7 +1117,7 @@ func (q *sqliteQueries) CharacterEventReceipt(ctx context.Context, p0 sqlcgen.Ch
 func (q *sqliteQueries) CharacterEventStage(ctx context.Context, p0 sqlcgen.CharacterEventStageParams) (sqlcgen.CharacterEventStageRow, error) {
 	raw, err := q.Queries.CharacterEventStage(ctx, sqlcgensqlite.CharacterEventStageParams(p0))
 	if err != nil {
-		return sqlcgen.CharacterEventStageRow{}, err
+		return sqlcgen.CharacterEventStageRow{}, storageError(err)
 	}
 	return sqlcgen.CharacterEventStageRow(raw), nil
 }
@@ -1125,7 +1125,7 @@ func (q *sqliteQueries) CharacterEventStage(ctx context.Context, p0 sqlcgen.Char
 func (q *sqliteQueries) CharacterGamepadSettings(ctx context.Context, p0 int64) (sqlcgen.CharacterGamepadSettingsRow, error) {
 	raw, err := q.Queries.CharacterGamepadSettings(ctx, p0)
 	if err != nil {
-		return sqlcgen.CharacterGamepadSettingsRow{}, err
+		return sqlcgen.CharacterGamepadSettingsRow{}, storageError(err)
 	}
 	return sqlcgen.CharacterGamepadSettingsRow(raw), nil
 }
@@ -1133,7 +1133,7 @@ func (q *sqliteQueries) CharacterGamepadSettings(ctx context.Context, p0 int64) 
 func (q *sqliteQueries) CharacterHotkeys(ctx context.Context, p0 sqlcgen.CharacterHotkeysParams) ([]sqlcgen.CharacterHotkeysRow, error) {
 	raw, err := q.Queries.CharacterHotkeys(ctx, sqlcgensqlite.CharacterHotkeysParams(p0))
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	out := make([]sqlcgen.CharacterHotkeysRow, 0, len(raw))
 	for _, item := range raw {
@@ -1145,7 +1145,7 @@ func (q *sqliteQueries) CharacterHotkeys(ctx context.Context, p0 sqlcgen.Charact
 func (q *sqliteQueries) CharacterNoticeSeen(ctx context.Context, p0 sqlcgen.CharacterNoticeSeenParams) ([]int16, error) {
 	raw, err := q.Queries.CharacterNoticeSeen(ctx, sqlcgensqlite.CharacterNoticeSeenParams(p0))
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	return raw, nil
 }
@@ -1153,7 +1153,7 @@ func (q *sqliteQueries) CharacterNoticeSeen(ctx context.Context, p0 sqlcgen.Char
 func (q *sqliteQueries) CharacterOwned(ctx context.Context, p0 sqlcgen.CharacterOwnedParams) (bool, error) {
 	raw, err := q.Queries.CharacterOwned(ctx, sqlcgensqlite.CharacterOwnedParams(p0))
 	if err != nil {
-		return false, err
+		return false, storageError(err)
 	}
 	return raw, nil
 }
@@ -1161,7 +1161,7 @@ func (q *sqliteQueries) CharacterOwned(ctx context.Context, p0 sqlcgen.Character
 func (q *sqliteQueries) CharacterSeason(ctx context.Context, p0 sqlcgen.CharacterSeasonParams) (json.RawMessage, error) {
 	raw, err := q.Queries.CharacterSeason(ctx, sqlcgensqlite.CharacterSeasonParams(p0))
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	return json.RawMessage(raw), nil
 }
@@ -1169,7 +1169,7 @@ func (q *sqliteQueries) CharacterSeason(ctx context.Context, p0 sqlcgen.Characte
 func (q *sqliteQueries) CharacterUnifiedOptionGroup(ctx context.Context, p0 sqlcgen.CharacterUnifiedOptionGroupParams) ([]sqlcgen.CharacterUnifiedOptionGroupRow, error) {
 	raw, err := q.Queries.CharacterUnifiedOptionGroup(ctx, sqlcgensqlite.CharacterUnifiedOptionGroupParams(p0))
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	out := make([]sqlcgen.CharacterUnifiedOptionGroupRow, 0, len(raw))
 	for _, item := range raw {
@@ -1181,7 +1181,7 @@ func (q *sqliteQueries) CharacterUnifiedOptionGroup(ctx context.Context, p0 sqlc
 func (q *sqliteQueries) CharacterUnifiedOptions(ctx context.Context, p0 int64) ([]sqlcgen.CharacterUnifiedOptionsRow, error) {
 	raw, err := q.Queries.CharacterUnifiedOptions(ctx, p0)
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	out := make([]sqlcgen.CharacterUnifiedOptionsRow, 0, len(raw))
 	for _, item := range raw {
@@ -1193,7 +1193,7 @@ func (q *sqliteQueries) CharacterUnifiedOptions(ctx context.Context, p0 int64) (
 func (q *sqliteQueries) Characters(ctx context.Context, p0 int64) ([]sqlcgen.CharactersRow, error) {
 	raw, err := q.Queries.Characters(ctx, p0)
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	out := make([]sqlcgen.CharactersRow, 0, len(raw))
 	for _, item := range raw {
@@ -1205,7 +1205,7 @@ func (q *sqliteQueries) Characters(ctx context.Context, p0 int64) ([]sqlcgen.Cha
 func (q *sqliteQueries) CharactersWithAdventure(ctx context.Context, p0 int64) ([]sqlcgen.CharactersWithAdventureRow, error) {
 	raw, err := q.Queries.CharactersWithAdventure(ctx, p0)
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	out := make([]sqlcgen.CharactersWithAdventureRow, 0, len(raw))
 	for _, item := range raw {
@@ -1221,71 +1221,71 @@ func (q *sqliteQueries) CharactersWithAdventure(ctx context.Context, p0 int64) (
 func (q *sqliteQueries) ClaimAdminGrant(ctx context.Context, p0 sqlcgen.ClaimAdminGrantParams) (int64, error) {
 	arg0, err := fromPgClaimAdminGrantParams(p0)
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	raw, err := q.Queries.ClaimAdminGrant(ctx, arg0)
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
 
 func (q *sqliteQueries) ClearAccountCharacterGamepadSettings(ctx context.Context, p0 int64) (error) {
-	return q.Queries.ClearAccountCharacterGamepadSettings(ctx, p0)
+	return storageError(q.Queries.ClearAccountCharacterGamepadSettings(ctx, p0))
 }
 
 func (q *sqliteQueries) ClearAccountCharacterHotkeys(ctx context.Context, p0 sqlcgen.ClearAccountCharacterHotkeysParams) (error) {
-	return q.Queries.ClearAccountCharacterHotkeys(ctx, sqlcgensqlite.ClearAccountCharacterHotkeysParams(p0))
+	return storageError(q.Queries.ClearAccountCharacterHotkeys(ctx, sqlcgensqlite.ClearAccountCharacterHotkeysParams(p0)))
 }
 
 func (q *sqliteQueries) ClearActQuests(ctx context.Context, p0 sqlcgen.ClearActQuestsParams) (int64, error) {
 	arg0, err := fromPgClearActQuestsParams(p0)
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	raw, err := q.Queries.ClearActQuests(ctx, arg0)
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
 
 func (q *sqliteQueries) ClearCharacterGamepadSettings(ctx context.Context, p0 int64) (error) {
-	return q.Queries.ClearCharacterGamepadSettings(ctx, p0)
+	return storageError(q.Queries.ClearCharacterGamepadSettings(ctx, p0))
 }
 
 func (q *sqliteQueries) ClearEquipmentSkill(ctx context.Context, p0 int64) (error) {
-	return q.Queries.ClearEquipmentSkill(ctx, p0)
+	return storageError(q.Queries.ClearEquipmentSkill(ctx, p0))
 }
 
 func (q *sqliteQueries) ClearQuests(ctx context.Context, p0 sqlcgen.ClearQuestsParams) (int64, error) {
 	arg0, err := fromPgClearQuestsParams(p0)
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	raw, err := q.Queries.ClearQuests(ctx, arg0)
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
 
 func (q *sqliteQueries) ClearSkillLocks(ctx context.Context, p0 int64) (error) {
-	return q.Queries.ClearSkillLocks(ctx, p0)
+	return storageError(q.Queries.ClearSkillLocks(ctx, p0))
 }
 
 func (q *sqliteQueries) ClearSkinSelectionList(ctx context.Context, p0 sqlcgen.ClearSkinSelectionListParams) (error) {
-	return q.Queries.ClearSkinSelectionList(ctx, sqlcgensqlite.ClearSkinSelectionListParams(p0))
+	return storageError(q.Queries.ClearSkinSelectionList(ctx, sqlcgensqlite.ClearSkinSelectionListParams(p0)))
 }
 
 func (q *sqliteQueries) ClearSkinSelectionSlots(ctx context.Context, p0 sqlcgen.ClearSkinSelectionSlotsParams) (error) {
-	return q.Queries.ClearSkinSelectionSlots(ctx, sqlcgensqlite.ClearSkinSelectionSlotsParams(p0))
+	return storageError(q.Queries.ClearSkinSelectionSlots(ctx, sqlcgensqlite.ClearSkinSelectionSlotsParams(p0)))
 }
 
 func (q *sqliteQueries) CoinItemMigrationCandidates(ctx context.Context) ([]sqlcgen.CoinItemMigrationCandidatesRow, error) {
 	raw, err := q.Queries.CoinItemMigrationCandidates(ctx)
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	out := make([]sqlcgen.CoinItemMigrationCandidatesRow, 0, len(raw))
 	for _, item := range raw {
@@ -1297,23 +1297,23 @@ func (q *sqliteQueries) CoinItemMigrationCandidates(ctx context.Context) ([]sqlc
 func (q *sqliteQueries) CompleteGraduationQuests(ctx context.Context, p0 sqlcgen.CompleteGraduationQuestsParams) (error) {
 	arg0, err := fromPgCompleteGraduationQuestsParams(p0)
 	if err != nil {
-		return err
+		return storageError(err)
 	}
-	return q.Queries.CompleteGraduationQuests(ctx, arg0)
+	return storageError(q.Queries.CompleteGraduationQuests(ctx, arg0))
 }
 
 func (q *sqliteQueries) CompleteQuestMapObjective(ctx context.Context, p0 sqlcgen.CompleteQuestMapObjectiveParams) (error) {
-	return q.Queries.CompleteQuestMapObjective(ctx, sqlcgensqlite.CompleteQuestMapObjectiveParams(p0))
+	return storageError(q.Queries.CompleteQuestMapObjective(ctx, sqlcgensqlite.CompleteQuestMapObjectiveParams(p0)))
 }
 
 func (q *sqliteQueries) CompleteQuestObjective(ctx context.Context, p0 sqlcgen.CompleteQuestObjectiveParams) (int64, error) {
 	arg0, err := fromPgCompleteQuestObjectiveParams(p0)
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	raw, err := q.Queries.CompleteQuestObjective(ctx, arg0)
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
@@ -1321,27 +1321,27 @@ func (q *sqliteQueries) CompleteQuestObjective(ctx context.Context, p0 sqlcgen.C
 func (q *sqliteQueries) CompleteQuestUseObjective(ctx context.Context, p0 sqlcgen.CompleteQuestUseObjectiveParams) (int64, error) {
 	arg0, err := fromPgCompleteQuestUseObjectiveParams(p0)
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	raw, err := q.Queries.CompleteQuestUseObjective(ctx, arg0)
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
 
 func (q *sqliteQueries) CompleteRewardedQuest(ctx context.Context, p0 sqlcgen.CompleteRewardedQuestParams) (error) {
-	return q.Queries.CompleteRewardedQuest(ctx, sqlcgensqlite.CompleteRewardedQuestParams(p0))
+	return storageError(q.Queries.CompleteRewardedQuest(ctx, sqlcgensqlite.CompleteRewardedQuestParams(p0)))
 }
 
 func (q *sqliteQueries) CompletedQuestIDs(ctx context.Context, p0 sqlcgen.CompletedQuestIDsParams) ([]sqlcgen.CompletedQuestIDsRow, error) {
 	arg0, err := fromPgCompletedQuestIDsParams(p0)
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	raw, err := q.Queries.CompletedQuestIDs(ctx, arg0)
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	out := make([]sqlcgen.CompletedQuestIDsRow, 0, len(raw))
 	for _, item := range raw {
@@ -1351,13 +1351,13 @@ func (q *sqliteQueries) CompletedQuestIDs(ctx context.Context, p0 sqlcgen.Comple
 }
 
 func (q *sqliteQueries) CopyAccountHotkeysToCharacter(ctx context.Context, p0 sqlcgen.CopyAccountHotkeysToCharacterParams) (error) {
-	return q.Queries.CopyAccountHotkeysToCharacter(ctx, sqlcgensqlite.CopyAccountHotkeysToCharacterParams(p0))
+	return storageError(q.Queries.CopyAccountHotkeysToCharacter(ctx, sqlcgensqlite.CopyAccountHotkeysToCharacterParams(p0)))
 }
 
 func (q *sqliteQueries) CountAccountShopPurchases(ctx context.Context, p0 sqlcgen.CountAccountShopPurchasesParams) (int64, error) {
 	raw, err := q.Queries.CountAccountShopPurchases(ctx, sqlcgensqlite.CountAccountShopPurchasesParams(p0))
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
@@ -1365,7 +1365,7 @@ func (q *sqliteQueries) CountAccountShopPurchases(ctx context.Context, p0 sqlcge
 func (q *sqliteQueries) CountCharacterShopPurchases(ctx context.Context, p0 sqlcgen.CountCharacterShopPurchasesParams) (int64, error) {
 	raw, err := q.Queries.CountCharacterShopPurchases(ctx, sqlcgensqlite.CountCharacterShopPurchasesParams(p0))
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
@@ -1373,7 +1373,7 @@ func (q *sqliteQueries) CountCharacterShopPurchases(ctx context.Context, p0 sqlc
 func (q *sqliteQueries) CountSkinFavorites(ctx context.Context, p0 sqlcgen.CountSkinFavoritesParams) (int64, error) {
 	raw, err := q.Queries.CountSkinFavorites(ctx, sqlcgensqlite.CountSkinFavoritesParams(p0))
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
@@ -1381,7 +1381,7 @@ func (q *sqliteQueries) CountSkinFavorites(ctx context.Context, p0 sqlcgen.Count
 func (q *sqliteQueries) CreateCharacter(ctx context.Context, p0 sqlcgen.CreateCharacterParams) (sqlcgen.CreateCharacterRow, error) {
 	raw, err := q.Queries.CreateCharacter(ctx, sqlcgensqlite.CreateCharacterParams(p0))
 	if err != nil {
-		return sqlcgen.CreateCharacterRow{}, err
+		return sqlcgen.CreateCharacterRow{}, storageError(err)
 	}
 	return sqlcgen.CreateCharacterRow(raw), nil
 }
@@ -1389,7 +1389,7 @@ func (q *sqliteQueries) CreateCharacter(ctx context.Context, p0 sqlcgen.CreateCh
 func (q *sqliteQueries) DevelopmentAccount(ctx context.Context, p0 string) (int64, error) {
 	raw, err := q.Queries.DevelopmentAccount(ctx, p0)
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
@@ -1397,67 +1397,67 @@ func (q *sqliteQueries) DevelopmentAccount(ctx context.Context, p0 string) (int6
 func (q *sqliteQueries) DevelopmentCharacterAccount(ctx context.Context, p0 int64) (int64, error) {
 	raw, err := q.Queries.DevelopmentCharacterAccount(ctx, p0)
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
 
 func (q *sqliteQueries) EnsureAccountCurrency(ctx context.Context, p0 int64) (error) {
-	return q.Queries.EnsureAccountCurrency(ctx, p0)
+	return storageError(q.Queries.EnsureAccountCurrency(ctx, p0))
 }
 
 func (q *sqliteQueries) EnsureAccountVault(ctx context.Context, p0 int64) (error) {
-	return q.Queries.EnsureAccountVault(ctx, p0)
+	return storageError(q.Queries.EnsureAccountVault(ctx, p0))
 }
 
 func (q *sqliteQueries) EnsureAdventure(ctx context.Context, p0 sqlcgen.EnsureAdventureParams) (error) {
-	return q.Queries.EnsureAdventure(ctx, sqlcgensqlite.EnsureAdventureParams(p0))
+	return storageError(q.Queries.EnsureAdventure(ctx, sqlcgensqlite.EnsureAdventureParams(p0)))
 }
 
 func (q *sqliteQueries) EnsureBleedingMineRewards(ctx context.Context, p0 int64) (error) {
-	return q.Queries.EnsureBleedingMineRewards(ctx, p0)
+	return storageError(q.Queries.EnsureBleedingMineRewards(ctx, p0))
 }
 
 func (q *sqliteQueries) EnsureOwnedAdventure(ctx context.Context, p0 sqlcgen.EnsureOwnedAdventureParams) (error) {
-	return q.Queries.EnsureOwnedAdventure(ctx, sqlcgensqlite.EnsureOwnedAdventureParams(p0))
+	return storageError(q.Queries.EnsureOwnedAdventure(ctx, sqlcgensqlite.EnsureOwnedAdventureParams(p0)))
 }
 
 func (q *sqliteQueries) EnsurePrimaryVault(ctx context.Context, p0 sqlcgen.EnsurePrimaryVaultParams) (error) {
-	return q.Queries.EnsurePrimaryVault(ctx, sqlcgensqlite.EnsurePrimaryVaultParams(p0))
+	return storageError(q.Queries.EnsurePrimaryVault(ctx, sqlcgensqlite.EnsurePrimaryVaultParams(p0)))
 }
 
 func (q *sqliteQueries) EnsureSecondaryVault(ctx context.Context, p0 sqlcgen.EnsureSecondaryVaultParams) (error) {
-	return q.Queries.EnsureSecondaryVault(ctx, sqlcgensqlite.EnsureSecondaryVaultParams(p0))
+	return storageError(q.Queries.EnsureSecondaryVault(ctx, sqlcgensqlite.EnsureSecondaryVaultParams(p0)))
 }
 
 func (q *sqliteQueries) EnsureTowerGriefProgress(ctx context.Context, p0 sqlcgen.EnsureTowerGriefProgressParams) (error) {
 	arg0, err := fromPgEnsureTowerGriefProgressParams(p0)
 	if err != nil {
-		return err
+		return storageError(err)
 	}
-	return q.Queries.EnsureTowerGriefProgress(ctx, arg0)
+	return storageError(q.Queries.EnsureTowerGriefProgress(ctx, arg0))
 }
 
 func (q *sqliteQueries) EnsureTowerProgress(ctx context.Context, p0 sqlcgen.EnsureTowerProgressParams) (error) {
 	arg0, err := fromPgEnsureTowerProgressParams(p0)
 	if err != nil {
-		return err
+		return storageError(err)
 	}
-	return q.Queries.EnsureTowerProgress(ctx, arg0)
+	return storageError(q.Queries.EnsureTowerProgress(ctx, arg0))
 }
 
 func (q *sqliteQueries) EnsureWorld(ctx context.Context, p0 sqlcgen.EnsureWorldParams) (error) {
-	return q.Queries.EnsureWorld(ctx, sqlcgensqlite.EnsureWorldParams(p0))
+	return storageError(q.Queries.EnsureWorld(ctx, sqlcgensqlite.EnsureWorldParams(p0)))
 }
 
 func (q *sqliteQueries) EnterChannelWorld(ctx context.Context, p0 sqlcgen.EnterChannelWorldParams) (error) {
-	return q.Queries.EnterChannelWorld(ctx, sqlcgensqlite.EnterChannelWorldParams(p0))
+	return storageError(q.Queries.EnterChannelWorld(ctx, sqlcgensqlite.EnterChannelWorldParams(p0)))
 }
 
 func (q *sqliteQueries) EquipmentSkillSnapshots(ctx context.Context, p0 sqlcgen.EquipmentSkillSnapshotsParams) (sqlcgen.EquipmentSkillSnapshotsRow, error) {
 	raw, err := q.Queries.EquipmentSkillSnapshots(ctx, sqlcgensqlite.EquipmentSkillSnapshotsParams(p0))
 	if err != nil {
-		return sqlcgen.EquipmentSkillSnapshotsRow{}, err
+		return sqlcgen.EquipmentSkillSnapshotsRow{}, storageError(err)
 	}
 	return sqlcgen.EquipmentSkillSnapshotsRow(raw), nil
 }
@@ -1465,7 +1465,7 @@ func (q *sqliteQueries) EquipmentSkillSnapshots(ctx context.Context, p0 sqlcgen.
 func (q *sqliteQueries) EquippedOathSelection(ctx context.Context, p0 sqlcgen.EquippedOathSelectionParams) (int32, error) {
 	raw, err := q.Queries.EquippedOathSelection(ctx, sqlcgensqlite.EquippedOathSelectionParams(p0))
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
@@ -1473,7 +1473,7 @@ func (q *sqliteQueries) EquippedOathSelection(ctx context.Context, p0 sqlcgen.Eq
 func (q *sqliteQueries) FatigueRecoveryUsage(ctx context.Context, p0 sqlcgen.FatigueRecoveryUsageParams) (sqlcgen.FatigueRecoveryUsageRow, error) {
 	raw, err := q.Queries.FatigueRecoveryUsage(ctx, sqlcgensqlite.FatigueRecoveryUsageParams(p0))
 	if err != nil {
-		return sqlcgen.FatigueRecoveryUsageRow{}, err
+		return sqlcgen.FatigueRecoveryUsageRow{}, storageError(err)
 	}
 	return toPgFatigueRecoveryUsageRow(raw)
 }
@@ -1481,7 +1481,7 @@ func (q *sqliteQueries) FatigueRecoveryUsage(ctx context.Context, p0 sqlcgen.Fat
 func (q *sqliteQueries) FatigueRoomRecorded(ctx context.Context, p0 sqlcgen.FatigueRoomRecordedParams) (bool, error) {
 	raw, err := q.Queries.FatigueRoomRecorded(ctx, sqlcgensqlite.FatigueRoomRecordedParams(p0))
 	if err != nil {
-		return false, err
+		return false, storageError(err)
 	}
 	return raw, nil
 }
@@ -1489,19 +1489,19 @@ func (q *sqliteQueries) FatigueRoomRecorded(ctx context.Context, p0 sqlcgen.Fati
 func (q *sqliteQueries) FirstActiveCharacterName(ctx context.Context, p0 int64) (string, error) {
 	raw, err := q.Queries.FirstActiveCharacterName(ctx, p0)
 	if err != nil {
-		return "", err
+		return "", storageError(err)
 	}
 	return raw, nil
 }
 
 func (q *sqliteQueries) FixtureAccountCurrency(ctx context.Context, p0 sqlcgen.FixtureAccountCurrencyParams) (error) {
-	return q.Queries.FixtureAccountCurrency(ctx, sqlcgensqlite.FixtureAccountCurrencyParams(p0))
+	return storageError(q.Queries.FixtureAccountCurrency(ctx, sqlcgensqlite.FixtureAccountCurrencyParams(p0)))
 }
 
 func (q *sqliteQueries) FixtureArchivedCharacter(ctx context.Context, p0 int64) (sqlcgen.FixtureArchivedCharacterRow, error) {
 	raw, err := q.Queries.FixtureArchivedCharacter(ctx, p0)
 	if err != nil {
-		return sqlcgen.FixtureArchivedCharacterRow{}, err
+		return sqlcgen.FixtureArchivedCharacterRow{}, storageError(err)
 	}
 	return sqlcgen.FixtureArchivedCharacterRow(raw), nil
 }
@@ -1509,11 +1509,11 @@ func (q *sqliteQueries) FixtureArchivedCharacter(ctx context.Context, p0 int64) 
 func (q *sqliteQueries) FixtureCashInventoryCount(ctx context.Context, p0 sqlcgen.FixtureCashInventoryCountParams) (int64, error) {
 	arg0, err := fromPgFixtureCashInventoryCountParams(p0)
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	raw, err := q.Queries.FixtureCashInventoryCount(ctx, arg0)
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
@@ -1521,7 +1521,7 @@ func (q *sqliteQueries) FixtureCashInventoryCount(ctx context.Context, p0 sqlcge
 func (q *sqliteQueries) FixtureCashOrderCount(ctx context.Context, p0 int64) (int64, error) {
 	raw, err := q.Queries.FixtureCashOrderCount(ctx, p0)
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
@@ -1529,35 +1529,35 @@ func (q *sqliteQueries) FixtureCashOrderCount(ctx context.Context, p0 int64) (in
 func (q *sqliteQueries) FixtureCashOrderSource(ctx context.Context, p0 sqlcgen.FixtureCashOrderSourceParams) (string, error) {
 	raw, err := q.Queries.FixtureCashOrderSource(ctx, sqlcgensqlite.FixtureCashOrderSourceParams(p0))
 	if err != nil {
-		return "", err
+		return "", storageError(err)
 	}
 	return raw, nil
 }
 
 func (q *sqliteQueries) FixtureCharacterSnapshot(ctx context.Context, p0 sqlcgen.FixtureCharacterSnapshotParams) (error) {
-	return q.Queries.FixtureCharacterSnapshot(ctx, sqlcgensqlite.FixtureCharacterSnapshotParams(p0))
+	return storageError(q.Queries.FixtureCharacterSnapshot(ctx, sqlcgensqlite.FixtureCharacterSnapshotParams(p0)))
 }
 
 func (q *sqliteQueries) FixtureCharacterState(ctx context.Context, p0 int64) (json.RawMessage, error) {
 	raw, err := q.Queries.FixtureCharacterState(ctx, p0)
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	return raw, nil
 }
 
 func (q *sqliteQueries) FixtureCompletedQuest(ctx context.Context, p0 sqlcgen.FixtureCompletedQuestParams) (error) {
-	return q.Queries.FixtureCompletedQuest(ctx, sqlcgensqlite.FixtureCompletedQuestParams(p0))
+	return storageError(q.Queries.FixtureCompletedQuest(ctx, sqlcgensqlite.FixtureCompletedQuestParams(p0)))
 }
 
 func (q *sqliteQueries) FixtureDeleteBirth(ctx context.Context, p0 int64) (error) {
-	return q.Queries.FixtureDeleteBirth(ctx, p0)
+	return storageError(q.Queries.FixtureDeleteBirth(ctx, p0))
 }
 
 func (q *sqliteQueries) FixtureEventCount(ctx context.Context, p0 int64) (int64, error) {
 	raw, err := q.Queries.FixtureEventCount(ctx, p0)
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
@@ -1565,35 +1565,35 @@ func (q *sqliteQueries) FixtureEventCount(ctx context.Context, p0 int64) (int64,
 func (q *sqliteQueries) FixtureFatigueRoomStats(ctx context.Context, p0 int64) (sqlcgen.FixtureFatigueRoomStatsRow, error) {
 	raw, err := q.Queries.FixtureFatigueRoomStats(ctx, p0)
 	if err != nil {
-		return sqlcgen.FixtureFatigueRoomStatsRow{}, err
+		return sqlcgen.FixtureFatigueRoomStatsRow{}, storageError(err)
 	}
 	return sqlcgen.FixtureFatigueRoomStatsRow(raw), nil
 }
 
 func (q *sqliteQueries) FixtureFatigueUsage(ctx context.Context, p0 sqlcgen.FixtureFatigueUsageParams) (error) {
-	return q.Queries.FixtureFatigueUsage(ctx, sqlcgensqlite.FixtureFatigueUsageParams(p0))
+	return storageError(q.Queries.FixtureFatigueUsage(ctx, sqlcgensqlite.FixtureFatigueUsageParams(p0)))
 }
 
 func (q *sqliteQueries) FixtureFatigueUsed(ctx context.Context, p0 sqlcgen.FixtureFatigueUsedParams) (error) {
-	return q.Queries.FixtureFatigueUsed(ctx, sqlcgensqlite.FixtureFatigueUsedParams(p0))
+	return storageError(q.Queries.FixtureFatigueUsed(ctx, sqlcgensqlite.FixtureFatigueUsedParams(p0)))
 }
 
 func (q *sqliteQueries) FixtureInventoryItems(ctx context.Context, p0 sqlcgen.FixtureInventoryItemsParams) (error) {
 	arg0, err := fromPgFixtureInventoryItemsParams(p0)
 	if err != nil {
-		return err
+		return storageError(err)
 	}
-	return q.Queries.FixtureInventoryItems(ctx, arg0)
+	return storageError(q.Queries.FixtureInventoryItems(ctx, arg0))
 }
 
 func (q *sqliteQueries) FixtureLegacyQuest(ctx context.Context, p0 sqlcgen.FixtureLegacyQuestParams) (error) {
-	return q.Queries.FixtureLegacyQuest(ctx, sqlcgensqlite.FixtureLegacyQuestParams(p0))
+	return storageError(q.Queries.FixtureLegacyQuest(ctx, sqlcgensqlite.FixtureLegacyQuestParams(p0)))
 }
 
 func (q *sqliteQueries) FixtureMapClearCount(ctx context.Context, p0 sqlcgen.FixtureMapClearCountParams) (int64, error) {
 	raw, err := q.Queries.FixtureMapClearCount(ctx, sqlcgensqlite.FixtureMapClearCountParams(p0))
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
@@ -1601,15 +1601,15 @@ func (q *sqliteQueries) FixtureMapClearCount(ctx context.Context, p0 sqlcgen.Fix
 func (q *sqliteQueries) FixtureMergeCharacterFields(ctx context.Context, p0 sqlcgen.FixtureMergeCharacterFieldsParams) (error) {
 	arg0, err := fromPgFixtureMergeCharacterFieldsParams(p0)
 	if err != nil {
-		return err
+		return storageError(err)
 	}
-	return q.Queries.FixtureMergeCharacterFields(ctx, arg0)
+	return storageError(q.Queries.FixtureMergeCharacterFields(ctx, arg0))
 }
 
 func (q *sqliteQueries) FixtureMonsterEventCount(ctx context.Context, p0 int64) (int64, error) {
 	raw, err := q.Queries.FixtureMonsterEventCount(ctx, p0)
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
@@ -1617,31 +1617,31 @@ func (q *sqliteQueries) FixtureMonsterEventCount(ctx context.Context, p0 int64) 
 func (q *sqliteQueries) FixtureQuestCount(ctx context.Context, p0 int64) (int64, error) {
 	raw, err := q.Queries.FixtureQuestCount(ctx, p0)
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
 
 func (q *sqliteQueries) FixtureQuestProgress(ctx context.Context, p0 sqlcgen.FixtureQuestProgressParams) (error) {
-	return q.Queries.FixtureQuestProgress(ctx, sqlcgensqlite.FixtureQuestProgressParams(p0))
+	return storageError(q.Queries.FixtureQuestProgress(ctx, sqlcgensqlite.FixtureQuestProgressParams(p0)))
 }
 
 func (q *sqliteQueries) FixtureQuestRecord(ctx context.Context, p0 sqlcgen.FixtureQuestRecordParams) (sqlcgen.FixtureQuestRecordRow, error) {
 	raw, err := q.Queries.FixtureQuestRecord(ctx, sqlcgensqlite.FixtureQuestRecordParams(p0))
 	if err != nil {
-		return sqlcgen.FixtureQuestRecordRow{}, err
+		return sqlcgen.FixtureQuestRecordRow{}, storageError(err)
 	}
 	return sqlcgen.FixtureQuestRecordRow(raw), nil
 }
 
 func (q *sqliteQueries) FixtureQuestRecordSeed(ctx context.Context, p0 sqlcgen.FixtureQuestRecordSeedParams) (error) {
-	return q.Queries.FixtureQuestRecordSeed(ctx, sqlcgensqlite.FixtureQuestRecordSeedParams(p0))
+	return storageError(q.Queries.FixtureQuestRecordSeed(ctx, sqlcgensqlite.FixtureQuestRecordSeedParams(p0)))
 }
 
 func (q *sqliteQueries) FixtureQuestRepairCount(ctx context.Context, p0 int64) (int64, error) {
 	raw, err := q.Queries.FixtureQuestRepairCount(ctx, p0)
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
@@ -1649,7 +1649,7 @@ func (q *sqliteQueries) FixtureQuestRepairCount(ctx context.Context, p0 int64) (
 func (q *sqliteQueries) FixtureQuestRewardCount(ctx context.Context, p0 sqlcgen.FixtureQuestRewardCountParams) (int64, error) {
 	raw, err := q.Queries.FixtureQuestRewardCount(ctx, sqlcgensqlite.FixtureQuestRewardCountParams(p0))
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
@@ -1657,31 +1657,31 @@ func (q *sqliteQueries) FixtureQuestRewardCount(ctx context.Context, p0 sqlcgen.
 func (q *sqliteQueries) FixtureReadCharacterSnapshot(ctx context.Context, p0 int64) (sqlcgen.FixtureReadCharacterSnapshotRow, error) {
 	raw, err := q.Queries.FixtureReadCharacterSnapshot(ctx, p0)
 	if err != nil {
-		return sqlcgen.FixtureReadCharacterSnapshotRow{}, err
+		return sqlcgen.FixtureReadCharacterSnapshotRow{}, storageError(err)
 	}
 	return sqlcgen.FixtureReadCharacterSnapshotRow(raw), nil
 }
 
 func (q *sqliteQueries) FixtureVaultItems(ctx context.Context, p0 sqlcgen.FixtureVaultItemsParams) (error) {
-	return q.Queries.FixtureVaultItems(ctx, sqlcgensqlite.FixtureVaultItemsParams(p0))
+	return storageError(q.Queries.FixtureVaultItems(ctx, sqlcgensqlite.FixtureVaultItemsParams(p0)))
 }
 
 func (q *sqliteQueries) FixtureWalletGold(ctx context.Context, p0 sqlcgen.FixtureWalletGoldParams) (error) {
 	arg0, err := fromPgFixtureWalletGoldParams(p0)
 	if err != nil {
-		return err
+		return storageError(err)
 	}
-	return q.Queries.FixtureWalletGold(ctx, arg0)
+	return storageError(q.Queries.FixtureWalletGold(ctx, arg0))
 }
 
 func (q *sqliteQueries) GrantHistory(ctx context.Context, p0 sqlcgen.GrantHistoryParams) ([]sqlcgen.GrantHistoryRow, error) {
 	arg0, err := fromPgGrantHistoryParams(p0)
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	raw, err := q.Queries.GrantHistory(ctx, arg0)
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	out := make([]sqlcgen.GrantHistoryRow, 0, len(raw))
 	for _, item := range raw {
@@ -1693,7 +1693,7 @@ func (q *sqliteQueries) GrantHistory(ctx context.Context, p0 sqlcgen.GrantHistor
 func (q *sqliteQueries) HasActivePremium(ctx context.Context, p0 sqlcgen.HasActivePremiumParams) (bool, error) {
 	raw, err := q.Queries.HasActivePremium(ctx, sqlcgensqlite.HasActivePremiumParams(p0))
 	if err != nil {
-		return false, err
+		return false, storageError(err)
 	}
 	return raw, nil
 }
@@ -1701,7 +1701,7 @@ func (q *sqliteQueries) HasActivePremium(ctx context.Context, p0 sqlcgen.HasActi
 func (q *sqliteQueries) HasCharacterEvent(ctx context.Context, p0 sqlcgen.HasCharacterEventParams) (bool, error) {
 	raw, err := q.Queries.HasCharacterEvent(ctx, sqlcgensqlite.HasCharacterEventParams(p0))
 	if err != nil {
-		return false, err
+		return false, storageError(err)
 	}
 	return raw, nil
 }
@@ -1709,35 +1709,35 @@ func (q *sqliteQueries) HasCharacterEvent(ctx context.Context, p0 sqlcgen.HasCha
 func (q *sqliteQueries) HasCompletedQuest(ctx context.Context, p0 sqlcgen.HasCompletedQuestParams) (bool, error) {
 	arg0, err := fromPgHasCompletedQuestParams(p0)
 	if err != nil {
-		return false, err
+		return false, storageError(err)
 	}
 	raw, err := q.Queries.HasCompletedQuest(ctx, arg0)
 	if err != nil {
-		return false, err
+		return false, storageError(err)
 	}
 	return raw, nil
 }
 
 func (q *sqliteQueries) InitializeAccountMaterials(ctx context.Context, p0 int64) (error) {
-	return q.Queries.InitializeAccountMaterials(ctx, p0)
+	return storageError(q.Queries.InitializeAccountMaterials(ctx, p0))
 }
 
 func (q *sqliteQueries) InitializeProfileSkins(ctx context.Context, p0 sqlcgen.InitializeProfileSkinsParams) (error) {
-	return q.Queries.InitializeProfileSkins(ctx, sqlcgensqlite.InitializeProfileSkinsParams(p0))
+	return storageError(q.Queries.InitializeProfileSkins(ctx, sqlcgensqlite.InitializeProfileSkinsParams(p0)))
 }
 
 func (q *sqliteQueries) InsertOathOption(ctx context.Context, p0 sqlcgen.InsertOathOptionParams) (error) {
-	return q.Queries.InsertOathOption(ctx, sqlcgensqlite.InsertOathOptionParams(p0))
+	return storageError(q.Queries.InsertOathOption(ctx, sqlcgensqlite.InsertOathOptionParams(p0)))
 }
 
 func (q *sqliteQueries) InsertPlayerMail(ctx context.Context, p0 sqlcgen.InsertPlayerMailParams) (int64, error) {
 	arg0, err := fromPgInsertPlayerMailParams(p0)
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	raw, err := q.Queries.InsertPlayerMail(ctx, arg0)
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
@@ -1745,7 +1745,7 @@ func (q *sqliteQueries) InsertPlayerMail(ctx context.Context, p0 sqlcgen.InsertP
 func (q *sqliteQueries) InsertSystemMail(ctx context.Context, p0 sqlcgen.InsertSystemMailParams) (int64, error) {
 	raw, err := q.Queries.InsertSystemMail(ctx, sqlcgensqlite.InsertSystemMailParams(p0))
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
@@ -1753,7 +1753,7 @@ func (q *sqliteQueries) InsertSystemMail(ctx context.Context, p0 sqlcgen.InsertS
 func (q *sqliteQueries) IspinsWeeklyUsed(ctx context.Context, p0 sqlcgen.IspinsWeeklyUsedParams) (bool, error) {
 	raw, err := q.Queries.IspinsWeeklyUsed(ctx, sqlcgensqlite.IspinsWeeklyUsedParams(p0))
 	if err != nil {
-		return false, err
+		return false, storageError(err)
 	}
 	return raw, nil
 }
@@ -1761,7 +1761,7 @@ func (q *sqliteQueries) IspinsWeeklyUsed(ctx context.Context, p0 sqlcgen.IspinsW
 func (q *sqliteQueries) ListFavor(ctx context.Context, p0 int64) ([]sqlcgen.ListFavorRow, error) {
 	raw, err := q.Queries.ListFavor(ctx, p0)
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	out := make([]sqlcgen.ListFavorRow, 0, len(raw))
 	for _, item := range raw {
@@ -1773,7 +1773,7 @@ func (q *sqliteQueries) ListFavor(ctx context.Context, p0 int64) ([]sqlcgen.List
 func (q *sqliteQueries) ListGMMail(ctx context.Context, p0 sqlcgen.ListGMMailParams) ([]sqlcgen.ListGMMailRow, error) {
 	raw, err := q.Queries.ListGMMail(ctx, sqlcgensqlite.ListGMMailParams(p0))
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	out := make([]sqlcgen.ListGMMailRow, 0, len(raw))
 	for _, item := range raw {
@@ -1785,7 +1785,7 @@ func (q *sqliteQueries) ListGMMail(ctx context.Context, p0 sqlcgen.ListGMMailPar
 func (q *sqliteQueries) ListSkins(ctx context.Context, p0 int64) ([]sqlcgen.ListSkinsRow, error) {
 	raw, err := q.Queries.ListSkins(ctx, p0)
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	out := make([]sqlcgen.ListSkinsRow, 0, len(raw))
 	for _, item := range raw {
@@ -1797,7 +1797,7 @@ func (q *sqliteQueries) ListSkins(ctx context.Context, p0 int64) ([]sqlcgen.List
 func (q *sqliteQueries) LoadAccountVault(ctx context.Context, p0 sqlcgen.LoadAccountVaultParams) (sqlcgen.LoadAccountVaultRow, error) {
 	raw, err := q.Queries.LoadAccountVault(ctx, sqlcgensqlite.LoadAccountVaultParams(p0))
 	if err != nil {
-		return sqlcgen.LoadAccountVaultRow{}, err
+		return sqlcgen.LoadAccountVaultRow{}, storageError(err)
 	}
 	return sqlcgen.LoadAccountVaultRow(raw), nil
 }
@@ -1805,7 +1805,7 @@ func (q *sqliteQueries) LoadAccountVault(ctx context.Context, p0 sqlcgen.LoadAcc
 func (q *sqliteQueries) LoadAdventure(ctx context.Context, p0 sqlcgen.LoadAdventureParams) (sqlcgen.LoadAdventureRow, error) {
 	raw, err := q.Queries.LoadAdventure(ctx, sqlcgensqlite.LoadAdventureParams(p0))
 	if err != nil {
-		return sqlcgen.LoadAdventureRow{}, err
+		return sqlcgen.LoadAdventureRow{}, storageError(err)
 	}
 	return sqlcgen.LoadAdventureRow(raw), nil
 }
@@ -1813,7 +1813,7 @@ func (q *sqliteQueries) LoadAdventure(ctx context.Context, p0 sqlcgen.LoadAdvent
 func (q *sqliteQueries) LoadFatigue(ctx context.Context, p0 sqlcgen.LoadFatigueParams) (sqlcgen.LoadFatigueRow, error) {
 	raw, err := q.Queries.LoadFatigue(ctx, sqlcgensqlite.LoadFatigueParams(p0))
 	if err != nil {
-		return sqlcgen.LoadFatigueRow{}, err
+		return sqlcgen.LoadFatigueRow{}, storageError(err)
 	}
 	return sqlcgen.LoadFatigueRow(raw), nil
 }
@@ -1821,7 +1821,7 @@ func (q *sqliteQueries) LoadFatigue(ctx context.Context, p0 sqlcgen.LoadFatigueP
 func (q *sqliteQueries) LoadLockedCharacterFatigue(ctx context.Context, p0 sqlcgen.LoadLockedCharacterFatigueParams) (sqlcgen.LoadLockedCharacterFatigueRow, error) {
 	raw, err := q.Queries.LoadLockedCharacterFatigue(ctx, sqlcgensqlite.LoadLockedCharacterFatigueParams(p0))
 	if err != nil {
-		return sqlcgen.LoadLockedCharacterFatigueRow{}, err
+		return sqlcgen.LoadLockedCharacterFatigueRow{}, storageError(err)
 	}
 	return sqlcgen.LoadLockedCharacterFatigueRow(raw), nil
 }
@@ -1829,7 +1829,7 @@ func (q *sqliteQueries) LoadLockedCharacterFatigue(ctx context.Context, p0 sqlcg
 func (q *sqliteQueries) LoadWorld(ctx context.Context, p0 sqlcgen.LoadWorldParams) (sqlcgen.LoadWorldRow, error) {
 	raw, err := q.Queries.LoadWorld(ctx, sqlcgensqlite.LoadWorldParams(p0))
 	if err != nil {
-		return sqlcgen.LoadWorldRow{}, err
+		return sqlcgen.LoadWorldRow{}, storageError(err)
 	}
 	return sqlcgen.LoadWorldRow(raw), nil
 }
@@ -1837,7 +1837,7 @@ func (q *sqliteQueries) LoadWorld(ctx context.Context, p0 sqlcgen.LoadWorldParam
 func (q *sqliteQueries) LockAccount(ctx context.Context, p0 int64) (int64, error) {
 	raw, err := q.Queries.LockAccount(ctx, p0)
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
@@ -1845,7 +1845,7 @@ func (q *sqliteQueries) LockAccount(ctx context.Context, p0 int64) (int64, error
 func (q *sqliteQueries) LockAccountCurrency(ctx context.Context, p0 int64) (int64, error) {
 	raw, err := q.Queries.LockAccountCurrency(ctx, p0)
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
@@ -1853,7 +1853,7 @@ func (q *sqliteQueries) LockAccountCurrency(ctx context.Context, p0 int64) (int6
 func (q *sqliteQueries) LockAccountMaterials(ctx context.Context, p0 int64) (json.RawMessage, error) {
 	raw, err := q.Queries.LockAccountMaterials(ctx, p0)
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	return raw, nil
 }
@@ -1861,7 +1861,7 @@ func (q *sqliteQueries) LockAccountMaterials(ctx context.Context, p0 int64) (jso
 func (q *sqliteQueries) LockAccountState(ctx context.Context, p0 int64) (int64, error) {
 	raw, err := q.Queries.LockAccountState(ctx, p0)
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
@@ -1869,7 +1869,7 @@ func (q *sqliteQueries) LockAccountState(ctx context.Context, p0 int64) (int64, 
 func (q *sqliteQueries) LockAccountVault(ctx context.Context, p0 int64) (sqlcgen.LockAccountVaultRow, error) {
 	raw, err := q.Queries.LockAccountVault(ctx, p0)
 	if err != nil {
-		return sqlcgen.LockAccountVaultRow{}, err
+		return sqlcgen.LockAccountVaultRow{}, storageError(err)
 	}
 	return sqlcgen.LockAccountVaultRow(raw), nil
 }
@@ -1877,7 +1877,7 @@ func (q *sqliteQueries) LockAccountVault(ctx context.Context, p0 int64) (sqlcgen
 func (q *sqliteQueries) LockActiveCharacterID(ctx context.Context, p0 int64) (int64, error) {
 	raw, err := q.Queries.LockActiveCharacterID(ctx, p0)
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
@@ -1885,7 +1885,7 @@ func (q *sqliteQueries) LockActiveCharacterID(ctx context.Context, p0 int64) (in
 func (q *sqliteQueries) LockActiveCharacterState(ctx context.Context, p0 sqlcgen.LockActiveCharacterStateParams) (json.RawMessage, error) {
 	raw, err := q.Queries.LockActiveCharacterState(ctx, sqlcgensqlite.LockActiveCharacterStateParams(p0))
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	return raw, nil
 }
@@ -1893,7 +1893,7 @@ func (q *sqliteQueries) LockActiveCharacterState(ctx context.Context, p0 sqlcgen
 func (q *sqliteQueries) LockAdventure(ctx context.Context, p0 int64) (sqlcgen.LockAdventureRow, error) {
 	raw, err := q.Queries.LockAdventure(ctx, p0)
 	if err != nil {
-		return sqlcgen.LockAdventureRow{}, err
+		return sqlcgen.LockAdventureRow{}, storageError(err)
 	}
 	return sqlcgen.LockAdventureRow(raw), nil
 }
@@ -1901,7 +1901,7 @@ func (q *sqliteQueries) LockAdventure(ctx context.Context, p0 int64) (sqlcgen.Lo
 func (q *sqliteQueries) LockBleedingMineRewards(ctx context.Context, p0 int64) (json.RawMessage, error) {
 	raw, err := q.Queries.LockBleedingMineRewards(ctx, p0)
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	return raw, nil
 }
@@ -1909,7 +1909,7 @@ func (q *sqliteQueries) LockBleedingMineRewards(ctx context.Context, p0 int64) (
 func (q *sqliteQueries) LockCharacter(ctx context.Context, p0 sqlcgen.LockCharacterParams) (sqlcgen.LockCharacterRow, error) {
 	raw, err := q.Queries.LockCharacter(ctx, sqlcgensqlite.LockCharacterParams(p0))
 	if err != nil {
-		return sqlcgen.LockCharacterRow{}, err
+		return sqlcgen.LockCharacterRow{}, storageError(err)
 	}
 	return toPgLockCharacterRow(raw)
 }
@@ -1917,7 +1917,7 @@ func (q *sqliteQueries) LockCharacter(ctx context.Context, p0 sqlcgen.LockCharac
 func (q *sqliteQueries) LockCharacterOwner(ctx context.Context, p0 sqlcgen.LockCharacterOwnerParams) (int64, error) {
 	raw, err := q.Queries.LockCharacterOwner(ctx, sqlcgensqlite.LockCharacterOwnerParams(p0))
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
@@ -1925,7 +1925,7 @@ func (q *sqliteQueries) LockCharacterOwner(ctx context.Context, p0 sqlcgen.LockC
 func (q *sqliteQueries) LockCharacterOwnerIncludingDeleted(ctx context.Context, p0 sqlcgen.LockCharacterOwnerIncludingDeletedParams) (int64, error) {
 	raw, err := q.Queries.LockCharacterOwnerIncludingDeleted(ctx, sqlcgensqlite.LockCharacterOwnerIncludingDeletedParams(p0))
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
@@ -1933,7 +1933,7 @@ func (q *sqliteQueries) LockCharacterOwnerIncludingDeleted(ctx context.Context, 
 func (q *sqliteQueries) LockCharacterRoster(ctx context.Context, p0 int64) ([]sqlcgen.LockCharacterRosterRow, error) {
 	raw, err := q.Queries.LockCharacterRoster(ctx, p0)
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	out := make([]sqlcgen.LockCharacterRosterRow, 0, len(raw))
 	for _, item := range raw {
@@ -1945,7 +1945,7 @@ func (q *sqliteQueries) LockCharacterRoster(ctx context.Context, p0 int64) ([]sq
 func (q *sqliteQueries) LockCharacterVersion(ctx context.Context, p0 sqlcgen.LockCharacterVersionParams) (string, error) {
 	raw, err := q.Queries.LockCharacterVersion(ctx, sqlcgensqlite.LockCharacterVersionParams(p0))
 	if err != nil {
-		return "", err
+		return "", storageError(err)
 	}
 	return raw, nil
 }
@@ -1953,12 +1953,12 @@ func (q *sqliteQueries) LockCharacterVersion(ctx context.Context, p0 sqlcgen.Loc
 func (q *sqliteQueries) LockMailCharacters(ctx context.Context, p0 []int64) ([]sqlcgen.LockMailCharactersRow, error) {
 	b0, err := json.Marshal(p0)
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	conv0 := string(b0)
 	raw, err := q.Queries.LockMailCharacters(ctx, conv0)
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	out := make([]sqlcgen.LockMailCharactersRow, 0, len(raw))
 	for _, item := range raw {
@@ -1974,11 +1974,11 @@ func (q *sqliteQueries) LockMailCharacters(ctx context.Context, p0 []int64) ([]s
 func (q *sqliteQueries) LockMailbox(ctx context.Context, p0 sqlcgen.LockMailboxParams) ([]sqlcgen.LockMailboxRow, error) {
 	arg0, err := fromPgLockMailboxParams(p0)
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	raw, err := q.Queries.LockMailbox(ctx, arg0)
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	out := make([]sqlcgen.LockMailboxRow, 0, len(raw))
 	for _, item := range raw {
@@ -1990,7 +1990,7 @@ func (q *sqliteQueries) LockMailbox(ctx context.Context, p0 sqlcgen.LockMailboxP
 func (q *sqliteQueries) LockOathOptionRevision(ctx context.Context, p0 sqlcgen.LockOathOptionRevisionParams) (int64, error) {
 	raw, err := q.Queries.LockOathOptionRevision(ctx, sqlcgensqlite.LockOathOptionRevisionParams(p0))
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
@@ -1998,7 +1998,7 @@ func (q *sqliteQueries) LockOathOptionRevision(ctx context.Context, p0 sqlcgen.L
 func (q *sqliteQueries) LockOathProgress(ctx context.Context, p0 sqlcgen.LockOathProgressParams) (int32, error) {
 	raw, err := q.Queries.LockOathProgress(ctx, sqlcgensqlite.LockOathProgressParams(p0))
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
@@ -2006,7 +2006,7 @@ func (q *sqliteQueries) LockOathProgress(ctx context.Context, p0 sqlcgen.LockOat
 func (q *sqliteQueries) LockOwnedCharacterIncludingDeleted(ctx context.Context, p0 sqlcgen.LockOwnedCharacterIncludingDeletedParams) (sqlcgen.LockOwnedCharacterIncludingDeletedRow, error) {
 	raw, err := q.Queries.LockOwnedCharacterIncludingDeleted(ctx, sqlcgensqlite.LockOwnedCharacterIncludingDeletedParams(p0))
 	if err != nil {
-		return sqlcgen.LockOwnedCharacterIncludingDeletedRow{}, err
+		return sqlcgen.LockOwnedCharacterIncludingDeletedRow{}, storageError(err)
 	}
 	return toPgLockOwnedCharacterIncludingDeletedRow(raw)
 }
@@ -2014,7 +2014,7 @@ func (q *sqliteQueries) LockOwnedCharacterIncludingDeleted(ctx context.Context, 
 func (q *sqliteQueries) LockOwnedCharacterState(ctx context.Context, p0 sqlcgen.LockOwnedCharacterStateParams) (json.RawMessage, error) {
 	raw, err := q.Queries.LockOwnedCharacterState(ctx, sqlcgensqlite.LockOwnedCharacterStateParams(p0))
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	return raw, nil
 }
@@ -2022,7 +2022,7 @@ func (q *sqliteQueries) LockOwnedCharacterState(ctx context.Context, p0 sqlcgen.
 func (q *sqliteQueries) LockPremiumExpiry(ctx context.Context, p0 sqlcgen.LockPremiumExpiryParams) (int64, error) {
 	raw, err := q.Queries.LockPremiumExpiry(ctx, sqlcgensqlite.LockPremiumExpiryParams(p0))
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
@@ -2030,7 +2030,7 @@ func (q *sqliteQueries) LockPremiumExpiry(ctx context.Context, p0 sqlcgen.LockPr
 func (q *sqliteQueries) LockPrimaryVault(ctx context.Context, p0 int64) (sqlcgen.LockPrimaryVaultRow, error) {
 	raw, err := q.Queries.LockPrimaryVault(ctx, p0)
 	if err != nil {
-		return sqlcgen.LockPrimaryVaultRow{}, err
+		return sqlcgen.LockPrimaryVaultRow{}, storageError(err)
 	}
 	return sqlcgen.LockPrimaryVaultRow(raw), nil
 }
@@ -2038,7 +2038,7 @@ func (q *sqliteQueries) LockPrimaryVault(ctx context.Context, p0 int64) (sqlcgen
 func (q *sqliteQueries) LockQuest(ctx context.Context, p0 sqlcgen.LockQuestParams) (sqlcgen.LockQuestRow, error) {
 	raw, err := q.Queries.LockQuest(ctx, sqlcgensqlite.LockQuestParams(p0))
 	if err != nil {
-		return sqlcgen.LockQuestRow{}, err
+		return sqlcgen.LockQuestRow{}, storageError(err)
 	}
 	return sqlcgen.LockQuestRow(raw), nil
 }
@@ -2046,7 +2046,7 @@ func (q *sqliteQueries) LockQuest(ctx context.Context, p0 sqlcgen.LockQuestParam
 func (q *sqliteQueries) LockSecondaryVault(ctx context.Context, p0 int64) (sqlcgen.LockSecondaryVaultRow, error) {
 	raw, err := q.Queries.LockSecondaryVault(ctx, p0)
 	if err != nil {
-		return sqlcgen.LockSecondaryVaultRow{}, err
+		return sqlcgen.LockSecondaryVaultRow{}, storageError(err)
 	}
 	return sqlcgen.LockSecondaryVaultRow(raw), nil
 }
@@ -2054,7 +2054,7 @@ func (q *sqliteQueries) LockSecondaryVault(ctx context.Context, p0 int64) (sqlcg
 func (q *sqliteQueries) LockedIspinsWeeklyUsed(ctx context.Context, p0 sqlcgen.LockedIspinsWeeklyUsedParams) (bool, error) {
 	raw, err := q.Queries.LockedIspinsWeeklyUsed(ctx, sqlcgensqlite.LockedIspinsWeeklyUsedParams(p0))
 	if err != nil {
-		return false, err
+		return false, storageError(err)
 	}
 	return raw, nil
 }
@@ -2062,7 +2062,7 @@ func (q *sqliteQueries) LockedIspinsWeeklyUsed(ctx context.Context, p0 sqlcgen.L
 func (q *sqliteQueries) MailRecipient(ctx context.Context, p0 string) (sqlcgen.MailRecipientRow, error) {
 	raw, err := q.Queries.MailRecipient(ctx, p0)
 	if err != nil {
-		return sqlcgen.MailRecipientRow{}, err
+		return sqlcgen.MailRecipientRow{}, storageError(err)
 	}
 	return toPgMailRecipientRow(raw)
 }
@@ -2070,7 +2070,7 @@ func (q *sqliteQueries) MailRecipient(ctx context.Context, p0 string) (sqlcgen.M
 func (q *sqliteQueries) MailRecipientID(ctx context.Context, p0 string) (int64, error) {
 	raw, err := q.Queries.MailRecipientID(ctx, p0)
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
@@ -2078,7 +2078,7 @@ func (q *sqliteQueries) MailRecipientID(ctx context.Context, p0 string) (int64, 
 func (q *sqliteQueries) MailSendReceipt(ctx context.Context, p0 sqlcgen.MailSendReceiptParams) (json.RawMessage, error) {
 	raw, err := q.Queries.MailSendReceipt(ctx, sqlcgensqlite.MailSendReceiptParams(p0))
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	return raw, nil
 }
@@ -2086,7 +2086,7 @@ func (q *sqliteQueries) MailSendReceipt(ctx context.Context, p0 sqlcgen.MailSend
 func (q *sqliteQueries) Mailbox(ctx context.Context, p0 sqlcgen.MailboxParams) ([]sqlcgen.MailboxRow, error) {
 	raw, err := q.Queries.Mailbox(ctx, sqlcgensqlite.MailboxParams(p0))
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	out := make([]sqlcgen.MailboxRow, 0, len(raw))
 	for _, item := range raw {
@@ -2098,7 +2098,7 @@ func (q *sqliteQueries) Mailbox(ctx context.Context, p0 sqlcgen.MailboxParams) (
 func (q *sqliteQueries) MailboxCapacity(ctx context.Context, p0 int64) (sqlcgen.MailboxCapacityRow, error) {
 	raw, err := q.Queries.MailboxCapacity(ctx, p0)
 	if err != nil {
-		return sqlcgen.MailboxCapacityRow{}, err
+		return sqlcgen.MailboxCapacityRow{}, storageError(err)
 	}
 	return sqlcgen.MailboxCapacityRow(raw), nil
 }
@@ -2106,27 +2106,27 @@ func (q *sqliteQueries) MailboxCapacity(ctx context.Context, p0 int64) (sqlcgen.
 func (q *sqliteQueries) MailboxDeliveryState(ctx context.Context, p0 sqlcgen.MailboxDeliveryStateParams) (sqlcgen.MailboxDeliveryStateRow, error) {
 	raw, err := q.Queries.MailboxDeliveryState(ctx, sqlcgensqlite.MailboxDeliveryStateParams(p0))
 	if err != nil {
-		return sqlcgen.MailboxDeliveryStateRow{}, err
+		return sqlcgen.MailboxDeliveryStateRow{}, storageError(err)
 	}
 	return sqlcgen.MailboxDeliveryStateRow(raw), nil
 }
 
 func (q *sqliteQueries) MarkCashOrderDelivered(ctx context.Context, p0 sqlcgen.MarkCashOrderDeliveredParams) (error) {
-	return q.Queries.MarkCashOrderDelivered(ctx, sqlcgensqlite.MarkCashOrderDeliveredParams(p0))
+	return storageError(q.Queries.MarkCashOrderDelivered(ctx, sqlcgensqlite.MarkCashOrderDeliveredParams(p0)))
 }
 
 func (q *sqliteQueries) MarkCharacterNotice(ctx context.Context, p0 sqlcgen.MarkCharacterNoticeParams) (error) {
-	return q.Queries.MarkCharacterNotice(ctx, sqlcgensqlite.MarkCharacterNoticeParams(p0))
+	return storageError(q.Queries.MarkCharacterNotice(ctx, sqlcgensqlite.MarkCharacterNoticeParams(p0)))
 }
 
 func (q *sqliteQueries) MarkMeetNPCQuest(ctx context.Context, p0 sqlcgen.MarkMeetNPCQuestParams) (int64, error) {
 	arg0, err := fromPgMarkMeetNPCQuestParams(p0)
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	raw, err := q.Queries.MarkMeetNPCQuest(ctx, arg0)
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
@@ -2134,7 +2134,7 @@ func (q *sqliteQueries) MarkMeetNPCQuest(ctx context.Context, p0 sqlcgen.MarkMee
 func (q *sqliteQueries) MigrationChecksum(ctx context.Context, p0 string) (string, error) {
 	raw, err := q.Queries.MigrationChecksum(ctx, p0)
 	if err != nil {
-		return "", err
+		return "", storageError(err)
 	}
 	return raw, nil
 }
@@ -2142,7 +2142,7 @@ func (q *sqliteQueries) MigrationChecksum(ctx context.Context, p0 string) (strin
 func (q *sqliteQueries) NameExists(ctx context.Context, p0 string) (bool, error) {
 	raw, err := q.Queries.NameExists(ctx, p0)
 	if err != nil {
-		return false, err
+		return false, storageError(err)
 	}
 	return raw, nil
 }
@@ -2150,7 +2150,7 @@ func (q *sqliteQueries) NameExists(ctx context.Context, p0 string) (bool, error)
 func (q *sqliteQueries) NormalizeCharacterIdentity(ctx context.Context, p0 string) (int64, error) {
 	raw, err := q.Queries.NormalizeCharacterIdentity(ctx, p0)
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
@@ -2158,7 +2158,7 @@ func (q *sqliteQueries) NormalizeCharacterIdentity(ctx context.Context, p0 strin
 func (q *sqliteQueries) NormalizeEventIdentity(ctx context.Context, p0 string) (int64, error) {
 	raw, err := q.Queries.NormalizeEventIdentity(ctx, p0)
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
@@ -2166,7 +2166,7 @@ func (q *sqliteQueries) NormalizeEventIdentity(ctx context.Context, p0 string) (
 func (q *sqliteQueries) NormalizeMapClearIdentity(ctx context.Context, p0 string) (int64, error) {
 	raw, err := q.Queries.NormalizeMapClearIdentity(ctx, p0)
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
@@ -2174,7 +2174,7 @@ func (q *sqliteQueries) NormalizeMapClearIdentity(ctx context.Context, p0 string
 func (q *sqliteQueries) NormalizeQuestIdentity(ctx context.Context, p0 string) (int64, error) {
 	raw, err := q.Queries.NormalizeQuestIdentity(ctx, p0)
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
@@ -2182,7 +2182,7 @@ func (q *sqliteQueries) NormalizeQuestIdentity(ctx context.Context, p0 string) (
 func (q *sqliteQueries) NormalizeQuestRewardIdentity(ctx context.Context, p0 string) (int64, error) {
 	raw, err := q.Queries.NormalizeQuestRewardIdentity(ctx, p0)
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
@@ -2190,7 +2190,7 @@ func (q *sqliteQueries) NormalizeQuestRewardIdentity(ctx context.Context, p0 str
 func (q *sqliteQueries) NormalizeWorldIdentity(ctx context.Context, p0 string) (int64, error) {
 	raw, err := q.Queries.NormalizeWorldIdentity(ctx, p0)
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
@@ -2198,7 +2198,7 @@ func (q *sqliteQueries) NormalizeWorldIdentity(ctx context.Context, p0 string) (
 func (q *sqliteQueries) OathOption(ctx context.Context, p0 sqlcgen.OathOptionParams) (sqlcgen.OathOptionRow, error) {
 	raw, err := q.Queries.OathOption(ctx, sqlcgensqlite.OathOptionParams(p0))
 	if err != nil {
-		return sqlcgen.OathOptionRow{}, err
+		return sqlcgen.OathOptionRow{}, storageError(err)
 	}
 	return sqlcgen.OathOptionRow(raw), nil
 }
@@ -2206,7 +2206,7 @@ func (q *sqliteQueries) OathOption(ctx context.Context, p0 sqlcgen.OathOptionPar
 func (q *sqliteQueries) OathProgressClears(ctx context.Context, p0 sqlcgen.OathProgressClearsParams) (int32, error) {
 	raw, err := q.Queries.OathProgressClears(ctx, sqlcgensqlite.OathProgressClearsParams(p0))
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
@@ -2214,7 +2214,7 @@ func (q *sqliteQueries) OathProgressClears(ctx context.Context, p0 sqlcgen.OathP
 func (q *sqliteQueries) OdysseyGraduationAlreadyPaid(ctx context.Context, p0 int64) (bool, error) {
 	raw, err := q.Queries.OdysseyGraduationAlreadyPaid(ctx, p0)
 	if err != nil {
-		return false, err
+		return false, storageError(err)
 	}
 	return raw, nil
 }
@@ -2222,7 +2222,7 @@ func (q *sqliteQueries) OdysseyGraduationAlreadyPaid(ctx context.Context, p0 int
 func (q *sqliteQueries) OmenState(ctx context.Context, p0 sqlcgen.OmenStateParams) (sqlcgen.OmenStateRow, error) {
 	raw, err := q.Queries.OmenState(ctx, sqlcgensqlite.OmenStateParams(p0))
 	if err != nil {
-		return sqlcgen.OmenStateRow{}, err
+		return sqlcgen.OmenStateRow{}, storageError(err)
 	}
 	return sqlcgen.OmenStateRow(raw), nil
 }
@@ -2230,7 +2230,7 @@ func (q *sqliteQueries) OmenState(ctx context.Context, p0 sqlcgen.OmenStateParam
 func (q *sqliteQueries) OwnedPrimaryVault(ctx context.Context, p0 sqlcgen.OwnedPrimaryVaultParams) (sqlcgen.OwnedPrimaryVaultRow, error) {
 	raw, err := q.Queries.OwnedPrimaryVault(ctx, sqlcgensqlite.OwnedPrimaryVaultParams(p0))
 	if err != nil {
-		return sqlcgen.OwnedPrimaryVaultRow{}, err
+		return sqlcgen.OwnedPrimaryVaultRow{}, storageError(err)
 	}
 	return sqlcgen.OwnedPrimaryVaultRow(raw), nil
 }
@@ -2238,7 +2238,7 @@ func (q *sqliteQueries) OwnedPrimaryVault(ctx context.Context, p0 sqlcgen.OwnedP
 func (q *sqliteQueries) OwnedSecondaryVault(ctx context.Context, p0 sqlcgen.OwnedSecondaryVaultParams) (sqlcgen.OwnedSecondaryVaultRow, error) {
 	raw, err := q.Queries.OwnedSecondaryVault(ctx, sqlcgensqlite.OwnedSecondaryVaultParams(p0))
 	if err != nil {
-		return sqlcgen.OwnedSecondaryVaultRow{}, err
+		return sqlcgen.OwnedSecondaryVaultRow{}, storageError(err)
 	}
 	return sqlcgen.OwnedSecondaryVaultRow(raw), nil
 }
@@ -2246,7 +2246,7 @@ func (q *sqliteQueries) OwnedSecondaryVault(ctx context.Context, p0 sqlcgen.Owne
 func (q *sqliteQueries) PackagePlaceholderMigrationCandidates(ctx context.Context) ([]sqlcgen.PackagePlaceholderMigrationCandidatesRow, error) {
 	raw, err := q.Queries.PackagePlaceholderMigrationCandidates(ctx)
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	out := make([]sqlcgen.PackagePlaceholderMigrationCandidatesRow, 0, len(raw))
 	for _, item := range raw {
@@ -2258,7 +2258,7 @@ func (q *sqliteQueries) PackagePlaceholderMigrationCandidates(ctx context.Contex
 func (q *sqliteQueries) PendingBlackPurgatoryRewards(ctx context.Context, p0 sqlcgen.PendingBlackPurgatoryRewardsParams) ([]json.RawMessage, error) {
 	raw, err := q.Queries.PendingBlackPurgatoryRewards(ctx, sqlcgensqlite.PendingBlackPurgatoryRewardsParams(p0))
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	return raw, nil
 }
@@ -2266,7 +2266,7 @@ func (q *sqliteQueries) PendingBlackPurgatoryRewards(ctx context.Context, p0 sql
 func (q *sqliteQueries) PendingMoonRewardRuns(ctx context.Context, p0 sqlcgen.PendingMoonRewardRunsParams) ([]string, error) {
 	raw, err := q.Queries.PendingMoonRewardRuns(ctx, sqlcgensqlite.PendingMoonRewardRunsParams(p0))
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	return raw, nil
 }
@@ -2274,19 +2274,19 @@ func (q *sqliteQueries) PendingMoonRewardRuns(ctx context.Context, p0 sqlcgen.Pe
 func (q *sqliteQueries) ProfileSkins(ctx context.Context, p0 int64) (json.RawMessage, error) {
 	raw, err := q.Queries.ProfileSkins(ctx, p0)
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	return raw, nil
 }
 
 func (q *sqliteQueries) PromoteCharacterHotkeysToAccount(ctx context.Context, p0 sqlcgen.PromoteCharacterHotkeysToAccountParams) (error) {
-	return q.Queries.PromoteCharacterHotkeysToAccount(ctx, sqlcgensqlite.PromoteCharacterHotkeysToAccountParams(p0))
+	return storageError(q.Queries.PromoteCharacterHotkeysToAccount(ctx, sqlcgensqlite.PromoteCharacterHotkeysToAccountParams(p0)))
 }
 
 func (q *sqliteQueries) Quest(ctx context.Context, p0 sqlcgen.QuestParams) (sqlcgen.QuestRow, error) {
 	raw, err := q.Queries.Quest(ctx, sqlcgensqlite.QuestParams(p0))
 	if err != nil {
-		return sqlcgen.QuestRow{}, err
+		return sqlcgen.QuestRow{}, storageError(err)
 	}
 	return sqlcgen.QuestRow(raw), nil
 }
@@ -2294,7 +2294,7 @@ func (q *sqliteQueries) Quest(ctx context.Context, p0 sqlcgen.QuestParams) (sqlc
 func (q *sqliteQueries) QuestRewardReceipt(ctx context.Context, p0 sqlcgen.QuestRewardReceiptParams) (json.RawMessage, error) {
 	raw, err := q.Queries.QuestRewardReceipt(ctx, sqlcgensqlite.QuestRewardReceiptParams(p0))
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	return raw, nil
 }
@@ -2302,7 +2302,7 @@ func (q *sqliteQueries) QuestRewardReceipt(ctx context.Context, p0 sqlcgen.Quest
 func (q *sqliteQueries) Quests(ctx context.Context, p0 int64) ([]sqlcgen.QuestsRow, error) {
 	raw, err := q.Queries.Quests(ctx, p0)
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	out := make([]sqlcgen.QuestsRow, 0, len(raw))
 	for _, item := range raw {
@@ -2314,7 +2314,7 @@ func (q *sqliteQueries) Quests(ctx context.Context, p0 int64) ([]sqlcgen.QuestsR
 func (q *sqliteQueries) ReadTowerGriefProgress(ctx context.Context, p0 int64) (sqlcgen.ReadTowerGriefProgressRow, error) {
 	raw, err := q.Queries.ReadTowerGriefProgress(ctx, p0)
 	if err != nil {
-		return sqlcgen.ReadTowerGriefProgressRow{}, err
+		return sqlcgen.ReadTowerGriefProgressRow{}, storageError(err)
 	}
 	return sqlcgen.ReadTowerGriefProgressRow(raw), nil
 }
@@ -2322,95 +2322,95 @@ func (q *sqliteQueries) ReadTowerGriefProgress(ctx context.Context, p0 int64) (s
 func (q *sqliteQueries) ReadTowerProgress(ctx context.Context, p0 sqlcgen.ReadTowerProgressParams) (sqlcgen.ReadTowerProgressRow, error) {
 	raw, err := q.Queries.ReadTowerProgress(ctx, sqlcgensqlite.ReadTowerProgressParams(p0))
 	if err != nil {
-		return sqlcgen.ReadTowerProgressRow{}, err
+		return sqlcgen.ReadTowerProgressRow{}, storageError(err)
 	}
 	return sqlcgen.ReadTowerProgressRow(raw), nil
 }
 
 func (q *sqliteQueries) RecordAccountVaultEvent(ctx context.Context, p0 sqlcgen.RecordAccountVaultEventParams) (error) {
-	return q.Queries.RecordAccountVaultEvent(ctx, sqlcgensqlite.RecordAccountVaultEventParams(p0))
+	return storageError(q.Queries.RecordAccountVaultEvent(ctx, sqlcgensqlite.RecordAccountVaultEventParams(p0)))
 }
 
 func (q *sqliteQueries) RecordCashInventory(ctx context.Context, p0 sqlcgen.RecordCashInventoryParams) (int64, error) {
 	raw, err := q.Queries.RecordCashInventory(ctx, sqlcgensqlite.RecordCashInventoryParams(p0))
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
 
 func (q *sqliteQueries) RecordCashOrder(ctx context.Context, p0 sqlcgen.RecordCashOrderParams) (error) {
-	return q.Queries.RecordCashOrder(ctx, sqlcgensqlite.RecordCashOrderParams(p0))
+	return storageError(q.Queries.RecordCashOrder(ctx, sqlcgensqlite.RecordCashOrderParams(p0)))
 }
 
 func (q *sqliteQueries) RecordCharacterEvent(ctx context.Context, p0 sqlcgen.RecordCharacterEventParams) (error) {
-	return q.Queries.RecordCharacterEvent(ctx, sqlcgensqlite.RecordCharacterEventParams(p0))
+	return storageError(q.Queries.RecordCharacterEvent(ctx, sqlcgensqlite.RecordCharacterEventParams(p0)))
 }
 
 func (q *sqliteQueries) RecordCharacterFame(ctx context.Context, p0 sqlcgen.RecordCharacterFameParams) (int32, error) {
 	arg0, err := fromPgRecordCharacterFameParams(p0)
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	raw, err := q.Queries.RecordCharacterFame(ctx, arg0)
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
 
 func (q *sqliteQueries) RecordFatigueRecovery(ctx context.Context, p0 sqlcgen.RecordFatigueRecoveryParams) (error) {
-	return q.Queries.RecordFatigueRecovery(ctx, sqlcgensqlite.RecordFatigueRecoveryParams(p0))
+	return storageError(q.Queries.RecordFatigueRecovery(ctx, sqlcgensqlite.RecordFatigueRecoveryParams(p0)))
 }
 
 func (q *sqliteQueries) RecordFatigueRoom(ctx context.Context, p0 sqlcgen.RecordFatigueRoomParams) (error) {
-	return q.Queries.RecordFatigueRoom(ctx, sqlcgensqlite.RecordFatigueRoomParams(p0))
+	return storageError(q.Queries.RecordFatigueRoom(ctx, sqlcgensqlite.RecordFatigueRoomParams(p0)))
 }
 
 func (q *sqliteQueries) RecordIspinsWeeklyClear(ctx context.Context, p0 sqlcgen.RecordIspinsWeeklyClearParams) (error) {
-	return q.Queries.RecordIspinsWeeklyClear(ctx, sqlcgensqlite.RecordIspinsWeeklyClearParams(p0))
+	return storageError(q.Queries.RecordIspinsWeeklyClear(ctx, sqlcgensqlite.RecordIspinsWeeklyClearParams(p0)))
 }
 
 func (q *sqliteQueries) RecordLegacyQuestRepair(ctx context.Context, p0 sqlcgen.RecordLegacyQuestRepairParams) (error) {
-	return q.Queries.RecordLegacyQuestRepair(ctx, sqlcgensqlite.RecordLegacyQuestRepairParams(p0))
+	return storageError(q.Queries.RecordLegacyQuestRepair(ctx, sqlcgensqlite.RecordLegacyQuestRepairParams(p0)))
 }
 
 func (q *sqliteQueries) RecordMigration(ctx context.Context, p0 sqlcgen.RecordMigrationParams) (error) {
-	return q.Queries.RecordMigration(ctx, sqlcgensqlite.RecordMigrationParams(p0))
+	return storageError(q.Queries.RecordMigration(ctx, sqlcgensqlite.RecordMigrationParams(p0)))
 }
 
 func (q *sqliteQueries) RecordQuestMapClear(ctx context.Context, p0 sqlcgen.RecordQuestMapClearParams) (int64, error) {
 	raw, err := q.Queries.RecordQuestMapClear(ctx, sqlcgensqlite.RecordQuestMapClearParams(p0))
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
 
 func (q *sqliteQueries) RecordQuestReward(ctx context.Context, p0 sqlcgen.RecordQuestRewardParams) (error) {
-	return q.Queries.RecordQuestReward(ctx, sqlcgensqlite.RecordQuestRewardParams(p0))
+	return storageError(q.Queries.RecordQuestReward(ctx, sqlcgensqlite.RecordQuestRewardParams(p0)))
 }
 
 func (q *sqliteQueries) RecordShopPurchase(ctx context.Context, p0 sqlcgen.RecordShopPurchaseParams) (error) {
-	return q.Queries.RecordShopPurchase(ctx, sqlcgensqlite.RecordShopPurchaseParams(p0))
+	return storageError(q.Queries.RecordShopPurchase(ctx, sqlcgensqlite.RecordShopPurchaseParams(p0)))
 }
 
 func (q *sqliteQueries) RefundPendingBlackPurgatoryEntries(ctx context.Context, p0 int64) (error) {
-	return q.Queries.RefundPendingBlackPurgatoryEntries(ctx, p0)
+	return storageError(q.Queries.RefundPendingBlackPurgatoryEntries(ctx, p0))
 }
 
 func (q *sqliteQueries) RemoveSkinFavorite(ctx context.Context, p0 sqlcgen.RemoveSkinFavoriteParams) (error) {
-	return q.Queries.RemoveSkinFavorite(ctx, sqlcgensqlite.RemoveSkinFavoriteParams(p0))
+	return storageError(q.Queries.RemoveSkinFavorite(ctx, sqlcgensqlite.RemoveSkinFavoriteParams(p0)))
 }
 
 func (q *sqliteQueries) RepairLegacyQuest(ctx context.Context, p0 sqlcgen.RepairLegacyQuestParams) (int64, error) {
 	arg0, err := fromPgRepairLegacyQuestParams(p0)
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	raw, err := q.Queries.RepairLegacyQuest(ctx, arg0)
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
@@ -2418,7 +2418,7 @@ func (q *sqliteQueries) RepairLegacyQuest(ctx context.Context, p0 sqlcgen.Repair
 func (q *sqliteQueries) ReserveFavorGift(ctx context.Context, p0 sqlcgen.ReserveFavorGiftParams) (sqlcgen.ReserveFavorGiftRow, error) {
 	raw, err := q.Queries.ReserveFavorGift(ctx, sqlcgensqlite.ReserveFavorGiftParams(p0))
 	if err != nil {
-		return sqlcgen.ReserveFavorGiftRow{}, err
+		return sqlcgen.ReserveFavorGiftRow{}, storageError(err)
 	}
 	return toPgReserveFavorGiftRow(raw)
 }
@@ -2426,11 +2426,11 @@ func (q *sqliteQueries) ReserveFavorGift(ctx context.Context, p0 sqlcgen.Reserve
 func (q *sqliteQueries) ReserveTowerEntry(ctx context.Context, p0 sqlcgen.ReserveTowerEntryParams) (sqlcgen.ReserveTowerEntryRow, error) {
 	arg0, err := fromPgReserveTowerEntryParams(p0)
 	if err != nil {
-		return sqlcgen.ReserveTowerEntryRow{}, err
+		return sqlcgen.ReserveTowerEntryRow{}, storageError(err)
 	}
 	raw, err := q.Queries.ReserveTowerEntry(ctx, arg0)
 	if err != nil {
-		return sqlcgen.ReserveTowerEntryRow{}, err
+		return sqlcgen.ReserveTowerEntryRow{}, storageError(err)
 	}
 	return sqlcgen.ReserveTowerEntryRow(raw), nil
 }
@@ -2438,7 +2438,7 @@ func (q *sqliteQueries) ReserveTowerEntry(ctx context.Context, p0 sqlcgen.Reserv
 func (q *sqliteQueries) RevokeGMMail(ctx context.Context, p0 int64) (int64, error) {
 	raw, err := q.Queries.RevokeGMMail(ctx, p0)
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
@@ -2446,7 +2446,7 @@ func (q *sqliteQueries) RevokeGMMail(ctx context.Context, p0 int64) (int64, erro
 func (q *sqliteQueries) RosterBackgroundUnlocks(ctx context.Context, p0 sqlcgen.RosterBackgroundUnlocksParams) ([]sqlcgen.RosterBackgroundUnlocksRow, error) {
 	raw, err := q.Queries.RosterBackgroundUnlocks(ctx, sqlcgensqlite.RosterBackgroundUnlocksParams(p0))
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	out := make([]sqlcgen.RosterBackgroundUnlocksRow, 0, len(raw))
 	for _, item := range raw {
@@ -2458,7 +2458,7 @@ func (q *sqliteQueries) RosterBackgroundUnlocks(ctx context.Context, p0 sqlcgen.
 func (q *sqliteQueries) RosterBackgrounds(ctx context.Context, p0 int64) ([]sqlcgen.RosterBackgroundsRow, error) {
 	raw, err := q.Queries.RosterBackgrounds(ctx, p0)
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	out := make([]sqlcgen.RosterBackgroundsRow, 0, len(raw))
 	for _, item := range raw {
@@ -2470,7 +2470,7 @@ func (q *sqliteQueries) RosterBackgrounds(ctx context.Context, p0 int64) ([]sqlc
 func (q *sqliteQueries) RunFatigueLedger(ctx context.Context, p0 sqlcgen.RunFatigueLedgerParams) (sqlcgen.RunFatigueLedgerRow, error) {
 	raw, err := q.Queries.RunFatigueLedger(ctx, sqlcgensqlite.RunFatigueLedgerParams(p0))
 	if err != nil {
-		return sqlcgen.RunFatigueLedgerRow{}, err
+		return sqlcgen.RunFatigueLedgerRow{}, storageError(err)
 	}
 	return sqlcgen.RunFatigueLedgerRow(raw), nil
 }
@@ -2478,7 +2478,7 @@ func (q *sqliteQueries) RunFatigueLedger(ctx context.Context, p0 sqlcgen.RunFati
 func (q *sqliteQueries) RunMonsterExperience(ctx context.Context, p0 sqlcgen.RunMonsterExperienceParams) (int64, error) {
 	raw, err := q.Queries.RunMonsterExperience(ctx, sqlcgensqlite.RunMonsterExperienceParams(p0))
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
@@ -2486,151 +2486,151 @@ func (q *sqliteQueries) RunMonsterExperience(ctx context.Context, p0 sqlcgen.Run
 func (q *sqliteQueries) RunPaidFatigue(ctx context.Context, p0 sqlcgen.RunPaidFatigueParams) (bool, error) {
 	raw, err := q.Queries.RunPaidFatigue(ctx, sqlcgensqlite.RunPaidFatigueParams(p0))
 	if err != nil {
-		return false, err
+		return false, storageError(err)
 	}
 	return raw, nil
 }
 
 func (q *sqliteQueries) SaveAccountCurrency(ctx context.Context, p0 sqlcgen.SaveAccountCurrencyParams) (error) {
-	return q.Queries.SaveAccountCurrency(ctx, sqlcgensqlite.SaveAccountCurrencyParams(p0))
+	return storageError(q.Queries.SaveAccountCurrency(ctx, sqlcgensqlite.SaveAccountCurrencyParams(p0)))
 }
 
 func (q *sqliteQueries) SaveAccountGamepadKeys(ctx context.Context, p0 sqlcgen.SaveAccountGamepadKeysParams) (error) {
-	return q.Queries.SaveAccountGamepadKeys(ctx, sqlcgensqlite.SaveAccountGamepadKeysParams(p0))
+	return storageError(q.Queries.SaveAccountGamepadKeys(ctx, sqlcgensqlite.SaveAccountGamepadKeysParams(p0)))
 }
 
 func (q *sqliteQueries) SaveAccountGamepadOptions(ctx context.Context, p0 sqlcgen.SaveAccountGamepadOptionsParams) (error) {
-	return q.Queries.SaveAccountGamepadOptions(ctx, sqlcgensqlite.SaveAccountGamepadOptionsParams(p0))
+	return storageError(q.Queries.SaveAccountGamepadOptions(ctx, sqlcgensqlite.SaveAccountGamepadOptionsParams(p0)))
 }
 
 func (q *sqliteQueries) SaveAccountHotkey(ctx context.Context, p0 sqlcgen.SaveAccountHotkeyParams) (error) {
-	return q.Queries.SaveAccountHotkey(ctx, sqlcgensqlite.SaveAccountHotkeyParams(p0))
+	return storageError(q.Queries.SaveAccountHotkey(ctx, sqlcgensqlite.SaveAccountHotkeyParams(p0)))
 }
 
 func (q *sqliteQueries) SaveAccountMaterials(ctx context.Context, p0 sqlcgen.SaveAccountMaterialsParams) (error) {
-	return q.Queries.SaveAccountMaterials(ctx, sqlcgensqlite.SaveAccountMaterialsParams(p0))
+	return storageError(q.Queries.SaveAccountMaterials(ctx, sqlcgensqlite.SaveAccountMaterialsParams(p0)))
 }
 
 func (q *sqliteQueries) SaveAccountUnifiedOption(ctx context.Context, p0 sqlcgen.SaveAccountUnifiedOptionParams) (error) {
-	return q.Queries.SaveAccountUnifiedOption(ctx, sqlcgensqlite.SaveAccountUnifiedOptionParams(p0))
+	return storageError(q.Queries.SaveAccountUnifiedOption(ctx, sqlcgensqlite.SaveAccountUnifiedOptionParams(p0)))
 }
 
 func (q *sqliteQueries) SaveAccountVault(ctx context.Context, p0 sqlcgen.SaveAccountVaultParams) (error) {
-	return q.Queries.SaveAccountVault(ctx, sqlcgensqlite.SaveAccountVaultParams(p0))
+	return storageError(q.Queries.SaveAccountVault(ctx, sqlcgensqlite.SaveAccountVaultParams(p0)))
 }
 
 func (q *sqliteQueries) SaveAccountVaultItems(ctx context.Context, p0 sqlcgen.SaveAccountVaultItemsParams) (error) {
-	return q.Queries.SaveAccountVaultItems(ctx, sqlcgensqlite.SaveAccountVaultItemsParams(p0))
+	return storageError(q.Queries.SaveAccountVaultItems(ctx, sqlcgensqlite.SaveAccountVaultItemsParams(p0)))
 }
 
 func (q *sqliteQueries) SaveAccountVaultSlots(ctx context.Context, p0 sqlcgen.SaveAccountVaultSlotsParams) (error) {
-	return q.Queries.SaveAccountVaultSlots(ctx, sqlcgensqlite.SaveAccountVaultSlotsParams(p0))
+	return storageError(q.Queries.SaveAccountVaultSlots(ctx, sqlcgensqlite.SaveAccountVaultSlotsParams(p0)))
 }
 
 func (q *sqliteQueries) SaveAccountWarpFavorite(ctx context.Context, p0 sqlcgen.SaveAccountWarpFavoriteParams) (error) {
-	return q.Queries.SaveAccountWarpFavorite(ctx, sqlcgensqlite.SaveAccountWarpFavoriteParams(p0))
+	return storageError(q.Queries.SaveAccountWarpFavorite(ctx, sqlcgensqlite.SaveAccountWarpFavoriteParams(p0)))
 }
 
 func (q *sqliteQueries) SaveAdminGrantReceipt(ctx context.Context, p0 sqlcgen.SaveAdminGrantReceiptParams) (error) {
-	return q.Queries.SaveAdminGrantReceipt(ctx, sqlcgensqlite.SaveAdminGrantReceiptParams(p0))
+	return storageError(q.Queries.SaveAdminGrantReceipt(ctx, sqlcgensqlite.SaveAdminGrantReceiptParams(p0)))
 }
 
 func (q *sqliteQueries) SaveAdventure(ctx context.Context, p0 sqlcgen.SaveAdventureParams) (error) {
-	return q.Queries.SaveAdventure(ctx, sqlcgensqlite.SaveAdventureParams(p0))
+	return storageError(q.Queries.SaveAdventure(ctx, sqlcgensqlite.SaveAdventureParams(p0)))
 }
 
 func (q *sqliteQueries) SaveBleedingMineRewards(ctx context.Context, p0 sqlcgen.SaveBleedingMineRewardsParams) (error) {
-	return q.Queries.SaveBleedingMineRewards(ctx, sqlcgensqlite.SaveBleedingMineRewardsParams(p0))
+	return storageError(q.Queries.SaveBleedingMineRewards(ctx, sqlcgensqlite.SaveBleedingMineRewardsParams(p0)))
 }
 
 func (q *sqliteQueries) SaveBleedingMineTeam(ctx context.Context, p0 sqlcgen.SaveBleedingMineTeamParams) (error) {
 	arg0, err := fromPgSaveBleedingMineTeamParams(p0)
 	if err != nil {
-		return err
+		return storageError(err)
 	}
-	return q.Queries.SaveBleedingMineTeam(ctx, arg0)
+	return storageError(q.Queries.SaveBleedingMineTeam(ctx, arg0))
 }
 
 func (q *sqliteQueries) SaveCashOrderReceipt(ctx context.Context, p0 sqlcgen.SaveCashOrderReceiptParams) (error) {
-	return q.Queries.SaveCashOrderReceipt(ctx, sqlcgensqlite.SaveCashOrderReceiptParams(p0))
+	return storageError(q.Queries.SaveCashOrderReceipt(ctx, sqlcgensqlite.SaveCashOrderReceiptParams(p0)))
 }
 
 func (q *sqliteQueries) SaveCharacterGamepadKeys(ctx context.Context, p0 sqlcgen.SaveCharacterGamepadKeysParams) (error) {
-	return q.Queries.SaveCharacterGamepadKeys(ctx, sqlcgensqlite.SaveCharacterGamepadKeysParams(p0))
+	return storageError(q.Queries.SaveCharacterGamepadKeys(ctx, sqlcgensqlite.SaveCharacterGamepadKeysParams(p0)))
 }
 
 func (q *sqliteQueries) SaveCharacterGamepadOptions(ctx context.Context, p0 sqlcgen.SaveCharacterGamepadOptionsParams) (error) {
-	return q.Queries.SaveCharacterGamepadOptions(ctx, sqlcgensqlite.SaveCharacterGamepadOptionsParams(p0))
+	return storageError(q.Queries.SaveCharacterGamepadOptions(ctx, sqlcgensqlite.SaveCharacterGamepadOptionsParams(p0)))
 }
 
 func (q *sqliteQueries) SaveCharacterHotkey(ctx context.Context, p0 sqlcgen.SaveCharacterHotkeyParams) (error) {
-	return q.Queries.SaveCharacterHotkey(ctx, sqlcgensqlite.SaveCharacterHotkeyParams(p0))
+	return storageError(q.Queries.SaveCharacterHotkey(ctx, sqlcgensqlite.SaveCharacterHotkeyParams(p0)))
 }
 
 func (q *sqliteQueries) SaveCharacterSlot(ctx context.Context, p0 sqlcgen.SaveCharacterSlotParams) (error) {
-	return q.Queries.SaveCharacterSlot(ctx, sqlcgensqlite.SaveCharacterSlotParams(p0))
+	return storageError(q.Queries.SaveCharacterSlot(ctx, sqlcgensqlite.SaveCharacterSlotParams(p0)))
 }
 
 func (q *sqliteQueries) SaveCharacterUnifiedOption(ctx context.Context, p0 sqlcgen.SaveCharacterUnifiedOptionParams) (error) {
-	return q.Queries.SaveCharacterUnifiedOption(ctx, sqlcgensqlite.SaveCharacterUnifiedOptionParams(p0))
+	return storageError(q.Queries.SaveCharacterUnifiedOption(ctx, sqlcgensqlite.SaveCharacterUnifiedOptionParams(p0)))
 }
 
 func (q *sqliteQueries) SaveCharacterUnifiedOptionGroup(ctx context.Context, p0 sqlcgen.SaveCharacterUnifiedOptionGroupParams) (error) {
-	return q.Queries.SaveCharacterUnifiedOptionGroup(ctx, sqlcgensqlite.SaveCharacterUnifiedOptionGroupParams(p0))
+	return storageError(q.Queries.SaveCharacterUnifiedOptionGroup(ctx, sqlcgensqlite.SaveCharacterUnifiedOptionGroupParams(p0)))
 }
 
 func (q *sqliteQueries) SaveEquipmentCommands(ctx context.Context, p0 sqlcgen.SaveEquipmentCommandsParams) (error) {
-	return q.Queries.SaveEquipmentCommands(ctx, sqlcgensqlite.SaveEquipmentCommandsParams(p0))
+	return storageError(q.Queries.SaveEquipmentCommands(ctx, sqlcgensqlite.SaveEquipmentCommandsParams(p0)))
 }
 
 func (q *sqliteQueries) SaveEquipmentSkills(ctx context.Context, p0 sqlcgen.SaveEquipmentSkillsParams) (error) {
-	return q.Queries.SaveEquipmentSkills(ctx, sqlcgensqlite.SaveEquipmentSkillsParams(p0))
+	return storageError(q.Queries.SaveEquipmentSkills(ctx, sqlcgensqlite.SaveEquipmentSkillsParams(p0)))
 }
 
 func (q *sqliteQueries) SaveFatigueCharge(ctx context.Context, p0 sqlcgen.SaveFatigueChargeParams) (error) {
-	return q.Queries.SaveFatigueCharge(ctx, sqlcgensqlite.SaveFatigueChargeParams(p0))
+	return storageError(q.Queries.SaveFatigueCharge(ctx, sqlcgensqlite.SaveFatigueChargeParams(p0)))
 }
 
 func (q *sqliteQueries) SaveFatigueRecovery(ctx context.Context, p0 sqlcgen.SaveFatigueRecoveryParams) (error) {
-	return q.Queries.SaveFatigueRecovery(ctx, sqlcgensqlite.SaveFatigueRecoveryParams(p0))
+	return storageError(q.Queries.SaveFatigueRecovery(ctx, sqlcgensqlite.SaveFatigueRecoveryParams(p0)))
 }
 
 func (q *sqliteQueries) SaveFavorPoint(ctx context.Context, p0 sqlcgen.SaveFavorPointParams) (error) {
-	return q.Queries.SaveFavorPoint(ctx, sqlcgensqlite.SaveFavorPointParams(p0))
+	return storageError(q.Queries.SaveFavorPoint(ctx, sqlcgensqlite.SaveFavorPointParams(p0)))
 }
 
 func (q *sqliteQueries) SaveOathProgress(ctx context.Context, p0 sqlcgen.SaveOathProgressParams) (error) {
-	return q.Queries.SaveOathProgress(ctx, sqlcgensqlite.SaveOathProgressParams(p0))
+	return storageError(q.Queries.SaveOathProgress(ctx, sqlcgensqlite.SaveOathProgressParams(p0)))
 }
 
 func (q *sqliteQueries) SaveOmenHeld(ctx context.Context, p0 sqlcgen.SaveOmenHeldParams) (error) {
-	return q.Queries.SaveOmenHeld(ctx, sqlcgensqlite.SaveOmenHeldParams(p0))
+	return storageError(q.Queries.SaveOmenHeld(ctx, sqlcgensqlite.SaveOmenHeldParams(p0)))
 }
 
 func (q *sqliteQueries) SavePremiumExpiry(ctx context.Context, p0 sqlcgen.SavePremiumExpiryParams) (error) {
-	return q.Queries.SavePremiumExpiry(ctx, sqlcgensqlite.SavePremiumExpiryParams(p0))
+	return storageError(q.Queries.SavePremiumExpiry(ctx, sqlcgensqlite.SavePremiumExpiryParams(p0)))
 }
 
 func (q *sqliteQueries) SavePrimaryVaultItems(ctx context.Context, p0 sqlcgen.SavePrimaryVaultItemsParams) (error) {
-	return q.Queries.SavePrimaryVaultItems(ctx, sqlcgensqlite.SavePrimaryVaultItemsParams(p0))
+	return storageError(q.Queries.SavePrimaryVaultItems(ctx, sqlcgensqlite.SavePrimaryVaultItemsParams(p0)))
 }
 
 func (q *sqliteQueries) SavePrimaryVaultSlots(ctx context.Context, p0 sqlcgen.SavePrimaryVaultSlotsParams) (error) {
-	return q.Queries.SavePrimaryVaultSlots(ctx, sqlcgensqlite.SavePrimaryVaultSlotsParams(p0))
+	return storageError(q.Queries.SavePrimaryVaultSlots(ctx, sqlcgensqlite.SavePrimaryVaultSlotsParams(p0)))
 }
 
 func (q *sqliteQueries) SaveSecondaryVaultItems(ctx context.Context, p0 sqlcgen.SaveSecondaryVaultItemsParams) (error) {
-	return q.Queries.SaveSecondaryVaultItems(ctx, sqlcgensqlite.SaveSecondaryVaultItemsParams(p0))
+	return storageError(q.Queries.SaveSecondaryVaultItems(ctx, sqlcgensqlite.SaveSecondaryVaultItemsParams(p0)))
 }
 
 func (q *sqliteQueries) SaveSecondaryVaultSlots(ctx context.Context, p0 sqlcgen.SaveSecondaryVaultSlotsParams) (error) {
-	return q.Queries.SaveSecondaryVaultSlots(ctx, sqlcgensqlite.SaveSecondaryVaultSlotsParams(p0))
+	return storageError(q.Queries.SaveSecondaryVaultSlots(ctx, sqlcgensqlite.SaveSecondaryVaultSlotsParams(p0)))
 }
 
 func (q *sqliteQueries) SaveTutorialFlag(ctx context.Context, p0 sqlcgen.SaveTutorialFlagParams) (int64, error) {
 	raw, err := q.Queries.SaveTutorialFlag(ctx, sqlcgensqlite.SaveTutorialFlagParams(p0))
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
@@ -2638,7 +2638,7 @@ func (q *sqliteQueries) SaveTutorialFlag(ctx context.Context, p0 sqlcgen.SaveTut
 func (q *sqliteQueries) SaveWorld(ctx context.Context, p0 sqlcgen.SaveWorldParams) (int64, error) {
 	raw, err := q.Queries.SaveWorld(ctx, sqlcgensqlite.SaveWorldParams(p0))
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
@@ -2646,32 +2646,32 @@ func (q *sqliteQueries) SaveWorld(ctx context.Context, p0 sqlcgen.SaveWorldParam
 func (q *sqliteQueries) ScrubPollutedWorldPositions(ctx context.Context, p0 []int64) (int64, error) {
 	b0, err := json.Marshal(p0)
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	conv0 := string(b0)
 	raw, err := q.Queries.ScrubPollutedWorldPositions(ctx, conv0)
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
 
 func (q *sqliteQueries) SelectEquippedOathOption(ctx context.Context, p0 sqlcgen.SelectEquippedOathOptionParams) (error) {
-	return q.Queries.SelectEquippedOathOption(ctx, sqlcgensqlite.SelectEquippedOathOptionParams(p0))
+	return storageError(q.Queries.SelectEquippedOathOption(ctx, sqlcgensqlite.SelectEquippedOathOptionParams(p0)))
 }
 
 func (q *sqliteQueries) SelectRosterBackground(ctx context.Context, p0 sqlcgen.SelectRosterBackgroundParams) (error) {
-	return q.Queries.SelectRosterBackground(ctx, sqlcgensqlite.SelectRosterBackgroundParams(p0))
+	return storageError(q.Queries.SelectRosterBackground(ctx, sqlcgensqlite.SelectRosterBackgroundParams(p0)))
 }
 
 func (q *sqliteQueries) SelectSkin(ctx context.Context, p0 sqlcgen.SelectSkinParams) (error) {
-	return q.Queries.SelectSkin(ctx, sqlcgensqlite.SelectSkinParams(p0))
+	return storageError(q.Queries.SelectSkin(ctx, sqlcgensqlite.SelectSkinParams(p0)))
 }
 
 func (q *sqliteQueries) SelectedSkin(ctx context.Context, p0 sqlcgen.SelectedSkinParams) (int64, error) {
 	raw, err := q.Queries.SelectedSkin(ctx, sqlcgensqlite.SelectedSkinParams(p0))
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
@@ -2679,23 +2679,23 @@ func (q *sqliteQueries) SelectedSkin(ctx context.Context, p0 sqlcgen.SelectedSki
 func (q *sqliteQueries) SendGMMail(ctx context.Context, p0 sqlcgen.SendGMMailParams) (int64, error) {
 	raw, err := q.Queries.SendGMMail(ctx, sqlcgensqlite.SendGMMailParams(p0))
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
 
 func (q *sqliteQueries) SetCharacterEventStage(ctx context.Context, p0 sqlcgen.SetCharacterEventStageParams) (error) {
-	return q.Queries.SetCharacterEventStage(ctx, sqlcgensqlite.SetCharacterEventStageParams(p0))
+	return storageError(q.Queries.SetCharacterEventStage(ctx, sqlcgensqlite.SetCharacterEventStageParams(p0)))
 }
 
 func (q *sqliteQueries) SetOmenPending(ctx context.Context, p0 sqlcgen.SetOmenPendingParams) (error) {
-	return q.Queries.SetOmenPending(ctx, sqlcgensqlite.SetOmenPendingParams(p0))
+	return storageError(q.Queries.SetOmenPending(ctx, sqlcgensqlite.SetOmenPendingParams(p0)))
 }
 
 func (q *sqliteQueries) ShareActiveCharacterIDs(ctx context.Context, p0 int64) ([]int64, error) {
 	raw, err := q.Queries.ShareActiveCharacterIDs(ctx, p0)
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	return raw, nil
 }
@@ -2703,7 +2703,7 @@ func (q *sqliteQueries) ShareActiveCharacterIDs(ctx context.Context, p0 int64) (
 func (q *sqliteQueries) ShareActiveCharacterState(ctx context.Context, p0 sqlcgen.ShareActiveCharacterStateParams) (json.RawMessage, error) {
 	raw, err := q.Queries.ShareActiveCharacterState(ctx, sqlcgensqlite.ShareActiveCharacterStateParams(p0))
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	return raw, nil
 }
@@ -2711,7 +2711,7 @@ func (q *sqliteQueries) ShareActiveCharacterState(ctx context.Context, p0 sqlcge
 func (q *sqliteQueries) SkillLocks(ctx context.Context, p0 int64) ([]int32, error) {
 	raw, err := q.Queries.SkillLocks(ctx, p0)
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	return raw, nil
 }
@@ -2719,7 +2719,7 @@ func (q *sqliteQueries) SkillLocks(ctx context.Context, p0 int64) ([]int32, erro
 func (q *sqliteQueries) SkinFavorites(ctx context.Context, p0 sqlcgen.SkinFavoritesParams) ([]sqlcgen.SkinFavoritesRow, error) {
 	raw, err := q.Queries.SkinFavorites(ctx, sqlcgensqlite.SkinFavoritesParams(p0))
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	out := make([]sqlcgen.SkinFavoritesRow, 0, len(raw))
 	for _, item := range raw {
@@ -2731,7 +2731,7 @@ func (q *sqliteQueries) SkinFavorites(ctx context.Context, p0 sqlcgen.SkinFavori
 func (q *sqliteQueries) SkinSelectionList(ctx context.Context, p0 sqlcgen.SkinSelectionListParams) ([]int64, error) {
 	raw, err := q.Queries.SkinSelectionList(ctx, sqlcgensqlite.SkinSelectionListParams(p0))
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	return raw, nil
 }
@@ -2739,7 +2739,7 @@ func (q *sqliteQueries) SkinSelectionList(ctx context.Context, p0 sqlcgen.SkinSe
 func (q *sqliteQueries) SkinSelectionSlots(ctx context.Context, p0 sqlcgen.SkinSelectionSlotsParams) ([]sqlcgen.SkinSelectionSlotsRow, error) {
 	raw, err := q.Queries.SkinSelectionSlots(ctx, sqlcgensqlite.SkinSelectionSlotsParams(p0))
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	out := make([]sqlcgen.SkinSelectionSlotsRow, 0, len(raw))
 	for _, item := range raw {
@@ -2751,7 +2751,7 @@ func (q *sqliteQueries) SkinSelectionSlots(ctx context.Context, p0 sqlcgen.SkinS
 func (q *sqliteQueries) StartBirth(ctx context.Context, p0 sqlcgen.StartBirthParams) (int64, error) {
 	raw, err := q.Queries.StartBirth(ctx, sqlcgensqlite.StartBirthParams(p0))
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
@@ -2759,7 +2759,7 @@ func (q *sqliteQueries) StartBirth(ctx context.Context, p0 sqlcgen.StartBirthPar
 func (q *sqliteQueries) StoredCharacterEvent(ctx context.Context, p0 sqlcgen.StoredCharacterEventParams) (sqlcgen.StoredCharacterEventRow, error) {
 	raw, err := q.Queries.StoredCharacterEvent(ctx, sqlcgensqlite.StoredCharacterEventParams(p0))
 	if err != nil {
-		return sqlcgen.StoredCharacterEventRow{}, err
+		return sqlcgen.StoredCharacterEventRow{}, storageError(err)
 	}
 	return sqlcgen.StoredCharacterEventRow(raw), nil
 }
@@ -2767,7 +2767,7 @@ func (q *sqliteQueries) StoredCharacterEvent(ctx context.Context, p0 sqlcgen.Sto
 func (q *sqliteQueries) TutorialFlags(ctx context.Context, p0 int64) ([]int32, error) {
 	raw, err := q.Queries.TutorialFlags(ctx, p0)
 	if err != nil {
-		return nil, err
+		return nil, storageError(err)
 	}
 	return raw, nil
 }
@@ -2775,36 +2775,36 @@ func (q *sqliteQueries) TutorialFlags(ctx context.Context, p0 int64) ([]int32, e
 func (q *sqliteQueries) UnlockRosterBackground(ctx context.Context, p0 sqlcgen.UnlockRosterBackgroundParams) (int64, error) {
 	raw, err := q.Queries.UnlockRosterBackground(ctx, sqlcgensqlite.UnlockRosterBackgroundParams(p0))
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
 
 func (q *sqliteQueries) UnlockSkin(ctx context.Context, p0 sqlcgen.UnlockSkinParams) (error) {
-	return q.Queries.UnlockSkin(ctx, sqlcgensqlite.UnlockSkinParams(p0))
+	return storageError(q.Queries.UnlockSkin(ctx, sqlcgensqlite.UnlockSkinParams(p0)))
 }
 
 func (q *sqliteQueries) UnmarkCharacterNotice(ctx context.Context, p0 sqlcgen.UnmarkCharacterNoticeParams) (error) {
-	return q.Queries.UnmarkCharacterNotice(ctx, sqlcgensqlite.UnmarkCharacterNoticeParams(p0))
+	return storageError(q.Queries.UnmarkCharacterNotice(ctx, sqlcgensqlite.UnmarkCharacterNoticeParams(p0)))
 }
 
 func (q *sqliteQueries) UpdateCharacterState(ctx context.Context, p0 sqlcgen.UpdateCharacterStateParams) (error) {
-	return q.Queries.UpdateCharacterState(ctx, sqlcgensqlite.UpdateCharacterStateParams(p0))
+	return storageError(q.Queries.UpdateCharacterState(ctx, sqlcgensqlite.UpdateCharacterStateParams(p0)))
 }
 
 func (q *sqliteQueries) UpdateMail(ctx context.Context, p0 sqlcgen.UpdateMailParams) (int64, error) {
 	arg0, err := fromPgUpdateMailParams(p0)
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	raw, err := q.Queries.UpdateMail(ctx, arg0)
 	if err != nil {
-		return 0, err
+		return 0, storageError(err)
 	}
 	return raw, nil
 }
 
 func (q *sqliteQueries) UpdateOathOption(ctx context.Context, p0 sqlcgen.UpdateOathOptionParams) (error) {
-	return q.Queries.UpdateOathOption(ctx, sqlcgensqlite.UpdateOathOptionParams(p0))
+	return storageError(q.Queries.UpdateOathOption(ctx, sqlcgensqlite.UpdateOathOptionParams(p0)))
 }
 
