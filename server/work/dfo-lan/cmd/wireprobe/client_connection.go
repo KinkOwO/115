@@ -177,6 +177,13 @@ func (client *gameConnection) serve() {
 				if client.sendPlan(packets, client.logCharacterResponse) != nil {
 					return
 				}
+				packets, err = client.worldState.ispinsTimeout(now)
+				if err != nil {
+					client.event(map[string]any{"kind": "ispins_timeout_error", "error": err.Error()})
+				}
+				if client.sendPlan(packets, client.logWorldResponseBody) != nil {
+					return
+				}
 			}
 			continue
 		case now := <-client.connection.moonTicks():

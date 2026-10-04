@@ -1589,7 +1589,7 @@ func (w *worldSession) moveDungeonRoomDecoded(r protocol.DungeonRoomTransition) 
 		state.ReuseRoom = true
 		state.Monsters = nil
 	}
-	if _, visited := w.activeDungeon.Visited[next.Room.Map]; visited && (next.Definition.Odyssey || next.IsResumedSceneBase()) && !r.LayerChange {
+	if _, visited := w.activeDungeon.Visited[next.Room.Map]; visited && (next.Definition.Odyssey || next.IsResumedSceneBase() || next.Definition.IndividualMapMovement && next.Definition.MoveMapEvenEnemy) && !r.LayerChange {
 		state.ReuseRoom = true
 		state.Monsters = nil
 	}

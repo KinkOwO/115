@@ -90,6 +90,7 @@ type worldSession struct {
 	// Single-player Ispins: refill the client quota after a full run returns
 	// to a ready town scene. Never refresh during the final movie/map load.
 	ispinsRepeatPending bool
+	ispinsRetryPending bool
 	// craftPending / craftPendingAt 记录上一次装备库制作（CMD2259）请求的指纹与
 	// 时间戳（UnixNano）。**同一个正文客户端会发两次**（"变换" → "确定"），
 	// 而且两次的 plain_hex 逐字节相同 ⇒ 只能由服务端记状态来区分第一步与第二步。
