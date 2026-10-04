@@ -95,6 +95,20 @@ type PrimerTransformRequest struct {
 	CallerArg byte
 }
 
+// PagePayloadVariant 是正文 `+12` 字节（参考实现里称 `f12`）的取值：**整页组合负载**。
+//
+// 取证来源：另一棵树的实机抓包定案（`equipment-journal-20261004/MERGE_REQUEST.md` 第 1 节）——
+// 「f12=1 弹窗单件指派、f12=0 页面组合负载，两者都应用」。本仓此前的注释把 `+12` 当作
+// "客户端从不写入的栈残留"，因此**从未解码过它**；成套替换（你的报告：A 套 8 件换成 B 套 4 件后
+// 变成 4+4，而不是只剩 4 件）正需要这个变体来区分"单件指派"与"整页期望状态"。
+//
+// ⚠️ 目前只**解码并落日志**，不改变行为：本仓还没有一条实机 f12=0 的完整帧（需要用户点一次
+// 「一键替换/成套替换」抓取），按 AGENTS §0.3 不据此猜包。
+const PagePayloadVariant byte = 0
+
+// Variant 返回正文 `+12` 的变体字节（0 = 整页组合负载，1 = 弹窗单件指派）。
+func (r PrimerTransformRequest) Variant() byte { return r.Residue[12] }
+
 // Wanted 列出被点选的非空晶体记录：返回记录下标、记录与模板。三者等长、一一对应。
 //
 // 下标是**记录位次 0..10**，对应穿戴槽 `36+i`（见 `PrimerTransformCrystalSlotBase`）。

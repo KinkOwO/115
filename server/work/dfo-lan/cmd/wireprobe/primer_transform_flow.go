@@ -5,6 +5,7 @@ import (
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/workflow"
+	"fmt"
 	"log"
 	"time"
 )
@@ -88,10 +89,17 @@ func (w *worldSession) primerTransform(p []byte, event func(map[string]any)) ([]
 		return plan, nil
 	}
 	indexes, entries, templates := r.Wanted()
-	log.Printf("primer transform: window_key=%d select_id=%d tail=%d caller=%d oath={space=%d slot=%d template=%d extra=%d row=%d} rows=%v templates=%v spaces=%v slots=%v",
-		r.WindowKey, r.SelectID, r.Tail, r.CallerArg,
+	// `+12` 变体（参考实现称 f12）：0 = 整页组合负载（成套替换走这条），1 = 弹窗单件指派。
+	// 本仓此前把它当栈残留忽略；现在只解码落日志取证，不据此改行为（等一条实机 f12=0 的完整帧）。
+	log.Printf("primer transform: window_key=%d select_id=%d tail=%d caller=%d variant(+12)=%d oath={space=%d slot=%d template=%d extra=%d row=%d} rows=%v templates=%v spaces=%v slots=%v",
+		r.WindowKey, r.SelectID, r.Tail, r.CallerArg, r.Variant(),
 		r.Oath.Space, r.Oath.Slot, r.Oath.Template, r.Oath.Extra, r.Oath.RowIndex,
 		indexes, templates, entrySpaces(entries), entrySlots(entries))
+	// 取证用：把**全部 12 条记录**（含空位）的 mark/slot/template 打出来。
+	// 目的：确定"成套替换"用什么表达"该位置清空"——参考实现把 mark=0x2e 的空位读作"该槽不动"，
+	// 而用户期望"整套替换后未列位置被卸下"，两者必须靠真实帧分辨（AGENTS §0.3：不猜包）。
+	log.Printf("primer transform RAW: variant=%d oath={mark=%#x slot=%d tpl=%#x} crystals=%v",
+		r.Variant(), r.Oath.Space, r.Oath.Slot, r.Oath.Template, rawRecordDump(r))
 	if len(templates) == 0 && r.Oath.Empty() {
 		log.Printf("primer transform NOTHING-REQUESTED: 行 0 与 11 条记录都是空的")
 		if event != nil {
@@ -162,6 +170,17 @@ func entrySpaces(entries []protocol.PrimerTransformEntry) []uint32 {
 	out := make([]uint32, 0, len(entries))
 	for _, e := range entries {
 		out = append(out, uint32(e.Space))
+	}
+	return out
+}
+
+// rawRecordDump 把 11 条晶体记录的 `mark:slot:template` 全量打出来（含空位），
+// 用于分辨"成套替换时未列位置"的表达方式（mark=0x2e 占位 vs 别的标记）。
+func rawRecordDump(r protocol.PrimerTransformRequest) []string {
+	out := make([]string, 0, protocol.PrimerTransformEntryCount)
+	for i := range r.Entries {
+		e := r.Entries[i]
+		out = append(out, fmt.Sprintf("%d:%#x:%d:%#x", i, e.Space, e.Slot, e.Template))
 	}
 	return out
 }
