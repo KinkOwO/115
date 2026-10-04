@@ -1,37 +1,43 @@
 # CHANGELOG
 
-## 2026-10-04：MOD 四层接口与数据库双引擎——取证、设计计划与交接（未实施）
+## 2026-10-04：MOD 接入 + SQLite 切换 + 去 Redis + 环境依赖最小化——取证与计划（未实施）
 
-业主口径：**mod 四层接口从 0 开始**设计；数据库**保持双引擎（PostgreSQL + SQLite）**；
-本轮只做取证、设计与提交交接，实施移交新会话。
+业主最终口径：**只做四件事**——① MOD 接入（四层接口从 0 开始）② 切换 SQLite ③ 移除 Redis
+④ 把代码环境依赖降到最低。**明确不再考虑**历史图鉴数据对账与 MR 创建（两项均放弃）。
+本轮只做取证、计划与交接，实施移交新会话；**未改任何 Go 代码/PVF/schema/存档**。
 
-- **MOD 四层接口**（[docs/mod-layered-interfaces-plan.md](server/work/dfo-lan/docs/mod-layered-interfaces-plan.md)）：
-  取证结论是**四层里只有 PVF 层有底座**——`internal/catalog/pvf/archive.go` 是只读归档读取器
-  （`Files/IterateFiles/FileInfo/ReadText/Snapshot`），**没有可被 mod 调用的函数面**；
-  服务端只有显式分发链（`client_dispatch.go` 的 20+ 命名阶段 + `observedGameRequest` 白名单），
-  **无 registry、无外部加载**；**仓库内 `*.npk` 文件数 0**、无 NPK 解析代码；
-  `client-patchs/` 递归只有 7 个字体补丁脚本，根 `AGENTS.md` §1.1 提到的 `ngstub`/plugin loader
-  **在本仓不存在**，且其引用的 `client-patchs/AGENTS.md` 也不存在；`client/` 目录已不在本仓库
-  ⇒ **L2（NPK）与 L4（DLL）的实测取证当前无法在本仓进行**，需业主指定资源/另一棵树。
-  计划给出四层边界与跨层不变式（PVF 唯一真源、服务端不改写 PVF、存档兼容、DLL 日志写自身目录、不猜包）、
-  六个阶段（P0 取证 → P1 垂直切片 → P2 L1 → P3 L3 → P4 L2 → P5 L4 ABI → P6 收口）与 5 个待拍板问题。
-- **数据库双引擎**（[docs/database-dual-engine-plan.md](server/work/dfo-lan/docs/database-dual-engine-plan.md)）：
-  取证结论是**SQLite 零实现**——`go.mod/go.sum` 无 sqlite 依赖、Go 源码 0 命中；
+- **合并为一份接手文档**：[docs/mod-sqlite-redis-minimal-plan.md](server/work/dfo-lan/docs/mod-sqlite-redis-minimal-plan.md)。
+  它取代并**删除**了同轮先写的两份分头计划（`mod-layered-interfaces-plan.md`、`database-dual-engine-plan.md`）。
+- **MOD 四层取证**：四层里只有 PVF 层有底座——`internal/catalog/pvf/archive.go` 是只读归档读取器，
+  **没有可被 mod 调用的函数面**；服务端只有显式分发链（`client_dispatch.go` 20+ 命名阶段 +
+  `observedGameRequest` 白名单），**无 registry、无外部加载**；仓库内 `*.npk` **文件数 0**、无解析代码；
+  `client-patchs/` 递归只有 **7 个字体补丁脚本**，根 `AGENTS.md` §1.1 提到的 `ngstub`/plugin loader
+  **全仓 0 命中**、其引用的 `client-patchs/AGENTS.md` 不存在；`client/` 目录**已不在本仓**
+  （客户端资源在 `server/launcher.local.json` 的 `client_dir`，仓库外）
+  ⇒ **L2（NPK）与 L4（DLL）的实测取证当前做不了**，须业主指定资源或另一棵树。
+  计划给出四层边界、P0 取证 → P1 垂直切片 → P2/P3/P4/P5 → P6 收口的阶段与 5 个待拍板问题。
+- **SQLite 取证**：**零实现且无接口缝**——`go.mod/go.sum` 无 sqlite 依赖、Go 源码 0 命中；
   `internal/database/store.go` 的 `Config` 只有 `PostgresDSN/MaxConnections/PostgresSchema`；
-  `type Store struct` 是具体类型，`*database.Store` 在包外被 **32 个文件**直接持有（无接口缝）；
-  `sqlc.yaml` 只有 `engine: postgresql`；SQL 全在 `sql/postgres/`（17 文件 93 KB）且重度依赖 PG 语法
-  （`FOR UPDATE` 25、`ON CONFLICT` 57、`RETURNING` 16、`::` 150、`jsonb` 21、`GENERATED` 21、
-  `pg_`/advisory 各 3）；pgx 引用 68 处。
-  计划分五阶段：**S1 抽接口缝**（32 文件改持接口 + `internal/archtest` 新增两条守卫，"行为零变化"）→
-  **S2 pgx 移出公共 API** → **S3 sqlc 双引擎与 SQL 分叉**（JSONB 回 Go、`FOR UPDATE` 用
-  `BEGIN IMMEDIATE` 写序列化替代、identity 改序列表、search_path 隔离改文件隔离）→
-  **S4 SQLite 引擎 + PG→SQLite 单向转换** → **S5 同一批契约测试跑两遍**（`DFO_TEST_ENGINE`）。
-- **口径变更登记**：业主本轮改口**推翻**了 `docs/architecture.md` ADR-002 的
-  "SQLite 不作为多人服主库"与 `docs/database-sqlc-migration.md` 的"不提前引入双引擎接口"；
-  已在 ADR-002 就地加注（默认引擎仍是 PostgreSQL、SQLite 定位单机/工具不变），
-  并写明新会话开工时须一并修订两处文档，避免代码与文档矛盾。
-- **验证**：本轮为文档与交接，**未改任何 Go 代码、未改 PVF/schema/存档、未访问玩家库或客户端**；
-  提交前全量 `go test -count=1 ./...` 与 `go vet ./...` 保持全绿。
+  `Store` 是具体类型、包外 **32 个文件**直持 `*database.Store`；`sqlc.yaml` 只有 `engine: postgresql`；
+  SQL 全在 `sql/postgres/`（**17 文件 93 KB**）且重度依赖 PG 语法（`FOR UPDATE` 25、`ON CONFLICT` 57、
+  `RETURNING` 16、`::` 150、`jsonb` 21、`GENERATED` 21、`pg_`/advisory 各 3）；pgx 引用 **68 处**。
+  计划分 **S1 抽接口缝 → S2 pgx 移出公共 API → S3 sqlc 双引擎与 SQL 分叉 → S4 SQLite 引擎与
+  PG→SQLite 单向转换 → S5 同批契约测试跑两遍**，并逐项列出必须重写的方言差异
+  （JSONB 回 Go、`FOR UPDATE` 用 `BEGIN IMMEDIATE` 写序列化替代、identity 改序列表、
+  `search_path` 隔离改文件隔离）。
+- **Redis 取证**：**运行时已零引用**——`go.mod` 无依赖；Go 侧 `\bredis\b` 命中全是误匹配
+  （`Disjoint`/`Dispatch`），真实命中只有"旧 `redis_*` 配置键被清理"的**回归断言**
+  （`cmd/gmtool/storage_test.go`、`internal/database/store_postgres_test.go`）；
+  Python 侧同样是清理逻辑（`configure_env.py:274`、两处 storage 测试）。
+  **待清理**：`tools/redis/`（**46.1 MB** 便携二进制，`/tools/` 整体 gitignore）与
+  `docs/测试服登录器.cmd:143` 的旧提示文案；几处回归测试**保留**（防 legacy 配置复活）。
+- **环境依赖基线**（运行必需）：Go 服务端二进制 + `server/work/client-build/Script.inner.pvf` +
+  PostgreSQL（`tools/pg` 919.8 MB，25438）+ Python（`tools/python` 288.7 MB，19 个编排脚本）+
+  `channel_probe.py`/`probe.exe` + 客户端目录。Redis 46 MB 可去；`tools/gocache`(6.4 GB)/`gopath`(2.0 GB)
+  是构建缓存、非运行依赖。目标态：**除客户端目录与 PVF 外不再需要任何外部进程（无 DB 服务、无 Redis、无 Python）**。
+- **口径变更**：业主本轮改口要求 SQLite（推翻 `docs/architecture.md` ADR-002 与
+  `docs/database-sqlc-migration.md` 的"不做双引擎/不单人服主库"两处表述）；ADR-002 顶部已就地加注。
+- **验证**：本轮为文档与交接，未改任何代码；提交前 `go build ./...` 与 `go vet ./...` 通过。
 
 ## 2026-10-04：蔚蓝号（Azure Main）征讨地下城从 0 落地
 

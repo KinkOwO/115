@@ -15,8 +15,10 @@
 
 - **新任务已登记（未实施）**：业主新要求 **mod 四层接口从 0 设计** + **数据库双引擎**，
   两份计划已落盘，实施移交新会话：
-  - [../mod-layered-interfaces-plan.md](../mod-layered-interfaces-plan.md)
-  - [../database-dual-engine-plan.md](../database-dual-engine-plan.md)
+  - [../mod-sqlite-redis-minimal-plan.md](../mod-sqlite-redis-minimal-plan.md)
+    （**唯一接手入口**；已取代并删除先前的 mod-layered-interfaces-plan.md 与
+    database-dual-engine-plan.md。范围：MOD 四层接入 / SQLite 切换 / 去 Redis / 环境依赖最小化；
+    **历史图鉴对账与 MR 已按业主要求放弃**）
   - 业主改口已就地登记在 [../architecture.md](../architecture.md) 的 ADR-002 顶部
     （默认引擎仍是 PostgreSQL；SQLite 定位单机/工具）。
 - **MR 未创建**：`RicardoLz` 不是 `fuckworld/115` 项目成员、`main` 是保护分支（推送/合并需 Maintainer），
