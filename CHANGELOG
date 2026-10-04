@@ -1,5 +1,38 @@
 # CHANGELOG
 
+## 2026-10-04：MOD 四层接口与数据库双引擎——取证、设计计划与交接（未实施）
+
+业主口径：**mod 四层接口从 0 开始**设计；数据库**保持双引擎（PostgreSQL + SQLite）**；
+本轮只做取证、设计与提交交接，实施移交新会话。
+
+- **MOD 四层接口**（[docs/mod-layered-interfaces-plan.md](server/work/dfo-lan/docs/mod-layered-interfaces-plan.md)）：
+  取证结论是**四层里只有 PVF 层有底座**——`internal/catalog/pvf/archive.go` 是只读归档读取器
+  （`Files/IterateFiles/FileInfo/ReadText/Snapshot`），**没有可被 mod 调用的函数面**；
+  服务端只有显式分发链（`client_dispatch.go` 的 20+ 命名阶段 + `observedGameRequest` 白名单），
+  **无 registry、无外部加载**；**仓库内 `*.npk` 文件数 0**、无 NPK 解析代码；
+  `client-patchs/` 递归只有 7 个字体补丁脚本，根 `AGENTS.md` §1.1 提到的 `ngstub`/plugin loader
+  **在本仓不存在**，且其引用的 `client-patchs/AGENTS.md` 也不存在；`client/` 目录已不在本仓库
+  ⇒ **L2（NPK）与 L4（DLL）的实测取证当前无法在本仓进行**，需业主指定资源/另一棵树。
+  计划给出四层边界与跨层不变式（PVF 唯一真源、服务端不改写 PVF、存档兼容、DLL 日志写自身目录、不猜包）、
+  六个阶段（P0 取证 → P1 垂直切片 → P2 L1 → P3 L3 → P4 L2 → P5 L4 ABI → P6 收口）与 5 个待拍板问题。
+- **数据库双引擎**（[docs/database-dual-engine-plan.md](server/work/dfo-lan/docs/database-dual-engine-plan.md)）：
+  取证结论是**SQLite 零实现**——`go.mod/go.sum` 无 sqlite 依赖、Go 源码 0 命中；
+  `internal/database/store.go` 的 `Config` 只有 `PostgresDSN/MaxConnections/PostgresSchema`；
+  `type Store struct` 是具体类型，`*database.Store` 在包外被 **32 个文件**直接持有（无接口缝）；
+  `sqlc.yaml` 只有 `engine: postgresql`；SQL 全在 `sql/postgres/`（17 文件 93 KB）且重度依赖 PG 语法
+  （`FOR UPDATE` 25、`ON CONFLICT` 57、`RETURNING` 16、`::` 150、`jsonb` 21、`GENERATED` 21、
+  `pg_`/advisory 各 3）；pgx 引用 68 处。
+  计划分五阶段：**S1 抽接口缝**（32 文件改持接口 + `internal/archtest` 新增两条守卫，"行为零变化"）→
+  **S2 pgx 移出公共 API** → **S3 sqlc 双引擎与 SQL 分叉**（JSONB 回 Go、`FOR UPDATE` 用
+  `BEGIN IMMEDIATE` 写序列化替代、identity 改序列表、search_path 隔离改文件隔离）→
+  **S4 SQLite 引擎 + PG→SQLite 单向转换** → **S5 同一批契约测试跑两遍**（`DFO_TEST_ENGINE`）。
+- **口径变更登记**：业主本轮改口**推翻**了 `docs/architecture.md` ADR-002 的
+  "SQLite 不作为多人服主库"与 `docs/database-sqlc-migration.md` 的"不提前引入双引擎接口"；
+  已在 ADR-002 就地加注（默认引擎仍是 PostgreSQL、SQLite 定位单机/工具不变），
+  并写明新会话开工时须一并修订两处文档，避免代码与文档矛盾。
+- **验证**：本轮为文档与交接，**未改任何 Go 代码、未改 PVF/schema/存档、未访问玩家库或客户端**；
+  提交前全量 `go test -count=1 ./...` 与 `go vet ./...` 保持全绿。
+
 ## 2026-10-04：蔚蓝号（Azure Main）征讨地下城从 0 落地
 
 蔚蓝号（频道 type 102 / 专属城镇 213 / guide dungeon 100004131 / isSemiRaid=1）此前只有频道分类与专属城镇落点，副本玩法整条缺失。本轮补齐「创建攻坚队 → 进本 → 两阶段切换 → 清怪推进 → BOSS 弱点标记 → 翻牌结算 → 回城/撤退」全链路，M1–M6 由玩家手动实机逐段确认。

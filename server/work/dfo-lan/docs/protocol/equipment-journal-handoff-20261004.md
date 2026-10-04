@@ -1,5 +1,32 @@
 # 装备库/誓约体系：取证结论与交接（2026-10-04）
 
+## 0.0 本会话最终交接状态（2026-10-04 收尾）
+
+**已提交并推送到业主 fork**（`RicardoLz/115` 的 `main`，5 个提交，`7e8eb4b2..02b46628`；
+该 fork 已基于最新上游 `main`——含 sqlc 数据库重构 / 59 工具合并 / 蔚蓝号）：
+
+| 提交 | 内容 |
+| --- | --- |
+| `41b9b27f` | CMD2381 誓约/晶体变换实现 + 复制缺陷修复 |
+| `71c833d7` | 誓约积分恒 0：补发 NOTI2634 部位积分（实机确认 670） |
+| `e526a7bf` | CMD2381 记账统一为一套（**用户实机确认「换装变换完美」**） |
+| `43bbcfb1` | 合金参考实现：金库金币代扣 / 秘宝继承保护 / 生成档位口径 |
+| `02b46628` | 跟进上游 sqlc/database 重构：包名对齐、`DiagnosticExec`、采样豁免补回 |
+
+- **新任务已登记（未实施）**：业主新要求 **mod 四层接口从 0 设计** + **数据库双引擎**，
+  两份计划已落盘，实施移交新会话：
+  - [../mod-layered-interfaces-plan.md](../mod-layered-interfaces-plan.md)
+  - [../database-dual-engine-plan.md](../database-dual-engine-plan.md)
+  - 业主改口已就地登记在 [../architecture.md](../architecture.md) 的 ADR-002 顶部
+    （默认引擎仍是 PostgreSQL；SQLite 定位单机/工具）。
+- **MR 未创建**：`RicardoLz` 不是 `fuckworld/115` 项目成员、`main` 是保护分支（推送/合并需 Maintainer），
+  API 建 MR 返回 403 ⇒ 需业主自己点 MR 链接，或请上游把账号加进项目。
+- **可回退点**：合并前本地状态的 tag `pre-merge-backup-20261004`（指向 `9e43cda9`）。
+- **仍未收口**：历史图鉴对账尚未执行（`equipment_journal_repair.go` 已就绪但**无 apply 入口**，
+  需业主点头）；参考实现的 `JournalConsumed` 回执字段与 `special_equipment_state` 结构化事件未合金。
+
+> 以下 §0–§4 为本轮第一/二/三批的原始取证与结论，仍然有效。
+
 > 本文是**交接文档**：给下一个会话直接接手用。用户口径已明确，证据在实机日志里，代码改动**未提交**、留在工作区。
 
 ## 0. 用户确认的模型（唯一口径，按此实现）
