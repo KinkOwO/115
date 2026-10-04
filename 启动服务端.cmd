@@ -19,7 +19,16 @@ rem   设 0 = 强制 setState 到状态 3 —— 那个状态客户端自己不�
 rem   进去后「切换材料」按钮会失灵（实机 2026-09-29 14:36）。一般不用动。
 rem set DFO_EQUIPMENT_CRAFT_GENERATE_VARIANT=0
 
-if exist "tools\python\python.exe" (
+rem Prefer the Go launcher: the session orchestration is Go, so this path needs no
+rem Python runtime. DFO_ROOT is explicit because the launcher sits beside the repository
+rem and would otherwise infer the wrong tree.
+set "DFO_ROOT=%~dp0."
+rem tools\ was moved out of the repository, so expose the moved Go toolchain on PATH for
+rem the source build (serverbuild looks at tools\go first, then PATH).
+set "PATH=%~dp0..\tools\go\bin;%PATH%"
+if exist "..\115us-dfolauncher\bin\dfolauncher-cli.exe" (
+    "..\115us-dfolauncher\bin\dfolauncher-cli.exe" --launch --server-only %*
+) else if exist "tools\python\python.exe" (
     "tools\python\python.exe" "server\work\dfo-lan\scripts\launch_local.py" --server-only %*
 ) else (
     python "server\work\dfo-lan\scripts\launch_local.py" --server-only %*
