@@ -3,43 +3,44 @@ package main
 import (
 	"context"
 	"dfolan/internal/cashshop"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"strings"
 	"testing"
 )
 
-func testNativeMixedGoldCart(t *testing.T, ctx context.Context, store *storage.Store, pilot *cashshop.Pilot, keys []byte, account, role int64, balance uint64) {
+func testNativeMixedGoldCart(t *testing.T, ctx context.Context, fixture *database.TestFixture, pilot *cashshop.Pilot, keys []byte, account, role int64, balance uint64) {
 	t.Helper()
+	store := fixture.Storage()
 	cart := []protocol.CeraCartItem{{Product: 3400315, Quantity: 1}, {Product: 3400232, Quantity: 1}}
 	key := "native-mixed-gold-0001"
 	assertUnchanged := func(gold uint32, cera uint64, orders int) {
 		t.Helper()
-		var state json.RawMessage
-		if err := store.DB.QueryRow(ctx, `SELECT state FROM characters WHERE id=$1`, role).Scan(&state); err != nil {
+		state, err := fixture.CharacterState(ctx, role)
+		if err != nil {
 			t.Fatal(err)
 		}
 		bag, err := inventory.ReadBag(state)
 		actual, ce := store.AccountCera(ctx, account)
-		var count int
-		if err := store.DB.QueryRow(ctx, `SELECT count(*) FROM cash_orders`).Scan(&count); err != nil {
-			t.Fatal(err)
+		count, countErr := fixture.CashOrderCount(ctx, account)
+		if countErr != nil {
+			t.Fatal(countErr)
 		}
-		if err != nil || ce != nil || bag.Gold != gold || actual != cera || count != orders {
+		if err != nil || ce != nil || bag.Gold != gold || actual != cera || count != int64(orders) {
 			t.Fatalf("mixed transaction: Gold=%d Cera=%d orders=%d error=%v/%v", bag.Gold, actual, count, err, ce)
 		}
 	}
 	setGold := func(value string) {
 		t.Helper()
-		if _, err := store.DB.Exec(ctx, `UPDATE characters SET state=jsonb_set(state,'{inventory,gold}',$2::jsonb) WHERE id=$1`, role, value); err != nil {
+		if err := fixture.SeedWalletGold(ctx, role, json.RawMessage(value)); err != nil {
 			t.Fatal(err)
 		}
 	}
 	setCera := func(value uint64) {
 		t.Helper()
-		if _, err := store.DB.Exec(ctx, `UPDATE account_currency SET cera=$2 WHERE account_id=$1`, account, value); err != nil {
+		if err := fixture.SeedAccountCurrency(ctx, account, int64(value)); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -63,7 +64,7 @@ func testNativeMixedGoldCart(t *testing.T, ctx context.Context, store *storage.S
 	}
 	assertUnchanged(777, balance, 1)
 	type result struct {
-		receipt storage.CashReceipt
+		receipt database.CashReceipt
 		applied bool
 		err     error
 	}

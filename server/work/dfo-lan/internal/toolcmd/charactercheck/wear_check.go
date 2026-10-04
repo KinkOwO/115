@@ -3,16 +3,16 @@ package charactercheck
 import (
 	"context"
 	"dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"dfolan/internal/workflow"
 	"encoding/json"
 	"fmt"
 	"sync"
 )
 
-func wearCheck(ctx context.Context, s, reopened *storage.Store, account, foreign int64) error {
+func wearCheck(ctx context.Context, s *database.TestFixture, reopened *database.Store, account, foreign int64) error {
 	c, e := loadNativeCharacterCatalog()
 	if e != nil {
 		return e
@@ -39,7 +39,7 @@ func wearCheck(ctx context.Context, s, reopened *storage.Store, account, foreign
 	if e != nil {
 		return e
 	}
-	if _, e = s.DB.Exec(ctx, "UPDATE characters SET state=$2 WHERE id=$1", role.ID, role.State); e != nil {
+	if e = s.SeedCharacterState(ctx, role.ID, role.State); e != nil {
 		return e
 	}
 	eq, e := loadNativeEquipmentCatalog(c.Source.Checksum)
@@ -54,7 +54,7 @@ func wearCheck(ctx context.Context, s, reopened *storage.Store, account, foreign
 	if e != nil {
 		return e
 	}
-	service := workflow.WearService{Store: s, WearService: inventory.WearService{Catalog: eq, Professions: c, BagRules: bagRules, Rules: rules}}
+	service := workflow.WearService{Store: s.Storage(), WearService: inventory.WearService{Catalog: eq, Professions: c, BagRules: bagRules, Rules: rules}}
 	r := protocol.ItemMoveRequest{SourceSlot: 9, SourceItem: 20002, DestinationList: 3, DestinationSlot: 19, Count: 1, Selection: 0xffffffff}
 	wrongOwner := role
 	wrongOwner.AccountID = foreign
@@ -62,7 +62,7 @@ func wearCheck(ctx context.Context, s, reopened *storage.Store, account, foreign
 		return fmt.Errorf("wear crossed character owner")
 	}
 	type result struct {
-		role    storage.Character
+		role    database.Character
 		applied bool
 		e       error
 	}

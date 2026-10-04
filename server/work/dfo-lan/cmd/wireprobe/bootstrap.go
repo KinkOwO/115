@@ -5,6 +5,7 @@ import (
 	"dfolan/internal/cashshop"
 	"dfolan/internal/catalog"
 	"dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/game/wire"
 	"dfolan/internal/gamedata"
@@ -12,7 +13,7 @@ import (
 	"dfolan/internal/legion"
 	"dfolan/internal/loot"
 	"dfolan/internal/quest"
-	"dfolan/internal/storage"
+	"dfolan/internal/reward"
 	"dfolan/internal/workflow"
 	"dfolan/internal/world"
 	"encoding/hex"
@@ -22,9 +23,9 @@ import (
 	"log"
 	"net"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
-	"path/filepath"
 	"sync"
 	"time"
 )
@@ -36,15 +37,15 @@ type gatewayRuntime struct {
 	apocalypseClock       *legion.ApocalypseClock
 	boosterCatalog        *BoosterCatalog
 	characters            *character.Service
-	channelDirectory       *catalog.ChannelDirectory
-	channelTowns           map[uint32]catalog.TownArea
-	channelGuides          map[uint32]uint32
-	channelInfo            *catalog.ChannelInfo
+	channelDirectory      *catalog.ChannelDirectory
+	channelTowns          map[uint32]catalog.TownArea
+	channelGuides         map[uint32]uint32
+	channelInfo           *catalog.ChannelInfo
 	developmentAccount    int64
 	dungeonCatalog        *catalog.DungeonCatalog
 	fatigueService        *character.FatigueService
 	gameHost              string
-	gameStore             *storage.Store
+	gameStore             *database.Store
 	hub                   *lanHub
 	itemService           *inventory.ItemService
 	journalRules          *catalog.EquipmentJournalRules
@@ -62,6 +63,7 @@ type gatewayRuntime struct {
 	questService          *quest.Service
 	raw                   []byte
 	responses             map[uint16][]byte
+	rewards               reward.Notifier
 	selectProbe           *protocol.SelectProbeState
 	selectionBoxes        *catalog.SelectionBoxes
 	shopPilot             *cashshop.Pilot
@@ -188,7 +190,7 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 	if (os.Getenv("DFO_DUNGEON_CATALOG") != "" || os.Getenv("DFO_ODYSSEY_DUNGEON_CATALOG") != "") && pvfCatalogs.Dungeons == nil {
 		return nil, nil, fmt.Errorf("dungeons require the native PVF dungeons domain")
 	}
-	// Reject retired content paths before opening storage. Old flag names remain
+	// Reject retired content paths before opening database. Old flag names remain
 	// compatible only when their native domain has actually been prepared.
 	if startup.BoosterCatalog != "" {
 		if _, err := pvfCatalogs.LoadBooster(startup.BoosterCatalog, startup.ItemIndex); err != nil {
@@ -437,7 +439,7 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		}
 	}
 	var characters *character.Service
-	var gameStore *storage.Store
+	var gameStore *database.Store
 	var worldService *world.Service
 	var wearService *workflow.WearService
 	var questService *quest.Service
@@ -448,6 +450,8 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 	var dungeonCatalog *catalog.DungeonCatalog
 	var progressionService *character.ProgressionService
 	var lootService *loot.Service
+	// rewardNotifier is the optional Lua reward add-on; nil disables it.
+	var rewardNotifier reward.Notifier
 	var itemService *inventory.ItemService
 	var shopService *workflow.ShopService
 	// journalRules 是装备库规则（nil = 不登记）。它同时被 CMD26 的事务与入场 2610 用到，
@@ -464,11 +468,11 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 	if startup.CharacterStorage != "" {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		cfg, e := storage.LoadConfig(startup.CharacterStorage)
+		cfg, e := database.LoadConfig(startup.CharacterStorage)
 		if e != nil {
 			return nil, nil, e
 		}
-		s, e := storage.Open(ctx, cfg)
+		s, e := database.Open(ctx, cfg)
 		if e != nil {
 			return nil, nil, e
 		}
@@ -497,72 +501,7 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 			return nil, nil, e
 		}
 		resources.add(func() { releaseAdminGuard() })
-		if e = s.Migrate(ctx); e != nil {
-			return nil, nil, e
-		}
-		if e = s.MigrateAdventure(ctx); e != nil {
-			return nil, nil, e
-		}
-		if e = s.MigrateBleedingMine(ctx); e != nil {
-			return nil, nil, e
-		}
-		if e = s.MigrateTutorial(ctx); e != nil {
-			return nil, nil, e
-		}
-		// Account/character unified options (CMD2377 0x01/0x05) persist here;
-		// the account block restores through NOTI2826, character settings are
-		// stored until the NOTI2827 layout is reversed.
-		if e = s.MigrateUnifiedOptions(ctx); e != nil {
-			return nil, nil, e
-		}
-		if e = s.MigrateGamepad(ctx); e != nil {
-			return nil, nil, e
-		}
-		// The account cera ledger backs the balance sent in SELECT.
-		if e = s.MigrateGrants(ctx); e != nil {
-			return nil, nil, e
-		}
-		if e = s.MigratePremiums(ctx); e != nil {
-			return nil, nil, e
-		}
-		if e = s.MigrateCharacterEvents(ctx); e != nil {
-			return nil, nil, e
-		}
-		// NPC 商店限购流水（`[purchase limit]`）。新表而不是复用 character_events：
-		// 那张表主键是 (character_id, event_key)，同一 key 只能一行，而限购要可累加的行。
-		if e = s.MigrateShopPurchases(ctx); e != nil {
-			return nil, nil, e
-		}
-		// Per-character read-notice ledger (NOTI402/426) backs the teaching
-		// frame suppression for third-awakened characters.
-		if e = s.MigrateCharacterNotices(ctx); e != nil {
-			return nil, nil, e
-		}
-		// Per-character profile skin snapshot (NOTI1545/1546) backs the
-		// category-0 owned/selected state sent on character entry.
-		if e = s.MigrateProfileSkins(ctx); e != nil {
-			return nil, nil, e
-		}
-		if e = s.MigrateRosterBackgrounds(ctx); e != nil {
-			return nil, nil, e
-		}
-		if e = s.MigrateMailbox(ctx); e != nil {
-			return nil, nil, e
-		}
-		// Per-(character,dungeon) hidden-boss pity counter. The client's tier
-		// ladder has no roll, so this table is the only place "rare" can live.
-		if e = s.MigrateOathProgress(ctx); e != nil {
-			return nil, nil, e
-		}
-		if e = s.MigrateOathOptions(ctx); e != nil {
-			return nil, nil, e
-		}
-		if e = s.MigrateEquipmentSkill(ctx); e != nil {
-			return nil, nil, e
-		}
-		// Per-(character,dungeon) omen save slot. The omen is not an item: it is a
-		// character-save marker the client reads out of NOTI2836 (see omen_state.go).
-		if e = s.MigrateOmenState(ctx); e != nil {
+		if e = s.InitializeGame(ctx); e != nil {
 			return nil, nil, e
 		}
 		data, e := pvfCatalogs.LoadCharacters(startup.CharacterCatalog)
@@ -636,7 +575,7 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		}
 		if pvfCatalogs.CashShop != nil {
 			var database string
-			if e = s.DB.QueryRow(ctx, "SELECT current_database()").Scan(&database); e == nil {
+			if database, e = s.DatabaseName(ctx); e == nil {
 				if database != "dfo_swordmaster_pilot_20260916" && !startup.ShopRelease {
 					log.Printf("shop purchase pilot running on database: %s", database)
 				}
@@ -991,6 +930,17 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		if progressionService != nil {
 			progressionService.CompletionAwarder = &inventory.Awarder{Catalog: c, Rules: bag, Equipment: gear}
 		}
+		// Event-triggered Lua rewards reuse the same catalog as the completion
+		// awarder. The rule scripts are embedded in the binary.
+		if rewards := buildRewardService(gameStore, &inventory.Awarder{Catalog: c, Rules: bag, Equipment: gear}); rewards != nil {
+			if progressionService != nil {
+				progressionService.Rewards = rewards
+			}
+			if characters != nil {
+				characters.Rewards = rewards
+			}
+			rewardNotifier = rewards
+		}
 		shopService = &workflow.ShopService{Store: gameStore, ShopService: inventory.ShopService{Catalog: c, EventModel: r.Model, BagRules: bag, ItemMaterials: itemMaterials}}
 		if pvfCatalogs.Mine != nil || startup.BleedingMineRewards != "" {
 			mine, err := pvfCatalogs.LoadMine(startup.BleedingMineRewards)
@@ -1169,8 +1119,8 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 	}
 	// 存档身份归一（2026-10-01，next146 结构性根治）。过去这行身份被钉在**内层归档哈希**上
 	// （每次重建都变），换一次客户端就全体进不去角色（quest %d requires source migration）。
-	// 现在身份由**服务端契约**定义（internal/savecontract），本迁移把盘上**任何历史 64-hex 身份**
-	// 一次归一 —— 形状判据，不再是「手工白名单」（那版换客户端就要改代码，且命中 0 行时静默无声）。
+	// 现在身份由**服务端契约**定义（internal/savecontract），本迁移以 IS DISTINCT FROM
+	// 归一任意历史值（含旧批次标记、空串、NULL），不依赖历史哈希白名单。
 	// 放在这里是因为前面的 Migrate* 才建出 character_quests/character_map_clears 等表。
 	if characters != nil {
 		identity := characters.Catalog.Source.SaveIdentity()
@@ -1601,6 +1551,7 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		questService:          questService,
 		raw:                   raw,
 		responses:             responses,
+		rewards:               rewardNotifier,
 		selectProbe:           selectProbe,
 		selectionBoxes:        selectionBoxes,
 		shopPilot:             shopPilot,

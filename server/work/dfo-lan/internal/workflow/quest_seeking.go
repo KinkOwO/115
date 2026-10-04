@@ -2,9 +2,9 @@ package workflow
 
 import (
 	"context"
+	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/quest"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 )
@@ -12,7 +12,7 @@ import (
 // GrantSeekingMonsterItems writes source [monster reward item] awards directly
 // into the bag. The event key binds the grant to one run and monster entity,
 // so a replayed death can never duplicate the invisible quest item.
-func (s *QuestService) GrantSeekingMonsterItems(ctx context.Context, role storage.Character, run *dungeon.Session, entity uint16) (quest.SeekingGrantResult, error) {
+func (s *QuestService) GrantSeekingMonsterItems(ctx context.Context, role database.Character, run *dungeon.Session, entity uint16) (quest.SeekingGrantResult, error) {
 	out := quest.SeekingGrantResult{Role: role}
 	var awards []quest.SeekingItemGrant
 	var err error
@@ -35,7 +35,7 @@ func (s *QuestService) GrantSeekingMonsterItems(ctx context.Context, role storag
 		return out, quest.ErrRewardPending
 	}
 	key := fmt.Sprintf("quest-monster-item:%s:%d", run.RunID, entity)
-	saved, applied, err := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, s.Quest.Catalog.Source.SaveIdentity(), key, quest.SeekingItems, func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+	saved, applied, err := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, s.Quest.Catalog.Source.SaveIdentity(), key, quest.SeekingItems, func(current database.Character) (json.RawMessage, json.RawMessage, error) {
 		return s.Quest.PrepareSeekingGrant(current, run.RunID, entity, awards)
 	})
 	if err != nil {
@@ -60,7 +60,7 @@ func (s *QuestService) GrantSeekingMonsterItems(ctx context.Context, role storag
 }
 
 // InventoryProgress completes qualifying objectives after the inventory commit.
-func (s *QuestService) InventoryProgress(ctx context.Context, role storage.Character) ([]uint16, error) {
+func (s *QuestService) InventoryProgress(ctx context.Context, role database.Character) ([]uint16, error) {
 	states, err := s.Store.Quests(ctx, role.AccountID, role.ID)
 	if err != nil {
 		return nil, err

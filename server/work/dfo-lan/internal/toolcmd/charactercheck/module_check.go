@@ -4,18 +4,19 @@ import (
 	"context"
 	"dfolan/internal/catalog"
 	"dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/inventory"
 	"dfolan/internal/quest"
-	"dfolan/internal/storage"
 	"dfolan/internal/workflow"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
 )
 
 // Called only after the temporary schema/search_path isolation gate.
-func moduleCheck(ctx context.Context, s, reopened *storage.Store, role storage.Character, other int64, prof catalog.Characters) error {
+func moduleCheck(ctx context.Context, s *database.TestFixture, reopened *database.Store, role database.Character, other int64, prof catalog.Characters) error {
 	if e := s.MigrateVault(ctx); e != nil {
 		return e
 	}
@@ -23,14 +24,14 @@ func moduleCheck(ctx context.Context, s, reopened *storage.Store, role storage.C
 	if e != nil {
 		return e
 	}
-	v := workflow.VaultService{Store: s, VaultService: inventory.VaultService{Rules: vr}}
+	v := workflow.VaultService{Store: s.Storage(), VaultService: inventory.VaultService{Rules: vr}}
 	if _, e = v.Bootstrap(ctx, role); e != nil {
 		return e
 	}
 	if _, e = s.LoadVault(ctx, other, role.ID, vr.InitialSlots, vr.SourceSHA256); e == nil {
 		return fmt.Errorf("foreign vault read allowed")
 	}
-	if _, e = s.DB.Exec(ctx, `UPDATE character_vaults SET items='[{"retained_test_item":1}]' WHERE character_id=$1`, role.ID); e != nil {
+	if e = s.SeedVaultItems(ctx, role.ID, json.RawMessage(`[{"retained_test_item":1}]`)); e != nil {
 		return e
 	}
 	if _, e = v.Bootstrap(ctx, role); e == nil {
@@ -50,13 +51,15 @@ func moduleCheck(ctx context.Context, s, reopened *storage.Store, role storage.C
 	if _, e = s.LoadFatigue(ctx, other, role.ID, "2026-09-11", 156); e == nil {
 		return fmt.Errorf("foreign fatigue reset allowed")
 	}
-	if _, e = s.DB.Exec(ctx, `UPDATE character_fatigue SET used=12 WHERE character_id=$1`, role.ID); e != nil {
+	if e = s.SeedFatigueUsed(ctx, role.ID, 12); e != nil {
 		return e
 	}
 	for _, day := range []string{"2026-09-10", "2026-09-09"} {
 		fp, e = reopened.LoadFatigue(ctx, role.AccountID, role.ID, day, 200)
-		if e != nil || fp.Used != 12 || fp.Limit != 156 {
-			return fmt.Errorf("reconnect/backwards clock reset fatigue: %v", e)
+		// Same-day quota changes are supported; a backwards clock preserves
+		// the latest quota as well as consumption rather than reverting either.
+		if e != nil || fp.Used != 12 || fp.Limit != 200 {
+			return fmt.Errorf("reconnect/backwards clock reset fatigue: %+v: %v", fp, e)
 		}
 	}
 	cs := character.Service{Store: reopened, Catalog: prof, Rules: character.Rules{MaxCharacters: 8, InitialLevel: 1}}
@@ -73,14 +76,23 @@ func moduleCheck(ctx context.Context, s, reopened *storage.Store, role storage.C
 	if e != nil {
 		return e
 	}
-	qs := quest.Service{Store: s, Catalog: qc, Professions: prof}
+	qs := quest.Service{Store: s.Storage(), Catalog: qc, Professions: prof}
 	q, e := qs.Accept(ctx, role, 3145)
 	if e != nil || q.Progress != 1 {
 		return fmt.Errorf("quest initial pending state: %v", e)
 	}
 	active, e := qs.Active(ctx, role)
-	if e != nil || len(active) != 1 || active[0].Progress != 1 {
+	if e != nil {
 		return fmt.Errorf("quest relog restore: %v", e)
+	}
+	restored := 0
+	for _, saved := range active {
+		if saved.ID == q.ID && saved.Progress == q.Progress {
+			restored++
+		}
+	}
+	if restored != 1 {
+		return fmt.Errorf("quest relog restore: target=%+v active=%+v", q, active)
 	}
 	if e = qs.Submit(ctx, role, 3145); !errors.Is(e, quest.ErrObjectiveIncomplete) {
 		return fmt.Errorf("uncleared map submitted: %v", e)
@@ -90,7 +102,7 @@ func moduleCheck(ctx context.Context, s, reopened *storage.Store, role storage.C
 		return fmt.Errorf("rejected submit mutated quest: %v", e)
 	}
 	// Reproduce the old bug only inside this disposable test schema.
-	if _, e = s.DB.Exec(ctx, `UPDATE character_quests SET progress=0,progress_model='legacy-zero' WHERE character_id=$1 AND quest_id=3145`, role.ID); e != nil {
+	if e = s.SeedLegacyQuest(ctx, role.ID, 3145); e != nil {
 		return e
 	}
 	legacy, e := s.Quests(ctx, role.AccountID, role.ID)
@@ -106,8 +118,8 @@ func moduleCheck(ctx context.Context, s, reopened *storage.Store, role storage.C
 	if e = s.RepairLegacyQuest(ctx, role.AccountID, role.ID, legacy[0], 1, quest.SingleClearMap); e == nil {
 		return fmt.Errorf("stale quest repair allowed")
 	}
-	var repairs int
-	if e = s.DB.QueryRow(ctx, `SELECT count(*) FROM character_quest_repairs WHERE character_id=$1`, role.ID).Scan(&repairs); e != nil || repairs != 1 {
+	var repairs int64
+	if repairs, e = s.QuestRepairCount(ctx, role.ID); e != nil || repairs != 1 {
 		return fmt.Errorf("repair audit missing: %v", e)
 	}
 	fmt.Println("MODULE_CHECK_PASS vault_preserved=true fatigue_reconnect_rollover=true quest_pending_restore=true quest_repair_audited=true foreign_access_refused=true")

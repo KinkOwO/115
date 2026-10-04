@@ -17,7 +17,7 @@ import (
 	"time"
 )
 
-// storageConfig 是 local.json 里 GM 工具需要的那部分（比 internal/storage 多几个路径字段）。
+// storageConfig 是 local.json 里 GM 工具需要的那部分（比 internal/database 多几个路径字段）。
 type storageConfig struct {
 	PostgresDSN  string `json:"postgres_dsn"`
 	PostgresBin  string `json:"postgres_bin"`

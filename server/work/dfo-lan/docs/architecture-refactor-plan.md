@@ -64,7 +64,7 @@
 | `internal/dungeon` | 副本会话、房间、门、清场和结算 | 保留副本状态机和时序 |
 | `internal/world` | 城镇、区域跳转、传送和位置保存 | 保留场景几何和转移规则 |
 | `internal/quest` | 任务链、目标推进、任务奖励 | 保留任务规则；事务意图后续显式化 |
-| `internal/storage` | PostgreSQL、存档、锁和事务 | 保存数据与原子性所有者，不解释玩法字符串 |
+| `internal/database` | PostgreSQL、存档、锁和事务 | 保存数据与原子性所有者，不解释玩法字符串 |
 | `internal/catalog` / `catalog/pvf` | 规则目录和 PVF 解析 | 保留来源、解析和快照边界 |
 | `internal/cashshop` | 商城报价/购买试点和支付账本 | 后续明确是否扩展为交易所有者，避免万能支付层 |
 | `internal/game/profileskin` 等小模块 | 共享协议/存储数据或诊断读模型 | 只有删除后依赖更清楚才合并，不做按数量清理 |
@@ -387,7 +387,7 @@ pvf.Open / pvf.OpenBytes
   -> pvf.LoadArchive
 ```
 
-本批删除没有生产引用的 `internal/oath` 骨架，以及没有仓内调用的 `pvf.Open`、`pvf.OpenBytes` 包装函数。保留 `internal/storage` 中已经接入的 oath 选项/进度存储、`internal/inventory` 的装备规则和 `cmd/wireprobe` 的实际协议流程；保留 `pvf.LoadArchive`、`ReadScript`、`ResolveScript` 和 `pvfpatch` 的独立输出能力。删除后包图少一个未接线模块和两个重复入口，不改变服务端启动、协议、存档或 PVF 导入结果。
+本批删除没有生产引用的 `internal/oath` 骨架，以及没有仓内调用的 `pvf.Open`、`pvf.OpenBytes` 包装函数。保留 `internal/database` 中已经接入的 oath 选项/进度存储、`internal/inventory` 的装备规则和 `cmd/wireprobe` 的实际协议流程；保留 `pvf.LoadArchive`、`ReadScript`、`ResolveScript` 和 `pvfpatch` 的独立输出能力。删除后包图少一个未接线模块和两个重复入口，不改变服务端启动、协议、存档或 PVF 导入结果。
 
 批次 9 验收：
 

@@ -3,11 +3,11 @@ package workflow
 import (
 	"context"
 	"dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/savecontract"
-	"dfolan/internal/storage"
 )
 
-func (s *QuestService) OdysseyMainline(ctx context.Context, role storage.Character) (int, []uint16, error) {
+func (s *QuestService) OdysseyMainline(ctx context.Context, role database.Character) (int, []uint16, error) {
 	if s == nil || s.Quest == nil || s.Store == nil {
 		return 0, nil, nil
 	}

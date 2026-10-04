@@ -1,20 +1,29 @@
 package charactercheck
 
 import (
+	"bytes"
 	"context"
 	"dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
-	"dfolan/internal/storage"
 	"dfolan/internal/workflow"
 	"encoding/json"
 	"fmt"
 	"sync"
 )
 
-func lootCheck(ctx context.Context, s, reopened *storage.Store, role storage.Character, other int64) error {
+func lootCheck(ctx context.Context, s *database.TestFixture, reopened *database.Store, role database.Character, other int64) error {
+	storedState, e := s.CharacterState(ctx, role.ID)
+	if e != nil {
+		return e
+	}
+	beforeBag, e := inventory.ReadBag(storedState)
+	if e != nil {
+		return e
+	}
 	c, e := loadNativeLootCatalog()
 	if e != nil {
 		return e
@@ -57,7 +66,7 @@ func lootCheck(ctx context.Context, s, reopened *storage.Store, role storage.Cha
 		session.Objects[object] = loot.Drop{Run: run.RunID, Map: run.Room.Map, Owner: role.WireID, Object: object, Slot: uint16(i + 1), Award: award}
 	}
 	domain := loot.Service{Catalog: c, Rules: rules, BagRules: bagRules, Tables: tables}
-	service := workflow.LootService{Store: s, Loot: &domain}
+	service := workflow.LootService{Store: s.Storage(), Loot: &domain}
 	foreign := role
 	foreign.AccountID = other
 	if _, _, _, e = service.Pickup(ctx, foreign, session, run, protocol.PickupRequest{Object: 32768}); e == nil {
@@ -72,11 +81,12 @@ func lootCheck(ctx context.Context, s, reopened *storage.Store, role storage.Cha
 		return fmt.Errorf("distant pickup accepted")
 	}
 	type result struct {
-		role    storage.Character
+		role    database.Character
 		receipt loot.PickupReceipt
 		applied bool
 		err     error
 	}
+	var lastSaved database.Character
 	for _, object := range []uint32{32768, 32769} {
 		results := make(chan result, 12)
 		var wg sync.WaitGroup
@@ -98,11 +108,12 @@ func lootCheck(ctx context.Context, s, reopened *storage.Store, role storage.Cha
 			if res.applied {
 				count++
 			}
+			lastSaved = res.role
 			b, e := inventory.ReadBag(res.role.State)
 			if e != nil {
 				return e
 			}
-			if b.Gold != 34 {
+			if uint64(b.Gold) != uint64(beforeBag.Gold)+uint64(tables.Gold[7]) {
 				return fmt.Errorf("gold grant replay: %d", b.Gold)
 			}
 			if object == 32769 && (len(b.Items) != 1 || b.Items[0].Amount != 1 || b.Items[0].Template != item) {
@@ -126,8 +137,12 @@ func lootCheck(ctx context.Context, s, reopened *storage.Store, role storage.Cha
 		return fmt.Errorf("pickup reopen replay: %v", e)
 	}
 	items := inventory.ItemService{Catalog: domain.Catalog}
+	expected, e := items.Bootstrap(workflow.InventoryRole(lastSaved))
+	if e != nil {
+		return e
+	}
 	p, e := items.Bootstrap(workflow.InventoryRole(saved))
-	if e != nil || len(p) != 367 {
+	if e != nil || len(p) == 0 || !bytes.Equal(p, expected) {
 		return fmt.Errorf("reopened bag wire: %d %v", len(p), e)
 	}
 	fmt.Println("LOOT_STORAGE_PASS gold_and_source_stackable=true concurrent_pickup_once=true owner_and_room_checked=true experience_preserved=true reopen=true")

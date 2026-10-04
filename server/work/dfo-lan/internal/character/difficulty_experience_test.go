@@ -16,14 +16,18 @@ import (
 // Exercise the transaction owners, including receipt replay, rather than only
 // the formula helpers (which already accepted a difficulty table index).
 type difficultyExperienceStore struct {
-	role     Character
-	receipts map[string]json.RawMessage
+	role                 Character
+	receipts             map[string]json.RawMessage
+	inTransaction        bool
+	premiumInTransaction bool
 }
 
 func (s *difficultyExperienceStore) CommitCharacterEvent(_ context.Context, _, _ int64, _, key, _ string, apply func(Character) (json.RawMessage, json.RawMessage, error)) (Character, bool, error) {
 	if _, ok := s.receipts[key]; ok {
 		return s.role, false, nil
 	}
+	s.inTransaction = true
+	defer func() { s.inTransaction = false }()
 	state, receipt, err := apply(s.role)
 	if err != nil {
 		return s.role, false, err
@@ -36,6 +40,7 @@ func (s *difficultyExperienceStore) CharacterEventReceipt(_ context.Context, _, 
 	return s.receipts[key], nil
 }
 func (s *difficultyExperienceStore) HasGrowthPremium(context.Context, int64, time.Time) (bool, error) {
+	s.premiumInTransaction = s.premiumInTransaction || s.inTransaction
 	return false, nil
 }
 func (s *difficultyExperienceStore) HasTacticianPremium(context.Context, int64, time.Time) (bool, error) {
@@ -66,6 +71,11 @@ func TestDungeonExperienceUsesSelectedDifficulty(t *testing.T) {
 			role := ordinaryAdvancedRole(t, s, 12, 0)
 			before := decodeState(t, role.State)
 			store := &difficultyExperienceStore{role: role, receipts: map[string]json.RawMessage{}}
+			t.Cleanup(func() {
+				if store.premiumInTransaction {
+					t.Error("experience callback requested a second database connection for premiums")
+				}
+			})
 			s.Store = store
 			// Rates taken from the current PVF etc/(r)serverparameter.etc.
 			s.Catalog.DifficultyRates = []float32{1.3, 2, 2.5, 3, 4}

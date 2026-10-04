@@ -1,9 +1,9 @@
 package main
 
 import (
+	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/binary"
 	"testing"
 )
@@ -120,7 +120,7 @@ func TestParseScaleEndTrigger(t *testing.T) {
 // 2026-09-27 回归：某一运行里 8 个样本全部落在地板 2% 上，本次运行见过的峰值就是地板，
 // 于是 rate 恒为 100、血量判据永远不触发。日志本身即「客户端跑过 GO_END」的判据必须独立生效。
 func TestScaleStatusKillsOnClientEndWithoutAnyPeak(t *testing.T) {
-	w := &worldSession{scaleDeathFromHP: true, role: storage.Character{WireID: 3}, activeDungeon: scaleRunForTest()}
+	w := &worldSession{scaleDeathFromHP: true, role: database.Character{WireID: 3}, activeDungeon: scaleRunForTest()}
 	var kinds []string
 	seen := func(e map[string]any) { kinds = append(kinds, e["kind"].(string)) }
 	plan, err := w.scaleStatus(scaleStatusPayload(scaleStatusSample, scalePrimerTemplate), seen)
@@ -163,7 +163,7 @@ func TestScaleStatusKillsOnClientEndWithoutAnyPeak(t *testing.T) {
 func TestScaleStatusRearmsOnANewDungeonRun(t *testing.T) {
 	run := scaleRunForTest()
 	run.RunID = "run-one"
-	w := &worldSession{scaleDeathFromHP: true, role: storage.Character{WireID: 3}, activeDungeon: run}
+	w := &worldSession{scaleDeathFromHP: true, role: database.Character{WireID: 3}, activeDungeon: run}
 	forced := 0
 	seen := func(e map[string]any) {
 		if e["kind"] == "scale_death_forced" {
@@ -193,7 +193,7 @@ func TestScaleStatusRearmsOnANewDungeonRun(t *testing.T) {
 
 // 没有收尾证据、也没有峰值证据时不许判死：光收到日志形状的包不够。
 func TestScaleStatusNeedsEvidenceWithoutEndTrigger(t *testing.T) {
-	w := &worldSession{scaleDeathFromHP: true, role: storage.Character{WireID: 3}, activeDungeon: scaleRunForTest()}
+	w := &worldSession{scaleDeathFromHP: true, role: database.Character{WireID: 3}, activeDungeon: scaleRunForTest()}
 	var kinds []string
 	seen := func(e map[string]any) { kinds = append(kinds, e["kind"].(string)) }
 	if _, err := w.scaleStatus(scaleStatusPayload(scaleStatusSampleNoEnd, scalePrimerTemplate), seen); err != nil {

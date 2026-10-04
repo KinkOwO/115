@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	"crypto/sha256"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"dfolan/internal/workflow"
 	"encoding/json"
 	"fmt"
@@ -27,7 +27,7 @@ func avatarOption(service *workflow.WearService, w *worldSession, p, keys []byte
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	hash := sha256.Sum256(p)
-	saved, _, e := w.store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, fmt.Sprintf("avatar-option:%x", hash), "avatar-option-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+	saved, _, e := w.store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, fmt.Sprintf("avatar-option:%x", hash), "avatar-option-v1", func(current database.Character) (json.RawMessage, json.RawMessage, error) {
 		raw, e := service.SelectAvatarOption(workflow.InventoryRole(current), r)
 		if e != nil {
 			return nil, nil, e

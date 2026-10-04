@@ -3,16 +3,16 @@ package charactercheck
 import (
 	"context"
 	"dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
 )
 
-func clearRewardCheck(ctx context.Context, s, reopened *storage.Store, role storage.Character, other int64) error {
+func clearRewardCheck(ctx context.Context, s *database.TestFixture, reopened *database.Store, role database.Character, other int64) error {
 	c, e := loadNativeProgressionCatalog()
 	if e != nil {
 		return e
@@ -29,7 +29,7 @@ func clearRewardCheck(ctx context.Context, s, reopened *storage.Store, role stor
 	if e != nil {
 		return e
 	}
-	service := character.ProgressionService{Store: s, Catalog: c, Professions: prof, Rules: rules}
+	service := character.ProgressionService{Store: s.Storage(), Catalog: c, Professions: prof, Rules: rules}
 	run, e := dungeon.Select(d, protocol.DungeonSelection{ID: 3, Party: 65535, Quest: 3145}, 1, map[uint16]bool{3145: true})
 	if e != nil {
 		return e
@@ -63,7 +63,7 @@ func clearRewardCheck(ctx context.Context, s, reopened *storage.Store, role stor
 		return fmt.Errorf("clear reward crossed owner")
 	}
 	type result struct {
-		r       storage.Character
+		r       database.Character
 		c       character.ClearReceipt
 		applied bool
 		e       error

@@ -6,7 +6,7 @@ package archtest
 //
 // 本测试把契约 §2 的依赖规则变成可执行的断言：
 //   R1 纯基础设施不得 import 任何 L3 领域；
-//   R2 L3 领域不得 import internal/storage；
+//   R2 L3 领域不得 import internal/database；
 //   R4 L3 领域之间默认禁止互相 import；
 //   R6 L3 领域不得 import L4 组合/工具层。
 //
@@ -35,12 +35,13 @@ var infraPackages = map[string]bool{
 }
 
 // L2 持久化：领域不得直接依赖（R2）。
-const persistencePackage = "internal/storage"
+const persistencePackage = "internal/database"
 
 // L3 业务领域。
 var domainPackages = map[string]bool{
 	"internal/character":   true,
 	"internal/inventory":   true,
+	"internal/mail":        true,
 	"internal/loot":        true,
 	"internal/quest":       true,
 	"internal/dungeon":     true,

@@ -3,16 +3,17 @@ package charactercheck
 import (
 	"context"
 	"dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
+	"dfolan/internal/inventory"
 	"dfolan/internal/quest"
-	"dfolan/internal/storage"
 	"dfolan/internal/workflow"
 	"encoding/json"
 	"fmt"
 	"sync"
 )
 
-func questRewardCheck(ctx context.Context, s, reopened *storage.Store, role storage.Character, other int64) error {
+func questRewardCheck(ctx context.Context, s *database.TestFixture, reopened *database.Store, role database.Character, other int64) error {
 	if e := s.MigrateQuestRewards(ctx); e != nil {
 		return e
 	}
@@ -32,22 +33,22 @@ func questRewardCheck(ctx context.Context, s, reopened *storage.Store, role stor
 	if e != nil {
 		return e
 	}
-	p := &character.ProgressionService{Store: s, Catalog: c, Professions: prof, Rules: rules}
-	service := quest.Service{Store: s, Catalog: q, Professions: prof, Progression: p}
+	p := &character.ProgressionService{Store: s.Storage(), Catalog: c, Professions: prof, Rules: rules}
+	service := quest.Service{Store: s.Storage(), Catalog: q, Professions: prof, Progression: p}
 	req := protocol.QuestSubmitRequest{ID: 3145, RewardSelection: 65535, Option: 1}
 	foreign := role
 	foreign.AccountID = other
-	if _, e = (&workflow.QuestService{Store: s, Quest: &service}).Finish(ctx, foreign, req); e == nil {
+	if _, e = (&workflow.QuestService{Store: s.Storage(), Quest: &service}).Finish(ctx, foreign, req); e == nil {
 		return fmt.Errorf("quest reward crossed account")
 	}
 	// Keep every mutation inside the established throwaway test schema.
-	if _, e = s.DB.Exec(ctx, `UPDATE character_quests SET progress=1 WHERE character_id=$1 AND quest_id=3145`, role.ID); e != nil {
+	if e = s.SeedQuestProgress(ctx, role.ID, 3145, 1); e != nil {
 		return e
 	}
-	if _, e = (&workflow.QuestService{Store: s, Quest: &service}).Finish(ctx, role, req); e == nil {
+	if _, e = (&workflow.QuestService{Store: s.Storage(), Quest: &service}).Finish(ctx, role, req); e == nil {
 		return fmt.Errorf("unfinished objective rewarded")
 	}
-	if _, e = s.DB.Exec(ctx, `UPDATE character_quests SET progress=0 WHERE character_id=$1 AND quest_id=3145`, role.ID); e != nil {
+	if e = s.SeedQuestProgress(ctx, role.ID, 3145, 0); e != nil {
 		return e
 	}
 	rows, e := s.Characters(ctx, role.AccountID)
@@ -64,13 +65,36 @@ func questRewardCheck(ctx context.Context, s, reopened *storage.Store, role stor
 	if e != nil {
 		return e
 	}
-	if _, e = s.DB.Exec(ctx, `UPDATE characters SET state=$2 WHERE id=$1`, role.ID, advanced); e != nil {
+	if e = s.SeedCharacterState(ctx, role.ID, advanced); e != nil {
 		return e
 	}
-	if _, e = (&workflow.QuestService{Store: s, Quest: &service}).Finish(ctx, role, req); e == nil {
+	if _, e = (&workflow.QuestService{Store: s.Storage(), Quest: &service}).Finish(ctx, role, req); e == nil {
 		return fmt.Errorf("matching asset rewards silently discarded")
 	}
-	if _, e = s.DB.Exec(ctx, `UPDATE characters SET state=$2 WHERE id=$1`, role.ID, saved); e != nil {
+	if e = s.SeedCharacterState(ctx, role.ID, saved); e != nil {
+		return e
+	}
+	// Completion now also credits source-defined wallet gold. Keep the nil
+	// awarder refusal above, then configure the real inventory for settlement.
+	lc, e := loadNativeLootCatalog()
+	if e != nil {
+		return e
+	}
+	br, e := inventory.LoadBagRules("configs/inventory.next29.json", lc.Source.Checksum)
+	if e != nil {
+		return e
+	}
+	service.Inventory = &inventory.Awarder{Catalog: lc, Rules: br}
+	beforeBag, e := inventory.ReadBag(saved)
+	if e != nil {
+		return e
+	}
+	d, e := q.Definition(uint32(req.ID))
+	if e != nil {
+		return e
+	}
+	expectedGold, e := character.GrowthQuestGold(c, d, state.Level)
+	if e != nil {
 		return e
 	}
 	type result struct {
@@ -83,7 +107,7 @@ func questRewardCheck(ctx context.Context, s, reopened *storage.Store, role stor
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			r, e := (&workflow.QuestService{Store: s, Quest: &service}).Finish(ctx, role, req)
+			r, e := (&workflow.QuestService{Store: s.Storage(), Quest: &service}).Finish(ctx, role, req)
 			results <- result{r, e}
 		}()
 	}
@@ -100,6 +124,10 @@ func questRewardCheck(ctx context.Context, s, reopened *storage.Store, role stor
 		if res.r.Receipt.Experience != 1200 {
 			return fmt.Errorf("quest source experience mismatch")
 		}
+		bag, err := inventory.ReadBag(res.r.Role.State)
+		if err != nil || res.r.Receipt.Gold != expectedGold || uint64(bag.Gold) != uint64(beforeBag.Gold)+uint64(expectedGold) || len(res.r.Receipt.Items) != 0 {
+			return fmt.Errorf("quest source gold/job filter mismatch: gold=%d receipt=%d: %v", bag.Gold, res.r.Receipt.Gold, err)
+		}
 		if e = json.Unmarshal(res.r.Role.State, &state); e != nil {
 			return e
 		}
@@ -110,8 +138,8 @@ func questRewardCheck(ctx context.Context, s, reopened *storage.Store, role stor
 	if applied != 1 {
 		return fmt.Errorf("quest duplicate reward applications=%d", applied)
 	}
-	var count int
-	if e = s.DB.QueryRow(ctx, `SELECT count(*) FROM character_quest_rewards WHERE character_id=$1`, role.ID).Scan(&count); e != nil || count != 1 {
+	var count int64
+	if count, e = s.QuestRewardCount(ctx, role.ID, 0); e != nil || count != 1 {
 		return fmt.Errorf("quest receipts=%d: %v", count, e)
 	}
 	service.Store = reopened
@@ -136,8 +164,17 @@ func questRewardCheck(ctx context.Context, s, reopened *storage.Store, role stor
 		}
 	}
 	completed, e := service.Completed(ctx, role)
-	if e != nil || len(completed) != 1 || completed[0] != 3145 {
-		return fmt.Errorf("completed quest bitmap mismatch: %v", e)
+	if e != nil {
+		return e
+	}
+	completedTarget := 0
+	for _, id := range completed {
+		if id == 3145 {
+			completedTarget++
+		}
+	}
+	if completedTarget != 1 {
+		return fmt.Errorf("completed quest bitmap mismatch: target occurrences=%d", completedTarget)
 	}
 	if _, e = service.Accept(ctx, role, 3145); e == nil {
 		return fmt.Errorf("completed quest accepted twice")

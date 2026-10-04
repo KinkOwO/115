@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"crypto/sha256"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -31,7 +31,7 @@ func (w *worldSession) deleteSkillMaterial(p, raw []byte) ([]outboundPacket, err
 			return nil, fmt.Errorf("晶体契约存储不可用")
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		active, err := w.store.HasActivePremium(ctx, w.role.AccountID, storage.PremiumCube, time.Now())
+		active, err := w.store.HasActivePremium(ctx, w.role.AccountID, database.PremiumCube, time.Now())
 		cancel()
 		if err != nil {
 			return nil, err
@@ -54,7 +54,7 @@ func (w *worldSession) deleteSkillMaterial(p, raw []byte) ([]outboundPacket, err
 	model := fmt.Sprintf("skill-material-v1:%x", sha256.Sum256(p))
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	saved, _, e := w.store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, model, func(role storage.Character) (json.RawMessage, json.RawMessage, error) {
+	saved, _, e := w.store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, model, func(role database.Character) (json.RawMessage, json.RawMessage, error) {
 		bag, e := inventory.ReadBag(role.State)
 		if e != nil {
 			return nil, nil, e
@@ -159,7 +159,7 @@ func (w *worldSession) spendSkillMaterialFromStorage(p, raw []byte, rows []proto
 	key := fmt.Sprintf("skill-material-account:%s:%x", w.activeDungeon.RunID, sha256.Sum256(raw))
 	model := fmt.Sprintf("skill-material-account-v1:%x", sha256.Sum256(p))
 	saved, counts, _, e := w.store.CommitAccountMaterialEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, model,
-		func(role storage.Character, rawCounts json.RawMessage) (json.RawMessage, json.RawMessage, error) {
+		func(role database.Character, rawCounts json.RawMessage) (json.RawMessage, json.RawMessage, error) {
 			m, e := inventory.ReadAccountMaterials(rawCounts)
 			if e != nil {
 				return nil, nil, e

@@ -2,14 +2,14 @@ package main
 
 import (
 	"dfolan/internal/catalog"
+	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/loot"
-	"dfolan/internal/storage"
 	"fmt"
 )
 
-func validateMoonResources(c *catalog.DungeonCatalog, s *loot.Service, store *storage.Store) error {
+func validateMoonResources(c *catalog.DungeonCatalog, s *loot.Service, store *database.Store) error {
 	if c == nil || s == nil || store == nil || s.Equipment == nil || c.Source.Checksum != s.Catalog.Source.Checksum {
 		return fmt.Errorf("Moon needs same-source dungeon, loot, equipment and persistent rewards")
 	}

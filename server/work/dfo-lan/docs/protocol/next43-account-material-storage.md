@@ -76,7 +76,7 @@ sub_145ADBCA0 = is-old-soul（表3）
 
 ### 存储
 
-- `internal/storage/account_materials.go`：`account_material_storage(account_id PK, counts jsonb)`（`MigrateAccountMaterials`，建表即迁，老存档无损）；`CommitAccountMaterialSweep` 单事务内锁角色行+账号行，同时改写背包 state 与账号 counts。无事件键：sweep 是状态派生的纯迁移，天然幂等。
+- `internal/database/account_materials.go`：`account_material_storage(account_id PK, counts jsonb)`（`MigrateAccountMaterials`，建表即迁，老存档无损）；`CommitAccountMaterialSweep` 单事务内锁角色行+账号行，同时改写背包 state 与账号 counts。无事件键：sweep 是状态派生的纯迁移，天然幂等。
 
 ### 领域
 

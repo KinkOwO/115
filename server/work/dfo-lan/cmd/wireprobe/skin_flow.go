@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"dfolan/internal/catalog"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -359,9 +359,9 @@ func skinSlotItem(bag inventory.Bag, slot uint16) (uint32, string, bool) {
 // Order is oldest first because sub_1441EAF20 walks the vector back from the end and puts
 // the tail in the first cell. The count is one byte, and a list longer than it drops from
 // the head so the newest entries stay.
-func skinRecentList(skins []storage.AccountSkin, entries map[uint32]catalog.SkinStorageEntry,
+func skinRecentList(skins []database.AccountSkin, entries map[uint32]catalog.SkinStorageEntry,
 	weapons []uint32) ([]byte, error) {
-	ordered := make([]storage.AccountSkin, len(skins))
+	ordered := make([]database.AccountSkin, len(skins))
 	copy(ordered, skins)
 	sort.SliceStable(ordered, func(i, j int) bool {
 		if !ordered[i].UnlockedAt.Equal(ordered[j].UnlockedAt) {
@@ -406,7 +406,7 @@ func skinRecentList(skins []storage.AccountSkin, entries map[uint32]catalog.Skin
 // skins plus that character's replicated weapon shapes, which is every id the window can
 // call recently acquired. `usable` narrows the weapon ids to the shapes this job can wear,
 // for the same reason the page frame does — see weaponSkinPageIDs.
-func skinRecentPayload(skins []storage.AccountSkin, entries map[uint32]catalog.SkinStorageEntry,
+func skinRecentPayload(skins []database.AccountSkin, entries map[uint32]catalog.SkinStorageEntry,
 	state json.RawMessage, usable func(uint32) bool) ([]byte, error) {
 	bag, e := inventory.ReadBag(state)
 	if e != nil {
@@ -418,7 +418,7 @@ func skinRecentPayload(skins []storage.AccountSkin, entries map[uint32]catalog.S
 // skinRecentRestore reads the account's registrations and encodes the entry push. A
 // storage read failure leaves the frame unset, which is the pre-fix state: the town must
 // not depend on the skin storage the way the character save does.
-func skinRecentRestore(ctx context.Context, store *storage.Store, account int64,
+func skinRecentRestore(ctx context.Context, store *database.Store, account int64,
 	state json.RawMessage, entries map[uint32]catalog.SkinStorageEntry,
 	usable func(uint32) bool) ([]byte, error) {
 	if store == nil {

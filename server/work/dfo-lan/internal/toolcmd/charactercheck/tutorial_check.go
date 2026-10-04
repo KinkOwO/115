@@ -3,11 +3,11 @@ package charactercheck
 import (
 	"bytes"
 	"context"
-	"dfolan/internal/storage"
+	"dfolan/internal/database"
 	"fmt"
 )
 
-func tutorialCheck(ctx context.Context, s, reopened *storage.Store, role storage.Character, other int64) error {
+func tutorialCheck(ctx context.Context, s *database.TestFixture, reopened *database.Store, role database.Character, other int64) error {
 	if e := s.MigrateTutorial(ctx); e != nil {
 		return e
 	}

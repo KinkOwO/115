@@ -4,12 +4,12 @@ import (
 	"context"
 	"dfolan/internal/catalog"
 	"dfolan/internal/character"
-	"dfolan/internal/storage"
+	"dfolan/internal/database"
 	"encoding/json"
 	"fmt"
 )
 
-func deleteCheck(ctx context.Context, s, reopened *storage.Store, other int64, c catalog.Characters) error {
+func deleteCheck(ctx context.Context, s *database.TestFixture, reopened *database.Store, other int64, c catalog.Characters) error {
 	account, e := s.DevelopmentAccount(ctx, "temporary-delete")
 	if e != nil {
 		return e
@@ -45,7 +45,7 @@ func deleteCheck(ctx context.Context, s, reopened *storage.Store, other int64, c
 	}
 	var archived bool
 	var state json.RawMessage
-	if e = s.DB.QueryRow(ctx, `SELECT deleted_at IS NOT NULL,state FROM characters WHERE id=$1`, a.ID).Scan(&archived, &state); e != nil || !archived || string(state) == "" {
+	if archived, state, e = s.ArchivedCharacter(ctx, a.ID); e != nil || !archived || string(state) == "" {
 		return fmt.Errorf("delete lost retained data: %v", e)
 	}
 	next, e := cs.Create(ctx, account, request("DeleteNew"))

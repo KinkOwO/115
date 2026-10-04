@@ -4,9 +4,9 @@ import (
 	"context"
 	"dfolan/internal/adventure"
 	"dfolan/internal/cashshop"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 )
@@ -16,13 +16,13 @@ func resolveItemContract(template uint32) (inventory.PremiumActivation, bool) {
 	return inventory.PremiumActivation{Type: contract.Type, DurationSecond: contract.DurationSecond}, ok
 }
 
-func itemPremiumActivations(values []inventory.PremiumActivation) []storage.CashPremiumActivation {
+func itemPremiumActivations(values []inventory.PremiumActivation) []database.CashPremiumActivation {
 	if values == nil {
 		return nil
 	}
-	out := make([]storage.CashPremiumActivation, len(values))
+	out := make([]database.CashPremiumActivation, len(values))
 	for i, v := range values {
-		out[i] = storage.CashPremiumActivation{Type: v.Type, DurationSecond: v.DurationSecond}
+		out[i] = database.CashPremiumActivation{Type: v.Type, DurationSecond: v.DurationSecond}
 	}
 	return out
 }
@@ -35,9 +35,9 @@ func itemPremiumActivations(values []inventory.PremiumActivation) []storage.Cash
 //
 // The recovery effect is the client's own: the native success acknowledgement
 // carries no restored amount, so nothing is invented here.
-func (s *ItemService) Consume(ctx context.Context, role storage.Character, r protocol.UseStackableRequest) (storage.Character, inventory.ConsumeReceipt, bool, error) {
+func (s *ItemService) Consume(ctx context.Context, role database.Character, r protocol.UseStackableRequest) (database.Character, inventory.ConsumeReceipt, bool, error) {
 	var out inventory.ConsumeReceipt
-	fail := func(e error) (storage.Character, inventory.ConsumeReceipt, bool, error) {
+	fail := func(e error) (database.Character, inventory.ConsumeReceipt, bool, error) {
 		return role, out, false, e
 	}
 	key, e := s.Items.ConsumeKey(InventoryRole(role), r)
@@ -51,7 +51,7 @@ func (s *ItemService) Consume(ctx context.Context, role storage.Character, r pro
 	_, seasonCapsule := seasonRules.Capsules[r.Template]
 	saved, applied, e := s.Store.CommitCharacterPremiumEvent(ctx, role.AccountID, role.ID,
 		s.Items.Catalog.Source.SaveIdentity(), key, s.Items.Model,
-		func(current storage.Character) (json.RawMessage, json.RawMessage, []storage.CashPremiumActivation, error) {
+		func(current database.Character) (json.RawMessage, json.RawMessage, []database.CashPremiumActivation, error) {
 			state, receipt, premiums, err := s.Items.PrepareConsume(InventoryRole(current), r, seasonCapsule, adventure.ApplySeasonCapsule, resolveItemContract)
 			return state, receipt, itemPremiumActivations(premiums), err
 		})
@@ -76,9 +76,9 @@ func (s *ItemService) Consume(ctx context.Context, role storage.Character, r pro
 // OpenBoxes settles one radiant box request: it spends the material and hands out
 // every rolled prize inside the same character transaction, so a retried request
 // cannot spend a second stack or advance pity twice.
-func (s *ItemService) OpenBoxes(ctx context.Context, role storage.Character, box, count uint32) (storage.Character, inventory.BoxOpenReceipt, bool, error) {
+func (s *ItemService) OpenBoxes(ctx context.Context, role database.Character, box, count uint32) (database.Character, inventory.BoxOpenReceipt, bool, error) {
 	var out inventory.BoxOpenReceipt
-	fail := func(e error) (storage.Character, inventory.BoxOpenReceipt, bool, error) {
+	fail := func(e error) (database.Character, inventory.BoxOpenReceipt, bool, error) {
 		return role, out, false, e
 	}
 	plan, e := s.Items.PlanBoxOpen(InventoryRole(role), box, count)
@@ -88,7 +88,7 @@ func (s *ItemService) OpenBoxes(ctx context.Context, role storage.Character, box
 	key := fmt.Sprintf("boxopen:%d:%d:%d", box, count, plan.Opens)
 	saved, applied, e := s.Store.CommitCharacterPremiumEvent(ctx, role.AccountID, role.ID,
 		s.Items.Catalog.Source.SaveIdentity(), key, s.Items.Model,
-		func(current storage.Character) (json.RawMessage, json.RawMessage, []storage.CashPremiumActivation, error) {
+		func(current database.Character) (json.RawMessage, json.RawMessage, []database.CashPremiumActivation, error) {
 			state, receipt, premiums, err := s.Items.PrepareBoxOpen(InventoryRole(current), box, count, plan, resolveItemContract)
 			return state, receipt, itemPremiumActivations(premiums), err
 		})
@@ -110,13 +110,13 @@ func (s *ItemService) OpenBoxes(ctx context.Context, role storage.Character, box
 }
 
 // RepairBoxRewards 在登录背包还原前修复遗留奖励，重复登录不重复续期。
-func (s *ItemService) RepairBoxRewards(ctx context.Context, role storage.Character) (storage.Character, bool, error) {
+func (s *ItemService) RepairBoxRewards(ctx context.Context, role database.Character) (database.Character, bool, error) {
 	needed, err := s.Items.NeedsBoxRewardRepair(InventoryRole(role), resolveItemContract)
 	if err != nil || !needed {
 		return role, false, err
 	}
 	saved, applied, err := s.Store.CommitCharacterPremiumEvent(ctx, role.AccountID, role.ID, s.Items.Catalog.Source.SaveIdentity(), "box-reward-repair-v1", s.Items.Model,
-		func(current storage.Character) (json.RawMessage, json.RawMessage, []storage.CashPremiumActivation, error) {
+		func(current database.Character) (json.RawMessage, json.RawMessage, []database.CashPremiumActivation, error) {
 			state, receipt, premiums, err := s.Items.PrepareBoxRewardRepair(InventoryRole(current), resolveItemContract)
 			return state, receipt, itemPremiumActivations(premiums), err
 		})

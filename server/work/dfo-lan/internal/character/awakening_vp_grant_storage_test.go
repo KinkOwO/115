@@ -5,39 +5,27 @@ import (
 	"dfolan/internal/catalog"
 	. "dfolan/internal/character"
 
-	"dfolan/internal/storage"
+	"dfolan/internal/database"
 	"encoding/json"
-	"fmt"
 	"os"
 	"testing"
-	"time"
 )
 
 func TestReconcileTechniquePointsBackfillsLegacyThirdAwakening(t *testing.T) {
-	if os.Getenv("CASH_INTEGRATION") != "1" {
+	if os.Getenv("DFO_TEST_POSTGRES_DSN") == "" {
 		t.Skip("isolated schema integration")
 	}
 	ctx := context.Background()
-	cfg, e := storage.LoadConfig("../../runtime/storage/local.json")
+	fixture, e := database.OpenTestFixture(ctx)
 	if e != nil {
 		t.Fatal(e)
 	}
-	admin, e := storage.Open(ctx, cfg)
-	if e != nil {
-		t.Fatal(e)
-	}
-	defer admin.Close()
-	schema := fmt.Sprintf("reconcile_tp_%d", time.Now().UnixNano())
-	if _, e = admin.DB.Exec(ctx, "CREATE SCHEMA "+schema); e != nil {
-		t.Fatal(e)
-	}
-	defer admin.DB.Exec(ctx, "DROP SCHEMA "+schema+" CASCADE")
-	cfg.PostgresSchema = schema
-	store, e := storage.Open(ctx, cfg)
-	if e != nil {
-		t.Fatal(e)
-	}
-	defer store.Close()
+	defer func() {
+		if err := fixture.Close(); err != nil {
+			t.Error(err)
+		}
+	}()
+	store := fixture.Storage()
 	if e = store.Migrate(ctx); e != nil {
 		t.Fatal(e)
 	}

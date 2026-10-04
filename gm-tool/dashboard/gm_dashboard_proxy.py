@@ -14,7 +14,6 @@ import json as _json
 import os
 import re
 import socket
-import subprocess
 import sys
 import threading
 import urllib.error
@@ -63,72 +62,6 @@ EQ_CATEGORY = {
 }
 UNKNOWN_CAT = ("物品栏", "装备")
 
-# ============ 邮件系统 / 仓库发放（代理直连数据库，psql 子进程） ============
-PG = None          # dict: host/port/user/password/db
-PSQL = r"D:\115us\tools\pg\pgsql\bin\psql.exe"
-STORAGE_JSON = r"D:\115us\server\work\dfo-lan\runtime\storage\local.json"
-
-
-def load_pg_config():
-    """从 storage/local.json 读取 postgres_dsn 并解析连接信息。"""
-    global PG
-    try:
-        with open(STORAGE_JSON, "r", encoding="utf-8") as f:
-            cfg = _json.load(f)
-        dsn = cfg.get("postgres_dsn", "")
-        u = urllib.parse.urlparse(dsn)
-        PG = {
-            "host": u.hostname or "127.0.0.1",
-            "port": u.port or 5432,
-            "user": urllib.parse.unquote(u.username or ""),
-            "password": urllib.parse.unquote(u.password or ""),
-            "db": (u.path.lstrip("/") or "").split("?")[0],
-        }
-        print("数据库配置已加载：%s:%s/%s" % (PG["host"], PG["port"], PG["db"]))
-    except Exception as exc:
-        print("加载数据库配置失败：", exc)
-
-
-def psql(sql, timeout=30):
-    """执行一条 psql 查询（SQL 走 stdin，UTF-8 编码，避免 Windows 参数编码损坏中文）。"""
-    if not PG:
-        raise RuntimeError("数据库配置未加载")
-    env = dict(os.environ)
-    env["PGPASSWORD"] = PG["password"]
-    env["PGCLIENTENCODING"] = "UTF8"
-    cmd = [PSQL, "-h", PG["host"], "-p", str(PG["port"]), "-U", PG["user"],
-           "-d", PG["db"], "-t", "-A"]
-    r = subprocess.run(cmd, input=sql, capture_output=True, text=True,
-                       encoding="utf-8", errors="replace", env=env, timeout=timeout)
-    if r.returncode != 0:
-        raise RuntimeError("psql: " + (r.stderr or "").strip()[:400])
-    return r.stdout.strip()
-
-
-def esc_sql(s):
-    """SQL 字符串转义（单引号翻倍）。"""
-    return str(s).replace("'", "''")
-
-
-def ensure_mail_table():
-    try:
-        psql("CREATE TABLE IF NOT EXISTS gm_mail ("
-             "id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,"
-             "to_account_id bigint NOT NULL, to_character_id bigint NOT NULL DEFAULT 0,"
-             "template bigint NOT NULL CHECK (template > 0),"
-             "amount bigint NOT NULL CHECK (amount > 0 AND amount <= 4294967295),"
-             "title text NOT NULL DEFAULT '', body text NOT NULL DEFAULT '',"
-             "status text NOT NULL DEFAULT 'unread', claimed_at timestamptz, expires_at timestamptz,"
-             "created_at timestamptz NOT NULL DEFAULT now(),"
-             "CONSTRAINT gm_mail_status_check CHECK (status IN ('unread','read','claimed','expired','revoked')))")
-        psql("CREATE INDEX IF NOT EXISTS gm_mail_to_account_idx ON gm_mail(to_account_id, status)")
-        psql("CREATE INDEX IF NOT EXISTS gm_mail_to_char_idx ON gm_mail(to_character_id, status)")
-        return True
-    except Exception as exc:
-        print("确保邮件表失败：", exc)
-        return False
-
-
 # ---- 物品发送限制规则（阶段 1：背包/仓库/邮箱可发判定） ----
 # 不可直发背包：不在服务端发放目录（grantable=False）
 # 不可发邮箱：虚拟类/仅效果类/合同类（无实体，邮箱无意义）
@@ -149,108 +82,6 @@ def item_restrictions(it):
         rules["vault"] = False
         rules["reasons"]["vault"] = "虚拟物品不可放入仓库"
     return rules
-
-
-def mail_send(payload):
-    acc = int(payload.get("to_account_id") or 0)
-    ch = int(payload.get("to_character_id") or 0)
-    tmpl = int(payload.get("template") or 0)
-    amt = int(payload.get("amount") or 0)
-    title = payload.get("title") or "GM 邮件"
-    body = payload.get("body") or ""
-    if acc <= 0 or tmpl <= 0 or amt <= 0:
-        raise RuntimeError("to_account_id/template/amount 必须为正数")
-    # 校验收件账号存在
-    exists = psql("SELECT 1 FROM accounts WHERE id=%d" % acc)
-    if not exists:
-        raise RuntimeError("收件账号 %d 不存在" % acc)
-    if ch > 0:
-        exists_c = psql("SELECT 1 FROM characters WHERE id=%d AND account_id=%d" % (ch, acc))
-        if not exists_c:
-            raise RuntimeError("收件角色 %d 不存在或不属于账号 %d" % (ch, acc))
-    sql = ("INSERT INTO gm_mail(to_account_id,to_character_id,template,amount,title,body) "
-           "VALUES (%d,%d,%d,%d,'%s','%s') RETURNING id"
-           % (acc, ch, tmpl, amt, esc_sql(title), esc_sql(body)))
-    rid = psql(sql)
-    lines = [ln.strip() for ln in rid.splitlines() if ln.strip()]
-    mail_id = int(lines[0]) if lines else 0
-    return {"mail_id": mail_id, "to_account_id": acc, "to_character_id": ch,
-            "template": tmpl, "amount": amt, "message": "邮件已发送（管理台邮件系统）"}
-
-
-def mail_list(payload):
-    acc = int(payload.get("account") or 0)
-    status = payload.get("status") or ""
-    where = []
-    if acc > 0:
-        where.append("to_account_id=%d" % acc)
-    if status:
-        where.append("status='%s'" % esc_sql(status))
-    sql = "SELECT id,to_account_id,to_character_id,template,amount,title,status,created_at FROM gm_mail"
-    if where:
-        sql += " WHERE " + " AND ".join(where)
-    sql += " ORDER BY id DESC LIMIT 200"
-    out = psql(sql)
-    rows = []
-    for line in out.splitlines():
-        if not line:
-            continue
-        parts = line.split("|")
-        if len(parts) < 8:
-            continue
-        rows.append({"id": int(parts[0]), "to_account_id": int(parts[1]),
-                     "to_character_id": int(parts[2]), "template": int(parts[3]),
-                     "amount": int(parts[4]), "title": parts[5], "status": parts[6],
-                     "created_at": parts[7]})
-    return {"count": len(rows), "mails": rows}
-
-
-def mail_revoke(payload):
-    mid = int(payload.get("id") or 0)
-    if mid <= 0:
-        raise RuntimeError("缺少邮件 id")
-    out = psql("UPDATE gm_mail SET status='revoked' WHERE id=%d AND status IN ('unread','read') RETURNING id" % mid)
-    if not out:
-        raise RuntimeError("邮件 %d 不存在或不可撤销" % mid)
-    return {"mail_id": mid, "message": "邮件已撤销"}
-
-
-def vault_send(payload):
-    """直写个人仓库 character_vaults（items 为 BagItem 数组：{slot,Template,Amount}）。"""
-    acc = int(payload.get("account") or 0)
-    ch = int(payload.get("character") or 0)
-    tmpl = int(payload.get("template") or 0)
-    amt = int(payload.get("amount") or 0)
-    if ch <= 0 or tmpl <= 0 or amt <= 0:
-        raise RuntimeError("account/character/template/amount 必须为正数")
-    # 读仓库
-    out = psql("SELECT slots, items FROM character_vaults WHERE character_id=%d" % ch)
-    if not out:
-        raise RuntimeError("角色 %d 没有个人仓库（未初始化）" % ch)
-    slots_s, items_raw = out.split("|", 1)
-    slots = int(slots_s)
-    items = _json.loads(items_raw) if items_raw.strip() else []
-    merged = False
-    for row in items:
-        if int(row.get("Template") or row.get("template") or 0) == tmpl:
-            row["Amount"] = int(row.get("Amount") or row.get("amount") or 0) + amt
-            merged = True
-            break
-    if not merged:
-        used = {int(r.get("slot") or 0) for r in items}
-        new_slot = None
-        for s in range(slots):
-            if s not in used:
-                new_slot = s
-                break
-        if new_slot is None:
-            raise RuntimeError("仓库已满（%d 格）" % slots)
-        items.append({"slot": new_slot, "Template": tmpl, "Amount": amt})
-    new_json = _json.dumps(items, ensure_ascii=False)
-    psql("UPDATE character_vaults SET items='%s'::jsonb, updated_at=now() WHERE character_id=%d"
-         % (esc_sql(new_json), ch))
-    return {"character_id": ch, "template": tmpl, "amount": amt,
-            "merged": merged, "slots": slots, "message": "已发放到个人仓库"}
 
 
 def load_catalog_metadata():
@@ -406,7 +237,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     # ---- API 代理 ----
-    def _proxy(self, method, _retried=False):
+    def _proxy(self, method, _retried=False, _body=None):
         if not TOKEN:
             fetch_token()
         parsed = urllib.parse.urlparse(self.path)
@@ -418,7 +249,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         headers = {}
         if method == "POST":
             length = int(self.headers.get("Content-Length", 0) or 0)
-            data = self.rfile.read(length) if length > 0 else None
+            data = _body if _retried else (self.rfile.read(length) if length > 0 else None)
             ct = self.headers.get("Content-Type", "")
             if ct:
                 headers["Content-Type"] = ct
@@ -459,7 +290,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if exc.code == 401 and not _retried:
                 if fetch_token():
                     print("token 已刷新，重试请求：", parsed.path)
-                    return self._proxy(method, _retried=True)
+                    return self._proxy(method, _retried=True, _body=data)
             body = exc.read()
             ct = exc.headers.get("Content-Type", "application/json; charset=utf-8")
             self.send_response(exc.code)
@@ -477,15 +308,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = urllib.parse.urlparse(self.path).path
-        if path == "/api/mail/list":
-            params = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
-            try:
-                payload = {k: (v[0] if v else "") for k, v in params.items()}
-                data = mail_list(payload)
-                self._json_ok(data)
-            except Exception as exc:
-                self._json_err(str(exc))
-        elif path.startswith("/api/"):
+        if path.startswith("/api/"):
             self._proxy("GET")
         elif path in ("/", "/index.html"):
             self._serve_page()
@@ -494,45 +317,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = urllib.parse.urlparse(self.path).path
-        if path in ("/api/mail/send", "/api/vault/send", "/api/mail/revoke"):
-            length = int(self.headers.get("Content-Length", 0) or 0)
-            raw = self.rfile.read(length) if length > 0 else b"{}"
-            try:
-                payload = _json.loads(raw.decode("utf-8"))
-            except Exception:
-                self._json_err("请求体不是合法 JSON")
-                return
-            try:
-                if path == "/api/mail/send":
-                    self._json_ok(mail_send(payload))
-                elif path == "/api/vault/send":
-                    self._json_ok(vault_send(payload))
-                else:
-                    self._json_ok(mail_revoke(payload))
-            except Exception as exc:
-                self._json_err(str(exc))
-        elif path.startswith("/api/"):
+        if path.startswith("/api/"):
             self._proxy("POST")
         else:
             self.send_error(404)
-
-    def _json_ok(self, data):
-        body = _json.dumps({"ok": True, **data}, ensure_ascii=False).encode("utf-8")
-        self.send_response(200)
-        self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Content-Length", str(len(body)))
-        self.send_header("Cache-Control", "no-store")
-        self.end_headers()
-        self.wfile.write(body)
-
-    def _json_err(self, msg):
-        body = _json.dumps({"ok": False, "error": msg}, ensure_ascii=False).encode("utf-8")
-        self.send_response(400)
-        self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
-
 
 def port_open(port):
     try:
@@ -558,8 +346,6 @@ def main():
         sys.exit(3)
     load_stackable_ids()
     load_category_maps()
-    load_pg_config()
-    ensure_mail_table()
 
     try:
         srv = http.server.ThreadingHTTPServer(("127.0.0.1", PORT), Handler)

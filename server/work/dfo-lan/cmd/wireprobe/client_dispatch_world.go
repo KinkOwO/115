@@ -2,10 +2,10 @@ package main
 
 import (
 	"context"
+	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/legion"
-	"dfolan/internal/storage"
 	"dfolan/internal/workflow"
 	"encoding/hex"
 	"fmt"
@@ -883,7 +883,7 @@ func (client *gameConnection) dispatchWorldAndQuests(requestData *clientRequest)
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		var response []byte
 		if requestData.frame.ID == 31 {
-			var state storage.QuestState
+			var state database.QuestState
 			state, e = client.questService.Accept(ctx, client.worldState.role, qid)
 			response = protocol.QuestAccepted(qid, state.Progress)
 		} else {

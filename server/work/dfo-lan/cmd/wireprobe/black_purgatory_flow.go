@@ -2,9 +2,9 @@ package main
 
 import (
 	"context"
+	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"fmt"
 	"time"
 )
@@ -23,9 +23,9 @@ type blackPurgatoryState struct {
 	quotaDay      time.Time
 }
 
-func (w *worldSession) blackPurgatoryQuota(ctx context.Context, run, action string, now time.Time) (storage.BlackPurgatoryQuota, time.Time, error) {
+func (w *worldSession) blackPurgatoryQuota(ctx context.Context, run, action string, now time.Time) (database.BlackPurgatoryQuota, time.Time, error) {
 	if w.characters == nil || w.store == nil || w.fatigue == nil || w.fatigue.Location == nil {
-		return storage.BlackPurgatoryQuota{}, time.Time{}, fmt.Errorf("黑鸦次数存储或重置时间配置不可用")
+		return database.BlackPurgatoryQuota{}, time.Time{}, fmt.Errorf("黑鸦次数存储或重置时间配置不可用")
 	}
 	local := now.In(w.fatigue.Location)
 	if local.Hour() < w.fatigue.Rules.ResetHour {
@@ -286,6 +286,6 @@ func (w *worldSession) blackPurgatoryTimeout(now time.Time) ([]outboundPacket, e
 }
 
 // 黑鸦位置仅在连接内使用，不写入玩家普通频道城镇落点。
-func blackPurgatoryEntry() storage.WorldPosition {
-	return storage.WorldPosition{Town: 85, Area: 0, X: 565, Y: 234}
+func blackPurgatoryEntry() database.WorldPosition {
+	return database.WorldPosition{Town: 85, Area: 0, X: 565, Y: 234}
 }

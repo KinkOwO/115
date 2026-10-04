@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"context"
 	"dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/game/wire"
-	"dfolan/internal/storage"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
@@ -573,7 +573,7 @@ func (client *gameConnection) dispatchRoster(requestData *clientRequest) dispatc
 		case 684:
 			payload, err = client.characters.CheckName(ctx, requestData.plaintext)
 		case 5:
-			var role storage.Character
+			var role database.Character
 			role, err = client.characters.Create(ctx, client.developmentAccount, requestData.plaintext)
 			if err == nil {
 				var slot uint16

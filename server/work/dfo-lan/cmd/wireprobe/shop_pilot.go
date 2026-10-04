@@ -5,10 +5,10 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"dfolan/internal/cashshop"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/game/wire"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"dfolan/internal/workflow"
 	"encoding/binary"
 	"encoding/json"
@@ -37,10 +37,10 @@ type preparedBagLedger struct {
 
 // PurchaseCashMixed activates the cart's contract lines and delivers the rest
 // inside the same order; the packets mirror the ordinary purchase response.
-func (l preparedBagLedger) PurchaseCashMixed(ctx context.Context, o storage.CashOrder, deliver func(json.RawMessage) (json.RawMessage, error), premiums map[int]storage.CashPremiumActivation) (storage.CashReceipt, bool, error) {
+func (l preparedBagLedger) PurchaseCashMixed(ctx context.Context, o database.CashOrder, deliver func(json.RawMessage) (json.RawMessage, error), premiums map[int]database.CashPremiumActivation) (database.CashReceipt, bool, error) {
 	ledger, ok := l.ledger.(cashshop.ContractCartLedger)
 	if !ok {
-		return storage.CashReceipt{}, false, fmt.Errorf("contract cart ledger missing")
+		return database.CashReceipt{}, false, fmt.Errorf("contract cart ledger missing")
 	}
 	receipt, applied, err := ledger.PurchaseCashMixed(ctx, o, func(raw json.RawMessage) (json.RawMessage, error) {
 		state, e := deliver(raw)
@@ -50,15 +50,15 @@ func (l preparedBagLedger) PurchaseCashMixed(ctx context.Context, o storage.Cash
 		// The stored receipt projects every order line (contract lines carry
 		// no inventory row but still receive their per-line ACK), so the
 		// encode check mirrors that without filtering.
-		lines := make([]storage.CashDelivery, 0, len(o.Lines))
+		lines := make([]database.CashDelivery, 0, len(o.Lines))
 		for _, line := range o.Lines {
-			lines = append(lines, storage.CashDelivery{Product: line.Product, Template: line.Template, Amount: line.Quantity * line.Units, Quantity: line.Quantity})
+			lines = append(lines, database.CashDelivery{Product: line.Product, Template: line.Template, Amount: line.Quantity * line.Units, Quantity: line.Quantity})
 		}
 		goldCost, e := o.GoldTotal()
 		if e != nil {
 			return nil, e
 		}
-		packets, e := shopPilotSpaces(l.pilot, storage.CashReceipt{CharacterState: state, GoldCharged: goldCost, Deliveries: lines, Premiums: receiptPremiumsFor(premiums)}, 0, true)
+		packets, e := shopPilotSpaces(l.pilot, database.CashReceipt{CharacterState: state, GoldCharged: goldCost, Deliveries: lines, Premiums: receiptPremiumsFor(premiums)}, 0, true)
 		if e != nil {
 			return nil, e
 		}
@@ -75,32 +75,32 @@ func (l preparedBagLedger) PurchaseCashMixed(ctx context.Context, o storage.Cash
 
 // receiptPremiumsFor projects the activations for the encode-time packet
 // check; the authoritative times come from the stored receipt.
-func receiptPremiumsFor(premiums map[int]storage.CashPremiumActivation) []storage.CashPremium {
+func receiptPremiumsFor(premiums map[int]database.CashPremiumActivation) []database.CashPremium {
 	if len(premiums) == 0 {
 		return nil
 	}
-	out := make([]storage.CashPremium, 0, len(premiums))
+	out := make([]database.CashPremium, 0, len(premiums))
 	for _, act := range premiums {
-		out = append(out, storage.CashPremium{Type: act.Type})
+		out = append(out, database.CashPremium{Type: act.Type})
 	}
 	return out
 }
 
-func (l preparedBagLedger) PurchaseCashToBag(ctx context.Context, o storage.CashOrder, deliver func(json.RawMessage) (json.RawMessage, error)) (storage.CashReceipt, bool, error) {
+func (l preparedBagLedger) PurchaseCashToBag(ctx context.Context, o database.CashOrder, deliver func(json.RawMessage) (json.RawMessage, error)) (database.CashReceipt, bool, error) {
 	return l.ledger.PurchaseCashToBag(ctx, o, func(raw json.RawMessage) (json.RawMessage, error) {
 		state, e := deliver(raw)
 		if e != nil {
 			return nil, e
 		}
-		lines := []storage.CashDelivery{}
+		lines := []database.CashDelivery{}
 		for _, line := range o.Lines {
-			lines = append(lines, storage.CashDelivery{Product: line.Product, Template: line.Template, Amount: line.Quantity * line.Units, Quantity: line.Quantity})
+			lines = append(lines, database.CashDelivery{Product: line.Product, Template: line.Template, Amount: line.Quantity * line.Units, Quantity: line.Quantity})
 		}
 		goldCost, e := o.GoldTotal()
 		if e != nil {
 			return nil, e
 		}
-		packets, e := shopPilotSpaces(l.pilot, storage.CashReceipt{CharacterState: state, GoldCharged: goldCost, Deliveries: lines}, 0, true)
+		packets, e := shopPilotSpaces(l.pilot, database.CashReceipt{CharacterState: state, GoldCharged: goldCost, Deliveries: lines}, 0, true)
 		if e != nil {
 			return nil, e
 		}
@@ -124,8 +124,8 @@ func newShopPilotSession() (*shopPilotSession, error) {
 
 // A byte-identical retransmission in the same session uses the original key;
 // a new frame is a new purchase, including another copy of the same SKU.
-func (s *shopPilotSession) purchase(ctx context.Context, p *cashshop.Pilot, store cashshop.BagLedger, account, character int64, plain, frame []byte) (storage.CashReceipt, bool, error) {
-	var r storage.CashReceipt
+func (s *shopPilotSession) purchase(ctx context.Context, p *cashshop.Pilot, store cashshop.BagLedger, account, character int64, plain, frame []byte) (database.CashReceipt, bool, error) {
+	var r database.CashReceipt
 	if s == nil || len(frame) < 13 || character <= 0 {
 		return r, false, fmt.Errorf("missing selected purchase session")
 	}
@@ -166,7 +166,7 @@ func (s *shopPilotSession) purchase(ctx context.Context, p *cashshop.Pilot, stor
 			if !ok {
 				return r, false, fmt.Errorf("vault purchase ledger missing")
 			}
-			return workflow.PurchaseCashVault(p, ctx, ledger, *s.vaultRules, account, character, key, cart, func(receipt storage.CashReceipt) error {
+			return workflow.PurchaseCashVault(p, ctx, ledger, *s.vaultRules, account, character, key, cart, func(receipt database.CashReceipt) error {
 				packets, err := shopPilotPackets(receipt, 0, true)
 				if err != nil {
 					return err
@@ -184,7 +184,7 @@ func (s *shopPilotSession) purchase(ctx context.Context, p *cashshop.Pilot, stor
 	return r, applied, e
 }
 
-func shopPilotPackets(receipt storage.CashReceipt, balance uint64, applied bool) ([]outboundPacket, error) {
+func shopPilotPackets(receipt database.CashReceipt, balance uint64, applied bool) ([]outboundPacket, error) {
 	return shopPilotSpaces(nil, receipt, balance, applied)
 }
 
@@ -192,7 +192,7 @@ func shopPilotPackets(receipt storage.CashReceipt, balance uint64, applied bool)
 // special equipment spaces the delivery touched so the avatar wardrobe and
 // creature tab refresh alongside the ordinary bag. Without a pilot the
 // legacy pet-egg SKU fallback still refreshes creatures.
-func shopPilotSpaces(p *cashshop.Pilot, receipt storage.CashReceipt, balance uint64, applied bool) ([]outboundPacket, error) {
+func shopPilotSpaces(p *cashshop.Pilot, receipt database.CashReceipt, balance uint64, applied bool) ([]outboundPacket, error) {
 	avatarTouched, creatureTouched := p.DeliverySpaces(receipt)
 	var update outboundPacket
 	var vaultUpgrade *outboundPacket

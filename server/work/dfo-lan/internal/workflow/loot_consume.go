@@ -3,9 +3,9 @@ package workflow
 import (
 	"context"
 	"dfolan/internal/adventure"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/loot"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 )
@@ -18,9 +18,9 @@ import (
 //
 // The recovery effect is the client's own: the native success acknowledgement
 // carries no restored amount, so nothing is invented here.
-func (s *LootService) Consume(ctx context.Context, role storage.Character, r protocol.UseStackableRequest) (storage.Character, loot.ConsumeReceipt, bool, error) {
+func (s *LootService) Consume(ctx context.Context, role database.Character, r protocol.UseStackableRequest) (database.Character, loot.ConsumeReceipt, bool, error) {
 	var out loot.ConsumeReceipt
-	fail := func(e error) (storage.Character, loot.ConsumeReceipt, bool, error) {
+	fail := func(e error) (database.Character, loot.ConsumeReceipt, bool, error) {
 		return role, out, false, e
 	}
 	key, e := s.Loot.ConsumeKey(LootRole(role), r)
@@ -34,7 +34,7 @@ func (s *LootService) Consume(ctx context.Context, role storage.Character, r pro
 	_, seasonCapsule := seasonRules.Capsules[r.Template]
 	saved, applied, e := s.Store.CommitCharacterPremiumEvent(ctx, role.AccountID, role.ID,
 		s.Loot.Catalog.Source.SaveIdentity(), key, s.Loot.Rules.Model,
-		func(current storage.Character) (json.RawMessage, json.RawMessage, []storage.CashPremiumActivation, error) {
+		func(current database.Character) (json.RawMessage, json.RawMessage, []database.CashPremiumActivation, error) {
 			state, receipt, premiums, err := s.Loot.PrepareConsume(LootRole(current), r, seasonCapsule, adventure.ApplySeasonCapsule, resolveLootContract)
 			return state, receipt, lootPremiumActivations(premiums), err
 		})

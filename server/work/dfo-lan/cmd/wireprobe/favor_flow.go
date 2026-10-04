@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 	"math/rand"
@@ -65,14 +65,14 @@ func (w *worldSession) giveFavor(p []byte) ([]outboundPacket, error) {
 	if favorNoDailyLimit {
 		dailyLimit = 99999999
 	}
-	saved, fs, rawMaterials, e := w.store.GiveFavor(ctx, w.account, w.role.ID, w.role.ConfigVersion, req.NPCID, storage.FavorGift{
+	saved, fs, rawMaterials, e := w.store.GiveFavor(ctx, w.account, w.role.ID, w.role.ConfigVersion, req.NPCID, database.FavorGift{
 		Day:      time.Now().Format("2006-01-02"),
 		Limit:    dailyLimit,
 		Levels:   rules.Levels,
 		MaxPoint: rules.MaxPoint(),
 		Delta:    delta,
 		Now:      time.Now(),
-	}, func(current storage.Character, raw json.RawMessage) (json.RawMessage, json.RawMessage, error) {
+	}, func(current database.Character, raw json.RawMessage) (json.RawMessage, json.RawMessage, error) {
 		materials, e := inventory.ReadAccountMaterials(raw)
 		if e != nil {
 			return nil, nil, e

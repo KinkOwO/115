@@ -5,9 +5,9 @@ import (
 	"crypto/sha256"
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"encoding/hex"
 	"encoding/json"
 	"os"
@@ -66,7 +66,7 @@ func TestBuffEnhancementDungeonAndTownActorReconstruction(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	w := &worldSession{account: 1, role: storage.Character{ID: 8, AccountID: 1, WireID: 8, Profession: 11, ConfigVersion: "fixture", State: raw}, activeDungeon: &dungeon.Session{}, state: storage.WorldState{Position: storage.WorldPosition{Town: 38, Area: 2, X: 150, Y: 249}}, characters: &character.Service{Equipment: catalog, WearRules: inventory.WearRules{Slots: map[string]uint16{"[title name]": 13}}}}
+	w := &worldSession{account: 1, role: database.Character{ID: 8, AccountID: 1, WireID: 8, Profession: 11, ConfigVersion: "fixture", State: raw}, activeDungeon: &dungeon.Session{}, state: database.WorldState{Position: database.WorldPosition{Town: 38, Area: 2, X: 150, Y: 249}}, characters: &character.Service{Equipment: catalog, WearRules: inventory.WearRules{Slots: map[string]uint16{"[title name]": 13}}}}
 	before := append([]byte(nil), w.role.State...)
 	// Each new map/actor needs another binding; returning to town needs its
 	// own replay after the actor and all live item updates, including death.

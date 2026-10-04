@@ -1,18 +1,18 @@
 package main
 
 import (
-	"encoding/hex"
 	"context"
 	"crypto/rand"
 	"dfolan/internal/catalog"
 	"dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
-	"dfolan/internal/storage"
 	"dfolan/internal/workflow"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -127,12 +127,12 @@ func (w *worldSession) isTownArrivalOriginSync(id uint16, p []byte) bool {
 		r.PreviousTown == pos.Town && uint32(r.PreviousArea) == pos.Area && r.Flag == 0 && r.TailFlags == [2]byte{}
 }
 
-func towerPolicy(t *catalog.TowerRuntime) storage.TowerPolicy {
-	return storage.TowerPolicy{Key: t.Key, TopFloor: t.TopFloor, DailyEntries: t.DailyEntries, ResetHourUTC: t.ResetHourUTC}
+func towerPolicy(t *catalog.TowerRuntime) database.TowerPolicy {
+	return database.TowerPolicy{Key: t.Key, TopFloor: t.TopFloor, DailyEntries: t.DailyEntries, ResetHourUTC: t.ResetHourUTC}
 }
 
-func (w *worldSession) towerProgress(ctx context.Context, tower *catalog.TowerRuntime) (storage.TowerProgress, []uint32, error) {
-	var empty storage.TowerProgress
+func (w *worldSession) towerProgress(ctx context.Context, tower *catalog.TowerRuntime) (database.TowerProgress, []uint32, error) {
+	var empty database.TowerProgress
 	if w == nil || tower == nil || w.dungeons == nil || w.characters == nil || w.store == nil {
 		return empty, nil, fmt.Errorf("tower progress unavailable")
 	}
@@ -260,7 +260,7 @@ func (w *worldSession) prepareDungeonEntry(r protocol.DungeonSelection) (*dungeo
 			return nil, nil, err
 		}
 		if fp.Used >= fp.Limit {
-			return nil, nil, storage.ErrFatigueExhausted
+			return nil, nil, database.ErrFatigueExhausted
 		}
 	}
 	plan, e := w.dungeonEntryPlan(context.Background(), "dungeon_select_ack", 16, r, s)
@@ -392,12 +392,12 @@ func (w *worldSession) dungeonEntryPlanImpl(ctx context.Context, ackName string,
 	}
 	return plan, nil
 }
+
 // dungeonEntryPlan 是 dungeonEntryPlanImpl 的普通进图入口（客户端自己发起：
 // 点门 → C16，身份上下文客户端本地就有，channelCtx 传 nil）。
 func (w *worldSession) dungeonEntryPlan(ctx context.Context, ackName string, ackID uint16, sel protocol.DungeonSelection, s *dungeon.Session) ([]outboundPacket, error) {
 	return w.dungeonEntryPlanImpl(ctx, ackName, ackID, sel, s, nil)
 }
-
 
 // directMoveDungeon handles CMD 2062 (ENUM_CMDPACKET_DUNGEON_DIRECT_MOVE): the
 // "next story dungeon" gate the client offers beside "return to town" after a
@@ -453,7 +453,7 @@ func (w *worldSession) directMoveDungeon(p []byte) (*dungeon.Session, []outbound
 			return nil, nil, err
 		}
 		if fp.Used >= fp.Limit {
-			return nil, nil, storage.ErrFatigueExhausted
+			return nil, nil, database.ErrFatigueExhausted
 		}
 	}
 	// The direct-move body carries the dungeon id and difficulty only, so the
@@ -732,7 +732,7 @@ func (w *worldSession) elvenmereTeleport(p []byte) ([]outboundPacket, error) {
 				w.role.State = updated
 				if store := w.store; store != nil {
 					key := fmt.Sprintf("elvenmere-weekly:%s:%d", w.activeDungeon.RunID, clearedFloor)
-					_, _, _ = store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, "elvenmere-reward-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+					_, _, _ = store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, "elvenmere-reward-v1", func(current database.Character) (json.RawMessage, json.RawMessage, error) {
 						proof, _ := json.Marshal(map[string]any{"template": itemTemplate, "amount": itemCount, "floor": clearedFloor})
 						return updated, proof, nil
 					})
@@ -761,7 +761,7 @@ func (w *worldSession) elvenmereTeleport(p []byte) ([]outboundPacket, error) {
 				w.role.State = updated
 				if store := w.store; store != nil {
 					key := fmt.Sprintf("elvenmere-season:%s:%d", w.activeDungeon.RunID, clearedFloor)
-					_, _, _ = store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, "elvenmere-reward-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+					_, _, _ = store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, "elvenmere-reward-v1", func(current database.Character) (json.RawMessage, json.RawMessage, error) {
 						proof, _ := json.Marshal(map[string]any{"template": sTemplate, "amount": sCount, "floor": clearedFloor})
 						return updated, proof, nil
 					})
@@ -784,7 +784,7 @@ func (w *worldSession) elvenmereTeleport(p []byte) ([]outboundPacket, error) {
 			w.role = updatedRole
 			if store := w.store; store != nil {
 				key := fmt.Sprintf("elvenmere-exp:%s:%d", w.activeDungeon.RunID, clearedFloor)
-				_, _, _ = store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, "elvenmere-exp-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+				_, _, _ = store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, "elvenmere-exp-v1", func(current database.Character) (json.RawMessage, json.RawMessage, error) {
 					proof, _ := json.Marshal(map[string]any{"exp": expGain, "floor": clearedFloor})
 					return updatedRole.State, proof, nil
 				})
@@ -1057,7 +1057,7 @@ func (w *worldSession) monsterDeath(p []byte, event func(map[string]any)) ([]out
 				}
 				if store != nil {
 					ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-					if hasGrowth, _ := store.HasActivePremium(ctx, w.account, storage.PremiumGrowth, time.Now()); hasGrowth {
+					if hasGrowth, _ := store.HasActivePremium(ctx, w.account, database.PremiumGrowth, time.Now()); hasGrowth {
 						w.drops.QuestDropBonusPercent = 20
 					}
 					cancel()

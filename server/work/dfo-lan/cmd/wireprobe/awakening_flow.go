@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	"dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -45,7 +45,7 @@ func awakenCharacter(service *character.Service, w *worldSession, p, keys []byte
 	if err != nil {
 		return nil, err
 	}
-	planFor := func(role storage.Character) ([]preparedPacket, error) {
+	planFor := func(role database.Character) ([]preparedPacket, error) {
 		role.WireID = w.role.WireID
 		basic, e := service.EntryBasicProbe(role, [2]byte{})
 		if e != nil {
@@ -68,7 +68,7 @@ func awakenCharacter(service *character.Service, w *worldSession, p, keys []byte
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	saved, _, err := service.Store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, fmt.Sprintf("awakening-v1:%d", stage), "system-awakening-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+	saved, _, err := service.Store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, fmt.Sprintf("awakening-v1:%d", stage), "system-awakening-v1", func(current database.Character) (json.RawMessage, json.RawMessage, error) {
 		raw, e := service.ApplyAwakening(current, stage)
 		if e != nil {
 			return nil, nil, e

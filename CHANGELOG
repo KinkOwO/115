@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## 2026-10-04：数据库访问集中到 database 与 sqlc
+
+PostgreSQL 运行方式保持；将 pgx 连接、事务与持久化操作集中到 internal/database，SQL 与 sqlc 生成代码由该包统一管理。移除通用 db.Tx / db_adapter，业务代码使用既有领域接口和具体事务能力。GM 数据库操作移入 Go，测试与 charactercheck 使用显式指定的隔离 PostgreSQL fixture。
+
+38 份初始迁移合并为一个物理文件，保留原执行分段、账本编号和 SQL 校验和；已有存档与条件初始化、重复修复继续兼容。SQLite 迁移不在本轮范围，目录与类型边界为未来切换保留清晰修改范围。详见 server/work/dfo-lan/docs/database-sqlc-migration.md。
+
+验证：Go 1.26.5 全量测试（含独立 PostgreSQL 集成）、go vet、sqlc 生成一致性、真实 PVF charactercheck 与四个入口构建通过。仅构建临时候选，未访问玩家数据库、启动客户端或替换正式程序。confirmed baseline 仍为既有实机范围，本轮源码重构验证不增加玩法实机验收。
+
+
 ## 2026-10-03：39个无当前消费者的工具实际删除
 
 上一轮仅将59个工具统一到dfo-tool；本轮只读核对相邻启动器仓库4e3bb21（只构建wireprobe、调用Python编排，GM来自自身模块），结合本仓库当前脚本/源码调用，删除39个旧内容导出、固定会话/pilot探针与重复工具，42个Go文件/3187行；工具数59→20。实现和注册一起删除，不转存归档或保留命令别名。三个退休导出器的CLI/写文件测试同步退休，领域规则、原生reader、存档及历史测试输入保持。详细清单、替代取证方式和保留理由见docs/todo/server-tool-pruning-20261003.md。

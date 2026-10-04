@@ -2,14 +2,14 @@ package workflow
 
 import (
 	"context"
-	"dfolan/internal/storage"
+	"dfolan/internal/database"
 	"encoding/json"
 	"errors"
 	"testing"
 )
 
 type equipmentEventFake struct {
-	role                  storage.Character
+	role                  database.Character
 	receipt               json.RawMessage
 	replay                bool
 	commitErr, receiptErr error
@@ -17,15 +17,15 @@ type equipmentEventFake struct {
 }
 
 func (s *equipmentEventFake) CommitCharacterEvent(ctx context.Context, account, id int64, version, key, model string,
-	apply func(storage.Character) (json.RawMessage, json.RawMessage, error)) (storage.Character, bool, error) {
+	apply func(database.Character) (json.RawMessage, json.RawMessage, error)) (database.Character, bool, error) {
 	if s.commitErr != nil {
-		return storage.Character{}, false, s.commitErr
+		return database.Character{}, false, s.commitErr
 	}
 	if !s.replay {
 		s.applies++
 		state, receipt, err := apply(s.role)
 		if err != nil {
-			return storage.Character{}, false, err
+			return database.Character{}, false, err
 		}
 		s.role.State, s.receipt = state, receipt
 	}
@@ -37,9 +37,9 @@ func (s *equipmentEventFake) CharacterEventReceipt(context.Context, int64, int64
 }
 
 func TestEquipmentEventRestoresPersistedReceipt(t *testing.T) {
-	role := storage.Character{ID: 7, AccountID: 2, WireID: 19, State: json.RawMessage(`{"old":true}`)}
+	role := database.Character{ID: 7, AccountID: 2, WireID: 19, State: json.RawMessage(`{"old":true}`)}
 	store := &equipmentEventFake{role: role}
-	apply := func(current storage.Character) (json.RawMessage, []int, error) {
+	apply := func(current database.Character) (json.RawMessage, []int, error) {
 		if string(current.State) != string(role.State) {
 			t.Fatal("apply did not receive locked state")
 		}
@@ -52,7 +52,7 @@ func TestEquipmentEventRestoresPersistedReceipt(t *testing.T) {
 	store.replay = true
 	store.role.WireID = 0
 	saved, receipt, err = commitEquipmentEvent(context.Background(), store, role, "key", "model",
-		func(storage.Character) (json.RawMessage, []int, error) {
+		func(database.Character) (json.RawMessage, []int, error) {
 			t.Fatal("replay reran equipment rules")
 			return nil, nil, nil
 		})
@@ -63,7 +63,7 @@ func TestEquipmentEventRestoresPersistedReceipt(t *testing.T) {
 
 func TestEquipmentEventFailures(t *testing.T) {
 	failure := errors.New("failure")
-	role := storage.Character{ID: 7, WireID: 19, State: json.RawMessage(`{}`)}
+	role := database.Character{ID: 7, WireID: 19, State: json.RawMessage(`{}`)}
 	for _, phase := range []string{"commit", "apply", "marshal", "receipt", "decode"} {
 		t.Run(phase, func(t *testing.T) {
 			store := &equipmentEventFake{role: role}
@@ -75,7 +75,7 @@ func TestEquipmentEventFailures(t *testing.T) {
 			case "decode":
 				store.replay, store.receipt = true, json.RawMessage(`{`)
 			}
-			saved, _, err := commitEquipmentEvent(context.Background(), store, role, "key", "model", func(storage.Character) (json.RawMessage, any, error) {
+			saved, _, err := commitEquipmentEvent(context.Background(), store, role, "key", "model", func(database.Character) (json.RawMessage, any, error) {
 				if phase == "apply" {
 					return nil, nil, failure
 				}

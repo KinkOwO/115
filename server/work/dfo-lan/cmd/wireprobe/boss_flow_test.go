@@ -3,17 +3,17 @@ package main
 import (
 	"bytes"
 	"dfolan/internal/catalog"
+	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/game/wire"
-	"dfolan/internal/storage"
 	"encoding/binary"
 	"testing"
 )
 
 func TestBossCompletionPreflightAndReplay(t *testing.T) {
 	run := &dungeon.Session{Loaded: true, Room: catalog.DungeonRoom{Boss: true}, Monsters: []protocol.DungeonMonster{{Entity: 4096, Rank: 3}}, Dead: map[uint16]bool{}}
-	w := &worldSession{role: storage.Character{WireID: 3}, activeDungeon: run}
+	w := &worldSession{role: database.Character{WireID: 3}, activeDungeon: run}
 	p := make([]byte, 16)
 	binary.LittleEndian.PutUint16(p, 3)
 	binary.LittleEndian.PutUint16(p[2:], 4096)
@@ -124,7 +124,7 @@ func TestElvenmereTeleportFlow(t *testing.T) {
 func TestElvenmerePlayerDeathFailClear(t *testing.T) {
 	// 1. 普通副本角色死亡：下发 ACK 40 与 NOTI 32，不附带 NOTI 33
 	wOrdinary := &worldSession{
-		role: storage.Character{ID: 1, WireID: 3},
+		role: database.Character{ID: 1, WireID: 3},
 		activeDungeon: &dungeon.Session{
 			RunID:      "run-100",
 			Loaded:     true,
@@ -143,7 +143,7 @@ func TestElvenmerePlayerDeathFailClear(t *testing.T) {
 	// 2. Elvenmere 特殊爬塔副本（ID 100003126）角色死亡：
 	// 原生禁止复活币，单人死亡即代表通关失败，必须追加下发 NOTI 33 (FAIL_CLEAR_DUNGEON)
 	wElvenmere := &worldSession{
-		role: storage.Character{ID: 1, WireID: 3},
+		role: database.Character{ID: 1, WireID: 3},
 		activeDungeon: &dungeon.Session{
 			RunID:      "run-200",
 			Loaded:     true,

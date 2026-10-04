@@ -3,10 +3,10 @@ package main
 import (
 	"context"
 	"dfolan/internal/catalog"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/savecontract"
-	"dfolan/internal/storage"
 	"dfolan/internal/workflow"
 	"encoding/json"
 	"fmt"
@@ -41,7 +41,7 @@ type odysseyWeaponReceipt struct {
 
 const odysseyWeaponChoiceEvent = "odyssey-create-weapon-choice-10417789-v1"
 
-func applyOdysseyWeaponChoice(role storage.Character, wear *workflow.WearService, choices odysseyWeaponChoices, r protocol.WeaponBoxSelection) (json.RawMessage, json.RawMessage, error) {
+func applyOdysseyWeaponChoice(role database.Character, wear *workflow.WearService, choices odysseyWeaponChoices, r protocol.WeaponBoxSelection) (json.RawMessage, json.RawMessage, error) {
 	// 与 applyOdysseyArmor 同一口径：不写「X.Source.SaveIdentity() != savecontract.Identity()」
 	// 那种恒假子句（SaveIdentity() 是常量）。目录来源的 L3 校验要在别处比 `.Source.Checksum`。
 	if !isOdysseyRewardRole(role) || role.ConfigVersion != savecontract.Identity() || !choices.allows(r) || wear == nil || wear.Catalog == nil {
@@ -80,8 +80,8 @@ func applyOdysseyWeaponChoice(role storage.Character, wear *workflow.WearService
 	return raw, receipt, e
 }
 
-func selectOdysseyWeapon(ctx context.Context, store *storage.Store, wear *workflow.WearService, role storage.Character, choices odysseyWeaponChoices, r protocol.WeaponBoxSelection) (storage.Character, []outboundPacket, error) {
-	saved, applied, e := store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, odysseyWeaponChoiceEvent, "odyssey-weapon-selection-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+func selectOdysseyWeapon(ctx context.Context, store *database.Store, wear *workflow.WearService, role database.Character, choices odysseyWeaponChoices, r protocol.WeaponBoxSelection) (database.Character, []outboundPacket, error) {
+	saved, applied, e := store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, odysseyWeaponChoiceEvent, "odyssey-weapon-selection-v1", func(current database.Character) (json.RawMessage, json.RawMessage, error) {
 		return applyOdysseyWeaponChoice(current, wear, choices, r)
 	})
 	if e != nil {

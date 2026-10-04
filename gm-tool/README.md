@@ -1,5 +1,13 @@
 # DFO GM 工具（独立网页版）
 
+## 2026-10-04 数据库访问收口候选
+
+Dashboard 的管理台邮件列表/发送/撤销与个人仓库发放统一转发到 Go GM 后端的认证接口。Python 不再读取数据库配置、调用 psql 或写 SQL；对应查询由服务端 storage 内的 sqlc 生成方法执行。管理台 `gm_mail` 队列仍独立于游戏 `character_mail`，不将管理台发送视为游戏内投递或领取。
+
+仓库发放复用现有角色/主金库事务，校验账号归属，拒绝超出 uint32 的数量及合并溢出，保留未知物品 JSON 字段。新代理须与包含这些接口的 Go 候选配套使用；旧发布二进制没有这些接口，本轮尚未替换发布程序或进行实机验收。
+
+离线转发回归：`tools/python/python.exe -m unittest discover -s gm-tool/dashboard -p test_gm_dashboard_proxy.py`（在仓库根执行，不启动网页或数据库）。数据库集成统一使用显式 `DFO_TEST_POSTGRES_DSN` 和自动清理的隔离 schema。
+
 ## 2026-10-03 当前源码：PVF 唯一内容源
 
 GM/admin 源码和 Python 启动器默认使用原生 PVF，拒绝 JSON 内容源；物品分类、可发放集合与完整装备定义不再读取 `items.index.json` 或 `equipment-full.index.json/.data`。中文名称覆盖、背包策略和操作备份继续保留。代理必须取得后端 `/api/catalog-metadata`，接口错误直接报错。

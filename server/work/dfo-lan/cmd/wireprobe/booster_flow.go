@@ -5,10 +5,10 @@ import (
 	"crypto/sha256"
 	"dfolan/internal/cashshop"
 	"dfolan/internal/catalog"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
-	"dfolan/internal/storage"
 	"dfolan/internal/workflow"
 	"encoding/json"
 	"fmt"
@@ -148,13 +148,13 @@ func (s boosterBoxSource) Container(template uint32) bool {
 }
 
 type boosterEventStore interface {
-	CommitCharacterEvent(ctx context.Context, account, id int64, version, key, model string, apply func(storage.Character) (json.RawMessage, json.RawMessage, error)) (storage.Character, bool, error)
+	CommitCharacterEvent(ctx context.Context, account, id int64, version, key, model string, apply func(database.Character) (json.RawMessage, json.RawMessage, error)) (database.Character, bool, error)
 	CharacterEventReceipt(ctx context.Context, account, id int64, key string) (json.RawMessage, error)
 }
 
 // 礼包复用本地原子契约事务：扣物品、续期和回执同时提交，重试只读回执。
-func commitBoosterEvent(ctx context.Context, store boosterEventStore, role storage.Character, key, model string, apply func(storage.Character) (json.RawMessage, json.RawMessage, error)) (storage.Character, bool, error) {
-	decode := func(receipt json.RawMessage) ([]storage.CashPremiumActivation, error) {
+func commitBoosterEvent(ctx context.Context, store boosterEventStore, role database.Character, key, model string, apply func(database.Character) (json.RawMessage, json.RawMessage, error)) (database.Character, bool, error) {
+	decode := func(receipt json.RawMessage) ([]database.CashPremiumActivation, error) {
 		var outcome struct {
 			ActivatedPremiums []struct {
 				Type     uint8 `json:"type"`
@@ -164,16 +164,16 @@ func commitBoosterEvent(ctx context.Context, store boosterEventStore, role stora
 		if err := json.Unmarshal(receipt, &outcome); err != nil {
 			return nil, err
 		}
-		var rewards []storage.CashPremiumActivation
+		var rewards []database.CashPremiumActivation
 		for _, p := range outcome.ActivatedPremiums {
-			rewards = append(rewards, storage.CashPremiumActivation{Type: p.Type, DurationSecond: p.Duration})
+			rewards = append(rewards, database.CashPremiumActivation{Type: p.Type, DurationSecond: p.Duration})
 		}
 		return rewards, nil
 	}
 	if atomicStore, ok := store.(interface {
-		CommitCharacterPremiumEvent(context.Context, int64, int64, string, string, string, func(storage.Character) (json.RawMessage, json.RawMessage, []storage.CashPremiumActivation, error)) (storage.Character, bool, error)
+		CommitCharacterPremiumEvent(context.Context, int64, int64, string, string, string, func(database.Character) (json.RawMessage, json.RawMessage, []database.CashPremiumActivation, error)) (database.Character, bool, error)
 	}); ok {
-		return atomicStore.CommitCharacterPremiumEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, model, func(current storage.Character) (json.RawMessage, json.RawMessage, []storage.CashPremiumActivation, error) {
+		return atomicStore.CommitCharacterPremiumEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, model, func(current database.Character) (json.RawMessage, json.RawMessage, []database.CashPremiumActivation, error) {
 			raw, receipt, err := apply(current)
 			if err != nil {
 				return nil, nil, nil, err
@@ -182,7 +182,7 @@ func commitBoosterEvent(ctx context.Context, store boosterEventStore, role stora
 			return raw, receipt, rewards, err
 		})
 	}
-	return store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, model, func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+	return store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, model, func(current database.Character) (json.RawMessage, json.RawMessage, error) {
 		raw, receipt, err := apply(current)
 		if err != nil {
 			return nil, nil, err
@@ -243,7 +243,7 @@ func (w *worldSession) openBoosterItem(
 			Template: req.Selections[0],
 		}
 		if choices.allows(sel) {
-			if realStore, ok := store.(*storage.Store); ok {
+			if realStore, ok := store.(*database.Store); ok {
 				saved, plan, e := selectOdysseyWeapon(ctx, realStore, wear, w.role, choices, sel)
 				if e == nil {
 					w.role = saved
@@ -296,7 +296,7 @@ func (w *worldSession) openBoosterItem(
 			return nil, fmt.Errorf("契约道具必须单独使用一件")
 		}
 		eventKey := fmt.Sprintf("contract-use:%d:%x", w.role.ID, sha256.Sum256(raw))
-		saved, _, err := commitBoosterEvent(ctx, store, w.role, eventKey, "contract-use-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+		saved, _, err := commitBoosterEvent(ctx, store, w.role, eventKey, "contract-use-v1", func(current database.Character) (json.RawMessage, json.RawMessage, error) {
 			b, err := inventory.ReadBag(current.State)
 			if err != nil {
 				return nil, nil, err
@@ -335,7 +335,7 @@ func (w *worldSession) openBoosterItem(
 			return nil, err
 		}
 		var receipt struct {
-			Premiums []storage.CashPremium `json:"premiums"`
+			Premiums []database.CashPremium `json:"premiums"`
 		}
 		if err = json.Unmarshal(recorded, &receipt); err != nil {
 			return nil, err
@@ -384,11 +384,11 @@ func (w *worldSession) openBoosterItem(
 		HasAvatars        bool                          `json:"has_avatars"`
 		HasCreatures      bool                          `json:"has_creatures"`
 		ActivatedPremiums []activatedPremium            `json:"activated_premiums,omitempty"`
-		Premiums          []storage.CashPremium         `json:"premiums,omitempty"`
+		Premiums          []database.CashPremium        `json:"premiums,omitempty"`
 	}
 	var res outcome
 
-	saved, applied, err := commitBoosterEvent(ctx, store, w.role, eventKey, "booster-open-v1", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+	saved, applied, err := commitBoosterEvent(ctx, store, w.role, eventKey, "booster-open-v1", func(current database.Character) (json.RawMessage, json.RawMessage, error) {
 		b, err := inventory.ReadBag(current.State)
 		if err != nil {
 			return nil, nil, err

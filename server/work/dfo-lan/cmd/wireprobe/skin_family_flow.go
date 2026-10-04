@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	"dfolan/internal/catalog"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/storage"
 	"fmt"
 )
 
@@ -99,7 +99,7 @@ func skinByID(entries map[uint32]catalog.SkinStorageEntry) map[uint32]catalog.Sk
 }
 
 // skinFamilySkinIDs picks the account's registered skins of one family, deduplicated.
-func skinFamilySkinIDs(skins []storage.AccountSkin, entries map[uint32]catalog.SkinStorageEntry,
+func skinFamilySkinIDs(skins []database.AccountSkin, entries map[uint32]catalog.SkinStorageEntry,
 	family catalog.SkinFamily) []uint32 {
 	ids := make([]uint32, 0, len(skins))
 	seen := make(map[uint32]bool, len(skins))
@@ -125,7 +125,7 @@ func skinFamilySkinIDs(skins []storage.AccountSkin, entries map[uint32]catalog.S
 // already owns. That state is part of the player's save and its owned list can hold
 // more than the built-ins, and because NOTI1545 rebuilds the page it names, a page
 // frame that omitted one of those rows would delete it from the panel.
-func skinFamilyCargo(ctx context.Context, store *storage.Store, account, character int64,
+func skinFamilyCargo(ctx context.Context, store *database.Store, account, character int64,
 	entries map[uint32]catalog.SkinStorageEntry, frame skinFamilyFrame) (payload []byte, push bool, e error) {
 	skins, e := store.ListSkins(ctx, account)
 	if e != nil {
@@ -335,7 +335,7 @@ func skinKeepOwned(ids []uint32, owned map[uint32]bool) (kept, missing []uint32)
 // skinFamilyOwnedSet is what the client will accept for one family: the skins the
 // account registered plus the family's own default rows, which are exactly the ids a
 // 解除 click names.
-func skinFamilyOwnedSet(skins []storage.AccountSkin, entries map[uint32]catalog.SkinStorageEntry,
+func skinFamilyOwnedSet(skins []database.AccountSkin, entries map[uint32]catalog.SkinStorageEntry,
 	frame skinFamilyFrame) map[uint32]bool {
 	owned := make(map[uint32]bool, len(skins)+4)
 	for _, id := range skinFamilyBuiltins(frame.family) {
@@ -360,7 +360,7 @@ func skinFamilyOwnedSet(skins []storage.AccountSkin, entries map[uint32]catalog.
 // The request body goes back verbatim rather than rebuilt from the accepted ids: the
 // same reader also has a result==4 branch that erases one id from the acquired set,
 // and no server-side id list can express that intent.
-func skinFamilySelectionFrame(ctx context.Context, store *storage.Store, character, account int64,
+func skinFamilySelectionFrame(ctx context.Context, store *database.Store, character, account int64,
 	entries map[uint32]catalog.SkinStorageEntry, request protocol.SelectSkinRequest, body []byte,
 	record map[string]any, event func(map[string]any)) ([]outboundPacket, error) {
 	frame, ok := skinFamilyForCategory(request.Category)
@@ -467,7 +467,7 @@ func skinFamilySelectionFrame(ctx context.Context, store *storage.Store, charact
 // that re-applies it, dropping ids the account no longer holds — the client's own
 // reader filters against the owned page, so an unregistered id would silently vanish
 // from the vector anyway and the server invents nothing to cover that up.
-func restoreSkinFamilySelection(ctx context.Context, store *storage.Store, character, account int64,
+func restoreSkinFamilySelection(ctx context.Context, store *database.Store, character, account int64,
 	entries map[uint32]catalog.SkinStorageEntry, frame skinFamilyFrame) ([]byte, error) {
 	byID := skinByID(entries)
 	if frame.category == protocol.SkinCategoryInstantEmoticon {
@@ -514,7 +514,7 @@ func restoreSkinFamilySelection(ctx context.Context, store *storage.Store, chara
 }
 
 // skinFamilyOwnedFilter is the owned set as a map, fetched once per restore.
-func skinFamilyOwnedFilter(ctx context.Context, store *storage.Store, account int64,
+func skinFamilyOwnedFilter(ctx context.Context, store *database.Store, account int64,
 	entries map[uint32]catalog.SkinStorageEntry, frame skinFamilyFrame) (map[uint32]bool, error) {
 	skins, e := store.ListSkins(ctx, account)
 	if e != nil {
@@ -531,7 +531,7 @@ func skinFamilyOwnedFilter(ctx context.Context, store *storage.Store, account in
 // The two original families keep their named fields, because their page ordering relative
 // to the profile-decoration push is pinned by a test. The three newer ones append to
 // SkinFamilyRestores instead, which adds no field-per-family to the shared entry plan.
-func (p *entryPayloads) restoreSkinFamilies(ctx context.Context, store *storage.Store,
+func (p *entryPayloads) restoreSkinFamilies(ctx context.Context, store *database.Store,
 	account, character int64, entries map[uint32]catalog.SkinStorageEntry, event func(map[string]any)) {
 	for _, frame := range skinFamilyTable {
 		cargo, push, e := skinFamilyCargo(ctx, store, account, character, entries, frame)
@@ -578,7 +578,7 @@ func (p *entryPayloads) restoreSkinFamilies(ctx context.Context, store *storage.
 // restoreSkinFavorites encodes the character's stored stars as the absolute NOTI2641
 // frame. It returns nil when nothing is starred, which is the state the client already
 // has on a fresh login — its favourite list starts empty, and only this frame can fill it.
-func restoreSkinFavorites(ctx context.Context, store *storage.Store, character int64) ([]byte, error) {
+func restoreSkinFavorites(ctx context.Context, store *database.Store, character int64) ([]byte, error) {
 	pages, e := store.SkinFavorites(ctx, character, protocol.SkinFavoritePages)
 	if e != nil || pages == nil {
 		return nil, e
@@ -609,7 +609,7 @@ func restoreSkinFavorites(ctx context.Context, store *storage.Store, character i
 // The group a star belongs to is the skin's registry page, which for every family here is
 // also its selection category — the one proven exception being the damage font, whose two
 // tabs (2 and 6) both enumerate owned page 2.
-func skinFavoriteFrames(ctx context.Context, store *storage.Store, character int64,
+func skinFavoriteFrames(ctx context.Context, store *database.Store, character int64,
 	request protocol.SelectSkinRequest, body []byte, record map[string]any,
 	event func(map[string]any)) ([]outboundPacket, error) {
 	page := request.Category

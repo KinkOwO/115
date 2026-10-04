@@ -5,15 +5,14 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"dfolan/internal/catalog"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/storage"
 	"dfolan/internal/workflow"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/jackc/pgx/v5"
 	"math/big"
 	"strings"
 	"time"
@@ -218,7 +217,7 @@ func (p *lotteryItemPool) pick(draw int64) (BoosterRewardCandidate, error) {
 }
 
 type lotteryItemStore interface {
-	CommitCharacterEvent(context.Context, int64, int64, string, string, string, func(storage.Character) (json.RawMessage, json.RawMessage, error)) (storage.Character, bool, error)
+	CommitCharacterEvent(context.Context, int64, int64, string, string, string, func(database.Character) (json.RawMessage, json.RawMessage, error)) (database.Character, bool, error)
 	CharacterEventReceipt(context.Context, int64, int64, string) (json.RawMessage, error)
 }
 
@@ -250,12 +249,12 @@ func (w *worldSession) openLotteryItem(ctx context.Context, store lotteryItemSto
 	// A stored v1 or v2 receipt may carry a different model. Replay it before
 	// committing so the storage model check never turns a retry into a failure.
 	prior, err := store.CharacterEventReceipt(ctx, w.role.AccountID, w.role.ID, key)
-	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+	if err != nil && !errors.Is(err, database.ErrNotFound) {
 		return nil, err
 	}
 	saved := w.role
 	if len(prior) == 0 {
-		saved, _, err = store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, "lottery-item-v2", func(current storage.Character) (json.RawMessage, json.RawMessage, error) {
+		saved, _, err = store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, "lottery-item-v2", func(current database.Character) (json.RawMessage, json.RawMessage, error) {
 			bag, err := inventory.ReadBag(current.State)
 			if err != nil {
 				return nil, nil, err
