@@ -1,6 +1,6 @@
 {
-  "postgres_dsn": "postgres://dfo_owner:CHANGE_ME@127.0.0.1:25438/dfo_lan?sslmode=disable",
-  "max_connections": 12,
-  "postgres_bin": "tools/pg/pgsql/bin",
-  "postgres_data": "server/work/dfo-lan/runtime/storage/pgdata"
+  "driver": "sqlite",
+  "sqlite_path": "C:/Game/dof/115us/115/server/work/dfo-lan/runtime/storage/dfolan.sqlite3",
+  "sqlite_busy_timeout_ms": 5000,
+  "max_connections": 4
 }
