@@ -141,7 +141,7 @@ func resolveDataFile(explicit, name string, dirs []string, fallback string) stri
 }
 
 type server struct {
-	store    *database.Store
+	store    gmStore
 	admin    *admin.Service
 	index    *ItemIndex
 	paths    paths

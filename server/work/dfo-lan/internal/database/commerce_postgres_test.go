@@ -17,7 +17,7 @@ func TestSQLCGrantUsesOneConnectionAndRollsBackPayout(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	s, err := Open(ctx, Config{PostgresDSN: os.Getenv("DFO_TEST_POSTGRES_DSN"), PostgresSchema: fixture.db.Config().ConnConfig.RuntimeParams["search_path"], MaxConnections: 1})
+	s, err := Open(ctx, Config{PostgresDSN: os.Getenv("DFO_TEST_POSTGRES_DSN"), PostgresSchema: testPool(t, fixture).Config().ConnConfig.RuntimeParams["search_path"], MaxConnections: 1})
 	if err != nil {
 		t.Fatal(err)
 	}

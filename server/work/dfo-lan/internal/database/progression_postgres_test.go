@@ -83,7 +83,7 @@ func TestSQLCFatigueRolloverLedgerAndRecovery(t *testing.T) {
 		t.Fatal(err)
 	}
 	var receipts int
-	if err := s.db.QueryRow(ctx, `SELECT count(*) FROM character_fatigue_recovery`).Scan(&receipts); err != nil || receipts != 0 {
+	if err := testPool(t, s).QueryRow(ctx, `SELECT count(*) FROM character_fatigue_recovery`).Scan(&receipts); err != nil || receipts != 0 {
 		t.Fatalf("failed recovery recorded: %d %v", receipts, err)
 	}
 	saved, state, err := s.RecoverFatigue(ctx, account, role.ID, version, recovery, func(c Character) (json.RawMessage, error) {
@@ -115,7 +115,7 @@ func TestSQLCFatigueRolloverLedgerAndRecovery(t *testing.T) {
 	if _, err = s.LoadFatigue(ctx, account+100, role.ID, "2026-10-05", 20); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("ownership: %v", err)
 	}
-	if _, err = s.db.Exec(ctx, `INSERT INTO character_events(character_id,event_key,config_version,model,outcome) VALUES($1,$2,$3,'test','{"gain":4294967296}')`, role.ID, "monster:"+run+":1", version); err != nil {
+	if _, err = testPool(t, s).Exec(ctx, `INSERT INTO character_events(character_id,event_key,config_version,model,outcome) VALUES($1,$2,$3,'test','{"gain":4294967296}')`, role.ID, "monster:"+run+":1", version); err != nil {
 		t.Fatal(err)
 	}
 	if total, err := s.RunMonsterExperience(ctx, account, role.ID, run); err != nil || total != 1<<32 {

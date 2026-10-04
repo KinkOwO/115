@@ -1,5 +1,1279 @@
 # CHANGELOG
 
+## 2026-10-04：与 `115US-SQLite-源码测试升级包`（20261004）交叉验证——3 处不兼容已修
+
+- 业主给出参考包 `C:\Users\Ricar\Downloads\115US-SQLite-源码测试升级包`（含完整源码快照
+  `server/sqlite-source/20261004/`、Python 迁移器 `migrate_sqlite.py`、`更新SQLite.cmd`/`编译SQLite.cmd`），
+  要求交叉验证。做法是**比结果不比文字**：把两边的 `sql/sqlite/migrations/0001_initial.sql`
+  各自在一个全新 SQLite 库里执行，再比较生成的表/列/声明类型/索引。
+- **结论：数据形态高度一致**——表 56 vs 57（对方多 `mailbox_id_sequence`）、
+  **56 张共有表列集合零差异**、索引一致、查询树都为 13 个同名文件的 fork、
+  JSON 两边都用 `[]byte`、驱动都是 `modernc.org/sqlite`。
+  206 处声明类型差异只影响 affinity：数值类都是 INTEGER affinity；JSON 列虽是 `BLOB` vs `JSONTEXT`，
+  但两边都绑定 `[]byte`、SQLite 不转换 BLOB ⇒ **实际存储字节相同**。
+- **发现并修掉 3 处"会连错库/认不出/发重号"的不兼容**（均带测试）：
+  1. **引擎选择**：对方写的 `local.json` **没有 `driver`**（靠存在 `sqlite_path` 判定），
+     本仓库原实现会当成 PostgreSQL ⇒ 现在"空 driver + 有 `sqlite_path`"选 SQLite；
+  2. **配置键名**：对方用 `busy_timeout_ms`/`max_read_connections` ⇒ 本仓库一并接受，
+     一份 `local.json` 两边都能驱动；
+  3. **存档身份**：对方要求 `PRAGMA application_id=1152026104`，本仓库不写 ⇒ 现在建库时打上同一标记，
+     使本实现建的库**能被对方认作 DFO 存档**（反向不需要：本仓库不校验该标记）。
+- **唯一会损坏存档的分歧也已修**：对方用 `mailbox_id_sequence` 表发邮件号，本仓库推进
+  `sqlite_sequence`。在对方迁移出的库上交替运行两套实现时，各自只推进自己的计数器，
+  **可能把同一邮件 id 发两次**。现在本仓库发号后会把对方计数器抬到不低于 `id+1`，且**只前推不回退**；
+  库里没有该表时是空操作。
+- 报告（含未对齐项与需要业主决定的点，如"建库语义相反：对方 Open 从不建库，本仓库自动建库并迁移"）
+  写入 `docs/sqlite-cross-validation-20261004.md`。
+- 测试：新增 `sqlite_interop_test.go`、`sqlite_mailseq_interop_test.go`；
+  `go build ./...`=0、`go vet ./...`=0，全量 `go test ./...`（隔离库 25439）失败集合与基线**逐名相同**。
+- 未 commit；未启动客户端；未对玩家库执行任何 SQL。
+
+## 2026-10-04：把"移走 tools"做成一条**已验证、可回退**的命令
+
+- 业主指示"完成后把 tools 直接移除到别的地方"。移动本身是一条命令，但**不可靠的移动脚本比没有更糟**，
+  所以本轮把它做成两个**无分支**的脚本（`移除tools.cmd` / `还原tools.cmd`），并**在替身目录上验证了全部行为**：
+  - 移动：替身消失、目标出现；还原：`marker.txt` 回到原位，输出 `Restored "…" from "…"`；
+  - 护栏：源不存在 → `Nothing to move`；目标已存在 → `Refusing to move`；还原时源缺失 → `Nothing to restore`；
+  - 清理后确认**真实 `tools` 全程未被触碰**（仍是 4 个目录）。
+- **为什么从"一个脚本"改成"两个脚本"**：单脚本版用 `if /I "%TOOLS%"=="--restore"` 分派，
+  这个分支连着挡住我三次补丁尝试（CRLF、参数与分支混用），而**它不可验证就等于不可依赖**。
+  与其继续和这个分支搏斗，不如**去掉这份复杂度**——移动和还原本就是两个动作，拆开后各自直线执行、
+  各自接受目录参数，于是可以用替身目录证明正确性。
+- 脚本会打印移动后的影响清单，避免"移走了才发现起不来"：
+  `检查环境.cmd` / `停止游戏环境.cmd` 仍可用（走已构建的 `bin\dfolauncher.exe`）；
+  `启动游戏.cmd` / `启动服务端.cmd` 仍需要 Python 编排，见 `docs/runtime-without-tools-plan.md`；
+  PostgreSQL 档会失去便携服务端，sqlite 档不需要。
+- 过程教训（第四次同类）：`read_text` 是**通用换行模式**，CRLF 文件读进来是 LF，
+  带 `\r\n` 的锚点永远匹配不上——这次是真正的原因。我在同一类"转义/行尾"问题上反复受阻，
+  已把它写进本文件多次；后续应一律用**文件形式的补丁脚本**并按需 `newline=''`。
+- 门禁：`go build ./...`=0、`go vet ./...`=0、`internal/launcher`/`internal/database`/`internal/archtest` 全绿。
+- `tools` **仍未移动**：业主的验证需要能起来的游戏，而启动路径仍是 Python；现在移交的是
+  "一条命令即可移动、且知道移走后会发生什么"的能力。未 commit；未启动客户端；未对玩家库执行任何 SQL。
+
+## 2026-10-04：B' 边界判定——命令行装配的实测规模，以及为什么不再继续 B'
+
+- 本轮把启动编排**最核心的一块**量清楚了：服务端命令行由 `channel_probe.py` 的
+  **19 个 `command += [...]` 块**（第 227–452 行，约 230 行）逐步拼出，然后再交给
+  `prune_unsupported`（那一块**我已移植并验证**）。这 19 块的性质是：
+  按**文件存在性追加参数**（`-select-probe-config`/`-entry-basic-probe`/`-responses`/`-item-shop`/
+  `-channel-refresh-config`/`-channel-identity`）、按模式分支（`-game-listen 127.0.0.2:0` 出现在**两处**）、
+  按持久化分支追加三个 `-character-*` 参数；另有**第二条命令**（角色检查 `-fixture/-output`）。
+- **关键判断（据此停止 B'）**：这套"文件存在 → 追加参数"的规则**在 Go 里已经有一份实现**——
+  相邻项目 `115us-dfolauncher/internal/check/compat.go` 自述就是它的**镜像表**，
+  并写明"上游新增一处就同步加到这里"。因此**继续 B' 等于写出第三份同样的规则表**
+  （Python 一份、相邻项目一份、本仓库一份），三者必须同步维护——这正是根 `AGENTS.md` 反复禁止的平行规则表。
+  再加上剩余 2 轮无法把它移植到"可交给业主实机验证"的程度，而**半成品启动器比不启动更糟**：
+  业主要验证的是"游戏能不能进"，参数缺失会让验证失败在与双引擎无关的原因上。
+- 本节连同建议已写入 `docs/runtime-without-tools-plan.md`（400 行，含五轮修正与逐条证据）。
+- **本仓库已完成、且对 A' 有对照价值的件**：存储启动、profile 加载与必需文件、依赖检查、
+  启动环境四条规则、**探针的 9 条环境决策**（带源码同步门禁）、**参数裁剪与 PVF 支持门禁**
+  （对真实 `wireprobe-pvf.exe` 验证）。
+- **一次未复现的失败，如实记录**：本轮某次 `go test ./internal/database/`（与 `go build`/`go vet`
+  同批执行）返回失败，但随后**连续 4 次全部通过、无法复现**，输出也未保留到具体用例名。
+  我没有把它当作已解决，只是据实记录：它不在我本轮的改动范围内（本轮未改该包），
+  若再次出现应优先抓取当时的完整输出而不是重跑。
+- 门禁：`go build ./...`=0、`go vet ./...`=0、`internal/launcher`/`internal/database`/`internal/archtest` 全绿。
+- `tools` 未移动（启动路径仍是 Python）。未 commit；未启动客户端；未对玩家库执行任何 SQL。
+
+## 2026-10-04：B' 第二块——**参数裁剪**（版本感知协商）移植，并对真实网关验证
+
+- 这是启动编排里最容易出错的一块：探针会先探测二进制支持哪些参数，再丢掉它不支持的，
+  否则把新档参数传给旧二进制会导致**拒绝启动**（源码注释记录了 2026-09-20 的 b6d97c8 事故）。
+  本轮把它完整移植到 `internal/launcher/flags.go`：
+  - `ExeFlags`：跑 `<exe> -h`，按 `^\s+-([A-Za-z0-9._-]+)` 解析出参数集合；探测失败或无输出时返回
+    **nil（表示"未知"而不是"什么都不支持"）**——这个区分是刻意的：把没探到的二进制参数全删掉，
+    才是真正会弄坏可用构建的做法。
+  - `PruneCommand`：**纯函数**，故意与探测分离以便测试。丢掉不支持的参数**连同它的值**
+    （判据是"下一个 token 不以 `-` 开头"）；`supported == nil` 时**原样返回**；当
+    `DFO_PVF_CATALOGS` 已设置而目标二进制**没有** `pvf-catalogs` 时**直接拒绝启动**——
+    否则服务端会静默改用另一份内容源，这正是必须拦住的情形。
+  - `PruneUnsupported`（探测 + 裁剪）、`SetOptionValue`（替换既有选项值或追加）、
+    `DropWarning`（让"降级启动"可见而不是静默）。
+- **对真实网关做了差分验证**：`TestExeFlagsAgainstTheRealBinary` 直接探测
+  `bin/wireprobe-pvf.exe`，断言它确实广告 `pvf-catalogs`——**不需要 Python**，因此这条证据在
+  `tools/python` 移除后依然成立。首跑时该用例因为我把相对路径多写了一层而**静默跳过**，
+  已修正为真正执行并通过（静默跳过正是我最不想留的东西）。
+- **测试**：`internal/launcher` 现有 **21 条全过、0 跳过**；新增 6 条覆盖用法解析（含"不发明参数"）、
+  真实二进制、连同值一起删除、探测失败时保持原命令、无 PVF 支持时拒绝（含"未知集合也必须拒绝"）、
+  `SetOptionValue` 的替换与追加。
+- 门禁：`go build ./...`=0、`go vet ./...`=0、`internal/launcher`/`internal/database`/`internal/archtest` 全绿。
+- **B' 剩余**：服务端命令行装配 → 4 处进程拉起（`probe.exe`、服务端、持久化模式角色检查、客户端）→
+  `ready.json`/`run.json` 就绪等待 → 接成 `dfolauncher launch` 子命令 → 重指三个启动入口 → 移走 `tools`。
+- `tools` 仍未移动（启动路径仍是 Python，移走会让业主的验证失败）。未 commit；未启动客户端；
+  未对玩家库执行任何 SQL。
+
+## 2026-10-04：B' 推进——探针的**环境决策**移植完成，并带"源码同步"门禁
+
+- 业主指示"python 也干掉，完成后把 tools 移走"。启动编排是唯一阻塞，本轮按 **B'**（在本仓库移植，
+  因为 A' 要改另一个 git 仓库而未获授权）推进第一块：**探针在拉起服务端前做的环境决策**。
+- `internal/launcher/probeenv.go`：把 `channel_probe.py` 的环境决策移植为一张表 + 判定逻辑。
+  实测形状是两种：**6 条"override 文件存在则用它，否则用默认路径"**（5 个奥德赛变量 + 装备穿戴规则）
+  与 **3 条固定绝对路径**（`attunement-rewards` / `equipment-journal` / `equipment-create-cost`，
+  因为网关的 cwd 是包根，只能用绝对路径）。
+  `ProbeEnvironment` 严格照搬存在性语义：override 命名的文件不存在就回退；
+  两者都不存在则**不设该变量**，而不是指向一个不存在的文件。
+  `ApplyProbeEnvironment` 负责并入服务端环境，保持 `BuildServerEnv` 的 **KEY 唯一、后值胜出**契约。
+- **自带"与 Python 不漂移"的门禁**：`TestProbeEnvironmentTableMatchesTheProbe` 每次都会**重新解析
+  `channel_probe.py`**，逐条比对这张表——少一条、多一条、默认路径不一致、override 变量名对不上，都会失败。
+  这一点很关键：这张表若漂移，症状是**游戏里某个功能悄悄消失**，而不是启动报错。
+  提取以探针自己的环境赋值（`VAR = str(<路径变量>.resolve())`）为准，而不是猜变量命名——
+  实测二者并不机械对应（默认是 `weapon_box`，override 却是 `box_override`），我第一版正是栽在这个假设上。
+- **测试**：`internal/launcher` 现有 **15 条**全过，新增 3 条覆盖：空目录只设 3 个固定变量且均为绝对路径、
+  默认文件存在时被采用、override 存在时胜出、**override 指向不存在文件时必须回退**、
+  穿戴规则按文件而非环境变量判定、以及并入时不产生重复 KEY。
+- 门禁：`go build ./...`=0、`go vet ./...`=0、`internal/launcher`/`internal/database`/`internal/archtest` 全绿。
+- `tools` **仍未移动**：按业主"完成后"的条件，启动路径还是 Python 时移走会让游戏起不来；
+  `bin/dfolauncher.exe` 已先建好，确保移走后仍有 Go 启动器可用。
+- 未 commit（业主明确要求等收口）；未启动客户端；未对玩家库执行任何 SQL。
+
+## 2026-10-04：新增无 Python 依赖的 `检查环境.cmd`，并首次端到端验证整条 Go 链路
+
+- 新增根目录 `检查环境.cmd`：优先走 `bin\dfolauncher.exe check` → 再 `tools\go\bin\go.exe run
+  ./cmd/dfolauncher check` → 最后才回退 Python 的 `launch_local.py --check`。
+  它是**新增入口**，不改变任何既有脚本的行为，因此零回归风险。
+- **这一次是真正的端到端验证**（此前 stop 入口那一轮只是间接验证）：因为 `check` 是只读的——
+  不启动、不停止任何东西——可以直接真跑。结果：
+  ```
+  reached the Go launcher -> True     (Data mode / Profile 这些行只有 Go 侧会打印)
+  fell back to Python      -> False
+  exit=0
+  ```
+  它同时**回溯确认了上一轮的 `%~dp0` 诊断**：参数带上结尾点之后，分支选择就正确了。
+- 这个入口对你即将做的 SQLite 验收直接有用：把 SQLite 档的 `local.json` 换上去后运行它，
+  存储行会报 `Storage: SQLite <路径>`（PostgreSQL 档则报端口是否在监听），
+  在没有 Python 的情况下也能先自查依赖齐不齐。
+- 写脚本时把前两轮的教训都写成了**断言**，而不是靠记性：`--root "%~dp0."` 必须在位、
+  Go 尝试必须走 `call :go_check` 标签、全文件只允许剩下 `cd /d "%~dp0"` 这一处安全写法——
+  三条断言不过就不落盘。
+- 门禁：`go build ./...`=0、`go vet ./...`=0、`internal/database`、`internal/archtest`、`internal/launcher` 全绿。
+- 至此 W2 的六个 Python 入口中，**两个已切到 Go 并验证**（停服、环境检查）；其余四个
+  （`启动游戏.cmd`、`启动游戏-奥德赛.cmd`、`启动服务端.cmd`、`配置环境.cmd`）需要完整编排，仍等 A'/B'。
+- 未 commit（业主明确要求等收口）；未启动客户端；未对玩家库执行任何 SQL。
+
+## 2026-10-04：把上一轮的缺陷当作一类问题，扫过全部 16 个入口脚本（结论：只有那一处）
+
+- 上一轮定位的 `%~dp0` 结尾反斜杠问题，本轮按"一类缺陷"而不是"一个 bug"处理：
+  写了一个审计脚本扫过仓库内全部 16 个入口脚本（根目录 `*.cmd`、`scripts/*.ps1`、`server/*.ps1`、
+  `gm-tool/*.cmd`）。
+- **第一版审计有 11 处命中，但绝大多数是我自己的误报**，值得记下来以免以后又被吓到：
+  - `"%~dp0scripts\gmweb.py"`、`"%~dp0build-publish.ps1"`、`"%~dp0server\work\..."`
+    这类**反斜杠后面还跟着路径段**，引号并没有被转义 ⇒ **安全**；
+  - `set GMTOOL=%~dp0` 是赋值，不是参数 ⇒ 安全；
+  - `powershell -File "%~dp0dashboard\start_gm_dashboard.ps1"` ⇒ 安全。
+  真正的缺陷形态要窄得多：**`%~dp0` 紧跟右引号**（即 `"%~dp0"`）且处于**参数位置**。
+- **收紧后的结论**：其余 9 处命中**全部是 `cd /d "%~dp0"`**——这是惯用且安全的写法
+  （`cd` 不做 C 风格参数解析，结尾反斜杠无害）。也就是说：
+  **只有我上一轮修掉的那两处 `--root "%~dp0"` 真正带有这个地雷，其它入口没有。**
+  上一轮修复经复核仍在位（两处均为 `"%~dp0."`）。
+- 顺带记录的仍是那 5 个调用 Python 的入口（供 W2 清单）：`启动游戏.cmd`、`启动游戏-奥德赛.cmd`、
+  `启动服务端.cmd`、`配置环境.cmd`，另加 `gm-tool` 下三处（业主已确认该目录可删）。
+- 过程小插曲：审计脚本自己的文档字符串里写了 `"%~dp0scripts\x.py"`，`\x` 是非法转义导致
+  Python 语法错误；改为 raw 字符串后通过——与"带转义的内容不要内联进命令行"是同一条教训。
+- 门禁：`go build ./...`=0、`internal/database`、`internal/archtest`、`internal/launcher` 全绿。
+- 未 commit（业主明确要求等收口）；未启动客户端；未对玩家库执行任何 SQL。
+
+## 2026-10-04：定位并修掉停服入口的真实缺陷——`%~dp0` 的结尾反斜杠
+
+- **上一轮"Go 分支没生效"的原因查清了，是一个真实缺陷**：批处理的 `%~dp0` **以反斜杠结尾**，
+  于是 `--root "%~dp0"` 展开成 `--root "C:\...\115\"`——结尾的 `\"` 是一个**转义引号**，
+  Go 的参数解析因此拿到被污染的路径：
+  ```
+  storage config: open C:\Game\dof\115us\115"\server\work\dfo-lan\runtime\storage\local.json:
+  The filename, directory name, or volume label syntax is incorrect.
+  ```
+  注意 `115` 后面那个游离的 `"`。Go 启动器因此每次都以 exit 1 失败，脚本**静默回退 Python**——
+  这正是上一轮"看起来没走 Go 分支"的原因，也解释了为什么改动在表面上"没效果但不报错"。
+- **修法**：两处 `--root "%~dp0"` 改为 `--root "%~dp0."`（末尾加点，路径仍正确而引号不再被转义），
+  并在脚本里加了断言，防止重新引入。
+- **这次验证方式也修对了**：上一轮我用字符串替换去"无害化"Python 分支，**替换静默失败、真脚本照跑**。
+  本轮改为**先断言每一处替换都生效、并确认探针里已不含真脚本名**，再执行；探针里两个 Python 分支
+  都被替换成回声。结果：
+  ```
+  go branch ran      -> True    (列出 8 个待停进程 + 待执行的 pg_ctl stop，末尾 "Dry run: nothing was stopped.")
+  python arm reached -> False
+  reached :done      -> True    exit=0
+  ```
+  执行后复查：`postgres` 进程 0 个、25438/25439/7001 均未监听——**本轮没有触碰任何服务**。
+- **收益**：`停止游戏环境.cmd` 现在是**真正**走 Go 启动器（六个 Python 依赖入口中已切掉第一个），
+  而不是"看起来切了、实际每次都回退"。
+- **两条我自己的教训（写给后续轮次）**：① Windows 批处理里 `%~dp0` 结尾有反斜杠，
+  放进引号参数会转义引号——要么加点要么去掉；② **验证用的探针必须先断言替换生效再执行**，
+  否则"无害化"没生效就等于直接跑真动作。
+- 门禁：`go build ./...`=0、`go vet ./...`=0、`internal/database`、`internal/archtest`、`internal/launcher` 全绿。
+- 未 commit（业主明确要求等收口）；未启动客户端；未对玩家库执行任何 SQL。
+
+## 2026-10-04：`停止游戏环境.cmd` 改为优先走 Go 启动器（并如实记录一次验证失误）
+
+- `停止游戏环境.cmd` 不再只依赖 Python：改为三段式优先链——① `bin\dfolauncher.exe`（若已构建）
+  → ② `tools\go\bin\go.exe run ./cmd/dfolauncher stop`（`tools/go` 期间恒在）→ ③ 最后才回退 Python。
+  停服路径本轮之前已完整移植（`cmd/dfolauncher stop`，含测试与 dry-run 验证），所以这一步是
+  把**六个 Python 依赖入口中的第一个**真正切换掉。
+- 批处理里有一处必须写对的地方：**`%ERRORLEVEL%` 在括号块内是解析期展开**，读到的会是错的值。
+  因此 Go 尝试放在 `call :go_stop` 标签里，读取发生在任何括号块之外。脚本含中文，故仍用 Python 写入。
+- **验证过程中我犯了一个错，如实记录**：我为了"安全验证"而运行一份把 Go 分支改成 `--dry-run` 的临时副本，
+  结果**该副本的 Go 分支没有生效，脚本回退到 Python 分支并真的执行了停服流程**（`stop_environment.py`
+  会 taskkill 服务镜像并对 25438 执行 `pg_ctl stop`）。所幸当时**没有任何服务在跑**：
+  PowerShell 复查确认 `postgres` 进程数为 0、25438/25439/7001 三个端口均未监听，因此**未影响你的运行环境**。
+  但这说明"改一份副本再跑"这种验证方式本身不安全——副本与真身共享 `%~dp0` 语义，
+  一旦分支判断不同就会执行真动作。
+- **当前验证到什么程度（不含糊）**：
+  - 直接调用 Go 分支的命令**已验证**：`go run ./cmd/dfolauncher stop --dry-run` 退出码 0，
+    输出正确的状态摘要与 `Dry run: nothing was stopped.`；
+  - .cmd 的**三段式选择本身尚未端到端验证**——临时副本那次没走通 Go 分支，我没有在预算内定位原因
+    （`call`/`goto` 的标签结构、`%ERRORLEVEL%` 传播、或副本替换本身）。
+  - 因此：**这条入口在拿到一次干净的端到端验证之前，不应视为可依赖**。下一步先查清副本为何未走 Go 分支，
+    再用不改行为的办法验证（例如给 `dfolauncher` 加 `--root`/`--dry-run` 之外的"选择模式"诊断输出，
+    或用 `cmd /c` 直接调用真身并把 `stop` 子命令临时替换为无害命令）。
+- 门禁：`go build ./...`=0、`go vet ./...`=0、`internal/database`、`internal/archtest`、`internal/launcher` 全绿。
+- 未 commit（业主明确要求等收口）；未启动客户端；未对玩家库执行任何 SQL。
+
+## 2026-10-04：状态清单补上"验证门禁"一节（谁保证那些"已完成"是真的）
+
+- `docs/tools-removal-status.md`（84 行）新增门禁清单，把 9 道门禁与**各自覆盖的失效方式**列成表：
+  双引擎契约｜**查询树逐条试准备**（编译期看不到的列名笔误/漏表/语法差异）｜迁移入口引擎中立性｜
+  存档身份归一不得直连驱动｜schema/分节/ASCII 漂移｜两棵生成树的方法集合与 41 处逐条注明理由的分歧｜
+  适配器与引擎缝与 `Open` 分派的运行时行为｜管理守卫的崩溃安全（过期回收/续租/释放幂等/不复活）｜
+  转换器的行数与 JSON 字节与引用完整性。
+- 之所以补这一节：前几轮报了很多"已完成并验证"，但**一次性的检查会随时间失效**。
+  这份清单说明每条结论背后是**每次改动都会重新判定**的门禁，而不是我当时跑过一次。
+- 门禁：`go build ./...`=0、`go vet ./...`=0、`internal/database`、`internal/archtest`、`internal/launcher` 全绿。
+- 工作区：模块内 85 个被跟踪文件已修改 + 35 个新增文件，全部未提交（按业主要求等收口）。
+- 未启动客户端；未对玩家库执行任何 SQL。
+
+## 2026-10-04：把上一轮的核查变成**回归门禁**——迁移入口必须保持引擎中立
+
+- 上一轮我手工核查了"39 个 `Migrate*` 方法的引擎中立性"，本轮把它固化成自动门禁，
+  防止将来有人新增一个直接连驱动的迁移入口——那会**只在 SQLite 启动时**失败，又晚又难查。
+- 新增 `internal/database/migration_seam_test.go` 两条：
+  - `TestEveryMigrationEntryPointIsEngineNeutral`：遍历包内所有
+    `func (s *Store) MigrateX(ctx context.Context) error`，要求每个函数体**要么**经由 `execMigration`
+    （SQLite 上是空操作，因为 schema 由 `Open` 一次性应用），**要么**只用生成查询；并且不得出现
+    `rawPool` / `s.db` / `pool.Exec` / `pool.Query` / `DiagnosticExec` / `Begin(ctx)` 这类直连用法。
+    带防空转断言（找到的入口少于 30 个就失败）。
+  - `TestSaveIdentityMigrationUsesGeneratedQueriesOnly`：单独盯住那个**签名不同、且不是空操作**的
+    `MigrateSaveIdentity`——它负责把六张表的来源身份归一到存档契约身份，一旦改成直连驱动，
+    SQLite 上的存档身份归一就会**静默失效**。
+- 两条门禁首次运行即通过，等于把上一轮的人工结论变成了可持续验证的事实。
+- 过程中又踩了一次同类坑并修正：第二条门禁用 `\n}\n` 找函数结尾，而该文件是 **CRLF** ⇒ 找不到；
+  改为与第一条一致的正则匹配（不依赖行尾）。
+- 门禁：`go build ./...`=0、`go vet ./...`=0、`internal/database`、`internal/archtest`、`internal/launcher` 全绿。
+- 未 commit（业主明确要求等收口）；未启动客户端；未对玩家库执行任何 SQL。
+
+## 2026-10-04：新增门禁——SQLite 查询树**逐条 statement 对 schema 试准备**
+
+- **补上编译期看不到的那一类错误**。277 个适配器方法能编译，只说明 Go 类型对得上；
+  真正的 SQL 是否有列名笔误、是否引用了移植时漏掉的表、语法是否被 SQLite 语法接受，编译期一律看不见，
+  而这些语句平时只在**玩家恰好触发那条代码路径**时才报错——代价最高。
+- 新增 `TestSQLiteQueryTreePreparesAgainstSchema`：从生成的 `sqlcgensqlite/*.go` 里抽出所有
+  `const <name> = \`-- name: X :kind ...\`` 语句（跳过 `-- name:` 溯源头），对**刚建好的 SQLite 库**
+  逐条 `PrepareContext`。只要能准备成功，就说明该语句的表/列/语法与 schema 一致。
+- **结果：全部通过。** 该门禁同时带一个防空转断言（抽到的语句少于 200 条就失败），
+  以免将来生成格式变化导致"抽不到东西于是空过"。
+- 过程中吃了两次自己的亏，都已修正并记录：① 正则末尾锚了 `` `\n ``，而生成文件是 **CRLF**，
+  于是匹配数为 0；改为只锚结尾反引号（非贪婪），与行尾无关。② 试图用嵌套引号在 PowerShell 里改正则，
+  转义被吃掉、替换静默失效（打印出来的正则仍是旧的）——改回用写文件的方式。
+- 门禁：`go build ./...`=0、`go vet ./...`=0、`internal/database`、`internal/archtest`、`internal/launcher` 全绿。
+- 未 commit（业主明确要求等收口）；未启动客户端；未对玩家库执行任何 SQL。
+
+## 2026-10-04：查清"第 39 个 Migrate 方法"，确认启动迁移路径**完全引擎中立**
+
+- 第 5 轮我曾记录"39 个 `Migrate*` 方法，38 个经由 `execMigration`"，但一直没查那一个是什么。
+  本轮查清了，并顺带确认了 SQLite 启动路径上的最后一处未知：
+  - 那"第 39 个"是 **`MigrateSaveIdentity(ctx, current string) (int64, error)`**——签名不同，因为它是
+    **数据迁移**（把六张表的来源身份列归一到本次存档契约身份），不是分节运行器。
+    它**只使用生成查询**（`NormalizeCharacterIdentity` / `NormalizeWorldIdentity` / `NormalizeQuestIdentity` /
+    `NormalizeEventIdentity` / `NormalizeMapClearIdentity` / `NormalizeQuestRewardIdentity`），
+    因此**在两个引擎上都能跑**，不需要像分节运行器那样在 SQLite 上短路。这一点很重要：
+    它恰恰是"存档兼容"路径的一部分，如果在 SQLite 上被短路，存档身份就不会被归一。
+  - 另外三个未导出助手（`migrateCoinItems`、`migratePackagePlaceholders`、`migrateWarpFavorites`）
+    经逐一检查：**均无任何裸连接用法**（无 `rawPool`/`pool.Exec`/`s.db`），只用生成查询或纯逻辑。
+- 结论：**启动迁移路径不存在引擎专属分支**——38 个分节运行器在 SQLite 上是诚实的空操作（schema 由 `Open`
+  一次性应用、台账保证幂等），而两处数据迁移走生成查询，两引擎一致。这把"服务端能在 SQLite 上起来"
+  这一点的最后一个未查项关掉了。
+- 本轮为**核查**（无代码改动）。之所以值得单独做：它是我自己从第 5 轮留到现在的悬空问题，且正好落在
+  目标第 ② 项的启动链与存档兼容上。
+- 门禁：`go build ./...`=0、`go vet ./...`=0、`internal/database`、`internal/archtest`、`internal/launcher` 全绿；
+  全量 `go test ./...`（隔离库 25439，起→跑→停）**失败集合与基线逐名相同**——仍只有既有的
+  `TestPrimerTransformFlowIntegration` 与 `TestPrimerTransformFlowDoesNotMultiplyCrystals`，
+  即上一轮的守卫改动（租约自愈 + 幂等释放）在含 PostgreSQL 子用例的契约测试上也未引入回归。
+- 未 commit（业主明确要求等收口）；未启动客户端；未对玩家库执行任何 SQL。
+
+## 2026-10-04：SQLite 管理守卫改为**自愈租约**——崩溃不再卡住 GM 写入（无需改 schema）
+
+- **补上了我自己记录的那个缺口**。此前 SQLite 的管理守卫用普通租约文件，进程崩溃会留下它，
+  GM 写入被拒直到人工删除——与 PostgreSQL「连接断开即自动释放 advisory lock」不等价。
+  本轮在不新增表、不改 schema 的前提下做到了等价：
+  - **持有者续租**：`holdAdminGuard` 在守卫持有期间起一个 goroutine，每 `AdminLeaseRefresh`（10s）
+    刷新租约文件 mtime；释放时停掉它并删除文件。
+  - **过期即可回收**：`TrySharedAdminGuard` 发现租约 mtime 超过 `AdminLeaseTTL`（60s）就认定持有者已死，
+    删除后重试创建。`O_EXCL` 创建仍是唯一的排他点——两个进程同时判定过期时，只有一个能创建成功。
+  - 60s TTL 对 10s 续租是 **6 倍余量**，忙碌或被挂起的持有者不会被误判；崩溃后的最坏等待也封顶在 60s。
+- 顺带修掉一个真实缺陷：**释放现在幂等**（`sync.Once`）。释放两次会 panic，或者（PostgreSQL 侧）
+  把同一个池化连接归还两次。这条以前没被任何测试覆盖，现在被 `TestSQLiteEngineGuardReleaseIsIdempotent` 钉住。
+- **测试**（两条新用例全过）：`TestSQLiteAdminLease` 覆盖"首个持有者获取 → 第二个被拒且错误里**点名租约文件** →
+  把 mtime 回拨到过期后**被回收** → 续租把年龄重置到 TTL 一半以内 → 释放后可再次获取 →
+  **释放后续租不会让租约复活**"。`internal/database` 与契约测试（SQLite 子测试会真正走这条守卫）全绿。
+- 门禁：`go build ./...`=0、`go vet ./...`=0、`internal/database`、`internal/archtest`、`internal/launcher` 全绿。
+- 坦白一处过程失误：新测试第一次跑就 panic，原因是我在测试里**复用了 `err` 变量**（`adminGuardPath`
+  把它覆盖成 nil 后又调 `err.Error()`）——是测试自身的缺陷，不是实现的问题，已修正。
+- 未 commit（业主明确要求等收口）；未启动客户端；未对玩家库执行任何 SQL。
+
+## 2026-10-04：查清 `launch_local.py` 的收尾——它启动的是探针，不是服务端；A' 明显更省
+
+- 读完 `launch_local.py` 第 244 行之后：它**不自己启动服务端与客户端**，而是
+  `subprocess.Popen([sys.executable, channel_probe.py, tag, mode], …)` 把 **716 行的探针**拉起来，
+  塞入 `DFO_CLIENT_DIR`/`DFO_SERVER_BINARY`/`DFO_CHANNEL_IDENTITY`/`DFO_ENABLE_OBSERVER`，
+  然后**只等会话目录里的 `run.json`** 出现（PVF 直读 210s / JSON 档 30s 超时）。
+  也就是说：`launch_local.py` 只是**前导**，**真正的编排者是 `channel_probe.py`**。
+- **这把 A'/B' 的成本差拉开**：相邻项目 `115us-dfolauncher` 的 `internal/run/run.go`（1310 行）
+  本来就是探针编排逻辑的 Go 实现（另有 `run/probe.go`、镜像探针参数逻辑的 `check/compat.go`），
+  `internal/storeboot` 又覆盖了存储启动。于是
+  **A' ≈ 给已有 Go 实现加一个命令行入口**；**B' = 再实现一遍 716 行探针编排**。
+- **据证据的结论：A' 明显更省**，且避免同一套编排在两个仓库各维护一份。因此**我停止在 B' 上继续
+  往下写探针编排**——继续写正好落进"同一逻辑维护两份"的坑。
+  本仓库已完成的 CLI 前导（路径解析、依赖检查、profile 加载、存储启动、服务端环境构造，共 11 条测试）
+  **在 A' 下仍有价值**：它是这套语义的**可执行对照规范**，可用于逐条比对相邻项目的行为差异，
+  而不是待丢弃的重复品。
+- 修正记入 `docs/runtime-without-tools-plan.md`（已 343 行，含四轮修正与逐条证据）。
+- 门禁：`go build ./...`=0、`internal/database`、`internal/archtest`、`internal/launcher` 全绿。
+- 未 commit（业主明确要求等收口）；未启动客户端；未对玩家库执行任何 SQL。
+
+## 2026-10-04：CLI 编排推进（采用 B'，在本仓库继续）——服务端环境构造逐条对齐 Python
+
+- **决定继续在本仓库推进 CLI 编排（方案 B'）**：A'/B' 只决定代码落在哪，而 B' 完全在本工作区权限内，
+  且不排斥 A'（相邻启动器日后可调用它）。业主此前"直接推进到可移除 tools 依赖"的指示下，
+  继续等待不如把能力做出来。
+- **`internal/launcher/env.go`**：移植 `launch_local.py` 的 `launch_environment`，逐条对齐：
+  ① 以调用方环境为基准；② `--json-mode` 时**删除全部 `DFO_PVF_*`**（避免服务端继承上一次 shell 的
+  PVF 域）；③ profile **未声明 `DFO_PVF_CATALOGS`** 时删除两个遗留玩法开关
+  （`DFO_SKILL_RELEASE`、`DFO_ODYSSEY_REWARDS_PILOT`）——非原生 profile 不该继承它们；
+  ④ profile 的值**最后覆盖**。
+  实现保持**纯函数**（`BuildServerEnv(base, profileEnv, jsonMode)`），因为"服务端继承什么环境"
+  决定它读哪份内容源，错了要等玩法崩了才会发现；纯函数才能把它钉在测试里。同时保证 **KEY 唯一**
+  （后值覆盖前值且不产生重复条目），并原样透传畸形条目而不是丢弃。
+- **测试**：`TestBuildServerEnv` 五个子用例全过——json-mode 清 `DFO_PVF_*` 且**保留**玩法开关、
+  非原生 profile 丢弃遗留开关、原生 profile 保留开关且覆盖优先、后值胜出且 KEY 唯一、
+  畸形条目透传。`internal/launcher` 现共 **11 条测试**全过。
+- 门禁：`go build ./...`=0、`go vet ./...`=0、`internal/database`、`internal/archtest`、`internal/launcher` 全绿。
+- **下一步（CLI 编排续）**：探针拉起 → PVF 准备（可参照相邻项目已有的 `internal/pvfprep`）→
+  服务端拉起（用本轮的 env + `Check` 得到的二进制与 profile）→ 等待网关 → 客户端拉起。
+- 未 commit（业主明确要求等收口）；未启动客户端；未对玩家库执行任何 SQL。
+
+## 2026-10-04：交付状态清单（含逐条证据与待决事项），并逐条实跑验证
+
+- 新增 `docs/tools-removal-status.md`（65 行），把"移除 tools 依赖"的现状固化成可交接的一页：
+  **11 项已完成事项各带证据**（SQLite 适配器、PG 零适配器、引擎缝、Store 接线、`Open` 分派、
+  转换器与校验、转换器入口、双引擎契约、启动/停止链分叉、打包与配置分叉、Go 启动器地基），
+  **3 项待决**（SQLite 实机验收；CLI 编排落点 A'/B'；是否允许改相邻仓库的一处 LevelError），
+  以及**复核命令**。
+- **清单里的每条命令本轮都实跑过**，不是抄写：
+  `go build ./...`=0、`go vet ./...`=0、`internal/database`/`internal/archtest`/`internal/launcher` 三包通过、
+  `dfolauncher check --root …` 输出 `Paths OK.`、`dfolauncher stop --dry-run` 输出
+  `Dry run: nothing was stopped.`。
+- 该文档**不重复**计划文档（依赖清单与三轮修正）与操作手册（切档/迁移/边界），只回答
+  "现在到哪一步、还差什么、怎么复核"。
+- 为什么本轮以固化现状为主：剩下的代码工作**确实卡在决定上**——CLI 编排的落点决定它写在本仓库
+  还是相邻项目；`tools/python` 的 GUI 侧阻塞是一处需要改另一个仓库的检查；
+  `tools/pg` 的最后一步是业主实机。继续在未定的方向上写实现只会产生需要丢弃的代码。
+- 门禁：`go build ./...`=0、`go vet ./...`=0、三包全绿。
+- 未 commit（业主明确要求等收口）；未启动客户端；未对玩家库执行任何 SQL。
+
+## 2026-10-04：修正 W2 结论（GUI 无 CLI，故 CLI 编排仍需 Go）+ 存储启动段落地
+
+- **修正上一轮的结论**：上轮查到相邻启动器运行时零 Python 调用，我据此写了"本仓库内 `cmd/dfolauncher`
+  不该继续扩张"。本轮查了它的命令行面后**这个结论不完整**：`cmd/launcher/main.go` **只有 `--gm-window`
+  一个参数**（第 98 行），其余全是 WebView2 的 JS 处理器（`app.Handle("check.run", …)` 等），
+  **它是 GUI 应用、没有 CLI 编排模式**。于是两条路径必须分开：
+  - **发布/一键启动（GUI）**：运行时不需要 Python ✓，仅被 `check.go:114-116` 的 LevelError 挡住；
+  - **开发/源码构建（CLI）**：根目录 `启动游戏.cmd --source-build`、`启动服务端.cmd`、
+    `启动游戏-奥德赛.cmd` 调 `launch_local.py`，**而没有任何 Go CLI 能替代它**。
+  所以 W2 的剩余工作**确实包含 CLI 编排的迁移**，不因 GUI 启动器的存在而消失；修正与两条落点
+  （A' 给相邻启动器加 CLI 模式 / B' 在本仓库完成）已写入 `docs/runtime-without-tools-plan.md`。
+- **落地存储启动段**：`internal/launcher/storage.go` 的 `StartStoragePlan` / `StartStorage`，沿用 `stop`
+  的"计划/执行"分离：
+  - `sqlite` → **计划为空**（引擎自己打开文件，没有服务可起），返回"未启动任何服务"而不是假装成功；
+  - `postgres` → 先校验 `postgres_bin`/`postgres_data`/`pg_ctl.exe`/`PG_VERSION` 齐备才计划 `pg_ctl start`，
+    已在监听则视为成功（外部托管的服务不是错误），起后**以端口可连为唯一判据**等待，超时报错并提示看日志。
+  - 未知 driver 明确报错。
+- 新增 `dfolauncher start-storage [--root] [--dry-run] [--timeout]`；对**真实**的 PostgreSQL 配置
+  dry-run 输出 `would run pg_ctl start -D …\pgdata -w -t 30`（只打印、不启动）。
+- **测试**：`internal/launcher` 共 **10 条全过**，新增三条覆盖"sqlite 计划必须为空"、
+  "缺配置/缺 pg_ctl/缺 PG_VERSION 都必须拒绝"、"sqlite 启动必须是零副作用并如实报告未启动服务"。
+- 门禁：`go build ./...`=0、`go vet ./...`=0、`internal/database`、`internal/archtest`、`internal/launcher` 全绿。
+- **仍等业主**：① 是否允许改另一个仓库（`115us-dfolauncher` 的 LevelError 一处）；
+  ② CLI 编排落点选 A' 还是 B'；③ SQLite 实机验收（`.tmp/sqlite-acceptance/`）。
+- 未 commit（业主明确要求等收口）；未启动客户端；未对玩家库执行任何 SQL。
+
+## 2026-10-04：W2 的决定性复核——Go 启动器运行时**零 Python 调用**，方向之争据证据收敛
+
+- 扫过相邻项目 `115us-dfolauncher` 全部非测试 Go 文件的 `exec.Command` / `exec.CommandContext`：
+  它只启动 `explorer.exe`、`rundll32`/`open`/`xdg-open`、`pg_ctl`（自己启动 PostgreSQL）、
+  通用进程启动器 `proc.Hide(exec.Command(exe, …))`、**客户端 `DFO.exe`**（`internal/run/run.go:815`）
+  与自更新后的自己。**没有任何一处调用 `tools/python/python.exe` 或任何 `.py`。**
+- 对四个 Python 脚本的引用**逐条都是注释、镜像表或存在性检查**，不是调用：
+  `internal/check/compat.go` 自述是「`channel_probe.py` 里按 configs 文件存在性追加参数的**镜像表**」
+  （即探针的参数拼接**已在 Go 侧重写**）；`internal/config/config.go` 复刻 `launch_local.py` 的
+  路径基准；真正的编排主体是 1310 行的 `internal/run/run.go`。
+- **因此 W2 的真实剩余量远小于先前 1,900 行的估算**，`tools/python` 的删除条件收敛为**两件小事**，
+  且都在相邻项目内：① `internal/check/check.go:114-116` 目前把 `tools\\python\\python.exe` 列为
+  **LevelError**（已实测确认），删掉 `tools/python` 后**启动器会自己拒绝启动**——这是唯一真正的阻塞；
+  ② 同文件 199-202 行把四个 `.py` 入口列为待检路径，应降为可选（保留作诊断，不作错误）。
+- **方向问题的答案（据证据）**：**A 已是既成事实**——发布版启动器是 Go、运行时零 Python 调用，
+  Python 侧只被检查而非执行。故"把启动编排迁到 Go"在相邻项目里**基本已经完成**，剩下的是**清理陈旧检查**，
+  不是移植。本仓库内我写的 `cmd/dfolauncher` 因此**不再扩张**；它的价值是证明这些语义可独立成立，
+  并提供 `stop` 的 Go 实现备用。
+- 记录写入 `docs/runtime-without-tools-plan.md`（该文档已 284 行，含三次修正后的完整依赖面与证据）。
+- 门禁：`go build ./...`=0、`internal/database`、`internal/archtest`、`internal/launcher` 全绿。
+- **需要业主确认**：上述第 ① 项要改的是**另一个 git 仓库**（`115us-dfolauncher`）。我不擅自改本工作区
+  之外的仓库，等你发话；你同意的话我可以只改那一处 `LevelError` 并给出可回退的最小 diff。
+- 未 commit（业主明确要求等收口）；未启动客户端；未对玩家库执行任何 SQL。
+
+## 2026-10-04：SQLite 双引擎操作手册（`tools/pg` 路径上的最后一项非代码工作）
+
+- 新增 `docs/sqlite-operations.md`（80 行），面向运维与业主，覆盖：
+  ① **怎么切换引擎**（只改存储配置的 `driver`；缺省即 postgres 故既有配置零改动；写错 driver 明确报错；
+  换档后启动器与停止脚本自动跟随）；② **首次在 SQLite 上启动**会发生什么（一次性应用全部分节、
+  台账保证幂等、`Migrate*` 为诚实空操作）；③ **把现有存档迁过去**的完整命令与转换器的校验承诺
+  （逐表行数、逐行 JSON 字节哈希、`foreign_key_check`、目标必须为新文件、台账不参与拷贝、
+  `Missing` 警告的含义）；④ **边界与已知取舍**（管理守卫的租约文件与其崩溃残留的人工处理、
+  `NextMailID` 如何保住共用号段、`date` 列的表示由查询决定、PostgreSQL 专属功能在 SQLite 上明确报错）；
+  ⑤ **验证清单**（三条命令 + `DFO_TEST_POSTGRES_DSN` 的隔离库约定）。
+- 手册里的每条断言都在本轮复核过：`dfo-tool` 清单确实列出 `sqliteconvert`；三条验证命令实跑通过。
+- 门禁：`go build ./...`=0、`go vet ./...`=0、`internal/database`、`internal/archtest`、`internal/launcher` 全绿。
+- **至此 `tools/pg` 路径上不再有已知的未完成项**（代码侧零依赖、打包与配置已分叉、操作手册已就位），
+  唯一阻塞仍是**业主在 SQLite 上实机跑一次**。
+- 未 commit（业主明确要求等收口）；未启动客户端；未对玩家库执行任何 SQL。
+
+## 2026-10-04：关掉 `tools/pg` 最后一处代码侧依赖 + 全量基线复核
+
+- **`scripts/configure_env.py` 不再给 sqlite 档写 PostgreSQL 路径**：原实现无条件写入
+  `postgres_bin` / `postgres_data`，于是 sqlite 档的存储配置里始终留着一个指向 `tools/pg` 的
+  陈旧引用——正是那种"让已删除的工具目录看起来仍被需要"的残留。现在按 driver 判断：
+  `postgres`（含缺省）照旧写入；`sqlite` 不但不写，还会**清掉已存在的这两个键**。
+- **行为验证**（直接抽出补丁块执行三种输入）：postgres（缺省）→ 写入 `BIN`/`DATA`（与改动前一致）；
+  sqlite → 两者均为 `None`；带陈旧键的 sqlite → 被清除。`py_compile` 通过。
+  该文件含中文，故仍用 Python 写入而非编辑器工具，且补丁锚点全为 ASCII，不触碰任何中文行。
+- **至此 `tools/pg` 的代码侧依赖全部清空**：打包校验已分叉（上轮）、配置侧不再写入指针（本轮）、
+  服务端可跑 SQLite、启动器与停止脚本按 driver 分叉、PG→SQLite 转换器可用。
+  剩下的是**文档更新**与**业主的 SQLite 实机验收**。
+- **全量基线复核**（隔离库 25439，起→跑→停）：`go test ./...` 失败集合与基线**逐名相同**——
+  仅既有的 `TestPrimerTransformFlowIntegration` 与 `TestPrimerTransformFlowDoesNotMultiplyCrystals`
+  两项，**无新增失败**。这是对最近五轮改动（Store 接线、SQLite 适配器、引擎缝、转换器、启动器与打包/配置）
+  的一次整体回归确认。
+- 门禁：`go build ./...`=0、`go vet ./...`=0、`internal/database`、`internal/archtest`、`internal/launcher` 全绿。
+- **仍在等业主**：① 启动器方向 A/B（决定 `launch_local.py` 的迁移落点，在此之前不继续加启动器代码）；
+  ② SQLite 实机验收（`.tmp/sqlite-acceptance/`）。
+- 未 commit（业主明确要求等收口）；未启动客户端；未对玩家库执行任何 SQL。
+
+## 2026-10-04：扫描出"移除 tools"的完整依赖面（81 个入口文件，给出最终清单）
+
+- 对仓库内全部 81 个入口文件（`*.cmd`/`*.ps1`/`*.bat`，排除 `tools/`、`client/`、`client-patchs/`、
+  `.tmp/`、`reference/`）做了一次完整扫描，把结果写进
+  `docs/runtime-without-tools-plan.md` 的「完整依赖面」一节。**这是"还剩什么"的最终答案**，
+  不再是估算。
+- **仍依赖 `tools/python` 的只有 6 处**：
+  ① `启动游戏.cmd` → `launch_local.py`；② `启动服务端.cmd` → 同一脚本 `--server-only`；
+  ③ `启动游戏-奥德赛.cmd` → 同一脚本；④ `配置环境.cmd` → `scripts/configure_env.py`；
+  ⑤ `build-publish.ps1` 用 `tools/python` 跑 `scripts/build_publish_zip.py`；
+  ⑥ `停止游戏环境.cmd` → `scripts/stop_environment.py`——**这一处的 Go 实现已就绪**
+  （`cmd/dfolauncher stop`，含 `--dry-run`），只差按 A/B 决定接入哪个启动器。
+  另有 `gm-tool/` 下三处 `gmweb.py` 入口，属业主此前已确认"不用，可以删"的 GM 目录，不属 W2。
+- **仍依赖 `tools/pg` 的代码侧依赖已清空**：打包校验上一轮已分叉；剩下的只有
+  `scripts/configure_env.py:266`（sqlite 档不该写 `postgres_bin`，随该脚本迁 Go 时一并处理）
+  与文档说明。**唯二阻塞是业主侧动作**：SQLite 实机跑一次；以及若采用 SQLite 档，`configure_env.py`
+  那处随之调整。
+- 门禁：`go build ./...`=0、`internal/database`、`internal/archtest`、`internal/launcher` 全绿
+  （本轮为扫描与文档，无 Go 改动）。
+- 未 commit（业主明确要求等收口）；未启动客户端；未对玩家库执行任何 SQL。
+
+## 2026-10-04：打包分叉——发布校验不再无条件要求 `tools/pg` 与 `tools/python`
+
+- 背景：`build-publish.ps1` 的最终校验把 `tools/python/python.exe` 与
+  `tools/pg/pgsql/bin/initdb.exe` 写成硬性必需项，于是"不带 PostgreSQL 的包"（乃至日后
+  "不带 Python 的包"）**永远无法通过校验**——这正是 `tools/pg` 删除路上的最后一道打包门。
+- 改法（最小且可回退）：这两项改为**按实际打包内容决定**——
+  `if (Test-Path (Join-Path $ROOT 'tools\pg')) { $need += 'tools/pg/pgsql/bin/initdb.exe' }`，
+  `tools/python` 同理。两个目录今天都在，因此**当前行为逐字不变**（必需清单与改动前相同），
+  而删掉 `tools/pg` 后校验会自然不再要求它。
+- **编辑方式**：用 Python 写入而非编辑器工具。该文件含中文，`write`/`edit` 工具以 LF 写入会让
+  PowerShell 按 ANSI 读取造成乱码并破坏解析（本会话早前已踩过）。改后已用 PowerShell 自身的
+  语法分析器验证：`build-publish.ps1` **无解析错误（565 tokens）**。
+- 未执行 `build-publish.ps1`（它会产出发布 zip，属业主的发布流程，且需要 `-UpdatePVFDefault` 一类
+  显式动作）；本轮只改校验条件并做静态验证。
+- 门禁：`go build ./...`=0、`go vet ./...`=0、`internal/database`、`internal/archtest`、`internal/launcher` 全绿。
+- **另一处同类残留（未改，记录在案）**：`scripts/configure_env.py:266` 会把
+  `tools/pg/pgsql/bin` 写进存储配置的 `postgres_bin`。sqlite 模式下本不需要该字段；
+  由于 `configure_env.py` 属 W2 待迁移脚本（第 5 步），随它一起处理更合适，避免改两遍。
+- 未 commit（业主明确要求等收口）；未启动客户端；未对玩家库执行任何 SQL。
+
+## 2026-10-04：W2 第三步——profile 加载与 profile 驱动的二进制选择（并接入 `check`）
+
+- `internal/launcher/profile.go`：移植 `repair_profile.load_profile` 的**结构部分**——
+  严格校验 profile 必须**恰好**是 `{binary, environment}`；`binary` 与 27 个 `PATH_KEYS`
+  一律以模块目录为基准解析（绝对路径保持），并**同时进入必需文件清单**；`DFO_EQUIPMENT_FULL_CATALOG`
+  额外要求 `.data` 与 `.index.json`；`FLAGS` 只接受 `"0"/"1"`；其余键原样转发。
+- `internal/launcher/check.go`：接上 `gateway_configuration` 的语义——显式 `--repair-profile` 优先；
+  否则普通模式（非 json-mode、非 client-only、非 server-only）套用 `configs/pvf-default.json`；
+  **显式 profile 时 profile 的二进制胜出**，而 `--source-build` 且未显式给 profile 时**保留源码二进制**
+  并把 profile 必需清单里的那一项替换成实际启动的二进制（与 Python 的替换逻辑一致）。
+- **`check` 因此变强了**：现在会一并核验 profile 自己声明的运行期数据依赖。真实仓库上实测
+  `dfolauncher check --root <repo>` → **内层归档 `Script.inner.pvf` 与全部 policy JSON 逐个 `ok`**，
+  最后 `Paths OK.`（此前这些依赖完全没被检查过）。
+- **明确标注未移植**：`repair_profile` 的逐键取值校验（数值、校验和、omen、誓约、伊斯算命等规则）。
+  这些键目前原样转发，服务端启动时仍会自行校验自己的环境变量，所以坏值依旧会**响亮失败**，
+  只是晚一步。这属于"没有假装已覆盖"的记录，不是静默降级。
+- **测试**：`internal/launcher` 共 7 条全过，其中
+  `TestLoadProfileRejectsMalformedProfiles` 覆盖缺字段/多字段/空 binary，
+  `TestCheckSelectsTheSourceBinaryAndServerOnlyScope` 覆盖显式 profile 胜出、`--source-build` 的替换、
+  `--server-only` 不要求客户端、以及**删掉内层归档后必须恰好报出该项**。
+- 门禁：`go build ./...`=0、`go vet ./...`=0、`internal/database`、`internal/archtest`、`internal/launcher` 全绿。
+- **下一步（W2 继续）**：PVF 准备链的**行为**部分（`ensure_inner_pvf`/`pvf_archive`/`prepare_inner_pvf`
+  的四态门禁：无→生成、有但无清单→重建、有且与客户端三件套一致→复用、不一致→重建）→ 启动编排主体 →
+  最后 `channel_probe.py`。
+- 未 commit（业主明确要求等收口）；未启动客户端；未对玩家库执行任何 SQL。
+
+## 2026-10-04：W2 第二步——`dfolauncher check`（路径解析 + 存储状态 + 依赖核验）
+
+- `internal/launcher/check.go` + `cmd/dfolauncher check`：对应 `launch_local.py --check`
+  （"只读依赖检查，不启动任何东西"）。解析 `launcher.local.json` 的 `client_dir` 与 `server_binary`，
+  按模式核验依赖：探针（`channel_probe.py`/`catalog_startup.py`/`probe.exe`）、客户端
+  （`DFO.exe`/`Script.pvf`/`sk.dat`）、服务端二进制；`--server-only` 不要求客户端，`--client-only` 不要求服务端；
+    同时报告存储状态（sqlite 显示路径，postgres 显示端口是否在监听）。
+- **实测中修正的一处路径事实**：`launcher.local.json` 位于 `server/`（即模块的**上一级**），
+  且其中的相对路径也以 `server/` 为基准——由 `launch_local.py` 的
+  `PROJECT = __file__.parent.parent` / `ROOT = PROJECT.parent.parent` 推导确认。
+  我第一版按模块目录解析，实测立刻失败，属"猜错了就当场暴露"，已按实际结构改正。
+- **真实仓库上的验证**（只读、不启动）：`dfolauncher check --root <repo>` →
+  7/7 依赖 `ok`、`Paths OK.`、退出码 0；`--source-build` 正确切换二进制为
+  `wireprobe-handoff-source.exe`；存储报告如实显示 `PostgreSQL: false`（当前未运行）。
+- **三条新测试**（临时目录搭出完整布局，不依赖本机真实客户端）：完整树必须零缺失、
+  `client_dir` 必须按 `server/` 解析、`--source-build`+`--server-only` 必须选中源码二进制且**不要求客户端**、
+  删掉必需文件后必须**恰好报出该项**、缺 `client_dir` 与缺设置文件都必须拒绝。
+- **尚未移植并在代码中标注**：`gateway_configuration` 的 profile 驱动二进制选择（它要读修复 profile 与
+  PVF 默认配置），随 PVF 准备链一起做；在此之前二进制由显式参数与本地设置决定，已完整覆盖
+  `--source-build` 与 `--json-mode`。
+- 门禁：`go build ./...`=0、`go vet ./...`=0、`internal/database`、`internal/archtest`、`internal/launcher`
+  三个包全绿（launcher 6 条测试）。
+- **下一步（W2 继续）**：PVF 准备链（`ensure_inner_pvf`/`pvf_archive`/`prepare_inner_pvf`/`repair_profile`
+  + `gateway_configuration`）→ 启动编排主体 → 最后 `channel_probe.py`；之后 `.cmd` 改为优先用 Go 启动器。
+- 未 commit（业主明确要求等收口）；未启动客户端；未对玩家库执行任何 SQL。
+
+## 2026-10-04：W2 第一步——Go 启动器（`dfolauncher stop`）落地
+
+- 新增 `internal/launcher` + `cmd/dfolauncher`：Go 版编排入口，本轮实现 `stop` 子命令，
+  对应 `scripts/stop_environment.py`（132 行）。这是 `tools/python` 迁移的第 1 步，
+  选它是因为**自包含、依赖最少**，同时用来定型后续 `launch`/`server-only`/`configure`/`prepare-pvf`
+  的骨架与日志风格。
+- **设计要点：把"计划"与"执行"分开**。`StopPlan(cfg)` 是纯函数，只产出 `Action` 列表；`Stop(...)` 才执行。
+  这样真正需要判断的部分——该杀哪些进程、这个 profile 到底有没有数据库服务——
+  **可以在不终止机器上任何进程的前提下测试**（测试机上也跑着别人的东西，安全边界必须写进结构里）。
+- 行为对齐 Python：8 个服务镜像逐个 `taskkill`；`postgres_bin`/`postgres_data` 都在且文件存在时才计划
+  `pg_ctl stop -m fast`；随后**仅在 25438 仍在监听时**才计划强杀 `postgres.exe`；
+  `driver: sqlite` 时**不产生任何 pg-\* 动作**（与上一轮的停止路径分叉一致）；
+  未知 driver 明确报错；配置缺失视为 PostgreSQL 默认；配置读取容忍 BOM。
+- **新增 `--dry-run`**：打印将执行的每个动作而不执行。三条测试（`TestStopPlanIsDriverAware`、
+  `TestStopDryRunChangesNothing`、`TestLoadStorageConfig`）全部通过；`go build ./...`=0、`vet`=0。
+- **实机配置上的真实验证**（只读，未终止任何东西）：`dfolauncher stop --dry-run` 对现有
+  `runtime/storage/local.json` 列出 8 个待停进程，并如实报告 25438 与 7001 当前均为 `Stopped`。
+- **下一步（W2 继续）**：`launch_local.py` 的路径解析 + 存储启动 + `--check` → 再 PVF 准备链 →
+  最后 `channel_probe.py`（716 行，实机连接关键路径，需逐字段对照）；之后把 `.cmd` 改为
+  "有 Go 启动器就用它，否则回退 Python"，`tools/python` 才可删。
+- 未 commit（业主明确要求等收口）；未启动客户端；未对玩家库执行任何 SQL。
+
+## 2026-10-04：W2 范围实测（`tools/python` 退出前必须迁走的编排面）
+
+- 按"运行期是否被 `.cmd` 或启动器实际调用"清点完毕，写入 `docs/runtime-without-tools-plan.md`：
+  **运行期关键的 Python 约 1,900 行**，其中 `channel_probe.py` **716 行**（探针独立进程，7001 频道目录 +
+  连接引导）是最大风险点；`launch_local.py` 312、`scripts/configure_env.py` 311、
+  `ensure_inner_pvf.py` 195、`scripts/stop_environment.py` 132，其余为 PVF 读取/profile 支持（约 500 行）。
+  测试与离线导出（`test_*.py` 769、`export_*.py` 356、`audit_config_references.py` 91）**不属运行期**，
+  不必迁。
+- 同时记录 `.cmd` 入口现状（三个启动入口都调 `tools\python\python.exe ... launch_local.py %*`，
+  停止/配置入口各自调根目录 `scripts/` 下的脚本）与建议形态：**构建一个 Go 启动器**（与 `wireprobe`
+  一起由 `Build-Server.ps1` 产出，子命令 `launch`/`server-only`/`stop`/`configure`/`prepare-pvf`），
+  `.cmd` 改为"有 Go 启动器就用它，否则回退 Python"——迁移期间两套并存、逐段替换、随时可回退。
+- 记录建议顺序（每步独立可验证且不阻塞可玩性）：停止脚本 → 启动器路径/存储/`--check` →
+  PVF 准备链 → **最后** `channel_probe.py` → `configure_env.py`，之后 `.cmd` 去掉 Python 分支，
+  `tools/python` 才可删。
+- 门禁：`go build ./...`=0、`internal/database` 与 `internal/archtest` 全绿（本轮为文档与清点，无 Go 改动）。
+- **下一轮**：落地 W2 第一步——`stop_environment.py` → Go 启动器的 `stop` 子命令（自包含、依赖最少，
+  用来定型骨架与日志风格），随后按上述顺序推进。
+- 未 commit（业主明确要求等收口）；未启动客户端；未对玩家库执行任何 SQL。
+
+## 2026-10-04：停止路径分叉 + 准备 SQLite 实机验收入口（业主手动）
+
+- **停止路径**：`scripts/stop_environment.py`（在**仓库根**的 `scripts/`，不是模块内的 `scripts/`——
+  我上一轮的 grep 只覆盖了模块目录，因此漏掉了这一处，本轮修正）的 `stop_postgres(cfg)` 现在先看
+  `driver`：`sqlite` 时打印 `Storage: sqlite profile, no PostgreSQL service to stop.` 并返回，
+  不再尝试用不存在的 `postgres_bin`/`postgres_data` 去停一个没在跑的服务。行为验证：
+  sqlite 配置正常返回；无键的 postgres 配置行为不变（同样正常返回）。
+- **验收入口已备好，但未执行**（按项目规则，实机只由业主操作）：
+  `server/work/dfo-lan/.tmp/sqlite-acceptance/` 内含
+  ① `local.json`（`driver: sqlite`、`sqlite_path: runtime/storage/dfolan.sqlite3`）与
+  ② `README.md`：备份并替换存储配置的两条 `copy` 命令、试玩建议范围（选角→进城→打副本→**退出重进验证持久化**）、
+  可选的 PG→SQLite 存档转换命令、以及如何一键回退到 PostgreSQL。
+  替换后启动器不再拉起 PostgreSQL，停止脚本也会跳过停机；SQLite 库文件落在 `runtime/` 下，与其它运行产物一样不入库。
+- 门禁：`go build ./...`=0、`go vet ./...`=0、`internal/database` 与 `internal/archtest` 全绿；
+  `stop_environment.py` 与 `launch_local.py` 语法编译通过。
+- **下一步**：W2——把启动编排（`launch_local.py`、`channel_probe.py`、`prepare_inner_pvf.py` 等）迁到 Go，
+  这是 `tools/python` 可删的前提；随后打包分叉（去掉对 `tools/pg` 的引用），`tools/pg` 才具备删除条件。
+- 未 commit（业主明确要求等收口）；未启动客户端；未对玩家库执行任何 SQL。
+
+## 2026-10-04：S5（自动部分）——引擎契约套件在 SQLite 与 PostgreSQL 上同批通过
+
+- 新增 `internal/database/contract_dualengine_test.go`：**同一段契约体跑两个引擎**
+  （`TestEngineContract/sqlite`、`TestEngineContract/postgres`）。这才是双引擎设计真正承诺的性质——
+  不是"SQLite 在自己的测试里能跑"，而是"两个引擎可互换"。SQLite 子测试始终运行（只需一个临时文件）；
+  PostgreSQL 子测试仅在 `DFO_TEST_POSTGRES_DSN` 指定隔离库时运行。
+- 契约内容（引擎无关的可观察行为）：
+  `DevelopmentAccount` **幂等**（两次同 id）｜未创建的角色 `NameExists` 为 false、`Characters` 为空｜
+  `DatabaseName`/`FixtureSchema` 非空、`LockMigrations` 无错｜**`NextMailID` 每次恰好 +1**（PG 序列与
+  SQLite 高水位给出同一不变式）｜**`HoldAdminGuard` 获取→释放→再次获取成功**（守卫泄漏会把管理写入卡到进程重启）｜
+  `MigrateWorld`/`MigrateFatigue` 可安全调用（PG 走分节，SQLite 为空操作）。
+- PostgreSQL 侧会补跑 `MigrateMailbox`：`NextMailID` 依赖 `mailbox_id_seq`，而它由自己的分节创建，
+  不属于 core——这也是契约测试暴露出的启动顺序事实。
+- 运行结果：`--- PASS: TestEngineContract (0.29s)` / `PASS: TestEngineContract/sqlite` /
+  `PASS: TestEngineContract/postgres`；`go build ./...`=0、`go vet ./...`=0、
+  `internal/database` 与 `internal/archtest` 全绿。
+- **S5 剩余部分只能由业主完成**：准备一份 `driver: sqlite` 的存储配置并手动启动游戏，确认能进游戏。
+  自动化能把两个引擎证到"同契约"，但"游戏能玩"只有实机能证明。
+- 未 commit（业主明确要求等收口）；未启动客户端；未对玩家库执行任何 SQL。
+
+## 2026-10-04：启动链分叉——启动器按 driver 选择存储，SQLite 模式不再拉起 PostgreSQL
+
+- `scripts/launch_local.py` 的 `configuration()` 现在读 `runtime/storage/local.json` 的 `driver`：
+  `sqlite` 时校验 `sqlite_path` 必须存在并返回 `pg = None`；`driver` 既不是空、`postgres` 也不是 `sqlite` 时
+  **明确拒绝**（拼错的 driver 不该静默按 PostgreSQL 处理）；`postgres` 与缺省路径逐字保持原行为。
+- `start_storage(cfg, pg)` 在 `pg is None` 时直接返回：SQLite 没有需要启动的服务，数据库文件由引擎自己打开/创建。
+  `--check` 的输出也改为按 driver 报告（`SQLite <path>` 或 `PostgreSQL: <listening>`）。
+- **行为验证（不触碰 `runtime/`）**：把模块的 `PROJECT/ROOT/STORAGE` 指到临时目录后逐项断言——
+  sqlite 配置 → `pg is None` 且 `start_storage` 为空操作；缺少 `sqlite_path` → 拒绝；未知 driver → 拒绝；
+  postgres 配置 → 仍解析出端口且 `start_storage` 仍按监听状态判断（临时目录没有 pgdata，因此它照旧
+  报“外部数据目录需由属主启动”，是正确行为而非回归）。19 个 `scripts/*.py` 全部语法编译通过。
+- 顺带说明：该文件是 **LF + 单空格缩进**（此前的显示前缀让我误判过缩进，已按实际字节改写）。
+- 门禁：`go build ./...`=0、`go vet ./...`=0、`internal/database` 与 `internal/archtest` 全绿
+  （本轮改动在 Python 侧，Go 门禁用于确认未受影响）。
+- **未完成/待办**：`停止游戏环境.cmd` 的停止路径是否也无条件停 PostgreSQL，尚未核查（SQLite 配置下
+  停一个没在跑的 PG 预计无害，但仍应确认）；打包/发布脚本对 `tools/pg` 的引用尚未分叉。
+  这两项与 S5 无关紧要，但属于"移除 tools/pg"前的完整清单。
+- **下一步**：S5——契约套件双引擎同批通过，并准备一份 SQLite 的 `runtime/storage/local.json` 供业主实机验收
+  （游戏第一次在 SQLite 上启动由业主手动执行）。
+- 未 commit（业主明确要求等收口）；未启动客户端；未对玩家库执行任何 SQL。
+
+## 2026-10-04：转换器接入显式入口（`dfo-tool sqliteconvert`）
+
+- 新增 `internal/toolcmd/sqliteconvert`，并注册进 `cmd/dfo-tool`（清单按名排序，紧邻 `skillaudit`/`storagecheck`）：
+  `go run ./cmd/dfo-tool sqliteconvert --config runtime/storage/local.json --out <新文件>`。
+  支持可选 `--migrate`（读之前先补跑源端迁移）。源端恒为 PostgreSQL，目标端由 `--out` 指定。
+- **目标必须是新文件**：转换器现在先 `os.Stat` 目标，已存在就拒绝。理由写在代码里——
+  在已有库上转换会与其中的行（台账、以及先前一次不完整的拷贝）冲突，正确做法是拒绝，
+  而不是把两份存档合并。
+- 命令输出逐表行数与 JSON 校验计数；若 `report.Missing` 非空（说明源端 schema 比目标端旧），
+  会打印醒目警告，因为此时不能声称转换完整。
+- 验证：`go build ./...`=0、`go vet ./...`=0；隔离库 25439 下
+  `TestConvertPostgresToSQLite`、`TestOpenSQLiteStore*`、`TestSQLiteEngine*`、`TestSQLiteAdapter*` 全过；
+  `internal/database` 与 `internal/archtest` 全绿；命令已出现在 `dfo-tool` 清单中。
+- **下一步**：启动链/打包分叉（让启动器按 driver 选择存储，SQLite 模式下跳过 PostgreSQL 启动），
+  这是 S5 业主实机验收的前置；随后 S5 双引擎契约套件。
+- 未 commit（业主明确要求等收口）；未启动客户端；未对玩家库执行任何 SQL。
+
+## 2026-10-04：S4b——PG→SQLite 单向转换器与校验（存档兼容门禁）
+
+- 新增 `internal/database/sqliteconvert.go`：`ConvertPostgresToSQLite(ctx, source, destPath)`。
+  **表清单与列类型都从 schema 自己读出来**（目标表取自 `sqlite_master`，源列与类型取自
+  `information_schema`），因此 schema 变化不会让某张表被静默漏拷。每张表校验：行数一致 +
+  **JSON 逐行字节哈希一致**；全部拷完后 `PRAGMA foreign_key_check` 校验引用完整性（拷贝期间
+  `foreign_keys=OFF` 以便任意顺序填充，最后再验，坏引用会**大声失败**而不是被插入顺序掩盖）。
+- **测试当场抓出三个真实缺陷**（这正是它存在的意义）：
+  ① pgx 把 `jsonb` 解码成 Go map，直接回写会丢字节 ⇒ 改为 `col::text` 读取。这是正确做法而非绕过：
+  PostgreSQL 的 jsonb 在**存储时**就归一化，所以规范文本**就是**存储值本身。
+  ② 目标库里有源 schema 没有的表（源比目标旧）⇒ 不再中止，记入 `report.Missing` 交调用方判断；
+  真实部署在启动时会跑完全部迁移，因此正常情况下该列表为空。
+  ③ `storage_migrations` 是**引擎本地台账**而非存档数据，目标库在建表时已写入自己的台账，
+  拷源台账既冲突又谎报文件内容 ⇒ 列入 `engineLocalTables` 不拷贝。
+- **验证（隔离库 25439，起→跑→停）**：`TestConvertPostgresToSQLite` —— 在隔离 schema 里建
+  账号 + 一个带特征 JSON 的角色 → 转换 → 逐表 `Verified`、`JSONChecked > 0`（证明字节级校验
+  真的跑了而不是空过）→ 再用**服务端自己的** `Open(Driver: sqlite)` 打开转换结果并查到该账号。
+- 门禁：`go build ./...`=0、`go vet ./...`=0、`internal/database` 与 `internal/archtest` 全绿。
+- **待办**：把转换器接到一个显式入口（`dfo-tool` 子命令），并让目标路径必须为新建文件（避免重复转换撞唯一约束）。
+- 未 commit（业主明确要求等收口）；未启动客户端；未对玩家库执行任何 SQL。
+
+## 2026-10-04：S4b——服务端可在 SQLite 上运行（`Open` 按 driver 分派，Store 级端到端验证）
+
+- **配置新增引擎选择**：`Config.Driver`（空 = PostgreSQL，**既有配置零改动**）、`SQLitePath`、
+  `SQLiteBusyTimeoutMS`。
+- **`Open` 变为分派器**：`""`/`"postgres"` → 原路径（重命名为 `openPostgres`）；
+  `"sqlite"` → `openSQLiteStore`（`openSQLite` + `migrateSQLiteAll` + `newSQLiteEngine`）；
+  未知 driver **明确报错**，而不是静默回落到 PostgreSQL——存储配置里写错一个词就会连到另一个库，
+  这是必须响的。
+- **迁移入口在 SQLite 上是诚实的空操作**：`execMigration` 加一处守卫即可覆盖 **39 个 `Migrate*` 中的 38 个**
+  （全部经由它）。原因是 SQLite 的整份 schema 在 `openSQLiteStore` 里一次应用，台账又保证幂等；
+  PostgreSQL 保留按域的有序推进，因为它的 schema 是增量长起来的。
+- **三条 Store 级测试（全部真实驱动，无 PostgreSQL）**：
+  `TestOpenSQLiteStoreEndToEnd` —— `Open(Driver: sqlite)` 后，启动路径会调的三个 `Migrate*` 都是空操作，
+  然后 `NameExists`/`DevelopmentAccount`（`INSERT ... ON CONFLICT ... RETURNING`，真的写进 SQLite）/
+  `Characters` 正常，且**`rawPool` 在 SQLite 引擎上正确拒绝**（PostgreSQL 专属入口不会静默什么都不做）；
+  `TestOpenSQLiteStoreIsIdempotent` —— 关闭后重开同一文件，先前写入的行仍在（说明复用了库而不是重建）；
+  `TestOpenRejectsUnknownDriver` —— 未知 driver 报错。
+- **至此双引擎的"能跑"部分闭环**：Store → engine → adapter → SQLite 全链路不再依赖 PostgreSQL。
+- 门禁：`go build ./...`=0、`go vet ./...`=0、`internal/database`（12 个门禁）与 `internal/archtest` 全绿；
+  全量 `go test`（隔离库 25439）与基线对照见当轮记录。
+- **下一步**：PG→SQLite 单向转换工具与校验（行数/主键/JSON 原始字节）、启动链与打包分叉（让启动器可选 driver）、
+  然后 S5 双引擎契约与业主实机验收；之后 `tools/pg` 才可删。
+- 未 commit（业主明确要求等收口）；未启动客户端；未对玩家库执行任何 SQL。
+
+## 2026-10-04：S4b 主体——Store 已接到引擎缝（77 文件，机制化替换）
+
+- **`Store` 不再持有 PostgreSQL 句柄**：`db *pgxpool.Pool` + `queries *sqlcgen.Queries` →
+  `engine engine` + `queries querySet`（`queries` 字段保留，约 200 处 `s.queries.X(...)` 因此零改动）。
+- **关键设计修正：缝改用"手工事务"形态**。原设计只有回调式 `inTx(fn)`，但既有代码 **47 处**是
+  `s.db.Begin` / `defer tx.Rollback` / `tx.Commit` 的手工形态。若强行改成闭包，就要重写 47 个函数体；
+  改为在缝上提供 `begin(ctx) (txHandle, error)` + `txHandle{queries, exec, commit, rollback}` 后，
+  这 47 处**只换类型、不动结构**，改完 `Rollback`/`Commit` 也仍然显式可见。
+  回调式保留为自由函数 `inTx(ctx, eng, fn)`，供原先 6 处 `pgx.BeginFunc` 使用。
+- **机制化替换的实测规模（77 文件，+457/−450，近乎对称即纯替换）**：
+  `s.db.Begin(ctx)` 47、`defer tx.Rollback` 49、`tx.Commit` 70、`s.queries.WithTx(tx)` 49、
+  `sqlcgen.New(tx)` 37、`pgx.BeginFunc` 6、`tx pgx.Tx` 形参 7、`*sqlcgen.Queries` 形参 6、
+  测试里直接用连接池的 122 处。
+- **两处必须显式处理的语义点**：
+  ① `roster_background.go` 的 `BEGIN ... IsoLevel: RepeatableRead, AccessMode: ReadOnly` —— 缝只开普通事务；
+  在 SQLite（WAL）下延迟读事务提供的正是同一快照语义，已在代码处注明；PG 侧仍是同一事务。
+  ② 连接池的三个使用者（fixture 的临时 schema、诊断例外、advisory guard）在 `sec.3.4` 里本就是
+  **PostgreSQL 专属**，现在改为向引擎要池、拿不到就返回明确错误（`errPostgresOnly`），而不是悄悄什么都不做。
+  管理守卫则彻底收进引擎：`HoldAdminGuard` 现在只是 `s.engine.holdAdminGuard(ctx)`。
+- **`txHandle.exec`** 是为迁移器加的：DDL 没有生成查询，且必须与台账写入同事务。
+- **验证**：`go build ./...`=0、`go vet ./...`=0（含全部测试文件）、`internal/database` 与 `internal/archtest` 全绿；
+  全量 `go test`（隔离库 25439）与基线对照见当轮记录。
+- **可回滚性**：这 77 个文件全部是被跟踪文件，改动是机制化替换，`git checkout -- internal/database` 即可整体回退；
+  三个替换脚本留在 `.tmp/wire-store*.py`，可重放。
+- 未 commit（业主明确要求等收口）；未启动客户端；未对玩家库执行任何 SQL。
+- **下一步**：`Open` 按配置 `driver` 分派（`postgres` → pgxpool / `sqlite` → `openSQLite`+`migrateSQLiteAll`）、
+  配置扩展（`driver`、`sqlite_path`）、PG→SQLite 转换工具与校验、启动链与打包分叉，然后 S5 双引擎契约。
+
+## 2026-10-04：S4b 起步——引擎缝落地（`queries`/`inTx`/`close`），事务语义双路径验证
+
+- **新增 `internal/database/engine.go`（新文件，未触碰任何被跟踪文件）**：
+  ```go
+  type engine interface {
+      queries() querySet
+      inTx(ctx context.Context, fn func(querySet) error) error
+      close() error
+  }
+  ```
+  PostgreSQL 实现：`pgx.BeginFunc` + `q.WithTx(tx)`（与改造前完全一致）；
+  SQLite 实现：`db.BeginTx`（DSN 的 `_txlock=immediate` 提供写序列化）+ `newSQLiteQueriesTx`，
+  回调出错即回滚、成功才提交，与 `pgx.BeginFunc` 的语义对齐。
+- **为什么缝这么小**：原设计把 `WithTx` 放进共享接口，行不通——它交回的是**事务句柄**
+  （`pgx.Tx` vs `*sql.Tx`），没有单一签名能描述。把这点差异收进 `inTx`，
+  Store 的事务调用点就能变成引擎中立、且不必认识任何数据库概念。
+- **适配器支持事务**：`sqliteQueries` 现在持有 `db`/`tx` 二者之一（由生成器产出该字段），
+  5 个引擎专属方法改用 `queryRow`/`exec` 路由——因此它们在事务内外都能用。
+  `NextMailID` 在事务内**复用调用者的事务**而不是嵌套开启（SQLite 会拒绝嵌套），在事务外自建并提交。
+- **两条新测试（真实驱动）**：`TestSQLiteEngineInTx` 验证提交路径落库、回滚路径把回调做的多个写入全部撤销、
+  且**回调自身的错误被原样返回**；`TestSQLiteEngineInTxWithEngineSpecificMethod` 验证 `NextMailID`
+  在事务内外都工作并连续取号 1、2。
+- 门禁：`go build ./...`=0、`go vet ./...`=0、`internal/database`（9 个门禁）与 `internal/archtest` 全绿。
+- **下一步（S4b 主体，将触碰被跟踪文件）**：把 `Store` 的 `db`/`queries` 换成 `engine`，
+  并把约 50 处 `pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) ...)` + `s.queries.WithTx(tx)` 改为
+  `s.engine.inTx(ctx, func(q querySet) ...)`；随后是 `Open` 按 `driver` 分派、配置扩展、
+  PG→SQLite 转换工具与校验、管理守卫接线、启动链/打包分叉。这一步建议先确认可提交，避免又白做。
+- 未 commit（业主明确要求等收口）；未启动客户端；未对玩家库执行任何 SQL。
+
+## 2026-10-04：S3b 完成——SQLite 适配器落地，两个引擎满足同一个 `querySet`
+
+- **两段式完成**：`querySet`（281 方法）由 `.tmp/gen-queryset.go` 从 PG 派生，
+  `var _ querySet = (*sqlcgen.Queries)(nil)` **编译通过** ⇒ PostgreSQL 侧**零适配器**；
+  `sqliteQueries`（新增 `sqlite_adapter_gen.go` 2807 行 + `sqlite_adapter_manual.go` 151 行）
+  `var _ querySet = (*sqliteQueries)(nil)` **编译通过** ⇒ SQLite 侧接进同一条缝。
+- **适配器构成**：嵌入 `*sqlcgensqlite.Queries` + **277 个生成方法** + **36 个字段转换器** +
+  **5 个引擎专属手写方法**。转换器**按字段名**配对（同时解决字段顺序差异与 `ColumnN` 改名），
+  类型规则只需 11 条（整数宽度、`json.RawMessage`↔`[]byte`、数组↔JSON 文本、`pgtype.Int8`↔`*int64`、
+  `time.Time`↔整数微秒）。生成器遇到无法映射的字段会**停止并打印**，绝不静默产出坏代码。
+- **5 个手写方法各自的依据**：`DatabaseName`→`pragma_database_list`（sqlc 的 schema 模型不认识 pragma 虚表，
+  所以只能写在 Go 里）；`FixtureSchema`→`"main"`（SQLite 无 schema，D18 用独立数据库文件隔离）；
+  `LockMigrations`→空操作（`_txlock=immediate` 已提供事务级、崩溃即释放的写序列化）；
+  `NextMailID`→**推进 `sqlite_sequence`**（该值正是 AUTOINCREMENT 分配器使用的高水位，因此
+  **保住了「附件 id 先分配、与消息 id 共用号段」的不变式**）；`TrySharedAdminGuard`→数据库旁的管理租约文件
+  （§3.3 的落地形式；**刻意不做"清理死进程租约"**——标准库无法可移植地判断进程存活，误判会让两个管理员同时写，
+  正是该锁要防的事；改为在错误里报出持有者与文件路径，由运维清理，崩溃安全的租约行方案记在 §3.3 待办）。
+- **端到端验证（新增 `sqlite_adapter_test.go`，真实驱动）**：通过 `querySet` 接口调用——
+  `DatabaseName` 返回数据库文件路径；`LockMigrations` 无副作用；**`NextMailID` 依次返回 1、2 且随后的真实
+  INSERT 继续往上取号**（不变式成立）；共享守卫第二个持有者被拒且错误中点名租约文件；
+  `CreateCharacter`/`Characters` 经生成转换器完成 JSON 状态逐字节往返；`CharacterAllocation` 的
+  `NextWireID` 由转换器把 int64 收窄回 int32。
+- **修正了一处守卫误判（改的是被跟踪文件）**：`internal/archtest/persistence_test.go` 的持久化边界规则原本只检查
+  方法名是否导出，不检查**接收者是否导出**，于是把"未导出适配器类型上的生成方法"当成了类型泄漏。
+  未导出接收者的方法不构成包对外表面（`sqliteQueries` 与 `querySet` 都无法从包外命名），
+  故跳过这类方法，导出的 `Store` 仍照旧受检。
+- 门禁：`go build ./...`=0、`go vet ./...`=0、`internal/database`（7 个 SQLite/双引擎门禁 + 适配器端到端）
+  与 `internal/archtest` 全绿。
+- **下一步（S4b）**：Store 事务缝（`s.queries.WithTx(tx)` 在约 50 处，返回具体类型，需改为引擎中立的
+  `inTx(ctx, fn)`）、`Open` 按 `driver` 分派、配置扩展、PG→SQLite 转换工具+校验、管理守卫接线、
+  启动链与打包分叉——这是本阶段唯一会大范围触碰被跟踪文件的一步。
+- 未 commit（业主明确要求等收口）；未启动客户端；未对玩家库执行任何 SQL。
+
+## 2026-10-04：S3b 适配器成形——277 方法已生成（241 直接编译），剩余 36 转换 + 5 手写已精确列出
+
+- **适配器生成器 `​.tmp/gen-sqlite-adapter.go`**：从 `querySet`（281 方法）与两个生成包派生，
+  产出 `sqliteQueries`（嵌入 `*sqlcgensqlite.Queries` + 逐方法转换）。当前产出 **277 个方法**，
+  其中 **241 个直接编译通过**（PG 与 SQLite 结构体字段完全一致时可整型直转；切片按元素逐一转换）。
+- **剩余工作已精确量化，不再有未知**：
+  - **36 个方法 / 36 个结构体需要转换器**（字段集或字段顺序不同）。生成器会逐条打印，
+    例如 `AbandonQuest: param sqlcgen.AbandonQuestParams`、`CharacterAllocation: result sqlcgen.CharacterAllocationRow`。
+  - **5 个方法无 SQLite 对应物，需手写**：`DatabaseName`（`pragma_database_list`）、
+    `NextMailID`（推进 `sqlite_sequence` —— 这样能**保持**「附件 id 先分配、与消息 id 共用号段」的不变式，
+    比先前判断的更忠实）、`TrySharedAdminGuard`（§3.3 租约行）、`FixtureSchema`（返回 `main`）、
+    `LockMigrations`（空操作，`BEGIN IMMEDIATE` 已提供同一保证）。
+- **本轮新发现一类分歧**：结构体**字段顺序**不同也会让 Go 拒绝直接转换（Go 要求字段名、类型、**顺序**都一致）。
+  例：`AbandonQuestParams` 在 PG 是 `CharacterID, AccountID, QuestID`，在 SQLite 是 `CharacterID, QuestID, AccountID`。
+  这类**按名字逐字段拷贝即可**（转换器按字段名映射，天然同时解决重排与类型差异）。
+- **我自己的两个生成器缺陷已修**（记录以免重犯）：① 切片分支把类型写成 `[]sqlcgen.X(item)`（应为元素类型
+  `sqlcgen.X(item)`），导致"字段完全一致"的结构体也被报错 ② `structName` 未去掉 `sqlcgen.` 前缀，
+  使"需要转换器"的判断永不命中、错误清单为空。修好后 52 个编译错误收敛为精确的 36 条。
+- **未完成的适配器已移出包**（`.tmp/sqlite_adapter_gen.go.wip`），以免半个文件让 `go build` 变红；
+  树恢复全绿：`go build`=0、`go vet`=0、`internal/database` 与 `internal/archtest` 全绿。
+- `querySet`（281 方法）+ PG 零适配器编译期断言 + 两个守卫（方法集合双向对齐、形状一致）保持绿。
+- 未 commit（业主明确要求等收口）；未启动客户端；未对玩家库执行任何 SQL。
+
+## 2026-10-04：双引擎 S3b 起步——`querySet` 缝定型，PostgreSQL 侧零适配器接入
+
+- **`internal/database/queryset.go`**（新文件，由 `.tmp/gen-queryset.go` 从 PostgreSQL 生成包派生）：
+  `type querySet interface` 共 **281 个方法**（PG 生成面去掉 `WithTx`）。canonical 形状就是 PG 形状，
+  即 Store 既有代码已经在用的那套类型。
+- **`var _ querySet = (*sqlcgen.Queries)(nil)` 编译通过** ⇒ PostgreSQL 侧**零适配器代码**即可接入双引擎缝。
+  配套两个守卫：`TestQuerySetCoversGeneratedSurface`（方法集合双向对齐，防"新查询加了但接口没重生成"）
+  与 `TestPostgresEngineNeedsNoAdapter`（形状一致性）。
+- **本轮实测推翻了一个原设想**：原以为"两个生成包各嵌入自己的 `*Queries` 就能满足同一接口"——**不成立**。
+  生成的 param/row 是**包内类型**（`sqlcgen.XxxParams` vs `sqlcgensqlite.XxxParams`），名字相同却**不是同一个类型**；
+  Go 的嵌入只提升方法、不做类型转换。故凡签名含结构体的方法都需一次显式转换；好在 Go 允许**同构结构体直接转换**，
+  绝大多数是一行转换，只有 41 处已登记分歧需要逐字段转换。
+- **S3b 剩余工作已定稿并写入设计文档 §2.7**：SQLite 适配器 = ① 嵌入 `*sqlcgensqlite.Queries`
+  ② 41 处逐字段转换（数组与时间转换需返回 error）③ 5 个引擎专属实现
+  （`DatabaseName`/`NextMailID`/`TrySharedAdminGuard`/`FixtureSchema`/`LockMigrations`）。
+  这三段**可以全部放在新增文件里**，因此零回退风险。
+- **本阶段唯一触碰被跟踪文件的一步**：`s.queries.WithTx(tx)` 在**约 50 处**使用且返回具体类型，
+  共享接口无法表达事务句柄 ⇒ 需要极小的引擎缝
+  （`queries() querySet` / `inTx(ctx, fn)` / `close()`）。建议**先完成适配器，再单独做这一步**，
+  并在改造前确认可提交——因为 20:14 已发生过一次"模块内被跟踪文件被整体打回 HEAD"。
+- 门禁：`go build ./...`=0、`go vet ./...`=0、`internal/database`（含 7 个 SQLite/双引擎门禁）与
+  `internal/archtest` 全绿；PG 生成物内容零变化。
+- 未 commit（业主明确要求等收口）；未启动客户端；未对玩家库执行任何 SQL。
+
+## 2026-10-04：双引擎 S3a 收口——查询移植 277/282，分歧清单转为可信回归门禁
+
+- **上一轮 20:14 事件的完整范围已查清**：那次批量回退只作用于**模块内被跟踪的文件**（S1、S2、`sqlc.yaml`、
+  我改造过的 `scripts/Generate-SQL.ps1`、`internal/archtest/persistence_test.go` 的驱动边界），
+  **未跟踪的新文件与仓库根文件全部存活**（SQLite 轨道、五份文档、`CHANGELOG`、`tools/gm-tool` 删除、
+  `scripts/` 收拢皆在）。据此按业主决定"保持现状、放弃 S1/S2"处理，只移除导致套件变红的遗留物。
+- **查询移植 275 → 277/282**：补上 `CharactersWithAdventure` 与 `CharacterSeason`（`json_set`/`json_object`），
+  并把结果 cast 回 BLOB 以便扫进 `json.RawMessage`（JSON1 返回 TEXT，TEXT 存进 BLOB 列会读回 string）。
+  `DatabaseName` 试过用 `pragma_database_list` 移植，但 **sqlc 的 schema 模型不认识 pragma 虚表**
+  （`relation "pragma_database_list" does not exist`），故回退——它与其他 4 个一并留给手写适配器方法：
+  `DatabaseName`（适配器用 `pragma_database_list`）、`NextMailID`（`sqlite_sequence`）、`TrySharedAdminGuard`
+  （需 §3.3 租约设计）、`FixtureSchema` / `LockMigrations`（PG 专属）。
+- **分歧清单转为可信门禁**：`generated_parity_test.go` 的 `acceptedDivergences` 现有 **41 条**，每条写明根因
+  （PG 显式 cast 无法复现、JSON1 表达式列、数组映射、`pgtype` 空值表达、`RETURNING` 别名丢失、
+  `0::smallint` 投影、TIMESTAMP 表达式无 decltype），**意外分歧为 0**。门禁从此只对**新增**分歧报警。
+- **PG 生成物保持内容零变化**（仅行尾，已还原）；`sqlc.yaml` 的 sqlite 块由 `.tmp/write-sqlc-yaml.py` 幂等重建。
+- 门禁：`go build ./...`=0、`go vet ./...`=0、`internal/database`（56/56 schema 对照、段落零漂移、SQL 全 ASCII、
+  真实驱动端到端往返、签名对齐）与 `internal/archtest` 全绿；**全量 `go test -count=1 ./...` 失败集合与旧基线逐名相同**
+  （仍只有 2 个既有 primer-transform 失败）——放弃 S1/S2 未引入任何新失败。
+- **待办（下一轮）**：① 把我改造过的 `scripts/Generate-SQL.ps1` 多引擎检查与 `persistence_test.go` 驱动边界
+  重新应用（它们是门禁而非阻塞；在"暂不提交"期间有再次被回退的风险，故先记录）② 复现 2 个既有
+  primer-transform 失败是否与本轮无关（它们是放弃 S1/S2 前后的共同失败）③ 进入 **S3b**：
+  `internal/database` 内部的 `querySet` 接口 + postgres/sqlite 两个适配器（接口缝在包内，不依赖已放弃的 S1）。
+- 未 commit（业主明确要求等收口）；未启动客户端；未对玩家库执行任何 SQL。
+
+## 2026-10-04：业主决定放弃 S1/S2（保持现状）；S1 遗留物清理与基线重建
+
+- **业主决定**：保持当前工作区、**放弃 S1（消费方窄接口缝）与 S2（`ErrNoRows` 归一）**，并且**暂不提交**。
+- **事实核对**：S1 对既有文件的改动（`internal/workflow` 的 9 个窄接口、`cmd/wireprobe` 的
+  `persistentStore` 接线等）与 S2 的 23 文件改动**在当前工作区已不存在**；而**新增（未跟踪）文件全部存活**——
+  SQLite 轨道完好（13/13 查询文件、`sqlite.go`、四个门禁测试、`sqlc.yaml`、SQLite DDL 与 override）、
+  五份方案/交接文档、`scripts/` 收拢（4 个重命名仍在暂存区）、以及 `tools/gm-tool` 的删除。
+- **清理只服务于该废弃设计的遗留物**：删除 `internal/archtest/store_boundary_test.go`（G1 守卫；S1 回退后它
+  必然失败——报告 `internal/admin` 与 `cmd/wireprobe` 共约 33 处 `*database.Store` API 位置）、
+  `internal/workflow/store_contract_test.go`、`cmd/wireprobe/store_contract_test.go`、
+  `internal/admin/store.go`（`admin.Store` 无任何引用）及其契约测试。备份留在 `.tmp/s1-backup-*`。
+- **过程失误（已修复，记录以免重犯）**：我用文件 basename 命名备份，而 `store.go` / `store_contract_test.go`
+  在两个包里同名，导致备份互相覆盖，`internal/admin/store.go` 一度被写回 `cmd/gmtool` 的内容
+  （报 `found packages admin and main`）。核对引用后按"删除"处理。**教训：备份路径必须带完整包路径。**
+- `internal/database/driver_errors.go`（S2 的 `isNoRows`）**保留**：新增的 `sqlite.go` 迁移函数仍在调用它。
+- **保留结论**：S3b 的 `querySet` 接口与两个适配器位于 `internal/database` **内部**，不依赖 S1 的消费方
+  接口缝。因此双引擎目标不受本次放弃影响，继续按 S3a → S3b → S4 → S5 推进。
+- 门禁：`go build ./...`=0、`go vet ./...`=0、`internal/archtest` 全绿、`internal/database` 全绿；
+  全量 `go test -count=1 ./...` 结果与旧基线逐名对照见本轮记录（隔离测试库 25439，起→跑→停）。
+- 未 commit（业主明确要求等收口）；未启动客户端；未对玩家库执行任何 SQL。
+
+## 2026-10-04：双引擎 S3a——SQLite **查询树 13/13 文件全部移植完成**（275/282 方法）
+
+- **13 个查询文件全部落地**：core / settings / adventure / commerce / quests / progression / events /
+  fixtures / gm / inventory / mail / migrations / oath。生成方法 **275/282**，SQLite 侧无任何多余方法。
+- **宽度镜像脚本的自身缺陷已修**：上一版按**行**改写，导致**同一行里的后续列被静默跳过**
+  （例如 `character_fatigue_recovery.template` 与 `character_id` 同行）。改为按**解析出的列位置**改写后，
+  本轮又修正 7 列（含子代理独立指出的 `character_fatigue_recovery.template`、
+  `character_omen_state.dungeon_id`、`character_oath_progress.dungeon_id` 三个 PG 为 `bigint` 的列），
+  一并消除了 8 处宽度偏差；另有 2 处此前登记为"无法对齐"的偏差（`CharacterAllocationRow.NextWireID`、
+  `RecordCharacterFameParams.CurrentFame`）**因此直接消失**——它们原本是可修的，不是引擎限制。
+- **剩余 7 个未移植方法已分类清楚**（全部有明确归属，不是遗漏）：
+  - 可移植、下轮补（2）：`CharactersWithAdventure`、`CharacterSeason`（需要 `json_set`/`json_object`，
+    且结果列是表达式 ⇒ 会产生 `[]byte` vs `json.RawMessage` 偏差，由适配器转换）。
+  - 引擎专属，需手写适配器方法（3）：`DatabaseName`（SQLite 可用 `pragma_database_list` 实现）、
+    `NextMailID`（序列已被 `AUTOINCREMENT` 取代，可用 `sqlite_sequence` 实现）、
+    `TrySharedAdminGuard`（PG advisory lock；SQLite 按方案 §3.3 需租约行，设计上不可直译）。
+  - PG 专属、明确不移植（2）：`FixtureSchema`（测试用 schema 管理）、`LockMigrations`（迁移管理锁）。
+- **当前门禁**：`go build`=0、`go vet`=0、`internal/database`（schema 56/56 对照、段落零漂移、SQL 全 ASCII、
+  真实驱动端到端往返、生成签名对齐）与 `internal/archtest` 全绿；PG 侧生成物**内容零变化**。
+  签名门禁仍报 35 处**未登记偏差**，已归为四类，下轮收口：① 可修宽度（移植时该 CAST 未 CAST）
+  ② JSON 表达式列（`[]byte` vs `json.RawMessage`）③ 数组映射（`[]int32`/`[]int64` → JSON 文本/BLOB，方案已定）
+  ④ `pgtype.Int8` vs `*int64` 的空值表达差异（PG 块未开 `emit_pointers_for_null_types`，需决策）。
+- 子代理独立确认的两项结论已被采纳：`UPDATE ... FROM` 被 sqlc 的 sqlite 语法拒绝（与方案 D21「原样支持」矛盾，
+  已按相关 `EXISTS` 重写并实测等价）；**TIMESTAMP 表达式列**（`max(created_at)`、`COALESCE(...)`、
+  `CAST(... AS TIMESTAMP)`）在驱动侧拿不到 decltype ⇒ `time.Time` 扫描目标无法填充，只有裸列引用能转换——
+  这类位置必须由适配器把整数微秒转 `time.Time`。
+- 未 commit；未启动客户端；未对玩家库执行任何 SQL。
+
+## 2026-10-04：双引擎 S3a 收尾——宽度对齐、JSON override 补全、5 条 sqlc 引擎陷阱固化（查询移植 153/282）
+
+- **整数宽度对齐（本轮最大的结构性简化）**：实测 sqlc 的 sqlite 引擎**对列引用尊重 `db_type` override**
+  （`SMALLINT`→int16、`INTEGER`→int32），于是把 SQLite DDL 的整数列按 PG 声明**镜像宽度名**
+  （`BIGINT`/`INTEGER`/`SMALLINT`，SQLite 三者存储等价、运行时零影响），并在 `sqlc.yaml` 用 2 条
+  db_type override 映射回 PG 的 int16/int32/int64；identity 列因 AUTOINCREMENT 必须是 `INTEGER`，
+  用 5 条列级 override 钉回 int64。**效果：两个生成包的签名逐位一致**，共享 `querySet` 接口可以用
+  **嵌入**满足 —— 不需要约 560 个手写转发方法（原先估算是每个引擎各 ~282 个）。
+  同时实测出边界：**CAST 目标恒为 int64**（`CAST(x AS INTEGER/SMALLINT/BIGINT)` 一样），**聚合不继承列宽**
+  （`max(col)`→int64、`max(裸表达式)`→`interface{}`）——这些无法用 SQL/配置对齐，改为逐项登记（见下）。
+- **JSON override 补全 2→19 列**：上一版提取只扫 `CREATE TABLE`，漏了 `ALTER TABLE ADD COLUMN` 新增的
+  `account_adventures.data`（jsonb），导致 3 个生成字段退化成 `[]byte`。两个提取脚本（宽度镜像、override 生成）
+  都已补上 ALTER 分支。
+- **五条 sqlc v1.31.1 sqlite 引擎陷阱，全部实测复现并固化**（写进移植指南第 5 节 + 门禁）：
+  1. `sqlc.arg()` 出现在 `FILTER (WHERE ...)` 内**被静默丢弃**：exit 0，但生成物里是字面量、无占位符无 Go 参数，
+     运行时 "no such function"。改为 `count(CASE WHEN ... THEN 1 END)`。`progression.sql:84` 属此类。
+  2. `sqlc.arg()` 出现在 `ON CONFLICT ... DO UPDATE`（SET 或 WHERE）内**原样拷贝**。参数需挪进
+     `INSERT ... SELECT ... WHERE NOT EXISTS(...)`。已核实全树仅 `settings.sql` 一处。
+  3. `IS DISTINCT FROM` 被 sqlc 的 sqlite **语法**拒绝（运行时驱动支持，parser 不认）→ 用空安全 `IS NOT`。
+     `events.sql` 有 6 处。
+  4. `UPDATE ... FROM` / `DELETE ... USING` 被拒绝 → 改写为同 join、同归属判定的相关 `EXISTS`
+     （外层列必须加表名前缀，否则 sqlc 报歧义）。
+  5. `CAST(sqlc.arg(x) AS JSON)` 会被 SQLite 的 NUMERIC 亲和性**摧毁取值**（`[1,2]`→0）→ 用
+     `json(CAST(sqlc.arg(x) AS BLOB))`；JSON1 结果回写 BLOB 列要 `CAST(json_set(...) AS BLOB)`。
+  - **唯一可靠的自检**：生成后在 `*.sql.go` 里搜 `sqlc.arg(`（**排除 `--` 与 `//` 注释行**）必须为 0。
+    已固化为门禁的一等检查（首版因未排除注释行而误报全部 5 个文件，已修正）。
+- **门禁增强**：`TestSQLiteGeneratedSignatureParity` 改为**精确**比较（不再放宽整数宽度），并把确实无法对齐的
+  位置登记进 `acceptedDivergences`（每项写明原因；出现未登记偏差即失败，登记项失效也失败，防陈旧）。
+- **进度**：查询移植 **153/282 方法**（core / settings / adventure / commerce / quests 五个文件已交付并通过生成），
+  其余 129 个方法由 2 个并行子代理移植中；两个子代理已收到 sqlc.yaml 变更与前述陷阱的通知。
+- **下一轮待办**：24 处未登记偏差分三类收口 —— ① 约 8 处**可修的整数宽度**（移植时多加了 CAST，
+  而列类型本可推断）② 4 处 `[]int32`→JSON 数组文本、2 处 `[]int64`→BLOB 数组、1 处 `RETURNING` 别名丢失
+  （属方案已定映射，登记即可）③ 1 处 `pgtype.Int8` vs `*int64` 的**空值表达**差异：PG 块未开
+  `emit_pointers_for_null_types`，需决策给 PG 也开启（已确认非生成代码里只有 2 处 `pgtype.` 引用，代价可能很小）
+  或逐项登记。
+- **验证**：`go build ./...`=0、`go vet ./...`=0、`internal/database` 五个门禁全绿（schema 56/56 对照、
+  段落零漂移、SQL 全 ASCII、真实驱动端到端往返、生成签名对齐）；全量 `go test -count=1 ./...`
+  失败集合与基线逐名相同；**PG 侧生成物内容零变化**（仅行尾，已还原）。未 commit；未启动客户端；
+  未对玩家库执行任何 SQL。
+
+## 2026-10-04：SQLite 双引擎 S3a（schema 分叉铺满 56/56 表）+ 四条机械化门禁
+
+- **SQLite schema 分叉完成**：`internal/database/sql/sqlite/migrations/0001_initial.sql` 现覆盖
+  **全部 38 个段落、56 张表**（此前只有 3 段）。段落名与 PostgreSQL 逐字一致，便于两边迁移台账直接对照。
+- **方言映射（已实测）**：identity→`INTEGER PRIMARY KEY AUTOINCREMENT`（顺带替掉全 schema 唯一的序列
+  `mailbox_id_seq`）、jsonb→`BLOB`+`CHECK(json_valid(...))`、`jsonb_typeof`→`json_type`、bytea→`BLOB`、
+  `bigint[]`→JSON 数组 BLOB + `json_array_length`、boolean→`BOOLEAN` 存 0/1、timestamptz/date→整数微秒、
+  `octet_length`→`length(CAST(x AS BLOB))`（保留字节语义）、`FOR UPDATE`/`FOR SHARE` 全删、
+  `ALTER ... ADD COLUMN IF NOT EXISTS` 折进建表、`LIMIT` 置于 `OFFSET` 之前。
+- **明确不搬并写明理由**：两处 `DO $$` 块（检查已删除的遗留列/表）、以及历史修复 DML（0023 任务模型翻译、
+  0028 次级金库修正、0035 grief 播种）——本分支只表达**当前 schema**，数据经 S4 转换器按迁移后状态复制，
+  重放修复轻则冗余重则有破坏性。
+- **新增四条机械化门禁，全部进 `go test`**（不再依赖人肉核对）：
+  1. `TestSQLiteSchemaCoversPostgres` —— 解析两个方言树，**逐表逐列逐索引**对照：
+     **56 表 / 7 索引完全一致**，漏表、漏列、多余表都会失败。
+  2. `TestSQLiteMigrationSectionsCoverFile` —— 显式段落列表与文件声明**零漂移**（漏登记一段就等于少建表）。
+  3. `TestSQLDialectFilesAreASCII` —— 两个方言树 19 个 `.sql` 全部 ASCII；把 D23 那个「非 ASCII 字节
+     导致 sqlc 报单字符乱码错误」的坑变成测试，而不是靠人记。
+  4. `TestSQLiteGeneratedSignatureParity` —— 比对 `sqlcgen` 与 `sqlcgensqlite` 的**生成 API**：
+     方法集合、参数/结果类型（按整数/浮点宽度族归一）、结构体字段。
+     **端口未完成时 skip 并报进度**（当前 **33/282**），铺满后自动转为强校验；同时把
+     `interface{}` 一律判为失败（对应 R-1 规则）。
+- **端到端测试升级**：`TestSQLiteCoreSliceRoundTrip` 现在跑**全量**迁移，并断言台账行数 == 段落数、
+  真实驱动建出的表数 == PG 声明的表数。
+- **验证**：真实 SQLite 执行整份 DDL —— 56 表建成、`foreign_key_check` 干净；
+  `sqlc generate` 解析整份 schema exit 0；`go build`=0、`go vet`=0、`internal/archtest` 全绿；
+  全量 `go test -count=1 ./...`（隔离测试库 25439，起→跑→停）**失败集合与基线逐名相同**
+  （仍只有 2 个既有 primer-transform 失败，无新增）。
+- **查询树移植进行中**（12 个文件、282 方法）：写了 `docs/sqlite-query-port-guide.md` 作为移植规范，
+  并已并行分派；完成后由上述第 4 条门禁验收。
+- 未 commit；未启动客户端；未对玩家库执行任何 SQL。
+
+## 2026-10-04：SQLite 双引擎 S4a——SQLite 引擎接入，真实驱动端到端跑通（并修正 D24）
+
+- **新增 `internal/database/sqlite.go`**：`sqliteDSN`（方案 §5.1 的全部参数：`_txlock=immediate`、`_busy_timeout`、
+  `_foreign_keys=1`、`_journal_mode=WAL`、`_synchronous=NORMAL`、`_timezone=UTC`、`_inttotime=1`、
+  `_time_integer_format=unix_micro`、`_dqs=0`；查询串**手工拼接**——`url.Values` 会把 `journal_mode(WAL)` 的括号
+  百分号编码，改变 SQLite 实际收到的东西）、`openSQLite`（有界连接池：`database/sql` 默认无上限，且每个连接自带页缓存）、
+  `migrateSQLite`（段落 + sha256 + `storage_migrations` 台账，幂等，复用 S2 的 `isNoRows`）、`migrateSQLiteCore`。
+  同时把 PG 的迁移段落切分**泛化成 `migrationSection(fsys, initial, name)`** 供两个引擎共用，
+  避免台账身份与校验和规则各写一套而分叉。
+- **依赖** `modernc.org/sqlite v1.59.0`（纯 Go，CGO 保持关闭；`libc v1.75.7` 与驱动 pin 一致）。
+- **新增端到端测试 `TestSQLiteCoreSliceRoundTrip`（真实驱动，非 mock），全绿**，一次覆盖：`sqlite_version=3.53.4`；
+  `journal_mode=wal` / `foreign_keys=1` / `busy_timeout=5000` 三条 PRAGMA **确实生效**；**外键真的拦住孤儿角色**；
+  迁移重复执行不报错且台账 2 行；角色 `state` **逐字节往返一致**且 `typeof='blob'`；`created_at` 存储类为 `integer`
+  且 `time.Time` 微秒往返正确；`deleted_at` 读出 `*time.Time`；事件复合主键**真的拒绝重放**；归档后名册隐藏、
+  `CharacterAllocation` 计数与下一序号正确；**删档后 id 单调不重用**。
+- **修正 D24（重要，方案文档已同步改写）**：先前定为「JSON 存 TEXT + 参数显式 CAST」，**被真实驱动否决**——
+  列存 TEXT 时驱动返回 Go `string`，而 Go 1.26 的 `database/sql` **拒绝把 `string` 扫进 `json.RawMessage`**
+  （实测原文 `unsupported Scan, storing driver.Value type string into type *json.RawMessage`），
+  生成的行类型**直接不可用**。现改为 **JSON 列存 BLOB + 参数不加 CAST**：`json.RawMessage` 在**读写两个方向都成立**、
+  **零适配器转换**、与 PG 侧类型完全对齐；`json_valid`/`json_extract`/`json_set` 对 BLOB 同样有效（已在驱动自带
+  SQLite 3.53.4 上实测）。代价是 `typeof()` 为 `blob`（人工用浏览器看是二进制），但存入的就是 Go 交给它的原始字节，
+  符合 D4「写前由 Go 统一 Marshal、禁库侧规范化」。DDL 与查询文件头部注释、`sqlc.yaml` 注释同步。
+- **门禁**：`go build ./...`=0、`go vet ./...`=0、`internal/archtest` 全绿（驱动导入位于 `internal/database` 内，
+  符合既有持久化边界）、`scripts/Generate-SQL.ps1 -Check` 仍报 `checked 2 generated directories`；
+  全量 `go test -count=1 ./...` 的失败集合与基线逐名对照见当轮记录。
+- 未 commit；未启动客户端；**未对玩家库执行任何 SQL**（只用 `.tmp` 下的隔离测试库，用完即停）。
+
+## 2026-10-04：SQLite 双引擎 S3a——SQLite schema/query 分叉第一片 + 双引擎生成打通
+
+- **建起 SQLite 分叉**：`internal/database/sql/sqlite/migrations/0001_initial.sql`（三段：ledger + accounts/characters/character_events）
+  + `.../queries/core.sql`（PG 的 34 条里移植 30 条，4 条因引擎专属或依赖本片外的表暂缓）
+  + `sqlc.yaml` 第二个 `sql: engine: "sqlite"` 块 ⇒ 生成新包 `internal/database/sqlcgensqlite`（`database/sql`）。
+- **方言决定**：identity→`INTEGER PRIMARY KEY AUTOINCREMENT`、jsonb→`TEXT`+`CHECK(json_valid)`（**刻意不写 `jsonb` 类型名**，
+  SQLite ≥3.45 对它是关键字且语义不同）、bytea→`BLOB`、timestamptz→**整数微秒**（含 `DEFAULT` 表达式，与驱动
+  `_inttotime=1` + `_time_integer_format=unix_micro` 对齐）、`FOR UPDATE`/`FOR NO KEY UPDATE`/`FOR SHARE` **全删**
+  （写序列化交给 `BEGIN IMMEDIATE`）、`ALTER ... ADD COLUMN IF NOT EXISTS` **折进建表**。
+- **验证（全部实跑，非推断）**：
+  - **用真实 SQLite（Python 3.11 自带 3.45.1）执行 DDL**：`json_valid`、`lower(name)` 大小写唯一索引、
+    `UNIQUE(account_id,wire_id)`、`wire_id`/`profession` CHECK、`character_events` 复合主键全部生效；
+    `created_at` 默认值是整数微秒（与当前时间偏差 0.0s）；**删掉最高 id 后新 id 单调递增**（`sqlite_sequence` 记高水位）
+    ⇒ PG identity 的可依赖语义成立。
+  - **逐构造探测 18/18 通过**（每个构造一次独立 sqlc 调用，结论可归因）：plain param、`CAST` 出现在
+    lower/values/max/SET/OFFSET、`FILTER` count、表达式列、`ON CONFLICT ... DO UPDATE ... WHERE ... RETURNING`、
+    `DO NOTHING`、`LIMIT ... OFFSET`、`julianday` 默认表达式、`substr`/`LIKE`、字面量列别名、可空列→指针。
+  - 生成包 `go build` 通过、**零 `interface{}` 字段**、`TIMESTAMP`→`time.Time`、可空→`*T`。
+  - `scripts/Generate-SQL.ps1 -Check` 报 **`checked 2 generated directories`**（S0 的多引擎改造在此生效）；
+    PG 侧生成物经核对**内容零变化**（只有行尾被 sqlc 改成 LF，已还原）。
+  - `go vet ./...` = 0、`internal/archtest` 全绿、`internal/database` ok。
+- **五条新约束（已写进设计文档 §3.2 的 D22–D26）**，其中两条会咬人：
+  1. **SQL 文件必须保持纯 ASCII**。sqlc v1.31.1 的 sqlite 引擎遇到非 ASCII（注释里的 `§` 或中文）会把语句解析成乱码，
+     报出 `extraneous input ')'` / `'d'` / `'t'` 这类**单字符**错误；同一查询去掉非 ASCII 立即通过。
+     PG 树本来就是 ASCII，所以从没暴露过。定位过程与证据见设计文档 D23。
+  2. **JSON 存储类不能混**。BLOB 同样能过 `json_valid`/`json_extract`/`json_set`，但 **`TEXT != BLOB` 比较不相等**；
+     因此选 **TEXT 存储 + 显式 `CAST(... AS TEXT)`**，代价是生成参数类型变成 `string` —— 这恰好让**编译器强制**
+     适配器把 `json.RawMessage` 转成字符串，漏转换会编译不过（只读结果列仍由列级 override 得到 `json.RawMessage`）。
+  3. `LIMIT` 必须写在 `OFFSET` **之前**（PG 两者皆可）。
+  4. 表达式列与表达式内参数必须显式 `CAST`，否则类型退化成 `interface{}`、进不了统一 `querySet` 接口（R-1 规则确认）。
+  5. `sqlc generate` 写 LF：本工作树是 CRLF（`core.autocrlf=true`、无 `.gitattributes`），生成后 `git status` 会虚报
+     15 个 PG 生成文件改动，而 `git diff` 为空（纯行尾）。每次生成后需刷回 CRLF；根治办法是加 `.gitattributes`（待业主定）。
+- **未 commit**。未启动客户端，未对玩家库执行任何 SQL。**期间用户侧有一个实机会话在运行（`wireprobe-pvf` + postgres），
+  我全程未触碰其进程、`runtime/` 目录或任何二进制。**
+
+## 2026-10-04：SQLite 双引擎 S2（驱动类型移出公共 API）完成
+
+- **抽出唯一的"无行"谓词** `isNoRows`（新文件 `internal/database/driver_errors.go`）：**42 处**
+  `errors.Is(X, pgx.ErrNoRows)` 分布在 **23 个文件**，现全部改走它；`storageError` 也改用它。
+  结果：`pgx.ErrNoRows` 全仓**只在该文件出现一次**；并且该谓词**同时接受 `sql.ErrNoRows`**
+  ⇒ SQLite 落地时**不需要再改任何调用点**（否则那 42 处要在 S4 逐个回访）。
+- **可核查的收敛指标**：**18 个文件不再 `import pgx`**（此前仅仅为了判 `ErrNoRows` 才引入）；
+  diff 规模 23 文件 `+42/−76`（净减 34 行）。
+- **`Tx` 导出面复核**：只有 3 个导出方法（`CountShopPurchases`、`RecordShopPurchase`、`UnlockRosterBackground`）；
+  唯一例外 `CommitOdysseyHonorMail` 跑在 `CommitCharacterEventTx` 交出的外部 `*Tx` 上，**保持不变**。
+- **新增引擎相关面清点**（设计文档 §2.6，作为 S3/S4 的处理清单）：`pgx.ErrNoRows` 1、`pgx.Tx` 7、
+  `pgx.BeginFunc` 6、`pgx.TxOptions` 3、`pgx.Identifier` 2、`database/sql` 1。
+  其中最值得注意的是 **`roster_background.go:21` 使用 `IsoLevel: pgx.RepeatableRead` + `AccessMode: pgx.ReadOnly`**
+  —— **SQLite 没有隔离级别**，该语义必须另找机制（WAL 读快照 / `BEGIN IMMEDIATE`）证明等价，已列为 S3/S4 语义风险点。
+- **验证**：`go build ./...`=0、`go vet ./...`=0、`internal/archtest` 全绿（含 G1 `TestConcreteStoreBoundary`
+  与"`internal/database` 导出签名不得泄漏驱动类型"边界）；在隔离测试库 **25439** 上全量 `go test -count=1 ./...`
+  的**失败集合与改动前基线逐名相同**（仍只有 2 个既有 primer-transform 失败，无新增）。测试库用后即停。
+- 未 commit（等收口信号）；未启动客户端，未对玩家库执行任何 SQL。
+
+## 2026-10-04：确定「删掉 tools/ 仍能启动游戏」路线（目标 B）+ 清掉未使用的 GM 包
+
+业主选定**目标 B**（真正不再需要 Python/PostgreSQL 进程，而不是把依赖改装到系统），并确认**不用 GM 管理台**
+⇒ 删 `tools/gm-tool`（125 MB：全仓零引用、自带独立 python、不在启动链上，实测 `tools\gm-tool` 引用数为 0）。
+`tools/` 由本会话开始时的 **10,022 MB 降到 1,433 MB**（累计回收约 8.6 GB），现只剩 `go`(224.4)、`pg`(919.8)、`python`(288.7)。
+
+- 新增路线文档 [runtime-without-tools-plan.md](server/work/dfo-lan/docs/runtime-without-tools-plan.md)：现状依赖图（带 `file:line`）、
+  W1（去 PostgreSQL，= 已设计的 S2–S5）与 W2（去 Python = 编排 Go 化）两个工作流、建议顺序与每阶段门禁、R1–R7 风险。
+- **本轮新查实的四个硬依赖**（此前未记录）：
+  1. `launch_local.py:14 → prepare_inner_pvf.py:13 → pvf_archive.py:5-8` 全是**模块级**导入，链上需要**非标准库**
+     `pefile` + `cryptography` ⇒ 「换成系统 Python 就能起游戏」**不成立**，必须补装这两个包（或改懒加载）。
+  2. `configure_env.py:27-39` 把「同时存在 `server/` 与 `tools/`」当作**仓库根哨兵**（5 处）——`tools` 一删，根探测退化
+     （从根 `.cmd` 启动时靠 cwd 侥幸仍对，其它入口会认错）。
+  3. `configure_env.py:266` 把 `postgres_bin` **写死**为 `<root>\tools\pg\pgsql\bin`，会把路径写回 tools。
+  4. `build-publish.ps1:41-46,57-58,67` 复制 `tools/{python,pg}` 进发布包，并在清单里**断言** `tools/python/python.exe`
+     与 `tools/pg/pgsql/bin/initdb.exe` 必须存在。
+- **存档安全**：`pgdata` 位于 `server/work/dfo-lan/runtime/storage/pgdata`，**不在 `tools/` 内** ⇒ 删 `tools/pg` 不动存档
+  （前提是先停库）。启动链所需的 `probe.exe`(645 KB) 与 `channel_probe.py` 均在**仓库内**，也不在 `tools/`。
+- **建议顺序 W1 → W2**：W1（SQLite）完成前，Go 启动器仍得写一遍 `pg_ctl` 起库/`PG_VERSION` 校验/"拒绝外部数据目录"，
+  而这些在 SQLite 落地后整段删除；反向不成立（通道夹具与探针编排与存储引擎无关）。W2 另有 3 处可提前做的预备改动
+  （`configure_env.py` 哨兵与写死路径、`prepare_inner_pvf` 懒加载、`build-publish.ps1` 清单断言）。
+- W2 的逐项可观察契约（CLI/环境变量/文件/进程/端口/超时/错误文案、`channelinfo.bin` 二进制布局、`probe.exe` 接口）
+  正在只读取证中，落盘后并入路线文档。
+- **未 commit**（等收口信号）；未启动客户端、未对玩家库执行任何 SQL。
+
+## 2026-10-04：根目录脚本收拢到 scripts/ + tools 陈旧缓存清理（本机回收 8.26 GiB）
+
+**未改任何 Go 代码 / SQL / schema / 存档**；未启动客户端；玩家库 25438 只做 `pg_isready` 探活、未执行任何 SQL。
+
+- **根目录 4 个散落 .py 收进 [scripts/](scripts/README.md)**（`git mv`，保留历史）：`configure_env.py`、
+  `stop_environment.py`、`build_publish_zip.py`、`test_environment_storage.py`。
+  **根 `.cmd` 入口保持原位**——它们是双击入口，且被根 `AGENTS.md` §1.1 与 `使用教程.md` 记为对外约定。
+- **同步改动 6 处**。调用点 4：`配置环境.cmd`（tools/python 与系统 python 两条分支）、`停止游戏环境.cmd`（同）、
+  根 `build-publish.ps1:59`、`server/work/dfo-lan/scripts/test_channel_identity_wiring.py:33`（`runpy` 路径）。
+  根解析 2：`stop_environment.py` 的 `ROOT` 取上一级；`configure_env.py` 的 `__file__` 回退改为**逐级向上**找
+  同时含 `server/` 与 `tools/` 的仓库根（原先写死单层，移动后必然失效）。
+  另更新 3 份文档的路径引用：`使用教程.md` 目录树、`sqlite-dual-engine-design.md`（4 处，含把
+  `test_postgres_storage.py` 明确为 `server/work/dfo-lan/scripts/`——它与新 `scripts/` 同名但不同目录）、
+  `mod-sqlite-redis-minimal-plan.md`（3 处）。
+  含中文的 `配置环境.cmd`／`使用教程.md` **不是 UTF-8**（`read` 工具直接拒绝），改用 **Latin-1 字节级无损替换**，
+  只替换纯 ASCII 片段、不经 ANSI/GBK 解码；`使用教程.md` 的替换保持等长以不破坏目录树对齐。
+- **验证**：4 个模块语法检查通过；`stop_environment.py` 的 `ROOT`/`STORAGE` 正确解析到仓库根；
+  `configure_env.get_root_dir()` 在**非仓库 CWD** 下仍解析到仓库根（专门覆盖 `__file__` 回退分支）；
+  `scripts/test_environment_storage.py` **2 tests OK**；`test_channel_identity_wiring.py` **2 tests OK**（它 `runpy` 移动后的文件）；
+  两个 `.cmd` 的输出行已确认为 `scripts\...`；行尾统一 CRLF。
+- **JSON 有意不收拢**（三类归属不同，混放会破坏契约）：`configs/*.json` 是 **PVF 历史基线**
+  （根 §0.2：PVF 是唯一内容真源，这些不作运行输入）；`runtime/storage/local.json`、`server/launcher.local.json`、
+  `configs/pvf-default.json` 是**路径被写死**的运行配置（`launch_local.py`、`configure_env.py`、`channel_probe.py`）；
+  `gm-tool/configs/` 属 GM 工具。判定依据已写入 `scripts/README.md`。
+- **`tools/` 陈旧部分已清（仅本地磁盘；`/tools/` 已被 gitignore、不影响仓库内容）**：
+  删 `tools/redis`（46.1 MB——全仓对 redis 的引用只剩"清理历史 `redis_*` 配置键"的逻辑与断言，
+  `configure_env.py:274`、`test_postgres_storage.py:20`、`test_environment_storage.py:29-48`，**无运行期路径**）、
+  `tools/gocache`（6,458.8 MB）与 `tools/gopath`（1,959.6 MB）——实测当前生效缓存为
+  `%LOCALAPPDATA%\go-build` 与 `C:\Users\Ricar\go`，且无任何脚本设置或引用这两个目录，属旧 `D:/115us` 树的陈旧缓存。
+  **合计回收 8,464.5 MB（约 8.26 GiB）**；`tools/` 现只剩 `gm-tool`(125 MB)、`go`(224.4 MB)、`pg`(919.8 MB)、`python`(288.7 MB)。
+- **`tools/` 仍不可整体删除**：启动链硬依赖 `tools\python\python.exe`（5 个根 `.cmd` 调用）与
+  `tools\pg\pgsql\bin`（`local.json:4` 的 `postgres_bin` → `launch_local.py:70` 起库；`configure_env.py:266` 写死）。
+  要真正去掉，须先完成 S3–S5（SQLite 引擎，去 PG）与 Python 编排 Go 化（去 Python）。
+- 未 commit（等收口信号）；`scripts/incremental-package/`、`打包增量更新.cmd`、`.gitignore` 属**另一条并行工作**，未触碰。
+
+## 2026-10-04：SQLite 双引擎 S1（抽接口缝）完成——行为零变化已证
+
+按 [sqlite-dual-engine-design.md](server/work/dfo-lan/docs/sqlite-dual-engine-design.md) 的 S1 执行：把 `internal/database`
+之外的 `*database.Store` **API 位置全部清空**（字段/参数/返回值），改为**消费方自己声明的接口**。
+**未改任何 SQL / schema / 存档**，未启动客户端，未访问玩家库 25438。
+
+**先建了隔离测试库（关键前提）**：此前 44 个 `DFO_TEST_POSTGRES_DSN` 门控测试在本机**从未真正执行**，
+"行为零变化"无从证明。按 `docs/database-sqlc-migration.md:123` 的记录建了 `.tmp/sqlc-migration/pgdata`
+（`127.0.0.1:25439`、用户 `sqlc_test`、trust；**玩家库 25438 全程未启动**），先取**改动前基线**。
+
+- **基线（改动前）**：`internal/database` **67 PASS / 1 SKIP**；全量套件**除 `cmd/wireprobe` 外全绿**，
+  而 `cmd/wireprobe` 有 **2 个既有失败**。根因查清并分层处理：
+  ① 测试夹具缺 `MigrateAccountVault`（`primer_transform_flow_test.go` 只跑 4 个迁移）⇒ 补一行；
+  ② 补完才露出的深层问题：该测试**自己的表**写 `legendary → 10415190 ×10`（`:577`），断言却要 `×1`（`:173`），
+  实际是 **0** ⇒ **既有缺陷候选，非 S1 范围**，留业主定夺。
+- **S1 落地范围**：`internal/admin`（`admin.Store`，1 方法）、`cmd/gmtool`（`gmStore`，11 方法）、
+  `internal/workflow` 9 个窄接口（`wearStore`/`vaultStore`/`unsealStore`/`shopStore`/`itemStore`/`lootStore`/
+  `questStore`/`premiumStore`/`bagStore`）、**`cmd/wireprobe`（组合根单一 `persistentStore`，127 方法）**。
+  `booster_flow.go:246` 的唯一硬断言由 `store.(*database.Store)` 改为 `store.(persistentStore)`（13 个 booster
+  测试全绿，分支走向未变）。
+- **两处硬发现（已写进方案 §2.5）**：
+  ① `cmd/wireprobe` **不能**用逐 flow 窄接口——它把同一句柄经 `worldSession.store`/`client.gameStore` 与 ~15 个
+  自由函数传递，**还赋进其它包声明的接口**（`world.Store`、`character.*Store`、`quest.Store`、`workflow.*Store`），
+  Go 要求源接口覆盖目标接口；且它会**直接调用** `WearService.Store.AccountMaterials`、`ShopService.Store.AccountMaterials`、
+  `QuestService.Store.Quests`，按"只看本文件调了啥"做**根本编译不过**。
+  ② **typed-nil 陷阱**：`gameStore` 在无存储时是 nil 指针，而 `client_dispatch_account.go:196`、`client_dispatch_inventory.go:510`
+  靠 `client.gameStore == nil` **关闭**功能；字段直接改接口会让 nil 指针变成非 nil 的 typed-nil 接口、`== nil` 变 false
+  ⇒ 功能在无存储模式下**静默打开**。落地方式：另设 `runtimeStore persistentStore`，**只在 `if startup.CharacterStorage != ""`
+  块内**赋值，返回结构用 `gameStore: runtimeStore`（已核验赋值缩进在块内），无存储时保持**真 nil 接口**。
+- **新增守卫（G1/G4）**：`internal/archtest/store_boundary_test.go` 禁止 `*database.Store` 出现在**字段/参数/返回值**
+  （允许 `database.Open` 的构造局部变量；豁免 `internal/database` 与 `charactercheck`；`TestFixture` 保持具体类型）；
+  G4 编译期断言按消费方分布（`internal/workflow/store_contract_test.go` 11 个接口、`internal/admin/store_contract_test.go`、
+  `cmd/wireprobe/store_contract_test.go`）——**方案原写"集中一处"不可行**，因为 `cmd/wireprobe` 是 `package main` 无法被反向 import。
+- **验证（收口门禁全过）**：`go build ./...` = 0、`go vet ./...` = 0、`internal/archtest` 全绿、
+  **全量 `go test -count=1 ./...`（启用 PG 集成）失败集合与基线逐名完全相同**——仍只有
+  `TestPrimerTransformFlowIntegration`、`TestPrimerTransformFlowDoesNotMultiplyCrystals` 这 2 个既有失败，**无新增**。
+- **工具/环境记录**：本轮同时把 `modernc.org/sqlite` 相关守卫缺口收掉（见下一条 S0 记录）；
+  另记两个仓库级坑：本仓**禁止跑 `gofmt -w`/`go fmt`**（CRLF 工作树会被刷成 LF、污染他人文件），
+  且 `gofmt -l` 对未改动文件也报警、不能当门禁。测试库 25439 用后即停。
+- **未 commit**（等收口信号）；仓内有其它写入者正在改 `.gitignore`／`scripts/incremental-package/`／
+  `打包增量更新.cmd`，本轮一律未触碰。
+
+## 2026-10-04：SQLite 双引擎 S0 前置（sqlc 安装 / 守卫缺口 / 生成门禁多引擎 / spike 判定 A 路径）
+
+按 [sqlite-dual-engine-design.md](server/work/dfo-lan/docs/sqlite-dual-engine-design.md) 的 S0 开工。
+**未改任何 SQL / schema / 存档**，未访问玩家库，未启动服务或客户端。
+
+- **sqlc v1.31.1 已安装，生成门禁首次在本机跑通**：`go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1`
+  （`GOPROXY=https://goproxy.cn,direct`、`GOSUMDB=off`）→ `C:\Users\Ricar\go\bin\sqlc.exe`；`sqlc version` = `v1.31.1`。
+  `scripts/Generate-SQL.ps1 -Check` 输出 `sqlc v1.31.1 generated code is up to date`
+  ⇒ **已入库的 `internal/database/sqlcgen` 与固定生成器逐字节一致**（该门禁此前在本机从未可运行）。
+- **补掉 archtest 守卫缺口（G2/G3）**：`internal/archtest/persistence_test.go` 原先只禁 `pgx` 与 `database/sql`，
+  **`modernc.org/sqlite` 既不在禁用驱动名单、也不在私有别名表** ⇒ SQLite 代码落库时"引擎实现只能在
+  `internal/database`"这条保证会**静默失效**。现抽出 `isPrivatePersistenceImport`（加入 `modernc.org/sqlite`）
+  与 `isGeneratedPersistenceImport`（由精确匹配改为**前缀**匹配，覆盖第二引擎的生成包）。
+  **用两个临时探针证明守卫生效**：`internal/_guardprobe/driver.go` 分别触发
+  `imports a database driver outside database` 与 `exposes generated database types outside database`；
+  删除探针后 `internal/archtest` 复绿（探针目录以 `_` 前缀命名，go 工具忽略但守卫的 WalkDir 仍会解析）。
+- **`Generate-SQL.ps1` 改造为多引擎（B2）**：原脚本用固定字符串替换，只认 PostgreSQL 两条路径与单个输出目录，
+  新增第二个 `sql:` 条目后 `-Check` 必然失效。现改为**无表通用**：解析 yaml 中每一条 `schema`/`queries`/`out`
+  并逐条重定位（输入指回仓内、输出落 scratch），并断言"任一声明路径未被重定位即报错"，避免出现未经检查的静默覆盖；
+  带引号整 token 替换避开 `sqlcgen` / `sqlcgen_sqlite` 的前缀碰撞；缺 sqlc 时给出可操作报错。
+  过程中实测到一个关键工具行为：**sqlc v1.31.1 把所有 schema/queries/out 都按"配置文件所在目录"解析，
+  Windows 绝对路径不被接受**（会被拼到配置目录后 `CreateFile ...C:\...` 失败）⇒ 必须保持相对路径重写。
+  验证：单引擎 `-Check` 绿；`git status --short internal/database/sqlcgen` 为空（**检查不改动已入库生成物**）。
+- **sqlc 双引擎 spike → 判定 A 路径**（SQLite 侧继续由 sqlc 生成，不退回手写 SQL）：样本 4 表 DDL + 11 条查询，
+  覆盖四类风险。要点：`engine: "sqlite"` 能解析 `ON CONFLICT … DO UPDATE … EXCLUDED … CASE … RETURNING`、
+  `json_extract`、`json_each`、部分索引与 `AUTOINCREMENT`；`emit_pointers_for_null_types` **对 SQLite 生效**
+  （可空列 → `*int64`），这是与 pgx 侧签名对齐的关键杠杆；**列级 override 对 SQLite 生效**
+  （`state`/`assets` → `json.RawMessage`），v1.31.1 上**不存在** sqlc#1985 的缺陷；`DATETIME` → `time.Time`。
+  相反，`FOR UPDATE` 直接语法报错（`sqlite\queries_lock.sql:1:1: extraneous input 'FOR' expecting {...}`）
+  ⇒ 28 处锁查询**必须重写**，坐实"不能机械翻译"。
+  由此得到两条**强制改写规则**：**R-1** 裸表达式列/参数必须显式 `CAST(... AS <type>)`，否则生成 `interface{}`
+  （`json_extract(…) AS level` → `interface{}`；加 CAST 后 → `int64`。`json_each(?)` → `interface{}`；
+  `json_each(CAST(sqlc.arg(ids) AS TEXT))` → `string`）；**R-2** 参数被函数包裹时 sqlc 用**函数名**当参数名
+  （生成 `LockAccount(ctx context.Context, lower string)`），必须用 `sqlc.arg(name)` 固定。
+- **验证**：`go test -count=1 ./...` 全绿、`go vet ./...` 通过（Go 1.26.0、`CGO_ENABLED=0`、`GOPROXY=goproxy.cn`）。
+  未改 SQL/schema/存档，未启动服务或客户端，未访问玩家库；业主工作区改动（启动器 exe、`pgdata/postgresql.conf`）未触碰。
+  **未 commit**（等收口信号）。
+
+## 2026-10-04：SQLite 双引擎方案（业主决策锁定 + S0 前置门禁）
+
+业主拍板 SQLite 两项悬置决策：**双引擎**（PostgreSQL 保持默认引擎与多人服主库；SQLite 用于单机/工具，单写者）
+与驱动 **`modernc.org/sqlite`**（纯 Go、无 CGO），并要求**先出方案**。本轮据此产出方案并锁定三项前置门禁；
+**未改任何 Go 代码 / SQL / schema / 存档**。
+
+- **方案文档**：[sqlite-dual-engine-design.md](server/work/dfo-lan/docs/sqlite-dual-engine-design.md)（S0–S5）。
+  核心设计是「**一份逻辑、两份 SQL**」：`Store` 保留 **202 个导出方法**与全部事务协议（账号→角色→金库锁顺序、
+  幂等键回执、JSON `apply` 回调）的**单一实现**，只把手写的引擎中立 `querySet` 接口 + `lockDialect` 原语 +
+  两个适配器作为方言边界；**不采用**"每方法 `if/else` 双写"（那会得到 202 份互相漂移的逻辑）。
+  依据：sqlc 双引擎生成的 `DBTX` 结构不兼容（`pgconn.CommandTag`/`pgx.Rows`/`pgx.Row` vs
+  `sql.Result`/`*sql.Rows`/`*sql.Row`；`WithTx(pgx.Tx)` vs `WithTx(*sql.Tx)`，`internal/database/sqlcgen/db.go:14-32`）。
+- **方言逐项设计 D1–D21**：`FOR UPDATE`/`FOR NO KEY UPDATE`/`FOR SHARE`（28 处）由 `BEGIN IMMEDIATE` 单写者取代
+  （**不能机械删除锁**）；邮件共享编号（`SEQUENCE`+`nextval`）改单行计数器表；`jsonb` 改 **TEXT** 且
+  **明确不写 `JSONB` 类型名**（SQLite ≥3.45 对 `jsonb` 有不同语义，是移植陷阱）；`DO $$` 旧表探测与
+  `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` 移入 Go 迁移运行器；`ANY`/`unnest` 改 `json_each`；
+  advisory 锁改租约行或锁文件；`repairs/` 整体保持 PG 专用。
+- **最低版本由 3.35 上调为 ≥3.39**：唯一原因是 `IS DISTINCT FROM`（`sql/postgres/queries/settings.sql:26,81`）；
+  `modernc.org/sqlite` v1.60.1 内置 **3.53.4**，各平台含 windows/amd64。
+- **DSN/PRAGMA 口径取自驱动源码而非推测**（本机缓存 `modernc.org/sqlite@v1.59.0`）：
+  `_txlock=immediate`（`driver.go:170-172`、`sqlite.go:385-391`）；`_busy_timeout`/`_foreign_keys`/`_journal_mode`/
+  `_synchronous` 是**受校验**的 shorthand 键（拼错即连接失败且不会留下半执行的 PRAGMA）；时间用
+  `_inttotime=1` + `_time_integer_format=unix_micro` 与 PG `timestamptz` **微秒精度对齐**；
+  `_dqs=0` 把双引号误用变成解析错误；连接池**必须** `SetMaxOpenConns` 有界，
+  且 PRAGMA 只能走 DSN/连接钩子（连接归还池后不被重置）。
+- **三个前置阻塞**（写入 S0，不解决会卡住一半工作量）：① 本机**没有 sqlc v1.31.1**
+  （`scripts/Generate-SQL.ps1:6-9` 硬校验版本，当前脚本无法运行）；② 该脚本只支持**单个** `sql:` 块
+  （`:20-22` 字符串替换），新增第二个条目后 `-Check` 必然失败，须同轮改造；③ **`modernc.org/sqlite`
+  不在 archtest 的禁用驱动名单与私有别名表**（`internal/archtest/persistence_test.go:53,56-65`）
+  ⇒ SQLite 代码落库前必须先补，否则「引擎实现只能在 `internal/database`」这条保证**静默失效**。
+- **取证更正**：`*database.Store` 实测 **61 处 / 44 文件**（其中 **43 个文件在 `internal/database` 之外**），
+  上轮文档记的"32 个文件"已过时；依赖 `DFO_TEST_POSTGRES_DSN` 的 Go 文件 **44 个**，
+  隔离手段是"随机 schema + `search_path` + `DROP SCHEMA CASCADE`"，另有约 18 个 database 测试与
+  3 处 wireprobe 测试**绕过夹具**内联同一套 DDL。
+- **存档兼容**：转换工具 `dfo-tool sqliteconvert`（PG **只读** DSN → SQLite **单向**；JSON 按**原始字节**搬运，
+  不做 decode→encode；identity 对齐序列高水位；`uint64` 越界即中止；行数/主键集合/抽样字节 SHA256/`charactercheck`
+  四重校验）；**明确不做反向**。识别出一处**可观察差异**待业主定夺：PG 序列**非事务性**（回滚也烧号），
+  而事务内计数器回滚不烧号 ⇒ 号段**间隙**分布不同；唯一性、单调性、"附件 id 先于消息分配"、投递高水位
+  `coalesce(max(id),0)` 均不受影响。
+- **文档一致性**：修正 `docs/architecture.md` ADR-002 指向**已删除**的 `database-dual-engine-plan.md` 的悬空链接；
+  ADR-002 与 `docs/database-sqlc-migration.md:74` 的"不提前引入双引擎接口"就地登记为被推翻（"不能直接执行 PG SQL"
+  仍然成立）；[mod-sqlite-redis-minimal-plan.md](server/work/dfo-lan/docs/mod-sqlite-redis-minimal-plan.md) 的
+  四问"待拍板"改为"已拍板"并指向本方案。
+- **验证**：本轮仅文档与只读取证。未启动服务或客户端、未访问玩家库（25438）、未触碰 `runtime/storage/**`；
+  在 `CGO_ENABLED=0` + `GOPROXY=https://goproxy.cn,direct` + `GOSUMDB=off` 下 `go build ./...` 与 `go vet ./...`
+  均通过（无 Go 代码改动）。改动仅 Markdown，**未 commit**（等业主收口信号）。
+  注：默认 `proxy.golang.org` 不可达，首次 `go build` 会因缺 `gopher-lua` 失败，必须显式用镜像。
+
 ## 2026-10-04：MOD 接入 + SQLite 切换 + 去 Redis + 环境依赖最小化——取证与计划（未实施）
 
 业主最终口径：**只做四件事**——① MOD 接入（四层接口从 0 开始）② 切换 SQLite ③ 移除 Redis

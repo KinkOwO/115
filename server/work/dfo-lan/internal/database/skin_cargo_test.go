@@ -39,10 +39,10 @@ func TestSkinCargoUpgradesLegacyShape(t *testing.T) {
 	}
 	defer admin.Close()
 	schema := fmt.Sprintf("skin_cargo_%d", time.Now().UnixNano())
-	if _, err = admin.db.Exec(ctx, "CREATE SCHEMA "+schema); err != nil {
+	if _, err = testPool(t, admin).Exec(ctx, "CREATE SCHEMA "+schema); err != nil {
 		t.Fatal(err)
 	}
-	defer admin.db.Exec(context.Background(), "DROP SCHEMA "+schema+" CASCADE")
+	defer testPool(t, admin).Exec(context.Background(), "DROP SCHEMA "+schema+" CASCADE")
 	cfg.PostgresSchema = schema
 	s, err := Open(ctx, cfg)
 	if err != nil {
@@ -56,7 +56,7 @@ func TestSkinCargoUpgradesLegacyShape(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.db.Exec(ctx, legacySkinCargoDDL); err != nil {
+	if _, err = testPool(t, s).Exec(ctx, legacySkinCargoDDL); err != nil {
 		t.Fatal(err)
 	}
 	// The unkeyed row is what a partially written registration looks like, and a
@@ -65,7 +65,7 @@ func TestSkinCargoUpgradesLegacyShape(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.db.Exec(ctx, `INSERT INTO account_skin_cargo
+	if _, err = testPool(t, s).Exec(ctx, `INSERT INTO account_skin_cargo
  (account_id,source_template,skin_index,action_param) VALUES
  ($1,10305398,11,12),($1,10358669,59,59),($1,590700824,18,18),($1,99999,7,0),
  ($2,10305398,11,12)`, account, other); err != nil {
@@ -104,7 +104,7 @@ func TestSkinCargoUpgradesLegacyShape(t *testing.T) {
 		t.Fatalf("cargo after unlock = %+v", skins)
 	}
 	var rows int
-	if err = s.db.QueryRow(ctx, `SELECT count(*) FROM account_skin_cargo WHERE account_id=$1`, account).Scan(&rows); err != nil || rows != 5 {
+	if err = testPool(t, s).QueryRow(ctx, `SELECT count(*) FROM account_skin_cargo WHERE account_id=$1`, account).Scan(&rows); err != nil || rows != 5 {
 		t.Fatalf("rows lost by the upgrade: %d %v", rows, err)
 	}
 	// The applied font is per character, so it lives in its own table and must
@@ -148,11 +148,11 @@ func TestSkinCargoUpgradesLegacyShape(t *testing.T) {
 		t.Fatalf("unequipping category 6 disturbed category 2: %d %v", got, e)
 	}
 	var unrelated int
-	if err = s.db.QueryRow(ctx, "SELECT (state->>'unrelated')::int FROM characters WHERE id=$1", role.ID).Scan(&unrelated); err != nil || unrelated != 123 {
+	if err = testPool(t, s).QueryRow(ctx, "SELECT (state->>'unrelated')::int FROM characters WHERE id=$1", role.ID).Scan(&unrelated); err != nil || unrelated != 123 {
 		t.Fatal("character state changed", err)
 	}
 	var legacy bool
-	if err = s.db.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM information_schema.columns
+	if err = testPool(t, s).QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM information_schema.columns
  WHERE table_schema=current_schema() AND table_name='account_skin_cargo' AND column_name='damage_font_index')`).Scan(&legacy); err != nil || !legacy {
 		t.Fatalf("upgrade dropped columns: %v", err)
 	}

@@ -25,6 +25,7 @@ import (
 	"dfolan/internal/toolcmd/questrepair"
 	"dfolan/internal/toolcmd/shieldaudit"
 	"dfolan/internal/toolcmd/skillaudit"
+	"dfolan/internal/toolcmd/sqliteconvert"
 	"dfolan/internal/toolcmd/storagecheck"
 	"dfolan/internal/toolcmd/townprobe"
 )
@@ -56,6 +57,7 @@ var commands = []command{
 	{"questrepair", "maintenance", "[options]", true, 0, questrepair.Run},
 	{"shieldaudit", "audit", "[options]", true, 0, shieldaudit.Run},
 	{"skillaudit", "audit", "[options]", true, 0, skillaudit.Run},
+	{"sqliteconvert", "maintenance", "[options]", true, 0, sqliteconvert.Run},
 	{"storagecheck", "maintenance", "[options]", true, 0, storagecheck.Run},
 	{"townprobe", "catalog", "[options]", true, 0, townprobe.Run},
 }

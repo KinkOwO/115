@@ -54,12 +54,12 @@ func (s *Store) EquippedOathSelection(ctx context.Context, accountID, characterI
 	if accountID <= 0 || characterID <= 0 {
 		return EquippedOathOption{}, errors.New("invalid oath character")
 	}
-	tx, err := s.db.Begin(ctx)
+	tx, err := s.engine.begin(ctx)
 	if err != nil {
 		return EquippedOathOption{}, err
 	}
-	defer tx.Rollback(ctx)
-	queries := s.queries.WithTx(tx)
+	defer tx.rollback(ctx)
+	queries := tx.queries()
 	raw, err := queries.ShareActiveCharacterState(ctx, sqlcgen.ShareActiveCharacterStateParams{AccountID: accountID, CharacterID: characterID})
 	if err != nil {
 		return EquippedOathOption{}, err
@@ -69,7 +69,7 @@ func (s *Store) EquippedOathSelection(ctx context.Context, accountID, characterI
 		if err != nil {
 			return out, err
 		}
-		return out, tx.Commit(ctx)
+		return out, tx.commit(ctx)
 	}
 	selected, err := queries.EquippedOathSelection(ctx, sqlcgen.EquippedOathSelectionParams{CharacterID: characterID, CoreInstanceKey: oathCoreKey(out.ItemID)})
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
@@ -82,7 +82,7 @@ func (s *Store) EquippedOathSelection(ctx context.Context, accountID, characterI
 		}
 		out.Option = int(selected)
 	}
-	return out, tx.Commit(ctx)
+	return out, tx.commit(ctx)
 }
 
 // SelectEquippedOathOption validates the selected character, level, and worn
@@ -91,12 +91,12 @@ func (s *Store) SelectEquippedOathOption(ctx context.Context, accountID, charact
 	if accountID <= 0 || characterID <= 0 || itemID == 0 || option < 1 || option > 3 {
 		return EquippedOathOption{}, errors.New("invalid oath selection")
 	}
-	tx, err := s.db.Begin(ctx)
+	tx, err := s.engine.begin(ctx)
 	if err != nil {
 		return EquippedOathOption{}, err
 	}
-	defer tx.Rollback(ctx)
-	queries := s.queries.WithTx(tx)
+	defer tx.rollback(ctx)
+	queries := tx.queries()
 	raw, err := queries.LockActiveCharacterState(ctx, sqlcgen.LockActiveCharacterStateParams{AccountID: accountID, CharacterID: characterID})
 	if err != nil {
 		return EquippedOathOption{}, err
@@ -113,7 +113,7 @@ func (s *Store) SelectEquippedOathOption(ctx context.Context, accountID, charact
 	if err != nil {
 		return EquippedOathOption{}, err
 	}
-	if err = tx.Commit(ctx); err != nil {
+	if err = tx.commit(ctx); err != nil {
 		return EquippedOathOption{}, err
 	}
 	out.Option = option
@@ -156,12 +156,12 @@ func (s *Store) SaveOathOption(ctx context.Context, characterID int64, coreInsta
 	if characterID <= 0 || coreInstanceKey == "" || len(coreInstanceKey) > 256 || selectedOption < 0 || expectedRevision < 0 {
 		return OathOptionState{}, errors.New("invalid oath option write")
 	}
-	tx, err := s.db.Begin(ctx)
+	tx, err := s.engine.begin(ctx)
 	if err != nil {
 		return OathOptionState{}, err
 	}
-	defer tx.Rollback(ctx)
-	queries := s.queries.WithTx(tx)
+	defer tx.rollback(ctx)
+	queries := tx.queries()
 	if _, err = queries.LockActiveCharacterID(ctx, characterID); err != nil {
 		return OathOptionState{}, err
 	}
@@ -182,7 +182,7 @@ func (s *Store) SaveOathOption(ctx context.Context, characterID int64, coreInsta
 	if err != nil {
 		return OathOptionState{}, err
 	}
-	if err = tx.Commit(ctx); err != nil {
+	if err = tx.commit(ctx); err != nil {
 		return OathOptionState{}, err
 	}
 	return OathOptionState{CharacterID: characterID, CoreInstanceKey: coreInstanceKey, SelectedOption: selectedOption, Revision: current}, nil

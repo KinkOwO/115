@@ -56,10 +56,10 @@ func TestTowerGriefProgressPostgres(t *testing.T) {
 	}
 	defer admin.Close()
 	schema := fmt.Sprintf("tower_grief_%d", time.Now().UnixNano())
-	if _, err = admin.db.Exec(ctx, "CREATE SCHEMA "+schema); err != nil {
+	if _, err = testPool(t, admin).Exec(ctx, "CREATE SCHEMA "+schema); err != nil {
 		t.Fatal(err)
 	}
-	defer admin.db.Exec(ctx, "DROP SCHEMA "+schema+" CASCADE")
+	defer testPool(t, admin).Exec(ctx, "DROP SCHEMA "+schema+" CASCADE")
 	cfg.PostgresSchema = schema
 	store, err := Open(ctx, cfg)
 	if err != nil {
@@ -91,7 +91,7 @@ func TestTowerGriefProgressPostgres(t *testing.T) {
 		t.Fatalf("legacy import: %+v, %v", progress, err)
 	}
 	var saved json.RawMessage
-	if err = store.db.QueryRow(ctx, `SELECT state FROM characters WHERE id=$1`, role.ID).Scan(&saved); err != nil {
+	if err = testPool(t, store).QueryRow(ctx, `SELECT state FROM characters WHERE id=$1`, role.ID).Scan(&saved); err != nil {
 		t.Fatal(err)
 	}
 	var want, got any

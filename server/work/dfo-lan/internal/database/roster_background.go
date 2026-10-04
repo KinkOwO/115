@@ -8,7 +8,6 @@ import (
 	"math"
 	"time"
 
-	"github.com/jackc/pgx/v5"
 )
 
 // MigrateRosterBackgrounds 仅新增账号表，保留原有角色与物品存档。
@@ -18,19 +17,19 @@ func (s *Store) MigrateRosterBackgrounds(ctx context.Context) error {
 
 // RosterBackgrounds 在同一个快照中读取选择和授权；未设置的页使用原版基础背景 0。
 func (s *Store) RosterBackgrounds(ctx context.Context, account int64) (character.RosterBackgroundState, error) {
-	tx, err := s.db.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
+	tx, err := s.engine.begin(ctx)
 	if err != nil {
 		return character.RosterBackgroundState{}, err
 	}
-	defer tx.Rollback(ctx)
-	state, err := readRosterBackgrounds(ctx, s.queries.WithTx(tx), account)
+	defer tx.rollback(ctx)
+	state, err := readRosterBackgrounds(ctx, tx.queries(), account)
 	if err != nil {
 		return character.RosterBackgroundState{}, err
 	}
-	return state, tx.Commit(ctx)
+	return state, tx.commit(ctx)
 }
 
-func readRosterBackgrounds(ctx context.Context, queries *sqlcgen.Queries, account int64) (character.RosterBackgroundState, error) {
+func readRosterBackgrounds(ctx context.Context, queries querySet, account int64) (character.RosterBackgroundState, error) {
 	var state character.RosterBackgroundState
 	if account <= 0 {
 		return state, fmt.Errorf("选角背景缺少账号")
@@ -68,17 +67,17 @@ func (s *Store) SelectRosterBackground(ctx context.Context, account int64, page 
 	if account <= 0 || page >= character.RosterBackgroundPages || !b.Valid() {
 		return state, fmt.Errorf("选角背景请求无效")
 	}
-	tx, err := s.db.Begin(ctx)
+	tx, err := s.engine.begin(ctx)
 	if err != nil {
 		return state, err
 	}
-	defer tx.Rollback(ctx)
+	defer tx.rollback(ctx)
 	// 锁账号行，防止多连接分别保存不同页时覆盖对方的选择。
-	queries := s.queries.WithTx(tx)
+	queries := tx.queries()
 	if _, err = queries.LockAccount(ctx, account); err != nil {
 		return state, err
 	}
-	state, err = readRosterBackgrounds(ctx, s.queries.WithTx(tx), account)
+	state, err = readRosterBackgrounds(ctx, tx.queries(), account)
 	if err != nil {
 		return state, err
 	}
@@ -90,7 +89,7 @@ func (s *Store) SelectRosterBackground(ctx context.Context, account int64, page 
 		return state, err
 	}
 	state.Selected[page] = b
-	return state, tx.Commit(ctx)
+	return state, tx.commit(ctx)
 }
 
 // UnlockRosterBackground 必须在扣券的同一角色事件事务中调用。

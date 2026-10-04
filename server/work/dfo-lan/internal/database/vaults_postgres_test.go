@@ -40,7 +40,7 @@ func TestSQLCVaultContainersAndSharedTransaction(t *testing.T) {
 		t.Fatalf("unopened shared vault: %+v %v", shared, err)
 	}
 	var n int
-	if err := s.db.QueryRow(ctx, `SELECT count(*) FROM account_vaults`).Scan(&n); err != nil || n != 0 {
+	if err := testPool(t, s).QueryRow(ctx, `SELECT count(*) FROM account_vaults`).Scan(&n); err != nil || n != 0 {
 		t.Fatalf("login created shared capacity: %d %v", n, err)
 	}
 	calls := 0
@@ -86,7 +86,7 @@ func TestSQLCVaultContainersAndSharedTransaction(t *testing.T) {
 		t.Fatalf("cross replay: %v %v", ok, err)
 	}
 	// Fail the ledger after all three state updates; every save must roll back.
-	if _, err := s.db.Exec(ctx, `ALTER TABLE account_vault_events ADD CONSTRAINT reject_fixture CHECK(event_key<>'shared-fail')`); err != nil {
+	if _, err := testPool(t, s).Exec(ctx, `ALTER TABLE account_vault_events ADD CONSTRAINT reject_fixture CHECK(event_key<>'shared-fail')`); err != nil {
 		t.Fatal(err)
 	}
 	if _, _, _, _, err := s.CommitAccountVault(ctx, account, role.ID, version, "shared-fail", 3, func(c Character, counts json.RawMessage, v AccountVaultState) (json.RawMessage, json.RawMessage, AccountVaultState, error) {
@@ -118,10 +118,10 @@ func TestSQLCVaultContainersAndSharedTransaction(t *testing.T) {
 	if err := s.UpgradeSecondaryVaultCapacity(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.db.Exec(ctx, `CREATE TABLE character_cargos(character_id bigint,kind integer,slots integer)`); err != nil {
+	if _, err := testPool(t, s).Exec(ctx, `CREATE TABLE character_cargos(character_id bigint,kind integer,slots integer)`); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.db.Exec(ctx, `INSERT INTO character_cargos VALUES($1,45,80)`, role.ID); err != nil {
+	if _, err := testPool(t, s).Exec(ctx, `INSERT INTO character_cargos VALUES($1,45,80)`, role.ID); err != nil {
 		t.Fatal(err)
 	}
 	for i := 0; i < 2; i++ {

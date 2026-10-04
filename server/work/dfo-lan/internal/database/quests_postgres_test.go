@@ -66,7 +66,7 @@ func TestSQLCQuestTransitionsAndAtomicReward(t *testing.T) {
 		t.Fatal(err)
 	}
 	var receipts int
-	if err := s.db.QueryRow(ctx, `SELECT count(*) FROM character_quest_rewards`).Scan(&receipts); err != nil || receipts != 0 {
+	if err := testPool(t, s).QueryRow(ctx, `SELECT count(*) FROM character_quest_rewards`).Scan(&receipts); err != nil || receipts != 0 {
 		t.Fatalf("failed reward recorded: %d %v", receipts, err)
 	}
 	count := 0
@@ -139,7 +139,7 @@ func TestSQLCLegacyQuestRepairPreservesAudit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = s.db.Exec(ctx, `INSERT INTO character_quests(character_id,quest_id,status,progress,config_version,progress_model,accepted_at,completed_at)
+	_, err = testPool(t, s).Exec(ctx, `INSERT INTO character_quests(character_id,quest_id,status,progress,config_version,progress_model,accepted_at,completed_at)
  VALUES($1,30,'accepted',0,$2,'legacy-zero','2026-10-01',NULL),
  ($1,31,'completed',0,$2,'act-clear-v1','2026-10-01','2026-10-01'),
  ($1,32,'completed',0,$2,'act-clear-v1','2026-10-01','2026-10-02')`, role.ID, version)
@@ -163,7 +163,7 @@ func TestSQLCLegacyQuestRepairPreservesAudit(t *testing.T) {
 		t.Fatalf("legacy repair lost real progress: %+v %v", rows, err)
 	}
 	var n int
-	if err := s.db.QueryRow(ctx, `SELECT count(*) FROM character_quest_repairs WHERE character_id=$1`, role.ID).Scan(&n); err != nil || n != 2 {
+	if err := testPool(t, s).QueryRow(ctx, `SELECT count(*) FROM character_quest_repairs WHERE character_id=$1`, role.ID).Scan(&n); err != nil || n != 2 {
 		t.Fatalf("audit duplicated or missing: %d %v", n, err)
 	}
 }

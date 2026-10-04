@@ -11,11 +11,11 @@ import (
 // The character row lock keeps concurrent reports from moving progress backwards.
 func (s *Store) AdvanceStoryDigest(ctx context.Context, account, id int64, level uint32) (Character, bool, error) {
 	var role Character
-	tx, err := s.db.Begin(ctx)
+	tx, err := s.engine.begin(ctx)
 	if err != nil {
 		return role, false, err
 	}
-	defer tx.Rollback(ctx)
+	defer tx.rollback(ctx)
 	if role, err = lockCharacter(ctx, tx, account, id); err != nil {
 		return role, false, err
 	}
@@ -24,12 +24,12 @@ func (s *Store) AdvanceStoryDigest(ctx context.Context, account, id int64, level
 		return role, false, err
 	}
 	if advanced {
-		if err = sqlcgen.New(tx).UpdateCharacterState(ctx, sqlcgen.UpdateCharacterStateParams{CharacterID: id, State: state}); err != nil {
+		if err = tx.queries().UpdateCharacterState(ctx, sqlcgen.UpdateCharacterStateParams{CharacterID: id, State: state}); err != nil {
 			return role, false, err
 		}
 		role.State = state
 	}
-	if err = tx.Commit(ctx); err != nil {
+	if err = tx.commit(ctx); err != nil {
 		return role, false, err
 	}
 	return role, advanced, nil

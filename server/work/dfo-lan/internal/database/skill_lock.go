@@ -35,12 +35,12 @@ func (s *Store) CommitSkillLocks(ctx context.Context, account, id int64, key, mo
 	if key == "" || len(key) > 200 || model == "" || len(model) > 100 || apply == nil {
 		return nil, false, fmt.Errorf("invalid skill lock event")
 	}
-	tx, e := s.db.Begin(ctx)
+	tx, e := s.engine.begin(ctx)
 	if e != nil {
 		return nil, false, e
 	}
-	defer tx.Rollback(ctx)
-	queries := s.queries.WithTx(tx)
+	defer tx.rollback(ctx)
+	queries := tx.queries()
 	version, e := queries.LockCharacterVersion(ctx, sqlcgen.LockCharacterVersionParams{AccountID: account, CharacterID: id})
 	if e != nil {
 		return nil, false, e
@@ -54,7 +54,7 @@ func (s *Store) CommitSkillLocks(ctx context.Context, account, id int64, key, mo
 		if e != nil {
 			return nil, false, e
 		}
-		return locks, false, tx.Commit(ctx)
+		return locks, false, tx.commit(ctx)
 	}
 	if !errors.Is(e, pgx.ErrNoRows) {
 		return nil, false, e
@@ -94,13 +94,13 @@ func (s *Store) CommitSkillLocks(ctx context.Context, account, id int64, key, mo
 	}); e != nil {
 		return nil, false, e
 	}
-	if e = tx.Commit(ctx); e != nil {
+	if e = tx.commit(ctx); e != nil {
 		return nil, false, e
 	}
 	return next, true, nil
 }
 
-func skillLocksQuery(ctx context.Context, queries *sqlcgen.Queries, id int64) ([]uint16, error) {
+func skillLocksQuery(ctx context.Context, queries querySet, id int64) ([]uint16, error) {
 	ids, e := queries.SkillLocks(ctx, id)
 	if e != nil {
 		return nil, e

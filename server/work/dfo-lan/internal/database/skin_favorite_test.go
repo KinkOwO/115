@@ -30,10 +30,10 @@ func TestSkinSelectionSlotsRoundTripKeepsPositions(t *testing.T) {
 	}
 	defer admin.Close()
 	schema := fmt.Sprintf("skin_selection_slot_%d", time.Now().UnixNano())
-	if _, err = admin.db.Exec(ctx, "CREATE SCHEMA "+schema); err != nil {
+	if _, err = testPool(t, admin).Exec(ctx, "CREATE SCHEMA "+schema); err != nil {
 		t.Fatal(err)
 	}
-	defer admin.db.Exec(context.Background(), "DROP SCHEMA "+schema+" CASCADE")
+	defer testPool(t, admin).Exec(context.Background(), "DROP SCHEMA "+schema+" CASCADE")
 	cfg.PostgresSchema = schema
 	s, err := Open(ctx, cfg)
 	if err != nil {
@@ -117,10 +117,10 @@ func TestSkinFavoriteStoreEnforcesPerPageCap(t *testing.T) {
 	}
 	defer admin.Close()
 	schema := fmt.Sprintf("skin_favorite_%d", time.Now().UnixNano())
-	if _, err = admin.db.Exec(ctx, "CREATE SCHEMA "+schema); err != nil {
+	if _, err = testPool(t, admin).Exec(ctx, "CREATE SCHEMA "+schema); err != nil {
 		t.Fatal(err)
 	}
-	defer admin.db.Exec(context.Background(), "DROP SCHEMA "+schema+" CASCADE")
+	defer testPool(t, admin).Exec(context.Background(), "DROP SCHEMA "+schema+" CASCADE")
 	cfg.PostgresSchema = schema
 	s, err := Open(ctx, cfg)
 	if err != nil {
@@ -181,7 +181,7 @@ func TestSkinFavoriteStoreEnforcesPerPageCap(t *testing.T) {
 		t.Fatalf("page 1 after removal = %v (%v)", pages[1], e)
 	}
 	var kept int
-	if e = s.db.QueryRow(ctx, `SELECT count(*) FROM information_schema.tables
+	if e = testPool(t, s).QueryRow(ctx, `SELECT count(*) FROM information_schema.tables
  WHERE table_schema=current_schema() AND table_name='character_skin_selection_list'`).Scan(&kept); e != nil {
 		t.Fatal(e)
 	}

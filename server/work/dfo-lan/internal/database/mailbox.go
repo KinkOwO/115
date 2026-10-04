@@ -83,12 +83,12 @@ func (s *Store) SendMail(ctx context.Context, account, id int64, version, key, n
 	if account <= 0 || id <= 0 || key == "" || len(key) > 200 || prepare == nil || len(body) > 512 {
 		return fail(fmt.Errorf("邮件事务参数无效"))
 	}
-	tx, err := s.db.Begin(ctx)
+	tx, err := s.engine.begin(ctx)
 	if err != nil {
 		return fail(err)
 	}
-	defer tx.Rollback(ctx)
-	q := sqlcgen.New(tx)
+	defer tx.rollback(ctx)
+	q := tx.queries()
 	recipient, err := q.MailRecipientID(ctx, name)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return fail(ErrMailRecipient)
@@ -121,7 +121,7 @@ func (s *Store) SendMail(ctx context.Context, account, id int64, version, key, n
 		if err = json.Unmarshal(prior, &receipt); err != nil {
 			return fail(err)
 		}
-		return role, receipt, false, tx.Commit(ctx)
+		return role, receipt, false, tx.commit(ctx)
 	}
 	if !errors.Is(err, pgx.ErrNoRows) {
 		return fail(err)
@@ -171,7 +171,7 @@ func (s *Store) SendMail(ctx context.Context, account, id int64, version, key, n
 	if err = q.RecordCharacterEvent(ctx, sqlcgen.RecordCharacterEventParams{CharacterID: id, EventKey: key, ConfigVersion: version, Model: "mail-send-v1", Outcome: prior}); err != nil {
 		return fail(err)
 	}
-	if err = tx.Commit(ctx); err != nil {
+	if err = tx.commit(ctx); err != nil {
 		return fail(err)
 	}
 	role.State = state
@@ -181,11 +181,11 @@ func (s *Store) SendMail(ctx context.Context, account, id int64, version, key, n
 // insertSystemMailTx inserts one system mail (sender_id NULL) inside an
 // existing transaction under the mail-owned capacity and retention rules.
 // It assigns the shared mailbox_id_seq IDs and returns the new message id.
-func insertSystemMailTx(ctx context.Context, tx pgx.Tx, recipientID int64, senderName, body string, assets []mail.Asset) (int64, error) {
+func insertSystemMailTx(ctx context.Context, tx querySet, recipientID int64, senderName, body string, assets []mail.Asset) (int64, error) {
 	if len(assets) > mail.MaxAttachments {
 		return 0, fmt.Errorf("系统邮件附件过多")
 	}
-	q := sqlcgen.New(tx)
+	q := tx
 	capacity, err := q.MailboxCapacity(ctx, recipientID)
 	if err != nil {
 		return 0, err
@@ -214,7 +214,7 @@ func (s *Store) CommitSystemMail(ctx context.Context, account, id int64, version
 	var messageID int64
 	_, applied, err := s.CommitCharacterEventTx(ctx, account, id, version, key, model,
 		func(tx *Tx, role Character) (json.RawMessage, json.RawMessage, error) {
-			mid, err := insertSystemMailTx(ctx, tx.tx, id, senderName, body, assets)
+			mid, err := insertSystemMailTx(ctx, tx.queries, id, senderName, body, assets)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -236,12 +236,12 @@ func (s *Store) MutateMailbox(ctx context.Context, account, id int64, version, k
 	if account <= 0 || id <= 0 || key == "" || len(key) > 200 || (model != "mail-claim-v1" && model != "mail-status-v1") || apply == nil {
 		return fail(fmt.Errorf("邮件更新参数无效"))
 	}
-	tx, err := s.db.Begin(ctx)
+	tx, err := s.engine.begin(ctx)
 	if err != nil {
 		return fail(err)
 	}
-	defer tx.Rollback(ctx)
-	q := sqlcgen.New(tx)
+	defer tx.rollback(ctx)
+	q := tx.queries()
 	role, err := lockCharacter(ctx, tx, account, id)
 	if err != nil {
 		return fail(err)
@@ -254,7 +254,7 @@ func (s *Store) MutateMailbox(ctx context.Context, account, id int64, version, k
 		if prior.Model != model {
 			return fail(fmt.Errorf("邮件操作流水冲突"))
 		}
-		return role, prior.Outcome, false, tx.Commit(ctx)
+		return role, prior.Outcome, false, tx.commit(ctx)
 	}
 	if !errors.Is(err, pgx.ErrNoRows) {
 		return fail(err)
@@ -299,7 +299,7 @@ func (s *Store) MutateMailbox(ctx context.Context, account, id int64, version, k
 	if err = q.RecordCharacterEvent(ctx, sqlcgen.RecordCharacterEventParams{CharacterID: id, EventKey: key, ConfigVersion: version, Model: model, Outcome: receipt}); err != nil {
 		return fail(err)
 	}
-	if err = tx.Commit(ctx); err != nil {
+	if err = tx.commit(ctx); err != nil {
 		return fail(err)
 	}
 	role.State = state

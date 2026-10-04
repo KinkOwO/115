@@ -18,7 +18,7 @@ import (
 // 而这 6 列的**唯一**语义就是「目录来源身份」，任何取值都该被归一。
 func TestMigrateSaveIdentityNormalizesAnyHistoricalIdentity(t *testing.T) {
 	store, ctx := sqlcTestStore(t)
-	pool := store.db
+	pool := testPool(t, store)
 
 	const (
 		historical = "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80"

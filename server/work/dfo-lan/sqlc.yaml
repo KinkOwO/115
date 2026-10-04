@@ -1,5 +1,7 @@
 version: "2"
 sql:
+  # PostgreSQL is the default engine. Its generated code is the reference
+  # that the SQLite fork's signatures are aligned to (see generated_parity_test.go).
   - engine: "postgresql"
     schema: "internal/database/sql/postgres/migrations"
     queries: "internal/database/sql/postgres/queries"
@@ -24,3 +26,91 @@ sql:
             go_type:
               import: "encoding/json"
               type: "RawMessage"
+  # SQLite engine (dual-engine plan, S3/S4). A separate schema and query tree:
+  # the PostgreSQL DDL cannot be parsed by the sqlite engine (DO blocks,
+  # ALTER ... ADD COLUMN IF NOT EXISTS, locking clauses).
+  - engine: "sqlite"
+    schema: "internal/database/sql/sqlite/migrations"
+    queries: "internal/database/sql/sqlite/queries"
+    gen:
+      go:
+        package: "sqlcgensqlite"
+        out: "internal/database/sqlcgensqlite"
+        sql_package: "database/sql"
+        emit_interface: false
+        omit_unused_structs: true
+        # Nullable columns become *T here too, which is what keeps the two
+        # generated packages exposing the same Go shapes.
+        emit_pointers_for_null_types: true
+        overrides:
+          # Times hold integer microseconds; see the sqlite DDL header.
+          - db_type: "TIMESTAMP"
+            go_type: { import: "time", type: "Time" }
+          - db_type: "TIMESTAMP"
+            nullable: true
+            go_type: { import: "time", type: "Time", pointer: true }
+          # SQLite has a single integer type, so sqlc infers int64 for every
+          # column; these two overrides restore the PostgreSQL widths, which is
+          # what lets both generated packages satisfy one shared interface.
+          - db_type: "SMALLINT"
+            go_type: { type: "int16" }
+          - db_type: "SMALLINT"
+            nullable: true
+            go_type: { type: "int16", pointer: true }
+          - db_type: "INTEGER"
+            go_type: { type: "int32" }
+          - db_type: "INTEGER"
+            nullable: true
+            go_type: { type: "int32", pointer: true }
+          # AUTOINCREMENT forces the rowid column to be declared INTEGER, so
+          # pin the identity columns back to the PostgreSQL bigint width.
+          - column: "accounts.id"
+            go_type: { type: "int64" }
+          - column: "characters.id"
+            go_type: { type: "int64" }
+          - column: "cash_inventory.id"
+            go_type: { type: "int64" }
+          - column: "character_mail.id"
+            go_type: { type: "int64" }
+          - column: "gm_mail.id"
+            go_type: { type: "int64" }
+          # JSON is BLOB, so the override must name columns: a blanket BLOB
+          # override would also catch create_request, skills and friends.
+          - column: "characters.state"
+            go_type: { import: "encoding/json", type: "RawMessage" }
+          - column: "character_events.outcome"
+            go_type: { import: "encoding/json", type: "RawMessage" }
+          - column: "character_profile_skins.state"
+            go_type: { import: "encoding/json", type: "RawMessage" }
+          - column: "account_material_storage.counts"
+            go_type: { import: "encoding/json", type: "RawMessage" }
+          - column: "admin_grants.request"
+            go_type: { import: "encoding/json", type: "RawMessage" }
+          - column: "admin_grants.receipt"
+            go_type: { import: "encoding/json", type: "RawMessage" }
+          - column: "character_world.position"
+            go_type: { import: "encoding/json", type: "RawMessage" }
+          - column: "character_channel_world.position"
+            go_type: { import: "encoding/json", type: "RawMessage" }
+          - column: "character_quest_repairs.before_state"
+            go_type: { import: "encoding/json", type: "RawMessage" }
+          - column: "character_quest_repairs.after_state"
+            go_type: { import: "encoding/json", type: "RawMessage" }
+          - column: "character_quest_rewards.receipt"
+            go_type: { import: "encoding/json", type: "RawMessage" }
+          - column: "character_vaults.items"
+            go_type: { import: "encoding/json", type: "RawMessage" }
+          - column: "character_secondary_vaults.items"
+            go_type: { import: "encoding/json", type: "RawMessage" }
+          - column: "account_vaults.items"
+            go_type: { import: "encoding/json", type: "RawMessage" }
+          - column: "cash_orders.request"
+            go_type: { import: "encoding/json", type: "RawMessage" }
+          - column: "cash_orders.receipt"
+            go_type: { import: "encoding/json", type: "RawMessage" }
+          - column: "account_bleeding_mine_rewards.state"
+            go_type: { import: "encoding/json", type: "RawMessage" }
+          - column: "character_mail.assets"
+            go_type: { import: "encoding/json", type: "RawMessage" }
+          - column: "account_adventures.data"
+            go_type: { import: "encoding/json", type: "RawMessage" }

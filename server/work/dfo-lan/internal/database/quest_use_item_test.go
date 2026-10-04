@@ -4,7 +4,7 @@ import "testing"
 
 func TestUseItemObjectiveRequiresPostAcceptanceConsume(t *testing.T) {
 	store, ctx := sqlcTestStore(t)
-	_, err := store.db.Exec(ctx, `CREATE TABLE characters(id bigint,account_id bigint,deleted_at timestamptz);
+	_, err := testPool(t, store).Exec(ctx, `CREATE TABLE characters(id bigint,account_id bigint,deleted_at timestamptz);
  CREATE TABLE character_quests(character_id bigint,quest_id integer,status text,progress bigint,
  config_version text,progress_model text,accepted_at timestamptz);
  CREATE TABLE character_events(character_id bigint,event_key text,config_version text,

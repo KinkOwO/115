@@ -33,11 +33,11 @@ func (s *Store) CommitAccountMaterialSweep(ctx context.Context, account, id int6
 	if e != nil || len(decoded) != 32 || apply == nil {
 		return role, nil, fmt.Errorf("invalid account material sweep")
 	}
-	tx, e := s.db.Begin(ctx)
+	tx, e := s.engine.begin(ctx)
 	if e != nil {
 		return role, nil, e
 	}
-	defer tx.Rollback(ctx)
+	defer tx.rollback(ctx)
 	role, e = lockCharacter(ctx, tx, account, id)
 	if e != nil {
 		return role, nil, e
@@ -45,10 +45,10 @@ func (s *Store) CommitAccountMaterialSweep(ctx context.Context, account, id int6
 	if role.ConfigVersion != version {
 		return role, nil, fmt.Errorf("account material sweep source mismatch")
 	}
-	if e = sqlcgen.New(tx).InitializeAccountMaterials(ctx, account); e != nil {
+	if e = tx.queries().InitializeAccountMaterials(ctx, account); e != nil {
 		return role, nil, e
 	}
-	counts, e := sqlcgen.New(tx).LockAccountMaterials(ctx, account)
+	counts, e := tx.queries().LockAccountMaterials(ctx, account)
 	if e != nil {
 		return role, nil, e
 	}
@@ -59,13 +59,13 @@ func (s *Store) CommitAccountMaterialSweep(ctx context.Context, account, id int6
 	if !json.Valid(state) || !json.Valid(updated) {
 		return role, nil, fmt.Errorf("invalid account material JSON")
 	}
-	if e = sqlcgen.New(tx).UpdateCharacterState(ctx, sqlcgen.UpdateCharacterStateParams{CharacterID: id, State: state}); e != nil {
+	if e = tx.queries().UpdateCharacterState(ctx, sqlcgen.UpdateCharacterStateParams{CharacterID: id, State: state}); e != nil {
 		return role, nil, e
 	}
-	if e = sqlcgen.New(tx).SaveAccountMaterials(ctx, sqlcgen.SaveAccountMaterialsParams{AccountID: account, Counts: updated}); e != nil {
+	if e = tx.queries().SaveAccountMaterials(ctx, sqlcgen.SaveAccountMaterialsParams{AccountID: account, Counts: updated}); e != nil {
 		return role, nil, e
 	}
-	if e = tx.Commit(ctx); e != nil {
+	if e = tx.commit(ctx); e != nil {
 		return role, nil, e
 	}
 	role.State = state

@@ -339,13 +339,13 @@ func (s *Store) purchaseCash(ctx context.Context, o CashOrder, deliver func(json
 		return receipt, false, e
 	}
 	digest := fmt.Sprintf("%x", sha256.Sum256(raw))
-	tx, e := s.db.Begin(ctx)
+	tx, e := s.engine.begin(ctx)
 	if e != nil {
 		return receipt, false, e
 	}
-	defer tx.Rollback(ctx)
+	defer tx.rollback(ctx)
 	// Currency before character matches the GM and existing grant lock order.
-	q := s.queries.WithTx(tx)
+	q := tx.queries()
 	if e = q.EnsureAccountCurrency(ctx, o.Account); e != nil {
 		return receipt, false, e
 	}
@@ -403,7 +403,7 @@ func (s *Store) purchaseCash(ctx context.Context, o CashOrder, deliver func(json
 			receipt.VaultSpace = o.VaultSpace
 			receipt.VaultGold = vaultGold
 		}
-		return receipt, false, tx.Commit(ctx)
+		return receipt, false, tx.commit(ctx)
 	}
 	if !errors.Is(e, pgx.ErrNoRows) {
 		return receipt, false, e
@@ -483,7 +483,7 @@ func (s *Store) purchaseCash(ctx context.Context, o CashOrder, deliver func(json
 		return receipt, false, e
 	}
 	if deliver != nil {
-		if e = sqlcgen.New(tx).UpdateCharacterState(ctx, sqlcgen.UpdateCharacterStateParams{CharacterID: o.Character, State: receipt.CharacterState}); e != nil {
+		if e = tx.queries().UpdateCharacterState(ctx, sqlcgen.UpdateCharacterStateParams{CharacterID: o.Character, State: receipt.CharacterState}); e != nil {
 			return CashReceipt{}, false, e
 		}
 	}
@@ -522,7 +522,7 @@ func (s *Store) purchaseCash(ctx context.Context, o CashOrder, deliver func(json
 	if e = q.SaveCashOrderReceipt(ctx, sqlcgen.SaveCashOrderReceiptParams{AccountID: o.Account, OrderKey: o.Key, Receipt: saved}); e != nil {
 		return CashReceipt{}, false, e
 	}
-	if e = tx.Commit(ctx); e != nil {
+	if e = tx.commit(ctx); e != nil {
 		return CashReceipt{}, false, e
 	}
 	return receipt, true, nil

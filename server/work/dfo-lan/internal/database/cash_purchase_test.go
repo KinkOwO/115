@@ -46,11 +46,11 @@ func TestCashPurchaseIntegration(t *testing.T) {
 	}
 	defer live.Close()
 	schema := fmt.Sprintf("cash_test_%d", time.Now().UnixNano())
-	if _, e = live.db.Exec(ctx, "CREATE SCHEMA "+schema); e != nil {
+	if _, e = testPool(t, live).Exec(ctx, "CREATE SCHEMA "+schema); e != nil {
 		t.Fatal(e)
 	}
 	defer func() {
-		if _, e := live.db.Exec(context.Background(), "DROP SCHEMA "+schema+" CASCADE"); e != nil {
+		if _, e := testPool(t, live).Exec(context.Background(), "DROP SCHEMA "+schema+" CASCADE"); e != nil {
 			t.Error(e)
 		}
 	}()
@@ -79,7 +79,7 @@ func TestCashPurchaseIntegration(t *testing.T) {
 	o.Character = c.ID
 	setBalance := func(n int64) {
 		t.Helper()
-		if _, e = s.db.Exec(ctx, `INSERT INTO account_currency(account_id,cera) VALUES($1,$2) ON CONFLICT(account_id) DO UPDATE SET cera=$2`, a, n); e != nil {
+		if _, e = testPool(t, s).Exec(ctx, `INSERT INTO account_currency(account_id,cera) VALUES($1,$2) ON CONFLICT(account_id) DO UPDATE SET cera=$2`, a, n); e != nil {
 			t.Fatal(e)
 		}
 	}
@@ -125,7 +125,7 @@ func TestCashPurchaseIntegration(t *testing.T) {
 		t.Fatal("source mismatch mutated")
 	}
 	// Force failure on the second delivery after the first insert and debit.
-	if _, e = s.db.Exec(ctx, `ALTER TABLE cash_inventory ADD CONSTRAINT reject_second CHECK(template<>999)`); e != nil {
+	if _, e = testPool(t, s).Exec(ctx, `ALTER TABLE cash_inventory ADD CONSTRAINT reject_second CHECK(template<>999)`); e != nil {
 		t.Fatal(e)
 	}
 	q = o
@@ -136,7 +136,7 @@ func TestCashPurchaseIntegration(t *testing.T) {
 		t.Fatal("partial delivery charged")
 	}
 	var count int
-	if e = s.db.QueryRow(ctx, `SELECT count(*) FROM cash_orders WHERE order_key=$1`, q.Key).Scan(&count); e != nil || count != 0 {
+	if e = testPool(t, s).QueryRow(ctx, `SELECT count(*) FROM cash_orders WHERE order_key=$1`, q.Key).Scan(&count); e != nil || count != 0 {
 		t.Fatal("failed order persisted")
 	}
 	q = o
@@ -198,7 +198,7 @@ func TestCashPurchaseIntegration(t *testing.T) {
 		t.Fatalf("bag purchase %+v %v", bagReceipt, e)
 	}
 	var savedState json.RawMessage
-	if e = s.db.QueryRow(ctx, `SELECT state FROM characters WHERE id=$1`, c.ID).Scan(&savedState); e != nil {
+	if e = testPool(t, s).QueryRow(ctx, `SELECT state FROM characters WHERE id=$1`, c.ID).Scan(&savedState); e != nil {
 		t.Fatal(e)
 	}
 	var state map[string]json.RawMessage
@@ -206,11 +206,11 @@ func TestCashPurchaseIntegration(t *testing.T) {
 		t.Fatal("bag not persisted")
 	}
 	var unclaimed int
-	if e = s.db.QueryRow(ctx, `SELECT count(*) FROM cash_inventory WHERE account_id=$1 AND order_key=$2 AND claimed_at IS NULL`, a, q.Key).Scan(&unclaimed); e != nil || unclaimed != 0 {
+	if e = testPool(t, s).QueryRow(ctx, `SELECT count(*) FROM cash_inventory WHERE account_id=$1 AND order_key=$2 AND claimed_at IS NULL`, a, q.Key).Scan(&unclaimed); e != nil || unclaimed != 0 {
 		t.Fatal("bag item also claimable", e)
 	}
 	// Simulate subsequent gameplay saving a newer state, then replay purchase.
-	if _, e = s.db.Exec(ctx, `UPDATE characters SET state='{"newer":true}' WHERE id=$1`, c.ID); e != nil {
+	if _, e = testPool(t, s).Exec(ctx, `UPDATE characters SET state='{"newer":true}' WHERE id=$1`, c.ID); e != nil {
 		t.Fatal(e)
 	}
 	bagReceipt, applied, e = s.PurchaseCashToBag(ctx, q, func(json.RawMessage) (json.RawMessage, error) { t.Fatal("replay delivery called"); return nil, nil })
@@ -228,7 +228,7 @@ func TestCashPurchaseIntegration(t *testing.T) {
 	if _, _, e = s.PurchaseCashToBag(ctx, q, deliver); e == nil || balance() != 6820 {
 		t.Fatal("late bag failure charged")
 	}
-	if e = s.db.QueryRow(ctx, `SELECT state FROM characters WHERE id=$1`, c.ID).Scan(&savedState); e != nil || !strings.Contains(string(savedState), "newer") {
+	if e = testPool(t, s).QueryRow(ctx, `SELECT state FROM characters WHERE id=$1`, c.ID).Scan(&savedState); e != nil || !strings.Contains(string(savedState), "newer") {
 		t.Fatal("late failure changed bag", e)
 	}
 	t.Log("PASS direct bag debit+state+audit; no unclaimed duplicate; replay keeps newer state; full bag and late insert failure roll back")
@@ -238,7 +238,7 @@ func TestCashPurchaseIntegration(t *testing.T) {
 	if _, e = s.LoadVault(ctx, a, c.ID, 8, o.Source); e != nil {
 		t.Fatal(e)
 	}
-	if _, e = s.db.Exec(ctx, `UPDATE character_vaults SET items='[{"slot":0,"template":14,"amount":5}]' WHERE character_id=$1`, c.ID); e != nil {
+	if _, e = testPool(t, s).Exec(ctx, `UPDATE character_vaults SET items='[{"slot":0,"template":14,"amount":5}]' WHERE character_id=$1`, c.ID); e != nil {
 		t.Fatal(e)
 	}
 	upgrade := func(v VaultState) (VaultState, error) {
@@ -276,7 +276,7 @@ func TestCashPurchaseIntegration(t *testing.T) {
 	if e != nil || v.Slots != 24 || !strings.Contains(string(v.Items), "14") {
 		t.Fatal("vault persistence/rollback", e)
 	}
-	if e = s.db.QueryRow(ctx, `SELECT count(*) FROM cash_inventory WHERE account_id=$1 AND order_key='vault-upgrade-0001' AND claimed_at IS NULL`, a).Scan(&unclaimed); e != nil || unclaimed != 0 {
+	if e = testPool(t, s).QueryRow(ctx, `SELECT count(*) FROM cash_inventory WHERE account_id=$1 AND order_key='vault-upgrade-0001' AND claimed_at IS NULL`, a).Scan(&unclaimed); e != nil || unclaimed != 0 {
 		t.Fatal("used coupon left claimable", e)
 	}
 	t.Log("PASS vault atomic debit+capacity+audit; contents retained; replay/wrong tier/insufficient funds/late failure; reconnect and no unclaimed coupon")
@@ -298,11 +298,11 @@ func TestMigratePackagePlaceholdersUnit(t *testing.T) {
 	}
 	defer live.Close()
 	schema := fmt.Sprintf("pkg_mig_%d", time.Now().UnixNano())
-	if _, err = live.db.Exec(ctx, "CREATE SCHEMA "+schema); err != nil {
+	if _, err = testPool(t, live).Exec(ctx, "CREATE SCHEMA "+schema); err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
-		_, _ = live.db.Exec(context.Background(), "DROP SCHEMA "+schema+" CASCADE")
+		_, _ = testPool(t, live).Exec(context.Background(), "DROP SCHEMA "+schema+" CASCADE")
 	}()
 	cfg.PostgresSchema = schema
 	s, err := Open(ctx, cfg)
@@ -331,7 +331,7 @@ func TestMigratePackagePlaceholdersUnit(t *testing.T) {
 	}
 
 	var savedState json.RawMessage
-	if err = s.db.QueryRow(ctx, `SELECT state FROM characters WHERE id=$1`, c.ID).Scan(&savedState); err != nil {
+	if err = testPool(t, s).QueryRow(ctx, `SELECT state FROM characters WHERE id=$1`, c.ID).Scan(&savedState); err != nil {
 		t.Fatal(err)
 	}
 	var stateMap map[string]json.RawMessage

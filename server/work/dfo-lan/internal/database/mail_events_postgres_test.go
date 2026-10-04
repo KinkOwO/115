@@ -66,7 +66,7 @@ func TestSQLCMailSendRollbackReplayAndSharedSequence(t *testing.T) {
 		t.Fatalf("prepare calls: %d", prepareCalls)
 	}
 	var raw json.RawMessage
-	if err := s.db.QueryRow(ctx, `SELECT outcome FROM character_events WHERE character_id=$1 AND event_key='send'`, sender.ID).Scan(&raw); err != nil {
+	if err := testPool(t, s).QueryRow(ctx, `SELECT outcome FROM character_events WHERE character_id=$1 AND event_key='send'`, sender.ID).Scan(&raw); err != nil {
 		t.Fatal(err)
 	}
 	var receiptKeys map[string]json.RawMessage
@@ -86,7 +86,7 @@ func TestSQLCMailSendRollbackReplayAndSharedSequence(t *testing.T) {
 	if latest, unread, err := s.MailboxDeliveryState(ctx, account, receiver.ID); err != nil || latest != first.MessageID || unread != 1 {
 		t.Fatalf("delivery: %d %d %v", latest, unread, err)
 	}
-	if _, err := s.db.Exec(ctx, `INSERT INTO character_events(character_id,event_key,config_version,model,outcome) VALUES($1,'conflict',$2,'other-model','{}')`, sender.ID, sender.ConfigVersion); err != nil {
+	if _, err := testPool(t, s).Exec(ctx, `INSERT INTO character_events(character_id,event_key,config_version,model,outcome) VALUES($1,'conflict',$2,'other-model','{}')`, sender.ID, sender.ConfigVersion); err != nil {
 		t.Fatal(err)
 	}
 	if _, _, _, err := s.SendMail(ctx, account, sender.ID, sender.ConfigVersion, "conflict", receiver.Name, "rollback", func(c Character) (json.RawMessage, []MailAsset, error) {
@@ -176,7 +176,7 @@ func TestSQLCMailSelectionSoftDeleteAndAtomicClaim(t *testing.T) {
 	}
 	selectCount("after-delete", "mail-claim-v1", []int64{inbox[0].ID}, 0)
 	selectCount("delete-status", "mail-status-v1", []int64{inbox[0].ID}, 1)
-	if _, err := s.db.Exec(ctx, `UPDATE character_mail SET expires_at=now()-interval '1 day',status=CASE WHEN id=$1 THEN 3 ELSE 1 END WHERE recipient_id=$2`, inbox[1].ID, receiver.ID); err != nil {
+	if _, err := testPool(t, s).Exec(ctx, `UPDATE character_mail SET expires_at=now()-interval '1 day',status=CASE WHEN id=$1 THEN 3 ELSE 1 END WHERE recipient_id=$2`, inbox[1].ID, receiver.ID); err != nil {
 		t.Fatal(err)
 	}
 	inbox, err = s.Mailbox(ctx, account, receiver.ID)
@@ -190,7 +190,7 @@ func TestSQLCMailSelectionSoftDeleteAndAtomicClaim(t *testing.T) {
 
 func TestSQLCMailConcurrentCapacity(t *testing.T) {
 	s, ctx, account, sender, receiver := mailEventFixture(t)
-	if _, err := s.db.Exec(ctx, `INSERT INTO character_mail(recipient_id,sender_name,body,assets,expires_at) SELECT $1,'System','','[]',now()+interval '1 day' FROM generate_series(1,254)`, receiver.ID); err != nil {
+	if _, err := testPool(t, s).Exec(ctx, `INSERT INTO character_mail(recipient_id,sender_name,body,assets,expires_at) SELECT $1,'System','','[]',now()+interval '1 day' FROM generate_series(1,254)`, receiver.ID); err != nil {
 		t.Fatal(err)
 	}
 	var wg sync.WaitGroup
@@ -232,7 +232,7 @@ func TestSQLCMailLegacyUnclaimedAssetCapacity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.db.Exec(ctx, `INSERT INTO character_mail(recipient_id,sender_name,body,assets,expires_at) VALUES($1,'Legacy','',$2,now()+interval '1 day')`, receiver.ID, raw); err != nil {
+	if _, err := testPool(t, s).Exec(ctx, `INSERT INTO character_mail(recipient_id,sender_name,body,assets,expires_at) VALUES($1,'Legacy','',$2,now()+interval '1 day')`, receiver.ID, raw); err != nil {
 		t.Fatal(err)
 	}
 	prepare := func(c Character) (json.RawMessage, []MailAsset, error) { return c.State, []MailAsset{{Gold: 1}}, nil }
@@ -244,7 +244,7 @@ func TestSQLCMailLegacyUnclaimedAssetCapacity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.db.Exec(ctx, `UPDATE character_mail SET assets=$1 WHERE recipient_id=$2`, raw, receiver.ID); err != nil {
+	if _, err := testPool(t, s).Exec(ctx, `UPDATE character_mail SET assets=$1 WHERE recipient_id=$2`, raw, receiver.ID); err != nil {
 		t.Fatal(err)
 	}
 	if _, _, applied, err := s.SendMail(ctx, account, sender.ID, sender.ConfigVersion, "asset-capacity", receiver.Name, "mail", prepare); err != nil || !applied {
@@ -297,11 +297,11 @@ func TestSQLCBlackPurgatoryQuotaRewardAndRecovery(t *testing.T) {
 func TestSQLCBlackPendingPlansOrderLimitAndCallbackFailure(t *testing.T) {
 	s, ctx, account, role, _ := mailEventFixture(t)
 	for i := 0; i < 20; i++ {
-		if _, err := s.db.Exec(ctx, `INSERT INTO character_events(character_id,event_key,config_version,model,outcome,created_at) VALUES($1,$2,$3,'black-purgatory-card-v1',jsonb_build_object('ordinal',$4::integer),now()+$4*interval '1 second')`, role.ID, fmt.Sprintf("cardplan:%d", i), role.ConfigVersion, i); err != nil {
+		if _, err := testPool(t, s).Exec(ctx, `INSERT INTO character_events(character_id,event_key,config_version,model,outcome,created_at) VALUES($1,$2,$3,'black-purgatory-card-v1',jsonb_build_object('ordinal',$4::integer),now()+$4*interval '1 second')`, role.ID, fmt.Sprintf("cardplan:%d", i), role.ConfigVersion, i); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if _, err := s.db.Exec(ctx, `INSERT INTO character_events(character_id,event_key,config_version,model,outcome) VALUES($1,'black-purgatory-recovered:0',$2,'recovered','{}')`, role.ID, role.ConfigVersion); err != nil {
+	if _, err := testPool(t, s).Exec(ctx, `INSERT INTO character_events(character_id,event_key,config_version,model,outcome) VALUES($1,'black-purgatory-recovered:0',$2,'recovered','{}')`, role.ID, role.ConfigVersion); err != nil {
 		t.Fatal(err)
 	}
 	count := 0

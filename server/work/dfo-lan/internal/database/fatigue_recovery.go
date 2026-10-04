@@ -18,11 +18,11 @@ func (s *Store) RecoverFatigue(ctx context.Context, account, id int64, version s
 	if r.Limit == 0 || r.Amount == 0 || r.Template == 0 || r.DailyUses == 0 || r.Cooldown < 0 || r.Now.IsZero() || consume == nil {
 		return role, fp, fmt.Errorf("invalid fatigue recovery")
 	}
-	tx, e := s.db.Begin(ctx)
+	tx, e := s.engine.begin(ctx)
 	if e != nil {
 		return role, fp, e
 	}
-	defer tx.Rollback(ctx)
+	defer tx.rollback(ctx)
 	role, e = lockCharacter(ctx, tx, account, id)
 	if e != nil {
 		return role, fp, e
@@ -30,7 +30,7 @@ func (s *Store) RecoverFatigue(ctx context.Context, account, id int64, version s
 	if role.ConfigVersion != version {
 		return role, fp, fmt.Errorf("recovery source mismatch")
 	}
-	q := s.queries.WithTx(tx)
+	q := tx.queries()
 	row, e := q.LoadLockedCharacterFatigue(ctx, sqlcgen.LoadLockedCharacterFatigueParams{CharacterID: id, Day: r.Day, DailyLimit: int32(r.Limit)})
 	fp = FatigueState{Day: row.Day, Used: uint16(row.Used), Limit: uint16(row.DailyLimit), UsedMax: uint16(row.UsedMax)}
 	if e != nil {
@@ -73,7 +73,7 @@ func (s *Store) RecoverFatigue(ctx context.Context, account, id int64, version s
 	if e != nil {
 		return role, fp, e
 	}
-	if e = tx.Commit(ctx); e != nil {
+	if e = tx.commit(ctx); e != nil {
 		return role, fp, e
 	}
 	role.State = state

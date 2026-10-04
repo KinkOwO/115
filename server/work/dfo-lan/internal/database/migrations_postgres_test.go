@@ -16,7 +16,7 @@ func TestSQLCMigrationFailureDoesNotAdoptOrRecord(t *testing.T) {
 		t.Fatal("mailbox without prerequisites succeeded")
 	}
 	var untouched bool
-	if err := s.db.QueryRow(ctx, `SELECT to_regclass('storage_migrations') IS NULL AND to_regclass('mailbox_id_seq') IS NULL`).Scan(&untouched); err != nil || !untouched {
+	if err := testPool(t, s).QueryRow(ctx, `SELECT to_regclass('storage_migrations') IS NULL AND to_regclass('mailbox_id_seq') IS NULL`).Scan(&untouched); err != nil || !untouched {
 		t.Fatalf("failed initialization left DDL or ledger: %v %v", untouched, err)
 	}
 	if err := s.Migrate(ctx); err != nil {
@@ -26,7 +26,7 @@ func TestSQLCMigrationFailureDoesNotAdoptOrRecord(t *testing.T) {
 		t.Fatal(err)
 	}
 	var entries int
-	if err := s.db.QueryRow(ctx, `SELECT count(*) FROM storage_migrations`).Scan(&entries); err != nil || entries != 2 {
+	if err := testPool(t, s).QueryRow(ctx, `SELECT count(*) FROM storage_migrations`).Scan(&entries); err != nil || entries != 2 {
 		t.Fatalf("recorded migrations: %d %v", entries, err)
 	}
 }
@@ -48,16 +48,16 @@ func TestSQLCMigrationConcurrentAdoptionAndChecksum(t *testing.T) {
 	}
 	var checksum string
 	var runs int64
-	if err := s.db.QueryRow(ctx, `SELECT checksum,runs FROM storage_migrations WHERE name='0001_core.sql'`).Scan(&checksum, &runs); err != nil || runs != 1 {
+	if err := testPool(t, s).QueryRow(ctx, `SELECT checksum,runs FROM storage_migrations WHERE name='0001_core.sql'`).Scan(&checksum, &runs); err != nil || runs != 1 {
 		t.Fatalf("concurrent adoption: %d %v", runs, err)
 	}
-	if _, err := s.db.Exec(ctx, `UPDATE storage_migrations SET checksum=repeat('0',64) WHERE name='0001_core.sql'`); err != nil {
+	if _, err := testPool(t, s).Exec(ctx, `UPDATE storage_migrations SET checksum=repeat('0',64) WHERE name='0001_core.sql'`); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.Migrate(ctx); err == nil || !strings.Contains(err.Error(), "checksum differs") {
 		t.Fatalf("changed applied SQL accepted: %v", err)
 	}
-	if _, err := s.db.Exec(ctx, `UPDATE storage_migrations SET checksum=$1 WHERE name='0001_core.sql'`, checksum); err != nil {
+	if _, err := testPool(t, s).Exec(ctx, `UPDATE storage_migrations SET checksum=$1 WHERE name='0001_core.sql'`, checksum); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.Migrate(ctx); err != nil {
@@ -85,7 +85,7 @@ func TestSQLCMigrationRepeatRepairsAndOptionalCapacity(t *testing.T) {
 	}
 	// Optional capacity repair is never enabled just because its SQL is embedded.
 	var count int
-	if err := s.db.QueryRow(ctx, `SELECT count(*) FROM storage_migrations WHERE name='0028_secondary_vault_upgrade.sql'`).Scan(&count); err != nil || count != 0 {
+	if err := testPool(t, s).QueryRow(ctx, `SELECT count(*) FROM storage_migrations WHERE name='0028_secondary_vault_upgrade.sql'`).Scan(&count); err != nil || count != 0 {
 		t.Fatalf("optional repair auto-enabled: %d %v", count, err)
 	}
 	if err := s.UpgradeSecondaryVaultCapacity(ctx); err != nil {
@@ -102,33 +102,33 @@ func TestSQLCMigrationRepeatRepairsAndOptionalCapacity(t *testing.T) {
 	}
 	// A legacy save imported after the first schema adoption still gets its
 	// precise old-model repair at the next explicit quest initialization.
-	if _, err := s.db.Exec(ctx, `INSERT INTO character_quests(character_id,quest_id,status,progress,config_version,progress_model,accepted_at,completed_at) VALUES($1,3145,'completed',0,$2,'act-clear-v1',now(),now())`, role.ID, role.ConfigVersion); err != nil {
+	if _, err := testPool(t, s).Exec(ctx, `INSERT INTO character_quests(character_id,quest_id,status,progress,config_version,progress_model,accepted_at,completed_at) VALUES($1,3145,'completed',0,$2,'act-clear-v1',now(),now())`, role.ID, role.ConfigVersion); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.MigrateQuests(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.db.QueryRow(ctx, `SELECT count(*) FROM character_quests WHERE character_id=$1`, role.ID).Scan(&count); err != nil || count != 0 {
+	if err := testPool(t, s).QueryRow(ctx, `SELECT count(*) FROM character_quests WHERE character_id=$1`, role.ID).Scan(&count); err != nil || count != 0 {
 		t.Fatalf("late imported synthetic quest kept: %d %v", count, err)
 	}
-	if err := s.db.QueryRow(ctx, `SELECT count(*) FROM character_quest_repairs WHERE character_id=$1`, role.ID).Scan(&count); err != nil || count != 1 {
+	if err := testPool(t, s).QueryRow(ctx, `SELECT count(*) FROM character_quest_repairs WHERE character_id=$1`, role.ID).Scan(&count); err != nil || count != 1 {
 		t.Fatalf("late repair audit: %d %v", count, err)
 	}
 	var runs int64
-	if err := s.db.QueryRow(ctx, `SELECT runs FROM storage_migrations WHERE name='0028_secondary_vault_upgrade.sql'`).Scan(&runs); err != nil || runs != 2 {
+	if err := testPool(t, s).QueryRow(ctx, `SELECT runs FROM storage_migrations WHERE name='0028_secondary_vault_upgrade.sql'`).Scan(&runs); err != nil || runs != 2 {
 		t.Fatalf("repeat ledger: %d %v", runs, err)
 	}
 	if err := s.MigrateTowerProgress(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.db.Exec(ctx, `INSERT INTO account_tower_grief_progress(account_id,highest_cleared,cleared_day,last_run_id) VALUES($1,37,'2026-10-03','legacy-late')`, account); err != nil {
+	if _, err := testPool(t, s).Exec(ctx, `INSERT INTO account_tower_grief_progress(account_id,highest_cleared,cleared_day,last_run_id) VALUES($1,37,'2026-10-03','legacy-late')`, account); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.MigrateTowerProgress(ctx); err != nil {
 		t.Fatal(err)
 	}
 	var floor int
-	if err := s.db.QueryRow(ctx, `SELECT highest_cleared FROM account_tower_progress WHERE account_id=$1 AND tower_key='grief'`, account).Scan(&floor); err != nil || floor != 37 {
+	if err := testPool(t, s).QueryRow(ctx, `SELECT highest_cleared FROM account_tower_progress WHERE account_id=$1 AND tower_key='grief'`, account).Scan(&floor); err != nil || floor != 37 {
 		t.Fatalf("late tower save not adopted: %d %v", floor, err)
 	}
 }
@@ -217,12 +217,12 @@ func TestConsolidatedMigrationAdoptsExistingLedger(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err := s.db.Exec(ctx, string(query)); err != nil {
+		if _, err := testPool(t, s).Exec(ctx, string(query)); err != nil {
 			t.Fatal(err)
 		}
 	}
 	const previousCoreChecksum = "4726996b13eb61609cc1bf1072207b6b7871260837f6779f51f645bb906ae26f"
-	if _, err := s.db.Exec(ctx, `INSERT INTO storage_migrations(name,checksum,runs) VALUES('0001_core.sql',$1,7)`, previousCoreChecksum); err != nil {
+	if _, err := testPool(t, s).Exec(ctx, `INSERT INTO storage_migrations(name,checksum,runs) VALUES('0001_core.sql',$1,7)`, previousCoreChecksum); err != nil {
 		t.Fatal(err)
 	}
 	account, err := s.DevelopmentAccount(ctx, "consolidated-legacy")
@@ -239,7 +239,7 @@ func TestConsolidatedMigrationAdoptsExistingLedger(t *testing.T) {
 		t.Fatal(err)
 	}
 	var runs int64
-	if err := s.db.QueryRow(ctx, `SELECT runs FROM storage_migrations WHERE name='0001_core.sql'`).Scan(&runs); err != nil || runs != 7 {
+	if err := testPool(t, s).QueryRow(ctx, `SELECT runs FROM storage_migrations WHERE name='0001_core.sql'`).Scan(&runs); err != nil || runs != 7 {
 		t.Fatalf("old migration record was replaced or replayed: %d %v", runs, err)
 	}
 	rows, err := s.Characters(ctx, account)
@@ -248,7 +248,7 @@ func TestConsolidatedMigrationAdoptsExistingLedger(t *testing.T) {
 		t.Fatalf("legacy save changed: %+v %v", rows, err)
 	}
 	var gated bool
-	if err := s.db.QueryRow(ctx, `SELECT to_regclass('gm_mail') IS NULL AND to_regclass('character_quests') IS NULL AND to_regclass('account_adventure') IS NULL AND to_regclass('character_vaults') IS NULL`).Scan(&gated); err != nil || !gated {
+	if err := testPool(t, s).QueryRow(ctx, `SELECT to_regclass('gm_mail') IS NULL AND to_regclass('character_quests') IS NULL AND to_regclass('account_adventure') IS NULL AND to_regclass('character_vaults') IS NULL`).Scan(&gated); err != nil || !gated {
 		t.Fatalf("consolidation enabled unrelated module schemas: %v %v", gated, err)
 	}
 }

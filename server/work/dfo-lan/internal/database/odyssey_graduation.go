@@ -20,11 +20,11 @@ func (s *Store) CommitOdysseyGraduation(ctx context.Context, account, id int64, 
 	if err != nil || len(checksum) != 32 || apply == nil {
 		return role, false, fmt.Errorf("invalid Odyssey graduation event")
 	}
-	tx, err := s.db.Begin(ctx)
+	tx, err := s.engine.begin(ctx)
 	if err != nil {
 		return role, false, err
 	}
-	defer tx.Rollback(ctx)
+	defer tx.rollback(ctx)
 	role, err = lockCharacter(ctx, tx, account, id)
 	if err != nil {
 		return role, false, err
@@ -32,17 +32,17 @@ func (s *Store) CommitOdysseyGraduation(ctx context.Context, account, id int64, 
 	if role.ConfigVersion != version {
 		return role, false, fmt.Errorf("Odyssey graduation source mismatch")
 	}
-	prior, err := sqlcgen.New(tx).CharacterEventModel(ctx, sqlcgen.CharacterEventModelParams{CharacterID: id, EventKey: OdysseyGraduationEvent})
+	prior, err := tx.queries().CharacterEventModel(ctx, sqlcgen.CharacterEventModelParams{CharacterID: id, EventKey: OdysseyGraduationEvent})
 	if err == nil {
 		if prior != OdysseyGraduationEvent {
 			return role, false, fmt.Errorf("Odyssey graduation model mismatch")
 		}
-		return role, false, tx.Commit(ctx)
+		return role, false, tx.commit(ctx)
 	}
 	if !errors.Is(err, pgx.ErrNoRows) {
 		return role, false, err
 	}
-	queries := s.queries.WithTx(tx)
+	queries := tx.queries()
 	paid, err := queries.OdysseyGraduationAlreadyPaid(ctx, id)
 	if err != nil {
 		return role, false, err
@@ -65,13 +65,13 @@ func (s *Store) CommitOdysseyGraduation(ctx context.Context, account, id int64, 
 			return role, false, err
 		}
 	}
-	if err = sqlcgen.New(tx).UpdateCharacterState(ctx, sqlcgen.UpdateCharacterStateParams{CharacterID: id, State: state}); err != nil {
+	if err = tx.queries().UpdateCharacterState(ctx, sqlcgen.UpdateCharacterStateParams{CharacterID: id, State: state}); err != nil {
 		return role, false, err
 	}
 	if err = queries.RecordCharacterEvent(ctx, sqlcgen.RecordCharacterEventParams{CharacterID: id, EventKey: OdysseyGraduationEvent, ConfigVersion: version, Model: OdysseyGraduationEvent, Outcome: proof}); err != nil {
 		return role, false, err
 	}
-	if err = tx.Commit(ctx); err != nil {
+	if err = tx.commit(ctx); err != nil {
 		return role, false, err
 	}
 	role.State = state

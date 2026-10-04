@@ -45,7 +45,12 @@ func OpenTestFixture(ctx context.Context) (*TestFixture, error) {
 		return nil, err
 	}
 	quoted := pgx.Identifier{schema}.Sanitize()
-	if _, err := admin.db.Exec(ctx, "CREATE SCHEMA "+quoted); err != nil {
+	pool, poolErr := admin.rawPool()
+	if poolErr != nil {
+		admin.Close()
+		return nil, poolErr
+	}
+	if _, err := pool.Exec(ctx, "CREATE SCHEMA "+quoted); err != nil {
 		admin.Close()
 		return nil, err
 	}
@@ -78,7 +83,11 @@ func (f *TestFixture) Close() error {
 	defer f.admin.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	_, err := f.admin.db.Exec(ctx, "DROP SCHEMA "+pgx.Identifier{f.schema}.Sanitize()+" CASCADE")
+	pool, err := f.admin.rawPool()
+	if err != nil {
+		return err
+	}
+	_, err = pool.Exec(ctx, "DROP SCHEMA "+pgx.Identifier{f.schema}.Sanitize()+" CASCADE")
 	f.admin = nil
 	return err
 }
@@ -151,7 +160,11 @@ func (f *TestFixture) RejectGraduation(ctx context.Context, reject bool) error {
 	if err != nil {
 		return err
 	}
-	_, err = f.db.Exec(ctx, string(body))
+	pool, err := f.rawPool()
+	if err != nil {
+		return err
+	}
+	_, err = pool.Exec(ctx, string(body))
 	return err
 }
 

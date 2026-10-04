@@ -51,11 +51,11 @@ func (s *Store) CommitAdventure(ctx context.Context, account, id int64, key stri
 	if key == "" || len(key) > 200 || apply == nil {
 		return role, p, nil, fmt.Errorf("冒险团事务参数无效")
 	}
-	tx, err := s.db.Begin(ctx)
+	tx, err := s.engine.begin(ctx)
 	if err != nil {
 		return role, p, nil, err
 	}
-	defer tx.Rollback(ctx)
+	defer tx.rollback(ctx)
 	role, err = lockCharacter(ctx, tx, account, id)
 	if err != nil {
 		return role, p, nil, err
@@ -64,10 +64,10 @@ func (s *Store) CommitAdventure(ctx context.Context, account, id int64, key stri
 	if err != nil {
 		return role, p, nil, err
 	}
-	queries := s.queries.WithTx(tx)
+	queries := tx.queries()
 	receipt, err = queries.AdventureEventReceipt(ctx, sqlcgen.AdventureEventReceiptParams{CharacterID: id, EventKey: key})
 	if err == nil {
-		return role, p, receipt, tx.Commit(ctx)
+		return role, p, receipt, tx.commit(ctx)
 	}
 	if !errors.Is(err, pgx.ErrNoRows) {
 		return role, p, nil, err
@@ -82,13 +82,13 @@ func (s *Store) CommitAdventure(ctx context.Context, account, id int64, key stri
 	if err = saveAdventure(ctx, tx, account, p); err != nil {
 		return role, p, nil, err
 	}
-	if err = sqlcgen.New(tx).UpdateCharacterState(ctx, sqlcgen.UpdateCharacterStateParams{CharacterID: id, State: state}); err != nil {
+	if err = tx.queries().UpdateCharacterState(ctx, sqlcgen.UpdateCharacterStateParams{CharacterID: id, State: state}); err != nil {
 		return role, p, nil, err
 	}
 	if err = queries.RecordCharacterEvent(ctx, sqlcgen.RecordCharacterEventParams{CharacterID: id, EventKey: key, ConfigVersion: role.ConfigVersion, Model: "account-adventure-v1", Outcome: receipt}); err != nil {
 		return role, p, nil, err
 	}
-	if err = tx.Commit(ctx); err != nil {
+	if err = tx.commit(ctx); err != nil {
 		return role, p, nil, err
 	}
 	role.State = state
@@ -165,12 +165,12 @@ func (s *Store) PrepareAdventure(ctx context.Context, role Character, day string
 	if _, err := time.Parse("2006-01-02", day); err != nil {
 		return p, err
 	}
-	tx, err := s.db.Begin(ctx)
+	tx, err := s.engine.begin(ctx)
 	if err != nil {
 		return p, err
 	}
-	defer tx.Rollback(ctx)
-	owned, err := s.queries.WithTx(tx).ActiveCharacterOwned(ctx, sqlcgen.ActiveCharacterOwnedParams{AccountID: role.AccountID, CharacterID: role.ID})
+	defer tx.rollback(ctx)
+	owned, err := tx.queries().ActiveCharacterOwned(ctx, sqlcgen.ActiveCharacterOwnedParams{AccountID: role.AccountID, CharacterID: role.ID})
 	if err != nil {
 		return p, err
 	}
@@ -227,12 +227,12 @@ func (s *Store) PrepareAdventure(ctx context.Context, role Character, day string
 			return p, err
 		}
 	}
-	return p, tx.Commit(ctx)
+	return p, tx.commit(ctx)
 }
 
-func lockAdventure(ctx context.Context, tx pgx.Tx, role Character) (AccountAdventure, error) {
+func lockAdventure(ctx context.Context, tx txHandle, role Character) (AccountAdventure, error) {
 	var p AccountAdventure
-	queries := sqlcgen.New(tx)
+	queries := tx.queries()
 	firstName, err := queries.FirstActiveCharacterName(ctx, role.AccountID)
 	if err != nil {
 		return p, err
@@ -252,7 +252,7 @@ func lockAdventure(ctx context.Context, tx pgx.Tx, role Character) (AccountAdven
 	return p, err
 }
 
-func saveAdventure(ctx context.Context, tx pgx.Tx, account int64, p AccountAdventure) error {
+func saveAdventure(ctx context.Context, tx txHandle, account int64, p AccountAdventure) error {
 	if p.Experience > math.MaxInt64 {
 		return fmt.Errorf("冒险团经验超出数据库范围")
 	}
@@ -260,12 +260,12 @@ func saveAdventure(ctx context.Context, tx pgx.Tx, account int64, p AccountAdven
 	if err != nil {
 		return err
 	}
-	return sqlcgen.New(tx).SaveAdventure(ctx, sqlcgen.SaveAdventureParams{AccountID: account, Level: int64(p.Level), Experience: int64(p.Experience), Data: raw})
+	return tx.queries().SaveAdventure(ctx, sqlcgen.SaveAdventureParams{AccountID: account, Level: int64(p.Level), Experience: int64(p.Experience), Data: raw})
 }
 
 // 调用方已经锁定角色；账号行随后加锁，所有角色共用相同锁序。
 // 经验与角色、幂等回执一起提交，数据库失败时全部回滚。
-func (s *Store) commitAdventureExperience(ctx context.Context, tx pgx.Tx, role Character, state json.RawMessage) error {
+func (s *Store) commitAdventureExperience(ctx context.Context, tx txHandle, role Character, state json.RawMessage) error {
 	if !s.adventureEnabled {
 		return nil
 	}

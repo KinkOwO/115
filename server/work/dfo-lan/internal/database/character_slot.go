@@ -88,12 +88,12 @@ func changeCharacterSlots(roles []Character, r CharacterSlotChange, capacity int
 // ChangeCharacterSlots shares the account lock with creation and archival.
 // It commits the whole permutation atomically without rewriting any save data.
 func (s *Store) ChangeCharacterSlots(ctx context.Context, account int64, r CharacterSlotChange, capacity int) error {
-	tx, err := s.db.Begin(ctx)
+	tx, err := s.engine.begin(ctx)
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
-	queries := s.queries.WithTx(tx)
+	defer tx.rollback(ctx)
+	queries := tx.queries()
 	if _, err = queries.LockAccount(ctx, account); err != nil {
 		return err
 	}
@@ -116,7 +116,7 @@ func (s *Store) ChangeCharacterSlots(ctx context.Context, account int64, r Chara
 			return err
 		}
 	}
-	if err = tx.Commit(ctx); err != nil {
+	if err = tx.commit(ctx); err != nil {
 		return err
 	}
 	return nil

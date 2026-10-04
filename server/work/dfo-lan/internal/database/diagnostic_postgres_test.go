@@ -34,7 +34,7 @@ func TestSQLCDiagnosticIsReadOnlyAndPropagatesErrors(t *testing.T) {
 		t.Fatal("query error lost")
 	}
 	var count int
-	if err := s.db.QueryRow(ctx, `SELECT count(*) FROM accounts`).Scan(&count); err != nil || count != 0 {
+	if err := testPool(t, s).QueryRow(ctx, `SELECT count(*) FROM accounts`).Scan(&count); err != nil || count != 0 {
 		t.Fatalf("diagnostic mutated accounts: %d %v", count, err)
 	}
 }

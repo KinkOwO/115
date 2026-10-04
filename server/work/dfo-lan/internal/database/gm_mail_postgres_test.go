@@ -18,10 +18,10 @@ func TestGMMailAdoptsLegacyQueueAndChecksRecipients(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.db.Exec(ctx, string(ddl)); err != nil {
+	if _, err := testPool(t, s).Exec(ctx, string(ddl)); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.db.Exec(ctx, `INSERT INTO gm_mail(to_account_id,template,amount,title,body,status) VALUES(888,55,7,'legacy','preserve body','claimed')`); err != nil {
+	if _, err := testPool(t, s).Exec(ctx, `INSERT INTO gm_mail(to_account_id,template,amount,title,body,status) VALUES(888,55,7,'legacy','preserve body','claimed')`); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.MigrateGMMail(ctx); err != nil {
@@ -80,7 +80,7 @@ func TestGMMailAdoptsLegacyQueueAndChecksRecipients(t *testing.T) {
 		t.Fatalf("existing queue changed: %+v %v", rows, err)
 	}
 	var body string
-	if err = s.db.QueryRow(ctx, `SELECT body FROM gm_mail WHERE id=1`).Scan(&body); err != nil || body != "preserve body" {
+	if err = testPool(t, s).QueryRow(ctx, `SELECT body FROM gm_mail WHERE id=1`).Scan(&body); err != nil || body != "preserve body" {
 		t.Fatalf("legacy body lost: %q %v", body, err)
 	}
 }

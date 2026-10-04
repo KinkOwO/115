@@ -54,6 +54,18 @@ def configuration():
    "Storage missing. Follow README first-time setup; no database was changed."
   )
  cfg = json.loads(storage.read_text(encoding="utf-8-sig"))
+ driver = str(cfg.get("driver", "") or "postgres").lower()
+ if driver == "sqlite":
+  # No server to start: the engine opens (and creates) the database file itself.
+  # pg stays None so every PostgreSQL-specific step is skipped, not attempted.
+  path = str(cfg.get("sqlite_path", "") or "")
+  if not path:
+   raise RuntimeError(
+    "Storage driver 'sqlite' requires sqlite_path in runtime/storage/local.json."
+   )
+  return local, cfg, None
+ if driver != "postgres":
+  raise RuntimeError(f"Unsupported storage driver '{driver}'.")
  pg = urlparse(cfg["postgres_dsn"])
  if pg.hostname != "127.0.0.1":
   raise RuntimeError("This development profile requires local loopback storage.")
@@ -61,6 +73,9 @@ def configuration():
 
 
 def start_storage(cfg, pg):
+ if pg is None:
+  # SQLite profile: nothing to start, and nothing to wait for.
+  return
  if not listening(pg.hostname, pg.port):
   data = pathlib.Path(cfg.get("postgres_data", "")).resolve()
   if data != (STORAGE / "pgdata").resolve():
@@ -222,7 +237,10 @@ def main():
    raise RuntimeError("Missing repair profile dependency: " + str(path))
  if args.check:
   print(
-   "Paths OK. PostgreSQL:", listening(pg.hostname, pg.port)
+   "Paths OK. Storage:",
+   f"SQLite {cfg.get('sqlite_path')}"
+   if pg is None
+   else f"PostgreSQL: {listening(pg.hostname, pg.port)}",
   )
   print("Binary:", binary)
   print("Data mode:", "PVF direct" if profile_env.get("DFO_PVF_CATALOGS") else "JSON / explicit profile")

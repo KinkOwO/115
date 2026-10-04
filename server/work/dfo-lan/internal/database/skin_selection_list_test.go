@@ -33,10 +33,10 @@ func TestSkinSelectionListRoundTrip(t *testing.T) {
 	}
 	defer admin.Close()
 	schema := fmt.Sprintf("skin_selection_list_%d", time.Now().UnixNano())
-	if _, err = admin.db.Exec(ctx, "CREATE SCHEMA "+schema); err != nil {
+	if _, err = testPool(t, admin).Exec(ctx, "CREATE SCHEMA "+schema); err != nil {
 		t.Fatal(err)
 	}
-	defer admin.db.Exec(context.Background(), "DROP SCHEMA "+schema+" CASCADE")
+	defer testPool(t, admin).Exec(context.Background(), "DROP SCHEMA "+schema+" CASCADE")
 	cfg.PostgresSchema = schema
 	s, err := Open(ctx, cfg)
 	if err != nil {
@@ -95,7 +95,7 @@ func TestSkinSelectionListRoundTrip(t *testing.T) {
 		t.Fatalf("cleared selection = %v (%v)", keys, e)
 	}
 	var kept int
-	if e = s.db.QueryRow(ctx, `SELECT count(*) FROM information_schema.tables
+	if e = testPool(t, s).QueryRow(ctx, `SELECT count(*) FROM information_schema.tables
  WHERE table_schema=current_schema() AND table_name='character_skin_selection'`).Scan(&kept); e != nil {
 		t.Fatal(e)
 	}

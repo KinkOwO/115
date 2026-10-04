@@ -42,12 +42,12 @@ func (s *Store) BumpOathProgress(ctx context.Context, characterID, dungeonID int
 	if characterID <= 0 || dungeonID <= 0 || needed <= 0 {
 		return 0, 0, errors.New("invalid oath progress bump")
 	}
-	tx, err := s.db.Begin(ctx)
+	tx, err := s.engine.begin(ctx)
 	if err != nil {
 		return 0, 0, err
 	}
-	defer tx.Rollback(ctx)
-	queries := s.queries.WithTx(tx)
+	defer tx.rollback(ctx)
+	queries := tx.queries()
 	stored, err := queries.LockOathProgress(ctx, sqlcgen.LockOathProgressParams{CharacterID: characterID, DungeonID: dungeonID})
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return 0, 0, err
@@ -60,7 +60,7 @@ func (s *Store) BumpOathProgress(ctx context.Context, characterID, dungeonID int
 	if err = queries.SaveOathProgress(ctx, sqlcgen.SaveOathProgressParams{CharacterID: characterID, DungeonID: dungeonID, Clears: int64(next)}); err != nil {
 		return 0, 0, err
 	}
-	if err = tx.Commit(ctx); err != nil {
+	if err = tx.commit(ctx); err != nil {
 		return 0, 0, err
 	}
 	return before, next, nil
