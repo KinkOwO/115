@@ -127,3 +127,7 @@ analysis/dumps/matches.json
 *.stale-*
 analysis/tmp-*/
 server/work/client-build/Script.inner.manifest.json
+
+# ------------------------------------------------------------------------------
+# 仓库根的 .tmp/：构建/抓包临时中间产物（内含 gocache 等，禁止入库；见 scripts/check-commit-hygiene.ps1）
+/.tmp/
