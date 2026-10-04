@@ -1,5 +1,11 @@
 # DFO 服务端源码与启动脚本交接包
 
+## 工具命令入口（2026-10-03）
+
+`work/dfo-lan/cmd` 现保留 `wireprobe`、`admin`、`gmtool`、`dfo-tool` 四个入口。原独立导出/审计/维护工具统一改为 `go run ./cmd/dfo-tool <原工具名> <参数>`，在 `work/dfo-lan` 下用 `go run ./cmd/dfo-tool -h` 查看清单。现有游戏启动和GM入口保持；构建工具程序用 `go build -trimpath -o bin/dfo-tool.exe ./cmd/dfo-tool`。详见 [cmd/README.md](work/dfo-lan/cmd/README.md)。
+
+实际工具已从59个裁减到20个：39个无当前外部执行调用的旧导出/一次性调查/重复工具已删除，不能继续按历史工具名调用；具体范围与保留理由见 [工具裁减记录](../docs/todo/server-tool-pruning-20261003.md)。启动器仅构建wireprobe，不依赖这些离线工具；运行内容仍直接由同一PVF Source准备。
+
 ## MR !139 合并后的首次使用（2026-10-03源码收口）
 
 本轮删除旧内容配置并调整严格policy字段，必须配套当前MR源码构建。旧bin不随Git源码更新；在仓库根目录执行：
@@ -81,7 +87,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File ./Build-Server.ps1
 .\Start-DFO.cmd --source-build
 ```
 
-数据库集成回归在 `work/dfo-lan` 下运行 `go run ./cmd/charactercheck`。先确保自己的存储已经配置并启动；它使用临时schema。打包时没有为该检查连接朋友的环境，也没有复制原机数据库。
+数据库集成回归在 `work/dfo-lan` 下运行 `go run ./cmd/dfo-tool charactercheck`。先确保自己的存储已经配置并启动；它使用临时schema。打包时没有为该检查连接朋友的环境，也没有复制原机数据库。
 
 ## 限制与排障
 

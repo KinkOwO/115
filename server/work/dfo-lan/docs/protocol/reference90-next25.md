@@ -25,7 +25,7 @@
 | 背包槽位与缺省堆叠上限兼容策略 | `configs/inventory.compat90.json` |
 | 进度计算 / 角色成长 | `internal/progression` / `internal/character` |
 | 掉落 / 背包 | `internal/loot` / `internal/inventory` |
-| 事务与幂等凭据 | `internal/storage` |
+| 事务与幂等凭据 | `internal/database` |
 | 当前版本协议编码 | `internal/game/protocol` |
 
 新功能通过 `-progression-catalog`、`-loot-catalog` 显式启用。现有运行入口与 `characters.generated.json` 不会因生成候选数据而自动改变。候选构建与文件摘要记录于 `runtime/reference25-validation.json`。
