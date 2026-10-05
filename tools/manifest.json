@@ -15,11 +15,11 @@
     {
       "name": "gopath-mod",
       "url": "tools/tools-gopath-mod.zip",
-      "size": 28881300,
-      "sha256": "9f6e74ce504dfb43f38b14ded6e98fce5543d652d5cfc1193f45f081c87ec917",
-      "files": 2307,
+      "size": 65731473,
+      "sha256": "8d35b234865064a9b49ef93b49e7334d5a1e89d866730fc86eb686dbb1f1d9b9",
+      "files": 387,
       "check": "tools/gopath/pkg/mod",
-      "note": "服务端编译依赖缓存（Go module cache，离线可编译）",
+      "note": "服务端编译依赖缓存（Go 模块缓存 → tools/gopath/pkg/mod/cache/download）。2026-10-05 补全：覆盖模块图全部 51 个模块 + sumdb，玩家端断网也能 go build ./... 与 go vet ./...。本文件约 62.7 MB，单次推送会被远端断开，故仓库只存分片 tools/tools-gopath-mod.zip.partNN，用 scripts/assemble-gopath-mod.ps1 拼回并校验本条的 size/sha256。",
       "target": "tools"
     },
     {
