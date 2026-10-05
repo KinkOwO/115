@@ -50,11 +50,16 @@
   现两侧一致，并同步 `launcher_test.go` / `storage_test.go` / `check_test.go`（PG 计划测试改为显式 `driver=postgres`）。
 - **默认程序已发布（业主授权）**：`bin/wireprobe-pvf.exe` = 候选同哈希 `671FBB43…693702`（16:00，`Build-Server.ps1 -UpdatePVFDefault`，
   脚本内 test+vet 通过）；旧默认 `1293028F…2A6CA6` 备份在 `.tmp/mailfix-backup-20261005-155949/`。
+- **实机已确认（业主 2026-10-05「邮件领到了」）**：会话 `runtime/roles_..._20261005_160813_822603_next37`（角色 3，
+  程序 `bin\wireprobe-pvf.exe` = 上一条发布的默认程序）：08:09:23 `mailbox_delivery_notified latest_mail_id=2`
+  → 08:09:36 CMD96 列表含附件 `id=1` → 08:09:37 **CMD95 `mailbox_claimed`**（修复前此处恒为
+  `mailbox_request_rejected`），随后 CMD14 背包/时装刷新与 CMD134 状态回执 → 08:13:36 邮箱列表已空。
+  确认范围**仅**「SQLite 主路线领取邮件附件」这一条路径。
 
 ### 未修复 / 未闭环
 
-- **实机领取结果待业主回报**：本轮只有源码/单测证据与已发布默认程序，未取得「领取成功」的实机确认，
-  因此不写「已确认」、不动 confirmed baseline。
+- PostgreSQL 第二路线未在本次一并实机回归：该修复只落在 SQLite 适配器（PG 侧 nil 切片本来就直接绑成 NULL），
+  PG 邮件专项测试保持通过。
 - `bin/dfolauncher.exe` 仍是 13:07 构建，不含本轮 `DriverName` 兜底对齐；真实档位都显式写 `driver`，
   行为无差异，需要时再重建。
 - `.tmp/gen-sqlite-adapter.go` 未入库（本地脚手架），重新生成会带来约 800 行与本次无关的转换函数重排 diff。
