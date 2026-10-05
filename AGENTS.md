@@ -155,7 +155,9 @@
 
 ### 0.5 开发规范（强制）
 
-1. **门禁必过**：改动 Go 代码后执行 `go build ./...`、`go vet ./...`、`go test ./... -count=1`；全量测试的失败集合必须与既有基线**逐名比对**（新增失败即阻断）。改动协议/领域逻辑必须补对应测试。
+1. **门禁必过（先编译，再提交）**：改动 Go 代码后执行 `go build ./...`、`go vet ./...`、`go test ./... -count=1`；全量测试的失败集合必须与既有基线**逐名比对**（新增失败即阻断）。改动协议/领域逻辑必须补对应测试。
+   - **提交前必须真实编译通过**：只跑单测不算数；`go build ./...` 必须退出码 0（有编译产物交付时，产物要能真的构建出来并在提交信息里给出产物路径/大小/自述版本）。
+   - 编译环境：`GOPROXY=https://goproxy.cn,direct`、`GOPATH=C:\Game\dof\115us\tools\gopath`、`GOCACHE=...\gocache`、`GOTOOLCHAIN=local`；**不得**因为"本机编不过"就跳过或改成只跑子包。
 2. **一次一个假设 + 可回滚**：每次实验单独提交；候选程序与默认程序分离（`bin/wireprobe-handoff-source.exe` vs `bin/wireprobe-pvf.exe`），需要回退时按文档的备份路径操作。
 3. **候选隔离**：源码编译只输出 `bin/wireprobe-handoff-source.exe`；**严禁直接覆盖** `wireprobe-dungeon39.exe` 与已确认默认程序；发布默认程序只在业主实机验收通过后按 `server/Build-Server.ps1 -UpdatePVFDefault` 执行。
 4. **实机由业主操作**：准备就绪后通知业主操作，AI 只读日志；不得无人值守启动客户端或代跑。
@@ -169,6 +171,12 @@
    - build / vet / test 结论已实际取得；
    - 文档与索引同步（改了入口/目录/规范就要同步 AGENTS、README、开发对接文档）；
    - 没有把 `runtime/`、`pvf-cache/`、`.tmp/`、日志、`pgdata/`、SQLite 库文件带入暂存区。
+10. **提交前必须先合并远端（强制，2026-10-05 业主定调）**：本仓库有并发写入者（多会话/多代理/业主本人），**不允许在过期基线上提交**。顺序固定为：
+    1. `git fetch origin`、`git fetch fork`（fork = `RicardoLz/115`，`origin` 只读）；
+    2. 若落后就**合并**：`git merge <远端分支>`（**禁止** `rebase`、**禁止** `push --force`）—— 冲突必须**保留双方意图**逐处解决，不许整份覆盖对方；
+    3. 合并后**重新执行** `go build ./...`、`go vet ./...`、`go test ./... -count=1`（合并可能引入编译/测试破坏），通过后才提交；
+    4. 推送前再 `fetch` 一次确认没被别人抢先；被抢先就回到第 2 步。
+    - 提交信息里要能看出"已合并远端"：合并提交用默认 `Merge ...` 文案即可；普通提交若在合并后重跑过门禁，请在正文注明"已合并 <远端>/<分支> 并重跑门禁"。
 
 ## 1. 项目地图与子索引触发规则
 
@@ -194,7 +202,7 @@
 | `client/`                                              | 完整冻结客户端运行目录、运行时 `Script.pvf`、`sk.dat` 与权威 IDB `DFO.exe.i64` |
 | `server/`                                              | 服务端总目录：Go 服务端源码（`work/dfo-lan/`）、启动编排与探针（`work/dfo_probe_tools/`）、配置与参考资料 |
 | `scripts/`                                             | **全部运行/维护脚本**：`启动游戏.cmd`、`启动服务端.cmd`、`启动游戏-奥德赛.cmd`、`停止游戏环境.cmd`、`检查环境.cmd`、`配置环境.cmd`、`移除tools.cmd`/`还原tools.cmd`、`一键打包.cmd`、`打包增量更新.cmd`、`伊斯-*.cmd`，以及 Python/PS 工具与 `check-commit-hygiene.ps1` |
-| `gm-tool/`                                             | GM 管理工具命令行 (`admin.exe`) 与 Web 管理服务 (`gmweb.exe`) |
+| `gm-tool/`                                             | **旧独立 GM 工具（命令行 `admin.exe` + 网页管理服务 `gmweb.exe`）已于 2026-10-05 移除**（二进制不在包内、网页版的 Python 代理也随之删掉）；只留数据与历史文档（`configs/`、各说明 `.md`、`dashboard/tests/pe_analyze.py`）。GM 现在只有**启动器内嵌**的那一个（启动器仓库 `gm/` → `gmbridge.exe`，Go，两条存储档通用） |
 | `analysis/`                                            | 逆向分析工作区、分析脚本与核心 Dump 资产（`analysis/dumps/`） |
 | `client-patchs/`                                       | 客户端补丁与 DLL 源码（ngstub, plugin loader 等，默认不开启） |
 | `docs/`                                                | 计划、台账与迁移清单（`docs/todo/`）                         |
