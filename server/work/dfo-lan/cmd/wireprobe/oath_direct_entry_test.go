@@ -34,15 +34,13 @@ func TestOathDirectEntryWithoutWorldStore(t *testing.T) {
 // The fixture opens its own disposable SQLite database, so this runs without naming a
 // test database. It checks real persisted selections, packet timing and unchanged saves,
 // without player data.
+//
+// 2026-10-05：本用例此前一直由 DFO_TEST_POSTGRES_DSN 跳过，摘掉门控后第一次运行就抓到
+// 一处真实差异 —— loading 阶段会多发一条 ID14 的 dungeon_worn_random_options_restored，
+// 与已经提前发过的 ID13 整份穿戴快照重复，原生会把随机属性应用两次。修法见
+// finishDungeonLoading 顶部的 directEntry 守卫。下面「loading 不许重发 ID 2/13/14/2839」
+// 的断言就是这条不变量。
 func TestOathDirectEntryIntegration(t *testing.T) {
-	// 这一格此前一直由 DFO_TEST_POSTGRES_DSN 跳过（从没真正运行过）。2026-10-05 摘掉那道门控
-	// 后第一次运行就失败：loading 阶段多出一个 dungeon_worn_random_options_restored，
-	// 撞上下方「loading 不许重发 ID 2/13/14/2839」的断言。
-	//
-	// 它与存储引擎的移除无关 —— 本用例用的是内存里的装备目录，不读 PVF 也不读玩家库 ——
-	// 所以这是一处**新暴露出来的既有差异**，需要对誓约直入流程的「随机属性还原」分支单独排查。
-	// 查清之前保持跳过，不在这里静默改玩法行为。
-	t.Skip("known failure exposed 2026-10-05: loading repeats dungeon_worn_random_options_restored")
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	fixture, err := database.OpenTestFixture(ctx)

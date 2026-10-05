@@ -25,12 +25,12 @@
     {
       "name": "server-src",
       "url": "tools/tools-server-src.zip",
-      "size": 11185853,
-      "sha256": "a88c963bb89e2a913dc31f4de4004b5ea4cf9abcf31ea2c70ccd31bc614431da",
-      "files": 1878,
+      "size": 11061610,
+      "sha256": "3f70628a40926cb0565f2a604f8f117b4166a41cfe4a20ab626a233e39714328",
+      "files": 1833,
       "check": "server/work/dfo-lan/go.mod",
       "target": "server/work/dfo-lan",
-      "note": "本地合并4064325的服务端源码、嵌入资源与启动脚本；仅依赖PostgreSQL，保留本地功能。"
+      "note": "服务端源码与嵌入资源：server/work/dfo-lan 整棵源码树（排除 docs/、configs/、runtime/）。2026-10-05 起 SQLite 是唯一存储引擎。"
     },
     {
       "name": "server-configs",

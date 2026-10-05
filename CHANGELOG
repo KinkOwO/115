@@ -26,6 +26,47 @@
 
 ---
 
+## 2026-10-05：闭环上一节的两项「未闭环」（誓约直入重复随机属性 / 源码发布包过期）
+
+### 已修复 / 已完成
+
+- **缺陷（真实差异，首次运行即抓到）**：`TestOathDirectEntryIntegration` 在摘掉
+  `DFO_TEST_POSTGRES_DSN` 门控后第一次运行就失败 —— 「誓约进图直发」命中时，loading 阶段仍会多发一条
+  ID14 的 `dungeon_worn_random_options_restored`。
+  - **根因**：`finishDungeonLoading` 里穿戴快照（ID13）、视觉更新（ID14）与 Clone 重建三处都有
+    `directEntry` 守卫，唯独 `appendDungeonWornRandomOptions`（`worn_random_option_restore.go`，也是 ID14、
+    同为 `EquipmentPayload(3, …, …)`）漏了。直入时 `dungeon_worn_equipment_direct` 已经把
+    `WornPayload`（= `EquipmentPayload(3, 全部穿戴件, restore=true)`，实例行连同 `record[60:76]`
+    随机属性块）在 NOTI29 之前发过，再发一次会让原生临时随机属性管理器**应用两次** —— 正是 614-615 行
+    注释与施工图描述的「Buff 两次」来源。
+  - **修法**（`cmd/wireprobe/dungeon_flow.go`）：把 `oathDirectEntryActive` 提到 `finishDungeonLoading`
+    顶部查一次，三处共用；第四处（随机属性块）加同一个 `!directEntry` 守卫。顺带省掉每次进本两次多余的
+    存储查询。回退路径（含 Clone 重建后）行为不变。
+  - **验证**：`TestOathDirectEntryIntegration` 13 PASS / 0 FAIL / 0 SKIP（四条分支 × 两个副本）；
+    其 `else` 分支仍断言回退路径会发 `dungeon_worn_equipment_restored`，即守卫只掐掉了重复的那一次。
+- **`tools/tools-server-src.zip` 重建（此前是移除 PostgreSQL 之前的快照）**：旧包里还带着
+  `sqliteconvert.go`、`initstorage.go`、`sql/sql/postgres/**`、以及写着 `jackc/pgx` 的 `go.mod`。
+  - **规则来源**：由旧包反向推导并核实 —— `server/work/dfo-lan` 下**全部 git 跟踪文件**，排除
+    `docs/`、`configs/`、`runtime/`，条目相对模块根（与 manifest 的 `target`/`check` 一致）。
+    旧包 1878 = 仍存在的 1817 + 快照后删除的 61；规则集 1833 = 1817 + 新增 16，三项前缀在旧包内均为 0 条，
+    且包内 0 个未跟踪条目 —— 规则成立。
+  - **结果**：1833 条目（新增 16 = 维纳斯/全频道与本次新增文件；移除 61 = 上述 PG 文件），
+    size 11,185,853 → **11,061,610 B**，sha256 `3f70628a…`，manifest 的 `server-src` 条目同步
+    （size/sha256/files，note 改为「2026-10-05 起 SQLite 是唯一存储引擎」）。
+  - **自证**：包内 `go.mod` 已无 `jackc/pgx`，无 `internal/database/sql/postgres/**`，无 `initstorage.go`。
+- **manifest 全量自检**：5 个包（go / gopath-mod / server-src / server-configs / server-bin）的
+  `size`/`sha256`/`files` 逐一与实际 zip 文件核对通过。
+  - 过程中踩到一处 .NET 重载坑并已纠正：`[regex]::Replace($s,$p,$r,1)` 的第四个参数是 **RegexOptions**
+    而不是替换次数（`1` = IgnoreCase），于是发生了**全文件替换**，一度把 `server-configs`/`server-bin`
+    的字段也写成了 server-src 的值；已从 HEAD 还原该文件后改为「定位块 → 块内替换」，
+    并用上一条的 5 包自检兜住。
+
+### 未修复 / 未闭环
+
+- 未做实机验收：本次两处修复都是离线（测试 + 打包自检）结论，誓约进图的实机表现（尤其「Buff 两次」
+  是否真的消失）请业主按 `scripts\启动游戏-SQLite.cmd` 手动回归。
+- 上一节记录的其余项（历史 `sql/postgres` 溯源头注释、`runtime/update-backup/` 旧备份副本）保持原状。
+
 ## 2026-10-05：彻底移除 PostgreSQL 支持（SQLite 唯一引擎）
 
 ### 已修复 / 已完成
