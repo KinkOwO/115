@@ -54,7 +54,8 @@ func runGateway(startup Config) error {
 	moonConfig := prepared.moonConfig
 	raw := prepared.raw
 
-	l, err := net.Listen("tcp4", startup.GameListen)
+	// 端口抽签可能抽到 Windows 保留段（WinNAT/Hyper-V 动态保留），换端口重试 —— 见 listen.go。
+	l, err := listenGamePort(startup.GameListen)
 	if err != nil {
 		return err
 	}
