@@ -27,6 +27,10 @@ import (
 
 var procGetTickCount64 = windows.NewLazySystemDLL("kernel32.dll").NewProc("GetTickCount64")
 
+// createUnicodeEnvironment 是 CreateProcessW 的 CREATE_UNICODE_ENVIRONMENT(0x400)。
+// x/sys/windows 里常量名随版本变动，这里显式写死数值，避免依赖具体版本导出了哪个名字。
+const createUnicodeEnvironment uint32 = 0x00000400
+
 // hostTickCount 复刻 probe.cpp 用的 GetTickCount64（毫秒，系统启动起算）。
 func hostTickCount() uint64 {
 	millis, _, _ := procGetTickCount64.Call()
@@ -189,7 +193,12 @@ func createSuspendedProcess(spec hostProcessSpec) (windows.Handle, windows.Handl
 	}
 
 	var info syscall.ProcessInformation
-	flags := uint32(windows.CREATE_SUSPENDED | windows.CREATE_NO_WINDOW)
+	// CREATE_UNICODE_ENVIRONMENT 必须带：上面传的是 UTF-16 环境块。
+	// 少了它 CreateProcessW 直接报 ERROR_INVALID_PARAMETER(87)（实测：
+	// NO_WINDOW+UTF16 环境块 → "The parameter is incorrect."；加上 0x400 → OK；
+	// 2026-10-05 业主实机「创建客户端进程失败、退出码 1」的根因）。
+	// environment == nil 时该标志无副作用（Windows 忽略它）。
+	flags := uint32(windows.CREATE_SUSPENDED | windows.CREATE_NO_WINDOW | createUnicodeEnvironment)
 	if createErr := syscall.CreateProcess(
 		target,
 		line,
