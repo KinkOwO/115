@@ -3,12 +3,9 @@ chcp 65001 >nul
 cd /d "%~dp0.."
 title DFO 115us Game Launcher (Scenario Mode)
 
-net session >nul 2>&1
-if %errorlevel% neq 0 (
-    echo Requesting Administrator privileges for WFP network isolation...
-    powershell -Command "Start-Process cmd -ArgumentList '/c \"\"%~f0\" %*\"' -Verb RunAs"
-    exit /b
-)
+rem Elevation is done inside scripts\storage-route.ps1 (see its Invoke-ElevatedSelf):
+rem doing it here routed this file's Chinese name through cmd -> powershell -Command, which
+rem decodes UTF-8 bytes as GBK, so the elevated cmd never found the file (2026-10-05).
 
 set DFO_SHOP_OPEN_ALL=1
 rem Game mode comes from the per-character save projection (create request options[10]:

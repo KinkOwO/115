@@ -627,9 +627,49 @@ function Show-Help() {
     Write-Host '  说明见 server\work\dfo-lan\docs\sqlite-operations.md §1.2。' -ForegroundColor DarkGray
 }
 
+function Test-IsAdmin {
+    $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+    return (New-Object Security.Principal.WindowsPrincipal($identity)).IsInRole(
+        [Security.Principal.WindowsBuiltInRole]::Administrator)
+}
+
+# 提权必须**在本脚本里**做，不能用 `.cmd` 里那句
+# `powershell -Command "Start-Process cmd -ArgumentList '/c \"\"%~f0\" ...'"`：
+# 那条路把中文文件名交给 cmd→PowerShell 的命令行，PowerShell 5.1 按 ANSI(GBK) 解码 UTF-8 字节，
+# 实测 `中文名` 变成 `涓枃鍚?` ⇒ 提升后的 `cmd /c "<乱码路径>"` 找不到文件、窗口瞬间关闭
+# （2026-10-05 业主双击两个路线入口「直接闪退」的根因）。
+# 这里改用 .NET 参数表传 $PSCommandPath（真实 Unicode 字符串）⇒ 路径不会被重新解码。
+function Invoke-ElevatedSelf([string]$verb, [string[]]$rest) {
+    $args = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $PSCommandPath, $verb) + $rest
+    Write-Host '[提权] 正在以管理员身份重新运行本入口（WFP 网络隔离需要管理员）…' -ForegroundColor Cyan
+    $proc = Start-Process -FilePath 'powershell.exe' -ArgumentList $args -Verb RunAs -Wait -PassThru -ErrorAction Stop
+    exit $proc.ExitCode
+}
+
+function Start-EntryTranscript([string]$verb) {
+    try {
+        $dir = Join-Path $RepoRoot 'runtime\storage'
+        if (Test-Path -LiteralPath $dir) {
+            Start-Transcript -Path (Join-Path $dir ("entry-{0}.log" -f $verb)) -Force | Out-Null
+        }
+    }
+    catch { }
+}
+
+function Stop-EntryTranscript {
+    try { Stop-Transcript | Out-Null } catch { }
+}
+
 try {
     $verb = if ($Rest.Count -ge 1) { $Rest[0].Trim().ToLower() } else { 'help' }
     $extra = if ($Rest.Count -ge 2) { @($Rest[1..($Rest.Count - 1)]) } else { @() }
+    # 需要管理员的只有「真启动游戏」；--dry-run/--check 是只读，不提权（方便排查）。
+    $isEntryLaunch = $verb -in @('game-sqlite', 'game-postgres', 'game-current')
+    $readOnly = @($extra | Where-Object { $_ -in @('--dry-run', '--check', '-h', '--help') }).Count -gt 0
+    if ($isEntryLaunch -and -not $readOnly -and -not (Test-IsAdmin)) {
+        Invoke-ElevatedSelf $verb $extra
+    }
+    if ($isEntryLaunch) { Start-EntryTranscript $verb }
     switch ($verb) {
         'show' { Show-Current }
         'use' {
@@ -656,10 +696,13 @@ try {
         'help' { Show-Help }
         default { Show-Help; throw "未知动作 '$verb'。" }
     }
+    if ($isEntryLaunch) { Stop-EntryTranscript }
     exit 0
 }
 catch {
     Write-Host ("[失败] " + $_.Exception.Message) -ForegroundColor Red
+    if ($isEntryLaunch) { Stop-EntryTranscript }
+    Write-Host ("        完整输出见 runtime\storage\entry-{0}.log" -f $verb) -ForegroundColor DarkGray
     # 退出码 3 = 本脚本自己的失败（切换路线 / 起库 / 找不到完整启动链）。四个入口据此 pause，
     # 让业主看得到原因；成功路径由 Invoke-FullChain 直接 exit 子进程的退出码，不走这里。
     exit 3
