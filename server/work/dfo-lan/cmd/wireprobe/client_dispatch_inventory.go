@@ -382,6 +382,13 @@ func (client *gameConnection) dispatchEquipmentSkillsAndMoves(requestData *clien
 		if cloneRefreshed {
 			plan = append(plan, cloneRefresh...)
 		}
+		if decodeErr == nil && len(plan) > 0 && moveTouchesWorn(r) {
+			plan, e = appendDungeonWornRandomOptions(plan, client.worldState)
+			if e != nil {
+				client.event(map[string]any{"kind": "equipment_random_option_restore_error", "error": e.Error()})
+				return dispatchClose
+			}
+		}
 		prepared, e := preparePackets(client.keys, plan)
 		if e != nil {
 			client.event(map[string]any{"kind": "equipment_encode_error", "error": e.Error()})
