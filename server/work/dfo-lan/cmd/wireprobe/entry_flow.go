@@ -31,6 +31,7 @@ type entryPayloads struct {
 	AccountVault     []byte
 	AvailableQuests  []byte
 	Worn             []byte
+	CloneSources     []outboundPacket
 	KnightDeck       []byte
 	AccountOptions   []byte
 	GamepadOptions   []byte
@@ -349,6 +350,11 @@ func (p entryPayloads) packets() []outboundPacket {
 		outboundPacket{"skill_variations_restored", 1, 29, p.SkillVariations},
 		// Complete lists and visual refresh after the entry/actor initialization barrier.
 		outboundPacket{"avatar_inventory_restored", 0, 13, p.AvatarReady},
+	)
+	// The list1 objects must exist before Clone's source lookup is restored,
+	// and subsequent worn reconstruction must consume this character's table.
+	out = append(out, p.CloneSources...)
+	out = append(out,
 		outboundPacket{"creature_list_restored", 0, 105, p.CreatureList},
 		outboundPacket{"creature_inventory_restored", 0, 13, p.Creatures},
 		outboundPacket{"creature_growth_restored", 0, 102, p.CreatureGrowth},

@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/character"
 	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/inventory"
+	"encoding/binary"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -64,5 +66,56 @@ func TestDungeonCloneReattachRestoresOrdinaryGearLast(t *testing.T) {
 	}
 	if plan[len(plan)-2].ID != 14 || plan[len(plan)-1].ID != 1361 {
 		t.Fatal("ordinary equipment must follow both mode-1 packets, then buff registration must bind the new actor")
+	}
+	// Same no-death run returns straight to town. The candidate must restore
+	// the same native row layout and keep omitted ordinary gear after mode1.
+	w.state = database.WorldState{Position: database.WorldPosition{Town: 38, Area: 2, X: 150, Y: 249}}
+	for _, withSource := range []bool{false, true} {
+		if withSource {
+			bag, err := inventory.ReadBag(w.role.State)
+			if err != nil {
+				t.Fatal(err)
+			}
+			bag.Worn[0].CloneSource = &inventory.CloneAvatarSource{Slot: 7, Template: 112500000}
+			bag.Special = map[byte][]inventory.BagEquipment{1: {{Slot: 7, Template: 112500000}}}
+			w.role.State, err = inventory.SaveBag(w.role.State, bag)
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+		stateBefore := append([]byte(nil), w.role.State...)
+		returned, err := w.leaveDungeon()
+		if err != nil {
+			t.Fatal(err)
+		}
+		indices := map[string]int{}
+		for i, packet := range returned {
+			indices[packet.Name] = i
+		}
+		for _, name := range []string{"clone_avatar_sources_replaced", "town_clone_detached", "town_clone_reattached", "town_nonavatar_worn_restored"} {
+			if _, ok := indices[name]; !ok {
+				t.Fatalf("missing town lifecycle %s", name)
+			}
+		}
+		if indices["clone_avatar_sources_replaced"] >= indices["town_clone_detached"] || indices["town_clone_reattached"] >= indices["town_nonavatar_worn_restored"] {
+			t.Fatal("town restoration order")
+		}
+		sources := returned[indices["clone_avatar_sources_replaced"]].Payload
+		if len(sources) != 34 || sources[0] != 11 {
+			t.Fatal("town source replacement has the wrong row count")
+		}
+		for slot := 0; slot < 11; slot++ {
+			want := uint16(0xffff)
+			if withSource && slot == 3 {
+				want = 7 + 12
+			}
+			p := 1 + slot*3
+			if sources[p] != byte(slot) || binary.LittleEndian.Uint16(sources[p+1:]) != want {
+				t.Fatalf("town source row %d: %x", slot, sources[p:p+3])
+			}
+		}
+		if !bytes.Equal(w.role.State, stateBefore) {
+			t.Fatal("return rewrote physical instances or sources")
+		}
 	}
 }

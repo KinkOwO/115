@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"reflect"
 	"sort"
+	"strings"
 )
 
 type BagRules struct {
@@ -359,6 +361,11 @@ func SaveBag(state json.RawMessage, b Bag) (json.RawMessage, error) {
 		b.Special = m
 	}
 	clampDurability(b.Worn)
+	for i, item := range b.Worn {
+		if item.CloneSource != nil && b.CloneAvatarLook(item) == 0 {
+			b.Worn[i].CloneSource = nil
+		}
+	}
 	clampDurability(b.Equipment)
 	for _, rows := range b.Special {
 		clampDurability(rows)
@@ -378,6 +385,37 @@ func SaveBag(state json.RawMessage, b Bag) (json.RawMessage, error) {
 		return nil, fmt.Errorf("character state is not an object")
 	}
 	v, e := json.Marshal(b)
+	if e != nil {
+		return nil, e
+	}
+	// Preserve future/private inventory fields during a lossless upgrade.
+	// Known omitted fields still clear normally (e.g. weapon_skin=0).
+	var existing map[string]json.RawMessage
+	if old := fields["inventory"]; len(old) > 0 {
+		if e = json.Unmarshal(old, &existing); e != nil {
+			return nil, e
+		}
+	}
+	if existing == nil {
+		existing = map[string]json.RawMessage{}
+	}
+	typ := reflect.TypeOf(b)
+	for i := 0; i < typ.NumField(); i++ {
+		f := typ.Field(i)
+		key := strings.Split(f.Tag.Get("json"), ",")[0]
+		if key == "" {
+			key = f.Name
+		}
+		delete(existing, key)
+	}
+	var known map[string]json.RawMessage
+	if e = json.Unmarshal(v, &known); e != nil {
+		return nil, e
+	}
+	for key, value := range known {
+		existing[key] = value
+	}
+	v, e = json.Marshal(existing)
 	if e != nil {
 		return nil, e
 	}

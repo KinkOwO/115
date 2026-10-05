@@ -85,6 +85,7 @@ func (s *equipmentSession) handle(service *workflow.WearService, w *worldSession
 	// catalog, so there is nothing to preheat.)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+	cloneMode := inventory.CloneMoveAckMode(w.role.State, r)
 	saved, applied, e := service.Move(ctx, w.role, "equipment:"+key, r)
 	if e != nil {
 		return nil, e
@@ -122,7 +123,18 @@ func (s *equipmentSession) handle(service *workflow.WearService, w *worldSession
 	// window emptying when only id-13 was sent, so both go out together. (The
 	// earlier note claiming id-14 parses no rows misread the dispatcher front
 	// half as the whole receiver; the row walk lives in its 0x1452a1210 body.)
-	plan := []outboundPacket{{"equipment_move_committed", 1, 19, protocol.ItemMoveSuccess(r, 1)}}
+	ack, e := protocol.ItemMoveSuccessMode(r, 1, cloneMode)
+	if e != nil {
+		return nil, e
+	}
+	plan := []outboundPacket{{"equipment_move_committed", 1, 19, ack}}
+	if cloneMode == 1 {
+		sources, err := cloneAvatarSourcePackets(saved.State)
+		if err != nil {
+			return nil, err
+		}
+		plan = append(sources, plan...)
+	}
 	bagBody, e := protocol.InventoryRestore(b.Rows(), b.Expansion)
 	if e != nil {
 		return nil, e

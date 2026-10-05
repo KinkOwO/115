@@ -26,6 +26,10 @@
 
 ---
 
+## 2026-10-05：Clone 原生来源关联修复
+
+Clone复制外观改为来源关联，普通装扮保留在背包；解除复制保留Clone穿戴。补齐卸Clone后的非装扮装备恢复，并提供旧存档无损迁移；复制、解除、实际穿脱和进图回城已实机确认。详见[修复说明](server/work/dfo-lan/docs/protocol/avatar-clone-native-contract-20261005.md)。
+
 ## 2026-10-05：汉化 dll（localization.dll）经启动宿主接回完整链路
 
 ### 已修复 / 已完成

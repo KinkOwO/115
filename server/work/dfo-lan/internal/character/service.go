@@ -531,6 +531,13 @@ func (s *Service) wornAppearance(state json.RawMessage) ([]protocol.EquippedAppe
 			bySlot[w.Slot] = w.Template
 		}
 	}
+	for _, w := range bag.Worn {
+		if w.Slot <= maxWornAppearanceSlot {
+			if look := bag.CloneAvatarLook(w); look != 0 {
+				bySlot[w.Slot] = look
+			}
+		}
+	}
 	// 武器幻化（装备外观块）：应用过皮肤时用皮肤 id 覆盖武器槽，城镇模型才跟着换。
 	// 只在槽 12 本来就有穿戴武器时覆盖——空武器槽凭空补一行，客户端会给角色装上一把
 	// 并不存在的武器。
