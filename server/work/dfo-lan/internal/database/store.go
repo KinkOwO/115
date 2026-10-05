@@ -10,21 +10,17 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/jackc/pgx/v5/pgxpool"
-
 	"os"
 	"path/filepath"
 )
 
 type Config struct {
-	// Driver selects the storage engine. When it is empty, a named PostgresDSN selects
-	// PostgreSQL and a configuration that names nothing but SQLitePath selects SQLite
-	// (the convention the 20261004 upgrade package's migration tool writes), so both
-	// existing configurations keep working unchanged. See engineForConfig.
+	// Driver names the storage engine. SQLite is the only engine since 2026-10-05 (owner
+	// decision, see root AGENTS.md §0.6); the field is still accepted so a profile that
+	// spells out "sqlite" keeps working unchanged. A profile that asks for the removed
+	// engine is refused by EngineForConfig rather than silently opened as SQLite.
 	Driver         string `json:"driver,omitempty"`
-	PostgresDSN    string `json:"postgres_dsn"`
 	MaxConnections int32  `json:"max_connections"`
-	PostgresSchema string `json:"postgres_schema,omitempty"`
 	// SQLitePath and SQLiteBusyTimeoutMS apply to the SQLite engine.
 	SQLitePath          string `json:"sqlite_path,omitempty"`
 	SQLiteBusyTimeoutMS int32  `json:"sqlite_busy_timeout_ms,omitempty"`
@@ -94,86 +90,58 @@ func storageError(err error) error {
 
 // Driver names accepted by Config.Driver.
 const (
+	// DriverPostgres is the engine that was removed on 2026-10-05 (owner decision, see root
+	// AGENTS.md §0.6). The name is kept only so a configuration or profile that still asks
+	// for it is *recognised and refused with a clear message* instead of being silently
+	// opened as SQLite - which would point the server at a different database and reach the
+	// player as "my save is gone".
 	DriverPostgres = "postgres"
 	DriverSQLite   = "sqlite"
 )
 
 // EngineForConfig decides which engine a configuration selects. It is the single rule for
 // this repository, and the launchers mirror it (internal/launcher.StorageConfig.DriverName
-// and the two storage profiles under scripts/): the launcher that starts PostgreSQL and the
-// server that opens the database must never disagree, or a player's save looks empty and
-// their login fails while PostgreSQL is running perfectly.
+// and the storage profiles under scripts/): the launcher and the server must never disagree,
+// or a player's save looks empty and their login fails.
 //
-// The order is deliberate:
-//  1. an explicit Driver always wins, so a configuration that names its engine is never
-//     second-guessed;
-//  2. otherwise a named PostgreSQL DSN selects PostgreSQL. This is the documented default
-//     engine, and it is the only safe reading of a configuration that names a DSN: silently
-//     opening some other file instead is how a PostgreSQL save went invisible;
-//  3. otherwise SQLitePath selects SQLite - the shape the 20261004 upgrade package's
-//     migration tool writes, with no driver field at all, so that package keeps working;
-//  4. a configuration that names neither falls back to **SQLite** (2026-10-05 业主口径「默认 sqlite」，
-//     与启动器 internal/config.StorageDriver 的兜底一致)；SQLite 那条打开路径会以
-//     "sqlite storage configuration incomplete" 明确报错，不会凭空发明一个库。
+// SQLite is the only engine since 2026-10-05, so:
+//  1. an explicit driver wins - "sqlite" is accepted, "postgres" is refused with the removal
+//     notice, anything else is an unknown driver;
+//  2. a configuration that names no driver falls back to **SQLite** (2026-10-05 业主口径
+//     「默认 sqlite」，与启动器 internal/config.StorageDriver 的兜底一致)；SQLite 那条打开
+//     路径会以 "sqlite storage configuration incomplete" 明确报错，不会凭空发明一个库。
+//
+// A leftover postgres_dsn in an old profile is ignored (the field is gone), so an existing
+// local.json still loads; that is deliberately different from a profile that *asks* for the
+// removed engine, which is refused rather than quietly downgraded.
 func EngineForConfig(c Config) (string, error) {
 	if driver := strings.ToLower(strings.TrimSpace(c.Driver)); driver != "" {
 		switch driver {
-		case DriverPostgres, DriverSQLite:
+		case DriverSQLite:
 			return driver, nil
+		case DriverPostgres:
+			return "", fmt.Errorf("PostgreSQL support was removed (2026-10-05, see root AGENTS.md §0.6); " +
+				"the storage configuration must name sqlite_path")
 		default:
 			return "", fmt.Errorf("unknown storage driver %q", c.Driver)
 		}
 	}
-	if strings.TrimSpace(c.PostgresDSN) != "" {
-		return DriverPostgres, nil
-	}
-	if strings.TrimSpace(c.SQLitePath) != "" {
-		return DriverSQLite, nil
-	}
 	return DriverSQLite, nil
 }
 
-// Open builds the Store for the configured engine.
+// Open builds the Store for the configured engine (SQLite is the only one).
 //
-// Selection is EngineForConfig's, so both engine conventions keep working unchanged. The
-// SQLite path applies every schema section up front, which is why the per-domain Migrate*
-// entry points have nothing left to do for that engine (see execMigration).
+// The SQLite path applies every schema section up front, which is why the per-domain
+// Migrate* entry points have nothing left to do for that engine (see execMigration).
 func Open(ctx context.Context, c Config) (*Store, error) {
 	driver, err := EngineForConfig(c)
 	if err != nil {
 		return nil, err
 	}
-	if driver == DriverSQLite {
-		return openSQLiteStore(ctx, c)
+	if driver != DriverSQLite {
+		return nil, fmt.Errorf("unsupported storage engine %q", driver)
 	}
-	return openPostgres(ctx, c)
-}
-
-func openPostgres(ctx context.Context, c Config) (*Store, error) {
-	if c.PostgresDSN == "" {
-		return nil, errors.New("storage configuration incomplete")
-	}
-	cfg, e := pgxpool.ParseConfig(c.PostgresDSN)
-	if e != nil {
-		return nil, errors.New("invalid PostgreSQL configuration")
-	}
-	if c.MaxConnections > 0 {
-		cfg.MaxConns = c.MaxConnections
-	}
-	if c.PostgresSchema != "" {
-		cfg.ConnConfig.RuntimeParams["search_path"] = c.PostgresSchema
-	}
-	db, e := pgxpool.NewWithConfig(ctx, cfg)
-	if e != nil {
-		return nil, e
-	}
-	eng := newPostgresEngine(db)
-	s := &Store{engine: eng, queries: eng.queries()}
-	if e = db.Ping(ctx); e != nil {
-		s.Close()
-		return nil, e
-	}
-	return s, nil
+	return openSQLiteStore(ctx, c)
 }
 
 // openSQLiteStore opens (creating if needed) a SQLite database, applies every schema

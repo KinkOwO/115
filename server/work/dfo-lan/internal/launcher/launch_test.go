@@ -512,12 +512,13 @@ func TestLaunchRejectsUnusableConfiguration(t *testing.T) {
 			want: "Unsupported storage driver 'mysql'.",
 		},
 		{
-			name: "non-loopback storage",
+			name: "the removed PostgreSQL driver is refused",
 			mutate: func(t *testing.T, root string) {
 				writeLaunchFile(t, root, "server/work/dfo-lan/runtime/storage/local.json",
 					`{"driver":"postgres","postgres_dsn":"postgresql://user@10.0.0.5:25438/dfo"}`)
 			},
-			want: "This development profile requires local loopback storage.",
+			want: "PostgreSQL support was removed (2026-10-05, see root AGENTS.md §0.6); " +
+				"runtime/storage/local.json must name sqlite_path.",
 		},
 		{
 			name: "channel_identity is not a boolean",
@@ -548,18 +549,17 @@ func TestLaunchRejectsUnusableConfiguration(t *testing.T) {
 	}
 }
 
-// The storage line is how the owner sees which engine a run would use, so its wording is
-// pinned: PostgreSQL prints the Python bool repr, not Go's %t.
-func TestLaunchStorageLineMatchesThePython(t *testing.T) {
+// The storage line is how the owner sees which engine a run would use. SQLite is the only
+// engine since 2026-10-05 (owner decision, see root AGENTS.md §0.6), so the line is always
+// the database file the engine opens.
+func TestLaunchStorageLineNamesTheSQLiteFile(t *testing.T) {
 	root := buildLaunchTree(t)
-	writeLaunchFile(t, root, "server/work/dfo-lan/runtime/storage/local.json",
-		`{"driver":"postgres","postgres_dsn":"postgresql://user:secret@127.0.0.1:1/dfo"}`)
 	report, err := LaunchPlan(root, LaunchOptions{Check: true})
 	if err != nil {
 		t.Fatalf("launch plan: %v", err)
 	}
-	if report.Storage != "PostgreSQL: False" {
-		t.Errorf("storage = %q, want the Python's bool repr", report.Storage)
+	if !strings.HasPrefix(report.Storage, "SQLite ") {
+		t.Errorf("storage = %q, want the SQLite file the engine opens", report.Storage)
 	}
 }
 

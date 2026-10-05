@@ -51,12 +51,9 @@ const (
 // processStatus 可注入，测试不依赖本机进程表。
 var processStatus = realProcessStatus
 
-// AdminLeasePath 返回该存储档的 SQLite 管理租约路径；非 SQLite 档返回 ok=false
-// （PostgreSQL 用 advisory lock，连接断开即释放，没有文件要清）。
+// AdminLeasePath 返回该存储档的 SQLite 管理租约路径。SQLite 是唯一引擎
+// （2026-10-05 业主口径），所以只有「档里没写 sqlite_path」才没有租约文件。
 func AdminLeasePath(cfg StorageConfig) (string, bool) {
-	if cfg.DriverName() != "sqlite" {
-		return "", false
-	}
 	path := strings.TrimSpace(cfg.SQLitePath)
 	if path == "" {
 		return "", false

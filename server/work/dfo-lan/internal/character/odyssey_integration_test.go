@@ -10,7 +10,6 @@ import (
 	"dfolan/internal/inventory"
 	"encoding/binary"
 	"encoding/json"
-	"os"
 	"reflect"
 	"testing"
 	"time"
@@ -23,9 +22,6 @@ func TestOdysseyGrowthDatabaseReplay(t *testing.T) {
 			return false
 		}
 		return reflect.DeepEqual(x, y)
-	}
-	if os.Getenv("DFO_TEST_POSTGRES_DSN") == "" {
-		t.Skip("isolated PostgreSQL integration")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()

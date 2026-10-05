@@ -7,10 +7,9 @@ package sqlcgen
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"time"
-
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const accountCera = `-- name: AccountCera :one
@@ -18,7 +17,7 @@ SELECT coalesce((SELECT cera FROM account_currency WHERE account_id=$1),0)::bigi
 `
 
 func (q *Queries) AccountCera(ctx context.Context, accountID int64) (int64, error) {
-	row := q.db.QueryRow(ctx, accountCera, accountID)
+	row := q.db.QueryRowContext(ctx, accountCera, accountID)
 	var column_1 int64
 	err := row.Scan(&column_1)
 	return column_1, err
@@ -40,7 +39,7 @@ type ActivePremiumsRow struct {
 }
 
 func (q *Queries) ActivePremiums(ctx context.Context, arg ActivePremiumsParams) ([]ActivePremiumsRow, error) {
-	rows, err := q.db.Query(ctx, activePremiums, arg.AccountID, arg.NowEpoch)
+	rows, err := q.db.QueryContext(ctx, activePremiums, arg.AccountID, arg.NowEpoch)
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +69,7 @@ type AdjustAccountCurrencyParams struct {
 }
 
 func (q *Queries) AdjustAccountCurrency(ctx context.Context, arg AdjustAccountCurrencyParams) (int64, error) {
-	row := q.db.QueryRow(ctx, adjustAccountCurrency, arg.Adjustment, arg.AccountID)
+	row := q.db.QueryRowContext(ctx, adjustAccountCurrency, arg.Adjustment, arg.AccountID)
 	var cera int64
 	err := row.Scan(&cera)
 	return cera, err
@@ -81,7 +80,7 @@ SELECT receipt FROM admin_grants WHERE grant_id=$1
 `
 
 func (q *Queries) AdminGrantReceipt(ctx context.Context, grantID string) (json.RawMessage, error) {
-	row := q.db.QueryRow(ctx, adminGrantReceipt, grantID)
+	row := q.db.QueryRowContext(ctx, adminGrantReceipt, grantID)
 	var receipt json.RawMessage
 	err := row.Scan(&receipt)
 	return receipt, err
@@ -106,7 +105,7 @@ type CashInventoryRow struct {
 }
 
 func (q *Queries) CashInventory(ctx context.Context, arg CashInventoryParams) ([]CashInventoryRow, error) {
-	rows, err := q.db.Query(ctx, cashInventory, arg.AccountID, arg.CharacterID)
+	rows, err := q.db.QueryContext(ctx, cashInventory, arg.AccountID, arg.CharacterID)
 	if err != nil {
 		return nil, err
 	}
@@ -145,7 +144,7 @@ type CashOrderReceiptRow struct {
 }
 
 func (q *Queries) CashOrderReceipt(ctx context.Context, arg CashOrderReceiptParams) (CashOrderReceiptRow, error) {
-	row := q.db.QueryRow(ctx, cashOrderReceipt, arg.AccountID, arg.OrderKey)
+	row := q.db.QueryRowContext(ctx, cashOrderReceipt, arg.AccountID, arg.OrderKey)
 	var i CashOrderReceiptRow
 	err := row.Scan(&i.Digest, &i.Receipt)
 	return i, err
@@ -163,7 +162,7 @@ type CashOrderVaultSpaceParams struct {
 }
 
 func (q *Queries) CashOrderVaultSpace(ctx context.Context, arg CashOrderVaultSpaceParams) (int32, error) {
-	row := q.db.QueryRow(ctx, cashOrderVaultSpace, arg.AccountID, arg.CharacterID, arg.OrderKey)
+	row := q.db.QueryRowContext(ctx, cashOrderVaultSpace, arg.AccountID, arg.CharacterID, arg.OrderKey)
 	var vault_space int32
 	err := row.Scan(&vault_space)
 	return vault_space, err
@@ -178,14 +177,14 @@ $4,'{}'::jsonb,$5,$6) ON CONFLICT(grant_id) DO NOTHING
 type ClaimAdminGrantParams struct {
 	GrantID     string
 	AccountID   int64
-	CharacterID pgtype.Int8
+	CharacterID sql.NullInt64
 	Request     json.RawMessage
 	Operator    string
 	Reason      string
 }
 
 func (q *Queries) ClaimAdminGrant(ctx context.Context, arg ClaimAdminGrantParams) (int64, error) {
-	result, err := q.db.Exec(ctx, claimAdminGrant,
+	result, err := q.db.ExecContext(ctx, claimAdminGrant,
 		arg.GrantID,
 		arg.AccountID,
 		arg.CharacterID,
@@ -196,7 +195,11 @@ func (q *Queries) ClaimAdminGrant(ctx context.Context, arg ClaimAdminGrantParams
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected(), nil
+affected, affectedErr := result.RowsAffected()
+	if affectedErr != nil {
+		return 0, affectedErr
+	}
+	return affected, nil
 }
 
 const coinItemMigrationCandidates = `-- name: CoinItemMigrationCandidates :many
@@ -209,7 +212,7 @@ type CoinItemMigrationCandidatesRow struct {
 }
 
 func (q *Queries) CoinItemMigrationCandidates(ctx context.Context) ([]CoinItemMigrationCandidatesRow, error) {
-	rows, err := q.db.Query(ctx, coinItemMigrationCandidates)
+	rows, err := q.db.QueryContext(ctx, coinItemMigrationCandidates)
 	if err != nil {
 		return nil, err
 	}
@@ -241,7 +244,7 @@ type CountAccountShopPurchasesParams struct {
 }
 
 func (q *Queries) CountAccountShopPurchases(ctx context.Context, arg CountAccountShopPurchasesParams) (int64, error) {
-	row := q.db.QueryRow(ctx, countAccountShopPurchases,
+	row := q.db.QueryRowContext(ctx, countAccountShopPurchases,
 		arg.AccountID,
 		arg.NpcID,
 		arg.Template,
@@ -265,7 +268,7 @@ type CountCharacterShopPurchasesParams struct {
 }
 
 func (q *Queries) CountCharacterShopPurchases(ctx context.Context, arg CountCharacterShopPurchasesParams) (int64, error) {
-	row := q.db.QueryRow(ctx, countCharacterShopPurchases,
+	row := q.db.QueryRowContext(ctx, countCharacterShopPurchases,
 		arg.CharacterID,
 		arg.NpcID,
 		arg.Template,
@@ -281,7 +284,7 @@ INSERT INTO account_currency(account_id,cera) VALUES($1,0) ON CONFLICT DO NOTHIN
 `
 
 func (q *Queries) EnsureAccountCurrency(ctx context.Context, accountID int64) error {
-	_, err := q.db.Exec(ctx, ensureAccountCurrency, accountID)
+	_, err := q.db.ExecContext(ctx, ensureAccountCurrency, accountID)
 	return err
 }
 
@@ -305,7 +308,7 @@ type GrantHistoryRow struct {
 }
 
 func (q *Queries) GrantHistory(ctx context.Context, arg GrantHistoryParams) ([]GrantHistoryRow, error) {
-	rows, err := q.db.Query(ctx, grantHistory, arg.AccountID, arg.MaxEntries)
+	rows, err := q.db.QueryContext(ctx, grantHistory, arg.AccountID, arg.MaxEntries)
 	if err != nil {
 		return nil, err
 	}
@@ -343,7 +346,7 @@ type HasActivePremiumParams struct {
 }
 
 func (q *Queries) HasActivePremium(ctx context.Context, arg HasActivePremiumParams) (bool, error) {
-	row := q.db.QueryRow(ctx, hasActivePremium, arg.AccountID, arg.PremiumType, arg.NowEpoch)
+	row := q.db.QueryRowContext(ctx, hasActivePremium, arg.AccountID, arg.PremiumType, arg.NowEpoch)
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err
@@ -354,7 +357,7 @@ SELECT cera FROM account_currency WHERE account_id=$1 FOR UPDATE
 `
 
 func (q *Queries) LockAccountCurrency(ctx context.Context, accountID int64) (int64, error) {
-	row := q.db.QueryRow(ctx, lockAccountCurrency, accountID)
+	row := q.db.QueryRowContext(ctx, lockAccountCurrency, accountID)
 	var cera int64
 	err := row.Scan(&cera)
 	return cera, err
@@ -371,7 +374,7 @@ type LockPremiumExpiryParams struct {
 }
 
 func (q *Queries) LockPremiumExpiry(ctx context.Context, arg LockPremiumExpiryParams) (int64, error) {
-	row := q.db.QueryRow(ctx, lockPremiumExpiry, arg.AccountID, arg.PremiumType)
+	row := q.db.QueryRowContext(ctx, lockPremiumExpiry, arg.AccountID, arg.PremiumType)
 	var end_time int64
 	err := row.Scan(&end_time)
 	return end_time, err
@@ -387,7 +390,7 @@ type MarkCashOrderDeliveredParams struct {
 }
 
 func (q *Queries) MarkCashOrderDelivered(ctx context.Context, arg MarkCashOrderDeliveredParams) error {
-	_, err := q.db.Exec(ctx, markCashOrderDelivered, arg.AccountID, arg.OrderKey)
+	_, err := q.db.ExecContext(ctx, markCashOrderDelivered, arg.AccountID, arg.OrderKey)
 	return err
 }
 
@@ -402,7 +405,7 @@ type PackagePlaceholderMigrationCandidatesRow struct {
 }
 
 func (q *Queries) PackagePlaceholderMigrationCandidates(ctx context.Context) ([]PackagePlaceholderMigrationCandidatesRow, error) {
-	rows, err := q.db.Query(ctx, packagePlaceholderMigrationCandidates)
+	rows, err := q.db.QueryContext(ctx, packagePlaceholderMigrationCandidates)
 	if err != nil {
 		return nil, err
 	}
@@ -438,7 +441,7 @@ type RecordCashInventoryParams struct {
 }
 
 func (q *Queries) RecordCashInventory(ctx context.Context, arg RecordCashInventoryParams) (int64, error) {
-	row := q.db.QueryRow(ctx, recordCashInventory,
+	row := q.db.QueryRowContext(ctx, recordCashInventory,
 		arg.AccountID,
 		arg.CharacterID,
 		arg.OrderKey,
@@ -466,7 +469,7 @@ type RecordCashOrderParams struct {
 }
 
 func (q *Queries) RecordCashOrder(ctx context.Context, arg RecordCashOrderParams) error {
-	_, err := q.db.Exec(ctx, recordCashOrder,
+	_, err := q.db.ExecContext(ctx, recordCashOrder,
 		arg.AccountID,
 		arg.OrderKey,
 		arg.CharacterID,
@@ -489,7 +492,7 @@ type RecordShopPurchaseParams struct {
 }
 
 func (q *Queries) RecordShopPurchase(ctx context.Context, arg RecordShopPurchaseParams) error {
-	_, err := q.db.Exec(ctx, recordShopPurchase,
+	_, err := q.db.ExecContext(ctx, recordShopPurchase,
 		arg.AccountID,
 		arg.CharacterID,
 		arg.NpcID,
@@ -508,7 +511,7 @@ type SaveAccountCurrencyParams struct {
 }
 
 func (q *Queries) SaveAccountCurrency(ctx context.Context, arg SaveAccountCurrencyParams) error {
-	_, err := q.db.Exec(ctx, saveAccountCurrency, arg.Cera, arg.AccountID)
+	_, err := q.db.ExecContext(ctx, saveAccountCurrency, arg.Cera, arg.AccountID)
 	return err
 }
 
@@ -522,7 +525,7 @@ type SaveAdminGrantReceiptParams struct {
 }
 
 func (q *Queries) SaveAdminGrantReceipt(ctx context.Context, arg SaveAdminGrantReceiptParams) error {
-	_, err := q.db.Exec(ctx, saveAdminGrantReceipt, arg.Receipt, arg.GrantID)
+	_, err := q.db.ExecContext(ctx, saveAdminGrantReceipt, arg.Receipt, arg.GrantID)
 	return err
 }
 
@@ -537,7 +540,7 @@ type SaveCashOrderReceiptParams struct {
 }
 
 func (q *Queries) SaveCashOrderReceipt(ctx context.Context, arg SaveCashOrderReceiptParams) error {
-	_, err := q.db.Exec(ctx, saveCashOrderReceipt, arg.Receipt, arg.AccountID, arg.OrderKey)
+	_, err := q.db.ExecContext(ctx, saveCashOrderReceipt, arg.Receipt, arg.AccountID, arg.OrderKey)
 	return err
 }
 
@@ -554,6 +557,6 @@ type SavePremiumExpiryParams struct {
 }
 
 func (q *Queries) SavePremiumExpiry(ctx context.Context, arg SavePremiumExpiryParams) error {
-	_, err := q.db.Exec(ctx, savePremiumExpiry, arg.AccountID, arg.PremiumType, arg.EndTime)
+	_, err := q.db.ExecContext(ctx, savePremiumExpiry, arg.AccountID, arg.PremiumType, arg.EndTime)
 	return err
 }

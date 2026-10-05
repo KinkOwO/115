@@ -541,6 +541,13 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 			return nil, fmt.Errorf("unsupported loading option")
 		}
 	}
+	// 誓约进图直发是否命中：它决定下面三处（穿戴快照 13 / 视觉与随机属性 14 / Clone 重建）
+	// 要不要**重复**发送。直入时这些内容都已经在 NOTI29 之前发过了，再发一次会让原生
+	// 把穿戴效果应用两次（施工图描述的「Buff 两次」来源）。查一次，三处共用。
+	directEntry, directErr := w.oathDirectEntryActive(context.Background())
+	if directErr != nil {
+		return nil, directErr
+	}
 	state, e := protocol.UserState(w.role.WireID, protocol.UserStateDungeon)
 	if e != nil {
 		return nil, e
@@ -613,10 +620,6 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 		// applying slot updates and the oath selection, as town entry does.
 		// 誓约进图直发命中时，这三项已在 NOTI29 之前发过 ⇒ 此处不再重复
 		// （否则穿戴效果会被应用两次 —— 正是施工图描述的"Buff 两次"来源）。
-		directEntry, directErr := w.oathDirectEntryActive(context.Background())
-		if directErr != nil {
-			return nil, directErr
-		}
 		if !directEntry {
 			wornSnapshot, err := inventory.WornPayload(w.role.State)
 			if err != nil {
@@ -664,11 +667,7 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 	if w.characters != nil && w.store != nil {
 		// Direct entry already restored the selection before NOTI29. The
 		// fallback must apply it after any Clone reconstruction cleared slot 47.
-		directOathHere, oathHereErr := w.oathDirectEntryActive(context.Background())
-		if oathHereErr != nil {
-			return nil, oathHereErr
-		}
-		if !directOathHere || cloneReattached {
+		if !directEntry || cloneReattached {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 			selection, err := w.dungeonOathSelectionPacket(ctx)
@@ -696,9 +695,15 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 	// 无 [monster] 段，客户端按 SourceIndex 找不到源行就不建怪——2026-10-04
 	// 13:52 实机），照月湖动态怪先例在真实 C37 加载完成后用 N2194 注册。
 	plan = append(plan, w.venusDynamicSpawnPackets()...)
-	plan, e = appendDungeonWornRandomOptions(plan, w)
-	if e != nil {
-		return nil, e
+	// 随机属性块（NOTI14 list3）与上面的 13/14 同源：直入时 ID13 的整份穿戴快照
+	// （WornPayload = list3 + restore=true）已经把实例行连同 record[60:76] 一起给过，
+	// 这里再发一次会让原生临时随机属性管理器**应用两次**。
+	// 回退路径（含 Clone 重建后）仍然要发 —— 那时克隆重建把普通装备的行冲掉了。
+	if !directEntry {
+		plan, e = appendDungeonWornRandomOptions(plan, w)
+		if e != nil {
+			return nil, e
+		}
 	}
 	return appendBuffEnhancementRestore(plan, w.characters, w.role, "dungeon_buff_enhancement_restored")
 }

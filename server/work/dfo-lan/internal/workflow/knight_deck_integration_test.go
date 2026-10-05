@@ -7,16 +7,12 @@ import (
 	"dfolan/internal/database"
 	"dfolan/internal/inventory"
 	"encoding/json"
-	"os"
 	"reflect"
 	"testing"
 	"time"
 )
 
 func TestKnightShieldTransactionsIntegration(t *testing.T) {
-	if os.Getenv("DFO_TEST_POSTGRES_DSN") == "" {
-		t.Skip("requires explicit DFO_TEST_POSTGRES_DSN for isolated PostgreSQL schema")
-	}
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 	fixture, e := database.OpenTestFixture(ctx)

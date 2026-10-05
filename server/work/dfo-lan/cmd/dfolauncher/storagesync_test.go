@@ -1,7 +1,10 @@
 package main
 
 // storagesync_test.go：storage-sync 里**不碰数据库**的那一半 —— 拒绝条件（管理租约）、
-// 档位解析、引擎名收敛、端口解析。真正的数据搬运由 internal/database 的测试与实机验收覆盖。
+// 档位解析、引擎判定。真正的数据搬运由 internal/database 的测试与实机验收覆盖。
+//
+// 跨引擎复制（--copy-to / --restore-to）随 PostgreSQL 一起移除（2026-10-05 业主口径，
+// 见根 AGENTS.md §0.6），所以这里只剩单档的解析与拒绝断言。
 
 import (
 	"encoding/json"
@@ -55,17 +58,17 @@ func TestStorageSyncBlockedByAdminLease(t *testing.T) {
 	if err := os.WriteFile(lease, []byte(strconv.Itoa(os.Getpid())), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	stores, active, err := resolveStorageSyncStores(root)
+	store, active, err := resolveStorageSyncStore(root)
 	if err != nil {
 		t.Fatalf("解析档位失败：%v", err)
 	}
 	if active != "" {
 		t.Fatalf("没有活动档（只有模板）时 active=%q", active)
 	}
-	if _, ok := stores[database.DriverSQLite]; !ok {
-		t.Fatalf("没有从 local.sqlite.json 识别出 SQLite 档：%+v", stores)
+	if !store.usable {
+		t.Fatal("没有从 local.sqlite.json 识别出可用的 SQLite 档")
 	}
-	blocked := storageSyncBlocked(stores)
+	blocked := storageSyncBlocked(store)
 	if blocked == "" {
 		t.Fatal("管理租约还在时没有被拒绝")
 	}
@@ -84,14 +87,14 @@ func TestStorageSyncBlockedByAdminLease(t *testing.T) {
 	if err := os.Chtimes(lease, old, old); err != nil {
 		t.Fatal(err)
 	}
-	if blocked := storageSyncBlocked(stores); strings.Contains(blocked, "租约") {
+	if blocked := storageSyncBlocked(store); strings.Contains(blocked, "租约") {
 		t.Fatalf("废弃的租约仍然挡着：%s", blocked)
 	}
 }
 
-// TestResolveStorageSyncStoresUsesActiveProfile：活动档优先，模板兜底；相对路径的
-// sqlite_path 不能拖垮另一端。
-func TestResolveStorageSyncStoresUsesActiveProfile(t *testing.T) {
+// TestResolveStorageSyncStoreUsesActiveProfile：活动档优先、模板兜底；活动档里写坏
+// （相对路径）要直说，模板写坏只丢这一端。
+func TestResolveStorageSyncStoreUsesActiveProfile(t *testing.T) {
 	root, dbPath := storageRootWithSQLite(t)
 	storage := storageSyncDir(root)
 	body, err := json.Marshal(map[string]any{"driver": "sqlite", "sqlite_path": dbPath})
@@ -99,44 +102,53 @@ func TestResolveStorageSyncStoresUsesActiveProfile(t *testing.T) {
 		t.Fatal(err)
 	}
 	writeStorageFile(t, filepath.Join(storage, "local.json"), string(body))
-	stores, active, err := resolveStorageSyncStores(root)
+	store, active, err := resolveStorageSyncStore(root)
 	if err != nil {
 		t.Fatalf("解析档位失败：%v", err)
 	}
 	if active != database.DriverSQLite {
 		t.Fatalf("active = %q，期望 sqlite", active)
 	}
-	if got := filepath.Base(stores[database.DriverSQLite].origin); got != "local.json" {
+	if !store.usable {
+		t.Fatal("活动档是可用的 SQLite 档，却没被认成可用")
+	}
+	if got := filepath.Base(store.origin); got != "local.json" {
 		t.Fatalf("没有用活动档：origin 的 basename = %s", got)
 	}
-	if _, ok := stores[database.DriverPostgres]; ok {
-		t.Fatal("没有 PostgreSQL 档却给出了 PostgreSQL 目标端")
-	}
 
+	// 活动档自己写坏了（相对路径）就直说：服务端启动同样会拒绝它，不能悄悄退回模板装作没事。
 	writeStorageFile(t, filepath.Join(storage, "local.json"),
 		`{"driver":"sqlite","sqlite_path":"runtime/storage/x.sqlite3"}`)
-	// 活动档自己写坏了（相对路径）就直说：服务端启动同样会拒绝它，不能悄悄退回模板装作没事。
-	if _, _, err := resolveStorageSyncStores(root); err == nil || !strings.Contains(err.Error(), "绝对路径") {
+	if _, _, err := resolveStorageSyncStore(root); err == nil || !strings.Contains(err.Error(), "绝对路径") {
 		t.Fatalf("活动档里的相对 sqlite_path 没有被拒绝：%v", err)
 	}
-	// 坏掉的是**模板**时，只丢这一端，不能拖垮整条命令（另一端照样能备份/还原）。
-	writeStorageFile(t, filepath.Join(storage, "local.json"), string(body))
-	writeStorageFile(t, filepath.Join(storage, "local.postgres.json"), `{"driver":"postgres"}`)
-	stores, active, err = resolveStorageSyncStores(root)
+
+	// 坏掉的是**模板**时，只丢这一端，不能拖垮整条命令（--list 照样能列备份）。
+	writeStorageFile(t, filepath.Join(storage, "local.json"),
+		`{"driver":"sqlite","sqlite_path":"runtime/storage/x.sqlite3"}`)
+	writeStorageFile(t, filepath.Join(storage, "local.sqlite.json"),
+		`{"driver":"sqlite","sqlite_path":"relative/x.sqlite3"}`)
+	if _, _, err := resolveStorageSyncStore(root); err == nil || !strings.Contains(err.Error(), "绝对路径") {
+		t.Fatalf("活动档坏档时必须报错，得到：%v", err)
+	}
+
+	// 活动档是 PostgreSQL 档（已不再支持）：不能当成 SQLite 去备份一个不存在的文件。
+	writeStorageFile(t, filepath.Join(storage, "local.json"), `{"driver":"postgres"}`)
+	store, active, err = resolveStorageSyncStore(root)
 	if err != nil {
-		t.Fatalf("坏的模板不该让整条命令失败：%v", err)
+		t.Fatalf("PostgreSQL 档不该让解析报错（应当被识别为不可用）：%v", err)
 	}
-	if active != database.DriverSQLite {
-		t.Fatalf("active = %q，期望 sqlite", active)
+	if active != database.DriverPostgres {
+		t.Fatalf("active = %q，期望 postgres（用于给出「该引擎已移除」的说明）", active)
 	}
-	if _, ok := stores[database.DriverPostgres]; ok {
-		t.Fatal("缺 postgres_dsn 的模板被当成了可用目标端")
+	if store.usable {
+		t.Fatal("PostgreSQL 档被当成了可用的 SQLite 档")
 	}
 }
 
-// TestProfileEngineAndNormalize：档位判据与取值收敛。空档**不能**兜底成 SQLite ——
-// 那会让"备份当前档"去读一个并不存在的文件。
-func TestProfileEngineAndNormalize(t *testing.T) {
+// TestProfileEngine：档位判据。空档**不能**兜底成 SQLite —— 那会让"备份当前档"去读一个
+// 并不存在的文件；写了 postgres 的要原样返回，好让上层明确报"该引擎已移除"。
+func TestProfileEngine(t *testing.T) {
 	if got := profileEngine(map[string]any{"driver": "sqlite"}); got != database.DriverSQLite {
 		t.Errorf("driver=sqlite → %q", got)
 	}
@@ -152,39 +164,4 @@ func TestProfileEngineAndNormalize(t *testing.T) {
 	if got := profileEngine(map[string]any{"driver": "MySQL"}); got != "" {
 		t.Errorf("未知 driver → %q", got)
 	}
-	for _, item := range []struct {
-		in      string
-		want    string
-		wantErr bool
-	}{
-		{"SQLite", database.DriverSQLite, false},
-		{" postgres ", database.DriverPostgres, false},
-		{"mysql", "", true},
-		{"", "", true},
-	} {
-		got, err := normalizeSyncEngine(item.in)
-		if (err != nil) != item.wantErr || got != item.want {
-			t.Errorf("normalize(%q) = %q, %v", item.in, got, err)
-		}
-	}
-	if otherSyncEngine(database.DriverSQLite) != database.DriverPostgres ||
-		otherSyncEngine(database.DriverPostgres) != database.DriverSQLite {
-		t.Error("另一端推导错误")
-	}
 }
-
-// TestDsnPort：端口从 DSN 里取，取不到才退回项目默认的 25438。
-func TestDsnPort(t *testing.T) {
-	if got := dsnPort("postgres://u:p@127.0.0.1:25438/dfo_lan?sslmode=disable"); got != 25438 {
-		t.Errorf("URI 端口 = %d", got)
-	}
-	if got := dsnPort("host=127.0.0.1 port=5555 dbname=x"); got != 5555 {
-		t.Errorf("key=value 端口 = %d", got)
-	}
-	if got := dsnPort("postgres://u:p@127.0.0.1/dfo_lan"); got != launcherDefaultPort {
-		t.Errorf("缺端口时应当退回 %d，得到 %d", launcherDefaultPort, got)
-	}
-}
-
-// launcherDefaultPort 只在测试里用来说明"缺端口时的期望值"。
-const launcherDefaultPort = 25438

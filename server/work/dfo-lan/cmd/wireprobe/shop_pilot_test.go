@@ -12,7 +12,6 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"os"
 	"testing"
 	"time"
 )
@@ -294,9 +293,6 @@ func TestShopPilotLifeTokenPackets(t *testing.T) {
 }
 
 func TestShopPilotDatabasePurchase(t *testing.T) {
-	if os.Getenv("DFO_TEST_POSTGRES_DSN") == "" {
-		t.Skip("isolated PostgreSQL integration")
-	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	fixture, e := database.OpenTestFixture(ctx)

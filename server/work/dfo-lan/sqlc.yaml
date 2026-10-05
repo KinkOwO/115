@@ -1,34 +1,9 @@
 version: "2"
 sql:
-  # PostgreSQL is the default engine. Its generated code is the reference
-  # that the SQLite fork's signatures are aligned to (see generated_parity_test.go).
-  - engine: "postgresql"
-    schema: "internal/database/sql/postgres/migrations"
-    queries: "internal/database/sql/postgres/queries"
-    gen:
-      go:
-        package: "sqlcgen"
-        out: "internal/database/sqlcgen"
-        sql_package: "pgx/v5"
-        emit_interface: false
-        omit_unused_structs: true
-        overrides:
-          - db_type: "timestamptz"
-            go_type:
-              import: "time"
-              type: "Time"
-          - db_type: "jsonb"
-            go_type:
-              import: "encoding/json"
-              type: "RawMessage"
-          - db_type: "jsonb"
-            nullable: true
-            go_type:
-              import: "encoding/json"
-              type: "RawMessage"
-  # SQLite engine (dual-engine plan, S3/S4). A separate schema and query tree:
-  # the PostgreSQL DDL cannot be parsed by the sqlite engine (DO blocks,
-  # ALTER ... ADD COLUMN IF NOT EXISTS, locking clauses).
+  # SQLite is the only engine since 2026-10-05 (owner decision, see root AGENTS.md §0.6):
+  # the PostgreSQL entry and its schema/query tree were removed together with the engine.
+  # internal/database/sqlcgen stays as the internal query/type layer the SQLite adapter is
+  # written against, but it is no longer generated (see its db.go).
   - engine: "sqlite"
     schema: "internal/database/sql/sqlite/migrations"
     queries: "internal/database/sql/sqlite/queries"

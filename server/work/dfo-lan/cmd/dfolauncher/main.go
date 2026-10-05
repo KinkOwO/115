@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"dfolan/internal/launcher"
@@ -29,8 +30,6 @@ func main() {
 		os.Exit(runLaunch(os.Args[2:]))
 	case "start-storage":
 		os.Exit(runStartStorage(os.Args[2:]))
-	case "init-storage":
-		os.Exit(runInitStorage(os.Args[2:]))
 	case "prepare-inner-pvf":
 		os.Exit(runPrepareInnerPVF(os.Args[2:]))
 	case "storage-sync":
@@ -88,11 +87,9 @@ func usage() {
 Usage:
   dfolauncher stop  [--root <path>] [--dry-run]
   dfolauncher start-storage [--root <path>] [--dry-run]
-  dfolauncher init-storage [--root <path>] [--postgres-bin <dir>] [--postgres-port <int>] [--dry-run]
   dfolauncher prepare-inner-pvf [--root <path>] [--client <dir>] [--force] [--dry-run]
   dfolauncher storage-sync [--root <path>] [--list] [--backup]
-                           [--copy-to sqlite|postgres] [--restore <备份目录名>]
-                           [--restore-to sqlite|postgres] [--dry-run]
+                           [--restore <备份目录名>] [--dry-run]
   dfolauncher check [--root <path>] [--server-only|--client-only] [--source-build] [--json-mode]
   dfolauncher launch --check|--dry-run [--root <path>]
                     [--server-only|--client-only|--storage-only]
@@ -108,12 +105,6 @@ Flags:
   --force     rebuild even when the four-state gate would reuse the archive
   --dry-run   print every action without performing it
   --tag       pin the session tag (default: built from the clock)
-
-init-storage is the first-run storage bootstrap: it is scripts/bootstrap_local.py in Go
-(initdb with a fresh random password + pg_ctl start + createdb + runtime/storage/local.json),
-which is why the launch chain no longer needs Python at all. --postgres-bin defaults to the
-bundled portable PostgreSQL (tools/pg/pgsql/bin, or $DFO_TOOLS); --dry-run prints the steps
-without writing anything or starting a process.
 
 prepare-inner-pvf is Stage 4 of docs/go-launch-migration-plan.md: it replaces
 scripts/ensure_inner_pvf.py + scripts/prepare_inner_pvf.py with the Go generator in
@@ -146,10 +137,10 @@ always injects 0.
 <client.log> <seconds> <ui-mode> [breakpoints.txt] [payload...]): the same positional
 arguments probe.exe takes, so the launcher can hand both paths the same argv.
 
-storage-sync is 双端同步：备份（SQLite 用 VACUUM INTO、PostgreSQL 用 pg_dump -Fc）/
-跨引擎覆盖式复制（--copy-to）/ 还原（--restore）。进度写 stderr，stdout 只留一行结果 JSON；
-退出码 2=参数错、1=失败、0=成功。它**不改** runtime/storage/local.json 与档位模板
-（复制 ≠ 切档），且服务端在跑时（7001 在监听 / SQLite 管理租约仍在）一律拒绝执行。
+storage-sync is 单引擎备份/还原：备份用 SQLite 的 VACUUM INTO，还原前先自动备份被覆盖的那一份。
+进度写 stderr，stdout 只留一行结果 JSON；退出码 2=参数错、1=失败、0=成功。
+它**不改** runtime/storage/local.json 与档位模板，且服务端在跑时（7001 在监听 / SQLite
+管理租约仍在）一律拒绝执行。跨引擎复制已随 PostgreSQL 一起移除（根 AGENTS.md §0.6）。
 `)
 }
 
@@ -174,9 +165,7 @@ func runStop(args []string) int {
 
 	logf := func(format string, args ...any) { fmt.Printf(format+"\n", args...) }
 	fmt.Println("=== Stopping DFO 115us Environment ===")
-	if settings.DriverName() == "sqlite" {
-		fmt.Printf("Storage: sqlite profile (%s), no PostgreSQL service to stop.\n", settings.SQLitePath)
-	}
+	fmt.Printf("Storage: sqlite profile (%s), no service to stop.\n", settings.SQLitePath)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
@@ -187,13 +176,12 @@ func runStop(args []string) int {
 	}
 
 	fmt.Println("Status summary:")
-	fmt.Printf("  PostgreSQL (%d): %s\n", launcher.PostgresPort, state(report.PostgresUp, *dryRun))
 	fmt.Printf("  Gateway    (%d):  %s\n", launcher.GatewayPort, state(report.GatewayUp, *dryRun))
 	if *dryRun {
 		fmt.Println("Dry run: nothing was stopped.")
 		return 0
 	}
-	if !report.PostgresUp && !report.GatewayUp {
+	if !report.GatewayUp {
 		fmt.Println("Environment fully stopped.")
 		return 0
 	}
@@ -330,17 +318,23 @@ func runLaunch(args []string) int {
 	return 0
 }
 
-// runStartStorage brings storage up for the configured driver. It exists because the
-// shipped launcher is a GUI with no CLI mode, so the development entries still need a
-// Go path; see docs/runtime-without-tools-plan.md.
+// runStartStorage exists because the shipped launcher is a GUI with no CLI mode, so the
+// development entries still need a Go path; see docs/runtime-without-tools-plan.md.
+//
+// SQLite is the only engine since 2026-10-05 (owner decision, see root AGENTS.md §0.6) and
+// it is a file the server opens itself, so there is no service to bring up: this command
+// validates the profile and says so. The flags stay accepted so the existing .cmd entries
+// keep working unchanged.
 func runStartStorage(args []string) int {
 	flags := flag.NewFlagSet("start-storage", flag.ContinueOnError)
 	root := flags.String("root", ".", "repository root")
 	dryRun := flags.Bool("dry-run", false, "print the actions without performing them")
-	timeout := flags.Duration("timeout", 40*time.Second, "how long to wait for the service")
+	timeout := flags.Duration("timeout", 40*time.Second, "accepted for compatibility; SQLite starts no service")
 	if err := flags.Parse(args); err != nil {
 		return 2
 	}
+	_ = dryRun
+	_ = timeout
 	absolute, err := filepathAbs(*root)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "resolve root: %v\n", err)
@@ -351,28 +345,15 @@ func runStartStorage(args []string) int {
 		fmt.Fprintf(os.Stderr, "storage config: %v\n", err)
 		return 1
 	}
-	logf := func(format string, args ...any) { fmt.Printf(format+"\n", args...) }
-	if *dryRun {
-		plan, err := launcher.StartStoragePlan(settings)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "start-storage: %v\n", err)
-			return 1
-		}
-		if len(plan) == 0 {
-			logf("storage: sqlite profile, nothing to start")
-			return 0
-		}
-		for _, action := range plan {
-			logf("would run %s", action.Detail)
-		}
-		return 0
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), *timeout+15*time.Second)
-	defer cancel()
-	if _, err := launcher.StartStorage(ctx, settings, *timeout, logf); err != nil {
-		fmt.Fprintf(os.Stderr, "start-storage: %v\n", err)
+	if settings.DriverName() != "sqlite" {
+		fmt.Fprintf(os.Stderr, "start-storage: unsupported storage driver %q (SQLite is the only engine)\n", settings.Driver)
 		return 1
 	}
+	if strings.TrimSpace(settings.SQLitePath) == "" {
+		fmt.Fprintln(os.Stderr, "start-storage: sqlite storage configuration incomplete")
+		return 1
+	}
+	fmt.Printf("storage: sqlite profile (%s), no service to start\n", settings.SQLitePath)
 	return 0
 }
 

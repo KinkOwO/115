@@ -16,7 +16,7 @@ SELECT state FROM characters WHERE account_id=$1
 `
 
 func (q *Queries) AccountCharacterStates(ctx context.Context, accountID int64) ([]json.RawMessage, error) {
-	rows, err := q.db.Query(ctx, accountCharacterStates, accountID)
+	rows, err := q.db.QueryContext(ctx, accountCharacterStates, accountID)
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +45,7 @@ type AccountsRow struct {
 }
 
 func (q *Queries) Accounts(ctx context.Context) ([]AccountsRow, error) {
-	rows, err := q.db.Query(ctx, accounts)
+	rows, err := q.db.QueryContext(ctx, accounts)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +83,7 @@ type AdminCharacterRow struct {
 }
 
 func (q *Queries) AdminCharacter(ctx context.Context, characterID int64) (AdminCharacterRow, error) {
-	row := q.db.QueryRow(ctx, adminCharacter, characterID)
+	row := q.db.QueryRowContext(ctx, adminCharacter, characterID)
 	var i AdminCharacterRow
 	err := row.Scan(
 		&i.ID,
@@ -119,7 +119,7 @@ type AdminCharactersRow struct {
 }
 
 func (q *Queries) AdminCharacters(ctx context.Context, accountID int64) ([]AdminCharactersRow, error) {
-	rows, err := q.db.Query(ctx, adminCharacters, accountID)
+	rows, err := q.db.QueryContext(ctx, adminCharacters, accountID)
 	if err != nil {
 		return nil, err
 	}
@@ -159,7 +159,7 @@ type ArchiveCharacterParams struct {
 }
 
 func (q *Queries) ArchiveCharacter(ctx context.Context, arg ArchiveCharacterParams) error {
-	_, err := q.db.Exec(ctx, archiveCharacter, arg.CharacterID, arg.AccountID)
+	_, err := q.db.ExecContext(ctx, archiveCharacter, arg.CharacterID, arg.AccountID)
 	return err
 }
 
@@ -177,7 +177,7 @@ type CharacterAllocationRow struct {
 }
 
 func (q *Queries) CharacterAllocation(ctx context.Context, accountID int64) (CharacterAllocationRow, error) {
-	row := q.db.QueryRow(ctx, characterAllocation, accountID)
+	row := q.db.QueryRowContext(ctx, characterAllocation, accountID)
 	var i CharacterAllocationRow
 	err := row.Scan(&i.ActiveCount, &i.NextWireID, &i.NextRosterOrder)
 	return i, err
@@ -199,7 +199,7 @@ type CharacterAtRosterSlotRow struct {
 }
 
 func (q *Queries) CharacterAtRosterSlot(ctx context.Context, arg CharacterAtRosterSlotParams) (CharacterAtRosterSlotRow, error) {
-	row := q.db.QueryRow(ctx, characterAtRosterSlot, arg.AccountID, arg.RosterSlot)
+	row := q.db.QueryRowContext(ctx, characterAtRosterSlot, arg.AccountID, arg.RosterSlot)
 	var i CharacterAtRosterSlotRow
 	err := row.Scan(&i.ID, &i.Name)
 	return i, err
@@ -215,7 +215,7 @@ type CharacterEventModelParams struct {
 }
 
 func (q *Queries) CharacterEventModel(ctx context.Context, arg CharacterEventModelParams) (string, error) {
-	row := q.db.QueryRow(ctx, characterEventModel, arg.CharacterID, arg.EventKey)
+	row := q.db.QueryRowContext(ctx, characterEventModel, arg.CharacterID, arg.EventKey)
 	var model string
 	err := row.Scan(&model)
 	return model, err
@@ -233,7 +233,7 @@ type CharacterEventReceiptParams struct {
 }
 
 func (q *Queries) CharacterEventReceipt(ctx context.Context, arg CharacterEventReceiptParams) (json.RawMessage, error) {
-	row := q.db.QueryRow(ctx, characterEventReceipt, arg.AccountID, arg.CharacterID, arg.EventKey)
+	row := q.db.QueryRowContext(ctx, characterEventReceipt, arg.AccountID, arg.CharacterID, arg.EventKey)
 	var outcome json.RawMessage
 	err := row.Scan(&outcome)
 	return outcome, err
@@ -249,7 +249,7 @@ type CharacterOwnedParams struct {
 }
 
 func (q *Queries) CharacterOwned(ctx context.Context, arg CharacterOwnedParams) (bool, error) {
-	row := q.db.QueryRow(ctx, characterOwned, arg.AccountID, arg.CharacterID)
+	row := q.db.QueryRowContext(ctx, characterOwned, arg.AccountID, arg.CharacterID)
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err
@@ -267,7 +267,7 @@ type CharacterSeasonParams struct {
 }
 
 func (q *Queries) CharacterSeason(ctx context.Context, arg CharacterSeasonParams) (json.RawMessage, error) {
-	row := q.db.QueryRow(ctx, characterSeason, arg.AccountID, arg.CharacterID)
+	row := q.db.QueryRowContext(ctx, characterSeason, arg.AccountID, arg.CharacterID)
 	var state json.RawMessage
 	err := row.Scan(&state)
 	return state, err
@@ -293,7 +293,7 @@ type CharactersRow struct {
 }
 
 func (q *Queries) Characters(ctx context.Context, accountID int64) ([]CharactersRow, error) {
-	rows, err := q.db.Query(ctx, characters, accountID)
+	rows, err := q.db.QueryContext(ctx, characters, accountID)
 	if err != nil {
 		return nil, err
 	}
@@ -345,7 +345,7 @@ type CharactersWithAdventureRow struct {
 }
 
 func (q *Queries) CharactersWithAdventure(ctx context.Context, accountID int64) ([]CharactersWithAdventureRow, error) {
-	rows, err := q.db.Query(ctx, charactersWithAdventure, accountID)
+	rows, err := q.db.QueryContext(ctx, charactersWithAdventure, accountID)
 	if err != nil {
 		return nil, err
 	}
@@ -398,7 +398,7 @@ type CreateCharacterRow struct {
 }
 
 func (q *Queries) CreateCharacter(ctx context.Context, arg CreateCharacterParams) (CreateCharacterRow, error) {
-	row := q.db.QueryRow(ctx, createCharacter,
+	row := q.db.QueryRowContext(ctx, createCharacter,
 		arg.AccountID,
 		arg.WireID,
 		arg.Name,
@@ -418,7 +418,7 @@ SELECT current_database()::text
 `
 
 func (q *Queries) DatabaseName(ctx context.Context) (string, error) {
-	row := q.db.QueryRow(ctx, databaseName)
+	row := q.db.QueryRowContext(ctx, databaseName)
 	var column_1 string
 	err := row.Scan(&column_1)
 	return column_1, err
@@ -431,7 +431,7 @@ WHERE accounts.development_only RETURNING id
 `
 
 func (q *Queries) DevelopmentAccount(ctx context.Context, username string) (int64, error) {
-	row := q.db.QueryRow(ctx, developmentAccount, username)
+	row := q.db.QueryRowContext(ctx, developmentAccount, username)
 	var id int64
 	err := row.Scan(&id)
 	return id, err
@@ -443,7 +443,7 @@ WHERE c.id=$1 AND a.development_only
 `
 
 func (q *Queries) DevelopmentCharacterAccount(ctx context.Context, characterID int64) (int64, error) {
-	row := q.db.QueryRow(ctx, developmentCharacterAccount, characterID)
+	row := q.db.QueryRowContext(ctx, developmentCharacterAccount, characterID)
 	var account_id int64
 	err := row.Scan(&account_id)
 	return account_id, err
@@ -459,7 +459,7 @@ type HasCharacterEventParams struct {
 }
 
 func (q *Queries) HasCharacterEvent(ctx context.Context, arg HasCharacterEventParams) (bool, error) {
-	row := q.db.QueryRow(ctx, hasCharacterEvent, arg.CharacterID, arg.EventKey)
+	row := q.db.QueryRowContext(ctx, hasCharacterEvent, arg.CharacterID, arg.EventKey)
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err
@@ -470,7 +470,7 @@ SELECT id FROM accounts WHERE id=$1 FOR UPDATE
 `
 
 func (q *Queries) LockAccount(ctx context.Context, accountID int64) (int64, error) {
-	row := q.db.QueryRow(ctx, lockAccount, accountID)
+	row := q.db.QueryRowContext(ctx, lockAccount, accountID)
 	var id int64
 	err := row.Scan(&id)
 	return id, err
@@ -482,7 +482,7 @@ SELECT id FROM accounts WHERE id=$1 FOR NO KEY UPDATE
 
 // Serialize shared callback state without blocking foreign-key key-share locks.
 func (q *Queries) LockAccountState(ctx context.Context, accountID int64) (int64, error) {
-	row := q.db.QueryRow(ctx, lockAccountState, accountID)
+	row := q.db.QueryRowContext(ctx, lockAccountState, accountID)
 	var id int64
 	err := row.Scan(&id)
 	return id, err
@@ -493,7 +493,7 @@ SELECT id FROM characters WHERE id=$1 AND deleted_at IS NULL FOR UPDATE
 `
 
 func (q *Queries) LockActiveCharacterID(ctx context.Context, characterID int64) (int64, error) {
-	row := q.db.QueryRow(ctx, lockActiveCharacterID, characterID)
+	row := q.db.QueryRowContext(ctx, lockActiveCharacterID, characterID)
 	var id int64
 	err := row.Scan(&id)
 	return id, err
@@ -509,7 +509,7 @@ type LockActiveCharacterStateParams struct {
 }
 
 func (q *Queries) LockActiveCharacterState(ctx context.Context, arg LockActiveCharacterStateParams) (json.RawMessage, error) {
-	row := q.db.QueryRow(ctx, lockActiveCharacterState, arg.AccountID, arg.CharacterID)
+	row := q.db.QueryRowContext(ctx, lockActiveCharacterState, arg.AccountID, arg.CharacterID)
 	var state json.RawMessage
 	err := row.Scan(&state)
 	return state, err
@@ -541,7 +541,7 @@ type LockCharacterRow struct {
 
 // Event callbacks historically leave FixedSlot at zero; preserve that projection.
 func (q *Queries) LockCharacter(ctx context.Context, arg LockCharacterParams) (LockCharacterRow, error) {
-	row := q.db.QueryRow(ctx, lockCharacter, arg.AccountID, arg.CharacterID)
+	row := q.db.QueryRowContext(ctx, lockCharacter, arg.AccountID, arg.CharacterID)
 	var i LockCharacterRow
 	err := row.Scan(
 		&i.ID,
@@ -569,7 +569,7 @@ type LockCharacterOwnerParams struct {
 }
 
 func (q *Queries) LockCharacterOwner(ctx context.Context, arg LockCharacterOwnerParams) (int64, error) {
-	row := q.db.QueryRow(ctx, lockCharacterOwner, arg.AccountID, arg.CharacterID)
+	row := q.db.QueryRowContext(ctx, lockCharacterOwner, arg.AccountID, arg.CharacterID)
 	var id int64
 	err := row.Scan(&id)
 	return id, err
@@ -585,7 +585,7 @@ type LockCharacterOwnerIncludingDeletedParams struct {
 }
 
 func (q *Queries) LockCharacterOwnerIncludingDeleted(ctx context.Context, arg LockCharacterOwnerIncludingDeletedParams) (int64, error) {
-	row := q.db.QueryRow(ctx, lockCharacterOwnerIncludingDeleted, arg.AccountID, arg.CharacterID)
+	row := q.db.QueryRowContext(ctx, lockCharacterOwnerIncludingDeleted, arg.AccountID, arg.CharacterID)
 	var id int64
 	err := row.Scan(&id)
 	return id, err
@@ -602,7 +602,7 @@ type LockCharacterRosterRow struct {
 }
 
 func (q *Queries) LockCharacterRoster(ctx context.Context, accountID int64) ([]LockCharacterRosterRow, error) {
-	rows, err := q.db.Query(ctx, lockCharacterRoster, accountID)
+	rows, err := q.db.QueryContext(ctx, lockCharacterRoster, accountID)
 	if err != nil {
 		return nil, err
 	}
@@ -632,7 +632,7 @@ type LockCharacterVersionParams struct {
 }
 
 func (q *Queries) LockCharacterVersion(ctx context.Context, arg LockCharacterVersionParams) (string, error) {
-	row := q.db.QueryRow(ctx, lockCharacterVersion, arg.AccountID, arg.CharacterID)
+	row := q.db.QueryRowContext(ctx, lockCharacterVersion, arg.AccountID, arg.CharacterID)
 	var config_version string
 	err := row.Scan(&config_version)
 	return config_version, err
@@ -643,7 +643,7 @@ SELECT EXISTS(SELECT 1 FROM characters WHERE lower(name)=lower($1::text))
 `
 
 func (q *Queries) NameExists(ctx context.Context, name string) (bool, error) {
-	row := q.db.QueryRow(ctx, nameExists, name)
+	row := q.db.QueryRowContext(ctx, nameExists, name)
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err
@@ -662,7 +662,7 @@ type PendingMoonRewardRunsParams struct {
 }
 
 func (q *Queries) PendingMoonRewardRuns(ctx context.Context, arg PendingMoonRewardRunsParams) ([]string, error) {
-	rows, err := q.db.Query(ctx, pendingMoonRewardRuns, arg.CharacterID, arg.Model)
+	rows, err := q.db.QueryContext(ctx, pendingMoonRewardRuns, arg.CharacterID, arg.Model)
 	if err != nil {
 		return nil, err
 	}
@@ -695,7 +695,7 @@ type RecordCharacterEventParams struct {
 }
 
 func (q *Queries) RecordCharacterEvent(ctx context.Context, arg RecordCharacterEventParams) error {
-	_, err := q.db.Exec(ctx, recordCharacterEvent,
+	_, err := q.db.ExecContext(ctx, recordCharacterEvent,
 		arg.CharacterID,
 		arg.EventKey,
 		arg.ConfigVersion,
@@ -717,7 +717,7 @@ type RecordCharacterFameParams struct {
 }
 
 func (q *Queries) RecordCharacterFame(ctx context.Context, arg RecordCharacterFameParams) (int32, error) {
-	row := q.db.QueryRow(ctx, recordCharacterFame, arg.CurrentFame, arg.AccountID, arg.CharacterID)
+	row := q.db.QueryRowContext(ctx, recordCharacterFame, arg.CurrentFame, arg.AccountID, arg.CharacterID)
 	var max_fame int32
 	err := row.Scan(&max_fame)
 	return max_fame, err
@@ -736,7 +736,7 @@ type SaveCharacterSlotParams struct {
 }
 
 func (q *Queries) SaveCharacterSlot(ctx context.Context, arg SaveCharacterSlotParams) error {
-	_, err := q.db.Exec(ctx, saveCharacterSlot,
+	_, err := q.db.ExecContext(ctx, saveCharacterSlot,
 		arg.RosterOrder,
 		arg.FixedSlot,
 		arg.AccountID,
@@ -750,7 +750,7 @@ SELECT id FROM characters WHERE account_id=$1 AND deleted_at IS NULL ORDER BY id
 `
 
 func (q *Queries) ShareActiveCharacterIDs(ctx context.Context, accountID int64) ([]int64, error) {
-	rows, err := q.db.Query(ctx, shareActiveCharacterIDs, accountID)
+	rows, err := q.db.QueryContext(ctx, shareActiveCharacterIDs, accountID)
 	if err != nil {
 		return nil, err
 	}
@@ -779,7 +779,7 @@ type ShareActiveCharacterStateParams struct {
 }
 
 func (q *Queries) ShareActiveCharacterState(ctx context.Context, arg ShareActiveCharacterStateParams) (json.RawMessage, error) {
-	row := q.db.QueryRow(ctx, shareActiveCharacterState, arg.AccountID, arg.CharacterID)
+	row := q.db.QueryRowContext(ctx, shareActiveCharacterState, arg.AccountID, arg.CharacterID)
 	var state json.RawMessage
 	err := row.Scan(&state)
 	return state, err
@@ -790,7 +790,7 @@ SELECT pg_try_advisory_lock_shared(11520260922)::boolean
 `
 
 func (q *Queries) TrySharedAdminGuard(ctx context.Context) (bool, error) {
-	row := q.db.QueryRow(ctx, trySharedAdminGuard)
+	row := q.db.QueryRowContext(ctx, trySharedAdminGuard)
 	var column_1 bool
 	err := row.Scan(&column_1)
 	return column_1, err
@@ -806,6 +806,6 @@ type UpdateCharacterStateParams struct {
 }
 
 func (q *Queries) UpdateCharacterState(ctx context.Context, arg UpdateCharacterStateParams) error {
-	_, err := q.db.Exec(ctx, updateCharacterState, arg.State, arg.CharacterID)
+	_, err := q.db.ExecContext(ctx, updateCharacterState, arg.State, arg.CharacterID)
 	return err
 }

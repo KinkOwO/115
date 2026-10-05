@@ -15,9 +15,6 @@ import (
 )
 
 func TestCapturedAutoSetPersistence(t *testing.T) {
-	if os.Getenv("DFO_TEST_POSTGRES_DSN") == "" {
-		t.Skip("isolated schema integration")
-	}
 	capture := os.Getenv("DFO_TEST_SKILL_CAPTURE_FILE")
 	if capture == "" {
 		t.Skip("DFO_TEST_SKILL_CAPTURE_FILE selects the historical before-state capture")
