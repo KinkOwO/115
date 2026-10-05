@@ -191,6 +191,8 @@ func startHostedClient(options ClientHostOptions, isolate bool) (*HostedClient, 
 	hosted.Isolated = result.Installed
 	switch {
 	case result.Installed:
+		// WFP_READY 那一行的 filters= 是**条数**（镜像数 × 装过滤器的层数），
+		// 与 probe.exe 的 guard.filters 同口径。
 		hosted.IsolationNote = fmt.Sprintf("WFP_READY %s", filterSummaryForApps(result.Apps))
 		log.line(hosted.IsolationNote)
 		// 自检与 probe.cpp L129-L130 同形：PASS 一行，FAILED 一行带错误码。
@@ -211,6 +213,8 @@ func startHostedClient(options ClientHostOptions, isolate bool) (*HostedClient, 
 		}
 		log.line("SYNTHETIC_TEST_ARGUMENTS " + arg)
 	}
+	// 记录这次走的哪条路（Go 版/无隔离），方便从 client.log 直接判断。
+	log.line("HOST " + wfpIsolationLine(hosted))
 
 	seconds := options.Seconds
 	if seconds < clientHostMinSeconds {
