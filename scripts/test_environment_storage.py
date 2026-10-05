@@ -2,6 +2,7 @@
 import contextlib
 import io
 import json
+import os
 import pathlib
 import sys
 import tempfile
@@ -105,6 +106,69 @@ class StorageDriverTests(unittest.TestCase):
 
 
 class EnvironmentStorageTests(unittest.TestCase):
+    def test_stale_admin_lease_is_cleared_after_a_stop(self):
+        """强杀服务端会留下 SQLite 管理租约；记录里的进程已不存在时必须清掉，
+        否则 TTL 60 秒内新服务端一律被拒（2026-10-05 实机）。"""
+        with tempfile.TemporaryDirectory() as directory:
+            db = pathlib.Path(directory) / 'dfolan.sqlite3'
+            lease = pathlib.Path(str(db) + '.admin-guard')
+            lease.write_text('999999', encoding='utf-8')
+            cfg = {'driver': 'sqlite', 'sqlite_path': str(db)}
+            with mock.patch.object(stop_environment, 'process_status', return_value='gone'), \
+                 contextlib.redirect_stdout(io.StringIO()) as output:
+                stop_environment.clear_stale_admin_lease(cfg)
+            self.assertFalse(lease.exists())
+            self.assertIn('Cleared stale', output.getvalue())
+
+    def test_live_admin_lease_is_kept(self):
+        with tempfile.TemporaryDirectory() as directory:
+            db = pathlib.Path(directory) / 'dfolan.sqlite3'
+            lease = pathlib.Path(str(db) + '.admin-guard')
+            lease.write_text('1234', encoding='utf-8')
+            cfg = {'driver': 'sqlite', 'sqlite_path': str(db)}
+            with mock.patch.object(stop_environment, 'process_status', return_value='alive'), \
+                 contextlib.redirect_stdout(io.StringIO()) as output:
+                stop_environment.clear_stale_admin_lease(cfg)
+            self.assertTrue(lease.exists())
+            self.assertIn('still running', output.getvalue())
+
+    def test_unverifiable_admin_lease_is_kept(self):
+        with tempfile.TemporaryDirectory() as directory:
+            db = pathlib.Path(directory) / 'dfolan.sqlite3'
+            lease = pathlib.Path(str(db) + '.admin-guard')
+            lease.write_text('4', encoding='utf-8')
+            cfg = {'driver': 'sqlite', 'sqlite_path': str(db)}
+            with mock.patch.object(stop_environment, 'process_status', return_value='unknown'), \
+                 contextlib.redirect_stdout(io.StringIO()) as output:
+                stop_environment.clear_stale_admin_lease(cfg)
+            self.assertTrue(lease.exists())
+            self.assertIn('cannot tell', output.getvalue())
+
+    def test_lease_without_a_holder_pid_is_kept(self):
+        with tempfile.TemporaryDirectory() as directory:
+            db = pathlib.Path(directory) / 'dfolan.sqlite3'
+            lease = pathlib.Path(str(db) + '.admin-guard')
+            lease.write_text('', encoding='utf-8')
+            cfg = {'driver': 'sqlite', 'sqlite_path': str(db)}
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                stop_environment.clear_stale_admin_lease(cfg)
+            self.assertTrue(lease.exists())
+            self.assertIn('no holder pid', output.getvalue())
+
+    def test_postgres_profile_has_no_lease_step(self):
+        with mock.patch.object(stop_environment, 'process_status') as status, \
+             contextlib.redirect_stdout(io.StringIO()) as output:
+            stop_environment.clear_stale_admin_lease(
+                {'driver': 'postgres', 'postgres_dsn': 'postgres://u@127.0.0.1:25438/dfo_lan'})
+        status.assert_not_called()
+        self.assertEqual(output.getvalue(), '')
+
+    def test_process_status_reports_this_process_alive(self):
+        self.assertEqual(stop_environment.process_status(os.getpid()), 'alive')
+        if os.name == 'nt':
+            # Windows 上 tasklist 对不存在的 pid 不会列出它；判据与 Go 侧一致。
+            self.assertEqual(stop_environment.process_status(999999), 'gone')
+
     def test_reconfigure_preserves_pg_credentials_and_discards_retired_fields(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)

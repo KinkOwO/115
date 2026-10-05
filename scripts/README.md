@@ -9,7 +9,7 @@
 | 文件 | 作用 | 谁调用 |
 | --- | --- | --- |
 | `check-commit-hygiene.ps1` | **提交前门禁**：检出「本地缓存/构建产物入库」与目录规范违规；退出码 2 = 需业主二次确认（根 `AGENTS.md` §0.3.1） | 任何提交前手动跑：`pwsh -NoProfile -File scripts/check-commit-hygiene.ps1` |
-| `storage-route.ps1` / `storage-route.cmd` | **双库双路线切换器**：`show` 看当前路线、`use sqlite`/`use postgres` 切换、`stop-postgres` 停 PG、`selftest` 自检，以及四个入口实际调用的 `game-*`/`server-*`（逻辑见 `server/work/dfo-lan/docs/sqlite-operations.md` §1.2） | 四个路线启动入口内部调用；也可手动 `scripts\storage-route.cmd show` |
+| `storage-route.ps1` / `storage-route.cmd` | **双库双路线切换器**：`show` 看当前路线、`use sqlite`/`use postgres` 切换、`stop-postgres` 停 PG、`clear-guard` 清过期 SQLite 管理租约、`selftest` 自检，以及四个入口实际调用的 `game-*`/`server-*`（逻辑见 `server/work/dfo-lan/docs/sqlite-operations.md` §1.2） | 四个路线启动入口内部调用；也可手动 `scripts\storage-route.cmd show` |
 | `configure_env.py` | 配置本机环境（写 `server/work/dfo-lan/runtime/storage/local.json`、探测客户端目录） | `scripts\配置环境.cmd` |
 | `storage_profile.py` | 存储引擎判定规则的 **Python 真源**（显式 driver > 有 DSN 选 PostgreSQL > 只有 sqlite_path 选 SQLite），被 `configure_env.py`、`stop_environment.py`、`gm.py` 导入 | 上面几个脚本 |
 | `stop_environment.py` | 安全停止环境（PG `pg_ctl stop -m fast` 做 checkpoint、清理进程与端口，按 driver 分叉） | `scripts\停止游戏环境.cmd` |
@@ -72,6 +72,15 @@
 - 移走后：`检查环境.cmd` / `停止游戏环境.cmd` 仍可用（走 `bin\dfolauncher.exe`）；
   `启动游戏.cmd` / `启动服务端.cmd` 仍需要 Python 编排（`channel_probe.py`），
   先看 `docs/runtime-without-tools-plan.md`；PostgreSQL 档会失去便携 PG，SQLite 档不需要它。
+
+#### 停止环境时的 SQLite 管理租约（2026-10-05）
+
+- 强杀服务端会留下 `<db>.admin-guard` 租约，60 秒 TTL 内新服务端会被拒（实机：
+  「已有 GM 写入正在进行…由进程 13248 持有」）。**停止链现在自己收**：SQLite 档下
+  `dfolauncher stop`（Go，优先）与 `stop_environment.py`（兜底）都在强杀之后读租约里记录的 pid，
+  只在平台明确回答「该 pid 不存在」时删除；pid 还活着或问不出来一律保留并说明原因。
+- 没走过停止链（崩溃）时手动清一次：`scripts\storage-route.cmd clear-guard`（同一套判据）。
+- 租约里读不出 pid（空文件/内容异常）时两条路都不删——等 TTL，或由你确认后手工删除。
 
 ## 子目录
 

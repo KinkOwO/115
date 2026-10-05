@@ -1,6 +1,7 @@
 """Stop all local DFO environment services safely and cleanly."""
 
 import json
+import os
 import pathlib
 import socket
 import subprocess
@@ -120,6 +121,72 @@ def stop_postgres(cfg):
         kill_by_image("postgres.exe")
 
 
+def process_status(pid):
+    """'alive' / 'gone' / 'unknown' —— 与 internal/launcher 的 PidStatus 同一套判据。
+
+    只有平台**明确**回答「没有这个进程」才回 'gone'；权限不足或问不出来一律 'unknown'
+    （保守：宁可让业主多等 60 秒 TTL，也不能把活着的 GM 的锁删掉，那会让两个写者同时进）。"""
+    try:
+        pid = int(pid)
+    except (TypeError, ValueError):
+        return 'unknown'
+    if os.name == 'nt':
+        try:
+            result = subprocess.run(
+                ['tasklist', '/FI', f'PID eq {pid}', '/NH'],
+                capture_output=True, text=True, timeout=15, creationflags=FLAGS,
+            )
+        except Exception:
+            return 'unknown'
+        out = result.stdout or ''
+        # 进程存在时它的 PID 一定出现在输出里；不存在时 tasklist 只打印一句提示（本地化）。
+        return 'alive' if str(pid) in out else 'gone'
+    try:
+        os.kill(pid, 0)
+        return 'alive'
+    except ProcessLookupError:
+        return 'gone'
+    except PermissionError:
+        return 'unknown'
+    except OSError:
+        return 'unknown'
+
+
+def clear_stale_admin_lease(cfg):
+    """停服后清掉「持有者已不存在」的 SQLite 管理租约。
+
+    症状与判据见 internal/launcher/adminlease.go：强杀服务端会留下租约，TTL 60 秒内
+    新服务端一律被拒（2026-10-05 实机「已有 GM 写入正在进行…由进程 13248 持有」）。"""
+    if storage_profile.storage_driver(cfg) != 'sqlite':
+        return
+    path = str(cfg.get('sqlite_path', '') or '').strip()
+    if not path:
+        return
+    lease = path + '.admin-guard'
+    if not os.path.exists(lease):
+        return
+    try:
+        raw = pathlib.Path(lease).read_text(encoding='utf-8', errors='replace').strip()
+    except OSError as exc:
+        print(f"Admin lease kept: cannot read {lease}: {exc}", file=sys.stderr)
+        return
+    if not raw.isdigit():
+        print(f"Admin lease kept: {lease} records no holder pid; retry after the 60s TTL "
+              "or run scripts\\storage-route.cmd clear-guard")
+        return
+    status = process_status(raw)
+    if status == 'gone':
+        try:
+            os.remove(lease)
+            print(f"Cleared stale SQLite admin lease (holder pid {raw} is gone): {lease}")
+        except OSError as exc:
+            print(f"Admin lease kept: cannot remove {lease}: {exc}", file=sys.stderr)
+    elif status == 'alive':
+        print(f"Admin lease kept: {lease} holder pid {raw} is still running (a GM may be writing)")
+    else:
+        print(f"Admin lease kept: cannot tell whether holder pid {raw} is alive ({lease})")
+
+
 def main():
     print("=== Stopping DFO 115us Environment ===")
     cfg = load_storage_config()
@@ -128,6 +195,7 @@ def main():
     stop_wireprobe()
 
     stop_postgres(cfg)
+    clear_stale_admin_lease(cfg)
 
     # Double check port states
     pg_ok = not listening("127.0.0.1", 25438)

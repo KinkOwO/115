@@ -259,11 +259,14 @@ function Clear-AdminGuard() {
     $pidText = if ($holder) { $holder.Trim() } else { '' }
     $age = (Get-Date) - (Get-Item -LiteralPath $lease).LastWriteTime
     Write-Host ("[租约] {0}`n        持有者 pid={1}；最近续租 {2:N0} 秒前" -f $lease, $(if ($pidText) { $pidText } else { '(空)' }), $age.TotalSeconds)
-    if ($pidText -match '^\d+$') {
-        $live = Get-Process -Id ([int]$pidText) -ErrorAction SilentlyContinue
-        if ($live) {
-            throw ("持有者 pid {0}（{1}）仍在运行，可能正在写存档：拒绝删除租约。确认它已退出（或等 60 秒 TTL）后再试。" -f $pidText, $live.ProcessName)
-        }
+    if ($pidText -notmatch '^\d+$') {
+        # 读不出 pid（空文件/内容异常）不删：那也可能是持有者刚创建、还没写 pid 的瞬间，
+        # 删了会让两个写者同时进。等 TTL，或由业主确认后手工删除。
+        throw ("租约里没有可用的 pid（内容 '{0}'）：不自动删除。等 60 秒 TTL 后再试，或确认无人写入后手工删除 {1}" -f $pidText, $lease)
+    }
+    $live = Get-Process -Id ([int]$pidText) -ErrorAction SilentlyContinue
+    if ($live) {
+        throw ("持有者 pid {0}（{1}）仍在运行，可能正在写存档：拒绝删除租约。确认它已退出（或等 60 秒 TTL）后再试。" -f $pidText, $live.ProcessName)
     }
     Remove-Item -LiteralPath $lease -Force
     Write-Host '[完成] 已删除过期管理租约（记录的进程已不存在），现在可以启动服务端了。' -ForegroundColor Green

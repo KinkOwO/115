@@ -75,9 +75,9 @@ const (
 // Action is one planned step. Keeping them as data (rather than executing inline) is
 // what lets --dry-run show exactly what a real run would do.
 type Action struct {
-	Kind   string // "kill" | "pg-stop" | "pg-force"
+	Kind   string // "kill" | "pg-stop" | "pg-force" | "lease-clear"
 	Target string
-	Path   string // pg-stop: the data directory to stop
+	Path   string // pg-stop: the data directory to stop; lease-clear: the lease file
 	Detail string
 }
 
@@ -97,6 +97,20 @@ func StopPlan(cfg StorageConfig) ([]Action, error) {
 		plan = append(plan, Action{Kind: "kill", Target: image, Detail: "game server or probe process"})
 	}
 	if cfg.DriverName() != "postgres" {
+		// Last, and only after the kills above: a forced stop leaves the SQLite admin
+		// lease behind, and the next start is refused until its 60s TTL runs out. If a
+		// lease is present, plan to clear it once we know its recorded holder is gone
+		// (see adminlease.go - the executor re-checks at run time, because a clean
+		// shutdown may already have removed it).
+		if path, applicable := AdminLeasePath(cfg); applicable {
+			if _, err := os.Stat(path); err == nil {
+				plan = append(plan, Action{
+					Kind:   "lease-clear",
+					Path:   path,
+					Detail: "clear the SQLite admin lease if its recorded holder is gone",
+				})
+			}
+		}
 		return plan, nil
 	}
 
@@ -176,6 +190,24 @@ func Stop(ctx context.Context, cfg StorageConfig, dryRun bool, logf func(string,
 				}
 				logf("port %d still open, force-terminating %s", PostgresPort, action.Target)
 				killByImage(ctx, action.Target)
+			}
+		case "lease-clear":
+			// Re-inspected here rather than trusting the plan: the server may have shut
+			// down cleanly during the kills above and removed its own lease already.
+			state, present, err := InspectAdminLease(cfg)
+			if err != nil {
+				logf("admin lease: %v", err)
+				continue
+			}
+			if !present {
+				continue
+			}
+			if dryRun {
+				logf("would clear %s if holder pid %d is gone (lease age %s)", state.Path, state.Pid, state.Age.Round(time.Second))
+				continue
+			}
+			if _, _, err := ClearStaleAdminLease(cfg, logf); err != nil {
+				logf("admin lease: %v", err)
 			}
 		}
 		report.Executed = append(report.Executed, action)
