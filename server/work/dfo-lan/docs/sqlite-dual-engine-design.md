@@ -7,7 +7,7 @@
   `scripts/Generate-SQL.ps1` 多引擎改造（§4.2 B2）；sqlc 双引擎 spike → **判定 A 路径**（§4.5）。
 - 仍在 S0：契约/ADR 措辞收口（§8 S0 ⑤）、以及业主对 §11 小项的确认。
 日期：2026-10-04
-上位文档：[mod-sqlite-redis-minimal-plan.md](mod-sqlite-redis-minimal-plan.md)（四目标总交接，本文只覆盖其目标 ②）
+上位文档：`mod-sqlite-redis-minimal-plan.md`（2026-10-05 已删除）（四目标总交接，本文只覆盖其目标 ②）
 规则真源：[architecture-contract.md](architecture-contract.md)、[architecture.md](architecture.md) ADR-002、根 `AGENTS.md`
 
 ---
@@ -23,7 +23,7 @@
 
 被本轮推翻的既有表述（已就地登记，需随 S1 一并修订）：
 `docs/architecture.md:26-27` 引用的 `database-dual-engine-plan.md` **已在上轮删除**（悬空链接，本轮修正）；
-`docs/database-sqlc-migration.md:74`「不提前引入双引擎接口」与 `:260`「当前不提供双引擎支持」。
+`docs/database-sqlc-migration.md（2026-10-05 已删除）:74`「不提前引入双引擎接口」与 `:260`「当前不提供双引擎支持」。
 
 **本轮验证边界**：仅文档与取证。未运行服务、未访问玩家库（25438）、未启动客户端、未触碰 `runtime/storage/**`。
 
@@ -521,7 +521,7 @@ file:<path>?_txlock=immediate
 | `scripts/stop_environment.py:67-99,112-117` | `pg_ctl stop -m fast` 做 checkpoint；25438 仍开则 `taskkill postgres.exe` | 改为 `Close` 时 `PRAGMA wal_checkpoint(TRUNCATE)` |
 | `build-publish.ps1:43-49,67` | 发布包**拷贝 `tools/pg`** 并断言 `initdb.exe` 存在 | 按驱动决定是否打包 PG——**这正是"环境最小化"的收益点** |
 
-另：**测试库 25439 在已提交脚本中并不存在**（仅见于 `docs/database-sqlc-migration.md:115,127` 与上轮交接文档），
+另：**测试库 25439 在已提交脚本中并不存在**（仅见于 `docs/database-sqlc-migration.md（2026-10-05 已删除）:115,127` 与上轮交接文档），
 无可复用测试集群；SQLite 路线下改为**每测试一个临时数据库文件**（§7.1）。
 
 ### 5.5 构建 / CI 事实
@@ -688,7 +688,7 @@ S1/S2 的"行为零变化"判据 = **同一批 PG 集成测试在改动前后同
 ## 附录 A：S1 契约清单（接口名 → 方法 → 调用点）
 
 完整逐方法清单（每个方法的源文件 `file:line` + 包外调用点数）见配套取证文档
-**[s1-store-interface-extraction-input.md](s1-store-interface-extraction-input.md)**（459 行）。本附录给摘要与结论。
+**`s1-store-interface-extraction-input.md`（2026-10-05 已删除）**（459 行）。本附录给摘要与结论。
 
 **规模**：202 个导出方法 / 61 个非测试文件（58 个含方法）/ 8 个未导出方法 / 3 个 `*Tx` 导出方法。
 其中 **165 个**归入 §A.1 的 35 个候选接口，**37 个**是迁移与 DDL 面（§A.2）。
@@ -762,7 +762,7 @@ S1/S2 的"行为零变化"判据 = **同一批 PG 集成测试在改动前后同
 - 测试夹具：`internal/database/fixture.go:33-84,143-156`
 - 生成门禁：`scripts/Generate-SQL.ps1:6-9,20-22`；`server/Build-Server.ps1:7-9`；`sqlc.yaml:1-26`
 - 架构文档：`docs/architecture.md:22-29`（ADR-002）、`docs/architecture-contract.md:38-51,144-167`、
-  `docs/database-sqlc-migration.md:69-83,260`
+  `docs/database-sqlc-migration.md（2026-10-05 已删除）:69-83,260`
 
 **外部权威（本轮实测）**
 - [sqlc v1.31.1 配置文档](https://docs.sqlc.dev/en/v1.31.1/reference/config.html)（`engine: sqlite`、

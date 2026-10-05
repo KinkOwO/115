@@ -23,7 +23,7 @@ flowchart LR
 
 > ⚠️ **2026-10-04 业主改口（登记，待实施）**：业主明确要求 **PostgreSQL + SQLite 双引擎**。
 > 本节末句"SQLite 适合工具与小型单机，这里不作为多人服主库"与
-> `docs/database-sqlc-migration.md` 的"不提前引入双引擎接口"**均被推翻**，
+> `docs/database-sqlc-migration.md（2026-10-05 已删除）` 的"不提前引入双引擎接口"**均被推翻**，
 > 实施计划见 [database-dual-engine-plan.md](database-dual-engine-plan.md)（S1 抽接口缝 → S5 分叉控制）。
 > 定性保留：**默认引擎仍是 PostgreSQL**；SQLite 用于单机/工具，不做多人服主库（单写者）。
 > 新会话在开工 S1 时须一并修订本节与 sqlc 文档，避免代码与文档互相矛盾。
