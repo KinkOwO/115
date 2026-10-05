@@ -93,6 +93,18 @@ scripts\storage-route.cmd selftest             # 自检（临时目录里跑，�
   （`启动游戏.cmd` / `启动服务端.cmd`）都在 BOM 的 `storage-route.ps1` 里。原因是实测的 cmd 解析坑：
   UTF-8 中文进执行行（尤其 `-File "scripts\<中文>.ps1"`）或裸 LF 行尾，会被 cmd 按控制台代码页拆成
   乱码命令（`'hell' is not recognized ...`），整条启动链误判失败。规则与证据见根 `AGENTS.md` §0.4.2。
+- **PG 路线的起库预检有上限、有进度，而且不再会「卡住」**（2026-10-05 实机：
+  PG 日志已 `database system is ready to accept connections`，控制台却停在「拉起 PostgreSQL」，
+  最后只能 Ctrl+C）。根因是 Windows 上 `pg_ctl start` 会留一个 `cmd.exe` 包装器当 postgres 的父进程，
+  它**继承调用者的 stdout/stderr**：任何「把子进程输出接成管道再等 EOF」或「共享控制台再等它」的
+  写法都会一直等下去。现在：
+  * `storage-route.ps1` 用 **WMI 创建进程**（`Win32_Process.Create` 不继承调用者句柄）+ 命令行内部
+    重定向到 `runtime\storage\pg-ctl.out.log` / `postgres.log`，**只轮询端口**判断就绪
+    （每 5 秒报一次进度，上限 60 秒）；数据目录里 pid 已死的 `postmaster.pid` 会先被清掉并打印。
+  * Go 侧 `internal/launcher.StartStorage` 不再用 `CombinedOutput()`（管道），改成把子进程输出写进
+    日志文件的 `Run()` 并同样以端口为判据。
+  * 独立入口：`scripts\storage-route.cmd preflight-postgres` 只做起库预检，不开游戏。
+    实测：PG 已停 → 预检 **3.1 秒返回、PG 1.9 秒就绪**（此前同一操作永不返回）。
 
 ## 2. 首次在 SQLite 上启动
 

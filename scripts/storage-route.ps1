@@ -422,6 +422,110 @@ function Invoke-SelfTest() {
     }
 }
 
+# PostgreSQL 起库预检：有上限、有进度，绝不静默等待。
+#
+# 现场（2026-10-05 11:56）：业主双击 PostgreSQL 路线入口，PG 日志已到
+# `database system is ready to accept connections`，但控制台停在「检查并拉起 PostgreSQL…」
+# 没有任何后续输出，业主等了一分钟按 Ctrl+C（PG 日志留下 `received fast shutdown request` +
+# `^C`，0xC000013A），数据目录里留下一个 pid 已死的 postmaster.pid。
+#
+# 所以这里做三件事：
+#   1. 端口已经开着 ⇒ 直接跳过起库（最常见的情形，秒过）；
+#   2. 数据目录里有**残留锁文件**（postmaster.pid 的 pid 已不存在）⇒ 先清掉再说，
+#      并打印它清掉了什么（PG 自己也会清，但先清掉能让起库不再卡在那一步）；
+#   3. 起库调用**有上限**（默认 60 秒）并且每秒打印一次进度；超时就终止它、打印该怎么查，
+#      然后继续交给统一入口——启动器自己还会再试一次，不让入口卡住。
+function Get-PostmasterPid([string]$dataDir) {
+    $pidFile = Join-Path $dataDir 'postmaster.pid'
+    if (-not (Test-Path -LiteralPath $pidFile)) { return 0 }
+    $first = Get-Content -LiteralPath $pidFile -TotalCount 1 -ErrorAction SilentlyContinue
+    if ($first -and $first.Trim() -match '^\d+$') { return [int]$first.Trim() }
+    return 0
+}
+
+function Clear-StalePostmasterLock([string]$dataDir) {
+    $holder = Get-PostmasterPid $dataDir
+    if ($holder -le 0) { return }
+    if (Get-Process -Id $holder -ErrorAction SilentlyContinue) {
+        Write-Host ("[存储] 数据目录的 postmaster.pid 记录着 pid {0}（进程仍在）——不动它。" -f $holder) -ForegroundColor DarkGray
+        return
+    }
+    $pidFile = Join-Path $dataDir 'postmaster.pid'
+    try {
+        Remove-Item -LiteralPath $pidFile -Force
+        Write-Host ("[存储] 清掉残留锁文件 postmaster.pid（记录的 pid {0} 已不存在）：{1}" -f $holder, $pidFile) -ForegroundColor Yellow
+    }
+    catch {
+        Write-Host ("[存储] 残留锁文件删不掉（{0}）：继续起库，PG 会自己处理。" -f $_.Exception.Message) -ForegroundColor Yellow
+    }
+}
+
+function Start-PostgresBounded([int]$timeoutSeconds) {
+    if (Test-Port '127.0.0.1' 25438) {
+        Write-Host '[存储] PostgreSQL 已在监听 25438，跳过起库。' -ForegroundColor Green
+        return
+    }
+    $cfg = ConvertTo-OrderedTable (Read-JsonFile $PostgresRouteFile)
+    $dataDir = ([string]$cfg['postgres_data']).Trim()
+    $binDir = ([string]$cfg['postgres_bin']).Trim()
+    if ($dataDir) { Clear-StalePostmasterLock $dataDir }
+    if (-not $binDir) {
+        Write-Host '[存储] PG 路线档缺少 postgres_bin，跳过预检起库（交给统一入口处理）。' -ForegroundColor Yellow
+        return
+    }
+    $pgCtl = Join-Path $binDir 'pg_ctl.exe'
+    if (-not (Test-Path -LiteralPath $pgCtl) -or -not (Test-Path -LiteralPath (Join-Path $dataDir 'PG_VERSION'))) {
+        Write-Host ("[存储] pg_ctl 或数据目录不可用（{0} / {1}），跳过预检起库。" -f $pgCtl, $dataDir) -ForegroundColor Yellow
+        return
+    }
+
+    # 直接用 pg_ctl 起库，但**必须让它彻底脱离我们的句柄**，而且不等待它。
+    #
+    # 为什么（2026-10-05 实机「PG 日志已 ready、控制台却卡在拉起 PostgreSQL」，本机逐步复现）：
+    # Windows 上 `pg_ctl start` 会留一个 cmd.exe 包装器当 postgres 的父进程，它继承调用者的
+    # stdout/stderr；于是任何「把子进程输出接成管道再等 EOF」或「共享控制台再等它」的写法都会
+    # 一直等下去——PG 早就 ready，调用方永远不返回。实测这三种写法都卡：
+    #   * Go 的 cmd.CombinedOutput()（internal/launcher/storage.go，已改成写文件的 Run）；
+    #   * PowerShell `& pg_ctl ...`（同步等待 + 共享控制台）；
+    #   * PowerShell 5.1 的 Start-Process -RedirectStandard*（退出时要收尾那些重定向流）。
+    # 可靠写法：**用 WMI 创建进程**（Win32_Process.Create 不继承调用者句柄），命令行内部自己
+    # 重定向 `< NUL >> ctl.log 2>&1`（包装器继承到的是文件），然后**只轮询端口**判断就绪。
+    $logPath = Join-Path $StorageDir 'postgres.log'
+    $ctlOut = Join-Path $StorageDir 'pg-ctl.out.log'
+    $wait = [Math]::Min([Math]::Max($timeoutSeconds, 10), 60)
+    Write-Host ("[存储] 起库：pg_ctl start -w -t {0}（PG 日志 {1}；pg_ctl 输出 {2}）…" -f $wait, $logPath, $ctlOut) -ForegroundColor Cyan
+    $line = 'cmd /c ""{0}" start -D "{1}" -l "{2}" -w -t {3} < NUL >> "{4}" 2>&1"' -f $pgCtl, $dataDir, $logPath, $wait, $ctlOut
+    $sw = [System.Diagnostics.Stopwatch]::StartNew()
+    $created = $null
+    try {
+        $created = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{ CommandLine = $line } -ErrorAction Stop
+    }
+    catch {
+        Write-Host ("[存储] 经 WMI 拉起 pg_ctl 失败（{0}），交给统一入口处理。" -f $_.Exception.Message) -ForegroundColor Yellow
+        return
+    }
+    if ($null -eq $created -or $created.ReturnValue -ne 0) {
+        Write-Host ("[存储] 经 WMI 拉起 pg_ctl 失败（ReturnValue={0}），交给统一入口处理。" -f $created.ReturnValue) -ForegroundColor Yellow
+        return
+    }
+
+    $waited = 0
+    while ($waited -lt $wait) {
+        if (Test-Port '127.0.0.1' 25438) { break }
+        Start-Sleep -Seconds 1
+        $waited++
+        if ($waited % 5 -eq 0) { Write-Host ("      … 起库中：{0}/{1} 秒（{2}）" -f $waited, $wait, $logPath) -ForegroundColor DarkGray }
+    }
+    $elapsed = [math]::Round($sw.Elapsed.TotalSeconds, 1)
+
+    if (Test-Port '127.0.0.1' 25438) {
+        Write-Host ("[存储] PostgreSQL 已就绪（{0} 秒）。" -f $elapsed) -ForegroundColor Green
+        return
+    }
+    Write-Host ("[存储] 等了 {0} 秒 25438 仍未监听；交给统一入口处理。" -f $elapsed) -ForegroundColor Yellow
+    Write-Host ("        排查：{0}、数据目录里的 postmaster.pid，或先跑 scripts\停止游戏环境.cmd。" -f $logPath) -ForegroundColor Yellow
+}
+
 # 切换路线后，把控制权交给统一入口（提权、探针、客户端编排都在那里）。
 # 中文文件名只出现在**本文件**里：PowerShell 按 UTF-8 BOM 正确解码，而 .cmd 的执行行
 # 保持纯 ASCII（cmd.exe 用控制台代码页解码批处理文本，UTF-8 中文进执行行会破坏解析，
@@ -429,13 +533,7 @@ function Invoke-SelfTest() {
 function Invoke-Entry([string]$route, [string]$entry, [string[]]$extra) {
     Use-Route $route
     if ($route -eq 'postgres') {
-        # 起库：Go 启动器的 start-storage 按 driver 分叉，SQLite 档下它是空操作。
-        # 失败不阻断——统一入口还会自己处理并给出更具体的错误。
-        $launcher = Join-Path $RepoRoot 'server\work\dfo-lan\bin\dfolauncher.exe'
-        if (Test-Path -LiteralPath $launcher) {
-            Write-Host '[存储] 检查并拉起 PostgreSQL...' -ForegroundColor Cyan
-            & $launcher start-storage --root $RepoRoot
-        }
+        Start-PostgresBounded 60
     }
     $target = Join-Path $PSScriptRoot $entry
     if (-not (Test-Path -LiteralPath $target)) { throw "找不到统一入口：$target" }
@@ -461,6 +559,7 @@ function Show-Help() {
     Write-Host '    scripts\storage-route.cmd show              当前路线 / 连的是哪个库'
     Write-Host '    scripts\storage-route.cmd use sqlite|postgres'
     Write-Host '    scripts\storage-route.cmd stop-postgres     停掉 pgdata 上的 PostgreSQL'
+    Write-Host '    scripts\storage-route.cmd preflight-postgres 只做起库预检（清残留锁 + 有上限地拉起 PG）'
     Write-Host '    scripts\storage-route.cmd clear-guard        清理过期 SQLite 管理租约（上次会话被强杀后起不来时用）'
     Write-Host '    scripts\storage-route.cmd selftest          自检（临时目录，不碰真实配置）'
     Write-Host ''
@@ -477,6 +576,7 @@ try {
             Use-Route $Rest[1]
         }
         'stop-postgres' { Stop-Postgres }
+        'preflight-postgres' { Start-PostgresBounded 60 }
         'clear-guard' { Clear-AdminGuard }
         'selftest' {
             if (-not (Invoke-SelfTest)) { exit 1 }

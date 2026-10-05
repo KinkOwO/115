@@ -82,6 +82,16 @@
 - 没走过停止链（崩溃）时手动清一次：`scripts\storage-route.cmd clear-guard`（同一套判据）。
 - 租约里读不出 pid（空文件/内容异常）时两条路都不删——等 TTL，或由你确认后手工删除。
 
+#### PG 路线起库不再「卡住」（2026-10-05）
+
+- 实机症状：PG 日志已 `ready to accept connections`，控制台却停在「拉起 PostgreSQL」，只能 Ctrl+C。
+- 根因：Windows 上 `pg_ctl start` 留一个 `cmd.exe` 包装器当 postgres 的父进程，**继承调用者的
+  stdout/stderr**；用管道等它（Go `CombinedOutput`）或共享控制台等它（PowerShell `&`）都会永远等下去。
+- 现在的写法：`storage-route.ps1` 用 **WMI 创建进程**（不继承调用者句柄）+ 命令行内部重定向到
+  `runtime\storage\pg-ctl.out.log`，**只轮询端口**（上限 60 秒、每 5 秒报进度）；Go 侧改成写文件的
+  `Run()`。单独试：`scripts\storage-route.cmd preflight-postgres`（实测 3.1 秒返回、1.9 秒就绪）。
+- 数据目录里 pid 已死的 `postmaster.pid` 会被先清掉并打印；pid 还活着则不动。
+
 ## 子目录
 
 - `local-fixes/` —— 仓库级的一次性修复/移植脚本（2026-10-03 入库，内含 README）。
