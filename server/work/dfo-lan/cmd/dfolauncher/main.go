@@ -29,6 +29,8 @@ func main() {
 		os.Exit(runLaunch(os.Args[2:]))
 	case "start-storage":
 		os.Exit(runStartStorage(os.Args[2:]))
+	case "init-storage":
+		os.Exit(runInitStorage(os.Args[2:]))
 	case "prepare-inner-pvf":
 		os.Exit(runPrepareInnerPVF(os.Args[2:]))
 	case hostClientSubcommand:
@@ -84,6 +86,7 @@ func usage() {
 Usage:
   dfolauncher stop  [--root <path>] [--dry-run]
   dfolauncher start-storage [--root <path>] [--dry-run]
+  dfolauncher init-storage [--root <path>] [--postgres-bin <dir>] [--postgres-port <int>] [--dry-run]
   dfolauncher prepare-inner-pvf [--root <path>] [--client <dir>] [--force] [--dry-run]
   dfolauncher check [--root <path>] [--server-only|--client-only] [--source-build] [--json-mode]
   dfolauncher launch --check|--dry-run [--root <path>]
@@ -100,6 +103,12 @@ Flags:
   --force     rebuild even when the four-state gate would reuse the archive
   --dry-run   print every action without performing it
   --tag       pin the session tag (default: built from the clock)
+
+init-storage is the first-run storage bootstrap: it is scripts/bootstrap_local.py in Go
+(initdb with a fresh random password + pg_ctl start + createdb + runtime/storage/local.json),
+which is why the launch chain no longer needs Python at all. --postgres-bin defaults to the
+bundled portable PostgreSQL (tools/pg/pgsql/bin, or $DFO_TOOLS); --dry-run prints the steps
+without writing anything or starting a process.
 
 prepare-inner-pvf is Stage 4 of docs/go-launch-migration-plan.md: it replaces
 scripts/ensure_inner_pvf.py + scripts/prepare_inner_pvf.py with the Go generator in
