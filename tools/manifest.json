@@ -15,9 +15,9 @@
     {
       "name": "gopath-mod",
       "url": "tools/tools-gopath-mod.zip",
-      "size": 132648303,
-      "sha256": "133720978a20dae5087a14c0504478f3d315beeeaad819b5869b15294826d683",
-      "files": 12457,
+      "size": 28881300,
+      "sha256": "9f6e74ce504dfb43f38b14ded6e98fce5543d652d5cfc1193f45f081c87ec917",
+      "files": 2307,
       "check": "tools/gopath/pkg/mod",
       "note": "服务端编译依赖缓存（Go module cache，离线可编译）",
       "target": "tools"
@@ -55,9 +55,9 @@
             {
       "name": "server-bin",
       "url": "tools/tools-server-bin.zip",
-      "size": 23063870,
-      "sha256": "3e696b057bbbffddd4a256994c2d92dbf0336d93a2388534a5cfab1ea54ba0aa",
-      "files": 3,
+      "size": 23960838,
+      "sha256": "e1b63235609fb5c64e86b4ebae63f37c19010665326f53c632c232fedebac75d",
+      "files": 84,
       "check": "server/work/dfo-lan/bin/wireprobe-pvf.exe",
       "note": "预编译服务端程序（wireprobe-pvf.exe）+ Go 会话编排 CLI（dfolauncher.exe：launch/stop/check/start-storage/init-storage/prepare-inner-pvf/--host-client）+ 网络隔离探针（dfo_probe_tools/probe.exe）；有了它就不必在本机编译服务端，**且全程不需要 Python**（会话编排、内层 PVF 生成、存储初始化都由这个 CLI 完成）",
       "target": "server"
