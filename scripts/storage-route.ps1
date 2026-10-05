@@ -404,7 +404,7 @@ function Invoke-SelfTest() {
             if ($scope -and ($scoped[0].Args -notcontains '--server-only')) { throw 'server-only 变体没有把 --server-only 传给启动器' }
             $checks++
         }
-        if ($GoLauncherEnvRequireIsolation -ne 'DFO_REQUIRE_GO_ISOLATION') { throw '强制 Go 隔离的环境变量名写错了' }
+        # （原先这里断言「强制 Go 隔离的环境变量名」，该强制已按业主 2026-10-05 要求去掉）
         $checks++
 
         # 7. 管理租约自愈：记录的 pid 不存在 ⇒ 删掉；记录的 pid 就是本进程 ⇒ 必须拒绝。
@@ -552,10 +552,10 @@ function Start-PostgresBounded([int]$timeoutSeconds) {
 #   * 存储（SQLite 文件 / PostgreSQL 实例）：Go 的 storage 路径
 #   * 内层 PVF：Go 的 innerpvf 路径
 #   * 网关（含 session fixture、run.json、就绪轮询）：Go 的 serverrun/gateway/fixture 路径
-#   * 客户端：Go 宿主 + Go WFP 隔离（clienthost），并强制 `DFO_REQUIRE_GO_ISOLATION=1`
+#   * 客户端：Go 宿主 + Go WFP 隔离（clienthost）；隔离装不上时宿主按“无隔离继续”，不设强制开关
 #     —— 隔离装不上就**报错停下**，不再静默回退 probe.exe。
 # 缺二进制时直接失败并说明怎么构建，绝不改用别的解释器或别的启动器。
-$GoLauncherEnvRequireIsolation = 'DFO_REQUIRE_GO_ISOLATION'
+# 注：不再有「强制 Go 隔离」的环境变量（2026-10-05 去掉，见 Invoke-FullChain 里的说明）。
 
 function Get-GoLauncherPath() {
     return (Join-Path $RepoRoot 'server\work\dfo-lan\bin\dfolauncher.exe')
@@ -584,7 +584,7 @@ function Show-ChainInfo() {
         return
     }
     Write-Host ("  {0} launch [--server-only]" -f $candidates[0].Path)
-    Write-Host ("  强制 Go：{0}=1（Go 隔离不可用时直接报错，不回退 probe.exe）" -f $GoLauncherEnvRequireIsolation) -ForegroundColor DarkGray
+    Write-Host "  启动链：只有仓库内 Go 启动器这一条（无 Python、无外部启动器、无 probe.exe 回退）" -ForegroundColor DarkGray
 }
 
 function Invoke-FullChain([string]$route, [string]$scope, [string[]]$extra) {
@@ -601,10 +601,10 @@ function Invoke-FullChain([string]$route, [string]$scope, [string[]]$extra) {
     Write-Host ''
     Write-Host ("[启动] 仓库内 Go 启动器（{0} 路线{1}）" -f $route, $(if ($scope) { '，只起服务端' } else { '' })) -ForegroundColor Cyan
     Write-Host ("       {0} {1}" -f $chosen.Path, ($all -join ' '))
-    # 「不要再回退了，必须 Go 成功」：强制 Go 客户端宿主 + Go WFP 隔离；
-    # 隔离装不上时 clientrun.go 会**报错停下**，不会静默改用 probe.exe。
-    $env:DFO_REQUIRE_GO_ISOLATION = '1'
-    Write-Host ("       环境：{0}=1（Go 隔离不可用就报错，不回退）" -f $GoLauncherEnvRequireIsolation) -ForegroundColor DarkGray
+    # 启动链**只有 Go 一条**（上面 Get-FullChainCandidates 里没有别的候选，也没有 probe.exe 回退）。
+    # 这里不再强制 DFO_REQUIRE_GO_ISOLATION=1（那是我 2026-10-05 加的）：本机 Go WFP 隔离装不上
+    # （FwpmFilterAdd0 → 0x539），强制它只会让每次启动都多跑一遍注定失败的隔离安装，还平白多了
+    # 「隔离不可用就拒绝启动」的风险。隔离装不上时宿主本来就按“无隔离继续”跑，链条本身没变。
     Set-Location $RepoRoot
     # 启动器输出：窗口显示 + 追加进 UTF-8 日志（自己写，不用 Tee-Object——PS 5.1 的
     # Tee-Object 默认写 UTF-16，父进程按 UTF-8 读会全是乱码）。
@@ -687,13 +687,15 @@ function Invoke-ElevatedSelf([string]$verb, [string[]]$rest) {
     # 它的输出由本窗口跟随日志文件显示。
     $proc = Start-Process -FilePath 'powershell.exe' -ArgumentList $elevatedArgs -Verb RunAs `
         -WindowStyle Hidden -PassThru -ErrorAction Stop
-    $seen = 0
+    # 跟随日志用**字节偏移**（只读新增部分）。上一版每次 400ms 重读整个文件，
+    # 启动期日志会长到几十 KB，属于我自己加的浪费（业主要求「启动要快」）。
+    $offset = 0
     while (-not $proc.HasExited) {
-        $seen = Show-NewEntryLogLines $logPath $seen
+        $offset = Show-NewEntryLogBytes $logPath $offset
         Start-Sleep -Milliseconds 400
     }
-    $seen = Show-NewEntryLogLines $logPath $seen
-    if ($proc.ExitCode -ne 0 -and $seen -eq 0) {
+    $offset = Show-NewEntryLogBytes $logPath $offset
+    if ($proc.ExitCode -ne 0 -and $offset -eq 0) {
         Write-Host '[提示] 子进程失败但没写出日志（可能在最早的初始化阶段就退出）。' -ForegroundColor Yellow
         Write-Host '       请在**管理员** PowerShell 里手动跑一次以看到原文：' -ForegroundColor Yellow
         Write-Host ("       powershell -NoProfile -ExecutionPolicy Bypass -File `"{0}`" {1}" -f $PSCommandPath, $verb) -ForegroundColor Yellow
@@ -718,23 +720,35 @@ function Reset-EntryLog([string]$verb) {
     catch { Write-Host ("[提示] 入口日志无法写入：{0}" -f $_.Exception.Message) -ForegroundColor Yellow }
 }
 
-# 跟随日志：只打印新增行。**必须用共享读**（FileShare.ReadWrite）：
-# 子进程正在往同一个文件追加，若父进程独占读会把它的写入顶掉、让它抛异常退出（2026-10-05 踩到）。
-function Show-NewEntryLogLines([string]$path, [int]$seen) {
-    if (-not (Test-Path -LiteralPath $path)) { return $seen }
-    $lines = @()
+# 跟随日志：从 $offset 开始**只读新增字节**并打印完整行，返回新的偏移。
+# 两个必须点（都是 2026-10-05 实机踩出来的）：
+#   1. 共享读（FileShare.ReadWrite）：子进程正在往同一文件追加，父进程独占读会把它的写入顶掉；
+#   2. 只读增量：上一版每次轮询重读整个文件，启动期日志几十 KB，纯属浪费。
+function Show-NewEntryLogBytes([string]$path, [int]$offset) {
+    if (-not (Test-Path -LiteralPath $path)) { return $offset }
     try {
         $stream = [System.IO.FileStream]::new($path, [System.IO.FileMode]::Open,
             [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
-        $reader = [System.IO.StreamReader]::new($stream, $Utf8NoBom)
-        while ($null -ne ($line = $reader.ReadLine())) { $lines += $line }
-        $reader.Close()
-        $stream.Close()
+        try {
+            if ($stream.Length -le $offset) { return $offset }
+            $stream.Seek($offset, [System.IO.SeekOrigin]::Begin) | Out-Null
+            $count = [int]($stream.Length - $offset)
+            $buffer = New-Object byte[] $count
+            $read = $stream.Read($buffer, 0, $count)
+            if ($read -le 0) { return $offset }
+            $text = $Utf8NoBom.GetString($buffer, 0, $read)
+            # 只推进到最后一个换行：末尾可能是半行（下一次轮询补齐）。
+            $lastNewline = $text.LastIndexOf("`n")
+            if ($lastNewline -lt 0) { return $offset }
+            $complete = $text.Substring(0, $lastNewline)
+            foreach ($line in ($complete -split "`n")) {
+                Write-Host ($line.TrimEnd("`r"))
+            }
+            return ($offset + $Utf8NoBom.GetByteCount($text.Substring(0, $lastNewline + 1)))
+        }
+        finally { $stream.Close() }
     }
-    catch { return $seen }
-    if ($lines.Count -le $seen) { return $seen }
-    for ($i = $seen; $i -lt $lines.Count; $i++) { Write-Host $lines[$i] }
-    return $lines.Count
+    catch { return $offset }
 }
 
 function Write-EntryLog([string]$verb, [string]$text) {
