@@ -32,6 +32,47 @@
    只有 8 行 ASCII，路线切换、中文提示、调用中文名统一入口（`启动游戏.cmd` / `启动服务端.cmd`）
    全部在 `storage-route.ps1` 里（UTF-8 带 BOM）。
 
+### 各入口原本写在 `.cmd` 里的中文说明（现集中在此）
+
+`.cmd` 一律纯 ASCII 后，原先写在里面的中文注释与提示按入口搬到这里；
+**其余行为（环境变量、委托链、退出码）逐字未改**。
+
+#### `启动游戏.cmd` / `启动游戏-奥德赛.cmd`
+
+- 不再设置 `DFO_ODYSSEY_MODE`：游戏模式按**角色存档投影**（建号请求 `options[10]`，剧情 0 / 奥德赛 2），
+  与客户端自己读的 per-character 标记一致。
+- 需要整档强制时才用 `启动游戏-奥德赛.cmd`（`DFO_ODYSSEY_MODE=1`），或在启动器设置里选强制档。
+- 默认使用 `configs/pvf-default.json`；分别保留剧情 / 奥德赛模式，`--json-mode` 是显式回退。
+
+#### `启动服务端.cmd`（装备库 CMD2259 的三个开关，默认都不设）
+
+- `DFO_EQUIPMENT_CRAFT_WINDOW`：**默认 1** = 窗口 3937。若点「制作/变换」没进制作界面，
+  把 `rem set DFO_EQUIPMENT_CRAFT_WINDOW=0` 放开再启动，试窗口 2145。
+- `DFO_EQUIPMENT_CRAFT_EXECUTE_ON`：`confirm`（默认，同一次操作的第二次请求）/ `first`（第一次就执行，慎用）/ `never`。
+  若点了生成没有任何反应、日志也只有一条 2259，可放开 `rem ... =first`。
+- `DFO_EQUIPMENT_CRAFT_GENERATE_VARIANT`：生成应答的子分支字节（`payload[5]`）。**默认 1** = 只落成功标志、
+  不动窗口状态；设 0 = 强制 `setState` 到状态 3 —— 那个状态客户端自己不会进也没有出口，进去后
+  「切换材料」按钮会失灵（实机 2026-09-29 14:36）。一般不用动。
+
+#### `GM.cmd`
+
+- 中文用法横幅由 `scripts\gm.py help` 打印（Python 按 UTF-8 正确解码）；`GM.cmd` 只保留 ASCII 调度。
+- 引擎按 `runtime\storage\local.json` 的 `driver` 自动判定；读取走 `dfo-tool accountlist`（只读、引擎中立），
+  写操作走 `cmd/admin` 与 `dfo-tool setlevel`（单事务 + 幂等键 + 审计）；改等级按 PVF 累计经验阈值写
+  `experience = Thresholds[level-2]`，不改技能点。
+
+#### `配置环境.cmd`
+
+- 该文件此前是 **GBK 编码**（非 UTF-8，违反 §0.4.2），已重建为 UTF-8 无 BOM 的纯 ASCII 调度；
+  中文报告与提示由 `scripts\configure_env.py` 输出。
+
+#### `移除tools.cmd`
+
+- 移动而不是删除：只是把 `tools` 挪到仓库外，随时可用 `还原tools.cmd` 移回来。
+- 移走后：`检查环境.cmd` / `停止游戏环境.cmd` 仍可用（走 `bin\dfolauncher.exe`）；
+  `启动游戏.cmd` / `启动服务端.cmd` 仍需要 Python 编排（`channel_probe.py`），
+  先看 `docs/runtime-without-tools-plan.md`；PostgreSQL 档会失去便携 PG，SQLite 档不需要它。
+
 ## 子目录
 
 - `local-fixes/` —— 仓库级的一次性修复/移植脚本（2026-10-03 入库，内含 README）。

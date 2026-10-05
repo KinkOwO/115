@@ -159,10 +159,21 @@ try {
                     $needConfirm += [pscustomobject]@{ Path = $it.Path; Why = '新增顶层文件，根目录只保留白名单内容'; Clause = '§0.4.3 命名与落位' }
                 }
             }
-            # 服务端新增 cmd/<工具名> 目录（§0.4.1）
+            # 服务端新增 cmd/<工具名> **入口目录**（§0.4.1）。
+            # 判据是「这个入口目录是全新的」：已存在的入口里加文件（例如 cmd/dfolauncher 的
+            # 测试文件）不算新增入口——否则每加一个测试文件都会被当成开新入口而被拦下
+            # （2026-10-05 实测：cmd/dfolauncher/main_test.go 误报）。
             if ($p -match '^server/work/dfo-lan/cmd/([^/]+)/') {
-                if ($ALLOWED_CMD_ENTRIES -notcontains $Matches[1]) {
-                    $blocked += [pscustomobject]@{ Path = $it.Path; Why = "新增 cmd/$($Matches[1]) 入口；工具应进 internal/toolcmd/<name> 并由 cmd/dfo-tool 统一调用"; Clause = '§0.4.1 Go 落位' }
+                $entryName = $Matches[1]
+                if ($ALLOWED_CMD_ENTRIES -notcontains $entryName) {
+                    $prefix = "server/work/dfo-lan/cmd/$entryName/"
+                    $entryAlreadyTracked = $false
+                    foreach ($trackedPath in $tracked.Keys) {
+                        if ($trackedPath.StartsWith($prefix)) { $entryAlreadyTracked = $true; break }
+                    }
+                    if (-not $entryAlreadyTracked) {
+                        $blocked += [pscustomobject]@{ Path = $it.Path; Why = "新增 cmd/$entryName 入口；工具应进 internal/toolcmd/<name> 并由 cmd/dfo-tool 统一调用"; Clause = '§0.4.1 Go 落位' }
+                    }
                 }
             }
             # 服务端新增 configs/*.json（§0.4.1 + §0 铁律）
@@ -201,21 +212,26 @@ try {
                     }
                 }
                 else {
-                    # .cmd：BOM 会让首行 `@echo off` 解析失败；裸 LF 会让中文执行行被
-                    # cmd.exe 按控制台代码页解码后错位拆分，把乱码片段当命令执行
-                    # （2026-10-05 业主实机：`'hell' is not recognized`、`'�在' is not recognized`）。
+                    # .cmd：BOM 会让首行 `@echo off` 解析失败；裸 LF 会让中文被 cmd.exe 按控制台
+                    # 代码页解码后错位拆分，把乱码片段当命令执行（2026-10-05 业主实机：
+                    # `'hell' is not recognized`、`'�在' is not recognized`、`'强制时才用' is not recognized`
+                    # —— 最后一条来自 `rem` 行，所以判据是「整份 .cmd 不得有非 ASCII 字节」）。
                     $hasBom = ($raw.Length -ge 3 -and $raw[0] -eq 0xEF -and $raw[1] -eq 0xBB -and $raw[2] -eq 0xBF)
                     if ($hasBom) {
                         $blocked += [pscustomobject]@{ Path = $it.Path; Why = '.cmd 带 UTF-8 BOM：首行 `@echo off` 被 BOM 污染，脚本会带着一片解析错误继续跑（§0.4.2 要求 .cmd 不带 BOM）'; Clause = '§0.3.4 环境匹配' }
                     }
-                    $crlf = 0; $lone = 0
+                    $crlf = 0; $lone = 0; $nonAscii = 0
                     for ($i = 0; $i -lt $raw.Length; $i++) {
+                        if ($raw[$i] -gt 0x7F) { $nonAscii++ }
                         if ($raw[$i] -eq 10) { if ($i -gt 0 -and $raw[$i - 1] -eq 13) { $crlf++ } else { $lone++ } }
                     }
                     if ($lone -gt 0) {
-                        $why = if ($crlf -eq 0) { ".cmd 全部是裸 LF（共 $lone 行）：中文执行行会被 cmd 拆成乱码命令" }
-                        else { ".cmd 混用 CRLF/LF（裸 LF $lone 行）：cmd 按行解析批处理，混行尾同样会拆坏中文执行行" }
+                        $why = if ($crlf -eq 0) { ".cmd 全部是裸 LF（共 $lone 行）：cmd 按行解析会错位，把相邻行粘成一条" }
+                        else { ".cmd 混用 CRLF/LF（裸 LF $lone 行）：cmd 按行解析批处理，混行尾同样会拆坏中文行" }
                         $needConfirm += [pscustomobject]@{ Path = $it.Path; Why = $why; Clause = '§0.3.4 环境匹配' }
+                    }
+                    if ($nonAscii -gt 0) {
+                        $needConfirm += [pscustomobject]@{ Path = $it.Path; Why = ".cmd 含 $nonAscii 个非 ASCII 字节：cmd 用控制台代码页解码批处理文本，中文（连 rem 行也一样）会被拆成乱码命令执行；中文请放进带 BOM 的 .ps1 或 .py 打印"; Clause = '§0.3.4 环境匹配' }
                     }
                 }
             }

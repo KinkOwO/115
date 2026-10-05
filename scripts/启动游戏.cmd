@@ -11,14 +11,16 @@ if %errorlevel% neq 0 (
 )
 
 set DFO_SHOP_OPEN_ALL=1
-rem 不再设置 DFO_ODYSSEY_MODE：游戏模式按角色存档投影（建号请求 options[10]，
-rem 剧情 0 / 奥德赛 2），与客户端自己读的 per-character 标记一致。
-rem 需要整档强制时才用 启动游戏-奥德赛.cmd（=1），或在启动器设置里选强制档。
+rem Game mode comes from the per-character save projection (create request options[10]:
+rem story 0 / odyssey 2), which is what the client reads itself. DFO_ODYSSEY_MODE is
+rem deliberately not set here; force the whole profile with the Odyssey entry or the
+rem launcher setting. Chinese notes for this file live in scripts\README.md.
 set DFO_CONTRACT_PURCHASE_CRASH_FIX=1
 set DFO_MAX_ITEM_PERIOD=1
 set DFO_QUEST_VISIBLE_NPC_RELAX=1
 set DFO_QUEST_NPC_DISTANCE_MULTIPLIER=5
-rem 默认使用 configs/pvf-default.json；保留剧情模式，--json-mode 显式回退。
+rem Default profile: configs/pvf-default.json; story mode kept, --json-mode is the
+rem explicit legacy fallback.
 echo Starting DFO 115us Game Client and Server (PVF Direct + Scenario Mode)...
 rem Prefer the Go launcher: the session orchestration is Go, so this path needs no
 rem Python runtime. DFO_ROOT is explicit because the launcher sits beside the repository

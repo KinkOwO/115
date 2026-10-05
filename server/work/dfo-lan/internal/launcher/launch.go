@@ -50,6 +50,10 @@ type LaunchOptions struct {
 	JSONMode      bool
 	SourceBuild   bool
 	RepairProfile string
+	// Tag pins the session tag. The Python always built one from the clock, which makes a
+	// byte-for-byte comparison against its own output impossible; --tag exists for that
+	// comparison (and for reproducing a session) and is empty for a normal launch.
+	Tag string
 }
 
 // LaunchReport is everything launch --check / --dry-run reports, plus the raw material the
@@ -64,6 +68,9 @@ type LaunchReport struct {
 	ProfileEnv  map[string]string
 	Required    []string
 	Plan        []PlanStep
+	// ChannelIdentity is launcher.local.json's channel_identity. The real launch needs it:
+	// it decides both the DFO_CHANNEL_IDENTITY switch and the gateway's -channel-identity.
+	ChannelIdentity bool
 }
 
 // InnerPVFStatus is the read-only verdict of the four-state gate in
@@ -152,9 +159,11 @@ func LaunchPlan(root string, opts LaunchOptions) (LaunchReport, error) {
 	}
 	// The Python checked the type before it read anything else out of the settings file.
 	if settings.ChannelIdentity != nil {
-		if _, err := jsonBoolean(settings.ChannelIdentity); err != nil {
+		identity, err := jsonBoolean(settings.ChannelIdentity)
+		if err != nil {
 			return report, err
 		}
+		report.ChannelIdentity = identity
 	}
 	if settings.ClientDir == nil || *settings.ClientDir == "" {
 		return report, fmt.Errorf("launcher.local.json must set client_dir")
@@ -680,10 +689,8 @@ type planInput struct {
 // started storage (launch_local.py L233 vs L257), it just never printed a plan.
 func launchPlanSteps(in planInput) ([]PlanStep, error) {
 	// The tag launch_local.py builds; it names the session directory the gateway and the
-	// probe write into. The Python's strftime("%Y%m%d_%H%M%S_%f") has microsecond
-	// precision, which needs its own spec in Go: a bare "000000" in the layout is literal.
-	stamp := in.now.Format("20060102_150405") + "_" + fmt.Sprintf("%06d", in.now.Nanosecond()/1000)
-	tag := launcherTagPrefix + stamp + "_next37"
+	// probe write into. sessionTagName carries the strftime("%Y%m%d_%H%M%S_%f") detail.
+	tag := sessionTagName(in.now)
 	out := filepath.Join(in.module, "runtime", tag)
 
 	storage, err := storageStep(in)

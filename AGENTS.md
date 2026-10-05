@@ -137,13 +137,13 @@
   - `.ps1`：**UTF-8 带 BOM** + CRLF。Windows PowerShell 5.1 对无 BOM 的 `.ps1` 按 ANSI(GBK) 解码，中文注释会直接让脚本语法报错（`scripts/check-commit-hygiene.ps1` 就是带 BOM 的，改它时不要去掉 BOM）。
     **中文只放在 `.ps1` 里**：PowerShell 按 BOM 正确解码中文，`& "<中文名>.cmd"` 也按 UTF-16 正确处理。
   - `.cmd`：UTF-8 **不带 BOM** + CRLF + 首部 `chcp 65001`（BOM 会让 `@echo off` 那行异常）。
-    **执行行保持纯 ASCII**（中文只进 `rem`；需要中文提示就让带 BOM 的 `.ps1` 打印）。
-    2026-10-05 实测：`chcp 65001` 只对**其后被重新读取的行**生效，而裸 LF 会让 cmd 按行解析错位——
-    UTF-8 中文一旦落在**带引号的执行行**（`-File "scripts\中文名.ps1"`）或被行尾拆开，
-    cmd 会把乱码片段当命令执行，实测报 `'hell' is not recognized as an internal or external command`、
-    `'�在' is not recognized ...`，整条启动链被判失败。同一份脚本改成纯 ASCII 执行行后，
-    CRLF / 裸 LF / 有无 BOM 四种组合全部正常（四种组合已逐一实测）。
-    门禁已机械校验：`.cmd` 带 BOM 或出现裸 LF 都报 `[环境不匹配]`。
+    **整份文件保持纯 ASCII**（含 `rem` 行；中文提示交给带 BOM 的 `.ps1` 或 `.py` 打印）。
+    2026-10-05 两次实机踩到：`chcp 65001` 只对**其后被重新读取的行**生效，而裸 LF 会让 cmd 按行解析错位、
+    把相邻行粘成一条——UTF-8 中文一旦出现在 `.cmd` 里，cmd 会把乱码片段当命令执行，实测
+    `'hell' is not recognized ...`（`powershell` 被吃掉前 6 个字符）、`'�在' is not recognized ...`、
+    `'强制时才用' is not recognized ...`（**来自 `rem` 行**，所以判据不能只查执行行）。
+    修法与实测：把 `scripts/` 下入口全部改成纯 ASCII 后，CRLF / 裸 LF / 有无 BOM 四种组合全部正常。
+    门禁已机械校验：`.cmd` 带 BOM、出现裸 LF、或含任何非 ASCII 字节，都报 `[环境不匹配]`。
   - `.md`/`.go`/`.json` 等：UTF-8 不带 BOM。
 - 脚本要幂等、可重入，并在输出里明确「做了什么 / 下一步」（如 `scripts/停止游戏环境.cmd`）。
 - 只读检查脚本必须先自证「不修改工作区」，并在帮助注释里写清退出码含义（参照 `scripts/check-commit-hygiene.ps1`）。

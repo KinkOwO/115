@@ -236,6 +236,33 @@ def cmd_history(args) -> int:
     return run_admin(st, ["-account", args.account, "-history"])
 
 
+def cmd_help(args) -> int:
+    """中文用法横幅。
+
+    放在这里而不是 GM.cmd 里：.cmd 会被 cmd.exe 按控制台代码页解码，中文写进 echo 行
+    会在某些控制台上被拆成乱码命令（AGENTS.md §0.4.2）——.cmd 因此保持纯 ASCII，
+    中文一律由 Python 打印（本脚本显式按 UTF-8 输出）。"""
+    print("=" * 60)
+    print(" DFO 115us 简易 GM（SQLite / PostgreSQL 两档通用）")
+    print("-" * 60)
+    print("  查看：      scripts\\GM.cmd list")
+    print("  等级：      scripts\\GM.cmd set --name 角色名 --level 50        （加 --preview 只预览）")
+    print("  点券/金币： scripts\\GM.cmd set --name 角色名 --cera +10000 --gold +5000000")
+    print("  发物品：    scripts\\GM.cmd set --name 角色名 --item 3037x10,20002")
+    print("  操作记录：  scripts\\GM.cmd history")
+    print("-" * 60)
+    print("  * 引擎按 runtime\\storage\\local.json 的 driver 自动判定（与服务端同一条规则）：")
+    print("    SQLite 档直接读库文件；PostgreSQL 档需要库在监听，否则会提示先启动服务端。")
+    print("  * 读取走 dfo-tool accountlist（只读、引擎中立）；写操作走 cmd/admin 与")
+    print("    dfo-tool setlevel 的单事务 + 幂等键 + 审计路径；重复执行同一个 grant-id 只发一次。")
+    print("  * 首次执行会准备 PVF 目录，约 30~60 秒（改等级只准备 progression 一个域，几秒）。")
+    print("  * 角色在线时背包/余额仍用内存里的旧值，重选角色即可看到新值。")
+    print("  * 改等级按 PVF 的累计经验阈值写 experience = Thresholds[level-2]（该等级起点），")
+    print("    同步保证不会触发 level exceeds cumulative experience；不改技能点。")
+    print("=" * 60)
+    return 0
+
+
 def main() -> int:
     p = argparse.ArgumentParser(prog="GM", description="DFO 115us 简易 GM（SQLite / PostgreSQL 通用）")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -244,6 +271,7 @@ def main() -> int:
     listing = sub.add_parser("list", parents=[common], help="账号点券 + 角色列表")
     listing.add_argument("--account", default=None, help="只列该账号（默认：全部）")
     listing.set_defaults(func=cmd_list)
+    sub.add_parser("help", help="打印中文用法横幅").set_defaults(func=cmd_help)
 
     s = sub.add_parser("set", parents=[common], help="修改等级 / 点券 / 金币 / 物品")
     s.add_argument("--name", required=True, help="角色名")

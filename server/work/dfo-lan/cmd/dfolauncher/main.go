@@ -49,17 +49,24 @@ Usage:
   dfolauncher launch --check|--dry-run [--root <path>]
                     [--server-only|--client-only|--storage-only]
                     [--json-mode|--repair-profile <path>] [--source-build]
+  dfolauncher launch --server-only [--root <path>] [--tag <name>]
+                    [--json-mode|--repair-profile <path>] [--source-build]
 
 Flags:
   --root      repository root (default: the current directory, which is where the
               .cmd entry points cd to)
   --dry-run   print every action without performing it
+  --tag       pin the session tag (default: built from the clock)
 
 launch decides the session before anything starts: it reads the same configuration,
 validates the same profile and checks the same dependencies as
 scripts/launch_local.py, and --check prints the same four lines. --dry-run adds the
-storage -> inner PVF -> gateway -> client command plan. Nothing is started or written
-until the later stages of docs/go-launch-migration-plan.md land.
+storage -> inner PVF -> gateway -> client command plan.
+
+--server-only really starts the game gateway in Go (Stage 2 of
+docs/go-launch-migration-plan.md): the protocol fixture, the gateway argv, ready.json
+and run.json are reproduced from channel_probe.py, so no Python is involved. The
+client (probe.exe) and the WFP isolation are Stage 3 and are refused for now.
 `)
 }
 
@@ -163,20 +170,21 @@ func runCheck(args []string) int {
 	return 0
 }
 
-// runLaunch is Stage 1 of the launch migration: configuration, profile validation,
-// dependency checks and the command plan. --check starts nothing, --dry-run only adds the
-// plan, and a bare launch is refused rather than quietly doing half the job.
+// runLaunch is the launch subcommand. --check and --dry-run are Stage 1 (read-only);
+// --server-only is Stage 2 and really starts the gateway in Go; everything that needs the
+// client is Stage 3 and is refused rather than half-done.
 func runLaunch(args []string) int {
 	flags := flag.NewFlagSet("launch", flag.ContinueOnError)
 	root := flags.String("root", ".", "repository root")
 	check := flags.Bool("check", false, "check every dependency and start nothing")
 	dryRun := flags.Bool("dry-run", false, "print the command plan without running it")
-	serverOnly := flags.Bool("server-only", false, "check the server-only scope")
-	clientOnly := flags.Bool("client-only", false, "check the client-only scope")
-	storageOnly := flags.Bool("storage-only", false, "check the storage-only scope")
+	serverOnly := flags.Bool("server-only", false, "run storage and the game gateway without the client")
+	clientOnly := flags.Bool("client-only", false, "run the client against a server elsewhere")
+	storageOnly := flags.Bool("storage-only", false, "bring storage up and return")
 	jsonMode := flags.Bool("json-mode", false, "explicit legacy JSON mode")
 	sourceBuild := flags.Bool("source-build", false, "use bin/wireprobe-handoff-source.exe")
 	repairProfile := flags.String("repair-profile", "", "override the default PVF profile")
+	tag := flags.String("tag", "", "pin the session tag (default: from the clock)")
 	if err := flags.Parse(args); err != nil {
 		return 2
 	}
@@ -186,17 +194,7 @@ func runLaunch(args []string) int {
 		fmt.Fprintln(os.Stderr, "launch: --json-mode and --repair-profile are mutually exclusive")
 		return 2
 	}
-	if !*check && !*dryRun {
-		fmt.Fprintln(os.Stderr, "launch: 真实启动见 docs/go-launch-migration-plan.md Stage 2；"+
-			"本阶段请用 --check 或 --dry-run。")
-		return 1
-	}
-	absolute, err := filepathAbs(*root)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "resolve root: %v\n", err)
-		return 1
-	}
-	report, err := launcher.LaunchPlan(absolute, launcher.LaunchOptions{
+	options := launcher.LaunchOptions{
 		Check:         *check,
 		DryRun:        *dryRun,
 		ServerOnly:    *serverOnly,
@@ -205,7 +203,33 @@ func runLaunch(args []string) int {
 		JSONMode:      *jsonMode,
 		SourceBuild:   *sourceBuild,
 		RepairProfile: *repairProfile,
-	})
+		Tag:           *tag,
+	}
+	absolute, err := filepathAbs(*root)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "resolve root: %v\n", err)
+		return 1
+	}
+
+	// A real run: server-only and storage-only are ported; interactive/client-only still
+	// need the probe.exe path and the WFP isolation of Stage 3.
+	if !*check && !*dryRun {
+		switch {
+		case *serverOnly, *storageOnly:
+			if err := launcher.LaunchServer(context.Background(), absolute, options, os.Stdout); err != nil {
+				fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
+				return 1
+			}
+			return 0
+		default:
+			fmt.Fprintln(os.Stderr, "launch: 客户端拉起与 WFP 隔离属于 "+
+				"docs/go-launch-migration-plan.md Stage 3，本阶段未实现；"+
+				"请用 --server-only 或 --storage-only，或走 Python 路径。")
+			return 1
+		}
+	}
+
+	report, err := launcher.LaunchPlan(absolute, options)
 	// The inner-PVF status is printed before the Python's fatal checks, so it is printed
 	// here even when the plan then fails.
 	if report.InnerPVF.Message != "" {
