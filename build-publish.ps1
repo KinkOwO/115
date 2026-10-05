@@ -9,7 +9,7 @@
 #       一键打包.cmd -ListPruned           只列出「会被裁掉的条目」和最终顶层分布，不写 zip（试跑/审计用）
 #       一键打包.cmd -VerifyZip <zip 路径>  只校验一个已存在的包（不打新包；抽查/复验用，-Kind 决定按哪套规则校验）
 # 流程: git 分支导出 ->
-#       **复制预编译产物**(服务端程序 / 会话编排 CLI / WFP 探针 / configs) ->
+#       **复制预编译产物**(服务端程序 / 会话编排 CLI / WFP 探针 / configs / **依赖缓存整包 gopath-mod**) ->
 #       launcher.local.json 模板(相对路径) ->
 #       **按 -Kind 裁掉非白名单条目**(离线包只留必要项；见下方 $OfflineAllowed) ->
 #       Python 标准 zip(正斜杠/UTF-8) -> 逐项校验(必需项在 + 排除项不在 + 条目全在白名单内)
@@ -55,7 +55,12 @@ $PrebuiltFiles = @(
     'DFO-115US单机一键启动器.exe',
     'server\work\dfo-lan\bin\dfolauncher.exe',   # Go 会话编排 CLI（launch / stop / prepare-inner-pvf / init-storage…）
     'server\work\dfo-lan\bin\wireprobe-pvf.exe', # 服务端程序（PVF 直读默认档 configs\pvf-default.json 指向它）
-    'server\work\dfo_probe_tools\probe.exe'      # 客户端宿主回退路径（WFP 回环隔离后拉起客户端）
+    'server\work\dfo_probe_tools\probe.exe',     # 客户端宿主回退路径（WFP 回环隔离后拉起客户端）
+    # 依赖缓存整包（2026-10-05 业主定调「tools 可以加回来」）：让离线包自带编译能力，玩家不必再从
+    # 发布源下载 gopath-mod —— 它 62.7 MB，正是单次推送被远端断开、只能在仓库里分片存放的那个。
+    # 该成品不入库（仓库里只有 tools/tools-gopath-mod.zip.part01..04），所以按"工作区带进包"处理；
+    # 缺失时下面的 [3/6] 会先调 scripts/assemble-gopath-mod.ps1 拼出来（按 manifest 校验 size/sha256）。
+    'tools\tools-gopath-mod.zip'
 )
 # 备份与半截文件绝不许进包：*.previous-* 是发布 PVF 默认程序时留下的旧版备份（36 MB 一份），
 # *.exe~ 是编辑器/收尾工具留下的半成品 —— 它们白占体积，还可能被误当成可用程序。
@@ -115,6 +120,13 @@ $OfflineAllowed = @(
     'server/work/dfo-lan/runtime/*.bin',
     'server/work/dfo_probe_tools/probe.exe',
 
+    # —— 编译依赖包（2026-10-05 业主定调「tools 可以加回来」）——
+    # 离线包自带 Go 工具链 / 模块缓存 / 源码包 / 服务端预编译包与清单，玩家离线也能跑
+    # `--build-server` 编译，不必依赖启动器从发布源下载。gopath-mod 的成品由 $PrebuiltFiles
+    # 从工作区带进包（入库存的是分片），其余包在 git 里本就是单文件。
+    'tools/*.zip',
+    'tools/manifest.json',
+
     # —— 字体补丁（小、面向客户端；纯 Python 脚本，不依赖仓库根的 tools\，删掉 tools\ 后照跑）——
     'client-patchs/**'
 )
@@ -163,8 +175,8 @@ $ForbiddenRules = @(
        why = '增量更新缓存（可重建的派生物）' }
     @{ kinds = @('all'); pattern = '.tmp/**'
        why = '打包/调试临时目录' }
-    @{ kinds = @('all'); pattern = 'tools/**'
-       why = '便携运行环境与发布资源包；启动链只走仓库内 Go 启动器，不需要它（业主也明确要求 tools\ 保留在仓库里、不入包）' }
+    @{ kinds = @('all'); pattern = 'tools/tools-gopath-mod.zip.part*'
+       why = '依赖缓存包的**分片**（只为 git 传输：成品 62.7 MB 单次推送会被远端断开）；成品自身随包分发，见 $PrebuiltFiles' }
     @{ kinds = @('all'); pattern = '**/*.previous-*'
        why = '旧版程序备份（*.previous-* 一份 36 MB），白占体积还可能被误当成可用程序' }
     @{ kinds = @('all'); pattern = '**/*~'
@@ -612,7 +624,18 @@ try {
     Write-Host '[2/6] 便携运行环境：已无（PostgreSQL 支持已移除）...'
 
     # 3. 复制预编译产物 + configs（git 里没有这些文件，必须从工作区带进包）
-    Write-Host '[3/6] 复制预编译产物（服务端程序 / 编排 CLI / 探针 / configs）...'
+    Write-Host '[3/6] 复制预编译产物（服务端程序 / 编排 CLI / 探针 / configs / 依赖缓存整包）...'
+    # 依赖缓存整包缺失而分片在 → 先拼装（业主 2026-10-05 指示：编译/打包时自动触发，整包不存在就触发）。
+    # 拼装脚本按 tools/manifest.json 的 size/sha256 自校验，幂等（已就绪则零写入）。
+    $gopathPack = Join-Path $ROOT 'tools\tools-gopath-mod.zip'
+    if (-not (Test-Path -LiteralPath $gopathPack -PathType Leaf)) {
+        $gopathParts = @(Get-ChildItem -LiteralPath (Join-Path $ROOT 'tools') -File -Filter 'tools-gopath-mod.zip.part*' -ErrorAction SilentlyContinue)
+        if ($gopathParts.Count -gt 0) {
+            Write-Host ("   依赖缓存整包缺失，发现 {0} 个分片：先拼装。" -f $gopathParts.Count)
+            & (Join-Path $ROOT 'scripts\assemble-gopath-mod.ps1') -RepoRoot $ROOT
+            if ($LASTEXITCODE -ne 0) { throw ("拼装 tools-gopath-mod.zip 失败（exit {0}）" -f $LASTEXITCODE) }
+        }
+    }
     $lackPrebuilt = @()
     foreach ($rel in $PrebuiltFiles) {
         $src = Join-Path $ROOT $rel

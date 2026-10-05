@@ -26,6 +26,35 @@
 
 ---
 
+## 2026-10-05：离线包加回 tools（自带编译能力），打包前自动拼装依赖缓存整包
+
+### 已修复 / 已完成
+
+- **业主定调「tools 可以加回来」**：`build-publish.ps1` 原先对**所有** kind 硬排除 `tools/**`
+  （why 原文："业主也明确要求 tools\ 保留在仓库里、不入包"）；现改为只排分片
+  `tools/tools-gopath-mod.zip.part*`，并把 `tools/*.zip` 与 `tools/manifest.json` 加进离线包白名单 ——
+  离线包从此自带 Go 工具链、模块缓存、源码包、服务端预编译包与清单，玩家离线也能 `--build-server` 编译。
+- **依赖缓存成品随包分发**：gopath-mod 成品不入库（仓库只存分片），故按"工作区带进包"处理 ——
+  加进 `$PrebuiltFiles`（与 `bin/*.exe`、`probe.exe` 同一机制），它因而自动进入
+  `Assert-PublishZip` 的必需清单（缺了会直接 throw）。
+- **打包时自动拼装（业主指示「脚本在编译的时候自动触发，如果不存在整包就触发」）**：`[3/6] 复制预编译产物`
+  之前检查 `tools/tools-gopath-mod.zip`，整包不在而分片在 → 调 `scripts/assemble-gopath-mod.ps1`
+  拼装并按 manifest 的 size/sha256 自校验；`server/Build-Server.ps1` 已加同一道自举（两条路径实测过）。
+- **干跑验证**（`一键打包.cmd -ListPruned`，只试算不写包）：日志出现 `+ tools\tools-gopath-mod.zip (62.7 MB)`，
+  顶层分布 `tools` 计 **6** 条 = `manifest.json` + 5 个成品包，**分片一条都没进包**，exit 0。
+- **体积影响**：离线包约 +166 MB（go 67.4 + gopath-mod 62.7 + server-bin 24.1 + server-src 11.2 + configs 0.7）。
+  这是**离线自用包**——业主定调：分发给玩家的是单个 exe，zip 只作应急/离线场景。
+
+### 未修复 / 未闭环
+
+- 本条只到"打包产物正确"（干跑清单 + 自证路径），**没有真的产出 zip 解包核对**，也没有在干净环境用
+  包内自带的 tools 跑通一次编译；需要时补一次完整打包 + 解包自举验收。
+- 启动器侧仍未同步：`internal/buildenv/buildenv.go` 的 `gopathDownloadBytes = 28881300` 应为 65,731,473；
+  且玩家端"编译时自动拼装"只能是启动器里的 Go 代码（`scripts/` 不在任何发布包里）—— 属另一个仓库，我未改。
+- **同一失误第二次**：`9f46d144` 又误带了另一会话 `CHANGELOG` 的包计数修正行 —— 原因是我先
+  `git add -A -- CHANGELOG` 整文件暂存、再跑 hunk 过滤，而过滤读的是已空的"未暂存差异"。该提交已推送、
+  不可改写（§0.5.10 禁 rebase/强推）。本节起固化为**先过滤暂存、再碰整文件 add**，本次即按此顺序执行。
+
 ## 2026-10-05：补全 gopath-mod，让玩家端具备完整离线编译能力
 
 ### 已修复 / 已完成
