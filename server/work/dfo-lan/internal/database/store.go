@@ -1,6 +1,7 @@
 package database
 
 import (
+	"bytes"
 	"context"
 	"dfolan/internal/character"
 	"dfolan/internal/database/sqlcgen"
@@ -16,9 +17,10 @@ import (
 )
 
 type Config struct {
-	// Driver selects the storage engine. Empty selects SQLite when SQLitePath is set
-	// (the convention the 20261004 upgrade package's migration tool writes) and
-	// PostgreSQL otherwise, so both existing configurations keep working unchanged.
+	// Driver selects the storage engine. When it is empty, a named PostgresDSN selects
+	// PostgreSQL and a configuration that names nothing but SQLitePath selects SQLite
+	// (the convention the 20261004 upgrade package's migration tool writes), so both
+	// existing configurations keep working unchanged. See engineForConfig.
 	Driver         string `json:"driver,omitempty"`
 	PostgresDSN    string `json:"postgres_dsn"`
 	MaxConnections int32  `json:"max_connections"`
@@ -34,15 +36,30 @@ type Config struct {
 	MaxReadConnections int32 `json:"max_read_connections,omitempty"`
 }
 
+// LoadConfig reads a storage configuration.
+//
+// The byte-order mark is stripped on purpose. Windows editors write it by default, and a
+// PostgreSQL profile has to be hand-edited (its DSN carries the credentials), so that is
+// exactly the file most likely to carry one. Everything else in the chain already tolerates
+// it - launch_local.py reads with utf-8-sig, internal/launcher strips it - so refusing it
+// here meant the launcher started PostgreSQL while the gateway died before touching it with
+// `invalid character 'ï' looking for beginning of value`: the report reaches the owner as
+// "pgsql 端无法登录" (2026-10-05).
 func LoadConfig(path string) (Config, error) {
 	var c Config
 	b, e := os.ReadFile(path)
 	if e != nil {
 		return c, e
 	}
-	e = json.Unmarshal(b, &c)
-	return c, e
+	b = bytes.TrimPrefix(b, utf8BOM)
+	if e = json.Unmarshal(b, &c); e != nil {
+		return c, fmt.Errorf("storage config %s: %w", path, e)
+	}
+	return c, nil
 }
+
+// utf8BOM is the byte-order mark Windows editors put in front of UTF-8 configuration.
+var utf8BOM = []byte{0xEF, 0xBB, 0xBF}
 
 type Store struct {
 	// engine owns the connection and transactions; queries is the engine's query
@@ -81,27 +98,54 @@ const (
 	DriverSQLite   = "sqlite"
 )
 
+// EngineForConfig decides which engine a configuration selects. It is the single rule for
+// this repository, and the launchers mirror it (internal/launcher.StorageConfig.DriverName
+// and the two storage profiles under scripts/): the launcher that starts PostgreSQL and the
+// server that opens the database must never disagree, or a player's save looks empty and
+// their login fails while PostgreSQL is running perfectly.
+//
+// The order is deliberate:
+//  1. an explicit Driver always wins, so a configuration that names its engine is never
+//     second-guessed;
+//  2. otherwise a named PostgreSQL DSN selects PostgreSQL. This is the documented default
+//     engine, and it is the only safe reading of a configuration that names a DSN: silently
+//     opening some other file instead is how a PostgreSQL save went invisible;
+//  3. otherwise SQLitePath selects SQLite - the shape the 20261004 upgrade package's
+//     migration tool writes, with no driver field at all, so that package keeps working;
+//  4. a configuration that names neither stays on PostgreSQL, whose open path reports the
+//     incomplete configuration instead of inventing one.
+func EngineForConfig(c Config) (string, error) {
+	if driver := strings.ToLower(strings.TrimSpace(c.Driver)); driver != "" {
+		switch driver {
+		case DriverPostgres, DriverSQLite:
+			return driver, nil
+		default:
+			return "", fmt.Errorf("unknown storage driver %q", c.Driver)
+		}
+	}
+	if strings.TrimSpace(c.PostgresDSN) != "" {
+		return DriverPostgres, nil
+	}
+	if strings.TrimSpace(c.SQLitePath) != "" {
+		return DriverSQLite, nil
+	}
+	return DriverPostgres, nil
+}
+
 // Open builds the Store for the configured engine.
 //
-// Selection accepts both conventions on purpose, because a cross-validated implementation
-// pair shares one tree: an explicit Driver wins, and otherwise a configuration that names
-// SQLitePath - which is exactly what the 20261004 upgrade package's migration tool writes,
-// with no driver field at all - selects SQLite. A configuration with neither stays on
-// PostgreSQL, so existing setups need no change. The SQLite path applies every schema
-// section up front, which is why the per-domain Migrate* entry points have nothing left to
-// do for that engine (see execMigration).
+// Selection is EngineForConfig's, so both engine conventions keep working unchanged. The
+// SQLite path applies every schema section up front, which is why the per-domain Migrate*
+// entry points have nothing left to do for that engine (see execMigration).
 func Open(ctx context.Context, c Config) (*Store, error) {
-	switch c.Driver {
-	case "", DriverPostgres:
-		if c.Driver == "" && strings.TrimSpace(c.SQLitePath) != "" {
-			return openSQLiteStore(ctx, c)
-		}
-		return openPostgres(ctx, c)
-	case DriverSQLite:
-		return openSQLiteStore(ctx, c)
-	default:
-		return nil, fmt.Errorf("unknown storage driver %q", c.Driver)
+	driver, err := EngineForConfig(c)
+	if err != nil {
+		return nil, err
 	}
+	if driver == DriverSQLite {
+		return openSQLiteStore(ctx, c)
+	}
+	return openPostgres(ctx, c)
 }
 
 func openPostgres(ctx context.Context, c Config) (*Store, error) {

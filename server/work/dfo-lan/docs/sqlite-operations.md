@@ -17,11 +17,46 @@
 { "driver": "sqlite", "sqlite_path": "C:/Game/dof/115us/115/server/work/dfo-lan/runtime/storage/dfolan.sqlite3", "sqlite_busy_timeout_ms": 5000, "max_connections": 4 }
 ```
 
+### 1.1 没有 `driver` 时的唯一规则（2026-10-05 收口）
+
+`driver` 可以省略，但省略时的选择**只有一条规则**，服务端、Go 启动器与两个 Python
+存档档（`launch_local.py` / `stop_environment.py`）按同一次序判定：
+
+| 次序 | 配置里有什么 | 选中 | 说明 |
+| --- | --- | --- | --- |
+| 1 | 显式 `driver` | `driver` 的值 | 写了就照写；写成其它值**明确报错** |
+| 2 | 没有 `driver`，但有 `postgres_dsn` | **PostgreSQL** | 文档中的默认引擎；配置里点了 DSN 就不该去开别的文件 |
+| 3 | 没有 `driver`，也没有 DSN，但有 `sqlite_path` | **SQLite** | SQLite 升级包（20261004）的迁移工具写出的形状：只有 `sqlite_path` |
+| 4 | 三个都没有 | PostgreSQL（并报配置不完整） | 不发明一个库出来 |
+
+规则的真源是 `internal/database.EngineForConfig`；镜像在
+`internal/launcher.StorageConfig.DriverName`、`scripts/storage_profile.py`、
+`server/work/dfo-lan/scripts/launch_local.py` 与 `gm-tool/scripts/gmweb.py`，
+两边各有同一张表的用例（`internal/database/engine_selection_test.go`、
+`internal/launcher/launcher_test.go`、`scripts/test_environment_storage.py`、
+`scripts/test_postgres_storage.py`）。
+
+> **为什么要写死到这一步**：次序 2 与 3 曾经相反（有 `sqlite_path` 就选 SQLite），
+> 于是「PostgreSQL 在跑、配置里还留着上一次试 SQLite 的 `sqlite_path`」这种混合档会让
+> 启动器起 PostgreSQL、服务端却打开一个空 SQLite 文件——报给业主就是
+> **「pgsql 端无法登录」**（账号当然找不到）。
+>
+> 现在两边都由 `EngineForConfig` 决定；服务端启动日志会**逐次写明它真正打开的库**：
+> `storage: engine=postgres target=dfo_lan config=runtime/storage/local.json`
+> （SQLite 档的 `target` 是库文件路径）。GM 命令行也会打印同一行结论。
+>
+> 另外：`local.json` 允许带 **UTF-8 BOM**（记事本 / `Set-Content -Encoding UTF8` 的默认行为）。
+> 启动器一直容忍它，服务端此前不容忍——直接死在 `invalid character 'ï'`，表现为「无法登录」。
+> `database.LoadConfig` 现在剥掉 BOM，并把出错文件名写进错误里。
+
 - **`sqlite_path` 必须是绝对路径**（2026-10-04 起服务端明确拒绝相对路径，否则会在进程当前目录下建库）。
 - **`driver` 缺省即 `postgres`**，所以既有配置不需要改动。
 - 写成其它值会**明确报错**，不会静默按 PostgreSQL 处理——存储配置写错一个词就连接到另一个库，必须响。
 - 换了 `driver` 之后，启动器与停止脚本都会跟着变：`sqlite` 档**不拉起也不需要停止 PostgreSQL**
   （`scripts/启动游戏.cmd` 直接开服，`scripts/停止游戏环境.cmd` 打印 `Storage: sqlite profile` 后跳过停机）。
+- **PostgreSQL 档**必须写 `postgres_dsn`，并且（走 Python 启动路径时）写 `postgres_bin` / `postgres_data`
+  指向便携 PostgreSQL；`scripts/配置环境.cmd`（`scripts/configure_env.py`）会补齐这两个路径，
+  并**清掉该档里残留的 SQLite 专有键**（`sqlite_path` 等），避免下一次选择含糊。
 
 ## 2. 首次在 SQLite 上启动
 
@@ -80,3 +115,18 @@ $env:CGO_ENABLED='0'; $go='..\..\..\tools\go\bin\go.exe'
 
 需要真实 PostgreSQL 的用例（双引擎契约的 `postgres` 子测试、转换器端到端）由
 `DFO_TEST_POSTGRES_DSN` 选择**隔离测试库**后运行；未设置时它们自动跳过，不会碰玩家库。
+
+### 5.1 GM 命令行在两种档上都能用（2026-10-05）
+
+```powershell
+cd <仓库根>
+scripts\GM.cmd list                                   # 活动档：账号 + 点券 + 角色概览
+scripts\GM.cmd set --name <角色> --level 50 --preview  # 改等级先预览
+```
+
+- 读取走 `dfo-tool accountlist`（引擎中立的只读概览），**不再用 Python 直连 SQLite**，
+  所以同一组 GM 命令在 PostgreSQL 档上同样可用；写操作走 `cmd/admin` 与
+  `dfo-tool setlevel`（本来就按 `Open` 选引擎，带审计与幂等键）。
+- 输出第一行就是**它实际连的库**（`存储: postgres <库名>` / `存储: sqlite <文件>`）；
+  PostgreSQL 档在库没监听时会明确提示先启动服务端，而不是抛一个连接错误。
+- Web GM（`gm-tool`）走同一条规则：SQLite 档不再尝试拉起 PostgreSQL，只回报库文件位置。

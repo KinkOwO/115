@@ -100,5 +100,52 @@ class PostgresStorageTests(unittest.TestCase):
                     self.assertEqual(path.read_text(), 'unchanged')
 
 
+    def test_storage_driver_matches_the_go_rule(self):
+        """Same table as internal/database/engine_selection_test.go (Go) and
+        scripts/test_environment_storage.py. The mixed case is the 2026-10-05 regression:
+        a DSN must outrank a leftover sqlite_path, or PostgreSQL gets started while the
+        server opens an empty SQLite file (pgsql 端无法登录)."""
+        cases = [
+            ('explicit sqlite', {'driver': 'sqlite'}, 'sqlite'),
+            ('explicit postgres', {'driver': 'postgres'}, 'postgres'),
+            ('case and space insensitive', {'driver': ' SQLite '}, 'sqlite'),
+            ('an unknown driver is reported as written', {'driver': 'mysql'}, 'mysql'),
+            ('DSN outranks leftover sqlite_path',
+             {'postgres_dsn': 'postgres://u@127.0.0.1:25438/dfo_lan', 'sqlite_path': 'leftover.sqlite3'}, 'postgres'),
+            ('DSN alone', {'postgres_dsn': 'postgres://u@127.0.0.1:25438/dfo_lan'}, 'postgres'),
+            ('sqlite_path alone', {'sqlite_path': 'dfolan.sqlite3'}, 'sqlite'),
+            ('neither', {}, 'postgres'),
+        ]
+        for name, cfg, want in cases:
+            with self.subTest(name):
+                self.assertEqual(launch.storage_driver(cfg), want)
+
+    def test_sqlite_only_profile_launches_without_postgresql(self):
+        """A config the server opens as SQLite must not send the launcher to PostgreSQL,
+        and must not die with a KeyError on the missing postgres_dsn."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            (root / 'launcher.local.json').write_text(json.dumps({'client_dir': 'client'}))
+            storage = root / 'storage'
+            storage.mkdir()
+            cfg = {'sqlite_path': str(storage / 'dfolan.sqlite3')}
+            (storage / 'local.json').write_text(json.dumps(cfg))
+            with mock.patch.object(launch, 'ROOT', root), mock.patch.object(launch, 'STORAGE', storage):
+                local, parsed, pg = launch.configuration()
+            self.assertEqual(parsed, cfg)
+            self.assertIsNone(pg)
+
+    def test_postgres_profile_without_a_dsn_reports_instead_of_crashing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            (root / 'launcher.local.json').write_text(json.dumps({'client_dir': 'client'}))
+            storage = root / 'storage'
+            storage.mkdir()
+            (storage / 'local.json').write_text(json.dumps({'driver': 'postgres', 'max_connections': 12}))
+            with mock.patch.object(launch, 'ROOT', root), mock.patch.object(launch, 'STORAGE', storage):
+                with self.assertRaisesRegex(RuntimeError, 'requires postgres_dsn'):
+                    launch.configuration()
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -254,25 +254,28 @@ func main() {
 	if err != nil {
 		log.Fatalf("读取存储配置失败：%v", err)
 	}
-	// 存储没起来就自己拉起来（pg_ctl 不需要管理员权限）
-	if raw, e := os.ReadFile(p.storage); e == nil {
-		var sc storageConfig
-		if json.Unmarshal(raw, &sc) == nil {
-			if note, e := startStorage(sc, filepath.Dir(p.storage)); e != nil {
-				log.Printf("自动启动存储失败：%v", e)
-			} else if note != "" {
-				log.Printf("%s", note)
-			}
-		}
+	// 存储没起来就自己拉起来（pg_ctl 不需要管理员权限）；SQLite 档没有服务可起，
+	// 这里只回报数据库文件位置，不再去拉 PostgreSQL。
+	if sc, e := loadStorageConfig(p.storage); e != nil {
+		log.Printf("读取存储档失败（跳过自动启动存储）：%v", e)
+	} else if note, e := startStorage(sc, filepath.Dir(p.storage)); e != nil {
+		log.Printf("自动启动存储失败：%v", e)
+	} else if note != "" {
+		log.Printf("%s", note)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 	store, err := database.Open(ctx, cfg)
 	if err != nil {
+		if driver, driverErr := database.EngineForConfig(cfg); driverErr == nil && driver == database.DriverSQLite {
+			log.Fatalf("连接 SQLite 失败：%v\n\n处理办法：\n"+
+				"  1. 确认 local.json 里的 sqlite_path 是**绝对路径**；\n"+
+				"  2. 服务端会自己创建该文件，路径上的目录必须存在。\n", err)
+		}
 		log.Fatalf("连接 PostgreSQL 失败：%v\n\n"+
 			"处理办法（任选其一）：\n"+
 			"  1. 双击 游戏根目录下 scripts\\启动服务端.cmd 启动数据库；\n"+
-			"  2. 检查 D:\\115us\\server\\work\\dfo-lan\\runtime\\storage 下的 postgres.log。\n", err)
+			"  2. 检查 DFO 服务端目录下 runtime\\storage\\postgres.log。\n", err)
 	}
 	defer store.Close()
 	if err := store.MigrateGMMail(ctx); err != nil {

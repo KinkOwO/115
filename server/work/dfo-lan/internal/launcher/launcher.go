@@ -25,17 +25,29 @@ import (
 type StorageConfig struct {
 	Driver       string `json:"driver"`
 	SQLitePath   string `json:"sqlite_path"`
+	PostgresDSN  string `json:"postgres_dsn"`
 	PostgresBin  string `json:"postgres_bin"`
 	PostgresData string `json:"postgres_data"`
 }
 
-// Driver reports the effective driver, defaulting to PostgreSQL as the server does.
+// DriverName reports the effective driver, mirroring the server's
+// engineForConfig (internal/database): an explicit driver wins, a named DSN means
+// PostgreSQL, and only a configuration that names nothing but sqlite_path is SQLite.
+//
+// The two rules must stay identical. When they drift, the launcher starts one engine while
+// the server reads the other - a running PostgreSQL and an empty SQLite file, which reaches
+// the player as "my account is gone" (2026-10-05, pgsql 端无法登录).
 func (c StorageConfig) DriverName() string {
-	driver := strings.ToLower(strings.TrimSpace(c.Driver))
-	if driver == "" {
+	if driver := strings.ToLower(strings.TrimSpace(c.Driver)); driver != "" {
+		return driver
+	}
+	if strings.TrimSpace(c.PostgresDSN) != "" {
 		return "postgres"
 	}
-	return driver
+	if strings.TrimSpace(c.SQLitePath) != "" {
+		return "sqlite"
+	}
+	return "postgres"
 }
 
 // postgresImages are the server processes the launcher owns. They are killed by image
@@ -113,10 +125,10 @@ func StopPlan(cfg StorageConfig) ([]Action, error) {
 
 // StopReport records what actually happened, so the caller can print an honest summary.
 type StopReport struct {
-	Executed    []Action
-	PostgresUp  bool
-	GatewayUp   bool
-	DryRun      bool
+	Executed   []Action
+	PostgresUp bool
+	GatewayUp  bool
+	DryRun     bool
 }
 
 // PortListening reports whether something accepts connections on the loopback port.

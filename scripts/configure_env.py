@@ -13,6 +13,8 @@ import pathlib
 import subprocess
 import sys
 
+import storage_profile
+
 reconfig_out = getattr(sys.stdout, "reconfigure", None)
 if callable(reconfig_out):
     reconfig_out(encoding="utf-8")
@@ -284,16 +286,29 @@ def main():
     # Only a PostgreSQL profile needs a pointer to the portable server. A sqlite profile
     # keeps its database in a file, and writing these would leave a stale reference to
     # tools/pg - the kind of leftover that keeps a removed tool tree looking required.
-    driver = str(storage_cfg.get("driver", "") or "postgres").lower()
+    driver = storage_profile.storage_driver(storage_cfg)
     if driver == "postgres":
         storage_cfg["postgres_bin"] = postgres_bin_path
         storage_cfg["postgres_data"] = postgres_data_path
+        # A leftover sqlite_path in a PostgreSQL profile is not a harmless extra key: with
+        # no explicit driver it used to make the server open (and create) a SQLite file
+        # while the launcher started PostgreSQL, so the player's account looked missing.
+        # The key is now only a fallback selector, but a stale one still misleads the
+        # next reader of this file, so it is dropped and reported.
+        dropped = [key for key in ("sqlite_path", "sqlite_busy_timeout_ms", "busy_timeout_ms", "max_read_connections")
+                   if key in storage_cfg]
+        for key in dropped:
+            storage_cfg.pop(key, None)
+        if dropped:
+            print(f"[清理] PostgreSQL 档不再保留 SQLite 专有键: {', '.join(dropped)}")
     else:
         storage_cfg.pop("postgres_bin", None)
         storage_cfg.pop("postgres_data", None)
 
     # 保证必要配置项有合理默认值
-    if "postgres_dsn" not in storage_cfg:
+    # 默认 DSN 只写给 PostgreSQL 档：SQLite 档拿着它没有用处，而且一旦该档没有显式
+    # driver，多出来的 DSN 会把下一次启动的选择翻成 PostgreSQL（见 storage_profile）。
+    if driver == "postgres" and "postgres_dsn" not in storage_cfg:
         storage_cfg["postgres_dsn"] = (
             "postgres://dfo_owner:-J5vg5kBCfjt5WccbR1OkkXChKXxxqOBt1mZF6spNDI@127.0.0.1:25438/dfo_lan?sslmode=disable"
         )

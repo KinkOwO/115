@@ -41,6 +41,24 @@ def listening(host, port):
   return False
 
 
+def storage_driver(cfg):
+ """Which engine this local.json selects.
+
+ Mirror of the server's internal/database.engineForConfig - the launcher and the server
+ read the same file and must never disagree, or PostgreSQL gets started while the server
+ opens a leftover SQLite file (2026-10-05: pgsql 端无法登录). An explicit driver wins, a
+ named DSN means PostgreSQL, and only a config that names nothing but sqlite_path is
+ SQLite (the shape the 20261004 upgrade package's migration tool writes)."""
+ driver = str(cfg.get("driver", "") or "").strip().lower()
+ if driver:
+  return driver
+ if str(cfg.get("postgres_dsn", "") or "").strip():
+  return "postgres"
+ if str(cfg.get("sqlite_path", "") or "").strip():
+  return "sqlite"
+ return "postgres"
+
+
 def configuration():
  settings = ROOT / "launcher.local.json"
  if not settings.exists():
@@ -54,7 +72,7 @@ def configuration():
    "Storage missing. Follow README first-time setup; no database was changed."
   )
  cfg = json.loads(storage.read_text(encoding="utf-8-sig"))
- driver = str(cfg.get("driver", "") or "postgres").lower()
+ driver = storage_driver(cfg)
  if driver == "sqlite":
   # No server to start: the engine opens (and creates) the database file itself.
   # pg stays None so every PostgreSQL-specific step is skipped, not attempted.
@@ -66,7 +84,14 @@ def configuration():
   return local, cfg, None
  if driver != "postgres":
   raise RuntimeError(f"Unsupported storage driver '{driver}'.")
- pg = urlparse(cfg["postgres_dsn"])
+ dsn = str(cfg.get("postgres_dsn", "") or "").strip()
+ if not dsn:
+  # Same message the server gives, so both ends of the same config fail the same way
+  # instead of one of them dying with a bare KeyError.
+  raise RuntimeError(
+   "Storage driver 'postgres' requires postgres_dsn in runtime/storage/local.json."
+  )
+ pg = urlparse(dsn)
  if pg.hostname != "127.0.0.1":
   raise RuntimeError("This development profile requires local loopback storage.")
  return local, cfg, pg
