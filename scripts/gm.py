@@ -26,8 +26,6 @@ import sys
 import time
 from urllib.parse import urlparse
 
-import storage_profile
-
 # 控制台是 chcp 65001（GM.cmd 设的），显式按 UTF-8 输出，避免中文角色名变成乱码。
 _reconfig_out = getattr(sys.stdout, "reconfigure", None)
 if callable(_reconfig_out):
@@ -43,19 +41,40 @@ GO = pathlib.Path("C:/Game/dof/115us/tools/go/bin/go.exe")
 ARCHIVE = REPO / "server/work/client-build/Script.inner.pvf"
 
 
-def storage(args=None) -> dict:
-    """读取活动存储档，并按唯一规则判定引擎（见 storage_profile）。
+def storage_driver(cfg: dict) -> str:
+    """按活动存储档判定引擎（sqlite / postgres）。
 
-    引擎判定的真源是服务端的 internal/database.EngineForConfig：GM 与启动器、服务端
-    必须对同一份 local.json 得出同一个答案，否则会出现「PostgreSQL 在跑、GM 却在看
-    另一个空库」这类错觉（2026-10-05 业主转达的 pgsql 端无法登录）。"""
+    真源是服务端的 internal/database.EngineForConfig，启动器侧对应 internal/config.StorageDriver：
+    三者必须对同一份 local.json 得出同一个答案，否则会出现「PostgreSQL 在跑、GM 却在看另一个空库」
+    这类错觉（2026-10-05 业主转达的 pgsql 端无法登录）。
+
+    规则（与 Go 侧逐条对齐）：
+      - `driver` 显式写了就认它（大小写/空白无关）；
+      - 没写 `driver` 但写了 `sqlite_path` → sqlite；
+      - 都不认识 → **sqlite**（2026-10-05 业主口径「默认 sqlite」；此前默认是 postgres）。
+
+    为什么内联：`storage_profile.py` 是启动链去 Python 时被删掉的旧脚本（提交 0a05e356），
+    本文件原先 `import` 它 → GM.cmd 一跑就 ModuleNotFoundError。这里只用到它的一个判定函数，
+    直接内联即可，不依赖任何 .py 兄弟模块。
+    """
+    raw = cfg.get("driver")
+    if isinstance(raw, str) and raw.strip():
+        driver = raw.strip().lower()
+        return driver if driver in ("sqlite", "postgres") else "sqlite"
+    if str(cfg.get("sqlite_path", "") or "").strip():
+        return "sqlite"
+    return "sqlite"
+
+
+def storage(args=None) -> dict:
+    """读取活动存储档，并按唯一规则判定引擎（见上面的 storage_driver）。"""
     path = pathlib.Path(getattr(args, "config", None) or CONFIG)
     if not path.is_absolute():
         path = REPO / path
     if not path.exists():
         sys.exit(f"找不到存储配置: {path}")
     cfg = json.loads(path.read_text(encoding="utf-8-sig"))
-    driver = storage_profile.storage_driver(cfg)
+    driver = storage_driver(cfg)
     if driver not in ("sqlite", "postgres"):
         sys.exit(f"存储档 driver={driver} 不受支持（只认 sqlite / postgres）: {path}")
     return {"driver": driver, "raw": cfg, "config": str(path)}
