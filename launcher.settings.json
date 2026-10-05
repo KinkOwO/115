@@ -6,9 +6,9 @@
     "done": true
   },
   "update": {
-    "branch": "main",
+    "branch": "master",
     "enabled": true,
-    "endpoint": "https://gitgud.io/fuckworld/115"
+    "endpoint": "https://gitgud.io/RicardoLz/115us-dfolauncher"
   },
   "window": {
     "height": 909,
