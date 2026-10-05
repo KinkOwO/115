@@ -657,7 +657,8 @@ function Invoke-ElevatedSelf([string]$verb, [string[]]$rest) {
     }
     Write-Host '[提权] 以管理员身份后台执行；输出实时显示在本窗口（不再新开窗口）…' -ForegroundColor Cyan
     $logPath = Get-EntryLogPath $verb
-    Set-Content -LiteralPath $logPath -Value '' -Encoding UTF8 -ErrorAction SilentlyContinue
+    # 父进程负责清空日志：这样下面按行号跟随新增内容不会读到上一轮的旧行。
+    Reset-EntryLog $verb
     # **隐藏**提升出来的 PowerShell：业主要求不要再弹额外窗口（2026-10-05）；
     # 它的输出由本窗口跟随日志文件显示。
     $proc = Start-Process -FilePath 'powershell.exe' -ArgumentList $elevatedArgs -Verb RunAs `
@@ -668,12 +669,29 @@ function Invoke-ElevatedSelf([string]$verb, [string[]]$rest) {
         Start-Sleep -Milliseconds 400
     }
     $seen = Show-NewEntryLogLines $logPath $seen
+    if ($proc.ExitCode -ne 0 -and $seen -eq 0) {
+        Write-Host '[提示] 子进程失败但没写出日志（可能在最早的初始化阶段就退出）。' -ForegroundColor Yellow
+        Write-Host '       请在**管理员** PowerShell 里手动跑一次以看到原文：' -ForegroundColor Yellow
+        Write-Host ("       powershell -NoProfile -ExecutionPolicy Bypass -File `"{0}`" {1}" -f $PSCommandPath, $verb) -ForegroundColor Yellow
+    }
     Write-Host ("[提权] 子进程结束，退出码 {0}；完整日志 {1}" -f $proc.ExitCode, $logPath) -ForegroundColor DarkGray
     exit $proc.ExitCode
 }
 
 function Get-EntryLogPath([string]$verb) {
-    return (Join-Path $RepoRoot ("runtime\storage\entry-{0}.log" -f $verb))
+    # 必须用 $StorageDir（= server\work\dfo-lan\runtime\storage）。上一版写成 $RepoRoot\runtime\storage
+    # ——那个目录不存在，Set-Content 直接抛异常、被外层 catch 变成 exit 3（2026-10-05 业主实机：
+    # 两个入口都「退出码 3、日志里什么都没有」）。
+    return (Join-Path $StorageDir ("entry-{0}.log" -f $verb))
+}
+
+# 写日志永远不能影响启动：目录不存在/权限不足时只提示，不抛。
+function Reset-EntryLog([string]$verb) {
+    try {
+        New-Item -ItemType Directory -Force -Path $StorageDir -ErrorAction SilentlyContinue | Out-Null
+        Set-Content -LiteralPath (Get-EntryLogPath $verb) -Value '' -Encoding UTF8 -ErrorAction Stop
+    }
+    catch { Write-Host ("[提示] 入口日志无法写入：{0}" -f $_.Exception.Message) -ForegroundColor Yellow }
 }
 
 # 跟随日志：只打印新增行（PS 5.1 下不用后台作业，简单可靠）。
@@ -701,7 +719,10 @@ try {
     # 父进程负责把新增行显示在自己的窗口里（业主要求：不要再弹额外窗口）。
     $script:EntryVerb = if ($isChainRun -and -not $readOnly) { $verb } else { '' }
     if ($script:EntryVerb) {
-        Set-Content -LiteralPath (Get-EntryLogPath $verb) -Value '' -Encoding UTF8 -ErrorAction SilentlyContinue
+        # 非管理员 = 这是「父进程」（马上要提权）：由它清空日志并把子进程输出显示在自己窗口里。
+        # 管理员 = 提升后的子进程（或业主右键以管理员运行）：**不要**清空，否则父进程的
+        # 行号计数会错位、前几行被吞掉（2026-10-05 排查时踩到）。
+        if (-not (Test-IsAdmin)) { Reset-EntryLog $verb }
         Write-EntryLog $verb ("[{0}] {1} 启动链开始（{2}）" -f (Get-Date -Format 'HH:mm:ss'), $verb, (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'))
     }
     if ($isEntryLaunch -and -not $readOnly -and -not (Test-IsAdmin)) {
