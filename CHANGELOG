@@ -26,6 +26,41 @@
 
 ---
 
+## 2026-10-05：重打 configs 发布包（按跟踪集）+ 清掉 27 个陈旧产出物
+
+### 已修复 / 已完成
+
+- **发现（并解释了 21:07 那次「还原」的机制）**：`tools/tools-server-configs.zip` 是**陈旧快照** —— 69 条里
+  **27 条已不在跟踪集**（历史基线），却又**缺 26 条现行被跟踪的配置**。启动器按 manifest 把它当"发布版本"
+  解包覆盖到树里（`syncOne` 语义：过期就替换），于是 21:07 一次性把「27 个已删配置 + PG 移除前的两个二进制」
+  全带回了树里 —— 与两个二进制的回滚时间点完全一致。
+- **那 27 个的性质（业主要求区分"编译产出物 / 运行时产出物"）**：**都不是**。
+  - 当前 Go 代码**零处写**它们（⇒ 不是运行期产出物）、**零处按路径读**它们（唯一看似相关的
+    `internal/catalog/npc_teleport.go:156` 读的是"世界目录旁边的"同名文件，且**不存在就返回 nil**，属导出工作流可选输入）；
+  - 它们是**旧导出/导表工具期的一次性产出物**（历史基线），判据就是删除它们的提交信息：
+    `63c783c7 chore(configs): close 17 obsolete and duplicate JSON files`、
+    `b81d2bfd refactor(configs): retire level-150 loot export`、
+    `25b9d154 refactor(cashshop): drop shops JSON export/fallback`、
+    `4d943e5b refactor(configs): retire world and quest exports for native PVF`；
+  - `select-parser-probe.json` / `select-world-probe.json` / `town-entry-probe.json` / `repair-profile.example.json`
+    **不是产出物而是诊断输入样本**，活副本已搬到 `cmd/wireprobe/testdata/`、`docs/`
+    （`4a51ac17 … relocate diagnostic inputs`；与 `internal/launcher/gateway.go:161/169/178` 读的路径一致）；
+  - 4 个 `*.patch.json` 是**仓库外本地化工具的产出**（git 历史里没有"加入"记录 = 从未入库），启动器侧零引用/零通配。
+- **处置**：按**当前被跟踪集**重打 `tools/tools-server-configs.zip` —— 702,718 → **795,720 B**、条目 69 → **68**、
+  sha256 `6e5b2483…` → **`8161129f…`**；manifest 的 `server-configs` 同步（note 写明重打原因）；
+  随后删除工作区那 27 个陈旧文件（`configs/` 现存 68 = 跟踪集，未跟踪残留 0）。4 个从未入库的 patch
+  先备份到临时目录再删（它们没有 git 历史兜底）。
+- **顺带修掉一个真实隐患**：旧包会把玩家/开发树里的配置**降级回旧快照**（启动器把包当权威版本）；
+  新包 = 跟踪集，解包即幂等，不再降级、也不再造出已删文件。
+- **验证**：删除后 `go build ./...` 退出 0、`go vet ./...` 干净、`go test ./... -count=1` 41 包 ok / FAIL 0
+  （反证这 27 个确实无消费者）；5 个包按 size/sha256/files 全量自检通过。
+
+### 未修复 / 未闭环
+
+- 那 4 个本地化 patch（`cera-contract-format` / `character.names` / `item.names.client` / `pvf.localization`）
+  **不再随 configs 包分发**；若客户端本地化仍需要它们，应由那套工具自己携带或改为正式入库 —— 需业主定。
+- 启动器侧 `gopathDownloadBytes` 常量与分片拼装仍未做（交接文档见 `docs/todo/launcher-gopath-mod-handover.md`）。
+
 ## 2026-10-05：离线包加回 tools（自带编译能力），打包前自动拼装依赖缓存整包
 
 ### 已修复 / 已完成
