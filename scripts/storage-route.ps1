@@ -381,23 +381,24 @@ function Invoke-SelfTest() {
         if (-not $rejected) { throw '未知路线没有被拒绝' }
         $checks++
 
-        # 6. 「两个路线脚本各自独立可用」＝至少要有一条**能把客户端完整拉起来**的链路，
-        #    而且两个游戏入口文件在位（业主要求：脚本先独立可用，再接进启动器）。
-        #    这里不再要求 scripts\启动游戏.cmd 那类中间入口存在——它们正被并行会话改造。
+        # 6. 「两个路线脚本各自独立可用」＝ Go 启动器必须在位（业主定调：只走 Go，
+        #    无 Python、无外部启动器、无回退），而且两个游戏入口文件在位。
         foreach ($entry in @('启动游戏-SQLite.cmd', '启动游戏-PostgreSQL.cmd')) {
             $target = Join-Path $PSScriptRoot $entry
             if (-not (Test-Path -LiteralPath $target)) { throw "路线入口不存在：$target" }
             $checks++
         }
-        $chain = Get-FullChainCandidates ''
-        if (-not $chain) { throw '没有任何可用的完整启动链（一键启动器 CLI / launch_local.py / bin\dfolauncher.exe 都不可用）' }
-        $checks++
         foreach ($scope in @('', '--server-only')) {
-            $scoped = Get-FullChainCandidates $scope
-            if (-not $scoped) { throw "完整启动链缺少 '$scope' 变体的可用项" }
+            # @() 包裹是必须的：单元素数组会被 PowerShell 解包成对象，.Count 就成了 $null
+            # （2026-10-05，与门禁脚本同一个坑）。
+            $scoped = @(Get-FullChainCandidates $scope)
+            if ($scoped.Count -eq 0) { throw ('缺少仓库内 Go 启动器：{0}' -f (Get-GoLauncherPath)) }
+            if ($scoped.Count -ne 1 -or $scoped[0].Kind -ne 'go-launcher') { throw '启动链里出现了非 Go 的候选（违反「只走 Go」）' }
             if ($scope -and ($scoped[0].Args -notcontains '--server-only')) { throw 'server-only 变体没有把 --server-only 传给启动器' }
             $checks++
         }
+        if ($GoLauncherEnvRequireIsolation -ne 'DFO_REQUIRE_GO_ISOLATION') { throw '强制 Go 隔离的环境变量名写错了' }
+        $checks++
 
         # 7. 管理租约自愈：记录的 pid 不存在 ⇒ 删掉；记录的 pid 就是本进程 ⇒ 必须拒绝。
         $lease = "$($script:SqliteFile).admin-guard"
@@ -536,36 +537,27 @@ function Start-PostgresBounded([int]$timeoutSeconds) {
     Write-Host ("        排查：{0}、数据目录里的 postmaster.pid，或先跑 scripts\停止游戏环境.cmd。" -f $logPath) -ForegroundColor Yellow
 }
 
-# ── 完整启动链：自带优先级选择，不依赖任何「正在被改造」的中间入口 ──────────────
+# ── 完整启动链：只有仓库内的 Go 启动器，没有任何外部/Python 回退 ──────────────
 #
-# 业主要求（2026-10-05）：两个路线脚本必须**各自独立可用**（存档→服务端→客户端），
-# 之后才接进启动器。所以这里不再委托 scripts\启动游戏.cmd（它可能被别人改指向，
-# 也可能落到还没接客户端的启动器上），而是按下面的优先级直接调「能把客户端完整拉起来」
-# 的那一条：
-#   1. ..\115us-dfolauncher\bin\dfolauncher-cli.exe --launch   （一键启动器的 CLI，历来起全链）
-#   2. server\work\dfo-lan\scripts\launch_local.py             （Python 编排，同样起全链）
-#   3. server\work\dfo-lan\bin\dfolauncher.exe launch          （仓库内 Go 启动器；客户端托管可能还没接线）
-# 每一条都把「选了哪条、要执行什么命令行」打印出来；`chain-info` 只打印不执行。
+# 业主定调（2026-10-05，第三次明确）：**彻底移除所有外部环境依赖，包括 Python；
+# 不要再回退，必须 Go 成功**。所以这里只认 `server\work\dfo-lan\bin\dfolauncher.exe`
+# （由 `go build ./cmd/dfolauncher` 从仓库源码产出，运行期不需要 Python / 不需要外部启动器）：
+#   * 存储（SQLite 文件 / PostgreSQL 实例）：Go 的 storage 路径
+#   * 内层 PVF：Go 的 innerpvf 路径
+#   * 网关（含 session fixture、run.json、就绪轮询）：Go 的 serverrun/gateway/fixture 路径
+#   * 客户端：Go 宿主 + Go WFP 隔离（clienthost），并强制 `DFO_REQUIRE_GO_ISOLATION=1`
+#     —— 隔离装不上就**报错停下**，不再静默回退 probe.exe。
+# 缺二进制时直接失败并说明怎么构建，绝不改用别的解释器或别的启动器。
+$GoLauncherEnvRequireIsolation = 'DFO_REQUIRE_GO_ISOLATION'
+
+function Get-GoLauncherPath() {
+    return (Join-Path $RepoRoot 'server\work\dfo-lan\bin\dfolauncher.exe')
+}
+
 function Get-FullChainCandidates([string]$scope) {
-    $parent = Split-Path -Parent $RepoRoot
     $scopeArgs = if ($scope) { @($scope) } else { @() }
     $candidates = @()
-
-    $external = Join-Path $parent '115us-dfolauncher\bin\dfolauncher-cli.exe'
-    if (Test-Path -LiteralPath $external) {
-        $candidates += [pscustomobject]@{ Kind = 'external-cli'; Path = $external; Args = @('--launch') + $scopeArgs }
-    }
-    $python = Join-Path $parent 'tools\python\python.exe'
-    $launchPy = Join-Path $RepoRoot 'server\work\dfo-lan\scripts\launch_local.py'
-    if (Test-Path -LiteralPath $launchPy) {
-        if (Test-Path -LiteralPath $python) {
-            $candidates += [pscustomobject]@{ Kind = 'python-launcher'; Path = $python; Args = @($launchPy) + $scopeArgs }
-        }
-        elseif (Get-Command python -ErrorAction SilentlyContinue) {
-            $candidates += [pscustomobject]@{ Kind = 'python-launcher'; Path = 'python'; Args = @($launchPy) + $scopeArgs }
-        }
-    }
-    $goLauncher = Join-Path $RepoRoot 'server\work\dfo-lan\bin\dfolauncher.exe'
+    $goLauncher = Get-GoLauncherPath
     if (Test-Path -LiteralPath $goLauncher) {
         $candidates += [pscustomobject]@{ Kind = 'go-launcher'; Path = $goLauncher; Args = @('launch') + $scopeArgs }
     }
@@ -574,22 +566,18 @@ function Get-FullChainCandidates([string]$scope) {
 
 function Show-ChainInfo() {
     $candidates = Get-FullChainCandidates ''
+    $goLauncher = Get-GoLauncherPath
     Write-Host ''
-    Write-Host '[完整启动链] 两个路线脚本会按这个顺序挑第一条可用的（chain-info 只报告、不执行）：' -ForegroundColor Cyan
+    Write-Host '[完整启动链] 只走仓库内的 Go 启动器（无 Python、无外部启动器、无回退）：' -ForegroundColor Cyan
     if (-not $candidates) {
-        Write-Host '  （一条都没有：既没有一键启动器 CLI，也没有 launch_local.py 或 bin\dfolauncher.exe）' -ForegroundColor Red
+        Write-Host ("  缺少 {0}" -f $goLauncher) -ForegroundColor Red
+        Write-Host '  构建（需要 Go 工具链，只在开发机上做一次）：' -ForegroundColor Yellow
+        Write-Host '    cd server\work\dfo-lan' -ForegroundColor Yellow
+        Write-Host '    go build -trimpath -o bin\dfolauncher.exe .\cmd\dfolauncher' -ForegroundColor Yellow
         return
     }
-    $i = 0
-    foreach ($candidate in $candidates) {
-        $i++
-        $mark = if ($i -eq 1) { '<= 本次会用' } else { '' }
-        Write-Host ("  {0}. {1}`n     {2} {3}  {4}" -f $i, $candidate.Kind, $candidate.Path, ($candidate.Args -join ' '), $mark)
-    }
-    if ($candidates[0].Kind -eq 'go-launcher') {
-        Write-Host '  注意：仓库内 Go 启动器的客户端托管仍在开发中；若停在「服务端已就绪」而没有客户端，' -ForegroundColor Yellow
-        Write-Host '        请改用一键启动器 CLI（把文件放回 ..\115us-dfolauncher\bin\dfolauncher-cli.exe）或 Python 编排。' -ForegroundColor Yellow
-    }
+    Write-Host ("  {0} launch [--server-only]" -f $candidates[0].Path)
+    Write-Host ("  强制 Go：{0}=1（Go 隔离不可用时直接报错，不回退 probe.exe）" -f $GoLauncherEnvRequireIsolation) -ForegroundColor DarkGray
 }
 
 function Invoke-FullChain([string]$route, [string]$scope, [string[]]$extra) {
@@ -599,17 +587,17 @@ function Invoke-FullChain([string]$route, [string]$scope, [string[]]$extra) {
     }
     $candidates = Get-FullChainCandidates $scope
     if (-not $candidates) {
-        throw ('找不到可用的完整启动链：需要 ..\115us-dfolauncher\bin\dfolauncher-cli.exe、' +
-               'server\work\dfo-lan\scripts\launch_local.py（配 Python）或 server\work\dfo-lan\bin\dfolauncher.exe 之一。')
+        throw ('缺少仓库内的 Go 启动器 {0}。构建一次（需要 Go 工具链）：cd server\work\dfo-lan; go build -trimpath -o bin\dfolauncher.exe .\cmd\dfolauncher' -f (Get-GoLauncherPath))
     }
     $chosen = $candidates[0]
     $all = @($chosen.Args) + @($extra)
     Write-Host ''
-    Write-Host ("[启动] {0}（{1} 路线{2}）" -f $chosen.Kind, $route, $(if ($scope) { '，只起服务端' } else { '' })) -ForegroundColor Cyan
+    Write-Host ("[启动] 仓库内 Go 启动器（{0} 路线{1}）" -f $route, $(if ($scope) { '，只起服务端' } else { '' })) -ForegroundColor Cyan
     Write-Host ("       {0} {1}" -f $chosen.Path, ($all -join ' '))
-    if ($chosen.Kind -eq 'go-launcher') {
-        Write-Host '       （仓库内 Go 启动器的客户端托管仍在接线；若只起了服务端，请用一键启动器 CLI）' -ForegroundColor Yellow
-    }
+    # 「不要再回退了，必须 Go 成功」：强制 Go 客户端宿主 + Go WFP 隔离；
+    # 隔离装不上时 clientrun.go 会**报错停下**，不会静默改用 probe.exe。
+    $env:DFO_REQUIRE_GO_ISOLATION = '1'
+    Write-Host ("       环境：{0}=1（Go 隔离不可用就报错，不回退）" -f $GoLauncherEnvRequireIsolation) -ForegroundColor DarkGray
     Set-Location $RepoRoot
     & $chosen.Path @all
     exit $LASTEXITCODE
@@ -619,6 +607,7 @@ function Show-Help() {
     Write-Host ''
     Write-Host 'DFO 115us 存储路线（双库双路线）' -ForegroundColor Cyan
     Write-Host '  两条路线各有自己的存档，活动档 = server\work\dfo-lan\runtime\storage\local.json'
+    Write-Host '  启动链只有仓库内的 Go 启动器：无 Python、无外部启动器、无回退。'
     Write-Host ''
     Write-Host '  启动入口（双击即可，也可带参数，如 --source-build）：'
     Write-Host '    scripts\启动游戏-SQLite.cmd        游戏全链，SQLite 存档（不需要 PostgreSQL）'
@@ -629,6 +618,7 @@ function Show-Help() {
     Write-Host '  切换与检查：'
     Write-Host '    scripts\storage-route.cmd show              当前路线 / 连的是哪个库'
     Write-Host '    scripts\storage-route.cmd use sqlite|postgres'
+    Write-Host '    scripts\storage-route.cmd chain-info        只看会调哪个启动器、带哪些强制开关'
     Write-Host '    scripts\storage-route.cmd stop-postgres     停掉 pgdata 上的 PostgreSQL'
     Write-Host '    scripts\storage-route.cmd preflight-postgres 只做起库预检（清残留锁 + 有上限地拉起 PG）'
     Write-Host '    scripts\storage-route.cmd clear-guard        清理过期 SQLite 管理租约（上次会话被强杀后起不来时用）'
@@ -655,6 +645,12 @@ try {
         }
         'game-sqlite' { Invoke-FullChain 'sqlite' '' $extra }
         'game-postgres' { Invoke-FullChain 'postgres' '' $extra }
+        # 保持当前活动档不变，只把全链拉起来：scripts\启动游戏.cmd 用这个——
+        # 它不该私自换路线，路线只由两个路线入口决定。
+        'game-current' {
+            $active = ConvertTo-OrderedTable (Read-JsonFile $ActiveFile)
+            Invoke-FullChain (Get-StorageDriver $active) '' $extra
+        }
         'server-sqlite' { Invoke-FullChain 'sqlite' '--server-only' $extra }
         'server-postgres' { Invoke-FullChain 'postgres' '--server-only' $extra }
         'help' { Show-Help }

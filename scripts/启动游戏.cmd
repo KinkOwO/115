@@ -22,24 +22,22 @@ set DFO_QUEST_NPC_DISTANCE_MULTIPLIER=5
 rem Default profile: configs/pvf-default.json; story mode kept, --json-mode is the
 rem explicit legacy fallback.
 echo Starting DFO 115us Game Client and Server (PVF Direct + Scenario Mode)...
-rem Prefer the Go launcher: the session orchestration is Go, so this path needs no
-rem Python runtime. DFO_ROOT is explicit because the launcher sits beside the repository
-rem and would otherwise infer the wrong tree.
-set "DFO_ROOT=%~dp0.."
-rem tools\ was moved out of the repository, so expose the moved Go toolchain on PATH for
-rem the source build (serverbuild looks at tools\go first, then PATH).
-set "PATH=%~dp0..\..\tools\go\bin;%PATH%"
-if exist "..\115us-dfolauncher\bin\dfolauncher-cli.exe" (
-    "..\115us-dfolauncher\bin\dfolauncher-cli.exe" --launch %*
-) else if exist "tools\python\python.exe" (
-    "tools\python\python.exe" "server\work\dfo-lan\scripts\launch_local.py" %*
-) else (
-    python "server\work\dfo-lan\scripts\launch_local.py" %*
+rem Go only (owner's rule 2026-10-05): no external launcher, no Python, no fallback.
+rem storage-route.ps1 keeps the currently active storage route and calls the in-repo
+rem Go launcher with the Go-forced switches; the two route entries are the same path
+rem with an explicit route. Chinese notes for this file live in scripts\README.md.
+if not exist "server\work\dfo-lan\bin\dfolauncher.exe" (
+    echo ERROR: server\work\dfo-lan\bin\dfolauncher.exe is missing.
+    echo Build it once on a dev machine:  cd server\work\dfo-lan ^&^& go build -trimpath -o bin\dfolauncher.exe .\cmd\dfolauncher
+    pause
+    exit /b 1
 )
-if errorlevel 1 (
+powershell -NoProfile -ExecutionPolicy Bypass -File "scripts\storage-route.ps1" game-current %*
+set "RC=%ERRORLEVEL%"
+if not "%RC%"=="0" (
     echo.
     echo Game launch failed. Please inspect logs.
     pause
-    exit /b 1
+    exit /b %RC%
 )
 pause

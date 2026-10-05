@@ -9,7 +9,7 @@
 | 文件 | 作用 | 谁调用 |
 | --- | --- | --- |
 | `check-commit-hygiene.ps1` | **提交前门禁**：检出「本地缓存/构建产物入库」与目录规范违规；退出码 2 = 需业主二次确认（根 `AGENTS.md` §0.3.1） | 任何提交前手动跑：`pwsh -NoProfile -File scripts/check-commit-hygiene.ps1` |
-| `storage-route.ps1` / `storage-route.cmd` | **双库双路线切换器 + 完整链路选择器**：`show` 看当前路线、`use sqlite`/`use postgres` 切换、`stop-postgres` 停 PG、`preflight-postgres` 只做起库预检、`clear-guard` 清过期 SQLite 管理租约、`chain-info` 报告会挑哪条启动链、`selftest` 自检，以及四个入口实际调用的 `game-*`/`server-*`（逻辑见 `server/work/dfo-lan/docs/sqlite-operations.md` §1.2） | 四个路线启动入口内部调用；也可手动 `scripts\storage-route.cmd show` |
+| `storage-route.ps1` / `storage-route.cmd` | **双库双路线切换器 + Go 启动链调用**：`show` 看当前路线、`use sqlite`/`use postgres` 切换、`stop-postgres` 停 PG、`preflight-postgres` 只做起库预检、`clear-guard` 清过期 SQLite 管理租约、`chain-info` 报告 Go 启动器与强制开关、`selftest` 自检，以及四个入口实际调用的 `game-*`/`server-*`（逻辑见 `server/work/dfo-lan/docs/sqlite-operations.md` §1.2） | 四个路线启动入口内部调用；也可手动 `scripts\storage-route.cmd show` |
 | `configure_env.py` | 配置本机环境（写 `server/work/dfo-lan/runtime/storage/local.json`、探测客户端目录） | `scripts\配置环境.cmd` |
 | `storage_profile.py` | 存储引擎判定规则的 **Python 真源**（显式 driver > 有 DSN 选 PostgreSQL > 只有 sqlite_path 选 SQLite），被 `configure_env.py`、`stop_environment.py`、`gm.py` 导入 | 上面几个脚本 |
 | `stop_environment.py` | 安全停止环境（PG `pg_ctl stop -m fast` 做 checkpoint、清理进程与端口，按 driver 分叉） | `scripts\停止游戏环境.cmd` |
@@ -122,19 +122,25 @@
 | PostgreSQL | `runtime\storage\pgdata`（本地 PostgreSQL 实例，端口 25438） | `启动游戏-PostgreSQL.cmd` | `启动服务端-PostgreSQL.cmd` |
 
 四个入口都先让 `scripts\storage-route.ps1` 把活动档切成该路线；PostgreSQL 路线再跑一次**有上限的
-起库预检**，然后由脚本**自己挑一条能把客户端完整拉起来的链路**（业主 2026-10-05 要求：两个路线脚本
-先各自独立可用，再谈接进启动器）：
+起库预检**，然后由脚本调用**仓库内的 Go 启动器**把全链拉起来（业主 2026-10-05 第三次定调：
+**彻底移除所有外部环境依赖（含 Python），不再回退，必须 Go 成功**）：
 
-| 优先级 | 链路 | 说明 |
-| --- | --- | --- |
-| 1 | `..\115us-dfolauncher\bin\dfolauncher-cli.exe --launch` | 一键启动器的 CLI，历来起全链（探针+服务端+客户端） |
-| 2 | `server\work\dfo-lan\scripts\launch_local.py`（配 `..\tools\python` 或 PATH 上的 python） | Python 编排，同样起全链 |
-| 3 | `server\work\dfo-lan\bin\dfolauncher.exe launch` | 仓库内 Go 启动器；**客户端托管仍在接线**，会打印提醒 |
+| 环节 | Go 实现 |
+| --- | --- |
+| 存储 | `internal/launcher/storage.go`（SQLite 文件 / PostgreSQL 实例，`pg_ctl` 输出写文件不过管道） |
+| 内层 PVF | `internal/launcher/innerpvf.go` |
+| 会话 fixture / 网关 argv / 环境 | `internal/launcher/fixture.go`、`gateway.go`、`probeenv.go` |
+| 起网关 + `run.json` + 就绪轮询 | `internal/launcher/serverrun.go` |
+| **客户端宿主 + WFP 隔离** | `internal/launcher/clienthost*.go`（`probe.exe` 只作显式回退，脚本里已禁用） |
 
-`scripts\storage-route.cmd chain-info` 只报告会挑哪一条（不执行）；`selftest` 会断言「至少一条完整链路可用」。
-两个游戏入口都是**纯 ASCII + 自己提权**（WFP 隔离需要管理员），因此不依赖 `启动游戏.cmd` 那类中间入口
-（它们正被另一条并行工作在改造）。**两条路线的存档互相独立**，切换路线不会带着角色走；搬运存档用
-`dfo-tool sqliteconvert`（只支持 PostgreSQL → SQLite 单向）。
+启动链**只有一条**：`server\work\dfo-lan\bin\dfolauncher.exe launch [--server-only] [其它参数]`。
+两个游戏入口在启动时强制 `DFO_REQUIRE_GO_ISOLATION=1`：Go 隔离装不上就**报错停下**，不会静默改用
+`probe.exe`。二进制由源码构建（`cd server\work\dfo-lan; go build -trimpath -o bin\dfolauncher.exe .\cmd\dfolauncher`），
+运行期不需要 Python、不需要 `..\115us-dfolauncher` 那个外部启动器。
+`scripts\storage-route.cmd chain-info` 会报告二进制是否在位、会执行什么命令行、带了哪些强制开关。
+
+**两条路线的存档互相独立**，切换路线不会带着角色走；搬运存档用 `dfo-tool sqliteconvert`
+（只支持 PostgreSQL → SQLite 单向）。
 
 其余入口：`启动游戏.cmd`、`停止游戏环境.cmd`、`GM.cmd`、`storage-route.cmd`，
 以及提交门禁 `check-commit-hygiene.ps1`（其余入口正被并行工作整理，按其落定为准）。
