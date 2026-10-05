@@ -12,6 +12,7 @@ rem   storage-route.cmd show            current route / which database it opens
 rem   storage-route.cmd use sqlite      switch the active profile to SQLite
 rem   storage-route.cmd use postgres    switch the active profile to PostgreSQL
 rem   storage-route.cmd stop-postgres   stop the PostgreSQL instance in this repo
+rem   storage-route.cmd clear-guard     drop a stale SQLite admin lease (server refused to start)
 rem   storage-route.cmd selftest        self-check in a temp dir, touches nothing real
 if "%~1"=="" (
     powershell -NoProfile -ExecutionPolicy Bypass -File "scripts\storage-route.ps1" help

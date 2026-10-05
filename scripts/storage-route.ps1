@@ -232,6 +232,43 @@ function Use-Route([string]$route) {
     }
 }
 
+# SQLite 管理租约（GM 互斥）自愈。
+#
+# 症状（2026-10-05 实机）：服务端启动被拒 ——
+#   「已有 GM 写入正在进行（SQLite 管理租约文件 …admin-guard 由进程 13248 持有，最近一次续租 24s 前）」
+# 原因是上一次会话被强杀（停止脚本 taskkill / Ctrl+C），租约要等 60 秒 TTL 才失效，期间起不来。
+# 本动作只在**确认记录里的进程已不存在**后删除租约；记录里的进程还活着（多半是 Web GM 在写）
+# 就拒绝并打印它是谁——绝不代替业主抢锁（那正是这个锁要防的事）。
+function Clear-AdminGuard() {
+    $active = Read-JsonFile $ActiveFile
+    if ($null -eq $active) { throw "活动档不存在：$ActiveFile" }
+    $table = ConvertTo-OrderedTable $active
+    $driver = Get-StorageDriver $table
+    if ($driver -ne 'sqlite') {
+        Write-Host ("[跳过] 当前是 {0} 路线；管理租约只用于 SQLite 档（PostgreSQL 用 advisory lock，连接断开即释放）。" -f $driver) -ForegroundColor DarkGray
+        return
+    }
+    $dbPath = ([string]$table['sqlite_path']).Trim()
+    if (-not $dbPath) { throw '当前 SQLite 档缺少 sqlite_path，无法定位管理租约。' }
+    $lease = "$dbPath.admin-guard"
+    if (-not (Test-Path -LiteralPath $lease)) {
+        Write-Host '[跳过] 没有管理租约文件，服务端可以直接启动。' -ForegroundColor Green
+        return
+    }
+    $holder = (Get-Content -LiteralPath $lease -Raw -ErrorAction SilentlyContinue)
+    $pidText = if ($holder) { $holder.Trim() } else { '' }
+    $age = (Get-Date) - (Get-Item -LiteralPath $lease).LastWriteTime
+    Write-Host ("[租约] {0}`n        持有者 pid={1}；最近续租 {2:N0} 秒前" -f $lease, $(if ($pidText) { $pidText } else { '(空)' }), $age.TotalSeconds)
+    if ($pidText -match '^\d+$') {
+        $live = Get-Process -Id ([int]$pidText) -ErrorAction SilentlyContinue
+        if ($live) {
+            throw ("持有者 pid {0}（{1}）仍在运行，可能正在写存档：拒绝删除租约。确认它已退出（或等 60 秒 TTL）后再试。" -f $pidText, $live.ProcessName)
+        }
+    }
+    Remove-Item -LiteralPath $lease -Force
+    Write-Host '[完成] 已删除过期管理租约（记录的进程已不存在），现在可以启动服务端了。' -ForegroundColor Green
+}
+
 function Stop-Postgres() {
     $source = $null
     foreach ($candidate in @($PostgresRouteFile, $ActiveFile, $LegacyPgBackup)) {
@@ -349,6 +386,20 @@ function Invoke-SelfTest() {
             $checks++
         }
 
+        # 7. 管理租约自愈：记录的 pid 不存在 ⇒ 删掉；记录的 pid 就是本进程 ⇒ 必须拒绝。
+        $lease = "$($script:SqliteFile).admin-guard"
+        [System.IO.File]::WriteAllText($lease, '999999', (New-Object System.Text.UTF8Encoding($false)))
+        Clear-AdminGuard 6>$null
+        if (Test-Path -LiteralPath $lease) { throw '过期管理租约没有被清理' }
+        $checks++
+        [System.IO.File]::WriteAllText($lease, "$PID", (New-Object System.Text.UTF8Encoding($false)))
+        $refused = $false
+        try { Clear-AdminGuard 6>$null } catch { $refused = $true }
+        if (-not $refused) { throw '持有者仍存活时没有拒绝删除租约' }
+        if (-not (Test-Path -LiteralPath $lease)) { throw '拒绝之后租约文件不该消失' }
+        Remove-Item -LiteralPath $lease -Force
+        $checks++
+
         Write-Host ("[自检] OK：{0} 项检查通过（临时目录 {1}；本机真实配置未改动）" -f $checks, $tempRoot) -ForegroundColor Green
         return $true
     }
@@ -407,6 +458,7 @@ function Show-Help() {
     Write-Host '    scripts\storage-route.cmd show              当前路线 / 连的是哪个库'
     Write-Host '    scripts\storage-route.cmd use sqlite|postgres'
     Write-Host '    scripts\storage-route.cmd stop-postgres     停掉 pgdata 上的 PostgreSQL'
+    Write-Host '    scripts\storage-route.cmd clear-guard        清理过期 SQLite 管理租约（上次会话被强杀后起不来时用）'
     Write-Host '    scripts\storage-route.cmd selftest          自检（临时目录，不碰真实配置）'
     Write-Host ''
     Write-Host '  说明见 server\work\dfo-lan\docs\sqlite-operations.md §1.2。' -ForegroundColor DarkGray
@@ -422,6 +474,7 @@ try {
             Use-Route $Rest[1]
         }
         'stop-postgres' { Stop-Postgres }
+        'clear-guard' { Clear-AdminGuard }
         'selftest' {
             if (-not (Invoke-SelfTest)) { exit 1 }
         }
