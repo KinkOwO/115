@@ -314,10 +314,13 @@ try {
 
     # ---- 5. 输出 ----
     $scope = if ($All) { '工作树全部改动（含未跟踪）' } else { '已暂存内容' }
+    # @() 不能省：只有 1 个路径时 `$items` 是单个对象，PS 5.1 上 `$obj.Count` 为 $null，
+    # 于是「共  个路径」这种空计数会出现在最小的那次提交上——正好是最需要看清范围的时候。
+    $pathCount = @($items).Count
     if ($Json) {
         [pscustomobject]@{
             scope       = $scope
-            paths       = $items.Count
+            paths       = $pathCount
             blocked     = $blocked
             needConfirm = $needConfirm
             notes       = $notes
@@ -327,7 +330,7 @@ try {
     else {
         Write-Host ''
         Write-Host 'DFO 115us · 提交前门禁（check-commit-hygiene）' -ForegroundColor Cyan
-        Write-Host ("范围：{0}，共 {1} 个路径" -f $scope, $items.Count)
+        Write-Host ("范围：{0}，共 {1} 个路径" -f $scope, $pathCount)
         $envIssues = @($blocked + $needConfirm | Where-Object { $_.Clause -match '环境匹配' })
         $blockedOther = @($blocked | Where-Object { $_.Clause -notmatch '环境匹配' })
         $needOther = @($needConfirm | Where-Object { $_.Clause -notmatch '环境匹配' })
