@@ -29,6 +29,8 @@ func main() {
 		os.Exit(runLaunch(os.Args[2:]))
 	case "start-storage":
 		os.Exit(runStartStorage(os.Args[2:]))
+	case "prepare-inner-pvf":
+		os.Exit(runPrepareInnerPVF(os.Args[2:]))
 	case "-h", "--help", "help":
 		usage()
 		os.Exit(0)
@@ -45,6 +47,7 @@ func usage() {
 Usage:
   dfolauncher stop  [--root <path>] [--dry-run]
   dfolauncher start-storage [--root <path>] [--dry-run]
+  dfolauncher prepare-inner-pvf [--root <path>] [--client <dir>] [--force] [--dry-run]
   dfolauncher check [--root <path>] [--server-only|--client-only] [--source-build] [--json-mode]
   dfolauncher launch --check|--dry-run [--root <path>]
                     [--server-only|--client-only|--storage-only]
@@ -55,13 +58,25 @@ Usage:
 Flags:
   --root      repository root (default: the current directory, which is where the
               .cmd entry points cd to)
+  --client    client directory holding DFO.exe / sk.dat / Script.pvf
+              (default: launcher.local.json's client_dir)
+  --force     rebuild even when the four-state gate would reuse the archive
   --dry-run   print every action without performing it
   --tag       pin the session tag (default: built from the clock)
+
+prepare-inner-pvf is Stage 4 of docs/go-launch-migration-plan.md: it replaces
+scripts/ensure_inner_pvf.py + scripts/prepare_inner_pvf.py with the Go generator in
+internal/catalog/pvf. The four-state gate is the same (missing -> build, no or untrusted
+manifest -> rebuild, client triple unchanged -> reuse, changed -> rebuild) and the
+manifest it writes is byte-identical to the Python one. Files it replaces are renamed to
+<name>.stale-<stamp>, never deleted.
 
 launch decides the session before anything starts: it reads the same configuration,
 validates the same profile and checks the same dependencies as
 scripts/launch_local.py, and --check prints the same four lines. --dry-run adds the
-storage -> inner PVF -> gateway -> client command plan.
+storage -> inner PVF -> gateway -> client command plan. Like the Python's own --check
+(whose _ensure_inner_pvf runs first), --check generates the inner archive when the gate
+says it is missing or stale; --dry-run never writes it.
 
 --server-only really starts the game gateway in Go (Stage 2 of
 docs/go-launch-migration-plan.md): the protocol fixture, the gateway argv, ready.json
@@ -293,6 +308,71 @@ func runStartStorage(args []string) int {
 	if _, err := launcher.StartStorage(ctx, settings, *timeout, logf); err != nil {
 		fmt.Fprintf(os.Stderr, "start-storage: %v\n", err)
 		return 1
+	}
+	return 0
+}
+
+// runPrepareInnerPVF is Stage 4's own entry point: it replaces
+// scripts/ensure_inner_pvf.py + scripts/prepare_inner_pvf.py, so the launcher (another
+// repository) and the .cmd entries can generate the inner archive without Python.
+//
+// The gate prints the same sentence launch --check does when it reuses the archive;
+// when it builds, the two log lines come from the generator itself and match the Python's
+// wording (the elapsed time is the only difference, as it must be).
+func runPrepareInnerPVF(args []string) int {
+	flags := flag.NewFlagSet("prepare-inner-pvf", flag.ContinueOnError)
+	root := flags.String("root", ".", "repository root")
+	client := flags.String("client", "", "client directory (default: launcher.local.json)")
+	force := flags.Bool("force", false, "rebuild even when the gate would reuse the archive")
+	dryRun := flags.Bool("dry-run", false, "report the verdict without writing anything")
+	if err := flags.Parse(args); err != nil {
+		return 2
+	}
+	absolute, err := filepathAbs(*root)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "resolve root: %v\n", err)
+		return 1
+	}
+
+	options := launcher.InnerPVFOptions{
+		Root:      absolute,
+		ClientDir: *client,
+		Force:     *force,
+		DryRun:    *dryRun,
+	}
+	// The generator's own log lines go to stdout, exactly where launch_local.py's
+	// log=print put them.
+	options.Log = func(format string, args ...any) { fmt.Printf(format+"\n", args...) }
+
+	result, err := launcher.PrepareInnerPVF(options)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "prepare-inner-pvf: %v\n", err)
+		// A failure after the rotation left the old archive as <name>.stale-<stamp>;
+		// saying so is the difference between "my file vanished" and "roll back".
+		if result.Rotated != "" {
+			fmt.Fprintf(os.Stderr, "旧件已备份为 %s（可改回原名回滚）\n", result.Rotated)
+		}
+		return 1
+	}
+
+	switch {
+	case result.Generated:
+		fmt.Printf("内层 PVF 已生成（耗时 %.1fs）\n", result.Elapsed.Seconds())
+	case result.NeedsBuild:
+		// Only reachable with --dry-run: without it, a "needs build" verdict is acted on.
+		fmt.Printf("（dry-run）内层 PVF 需要重建：%s\n", result.Reason)
+	default:
+		fmt.Printf("内层 PVF 无需重建：%s\n", result.Reason)
+	}
+	fmt.Printf("Inner:    %s\n", result.Inner)
+	fmt.Printf("Manifest: %s\n", result.Manifest)
+	if result.Generated {
+		// 产物的身份：与 Python 版产物比对、以及写入启动器侧缓存时用的都是这个哈希。
+		fmt.Printf("Size:     %d 字节（%d 段，%d 把段密钥）\n", result.Size, result.Segments, result.Keys)
+		fmt.Printf("SHA256:   %s\n", result.SHA256)
+	}
+	if result.Rotated != "" {
+		fmt.Printf("Rotated:  %s\n", result.Rotated)
 	}
 	return 0
 }

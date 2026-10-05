@@ -61,11 +61,8 @@ func StartStorage(ctx context.Context, cfg StorageConfig, timeout time.Duration,
 	}
 	for _, action := range plan {
 		logf("storage: %s", action.Detail)
-		cmd := exec.CommandContext(ctx, action.Target,
-			"start", "-D", action.Path, "-l", filepath.Join(filepath.Dir(action.Path), "postgres.log"),
-			"-w", "-t", "30")
-		if output, err := cmd.CombinedOutput(); err != nil {
-			return false, fmt.Errorf("pg_ctl start failed: %v: %s", err, string(output))
+		if err := startPostgres(ctx, action, filepath.Join(filepath.Dir(action.Path), "postgres.log")); err != nil {
+			return false, err
 		}
 	}
 	// Waiting for the port is the only real proof the service came up, and it is what
@@ -82,4 +79,35 @@ func StartStorage(ctx context.Context, cfg StorageConfig, timeout time.Duration,
 		}
 	}
 	return false, fmt.Errorf("PostgreSQL did not start within %s; inspect launcher-postgres.log", timeout)
+}
+
+// startPostgres runs `pg_ctl start` **without ever reading its output through a pipe**.
+//
+// Why this is not `CombinedOutput()` (2026-10-05, live hang):
+//
+// On Windows, `pg_ctl start` launches postgres through a `cmd.exe` wrapper that stays alive
+// as long as the server does, and that wrapper inherits pg_ctl's stdout/stderr. With
+// `CombinedOutput()` those are *pipes we must read to EOF*, so the call blocks until postgres
+// exits - i.e. forever. The observed symptom was exactly the owner's report: the console sat
+// on "拉起 PostgreSQL" while `postgres.log` already said `database system is ready to accept
+// connections`, and the only way out was Ctrl+C (which then killed the server through the
+// console group and left a stale postmaster.pid behind).
+//
+// Giving the child *files* instead of pipes removes the deadlock: nothing of ours stays in the
+// wrapper's handle table, so `Run` returns as soon as `pg_ctl -w` reports the server ready.
+// Readiness is still proved the same way as before - by the port answering (below).
+func startPostgres(ctx context.Context, action Action, logPath string) error {
+	cmd := exec.CommandContext(ctx, action.Target,
+		"start", "-D", action.Path, "-l", logPath, "-w", "-t", "30")
+	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+	if err != nil {
+		return fmt.Errorf("open %s: %w", logPath, err)
+	}
+	defer logFile.Close()
+	cmd.Stdout = logFile
+	cmd.Stderr = logFile
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("pg_ctl start failed: %w (see %s)", err, logPath)
+	}
+	return nil
 }

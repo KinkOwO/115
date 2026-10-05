@@ -1,12 +1,9 @@
 package launcher
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -20,14 +17,10 @@ import (
 // anything. Configuration parsing, profile validation, the dependency checks and the
 // inner-PVF gate are ported, and the result is printed; no process is started and no file
 // is written. The real launch (gateway argv, client, WFP) is Stage 2/3.
-
-// innerFormat is the manifest format prepare_inner_pvf.py writes. The gate accepts
-// nothing else; kept in sync with scripts/ensure_inner_pvf.py and internal/pvfprep.
-const innerFormat = "dfo_20260901_inner"
-
-// innerClientInputs is the client triple the inner archive is derived from. DFO.exe alone
-// carries the wrapper keys, so all three decide whether the archive still matches.
-var innerClientInputs = []string{"DFO.exe", "sk.dat", "Script.pvf"}
+//
+// Stage 4 upgraded the inner-PVF step from "check only" to "generate when missing/stale",
+// which is what launch_local.py always did (its _ensure_inner_pvf runs before --check
+// prints). The gate, the manifest and the generation itself live in innerpvf.go.
 
 // launcherTagPrefix is the session tag launch_local.py builds. The tag decides the output
 // directory and, through the probe's downgrade chain, which payload the client gets.
@@ -267,9 +260,9 @@ func LaunchPlan(root string, opts LaunchOptions) (LaunchReport, error) {
 		}
 	}
 
-	// The inner archive has to be checked before the profile's own required files: the
-	// default profile lists it as DFO_PVF_ARCHIVE, and the Python generated it here so
-	// that check could pass. This stage only inspects (Stage 4 builds it).
+	// The inner archive has to be checked (and, since Stage 4, generated) before the
+	// profile's own required files: the default profile lists it as DFO_PVF_ARCHIVE, and
+	// launch_local.py prepared it here so that check could pass.
 	innerPVF := filepath.Join(clientBuild, "Script.inner.pvf")
 	manifest := filepath.Join(clientBuild, "Script.inner.manifest.json")
 	report.InnerPVF = InnerPVFStatus{Path: innerPVF, Manifest: manifest}
@@ -279,16 +272,10 @@ func LaunchPlan(root string, opts LaunchOptions) (LaunchReport, error) {
 	case profile.Env["DFO_PVF_CATALOGS"] == "":
 		// No native profile: the gateway reads JSON and never opens the inner archive.
 	default:
-		status := inspectInnerPVF(client, innerPVF, manifest)
-		status.Checked = true
-		if status.NeedsBuild {
-			status.Message = fmt.Sprintf(
-				"WARNING: 内层 PVF 未就绪：%s（本阶段只校验不生成；生成见 go-launch-migration-plan.md Stage 4）",
-				status.Reason)
-		} else {
-			status.Message = "内层 PVF 无需重建：" + status.Reason
-		}
-		report.InnerPVF = status
+		// --dry-run is a Go-only switch that must stay read-only, so it reports the verdict
+		// without building; --check is NOT read-only, because the Python's --check was not
+		// either (its _ensure_inner_pvf ran first and rebuilt the 760 MB archive).
+		report.InnerPVF = ensureInnerPVFForLaunch(client, innerPVF, manifest, !opts.DryRun)
 	}
 
 	for _, path := range profile.Required {
@@ -506,166 +493,6 @@ func pythonBool(value bool) string {
 	return "False"
 }
 
-// inspectInnerPVF is the read-only half of scripts/ensure_inner_pvf.py: the same
-// four-state gate, minus the rebuild.
-func inspectInnerPVF(client, inner, manifestPath string) InnerPVFStatus {
-	status := InnerPVFStatus{Path: inner, Manifest: manifestPath}
-	missing := make([]string, 0, len(innerClientInputs))
-	for _, name := range innerClientInputs {
-		if !regularFile(filepath.Join(client, name)) {
-			missing = append(missing, name)
-		}
-	}
-	if len(missing) > 0 {
-		// The Python's ensure() raised this before it looked at the archive at all.
-		status.NeedsBuild = true
-		status.Reason = fmt.Sprintf(
-			"客户端缺少 %s，无法生成内层 PVF（需 DFO.exe + sk.dat + Script.pvf 三件套）",
-			strings.Join(missing, "、"))
-		return status
-	}
-	status.NeedsBuild, status.Reason = decideInnerPVF(client, inner, manifestPath)
-	return status
-}
-
-// decideInnerPVF mirrors ensure_inner_pvf.decide: pure read-only inspection, with the same
-// reasons in the same order. The cheap (size, mtime_ns) comparison runs first so a warm
-// client is never hashed.
-func decideInnerPVF(client, inner, manifestPath string) (bool, string) {
-	info, err := os.Stat(inner)
-	if err != nil {
-		return true, "内层 PVF 不存在"
-	}
-	manifest := loadInnerManifest(manifestPath)
-	if manifest == nil {
-		return true, "缺少或无法解析清单，旧件不可信"
-	}
-	if manifest.Format != innerFormat {
-		// Unreachable through loadInnerManifest, kept so the order matches decide().
-		return true, fmt.Sprintf("清单格式不符（%q）", manifest.Format)
-	}
-	if manifest.Inner.Size != nil && *manifest.Inner.Size != info.Size() {
-		return true, fmt.Sprintf("内层 PVF 大小不符（盘上 %d，清单 %d）", info.Size(), *manifest.Inner.Size)
-	}
-	if len(manifest.Cache) == len(innerClientInputs) {
-		states, statErr := clientStates(client)
-		if statErr != nil {
-			return true, "无法读取客户端文件状态，按需重建"
-		}
-		if sameClientStates(states, manifest.Cache) {
-			return false, "客户端与内层 PVF 均未变化，复用现有产物"
-		}
-	}
-	// Slow path: the client triple changed (or the fast path was unavailable), so compare
-	// full fingerprints.
-	exe, err := fileSHA256(filepath.Join(client, "DFO.exe"))
-	if err != nil {
-		return true, "无法读取客户端文件状态，按需重建"
-	}
-	sk, err := fileSHA256(filepath.Join(client, "sk.dat"))
-	if err != nil {
-		return true, "无法读取客户端文件状态，按需重建"
-	}
-	script, err := fileSHA256(filepath.Join(client, "Script.pvf"))
-	if err != nil {
-		return true, "无法读取客户端文件状态，按需重建"
-	}
-	if exe == manifest.ClientExe.SHA256 && sk == manifest.SkDat.SHA256 && script == manifest.Outer.SHA256 {
-		return false, "客户端指纹与清单一致，复用现有产物"
-	}
-	return true, "客户端 DFO.exe/sk.dat/Script.pvf 已变化"
-}
-
-// innerManifest is the part of the manifest the gate compares. Size is a pointer because
-// an absent entry means "unknown", which the Python accepted.
-type innerManifest struct {
-	Format    string            `json:"format"`
-	ClientExe innerFingerprint  `json:"client_exe"`
-	SkDat     innerFingerprint  `json:"sk_dat"`
-	Outer     innerFingerprint  `json:"outer"`
-	Inner     innerSize         `json:"inner"`
-	Cache     []innerCacheEntry `json:"cache"`
-}
-
-type innerFingerprint struct {
-	SHA256 string `json:"sha256"`
-}
-
-type innerSize struct {
-	Size *int64 `json:"size"`
-}
-
-// innerCacheEntry is one (size, mtime_ns) record of the client triple.
-type innerCacheEntry struct {
-	Name    string `json:"name"`
-	Size    int64  `json:"size"`
-	MtimeNS int64  `json:"mtime_ns"`
-}
-
-// loadInnerManifest returns nil for a missing, unparseable or foreign-format manifest, so
-// the caller treats it as "cannot prove provenance" and rebuilds.
-func loadInnerManifest(path string) *innerManifest {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil
-	}
-	// The Python read the manifest as plain utf-8 (no BOM tolerance), so a byte-order mark
-	// makes it unparseable there too.
-	var manifest innerManifest
-	if err := json.Unmarshal(data, &manifest); err != nil {
-		return nil
-	}
-	if manifest.Format != innerFormat {
-		return nil
-	}
-	return &manifest
-}
-
-// clientStates is the cheap key the gate compares first.
-func clientStates(client string) ([]innerCacheEntry, error) {
-	states := make([]innerCacheEntry, 0, len(innerClientInputs))
-	for _, name := range innerClientInputs {
-		info, err := os.Stat(filepath.Join(client, name))
-		if err != nil {
-			return nil, err
-		}
-		states = append(states, innerCacheEntry{
-			Name:    name,
-			Size:    info.Size(),
-			MtimeNS: info.ModTime().UnixNano(),
-		})
-	}
-	return states, nil
-}
-
-// sameClientStates compares the recorded and current triples entry by entry, in order, as
-// the Python's list comparison did.
-func sameClientStates(current, recorded []innerCacheEntry) bool {
-	if len(current) != len(recorded) {
-		return false
-	}
-	for index := range current {
-		if current[index] != recorded[index] {
-			return false
-		}
-	}
-	return true
-}
-
-// fileSHA256 is the fingerprint the manifest stores.
-func fileSHA256(path string) (string, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return "", err
-	}
-	defer file.Close()
-	digest := sha256.New()
-	if _, err := io.Copy(digest, file); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(digest.Sum(nil)), nil
-}
-
 // planInput is everything the --dry-run plan needs, so the plan builder stays testable
 // without a live environment.
 type planInput struct {
@@ -762,10 +589,12 @@ func innerPVFStep(in planInput) PlanStep {
 		return PlanStep{Step: step, Target: "(复用)",
 			Detail: in.innerStatus.Reason + "：" + in.innerPVF}
 	default:
+		// Stage 4: the generation is Go now (innerpvf.go), not scripts/prepare_inner_pvf.py.
+		// --dry-run never writes, so this line stays a plan.
 		return PlanStep{
 			Step:   step,
-			Target: filepath.Join(in.module, "scripts", "prepare_inner_pvf.py"),
-			Detail: fmt.Sprintf("%s %s %s（%s；本阶段只校验不生成，生成见 Stage 4）",
+			Target: "(dfolauncher 现场生成)",
+			Detail: fmt.Sprintf("%s → %s（清单 %s；%s；--dry-run 不生成）",
 				in.client, in.innerPVF, in.manifest, in.innerStatus.Reason),
 		}
 	}
