@@ -2,9 +2,11 @@ package launcher
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"dfolan/internal/wfpisolate"
@@ -74,12 +76,25 @@ type ClientHostOptions struct {
 	Env []string
 	// Console：把同一行日志回显到启动器控制台；nil = 不回显。
 	Console interface{ Write([]byte) (int, error) }
+	// Wrapper / WrapperDLL：汉化启动宿主（localization-host.exe + localization.dll）。
+	//
+	// 非空时客户端**不是**由这里直接 CreateProcess，而是交给宿主：argv 变成
+	// `<Wrapper> <client_dir>\DFO.exe <WrapperDLL> <payload…>`，宿主自己起客户端并注入 dll，
+	// 再把 `READY <客户端 pid>` 写回 stdout（见 clientwrapper.go 的文件头）。
+	Wrapper string
+	// WrapperDLL 见 Wrapper。
+	WrapperDLL string
+	// ErrorLog：子进程 stderr 的去处（汉化宿主路径把它接到 helper.err，与 probe.exe 那一路
+	// 的 stderr 去处一致）；nil = 不回显、不落盘（尾部仍会随失败错误带出来）。
+	ErrorLog io.Writer
 }
 
 // HostedClient 是一个已经拉起的客户端进程。Run 收尾之后 Pid 仍然可读
 // （probe.json / run.json 的 probe_pid 用它）。
 type HostedClient struct {
 	// Pid 是客户端进程 pid（probe.cpp 记的 ROOT_PID）。
+	//
+	// 经汉化启动宿主拉起时它是**宿主报回来的那个 pid**（游戏客户端），不是宿主自己的 pid。
 	Pid int
 	// ExitCode 是客户端自己的退出码（宿主退出码另算）。
 	ExitCode int
@@ -91,6 +106,10 @@ type HostedClient struct {
 	IsolationNote string
 	// LogPath 是本次写的 client.log。
 	LogPath string
+	// Wrapped 为真表示这次客户端是经汉化启动宿主拉起的（Pid/WrapperPID 由此而来）。
+	Wrapped bool
+	// WrapperPID 是汉化启动宿主自己的 pid（只有 Wrapped 为真时有意义；诊断用）。
+	WrapperPID int
 	// process 是还没收尾的原生进程句柄（Run 内部用）。
 	process *hostProcess
 }
@@ -181,6 +200,13 @@ func startHostedClient(options ClientHostOptions, isolate bool) (*HostedClient, 
 		return nil, exitClientHostMissingExe, nil
 	}
 
+	// 汉化启动宿主那一对文件（启用汉化时由启动器经环境变量下发）：同样在写 client.log 之前
+	// 就先判在不在 —— 宿主缺失是"这次根本起不了带汉化的客户端"，不该留下半份现场。
+	wrapper, err := resolveWrapperTargets(options.Wrapper, options.WrapperDLL)
+	if err != nil {
+		return nil, exitClientHostWrapperError, err
+	}
+
 	log := newProbeStyleLog(options.LogPath, options.Console)
 	defer log.close()
 
@@ -215,6 +241,10 @@ func startHostedClient(options ClientHostOptions, isolate bool) (*HostedClient, 
 	}
 	// 记录这次走的哪条路（Go 版/无隔离），方便从 client.log 直接判断。
 	log.line("HOST " + wfpIsolationLine(hosted))
+	if wrapper.Enabled() {
+		// 汉化那一档也要留下现场：client.log 是唯一能证明"这次到底有没有注入 dll"的地方。
+		log.line("WRAPPER_HOST " + wrapper.Host + " dll=" + wrapper.DLL)
+	}
 
 	seconds := options.Seconds
 	if seconds < clientHostMinSeconds {
@@ -224,14 +254,34 @@ func startHostedClient(options ClientHostOptions, isolate bool) (*HostedClient, 
 		seconds = clientHostMaxSeconds
 	}
 
-	process, code, err := startHostProcess(hostProcessSpec{
+	spec := hostProcessSpec{
 		Target:     target,
 		Args:       options.Args,
 		WorkingDir: clientDir,
 		Env:        options.Env,
 		UIMode:     options.UIMode,
 		Timeout:    time.Duration(seconds) * time.Second,
-	})
+	}
+	// 汉化的 stderr 尾部（失败时随错误带出来）。宿主在启动阶段短暂附加，输出很少，所以只留
+	// 最后 wrapperStderrTailLimit 字节。
+	var wrapperTail *wrapperStderrTail
+	if wrapper.Enabled() {
+		// 客户端交给汉化宿主：argv 变成 `<host> <DFO.exe> <dll> <payload…>`，宿主自己起客户端
+		// 并注入 dll。它的 stdout 要读 `READY <pid>`，stderr 按 probe.exe 那一路的去处落盘。
+		//
+		// 目标与参数取自同一个 argv：**第一项是程序自己**（buildClientCommandLine 会把它拼成
+		// 命令行第一段），所以参数只能取它后面的部分 —— 两处各拼一次会让宿主收到
+		// `[host host DFO.exe dll payload]`，于是它把自己又起了一遍（2026-10-05 实测踩到）。
+		argv := wrapper.Argv(target, options.Args)
+		spec.Target = argv[0]
+		spec.Args = argv[1:]
+		spec.WantStdout = true
+		if options.ErrorLog != nil {
+			spec.WantStderr = true
+		}
+	}
+
+	process, code, err := startHostProcess(spec)
 	if err != nil {
 		if process != nil && process.Pid > 0 {
 			log.line(fmt.Sprintf("ROOT_PID %d", process.Pid))
@@ -242,6 +292,42 @@ func startHostedClient(options ClientHostOptions, isolate bool) (*HostedClient, 
 	hosted.process = process
 	hosted.Pid = process.Pid
 	log.line(fmt.Sprintf("ROOT_PID %d", process.Pid))
+	if wrapper.Enabled() {
+		// stderr 先接上（握手失败时它就是唯一的原因来源）：实时落 helper.err，同时留一份尾部。
+		if process.stderr != nil {
+			wrapperTail = &wrapperStderrTail{limit: wrapperStderrTailLimit}
+			process.drainStderr(io.MultiWriter(options.ErrorLog, wrapperTail))
+		}
+		pid, readyErr := process.awaitWrapperClient(options.Console)
+		if readyErr != nil {
+			log.line("WRAPPER_ERROR " + readyErr.Error())
+			// 先杀宿主（它 Job 里的客户端也一并收掉），再关句柄 —— closeAll 内部会等两个管道
+			// 读者退出，所以下面读 wrapperTail 是安全的。
+			process.terminateAndWait(2 * time.Second)
+			process.closeAll()
+			tail := wrapperTail.String()
+			for _, line := range strings.Split(tail, "\n") {
+				if line = strings.TrimRight(line, "\r"); line != "" {
+					log.line("WRAPPER_STDERR " + line)
+				}
+			}
+			if tail != "" {
+				return nil, exitClientHostWrapperError, fmt.Errorf("%w；汉化启动宿主 stderr 尾部：%s", readyErr, tail)
+			}
+			return nil, exitClientHostWrapperError, readyErr
+		}
+		// 宿主报回的是**游戏客户端**的 pid：从此 watch / 退出码都盯着它（宿主可能在初始化完成后
+		// 就自己退出，等它等于把一次还在跑的游戏判成已结束）。
+		hosted.Wrapped = true
+		hosted.WrapperPID = process.Pid
+		hosted.Pid = pid
+		if attachErr := process.attachClient(pid); attachErr != nil {
+			// 拿不到客户端句柄（权限/反作弊保护）时**不**把启动判失败：游戏可能真的在跑。
+			// 退回"等宿主进程"，并把这次降级如实写进 client.log。
+			log.line(fmt.Sprintf("WRAPPER_ATTACH_ERROR %v", attachErr))
+		}
+		log.line(fmt.Sprintf("WRAPPER_READY client_pid=%d", pid))
+	}
 	// probe.cpp L145-L146 的两行：启动链只会走到 normal（没有调试器）。
 	log.line("NORMAL_RUN no_debugger no_breakpoints")
 	if hostUIModeIsInteractive(options.UIMode) {

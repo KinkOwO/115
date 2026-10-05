@@ -33,6 +33,8 @@ func main() {
 		os.Exit(runInitStorage(os.Args[2:]))
 	case "prepare-inner-pvf":
 		os.Exit(runPrepareInnerPVF(os.Args[2:]))
+	case "storage-sync":
+		os.Exit(runStorageSync(os.Args[2:]))
 	case hostClientSubcommand:
 		os.Exit(runHostClient(os.Args[1:]))
 	case "-h", "--help", "help":
@@ -88,6 +90,9 @@ Usage:
   dfolauncher start-storage [--root <path>] [--dry-run]
   dfolauncher init-storage [--root <path>] [--postgres-bin <dir>] [--postgres-port <int>] [--dry-run]
   dfolauncher prepare-inner-pvf [--root <path>] [--client <dir>] [--force] [--dry-run]
+  dfolauncher storage-sync [--root <path>] [--list] [--backup]
+                           [--copy-to sqlite|postgres] [--restore <备份目录名>]
+                           [--restore-to sqlite|postgres] [--dry-run]
   dfolauncher check [--root <path>] [--server-only|--client-only] [--source-build] [--json-mode]
   dfolauncher launch --check|--dry-run [--root <path>]
                     [--server-only|--client-only|--storage-only]
@@ -140,6 +145,11 @@ always injects 0.
 --host-client is the Go client host itself (dfolauncher --host-client <client_dir>
 <client.log> <seconds> <ui-mode> [breakpoints.txt] [payload...]): the same positional
 arguments probe.exe takes, so the launcher can hand both paths the same argv.
+
+storage-sync is 双端同步：备份（SQLite 用 VACUUM INTO、PostgreSQL 用 pg_dump -Fc）/
+跨引擎覆盖式复制（--copy-to）/ 还原（--restore）。进度写 stderr，stdout 只留一行结果 JSON；
+退出码 2=参数错、1=失败、0=成功。它**不改** runtime/storage/local.json 与档位模板
+（复制 ≠ 切档），且服务端在跑时（7001 在监听 / SQLite 管理租约仍在）一律拒绝执行。
 `)
 }
 

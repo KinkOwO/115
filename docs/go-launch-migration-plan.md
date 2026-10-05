@@ -101,6 +101,7 @@
 | 接收层过滤器 `ALE_AUTH_RECV_ACCEPT_V4/V6` | 也不装 | 不装 | 一致（`FilterLayers()` 里显式列出来并标 `Install: false`） |
 | 网络自检 `net_check` | 子进程跑 | 进程内跑同一套（回环 TCP + `192.0.2.1:9` 期望 `WSAEACCES`） | 一致 |
 | `probe_pid` | probe.exe 的 pid | 客户端自己的 pid | 键名/格式不变；Go 路径下宿主就是启动器进程，没有独立的 probe 进程 |
+| 汉化 dll 注入（`localization-host.exe`） | 无（原生程序没有"换掉被拉起的程序"的能力） | 有：启用汉化时客户端交给汉化宿主拉起（见下节） | 启用汉化时**必须**走 Go 宿主；做不到就明确报错，不回退 `probe.exe` |
 | 拦的"自己" | `probe.exe` 的镜像 | `os.Executable()`（启动器） | 隔离边界都是"跑客户端的那个进程" |
 | JOB_PROCESS 枚举 | 有（normal 档逐步列成员） | 无 | 纯诊断行；`probe.exe` 路径仍然有 |
 | 结构体布局 | C 的 `FWPM_*` 结构 | 手写字节缓冲（8 字节对齐，见下） | 见"未验证项" |
@@ -119,7 +120,65 @@
   `WSAETIMEDOUT(10060)` 而不是 `WSAEACCES(10013)`：自检的"远端被拒"这一条在本机
   无法作为隔离生效的证据（两侧行为一致，所以不影响等价性判断）。
 
+#### Stage 3 收尾 · 汉化 dll 注入（2026-10-05 接回）
+
+**问题。** 启动器 1.6.1 把「开始游戏」改成与整合包两条路线脚本同一条路（客户端由本程序拉起）之后，
+启动器那条"把客户端交给 `localization-host.exe` 并注入 `localization.dll`"的路（启动器
+`modtool.StartClient`）**没有调用方了**：汉化开着也只能得到一个文本没生效的客户端。
+
+**做法：环境变量通道**（对新链路零侵入 —— 本程序的 argv、`client.log` 行、退出码与
+`run.json` / `probe.json` 字段一个都不动）。
+
+| 变量 | 谁给 | 含义 |
+|---|---|---|
+| `DFO_CLIENT_WRAPPER` | 启动器（`internal/run`） | `<客户端>\.launcher-mods\localization\localization-host.exe` |
+| `DFO_CLIENT_WRAPPER_DLL` | 启动器（`internal/run`） | 同目录下的 `localization.dll` |
+
+两个变量都在时，客户端那一步变成宿主包装形式：
+
+```
+<localization-host.exe> <client_dir>\DFO.exe <localization.dll> <payload…>
+```
+
+宿主自己起客户端、注入 dll，把 `READY <游戏客户端 pid>` 写到自己的 stdout（与启动器
+`modtool.StartClient` 同一份协议）。我们读到的那个 pid 就是本次会话的**客户端 pid**：`run.json` /
+`probe.json` 的 `probe_pid` 与日志里的客户端 pid 都用它，宿主自己的 pid 另算。
+
+**落地位置。**
+
+- 启动器：`internal/modtool/wrapper.go`（`WrapperPaths` / `EnsureWrapper`：资源就位只 stat，
+  缺了才按自更新源补齐）+ `internal/run/run.go`（`launchEnvWithLocalization` 把包装变量并进
+  发给编排程序的环境；「仅启动服务端」不查汉化资源）。
+- 本仓库：`internal/launcher/clientwrapper.go`（读变量、判分流、等 READY、stderr 尾部）+ `clientrun.go`
+  （有包装变量时强制走 Go 宿主，失败不回退 `probe.exe`）+ `clienthost.go` / `clienthost_windows.go`
+  （`CreatePipe` 接管宿主 stdout/stderr、`OpenProcess` 盯**客户端**、`WRAPPER_*` 行）。
+
+**回退边界（硬约束）。** 包装变量存在时**必须**走 Go 宿主：`probe.exe` 是原生程序，没有"把被拉起的
+程序换成汉化宿主"的能力，顺着它走只会得到"汉化看起来开着、文本却不生效"。因此
+`DFO_FORCE_PROBE_EXE=1` 与包装变量同时出现时**直接报错**；Go 宿主不可用（非 Windows / `CreateProcessW`
+失败 / 宿主文件缺失）时同样**直接报错**（原因 + 宿主路径 + 客户端目录 + 修复入口），绝不回退。
+
+**超时与不阻塞。** 等 `READY` 的上限是 `clientWrapperReadyTimeout = 30s`（启动器侧同一个值）。
+超时/握手无效 → 杀掉宿主（Job 里可能已经起来的客户端一并收掉）→ 把宿主 stderr 尾部写进
+`client.log`（`WRAPPER_STDERR` 行）与错误信息 → 本次启动失败。这一步跑在编排程序里，
+**不会**再出现"启动器界面卡住三分钟"。
+
+**与运行顺序有关的两个细节。** ①宿主可能在初始化完成后就自己退出，所以等待与退出码读的都是
+**宿主报回的客户端**（拿不到客户端句柄时退回等宿主，并在 `client.log` 记
+`WRAPPER_ATTACH_ERROR`，不把已经在跑的游戏判成结束）；②客户端进程仍进 Job
+（`JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`），收尾时 `TerminateJobObject` 照旧连它一起收。
+
+**未验证项（诚实清单）。**
+
+- 业主机器上汉化**未启用**（`DFO\.launcher-mods\localization\enabled` 不存在），**真**宿主
+  `localization-host.exe` + 真 dll 的注入没有实机验收；本机证据是替身宿主
+  （`internal/launcher/clienthost_live_test.go` 的 `TestLiveWrappedClientHostReportsClientPID`，
+  门禁 `DFO_CLIENT_HOST_LIVE_TEST=1`）。
+- 真宿主是否在报出 READY 后立即退出、stdout 是否只有这一行，本机没有样本；代码按"宿主可能早退"
+  设计（这正是等客户端 pid 而不是等宿主的原因）。
+
 ### Stage 4 · 内层 PVF 改 Go 生成
+
 - 服务端侧新增 `dfolauncher prepare-inner-pvf`（用 `internal/catalog/pvf`），替代
   `ensure_inner_pvf.py` + `prepare_inner_pvf.py`；清单结构与启动器 `internal/pvfprep` 对齐。
 - **验收**：`client-build/Script.inner.pvf` 与 Python 版产物**逐字节一致**（或哈希一致）。
@@ -142,3 +201,6 @@
 - **WFP**：`probe.exe` 无管理员权限时会优雅降级 —— Go 版沿用该行为（回退 `probe.exe` 并
   在日志里写明"这次没有隔离"），不允许静默失效；要禁止回退可设 `DFO_REQUIRE_GO_ISOLATION=1`。
   详见 Stage 3 的「WFP Go 化」小节。
+- **汉化**：启用汉化时客户端必须交给汉化启动宿主（`DFO_CLIENT_WRAPPER` / `DFO_CLIENT_WRAPPER_DLL`），
+  这一档**没有** `probe.exe` 回退 —— 做不到就明确报错，绝不静默给出一个没注入 dll 的客户端。
+  详见 Stage 3 的「汉化 dll 注入」小节。
