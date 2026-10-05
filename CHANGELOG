@@ -13,6 +13,73 @@
 >    未经业主收口（`AGENTS.md` §0 第 7 条）不得把候选写成「已确认」。
 > 4. 阶段级改动仍走 `AGENTS.md` §0.3（提交前门禁 + 二次确认）。
 
+## 2026-10-04：662 直升活动在 main 主干重推落地 + 教学免单（装备库 2259）
+
+外部交付包 `boostup-662-merge-full-20261004`（134 文件的差异集，基线是本仓 27 个提交之前的 `4fcb6280`、
+目标树是另一台机器上的 `D:\DNF115\115US\115-main`）**不能直接覆盖**：包内有 35 个文件仍 import 本仓
+已合并掉的 `internal/storage` / `internal/db`。本次改为**按语义在 main 主干重推**，规格资产见
+`runtime/boostup662-spec/`，计划与结论见 `analysis/tasks/next154`、`next155`。
+
+落地（分支 `feat/boostup662-on-main`，本地提交）：
+
+- `159f39b3` S1 协议层：新增 `boostup_events115.go` / `boostup_frames115.go`（+test）；
+  `stackable_action.go` 动作号按 u32 认（实机胶囊动作 337）。放宽只动 action 字节范围，
+  `p[2]==0` 的旧严格性原本就在各读取器内，未受影响。
+- `7222f9a7` S2 活动领域层：`internal/boostup/` 28 文件，**零适配**（只依赖 catalog/pvf、catalog、dungeon）。
+- `b941ffb0` S3 源装载：`gamedata/boostup.go` + `catalogs_boostup.go` + `catalogs.go` 七处插入；
+  `fame.go` / `fame_native.go` 增 `Groups`（`equipmentgrouping.etc [ability group]` 原始成员关系）与
+  `SetPointTotals` —— 穿戴任务的分组真源走名望侧同一解析器（§0.2 单一规则）。
+  ⚠️ 本仓四张 catalog 清单原本已含 `transform`（55 项），故为 **55 → 56**（包侧是 54 → 55）。
+- `9b4abe1b` S4 角色侧：11 新 + 5 处钩子（只插不覆，保住本仓独有的 `notifyLevelUp` / `stateLevel`）。
+- `86c3c1af` S5：训练装备封存门禁（`TutorialLocked` 来源标记 + `SetInBoostTraining` 谓词注入，
+  `inventory` 不反向依赖 `boostup`）、自选箱件数真源、`SelectGuide`。
+- `33b95d30` S6：掉落/工作流 16 新；邮件层不引入包的 `system_mail.go`（与本仓
+  `database/mailbox.go` 重复），只补 `SystemMailAssets` 与 `SendSystemMailWithCharacterUpdate`。
+- `8bc49583` S7 网关接线：21 新 + 19 个既有文件钩子；新增 `dispatchBoostEvent`（643/680/681）；
+  选角/回选角活动清单与建号后名单同一口径；681 不再吞帧（改走 `dispatchNext`）；2265/2638 帧序。
+  活动测试改用本仓 `database.OpenTestFixture`（原先依赖旧 `storage.Store.DB` 字段），
+  为此在 fixture 增三个具名助手（`EventCountByKey` / `SeedAccountPremium` / `SetAccountPremiumEnd`），
+  不开放任意 SQL。
+- `9f580435` 把 643/680 登记进 `observedGameRequest`（681 原本已有）+ 守卫测试。
+  经代码核对：`unimplemented_sample` 是**采样白名单标记**、不是「未处理」；判定与采样已解耦。
+- `87233eac` **生成路径的金库金币口径与变换线对齐**：`pickCraftCost` 原先只比 `bag.Gold`，
+  而紧随其后的 `payTransformGold(paid, vaultGold, gold)` 本来就会去账号金库取
+  （背包优先、不足从金库调取 —— 业主确认口径）⇒ 同一笔成本判两次还判错一次。
+  改为收 `vaultGold` 并用 `bag.Gold + vaultGold`；拒因同时报出两边余额；**不回退换支**的禁令保留。
+
+★ **刻意偏离原生源：教学期免单（业主 2026-10-04 明确要求）**
+
+662 第 10 关的**教学目标就是让玩家走一遍装备变换**（源 `[guide actions] open equipment journal`），
+而那件教学用装备（`100051285`）在源里**没有任何 `[create cost]` 条目**（`[item index]` 零命中、
+其 `.equ` 也无 `[create cost]` 段），客户端界面因此显示 **0 材料 / 0 金币**（实机截图：
+「只有一个定价无法切换、金币免费」）。**这是正确设计，服务端应当支持**。
+
+此前服务端有一条 2026-09-30 加的「按 `[grade]`+`[rarity]` 兜底找档」，给这件编出 35,000 金币，
+而背包/金库都是 0 的学员号会被拒死；2259 的拒绝链又因客户端会崩
+（`[ALIGN-20260930-CRAFT-NO-REFUSAL]`，2026-09-30 两次实测回 Error ⇒ `exit=0xC0000005`）
+**不能回包** ⇒ 界面「点了没反应」，教学卡在第 10 关。
+
+本提交按业主口径加入免单：`EquipmentCraftPlan.Unpriced`（源里查不到该件的成本条目）
+**且** `bag.TutorialMode()`（仍在 662 训练轨道）时，按 **0 材料 / 0 金币** 执行并对客户端回成功
+（走既有的 `accountMaterialRefreshPackets` 刷新，装备进背包）。
+**免单不得外溢**：出关后同一件仍走正常（兜底）定价 —— 门禁由 `TestTutorialFreeCraftGate` 与
+`TestPlanEquipmentCraftMarksUnpricedStep10Item`（用真实 `equipment-create-cost.generated.json`）钉住。
+
+验证：
+
+- `go build ./internal/... ./cmd/...` = 0；`go vet ./cmd/... ./internal/...` = 0
+- **全量** `go test -p 1 -count=1 ./internal/... ./cmd/...` = **exit 0**（8m0s，无失败项）
+- 候选/现役二进制 `bin/wireprobe-pvf.exe`（sha256 前缀 `d574e7ac…` → 本次免单版 `e2c7b1…`）
+- 启动自检（`scripts/profile_pvf_startup.py`）：`PVF Starter Boost prepared: steps=11 gifts=2
+  capsules=2 challenge-buffs=0 groups=9721`，`domain_count=56`，exit 0
+
+已知未决（均已在 `analysis/tasks/next155` 记档）：
+
+- 「客户端把未定价条目列进生成窗口」这一现象的**来源**尚未取证（候选：`[part set index]` 关联的另一张表）。
+- 免单目前只加在**生成**路径；若客户端以 `action=1` 发同一件，变换路径的成本表按稀有度查找，
+  尚未加同样的教学门禁。
+- 包作者侧遗留：第二关副本中的地图箱（取证任务书在其交付包 `docs/analysis/`）。
+
 ## 阶段索引（按时间顺序）
 
 | # | 阶段 | 时间区间 | 归档行 | 主题 |

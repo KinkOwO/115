@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"dfolan/internal/boostup"
 	"dfolan/internal/cashshop"
 	"dfolan/internal/catalog"
 	"dfolan/internal/character"
@@ -16,6 +17,7 @@ import (
 	"dfolan/internal/reward"
 	"dfolan/internal/workflow"
 	"dfolan/internal/world"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -36,6 +38,8 @@ type gatewayRuntime struct {
 	apocalypseCatalog     *catalog.ApocalypseCatalog
 	apocalypseClock       *legion.ApocalypseClock
 	boosterCatalog        *BoosterCatalog
+	boostCatalog          *boostup.Catalog
+	boostEventInfo        []byte
 	characters            *character.Service
 	channelDirectory      *catalog.ChannelDirectory
 	channelTowns          map[uint32]catalog.TownArea
@@ -147,6 +151,7 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		ApocalypsePath:        startup.ApocalypseCatalog,
 		AttunementPath:        startup.AttunementRewards,
 		ContentPolicyPath:     startup.PVFContentPolicy,
+		BoostChallenge:        startup.BoostUpChallenge,
 	}, runtimeCatalogAdapters())
 	// PrepareCatalogs can return partially acquired catalogs alongside an error.
 	if pvfCatalogs != nil {
@@ -1571,12 +1576,48 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 	if err := validateTownArrivalScenes(worldService, questService, townArrivalScenes); err != nil {
 		return nil, nil, err
 	}
+	// Starter Boost 662 装配：目录来自 PVF 直读（preparePVFBoostUp），NOTI108 活动清单
+	// 只在开关打开时冻结一次。base=nil —— 本树从未下发过 108 的频道开放门，不伪造。
+	var boostCatalog *boostup.Catalog
+	var boostEventInfo []byte
+	if startup.BoostUpEvent {
+		if pvfCatalogs.BoostUp == nil {
+			// 玩法开关默认生效、不留第二套内容源（§0.14）：活动目录只从 PVF 直读来。
+			// JSON/部分直读域的运行方式拿不到真源，本树其它 PVF-only 特性同样是
+			// "缺源就降级 + 记一条 warning"（见 selection box / apocalypse 的告警），
+			// 这里保持一致：活动整体不装配，玩家照常进镇，不伪造内容。
+			log.Printf("warning: Starter Boost 662 disabled; PVF direct-read boostup domain is not prepared (-pvf-catalogs 加 boostup 才开启)")
+			startup.BoostUpEvent = false
+			startup.BoostUpChallenge = false
+		} else if characters == nil || lootService == nil || worldService == nil {
+			return nil, nil, errors.New("Starter Boost 需要持久化角色、掉落与世界服务")
+		} else {
+			rows, e := protocol.BoostOpeningEvents115(0, boostup.EventEnd, startup.BoostUpChallenge)
+			if e != nil {
+				return nil, nil, e
+			}
+			boostCatalog, boostEventInfo = pvfCatalogs.BoostUp, rows
+			characters.Boost = boostCatalog
+			if progressionService != nil {
+				progressionService.Boost = boostCatalog
+			}
+			// 教学封存谓词： activated 且训练未毕业 = 仍在训练轨道，禁售/丢/寄/入仓生效。
+			inventory.SetInBoostTraining(func(raw json.RawMessage) bool {
+				st, e := boostup.ReadState(raw)
+				return e == nil && st.Activated && !st.Training.Finished
+			})
+			log.Printf("Starter Boost event info snapshot ready: NOTI108 rows=%d bytes=%d",
+				binary.LittleEndian.Uint16(boostEventInfo), len(boostEventInfo))
+		}
+	}
 	prepared = &gatewayRuntime{
 		config:                startup,
 		accountOptionsPayload: accountOptionsPayload,
 		apocalypseCatalog:     apocalypseCatalog,
 		apocalypseClock:       apocalypseClock,
 		boosterCatalog:        boosterCatalog,
+		boostCatalog:          boostCatalog,
+		boostEventInfo:        boostEventInfo,
 		characters:            characters,
 		channelDirectory:      pvfCatalogs.ChannelDirectory,
 		channelInfo:           pvfCatalogs.ChannelInfo,

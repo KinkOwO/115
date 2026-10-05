@@ -122,6 +122,8 @@ func (gateway *gameGateway) handleClient(c net.Conn, channel uint32) {
 		if client.moonConfig != nil && client.channel == client.moonConfig.Channel {
 			client.worldState.moonConfig = client.moonConfig
 		}
+		// Starter Boost 662：会话拿装配层冻结的活动目录；nil = 活动关闭，一切照旧。
+		client.worldState.boostup = client.boostCatalog
 	}
 	if client.worldState != nil {
 		defer client.worldState.departArea()

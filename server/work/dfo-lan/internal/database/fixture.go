@@ -190,3 +190,47 @@ func (f *TestFixture) QuestRecord(ctx context.Context, id int64, quest int32) (s
 func (f *TestFixture) SeedFatigueUsage(ctx context.Context, id int64, used, usedMax int32) error {
 	return f.queries.FixtureFatigueUsage(ctx, sqlcgen.FixtureFatigueUsageParams{CharacterID: id, Used: used, UsedMax: usedMax})
 }
+
+// EventCountByKey 是「按事件键计数」的断言读：断言某次操作是否真的落了事件
+// （幂等重放不得新增、失败回滚不得留行）。
+//
+// SQLite 迁移（2026-10-05）后 fixture 不再持有 pgx pool：原始 SQL 走
+// openSQLite + 独立 *sql.DB（与 RejectGraduation 同一口径），占位符从 $N 改 ?。
+func (f *TestFixture) EventCountByKey(ctx context.Context, id int64, key string) (int64, error) {
+	db, err := openSQLite(ctx, f.Path(), 1, 0)
+	if err != nil {
+		return 0, err
+	}
+	defer db.Close()
+	var n int64
+	if err := db.QueryRowContext(ctx,
+		`SELECT count(*) FROM character_events WHERE character_id=? AND event_key=?`, id, key).Scan(&n); err != nil {
+		return 0, err
+	}
+	return n, nil
+}
+
+// SeedAccountPremium 直接写一行 account_premiums，让依赖「已购合约」的玩法判定
+// 拿到真实现实输入（例如成长胶囊的合约点数门禁）。
+func (f *TestFixture) SeedAccountPremium(ctx context.Context, account int64, premiumType int, end int64) error {
+	db, err := openSQLite(ctx, f.Path(), 1, 0)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	_, err = db.ExecContext(ctx,
+		`INSERT INTO account_premiums(account_id,premium_type,end_time) VALUES(?,?,?)`, account, premiumType, end)
+	return err
+}
+
+// SetAccountPremiumEnd 改一行的到期时间，用于把过期合约变回有效。
+func (f *TestFixture) SetAccountPremiumEnd(ctx context.Context, account int64, premiumType int, end int64) error {
+	db, err := openSQLite(ctx, f.Path(), 1, 0)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	_, err = db.ExecContext(ctx,
+		`UPDATE account_premiums SET end_time=? WHERE account_id=? AND premium_type=?`, end, account, premiumType)
+	return err
+}

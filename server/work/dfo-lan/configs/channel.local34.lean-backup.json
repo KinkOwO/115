@@ -1,0 +1,82 @@
+{
+  "Listen": "0.0.0.0:7001",
+  "ServerKey": "first",
+  "ServerID": 1,
+  "MaxUsers": 30,
+  "SynchronizeIdentity": true,
+  "SourceSHA256": "aecc92480ccd469fa2b33bf9c189496a0c4e31c20eb2fef7e1623642c23a687f",
+  "Channels": [
+    {
+      "ID": 1,
+      "Name": "LAN 1"
+    },
+    {
+      "ID": 6,
+      "Name": "LAN 6"
+    },
+    {
+      "ID": 10,
+      "Name": "LAN Normal",
+      "Type": 22
+    },
+    {
+      "ID": 119,
+      "Name": "Legion"
+    },
+    {
+      "ID": 106,
+      "Name": "Bleeding Mines"
+    },
+    {
+      "ID": 63,
+      "Name": "Oculus",
+      "Type": 63,
+      "Area": "[oculus]"
+    },
+    {
+      "ID": 73,
+      "Name": "Purgatory",
+      "Type": 73,
+      "Area": "[black_purgatory]"
+    },
+    {
+      "ID": 74,
+      "Name": "Revelation",
+      "Type": 74,
+      "Area": "[impossible]"
+    },
+    {
+      "ID": 67,
+      "Name": "Sirocco"
+    },
+    {
+      "ID": 76,
+      "Name": "Ozma"
+    },
+    {
+      "ID": 108,
+      "Name": "Unshackled"
+    },
+    {
+      "ID": 103,
+      "Name": "Temple of Death"
+    },
+    {
+      "ID": 102,
+      "Name": "Azure Main"
+    },
+    {
+      "ID": 101,
+      "Name": "Moon Lake"
+    },
+    {
+      "ID": 117,
+      "Name": "Apostate"
+    },
+    {
+      "ID": 116,
+      "Name": "Turtle Lib"
+    }
+  ],
+  "Note": "只声明发布哪些频道与显示名；Type/Area/SourceValues/[dungeon] 全部直读内层 PVF（etc/channel_info.etc + etc/clientchannelinfo.etc）。ID 按 type 给出，启动期缺 type 直接报错。ID 10 的 Type 22 是唯一的本地覆盖。"
+}

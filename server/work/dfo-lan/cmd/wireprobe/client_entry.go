@@ -406,6 +406,21 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 			}
 		}
 		plan := entryPayloads{Select: payload, Basic: basic, Addition: addition, Vault: vaultPayload, UserArea: userArea, Area: areaPayload, Fatigue: fatiguePayload, AccountOptions: accountOptions}
+		// Starter Boost 662 进城恢复：可领礼物集合（2265）与训练进度（2638）都按
+		// 本角色状态现算。读失败只丢这一帧并记事件——进城不该被活动状态卡住。
+		if client.worldState != nil && client.worldState.boostup != nil {
+			boost := client.worldState.boostup
+			if gifts, boostErr := boostGiftAvailability(boost, role); boostErr != nil {
+				client.event(map[string]any{"kind": "boost_gift_restore_error", "character_id": role.ID, "error": boostErr.Error()})
+			} else {
+				plan.BoostGifts = gifts
+			}
+			if status, boostErr := boostTrainingRestore(boost, role); boostErr != nil {
+				client.event(map[string]any{"kind": "boost_training_restore_error", "character_id": role.ID, "error": boostErr.Error()})
+			} else {
+				plan.BoostTraining = status
+			}
+		}
 		if client.characters != nil {
 			oathCtx, oathCancel := context.WithTimeout(context.Background(), 5*time.Second)
 			selection, oathErr := client.gameStore.EquippedOathSelection(oathCtx, client.developmentAccount, role.ID)

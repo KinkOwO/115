@@ -76,6 +76,9 @@ func craftEventKey(template, slot uint32, group int, state json.RawMessage) stri
 type EquipmentCraftPlan struct {
 	Key   string
 	Group catalog.CreateCostGroup
+	// Unpriced 表示**源里没有这件的 `[create cost]` 条目**（`[item index]` 精确查找未命中，
+	// Group 是按品级/稀有度兜出来的近似档）。此时教学期免单，见 PrepareEquipmentCraft。
+	Unpriced bool
 }
 
 func (s *ItemService) PlanEquipmentCraft(role Role, template, slot uint32, payOption int) (EquipmentCraftPlan, error) {
@@ -96,8 +99,9 @@ func (s *ItemService) PlanEquipmentCraft(role Role, template, slot uint32, payOp
 		return EquipmentCraftPlan{}, (fmt.Errorf("equipment craft: template %d is in no create-cost group", template))
 	}
 
+	_, exact := s.CreateCost.GroupFor(template)
 	key := craftEventKey(template, slot, group.Index, role.State)
-	return EquipmentCraftPlan{Key: key, Group: group}, nil
+	return EquipmentCraftPlan{Key: key, Group: group, Unpriced: !exact}, nil
 }
 
 // payTransformGold 从「背包金币 + 账号金库」里扣掉 `need` 金币，
@@ -126,6 +130,16 @@ func payTransformGold(bag Bag, vaultGold, need uint32) (Bag, uint32, uint32, err
 	return out, vaultGold - rest, rest, nil
 }
 
+// tutorialFreeCraft 判定一次「生成」是否走**教学免单**：源里查不到这件的
+// `[create cost]` 条目（`plan.Unpriced`）**且**玩家仍在 662 训练轨道
+// （`bag.TutorialMode()`）。
+//
+// 两个条件缺一不可：出关后同一件仍走正常（兜底）定价，免单不得外溢到常规玩法。
+// 依据见 PrepareEquipmentCraft 里的说明与 next155 文档。
+func tutorialFreeCraft(plan EquipmentCraftPlan, bag Bag) bool {
+	return plan.Unpriced && bag.TutorialMode()
+}
+
 func (s *ItemService) PrepareEquipmentCraft(current Role, accountRaw json.RawMessage, vaultGold uint32, template uint32, payOption int, plan EquipmentCraftPlan) (json.RawMessage, json.RawMessage, uint32, EquipmentCraftReceipt, error) {
 	var result EquipmentCraftReceipt
 	group := plan.Group
@@ -146,9 +160,29 @@ func (s *ItemService) PrepareEquipmentCraft(current Role, accountRaw json.RawMes
 		return nil, nil, vaultGold, result, e
 	}
 
-	option, gold, bagMats, accountMats, e := pickCraftCost(bag, account, group, payOption)
-	if e != nil {
-		return nil, nil, vaultGold, result, e
+	// ★ 教学免单（业主明确要求，2026-10-04）：662 训练轨道内、源里查不到成本条目的件，
+	// 按 **0 材料 / 0 金币** 执行 —— 客户端界面就是这样显示的（实测第 10 关 100051285
+	// 「只有一个定价无法切换、金币免费」）。
+	//
+	// 为什么必须这样做：第 10 关的教学目标就是让玩家**走一遍装备变换**（`[guide actions]
+	// open equipment journal`），源里那件没有 `[create cost]` 条目 ⇒ 需求本来就是 0。
+	// 此前按品级兜一档收 35,000 金币 ⇒ 背包/金库都是 0 的学员号被拒死，而 2259 拒绝链
+	// 又因客户端会崩（`[ALIGN-20260930-CRAFT-NO-REFUSAL]`）不能回包 ⇒ 界面「点了没反应」，
+	// 教学直接卡在第 10 关。
+	//
+	// ⚠️ 这是**刻意偏离原生源**（源里没有这条定价），只作用于训练轨道（`bag.TutorialMode()`），
+	// 出关后同一件仍走正常定价。依据与边界见 CHANGELOG 与
+	// `analysis/tasks/next155-662第十关卡点-装备库2259口径分歧.md`。
+	var option int
+	var gold uint32
+	var bagMats, accountMats []MaterialCost
+	if tutorialFreeCraft(plan, bag) {
+		option = payOption
+	} else {
+		option, gold, bagMats, accountMats, e = pickCraftCost(bag, vaultGold, account, group, payOption)
+		if e != nil {
+			return nil, nil, vaultGold, result, e
+		}
 	}
 	paid, e := bag.PayMaterials(bagMats, 1)
 	if e != nil {
@@ -205,11 +239,19 @@ func (s *ItemService) PrepareEquipmentCraft(current Role, accountRaw json.RawMes
 // 实机 2026-09-29 13:52 那笔（`[13]=2`，玩家选的是**巡礼之印**）就是被"挑第一支付得起的"
 // 错扣成了 35,000 金币。付不起就拒绝、把差多少写清楚，由上层记日志。
 //
+// ★ **金币口径必须与 `payTransformGold` 一致**：背包优先，不足部分从账号金库调取。
+// 2026-10-04 实机（662 第十关，角色背包 0 金币）踩到：这里原先只比 `bag.Gold`，
+// 于是"金库里有 8 亿"也会被拒在 `needs 35000 gold, have 0` —— 而紧随其后的
+// `payTransformGold(paid, vaultGold, gold)` 本来就会去金库取，等于这道前置检查
+// 把同一笔成本判了两次、还判错一次。`vaultGold` 由调用方从
+// `storage.AccountVaultState.Gold` 传入（与变换线同一个来源）。
+//
 // 返回的四项：付法序号、金币、**背包付**的材料、**账号仓库付**的材料。
 // 分仓依据是 `AccountMaterialSlot`：命中说明该模板被 115 客户端固定映射到
 // 账号共享容器 35（三档登记证就在其中），必须从仓库扣而不是背包。
 func pickCraftCost(
 	bag Bag,
+	vaultGold uint32,
 	account AccountMaterials,
 	group catalog.CreateCostGroup,
 	payOption int,
@@ -237,9 +279,11 @@ func pickCraftCost(
 		}
 		bagMats = append(bagMats, MaterialCost{Template: p.Template, Count: p.Amount})
 	}
-	if gold > bag.Gold {
-		return 0, 0, nil, nil, fmt.Errorf("equipment craft: cost %d needs %d gold, have %d",
-			opt.Number, gold, bag.Gold)
+	// 背包优先、不足从账号金库调取：与 payTransformGold 同一条口径（见顶部注释）。
+	if total := uint64(bag.Gold) + uint64(vaultGold); uint64(gold) > total {
+		return 0, 0, nil, nil, fmt.Errorf(
+			"equipment craft: cost %d needs %d gold, have %d in bag + %d in vault",
+			opt.Number, gold, bag.Gold, vaultGold)
 	}
 	if len(bagMats) > 0 {
 		if _, e := bag.PayMaterials(bagMats, 1); e != nil {
@@ -429,10 +473,21 @@ func (s *ItemService) PrepareEquipmentTransform(current Role, accountRaw json.Ra
 		// 成本：源 `[need materials]` 里该稀有度的、玩家点的那一支付法（请求头 [13]）。
 		// ⚠️ 旧实现是「灵魂 ×1 + 固定 50000 金币」，只有 primeval 一档与源相同 ——
 		// rare..epic 一直多扣金币（源是 25000/30000/35000/40000）。现在整表直读。
-		pay, e := s.transformPayment(catalog.TransformChainEquipment, p.to, plan.PayOption)
+		var pay transformPayment
+		pay, e = s.transformPayment(catalog.TransformChainEquipment, p.to, plan.PayOption)
 		if e != nil {
-			result.Skipped = append(result.Skipped, p.to)
-			continue
+			// ★ 教学免单：662 训练轨道内的装备库变换**不收成本**。
+			// 依据（业主 2026-10-04 明确要求）：第 10 关的教学目标就是让玩家走一遍装备变换，
+			// 客户端界面把成本显示为 0（实机截图「金币免费」），而源表 `[need materials]`
+			// 对 legendary 仍写着「登记证×1 + 35,000 金币 / 融合石×7」—— 学员号 0 金币、
+			// 无登记证无融合石，照源扣必然付不起；2259 又不能回拒绝包（回 Error 会让客户端
+			// `exit=0xC0000005`）⇒ 界面「点了没反应」，教学卡死。
+			// ⚠️ 刻意偏离源，只作用于训练轨道（`bag.TutorialMode()`）；出关后同一件按源扣。
+			if !live.TutorialMode() {
+				result.Skipped = append(result.Skipped, p.to)
+				continue
+			}
+			pay = transformPayment{Option: plan.PayOption}
 		}
 		affordable := true
 		for _, m := range pay.AccountMats {

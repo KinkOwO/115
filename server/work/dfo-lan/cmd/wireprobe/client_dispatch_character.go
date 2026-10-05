@@ -134,6 +134,12 @@ func (client *gameConnection) dispatchSessionTransitions(requestData *clientRequ
 				client.worldState.departArea()
 			}
 			clearSelectedWorld(client.worldState)
+			if requestData.frame.ID == 7 {
+				// 回选角后活动图标仍要认得 662：选角屏重建时按这张清单取窗口。
+				if e = client.sendBoostChannelEvents("return_selection"); e != nil {
+					return dispatchClose
+				}
+			}
 			if requestData.frame.ID == 3 {
 				client.bootstrapped = false
 				client.event(map[string]any{"kind": "menu_exit_session_closed", "peer": client.peer, "option": option})
@@ -550,6 +556,7 @@ func (client *gameConnection) dispatchRoster(requestData *clientRequest) dispatc
 			}
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
 		var payload []byte
 		created := false
 		var err error
@@ -608,7 +615,24 @@ func (client *gameConnection) dispatchRoster(requestData *clientRequest) dispatc
 					payload, err = client.characters.EntryAddition(client.worldState.role)
 				}
 			} else {
-				payload, err = client.characters.ListWithFatigue(ctx, client.developmentAccount, client.fatigueService, time.Now())
+				if client.boostCatalog != nil {
+					// 选角名单与 NOTI2639 进度标记必须出自**同一次**角色读取：标记按列表
+					// 位次编号，分两次读会在建号/删号后错位。标记先发，名单作为 CMD8 回应。
+					roster, rosterErr := selectionRosterPackets(ctx, client.characters, client.developmentAccount, client.fatigueService, client.boostCatalog)
+					if rosterErr != nil {
+						err = rosterErr
+					} else if len(roster) != 2 {
+						err = fmt.Errorf("boost roster snapshot incomplete")
+					} else {
+						payload = roster[1].Payload
+						if err = client.output.send(roster[0].Kind, roster[0].ID, roster[0].Payload); err != nil {
+							return dispatchClose
+						}
+						client.event(map[string]any{"kind": roster[0].Name, "id": roster[0].ID, "account_id": client.developmentAccount, "plain_hex": hex.EncodeToString(roster[0].Payload)})
+					}
+				} else {
+					payload, err = client.characters.ListWithFatigue(ctx, client.developmentAccount, client.fatigueService, time.Now())
+				}
 			}
 		}
 		cancel()
@@ -644,27 +668,43 @@ func (client *gameConnection) dispatchRoster(requestData *clientRequest) dispatc
 			if err = client.sendLoginFloodOnce(); err != nil {
 				return dispatchClose
 			}
+			// Starter Boost 662：选角名单建立后推活动清单快照，图标才认得 10017/662。
+			if err = client.sendBoostChannelEvents("character_select"); err != nil {
+				return dispatchClose
+			}
 		}
 		if created {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			list, e := client.characters.ListWithFatigue(ctx, client.developmentAccount, client.fatigueService, time.Now())
+			// 建号/删号后的名单刷新与选角屏同一口径：活动开启时进度标记和名单出自
+			// 同一次读取，位次才会跟着新列表重排。
+			var roster []outboundPacket
+			var e error
+			if client.boostCatalog != nil {
+				roster, e = selectionRosterPackets(ctx, client.characters, client.developmentAccount, client.fatigueService, client.boostCatalog)
+			} else {
+				var list []byte
+				list, e = client.characters.ListWithFatigue(ctx, client.developmentAccount, client.fatigueService, time.Now())
+				roster = []outboundPacket{{"character_roster_snapshot", 0, 2, list}}
+			}
 			cancel()
 			if e != nil {
 				client.event(map[string]any{"kind": "character_list_error", "error": e.Error()})
 				return dispatchHandled
 			}
-			encrypted, e := wire.EncryptPayload(client.keys, 2, list)
-			if e != nil {
-				return dispatchClose
+			for _, row := range roster {
+				encrypted, e := wire.EncryptPayload(client.keys, row.ID, row.Payload)
+				if e != nil {
+					return dispatchClose
+				}
+				notification, e := wire.ServerFrame(row.Kind, row.ID, encrypted)
+				if e != nil {
+					return dispatchClose
+				}
+				if e = client.output.writeRaw(notification); e != nil {
+					return dispatchClose
+				}
+				client.event(map[string]any{"kind": "character_list_after_mutation", "request": requestData.frame.ID, "id": row.ID, "bytes": len(notification)})
 			}
-			notification, e := wire.ServerFrame(0, 2, encrypted)
-			if e != nil {
-				return dispatchClose
-			}
-			if e = client.output.writeRaw(notification); e != nil {
-				return dispatchClose
-			}
-			client.event(map[string]any{"kind": "character_list_after_mutation", "request": requestData.frame.ID, "id": 2, "bytes": len(notification)})
 			if e = restoreRosterBackgrounds(client.gameStore, client.developmentAccount, client.output.send, client.event); e != nil {
 				return dispatchClose
 			}

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"dfolan/internal/boostup"
 	"dfolan/internal/catalog"
 	"dfolan/internal/character"
 	"dfolan/internal/database"
@@ -216,6 +217,17 @@ type worldSession struct {
 	adventureReady      bool
 	seasonLevelSnapshot [32]byte
 	seasonOathSnapshot  [32]byte
+
+	// boostup 是「胶囊加速/新手成长」活动 662 的本连接目录视图（nil = 活动关闭）。
+	// 它由 gatewayRuntime 的同一份只读源解析结果按值共享，不在连接上重复解析。
+	boostup *boostup.Catalog
+	// boostWorldBase 记住被胶囊教学城镇替换掉的普通世界服务，毕业/失效后还原。
+	boostWorldBase *world.Service
+	// notifyBoostMail 把活动邮寄写进角色的未读信箱（唤醒 mailChanges 重发提示）。
+	notifyBoostMail func(int64)
+	// boostOperations 是活动领奖幂等键的来源（口径同装备线：连接随机数 + 传输帧
+	// 摘要）。donor 基线把同一个键发生器挂在会话的 itemOperations 上。
+	boostOperations requestKeySession
 }
 
 func (w *worldSession) enter(role database.Character, spawn database.WorldPosition) error {
@@ -260,6 +272,14 @@ func (w *worldSession) enter(role database.Character, spawn database.WorldPositi
 		if e != nil {
 			return e
 		}
+	}
+	// Starter Boost 662：训练中的角色入场落在活动城镇（胶囊教学房）。
+	// enterBoostWorld 是幂等的场景交接：Origin/Activated 早已落库，掉线重连重试
+	// 同一关而不再扣一次胶囊。handled=false 表示与活动无关，照普通世界进入。
+	if boostSaved, boostHandled, boostErr := w.enterBoostWorld(ctx, role, state.Level, saved.Position); boostErr != nil {
+		return boostErr
+	} else if boostHandled {
+		saved = boostSaved
 	}
 	w.role, w.level, w.state, w.odyssey = role, state.Level, saved, odyssey
 	w.ispinsRepeatPending = false

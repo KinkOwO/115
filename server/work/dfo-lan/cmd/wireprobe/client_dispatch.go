@@ -53,6 +53,7 @@ var commandDispatch = [...]clientDispatchStage{
 	(*gameConnection).dispatchWorldAndQuests,
 	(*gameConnection).dispatchCharacterEntry,
 	(*gameConnection).dispatchRoster,
+	(*gameConnection).dispatchBoostEvent,
 	(*gameConnection).dispatchFixtureResponse,
 }
 

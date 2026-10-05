@@ -3,7 +3,7 @@ package main
 import "testing"
 
 func TestEquipmentRequestKeyKeepsRetryIdentity(t *testing.T) {
-	s := equipmentSession{initialized: true, nonce: [16]byte{1, 2, 3}}
+	s := equipmentSession{requestKeySession: requestKeySession{initialized: true, nonce: [16]byte{1, 2, 3}}}
 	key, err := s.requestKey([]byte("abc"))
 	const want = "01020300000000000000000000000000:ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
 	if err != nil || key != want {

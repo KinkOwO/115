@@ -93,6 +93,16 @@ func (w *worldSession) dungeonGate(p []byte) ([]outboundPacket, error) {
 				{"dungeon_selection_sent", 0, 27, protocol.EnterDungeonSelection()},
 			}, nil
 		}
+		if w.boostup != nil && w.state.Position.Town == w.boostup.Town {
+			// 训练城镇内的副本白名单：只放行源里当前职业/关卡的引导房，其余一律拒绝。
+			if e = w.authorizeBoostDungeon(requested); e != nil {
+				return nil, e
+			}
+			return []outboundPacket{
+				{"boost_guide_gate_ack", 1, 15, []byte{1}},
+				{"boost_guide_selection", 0, 27, boostGuideSelectionPayload()},
+			}, nil
+		}
 		if e = w.authorizeTutorial(requested); e != nil {
 			return nil, e
 		}
@@ -196,6 +206,17 @@ func (w *worldSession) selectDungeon(p []byte) (*dungeon.Session, []outboundPack
 			return nil, nil, fmt.Errorf("Odyssey dungeon requires an Odyssey character")
 		}
 	}
+	// 训练城镇里的选图只走活动引导房：普通 tutorialDungeons 起始路线在
+	// 活动城镇不适用，也不能凭 ID 撞上就开局。
+	if w.boostup != nil && w.state.Position.Town == w.boostup.Town {
+		if !w.selectingDungeon || w.approvedDungeonGate != r.ID {
+			return nil, nil, fmt.Errorf("boost guide lacks this selection approval")
+		}
+		if e = w.authorizeBoostDungeon(r.ID); e != nil {
+			return nil, nil, e
+		}
+		return w.prepareDungeonEntry(r)
+	}
 	// A starting route names its own dungeon and has no town gate to stand
 	// at, so it is resolved before the ordinary gate check.
 	if w.tutorialDungeons != nil {
@@ -248,7 +269,14 @@ func (w *worldSession) prepareDungeonEntry(r protocol.DungeonSelection) (*dungeo
 		var accepted map[uint16]bool
 		accepted, e = w.acceptedQuestIDs(ctx)
 		if e == nil {
-			s, e = dungeon.Select(*w.dungeons, r, w.level, accepted)
+			// 引导副本在源里是 `[tutorial dungeon]`，普通 Select 一律拒绝教程房（实机
+			// 2026-10-04 14:43 第二关 CMD16 `100004558` 被 unsupported dungeon option
+			// 挡下）。判据与 authorizeBoostDungeon 同源，不是第二套规则。
+			if w.boostGuideSelection(r.ID) {
+				s, e = dungeon.SelectGuide(*w.dungeons, r, w.level, accepted)
+			} else {
+				s, e = dungeon.Select(*w.dungeons, r, w.level, accepted)
+			}
 		}
 	}
 	if e != nil {

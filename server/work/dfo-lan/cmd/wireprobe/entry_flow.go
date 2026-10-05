@@ -141,6 +141,13 @@ type entryPayloads struct {
 	SynopsisRead    []byte
 	CubeContract    []byte
 	OathSystemInfo  []byte
+	// Starter Boost 662 进城恢复：BoostGifts 是 NOTI2265 礼物可领集合，
+	// BoostTraining 是 NOTI2638 训练进度。活动关闭时两者为 nil，preparePackets
+	// 跳帧，普通角色进城序列与改动前逐字节一致。
+	// 2265 必须排在 enter_gameworld_complete(124) 之前（先建事件行），2638 必须排在
+	// 124 之后（任务面板对象这时才存在）—— 见 TestBoostGiftEntryOrderingAndPerRoleRestore。
+	BoostGifts    []byte
+	BoostTraining []byte
 	// Peers carries the USERINFO of every actor already standing in the scene.
 	// It is emitted after this actor's own placement but before the area list,
 	// because the client only places actors it already knows.
@@ -335,9 +342,13 @@ func (p entryPayloads) packets() []outboundPacket {
 		out = append(out, outboundPacket{"entry_peer_info_sent", 0, 2, info})
 	}
 	out = append(out,
+		outboundPacket{"boost_gift_states_restored", 0, 2265, p.BoostGifts},
 		outboundPacket{"town_entry_probe_sent", 0, 24, p.Area},
 		outboundPacket{"fatigue_sent", 0, 36, p.Fatigue},
 		outboundPacket{"enter_gameworld_complete_sent", 0, 124, p.Complete},
+		// 训练进度帧排在 124 之后：任务面板对象在进城完成前不存在，早到的 2638
+		// 会被丢掉，客户端的活动关卡停在旧值（实机第三关「面板不刷新」同一坑）。
+		outboundPacket{"boost_training_progress_restored", 0, 2638, p.BoostTraining},
 		// NOTI398 displayValue=0 collapses the top-left Liberation Trace panel
 		// (see docs/protocol/next52-liberation-trace-booster-gage-398.md). It
 		// must follow 124: the panel object is not initialized before it. The

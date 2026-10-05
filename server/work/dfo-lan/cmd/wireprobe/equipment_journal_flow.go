@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"dfolan/internal/boostup"
 	"dfolan/internal/catalog"
 	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
@@ -199,7 +200,7 @@ func (w *worldSession) equipmentCraft(p []byte, event func(map[string]any)) ([]o
 	//
 	// ★ 无论哪条失败分支，都**只记日志、绝不回包** —— 客户端在 2259 上没有失败分支，
 	//   两次实测收到 Error 都 `exit=0xC0000005`。
-	if r.Action == 1 && len(templates) > 0 {
+	if (r.Action == 1 || w.boostJournalSwap(r)) && len(templates) > 0 {
 		if equipmentTransformApply == "observe" {
 			log.Printf("equipment craft TRANSFORM-PLAN (observe): requested=%d slots=%v templates=%v",
 				len(templates), slots, templates)
@@ -356,6 +357,32 @@ func (w *worldSession) equipmentCraft(p []byte, event func(map[string]any)) ([]o
 			"cost_option": receipt.Cost, "gold": receipt.Gold})
 	}
 	return plan, nil
+}
+
+// boostJournalPanel / boostJournalContext 是 **662 教学期装备库窗口**的标识
+// （实机 2026-10-04 帧：`u32@0=36`、`u32@8=0x054131D0`）。
+//
+// 该窗口的 `[12]` 实测为 **0**，但它与既有取证的两对来源不符
+// （`panel=164 / context=0x46ece836` = 变换，`panel=0 / context=0x005ff2f9` = 生成，
+// 见 `analysis/tasks/next126-装备库制作CMD2259阶段一落地.md` §9），且请求点名的是
+// 「槽位 + 图鉴已登记的目标」—— 正是变换的输入形状（把图鉴那件换到点名槽位）。
+// ⇒ 该窗口在教学轨道内按**变换**分派。
+// ⚠️ **只看 panel，不要钉 context**：实测两天两个不同的值
+// （2026-10-04 、2026-10-05 ）—— 它随窗口实例变，不是窗口标识。
+// 前一次就是因为把 context 钉死成常量而没命中，学员号仍走了生成路径（落背包、不是互换）。
+const boostJournalPanel = 36
+
+// boostJournalSwap 判定这次 2259 是否来自教学期图鉴窗口、且角色仍在 662 训练轨道。
+// 两个条件都满足才改派为变换；出关或换窗口一律回到按 `[12]` 分派。
+func (w *worldSession) boostJournalSwap(r protocol.EquipmentCraftRequest) bool {
+	if w == nil || w.boostup == nil || w.role.ID == 0 {
+		return false
+	}
+	if r.Panel != boostJournalPanel {
+		return false
+	}
+	st, e := boostup.ReadState(w.role.State)
+	return e == nil && st.Activated && !st.Training.Finished
 }
 
 // craftFingerprint 把一次 2259 请求压成一个字符串指纹。
