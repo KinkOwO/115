@@ -267,9 +267,17 @@ func LaunchClient(ctx context.Context, root string, opts LaunchOptions, console 
 
 	// 客户端进程的 pid 与退出码在两条路上是同一个含义（run.json / probe.json 读它）。
 	var clientPID, clientExit int
-	// tryGoHost：只有 DFO_FORCE_PROBE_EXE 会在这里直接挡掉 Go 路径；能不能装隔离要
-	// 等 startHostedClient 试过才知道（下面按"有没有装上"分流）。
-	tryGoHost := !forceProbeFallback(run.Env)
+	// "谁拉客户端"的分流（含汉化包装带来的硬约束，见 clientwrapper.go）：有包装变量时**必须**
+	// 走 Go 宿主 —— probe.exe 是原生程序，没有"把被拉起的程序换成汉化宿主"这种能力。
+	route, err := planClientLaunch(run.Env)
+	if err != nil {
+		return err
+	}
+	wrapper := route.Wrapper
+	// tryGoHost：只有 DFO_FORCE_PROBE_EXE 会在这里直接挡掉 Go 路径（它和包装变量同时出现时
+	// planClientLaunch 已经报错了）；能不能装隔离要等 startHostedClient 试过才知道
+	// （下面按"有没有装上"分流）。
+	tryGoHost := !route.UseProbe
 	var hostAttempt *HostedClient
 	var hostErr error
 	var hostCode int
@@ -283,6 +291,9 @@ func LaunchClient(ctx context.Context, root string, opts LaunchOptions, console 
 			Args:            []string{payload},
 			Env:             run.Env.List(),
 			Console:         probeOut,
+			Wrapper:         wrapper.Host,
+			WrapperDLL:      wrapper.DLL,
+			ErrorLog:        probeErr,
 		}, true)
 		if hostErr == nil {
 			// 客户端已经退出、Job 已收、隔离已拆。pid 与退出码照实上报。
@@ -290,12 +301,22 @@ func LaunchClient(ctx context.Context, root string, opts LaunchOptions, console 
 			writeHelperLine(console, helperOut, wfpIsolationLine(hostAttempt))
 		} else if hostCode != exitClientHostMissingExe && hostAttempt != nil && hostAttempt.Isolated {
 			// 隔离装上了却起不了客户端：**不**回退 probe.exe（那会叠第二份隔离），
-			// 如实报错，让调用方看见。
+			// 如实报错，让调用方看见。启用汉化时还要点明"这一档必须经汉化启动宿主"，
+			// 否则玩家看到的只是一句隔离相关的失败，不知道汉化也在其中。
+			if wrapper.Enabled() {
+				return fmt.Errorf("Go 客户端宿主失败（已装的 WFP 隔离已拆除；这次启用汉化，客户端必须由汉化启动宿主拉起）：%w\n"+
+					"汉化宿主：%s\n客户端目录：%s", hostErr, wrapper.Host, clientDir)
+			}
 			return fmt.Errorf("Go 客户端宿主失败（已装的 WFP 隔离已拆除）：%w\n客户端目录：%s",
 				hostErr, clientDir)
 		}
 	}
 	if clientPID == 0 && clientExit != exitClientHostMissingExe {
+		if wrapper.Enabled() {
+			// 启用汉化时只有"Go 宿主 + 汉化启动宿主"这一条路（probe.exe 注入不了 dll），
+			// 所以这里**不**回退：回退只会静默给出一个没汉化的客户端，而那正是本次要消灭的现象。
+			return wrapperHostFailure(wrapper, clientDir, hostErr)
+		}
 		// 走到这里有两种情形，处置相同：回退 probe.exe。
 		//   1. 本机装不上 Go 隔离（非 Windows / 缺 API / 无管理员权限 / 装过滤器失败）；
 		//   2. 被 DFO_FORCE_PROBE_EXE 显式要求回退（验收与排障用）。
@@ -327,7 +348,8 @@ func LaunchClient(ctx context.Context, root string, opts LaunchOptions, console 
 	}
 
 	// 5. run.json 这次多一个 probe_pid（L651-L653）。Go 宿主跑在启动器进程里，
-	//    probe_pid 就是客户端进程自己（probe.exe 那一路是 probe.exe 的 pid）。
+	//    probe_pid 就是客户端进程自己（probe.exe 那一路是 probe.exe 的 pid）；经汉化启动宿主
+	//    拉起时它同样是客户端自己 —— 那个 pid 由宿主报回来（见 clienthost.go 的 WRAPPER_READY）。
 	if err := os.WriteFile(filepath.Join(out, "run.json"),
 		[]byte(sessionRunJSON(run.Child.pid(), clientPID, run.Port)), 0o644); err != nil {
 		return fmt.Errorf("写 run.json 失败：%w", err)

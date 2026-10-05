@@ -9,7 +9,9 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 )
 
 // 这个文件里的两条测试**默认不跑**：它们会真的拉起进程。门禁是环境变量
@@ -363,3 +365,237 @@ func assertNoLiveProcesses(t *testing.T) {
 		}
 	}
 }
+
+// ③ 汉化启动宿主路径（真起进程，同样需 DFO_CLIENT_HOST_LIVE_TEST=1）：证明"启用汉化时客户端
+// 由宿主拉起，宿主报回的 pid 就是客户端 pid"。
+//
+// 用的是**假宿主**（不是真汉化 dll）：它按真实宿主的 argv 语义收到
+// `<DFO.exe> <localization.dll> <payload…>`，自己起客户端、把 `READY <pid>` 写到 stdout，
+// 然后**立刻以 42 退出** —— 42 与客户端的退出码（`cmd.exe /c ping`，0）分开，于是
+// "我们等的/读的是客户端还是宿主"在这条用例里是被直接证明的（不是推断）：
+//
+//   - hosted.Pid 必须等于假宿主写进 pid 文件的**子进程** pid；
+//   - hosted.ExitCode 必须是 0（客户端的），不是 42（宿主的）；
+//   - 耗时必须覆盖客户端的存活时间（宿主早就退出了，等它就会立刻返回）。
+//
+// 假宿主就地编（用本机 Go）；也可以先用 DFO_LIVE_WRAPPER_HOST 指定一个现成的：
+//
+//	$env:DFO_CLIENT_HOST_LIVE_TEST='1'
+//	go test ./internal/launcher/ -run LiveWrappedClientHostReportsClientPID -v -timeout 300s
+func TestLiveWrappedClientHostReportsClientPID(t *testing.T) {
+	liveClientHostEnabled(t)
+
+	out := t.TempDir()
+	clientDir := filepath.Join(out, "client")
+	if err := os.MkdirAll(clientDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	hostTestClientExe(t, clientDir) // DFO.exe = 系统 cmd.exe 的副本
+
+	fakeHost := os.Getenv("DFO_LIVE_WRAPPER_HOST")
+	if fakeHost == "" {
+		fakeHost = buildFakeWrapperHost(t, out)
+	} else if !regularFile(fakeHost) {
+		t.Skipf("DFO_LIVE_WRAPPER_HOST 不是文件：%s", fakeHost)
+	}
+	dll := filepath.Join(out, "localization.dll")
+	if err := os.WriteFile(dll, []byte("stub"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// 走生产那条路：环境变量 → planClientLaunch → ClientHostOptions。
+	t.Setenv(clientWrapperEnvKey, fakeHost)
+	t.Setenv(clientWrapperDLLEnvKey, dll)
+	route, err := planClientLaunch(newChildEnv(CurrentEnv()))
+	if err != nil {
+		t.Fatalf("planClientLaunch: %v", err)
+	}
+	if route.UseProbe || route.Wrapper.Host != fakeHost || route.Wrapper.DLL != dll {
+		t.Fatalf("环境变量没有被认成汉化包装：%+v", route)
+	}
+
+	// 第一档：宿主报完 READY 立刻以 42 退出；客户端是 cmd.exe 副本跑 ping（约 3 秒）。
+	pidFile := filepath.Join(out, "fake-host-child.pid")
+	logPath := filepath.Join(out, "client.log")
+	console, stderrLog := &lockedBuffer{}, &lockedBuffer{}
+	started := time.Now()
+	hosted, code, err := startHostedClient(ClientHostOptions{
+		ClientDir:  clientDir,
+		LogPath:    logPath,
+		Seconds:    55,
+		UIMode:     "trace-root-ui", // 有界：万一客户端没起来也不会永远等
+		Args:       []string{"/c", "ping", "-n", "4", "127.0.0.1"},
+		Console:    console,
+		ErrorLog:   stderrLog,
+		Wrapper:    route.Wrapper.Host,
+		WrapperDLL: route.Wrapper.DLL,
+		// 隔离关掉：这条用例验的是宿主包装与 pid 传递，装 WFP 需要管理员权限。
+		Env: append(os.Environ(), "DFO_FAKE_HOST_PIDFILE="+pidFile),
+	}, false)
+	elapsed := time.Since(started)
+	if err != nil {
+		t.Fatalf("经汉化宿主拉起客户端失败：%v（宿主 stderr：%s）", err, stderrLog.String())
+	}
+	if code != 0 {
+		t.Errorf("宿主返回码 = %d，want 0（probe 只在起不来时才非 0）", code)
+	}
+	if hosted == nil {
+		t.Fatal("没有返回客户端句柄")
+	}
+	if !hosted.Wrapped {
+		t.Error("这次应当被标成经汉化宿主拉起（Wrapped）")
+	}
+	if hosted.WrapperPID <= 0 || hosted.WrapperPID == hosted.Pid {
+		t.Errorf("宿主 pid = %d、客户端 pid = %d：两者都要有且不同", hosted.WrapperPID, hosted.Pid)
+	}
+
+	reported, readErr := os.ReadFile(pidFile)
+	if readErr != nil {
+		t.Fatalf("假宿主没有写出客户端 pid（%s）：%v", pidFile, readErr)
+	}
+	if want := strings.TrimSpace(string(reported)); want != fmt.Sprint(hosted.Pid) {
+		t.Errorf("记录的客户端 pid = %d，假宿主报的是 %s（应取宿主报回的那个）", hosted.Pid, want)
+	}
+	// 退出码：客户端是 0，假宿主自己是 42 —— 读到 42 就说明等错了进程。
+	if hosted.ExitCode != 0 {
+		t.Errorf("客户端退出码 = %d，want 0（42 说明读的是汉化宿主的退出码）", hosted.ExitCode)
+	}
+	// 宿主报完 READY 就退出了，所以能等到"客户端跑完"才说明等的是客户端。
+	if elapsed < 1500*time.Millisecond {
+		t.Errorf("整次调用只用了 %s：宿主早已退出，说明没有等客户端", elapsed)
+	}
+	if !hosted.JobClosed {
+		t.Error("Job 应当已经关掉（JOB_CLOSED）")
+	}
+
+	body, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatalf("client.log: %v", err)
+	}
+	text := string(body)
+	// 既有行一个不少（probe.cpp 的契约），多出来的只有 WRAPPER_*。
+	for _, want := range []string{
+		"WFP_NOT_AVAILABLE_RUNNING_WITHOUT_ISOLATION", // isolate=false：如实写明没有隔离
+		"ROOT_PID ",
+		"NORMAL_RUN no_debugger no_breakpoints",
+		"SUMMARY exit=0x0 normal_run=1",
+		"JOB_CLOSED",
+		"WRAPPER_HOST " + fakeHost,
+		fmt.Sprintf("WRAPPER_READY client_pid=%d", hosted.Pid),
+	} {
+		if !strings.Contains(text, want) {
+			t.Errorf("client.log 缺少 %q：\n%s", want, text)
+		}
+	}
+	if strings.Contains(text, "WRAPPER_ATTACH_ERROR") {
+		t.Errorf("应当能拿到客户端句柄（否则等的是宿主，pid 传递就没被证明）：\n%s", text)
+	}
+	t.Logf("汉化宿主 pid=%d，客户端 pid=%d（假宿主写出的 pid 文件也是 %s），客户端退出码=%d，整次调用 %s",
+		hosted.WrapperPID, hosted.Pid, strings.TrimSpace(string(reported)), hosted.ExitCode, elapsed.Round(time.Millisecond))
+	t.Logf("client.log:\n%s", text)
+	// 宿主的其余 stdout 按既有规则转给了 helper.out（Console），stderr 去了 helper.err。
+	if !strings.Contains(console.String(), "fake-host: dll injected") {
+		t.Errorf("宿主 stdout 的其余内容没有转发到 console：%q", console.String())
+	}
+	if !strings.Contains(console.String(), fmt.Sprintf("WRAPPER_READY client_pid=%d", hosted.Pid)) {
+		t.Errorf("client.log 的行没有回显到 console：%q", console.String())
+	}
+
+	// 第二档：客户端换成一个**已知的非零退出码**（`/c exit 7`），宿主仍然立刻以 42 退出。
+	// 上报 7 而不是 0（默认值）也不是 42（宿主）——这是"退出码从客户端来"的第二份证据。
+	second, secondCode, err := startHostedClient(ClientHostOptions{
+		ClientDir:  clientDir,
+		LogPath:    filepath.Join(out, "client2.log"),
+		Seconds:    55,
+		UIMode:     "trace-root-ui",
+		Args:       []string{"/c", "exit", "7"},
+		Wrapper:    route.Wrapper.Host,
+		WrapperDLL: route.Wrapper.DLL,
+		Env:        append(os.Environ(), "DFO_FAKE_HOST_PIDFILE="+filepath.Join(out, "fake-host-child2.pid")),
+	}, false)
+	if err != nil {
+		t.Fatalf("第二档失败：%v", err)
+	}
+	if secondCode != 0 || second == nil {
+		t.Fatalf("第二档宿主返回码 = %d，hosted = %+v", secondCode, second)
+	}
+	if second.ExitCode != 7 {
+		t.Errorf("客户端退出码 = %d，want 7（0 是默认值、42 是宿主的）", second.ExitCode)
+	}
+}
+
+// lockedBuffer 是并发安全的 bytes.Buffer。
+//
+// 为什么需要：汉化宿主的 stdout 由**转发 goroutine** 抄进 Console，而 client.log 的行由主
+// goroutine 写同一个 Console（生产上那是一个 helper.out 文件句柄，测试里换成 buffer 就必须
+// 自己加锁，否则会丢行 —— 2026-10-05 实测踩到过）。
+type lockedBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *lockedBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *lockedBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
+}
+
+// buildFakeWrapperHost 用本机 Go 就地编一个假的汉化启动宿主（源码见 fakeWrapperHostSource），
+// 返回它的路径。编不出来就 skip：这条实测是"能测到多少算多少"，不该把整个用例判失败。
+func buildFakeWrapperHost(t *testing.T, dir string) string {
+	t.Helper()
+	goTool, err := exec.LookPath("go")
+	if err != nil {
+		t.Skipf("没找到 go，无法就地编出假宿主（可改用 DFO_LIVE_WRAPPER_HOST 指定现成的）：%v", err)
+	}
+	source := filepath.Join(dir, "fake-localization-host.go")
+	if err := os.WriteFile(source, []byte(fakeWrapperHostSource), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	exe := filepath.Join(dir, "fake-localization-host.exe")
+	build := exec.Command(goTool, "build", "-o", exe, source)
+	if output, err := build.CombinedOutput(); err != nil {
+		t.Skipf("编假宿主失败（%v）：\n%s", err, output)
+	}
+	return exe
+}
+
+// fakeWrapperHostSource 是假汉化启动宿主的源码：argv = `<DFO.exe> <dll> <payload…>`
+// （与真宿主同一份协议），自己起客户端、把客户端 pid 写进 DFO_FAKE_HOST_PIDFILE、
+// 往 stdout 写 `READY <pid>`、再补一行输出（用来证明宿主的其余 stdout 也会被转发），
+// 最后**以 42 退出** —— 42 与客户端退出码无关，用来分辨"编排程序等/读的是谁"。
+const fakeWrapperHostSource = `package main
+
+import (
+	"fmt"
+	"os"
+	"os/exec"
+)
+
+func main() {
+	if len(os.Args) < 3 {
+		fmt.Fprintln(os.Stderr, "usage: fake-host <client.exe> <dll> [args...]")
+		os.Exit(2)
+	}
+	client := os.Args[1]
+	payload := os.Args[3:]
+	child := exec.Command(client, payload...)
+	if err := child.Start(); err != nil {
+		fmt.Fprintln(os.Stderr, "fake-host: start failed:", err)
+		os.Exit(3)
+	}
+	if path := os.Getenv("DFO_FAKE_HOST_PIDFILE"); path != "" {
+		_ = os.WriteFile(path, []byte(fmt.Sprint(child.Process.Pid)), 0o644)
+	}
+	fmt.Printf("READY %d\n", child.Process.Pid)
+	fmt.Println("fake-host: dll injected (stub)")
+	// 宿主报完就走：真实宿主也在初始化完成后不再需要它，客户端归编排程序看护。
+	os.Exit(42)
+}
+`

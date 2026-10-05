@@ -26,6 +26,50 @@
 
 ---
 
+## 2026-10-05：汉化 dll（localization.dll）经启动宿主接回完整链路
+
+### 已修复 / 已完成
+
+- **背景**：启动器 1.6.1 把「开始游戏」改成与本仓库编排同一条路（`dfolauncher launch`，客户端由本程序拉起）
+  之后，启动器那条"把客户端交给 `localization-host.exe` 注入 `localization.dll`"的路没有调用方了 ——
+  启用汉化只能得到一个文本不生效的客户端。
+- **通道是环境变量**（对新链路零侵入：argv、`client.log` 行、退出码、`run.json` / `probe.json` 字段一字未动）：
+  `DFO_CLIENT_WRAPPER` / `DFO_CLIENT_WRAPPER_DLL`（由启动器 `internal/run` 下发）。两个都在时客户端那一步变成
+  `<host> <client_dir>\DFO.exe <dll> <payload…>`，宿主自己起客户端并注入 dll，把 `READY <游戏客户端 pid>`
+  写到 stdout；我们读到的 pid 就是本次会话的客户端 pid（`probe_pid` 与日志里凡是客户端 pid 的地方都用它）。
+- **落地**：新增 `internal/launcher/clientwrapper.go`（读变量/判分流/等 READY/留 stderr 尾部）；
+  `clientrun.go` 有包装变量时强制走 Go 宿主；`clienthost.go` + `clienthost_windows.go` 用 `CreatePipe`
+  接管宿主 stdout（读 READY）与 stderr（→ helper.err），用 `OpenProcess` 盯**客户端**而不是宿主。
+- **超时与不阻塞**：`clientWrapperReadyTimeout = 30s`（启动器侧同一值）。超时/握手无效 → 杀宿主（Job 里
+  已起来的客户端一并收掉）→ 宿主 stderr 尾部进 `client.log`（`WRAPPER_STDERR`）与错误信息 → 启动失败。
+- **回退边界**：包装变量存在时**必须**走 Go 宿主（`probe.exe` 是原生程序，换不掉被拉起的程序）；
+  `DFO_FORCE_PROBE_EXE=1` 与包装变量同时出现、或 Go 宿主不可用（非 Windows / `CreateProcessW` 失败 /
+  宿主文件缺失）→ **明确报错**，绝不回退成"汉化看起来开着、文本却不生效"。
+- 启动器侧：删掉那行"不经过汉化启动宿主"的警告，改为真实注入；宿主/dll 不在盘上时有界补齐
+  （资源包按需下载，上限 10 分钟），补不齐直接报错并指回「MOD 工具」页。
+
+### 未修复 / 未闭环
+
+- 业主机器上汉化**未启用**（`DFO\.launcher-mods\localization\enabled` 不存在），**真**宿主 + 真 dll 的
+  注入没有实机验收；本机证据是替身宿主（下方"bug 测试取证"）。
+- 真宿主在报出 READY 后是否立即退出、stdout 是否只有这一行，本机没有样本；代码按"宿主可能早退"设计
+  （等客户端 pid，拿不到客户端句柄时退回等宿主并记 `WRAPPER_ATTACH_ERROR`）。
+- WFP 隔离未在本机验证（无管理员权限），这条与既有 Go 宿主同口径，与汉化通道无关。
+
+### bug 测试取证
+
+- **实测抓到并修掉**：argv 里宿主路径写了两次（`clientWrapper.Argv` 已含 argv[0]，
+  `buildClientCommandLine` 又拼一次）→ 宿主收到 `[host host DFO.exe dll payload]`，于是它把自己又起了一遍，
+  "客户端"成了第二个宿主实例（退出码 3、无任何输出、pid 传递看起来"通"了但完全是错的）。
+  回归用例 `TestWrapperCommandLineShape`（钉命令行形状与"宿主只出现一次"）。
+- 单测（默认跑）：`clientwrapper_test.go` —— 变量解析（半套配置报错）、argv 形状、分流表（有包装变量
+  必走 Go 宿主 / 强制 probe 冲突时报错）、`parseWrapperReady` 表、握手转发、**超时有界**、宿主缺失与
+  非法 PE 的明确报错。
+- 门禁实测（`DFO_CLIENT_HOST_LIVE_TEST=1`）：`TestLiveWrappedClientHostReportsClientPID` 用就地编的
+  假宿主真跑 —— 宿主报回 pid（写进 pid 文件）与 `hosted.Pid` 一致；宿主以 42 提前退出而客户端跑满
+  ~3 秒（说明等的是客户端）、客户端退出码 0 与 7 如实上报（不是宿主的 42）；`client.log` 既有行一个不少，
+  多出的只有 `WRAPPER_READY` / `ROOT_PID`（宿主）等新行。
+
 ## 2026-10-05：副本已鉴定穿戴装备问号修复
 
 ### 已修复 / 已完成
